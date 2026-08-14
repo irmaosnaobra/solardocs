@@ -32,7 +32,12 @@ import type { NextRequest } from 'next/server';
 // ela está indo criar. Sem esta linha o lead que clica no link cai no /auth, vê
 // uma tela de login de um produto que ele ainda não assinou, e a venda morre na
 // porta. Conferido em produção: sem ela, 307 pro /auth?mode=login.
-const PUBLIC_PATHS = ['/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/orc/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular', '/kit', '/oferta', '/eletroposto', '/plugcash', '/assinar', '/lib', '/robots.txt', '/sitemap.xml'];
+// '/quase-la' = onde a Stripe joga quem clicou em "voltar" no checkout. Mesmo
+// caso do /assinar, e o mais caro de todos: a pessoa está com a carteira na mão,
+// veio da LP e AINDA NÃO TEM CONTA (no fluxo público a conta nasce depois do
+// pagamento). Sem esta linha ela desiste do cartão e cai numa tela de login —
+// conferido rodando o build local: 307 pro /auth?mode=login.
+const PUBLIC_PATHS = ['/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/orc/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular', '/kit', '/oferta', '/eletroposto', '/plugcash', '/assinar', '/quase-la', '/lib', '/robots.txt', '/sitemap.xml'];
 
 export function proxy(request: NextRequest) {
   const token = request.cookies.get('solardoc_token')?.value;

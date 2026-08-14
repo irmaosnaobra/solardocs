@@ -17,7 +17,7 @@
 
 import crypto from 'crypto';
 import { supabase } from '../utils/supabase';
-import { sendKitAcessoEmail, sendFerramentaAcessoEmail, sendOpsAlert } from '../utils/mailer';
+import { sendKitAcessoEmail, sendFerramentaAcessoEmail, sendMesPixAcessoEmail, sendOpsAlert } from '../utils/mailer';
 import { liberarOffGrid, OFFGRID_PRODUTO_REGEX, OFFGRID_ADDON_PRECO } from './offgrid/acesso';
 import { concederAcesso } from './produtos/acessos';
 
@@ -31,8 +31,13 @@ export const KIT_BUMP_TRIAL_DIAS = 30;
  *  Dois bumps de acesso convivem, e a diferença NÃO é cosmética:
  *  - `bump_vip`    — trial de 30 dias (legado). Carimba pack_trial_until.
  *  - `entrada_30d` — "SolarDoc - 30 dias", R$19 PAGO. Acesso completo comprado,
- *                    não trial. Carimba plano_expira_em (ver concederEntrada30Dias). */
-export type ItemKit = 'kit' | 'bump_vip' | 'entrada_30d' | 'offgrid' | 'precificacao' | 'inventario';
+ *                    não trial. Carimba plano_expira_em (ver concederEntrada30Dias).
+ *  - `mes_pix`     — "SolarDoc — 1 mês", R$67. É o trilho de Pix da recuperação de
+ *                    checkout abandonado (a maioria não tem/não passa cartão).
+ *                    MESMO acesso da entrada, SEM o curso: o Kit de Fechamento é
+ *                    produto pago à parte, e dar de brinde aqui repetiria o erro
+ *                    que a nota do pixRecoveryAgentService já registra. */
+export type ItemKit = 'kit' | 'bump_vip' | 'entrada_30d' | 'mes_pix' | 'offgrid' | 'precificacao' | 'inventario';
 
 // ── Identificação do produto ────────────────────────────────────────────────
 // Preferência: IDs de produto da Kiwify via env (exato, à prova de renomeação).
@@ -56,6 +61,12 @@ const RE_BUMP_VIP = /30\s*dias.*vip|vip.*30\s*dias|solar\s*doc\s*vip|acesso\s*vi
 // Exige 'solardoc' COLADO em '30 dias' (só separadores no meio) pra não engolir
 // produto de outro funil que por acaso venda "30 dias".
 const RE_ENTRADA_30D = /solar\s*doc\s*[-–—:]*\s*30\s*dias/i;
+// "SolarDoc — 1 mês" (R$67), o checkout de Pix da recuperação. Casa por MÊS, nunca
+// por "30 dias": a entrada de R$19 se chama "30 dias" e vem com o curso junto — um
+// nome ambíguo aqui entregaria o Kit de Fechamento de graça pra quem pagou só o mês.
+// Por isso também é testada ANTES das outras duas (mesma precedência que já protege
+// o bump legado do VIP).
+const RE_MES_PIX = /solar\s*doc[^|]*\b(1|um)\s*m[eê]s|m[eê]s\s*avulso/i;
 
 /** Classifica o produto de um evento da Kiwify. null = não é do kit. */
 export function classificarProdutoKit(
@@ -67,13 +78,17 @@ export function classificarProdutoKit(
     if (idsDoEnv('KIT_KIWIFY_PRODUCT_IDS').includes(id)) return 'kit';
     if (idsDoEnv('KIT_KIWIFY_BUMP_VIP_IDS').includes(id)) return 'bump_vip';
     if (idsDoEnv('KIT_KIWIFY_ENTRADA_30D_IDS').includes(id)) return 'entrada_30d';
+    if (idsDoEnv('KIT_KIWIFY_MES_PIX_IDS').includes(id)) return 'mes_pix';
     if (idsDoEnv('OFFGRID_KIWIFY_PRODUCT_IDS').includes(id)) return 'offgrid';
     if (idsDoEnv('PRECIFICACAO_KIWIFY_PRODUCT_IDS').includes(id)) return 'precificacao';
     if (idsDoEnv('INVENTARIO_KIWIFY_PRODUCT_IDS').includes(id)) return 'inventario';
   }
   const nome = (productName || '').trim();
   if (!nome) return null;
-  // VIP primeiro: "SolarDoc VIP — 30 dias" é o bump legado e não pode cair na
+  // Mês avulso primeiro: é o único que NÃO leva curso junto, então perder a
+  // classificação dele custa produto entregue de graça.
+  if (RE_MES_PIX.test(nome)) return 'mes_pix';
+  // VIP depois: "SolarDoc VIP — 30 dias" é o bump legado e não pode cair na
   // entrada (que é compra paga, com colunas diferentes).
   if (RE_BUMP_VIP.test(nome)) return 'bump_vip';
   if (RE_ENTRADA_30D.test(nome)) return 'entrada_30d';
@@ -228,7 +243,9 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
       // com a concessão: entrada_30d vive em plano_expira_em, o bump legado em
       // pack_trial_until. Zerar a coluna basta — o stripeSync rebaixa na sequência
       // (e restaura quem tiver assinatura de verdade).
-      const coluna = evt.item === 'entrada_30d' ? 'plano_expira_em' : 'pack_trial_until';
+      const coluna = evt.item === 'entrada_30d' || evt.item === 'mes_pix'
+        ? 'plano_expira_em'
+        : 'pack_trial_until';
       await supabase
         .from('users')
         .update({ [coluna]: null })
@@ -333,6 +350,15 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
     if (acessoAte) bumpAplicado = true;
   }
 
+  // 3c) MÊS AVULSO no Pix (R$67) — o trilho de quem abandonou o checkout da
+  //     Stripe e não vai pagar no cartão. Mesmo acesso da entrada, SEM o curso.
+  //     `bumpAplicado` fica INTOCADO de propósito: este pedido não é order bump
+  //     de checkout nenhum, e a coluna alimenta a taxa de attach do kit no /admin.
+  //     A idempotência não depende dela — quem carimba é `trial_vip_ate`, abaixo.
+  if (evt.item === 'mes_pix' && !jaConcedeuNessePedido) {
+    acessoAte = await concederMesPago(userId, email, { comCurso: false, rotulo: 'mês avulso (Pix)' });
+  }
+
   // 4) E-mail de acesso — o gate é o CARIMBO, não "o pedido é novo". No Pix a
   //    Kiwify manda dois webhooks (waiting_payment e depois paid): quando o pago
   //    chega, o pedido JÁ existe. Gatear por "pedido novo" deixaria quem paga no
@@ -345,7 +371,31 @@ export async function processarEventoKit(evt: EventoKit): Promise<ResultadoKit> 
   // e-mail duplicado.
   const jaMandouEmail = !!pedidoExistente?.acesso_email_em;
   let emailEnviadoAgora = false;
-  if (!jaMandouEmail && (evt.item === 'kit' || (evt.item === 'entrada_30d' && contaCriada))) {
+
+  // MÊS AVULSO: e-mail próprio, e SEMPRE (conta nova ou antiga). Ele não tem
+  // material do kit pra anunciar — o que a pessoa precisa é saber que o acesso
+  // está de pé e por onde entrar. E manda mesmo pra quem já tinha conta porque
+  // este é o caminho de quem pagou no Pix sem sessão aberta: sem o e-mail, ele
+  // pagou e fica esperando alguém responder no WhatsApp.
+  if (!jaMandouEmail && evt.item === 'mes_pix') {
+    try {
+      await sendMesPixAcessoEmail({
+        to: email,
+        nome: evt.nome,
+        acessoUrl: resetUrl,
+        contaNova: contaCriada,
+        ate: acessoAte,
+      });
+      emailEnviadoAgora = true;
+    } catch (err) {
+      console.error('[kit] e-mail do mês avulso falhou (acesso já está liberado):', err);
+      sendOpsAlert(
+        'Pix: mês liberado sem e-mail de acesso',
+        `<p>${email} pagou o mês no Pix (pedido ${evt.orderId}) e o acesso foi liberado, mas o e-mail não saiu.</p>
+         <p>Mande o link na mão: <a href="${resetUrl}">${resetUrl}</a></p>`,
+      ).catch(() => {});
+    }
+  } else if (!jaMandouEmail && (evt.item === 'kit' || (evt.item === 'entrada_30d' && contaCriada))) {
     try {
       await sendKitAcessoEmail({
         to: email,
@@ -550,17 +600,33 @@ async function concederTrialVip(userId: string): Promise<ResultadoTrial> {
 // rebaixa sozinho.
 const ENTRADA_30D_DIAS = 30;
 
+/** A entrada de R$19 é "curso + 30 dias de plataforma". */
 async function concederEntrada30Dias(userId: string, email: string): Promise<Date | null> {
+  return concederMesPago(userId, email, { comCurso: true, rotulo: 'entrada de 30 dias' });
+}
+
+/**
+ * Um mês pago de acesso completo. `comCurso` é a ÚNICA diferença entre a entrada
+ * de R$19 (que vende o curso junto) e o mês avulso de R$67 do Pix — e é uma
+ * diferença de produto, não de implementação: liberar o curso no mês avulso daria
+ * de graça o que o Kit de Fechamento cobra.
+ */
+async function concederMesPago(
+  userId: string,
+  email: string,
+  opts: { comCurso: boolean; rotulo: string },
+): Promise<Date | null> {
   const ate = new Date(Date.now() + ENTRADA_30D_DIAS * 86400_000);
 
   const { data: atual } = await supabase
     .from('users')
-    .select('plano_expira_em')
+    .select('plano_expira_em, billing_status')
     .eq('id', userId)
     .maybeSingle();
 
   // Já tem acesso pago em curso (renovação Pix, ou comprou a entrada duas vezes):
   // empilha em cima do que resta em vez de encurtar. Mesma regra do liberarAcessoPix.
+  const statusAnterior = (atual as { billing_status?: string | null } | null)?.billing_status;
   const atualExpira = (atual as { plano_expira_em?: string | null } | null)?.plano_expira_em;
   const base = atualExpira && new Date(atualExpira).getTime() > Date.now()
     ? new Date(new Date(atualExpira).getTime() + ENTRADA_30D_DIAS * 86400_000)
@@ -578,7 +644,7 @@ async function concederEntrada30Dias(userId: string, email: string): Promise<Dat
     .eq('id', userId);
 
   if (error) {
-    console.error('[kit] concessão da entrada de 30 dias falhou:', error);
+    console.error(`[kit] concessão da ${opts.rotulo} falhou:`, error);
     return null;
   }
 
@@ -586,13 +652,47 @@ async function concederEntrada30Dias(userId: string, email: string): Promise<Dat
   // Desde 30/jul/2026 o plano sozinho não abre mais o curso — quem abre é a linha
   // paga em kit_pedidos. Sem isto, quem leva só a entrada (sem o kit de R$27) paga
   // pelo curso e bate no cadeado.
-  try {
-    await concederCursoPorAssinatura(userId, email);
-  } catch (err) {
-    console.error('[kit] curso da entrada de 30 dias falhou (acesso já liberado):', err);
+  if (opts.comCurso) {
+    try {
+      await concederCursoPorAssinatura(userId, email);
+    } catch (err) {
+      console.error(`[kit] curso da ${opts.rotulo} falhou (acesso já liberado):`, err);
+    }
   }
 
-  console.info(`[kit] entrada de 30 dias liberada · ${email} · até ${base.toISOString()}`);
+  // COBRANÇA DUPLA: quem estava em dunning e resolveu pagando aqui continua com a
+  // assinatura de cartão falhando no Stripe — e o Smart Retries ainda pode cobrar.
+  // Mesma regra do Pix manual (encerrarDunningPix, pixComprovanteService:213); o
+  // import é dinâmico porque pixComprovanteService/dunningService já importam este
+  // arquivo e o import estático fecharia um ciclo.
+  //
+  // Só no mês avulso (o trilho de Pix da recuperação). A entrada de R$19 é order
+  // bump do checkout do kit, comprada por gente que está chegando — cancelar
+  // assinatura por causa dela seria mexer num funil que ninguém pediu pra mexer.
+  const trilhoDeRecuperacao = !opts.comCurso;
+  if (trilhoDeRecuperacao && (statusAnterior === 'past_due' || statusAnterior === 'suspended')) {
+    try {
+      const { cancelStripeSubsForEmail } = await import('./dunningService');
+      const n = await cancelStripeSubsForEmail(email);
+      await supabase.from('users')
+        .update({ past_due_since: null, dunning_last_day_sent: null })
+        .eq('id', userId);
+      console.info(`[kit] dunning encerrado por Pix (${email}): ${n} sub(s) de cartão canceladas`);
+      if (n === 0) {
+        // 0 = ou o cancel falhou, ou o e-mail não casou no Stripe. Nos dois casos o
+        // cartão dele pode cobrar de novo — não dá pra fingir que deu certo.
+        sendOpsAlert(
+          'Pix reativou cliente em dunning, mas nenhuma assinatura foi cancelada',
+          `<p>${email} pagou o mês no Pix estando em dunning, e não achei assinatura de cartão pra cancelar no Stripe.</p>
+           <p>Confere na Stripe se o cartão dele não vai cobrar em dobro.</p>`,
+        ).catch(() => {});
+      }
+    } catch (err) {
+      console.error(`[kit] encerrar dunning por Pix falhou (${email}):`, err);
+    }
+  }
+
+  console.info(`[kit] ${opts.rotulo} liberada · ${email} · até ${base.toISOString()}`);
   return base;
 }
 

@@ -97,8 +97,10 @@ vi.mock('../utils/supabase', () => ({ supabase: { from: (t: string) => query(t) 
 
 const enviados: any[] = [];
 const alertas: any[] = [];
+const enviadosMesPix: any[] = [];
 vi.mock('../utils/mailer', () => ({
   sendKitAcessoEmail: vi.fn(async (opts: any) => { enviados.push(opts); }),
+  sendMesPixAcessoEmail: vi.fn(async (opts: any) => { enviadosMesPix.push(opts); }),
   // Assinante que compra o bump paga e não recebe nada — o service avisa o dono
   // em vez de deixar o caso morrer no log.
   sendOpsAlert: vi.fn(async (assunto: string, corpo: string) => { alertas.push({ assunto, corpo }); }),
@@ -137,6 +139,8 @@ beforeEach(() => {
   db.kit_progresso = [];
   emails.clear();
   enviados.length = 0;
+  enviadosMesPix.length = 0;
+  alertas.length = 0;
 });
 
 describe('classificarProdutoKit', () => {
@@ -332,6 +336,85 @@ describe('processarEventoKit — entrada de 30 dias (R$19)', () => {
     expect(db.users[0].plano_expira_em).toBeTruthy();
 
     await processarEventoKit(entrada({ status: 'refunded' }));
+    expect(db.users[0].plano_expira_em).toBeNull();
+  });
+});
+
+// ── Mês avulso no Pix ("SolarDoc — 1 mês", R$67) ────────────────────────────
+// É o trilho de quem abandonou o checkout da Stripe e não vai pagar no cartão: o
+// Pix é nativo na Kiwify e a liberação vem por este webhook, sem comprovante.
+// O risco que estes testes travam é o produto novo cair na entrada de R$19 e sair
+// entregando o Kit de Fechamento de graça.
+describe('processarEventoKit — mês avulso no Pix (R$67)', () => {
+  const mes = (over: Partial<EventoKit> = {}) => evento({
+    orderId: 'ORDER-67', item: 'mes_pix', produto: 'SolarDoc — 1 mês',
+    valorCentavos: 6700, ...over,
+  });
+
+  it('reconhece o mês pelo nome, sem roubar a entrada de 30 dias', () => {
+    expect(classificarProdutoKit('SolarDoc — 1 mês', null)).toBe('mes_pix');
+    expect(classificarProdutoKit('SolarDoc - 1 mes de acesso', null)).toBe('mes_pix');
+    expect(classificarProdutoKit('Solar Doc um mês', null)).toBe('mes_pix');
+    // As vizinhas continuam onde estavam.
+    expect(classificarProdutoKit('SolarDoc - 30 dias', null)).toBe('entrada_30d');
+    expect(classificarProdutoKit('SolarDoc VIP — 30 dias', null)).toBe('bump_vip');
+  });
+
+  it('libera 30 dias de acesso completo em plano_expira_em', async () => {
+    const r = await processarEventoKit(mes());
+    expect(r.acao).toBe('acesso_liberado');
+
+    const user = db.users[0];
+    expect(user.plano).toBe('ilimitado');
+    expect(user.limite_documentos).toBe(999999);
+    expect(user.billing_status).toBe('active');
+    expect(user.pack_trial_until ?? null).toBeNull();
+    const dias = Math.round((new Date(user.plano_expira_em).getTime() - Date.now()) / 86400000);
+    expect(dias).toBe(30);
+
+    // Não é order bump de checkout nenhum: contar como bump inflaria a taxa de
+    // attach do kit no /admin. Mas o carimbo de idempotência PRECISA existir.
+    const pedido = db.kit_pedidos.find((p: any) => p.order_id === 'ORDER-67')!;
+    expect(pedido.bump_vip).toBe(false);
+    expect(pedido.bump_aplicado ?? null).toBeNull();
+    expect(pedido.trial_vip_ate).toBeTruthy();
+  });
+
+  it('NÃO entrega o curso — o Kit de Fechamento é produto pago à parte', async () => {
+    await processarEventoKit(mes());
+    const acesso = await acessoDoUsuario(db.users[0].id, EMAIL);
+    expect(acesso.temKit).toBe(false);
+  });
+
+  it('manda o e-mail de acesso mesmo pra quem JÁ tinha conta (pagou no Pix, sem sessão aberta)', async () => {
+    db.users.push({ id: 'u1', email: EMAIL, password_hash: 'hash', plano: 'free' });
+    emails.add(EMAIL);
+
+    await processarEventoKit(mes());
+    expect(enviadosMesPix).toHaveLength(1);
+    expect(enviadosMesPix[0].to).toBe(EMAIL);
+    expect(enviadosMesPix[0].contaNova).toBe(false);
+    // Nada de e-mail do kit: ele não comprou curso nenhum.
+    expect(enviados).toHaveLength(0);
+  });
+
+  it('reentrega da Kiwify não estende o acesso nem repete o e-mail', async () => {
+    await processarEventoKit(mes({ status: 'waiting_payment' }));
+    expect(enviadosMesPix).toHaveLength(0);
+
+    await processarEventoKit(mes());
+    const validade = db.users[0].plano_expira_em;
+
+    await processarEventoKit(mes());
+    expect(db.users[0].plano_expira_em).toBe(validade);
+    expect(enviadosMesPix).toHaveLength(1);
+  });
+
+  it('reembolso revoga o acesso pago', async () => {
+    await processarEventoKit(mes());
+    expect(db.users[0].plano_expira_em).toBeTruthy();
+
+    await processarEventoKit(mes({ status: 'refunded' }));
     expect(db.users[0].plano_expira_em).toBeNull();
   });
 });

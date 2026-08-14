@@ -22,6 +22,7 @@ import { porBarras } from '../bolhas';
 import { logger } from '../../../utils/logger';
 import { ofertaCupomAtiva, bolhasOferta, resumoOfertaParaPrompt, LINK_ASSINATURA, OfertaCupom } from '../../../utils/ofertaCupom';
 import { gerarPixCopiaECola } from '../../../utils/pixBrCode';
+import { bolhasPixCheckout, pixAutomatico } from '../../../utils/pixInfo';
 import { bolhasPix, registrarPixEnviado, guardarEmailSePendente } from './pixSolicitado';
 import { registrarMsgProativa } from './whatsappAgentService';
 
@@ -78,9 +79,14 @@ function giovannaSystem(nome: string | null, oferta: OfertaCupom | null): string
     '- Acolhe primeiro ("foi o cartão que não passou?"). No primeiro toque, só abre a conversa.',
     `- Assim que ele responder qualquer coisa que não seja "não quero", MANDE O CAMINHO: inclua o marcador [[ENVIAR_LINK]] no fim da sua resposta. O sistema anexa o link e o passo a passo do cupom sozinho — NÃO escreva o link nem o cupom você mesma, e não invente outro desconto.`,
     '- No caminho do site ele faz tudo sozinho: você não libera acesso na mão.',
-    '- SE ELE PEDIR PIX (ou disser que não tem cartão): manda sim, sem enrolar. Inclua o marcador [[ENVIAR_PIX]] — o sistema anexa o código, o valor e o pedido do comprovante + e-mail. NÃO escreva o código nem o valor você mesma, e não mande o link junto (ele já escolheu o caminho).',
+    '- SE ELE PEDIR PIX (ou disser que não tem cartão): manda sim, sem enrolar. Inclua o marcador [[ENVIAR_PIX]] — o sistema anexa o caminho do Pix sozinho. NÃO escreva link, código nem valor você mesma, e não mande o link do site junto (ele já escolheu o caminho).',
     `- O Pix é R$ ${PIX_VALOR}, um mês do plano completo — o desconto de primeiro mês existe só no cartão, pelo site. Se ele perguntar, fale isso na lata, sem inventar desconto no Pix.`,
-    '- Depois que ele pagar por Pix, você SEMPRE precisa de duas coisas: o *comprovante* e o *e-mail* dele. Se vier só um, peça o outro numa bolha curta. É com o e-mail que o acesso é liberado.',
+    // As duas mecânicas de Pix pedem coisas OPOSTAS da Giovanna: no checkout da
+    // Kiwify pedir comprovante é ruído (e faz o cliente achar que travou); no
+    // copia-e-cola, não pedir é o cliente pagando e ficando sem acesso.
+    pixAutomatico()
+      ? '- O Pix é numa página de checkout: ele paga e o acesso libera SOZINHO em poucos minutos. NÃO peça comprovante e NÃO peça e-mail — não precisa de nada disso. Se ele disser que pagou, comemore e diga que o acesso e o e-mail com o link chegam em minutinhos.'
+      : '- Depois que ele pagar por Pix, você SEMPRE precisa de duas coisas: o *comprovante* e o *e-mail* dele. Se vier só um, peça o outro numa bolha curta. É com o e-mail que o acesso é liberado.',
     '- Se ele pedir pra parar, disser que não quer, ou claramente recusar → responda educada e curta e inclua o marcador [[ENCERRAR]].',
     '- Dúvida sobre o produto: responde com sinceridade e curto. Você acredita no que vende.',
     '',
@@ -150,6 +156,19 @@ async function enviarComMarcadores(
   // pediu Pix, mandar o site junto é ignorar o que ele acabou de falar.
   if (pediuPix && !encerrar) {
     await sleep(600);
+
+    // TRILHO 1 — checkout da Kiwify: Pix nativo, acesso liberado pelo webhook.
+    // Nada de comprovante, nada de e-mail, ninguém confere nada. Sai na frente
+    // sempre que o link estiver configurado.
+    const doCheckout = bolhasPixCheckout();
+    if (doCheckout.length) {
+      await sendHuman(phone, doCheckout, 'solardoc');
+      enviado.push(...doCheckout);
+      return { enviado, encerrar, mandouLink: false };
+    }
+
+    // TRILHO 2 (fallback) — copia-e-cola manual. Só roda sem
+    // SOLARDOC_PIX_CHECKOUT_URL configurada; quem chama grita no log.
     const copia = gerarPixCopiaECola({ valor: PIX_VALOR, txid: 'SOLARDOCVIP' });
     const passos = bolhasPix(copia, PIX_VALOR);
     await sendHuman(phone, passos, 'solardoc');
@@ -179,10 +198,19 @@ function jaMandouLink(messages: Msg[]): boolean {
 
 // ─── OPENER (chamado pelo cron de recuperação) ───────────────────────────────
 
-export async function enviarOpenerRecuperacao(phone: string, nome: string | null, touch: number): Promise<boolean> {
+// `userId` = o abandono é de alguém QUE JÁ TEM CONTA (o caminho do UpgradeModal,
+// que hoje é a maioria). Nesse caso a conversa NÃO pode virar sessão 'recovery':
+// o inbound desse número é atendido pela Giovanna da plataforma, e duas sessões no
+// mesmo fio dariam duas Giovannas com memórias diferentes na mesma conversa. O
+// opener é registrado como mensagem proativa da plataforma, igual ao dunning.
+export async function enviarOpenerRecuperacao(
+  phone: string, nome: string | null, touch: number, opts: { userId?: string | null } = {},
+): Promise<boolean> {
   const phoneKey = phone.replace(/\D/g, '');
   try {
-    const sess = await getRecoverySession(phoneKey);
+    const sess = opts.userId
+      ? { messages: [] as Msg[], nome, exists: true }
+      : await getRecoverySession(phoneKey);
     const oferta = await ofertaCupomAtiva();
     let raw: string;
     try {
@@ -197,7 +225,13 @@ export async function enviarOpenerRecuperacao(phone: string, nome: string | null
           ? `${oi}Voltei rapidinho: dá pra entrar pagando R$ ${oferta.primeiroMes} no primeiro mês. Te mando o caminho? [[ENVIAR_LINK]]`
           : `${oi}Voltei rapidinho pra te ajudar a garantir seu acesso. Te mando o caminho? [[ENVIAR_LINK]]`;
     }
-    const { enviado } = await enviarComMarcadores(phone, raw, oferta);
+    const { enviado } = await enviarComMarcadores(phone, raw, oferta, false, nome);
+    if (opts.userId) {
+      if (enviado.length) {
+        await registrarMsgProativa({ userId: opts.userId, phone, content: enviado.join('\n'), nome });
+      }
+      return true;
+    }
     const novas: Msg[] = [...sess.messages, ...enviado.map(c => ({ role: 'assistant' as const, content: c }))];
     await saveRecoverySession(phoneKey, novas, nome);
     return true;

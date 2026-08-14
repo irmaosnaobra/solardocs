@@ -1,7 +1,8 @@
 import Stripe from 'stripe';
 import { supabase } from '../utils/supabase';
-import { sendFollowupEmail, sendNoContractsReminderEmail, sendCnpjOngoingEmail, sendCheckoutRecoveryEmail, sendCheckoutCompletionEmail, sendUpgradeNudgeEmail, sendAbandonedCartEmail } from '../utils/mailer';
+import { sendFollowupEmail, sendNoContractsReminderEmail, sendCnpjOngoingEmail, sendCheckoutRecoveryEmail, sendCheckoutCompletionEmail, sendUpgradeNudgeEmail, sendAbandonedCartEmail, sendOpsAlert } from '../utils/mailer';
 import { enviarOpenerRecuperacao } from './agents/whatsapp/pixRecoveryAgentService';
+import { pixAutomatico } from '../utils/pixInfo';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -442,26 +443,64 @@ export async function recoverAbandonedCheckouts(): Promise<{ sent: number; recov
     .limit(200);
   if (!rows?.length) return { sent: 0, recovered: 0, skipped: 0 };
 
-  // Quem desses JÁ voltou e comprou? (email virou conta OU venda) → recovered.
+  // Quem desses JÁ voltou e PAGOU?
+  //
+  // A regra antiga era "o e-mail existe em users" — e isso funcionava enquanto a
+  // captura era só do checkout público ("sem free: quem não passa daqui não tem
+  // conta"). Quando o webhook passou a capturar também o abandono de quem JÁ TEM
+  // CONTA (o caminho do UpgradeModal, `metadata.userId`), a condição de parada não
+  // foi junto: ter conta virou sinônimo de "recuperado" e a cadência inteira ficou
+  // muda. Medido em 14/08/2026: 7 de 7 abandonos marcados 'recovered' sem um único
+  // toque enviado, incluindo um free que nunca comprou nada.
+  //
+  // Agora recuperado = TEM ACESSO PAGO DE PÉ (plano pago com billing ativo, ou
+  // plano_expira_em no futuro — que é o carimbo do Pix, inclusive do checkout novo
+  // da Kiwify), OU comprou DEPOIS do abandono.
+  type UserRow = {
+    id: string; email: string | null; nome: string | null; whatsapp: string | null;
+    plano: string | null; billing_status: string | null; plano_expira_em: string | null;
+  };
   const emails = Array.from(new Set(rows.map(r => (r.email || '').toLowerCase()).filter(Boolean)));
-  const has = new Set<string>();
+  const porEmail = new Map<string, UserRow>();
+  const vendaEm = new Map<string, number>();
   if (emails.length) {
-    const { data: us } = await supabase.from('users').select('email').in('email', emails);
-    (us ?? []).forEach((u: { email: string | null }) => has.add((u.email || '').toLowerCase()));
-    const { data: sl } = await supabase.from('sales').select('email').in('email', emails);
-    (sl ?? []).forEach((s: { email: string | null }) => has.add((s.email || '').toLowerCase()));
+    const { data: us } = await supabase
+      .from('users')
+      .select('id, email, nome, whatsapp, plano, billing_status, plano_expira_em')
+      .in('email', emails);
+    (us ?? []).forEach((u: UserRow) => porEmail.set((u.email || '').toLowerCase(), u));
+    const { data: sl } = await supabase.from('sales').select('email, created_at').in('email', emails);
+    (sl ?? []).forEach((s: { email: string | null; created_at: string | null }) => {
+      const k = (s.email || '').toLowerCase();
+      const t = s.created_at ? Date.parse(s.created_at) : 0;
+      if (k && t > (vendaEm.get(k) ?? 0)) vendaEm.set(k, t);
+    });
   }
 
   let sent = 0, recovered = 0, skipped = 0;
   for (const r of rows) {
     const email = (r.email || '').toLowerCase();
-    if (email && has.has(email)) {
+    const u = email ? porEmail.get(email) : undefined;
+    const acessoPago = !!u && (
+      (!!u.plano && u.plano !== 'free' && ['active', 'trialing'].includes(u.billing_status || '')) ||
+      (!!u.plano_expira_em && Date.parse(u.plano_expira_em) > now)
+    );
+    // Venda posterior ao abandono. A data importa: `sales` guarda a vida inteira do
+    // cliente, e uma compra ANTIGA não é prova de que ELE voltou desta vez.
+    const comprouDepois = !!email && (vendaEm.get(email) ?? 0) > Date.parse(r.created_at);
+    if (acessoPago || comprouDepois) {
       await supabase.from('abandoned_checkouts')
         .update({ status: 'recovered', recovered_at: new Date().toISOString(), updated_at: new Date().toISOString() })
         .eq('id', r.id);
       recovered++;
       continue;
     }
+    // DUNNING GANHA. Assinante com cobrança falhando (past_due/suspended) já tem a
+    // Giovanna do dunningService falando com ele, com outro roteiro e outro relógio.
+    // Mandar "faltou pouco pra assinar" por cima é a mesma pessoa recebendo duas
+    // conversas contraditórias. Não marca 'recovered': ele pode resolver e voltar.
+    if (['past_due', 'suspended'].includes(u?.billing_status || '')) { skipped++; continue; }
+
     // Cadência: cada toque tem seu intervalo (medido do abandono no T1, ou do último
     // toque nos seguintes). Só dispara quando o intervalo do toque atual foi atingido.
     const attempts = r.recovery_attempts ?? 0;
@@ -472,16 +511,22 @@ export async function recoverAbandonedCheckouts(): Promise<{ sent: number; recov
     if ((now - anchor) < gapMin * 60_000) { skipped++; continue; }
 
     const produto = r.plano === 'ilimitado' ? 'VIP' : 'PRO';
+    const nome = r.nome || u?.nome || null;
+    // O telefone da Stripe é o ideal (foi digitado no checkout), mas o checkout de
+    // quem já está logado nunca coletou telefone — e é justamente de onde vem a
+    // maioria dos abandonos. Nesses, o WhatsApp do cadastro é o mesmo número, e sem
+    // este fallback a Giovanna simplesmente não existe pra eles.
+    const phone = r.phone || u?.whatsapp || null;
 
     if (r.email) {
-      try { await sendAbandonedCartEmail({ to: r.email, produto, recoverUrl: ABANDON_RECOVER_URL, nome: r.nome }); }
+      try { await sendAbandonedCartEmail({ to: r.email, produto, recoverUrl: ABANDON_RECOVER_URL, nome }); }
       catch (e) { console.error('abandon email falhou:', e); }
     }
     // WhatsApp: GIOVANNA conversacional de recuperação — se apresenta, puxa papo e manda
     // o Pix no momento certo (não é blast fixo). O toque vem de recovery_attempts+1.
     // "Sem medo de ban" (Thiago 25/jul/2026) → manda em TODO toque. Best-effort.
-    if (r.phone) {
-      try { await enviarOpenerRecuperacao(r.phone, r.nome, (r.recovery_attempts ?? 0) + 1); }
+    if (phone) {
+      try { await enviarOpenerRecuperacao(phone, nome, (r.recovery_attempts ?? 0) + 1, { userId: u?.id ?? null }); }
       catch (e) { console.error('abandon giovanna opener falhou:', e); }
     }
 
@@ -493,7 +538,28 @@ export async function recoverAbandonedCheckouts(): Promise<{ sent: number; recov
     sent++;
   }
   console.log(`[abandon] recuperação: ${sent} toques, ${recovered} recuperados, ${skipped} throttled`);
+  if (sent > 0) await avisarPixSemLink();
   return { sent, recovered, skipped };
+}
+
+// Cair no Pix manual não dá erro em lugar nenhum: o cliente recebe dados bancários,
+// paga, manda um PDF que a leitura automática não enxerga e fica dias sem acesso
+// (caso Junior, 11/08). Silêncio é exatamente como `checkout.session.expired` ficou
+// 29 dias sem assinatura — então aqui grita. Uma vez por instância fria: o aviso é
+// sobre configuração faltando, não sobre cada toque.
+let avisouPixSemLink = false;
+async function avisarPixSemLink(): Promise<void> {
+  if (pixAutomatico() || avisouPixSemLink) return;
+  avisouPixSemLink = true;
+  console.error('[abandon] SOLARDOC_PIX_CHECKOUT_URL vazia — recuperação seguindo no Pix manual (comprovante na mão)');
+  await sendOpsAlert(
+    'Recuperação de checkout: falta o link do Pix',
+    `<p>A recuperação de checkout abandonado está mandando toques, mas <strong>SOLARDOC_PIX_CHECKOUT_URL</strong> está vazia.</p>
+     <p>Sem ela, quem pede Pix recebe chave + pedido de comprovante — o caminho manual, que já custou dias de espera pra cliente.</p>
+     <p>Conserto: crie na Kiwify o produto <strong>"SolarDoc — 1 mês"</strong> (R$ 67, Pix liberado), copie o link do checkout e ponha na env
+     <code>SOLARDOC_PIX_CHECKOUT_URL</code> na Vercel. Ponha também o product_id em <code>KIT_KIWIFY_MES_PIX_IDS</code> — assim o nome pode ser
+     alterado sem quebrar a liberação automática.</p>`,
+  ).catch(() => {});
 }
 
 // ── Cadência de CONVERSÃO free->pago ───────────────────────────────────────

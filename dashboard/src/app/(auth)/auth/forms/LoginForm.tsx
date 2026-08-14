@@ -63,6 +63,14 @@ export default function LoginForm() {
       const { data } = await api.post('/auth/login', { email, password });
       setToken(data.token);
       setUser(data.user);
+      // `next` = quem mandou pro login queria a pessoa de volta num lugar
+      // específico (ex.: /quase-la, com o plano e o cupom que ela carregava).
+      // Só caminho interno: aceitar URL absoluta aqui viraria open redirect.
+      const proximo = new URLSearchParams(window.location.search).get('next');
+      if (proximo && proximo.startsWith('/') && !proximo.startsWith('//')) {
+        router.push(proximo);
+        return;
+      }
       // Celular cai na tela de atalho (launcher); PC segue igual, pra empresa.
       const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
       router.push(isMobile ? '/inicio' : '/empresa');

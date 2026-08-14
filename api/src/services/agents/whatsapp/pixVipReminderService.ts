@@ -2,6 +2,7 @@ import { supabase } from '../../../utils/supabase';
 import { sendHuman } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 import { gerarPixCopiaECola } from '../../../utils/pixBrCode';
+import { pixCheckoutUrl, PIX_MES_VALOR } from '../../../utils/pixInfo';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lembrete mensal de renovação VIP pago por Pix.
@@ -43,6 +44,22 @@ function valorDoPlano(plano: string | null): number {
 // lê, valida e empurra o plano_expira_em +1 mês na hora.
 function montarPartes(nome: string | null, valor: number): string[] {
   const oi = nome ? `Oi ${nome.split(' ')[0]}! ` : 'Oi! ';
+
+  // RENOVAÇÃO EM UM CLIQUE. O checkout da Kiwify cobra, o webhook empilha mais 30
+  // dias em cima do que resta (concederMesPago) e ninguém confere comprovante —
+  // o mesmo trilho que a recuperação de abandono usa.
+  // Só vale quando o valor do plano dele é o do produto lá (R$ 67). Quem paga
+  // R$ 27 continua no copia-e-cola: mandar o link errado seria cobrar a mais.
+  const link = pixCheckoutUrl();
+  if (link && valor === PIX_MES_VALOR) {
+    return [
+      `${oi}Tudo bem? 😊 Seu acesso ao SolarDoc está *vencendo*.`,
+      `Pra renovar por mais um mês (R$ ${valor}), é só pagar por aqui 👇`,
+      link,
+      'Escolhe *Pix* na página que o QR aparece na hora. Seu acesso é estendido sozinho quando o pagamento cair — não precisa mandar comprovante 🙌',
+    ];
+  }
+
   const copia = gerarPixCopiaECola({ valor, txid: 'SOLARDOCVIP' });
   return [
     `${oi}Tudo bem? 😊 Seu acesso ao SolarDoc está *vencendo*.`,

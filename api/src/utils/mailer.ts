@@ -710,6 +710,65 @@ export async function sendKitAcessoEmail(opts: {
   if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
 }
 
+// MÊS AVULSO PAGO NO PIX (R$67, checkout da Kiwify) — quem abandonou o checkout
+// da Stripe e voltou pelo Pix. NÃO é o kit: não promete curso nem material, só
+// diz que o acesso está de pé e por onde entrar. Conta nova cai no link de
+// definir senha; quem já era da casa vai direto pro login.
+export async function sendMesPixAcessoEmail(opts: {
+  to: string;
+  nome?: string | null;
+  acessoUrl: string;
+  contaNova: boolean;
+  ate?: Date | null;
+}): Promise<void> {
+  const primeiro = (opts.nome || '').trim().split(/\s+/)[0];
+  const ola = primeiro ? `${primeiro}, ` : '';
+  const validade = opts.ate
+    ? `<p style="color:#94a3b8;font-size:13.5px;line-height:1.7;margin:22px 0 0;text-align:center;">Seu acesso vale até <strong style="color:#e2e8f0;">${opts.ate.toLocaleDateString('pt-BR')}</strong>. A gente te avisa antes de vencer.</p>`
+    : '';
+  const html = `
+<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#10b981 0%,#34d399 100%);padding:32px 36px;">
+    <p style="margin:0;color:#04150e;font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">Pagamento confirmado</p>
+    <h1 style="margin:8px 0 0;color:#04150e;font-size:26px;font-weight:900;line-height:1.2;letter-spacing:-0.5px;">
+      Seu SolarDoc está liberado ✅
+    </h1>
+  </div>
+  <div style="padding:32px 36px;">
+    <p style="color:#e2e8f0;font-size:16px;line-height:1.7;margin:0 0 18px;">
+      ${ola}recebemos seu Pix e liberamos <strong style="color:#34d399;">30 dias de documentos ilimitados</strong> na sua conta.
+      ${opts.contaNova ? 'Falta só <strong style="color:#34d399;">definir sua senha</strong> — leva 10 segundos:' : 'É só entrar:'}
+    </p>
+    <div style="text-align:center;margin:28px 0 8px;">
+      <a href="${opts.acessoUrl}" style="display:inline-block;background:#10b981;color:#04150e;font-weight:900;font-size:16px;padding:18px 40px;border-radius:12px;text-decoration:none;letter-spacing:0.3px;box-shadow:0 4px 14px rgba(16,185,129,0.35);">
+        ${opts.contaNova ? 'Definir senha e entrar →' : 'Entrar no SolarDoc →'}
+      </a>
+    </div>
+    ${validade}
+  </div>
+  <div style="padding:0 36px;"><div style="border-top:1px solid #1e293b;"></div></div>
+  <div style="padding:24px 36px 28px;">
+    <p style="margin:0 0 6px;color:#34d399;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;">Deixe na tela do celular</p>
+    <p style="margin:0;color:#cbd5e1;font-size:14px;line-height:1.7;">
+      Depois de entrar, aceite o convite pra <strong style="color:#e2e8f0;">instalar o app</strong>. Ele abre sem
+      navegador e sem digitar senha — é assim que dá pra fechar o contrato na casa do cliente.
+      No iPhone: Compartilhar &rarr; "Adicionar à Tela de Início".
+    </p>
+    <p style="margin:18px 0 0;color:#64748b;font-size:12px;line-height:1.6;text-align:center;">
+      Dúvidas? Chama a gente no WhatsApp (34) 99816-5040.
+    </p>
+  </div>
+</div>`;
+  const { error } = await resend.emails.send({
+    from: FROM_EMAIL,
+    to: opts.to,
+    replyTo: REPLY_TO,
+    subject: '✅ Pix confirmado — seu SolarDoc está liberado',
+    html,
+  });
+  if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
+}
+
 // Recuperação de CHECKOUT ABANDONADO (público): a pessoa começou a assinatura mas
 // não concluiu (fechou a aba / cartão recusado e desistiu). Transacional-ish, tom
 // gentil + CTA pra retomar. Suporte direto no WhatsApp. Não joga erro (best-effort).
