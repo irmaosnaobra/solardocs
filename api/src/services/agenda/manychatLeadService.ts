@@ -32,9 +32,11 @@ import {
   dataBaseDaFaixa,
   slotLivreConsultor,
   donoDoTelefone,
-  CONSULTORES_RODIZIO,
 } from './leadsMetaService';
-import { montarObservacaoSolar, organizarFicha, FieldItem } from './leadSolarFicha';
+import {
+  montarObservacaoSolar, organizarFicha, FieldItem,
+  consumoTipico, TIME_CONTA_ALTA, CONSULTOR_CONTA_BAIXA, KWH_CORTE_TIME,
+} from './leadSolarFicha';
 
 // Telefone de cada consultor (mesmo mapa da Luma / leadsMeta / ioEletroposto).
 const TEL_CONSULTOR: Record<string, string> = {
@@ -96,8 +98,23 @@ function tempEletroposto(capital: string): 'quente' | 'morno' | 'frio' {
   return 'morno';                                  // até 150 mil
 }
 
+// Roteamento por tamanho de conta (regra do Thiago, 12/08/2026). Aqui o lead
+// responde em REAIS ("R$ 800 a R$ 1.500"), então a unidade vai explícita: o corte
+// é em kWh/mês e quem converte é o consumoTipico.
+function ehContaAltaReais(valorConta: string): boolean {
+  return consumoTipico(valorConta || '', 'reais') > KWH_CORTE_TIME;
+}
+function consultorDoLeadSolar(valorConta: string, rodizioIdx: number): string {
+  return ehContaAltaReais(valorConta)
+    ? TIME_CONTA_ALTA[rodizioIdx % TIME_CONTA_ALTA.length]
+    : CONSULTOR_CONTA_BAIXA;
+}
+
 // Sintetiza o field_data (formato do Meta) a partir da ficha do ManyChat, pra
 // reusar organizarFicha/montarObservacaoSolar sem inventar dado que o lead não deu.
+// ATENÇÃO: o valor_conta entra no campo "Consumo" em REAIS (é o que o lead
+// respondeu) — o formulário do Meta preenche o mesmo campo em kWh. Quem roteia
+// tem que dizer a unidade; nunca deduza pelo nome do campo.
 function buildSolarFieldData(p: ManychatLeadPayload, whatsapp: string): FieldItem[] {
   const f: FieldItem[] = [];
   f.push({ name: 'first_name', values: [p.nome || 'Lead Instagram'] });
@@ -199,10 +216,18 @@ async function ingestSolar(p: ManychatLeadPayload, nome: string, whatsapp: strin
   const leadId = `mc_${soDigitos(p.contact_id || '') || soDigitos(whatsapp)}`;
 
   if (p.test) {
+    // Dry-run tem que mostrar o roteamento DE VERDADE (é pra isso que ele
+    // existe): lê o dono do telefone e o tamanho da conta, sem gravar nada. O
+    // rodízio é espiado sem avançar o contador.
+    const donoTeste = naArea ? await donoDoTelefone(whatsapp) : null;
+    const { data: stTeste } = await supabaseGerador
+      .from('leads_meta_state').select('rodizio_idx').eq('id', 1).limit(1);
     return {
       ok: true, test: true, produto: 'solar', destino: 'GERADOR',
       na_area: naArea, temperatura,
-      consultor: naArea ? CONSULTORES_RODIZIO[0] : undefined,
+      consultor: naArea
+        ? (donoTeste || consultorDoLeadSolar(p.valor_conta || '', (stTeste && stTeste[0]?.rodizio_idx) || 0))
+        : undefined,
       motivo: naArea ? undefined : 'fora de área (não agenda, avisa manual)',
     };
   }
@@ -224,14 +249,19 @@ async function ingestSolar(p: ManychatLeadPayload, nome: string, whatsapp: strin
     const dono = await donoDoTelefone(whatsapp);
     if (dono) {
       consultor = dono;
+    } else if (!ehContaAltaReais(p.valor_conta || '')) {
+      // Abaixo de 700 kWh/mês (ou sem faixa respondida): é da Nilce e não gasta
+      // uma vez da fila do Thiago/Diego.
+      consultor = CONSULTOR_CONTA_BAIXA;
     } else {
-      // Rodízio: compartilha o contador com o cron do Meta (leads_meta_state) —
-      // um lead é um lead, os consultores recebem em rodízio justo, venha da
-      // onde vier. Read-modify-write não-atômico (mesmo risco/volume do cron).
+      // Conta alta: rodízio Thiago↔Diego compartilhando o contador com o cron do
+      // Meta (leads_meta_state) — um lead é um lead, os dois recebem em rodízio
+      // justo venha da onde vier. Read-modify-write não-atômico (mesmo
+      // risco/volume do cron).
       const { data: stateRows } = await supabaseGerador
         .from('leads_meta_state').select('rodizio_idx').eq('id', 1).limit(1);
       const idx = (stateRows && stateRows[0]?.rodizio_idx) || 0;
-      consultor = CONSULTORES_RODIZIO[idx % CONSULTORES_RODIZIO.length];
+      consultor = TIME_CONTA_ALTA[idx % TIME_CONTA_ALTA.length];
       await supabaseGerador.from('leads_meta_state')
         .update({ rodizio_idx: idx + 1, updated_at: new Date().toISOString() }).eq('id', 1);
     }
