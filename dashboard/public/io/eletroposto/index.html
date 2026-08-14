@@ -1157,9 +1157,10 @@
         <div class="ic"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
         <h3>Está marcado!</h3>
         <p id="ok-txt">—</p>
-        <!-- Só para quem ainda não tem o ponto definido: ajusta a expectativa antes da
-             reunião, senão o lead chega esperando orçamento e ouve "onde vai ser?". -->
-        <p id="ok-nota2" style="display:none">Como o seu ponto ainda não está definido, essa primeira conversa vai focar em encontrar e validar o melhor local para você. O orçamento vem depois, quando soubermos onde.</p>
+        <!-- Só para quem está negociando o ponto — desde 14/08 é o ÚNICO caso que marca
+             reunião sem endereço fechado. Ajusta a expectativa antes da conversa, senão
+             o lead chega esperando orçamento e ouve "onde vai ser?". -->
+        <p id="ok-nota2" style="display:none">Como o seu ponto ainda está em negociação, essa primeira conversa vai focar em validar o local com você. O orçamento vem depois, quando o ponto estiver fechado.</p>
 
         <div class="okCard">
           <div class="okRow">
@@ -1761,6 +1762,11 @@ const PESO_PONTO   = { definido:3, negociando:2, em_vista:1, sem_ideia:0 };
 const PESO_INVEST  = { proprio:3, proprio_credito:3, fin_aprovado:2, fin_cnpj:2, fin_banco:1, naosei:0 };
 const PESO_DECISOR = { eu:2, socio:1, terceiros:0 };
 const PESO_ROTA    = { rodovia:2, comercial:1, naosei:0 };
+// SEM LOCAL = o lead não tem onde instalar HOJE. "Em vista, mas ainda não conversei"
+// entra aqui (régua de 14/08): quem só olhou uma esquina e nunca falou com o dono do
+// imóvel é curioso de mercado — não há endereço pra estudar, e a reunião vira aula.
+// 'negociando' fica de fora: ali existe conversa com o proprietário, é negócio andando.
+const SEM_LOCAL = new Set(['sem_ideia', 'em_vista']);
 // Perfis sem fluxo próprio: são estes que abrem a pergunta da rota de passagem.
 const PERFIL_SEM_FLUXO = new Set(['investidor', 'outro']);
 
@@ -1771,7 +1777,7 @@ const PERFIL_SEM_FLUXO = new Set(['investidor', 'outro']);
 // banco é o trigger, a partir da ficha.
 function motivosDoDescarte(f){
   var m = [];
-  if (f.ponto   === 'sem_ideia') m.push('sem_ponto');
+  if (SEM_LOCAL.has(f.ponto))    m.push('sem_ponto');
   if (f.invest  === 'naosei')    m.push('sem_capital');
   if (f.decisor === 'terceiros') m.push('nao_decisor');
   if (PERFIL_SEM_FLUXO.has(f.perfil)) m.push('fluxo_baixo');
@@ -1784,10 +1790,14 @@ function pontuar(f){
   if(PERFIL_SEM_FLUXO.has(f.perfil)) pts += (PESO_ROTA[f.rota] || 0);
   // Corte automático (régua de 01/08): sem local definido não é reunião, some o que
   // somar no resto — sem endereço não há o que orçar, estudar nem dimensionar.
-  // Quem tem capital e não tem onde é investidor, e o lugar dele é o grupo: é lá que
-  // ele encontra o ponto. Até 01/08 o corte exigia TAMBÉM não ter dinheiro, e por
-  // isso um investidor sem local marcava reunião com 6 pts (= NOTA 2).
-  const corte = f.ponto === 'sem_ideia';
+  // Quem tem capital e não tem onde é investidor, e o lugar dele é o material: é lá
+  // que ele aprende a achar o ponto. Até 01/08 o corte exigia TAMBÉM não ter dinheiro,
+  // e por isso um investidor sem local marcava reunião com 6 pts (= NOTA 2).
+  //
+  // 14/08: "local em vista, mas ainda não conversei" entrou no mesmo corte. Valia 1 pt
+  // — o bastante pra alcançar os 5 da NOTA 2 — e virou 16 das 63 reuniões marcadas em
+  // 13 dias: um quarto da agenda com quem nunca falou com o dono do imóvel.
+  const corte = SEM_LOCAL.has(f.ponto);
   const nota  = corte ? 1 : (pts >= 9 ? 3 : pts >= 5 ? 2 : 1);
   return { pts, nota, corte };
 }
@@ -2028,7 +2038,9 @@ async function agendar(){
   // A marcação do investidor vai sem acento de propósito, pra casar entre os arquivos.
   const obs = [
     `LP ELETROPOSTO — ${perfilTexto(perfil)}`,
-    `NOTA ${q.nota} · ${q.pts}/11 pts${q.corte ? ' (corte: sem ponto e sem capital)' : ''}`,
+    // Sem sufixo de corte: quem cai no corte não chega aqui — vira NOTA 1 e sai da
+    // agenda antes de montar ficha (o `return` lá em cima).
+    `NOTA ${q.nota} · ${q.pts}/11 pts`,
     pontoParaInvestidor ? 'PONTO DISPONIVEL PARA INVESTIDOR' : '',
     // A linha "Endereço:" saiu com os campos de endereço. A cidade viaja na coluna
     // própria do agendamento (é ela que o alerta imprime) e o "ponto ainda não
@@ -2187,8 +2199,8 @@ async function gravarAgendamento(){
     const rot = rotuloSlot(slotSel);   // mesma formatação que o portão mostrou
     document.getElementById('ok-txt').textContent = `${rot.completo} — horário de Brasília`;
     document.getElementById('ok-dia').textContent = rot.diaSemana;
-    // O parágrafo fala do ponto indefinido — quem já tem o ponto e caiu em NOTA 2 por
-    // outro motivo (crédito, decisor) não pode ler que o dele "ainda não está definido".
+    // O parágrafo fala do ponto em negociação — quem já tem o ponto e caiu em NOTA 2 por
+    // outro motivo (crédito, decisor) não pode ler que o dele "ainda não está fechado".
     document.getElementById('ok-nota2').style.display = pontoDefinido ? 'none' : 'block';
     // Avisa a equipe no WhatsApp na hora (fire-and-forget: se falhar, o lead já
     // está gravado no CRM — o alerta é conveniência, não pode derrubar o agendamento)

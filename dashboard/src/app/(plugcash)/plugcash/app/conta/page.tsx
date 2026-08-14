@@ -27,7 +27,7 @@ const NIVEL_LABEL: Record<string, string> = {
 // O que ele declara ter resolvido. O texto é a NEGAÇÃO do bloqueio — a pessoa
 // reconhece a própria resposta, não um jargão do sistema.
 const RESOLVEU_LABEL: Record<string, string> = {
-  sem_ponto:   'Já defini o ponto onde vou instalar',
+  sem_ponto:   'Já fechei o ponto onde vou instalar',
   sem_capital: 'Já viabilizei o capital',
   nao_decisor: 'Já tenho o aval de quem decide comigo',
   fluxo_baixo: 'Já tenho um local com movimento',

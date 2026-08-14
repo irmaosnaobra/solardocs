@@ -980,11 +980,14 @@ for (var i=0;i<ORDEM.length;i++) if (motivos.indexOf(ORDEM[i]) >= 0) { motivo = 
 // capital) é o caminho mais curto para o reembolso — e reembolso aqui queima a
 // base do SolarDoc junto, porque é a mesma.
 var COPY = {
+  // Cobre as DUAS respostas que caem no corte (14/08): "não tenho ideia de onde" e
+  // "tenho um local em vista, mas ainda não conversei". Por isso o selo diz FECHADO e
+  // não "não tem": quem tem um local em vista leria o contrário do que respondeu.
   sem_ponto: {
-    selo: 'Você respondeu que ainda não tem o ponto',
+    selo: 'Você respondeu que o ponto ainda não está fechado',
     headline: 'Você não está sem ponto. Está sem o método de reconhecer um.',
     abertura: [
-      'Você passa por cinco ou seis locais viáveis toda semana e não consegue apontar nenhum — porque olhar não é medir. Sem as mesmas quatro medidas de cada um, o que sobra é sensação, e sensação não fecha contrato nem convence banco.'
+      'Você passa por cinco ou seis locais viáveis toda semana e não consegue dizer qual deles paga a conta — porque olhar não é medir. E um local em vista continua sendo palpite até as quatro medidas saírem: sem elas o que sobra é sensação, e sensação não fecha contrato com o dono do imóvel nem convence banco.'
     ],
     ponte: 'Achar ponto não é sorte nem faro: são quatro medidas e uma conta. Elas estão aqui, na ordem, e é o que você não acha solto na internet.'
   },

@@ -231,7 +231,10 @@ export const duracao = (seg: number | null) => {
 // Rótulo humano do que faltou na régua do eletroposto. Estes quatro slugs são os
 // mesmos que o banco grava em `motivo_descarte` (ver ep_motivos no gerador).
 export const MOTIVO_LABEL: Record<string, string> = {
-  sem_ponto:   'ainda não tem o ponto definido',
+  // "fechado" e não "definido": desde 14/08 este slug também cobre quem tem um local
+  // em vista mas ainda não conversou com o dono — dizer que ele "não tem ponto" seria
+  // desmentir a resposta que ele deu no formulário.
+  sem_ponto:   'ainda não fechou o ponto',
   sem_capital: 'o capital ainda não está disponível',
   nao_decisor: 'a decisão não é só sua',
   fluxo_baixo: 'o local não traz fluxo próprio',

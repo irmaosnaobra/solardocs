@@ -17,7 +17,8 @@
 --   3. BACKFILL do histórico que já está gravado.
 --
 -- A régua espelhada aqui é a de dashboard/public/io/eletroposto/index.html
--- (função `pontuar`): perfil 3 + ponto 3 + investimento 3 + decisor 2 = 11.
+-- (função `pontuar`): perfil 3 + ponto 3 + investimento 3 + decisor 2 = 11, com corte
+-- automático pra NOTA 1 quando o ponto é 'sem_ideia' ou 'em_vista' (set SEM_LOCAL lá).
 -- Mudou lá? Muda aqui. As duas pontas leem os MESMOS rótulos de <option>.
 -- ─────────────────────────────────────────────────────────────────────────────
 
@@ -104,7 +105,9 @@ returns text[] language sql immutable as $$
   select case
     when perfil is null and ponto is null and invest is null and decisor is null then null
     else array_remove(array[
-      case when ponto   = 'sem_ideia'              then 'sem_ponto'   end,
+      -- 'em_vista' entrou em 14/08, junto com o corte da LP: local em vista sem
+      -- conversa com o dono é o mesmo bloqueio comercial de não ter local nenhum.
+      case when ponto in ('sem_ideia','em_vista')  then 'sem_ponto'   end,
       case when invest  = 'naosei'                 then 'sem_capital' end,
       case when decisor = 'terceiros'              then 'nao_decisor' end,
       case when perfil in ('investidor','outro')   then 'fluxo_baixo' end
