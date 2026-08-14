@@ -211,6 +211,13 @@ export const plugcashApi = {
   adminReagendar: () => api.get<{ elegiveis: Elegivel[] }>('/plugcash/admin/reagendar'),
   adminSalvarCurso: (curso: Partial<Curso> & { id?: string }) =>
     api.post<{ curso: Curso }>('/plugcash/admin/cursos', curso),
+  /** Cria no Asaas um link de pagamento por degrau da escada e passa a vender por lá
+   *  (Pix, cartão e boleto). A chave do Asaas mora no servidor — por isso quem cria
+   *  é ele, não esta tela. */
+  adminAsaasLinks: (slug: string) =>
+    api.post<{ ok: boolean; ambiente: string; gravadas: number; links: Array<{ ofertaId: string; url: string }> }>(
+      '/plugcash/admin/asaas-links', { slug },
+    ),
   adminSalvarAula: (aula: Partial<Aula> & { id?: string }) =>
     api.post<{ aula: Aula }>('/plugcash/admin/aulas', aula),
   adminRemoverAula: (id: string) => api.delete(`/plugcash/admin/aulas/${id}`),

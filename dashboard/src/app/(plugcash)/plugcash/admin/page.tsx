@@ -95,6 +95,30 @@ function AbaCursos({ onNegado }: { onNegado: () => void }) {
 
   useEffect(() => { carregar(); }, [carregar]);
 
+  // Troca o gateway do curso para o Asaas: um link de pagamento por degrau da
+  // escada de preço, com Pix, cartão e boleto na mesma página. Confirma antes
+  // porque isso muda POR ONDE o dinheiro entra — e o link novo passa a valer
+  // para todo mundo no instante em que é gravado.
+  const [asaas, setAsaas] = useState<string | null>(null);
+  async function ligarAsaas(curso: Curso) {
+    const ofertas = ((curso.copy as { ofertas?: unknown[] } | undefined)?.ofertas || []).length;
+    if (!ofertas) { setErro(`"${curso.titulo}" não tem escada de preço (copy.ofertas) para criar links.`); return; }
+    if (!confirm(`Criar ${ofertas} link(s) de pagamento no Asaas para "${curso.titulo}"?\n\n`
+      + 'A partir daí a venda passa a ser cobrada pelo Asaas (Pix, cartão ou boleto) '
+      + 'em vez do Stripe. Dá pra voltar apagando o checkout_url dos degraus.')) return;
+    setAsaas(curso.slug); setErro('');
+    try {
+      const { data } = await plugcashApi.adminAsaasLinks(curso.slug);
+      await carregar();
+      alert(`${data.gravadas} degrau(s) agora vendem pelo Asaas (${data.ambiente}).\n\n`
+        + data.links.map((l) => `${l.ofertaId}: ${l.url}`).join('\n'));
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } }).response?.data?.error;
+      setErro(msg ? `Asaas: ${msg}` : 'Não consegui criar os links no Asaas.');
+    }
+    setAsaas(null);
+  }
+
   async function salvar(curso: Curso, patch: Partial<Curso>) {
     setSalvando(curso.id); setErro('');
     try {
@@ -149,6 +173,7 @@ function AbaCursos({ onNegado }: { onNegado: () => void }) {
               <th style={{ width: 110 }}>Status</th>
               <th style={{ width: 90 }}>Aulas</th>
               <th style={{ width: 90 }}>Venda</th>
+              <th style={{ width: 110 }}>Gateway</th>
             </tr>
           </thead>
           <tbody>
@@ -196,6 +221,18 @@ function AbaCursos({ onNegado }: { onNegado: () => void }) {
                           style={{ padding: '6px 12px', fontSize: 13 }}
                           onClick={() => setPagina(pagina === c.id ? null : c.id)}>
                     Página
+                  </button>
+                </td>
+                {/* Vender pelo Asaas = criar um link de pagamento por degrau da
+                    escada. A chave do Asaas fica no servidor, então o clique só
+                    pede — quem cria é a API. Depois disso o botão da página abre
+                    o Asaas (Pix, cartão ou boleto) no lugar do Stripe. */}
+                <td>
+                  <button className={`${styles.btn} ${styles.btnFantasma}`}
+                          style={{ padding: '6px 12px', fontSize: 13 }}
+                          disabled={asaas === c.slug}
+                          onClick={() => ligarAsaas(c)}>
+                    {asaas === c.slug ? 'criando…' : 'Asaas/Pix'}
                   </button>
                 </td>
               </tr>
