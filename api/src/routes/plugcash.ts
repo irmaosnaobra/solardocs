@@ -196,12 +196,16 @@ router.post('/checkout', async (req: Request, res: Response): Promise<void> => {
   const slug = String(req.body?.slug || '').trim();
   if (!slug) { res.status(400).json({ error: 'slug obrigatorio' }); return; }
 
+  // Degrau da escada de preço (cheia → desconto → última). Sem ele, preço cheio.
+  const oferta = String(req.body?.oferta || '').trim().slice(0, 40) || null;
+
   const r = await criarSessaoPlugcash({
     slug,
     bump: req.body?.bump === true,
     email: String(req.body?.email || '').trim().toLowerCase() || null,
     origem: String(req.body?.origem || '').slice(0, 80) || null,
     utm: req.body?.utm || {},
+    oferta,
   });
 
   if (!r.ok) { res.status(400).json({ error: r.erro }); return; }
@@ -209,7 +213,7 @@ router.post('/checkout', async (req: Request, res: Response): Promise<void> => {
   await supabase.from('pc_eventos').insert({
     tipo: 'checkout_aberto',
     session_id: String(req.body?.session_id || '').slice(0, 80) || null,
-    payload: { slug, bump: req.body?.bump === true, origem: req.body?.origem || null },
+    payload: { slug, bump: req.body?.bump === true, origem: req.body?.origem || null, oferta },
   }).then(() => {}, () => {});
 
   res.json({ url: r.url });

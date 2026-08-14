@@ -417,6 +417,31 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
 .barraFixa .bfPreco small{display:block;font-size:11.5px;font-weight:500;color:#8f8f8f}
 .barraFixa .cta{margin:0;flex:1;padding:15px 16px;font-size:15.5px;min-height:52px}
 @media (pointer: coarse) and (max-width: 900px) { .barraFixa{display:flex} }
+
+/* ESCADA DE PREÇO — o cartão que aparece quando a pessoa está indo embora.
+   Preto quase opaco por trás: a página inteira sai de cena e sobra uma decisão.
+   Sem contagem regressiva e sem "vagas": o que aperta aqui é o preço cair, e
+   inventar relógio numa página que promete conta honesta é queimar a própria
+   tese. Fecha em qualquer clique fora, no X e no Esc — porta destrancada. */
+.escBg{position:fixed;inset:0;z-index:80;display:none;align-items:center;justify-content:center;
+  padding:20px;background:rgba(6,6,6,.93)}
+.escBg.on{display:flex}
+.esc{background:#fff;border-radius:24px;padding:30px 26px 26px;max-width:460px;width:100%;
+  position:relative;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.5);
+  max-height:92vh;overflow-y:auto}
+.esc .escX{position:absolute;top:10px;right:12px;width:44px;height:44px;border:0;background:none;
+  color:#8f8f8f;font-size:24px;line-height:1;cursor:pointer}
+.esc .escOlho{font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;
+  color:#009B40;margin:0 0 10px}
+.esc h3{font-size:clamp(25px,5.4vw,32px);line-height:1.12;letter-spacing:-.025em;margin:0 0 12px;color:var(--black)}
+.esc p{font-size:15.5px;line-height:1.6;color:#3d3d3d;margin:0 0 16px}
+.escPreco{display:flex;align-items:baseline;justify-content:center;gap:12px;margin:18px 0 4px}
+.escPreco .de{font-size:19px;color:#8f8f8f;text-decoration:line-through}
+.escPreco .por{font-size:clamp(44px,9vw,58px);font-weight:800;letter-spacing:-.03em;color:var(--black);line-height:1}
+.escNota{font-size:13px;color:#6B6B6B;margin:0 0 18px}
+.esc .cta{margin:0;width:100%;justify-content:center}
+.escNao{display:inline-block;margin-top:14px;color:#8f8f8f;font-size:13.5px;text-decoration:underline;
+  text-underline-offset:3px;background:none;border:0;cursor:pointer;padding:10px;min-height:44px}
 </style>
 </head>
 <body>
@@ -847,9 +872,12 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
 <section class="escuro rv" id="oferta" style="display:none">
   <div class="faixa">
     <div class="cartao">
-      <p class="cartaoOlho">O investimento</p>
+      <p class="cartaoOlho">O preço, sem rodeio</p>
       <h2 class="cartaoTit">Fundamentos do Eletroposto</h2>
 
+      <!-- "de R$ X por" só aparece quando existe valor maior de verdade: o preço
+           que este material já foi vendido, ou o degrau anterior da escada. -->
+      <p class="cartaoParc" id="preco-de" style="display:none;text-decoration:line-through;opacity:.6"></p>
       <p class="preco" id="preco">—</p>
       <p class="cartaoParc" id="parcela"></p>
 
@@ -898,8 +926,8 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
 <!-- 15 · CTA FINAL -->
 <section class="escuro rv" id="cta-final" style="display:none">
   <div class="faixa" style="text-align:center">
-    <h2 style="margin-left:auto;margin-right:auto">Tudo reunido, na ordem, num lugar só.</h2>
-    <p class="lead" style="margin-left:auto;margin-right:auto">Você já sabe o que travou a reunião. Isto é o caminho mais curto até destravar.</p>
+    <h2 style="margin-left:auto;margin-right:auto">Ou você mede o ponto, ou continua chutando.</h2>
+    <p class="lead" style="margin-left:auto;margin-right:auto">Tem duas saídas daqui. Rodar mais uns meses perguntando pra todo mundo e recebendo três respostas diferentes — ou passar uma tarde com o método e voltar com número na mão. A primeira é de graça e já está custando o seu ano.</p>
     <div style="display:flex;justify-content:center"><a class="cta off" id="cta2" href="#">Carregando…</a></div>
   </div>
 </section>
@@ -910,6 +938,21 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
 <div class="barraFixa" id="barra-fixa">
   <span class="bfPreco" id="bf-preco">—<small>à vista</small></span>
   <a class="cta" id="cta3" href="#">Quero o material</a>
+</div>
+
+<!-- Cartão da escada de preço. Vazio no HTML: quem escreve é o degrau que o
+     visitante alcançou, e cada degrau tem preço e texto próprios. -->
+<div class="escBg" id="esc-bg" role="dialog" aria-modal="true" aria-labelledby="esc-tit">
+  <div class="esc">
+    <button class="escX" id="esc-x" aria-label="Fechar">×</button>
+    <p class="escOlho" id="esc-olho">Antes de você fechar</p>
+    <h3 id="esc-tit">—</h3>
+    <p id="esc-txt">—</p>
+    <div class="escPreco"><span class="de" id="esc-de"></span><span class="por" id="esc-por">—</span></div>
+    <p class="escNota" id="esc-nota">O mesmo material. As mesmas aulas. A mesma garantia de sete dias.</p>
+    <a class="cta" id="esc-cta" href="#">Quero por este valor</a>
+    <button class="escNao" id="esc-nao">Não, obrigado — vou continuar procurando sozinho</button>
+  </div>
 </div>
 
 <footer class="rodape">
@@ -1068,23 +1111,26 @@ var FAQ = [
   ['Dá para fazer isso sozinho, sem curso?', 'Dá. A norma da distribuidora é pública, o pedido de acesso não custa nada e a sua conta de luz está aí. O que custa é a ordem: saber qual pergunta vem antes de qual, e não descobrir que uma delas era importante depois de já ter comprado o equipamento.'],
   ['Quanto tempo até eu conseguir avaliar um ponto de verdade?',
    'A aula que ensina a medir movimento e a que ensina a ler a carga disponível somam pouco mais de uma hora. Com elas na cabeça, uma tarde de sábado na calçada já devolve os números de um endereço. O que demora não é aprender — é a resposta formal da distribuidora, que vem depois e tem prazo dela.'],
-  ['Serve para cidade pequena?', 'Serve para avaliar se serve. Boa parte do material é o método de dizer não a um ponto ruim — e cidade pequena com rodovia costuma ser melhor que cidade grande sem fluxo na porta. Concluir "este ponto não presta" é uma resposta válida, e custa R$ 197. Descobrir depois custa o equipamento e a obra iniciada.'],
+  ['Serve para cidade pequena?', 'Serve para avaliar se serve. Boa parte do material é o método de dizer não a um ponto ruim — e cidade pequena com rodovia costuma ser melhor que cidade grande sem fluxo na porta. Concluir "este ponto não presta" é uma resposta válida, e custa {PRECO}. Descobrir depois custa o equipamento e a obra iniciada.'],
   ['Vocês têm um eletroposto entregue para mostrar?', 'Ainda não temos obra entregue e documentada para mostrar, e é por isso que esta página não tem depoimento nem case. O material não se apoia em vitrine: ele se apoia em como a conta, a norma e a distribuidora funcionam — coisas que você confere em fonte pública e na sua própria conta de luz. Se você precisa ver obra pronta para decidir, não compre agora.'],
   ['Vocês vendem eletroposto. Isso não é só isca para me vender depois?', 'Vendemos e executamos eletroposto turnkey, e é de lá que vem o nosso dinheiro — o material existe por causa disso. O que você tem que julgar é se ele se sustenta sozinho: ele te ensina a abrir qualquer proposta e achar o que ficou de fora, inclusive a nossa.'],
-  ['Por que R$ 197 e não de graça?', 'Conteúdo grátis não é assistido: vira aba aberta e morre ali. Quem paga R$ 197 para entender um investimento de seis dígitos abre o material no mesmo dia. Não existe preço cheio riscado do lado porque nunca existiu outro preço.'],
+  ['Por que não de graça?', 'Porque conteúdo grátis não é assistido: vira aba aberta e morre ali. Quem paga para entender um investimento de seis dígitos abre o material no mesmo dia. E o valor está aqui embaixo do valor que este material já foi vendido — isso não é preço inventado pra riscar, é o preço que estava cobrando semana passada.'],
   ['E se não servir?', 'Sete dias, contados do acesso. Você pede e o valor volta integral — inclusive o da planilha, se tiver levado. O que já baixou continua seu. Sem formulário de motivo, sem conversa de retenção e sem contraproposta.']
 ];
-var faqBox = document.getElementById('faq');
-FAQ.forEach(function(par){
-  var d = document.createElement('details');
-  var s = document.createElement('summary'); s.textContent = par[0];
-  var p = document.createElement('p'); p.textContent = par[1];
-  d.appendChild(s); d.appendChild(p); faqBox.appendChild(d);
-});
-
-document.getElementById('por-que').textContent =
-  'R$ 197 é o preço de um filtro, e é mais honesto dizer isso do que riscar um valor inventado ao lado. '
-  + 'O valor pago aqui vira crédito na sua conta e abate no upgrade para Credenciamento Integrador ou Mentoria Investidor.';
+// O preço aparece DENTRO da resposta, e ele muda com o degrau da escada. Por isso
+// o texto carrega `{PRECO}` e é montado depois que a oferta é conhecida: FAQ com
+// preço chumbado foi exatamente como esta página chegou a anunciar R$ 197 no texto
+// enquanto o cartão mostrava outro valor.
+function pintarFaq(precoLabel){
+  var faqBox = document.getElementById('faq');
+  faqBox.innerHTML = '';
+  FAQ.forEach(function(par){
+    var d = document.createElement('details');
+    var s = document.createElement('summary'); s.textContent = par[0];
+    var p = document.createElement('p'); p.textContent = par[1].split('{PRECO}').join(precoLabel);
+    d.appendChild(s); d.appendChild(p); faqBox.appendChild(d);
+  });
+}
 
 // ── 3 · Preço e checkout vêm da API, nunca do HTML ─────────────────────────
 // `pc_cursos` é a fonte: preço, parcelamento, link de checkout e a grade de
@@ -1096,6 +1142,59 @@ function money(cent){
   return 'R$ ' + (cent/100).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 
+// ── ESCADA DE PREÇO ─────────────────────────────────────────────────────────
+// Três degraus (R$ 67 → R$ 47 → R$ 27) que moram no banco, em `copy.ofertas`.
+// O degrau só desce, nunca sobe: quem já viu R$ 27 não pode recarregar a página
+// e reencontrar R$ 67 — seria dizer que o desconto era mentira, e é a mesma
+// pessoa que a gente quer que confie na conta que o material ensina a fazer.
+// Por isso o degrau vive no sessionStorage e TODA a página se repinta com ele:
+// cartão, barra do celular, FAQ e botões. Um preço na tela, sempre.
+//
+// Sem `copy.ofertas` a página funciona como antes, com preço único — a escada é
+// um adicional, nunca um requisito.
+var OFERTAS = [], degrau = 0, precoCheio = 0, precoDe = 0;
+var DEGRAU_KEY = 'pc_degrau_fundamentos';
+
+function ofertaAtual(){
+  return OFERTAS.length ? OFERTAS[Math.min(degrau, OFERTAS.length - 1)] : null;
+}
+function precoAtual(){
+  var o = ofertaAtual();
+  return o ? o.centavos : precoCheio;
+}
+function salvarDegrau(){
+  try { sessionStorage.setItem(DEGRAU_KEY, String(degrau)); } catch(_) {}
+}
+
+// Repinta TUDO que mostra preço. Chamada no carregamento e a cada degrau novo.
+function pintarPreco(){
+  var cent = precoAtual();
+  var label = money(cent);
+  var el = document.getElementById('preco');
+  el.textContent = label;
+  el.dataset.label = label;
+
+  // "de R$ 197" só entra quando o valor antigo é MAIOR que o atual — e o de cima
+  // é o preço cheio quando a pessoa já desceu um degrau. Riscar um valor menor
+  // ou igual seria enfeite, e enfeite aqui custa a confiança da página inteira.
+  var de = (degrau > 0 && precoCheio > cent) ? precoCheio : precoDe;
+  var elDe = document.getElementById('preco-de');
+  if (elDe) {
+    if (de > cent) { elDe.textContent = money(de); elDe.style.display = ''; }
+    else { elDe.style.display = 'none'; }
+  }
+
+  document.getElementById('bf-preco').innerHTML = label + '<small>à vista</small>';
+  document.getElementById('por-que').textContent = textoPorQue(label);
+  pintarFaq(label);
+  pintarCta();
+}
+
+function textoPorQue(label){
+  return label + ' é o preço de um filtro, e é mais honesto dizer isso do que inventar um valor pra riscar do lado. '
+    + 'O valor pago aqui vira crédito na sua conta e abate no upgrade para Credenciamento Integrador ou Mentoria Investidor.';
+}
+
 function pintarCta(){
   var usarBump = document.getElementById('bump-check') && document.getElementById('bump-check').checked;
   var linkFixo = (usarBump && checkoutBump) ? checkoutBump : checkoutSimples;
@@ -1104,8 +1203,51 @@ function pintarCta(){
     b.textContent = 'Quero o material — ' + document.getElementById('preco').dataset.label;
     // Link do gateway cadastrado vira <a> normal; sem ele, o clique pede a
     // sessao. O visitante nao percebe diferença nenhuma entre os dois.
-    if (linkFixo) b.href = linkFixo; else b.removeAttribute('href');
+    // Com escada, link fixo NUNCA manda: ele é o link de um preço só.
+    if (linkFixo && !OFERTAS.length) b.href = linkFixo; else b.removeAttribute('href');
   });
+}
+
+// O que o cartão diz em cada degrau. O primeiro degrau nunca aparece aqui: ele é
+// o preço da página. Estes são os dois que só existem pra quem está saindo.
+var ESCADA_COPY = [
+  null,
+  { olho: 'Espera',
+    tit:  'Você chegou aqui sem saber onde instalar. Fechar a aba não responde isso.',
+    txt:  'Não vou te empurrar reunião nem ficar no seu pé. Vou fazer o contrário: tiro do preço e paro de atrapalhar. É o mesmo material, as mesmas aulas, a mesma garantia.' },
+  { olho: 'Última',
+    tit:  'Então fica assim — e eu paro de insistir.',
+    txt:  'Este é o último valor que eu tenho pra te oferecer. Se nem assim fizer sentido, sem problema: fecha a página, roda mais uns meses procurando ponto no olho e volta quando quiser. O material vai continuar aqui.' }
+];
+
+var escadaAberta = false;
+function podeDescer(){
+  return temOferta && OFERTAS.length > 1 && degrau < OFERTAS.length - 1 && !escadaAberta && !abrindo;
+}
+function abrirEscada(gatilho){
+  if (!podeDescer()) return false;
+  degrau += 1;
+  salvarDegrau();
+  pintarPreco();
+
+  var c = ESCADA_COPY[Math.min(degrau, ESCADA_COPY.length - 1)] || ESCADA_COPY[1];
+  var anterior = OFERTAS[degrau - 1];
+  document.getElementById('esc-olho').textContent = c.olho;
+  document.getElementById('esc-tit').textContent = c.tit;
+  document.getElementById('esc-txt').textContent = c.txt;
+  document.getElementById('esc-de').textContent = anterior ? money(anterior.centavos) : '';
+  document.getElementById('esc-por').textContent = money(precoAtual());
+  document.getElementById('esc-cta').textContent = 'Quero por ' + money(precoAtual());
+  document.getElementById('esc-bg').classList.add('on');
+  escadaAberta = true;
+  evento('escada_view', { degrau: degrau, oferta: ofertaAtual() && ofertaAtual().id, gatilho: gatilho });
+  return true;
+}
+function fecharEscada(como){
+  if (!escadaAberta) return;
+  document.getElementById('esc-bg').classList.remove('on');
+  escadaAberta = false;
+  evento('escada_fechou', { degrau: degrau, como: como });
 }
 
 // Abre o checkout. O comprador ainda NAO tem conta — ela nasce do webhook,
@@ -1114,7 +1256,13 @@ var abrindo = false;
 function abrirCheckout(botao){
   if (abrindo) return;
   var comBump = document.getElementById('bump-check') && document.getElementById('bump-check').checked;
-  evento('checkout_start', { slug:'fundamentos', motivo: motivo || 'neutro', bump: !!comBump });
+  var oferta = ofertaAtual();
+  // O degrau vai no evento: sem ele o relatório mostra "vendeu" e não mostra POR
+  // QUANTO — que é a única pergunta que a escada existe pra responder.
+  evento('checkout_start', {
+    slug:'fundamentos', motivo: motivo || 'neutro', bump: !!comBump,
+    oferta: oferta && oferta.id, centavos: precoAtual(),
+  });
 
   if (botao.getAttribute('href')) return;   // link do gateway: deixa o <a> agir
 
@@ -1127,6 +1275,9 @@ function abrirCheckout(botao){
     body: JSON.stringify({
       slug:'fundamentos', bump: !!comBump, session_id: sid,
       origem: 'material:' + (motivo || 'neutro'), utm: utmDaSessao(),
+      // Quem cobra é o servidor, pelo valor DESTE degrau. O preço na tela nunca
+      // é argumento pro checkout: ele só repete o que o banco já disse.
+      oferta: oferta && oferta.id,
     }),
   })
   .then(function(r){ return r.json(); })
@@ -1181,17 +1332,25 @@ fetch(API + '/plugcash/curso/fundamentos')
     if (!d || !d.curso) { semOferta(); return; }
     comOferta();
     var k = d.curso;
-    var el = document.getElementById('preco');
-    el.textContent = money(k.preco_centavos);
-    el.dataset.label = money(k.preco_centavos);
-    document.getElementById('bf-preco').innerHTML =
-      money(k.preco_centavos) + '<small>' +
-      (k.parcelas > 1 ? 'ou ' + k.parcelas + '× de ' + money(Math.round(k.preco_centavos / k.parcelas)) : 'à vista') +
-      '</small>';
-    if (k.parcelas > 1) {
-      document.getElementById('parcela').textContent =
-        'ou ' + k.parcelas + '× de ' + money(Math.round(k.preco_centavos / k.parcelas)) + ' no cartão';
-    }
+    precoCheio = k.preco_centavos || 0;
+    precoDe = k.preco_de_centavos || 0;
+
+    // Degraus do banco, na ordem em que o visitante os vê. Só entra degrau com
+    // preço válido e MENOR que o anterior: uma escada que sobe seria um degrau
+    // digitado errado no /admin virando aumento de preço na cara do cliente.
+    OFERTAS = ((k.copy && k.copy.ofertas) || []).filter(function(o){
+      return o && o.id && o.centavos >= 100;
+    });
+    OFERTAS = OFERTAS.filter(function(o, i){ return i === 0 || o.centavos < OFERTAS[i-1].centavos; });
+
+    // Degrau já alcançado nesta sessão volta como estava — inclusive depois de
+    // recarregar ou de voltar do checkout sem pagar.
+    try {
+      var salvo = parseInt(sessionStorage.getItem(DEGRAU_KEY) || '0', 10);
+      if (salvo > 0 && salvo < OFERTAS.length) degrau = salvo;
+    } catch(_) {}
+
+    pintarPreco();
 
     // A seção que listava as 14 aulas saiu da página. O que ela alimentava e
     // continua vivo: a contagem no hero e o aviso de quantas abrem hoje, que
@@ -1263,12 +1422,57 @@ document.getElementById('voltar').addEventListener('click', function(){
   evento('material_voltar_form', { motivo: motivo || 'neutro' });
 });
 
-['cta','cta2','cta3'].forEach(function(id){
+['cta','cta2','cta3','esc-cta'].forEach(function(id){
   document.getElementById(id).addEventListener('click', function(e){
     if (this.classList.contains('off')) return;
     if (!this.getAttribute('href')) e.preventDefault();
     abrirCheckout(this);
   });
+});
+
+// ── Quando a escada aparece ────────────────────────────────────────────────
+// Dois gatilhos, porque são dois mundos:
+//
+//  · COMPUTADOR — o mouse sai pela borda de cima (aba, barra de endereço, X).
+//    É o exit-intent clássico e só existe onde há ponteiro.
+//  · CELULAR — o botão VOLTAR. É por onde essa página é abandonada, e o
+//    exit-intent de mouse NUNCA dispara aqui. Sem isto a escada seria um
+//    recurso de desktop numa página que é lida quase toda no telefone.
+//
+// A armadilha do voltar é um estado a mais no histórico: o primeiro "voltar"
+// consome esse estado e abre o cartão em vez de sair. Ele é rearmado enquanto
+// existir degrau; quando acabam os degraus, o voltar volta a ser voltar — a
+// pessoa não fica presa na página. Fechar a aba também nunca é impedido.
+document.addEventListener('mouseout', function(e){
+  if (e.relatedTarget || e.clientY > 6) return;   // saiu de verdade, pela borda de cima
+  abrirEscada('mouse');
+});
+
+var armado = false;
+function armarVoltar(){
+  if (armado || !podeDescer()) return;
+  try { history.pushState({ pcEscada: 1 }, ''); armado = true; } catch(_) {}
+}
+window.addEventListener('popstate', function(){
+  if (!armado) return;                 // não é a nossa armadilha: deixa voltar
+  armado = false;
+  if (abrirEscada('voltar')) armarVoltar();
+});
+// Só arma depois que a pessoa demonstrou leitura (rolou um pouco ou ficou 12s).
+// Armar no primeiro milissegundo faria quem abriu por engano brigar com o botão
+// voltar antes mesmo de ver a página.
+setTimeout(armarVoltar, 12000);
+window.addEventListener('scroll', function(){
+  if (window.scrollY > 400) armarVoltar();
+}, { passive: true });
+
+document.getElementById('esc-x').addEventListener('click', function(){ fecharEscada('x'); });
+document.getElementById('esc-nao').addEventListener('click', function(){ fecharEscada('nao'); });
+document.getElementById('esc-bg').addEventListener('click', function(e){
+  if (e.target === this) fecharEscada('fora');
+});
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape') fecharEscada('esc');
 });
 
 // A barra fixa do celular sobe depois do primeiro terço. Antes disso a pessoa

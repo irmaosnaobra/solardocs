@@ -33,7 +33,37 @@ export type PedidoCheckout = {
   /** de onde veio o clique — vira metadata e depois utm na compra */
   origem?: string | null;
   utm?: Record<string, string | null>;
+  /** degrau da escada de preço (`copy.ofertas[].id`). Vazio = o preço cheio. */
+  oferta?: string | null;
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ESCADA DE PREÇO — o mesmo curso, três degraus de saída.
+//
+// `copy.ofertas` no banco: [{ id, centavos, rotulo, checkout_url? }]. A ordem é a
+// ordem em que o lead vê. Quem não desiste paga o primeiro; os outros dois só
+// aparecem pra quem está indo embora.
+//
+// REGRA DURA: quando um degrau é pedido, o `checkout_url` do CURSO é ignorado.
+// Ele é o link do preço cheio — usá-lo num degrau de R$ 27 anunciaria 27 e
+// cobraria outro valor, que é o pior erro possível numa página de venda. Cada
+// degrau só tem dois destinos: link próprio (Kiwify, quando o dono criar a
+// oferta lá) ou uma sessão do Stripe pelo valor EXATO daquele degrau.
+// ─────────────────────────────────────────────────────────────────────────────
+export type Oferta = { id: string; centavos: number; rotulo?: string; checkout_url?: string | null };
+
+export function ofertasDoCurso(curso: any): Oferta[] {
+  const cru = curso?.copy?.ofertas;
+  if (!Array.isArray(cru)) return [];
+  return cru
+    .filter((o: any) => o && typeof o.id === 'string' && Number(o.centavos) >= 100)
+    .map((o: any) => ({
+      id: String(o.id),
+      centavos: Math.round(Number(o.centavos)),
+      rotulo: o.rotulo ? String(o.rotulo) : undefined,
+      checkout_url: o.checkout_url ? String(o.checkout_url) : null,
+    }));
+}
 
 export async function criarSessaoPlugcash(p: PedidoCheckout): Promise<
   { ok: true; url: string } | { ok: false; erro: string }
@@ -44,7 +74,7 @@ export async function criarSessaoPlugcash(p: PedidoCheckout): Promise<
 
   const { data: curso } = await supabase
     .from('pc_cursos')
-    .select('slug,titulo,subtitulo,preco_centavos,checkout_url,status')
+    .select('slug,titulo,subtitulo,preco_centavos,checkout_url,status,copy')
     .eq('slug', p.slug)
     .maybeSingle();
 
@@ -55,11 +85,19 @@ export async function criarSessaoPlugcash(p: PedidoCheckout): Promise<
   // seria o único caminho pelo qual um curso sem aula gravada seria cobrado.
   if (c.status !== 'publicado') return { ok: false, erro: 'curso nao esta publicado' };
 
+  // Degrau pedido: ele manda no preço e no destino, sempre.
+  const pedido = String(p.oferta || '').trim();
+  const oferta = pedido ? ofertasDoCurso(c).find(o => o.id === pedido) : null;
+  if (pedido && !oferta) return { ok: false, erro: 'oferta nao encontrada' };
+
   // Link próprio cadastrado manda. Esta rota nem deveria ter sido chamada, mas
   // se foi, devolve o link em vez de criar cobrança paralela no Stripe.
-  if (c.checkout_url) return { ok: true, url: c.checkout_url };
+  // Com degrau, quem responde é o link DO DEGRAU — nunca o do preço cheio.
+  if (oferta?.checkout_url) return { ok: true, url: oferta.checkout_url };
+  if (!oferta && c.checkout_url) return { ok: true, url: c.checkout_url };
 
-  if (!c.preco_centavos || c.preco_centavos < 100) {
+  const valor = oferta ? oferta.centavos : c.preco_centavos;
+  if (!valor || valor < 100) {
     return { ok: false, erro: 'preco invalido' };
   }
 
@@ -67,7 +105,7 @@ export async function criarSessaoPlugcash(p: PedidoCheckout): Promise<
     quantity: 1,
     price_data: {
       currency: 'brl',
-      unit_amount: c.preco_centavos,
+      unit_amount: valor,
       product_data: {
         name: c.titulo,
         ...(c.subtitulo ? { description: c.subtitulo } : {}),
@@ -109,6 +147,11 @@ export async function criarSessaoPlugcash(p: PedidoCheckout): Promise<
       metadata: {
         pc_item_tipo: 'curso',
         pc_item_slug: c.slug,
+        // O degrau e o valor COBRADO viajam juntos: o webhook grava a venda pelo
+        // preço do catálogo, e sem este carimbo uma venda de R$ 27 entraria no
+        // caixa como R$ 67 — o relatório mentiria justamente sobre qual degrau
+        // paga o tráfego, que é a única pergunta que a escada existe pra responder.
+        ...(oferta ? { pc_oferta: oferta.id, pc_valor_centavos: String(valor) } : {}),
         ...(bumpSlug ? { pc_bump_slug: bumpSlug } : {}),
         ...(p.origem ? { pc_origem: p.origem } : {}),
         ...Object.fromEntries(

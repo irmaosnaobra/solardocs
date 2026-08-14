@@ -667,6 +667,14 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
           .select('preco_centavos').eq('slug', item[1]).maybeSingle();
         item[2] = (data as any)?.preco_centavos ?? 0;
       }
+      // Escada de preço: o curso pode ter sido vendido num degrau (R$ 47, R$ 27).
+      // O carimbo da sessão manda no valor do CURSO — o catálogo só sabe o cheio.
+      // O bump não entra nisso: ele é cobrado sempre pelo preço dele.
+      const valorDegrau = Number(md.pc_valor_centavos);
+      if (Number.isFinite(valorDegrau) && valorDegrau >= 100) {
+        const curso = itens.find((i) => i[0] === 'curso');
+        if (curso) curso[2] = Math.round(valorDegrau);
+      }
 
       for (const [tipo, slug, valor] of itens) {
         await processarEventoPlugcash({
