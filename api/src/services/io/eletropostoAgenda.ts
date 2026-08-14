@@ -97,17 +97,23 @@ const MIN_1H = { de: 45, ate: 75 };
 // Janela larga, não um horário cravado, por DOIS motivos: o tick é de 5 min mas o
 // GitHub Actions atrasa, e o teto anti-ban da linha é de 6/h COMPARTILHADO com todo
 // o resto (backlog de confirmação, Bia, semente, followup do gerador). Uma grade
-// cheia são 10 reuniões: com 6/h disputados, elas não cabem em 3 horas se a manhã
-// estiver movimentada. As 4 horas dão folga, e não custam nada — a partir das 11h
-// quem tem reunião às 13h já é barrado pelo MANHA_ANTECEDENCIA_MIN, então a hora
-// extra só serve pros horários de 14h em diante.
+// cheia são 16 reuniões (14/08: a LP passou a vender 8 horários × 2 consultores):
+// com 6/h disputados, elas não cabem em 3 horas se a manhã estiver movimentada. As
+// 4 horas dão folga, e não custam nada — quem tem reunião às 13h já é barrado pelo
+// MANHA_ANTECEDENCIA_MIN a partir das 11h, então a hora extra serve pros horários
+// de 14h em diante.
 const MANHA = { de: 8, ate: 12 };
 /** Nunca a menos de 2h da reunião: abaixo disso quem fala é o toque de 1h, e um
- *  "hoje é o dia" 40 minutos antes é ruído. A grade da LP é 13h–17h, então na
- *  prática sobra folga — mas prospecção e ManyChat marcam em qualquer hora. */
+ *  "hoje é o dia" 40 minutos antes é ruído.
+ *
+ *  14/08: a grade da LP voltou a ter 10:00 e 11:00, e é aí que esta folga passa a
+ *  MORDER de propósito. Quem marcou em outro dia pra hoje às 10:00 só receberia o
+ *  "bom dia" num tick exatamente às 8:00 — na prática, não recebe. Quem cobre é o
+ *  toque de 1h (9:00, dentro da janela de envio), e reunião de manhã marcada com
+ *  antecedência é justamente a que menos precisa de aviso ao acordar. */
 const MANHA_ANTECEDENCIA_MIN = 120;
-/** 2 por tick. Com o tick de 5 min, a grade cheia (10 reuniões/dia) drena em 25
- *  minutos, sobrando muito da janela de 3h. Sem esse freio, um tick soltaria os 6
+/** 2 por tick. Com o tick de 5 min, a grade cheia (16 reuniões/dia) drena em 40
+ *  minutos, sobrando muito da janela de 4h. Sem esse freio, um tick soltaria os 6
  *  do MAX_TOQUES — 6 pessoas × 4 bolhas em ~2 minutos é exatamente a rajada que
  *  bloqueou a linha IO em 04/08. O teto anti-ban é checado ANTES de cada envio,
  *  então quem não couber espera o próximo tick em vez de furar. */

@@ -9,7 +9,9 @@
 //
 // É uma PORTA da régua da LP, não uma régua nova. Os números são os mesmos e
 // estão aqui pelos mesmos motivos (a LP tem o histórico completo de cada um):
-//   · 13:00 às 17:00, de hora em hora — 5 horários por dia
+//   · 10:00, 11:00 e 13:00 às 18:00, de hora em hora — 8 horários por dia
+//     (14/08/2026: era 13:00–17:00. A manhã voltou e a tarde esticou; as 12:00
+//      ficam de fora porque é o almoço)
 //   · segunda a sexta; sábado, domingo e feriado fechados
 //   · 30 min de folga mínima: o consultor monta o estudo antes de entrar na call
 //   · reunião ocupa 30 min, então compromisso a menos de 30 min de distância
@@ -43,9 +45,10 @@ const FERIADOS = new Set([
   '2027-05-27', '2027-09-07', '2027-10-12', '2027-11-02', '2027-11-15', '2027-11-20', '2027-12-25',
 ]);
 
-/** Horas de INÍCIO, inclusivas nas duas pontas: a última reunião começa 17:00. */
-const HORA_PRIMEIRA = 13;
-const HORA_ULTIMA = 17;
+/** Horas de INÍCIO da grade, em ordem. Lista explícita e não um intervalo porque a
+ *  grade tem BURACO no almoço: 12:00 não existe. A primeira reunião do dia começa
+ *  10:00 e a última, 18:00. Espelha o `FAIXAS` da LP. */
+const HORAS = [10, 11, 13, 14, 15, 16, 17, 18];
 const DIAS_UTEIS = new Set([1, 2, 3, 4, 5]);
 /** Duração da reunião — é ela que define sobreposição, não o passo da grade. */
 const DURACAO_MS = 30 * 60 * 1000;
@@ -142,7 +145,8 @@ export async function proximasVagas(
   for (let i = 0; i < DIAS_VARRIDOS && vagas.length < quantas; i++) {
     const ymd = diaBRT(agora + i * 86400_000);
     if (!agendaAbre(ymd)) continue;
-    for (let h = HORA_PRIMEIRA; h <= HORA_ULTIMA && vagas.length < quantas; h++) {
+    for (const h of HORAS) {
+      if (vagas.length >= quantas) break;
       const iso = isoDe(ymd, h);
       const t = new Date(iso).getTime();
       if (t < limite) continue;

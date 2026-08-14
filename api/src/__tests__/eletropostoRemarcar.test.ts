@@ -58,8 +58,9 @@ vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
   dentroDoTetoHorarioLinha: vi.fn(async () => tetoLivre),
 }));
 
-// Quinta, 13/08/2026, 10h BRT (13h UTC). A grade do dia (13h–17h) ainda está
-// inteira pela frente, então dá pra testar oferta de HOJE e de outro dia.
+// Quinta, 13/08/2026, 10h BRT (13h UTC). A grade do dia (10h, 11h e 13h–18h) está
+// quase inteira pela frente — só as 10:00 já caíram na folga de 30 min —, então dá
+// pra testar oferta de HOJE e de outro dia.
 const AGORA = new Date('2026-08-13T13:00:00.000Z');
 /** Horário de Brasília → ISO. Deixa o teste legível: `brt('2026-08-13', 15)`. */
 const brt = (ymd: string, h: number) => new Date(`${ymd}T${String(h).padStart(2, '0')}:00:00-03:00`).toISOString();
@@ -82,17 +83,19 @@ async function mod() { return import('../services/io/eletropostoRemarcar'); }
 async function vagasMod() { return import('../services/io/eletropostoVagas'); }
 
 describe('a régua de horários livres', () => {
-  it('oferece a grade da tarde, de hora em hora', async () => {
+  // 10h BRT: as 10:00 estão dentro da folga de 30 min, então a primeira vaga é 11:00.
+  // Depois dela vem 13:00 — o almoço é buraco na grade, não um horário ocupado.
+  it('oferece a grade do dia, de hora em hora, pulando o almoço', async () => {
     const { proximasVagas } = await vagasMod();
     const v = (await proximasVagas('Diego', 3))!;
-    expect(v).toEqual([brt('2026-08-13', 13), brt('2026-08-13', 14), brt('2026-08-13', 15)]);
+    expect(v).toEqual([brt('2026-08-13', 11), brt('2026-08-13', 13), brt('2026-08-13', 14)]);
   });
 
   it('o horário da própria ficha nunca é oferecido de volta', async () => {
     const { proximasVagas } = await vagasMod();
     const v = (await proximasVagas('Diego', 3, { ignorarIso: brt('2026-08-13', 14) }))!;
     expect(v).not.toContain(brt('2026-08-13', 14));
-    expect(v[0]).toBe(brt('2026-08-13', 13));
+    expect(v[0]).toBe(brt('2026-08-13', 11));
   });
 
   // A agenda tem reunião de solar em horário quebrado (14:15, 16:15). Comparar
@@ -105,20 +108,21 @@ describe('a régua de horários livres', () => {
   });
 
   it('o compromisso do OUTRO consultor não tira a vaga deste', async () => {
-    compromissos = [{ quando: brt('2026-08-13', 13), vendedor_nome: 'Thiago' }];
+    compromissos = [{ quando: brt('2026-08-13', 11), vendedor_nome: 'Thiago' }];
     const { proximasVagas } = await vagasMod();
-    expect((await proximasVagas('Diego', 1))![0]).toBe(brt('2026-08-13', 13));
+    expect((await proximasVagas('Diego', 1))![0]).toBe(brt('2026-08-13', 11));
   });
 
   // Sexta 14/08 é dia útil; sábado e domingo não abrem. Pulando a sexta inteira,
-  // o próximo tem que ser segunda 17/08 — nunca sábado.
+  // o próximo tem que ser segunda 17/08 — nunca sábado. Lotar um dia hoje são as
+  // 8 horas da grade (10, 11 e 13 a 18), não mais as 5 da tarde.
   it('sábado e domingo não entram', async () => {
-    compromissos = [13, 14, 15, 16, 17].flatMap(h => ([
+    compromissos = [10, 11, 13, 14, 15, 16, 17, 18].flatMap(h => ([
       { quando: brt('2026-08-13', h), vendedor_nome: 'Diego' },
       { quando: brt('2026-08-14', h), vendedor_nome: 'Diego' },
     ]));
     const { proximasVagas } = await vagasMod();
-    expect((await proximasVagas('Diego', 1))![0]).toBe(brt('2026-08-17', 13));
+    expect((await proximasVagas('Diego', 1))![0]).toBe(brt('2026-08-17', 10));
   });
 
   it('feriado não entra', async () => {
@@ -222,11 +226,12 @@ describe('a conversa de ponta a ponta', () => {
   it('o consultor NÃO muda: as opções são todas da agenda de quem já estava marcado', async () => {
     // Diego lotado hoje; Thiago livre. A oferta tem que pular pro próximo dia do
     // DIEGO, nunca oferecer o horário livre do Thiago.
-    compromissos = [13, 14, 15, 16, 17].map(h => ({ quando: brt('2026-08-13', h), vendedor_nome: 'Diego' }));
+    compromissos = [10, 11, 13, 14, 15, 16, 17, 18]
+      .map(h => ({ quando: brt('2026-08-13', h), vendedor_nome: 'Diego' }));
     const { passoDeRemarcacao } = await mod();
     const r = (await passoDeRemarcacao(ficha(), ['pode ser outro dia?'], null)) as any;
     expect(r.acao).toBe('ofertou');
-    expect(r.ofertas.every((o: string) => o >= brt('2026-08-14', 13))).toBe(true);
+    expect(r.ofertas.every((o: string) => o >= brt('2026-08-14', 10))).toBe(true);
     expect(enviadas[0].bolhas.join(' ')).toContain('Diego');
   });
 
@@ -255,7 +260,7 @@ describe('a conversa de ponta a ponta', () => {
   it('agenda sem vaga nenhuma: chama gente em vez de inventar horário', async () => {
     // Diego lotado nos 21 dias varridos.
     compromissos = Array.from({ length: 21 }, (_, d) =>
-      [13, 14, 15, 16, 17].map(h => ({
+      [10, 11, 13, 14, 15, 16, 17, 18].map(h => ({
         quando: new Date(new Date(brt('2026-08-13', h)).getTime() + d * 86400_000).toISOString(),
         vendedor_nome: 'Diego',
       }))).flat();

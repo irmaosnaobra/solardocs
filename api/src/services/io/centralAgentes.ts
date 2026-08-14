@@ -646,7 +646,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       // esta é a tela onde se olha o que os automatismos estão fazendo.
       id: 'roteamento_solar',
       nome: 'Roteamento do solar — conta alta × conta baixa',
-      papel: `Lead de solar acima de ${KWH_CORTE_TIME} kWh/mês alterna entre ${TIME_CONTA_ALTA.join(' e ')}; abaixo disso, e quando o lead não responde o consumo, vai todo pra ${CONSULTOR_CONTA_BAIXA}. A tarde do Thiago e do Diego é do eletroposto, então cada manhã que sai é cara — conta pequena não pode consumir uma delas. Vale nas duas entradas: formulário do Meta (responde em kWh) e DM do Instagram (responde em reais).`,
+      papel: `Lead de solar acima de ${KWH_CORTE_TIME} kWh/mês alterna entre ${TIME_CONTA_ALTA.join(' e ')}; abaixo disso, e quando o lead não responde o consumo, vai todo pra ${CONSULTOR_CONTA_BAIXA}. A agenda do Thiago e do Diego é disputada com o eletroposto (desde 14/08 a LP vende também 10h e 11h, em cima da manhã do solar), então cada horário que sai é caro — conta pequena não pode consumir um deles. Vale nas duas entradas: formulário do Meta (responde em kWh) e DM do Instagram (responde em reais).`,
       canal: 'painel', linha: null,
       estado: 'ativo',
       ultima_atividade: null,
