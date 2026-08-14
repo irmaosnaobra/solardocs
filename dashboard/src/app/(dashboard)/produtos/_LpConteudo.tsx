@@ -114,8 +114,16 @@ export function LpConteudo({
                   todas as outras ferramentas inclusas.
                 </p>
               )}
+              {/* A promessa tem que ser a VERDADE de cada produto. As ferramentas
+                  liberam sozinhas aqui dentro (webhook → entitlement). Curso que
+                  mora fora, como o LimpaPro, tem área de membros própria: o
+                  acesso chega por e-mail, não nesta tela. Prometer "entra
+                  sozinho" ali faria a pessoa recarregar a página achando que
+                  deu errado. */}
               <p className={styles.lpDepois}>
-                Depois de pagar, atualize esta página — o acesso entra sozinho.
+                {p.abrirExterno
+                  ? 'Depois de pagar, o acesso chega no seu e-mail com o link da área do aluno.'
+                  : 'Depois de pagar, atualize esta página — o acesso entra sozinho.'}
               </p>
             </div>
           )}

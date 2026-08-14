@@ -217,8 +217,15 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
     preco: 47,
     naAssinatura: false,
     rota: '/produtos/limpapro',
-    abrirExterno: process.env.NEXT_PUBLIC_LIMPAPRO_APP_URL || 'https://limpapro.solardoc.app',
-    checkout: process.env.NEXT_PUBLIC_LIMPAPRO_CHECKOUT_URL || WHATS + encodeURIComponent('Quero o curso LimpaPro'),
+    // ATENÇÃO ao endereço: `limpapro.solardoc.app` (raiz) é a PÁGINA DE VENDA.
+    // A área do aluno é `/membros` — conferido no ar, o <title> de cada uma diz
+    // qual é qual. Sem a barra, quem já comprou clicava em "Abrir LimpaPro" e
+    // caía na oferta do que acabou de pagar.
+    abrirExterno: process.env.NEXT_PUBLIC_LIMPAPRO_APP_URL || 'https://limpapro.solardoc.app/membros',
+    // O checkout de verdade é o mesmo que a LP do limpapro.solardoc.app usa.
+    // Sem ele, o botão "Comprar" abria uma conversa no WhatsApp em vez de
+    // cobrar — a pessoa estava com a carteira na mão e virava lead.
+    checkout: process.env.NEXT_PUBLIC_LIMPAPRO_CHECKOUT_URL || 'https://pay.kiwify.com.br/ai1',
     mockup: 'curso',
     cor: '#15803D',
   },
