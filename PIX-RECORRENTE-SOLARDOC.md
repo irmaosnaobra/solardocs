@@ -69,24 +69,57 @@ A tela de Pix também ficou de fora dos portões do layout (CNPJ obrigatório, s
 
 ## Como ligar (na ordem)
 
-1. **Criar a conta Asaas** no CNPJ da AIOROS LTDA (63.636.043/0001-88) e concluir a aprovação cadastral. Pedir a habilitação do **Pix Automático** — vale confirmar com eles a tarifa por Pix recebido antes de virar a chave (a página de preços exige login, não dá pra citar número aqui sem chutar).
-2. ~~Rodar `MIGRATION_asaas_pix_recorrente.sql`~~ — **já aplicada em 08/08/2026** (tabelas `asaas_pix_assinaturas` e `asaas_webhook_events` criadas, vazias).
-3. **Variáveis na Vercel** (projeto da API):
-   - `ASAAS_API_KEY` — chave da conta
+> **Não existe MCP do Asaas** — e não faz falta. Quem fala com eles é o nosso
+> código, pela API REST, autenticado com a chave no header `access_token`. O que
+> "conecta" é a env var; não há integração pra plugar em lugar nenhum.
+
+**As duas contas são separadas.** A do sandbox é independente da de produção:
+mesmo com a conta PJ aprovada, o sandbox exige um cadastro próprio. Faça o
+sandbox primeiro — ele é imediato e não depende de aprovação.
+
+1. **Conta de SANDBOX** em `sandbox.asaas.com` (cadastro próprio, sai na hora).
+   No **menu do usuário → Integrações → "Gerar nova Chave de API"**. A chave
+   aparece **uma vez só** e não dá pra recuperar depois: copie antes de sair da
+   tela. Chave de sandbox só funciona na URL de sandbox — as duas são distintas.
+2. **Conta de PRODUÇÃO** no CNPJ da AIOROS LTDA (63.636.043/0001-88) e concluir a
+   aprovação cadastral. Depois **pedir a habilitação do Pix Automático pelo
+   suporte** — não é um botão, é solicitação. Requisitos deles: PJ, conta
+   aprovada, **CNPJ ativo há ≥ 6 meses** e sem indicativo de fraude no DICT. A
+   AIOROS abriu em 12/11/2025 → passa. Vale confirmar a tarifa por Pix recebido
+   antes de virar a chave (a página de preços exige login).
+3. ~~Rodar `MIGRATION_asaas_pix_recorrente.sql`~~ — **já aplicada em 08/08/2026**
+   (tabelas `asaas_pix_assinaturas` e `asaas_webhook_events` criadas, vazias —
+   conferido de novo em 14/08: 0 contratos, 0 eventos).
+4. **Variáveis na Vercel** (projeto da API):
+   - `ASAAS_API_KEY` — chave da conta (a do ambiente que estiver usando)
    - `ASAAS_ENV` — `sandbox` para testar, `prod` para valer
-   - `ASAAS_WEBHOOK_TOKEN` — string de 32+ caracteres, inventada por nós
+   - `ASAAS_WEBHOOK_TOKEN` — segredo nosso, inventado por nós. Já gerado:
+     `Q6txj9_9jqzkejbUk7qTAXzfCWRiPTGJxN8DIsQhVxM`
    - `ASAAS_PIX_MODO` — `auto` (recomendado)
 
    E no projeto do **dashboard**: `NEXT_PUBLIC_PIX_RECORRENTE=on` — é o que faz os
    links das telas de bloqueio saírem do WhatsApp e passarem a apontar pra tela de
-   assinatura. Deixe por último, depois do teste no sandbox.
-4. **Cadastrar o webhook no Asaas** apontando para
+   assinatura. **Deixe por último**, depois do teste no sandbox. (Desde 14/08 a
+   `/quase-la` também exige o servidor confirmar que o Asaas responde, então
+   ligar essa env fora de ordem não cria mais botão morto lá — mas as telas de
+   bloqueio ainda seguem só ela.)
+5. **Cadastrar o webhook no Asaas** apontando para
    `https://api.solardoc.app/payments/asaas/webhook`,
-   com o mesmo `authToken` do passo 3, `sendType: SEQUENTIALLY`, e os eventos:
+   com o mesmo `authToken` do passo 4, `sendType: SEQUENTIALLY`, e os eventos:
    `PAYMENT_CONFIRMED`, `PAYMENT_RECEIVED`, `PAYMENT_OVERDUE`,
    `PIX_AUTOMATIC_RECURRING_AUTHORIZATION_ACTIVATED`, `..._CANCELLED`, `..._EXPIRED`, `..._REFUSED`,
    `PIX_AUTOMATIC_RECURRING_ELIGIBILITY_UPDATED`.
-5. **Testar no sandbox antes de tudo** (`ASAAS_ENV=sandbox`): assinar pela tela `/pix-recorrente`, pagar o QR de teste, e conferir que (a) `plano_expira_em` andou um mês e sete dias, (b) chegou o aviso no seu WhatsApp, (c) reenviar o mesmo evento **não** dá um segundo mês.
+
+   Como conferir que o token entrou: `POST https://api.solardoc.app/payments/asaas/webhook`
+   responde **503 `"webhook não configurado"`** enquanto a env não existir. Foi
+   assim que se mediu, em 14/08, que nada estava ligado.
+6. **Testar no sandbox antes de tudo** (`ASAAS_ENV=sandbox`):
+   `cd api && npx ts-node --transpile-only scripts/testar-asaas.ts`. Ele roda o
+   caminho de verdade e responde os dois riscos abertos (o `startDate` e o QR
+   imediato), cancela o que criou e apaga a linha de teste do banco.
+   Depois, o teste pela tela `/pix-recorrente`: pagar o QR de teste e conferir
+   que (a) `plano_expira_em` andou um mês e sete dias, (b) chegou o aviso no seu
+   WhatsApp, (c) reenviar o mesmo evento **não** dá um segundo mês.
 
 ## O que ainda não foi verificado
 
