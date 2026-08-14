@@ -8,6 +8,13 @@ usa. As quatro variáveis estão na Vercel (`ASAAS_API_KEY`, `ASAAS_ENV=prod`,
 `ASAAS_WEBHOOK_TOKEN` na API; `NEXT_PUBLIC_PIX_RECORRENTE=on` no dashboard) e o
 webhook `cc78f758-…` está cadastrado com os 8 eventos, `SEQUENTIALLY`.
 
+**O Pix Automático está habilitado na conta** — não precisou pedir ao suporte.
+Conferido em produção criando uma autorização de verdade (`status: CREATED`, QR
+imediato com 247 caracteres) e cancelando em seguida. Esse é o único jeito de
+checar habilitação sem cobrar ninguém: a autorização **só vira débito quando o
+pagador confirma no app do banco**, e `/pix/automatic/eligibility` não existe
+(404). O cliente e a autorização de teste foram apagados.
+
 **Nenhum pagamento real passou por ele ainda** — o sandbox validou a mecânica, o
 primeiro cliente é o teste de verdade. **Kill-switch sem deploy:**
 `PIX_RECORRENTE_OFF=true` na API derruba o trilho inteiro e o front volta sozinho
