@@ -24,6 +24,9 @@ import { MAX_CARLA_POR_HORA } from '../agents/whatsapp/carlaThrottle';
 import { solardocViaIo } from '../agents/zapiClient';
 import { EP_ORIGENS, EP_AGENDA_INICIO, EP_AGENDA_PREFIX } from './eletropostoAgenda';
 import { SOLAR_ORIGENS, SOLAR_BOASVINDAS_INICIO, SOLAR_ENTREGA_AMPLA_INICIO } from './solarBoasVindas';
+import {
+  consumoTipico, KWH_CORTE_TIME, TIME_CONTA_ALTA, CONSULTOR_CONTA_BAIXA,
+} from '../agenda/leadSolarFicha';
 
 type Estado = 'ativo' | 'desligado' | 'dark' | 'sem_agente';
 type Canal = 'whatsapp' | 'instagram' | 'email' | 'painel';
@@ -61,6 +64,30 @@ const D = 86400_000;
 
 const envLigado = (nome: string, valores = ['true', '1']) =>
   valores.includes((process.env[nome] || '').trim().toLowerCase());
+
+/** Status que significa VENDA na agenda. É a única fonte de conversão que existe
+ *  hoje, e ela vale o que a disciplina de CRM valer — consultor que fecha e não
+ *  muda o status derruba o número sem derrubar a venda. */
+const STATUS_VENDA = 'fechou';
+/** Meta do dono (14/08/2026): a conversão do solar tem que ficar acima disto. */
+export const META_CONVERSAO = 3;
+
+/**
+ * O consumo que o lead respondeu, lido da observação da ficha, na unidade certa.
+ *
+ * A mesma pergunta cai no mesmo campo em DUAS unidades: kWh no formulário do Meta
+ * ("700 a 900") e reais na DM do Instagram ("R$ 800 a R$ 1.500"). Quem deduzisse
+ * pelo nome do campo leria R$ 800 como 800 kWh — o erro que o roteamento evita
+ * passando a unidade explícita. Aqui a pista é o "R$" no próprio valor.
+ * Devolve null quando a ficha não tem resposta de consumo: sem resposta não dá
+ * pra dizer que a atribuição está errada.
+ */
+function consumoDaObservacao(observacao: string | null): number | null {
+  const bruto = (/Consumo:\s*([^\n]+)/i.exec(String(observacao || '')) ?? [])[1]?.trim();
+  if (!bruto) return null;
+  const valor = consumoTipico(bruto, /r\$/i.test(bruto) ? 'reais' : 'kwh');
+  return valor > 0 ? valor : null;
+}
 
 /** Conta chaves de um prefixo dentro de uma janela + a mais recente. */
 function resumo(chaves: Array<{ key: string; updated_at: string }>, prefixo: string) {
@@ -208,7 +235,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
     fichasEletro30, nota1_30, nota1SemConvite, indicacoes30, respostasBlast,
     prospTotal, prospToques, seqAtivas, disparosRodando, igAutomacoes,
     epReunioesFuturas, epFuturasConfirmadas, epPresencaConfirmada, epLembretes5min30d, epUltimoToque,
-    solarCadastros30, solarBoasVindas30, solarUltimoToque,
+    solarCadastros30, solarBoasVindas30, solarUltimoToque, roteamento,
     alunosLimpapro,
   ] = await Promise.all([
     // Só a 1ª DM de cada comentário (private_reply). Contar todo 'sent'
@@ -279,6 +306,43 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
           .filter(v => !!v && String(v) >= SOLAR_BOASVINDAS_INICIO) as string[];
         return todos.sort().pop() ?? null;
       } catch (err) { logger.error('central-agentes', 'último toque das boas-vindas do solar falhou', err); return null; }
+    })(),
+    // ── Roteamento por tamanho de conta + conversão ────────────────────────
+    // Uma leitura só serve os dois números, porque os dois saem da MESMA ficha:
+    // quem atendeu e o que aconteceu com ela.
+    //
+    // A auditoria de roteamento existe porque a regra dos 700 kWh foi escrita em
+    // 12/08, ficou parada no disco e ninguém percebeu por dois dias — 6 leads
+    // roteados errado, 4 manhãs de dono gastas com conta pequena. Regra que
+    // ninguém confere é regra que volta a sumir no próximo deploy.
+    (async () => {
+      try {
+        const { data, error } = await supabaseGerador
+          .from('agendamentos').select('id, cliente_nome, vendedor_nome, status, observacao, created_at')
+          .in('created_by', SOLAR_ORIGENS).gte('created_at', desde30).limit(500);
+        if (error) throw error;
+        const fichas = data ?? [];
+        const foraDaRegra = fichas.filter(f => {
+          const kwh = consumoDaObservacao(f.observacao as string | null);
+          if (kwh === null) return false;                    // sem resposta não acusa ninguém
+          const dono = String(f.vendedor_nome || '');
+          if (!dono) return false;
+          return kwh > KWH_CORTE_TIME
+            ? !TIME_CONTA_ALTA.includes(dono)                // grande fora do time
+            : dono !== CONSULTOR_CONTA_BAIXA;                // pequeno gastando manhã de dono
+        });
+        const vendas = fichas.filter(f => String(f.status) === STATUS_VENDA).length;
+        return {
+          leads: fichas.length,
+          vendas,
+          conversao: fichas.length ? (100 * vendas) / fichas.length : null,
+          foraDaRegra: foraDaRegra.length,
+          exemplos: foraDaRegra.slice(0, 5).map(f => `#${f.id} ${f.cliente_nome} → ${f.vendedor_nome}`),
+        };
+      } catch (err) {
+        logger.error('central-agentes', 'auditoria de roteamento/conversão falhou', err);
+        return { leads: 0, vendas: 0, conversao: null, foraDaRegra: 0, exemplos: [] as string[] };
+      }
     })(),
     // Universo da trilha 1x1 do LimpaPro: quem ela PODE atender (aluno ativo com conta).
     contar('limpapro_membros', (q: any) => q.eq('ativo', true)),
@@ -554,6 +618,44 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         const ok = solarBoasVindas30 ?? 0;
         if (total < 5 || ok / total >= 0.8) return undefined;
         return `Só ${ok} de ${total} cadastros de solar receberam as boas-vindas em 30 dias — ${total - ok} pessoa(s) no escuro. Confira o cron, o teto da linha IO e o filtro de status.`;
+      })(),
+    },
+    {
+      // Não é um robô que fala com ninguém: é a regra que decide QUEM fala. Está
+      // aqui porque foi um roteamento errado em silêncio que custou 4 manhãs, e
+      // esta é a tela onde se olha o que os automatismos estão fazendo.
+      id: 'roteamento_solar',
+      nome: 'Roteamento do solar — conta alta × conta baixa',
+      papel: `Lead de solar acima de ${KWH_CORTE_TIME} kWh/mês alterna entre ${TIME_CONTA_ALTA.join(' e ')}; abaixo disso, e quando o lead não responde o consumo, vai todo pra ${CONSULTOR_CONTA_BAIXA}. A tarde do Thiago e do Diego é do eletroposto, então cada manhã que sai é cara — conta pequena não pode consumir uma delas. Vale nas duas entradas: formulário do Meta (responde em kWh) e DM do Instagram (responde em reais).`,
+      canal: 'painel', linha: null,
+      estado: 'ativo',
+      ultima_atividade: null,
+      metricas: [
+        { label: 'Leads de solar (30d)', valor: roteamento.leads },
+        {
+          label: 'Fora da regra', valor: roteamento.foraDaRegra,
+          sub: roteamento.foraDaRegra > 0 ? roteamento.exemplos.join(' · ') : 'toda ficha com consumo respondido está com quem devia',
+        },
+        {
+          label: 'Conversão (30d)',
+          valor: roteamento.conversao === null ? null : Math.round(roteamento.conversao * 100) / 100,
+          sub: `${roteamento.vendas} fechada(s) em ${roteamento.leads} lead(s) · meta ${META_CONVERSAO}% · fonte: status "${STATUS_VENDA}" na agenda`,
+        },
+      ],
+      toques: [
+        { titulo: 'na entrada da ficha', quando: 'no momento em que o lead vira ficha', copy: `Lê o consumo respondido, converte pra kWh/mês (faixa vale pelo MEIO, não pelo teto) e escolhe o dono. Cliente que já tem consultor fica com ele, antes de qualquer regra de tamanho. Sem resposta de consumo é ${CONSULTOR_CONTA_BAIXA}: a regra é exceção, quem não prova que é grande não gasta manhã de dono.` },
+      ],
+      alerta: (() => {
+        const partes: string[] = [];
+        if (roteamento.foraDaRegra > 0) {
+          partes.push(`${roteamento.foraDaRegra} ficha(s) com o consultor errado pra regra dos ${KWH_CORTE_TIME} kWh: ${roteamento.exemplos.join(' · ')}.`);
+        }
+        // A conversão só vira alerta com amostra que sustenta o número: 1 venda a
+        // menos em 10 leads derruba 10 pontos, e alerta que oscila assim ninguém lê.
+        if (roteamento.conversao !== null && roteamento.leads >= 30 && roteamento.conversao < META_CONVERSAO) {
+          partes.push(`Conversão em ${roteamento.conversao.toFixed(1)}%, abaixo da meta de ${META_CONVERSAO}% (${roteamento.vendas} venda(s) em ${roteamento.leads} leads). Confira também se o status "${STATUS_VENDA}" está sendo marcado no CRM — venda que ninguém marca some daqui.`);
+        }
+        return partes.length ? partes.join(' ') : undefined;
       })(),
     },
     {
