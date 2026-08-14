@@ -50,7 +50,8 @@ vi.mock('../services/agents/zapiClient', () => ({ solardocViaIo: () => false }))
 const obs = (consumo: string) => `[Lead Instagram]\nConsumo: ${consumo}\nImóvel: Proprio`;
 const ficha = (over: Partial<any> = {}) => ({
   id: 1, cliente_nome: 'Fulano', vendedor_nome: 'Nilce', status: 'agendado',
-  observacao: obs('- 500'), created_at: '2026-08-14T10:00:00.000Z', ...over,
+  // Depois de ROTEAMENTO_REGRA_INICIO: ficha anterior à regra não é auditada.
+  observacao: obs('- 500'), created_at: '2026-08-14T18:00:00.000Z', ...over,
 });
 
 beforeEach(() => { fichas = []; vi.useFakeTimers(); vi.setSystemTime(new Date('2026-08-14T15:00:00.000Z')); });
@@ -81,6 +82,17 @@ describe('quem está com o consultor errado', () => {
       ficha({ id: 1, vendedor_nome: 'Nilce', observacao: obs('- 500') }),
       ficha({ id: 2, vendedor_nome: 'Diego', observacao: obs('+ 1200') }),
     ];
+    const c = await card();
+    expect(metrica(c, 'Fora da regra').valor).toBe(0);
+    expect(c.alerta).toBeUndefined();
+  });
+
+  // Ficha de ANTES da regra foi roteada pelo rodízio dos três e não violou nada.
+  // Sem este corte a auditoria acusava 45 de 103 no primeiro minuto — gritaria por
+  // um mês e depois apagaria porque as fichas velhas saíram da janela, não porque
+  // o roteamento melhorou. Pego no ar, conferindo o card contra o banco.
+  it('ficha anterior à entrada da regra não é auditada', async () => {
+    fichas = [ficha({ vendedor_nome: 'Thiago', observacao: obs('- 500'), created_at: '2026-08-10T10:00:00.000Z' })];
     const c = await card();
     expect(metrica(c, 'Fora da regra').valor).toBe(0);
     expect(c.alerta).toBeUndefined();

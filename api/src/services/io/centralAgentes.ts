@@ -73,6 +73,23 @@ const STATUS_VENDA = 'fechou';
 export const META_CONVERSAO = 3;
 
 /**
+ * Quando a regra dos 700 kWh passou a valer DE VERDADE em produção — as duas
+ * metades (cron do Meta e DM do Instagram) já no ar.
+ *
+ * A auditoria de roteamento conta a partir daqui, não dos 30 dias cheios. Sem
+ * este piso ela acusava 45 de 103 no primeiro minuto: ficha roteada pelo rodízio
+ * dos três, ANTES de a regra existir, não é violação de regra nenhuma. O alerta
+ * gritaria 45 por um mês e depois apagaria porque as fichas velhas saíram da
+ * janela — não porque o roteamento melhorou. É o mesmo erro que a cobertura das
+ * boas-vindas cometeu (ver SOLAR_ENTREGA_AMPLA_INICIO); aqui ele foi pego no ar,
+ * conferindo o card contra o banco de produção em vez de confiar no teste.
+ *
+ * A CONVERSÃO não usa este piso: ela é métrica de negócio, e 30 dias de venda
+ * continuam sendo 30 dias de venda.
+ */
+export const ROTEAMENTO_REGRA_INICIO = '2026-08-14T14:30:00.000Z';
+
+/**
  * O consumo que o lead respondeu, lido da observação da ficha, na unidade certa.
  *
  * A mesma pergunta cai no mesmo campo em DUAS unidades: kWh no formulário do Meta
@@ -323,6 +340,9 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         if (error) throw error;
         const fichas = data ?? [];
         const foraDaRegra = fichas.filter(f => {
+          // Ficha anterior à regra foi roteada pelo rodízio dos três e não violou
+          // nada — ver ROTEAMENTO_REGRA_INICIO.
+          if (String(f.created_at) < ROTEAMENTO_REGRA_INICIO) return false;
           const kwh = consumoDaObservacao(f.observacao as string | null);
           if (kwh === null) return false;                    // sem resposta não acusa ninguém
           const dono = String(f.vendedor_nome || '');
@@ -634,7 +654,9 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         { label: 'Leads de solar (30d)', valor: roteamento.leads },
         {
           label: 'Fora da regra', valor: roteamento.foraDaRegra,
-          sub: roteamento.foraDaRegra > 0 ? roteamento.exemplos.join(' · ') : 'toda ficha com consumo respondido está com quem devia',
+          sub: roteamento.foraDaRegra > 0
+            ? roteamento.exemplos.join(' · ')
+            : 'toda ficha com consumo respondido está com quem devia (conta desde 14/08, quando a regra entrou no ar)',
         },
         {
           label: 'Conversão (30d)',
