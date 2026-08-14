@@ -1,5 +1,8 @@
 /* Mesma linguagem visual da /assinar — quem cai aqui acabou de sair do checkout
-   e precisa reconhecer a marca na hora, não achar que entrou noutro site. */
+   e precisa reconhecer a marca na hora, não achar que entrou noutro site.
+   A diferença: aqui existe UMA oferta em destaque (Pix) e uma saída discreta
+   (cartão). Duas ofertas com preço lado a lado devolviam a pessoa pra mesma
+   decisão que ela já não conseguiu tomar. */
 
 .tela {
   min-height: 100vh;
@@ -21,65 +24,56 @@
 .titulo { font-size: 1.5rem; font-weight: 800; color: #f8fafc; margin: 10px 0 6px; line-height: 1.25; }
 .linhaFina { font-size: 0.92rem; color: #94a3b8; line-height: 1.6; margin: 0 0 22px; }
 
-.opcao {
-  border: 1px solid #1e293b;
-  border-radius: 16px;
-  padding: 18px 18px 16px;
-  margin-bottom: 14px;
-  background: rgba(255,255,255,0.02);
+/* ── O bloco do Pix ───────────────────────────────────────────────────────── */
+
+.blocoPix {
+  border: 1px solid rgba(16,185,129,0.45);
+  border-radius: 18px;
+  padding: 20px 20px 18px;
+  background: linear-gradient(160deg, rgba(16,185,129,0.12), rgba(16,185,129,0.02));
+  box-shadow: 0 10px 34px rgba(16,185,129,0.12);
 }
 
-/* O Pix é a oferta principal desta tela: quem cai aqui muitas vezes não tem
-   cartão, e o bloco precisa ganhar o olho antes do de cartão. */
-.destaque {
-  border-color: rgba(16,185,129,0.45);
-  background: linear-gradient(160deg, rgba(16,185,129,0.10), rgba(16,185,129,0.02));
-  box-shadow: 0 8px 30px rgba(16,185,129,0.10);
-}
-
-.opcaoTopo { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
-.opcaoNome { font-size: 0.78rem; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: #94a3b8; }
-.opcaoNomeForte { font-size: 0.82rem; font-weight: 900; letter-spacing: 1.4px; text-transform: uppercase; color: #34d399; }
+.pixTopo { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+/* A marca do Pix em verde-menta: e' o que a pessoa reconhece antes de ler. */
+.pixLogo { width: 26px; height: 26px; color: #34d399; flex-shrink: 0; }
+.pixNome { font-size: 1.05rem; font-weight: 900; letter-spacing: 0.4px; color: #34d399; }
 
 .seloPix {
+  margin-left: auto;
   font-size: 0.66rem; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
   color: #04150e; background: linear-gradient(90deg,#10b981,#34d399);
   padding: 4px 10px; border-radius: 99px; white-space: nowrap;
 }
 
-.periodo { font-size: 0.92rem; font-weight: 600; color: #94a3b8; letter-spacing: 0; }
-.opcaoRodape { font-size: 0.78rem; color: #64748b; line-height: 1.6; margin: 10px 0 0; text-align: center; }
-
-.selo {
-  font-size: 0.66rem; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
-  color: #0f172a; background: linear-gradient(90deg,#f59e0b,#fbbf24);
-  padding: 4px 10px; border-radius: 99px; white-space: nowrap;
-}
-
-.opcaoPreco { font-size: 1.35rem; font-weight: 900; color: #fff; margin: 0 0 4px; letter-spacing: -0.4px; }
-.riscado { font-size: 0.95rem; font-weight: 700; color: #64748b; text-decoration: line-through; margin-left: 6px; }
-.opcaoNota { font-size: 0.84rem; color: #94a3b8; line-height: 1.6; margin: 0 0 14px; }
-
-/* Cartão virou o caminho secundário (o Pix leva o botão cheio). Continua
-   legível e clicável — quem tem cartão paga menos e precisa achar isto. */
-.btnSecundario {
-  width: 100%; padding: 13px;
-  border: 1px solid rgba(245,158,11,0.55); border-radius: 12px;
-  background: transparent;
-  color: #fbbf24; font-size: 0.95rem; font-weight: 800; letter-spacing: 0.3px;
-  cursor: pointer;
-}
-.btnSecundario:hover { background: rgba(245,158,11,0.08); }
-.btnSecundario:disabled { opacity: 0.55; cursor: not-allowed; }
+.pixChamada { font-size: 1.5rem; font-weight: 900; color: #fff; margin: 0 0 6px; letter-spacing: -0.5px; line-height: 1.2; }
+.pixPeriodo { font-size: 0.95rem; font-weight: 600; color: #94a3b8; letter-spacing: 0; }
+.pixNota { font-size: 0.88rem; color: #cbd5e1; line-height: 1.65; margin: 0 0 16px; }
 
 .btnPix {
-  display: block; width: 100%; padding: 14px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: 100%; padding: 16px;
   border: none; border-radius: 12px;
   background: linear-gradient(135deg,#059669,#10b981);
-  color: #04150e; font-size: 0.98rem; font-weight: 900; letter-spacing: 0.3px;
+  color: #04150e; font-size: 1rem; font-weight: 900; letter-spacing: 0.3px;
   text-align: center; text-decoration: none;
-  box-shadow: 0 4px 18px rgba(16,185,129,0.32);
+  box-shadow: 0 6px 22px rgba(16,185,129,0.35);
 }
+.btnPixLogo { width: 20px; height: 20px; color: #04150e; flex-shrink: 0; }
 
-.rodape { font-size: 0.78rem; color: #64748b; text-align: center; margin: 18px 0 0; line-height: 1.6; }
-.erro { font-size: 0.85rem; color: #f87171; font-weight: 600; margin-top: 4px; text-align: center; }
+.pixRodape { font-size: 0.78rem; color: #7c9aa8; line-height: 1.6; margin: 12px 0 0; text-align: center; }
+
+/* ── A saída de cartão: link, não oferta ──────────────────────────────────── */
+
+.voltarCartao {
+  display: block; width: 100%; margin: 18px 0 0; padding: 6px;
+  border: none; background: none;
+  color: #94a3b8; font-size: 0.88rem; font-weight: 600;
+  text-align: center; text-decoration: underline; text-underline-offset: 3px;
+  cursor: pointer;
+}
+.voltarCartao:hover { color: #cbd5e1; }
+.voltarCartao:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.rodape { font-size: 0.78rem; color: #64748b; text-align: center; margin: 20px 0 0; line-height: 1.6; }
+.erro { font-size: 0.85rem; color: #f87171; font-weight: 600; margin: 14px 0 0; text-align: center; }

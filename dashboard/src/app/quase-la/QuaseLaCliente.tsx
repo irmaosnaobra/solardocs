@@ -7,21 +7,32 @@ import { getToken } from '@/services/auth';
 import { pixRecorrenteLigado, hrefPagarPix } from '@/components/LinkPagarPix/LinkPagarPix';
 import styles from './quase-la.module.css';
 
-interface CupomInfo {
-  valido: boolean;
-  codigo?: string;
-  primeiroMes?: number;
-  precoCheio?: number;
-}
-
 interface PixInfo {
   url: string | null;
   valor: number;
   dias: number;
 }
 
+// Marca do Pix (Banco Central). Inline em SVG de propósito: e' o simbolo que faz
+// a pessoa reconhecer o meio de pagamento antes de ler qualquer palavra, e um
+// arquivo externo numa tela de pagamento e' mais uma requisicao que pode falhar
+// no 4G da obra — justo na tela que existe pra salvar a venda.
+function LogoPix({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 512 512" role="img" aria-label="Pix" focusable="false">
+      <path
+        fill="currentColor"
+        d="M242.4 292.5C247.8 287.1 257.1 287.1 262.5 292.5L339.5 369.5C353.7 383.7 372.6 391.5 392.6 391.5H407.7L310.6 488.6C280.3 518.9 231.1 518.9 200.8 488.6L103.4 391.2H112.6C132.6 391.2 151.5 383.4 165.7 369.2L242.4 292.5zM262.5 218.9C256.9 224.3 247.9 224.5 242.4 218.9L165.7 142.2C151.5 128 132.6 120.2 112.6 120.2H103.4L200.8 22.8C231.1-7.6 280.3-7.6 310.6 22.8L407.7 119.9H392.6C372.6 119.9 353.7 127.7 339.5 141.9L262.5 218.9zM112.6 142.7C126.4 142.7 139.1 148.3 149.7 158.1L226.4 234.8C233.6 242 243 245.6 252.5 245.6C261.9 245.6 271.3 242 278.5 234.8L355.5 157.8C365.3 148 378.9 142.4 392.7 142.4H430.3L488.6 200.7C518.9 231 518.9 280.2 488.6 310.5L430.3 368.8H392.6C378.8 368.8 365.2 363.2 355.4 353.4L278.4 276.4C264.4 262.4 240.4 262.4 226.3 276.5L149.6 353.2C139.8 363 126.2 368.6 112.4 368.6H80.7L22.8 310.6C-7.6 280.3-7.6 231.1 22.8 200.8L80.7 142.9H112.6z"
+      />
+    </svg>
+  );
+}
+
 export default function QuaseLaCliente() {
   const params = useSearchParams();
+  // O cupom continua VIAJANDO pro checkout (quem tinha desconto não pode perder
+  // ao voltar), mas some da tela: preço de cartão ao lado do Pix rouba a decisão
+  // que esta página existe pra fazer. Quem valida o código é o backend.
   const cupomUrl = (params.get('cupom') || '').trim().toUpperCase();
   const plano = params.get('plano') || 'vip';
   // De onde ele veio: 'conta' = já estava logado (UpgradeModal). Refazer o cartão
@@ -29,7 +40,6 @@ export default function QuaseLaCliente() {
   // das assinaturas duplicadas. Cada um volta pela porta por onde entrou.
   const via = params.get('via') === 'conta' ? 'conta' : 'lp';
 
-  const [cupom, setCupom] = useState<CupomInfo | null>(null);
   const [pix, setPix] = useState<PixInfo | null>(null);
   const [conferindo, setConferindo] = useState(true);
   const [indo, setIndo] = useState(false);
@@ -37,26 +47,15 @@ export default function QuaseLaCliente() {
 
   useEffect(() => {
     let vivo = true;
-    Promise.all([
-      api.get(`/payments/cupom/${encodeURIComponent(cupomUrl || '_')}`, { params: { plano } })
-        .then(({ data }) => data as CupomInfo).catch(() => ({ valido: false } as CupomInfo)),
-      // Trilho de Pix: se não estiver configurado a resposta vem com url null e o
-      // botão nem aparece. Botão de pagamento que não leva a lugar nenhum é pior
-      // que oferta nenhuma.
-      api.get('/payments/pix-checkout')
-        .then(({ data }) => data as PixInfo).catch(() => null),
-    ]).then(([c, p]) => {
-      if (!vivo) return;
-      setCupom(c);
-      setPix(p);
-      setConferindo(false);
-    });
+    // Trilho de Pix: se não estiver configurado a resposta vem com url null e o
+    // bloco cai no WhatsApp. Botão de pagamento que não leva a lugar nenhum é
+    // pior que oferta nenhuma.
+    api.get('/payments/pix-checkout')
+      .then(({ data }) => { if (vivo) setPix(data as PixInfo); })
+      .catch(() => { if (vivo) setPix(null); })
+      .finally(() => { if (vivo) setConferindo(false); });
     return () => { vivo = false; };
-  }, [cupomUrl, plano]);
-
-  const comCupom = !!cupom?.valido;
-  const precoCheio = cupom?.precoCheio ?? null;
-  const primeiroMes = comCupom ? (cupom?.primeiroMes ?? precoCheio) : precoCheio;
+  }, []);
 
   // Assinatura no Pix (débito autorizado no banco) só serve pra quem TEM conta:
   // a cobrança nasce amarrada ao usuário e a tela /pix-recorrente pede login.
@@ -72,7 +71,7 @@ export default function QuaseLaCliente() {
     // levaria embora o plano e o cupom que a pessoa estava carregando. Melhor
     // mandar a gente mesmo, com o caminho de volta pra esta tela.
     if (via === 'conta' && !getToken()) {
-      const volta = `/quase-la?cancelado=1&via=conta&plano=${encodeURIComponent(plano)}${comCupom ? `&cupom=${encodeURIComponent(cupom?.codigo || '')}` : ''}`;
+      const volta = `/quase-la?cancelado=1&via=conta&plano=${encodeURIComponent(plano)}${cupomUrl ? `&cupom=${encodeURIComponent(cupomUrl)}` : ''}`;
       window.location.href = `/auth?mode=login&next=${encodeURIComponent(volta)}`;
       return;
     }
@@ -81,7 +80,7 @@ export default function QuaseLaCliente() {
       const rota = via === 'conta' ? '/payments/create-checkout' : '/payments/public-checkout';
       const { data } = await api.post(rota, {
         plan: plano,
-        ...(comCupom ? { cupom: cupom?.codigo } : {}),
+        ...(cupomUrl ? { cupom: cupomUrl } : {}),
       });
       if (data?.url) { window.location.href = data.url; return; }
       // O upgrade in-place responde { upgraded: true } sem URL: quem já tinha
@@ -114,96 +113,78 @@ export default function QuaseLaCliente() {
           Seu acesso ainda não foi ativado — e cartão não é o único caminho.
         </p>
 
-        {/* PIX PRIMEIRO (14/08/2026, decisão do Thiago). A dor que ele vê no
-            atendimento é gente que QUER a plataforma e não tem cartão de crédito:
-            oferecer cartão primeiro pra essa pessoa é repetir a parede em que ela
-            acabou de bater. O cartão fica logo abaixo, com o desconto de adesão. */}
-        {recorrenteAqui ? (
-          // Trilho recorrente ligado e ele tem conta: é o substituto REAL do
-          // cartão — autoriza uma vez no app do banco e nunca mais pensa nisso.
-          <div className={`${styles.opcao} ${styles.destaque}`}>
-            <div className={styles.opcaoTopo}>
-              <span className={styles.opcaoNomeForte}>Assinatura no Pix</span>
-              <span className={styles.seloPix}>Sem cartão</span>
-            </div>
-            <p className={styles.opcaoPreco}>
-              {conferindo || primeiroMes === null ? '—' : <>R$ {primeiroMes} pra começar</>}
-            </p>
-            <p className={styles.opcaoNota}>
-              Você paga o primeiro mês no Pix e autoriza a renovação no app do seu banco.
-              Dos próximos meses em diante é automático — não precisa lembrar de nada.
-            </p>
-            <a className={styles.btnPix} href={`/pix-recorrente${comCupom ? `?cupom=${encodeURIComponent(cupom?.codigo || '')}` : ''}`}>
-              Assinar pagando no Pix
-            </a>
+        {/* PIX, e só ele em destaque. A dor que o Thiago vê no atendimento é gente
+            que QUER a plataforma e não tem cartão de crédito: oferecer cartão do
+            lado, com preço, rouba a decisão de quem esta tela existe pra salvar. */}
+        <div className={styles.blocoPix}>
+          <div className={styles.pixTopo}>
+            <LogoPix className={styles.pixLogo} />
+            <span className={styles.pixNome}>Pix</span>
+            <span className={styles.seloPix}>Sem cartão</span>
           </div>
-        ) : pix?.url ? (
-          <div className={`${styles.opcao} ${styles.destaque}`}>
-            <div className={styles.opcaoTopo}>
-              <span className={styles.opcaoNomeForte}>Pagar no Pix</span>
-              <span className={styles.seloPix}>Sem cartão</span>
-            </div>
-            <p className={styles.opcaoPreco}>R$ {pix.valor} <span className={styles.periodo}>por {pix.dias} dias</span></p>
-            <p className={styles.opcaoNota}>
-              O QR code aparece na hora e <strong>seu acesso libera sozinho</strong> assim que o
-              pagamento cai — não precisa mandar comprovante pra ninguém.
-            </p>
-            <a className={styles.btnPix} href={pix.url}>Pagar no Pix agora</a>
-            <p className={styles.opcaoRodape}>
-              Antes de vencer a gente te chama no WhatsApp com o link pra renovar em um clique.
-            </p>
-          </div>
-        ) : (
-          // TERCEIRO ESTADO — nenhum trilho automático configurado. O bloco de Pix
-          // NÃO some: some o automático, não a oferta. Quem chega aqui não tem
-          // cartão, e mandar ele embora é perder a venda que a tela existe pra
-          // salvar. O WhatsApp é o Pix que funciona hoje (comprovante lido por IA,
-          // liberação na hora) — mesmo fallback que o LinkPagarPix já usa nas
-          // telas de bloqueio. Quando o link do checkout entrar, este bloco vira
-          // automático sozinho, sem deploy do dashboard.
-          <div className={`${styles.opcao} ${styles.destaque}`}>
-            <div className={styles.opcaoTopo}>
-              <span className={styles.opcaoNomeForte}>Pagar no Pix</span>
-              <span className={styles.seloPix}>Sem cartão</span>
-            </div>
-            <p className={styles.opcaoPreco}>Chama a gente</p>
-            <p className={styles.opcaoNota}>
-              Dá pra entrar pagando no Pix, sem cartão nenhum. Manda uma mensagem que a gente
-              te passa o código na hora e libera seu acesso assim que o pagamento cair.
-            </p>
-            <a className={styles.btnPix} href={hrefPagarPix()} target="_blank" rel="noopener noreferrer">
-              Quero pagar no Pix
-            </a>
-          </div>
-        )}
 
-        {/* Cartão em segundo — mas com o desconto na cara, porque quem TEM cartão
-            paga bem menos no primeiro mês e precisa ver isso pra escolher. */}
-        <div className={styles.opcao}>
-          <div className={styles.opcaoTopo}>
-            {/* Rótulo curto: "Prefere no cartão?" quebrava em duas linhas a
-                414px e encostava no selo do cupom. */}
-            <span className={styles.opcaoNome}>Tem cartão?</span>
-            {comCupom && <span className={styles.selo}>Cupom {cupom?.codigo}</span>}
-          </div>
-          <p className={styles.opcaoPreco}>
-            {conferindo || primeiroMes === null
-              ? '—'
-              : comCupom
-                ? <>R$ {primeiroMes} <span className={styles.periodo}>no primeiro mês</span> <span className={styles.riscado}>R$ {precoCheio}</span></>
-                : <>R$ {precoCheio}<span className={styles.periodo}>/mês</span></>}
-          </p>
-          <p className={styles.opcaoNota}>
-            {comCupom
-              ? `Depois R$ ${precoCheio}/mês, no automático. Cancele quando quiser.`
-              : 'Cobrança mensal automática. Cancele quando quiser, sem multa.'}
-          </p>
-          <button className={styles.btnSecundario} onClick={voltarPraCartao} disabled={indo || conferindo}>
-            {indo ? 'Abrindo pagamento...' : 'Voltar pro pagamento no cartão'}
-          </button>
+          {recorrenteAqui ? (
+            // Trilho recorrente ligado e ele tem conta: é o substituto REAL do
+            // cartão — autoriza uma vez no app do banco e nunca mais pensa nisso.
+            <>
+              <p className={styles.pixChamada}>Assine pagando no Pix</p>
+              <p className={styles.pixNota}>
+                Você paga o primeiro mês e autoriza a renovação no app do seu banco.
+                Dos próximos meses em diante é automático — não precisa lembrar de nada.
+              </p>
+              <a
+                className={styles.btnPix}
+                href={`/pix-recorrente${cupomUrl ? `?cupom=${encodeURIComponent(cupomUrl)}` : ''}`}
+              >
+                <LogoPix className={styles.btnPixLogo} />
+                Assinar pagando no Pix
+              </a>
+            </>
+          ) : pix?.url ? (
+            <>
+              <p className={styles.pixChamada}>
+                R$ {pix.valor} <span className={styles.pixPeriodo}>por {pix.dias} dias</span>
+              </p>
+              <p className={styles.pixNota}>
+                O QR code aparece na hora e <strong>seu acesso libera sozinho</strong> assim que o
+                pagamento cai — não precisa mandar comprovante pra ninguém.
+              </p>
+              <a className={styles.btnPix} href={pix.url}>
+                <LogoPix className={styles.btnPixLogo} />
+                Pagar no Pix agora
+              </a>
+              <p className={styles.pixRodape}>
+                Antes de vencer a gente te chama no WhatsApp com o link pra renovar em um clique.
+              </p>
+            </>
+          ) : (
+            // Nenhum trilho automático configurado. O bloco de Pix NÃO some: some o
+            // automático, não a oferta. O WhatsApp é o Pix que funciona hoje
+            // (comprovante lido por IA, liberação na hora) — mesmo fallback que o
+            // LinkPagarPix já usa nas telas de bloqueio. Quando o link do checkout
+            // entrar, este bloco vira automático sozinho, sem deploy do dashboard.
+            <>
+              <p className={styles.pixChamada}>Pague no Pix, sem cartão</p>
+              <p className={styles.pixNota}>
+                Manda uma mensagem que a gente te passa o código na hora e libera seu acesso
+                assim que o pagamento cair.
+              </p>
+              <a className={styles.btnPix} href={hrefPagarPix()} target="_blank" rel="noopener noreferrer">
+                <LogoPix className={styles.btnPixLogo} />
+                Quero pagar no Pix
+              </a>
+            </>
+          )}
         </div>
 
         {erro && <p className={styles.erro}>{erro}</p>}
+
+        {/* Cartão vira saída discreta: sem caixa, sem preço, sem cupom. Quem quer
+            cartão já sabe o que quer e acha um link; quem não tem cartão não
+            precisa ver mais uma vez a parede em que acabou de bater. */}
+        <button className={styles.voltarCartao} onClick={voltarPraCartao} disabled={indo || conferindo}>
+          {indo ? 'Abrindo pagamento...' : 'Prefiro voltar e pagar no cartão'}
+        </button>
 
         <p className={styles.rodape}>
           Deu algum problema no pagamento? Chama a gente no WhatsApp <strong>(34) 99816-5040</strong> —
