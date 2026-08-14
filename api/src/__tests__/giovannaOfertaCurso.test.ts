@@ -47,9 +47,12 @@ describe('FREE — é o público da entrada de R$19', () => {
     expect(p).toMatch(/N[ÃA]O é mensalidade|sem mensalidade/i);
   });
 
-  it('diz que a decisão de PRO/VIP fica pro fim dos 30 dias', () => {
+  // PREÇO ÚNICO: antes ela dizia "aí sim escolhe PRO (R$27) ou VIP (R$67)".
+  // Não há mais escolha — no fim dos 30 dias ele assina o preço único ou não.
+  it('diz que a decisão de assinar fica pro fim dos 30 dias, num preço só', () => {
     expect(p).toMatch(/30 dias/);
-    expect(p).toMatch(/PRO \(R\$27\) ou VIP \(R\$67\)|PRO ou VIP/);
+    expect(p).toMatch(/R\$ ?67\/m[êe]s/);
+    expect(p).not.toMatch(/escolhe PRO|PRO ou VIP|PRO \(R\$ ?27\)/);
   });
 
   it('proíbe misturar com os 7 dias grátis na mesma conversa', () => {
@@ -74,8 +77,12 @@ describe('assinante ativo — a entrada NÃO pode aparecer', () => {
     expect(p).not.toContain('[[ENVIAR_PIX_CURSO]]');
   });
 
-  it('VIP segue orientado a NÃO receber upgrade', () => {
-    expect(prompt({ plano: 'ilimitado' })).toMatch(/já é VIP/i);
+  // Preço único: não existe upgrade pra oferecer, e o prompt não pode nomear
+  // degrau ("VIP"/"PRO") — quem paga é só "assinante".
+  it('assinante segue orientado a NÃO receber upgrade', () => {
+    const p = prompt({ plano: 'ilimitado' });
+    expect(p).toMatch(/N[ÃA]O ofereça upgrade/i);
+    expect(p).toMatch(/JÁ PAGA/i);
   });
 });
 

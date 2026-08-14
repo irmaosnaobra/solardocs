@@ -1,13 +1,20 @@
-// Features inclusas no plano VIP — explicadas com AIDA + SPIN.
-// CTA condicional: free vê "Fazer upgrade pro VIP" / VIP vê "Acessar agora".
+// Features da assinatura — explicadas com AIDA + SPIN.
+// CTA condicional: quem não assina vê "Assinar" / assinante vê "Acessar agora".
+//
+// PREÇO ÚNICO: nenhuma dessas telas nomeia degrau de plano. Não existe "VIP" em
+// oposição a "PRO" — existe conta grátis e conta assinante.
 
-export const STRIPE_VIP = 'https://buy.stripe.com/dRm5kC9qxbpu1Sk50TfrW05';
+// Era um payment link cru da Stripe (buy.stripe.com/...), com o preço congelado
+// dentro dele e sem passar por cupom nem InitiateCheckout. Com preço único, todo
+// caminho de compra do app entra por /assinar — de lá o preço vem da API, então
+// nenhuma tela guarda um valor que pode envelhecer em silêncio.
+export const URL_ASSINAR = '/assinar';
 
-export interface FeatureVip {
+export interface FeatureAssinatura {
   slug: string;
   nome: string;
   emoji: string;
-  tag: string;            // "INCLUSO NO VIP" / etc
+  tag: string;            // "INCLUSO NA ASSINATURA" / etc
   attention: {
     eyebrow: string;
     headline: string;
@@ -20,22 +27,22 @@ export interface FeatureVip {
     necessidade: string;
   };
   bullets: string[];
-  ctaVip: string;          // texto do botão pra quem JÁ é VIP
+  ctaAtivo: string;        // texto do botão pra quem JÁ assina
   ctaFree: string;         // texto do botão pra quem é free (leva pro Stripe)
-  acessoUrl?: string;      // pra onde mandar o VIP quando clica (placeholder/feature em construção)
+  acessoUrl?: string;      // pra onde mandar o assinante quando clica (placeholder/feature em construção)
   status: 'ativo' | 'em_breve';  // 'em_breve' mostra aviso "em desenvolvimento"
 }
 
-export const FEATURES_VIP: Record<string, FeatureVip> = {
+export const FEATURES_ASSINATURA: Record<string, FeatureAssinatura> = {
 
   'documentos': {
     slug: 'documentos',
     nome: 'Documentos Salvos na Nuvem',
     emoji: '',
-    tag: 'EXCLUSIVO VIP',
+    tag: 'INCLUSO NA ASSINATURA',
     attention: {
-      eyebrow: 'INCLUSO NO PLANO VIP',
-      headline: 'Seus contratos somem quando troca de PC. Não acontece com VIP.',
+      eyebrow: 'INCLUSO NA ASSINATURA',
+      headline: 'Seus contratos somem quando troca de PC. Assinando, não somem.',
       subtitulo: 'Todos os documentos gerados ficam salvos na nuvem. Acessa, baixa e reenvia de qualquer lugar.',
     },
     spin: {
@@ -52,8 +59,8 @@ export const FEATURES_VIP: Record<string, FeatureVip> = {
       'Histórico permanente — nunca expira',
       'Backup automático — você nunca perde nada',
     ],
-    ctaVip: 'Acessar minha nuvem',
-    ctaFree: 'Liberar nuvem com VIP',
+    ctaAtivo: 'Acessar minha nuvem',
+    ctaFree: 'Liberar minha nuvem',
     acessoUrl: '/historico',
     status: 'ativo',
   },
@@ -62,11 +69,11 @@ export const FEATURES_VIP: Record<string, FeatureVip> = {
     slug: 'sugestoes',
     nome: 'Fórum de Sugestões',
     emoji: '',
-    tag: 'EXCLUSIVO VIP',
+    tag: 'INCLUSO NA ASSINATURA',
     attention: {
-      eyebrow: 'INCLUSO NO PLANO VIP',
+      eyebrow: 'INCLUSO NA ASSINATURA',
       headline: 'Toda boa ideia que você teve sobre a plataforma morreu na cabeça. Aqui ela vira realidade.',
-      subtitulo: 'Mande sua sugestão, o admin aprova, vira tópico de fórum, outros VIPs comentam — e as ideias melhores entram no roadmap.',
+      subtitulo: 'Mande sua sugestão, o admin aprova, vira tópico de fórum, outros assinantes comentam — e as ideias melhores entram no roadmap.',
     },
     spin: {
       situacao: 'Você usa a SolarDoc todos os dias e enxerga buracos, melhorias, features que faltam.',
@@ -78,12 +85,12 @@ export const FEATURES_VIP: Record<string, FeatureVip> = {
       'Envie ideias direto pra equipe SolarDoc',
       'Sua sugestão passa por aprovação do admin',
       'Aprovada → vira tópico de fórum aberto',
-      'Outros VIPs comentam, votam e validam',
+      'Outros assinantes comentam, votam e validam',
       'Ideias mais votadas viram features reais',
       'Você acompanha o status: aprovada · em desenvolvimento · publicada',
     ],
-    ctaVip: 'Mandar minha primeira ideia',
-    ctaFree: 'Liberar fórum com VIP',
+    ctaAtivo: 'Mandar minha primeira ideia',
+    ctaFree: 'Liberar o fórum',
     acessoUrl: '/sugestoes',
     status: 'ativo',
   },
@@ -92,9 +99,9 @@ export const FEATURES_VIP: Record<string, FeatureVip> = {
     slug: 'mao-de-obra',
     nome: 'Cadastro de Mão de Obra',
     emoji: '',
-    tag: 'EXCLUSIVO VIP',
+    tag: 'INCLUSO NA ASSINATURA',
     attention: {
-      eyebrow: 'INCLUSO NO PLANO VIP',
+      eyebrow: 'INCLUSO NA ASSINATURA',
       headline: 'Cadastra seu time. A gente capta a venda. Você instala e fatura.',
       subtitulo: 'Quando temos venda fechada na sua região, você é acionado pra executar a obra. Cliente já fechado e pago.',
     },
@@ -112,8 +119,8 @@ export const FEATURES_VIP: Record<string, FeatureVip> = {
       'Padrão SolarDoc auditado — qualidade garantida',
       'Sem prospecção, foco total em executar bem',
     ],
-    ctaVip: 'Cadastrar meu time',
-    ctaFree: 'Entrar na rede com VIP',
+    ctaAtivo: 'Cadastrar meu time',
+    ctaFree: 'Entrar na rede',
     acessoUrl: '/mao-de-obra',
     status: 'ativo',
   },

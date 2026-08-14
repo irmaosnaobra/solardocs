@@ -14,7 +14,10 @@ export default function PlanBadge({ plano, documentosUsados, limiteDocumentos }:
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <span className={`${styles.badge} ${styles[plano]}`}>
+        {/* Preço único: duas cores só — grátis ou ativo. Colorir por slug
+            ('pro' âmbar vs 'ilimitado' verde) recriava o degrau visual que a
+            oferta única acabou de tirar do texto. */}
+        <span className={`${styles.badge} ${plano === 'free' ? styles.free : styles.ativo}`}>
           {formatPlanName(plano).toUpperCase()}
         </span>
         <span className={styles.count}>

@@ -61,9 +61,13 @@ function query(table: string) {
   return q;
 }
 
+// O erro que a IA devolve, trocável por teste: erro solto cai no fallback,
+// crédito zerado tem que PARAR a campanha.
+const ia = vi.hoisted(() => ({ erro: null as Error | null }));
+
 vi.mock('../utils/supabase', () => ({ supabase: { from: (t: string) => query(t) } }));
 vi.mock('@anthropic-ai/sdk', () => ({
-  default: class { messages = { create: vi.fn(async () => { throw new Error('sem IA no teste'); }) }; },
+  default: class { messages = { create: vi.fn(async () => { throw ia.erro ?? new Error('sem IA no teste'); }) }; },
 }));
 vi.mock('../services/agents/zapiClient', () => ({
   // O envio é bolha a bolha (sendHuman). Pro teste, o que importa é o texto que
@@ -71,6 +75,7 @@ vi.mock('../services/agents/zapiClient', () => ({
   sendHuman: vi.fn(async (phone: string, partes: string[]) => {
     enviados.push({ phone, msg: partes.join(' ') });
   }),
+  sendWhatsApp: vi.fn(async () => {}),   // usado pelo filaAlerta (classificarFalha vem de lá)
   sleep: vi.fn(async () => {}),
 }));
 vi.mock('../services/agents/whatsapp/carlaThrottle', () => ({
@@ -94,7 +99,7 @@ function user(over: Row = {}): Row {
 
 beforeEach(() => {
   db.users = []; db.kit_pedidos = []; db.system_state = [];
-  enviados.length = 0; marcados.length = 0; tetoLiberado = true;
+  enviados.length = 0; marcados.length = 0; tetoLiberado = true; ia.erro = null;
   // Os testes de público/cadência assumem a campanha LIGADA. A trava em si tem
   // o bloco próprio abaixo, que desliga de novo.
   process.env.CAMPANHA_CURSO19_ON = 'true';
@@ -289,5 +294,57 @@ describe('a mensagem do fallback (IA fora do ar)', () => {
     expect(msg.length).toBeGreaterThan(20);
     expect(msg).not.toMatch(/https?:\/\//);      // link só no 1x1, depois da resposta
     expect(msg).not.toMatch(/7 dias/i);          // não mistura com o trial
+  });
+});
+
+describe('IA MORTA não vira campanha no fallback', () => {
+  // 07-10/08/2026: o crédito zerou, a campanha seguiu disparando o texto
+  // determinístico ("pega o curso por R$19") e a Giovanna, que é quem manda o
+  // link no 1x1, estava muda pela mesma causa. Seis pessoas responderam "Sim" /
+  // "Como faço o curso?" e não receberam nada de volta.
+  const ERRO_CREDITO = new Error('400 {"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits."}}');
+
+  it('crédito zerado: nenhum toque sai e o tick devolve o motivo', async () => {
+    ia.erro = ERRO_CREDITO;
+    db.users = [user({ id: 'u1' }), user({ id: 'u2', whatsapp: '5534988887777', email: 'b@t.com' })];
+
+    const r = await runCursoEntradaBroadcast();
+
+    expect(r.enviados).toBe(0);
+    expect(r.motivo).toBe('ia_fora');
+    expect(enviados).toHaveLength(0);
+  });
+
+  it('e não queima nada: teto anti-ban intacto e cadência sem avançar', async () => {
+    ia.erro = ERRO_CREDITO;
+    db.users = [user()];
+
+    await runCursoEntradaBroadcast();
+
+    expect(marcados).toHaveLength(0);
+    expect(db.system_state.find((s) => s.key === 'curso19:u1')).toBeUndefined();
+  });
+
+  it('chave recusada também para — pôr crédito não resolveria', async () => {
+    ia.erro = new Error('401 authentication_error: invalid x-api-key');
+    db.users = [user()];
+    expect((await runCursoEntradaBroadcast()).motivo).toBe('ia_fora');
+  });
+
+  it('a prévia do modo seco também para — senão revisa um fallback achando que é a mensagem real', async () => {
+    ia.erro = ERRO_CREDITO;
+    db.users = [user()];
+    const r = await runCursoEntradaBroadcast({ seco: true });
+    expect(r.motivo).toBe('ia_fora');
+    expect(r.previa).toHaveLength(0);
+  });
+
+  it('falha PASSAGEIRA continua no fallback — a pessoa responde minutos depois, com a IA de pé', async () => {
+    ia.erro = new Error('529 overloaded_error');
+    db.users = [user()];
+    const r = await runCursoEntradaBroadcast();
+    expect(r.enviados).toBe(1);
+    expect(r.motivo).toBeUndefined();
+    expect(enviados[0].msg).toMatch(/R\$19/);
   });
 });

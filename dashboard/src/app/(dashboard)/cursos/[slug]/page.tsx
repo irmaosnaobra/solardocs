@@ -437,28 +437,28 @@ export default function CursoPage({ params }: { params: Promise<{ slug: string }
         </div>
       </section>
 
-      {/* PRO entra aqui também: ele paga R$27 e tem teto de 90 documentos — o
-          convite pro VIP é legítimo pra ele, e antes só free e trial viam. */}
+      {/* Quem assina por um preço antigo ('pro', teto de 90 documentos) também
+          vê o convite: pra ele a assinatura de hoje tira o teto. */}
       {(acesso?.plano === 'free' || acesso?.plano === 'pro' || emTrial) && (
         <div className={styles.conviteVip}>
           <Sparkles size={20} />
           <div>
             <h3>
               {emTrial
-                ? 'Seu acesso VIP está correndo'
+                ? 'Seu acesso está correndo'
                 : acesso?.plano === 'pro'
                   ? 'Você tem teto de 90 documentos por mês'
                   : 'O contrato da lição 4, sem limite mensal'}
             </h3>
             <p>
               {emTrial
-                ? 'Enquanto durar, seus documentos são ilimitados. Assinando o VIP por R$ 67/mês você não perde o acesso nem o que já gerou.'
+                ? 'Enquanto durar, seus documentos são ilimitados. Assinando por R$ 67/mês você não perde o acesso nem o que já gerou.'
                 : acesso?.plano === 'pro'
-                  ? 'No mês em que a venda engrenar, o teto aparece. O VIP tira o limite por R$ 67/mês.'
-                  : 'No VIP você gera contrato, procuração, recibo e proposta sem teto, todos com a logo e o CNPJ da sua empresa.'}
+                  ? 'No mês em que a venda engrenar, o teto aparece. A assinatura de R$ 67/mês tira o limite.'
+                  : 'Assinando, você gera contrato, procuração, recibo e proposta sem teto, todos com a logo e o CNPJ da sua empresa.'}
             </p>
             <button onClick={() => window.dispatchEvent(new CustomEvent('limit-reached'))} className={styles.btnPrimario}>
-              Ver o plano VIP <ArrowRight size={15} />
+              Ver a assinatura <ArrowRight size={15} />
             </button>
           </div>
         </div>

@@ -8,11 +8,9 @@ import { setToken, setUser } from '@/services/auth';
 import styles from './login.module.css';
 import SocialProofPopup from './SocialProofPopup';
 
-const PLAN_LABEL: Record<string, string> = {
-  iniciante: 'Iniciante',
-  pro: 'PRO',
-  ilimitado: 'VIP',
-};
+// Preço único: nenhum degrau nomeado no cadastro. O `?plano=` da URL segue
+// existindo (o success_url da Stripe emite `plano=vip`), mas é só roteamento —
+// o cliente lê "assinatura", não "VIP".
 
 // Máscara (XX) XXXXX-XXXX. WhatsApp BR sempre 11 dígitos (DDD + 9 dígitos).
 function maskWhatsapp(v: string): string {
@@ -214,7 +212,7 @@ function RegisterContent() {
       // o CNPJ que acabamos de tirar do form. Gatilho é isPaidCheckout (sessionId),
       // não planFromStripe — assim funciona mesmo se o checkout-info tiver falhado.
       // Comprou o kit → cai direto na trilha do curso, que é o que ele pagou pra
-      // ver. O gerador fica ao lado no menu (é ele que converte pro VIP).
+      // ver. O gerador fica ao lado no menu (é ele que converte em assinante).
       if (refOrigem === 'kit') {
         router.push('/cursos/kit-fechamento?welcome=1');
         return;
@@ -304,25 +302,19 @@ function RegisterContent() {
         {isPaidCheckout
           ? 'Pagamento aprovado — defina sua senha'
           : targetPlan
-            ? `Criar conta · Plano ${targetPlan.toUpperCase()}`
+            ? 'Criar conta · Assinatura SolarDoc'
             : 'Criar conta grátis'}
       </h1>
       <p className={styles.subtitle}>
         {isPaidCheckout ? (
           // Plano a exibir: do checkout-info, com fallback no plano da URL (caso a
           // chamada tenha falhado) — nunca cai no framing "grátis" pra quem pagou.
-          (() => {
-            const shownPlan = planFromStripe ?? urlPlanFromCheckout;
-            const planTxt = shownPlan ? (PLAN_LABEL[shownPlan] ?? shownPlan) : null;
-            // Plano único (06/08/2026): a compra é cobrada na hora, não existe
-            // mais trial — falar em "7 dias grátis" aqui contradizia a fatura
-            // que o cliente acabou de receber.
-            return (
-              <>Seu acesso{planTxt ? <> ao plano <strong style={{ color: '#0f172a' }}>{planTxt}</strong></> : null} já está <strong style={{ color: '#0f172a' }}>liberado</strong>. Defina sua senha pra entrar na plataforma.</>
-            );
-          })()
+          // Preço único (06/08/2026): a compra é cobrada na hora, não existe
+          // mais trial — falar em "7 dias grátis" aqui contradizia a fatura que
+          // o cliente acabou de receber. E não se nomeia degrau: é a assinatura.
+          <>Sua <strong style={{ color: '#0f172a' }}>assinatura</strong> já está <strong style={{ color: '#0f172a' }}>liberada</strong>. Defina sua senha pra entrar na plataforma.</>
         ) : targetPlan ? (
-          <>Próximo passo: passar o cartão pra liberar o plano <strong style={{ color: '#0f172a' }}>{targetPlan.toUpperCase()}</strong>. <strong style={{ color: '#0f172a' }}>Acesso na hora</strong> · cancele quando quiser.</>
+          <>Próximo passo: passar o cartão pra liberar sua <strong style={{ color: '#0f172a' }}>assinatura</strong>. <strong style={{ color: '#0f172a' }}>Acesso na hora</strong> · cancele quando quiser.</>
         ) : (
           <><strong style={{ color: '#0f172a' }}>10 propostas grátis</strong> pra começar — sem cartão, sem cobrança.</>
         )}

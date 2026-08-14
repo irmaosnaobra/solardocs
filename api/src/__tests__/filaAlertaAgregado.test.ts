@@ -11,21 +11,35 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // que ninguém fica sabendo de nada. Por isso o marcador só some depois do envio
 // confirmado.
 
-const db = { state: new Map<string, { key: string; value: any; updated_at: string }>() };
+const db = {
+  state: new Map<string, { key: string; value: any; updated_at: string }>(),
+  mensagens: [] as Array<{ telefone: string; from_me: boolean; momment: string }>,
+};
 const enviadas: Array<{ phone: string; message: string }> = [];
 let envioFalha = false;
 
 vi.mock('../utils/supabase', () => ({
   supabase: {
-    from: () => {
+    from: (tabela: string) => {
       const q: any = {
         _like: null as string | null,
         _eqKey: null as string | null,
+        _in: null as string[] | null,
+        _gte: null as string | null,
         select() { return q; },
         like(_col: string, padrao: string) { q._like = String(padrao).replace(/%$/, ''); return q; },
-        eq(_col: string, val: string) { q._eqKey = val; return q; },
+        eq(col: string, val: string) { if (col === 'key') q._eqKey = val; return q; },
+        in(_col: string, vals: string[]) { q._in = vals; return q; },
+        gte(_col: string, val: string) { q._gte = val; return q; },
         insert() { return Promise.resolve({ data: null, error: null }); },
         limit() {
+          if (tabela === 'wa_mensagens') {
+            const saidas = db.mensagens.filter(m =>
+              m.from_me === true
+              && (!q._in || q._in.includes(m.telefone))
+              && (!q._gte || new Date(m.momment).getTime() >= new Date(q._gte).getTime()));
+            return Promise.resolve({ data: saidas, error: null });
+          }
           const linhas = [...db.state.values()].filter(r => !q._like || r.key.startsWith(q._like));
           return Promise.resolve({ data: linhas, error: null });
         },
@@ -55,7 +69,11 @@ vi.mock('../services/agents/zapiClient', () => ({
   },
 }));
 
-beforeEach(() => { db.state.clear(); enviadas.length = 0; envioFalha = false; vi.resetModules(); });
+beforeEach(() => { db.state.clear(); db.mensagens.length = 0; enviadas.length = 0; envioFalha = false; vi.resetModules(); });
+
+/** Uma resposta nossa saindo para o cliente, depois da falha. */
+const responder = (telefone: string, atrasoMs = 1000) =>
+  db.mensagens.push({ telefone, from_me: true, momment: new Date(Date.now() + atrasoMs).toISOString() });
 
 const carregar = () => import('../services/agents/whatsapp/filaAlerta');
 const ERRO_CREDITO = '400 {"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits."}}';
@@ -157,6 +175,70 @@ describe('10 clientes no mesmo apagão = 1 aviso', () => {
     expect(enviadas).toHaveLength(2);
     expect(enviadas.some(e => e.message.includes('crédito da Anthropic zerou'))).toBe(true);
     expect(enviadas.some(e => e.message.includes('Z-API não aceitou'))).toBe(true);
+  });
+});
+
+describe('aviso não manda responder na mão quem já foi respondido', () => {
+  // 10/08/2026: o crédito voltou às 17h59, a fila retomou e respondeu o cliente
+  // às 18h00 — mas o marcador de 17h16 ainda cumpria a carência de 60 min e às
+  // 18h08 saiu um "responde na mão" para quem já tinha resposta.
+  const abandonar = async (n: number) => {
+    const { registrarAbandono } = await carregar();
+    for (let i = 0; i < n; i++) {
+      await registrarAbandono({ id: `msg-${i}`, phone: `55349913602${10 + i}`, nome: `Cliente ${i}`, texto: 'Quanto custa?', erro: ERRO_CREDITO });
+    }
+  };
+
+  it('quem foi respondido enquanto o marcador esperava sai da lista', async () => {
+    await abandonar(3);
+    responder('5534991360211');                 // a fila retomou e alcançou o Cliente 1
+
+    const { flushAvisoFila } = await carregar();
+    const r = await flushAvisoFila();
+
+    expect(r).toEqual({ avisos: 1, pessoas: 2 });
+    expect(enviadas[0].message).toContain('2 clientes sem resposta');
+    expect(enviadas[0].message).not.toContain('Cliente 1');
+    expect(enviadas[0].message).toContain('Cliente 0');
+    expect(enviadas[0].message).toContain('Cliente 2');
+  });
+
+  it('apagão que passou sozinho não gasta aviso nenhum', async () => {
+    await abandonar(2);
+    responder('5534991360210');
+    responder('5534991360211');
+
+    const { flushAvisoFila } = await carregar();
+    expect(await flushAvisoFila()).toEqual({ avisos: 0, pessoas: 0 });
+    expect(enviadas).toHaveLength(0);
+    // E os marcadores somem: nada de ressuscitar no tick seguinte.
+    expect([...db.state.keys()].filter(k => k.startsWith('ia_falha:'))).toHaveLength(0);
+  });
+
+  it('resposta anterior à falha não conta — quem escreveu depois segue na lista', async () => {
+    db.mensagens.push({ telefone: '5534991360210', from_me: true, momment: new Date(Date.now() - 60_000).toISOString() });
+    await abandonar(1);
+
+    const { flushAvisoFila } = await carregar();
+    expect(await flushAvisoFila()).toEqual({ avisos: 1, pessoas: 1 });
+    expect(enviadas[0].message).toContain('1 cliente sem resposta');
+  });
+
+  it('marcador resolvido some mesmo dentro da carência — não volta no aviso da hora seguinte', async () => {
+    await abandonar(1);
+    const { flushAvisoFila } = await carregar();
+    await flushAvisoFila();                     // 1º aviso sai e carimba a carência
+    expect(enviadas).toHaveLength(1);
+
+    await abandonar(2);                         // mais gente durante o mesmo apagão
+    responder('5534991360210');
+    responder('5534991360211');
+    await flushAvisoFila();                     // carência segura o aviso, mas limpa os resolvidos
+    expect(enviadas).toHaveLength(1);
+
+    const daquiUmaHora = new Date(Date.now() + 61 * 60 * 1000);
+    await flushAvisoFila(daquiUmaHora);
+    expect(enviadas).toHaveLength(1);           // não havia mais ninguém sem resposta
   });
 });
 

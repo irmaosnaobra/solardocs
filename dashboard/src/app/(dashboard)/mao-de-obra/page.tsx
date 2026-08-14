@@ -35,7 +35,9 @@ const ESTADOS = ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT
 
 export default function MaoDeObraPage() {
   const { user } = useDashboard();
-  const isVip = user?.plano === 'ilimitado' || (user as any)?.is_admin;
+  // Preço único: quem paga tem tudo. Os slugs legados ('pro', 'iniciante')
+  // seguem no banco de quem assinou por 27/47/49 e contam como assinatura ativa.
+  const isVip = (!!user && user.plano !== 'free') || (user as any)?.is_admin;
 
   const [prestador, setPrestador] = useState<Prestador | null>(null);
   const [regioes, setRegioes] = useState<Regiao[]>([]);
@@ -122,8 +124,8 @@ export default function MaoDeObraPage() {
       <div className="mob-wrap">
         <header className="mob-hero">
           <h1>Cadastro de Mão de Obra</h1>
-          <p>Recurso exclusivo do plano VIP. Cadastre seu time e receba obras prontas pra executar.</p>
-          <a href="/conta/mao-de-obra" className="mob-vip-cta">Liberar com VIP</a>
+          <p>Recurso exclusivo de quem assina. Cadastre seu time e receba obras prontas pra executar.</p>
+          <a href="/conta/mao-de-obra" className="mob-vip-cta">Liberar meu cadastro</a>
         </header>
       </div>
     );

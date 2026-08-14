@@ -22,9 +22,13 @@ async function assertVip(userId: string): Promise<{ plano: string; email: string
     .single();
 
   if (!user) throw new ApiError(401, 'Usuário não encontrado');
-  if (user.is_admin) return user; // admin é VIP por extensão
-  if (user.plano !== 'ilimitado') {
-    throw new ApiError(403, 'Recurso exclusivo do plano VIP');
+  if (user.is_admin) return user; // admin entra por extensão
+  // PREÇO ÚNICO: o corte é pagante × grátis, não degrau de plano. Os slugs
+  // legados ('pro', 'iniciante') são de quem assinou por 27/47/49 e continua
+  // pagando — travá-los aqui era a última diferença de plano que sobrava, e a
+  // tela já diz pra eles que o acesso está completo.
+  if (user.plano === 'free') {
+    throw new ApiError(403, 'Recurso exclusivo de quem assina');
   }
   return user;
 }

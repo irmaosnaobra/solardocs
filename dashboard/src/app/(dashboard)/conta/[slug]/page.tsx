@@ -4,23 +4,25 @@ import { use } from 'react';
 import Link from 'next/link';
 import { notFound, useRouter } from 'next/navigation';
 import { useDashboard } from '@/contexts/DashboardContext';
-import { FEATURES_VIP, STRIPE_VIP } from '../data';
+import { FEATURES_ASSINATURA, URL_ASSINAR } from '../data';
 import '../../mentoria/mentoria.css';
 
 export default function ContaFeaturePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
-  const feature = FEATURES_VIP[slug];
+  const feature = FEATURES_ASSINATURA[slug];
   if (!feature) notFound();
 
   const { user } = useDashboard();
   const router = useRouter();
-  const isVip = user?.plano === 'ilimitado' || (user as any)?.is_admin;
+  // Preço único: o corte é pagante × grátis. Os slugs antigos ('pro') seguem
+  // valendo como assinatura ativa — quem paga não pode ver tela de venda.
+  const assinante = !!user && (user.plano !== 'free' || (user as any)?.is_admin);
 
-  const corPrimary = '#6E56CF'; // VIP roxo
+  const corPrimary = '#6E56CF';
   const corBg = 'rgba(110,86,207,0.10)';
   const corBorder = 'rgba(110,86,207,0.45)';
 
-  function handleCtaVip() {
+  function handleCtaAtivo() {
     if (feature.status === 'ativo' && feature.acessoUrl) {
       router.push(feature.acessoUrl);
       return;
@@ -68,21 +70,21 @@ export default function ContaFeaturePage({ params }: { params: Promise<{ slug: s
 
       {/* ── ACTION ── */}
       <section className="mentoria-cta-block" style={{ borderColor: corBorder, background: corBg }}>
-        {isVip ? (
+        {assinante ? (
           <>
             <div className="mentoria-precos">
               <span className="mentoria-preco-final" style={{ color: corPrimary }}>
-                VIP ATIVO
+                ASSINATURA ATIVA
               </span>
               <span className="mentoria-preco-eco">Você tem acesso completo</span>
             </div>
 
             <button
-              onClick={handleCtaVip}
+              onClick={handleCtaAtivo}
               className="mentoria-cta"
               style={{ background: 'linear-gradient(135deg, #6E56CF, #8b6fdc)', boxShadow: '0 6px 20px rgba(110,86,207,0.3)', border: 'none', cursor: 'pointer' }}
             >
-              {feature.ctaVip} →
+              {feature.ctaAtivo} →
             </button>
 
             {feature.status === 'em_breve' && (
@@ -94,16 +96,13 @@ export default function ContaFeaturePage({ params }: { params: Promise<{ slug: s
         ) : (
           <>
             <div className="mentoria-precos">
-              <span className="mentoria-preco-ancora">Plano Free</span>
               <span className="mentoria-preco-final" style={{ color: corPrimary }}>R$ 67/mês</span>
-              <span className="mentoria-preco-eco">VIP — todos os recursos</span>
+              <span className="mentoria-preco-eco">Uma assinatura — todos os recursos</span>
             </div>
             <p className="mentoria-parcelamento">Cancele quando quiser · Sem fidelidade</p>
 
             <a
-              href={STRIPE_VIP}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={URL_ASSINAR}
               className="mentoria-cta"
               style={{ background: 'linear-gradient(135deg, #6E56CF, #8b6fdc)', boxShadow: '0 6px 20px rgba(110,86,207,0.3)' }}
             >

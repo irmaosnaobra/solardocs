@@ -10,10 +10,13 @@ import { useDashboard } from '@/contexts/DashboardContext';
 import api from '@/services/api';
 import styles from './pix-recorrente.module.css';
 
-const PLANOS = [
-  { key: 'pro',       nome: 'PRO', preco: '27', desc: '90 documentos por mês, histórico de 30 dias.' },
-  { key: 'ilimitado', nome: 'VIP', preco: '67', desc: 'Documentos ilimitados, histórico permanente e todo recurso novo.' },
-];
+// PREÇO ÚNICO: uma assinatura só. Aqui eram dois botões (PRO R$27 × VIP R$67) —
+// virou resumo do que vai ser cobrado. O estado `plano` continua em 'ilimitado'
+// porque é ele que o Asaas recebe.
+const ASSINATURA = {
+  preco: '67',
+  desc: 'Documentos ilimitados, histórico permanente e todo recurso novo.',
+};
 
 interface Contrato {
   modo: 'automatico' | 'assinatura';
@@ -56,7 +59,8 @@ export default function PixRecorrentePage() {
   const [contrato, setContrato] = useState<Contrato | null>(null);
   const [acessoAte, setAcessoAte] = useState<string | null>(null);
 
-  const [plano, setPlano] = useState('ilimitado');
+  // Fixo: preço único. Continua sendo state só porque é o valor mandado pro Asaas.
+  const [plano] = useState('ilimitado');
   const [doc, setDoc] = useState('');
   const [fone, setFone] = useState('');
   const [criando, setCriando] = useState(false);
@@ -192,7 +196,7 @@ export default function PixRecorrentePage() {
             Sua assinatura por Pix está ativa <span className={`${styles.badge} ${styles.badgeOk}`}>ativa</span>
           </div>
           <p className={styles.cardText}>
-            Plano {contrato.plano === 'ilimitado' ? 'VIP' : 'PRO'} · R$ {contrato.valor}/mês ·{' '}
+            R$ {contrato.valor}/mês ·{' '}
             {contrato.modo === 'automatico'
               ? 'débito automático autorizado no seu banco'
               : 'cobrança mensal por Pix'}
@@ -260,7 +264,7 @@ export default function PixRecorrentePage() {
 
       {!ativo && !criado && (
         <div className={styles.card}>
-          <div className={styles.cardTitle}>Escolha o plano</div>
+          <div className={styles.cardTitle}>Sua assinatura</div>
 
           {cupomOk && (
             <p className={styles.cardText}>
@@ -270,18 +274,10 @@ export default function PixRecorrentePage() {
           )}
 
           <div className={styles.planos}>
-            {PLANOS.map((p) => (
-              <button
-                key={p.key}
-                type="button"
-                className={`${styles.plano} ${plano === p.key ? styles.planoAtivo : ''}`}
-                onClick={() => setPlano(p.key)}
-              >
-                <div className={styles.planoNome}>{p.nome}</div>
-                <div className={styles.planoPreco}>R$ {p.preco}<span>/mês</span></div>
-                <div className={styles.planoDesc}>{p.desc}</div>
-              </button>
-            ))}
+            <div className={`${styles.plano} ${styles.planoAtivo}`}>
+              <div className={styles.planoPreco}>R$ {ASSINATURA.preco}<span>/mês</span></div>
+              <div className={styles.planoDesc}>{ASSINATURA.desc}</div>
+            </div>
           </div>
 
           <label className={styles.label} htmlFor="doc">CPF ou CNPJ do pagador</label>

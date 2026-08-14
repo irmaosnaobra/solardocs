@@ -27,7 +27,7 @@ const AGENTES: Record<string, AgenteInfo> = {
     linha: "'solardoc'",
     modelo: 'claude-sonnet-4-6',
     missao:
-      'Consultora da SolarDoc — humana, consultiva, vende de verdade. Cobre TODOS os estágios: onboarding, upsell PRO→VIP, dunning (cartão falhou), recuperação de abandono e renovação por Pix. Reativa acesso pausado oferecendo Pix na hora.',
+      'Consultora da SolarDoc — humana, consultiva, vende de verdade. Cobre TODOS os estágios: onboarding, conversão do free em assinante, dunning (cartão falhou), recuperação de abandono e renovação por Pix. Reativa acesso pausado oferecendo Pix na hora.',
     regras: [
       'Fala como gente no WhatsApp: máx. 2 bolhas separadas por ||, curtas, 0-1 emoji.',
       'Nunca soa como cobrança formal ("prezado/regularize") — acolhe e resolve.',

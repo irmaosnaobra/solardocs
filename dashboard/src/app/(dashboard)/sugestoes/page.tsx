@@ -41,7 +41,9 @@ function autorLabel(email: string | null) {
 
 export default function SugestoesPage() {
   const { user } = useDashboard();
-  const isVip = user?.plano === 'ilimitado' || (user as any)?.is_admin;
+  // Preço único: quem paga tem tudo. Os slugs legados ('pro', 'iniciante')
+  // seguem no banco de quem assinou por 27/47/49 e contam como assinatura ativa.
+  const isVip = (!!user && user.plano !== 'free') || (user as any)?.is_admin;
 
   const [feed, setFeed] = useState<Sugestao[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,7 +86,7 @@ export default function SugestoesPage() {
 
   async function votar(s: Sugestao) {
     if (!isVip) {
-      alert('Votar é exclusivo do plano VIP. Faça upgrade pra participar!');
+      alert('Votar é exclusivo de quem assina. Assine pra participar!');
       return;
     }
     // otimista
@@ -121,7 +123,7 @@ export default function SugestoesPage() {
 
   async function comentar(suggestionId: string) {
     if (!isVip) {
-      alert('Comentar é exclusivo do plano VIP.');
+      alert('Comentar é exclusivo de quem assina.');
       return;
     }
     if (novoComentario.trim().length < 3) return;
@@ -145,7 +147,7 @@ export default function SugestoesPage() {
     <div className="sug-wrap">
       <header className="sug-hero">
         <h1>Fórum de Sugestões</h1>
-        <p>Ideias que melhoram a SolarDoc — votadas e debatidas pela comunidade VIP.</p>
+        <p>Ideias que melhoram a SolarDoc — votadas e debatidas por quem assina.</p>
         {isVip && (
           <button className="sug-btn-primary" onClick={() => setShowForm(s => !s)}>
             {showForm ? '× Fechar' : 'Mandar nova ideia'}
@@ -153,7 +155,7 @@ export default function SugestoesPage() {
         )}
         {!isVip && (
           <p className="sug-vip-cta">
-            <a href="/conta/sugestoes">Liberar fórum com VIP</a>
+            <a href="/conta/sugestoes">Liberar o fórum</a>
           </p>
         )}
       </header>

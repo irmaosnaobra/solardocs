@@ -16,6 +16,15 @@
 //
 // Como o flush roda uma vez por tick (a cada 5 min), 10 mensagens que falham
 // juntas viram UMA mensagem — mesmo sem carência nenhuma.
+//
+// 10/08/2026: a carência tem um efeito colateral. O crédito voltou às 17h59, a
+// fila retomou e o cliente foi respondido às 18h00 — mas o marcador de 17h16
+// ainda estava esperando os 60 min, e às 18h08 saiu um aviso mandando
+// "responde na mão" gente que já tinha resposta. Aviso que chega depois do
+// problema resolvido treina a pessoa a ignorar o próximo. Por isso, antes de
+// enviar, cada ficha é conferida contra `wa_mensagens`: quem recebeu resposta
+// (do robô ou de um humano) sai da lista, e apagão que passou sozinho apaga os
+// marcadores sem gastar aviso nenhum.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase } from '../../../utils/supabase';
@@ -137,6 +146,47 @@ function montarAviso(causa: CausaFalha, fichas: Ficha[], agora: Date): string {
   return `⚠️ *${titulo}*\n${gente} — responde na mão:\n\n${linhas.join('\n')}\n\n${oQueFazer}${rodape}\n\n_Aviso novo daqui ${carencia}min se continuar._`;
 }
 
+/**
+ * Quem já foi respondido depois da falha — pelo retry da fila quando a causa
+ * passou, ou por um humano que abriu o WhatsApp e digitou.
+ *
+ * Uma saída qualquer para o número conta como resposta. É de propósito: dá pra
+ * imaginar um caso em que a saída foi de outra automação e não da conversa, mas
+ * "esse cliente recebeu algo nosso depois" já derruba a urgência do "responde
+ * na mão" — e errar para o lado de avisar demais é o que fez o aviso virar
+ * paisagem.
+ */
+async function jaRespondidos(fichas: Ficha[]): Promise<Set<string>> {
+  const telefones = [...new Set(fichas.map(f => f.phone).filter(Boolean))];
+  if (telefones.length === 0) return new Set();
+
+  const maisAntiga = fichas.reduce((min, f) => (f.em < min ? f.em : min), fichas[0].em);
+  const { data, error } = await supabase
+    .from('wa_mensagens')
+    .select('telefone, momment')
+    .eq('from_me', true)
+    .in('telefone', telefones)
+    .gte('momment', maisAntiga)
+    .limit(500);
+
+  if (error) {
+    // Sem conseguir conferir, o certo é avisar: silêncio por causa de um SELECT
+    // que falhou seria trocar um aviso atrasado por nenhum.
+    logger.error('whatsapp-fila', 'não deu pra conferir quem já foi respondido — aviso segue completo', error);
+    return new Set();
+  }
+
+  const respondidos = new Set<string>();
+  for (const linha of (data || []) as Array<{ telefone: string; momment: string }>) {
+    const tel = String(linha.telefone || '').replace(/\D/g, '');
+    const saiuEm = new Date(linha.momment).getTime();
+    for (const f of fichas) {
+      if (f.phone === tel && saiuEm > new Date(f.em).getTime()) respondidos.add(f.phone);
+    }
+  }
+  return respondidos;
+}
+
 async function podeAvisar(causa: CausaFalha, agora: Date): Promise<boolean> {
   const { data } = await supabase
     .from('system_state').select('updated_at').eq('key', `ia_falha_aviso:${causa}`).maybeSingle();
@@ -161,37 +211,57 @@ export async function flushAvisoFila(agora: Date = new Date()): Promise<{ avisos
 
   if (!marcadores || marcadores.length === 0) return { avisos: 0, pessoas: 0 };
 
-  const porCausa = new Map<CausaFalha, { chaves: string[]; fichas: Ficha[] }>();
+  const porCausa = new Map<CausaFalha, { chaves: string[]; itens: Array<{ chave: string; ficha: Ficha }> }>();
   for (const m of marcadores as Array<{ key: string; value: Ficha }>) {
     const causa = (String(m.key).split(':')[1] || 'outro') as CausaFalha;
     if (!CABECALHO[causa]) continue;
-    const grupo = porCausa.get(causa) || { chaves: [], fichas: [] };
+    const grupo = porCausa.get(causa) || { chaves: [], itens: [] };
     grupo.chaves.push(m.key);
-    if (m.value?.phone) grupo.fichas.push(m.value);
+    if (m.value?.phone) grupo.itens.push({ chave: m.key, ficha: m.value });
     porCausa.set(causa, grupo);
   }
 
   let avisos = 0;
   let pessoas = 0;
   for (const [causa, grupo] of porCausa) {
-    if (grupo.fichas.length === 0) continue;
+    if (grupo.itens.length === 0) continue;
+
+    // Conferência antes de qualquer coisa: quem já foi respondido sai da lista
+    // AGORA, mesmo dentro da carência — segurar o marcador de quem já está
+    // atendido só serviria pra ele aparecer no aviso da hora seguinte.
+    const respondidos = await jaRespondidos(grupo.itens.map(i => i.ficha));
+    const resolvidos = grupo.itens.filter(i => respondidos.has(i.ficha.phone));
+    const pendentes = grupo.itens.filter(i => !respondidos.has(i.ficha.phone));
+
+    if (resolvidos.length > 0) {
+      await supabase.from('system_state').delete().in('key', resolvidos.map(i => i.chave));
+    }
+
+    if (pendentes.length === 0) {
+      // Apagão que passou sozinho: a fila retomou e respondeu todo mundo antes
+      // da carência vencer. Não existe o que fazer na mão — não gasta aviso.
+      logger.info('whatsapp-fila', `apagão (${causa}) se resolveu sozinho — ${resolvidos.length} cliente(s) respondido(s), sem aviso`);
+      continue;
+    }
+
     if (!(await podeAvisar(causa, agora))) continue;
 
     try {
-      await sendWhatsApp(DONO_PHONE, montarAviso(causa, grupo.fichas, agora), 'solardoc');
+      await sendWhatsApp(DONO_PHONE, montarAviso(causa, pendentes.map(i => i.ficha), agora), 'solardoc');
     } catch (err) {
       // Nada é apagado: a lista sobrevive e o próximo tick tenta de novo.
-      logger.error('whatsapp-fila', `aviso agregado (${causa}) não saiu — ${grupo.fichas.length} clientes seguem na lista`, err);
+      logger.error('whatsapp-fila', `aviso agregado (${causa}) não saiu — ${pendentes.length} clientes seguem na lista`, err);
       continue;
     }
 
     await supabase.from('system_state').upsert(
-      { key: `ia_falha_aviso:${causa}`, value: { pessoas: grupo.fichas.length }, updated_at: agora.toISOString() },
+      { key: `ia_falha_aviso:${causa}`, value: { pessoas: pendentes.length }, updated_at: agora.toISOString() },
       { onConflict: 'key' },
     );
-    await supabase.from('system_state').delete().in('key', grupo.chaves);
+    const chavesResolvidas = new Set(resolvidos.map(i => i.chave));
+    await supabase.from('system_state').delete().in('key', grupo.chaves.filter(k => !chavesResolvidas.has(k)));
     avisos++;
-    pessoas += grupo.fichas.length;
+    pessoas += pendentes.length;
   }
 
   if (avisos > 0) logger.info('whatsapp-fila', `${avisos} aviso(s) agregado(s) — ${pessoas} cliente(s) sem resposta`);

@@ -761,6 +761,11 @@ function calc(){
   document.getElementById('cb-sem').style.width = '100%';
   document.getElementById('cb-sem').textContent = moneyK(r.gasto25);
   document.getElementById('cb-com').style.width = '18%';
+  // Passou (ou deixou de passar) dos 700 kWh? Muda quem atende — e a tarde
+  // aparece/some junto. Redesenha só na VIRADA: calc() roda a cada pixel do
+  // slider. Fica aqui, e não no oninput, porque marcar ar-condicionado/carro
+  // elétrico também empurra o consumo (toggleExtra chama calc).
+  avaliarTurnoPeloConsumo(r.consumoKwh);
 }
 
 // ===== TEMPERATURA (mesma lógica do CRM solar) =====
@@ -782,15 +787,21 @@ function medirTemperatura(conta, urgencia, pagamento, decisor, posse){
 // Seg–Sex, slots de 1 hora, 1 atendimento por horário.
 //
 // 10/08: o TURNO passou a dizer quem atende. A tarde do Thiago e do Diego é do
-// eletroposto (a LP de lá só oferece 13:30–17:30), então vistoria solar às 14h
-// punha a mesma pessoa em dois endereços. A regra agora é:
-//   • MANHÃ (08:00–11:00) — rodízio normal: Nilce, Thiago e Diego.
-//   • TARDE (13:00–16:00) — só a Nilce, que não tem eletroposto. A tarde não
-//     fechou: ela só deixou de ser dos dois.
-// Quem já tem dono continua com ele (1 telefone = 1 consultor): assim que o lead
-// digita o WhatsApp, a página descobre o consultor dele e, se for o Thiago ou o
-// Diego, a tarde some da lista — ele escolhe entre as manhãs, sem pedir um horário
-// que a gente ia recusar depois.
+// eletroposto (a LP de lá só oferece 13:00–17:00), então vistoria solar às 14h
+// punha a mesma pessoa em dois endereços. Eles só fazem solar de manhã.
+//
+// 12/08: quem atende passou a depender do TAMANHO DA CONTA. Thiago e Diego só
+// pegam lead acima de 700 kWh/mês; abaixo disso é da Nilce, que atende o dia
+// inteiro. Como o simulador já está em cima do formulário, a página sabe o
+// consumo ANTES de mostrar horário — então:
+//   • conta alta (> 700 kWh)  → Thiago/Diego → só MANHÃ (08:00–11:00)
+//   • conta baixa (≤ 700 kWh) → Nilce        → manhã ou TARDE (13:00–16:00)
+// Mexer no valor da conta (ou marcar ar-condicionado/carro elétrico) redesenha a
+// grade na hora: o lead nunca vê um horário que a gente ia recusar depois.
+// Quem já tem dono continua com ele (1 telefone = 1 consultor) e o dono manda no
+// turno: assim que o lead digita o WhatsApp, a página descobre o consultor dele e,
+// se for o Thiago ou o Diego, a tarde some da lista.
+const KWH_CORTE_TIME = 700;   // mesmo corte do backend (leadSolarFicha.ts)
 let slotSel = null;
 let donoLead = null;             // consultor que JÁ atende o telefone digitado (null = novo/não sei)
 let ocupados = new Set();        // manhã: agendamento de QUALQUER um dos três fecha
@@ -846,17 +857,19 @@ async function carregarOcupados(deYmd, ateYmd){
     ocupadosNilce = nilce;
   }catch(e){ ocupados = new Set(); ocupadosNilce = new Set(); }
 }
-// Rodízio da MANHÃ (a tarde vai direto pra Nilce, sem passar por aqui). O contador
-// é o total de fichas da LP, tarde inclusive — não é rodízio exato, é "o próximo da
-// vez"; quem já tem dono nem chega a chamar isto.
-const DONOS = ['Nilce', 'Thiago', 'Diego'];
+// Rodízio da CONTA ALTA (Thiago↔Diego). Lead abaixo do corte vai direto pra
+// Nilce, sem passar por aqui. O contador é quantas fichas da LP já foram pra
+// esses dois — não é rodízio exato, é "o próximo da vez"; quem já tem dono nem
+// chega a chamar isto.
+const DONOS_CONTA_ALTA = ['Thiago', 'Diego'];
 async function proximoDono(){
   try{
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/agendamentos?select=id&created_by=eq.lp_solar`,
+    const q = 'agendamentos?select=id&created_by=eq.lp_solar&vendedor_nome=in.(Thiago,Diego)';
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${q}`,
       { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}`, Prefer:'count=exact', Range:'0-0' } });
     const total = parseInt((r.headers.get('content-range')||'*/0').split('/')[1], 10) || 0;
-    return DONOS[total % DONOS.length];
-  }catch(e){ return DONOS[0]; }
+    return DONOS_CONTA_ALTA[total % DONOS_CONTA_ALTA.length];
+  }catch(e){ return DONOS_CONTA_ALTA[0]; }
 }
 // Cliente que JÁ tem dono fica com ele — nunca aparece sob 2 consultores e não
 // entra no rodízio. Chave = DDD + últimos 8 dígitos (tolera o "9" e o 55), a
@@ -892,11 +905,26 @@ function proximosDias(){
   }
   return dias;
 }
-// Cliente que já é do Thiago ou do Diego não enxerga a tarde: ele fica com o dono
-// dele (1 telefone = 1 consultor) e o dono só faz solar de manhã. Some com o
-// horário em vez de deixar escolher e recusar depois — quem escolhe uma hora pra
-// receber técnico em casa não pode ser realocado por baixo do pano.
-const soManhaPraEsteLead = () => !!donoLead && donoLead !== 'Nilce';
+// Quem vai atender ESTE lead só faz solar de manhã? Dois caminhos:
+//   • já tem dono, e o dono é o Thiago ou o Diego (1 telefone = 1 consultor);
+//   • é lead novo de conta alta (> 700 kWh) — vai cair no Thiago ou no Diego.
+// Dono manda mais que o consumo: cliente que já é da Nilce continua com ela e
+// enxerga a tarde, mesmo com conta grande. Some com o horário em vez de deixar
+// escolher e recusar depois — quem marca uma hora pra receber técnico em casa não
+// pode ser realocado por baixo do pano.
+const contaAltaAtual = () => computeSolar().consumoKwh > KWH_CORTE_TIME;
+const soManhaPraEsteLead = () => donoLead ? donoLead !== 'Nilce' : contaAltaAtual();
+
+// Chamado pelo simulador (calc) a cada mudança de conta/extras: só redesenha a
+// grade quando o lead CRUZA o corte, senão o slider repintaria a lista sem parar.
+let ultimaContaAlta = null;
+function avaliarTurnoPeloConsumo(consumoKwh){
+  const alta = consumoKwh > KWH_CORTE_TIME;
+  if(alta === ultimaContaAlta) return;
+  const primeira = ultimaContaAlta === null;   // no load a grade já nasce certa
+  ultimaContaAlta = alta;
+  if(!primeira && !donoLead) montarSlots();    // quem tem dono não muda de turno por consumo
+}
 function livresDoDia(ymd){
   const agora = partesBR();
   return gradeDoDia(ymd).filter(h=>{
@@ -910,12 +938,18 @@ function livresDoDia(ymd){
 const rotuloDia = ymd => new Date(`${ymd}T12:00:00-03:00`)
   .toLocaleDateString('pt-BR',{ timeZone:TZ_BR, weekday:'short', day:'2-digit', month:'2-digit' });
 
+// Guarda de ordem: a grade é redesenhada pelo telefone (checarDono) E pelo valor
+// da conta (calc). Sem isto, um carregarOcupados lento de uma chamada anterior
+// volta depois e repinta a grade com a regra velha.
+let slotsSeq = 0;
 async function montarSlots(){
+  const seq = ++slotsSeq;
   const el = document.getElementById('slots');
   el.innerHTML = '<div class="agLoad">Carregando horários…</div>';
   const hoje = partesBR().ymd;
   const ate  = partesBR(new Date(Date.now() + 12*86400000)).ymd;
   await carregarOcupados(hoje, ate);
+  if(seq !== slotsSeq) return;
   const dias = proximosDias();
   if(!dias.length){
     el.innerHTML = '<div class="agLoad">Sem horários nos próximos dias — chame no WhatsApp que a gente encaixa.</div>';
@@ -931,9 +965,12 @@ async function montarSlots(){
       }).join('')}</div>
     </div>`;
   }).join('');
+  // Explica por que a tarde sumiu — grade encurtando sem motivo parece página quebrada.
   if(soManhaPraEsteLead())
-    el.insertAdjacentHTML('beforeend',
-      `<div class="agLoad">${donoLead} já é o seu consultor e faz as vistorias de manhã — por isso a lista para às 11h.</div>`);
+    el.insertAdjacentHTML('beforeend', `<div class="agLoad">${donoLead
+      ? `${donoLead} já é o seu consultor e faz as vistorias de manhã — por isso a lista para às 11h.`
+      : 'Pelo tamanho da sua conta, quem vai na sua casa é um dos sócios — e eles fazem vistoria de manhã. Por isso a lista para às 11h.'
+    }</div>`);
   // re-render não pode perder a escolha do lead (o telefone dele redesenha a grade)
   if(slotSel){
     const b = el.querySelector(`.slot[data-iso="${slotSel}"]`);
@@ -1058,7 +1095,7 @@ async function agendar(){
   const extras = extrasNomes();
   const obs = [
     `LP SOLAR — ${document.getElementById('s-tipo').value}`,
-    `Conta de luz: ${money(r.conta)}/mês`,
+    `Conta de luz: ${money(r.conta)}/mês (~${Math.round(r.consumoKwh)} kWh/mês)`,
     `Imóvel: ${posse}`,
     `Telhado: ${telhado}`,
     `Padrão: ${padrao || '—'}`,
@@ -1070,19 +1107,25 @@ async function agendar(){
       + (extras.length ? ` · vai aumentar: ${extras.join(', ')}` : ''),
   ].join('\n');
 
-  // Rede de segurança: a tarde já nem aparece pra cliente do Thiago/Diego (o
-  // checarDono redesenha a grade quando o telefone fica completo). Isto aqui só
-  // pega o caso da consulta ter falhado antes — em vez de gravar a vistoria numa
-  // hora em que o consultor está no eletroposto, devolve o lead pras manhãs.
+  // Rede de segurança: a tarde já nem aparece pra quem vai cair no Thiago/Diego
+  // (o checarDono redesenha a grade quando o telefone fica completo, e o
+  // simulador redesenha quando a conta cruza os 700 kWh). Isto aqui só pega o
+  // caso da consulta ter falhado antes — em vez de gravar a vistoria numa hora em
+  // que o consultor está no eletroposto, devolve o lead pras manhãs.
   const donoAtual = await donoDoTelefone(tel);
-  if(ehTarde(partesBR(new Date(slotSel)).hhmm) && donoAtual && donoAtual !== 'Nilce'){
+  const soManha = donoAtual ? donoAtual !== 'Nilce' : r.consumoKwh > KWH_CORTE_TIME;
+  if(ehTarde(partesBR(new Date(slotSel)).hhmm) && soManha){
     donoLead = donoAtual; slotSel = null;
     await montarSlots();
-    return erro(`${donoAtual} já é o seu consultor e faz as vistorias de manhã. Escolha um dos horários ali em cima.`);
+    return erro(donoAtual
+      ? `${donoAtual} já é o seu consultor e faz as vistorias de manhã. Escolha um dos horários ali em cima.`
+      : 'Pelo tamanho da sua conta quem vai na sua casa é um dos sócios, e eles fazem vistoria de manhã. Escolha um dos horários ali em cima.');
   }
 
   // Ficha pronta, mas NÃO gravada: quem grava é o "Sim" do portão de presença.
-  pendente = { nome, tel, cidade, temperatura: medirTemperatura(r.conta, urgencia, pagamento, decisor, posse), obs, donoAtual };
+  // contaAlta viaja junto: é o que decide o consultor na hora de gravar.
+  pendente = { nome, tel, cidade, temperatura: medirTemperatura(r.conta, urgencia, pagamento, decisor, posse),
+               obs, donoAtual, contaAlta: r.consumoKwh > KWH_CORTE_TIME };
   document.getElementById('ag-msg').className = 'agMsg';   // limpa aviso de tentativa anterior
   abrirConfirma();
 }
@@ -1138,7 +1181,7 @@ document.addEventListener('keydown', e => {
 
 async function gravarAgendamento(){
   if(!pendente || !slotSel) return;
-  const { nome, tel, cidade, temperatura, obs, donoAtual } = pendente;
+  const { nome, tel, cidade, temperatura, obs, donoAtual, contaAlta } = pendente;
   const btn = document.getElementById('ag-btn');
   btn.disabled = true; btn.textContent = 'Agendando…';
 
@@ -1157,9 +1200,11 @@ async function gravarAgendamento(){
       return erro(passou ? 'Esse horário já passou. Escolha outro acima — a agenda foi atualizada.'
                          : 'Esse horário acabou de ser preenchido. Escolha o próximo disponível acima.');
     }
-    // Tarde é da Nilce; a manhã segue o rodízio. O dono de quem já é cliente veio
-    // pronto na ficha (agendar() já barrou o caso "dono é Thiago/Diego + tarde").
-    const dono = tarde ? 'Nilce' : (donoAtual || (await proximoDono()));
+    // Quem atende: dono de quem já é cliente (veio pronto na ficha) manda; lead
+    // novo vai pro rodízio Thiago↔Diego só se a conta passar de 700 kWh, senão é
+    // da Nilce. A tarde é sempre dela — o Thiago e o Diego estão no eletroposto
+    // (agendar() já barrou o caso "vai pro sócio + escolheu tarde").
+    const dono = tarde ? 'Nilce' : (donoAtual || (contaAlta ? await proximoDono() : 'Nilce'));
     const novo = await supaInsert('agendamentos', {
       vendedor_nome:    dono,
       quando:           slotSel,

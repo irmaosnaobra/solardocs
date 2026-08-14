@@ -28,7 +28,9 @@ async function assertVip(userId: string): Promise<void> {
     .from('users').select('plano, is_admin').eq('id', userId).single();
   if (!user) throw new ApiError(401, 'Usuário não encontrado');
   if (user.is_admin) return;
-  if (user.plano !== 'ilimitado') throw new ApiError(403, 'Recurso exclusivo do plano VIP');
+  // PREÇO ÚNICO: pagante × grátis. 'pro'/'iniciante' são assinaturas legadas
+  // (27/47/49) que continuam ativas — entram como qualquer assinante.
+  if (user.plano === 'free') throw new ApiError(403, 'Recurso exclusivo de quem assina');
 }
 
 // ── /prestadores/me — user vê o próprio cadastro ──────────────────

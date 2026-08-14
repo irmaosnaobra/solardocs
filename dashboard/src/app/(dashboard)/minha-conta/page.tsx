@@ -5,11 +5,7 @@ import { useDashboard } from '@/contexts/DashboardContext';
 import api from '@/services/api';
 import styles from './minha-conta.module.css';
 
-const PLAN_LABEL: Record<string, string> = {
-  free: 'Gratuito',
-  pro: 'PRO',
-  ilimitado: 'VIP',
-};
+// Preço único: uma assinatura só. Nenhum degrau nomeado na tela do cliente.
 
 export default function MinhaContaPage() {
   const { user, setUser, openUpgrade } = useDashboard();
@@ -123,10 +119,10 @@ export default function MinhaContaPage() {
 
       {/* Plano / assinatura */}
       <section className={styles.card}>
-        <h2 className={styles.cardTitle}>Plano e assinatura</h2>
+        <h2 className={styles.cardTitle}>Assinatura</h2>
         <div className={styles.planRow}>
           <div>
-            <div className={styles.planName}>Plano {PLAN_LABEL[user.plano] ?? user.plano}</div>
+            <div className={styles.planName}>{isFree ? 'Conta gratuita' : 'Assinatura ativa'}</div>
             <div className={styles.planUsage}>
               {isFree
                 ? `${docsUsados} de ${limite} documentos usados este mês`
@@ -138,7 +134,7 @@ export default function MinhaContaPage() {
         </div>
         <div className={styles.row}>
           {isFree ? (
-            <button className={styles.btnPrimary} onClick={openUpgrade}>Ver planos</button>
+            <button className={styles.btnPrimary} onClick={openUpgrade}>Assinar</button>
           ) : (
             <button className={styles.btnSecondary} onClick={gerenciarAssinatura} disabled={openingPortal}>
               {openingPortal ? 'Abrindo...' : 'Gerenciar assinatura'}

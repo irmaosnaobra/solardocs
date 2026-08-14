@@ -25,7 +25,9 @@
   background: var(--color-bg, #0b1120);
   border-radius: 24px;
   padding: 36px 32px 40px;
-  max-width: 860px;
+  /* Oferta única: um card só. Nos 860px do comparativo antigo o card sozinho
+     esticava e ficava com cara de layout quebrado. */
+  max-width: 520px;
   width: 100%;
   position: relative;
   animation: slideUp 0.3s ease;
@@ -62,18 +64,17 @@
   font-size: 0.95rem;
 }
 
-/* ── Grid de planos ── */
+/* ── Oferta única — um card só, dourado ── */
 .plans {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  grid-template-columns: 1fr;
   align-items: stretch;
 }
 
-/* ── Card PRO — azul ── */
 .plan {
-  background: linear-gradient(145deg, #0f172a 0%, #0d1f3c 50%, #0a1628 100%);
-  border: 1px solid rgba(99, 179, 237, 0.25);
+  background: linear-gradient(145deg, #1a1200 0%, #2d1f00 45%, #1a1200 100%);
+  border: 1.5px solid rgba(251, 191, 36, 0.45);
+  box-shadow: 0 4px 24px rgba(251, 191, 36, 0.14);
   border-radius: 20px;
   padding: 32px 28px 28px;
   display: flex;
@@ -82,48 +83,13 @@
   position: relative;
   transition: box-shadow 0.25s;
 }
-.plan:hover { box-shadow: 0 12px 36px rgba(99,179,237,0.13); }
-
-/* ── Card VIP — dourado ── */
-.planFeatured {
-  background: linear-gradient(145deg, #1a1200 0%, #2d1f00 45%, #1a1200 100%);
-  border: 1.5px solid rgba(251, 191, 36, 0.45);
-  box-shadow: 0 4px 24px rgba(251, 191, 36, 0.14);
-}
-.planFeatured:hover { box-shadow: 0 12px 40px rgba(251,191,36,0.25); }
-
-/* Badge "Mais popular" */
-.planBadge {
-  position: absolute;
-  top: -14px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: linear-gradient(90deg, #f59e0b, #fbbf24);
-  color: #0f172a;
-  font-size: 0.72rem;
-  font-weight: 800;
-  padding: 4px 18px;
-  border-radius: 99px;
-  text-transform: uppercase;
-  letter-spacing: 1.2px;
-  white-space: nowrap;
-}
-
-/* Nome do plano */
-.planName {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #63b3ed;
-  letter-spacing: 2.5px;
-  text-transform: uppercase;
-  margin-bottom: 4px;
-}
-.planFeatured .planName { color: #fbbf24; }
+.plan:hover { box-shadow: 0 12px 40px rgba(251,191,36,0.25); }
 
 /* Preço */
 .planPrice {
   display: flex;
   align-items: baseline;
+  justify-content: center;
   gap: 3px;
   margin-bottom: 4px;
 }
@@ -148,18 +114,13 @@
 .planIndicado {
   font-size: 0.82rem;
   font-weight: 700;
-  color: #63b3ed;
-  background: rgba(99, 179, 237, 0.1);
-  border: 1px solid rgba(99, 179, 237, 0.25);
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
   border-radius: 8px;
   padding: 8px 12px;
   text-align: center;
   margin-bottom: 4px;
-}
-.planFeatured .planIndicado {
-  color: #fbbf24;
-  background: rgba(251, 191, 36, 0.1);
-  border-color: rgba(251, 191, 36, 0.3);
 }
 
 /* Lista de recursos */
@@ -201,18 +162,6 @@
   letter-spacing: 0.3px;
 }
 
-.planBtnPro {
-  background: transparent;
-  border: 2px solid #63b3ed;
-  color: #63b3ed;
-}
-.planBtnPro:hover:not(:disabled) {
-  background: #63b3ed;
-  color: #0f172a;
-  box-shadow: 0 6px 20px rgba(99,179,237,0.3);
-  transform: translateY(-1px);
-}
-
 .planBtnIlimitado {
   background: linear-gradient(135deg, #f59e0b, #fbbf24);
   color: #0f172a;
@@ -232,10 +181,16 @@
   transform: none !important;
 }
 
+.planRodape {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
 @media (max-width: 640px) {
   .overlay  { padding: 0; align-items: flex-end; }
   .modal    { border-radius: 20px 20px 0 0; padding: 28px 18px 36px; }
-  .plans    { grid-template-columns: 1fr; gap: 16px; }
   .planAmount { font-size: 2.6rem; }
 }
 

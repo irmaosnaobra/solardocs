@@ -23,12 +23,7 @@
   color: #94A3B8;
 }
 
-.badge.pro {
-  background: rgba(245, 158, 11, 0.2);
-  color: var(--ink-amber);
-}
-
-.badge.ilimitado {
+.badge.ativo {
   background: rgba(16, 185, 129, 0.2);
   color: var(--ink-green);
 }

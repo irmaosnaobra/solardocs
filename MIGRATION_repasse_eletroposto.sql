@@ -1,3 +1,7 @@
+-- ⚠️ SUPERADO EM PARTE por MIGRATION_repasse_solar_700kwh.sql (12/08/2026): a
+-- fila do SOLAR deixou de ser Diego → Nilce → Thiago. A versão vigente da função
+-- processar_repasses() está lá; este arquivo continua valendo pelo resto
+-- (colunas proposta_por/proposta_em e o one-shot dos cards de eletroposto).
 -- ============================================================================
 -- Eletroposto: repasse só entre Thiago e Diego + "Proposta apresentada"
 -- Projeto Supabase: ancecdfqfwlaujknizof (Gerador de Propostas / Irmãos na Obra)

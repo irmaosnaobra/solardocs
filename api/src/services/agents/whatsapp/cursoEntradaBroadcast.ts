@@ -32,6 +32,7 @@ import { sendHuman, sleep } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 import { dentroDoTetoCarla, marcarEnvioCarla, dentroDaJanelaDeEnvio } from './carlaThrottle';
 import { registrarMsgProativa } from './whatsappAgentService';
+import { classificarFalha } from './filaAlerta';
 
 import { carregarCerebro } from '../../io/cerebroAgentes';
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -134,7 +135,13 @@ function systemPrompt(args: {
   ].join('\n');
 }
 
-/** Fallback determinístico — se a IA falhar, a campanha não para nem manda vazio. */
+/**
+ * Fallback determinístico — se a IA falhar, a campanha não para nem manda vazio.
+ *
+ * ⚠️ Ele é o certo para falha PASSAGEIRA (limite, timeout, erro solto), porque a
+ * pessoa só responde minutos depois e aí o inbound já voltou. Para a IA MORTA
+ * (crédito zerado, chave recusada) ele é o errado — ver `iaFora` abaixo.
+ */
 function fallback(nome: string, tentativa: number): string {
   const fb: Record<number, string> = {
     1: `${nome}, montei um curso de fechamento aqui e lembrei de você. || São 32 objeções respondidas, sai por R$19 (uma vez só) e ainda abre a plataforma completa por 30 dias pra você usar. Quer ver?`,
@@ -144,11 +151,15 @@ function fallback(nome: string, tentativa: number): string {
   return fb[tentativa] || `${nome}, ainda faz sentido a gente conversar?`;
 }
 
+/**
+ * @returns `iaFora: true` quando a IA está MORTA (crédito zerado / chave
+ *          recusada) — sinal para o tick abortar antes de enviar qualquer coisa.
+ */
 async function gerarMensagem(args: {
   nome: string;
   tentativa: number;
   situacao: 'free' | 'inadimplente';
-}): Promise<string> {
+}): Promise<{ texto: string; iaFora: boolean }> {
   try {
     const persona = await carregarCerebro('curso19');   // editável na Central das Agentes
     const res = await anthropic.messages.create({
@@ -158,10 +169,17 @@ async function gerarMensagem(args: {
       messages: [{ role: 'user', content: `Gere a mensagem do toque ${args.tentativa}.` }],
     });
     const txt = (res.content[0] as { text: string }).text.trim();
-    return txt.replace(/^["']|["']$/g, '') || fallback(args.nome, args.tentativa);
+    return { texto: txt.replace(/^["']|["']$/g, '') || fallback(args.nome, args.tentativa), iaFora: false };
   } catch (err) {
-    logger.error('curso19', 'IA falhou, usando fallback', err);
-    return fallback(args.nome, args.tentativa);
+    // Mesma classificação que o aviso da fila usa — uma doença, um nome só.
+    const causa = classificarFalha(err instanceof Error ? err.message : String(err));
+    const iaFora = causa === 'ia_sem_credito' || causa === 'ia_chave';
+    logger.error(
+      'curso19',
+      iaFora ? `IA fora (${causa}) — o toque NÃO sai` : 'IA falhou, usando fallback',
+      err,
+    );
+    return { texto: fallback(args.nome, args.tentativa), iaFora };
   }
 }
 
@@ -288,7 +306,24 @@ export async function runCursoEntradaBroadcast(
     const toque = (estado?.count ?? 0) + 1;
     const nome = primeiroNome(u.nome);
     const situacao: 'free' | 'inadimplente' = inadimplente ? 'inadimplente' : 'free';
-    const msg = await gerarMensagem({ nome, tentativa: toque, situacao });
+    const { texto: msg, iaFora } = await gerarMensagem({ nome, tentativa: toque, situacao });
+
+    // ⚠️ IA morta = campanha PARADA, não campanha no fallback.
+    //
+    // 07-10/08/2026: o crédito da Anthropic zerou e esta campanha continuou
+    // disparando o texto determinístico — que promete "pega o curso por R$19" e,
+    // por desenho (ver o topo do arquivo), NÃO manda o link: o Pix sai depois, no
+    // 1x1. Só que o 1x1 é a Giovanna, e a Giovanna estava muda pela MESMA causa.
+    // Resultado medido: 6 pessoas responderam ("Sim", "Como faço o curso?", "Ok
+    // depois é 67,00 mensal?") e não receberam UMA linha de volta.
+    //
+    // Toque que gera resposta que ninguém pode responder é pior que toque nenhum:
+    // queima o lead, queima a base e ainda gasta o teto anti-ban da linha. Então
+    // aborta o tick inteiro — o público não vai a lugar nenhum e volta no próximo
+    // ciclo, com a IA de pé.
+    if (iaFora) {
+      return { ...base, enviados, encerrados, elegiveis, pulados, motivo: 'ia_fora', ...(seco ? { previa } : {}) };
+    }
 
     if (seco) {
       previa.push({ nome, telefone: u.whatsapp, toque, situacao, mensagem: msg });
