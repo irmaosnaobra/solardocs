@@ -199,6 +199,86 @@ async function creditarPagamento(b: AsaasWebhookBody, linha: LinhaPixRecorrente)
 
   logger.info('asaas-webhook', `Pix recorrente creditado: ${linha.email} ${info.nome} até ${vencComFolga.toISOString().slice(0, 10)} (${linha.modo})`);
 
+  // ── A VENDA PRECISA EXISTIR FORA DAQUI (14/08/2026) ────────────────────────
+  // Até aqui o Pix recorrente liberava acesso e avisava o dono, e parava nisso:
+  // não entrava no ledger `sales`, não chegava no Meta e não aparecia na UTMify.
+  // O efeito é o pior possível pra quem paga tráfego: a venda que o anúncio
+  // gerou existe no extrato e NÃO existe no lugar onde se decide quanto investir.
+  // O trilho do cartão faz as três coisas no checkout.session.completed; aqui
+  // ficou de fora porque este webhook nasceu focado em "Pix vira acesso".
+  //
+  // Só na ADESÃO. Renovação não vira linha nova — é a mesma regra do cartão
+  // (uma venda, uma linha; a renovação é aviso, não venda nova).
+  if (primeiroPagamento) {
+    try {
+      const { upsertSale, sendPurchaseForSale } = await import('../salesLedger');
+      const { sendUtmifyOrder } = await import('../utmifyOrders');
+
+      // Atribuição: quem assina no Pix já tem conta, então os UTMs da aquisição
+      // estão no cadastro dele — é o rastro que casa a venda com o anúncio.
+      const { data: attr } = await supabase
+        .from('users')
+        .select('nome, whatsapp, utm_source, utm_medium, utm_campaign, utm_content, utm_term')
+        .eq('id', userId)
+        .maybeSingle();
+      const a = (attr ?? {}) as Record<string, string | null>;
+      const pago = Number(b.payment?.value ?? linha.primeiro_mes ?? linha.valor);
+
+      const saleId = await upsertSale({
+        // Chave estável e única por contrato: reentrega do webhook cai no mesmo
+        // upsert em vez de criar uma segunda venda.
+        checkout_session_id: `asaas:${linha.contract_id}`,
+        subscription_id: linha.authorization_id || linha.subscription_id || null,
+        email: linha.email,
+        nome: a.nome ?? null,
+        phone: a.whatsapp ?? null,
+        plano: info.plano,
+        produto: info.nome,
+        valor: pago,
+        status: 'paid',
+        cupom: linha.cupom ?? null,
+        comDesconto: !!linha.cupom,
+        utm_source: a.utm_source ?? null,
+        utm_medium: a.utm_medium ?? null,
+        utm_campaign: a.utm_campaign ?? null,
+        utm_content: a.utm_content ?? null,
+        utm_term: a.utm_term ?? null,
+        card_passed_at: new Date().toISOString(),
+      });
+
+      // Meta (CAPI). A própria função recusa recompra e venda de follow-up —
+      // o pixel só conta venda nova, e essa regra vale igual pro Pix.
+      if (saleId) {
+        await sendPurchaseForSale(saleId).catch((e) =>
+          logger.error('asaas-webhook', `Purchase pro Meta falhou (acesso já liberado): ${linha.email}`, e));
+      }
+
+      await sendUtmifyOrder({
+        orderId: `asaas:${linha.contract_id}`,
+        status: 'paid',
+        createdAt: new Date(),
+        approvedDate: new Date(),
+        email: linha.email,
+        name: a.nome ?? null,
+        phone: a.whatsapp ?? null,
+        productId: info.plano,
+        productName: info.nome,
+        priceInReais: pago,
+        paymentMethod: 'pix',
+        utm_source: a.utm_source ?? null,
+        utm_medium: a.utm_medium ?? null,
+        utm_campaign: a.utm_campaign ?? null,
+        utm_content: a.utm_content ?? null,
+        utm_term: a.utm_term ?? null,
+      });
+    } catch (err) {
+      // Nada aqui pode derrubar a liberação: o cliente já pagou e já tem acesso.
+      // Mas também não pode sumir — venda fora do ledger é receita invisível.
+      logger.error('asaas-webhook', `venda do Pix recorrente não foi registrada (acesso OK): ${linha.email}`, err);
+      await avisarThiago(`⚠️ *Venda no Pix não entrou no ledger*\n${linha.email} · R$ ${linha.valor}\nO acesso foi liberado normalmente, mas a venda pode não aparecer no Meta nem na UTMify.`);
+    }
+  }
+
   await avisarThiago([
     primeiroPagamento ? '🟢 *Nova assinatura no Pix recorrente*' : '💰 *Renovação no Pix recorrente*',
     '',

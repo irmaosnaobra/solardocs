@@ -37,6 +37,10 @@ export interface UtmifyOrderInput {
   productId: string;
   productName: string;
   priceInReais: number;                // preço do plano (R$) → vira priceInCents
+  /** Meio de pagamento. Padrão 'credit_card' porque a origem era só o Stripe;
+   *  o trilho do Asaas é Pix, e mandar tudo como cartão faria o painel mentir
+   *  justamente sobre a pergunta que motivou o Pix ("quanto vende sem cartão?"). */
+  paymentMethod?: 'credit_card' | 'pix' | 'boleto';
   utm_source?: string | null;
   utm_medium?: string | null;
   utm_campaign?: string | null;
@@ -64,7 +68,7 @@ export async function sendUtmifyOrder(i: UtmifyOrderInput): Promise<boolean> {
   const body = {
     orderId: i.orderId,
     platform: 'SolarDoc',
-    paymentMethod: 'credit_card',
+    paymentMethod: i.paymentMethod || 'credit_card',
     status: i.status,
     createdAt: toUtmifyDate(i.createdAt),
     approvedDate: i.status === 'paid' ? toUtmifyDate(i.approvedDate || new Date()) : null,
