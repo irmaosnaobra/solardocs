@@ -177,6 +177,16 @@ ul.lista li::marker{color:var(--g600)}
        border-radius:var(--r);padding:16px 20px;font-size:15px;line-height:1.5}
 .fNota b{font-weight:800;color:#C2410C}
 
+/* AS FERRAMENTAS — a lista vem do banco (`copy.entregas`), não daqui. São sete
+   itens que existiam cadastrados desde o lançamento e nunca tinham aparecido na
+   página: é o que transforma "curso" em "atalho". Item novo no /admin nasce na
+   tela sozinho. */
+.ferr{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:26px}
+.ferr li{display:flex;gap:12px;align-items:flex-start;background:#fff;border:1px solid var(--g300);
+  border-radius:var(--r);padding:16px 18px;font-size:14.5px;line-height:1.5}
+.ferr li svg{flex:none;margin-top:2px}
+@media(max-width:720px){ .ferr{grid-template-columns:1fr} }
+
 @media(max-width:720px){
   .metodo li{grid-template-columns:26px minmax(0,1fr);gap:4px 12px;padding:16px 16px}
   .mSe{grid-column:2;border-left:0;padding-left:0;margin-top:6px;font-size:13px}
@@ -571,8 +581,8 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
 <section class="claro rv">
   <div class="faixa">
     <p class="olho">O método</p>
-    <h2>Seis perguntas. Nesta ordem. Sem elas, não tem ponto conquistado.</h2>
-    <p class="sub">Cada uma só faz sentido depois da anterior — e cada uma que você pula cobra o preço da direita.</p>
+    <h2>Seis perguntas, nesta ordem. Cada uma que você pula já tem preço com nome.</h2>
+    <p class="sub">Ninguém entra nesse mercado errando por burrice: erra por fazer as perguntas fora de ordem. À direita está o que cada pulo cobra — e é exatamente essa lista que a gente encurta pra você.</p>
     <ol class="metodo">
       <li>
         <span class="mNum">1</span>
@@ -859,12 +869,26 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
   </div>
 </section>
 
+<!-- 8b · AS FERRAMENTAS — o atalho em forma de coisa que se usa.
+     A página vendia AULA e escondia o que o comprador leva pra rua: sete peças
+     prontas que já estavam cadastradas em `pc_cursos.copy.entregas` desde o
+     lançamento. É o que responde "por que não faço sozinho": sozinho você monta
+     cada uma dessas do zero, e é aí que mora o mês perdido. -->
+<section class="branco rv" id="ferramentas" style="display:none">
+  <div class="faixa">
+    <p class="olho">O que vem junto</p>
+    <h2>Você não vai só assistir. Vai sair com as ferramentas na mão.</h2>
+    <p class="sub">São as mesmas peças que a nossa equipe leva pra rua antes de dizer sim a um ponto — prontas, pra usar no seu endereço já nesta semana.</p>
+    <ul class="ferr" id="ferr-lista"></ul>
+  </div>
+</section>
+
 <!-- 9 · QUEM ENSINA — com o conflito de interesse declarado -->
 <section class="claro rv">
   <div class="faixa">
     <p class="olho">Quem está do outro lado</p>
-    <h2>Quem te ensina é quem executa.</h2>
-    <p class="sub" style="font-size:17px">Irmãos na Obra — Mobilidade Elétrica. A mesma equipe que dimensiona, projeta, homologa e entrega turnkey. Este material é o que a gente confere antes de dizer sim a um ponto.</p>
+    <h2>O atalho existe porque alguém já fez o caminho longo.</h2>
+    <p class="sub" style="font-size:17px">Irmãos na Obra — Mobilidade Elétrica. A mesma equipe que dimensiona, projeta, homologa na distribuidora e entrega turnkey. O que você recebe aqui é a nossa própria régua: a lista que a gente confere antes de dizer sim a um ponto, com os tropeços do caminho já embutidos nela.</p>
     <p class="sub" style="font-size:17px;margin-bottom:0">Conflito de interesse, e fica dito: você vai aprender a achar o que ficou de fora em qualquer proposta — inclusive na nossa.</p>
   </div>
 </section>
@@ -946,8 +970,8 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
 <!-- 15 · CTA FINAL -->
 <section class="escuro rv" id="cta-final" style="display:none">
   <div class="faixa" style="text-align:center">
-    <h2 style="margin-left:auto;margin-right:auto">Ou você mede o ponto, ou continua chutando.</h2>
-    <p class="lead" style="margin-left:auto;margin-right:auto">Tem duas saídas daqui. Rodar mais uns meses perguntando pra todo mundo e recebendo três respostas diferentes — ou passar uma tarde com o método e voltar com número na mão. A primeira é de graça e já está custando o seu ano.</p>
+    <h2 style="margin-left:auto;margin-right:auto">Entre nesse mercado com o pé direito.</h2>
+    <p class="lead" style="margin-left:auto;margin-right:auto">Tem dois jeitos de aprender isso. Errando na obra — arrendamento assinado, carga que não cabe, equipamento comprado errado — ou errando no papel, numa tarde, com a régua de quem já atravessou esse caminho. O primeiro jeito é "de graça" e cobra depois.</p>
     <div style="display:flex;justify-content:center"><a class="cta off" id="cta2" href="#">Carregando…</a></div>
   </div>
 </section>
@@ -1048,29 +1072,26 @@ var COPY = {
   // não "não tem": quem tem um local em vista leria o contrário do que respondeu.
   sem_ponto: {
     selo: 'Você respondeu que o ponto ainda não está fechado',
-    // A headline nomeia o que ele NÃO SABE que está acontecendo — passar pelo ponto
-    // certo e seguir direto — em vez de repetir o diagnóstico que ele já leu na LP.
-    // "Ele é medido" já entrega o mecanismo do produto na primeira linha.
-    // Curta de propósito: no celular ela cabe em três linhas e o botão de compra
-    // sobe junto. O soco ("você passou por um esta semana") abre a subheadline,
-    // que é onde ele ainda tem toda a atenção.
-    headline: 'O ponto certo não aparece. Ele é medido.',
+    // Promessa primeiro (ACHAR o ponto), risco logo atrás (errar no papel custa uma
+    // tarde; errar na obra custa o equipamento). Curta de propósito: no celular cabe
+    // em três linhas e o botão de compra sobe junto com ela.
+    headline: 'Ache o seu ponto. E erre no papel, não na obra.',
     abertura: [
-      'Você passou por um esta semana e seguiu direto. Quem já tem eletroposto rodando não achou um lugar melhor que o seu — mediu quatro coisas de uma esquina que os outros olharam e acharam comum: quanto carro passa de verdade, quanta energia sobra na conta de luz, que potência aquilo aguenta e em quanto tempo o dinheiro volta.',
-      'Enquanto essas quatro medidas não saem, todo local é "talvez" — e "talvez" não fecha com o dono do imóvel, não passa no banco e não vira obra. É por isso que dá pra rodar um ano inteiro achando que ainda não apareceu nada bom.'
+      'Todo erro caro desse mercado já tem nome: arrendar uma esquina que não tem movimento, descobrir depois de assinar que a energia não aguenta, comprar potência que o carro não puxa, orçar o carregador e esquecer metade do resto, prometer uma data que quem manda nela é a distribuidora. Ninguém erra por burrice — erra por não saber a ordem das perguntas.',
+      'A gente atravessa essa ordem toda semana: dimensiona, projeta, entra na distribuidora e entrega. Este material é o atalho por dentro dela, com as mesmas ferramentas que a nossa equipe usa antes de dizer sim a um ponto.'
     ],
-    ponte: 'Em uma tarde você aprende a tirar esses quatro números de qualquer endereço. A partir daí você para de procurar o ponto perfeito e começa a reprovar ponto ruim de graça — que é como se acha o certo.'
+    ponte: 'Você não precisa pagar caro pra aprender o que já custou caro pra alguém. Uma tarde com isto na mão e você mede qualquer endereço, reprova os ruins de graça e entra nesse mercado com o pé direito.'
   },
   fluxo_baixo: {
     selo: 'Você respondeu que investe, mas não tem o local',
-    headline: 'Você tem o dinheiro. Quem decide o retorno é a esquina — e ela se mede.',
+    headline: 'Você tem o dinheiro. Não entregue ele pra esquina errada.',
     abertura: [
-      'Posto, mercado e hotel já têm carro parando na porta por outro motivo: o movimento deles não depende do carregador. O seu depende inteiro da rua.',
-      'E rua não se sente, se conta. O mesmo endereço que parece movimentado às seis da tarde entrega quatro carros por dia — e é essa diferença que separa um investimento que se paga de um equipamento parado numa esquina bonita.'
+      'Posto, mercado e hotel já têm carro parando na porta por outro motivo: o movimento deles não depende do carregador. O seu depende inteiro da rua — e rua não se sente, se conta. O mesmo endereço que parece movimentado às seis da tarde entrega quatro carros por dia.',
+      'Quem entra nesse mercado com capital e sem régua paga a conta duas vezes: no equipamento e no tempo parado. A gente dimensiona, projeta e entrega esses pontos — este material é o atalho, com as ferramentas que a nossa equipe usa antes de dizer sim a um endereço.'
     ],
     // Não diz "é a parte central do material": medir movimento é UMA aula das 14.
     // Exagero aqui é caro — este leitor foi selecionado justamente por farejar exagero.
-    ponte: 'Medir a rua sem contratar pesquisa é uma das aulas daqui. É a que troca a sua pergunta de "será que dá?" por um número que você mesmo levantou.'
+    ponte: 'Medir a rua sem contratar pesquisa é uma das aulas daqui. É a que troca "será que dá?" por um número que você mesmo levantou — antes de assinar qualquer coisa.'
   },
   nao_decisor: {
     selo: 'Você respondeu que a decisão não é só sua',
@@ -1098,12 +1119,12 @@ var COPY = {
     // Curta de propósito: no celular ela cabe em três linhas e o botão de compra
     // sobe junto. O soco ("você passou por um esta semana") abre a subheadline,
     // que é onde ele ainda tem toda a atenção.
-    headline: 'O ponto certo não aparece. Ele é medido.',
+    headline: 'Ache o seu ponto. E erre no papel, não na obra.',
     abertura: [
-      'Você passou por um esta semana e seguiu direto. Quem já tem eletroposto rodando não achou um lugar melhor que o seu — mediu quatro coisas de uma esquina que os outros olharam e acharam comum: quanto carro passa de verdade, quanta energia sobra na conta de luz, que potência aquilo aguenta e em quanto tempo o dinheiro volta.',
-      'Enquanto essas quatro medidas não saem, todo local é "talvez" — e "talvez" não fecha com o dono do imóvel, não passa no banco e não vira obra.'
+      'Todo erro caro desse mercado já tem nome: arrendar uma esquina sem movimento, descobrir depois de assinar que a energia não aguenta, comprar potência que o carro não puxa, orçar o carregador e esquecer metade do resto. Ninguém erra por burrice — erra por não saber a ordem das perguntas.',
+      'A gente atravessa essa ordem toda semana: dimensiona, projeta, entra na distribuidora e entrega. Este material é o atalho por dentro dela, com as mesmas ferramentas que a nossa equipe usa antes de dizer sim a um ponto.'
     ],
-    ponte: 'Em uma tarde você aprende a tirar esses quatro números de qualquer endereço. A partir daí você para de procurar o ponto perfeito e começa a reprovar ponto ruim de graça — que é como se acha o certo.'
+    ponte: 'Você não precisa pagar caro pra aprender o que já custou caro pra alguém. Uma tarde com isto na mão e você mede qualquer endereço, reprova os ruins de graça e entra nesse mercado com o pé direito.'
   }
 };
 
@@ -1248,11 +1269,11 @@ function pintarCta(){
 var ESCADA_COPY = [
   null,
   { olho: 'Espera',
-    tit:  'Você chegou aqui sem saber onde instalar. Fechar a aba não responde isso.',
-    txt:  'Não vou te empurrar reunião nem ficar no seu pé. Vou fazer o contrário: tiro do preço e paro de atrapalhar. É o mesmo material, as mesmas aulas, a mesma garantia.' },
+    tit:  'Fechar a aba não faz o seu ponto aparecer.',
+    txt:  'Você continua com a mesma dúvida de quando chegou: qual endereço presta e quanto ele devolve. Não vou te empurrar reunião nem ficar no seu pé — vou tirar do preço e sair da frente. Mesmo material, mesmas ferramentas, mesma garantia.' },
   { olho: 'Última',
     tit:  'Então fica assim — e eu paro de insistir.',
-    txt:  'Este é o último valor que eu tenho pra te oferecer. Se nem assim fizer sentido, sem problema: fecha a página, roda mais uns meses procurando ponto no olho e volta quando quiser. O material vai continuar aqui.' }
+    txt:  'Último valor que eu tenho pra te oferecer. Se nem assim fizer sentido, sem problema: fecha a página e siga procurando ponto no olho. Só lembra que esse jeito também cobra — só cobra depois, e em cima do equipamento.' }
 ];
 
 var escadaAberta = false;
@@ -1409,6 +1430,24 @@ fetch(API + '/plugcash/curso/fundamentos')
             'da compra, não do dia em que a última subir.';
         av.style.display = '';
       }
+    }
+
+    // As ferramentas. Só aparecem se o banco tiver a lista — seção vazia com
+    // título prometendo "ferramentas na mão" seria pior que seção nenhuma.
+    var entregas = (k.copy && k.copy.entregas) || [];
+    if (entregas.length) {
+      var ul = document.getElementById('ferr-lista');
+      ul.innerHTML = '';
+      entregas.forEach(function(t){
+        var li = document.createElement('li');
+        li.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00C853" '
+          + 'stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+          + '<path d="M20 6 9 17l-5-5"/></svg>';
+        var sp = document.createElement('span'); sp.textContent = t;   // texto do banco nunca vira HTML
+        li.appendChild(sp);
+        ul.appendChild(li);
+      });
+      document.getElementById('ferramentas').style.display = '';
     }
 
     // Vídeo de vendas, se houver.
