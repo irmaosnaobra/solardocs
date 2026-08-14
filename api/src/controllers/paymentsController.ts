@@ -12,6 +12,8 @@ import { sendUtmifyOrder } from '../services/utmifyOrders';
 import { concederCursoPorAssinatura } from '../services/kitIntegradorService';
 import { pixCheckoutUrl, PIX_MES_VALOR } from '../utils/pixInfo';
 import { asaasHabilitado } from '../services/asaas/asaasClient';
+import { resolverPrecoAnual, precoAnualConhecido, ANUAL_VALOR, ANUAL_EQUIV_MES } from '../services/precoAnual';
+import { concederAcesso } from '../services/produtos/acessos';
 import {
   buscarCupomValido, aplicarCupom, garantirCupomStripe, garantirPromotionCode, cupomAtivoParaPlano,
   registrarUsoCupom, resumoPublicoCupom, normalizarCodigo, CupomAplicado,
@@ -76,11 +78,70 @@ const PLAN_MAP: Record<string, { priceId: string; plano: string; limite: number;
     valor: 49,
     descricao: '📄 Documentos ilimitados  •  Dashboard completo  •  Acesso a toda expansão da plataforma  •  Suporte prioritário',
   },
+  // ANUAL — a âncora. MESMO acesso do VIP, cobrado 12 meses de uma vez: R$ 564,
+  // que dá R$ 47/mês contra os R$ 67 do mensal. Serve pra dois públicos ao mesmo
+  // tempo: quem compra (caixa de um ano na hora) e quem NÃO compra (sai achando
+  // o mensal barato, que é o trabalho da âncora).
+  //
+  // priceId vazio de propósito: o price é criado/resolvido em runtime pelo
+  // lookup_key (ver services/precoAnual.ts) porque não dá pra mexer no painel da
+  // Stripe daqui. STRIPE_PRICE_VIP_ANUAL na Vercel sobrescreve, se um dia existir.
+  //
+  // `valor` é 564 e NÃO 47: este campo alimenta o ledger `sales`, o value do
+  // Purchase (Meta CAPI) e a UTMify. Botar 47 aqui sub-reportaria a receita em
+  // 12× e envenenaria toda a conta de CAC. O 47 é número de vitrine, só.
+  vip_anual: {
+    priceId: envPrice('STRIPE_PRICE_VIP_ANUAL', ''),
+    plano: 'ilimitado',
+    limite: 999999,
+    valor: ANUAL_VALOR,
+    // Explícito, não herdado: `vip_promo` acima OMITE trialDias e por isso pega
+    // os 7 dias padrão. Herdar aqui daria uma semana grátis numa cobrança de
+    // R$ 564 — e o cliente entraria, baixaria tudo e cancelaria no 6º dia.
+    trialDias: 0,
+    descricao: `📄 Documentos ilimitados por 12 meses  •  Precificação Profissional e Inventário da Empresa liberados pra sempre  •  R$ ${ANUAL_EQUIV_MES}/mês em vez de R$ 67  •  Suporte prioritário`,
+  },
 };
 
-// mapa invertido price_id → plano (para o webhook)
-function planByPrice(priceId: string) {
-  return Object.values(PLAN_MAP).find(p => p.priceId === priceId);
+// O texto do botão do checkout anual. Diz o preço CHEIO e o ciclo, porque é
+// aqui que a pessoa confere antes de autorizar R$ 564 — o "R$ 47/mês" sozinho
+// nessa tela é a receita pronta pra um chargeback de "achei que era mensal".
+const TEXTO_SUBMIT_ANUAL =
+  `R$ ${ANUAL_VALOR} agora, 12 meses de acesso — sai R$ ${ANUAL_EQUIV_MES}/mês em vez de R$ 67. ` +
+  'Precificação Profissional e Inventário da Empresa ficam liberados pra sempre. Renova só daqui a um ano.';
+
+// As duas ferramentas que o anual leva PRA SEMPRE (não expiram junto com a
+// assinatura). É o que faz o anual valer mais do que "12 mensais com desconto":
+// R$ 134 de ferramenta comprada, dentro de uma compra de R$ 564.
+// O mensal continua com elas enquanto assina (`naAssinatura` no catálogo) —
+// o anual é quem passa a ser DONO.
+const FERRAMENTAS_DO_ANUAL = ['precificacao', 'inventario'];
+
+// mapa invertido price_id → plano (para o webhook).
+//
+// ASSÍNCRONO por causa do anual: o price dele é resolvido em runtime, e uma
+// instância FRIA do webhook ainda não o conhece. Devolver undefined aqui não
+// "erra um rótulo" — pula o bloco INTEIRO da venda (criação de conta, ledger,
+// aviso do dono, concessão das ferramentas). Num produto de baixo volume, a
+// instância fria é o caso NORMAL, não a exceção.
+async function planByPrice(priceId: string) {
+  if (!priceId) return undefined;
+  const estatico = Object.values(PLAN_MAP).find(p => p.priceId && p.priceId === priceId);
+  if (estatico) return estatico;
+  try {
+    const anual = await resolverPrecoAnual(stripe, { criar: false });
+    if (anual && anual === priceId) return PLAN_MAP.vip_anual;
+  } catch (err) {
+    console.error('[anual] não consegui resolver o price pra classificar a venda:', err);
+  }
+  return undefined;
+}
+
+/** O price que este plano vai cobrar. Só o anual precisa de ida à Stripe. */
+async function priceDoPlano(planKey: string, planInfo: { priceId: string }): Promise<string> {
+  if (planInfo.priceId) return planInfo.priceId;
+  if (planKey === 'vip_anual') return resolverPrecoAnual(stripe);
+  return '';
 }
 
 // ── CUPOM DIGITADO NO CHECKOUT ───────────────────────────────────────────────
@@ -281,8 +342,11 @@ function attributionPatchFromMetadata(
 
 export async function createCheckout(req: Request, res: Response): Promise<void> {
   const { plan, cupom } = req.body as { plan: string; cupom?: string };
-  // Aceita 'vip' (alias do landing) → 'ilimitado'
-  const planKey = plan === 'vip' ? 'ilimitado' : plan;
+  // Aceita 'vip' (alias do landing) → 'ilimitado'. 'anual' é o alias que volta
+  // da tela /quase-la: o cancel_url carrega `plano=anual` e ela repassa o valor
+  // cru — sem este apelido, quem desiste do anual e clica em "voltar pro cartão"
+  // recebe "Plano inválido".
+  const planKey = plan === 'vip' ? 'ilimitado' : plan === 'anual' ? 'vip_anual' : plan;
   const planInfo = PLAN_MAP[planKey];
   const trialDias = planInfo?.trialDias ?? TRIAL_PADRAO_DIAS;
 
@@ -291,7 +355,20 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
     return;
   }
 
-  const priceId = planInfo.priceId;
+  const ehAnual = planKey === 'vip_anual';
+
+  let priceId: string;
+  try {
+    priceId = await priceDoPlano(planKey, planInfo);
+  } catch (err) {
+    console.error('[anual] não consegui resolver o price do plano anual:', err);
+    res.status(503).json({ error: 'Plano anual indisponível no momento' });
+    return;
+  }
+  if (!priceId) {
+    res.status(400).json({ error: 'Plano inválido' });
+    return;
+  }
 
   const { data: user } = await supabase
     .from('users')
@@ -304,14 +381,23 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
     return;
   }
 
-  if (user.plano === planInfo.plano) {
+  // O anual escapa desta trava de propósito: ele tem o MESMO `plano` interno do
+  // mensal ('ilimitado'), então quem está em VIP — ou quem está suspenso ainda
+  // marcado como VIP — bateria em "você já está nesse plano" e nunca conseguiria
+  // migrar. O caso do assinante VIVO é tratado logo abaixo, separado.
+  if (user.plano === planInfo.plano && !ehAnual) {
     res.status(400).json({ error: 'Você já está nesse plano' });
     return;
   }
 
   // Vitrine do produto (descrição + imagem do checkout). Era só a descrição
   // aqui, e por isso a imagem com "7 DIAS GRÁTIS" sobreviveu ao fim do trial.
-  await garantirVitrineStripe(priceId, planInfo.descricao);
+  //
+  // O ANUAL NÃO CARIMBA. Ele divide o produto com o mensal, e cada checkout
+  // sobrescreveria a descrição do outro — o card do checkout ficaria alternando
+  // entre as duas ofertas ao sabor de quem comprou por último. A mensagem
+  // específica do anual sai no custom_text, que é por sessão.
+  if (!ehAnual) await garantirVitrineStripe(priceId, planInfo.descricao);
 
   // Tem subscription ativa? Faz upgrade in-place com proração — cobra a diferença
   // imediatamente no cartão já cadastrado, sem novo checkout.
@@ -333,6 +419,21 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
       const activeSub = subs.data.find(
         (s) => s.status === 'active' || s.status === 'trialing' || s.status === 'past_due',
       );
+      if (activeSub && activeSub.items.data[0] && ehAnual) {
+        // MENSAL VIVO → ANUAL não passa por aqui. O caminho in-place cobra na
+        // hora com `always_invoice` e a Stripe NÃO emite checkout.session.completed
+        // por ele: seriam ~R$ 564 entrando sem linha no ledger, sem aviso ao dono
+        // e sem a concessão das ferramentas. Pra R$ 40 de PRO→VIP isso já era
+        // ruim; pra R$ 564 é um buraco. E mandar pro checkout novo criaria uma
+        // SEGUNDA assinatura sob outro Customer — a origem conhecida das 111
+        // assinaturas pra 85 e-mails. Então: mão humana.
+        res.status(409).json({
+          error: 'assinatura_ativa',
+          message: 'Você já tem uma assinatura ativa. Chama a gente no WhatsApp que a gente troca pro anual sem cobrar duas vezes.',
+        });
+        return;
+      }
+
       if (activeSub && activeSub.items.data[0]) {
         await stripe.subscriptions.update(activeSub.id, {
           items: [{ id: activeSub.items.data[0].id, price: priceId }],
@@ -372,21 +473,28 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
   // conseguir comprar (ver createPublicCheckout). O upgrade in-place lá em cima
   // NÃO passa por aqui — quem já tem assinatura viva troca de plano com
   // proração e não ganha desconto de adesão.
+  //
+  // O ANUAL NÃO ACEITA CUPOM — nem de link, nem digitado. Os cupons vivos são de
+  // PRIMEIRO MÊS e foram calibrados contra os R$ 67 do mensal: o ACESSO19 passa
+  // liso pelo aplicarCupom (19 < 564) e venderia um ANO por R$ 19. Cupom de
+  // anual, quando existir, precisa nascer com esse valor em mente.
   let aplicado = null as CupomAplicado | null;
   let discounts: Array<{ coupon: string }> | undefined;
   let permitirCodigoDigitado = false;
-  try {
-    aplicado = aplicarCupom(await buscarCupomValido(cupom, planInfo.plano), planInfo.valor);
-    if (aplicado) {
-      discounts = [{ coupon: await garantirCupomStripe(stripe, aplicado, planInfo.plano) }];
-    } else {
-      permitirCodigoDigitado = await prepararCodigoDigitado(planInfo.plano, planInfo.valor);
+  if (!ehAnual) {
+    try {
+      aplicado = aplicarCupom(await buscarCupomValido(cupom, planInfo.plano), planInfo.valor);
+      if (aplicado) {
+        discounts = [{ coupon: await garantirCupomStripe(stripe, aplicado, planInfo.plano) }];
+      } else {
+        permitirCodigoDigitado = await prepararCodigoDigitado(planInfo.plano, planInfo.valor);
+      }
+    } catch (err) {
+      console.error(`[cupons] ${cupom} não aplicado — seguindo no preço cheio:`, err);
+      aplicado = null;
+      discounts = undefined;
+      permitirCodigoDigitado = false;
     }
-  } catch (err) {
-    console.error(`[cupons] ${cupom} não aplicado — seguindo no preço cheio:`, err);
-    aplicado = null;
-    discounts = undefined;
-    permitirCodigoDigitado = false;
   }
 
   const session = await stripe.checkout.sessions.create({
@@ -409,7 +517,7 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
       // assinando o PRO ou o VIP. Sem isso todo abandono daqui virava e-mail
       // dizendo "PRO" — inclusive pra quem estava comprando o VIP.
       plan: planInfo.plano,
-      ...(planKey === 'vip_curso' ? { oferta: 'vip_curso' } : {}),
+      ...(planKey === 'vip_curso' ? { oferta: 'vip_curso' } : ehAnual ? { oferta: 'vip_anual' } : {}),
       ...(aplicado ? { cupom: aplicado.cupom.codigo } : {}),
     },
     subscription_data: {
@@ -417,7 +525,7 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
       ...(trialDias > 0 ? { trial_period_days: trialDias } : {}),
       metadata: {
         userId: req.userId!,
-        ...(planKey === 'vip_curso' ? { oferta: 'vip_curso' } : {}),
+        ...(planKey === 'vip_curso' ? { oferta: 'vip_curso' } : ehAnual ? { oferta: 'vip_anual' } : {}),
         ...(aplicado ? { cupom: aplicado.cupom.codigo } : {}),
       },
     },
@@ -432,12 +540,14 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
     // `via=conta`: a tela precisa saber por onde refazer o cartão. Mandar quem já
     // tem conta pro checkout PÚBLICO criaria um Customer novo na Stripe — que é a
     // origem conhecida das assinaturas duplicadas (111 assinaturas p/ 85 e-mails).
-    cancel_url:  `${dashboardUrl}/quase-la?cancelado=1&via=conta&plano=${encodeURIComponent(planInfo.plano === 'ilimitado' ? 'vip' : planInfo.plano)}${aplicado ? `&cupom=${encodeURIComponent(aplicado.cupom.codigo)}` : ''}`,
+    cancel_url:  `${dashboardUrl}/quase-la?cancelado=1&via=conta&plano=${encodeURIComponent(ehAnual ? 'anual' : planInfo.plano === 'ilimitado' ? 'vip' : planInfo.plano)}${aplicado ? `&cupom=${encodeURIComponent(aplicado.cupom.codigo)}` : ''}`,
     custom_text: {
       submit: {
-        message: aplicado
-          ? `Primeiro mês por R$ ${aplicado.primeiroMes} (cupom ${aplicado.cupom.codigo}). Depois R$ ${aplicado.precoCheio}/mês, cancele quando quiser.`
-          : planInfo.descricao,
+        message: ehAnual
+          ? TEXTO_SUBMIT_ANUAL
+          : aplicado
+            ? `Primeiro mês por R$ ${aplicado.primeiroMes} (cupom ${aplicado.cupom.codigo}). Depois R$ ${aplicado.precoCheio}/mês, cancele quando quiser.`
+            : planInfo.descricao,
       },
     },
   });
@@ -451,7 +561,8 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
 // (com o email do session_id). Sem free: quem não passa daqui não tem conta.
 export async function createPublicCheckout(req: Request, res: Response): Promise<void> {
   const { plan, cupom } = req.body as { plan: string; cupom?: string };
-  const planKey = plan === 'vip' ? 'ilimitado' : plan;
+  // Mesmos apelidos do createCheckout: 'vip' vem da LP, 'anual' volta da /quase-la.
+  const planKey = plan === 'vip' ? 'ilimitado' : plan === 'anual' ? 'vip_anual' : plan;
   const planInfo = PLAN_MAP[planKey];
   const trialDias = planInfo?.trialDias ?? TRIAL_PADRAO_DIAS;
 
@@ -460,11 +571,30 @@ export async function createPublicCheckout(req: Request, res: Response): Promise
     return;
   }
 
+  const ehAnual = planKey === 'vip_anual';
+
   try {
     const dashboardUrl = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
 
+    // O price do anual é resolvido (ou criado) aqui, na primeira compra depois
+    // do deploy. Falhou? 503 explícito — melhor a LP dizer "tenta de novo" do
+    // que mandar a pessoa pra um checkout sem preço.
+    let priceId: string;
+    try {
+      priceId = await priceDoPlano(planKey, planInfo);
+    } catch (err) {
+      console.error('[anual] não consegui resolver o price do plano anual:', err);
+      res.status(503).json({ error: 'Plano anual indisponível no momento' });
+      return;
+    }
+    if (!priceId) {
+      res.status(400).json({ error: 'Plano inválido' });
+      return;
+    }
+
     // Imagem e descrição do produto no checkout — uma vez por instância fria.
-    await garantirVitrineStripe(planInfo.priceId, planInfo.descricao);
+    // O anual não carimba: divide o produto com o mensal (ver createCheckout).
+    if (!ehAnual) await garantirVitrineStripe(priceId, planInfo.descricao);
     // Mesma janela: confere se o endpoint assina os eventos que o código trata.
     // Aqui é o gatilho que mais roda — a Stripe só nos chama quando há evento, e
     // um evento que falta é justamente o que não chega pra disparar a conferência.
@@ -482,37 +612,47 @@ export async function createPublicCheckout(req: Request, res: Response): Promise
     // ou falha ao criar o cupom na Stripe — cai no preço cheio. Deixar a exceção
     // subir transformaria "não consegui aplicar o desconto" em "ninguém compra",
     // e quem descobriria seria o primeiro cliente que recebesse o link.
+    //
+    // O ANUAL FICA DE FORA (ver a nota longa no createCheckout): os cupons vivos
+    // são de primeiro mês, calibrados contra R$ 67 — o ACESSO19 venderia um ano
+    // inteiro por R$ 19 sem que nada aqui reclamasse.
     let aplicado = null as CupomAplicado | null;
     let discounts: Array<{ coupon: string }> | undefined;
     let permitirCodigoDigitado = false;
-    try {
-      aplicado = aplicarCupom(await buscarCupomValido(cupom, planInfo.plano), planInfo.valor);
-      if (aplicado) {
-        discounts = [{ coupon: await garantirCupomStripe(stripe, aplicado, planInfo.plano) }];
-      } else {
-        // Sem cupom no link: libera o campo "adicionar código promocional" pra
-        // quem a Giovanna mandou digitar. Só quando EXISTE cupom vivo pro plano
-        // — campo que recusa tudo o que for digitado é pior que campo nenhum.
-        permitirCodigoDigitado = await prepararCodigoDigitado(planInfo.plano, planInfo.valor);
+    if (!ehAnual) {
+      try {
+        aplicado = aplicarCupom(await buscarCupomValido(cupom, planInfo.plano), planInfo.valor);
+        if (aplicado) {
+          discounts = [{ coupon: await garantirCupomStripe(stripe, aplicado, planInfo.plano) }];
+        } else {
+          // Sem cupom no link: libera o campo "adicionar código promocional" pra
+          // quem a Giovanna mandou digitar. Só quando EXISTE cupom vivo pro plano
+          // — campo que recusa tudo o que for digitado é pior que campo nenhum.
+          permitirCodigoDigitado = await prepararCodigoDigitado(planInfo.plano, planInfo.valor);
+        }
+      } catch (err) {
+        console.error(`[cupons] ${cupom} não aplicado — seguindo no preço cheio:`, err);
+        aplicado = null;       // metadata e texto do botão não podem prometer o desconto
+        discounts = undefined;
+        permitirCodigoDigitado = false;
       }
-    } catch (err) {
-      console.error(`[cupons] ${cupom} não aplicado — seguindo no preço cheio:`, err);
-      aplicado = null;       // metadata e texto do botão não podem prometer o desconto
-      discounts = undefined;
-      permitirCodigoDigitado = false;
     }
 
     // O código vai no metadata porque é o webhook — não a criação da sessão —
     // que contabiliza o uso. Checkout aberto e abandonado não queima cupom.
+    // `oferta: vip_anual` é o que separa o anual do mensal pra quem só lê
+    // metadata: a recuperação de abandono (que senão manda copy de R$ 67 pra
+    // quem abandonou R$ 564) e o webhook, que libera as ferramentas por ele.
     const baseMeta = {
       plan: planInfo.plano, source: 'public_checkout', ...attribution,
+      ...(ehAnual ? { oferta: 'vip_anual' } : {}),
       ...(aplicado ? { cupom: aplicado.cupom.codigo } : {}),
     };
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
-      line_items: [{ price: planInfo.priceId, quantity: 1 }],
+      line_items: [{ price: priceId, quantity: 1 }],
       // Um ou outro: a Stripe não aceita desconto pronto E campo de digitar juntos.
       ...(discounts ? { discounts } : permitirCodigoDigitado ? { allow_promotion_codes: true } : {}),
       // Stripe coleta o email no próprio checkout (não temos user ainda).
@@ -532,14 +672,18 @@ export async function createPublicCheckout(req: Request, res: Response): Promise
       success_url: `${dashboardUrl}/auth?mode=register&session={CHECKOUT_SESSION_ID}&plano=${encodeURIComponent(planInfo.plano === 'ilimitado' ? 'vip' : planInfo.plano)}`,
       // Ver a nota do outro checkout: "voltar" no Stripe cai na oferta de Pix,
       // com o mesmo plano e o mesmo cupom que ele estava levando.
-      cancel_url:  `${dashboardUrl}/quase-la?cancelado=1&via=lp&plano=${encodeURIComponent(planInfo.plano === 'ilimitado' ? 'vip' : planInfo.plano)}${aplicado ? `&cupom=${encodeURIComponent(aplicado.cupom.codigo)}` : ''}`,
+      cancel_url:  `${dashboardUrl}/quase-la?cancelado=1&via=lp&plano=${encodeURIComponent(ehAnual ? 'anual' : planInfo.plano === 'ilimitado' ? 'vip' : planInfo.plano)}${aplicado ? `&cupom=${encodeURIComponent(aplicado.cupom.codigo)}` : ''}`,
       // Com cupom, o texto do botão diz o que acontece no mês 2 — é o que evita
       // a pessoa achar que R$ 19 é o preço da assinatura e contestar depois.
+      // No anual, a mesma lógica com outro risco: quem lê só "R$ 47/mês" e vê
+      // R$ 564 na fatura abre disputa. O texto diz o valor cheio e o ciclo.
       custom_text: {
         submit: {
-          message: aplicado
-            ? `Primeiro mês por R$ ${aplicado.primeiroMes} (cupom ${aplicado.cupom.codigo}). Depois R$ ${aplicado.precoCheio}/mês, cancele quando quiser.`
-            : planInfo.descricao,
+          message: ehAnual
+            ? TEXTO_SUBMIT_ANUAL
+            : aplicado
+              ? `Primeiro mês por R$ ${aplicado.primeiroMes} (cupom ${aplicado.cupom.codigo}). Depois R$ ${aplicado.precoCheio}/mês, cancele quando quiser.`
+              : planInfo.descricao,
         },
       },
     });
@@ -613,7 +757,7 @@ export async function getCheckoutInfo(req: Request, res: Response): Promise<void
     if (session.subscription) {
       const sub = await stripe.subscriptions.retrieve(session.subscription as string);
       const priceId = sub.items.data[0]?.price?.id ?? '';
-      const info = planByPrice(priceId);
+      const info = await planByPrice(priceId);
       if (info) planName = info.plano;
     }
 
@@ -713,7 +857,7 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
       priceId = sub.items.data[0]?.price?.id ?? '';
     }
 
-    const planInfo = planByPrice(priceId);
+    const planInfo = await planByPrice(priceId);
     // Guard cross-produto: este bloco SÓ roda pra price PRO/VIP do SolarDoc.
     // Compra do Pack Solar é mode=payment, sem subscription → priceId='' →
     // planByPrice undefined → bloco pulado. Conta Stripe é compartilhada, então
@@ -894,6 +1038,49 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
         }
       }
 
+      // ═══════════ FERRAMENTAS DO ANUAL (Precificação + Inventário) ═══════════
+      // Quem comprou o anual leva as duas PRA SEMPRE — não é acesso derivado da
+      // assinatura (esse o mensal já tem enquanto paga), é posse gravada em
+      // `entitlements`. É o que a página de venda promete, e é o que separa o
+      // anual de "12 mensais com desconto".
+      //
+      // O carimbo é o metadata, não o price: mesmo padrão do vip_curso. E o
+      // bloco é isolado, como os vizinhos — falhar aqui não pode derrubar o
+      // Purchase nem o ledger; o cliente fica recuperável pelo log.
+      //
+      // `concederAcesso` não tem `expira_em`: o trilho concede pra sempre. É
+      // decisão consciente — a alternativa seria uma coluna de ciclo nova só
+      // pra revogar duas ferramentas de R$ 67 de quem pagou R$ 564.
+      if ((session.metadata as Record<string, string | undefined> | null)?.oferta === 'vip_anual') {
+        try {
+          let donoId = userId as string | undefined;
+          const donoEmail = String(email || '').toLowerCase().trim();
+          if (!donoId && donoEmail) {
+            const { data: u } = await supabase
+              .from('users').select('id').eq('email', donoEmail).maybeSingle();
+            donoId = (u as { id?: string } | null)?.id;
+          }
+          if (donoId) {
+            for (const produtoId of FERRAMENTAS_DO_ANUAL) {
+              await concederAcesso({
+                userId: donoId,
+                produto: produtoId,
+                origem: 'compra',
+                orderId: session.id,
+                obs: 'incluso no plano anual',
+              });
+            }
+            console.info(`[anual] ferramentas liberadas pra ${donoEmail}: ${FERRAMENTAS_DO_ANUAL.join(', ')}`);
+          } else {
+            // Conta criada logo acima pelo 100%-CADASTRO já cairia no `donoId`.
+            // Se nem assim apareceu, o log é o que permite conceder à mão.
+            console.error('[anual] não consegui resolver o dono pra liberar as ferramentas', { userId, email });
+          }
+        } catch (err) {
+          console.error('[anual] liberação das ferramentas falhou (pagamento intacto):', err);
+        }
+      }
+
       // ═══════════════════ VENDA (fonte única) + PURCHASE ═══════════════════
       // DURABLE-FIRST: grava a linha da venda no ledger `sales` ANTES de tentar o
       // Meta. Se a entrega falhar (rede/token/freeze serverless), o cron
@@ -904,7 +1091,12 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
       // (27/49/67) do PLAN_MAP. Aditivo e à prova de erro: nunca quebra o pagamento.
       try {
         const cd = session.customer_details as { name?: string | null; phone?: string | null } | null;
-        const produto = priceId === PLAN_MAP.vip_promo.priceId ? 'VIP PROMO'
+        // `precoAnualConhecido()` pode vir vazio numa instância que nunca
+        // resolveu o anual — daí a guarda: sem ela, um priceId vazio casaria
+        // com '' e toda compra sem price viraria "VIP ANUAL" no ledger.
+        const idAnual = precoAnualConhecido();
+        const produto = (idAnual && priceId === idAnual) ? 'VIP ANUAL'
+          : priceId === PLAN_MAP.vip_promo.priceId ? 'VIP PROMO'
           : priceId === PLAN_MAP.ilimitado.priceId ? 'VIP' : 'PRO';
         const meta = (session.metadata ?? {}) as Record<string, string | undefined>;
         // T0 da venda — usado no ledger E no createdAt da UTMify (tem que ser o

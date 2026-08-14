@@ -2371,6 +2371,116 @@
   color: #94a3b8;
 }
 .offerFoot b { color: var(--color-text-muted); font-weight: 700; }
+
+/* ── ÂNCORA ANUAL ──────────────────────────────────────────────────────────
+   Mora DENTRO do card da oferta, separada por uma linha: é a mesma compra em
+   outro ciclo, não um segundo produto. Verde (e não o âmbar do botão principal)
+   pra ler como "economia" sem competir com o CTA de cima — duas chamadas do
+   mesmo peso na mesma tela é o jeito mais rápido de não vender nenhuma. */
+.anual {
+  margin-top: 26px;
+  padding: 22px;
+  border-radius: 16px;
+  border: 1px solid rgba(34, 197, 94, 0.32);
+  background: rgba(34, 197, 94, 0.06);
+}
+.anualTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+.anualCorpo {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 24px;
+  align-items: start;
+  margin-top: 18px;
+}
+.anualMes {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 46px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: #fff;
+}
+.anualMes span { font-size: 20px; font-weight: 800; color: var(--color-text-muted); }
+.anualMes small { font-size: 15px; font-weight: 700; color: var(--color-text-muted); }
+.anualDe {
+  margin-top: 9px;
+  font-size: 13px;
+  color: #94a3b8;
+}
+.anualDe s { color: #64748b; }
+.anualTotal {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+.anualList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 9px;
+}
+.anualList li {
+  position: relative;
+  padding-left: 22px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+}
+.anualList li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4ade80;
+}
+.anualList b { color: #fff; font-weight: 800; }
+.anualBtn {
+  display: block;
+  width: 100%;
+  margin-top: 20px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  border: 1px solid rgba(34, 197, 94, 0.5);
+  background: rgba(34, 197, 94, 0.14);
+  color: #4ade80;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.2s, box-shadow 0.2s;
+}
+.anualBtn:hover {
+  transform: translateY(-2px);
+  background: rgba(34, 197, 94, 0.22);
+  box-shadow: 0 16px 34px rgba(34, 197, 94, 0.24);
+}
+.anualBtn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+.anualFoot {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #94a3b8;
+}
 .guarantee {
   display: flex;
   align-items: flex-start;
@@ -2747,6 +2857,13 @@
   .offerList li { font-size: 13.5px; padding-left: 26px; }
   .offerBtn { font-size: 18px; padding: 22px 18px; margin-top: 24px; }
   .offerFoot { font-size: 11.5px; }
+  /* No celular as duas colunas viram uma: 0.85fr ao lado de 1.15fr em 390px
+     deixa o preço com 130px e quebra o "R$ 47" no meio. */
+  .anual { padding: 18px; margin-top: 22px; }
+  .anualCorpo { grid-template-columns: 1fr; gap: 16px; margin-top: 16px; }
+  .anualMes { font-size: 38px; }
+  .anualBtn { font-size: 15.5px; padding: 17px 14px; }
+  .anualFoot { font-size: 11.5px; }
   .guarantee { font-size: 12.5px; padding: 14px; gap: 11px; }
   .offerBadge { font-size: 11.5px; padding: 8px 12px; }
   .offerAnchor { font-size: 11.5px; }

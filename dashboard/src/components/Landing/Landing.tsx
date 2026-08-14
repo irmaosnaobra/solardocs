@@ -46,6 +46,15 @@ function useReveal() {
 // assinou por 27/49) — só sumiram da vitrine.
 const PRICE = 67;
 const PRICE_DIA = (PRICE / 30).toFixed(2).replace('.', ','); // "por dia" da oferta
+
+// ÂNCORA ANUAL (14/08/2026). R$ 564 de uma vez = R$ 47/mês. Não é só desconto:
+// é o número que faz o mensal ser LIDO como caro. Quem leva o anual paga um ano
+// à vista; quem não leva compra o mensal achando que escapou do compromisso — e
+// os dois desfechos servem.
+// Os R$ 240 são conta fechada e conferível na própria página: 67×12 = 804.
+const PRICE_ANUAL = 564;
+const PRICE_ANUAL_MES = 47;
+const PRICE_ANUAL_ECONOMIA = PRICE * 12 - PRICE_ANUAL; // 240
 const WHATSAPP = 'https://wa.me/5534998165040';
 
 // Concessionárias da faixa de confiança (logo oficial em /public/conc).
@@ -153,17 +162,25 @@ export default function Landing() {
   // Fluxo LP → Stripe → Cadastro: clica e vai DIRETO pro checkout público do
   // Stripe (email + cartão, cobrado na hora). Só depois de aprovar o cartão a
   // pessoa cria a conta. Sem free, sem trial.
-  async function goToCheckout(label: string) {
+  async function goToCheckout(label: string, plano: 'vip' | 'vip_anual' = 'vip') {
+    const ehAnual = plano === 'vip_anual';
     trackEvent('cta_click', { label });
     if (typeof window !== 'undefined' && window.fbq) {
-      window.fbq('track', 'InitiateCheckout', { content_name: 'vip', value: PRICE, currency: 'BRL' });
+      // `value` é o que a Meta vai otimizar. No anual tem que ser 564 (o que
+      // entra), não os 47 da vitrine — senão o algoritmo trata a melhor venda
+      // da página como a mais barata dela.
+      window.fbq('track', 'InitiateCheckout', {
+        content_name: ehAnual ? 'vip_anual' : 'vip',
+        value: ehAnual ? PRICE_ANUAL : PRICE,
+        currency: 'BRL',
+      });
     }
     setCheckoutLoading(true);
     try {
       // Atribuição: manda o session_id da LP + UTMs (de sessionStorage) junto.
       // O backend grava no metadata do Stripe → receita atribuída à campanha.
       const { data } = await api.post('/payments/public-checkout', {
-        plan: 'vip',
+        plan: plano,
         ...getCheckoutAttribution(),
       });
       if (data?.url) {
@@ -809,6 +826,55 @@ export default function Landing() {
               Cobrança na hora, no cartão. Liberou o pagamento, você já cria a senha e entra.
               <br />
               Sem fidelidade — cancela sozinho em <b>Minha conta → Gerenciar assinatura</b>.
+            </div>
+
+            {/* ÂNCORA ANUAL — vem DEPOIS do mensal de propósito. Quem chegou até
+                aqui já aceitou os R$ 67; o anual não precisa convencer do valor,
+                só mostrar que o mesmo acesso custa menos por mês e ainda vira
+                posse de duas ferramentas. Quem não leva, leva o mensal com a
+                sensação de ter escolhido — que é o trabalho da âncora. */}
+            <div className={styles.anual}>
+              <div className={styles.anualTag}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden><path d="M20 6 9 17l-5-5"/></svg>
+                Economize R$ {PRICE_ANUAL_ECONOMIA} pagando o ano
+              </div>
+
+              <div className={styles.anualCorpo}>
+                <div className={styles.anualPreco}>
+                  <div className={styles.anualMes}>
+                    <span>R$</span>{PRICE_ANUAL_MES}<small>/mês</small>
+                  </div>
+                  <div className={styles.anualDe}>
+                    em vez de <s>R$ {PRICE}/mês</s>
+                  </div>
+                  <div className={styles.anualTotal}>
+                    R$ {PRICE_ANUAL} cobrados uma vez, valem 12 meses
+                  </div>
+                </div>
+
+                <ul className={styles.anualList}>
+                  <li>Tudo o que está no plano mensal, igual</li>
+                  <li>
+                    <b>Precificação Profissional</b> e <b>Inventário da Empresa</b> ficam
+                    seus <b>pra sempre</b> — continuam funcionando mesmo se um dia você
+                    parar de assinar
+                  </li>
+                  <li>Preço travado por 12 meses: reajuste não te pega no meio</li>
+                </ul>
+              </div>
+
+              <button
+                onClick={() => goToCheckout('oferta_anual', 'vip_anual')}
+                className={styles.anualBtn}
+                disabled={checkoutLoading}
+              >
+                {checkoutLoading ? 'Abrindo checkout...' : `Quero o ano inteiro — R$ ${PRICE_ANUAL}`}
+              </button>
+
+              <div className={styles.anualFoot}>
+                Cobrança única de R$ {PRICE_ANUAL} no cartão, hoje. A mesma garantia de 7 dias
+                vale aqui: não serviu, devolvemos o valor inteiro.
+              </div>
             </div>
           </div>
 

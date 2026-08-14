@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { supabase } from '../utils/supabase';
 import { runMonthlyReset } from '../services/planService';
 import { fetchAdsetInsights, sumTotals, type MetaPeriod } from '../services/metaAdsService';
+import { resolverPrecoAnual } from '../services/precoAnual';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -34,10 +35,33 @@ const pesoStatusStripe = (status: string): number => PESO_STATUS_STRIPE[status] 
 // aqui a VENDA é contada por PRODUTO vendido, como o dono pediu (3 produtos).
 const PRICE_VIP_ID       = (process.env.STRIPE_PRICE_VIP || 'price_1TUh2yCkkgzQ4IHeZqy52Zu2').trim();
 const PRICE_VIP_PROMO_ID = (process.env.STRIPE_PRICE_VIP_PROMO || 'price_1TpYsLCkkgzQ4IHeSt3Oupwg').trim();
-function produtoLabel(priceId: string): 'PRO' | 'VIP' | 'VIP PROMO' {
+function produtoLabel(priceId: string): 'PRO' | 'VIP' | 'VIP PROMO' | 'VIP ANUAL' {
+  if (PRICE_ANUAL_ID && priceId === PRICE_ANUAL_ID) return 'VIP ANUAL';
   if (priceId === PRICE_VIP_PROMO_ID) return 'VIP PROMO';
   if (priceId === PRICE_VIP_ID)       return 'VIP';
   return 'PRO'; // PRO novo + PRO antigo (R$47)
+}
+
+// ── PRICE ANUAL (R$ 564/ano) ────────────────────────────────────────────────
+// Ele não cabe nos mapas literais acima: o price é criado/resolvido em runtime
+// (services/precoAnual.ts) porque não há acesso ao painel da Stripe por script.
+// Aqui o painel só LÊ (`criar: false`) e registra nos mapas na primeira consulta
+// de cada instância fria — sem isto o assinante anual sumia do painel inteiro,
+// exatamente como o VIP PROMO sumia antes do fix do b5cf3c7.
+let PRICE_ANUAL_ID = '';
+async function registrarPrecoAnual(): Promise<void> {
+  if (PRICE_ANUAL_ID) return;
+  try {
+    const id = await resolverPrecoAnual(stripe, { criar: false });
+    if (!id) return;                       // ainda não existe — nada a registrar
+    PRICE_ANUAL_ID = id;
+    PRICE_TO_PLAN[id] = 'ilimitado';
+    SOLARDOC_PRICE_IDS.add(id);
+  } catch (err) {
+    // Painel é leitura: falhar aqui mostra o anual fora da conta por um minuto,
+    // não muda o acesso de ninguém. Diferente do cron, aqui engolir é seguro.
+    console.error('[anual] painel não conseguiu resolver o price (segue sem ele):', err);
+  }
 }
 
 // Início-de-período em America/Sao_Paulo. A API roda em UTC, então
@@ -113,6 +137,7 @@ export async function getUsers(req: Request, res: Response): Promise<void> {
     // igual ao do stripeSyncService pra que as duas varreduras se comportem igual.
     const stripeByEmail = new Map<string, { status: string; plan: string | null }>();
     try {
+      await registrarPrecoAnual();
       let cursor: string | undefined;
       for (let page = 0; page < 50; page++) {
         const subs = await stripe.subscriptions.list({
@@ -348,6 +373,7 @@ export async function getFunnel(req: Request, res: Response): Promise<void> {
     let stripeClosed = 0;
     const byProduct: Record<string, number> = { pro: 0, ilimitado: 0 };
     try {
+      await registrarPrecoAnual();
       const sinceUnix = Math.floor(since.getTime() / 1000);
       let cursor: string | undefined;
       // Pagina até 5 páginas (500 subs) — suficiente para qualquer período corrente.
@@ -856,7 +882,7 @@ type ProximaCobranca = {
 type BillingPayload = {
   // ── VENDAS (cartão passou = venda, como o dono quer) — bate 1:1 com a Stripe ──
   vendas: number;               // TODO card-pass vivo (trialing + active + past_due)
-  vendas_por_produto: { PRO: number; VIP: number; 'VIP PROMO': number };
+  vendas_por_produto: { PRO: number; VIP: number; 'VIP PROMO': number; 'VIP ANUAL': number };
   past_due: number;             // assinantes em dunning (cartão recusado na renovação)
   proximas_cobrancas: ProximaCobranca[]; // "o que cai por dia" — ordenado por data
   checkouts_abandonados: number; // começou e não passou cartão (em recuperação)
@@ -899,6 +925,11 @@ export async function getBilling(req: Request, res: Response): Promise<void> {
       res.json(_billingCache.data);
       return;
     }
+
+    // Registra o price anual ANTES de qualquer varredura: SOLARDOC_PRICE_IDS é
+    // o filtro que decide se uma fatura é nossa. Sem isto, R$ 564 de assinatura
+    // anual não entrariam em "recebido" — a fatura pareceria de outro produto.
+    await registrarPrecoAnual();
 
     const inicioMes = spStartOfMonth();
     const fimMes = spStartOfNextMonth();
@@ -972,7 +1003,7 @@ export async function getBilling(req: Request, res: Response): Promise<void> {
     let nTrials = 0;
     let nPastDue = 0;
     let nVendas = 0;
-    const vendasPorProduto: BillingPayload['vendas_por_produto'] = { PRO: 0, VIP: 0, 'VIP PROMO': 0 };
+    const vendasPorProduto: BillingPayload['vendas_por_produto'] = { PRO: 0, VIP: 0, 'VIP PROMO': 0, 'VIP ANUAL': 0 };
     const proximas: ProximaCobranca[] = [];
     // Dedup de VENDA por cliente: a mesma pessoa pode ter várias subs na Stripe
     // (ex.: tentou o checkout 3x). Conta 1 venda por cliente (email) — número REAL.
@@ -999,6 +1030,12 @@ export async function getBilling(req: Request, res: Response): Promise<void> {
         const priceId = item?.price?.id ?? '';
         if (!SOLARDOC_PRICE_IDS.has(priceId)) continue; // não é SolarDoc
         const valorCents = item?.price?.unit_amount ?? 0;
+        // MRR é dinheiro POR MÊS: uma assinatura anual de R$ 564 vale R$ 47 de
+        // MRR, não R$ 564 — somar o cheio inflaria o "firme do mês que vem" em
+        // 12×. Já o que ENTRA no caixa (próximas cobranças, a faturar até o fim
+        // do mês) continua sendo o valor cheio: naquele dia caem os R$ 564.
+        const anual = (item?.price?.recurring?.interval ?? 'month') === 'year';
+        const mrrCents = anual ? Math.round(valorCents / 12) : valorCents;
         const produto = produtoLabel(priceId);
         const cust = s.customer as { email?: string | null; name?: string | null; deleted?: boolean } | string;
         const cliente = typeof cust === 'string' ? null : (cust.name || cust.email || null);
@@ -1028,12 +1065,12 @@ export async function getBilling(req: Request, res: Response): Promise<void> {
         else if (s.status === 'canceled' && (s.canceled_at ?? 0) >= trintaDiasUnix) pessoasCancel30d.add(pessoaKey);
 
         if (s.status === 'active') {
-          mrrAtivoCents += valorCents;
+          mrrAtivoCents += mrrCents;
           nAtivas++;
           if (periodEnd >= nowUnix && periodEnd < fimMesUnix) aFaturarAteFimMesCents += valorCents;
           if (periodEnd) proximas.push({ data: new Date(periodEnd * 1000).toISOString(), valor: toReais(valorCents), produto, cliente, tipo: 'renovacao' });
         } else if (s.status === 'trialing') {
-          trialUpsideCents += valorCents;
+          trialUpsideCents += mrrCents;
           nTrials++;
           const trialEnd = s.trial_end ?? 0;
           if (trialEnd >= nowUnix && trialEnd < fimMesUnix) aFaturarAteFimMesCents += valorCents;

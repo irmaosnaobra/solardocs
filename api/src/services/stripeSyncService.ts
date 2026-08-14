@@ -3,6 +3,7 @@ import { supabase } from '../utils/supabase';
 import { logger } from '../utils/logger';
 import { sendDunningDay0 } from './dunningService';
 import { FREE_LIMIT } from './planService';
+import { resolverPrecoAnual, precoAnualConhecido } from './precoAnual';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -34,7 +35,11 @@ type StripeTruth = {
 // Preços pra distinguir VIP (R$67) de VIP PROMO (R$49) no ledger de vendas.
 const SYNC_PRICE_VIP       = (process.env.STRIPE_PRICE_VIP || 'price_1TUh2yCkkgzQ4IHeZqy52Zu2').trim();
 const SYNC_PRICE_VIP_PROMO = (process.env.STRIPE_PRICE_VIP_PROMO || 'price_1TpYsLCkkgzQ4IHeSt3Oupwg').trim();
-function produtoFromPrice(priceId: string): 'PRO' | 'VIP' | 'VIP PROMO' {
+function produtoFromPrice(priceId: string): 'PRO' | 'VIP' | 'VIP PROMO' | 'VIP ANUAL' {
+  // Guarda do vazio: sem ela, um price desconhecido casaria com '' e viraria
+  // "VIP ANUAL" — este `if` vem antes justamente porque o default é 'PRO'.
+  const anual = precoAnualConhecido();
+  if (anual && priceId === anual)        return 'VIP ANUAL';
   if (priceId === SYNC_PRICE_VIP_PROMO) return 'VIP PROMO';
   if (priceId === SYNC_PRICE_VIP)       return 'VIP';
   return 'PRO';
@@ -46,6 +51,21 @@ function produtoFromPrice(priceId: string): 'PRO' | 'VIP' | 'VIP PROMO' {
 async function fetchStripeTruth(): Promise<Map<string, StripeTruth>> {
   const truth = new Map<string, StripeTruth>();
   const seenEmail = new Set<string>();
+
+  // O price anual é resolvido em runtime (services/precoAnual.ts), então ele não
+  // cabe no mapa estático acima. `criar: false`: o cron LÊ preço, não inventa.
+  //
+  // SEM .catch DE PROPÓSITO. Se a Stripe piscar e isto virasse '', toda
+  // assinatura anual sairia do `truth` e o laço lá embaixo REBAIXARIA cada uma
+  // pra free — o bug do VIP_PROMO, mas disparado por um segundo de rede ruim.
+  // Estourando aqui, o sync inteiro aborta sem tocar em ninguém.
+  const anualId = await resolverPrecoAnual(stripe, { criar: false });
+  const priceToPlan: typeof PRICE_TO_PLAN = {
+    ...PRICE_TO_PLAN,
+    // Chave vazia nunca entra: PRICE_TO_PLAN[''] devolveria 'ilimitado' pra
+    // qualquer sub sem price.
+    ...(anualId ? { [anualId]: { plano: 'ilimitado' as const, limite: 999999 } } : {}),
+  };
 
   let cursor: string | undefined;
   for (let page = 0; page < 50; page++) {
@@ -69,7 +89,7 @@ async function fetchStripeTruth(): Promise<Map<string, StripeTruth>> {
       if (!ACTIVE_STATUSES.has(s.status)) continue;
 
       const priceId = s.items.data[0]?.price?.id ?? '';
-      const planInfo = PRICE_TO_PLAN[priceId];
+      const planInfo = priceToPlan[priceId];
       if (!planInfo) continue;
 
       const unitAmount = s.items.data[0]?.price?.unit_amount ?? 0;

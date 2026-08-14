@@ -44,7 +44,7 @@ interface ProximaCobranca {
 interface BillingResponse {
   // vendas (card-pass = venda) — batem 1:1 com a Stripe
   vendas: number;
-  vendas_por_produto: { PRO: number; VIP: number; 'VIP PROMO': number };
+  vendas_por_produto: { PRO: number; VIP: number; 'VIP PROMO': number; 'VIP ANUAL': number };
   past_due: number;
   proximas_cobrancas: ProximaCobranca[];
   checkouts_abandonados?: number;
@@ -300,6 +300,11 @@ export default function MembrosPanel() {
                   <div className={styles.cardLabel}>VIP PROMO</div>
                   <div className={styles.cardValue} style={{ color: 'var(--color-text)' }}>{billing.vendas_por_produto?.['VIP PROMO'] ?? 0}</div>
                   <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>R$ 49/mês</div>
+                </div>
+                <div className={styles.card}>
+                  <div className={styles.cardLabel}>VIP ANUAL</div>
+                  <div className={styles.cardValue} style={{ color: 'var(--color-text)' }}>{billing.vendas_por_produto?.['VIP ANUAL'] ?? 0}</div>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>R$ 564/ano · entra R$ 47 no MRR</div>
                 </div>
               </div>
 
