@@ -1,7 +1,11 @@
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendWhatsApp } from '../agents/zapiClient';
-import { montarObservacaoSolar, organizarFicha, medirTemperatura } from './leadSolarFicha';
+import {
+  montarObservacaoSolar, organizarFicha, medirTemperatura,
+  consumoDaFicha, consumoTipico,
+  TIME_CONTA_ALTA, CONSULTOR_CONTA_BAIXA, KWH_CORTE_TIME,
+} from './leadSolarFicha';
 
 // Telefone de cada consultor do rodízio (mesmo mapa que a Luma usa pra chamar consultor).
 const TEL_CONSULTOR: Record<string, string> = {
@@ -11,13 +15,20 @@ const TEL_CONSULTOR: Record<string, string> = {
 };
 
 // Puxa leads dos formulários (Lead Ads) da página "Irmãos na Obra" no Meta,
-// distribui no rodízio Thiago→Diego→Nilce e cria um card na agenda pra cada lead.
+// roteia por tamanho de conta e cria um card na agenda pra cada lead.
+//
+// 12/08/2026: acabou o rodízio dos três. Lead acima de 700 kWh/mês alterna entre
+// Thiago e Diego; abaixo disso vai TODO pra Nilce (a regra e o porquê vivem em
+// leadSolarFicha → KWH_CORTE_TIME). Lead pequeno não gira o contador: ele nem
+// passa pela fila do Thiago/Diego.
 
 const GRAPH = 'https://graph.facebook.com/v21.0';
 const PAGE_ID = process.env.META_LEADS_PAGE_ID || '704395102766155';
 const SU_TOKEN = process.env.META_SYSTEM_USER_TOKEN || '';
 
-export const CONSULTORES_RODIZIO = ['Thiago', 'Diego', 'Nilce'];
+// Rodízio da conta alta (Thiago↔Diego). A Nilce não está aqui de propósito: ela
+// leva todo lead abaixo do corte, sem alternar com ninguém.
+export const CONSULTORES_RODIZIO = TIME_CONTA_ALTA;
 const HORA_INI = 8;   // agenda abre 08:00
 const HORA_FIM = 20;  // fecha 20:00
 
@@ -272,7 +283,7 @@ function slotDisponivel(t: number, agoraMs: number, occ: { ocupados: Set<number>
 // Até que horas cada consultor recebe card de lead SOLAR (minuto do dia do último
 // slot que pode COMEÇAR).
 //
-// 10/08: Thiago e Diego têm a tarde inteira presa no eletroposto (13:30–17:30). O
+// 10/08: Thiago e Diego têm a tarde inteira presa no eletroposto (13:00–17:00). O
 // card daqui é agendamento de verdade na mesma tabela que a LP do eletroposto lê
 // pra fechar horário — um lead que respondeu "prefiro à tarde" virava um 14h no
 // Thiago e comia capacidade de apresentação. Solar deles agora é só de manhã, até
@@ -453,14 +464,19 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
           // Cliente que JÁ tem dono fica com ele — não vira duplicado sob outro
           // consultor e não gasta uma vez do rodízio. Só lead realmente novo gira.
           const dono = await donoDoTelefone(whatsapp);
+          const kwh = consumoTipico(consumoDaFicha(fields), 'kwh');
           if (dono) {
             consultor = dono;
-          } else {
-            // Rodízio SEMPRE em ordem (Thiago→Diego→Nilce), sem pular ninguém.
-            // O consultor da vez é fixo; se bloqueado/ocupado no horário pedido,
-            // agenda ele em OUTRO horário livre dele (não passa pro próximo).
-            consultor = CONSULTORES_RODIZIO[rodizioIdx % CONSULTORES_RODIZIO.length];
+          } else if (kwh > KWH_CORTE_TIME) {
+            // Conta alta: rodízio SEMPRE em ordem (Thiago→Diego), sem pular
+            // ninguém. O consultor da vez é fixo; se bloqueado/ocupado no horário
+            // pedido, agenda ele em OUTRO horário livre dele (não passa pro próximo).
+            consultor = TIME_CONTA_ALTA[rodizioIdx % TIME_CONTA_ALTA.length];
             rodizioIdx++;
+          } else {
+            // Abaixo do corte (ou sem resposta de consumo): é da Nilce, e não
+            // consome uma vez da fila do Thiago/Diego.
+            consultor = CONSULTOR_CONTA_BAIXA;
           }
           const base = dataBaseDaFaixa(faixa);
           const slot = await slotLivreConsultor(consultor, base);

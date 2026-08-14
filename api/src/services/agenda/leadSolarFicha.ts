@@ -86,6 +86,64 @@ function faixaConsumo(v: string): number {
   return Math.max(...nums);
 }
 
+// ── ROTEAMENTO POR TAMANHO DA CONTA ──────────────────────────────────────────
+// Regra do Thiago (12/08/2026): lead SOLAR só vai pro Thiago ou pro Diego se
+// passar de 700 kWh/mês. Abaixo disso pula pra Nilce.
+//
+// A tarde dos dois é do eletroposto (só fazem solar de manhã, ver SO_DE_MANHA em
+// leadsMetaService), então cada manhã que sai é caríssima — conta pequena não
+// pode consumir uma delas. A Nilce atende o dia inteiro e leva TODOS os pequenos:
+// ela NÃO entra em rodízio, o rodízio agora é só entre Thiago e Diego.
+//
+// Consumo desconhecido cai pra Nilce de propósito: a regra é exceção ("só vem
+// pra nós acima de 700"), então quem não PROVA que é grande não gasta manhã de
+// dono. Ela qualifica e devolve pra cá se for grande.
+export const KWH_CORTE_TIME = 700;
+export const TARIFA_KWH = 1.05;               // R$/kWh cheia — mesma da LP /io/solar
+export const TIME_CONTA_ALTA = ['Thiago', 'Diego'];
+export const CONSULTOR_CONTA_BAIXA = 'Nilce';
+
+/**
+ * Consumo TÍPICO (kWh/mês) do que o lead respondeu. `unidade` é obrigatória e
+ * vem de quem chama: a mesma pergunta aparece em kWh no formulário do Meta
+ * ("700 a 900") e em REAIS na DM/LP ("R$ 800 a R$ 1.500"), e as duas caem no
+ * mesmo campo "Consumo" da ficha — adivinhar aqui leria R$ 800 como 800 kWh.
+ *
+ * Faixa fechada devolve o MEIO, não o teto: o teto jogaria "R$ 400 a R$ 800"
+ * (≈762 kWh) pro time da conta alta por causa da borda, e o piso jogaria
+ * "700 a 900" pra Nilce. O meio é o único que acerta as duas unidades.
+ * Diferente de faixaConsumo (temperatura), que é otimista de propósito porque
+ * ali o consumo é tamanho de ticket; roteamento precisa do valor provável.
+ * 0 = não respondeu.
+ */
+export function consumoTipico(valor: string, unidade: 'kwh' | 'reais'): number {
+  const v = (valor || '').trim();
+  const t = v.toLowerCase();
+  // Centavos fora antes de contar número: tem resposta gravada como "- 300,00" e
+  // "R$ 900,00" nos formulários no ar. Sem isto o ",00" vira um SEGUNDO número, a
+  // resposta exata é lida como faixa e o meio de "900 e 0" derruba o lead pra 450.
+  const semCentavos = v.replace(/,\d{1,2}(?!\d)/g, '');
+  const nums = (semCentavos.match(/\d[\d.]*/g) || []).map(n => Number(n.replace(/\./g, '')));
+  let base = 0;
+  if (nums.length >= 2) base = (nums[0] + nums[nums.length - 1]) / 2;      // "700 a 900" → 800
+  else if (nums.length === 1) {
+    if (/^\+|mais|acima|partir/.test(t)) base = nums[0] + 1;               // "+ 1200" → 1201
+    else if (/^[-–]|at[eé]|abaixo|menos/.test(t)) base = nums[0] / 2;      // "até 500" → 250
+    else base = nums[0];                                                   // resposta exata
+  }
+  return unidade === 'reais' ? base / TARIFA_KWH : base;
+}
+
+/** True se o lead é do time da conta alta (Thiago/Diego). Sem resposta = false. */
+export function ehContaAlta(valor: string, unidade: 'kwh' | 'reais'): boolean {
+  return consumoTipico(valor, unidade) > KWH_CORTE_TIME;
+}
+
+/** Resposta de consumo do formulário do Meta (já em kWh). */
+export function consumoDaFicha(fields: FieldItem[]): string {
+  return valorDe(organizarFicha(fields), 'Consumo');
+}
+
 export function medirTemperatura(fields: FieldItem[]): Temperatura {
   const ficha = organizarFicha(fields);
   const v = (r: string) => valorDe(ficha, r);
