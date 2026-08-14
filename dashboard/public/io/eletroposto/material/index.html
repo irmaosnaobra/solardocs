@@ -187,6 +187,17 @@ ul.lista li::marker{color:var(--g600)}
 .ferr li svg{flex:none;margin-top:2px}
 @media(max-width:720px){ .ferr{grid-template-columns:1fr} }
 
+/* CTA no fim de cada argumento. Um botão só no fim da página obriga quem já
+   decidiu na terceira seção a rolar mais cinco pra poder pagar — e cada rolagem
+   dessas é gente que some no caminho. Todos são o MESMO botão: mesma classe,
+   mesmo preço (o do degrau atual), mesma função de compra. O que muda é a frase,
+   que continua o assunto da seção em vez de repetir "quero o material".
+   Sem oferta publicada, o bloco inteiro some junto com o resto da venda. */
+.blocoCompra{margin-top:30px}
+.blocoCompra .cta{margin:0}
+.blocoCompraNota{font-size:13px;color:var(--g600);margin:12px 0 0}
+.escuro .blocoCompraNota,.verde .blocoCompraNota{color:#9a9a9a}
+
 @media(max-width:720px){
   .metodo li{grid-template-columns:26px minmax(0,1fr);gap:4px 12px;padding:16px 16px}
   .mSe{grid-column:2;border-left:0;padding-left:0;margin-top:6px;font-size:13px}
@@ -495,7 +506,7 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
              tinha que rolar oito seções pra poder pagar. Agora dá pra comprar
              aqui, e o argumento continua embaixo pra quem precisa dele. -->
         <div class="heroOferta" id="hero-oferta" style="display:none">
-          <a class="cta" id="cta0" href="#">Quero o material</a>
+          <a class="cta js-compra" id="cta0" data-cta="Quero o material" href="#">Quero o material</a>
           <p class="heroMicro">Acesso na hora, por e-mail · 7 dias de garantia · o valor volta integral se não servir</p>
         </div>
 
@@ -626,6 +637,10 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
       solto por aí — a norma, o cálculo, o protocolo. O que não existe é a ordem, e é
       a ordem que faz um endereço virar decisão em vez de opinião.
     </p>
+    <div class="blocoCompra" style="display:none">
+      <a class="cta js-compra" data-cta="Quero as seis, na ordem" href="#">Quero as seis, na ordem</a>
+      <p class="blocoCompraNota">Acesso na hora, por e-mail. Sete dias de garantia.</p>
+    </div>
   </div>
 </section>
 
@@ -866,6 +881,10 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
     <p class="calcAviso">
       <b>Isto ainda não é lucro.</b> Daqui saem demanda contratada, arrendamento, software e seguro — e o ponto leva uns seis meses até rodar cheio, com o custo fixo correndo desde o primeiro. A aula 13 monta a conta completa.
     </p>
+    <div class="blocoCompra" style="display:none">
+      <a class="cta js-compra" data-cta="Quero a conta completa" href="#">Quero a conta completa</a>
+      <p class="blocoCompraNota">A mesma conta, com os seus números e os custos que faltam aqui.</p>
+    </div>
   </div>
 </section>
 
@@ -880,6 +899,10 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
     <h2>Você não vai só assistir. Vai sair com as ferramentas na mão.</h2>
     <p class="sub">As mesmas peças que a equipe leva pra rua. Prontas, pra usar no seu endereço nesta semana.</p>
     <ul class="ferr" id="ferr-lista"></ul>
+    <div class="blocoCompra" style="display:none">
+      <a class="cta js-compra" data-cta="Quero as ferramentas" href="#">Quero as ferramentas</a>
+      <p class="blocoCompraNota">Tudo junto, no mesmo acesso. Sem assinatura e sem prazo pra usar.</p>
+    </div>
   </div>
 </section>
 
@@ -933,7 +956,7 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
         <span id="bump-texto"></span>
       </label>
 
-      <a class="cta off" id="cta" href="#">Carregando…</a>
+      <a class="cta off js-compra" id="cta" data-cta="Quero o material" href="#">Carregando…</a>
 
       <p class="cartaoSelo">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
@@ -964,6 +987,10 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
     <p class="olho">Antes de decidir</p>
     <h2>As perguntas que a gente ouve.</h2>
     <div id="faq" style="margin-top:24px"></div>
+    <div class="blocoCompra" style="display:none">
+      <a class="cta js-compra" data-cta="Tirei minhas dúvidas, quero começar" href="#">Tirei minhas dúvidas, quero começar</a>
+      <p class="blocoCompraNota">Se não servir, você pede em sete dias e o valor volta integral.</p>
+    </div>
   </div>
 </section>
 
@@ -972,7 +999,7 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
   <div class="faixa" style="text-align:center">
     <h2 style="margin-left:auto;margin-right:auto">Entre nesse mercado com o pé direito.</h2>
     <p class="lead" style="margin-left:auto;margin-right:auto">Dá pra aprender errando na obra ou errando no papel. O primeiro jeito é "de graça" e cobra depois — em cima do equipamento.</p>
-    <div style="display:flex;justify-content:center"><a class="cta off" id="cta2" href="#">Carregando…</a></div>
+    <div style="display:flex;justify-content:center"><a class="cta off js-compra" id="cta2" data-cta="Começar agora" href="#">Carregando…</a></div>
   </div>
 </section>
 
@@ -981,7 +1008,7 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
      como venda oportunista em cima de quem acabou de levar um não. -->
 <div class="barraFixa" id="barra-fixa">
   <span class="bfPreco" id="bf-preco">—<small>à vista</small></span>
-  <a class="cta" id="cta3" href="#">Quero o material</a>
+  <a class="cta js-compra" id="cta3" data-cta="Quero agora" href="#">Quero o material</a>
 </div>
 
 <!-- Cartão da escada de preço. Vazio no HTML: quem escreve é o degrau que o
@@ -994,7 +1021,7 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
     <p id="esc-txt">—</p>
     <div class="escPreco"><span class="de" id="esc-de"></span><span class="por" id="esc-por">—</span></div>
     <p class="escNota" id="esc-nota">O mesmo material. As mesmas aulas. A mesma garantia de sete dias.</p>
-    <a class="cta" id="esc-cta" href="#">Quero por este valor</a>
+    <a class="cta js-compra" id="esc-cta" data-cta="Quero por este valor" href="#">Quero por este valor</a>
     <button class="escNao" id="esc-nao">Não, obrigado — vou continuar procurando sozinho</button>
   </div>
 </div>
@@ -1246,13 +1273,19 @@ function textoPorQue(label){
     + 'O valor pago aqui vira crédito na sua conta e abate no upgrade para Credenciamento Integrador ou Mentoria Investidor.';
 }
 
+// TODO botão de compra da página é o mesmo botão: mesma classe, mesmo preço (o do
+// degrau atual) e a mesma função de compra. O que muda é a frase, que vem do
+// `data-cta` e continua o assunto da seção — repetir "quero o material" sete vezes
+// faria a página parecer um outdoor.
+function botoesDeCompra(){
+  return Array.prototype.slice.call(document.querySelectorAll('.js-compra'));
+}
 function pintarCta(){
   var usarBump = document.getElementById('bump-check') && document.getElementById('bump-check').checked;
   var linkFixo = (usarBump && checkoutBump) ? checkoutBump : checkoutSimples;
-  [document.getElementById('cta0'), document.getElementById('cta'),
-   document.getElementById('cta2'), document.getElementById('cta3')].forEach(function(b){
-    b.className = 'cta';
-    b.textContent = 'Quero o material — ' + document.getElementById('preco').dataset.label;
+  botoesDeCompra().forEach(function(b){
+    b.className = 'cta js-compra';
+    b.textContent = (b.dataset.cta || 'Quero o material') + ' — ' + document.getElementById('preco').dataset.label;
     // Link do gateway cadastrado vira <a> normal; sem ele, o clique pede a
     // sessao. O visitante nao percebe diferença nenhuma entre os dois.
     // Com escada, link fixo NUNCA manda: ele é o link de um preço só.
@@ -1314,6 +1347,9 @@ function abrirCheckout(botao){
   evento('checkout_start', {
     slug:'fundamentos', motivo: motivo || 'neutro', bump: !!comBump,
     oferta: oferta && oferta.id, centavos: precoAtual(),
+    // Qual dos botões converteu. É o que diz se o argumento que vende é o método,
+    // as ferramentas, a conta ou o FAQ — e onde vale a pena mexer depois.
+    botao: (botao && botao.id) || (botao && botao.dataset && botao.dataset.cta) || null,
   });
 
   if (botao.getAttribute('href')) return;   // link do gateway: deixa o <a> agir
@@ -1363,9 +1399,17 @@ function utmDaSessao(){
 // a página mostra o grupo em vez de um botão que não compra nada. Uma página de
 // venda que termina em botão morto custa mais caro que não ter página.
 var SECOES_DE_VENDA = ['oferta', 'cta-final', 'acesso', 'hero-oferta'];
+// Os botões espalhados pelo meio da página seguem a mesma sorte das seções de
+// venda: sem oferta publicada, nenhum deles fica na tela. Botão de compra que não
+// compra nada custa mais caro que não ter botão.
+function blocosDeCompra(valor){
+  Array.prototype.slice.call(document.querySelectorAll('.blocoCompra'))
+    .forEach(function(el){ el.style.display = valor; });
+}
 function semOferta(){
   document.getElementById('fallback').style.display = '';
   SECOES_DE_VENDA.forEach(function(id){ document.getElementById(id).style.display = 'none'; });
+  blocosDeCompra('none');
   evento('material_sem_oferta');
 }
 var temOferta = false;
@@ -1373,6 +1417,7 @@ function comOferta(){
   temOferta = true;
   document.getElementById('fallback').style.display = 'none';
   SECOES_DE_VENDA.forEach(function(id){ document.getElementById(id).style.display = ''; });
+  blocosDeCompra('');
 }
 
 fetch(API + '/plugcash/curso/fundamentos')
@@ -1492,8 +1537,8 @@ document.getElementById('voltar').addEventListener('click', function(){
   evento('material_voltar_form', { motivo: motivo || 'neutro' });
 });
 
-['cta0','cta','cta2','cta3','esc-cta'].forEach(function(id){
-  document.getElementById(id).addEventListener('click', function(e){
+botoesDeCompra().forEach(function(b){
+  b.addEventListener('click', function(e){
     if (this.classList.contains('off')) return;
     if (!this.getAttribute('href')) e.preventDefault();
     abrirCheckout(this);
