@@ -694,6 +694,18 @@ describe('não atendido automático', () => {
     expect(updates).toHaveLength(0);
   });
 
+  // Achado nos dados de producao antes da primeira rodada: existe ficha com o
+  // lembrete de 1h carimbado ONTEM e a reuniao movida na mao pra HOJE (o CRM nao
+  // limpa a flag; so' o robo de remarcacao limpa). Sem guarda, ela seria dada
+  // como ausente na hora, horas antes da reuniao de hoje.
+  it('lembrete de 1h de OUTRO dia não marca ninguém', async () => {
+    fichas = [fichaConfirmada({
+      quando: emMinutos(120),
+      lembrete_1h_at: new Date(AGORA.getTime() - 26 * 60 * 60_000).toISOString(),
+    })];
+    expect((await tick()).nao_atendeu).toBe(0);
+  });
+
   it('cancelado não entra na varredura', async () => {
     fichas = [caladaDesde(60, { status: 'cancelado' })];
     expect((await tick()).nao_atendeu).toBe(0);

@@ -445,6 +445,25 @@ const zero = (motivo?: string): ResultadoAgendaEp =>
  * `processar_repasses()` usa: quem abre o card no CRM vê QUEM decidiu e QUANDO,
  * em vez de um status que mudou sozinho sem explicação.
  */
+/**
+ * O `lembrete_1h_at` desta ficha é do horário QUE ESTÁ NELA AGORA?
+ *
+ * Achado nos dados de produção antes de a regra rodar pela primeira vez: existe
+ * ficha com o lembrete de 1h carimbado ONTEM e a reunião marcada pra HOJE —
+ * alguém moveu o horário na mão pelo CRM, e ali a flag não é limpa (só o robô de
+ * remarcação limpa). Sem esta guarda, essa ficha seria dada como ausente na hora,
+ * horas antes da reunião de hoje, por causa de um aviso de outro dia.
+ *
+ * O toque de 1h sai de 45 a 75 min antes; 2 horas de folga cobrem qualquer atraso
+ * do cron com sobra e ainda assim recusam um carimbo do dia anterior.
+ */
+const JANELA_LEMBRETE_DA_REUNIAO_MS = 2 * 60 * 60 * 1000;
+function lembreteEhDestaReuniao(f: Ficha): boolean {
+  if (!f.lembrete_1h_at || !f.quando) return false;
+  const distancia = new Date(f.quando).getTime() - new Date(f.lembrete_1h_at).getTime();
+  return distancia >= 0 && distancia <= JANELA_LEMBRETE_DA_REUNIAO_MS;
+}
+
 async function marcarNaoAtendeuAutomatico(fichas: Ficha[], agora: number, dry: boolean): Promise<number> {
   if (naoAtendeuAutoDesligado()) return 0;
 
@@ -453,6 +472,7 @@ async function marcarNaoAtendeuAutomatico(fichas: Ficha[], agora: number, dry: b
     f.status === 'agendado'
     && !!f.lembrete_1h_at
     && new Date(f.lembrete_1h_at).getTime() <= limite
+    && lembreteEhDestaReuniao(f)
     && !f.presenca_confirmada_at);
   if (!candidatos.length) return 0;
 
