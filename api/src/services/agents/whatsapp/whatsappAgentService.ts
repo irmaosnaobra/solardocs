@@ -941,7 +941,7 @@ export async function handleIncomingWhatsApp(
     // no lugar do Pix de R$ 67. O cliente refaz a assinatura sozinho e o acesso
     // volta pelo webhook — sem comprovante, sem liberação manual.
     try {
-      await sendHuman(cleanPhone, bolhasOferta(await ofertaCupomAtiva()), originInstance).catch(() => {});
+      await sendHuman(cleanPhone, bolhasOferta(await ofertaCupomAtiva(), 'giovanna'), originInstance).catch(() => {});
     } catch (err) {
       logger.error('whatsapp', 'enviar link+cupom (reativação) falhou', err);
     }

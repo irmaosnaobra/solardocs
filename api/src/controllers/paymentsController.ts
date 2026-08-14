@@ -6,7 +6,7 @@ import { processarEventoPlugcash } from '../services/plugcashService';
 import { sendDunningDay0, sendDunningRecovered } from '../services/dunningService';
 import { sendCheckoutCompletionEmail } from '../utils/mailer';
 import { sendActivationWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
-import { upsertSale, sendPurchaseForSale } from '../services/salesLedger';
+import { upsertSale, sendPurchaseForSale, classificarOrigem } from '../services/salesLedger';
 import { avisarVendaAoDono, avisarRenovacaoAoDono, historicoDoCliente } from '../services/vendaAviso';
 import { sendUtmifyOrder } from '../services/utmifyOrders';
 import { concederCursoPorAssinatura } from '../services/kitIntegradorService';
@@ -1120,6 +1120,10 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
           attribution_session_id: meta.lp_session ?? null,
           fbc: meta.fbc ?? null,   // Fase 4 (LP) passa a popular
           fbp: meta.fbp ?? null,
+          // Carimbo do follow-up: cupom só existe em link/código que a Giovanna
+          // mandou. É ele que tira esta venda do Purchase da Meta (ver o gate em
+          // salesLedger) e a deixa só no painel e no aviso do WhatsApp.
+          cupom: codigoCupom ?? null,
           card_passed_at: cardPassedAt,
         });
         // AVISO DO DONO — antes do Meta/UTMify de propósito: dos três, é o único
@@ -1144,6 +1148,17 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
           },
         }).catch(() => null);
 
+        // Mesma classificação que o gate do Meta vai usar logo abaixo — uma
+        // função só, senão o aviso promete "contabilizada" numa venda pulada.
+        const cls = classificarOrigem({
+          utm_source: meta.utm_source ?? null,
+          utm_medium: meta.utm_medium ?? null,
+          utm_campaign: meta.utm_campaign ?? null,
+          fbc: meta.fbc ?? null,
+          fbp: meta.fbp ?? null,
+          cupom: codigoCupom ?? null,
+        });
+
         await avisarVendaAoDono(saleId, {
           produto, valor,
           cobrouAgora,
@@ -1154,6 +1169,8 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
           utmSource: meta.utm_source ?? null,
           utmCampaign: meta.utm_campaign ?? null,
           utmContent: meta.utm_content ?? null,
+          origem: cls.origem,
+          origemDetalhe: cls.detalhe,
         }).catch((err) => console.error('[venda] aviso do dono falhou (venda intacta):', err));
 
         if (saleId) await sendPurchaseForSale(saleId);

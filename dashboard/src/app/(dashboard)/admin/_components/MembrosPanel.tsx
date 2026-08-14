@@ -45,6 +45,10 @@ interface BillingResponse {
   // vendas (card-pass = venda) — batem 1:1 com a Stripe
   vendas: number;
   vendas_por_produto: { PRO: number; VIP: number; 'VIP PROMO': number; 'VIP ANUAL': number };
+  vendas_por_origem?: {
+    anuncio: number; followup: number; direto: number;
+    sem_classificacao: number; no_meta: number;
+  };
   past_due: number;
   proximas_cobrancas: ProximaCobranca[];
   checkouts_abandonados?: number;
@@ -307,6 +311,34 @@ export default function MembrosPanel() {
                   <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>R$ 564/ano · entra R$ 47 no MRR</div>
                 </div>
               </div>
+
+              {/* DE ONDE CHEGARAM (30 dias) — o lugar onde a venda de follow-up
+                  aparece. Ela sai do Purchase da Meta de propósito: quem fechou
+                  foi a Giovanna, não o anúncio. `no Meta` é a régua pra comparar
+                  com o gerenciador — se o Meta mostra mais que isso, o resto é
+                  visualização (view-through), não clique. */}
+              {billing.vendas_por_origem && (
+                <div className={styles.card} style={{ marginTop: 12, padding: '16px 18px' }}>
+                  <div className={styles.cardLabel} style={{ marginBottom: 10 }}>
+                    De onde chegaram as vendas — últimos 30 dias
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18 }}>
+                    {([
+                      ['Anúncio', billing.vendas_por_origem.anuncio, 'clique ou pixel do Meta'],
+                      ['Follow-up', billing.vendas_por_origem.followup, 'cupom ou link nosso — fora do Meta'],
+                      ['Direto/orgânico', billing.vendas_por_origem.direto, 'sem UTM nenhuma'],
+                      ['Sem classificação', billing.vendas_por_origem.sem_classificacao, 'venda anterior a 14/08'],
+                      ['Contadas no Meta', billing.vendas_por_origem.no_meta, 'Purchase enviado ao pixel'],
+                    ] as const).map(([rotulo, n, ajuda]) => (
+                      <div key={rotulo} style={{ minWidth: 150 }}>
+                        <div className={styles.cardLabel}>{rotulo}</div>
+                        <div className={styles.cardValue} style={{ color: 'var(--color-text)' }}>{n ?? 0}</div>
+                        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>{ajuda}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* O QUE VAI CAIR NA CONTA — próximas cobranças (fim de trial + renovações) */}
               {(billing.proximas_cobrancas?.length ?? 0) > 0 && (

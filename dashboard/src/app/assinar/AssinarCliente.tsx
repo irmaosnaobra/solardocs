@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import api from '@/services/api';
+import { getCheckoutAttribution } from '@/hooks/useLpTracking';
 import { pixRecorrenteLigado } from '@/components/LinkPagarPix/LinkPagarPix';
 import styles from './assinar.module.css';
 
@@ -54,9 +55,14 @@ export default function AssinarCliente() {
       (window as unknown as { fbq?: (...a: unknown[]) => void }).fbq?.(
         'track', 'InitiateCheckout', { value: primeiroMes ?? 0, currency: 'BRL', content_name: 'assinar_link' },
       );
+      // Esta tela é o destino dos toques (link da Giovanna, recuperação): sem
+      // repassar as UTMs da URL, a venda chegava no ledger sem rastro nenhum e
+      // o painel só sabia dizer "direto". Mesma função da LP — lê a URL e o que
+      // ficou guardado na sessão.
       const { data } = await api.post('/payments/public-checkout', {
         plan: plano,
         ...(comCupom ? { cupom: cupom?.codigo } : {}),
+        ...getCheckoutAttribution(),
       });
       if (data?.url) { window.location.href = data.url; return; }
       throw new Error('sem url');

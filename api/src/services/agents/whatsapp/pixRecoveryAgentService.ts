@@ -35,6 +35,11 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const PIX_VALOR = 67;
 const MAX_HISTORY = 8;               // pares de mensagens guardados na sessão
 const DASHBOARD_URL = LINK_ASSINATURA;
+// Carimbo de origem dos links deste agente (14/08/2026): a venda que ele fechar
+// chega com utm_source=followup e sai do Purchase da Meta — quem fechou foi a
+// Giovanna, não o anúncio. Um toque por arquivo: o texto que a IA lê e o link
+// que o sistema anexa têm que ser o MESMO, senão ela reescreve por conta.
+const TOQUE = 'recuperacao';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
@@ -73,7 +78,7 @@ function giovannaSystem(nome: string | null, oferta: OfertaCupom | null): string
     'SITUAÇÃO: este lead começou a assinar o SolarDoc mas o pagamento no CARTÃO não completou (recusado ou desistiu). Você está reabrindo a conversa pra ajudar ele a entrar.',
     quem,
     '',
-    resumoOfertaParaPrompt(oferta),
+    resumoOfertaParaPrompt(oferta, TOQUE),
     '',
     'COMO CONDUZIR:',
     '- Acolhe primeiro ("foi o cartão que não passou?"). No primeiro toque, só abre a conversa.',
@@ -183,7 +188,7 @@ async function enviarComMarcadores(
   const mandouLink = (pediuLink || forcarLink) && !encerrar;
   if (mandouLink) {
     await sleep(600);
-    const passos = bolhasOferta(oferta);
+    const passos = bolhasOferta(oferta, TOQUE);
     await sendHuman(phone, passos, 'solardoc');
     enviado.push(...passos);
   }
@@ -342,7 +347,7 @@ function giovannaDunningSystem(nome: string | null, oferta: OfertaCupom | null):
     'Você é a "Giovanna", consultora da SolarDoc — uma PESSOA de verdade, calorosa e do lado do cliente. NUNCA soe como cobrança formal ("prezado", "regularize", "atenção"): você é humana, no WhatsApp.',
     'SITUAÇÃO: este cliente JÁ é assinante do SolarDoc, mas o pagamento no cartão falhou e o acesso está pausando. Você quer AJUDAR ele a reativar, sem estresse.',
     quem,
-    resumoOfertaParaPrompt(oferta),
+    resumoOfertaParaPrompt(oferta, TOQUE),
     `CAMINHO: ele reativa sozinho em ${DASHBOARD_URL}, assinando de novo com o cartão que funcionar. Quando ele topar / perguntar como faz / disser "pode mandar", inclua o marcador [[ENVIAR_LINK]] no fim — o sistema anexa o link e o passo a passo do cupom sozinho (NÃO escreva o link nem o cupom você mesma).`,
     'Você NÃO pede comprovante e NÃO manda Pix. É tudo no site, na mão dele.',
     'Se ele pedir pra parar / recusar → responda curto e educado com [[ENCERRAR]].',

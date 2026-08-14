@@ -883,6 +883,12 @@ type BillingPayload = {
   // ── VENDAS (cartão passou = venda, como o dono quer) — bate 1:1 com a Stripe ──
   vendas: number;               // TODO card-pass vivo (trialing + active + past_due)
   vendas_por_produto: { PRO: number; VIP: number; 'VIP PROMO': number; 'VIP ANUAL': number };
+  // Quem fechou a venda, 30 dias (ledger `sales`). `no_meta` = quantas foram
+  // contadas como Purchase no pixel — as de follow-up e recompra ficam de fora.
+  vendas_por_origem: {
+    anuncio: number; followup: number; direto: number;
+    sem_classificacao: number; no_meta: number;
+  };
   past_due: number;             // assinantes em dunning (cartão recusado na renovação)
   proximas_cobrancas: ProximaCobranca[]; // "o que cai por dia" — ordenado por data
   checkouts_abandonados: number; // começou e não passou cartão (em recuperação)
@@ -1115,9 +1121,32 @@ export async function getBilling(req: Request, res: Response): Promise<void> {
       }
     } catch { /* tabela pode não existir em ambiente antigo — ignora */ }
 
+    // DE ONDE CHEGARAM as vendas dos últimos 30 dias (14/08/2026). É aqui que a
+    // venda de follow-up aparece: ela saiu do Purchase da Meta de propósito, e
+    // sem esta contagem ela sumiria dos dois lugares. `no_meta` = quantas dessas
+    // o pixel de fato recebeu — a régua pra conferir o gerenciador.
+    const vendasPorOrigem: BillingPayload['vendas_por_origem'] = {
+      anuncio: 0, followup: 0, direto: 0, sem_classificacao: 0, no_meta: 0,
+    };
+    try {
+      const desde30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: origRows } = await supabase
+        .from('sales')
+        .select('origem, meta_skip_motivo')
+        .gte('card_passed_at', desde30)
+        .not('card_passed_at', 'is', null);
+      for (const r of origRows ?? []) {
+        const o = String(r.origem ?? '');
+        if (o === 'anuncio' || o === 'followup' || o === 'direto') vendasPorOrigem[o]++;
+        else vendasPorOrigem.sem_classificacao++;   // venda anterior à migração
+        if (!r.meta_skip_motivo) vendasPorOrigem.no_meta++;
+      }
+    } catch { /* best-effort: origem zerada não pode derrubar o painel */ }
+
     const payload: BillingPayload = {
       vendas:               nVendas,
       vendas_por_produto:   vendasPorProduto,
+      vendas_por_origem:    vendasPorOrigem,
       past_due:             nPastDue,
       proximas_cobrancas:   proximas,
       checkouts_abandonados: checkoutsAbandonados,

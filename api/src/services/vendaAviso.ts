@@ -23,6 +23,7 @@ import { sendWhatsApp } from './agents/zapiClient';
 import { sendOpsAlert } from '../utils/mailer';
 import { supabase } from '../utils/supabase';
 import { logger } from '../utils/logger';
+import { decisaoMeta, OrigemVenda, TEXTO_MOTIVO, TEXTO_ORIGEM } from './salesLedger';
 
 const DONO_PHONE = (process.env.VENDA_AVISO_PHONE || '34991360223').trim();
 
@@ -39,6 +40,11 @@ export type VendaAviso = {
   // ausente = quem chamou não conseguiu apurar (nenhuma linha é escrita);
   // null = apurou e falhou (a mensagem DIZ que não deu pra conferir).
   historico?: HistoricoCliente | null;
+  // DE ONDE CHEGOU (14/08/2026): classificado em salesLedger.classificarOrigem.
+  // Ausente = quem chamou não classifica (ex.: PlugCash) → a mensagem cai na
+  // linha de UTM crua de antes, sem falar de Meta.
+  origem?: OrigemVenda | null;
+  origemDetalhe?: string | null;
 };
 
 // DUAS opções, decisão do Thiago em 14/08: ou o e-mail nunca comprou (VENDA),
@@ -116,8 +122,35 @@ function linhaCliente(h: HistoricoCliente | null | undefined): string[] {
   return [`${EMOJI.recorrente} *Cliente:* RECORRENTE — ${desde} · ${nEsima}${anterior}`];
 }
 
+// ── DE ONDE CHEGOU + FOI PRO META? ──────────────────────────────────────────
+// As duas linhas que o Thiago pediu em 14/08: o pixel passou a receber só venda
+// NOVA, então o aviso precisa dizer, na hora, quem fechou a venda e se ela vai
+// (ou não) aparecer no gerenciador. Sem isto a venda de follow-up somia do Meta
+// e não reaparecia em lugar nenhum.
+//
+// A decisão vem da MESMA função do gate (decisaoMeta) — se cada lado calculasse
+// a sua, o aviso diria "contabilizada" numa venda que o ledger pulou.
+function linhasOrigem(v: VendaAviso): string[] {
+  const utmsCru = [v.utmSource, v.utmCampaign, v.utmContent].filter(Boolean).join(' · ');
+  if (!v.origem) {
+    return [`*Origem:* ${utmsCru || '_sem UTM (direto, orgânico ou order bump)_'}`];
+  }
+
+  const de = [TEXTO_ORIGEM[v.origem], v.origemDetalhe, v.utmContent]
+    .filter(Boolean).join(' · ');
+
+  // Sem histórico apurado não dá pra afirmar recompra; o gate ainda pode barrar
+  // por isso, então a linha fala do que se sabe (o follow-up) e não promete.
+  const clienteNovo = v.historico ? v.historico.tipo === 'novo' : true;
+  const { envia, motivo } = decisaoMeta({ origem: v.origem, clienteNovo });
+  const meta = envia
+    ? (v.historico ? '*Meta:* contabilizada no anúncio' : '*Meta:* contabilizada no anúncio (histórico não conferido)')
+    : `*Meta:* NÃO enviada — ${TEXTO_MOTIVO[motivo!]}`;
+
+  return [`*De onde chegou:* ${de}`, meta];
+}
+
 export function textoAvisoVenda(v: VendaAviso): string {
-  const origem = [v.utmSource, v.utmCampaign, v.utmContent].filter(Boolean).join(' · ');
   return [
     tituloAvisoVenda(v.historico),
     '',
@@ -131,7 +164,7 @@ export function textoAvisoVenda(v: VendaAviso): string {
     `*Nome:* ${v.nome || '_não informado_'}`,
     `*E-mail:* ${v.email || '_não informado_'}`,
     ...(v.phone ? [`*WhatsApp:* wa.me/${v.phone}`] : []),
-    `*Origem:* ${origem || '_sem UTM (direto, orgânico ou order bump)_'}`,
+    ...linhasOrigem(v),
   ].join('\n');
 }
 

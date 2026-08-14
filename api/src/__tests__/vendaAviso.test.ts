@@ -114,6 +114,35 @@ describe('aviso de venda no WhatsApp do dono', () => {
     expect(t).toContain('sem UTM');
   });
 
+  // ── DE ONDE CHEGOU + FOI PRO META (14/08/2026) ────────────────────────────
+  // A venda de follow-up saiu do pixel de propósito. Se o aviso não disser isso,
+  // ela some do gerenciador E do WhatsApp, e o Thiago fica sem saber que existiu.
+  it('venda de follow-up diz quem fechou e avisa que NÃO foi pro Meta', () => {
+    const t = textoAvisoVenda(venda({
+      origem: 'followup', origemDetalhe: 'cupom ACESSO19',
+      historico: { tipo: 'novo', primeiraCompra: null, comprasAnteriores: 0, assinaturaAtiva: false },
+    }));
+    expect(t).toContain('*De onde chegou:* Follow-up · cupom ACESSO19');
+    expect(t).toContain('*Meta:* NÃO enviada — fechada no follow-up');
+  });
+
+  it('venda de anúncio diz que foi contabilizada', () => {
+    const t = textoAvisoVenda(venda({
+      origem: 'anuncio', origemDetalhe: 'campanha 120255606160730602',
+      historico: { tipo: 'novo', primeiraCompra: null, comprasAnteriores: 0, assinaturaAtiva: false },
+    }));
+    expect(t).toContain('*De onde chegou:* Anúncio · campanha 120255606160730602');
+    expect(t).toContain('*Meta:* contabilizada');
+  });
+
+  it('recompra de anúncio também fica fora do pixel — e o aviso diz o motivo', () => {
+    const t = textoAvisoVenda(venda({
+      origem: 'anuncio', origemDetalhe: 'campanha 123456789',
+      historico: { tipo: 'recorrente', primeiraCompra: '2026-05-22T12:00:00Z', comprasAnteriores: 1, assinaturaAtiva: false },
+    }));
+    expect(t).toContain('*Meta:* NÃO enviada — este e-mail já tinha comprado');
+  });
+
   it('reentrega da Stripe não avisa duas vezes', async () => {
     expect(await avisarVendaAoDono('venda-1', venda())).toBe('enviado');
     expect(await avisarVendaAoDono('venda-1', venda())).toBe('duplicado');
