@@ -139,13 +139,16 @@ function linhasOrigem(v: VendaAviso): string[] {
   const de = [TEXTO_ORIGEM[v.origem], v.origemDetalhe, v.utmContent]
     .filter(Boolean).join(' · ');
 
-  // Sem histórico apurado não dá pra afirmar recompra; o gate ainda pode barrar
-  // por isso, então a linha fala do que se sabe (o follow-up) e não promete.
+  // Sem histórico apurado não dá pra afirmar nada: o gate faz a própria leitura
+  // e pode achar uma compra anterior que o aviso não viu. Aí a linha diz que não
+  // deu pra conferir, em vez de prometer "contabilizada" e mentir.
   const clienteNovo = v.historico ? v.historico.tipo === 'novo' : true;
   const { envia, motivo } = decisaoMeta({ origem: v.origem, clienteNovo });
-  const meta = envia
-    ? (v.historico ? '*Meta:* contabilizada no anúncio' : '*Meta:* contabilizada no anúncio (histórico não conferido)')
-    : `*Meta:* NÃO enviada — ${TEXTO_MOTIVO[motivo!]}`;
+  const meta = !envia
+    ? `*Meta:* NÃO enviada — ${TEXTO_MOTIVO[motivo!]}`
+    : v.historico
+      ? '*Meta:* contabilizada no anúncio'
+      : '*Meta:* _não deu pra conferir se foi contabilizada_';
 
   return [`*De onde chegou:* ${de}`, meta];
 }

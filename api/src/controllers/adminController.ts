@@ -1132,14 +1132,17 @@ export async function getBilling(req: Request, res: Response): Promise<void> {
       const desde30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
       const { data: origRows } = await supabase
         .from('sales')
-        .select('origem, meta_skip_motivo')
+        .select('origem, meta_skip_motivo, meta_response_ok')
         .gte('card_passed_at', desde30)
         .not('card_passed_at', 'is', null);
       for (const r of origRows ?? []) {
         const o = String(r.origem ?? '');
         if (o === 'anuncio' || o === 'followup' || o === 'direto') vendasPorOrigem[o]++;
         else vendasPorOrigem.sem_classificacao++;   // venda anterior à migração
-        if (!r.meta_skip_motivo) vendasPorOrigem.no_meta++;
+        // "Foi pro pixel" pede as DUAS coisas: não ter sido pulada E ter sido
+        // aceita. Só olhar o motivo contaria também a que falhou na entrega —
+        // e este numero é a régua contra o gerenciador, não pode inflar.
+        if (!r.meta_skip_motivo && r.meta_response_ok) vendasPorOrigem.no_meta++;
       }
     } catch { /* best-effort: origem zerada não pode derrubar o painel */ }
 

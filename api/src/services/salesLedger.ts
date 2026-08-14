@@ -25,6 +25,9 @@ export interface SaleInput {
   fbp?: string | null;
   /** código do cupom aplicado no checkout — é o carimbo do follow-up */
   cupom?: string | null;
+  /** houve desconto na sessão. Vale MAIS que o código: o código pode não
+   *  resolver (digitado no checkout, lookup na Stripe falhou) e o desconto não. */
+  comDesconto?: boolean;
   card_passed_at?: string | null;
 }
 
@@ -76,13 +79,20 @@ export function classificarOrigem(s: {
   fbc?: string | null;
   fbp?: string | null;
   cupom?: string | null;
+  comDesconto?: boolean;
 }): Classificacao {
   const source   = norm(s.utm_source);
   const medium   = norm(s.utm_medium);
   const campanha = String(s.utm_campaign ?? '').trim();
   const cupom    = String(s.cupom ?? '').trim().toUpperCase();
 
-  if (cupom) return { origem: 'followup', detalhe: `cupom ${cupom}` };
+  // DESCONTO manda, com ou sem código. O código pode não resolver (o cupom
+  // DIGITADO no checkout depende de um lookup na Stripe que pode falhar), e é
+  // justamente aí que a venda de R$ 19 escaparia pro pixel como se fosse do
+  // anúncio — que foi o evento que abriu esta investigação em 14/08.
+  if (cupom || s.comDesconto) {
+    return { origem: 'followup', detalhe: cupom ? `cupom ${cupom}` : 'desconto no checkout' };
+  }
 
   if (FOLLOWUP_SOURCES.has(source) || FOLLOWUP_SOURCES.has(medium)) {
     return { origem: 'followup', detalhe: [source || medium, campanha].filter(Boolean).join(' · ') };
@@ -159,7 +169,7 @@ export async function upsertSale(s: SaleInput): Promise<string | null> {
   // A origem é derivada, e obedece à MESMA regra das outras colunas aqui: só
   // entra no patch quando veio sinal. Uma re-entrega do webhook sem metadata
   // (at-least-once) recalcularia 'direto' e apagaria o 'anuncio' já gravado.
-  const temSinal = !!(s.cupom || s.utm_source || s.utm_medium || s.utm_campaign || s.fbc || s.fbp);
+  const temSinal = !!(s.cupom || s.comDesconto || s.utm_source || s.utm_medium || s.utm_campaign || s.fbc || s.fbp);
   const cls = classificarOrigem(s);
   if (temSinal) {
     row.origem = cls.origem;

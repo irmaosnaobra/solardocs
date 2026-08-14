@@ -84,6 +84,15 @@ describe('classificarOrigem', () => {
     expect(c.detalhe).toBe('cupom ACESSO19');
   });
 
+  it('desconto SEM código resolvido também é follow-up', () => {
+    // O cupom digitado no checkout vira código por um lookup na Stripe que pode
+    // falhar. Sobrando só o desconto, a venda de R$ 19 iria pro pixel como do
+    // anúncio — que é exatamente o evento de 14/08 que abriu esta apuração.
+    const c = classificarOrigem({ comDesconto: true, fbc: 'fb.1.123.abc' });
+    expect(c.origem).toBe('followup');
+    expect(c.detalhe).toBe('desconto no checkout');
+  });
+
   it('link carimbado pelo toque do WhatsApp é follow-up', () => {
     expect(classificarOrigem({ utm_source: 'followup', utm_medium: 'whatsapp', utm_campaign: 'recuperacao' }).origem)
       .toBe('followup');

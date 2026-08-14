@@ -1124,6 +1124,11 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
           // mandou. É ele que tira esta venda do Purchase da Meta (ver o gate em
           // salesLedger) e a deixa só no painel e no aviso do WhatsApp.
           cupom: codigoCupom ?? null,
+          // `descontou` junto de propósito: o cupom DIGITADO no checkout só vira
+          // código depois de um lookup na Stripe, e quando ele falha sobra só o
+          // desconto. Sem este par, uma venda de R$ 19 iria pro pixel como se
+          // fosse do anúncio.
+          comDesconto: descontou,
           card_passed_at: cardPassedAt,
         });
         // AVISO DO DONO — antes do Meta/UTMify de propósito: dos três, é o único
@@ -1157,6 +1162,7 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
           fbc: meta.fbc ?? null,
           fbp: meta.fbp ?? null,
           cupom: codigoCupom ?? null,
+          comDesconto: descontou,
         });
 
         await avisarVendaAoDono(saleId, {
