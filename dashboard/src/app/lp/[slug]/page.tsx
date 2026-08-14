@@ -1,67 +1,65 @@
-'use client';
-
-import { use } from 'react';
-import Link from 'next/link';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import Logo from '@/components/Logo/Logo';
-import { produtoPorSlug } from '@/lib/produtos';
-import { useAcessos } from '@/hooks/useAcessos';
-import { LpConteudo } from '../../(dashboard)/produtos/_LpConteudo';
-import styles from './lp.module.css';
+import { PRODUTOS_LOJA, produtoPorSlug } from '@/lib/produtos';
+import { LpPublica } from './_Lp';
 
 /**
- * LP PÚBLICA de um produto — a página de anúncio, DENTRO da plataforma.
+ * LP PÚBLICA de um produto — a página de anúncio, servida pela própria
+ * plataforma.
  *
- * O pedido foi "não quero que a pessoa saia daqui". Antes, vender pra tráfego
- * frio exigia um site à parte (foi assim com o Kit e com o LimpaPro): outro
- * projeto, outro deploy, outro CSS, e a oferta envelhecendo em dois lugares.
+ * Ela é EXTERNA no que importa: abre sem sessão, pra quem nunca ouviu falar da
+ * SolarDoc. O `proxy.ts` libera `/lp/` justamente por isso. Cada ferramenta
+ * vende sozinha e desemboca aqui dentro — sem site à parte, sem outro deploy e
+ * sem a oferta envelhecendo em dois lugares.
  *
- * Aqui é a MESMA página da loja (`_LpConteudo`), servida numa rota que o
- * `proxy.ts` deixa passar sem sessão. Quem chega do anúncio vê a oferta e
- * compra; quem já é da casa e cai aqui logado vê o estado real da conta dele —
- * o mesmo componente resolve os dois porque o `useAcessos` falha pro lado do
- * cadeado quando não há sessão (sem token, nenhum produto: mostra a oferta).
- *
- * O que NÃO tem aqui de propósito: barra lateral, portão de CNPJ e limite de
- * plano. Nada disso faz sentido pra quem ainda não tem conta.
+ * Esta camada é SERVIDOR só por causa da `generateMetadata`. Link de anúncio ou
+ * de WhatsApp sem título e sem imagem aparece como um retângulo cinza e ninguém
+ * clica — é a diferença entre uma página que vende e um link que morre no
+ * compartilhamento. O miolo interativo vive em `_Lp.tsx`.
  */
-export default function LpPublicaPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = use(params);
+
+/** Uma rota por produto, geradas no build. */
+export function generateStaticParams() {
+  return PRODUTOS_LOJA.map((p) => ({ slug: p.slug }));
+}
+
+export async function generateMetadata(
+  { params }: { params: Promise<{ slug: string }> },
+): Promise<Metadata> {
+  const { slug } = await params;
   const p = produtoPorSlug(slug);
-  const { carregando, tem, assinante, email } = useAcessos();
+  if (!p) return { title: 'SolarDoc' };
 
-  if (!p) return notFound();
+  const url = `https://solardoc.app/lp/${p.slug}`;
+  const titulo = `${p.nome} — SolarDoc`;
+  // A promessa é a descrição: é a frase escrita pra vender, não um resumo
+  // genérico. O que aparece no anúncio é o mesmo que aparece na página.
+  const desc = p.promessa;
 
-  return (
-    <div className={styles.pagina}>
-      <header className={styles.topo}>
-        <Link href="/" className={styles.marca} aria-label="SolarDoc">
-          <Logo className={styles.marcaImg} />
-        </Link>
-        {/* Sem sessão isto leva pro cadastro; com sessão, pro app. O texto não
-            promete "entrar" pra quem não tem conta. */}
-        <Link href="/auth" className={styles.entrar}>Entrar</Link>
-      </header>
+  return {
+    title: titulo,
+    description: desc,
+    alternates: { canonical: url },
+    openGraph: {
+      type: 'website',
+      url,
+      siteName: 'SolarDoc',
+      title: titulo,
+      description: desc,
+      locale: 'pt_BR',
+      images: [{ url: 'https://solardoc.app/hero-produto.webp', width: 1200, height: 630, alt: p.nome }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: titulo,
+      description: desc,
+      images: ['https://solardoc.app/hero-produto.webp'],
+    },
+  };
+}
 
-      <main className={styles.corpo}>
-        <LpConteudo
-          p={p}
-          slug={slug}
-          liberado={tem(p.id)}
-          carregando={carregando}
-          email={email}
-          assinante={assinante}
-          dentroDoApp={false}
-        />
-      </main>
-
-      <footer className={styles.rodape}>
-        <span>SolarDoc · Irmãos na Obra</span>
-        <span className={styles.rodapeLinks}>
-          <Link href="/privacidade">Privacidade</Link>
-          <Link href="/">Conhecer a plataforma</Link>
-        </span>
-      </footer>
-    </div>
-  );
+export default async function LpPublicaPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  if (!produtoPorSlug(slug)) return notFound();
+  return <LpPublica slug={slug} />;
 }

@@ -42,4 +42,36 @@
     <changefreq>yearly</changefreq>
     <priority>0.2</priority>
   </url>
+  <!-- Paginas de venda de cada ferramenta/curso. Publicas de proposito: cada
+       uma vende sozinha pra trafego frio e desemboca dentro da plataforma. -->
+  <url>
+    <loc>https://solardoc.app/lp/dimensionamento-off-grid</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://solardoc.app/lp/kit-fecha-vendas</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://solardoc.app/lp/limpapro</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://solardoc.app/lp/precificacao-profissional</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://solardoc.app/lp/inventario-empresa</loc>
+    <lastmod>2026-08-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
 </urlset>

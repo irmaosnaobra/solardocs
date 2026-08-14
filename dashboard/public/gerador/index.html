@@ -361,7 +361,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
   /* elementos position:fixed escapam do "body > *" — esconde explicitamente.
      Especificidade alta o bastante pra vencer a regra mobile que mostra o toggle (linha ~741). */
   html[data-mode]:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .sb-mobile-toggle,
-  #app-sidebar,.sb-backdrop,#sb-backdrop,.container{display:none!important}
+  #app-sidebar,.sb-backdrop,#sb-backdrop,.container,#ep-preview{display:none!important}
   /* QUEM vai pro papel é decidido por uma classe no <body>, posta por quem dispara
      a impressão. Sem isso o "body > *{display:none!important}" ganhava do inline
      style="display:block" do #propostaSection (regra important > inline normal) e o
@@ -557,6 +557,74 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-fb-row .v{color:#fff;font-weight:600}
 .ep-fb-ic{position:absolute;top:15px;right:16px;width:30px;height:30px;border-radius:50%;background:#7DD117;display:flex;align-items:center;justify-content:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .ep-fb-ic svg{width:16px;height:16px;stroke:#14300c;fill:none;stroke-width:2.2}
+/* ===== RECIBO DE SINAL (documento) ===== */
+/* O valor recebido é a primeira coisa que se lê: quem confere um recibo procura
+   o número e o extenso, nessa ordem. O resto do papel existe pra sustentar ele. */
+/* O recibo é UMA folha por definição — segunda página de recibo é papel perdido.
+   A folha dele respira menos que a do Estudo: as medidas abaixo são o aperto
+   medido pra caber (documento fecha em ~1.100px dos 1.123px do A4). */
+.ep-rec{padding-top:10mm;padding-bottom:10mm}
+.ep-rec .ep-section{margin:11px 0 8px}
+.ep-rec .ep-kv td{padding:5px 0}
+.ep-rec .ep-forma-label{margin:11px 0 6px}
+.ep-rec-hero{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;background:#2f6b10;color:#fff;border-radius:8px;padding:14px 18px;margin:10px 0 12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-rec-hero .k{font-size:10.5px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;opacity:.8}
+.ep-rec-hero .v{font-size:28px;font-weight:900;letter-spacing:-1px;line-height:1.05;margin-top:4px;font-variant-numeric:tabular-nums}
+.ep-rec-hero .ext{font-size:11px;font-style:italic;opacity:.9;margin-top:5px}
+.ep-rec-hero .pct{text-align:right;font-size:11px;line-height:1.5;opacity:.9;flex:none}
+.ep-rec-hero .pct b{display:block;font-size:15px;font-weight:900}
+.ep-rec-corpo{font-size:12.5px;color:#2a3947;line-height:1.62;text-align:justify;margin-bottom:10px}
+.ep-rec-corpo b{color:#1a1a1a}
+.ep-rec-clau{margin:0;padding-left:17px;font-size:11.5px;color:#333;line-height:1.5}
+.ep-rec-clau li{margin-bottom:5px}
+.ep-rec-clau li b{color:#2f6b10}
+/* Linha em branco pra preencher à mão (CPF que ninguém levantou, por exemplo).
+   Melhor um espaço honesto no papel do que um número chutado. */
+.ep-rec-vazio{display:inline-block;min-width:150px;border-bottom:1px solid #98a3b3}
+.ep-rec-assin{display:flex;gap:34px;margin-top:20px}
+.ep-rec-assin .a{flex:1;text-align:center;border-top:1px solid #1a1a1a;padding-top:6px;font-size:11px;color:#333;line-height:1.45}
+.ep-rec-assin .a b{display:block;font-size:11.5px;color:#1a1a1a}
+.ep-rec-local{font-size:12px;color:#333;margin-top:16px}
+/* ===== PRÉVIA DOS DOCUMENTOS (recibo e contrato) =====
+   Antes de imprimir, o consultor vê a folha do jeito que ela vai sair e pode
+   voltar pros campos. Fica ENTRE o backdrop do menu (890) e o loading (9999).
+   A prévia é a tela; quem vai pro papel continua sendo o host de impressão —
+   por isso ela entra na lista de display:none do @media print lá em cima. */
+.ep-prev-bg{position:fixed;inset:0;background:rgba(3,10,24,.82);z-index:1200;display:none;flex-direction:column}
+.ep-prev-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;background:#0B1628;border-bottom:1px solid rgba(255,255,255,.12)}
+.ep-prev-tit{font-size:14px;font-weight:800;color:#fff;flex:1;min-width:150px}
+.ep-prev-acoes{display:flex;gap:8px;flex-wrap:wrap}
+.ep-prev-nota{padding:8px 16px;background:#0B1628;border-bottom:1px solid rgba(255,255,255,.08);font-size:12px;color:#94A3B8;line-height:1.5}
+.ep-prev-nota b{color:#CBD5E1}
+.ep-prev-nota.destaque{background:#14300c;color:#DCFCE7;border-bottom-color:#7DD117}
+.ep-prev-nota.destaque b{color:#9BEE38}
+.ep-prev-scroll{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:18px 0 40px;display:flex;justify-content:center}
+/* A folha tem 210mm fixos. Em tela estreita ela é ESCALADA (não reflui): a
+   prévia mente se mostrar uma quebra de linha que o papel não vai ter. */
+.ep-prev-palco{transform-origin:top center}
+.ep-prev-folha{width:210mm;background:#fff;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.ep-prev-folha .ep-page{min-height:297mm}
+.ep-prev-folha .ep-page+.ep-page{border-top:12px solid #0B1628}
+/* ===== CONTRATO (documento de várias folhas) ===== */
+/* Ao contrário do recibo, aqui NÃO se encolhe pra caber: contrato pagina. */
+.ep-ctr-tit{text-align:center;font-size:14px;font-weight:900;color:#1a1a1a;text-transform:uppercase;letter-spacing:.6px;margin:16px 0 4px;line-height:1.4}
+.ep-ctr-sub{text-align:center;font-size:10.5px;color:#8a94a3;margin-bottom:14px}
+.ep-ctr-p{font-size:11.5px;color:#2a3947;line-height:1.65;text-align:justify;margin:0 0 9px}
+.ep-ctr-p b{color:#1a1a1a}
+.ep-ctr-cl{font-size:11.5px;color:#2f6b10;font-weight:800;text-transform:uppercase;letter-spacing:.4px;margin:13px 0 6px}
+.ep-ctr-li{font-size:11.5px;color:#2a3947;line-height:1.6;margin:0 0 6px;padding-left:22px;text-indent:-22px;text-align:justify}
+.ep-ctr-li b{color:#1a1a1a}
+.ep-ctr-esc{display:flex;gap:14px;margin:8px 0 4px}
+.ep-ctr-esc>div{flex:1;border:1px solid #e5e7eb;border-radius:7px;padding:9px 12px}
+.ep-ctr-esc h4{margin:0 0 6px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#2f6b10}
+.ep-ctr-esc.fora h4{color:#8a94a3}
+.ep-ctr-esc ul{margin:0;padding-left:15px;font-size:11px;color:#333;line-height:1.55}
+.ep-ctr-assin{display:flex;gap:34px;margin-top:30px}
+.ep-ctr-assin .a{flex:1;text-align:center;border-top:1px solid #1a1a1a;padding-top:6px;font-size:11px;color:#444;line-height:1.45}
+.ep-ctr-assin .a b{display:block;font-size:11.5px;color:#1a1a1a}
+.ep-ctr-test{margin-top:24px;font-size:11px;color:#444}
+.ep-ctr-test .l{display:flex;gap:34px;margin-top:16px}
+.ep-ctr-test .l>div{flex:1;border-top:1px solid #98a3b3;padding-top:5px;line-height:1.5}
 /* formas de pagamento — caixas marcáveis (tela) */
 .orc-pg-formas{display:flex;flex-wrap:wrap;gap:8px}
 .orc-pg-forma{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;color:#CBD5E1;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:10px 14px;cursor:pointer;transition:border-color .2s,color .2s}
@@ -2273,6 +2341,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div class="eletro-subnav">
       <button type="button" id="eletro-tab-simulador" class="eletro-subtab ativa" onclick="eletroSubaba('simulador')">Simulador</button>
       <button type="button" id="eletro-tab-orcamento" class="eletro-subtab" onclick="eletroSubaba('orcamento')">Orçamento</button>
+      <button type="button" id="eletro-tab-recibo" class="eletro-subtab" onclick="eletroSubaba('recibo')">Recibo</button>
+      <button type="button" id="eletro-tab-contrato" class="eletro-subtab" onclick="eletroSubaba('contrato')">Contrato</button>
       <button type="button" id="eletro-tab-historico" class="eletro-subtab" onclick="eletroSubaba('historico')">Histórico</button>
       <button type="button" id="eletro-tab-pesquisa" class="eletro-subtab" onclick="eletroSubaba('pesquisa')">Pesquisa</button>
       <button type="button" id="eletro-tab-mercado" class="eletro-subtab" onclick="eletroSubaba('mercado')">Mercado</button>
@@ -2303,7 +2373,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-autor" placeholder="Ex: João Silva" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore oninput="eletroVendedorEditado(this)"></div></div>
           <div class="eletro-field"><label>Contato do vendedor</label>
             <div class="eletro-inp eletro-inp-wide"><input type="text" id="el-contato" placeholder="Ex: (34) 99999-0000" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore oninput="eletroVendedorEditado(this)"></div></div>
-          <div class="orc-note" id="el-vendedor-nota" style="margin-top:6px">Cliente vale para os <b>3 documentos</b> (Estudo, Orçamento básico e completo). Vendedor e contato caem sozinhos de quem está logado.</div>
+          <div class="orc-note" id="el-vendedor-nota" style="margin-top:6px">Cliente vale para os <b>5 documentos</b> (Estudo, Orçamento básico, completo, Recibo e Contrato). No contrato, quem <b>assina</b> pode ser outro (a empresa do cliente) — isso se resolve lá. Vendedor e contato caem sozinhos de quem está logado.</div>
         </div>
 
         <div class="card">
@@ -2460,7 +2530,13 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-tel" placeholder="(34) 99816-5040" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>E-mail</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-email" placeholder="contato@irmaosnaobra.com.br" oninput="orcEmitSalvar()"></div></div>
-        <div class="orc-note">Sem CNPJ, como você pediu. Preencha uma vez — fica salvo para os próximos orçamentos.</div>
+        <div class="eletro-field"><label>Razão social <span style="opacity:.6;font-weight:600">(só no contrato)</span></label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-razao" placeholder="AIOROS HOLDING LTDA" oninput="orcEmitSalvar()"></div></div>
+        <div class="eletro-field"><label>Nome fantasia <span style="opacity:.6;font-weight:600">(só no contrato)</span></label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-fantasia" placeholder="AIOROS GROUP LTDA" oninput="orcEmitSalvar()"></div></div>
+        <div class="eletro-field"><label>CNPJ <span style="opacity:.6;font-weight:600">(só no contrato)</span></label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-cnpj" placeholder="00.000.000/0000-00" oninput="orcEmitSalvar()"></div></div>
+        <div class="orc-note">O <b>orçamento</b> continua saindo com a marca e sem CNPJ, como você pediu. Estes dois só aparecem no <b>contrato</b>, porque quem assina contrato é a <b>pessoa jurídica</b> — "Irmãos na Obra" é marca, não é parte. Preencha uma vez: fica salvo.</div>
       </div>
 
       <!-- DADOS DA PROPOSTA -->
@@ -2570,6 +2646,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         </div>
       </div>
 
+
       <!-- OBSERVAÇÕES / GARANTIA -->
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Observações e garantia</div>
@@ -2584,6 +2661,143 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       </div>
     </div>
     </div><!-- /eletro-pane-orcamento -->
+
+    <!-- ===== PANE: RECIBO (sinal do projeto elétrico) =====
+         Aba própria, mas os dados do pagador continuam MORANDO no Orçamento
+         (CNPJ/CPF, endereço) e o valor continua vindo do Total de lá. Espelhar
+         esses campos aqui criaria uma segunda identidade do mesmo cliente — o
+         que a tela faz é mostrar o que está preenchido e mandar preencher lá. -->
+    <div id="eletro-pane-recibo" style="display:none;">
+    <div class="pesquisa-info">O papel do dinheiro que entra <b>antes</b> do contrato: o cliente paga uma parte (padrão 5%) pra tocar o projeto elétrico. O recibo declara que é <b>sinal e princípio de pagamento</b> — aprovado o projeto, é abatido do total.</div>
+    <div class="orc-wrap">
+
+      <!-- Ponte com a pasta do cliente. O navegador não lê disco sozinho, então
+           quem recolhe dos PDFs é o coletar-docs.js (roda no computador) e o
+           que ele deixa pronto entra aqui por um arquivo só. -->
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Puxar da pasta do cliente</div>
+        <div class="orc-note" style="margin-top:-2px;margin-bottom:10px">Rode <b>node coletar-docs.js "Nome"</b> no computador: ele lê CNH, contrato social e conta de luz da pasta do cliente e escreve um <b>_dados.json</b> lá dentro. Escolha esse arquivo aqui e os campos se preenchem.</div>
+        <label class="eletro-btn" style="display:inline-flex;cursor:pointer">
+          <svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+          Escolher _dados.json
+          <input type="file" accept=".json,application/json" style="display:none" onchange="epImportarDados(this)">
+        </label>
+        <div class="orc-note" id="ep-import-msg" style="margin-top:10px">—</div>
+      </div>
+
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Recibo de sinal</div>
+        <div class="orc-cli-banner" id="rec-cli-banner">—</div>
+        <div class="eletro-field"><label>Nº do recibo</label>
+          <div class="eletro-inp"><input type="text" id="rec-num" placeholder="001"></div></div>
+        <div class="eletro-field"><label>Data do recebimento</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="date" id="rec-data"></div></div>
+        <div class="eletro-field"><label>Percentual do sinal</label>
+          <div class="eletro-inp has-suf"><input type="number" id="rec-pct" inputmode="decimal" step="0.5" min="0" max="100" value="5" oninput="recCalc()"><span class="suf">%</span></div></div>
+        <div class="eletro-field"><label>Valor recebido</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="rec-valor" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="recValorEditado(this)"></div></div>
+        <div class="orc-note" id="rec-resumo">—</div>
+        <div class="eletro-field" style="margin-top:12px"><label>Forma de pagamento</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="rec-forma">
+            <option>Pix</option><option>Transferência bancária</option><option>Cartão</option><option>Dinheiro</option><option>Boleto</option>
+          </select></div></div>
+        <div class="eletro-field"><label>Destinação do valor</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="rec-fim" value="elaboração do projeto elétrico e sua homologação junto à concessionária de energia"></div></div>
+        <div class="eletro-field"><label>Gatilho do abatimento</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="rec-gatilho" value="aprovado o projeto elétrico pela concessionária de energia"></div></div>
+        <div class="orc-note">Escreva <b>quem</b> aprova. "Após a aprovação" sem dono é a cláusula que se discute depois.</div>
+        <div class="eletro-field" style="margin-top:12px"><label>Observações (opcional)</label>
+          <div class="eletro-inp eletro-inp-wide"><textarea id="rec-obs" rows="2" maxlength="260" placeholder="O que foi combinado fora do padrão. Em branco, não aparece no recibo." style="width:100%;box-sizing:border-box;padding:11px 12px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:13px;font-family:inherit;font-weight:500;line-height:1.5;outline:none;resize:vertical"></textarea></div></div>
+        <div class="eletro-field" style="margin-top:12px"><label>Cláusula de desistência</label>
+          <div class="eletro-inp eletro-inp-wide"><textarea id="rec-desist" rows="3" maxlength="320" style="width:100%;box-sizing:border-box;padding:11px 12px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:13px;font-family:inherit;font-weight:500;line-height:1.5;outline:none;resize:vertical"></textarea></div></div>
+      </div>
+
+      <div class="eletro-acoes">
+        <button type="button" class="eletro-btn primary" onclick="recImprimir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v14l-3-2-3 2-3-2-3 2-3-2-3 2V6a2 2 0 0 1 2-2z"></path><line x1="8" y1="10" x2="16" y2="10"></line><line x1="8" y1="14" x2="13" y2="14"></line></svg> Gerar recibo PDF</button>
+      </div>
+    </div>
+    </div><!-- /eletro-pane-recibo -->
+
+    <!-- ===== PANE: CONTRATO (fornecimento e instalação do eletroposto) =====
+         Contrato tem UMA condição de pagamento, não a vitrine de formas do
+         orçamento — e ela corre sobre o SALDO (total menos o sinal já pago),
+         senão o papel obriga o cliente a pagar duas vezes a mesma entrada. -->
+    <div id="eletro-pane-contrato" style="display:none;">
+    <div class="pesquisa-info">O contrato fecha o que o orçamento propôs. Partes, valor, prazos e obrigações saem do que já está preenchido nas outras abas — aqui você completa só o que é do contrato.</div>
+    <div class="orc-wrap">
+
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Partes</div>
+        <div class="orc-cli-banner" id="ctr-partes-banner">—</div>
+        <div class="orc-note" style="margin-top:10px;margin-bottom:12px">Nome, cidade, CPF/CNPJ e endereço vêm do Simulador e do <b>Orçamento</b>. Contratada vem do card <b>Sua empresa</b>. Os campos abaixo só existem quando <b>quem assina não é quem negociou</b> — deixe em branco e o contrato usa os dados do cliente.</div>
+        <!-- Quem negocia é uma pessoa; quem assina costuma ser a empresa dela.
+             Trocar o cliente do Simulador pra razão social resolveria o contrato
+             e estragaria orçamento e recibo, que falam com a PESSOA. -->
+        <div class="eletro-field"><label>Contratante (razão social)</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-contratante" placeholder="Em branco = o cliente do Simulador" oninput="ctrBanner()"></div></div>
+        <div class="eletro-field"><label>CNPJ do contratante</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-contratante-doc" placeholder="Em branco = o CPF/CNPJ do Orçamento" oninput="ctrBanner()"></div></div>
+        <div class="eletro-field"><label>Endereço do contratante</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-contratante-end" placeholder="Em branco = o endereço do Orçamento"></div></div>
+        <div class="eletro-field" style="margin-top:12px"><label>Representante legal</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-rep" placeholder="Quem assina pela empresa"></div></div>
+        <div class="eletro-field"><label>CPF do representante</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-rep-doc" placeholder="000.000.000-00"></div></div>
+        <div class="orc-note">Empresa não assina sozinha: sem o representante e o CPF dele, a assinatura não amarra a pessoa jurídica.</div>
+      </div>
+
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Dados do contrato</div>
+        <div class="eletro-field"><label>Nº do contrato</label>
+          <div class="eletro-inp"><input type="text" id="ctr-num" placeholder="001"></div></div>
+        <div class="eletro-field"><label>Data de assinatura</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="date" id="ctr-data"></div></div>
+        <div class="eletro-field"><label>Local da instalação</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-local" placeholder="Endereço da obra — se vazio, usa o endereço do cliente"></div></div>
+        <div class="orc-note">Onde o eletroposto vai ser instalado. Nem sempre é o endereço de cadastro do cliente.</div>
+      </div>
+
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Prazos</div>
+        <div class="eletro-field"><label>Projeto elétrico e protocolo</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-prazo-projeto" inputmode="numeric" min="1" value="15" oninput="ctrResumo()"><span class="suf">dias úteis</span></div></div>
+        <div class="eletro-field"><label>Entrega da obra</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-prazo-obra" inputmode="numeric" min="1" value="90" oninput="ctrResumo()"><span class="suf">dias corridos</span></div></div>
+        <div class="orc-note">A entrega conta da <b>aprovação do projeto pela concessionária</b>, não da assinatura — é ela que libera a obra, e o prazo dela não é nosso.</div>
+        <div class="eletro-field" style="margin-top:12px"><label>Garantia</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-garantia" inputmode="numeric" min="1" value="24"><span class="suf">meses</span></div></div>
+      </div>
+
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Valor e pagamento</div>
+        <div class="orc-note" style="margin-top:-2px;margin-bottom:12px">O contrato tem <b>uma</b> condição, não a vitrine do orçamento. O saldo é o que sobra depois do sinal já pago.</div>
+        <div class="orc-tot">
+          <div class="orc-tot-row"><span>Valor total do projeto</span><span class="v" id="ctr-t-total">R$ 0,00</span></div>
+          <div class="orc-tot-row"><span>Sinal já pago (recibo)</span><span class="v" id="ctr-t-sinal">R$ 0,00</span></div>
+          <div class="orc-tot-row big"><span>Saldo a pagar</span><span class="v" id="ctr-t-saldo">R$ 0,00</span></div>
+        </div>
+        <div class="eletro-field"><label>Multa por atraso</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-multa" inputmode="decimal" step="0.5" min="0" value="2"><span class="suf">%</span></div></div>
+        <div class="eletro-field"><label>Juros de mora</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-juros" inputmode="decimal" step="0.5" min="0" value="1"><span class="suf">% ao mês</span></div></div>
+        <div class="eletro-field" style="margin-top:14px"><label>Como o saldo será pago</label>
+          <div class="eletro-inp eletro-inp-wide"><textarea id="ctr-pagamento" rows="3" style="width:100%;box-sizing:border-box;padding:11px 12px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:13px;font-family:inherit;font-weight:500;line-height:1.5;outline:none;resize:vertical"></textarea></div></div>
+        <div class="orc-note">Sugerido a partir da condição marcada no Orçamento, recalculada sobre o saldo — <button type="button" class="orc-link" onclick="ctrPagamentoReset()">refazer a sugestão</button>.</div>
+      </div>
+
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Foro e cláusulas extras</div>
+        <div class="eletro-field"><label>Foro (comarca)</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-foro" placeholder="Uberlândia/MG"></div></div>
+        <div class="eletro-field" style="margin-top:12px"><label>Cláusulas extras (opcional)</label>
+          <div class="eletro-inp eletro-inp-wide"><textarea id="ctr-extras" rows="4" placeholder="O que foi combinado fora do padrão. Fica em branco se não houver." style="width:100%;box-sizing:border-box;padding:11px 12px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:13px;font-family:inherit;font-weight:500;line-height:1.5;outline:none;resize:vertical"></textarea></div></div>
+      </div>
+
+      <div class="eletro-acoes">
+        <button type="button" class="eletro-btn primary" onclick="ctrImprimir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="13" y2="17"></line></svg> Gerar contrato PDF</button>
+      </div>
+    </div>
+    </div><!-- /eletro-pane-contrato -->
 
     <!-- ===== PANE: HISTÓRICO (orçamentos de eletroposto salvos) ===== -->
     <div id="eletro-pane-historico" style="display:none;">
@@ -2639,6 +2853,20 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
   <!-- container de impressão do orçamento de 1 página (solar e eletroposto) -->
   <div id="doc-print" aria-hidden="true"></div>
+
+  <!-- ===== PRÉVIA: recibo e contrato antes de ir pro papel ===== -->
+  <div id="ep-preview" class="ep-prev-bg" onclick="if(event.target===this) epPrevFechar()">
+    <div class="ep-prev-bar">
+      <div class="ep-prev-tit" id="ep-prev-tit">Prévia</div>
+      <div class="ep-prev-acoes">
+        <button type="button" class="eletro-btn" onclick="epPrevFechar()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"></path></svg> Editar</button>
+        <button type="button" class="eletro-btn primary" onclick="epPrevImprimir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg> Imprimir</button>
+        <button type="button" class="eletro-btn primary" onclick="epPrevBaixar()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Baixar PDF</button>
+      </div>
+    </div>
+    <div class="ep-prev-nota" id="ep-prev-nota"></div>
+    <div class="ep-prev-scroll"><div class="ep-prev-palco" id="ep-prev-palco"><div class="ep-prev-folha" id="ep-prev-doc"></div></div></div>
+  </div>
 
   <!-- ============= TELA: ORÇAMENTO ABERTO POR LINK (cliente) ============= -->
   <div id="orcViewSection" style="display:none;">
@@ -2851,7 +3079,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
     <div class="card">
       <div class="leads-info">
-        Leads dos anúncios são agendados automaticamente no rodízio <strong>Thiago → Diego → Nilce</strong>, no horário escolhido pelo cliente. O card pode ser transferido a outro consultor na Agenda.
+        Leads dos anúncios são agendados automaticamente pelo tamanho da conta: acima de <strong>700 kWh/mês</strong> alterna <strong>Thiago → Diego</strong>; abaixo disso (ou sem consumo informado) vai pra <strong>Nilce</strong>. Cliente que já tem consultor continua com ele. O card pode ser transferido a outro consultor na Agenda.
       </div>
       <div class="historico-tabela-wrap">
         <table class="historico-tabela leads-tabela">
@@ -5856,14 +6084,19 @@ function navEletroposto() {
 
 // Sub-abas dentro do Eletroposto: Simulador | Histórico | Pesquisa | Mercado | Postos | Mapa
 function eletroSubaba(qual) {
-  const abas = ['simulador', 'orcamento', 'historico', 'pesquisa', 'mercado', 'postos', 'mapa'];
+  const abas = ['simulador', 'orcamento', 'recibo', 'contrato', 'historico', 'pesquisa', 'mercado', 'postos', 'mapa'];
   // A cada abertura: monta a lista de potências (uma vez) e tenta completar o
   // vendedor. Fica aqui, e não só no load, porque o cadastro de consultores
   // carrega assíncrono — na primeira abertura o telefone ainda pode não existir.
   eletroEquipRender();
   eletroVendedorAuto();
   if (qual === 'historico') { epHistOrcRender(); eletroHistCarregar(); }
-  if (qual === 'orcamento') orcInit();
+  // Recibo e Contrato vivem dos campos do Orçamento (valor, CPF/endereço,
+  // empresa). Abrir um deles como PRIMEIRA aba, sem nunca passar no Orçamento,
+  // deixava valor, data e cláusula em branco — orcInit é quem preenche tudo isso.
+  if (qual === 'orcamento' || qual === 'recibo' || qual === 'contrato') orcInit();
+  if (qual === 'recibo') recBanner();
+  if (qual === 'contrato') ctrInit();
   abas.forEach(a => {
     const pane = document.getElementById('eletro-pane-' + a);
     if (pane) pane.style.display = (a === qual) ? '' : 'none';
@@ -6786,6 +7019,7 @@ function orcCalc() {
   set('orc-t-desc', (r.desconto > 0 ? '- ' : '') + ORC_MONEY(r.desconto));
   set('orc-t-total', ORC_MONEY(r.total));
   orcPgSync(r.total);
+  recCalc();   // o sinal é um % do total: mexeu no total, o recibo acompanha
 }
 
 // ═══ ENTRADA + CARTÃO ═══
@@ -6922,7 +7156,9 @@ function orcPgToggle() {
 //  pelo consultor logado. Sem card próprio no Orçamento e sem e-mail.)
 
 // Emitente (sua empresa) — persistência no navegador
-function orcEmitCampos() { return ['nome', 'end', 'cidade', 'tel', 'email']; }
+// 'cnpj' entra na lista pra ser salvo/carregado como os outros, mas NÃO sai no
+// orçamento (orc1EpEmpresa manda só o nome) — ele existe pro contrato.
+function orcEmitCampos() { return ['nome', 'end', 'cidade', 'tel', 'email', 'cnpj', 'razao', 'fantasia']; }
 function orcEmitSalvar() {
   const o = {};
   orcEmitCampos().forEach(k => { o[k] = orcVal('orc-emit-' + k); });
@@ -6932,7 +7168,11 @@ function orcEmitCarregar() {
   let o = {};
   try { o = JSON.parse(localStorage.getItem(ORC_EMIT_KEY) || '{}') || {}; } catch (e) {}
   // defaults da marca (só quando ainda não há nada salvo)
-  const def = { nome: 'Irmãos na Obra — Mobilidade Elétrica', end: '', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'contato@irmaosnaobra.com.br' };
+  // Razão social e CNPJ saem do Cartão CNPJ da empresa (dado público, o mesmo que
+  // vai em toda nota fiscal). Ficam de default pra nenhum contrato sair sem a
+  // qualificação da parte só porque ninguém preencheu o cadastro neste aparelho.
+  const def = { nome: 'Irmãos na Obra — Mobilidade Elétrica', end: '', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'contato@irmaosnaobra.com.br',
+                cnpj: '63.636.043/0001-88', razao: 'AIOROS HOLDING LTDA', fantasia: 'AIOROS GROUP LTDA' };
   orcEmitCampos().forEach(k => {
     const el = document.getElementById('orc-emit-' + k);
     if (el) el.value = (o[k] != null && o[k] !== '') ? o[k] : (def[k] || '');
@@ -6962,6 +7202,7 @@ function orcInit() {
   orcValorSync();
   orcPgToggle();
   orcCalc();
+  recInit();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -7208,7 +7449,9 @@ function orc1Imprimir(html, nomeArq, opts) {
   if (!host) return;
   host.innerHTML = html;
 
-  const el = host.querySelector('.orc1');
+  // opts.alvo: quem é medido pra caber na folha. O padrão é o orçamento de 1
+  // página (.orc1); o recibo passa o dele porque tem outro esqueleto.
+  const el = host.querySelector((opts && opts.alvo) || '.orc1');
   if (el && opts && opts.umaPagina) {
     const estiloAntes = host.getAttribute('style');
     // mede fora da tela na largura real do papel (a tela esconde o host)
@@ -7233,9 +7476,10 @@ function orc1Imprimir(html, nomeArq, opts) {
 function epEmitGet() {
   let o = {};
   try { o = JSON.parse(localStorage.getItem(ORC_EMIT_KEY) || '{}') || {}; } catch (e) {}
-  const def = { nome: 'Irmãos na Obra — Mobilidade Elétrica', end: '', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'contato@irmaosnaobra.com.br' };
+  const def = { nome: 'Irmãos na Obra — Mobilidade Elétrica', end: '', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'contato@irmaosnaobra.com.br',
+                cnpj: '63.636.043/0001-88', razao: 'AIOROS HOLDING LTDA', fantasia: 'AIOROS GROUP LTDA' };
   const out = {};
-  ['nome', 'end', 'cidade', 'tel', 'email'].forEach(k => out[k] = (o[k] != null && o[k] !== '') ? o[k] : (def[k] || ''));
+  ['nome', 'end', 'cidade', 'tel', 'email', 'cnpj', 'razao', 'fantasia'].forEach(k => out[k] = (o[k] != null && o[k] !== '') ? o[k] : (def[k] || ''));
   return out;
 }
 // Cabeçalho: logo à esquerda + caixa "TÍTULO · Data" à direita (modelo da proposta).
@@ -7714,6 +7958,623 @@ function epBasicoImprimir() {
   orc1Imprimir(html, ['Orcamento', 'Basico', limpa(t.cliente) || 'Cliente'].filter(Boolean).join('_'), { umaPagina: true, piso: 0.74 });
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// RECIBO DE SINAL — o papel do dinheiro que entra ANTES do contrato fechar
+//
+// O cliente paga uma parte (padrão: 5%) pra casa tocar o projeto elétrico e
+// levar na concessionária. Esse dinheiro NÃO é taxa avulsa: aprovado o projeto,
+// ele é abatido do valor total. O recibo existe pra isso ficar escrito de um
+// jeito só — a frase "depois a gente abate" no WhatsApp é o que vira discussão
+// seis meses depois, quando o saldo é cobrado.
+//
+// Duas travas de redação que o documento carrega de propósito:
+//  1) uma natureza só. É "sinal e princípio de pagamento" (arras confirmatórias,
+//     art. 417 do Código Civil) do começo ao fim. Misturar "sinal creditado" com
+//     "taxa de serviço não restituível" no mesmo papel é dar ao cliente duas
+//     leituras contraditórias do mesmo dinheiro.
+//  2) o gatilho tem dono. "Após a aprovação" não diz quem aprova — o campo abre
+//     escrito "pela concessionária de energia" e é editável, mas não fica vago.
+// ═══════════════════════════════════════════════════════════════════════════
+const REC_DESIST_PADRAO =
+  'Não havendo prosseguimento por desistência do contratante, o valor recebido fica retido ' +
+  'para cobrir o projeto elétrico já executado, que lhe é entregue.';
+
+// ── Valor por extenso: recibo sem extenso é recibo pela metade ──
+const REC_EX_U = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez',
+  'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove'];
+const REC_EX_D = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa'];
+const REC_EX_C = ['', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos', 'seiscentos', 'setecentos', 'oitocentos', 'novecentos'];
+function recEx3(n) {                       // 1 a 999
+  if (n === 100) return 'cem';             // 100 exato é "cem"; 101 é "cento e um"
+  const partes = [];
+  const c = Math.floor(n / 100), r = n % 100;
+  if (c) partes.push(REC_EX_C[c]);
+  if (r > 0 && r < 20) partes.push(REC_EX_U[r]);
+  else if (r >= 20) {
+    const d = Math.floor(r / 10), u = r % 10;
+    partes.push(u ? REC_EX_D[d] + ' e ' + REC_EX_U[u] : REC_EX_D[d]);
+  }
+  return partes.join(' e ');
+}
+function recExInt(n) {
+  n = Math.floor(Math.abs(n));
+  if (n === 0) return 'zero';
+  const esc = [['', ''], ['mil', 'mil'], ['milhão', 'milhões'], ['bilhão', 'bilhões']];
+  const grupos = [];
+  for (let i = 0; n > 0 && i < esc.length; i++) { grupos.push(n % 1000); n = Math.floor(n / 1000); }
+  const ditos = [];
+  for (let k = grupos.length - 1; k >= 0; k--) {
+    const g = grupos[k];
+    if (!g) continue;
+    // "mil" e não "um mil"; e 2000 vira "dois mil", não "dois mils"
+    const txt = (k === 1 && g === 1) ? 'mil' : recEx3(g) + (k ? ' ' + esc[k][g === 1 ? 0 : 1] : '');
+    ditos.push({ txt, g });
+  }
+  // Regra do português: "e" antes do último grupo quando ele é menor que cem ou
+  // centena redonda (sete mil E setecentos), vírgula quando não (mil, cento e dez).
+  return ditos.reduce((out, d, i) => {
+    if (!out) return d.txt;
+    const ult = i === ditos.length - 1;
+    return out + (ult && (d.g < 100 || d.g % 100 === 0) ? ' e ' : ', ') + d.txt;
+  }, '');
+}
+function recExtenso(v) {
+  const n = Math.round((Number(v) || 0) * 100);
+  const int = Math.floor(n / 100), cent = n % 100;
+  const p = [];
+  // Terminando em escala redonda é "um milhão DE reais", não "um milhão reais".
+  // Com quebra embaixo (1.000.500) o "de" some: "um milhão e quinhentos reais".
+  const de = int >= 1000000 && int % 1000000 === 0;
+  if (int > 0 || cent === 0) p.push(recExInt(int) + (de ? ' de reais' : int === 1 ? ' real' : ' reais'));
+  if (cent > 0) p.push(recExInt(cent) + (cent === 1 ? ' centavo' : ' centavos'));
+  return p.join(' e ');
+}
+
+// ── Tela ──
+// Base do sinal = o Total do orçamento. Só cai no investimento do Simulador
+// quando o orçamento ainda está zerado — é a mesma fonte que preenche o "Valor
+// do projeto", então o recibo nunca sai com base diferente do que foi vendido.
+function recBase() {
+  const t = orcLerItens().total;
+  if (t > 0) return t;
+  try { return computeEletro(eletroParams()).investTotal || 0; } catch (e) { return 0; }
+}
+function recValorEditado(el) { el.dataset.tocado = '1'; recResumo(); }
+function recValorReset() { const el = document.getElementById('rec-valor'); if (!el) return; delete el.dataset.tocado; recCalc(); }
+function recCalc() {
+  const el = document.getElementById('rec-valor'); if (!el) return;
+  if (el.dataset.tocado !== '1') {
+    const base = recBase(), pct = orcNum(orcVal('rec-pct'));
+    el.value = base > 0 ? (base * pct / 100).toFixed(2) : '';
+  }
+  recResumo();
+}
+function recResumo() {
+  const n = document.getElementById('rec-resumo'); if (!n) return;
+  const base = recBase(), sinal = orcNum(orcVal('rec-valor'));
+  if (!(base > 0)) { n.textContent = 'Defina o "Valor do projeto" acima — é ele que dá a base do sinal.'; return; }
+  const tocado = document.getElementById('rec-valor')?.dataset.tocado === '1';
+  n.innerHTML = `Base <b>${ORC_MONEY(base)}</b> · sinal <b>${ORC_MONEY(sinal)}</b> · saldo após a aprovação <b>${ORC_MONEY(Math.max(0, base - sinal))}</b>` +
+    (tocado ? ' · <button type="button" class="orc-link" onclick="recValorReset()">voltar ao percentual</button>' : '');
+}
+// O pagador é identificado no Orçamento. Aqui a tela só CONTA o que está lá — e
+// diz na cara quando o CPF/CNPJ está vazio: linha em branco escolhida é uma
+// coisa, linha em branco que ninguém viu é outra.
+function recBanner() {
+  const el = document.getElementById('rec-cli-banner');
+  if (!el) return;
+  const quem = [orcVal('el-cliente'), orcVal('el-cidade')].filter(Boolean).join(' · ');
+  const doc = orcVal('orc-cli-doc');
+  const partes = [];
+  partes.push(quem ? `<b>${orcEsc(quem)}</b>` : 'Cliente ainda não definido no Simulador');
+  partes.push(doc ? `CPF/CNPJ <b>${orcEsc(doc)}</b>` : '<b>sem CPF/CNPJ</b> — sai como linha em branco pra preencher à mão');
+  el.innerHTML = partes.join(' · ') + ' <button type="button" class="orc-link" onclick="eletroSubaba(\'orcamento\')">Preencher no Orçamento →</button>';
+}
+function recInit() {
+  const d = document.getElementById('rec-data'); if (d && !d.value) d.value = orcHojeISO();
+  const t = document.getElementById('rec-desist'); if (t && !t.value.trim()) t.value = REC_DESIST_PADRAO;
+  recCalc();
+  recBanner();
+}
+
+// ── Documento ──
+function recDados() {
+  const t = eletroTextos();
+  const base = recBase();
+  const sinal = orcNum(orcVal('rec-valor'));
+  const dISO = orcVal('rec-data') || orcHojeISO();
+  return {
+    num: orcVal('rec-num'),
+    data: new Date(dISO + 'T00:00:00'),
+    cliente: t.cliente, cidade: t.cidade, equip: t.equip,
+    doc: orcVal('orc-cli-doc'), end: orcVal('orc-cli-end'),
+    base, sinal, saldo: Math.max(0, base - sinal), pct: orcNum(orcVal('rec-pct')),
+    forma: orcVal('rec-forma') || 'Pix',
+    fim: orcVal('rec-fim'), gatilho: orcVal('rec-gatilho'),
+    desist: orcVal('rec-desist') || REC_DESIST_PADRAO,
+    obs: orcVal('rec-obs'),
+    vendedor: { nome: t.autor, contato: t.contato },
+  };
+}
+
+// O percentual que sai no papel é SEMPRE o que o dinheiro diz (sinal ÷ base), e
+// não o que está digitado no campo. Digitou 5% e depois arredondou o valor pra
+// R$ 8.000? o documento fala 5,19% — é o único número que o cliente consegue
+// conferir com uma calculadora na frente dele.
+function recPctTxt(d) {
+  const p = d.base > 0 ? (d.sinal / d.base) * 100 : (d.pct || 0);
+  return p.toFixed(2).replace(/\.?0+$/, '').replace('.', ',') + '%';
+}
+
+function recHTML(d) {
+  const e = orcEsc;
+  const money = ORC_MONEY;
+  const pct = recPctTxt(d);
+  // Campo que ninguém levantou sai como linha em branco pra preencher na hora.
+  // Chutar CPF num recibo é pior do que deixar o espaço: o papel deixa de valer.
+  const ouVazio = v => v ? e(v) : '<span class="ep-rec-vazio"></span>';
+  const local = [d.cidade, d.data.toLocaleDateString('pt-BR')].filter(Boolean).join(', ');
+  const emp = epEmitGet();
+
+  // Sem a marca d'água dos outros documentos de propósito: a arte esticada a 16%
+  // de opacidade atrás de cláusula jurídica deixa a folha com cara de borrada e
+  // não ajuda em nada num papel que só precisa ser lido e assinado.
+  return `<div class="ep-doc">
+    <div class="ep-page ep-rec">
+      ${epTopoHTML('Recibo de Sinal', d.data.toLocaleDateString('pt-BR'),
+        [['Recibo nº', d.num ? e(d.num) : ''],
+         ['Cliente', d.cliente ? e(d.cliente) : ''],
+         ['Local', d.cidade ? e(d.cidade) : '']], '')}
+
+      <div class="ep-rec-hero">
+        <div>
+          <div class="k">Valor recebido</div>
+          <div class="v">${money(d.sinal)}</div>
+          <div class="ext">(${e(recExtenso(d.sinal))})</div>
+        </div>
+        <div class="pct"><b>${pct}</b>do valor total do projeto<br>recebido em ${e(d.forma)}</div>
+      </div>
+
+      <div class="ep-rec-corpo">
+        Recebemos de <b>${ouVazio(d.cliente)}</b>, inscrito(a) no CPF/CNPJ sob o nº ${ouVazio(d.doc)}${d.end ? ', com endereço em ' + e(d.end) : ''}${d.cidade ? ' — ' + e(d.cidade) : ''},
+        a importância de <b>${money(d.sinal)}</b> (${e(recExtenso(d.sinal))}), a título de
+        <b>sinal e princípio de pagamento</b>, correspondente a ${pct} do valor total do projeto
+        de <b>${money(d.base)}</b>, destinada à ${e(d.fim)}${d.equip ? `, referente ao eletroposto ${e(d.equip)}` : ''}.
+      </div>
+
+      <div class="ep-section">Como este valor entra na conta</div>
+      <table class="ep-kv">
+        <tr><td>Valor total do projeto</td><td class="num">${money(d.base)}</td></tr>
+        <tr><td>Sinal recebido nesta data (${pct})</td><td class="num">− ${money(d.sinal)}</td></tr>
+        <tr class="hl"><td>Saldo a pagar após a aprovação do projeto</td><td class="num">${money(d.saldo)}</td></tr>
+      </table>
+
+      <div class="ep-section">Condições</div>
+      <ol class="ep-rec-clau">
+        <li><b>Natureza do valor.</b> A quantia acima é <b>sinal e princípio de pagamento</b> (arras confirmatórias, art. 417 do Código Civil) — parte do preço do projeto, e não taxa avulsa.</li>
+        <li><b>Abatimento.</b> Sendo ${e(d.gatilho)} e prosseguindo a contratação, este valor é <b>integralmente abatido do valor total</b>, restando o saldo de <b>${money(d.saldo)}</b>. Parcelamento ou financiamento, quando houver, incidem sobre esse saldo.</li>
+        <li><b>O que este valor cobre.</b> ${e((d.fim || '').charAt(0).toUpperCase() + (d.fim || '').slice(1))}, incluindo o recolhimento da ART e o protocolo junto à concessionária.</li>
+        <li><b>Desistência.</b> ${e(d.desist)}</li>
+        <li><b>Exigência da concessionária.</b> Havendo exigência ou reprovação por causa não imputável ao contratante, as adequações e a reapresentação do projeto são feitas <b>sem custo adicional</b>.</li>
+        <li><b>Documento fiscal.</b> Este recibo não substitui documento fiscal; a nota fiscal correspondente é emitida na forma da legislação.</li>
+        ${d.obs ? `<li><b>Observações.</b> ${e(d.obs)}</li>` : ''}
+      </ol>
+
+      <div class="ep-rec-local">${local ? e(local) + '.' : ''}</div>
+      <div class="ep-rec-assin">
+        <div class="a"><b>${e(emp.nome || 'Irmãos na Obra')}</b>Recebedor</div>
+        <div class="a"><b>${d.cliente ? e(d.cliente) : '&nbsp;'}</b>Contratante</div>
+      </div>
+
+      ${epFooterBlockHTML(d.vendedor)}
+    </div>
+  </div>`;
+}
+
+function recImprimir() {
+  const d = recDados();
+  if (!(d.base > 0)) { alert('Defina o "Valor do projeto" no Orçamento (ou o investimento no Simulador) antes de gerar o recibo.'); return; }
+  if (!(d.sinal > 0)) { alert('O valor recebido está zerado. Confira o percentual do sinal.'); return; }
+  const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
+  // Recibo é UMA folha. O documento fecha em ~1.100px dos 1.123px do A4, mas as
+  // cláusulas são texto livre: duas linhas a mais empurravam o bloco de contato
+  // pra uma segunda página em silêncio. Mesmo encolhimento dos orçamentos.
+  epPreview({
+    html: recHTML(d),
+    arquivo: ['Recibo', limpa(d.cliente) || 'Cliente', d.num ? 'N' + limpa(d.num) : ''].filter(Boolean).join('_'),
+    titulo: 'Recibo de sinal' + (d.cliente ? ' — ' + d.cliente : ''),
+    opts: { umaPagina: true, piso: 0.86, alvo: '.ep-rec' },
+    hist: d.cliente ? { id: epId(), tipo: 'Recibo', cliente: d.cliente, valor: d.sinal, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
+  });
+}
+
+// ═══ PUXAR OS DADOS QUE O COLETOR RECOLHEU DA PASTA DO CLIENTE ═══
+// O coletar-docs.js lê os PDFs do cliente (CNH, contrato social, conta de luz)
+// e escreve um _dados.json na pasta dele. Aqui esse arquivo vira campo
+// preenchido — é o que evita redigitar CNPJ olhando pro PDF ao lado.
+//
+// Só preenche campo VAZIO. O que o consultor já digitou na tela ganha do
+// arquivo: importar não pode desfazer, por baixo, uma correção feita à mão.
+const EP_IMPORT_MAPA = {
+  cliente: 'el-cliente', cidade: 'el-cidade',
+  doc: 'orc-cli-doc', end: 'orc-cli-end', cep: 'orc-cli-cep',
+  tel: 'orc-cli-tel', email: 'orc-cli-email',
+  base: 'orc-valor',
+  contratante: 'ctr-contratante', contratanteDoc: 'ctr-contratante-doc',
+  contratanteEnd: 'ctr-contratante-end', rep: 'ctr-rep', repDoc: 'ctr-rep-doc',
+  local: 'ctr-local', num: 'rec-num',
+};
+function epImportarDados(input) {
+  const arq = input.files && input.files[0];
+  const msg = document.getElementById('ep-import-msg');
+  input.value = '';   // permite reimportar o mesmo arquivo depois de editar
+  if (!arq || !msg) return;
+  const leitor = new FileReader();
+  leitor.onload = () => {
+    let d;
+    try { d = JSON.parse(leitor.result); }
+    catch (e) { msg.innerHTML = '❌ Esse arquivo não é um _dados.json válido.'; return; }
+    const postos = [], pulados = [];
+    Object.entries(EP_IMPORT_MAPA).forEach(([campo, id]) => {
+      const el = document.getElementById(id);
+      const v = d[campo];
+      if (!el || v == null || v === '') return;
+      if (String(el.value || '').trim()) { pulados.push(campo); return; }
+      el.value = v;
+      if (id === 'orc-valor') el.dataset.tocado = '1';   // veio de fora: não deixa o Simulador sobrescrever
+      postos.push(campo);
+    });
+    orcCalc(); recCalc(); recBanner(); ctrResumo();
+    // Só cobra o que o coletor TENTOU recolher (chave existe e veio vazia).
+    // Campo que ele nem procura — telefone, e-mail — não é "faltando".
+    const vazios = Object.keys(EP_IMPORT_MAPA).filter(c => (c in d) && !d[c] && d[c] !== 0);
+    msg.innerHTML = `✅ <b>${postos.length}</b> campo(s) preenchido(s)` +
+      (pulados.length ? ` · ${pulados.length} já tinham valor e foram mantidos` : '') +
+      (vazios.length ? `<br>O coletor deixou vazio (documentos não confirmam): <b>${orcEsc(vazios.join(', '))}</b>` : '');
+  };
+  leitor.readAsText(arq, 'utf-8');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PRÉVIA — o documento na tela antes de ir pro papel
+//
+// Recibo e contrato saíam direto pro diálogo de impressão: pra trocar uma
+// vírgula era imprimir, ler no PDF, voltar, corrigir e imprimir de novo. Agora
+// o fluxo é campos → prévia → (Editar volta pros campos | Imprimir | Baixar).
+//
+// A prévia é SÓ TELA. Quem vai pro papel continua sendo o host de impressão,
+// montado na hora a partir do mesmo HTML — por isso a saída passa pelos mesmos
+// orc1Imprimir/epPrint de antes, e o zoom de "caber em 1 folha" é calculado lá,
+// nunca aqui (a folha da prévia é medida em 210mm, o zoom é do papel).
+// ═══════════════════════════════════════════════════════════════════════════
+let epPrevEstado = null;   // { html, arquivo, opts } — opts null = documento que pagina
+
+function epPreview(o) {
+  epPrevEstado = o;
+  const bg = document.getElementById('ep-preview');
+  const doc = document.getElementById('ep-prev-doc');
+  if (!bg || !doc) return;
+  document.getElementById('ep-prev-tit').textContent = o.titulo || 'Prévia';
+  doc.innerHTML = o.html;
+  // Zoom é coisa do papel: se um veio grudado no HTML, a prévia mostraria a
+  // folha encolhida e o consultor leria uma letra que não é a que sai.
+  doc.querySelectorAll('[style*="zoom"]').forEach(el => { el.style.zoom = ''; });
+  if (epPrevAvisoT) { clearTimeout(epPrevAvisoT); epPrevAvisoT = null; }
+  const nota = document.getElementById('ep-prev-nota');
+  nota.classList.remove('destaque');
+  delete nota.dataset.orig;
+  nota.innerHTML =
+    `<b>Editar</b> volta pros campos. <b>Imprimir</b> abre o diálogo do navegador; ` +
+    `para <b>baixar</b>, escolha "Salvar como PDF" no destino — o arquivo já sai nomeado ` +
+    `<b>${orcEsc(o.arquivo)}.pdf</b>.`;
+  bg.style.display = 'flex';
+  epPrevEscala();
+}
+
+// A folha tem 210mm fixos: em tela estreita ela encolhe inteira, sem refluir.
+// Refluir faria a prévia mostrar uma quebra de linha que o papel não vai ter.
+function epPrevEscala() {
+  const palco = document.getElementById('ep-prev-palco');
+  const scroll = document.querySelector('.ep-prev-scroll');
+  const folha = document.getElementById('ep-prev-doc');
+  if (!palco || !scroll || !folha || document.getElementById('ep-preview').style.display !== 'flex') return;
+  palco.style.transform = '';
+  palco.style.height = '';
+  const disp = scroll.clientWidth - 24;
+  const larg = folha.getBoundingClientRect().width;
+  if (!(larg > 0)) return;
+  const k = Math.min(1, disp / larg);
+  if (k < 1) {
+    palco.style.transform = `scale(${k.toFixed(4)})`;
+    // A altura não encolhe junto com o transform: sem isto sobra um vazio
+    // do tamanho do documento inteiro embaixo da folha.
+    palco.style.height = Math.ceil(folha.scrollHeight * k) + 'px';
+  }
+}
+window.addEventListener('resize', epPrevEscala);
+
+function epPrevFechar() {
+  const bg = document.getElementById('ep-preview');
+  if (bg) bg.style.display = 'none';
+}
+
+// Saída de verdade. O histórico é gravado AQUI, e não ao gerar a prévia: abrir
+// a prévia cinco vezes pra conferir não pode virar cinco linhas no histórico.
+function epPrevSaida() {
+  const s = epPrevEstado;
+  if (!s) return;
+  if (s.hist) { epHistOrcSave(s.hist); s.hist = null; }
+  if (s.opts) orc1Imprimir(s.html, s.arquivo, s.opts);
+  else { const host = document.getElementById('eletro-print'); host.innerHTML = s.html; epPrint(host, s.arquivo); }
+}
+function epPrevImprimir() { epPrevSaida(); }
+// Baixar é o MESMO diálogo — o navegador não tem outro caminho pra PDF vetorial,
+// e gerar por biblioteca rasterizaria a folha (a letra borrada que acabou de sair
+// daqui). Então o botão não mente: ele diz onde clicar pra virar arquivo.
+function epPrevBaixar() {
+  epPrevAviso('No diálogo que abrir, escolha <b>"Salvar como PDF"</b> no destino da impressão — é assim que ele vira arquivo.');
+  epPrevSaida();
+}
+// Aviso na própria barra da prévia. O toast do app é elemento estático no body:
+// embaixo de um overlay fixo ele simplesmente não aparece.
+let epPrevAvisoT = null;
+function epPrevAviso(html) {
+  const n = document.getElementById('ep-prev-nota');
+  if (!n) return;
+  if (epPrevAvisoT) clearTimeout(epPrevAvisoT);
+  if (!n.dataset.orig) n.dataset.orig = n.innerHTML;
+  n.innerHTML = html;
+  n.classList.add('destaque');
+  epPrevAvisoT = setTimeout(() => {
+    n.classList.remove('destaque');
+    if (n.dataset.orig) { n.innerHTML = n.dataset.orig; delete n.dataset.orig; }
+  }, 6000);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONTRATO — o papel que fecha o que o orçamento propôs
+//
+// Duas diferenças de fundo em relação ao orçamento, e elas mandam no código:
+//  1) o orçamento é uma VITRINE (à vista, cartão e financiamento aparecem
+//     juntos); o contrato tem UMA condição, a que foi combinada. O campo abre
+//     sugerido a partir do que está marcado lá e é editável — o texto final é
+//     do consultor, não da tela.
+//  2) a condição corre sobre o SALDO (total − sinal já pago no recibo). Repetir
+//     a parcela cheia do orçamento faria o contrato cobrar duas vezes a entrada
+//     que o cliente já pagou.
+// O escopo não é escrito à mão: sai do EP_KIT marcado no Orçamento — item que
+// não entrou aparece na lista de EXCLUSÕES, que é onde a briga costuma nascer.
+// ═══════════════════════════════════════════════════════════════════════════
+let ctrPagTocado = false;
+
+// Sinal já pago = o valor do recibo. Zero significa contrato sem sinal, e o
+// documento diz isso em vez de fingir um abatimento que não houve.
+function ctrSinalPago() { return orcNum(orcVal('rec-valor')); }
+
+// Sugestão de condição, montada sobre o SALDO a partir do que está marcado no
+// card de pagamento do Orçamento. É texto: o consultor ajusta antes de imprimir.
+function ctrPagamentoSugestao(saldo) {
+  const on = id => !!document.getElementById(id)?.checked;
+  const partes = [];
+  if (on('orc-pg-ck-avista')) {
+    const el = document.getElementById('orc-pg-vista-valor');
+    const v = el && el.dataset.tocado === '1' ? orcNum(el.value) : saldo;
+    partes.push(`à vista, ${ORC_MONEY(v)}`);
+  }
+  if (on('orc-pg-ck-entrada')) {
+    const e = orcEntradaCalc(saldo);
+    partes.push(e.entrada > 0
+      ? `entrada de ${ORC_MONEY(e.entrada)} e ${e.parcelas}x de ${ORC_MONEY(e.parcela)} no cartão`
+      : `${e.parcelas}x de ${ORC_MONEY(e.parcela)} no cartão`);
+  }
+  if (on('orc-pg-ck-fin')) {
+    const f = orcFinCalc(saldo);
+    partes.push(`financiamento bancário${f.entrada > 0 ? ` com entrada de ${ORC_MONEY(f.entrada)}` : ''} em ${f.parcelas}x${f.parcela > 0 ? ` de ${ORC_MONEY(f.parcela)}` : ''}, sujeito à análise de crédito`);
+  }
+  if (!partes.length) return `Saldo de ${ORC_MONEY(saldo)} — condição a combinar.`;
+  // Mais de uma marcada no orçamento? o contrato não escolhe por ninguém: lista
+  // as duas com "ou" e o consultor apaga a que não foi fechada.
+  return `Saldo de ${ORC_MONEY(saldo)}, a ser pago ${partes.join(' ou ')}.`;
+}
+
+function ctrPagamentoReset() {
+  ctrPagTocado = false;
+  const el = document.getElementById('ctr-pagamento');
+  if (el) el.value = ctrPagamentoSugestao(Math.max(0, recBase() - ctrSinalPago()));
+  ctrResumo();
+}
+
+function ctrBanner() {
+  const el = document.getElementById('ctr-partes-banner');
+  if (!el) return;
+  const emp = epEmitGet();
+  const falta = [];
+  if (!orcVal('el-cliente')) falta.push('nome do cliente (Simulador)');
+  if (!(orcVal('ctr-contratante-doc') || orcVal('orc-cli-doc'))) falta.push('CPF/CNPJ do cliente (Orçamento)');
+  // Contratante com razão social própria é PJ: sem representante, ninguém assina.
+  if (orcVal('ctr-contratante') && !orcVal('ctr-rep')) falta.push('representante legal do contratante');
+  if (!emp.cnpj) falta.push('CNPJ da sua empresa (Orçamento → Sua empresa)');
+  if (!emp.razao) falta.push('razão social da sua empresa (Orçamento → Sua empresa)');
+  el.innerHTML = falta.length
+    ? `Falta pra qualificar as partes: <b>${orcEsc(falta.join(' · '))}</b>. Sem isso o contrato sai com linha em branco no lugar.`
+    : `<b>${orcEsc(orcVal('ctr-contratante') || orcVal('el-cliente'))}</b> e <b>${orcEsc(emp.razao || emp.nome)}</b> — partes qualificadas.`;
+}
+
+function ctrResumo() {
+  const total = recBase(), sinal = ctrSinalPago(), saldo = Math.max(0, total - sinal);
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('ctr-t-total', ORC_MONEY(total));
+  set('ctr-t-sinal', (sinal > 0 ? '- ' : '') + ORC_MONEY(sinal));
+  set('ctr-t-saldo', ORC_MONEY(saldo));
+  const pg = document.getElementById('ctr-pagamento');
+  if (pg && !ctrPagTocado) pg.value = ctrPagamentoSugestao(saldo);
+  ctrBanner();
+}
+
+function ctrInit() {
+  const d = document.getElementById('ctr-data'); if (d && !d.value) d.value = orcHojeISO();
+  const f = document.getElementById('ctr-foro');
+  if (f && !f.value.trim()) f.value = epEmitGet().cidade || '';
+  const pg = document.getElementById('ctr-pagamento');
+  if (pg && !pg.dataset.lig) { pg.dataset.lig = '1'; pg.addEventListener('input', () => { ctrPagTocado = true; }); }
+  ctrResumo();
+}
+
+function ctrDados() {
+  const t = eletroTextos();
+  const emp = epEmitGet();
+  const total = recBase(), sinal = ctrSinalPago();
+  const dISO = orcVal('ctr-data') || orcHojeISO();
+  const kit = orcLerItens().itens.map(i => i.desc + (i.variante ? ' ' + i.variante : ''));
+  const marcados = new Set(orcLerItens().itens.map(i => i.desc));
+  return {
+    num: orcVal('ctr-num'),
+    data: new Date(dISO + 'T00:00:00'),
+    // Quem NEGOCIOU (vai no cabeçalho, é o nome que o cliente reconhece) e quem
+    // ASSINA (a qualificação da parte). Em branco, os dois são a mesma pessoa.
+    cliente: t.cliente, cidade: t.cidade, equip: t.equip,
+    contratante: orcVal('ctr-contratante') || t.cliente,
+    contratanteDoc: orcVal('ctr-contratante-doc') || orcVal('orc-cli-doc'),
+    contratanteEnd: orcVal('ctr-contratante-end') || orcVal('orc-cli-end'),
+    rep: orcVal('ctr-rep'), repDoc: orcVal('ctr-rep-doc'),
+    qtd: orcEpQtdCarregadores(), plugs: Math.max(1, Math.round(elNum('el-plugs') || 1)),
+    doc: orcVal('orc-cli-doc'), end: orcVal('orc-cli-end'), cep: orcVal('orc-cli-cep'),
+    tel: orcVal('orc-cli-tel'), email: orcVal('orc-cli-email'),
+    local: orcVal('ctr-local') || [orcVal('orc-cli-end'), t.cidade].filter(Boolean).join(' — '),
+    empresa: emp,
+    total, sinal, saldo: Math.max(0, total - sinal),
+    pagamento: orcVal('ctr-pagamento') || ctrPagamentoSugestao(Math.max(0, total - sinal)),
+    prazoProjeto: Math.max(1, Math.round(orcNum(orcVal('ctr-prazo-projeto')) || 15)),
+    prazoObra: Math.max(1, Math.round(orcNum(orcVal('ctr-prazo-obra')) || 90)),
+    garantia: Math.max(1, Math.round(orcNum(orcVal('ctr-garantia')) || 24)),
+    multa: orcNum(orcVal('ctr-multa')),
+    juros: orcNum(orcVal('ctr-juros')),
+    foro: orcVal('ctr-foro') || emp.cidade,
+    extras: orcVal('ctr-extras'),
+    incluso: kit,
+    // O que NÃO foi marcado vira exclusão explícita. É a lista que evita o
+    // "mas eu achei que a cobertura estava junto" depois da obra começar.
+    fora: EP_KIT.filter(k => !marcados.has(k.nome)).map(k => k.nome),
+    vendedor: { nome: t.autor, contato: t.contato },
+  };
+}
+
+function ctrHTML(d) {
+  const e = orcEsc, money = ORC_MONEY;
+  const vazio = v => v ? e(v) : '<span class="ep-rec-vazio"></span>';
+  const cl = (n, titulo) => `<div class="ep-ctr-cl">Cláusula ${n}ª — ${e(titulo)}</div>`;
+  const li = (n, txt) => `<p class="ep-ctr-li">${n} ${txt}</p>`;
+  const pageFoot = (n, tot) => `<div class="ep-pagefoot"><span>Contrato de Fornecimento e Instalação — Eletroposto${d.cliente ? ' · ' + e(d.cliente) : ''}</span><span>Página ${n} de ${tot}</span></div>`;
+  const dataTxt = d.data.toLocaleDateString('pt-BR');
+  const endCli = [d.contratanteEnd, d.cep, d.cidade].filter(Boolean).join(', ');
+  const endEmp = [d.empresa.end, d.empresa.cidade].filter(Boolean).join(', ');
+
+  return `<div class="ep-doc">
+    <div class="ep-page">
+      ${epTopoHTML('Contrato', dataTxt,
+        [['Contrato nº', d.num ? e(d.num) : ''],
+         ['Contratante', d.contratante ? e(d.contratante) : ''],
+         ['Local', d.cidade ? e(d.cidade) : '']], '')}
+
+      <div class="ep-ctr-tit">Contrato de Fornecimento e Instalação<br>de Estação de Recarga de Veículos Elétricos</div>
+      <div class="ep-ctr-sub">Regime chave na mão</div>
+
+      <p class="ep-ctr-p"><b>CONTRATADA:</b> ${vazio(d.empresa.razao || d.empresa.nome)}${d.empresa.fantasia ? `, nome fantasia ${e(d.empresa.fantasia)}` : ''}, inscrita no CNPJ sob o nº ${vazio(d.empresa.cnpj)}${endEmp ? ', com sede em ' + e(endEmp) : ''}${d.empresa.tel ? ', telefone ' + e(d.empresa.tel) : ''}${d.empresa.email ? ', e-mail ' + e(d.empresa.email) : ''}.</p>
+      <p class="ep-ctr-p"><b>CONTRATANTE:</b> ${vazio(d.contratante)}, inscrito(a) no CPF/CNPJ sob o nº ${vazio(d.contratanteDoc)}${endCli ? ', com endereço em ' + e(endCli) : ''}${d.tel ? ', telefone ' + e(d.tel) : ''}${d.email ? ', e-mail ' + e(d.email) : ''}${d.rep ? `, neste ato representado(a) por <b>${e(d.rep)}</b>${d.repDoc ? ', CPF nº ' + e(d.repDoc) : ''}` : ''}.</p>
+      <p class="ep-ctr-p">As partes acima têm entre si justo e contratado o presente instrumento, que se regerá pelas cláusulas seguintes.</p>
+
+      ${cl(1, 'Do objeto')}
+      ${li('1.1', `Fornecimento e instalação, em regime <b>chave na mão</b>, de estação de recarga de veículos elétricos composta por <b>${d.qtd} carregador(es) ${e(d.equip || 'de corrente contínua')}</b>, com ${d.plugs} ponto(s) de carregamento, a ser implantada em <b>${vazio(d.local)}</b>.`)}
+      ${li('1.2', 'O escopo compreende o projeto de engenharia, o fornecimento dos equipamentos, a instalação, a homologação junto à concessionária de energia e o suporte, conforme a Cláusula 2ª.')}
+
+      ${cl(2, 'Do escopo')}
+      ${li('2.1', 'Estão incluídos no preço os itens a seguir; os demais, expressamente excluídos, correm por conta do CONTRATANTE.')}
+      <div class="ep-ctr-esc">
+        <div><h4>Incluído</h4><ul>${(d.incluso.length ? d.incluso : ['A definir no orçamento']).map(i => `<li>${e(i)}</li>`).join('')}</ul></div>
+        <div class="fora"><h4>Não incluído</h4><ul>${(d.fora.length ? d.fora : ['—']).map(i => `<li>${e(i)}</li>`).join('')}<li>Obras de reforço da rede exigidas pela concessionária</li><li>Taxas, alvarás e licenças municipais</li><li>Fornecimento de energia e demanda contratada</li></ul></div>
+      </div>
+
+      ${cl(3, 'Do preço e da forma de pagamento')}
+      ${li('3.1', `O preço total dos serviços e equipamentos é de <b>${money(d.total)}</b> (${e(recExtenso(d.total))}).`)}
+      ${d.sinal > 0
+        ? li('3.2', `O CONTRATANTE já pagou, a título de <b>sinal e princípio de pagamento</b>, a quantia de <b>${money(d.sinal)}</b> (${e(recExtenso(d.sinal))}), destinada ao projeto elétrico, a qual é <b>integralmente abatida</b> do preço, remanescendo o saldo de <b>${money(d.saldo)}</b>.`)
+        : li('3.2', 'Não houve pagamento de sinal antecipado, correndo o preço integralmente na forma do item seguinte.')}
+      ${li('3.3', `Forma de pagamento acordada: ${e(d.pagamento)}`)}
+      ${li('3.4', `O atraso no pagamento de qualquer parcela sujeita o CONTRATANTE a multa de ${e(String(d.multa).replace('.', ','))}% e juros de ${e(String(d.juros).replace('.', ','))}% ao mês, suspendendo os prazos da Cláusula 4ª enquanto perdurar.`)}
+      ${pageFoot(1, 3)}
+    </div>
+
+    <div class="ep-page">
+      ${cl(4, 'Dos prazos')}
+      ${li('4.1', `O projeto elétrico e o respectivo protocolo junto à concessionária serão apresentados em até <b>${d.prazoProjeto} dias úteis</b> contados da assinatura deste e da entrega, pelo CONTRATANTE, dos documentos da Cláusula 6ª.`)}
+      ${li('4.2', `A obra será entregue em até <b>${d.prazoObra} dias corridos</b> contados da <b>aprovação do projeto pela concessionária</b> — e não da assinatura, por não estar o prazo de análise sob governo das partes.`)}
+      ${li('4.3', 'Suspendem os prazos, pelo tempo que durarem: exigências ou atrasos da concessionária, falta de energia no local, embargos, indisponibilidade de acesso à obra e atrasos de pagamento.')}
+
+      ${cl(5, 'Das obrigações da CONTRATADA')}
+      ${li('5.1', 'Elaborar o projeto de engenharia, recolher a ART e protocolar a solicitação junto à concessionária.')}
+      ${li('5.2', 'Fornecer os equipamentos e executar a instalação com mão de obra especializada, atendendo às normas técnicas aplicáveis.')}
+      ${li('5.3', 'Acompanhar a homologação e entregar a estação em funcionamento, com orientação de uso ao CONTRATANTE.')}
+
+      ${cl(6, 'Das obrigações do CONTRATANTE')}
+      ${li('6.1', 'Disponibilizar o local da instalação livre e desimpedido, com acesso para equipe, veículos e equipamentos.')}
+      ${li('6.2', 'Fornecer a documentação necessária ao projeto e à homologação (titularidade do imóvel ou autorização do proprietário, conta de energia e dados cadastrais) e responder por alvarás e licenças municipais.')}
+      ${li('6.3', 'Contratar junto à concessionária a demanda de energia compatível com a potência instalada e arcar com o consumo.')}
+      ${li('6.4', 'Efetuar os pagamentos nas datas acordadas.')}
+
+      ${cl(7, 'Da garantia')}
+      ${li('7.1', `Os equipamentos e serviços têm garantia de <b>${d.garantia} meses</b> contados da emissão da nota fiscal, cobrindo defeitos de fabricação e de execução.`)}
+      ${li('7.2', 'A garantia não cobre danos por uso indevido, vandalismo, descargas atmosféricas, oscilação da rede, intervenção de terceiros não autorizados ou falta de manutenção.')}
+
+      ${cl(8, 'Dos tributos e da nota fiscal')}
+      ${li('8.1', 'Os tributos incidentes já estão computados no preço. Eventual DIFAL em operação interestadual, quando aplicável, é de responsabilidade do CONTRATANTE.')}
+      ${li('8.2', 'A CONTRATADA emitirá a nota fiscal correspondente na forma da legislação.')}
+      ${pageFoot(2, 3)}
+    </div>
+
+    <div class="ep-page">
+      ${cl(9, 'Da rescisão')}
+      ${li('9.1', 'O descumprimento de qualquer cláusula autoriza a parte prejudicada a rescindir este contrato, mediante notificação com prazo de 10 dias para correção.')}
+      ${li('9.2', 'Rescindido por desistência do CONTRATANTE, ser-lhe-ão cobrados os custos já incorridos e o material já adquirido, sem prejuízo da retenção do sinal na forma do recibo de sinal firmado.')}
+
+      ${cl(10, 'Das disposições gerais')}
+      ${li('10.1', 'Este contrato substitui entendimentos anteriores sobre o objeto e só pode ser alterado por aditivo escrito assinado pelas partes.')}
+      ${li('10.2', 'A tolerância quanto ao descumprimento de qualquer cláusula não implica novação nem renúncia de direito.')}
+      ${d.extras ? li('10.3', e(d.extras)) : ''}
+
+      ${cl(11, 'Do foro')}
+      ${li('11.1', `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b> para dirimir as questões oriundas deste contrato, com renúncia a qualquer outro.`)}
+
+      <p class="ep-ctr-p" style="margin-top:14px">E por estarem justas e contratadas, as partes assinam o presente em duas vias de igual teor${d.cidade ? `, em ${e(d.cidade)}` : ''}, ${e(dataTxt)}.</p>
+
+      <div class="ep-ctr-assin">
+        <div class="a"><b>${vazio(d.empresa.razao || d.empresa.nome)}</b>CONTRATADA</div>
+        <div class="a"><b>${vazio(d.contratante)}</b>${d.rep ? e(d.rep) + '<br>' : ''}CONTRATANTE</div>
+      </div>
+      <div class="ep-ctr-test"><b>Testemunhas</b>
+        <div class="l">
+          <div>Nome:<br>CPF:</div>
+          <div>Nome:<br>CPF:</div>
+        </div>
+      </div>
+      ${pageFoot(3, 3)}
+    </div>
+  </div>`;
+}
+
+function ctrImprimir() {
+  const d = ctrDados();
+  if (!(d.total > 0)) { alert('Defina o "Valor do projeto" no Orçamento antes de gerar o contrato.'); return; }
+  const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
+  // Contrato PAGINA — sem opts, nada de encolher pra caber numa folha.
+  epPreview({
+    html: ctrHTML(d),
+    arquivo: ['Contrato', limpa(d.cliente) || 'Cliente', d.num ? 'N' + limpa(d.num) : ''].filter(Boolean).join('_'),
+    titulo: 'Contrato' + (d.cliente ? ' — ' + d.cliente : ''),
+    opts: null,
+    hist: d.cliente ? { id: epId(), tipo: 'Contrato', cliente: d.cliente, valor: d.total, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
+  });
+}
+
 // ===== Histórico de orçamentos (neste dispositivo, localStorage) =====
 const ORC_HIST_KEY = 'orc_hist_v1';
 const epId = () => Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
@@ -7766,6 +8627,20 @@ function orcSnapTake() {
     vistaTocado: document.getElementById('orc-pg-vista-valor')?.dataset.tocado === '1',
     entValor: v('orc-ent-valor'), entParc: v('orc-ent-parc'), entJuros: v('orc-ent-juros'),
     finValor: v('orc-fin-valor'), finParc: v('orc-fin-parc'), finParcela: v('orc-fin-parcela'),
+    // Recibo de sinal. Vai junto porque quem reabre um orçamento do histórico
+    // geralmente quer o mesmo recibo de novo (2ª via) — e o valor do sinal tem
+    // que voltar exatamente o que foi assinado, não um % recalculado hoje.
+    recNum: v('rec-num'), recData: v('rec-data'), recPct: v('rec-pct'),
+    recValor: v('rec-valor'), recValorTocado: document.getElementById('rec-valor')?.dataset.tocado === '1',
+    recForma: v('rec-forma'), recFim: v('rec-fim'), recGatilho: v('rec-gatilho'), recDesist: v('rec-desist'), recObs: v('rec-obs'),
+    // Contrato. Mesma razão do recibo: reabrir pra tirar 2ª via tem que devolver
+    // o texto assinado, não uma sugestão recalculada com os números de hoje.
+    ctrNum: v('ctr-num'), ctrData: v('ctr-data'), ctrLocal: v('ctr-local'),
+    ctrPrazoProjeto: v('ctr-prazo-projeto'), ctrPrazoObra: v('ctr-prazo-obra'), ctrGarantia: v('ctr-garantia'),
+    ctrPagamento: v('ctr-pagamento'), ctrPagTocado: ctrPagTocado,
+    ctrForo: v('ctr-foro'), ctrExtras: v('ctr-extras'), ctrMulta: v('ctr-multa'), ctrJuros: v('ctr-juros'),
+    ctrContratante: v('ctr-contratante'), ctrContratanteDoc: v('ctr-contratante-doc'),
+    ctrContratanteEnd: v('ctr-contratante-end'), ctrRep: v('ctr-rep'), ctrRepDoc: v('ctr-rep-doc'),
   };
 }
 function orcSnapApply(s) {
@@ -7832,8 +8707,27 @@ function orcSnapApply(s) {
       else { delete valorEl.dataset.tocado; orcValorSync(); }
     }
   }
+  // Recibo de sinal. Orçamento salvo antes deste campo não traz nada: o set()
+  // ignora null e o recibo fica no padrão (5% do total), que é como ele nasceria.
+  set('rec-num', s.recNum); set('rec-data', s.recData); set('rec-pct', s.recPct);
+  set('rec-forma', s.recForma); set('rec-fim', s.recFim); set('rec-gatilho', s.recGatilho); set('rec-desist', s.recDesist); set('rec-obs', s.recObs);
+  const recEl = document.getElementById('rec-valor');
+  if (recEl) {
+    if (s.recValorTocado) { recEl.dataset.tocado = '1'; if (s.recValor != null) recEl.value = s.recValor; }
+    else delete recEl.dataset.tocado;   // volta a acompanhar o percentual
+  }
+  // Contrato. Snapshot antigo não tem nada disso: o set() ignora null e os
+  // campos ficam no padrão, que é como nasceriam.
+  set('ctr-num', s.ctrNum); set('ctr-data', s.ctrData); set('ctr-local', s.ctrLocal);
+  set('ctr-prazo-projeto', s.ctrPrazoProjeto); set('ctr-prazo-obra', s.ctrPrazoObra); set('ctr-garantia', s.ctrGarantia);
+  set('ctr-foro', s.ctrForo); set('ctr-extras', s.ctrExtras); set('ctr-multa', s.ctrMulta); set('ctr-juros', s.ctrJuros);
+  set('ctr-contratante', s.ctrContratante); set('ctr-contratante-doc', s.ctrContratanteDoc);
+  set('ctr-contratante-end', s.ctrContratanteEnd); set('ctr-rep', s.ctrRep); set('ctr-rep-doc', s.ctrRepDoc);
+  ctrPagTocado = !!s.ctrPagTocado;
+  if (ctrPagTocado && s.ctrPagamento != null) set('ctr-pagamento', s.ctrPagamento);
   orcKitEquipSync(); orcValorBanner();
   orcPgToggle(); orcCalc();
+  ctrResumo();
 }
 
 const calcFmt = n => 'R$ ' + (n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
