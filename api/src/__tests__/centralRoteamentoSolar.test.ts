@@ -111,6 +111,21 @@ describe('quem está com o consultor errado', () => {
     fichas = [ficha({ vendedor_nome: 'Nilce', observacao: obs('R$ 400 a R$ 800') })];
     expect(metrica(await card(), 'Fora da regra').valor).toBe(0);
   });
+
+  // A observação existe em DOIS formatos, e o de linha única quase custou uma
+  // acusação errada: sem cortar no "·", o "30" de "30 dias" entrava na conta e
+  // "700 a 900" virava 365 — lead grande, com o consultor certo, acusado de
+  // conta pequena. Achado ao consultar o banco, não pelo teste.
+  it('observação de linha única não deixa o resto do texto entrar na conta', async () => {
+    const linhaUnica = 'Consumo: 700 a 900 · Telhado: Cimento · Padrão: Bi · Urgencia: 30 dias';
+    fichas = [
+      ficha({ id: 1, vendedor_nome: 'Diego', observacao: linhaUnica }),   // grande com o time: certo
+      ficha({ id: 2, vendedor_nome: 'Nilce', observacao: linhaUnica }),   // grande com a Nilce: errado
+    ];
+    const c = await card();
+    expect(metrica(c, 'Fora da regra').valor).toBe(1);
+    expect(c.alerta).toContain('#2');
+  });
 });
 
 describe('a meta de conversão', () => {

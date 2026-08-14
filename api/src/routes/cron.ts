@@ -52,6 +52,7 @@ import { syncStripePlans } from '../services/stripeSyncService';
 import { runWinback } from '../services/winbackService';
 import { runAuxiliarTrafego } from '../services/agenda/auxiliarTrafegoService';
 import { runCapiLeads } from '../services/agenda/capiLeadsService';
+import { runCapiLeadQualificado } from '../services/agenda/capiLeadQualificadoService';
 import { tickOrdens } from '../services/metaOrdensService';
 import { runInventoryLowStockAlert } from '../services/inventoryAlertService';
 import { logger } from '../utils/logger';
@@ -833,6 +834,20 @@ router.get('/capi-leads', async (req: Request, res: Response) => {
   }
 });
 
+// Perfil do cliente bom: solar acima de 700 kWh que chegou a orçar → Meta.
+// O sinal de contrato fechado é certo e raro (5 em 90 dias); este é o do meio do
+// funil, que existe em volume. ?dry=1 lista quem seria reportado, sem enviar.
+router.get('/capi-lead-qualificado', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    res.json({ ok: true, dry, ...(await runCapiLeadQualificado({ dry })) });
+  } catch (err: any) {
+    logger.error('cron', 'capi-lead-qualificado falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
 // Disciplina das ordens de tráfego: expira as vencidas (reconferindo no Meta se
 // a condição ainda valia = perdida, ou já não vale = vencida) e abre as novas.
 // Roda de hora em hora no master. Manual: /cron/ordens-trafego-tick
@@ -936,6 +951,7 @@ router.get('/master', async (req: Request, res: Response) => {
     // ['auxiliar-trafego',            () => runAuxiliarTrafego()],    // [COPILOTO-OFF 23/07] Thiago pediu pra desligar — não quer mais os avisos horários. Rota manual /cron/auxiliar-trafego segue existindo (só dispara se chamada à mão). Reativar = descomentar.
     ['ordens-trafego-tick',         () => tickOrdens()],           // disciplina das ordens: expira vencidas (reconfere Meta) + abre novas
     ['capi-leads',                  () => runCapiLeads()],         // loop: fechamento (planilha) → lead → Meta (conversão de leads, otimiza perfil)
+    ['capi-lead-qualificado',       () => runCapiLeadQualificado()], // solar >700 kWh que orçou → Meta aprende o perfil do cliente bom (CAPI_QUALIFICADO_OFF desliga)
     ['zapi-health',                 () => runZapiHealthCheck()],   // monitor: linha IO caída → 1 email pro Thiago (2 checagens seguidas). Toda a mensageria depende dela.
     ['alerta-lead-quente',          () => runAlertaLeadQuenteSemProposta()], // DARK (ALERTA_LEAD_QUENTE_ENABLED): lead quente sem proposta +48h → avisa o consultor dono 1×
     // ['grupo-eletroposto-diario',    () => runGrupoEletropostoDiario()], // [PAUTA-GRUPO-OFF 08/08] Thiago mandou cancelar: nem a publicação no grupo nem o aviso de fila vazia pra equipe. No-op também dentro do módulo. Não religar.

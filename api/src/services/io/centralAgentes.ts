@@ -100,7 +100,13 @@ export const ROTEAMENTO_REGRA_INICIO = '2026-08-14T14:30:00.000Z';
  * pra dizer que a atribuição está errada.
  */
 function consumoDaObservacao(observacao: string | null): number | null {
-  const bruto = (/Consumo:\s*([^\n]+)/i.exec(String(observacao || '')) ?? [])[1]?.trim();
+  // A observação vem em DOIS formatos: um campo por linha ("Consumo: 700 a 900")
+  // e tudo numa linha só separado por "·" ("Consumo: 700 a 900 · Telhado: Cimento
+  // · Urgencia: 30 dias"). Cortar só na quebra de linha engolia o resto da linha
+  // no segundo formato, e aí o "30" de "30 dias" entrava na conta: "700 a 900"
+  // virava (700+30)/2 = 365 e a auditoria acusava de conta pequena um lead de
+  // 800 kWh que estava com o consultor CERTO.
+  const bruto = (/Consumo:\s*([^\n·]+)/i.exec(String(observacao || '')) ?? [])[1]?.trim();
   if (!bruto) return null;
   const valor = consumoTipico(bruto, /r\$/i.test(bruto) ? 'reais' : 'kwh');
   return valor > 0 ? valor : null;
