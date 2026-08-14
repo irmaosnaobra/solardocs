@@ -41,15 +41,15 @@ export type VendaAviso = {
   historico?: HistoricoCliente | null;
 };
 
-// Quem já comprou antes com este e-mail. Três estados, porque os três pedem
-// coisas diferentes do dono: 'novo' é aquisição, 'assinante' é cobrança
-// dobrada em formação e 'recorrente' é uma reativação (vitória, não problema).
-// RECORRENTE é a palavra do Thiago pra quem já comprou, saiu e voltou — não
-// confundir com a cobrança mensal da assinatura, que é outro assunto.
+// DUAS opções, decisão do Thiago em 14/08: ou o e-mail nunca comprou (VENDA),
+// ou já comprou (RECORRENTE). Se a assinatura antiga ainda está de pé não muda
+// o tipo — vira uma observação dentro da própria linha, porque quem paga duas
+// vezes abre chargeback e isso não pode sumir do aviso.
 export type HistoricoCliente = {
-  tipo: 'novo' | 'assinante' | 'recorrente';
+  tipo: 'novo' | 'recorrente';
   primeiraCompra: string | null;   // ISO da compra mais antiga deste e-mail
   comprasAnteriores: number;
+  assinaturaAtiva: boolean;        // a anterior continua cobrando?
 };
 
 const brl = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
@@ -82,14 +82,10 @@ export function tempoDeCasa(iso: string | null): string {
 //
 // A prévia da notificação do WhatsApp mostra só a PRIMEIRA LINHA — se o sinal
 // morasse no meio do texto, o Thiago teria que abrir a conversa pra saber se a
-// venda foi aquisição ou recompra de quem já paga. Por isso o emoji manda no
-// cabeçalho, e se repete na linha *Cliente* pra quem já está lendo por dentro.
-//
-// Os três são visualmente distintos de longe (novo / risco / repetição) —
-// dois emojis parecidos aqui valeriam o mesmo que nenhum.
+// venda foi aquisição ou recompra. Por isso o emoji manda no cabeçalho, e se
+// repete na linha *Cliente* pra quem já está lendo por dentro.
 const EMOJI: Record<HistoricoCliente['tipo'], string> = {
   novo:       '💰',
-  assinante:  '⚠️',
   recorrente: '🔄',
 };
 
@@ -97,7 +93,6 @@ const EMOJI: Record<HistoricoCliente['tipo'], string> = {
 // abrindo a linha. Curto de propósito — a prévia da notificação corta o resto.
 const TITULO: Record<HistoricoCliente['tipo'], string> = {
   novo:       '*💰VENDA SolarDoc*',
-  assinante:  '*⚠️ASSINANTE SolarDoc*',
   recorrente: '*🔄RECORRENTE SolarDoc*',
 };
 
@@ -114,17 +109,11 @@ function linhaCliente(h: HistoricoCliente | null | undefined): string[] {
   const tempo = tempoDeCasa(h.primeiraCompra);
   const dia = h.primeiraCompra ? dataBR(h.primeiraCompra) : '';
   const nEsima = `${h.comprasAnteriores + 1}ª compra neste e-mail`;
-
-  if (h.tipo === 'assinante') {
-    return [
-      `${EMOJI.assinante} *Cliente:* JÁ ASSINA${tempo ? ` ${tempo}` : ''}${dia ? ` (desde ${dia})` : ''} — ${nEsima}`,
-      '🚨 *ATENÇÃO:* a assinatura anterior continua ATIVA — pode virar cobrança dobrada',
-    ];
-  }
-  const quando = dia
-    ? `já tinha comprado em ${dia}${tempo ? ` (${tempo})` : ''} e cancelou`
-    : 'já tinha comprado antes e cancelou';
-  return [`${EMOJI.recorrente} *Cliente:* RECORRENTE — ${quando} · ${nEsima}`];
+  const desde = dia ? `desde ${dia}${tempo ? ` (${tempo})` : ''}` : 'já comprou antes';
+  // Uma linha só. A assinatura antiga viva vira um trecho dela — não um tipo
+  // novo: é o sinal de cobrança dobrada, e some junto se sair daqui.
+  const anterior = h.assinaturaAtiva ? ' · a ANTERIOR ainda está ativa' : '';
+  return [`${EMOJI.recorrente} *Cliente:* RECORRENTE — ${desde} · ${nEsima}${anterior}`];
 }
 
 export function textoAvisoVenda(v: VendaAviso): string {
@@ -196,15 +185,17 @@ export async function historicoDoCliente(args: {
     r.checkout_session_id !== args.checkoutSessionIdAtual
     && !(args.subscriptionIdAtual && r.subscription_id === args.subscriptionIdAtual));
 
-  if (!anteriores.length) return { tipo: 'novo', primeiraCompra: null, comprasAnteriores: 0 };
+  if (!anteriores.length) {
+    return { tipo: 'novo', primeiraCompra: null, comprasAnteriores: 0, assinaturaAtiva: false };
+  }
 
   const quando = (r: Record<string, any>) => (r.card_passed_at || r.created_at) as string | null;
   const datas = anteriores.map(quando).filter((d): d is string => !!d).sort();
 
   // DA MAIS NOVA PRA MAIS VELHA antes de cortar em 3: o Postgres devolve sem
   // ordem, e quem tem 4 assinaturas antigas (já existe um caso, 3 subs no mesmo
-  // e-mail) poderia ter justo a VIVA fora do corte — e o aviso diria "voltou"
-  // exatamente no comprador repetido que a linha de ATENÇÃO existe pra pegar.
+  // e-mail) poderia ter justo a VIVA fora do corte — e o aviso deixaria de
+  // avisar da cobrança dobrada exatamente no comprador mais repetido.
   let viva: boolean | null = null;
   const subs = [...new Set(
     [...anteriores]
@@ -222,9 +213,10 @@ export async function historicoDoCliente(args: {
   if (viva === null) viva = anteriores.some((r) => STATUS_VIVO.has(String(r.status)));
 
   return {
-    tipo: viva ? 'assinante' : 'recorrente',
+    tipo: 'recorrente',
     primeiraCompra: datas[0] ?? null,
     comprasAnteriores: anteriores.length,
+    assinaturaAtiva: viva,
   };
 }
 

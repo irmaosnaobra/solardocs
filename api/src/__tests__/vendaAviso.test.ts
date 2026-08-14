@@ -124,11 +124,12 @@ describe('aviso de venda no WhatsApp do dono', () => {
   });
 });
 
-// ── Cliente novo x quem já assina ───────────────────────────────────────────
+// ── VENDA x RECORRENTE ──────────────────────────────────────────────────────
 // Os dois avisos que o Thiago mostrou em 14/08 eram idênticos, e um deles era
-// um cliente de 22/05 voltando pelo cupom de R$19. Sem esta distinção, uma
-// recompra de quem JÁ paga (o começo de uma cobrança dobrada) chega com a
-// mesma cara de uma aquisição — e as duas pedem ações opostas.
+// um cliente de 22/05 voltando pelo cupom de R$19. Duas opções, decisão dele:
+// ou o e-mail nunca comprou, ou já comprou. Se a assinatura anterior ainda está
+// ativa não vira um terceiro tipo — vira um trecho da linha, porque quem paga
+// duas vezes abre chargeback.
 describe('histórico do cliente', () => {
   const chamada = (over: Record<string, any> = {}) => ({
     email: 'quem@integrador.com',
@@ -140,36 +141,41 @@ describe('histórico do cliente', () => {
   it('sem compra anterior é cliente NOVO', async () => {
     sales.push({ email: 'quem@integrador.com', checkout_session_id: 'cs_agora', status: 'paid' });
     const h = await historicoDoCliente(chamada());
-    expect(h).toEqual({ tipo: 'novo', primeiraCompra: null, comprasAnteriores: 0 });
+    expect(h).toEqual({ tipo: 'novo', primeiraCompra: null, comprasAnteriores: 0, assinaturaAtiva: false });
     expect(textoAvisoVenda(venda({ historico: h }))).toContain('*Cliente:* NOVO');
   });
 
-  it('assinatura antiga VIVA na Stripe = duplicidade, com os meses de casa', async () => {
+  it('assinatura antiga VIVA na Stripe: segue RECORRENTE, e a linha diz que a anterior está ativa', async () => {
     sales.push(
       { email: 'quem@integrador.com', checkout_session_id: 'cs_maio', subscription_id: 'sub_velha', status: 'active', card_passed_at: diasAtras(88) },
       { email: 'quem@integrador.com', checkout_session_id: 'cs_agora', subscription_id: 'sub_agora', status: 'paid', card_passed_at: diasAtras(0) },
     );
     const h = await historicoDoCliente(chamada({ assinaturaViva: async () => true }));
-    expect(h?.tipo).toBe('assinante');
+    expect(h?.tipo).toBe('recorrente');   // só existem dois tipos
+    expect(h?.assinaturaAtiva).toBe(true);
     expect(h?.comprasAnteriores).toBe(1);
 
     const t = textoAvisoVenda(venda({ historico: h }));
-    expect(t).toContain('JÁ ASSINA há 2 meses');
+    expect(t.split('\n')[0]).toBe('*🔄RECORRENTE SolarDoc*');
+    // Data literal ficaria de fora: `diasAtras` é relativo a hoje e o teste
+    // apodreceria sozinho amanhã. O que importa é o formato e os meses.
+    expect(t).toMatch(/desde \d{2}\/\d{2}\/\d{4} \(há 2 meses\)/);
     expect(t).toContain('2ª compra neste e-mail');
-    expect(t).toContain('pode virar cobrança dobrada');
+    expect(t).toContain('a ANTERIOR ainda está ativa');
   });
 
-  it('a Stripe manda mais que o ledger: sub cancelada há 10min vira RECORRENTE, não duplicidade', async () => {
+  it('a Stripe manda mais que o ledger: sub cancelada há 10min não vira alarme de dobrada', async () => {
     // O ledger é reconciliado de hora em hora — dentro dessa hora ele ainda diz
     // 'active' pra uma assinatura que já morreu. Sem a conferida na Stripe, o
-    // aviso gritaria duplicidade em cima de uma reativação.
+    // aviso apontaria cobrança dobrada em cima de uma reativação limpa.
     sales.push(
       { email: 'quem@integrador.com', checkout_session_id: 'cs_maio', subscription_id: 'sub_velha', status: 'active', card_passed_at: diasAtras(84) },
       { email: 'quem@integrador.com', checkout_session_id: 'cs_agora', subscription_id: 'sub_agora', status: 'paid', card_passed_at: diasAtras(0) },
     );
     const h = await historicoDoCliente(chamada({ assinaturaViva: async () => false }));
     expect(h?.tipo).toBe('recorrente');
-    expect(textoAvisoVenda(venda({ historico: h }))).toContain('RECORRENTE');
+    expect(h?.assinaturaAtiva).toBe(false);
+    expect(textoAvisoVenda(venda({ historico: h }))).not.toContain('ANTERIOR ainda está ativa');
   });
 
   it('linha do backfill (sem subscription_id) cai no status do ledger', async () => {
@@ -181,6 +187,7 @@ describe('histórico do cliente', () => {
     const h = await historicoDoCliente(chamada({ assinaturaViva: viva }));
     expect(viva).not.toHaveBeenCalled(); // não há sub antiga pra perguntar
     expect(h?.tipo).toBe('recorrente');
+    expect(h?.assinaturaAtiva).toBe(false); // ledger dizia 'canceled'
   });
 
   it('Stripe fora não derruba nada — o ledger decide', async () => {
@@ -191,13 +198,14 @@ describe('histórico do cliente', () => {
     const h = await historicoDoCliente(chamada({
       assinaturaViva: async () => { throw new Error('stripe 503'); },
     }));
-    expect(h?.tipo).toBe('assinante');
+    expect(h?.tipo).toBe('recorrente');
+    expect(h?.assinaturaAtiva).toBe(true); // o ledger dizia 'active'
   });
 
   it('com muitas assinaturas antigas, a VIVA (mais nova) não fica fora do corte de 3', async () => {
     // Já existe um e-mail com 3 subs no ledger. Como o Postgres devolve sem
-    // ordem, cortar 3 quaisquer podia deixar a assinatura viva de fora e o
-    // aviso diria RECORRENTE no comprador repetido — o caso mais caro de errar.
+    // ordem, cortar 3 quaisquer podia deixar a assinatura viva de fora — e o
+    // aviso calaria a cobrança dobrada no comprador mais repetido de todos.
     sales.push(
       { email: 'quem@integrador.com', checkout_session_id: 'cs_1', subscription_id: 'sub_1', status: 'canceled', card_passed_at: diasAtras(200) },
       { email: 'quem@integrador.com', checkout_session_id: 'cs_2', subscription_id: 'sub_2', status: 'canceled', card_passed_at: diasAtras(150) },
@@ -211,7 +219,7 @@ describe('histórico do cliente', () => {
     }));
     expect(perguntadas).toContain('sub_viva');
     expect(perguntadas).not.toContain('sub_1'); // a mais velha é a que sai
-    expect(h?.tipo).toBe('assinante');
+    expect(h?.assinaturaAtiva).toBe(true);
     expect(textoAvisoVenda(venda({ historico: h }))).toContain('5ª compra neste e-mail');
   });
 
@@ -229,27 +237,26 @@ describe('histórico do cliente', () => {
 
   // A prévia da notificação do WhatsApp mostra só a primeira linha. Se o emoji
   // do tipo escorregar pro meio do texto, o Thiago volta a ter que ABRIR a
-  // conversa pra saber se a venda é aquisição ou recompra de quem já paga.
+  // conversa pra saber se a venda é aquisição ou recompra.
   it('o emoji do tipo abre a mensagem — é o que aparece na prévia do WhatsApp', () => {
     const cabecalho = (h: any) => textoAvisoVenda(venda({ historico: h })).split('\n')[0];
-    const base = { primeiraCompra: '2026-05-18T00:00:00Z', comprasAnteriores: 1 };
+    const base = { primeiraCompra: '2026-05-18T00:00:00Z', comprasAnteriores: 1, assinaturaAtiva: false };
 
+    // DUAS opções, e só estas duas.
     expect(cabecalho({ ...base, tipo: 'novo' })).toBe('*💰VENDA SolarDoc*');
-    expect(cabecalho({ ...base, tipo: 'assinante' })).toBe('*⚠️ASSINANTE SolarDoc*');
     expect(cabecalho({ ...base, tipo: 'recorrente' })).toBe('*🔄RECORRENTE SolarDoc*');
-
-    // Três emojis diferentes: dois parecidos valeriam o mesmo que nenhum.
-    const emojis = (['novo', 'assinante', 'recorrente'] as const).map((t) => cabecalho({ ...base, tipo: t }).slice(1, 3));
-    expect(new Set(emojis).size).toBe(3);
+    // Nem a assinatura anterior viva cria um terceiro cabeçalho.
+    expect(cabecalho({ ...base, tipo: 'recorrente', assinaturaAtiva: true })).toBe('*🔄RECORRENTE SolarDoc*');
   });
 
   it('quando a linha cai, o e-mail de resgate leva o mesmo sinal', async () => {
     falharWhats = true;
     await avisarVendaAoDono('venda-1', venda({
-      historico: { tipo: 'assinante', primeiraCompra: '2026-05-18T00:00:00Z', comprasAnteriores: 2 },
+      historico: { tipo: 'recorrente', primeiraCompra: '2026-05-18T00:00:00Z', comprasAnteriores: 2, assinaturaAtiva: true },
     }));
-    expect(emails[0].assunto).toContain('⚠️');
-    expect(emails[0].corpo).toContain('JÁ ASSINA');
+    expect(emails[0].assunto).toContain('🔄');
+    expect(emails[0].corpo).toContain('RECORRENTE');
+    expect(emails[0].corpo).toContain('ANTERIOR ainda está ativa');
   });
 
   it('menos de um mês fala em dias — "0 meses" seria mentira', async () => {
@@ -258,6 +265,6 @@ describe('histórico do cliente', () => {
       { email: 'quem@integrador.com', checkout_session_id: 'cs_agora', subscription_id: 'sub_agora', status: 'paid' },
     );
     const h = await historicoDoCliente(chamada({ assinaturaViva: async () => true }));
-    expect(textoAvisoVenda(venda({ historico: h }))).toContain('JÁ ASSINA há 9 dias');
+    expect(textoAvisoVenda(venda({ historico: h }))).toContain('(há 9 dias)');
   });
 });
