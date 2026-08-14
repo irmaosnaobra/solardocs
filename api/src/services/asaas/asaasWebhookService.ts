@@ -250,6 +250,13 @@ async function tratarVendaPlugcash(
   // "tenta de novo" é o certo aqui; o outro lado é cliente pagante sem acesso.
   const cliente = await clienteDoAsaas(p.customer || '');
   if (!cliente.email) {
+    // O Asaas desiste depois de 14 dias. Se ninguém for avisado, isso vira um
+    // cliente pagante parado, sem acesso e sem rastro fora do log.
+    await avisarThiago([
+      '🔴 *Venda no Asaas sem e-mail do cliente*',
+      `${oferta.slug} · pagamento ${p.id} · R$ ${(p.value ?? 0).toFixed(2)}`,
+      'O acesso NÃO saiu. O Asaas reenvia por 14 dias; depois disso, liberação na mão.',
+    ].join('\n'));
     throw new Error(`asaas: pagamento ${p.id} sem e-mail do cliente (${p.customer}) — devolvendo erro pro Asaas reenviar`);
   }
 

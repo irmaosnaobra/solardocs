@@ -688,7 +688,17 @@ router.post('/admin/asaas-links', ...admin, async (req: Request, res: Response):
     const { asaasApiKey } = await import('../services/asaas/asaasClient');
     if (!asaasApiKey()) { res.status(503).json({ error: 'ASAAS_API_KEY ausente neste servidor' }); return; }
 
-    const { criarLinkDaOferta, gravarLinksNoCurso } = await import('../services/asaas/asaasPlugcashLink');
+    // MESMA RECUSA DO SCRIPT, e aqui ela importa mais: link de sandbox não cobra
+    // ninguém e o degrau com `checkout_url` GANHA do Stripe sem perguntar. Um
+    // clique com a API em sandbox trocaria, em silêncio, um checkout que vende
+    // por um que não cobra nada — e a página continuaria parecendo certa.
+    if ((process.env.ASAAS_ENV || '').trim().toLowerCase() !== 'prod') {
+      res.status(400).json({ error: 'ASAAS_ENV nao e "prod": link de sandbox nao cobra ninguem e nao pode virar checkout' });
+      return;
+    }
+
+    const { criarLinkDaOferta, gravarLinksNoCurso, garantirEventosDoWebhook } =
+      await import('../services/asaas/asaasPlugcashLink');
     const { data: curso } = await supabase
       .from('pc_cursos').select('slug,titulo,status,copy').eq('slug', slug).maybeSingle();
     if (!curso) { res.status(404).json({ error: 'curso nao encontrado' }); return; }
@@ -704,16 +714,31 @@ router.post('/admin/asaas-links', ...admin, async (req: Request, res: Response):
       return;
     }
 
+    // Os links são criados ANTES de qualquer gravação, então uma falha no meio
+    // deixaria link vivo no painel do Asaas sem registro nenhum aqui. Por isso a
+    // lista viaja junto do erro: com os ids em mãos dá pra apagar ou colar à mão.
     const criados = [];
-    for (const o of ofertas) {
-      criados.push(await criarLinkDaOferta({
-        slug, titulo: c.titulo, ofertaId: String(o.id),
-        centavos: Math.round(Number(o.centavos)), rotulo: String(o.rotulo || c.titulo),
-      }));
+    try {
+      for (const o of ofertas) {
+        criados.push(await criarLinkDaOferta({
+          slug, titulo: c.titulo, ofertaId: String(o.id),
+          centavos: Math.round(Number(o.centavos)), rotulo: String(o.rotulo || c.titulo),
+        }));
+      }
+      const tocadas = await gravarLinksNoCurso(slug, criados);
+      // O estorno só revoga se o webhook escutar os eventos de estorno — e o
+      // cadastro original (assinatura) não os tinha. Ligar o Pix sem isso é
+      // liberar sem nunca revogar.
+      const webhook = await garantirEventosDoWebhook();
+      logger.info('plugcash', `asaas: ${tocadas} degrau(s) de ${slug} agora vendem pelo Asaas · webhook: ${webhook.detalhe}`);
+      res.json({ ok: true, ambiente: process.env.ASAAS_ENV, gravadas: tocadas, links: criados, webhook });
+    } catch (e) {
+      logger.error('plugcash', `links do Asaas criados mas não gravados (${slug})`, e);
+      res.status(500).json({
+        error: e instanceof Error ? e.message : 'falha',
+        criados,   // já existem no Asaas: sem isto, ficariam órfãos e invisíveis
+      });
     }
-    const tocadas = await gravarLinksNoCurso(slug, criados);
-    logger.info('plugcash', `asaas: ${tocadas} degrau(s) de ${slug} agora vendem pelo Asaas`);
-    res.json({ ok: true, ambiente: process.env.ASAAS_ENV || 'sandbox', gravadas: tocadas, links: criados });
   } catch (err) {
     logger.error('plugcash', `falha criando links do Asaas para ${slug}`, err);
     res.status(500).json({ error: err instanceof Error ? err.message : 'falha' });

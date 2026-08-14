@@ -159,3 +159,53 @@ export async function clienteDoAsaas(id: string): Promise<{ nome: string | null;
 export function logLink(msg: string, extra?: unknown): void {
   logger.info('asaas-plugcash', msg, extra as Record<string, unknown>);
 }
+
+// ── Eventos que o webhook precisa receber ────────────────────────────────────
+// O cadastro original (trilho de assinatura) tem 8 eventos e NENHUM de estorno.
+// Sem estes quatro, a venda de curso libera e nunca revoga: quem pede reembolso
+// ou abre chargeback fica com o acesso. Cadastrar isso à mão no painel é o passo
+// que o próprio guia aponta como o mais fácil de errar — então quem garante é o
+// mesmo clique que liga o Pix.
+export const EVENTOS_WEBHOOK = [
+  'PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED', 'PAYMENT_OVERDUE',
+  'PAYMENT_REFUNDED', 'PAYMENT_PARTIALLY_REFUNDED',
+  'PAYMENT_CHARGEBACK_REQUESTED', 'PAYMENT_CHARGEBACK_DISPUTE',
+  'PIX_AUTOMATIC_RECURRING_AUTHORIZATION_ACTIVATED',
+  'PIX_AUTOMATIC_RECURRING_AUTHORIZATION_CANCELLED',
+  'PIX_AUTOMATIC_RECURRING_AUTHORIZATION_EXPIRED',
+  'PIX_AUTOMATIC_RECURRING_AUTHORIZATION_REFUSED',
+  'PIX_AUTOMATIC_RECURRING_ELIGIBILITY_UPDATED',
+];
+
+/**
+ * Garante que o webhook cadastrado no Asaas escuta TODOS os eventos acima.
+ * Atualiza o que já existe (nunca cria um segundo pro mesmo destino: dois
+ * webhooks pro mesmo endereço é evento em dobro). Devolve o que foi feito —
+ * nunca estoura, porque isto não pode impedir os links de nascerem.
+ */
+export async function garantirEventosDoWebhook(): Promise<{ ok: boolean; detalhe: string }> {
+  const authToken = (process.env.ASAAS_WEBHOOK_TOKEN || '').trim();
+  if (!authToken) return { ok: false, detalhe: 'sem ASAAS_WEBHOOK_TOKEN — não mexi no webhook' };
+
+  const url = ((process.env.API_PUBLIC_URL || 'https://api.solardoc.app').trim()) + '/payments/asaas/webhook';
+  try {
+    const lista = await asaasFetch<{ data?: Array<{ id?: string; url?: string; events?: string[] }> }>('/webhooks?limit=100');
+    const nosso = (lista.data ?? []).find((w) => String(w.url ?? '') === url);
+    if (!nosso?.id) return { ok: false, detalhe: `nenhum webhook cadastrado em ${url}` };
+
+    const faltando = EVENTOS_WEBHOOK.filter((e) => !(nosso.events ?? []).includes(e));
+    if (!faltando.length) return { ok: true, detalhe: 'webhook já escutava tudo' };
+
+    await asaasFetch(`/webhooks/${nosso.id}`, {
+      method: 'PUT',
+      body: {
+        name: 'SolarDoc — Pix recorrente e vendas PlugCash',
+        url, email: 'aiorosgroup@gmail.com', enabled: true, interrupted: false,
+        authToken, sendType: 'SEQUENTIALLY', events: EVENTOS_WEBHOOK,
+      },
+    });
+    return { ok: true, detalhe: `adicionei ${faltando.length} evento(s): ${faltando.join(', ')}` };
+  } catch (err) {
+    return { ok: false, detalhe: `falhei ao ajustar o webhook: ${(err as Error).message}` };
+  }
+}
