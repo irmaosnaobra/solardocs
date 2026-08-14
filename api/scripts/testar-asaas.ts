@@ -18,8 +18,11 @@
  * de mentira parado ali faz a pergunta "o Pix recorrente já está ligado?" —
  * respondida justamente contando essa tabela — passar a mentir.
  *
- * O que ele responde, em ordem:
+ * O que ele faz e responde, em ordem:
  *   1. A chave é válida e a conta está aprovada?
+ *   1b. CADASTRA O WEBHOOK sozinho (cria ou atualiza) — é o passo do guia mais
+ *      fácil de errar na mão: oito nomes de evento digitados num painel, e um
+ *      errado significa pagamento confirmado que nunca vira acesso.
  *   2. A conta está elegível ao Pix Automático? (CNPJ ativo há ≥6 meses)
  *   3. O trilho cria o contrato de ponta a ponta — cliente, autorização e linha
  *      no banco?
@@ -72,6 +75,56 @@ async function main(): Promise<void> {
     err(`a chave não abriu a conta: ${(e as Error).message}`);
     info('Chave errada, ou chave de produção com ASAAS_ENV=sandbox (os dois ambientes têm chaves diferentes).');
     process.exit(1);
+  }
+
+  // ── 1b. Webhook: cadastra sozinho ──────────────────────────────────────────
+  // O passo mais fácil de errar do guia inteiro: oito nomes de evento digitados
+  // à mão num painel. Errar um só significa pagamento confirmado que nunca vira
+  // acesso — e falha silenciosa, que é a assinatura de erro deste sistema. Aqui
+  // é a API que cadastra, com a lista que o nosso webhook realmente trata.
+  titulo('1b. Webhook (cadastro automático)');
+  const WEBHOOK_URL = (process.env.API_PUBLIC_URL || 'https://api.solardoc.app').trim() + '/payments/asaas/webhook';
+  const EVENTOS = [
+    'PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED', 'PAYMENT_OVERDUE',
+    'PIX_AUTOMATIC_RECURRING_AUTHORIZATION_ACTIVATED',
+    'PIX_AUTOMATIC_RECURRING_AUTHORIZATION_CANCELLED',
+    'PIX_AUTOMATIC_RECURRING_AUTHORIZATION_EXPIRED',
+    'PIX_AUTOMATIC_RECURRING_AUTHORIZATION_REFUSED',
+    'PIX_AUTOMATIC_RECURRING_ELIGIBILITY_UPDATED',
+  ];
+  const authToken = (process.env.ASAAS_WEBHOOK_TOKEN || '').trim();
+  if (!authToken) {
+    err('sem ASAAS_WEBHOOK_TOKEN — o webhook em produção recusa tudo com 503.');
+    info('Ponha o token no .env e na Vercel ANTES de cadastrar, senão o Asaas entrega pra uma porta fechada.');
+  } else {
+    try {
+      const existentes = await asaasFetch<{ data?: Array<Record<string, unknown>> }>('/webhooks?limit=100');
+      const nosso = (existentes.data ?? []).find((w) => String(w.url ?? '') === WEBHOOK_URL);
+      const corpo = {
+        name: 'SolarDoc — Pix recorrente',
+        url: WEBHOOK_URL,
+        email: 'aiorosgroup@gmail.com',
+        enabled: true,
+        interrupted: false,
+        authToken,
+        // SEQUENTIALLY: se um evento falhar, o Asaas PARA a fila em vez de seguir
+        // adiante. Aqui isso é o certo — evento perdido é mês não creditado.
+        sendType: 'SEQUENTIALLY',
+        events: EVENTOS,
+      };
+      if (nosso?.id) {
+        await asaasFetch(`/webhooks/${nosso.id}`, { method: 'PUT', body: corpo });
+        ok(`webhook já existia e foi atualizado (${String(nosso.id)})`);
+      } else {
+        const criado = await asaasFetch<{ id?: string }>('/webhooks', { method: 'POST', body: corpo });
+        ok(`webhook criado: ${criado?.id ?? '(sem id)'}`);
+      }
+      info(`destino: ${WEBHOOK_URL}`);
+      info(`eventos: ${EVENTOS.length}`);
+    } catch (e) {
+      err(`não consegui cadastrar o webhook: ${(e as Error).message}`);
+      info('Cadastre na mão no painel do Asaas (a lista de eventos está no PIX-RECORRENTE-SOLARDOC.md).');
+    }
   }
 
   // ── 2. Elegível ao Pix Automático? ─────────────────────────────────────────
