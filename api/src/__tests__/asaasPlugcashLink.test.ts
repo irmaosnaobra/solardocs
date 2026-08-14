@@ -49,18 +49,19 @@ vi.mock('../utils/supabase', () => {
   return { supabase };
 });
 
-const asaasFetchMock = vi.fn();
+const asaasFetchMock = vi.fn((..._args: unknown[]): Promise<unknown> => Promise.resolve({}));
 vi.mock('../services/asaas/asaasClient', () => ({
-  asaasFetch: (...args: unknown[]) => asaasFetchMock(...args),
+  asaasFetch: (path: string, init?: unknown) => asaasFetchMock(path, init),
   asaasApiKey: () => 'chave-de-teste',
   asaasBaseUrl: () => 'https://api-sandbox.asaas.com/v3',
   asaasHabilitado: () => true,
   AsaasError: class extends Error {},
 }));
 
-const processarMock = vi.fn(async () => ({ ok: true, acao: 'liberado', detalhe: '' }));
+type ArgVenda = Record<string, unknown>;
+const processarMock = vi.fn(async (_evt: ArgVenda) => ({ ok: true, acao: 'liberado', detalhe: '' }));
 vi.mock('../services/plugcashService', () => ({
-  processarEventoPlugcash: (...args: unknown[]) => processarMock(...args),
+  processarEventoPlugcash: (evt: ArgVenda) => processarMock(evt),
 }));
 
 vi.mock('../services/agents/zapiClient', () => ({ sendWhatsApp: vi.fn(async () => ({})) }));
@@ -68,8 +69,11 @@ vi.mock('../services/asaas/pixRecorrenteService', () => ({
   PLANOS_PIX: { ilimitado: { nome: 'Ilimitado' } },
 }));
 
-const { processarWebhookAsaas } = await import('../services/asaas/asaasWebhookService');
-const { acharOfertaDoPagamento } = await import('../services/asaas/asaasPlugcashLink');
+import { processarWebhookAsaas } from '../services/asaas/asaasWebhookService';
+import { acharOfertaDoPagamento } from '../services/asaas/asaasPlugcashLink';
+
+/** O que o webhook mandou pro caminho de liberação, na chamada `i`. */
+const argDaChamada = (i: number): ArgVenda => (processarMock.mock.calls[i]?.[0] ?? {}) as ArgVenda;
 
 const CURSO_COM_ESCADA = {
   slug: 'fundamentos',
@@ -123,7 +127,7 @@ describe('o webhook libera a venda', () => {
     );
     expect(r.tratado).toBe(true);
     expect(processarMock).toHaveBeenCalledTimes(1);
-    const arg = processarMock.mock.calls[0][0] as Record<string, unknown>;
+    const arg = argDaChamada(0);
     expect(arg).toMatchObject({
       orderId: 'pay_1',
       email: 'cliente@teste.com',           // normalizado
@@ -140,18 +144,18 @@ describe('o webhook libera a venda', () => {
     await processarWebhookAsaas(
       evento('PAYMENT_CONFIRMED', { id: 'pay_2', paymentLink: 'lnk_67', value: 67 }) as never,
     );
-    expect((processarMock.mock.calls[0][0] as Record<string, unknown>).valorCentavos).toBe(6700);
+    expect(argDaChamada(0).valorCentavos).toBe(6700);
   });
 
   it('reembolso e chargeback chegam como estado final, pra revogar', async () => {
     await processarWebhookAsaas(evento('PAYMENT_REFUNDED', { id: 'pay_3', paymentLink: 'lnk_47', value: 47 }) as never);
-    expect((processarMock.mock.calls[0][0] as Record<string, unknown>).status).toBe('refunded');
+    expect(argDaChamada(0).status).toBe('refunded');
 
     processarMock.mockClear();
     await processarWebhookAsaas(
       evento('PAYMENT_CHARGEBACK_REQUESTED', { id: 'pay_4', paymentLink: 'lnk_47', value: 47 }) as never,
     );
-    expect((processarMock.mock.calls[0][0] as Record<string, unknown>).status).toBe('chargeback');
+    expect(argDaChamada(0).status).toBe('chargeback');
   });
 
   // Sem e-mail não há conta pra liberar. Gravar a venda assim mesmo deixaria o
