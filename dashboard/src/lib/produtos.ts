@@ -38,6 +38,13 @@ export interface ProdutoLoja {
   beneficios?: { titulo: string; texto: string }[];
   /** Três números de prova, na tira embaixo do herói. */
   numeros?: { valor: string; rotulo: string }[];
+  /** Como a ferramenta funciona, em 3 passos — o "como" antes do "quanto". */
+  comoFunciona?: { titulo: string; texto: string }[];
+  /**
+   * As objeções reais, respondidas. Página de venda sem FAQ empurra a dúvida
+   * pro WhatsApp — e dúvida que vira mensagem quase nunca vira compra.
+   */
+  faq?: { p: string; r: string }[];
   /** Só pra ferramenta que dá pra experimentar antes de comprar. */
   experimentar?: { rota: string; texto: string };
   /**
@@ -89,6 +96,24 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
       { titulo: 'Os R$ 97 voltam no primeiro pedido',
         texto: 'Pediu o kit pra gente? O que você pagou pela ferramenta entra como abatimento. Na prática, quem usa não paga.' },
     ],
+    comoFunciona: [
+      { titulo: 'Marque o que vai ligar',
+        texto: 'Abra a lista e vá marcando: geladeira, luz, bomba, ar. São 70 aparelhos com a potência já preenchida — ou digite o kWh da conta, se preferir.' },
+      { titulo: 'Diga quantos dias sem sol',
+        texto: 'Um dia? Três? Só o essencial ou a casa inteira? É a escolha que mais mexe no preço, e a tela mostra o efeito dela na hora.' },
+      { titulo: 'Leve a proposta pronta',
+        texto: 'Sai o kit dimensionado, a autonomia com número, o preço com frete até a obra e o PDF com a sua marca. Na frente do cliente, em minutos.' },
+    ],
+    faq: [
+      { p: 'Preciso entender de cálculo pra usar?',
+        r: 'Não. Você marca aparelho e responde duas perguntas; a conta é da ferramenta. O que ela pede é o que o cliente já te falou — o que ele quer ligar e quanto tempo precisa aguentar sem sol.' },
+      { p: 'O preço do kit é o que eu vendo?',
+        r: 'Não. O preço que aparece é o nosso fornecimento com frete. Você põe a sua margem em cima, e a proposta sai com o SEU preço. Custo e margem ficam na sua tela, nunca no PDF do cliente.' },
+      { p: 'Sou obrigado a comprar o kit de vocês?',
+        r: 'Não. Dimensionar e ver a autonomia é grátis pra todo mundo, e você pode comprar o material onde quiser. Se pedir pra gente, os R$ 97 da ferramenta voltam como abatimento no primeiro pedido.' },
+      { p: 'Serve pra sistema híbrido, com rede?',
+        r: 'A ferramenta foi feita pro isolado — sítio, chácara, ponto sem rede. Num híbrido ela ajuda a dimensionar o banco, mas a conta de compensação da rede não entra.' },
+    ],
     numeros: [
       { valor: '70', rotulo: 'aparelhos no catálogo, da lâmpada à ordenhadeira' },
       { valor: '3', rotulo: 'cenários de autonomia, com número' },
@@ -112,6 +137,43 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
     ],
     preco: 67,
     naAssinatura: true,
+    beneficios: [
+      { titulo: 'O custo inteiro na conta, não só o kit',
+        texto: 'Material CA, mão de obra, deslocamento, ART e homologação entram junto. É o que some quando se calcula no olho — e é onde o lucro vai embora.' },
+      { titulo: 'Você vê a sobra antes de mandar o preço',
+        texto: 'Arrasta a margem e o número da sua sobra muda na hora. Dá pra negociar sabendo exatamente até onde pode ir.' },
+      { titulo: 'A nota fiscal deixa de ser surpresa',
+        texto: 'Escolhe se a NF é sobre o serviço ou sobre o total, e o imposto já sai descontado. Sem isso, o preço parece bom e o boleto do contador desmente.' },
+      { titulo: 'O piso que ainda fecha',
+        texto: 'A ferramenta mostra o preço mínimo que ainda dá lucro. Quando o cliente apertar, você sabe onde parar em vez de chutar com medo.' },
+      { titulo: 'Comissão calculada junto',
+        texto: 'Vendedor comissionado entra na conta antes, não depois. Assim a margem que você vê é a que sobra de verdade.' },
+      { titulo: 'Mesma conta em toda proposta',
+        texto: 'O time inteiro precifica pelo mesmo critério. Acaba a proposta que cada um fez de um jeito e ninguém sabe explicar depois.' },
+    ],
+    numeros: [
+      { valor: '68', rotulo: 'integradores usando na plataforma hoje' },
+      { valor: '6', rotulo: 'custos que entram além do kit' },
+      { valor: '1 tela', rotulo: 'do custo ao preço final, sem planilha' },
+    ],
+    comoFunciona: [
+      { titulo: 'Lance os custos da obra',
+        texto: 'Kit, material CA, mão de obra, deslocamento, ART e homologação. Cada campo tem o que ele significa escrito do lado.' },
+      { titulo: 'Escolha imposto e comissão',
+        texto: 'NF sobre o serviço ou sobre o total, e a comissão do vendedor. As duas coisas que quase todo mundo esquece de somar.' },
+      { titulo: 'Arraste a margem e veja a sobra',
+        texto: 'O preço ao cliente e a sua sobra mudam juntos, na hora. Você fecha sabendo quanto entra no bolso.' },
+    ],
+    faq: [
+      { p: 'É uma planilha?',
+        r: 'Não. É uma tela dentro da plataforma, que abre do celular na frente do cliente. Planilha quebra quando alguém arrasta uma célula — aqui a conta é a mesma sempre.' },
+      { p: 'Serve pra qualquer tamanho de obra?',
+        r: 'Serve. A conta é a mesma pra residencial pequeno e pra usina — o que muda são os números que você lança.' },
+      { p: 'Preciso assinar o SolarDoc?',
+        r: 'Não. A compra é à parte e o acesso é seu enquanto a conta existir. Ela também vem inclusa na assinatura, se um dia fizer sentido.' },
+      { p: 'Já usava de graça. Vou perder?',
+        r: 'Não. Quem já usava continua usando, de graça, pra sempre. A cobrança vale pra quem chega agora.' },
+    ],
     rota: '/precificacao',
     checkout: process.env.NEXT_PUBLIC_PRECIFICACAO_CHECKOUT_URL || WHATS + encodeURIComponent('Quero liberar a Precificação Profissional no SolarDoc'),
     mockup: 'precificacao',
@@ -133,6 +195,43 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
     ],
     preco: 67,
     naAssinatura: true,
+    beneficios: [
+      { titulo: 'Você sabe quanto vale a sua empresa',
+        texto: 'O patrimônio total soma sozinho, item por item. É o número que o contador pede e que a seguradora exige na apólice.' },
+      { titulo: 'Avisa antes de faltar na obra',
+        texto: 'Diga o mínimo de cada material. Quando encostar, a linha fica vermelha e o aviso sobe no topo — antes de você descobrir no telhado.' },
+      { titulo: 'Entrada e saída viram histórico',
+        texto: 'Chegou material, saiu pra obra: dois toques. Corrigir o número na mão apaga a história do item, e é assim que ninguém sabe quem levou a furadeira.' },
+      { titulo: 'Cada lugar no seu lugar',
+        texto: 'Escritório, montagem, depósito, veículos — e você cria os seus. Saber onde a ferramenta está vale mais que saber que ela existe.' },
+      { titulo: 'Vira PDF pra contabilidade',
+        texto: 'Um botão gera o documento separado por local, com os totais. É o que você manda pro contador ou anexa num seguro.' },
+      { titulo: 'Começa preenchido',
+        texto: 'Um toque monta um inventário de exemplo com 14 itens que toda equipe tem, já com valor e estoque mínimo. Você ajusta em vez de começar do zero.' },
+    ],
+    numeros: [
+      { valor: '46', rotulo: 'empresas usando na plataforma hoje' },
+      { valor: '46', rotulo: 'materiais no catálogo pronto' },
+      { valor: '14 itens', rotulo: 'no inventário de exemplo, num toque' },
+    ],
+    comoFunciona: [
+      { titulo: 'Escolha o local e o material',
+        texto: 'A lista já vem pronta com o que costuma ter em cada lugar — do alicate crimpador MC4 ao painel solar. Ou digite o que não está nela.' },
+      { titulo: 'Preencha valor e estoque mínimo',
+        texto: 'O valor alimenta o patrimônio total; o mínimo é o que dispara o aviso de repor.' },
+      { titulo: 'Lance movimento, não digitação',
+        texto: 'As setas de entrada e saída registram o que chegou e o que foi pra obra, mantendo a história de cada item.' },
+    ],
+    faq: [
+      { p: 'Preciso cadastrar tudo de uma vez?',
+        r: 'Não. Dá pra começar com um botão que monta um inventário de exemplo e ir ajustando, ou cadastrar só o que importa agora. Nada trava por estar incompleto.' },
+      { p: 'Funciona no celular, no galpão?',
+        r: 'Funciona. Foi refeito pra isso: no telefone cada material vira um cartão, sem rolar pro lado, e os botões são do tamanho do dedo.' },
+      { p: 'Serve pra controlar obra, não só empresa?',
+        r: 'Serve. Você cria o local que quiser — "Obra do João", "Almoxarifado" — e controla o material lá dentro do mesmo jeito.' },
+      { p: 'Já usava de graça. Vou perder?',
+        r: 'Não. Quem já usava continua usando, de graça, pra sempre. A cobrança vale pra quem chega agora.' },
+    ],
     rota: '/inventario',
     checkout: process.env.NEXT_PUBLIC_INVENTARIO_CHECKOUT_URL || WHATS + encodeURIComponent('Quero liberar o Inventário da Empresa no SolarDoc'),
     mockup: 'inventario',
@@ -167,6 +266,24 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
         texto: 'Fica na sua conta, abre do celular na porta do cliente e mostra onde você parou. Quando a gente atualiza o material, você já entra na versão nova.' },
       { titulo: 'Documento sai com o SEU CNPJ',
         texto: 'Contrato, procuração e vistoria não são modelos em branco pra preencher à mão: saem prontos com o CNPJ, o endereço e a logo da sua empresa.' },
+    ],
+    comoFunciona: [
+      { titulo: 'Uma lição por dia, no celular',
+        texto: 'A trilha mostra onde você parou e o que falta. Dá pra fazer na fila do banco ou esperando o cliente descer.' },
+      { titulo: 'Copia a fala e usa na visita',
+        texto: 'Cada objeção vem com a resposta pronta pra falar e a versão curta pra colar no WhatsApp. Não é teoria: é o que dizer quando ele falar.' },
+      { titulo: 'Gera o documento com a sua marca',
+        texto: 'Contrato, procuração e vistoria saem prontos com o CNPJ e a logo da sua empresa, direto da plataforma.' },
+    ],
+    faq: [
+      { p: 'É vídeo ou é PDF?',
+        r: 'É trilha dentro da plataforma, com progresso: você abre do celular, vê onde parou e continua. Não é pasta de arquivo que some quando troca de aparelho nem PDF que fica desatualizado.' },
+      { p: 'Serve pra quem está começando?',
+        r: 'Serve — ele começa na primeira ligação e vai até a assinatura. Quem já vende costuma usar mais os módulos de objeção e de preço, que são os que travam venda de quem já tem rodagem.' },
+      { p: 'Quanto tempo leva pra terminar?',
+        r: 'São 21 lições curtas. Fazendo uma por dia, três semanas. Mas ele é feito pra consulta também: dá pra ir direto na objeção que apareceu ontem.' },
+      { p: 'Preciso assinar o SolarDoc pra usar?',
+        r: 'Não. A compra é à parte e o acesso é seu enquanto a conta existir. Ele também vem incluso na assinatura, se um dia você assinar.' },
     ],
     numeros: [
       { valor: '21', rotulo: 'lições, em 6 módulos com progresso' },
@@ -208,6 +325,24 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
         texto: 'Começa do zero — a técnica, a segurança em altura, o preço e a conversa de venda. Quem já trabalha com solar entra vendendo pra própria base instalada.' },
       { titulo: '15 dias de garantia',
         texto: 'Entrou, viu e não é pra você? A gente devolve. O risco de experimentar é nosso.' },
+    ],
+    comoFunciona: [
+      { titulo: 'Aprenda a técnica e a segurança',
+        texto: 'Como limpar sem riscar o vidro e sem quebrar a garantia do painel, e como trabalhar em altura sem se arriscar.' },
+      { titulo: 'Saiba quanto cobrar',
+        texto: 'O preço sai do tamanho do telhado, da altura e do deslocamento — não do chute. É o módulo que separa quem fatura de quem trabalha de graça.' },
+      { titulo: 'Transforme em cliente que volta',
+        texto: 'O contrato de manutenção faz o mesmo telhado te chamar a cada 3 ou 6 meses. É a diferença entre correr atrás de cliente novo e ter carteira.' },
+    ],
+    faq: [
+      { p: 'Preciso ter experiência com solar?',
+        r: 'Não. O curso começa do zero: técnica, segurança em altura, preço e a conversa de venda. Quem já trabalha com solar sai na frente porque já tem a base instalada pra oferecer.' },
+      { p: 'Quanto preciso investir pra começar?',
+        r: 'Menos de R$ 700 no equipamento. Não precisa de veículo próprio, ponto comercial nem estoque — é a entrada mais barata do mercado de energia solar.' },
+      { p: 'Onde eu assisto?',
+        r: 'Na área de aluno do LimpaPro, que abre do computador e do celular. Depois de pagar você recebe o e-mail com o link.' },
+      { p: 'E se não for pra mim?',
+        r: 'Você tem 15 dias de garantia. Entrou, viu e não serviu, a gente devolve.' },
     ],
     numeros: [
       { valor: 'R$ 200–800', rotulo: 'por atendimento' },

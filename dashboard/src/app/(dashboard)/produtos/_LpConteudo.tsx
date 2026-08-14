@@ -159,6 +159,24 @@ export function LpConteudo({
             </div>
           )}
 
+          {/* COMO FUNCIONA — antes do "quanto custa".
+              A home da SolarDoc abre com "do cliente ao documento em 3 passos"
+              pelo mesmo motivo: quem nao entendeu COMO usa nao chega no preco. */}
+          {p.comoFunciona && p.comoFunciona.length > 0 && (
+            <section className={styles.lpBenefs}>
+              <h2 className={styles.lpH2Grande}>Como funciona</h2>
+              <div className={styles.lpComo}>
+                {p.comoFunciona.map((c, i) => (
+                  <div key={c.titulo} className={styles.lpComoItem}>
+                    <span className={styles.lpComoN}>{i + 1}</span>
+                    <strong>{c.titulo}</strong>
+                    <p>{c.texto}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           {p.beneficios && p.beneficios.length > 0 && (
             <section className={styles.lpBenefs}>
               <h2 className={styles.lpH2Grande}>O que muda no seu dia</h2>
@@ -173,6 +191,42 @@ export function LpConteudo({
               </div>
             </section>
           )}
+
+          {/* AS OBJEÇÕES, RESPONDIDAS.
+              Dúvida que não é respondida aqui vira mensagem no WhatsApp — e
+              dúvida que vira mensagem quase nunca vira compra. */}
+          {p.faq && p.faq.length > 0 && (
+            <section className={styles.lpBenefs}>
+              <h2 className={styles.lpH2Grande}>Perguntas que todo mundo faz</h2>
+              <div className={styles.lpFaq}>
+                {p.faq.map((f) => (
+                  <details key={f.p}>
+                    <summary>{f.p}</summary>
+                    <p>{f.r}</p>
+                  </details>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* QUEM FEZ. Vale mais numa venda pra quem nunca ouviu falar da gente
+              do que qualquer adjetivo sobre a ferramenta: a pessoa esta' dando
+              o cartao pra um desconhecido na internet. */}
+          <section className={styles.lpQuem}>
+            <div className={styles.lpQuemFotos}>
+              <img src="/founder-thiago.webp" alt="Thiago" width={64} height={64} />
+              <img src="/founder-diego.webp" alt="Diego" width={64} height={64} />
+            </div>
+            <div>
+              <strong>Quem fez</strong>
+              <p>
+                Somos o Thiago e o Diego, irmãos, do Triângulo Mineiro. Trabalhamos com energia
+                solar — e o SolarDoc nasceu de um problema que era nosso: a venda esfriava
+                esperando papel. Cada tela desta plataforma passou por uma venda nossa antes de
+                virar produto.
+              </p>
+            </div>
+          </section>
 
           {/* Fechamento: quem rolou até aqui não pode ter que subir de volta
               pra achar o botão. */}

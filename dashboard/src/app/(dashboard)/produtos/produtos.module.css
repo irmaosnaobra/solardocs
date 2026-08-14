@@ -516,3 +516,80 @@
   .lpFechar { flex-direction: column; align-items: stretch; }
   .lpFechar .lpBtn { width: 100%; }
 }
+
+/* ── COMO FUNCIONA: 3 passos, antes do preço ── */
+.lpComo { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 860px) { .lpComo { grid-template-columns: 1fr; } }
+.lpComoItem {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-top: 3px solid var(--cor, var(--color-primary));
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  box-shadow: var(--sombra-card);
+}
+.lpComoN {
+  display: grid; place-items: center;
+  width: 30px; height: 30px; border-radius: 10px;
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent-border);
+  color: var(--ink-amber);
+  font-size: 14px; font-weight: 900;
+  margin-bottom: 10px;
+}
+.lpComoItem strong { display: block; font-size: 15px; font-weight: 800; margin-bottom: 5px; letter-spacing: -0.01em; }
+.lpComoItem p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--color-text-muted); }
+
+/* ── FAQ: fechado por padrão, porque resposta longa empurra o botão pra baixo ── */
+.lpFaq { display: grid; gap: 8px; }
+.lpFaq details {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--sombra-card);
+  overflow: hidden;
+}
+.lpFaq summary {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 56px;
+  padding: 14px 18px;
+  font-size: 14.5px; font-weight: 800;
+  cursor: pointer;
+  list-style: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.lpFaq summary::-webkit-details-marker { display: none; }
+.lpFaq summary::after {
+  content: '+';
+  margin-left: auto;
+  font-size: 20px; font-weight: 800;
+  color: var(--cor, var(--color-primary));
+  line-height: 1;
+}
+.lpFaq details[open] summary::after { content: '−'; }
+.lpFaq details p {
+  margin: 0; padding: 0 18px 16px;
+  font-size: 13.5px; line-height: 1.6; color: var(--color-text-muted);
+}
+
+/* ── QUEM FEZ ── */
+.lpQuem {
+  display: flex; align-items: flex-start; gap: 18px; flex-wrap: wrap;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  margin-bottom: 20px;
+  box-shadow: var(--sombra-card);
+}
+.lpQuemFotos { display: flex; flex-shrink: 0; }
+.lpQuemFotos img {
+  width: 64px; height: 64px; border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--color-surface);
+  box-shadow: 0 2px 8px rgba(11,18,32,0.12);
+}
+.lpQuemFotos img:last-child { margin-left: -18px; }
+.lpQuem > div:last-child { flex: 1 1 320px; min-width: 0; }
+.lpQuem strong { display: block; font-size: 15px; font-weight: 800; margin-bottom: 5px; }
+.lpQuem p { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--color-text-muted); }
