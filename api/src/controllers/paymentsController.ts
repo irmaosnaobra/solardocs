@@ -11,6 +11,7 @@ import { avisarVendaAoDono, avisarRenovacaoAoDono, historicoDoCliente } from '..
 import { sendUtmifyOrder } from '../services/utmifyOrders';
 import { concederCursoPorAssinatura } from '../services/kitIntegradorService';
 import { pixCheckoutUrl, PIX_MES_VALOR } from '../utils/pixInfo';
+import { asaasHabilitado } from '../services/asaas/asaasClient';
 import {
   buscarCupomValido, aplicarCupom, garantirCupomStripe, garantirPromotionCode, cupomAtivoParaPlano,
   registrarUsoCupom, resumoPublicoCupom, normalizarCodigo, CupomAplicado,
@@ -577,7 +578,17 @@ export async function getCupomInfo(req: Request, res: Response): Promise<void> {
 // `url: null` = trilho não configurado; a tela some com o botão em vez de exibir
 // um botão que não leva a lugar nenhum.
 export function getPixCheckoutInfo(_req: Request, res: Response): void {
-  res.json({ url: pixCheckoutUrl() || null, valor: PIX_MES_VALOR, dias: 30 });
+  // `recorrente` = o trilho de débito automático (Asaas) está REALMENTE de pé
+  // neste servidor. A tela não pode decidir isso sozinha pela env do front:
+  // NEXT_PUBLIC_PIX_RECORRENTE ligada antes da ASAAS_API_KEY ofereceria
+  // "assinar no Pix" e entregaria 503 na cara de quem está com a carteira na
+  // mão. Quem sabe a verdade é quem tem a chave.
+  res.json({
+    url: pixCheckoutUrl() || null,
+    valor: PIX_MES_VALOR,
+    dias: 30,
+    recorrente: asaasHabilitado(),
+  });
 }
 
 export async function getCheckoutInfo(req: Request, res: Response): Promise<void> {

@@ -12,6 +12,12 @@
  * Ele NÃO roda com ASAAS_ENV=prod. Não é conveniência: um teste que cria
  * autorização de débito na conta de produção cobra gente de verdade.
  *
+ * ⚠️ SANDBOX é o ASAAS. O BANCO continua sendo o de PRODUÇÃO (api/.env aponta
+ * pro solardoc-pro), porque o teste roda o caminho de verdade e ele grava em
+ * `asaas_pix_assinaturas`. Por isso a limpeza APAGA a linha no fim: um contrato
+ * de mentira parado ali faz a pergunta "o Pix recorrente já está ligado?" —
+ * respondida justamente contando essa tabela — passar a mentir.
+ *
  * O que ele responde, em ordem:
  *   1. A chave é válida e a conta está aprovada?
  *   2. A conta está elegível ao Pix Automático? (CNPJ ativo há ≥6 meses)
@@ -27,6 +33,7 @@
 import 'dotenv/config';
 import { asaasFetch, asaasBaseUrl, asaasApiKey, asaasHabilitado } from '../src/services/asaas/asaasClient';
 import { criarPixRecorrente } from '../src/services/asaas/pixRecorrenteService';
+import { supabase } from '../src/utils/supabase';
 
 // CPF de teste do sandbox do Asaas. Em sandbox nenhum documento é consultado na
 // Receita; em produção este script nem roda.
@@ -150,6 +157,14 @@ async function main(): Promise<void> {
   } else {
     info('nada pra cancelar via API (modo assinatura, ou autorização não localizada).');
     info(`Confira no painel do sandbox e apague o contrato ${contractId}.`);
+  }
+
+  // A linha do banco É de produção. Deixá-la aqui envenena o diagnóstico de
+  // "tem contrato de Pix recorrente vivo?" com um contrato que nunca existiu.
+  if (contractId) {
+    const { error } = await supabase.from('asaas_pix_assinaturas').delete().eq('contract_id', contractId);
+    if (error) err(`a linha de teste ${contractId} FICOU no banco — apague na mão: ${error.message}`);
+    else ok('linha de teste removida do banco');
   }
 
   console.log('\nFim. O que estiver marcado ERRO acima tem que ser resolvido ANTES de ASAAS_ENV=prod.\n');

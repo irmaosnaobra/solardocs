@@ -11,6 +11,8 @@ interface PixInfo {
   url: string | null;
   valor: number;
   dias: number;
+  /** O trilho de débito automático (Asaas) está de pé NO SERVIDOR. */
+  recorrente?: boolean;
 }
 
 // Marca do Pix (Banco Central). Inline em SVG de propósito: e' o simbolo que faz
@@ -61,7 +63,12 @@ export default function QuaseLaCliente() {
   // a cobrança nasce amarrada ao usuário e a tela /pix-recorrente pede login.
   // Quem veio da LP ainda não tem conta — pra ele o caminho é o Pix avulso, que
   // cria a conta no ato do pagamento. Escada, não beco.
-  const recorrenteAqui = pixRecorrenteLigado && via === 'conta';
+  //
+  // E as DUAS pontas precisam estar ligadas: a env do front diz que a tela pode
+  // aparecer, mas quem sabe se o Asaas responde é o servidor (`recorrente`).
+  // Ligar só a do front ofereceria "assinar no Pix" e entregaria 503 — botão
+  // morto na tela de quem está com a carteira na mão.
+  const recorrenteAqui = pixRecorrenteLigado && via === 'conta' && pix?.recorrente === true;
 
   async function voltarPraCartao() {
     setIndo(true);
