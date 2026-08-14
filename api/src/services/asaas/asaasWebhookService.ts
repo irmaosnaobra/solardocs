@@ -12,6 +12,8 @@
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
 import { PLANOS_PIX, LinhaPixRecorrente } from './pixRecorrenteService';
+import { acharOfertaDoPagamento, clienteDoAsaas, logLink } from './asaasPlugcashLink';
+import { processarEventoPlugcash } from '../plugcashService';
 
 const THIAGO_PHONE = '34991360223';
 
@@ -28,6 +30,9 @@ export interface AsaasWebhookBody {
     id?: string; customer?: string; subscription?: string; value?: number;
     status?: string; billingType?: string; externalReference?: string;
     dueDate?: string; paymentDate?: string;
+    /** id do link de pagamento que gerou a cobrança — é assim que a venda de
+     *  produto do PlugCash se identifica (campo conferido na API em 14/08/2026). */
+    paymentLink?: string | null;
   } | null;
   authorization?: { id?: string; status?: string; customerId?: string; contractId?: string } | null;
   paymentInstruction?: { id?: string; status?: string; dueDate?: string } | null;
@@ -205,6 +210,78 @@ async function creditarPagamento(b: AsaasWebhookBody, linha: LinhaPixRecorrente)
   ].filter(Boolean).join('\n'));
 }
 
+// ── venda de produto do PlugCash (link de pagamento) ─────────────────────────
+// O link do Asaas vende curso avulso: Pix, cartão ou boleto na página deles. Aqui
+// a venda vira conta, acesso, crédito e e-mail — pelo MESMO caminho da Kiwify e do
+// Stripe (`processarEventoPlugcash`), não por uma segunda liberação paralela.
+//
+// Idempotência: o `gateway_ref` é `asaas:<payment.id>:<slug>`, e CONFIRMED e
+// RECEIVED são dois eventos do MESMO pagamento — então o segundo cai no upsert do
+// primeiro em vez de liberar duas vezes.
+//
+// Devolve null quando o pagamento NÃO é de produto do PlugCash: aí o fluxo segue
+// pro trilho de assinatura, como sempre foi.
+const EVENTOS_VENDA: Record<string, string> = {
+  PAYMENT_CONFIRMED: 'paid',
+  PAYMENT_RECEIVED: 'paid',
+  PAYMENT_REFUNDED: 'refunded',
+  PAYMENT_PARTIALLY_REFUNDED: 'refunded',
+  PAYMENT_CHARGEBACK_REQUESTED: 'chargeback',
+  PAYMENT_CHARGEBACK_DISPUTE: 'chargeback',
+};
+
+async function tratarVendaPlugcash(
+  evento: string,
+  b: AsaasWebhookBody,
+): Promise<{ tratado: boolean; motivo: string } | null> {
+  const status = EVENTOS_VENDA[evento];
+  const p = b.payment;
+  if (!status || !p?.id) return null;
+
+  const oferta = await acharOfertaDoPagamento({
+    paymentLink: (p as { paymentLink?: string | null }).paymentLink ?? null,
+    externalReference: p.externalReference ?? null,
+  });
+  if (!oferta) return null;
+
+  // O webhook manda só o id do cliente; nome e e-mail vêm de uma segunda chamada.
+  // Sem e-mail não há conta pra liberar: em vez de gravar uma venda órfã, ESTOURA
+  // — o handler devolve 500 e o Asaas reentrega por até 14 dias. Errar pro lado de
+  // "tenta de novo" é o certo aqui; o outro lado é cliente pagante sem acesso.
+  const cliente = await clienteDoAsaas(p.customer || '');
+  if (!cliente.email) {
+    throw new Error(`asaas: pagamento ${p.id} sem e-mail do cliente (${p.customer}) — devolvendo erro pro Asaas reenviar`);
+  }
+
+  const r = await processarEventoPlugcash({
+    orderId: p.id,
+    email: cliente.email,
+    nome: cliente.nome,
+    telefone: cliente.telefone,
+    status,
+    produtoId: `asaas:${oferta.slug}`,
+    produtoNome: null,
+    // O valor é o que o Asaas COBROU, não o do catálogo: é o degrau da escada
+    // (R$ 67, R$ 47 ou R$ 27) que define o crédito de abatimento do cliente.
+    valorCentavos: Math.round((p.value ?? 0) * 100) || oferta.centavos || null,
+    checkoutLink: oferta.ofertaId ? `asaas:${oferta.ofertaId}` : null,
+    utm: {},
+    payload: b as unknown as Record<string, unknown>,
+    itemDireto: { item_tipo: 'curso', item_slug: oferta.slug, gera_credito: true },
+    gateway: 'asaas',
+  } as never);
+
+  logLink(`${evento} · ${oferta.slug}/${oferta.ofertaId} · ${cliente.email} · ${r.acao}`);
+  if (status === 'paid' && r.acao !== 'ignorado') {
+    await avisarThiago([
+      '🟢 *Venda PlugCash pelo Asaas*',
+      `${oferta.slug} · degrau ${oferta.ofertaId || '—'}`,
+      `${cliente.email} · R$ ${(p.value ?? 0).toFixed(2)} · ${p.billingType || '—'}`,
+    ].join('\n'));
+  }
+  return { tratado: true, motivo: `venda plugcash ${status} (${r.acao})` };
+}
+
 // ── entrada única ────────────────────────────────────────────────────────────
 
 export async function processarWebhookAsaas(b: AsaasWebhookBody): Promise<{ tratado: boolean; motivo: string }> {
@@ -223,6 +300,15 @@ export async function processarWebhookAsaas(b: AsaasWebhookBody): Promise<{ trat
     if ((dupErr as { code?: string }).code === '23505') return { tratado: false, motivo: 'evento repetido' };
     logger.error('asaas-webhook', `não gravei o evento ${eventId} (segue o processamento)`, dupErr);
   }
+
+  // ── PlugCash ANTES da assinatura ───────────────────────────────────────────
+  // Venda de produto (curso pago por Pix/cartão no link do Asaas) não tem
+  // contrato em `asaas_pix_assinaturas`: `acharContrato` devolveria null e o
+  // evento morreria como "fora do trilho" — com o cliente pago e sem acesso, que
+  // é o pior defeito possível aqui. Por isso este ramo vem primeiro e, quando
+  // reconhece a venda, ENCERRA o processamento.
+  const daVenda = await tratarVendaPlugcash(evento, b);
+  if (daVenda) return daVenda;
 
   const linha = await acharContrato(b);
 

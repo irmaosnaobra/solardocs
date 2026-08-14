@@ -46,6 +46,12 @@ export type EventoPlugcash = {
    * `classificarProdutoPlugcash` — que só conhece a Kiwify.
    */
   itemDireto?: { item_tipo: string; item_slug: string; concede_nivel?: string | null; gera_credito?: boolean };
+  /**
+   * Quem cobrou. Só precisa vir quando NÃO é Kiwify nem Stripe — hoje, o Asaas
+   * (link de pagamento com Pix). Entra no `gateway_ref`, então errar aqui é
+   * abrir a porta pra mesma venda ser gravada duas vezes por gateways diferentes.
+   */
+  gateway?: string;
 };
 
 export type ResultadoPlugcash = {
@@ -270,7 +276,7 @@ export async function processarEventoPlugcash(evt: EventoPlugcash): Promise<Resu
   }
 
   const pago = evt.status === 'paid';
-  const gateway = evt.itemDireto ? 'stripe' : 'kiwify';
+  const gateway = evt.gateway || (evt.itemDireto ? 'stripe' : 'kiwify');
   const gatewayRef = evt.orderId ? `${gateway}:${evt.orderId}:${item.item_slug}` : null;
 
   // Idempotência por pedido+item: o bump vem no MESMO order_id do produto

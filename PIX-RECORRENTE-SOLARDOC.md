@@ -67,6 +67,39 @@ A tela de Pix também ficou de fora dos portões do layout (CNPJ obrigatório, s
 
 ---
 
+## O MESMO ASAAS VENDE OS PRODUTOS DO PLUGCASH (Pix, cartão e boleto)
+
+Construído em 14/08/2026. É outro uso da mesma conta: aqui não é assinatura, é
+**venda avulsa de curso** — hoje o Fundamentos do Eletroposto, com a escada de
+R$ 67 → R$ 47 → R$ 27.
+
+- **O que vende é um LINK DE PAGAMENTO** (`POST /paymentLinks`, `chargeType:
+  DETACHED`, `billingType: UNDEFINED`): uma URL reaproveitável por todo mundo, em
+  que o comprador escolhe **Pix, cartão ou boleto** e preenche os próprios dados.
+  Cobrança avulsa não serve: ela exige `customer` com CPF criado antes, e a página
+  de venda não pede CPF de ninguém.
+- **Um link por degrau da escada.** O link fica em `pc_cursos.copy.ofertas[]`, nos
+  campos `checkout_url` (o que o botão abre) e `asaas_link_id` (o que o webhook
+  reconhece). A resolução do checkout já era: link do degrau → link do curso →
+  sessão Stripe. **Colar o link troca o gateway daquele degrau, sem deploy.**
+- **Criar os links:** `cd api && npx ts-node --transpile-only
+  scripts/criar-links-asaas.ts fundamentos --gravar`. Sem `--gravar` é ensaio.
+  Com `ASAAS_ENV` diferente de `prod` ele **recusa** gravar — link de sandbox não
+  cobra ninguém e ganharia do Stripe em silêncio.
+- **O acesso sai pelo webhook**, no mesmo caminho da Kiwify e do Stripe
+  (`processarEventoPlugcash`): conta criada, curso liberado, crédito de abatimento
+  **pelo valor pago** (quem pagou R$ 27 recebe R$ 27 de crédito, não R$ 67) e
+  e-mail de acesso. `PAYMENT_REFUNDED` e `PAYMENT_CHARGEBACK_REQUESTED` revogam.
+- **Idempotência:** `gateway_ref = asaas:<payment.id>:<slug>` — `PAYMENT_CONFIRMED`
+  e `PAYMENT_RECEIVED` são dois eventos do mesmo pagamento e caem no mesmo upsert.
+- **Cliente sem e-mail estoura de propósito** (o webhook devolve erro e o Asaas
+  reentrega por 14 dias). Gravar a venda sem e-mail é cliente pago e sem acesso.
+- **Eventos a adicionar no cadastro do webhook** (passo 5, além dos que já estão):
+  `PAYMENT_REFUNDED`, `PAYMENT_CHARGEBACK_REQUESTED`.
+- **Nada disso está no ar ainda**: sem `ASAAS_API_KEY` de produção não há como
+  criar link, e sem link no banco a página continua vendendo pelo Stripe. A ordem
+  é: chave de produção → rodar o script → conferir o primeiro pagamento.
+
 ## Como ligar (na ordem)
 
 > **Não existe MCP do Asaas** — e não faz falta. Quem fala com eles é o nosso
