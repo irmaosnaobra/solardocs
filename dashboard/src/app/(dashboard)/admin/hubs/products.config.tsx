@@ -31,6 +31,8 @@ import IoLpPanel from './_panels/IoLpPanel';
 import KitPanel from './_panels/KitPanel';
 // Banco de comentários do curso — o que vira depoimento na LP sai daqui
 import ComentariosCursoPanel from './_panels/ComentariosCursoPanel';
+// Nota 1: quem a LP do eletroposto recusa vai pra oferta de entrada — chegou lá?
+import Nota1Panel from './_panels/Nota1Panel';
 
 export type TabStatus = 'pronto' | 'parcial' | 'construir';
 
@@ -99,6 +101,9 @@ export const PRODUCTS: Product[] = [
       { key: 'funil',     label: 'Funil',            status: 'pronto',    Comp: () => <GeradorFunilPanel produto="eletroposto" /> },
       { key: 'membros',   label: 'Leads',            status: 'pronto',    Comp: () => <GeradorLeadsPanel produto="eletroposto" /> },
       { key: 'lp',        label: 'Página de Venda',   status: 'pronto',   Comp: () => <IoLpPanel match="/io/eletroposto" /> },
+      // Fica no hub do ELETROPOSTO porque é daqui que o lead sai (a LP recusa),
+      // mesmo com a oferta e os eventos morando no banco do SolarDoc.
+      { key: 'nota1',     label: 'Nota 1 / Material', status: 'pronto',   Comp: Nota1Panel },
       { key: 'followup',  label: 'Followup',         status: 'construir', nota: 'Só alerta à equipe hoje.', Comp: () => <FollowupPanel produto="eletroposto" /> },
       { key: 'agente',    label: 'Agente',           status: 'parcial',   Comp: () => <AgentePanel agent="none" /> },
       { key: 'config',    label: 'Config & Alertas', status: 'pronto',    Comp: () => <ConfigAlertasPanel produto="eletroposto" /> },

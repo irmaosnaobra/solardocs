@@ -10,6 +10,9 @@ import { listarOrdens, marcarFeita, setModo, sincronizarOrdens } from '../servic
 import { supabase } from '../utils/supabase';
 import { supabaseGerador } from '../utils/supabaseGerador';
 import { etiquetaDeLead, ETIQUETAS_ORDEM } from '../services/agenda/origemEtiqueta';
+import {
+  NOTA1_MATERIAL_DESDE, NOTA1_TIPOS, inicioDaJanela, linhasDoFunil, somaColuna,
+} from '../services/io/nota1Funil';
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 
 const router = Router();
@@ -763,6 +766,96 @@ router.get('/kit-funil', async (_req: Request, res: Response): Promise<void> => 
       conv_comprador_assinante: compradores.size ? +((assinantes / compradores.size) * 100).toFixed(1) : null,
       take_rate_bump: compradores.size ? +((comBump.size / compradores.size) * 100).toFixed(1) : null,
       pedidos: pedidos.slice(0, 60),
+    });
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
+// ── Funil do NOTA 1 (recusado na LP → página de material) — READ-ONLY ────────
+// A pergunta que este endpoint responde é uma só: de quem a LP do eletroposto
+// recusa, quantos chegam na oferta de entrada?
+//
+// São DOIS BANCOS que não se conversam. Quem foi MANDADO mora em
+// `eletroposto_nota1` (gerador-propostas); quem CHEGOU mora em `pc_eventos`
+// (solardoc-pro). Não existe chave em comum — o evento carrega session_id do
+// navegador, a ficha carrega telefone. Então isto é COMPARAÇÃO DE CONTAGEM, não
+// join: serve pra ver buraco no caminho, nunca pra dizer que o fulano X chegou.
+//
+// O `motivo` do payload é o que separa o nota 1 de quem entrou por fora: ele é
+// escrito pela LP no sessionStorage no instante da recusa, então `neutro` = veio
+// por link direto, anúncio do curso ou aba nova. Sem essa divisão o painel
+// somaria as 21 visitas do lançamento do curso (08/08) como se fossem recusados.
+//
+// A CONTA em si mora em services/io/nota1Funil.ts, com teste — aqui só se lê
+// banco e se devolve JSON.
+router.get('/nota1-funil', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const dias = Math.min(180, Math.max(7, Number(req.query.dias) || 30));
+    const desde = inicioDaJanela(dias);
+
+    const [fichasQ, eventosQ, comprasQ] = await Promise.all([
+      supabaseGerador
+        .from('eletroposto_nota1')
+        .select('created_at, nome, telefone, cidade, pts, motivo_descarte, origem')
+        .gte('created_at', desde)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('pc_eventos')
+        .select('tipo, session_id, payload, created_at')
+        .in('tipo', NOTA1_TIPOS)
+        .gte('created_at', desde),
+      supabase
+        .from('pc_compras')
+        .select('created_at, nome, email, item_slug, valor_centavos, status')
+        .gte('created_at', desde)
+        .order('created_at', { ascending: false }),
+    ]);
+
+    const fichas = (fichasQ.data ?? []) as Array<{
+      created_at: string; nome: string | null; telefone: string | null;
+      cidade: string | null; pts: number | null; motivo_descarte: string[] | null; origem: string | null;
+    }>;
+    const eventos = (eventosQ.data ?? []) as Array<{
+      tipo: string; session_id: string | null; payload: { motivo?: string } | null; created_at: string;
+    }>;
+    const compras = (comprasQ.data ?? []) as Array<{
+      created_at: string; nome: string | null; email: string | null;
+      item_slug: string | null; valor_centavos: number | null; status: string | null;
+    }>;
+
+    const linhas = linhasDoFunil(fichas, eventos, compras);
+    const soma = (k: Parameters<typeof somaColuna>[1]): number => somaColuna(linhas, k);
+
+    const mandados = soma('mandados');
+    const chegaram = soma('chegaram');
+    const furados = linhas.filter((l) => l.medicao_furada).map((l) => l.dia);
+
+    res.json({
+      desde,
+      dias,
+      piso: NOTA1_MATERIAL_DESDE,
+      mandados,
+      chegaram,
+      chegaram_fora: soma('chegaram_fora'),
+      rolaram: soma('rolaram'),
+      checkout: soma('checkout'),
+      checkout_fora: soma('checkout_fora'),
+      voltaram: soma('voltaram'),
+      compras: soma('compras'),
+      // O total é o número pra olhar; a linha do dia serve pra achar buraco.
+      conv_mandado_chegou: mandados ? +((chegaram / mandados) * 100).toFixed(1) : null,
+      conv_chegou_checkout: chegaram ? +((soma('checkout') / chegaram) * 100).toFixed(1) : null,
+      dias_sem_medicao: furados,
+      linhas,
+      fichas: fichas.slice(0, 60).map((f) => ({
+        quando: f.created_at, nome: f.nome, telefone: f.telefone, cidade: f.cidade,
+        pts: f.pts, motivos: f.motivo_descarte ?? [], origem: f.origem,
+      })),
+      // Compra não carrega o carimbo do nota 1 (o gateway não sabe de onde a
+      // pessoa veio), então esta lista é da PÁGINA inteira. Não é o fundo do
+      // funil do nota 1 — é o fundo do funil da oferta.
+      vendas: compras.slice(0, 20),
     });
   } catch (err) {
     res.status(500).json({ error: String((err as Error)?.message || err) });
