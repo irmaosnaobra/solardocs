@@ -1963,6 +1963,12 @@ function maskTel(i){
 // Voltou em 14/08 com os campos de endereço, que agora só o ponto definido vê.
 const CEP_HINT = '(opcional — completa o endereço)';
 let cepSeq = 0;
+// A cidade que o LEAD digitou lá em cima, guardada antes do primeiro CEP sobrescrever.
+// Enquanto o ponto está definido, a cidade é a DO PONTO e o CEP manda nela — mas quem
+// volta atrás ("na verdade ainda estou negociando") não pode ficar com a cidade do CEP:
+// ela é coluna própria do agendamento, é o que o alerta imprime e o que define a
+// concessionária do estudo. Sem endereço na ficha pra contradizer, ninguém veria o erro.
+let cidadeDoLead = null;
 function cepStatus(txt, bad){
   const s = document.getElementById('cep-st');
   s.textContent = txt;
@@ -1989,6 +1995,7 @@ async function buscaCep(digitos){
     const set = (id, v) => { document.getElementById(id).value = v || ''; };
     set('f-rua',    d.logradouro);
     set('f-bairro', d.bairro);
+    if(cidadeDoLead === null) cidadeDoLead = document.getElementById('f-cidade').value;
     set('f-cidade', d.localidade && d.uf ? `${d.localidade}-${d.uf}` : '');
     cepStatus(CEP_HINT, false);
     // CEP de cidade inteira não traz logradouro — joga o foco no campo que ficou faltando
@@ -2020,6 +2027,12 @@ function onPonto(){
     ['f-cep','f-rua','f-numero','f-bairro','f-compl'].forEach(id => {
       document.getElementById(id).value = '';
     });
+    // A cidade fica na tela, então ela volta a ser a do lead — o CEP do ponto não pode
+    // sobreviver ao ponto que o lead acabou de dizer que não tem.
+    if(cidadeDoLead !== null){
+      document.getElementById('f-cidade').value = cidadeDoLead;
+      cidadeDoLead = null;
+    }
     cepStatus(CEP_HINT, false);
   }
 }

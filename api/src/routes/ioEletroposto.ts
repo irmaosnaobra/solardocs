@@ -69,7 +69,10 @@ function montarMensagem(a: any): string {
   const nota = m ? Number(m[1]) : (temp === 'quente' ? 3 : temp === 'morno' ? 2 : 1);
   const SELO: Record<number, string> = {
     3: '🟢 *NOTA 3 — PRIORIDADE*',
-    2: '🟡 *NOTA 2 — DEFINIR PONTO*',
+    // "DEFINIR PONTO" saiu em 14/08: com o corte de quem não tem local, 3 em cada 4
+    // NOTA 2 passaram a ser leads COM o ponto definido a quem falta capital ou o aval
+    // de quem decide. O selo é o que o consultor lê pra priorizar — não pode mentir.
+    2: '🟡 *NOTA 2 — FALTA UMA PERNA*',
     1: '🔴 *NOTA 1 — NUTRIÇÃO*',
   };
   const selo = `${SELO[nota] || SELO[1]}${m ? `  (${m[2]})` : ''}`;
