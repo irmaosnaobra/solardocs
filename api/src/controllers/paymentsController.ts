@@ -7,9 +7,10 @@ import { sendDunningDay0, sendDunningRecovered } from '../services/dunningServic
 import { sendCheckoutCompletionEmail } from '../utils/mailer';
 import { sendActivationWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
 import { upsertSale, sendPurchaseForSale } from '../services/salesLedger';
-import { avisarVendaAoDono, historicoDoCliente } from '../services/vendaAviso';
+import { avisarVendaAoDono, avisarRenovacaoAoDono, historicoDoCliente } from '../services/vendaAviso';
 import { sendUtmifyOrder } from '../services/utmifyOrders';
 import { concederCursoPorAssinatura } from '../services/kitIntegradorService';
+import { pixCheckoutUrl, PIX_MES_VALOR } from '../utils/pixInfo';
 import {
   buscarCupomValido, aplicarCupom, garantirCupomStripe, garantirPromotionCode, cupomAtivoParaPlano,
   registrarUsoCupom, resumoPublicoCupom, normalizarCodigo, CupomAplicado,
@@ -393,11 +394,20 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
     line_items: [{ price: priceId, quantity: 1 }],
     ...(discounts ? { discounts } : permitirCodigoDigitado ? { allow_promotion_codes: true } : {}),
     customer_email: user.email,
+    // Telefone: o checkout público já coletava, este NÃO — e é daqui que vem a
+    // maioria dos abandonos (o UpgradeModal de quem já tem conta). Sem o número,
+    // `abandoned_checkouts.phone` nascia null e a Giovanna nunca falava com
+    // ninguém: 7 de 7 abandonos capturados até 14/08/2026 sem telefone.
+    phone_number_collection: { enabled: true },
     // `oferta` é o que separa vip_curso de um VIP comum no webhook. Os dois usam
     // o MESMO price (STRIPE_PRICE_VIP), então planByPrice() não distingue — sem
     // este carimbo, ou ninguém recebe o curso, ou todo VIP recebe.
     metadata: {
       userId: req.userId!,
+      // `plan` é o que a recuperação de abandono lê pra dizer se ele estava
+      // assinando o PRO ou o VIP. Sem isso todo abandono daqui virava e-mail
+      // dizendo "PRO" — inclusive pra quem estava comprando o VIP.
+      plan: planInfo.plano,
       ...(planKey === 'vip_curso' ? { oferta: 'vip_curso' } : {}),
       ...(aplicado ? { cupom: aplicado.cupom.codigo } : {}),
     },
@@ -414,7 +424,14 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
     // a plataforma. Banner sugere (não obriga) cadastrar empresa. CompanyRequiredGate
     // só bloqueia quando ele clica num tipo específico de doc.
     success_url: `${dashboardUrl}/documentos?welcome=1&plan=${encodeURIComponent(planInfo.plano)}`,
-    cancel_url:  `${dashboardUrl}/?cancelado=1`,
+    // Clicou em "voltar" no Stripe → cai numa tela que oferece o Pix na hora, em
+    // vez da home (que ignorava `cancelado=1` desde sempre). Leva plano e cupom
+    // junto: sem eles a tela mostraria outro preço do que ele acabou de ver.
+    // NÃO cobre fechar a aba — aí só a cadência de abandono alcança.
+    // `via=conta`: a tela precisa saber por onde refazer o cartão. Mandar quem já
+    // tem conta pro checkout PÚBLICO criaria um Customer novo na Stripe — que é a
+    // origem conhecida das assinaturas duplicadas (111 assinaturas p/ 85 e-mails).
+    cancel_url:  `${dashboardUrl}/quase-la?cancelado=1&via=conta&plano=${encodeURIComponent(planInfo.plano === 'ilimitado' ? 'vip' : planInfo.plano)}${aplicado ? `&cupom=${encodeURIComponent(aplicado.cupom.codigo)}` : ''}`,
     custom_text: {
       submit: {
         message: aplicado
@@ -512,7 +529,9 @@ export async function createPublicCheckout(req: Request, res: Response): Promise
       // &plano= é fallback: se o GET /checkout-info falhar, o RegisterForm ainda
       // sabe o plano e não mostra a tela enganosa de "criar conta grátis".
       success_url: `${dashboardUrl}/auth?mode=register&session={CHECKOUT_SESSION_ID}&plano=${encodeURIComponent(planInfo.plano === 'ilimitado' ? 'vip' : planInfo.plano)}`,
-      cancel_url:  `${dashboardUrl}/?cancelado=1`,
+      // Ver a nota do outro checkout: "voltar" no Stripe cai na oferta de Pix,
+      // com o mesmo plano e o mesmo cupom que ele estava levando.
+      cancel_url:  `${dashboardUrl}/quase-la?cancelado=1&via=lp&plano=${encodeURIComponent(planInfo.plano === 'ilimitado' ? 'vip' : planInfo.plano)}${aplicado ? `&cupom=${encodeURIComponent(aplicado.cupom.codigo)}` : ''}`,
       // Com cupom, o texto do botão diz o que acontece no mês 2 — é o que evita
       // a pessoa achar que R$ 19 é o preço da assinatura e contestar depois.
       custom_text: {
@@ -546,6 +565,19 @@ export async function getCupomInfo(req: Request, res: Response): Promise<void> {
     console.error('getCupomInfo error:', err);
     res.status(500).json({ error: 'Falha ao consultar o cupom' });
   }
+}
+
+// GET /payments/pix-checkout — o caminho de Pix que está no ar, pra tela /quase-la
+// (quem clica em "voltar" no Stripe) oferecer na hora. Público: é só um link de
+// checkout, o mesmo que a Giovanna manda no WhatsApp.
+//
+// A URL mora SÓ na env do servidor de propósito. Uma cópia NEXT_PUBLIC_ no front
+// seria um segundo lugar pra atualizar quando o produto mudar na Kiwify — e o dia
+// em que os dois divergirem, um deles manda o cliente pra um checkout morto.
+// `url: null` = trilho não configurado; a tela some com o botão em vez de exibir
+// um botão que não leva a lugar nenhum.
+export function getPixCheckoutInfo(_req: Request, res: Response): void {
+  res.json({ url: pixCheckoutUrl() || null, valor: PIX_MES_VALOR, dias: 30 });
 }
 
 export async function getCheckoutInfo(req: Request, res: Response): Promise<void> {
@@ -1141,6 +1173,56 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
           }
         } catch (err) {
           console.error('utmify paid falhou (pagamento intacto):', err);
+        }
+      }
+
+      // ══════════════════ AVISO DE RENOVAÇÃO (🔄RECORRENTE) ══════════════════
+      // A plataforma é mensal: todo mês a Stripe cobra de novo. Até 14/08/2026
+      // só a PRIMEIRA cobrança avisava o dono — do 2º mês em diante o dinheiro
+      // entrava em silêncio, que é justamente a maior parte dele.
+      //
+      // SÓ 'subscription_cycle'. Os outros dois motivos que este bloco aceita
+      // não são renovação: 'subscription_create' é a primeira fatura (o aviso
+      // de VENDA já saiu por ela, e avisar aqui de novo dobraria toda venda
+      // nova) e 'subscription_update' é troca de plano no meio do ciclo.
+      //
+      // O valor vem do que a Stripe COBROU, não do PLAN_MAP: quem entrou com o
+      // ACESSO19 pagou R$19 e renova em R$67 — é neste aviso que o Thiago vê
+      // que o cliente do cupom ficou.
+      if (invoice.billing_reason === 'subscription_cycle' && (invoice.amount_paid ?? 0) > 0) {
+        try {
+          const custId   = invoice.customer as string;
+          const customer = await stripe.customers.retrieve(custId) as any;
+          const emailR   = (customer?.email as string | undefined)?.toLowerCase().trim() || null;
+
+          // Tempo de casa = primeira compra deste E-MAIL, não desta assinatura:
+          // quem cancelou e voltou (ou tem Customer novo por clique) continua
+          // sendo cliente do mesmo tempo. Best-effort — sem isso o aviso sai
+          // igual, só sem o "3º mês".
+          let desde: string | null = null;
+          let produto = 'assinatura';
+          if (emailR) {
+            const { data: rows } = await supabase
+              .from('sales')
+              .select('produto, card_passed_at, created_at, phone, nome')
+              .eq('email', emailR);
+            const datas = (rows ?? [])
+              .map((r: any) => (r.card_passed_at || r.created_at) as string | null)
+              .filter(Boolean) as string[];
+            desde = datas.sort()[0] ?? null;
+            produto = (rows ?? [])[0]?.produto || produto;
+          }
+
+          await avisarRenovacaoAoDono(invoice.id as string, {
+            produto,
+            valor: (invoice.amount_paid ?? 0) / 100,
+            email: emailR,
+            nome: (customer?.name as string | undefined) || null,
+            phone: String(customer?.phone || '').replace(/\D/g, '') || null,
+            clienteDesde: desde,
+          });
+        } catch (err) {
+          console.error('[renovacao] aviso do dono falhou (cobrança intacta):', err);
         }
       }
     }

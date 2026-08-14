@@ -11,12 +11,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 type Row = Record<string, any>;
 const sales: Row[] = [];
+// PK de `system_state` — é ela que trava a renovação já avisada.
+const systemState = new Set<string>();
 let falharLeitura = false;
 
-// Fake do Supabase com estado: precisa respeitar o `.is('aviso_dono_em', null)`,
-// senão a trava "passa" no teste e falha em produção.
+// Fake do Supabase com estado: precisa respeitar o `.is('aviso_dono_em', null)`
+// e a colisão de PK do INSERT, senão as duas travas "passam" no teste e falham
+// em produção.
 vi.mock('../utils/supabase', () => {
-  function query() {
+  function query(tabela: string) {
     const filtros: Array<(r: Row) => boolean> = [];
     let patch: Row | null = null;
     const alvos = () => sales.filter((r) => filtros.every((f) => f(r)));
@@ -25,6 +28,14 @@ vi.mock('../utils/supabase', () => {
       eq: (col: string, val: any) => { filtros.push((r) => String(r[col]) === String(val)); return q; },
       is: (col: string, val: any) => { filtros.push((r) => (r[col] ?? null) === val); return q; },
       select: () => q,
+      // 23505 é o que o Postgres devolve quando a chave já existe — é ELE que
+      // impede a renovação de ser avisada duas vezes numa reentrega.
+      insert: async (linha: Row) => {
+        if (tabela !== 'system_state') return { data: null, error: null };
+        if (systemState.has(linha.key)) return { data: null, error: { code: '23505' } };
+        systemState.add(linha.key);
+        return { data: null, error: null };
+      },
       // `await supabase.from('sales').select(...).eq(...)` sem maybeSingle —
       // é assim que o historicoDoCliente lê as compras antigas do e-mail.
       then: (ok: any, erro: any) => Promise.resolve(
@@ -39,7 +50,7 @@ vi.mock('../utils/supabase', () => {
     };
     return q;
   }
-  return { supabase: { from: () => query() } };
+  return { supabase: { from: (t: string) => query(t) } };
 });
 
 const enviados: Array<{ phone: string; texto: string; linha: string }> = [];
@@ -60,7 +71,10 @@ vi.mock('../utils/logger', () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }));
 
-import { avisarVendaAoDono, textoAvisoVenda, historicoDoCliente } from '../services/vendaAviso';
+import {
+  avisarVendaAoDono, textoAvisoVenda, historicoDoCliente,
+  avisarRenovacaoAoDono, textoAvisoRenovacao,
+} from '../services/vendaAviso';
 
 const venda = (over: Partial<Parameters<typeof textoAvisoVenda>[0]> = {}) => ({
   produto: 'VIP', valor: 67, cobrouAgora: true,
@@ -70,7 +84,7 @@ const venda = (over: Partial<Parameters<typeof textoAvisoVenda>[0]> = {}) => ({
 });
 
 beforeEach(() => {
-  sales.length = 0; enviados.length = 0; emails.length = 0;
+  sales.length = 0; enviados.length = 0; emails.length = 0; systemState.clear();
   falharWhats = false; falharLeitura = false;
   sales.push({ id: 'venda-1', aviso_dono_em: null });
 });
@@ -266,5 +280,65 @@ describe('histórico do cliente', () => {
     );
     const h = await historicoDoCliente(chamada({ assinaturaViva: async () => true }));
     expect(textoAvisoVenda(venda({ historico: h }))).toContain('(há 9 dias)');
+  });
+});
+
+// ── Renovação mensal ────────────────────────────────────────────────────────
+// A plataforma é assinatura: do 2º mês em diante o dinheiro entrava sem avisar
+// ninguém. Duas coisas podem apodrecer aqui em silêncio: a trava (avisar a
+// mesma fatura duas vezes) e o VALOR (mostrar o de tabela em vez do cobrado —
+// é assim que o Thiago descobre que o cliente do cupom de R$19 ficou).
+describe('aviso de renovação', () => {
+  const renov = (over: Record<string, any> = {}) => ({
+    produto: 'VIP', valor: 67,
+    email: 'assinante@integrador.com', nome: 'Rodrigo', phone: '5534991360223',
+    clienteDesde: diasAtras(88),
+    ...over,
+  });
+
+  it('cabeçalho é RECORRENTE e a mensagem conta o mês da assinatura', async () => {
+    const r = await avisarRenovacaoAoDono('in_1', renov());
+    expect(r).toBe('enviado');
+    expect(enviados[0].linha).toBe('solardoc');
+
+    const t = enviados[0].texto;
+    expect(t.split('\n')[0]).toBe('*🔄RECORRENTE SolarDoc*');
+    expect(t).toContain('3º mês');            // 88 dias = está no 3º mês
+    expect(t).toContain('há 2 meses');        // ...e fechou 2 meses de casa
+    expect(t).toContain('R$ 67,00/mês');
+    expect(t).toContain('renovação cobrada');
+  });
+
+  it('o valor é o COBRADO, não o de tabela — é como se vê o cupom que ficou', () => {
+    // Entrou por R$19 com o ACESSO19 e renovou nos R$67 cheios.
+    expect(textoAvisoRenovacao(renov({ valor: 67 }))).toContain('R$ 67,00/mês');
+    expect(textoAvisoRenovacao(renov({ valor: 19 }))).toContain('R$ 19,00/mês');
+  });
+
+  it('reentrega da Stripe não avisa a mesma fatura duas vezes', async () => {
+    expect(await avisarRenovacaoAoDono('in_2', renov())).toBe('enviado');
+    expect(await avisarRenovacaoAoDono('in_2', renov())).toBe('duplicado');
+    expect(enviados).toHaveLength(1);
+  });
+
+  it('a trava é por FATURA — o mês seguinte avisa normalmente', async () => {
+    // Se a trava fosse a linha de `sales` (como na venda), a 1ª renovação
+    // carimbaria a venda e TODAS as outras voltariam 'duplicado', pra sempre.
+    await avisarRenovacaoAoDono('in_agosto', renov());
+    await avisarRenovacaoAoDono('in_setembro', renov());
+    expect(enviados).toHaveLength(2);
+  });
+
+  it('sem tempo de casa apurado, avisa mesmo assim', async () => {
+    await avisarRenovacaoAoDono('in_3', renov({ clienteDesde: null }));
+    expect(enviados[0].texto).toContain('não apurado');
+    expect(enviados[0].texto.split('\n')[0]).toBe('*🔄RECORRENTE SolarDoc*');
+  });
+
+  it('linha caída cai pro e-mail — a renovação não passa em silêncio', async () => {
+    falharWhats = true;
+    expect(await avisarRenovacaoAoDono('in_4', renov())).toBe('email');
+    expect(emails[0].assunto).toContain('🔄 Renovação');
+    expect(emails[0].corpo).toContain('assinante@integrador.com');
   });
 });

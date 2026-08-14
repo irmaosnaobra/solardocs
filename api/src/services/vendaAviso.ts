@@ -264,3 +264,94 @@ export async function avisarVendaAoDono(
     return 'email';
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RENOVAÇÃO MENSAL
+//
+// A plataforma é assinatura: todo mês a Stripe cobra de novo. Até aqui só a
+// PRIMEIRA cobrança avisava alguém — o dinheiro que entra do mês 2 em diante
+// (que é a maior parte dele) passava em silêncio absoluto.
+//
+// Sai pela mesma linha e com o mesmo formato de cabeçalho da venda, trocando
+// só o rótulo: *💰VENDA SolarDoc* é cliente novo, *🔄RECORRENTE SolarDoc* é
+// o mês que renovou.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type RenovacaoAviso = {
+  produto: string;
+  valor: number;                 // o que a Stripe COBROU agora (não o de tabela)
+  email: string | null;
+  nome: string | null;
+  phone: string | null;
+  clienteDesde: string | null;   // ISO da primeira compra deste e-mail
+};
+
+// "3º mês" a partir da primeira compra do e-mail. Renovação é sempre >= 2º.
+function mesDaAssinatura(desde: string | null): number | null {
+  if (!desde) return null;
+  const dias = Math.floor((Date.now() - new Date(desde).getTime()) / 86_400_000);
+  if (!Number.isFinite(dias) || dias < 0) return null;
+  return Math.max(2, Math.floor(dias / 30.44) + 1);
+}
+
+export function textoAvisoRenovacao(v: RenovacaoAviso): string {
+  const mes = mesDaAssinatura(v.clienteDesde);
+  const dia = v.clienteDesde ? dataBR(v.clienteDesde) : '';
+  const tempo = tempoDeCasa(v.clienteDesde);
+  const casa = [mes ? `${mes}º mês` : '', tempo, dia ? `desde ${dia}` : '']
+    .filter(Boolean).join(' · ');
+
+  return [
+    TITULO.recorrente,
+    '',
+    `*Plano:* ${v.produto} · ${brl(v.valor)}/mês`,
+    '*Dinheiro:* entrou agora (renovação cobrada)',
+    `🔄 *Cliente:* ${casa || '_tempo de casa não apurado_'}`,
+    `*Nome:* ${v.nome || '_não informado_'}`,
+    `*E-mail:* ${v.email || '_não informado_'}`,
+    ...(v.phone ? [`*WhatsApp:* wa.me/${v.phone}`] : []),
+  ].join('\n');
+}
+
+/**
+ * Avisa o dono de uma RENOVAÇÃO mensal. Idempotente por fatura.
+ *
+ * A trava é `system_state` com a chave `venda_aviso_invoice:<invoice.id>`, e não
+ * a coluna `aviso_dono_em` de `sales`: aquela linha é da VENDA, uma só, e
+ * carimbá-la na primeira renovação faria todas as outras — todo mês, pra sempre
+ * — voltarem como 'duplicado' sem ninguém perceber.
+ *
+ * INSERT contra a PK = trava atômica: a reentrega da Stripe bate em 23505 e
+ * desiste. Tomada ANTES do envio, mesma escolha da venda (avisar duas vezes
+ * ensina o dono a ignorar o aviso).
+ */
+export async function avisarRenovacaoAoDono(
+  invoiceId: string,
+  v: RenovacaoAviso,
+): Promise<'enviado' | 'email' | 'duplicado'> {
+  const { error: travaErr } = await supabase
+    .from('system_state')
+    .insert({ key: `venda_aviso_invoice:${invoiceId}`, value: { em: new Date().toISOString() } });
+  if (travaErr) {
+    // 23505 = já avisada. Qualquer outro erro também para aqui: sem trava
+    // confiável, o risco de repetir todo mês é pior que o de perder um aviso.
+    if ((travaErr as { code?: string }).code !== '23505') {
+      logger.error('venda-aviso', 'trava da renovação falhou — não vou arriscar avisar em dobro', travaErr);
+    }
+    return 'duplicado';
+  }
+
+  const texto = textoAvisoRenovacao(v);
+  try {
+    await sendWhatsApp(DONO_PHONE, texto, 'solardoc');
+    return 'enviado';
+  } catch (err) {
+    logger.error('venda-aviso', 'WhatsApp da renovação não passou — caindo pro e-mail', err);
+    await sendOpsAlert(
+      `🔄 Renovação (${v.produto} · ${brl(v.valor)}) — o WhatsApp não passou`,
+      `<p>Uma renovação foi cobrada e o aviso pelo WhatsApp <strong>falhou</strong>. Segue o conteúdo:</p>` +
+      `<pre style="white-space:pre-wrap;font-family:inherit">${texto.replace(/\*/g, '')}</pre>`,
+    ).catch((e) => logger.error('venda-aviso', 'e-mail de fallback da renovação também falhou', e));
+    return 'email';
+  }
+}
