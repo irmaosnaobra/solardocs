@@ -159,7 +159,7 @@ describe('histórico do cliente', () => {
     expect(t).toContain('pode virar cobrança dobrada');
   });
 
-  it('a Stripe manda mais que o ledger: sub cancelada há 10min vira VOLTOU, não duplicidade', async () => {
+  it('a Stripe manda mais que o ledger: sub cancelada há 10min vira RECORRENTE, não duplicidade', async () => {
     // O ledger é reconciliado de hora em hora — dentro dessa hora ele ainda diz
     // 'active' pra uma assinatura que já morreu. Sem a conferida na Stripe, o
     // aviso gritaria duplicidade em cima de uma reativação.
@@ -168,8 +168,8 @@ describe('histórico do cliente', () => {
       { email: 'quem@integrador.com', checkout_session_id: 'cs_agora', subscription_id: 'sub_agora', status: 'paid', card_passed_at: diasAtras(0) },
     );
     const h = await historicoDoCliente(chamada({ assinaturaViva: async () => false }));
-    expect(h?.tipo).toBe('retorno');
-    expect(textoAvisoVenda(venda({ historico: h }))).toContain('VOLTOU');
+    expect(h?.tipo).toBe('recorrente');
+    expect(textoAvisoVenda(venda({ historico: h }))).toContain('RECORRENTE');
   });
 
   it('linha do backfill (sem subscription_id) cai no status do ledger', async () => {
@@ -180,7 +180,7 @@ describe('histórico do cliente', () => {
     const viva = vi.fn(async () => true);
     const h = await historicoDoCliente(chamada({ assinaturaViva: viva }));
     expect(viva).not.toHaveBeenCalled(); // não há sub antiga pra perguntar
-    expect(h?.tipo).toBe('retorno');
+    expect(h?.tipo).toBe('recorrente');
   });
 
   it('Stripe fora não derruba nada — o ledger decide', async () => {
@@ -197,7 +197,7 @@ describe('histórico do cliente', () => {
   it('com muitas assinaturas antigas, a VIVA (mais nova) não fica fora do corte de 3', async () => {
     // Já existe um e-mail com 3 subs no ledger. Como o Postgres devolve sem
     // ordem, cortar 3 quaisquer podia deixar a assinatura viva de fora e o
-    // aviso diria VOLTOU no comprador repetido — o caso mais caro de errar.
+    // aviso diria RECORRENTE no comprador repetido — o caso mais caro de errar.
     sales.push(
       { email: 'quem@integrador.com', checkout_session_id: 'cs_1', subscription_id: 'sub_1', status: 'canceled', card_passed_at: diasAtras(200) },
       { email: 'quem@integrador.com', checkout_session_id: 'cs_2', subscription_id: 'sub_2', status: 'canceled', card_passed_at: diasAtras(150) },
@@ -236,10 +236,10 @@ describe('histórico do cliente', () => {
 
     expect(cabecalho({ ...base, tipo: 'novo' })).toBe('🆕 *VENDA SolarDoc — CLIENTE NOVO*');
     expect(cabecalho({ ...base, tipo: 'assinante' })).toBe('⚠️ *VENDA SolarDoc — JÁ É ASSINANTE*');
-    expect(cabecalho({ ...base, tipo: 'retorno' })).toBe('🔄 *VENDA SolarDoc — CLIENTE QUE VOLTOU*');
+    expect(cabecalho({ ...base, tipo: 'recorrente' })).toBe('🔄 *VENDA SolarDoc — CLIENTE RECORRENTE*');
 
     // Três emojis diferentes: dois parecidos valeriam o mesmo que nenhum.
-    const emojis = (['novo', 'assinante', 'retorno'] as const).map((t) => cabecalho({ ...base, tipo: t }).slice(0, 2));
+    const emojis = (['novo', 'assinante', 'recorrente'] as const).map((t) => cabecalho({ ...base, tipo: t }).slice(0, 2));
     expect(new Set(emojis).size).toBe(3);
   });
 

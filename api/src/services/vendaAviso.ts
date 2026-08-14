@@ -43,9 +43,11 @@ export type VendaAviso = {
 
 // Quem já comprou antes com este e-mail. Três estados, porque os três pedem
 // coisas diferentes do dono: 'novo' é aquisição, 'assinante' é cobrança
-// dobrada em formação e 'retorno' é uma reativação (vitória, não problema).
+// dobrada em formação e 'recorrente' é uma reativação (vitória, não problema).
+// RECORRENTE é a palavra do Thiago pra quem já comprou, saiu e voltou — não
+// confundir com a cobrança mensal da assinatura, que é outro assunto.
 export type HistoricoCliente = {
-  tipo: 'novo' | 'assinante' | 'retorno';
+  tipo: 'novo' | 'assinante' | 'recorrente';
   primeiraCompra: string | null;   // ISO da compra mais antiga deste e-mail
   comprasAnteriores: number;
 };
@@ -86,15 +88,15 @@ export function tempoDeCasa(iso: string | null): string {
 // Os três são visualmente distintos de longe (novo / risco / repetição) —
 // dois emojis parecidos aqui valeriam o mesmo que nenhum.
 const EMOJI: Record<HistoricoCliente['tipo'], string> = {
-  novo:      '🆕',
-  assinante: '⚠️',
-  retorno:   '🔄',
+  novo:       '🆕',
+  assinante:  '⚠️',
+  recorrente: '🔄',
 };
 
 const TITULO: Record<HistoricoCliente['tipo'], string> = {
-  novo:      '🆕 *VENDA SolarDoc — CLIENTE NOVO*',
-  assinante: '⚠️ *VENDA SolarDoc — JÁ É ASSINANTE*',
-  retorno:   '🔄 *VENDA SolarDoc — CLIENTE QUE VOLTOU*',
+  novo:       '🆕 *VENDA SolarDoc — CLIENTE NOVO*',
+  assinante:  '⚠️ *VENDA SolarDoc — JÁ É ASSINANTE*',
+  recorrente: '🔄 *VENDA SolarDoc — CLIENTE RECORRENTE*',
 };
 
 export function tituloAvisoVenda(h: HistoricoCliente | null | undefined): string {
@@ -120,7 +122,7 @@ function linhaCliente(h: HistoricoCliente | null | undefined): string[] {
   const quando = dia
     ? `já tinha comprado em ${dia}${tempo ? ` (${tempo})` : ''} e cancelou`
     : 'já tinha comprado antes e cancelou';
-  return [`${EMOJI.retorno} *Cliente:* VOLTOU — ${quando} · ${nEsima}`];
+  return [`${EMOJI.recorrente} *Cliente:* RECORRENTE — ${quando} · ${nEsima}`];
 }
 
 export function textoAvisoVenda(v: VendaAviso): string {
@@ -218,7 +220,7 @@ export async function historicoDoCliente(args: {
   if (viva === null) viva = anteriores.some((r) => STATUS_VIVO.has(String(r.status)));
 
   return {
-    tipo: viva ? 'assinante' : 'retorno',
+    tipo: viva ? 'assinante' : 'recorrente',
     primeiraCompra: datas[0] ?? null,
     comprasAnteriores: anteriores.length,
   };
