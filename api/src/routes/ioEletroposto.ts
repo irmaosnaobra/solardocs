@@ -87,9 +87,11 @@ function montarMensagem(a: any): string {
     `*Cliente:* ${a.cliente_nome || '—'}`,
     `*WhatsApp:* wa.me/${soDigitos(a.cliente_telefone)}`,
     `*Cidade:* ${a.cidade || '—'}`,
-    // A LP parou de mandar "Endereço:" em 08/08/2026 (o formulário passou a pedir só
-    // a cidade). Mantido o campo aqui, ele viraria uma linha "Endereço: —" em todo
-    // alerta — ruído no lugar de informação.
+    // "Endereço:" só existe na ficha de quem respondeu ter o ponto definido (a LP
+    // voltou a pedir o endereço em 14/08, atrás dessa resposta). Por isso a linha é
+    // condicional: fixa, ela viraria "Endereço: —" em toda reunião de quem ainda está
+    // negociando o local — ruído no lugar de informação.
+    ...(tem('Endereço:') ? [`*Endereço:* ${linha('Endereço:')}`] : []),
     `*Perfil:* ${perfil}`,
     ...(tem('Rota de passagem:') ? [`*Rota de passagem:* ${linha('Rota de passagem:')}`] : []),
     ``,

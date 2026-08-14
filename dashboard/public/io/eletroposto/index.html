@@ -1099,13 +1099,35 @@
              e o binário jogava todos no mesmo balde. -->
         <div class="fld">
           <label for="f-ponto">Como está o seu ponto hoje?</label>
-          <div class="inp"><select id="f-ponto">
+          <div class="inp"><select id="f-ponto" onchange="onPonto()">
             <option value="">Selecione…</option>
             <option value="definido">Já tenho o ponto definido</option>
             <option value="negociando">Tenho um local em negociação com o proprietário</option>
             <option value="em_vista">Tenho um local em vista, mas ainda não conversei</option>
             <option value="sem_ideia">Não tenho ideia de onde instalar</option>
           </select></div>
+        </div>
+
+        <!-- ENDEREÇO — só para quem respondeu "já tenho o ponto definido" (14/08/2026).
+             Os 5 campos saíram do formulário em 08/08 porque cobravam de TODO MUNDO o
+             que só o lead qualificado tem: o público daqui é mais velho e cada campo a
+             mais era gente desistindo no meio. Voltam agora atrás de uma porta — quem
+             abre é justamente quem a equipe procura, e o endereço dele é o que faz o
+             estudo de viabilidade (concessionária, fluxo da via, distância da entrada de
+             energia) chegar pronto na reunião. Quem não tem ponto nunca vê estes campos. -->
+        <div id="box-endereco" style="display:none">
+          <div class="fld" style="margin-bottom:0">
+            <label>Endereço do ponto <span class="hint">(a equipe leva o estudo do seu local pronto na reunião)</span></label>
+          </div>
+          <div class="f2">
+            <div class="fld"><label for="f-cep">CEP <span class="hint" id="cep-st">(opcional — completa o endereço)</span></label><div class="inp"><input type="text" id="f-cep" placeholder="00000-000" inputmode="numeric" autocomplete="postal-code" oninput="maskCep(this)"></div></div>
+            <div class="fld"><label for="f-rua">Rua / Avenida</label><div class="inp"><input type="text" id="f-rua" placeholder="Ex: Av. João Naves de Ávila"></div></div>
+          </div>
+          <div class="f2">
+            <div class="fld"><label for="f-numero">Número</label><div class="inp"><input type="text" id="f-numero" placeholder="Ex: 1200" inputmode="numeric"></div></div>
+            <div class="fld"><label for="f-bairro">Bairro</label><div class="inp"><input type="text" id="f-bairro" placeholder="Ex: Santa Mônica"></div></div>
+          </div>
+          <div class="fld"><label for="f-compl">Complemento / referência <span class="hint">(opcional)</span></label><div class="inp"><input type="text" id="f-compl" placeholder="Posto, galpão, esquina de referência"></div></div>
         </div>
 
         <div class="fld">
@@ -1935,9 +1957,72 @@ function maskTel(i){
   else if(v.length>2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
   i.value = v;
 }
-// A busca no ViaCEP saiu junto com os campos de endereço (08/08/2026): ela existia
-// só pra preencher rua/bairro/cidade sozinha, e agora o único campo é a cidade —
-// que o lead digita mais rápido do que os 8 dígitos do CEP.
+// ViaCEP: com o CEP completo, rua/bairro/cidade se preenchem sozinhos. É CONVENIÊNCIA,
+// não dependência — se a API cair, expirar ou o CEP não existir, o lead preenche na mão
+// e o agendamento segue igual (o CEP continua opcional e nada aqui bloqueia o envio).
+// Voltou em 14/08 com os campos de endereço, que agora só o ponto definido vê.
+const CEP_HINT = '(opcional — completa o endereço)';
+let cepSeq = 0;
+function cepStatus(txt, bad){
+  const s = document.getElementById('cep-st');
+  s.textContent = txt;
+  s.style.color = bad ? '#fda4af' : '';
+}
+async function buscaCep(digitos){
+  const seq = ++cepSeq;
+  cepStatus('buscando…', false);
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 6000);   // sem isto, rede ruim trava o "buscando…" pra sempre
+  try{
+    const r = await fetch(`https://viacep.com.br/ws/${digitos}/json/`, {signal: ctrl.signal});
+    // digitou outro CEP enquanto esta resposta vinha: ela é velha, não pode pintar o form
+    if(seq !== cepSeq) return;
+    if(!r.ok) return cepStatus('CEP não encontrado — preencha abaixo', true);
+    const d = await r.json();
+    if(seq !== cepSeq) return;
+    if(d.erro)  return cepStatus('CEP não encontrado — preencha abaixo', true);
+
+    // busca que deu certo SUBSTITUI o bloco inteiro, inclusive com vazio. Preencher só
+    // o que veio misturava endereços: quem corrige 38408-100 (Uberlândia) por 38660-000
+    // (Buritis, que não tem logradouro) ficaria com a rua da cidade antiga sob a cidade
+    // nova — os campos preenchidos, validação passando e a equipe indo no lugar errado.
+    const set = (id, v) => { document.getElementById(id).value = v || ''; };
+    set('f-rua',    d.logradouro);
+    set('f-bairro', d.bairro);
+    set('f-cidade', d.localidade && d.uf ? `${d.localidade}-${d.uf}` : '');
+    cepStatus(CEP_HINT, false);
+    // CEP de cidade inteira não traz logradouro — joga o foco no campo que ficou faltando
+    document.getElementById(d.logradouro ? 'f-numero' : 'f-rua').focus();
+  }catch(e){
+    // rede fora ou timeout: volta ao normal sem alarme — os campos continuam editáveis
+    if(seq === cepSeq) cepStatus(CEP_HINT, false);
+  }finally{
+    clearTimeout(t);
+  }
+}
+function maskCep(i){
+  let v = i.value.replace(/\D/g,'').slice(0,8);
+  if(v.length>5) v = `${v.slice(0,5)}-${v.slice(5)}`;
+  i.value = v;
+  const dig = v.replace(/\D/g,'');
+  if(dig.length === 8) buscaCep(dig);
+  else { cepSeq++; cepStatus(CEP_HINT, false); }   // apagou/editou: invalida a busca em voo
+}
+// O endereço aparece NA HORA em que o lead diz que tem o ponto: é o único que a equipe
+// consegue estudar antes da reunião. Trocou a resposta depois? O bloco some, e o que ele
+// tinha digitado some junto — endereço de um ponto que ele acabou de dizer que não tem
+// viajaria na ficha e mandaria o consultor pro lugar errado.
+function onPonto(){
+  const definido = document.getElementById('f-ponto').value === 'definido';
+  document.getElementById('box-endereco').style.display = definido ? '' : 'none';
+  if(!definido){
+    cepSeq++;                                       // invalida busca de CEP em voo
+    ['f-cep','f-rua','f-numero','f-bairro','f-compl'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    cepStatus(CEP_HINT, false);
+  }
+}
 function erro(txt){
   const m = document.getElementById('ag-msg');
   m.textContent = txt; m.className = 'agMsg err';
@@ -1949,6 +2034,11 @@ async function agendar(){
   const nome    = document.getElementById('f-nome').value.trim();
   const telRaw  = document.getElementById('f-tel').value.replace(/\D/g,'');
   const cidade  = document.getElementById('f-cidade').value.trim();
+  const cep     = document.getElementById('f-cep').value.trim();
+  const rua     = document.getElementById('f-rua').value.trim();
+  const numero  = document.getElementById('f-numero').value.trim();
+  const bairro  = document.getElementById('f-bairro').value.trim();
+  const compl   = document.getElementById('f-compl').value.trim();
   const btn     = document.getElementById('ag-btn');
 
   const perfil  = document.getElementById('f-perfil');
@@ -1970,6 +2060,13 @@ async function agendar(){
   if(PERFIL_SEM_FLUXO.has(perfil.value) && !rota.value)
                           return erro('Informe se o local fica em rota de passagem.');
   if(!ponto.value)        return erro('Informe como está o seu ponto hoje.');
+  // Endereço só é cobrado de quem disse ter o ponto — para o resto o bloco nem existe
+  // na tela. Rua, número e bairro são obrigatórios; CEP e complemento, não.
+  if(ponto.value === 'definido'){
+    if(rua.length < 3)    return erro('Informe a rua ou avenida do ponto.');
+    if(!numero)           return erro('Informe o número do endereço do ponto.');
+    if(bairro.length < 2) return erro('Informe o bairro do ponto.');
+  }
   if(!invest.value)       return erro('Informe como pretende investir.');
   if(!decisor.value)      return erro('Informe quem decide o investimento.');
   if(!trif.value)         return erro('Informe se a entrada de energia do local é trifásica.');
@@ -2042,9 +2139,14 @@ async function agendar(){
     // agenda antes de montar ficha (o `return` lá em cima).
     `NOTA ${q.nota} · ${q.pts}/11 pts`,
     pontoParaInvestidor ? 'PONTO DISPONIVEL PARA INVESTIDOR' : '',
-    // A linha "Endereço:" saiu com os campos de endereço. A cidade viaja na coluna
-    // própria do agendamento (é ela que o alerta imprime) e o "ponto ainda não
-    // definido" continua visível na linha `Ponto:` logo abaixo.
+    // "Endereço:" volta em 14/08, e SÓ pra quem tem o ponto definido — é o único que
+    // preencheu o bloco. Para os outros a linha não existe (em vez de existir vazia): o
+    // alerta da equipe só imprime o que a ficha traz, e "Endereço: —" seria ruído em
+    // toda reunião de quem ainda está negociando o local.
+    pontoDefinido
+      ? `Endereço: ${[`${rua}, ${numero}`, bairro, cidade, cep ? `CEP ${cep}` : '',
+                      compl ? `ref.: ${compl}` : ''].filter(Boolean).join(' — ')}`
+      : '',
     `Ponto: ${txt(ponto)}`,
     PERFIL_SEM_FLUXO.has(perfil.value) ? `Rota de passagem: ${txt(rota)}` : '',
     `Como pretende investir: ${txt(invest)}`,
@@ -2225,6 +2327,7 @@ montarSelectCarros();  // idem — o calc() do setConfig já pinta o cartão do 
 setConfig();      // aplica a config default (80 kW) e calcula
 pintarAncora();   // faixa de investimento da seção de cima = min/max do CONFIGS
 onPerfil();       // o browser pode restaurar o perfil ao voltar pra página (bfcache)
+onPonto();        // idem pro ponto: sem isto o endereço restaurado ficaria escondido
 // a aba pode ficar aberta horas: ao voltar pra ela, refaz a agenda (horário que passou some)
 document.addEventListener('visibilitychange', () => { if(!document.hidden && !slotSel) montarSlots(); });
 // A aba tambem fica ABERTA por horas sem trocar de foco — e a vitrine anda sozinha o
