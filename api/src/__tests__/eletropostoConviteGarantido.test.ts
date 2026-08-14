@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest';
 
 // "Todo NOTA 1 entra no grupo, sempre" — regra do dono.
 // O envio da LP falha em silêncio de três jeitos (linha caída, teto de 40/h,
@@ -107,8 +107,15 @@ beforeEach(() => {
 });
 afterEach(() => { vi.useRealTimers(); process.env = { ...envOriginal }; });
 
+// O import do módulo é pago UMA vez, fora de qualquer teste. Antes ele acontecia
+// dentro do primeiro `it`, e a cadeia de imports (supabase, zapi, throttle) passa
+// dos 5 s do timeout padrão quando a suíte inteira roda em paralelo numa máquina
+// carregada: o teste falhava por tempo, não por comportamento, e só na suíte
+// cheia — passava sozinho. Flake assim derruba deploy por motivo nenhum.
+beforeAll(async () => { await import('../services/io/eletropostoConviteGarantido'); });
+
 async function tick() {
-  const mod = await import('../services/io/eletropostoConviteGarantido');
+  const mod = await import('../services/io/eletropostoConviteGarantido');   // cache
   return mod.runConviteNota1Garantido();
 }
 
