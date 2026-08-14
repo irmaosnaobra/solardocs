@@ -92,7 +92,16 @@ section{padding:72px 20px}
 .cash{color:var(--green)}
 .assina{font-size:12px;color:#8f8f8f;text-align:right;line-height:1.4}
 
-h1{font-size:clamp(29px,5vw,46px);font-weight:800;line-height:1.12;letter-spacing:-.025em;margin:0 0 20px;max-width:19ch;text-wrap:balance}
+/* A headline cresceu em 14/08: ela é a primeira coisa lida e estava do mesmo
+   tamanho dos títulos de seção — o que faz a primeira tela parecer aviso, não
+   oferta. `max-width` em ch continua segurando a quebra em duas ou três linhas. */
+h1{font-size:clamp(33px,6vw,56px);font-weight:800;line-height:1.06;letter-spacing:-.03em;margin:0 0 20px;max-width:18ch;text-wrap:balance}
+/* Subheadline: uma linha maior que o corpo, pra ela ser lida junto com o título
+   em vez de virar mais um parágrafo. Vale só no hero. */
+.heroSec #abertura .lead{font-size:clamp(17px,2.2vw,20.5px);line-height:1.55;color:#e6e6e6}
+.heroOferta{margin:26px 0 0}
+.heroOferta .cta{margin:0}
+.heroMicro{font-size:13px;color:#9a9a9a;margin:12px 0 0;line-height:1.6}
 h2{font-size:clamp(23px,3.4vw,33px);font-weight:800;line-height:1.18;letter-spacing:-.02em;margin:0 0 12px;max-width:24ch;text-wrap:balance}
 h3{font-size:19px;font-weight:800;margin:0 0 6px;letter-spacing:-.01em}
 /* Rótulo de seção em cinza, não em verde. O verde desta página tem UM trabalho:
@@ -368,7 +377,7 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
 @media(max-width:640px){
   .assina{display:none}
   section{padding:48px 18px}
-  h1{font-size:31px;line-height:1.14;max-width:none}
+  h1{font-size:35px;line-height:1.08;max-width:none}
   h2{font-size:25px;max-width:none}
   .lead{font-size:16.5px}
   .sub{font-size:15.5px}
@@ -469,6 +478,17 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
         <div id="abertura"></div>
         <p class="lead" id="ponte"></p>
         <div id="video-slot"></div>
+
+        <!-- OFERTA NO ALTO — entrou em 14/08/2026. A página inteira argumentava
+             antes de mostrar preço, por respeito a quem acabou de levar um não; o
+             efeito colateral é que quem já estava convencido na primeira tela
+             tinha que rolar oito seções pra poder pagar. Agora dá pra comprar
+             aqui, e o argumento continua embaixo pra quem precisa dele. -->
+        <div class="heroOferta" id="hero-oferta" style="display:none">
+          <a class="cta" id="cta0" href="#">Quero o material</a>
+          <p class="heroMicro">Acesso na hora, por e-mail · 7 dias de garantia · o valor volta integral se não servir</p>
+        </div>
+
         <p style="margin:28px 0 0">
           <a href="/io/eletroposto#agendar" id="voltar"
              style="color:#8f8f8f;font-size:14px;text-decoration:underline;text-underline-offset:3px">
@@ -1028,27 +1048,33 @@ var COPY = {
   // não "não tem": quem tem um local em vista leria o contrário do que respondeu.
   sem_ponto: {
     selo: 'Você respondeu que o ponto ainda não está fechado',
-    headline: 'Você não está sem ponto. Está sem o método de reconhecer um.',
+    // A headline nomeia o que ele NÃO SABE que está acontecendo — passar pelo ponto
+    // certo e seguir direto — em vez de repetir o diagnóstico que ele já leu na LP.
+    // "Ele é medido" já entrega o mecanismo do produto na primeira linha.
+    headline: 'O ponto certo não aparece. Ele é medido — e você passou por um esta semana.',
     abertura: [
-      'Você passa por cinco ou seis locais viáveis toda semana e não consegue dizer qual deles paga a conta — porque olhar não é medir. E um local em vista continua sendo palpite até as quatro medidas saírem: sem elas o que sobra é sensação, e sensação não fecha contrato com o dono do imóvel nem convence banco.'
+      'Quem já tem eletroposto rodando não achou um lugar melhor que o seu. Ele mediu quatro coisas de uma esquina que os outros olharam e acharam comum: quanto carro passa de verdade, quanta energia sobra na conta de luz, que potência aquilo aguenta e em quanto tempo o dinheiro volta.',
+      'Enquanto essas quatro medidas não saem, todo local é "talvez" — e "talvez" não fecha com o dono do imóvel, não passa no banco e não vira obra. É por isso que dá pra rodar um ano inteiro achando que ainda não apareceu nada bom.'
     ],
-    ponte: 'Achar ponto não é sorte nem faro: são quatro medidas e uma conta. Elas estão aqui, na ordem, e é o que você não acha solto na internet.'
+    ponte: 'Em uma tarde você aprende a tirar esses quatro números de qualquer endereço. A partir daí você para de procurar o ponto perfeito e começa a reprovar ponto ruim de graça — que é como se acha o certo.'
   },
   fluxo_baixo: {
     selo: 'Você respondeu que investe, mas não tem o local',
-    headline: 'Você tem o dinheiro. O que falta é saber medir a esquina.',
+    headline: 'Você tem o dinheiro. Quem decide o retorno é a esquina — e ela se mede.',
     abertura: [
-      'Posto, mercado e hotel já têm carro parando na porta por outro motivo. Investidor sem ponto não tem: quem responde pelo movimento é a rua.'
+      'Posto, mercado e hotel já têm carro parando na porta por outro motivo: o movimento deles não depende do carregador. O seu depende inteiro da rua.',
+      'E rua não se sente, se conta. O mesmo endereço que parece movimentado às seis da tarde entrega quatro carros por dia — e é essa diferença que separa um investimento que se paga de um equipamento parado numa esquina bonita.'
     ],
     // Não diz "é a parte central do material": medir movimento é UMA aula das 14.
     // Exagero aqui é caro — este leitor foi selecionado justamente por farejar exagero.
-    ponte: 'Medir a rua sem contratar pesquisa é uma das aulas daqui. É a que muda a sua resposta.'
+    ponte: 'Medir a rua sem contratar pesquisa é uma das aulas daqui. É a que troca a sua pergunta de "será que dá?" por um número que você mesmo levantou.'
   },
   nao_decisor: {
     selo: 'Você respondeu que a decisão não é só sua',
-    headline: 'Quem decide com você vai pedir números. Eles não estão no Google.',
+    headline: 'Quem assina com você vai pedir números. E eles não estão no Google.',
     abertura: [
-      'Reunião de dimensionamento termina em decisão. Sem quem assina na sala, ela termina em “vou levar pro meu sócio” — e a segunda quase nunca acontece.'
+      'Conversa sem quem decide na sala termina sempre igual: "vou levar pro meu sócio". A segunda conversa quase nunca acontece — não porque a ideia é ruim, mas porque quem levou não sabia responder às três perguntas que o outro fez.',
+      'Entusiasmo não atravessa essa mesa. O que atravessa é conta aberta: quanto entra, quanto custa, quanto tempo até ligar e de onde saiu cada número.'
     ],
     // NÃO promete "os riscos e as objeções que o outro lado vai levantar" — isso é
     // o Dossiê do Sócio, outro curso. Aqui só o que o material de entrada tem: a
@@ -1057,19 +1083,21 @@ var COPY = {
   },
   sem_capital: {
     selo: 'Você respondeu que o capital ainda não está disponível',
-    headline: 'Antes do dinheiro vem a conta. E ela não existe pronta em lugar nenhum.',
+    headline: 'Nenhum banco financia uma ideia. Todos financiam uma conta.',
     abertura: [
-      'Orçamento na mão de quem ainda não sabe como paga vira PDF guardado. Dinheiro para eletroposto não é sorte, é formato.'
+      'Orçamento na mão de quem ainda não sabe como paga vira PDF guardado. Dinheiro para eletroposto não é sorte nem sobra em caixa: é formato.',
+      'Quem consegue chega com a carga do ponto levantada, o custo cheio (não só o carregador) e o retorno em três cenários — inclusive o ruim. Quem não consegue chega com um sonho e um print de notícia.'
     ],
-    ponte: 'E todo formato pede a mesma coisa antes: a conta explicada por você, sem gaguejar. Ela se monta, na ordem.'
+    ponte: 'Essa conta se monta, na ordem, e é você que precisa saber defendê-la sem gaguejar. É exatamente isso que está aqui.'
   },
   neutro: {
     selo: 'Você respondeu que ainda está procurando o ponto',
-    headline: 'Você não está sem ponto. Está sem o método de reconhecer um.',
+    headline: 'O ponto certo não aparece. Ele é medido — e você passou por um esta semana.',
     abertura: [
-      'Você passa por cinco ou seis locais viáveis toda semana e não consegue apontar nenhum — porque olhar não é medir. Sem as mesmas quatro medidas de cada um, o que sobra é sensação, e sensação não fecha contrato nem convence banco.'
+      'Quem já tem eletroposto rodando não achou um lugar melhor que o seu. Ele mediu quatro coisas de uma esquina que os outros olharam e acharam comum: quanto carro passa de verdade, quanta energia sobra na conta de luz, que potência aquilo aguenta e em quanto tempo o dinheiro volta.',
+      'Enquanto essas quatro medidas não saem, todo local é "talvez" — e "talvez" não fecha com o dono do imóvel, não passa no banco e não vira obra.'
     ],
-    ponte: 'Achar ponto não é sorte nem faro: são quatro medidas e uma conta. Elas estão aqui, na ordem, e é o que você não acha solto na internet.'
+    ponte: 'Em uma tarde você aprende a tirar esses quatro números de qualquer endereço. A partir daí você para de procurar o ponto perfeito e começa a reprovar ponto ruim de graça — que é como se acha o certo.'
   }
 };
 
@@ -1198,7 +1226,8 @@ function textoPorQue(label){
 function pintarCta(){
   var usarBump = document.getElementById('bump-check') && document.getElementById('bump-check').checked;
   var linkFixo = (usarBump && checkoutBump) ? checkoutBump : checkoutSimples;
-  [document.getElementById('cta'), document.getElementById('cta2'), document.getElementById('cta3')].forEach(function(b){
+  [document.getElementById('cta0'), document.getElementById('cta'),
+   document.getElementById('cta2'), document.getElementById('cta3')].forEach(function(b){
     b.className = 'cta';
     b.textContent = 'Quero o material — ' + document.getElementById('preco').dataset.label;
     // Link do gateway cadastrado vira <a> normal; sem ele, o clique pede a
@@ -1310,7 +1339,7 @@ function utmDaSessao(){
 // Oferta indisponível (curso em rascunho, ou publicado sem link de checkout):
 // a página mostra o grupo em vez de um botão que não compra nada. Uma página de
 // venda que termina em botão morto custa mais caro que não ter página.
-var SECOES_DE_VENDA = ['oferta', 'cta-final', 'acesso'];
+var SECOES_DE_VENDA = ['oferta', 'cta-final', 'acesso', 'hero-oferta'];
 function semOferta(){
   document.getElementById('fallback').style.display = '';
   SECOES_DE_VENDA.forEach(function(id){ document.getElementById(id).style.display = 'none'; });
@@ -1422,7 +1451,7 @@ document.getElementById('voltar').addEventListener('click', function(){
   evento('material_voltar_form', { motivo: motivo || 'neutro' });
 });
 
-['cta','cta2','cta3','esc-cta'].forEach(function(id){
+['cta0','cta','cta2','cta3','esc-cta'].forEach(function(id){
   document.getElementById(id).addEventListener('click', function(e){
     if (this.classList.contains('off')) return;
     if (!this.getAttribute('href')) e.preventDefault();
