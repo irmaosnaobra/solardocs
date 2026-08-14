@@ -23,7 +23,22 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       removeToken();
-      if (typeof window !== 'undefined') {
+      // ROTA PÚBLICA NÃO É EXPULSA.
+      //
+      // Este redirect existe pra sessão que expirou DENTRO do app. Numa página
+      // pública (a LP de um produto, o orçamento que o consultor manda pro
+      // cliente, a página de assinar) o 401 é o estado NORMAL — ninguém ali tem
+      // conta ainda. Mandar pro login nesses casos mata a venda na porta: foi o
+      // que aconteceu com as cinco LPs, todas caindo no /auth antes de mostrar
+      // a oferta.
+      //
+      // A lista espelha o PUBLIC_PATHS do proxy.ts pelo mesmo motivo: onde o
+      // servidor deixa entrar sem sessão, o cliente não pode chutar pra fora.
+      const PUBLICAS = ['/lp/', '/p/', '/v/', '/orc/', '/assinar', '/quase-la', '/plugcash', '/kit', '/oferta', '/limpar-cache'];
+      const naPublica = typeof window !== 'undefined'
+        && (window.location.pathname === '/'
+            || PUBLICAS.some((r) => window.location.pathname.startsWith(r)));
+      if (typeof window !== 'undefined' && !naPublica) {
         window.location.href = '/auth?mode=login';
       }
     }

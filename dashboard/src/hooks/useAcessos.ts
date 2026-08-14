@@ -40,6 +40,21 @@ let voando: Promise<AcessosState> | null = null;
 const ouvintes = new Set<(s: AcessosState) => void>();
 
 async function buscar(): Promise<AcessosState> {
+  // SEM TOKEN, NEM PERGUNTA.
+  //
+  // A LP pública (/lp/<slug>) monta este hook pra saber se a pessoa já tem o
+  // produto. Quem chega de anúncio não tem sessão: a API responde 401 e o
+  // interceptor do `api` manda pro /auth. Resultado medido pelo Thiago numa
+  // janela anônima: TODAS as cinco páginas de venda caíam na tela de login
+  // antes de mostrar a oferta — o anúncio pagava o clique e o visitante batia
+  // num cadastro de um produto que ele ainda não conhece.
+  //
+  // Visitante sem sessão não tem acesso a produto nenhum, e isso a gente já
+  // sabe sem perguntar ao servidor. A checagem continua sendo do servidor pra
+  // quem TEM token, que é onde ela decide alguma coisa.
+  if (typeof window !== 'undefined' && !document.cookie.includes('solardoc_token=')) {
+    return { ...INICIAL, carregando: false, produtos: new Set(), origem: {} };
+  }
   try {
     const { data } = await api.get('/produtos/acessos');
     return {
