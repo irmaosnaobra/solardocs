@@ -67,3 +67,59 @@
   .corpo { padding: 16px 14px 40px; }
   .rodape { flex-direction: column; align-items: flex-start; }
 }
+
+/* ── O topo é do PRODUTO ─────────────────────────────────────────────────────
+   A marca da plataforma vira nota de rodapé do cabeçalho, não o título. Quem
+   chega de um anúncio de Precificação não deve precisar entender a SolarDoc
+   antes de entender o que veio comprar. */
+.marca { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 4px 0; }
+.marcaNome {
+  font-size: 16px; font-weight: 900; letter-spacing: -0.02em;
+  color: #fff;
+  border-left: 3px solid var(--cor, var(--color-primary));
+  padding-left: 9px;
+}
+.marcaSub {
+  display: flex; align-items: center; gap: 6px;
+  padding-left: 12px;
+  font-size: 11.5px; font-weight: 600;
+  color: var(--chrome-text-dim);
+}
+.marcaImg { height: 15px; width: auto; display: block; opacity: 0.85; }
+
+/* ── O que acontece depois da compra ── */
+.depois { margin-top: 34px; }
+.depoisH2 {
+  font-size: 20px; font-weight: 900; letter-spacing: -0.02em;
+  margin: 0 0 14px;
+  display: flex; align-items: center; gap: 10px;
+}
+.depoisH2::before {
+  content: ''; flex-shrink: 0;
+  width: 4px; height: 1em; border-radius: 2px;
+  background: var(--color-primary);
+}
+.passos { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.passos li {
+  display: flex; gap: 13px; align-items: flex-start;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  box-shadow: var(--sombra-card);
+}
+.passos li > span {
+  flex-shrink: 0;
+  display: grid; place-items: center;
+  width: 28px; height: 28px; border-radius: 9px;
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent-border);
+  color: var(--ink-amber);
+  font-size: 13px; font-weight: 900;
+}
+.passos li > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.passos strong { font-size: 14.5px; font-weight: 800; letter-spacing: -0.01em; }
+.passos em {
+  font-style: normal; font-size: 13px; line-height: 1.55;
+  color: var(--color-text-muted);
+}
