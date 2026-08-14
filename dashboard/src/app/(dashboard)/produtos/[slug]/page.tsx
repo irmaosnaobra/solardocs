@@ -2,7 +2,7 @@
 
 import { use, useEffect } from 'react';
 import Link from 'next/link';
-import { notFound, useRouter } from 'next/navigation';
+import { notFound, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Check, ExternalLink, Lock } from 'lucide-react';
 import { produtoPorSlug, checkoutCom } from '@/lib/produtos';
 import { useAcessos } from '@/hooks/useAcessos';
@@ -22,13 +22,25 @@ export default function ProdutoPage({ params }: { params: Promise<{ slug: string
   const p = produtoPorSlug(slug);
   const { carregando, tem, assinante, email, bastidor } = useAcessos();
   const router = useRouter();
+  /**
+   * PRÉVIA DA OFERTA (?ver=oferta).
+   *
+   * Admin recebe TODOS os produtos automaticamente — é o certo pra usar a
+   * plataforma, e é o que impedia o dono de ver a própria página de venda: ela
+   * sempre abria no estado "você já tem, é só entrar". Quem paga o tráfego que
+   * chega aqui precisa conseguir olhar o que o cliente olha, antes de gastar.
+   *
+   * Só muda o que é DESENHADO. Não concede, não revoga, não grava nada — e o
+   * botão de comprar continua indo pro checkout de verdade.
+   */
+  const previa = useSearchParams().get('ver') === 'oferta';
   useEffect(() => {
     if (!carregando && !bastidor) router.replace('/dashboard');
   }, [carregando, bastidor, router]);
 
   if (!p) return notFound();
 
-  const liberado = tem(p.id);
+  const liberado = tem(p.id) && !previa;
   const brl = (n: number) => 'R$ ' + n.toLocaleString('pt-BR');
 
   const mockup =
@@ -42,6 +54,14 @@ export default function ProdutoPage({ params }: { params: Promise<{ slug: string
       <Link href="/produtos" className={styles.voltar}>
         <ArrowLeft size={15} /> Todas as ferramentas e cursos
       </Link>
+
+      {previa && tem(p.id) && (
+        <div className={styles.previaAviso}>
+          <strong>Prévia da oferta.</strong> É isto que quem <em>não</em> tem a ferramenta vê.
+          Você já tem acesso —{' '}
+          <Link href={`/produtos/${slug}`}>ver como fica pra você</Link>.
+        </div>
+      )}
 
       <div className={styles.lpGrid}>
         {/* ── Coluna do texto ── */}
