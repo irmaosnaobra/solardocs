@@ -1,0 +1,69 @@
+/* Moldura da LP pública. O miolo é o mesmo componente da loja; aqui só entram
+   o cabeçalho e o rodapé que a página precisa quando NÃO há barra lateral. */
+
+.pagina {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  background: var(--chrome-bg);
+  border-bottom: 1px solid var(--chrome-border);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.marca { display: flex; align-items: center; min-height: 44px; padding: 8px 10px; margin-left: -10px; }
+.marcaImg { height: 26px; width: auto; display: block; }
+.entrar {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 9px 18px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 999px;
+  color: #E8EAED;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+.entrar:hover { border-color: var(--color-primary); color: #fff; }
+
+/* Mesma largura da tela logada, pra oferta ler igual nos dois lugares. */
+.corpo {
+  flex: 1;
+  width: 100%;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 24px 20px 48px;
+}
+
+.rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 18px 20px 26px;
+  border-top: 1px solid var(--color-border);
+  font-size: 12.5px;
+  color: var(--color-text-dim);
+}
+.rodapeLinks { display: flex; gap: 16px; flex-wrap: wrap; }
+.rodapeLinks a {
+  display: inline-flex; align-items: center; min-height: 40px;
+  color: var(--color-text-muted); font-weight: 600;
+}
+.rodapeLinks a:hover { color: var(--color-primary); }
+
+@media (max-width: 620px) {
+  .corpo { padding: 16px 14px 40px; }
+  .rodape { flex-direction: column; align-items: flex-start; }
+}

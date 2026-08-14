@@ -37,7 +37,12 @@ import type { NextRequest } from 'next/server';
 // veio da LP e AINDA NÃO TEM CONTA (no fluxo público a conta nasce depois do
 // pagamento). Sem esta linha ela desiste do cartão e cai numa tela de login —
 // conferido rodando o build local: 307 pro /auth?mode=login.
-const PUBLIC_PATHS = ['/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/orc/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular', '/kit', '/oferta', '/eletroposto', '/plugcash', '/assinar', '/quase-la', '/lib', '/robots.txt', '/sitemap.xml'];
+// '/lp/' = a LP pública de cada produto da loja, servida DENTRO da plataforma
+// (src/app/lp/[slug]). É a mesma página que o cadeado abre por dentro, só que
+// sem sessão: quem chega do anúncio não tem conta, e sem esta linha o proxy
+// mandaria o visitante pro login antes de ele ver a oferta. Foi o motivo de o
+// Kit e o LimpaPro terem precisado de site à parte até hoje.
+const PUBLIC_PATHS = ['/lp/', '/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/orc/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular', '/kit', '/oferta', '/eletroposto', '/plugcash', '/assinar', '/quase-la', '/lib', '/robots.txt', '/sitemap.xml'];
 
 export function proxy(request: NextRequest) {
   const token = request.cookies.get('solardoc_token')?.value;
