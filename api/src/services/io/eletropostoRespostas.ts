@@ -41,13 +41,17 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendWhatsApp } from '../agents/zapiClient';
 import { EQUIPE } from '../../routes/ioEletroposto';
-import { quandoPorExtenso, carregarConsultores } from './eletropostoAgenda';
+import {
+  quandoPorExtenso, carregarConsultores, EP_NAO_ATENDEU_PREFIX, EP_RESPOSTA_PREFIX,
+} from './eletropostoAgenda';
 import { passoDeRemarcacao, linhaDoAviso } from './eletropostoRemarcar';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 
 const INSTANCE_ID_IO = (process.env.ZAPI_INSTANCE_ID_IO || '3F26F6ECE67D72BB7FCA6244BF24326C').trim();
 
-export const EP_RESPOSTA_PREFIX = 'ep_resposta:';
+// A definição mora no eletropostoAgenda (este módulo já importa de lá; a volta
+// faria ciclo) e é re-exportada aqui porque este é o agente que a ESCREVE.
+export { EP_RESPOSTA_PREFIX };
 
 /** Espera curta: junta o "Sim" com o "obrigado" que vem logo atrás, sem segurar
  *  o aviso. Conversa longa se espalha por horas mesmo — não adianta esperar. */
@@ -165,6 +169,7 @@ interface Ficha {
   quando: string | null;
   vendedor_nome: string | null;
   created_by: string | null;
+  status: string | null;
   confirmacao_at: string | null;
   lembrete_1h_at: string | null;
   lembrete_5min_at: string | null;
@@ -191,8 +196,13 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
   //    e conversa que o humano já estava tendo não é assunto deste agente.
   const { data: fichas, error: eFichas } = await supabaseGerador
     .from('agendamentos')
-    .select('id, cliente_nome, cliente_telefone, quando, vendedor_nome, created_by, confirmacao_at, lembrete_1h_at, lembrete_5min_at')
-    .eq('status', 'agendado')
+    .select('id, cliente_nome, cliente_telefone, quando, vendedor_nome, created_by, status, confirmacao_at, lembrete_1h_at, lembrete_5min_at')
+    // `nao_atendeu` entra junto de propósito (14/08/2026). Desde que o robô da
+    // agenda passou a marcar ausente sozinho 15 min depois do lembrete de 1h,
+    // ficar só em `agendado` abriria o pior buraco possível: a pessoa escreve
+    // "confirmo, estou indo" 20 minutos antes e NINGUÉM vê — nem o recado pro
+    // Thiago sai, nem a presença sobe, nem o robô de remarcação roda.
+    .in('status', ['agendado', 'nao_atendeu'])
     .gte('quando', new Date(agora - PASSADO_MAX_MS).toISOString())
     .or('confirmacao_at.not.is.null,lembrete_1h_at.not.is.null,lembrete_5min_at.not.is.null')
     .limit(300);
@@ -318,6 +328,28 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
         .update({ presenca_confirmada_at: marcarPresenca ? nowIso : null })
         .eq('id', id)
         .then(undefined, (e: unknown) => logger.error('ep-respostas', 'gravar presença falhou', { id, erro: String(e) }));
+    }
+
+    // A VOLTA DO NÃO ATENDIDO AUTOMÁTICO. O robô da agenda marca ausente por
+    // silêncio; quem confirma depois disso desfaz a marca — a previsão dele
+    // estava errada e quem tem a palavra final é a pessoa.
+    //
+    // Só desfaz o que o ROBÔ marcou (o carimbo `ep_nao_atendeu_auto:<id>` é a
+    // prova). "Não atendeu" escrito por gente é registro de quem estava lá e
+    // ficou esperando — nenhum robô apaga isso por causa de um "ok".
+    if (marcarPresenca && ficha.status === 'nao_atendeu') {
+      const { data: carimbo } = await supabase
+        .from('system_state').select('key').eq('key', `${EP_NAO_ATENDEU_PREFIX}${id}`).maybeSingle();
+      if (carimbo) {
+        await supabaseGerador.from('agendamentos')
+          .update({ status: 'agendado' }).eq('id', id).eq('status', 'nao_atendeu')
+          .then(undefined, (e: unknown) => logger.error('ep-respostas', 'desfazer não atendido falhou', { id, erro: String(e) }));
+        // O carimbo sai junto: ele existe pra dizer "esta marca é do robô", e a
+        // marca deixou de existir. Deixá-lo travaria a remarcação de amanhã.
+        await supabase.from('system_state').delete().eq('key', `${EP_NAO_ATENDEU_PREFIX}${id}`)
+          .then(undefined, () => {});
+        logger.info('ep-respostas', `ficha ${id} voltou pra agendado: confirmou depois do não atendido automático`);
+      }
     }
 
     // Remarcação automática. Roda ANTES do aviso pra que o Thiago e o Diego já

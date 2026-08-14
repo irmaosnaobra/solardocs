@@ -16,13 +16,28 @@ vi.mock('../utils/supabaseGerador', () => ({
         _filtros: {} as Record<string, any>,
         _update: null as any,
         select() { return q; },
-        in(col: string, vals: any[]) { q._filtros[col] = vals; return q; },
+        // Guardado com prefixo pra não colidir com o `.eq` do mesmo campo — desde
+        // 14/08 a consulta pede `.in('status', ['agendado','nao_atendeu'])`, porque
+        // o toque de 5 min continua saindo pra quem o robô marcou de NÃO ATENDIDO.
+        in(col: string, vals: any[]) { q._filtros[`in_${col}`] = vals; return q; },
         eq(col: string, v: any) {
           // Junta as chaves: um envio pode carimbar MAIS DE UMA flag (a confirmação
           // de reunião marcada dentro da janela de 1h mata o toque de 1h junto).
-          if (q._update) { updates.push({ id: v, campo: Object.keys(q._update).join('+') }); return Promise.resolve({ error: null }); }
+          if (q._update) {
+            updates.push({ id: v, campo: Object.keys(q._update).join('+') });
+            // O NÃO ATENDIDO automático encadeia um segundo `.eq('status', …)`
+            // como guarda de corrida com gente: o update tem que continuar
+            // encadeável depois do id.
+            return Object.assign(Promise.resolve({ error: null }), {
+              eq: () => Promise.resolve({ error: null }),
+            });
+          }
           q._filtros[col] = v; return q;
         },
+        // A consulta pede `.in('status', ['agendado','nao_atendeu'])` desde
+        // 14/08: o toque de 5 min continua saindo pra quem o robô marcou de
+        // NÃO ATENDIDO sozinho.
+        in(col: string, v: any[]) { q._filtros[`in_${col}`] = v; return q; },
         gte(col: string, v: any) { q._filtros[`gte_${col}`] = v; return q; },
         lte(col: string, v: any) { q._filtros[`lte_${col}`] = v; return q; },
         order() { return q; },
@@ -32,12 +47,12 @@ vi.mock('../utils/supabaseGerador', () => ({
           // A consulta NÃO filtra mais por created_by: o produto é decidido no
           // código, por família (ehOrigemEletroposto). O mock devolve solar junto
           // de propósito — é assim que o teste prova que solar não recebe.
-          const status = q._filtros['status'];
+          const aceitos: string[] = q._filtros['in_status'] ?? [q._filtros['status']];
           const piso = new Date(q._filtros['gte_quando']).getTime();
           const teto = new Date(q._filtros['lte_quando']).getTime();
           return Promise.resolve({
             data: fichas.filter(f =>
-              f.status === status &&
+              aceitos.includes(f.status) &&
               new Date(f.quando).getTime() >= piso && new Date(f.quando).getTime() <= teto),
             error: null,
           });
@@ -69,6 +84,13 @@ vi.mock('../utils/supabase', () => ({
         in: async (_col: string, chaves: string[]) => (leituraCarimboFalha
           ? { data: null, error: new Error('banco fora') }
           : { data: chaves.filter(k => carimbos.includes(k)).map(key => ({ key })), error: null }),
+        // O NÃO ATENDIDO automático varre por PREFIXO (quem respondeu, quem já
+        // foi marcado) — mesma lista de carimbos, outra forma de perguntar.
+        like: (_col: string, padrao: string) => {
+          const p = String(padrao).replace(/%$/, '');
+          const resposta = { data: carimbos.filter(k => k.startsWith(p)).map(key => ({ key })), error: null };
+          return { limit: async () => resposta };
+        },
       }),
     }),
   },
@@ -584,5 +606,100 @@ describe('travas', () => {
       id: i + 1, quando: emMinutos(60), cliente_telefone: `55349911100${String(i).padStart(2, '0')}`,
     }));
     expect((await tick()).lembretes_1h).toBe(6);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NÃO ATENDIDO AUTOMÁTICO (ordem do Thiago, 14/08/2026).
+// "Passou por muita mensagem; se nem a de 1 hora antes, quando passar 15 minutos
+// e nada, já joga essa condição." O gatilho é o lembrete de 1h + 15 min de
+// silêncio — e cai ANTES da reunião, então é previsão, não fato. Todo o desenho
+// aqui é sobre essa previsão ser reversível e não atropelar gente.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('não atendido automático', () => {
+  /** Recebeu o lembrete de 1h faz `min` minutos e nunca confirmou. */
+  const caladaDesde = (min: number, over: Partial<any> = {}) => fichaConfirmada({
+    quando: emMinutos(45),
+    lembrete_1h_at: new Date(AGORA.getTime() - min * 60_000).toISOString(),
+    presenca_confirmada_at: null,
+    ...over,
+  });
+  const marcados = () => updates.filter(u => String(u.campo).includes('status'));
+
+  it('15 minutos depois do lembrete de 1h sem confirmar, vira NÃO ATENDIDO', async () => {
+    fichas = [caladaDesde(15)];
+    expect((await tick()).nao_atendeu).toBe(1);
+    expect(marcados()).toHaveLength(1);
+  });
+
+  it('14 minutos ainda não é: o relógio é o do dono, não "mais ou menos"', async () => {
+    fichas = [caladaDesde(14)];
+    expect((await tick()).nao_atendeu).toBe(0);
+  });
+
+  it('quem confirmou presença nunca é marcado', async () => {
+    fichas = [caladaDesde(60, { presenca_confirmada_at: '2026-08-04T15:00:00.000Z' })];
+    expect((await tick()).nao_atendeu).toBe(0);
+  });
+
+  // "Qual o link?" deixa presenca_confirmada_at nulo e NÃO é ausência: é gente
+  // conversando. Marcá-lo de ausente 40 min antes é a marca que alguém teria
+  // que desfazer na mão.
+  it('quem ESCREVEU alguma coisa não é dado como ausente', async () => {
+    fichas = [caladaDesde(60, { id: 7 })];
+    carimbos.push('ep_resposta:7');
+    expect((await tick()).nao_atendeu).toBe(0);
+  });
+
+  // Sem o lembrete de 1h não existe o relógio que o Thiago descreveu. É o caso
+  // de quem marca em cima da hora (a LP vende até 30 min antes).
+  it('quem nunca recebeu o lembrete de 1h fica de fora', async () => {
+    fichas = [fichaConfirmada({ quando: emMinutos(45), lembrete_1h_at: null })];
+    expect((await tick()).nao_atendeu).toBe(0);
+  });
+
+  it('não marca duas vezes a mesma ficha', async () => {
+    fichas = [caladaDesde(60, { id: 9 })];
+    carimbos.push('ep_nao_atendeu_auto:9');
+    expect((await tick()).nao_atendeu).toBe(0);
+  });
+
+  // A marca é o status; o silêncio não é. O toque de 5 min é a mensagem de maior
+  // intenção do fluxo — calá-la transformaria a previsão em profecia.
+  it('quem foi marcado CONTINUA recebendo o toque de 5 minutos', async () => {
+    fichas = [fichaConfirmada({
+      status: 'nao_atendeu', quando: emMinutos(4),
+      lembrete_1h_at: '2026-08-04T15:00:00.000Z', lembrete_5min_at: null,
+    })];
+    expect((await tick()).lembretes_5min).toBe(1);
+  });
+
+  it('mas não recebe mais confirmação nem "falta 1 hora"', async () => {
+    fichas = [ficha({ status: 'nao_atendeu', quando: emMinutos(60), confirmacao_at: null })];
+    const r = await tick();
+    expect(r.confirmacoes).toBe(0);
+    expect(r.lembretes_1h).toBe(0);
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('kill-switch próprio desliga só a marcação', async () => {
+    process.env.EP_NAO_ATENDEU_AUTO_OFF = '1';
+    vi.resetModules();
+    fichas = [caladaDesde(60, { quando: emMinutos(4), lembrete_5min_at: null })];
+    const r = await tick();
+    expect(r.nao_atendeu).toBe(0);
+    expect(r.lembretes_5min).toBe(1);   // o resto do agente continua vivo
+  });
+
+  it('dry conta quem seria marcado e não escreve nada', async () => {
+    fichas = [caladaDesde(30)];
+    const r = await tick({ dry: true });
+    expect(r.nao_atendeu).toBe(1);
+    expect(updates).toHaveLength(0);
+  });
+
+  it('cancelado não entra na varredura', async () => {
+    fichas = [caladaDesde(60, { status: 'cancelado' })];
+    expect((await tick()).nao_atendeu).toBe(0);
   });
 });

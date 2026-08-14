@@ -38,7 +38,9 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendHuman } from '../agents/zapiClient';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
-import { quandoPorExtenso, horaCurta, telefoneBonito, EP_AGENDA_PREFIX } from './eletropostoAgenda';
+import {
+  quandoPorExtenso, horaCurta, telefoneBonito, EP_AGENDA_PREFIX, EP_NAO_ATENDEU_PREFIX,
+} from './eletropostoAgenda';
 import { proximasVagas, aindaLivre, diaBRT } from './eletropostoVagas';
 
 /** Marcador de envio efetivado — entra no teto anti-ban da linha (lineThrottle). */
@@ -213,6 +215,12 @@ async function carimbar(id: number, etapa: string): Promise<void> {
  *     Sem apagar, quem remarcou pra outro dia nunca recebe o bom dia do dia novo.
  *   · `presenca_confirmada_at` — escolher horário é combinar, não é dizer "eu vou".
  *     A confirmação de presença recomeça do zero.
+ *   · `status` — quem remarcou tem reunião marcada, ponto. Sem esta linha, a
+ *     ficha que o robô da agenda marcou de NÃO ATENDIDO (14/08/2026) nasceria
+ *     ausente pra uma reunião da semana que vem, e nada nunca limparia isso.
+ *   · `ep_nao_atendeu_auto:<id>` — o carimbo da marca automática sai junto, pela
+ *     mesma razão do carimbo do bom dia: ele guarda só o id, e sem apagar a
+ *     ficha nunca mais poderia ser marcada no horário NOVO.
  *
  * `confirmacao_at` FICA: a pessoa já foi apresentada ao consultor e ao formato.
  * Zerar faria o robô mandar a confirmação inteira de novo, do zero, pra quem
@@ -222,12 +230,17 @@ async function moverReuniao(id: number, novoIso: string): Promise<void> {
   const { error } = await supabaseGerador.from('agendamentos')
     .update({
       quando: novoIso,
+      status: 'agendado',
       lembrete_1h_at: null,
       lembrete_5min_at: null,
       presenca_confirmada_at: null,
     })
     .eq('id', id);
   if (error) throw error;
+
+  await supabase.from('system_state').delete().eq('key', `${EP_NAO_ATENDEU_PREFIX}${id}`)
+    .then(undefined, (e: unknown) =>
+      logger.error('ep-remarcar', 'limpar carimbo do não atendido falhou', { id, erro: String(e) }));
 
   await supabase.from('system_state').delete().eq('key', `${EP_AGENDA_PREFIX}${id}:manha`)
     .then(undefined, (e: unknown) =>

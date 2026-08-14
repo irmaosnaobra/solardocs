@@ -67,6 +67,16 @@ import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 /** Marcador de envio efetivado, pro teto anti-ban da linha enxergar este agente. */
 export const EP_AGENDA_PREFIX = 'ep_agenda_sent:';
 
+/** Marcador de "esta pessoa ESCREVEU alguma coisa" — gravado pelo agente de
+ *  respostas quando avisa o Thiago/Diego. Mora aqui, e não lá, porque o
+ *  eletropostoRespostas já importa deste módulo: a volta criaria ciclo. */
+export const EP_RESPOSTA_PREFIX = 'ep_resposta:';
+
+/** Marcador do NÃO ATENDIDO automático: quem o robô marcou, e quando.
+ *  É ele que separa a marca do robô da marca de gente — e só a do robô pode
+ *  ser desfeita quando o lead aparece falando. */
+export const EP_NAO_ATENDEU_PREFIX = 'ep_nao_atendeu_auto:';
+
 /** As origens de eletroposto que caem na tabela `agendamentos`. É lista de
  *  CONTAGEM (a Central das Agentes conta com `.in`), não de decisão: quem decide
  *  se a ficha é de EP é `ehOrigemEletroposto()`, que casa pela palavra. Origem
@@ -118,6 +128,48 @@ const MANHA_ANTECEDENCIA_MIN = 120;
  *  bloqueou a linha IO em 04/08. O teto anti-ban é checado ANTES de cada envio,
  *  então quem não couber espera o próximo tick em vez de furar. */
 const MANHA_POR_TICK = 2;
+
+// ── NÃO ATENDIDO AUTOMÁTICO (ordem do Thiago, 14/08/2026) ───────────────────
+// "Se a pessoa não confirma nenhuma das vezes, coloca em NÃO ATENDIDO
+// automaticamente — ele passou por muita mensagem; se nem a de 1 hora antes,
+// quando passar 15 minutos e nada, já joga essa condição."
+//
+// Então o gatilho é o toque de 1h + 15 min de silêncio. Na prática isso cai de
+// 30 a 60 minutos ANTES da reunião: é uma PREVISÃO, não um fato consumado, e
+// todo o desenho abaixo existe pra que essa previsão seja reversível.
+//
+// QUEM NÃO ENTRA, e por quê:
+//   · quem confirmou presença (`presenca_confirmada_at`) — é o oposto do alvo;
+//   · quem ESCREVEU qualquer coisa (marcador `ep_resposta:<id>`). "Qual o link?"
+//     deixa `presenca_confirmada_at` nulo e não é ausência: é gente conversando.
+//     Marcá-lo de ausente 40 minutos antes é a marca que alguém teria que
+//     desfazer na mão;
+//   · quem nunca recebeu o toque de 1h. Sem ele não existe o relógio que o
+//     Thiago descreveu — e é o caso de quem marca em cima da hora (a LP vende
+//     até 30 min antes), que fica de fora de propósito.
+//
+// O QUE A MARCA MEXE, de verdade:
+//   · o toque de 5 MINUTOS CONTINUA SAINDO. É a mensagem de maior intenção do
+//     fluxo ("ele já está te esperando") e calá-la transformaria a previsão em
+//     profecia auto-realizável. Por isso a consulta abaixo aceita os dois
+//     status e são os toques ANTERIORES que exigem `agendado`;
+//   · o repasse de 12h PARA (`processar_repasses()` só olha `status='agendado'`),
+//     o que é o certo: lead que não apareceu não é lead fresco pro próximo;
+//   · o convite do grupo de frios NÃO dispara agora — ele pula quem tem reunião
+//     futura —, e passa a valer depois que o horário passa, igual à marca de
+//     um humano;
+//   · a trava "um cliente, uma reunião" da LP solta: quem foi marcado consegue
+//     escolher outro horário sozinho na página. É efeito colateral aceito.
+//
+// A VOLTA: se a pessoa aparecer falando depois da marca, o eletropostoRespostas
+// devolve o status pra `agendado` — e só devolve o que ESTE robô marcou.
+//
+// Kill-switch próprio: EP_NAO_ATENDEU_AUTO_OFF=1.
+const AUTO_NAO_ATENDEU_APOS_1H_MIN = 15;
+const naoAtendeuAutoDesligado = () => (process.env.EP_NAO_ATENDEU_AUTO_OFF || '').trim() === '1';
+/** Teto por rodada: marcar é barato (não manda mensagem), mas escrever 300
+ *  fichas de uma vez num tick de 5 min é o tipo de coisa que ninguém revisa. */
+const NAO_ATENDEU_POR_TICK = 20;
 
 /** Ficha nova demais pra ser backlog: confirma na hora, sem fila e sem janela. */
 const FRESCA_MS = 30 * 60 * 1000;
@@ -315,9 +367,12 @@ interface Ficha {
   cliente_telefone: string | null;
   created_at: string;
   created_by: string | null;
+  status: string | null;
   confirmacao_at: string | null;
   lembrete_1h_at: string | null;
   lembrete_5min_at: string | null;
+  presenca_confirmada_at: string | null;
+  historico: string | null;
 }
 
 export type ToquePrevisto = { id: number; cliente: string; toque: '5min' | '1h' | 'manha' | 'confirmacao'; quando: string; bolhas: string[] };
@@ -327,6 +382,8 @@ export type ResultadoAgendaEp = {
   lembretes_manha: number;
   lembretes_1h: number;
   lembretes_5min: number;
+  /** Fichas que viraram NÃO ATENDIDO sozinhas nesta rodada. */
+  nao_atendeu: number;
   erros: number;
   motivo?: string;
   previa?: ToquePrevisto[];
@@ -375,7 +432,76 @@ export async function carregarConsultores(): Promise<Map<string, string>> {
 }
 
 const zero = (motivo?: string): ResultadoAgendaEp =>
-  ({ confirmacoes: 0, lembretes_manha: 0, lembretes_1h: 0, lembretes_5min: 0, erros: 0, ...(motivo ? { motivo } : {}) });
+  ({ confirmacoes: 0, lembretes_manha: 0, lembretes_1h: 0, lembretes_5min: 0, nao_atendeu: 0, erros: 0, ...(motivo ? { motivo } : {}) });
+
+/**
+ * Quem passou por todos os toques e não confirmou nada vira NÃO ATENDIDO.
+ *
+ * Não envia mensagem nenhuma — é só o status na ficha, pro consultor não ficar
+ * esperando e pro card sair da fila de quem ainda está em jogo. As condições e
+ * os efeitos colaterais estão documentados no bloco de constantes lá em cima.
+ *
+ * A marca vai junto com uma linha no `historico`, no mesmo formato que a
+ * `processar_repasses()` usa: quem abre o card no CRM vê QUEM decidiu e QUANDO,
+ * em vez de um status que mudou sozinho sem explicação.
+ */
+async function marcarNaoAtendeuAutomatico(fichas: Ficha[], agora: number, dry: boolean): Promise<number> {
+  if (naoAtendeuAutoDesligado()) return 0;
+
+  const limite = agora - AUTO_NAO_ATENDEU_APOS_1H_MIN * 60_000;
+  const candidatos = fichas.filter(f =>
+    f.status === 'agendado'
+    && !!f.lembrete_1h_at
+    && new Date(f.lembrete_1h_at).getTime() <= limite
+    && !f.presenca_confirmada_at);
+  if (!candidatos.length) return 0;
+
+  // Quem ESCREVEU alguma coisa não é ausente — é gente conversando. O marcador
+  // do agente de respostas é o registro de que a pessoa falou; ele existe
+  // independente de a mensagem ter sido um "sim", uma dúvida ou um áudio.
+  const { data: falaram } = await supabase
+    .from('system_state').select('key').like('key', `${EP_RESPOSTA_PREFIX}%`).limit(1000);
+  const respondeu = new Set((falaram ?? []).map(m => Number(String(m.key).slice(EP_RESPOSTA_PREFIX.length))));
+  // E quem este robô já marcou não é marcado de novo (o status pode ter voltado
+  // pra `agendado` na mão de alguém — refazer a marca seria brigar com o humano).
+  const { data: marcados } = await supabase
+    .from('system_state').select('key').like('key', `${EP_NAO_ATENDEU_PREFIX}%`).limit(1000);
+  const jaMarcado = new Set((marcados ?? []).map(m => Number(String(m.key).slice(EP_NAO_ATENDEU_PREFIX.length))));
+
+  const alvos = candidatos.filter(f => !respondeu.has(f.id) && !jaMarcado.has(f.id)).slice(0, NAO_ATENDEU_POR_TICK);
+  if (!alvos.length) return 0;
+  if (dry) return alvos.length;
+
+  let n = 0;
+  for (const f of alvos) {
+    const nowIso = new Date().toISOString();
+    const carimbo = new Date().toLocaleString('pt-BR', {
+      timeZone: BRT_TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+    }).replace(',', ' ·');
+    const linha = `[${carimbo} · Sistema] 🚫 Não atendido automático: passou por todos os avisos `
+      + `e não confirmou nem ${AUTO_NAO_ATENDEU_APOS_1H_MIN} min depois do lembrete de 1 hora.`;
+    const { error } = await supabaseGerador.from('agendamentos')
+      .update({
+        status: 'nao_atendeu',
+        historico: f.historico ? `${linha}\n\n${f.historico}` : linha,
+      })
+      .eq('id', f.id)
+      // Corrida com gente: se alguém mexeu no status entre a leitura e agora,
+      // quem manda é a pessoa. O update simplesmente não pega nenhuma linha.
+      .eq('status', 'agendado');
+    if (error) {
+      logger.error('ep-agenda', 'marcar não atendido falhou', { id: f.id, erro: String(error) });
+      continue;
+    }
+    await supabase.from('system_state').upsert(
+      { key: `${EP_NAO_ATENDEU_PREFIX}${f.id}`, value: { em: nowIso, lembrete_1h_at: f.lembrete_1h_at, quando: f.quando }, updated_at: nowIso },
+      { onConflict: 'key' },
+    ).then(undefined, (e: unknown) => logger.error('ep-agenda', 'carimbo do não atendido falhou', { id: f.id, erro: String(e) }));
+    n++;
+  }
+  if (n) logger.info('ep-agenda', `${n} ficha(s) viraram NÃO ATENDIDO sozinhas`);
+  return n;
+}
 
 /**
  * Roda a cada ~5 min dentro do /cron/process-messages.
@@ -396,10 +522,14 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
   // alguém esquecesse de cadastrar aqui virava reunião sem confirmação nenhuma —
   // foi o que aconteceu com a prospecção (EP Prospec ficou de fora até 06/08).
   // O limite subiu porque a consulta agora traz solar junto e ele é o volume.
+  // `nao_atendeu` entra junto com `agendado` por UM motivo: o toque de 5 minutos
+  // tem que continuar saindo pra quem o próprio robô marcou de ausente (ver o
+  // bloco do NÃO ATENDIDO AUTOMÁTICO lá em cima). Os toques anteriores checam
+  // `agendado` um a um — cancelado e sem_interesse seguem sem receber nada.
   const { data, error } = await supabaseGerador
     .from('agendamentos')
-    .select('id, vendedor_nome, quando, cliente_nome, cliente_telefone, created_at, created_by, confirmacao_at, lembrete_1h_at, lembrete_5min_at')
-    .eq('status', 'agendado')      // cancelado/sem_interesse não recebe nada
+    .select('id, vendedor_nome, quando, cliente_nome, cliente_telefone, created_at, created_by, status, confirmacao_at, lembrete_1h_at, lembrete_5min_at, presenca_confirmada_at, historico')
+    .in('status', ['agendado', 'nao_atendeu'])
     .gte('quando', piso)
     .lte('quando', teto)
     .order('quando', { ascending: true })
@@ -418,6 +548,11 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
   // não uma lista fixa aqui — número trocado no cadastro tem que valer na mensagem
   // seguinte. Falhou a leitura? A frase do telefone some e o resto do aviso sai.
   const telPorConsultor = await carregarConsultores();
+
+  // ── NÃO ATENDIDO AUTOMÁTICO ────────────────────────────────────────────────
+  // Roda ANTES dos toques e num laço próprio: não manda mensagem, então não
+  // gasta o teto de toques da rodada nem passa pelo teto anti-ban da linha.
+  const naoAtendeu = await marcarNaoAtendeuAutomatico(fichas, agora, opts.dry === true);
 
   const foraDeHorario = foraDaJanela();
   let confirmacoes = 0, lManha = 0, l1h = 0, l5min = 0, erros = 0, backlog = 0, toques = 0;
@@ -487,6 +622,10 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
 
     const minutos = (new Date(ag.quando).getTime() - agora) / 60_000;
     const telDoConsultor = telPorConsultor.get(String(ag.vendedor_nome || '')) ?? null;
+    /** Marcado de ausente (por este robô ou por gente): só o toque de 5 min
+     *  ainda vale. Confirmar, dar bom dia ou avisar "falta 1 hora" pra quem já
+     *  foi dado como ausente é o robô discordando de si mesmo por escrito. */
+    const ausente = ag.status === 'nao_atendeu';
     /** Marcada agora há pouco: a confirmação dela sai NESTE tick, sem fila nem janela. */
     const fresca = agora - new Date(ag.created_at).getTime() <= FRESCA_MS;
 
@@ -506,7 +645,7 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
     // Agora quem ainda não foi confirmado é confirmado, ponto — e só depois entra na
     // fila dos lembretes. A consulta já recorta reunião futura (`quando >= agora-5min`),
     // então nunca se confirma reunião que já passou.
-    if (!ag.confirmacao_at) {
+    if (!ag.confirmacao_at && !ausente) {
       if (!fresca) {
         // Backlog: fila lenta e horário civilizado. Continua valendo — o que saiu foi
         // só a distância mínima da reunião.
@@ -550,7 +689,7 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
     }
 
     // ── 1 hora antes ──
-    if (!ag.lembrete_1h_at && minutos <= MIN_1H.ate && minutos >= MIN_1H.de) {
+    if (!ag.lembrete_1h_at && !ausente && minutos <= MIN_1H.ate && minutos >= MIN_1H.de) {
       try {
         await entregar(ag, '1h', tel, bolhas1h(ag.cliente_nome, ag.quando, ag.vendedor_nome, telDoConsultor), 'lembrete_1h_at');
         l1h++; toques++;
@@ -565,7 +704,7 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
     // Último da fila de propósito: é o toque menos urgente dos quatro, e a janela
     // dele tem 3 horas de folga. Se um lead tem reunião hoje E acabou de marcar
     // outra coisa, a confirmação passa na frente.
-    if (!manhaCega && lManha < MANHA_POR_TICK && !manhaFeita!.has(ag.id) && ehDaManha(ag)) {
+    if (!manhaCega && !ausente && lManha < MANHA_POR_TICK && !manhaFeita!.has(ag.id) && ehDaManha(ag)) {
       // Este é o único toque que sai em LOTE (todo mundo do dia, na mesma faixa
       // de horário), então é o único que consegue fazer rajada sozinho. Fica
       // atrás do teto anti-ban — como transacional, que é o que ele é: mensagem
@@ -596,7 +735,8 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
     });
   }
   return {
-    confirmacoes, lembretes_manha: lManha, lembretes_1h: l1h, lembretes_5min: l5min, erros,
+    confirmacoes, lembretes_manha: lManha, lembretes_1h: l1h, lembretes_5min: l5min,
+    nao_atendeu: naoAtendeu, erros,
     ...(opts.dry ? { motivo: 'dry', previa } : {}),
   };
 }
