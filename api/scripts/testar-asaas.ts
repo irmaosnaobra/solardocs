@@ -82,8 +82,16 @@ async function main(): Promise<void> {
   // à mão num painel. Errar um só significa pagamento confirmado que nunca vira
   // acesso — e falha silenciosa, que é a assinatura de erro deste sistema. Aqui
   // é a API que cadastra, com a lista que o nosso webhook realmente trata.
+  //
+  // MAS NÃO EM SANDBOX APONTANDO PRA PRODUÇÃO. O destino padrão é a nossa API de
+  // produção, e o Asaas de homologação entregaria eventos de pagamento FALSO
+  // nela. Hoje isso bate em 503 (a env do token não existe lá) — o perigo é o
+  // dia em que ela existir: dinheiro de mentira virando acesso de verdade, e
+  // ninguém lembraria que foi este script que cadastrou. Então em sandbox só
+  // cadastra com um destino EXPLÍCITO (API_PUBLIC_URL, ex.: um túnel local).
   titulo('1b. Webhook (cadastro automático)');
-  const WEBHOOK_URL = (process.env.API_PUBLIC_URL || 'https://api.solardoc.app').trim() + '/payments/asaas/webhook';
+  const destinoExplicito = (process.env.API_PUBLIC_URL || '').trim();
+  const WEBHOOK_URL = (destinoExplicito || 'https://api.solardoc.app') + '/payments/asaas/webhook';
   const EVENTOS = [
     'PAYMENT_CONFIRMED', 'PAYMENT_RECEIVED', 'PAYMENT_OVERDUE',
     'PIX_AUTOMATIC_RECURRING_AUTHORIZATION_ACTIVATED',
@@ -93,7 +101,12 @@ async function main(): Promise<void> {
     'PIX_AUTOMATIC_RECURRING_ELIGIBILITY_UPDATED',
   ];
   const authToken = (process.env.ASAAS_WEBHOOK_TOKEN || '').trim();
-  if (!authToken) {
+  if (!destinoExplicito) {
+    info('pulado: em sandbox o webhook NÃO é cadastrado apontando pra API de produção.');
+    info(`Motivo: o Asaas de homologação entregaria pagamento falso em ${WEBHOOK_URL}.`);
+    info('Pra testar a perna do webhook, exponha a API local (túnel) e rode com API_PUBLIC_URL=https://seu-tunel.');
+    info('Em PRODUÇÃO o cadastro é no painel do Asaas (lista de eventos no PIX-RECORRENTE-SOLARDOC.md).');
+  } else if (!authToken) {
     err('sem ASAAS_WEBHOOK_TOKEN — o webhook em produção recusa tudo com 503.');
     info('Ponha o token no .env e na Vercel ANTES de cadastrar, senão o Asaas entrega pra uma porta fechada.');
   } else {
@@ -127,17 +140,25 @@ async function main(): Promise<void> {
     }
   }
 
-  // ── 2. Elegível ao Pix Automático? ─────────────────────────────────────────
-  titulo('2. Pix Automático');
-  let elegivel: boolean | null = null;
+  // ── 2. Chave Pix na conta ──────────────────────────────────────────────────
+  // Sem chave Pix cadastrada o Asaas recusa gerar QR: "Você não possui uma chave
+  // Pix cadastrada para recebimentos de cobranças via Pix" (400). Descoberto
+  // rodando: o contrato nasce, a cobrança nasce, e o cliente fica sem como
+  // pagar. É configuração de conta, não código — e vale pros DOIS ambientes.
+  //
+  // (Não existe `/pix/automatic/eligibility` na API: testado, 404. Quem responde
+  // se a conta é elegível é a própria criação — o modo que sai no passo 3.)
+  titulo('2. Chave Pix da conta');
   try {
-    const el = await asaasFetch<Record<string, unknown>>('/pix/automatic/eligibility');
-    elegivel = Boolean(el.eligible ?? el.enabled);
-    console.log(`  ${elegivel ? 'OK  ' : 'ERRO'} elegibilidade: ${JSON.stringify(el)}`);
-    if (!elegivel) info('Sem elegibilidade o trilho cai no modo `assinatura` (QR novo por mês, confirmação automática).');
+    const chaves = await asaasFetch<{ data?: Array<Record<string, unknown>> }>('/pix/addressKeys');
+    const ativas = (chaves.data ?? []).filter((k) => String(k.status ?? '') === 'ACTIVE');
+    if (ativas.length) ok(`${ativas.length} chave(s) Pix ativa(s) — tipo ${ativas.map((k) => k.type).join(', ')}`);
+    else {
+      err('NENHUMA chave Pix ativa nesta conta — o Asaas vai recusar gerar o QR.');
+      info('Painel do Asaas → Pix → cadastrar chave (uma aleatória/EVP resolve). Vale pra sandbox E produção.');
+    }
   } catch (e) {
-    info(`não consegui consultar elegibilidade (${(e as Error).message})`);
-    info('Não é bloqueio: o modo `auto` tenta o automático e cai pra assinatura sozinho.');
+    info(`não consegui listar as chaves Pix (${(e as Error).message})`);
   }
 
   // ── 3. Criação de ponta a ponta ────────────────────────────────────────────

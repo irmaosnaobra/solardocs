@@ -121,6 +121,42 @@ sandbox primeiro — ele é imediato e não depende de aprovação.
    que (a) `plano_expira_em` andou um mês e sete dias, (b) chegou o aviso no seu
    WhatsApp, (c) reenviar o mesmo evento **não** dá um segundo mês.
 
+## RODADO NO SANDBOX EM 14/08/2026 — os dois riscos morreram
+
+Conta de sandbox da AIOROS (`status: APPROVED`, CNPJ 63.636.043/0001-88), chave
+`aact_hmlg_…`, script `scripts/testar-asaas.ts`:
+
+| O que estava aberto | Resultado |
+|---|---|
+| A conta é elegível ao **Pix Automático**? | **Sim** — o contrato nasceu no modo `automatico`, não no fallback |
+| O `startDate` cobra **duas vezes** na adesão? | **Não.** Devolvido `2026-09-14`, exatamente 30 dias à frente |
+| O **QR imediato** volta nulo (como no exemplo da doc)? | **Não.** Veio com 257 caracteres + imagem |
+
+Duas descobertas que o guia não previa:
+
+1. **A conta precisa ter uma chave Pix cadastrada.** Sem ela o Asaas recusa
+   gerar o QR com `invalid_action: "Você não possui uma chave Pix cadastrada
+   para recebimentos de cobranças via Pix"` — o contrato nasce, a cobrança
+   nasce, e o cliente fica sem como pagar. Uma chave aleatória (EVP) resolve.
+   **Vale pros dois ambientes** — conferir na conta de produção antes de virar.
+2. **`/pix/automatic/eligibility` não existe** (404). Quem responde se a conta é
+   elegível é a própria criação: se não for, o código cai no modo `assinatura`
+   sozinho. O script foi corrigido pra não afirmar o contrário.
+
+### O que o sandbox NÃO cobriu
+
+- **A perna do webhook.** O sandbox entregaria o evento na API de produção, então
+  o script se recusa a cadastrar apontando pra lá — pagamento de mentira viraria
+  acesso de verdade no dia em que a env de produção existir. Pra testar, subir a
+  API local atrás de um túnel e rodar com `API_PUBLIC_URL=https://seu-tunel`.
+- **A gravação no banco.** A `SUPABASE_SERVICE_KEY` do `api/.env` local é uma
+  *legacy key* desativada pelo Supabase em 26/06/2026 (`Legacy API keys are
+  disabled`), então o insert em `asaas_pix_assinaturas` falhou no teste. Não
+  afeta produção (a Vercel tem a chave nova, senão nada funcionaria) — mas o
+  caminho "contrato criado no Asaas e não gravado" ficou sem exercício. O código
+  já grita nesse caso: `CONTRATO CRIADO NO ASAAS E NÃO GRAVADO — pagamento
+  ficará órfão`.
+
 ## O que ainda não foi verificado
 
 Nada disto rodou contra a API real — a conta Asaas não existe ainda. Os nomes de campo saíram da referência oficial deles, mas o primeiro teste em sandbox é obrigatório. Dois pontos merecem atenção nesse teste:
