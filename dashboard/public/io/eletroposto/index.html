@@ -1551,8 +1551,8 @@ function calc(){
 
 // ===== AGENDA =====
 // Regras: SEG a SEX — 10:00, 11:00 e 13:00 às 18:00, de hora em hora (8 horários).
-// A vitrine mostra os 5 próximos dias com vaga, alcançando a semana seguinte. O dia
-// que lota — ou que acaba — sai, e o próximo dia útil entra no lugar.
+// A vitrine mostra UM dia: ele fica até fechar (lotar ou acabar o horário vendável)
+// e só então o próximo dia útil entra no lugar.
 // Fecha o que já passou, o que está a menos de 30 min daqui e o horário em que os
 // DOIS consultores já estão ocupados.
 let slotSel = null;
@@ -1629,7 +1629,7 @@ function horariosDoDia(){
 // transbordo quase nunca abria na prática: ele ignorava dia passado, então uma vez
 // que a segunda virava ontem, a quinta daquela semana já não tinha como destravar.
 // A régua nunca mais fechou dia da semana: quem controla o alcance da agenda é o
-// tamanho da vitrine (hoje, 5 dias com vaga), não uma lista de dias liberados.
+// tamanho da vitrine (hoje, UM dia por vez), não uma lista de dias liberados.
 // Sábado, domingo e feriado seguem fechados.
 const DIAS_UTEIS = new Set([1, 2, 3, 4, 5]);
 
@@ -1806,26 +1806,28 @@ function perfilTexto(sel){
   const t = document.getElementById('f-outro').value.trim();
   return t ? `Outro: ${t}` : 'Outro';
 }
-// A VITRINE MOSTRA OS 5 PRÓXIMOS DIAS COM VAGA — sempre, a qualquer hora do dia.
-// Ordem do Thiago (14/08/2026): a agenda tem que alcançar a SEMANA QUE VEM. Numa
-// sexta-feira, 5 dias abertos são hoje + segunda a quinta; numa segunda, a semana
-// inteira. Dia sem vaga nenhuma nem aparece, então a lista nunca vem furada.
+// A VITRINE MOSTRA UM DIA SÓ: o dia FICA até fechar, e quando fecha entra o
+// próximo dia que abre. Ordem do Thiago (14/08/2026, corrigindo a de horas antes):
+// "mantém o dia até fechar; hoje às 18h, quando fechar abre apenas segunda".
 //
-// ISTO REVERTE A RÉGUA DE 10/08, e a troca é consciente. A régua antiga mostrava
-// UM DIA SÓ até as 15h (amanhã entrava como transbordo do fim da tarde) porque dia
-// ao lado de dia espalha: enquanto hoje tinha horário, ele era a única opção e o
-// lead marcava perto. O custo era o teto — 10 reuniões/dia e nenhuma forma de o
-// lead pegar a semana seguinte. Com a grade de 16 reuniões/dia, o gargalo deixou de
-// ser "hoje está vazio" e passou a ser "cabe mais gente"; a vitrine larga é o que
-// destrava isso. Se voltar a sobrar horário à toa, o botão é o DIAS_NA_VITRINE.
+// Quem tira o dia da tela não é relógio cravado — é a própria grade acabar. Com a
+// grade nova (último horário 18:00) e a folga mínima de 30 min, hoje para de
+// vender às 17h30 e some; numa sexta o próximo com grade é a SEGUNDA, porque
+// sábado e domingo não abrem. É o mesmo mecanismo que já fazia o sábado mostrar
+// segunda sozinha — agora sem exceção nenhuma em cima dele.
 //
-// Histórico: 3 dias até 06/08, 2 dias até 10/08, 1 dia (com transbordo às 15h) até
-// 14/08. O HORA_ABRE_AMANHA saiu junto — com 5 dias na tela não existe mais "a hora
-// em que amanhã abre".
+// O PORQUÊ: dia ao lado de dia espalha. Enquanto hoje tem horário pra vender, ele
+// é a única opção — quem entra de manhã marca pra HOJE, não pra semana que vem. A
+// meta é reunião o mais perto possível: lead esfria antes da conversa.
 //
-// Fim de semana e feriado caem sozinhos: sábado não tem grade, então no sábado a
-// lista começa na segunda. Nunca dá lista vazia — a busca varre 21 dias.
-const DIAS_NA_VITRINE = 5;
+// Histórico: 3 dias até 06/08, 2 dias até 10/08, 1 dia com transbordo às 15h até
+// 14/08 de manhã, 5 dias por algumas horas em 14/08 (a agenda alcançava a semana
+// seguinte) e este 1 dia limpo. O `HORA_ABRE_AMANHA` não voltou: o transbordo de
+// amanhã às 15h era justamente o que o dono acabou de tirar — o dia fica sozinho
+// até fechar, e aí o próximo entra sozinho também.
+//
+// A busca varre 21 dias, então feriado emendado não deixa a tela vazia.
+const DIAS_NA_VITRINE = 1;
 function proximosDias(){
   const base = new Date(`${partesBR().ymd}T12:00:00-03:00`);
   const abertos = [];
@@ -1842,11 +1844,10 @@ function proximosDias(){
 // 9h e o consultor entra sem estudo — que é justamente o que a LP promete.
 // Compara em timestamp (não em texto "HH:MM") porque a folga atravessa a virada do dia.
 //
-// CAIU DE 2h PRA 30 MIN EM 10/08/2026, quando a vitrine era de um dia só: com 2h o
-// último horário parava de ser vendável 2 horas antes, e a tarde de hoje morria meia
-// hora depois de amanhã abrir. Com a vitrine larga (14/08) a folga já não decide qual
-// DIA aparece — mas continua decidindo até que horas o dia de hoje vende, e é ela que
-// mantém o último horário (18:00) à venda até as 17h30.
+// CAIU DE 2h PRA 30 MIN EM 10/08/2026, e é ela que decide QUANDO O DIA FECHA — a
+// vitrine de um dia só (14/08) não tem relógio próprio: hoje sai da tela quando não
+// sobra horário vendável, e com o último às 18:00 essa folga de 30 min segura o dia
+// até as 17h30. Com as 2h de antes, o dia morreria às 16h.
 //
 // O QUE ISSO CUSTA: uma reunião das 18:00 pode ser marcada às 17h30, e aí o consultor
 // tem 30 min pra montar o estudo. É a troca que a régua pede — mais horário vendável
@@ -1870,9 +1871,10 @@ async function montarSlots(){
   const el = document.getElementById('slots');
   el.innerHTML = '<div class="agLoad">Carregando horários…</div>';
   // Janela ampla p/ buscar ocupados de uma vez. Tem que cobrir os mesmos 21 dias que
-  // o proximosDias() varre: a vitrine de 5 dias já cai na semana seguinte sozinha, e
-  // um feriado emendado ou dias lotados empurram mais ainda. Janela curta = dia sem
-  // ocupação carregada = horário já vendido aparecendo livre.
+  // o proximosDias() varre: com um dia só na tela ele quase sempre está aqui na
+  // porta, mas basta um feriado emendado ou dias lotados pra empurrar a vitrine pra
+  // semana seguinte. Janela curta = dia sem ocupação carregada = horário já vendido
+  // aparecendo livre.
   const hoje = partesBR().ymd;
   const ate  = partesBR(new Date(Date.now() + 21*86400000)).ymd;
   await carregarOcupados(hoje, ate);
