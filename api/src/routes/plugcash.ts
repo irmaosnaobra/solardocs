@@ -672,6 +672,54 @@ router.get('/admin/cursos', ...admin, async (_req: Request, res: Response): Prom
   }
 });
 
+// ── Trocar o gateway de um curso para o Asaas (Pix, cartão e boleto) ─────────
+// A chave do Asaas mora na Vercel, não na máquina de ninguém — então quem cria os
+// links é o servidor, por esta rota, e não um script rodando localmente.
+//
+// Cria um link por degrau da escada e grava `checkout_url` + `asaas_link_id` em
+// `copy.ofertas[]`. A partir daí o botão daquele degrau abre o Asaas; o Stripe
+// continua atendendo quem não tem link. `?ensaio=1` mostra o que faria sem criar.
+router.post('/admin/asaas-links', ...admin, async (req: Request, res: Response): Promise<void> => {
+  const slug = String(req.body?.slug || '').trim();
+  const ensaio = req.body?.ensaio === true;
+  if (!slug) { res.status(400).json({ error: 'slug obrigatorio' }); return; }
+
+  try {
+    const { asaasApiKey } = await import('../services/asaas/asaasClient');
+    if (!asaasApiKey()) { res.status(503).json({ error: 'ASAAS_API_KEY ausente neste servidor' }); return; }
+
+    const { criarLinkDaOferta, gravarLinksNoCurso } = await import('../services/asaas/asaasPlugcashLink');
+    const { data: curso } = await supabase
+      .from('pc_cursos').select('slug,titulo,status,copy').eq('slug', slug).maybeSingle();
+    if (!curso) { res.status(404).json({ error: 'curso nao encontrado' }); return; }
+    const c = curso as any;
+    if (c.status !== 'publicado') { res.status(400).json({ error: 'curso nao esta publicado' }); return; }
+
+    const ofertas = ((c.copy?.ofertas || []) as Array<Record<string, unknown>>)
+      .filter((o) => o && o.id && Number(o.centavos) >= 100);
+    if (!ofertas.length) { res.status(400).json({ error: 'curso sem copy.ofertas' }); return; }
+
+    if (ensaio) {
+      res.json({ ensaio: true, ambiente: process.env.ASAAS_ENV || 'sandbox', ofertas: ofertas.map((o) => ({ id: o.id, centavos: o.centavos })) });
+      return;
+    }
+
+    const criados = [];
+    for (const o of ofertas) {
+      criados.push(await criarLinkDaOferta({
+        slug, titulo: c.titulo, ofertaId: String(o.id),
+        centavos: Math.round(Number(o.centavos)), rotulo: String(o.rotulo || c.titulo),
+      }));
+    }
+    const tocadas = await gravarLinksNoCurso(slug, criados);
+    logger.info('plugcash', `asaas: ${tocadas} degrau(s) de ${slug} agora vendem pelo Asaas`);
+    res.json({ ok: true, ambiente: process.env.ASAAS_ENV || 'sandbox', gravadas: tocadas, links: criados });
+  } catch (err) {
+    logger.error('plugcash', `falha criando links do Asaas para ${slug}`, err);
+    res.status(500).json({ error: err instanceof Error ? err.message : 'falha' });
+  }
+});
+
 const CAMPOS_CURSO = ['slug', 'titulo', 'subtitulo', 'descricao', 'thumb_url', 'preco_centavos',
   'preco_de_centavos', 'parcelas', 'checkout_url', 'nivel_exigido', 'resolve_motivo', 'ordem',
   'status', 'indexavel', 'copy'];
