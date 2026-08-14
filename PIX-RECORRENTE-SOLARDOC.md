@@ -93,8 +93,11 @@ sandbox primeiro — ele é imediato e não depende de aprovação.
 4. **Variáveis na Vercel** (projeto da API):
    - `ASAAS_API_KEY` — chave da conta (a do ambiente que estiver usando)
    - `ASAAS_ENV` — `sandbox` para testar, `prod` para valer
-   - `ASAAS_WEBHOOK_TOKEN` — segredo nosso, inventado por nós. Já gerado:
-     `Q6txj9_9jqzkejbUk7qTAXzfCWRiPTGJxN8DIsQhVxM`
+   - `ASAAS_WEBHOOK_TOKEN` — segredo nosso, inventado por nós. **Já criado
+     direto na Vercel** (Production, 14/08). O valor NÃO fica aqui: este
+     repositório é público, e um token de webhook publicado é evento de
+     pagamento que qualquer um pode forjar. Pra ler o valor:
+     `vercel env pull` ou o painel da Vercel.
    - `ASAAS_PIX_MODO` — `auto` (recomendado)
 
    E no projeto do **dashboard**: `NEXT_PUBLIC_PIX_RECORRENTE=on` — é o que faz os
