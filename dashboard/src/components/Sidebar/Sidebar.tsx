@@ -73,26 +73,32 @@ const topoItems: NavItem[] = [
   { href: '/documentos?tipo=proposta', icon: Sparkles,    label: 'Gerador de Proposta', requireCompany: true },
 ];
 
-// ── FERRAMENTAS ─────────────────────────────────────────────────────────────
-// O que se usa no dia de trabalho. As pagas trazem `produto`: quem não comprou
-// vê cadeado e cai na mini LP em vez de bater numa tela vazia.
-const ferramentasItems: NavItem[] = [
-  { href: '/vistoria',     icon: ClipboardCheck, label: 'Vistoria Solar' },
-  { href: '/precificacao', icon: Calculator,     label: 'Precificação',   produto: 'precificacao' },
-  { href: '/inventario',   icon: Boxes,          label: 'Inventário',     produto: 'inventario' },
+// ── O QUE SE USA ────────────────────────────────────────────────────────────
+// UMA lista, ferramentas e cursos juntos. O menu antigo separava por TIPO
+// ("Ferramentas" / "Cursos"), e essa não é a divisão que importa numa área de
+// membros: quem entra quer saber o que É DELE e o que dá pra somar. Um curso
+// que ela comprou está mais perto de uma ferramenta que ela comprou do que de
+// um curso que ela não tem.
+//
+// A separação acontece na hora de desenhar (ver `meus` / `disponiveis` no
+// render): quem tem vai pra "Seus acessos", quem não tem vai pra "Disponíveis"
+// com cadeado, e o clique cai na página de venda.
+const acessosItems: NavItem[] = [
+  { href: '/vistoria',     icon: ClipboardCheck,  label: 'Vistoria Solar' },
+  { href: '/precificacao', icon: Calculator,      label: 'Precificação',     produto: 'precificacao' },
+  { href: '/inventario',   icon: Boxes,           label: 'Inventário',       produto: 'inventario' },
   // Off-grid NÃO leva `produto`: a tela é aberta de propósito (dimensionar e ver
   // a autonomia é grátis) e o cadeado dela cai só sobre o preço, lá dentro.
   { href: '/off-grid',     icon: BatteryCharging, label: 'Kit Off-Grid' },
-];
-
-// ── CURSOS ──────────────────────────────────────────────────────────────────
-const cursosItems: NavItem[] = [
   { href: '/cursos/kit-fechamento', icon: GraduationCap, label: 'Kit Fecha Vendas', produto: 'curso-fechamento' },
   { href: '/lp/limpapro',           icon: Sparkles,      label: 'LimpaPro',         produto: 'curso-limpapro' },
 ];
 
 // A loja: onde tudo que existe aparece junto, com o estado de cada um.
-const lojaItem: NavItem = { href: '/produtos', icon: LayoutGrid, label: 'Ferramentas e cursos' };
+// "Ferramentas e cursos" repetia o nome das duas seções que existiam acima —
+// o item parecia mais uma delas. Aqui ele é o "ver tudo" da seção de
+// disponíveis, e o nome diz isso.
+const lojaItem: NavItem = { href: '/produtos', icon: LayoutGrid, label: 'Ver tudo' };
 
 // Empresa saiu daqui — vive no menu do avatar (topbar), pra não duplicar.
 // Telas navegáveis pra free (sem paidOnly aqui), MAS o backend
@@ -175,6 +181,21 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
     removeToken();
     router.push('/auth?mode=login');
   }
+
+  /**
+   * SEU / NÃO É SEU — a única divisão que importa numa área de membros.
+   *
+   * `travado` responde se o item está atrás de cadeado de PRODUTO. Enquanto a
+   * resposta do servidor não chega, nada é considerado travado: piscar cadeado
+   * na cara de quem pagou vira chamado no suporte na hora.
+   */
+  const travado = (item: NavItem) =>
+    !!item.produto && bastidor && !acessosCarregando && !isAdmin && !tem(item.produto);
+
+  // Fora do lançamento restrito, o que é novo não aparece de jeito nenhum.
+  const visiveis = acessosItems.filter((i) =>
+    bastidor || (i.href !== '/off-grid' && i.href !== '/lp/limpapro'));
+  const disponiveis = visiveis.filter(travado);
 
   function renderItem(item: NavItem) {
     // Casa pathname E o ?tipo= — os itens de documento têm o mesmo /documentos
@@ -291,31 +312,29 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
 
         {/* ── Ferramentas: o que se usa no dia de trabalho ── */}
         <div className={styles.navDivider}>
-          <span className={styles.navDividerLabel}>Ferramentas</span>
+          <span className={styles.navDividerLabel}>Seus acessos</span>
         </div>
         <div className={styles.navSection}>
           {topoItems.map(renderItem)}
-          {/* Kit Off-Grid só aparece no lançamento restrito; o resto é de sempre. */}
-          {ferramentasItems
-            .filter((i) => bastidor || i.href !== '/off-grid')
-            .map(renderItem)}
+          {visiveis.filter((i) => !travado(i)).map(renderItem)}
         </div>
 
-        {/* ── Cursos ── */}
-        <div className={styles.navDivider}>
-          <span className={styles.navDividerLabel}>Cursos</span>
-        </div>
-        <div className={styles.navSection}>
-          {cursosItems
-            .filter((i) => bastidor || i.href !== '/lp/limpapro')
-            .map(renderItem)}
-        </div>
-
-        {/* ── A loja: só entra no menu quando o lançamento abrir ── */}
-        {bastidor && (
-          <div className={styles.navSection}>
-            {renderItem(lojaItem)}
-          </div>
+        {/* ── DISPONÍVEIS: só o que a pessoa AINDA NÃO tem ──
+            Só existe se houver algo pra somar. Quem já tem tudo não vê uma
+            seção vazia, e quem está fora do lançamento não vê nada — pra base
+            a novidade ainda não existe. */}
+        {disponiveis.length > 0 && (
+          <>
+            <div className={styles.navDivider}>
+              <span className={styles.navDividerLabel}>Disponíveis pra você</span>
+            </div>
+            <div className={styles.navSection}>
+              {disponiveis.map(renderItem)}
+              {/* A loja fecha a seção em vez de virar item solto no meio do menu:
+                  ela é "ver todos os disponíveis", não uma ferramenta. */}
+              {renderItem(lojaItem)}
+            </div>
+          </>
         )}
 
         {/* ── Seção 2: Cadastro ── */}
