@@ -88,7 +88,7 @@ const ferramentasItems: NavItem[] = [
 // ── CURSOS ──────────────────────────────────────────────────────────────────
 const cursosItems: NavItem[] = [
   { href: '/cursos/kit-fechamento', icon: GraduationCap, label: 'Kit Fecha Vendas', produto: 'curso-fechamento' },
-  { href: '/produtos/limpapro',     icon: Sparkles,      label: 'LimpaPro',         produto: 'curso-limpapro' },
+  { href: '/lp/limpapro',           icon: Sparkles,      label: 'LimpaPro',         produto: 'curso-limpapro' },
 ];
 
 // A loja: onde tudo que existe aparece junto, com o estado de cada um.
@@ -207,7 +207,11 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
     // Produto não comprado → vai pra mini LP, com cadeado no lugar do ícone.
     if (lockedByProduto && prod) {
       return (
-        <Link key={item.href} href={`/produtos/${prod.slug}`}
+        // O cadeado leva pra LP PUBLICA (/lp/<slug>), nao pra versao de dentro
+        // do app. E' uma pagina de venda so': a mesma que o anuncio abre, a
+        // mesma que o cliente ve. Duas portas pro mesmo produto davam duas
+        // ofertas pra manter em dia.
+        <Link key={item.href} href={`/lp/${prod.slug}`}
               className={styles.navItemLocked} title={`${prod.nome} — ver o que tem dentro`}>
           <Lock className={styles.navIcon} size={15} strokeWidth={1.75} />
           <span className={styles.navLabel}>{item.label}</span>
@@ -303,7 +307,7 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
         </div>
         <div className={styles.navSection}>
           {cursosItems
-            .filter((i) => bastidor || i.href !== '/produtos/limpapro')
+            .filter((i) => bastidor || i.href !== '/lp/limpapro')
             .map(renderItem)}
         </div>
 

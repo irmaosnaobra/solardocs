@@ -112,8 +112,9 @@ export default function LojaPage() {
               </div>
             </div>
             <div className={styles.lojaGrid}>
+              {/* Mesma regra do cadeado: a loja manda pra LP pública. */}
               {doGrupo.map((p) => (
-                <Link key={p.id} href={`/produtos/${p.slug}`} className={styles.card}
+                <Link key={p.id} href={`/lp/${p.slug}`} className={styles.card}
                   style={{ ['--cor' as string]: p.cor }}>
                   <div className={styles.cardTopo}>
                     <span className={styles.cardNome}>{p.nome}</span>

@@ -50,7 +50,10 @@ export default function Cadeado({
         <p className={styles.promessa}>{p.promessa}</p>
 
         <div className={styles.acoes}>
-          <Link href={`/produtos/${p.slug}`} className={styles.btnPrimary}>
+          {/* Vai direto pra LP publica (/lp/), como o cadeado do menu. A rota
+              antiga ainda redireciona pra la', mas mandar direto poupa um salto
+              — e a pagina de venda e' uma so'. */}
+          <Link href={`/lp/${p.slug}`} className={styles.btnPrimary}>
             Ver o que tem dentro
           </Link>
           {p.experimentar && (

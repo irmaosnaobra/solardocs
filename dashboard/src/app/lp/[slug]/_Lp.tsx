@@ -24,8 +24,13 @@ export function LpPublica({ slug }: { slug: string }) {
         <Link href="/" className={styles.marca} aria-label="SolarDoc">
           <Logo className={styles.marcaImg} />
         </Link>
-        {/* Sem sessão isto leva pro cadastro; com sessão, pro app. */}
-        <Link href="/auth" className={styles.entrar}>Entrar</Link>
+        {/* Esta LP é a MESMA página que o cadeado abre por dentro do app. Quem
+            chega aqui logado não pode ler "Entrar" — ele já entrou, e o botão
+            certo é o caminho de volta pro trabalho dele. O `email` só existe
+            quando há sessão. */}
+        {email
+          ? <Link href="/dashboard" className={styles.entrar}>Voltar ao app</Link>
+          : <Link href="/auth" className={styles.entrar}>Entrar</Link>}
       </header>
 
       <main className={styles.corpo}>

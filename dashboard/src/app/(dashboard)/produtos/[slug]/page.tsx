@@ -1,48 +1,26 @@
 'use client';
 
 import { use, useEffect } from 'react';
-import { notFound, useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { produtoPorSlug } from '@/lib/produtos';
-import { useAcessos } from '@/hooks/useAcessos';
-import { LpConteudo } from '../_LpConteudo';
 
 /**
- * Mini LP de um produto DENTRO do app — a página que o cadeado abre.
+ * ROTA ANTIGA da mini LP. Hoje a página de venda é UMA só: a pública, em
+ * `/lp/<slug>` — é ela que o anúncio abre e é pra ela que o cadeado leva.
  *
- * O corpo vive em `_LpConteudo` e é o mesmo da LP pública (`/lp/[slug]`): duas
- * cópias da mesma oferta viram duas ofertas diferentes com o tempo.
+ * Esta rota continua existindo só pra não quebrar link já mandado (e-mail,
+ * WhatsApp, print de conversa). Manda pra LP preservando `?ver=oferta`, que é
+ * a prévia usada por quem já tem o produto.
  */
-export default function ProdutoPage({ params }: { params: Promise<{ slug: string }> }) {
+export default function ProdutoRedirect({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
-  const p = produtoPorSlug(slug);
-  const { carregando, tem, assinante, email, bastidor } = useAcessos();
   const router = useRouter();
-  /**
-   * PRÉVIA DA OFERTA (?ver=oferta).
-   *
-   * Admin recebe TODOS os produtos automaticamente — é o certo pra usar a
-   * plataforma, e é o que impedia o dono de ver a própria página de venda: ela
-   * sempre abria no estado "você já tem, é só entrar".
-   *
-   * Só muda o que é DESENHADO. Não concede, não revoga, não grava nada.
-   */
-  const previa = useSearchParams().get('ver') === 'oferta';
+  const previa = useSearchParams().get('ver') === 'oferta' ? '?ver=oferta' : '';
+  const existe = !!produtoPorSlug(slug);
+
   useEffect(() => {
-    if (!carregando && !bastidor) router.replace('/dashboard');
-  }, [carregando, bastidor, router]);
+    router.replace(existe ? `/lp/${slug}${previa}` : '/produtos');
+  }, [router, slug, previa, existe]);
 
-  if (!p) return notFound();
-
-  return (
-    <LpConteudo
-      p={p}
-      slug={slug}
-      liberado={tem(p.id) && !previa}
-      carregando={carregando}
-      email={email}
-      assinante={assinante}
-      previa={previa}
-      dentroDoApp
-    />
-  );
+  return null;
 }
