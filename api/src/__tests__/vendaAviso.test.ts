@@ -224,7 +224,7 @@ describe('histórico do cliente', () => {
 
   it('sem histórico apurado a mensagem não cria linha nenhuma (venda do PlugCash, ex.)', () => {
     expect(textoAvisoVenda(venda())).not.toContain('*Cliente:*');
-    expect(textoAvisoVenda(venda()).split('\n')[0]).toBe('💰 *VENDA — SolarDoc*');
+    expect(textoAvisoVenda(venda()).split('\n')[0]).toBe('*💰VENDA SolarDoc*');
   });
 
   // A prévia da notificação do WhatsApp mostra só a primeira linha. Se o emoji
@@ -234,12 +234,12 @@ describe('histórico do cliente', () => {
     const cabecalho = (h: any) => textoAvisoVenda(venda({ historico: h })).split('\n')[0];
     const base = { primeiraCompra: '2026-05-18T00:00:00Z', comprasAnteriores: 1 };
 
-    expect(cabecalho({ ...base, tipo: 'novo' })).toBe('🆕 *VENDA SolarDoc — CLIENTE NOVO*');
-    expect(cabecalho({ ...base, tipo: 'assinante' })).toBe('⚠️ *VENDA SolarDoc — JÁ É ASSINANTE*');
-    expect(cabecalho({ ...base, tipo: 'recorrente' })).toBe('🔄 *VENDA SolarDoc — CLIENTE RECORRENTE*');
+    expect(cabecalho({ ...base, tipo: 'novo' })).toBe('*💰VENDA SolarDoc*');
+    expect(cabecalho({ ...base, tipo: 'assinante' })).toBe('*⚠️ASSINANTE SolarDoc*');
+    expect(cabecalho({ ...base, tipo: 'recorrente' })).toBe('*🔄RECORRENTE SolarDoc*');
 
     // Três emojis diferentes: dois parecidos valeriam o mesmo que nenhum.
-    const emojis = (['novo', 'assinante', 'recorrente'] as const).map((t) => cabecalho({ ...base, tipo: t }).slice(0, 2));
+    const emojis = (['novo', 'assinante', 'recorrente'] as const).map((t) => cabecalho({ ...base, tipo: t }).slice(1, 3));
     expect(new Set(emojis).size).toBe(3);
   });
 

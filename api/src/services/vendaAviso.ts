@@ -88,20 +88,22 @@ export function tempoDeCasa(iso: string | null): string {
 // Os três são visualmente distintos de longe (novo / risco / repetição) —
 // dois emojis parecidos aqui valeriam o mesmo que nenhum.
 const EMOJI: Record<HistoricoCliente['tipo'], string> = {
-  novo:       '🆕',
+  novo:       '💰',
   assinante:  '⚠️',
   recorrente: '🔄',
 };
 
+// Formato do Thiago: emoji DENTRO do negrito e colado na palavra, o tipo
+// abrindo a linha. Curto de propósito — a prévia da notificação corta o resto.
 const TITULO: Record<HistoricoCliente['tipo'], string> = {
-  novo:       '🆕 *VENDA SolarDoc — CLIENTE NOVO*',
-  assinante:  '⚠️ *VENDA SolarDoc — JÁ É ASSINANTE*',
-  recorrente: '🔄 *VENDA SolarDoc — CLIENTE RECORRENTE*',
+  novo:       '*💰VENDA SolarDoc*',
+  assinante:  '*⚠️ASSINANTE SolarDoc*',
+  recorrente: '*🔄RECORRENTE SolarDoc*',
 };
 
 export function tituloAvisoVenda(h: HistoricoCliente | null | undefined): string {
-  // Sem histórico apurado o título não inventa tipo — segue o de sempre.
-  return h ? TITULO[h.tipo] : '💰 *VENDA — SolarDoc*';
+  // Sem histórico apurado o título não inventa tipo — cai no de venda comum.
+  return h ? TITULO[h.tipo] : '*💰VENDA SolarDoc*';
 }
 
 function linhaCliente(h: HistoricoCliente | null | undefined): string[] {
