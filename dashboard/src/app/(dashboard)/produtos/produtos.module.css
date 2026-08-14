@@ -262,3 +262,247 @@
   display: inline-flex; align-items: center; min-height: 32px;
   color: var(--color-primary); font-weight: 700; text-decoration: underline;
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   DEMONSTRAÇÃO ANIMADA — a "gif" da página de venda
+   ════════════════════════════════════════════════════════════════════════════
+   Quatro cenas de 3s em laço de 12s. Cada cena aparece, segura e sai; o resto
+   do tempo fica com opacidade 0 e `visibility:hidden` pra não roubar o toque
+   de quem está por cima.
+
+   Tudo em keyframes, sem timer em JS: não vaza quando a pessoa sai da página.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.demo {
+  background: #12161D;
+  border: 1px solid #2A313C;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  color: #E6E9EE;
+  box-shadow: var(--sombra-card-alta);
+}
+.demoTopo {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px;
+  background: #171C24;
+  border-bottom: 1px solid #2A313C;
+  font-size: 11.5px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  color: #8A93A0;
+}
+.demoPonto {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--color-primary);
+  animation: demoPulso 2s ease-in-out infinite;
+}
+@keyframes demoPulso { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+/* O palco tem altura fixa: as cenas se sobrepõem, então sem isto o card
+   pularia de tamanho a cada troca. */
+.demoPalco { position: relative; height: 268px; padding: 16px; }
+
+.demoCena {
+  position: absolute; inset: 16px;
+  opacity: 0; visibility: hidden;
+  animation: demoCena 12s ease-in-out infinite;
+}
+.demoCena1 { animation-delay: 0s; }
+.demoCena2 { animation-delay: 3s; }
+.demoCena3 { animation-delay: 6s; }
+.demoCena4 { animation-delay: 9s; }
+@keyframes demoCena {
+  0%   { opacity: 0; visibility: visible; transform: translateY(8px); }
+  4%   { opacity: 1; transform: translateY(0); }
+  23%  { opacity: 1; transform: translateY(0); }
+  27%  { opacity: 0; visibility: visible; transform: translateY(-8px); }
+  28%, 100% { opacity: 0; visibility: hidden; }
+}
+
+.demoRotulo {
+  font-size: 10.5px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--color-primary);
+  margin-bottom: 12px;
+}
+
+/* ── Cena 1: aparelhos entrando ── */
+.demoItem {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 0;
+  border-bottom: 1px solid #232932;
+  opacity: 0;
+  animation: demoEntra 12s ease-out infinite;
+}
+@keyframes demoEntra {
+  0%, 2%  { opacity: 0; transform: translateX(-6px); }
+  6%, 25% { opacity: 1; transform: translateX(0); }
+  28%, 100% { opacity: 0; }
+}
+.demoCheck {
+  flex: none; width: 16px; height: 16px; border-radius: 5px;
+  background: var(--color-primary);
+  position: relative;
+}
+.demoCheck::after {
+  content: ''; position: absolute; left: 5px; top: 2.5px;
+  width: 4px; height: 8px;
+  border: solid #fff; border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.demoItemNome { flex: 1; font-size: 13px; font-weight: 700; }
+.demoItemW { font-size: 11.5px; color: #8A93A0; font-weight: 700; }
+.demoSoma {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-top: 12px; padding-top: 10px;
+  border-top: 1px dashed #2A313C;
+}
+.demoSoma span { font-size: 11.5px; color: #8A93A0; font-weight: 700; }
+.demoSoma strong { font-size: 19px; font-weight: 900; color: var(--color-primary); }
+
+/* ── Cena 2: o número grande ── */
+.demoNumerao { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.demoNumerao strong {
+  font-size: 54px; font-weight: 900; line-height: 0.9;
+  color: var(--color-primary);
+  letter-spacing: -0.04em;
+}
+.demoNumerao span { font-size: 13px; font-weight: 700; line-height: 1.35; }
+.demoLinhas { display: grid; gap: 6px; }
+.demoLinhas > div {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #1A1F28; border-radius: 9px; padding: 9px 11px;
+}
+.demoLinhas span { font-size: 12px; color: #A6AEBA; font-weight: 600; }
+.demoLinhas strong { font-size: 13px; font-weight: 800; }
+
+/* ── Cena 3: o kit ── */
+.demoKit { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.demoKit > div {
+  background: #1A1F28; border-radius: 10px; padding: 11px 12px;
+  display: flex; flex-direction: column; gap: 3px;
+  opacity: 0;
+  animation: demoEntra 12s ease-out infinite;
+  animation-delay: inherit;
+}
+.demoKit span { font-size: 10.5px; color: #8A93A0; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+.demoKit strong { font-size: 13.5px; font-weight: 800; }
+
+/* ── Cena 4: o preço ── */
+.demoPreco {
+  background: linear-gradient(135deg, rgba(242,101,19,0.16), rgba(242,101,19,0.04));
+  border: 1px solid rgba(242,101,19,0.35);
+  border-radius: 12px; padding: 16px; margin-bottom: 12px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.demoPreco span { font-size: 11px; font-weight: 800; color: #A6AEBA; text-transform: uppercase; letter-spacing: 0.06em; }
+.demoPreco strong { font-size: 34px; font-weight: 900; color: var(--color-primary); letter-spacing: -0.03em; line-height: 1; }
+.demoPreco em { font-style: normal; font-size: 11.5px; color: #8A93A0; font-weight: 600; }
+.demoPdf {
+  display: flex; align-items: center; gap: 9px;
+  background: #1A1F28; border-radius: 10px; padding: 11px 12px;
+  font-size: 12.5px; font-weight: 700;
+}
+.demoPdfIco {
+  flex: none; width: 20px; height: 24px; border-radius: 3px;
+  background: #fff; position: relative;
+}
+.demoPdfIco::after {
+  content: ''; position: absolute; left: 3px; right: 3px; top: 6px; height: 2px;
+  background: #12161D; box-shadow: 0 5px 0 #12161D, 0 10px 0 #12161D;
+}
+
+/* ── Barra de progresso do laço ── */
+.demoBarra { height: 3px; background: #1A1F28; }
+.demoBarraFill {
+  display: block; height: 100%; width: 100%;
+  background: var(--color-primary);
+  transform-origin: left;
+  animation: demoBarra 12s linear infinite;
+}
+@keyframes demoBarra { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* Quem pediu menos movimento vê a cena do PREÇO parada — é a que importa. */
+@media (prefers-reduced-motion: reduce) {
+  .demoCena, .demoItem, .demoKit > div, .demoPonto, .demoBarraFill { animation: none; }
+  .demoCena { opacity: 0; visibility: hidden; }
+  .demoCena4 { opacity: 1; visibility: visible; }
+  .demoItem, .demoKit > div { opacity: 1; }
+  .demoBarraFill { transform: scaleX(1); }
+}
+
+/* ── TIRA DE NÚMEROS: a prova logo abaixo do herói ── */
+.lpNumeros {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 26px 0 30px;
+}
+.lpNumeros > div {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-top: 3px solid var(--cor, var(--color-primary));
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  box-shadow: var(--sombra-card);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.lpNumeros strong {
+  font-size: 27px; font-weight: 900; letter-spacing: -0.03em; line-height: 1;
+  color: var(--cor, var(--color-primary));
+}
+.lpNumeros span { font-size: 12.5px; font-weight: 600; color: var(--color-text-muted); line-height: 1.4; }
+@media (max-width: 720px) {
+  .lpNumeros { grid-template-columns: 1fr; gap: 8px; }
+  .lpNumeros > div { flex-direction: row; align-items: baseline; gap: 10px; }
+  .lpNumeros strong { font-size: 22px; }
+}
+
+/* ── BENEFÍCIOS: o que muda no dia, não o que vem na caixa ── */
+.lpBenefs { margin-bottom: 30px; }
+.lpH2Grande {
+  font-size: 22px; font-weight: 900; letter-spacing: -0.02em;
+  margin: 0 0 16px;
+  display: flex; align-items: center; gap: 10px;
+}
+.lpH2Grande::before {
+  content: ''; flex-shrink: 0;
+  width: 4px; height: 1em; border-radius: 2px;
+  background: var(--cor, var(--color-primary));
+}
+.lpBenefGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 860px) { .lpBenefGrid { grid-template-columns: 1fr; } }
+.lpBenef {
+  position: relative;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 18px 18px 18px 54px;
+  box-shadow: var(--sombra-card);
+}
+.lpBenefN {
+  position: absolute; left: 18px; top: 18px;
+  font-size: 13px; font-weight: 900;
+  color: var(--cor, var(--color-primary));
+  opacity: 0.55;
+  font-variant-numeric: tabular-nums;
+}
+.lpBenef strong { display: block; font-size: 15px; font-weight: 800; margin-bottom: 5px; letter-spacing: -0.01em; }
+.lpBenef p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--color-text-muted); }
+
+/* ── FECHAMENTO: quem rolou até aqui não sobe de volta pra achar o botão ── */
+.lpFechar {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 16px;
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent-border);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  box-shadow: var(--sombra-card);
+}
+.lpFechar > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.lpFechar strong { font-size: 17px; font-weight: 900; letter-spacing: -0.02em; }
+.lpFechar span { font-size: 13px; font-weight: 600; color: var(--color-text-muted); }
+.lpFechar .lpBtn { margin-bottom: 0; flex: 0 0 auto; padding-left: 28px; padding-right: 28px; }
+@media (max-width: 620px) {
+  .lpFechar { flex-direction: column; align-items: stretch; }
+  .lpFechar .lpBtn { width: 100%; }
+}

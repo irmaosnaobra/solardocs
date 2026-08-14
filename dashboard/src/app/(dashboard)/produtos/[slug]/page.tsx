@@ -9,6 +9,7 @@ import { useAcessos } from '@/hooks/useAcessos';
 import {
   MockupPrecificacao, MockupOffGrid, MockupInventario, MockupCurso,
 } from '../_mockups';
+import { DemoOffGrid } from '../_demo';
 import styles from '../produtos.module.css';
 
 /**
@@ -43,9 +44,12 @@ export default function ProdutoPage({ params }: { params: Promise<{ slug: string
   const liberado = tem(p.id) && !previa;
   const brl = (n: number) => 'R$ ' + n.toLocaleString('pt-BR');
 
+  // O off-grid mostra a DEMONSTRAÇÃO animada — o caminho inteiro, do aparelho
+  // marcado até o preço. Os outros seguem no mockup parado enquanto a animação
+  // deles não existe; melhor um mockup honesto do que uma animação genérica.
   const mockup =
-    p.mockup === 'precificacao' ? <MockupPrecificacao />
-    : p.mockup === 'offgrid' ? <MockupOffGrid />
+    p.mockup === 'offgrid' ? <DemoOffGrid />
+    : p.mockup === 'precificacao' ? <MockupPrecificacao />
     : p.mockup === 'inventario' ? <MockupInventario />
     : <MockupCurso cor={p.cor} />;
 
@@ -135,6 +139,51 @@ export default function ProdutoPage({ params }: { params: Promise<{ slug: string
           )}
         </div>
       </div>
+
+      {/* ══ Daqui pra baixo é PÁGINA DE VENDA, e só aparece pra quem ainda não
+             tem. Quem já comprou não precisa ser convencido de novo — pra ele a
+             página acaba no botão de abrir. ══ */}
+      {!liberado && (
+        <>
+          {p.numeros && p.numeros.length > 0 && (
+            <div className={styles.lpNumeros}>
+              {p.numeros.map((n) => (
+                <div key={n.rotulo}>
+                  <strong>{n.valor}</strong>
+                  <span>{n.rotulo}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {p.beneficios && p.beneficios.length > 0 && (
+            <section className={styles.lpBenefs}>
+              <h2 className={styles.lpH2Grande}>O que muda no seu dia</h2>
+              <div className={styles.lpBenefGrid}>
+                {p.beneficios.map((b, i) => (
+                  <div key={b.titulo} className={styles.lpBenef}>
+                    <span className={styles.lpBenefN}>{String(i + 1).padStart(2, '0')}</span>
+                    <strong>{b.titulo}</strong>
+                    <p>{b.texto}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Fechamento: quem rolou até aqui não pode ter que subir de volta
+              pra achar o botão. */}
+          <div className={styles.lpFechar}>
+            <div>
+              <strong>{p.nome}</strong>
+              <span>{brl(p.preco)} uma vez · acesso enquanto sua conta existir</span>
+            </div>
+            <a className={styles.lpBtn} href={checkoutCom(p, email)} target="_blank" rel="noopener noreferrer">
+              Comprar {p.tipo === 'curso' ? 'o curso' : 'a ferramenta'} <ExternalLink size={15} />
+            </a>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -30,6 +30,14 @@ export interface ProdutoLoja {
   checkout: string;
   /** Qual mockup a LP renderiza. */
   mockup: 'offgrid' | 'precificacao' | 'inventario' | 'curso';
+  /**
+   * BENEFÍCIO não é ENTREGA. `entrega` é a lista do que vem na caixa; isto aqui
+   * é o que muda no dia da pessoa. Página de venda vive disto — sem, a mini LP
+   * fica sendo ficha de produto.
+   */
+  beneficios?: { titulo: string; texto: string }[];
+  /** Três números de prova, na tira embaixo do herói. */
+  numeros?: { valor: string; rotulo: string }[];
   /** Só pra ferramenta que dá pra experimentar antes de comprar. */
   experimentar?: { rota: string; texto: string };
   /**
@@ -67,6 +75,25 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
     // A ferramenta fica aberta de propósito: dimensionar e ver a autonomia é
     // grátis. A melhor página de vendas dela é ela mesma funcionando.
     experimentar: { rota: '/off-grid', texto: 'Dimensionar um sistema agora, de graça' },
+    beneficios: [
+      { titulo: 'Responde na hora a pergunta que trava tudo',
+        texto: '"Quanto tempo aguenta sem sol?" sai com número, em três cenários: só o essencial, a casa inteira e chovendo o dia todo. Não é chute — é a mesma conta do dimensionamento, lida ao contrário.' },
+      { titulo: 'O preço do kit já com o frete até a obra',
+        texto: 'Sem pedir cotação e esperar dois dias. Você põe o CEP, a plataforma calcula o frete de Uberlândia até lá e mostra o fornecimento fechado, com a sua margem por cima.' },
+      { titulo: 'A proposta sai com a sua marca',
+        texto: 'PDF com a sua logo, as suas cores, o seu preço e as suas parcelas. O cliente não vê o nosso nome em lugar nenhum — quem vende é você.' },
+      { titulo: 'Ganha a conversa do poste e do gerador',
+        texto: 'O comparativo de 10 anos contra puxar rede e contra diesel vai junto na proposta. É o argumento que fecha obra em sítio, e ninguém tem na ponta da língua.' },
+      { titulo: 'Não erra o inversor por causa do motor',
+        texto: 'Bomba puxa de 3 a 5 vezes na partida. A ferramenta conta o surto e dimensiona pra ele — inversor que desarma quando a bomba liga é o defeito mais caro do off-grid mal especificado.' },
+      { titulo: 'Os R$ 97 voltam no primeiro pedido',
+        texto: 'Pediu o kit pra gente? O que você pagou pela ferramenta entra como abatimento. Na prática, quem usa não paga.' },
+    ],
+    numeros: [
+      { valor: '70', rotulo: 'aparelhos no catálogo, da lâmpada à ordenhadeira' },
+      { valor: '3', rotulo: 'cenários de autonomia, com número' },
+      { valor: '10 anos', rotulo: 'de comparativo contra rede e diesel' },
+    ],
     cor: '#0F766E',
   },
   {
@@ -116,14 +143,35 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
     slug: 'kit-fecha-vendas',
     nome: 'Kit Fecha Vendas',
     tipo: 'curso',
-    promessa: 'O passo a passo de quem vende solar todo dia — do primeiro contato até o cliente assinar.',
+    promessa: 'Você tem 15 segundos pra responder a objeção do cliente — e a resposta decide a venda.',
     dorTexto:
-      'Orçamento enviado, cliente sumiu. O problema quase nunca é preço: é a conversa que não teve continuidade e a proposta que não respondeu o medo dele.',
+      'Três frases fazem você perder venda toda semana: "tá caro", "vou pensar" e "fulano fez por menos". O problema quase nunca é preço — é não ter a resposta pronta na hora em que ele fala.',
     entrega: [
-      'A trilha completa de fechamento, módulo por módulo',
-      'Os textos que reativam quem sumiu depois do orçamento',
-      'Como responder as objeções que aparecem em toda venda solar',
-      'Módulo bônus liberado por missão dentro da plataforma',
+      'Os 6 módulos completos, em 21 lições com progresso',
+      '32 respostas de objeção e 15 mensagens prontas',
+      'Contrato, procuração e vistoria gerados com a sua marca',
+      'Trilha com XP, níveis e conquistas — uma lição por dia, no celular',
+      'Módulo bônus que só abre quando você usa a plataforma',
+      'Atualizações do material sem custo adicional',
+    ],
+    beneficios: [
+      { titulo: 'A resposta pronta, na hora em que ele fala',
+        texto: 'Cada objeção vem em quatro partes: o que o cliente realmente quis dizer, o erro que quase todo integrador comete, a fala pronta pra visita e a versão curta pra colar no WhatsApp.' },
+      { titulo: 'Da primeira ligação até a assinatura',
+        texto: 'As 6 etapas da visita: como qualificar por telefone, o que falar nos primeiros 10 minutos, como conduzir a vistoria e como pedir a assinatura com data de obra na mesa.' },
+      { titulo: 'Preço e margem sem chute',
+        texto: 'Pra onde vai cada real do orçamento, as quatro regras que protegem a margem e o checklist de 10 itens — mais a missão prática na calculadora da plataforma.' },
+      { titulo: 'Mensagem pronta pra copiar, colar e mandar',
+        texto: 'Da primeira mensagem pro lead de anúncio ao follow-up que não parece cobrança. Cada uma traz o momento certo de usar e o motivo de funcionar.' },
+      { titulo: 'Não é pasta de arquivo que some na caixa de entrada',
+        texto: 'Fica na sua conta, abre do celular na porta do cliente e mostra onde você parou. Quando a gente atualiza o material, você já entra na versão nova.' },
+      { titulo: 'Documento sai com o SEU CNPJ',
+        texto: 'Contrato, procuração e vistoria não são modelos em branco pra preencher à mão: saem prontos com o CNPJ, o endereço e a logo da sua empresa.' },
+    ],
+    numeros: [
+      { valor: '21', rotulo: 'lições, em 6 módulos com progresso' },
+      { valor: '32', rotulo: 'respostas de objeção, palavra por palavra' },
+      { valor: '15', rotulo: 'mensagens de prospecção e follow-up' },
     ],
     preco: 27,
     naAssinatura: true,
@@ -137,13 +185,34 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
     slug: 'limpapro',
     nome: 'LimpaPro',
     tipo: 'curso',
-    promessa: 'Limpeza de placas como serviço recorrente: o que cobrar, como fazer e como vender de novo todo ano.',
+    promessa: 'Faturar limpando placa solar, começando do zero: o que cobrar, como fazer e como o mesmo cliente volta.',
     dorTexto:
-      'Instalou, recebeu, acabou. A limpeza é a receita que volta sozinha do mesmo cliente — e quase todo integrador deixa na mesa.',
+      'Milhões de painéis instalados no Brasil e quase ninguém limpa. Instalou, recebeu, acabou — mas a placa suja gera menos, o dono vê na conta e não sabe pra quem ligar.',
     entrega: [
-      'O método de limpeza que não risca o vidro nem quebra a garantia',
-      'Quanto cobrar por placa e como montar o contrato de manutenção',
-      'Como voltar no cliente que você já instalou',
+      'Módulo 1 — Técnica de limpeza segura, sem riscar o vidro nem quebrar a garantia',
+      'Módulo 2 — Segurança e trabalho em altura',
+      'Módulo 3 — Precificação inteligente: quanto cobrar e por quê',
+      'Módulo 4 — Captação e fechamento de clientes',
+      'Módulo 5 — Renda recorrente: o contrato que faz o cliente voltar',
+    ],
+    beneficios: [
+      { titulo: 'Um mercado gigante que ninguém atende',
+        texto: 'São milhões de painéis instalados e quase nenhum serviço de limpeza. A placa suja gera menos, o dono percebe na conta — e não tem pra quem ligar.' },
+      { titulo: 'De R$ 200 a R$ 800 por atendimento',
+        texto: 'O preço não é chute: o módulo de precificação mostra como fechar o valor pelo tamanho do telhado, pela altura e pelo deslocamento.' },
+      { titulo: 'Menos de R$ 700 pra montar o equipamento',
+        texto: 'Não precisa de veículo, ponto comercial nem estoque. É a entrada mais barata que existe no mercado de energia solar.' },
+      { titulo: 'O mesmo cliente volta a cada 3 a 6 meses',
+        texto: 'Não é venda de uma vez: é contrato de manutenção. A diferença entre correr atrás de cliente novo todo mês e ter uma carteira que se repete sozinha.' },
+      { titulo: 'Serve mesmo sem nenhuma experiência',
+        texto: 'Começa do zero — a técnica, a segurança em altura, o preço e a conversa de venda. Quem já trabalha com solar entra vendendo pra própria base instalada.' },
+      { titulo: '15 dias de garantia',
+        texto: 'Entrou, viu e não é pra você? A gente devolve. O risco de experimentar é nosso.' },
+    ],
+    numeros: [
+      { valor: 'R$ 200–800', rotulo: 'por atendimento' },
+      { valor: 'R$ 700', rotulo: 'pra montar o equipamento inteiro' },
+      { valor: '3 a 6 meses', rotulo: 'e o mesmo cliente te chama de novo' },
     ],
     preco: 47,
     naAssinatura: false,
