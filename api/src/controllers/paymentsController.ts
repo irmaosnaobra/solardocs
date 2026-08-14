@@ -12,7 +12,7 @@ import { sendUtmifyOrder } from '../services/utmifyOrders';
 import { concederCursoPorAssinatura } from '../services/kitIntegradorService';
 import { pixCheckoutUrl, PIX_MES_VALOR } from '../utils/pixInfo';
 import { asaasHabilitado } from '../services/asaas/asaasClient';
-import { resolverPrecoAnual, precoAnualConhecido, ANUAL_VALOR, ANUAL_EQUIV_MES } from '../services/precoAnual';
+import { resolverPrecoAnual, precoAnualConhecido, ANUAL_VALOR, ANUAL_EQUIV_MES, FERRAMENTAS_DO_ANUAL } from '../services/precoAnual';
 import { concederAcesso } from '../services/produtos/acessos';
 import {
   buscarCupomValido, aplicarCupom, garantirCupomStripe, garantirPromotionCode, cupomAtivoParaPlano,
@@ -109,13 +109,6 @@ const PLAN_MAP: Record<string, { priceId: string; plano: string; limite: number;
 const TEXTO_SUBMIT_ANUAL =
   `R$ ${ANUAL_VALOR} agora, 12 meses de acesso — sai R$ ${ANUAL_EQUIV_MES}/mês em vez de R$ 67. ` +
   'Precificação Profissional e Inventário da Empresa ficam liberados pra sempre. Renova só daqui a um ano.';
-
-// As duas ferramentas que o anual leva PRA SEMPRE (não expiram junto com a
-// assinatura). É o que faz o anual valer mais do que "12 mensais com desconto":
-// R$ 134 de ferramenta comprada, dentro de uma compra de R$ 564.
-// O mensal continua com elas enquanto assina (`naAssinatura` no catálogo) —
-// o anual é quem passa a ser DONO.
-const FERRAMENTAS_DO_ANUAL = ['precificacao', 'inventario'];
 
 // mapa invertido price_id → plano (para o webhook).
 //

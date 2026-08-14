@@ -25,6 +25,13 @@ export const ANUAL_CENTAVOS = ANUAL_VALOR * 100;
 // id do cupom, que carrega o desconto em centavos).
 export const ANUAL_LOOKUP_KEY = `sd-vip-anual-${ANUAL_CENTAVOS}`;
 
+// As ferramentas que o anual leva PRA SEMPRE (gravadas em `entitlements`, não
+// derivadas da assinatura). Mora aqui, e não no controller, porque DUAS pessoas
+// precisam da lista: o webhook, que concede na venda, e o cron de sincronia, que
+// repõe se o webhook falhar. Duas cópias da mesma lista é como uma delas
+// envelhece sozinha.
+export const FERRAMENTAS_DO_ANUAL = ['precificacao', 'inventario'];
+
 // O anual mora no MESMO produto do VIP mensal (é o mesmo acesso, outro ciclo) —
 // então o produto sai daqui, do price que já está no ar.
 const PRICE_VIP = (process.env.STRIPE_PRICE_VIP || 'price_1TUh2yCkkgzQ4IHeZqy52Zu2').trim();

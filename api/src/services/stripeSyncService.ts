@@ -3,7 +3,8 @@ import { supabase } from '../utils/supabase';
 import { logger } from '../utils/logger';
 import { sendDunningDay0 } from './dunningService';
 import { FREE_LIMIT } from './planService';
-import { resolverPrecoAnual, precoAnualConhecido } from './precoAnual';
+import { resolverPrecoAnual, precoAnualConhecido, FERRAMENTAS_DO_ANUAL } from './precoAnual';
+import { concederAcesso } from './produtos/acessos';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -110,9 +111,14 @@ async function fetchStripeTruth(): Promise<Map<string, StripeTruth>> {
 export async function syncStripePlans(): Promise<{
   scanned: number; upgraded: number; downgraded: number; unchanged: number;
   past_due_caught: number; recovered: number; trial_converted: number; errors: number;
+  // Quantas ferramentas do anual o cron teve que REPOR. Em operação normal é 0:
+  // qualquer número acima disso é webhook que não gravou — e é o único jeito de
+  // essa falha aparecer, já que o cliente não sente falta enquanto assina.
+  anual_ferramentas: number;
 }> {
   let scanned = 0, upgraded = 0, downgraded = 0, unchanged = 0;
   let past_due_caught = 0, recovered = 0, trial_converted = 0, errors = 0;
+  let anual_ferramentas = 0;
 
   let truth: Map<string, StripeTruth>;
   try {
@@ -191,6 +197,37 @@ export async function syncStripePlans(): Promise<{
       .update(salesPatch)
       .eq('email', u.email.toLowerCase())
       .then(() => {}, () => {});
+
+    // ── FERRAMENTAS DO ANUAL (backstop pro webhook) ──────────────────────────
+    // O webhook concede Precificação e Inventário na venda do anual. Se ele
+    // falhar, NINGUÉM PERCEBE: a assinatura viva já libera as duas por
+    // `naAssinatura`, então o cliente entra e vê tudo no lugar. O erro só
+    // apareceria daqui a um ano, no cancelamento — quando ele perdesse
+    // justamente o que a página vendeu como "pra sempre".
+    //
+    // Por isso o cron repõe. `concederAcesso` é idempotente (não duplica linha
+    // nem reinicia nada), então rodar toda manhã não custa mais que 2 SELECTs
+    // por assinante anual. Best-effort: falhar aqui não pode abortar o sync do
+    // plano, que é o trabalho principal desta função.
+    const idAnual = precoAnualConhecido();
+    if (idAnual && stripeTruth?.priceId === idAnual) {
+      for (const ferramenta of FERRAMENTAS_DO_ANUAL) {
+        try {
+          const criou = await concederAcesso({
+            userId: u.id,
+            produto: ferramenta,
+            origem: 'compra',
+            obs: 'incluso no plano anual',
+          });
+          if (criou) {
+            anual_ferramentas++;
+            logger.info('stripe-sync', `anual: ${ferramenta} reposto pra ${u.email} (webhook não gravou)`);
+          }
+        } catch (err) {
+          logger.error('stripe-sync', `anual: falha ao repor ${ferramenta} pra ${u.email}`, err);
+        }
+      }
+    }
 
     // ── Reconcilia billing_status com Stripe (backstop pro webhook) ──
     // Mapeia status real do Stripe → billing_status que queremos no Supabase.
@@ -306,7 +343,7 @@ export async function syncStripePlans(): Promise<{
     logger.info('stripe-sync', `${u.email}: ${u.plano} → ${realPlano}`);
   }
 
-  const summary = { scanned, upgraded, downgraded, unchanged, past_due_caught, recovered, trial_converted, errors };
+  const summary = { scanned, upgraded, downgraded, unchanged, past_due_caught, recovered, trial_converted, errors, anual_ferramentas };
   logger.info('stripe-sync', 'concluído', summary);
   return summary;
 }
