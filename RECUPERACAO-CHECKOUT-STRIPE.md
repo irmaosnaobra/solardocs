@@ -77,6 +77,21 @@ que é a origem das assinaturas duplicadas.
 
 ---
 
+## Hoje o Pix da página é o WhatsApp (decisão do Thiago, 14/08)
+
+Enquanto `SOLARDOC_PIX_CHECKOUT_URL` estiver vazia, o botão verde da `/quase-la`
+abre `wa.me/5534998165040` com "Oi! Quero assinar o SolarDoc pagando por Pix.".
+
+Duas coisas pra saber sobre esse caminho:
+
+- **A linha está de pé** (conferido em 14/08 às 16:53 UTC: `zapi_io_health` com
+  `downStreak: 0`, 696 mensagens em 24h). Ela já caiu duas vezes antes — o
+  alerta de queda sai por e-mail.
+- **Nenhum robô responde nessa linha.** É a linha IO, e `handleSdrLead` tem
+  early-return pra `'io'` de propósito: quem chega ali cai pra **humano**. Ou
+  seja, o Pix de hoje converte na velocidade de quem olha o telefone. É esse o
+  trabalho que o checkout da Kiwify (abaixo) elimina.
+
 ## O que falta pra ligar o Pix automático (1 configuração)
 
 Enquanto a env abaixo estiver vazia, o Pix continua **manual** (chave + comprovante
