@@ -933,6 +933,14 @@ details p{margin:12px 0 0;color:var(--g600);line-height:1.7;max-width:62ch}
 // consumado no instante em que o navegador abriu — sumia do relatório.
 //
 // É o candidato mais forte pro buraco entre 28 pessoas roteadas e 13 medidas.
+//
+// 14/08: subir o beacon pra cá custou TODA a medição de visita entre 12 e 14/08
+// (0 `material_view` gravado, com `material_scroll` chegando normalmente — gente
+// na página, visita nenhuma no relatório). O `var API` morava 126 linhas abaixo:
+// hoisting deixa o nome existir valendo `undefined`, então o fetch saía pra
+// "undefined/plugcash/evento" — URL relativa, 404, e o `.catch` engolia calado.
+// É por isso que a base do endereço nasce AQUI, colada em quem a usa primeiro.
+var API = location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api';
 function evento(tipo, payload){
   try {
     fetch(API + '/plugcash/evento', {
@@ -1078,7 +1086,7 @@ document.getElementById('por-que').textContent =
 // ── 3 · Preço e checkout vêm da API, nunca do HTML ─────────────────────────
 // `pc_cursos` é a fonte: preço, parcelamento, link de checkout e a grade de
 // aulas. Trocar de oferta é um UPDATE no /admin, não um deploy desta página.
-var API = location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api';
+// (O `API` está lá em cima, junto do beacon de visita — quem usa primeiro manda.)
 var checkoutSimples = null, checkoutBump = null;
 
 function money(cent){
