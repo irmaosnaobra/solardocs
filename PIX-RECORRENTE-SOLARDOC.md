@@ -1,6 +1,24 @@
 # Pix recorrente no SolarDoc
 
-Construído em 08/08/2026. **Está no código e desligado** — liga com as variáveis de ambiente do passo 3.
+Construído em 08/08/2026. **LIGADO EM PRODUÇÃO em 14/08/2026.**
+
+Conta Asaas de produção: AIOROS LTDA (63.636.043/0001-88), `APPROVED`, com chave
+Pix **aleatória (EVP)** — a chave CNPJ segue no Sicredi, que é a que o Pix manual
+usa. As quatro variáveis estão na Vercel (`ASAAS_API_KEY`, `ASAAS_ENV=prod`,
+`ASAAS_WEBHOOK_TOKEN` na API; `NEXT_PUBLIC_PIX_RECORRENTE=on` no dashboard) e o
+webhook `cc78f758-…` está cadastrado com os 8 eventos, `SEQUENTIALLY`.
+
+**Nenhum pagamento real passou por ele ainda** — o sandbox validou a mecânica, o
+primeiro cliente é o teste de verdade. **Kill-switch sem deploy:**
+`PIX_RECORRENTE_OFF=true` na API derruba o trilho inteiro e o front volta sozinho
+pro WhatsApp.
+
+> **Duas armadilhas do painel do Asaas**, custaram uma tarde: o botão "Gerar
+> chave de API" fica **cinza** até o cadastro estar completo em **Minha Conta →
+> Informações, incluindo faturamento** (a explicação só aparece no tooltip do
+> botão). E **nunca** ligar *whitelist de IPs* — a Vercel tem IP dinâmico e toda
+> chamada nossa viraria 403 — nem *validação de saque por webhook*, que trava o
+> saque; a doc deles diz que os dois são opcionais.
 
 ---
 
