@@ -192,7 +192,7 @@ export async function calcularPrevia(plano: Plano, taxas?: Taxas): Promise<Previ
     avisos.push(`O limite do cartão dele precisa ter R$ ${bruto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} livres: parcelado trava o valor cheio de uma vez, não a parcela.`);
   }
   if (antecipar) {
-    avisos.push('A antecipação passa por análise de crédito do Asaas e depende do limite liberado na conta — o prazo só começa a contar depois que ele pagar.');
+    avisos.push('Este preço já embute o custo de antecipar. A antecipação NÃO sai sozinha: depois que ele pagar, use o botão "Antecipar" na lista aqui embaixo (ou ligue a antecipação automática no painel do Asaas). Ela passa por análise de crédito e depende do limite liberado na conta.');
   }
   if (t.ambiente === 'sandbox') {
     avisos.push('AMBIENTE DE TESTE (sandbox): esta cobrança não é real e ninguém paga nada.');
@@ -225,6 +225,13 @@ export interface CobrancaCriada {
   conferencia: 'exata' | 'estimada';
   /** Quantas vezes o valor foi refeito pra bater o alvo (0, 1 ou 2). */
   ajustes: number;
+  /**
+   * Por que a conferência não aconteceu, quando o Asaas recusou a simulação.
+   * Isto NÃO é detalhe: se a antecipação não estiver liberada na conta, o preço
+   * cobrado já embutiu ~R$1.600 de um serviço que não vai acontecer. A tela
+   * mostra em vermelho, não entre parênteses.
+   */
+  conferenciaFalhou?: string;
 }
 
 const soDigitos = (s?: string | null) => String(s ?? '').replace(/\D/g, '');
@@ -374,9 +381,12 @@ export async function criarCobranca(plano: Plano): Promise<CobrancaCriada> {
       try {
         real = await simularAntecipacao(criada.id, criada.tipo);
       } catch (err) {
-        // Antecipação indisponível (limite, análise, conta nova) não derruba a
-        // cobrança: ela vale sem antecipar. A tela avisa.
+        // Antecipação indisponível (limite ainda não liberado, análise, conta
+        // nova) não derruba a cobrança — ela vale sem antecipar. Mas o preço já
+        // foi inflado pelo custo da antecipação, então isto precisa GRITAR.
+        const motivo = (err as Error)?.message || 'o Asaas recusou a simulação';
         logger.warn(LOG, 'não deu pra conferir o líquido com o Asaas', err);
+        criada.conferenciaFalhou = motivo;
         break;
       }
 
@@ -457,6 +467,8 @@ export interface LinhaCobranca {
   url: string;
   status: string;
   criado_em: string;
+  antecipacao_id: string | null;
+  antecipacao_status: string | null;
   pagas?: number;
 }
 

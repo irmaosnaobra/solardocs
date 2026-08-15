@@ -120,6 +120,9 @@ tr:last-child td{border-bottom:none}
 .pill.PARCIAL{background:#2a1f06;color:#FCD34D}
 .pill.RECEIVED,.pill.CONFIRMED{background:#052e16;color:#4ADE80}
 .vazio{color:var(--faint);text-align:center;padding:26px;font-size:13px}
+.alerta{background:#450a0a;border:1px solid #7F1D1D;color:#FECACA;padding:12px 14px;
+  border-radius:9px;font-size:13px;line-height:1.5;margin:10px 0}
+.alerta b{color:#FCA5A5}
 
 #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#0B1220;
   border:1px solid var(--line-s);color:#fff;padding:11px 18px;border-radius:99px;font-size:13.5px;
@@ -252,6 +255,7 @@ tr:last-child td{border-bottom:none}
     <div class="pronto oculto" id="bloco-pronto">
       <h2 style="margin:0 0 4px;font-size:15px">Cobrança criada</h2>
       <p class="sub" id="pronto-resumo" style="margin:0 0 6px"></p>
+      <div class="alerta oculto" id="pronto-alerta"></div>
       <div class="link-box">
         <input id="pronto-url" readonly onclick="this.select()">
         <button class="btn sm" onclick="copiar()">Copiar</button>
@@ -493,6 +497,18 @@ function mostrarPronto(){
   $('pronto-msg').textContent = c.ajustes > 0
     ? 'O valor foi ajustado ' + c.ajustes + 'x pra fechar exatamente o líquido que você pediu.'
     : '';
+
+  // Se a conferência falhou, o preço já embutiu o custo da antecipação e ela
+  // pode nunca acontecer. Isso não pode virar um "(estimado)" discreto.
+  const al = $('pronto-alerta');
+  if (c.conferenciaFalhou) {
+    al.innerHTML = '<b>O Asaas não deixou simular a antecipação:</b> ' + esc(c.conferenciaFalhou)
+      + '<br>O valor cobrado já embutiu o custo de antecipar. Se a antecipação não for liberada, '
+      + 'o dinheiro entra parcela a parcela e você cobrou a mais do cliente. '
+      + 'Confira o limite de antecipação no painel do Asaas antes de mandar este link.';
+    al.classList.remove('oculto');
+  } else { al.classList.add('oculto'); }
+
   $('pv-selo').textContent = c.conferencia === 'exata' ? 'conferido' : 'estimado';
   $('pv-selo').className = 'selo ' + (c.conferencia === 'exata' ? 'exata' : 'estimada');
   $('pv-liquido').textContent = brl(c.liquido);
@@ -538,17 +554,55 @@ function linha(c){
     + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   const parc = c.parcelas > 1 ? `<div style="color:var(--faint);font-size:11.5px">${c.parcelas}x de ${brl(c.valor_parcela)}</div>` : '';
   const teste = c.ambiente !== 'prod' ? ' <span class="pill" style="background:#450a0a;color:#FCA5A5">teste</span>' : '';
+
+  // O botão que faz o dinheiro chegar antes. Sem ele o app cobra pela pressa e
+  // o dinheiro entra parcela a parcela mesmo assim — o cliente paga por um
+  // serviço que ninguém pediu. Só aparece em cobrança que FOI precificada com
+  // antecipação e que ainda não tem pedido feito.
+  const podeAntecipar = c.antecipar && c.tipo !== 'link' && !c.antecipacao_id;
+  const jaPediu = c.antecipacao_id
+    ? `<span class="pill RECEIVED">antecipada</span>` : '';
+
   return `<tr>
     <td class="mono" style="color:var(--dim);white-space:nowrap">${quando}</td>
     <td>${esc(c.cliente_nome)}${teste}<div style="color:var(--faint);font-size:11.5px">${esc(c.descricao)}</div></td>
     <td class="mono">${brl(c.valor_bruto)}${parc}</td>
     <td class="mono" style="color:var(--ok)">${brl(c.valor_liquido)}</td>
-    <td><span class="pill ${esc(c.status)}">${esc(c.status)}</span></td>
+    <td><span class="pill ${esc(c.status)}">${esc(c.status)}</span> ${jaPediu}</td>
     <td style="text-align:right;white-space:nowrap">
+      ${podeAntecipar ? `<button class="btn sm" onclick="antecipar('${esc(c.asaas_id)}','${esc(c.tipo)}')">Antecipar</button> ` : ''}
       ${c.url ? `<button class="btn sm ghost" onclick="copiarUrl('${esc(c.url)}')">Copiar</button>` : ''}
     </td></tr>`;
 }
 function copiarUrl(u){ navigator.clipboard.writeText(u).then(() => toast('link copiado')); }
+
+// Antecipar é pedir dinheiro emprestado contra um recebível: simula primeiro,
+// mostra o número EXATO do Asaas, e só pede depois do humano confirmar vendo
+// quanto vai custar.
+async function antecipar(id, tipo){
+  toast('consultando o Asaas…');
+  let s;
+  try {
+    s = (await api('/antecipar/simular', { body: { id, tipo } })).simulacao;
+  } catch (e) {
+    alert('O Asaas não deixou antecipar esta cobrança:\n\n' + e.message
+      + '\n\nO motivo mais comum é o limite de antecipação da conta — confira em '
+      + 'Antecipação, no painel do Asaas.');
+    return;
+  }
+  const texto = 'Antecipar esta cobrança?\n\n'
+    + 'Valor dos recebíveis: ' + brl(s.valorTotal) + '\n'
+    + 'Custo da antecipação: ' + brl(s.taxa) + '\n'
+    + 'Cai na conta: ' + brl(s.liquido) + '\n\n'
+    + (s.exigeDocumento ? 'ATENÇÃO: o Asaas vai exigir nota fiscal ou contrato pra liberar.\n\n' : '')
+    + 'O dinheiro entra em até 2 dias úteis depois da aprovação.';
+  if (!confirm(texto)) return;
+  try {
+    await api('/antecipar', { body: { id, tipo } });
+    toast('antecipação solicitada');
+    carregarLista();
+  } catch (e) { alert('Não deu pra solicitar: ' + e.message); }
+}
 
 // ── Início ───────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
