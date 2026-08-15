@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLpTracking, getCheckoutAttribution } from '@/hooks/useLpTracking';
 import api from '@/services/api';
+import { marcarSaidaProCheckout } from '@/lib/saidaCheckout';
 import styles from './Landing.module.css';
 
 declare global {
@@ -184,6 +185,9 @@ export default function Landing() {
         ...getCheckoutAttribution(),
       });
       if (data?.url) {
+        // Guarda a saída ANTES de sair: quem volta pelo botão do navegador não
+        // passa pelo cancel_url da Stripe e cairia de novo nesta LP.
+        marcarSaidaProCheckout(data.cancelUrl);
         window.location.href = data.url;
         return;
       }

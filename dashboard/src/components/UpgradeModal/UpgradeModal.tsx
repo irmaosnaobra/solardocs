@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import api from '@/services/api';
 import LinkPagarPix from '@/components/LinkPagarPix/LinkPagarPix';
+import { marcarSaidaProCheckout } from '@/lib/saidaCheckout';
 import styles from './UpgradeModal.module.css';
 
 interface UpgradeModalProps {
@@ -51,6 +52,7 @@ export default function UpgradeModal({ onClose, plano }: UpgradeModalProps) {
         window.location.reload();
         return;
       }
+      marcarSaidaProCheckout(data.cancelUrl);
       window.location.href = data.url;
     } catch {
       alert('Erro ao iniciar pagamento. Tente novamente.');

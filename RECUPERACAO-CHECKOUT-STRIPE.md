@@ -71,9 +71,30 @@ que é a origem das assinaturas duplicadas.
 > isso o visitante deslogado toma 307 pro `/auth?mode=login` — e o build não
 > acusa nada. Conferido rodando o build local.
 
-> **Fechar a aba não é detectável.** Isso acontece no domínio da Stripe, onde a
-> gente não roda JavaScript. Só o clique em "voltar" cai aqui; quem fecha a aba é
-> alcançado pela cadência de abandono acima.
+#### Dois "voltar" diferentes (15/08)
+
+O `cancel_url` cobre **um gesto só**: o clique na setinha "←" DENTRO da página da
+Stripe. O **botão de voltar do navegador** (e o swipe-back do celular, que é como
+a maioria desiste no mobile) não passa por ele — o navegador desfaz a navegação e
+devolve a pessoa pra LP, com a Stripe fora do caminho. Foi isso que apareceu no
+teste do Thiago: sessão criada com o `cancel_url` certo (conferido na API da
+Stripe: `https://solardoc.app/quase-la?cancelado=1&via=lp&plano=pro`), `/quase-la`
+respondendo 200 — e quem voltava caía na LP mesmo assim.
+
+Coberto agora pelo par:
+
+- `dashboard/src/lib/saidaCheckout.ts` — no instante em que mandamos alguém pro
+  checkout, guarda o endereço de saída (o **mesmo** `cancel_url`, que os dois
+  endpoints passaram a devolver como `cancelUrl`) no `sessionStorage`.
+- `dashboard/src/components/VoltaDoCheckout/` — montado no layout raiz, ouve
+  `pageshow` (pega bfcache e carregamento normal) e leva a pessoa pra `/quase-la`
+  quando ela reaparece. Quem chegou **pagando** (`welcome=1` ou
+  `mode=register&session=`) tem a marca apagada sem redirect: cliente que assinou
+  não pode ver "Não tem cartão?".
+
+> **Fechar a aba continua indetectável.** Isso acontece no domínio da Stripe, onde
+> a gente não roda JavaScript — nem este código nem nenhum outro. Quem fecha a aba
+> só é alcançado pela cadência de abandono acima (`checkout.session.expired`).
 
 ---
 

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/services/api';
 import { setToken, setUser } from '@/services/auth';
+import { marcarSaidaProCheckout } from '@/lib/saidaCheckout';
 import styles from './login.module.css';
 import SocialProofPopup from './SocialProofPopup';
 
@@ -228,6 +229,7 @@ function RegisterContent() {
         try {
           const { data: ck } = await api.post('/payments/create-checkout', { plan: targetPlan });
           if (ck?.url) {
+            marcarSaidaProCheckout(ck.cancelUrl);
             window.location.href = ck.url;
             return;
           }

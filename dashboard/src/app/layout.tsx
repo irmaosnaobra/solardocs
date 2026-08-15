@@ -3,6 +3,7 @@ import Script from 'next/script';
 import { Nunito_Sans } from 'next/font/google';
 import '@/styles/globals.css';
 import UpdateBanner from '@/components/UpdateBanner/UpdateBanner';
+import VoltaDoCheckout from '@/components/VoltaDoCheckout/VoltaDoCheckout';
 
 // Self-hosted de propósito: um <link> pro fonts.googleapis.com é render-blocking
 // cross-origin e custa ~1.5s de FCP no mobile. Não voltar pro <link>.
@@ -206,6 +207,9 @@ export default function RootLayout({
       <body>
         {children}
         <UpdateBanner />
+        {/* Resgate de quem volta do checkout pelo botão do navegador — a setinha
+            da Stripe (cancel_url) cobre só o clique dentro da página deles. */}
+        <VoltaDoCheckout />
       </body>
     </html>
   );

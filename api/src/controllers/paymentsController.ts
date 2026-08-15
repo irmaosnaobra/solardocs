@@ -490,6 +490,20 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
     }
   }
 
+  // Clicou em "voltar" no Stripe → cai numa tela que oferece o Pix na hora, em
+  // vez da home (que ignorava `cancelado=1` desde sempre). Leva plano e cupom
+  // junto: sem eles a tela mostraria outro preço do que ele acabou de ver.
+  // NÃO cobre fechar a aba — aí só a cadência de abandono alcança.
+  // `via=conta`: a tela precisa saber por onde refazer o cartão. Mandar quem já
+  // tem conta pro checkout PÚBLICO criaria um Customer novo na Stripe — que é a
+  // origem conhecida das assinaturas duplicadas (111 assinaturas p/ 85 e-mails).
+  //
+  // Sai também na resposta (`cancelUrl`): o botão de VOLTAR DO NAVEGADOR não
+  // passa pelo cancel_url da Stripe — ele desfaz a navegação e devolve a pessoa
+  // pra página de onde ela saiu. Quem guarda esse destino é o front, pra levar
+  // ela pra cá quando ela voltar por ali. Um destino só, calculado aqui.
+  const cancelUrl = `${dashboardUrl}/quase-la?cancelado=1&via=conta&plano=${encodeURIComponent(ehAnual ? 'anual' : planInfo.plano === 'ilimitado' ? 'vip' : planInfo.plano)}${aplicado ? `&cupom=${encodeURIComponent(aplicado.cupom.codigo)}` : ''}`;
+
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
     payment_method_types: ['card'],
@@ -526,14 +540,7 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
     // a plataforma. Banner sugere (não obriga) cadastrar empresa. CompanyRequiredGate
     // só bloqueia quando ele clica num tipo específico de doc.
     success_url: `${dashboardUrl}/documentos?welcome=1&plan=${encodeURIComponent(planInfo.plano)}`,
-    // Clicou em "voltar" no Stripe → cai numa tela que oferece o Pix na hora, em
-    // vez da home (que ignorava `cancelado=1` desde sempre). Leva plano e cupom
-    // junto: sem eles a tela mostraria outro preço do que ele acabou de ver.
-    // NÃO cobre fechar a aba — aí só a cadência de abandono alcança.
-    // `via=conta`: a tela precisa saber por onde refazer o cartão. Mandar quem já
-    // tem conta pro checkout PÚBLICO criaria um Customer novo na Stripe — que é a
-    // origem conhecida das assinaturas duplicadas (111 assinaturas p/ 85 e-mails).
-    cancel_url:  `${dashboardUrl}/quase-la?cancelado=1&via=conta&plano=${encodeURIComponent(ehAnual ? 'anual' : planInfo.plano === 'ilimitado' ? 'vip' : planInfo.plano)}${aplicado ? `&cupom=${encodeURIComponent(aplicado.cupom.codigo)}` : ''}`,
+    cancel_url:  cancelUrl,
     custom_text: {
       submit: {
         message: ehAnual
@@ -545,7 +552,7 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
     },
   });
 
-  res.json({ url: session.url, cupom: aplicado?.cupom.codigo ?? null, primeiroMes: aplicado?.primeiroMes ?? null });
+  res.json({ url: session.url, cancelUrl, cupom: aplicado?.cupom.codigo ?? null, primeiroMes: aplicado?.primeiroMes ?? null });
 }
 
 // Checkout PÚBLICO (sem login) — fluxo LP → Stripe → Cadastro.
@@ -642,6 +649,11 @@ export async function createPublicCheckout(req: Request, res: Response): Promise
       ...(aplicado ? { cupom: aplicado.cupom.codigo } : {}),
     };
 
+    // Ver a nota do outro checkout: "voltar" no Stripe cai na oferta de Pix,
+    // com o mesmo plano e o mesmo cupom que ele estava levando. Vai junto na
+    // resposta porque o voltar DO NAVEGADOR não aciona o cancel_url da Stripe.
+    const cancelUrl = `${dashboardUrl}/quase-la?cancelado=1&via=lp&plano=${encodeURIComponent(ehAnual ? 'anual' : planInfo.plano === 'ilimitado' ? 'vip' : planInfo.plano)}${aplicado ? `&cupom=${encodeURIComponent(aplicado.cupom.codigo)}` : ''}`;
+
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
@@ -663,9 +675,7 @@ export async function createPublicCheckout(req: Request, res: Response): Promise
       // &plano= é fallback: se o GET /checkout-info falhar, o RegisterForm ainda
       // sabe o plano e não mostra a tela enganosa de "criar conta grátis".
       success_url: `${dashboardUrl}/auth?mode=register&session={CHECKOUT_SESSION_ID}&plano=${encodeURIComponent(planInfo.plano === 'ilimitado' ? 'vip' : planInfo.plano)}`,
-      // Ver a nota do outro checkout: "voltar" no Stripe cai na oferta de Pix,
-      // com o mesmo plano e o mesmo cupom que ele estava levando.
-      cancel_url:  `${dashboardUrl}/quase-la?cancelado=1&via=lp&plano=${encodeURIComponent(ehAnual ? 'anual' : planInfo.plano === 'ilimitado' ? 'vip' : planInfo.plano)}${aplicado ? `&cupom=${encodeURIComponent(aplicado.cupom.codigo)}` : ''}`,
+      cancel_url:  cancelUrl,
       // Com cupom, o texto do botão diz o que acontece no mês 2 — é o que evita
       // a pessoa achar que R$ 19 é o preço da assinatura e contestar depois.
       // No anual, a mesma lógica com outro risco: quem lê só "R$ 47/mês" e vê
@@ -681,7 +691,7 @@ export async function createPublicCheckout(req: Request, res: Response): Promise
       },
     });
 
-    res.json({ url: session.url, cupom: aplicado?.cupom.codigo ?? null, primeiroMes: aplicado?.primeiroMes ?? null });
+    res.json({ url: session.url, cancelUrl, cupom: aplicado?.cupom.codigo ?? null, primeiroMes: aplicado?.primeiroMes ?? null });
   } catch (err) {
     console.error('createPublicCheckout error:', err);
     res.status(500).json({ error: 'Falha ao iniciar o checkout' });

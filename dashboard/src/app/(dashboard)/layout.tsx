@@ -11,6 +11,7 @@ import LinkPagarPix, { pixRecorrenteLigado } from '@/components/LinkPagarPix/Lin
 import { DashboardProvider, useDashboard } from '@/contexts/DashboardContext';
 import { isAuthenticated, removeToken } from '@/services/auth';
 import api from '@/services/api';
+import { marcarSaidaProCheckout } from '@/lib/saidaCheckout';
 import styles from './dashboard.module.css';
 
 // PREÇO ÚNICO — a mesma oferta do UpgradeModal, aqui em tela cheia (é a tela de
@@ -155,6 +156,7 @@ function UpgradePage({ email }: { email: string }) {
         window.location.reload();
         return;
       }
+      marcarSaidaProCheckout(data.cancelUrl);
       window.location.href = data.url;
     } catch {
       alert('Erro ao iniciar pagamento. Tente novamente.');

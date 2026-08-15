@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import api from '@/services/api';
 import { getToken } from '@/services/auth';
 import { pixRecorrenteLigado, hrefPagarPix } from '@/components/LinkPagarPix/LinkPagarPix';
+import { marcarSaidaProCheckout } from '@/lib/saidaCheckout';
 import styles from './quase-la.module.css';
 
 interface PixInfo {
@@ -89,7 +90,7 @@ export default function QuaseLaCliente() {
         plan: plano,
         ...(cupomUrl ? { cupom: cupomUrl } : {}),
       });
-      if (data?.url) { window.location.href = data.url; return; }
+      if (data?.url) { marcarSaidaProCheckout(data.cancelUrl); window.location.href = data.url; return; }
       // O upgrade in-place responde { upgraded: true } sem URL: quem já tinha
       // assinatura viva trocou de plano na hora e não precisa de checkout.
       if (data?.upgraded) { window.location.href = '/documentos?welcome=1'; return; }

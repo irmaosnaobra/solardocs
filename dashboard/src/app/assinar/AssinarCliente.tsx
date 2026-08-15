@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import api from '@/services/api';
 import { getCheckoutAttribution } from '@/hooks/useLpTracking';
 import { pixRecorrenteLigado } from '@/components/LinkPagarPix/LinkPagarPix';
+import { marcarSaidaProCheckout } from '@/lib/saidaCheckout';
 import styles from './assinar.module.css';
 
 interface CupomInfo {
@@ -64,7 +65,7 @@ export default function AssinarCliente() {
         ...(comCupom ? { cupom: cupom?.codigo } : {}),
         ...getCheckoutAttribution(),
       });
-      if (data?.url) { window.location.href = data.url; return; }
+      if (data?.url) { marcarSaidaProCheckout(data.cancelUrl); window.location.href = data.url; return; }
       throw new Error('sem url');
     } catch {
       setErro('Não consegui abrir o pagamento. Tenta de novo, ou chama a gente no WhatsApp (34) 99816-5040.');
