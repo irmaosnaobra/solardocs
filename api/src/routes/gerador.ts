@@ -377,8 +377,20 @@ router.post('/cobranca/simular', async (req: Request, res: Response) => {
 // O único endpoint que gasta: cria a cobrança no Asaas. Recebe o plano JÁ
 // conferido na tela e passa pelo mesmo saneamento — a tela é conveniência, não
 // autoridade.
+//
+// COBRANCA_OFF é o kill-switch do trilho, no mesmo formato do PIX_RECORRENTE_OFF:
+// trava a CRIAÇÃO e a antecipação sem derrubar a tela nem esconder o histórico.
+// Tirar o token faria o app inteiro sumir junto com a lista do que já foi
+// cobrado — e num aperto é justamente a lista que se precisa olhar.
+function cobrancaDesligada(res: Response): boolean {
+  if ((process.env.COBRANCA_OFF || '').toLowerCase() !== 'true') return false;
+  res.status(503).json({ error: 'COBRANCA_OFF=true na Vercel — criação de cobrança desligada' });
+  return true;
+}
+
 router.post('/cobranca/criar', async (req: Request, res: Response) => {
   if (!tokenDeCobranca(req, res)) return;
+  if (cobrancaDesligada(res)) return;
   try {
     const plano = sanearPlano(req.body?.plano);
     const criada = await criarCobranca(plano);
@@ -412,6 +424,7 @@ router.post('/cobranca/antecipar/simular', async (req: Request, res: Response) =
 
 router.post('/cobranca/antecipar', async (req: Request, res: Response) => {
   if (!tokenDeCobranca(req, res)) return;
+  if (cobrancaDesligada(res)) return;
   try {
     const r = await pedirAntecipacao(String(req.body?.id || ''), String(req.body?.tipo || 'avulsa'));
     res.json({ ok: true, ambiente: ambienteAsaas(), antecipacao: r });
