@@ -194,6 +194,9 @@ export async function calcularPrevia(plano: Plano, taxas?: Taxas): Promise<Previ
   if (antecipar) {
     avisos.push('Este preço já embute o custo de antecipar. A antecipação NÃO sai sozinha: depois que ele pagar, use o botão "Antecipar" na lista aqui embaixo (ou ligue a antecipação automática no painel do Asaas). Ela passa por análise de crédito e depende do limite liberado na conta.');
   }
+  if (antecipar && plano.meio === 'link') {
+    avisos.push('Link aberto não dá pra conferir antes: só existe cobrança pra simular depois que alguém paga. Por isso o valor leva uma margem de segurança de 4% no custo da antecipação. Com o CPF do cliente, o app fecha o número exato com o Asaas.');
+  }
   if (t.ambiente === 'sandbox') {
     avisos.push('AMBIENTE DE TESTE (sandbox): esta cobrança não é real e ninguém paga nada.');
   }
