@@ -127,12 +127,21 @@ export function MockupInventario() {
 }
 
 /** Curso: a trilha com o que já foi feito. */
-export function MockupCurso({ cor }: { cor: string }) {
+/**
+ * A trilha do curso. As lições vêm do PRODUTO, não fixas aqui: os dois cursos
+ * usam este mesmo mockup, e com a lista fixa a LP do LimpaPro (limpeza de placa)
+ * exibia as lições do Kit Fecha Vendas — "Objeção de preço", "Reativar quem
+ * sumiu". Quem chega do anúncio julga o curso por essa lista.
+ */
+export function MockupCurso({ cor, licoes }: { cor: string; licoes?: string[] }) {
+  const nomes = licoes && licoes.length >= 4 ? licoes.slice(0, 4) : [
+    'O primeiro contato',
+    'A proposta que responde o medo',
+    'Reativar quem sumiu',
+    'Objeção de preço',
+  ];
   const modulos = [
-    { nome: 'O primeiro contato', feito: true },
-    { nome: 'A proposta que responde o medo', feito: true },
-    { nome: 'Reativar quem sumiu', feito: false },
-    { nome: 'Objeção de preço', feito: false },
+    ...nomes.map((nome, i) => ({ nome, feito: i < 2, bloqueado: false })),
     { nome: 'Bônus — liberado por missão', feito: false, bloqueado: true },
   ];
   return (

@@ -2,11 +2,40 @@
    o cabeçalho e o rodapé que a página precisa quando NÃO há barra lateral. */
 
 .pagina {
+  /* A LP é ESCURA, igual à home — e o jeito de conseguir isso sem reescrever
+     bloco por bloco é o mesmo que a home usa: REDEFINIR OS TOKENS aqui em cima.
+     Todo card, benefício, FAQ e número lá dentro lê estas variáveis, então eles
+     viram escuros sozinhos.
+     O laranja NÃO muda: é o mesmo do app, pra a cor da marca não trocar quando
+     a pessoa sai da página de venda e entra na plataforma. */
+  --color-bg: #0F172A;
+  --color-surface: #1E293B;
+  --color-surface-2: #253347;
+  --color-border: #334155;
+  --color-border-strong: #475569;
+  --color-text: #F1F5F9;
+  --color-text-muted: #CBD5E1;
+  --color-text-dim: #94A3B8;
+  --color-accent-soft: rgba(242, 101, 19, 0.14);
+  --color-accent-border: rgba(242, 101, 19, 0.35);
+  --ink-amber: #FBBF24;
+  /* Pinado igual a home faz: o laranja da marca não pode depender de nada que
+     venha de fora desta página. */
+  --color-primary: #F26513;
+  --color-primary-hover: #E0560A;
+  --sombra-card: 0 1px 2px rgba(0, 0, 0, 0.25), 0 10px 30px rgba(0, 0, 0, 0.28);
+  --sombra-card-alta: 0 2px 6px rgba(0, 0, 0, 0.3), 0 18px 44px rgba(0, 0, 0, 0.36);
+  color-scheme: dark;
+
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   background: var(--color-bg);
   color: var(--color-text);
+  /* clip (não hidden): o quadriculado do herói se estende pros lados e criaria
+     barra horizontal. `hidden` viraria scroll-container e quebraria o sticky do
+     topo no iOS — a home usa clip pelo mesmo motivo. */
+  overflow-x: clip;
 }
 
 .topo {
@@ -15,8 +44,13 @@
   justify-content: space-between;
   gap: 16px;
   padding: 12px 20px;
-  background: var(--chrome-bg);
-  border-bottom: 1px solid var(--chrome-border);
+  /* O mesmo vidro fosco da nav da home. Antes usava --chrome-*, que são os
+     tokens do app: numa página escura eles vinham do tema do usuário e o topo
+     mudava de cor conforme quem abria. */
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   position: sticky;
   top: 0;
   z-index: 20;
@@ -28,7 +62,7 @@
   align-items: center;
   min-height: 40px;
   padding: 9px 18px;
-  border: 1px solid var(--chrome-border);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 999px;
   color: #E8EAED;
   font-size: 13.5px;
@@ -83,7 +117,7 @@
   display: flex; align-items: center; gap: 6px;
   padding-left: 12px;
   font-size: 11.5px; font-weight: 600;
-  color: var(--chrome-text-dim);
+  color: var(--color-text-dim);
 }
 .marcaImg { height: 15px; width: auto; display: block; opacity: 0.85; }
 

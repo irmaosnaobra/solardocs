@@ -56,6 +56,9 @@
 
 .lpGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); gap: 28px; align-items: start; }
 @media (max-width: 1000px) { .lpGrid { grid-template-columns: 1fr; } }
+/* Na LP pública não há coluna da direita (o mockup subiu pro herói): uma coluna
+   só, com largura de leitura, centralizada embaixo do herói. */
+.lpGridSolo { grid-template-columns: minmax(0, 720px); justify-content: center; }
 
 .lpSelo {
   display: inline-block;
@@ -158,8 +161,11 @@
 .mockResultado > div { background: var(--color-surface-2); border-radius: var(--radius-md); padding: 11px 13px; }
 .mockResultado span { display: block; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-dim); }
 .mockResultado strong { font-size: 19px; font-weight: 900; letter-spacing: -0.02em; }
-.mockLucro { background: #ECFDF5 !important; }
+/* Era #ECFDF5 fixo: um retângulo de menta acesa no fundo escuro da LP. Agora é
+   um verde TRANSLÚCIDO, que fica suave no claro e no escuro. */
+.mockLucro { background: rgba(16, 185, 129, 0.12) !important; box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.22); }
 .mockLucro strong { color: var(--ink-green); }
+.heroiJanelaTela .mockLucro strong { color: #34D399; }
 .mockNota { font-size: 11px; color: var(--color-text-dim); text-align: center; margin: 12px 0 0; }
 
 .mockAut { display: flex; align-items: baseline; gap: 9px; }
@@ -593,3 +599,300 @@
 .lpQuem > div:last-child { flex: 1 1 320px; min-width: 0; }
 .lpQuem strong { display: block; font-size: 15px; font-weight: 800; margin-bottom: 5px; }
 .lpQuem p { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--color-text-muted); }
+
+
+/* ============================================================
+   HERÓI DA LP PÚBLICA — mesma linguagem visual da home
+   ------------------------------------------------------------
+   Os números daqui foram COPIADOS de Landing.module.css, não
+   estimados: 68px de headline, 0.98 de entrelinha, -0.035em, o
+   mesmo gradiente âmbar no remate, o mesmo botão amarelo e a
+   mesma pílula dos fundadores. Quem chega de anúncio numa LP de
+   produto tem que sentir que é a mesma casa da solardoc.app.
+   Só aparece fora do app (dentroDoApp === false); dentro da
+   plataforma o cabeçalho continua sendo o compacto.
+   ============================================================ */
+.heroi {
+  position: relative;
+  text-align: center;
+  padding: 44px 0 8px;
+  margin-bottom: 8px;
+  animation: heroiSobe 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+/* O quadriculado e o brilho âmbar da home, sem DOM extra: os dois
+   pseudo-elementos ficam ATRÁS (z-index 0) e o conteúdo sobe pra 1. */
+.heroi::before {
+  content: '';
+  position: absolute;
+  inset: -40px -50vw 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+.heroi::after {
+  content: '';
+  position: absolute;
+  top: -120px; left: 50%;
+  width: 720px; height: 520px;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.22), transparent 70%);
+  filter: blur(70px);
+  pointer-events: none;
+  z-index: 0;
+}
+.heroi > * { position: relative; z-index: 1; }
+
+@keyframes heroiSobe {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── selo (o "eyebrow" da home) ── */
+.heroiSelo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.18), rgba(245, 158, 11, 0.06));
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  padding: 7px 14px;
+  border-radius: 999px;
+  margin-bottom: 22px;
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.15);
+}
+.heroiSelo i {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 1);
+  animation: heroiPulso 2s ease-in-out infinite;
+}
+@keyframes heroiPulso {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.5); }
+  50% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+}
+
+/* ── headline: os mesmos números do .h1 da home ── */
+.heroiTitulo {
+  /* Os mesmos números do .h1 da home — medidos, não estimados. */
+  font-size: clamp(36px, 7vw, 68px);
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+  font-weight: 900;
+  margin: 0 auto 22px;
+  max-width: 900px;
+  text-wrap: balance;
+}
+.heroiTitulo strong {
+  background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 60%, #d97706 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 900;
+  display: inline-block;
+}
+.heroiSub {
+  font-size: clamp(15px, 1.6vw, 18px);
+  line-height: 1.55;
+  color: var(--color-text-muted);
+  max-width: 620px;
+  margin: 0 auto 28px;
+}
+
+/* ── mockup grande, como na home ── */
+.heroiMock {
+  /* 560px é a largura do mockup da home. */
+  max-width: 560px;
+  margin: 0 auto 28px;
+}
+.heroiMock img,
+.heroiMock > * { width: 100%; }
+
+/* ── botão + preço, lado a lado ── */
+.heroiAcao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+.heroiCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 17px 34px;
+  border-radius: 11px;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: #0f172a;
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: 0.005em;
+  box-shadow:
+    0 8px 24px rgba(245, 158, 11, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: transform 0.15s, box-shadow 0.2s;
+}
+.heroiCta:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 14px 36px rgba(245, 158, 11, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  color: #0f172a;
+}
+.heroiCta:active { transform: translateY(0); }
+.heroiPreco {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.09);
+  font-size: 13.5px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.heroiPreco strong {
+  font-size: 15px;
+  font-weight: 800;
+  color: #fbbf24;
+  letter-spacing: -0.01em;
+}
+
+/* ── os três selos de confiança ── */
+.heroiSelos {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px 22px;
+  margin-bottom: 4px;
+}
+.heroiSelos span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.heroiSelos svg { color: #34d399; flex-shrink: 0; }
+
+/* ── a pílula dos fundadores, igual à da home ── */
+.heroiQuem {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 26px;
+  padding: 8px 16px 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(30, 41, 59, 0.55);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+  text-align: left;
+  max-width: 100%;
+}
+.heroiQuem b { color: var(--color-text); font-weight: 700; }
+.heroiQuemFotos { display: inline-flex; flex: 0 0 auto; }
+.heroiQuemFotos img {
+  width: 40px; height: 40px;
+  border-radius: 999px;
+  object-fit: cover;
+  border: 2px solid #0F172A;
+  box-shadow: 0 2px 10px rgba(2, 6, 23, 0.5);
+}
+.heroiQuemFotos img + img { margin-left: -14px; }
+
+@media (max-width: 640px) {
+  .heroi { padding: 30px 0 4px; }
+  .heroiTitulo { max-width: 100%; }
+  .heroiCta { width: 100%; }
+  .heroiPreco { width: 100%; justify-content: center; }
+  .heroiQuem { font-size: 12px; margin-top: 22px; padding: 8px 14px 8px 8px; gap: 10px; }
+  .heroiQuemFotos img { width: 34px; height: 34px; }
+  .heroiQuemFotos img + img { margin-left: -12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .heroi { animation: none; }
+  .heroiSelo i { animation: none; }
+}
+
+/* ── a janela do navegador em volta do mockup ── */
+.heroiJanela {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: #0B1220;
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(245, 158, 11, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  text-align: left;
+}
+.heroiJanelaTopo {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 14px;
+  background: rgba(30, 41, 59, 0.85);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.heroiJanelaTopo i {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: rgba(148, 163, 184, 0.35);
+  flex-shrink: 0;
+}
+.heroiJanelaTopo i:first-child { background: rgba(248, 113, 113, 0.55); }
+.heroiJanelaTopo i:nth-child(2) { background: rgba(251, 191, 36, 0.55); }
+.heroiJanelaTopo i:nth-child(3) { background: rgba(52, 211, 153, 0.55); }
+.heroiJanelaTopo span {
+  flex: 1;
+  margin-left: 8px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.7);
+  font-size: 11px;
+  font-weight: 600;
+  color: #94A3B8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.heroiJanelaTela { padding: 14px; }
+/* Dentro da janela o mockup NÃO precisa da própria moldura — dois quadros um
+   dentro do outro viram ruído. */
+.heroiJanelaTela .mock,
+.heroiJanelaTela .demo {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  border-radius: 0;
+  padding: 4px;
+}
+/* A demo do off-grid tem barra própria; dentro da janela ela viraria a SEGUNDA
+   barra do mesmo quadro. Fica só o rótulo. */
+.heroiJanelaTela .demoTopo {
+  padding-left: 0;
+  padding-right: 0;
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+@media (max-width: 640px) {
+  .heroiJanelaTopo { padding: 8px 11px; }
+  .heroiJanelaTopo span { font-size: 10px; }
+  .heroiJanelaTela { padding: 10px; }
+}

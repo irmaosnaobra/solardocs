@@ -19,6 +19,21 @@ export interface ProdutoLoja {
   tipo: TipoProduto;
   /** Uma linha: o que muda no dia da pessoa. */
   promessa: string;
+  /**
+   * A HEADLINE do herói, no padrão da home: uma frase que termina com o remate
+   * em âmbar. Na home é "O melhor Gerador de Proposta do Brasil — **com a sua
+   * marca.**" — a primeira parte diz o que é, a segunda dá a virada.
+   */
+  headline: { antes: string; destaque: string };
+  /**
+   * O parágrafo embaixo da headline. TEM que ser texto diferente da headline:
+   * a `promessa` foi de onde a headline saiu, então repetir ela aqui faz a
+   * pessoa ler a mesma frase duas vezes em cima da outra. Aqui é o "como",
+   * concreto — igual à home, que abre com a promessa e explica embaixo.
+   */
+  subHeadline: string;
+  /** Só de curso: as 4 primeiras lições, pra trilha do mockup ser a de verdade. */
+  licoes?: string[];
   /** O problema que ela vive hoje, na língua dela. */
   dorTexto: string;
   /** O que está incluso. */
@@ -61,6 +76,9 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
   {
     id: 'offgrid',
     slug: 'dimensionamento-off-grid',
+    subHeadline:
+      'Marque o que o cliente vai ligar, diga quantos dias sem sol ele precisa aguentar, e saia com o kit dimensionado, a autonomia em número, o preço com frete até a obra e o PDF com a sua marca.',
+    headline: { antes: 'Orçamento de sistema off-grid pronto', destaque: 'na frente do cliente.' },
     nome: 'Dimensionamento Off-Grid',
     tipo: 'ferramenta',
     promessa: 'Orçamento de sistema isolado pronto na frente do cliente, com a resposta que ele sempre pergunta.',
@@ -124,6 +142,9 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
   {
     id: 'precificacao',
     slug: 'precificacao-profissional',
+    subHeadline:
+      'Kit, mão de obra, deslocamento, ART, imposto e comissão numa tela só. Você arrasta a margem, vê a sua sobra na hora e manda o preço sabendo quanto entra no bolso.',
+    headline: { antes: 'O preço que fecha a venda', destaque: 'e ainda sobra margem.' },
     nome: 'Precificação Profissional',
     tipo: 'ferramenta',
     promessa: 'O preço que fecha a venda e ainda sobra margem — sem descobrir no fim do mês que trabalhou de graça.',
@@ -182,6 +203,9 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
   {
     id: 'inventario',
     slug: 'inventario-empresa',
+    subHeadline:
+      'Cada ferramenta, painel e cabo com valor, local e estoque mínimo. O patrimônio soma sozinho, o aviso de repor chega antes de faltar na obra e sai um PDF pra contabilidade.',
+    headline: { antes: 'Saiba onde está cada ferramenta', destaque: 'e quanto vale a sua empresa.' },
     nome: 'Inventário da Empresa',
     tipo: 'ferramenta',
     promessa: 'Saber onde está cada ferramenta e quanto vale o patrimônio da sua empresa.',
@@ -240,6 +264,15 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
   {
     id: 'curso-fechamento',
     slug: 'kit-fecha-vendas',
+    licoes: [
+      'O primeiro contato',
+      'A proposta que responde o medo',
+      'Reativar quem sumiu',
+      'Objeção de preço',
+    ],
+    subHeadline:
+      'As 21 lições que respondem "tá caro", "vou pensar" e "meu primo faz mais barato" — com a fala pronta pra usar na visita e o contrato saindo com o CNPJ da sua empresa.',
+    headline: { antes: '“Tá caro.” Você tem 15 segundos', destaque: 'pra não perder a venda.' },
     nome: 'Kit Fecha Vendas',
     tipo: 'curso',
     promessa: 'Você tem 15 segundos pra responder a objeção do cliente — e a resposta decide a venda.',
@@ -300,6 +333,15 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
   {
     id: 'curso-limpapro',
     slug: 'limpapro',
+    licoes: [
+      'A técnica que não risca o vidro',
+      'Segurança em altura',
+      'Quanto cobrar por telhado',
+      'O contrato de manutenção',
+    ],
+    subHeadline:
+      'A técnica sem riscar o vidro, a segurança em altura, quanto cobrar por telhado e como o mesmo cliente vira contrato de manutenção. Menos de R$ 700 de equipamento pra começar.',
+    headline: { antes: 'Fature limpando placa solar,', destaque: 'começando do zero.' },
     nome: 'LimpaPro',
     tipo: 'curso',
     promessa: 'Faturar limpando placa solar, começando do zero: o que cobrar, como fazer e como o mesmo cliente volta.',

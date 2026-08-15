@@ -34,6 +34,13 @@ export function LpConteudo({
 }) {
   const brl = (n: number) => 'R$ ' + n.toLocaleString('pt-BR');
 
+  // O endereço que aparece na barra da janela do herói. Produto que mora fora
+  // (LimpaPro) mostra o domínio DELE — escrever solardoc.app/produtos/limpapro
+  // ali seria mentir sobre onde a pessoa vai usar o que comprou.
+  const endereco = p.abrirExterno
+    ? p.abrirExterno.replace(/^https?:\/\//, '')
+    : 'solardoc.app' + p.rota;
+
   // O off-grid mostra a DEMONSTRAÇÃO animada — o caminho inteiro, do aparelho
   // marcado até o preço. Os outros seguem no mockup parado enquanto a animação
   // deles não existe; melhor um mockup honesto do que uma animação genérica.
@@ -41,7 +48,7 @@ export function LpConteudo({
     p.mockup === 'offgrid' ? <DemoOffGrid />
     : p.mockup === 'precificacao' ? <MockupPrecificacao />
     : p.mockup === 'inventario' ? <MockupInventario />
-    : <MockupCurso cor={p.cor} />;
+    : <MockupCurso cor={p.cor} licoes={p.licoes} />;
 
   return (
     <div className={styles.lp} style={{ ['--cor' as string]: p.cor }}>
@@ -59,15 +66,79 @@ export function LpConteudo({
         </div>
       )}
 
-      <div className={styles.lpGrid}>
+      {/* ══ HERÓI, no padrão da home ══
+          Centralizado, headline grande com o remate em âmbar, o mockup embaixo
+          e o botão. A versão anterior era duas colunas com título de 30px:
+          lia como tela de app, não como página de venda. A home usa 68px porque
+          quem chega de anúncio decide nos dois primeiros segundos — e o que ele
+          lê primeiro tem que ser a promessa, não o nome do produto. */}
+      {!dentroDoApp && (
+        <div className={styles.heroi}>
+          <span className={styles.heroiSelo}>
+            <i /> {p.tipo === 'curso' ? 'Curso' : 'Ferramenta'} pra integrador solar
+          </span>
+          <h1 className={styles.heroiTitulo}>
+            {p.headline.antes} <strong>{p.headline.destaque}</strong>
+          </h1>
+          <p className={styles.heroiSub}>{p.subHeadline}</p>
+
+          {/* A moldura de navegador é o que separa "print do produto" de "mais
+              um card da página". A home resolve isso com uma foto de laptop; a
+              ferramenta aqui é a tela de verdade, então ela ganha a janela. */}
+          <div className={styles.heroiMock}>
+            <div className={styles.heroiJanela}>
+              <div className={styles.heroiJanelaTopo} aria-hidden>
+                <i /><i /><i />
+                <span>{endereco}</span>
+              </div>
+              <div className={styles.heroiJanelaTela}>{mockup}</div>
+            </div>
+          </div>
+
+          {!liberado && !carregando && (
+            <>
+              <div className={styles.heroiAcao}>
+                <a className={styles.heroiCta} href={checkoutCom(p, email)} target="_blank" rel="noopener noreferrer">
+                  Quero {p.tipo === 'curso' ? 'o curso' : 'a ferramenta'} <span>&rarr;</span>
+                </a>
+                <span className={styles.heroiPreco}>
+                  <strong>{brl(p.preco)}</strong> · uma vez
+                </span>
+              </div>
+              <div className={styles.heroiSelos}>
+                <span><Check size={14} /> Acesso enquanto sua conta existir</span>
+                <span><Check size={14} /> Sem mensalidade</span>
+                <span><Check size={14} /> Usa no computador e no celular</span>
+              </div>
+            </>
+          )}
+
+          <div className={styles.heroiQuem}>
+            <span className={styles.heroiQuemFotos} aria-hidden>
+              <img src="/founder-thiago.webp" width={44} height={44} alt="" loading="lazy" />
+              <img src="/founder-diego.webp" width={44} height={44} alt="" loading="lazy" />
+            </span>
+            <span>
+              Feito por <b>Thiago e Diego</b>, integradores solares — nasceu dentro da operação
+              deles, não numa startup de software.
+            </span>
+          </div>
+        </div>
+      )}
+
+      <div className={dentroDoApp ? styles.lpGrid : `${styles.lpGrid} ${styles.lpGridSolo}`}>
         {/* ── Coluna do texto ── */}
         <div>
-          <div className={styles.lpSelo}>
-            {p.tipo === 'curso' ? 'Curso' : 'Ferramenta'}
-            {p.naAssinatura && ' · incluso na assinatura'}
-          </div>
-          <h1 className={styles.lpTitulo}>{p.nome}</h1>
-          <p className={styles.lpPromessa}>{p.promessa}</p>
+          {dentroDoApp && (
+            <>
+              <div className={styles.lpSelo}>
+                {p.tipo === 'curso' ? 'Curso' : 'Ferramenta'}
+                {p.naAssinatura && ' · incluso na assinatura'}
+              </div>
+              <h1 className={styles.lpTitulo}>{p.nome}</h1>
+              <p className={styles.lpPromessa}>{p.promessa}</p>
+            </>
+          )}
 
           <div className={styles.lpDor}>{p.dorTexto}</div>
 
@@ -132,15 +203,19 @@ export function LpConteudo({
           )}
         </div>
 
-        {/* ── Coluna do mockup ── */}
-        <div className={styles.lpMock}>
-          {mockup}
-          {!liberado && (
-            <div className={styles.lpMockNota}>
-              <Lock size={12} /> Prévia da tela real
-            </div>
-          )}
-        </div>
+        {/* ── Coluna do mockup ── só dentro do app: na LP pública o mockup já
+             abre o herói, e repetir a mesma tela duas vezes na mesma dobra faz
+             a página parecer curta de conteúdo. */}
+        {dentroDoApp && (
+          <div className={styles.lpMock}>
+            {mockup}
+            {!liberado && (
+              <div className={styles.lpMockNota}>
+                <Lock size={12} /> Prévia da tela real
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ══ Daqui pra baixo é PÁGINA DE VENDA, e só aparece pra quem ainda não
