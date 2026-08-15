@@ -11,6 +11,11 @@ import { runProspeccaoApifyTick } from '../services/io/prospeccaoApifyService';
 import { montarBusca } from '../services/io/prospeccaoBriefService';
 import { montarCentralAgentes } from '../services/io/centralAgentes';
 import { listarCerebros, salvarCerebro, restaurarCerebro, conversarComAgente, ehCerebroValido } from '../services/io/cerebroAgentes';
+import {
+  calcularPrevia, criarCobranca, listarCobrancas, simularAntecipacao, pedirAntecipacao,
+} from '../services/asaas/asaasCobrancas';
+import { montarPlanoCobranca, sanearPlano } from '../services/asaas/cobrancaBrief';
+import { buscarTaxas, ambienteAsaas } from '../services/asaas/asaasTaxas';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -307,6 +312,111 @@ router.post('/agentes/conversar/:id', async (req: Request, res: Response) => {
     res.json({ ok: true, resposta });
   } catch (err: any) {
     logger.error('gerador', `conversa de teste com ${id} falhou`, err);
+    res.status(400).json({ error: String(err?.message || err) });
+  }
+});
+
+// ── COBRANÇAS (Asaas) ────────────────────────────────────────────────────────
+// Estes endpoints CRIAM COBRANÇA DE VERDADE e devolvem nome, documento e valor
+// de cliente. O resto do /gerador é aberto de propósito (a Central devolve só
+// agregado, a Prospecção não gasta nada), mas aqui o mesmo desenho seria um
+// criador de cobranças na internet pública e uma lista de CPF aberta.
+//
+// Token PRÓPRIO, separado do da Central: quem edita o texto de um robô não é
+// necessariamente quem pode movimentar a conta. Fail-closed — sem a variável na
+// Vercel o app inteiro responde 503, que é o estado seguro de nascer.
+function tokenDeCobranca(req: Request, res: Response): boolean {
+  const esperado = (process.env.COBRANCA_TOKEN || '').trim();
+  if (!esperado) {
+    res.status(503).json({ error: 'COBRANCA_TOKEN não configurado na Vercel — o app de cobranças está desligado' });
+    return false;
+  }
+  const veio = String(req.headers['x-cobranca-token'] || '').trim();
+  if (veio !== esperado) { res.status(401).json({ error: 'senha do app de cobranças inválida' }); return false; }
+  return true;
+}
+
+// Taxas vigentes + ambiente. A tela pinta o cabeçalho de vermelho quando é
+// sandbox, e o ambiente viaja em TODA resposta — nunca só nesta — pra uma tela
+// em cache não conseguir dizer "produção" enquanto o servidor está em teste.
+router.get('/cobranca/taxas', async (req: Request, res: Response) => {
+  if (!tokenDeCobranca(req, res)) return;
+  try {
+    const taxas = await buscarTaxas(String(req.query.forcar || '') === '1');
+    res.json({ ok: true, ambiente: taxas.ambiente, taxas });
+  } catch (err: any) {
+    res.status(500).json({ error: String(err?.message || err) });
+  }
+});
+
+// Texto livre → plano preenchido + prévia do dinheiro. NÃO cria nada.
+router.post('/cobranca/montar', async (req: Request, res: Response) => {
+  if (!tokenDeCobranca(req, res)) return;
+  try {
+    const plano = await montarPlanoCobranca(String(req.body?.texto || ''));
+    const previa = await calcularPrevia(plano);
+    res.json({ ok: true, ambiente: ambienteAsaas(), plano, previa });
+  } catch (err: any) {
+    logger.warn('gerador', 'cobranca/montar falhou', String(err?.message || err));
+    res.status(400).json({ error: String(err?.message || err) });
+  }
+});
+
+// Recalcula a prévia quando o humano mexe num campo na tela. Também não cria nada.
+router.post('/cobranca/simular', async (req: Request, res: Response) => {
+  if (!tokenDeCobranca(req, res)) return;
+  try {
+    const plano = sanearPlano(req.body?.plano);
+    const previa = await calcularPrevia(plano);
+    res.json({ ok: true, ambiente: ambienteAsaas(), plano, previa });
+  } catch (err: any) {
+    res.status(400).json({ error: String(err?.message || err) });
+  }
+});
+
+// O único endpoint que gasta: cria a cobrança no Asaas. Recebe o plano JÁ
+// conferido na tela e passa pelo mesmo saneamento — a tela é conveniência, não
+// autoridade.
+router.post('/cobranca/criar', async (req: Request, res: Response) => {
+  if (!tokenDeCobranca(req, res)) return;
+  try {
+    const plano = sanearPlano(req.body?.plano);
+    const criada = await criarCobranca(plano);
+    res.json({ ok: true, ambiente: criada.ambiente, cobranca: criada });
+  } catch (err: any) {
+    logger.error('gerador', 'cobranca/criar falhou', err);
+    res.status(400).json({ error: String(err?.message || err) });
+  }
+});
+
+router.get('/cobranca/lista', async (req: Request, res: Response) => {
+  if (!tokenDeCobranca(req, res)) return;
+  try {
+    res.json({ ok: true, ambiente: ambienteAsaas(), cobrancas: await listarCobrancas(40) });
+  } catch (err: any) {
+    res.status(500).json({ error: String(err?.message || err) });
+  }
+});
+
+// Simulação da antecipação: o número EXATO, dado pelo Asaas, da cobrança que já
+// existe. É o que a tela mostra antes de perguntar "confirma?".
+router.post('/cobranca/antecipar/simular', async (req: Request, res: Response) => {
+  if (!tokenDeCobranca(req, res)) return;
+  try {
+    const s = await simularAntecipacao(String(req.body?.id || ''), String(req.body?.tipo || 'avulsa'));
+    res.json({ ok: true, ambiente: ambienteAsaas(), simulacao: s });
+  } catch (err: any) {
+    res.status(400).json({ error: String(err?.message || err) });
+  }
+});
+
+router.post('/cobranca/antecipar', async (req: Request, res: Response) => {
+  if (!tokenDeCobranca(req, res)) return;
+  try {
+    const r = await pedirAntecipacao(String(req.body?.id || ''), String(req.body?.tipo || 'avulsa'));
+    res.json({ ok: true, ambiente: ambienteAsaas(), antecipacao: r });
+  } catch (err: any) {
+    logger.error('gerador', 'cobranca/antecipar falhou', err);
     res.status(400).json({ error: String(err?.message || err) });
   }
 });
