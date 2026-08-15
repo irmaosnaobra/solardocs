@@ -156,6 +156,17 @@ describe('classificarProdutoKit', () => {
     expect(classificarProdutoKit('Kit de Prospecção', null)).toBeNull();
   });
 
+  it('reconhece as ferramentas pelo nome de VENDA da Kiwify, não só pelo de dentro', () => {
+    // O nome do checkout é o que o webhook manda. "Calculadora Solar" não casava
+    // com regra nenhuma: R$ 67 pagos e nenhum acesso liberado.
+    expect(classificarProdutoKit('Calculadora Solar', null)).toBe('precificacao');
+    expect(classificarProdutoKit('Precificação Profissional', null)).toBe('precificacao');
+    expect(classificarProdutoKit('Inventário Empresarial', null)).toBe('inventario');
+    expect(classificarProdutoKit('Inventário da Empresa', null)).toBe('inventario');
+    // E não podem se roubar: as duas custam R$ 67 e o nome é digitado à mão.
+    expect(classificarProdutoKit('Dimensionamento Off-Grid', null)).toBe('offgrid');
+  });
+
   it('NÃO captura produtos do LimpaPro (que é outro negócio, outro funil)', () => {
     expect(classificarProdutoKit('Limpa Solar Pro', null)).toBeNull();
     expect(classificarProdutoKit('Comunidade +Sol', null)).toBeNull();

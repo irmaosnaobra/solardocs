@@ -95,8 +95,15 @@ export function classificarProdutoKit(
   // Ferramentas antes do kit: "Kit Off-Grid" casaria com a RE_KIT e o comprador
   // receberia o material do curso em vez da ferramenta que pagou.
   if (OFFGRID_PRODUTO_REGEX.test(nome)) return 'offgrid';
-  if (/precifica[çc][aã]o\s*(profissional|pro)/i.test(nome)) return 'precificacao';
-  if (/invent[áa]rio\s*(da\s*)?empresa/i.test(nome)) return 'inventario';
+  // Os nomes de VENDA na Kiwify não são os nomes de dentro da plataforma: o
+  // Thiago cadastrou "Calculadora Solar" (R$67) e "Inventário Empresarial"
+  // (R$67), que é como o tráfego frio procura. "Calculadora Solar" não casava
+  // com NADA e o comprador ficaria pago e sem acesso — mesmo buraco que o bump
+  // renomeado abriu em 01/ago. Os dois nomes valem, o de dentro e o de fora.
+  if (/precifica[çc][aã]o\s*(profissional|pro)|calculadora\s*solar/i.test(nome)) return 'precificacao';
+  // `empresa` sozinho já pegava "Empresarial" por prefixo, mas por acidente:
+  // escrito assim, quem mexer na regra vê que os dois nomes são pra valer.
+  if (/invent[áa]rio\s*(da\s*)?empresa(rial)?/i.test(nome)) return 'inventario';
   if (RE_KIT.test(nome)) return 'kit';
   return null;
 }

@@ -196,7 +196,8 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
         r: 'Não. Quem já usava continua usando, de graça, pra sempre. A cobrança vale pra quem chega agora.' },
     ],
     rota: '/precificacao',
-    checkout: process.env.NEXT_PUBLIC_PRECIFICACAO_CHECKOUT_URL || WHATS + encodeURIComponent('Quero liberar a Precificação Profissional no SolarDoc'),
+    // Na Kiwify o produto se chama "Calculadora Solar", R$ 67.
+    checkout: process.env.NEXT_PUBLIC_PRECIFICACAO_CHECKOUT_URL || 'https://pay.kiwify.com.br/duOCDd0',
     mockup: 'precificacao',
     cor: '#B45309',
   },
@@ -257,7 +258,8 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
         r: 'Não. Quem já usava continua usando, de graça, pra sempre. A cobrança vale pra quem chega agora.' },
     ],
     rota: '/inventario',
-    checkout: process.env.NEXT_PUBLIC_INVENTARIO_CHECKOUT_URL || WHATS + encodeURIComponent('Quero liberar o Inventário da Empresa no SolarDoc'),
+    // Na Kiwify o produto se chama "Inventário Empresarial", R$ 67.
+    checkout: process.env.NEXT_PUBLIC_INVENTARIO_CHECKOUT_URL || 'https://pay.kiwify.com.br/ABSMgCu',
     mockup: 'inventario',
     cor: '#1D4ED8',
   },

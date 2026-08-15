@@ -61,7 +61,9 @@ export const PRODUTOS: Produto[] = [
     naAssinatura: true,
     rota: '/precificacao',
     envIds: 'PRECIFICACAO_KIWIFY_PRODUCT_IDS',
-    regexNome: /precifica[çc][aã]o\s*(profissional|pro)/i,
+    // Na Kiwify ela se chama "Calculadora Solar" — nome de tráfego frio. Manter
+    // os dois: o de dentro da plataforma e o que o comprador vê no checkout.
+    regexNome: /precifica[çc][aã]o\s*(profissional|pro)|calculadora\s*solar/i,
   },
   {
     id: 'inventario',
@@ -71,7 +73,8 @@ export const PRODUTOS: Produto[] = [
     naAssinatura: true,
     rota: '/inventario',
     envIds: 'INVENTARIO_KIWIFY_PRODUCT_IDS',
-    regexNome: /invent[áa]rio\s*(da\s*)?empresa/i,
+    // "Inventário Empresarial" é o nome na Kiwify.
+    regexNome: /invent[áa]rio\s*(da\s*)?empresa(rial)?/i,
   },
   {
     id: 'curso-fechamento',
