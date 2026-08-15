@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cobranças — Irmãos na Obra</title>
+<meta name="theme-color" content="#0B1220">
+<link rel="icon" type="image/png" sizes="192x192" href="/gerador/icon-192.png">
+<script>
+  // Mesma auth do /gerador. Sem sessão → manda pra tela de login.
+  (function(){
+    var AUTH_KEY = 'irmaos-na-obra-auth-v1';
+    var authed = false;
+    try { authed = !!localStorage.getItem(AUTH_KEY); } catch(e){}
+    if (!authed) location.replace('/gerador');
+    document.documentElement.dataset.theme = 'dark';
+  })();
+</script>
+<style>
+:root{
+  --navy:#1E3A8A; --navy-d:#0B1220;
+  --bg:#0F172A; --card:#1E293B; --card-2:#172033; --line:#334155; --line-s:#475569;
+  --txt:#E5E7EB; --dim:#94A3B8; --faint:#64748B;
+  --ok:#22C55E; --warn:#F59E0B; --bad:#F87171; --blue:#60A5FA;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);min-height:100vh;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:14.5px;
+  -webkit-font-smoothing:antialiased}
+button,input,select,textarea{font-family:inherit}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.mono{font-variant-numeric:tabular-nums}
+a{color:var(--blue)}
+
+.topbar{background:#0B1220;color:#fff;padding:14px 22px;display:flex;justify-content:space-between;
+  align-items:center;border-bottom:4px solid #f5c518;flex-wrap:wrap;gap:10px}
+.topbar .brand{font-size:17px;font-weight:800;letter-spacing:.3px}
+.topbar .brand small{font-weight:500;opacity:.8;margin-left:6px}
+.topbar button{padding:8px 14px;border:none;border-radius:99px;font-weight:700;font-size:13px;
+  cursor:pointer;background:#1E293B;color:#93C5FD}
+.topbar button:hover{opacity:.9}
+.amb{padding:5px 12px;border-radius:99px;font-size:11px;font-weight:800;letter-spacing:.6px}
+.amb.prod{background:#052e16;color:#4ADE80;border:1px solid #166534}
+.amb.sandbox{background:#450a0a;color:#FCA5A5;border:1px solid #7F1D1D}
+.faixa-teste{background:#7F1D1D;color:#FEE2E2;padding:9px 22px;font-size:12.5px;font-weight:700;
+  letter-spacing:.3px;display:none}
+
+.wrap{max-width:1120px;margin:0 auto;padding:22px 18px 60px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+.card h2{margin:0 0 4px;font-size:15px;letter-spacing:.2px}
+.card .sub{color:var(--dim);font-size:12.5px;margin:0 0 14px}
+
+textarea,input,select{background:#0F172A;border:1px solid var(--line-s);color:var(--txt);
+  padding:10px 12px;border-radius:9px;font-size:14px;width:100%}
+textarea{min-height:88px;resize:vertical;line-height:1.5}
+label{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;color:var(--dim);
+  font-weight:800;margin:0 0 5px}
+
+.btn{padding:11px 18px;border:none;border-radius:9px;font-weight:800;font-size:14px;cursor:pointer;
+  background:var(--navy);color:#fff}
+.btn:hover{background:var(--navy-l,#2E4FA8)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.ghost{background:#0F172A;color:var(--txt);border:1px solid var(--line-s)}
+.btn.ok{background:#15803D}
+.btn.sm{padding:7px 12px;font-size:12.5px;border-radius:7px}
+
+.exemplos{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.exemplos button{background:#0F172A;border:1px dashed var(--line-s);color:var(--dim);
+  padding:6px 11px;border-radius:99px;font-size:12px;cursor:pointer;text-align:left}
+.exemplos button:hover{color:var(--txt);border-color:var(--blue)}
+
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:1fr 1fr 1fr}
+.g4{grid-template-columns:repeat(4,1fr)}
+@media(max-width:760px){.g2,.g3,.g4{grid-template-columns:1fr}}
+
+.segs{display:flex;gap:6px;flex-wrap:wrap}
+.segs button{flex:1;min-width:78px;padding:9px 6px;border-radius:8px;border:1px solid var(--line-s);
+  background:#0F172A;color:var(--dim);font-size:12.5px;font-weight:700;cursor:pointer}
+.segs button[aria-pressed="true"]{background:var(--navy);color:#fff;border-color:var(--navy)}
+
+/* ── Prévia: os dois números que importam ───────────────────────────────── */
+.previa{background:linear-gradient(180deg,#172033,#141d2e);border:1px solid var(--line);
+  border-radius:14px;padding:20px;margin-bottom:16px}
+.dois{display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:center}
+@media(max-width:700px){.dois{grid-template-columns:1fr}}
+.bloco .rot{font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--dim);font-weight:800}
+.bloco .num{font-size:31px;font-weight:800;line-height:1.15;margin-top:3px}
+.bloco .det{font-size:12.5px;color:var(--dim);margin-top:4px}
+.bloco.recebe .num{color:var(--ok)}
+.seta{color:var(--faint);font-size:20px;text-align:center}
+.linhas{margin-top:16px;border-top:1px solid var(--line);padding-top:12px;
+  display:grid;gap:6px;font-size:13px}
+.linhas div{display:flex;justify-content:space-between;gap:12px}
+.linhas .v{color:var(--dim)}
+.linhas .neg .v{color:var(--bad)}
+.quando{margin-top:12px;padding:10px 12px;background:#0F172A;border-radius:9px;font-size:13px}
+.quando b{color:var(--txt)}
+.avisos{margin:12px 0 0;padding:0;list-style:none;display:grid;gap:6px}
+.avisos li{font-size:12.5px;color:#FCD34D;background:#2a1f06;border-left:3px solid var(--warn);
+  padding:8px 11px;border-radius:0 7px 7px 0;line-height:1.45}
+.selo{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.5px;padding:3px 9px;
+  border-radius:99px;margin-left:8px;vertical-align:middle}
+.selo.exata{background:#052e16;color:#4ADE80}
+.selo.estimada{background:#1e293b;color:var(--dim)}
+
+/* ── Resultado ──────────────────────────────────────────────────────────── */
+.pronto{border:1px solid #166534;background:#04180d;border-radius:14px;padding:18px;margin-bottom:16px}
+.link-box{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.link-box input{flex:1;min-width:220px;font-size:13px}
+
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.7px;color:var(--dim);
+  font-weight:800;padding:0 10px 8px;border-bottom:1px solid var(--line)}
+td{padding:11px 10px;border-bottom:1px solid #22304a;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+.pill{font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:99px;letter-spacing:.4px}
+.pill.PENDING{background:#1e293b;color:var(--dim)}
+.pill.PARCIAL{background:#2a1f06;color:#FCD34D}
+.pill.RECEIVED,.pill.CONFIRMED{background:#052e16;color:#4ADE80}
+.vazio{color:var(--faint);text-align:center;padding:26px;font-size:13px}
+
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#0B1220;
+  border:1px solid var(--line-s);color:#fff;padding:11px 18px;border-radius:99px;font-size:13.5px;
+  font-weight:700;opacity:0;pointer-events:none;transition:opacity .2s;z-index:99}
+#toast.on{opacity:1}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.3);
+  border-top-color:#fff;border-radius:50%;animation:g .7s linear infinite;vertical-align:-2px;margin-right:7px}
+@keyframes g{to{transform:rotate(360deg)}}
+.oculto{display:none !important}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">Cobranças <small>Irmãos na Obra</small></div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <span class="amb sandbox" id="amb">—</span>
+    <button onclick="location.href='/gerador'">Voltar</button>
+  </div>
+</div>
+<div class="faixa-teste" id="faixa-teste">
+  AMBIENTE DE TESTE — nada aqui cobra ninguém de verdade. Para valer, a Vercel precisa de ASAAS_ENV=prod com a chave de produção.
+</div>
+
+<div class="wrap">
+
+  <!-- ── Senha ──────────────────────────────────────────────────────────── -->
+  <div class="card" id="tela-senha">
+    <h2>Senha do app de cobranças</h2>
+    <p class="sub">Este app cria cobrança de verdade e mostra dado de cliente. A senha é o
+      <code>COBRANCA_TOKEN</code> configurado na Vercel — fica guardada só neste aparelho.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <input type="password" id="in-token" placeholder="senha" style="flex:1;min-width:200px"
+             onkeydown="if(event.key==='Enter')salvarToken()">
+      <button class="btn" onclick="salvarToken()">Entrar</button>
+    </div>
+  </div>
+
+  <div id="tela-app" class="oculto">
+
+    <!-- ── Comando ──────────────────────────────────────────────────────── -->
+    <div class="card">
+      <h2>Descreve a venda</h2>
+      <p class="sub">Em português, do jeito que você contaria pro cliente. Diga quanto quer
+        <b>receber</b>, em quantas vezes, e pra quem.</p>
+      <textarea id="in-texto" placeholder="Venda pro Bruno Henrique de 7.700 em 18x no cartão. Quero receber os 7.700 limpos e o mais rápido possível."></textarea>
+      <div style="display:flex;gap:9px;margin-top:11px;flex-wrap:wrap">
+        <button class="btn" id="btn-montar" onclick="montar()">Montar cobrança</button>
+        <button class="btn ghost" onclick="limpar()">Limpar</button>
+      </div>
+      <div class="exemplos">
+        <button onclick="usarExemplo(this)">Venda pro Bruno Henrique de 7.700 em 18x no cartão, quero receber os 7.700 limpos e rápido</button>
+        <button onclick="usarExemplo(this)">Boleto de 2.400 pro João da Silva, CPF 123.456.789-09, vence em 5 dias</button>
+        <button onclick="usarExemplo(this)">Link de 1.200 à vista no Pix pra entrada da vistoria</button>
+        <button onclick="usarExemplo(this)">Sinal de 5% do eletroposto: cobrar 4.850 em 6x, sem pressa de receber</button>
+      </div>
+      <div id="ia-diz" class="sub oculto" style="margin:12px 0 0;padding:10px 12px;background:#0F172A;border-radius:9px"></div>
+    </div>
+
+    <!-- ── Plano editável ───────────────────────────────────────────────── -->
+    <div class="card oculto" id="bloco-plano">
+      <h2>Confere antes de gerar</h2>
+      <p class="sub">Mexeu num campo, a conta refaz sozinha. Nada é criado até você clicar em gerar.</p>
+
+      <div class="grid g3" style="margin-bottom:12px">
+        <div><label>Cliente</label><input id="p-nome"></div>
+        <div><label>CPF ou CNPJ (opcional)</label><input id="p-doc" placeholder="sem CPF vira link aberto"></div>
+        <div><label>WhatsApp (opcional)</label><input id="p-tel" placeholder="34 9....."></div>
+      </div>
+      <div style="margin-bottom:12px"><label>Descrição na fatura</label><input id="p-desc"></div>
+
+      <div class="grid g2" style="margin-bottom:12px">
+        <div>
+          <label>Como ele paga</label>
+          <div class="segs" id="seg-meio">
+            <button data-v="link" onclick="setMeio('link')">Link aberto</button>
+            <button data-v="cartao" onclick="setMeio('cartao')">Cartão</button>
+            <button data-v="pix" onclick="setMeio('pix')">Pix</button>
+            <button data-v="boleto" onclick="setMeio('boleto')">Boleto</button>
+          </div>
+        </div>
+        <div>
+          <label>O valor abaixo é…</label>
+          <div class="segs" id="seg-modo">
+            <button data-v="liquido" onclick="setModo('liquido')">O que EU recebo</button>
+            <button data-v="cheio" onclick="setModo('cheio')">O que ELE paga</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid g4">
+        <div><label>Valor (R$)</label><input id="p-valor" type="number" step="0.01" min="1"></div>
+        <div><label>Parcelas</label><input id="p-parcelas" type="number" min="1" max="21"></div>
+        <div><label>Vence em (dias)</label><input id="p-venc" type="number" min="1" max="30"></div>
+        <div>
+          <label>Receber antes</label>
+          <div class="segs" id="seg-antec">
+            <button data-v="sim" onclick="setAntec(true)">Antecipar</button>
+            <button data-v="nao" onclick="setAntec(false)">Esperar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Prévia ───────────────────────────────────────────────────────── -->
+    <div class="previa oculto" id="bloco-previa">
+      <div class="dois">
+        <div class="bloco">
+          <div class="rot">Ele paga</div>
+          <div class="num mono" id="pv-bruto">—</div>
+          <div class="det" id="pv-parcela"></div>
+        </div>
+        <div class="seta">&rarr;</div>
+        <div class="bloco recebe">
+          <div class="rot">Você recebe <span class="selo estimada" id="pv-selo">estimado</span></div>
+          <div class="num mono" id="pv-liquido">—</div>
+          <div class="det" id="pv-pix"></div>
+        </div>
+      </div>
+      <div class="linhas" id="pv-linhas"></div>
+      <div class="quando" id="pv-quando"></div>
+      <ul class="avisos" id="pv-avisos"></ul>
+      <div style="margin-top:16px;display:flex;gap:9px;flex-wrap:wrap">
+        <button class="btn ok" id="btn-criar" onclick="criar()">Gerar cobrança de verdade</button>
+        <span class="sub" style="margin:0;align-self:center" id="pv-rodape"></span>
+      </div>
+    </div>
+
+    <!-- ── Pronto ───────────────────────────────────────────────────────── -->
+    <div class="pronto oculto" id="bloco-pronto">
+      <h2 style="margin:0 0 4px;font-size:15px">Cobrança criada</h2>
+      <p class="sub" id="pronto-resumo" style="margin:0 0 6px"></p>
+      <div class="link-box">
+        <input id="pronto-url" readonly onclick="this.select()">
+        <button class="btn sm" onclick="copiar()">Copiar</button>
+        <button class="btn sm ghost" onclick="abrir()">Abrir</button>
+        <button class="btn sm ghost" id="btn-zap" onclick="mandarZap()">WhatsApp</button>
+      </div>
+      <p class="sub" style="margin:11px 0 0" id="pronto-msg"></p>
+    </div>
+
+    <!-- ── Histórico ────────────────────────────────────────────────────── -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div><h2 style="margin:0">Últimas cobranças</h2>
+          <p class="sub" style="margin:2px 0 0">Status conferido no Asaas na hora de abrir.</p></div>
+        <button class="btn sm ghost" onclick="carregarLista()">Atualizar</button>
+      </div>
+      <div id="lista"><div class="vazio">carregando…</div></div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+const API = '/_api/gerador/cobranca';
+const TOKEN_KEY = 'io-cobranca-token';
+
+let token = '';
+let plano = null;
+let previa = null;
+let ultima = null;
+let debounce = null;
+
+const $ = (id) => document.getElementById(id);
+const brl = (n) => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+
+function toast(msg){
+  const t = $('toast'); t.textContent = msg; t.classList.add('on');
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('on'), 2600);
+}
+
+async function api(rota, opcoes){
+  const o = opcoes || {};
+  const r = await fetch(API + rota, {
+    method: o.body ? 'POST' : 'GET',
+    headers: { 'Content-Type': 'application/json', 'x-cobranca-token': token },
+    body: o.body ? JSON.stringify(o.body) : undefined,
+  });
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401) { esquecerToken(); throw new Error('senha inválida'); }
+  if (!r.ok) throw new Error(j.error || 'falhou');
+  // O ambiente vem em TODA resposta, e a faixa é repintada a cada uma: uma tela
+  // aberta desde ontem não consegue dizer "produção" se o servidor virou teste.
+  if (j.ambiente) pintarAmbiente(j.ambiente);
+  return j;
+}
+
+function pintarAmbiente(amb){
+  const el = $('amb');
+  const prod = amb === 'prod';
+  el.textContent = prod ? 'PRODUÇÃO' : 'TESTE (SANDBOX)';
+  el.className = 'amb ' + (prod ? 'prod' : 'sandbox');
+  $('faixa-teste').style.display = prod ? 'none' : 'block';
+}
+
+// ── Senha ────────────────────────────────────────────────────────────────
+function salvarToken(){
+  const v = $('in-token').value.trim();
+  if (!v) { toast('digite a senha'); return; }
+  token = v;
+  try { localStorage.setItem(TOKEN_KEY, v); } catch(e){}
+  entrar();
+}
+function esquecerToken(){
+  token = '';
+  try { localStorage.removeItem(TOKEN_KEY); } catch(e){}
+  $('tela-senha').classList.remove('oculto');
+  $('tela-app').classList.add('oculto');
+}
+async function entrar(){
+  try {
+    await api('/taxas');
+    $('tela-senha').classList.add('oculto');
+    $('tela-app').classList.remove('oculto');
+    carregarLista();
+  } catch (e) {
+    toast(e.message);
+    $('tela-senha').classList.remove('oculto');
+    $('tela-app').classList.add('oculto');
+  }
+}
+
+// ── Montar pela IA ───────────────────────────────────────────────────────
+function usarExemplo(b){ $('in-texto').value = b.textContent.trim(); montar(); }
+function limpar(){
+  $('in-texto').value = '';
+  ['bloco-plano','bloco-previa','bloco-pronto','ia-diz'].forEach(id => $(id).classList.add('oculto'));
+  plano = null; previa = null;
+}
+
+async function montar(){
+  const texto = $('in-texto').value.trim();
+  if (texto.length < 6) { toast('escreve um pouco mais sobre a venda'); return; }
+  const btn = $('btn-montar');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Lendo…';
+  $('bloco-pronto').classList.add('oculto');
+  try {
+    const j = await api('/montar', { body: { texto } });
+    plano = j.plano; previa = j.previa;
+    preencherPlano(); mostrarPrevia();
+    if (plano.explicacao) {
+      $('ia-diz').textContent = plano.explicacao;
+      $('ia-diz').classList.remove('oculto');
+    }
+  } catch (e) { toast(e.message); }
+  finally { btn.disabled = false; btn.textContent = 'Montar cobrança'; }
+}
+
+// ── Plano na tela ────────────────────────────────────────────────────────
+function preencherPlano(){
+  $('p-nome').value = plano.cliente.nome || '';
+  $('p-doc').value = plano.cliente.cpfCnpj || '';
+  $('p-tel').value = plano.cliente.telefone || '';
+  $('p-desc').value = plano.descricao || '';
+  $('p-valor').value = plano.valor;
+  $('p-parcelas').value = plano.parcelas;
+  $('p-venc').value = plano.vencimentoDias;
+  marcar('seg-meio', plano.meio);
+  marcar('seg-modo', plano.valorModo);
+  marcar('seg-antec', plano.antecipar ? 'sim' : 'nao');
+  $('bloco-plano').classList.remove('oculto');
+}
+
+function marcar(grupo, valor){
+  [...$(grupo).children].forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === valor)));
+}
+
+function lerPlano(){
+  return {
+    cliente: {
+      nome: $('p-nome').value.trim() || 'Cliente',
+      cpfCnpj: $('p-doc').value.trim(),
+      telefone: $('p-tel').value.trim(),
+      email: plano && plano.cliente ? plano.cliente.email : null,
+    },
+    descricao: $('p-desc').value.trim() || 'Cobrança',
+    meio: valorDe('seg-meio'),
+    parcelas: Number($('p-parcelas').value) || 1,
+    valorModo: valorDe('seg-modo'),
+    valor: Number($('p-valor').value) || 0,
+    vencimentoDias: Number($('p-venc').value) || 3,
+    antecipar: valorDe('seg-antec') === 'sim',
+  };
+}
+function valorDe(grupo){
+  const b = [...$(grupo).children].find(x => x.getAttribute('aria-pressed') === 'true');
+  return b ? b.dataset.v : $(grupo).children[0].dataset.v;
+}
+
+function setMeio(v){ marcar('seg-meio', v); recalcular(); }
+function setModo(v){ marcar('seg-modo', v); recalcular(); }
+function setAntec(v){ marcar('seg-antec', v ? 'sim' : 'nao'); recalcular(); }
+
+const CAMPOS = ['p-nome','p-doc','p-tel','p-desc','p-valor','p-parcelas','p-venc'];
+
+function recalcular(){
+  clearTimeout(debounce);
+  debounce = setTimeout(async () => {
+    const p = lerPlano();
+    if (!p.valor) return;
+    try {
+      const j = await api('/simular', { body: { plano: p } });
+      plano = j.plano; previa = j.previa;
+      // O servidor pode ter trocado o meio (sem CPF não existe cobrança avulsa).
+      marcar('seg-meio', plano.meio);
+      mostrarPrevia();
+    } catch (e) { toast(e.message); }
+  }, 420);
+}
+
+// ── Prévia ───────────────────────────────────────────────────────────────
+function mostrarPrevia(){
+  if (!previa) return;
+  $('pv-bruto').textContent = brl(previa.bruto);
+  $('pv-parcela').textContent = previa.parcelas > 1
+    ? previa.parcelas + 'x de ' + brl(previa.parcela)
+    : 'à vista';
+  $('pv-liquido').textContent = brl(previa.liquido);
+  $('pv-selo').textContent = 'estimado';
+  $('pv-selo').className = 'selo estimada';
+  $('pv-pix').textContent = previa.seFossePix
+    ? 'Se ele pagar no Pix à vista: ' + brl(previa.seFossePix.liquido)
+    : '';
+
+  const l = [['Ele paga', brl(previa.bruto), false],
+             ['Taxa do Asaas', '− ' + brl(previa.taxaAsaas), true]];
+  if (previa.custoAntecipacao > 0) l.push(['Antecipação', '− ' + brl(previa.custoAntecipacao), true]);
+  l.push(['Cai na conta', brl(previa.liquido), false]);
+  $('pv-linhas').innerHTML = l.map(([k, v, neg]) =>
+    `<div class="${neg ? 'neg' : ''}"><span>${esc(k)}</span><span class="v mono">${esc(v)}</span></div>`).join('');
+
+  $('pv-quando').innerHTML = 'Quando o dinheiro cai: <b>' + esc(previa.quandoCai) + '</b>';
+  $('pv-avisos').innerHTML = (previa.avisos || []).map(a => `<li>${esc(a)}</li>`).join('');
+  $('pv-rodape').textContent = previa.antecipar && previa.parcelas > 1
+    ? 'O valor exato é conferido com o Asaas na hora de criar.' : '';
+  $('bloco-previa').classList.remove('oculto');
+}
+
+// ── Criar ────────────────────────────────────────────────────────────────
+async function criar(){
+  const p = lerPlano();
+  const texto = 'Criar cobrança de ' + brl(previa.bruto)
+    + (p.parcelas > 1 ? ' em ' + p.parcelas + 'x de ' + brl(previa.parcela) : ' à vista')
+    + ' para ' + p.cliente.nome + '?';
+  if (!confirm(texto)) return;
+
+  const btn = $('btn-criar');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Criando e conferindo…';
+  try {
+    const j = await api('/criar', { body: { plano: p } });
+    ultima = j.cobranca;
+    mostrarPronto();
+    carregarLista();
+  } catch (e) { toast(e.message); }
+  finally { btn.disabled = false; btn.textContent = 'Gerar cobrança de verdade'; }
+}
+
+function mostrarPronto(){
+  const c = ultima;
+  $('pronto-resumo').textContent =
+    (c.parcelas > 1 ? c.parcelas + 'x de ' + brl(c.parcela) + ' — total ' + brl(c.bruto)
+                    : brl(c.bruto) + ' à vista')
+    + ' · você recebe ' + brl(c.liquido)
+    + (c.conferencia === 'exata' ? ' (conferido no Asaas)' : ' (estimado)');
+  $('pronto-url').value = c.url;
+  $('pronto-msg').textContent = c.ajustes > 0
+    ? 'O valor foi ajustado ' + c.ajustes + 'x pra fechar exatamente o líquido que você pediu.'
+    : '';
+  $('pv-selo').textContent = c.conferencia === 'exata' ? 'conferido' : 'estimado';
+  $('pv-selo').className = 'selo ' + (c.conferencia === 'exata' ? 'exata' : 'estimada');
+  $('pv-liquido').textContent = brl(c.liquido);
+  $('pv-bruto').textContent = brl(c.bruto);
+  $('bloco-pronto').classList.remove('oculto');
+  $('bloco-pronto').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function copiar(){
+  const el = $('pronto-url'); el.select();
+  navigator.clipboard.writeText(el.value).then(() => toast('link copiado'), () => {
+    document.execCommand('copy'); toast('link copiado');
+  });
+}
+function abrir(){ if (ultima) window.open(ultima.url, '_blank'); }
+function mandarZap(){
+  if (!ultima) return;
+  const tel = ($('p-tel').value || '').replace(/\D/g, '');
+  const msg = ultima.parcelas > 1
+    ? `Oi! Segue o link do pagamento: ${ultima.url}\n\nDá pra parcelar em até ${ultima.parcelas}x de ${brl(ultima.parcela)}.`
+    : `Oi! Segue o link do pagamento: ${ultima.url}`;
+  const base = tel ? `https://wa.me/55${tel}?text=` : 'https://wa.me/?text=';
+  window.open(base + encodeURIComponent(msg), '_blank');
+}
+
+// ── Histórico ────────────────────────────────────────────────────────────
+async function carregarLista(){
+  try {
+    const j = await api('/lista');
+    const c = j.cobrancas || [];
+    if (!c.length) { $('lista').innerHTML = '<div class="vazio">nenhuma cobrança criada ainda</div>'; return; }
+    $('lista').innerHTML = `<table><thead><tr>
+        <th>Quando</th><th>Cliente</th><th>Cobrado</th><th>Recebe</th><th>Status</th><th></th>
+      </tr></thead><tbody>` + c.map(linha).join('') + '</tbody></table>';
+  } catch (e) {
+    $('lista').innerHTML = `<div class="vazio">${esc(e.message)}</div>`;
+  }
+}
+
+function linha(c){
+  const d = new Date(c.criado_em);
+  const quando = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+    + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const parc = c.parcelas > 1 ? `<div style="color:var(--faint);font-size:11.5px">${c.parcelas}x de ${brl(c.valor_parcela)}</div>` : '';
+  const teste = c.ambiente !== 'prod' ? ' <span class="pill" style="background:#450a0a;color:#FCA5A5">teste</span>' : '';
+  return `<tr>
+    <td class="mono" style="color:var(--dim);white-space:nowrap">${quando}</td>
+    <td>${esc(c.cliente_nome)}${teste}<div style="color:var(--faint);font-size:11.5px">${esc(c.descricao)}</div></td>
+    <td class="mono">${brl(c.valor_bruto)}${parc}</td>
+    <td class="mono" style="color:var(--ok)">${brl(c.valor_liquido)}</td>
+    <td><span class="pill ${esc(c.status)}">${esc(c.status)}</span></td>
+    <td style="text-align:right;white-space:nowrap">
+      ${c.url ? `<button class="btn sm ghost" onclick="copiarUrl('${esc(c.url)}')">Copiar</button>` : ''}
+    </td></tr>`;
+}
+function copiarUrl(u){ navigator.clipboard.writeText(u).then(() => toast('link copiado')); }
+
+// ── Início ───────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  CAMPOS.forEach(id => { const el = $(id); if (el) el.addEventListener('input', recalcular); });
+  try { token = localStorage.getItem(TOKEN_KEY) || ''; } catch(e){}
+  if (token) entrar(); else $('in-token').focus();
+});
+</script>
+</body>
+</html>
