@@ -21,8 +21,10 @@ const CHAVE = 'sd-saida-checkout';
 const VALIDADE_MS = 2 * 60 * 60 * 1000;
 
 // Piso de tempo: a marca é gravada milissegundos antes do location.href, então
-// o próprio load que sai da página nunca pode ser lido como uma volta.
-const MINIMO_MS = 2000;
+// o próprio load que sai da página nunca pode ser lido como uma volta. Curto de
+// propósito — quem clica sem querer e volta na hora é justamente o caso que esta
+// tela existe pra pegar; um piso alto viraria uma zona morta bem no comeco.
+const MINIMO_MS = 500;
 
 interface Saida { destino: string; em: number }
 
@@ -35,9 +37,15 @@ interface Saida { destino: string; em: number }
 export function marcarSaidaProCheckout(destino?: string | null): void {
   if (!destino) return; // sem destino não há resgate — melhor não marcar nada
   try {
-    const dado: Saida = { destino, em: Date.now() };
+    // Guarda só o CAMINHO. O servidor manda a URL inteira (DASHBOARD_URL +
+    // /quase-la), e se essa env não for exatamente o domínio em que a pessoa
+    // está navegando — apex contra www, domínio de preview — o redirect sairia
+    // pra outra origem e deixaria a sessão dela pra trás. A tela é sempre nossa:
+    // o caminho basta, e caminho nunca troca de origem.
+    const caminho = new URL(destino, window.location.origin);
+    const dado: Saida = { destino: caminho.pathname + caminho.search, em: Date.now() };
     sessionStorage.setItem(CHAVE, JSON.stringify(dado));
-  } catch { /* modo privado / storage cheio: segue sem o resgate */ }
+  } catch { /* modo privado / storage cheio / URL torta: segue sem o resgate */ }
 }
 
 export function limparSaidaDoCheckout(): void {
