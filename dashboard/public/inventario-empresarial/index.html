@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="index, follow">
+<title>Inventário Empresarial — saiba onde está cada ferramenta e quanto vale a sua empresa</title>
+<meta name="description" content="Patrimônio somando sozinho, aviso antes de faltar material na obra, histórico de entrada e saída e o PDF separado por local para a contabilidade. R$ 67, pagamento único.">
+<link rel="icon" href="/icon-192.png">
+<meta property="og:title" content="Inventário Empresarial — R$ 67">
+<meta property="og:description" content="Patrimônio somando sozinho, aviso antes de faltar material na obra, histórico de entrada e saída e o PDF separado por local para a contabilidade. R$ 67, pagamento único.">
+<meta property="og:image" content="https://solardoc.app/capas/inventario-empresarial@2x.png">
+<link rel="canonical" href="https://solardoc.app/inventario-empresarial/">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #080d18;
+    --bg2: #0d1424;
+    --surface: #121b2e;
+    --line: rgba(148,163,184,.16);
+    --line2: rgba(148,163,184,.26);
+    --text: #f4f7fb;
+    --muted: #93a3b8;
+    --amber: #f7a41c;
+    --amber-d: #d9860a;
+    --green: #4ade80;
+    --radius: 18px;
+  }
+
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+    line-height: 1.65;
+    font-size: 17px;
+    overflow-x: hidden;
+  }
+
+  img { max-width: 100%; height: auto; display: block; }
+
+  .wrap { width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+  .narrow { max-width: 760px; margin: 0 auto; }
+
+  section { padding: 74px 0; }
+
+  h1, h2, h3 { line-height: 1.16; letter-spacing: -.022em; text-wrap: balance; }
+  h1 { font-size: clamp(31px, 5.6vw, 52px); font-weight: 800; }
+  h2 { font-size: clamp(25px, 4vw, 36px); font-weight: 800; margin-bottom: 16px; }
+  h3 { font-size: 19px; font-weight: 700; }
+  p { margin-bottom: 15px; }
+  strong { color: #fff; font-weight: 700; }
+  .amber { color: var(--amber); }
+  .muted { color: var(--muted); }
+
+  .eyebrow {
+    display: inline-block;
+    font-size: 11px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
+    color: var(--amber); background: rgba(247,164,28,.1);
+    border: 1px solid rgba(247,164,28,.28);
+    padding: 7px 15px; border-radius: 999px; margin-bottom: 22px;
+  }
+
+  .topo {
+    border-bottom: 1px solid var(--line);
+    background: rgba(8,13,24,.9);
+    backdrop-filter: blur(8px);
+    position: sticky; top: 0; z-index: 40;
+  }
+  .topo .wrap { display: flex; align-items: center; justify-content: space-between; padding-top: 14px; padding-bottom: 14px; }
+  .marca { font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
+  .marca span { color: var(--amber); }
+  .topoSelo { font-size: 12.5px; color: var(--muted); }
+
+  .hero {
+    padding: 64px 0 56px;
+    background:
+      radial-gradient(1100px 520px at 12% -10%, rgba(247,164,28,.16), transparent 62%),
+      radial-gradient(900px 480px at 92% 8%, rgba(56,110,180,.16), transparent 60%),
+      var(--bg);
+  }
+  .heroGrid { display: grid; grid-template-columns: 1.02fr .98fr; gap: 52px; align-items: center; }
+  .heroAspas {
+    font-size: clamp(19px, 2.6vw, 23px); font-style: italic; color: var(--muted);
+    border-left: 3px solid var(--amber); padding-left: 16px; margin-bottom: 20px;
+  }
+  .heroSub { color: var(--muted); font-size: clamp(16px, 1.7vw, 18.5px); margin: 20px 0 26px; max-width: 52ch; }
+  ul.bullets { list-style: none; display: grid; gap: 11px; margin-bottom: 30px; }
+  ul.bullets li { position: relative; padding-left: 30px; font-size: 15.5px; color: #d5deea; }
+  ul.bullets li::before {
+    content: ''; position: absolute; left: 0; top: 7px; width: 17px; height: 17px; border-radius: 50%;
+    background: rgba(74,222,128,.16); border: 1px solid rgba(74,222,128,.5);
+  }
+  ul.bullets li::after {
+    content: ''; position: absolute; left: 5.5px; top: 11px; width: 6px; height: 3px;
+    border-left: 2px solid var(--green); border-bottom: 2px solid var(--green);
+    transform: rotate(-45deg);
+  }
+
+  .cta {
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    background: linear-gradient(180deg, var(--amber), var(--amber-d));
+    color: #0a0f1a; font-weight: 800; font-size: 17px;
+    padding: 18px 34px; border-radius: 13px; text-decoration: none;
+    box-shadow: 0 10px 30px -10px rgba(247,164,28,.65);
+    transition: transform .15s ease, box-shadow .15s ease;
+    border: none; cursor: pointer; font-family: inherit; text-align: center;
+  }
+  .cta:hover { transform: translateY(-2px); box-shadow: 0 16px 34px -10px rgba(247,164,28,.75); }
+  .cta:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+  .ctaNota { display: block; font-size: 13px; color: var(--muted); margin-top: 13px; }
+
+  .janela {
+    background: var(--surface); border: 1px solid var(--line2); border-radius: 14px;
+    overflow: hidden; box-shadow: 0 30px 70px -30px rgba(0,0,0,.9);
+  }
+  .janelaBarra {
+    display: flex; align-items: center; gap: 7px;
+    padding: 11px 14px; background: #0e1728; border-bottom: 1px solid var(--line);
+  }
+  .janelaBarra i { width: 9px; height: 9px; border-radius: 50%; background: #33415c; display: block; }
+  .janelaUrl { margin-left: 8px; font-size: 11.5px; color: #64768f; font-family: ui-monospace, Menlo, Consolas, monospace; }
+
+  .heroArte { position: relative; }
+  .heroCel {
+    position: absolute; right: 5%; bottom: -30px; width: 27%; max-width: 158px;
+    border-radius: 18px; border: 5px solid #1b2740; box-shadow: 0 26px 54px -18px rgba(0,0,0,.95);
+  }
+
+  .faixa { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--bg2); }
+  .faixaGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 26px 0; text-align: center; }
+  .faixaGrid b { display: block; font-size: clamp(21px, 3vw, 28px); color: var(--amber); font-weight: 800; letter-spacing: -.02em; }
+  .faixaGrid span { font-size: 12.5px; color: var(--muted); line-height: 1.45; display: block; margin-top: 3px; }
+
+  .falas { display: grid; gap: 13px; margin-top: 26px; }
+  .fala {
+    background: var(--surface); border: 1px solid var(--line);
+    border-left: 3px solid #ef6a5a; border-radius: 0 12px 12px 0; padding: 17px 21px;
+    font-size: 17.5px; font-style: italic; color: #dfe6f0;
+  }
+
+  .mods { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 18px; margin-top: 34px; }
+  .mod {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 26px 24px; position: relative; overflow: hidden;
+  }
+  .mod::before {
+    content: ''; position: absolute; inset: 0 0 auto 0; height: 3px;
+    background: linear-gradient(90deg, var(--amber), transparent 70%);
+  }
+  .modNum { font-size: 12px; font-weight: 800; letter-spacing: .16em; color: var(--amber); display: block; margin-bottom: 9px; }
+  .mod h3 { margin-bottom: 8px; }
+  .mod p { color: var(--muted); font-size: 15px; margin: 0 0 12px; }
+  .modTag {
+    display: inline-block; font-size: 11.5px; font-weight: 700; color: #cbd5e1;
+    background: rgba(148,163,184,.12); padding: 4px 11px; border-radius: 999px;
+  }
+
+  .peca { display: grid; grid-template-columns: 1fr 1fr; gap: 46px; align-items: center; margin-bottom: 64px; }
+  .peca:last-child { margin-bottom: 0; }
+  .peca.inverso .pecaArte { order: -1; }
+  .pecaTxt h3 { font-size: 23px; margin-bottom: 12px; }
+  .pecaTxt p { color: var(--muted); font-size: 16px; }
+  .pecaSelo {
+    display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .15em;
+    text-transform: uppercase; color: var(--amber); margin-bottom: 10px;
+  }
+
+  .comp { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 30px; }
+  .compCard { border-radius: var(--radius); padding: 26px 24px; border: 1px solid var(--line); background: var(--surface); }
+  .compCard.mau { opacity: .78; }
+  .compCard.bom { border-color: rgba(247,164,28,.4); background: linear-gradient(180deg, rgba(247,164,28,.1), rgba(247,164,28,.02)); }
+  .compCard h3 { font-size: 17px; margin-bottom: 14px; }
+  .compCard ul { list-style: none; display: grid; gap: 10px; }
+  .compCard li { font-size: 14.5px; color: #cbd5e1; padding-left: 26px; position: relative; }
+  .compCard.mau li::before { content: '✕'; position: absolute; left: 0; color: #ef6a5a; font-weight: 700; }
+  .compCard.bom li::before { content: '✓'; position: absolute; left: 0; color: var(--green); font-weight: 700; }
+
+  .passos { display: grid; gap: 16px; margin-top: 30px; }
+  .passo { display: grid; grid-template-columns: 44px 1fr; gap: 18px; align-items: start; }
+  .passoN {
+    width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+    background: rgba(247,164,28,.12); border: 1px solid rgba(247,164,28,.35);
+    color: var(--amber); font-weight: 800; font-size: 17px;
+  }
+  .passo h3 { font-size: 18px; margin-bottom: 4px; }
+  .passo p { color: var(--muted); font-size: 15.5px; margin: 0; }
+
+  .oferta { background: var(--bg2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .ofertaBox {
+    background: var(--surface); border: 1px solid rgba(247,164,28,.34); border-radius: 22px;
+    padding: 42px 38px; text-align: center; max-width: 760px; margin: 0 auto;
+    box-shadow: 0 30px 80px -40px rgba(247,164,28,.5);
+  }
+  .preco { font-size: clamp(52px, 10vw, 74px); font-weight: 900; color: var(--amber); line-height: 1; letter-spacing: -.035em; margin: 8px 0 6px; }
+  .preco small { font-size: .34em; font-weight: 700; letter-spacing: 0; color: var(--muted); }
+  .ofertaLista { list-style: none; display: grid; gap: 11px; text-align: left; max-width: 480px; margin: 26px auto 30px; }
+  .ofertaLista li { position: relative; padding-left: 28px; font-size: 15.5px; color: #d5deea; }
+  .ofertaLista li::before { content: '✓'; position: absolute; left: 0; color: var(--green); font-weight: 800; }
+
+  .garantia {
+    display: flex; gap: 15px; align-items: flex-start; text-align: left;
+    background: rgba(148,163,184,.07); border: 1px solid var(--line);
+    border-radius: 14px; padding: 20px 22px; margin-top: 28px;
+  }
+  .garantia .selo { flex: none; display: grid; place-items: center; width: 26px; height: 26px; }
+  .garantia p { margin: 0; font-size: 14.5px; color: var(--muted); }
+
+  details {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 13px; padding: 19px 23px; margin-bottom: 12px;
+  }
+  details[open] { border-color: var(--line2); }
+  summary {
+    cursor: pointer; font-weight: 700; font-size: 16.5px; list-style: none;
+    display: flex; justify-content: space-between; gap: 16px; align-items: center;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: '+'; color: var(--amber); font-size: 23px; font-weight: 400; flex: none; line-height: 1; }
+  details[open] summary::after { content: '−'; }
+  details p { color: var(--muted); font-size: 15.5px; margin: 13px 0 0; }
+
+  footer { padding: 44px 0 66px; text-align: center; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
+  footer a { color: var(--muted); }
+
+  .barra {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+    background: rgba(8,13,24,.96); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line2); padding: 11px 16px; display: none;
+  }
+  .barra .cta { width: 100%; padding: 15px 20px; font-size: 16px; }
+
+  @media (max-width: 900px) {
+    .heroGrid, .peca { grid-template-columns: 1fr; gap: 34px; }
+    .peca.inverso .pecaArte { order: 0; }
+    .comp { grid-template-columns: 1fr; }
+    .faixaGrid { grid-template-columns: repeat(3, 1fr); gap: 18px 6px; }
+    .heroCel { display: none; }
+  }
+  @media (max-width: 720px) {
+    section { padding: 52px 0; }
+    .barra { display: block; }
+    body { padding-bottom: 80px; }
+    .ofertaBox { padding: 32px 22px; }
+    .peca .janela { overflow: hidden; }
+    .peca .janela img {
+      width: 152%; max-width: none;
+      -webkit-mask-image: linear-gradient(90deg, #000 82%, transparent 100%);
+      mask-image: linear-gradient(90deg, #000 82%, transparent 100%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+    html { scroll-behavior: auto; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topo">
+  <div class="wrap">
+    <span class="marca">SolarDoc <span>Pro</span></span>
+    <span class="topoSelo">Acesso imediato · 7 dias de garantia</span>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap heroGrid">
+    <div>
+      <span class="eyebrow">Para empresa de energia solar com equipe</span>
+      <p class="heroAspas">“Cadê a furadeira que estava no carro?”</p>
+      <h1>Se ninguém sabe responder, <span class="amber">a empresa não sabe o que tem</span></h1>
+      <p class="heroSub">O Inventário Empresarial põe cada ferramenta num local, com valor e estoque mínimo. O patrimônio soma sozinho e o aviso de repor chega antes de faltar no telhado.</p>
+      <ul class="bullets">
+        <li>Patrimônio total somando sozinho, item por item</li>
+        <li>Aviso de estoque mínimo antes de faltar material na obra</li>
+        <li>Entrada e saída em dois toques, com histórico de cada item</li>
+        <li>Locais que você cria: escritório, depósito, veículo, obra do João</li>
+        <li>PDF separado por local, com os totais, para a contabilidade</li>
+      </ul>
+      <a href="https://pay.kiwify.com.br/ABSMgCu" class="cta" data-cta="hero">Quero o inventário por R$ 67 →</a>
+      <span class="ctaNota">Pagamento único · Pix ou cartão · acesso em minutos</span>
+    </div>
+
+    <div class="heroArte">
+      <div class="janela">
+        <div class="janelaBarra"><i></i><i></i><i></i><span class="janelaUrl">solardoc.app/inventario</span></div>
+        <img src="/inventario-empresarial/img/tela.webp" alt="Tela do Inventário Empresarial dentro da plataforma SolarDoc" fetchpriority="high">
+      </div>
+      <img class="heroCel" src="/inventario-empresarial/img/celular.webp" loading="lazy" alt="A mesma tela no celular">
+    </div>
+  </div>
+</header>
+
+<div class="faixa">
+  <div class="wrap faixaGrid">
+    <div><b>46</b><span>materiais no catálogo pronto</span></div>
+    <div><b>14 itens</b><span>no inventário de exemplo, num toque</span></div>
+    <div><b>46</b><span>empresas usando hoje</span></div>
+    <div><b>R$ 67</b><span>uma vez, sem mensalidade</span></div>
+    <div><b>1 botão</b><span>para o PDF da contabilidade</span></div>
+  </div>
+</div>
+
+<section>
+  <div class="wrap narrow">
+    <h2>O prejuízo do inventário não aparece numa linha só</h2>
+    <div class="falas">
+      <p class="fala">“Chegamos no telhado e o conector MC4 tinha acabado.”</p>
+      <p class="fala">“A furadeira sumiu e ninguém sabe quem levou.”</p>
+      <p class="fala">“O contador pediu a relação de bens e virou um dia de trabalho.”</p>
+    </div>
+    <p class="muted" style="margin-top:26px">Cada um desses custa pouco sozinho e muito junto: a viagem perdida, a ferramenta reposta, o seguro feito no chute e o dia que você parou para montar a lista na mão.</p>
+  </div>
+</section>
+
+<section style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+  <div class="wrap">
+    <div class="narrow" style="text-align:center">
+      <span class="eyebrow">O que você recebe</span>
+      <h2>Tudo o que a empresa tem, num lugar só</h2>
+    </div>
+    <div class="mods">
+      <div class="mod">
+        <span class="modNum">01</span>
+        <h3>O patrimônio somando sozinho</h3>
+        <p>Cada item com o seu valor, e o total da empresa atualizado a cada movimento. É o número que o contador pede e que a seguradora exige na apólice.</p>
+        <span class="modTag">O número que falta</span>
+      </div>
+      <div class="mod">
+        <span class="modNum">02</span>
+        <h3>O aviso antes de faltar</h3>
+        <p>Diga o mínimo de cada material. Quando encostar, a linha fica vermelha e o aviso sobe no topo — antes de você descobrir com a equipe já no telhado.</p>
+        <span class="modTag">Estoque mínimo</span>
+      </div>
+      <div class="mod">
+        <span class="modNum">03</span>
+        <h3>Entrada e saída com histórico</h3>
+        <p>Chegou material, saiu para obra: dois toques. Corrigir o número na mão apaga a história do item, e é assim que ninguém sabe quem levou a furadeira.</p>
+        <span class="modTag">Movimento, não digitação</span>
+      </div>
+      <div class="mod">
+        <span class="modNum">04</span>
+        <h3>Cada coisa no seu lugar</h3>
+        <p>Escritório, montagem, depósito, veículos — e os que você criar. Saber onde a ferramenta está vale mais que saber que ela existe.</p>
+        <span class="modTag">Locais que você cria</span>
+      </div>
+      <div class="mod">
+        <span class="modNum">05</span>
+        <h3>O PDF da contabilidade</h3>
+        <p>Um botão gera o documento separado por local, com os totais. É o que você manda para o contador ou anexa num seguro.</p>
+        <span class="modTag">Um botão</span>
+      </div>
+      <div class="mod">
+        <span class="modNum">06</span>
+        <h3>Começa preenchido</h3>
+        <p>Um toque monta um inventário de exemplo com 14 itens que toda equipe solar tem, já com valor e estoque mínimo. Você ajusta em vez de começar do zero.</p>
+        <span class="modTag">14 itens de exemplo</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="narrow" style="text-align:center;margin-bottom:48px">
+      <span class="eyebrow">Por dentro</span>
+      <h2>É assim que ele funciona</h2>
+    </div>
+    <div class="peca">
+      <div class="pecaTxt">
+        <span class="pecaSelo">Por dentro</span>
+        <h3>O catálogo já vem pronto</h3>
+        <p>Do alicate crimpador MC4 ao painel solar, são 46 materiais com nome certo esperando você escolher o local. O que não estiver na lista, você digita.</p>
+      </div>
+      <div class="pecaArte">
+      <div class="janela">
+        <div class="janelaBarra"><i></i><i></i><i></i><span class="janelaUrl">solardoc.app/inventario</span></div>
+        <img src="/inventario-empresarial/img/tela.webp" alt="O catálogo já vem pronto" loading="lazy">
+      </div>
+      </div>
+    </div>
+    <div class="peca inverso">
+      <div class="pecaTxt">
+        <span class="pecaSelo">Por dentro</span>
+        <h3>No galpão, pelo celular</h3>
+        <p>Cada material vira um cartão, sem rolar para o lado, e os botões são do tamanho do dedo. Foi refeito para ser usado em pé, no depósito, com a mão suja.</p>
+      </div>
+      <div class="pecaArte">
+      <div class="janela">
+        <div class="janelaBarra"><i></i><i></i><i></i><span class="janelaUrl">solardoc.app/inventario</span></div>
+        <img src="/inventario-empresarial/img/celular.webp" alt="No galpão, pelo celular" loading="lazy">
+      </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+  <div class="wrap">
+    <div class="narrow" style="text-align:center">
+      <span class="eyebrow">A diferença que importa</span>
+      <h2>Saber o que você tem ou descobrir no telhado que faltou</h2>
+    </div>
+    <div class="comp">
+      <div class="compCard mau">
+        <h3>No caderno e na memória</h3>
+        <ul>
+          <li>Ninguém sabe quanto vale o que a empresa tem</li>
+          <li>O material acaba e você descobre na obra</li>
+          <li>Corrigem o número na mão e a história some</li>
+          <li>A ferramenta sumiu e não dá para dizer quem levou</li>
+          <li>O seguro é feito no chute</li>
+        </ul>
+      </div>
+      <div class="compCard bom">
+        <h3>Com o Inventário Empresarial</h3>
+        <ul>
+          <li>Patrimônio somado item por item, sempre atualizado</li>
+          <li>A linha fica vermelha e o aviso sobe antes de faltar</li>
+          <li>Entrada e saída em dois toques, com histórico</li>
+          <li>Cada ferramenta com local e responsável</li>
+          <li>A apólice sai do valor real do que está lá</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap narrow">
+    <span class="eyebrow">Como funciona</span>
+    <h2>Três passos, e a empresa está mapeada</h2>
+    <div class="passos">
+      <div class="passo">
+        <span class="passoN">1</span>
+        <div><h3>Escolha o local e o material</h3><p>A lista já vem pronta com o que costuma ter em cada lugar. Ou digite o que não está nela.</p></div>
+      </div>
+      <div class="passo">
+        <span class="passoN">2</span>
+        <div><h3>Preencha valor e estoque mínimo</h3><p>O valor alimenta o patrimônio; o mínimo dispara o aviso de repor.</p></div>
+      </div>
+      <div class="passo">
+        <span class="passoN">3</span>
+        <div><h3>Lance movimento, não digitação</h3><p>As setas de entrada e saída mantêm a história de cada item.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="oferta" id="comprar">
+  <div class="wrap">
+    <div class="ofertaBox">
+      <span class="eyebrow">Acesso imediato</span>
+      <h2 style="margin-bottom:6px">Uma viagem perdida por falta de material custa mais</h2>
+      <div class="preco">R$ 67<small> à vista</small></div>
+      <p class="muted" style="font-size:14.5px">pagamento único · acesso enquanto sua conta existir</p>
+      <ul class="ofertaLista">
+        <li>Patrimônio total somando sozinho</li>
+        <li>Aviso de estoque mínimo antes de faltar</li>
+        <li>Entrada e saída com histórico por item</li>
+        <li>Locais que você cria, inclusive por obra</li>
+        <li>PDF separado por local, com os totais</li>
+        <li>Inventário de exemplo com 14 itens, num toque</li>
+      </ul>
+      <a href="https://pay.kiwify.com.br/ABSMgCu" class="cta" data-cta="oferta">Quero o inventário por R$ 67 →</a>
+      <span class="ctaNota">Pagamento único · Pix ou cartão · acesso em minutos</span>
+      <div class="garantia">
+        <span class="selo amber">✓</span>
+        <p><strong>7 dias para pedir o dinheiro de volta.</strong> Comprou, entrou e não era o que
+        você esperava? Pede o reembolso e a gente devolve, sem discussão. É o prazo de arrependimento
+        que a lei te dá em compra pela internet — a gente só está lembrando que ele existe.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap narrow">
+    <h2>Perguntas que todo mundo faz</h2>
+    <details>
+      <summary>Preciso cadastrar tudo de uma vez?</summary>
+      <p>Não. Dá para começar com um botão que monta um inventário de exemplo e ir ajustando, ou cadastrar só o que importa agora. Nada trava por estar incompleto.</p>
+    </details>
+    <details>
+      <summary>Funciona no celular, no galpão?</summary>
+      <p>Funciona. Foi refeito para isso: no telefone cada material vira um cartão, sem rolar para o lado, e os botões são do tamanho do dedo.</p>
+    </details>
+    <details>
+      <summary>Serve para controlar obra, não só empresa?</summary>
+      <p>Serve. Você cria o local que quiser — “Obra do João”, “Almoxarifado” — e controla o material lá dentro do mesmo jeito.</p>
+    </details>
+    <details>
+      <summary>Já usava de graça. Vou perder?</summary>
+      <p>Não. Quem já usava continua usando, de graça, para sempre. A cobrança vale para quem chega agora.</p>
+    </details>
+    <details>
+      <summary>Como recebo o acesso?</summary>
+      <p>Depois do pagamento você recebe um e-mail para criar a sua senha, e a ferramenta abre na hora. Se você já tem conta no SolarDoc, ela libera sozinha.</p>
+    </details>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap narrow" style="text-align:center">
+    <h2>Amanhã de manhã dá para saber onde está cada ferramenta</h2>
+    <p class="muted">Um toque monta um inventário de exemplo com 14 itens que toda equipe solar tem. Você ajusta em vez de começar do zero — e em uma tarde a empresa inteira está mapeada.</p>
+    <a href="https://pay.kiwify.com.br/ABSMgCu" class="cta" data-cta="final">Quero o inventário por R$ 67 →</a>
+    <span class="ctaNota">Pagamento único · Pix ou cartão · acesso em minutos</span>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>SolarDoc Pro — documentos e ferramentas para integradores solares</p>
+    <p>Dúvidas: <a href="https://wa.me/5534991360223">WhatsApp (34) 99136-0223</a> ·
+       <a href="/privacidade/">Privacidade</a></p>
+  </div>
+</footer>
+
+<div class="barra">
+  <a href="https://pay.kiwify.com.br/ABSMgCu" class="cta" data-cta="barra">Quero o inventário por R$ 67 →</a>
+</div>
+
+</body>
+</html>

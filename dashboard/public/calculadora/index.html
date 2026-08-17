@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="index, follow">
+<title>Calculadora Solar — o preço que fecha a venda e ainda sobra margem</title>
+<meta name="description" content="Kit, material CA, mão de obra, deslocamento, ART, homologação, imposto e comissão numa tela só. Arraste a margem e veja a sua sobra mudar na hora, antes de mandar o preço. R$ 67, pagamento único.">
+<link rel="icon" href="/icon-192.png">
+<meta property="og:title" content="Calculadora Solar — R$ 67">
+<meta property="og:description" content="Kit, material CA, mão de obra, deslocamento, ART, homologação, imposto e comissão numa tela só. Arraste a margem e veja a sua sobra mudar na hora, antes de mandar o preço. R$ 67, pagamento único.">
+<meta property="og:image" content="https://solardoc.app/capas/calculadora-solar@2x.png">
+<link rel="canonical" href="https://solardoc.app/calculadora/">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #080d18;
+    --bg2: #0d1424;
+    --surface: #121b2e;
+    --line: rgba(148,163,184,.16);
+    --line2: rgba(148,163,184,.26);
+    --text: #f4f7fb;
+    --muted: #93a3b8;
+    --amber: #f7a41c;
+    --amber-d: #d9860a;
+    --green: #4ade80;
+    --radius: 18px;
+  }
+
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+    line-height: 1.65;
+    font-size: 17px;
+    overflow-x: hidden;
+  }
+
+  img { max-width: 100%; height: auto; display: block; }
+
+  .wrap { width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+  .narrow { max-width: 760px; margin: 0 auto; }
+
+  section { padding: 74px 0; }
+
+  h1, h2, h3 { line-height: 1.16; letter-spacing: -.022em; text-wrap: balance; }
+  h1 { font-size: clamp(31px, 5.6vw, 52px); font-weight: 800; }
+  h2 { font-size: clamp(25px, 4vw, 36px); font-weight: 800; margin-bottom: 16px; }
+  h3 { font-size: 19px; font-weight: 700; }
+  p { margin-bottom: 15px; }
+  strong { color: #fff; font-weight: 700; }
+  .amber { color: var(--amber); }
+  .muted { color: var(--muted); }
+
+  .eyebrow {
+    display: inline-block;
+    font-size: 11px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
+    color: var(--amber); background: rgba(247,164,28,.1);
+    border: 1px solid rgba(247,164,28,.28);
+    padding: 7px 15px; border-radius: 999px; margin-bottom: 22px;
+  }
+
+  .topo {
+    border-bottom: 1px solid var(--line);
+    background: rgba(8,13,24,.9);
+    backdrop-filter: blur(8px);
+    position: sticky; top: 0; z-index: 40;
+  }
+  .topo .wrap { display: flex; align-items: center; justify-content: space-between; padding-top: 14px; padding-bottom: 14px; }
+  .marca { font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
+  .marca span { color: var(--amber); }
+  .topoSelo { font-size: 12.5px; color: var(--muted); }
+
+  .hero {
+    padding: 64px 0 56px;
+    background:
+      radial-gradient(1100px 520px at 12% -10%, rgba(247,164,28,.16), transparent 62%),
+      radial-gradient(900px 480px at 92% 8%, rgba(56,110,180,.16), transparent 60%),
+      var(--bg);
+  }
+  .heroGrid { display: grid; grid-template-columns: 1.02fr .98fr; gap: 52px; align-items: center; }
+  .heroAspas {
+    font-size: clamp(19px, 2.6vw, 23px); font-style: italic; color: var(--muted);
+    border-left: 3px solid var(--amber); padding-left: 16px; margin-bottom: 20px;
+  }
+  .heroSub { color: var(--muted); font-size: clamp(16px, 1.7vw, 18.5px); margin: 20px 0 26px; max-width: 52ch; }
+  ul.bullets { list-style: none; display: grid; gap: 11px; margin-bottom: 30px; }
+  ul.bullets li { position: relative; padding-left: 30px; font-size: 15.5px; color: #d5deea; }
+  ul.bullets li::before {
+    content: ''; position: absolute; left: 0; top: 7px; width: 17px; height: 17px; border-radius: 50%;
+    background: rgba(74,222,128,.16); border: 1px solid rgba(74,222,128,.5);
+  }
+  ul.bullets li::after {
+    content: ''; position: absolute; left: 5.5px; top: 11px; width: 6px; height: 3px;
+    border-left: 2px solid var(--green); border-bottom: 2px solid var(--green);
+    transform: rotate(-45deg);
+  }
+
+  .cta {
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    background: linear-gradient(180deg, var(--amber), var(--amber-d));
+    color: #0a0f1a; font-weight: 800; font-size: 17px;
+    padding: 18px 34px; border-radius: 13px; text-decoration: none;
+    box-shadow: 0 10px 30px -10px rgba(247,164,28,.65);
+    transition: transform .15s ease, box-shadow .15s ease;
+    border: none; cursor: pointer; font-family: inherit; text-align: center;
+  }
+  .cta:hover { transform: translateY(-2px); box-shadow: 0 16px 34px -10px rgba(247,164,28,.75); }
+  .cta:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+  .ctaNota { display: block; font-size: 13px; color: var(--muted); margin-top: 13px; }
+
+  .janela {
+    background: var(--surface); border: 1px solid var(--line2); border-radius: 14px;
+    overflow: hidden; box-shadow: 0 30px 70px -30px rgba(0,0,0,.9);
+  }
+  .janelaBarra {
+    display: flex; align-items: center; gap: 7px;
+    padding: 11px 14px; background: #0e1728; border-bottom: 1px solid var(--line);
+  }
+  .janelaBarra i { width: 9px; height: 9px; border-radius: 50%; background: #33415c; display: block; }
+  .janelaUrl { margin-left: 8px; font-size: 11.5px; color: #64768f; font-family: ui-monospace, Menlo, Consolas, monospace; }
+
+  .heroArte { position: relative; }
+  .heroCel {
+    position: absolute; right: 5%; bottom: -30px; width: 27%; max-width: 158px;
+    border-radius: 18px; border: 5px solid #1b2740; box-shadow: 0 26px 54px -18px rgba(0,0,0,.95);
+  }
+
+  .faixa { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--bg2); }
+  .faixaGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 26px 0; text-align: center; }
+  .faixaGrid b { display: block; font-size: clamp(21px, 3vw, 28px); color: var(--amber); font-weight: 800; letter-spacing: -.02em; }
+  .faixaGrid span { font-size: 12.5px; color: var(--muted); line-height: 1.45; display: block; margin-top: 3px; }
+
+  .falas { display: grid; gap: 13px; margin-top: 26px; }
+  .fala {
+    background: var(--surface); border: 1px solid var(--line);
+    border-left: 3px solid #ef6a5a; border-radius: 0 12px 12px 0; padding: 17px 21px;
+    font-size: 17.5px; font-style: italic; color: #dfe6f0;
+  }
+
+  .mods { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 18px; margin-top: 34px; }
+  .mod {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 26px 24px; position: relative; overflow: hidden;
+  }
+  .mod::before {
+    content: ''; position: absolute; inset: 0 0 auto 0; height: 3px;
+    background: linear-gradient(90deg, var(--amber), transparent 70%);
+  }
+  .modNum { font-size: 12px; font-weight: 800; letter-spacing: .16em; color: var(--amber); display: block; margin-bottom: 9px; }
+  .mod h3 { margin-bottom: 8px; }
+  .mod p { color: var(--muted); font-size: 15px; margin: 0 0 12px; }
+  .modTag {
+    display: inline-block; font-size: 11.5px; font-weight: 700; color: #cbd5e1;
+    background: rgba(148,163,184,.12); padding: 4px 11px; border-radius: 999px;
+  }
+
+  .peca { display: grid; grid-template-columns: 1fr 1fr; gap: 46px; align-items: center; margin-bottom: 64px; }
+  .peca:last-child { margin-bottom: 0; }
+  .peca.inverso .pecaArte { order: -1; }
+  .pecaTxt h3 { font-size: 23px; margin-bottom: 12px; }
+  .pecaTxt p { color: var(--muted); font-size: 16px; }
+  .pecaSelo {
+    display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .15em;
+    text-transform: uppercase; color: var(--amber); margin-bottom: 10px;
+  }
+
+  .comp { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 30px; }
+  .compCard { border-radius: var(--radius); padding: 26px 24px; border: 1px solid var(--line); background: var(--surface); }
+  .compCard.mau { opacity: .78; }
+  .compCard.bom { border-color: rgba(247,164,28,.4); background: linear-gradient(180deg, rgba(247,164,28,.1), rgba(247,164,28,.02)); }
+  .compCard h3 { font-size: 17px; margin-bottom: 14px; }
+  .compCard ul { list-style: none; display: grid; gap: 10px; }
+  .compCard li { font-size: 14.5px; color: #cbd5e1; padding-left: 26px; position: relative; }
+  .compCard.mau li::before { content: '✕'; position: absolute; left: 0; color: #ef6a5a; font-weight: 700; }
+  .compCard.bom li::before { content: '✓'; position: absolute; left: 0; color: var(--green); font-weight: 700; }
+
+  .passos { display: grid; gap: 16px; margin-top: 30px; }
+  .passo { display: grid; grid-template-columns: 44px 1fr; gap: 18px; align-items: start; }
+  .passoN {
+    width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+    background: rgba(247,164,28,.12); border: 1px solid rgba(247,164,28,.35);
+    color: var(--amber); font-weight: 800; font-size: 17px;
+  }
+  .passo h3 { font-size: 18px; margin-bottom: 4px; }
+  .passo p { color: var(--muted); font-size: 15.5px; margin: 0; }
+
+  .oferta { background: var(--bg2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .ofertaBox {
+    background: var(--surface); border: 1px solid rgba(247,164,28,.34); border-radius: 22px;
+    padding: 42px 38px; text-align: center; max-width: 760px; margin: 0 auto;
+    box-shadow: 0 30px 80px -40px rgba(247,164,28,.5);
+  }
+  .preco { font-size: clamp(52px, 10vw, 74px); font-weight: 900; color: var(--amber); line-height: 1; letter-spacing: -.035em; margin: 8px 0 6px; }
+  .preco small { font-size: .34em; font-weight: 700; letter-spacing: 0; color: var(--muted); }
+  .ofertaLista { list-style: none; display: grid; gap: 11px; text-align: left; max-width: 480px; margin: 26px auto 30px; }
+  .ofertaLista li { position: relative; padding-left: 28px; font-size: 15.5px; color: #d5deea; }
+  .ofertaLista li::before { content: '✓'; position: absolute; left: 0; color: var(--green); font-weight: 800; }
+
+  .garantia {
+    display: flex; gap: 15px; align-items: flex-start; text-align: left;
+    background: rgba(148,163,184,.07); border: 1px solid var(--line);
+    border-radius: 14px; padding: 20px 22px; margin-top: 28px;
+  }
+  .garantia .selo { flex: none; display: grid; place-items: center; width: 26px; height: 26px; }
+  .garantia p { margin: 0; font-size: 14.5px; color: var(--muted); }
+
+  details {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 13px; padding: 19px 23px; margin-bottom: 12px;
+  }
+  details[open] { border-color: var(--line2); }
+  summary {
+    cursor: pointer; font-weight: 700; font-size: 16.5px; list-style: none;
+    display: flex; justify-content: space-between; gap: 16px; align-items: center;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: '+'; color: var(--amber); font-size: 23px; font-weight: 400; flex: none; line-height: 1; }
+  details[open] summary::after { content: '−'; }
+  details p { color: var(--muted); font-size: 15.5px; margin: 13px 0 0; }
+
+  footer { padding: 44px 0 66px; text-align: center; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
+  footer a { color: var(--muted); }
+
+  .barra {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+    background: rgba(8,13,24,.96); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line2); padding: 11px 16px; display: none;
+  }
+  .barra .cta { width: 100%; padding: 15px 20px; font-size: 16px; }
+
+  @media (max-width: 900px) {
+    .heroGrid, .peca { grid-template-columns: 1fr; gap: 34px; }
+    .peca.inverso .pecaArte { order: 0; }
+    .comp { grid-template-columns: 1fr; }
+    .faixaGrid { grid-template-columns: repeat(3, 1fr); gap: 18px 6px; }
+    .heroCel { display: none; }
+  }
+  @media (max-width: 720px) {
+    section { padding: 52px 0; }
+    .barra { display: block; }
+    body { padding-bottom: 80px; }
+    .ofertaBox { padding: 32px 22px; }
+    .peca .janela { overflow: hidden; }
+    .peca .janela img {
+      width: 152%; max-width: none;
+      -webkit-mask-image: linear-gradient(90deg, #000 82%, transparent 100%);
+      mask-image: linear-gradient(90deg, #000 82%, transparent 100%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+    html { scroll-behavior: auto; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topo">
+  <div class="wrap">
+    <span class="marca">SolarDoc <span>Pro</span></span>
+    <span class="topoSelo">Acesso imediato · 7 dias de garantia</span>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap heroGrid">
+    <div>
+      <span class="eyebrow">Para integrador solar com CNPJ</span>
+      <p class="heroAspas">“Fechei a obra e no fim das contas não sobrou quase nada.”</p>
+      <h1>O problema não foi o desconto. Foi <span class="amber">o custo que ficou de fora</span></h1>
+      <p class="heroSub">Material CA, deslocamento, ART, homologação, imposto e comissão somem quando se precifica no olho. A Calculadora Solar põe todos na conta e mostra a sua sobra antes de você mandar o preço.</p>
+      <ul class="bullets">
+        <li>Todo custo na conta: kit, material CA, mão de obra, deslocamento, ART e homologação</li>
+        <li>Nota fiscal modelada como dedução — sobre o serviço ou sobre o total</li>
+        <li>Comissão do vendedor calculada junto, não depois</li>
+        <li>Arraste a margem e veja o preço e a sua sobra mudarem na hora</li>
+        <li>O preço mínimo que ainda dá lucro, para você negociar sabendo o piso</li>
+      </ul>
+      <a href="https://pay.kiwify.com.br/duOCDd0" class="cta" data-cta="hero">Quero a calculadora por R$ 67 →</a>
+      <span class="ctaNota">Pagamento único · Pix ou cartão · acesso em minutos</span>
+    </div>
+
+    <div class="heroArte">
+      <div class="janela">
+        <div class="janelaBarra"><i></i><i></i><i></i><span class="janelaUrl">solardoc.app/precificacao</span></div>
+        <img src="/calculadora/img/tela.webp" alt="Tela do Calculadora Solar dentro da plataforma SolarDoc" fetchpriority="high">
+      </div>
+      <img class="heroCel" src="/calculadora/img/celular.webp" loading="lazy" alt="A mesma tela no celular">
+    </div>
+  </div>
+</header>
+
+<div class="faixa">
+  <div class="wrap faixaGrid">
+    <div><b>6</b><span>custos que entram além do kit</span></div>
+    <div><b>1 tela</b><span>do custo ao preço final</span></div>
+    <div><b>68</b><span>integradores usando hoje</span></div>
+    <div><b>R$ 67</b><span>uma vez, sem mensalidade</span></div>
+    <div><b>0</b><span>planilha para manter</span></div>
+  </div>
+</div>
+
+<section>
+  <div class="wrap narrow">
+    <h2>Três coisas fazem o lucro sumir depois da obra fechada</h2>
+    <div class="falas">
+      <p class="fala">“Esqueci de somar as três viagens até a cidade.”</p>
+      <p class="fala">“A nota fiscal veio e comeu a margem inteira.”</p>
+      <p class="fala">“Dei o desconto sem saber até onde eu podia ir.”</p>
+    </div>
+    <p class="muted" style="margin-top:26px">Nenhuma delas aparece na hora de fechar. Todas aparecem depois, quando o dinheiro já entrou e a conta não fecha — e aí não dá mais para renegociar com o cliente.</p>
+  </div>
+</section>
+
+<section style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+  <div class="wrap">
+    <div class="narrow" style="text-align:center">
+      <span class="eyebrow">O que você recebe</span>
+      <h2>A conta inteira, do custo ao preço final</h2>
+    </div>
+    <div class="mods">
+      <div class="mod">
+        <span class="modNum">01</span>
+        <h3>O custo real da obra</h3>
+        <p>Kit fotovoltaico, material CA, mão de obra, deslocamento, ART e homologação. Cada campo com o que ele significa escrito do lado, para não sobrar dúvida do que entra onde.</p>
+        <span class="modTag">6 custos além do kit</span>
+      </div>
+      <div class="mod">
+        <span class="modNum">02</span>
+        <h3>O imposto no lugar certo</h3>
+        <p>Escolha se a nota é sobre o serviço ou sobre o total, e o imposto já sai descontado. Sem isso o preço parece bom até o boleto do contador chegar.</p>
+        <span class="modTag">NF como dedução</span>
+      </div>
+      <div class="mod">
+        <span class="modNum">03</span>
+        <h3>A comissão antes, não depois</h3>
+        <p>Vendedor comissionado entra na conta antes de o preço existir. Assim a margem que você vê é a que sobra de verdade, não a que sobra menos a comissão.</p>
+        <span class="modTag">Margem de verdade</span>
+      </div>
+      <div class="mod">
+        <span class="modNum">04</span>
+        <h3>A margem que você arrasta</h3>
+        <p>Mexa no controle e veja o preço ao cliente e a sua sobra mudarem juntos, na hora. Dá para negociar sabendo exatamente quanto está abrindo mão.</p>
+        <span class="modTag">Ao vivo</span>
+      </div>
+      <div class="mod">
+        <span class="modNum">05</span>
+        <h3>O piso que ainda fecha</h3>
+        <p>A ferramenta mostra o preço mínimo que ainda dá lucro. Quando o cliente apertar, você sabe onde parar em vez de chutar com medo de perder a obra.</p>
+        <span class="modTag">Onde parar</span>
+      </div>
+      <div class="mod">
+        <span class="modNum">06</span>
+        <h3>A mesma conta para o time</h3>
+        <p>Todo mundo precifica pelo mesmo critério. Acaba a proposta que cada um fez de um jeito e ninguém sabe explicar depois.</p>
+        <span class="modTag">Padrão da empresa</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="narrow" style="text-align:center;margin-bottom:48px">
+      <span class="eyebrow">Por dentro</span>
+      <h2>É assim que ela funciona</h2>
+    </div>
+    <div class="peca">
+      <div class="pecaTxt">
+        <span class="pecaSelo">Por dentro</span>
+        <h3>O custo entra, o preço sai</h3>
+        <p>Você lança os custos da obra de cima para baixo e o total vai se formando. Nada de fórmula escondida em célula: cada linha é um custo que você reconhece.</p>
+      </div>
+      <div class="pecaArte">
+      <div class="janela">
+        <div class="janelaBarra"><i></i><i></i><i></i><span class="janelaUrl">solardoc.app/precificacao</span></div>
+        <img src="/calculadora/img/tela.webp" alt="O custo entra, o preço sai" loading="lazy">
+      </div>
+      </div>
+    </div>
+    <div class="peca inverso">
+      <div class="pecaTxt">
+        <span class="pecaSelo">Por dentro</span>
+        <h3>A sobra muda enquanto você arrasta</h3>
+        <p>O controle de margem move o preço ao cliente e a sua sobra ao mesmo tempo. É a tela que você abre na frente do cliente quando ele pede desconto.</p>
+      </div>
+      <div class="pecaArte">
+      <div class="janela">
+        <div class="janelaBarra"><i></i><i></i><i></i><span class="janelaUrl">solardoc.app/precificacao</span></div>
+        <img src="/calculadora/img/celular.webp" alt="A sobra muda enquanto você arrasta" loading="lazy">
+      </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+  <div class="wrap">
+    <div class="narrow" style="text-align:center">
+      <span class="eyebrow">A diferença que importa</span>
+      <h2>Fechar com lucro ou descobrir que trabalhou de graça</h2>
+    </div>
+    <div class="comp">
+      <div class="compCard mau">
+        <h3>Precificando no olho</h3>
+        <ul>
+          <li>Soma o kit e joga uma margem por cima</li>
+          <li>Deslocamento, ART e homologação ficam de fora</li>
+          <li>A nota fiscal aparece depois e come o lucro</li>
+          <li>A comissão sai da sua parte, não do preço</li>
+          <li>Cede desconto sem saber onde é o fundo</li>
+        </ul>
+      </div>
+      <div class="compCard bom">
+        <h3>Com a Calculadora Solar</h3>
+        <ul>
+          <li>Todo custo lançado antes de o preço existir</li>
+          <li>Material CA, mão de obra, deslocamento e ART juntos</li>
+          <li>Imposto escolhido e já descontado</li>
+          <li>Comissão na conta antes, não depois</li>
+          <li>Você vê o piso e negocia até ele</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap narrow">
+    <span class="eyebrow">Como funciona</span>
+    <h2>Três passos, e o preço está pronto</h2>
+    <div class="passos">
+      <div class="passo">
+        <span class="passoN">1</span>
+        <div><h3>Lance os custos da obra</h3><p>Kit, material CA, mão de obra, deslocamento, ART e homologação.</p></div>
+      </div>
+      <div class="passo">
+        <span class="passoN">2</span>
+        <div><h3>Escolha imposto e comissão</h3><p>NF sobre o serviço ou sobre o total, e a comissão do vendedor.</p></div>
+      </div>
+      <div class="passo">
+        <span class="passoN">3</span>
+        <div><h3>Arraste a margem</h3><p>O preço ao cliente e a sua sobra mudam juntos. Você fecha sabendo quanto entra.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="oferta" id="comprar">
+  <div class="wrap">
+    <div class="ofertaBox">
+      <span class="eyebrow">Acesso imediato</span>
+      <h2 style="margin-bottom:6px">Uma obra precificada errada custa mais que a ferramenta</h2>
+      <div class="preco">R$ 67<small> à vista</small></div>
+      <p class="muted" style="font-size:14.5px">pagamento único · acesso enquanto sua conta existir</p>
+      <ul class="ofertaLista">
+        <li>Todo custo na conta: kit, material CA, mão de obra, deslocamento, ART e homologação</li>
+        <li>Nota fiscal modelada como dedução, sobre o serviço ou sobre o total</li>
+        <li>Comissão do vendedor calculada junto</li>
+        <li>Margem ao vivo, com a sua sobra na tela</li>
+        <li>O preço mínimo que ainda dá lucro</li>
+        <li>Abre do celular, na frente do cliente</li>
+      </ul>
+      <a href="https://pay.kiwify.com.br/duOCDd0" class="cta" data-cta="oferta">Quero a calculadora por R$ 67 →</a>
+      <span class="ctaNota">Pagamento único · Pix ou cartão · acesso em minutos</span>
+      <div class="garantia">
+        <span class="selo amber">✓</span>
+        <p><strong>7 dias para pedir o dinheiro de volta.</strong> Comprou, entrou e não era o que
+        você esperava? Pede o reembolso e a gente devolve, sem discussão. É o prazo de arrependimento
+        que a lei te dá em compra pela internet — a gente só está lembrando que ele existe.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap narrow">
+    <h2>Perguntas que todo mundo faz</h2>
+    <details>
+      <summary>É uma planilha?</summary>
+      <p>Não. É uma tela dentro da plataforma, que abre do celular na frente do cliente. Planilha quebra quando alguém arrasta uma célula — aqui a conta é a mesma sempre.</p>
+    </details>
+    <details>
+      <summary>Serve para qualquer tamanho de obra?</summary>
+      <p>Serve. A conta é a mesma para residencial pequeno e para usina — o que muda são os números que você lança.</p>
+    </details>
+    <details>
+      <summary>Preciso assinar o SolarDoc?</summary>
+      <p>Não. A compra é à parte e o acesso é seu enquanto a conta existir. Ela também vem inclusa na assinatura, se um dia fizer sentido.</p>
+    </details>
+    <details>
+      <summary>Já usava de graça. Vou perder?</summary>
+      <p>Não. Quem já usava continua usando, de graça, para sempre. A cobrança vale para quem chega agora.</p>
+    </details>
+    <details>
+      <summary>Como recebo o acesso?</summary>
+      <p>Depois do pagamento você recebe um e-mail para criar a sua senha, e a ferramenta abre na hora. Se você já tem conta no SolarDoc, ela libera sozinha.</p>
+    </details>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap narrow" style="text-align:center">
+    <h2>O próximo orçamento pode sair sabendo quanto sobra para você</h2>
+    <p class="muted">Lance o custo real, arraste a margem e veja a sua sobra mudar na hora — antes de mandar o preço, não depois de fechar a obra.</p>
+    <a href="https://pay.kiwify.com.br/duOCDd0" class="cta" data-cta="final">Quero a calculadora por R$ 67 →</a>
+    <span class="ctaNota">Pagamento único · Pix ou cartão · acesso em minutos</span>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>SolarDoc Pro — documentos e ferramentas para integradores solares</p>
+    <p>Dúvidas: <a href="https://wa.me/5534991360223">WhatsApp (34) 99136-0223</a> ·
+       <a href="/privacidade/">Privacidade</a></p>
+  </div>
+</footer>
+
+<div class="barra">
+  <a href="https://pay.kiwify.com.br/duOCDd0" class="cta" data-cta="barra">Quero a calculadora por R$ 67 →</a>
+</div>
+
+</body>
+</html>

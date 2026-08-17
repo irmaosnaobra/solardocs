@@ -51,9 +51,15 @@ export interface ProdutoLoja {
   /** Checkout avulso. Sem link configurado, cai no WhatsApp. */
   checkout: string;
   /**
-   * PÁGINA DE VENDA QUE JÁ EXISTE, fora daqui. Dois produtos nasceram com funil
-   * próprio antes desta loja: o Kit em `solardoc.app/kit` (indexada, com os
-   * criativos apontando pra ela) e o LimpaPro em `limpapro.solardoc.app`.
+   * A PÁGINA DE VENDA EXTERNA do produto — HTML solto em `public/`, sem nada
+   * do app: sem cabeçalho da plataforma, sem "Já tenho conta", sem o bundle do
+   * dashboard. É o que a `/kit` e a `limpapro.solardoc.app` sempre foram, e é
+   * por isso que elas parecem página de venda e a versão em rota do Next
+   * parecia tela de produto.
+   *
+   * Hoje todos os cinco têm a sua: /kit, limpapro.solardoc.app, /dimensionamento,
+   * /calculadora e /inventario-empresarial. As três últimas saem do gerador em
+   * `dashboard/scripts/build-lps.js`, que clona o CSS da /kit.
    *
    * Quando existe, `/lp/<slug>` redireciona pra ela em vez de servir uma
    * segunda oferta do mesmo produto. Duas páginas de venda pro mesmo curso é
@@ -151,6 +157,7 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
     naAssinatura: false,
     rota: '/off-grid',
     checkout: process.env.NEXT_PUBLIC_OFFGRID_CHECKOUT_URL || 'https://pay.kiwify.com.br/Je9pKBV',
+    lpPropria: '/dimensionamento/',
     mockup: 'offgrid',
     // A ferramenta fica aberta de propósito: dimensionar e ver a autonomia é
     // grátis. A melhor página de vendas dela é ela mesma funcionando.
@@ -316,6 +323,7 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
     rota: '/precificacao',
     // Na Kiwify o produto se chama "Calculadora Solar", R$ 67.
     checkout: process.env.NEXT_PUBLIC_PRECIFICACAO_CHECKOUT_URL || 'https://pay.kiwify.com.br/duOCDd0',
+    lpPropria: '/calculadora/',
     mockup: 'precificacao',
     cor: '#B45309',
   },
@@ -410,6 +418,7 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
     rota: '/inventario',
     // Na Kiwify o produto se chama "Inventário Empresarial", R$ 67.
     checkout: process.env.NEXT_PUBLIC_INVENTARIO_CHECKOUT_URL || 'https://pay.kiwify.com.br/ABSMgCu',
+    lpPropria: '/inventario-empresarial/',
     mockup: 'inventario',
     cor: '#1D4ED8',
   },

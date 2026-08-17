@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="index, follow">
+<title>Dimensionamento Off-Grid — o orçamento do sistema isolado pronto na frente do cliente</title>
+<meta name="description" content="Marque o que o cliente vai ligar, diga quantos dias sem sol ele precisa aguentar e saia com o kit dimensionado, a autonomia em número, o preço com frete até a obra e a proposta em PDF com a sua marca. R$ 97, e volta como abatimento no primeiro pedido.">
+<link rel="icon" href="/icon-192.png">
+<meta property="og:title" content="Dimensionamento Off-Grid — R$ 97">
+<meta property="og:description" content="Marque o que o cliente vai ligar, diga quantos dias sem sol ele precisa aguentar e saia com o kit dimensionado, a autonomia em número, o preço com frete até a obra e a proposta em PDF com a sua marca. R$ 97, e volta como abatimento no primeiro pedido.">
+<meta property="og:image" content="https://solardoc.app/capas/dimensionamento-off-grid@2x.png">
+<link rel="canonical" href="https://solardoc.app/dimensionamento/">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #080d18;
+    --bg2: #0d1424;
+    --surface: #121b2e;
+    --line: rgba(148,163,184,.16);
+    --line2: rgba(148,163,184,.26);
+    --text: #f4f7fb;
+    --muted: #93a3b8;
+    --amber: #f7a41c;
+    --amber-d: #d9860a;
+    --green: #4ade80;
+    --radius: 18px;
+  }
+
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+    line-height: 1.65;
+    font-size: 17px;
+    overflow-x: hidden;
+  }
+
+  img { max-width: 100%; height: auto; display: block; }
+
+  .wrap { width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+  .narrow { max-width: 760px; margin: 0 auto; }
+
+  section { padding: 74px 0; }
+
+  h1, h2, h3 { line-height: 1.16; letter-spacing: -.022em; text-wrap: balance; }
+  h1 { font-size: clamp(31px, 5.6vw, 52px); font-weight: 800; }
+  h2 { font-size: clamp(25px, 4vw, 36px); font-weight: 800; margin-bottom: 16px; }
+  h3 { font-size: 19px; font-weight: 700; }
+  p { margin-bottom: 15px; }
+  strong { color: #fff; font-weight: 700; }
+  .amber { color: var(--amber); }
+  .muted { color: var(--muted); }
+
+  .eyebrow {
+    display: inline-block;
+    font-size: 11px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
+    color: var(--amber); background: rgba(247,164,28,.1);
+    border: 1px solid rgba(247,164,28,.28);
+    padding: 7px 15px; border-radius: 999px; margin-bottom: 22px;
+  }
+
+  .topo {
+    border-bottom: 1px solid var(--line);
+    background: rgba(8,13,24,.9);
+    backdrop-filter: blur(8px);
+    position: sticky; top: 0; z-index: 40;
+  }
+  .topo .wrap { display: flex; align-items: center; justify-content: space-between; padding-top: 14px; padding-bottom: 14px; }
+  .marca { font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
+  .marca span { color: var(--amber); }
+  .topoSelo { font-size: 12.5px; color: var(--muted); }
+
+  .hero {
+    padding: 64px 0 56px;
+    background:
+      radial-gradient(1100px 520px at 12% -10%, rgba(247,164,28,.16), transparent 62%),
+      radial-gradient(900px 480px at 92% 8%, rgba(56,110,180,.16), transparent 60%),
+      var(--bg);
+  }
+  .heroGrid { display: grid; grid-template-columns: 1.02fr .98fr; gap: 52px; align-items: center; }
+  .heroAspas {
+    font-size: clamp(19px, 2.6vw, 23px); font-style: italic; color: var(--muted);
+    border-left: 3px solid var(--amber); padding-left: 16px; margin-bottom: 20px;
+  }
+  .heroSub { color: var(--muted); font-size: clamp(16px, 1.7vw, 18.5px); margin: 20px 0 26px; max-width: 52ch; }
+  ul.bullets { list-style: none; display: grid; gap: 11px; margin-bottom: 30px; }
+  ul.bullets li { position: relative; padding-left: 30px; font-size: 15.5px; color: #d5deea; }
+  ul.bullets li::before {
+    content: ''; position: absolute; left: 0; top: 7px; width: 17px; height: 17px; border-radius: 50%;
+    background: rgba(74,222,128,.16); border: 1px solid rgba(74,222,128,.5);
+  }
+  ul.bullets li::after {
+    content: ''; position: absolute; left: 5.5px; top: 11px; width: 6px; height: 3px;
+    border-left: 2px solid var(--green); border-bottom: 2px solid var(--green);
+    transform: rotate(-45deg);
+  }
+
+  .cta {
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    background: linear-gradient(180deg, var(--amber), var(--amber-d));
+    color: #0a0f1a; font-weight: 800; font-size: 17px;
+    padding: 18px 34px; border-radius: 13px; text-decoration: none;
+    box-shadow: 0 10px 30px -10px rgba(247,164,28,.65);
+    transition: transform .15s ease, box-shadow .15s ease;
+    border: none; cursor: pointer; font-family: inherit; text-align: center;
+  }
+  .cta:hover { transform: translateY(-2px); box-shadow: 0 16px 34px -10px rgba(247,164,28,.75); }
+  .cta:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+  .ctaNota { display: block; font-size: 13px; color: var(--muted); margin-top: 13px; }
+
+  .janela {
+    background: var(--surface); border: 1px solid var(--line2); border-radius: 14px;
+    overflow: hidden; box-shadow: 0 30px 70px -30px rgba(0,0,0,.9);
+  }
+  .janelaBarra {
+    display: flex; align-items: center; gap: 7px;
+    padding: 11px 14px; background: #0e1728; border-bottom: 1px solid var(--line);
+  }
+  .janelaBarra i { width: 9px; height: 9px; border-radius: 50%; background: #33415c; display: block; }
+  .janelaUrl { margin-left: 8px; font-size: 11.5px; color: #64768f; font-family: ui-monospace, Menlo, Consolas, monospace; }
+
+  .heroArte { position: relative; }
+  .heroCel {
+    position: absolute; right: 5%; bottom: -30px; width: 27%; max-width: 158px;
+    border-radius: 18px; border: 5px solid #1b2740; box-shadow: 0 26px 54px -18px rgba(0,0,0,.95);
+  }
+
+  .faixa { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--bg2); }
+  .faixaGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 26px 0; text-align: center; }
+  .faixaGrid b { display: block; font-size: clamp(21px, 3vw, 28px); color: var(--amber); font-weight: 800; letter-spacing: -.02em; }
+  .faixaGrid span { font-size: 12.5px; color: var(--muted); line-height: 1.45; display: block; margin-top: 3px; }
+
+  .falas { display: grid; gap: 13px; margin-top: 26px; }
+  .fala {
+    background: var(--surface); border: 1px solid var(--line);
+    border-left: 3px solid #ef6a5a; border-radius: 0 12px 12px 0; padding: 17px 21px;
+    font-size: 17.5px; font-style: italic; color: #dfe6f0;
+  }
+
+  .mods { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 18px; margin-top: 34px; }
+  .mod {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 26px 24px; position: relative; overflow: hidden;
+  }
+  .mod::before {
+    content: ''; position: absolute; inset: 0 0 auto 0; height: 3px;
+    background: linear-gradient(90deg, var(--amber), transparent 70%);
+  }
+  .modNum { font-size: 12px; font-weight: 800; letter-spacing: .16em; color: var(--amber); display: block; margin-bottom: 9px; }
+  .mod h3 { margin-bottom: 8px; }
+  .mod p { color: var(--muted); font-size: 15px; margin: 0 0 12px; }
+  .modTag {
+    display: inline-block; font-size: 11.5px; font-weight: 700; color: #cbd5e1;
+    background: rgba(148,163,184,.12); padding: 4px 11px; border-radius: 999px;
+  }
+
+  .peca { display: grid; grid-template-columns: 1fr 1fr; gap: 46px; align-items: center; margin-bottom: 64px; }
+  .peca:last-child { margin-bottom: 0; }
+  .peca.inverso .pecaArte { order: -1; }
+  .pecaTxt h3 { font-size: 23px; margin-bottom: 12px; }
+  .pecaTxt p { color: var(--muted); font-size: 16px; }
+  .pecaSelo {
+    display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .15em;
+    text-transform: uppercase; color: var(--amber); margin-bottom: 10px;
+  }
+
+  .comp { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 30px; }
+  .compCard { border-radius: var(--radius); padding: 26px 24px; border: 1px solid var(--line); background: var(--surface); }
+  .compCard.mau { opacity: .78; }
+  .compCard.bom { border-color: rgba(247,164,28,.4); background: linear-gradient(180deg, rgba(247,164,28,.1), rgba(247,164,28,.02)); }
+  .compCard h3 { font-size: 17px; margin-bottom: 14px; }
+  .compCard ul { list-style: none; display: grid; gap: 10px; }
+  .compCard li { font-size: 14.5px; color: #cbd5e1; padding-left: 26px; position: relative; }
+  .compCard.mau li::before { content: '✕'; position: absolute; left: 0; color: #ef6a5a; font-weight: 700; }
+  .compCard.bom li::before { content: '✓'; position: absolute; left: 0; color: var(--green); font-weight: 700; }
+
+  .passos { display: grid; gap: 16px; margin-top: 30px; }
+  .passo { display: grid; grid-template-columns: 44px 1fr; gap: 18px; align-items: start; }
+  .passoN {
+    width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+    background: rgba(247,164,28,.12); border: 1px solid rgba(247,164,28,.35);
+    color: var(--amber); font-weight: 800; font-size: 17px;
+  }
+  .passo h3 { font-size: 18px; margin-bottom: 4px; }
+  .passo p { color: var(--muted); font-size: 15.5px; margin: 0; }
+
+  .oferta { background: var(--bg2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .ofertaBox {
+    background: var(--surface); border: 1px solid rgba(247,164,28,.34); border-radius: 22px;
+    padding: 42px 38px; text-align: center; max-width: 760px; margin: 0 auto;
+    box-shadow: 0 30px 80px -40px rgba(247,164,28,.5);
+  }
+  .preco { font-size: clamp(52px, 10vw, 74px); font-weight: 900; color: var(--amber); line-height: 1; letter-spacing: -.035em; margin: 8px 0 6px; }
+  .preco small { font-size: .34em; font-weight: 700; letter-spacing: 0; color: var(--muted); }
+  .ofertaLista { list-style: none; display: grid; gap: 11px; text-align: left; max-width: 480px; margin: 26px auto 30px; }
+  .ofertaLista li { position: relative; padding-left: 28px; font-size: 15.5px; color: #d5deea; }
+  .ofertaLista li::before { content: '✓'; position: absolute; left: 0; color: var(--green); font-weight: 800; }
+
+  .garantia {
+    display: flex; gap: 15px; align-items: flex-start; text-align: left;
+    background: rgba(148,163,184,.07); border: 1px solid var(--line);
+    border-radius: 14px; padding: 20px 22px; margin-top: 28px;
+  }
+  .garantia .selo { flex: none; display: grid; place-items: center; width: 26px; height: 26px; }
+  .garantia p { margin: 0; font-size: 14.5px; color: var(--muted); }
+
+  details {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 13px; padding: 19px 23px; margin-bottom: 12px;
+  }
+  details[open] { border-color: var(--line2); }
+  summary {
+    cursor: pointer; font-weight: 700; font-size: 16.5px; list-style: none;
+    display: flex; justify-content: space-between; gap: 16px; align-items: center;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: '+'; color: var(--amber); font-size: 23px; font-weight: 400; flex: none; line-height: 1; }
+  details[open] summary::after { content: '−'; }
+  details p { color: var(--muted); font-size: 15.5px; margin: 13px 0 0; }
+
+  footer { padding: 44px 0 66px; text-align: center; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
+  footer a { color: var(--muted); }
+
+  .barra {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+    background: rgba(8,13,24,.96); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line2); padding: 11px 16px; display: none;
+  }
+  .barra .cta { width: 100%; padding: 15px 20px; font-size: 16px; }
+
+  @media (max-width: 900px) {
+    .heroGrid, .peca { grid-template-columns: 1fr; gap: 34px; }
+    .peca.inverso .pecaArte { order: 0; }
+    .comp { grid-template-columns: 1fr; }
+    .faixaGrid { grid-template-columns: repeat(3, 1fr); gap: 18px 6px; }
+    .heroCel { display: none; }
+  }
+  @media (max-width: 720px) {
+    section { padding: 52px 0; }
+    .barra { display: block; }
+    body { padding-bottom: 80px; }
+    .ofertaBox { padding: 32px 22px; }
+    .peca .janela { overflow: hidden; }
+    .peca .janela img {
+      width: 152%; max-width: none;
+      -webkit-mask-image: linear-gradient(90deg, #000 82%, transparent 100%);
+      mask-image: linear-gradient(90deg, #000 82%, transparent 100%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+    html { scroll-behavior: auto; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topo">
+  <div class="wrap">
+    <span class="marca">SolarDoc <span>Pro</span></span>
+    <span class="topoSelo">Acesso imediato · 7 dias de garantia</span>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap heroGrid">
+    <div>
+      <span class="eyebrow">Para integrador que vende sistema isolado</span>
+      <p class="heroAspas">“E quanto tempo essa bateria aguenta sem sol?”</p>
+      <h1>Você tem que responder isso na hora — e <span class="amber">chutar derruba a venda</span></h1>
+      <p class="heroSub">A ferramenta de off-grid dimensiona o sistema inteiro e responde essa pergunta com número, em três cenários, na frente do cliente. Sem planilha e sem esperar cotação.</p>
+      <ul class="bullets">
+        <li>Painéis, banco de baterias, inversor e a ligação em série/paralelo</li>
+        <li>A autonomia em três cenários: só o essencial, a casa inteira e dia de chuva</li>
+        <li>Preço do kit com frete até a obra, calculado pelo CEP</li>
+        <li>Proposta em PDF com a sua marca, o seu preço e as suas parcelas</li>
+        <li>Comparativo de 10 anos contra puxar rede e contra gerador a diesel</li>
+      </ul>
+      <a href="https://pay.kiwify.com.br/Je9pKBV" class="cta" data-cta="hero">Quero a ferramenta por R$ 97 →</a>
+      <span class="ctaNota">Dimensionar é de graça · os R$ 97 voltam como abatimento se pedir o kit</span>
+    </div>
+
+    <div class="heroArte">
+      <div class="janela">
+        <div class="janelaBarra"><i></i><i></i><i></i><span class="janelaUrl">solardoc.app/off-grid</span></div>
+        <img src="/dimensionamento/img/tela.webp" alt="Tela do Dimensionamento Off-Grid dentro da plataforma SolarDoc" fetchpriority="high">
+      </div>
+      <img class="heroCel" src="/dimensionamento/img/celular.webp" loading="lazy" alt="A mesma tela no celular">
+    </div>
+  </div>
+</header>
+
+<div class="faixa">
+  <div class="wrap faixaGrid">
+    <div><b>70</b><span>aparelhos no catálogo, da lâmpada à ordenhadeira</span></div>
+    <div><b>3</b><span>cenários de autonomia com número</span></div>
+    <div><b>10 anos</b><span>de comparativo contra rede e diesel</span></div>
+    <div><b>R$ 97</b><span>uma vez, e volta no primeiro pedido</span></div>
+    <div><b>minutos</b><span>do primeiro clique ao PDF pronto</span></div>
+  </div>
+</div>
+
+<section>
+  <div class="wrap narrow">
+    <h2>A venda de off-grid não trava no preço. Trava na pergunta.</h2>
+    <div class="falas">
+      <p class="fala">“Quanto tempo aguenta se ficar três dias chovendo?”</p>
+      <p class="fala">“E se eu ligar o chuveiro também, dá?”</p>
+      <p class="fala">“O vizinho pagou menos, por que o seu é mais caro?”</p>
+    </div>
+    <p class="muted" style="margin-top:26px">Chutar a resposta derruba a confiança na hora. Calcular na mão leva meia hora, você fica sem responder na visita e ainda erra o mês de inverno — que é justamente o que decide o tamanho do banco de baterias.</p>
+  </div>
+</section>
+
+<section style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+  <div class="wrap">
+    <div class="narrow" style="text-align:center">
+      <span class="eyebrow">O que você recebe</span>
+      <h2>O sistema dimensionado e a proposta, no mesmo lugar</h2>
+    </div>
+    <div class="mods">
+      <div class="mod">
+        <span class="modNum">01</span>
+        <h3>O dimensionamento completo</h3>
+        <p>Painéis, banco de baterias, inversor e controlador — com a ligação em série e paralelo já resolvida. Você marca o que o cliente vai ligar e a conta é da ferramenta.</p>
+        <span class="modTag">70 aparelhos no catálogo</span>
+      </div>
+      <div class="mod">
+        <span class="modNum">02</span>
+        <h3>A autonomia com número</h3>
+        <p>Três cenários prontos: só o essencial, a casa inteira e o dia de chuva. É a resposta para a pergunta que trava a venda, e ela sai enquanto o cliente está na sua frente.</p>
+        <span class="modTag">A pergunta que decide</span>
+      </div>
+      <div class="mod">
+        <span class="modNum">03</span>
+        <h3>O preço do kit com frete</h3>
+        <p>Digite o CEP e veja o fornecimento fechado, com o frete de Uberlândia até a obra. Sem pedir cotação e sem sumir dois dias esperando resposta.</p>
+        <span class="modTag">Sem cotação</span>
+      </div>
+      <div class="mod">
+        <span class="modNum">04</span>
+        <h3>A proposta com a sua marca</h3>
+        <p>PDF com a sua logo, as suas cores, o seu preço e as suas parcelas. Custo e margem ficam na sua tela — o cliente nunca vê o nosso nome.</p>
+        <span class="modTag">White-label</span>
+      </div>
+      <div class="mod">
+        <span class="modNum">05</span>
+        <h3>O comparativo de 10 anos</h3>
+        <p>Contra puxar rede e contra gerador a diesel, com os números do ano a ano. É o argumento que ganha obra em sítio e quase ninguém tem na ponta da língua.</p>
+        <span class="modTag">Ganha a conversa do poste</span>
+      </div>
+      <div class="mod">
+        <span class="modNum">06</span>
+        <h3>O surto de partida na conta</h3>
+        <p>Bomba puxa de 3 a 5 vezes a potência quando liga. A ferramenta dimensiona para o pico — inversor que desarma na primeira partida é o defeito mais caro do off-grid.</p>
+        <span class="modTag">Não erra o inversor</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="narrow" style="text-align:center;margin-bottom:48px">
+      <span class="eyebrow">Por dentro</span>
+      <h2>É assim que ela funciona</h2>
+    </div>
+    <div class="peca">
+      <div class="pecaTxt">
+        <span class="pecaSelo">Por dentro</span>
+        <h3>Marque o aparelho, não a potência</h3>
+        <p>Geladeira, luz, bomba, ar-condicionado, ordenhadeira. São 70 aparelhos com a potência já preenchida e o consumo por hora calculado. Se preferir, digite direto o kWh da conta de luz.</p>
+      </div>
+      <div class="pecaArte">
+      <div class="janela">
+        <div class="janelaBarra"><i></i><i></i><i></i><span class="janelaUrl">solardoc.app/off-grid</span></div>
+        <img src="/dimensionamento/img/tela.webp" alt="Marque o aparelho, não a potência" loading="lazy">
+      </div>
+      </div>
+    </div>
+    <div class="peca inverso">
+      <div class="pecaTxt">
+        <span class="pecaSelo">Por dentro</span>
+        <h3>A conta refaz sozinha a cada escolha</h3>
+        <p>Mudou os dias sem sol de um para três? O banco de baterias, o preço e a autonomia mudam na mesma tela, na hora. É a escolha que mais mexe no orçamento e o cliente vê o efeito dela junto com você.</p>
+      </div>
+      <div class="pecaArte">
+      <div class="janela">
+        <div class="janelaBarra"><i></i><i></i><i></i><span class="janelaUrl">solardoc.app/off-grid</span></div>
+        <img src="/dimensionamento/img/celular.webp" alt="A conta refaz sozinha a cada escolha" loading="lazy">
+      </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+  <div class="wrap">
+    <div class="narrow" style="text-align:center">
+      <span class="eyebrow">A diferença que importa</span>
+      <h2>Voltar com a obra ou voltar para pensar</h2>
+    </div>
+    <div class="comp">
+      <div class="compCard mau">
+        <h3>Dimensionando no olho</h3>
+        <ul>
+          <li>Chuta a autonomia e perde a confiança</li>
+          <li>Meia hora de conta e o inverno sai errado</li>
+          <li>Pede cotação e some por dois dias</li>
+          <li>Proposta em Word, sem comparativo</li>
+          <li>Esquece o surto e o inversor desarma</li>
+        </ul>
+      </div>
+      <div class="compCard bom">
+        <h3>Com o Dimensionamento Off-Grid</h3>
+        <ul>
+          <li>Três cenários de autonomia com número</li>
+          <li>O sistema inteiro em minutos, com dia de chuva</li>
+          <li>Preço com frete na hora, pelo CEP</li>
+          <li>PDF com a sua marca e o comparativo junto</li>
+          <li>Dimensionado para o pico de partida</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap narrow">
+    <span class="eyebrow">Como funciona</span>
+    <h2>Três passos, e você sai com a proposta</h2>
+    <div class="passos">
+      <div class="passo">
+        <span class="passoN">1</span>
+        <div><h3>Marque o que vai ligar</h3><p>Abra a lista e vá marcando. Ou digite o kWh da conta, se o cliente já souber.</p></div>
+      </div>
+      <div class="passo">
+        <span class="passoN">2</span>
+        <div><h3>Diga quantos dias sem sol</h3><p>Um? Três? Só o essencial ou a casa inteira? A tela mostra o efeito no preço na hora.</p></div>
+      </div>
+      <div class="passo">
+        <span class="passoN">3</span>
+        <div><h3>Leve a proposta pronta</h3><p>Kit dimensionado, autonomia com número, preço com frete e o PDF com a sua marca.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="oferta" id="comprar">
+  <div class="wrap">
+    <div class="ofertaBox">
+      <span class="eyebrow">Acesso imediato</span>
+      <h2 style="margin-bottom:6px">Custa menos que uma visita perdida em sítio</h2>
+      <div class="preco">R$ 97<small> à vista</small></div>
+      <p class="muted" style="font-size:14.5px">pagamento único · acesso enquanto sua conta existir</p>
+      <ul class="ofertaLista">
+        <li>Dimensionamento completo, com série e paralelo resolvidos</li>
+        <li>Autonomia em três cenários, com número</li>
+        <li>Preço do kit com frete até a obra, pelo CEP</li>
+        <li>Proposta em PDF com a sua marca e o seu preço</li>
+        <li>Comparativo de 10 anos contra rede e diesel</li>
+        <li>Pedido do kit direto com a gente, orçamento travado</li>
+      </ul>
+      <a href="https://pay.kiwify.com.br/Je9pKBV" class="cta" data-cta="oferta">Quero a ferramenta por R$ 97 →</a>
+      <span class="ctaNota">Dimensionar é de graça · os R$ 97 voltam como abatimento se pedir o kit</span>
+      <div class="garantia">
+        <span class="selo amber">✓</span>
+        <p><strong>7 dias para pedir o dinheiro de volta.</strong> Comprou, entrou e não era o que
+        você esperava? Pede o reembolso e a gente devolve, sem discussão. É o prazo de arrependimento
+        que a lei te dá em compra pela internet — a gente só está lembrando que ele existe.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap narrow">
+    <h2>Perguntas que todo mundo faz</h2>
+    <details>
+      <summary>Preciso entender de cálculo para usar?</summary>
+      <p>Não. Você marca aparelho e responde duas perguntas; a conta é da ferramenta. O que ela pede é o que o cliente já te falou — o que ele quer ligar e quanto tempo precisa aguentar sem sol.</p>
+    </details>
+    <details>
+      <summary>O preço do kit é o que eu vendo?</summary>
+      <p>Não. O que aparece é o nosso fornecimento com frete. Você põe a sua margem em cima e a proposta sai com o SEU preço. Custo e margem ficam na sua tela, nunca no PDF do cliente.</p>
+    </details>
+    <details>
+      <summary>Sou obrigado a comprar o kit de vocês?</summary>
+      <p>Não. Dimensionar e ver a autonomia é grátis para todo mundo, e você compra o material onde quiser. Se pedir para a gente, os R$ 97 voltam como abatimento no primeiro pedido.</p>
+    </details>
+    <details>
+      <summary>Serve para sistema híbrido, com rede?</summary>
+      <p>A ferramenta foi feita para o isolado — sítio, chácara, ponto sem rede. Num híbrido ela ajuda a dimensionar o banco, mas a conta de compensação da rede não entra.</p>
+    </details>
+    <details>
+      <summary>Como recebo o acesso?</summary>
+      <p>Depois do pagamento você recebe um e-mail para criar a sua senha, e a ferramenta abre na hora. Se você já tem conta no SolarDoc, ela libera sozinha na sua conta.</p>
+    </details>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap narrow" style="text-align:center">
+    <h2>A próxima visita ao sítio pode terminar com a proposta assinada</h2>
+    <p class="muted">Dimensionar é de graça — teste antes de pagar qualquer coisa. Os R$ 97 liberam a proposta em PDF com a sua marca, o preço do kit com frete e o comparativo que ganha a conversa.</p>
+    <a href="https://pay.kiwify.com.br/Je9pKBV" class="cta" data-cta="final">Quero a ferramenta por R$ 97 →</a>
+    <span class="ctaNota">Dimensionar é de graça · os R$ 97 voltam como abatimento se pedir o kit</span>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>SolarDoc Pro — documentos e ferramentas para integradores solares</p>
+    <p>Dúvidas: <a href="https://wa.me/5534991360223">WhatsApp (34) 99136-0223</a> ·
+       <a href="/privacidade/">Privacidade</a></p>
+  </div>
+</footer>
+
+<div class="barra">
+  <a href="https://pay.kiwify.com.br/Je9pKBV" class="cta" data-cta="barra">Quero a ferramenta por R$ 97 →</a>
+</div>
+
+</body>
+</html>
