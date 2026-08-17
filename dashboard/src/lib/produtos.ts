@@ -417,7 +417,16 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
     // O checkout de verdade é o mesmo que a LP do limpapro.solardoc.app usa.
     // Sem ele, o botão "Comprar" abria uma conversa no WhatsApp em vez de
     // cobrar — a pessoa estava com a carteira na mão e virava lead.
-    checkout: process.env.NEXT_PUBLIC_LIMPAPRO_CHECKOUT_URL || 'https://pay.kiwify.com.br/ai1',
+    //
+    // ERA `/ai1`, e `/ai1` NÃO É CHECKOUT: é a página de taxas e FAQ da própria
+    // Kiwify. Truncamento de `ai1ESlS` que passou meses fingindo funcionar,
+    // porque responde 200 e abre um site bonito. Quem clicava em "Comprar
+    // LimpaPro" dentro do app não tinha como pagar.
+    //
+    // A LP oferece TRÊS degraus do mesmo curso: FUnHg3d R$ 47, ai1ESlS R$ 60 e
+    // ZDGTGk2 R$ 77. Aqui vai o de R$ 47 porque é o preço que este card anuncia
+    // — cobrar R$ 60 num card escrito R$ 47 é pior do que o botão quebrado.
+    checkout: process.env.NEXT_PUBLIC_LIMPAPRO_CHECKOUT_URL || 'https://pay.kiwify.com.br/FUnHg3d',
     lpPropria: 'https://limpapro.solardoc.app',
     mockup: 'curso',
     cor: '#15803D',
