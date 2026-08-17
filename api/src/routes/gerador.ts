@@ -16,6 +16,7 @@ import {
 } from '../services/asaas/asaasCobrancas';
 import { montarPlanoCobranca, sanearPlano } from '../services/asaas/cobrancaBrief';
 import { buscarTaxas, ambienteAsaas } from '../services/asaas/asaasTaxas';
+import { TRELLO_BOARD_ID } from '../services/insightsService';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -431,6 +432,99 @@ router.post('/cobranca/antecipar', async (req: Request, res: Response) => {
   } catch (err: any) {
     logger.error('gerador', 'cobranca/antecipar falhou', err);
     res.status(400).json({ error: String(err?.message || err) });
+  }
+});
+
+// ── TRELLO (situação do cliente) ─────────────────────────────────────────────
+// A aba Recibo/Contrato mostra em que lista do quadro de homologação o cliente
+// está — "DAR ENTRADA", "PROJETO EM ANALISE", "VISTORIA LIBERADA".
+//
+// Sem credencial nenhuma: o quadro é PÚBLICO e já é lido assim pelo
+// insightsService desde antes. Trello serve board público em
+// `trello.com/1/boards/{id}` sem key nem token, e é o mesmo id — importado de
+// lá, não copiado, pra não existirem dois quadros no dia em que um mudar.
+//
+// Se um dia o quadro fechar, basta preencher TRELLO_KEY e TRELLO_TOKEN: o
+// código passa a assinar a chamada sozinho. Rota aberta como o resto do
+// /gerador porque devolve o que já está público na internet.
+function normalizar(s: string): string {
+  return String(s || '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+interface TrelloCard {
+  id: string; name: string; idList: string;
+  due?: string | null; shortUrl?: string; url?: string;
+  labels?: Array<{ name?: string }>;
+}
+
+router.get('/trello', async (req: Request, res: Response) => {
+  const board = String(process.env.TRELLO_BOARD_ID || '').trim() || TRELLO_BOARD_ID;
+  const cliente = normalizar(String(req.query.cliente || ''));
+  const num = String(req.query.num || '').replace(/\D/g, '');
+  if (!cliente) { res.status(400).json({ error: 'informe o cliente' }); return; }
+
+  const key = String(process.env.TRELLO_KEY || '').trim();
+  const tok = String(process.env.TRELLO_TOKEN || '').trim();
+  const auth = key && tok ? `&key=${key}&token=${tok}` : '';
+  const url = `https://trello.com/1/boards/${board}?lists=open&cards=open&fields=name` +
+    `&list_fields=name&card_fields=name,idList,due,shortUrl,labels${auth}`;
+
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 10_000);
+  try {
+    const r = await fetch(url, { signal: ctrl.signal });
+    if (!r.ok) throw new Error(`Trello respondeu ${r.status}${r.status === 401 ? ' — o quadro deixou de ser público' : ''}`);
+    const quadro = await r.json() as { name?: string; lists?: Array<{ id: string; name: string }>; cards?: TrelloCard[] };
+    const listas = quadro.lists || [];
+    const cartoes = quadro.cards || [];
+
+    // Casamento por PALAVRA, não por igualdade: no quadro o cartão é
+    // "ELETROPOSTO #0001 - Bruno Martins Lages - Itaobim MG" e a pasta diz
+    // "#0001 - Bruno Lages - Itaobim MG". O número da pasta vale um ponto extra
+    // porque é o identificador que as duas pontas já compartilham.
+    const palavras = cliente.split(' ').filter((p) => p.length >= 3);
+    let melhor: { c: TrelloCard; pontos: number } | null = null;
+    let empatado = false;
+    for (const c of cartoes) {
+      const nome = normalizar(c.name);
+      let pontos = palavras.filter((p) => nome.includes(p)).length;
+      if (!pontos) continue;
+      if (num && c.name.replace(/\D/g, '').includes(num)) pontos += 2;
+      if (!melhor || pontos > melhor.pontos) { melhor = { c, pontos }; empatado = false; }
+      else if (pontos === melhor.pontos) empatado = true;
+    }
+
+    // Ordem importa na explicação: um sobrenome comum casa 1 ponto em vários
+    // cartões, e responder "mais de um parecido" pra quem nem está no quadro
+    // manda o consultor procurar o que não existe.
+    if (!melhor || melhor.pontos < 2) {
+      res.json({ ok: true, quadro: quadro.name || null, cartao: null, motivo: 'nenhum cartão casou' });
+      return;
+    }
+    if (empatado) {
+      res.json({ ok: true, quadro: quadro.name || null, cartao: null, motivo: 'mais de um cartão parecido' });
+      return;
+    }
+
+    const c = melhor.c;
+    res.json({
+      ok: true,
+      quadro: quadro.name || null,
+      cartao: {
+        nome: c.name,
+        lista: listas.find((l) => l.id === c.idList)?.name || null,
+        etiquetas: (c.labels || []).map((e) => e.name).filter(Boolean),
+        prazo: c.due ? new Date(c.due).toLocaleDateString('pt-BR') : null,
+        url: c.shortUrl || c.url || null,
+      },
+    });
+  } catch (err: any) {
+    logger.warn('gerador', 'trello falhou', String(err?.message || err));
+    res.status(502).json({ error: String(err?.message || err) });
+  } finally {
+    clearTimeout(t);
   }
 });
 

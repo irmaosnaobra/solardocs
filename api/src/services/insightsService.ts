@@ -11,7 +11,10 @@
 import { logger } from '../utils/logger';
 
 const PLANILHA_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSvd79xaG3qQwyko6BegyUaZmvd0B1FmtkaN9Oafm3qmU5yY86T2qA0EP_CysGf6bpRjxCccMOiqLxp/pub?output=csv';
-const TRELLO_BOARD_ID = '678a89a047242f02d443f8e0';
+// Exportado porque a aba Recibo/Contrato do /gerador procura o cartão do
+// cliente NESTE mesmo quadro — dois ids soltos viravam dois quadros diferentes
+// no dia em que um deles fosse trocado.
+export const TRELLO_BOARD_ID = '678a89a047242f02d443f8e0';
 const TRELLO_API = `https://trello.com/1/boards/${TRELLO_BOARD_ID}?lists=open&cards=open&fields=name&list_fields=name&card_fields=name,idList,due,dateLastActivity`;
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h — atualiza 1x/dia (pre-warm pelo master cron das 9h)
