@@ -2372,6 +2372,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <button type="button" id="eletro-tab-orcamento" class="eletro-subtab" onclick="eletroSubaba('orcamento')">Orçamento</button>
       <button type="button" id="eletro-tab-recibo" class="eletro-subtab" onclick="eletroSubaba('recibo')">Recibo</button>
       <button type="button" id="eletro-tab-contrato" class="eletro-subtab" onclick="eletroSubaba('contrato')">Contrato</button>
+      <button type="button" id="eletro-tab-procuracao" class="eletro-subtab" onclick="eletroSubaba('procuracao')">Procuração</button>
       <button type="button" id="eletro-tab-historico" class="eletro-subtab" onclick="eletroSubaba('historico')">Histórico</button>
       <button type="button" id="eletro-tab-pesquisa" class="eletro-subtab" onclick="eletroSubaba('pesquisa')">Pesquisa</button>
       <button type="button" id="eletro-tab-mercado" class="eletro-subtab" onclick="eletroSubaba('mercado')">Mercado</button>
@@ -2822,6 +2823,59 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       </div>
     </div>
     </div><!-- /eletro-pane-contrato -->
+
+    <!-- ===== PANE: PROCURAÇÃO (representação junto à concessionária) ===== -->
+    <div id="eletro-pane-procuracao" style="display:none;">
+    <div class="pesquisa-info">Sem ela a concessionária não fala com você: quem pede aumento de carga, acesso ou troca de padrão tem que ser o <b>titular</b> da unidade consumidora. A procuração passa esse direito pra sua empresa até a estação ligar.</div>
+    <div class="orc-wrap">
+      <div class="ep-pasta-host"></div>
+
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Outorgante (o cliente)</div>
+        <div class="orc-cli-banner" id="proc-partes-banner">—</div>
+        <div class="orc-note" style="margin-top:10px;margin-bottom:12px">Nome, CPF/CNPJ e endereço vêm do <b>Orçamento</b>. Preencha abaixo só se quem assina a procuração for diferente de quem negociou — e atenção: o endereço tem que ser <b>igual ao da conta de energia</b>, senão a concessionária devolve.</div>
+        <div class="eletro-field"><label>Outorgante (nome ou razão social)</label>
+          <input type="text" id="proc-outorgante" placeholder="deixe em branco para usar o cliente do Orçamento"></div>
+        <div class="eletro-field"><label>CPF/CNPJ do outorgante</label>
+          <input type="text" id="proc-outorgante-doc" placeholder="deixe em branco para usar o do Orçamento"></div>
+        <div class="eletro-field"><label>Endereço (idêntico ao da conta de energia)</label>
+          <input type="text" id="proc-outorgante-end" placeholder="deixe em branco para usar o do Orçamento"></div>
+        <div class="eletro-field"><label>Representante legal, se for empresa</label>
+          <input type="text" id="proc-rep" placeholder="nome de quem assina pela empresa"></div>
+        <div class="eletro-field"><label>CPF do representante</label>
+          <input type="text" id="proc-rep-doc" placeholder="opcional"></div>
+      </div>
+
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Unidade consumidora</div>
+        <div class="orc-note" style="margin-bottom:12px">Os dois campos saem da <b>conta de energia</b> do cliente. Procuração sem o número da instalação volta do balcão — é por ele que a concessionária acha o cadastro.</div>
+        <div class="eletro-field"><label>Concessionária</label>
+          <input type="text" id="proc-concessionaria" placeholder="CEMIG, Neoenergia, Enel..."></div>
+        <div class="eletro-field"><label>Unidade consumidora / nº da instalação</label>
+          <input type="text" id="proc-uc" placeholder="o número que aparece na conta"></div>
+        <div class="eletro-field"><label>Endereço do ponto de recarga</label>
+          <input type="text" id="proc-local" placeholder="onde a estação vai ser instalada"></div>
+      </div>
+
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Documento</div>
+        <div class="eletro-field"><label>Cidade da assinatura</label>
+          <input type="text" id="proc-cidade" placeholder="usa a cidade do Simulador"></div>
+        <div class="eletro-field"><label>Data</label>
+          <input type="date" id="proc-data"></div>
+        <div class="eletro-field"><label>Validade</label>
+          <select id="proc-validade">
+            <option value="atividades">Até concluir a ligação da estação (recomendado)</option>
+            <option value="1ano">1 (um) ano da assinatura</option>
+          </select></div>
+      </div>
+
+      <div class="eletro-acoes">
+        <button type="button" class="eletro-btn primary" onclick="procImprimir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="13" y2="17"></line></svg> Gerar procuração PDF</button>
+      </div>
+    </div>
+    </div><!-- /eletro-pane-procuracao -->
+
 
     <!-- ===== PANE: HISTÓRICO (orçamentos de eletroposto salvos) ===== -->
     <div id="eletro-pane-historico" style="display:none;">
@@ -6108,7 +6162,7 @@ function navEletroposto() {
 
 // Sub-abas dentro do Eletroposto: Simulador | Histórico | Pesquisa | Mercado | Postos | Mapa
 function eletroSubaba(qual) {
-  const abas = ['simulador', 'orcamento', 'recibo', 'contrato', 'historico', 'pesquisa', 'mercado', 'postos', 'mapa'];
+  const abas = ['simulador', 'orcamento', 'recibo', 'contrato', 'procuracao', 'historico', 'pesquisa', 'mercado', 'postos', 'mapa'];
   // A cada abertura: monta a lista de potências (uma vez) e tenta completar o
   // vendedor. Fica aqui, e não só no load, porque o cadastro de consultores
   // carrega assíncrono — na primeira abertura o telefone ainda pode não existir.
@@ -6118,12 +6172,13 @@ function eletroSubaba(qual) {
   // Recibo e Contrato vivem dos campos do Orçamento (valor, CPF/endereço,
   // empresa). Abrir um deles como PRIMEIRA aba, sem nunca passar no Orçamento,
   // deixava valor, data e cláusula em branco — orcInit é quem preenche tudo isso.
-  if (qual === 'orcamento' || qual === 'recibo' || qual === 'contrato') orcInit();
+  if (qual === 'orcamento' || qual === 'recibo' || qual === 'contrato' || qual === 'procuracao') orcInit();
   // Depois do orcInit, nunca antes: a pasta só preenche campo vazio, e é o
   // orcInit que decide quais campos nascem preenchidos.
-  if (qual === 'orcamento' || qual === 'recibo' || qual === 'contrato') epPastaAuto();
+  if (qual === 'orcamento' || qual === 'recibo' || qual === 'contrato' || qual === 'procuracao') epPastaAuto();
   if (qual === 'recibo') recBanner();
   if (qual === 'contrato') ctrInit();
+  if (qual === 'procuracao') procInit();
   abas.forEach(a => {
     const pane = document.getElementById('eletro-pane-' + a);
     if (pane) pane.style.display = (a === qual) ? '' : 'none';
@@ -8918,6 +8973,132 @@ function ctrImprimir() {
     titulo: 'Contrato' + (d.cliente ? ' — ' + d.cliente : ''),
     opts: null,
     hist: d.cliente ? { id: epId(), tipo: 'Contrato', cliente: d.cliente, valor: d.total, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
+  });
+}
+
+
+// ════════════════════════════════════════════════════════════
+// PROCURACAO — representacao do cliente junto a' concessionaria
+// ════════════════════════════════════════════════════════════
+// Sem este papel a concessionaria nao atende: quem pede aumento de carga,
+// solicitacao de acesso ou troca de padrao tem que ser o TITULAR da unidade
+// consumidora. A procuracao transfere esse direito pra empresa ate' a estacao
+// ligar.
+//
+// O texto sai do modelo 3 da plataforma (procuracaoM3, templateService.ts), que
+// e' a procuracao ANEEL ja' usada em producao. O que MUDOU aqui sao os poderes:
+// la' eles descrevem homologacao SOLAR (TRT, formulario de rateio, "geracao de
+// energia solar fotovoltaica"); num eletroposto o que se pede e' aumento de
+// carga, acesso, nova ligacao e troca de padrao. Procuracao falando em geracao
+// solar pra ligar estacao de recarga e' o instrumento errado na cara do balcao.
+
+function procBanner() {
+  const t = eletroTextos();
+  const el = document.getElementById('proc-partes-banner');
+  if (!el) return;
+  const partes = [t.cliente, orcVal('orc-cli-doc'), orcVal('orc-cli-end')].filter(Boolean);
+  el.textContent = partes.length ? partes.join(' · ') : '—';
+}
+
+function procInit() {
+  // Data e cidade nascem preenchidas; o resto herda do Orcamento na hora de
+  // gerar, pra o consultor nao ter que redigitar o que ja' existe.
+  const d = document.getElementById('proc-data');
+  if (d && !d.value) d.value = orcHojeISO();
+  const c = document.getElementById('proc-cidade');
+  if (c && !c.value) c.value = eletroTextos().cidade || '';
+  const l = document.getElementById('proc-local');
+  if (l && !l.value) l.value = orcVal('orc-cli-end') || '';
+  procBanner();
+}
+
+function procDados() {
+  const t = eletroTextos();
+  const emp = epEmitGet();
+  const dISO = orcVal('proc-data') || orcHojeISO();
+  return {
+    data: new Date(dISO + 'T00:00:00'),
+    cliente: t.cliente,
+    cidade: orcVal('proc-cidade') || t.cidade,
+    outorgante: orcVal('proc-outorgante') || t.cliente,
+    outorganteDoc: orcVal('proc-outorgante-doc') || orcVal('orc-cli-doc'),
+    outorganteEnd: orcVal('proc-outorgante-end') || orcVal('orc-cli-end'),
+    cep: orcVal('orc-cli-cep'),
+    rep: orcVal('proc-rep'), repDoc: orcVal('proc-rep-doc'),
+    concessionaria: orcVal('proc-concessionaria'),
+    uc: orcVal('proc-uc'),
+    local: orcVal('proc-local') || orcVal('orc-cli-end'),
+    validade: orcVal('proc-validade') || 'atividades',
+    empresa: emp,
+  };
+}
+
+function procHTML(d) {
+  const e = orcEsc;
+  const vazio = v => v ? e(v) : '<span class="ep-rec-vazio"></span>';
+  const dataTxt = d.data.toLocaleDateString('pt-BR');
+  const endCli = [d.outorganteEnd, d.cep, d.cidade].filter(Boolean).join(', ');
+  const endEmp = [d.empresa.end, d.empresa.cidade].filter(Boolean).join(', ');
+  const pageFoot = `<div class="ep-pagefoot"><span>Procuração — representação junto à concessionária${d.cliente ? ' · ' + e(d.cliente) : ''}</span><span>Página 1 de 1</span></div>`;
+
+  const validadeTxt = d.validade === '1ano'
+    ? 'A presente procuração tem validade de <b>1 (um) ano</b> a contar da data de sua assinatura, salvo revogação expressa anterior.'
+    : 'Os efeitos do presente instrumento cessam com o término das atividades nele delimitadas, isto é, com a conclusão da ligação da estação de recarga junto à concessionária.';
+
+  return `<div class="ep-doc">
+    <div class="ep-page">
+      <div class="ep-ctr-topo">
+        <img class="ep-ctr-logo" src="/gerador/logo-eletroposto.png" alt="Irmãos na Obra">
+        <div class="ep-ctr-ident">${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}</div>
+      </div>
+
+      <div class="ep-ctr-tit">Procuração</div>
+      <div class="ep-ctr-sub">Representação junto à concessionária de energia para a estação de recarga</div>
+
+      <p class="ep-ctr-p"><b>OUTORGANTE:</b> ${vazio(d.outorgante)}, inscrito(a) no CPF/CNPJ sob o nº ${vazio(d.outorganteDoc)}${endCli ? ', residente e domiciliado(a) em ' + e(endCli) : ''} <i>(endereço idêntico ao da conta de energia)</i>${d.rep ? `, neste ato representado(a) por <b>${e(d.rep)}</b>${d.repDoc ? ', CPF nº ' + e(d.repDoc) : ''}` : ''}.</p>
+
+      <p class="ep-ctr-p"><b>OUTORGADA:</b> ${vazio(d.empresa.razao || d.empresa.nome)}${d.empresa.fantasia ? `, nome fantasia ${e(d.empresa.fantasia)}` : ''}, inscrita no CNPJ sob o nº ${vazio(d.empresa.cnpj)}${endEmp ? ', com sede em ' + e(endEmp) : ''}, com poderes para representar o OUTORGANTE nos termos deste instrumento.</p>
+
+      <p class="ep-ctr-p">Pelo presente instrumento particular de procuração, o OUTORGANTE acima qualificado nomeia e constitui sua bastante procuradora a OUTORGADA, conferindo-lhe poderes para representá-lo com a <b>finalidade exclusiva</b> de providenciar, requerer e assinar o que for necessário junto à prestadora de serviço de distribuição de energia elétrica <b>${vazio(d.concessionaria)}</b> e à Agência Nacional de Energia Elétrica (ANEEL), referente à unidade consumidora nº <b>${vazio(d.uc)}</b>${d.local ? `, situada em ${e(d.local)}` : ''}.</p>
+
+      <p class="ep-ctr-p">Os poderes ora conferidos compreendem, especificamente:</p>
+      <p class="ep-ctr-li">a) solicitação de acesso e de <b>aumento de carga</b> da unidade consumidora, para atender a demanda da estação de recarga de veículos elétricos;</p>
+      <p class="ep-ctr-li">b) pedido de <b>nova ligação</b>, quando a estação exigir unidade consumidora própria;</p>
+      <p class="ep-ctr-li">c) <b>troca de padrão de entrada</b>, troca de medidor e adequação da instalação às exigências da concessionária;</p>
+      <p class="ep-ctr-li">d) troca de titularidade da unidade consumidora, quando necessária;</p>
+      <p class="ep-ctr-li">e) protocolar requerimentos, prestar e receber informações, retirar documentos e acompanhar o processo até a efetiva ligação da estação;</p>
+      <p class="ep-ctr-li">f) assinar o contrato de fornecimento, o contrato de uso e conexão e demais instrumentos exigidos pela concessionária para a finalidade acima.</p>
+
+      <p class="ep-ctr-p">Insta esclarecer que o presente instrumento <b>não permite o substabelecimento a terceiros</b> e não confere poderes para contrair obrigações financeiras em nome do OUTORGANTE além das tarifas e taxas próprias do processo de ligação.</p>
+
+      <p class="ep-ctr-p">${validadeTxt}</p>
+
+      <p class="ep-ctr-p" style="margin-top:14px">${d.cidade ? e(d.cidade) + ', ' : ''}${e(dataTxt)}.</p>
+
+      <div class="ep-ctr-fim">
+        <div class="ep-ctr-assin">
+          <div class="a"><b>${vazio(d.outorgante)}</b>${d.outorganteDoc ? `<span>CPF/CNPJ ${e(d.outorganteDoc)}</span>` : ''}${d.rep ? e(d.rep) + '<br>' : ''}OUTORGANTE</div>
+          <div class="a"><b>${vazio(d.empresa.razao || d.empresa.nome)}</b>${d.empresa.cnpj ? `<span>CNPJ ${e(d.empresa.cnpj)}</span>` : ''}OUTORGADA</div>
+        </div>
+      </div>
+      ${pageFoot}
+    </div>
+  </div>`;
+}
+
+function procImprimir() {
+  const d = procDados();
+  // A concessionaria devolve procuracao sem numero de instalacao: e' por ele
+  // que ela acha o cadastro. Avisar aqui custa menos que a viagem ao balcao.
+  if (!d.uc) { alert('Preencha a "Unidade consumidora / nº da instalação" — é o número que a concessionária usa pra achar o cadastro. Ele está na conta de energia do cliente.'); return; }
+  if (!d.concessionaria) { alert('Preencha a "Concessionária" — a procuração precisa dizer a quem ela dá poderes.'); return; }
+  const limpa = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
+  epPreview({
+    html: procHTML(d),
+    arquivo: ['Procuracao', limpa(d.cliente) || 'Cliente'].filter(Boolean).join('_'),
+    titulo: 'Procuração' + (d.cliente ? ' — ' + d.cliente : ''),
+    opts: null,
+    hist: d.cliente ? { id: epId(), tipo: 'Procuração', cliente: d.cliente, valor: 0, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
   });
 }
 
