@@ -144,7 +144,11 @@ export function LpConteudo({
 
           <div className={styles.lpDor}>{p.dorTexto}</div>
 
-          <h2 className={styles.lpH2}>{p.titulos?.entrega || 'O que você leva'}</h2>
+          {/* `lpH2` põe CAIXA ALTA, que servia pra etiqueta ("O QUE VOCÊ
+              LEVA") e destrói um argumento — frase inteira em maiúscula lê
+              como grito e cansa. Título que defende alguma coisa usa a mesma
+              régua dos outros. */}
+          <h2 className={styles.lpH2Grande}>{p.titulos?.entrega || 'O que você leva'}</h2>
           <ul className={styles.lpLista}>
             {p.entrega.map((item) => (
               <li key={item}><Check size={15} /> <span>{item}</span></li>
