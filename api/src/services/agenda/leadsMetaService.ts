@@ -268,9 +268,17 @@ function proximoDia(y: number, m: number, d: number): { y: number; m: number; d:
 const DUR_VISTORIA_MS = 60 * 60 * 1000;
 const DUR_APRESENTACAO_MS = 30 * 60 * 1000;
 const DUR_CARD_MS = 15 * 60 * 1000;
-function duracaoDe(createdBy: string | null): number {
+// 17/08: o primeiro contato do solar é LIGAÇÃO, não visita. Na agenda da Nilce
+// isso muda o tamanho do bloco — 15 min, o passo da grade dela — enquanto o
+// bloco de 1 hora dos sócios continua de pé: a grade encaixada de 17/08 foi
+// desenhada com ele, e encolher aqui reabriria horário de eletroposto que o
+// desenho reservou de propósito.
+function duracaoDe(createdBy: string | null, consultor?: string): number {
   const c = String(createdBy || '');
-  if (c === 'lp_solar') return DUR_VISTORIA_MS;
+  if (c === 'lp_solar') {
+    return GRADE_ENCAIXADA.has(String(consultor || '').trim().toLowerCase())
+      ? DUR_VISTORIA_MS : DUR_CARD_MS;
+  }
   return c.includes('eletroposto') ? DUR_APRESENTACAO_MS : DUR_CARD_MS;
 }
 
@@ -287,7 +295,7 @@ async function carregarOcupacao(consultor: string, agoraIso: string) {
   ]);
   const ocupados = (ags || []).map((a: any) => ({
     ini: new Date(a.quando).getTime(),
-    dur: duracaoDe(a.created_by),
+    dur: duracaoDe(a.created_by, consultor),
   }));
   const bloqueios = (blqs || []).map((b: any) => ({ ini: new Date(b.inicio).getTime(), fim: new Date(b.fim).getTime() }));
   return { ocupados, bloqueios };
@@ -335,13 +343,23 @@ function usaGradeEncaixada(consultor: string, produto: 'solar' | 'eletroposto'):
   return produto === 'solar' && GRADE_ENCAIXADA.has(String(consultor || '').trim().toLowerCase());
 }
 
+// Fim da grade SOLAR de quem não está na encaixada (a Nilce): último começo às
+// 16:45. É o turno dela (17/08) — solar acaba mais cedo que o expediente porque
+// depois das 17h a ligação não é atendida. Card de ELETROPOSTO continua indo até
+// o fim do expediente: é o trabalho do turno deles, não a agenda dela.
+const FIM_SOLAR_MIN = 16 * 60 + 45;
+
 // Minutos do dia que este consultor pode receber, na ordem em que são tentados.
-function slotsDoDia(encaixada: boolean, horaIni: number): number[] {
+function slotsDoDia(encaixada: boolean, horaIni: number, produto: 'solar' | 'eletroposto'): number[] {
   if (encaixada) return SLOTS_SOCIOS_SOLAR;
+  const limite = produto === 'solar' ? FIM_SOLAR_MIN : HORA_FIM * 60 - 15;
   const out: number[] = [];
   for (let h = horaIni; h < HORA_FIM; h++)
-    for (let min = 0; min < 60; min += 15) out.push(h * 60 + min);
-  return out;                          // grade de 15 min: o último é 19:45
+    for (let min = 0; min < 60; min += 15) {
+      const t = h * 60 + min;
+      if (t <= limite) out.push(t);
+    }
+  return out;                          // grade de 15 min: solar para em 16:45
 }
 
 // Slot livre pra um consultor FIXO. Respeita bloqueios/ocupação dele,
@@ -366,7 +384,7 @@ export async function slotLivreConsultor(
     const dow = dowSP(y, m, d);
     if (dow !== 0 && dow !== 6) {
       const horaIni = i === 0 && !encaixada ? Math.max(HORA_INI, base.h) : HORA_INI;
-      for (const min of slotsDoDia(encaixada, horaIni)) {
+      for (const min of slotsDoDia(encaixada, horaIni, produto)) {
         const slot = spDate(y, m, d, Math.floor(min / 60), min % 60);
         if (slotDisponivel(slot.getTime(), agora.getTime(), occ)) return slot;
       }
