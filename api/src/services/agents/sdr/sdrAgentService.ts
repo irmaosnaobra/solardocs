@@ -296,7 +296,7 @@ O sistema injeta no contexto os HORÁRIOS DISPONÍVEIS reais. Use SOMENTE eles.
 
 CANAIS:
 - **Ligação ou Meet**: hora a hora, hoje 8h-20h ou próximo dia útil 8h-18h (seg-sex, sem feriado). LISTE TODOS os horários injetados pro lead escolher (ex: "agora, 16h, 17h, 18h, 19h, 20h").
-- **Visita pra fechar venda no endereço**: APENAS em Uberlândia (Diego) ou Araguari (Thiago). Seg-sáb, SÓ DE MANHÃ (8h às 11h) — a tarde deles é de outro compromisso, então NUNCA ofereça visita à tarde nem à noite, mesmo se o lead pedir. Ofereça 2 das opções injetadas.
+- **Visita pra fechar venda no endereço**: APENAS em Uberlândia (Diego) ou Araguari (Thiago). Seg-sáb, e SÓ nos horários injetados abaixo — a agenda deles tem reunião de hora em hora e a visita entra nos intervalos (8h, 8h30, 9h, 9h30, 10h30, 11h30, 13h30, 14h30, 15h30, 16h30, 17h30, 18h30). NUNCA ofereça hora cheia da tarde (14h, 15h…) nem 10h/11h, mesmo se o lead pedir: ofereça a meia-hora vizinha. Ofereça 2 das opções injetadas.
 
 ⚠️ DOMINGO / FERIADO / FORA DO EXPEDIENTE:
 Você TRABALHA todos os dias incluindo domingo e feriado — esses dias o cliente tá em casa, é hora boa pra resgatar conversa. PORÉM consultor humano e técnico SÓ atendem em dia útil:
@@ -478,27 +478,38 @@ function isAvailableDay(d: Date, kind: 'vistoria' | 'remoto'): boolean {
   return true;
 }
 
-// Janela de horário: vistoria SÓ DE MANHÃ (8h-11h), ligação/vídeo 9h-20h.
+// Horários de VISTORIA (a ligação/vídeo tem a própria janela, 9h-20h, logo abaixo).
 //
 // 10/08: a vistoria perdeu a tarde. Quem vai na casa do lead é o Thiago (Araguari)
-// ou o Diego (Uberlândia), e a tarde dos dois é do eletroposto (13:00–17:00) — o
-// "amanhã às 14h" que a Luma oferecia colidia com apresentação já marcada. Ligação
-// e meet não mudam: quem atende ali não precisa sair da cadeira.
+// ou o Diego (Uberlândia), e a tarde dos dois era do eletroposto (13:00–17:00) — o
+// "amanhã às 14h" que a Luma oferecia colidia com apresentação já marcada.
 //
-// `fechamento` é o ÚLTIMO horário de INÍCIO, não o fim da visita: a vistoria leva
-// cerca de 1 hora, então a última começa 11h e termina perto do meio-dia.
-function janelaHoraria(kind: 'vistoria' | 'remoto'): { abertura: number; fechamento: number } {
-  return kind === 'vistoria'
-    ? { abertura: 8, fechamento: 11 }
-    : { abertura: 9, fechamento: 20 };
-}
+// 17/08: a tarde voltou ENCAIXADA, e por isso deixou de ser uma janela e virou uma
+// lista. A LP do eletroposto vende de hora em hora (10:00, 11:00 e 13:00–18:00), e
+// a vistoria mora nas meias-horas que sobram no meio — mais as duas primeiras
+// horas da manhã, que o eletroposto não usa. É a MESMA lista da LP do solar; se
+// mexer numa, mexa na outra, senão a Luma oferece um horário que a página recusa.
+// Ligação e meet não mudam: quem atende ali não precisa sair da cadeira.
+//
+// São horários de INÍCIO — a vistoria leva cerca de 1 hora.
+const SLOTS_VISTORIA = [8 * 60, 8 * 60 + 30, 9 * 60, 9 * 60 + 30, 10 * 60 + 30, 11 * 60 + 30,
+                        13 * 60 + 30, 14 * 60 + 30, 15 * 60 + 30, 16 * 60 + 30, 17 * 60 + 30, 18 * 60 + 30];
+/** Antecedência mínima pra oferecer um horário de HOJE: o consultor precisa sair
+ *  de onde está e chegar no endereço do lead. */
+const VISTORIA_ANTECEDENCIA_MIN = 120;
 
 const NOMES_DIA = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
 
-function fmtData(d: Date, h: number): string {
+/** 510 → "8h30", 480 → "8h" (a Luma fala como gente, não em HH:MM). */
+function fmtHora(min: number): string {
+  const h = Math.floor(min / 60), m = min % 60;
+  return m ? `${h}h${m.toString().padStart(2, '0')}` : `${h}h`;
+}
+
+function fmtData(d: Date, min: number): string {
   const dia = d.getUTCDate().toString().padStart(2, '0');
   const mes = (d.getUTCMonth() + 1).toString().padStart(2, '0');
-  return `${NOMES_DIA[d.getUTCDay()]} ${dia}/${mes} às ${h}h`;
+  return `${NOMES_DIA[d.getUTCDay()]} ${dia}/${mes} às ${fmtHora(min)}`;
 }
 
 // Lista completa de horários pra ligação/meet:
@@ -539,18 +550,16 @@ export function gerarHorariosRemoto(now: Date = new Date()): { titulo: string; h
   return { titulo, horarios };
 }
 
-// Vistoria mantém modelo de 3 opções (Uberlândia/Araguari, seg-sáb, só de manhã)
+// Vistoria mantém modelo de 3 opções (Uberlândia/Araguari, seg-sáb, grade encaixada)
 export function gerarOpcoesVistoria(now: Date = new Date()): string[] {
-  const { abertura, fechamento } = janelaHoraria('vistoria');
   const opcoes: string[] = [];
 
   const brt = new Date(now.getTime() - 3 * 60 * 60 * 1000);
-  const hora = brt.getUTCHours();
-  const isHoje = hora < fechamento && isAvailableDay(brt, 'vistoria');
+  const agoraMin = brt.getUTCHours() * 60 + brt.getUTCMinutes();
 
-  if (isHoje) {
-    const proximaHora = Math.max(hora + 2, abertura);
-    if (proximaHora <= fechamento) opcoes.push(`hoje às ${proximaHora}h`);
+  if (isAvailableDay(brt, 'vistoria')) {
+    const proximo = SLOTS_VISTORIA.find(m => m >= agoraMin + VISTORIA_ANTECEDENCIA_MIN);
+    if (proximo !== undefined) opcoes.push(`hoje às ${fmtHora(proximo)}`);
   }
 
   const cursor = new Date(brt);
@@ -558,9 +567,10 @@ export function gerarOpcoesVistoria(now: Date = new Date()): string[] {
   let count = 0;
   while (opcoes.length < 3 && count < 10) {
     if (isAvailableDay(cursor, 'vistoria')) {
-      opcoes.push(fmtData(cursor, abertura));
-      // segunda opção do dia: meio da manhã. Era 14h — a tarde saiu junto com a janela.
-      if (opcoes.length < 3) opcoes.push(fmtData(cursor, 10));
+      opcoes.push(fmtData(cursor, SLOTS_VISTORIA[0]));                    // 8h, abrindo o dia
+      // segunda opção do dia: uma da TARDE. Com a grade encaixada de 17/08 ela
+      // voltou a existir — oferecer duas de manhã deixava quem trabalha sem opção.
+      if (opcoes.length < 3) opcoes.push(fmtData(cursor, 14 * 60 + 30));
     }
     cursor.setUTCDate(cursor.getUTCDate() + 1);
     count++;
@@ -1230,9 +1240,11 @@ export async function handleSdrLead(
     const horariosVistoria = gerarOpcoesVistoria();
     const cidadeNorm = isUberlandiaCity(leadInfo.cidade) ? 'Uberlândia' : 'Araguari';
     const tecnico = isUberlandiaCity(leadInfo.cidade) ? 'Diego' : 'Thiago';
-    ctxAgendamento += `\n\nVISTORIA PRESENCIAL (${cidadeNorm}, seg-sáb, SÓ DE MANHÃ 8h-11h, com ${tecnico}):\n` +
+    ctxAgendamento += `\n\nVISTORIA PRESENCIAL (${cidadeNorm}, seg-sáb, com ${tecnico}):\n` +
       `  ${horariosVistoria.join(' | ')}\n` +
-      `→ Quando o lead escolher visita, ofereça 2 dessas opções. Mencione que ${tecnico} vai pessoalmente.`;
+      `→ Quando o lead escolher visita, ofereça 2 dessas opções. Mencione que ${tecnico} vai pessoalmente.\n` +
+      `→ A agenda dele só tem ESTES horários: 8h, 8h30, 9h, 9h30, 10h30, 11h30, 13h30, 14h30, 15h30, 16h30, 17h30 e 18h30. ` +
+      `Se o lead pedir 10h, 14h ou qualquer hora cheia da tarde, NÃO aceite — ofereça a meia-hora vizinha ("consigo 14h30, fica bom?").`;
   }
 
   systemPrompt += ctxAgendamento;

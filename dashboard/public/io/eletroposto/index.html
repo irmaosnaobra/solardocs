@@ -1579,7 +1579,7 @@ function calc(){
 // Fecha o que já passou, o que está a menos de 30 min daqui e o horário em que os
 // DOIS consultores já estão ocupados.
 let slotSel = null;
-let compromissos = [];             // [{ts, dono}] — TUDO que já está na agenda do Thiago/Diego
+let compromissos = [];             // [{ts, dono, dur}] — TUDO que já está na agenda do Thiago/Diego
                                    // na janela, de qualquer origem (eletroposto, solar, manual)
 
 // 06/08: Thiago e Diego DESMEMBRARAM a agenda — cada horário recebe 2 reuniões, uma
@@ -1628,9 +1628,14 @@ const isoDe = (ymd, hhmm) => new Date(`${ymd}T${hhmm}:00-03:00`).toISOString();
 //           horários × 2 consultores = 16 reuniões/dia, contra 10 da grade só de
 //           tarde. Vem junto com a vitrine larga logo abaixo: a régua deixou de ser
 //           "concentrar no dia de hoje" e passou a ser "ter horário pra vender".
-//           ATENÇÃO: 10:00 e 11:00 caem dentro da agenda de SOLAR do Thiago e do
-//           Diego (08:00–11:30, regra de 10/08). Quem segura o conflito é a
-//           sobreposição de ±30 min — reunião de solar marcada apaga o slot aqui.
+//   17/08 — a agenda de SOLAR deles se encaixou NESTA. A grade de lá virou 08:00
+//           08:30 09:00 09:30 10:30 11:30 e 13:30–18:30: as meias-horas que sobram
+//           entre estas apresentações. Nenhum horário bate de frente, mas a
+//           vistoria solar é PRESENCIAL e leva 1 hora — uma marcada às 13:30 vai
+//           até 14:30 e come o 14:00 daqui. Quem segura isso é o donosLivres, que
+//           lê a duração de cada compromisso pelo created_by. Mexeu na grade de
+//           lá? confira aqui: dois horários redondos seguidos sem folga no meio
+//           deixam a vistoria sem onde entrar.
 const FAIXAS = [['10:00','11:00'], ['13:00','18:00']];
 const PASSO_MIN = 60;               // 12/08: era 30 — a grade passou a ser de hora em hora
 const emMin = hhmm => Number(hhmm.slice(0,2)) * 60 + Number(hhmm.slice(3,5));
@@ -1671,14 +1676,15 @@ async function carregarOcupados(deYmd, ateYmd){
   try{
     const de  = isoDe(deYmd, '00:00');
     const ate = new Date(new Date(isoDe(ateYmd,'23:59')).getTime()).toISOString();
-    const q = `agendamentos?select=quando,vendedor_nome&quando=gte.${de}&quando=lte.${ate}`
+    const q = `agendamentos?select=quando,vendedor_nome,created_by&quando=gte.${de}&quando=lte.${ate}`
             + `&vendedor_nome=in.(Thiago,Diego)&status=not.in.(cancelado,sem_interesse)`;
     const r = await fetch(`${SUPABASE_URL}/rest/v1/${q}`,
       { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}` } });
     const rows = await r.json();
     compromissos = (Array.isArray(rows)?rows:[])
       .filter(a => a.quando)
-      .map(a => ({ ts: new Date(a.quando).getTime(), dono: String(a.vendedor_nome) }));
+      .map(a => ({ ts: new Date(a.quando).getTime(), dono: String(a.vendedor_nome),
+                   dur: a.created_by === 'lp_solar' ? DUR_VISTORIA_MS : DURACAO_MS }));
   }catch(e){ compromissos = []; }   // falhou: não trava a agenda, valida no envio
 }
 
@@ -1688,16 +1694,26 @@ async function carregarOcupados(deYmd, ateYmd){
  *  tem reunião de solar (created_by lead-meta) em horário quebrado — 14:15, 16:15,
  *  18:05. Enquanto isto batia timestamp exato, o slot das 14:00 aparecia livre com
  *  o consultor em reunião às 14:15: a LP vendia por cima do compromisso dele.
- *  Reunião ocupa a meia hora inteira dos dois lados, então qualquer coisa a menos
- *  de 30 min de distância fecha o horário para aquele consultor.
  *
- *  Isto é a DURAÇÃO da reunião (30 min), não o tamanho do slot — a grade passou a
- *  ser de hora em hora em 12/08 e este número ficou onde estava de propósito: com
- *  60 aqui, um compromisso quebrado às 14:15 mataria também as 15:00, sem motivo. */
+ *  DURACAO_MS é a duração da apresentação (30 min), não o tamanho do slot — a
+ *  grade passou a ser de hora em hora em 12/08 e este número ficou onde estava de
+ *  propósito: com 60 aqui, um compromisso quebrado às 14:15 mataria também as
+ *  15:00, sem motivo.
+ *
+ *  17/08: cada compromisso passou a trazer a PRÓPRIA duração, porque a vistoria
+ *  solar da LP (created_by lp_solar) não é meia hora — o sócio entra no carro e
+ *  fica 1 hora na casa do lead. Com a grade nova de lá, a vistoria começa nas
+ *  meias-horas: um 13:30 vai até 14:30 e portanto derruba o 14:00 daqui (correto,
+ *  ele está na rua), mas NÃO derruba o 13:00, que acaba justo quando ela começa.
+ *  Isto custa um horário de eletroposto por vistoria da tarde — é o preço da
+ *  agenda encaixada, e é melhor que vender uma apresentação por cima da visita. */
 const DURACAO_MS = 30 * 60 * 1000;
+const DUR_VISTORIA_MS = 60 * 60 * 1000;
 function donosLivres(iso){
   const t = new Date(iso).getTime();
-  return DONOS.filter(d => !compromissos.some(c => c.dono === d && Math.abs(c.ts - t) < DURACAO_MS));
+  // [t, t+30min) da apresentação contra [c, c+duração dele) do que já existe
+  return DONOS.filter(d => !compromissos.some(c =>
+    c.dono === d && c.ts < t + DURACAO_MS && t < c.ts + c.dur));
 }
 /** Horário sem vaga nenhuma: os dois consultores comprometidos. */
 const slotCheio = iso => donosLivres(iso).length === 0;

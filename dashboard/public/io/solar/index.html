@@ -761,8 +761,8 @@ function calc(){
   document.getElementById('cb-sem').style.width = '100%';
   document.getElementById('cb-sem').textContent = moneyK(r.gasto25);
   document.getElementById('cb-com').style.width = '18%';
-  // Passou (ou deixou de passar) dos 700 kWh? Muda quem atende — e a tarde
-  // aparece/some junto. Redesenha só na VIRADA: calc() roda a cada pixel do
+  // Passou (ou deixou de passar) dos 700 kWh? Muda quem atende — e a grade de
+  // horário troca junto. Redesenha só na VIRADA: calc() roda a cada pixel do
   // slider. Fica aqui, e não no oninput, porque marcar ar-condicionado/carro
   // elétrico também empurra o consumo (toggleExtra chama calc).
   avaliarTurnoPeloConsumo(r.consumoKwh);
@@ -784,29 +784,37 @@ function medirTemperatura(conta, urgencia, pagamento, decisor, posse){
 
 // ===== AGENDA (vistoria presencial) =====
 // 3 dias rolantes a partir de HOJE, pulando fim de semana e feriado.
-// Seg–Sex, slots de 1 hora, 1 atendimento por horário.
+// Seg–Sex, vistoria de ~1 hora, 1 técnico por horário.
 //
-// 10/08: o TURNO passou a dizer quem atende. A tarde do Thiago e do Diego é do
-// eletroposto (a LP de lá só oferece 13:00–17:00), então vistoria solar às 14h
-// punha a mesma pessoa em dois endereços. Eles só fazem solar de manhã.
+// 12/08: quem atende depende do TAMANHO DA CONTA. Thiago e Diego só pegam lead
+// acima de 700 kWh/mês; abaixo disso é da Nilce. Como o simulador já está em cima
+// do formulário, a página sabe o consumo ANTES de mostrar horário — mexer no valor
+// da conta (ou marcar ar-condicionado/carro elétrico) redesenha a grade na hora: o
+// lead nunca vê um horário que a gente ia recusar depois. Quem já tem dono
+// continua com ele (1 telefone = 1 consultor) e o dono manda na grade: assim que o
+// lead digita o WhatsApp, a página descobre o consultor dele e troca a lista.
 //
-// 12/08: quem atende passou a depender do TAMANHO DA CONTA. Thiago e Diego só
-// pegam lead acima de 700 kWh/mês; abaixo disso é da Nilce, que atende o dia
-// inteiro. Como o simulador já está em cima do formulário, a página sabe o
-// consumo ANTES de mostrar horário — então:
-//   • conta alta (> 700 kWh)  → Thiago/Diego → só MANHÃ (08:00–11:00)
-//   • conta baixa (≤ 700 kWh) → Nilce        → manhã ou TARDE (13:00–16:00)
-// Mexer no valor da conta (ou marcar ar-condicionado/carro elétrico) redesenha a
-// grade na hora: o lead nunca vê um horário que a gente ia recusar depois.
-// Quem já tem dono continua com ele (1 telefone = 1 consultor) e o dono manda no
-// turno: assim que o lead digita o WhatsApp, a página descobre o consultor dele e,
-// se for o Thiago ou o Diego, a tarde some da lista.
+// 17/08: a TARDE dos sócios VOLTOU, encaixada. Em 10/08 ela tinha saído porque a
+// vistoria das 14h caía em cima da apresentação de eletroposto; agora a LP de lá
+// vende de hora em hora (10:00, 11:00 e 13:00–18:00), então a vistoria deles mora
+// nas MEIAS-HORAS que sobram entre uma apresentação e outra. Não é grade de 30 em
+// 30: é a lista fechada que o Thiago pediu — 08:00 e 09:00 ainda cabem inteiras
+// porque o eletroposto só começa às 10:00.
+//   • sócios (conta > 700 kWh) → 08:00 08:30 09:00 09:30 10:30 11:30
+//                                13:30 14:30 15:30 16:30 17:30 18:30
+//   • Nilce  (conta ≤ 700 kWh) → 08:00–11:00 e 13:00–16:00, de hora em hora
+//
+// A vistoria leva ~1 hora (é o que a página promete ao lead), e é por isso que a
+// ocupação aqui virou SOBREPOSIÇÃO por consultor, não "mesmo timestamp": marcar
+// 08:00 apaga o 08:30 daquele sócio (as duas só cabem no mesmo dia se forem de
+// pessoas diferentes), e um 13:30 de vistoria come o 14:00 de eletroposto dele —
+// a LP do eletroposto enxerga isso, ela lê a duração da ficha pelo created_by.
 const KWH_CORTE_TIME = 700;   // mesmo corte do backend (leadSolarFicha.ts)
+const DUR_VISTORIA_MS = 60 * 60 * 1000;   // visita presencial: 1 hora na casa do lead
+const DUR_PADRAO_MS   = 30 * 60 * 1000;   // apresentação de eletroposto / card de lead
 let slotSel = null;
 let donoLead = null;             // consultor que JÁ atende o telefone digitado (null = novo/não sei)
-let ocupados = new Set();        // manhã: agendamento de QUALQUER um dos três fecha
-let ocupadosNilce = new Set();   // tarde: só a agenda da Nilce importa
-const REUNIOES_POR_HORARIO = 1;
+let compromissos = [];           // [{ts, dono, dur}] — a agenda dos três, com duração por tipo
 
 const FERIADOS = new Set([
   '2026-01-01','2026-02-16','2026-02-17','2026-04-03','2026-04-21','2026-05-01',
@@ -823,39 +831,48 @@ function partesBR(d = new Date()){
 }
 const isoDe = (ymd, hhmm) => new Date(`${ymd}T${hhmm}:00-03:00`).toISOString();
 
-// Horários de INÍCIO. A vistoria leva ~1 hora (é o que a página promete ao lead),
-// então a manhã acaba às 11:00 e fecha perto do meio-dia — com visita de 1 hora
-// não existe começo que termine 11:30 cravado. Se um dia a visita encolher, é
-// aqui que entra o 11:30.
-const MANHA = ['08:00','09:00','10:00','11:00'];
-const TARDE = ['13:00','14:00','15:00','16:00'];
-const ehTarde = hhmm => hhmm >= '12:00';
-function gradeDoDia(ymd){
+// Horários de INÍCIO, por quem atende. Os dos sócios são a lista fechada do
+// Thiago (17/08) — as meias-horas que sobram entre as apresentações de eletroposto
+// dele e do Diego, mais as duas primeiras horas da manhã, que o eletroposto não
+// usa. A da Nilce não mudou: ela não tem eletroposto, então segue de hora em hora.
+const SOCIOS = ['Thiago', 'Diego'];
+const GRADE_SOCIOS = ['08:00','08:30','09:00','09:30','10:30','11:30',
+                      '13:30','14:30','15:30','16:30','17:30','18:30'];
+const GRADE_NILCE  = ['08:00','09:00','10:00','11:00','13:00','14:00','15:00','16:00'];
+function gradeDoDia(ymd, dosSocios){
   const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
   if(dow === 0 || dow === 6) return [];        // fim de semana: fechado
   if(FERIADOS.has(ymd)) return [];             // feriado: fechado
-  return MANHA.concat(TARDE);
+  return dosSocios ? GRADE_SOCIOS : GRADE_NILCE;
 }
 async function carregarOcupados(deYmd, ateYmd){
   try{
     const de  = isoDe(deYmd, '00:00');
     const ate = isoDe(ateYmd,'23:59');
-    const q = `agendamentos?select=quando,vendedor_nome&quando=gte.${de}&quando=lte.${ate}`
+    const q = `agendamentos?select=quando,vendedor_nome,created_by&quando=gte.${de}&quando=lte.${ate}`
             + `&vendedor_nome=in.(Nilce,Thiago,Diego)&status=not.in.(cancelado,sem_interesse)`;
     const r = await fetch(`${SUPABASE_URL}/rest/v1/${q}`,
       { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}` } });
     const rows = await r.json();
-    const cont = {};
-    const nilce = new Set();
-    (Array.isArray(rows)?rows:[]).forEach(a=>{
-      if(!a.quando) return;
-      const k = new Date(a.quando).toISOString();
-      cont[k] = (cont[k]||0) + 1;
-      if(a.vendedor_nome === 'Nilce') nilce.add(k);
-    });
-    ocupados = new Set(Object.keys(cont).filter(k => cont[k] >= REUNIOES_POR_HORARIO));
-    ocupadosNilce = nilce;
-  }catch(e){ ocupados = new Set(); ocupadosNilce = new Set(); }
+    compromissos = (Array.isArray(rows)?rows:[]).filter(a=>a.quando).map(a=>({
+      ts: new Date(a.quando).getTime(),
+      dono: String(a.vendedor_nome),
+      // vistoria da LP tira o consultor da rua por 1 hora; o resto (apresentação de
+      // eletroposto, card de lead do Meta) ocupa meia hora e devolve a agenda.
+      dur: a.created_by === 'lp_solar' ? DUR_VISTORIA_MS : DUR_PADRAO_MS,
+    }));
+  }catch(e){ compromissos = []; }   // falhou: não trava a agenda, valida no envio
+}
+/** Dos nomes passados, quem ainda cabe numa vistoria começando em `iso`.
+ *
+ *  Sobreposição de intervalos, não timestamp igual: [t, t+1h) da vistoria contra
+ *  [c, c+duração) do que já existe. Horário colado na ponta NÃO é conflito — é a
+ *  agenda emendando, que é o desenho inteiro da grade nova (13:00 de eletroposto
+ *  acaba 13:30, e é aí que a vistoria começa). */
+function livresEm(iso, nomes){
+  const t = new Date(iso).getTime();
+  return nomes.filter(n => !compromissos.some(c =>
+    c.dono === n && c.ts < t + DUR_VISTORIA_MS && t < c.ts + c.dur));
 }
 // Rodízio da CONTA ALTA (Thiago↔Diego). Lead abaixo do corte vai direto pra
 // Nilce, sem passar por aqui. O contador é quantas fichas da LP já foram pra
@@ -900,20 +917,23 @@ function proximosDias(){
   let d = new Date(`${hoje}T12:00:00-03:00`);
   for(let i=0; i<21 && dias.length<3; i++){
     const ymd = partesBR(d).ymd;
-    if(gradeDoDia(ymd).length && livresDoDia(ymd).length) dias.push(ymd);
+    if(gradeDoDia(ymd, ehLeadDosSocios()).length && livresDoDia(ymd).length) dias.push(ymd);
     d = new Date(d.getTime() + 86400000);
   }
   return dias;
 }
-// Quem vai atender ESTE lead só faz solar de manhã? Dois caminhos:
+// ESTE lead é dos sócios (grade encaixada) ou da Nilce (grade de hora em hora)?
+// Dois caminhos:
 //   • já tem dono, e o dono é o Thiago ou o Diego (1 telefone = 1 consultor);
 //   • é lead novo de conta alta (> 700 kWh) — vai cair no Thiago ou no Diego.
-// Dono manda mais que o consumo: cliente que já é da Nilce continua com ela e
-// enxerga a tarde, mesmo com conta grande. Some com o horário em vez de deixar
-// escolher e recusar depois — quem marca uma hora pra receber técnico em casa não
-// pode ser realocado por baixo do pano.
+// Dono manda mais que o consumo: cliente que já é da Nilce continua com ela e vê a
+// grade dela, mesmo com conta grande. Mostra só o que a gente aceita em vez de
+// deixar escolher e recusar depois — quem marca uma hora pra receber técnico em
+// casa não pode ser realocado por baixo do pano.
 const contaAltaAtual = () => computeSolar().consumoKwh > KWH_CORTE_TIME;
-const soManhaPraEsteLead = () => donoLead ? donoLead !== 'Nilce' : contaAltaAtual();
+const ehLeadDosSocios = () => donoLead ? donoLead !== 'Nilce' : contaAltaAtual();
+/** Quem pode receber ESTE lead: o dono dele, se já tiver; senão o par da vez. */
+const atendentesDoLead = () => donoLead ? [donoLead] : (contaAltaAtual() ? SOCIOS : ['Nilce']);
 
 // Chamado pelo simulador (calc) a cada mudança de conta/extras: só redesenha a
 // grade quando o lead CRUZA o corte, senão o slider repintaria a lista sem parar.
@@ -927,12 +947,12 @@ function avaliarTurnoPeloConsumo(consumoKwh){
 }
 function livresDoDia(ymd){
   const agora = partesBR();
-  return gradeDoDia(ymd).filter(h=>{
+  const nomes = atendentesDoLead();
+  return gradeDoDia(ymd, ehLeadDosSocios()).filter(h=>{
     if(ymd === agora.ymd && h <= agora.hhmm) return false;
-    if(ehTarde(h) && soManhaPraEsteLead()) return false;
-    const iso = isoDe(ymd, h);
-    // tarde é da Nilce: fecha quando ELA está ocupada, não quando o time está
-    return ehTarde(h) ? !ocupadosNilce.has(iso) : !ocupados.has(iso);
+    // agenda é por PESSOA: o horário só some quando ninguém que pode atender este
+    // lead cabe nele (com dono definido, "ninguém" é uma pessoa só).
+    return livresEm(isoDe(ymd, h), nomes).length > 0;
   });
 }
 const rotuloDia = ymd => new Date(`${ymd}T12:00:00-03:00`)
@@ -965,11 +985,12 @@ async function montarSlots(){
       }).join('')}</div>
     </div>`;
   }).join('');
-  // Explica por que a tarde sumiu — grade encurtando sem motivo parece página quebrada.
-  if(soManhaPraEsteLead())
+  // Explica a lista quebrada (08:30, 10:30, 13:30…) — horário fora do redondo, sem
+  // motivo, parece página com defeito.
+  if(ehLeadDosSocios())
     el.insertAdjacentHTML('beforeend', `<div class="agLoad">${donoLead
-      ? `${donoLead} já é o seu consultor e faz as vistorias de manhã — por isso a lista para às 11h.`
-      : 'Pelo tamanho da sua conta, quem vai na sua casa é um dos sócios — e eles fazem vistoria de manhã. Por isso a lista para às 11h.'
+      ? `${donoLead} já é o seu consultor. A agenda dele tem reunião de hora em hora, e a vistoria entra nos intervalos — por isso os horários quebrados.`
+      : 'Pelo tamanho da sua conta, quem vai na sua casa é um dos sócios. A agenda deles tem reunião de hora em hora, e a vistoria entra nos intervalos — por isso os horários quebrados.'
     }</div>`);
   // re-render não pode perder a escolha do lead (o telefone dele redesenha a grade)
   if(slotSel){
@@ -989,7 +1010,7 @@ function maskTel(i){
   i.value = v;
 }
 // Com o WhatsApp completo dá pra saber se o lead JÁ tem consultor — e é isso que
-// decide se a tarde aparece pra ele. Roda enquanto digita, com guarda de ordem:
+// decide qual grade ele enxerga. Roda enquanto digita, com guarda de ordem:
 // resposta velha chegando depois da nova não pode repintar a grade errada.
 let donoSeq = 0;
 async function checarDono(input){
@@ -1107,19 +1128,19 @@ async function agendar(){
       + (extras.length ? ` · vai aumentar: ${extras.join(', ')}` : ''),
   ].join('\n');
 
-  // Rede de segurança: a tarde já nem aparece pra quem vai cair no Thiago/Diego
-  // (o checarDono redesenha a grade quando o telefone fica completo, e o
-  // simulador redesenha quando a conta cruza os 700 kWh). Isto aqui só pega o
-  // caso da consulta ter falhado antes — em vez de gravar a vistoria numa hora em
-  // que o consultor está no eletroposto, devolve o lead pras manhãs.
+  // Rede de segurança: a grade certa já é redesenhada quando o telefone fica
+  // completo (checarDono) e quando a conta cruza os 700 kWh (simulador). Isto aqui
+  // só pega o caso da consulta ter falhado antes — em vez de gravar a vistoria num
+  // horário que não é da agenda daquele consultor (14:00 é apresentação de
+  // eletroposto), devolve o lead pra grade dele.
   const donoAtual = await donoDoTelefone(tel);
-  const soManha = donoAtual ? donoAtual !== 'Nilce' : r.consumoKwh > KWH_CORTE_TIME;
-  if(ehTarde(partesBR(new Date(slotSel)).hhmm) && soManha){
+  const dosSocios = donoAtual ? donoAtual !== 'Nilce' : r.consumoKwh > KWH_CORTE_TIME;
+  if(!(dosSocios ? GRADE_SOCIOS : GRADE_NILCE).includes(partesBR(new Date(slotSel)).hhmm)){
     donoLead = donoAtual; slotSel = null;
     await montarSlots();
     return erro(donoAtual
-      ? `${donoAtual} já é o seu consultor e faz as vistorias de manhã. Escolha um dos horários ali em cima.`
-      : 'Pelo tamanho da sua conta quem vai na sua casa é um dos sócios, e eles fazem vistoria de manhã. Escolha um dos horários ali em cima.');
+      ? `${donoAtual} já é o seu consultor, e esse horário não é da agenda dele. Escolha um dos horários ali em cima.`
+      : 'Pelo tamanho da sua conta quem vai na sua casa é um dos sócios, e a agenda deles é outra. Escolha um dos horários ali em cima.');
   }
 
   // Ficha pronta, mas NÃO gravada: quem grava é o "Sim" do portão de presença.
@@ -1187,10 +1208,10 @@ async function gravarAgendamento(){
 
   try{
     await carregarOcupados(partesBR().ymd, partesBR(new Date(Date.now()+12*86400000)).ymd);
-    const tarde  = ehTarde(partesBR(new Date(slotSel)).hhmm);
-    const cheio  = tarde ? ocupadosNilce.has(slotSel) : ocupados.has(slotSel);
+    const candidatos = donoAtual ? [donoAtual] : (contaAlta ? SOCIOS : ['Nilce']);
+    const livres = livresEm(slotSel, candidatos);
     const passou = new Date(slotSel).getTime() < Date.now();
-    if(cheio || passou){
+    if(!livres.length || passou){
       // zera a ficha junto com o horário: ela é de um slot que não existe mais, e
       // ficha velha esperando é exatamente o jeito de gravar o dado errado depois
       slotSel = null; pendente = null;
@@ -1202,9 +1223,10 @@ async function gravarAgendamento(){
     }
     // Quem atende: dono de quem já é cliente (veio pronto na ficha) manda; lead
     // novo vai pro rodízio Thiago↔Diego só se a conta passar de 700 kWh, senão é
-    // da Nilce. A tarde é sempre dela — o Thiago e o Diego estão no eletroposto
-    // (agendar() já barrou o caso "vai pro sócio + escolheu tarde").
-    const dono = tarde ? 'Nilce' : (donoAtual || (contaAlta ? await proximoDono() : 'Nilce'));
+    // da Nilce. O rodízio só vale entre quem ainda CABE no horário: se o da vez
+    // está numa apresentação de eletroposto ali, quem vai é o outro.
+    const daVez = candidatos.length > 1 ? await proximoDono() : candidatos[0];
+    const dono = livres.includes(daVez) ? daVez : livres[0];
     const novo = await supaInsert('agendamentos', {
       vendedor_nome:    dono,
       quando:           slotSel,

@@ -260,53 +260,99 @@ function proximoDia(y: number, m: number, d: number): { y: number; m: number; d:
   return { y: t.getUTCFullYear(), m: t.getUTCMonth() + 1, d: t.getUTCDate() };
 }
 
+/** Quanto tempo cada tipo de compromisso tira o consultor da agenda.
+ *  A vistoria da LP solar é presencial: o sócio entra no carro e fica 1 hora na
+ *  casa do lead. Apresentação de eletroposto é meia hora. O card daqui é ligação,
+ *  e ocupa o passo da grade — 15 min, que é o que ele sempre valeu na prática
+ *  (antes disto a checagem era timestamp exato, o mesmo efeito). */
+const DUR_VISTORIA_MS = 60 * 60 * 1000;
+const DUR_APRESENTACAO_MS = 30 * 60 * 1000;
+const DUR_CARD_MS = 15 * 60 * 1000;
+function duracaoDe(createdBy: string | null): number {
+  const c = String(createdBy || '');
+  if (c === 'lp_solar') return DUR_VISTORIA_MS;
+  return c.includes('eletroposto') ? DUR_APRESENTACAO_MS : DUR_CARD_MS;
+}
+
 // Carrega ocupação (agendamentos + bloqueios) de um consultor, de agora em diante.
+// A janela começa 1h antes de "agora": uma vistoria que já começou ainda ocupa a
+// próxima meia hora, e sem esta folga ela sumiria da consulta.
 async function carregarOcupacao(consultor: string, agoraIso: string) {
+  const desde = new Date(new Date(agoraIso).getTime() - DUR_VISTORIA_MS).toISOString();
   const [{ data: ags }, { data: blqs }] = await Promise.all([
     supabaseGerador.from('agendamentos')
-      .select('quando').eq('vendedor_nome', consultor).neq('status', 'cancelado').gte('quando', agoraIso),
+      .select('quando,created_by').eq('vendedor_nome', consultor).neq('status', 'cancelado').gte('quando', desde),
     supabaseGerador.from('agenda_bloqueios')
       .select('inicio,fim').eq('vendedor_nome', consultor).gte('fim', agoraIso),
   ]);
-  const ocupados = new Set((ags || []).map((a: any) => new Date(a.quando).getTime()));
+  const ocupados = (ags || []).map((a: any) => ({
+    ini: new Date(a.quando).getTime(),
+    dur: duracaoDe(a.created_by),
+  }));
   const bloqueios = (blqs || []).map((b: any) => ({ ini: new Date(b.inicio).getTime(), fim: new Date(b.fim).getTime() }));
   return { ocupados, bloqueios };
 }
 
-function slotDisponivel(t: number, agoraMs: number, occ: { ocupados: Set<number>; bloqueios: { ini: number; fim: number }[] }): boolean {
+// Sobreposição de intervalos, não timestamp igual: o card ocupa [t, t+15min) e o
+// que já existe ocupa [ini, ini+duração dele). Era comparação exata, e isso
+// bastava enquanto tudo caía na mesma grade de 15 min; com a grade encaixada de
+// 17/08 uma vistoria das 08:00 (que vai até as 09:00) deixaria passar o card das
+// 08:30. Entre dois cards o resultado é idêntico ao de antes: 08:00 e 08:15 ainda
+// cabem lado a lado — a capacidade da Nilce não mudou.
+function slotDisponivel(
+  t: number,
+  agoraMs: number,
+  occ: { ocupados: { ini: number; dur: number }[]; bloqueios: { ini: number; fim: number }[] },
+): boolean {
   if (t < agoraMs) return false;
-  if (occ.ocupados.has(t)) return false;
+  if (occ.ocupados.some(o => o.ini < t + DUR_CARD_MS && t < o.ini + o.dur)) return false;
   if (occ.bloqueios.some(b => t >= b.ini && t < b.fim)) return false;
   return true;
 }
 
-// Até que horas cada consultor recebe card de lead SOLAR (minuto do dia do último
-// slot que pode COMEÇAR).
+// Em que horários cada consultor recebe card de lead SOLAR.
 //
-// 10/08: Thiago e Diego têm a tarde inteira presa no eletroposto (13:00–17:00). O
-// card daqui é agendamento de verdade na mesma tabela que a LP do eletroposto lê
-// pra fechar horário — um lead que respondeu "prefiro à tarde" virava um 14h no
-// Thiago e comia capacidade de apresentação. Solar deles agora é só de manhã, até
-// 11:30. Nilce não tem eletroposto: segue o expediente inteiro.
-// Vale só pra card de lead SOLAR: a tarde deles é do eletroposto, então card de
-// eletroposto pode (e deve) cair lá — é o trabalho do turno.
-const SO_DE_MANHA = new Set(['thiago', 'diego']);
-const FIM_MANHA_MIN = 11 * 60 + 30;   // 11:30 — último começo possível
-function ultimoInicioDoDia(consultor: string, produto: 'solar' | 'eletroposto'): number {
-  return produto === 'solar' && SO_DE_MANHA.has(String(consultor || '').trim().toLowerCase())
-    ? FIM_MANHA_MIN
-    : HORA_FIM * 60 - 15;             // grade de 15 min: o último é 19:45
+// 10/08: Thiago e Diego tinham a tarde inteira presa no eletroposto. O card daqui
+// é agendamento de verdade na MESMA tabela que a LP do eletroposto lê pra fechar
+// horário — um lead que respondeu "prefiro à tarde" virava um 14h no Thiago e
+// comia capacidade de apresentação. A resposta foi cortar a tarde deles.
+//
+// 17/08: a tarde voltou ENCAIXADA. A LP do eletroposto vende de hora em hora
+// (10:00, 11:00 e 13:00–18:00), então o card dos sócios mora nas meias-horas que
+// sobram no meio, mais as duas primeiras horas da manhã, que o eletroposto não
+// usa. É a lista fechada que o Thiago pediu — a mesma que a LP do solar oferece.
+// Não é grade de 30 em 30: o 10:00 e o 11:00 estão fora de propósito.
+//
+// Nilce não tem eletroposto: segue a grade de 15 min no expediente inteiro. E vale
+// só pra card SOLAR — card de ELETROPOSTO pode cair em qualquer horário do
+// expediente, é o trabalho do turno deles.
+const GRADE_ENCAIXADA = new Set(['thiago', 'diego']);
+const SLOTS_SOCIOS_SOLAR = ['08:00', '08:30', '09:00', '09:30', '10:30', '11:30',
+                            '13:30', '14:30', '15:30', '16:30', '17:30', '18:30']
+  .map(s => Number(s.slice(0, 2)) * 60 + Number(s.slice(3)));
+
+function usaGradeEncaixada(consultor: string, produto: 'solar' | 'eletroposto'): boolean {
+  return produto === 'solar' && GRADE_ENCAIXADA.has(String(consultor || '').trim().toLowerCase());
+}
+
+// Minutos do dia que este consultor pode receber, na ordem em que são tentados.
+function slotsDoDia(encaixada: boolean, horaIni: number): number[] {
+  if (encaixada) return SLOTS_SOCIOS_SOLAR;
+  const out: number[] = [];
+  for (let h = horaIni; h < HORA_FIM; h++)
+    for (let min = 0; min < 60; min += 15) out.push(h * 60 + min);
+  return out;                          // grade de 15 min: o último é 19:45
 }
 
 // Slot livre pra um consultor FIXO. Respeita bloqueios/ocupação dele,
 // achando outro horário livre se o pedido estiver indisponível.
 //
-// Quem é da manhã IGNORA a faixa que o lead pediu (decisão do Thiago, 10/08:
-// "mesmo que o cliente da minha vez e do Diego queira tarde ou noite, agenda de
-// manhã"). Então a busca começa às 08:00 do próprio dia, não na hora pedida: lead
-// que chega 09h querendo "após as 18h" é chamado hoje às 09h15, e não amanhã.
-// Slot que já passou é descartado pelo slotDisponivel, então começar às 08:00
-// nunca marca pra trás.
+// Quem está na grade encaixada IGNORA a faixa que o lead pediu (decisão do Thiago,
+// 10/08: "mesmo que o cliente da minha vez e do Diego queira tarde ou noite,
+// agenda no horário que eu tenho"). Então a busca começa às 08:00 do próprio dia,
+// não na hora pedida: lead que chega 09h querendo "após as 18h" é chamado hoje às
+// 09h30, e não amanhã. Slot que já passou é descartado pelo slotDisponivel, então
+// começar às 08:00 nunca marca pra trás.
 export async function slotLivreConsultor(
   consultor: string,
   base: { y: number; m: number; d: number; h: number },
@@ -314,19 +360,15 @@ export async function slotLivreConsultor(
 ): Promise<Date> {
   const agora = new Date();
   const occ = await carregarOcupacao(consultor, agora.toISOString());
-  const ultimoMin = ultimoInicioDoDia(consultor, produto);
-  const soDeManha = ultimoMin === FIM_MANHA_MIN;
+  const encaixada = usaGradeEncaixada(consultor, produto);
   let { y, m, d } = base;
   for (let i = 0; i < 14; i++) {
     const dow = dowSP(y, m, d);
     if (dow !== 0 && dow !== 6) {
-      const horaIni = i === 0 && !soDeManha ? Math.max(HORA_INI, base.h) : HORA_INI;
-      for (let h = horaIni; h < HORA_FIM; h++) {
-        for (let min = 0; min < 60; min += 15) {
-          if (h * 60 + min > ultimoMin) break;   // fim da janela desse consultor
-          const slot = spDate(y, m, d, h, min);
-          if (slotDisponivel(slot.getTime(), agora.getTime(), occ)) return slot;
-        }
+      const horaIni = i === 0 && !encaixada ? Math.max(HORA_INI, base.h) : HORA_INI;
+      for (const min of slotsDoDia(encaixada, horaIni)) {
+        const slot = spDate(y, m, d, Math.floor(min / 60), min % 60);
+        if (slotDisponivel(slot.getTime(), agora.getTime(), occ)) return slot;
       }
     }
     ({ y, m, d } = proximoDia(y, m, d));
