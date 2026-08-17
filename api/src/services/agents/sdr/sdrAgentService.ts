@@ -487,9 +487,18 @@ function isAvailableDay(d: Date, kind: 'vistoria' | 'remoto'): boolean {
 // 17/08: a tarde voltou ENCAIXADA, e por isso deixou de ser uma janela e virou uma
 // lista. A LP do eletroposto vende de hora em hora (10:00, 11:00 e 13:00–18:00), e
 // a vistoria mora nas meias-horas que sobram no meio — mais as duas primeiras
-// horas da manhã, que o eletroposto não usa. É a MESMA lista da LP do solar; se
-// mexer numa, mexa na outra, senão a Luma oferece um horário que a página recusa.
+// horas da manhã, que o eletroposto não usa. São os MESMOS HORÁRIOS da LP do
+// solar — se mexer numa lista, mexa na outra, senão a Luma oferece um horário que
+// a página recusa. Os DIAS é que continuam diferentes de propósito: aqui a
+// vistoria vale até sábado, e a LP fecha no fim de semana.
 // Ligação e meet não mudam: quem atende ali não precisa sair da cadeira.
+//
+// ATENÇÃO (pré-existente, e agora pesa mais): o agendamento que a Luma fecha mora
+// em `sdr_leads`, não na tabela `agendamentos` — então as duas LPs NÃO enxergam
+// essa vistoria e podem vender por cima dela. Enquanto era só de manhã, o estrago
+// ficava dentro do solar; com a tarde de volta, uma vistoria fechada aqui às 13h30
+// não tira o 14:00 da LP do eletroposto. Consertar é fazer esta ponte escrever em
+// `agendamentos` com created_by 'lp_solar'.
 //
 // São horários de INÍCIO — a vistoria leva cerca de 1 hora.
 const SLOTS_VISTORIA = [8 * 60, 8 * 60 + 30, 9 * 60, 9 * 60 + 30, 10 * 60 + 30, 11 * 60 + 30,
