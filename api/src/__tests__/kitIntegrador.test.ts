@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // o comportamento que mais importa num webhook que a Kiwify reentrega.
 
 type Row = Record<string, any>;
-const db: Record<string, Row[]> = { users: [], kit_pedidos: [], kit_progresso: [] };
+const db: Record<string, Row[]> = { users: [], kit_pedidos: [], kit_progresso: [], entitlements: [] };
 const emails = new Set<string>();
 
 function novoId(): string {
@@ -98,9 +98,13 @@ vi.mock('../utils/supabase', () => ({ supabase: { from: (t: string) => query(t) 
 const enviados: any[] = [];
 const alertas: any[] = [];
 const enviadosMesPix: any[] = [];
+const enviadosFerramenta: any[] = [];
 vi.mock('../utils/mailer', () => ({
   sendKitAcessoEmail: vi.fn(async (opts: any) => { enviados.push(opts); }),
   sendMesPixAcessoEmail: vi.fn(async (opts: any) => { enviadosMesPix.push(opts); }),
+  // Sem este mock a compra de ferramenta explodia no teste: `vi.mock` troca o
+  // módulo inteiro, então a função que o ramo das ferramentas chama nem existia.
+  sendFerramentaAcessoEmail: vi.fn(async (opts: any) => { enviadosFerramenta.push(opts); }),
   // Assinante que compra o bump paga e não recebe nada — o service avisa o dono
   // em vez de deixar o caso morrer no log.
   sendOpsAlert: vi.fn(async (assunto: string, corpo: string) => { alertas.push({ assunto, corpo }); }),
@@ -137,7 +141,9 @@ beforeEach(() => {
   db.users = [];
   db.kit_pedidos = [];
   db.kit_progresso = [];
+  db.entitlements = [];
   emails.clear();
+  enviadosFerramenta.length = 0;
   enviados.length = 0;
   enviadosMesPix.length = 0;
   alertas.length = 0;
@@ -666,5 +672,86 @@ describe('concederCursoPorAssinatura', () => {
 
     const acesso = await acessoDoUsuario('user-2', 'Aluno.VIP@Teste.com');
     expect(acesso.temKit).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COMPRA AVULSA DAS FERRAMENTAS (Precificação e Inventário, R$ 67 cada)
+//
+// Desde 17/08/2026 elas saíram do mensal e são exclusivas do plano anual — o que
+// torna a COMPRA o único caminho de quem paga por mês. Este ramo do service
+// nunca tinha sido exercitado: o teste só cobria a classificação do nome, não a
+// concessão. Ou seja, "quem compra recebe" era intenção, não garantia.
+//
+// O que trava aqui é a promessa inteira: a posse é gravada, o e-mail de acesso
+// sai, a reentrega da Kiwify não duplica nada e assinante que compra TAMBÉM
+// recebe (ao contrário do bump de VIP, que colide com plano pago).
+describe('processarEventoKit — compra avulsa das ferramentas', () => {
+  const compra = (over: Partial<EventoKit> = {}): EventoKit => evento({
+    orderId: 'ORDER-FERRAMENTA',
+    produto: 'Calculadora Solar',
+    item: 'precificacao',
+    valorCentavos: 6700,
+    ...over,
+  });
+
+  it('paga → grava a posse e manda o e-mail de acesso', async () => {
+    const r = await processarEventoKit(compra());
+
+    expect(r.ok).toBe(true);
+    expect(r.acao).toBe('acesso_liberado');
+    expect(db.entitlements).toHaveLength(1);
+    expect(db.entitlements[0].produto).toBe('precificacao');
+    // 'compra' é o que separa quem PAGOU de quem ganhou por cortesia ou por
+    // plano — o /produtos mostra a origem, e reembolso só pode olhar pra compra.
+    expect(db.entitlements[0].origem).toBe('compra');
+    expect(db.entitlements[0].order_id).toBe('ORDER-FERRAMENTA');
+    // Posse não vence: é o que a página promete ("use pra sempre").
+    expect(db.entitlements[0].expira_em ?? null).toBeNull();
+    expect(enviadosFerramenta).toHaveLength(1);
+    expect(enviadosFerramenta[0].produtoNome).toBe('Precificação Profissional');
+    // O link cai na loja, onde o que ele comprou está esperando.
+    expect(String(enviadosFerramenta[0].acessoUrl)).toContain('next=/produtos');
+  });
+
+  it('o Inventário segue o mesmo caminho, com o nome de dentro da plataforma', async () => {
+    const r = await processarEventoKit(compra({
+      orderId: 'ORDER-INV', produto: 'Inventário Empresarial', item: 'inventario',
+    }));
+
+    expect(r.ok).toBe(true);
+    expect(db.entitlements[0].produto).toBe('inventario');
+    expect(enviadosFerramenta[0].produtoNome).toBe('Inventário da Empresa');
+  });
+
+  it('reentrega do mesmo pedido não duplica a posse', async () => {
+    await processarEventoKit(compra());
+    const r = await processarEventoKit(compra());
+
+    expect(db.entitlements).toHaveLength(1);
+    expect(r.acao).toBe('ja_processado');
+  });
+
+  it('assinante que compra TAMBÉM recebe — é compra separada, não upgrade', async () => {
+    // Assinante mensal: hoje ele NÃO tem as ferramentas por derivação, então
+    // comprar é o caminho dele. Recusar aqui seria cobrar e não entregar.
+    db.users.push({ id: 'user-assinante', email: EMAIL, plano: 'ilimitado' });
+    emails.add(EMAIL);
+
+    const r = await processarEventoKit(compra());
+
+    expect(r.acao).toBe('acesso_liberado');
+    expect(db.entitlements).toHaveLength(1);
+    expect(db.entitlements[0].user_id).toBe('user-assinante');
+    // A compra da ferramenta não pode mexer no plano de quem já assina.
+    expect(db.users.find((u) => u.id === 'user-assinante')!.plano).toBe('ilimitado');
+  });
+
+  it('pedido não pago não libera nada', async () => {
+    const r = await processarEventoKit(compra({ status: 'waiting_payment' }));
+
+    expect(db.entitlements).toHaveLength(0);
+    expect(enviadosFerramenta).toHaveLength(0);
+    expect(r.acao).not.toBe('acesso_liberado');
   });
 });
