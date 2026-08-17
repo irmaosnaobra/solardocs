@@ -8719,26 +8719,36 @@ function ctrPagamentoSugestao(saldo) {
   if (on('orc-pg-ck-entrada')) {
     const e = orcEntradaCalc(saldo);
     partes.push(e.entrada > 0
-      ? `entrada de ${ORC_MONEY(e.entrada)} e ${e.parcelas}x de ${ORC_MONEY(e.parcela)} no cartão`
-      : `${e.parcelas}x de ${ORC_MONEY(e.parcela)} no cartão`);
+      ? `com entrada de ${ORC_MONEY(e.entrada)} e ${e.parcelas}x de ${ORC_MONEY(e.parcela)} no cartão`
+      : `em ${e.parcelas}x de ${ORC_MONEY(e.parcela)} no cartão`);
   }
   if (on('orc-pg-ck-fin')) {
     const f = orcFinCalc(saldo);
-    partes.push(`financiamento bancário${f.entrada > 0 ? ` com entrada de ${ORC_MONEY(f.entrada)}` : ''} em ${f.parcelas}x${f.parcela > 0 ? ` de ${ORC_MONEY(f.parcela)}` : ''}, sujeito à análise de crédito`);
+    partes.push(`mediante financiamento bancário${f.entrada > 0 ? ` com entrada de ${ORC_MONEY(f.entrada)}` : ''} em ${f.parcelas}x${f.parcela > 0 ? ` de ${ORC_MONEY(f.parcela)}` : ''}, sujeito à análise de crédito`);
   }
+  // FINANCIAMENTO tem uma condicao que nenhuma outra forma tem: depende de um
+  // TERCEIRO dizer sim. Sem isto escrito, o cliente assina, o banco nega tres
+  // semanas depois e o contrato segue de pe' cobrando o saldo — com a multa e os
+  // juros da 3.4 correndo em cima de dinheiro que ele nao tem. Entra sozinho
+  // sempre que a forma incluir financiamento; o campo continua editavel.
+  const RESSALVA_FIN = ' A aprovação e a liberação do crédito devem ocorrer em até 30 dias da assinatura. ' +
+    'Não aprovado o financiamento nesse prazo, as partes ajustarão nova forma de pagamento em até 10 dias; ' +
+    'não havendo acordo, o contrato fica resolvido, ressalvada a retenção do sinal na forma do recibo firmado, ' +
+    'que remunera o projeto elétrico já executado. Os prazos da Cláusula 4ª correm da liberação do crédito.';
+  const fecha = txt => txt + (on('orc-pg-ck-fin') ? RESSALVA_FIN : '');
   if (!partes.length) {
     // Nenhuma forma marcada no Orçamento: em vez de mandar o contrato pro
     // cliente dizendo "a combinar", usa a condição padrão da casa (18x com
     // 22,5%), que e' a mesma que o orçamento oferece. O campo continua
     // editável — o que nao pode e' o papel sair sem condicao nenhuma.
     const e = orcEntradaCalc(saldo);
-    return `Saldo de ${ORC_MONEY(saldo)}, a ser pago ` +
+    return fecha(`Saldo de ${ORC_MONEY(saldo)}, a ser pago ` +
       (e.entrada > 0 ? `com entrada de ${ORC_MONEY(e.entrada)} e ` : 'em ') +
-      `${e.parcelas}x de ${ORC_MONEY(e.parcela)} no cartão de crédito.`;
+      `${e.parcelas}x de ${ORC_MONEY(e.parcela)} no cartão de crédito.`);
   }
   // Mais de uma marcada no orçamento? o contrato não escolhe por ninguém: lista
   // as duas com "ou" e o consultor apaga a que não foi fechada.
-  return `Saldo de ${ORC_MONEY(saldo)}, a ser pago ${partes.join(' ou ')}.`;
+  return fecha(`Saldo de ${ORC_MONEY(saldo)}, a ser pago ${partes.join(' ou ')}.`);
 }
 
 function ctrPagamentoReset() {
