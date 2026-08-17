@@ -365,6 +365,16 @@ export default function Landing() {
           <h2 className={styles.sectionTitle} data-reveal>
             A plataforma que <strong>fecha a venda solar</strong> — não só gera papel.
           </h2>
+          {/* As duas ferramentas viraram PRODUTO PAGO na loja (R$ 67 cada, quem não
+              assina compra à parte). Isso muda o que esta seção precisa fazer: em vez
+              de listá-las como "mais um recurso", dizer que o assinante entra com as
+              duas inclusas. Conferido no gate (`acessos()` → `produtosDaAssinatura`),
+              não na intenção: são as duas que a assinatura ativa libera de verdade. */}
+          <p className={styles.sectionSub} data-reveal>
+            Tudo isto entra na assinatura — inclusive as <b>duas ferramentas que a loja
+            vende à parte por R$ {PRECO_FERRAMENTA} cada</b>. Assinando, elas já vêm
+            liberadas na sua conta.
+          </p>
 
           <div className={styles.diffsGrid} style={{ marginTop: 40 }}>
             <div className={styles.diffCard} data-reveal>
@@ -415,32 +425,50 @@ export default function Landing() {
                 sozinho</b> — abre, cadastra, gera e envia.
               </p>
             </div>
-            <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.3s' }}>
+            <div className={`${styles.diffCard} ${styles.diffPago}`} data-reveal style={{ transitionDelay: '0.3s' }}>
+              <div className={styles.diffFita}>Inclusa na assinatura · vale R$ {PRECO_FERRAMENTA}</div>
               <div className={styles.diffIcon}><svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 6h8"/><circle cx="8.5" cy="11" r=".6" fill="currentColor" stroke="none"/><circle cx="12" cy="11" r=".6" fill="currentColor" stroke="none"/><circle cx="15.5" cy="11" r=".6" fill="currentColor" stroke="none"/><circle cx="8.5" cy="15" r=".6" fill="currentColor" stroke="none"/><circle cx="12" cy="15" r=".6" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15" r=".6" fill="currentColor" stroke="none"/><circle cx="8.5" cy="18.5" r=".6" fill="currentColor" stroke="none"/><circle cx="12" cy="18.5" r=".6" fill="currentColor" stroke="none"/><circle cx="15.5" cy="18.5" r=".6" fill="currentColor" stroke="none"/></svg></div>
-              <h3 className={styles.diffH}>Calculadora de Precificação</h3>
+              <h3 className={styles.diffH}>Precificação Profissional</h3>
               <p className={styles.diffP}>
-                Monta o <b>preço certo da venda</b> na hora — custo do kit, margem e comissão.
-                Você para de chutar o valor e protege o seu lucro em cada proposta.
+                Monta o <b>preço certo da venda</b> na hora — custo do kit, imposto, ART,
+                deslocamento, margem e comissão. Você arrasta a margem e vê a sua sobra
+                antes de mandar o preço.
               </p>
-              {/* As duas ferramentas são vendidas soltas na loja por R$ 67 cada. Dizer
-                  isso AQUI, onde elas aparecem pela primeira vez, é o que faz os
-                  "R$ 134 inclusos" do card anual significarem alguma coisa lá embaixo:
-                  preço só vira desconto depois que a pessoa sabe o preço cheio. */}
+              {/* Dizer o preço cheio AQUI, onde a ferramenta aparece pela primeira vez,
+                  é o que faz os "R$ 134 inclusos" do card anual significarem algo lá
+                  embaixo: preço só vira desconto depois que a pessoa sabe o preço. */}
               <div className={styles.diffValor}>
-                Vendida à parte por <b>R$ {PRECO_FERRAMENTA}</b> — inclusa na assinatura
+                Quem não assina compra por <b>R$ {PRECO_FERRAMENTA}</b> na loja
               </div>
             </div>
-            <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.35s' }}>
+            <div className={`${styles.diffCard} ${styles.diffPago}`} data-reveal style={{ transitionDelay: '0.35s' }}>
+              <div className={styles.diffFita}>Incluso na assinatura · vale R$ {PRECO_FERRAMENTA}</div>
               <div className={styles.diffIcon}><svg viewBox="0 0 24 24"><path d="M3 7 12 3l9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></div>
-              <h3 className={styles.diffH}>Controle de Inventário</h3>
+              <h3 className={styles.diffH}>Inventário da Empresa</h3>
               <p className={styles.diffP}>
-                Sabe <b>quanto tem de painel, inversor e material</b> em estoque a qualquer hora.
-                Entra e sai automático conforme você vende — sem planilha paralela.
+                Sabe <b>onde está cada ferramenta e quanto vale o patrimônio</b> — painel,
+                inversor, EPI e material. Com aviso do que está acabando antes de faltar
+                na obra.
               </p>
               <div className={styles.diffValor}>
-                Vendido à parte por <b>R$ {PRECO_FERRAMENTA}</b> — incluso na assinatura
+                Quem não assina compra por <b>R$ {PRECO_FERRAMENTA}</b> na loja
               </div>
             </div>
+          </div>
+
+          {/* O fecho da seção: a soma. Duas ferramentas pagas dentro de uma
+              assinatura de R$ 67 é o argumento mais forte que a página tem — e
+              estava só implícito. O número é conferível na própria loja. */}
+          <div className={styles.diffResumo} data-reveal>
+            <div className={styles.diffResumoTopo}>
+              <b>R$ {FERRAMENTAS_VALOR} em ferramentas</b> já inclusos na assinatura de
+              R$ {PRICE}/mês
+            </div>
+            <p className={styles.diffResumoP}>
+              A Precificação e o Inventário são produtos pagos na nossa loja. Assinando,
+              as duas abrem na sua conta no mesmo minuto — e ficam <b>suas pra sempre</b> no
+              plano anual, mesmo se um dia você parar de assinar.
+            </p>
           </div>
         </div>
       </section>
