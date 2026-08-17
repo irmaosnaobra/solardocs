@@ -25,7 +25,10 @@ interface Ponto {
 }
 interface Capital {
   id: number; created_at: string; nome: string; telefone: string; cidade: string | null;
-  capital_faixa: string | null; prazo: string | null; origem: string;
+  // QUANTO e COM QUÊ são perguntas diferentes: quem veio da LP com um toque só
+  // respondeu a segunda. Colunas separadas na tela pelo mesmo motivo que são
+  // colunas separadas no banco — juntas, a lista não agrupa nem ordena.
+  capital_faixa: string | null; capital_origem: string | null; prazo: string | null; origem: string;
 }
 interface Ficha {
   id: number; created_at: string; nome: string | null; telefone: string | null;
@@ -159,7 +162,7 @@ export default function ConexaoPanel() {
         <div className={styles.tableWrap}>
           <table className={styles.table}>
             <thead>
-              <tr><th>Quando</th><th>Nome</th><th>Cidade</th><th>Capital</th><th>Prazo</th><th>Origem</th></tr>
+              <tr><th>Quando</th><th>Nome</th><th>Cidade</th><th>Quanto</th><th>Com quê</th><th>Prazo</th><th>Origem</th></tr>
             </thead>
             <tbody>
               {capCad.map((c) => (
@@ -168,6 +171,7 @@ export default function ConexaoPanel() {
                   <td><a href={wa(c.telefone)} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 600 }}>{c.nome}</a></td>
                   <td>{c.cidade || '—'}</td>
                   <td>{c.capital_faixa || '—'}</td>
+                  <td>{c.capital_origem || '—'}</td>
                   <td>{c.prazo || '—'}</td>
                   <td><span style={{ fontSize: 11.5, color: '#2F7A4F', fontWeight: 600 }}>cadastrado</span></td>
                 </tr>
@@ -177,13 +181,14 @@ export default function ConexaoPanel() {
                   <td style={{ whiteSpace: 'nowrap' }}>{hora(f.created_at)}</td>
                   <td><a href={wa(f.telefone)} target="_blank" rel="noopener noreferrer">{f.nome || '—'}</a></td>
                   <td>{f.cidade || '—'}</td>
+                  <td style={{ opacity: 0.6 }}>—</td>
                   <td>{f.invest || '—'}</td>
                   <td style={{ opacity: 0.6 }}>—</td>
                   <td><span style={{ fontSize: 11.5, opacity: 0.7 }}>da ficha (nota 1)</span></td>
                 </tr>
               ))}
               {!totalCapital && (
-                <tr><td colSpan={6} style={{ opacity: 0.6 }}>Ninguém com capital declarado ainda.</td></tr>
+                <tr><td colSpan={7} style={{ opacity: 0.6 }}>Ninguém com capital declarado ainda.</td></tr>
               )}
             </tbody>
           </table>

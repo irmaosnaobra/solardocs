@@ -11,7 +11,7 @@ import { supabase } from '../utils/supabase';
 import { supabaseGerador } from '../utils/supabaseGerador';
 import { etiquetaDeLead, ETIQUETAS_ORDEM } from '../services/agenda/origemEtiqueta';
 import {
-  NOTA1_MATERIAL_DESDE, NOTA1_TIPOS, inicioDaJanela, linhasDoFunil, somaColuna,
+  NOTA1_MATERIAL_DESDE, NOTA1_MATERIAL_ATE, NOTA1_TIPOS, inicioDaJanela, linhasDoFunil, somaColuna,
 } from '../services/io/nota1Funil';
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 
@@ -835,6 +835,12 @@ router.get('/nota1-funil', async (req: Request, res: Response): Promise<void> =>
       desde,
       dias,
       piso: NOTA1_MATERIAL_DESDE,
+      // O painel usa isto pra saber que está olhando um funil ENCERRADO: desde
+      // 17/08 o nota 1 vai pras duas portas, não pra página de material. Sem
+      // este teto a conversão cairia pra zero sozinha e o card acusaria defeito
+      // num caminho que foi desligado de propósito.
+      teto: NOTA1_MATERIAL_ATE,
+      encerrado: new Date().toISOString().slice(0, 10) > NOTA1_MATERIAL_ATE,
       mandados,
       chegaram,
       chegaram_fora: soma('chegaram_fora'),
@@ -878,7 +884,7 @@ router.get('/eletroposto-parceria', async (_req: Request, res: Response): Promis
     const [parceriaQ, nota1Q] = await Promise.all([
       supabaseGerador
         .from('eletroposto_parceria')
-        .select('id, created_at, lado, nome, telefone, cidade, capital_faixa, prazo, ponto_relacao, ponto_tipo, ponto_endereco, ponto_vagas, ponto_fluxo, ponto_energia, obs, origem, par_id, par_em')
+        .select('id, created_at, lado, nome, telefone, cidade, capital_faixa, capital_origem, prazo, ponto_relacao, ponto_tipo, ponto_endereco, ponto_vagas, ponto_fluxo, ponto_energia, obs, origem, par_id, par_em')
         .order('created_at', { ascending: false })
         .limit(400),
       supabaseGerador

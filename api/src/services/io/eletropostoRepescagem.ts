@@ -121,6 +121,26 @@ export function bolhasConvite(nome: string): string[] {
   ];
 }
 
+/**
+ * Versão da LP EM TEMPO REAL (17/08/2026): UMA bolha, não cinco.
+ *
+ * Quem sai do formulário agora cai em /io/eletroposto/parceria, e o link do
+ * grupo está NA TELA dele. As cinco bolhas do convite explicavam o que a página
+ * já explica e entregavam de novo um link que a pessoa acabou de ver — cinco
+ * mensagens da linha IO (que foi bloqueada uma vez por volume: 57 msgs em 5h)
+ * pra repetir o passo anterior. O que sobra de útil é o registro: ela fica com
+ * o link salvo na conversa, caso feche a aba antes de tocar no botão.
+ *
+ * A `bolhasConvite` de cinco continua intacta pra REPESCAGEM e para a fila de
+ * frios: lá a pessoa não viu página nenhuma — a mensagem é o único contato.
+ */
+export function bolhaConviteDaPagina(nome: string): string[] {
+  const p = primeiroNome(nome);
+  return [
+    `Oi ${p}! Aqui é da Irmãos na Obra. Guardo o link do grupo aqui pra você não perder:\n${GRUPO_LINK}\n\nÉ lá que quem tem o ponto e quem tem o capital se encontram. Quando seu local estiver encaminhado, me chama que eu levo o estudo do seu caso.`,
+  ];
+}
+
 /** Escolhe a versão certa do convite pelo relógio: recém-preenchido ganha o convite
  *  normal; ficha de horas atrás ganha a versão que reconhece a demora. É o que
  *  garante que TODO nota 1 receba o convite sem a copy soar mentirosa. */

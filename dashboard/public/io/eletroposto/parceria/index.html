@@ -592,7 +592,10 @@ function aplicarAtalho(){
 function dadosDaLP(lado){
   return {
     lado: lado, nome: LEAD.nome, telefone: LEAD.telefone, cidade: LEAD.cidade || '',
-    capital_faixa: LEAD.invest || '', origem: 'lp_nota1'
+    // `capital_origem`, não `capital_faixa`: o que a LP perguntou foi COM QUÊ
+    // ("recurso próprio", "financiamento aprovado"), e faixa em reais é outra
+    // pergunta — quem entra com um toque não respondeu essa.
+    capital_origem: LEAD.invest || '', origem: 'lp_nota1'
   };
 }
 

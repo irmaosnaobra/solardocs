@@ -31,7 +31,7 @@ interface Venda {
   item_slug: string | null; valor_centavos: number | null; status: string | null;
 }
 interface Funil {
-  desde: string; dias: number; piso: string;
+  desde: string; dias: number; piso: string; teto?: string; encerrado?: boolean;
   mandados: number; chegaram: number; chegaram_fora: number; rolaram: number;
   checkout: number; checkout_fora: number; voltaram: number; compras: number;
   conv_mandado_chegou: number | null; conv_chegou_checkout: number | null;
@@ -57,9 +57,15 @@ export default function Nota1Panel() {
   useEffect(() => { load(); }, [load]);
 
   const conv = data?.conv_mandado_chegou ?? null;
-  // Verde a partir de 90%: o caminho é um redirect na mesma aba, então perder
-  // gente aqui não é "conversão baixa", é coisa quebrada.
-  const corConv = conv == null ? undefined : conv >= 90 ? '#2F7A4F' : conv >= 70 ? '#C87A1E' : '#A53B29';
+  // Desde 17/08 o nota 1 vai pras DUAS PORTAS, não pra página de material: as
+  // fichas continuam chegando e as visitas ao material param. Sem esta trava a
+  // conversão despencaria sozinha e o card acusaria defeito num caminho que foi
+  // desligado de propósito — exatamente o tipo de número que mente.
+  const encerrado = data?.encerrado === true;
+  // Verde a partir de 90%: enquanto o caminho existia, era um redirect na mesma
+  // aba — perder gente ali não era "conversão baixa", era coisa quebrada.
+  const corConv = encerrado || conv == null ? undefined
+    : conv >= 90 ? '#2F7A4F' : conv >= 70 ? '#C87A1E' : '#A53B29';
   const furados = data?.dias_sem_medicao ?? [];
 
   const etapas: Array<[string, number, string]> = [
@@ -79,6 +85,22 @@ export default function Nota1Panel() {
         </span>
         <button className={styles.periodBtn} disabled={loading} onClick={load}>{loading ? 'Atualizando…' : '↻ Atualizar'}</button>
       </div>
+
+      {encerrado && (
+        <div className={styles.card} style={{ marginBottom: 14, borderLeft: '3px solid #8B857A' }}>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>
+            Este funil está encerrado — é história, não termômetro
+          </div>
+          <div style={{ fontSize: 12.5, opacity: 0.8, lineHeight: 1.6 }}>
+            Em {data?.teto ? dia(data.teto) : '17/08'} o nota 1 deixou de cair na página de material e
+            passou a cair em <strong>/io/eletroposto/parceria</strong>, a página das duas portas.
+            Os recusados continuam chegando e as visitas ao material param — então a conversão
+            abaixo <strong>vai cair sozinha, e isso não é defeito</strong>. O que mede o caminho de
+            hoje é a aba <strong>Conexão</strong>. O saldo de 07 a 17/08: 110 visitas, 11 checkouts,
+            nenhuma compra.
+          </div>
+        </div>
+      )}
 
       {furados.length > 0 && (
         <div className={styles.card} style={{ marginBottom: 14, borderLeft: '3px solid #A53B29' }}>
@@ -103,7 +125,9 @@ export default function Nota1Panel() {
           <div className={styles.cardLabel}>Recusado → abriu a página</div>
           <div className={styles.cardValue} style={{ color: corConv }}>{pct(conv)}</div>
           <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
-            é um redirect na mesma aba: abaixo de 90% procure defeito, não copy
+            {encerrado
+              ? 'caminho desligado em 17/08 — a queda aqui é o esperado, não defeito'
+              : 'é um redirect na mesma aba: abaixo de 90% procure defeito, não copy'}
           </div>
         </div>
         <div className={styles.card}>

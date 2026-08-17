@@ -16,6 +16,19 @@
  *  redirecionado pra página de material. Antes disso não havia pra onde ir. */
 export const NOTA1_MATERIAL_DESDE = '2026-08-07';
 
+/**
+ * Dia em que o nota 1 DEIXOU de cair na página de material: desde 17/08/2026 o
+ * destino é /io/eletroposto/parceria, a página das duas portas.
+ *
+ * Sem este teto o painel mente sozinho a partir de amanhã. `mandados` continua
+ * subindo (o NOTA 1 não parou de existir) e `chegaram` cai pra zero (ninguém
+ * mais abre a página com o carimbo da recusa), então a conversão despenca e o
+ * card fica vermelho dizendo "procure defeito" — sobre um caminho que foi
+ * desligado de propósito. Depois desta data o funil do material é HISTÓRICO:
+ * quem mede as portas é a aba Conexão.
+ */
+export const NOTA1_MATERIAL_ATE = '2026-08-17';
+
 export const NOTA1_TIPOS = ['material_view', 'material_scroll', 'checkout_start', 'material_voltar_form'];
 
 export interface FichaNota1 {

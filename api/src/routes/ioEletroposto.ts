@@ -11,7 +11,7 @@ import { sendWhatsApp } from '../services/agents/zapiClient';
 import { logger } from '../utils/logger';
 // A copy do convite mora no serviço de repescagem (é a MESMA mensagem nos dois
 // caminhos: LP em tempo real e fila de quem ficou sem resposta no apagão).
-import { bolhasConvite } from '../services/io/eletropostoRepescagem';
+import { bolhaConviteDaPagina } from '../services/io/eletropostoRepescagem';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alerta de lead novo da LP do Eletroposto (/io/eletroposto) no WhatsApp da equipe.
@@ -327,7 +327,10 @@ router.post('/nota1', async (req: Request, res: Response): Promise<void> => {
     if (convidar) {
       const primeiroNome = nome.split(/\s+/)[0];
       try {
-        for (const bolha of bolhasConvite(primeiroNome)) {
+        // UMA bolha, não cinco: a página das portas já mostrou o link, e repetir
+        // o passo anterior em cinco mensagens gasta a linha IO — que foi
+        // bloqueada uma vez justamente por volume.
+        for (const bolha of bolhaConviteDaPagina(primeiroNome)) {
           await sendWhatsApp(telefone, bolha, 'io');
           await new Promise(r => setTimeout(r, 1500));
         }
@@ -464,7 +467,12 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
   const linha = {
     lado, nome, telefone,
     cidade:         txt(b.cidade, 120),
+    // QUANTO (faixa em reais) e COM QUÊ (recurso próprio, financiamento…) são
+    // perguntas diferentes e moram em colunas diferentes: quem vem da LP com um
+    // toque só respondeu a segunda, e misturar as duas numa coluna só deixaria
+    // "Recurso próprio" na mesma lista de "R$ 50 mil a R$ 100 mil".
     capital_faixa:  txt(b.capital_faixa, 120),
+    capital_origem: txt(b.capital_origem, 120),
     prazo:          txt(b.prazo, 80),
     ponto_relacao:  txt(b.ponto_relacao, 80),
     ponto_tipo:     txt(b.ponto_tipo, 120),
@@ -507,7 +515,10 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
     // Só o lado PONTO dispara: investidor sem local a equipe já recebe pelo aviso
     // do NOTA 1, e repetir o mesmo lead em duas mensagens treina todo mundo a
     // ignorar as duas. Ponto é o que não existe na base — esse acorda alguém.
-    if (lado !== 'ponto') return;
+    //
+    // `teste: true` grava e não manda, igual ao /nota1 — é assim que se confere a
+    // rota em produção sem tocar o WhatsApp do Thiago e do Diego.
+    if (lado !== 'ponto' || b.teste === true) return;
     try {
       const aviso = [
         '📍 *PONTO NOVO — alguém quer arrendar o local*',
