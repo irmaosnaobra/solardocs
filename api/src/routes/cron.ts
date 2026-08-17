@@ -40,6 +40,7 @@ import { runEletropostoAgendaTick } from '../services/io/eletropostoAgenda';
 import { runEletropostoRespostasTick } from '../services/io/eletropostoRespostas';
 import { runSolarBoasVindasTick } from '../services/io/solarBoasVindas';
 import { runSolarRespostasTick } from '../services/io/solarRespostas';
+import { runNilceVarredura18h } from '../services/agenda/nilceVarredura18h';
 import { processarLembretesAgenda } from '../services/agenda/lembretesAgenda';
 import { enviarReagendarDiario } from '../services/agenda/reagendarDigest';
 import { enviarAgendaProxima } from '../services/agenda/agendaProximaDigest';
@@ -446,6 +447,22 @@ router.get('/solar-respostas', async (req: Request, res: Response) => {
     res.json({ ok: true, dry, ...(await runSolarRespostasTick({ dry })) });
   } catch (err: any) {
     logger.error('cron', 'solar-respostas falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
+// ── 18h: fecha o dia da Nilce e empacota o que ficou sem ação ────────────────
+// Roda 1×/dia às 18h BRT (0 21 * * * UTC) via GitHub Actions. NÃO entra no
+// /cron/master: rodar de hora em hora empurraria a agenda dela o dia inteiro.
+// ?dry=1 lista o que seria movido, de quando pra quando, sem gravar nada — e
+// ignora o kill-switch de propósito, que é como se confere antes de ligar.
+router.get('/nilce-18h', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    res.json({ dry, ...(await runNilceVarredura18h({ dry })) });
+  } catch (err: any) {
+    logger.error('cron', 'nilce-18h falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });
