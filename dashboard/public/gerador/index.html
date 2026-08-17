@@ -2898,6 +2898,34 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <input type="text" id="proc-local" placeholder="onde a estação vai ser instalada"></div>
       </div>
 
+
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Procuradores</div>
+        <div class="orc-note" style="margin-bottom:12px">Quem assina a ART/TRT e protocola no balcão. Vem preenchido com o engenheiro e o técnico da empresa — os mesmos da procuração solar. Fica salvo neste navegador, junto com o resto dos dados da empresa.</div>
+        <div class="eletro-field"><label>Engenheiro — nome</label>
+          <input type="text" id="orc-emit-engNome" placeholder="nome completo" oninput="orcEmitSalvar()"></div>
+        <div class="eletro-field"><label>Engenheiro — profissão</label>
+          <input type="text" id="orc-emit-engProf" placeholder="Engenheiro Eletricista" oninput="orcEmitSalvar()"></div>
+        <div class="eletro-field"><label>Engenheiro — CREA</label>
+          <input type="text" id="orc-emit-engCrea" placeholder="CREA-XX 00000" oninput="orcEmitSalvar()"></div>
+        <div class="eletro-field"><label>Engenheiro — CPF</label>
+          <input type="text" id="orc-emit-engCpf" placeholder="000.000.000-00" oninput="orcEmitSalvar()"></div>
+        <div class="eletro-field"><label>Engenheiro — RG</label>
+          <input type="text" id="orc-emit-engRg" placeholder="em branco sai como lacuna no papel" oninput="orcEmitSalvar()"></div>
+        <div class="eletro-field"><label>Engenheiro — endereço</label>
+          <input type="text" id="orc-emit-engEnd" placeholder="rua, nº, bairro, cidade/UF" oninput="orcEmitSalvar()"></div>
+        <div class="eletro-field"><label>Técnico — nome</label>
+          <input type="text" id="orc-emit-tecNome" placeholder="nome completo" oninput="orcEmitSalvar()"></div>
+        <div class="eletro-field"><label>Técnico — CRT/CFT</label>
+          <input type="text" id="orc-emit-tecCrt" placeholder="em branco sai como lacuna no papel" oninput="orcEmitSalvar()"></div>
+        <div class="eletro-field"><label>Técnico — CPF</label>
+          <input type="text" id="orc-emit-tecCpf" placeholder="000.000.000-00" oninput="orcEmitSalvar()"></div>
+        <div class="eletro-field"><label>Técnico — RG</label>
+          <input type="text" id="orc-emit-tecRg" placeholder="opcional" oninput="orcEmitSalvar()"></div>
+        <div class="eletro-field"><label>Técnico — endereço</label>
+          <input type="text" id="orc-emit-tecEnd" placeholder="rua, nº, bairro, cidade/UF" oninput="orcEmitSalvar()"></div>
+      </div>
+
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Documento</div>
         <div class="eletro-field"><label>Cidade da assinatura</label>
@@ -2930,9 +2958,12 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
          pro mesmo e nunca pro seguinte. -->
     <div id="eletro-pane-cadastros" style="display:none;">
       <div class="pesquisa-info">
-        Quem se cadastrou em <b>solardoc.app/io/eletroposto/parceria</b>. De um lado quem tem o
-        local e quer arrendar, do outro quem tem o capital e procura ponto. O status é seu:
-        marque conforme for falando, senão a lista vira uma pilha sem ordem.
+        De um lado quem tem o local e quer arrendar, do outro quem tem o capital e procura ponto.
+        Entra quem se cadastrou em <b>solardoc.app/io/eletroposto/parceria</b> e também as fichas
+        antigas de NOTA 1, separadas pelo que a pessoa respondeu na LP: <b>declarou como paga</b>
+        cai em Investidores; <b>não sabe como pagar mas tem ou viu um local</b> cai em Arrendamento.
+        Quem não tem nem local nem capital não entra em lista nenhuma — não há conexão a fazer hoje.
+        O status é seu: marque conforme for falando, senão a lista vira uma pilha sem ordem.
       </div>
 
       <div class="cad-topo">
@@ -6302,7 +6333,23 @@ function eletroSubaba(qual) {
 // `tab`. Escrever tudo em eletroposto_parceria criaria cadastro fantasma pra
 // quem nunca se cadastrou.
 // ═══════════════════════════════════════════════════════════════════════════
-const CAD_CAPITAL_FICHA = ['proprio', 'proprio_credito', 'fin_aprovado', 'fin_cnpj'];
+// ── De que lado cada FICHA de nota 1 cai ────────────────────────────────────
+// As fichas não vêm rotuladas: quem preencheu a LP respondeu "como pretende
+// investir" e "como está o seu ponto", e é o cruzamento dos dois que diz o lado.
+//
+//   declarou COMO PAGA  → investidor, não importa o ponto (44 fichas)
+//   não sabe como pagar + TEM ou VIU um local → arrendamento (6 fichas)
+//   não sabe como pagar + nem local           → nenhum dos dois (7 fichas)
+//
+// `fin_banco` ("financiamento — ainda não consultei o banco") entra como
+// investidor: é intenção fraca de capital, mas é intenção de capital. Ficava de
+// fora e sumia da tela inteira — 5 pessoas invisíveis.
+//
+// As 7 do terceiro grupo NÃO aparecem em aba nenhuma de propósito: sem local e
+// sem dinheiro não há conexão pra fazer hoje, e enfiá-las numa das listas só faz
+// o consultor gastar ligação. O público delas é a página de material.
+const CAD_CAPITAL_FICHA = ['proprio', 'proprio_credito', 'fin_aprovado', 'fin_cnpj', 'fin_banco'];
+const CAD_PONTO_FICHA = ['definido', 'em_vista'];
 const CAD_STATUS = { novo: 'Novo', falando: 'Falando', conectado: 'Conectado', sem_interesse: 'Sem interesse' };
 let cadLado = 'ponto';
 let cadDados = null;   // null = nunca carregou
@@ -6323,25 +6370,42 @@ async function cadCarregar(forcar) {
   const tb = document.querySelector('#cad-tabela tbody');
   tb.innerHTML = '<tr><td style="color:#94A3B8;padding:18px">Carregando…</td></tr>';
   try {
+    // A ficha vem INTEIRA (são poucas dezenas) e o lado é decidido aqui, não no
+    // filtro do banco: a mesma leitura alimenta as duas abas, e a regra fica num
+    // lugar só em vez de espalhada em dois querystrings.
     const [pontos, capital, fichas] = await Promise.all([
       supaGet('eletroposto_parceria?lado=eq.ponto&order=created_at.desc&limit=500'),
       supaGet('eletroposto_parceria?lado=eq.capital&order=created_at.desc&limit=500'),
-      supaGet('eletroposto_nota1?capital_faixa=in.(' + CAD_CAPITAL_FICHA.join(',') + ')'
-              + '&select=id,created_at,nome,telefone,cidade,invest,pts,status,nota_interna'
+      supaGet('eletroposto_nota1?select=id,created_at,nome,telefone,cidade,perfil,ponto,invest,'
+              + 'endereco,capital_faixa,tem_ponto,pts,status,nota_interna'
               + '&order=created_at.desc&limit=500'),
     ]);
     // Quem já se cadastrou na página não aparece duas vezes: o cadastro é mais
     // recente e mais completo que a ficha de onde ele saiu.
-    const jaTem = new Set((capital || []).map(c => String(c.telefone)));
+    const jaTem = new Set([...(capital || []), ...(pontos || [])].map(c => String(c.telefone)));
+    const livres = (fichas || []).filter(f => !jaTem.has(String(f.telefone)));
+
+    // A ficha de arrendamento não tem os campos do cadastro (ninguém perguntou
+    // vagas nem trifásica a ela). Os que existem são reaproveitados no mesmo
+    // formato pra tabela não precisar saber de duas formas de linha:
+    //   perfil    → que tipo de local é ("Dono de posto de combustível")
+    //   ponto     → a resposta da LP, que aqui vale como situação do local
+    //   endereco  → só existe pra quem respondeu "já tenho o ponto definido"
+    const daFichaPonto = f => ({ ...f, tab: 'eletroposto_nota1', deFicha: true,
+      ponto_tipo: f.perfil, ponto_fluxo: f.ponto, ponto_endereco: f.endereco, ponto_relacao: null });
+
     cadDados = {
-      ponto: (pontos || []).map(r => ({ ...r, tab: 'eletroposto_parceria', deFicha: false })),
+      ponto: (pontos || []).map(r => ({ ...r, tab: 'eletroposto_parceria', deFicha: false }))
+        .concat(livres.filter(f => f.capital_faixa === 'naosei'
+                               && CAD_PONTO_FICHA.indexOf(f.tem_ponto) >= 0).map(daFichaPonto)),
       capital: (capital || []).map(r => ({ ...r, tab: 'eletroposto_parceria', deFicha: false }))
-        .concat((fichas || []).filter(f => !jaTem.has(String(f.telefone)))
+        .concat(livres.filter(f => CAD_CAPITAL_FICHA.indexOf(f.capital_faixa) >= 0)
           .map(f => ({ ...f, tab: 'eletroposto_nota1', deFicha: true, capital_origem: f.invest }))),
     };
-    // Reordena o lado do capital: as duas origens misturadas ficam em ordem de
-    // chegada, e não com os cadastros todos em cima e as fichas todas embaixo.
-    cadDados.capital.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    // Reordena as duas: origens misturadas ficam em ordem de chegada, e não com
+    // os cadastros todos em cima e as fichas todas embaixo.
+    ['ponto', 'capital'].forEach(l =>
+      cadDados[l].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))));
   } catch (e) {
     tb.innerHTML = '<tr><td style="color:#fca5a5;padding:18px">Não consegui ler os cadastros: ' + escapeHtml(String(e.message || e)) + '</td></tr>';
     return;
@@ -6375,7 +6439,7 @@ function cadRender() {
   }
 
   const cab = cadLado === 'ponto'
-    ? '<tr><th>Quem</th><th>Cidade</th><th>Local</th><th>Endereço</th><th>Movimento</th><th>Status</th></tr>'
+    ? '<tr><th>Quem</th><th>Local</th><th>Cidade</th><th>Endereço</th><th>Situação do ponto</th><th>Status</th></tr>'
     : '<tr><th>Quem</th><th>Cidade</th><th>Quanto</th><th>Com quê</th><th>Origem</th><th>Status</th></tr>';
 
   tb.innerHTML = cab + linhas.map(r => {
@@ -6390,11 +6454,20 @@ function cadRender() {
       + Object.keys(CAD_STATUS).map(k => '<option value="' + k + '"' + ((r.status || 'novo') === k ? ' selected' : '') + '>'
         + CAD_STATUS[k] + '</option>').join('') + '</select></td>';
 
+    // A etiqueta de origem vale mais aqui do que na outra aba: uma linha "da
+    // ficha" no Arrendamento é gente que NUNCA disse que quer arrendar — foi a
+    // régua que juntou "tenho um local" com "não sei como pagar". Quem liga
+    // precisa saber que essa conversa começa perguntando, não confirmando.
+    const org = '<span class="cad-org ' + (r.deFicha ? 'ficha' : 'cad') + '">'
+      + (r.deFicha ? 'da ficha' : 'cadastro') + '</span>';
+
     if (cadLado === 'ponto') {
+      const detalhe = r.deFicha
+        ? org
+        : escapeHtml(r.ponto_vagas || '—') + (r.ponto_energia ? ' · trifásica: ' + escapeHtml(r.ponto_energia) : '');
       return '<tr>' + nome
+        + '<td>' + escapeHtml(r.ponto_tipo || '—') + '<span class="cad-sub">' + detalhe + '</span></td>'
         + '<td>' + escapeHtml(r.cidade || '—') + '</td>'
-        + '<td>' + escapeHtml(r.ponto_tipo || '—') + '<span class="cad-sub">' + escapeHtml(r.ponto_vagas || '—')
-          + (r.ponto_energia ? ' · trifásica: ' + escapeHtml(r.ponto_energia) : '') + '</span></td>'
         + '<td class="cad-end">' + escapeHtml(r.ponto_endereco || '—')
           + (r.obs ? '<span class="cad-sub">' + escapeHtml(r.obs) + '</span>' : '') + '</td>'
         + '<td>' + escapeHtml(r.ponto_fluxo || '—') + '</td>' + st + '</tr>';
@@ -7507,7 +7580,15 @@ function orcPgToggle() {
 // Emitente (sua empresa) — persistência no navegador
 // 'cnpj' entra na lista pra ser salvo/carregado como os outros, mas NÃO sai no
 // orçamento (orc1EpEmpresa manda só o nome) — ele existe pro contrato.
-function orcEmitCampos() { return ['nome', 'end', 'cidade', 'tel', 'email', 'cnpj', 'razao', 'fantasia']; }
+// Os campos `eng*` e `tec*` sao os PROCURADORES da procuracao: o engenheiro
+// que assina ART/TRT e o tecnico que protocola. Ficam aqui, no mesmo
+// localStorage do emitente, porque sao dados da EMPRESA e nao do cliente —
+// preenche uma vez e vale pra toda procuracao.
+function orcEmitCampos() {
+  return ['nome', 'end', 'cidade', 'tel', 'email', 'cnpj', 'razao', 'fantasia',
+          'engNome', 'engNac', 'engEc', 'engProf', 'engRg', 'engCpf', 'engCrea', 'engEnd',
+          'tecNome', 'tecNac', 'tecEc', 'tecCrt', 'tecRg', 'tecCpf', 'tecEnd'];
+}
 function orcEmitSalvar() {
   const o = {};
   orcEmitCampos().forEach(k => { o[k] = orcVal('orc-emit-' + k); });
@@ -7836,10 +7917,21 @@ function epEmitCorrigir(o) {
 function epEmitGet() {
   let o = {};
   try { o = epEmitCorrigir(JSON.parse(localStorage.getItem(ORC_EMIT_KEY) || '{}') || {}); } catch (e) {}
+  // Engenheiro e tecnico sao os MESMOS da procuracao solar da plataforma
+  // (tabela `company`, empresa Aioros Group). RG do engenheiro e CRT do tecnico
+  // estao vazios no cadastro: ficam vazios aqui tambem e viram lacuna no papel
+  // — registro profissional inventado num documento que vai ao balcao da
+  // concessionaria e' problema de outra ordem.
   const def = { nome: 'Irmãos na Obra — Mobilidade Elétrica', end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'contato@irmaosnaobra.com.br',
-                cnpj: '63.636.043/0001-88', razao: 'AIOROS LTDA', fantasia: 'AIOROS GROUP LTDA' };
+                cnpj: '63.636.043/0001-88', razao: 'AIOROS LTDA', fantasia: 'AIOROS GROUP LTDA',
+                engNome: 'Guilherme Dornelas Ferreira', engNac: 'brasileiro', engEc: 'solteiro',
+                engProf: 'Engenheiro Eletricista', engRg: '', engCpf: '048.959.171-00',
+                engCrea: 'CREA-DF 27202', engEnd: 'Rua 19 Norte, lote 02, Águas Claras, Brasília/DF',
+                tecNome: 'Diego Silva Machado', tecNac: 'brasileiro', tecEc: 'casado',
+                tecCrt: '', tecRg: '', tecCpf: '093.912.396-76',
+                tecEnd: 'Rua Maria das Dores, 850, bloco 16, apto 103, Santa Mônica, Uberlândia/MG' };
   const out = {};
-  ['nome', 'end', 'cidade', 'tel', 'email', 'cnpj', 'razao', 'fantasia'].forEach(k => out[k] = (o[k] != null && o[k] !== '') ? o[k] : (def[k] || ''));
+  Object.keys(def).forEach(k => out[k] = (o[k] != null && o[k] !== '') ? o[k] : (def[k] || ''));
   return out;
 }
 // Cabeçalho: logo à esquerda + caixa "TÍTULO · Data" à direita (modelo da proposta).
@@ -9253,6 +9345,14 @@ function procInit() {
   if (c && !c.value) c.value = eletroTextos().cidade || '';
   const l = document.getElementById('proc-local');
   if (l && !l.value) l.value = orcVal('orc-cli-end') || '';
+  // Os campos dos procuradores moram no armazenamento do emitente; pinta com o
+  // que estiver salvo, ou com o default da empresa.
+  const emp = epEmitGet();
+  ['engNome', 'engProf', 'engCrea', 'engCpf', 'engRg', 'engEnd',
+   'tecNome', 'tecCrt', 'tecCpf', 'tecRg', 'tecEnd'].forEach(k => {
+    const el = document.getElementById('orc-emit-' + k);
+    if (el && !el.value) el.value = emp[k] || '';
+  });
   procBanner();
 }
 
@@ -9285,9 +9385,44 @@ function procHTML(d) {
   const endEmp = [d.empresa.end, d.empresa.cidade].filter(Boolean).join(', ');
   const pageFoot = `<div class="ep-pagefoot"><span>Procuração — representação junto à concessionária${d.cliente ? ' · ' + e(d.cliente) : ''}</span><span>Página 1 de 1</span></div>`;
 
+  // Qualificacao no formato do modelo 3 da plataforma: nome em caixa alta,
+  // depois nacionalidade, estado civil, profissao, RG, CPF, registro e
+  // endereco — cada pedaco so' entra se existir. Campo vazio vira LACUNA
+  // (___), nunca numero inventado: procuracao com registro profissional falso
+  // e' problema de outra ordem.
+
+  // Qualificacao no formato do modelo 3 da plataforma: nome em caixa alta,
+  // depois nacionalidade, estado civil, profissao, RG, CPF, registro e
+  // endereco — cada pedaco so' entra se existir. Campo vazio vira LACUNA,
+  // nunca numero inventado.
+  const lac = '<span class="ep-rec-vazio"></span>';
+  const junta = ps => { const q = ps.filter(x => x && String(x).trim()).join(', '); return q ? q + '.' : ''; };
+  const eng = d.empresa.engNome ? junta([
+    '<b>' + e(d.empresa.engNome.toUpperCase()) + '</b>',
+    d.empresa.engNac, d.empresa.engEc, d.empresa.engProf,
+    d.empresa.engRg ? 'portador da carteira de identidade nº ' + e(d.empresa.engRg) : '',
+    d.empresa.engCpf ? 'CPF nº ' + e(d.empresa.engCpf) : '',
+    d.empresa.engCrea ? 'inscrito no ' + e(d.empresa.engCrea) : 'inscrito no CREA sob o nº ' + lac,
+    d.empresa.engEnd ? 'residente na ' + e(d.empresa.engEnd) : '',
+  ]) : '';
+  const tec = d.empresa.tecNome ? junta([
+    '<b>' + e(d.empresa.tecNome.toUpperCase()) + '</b>',
+    d.empresa.tecNac, d.empresa.tecEc,
+    d.empresa.tecCrt ? e(d.empresa.tecCrt) : 'inscrito no CRT/CFT sob o nº ' + lac,
+    d.empresa.tecRg ? 'portador da carteira de identidade nº ' + e(d.empresa.tecRg) : '',
+    d.empresa.tecCpf ? 'CPF nº ' + e(d.empresa.tecCpf) : '',
+    d.empresa.tecEnd ? 'residente na ' + e(d.empresa.tecEnd) : '',
+  ]) : '';
+  const temProc = eng || tec;
+
   const validadeTxt = d.validade === '1ano'
     ? 'A presente procuração tem validade de <b>1 (um) ano</b> a contar da data de sua assinatura, salvo revogação expressa anterior.'
-    : 'Os efeitos do presente instrumento cessam com o término das atividades nele delimitadas, isto é, com a conclusão da ligação da estação de recarga junto à concessionária.';
+    // A cessacao tem que cobrir TUDO que os poderes cobrem. Enquanto a lista
+    // era so' da recarga, "conclusao da ligacao da estacao" fechava certo; com
+    // a homologacao da geracao solar junto, a clausula ficaria mais estreita
+    // que os poderes — e clausula de fim mais estreita que o poder concedido e'
+    // brecha, nao protecao.
+    : 'Os efeitos do presente instrumento cessam com o término das atividades nele delimitadas, isto é, com a conclusão da homologação e da ligação junto à concessionária.';
 
   return `<div class="ep-doc">
     <div class="ep-page">
@@ -9297,21 +9432,27 @@ function procHTML(d) {
       </div>
 
       <div class="ep-ctr-tit">Procuração</div>
-      <div class="ep-ctr-sub">Representação junto à concessionária de energia para a estação de recarga</div>
+      <div class="ep-ctr-sub">Representação junto à concessionária de energia e à ANEEL</div>
 
       <p class="ep-ctr-p"><b>OUTORGANTE:</b> ${vazio(d.outorgante)}, inscrito(a) no CPF/CNPJ sob o nº ${vazio(d.outorganteDoc)}${endCli ? ', residente e domiciliado(a) em ' + e(endCli) : ''} <i>(endereço idêntico ao da conta de energia)</i>${d.rep ? `, neste ato representado(a) por <b>${e(d.rep)}</b>${d.repDoc ? ', CPF nº ' + e(d.repDoc) : ''}` : ''}.</p>
 
       <p class="ep-ctr-p"><b>OUTORGADA:</b> ${vazio(d.empresa.razao || d.empresa.nome)}${d.empresa.fantasia ? `, nome fantasia ${e(d.empresa.fantasia)}` : ''}, inscrita no CNPJ sob o nº ${vazio(d.empresa.cnpj)}${endEmp ? ', com sede em ' + e(endEmp) : ''}, com poderes para representar o OUTORGANTE nos termos deste instrumento.</p>
 
-      <p class="ep-ctr-p">Pelo presente instrumento particular de procuração, o OUTORGANTE acima qualificado nomeia e constitui sua bastante procuradora a OUTORGADA, conferindo-lhe poderes para representá-lo com a <b>finalidade exclusiva</b> de providenciar, requerer e assinar o que for necessário junto à prestadora de serviço de distribuição de energia elétrica <b>${vazio(d.concessionaria)}</b> e à Agência Nacional de Energia Elétrica (ANEEL), referente à unidade consumidora nº <b>${vazio(d.uc)}</b>${d.local ? `, situada em ${e(d.local)}` : ''}.</p>
+      ${temProc ? `<p class="ep-ctr-p"><b>PROCURADORES:</b> na qualidade de prepostos da OUTORGADA, ficam igualmente investidos dos poderes adiante conferidos:</p>
+      ${eng ? `<p class="ep-ctr-li">${eng}</p>` : ''}
+      ${tec ? `<p class="ep-ctr-li">${tec}</p>` : ''}` : ''}
+
+      <p class="ep-ctr-p">Pelo presente instrumento particular de procuração, o OUTORGANTE acima qualificado nomeia e constitui sua bastante procuradora a OUTORGADA${temProc ? ', por si e pelos procuradores acima qualificados,' : ''} conferindo-lhe poderes para representá-lo com a <b>finalidade exclusiva</b> de providenciar, requerer, autorizar e assinar qualquer requerimento junto à prestadora de serviço de distribuição de energia elétrica <b>${vazio(d.concessionaria)}</b> e à Agência Nacional de Energia Elétrica (ANEEL), referente à unidade consumidora nº <b>${vazio(d.uc)}</b>${d.local ? `, situada em ${e(d.local)}` : ''}.</p>
 
       <p class="ep-ctr-p">Os poderes ora conferidos compreendem, especificamente:</p>
-      <p class="ep-ctr-li">a) solicitação de acesso e de <b>aumento de carga</b> da unidade consumidora, para atender a demanda da estação de recarga de veículos elétricos;</p>
-      <p class="ep-ctr-li">b) pedido de <b>nova ligação</b>, quando a estação exigir unidade consumidora própria;</p>
-      <p class="ep-ctr-li">c) <b>troca de padrão de entrada</b>, troca de medidor e adequação da instalação às exigências da concessionária;</p>
-      <p class="ep-ctr-li">d) troca de titularidade da unidade consumidora, quando necessária;</p>
-      <p class="ep-ctr-li">e) protocolar requerimentos, prestar e receber informações, retirar documentos e acompanhar o processo até a efetiva ligação da estação;</p>
-      <p class="ep-ctr-li">f) assinar o contrato de fornecimento, o contrato de uso e conexão e demais instrumentos exigidos pela concessionária para a finalidade acima.</p>
+      <p class="ep-ctr-li">a) <b>troca de titularidade</b> da unidade consumidora;</p>
+      <p class="ep-ctr-li">b) <b>solicitação de conexão</b> e formulário de <b>solicitação de acesso</b>;</p>
+      <p class="ep-ctr-li">c) emissão de <b>TRT</b> e formulário de <b>rateio</b>;</p>
+      <p class="ep-ctr-li">d) <b>aumento de carga</b> e <b>nova ligação</b>, inclusive para atender a demanda da estação de recarga de veículos elétricos;</p>
+      <p class="ep-ctr-li">e) <b>troca de medidor</b> e <b>mudança de padrão</b> de entrada, com a adequação da instalação às exigências da concessionária;</p>
+      <p class="ep-ctr-li">f) ou seja, a <b>homologação geral</b> do sistema de geração de energia solar fotovoltaica e da estação de recarga de veículos elétricos;</p>
+      <p class="ep-ctr-li">g) protocolar requerimentos, prestar e receber informações, retirar documentos e acompanhar o processo até a efetiva ligação;</p>
+      <p class="ep-ctr-li">h) assinar o contrato de fornecimento, o contrato de uso e conexão e demais instrumentos exigidos pela concessionária para as finalidades acima.</p>
 
       <p class="ep-ctr-p">Insta esclarecer que o presente instrumento <b>não permite o substabelecimento a terceiros</b> e não confere poderes para contrair obrigações financeiras em nome do OUTORGANTE além das tarifas e taxas próprias do processo de ligação.</p>
 
