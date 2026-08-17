@@ -527,6 +527,47 @@ const CSS = `
   details[open] summary::after { content: '−'; }
   details p { color: var(--muted); font-size: 15.5px; margin: 13px 0 0; }
 
+  /* Selo de compra segura — as TRES referencias tem, as minhas nao tinham.
+     Numa compra de R$ 67 de quem nunca ouviu falar da gente, e' a linha que
+     tira o ultimo medo antes do cartao. */
+  .seguro {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-size: 12.5px; color: var(--muted); margin-top: 14px;
+  }
+  .seguro svg { flex: none; }
+
+  /* Quem fez — a home tem, a /kit nao. Vale mais numa venda pra desconhecido
+     do que qualquer adjetivo sobre a ferramenta: a pessoa esta' dando o cartao
+     pra um site na internet. */
+  .donos {
+    display: flex; gap: 22px; align-items: center; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 28px 30px;
+  }
+  .donosFotos { display: flex; flex: none; }
+  .donosFotos img {
+    width: 74px; height: 74px; border-radius: 50%; object-fit: cover;
+    border: 3px solid var(--surface); box-shadow: 0 6px 18px rgba(0,0,0,.5);
+  }
+  .donosFotos img + img { margin-left: -22px; }
+  .donosTxt { flex: 1 1 320px; min-width: 0; }
+  .donosTxt h3 { font-size: 20px; margin-bottom: 8px; }
+  .donosTxt p { color: var(--muted); font-size: 15.5px; margin: 0; }
+
+  /* Depoimentos: a secao EXISTE e fica escondida ate' haver depoimento real —
+     e' o que a /kit faz. Inventar frase de cliente e' o caminho curto pro
+     reembolso. */
+  .depoGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; }
+  .depo {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 16px; padding: 24px 22px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .depoEstrelas { display: flex; gap: 3px; color: var(--amber); }
+  .depoTexto { font-size: 15.5px; line-height: 1.7; color: #dfe6f0; margin: 0; }
+  .depoAutor { font-size: 13px; color: var(--muted); margin: 0; }
+  .depoAutor b { color: var(--text); font-weight: 700; display: block; font-size: 14px; }
+
   footer { padding: 44px 0 66px; text-align: center; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
   footer a { color: var(--muted); }
 
@@ -705,6 +746,33 @@ ${d.passos.map(([t, p2], i) => `      <div class="passo">
   </div>
 </section>
 
+<section id="depoimentos" style="display:none">
+  <div class="wrap">
+    <div class="narrow" style="text-align:center">
+      <span class="eyebrow">Quem já usa</span>
+      <h2>O que os integradores dizem</h2>
+    </div>
+    <div class="depoGrid"><!-- preenchido quando houver depoimento REAL --></div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap narrow">
+    <div class="donos">
+      <div class="donosFotos">
+        <img src="/founder-thiago.webp" width="74" height="74" loading="lazy" alt="Thiago">
+        <img src="/founder-diego.webp" width="74" height="74" loading="lazy" alt="Diego">
+      </div>
+      <div class="donosTxt">
+        <h3>Quem fez</h3>
+        <p>Somos o Thiago e o Diego, irmãos, do Triângulo Mineiro. Trabalhamos com energia solar —
+        e o SolarDoc nasceu de um problema que era nosso: a venda esfriava esperando papel. Cada
+        tela desta plataforma passou por uma venda nossa antes de virar produto.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="oferta" id="comprar">
   <div class="wrap">
     <div class="ofertaBox">
@@ -717,6 +785,13 @@ ${d.ofertaLista.map((l) => `        <li>${esc(l)}</li>`).join('\n')}
       </ul>
       ${cta('oferta')}
       <span class="ctaNota">${esc(d.ctaNota)}</span>
+      <p class="seguro">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="4" y="10.5" width="16" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/>
+        </svg>
+        Compra segura pela Kiwify · Pix, cartão ou boleto
+      </p>
       <div class="garantia">
         <span class="selo amber">✓</span>
         <p><strong>7 dias para pedir o dinheiro de volta.</strong> Comprou, entrou e não era o que
@@ -743,6 +818,13 @@ ${d.faq.map(([q, r]) => `    <details>
     <p class="muted">${esc(d.fechaTexto)}</p>
     ${cta('final')}
     <span class="ctaNota">${esc(d.ctaNota)}</span>
+    <p class="seguro">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="4" y="10.5" width="16" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/>
+      </svg>
+      Compra segura pela Kiwify · 7 dias de garantia
+    </p>
   </div>
 </section>
 
