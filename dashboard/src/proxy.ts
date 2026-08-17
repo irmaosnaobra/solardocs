@@ -42,7 +42,13 @@ import type { NextRequest } from 'next/server';
 // sem sessão: quem chega do anúncio não tem conta, e sem esta linha o proxy
 // mandaria o visitante pro login antes de ele ver a oferta. Foi o motivo de o
 // Kit e o LimpaPro terem precisado de site à parte até hoje.
-const PUBLIC_PATHS = ['/lp/', '/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/orc/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular', '/kit', '/oferta', '/eletroposto', '/plugcash', '/assinar', '/quase-la', '/lib', '/robots.txt', '/sitemap.xml'];
+// LP externa entra AQUI ou ela não existe pro visitante: sem token e fora desta
+// lista, o proxy manda pro /auth e a página de venda vira tela de login — foi o
+// "caiu na autenticação, todas, todas e todas" de antes.
+// `/inventario-empresarial` não colide com a ferramenta `/inventario`: o
+// startsWith é do mais específico pro mais curto, e '/inventario' não está na
+// lista justamente porque é rota logada.
+const PUBLIC_PATHS = ['/lp/', '/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/orc/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular', '/kit', '/dimensionamento', '/calculadora', '/inventario-empresarial', '/oferta', '/eletroposto', '/plugcash', '/assinar', '/quase-la', '/lib', '/robots.txt', '/sitemap.xml'];
 
 export function proxy(request: NextRequest) {
   const token = request.cookies.get('solardoc_token')?.value;
