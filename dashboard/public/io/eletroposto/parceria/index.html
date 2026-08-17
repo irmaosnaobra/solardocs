@@ -91,6 +91,9 @@
   .atI{display:flex}
   .atI svg{width:19px;height:19px;stroke:var(--neon-b);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
   .at.amb .atI svg{stroke:var(--amb-b)}
+  /* medido a 390px: "Tenho o capital" quebrava em duas linhas e o par ficava
+     torto — dois atalhos que são a mesma escolha precisam ter o mesmo peso */
+  @media(max-width:420px){ .at{font-size:14.5px;gap:7px;padding:14px 10px} .atI svg{width:17px;height:17px} }
 
   /* placar: prova que se atualiza sozinha. Número que não veio some (não vira 0) */
   .placar{margin-top:26px;display:flex;flex-wrap:wrap;gap:10px}
