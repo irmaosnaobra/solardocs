@@ -1,18 +1,18 @@
-name: Varredura das 18h (Nilce)
+name: Fim do dia da Nilce (19h) - passa pra Giovanna
 
-# 21:00 UTC = 18:00 em Brasília. O Brasil não tem horário de verão, então o
+# 22:00 UTC = 19:00 em Brasília. O Brasil não tem horário de verão, então o
 # offset é fixo o ano inteiro. Roda todo dia — a própria varredura ignora
 # sábado, domingo e feriado na hora de escolher o dia de destino.
 on:
   schedule:
-    - cron: '0 21 * * *'
+    - cron: '0 22 * * *'
   workflow_dispatch:
 
 jobs:
   varredura:
     runs-on: ubuntu-latest
     steps:
-      - name: Fecha o dia da Nilce e empacota o que ficou sem ação
+      - name: Passa pra Giovanna o que a Nilce deixou sem acao
         run: |
-          curl -X GET "https://api.solardoc.app/cron/nilce-18h" \
+          curl -X GET "https://api.solardoc.app/cron/nilce-para-giovanna" \
           -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" -sS -w "\nHTTP %{http_code}\n"

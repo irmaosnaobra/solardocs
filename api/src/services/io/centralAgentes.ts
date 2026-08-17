@@ -25,7 +25,7 @@ import { solardocViaIo } from '../agents/zapiClient';
 import { EP_ORIGENS, EP_AGENDA_INICIO, EP_AGENDA_PREFIX } from './eletropostoAgenda';
 import { SOLAR_ORIGENS, SOLAR_BOASVINDAS_INICIO, SOLAR_ENTREGA_AMPLA_INICIO } from './solarBoasVindas';
 import {
-  consumoTipico, KWH_CORTE_TIME, TIME_CONTA_ALTA, CONSULTOR_CONTA_BAIXA,
+  consumoTipico, KWH_CORTE_TIME, TIME_CONTA_ALTA, TIME_CONTA_BAIXA,
 } from '../agenda/leadSolarFicha';
 
 type Estado = 'ativo' | 'desligado' | 'dark' | 'sem_agente';
@@ -355,7 +355,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
           if (!dono) return false;
           return kwh > KWH_CORTE_TIME
             ? !TIME_CONTA_ALTA.includes(dono)                // grande fora do time
-            : dono !== CONSULTOR_CONTA_BAIXA;                // pequeno gastando manhã de dono
+            : !TIME_CONTA_BAIXA.includes(dono);              // pequeno gastando manhã de dono
         });
         const vendas = fichas.filter(f => String(f.status) === STATUS_VENDA).length;
         return {
@@ -652,7 +652,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       // esta é a tela onde se olha o que os automatismos estão fazendo.
       id: 'roteamento_solar',
       nome: 'Roteamento do solar — conta alta × conta baixa',
-      papel: `Lead de solar acima de ${KWH_CORTE_TIME} kWh/mês alterna entre ${TIME_CONTA_ALTA.join(' e ')}; abaixo disso, e quando o lead não responde o consumo, vai todo pra ${CONSULTOR_CONTA_BAIXA}. A agenda do Thiago e do Diego é disputada com o eletroposto (desde 14/08 a LP vende também 10h e 11h, em cima da manhã do solar), então cada horário que sai é caro — conta pequena não pode consumir um deles. Vale nas duas entradas: formulário do Meta (responde em kWh) e DM do Instagram (responde em reais).`,
+      papel: `Lead de solar acima de ${KWH_CORTE_TIME} kWh/mês alterna entre ${TIME_CONTA_ALTA.join(' e ')}; abaixo disso, e quando o lead não responde o consumo, vai pra fila da conta baixa — ${TIME_CONTA_BAIXA.join(' e ')}, em rodízio de 3 pra 1 (desde 18/08 a Giovanna pega 1 a cada 4, pra treinar). A agenda do Thiago e do Diego é disputada com o eletroposto (desde 14/08 a LP vende também 10h e 11h, em cima da manhã do solar), então cada horário que sai é caro — conta pequena não pode consumir um deles. Vale nas duas entradas: formulário do Meta (responde em kWh) e DM do Instagram (responde em reais).`,
       canal: 'painel', linha: null,
       estado: 'ativo',
       ultima_atividade: null,
@@ -671,7 +671,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         },
       ],
       toques: [
-        { titulo: 'na entrada da ficha', quando: 'no momento em que o lead vira ficha', copy: `Lê o consumo respondido, converte pra kWh/mês (faixa vale pelo MEIO, não pelo teto) e escolhe o dono. Cliente que já tem consultor fica com ele, antes de qualquer regra de tamanho. Sem resposta de consumo é ${CONSULTOR_CONTA_BAIXA}: a regra é exceção, quem não prova que é grande não gasta manhã de dono.` },
+        { titulo: 'na entrada da ficha', quando: 'no momento em que o lead vira ficha', copy: `Lê o consumo respondido, converte pra kWh/mês (faixa vale pelo MEIO, não pelo teto) e escolhe o dono. Cliente que já tem consultor fica com ele, antes de qualquer regra de tamanho. Sem resposta de consumo cai na fila da conta baixa (${TIME_CONTA_BAIXA.join('/')}): a regra é exceção, quem não prova que é grande não gasta manhã de dono.` },
       ],
       alerta: (() => {
         const partes: string[] = [];

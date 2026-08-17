@@ -4,14 +4,16 @@ import { sendWhatsApp } from '../agents/zapiClient';
 import {
   montarObservacaoSolar, organizarFicha, medirTemperatura,
   consumoDaFicha, consumoTipico,
-  TIME_CONTA_ALTA, CONSULTOR_CONTA_BAIXA, KWH_CORTE_TIME,
+  TIME_CONTA_ALTA, KWH_CORTE_TIME,
 } from './leadSolarFicha';
+import { proximoDaContaBaixa } from './filaContaBaixa';
 
 // Telefone de cada consultor do rodízio (mesmo mapa que a Luma usa pra chamar consultor).
 const TEL_CONSULTOR: Record<string, string> = {
   thiago: '34991360223',
   diego: '34991360172',
   nilce: '34991516846',
+  giovanna: '34993396255',
 };
 
 // Puxa leads dos formulários (Lead Ads) da página "Irmãos na Obra" no Meta,
@@ -534,9 +536,10 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
             consultor = TIME_CONTA_ALTA[rodizioIdx % TIME_CONTA_ALTA.length];
             rodizioIdx++;
           } else {
-            // Abaixo do corte (ou sem resposta de consumo): é da Nilce, e não
-            // consome uma vez da fila do Thiago/Diego.
-            consultor = CONSULTOR_CONTA_BAIXA;
+            // Abaixo do corte (ou sem resposta de consumo): é da fila da conta
+            // baixa — 3 Nilce, 1 Giovanna — e não consome uma vez da fila do
+            // Thiago/Diego.
+            consultor = await proximoDaContaBaixa();
           }
           const base = dataBaseDaFaixa(faixa);
           const slot = await slotLivreConsultor(consultor, base);

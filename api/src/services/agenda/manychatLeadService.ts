@@ -24,6 +24,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabaseGerador } from '../../utils/supabaseGerador';
+import { proximoDaContaBaixa } from './filaContaBaixa';
 import { logger } from '../../utils/logger';
 import { sendWhatsApp } from '../agents/zapiClient';
 import {
@@ -35,7 +36,7 @@ import {
 } from './leadsMetaService';
 import {
   montarObservacaoSolar, organizarFicha, FieldItem,
-  consumoTipico, TIME_CONTA_ALTA, CONSULTOR_CONTA_BAIXA, KWH_CORTE_TIME,
+  consumoTipico, TIME_CONTA_ALTA, KWH_CORTE_TIME,
 } from './leadSolarFicha';
 
 // Telefone de cada consultor (mesmo mapa da Luma / leadsMeta / ioEletroposto).
@@ -104,10 +105,10 @@ function tempEletroposto(capital: string): 'quente' | 'morno' | 'frio' {
 function ehContaAltaReais(valorConta: string): boolean {
   return consumoTipico(valorConta || '', 'reais') > KWH_CORTE_TIME;
 }
-function consultorDoLeadSolar(valorConta: string, rodizioIdx: number): string {
+async function consultorDoLeadSolar(valorConta: string, rodizioIdx: number): Promise<string> {
   return ehContaAltaReais(valorConta)
     ? TIME_CONTA_ALTA[rodizioIdx % TIME_CONTA_ALTA.length]
-    : CONSULTOR_CONTA_BAIXA;
+    : proximoDaContaBaixa();
 }
 
 // Sintetiza o field_data (formato do Meta) a partir da ficha do ManyChat, pra
@@ -226,7 +227,7 @@ async function ingestSolar(p: ManychatLeadPayload, nome: string, whatsapp: strin
       ok: true, test: true, produto: 'solar', destino: 'GERADOR',
       na_area: naArea, temperatura,
       consultor: naArea
-        ? (donoTeste || consultorDoLeadSolar(p.valor_conta || '', (stTeste && stTeste[0]?.rodizio_idx) || 0))
+        ? (donoTeste || await consultorDoLeadSolar(p.valor_conta || '', (stTeste && stTeste[0]?.rodizio_idx) || 0))
         : undefined,
       motivo: naArea ? undefined : 'fora de área (não agenda, avisa manual)',
     };
@@ -250,9 +251,9 @@ async function ingestSolar(p: ManychatLeadPayload, nome: string, whatsapp: strin
     if (dono) {
       consultor = dono;
     } else if (!ehContaAltaReais(p.valor_conta || '')) {
-      // Abaixo de 700 kWh/mês (ou sem faixa respondida): é da Nilce e não gasta
-      // uma vez da fila do Thiago/Diego.
-      consultor = CONSULTOR_CONTA_BAIXA;
+      // Abaixo de 700 kWh/mês (ou sem faixa respondida): é da fila da conta baixa
+      // (3 Nilce, 1 Giovanna) e não gasta uma vez da fila do Thiago/Diego.
+      consultor = await proximoDaContaBaixa();
     } else {
       // Conta alta: rodízio Thiago↔Diego compartilhando o contador com o cron do
       // Meta (leads_meta_state) — um lead é um lead, os dois recebem em rodízio

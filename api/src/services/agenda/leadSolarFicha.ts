@@ -101,7 +101,19 @@ function faixaConsumo(v: string): number {
 export const KWH_CORTE_TIME = 700;
 export const TARIFA_KWH = 1.05;               // R$/kWh cheia — mesma da LP /io/solar
 export const TIME_CONTA_ALTA = ['Thiago', 'Diego'];
-export const CONSULTOR_CONTA_BAIXA = 'Nilce';
+
+// 17/08/2026: a conta baixa deixou de ser de uma pessoa só. A Giovanna entrou pra
+// aprender a atender, na proporção que o Thiago pediu — 3 Nilce, 1 Giovanna. Quem
+// SORTEIA é o proximoDaContaBaixa() (filaContaBaixa.ts); aqui ficam só as listas.
+//   • TIME_CONTA_BAIXA é pra PERGUNTAR ("esse dono é do perfil de conta baixa?").
+//     Use sempre ele, nunca `dono !== 'Nilce'` — com duas pessoas no time, o
+//     não-igual passa a responder "é sócio" pra quem é da Giovanna.
+//   • FILA_CONTA_BAIXA é pra SORTEAR: a ordem literal do rodízio, e é o tamanho
+//     dela (4) que define a proporção. Mudar o mix é mexer nesta lista.
+export const TIME_CONTA_BAIXA = ['Nilce', 'Giovanna'];
+export const FILA_CONTA_BAIXA = ['Nilce', 'Nilce', 'Nilce', 'Giovanna'];
+/** "Amanhã que comece": só ficha criada daqui pra frente conta no rodízio. */
+export const CONTA_BAIXA_INICIO = '2026-08-18T00:00:00-03:00';
 
 /**
  * Consumo TÍPICO (kWh/mês) do que o lead respondeu. `unidade` é obrigatória e

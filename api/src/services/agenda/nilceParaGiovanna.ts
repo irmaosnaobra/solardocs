@@ -1,41 +1,45 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// VARREDURA DAS 18H — o dia da Nilce fecha e o que ninguém tocou cai no próximo.
+// 19H — O QUE A NILCE NÃO ATENDEU PASSA PRA GIOVANNA.
 //
-// Ordem do Thiago (17/08/2026): "os da Nilce, às 18h, os que não tiveram ação
-// joga para o próximo dia útil, encaixando nos marcados anterior até lotar; se
-// ainda sobrar, jogar para o outro dia ainda".
+// Ordem do Thiago (17/08/2026): "quando a Nilce deixar algum sem ação vai direto
+// pra Giovanna às 19h e cai pra ela no outro dia". O objetivo é declarado: a
+// Nilce fica com o que é novo e quente, e a Giovanna aprende a atender no que
+// esfriou. Anda junto com o rodízio 3:1 dos leads novos (filaContaBaixa.ts).
 //
-// A diferença pro repasse de 12h (que ela deixou de usar no mesmo dia) é o
-// ENCAIXE. O de 12h devolvia a ficha no MESMO horário do dia seguinte — o que
-// espalha os parados pelo dia e deixa buraco no meio. Aqui a agenda dela é
-// remontada: pega os horários que ainda estão livres no próximo dia útil, do
-// primeiro ao último, e vai preenchendo. Encheu o dia, o resto vai pro seguinte.
+// Às 19h o dia da Nilce fecha. O que ninguém tocou muda de dona E de horário:
+// vai pro próximo dia útil, encaixado na agenda da GIOVANNA — varre a grade dela
+// do primeiro horário ao último, pula o que já está marcado, preenche os buracos.
+// Lotou o dia, o resto vai pro seguinte, e assim por diante.
+//
+// ── A sutileza que faz a diferença ──
+// A ficha parada é lida da agenda da NILCE, mas a vaga é procurada na agenda da
+// GIOVANNA. São duas leituras, e trocar uma pela outra grava em cima do que a
+// Giovanna já tem marcado — o índice único (vendedor_nome, quando) só pegaria a
+// colisão exata, não a sobreposição.
 //
 // ── O que conta como "sem ação" ──
-// Ficha DELA, com o horário já vencido, ainda em `agendado` e sem temperatura.
-// Quem tem temperatura foi qualificado; quem está `nao_atendeu`, `sem_orcamento`
-// ou perdido teve ação de gente e não é assunto de robô — continua na lista das
-// 17h pra ela resolver na mão. E cliente que já tem outro horário FUTURO marcado
-// não ganha um segundo: seria a mesma pessoa em dois lugares da agenda.
+// Ficha da Nilce, horário já vencido, ainda em `agendado` e sem temperatura. Quem
+// tem temperatura foi qualificado; quem está `nao_atendeu`, `sem_orcamento` ou
+// perdido teve ação de gente e não é assunto de robô. E cliente que já tem outro
+// horário FUTURO não é movido: seria a mesma pessoa em dois lugares da agenda.
 //
 // ── Travas ──
 //   • Piso de "daqui pra frente" (VARREDURA_INICIO): ficha com horário anterior à
-//     entrada no ar nunca é movida. Sem isso, a primeira execução despejaria meses
-//     de ficha parada nos próximos dias úteis.
-//   • No máximo 3 quicadas por ficha. Sem isso, o lead que ninguém nunca atende
-//     volta pro 08:00 todo dia e empurra pra tarde quem marcou hoje de manhã —
-//     a fila se inverte e o mais frio passa na frente do mais quente.
-//   • Horizonte de 10 dias úteis. O que não couber fica onde está e é relatado.
+//     entrada no ar nunca é movida — a 1ª execução não despeja backlog antigo.
+//   • Horizonte de 10 dias úteis. O que não couber fica onde está, e é relatado.
+//   • Não há teto de repetição, e não precisa haver: a passagem é de mão única.
+//     Depois que a ficha vira da Giovanna, ela sai do público desta varredura
+//     (que só lê a agenda da Nilce) e não volta mais.
 //
 // ── O que ele NÃO faz ──
-//   • Não troca o consultor: é dela e continua dela.
+//   • Não mexe em ficha da Giovanna. O que ELA deixar parado não tem robô: cai na
+//     lista das 17h, que ela recebe normalmente.
 //   • Não manda mensagem pra ninguém. Os avisos de agenda do /gerador estão
-//     desligados por ordem de 25 e 28/07 e isto não é desculpa pra religar um.
-//     O rastro fica no histórico da ficha.
-//   • Não cria linha nova nem cancela: é UPDATE do `quando`, e o horário velho
-//     volta pra agenda no mesmo ato.
+//     desligados por ordem de 25 e 28/07. O rastro fica no histórico da ficha.
+//   • Não cria linha nova nem cancela: é UPDATE, e o horário velho volta pra
+//     agenda da Nilce no mesmo ato.
 //
-// Kill-switch: NILCE_18H_OFF=1.
+// Kill-switch: NILCE_19H_OFF=1.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase } from '../../utils/supabase';
@@ -43,16 +47,18 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { ehFeriadoBR } from '../../utils/feriadosBR';
 
-/** Contador de quicadas por ficha: `nilce_18h:<id>`. */
-export const NILCE_18H_PREFIX = 'nilce_18h:';
+/** Carimbo da passagem, por ficha: `nilce_giovanna:<id>`. */
+export const PASSAGEM_PREFIX = 'nilce_giovanna:';
 
-const CONSULTOR = 'Nilce';
+const DE = 'Nilce';
+const PARA = 'Giovanna';
 const TZ = 'America/Sao_Paulo';
 
-/** A grade dela — espelha a `GRADE_NILCE` da LP do solar
+/** A grade do perfil de conta baixa — espelha a `GRADE_NILCE` da LP do solar
  *  (dashboard/public/io/solar/index.html): 08:00–11:00 e 13:00–16:00, de 30 em
- *  30, almoço fechado. Mexeu lá? mexa aqui, senão a varredura marca num horário
- *  que a página nunca venderia. */
+ *  30, almoço fechado. Vale pras duas: a Giovanna atende o mesmo perfil, então
+ *  herda a mesma grade. Mexeu na LP? mexa aqui, senão a varredura marca num
+ *  horário que a página nunca venderia. */
 export const GRADE_NILCE: string[] = (() => {
   const out: string[] = [];
   for (let t = 8 * 60; t <= 16 * 60; t += 30) {
@@ -68,13 +74,12 @@ const DUR_APRESENTACAO_MS = 30 * 60 * 1000;
 const duracaoDe = (createdBy: string | null): number =>
   String(createdBy || '').includes('eletroposto') ? DUR_APRESENTACAO_MS : DUR_LIGACAO_MS;
 
-const MAX_QUICADAS = 3;
 const HORIZONTE_DIAS_UTEIS = 10;
 
 /** Ficha com horário anterior a isto nunca é movida. */
 export const VARREDURA_INICIO = '2026-08-17T00:00:00.000Z';
 
-const desligado = () => (process.env.NILCE_18H_OFF || '').trim() === '1';
+const desligado = () => (process.env.NILCE_19H_OFF || '').trim() === '1';
 
 // ── datas em Brasília ────────────────────────────────────────────────────────
 const fmtYmd = new Intl.DateTimeFormat('en-CA', {
@@ -119,54 +124,52 @@ type Ficha = {
   status: string; temperatura: string | null; created_by: string | null; historico: string | null;
 };
 
-async function quicadasDe(ids: number[]): Promise<Map<number, number>> {
-  const out = new Map<number, number>();
-  if (!ids.length) return out;
-  const { data } = await supabase.from('system_state')
-    .select('key,value').in('key', ids.map(id => `${NILCE_18H_PREFIX}${id}`));
-  for (const r of (data || []) as { key: string; value: any }[]) {
-    const id = Number(r.key.slice(NILCE_18H_PREFIX.length));
-    if (Number.isFinite(id)) out.set(id, Number(r.value?.vezes) || 0);
-  }
-  return out;
-}
-
 export type ResultadoVarredura = {
   ok: true;
   off?: boolean;
   paradas: number;
   movidas: number;
-  puladas_no_teto: number;
   sem_vaga: number;
   dias_usados: string[];
   previa?: Array<{ id: number; cliente: string; de: string; para: string }>;
 };
 
-export async function runNilceVarredura18h(opts: { dry?: boolean } = {}): Promise<ResultadoVarredura> {
+export async function runNilceParaGiovanna(opts: { dry?: boolean } = {}): Promise<ResultadoVarredura> {
   const dry = !!opts.dry;
   const vazio: ResultadoVarredura = {
-    ok: true, paradas: 0, movidas: 0, puladas_no_teto: 0, sem_vaga: 0, dias_usados: [],
+    ok: true, paradas: 0, movidas: 0, sem_vaga: 0, dias_usados: [],
   };
   if (desligado() && !dry) return { ...vazio, off: true };
 
   const agora = new Date();
   const agoraIso = agora.toISOString();
 
-  // Tudo da agenda dela que importa numa consulta só: o que está parado (passado)
-  // e o que já está marcado daqui pra frente (pra saber o que está ocupado).
-  const { data, error } = await supabaseGerador.from('agendamentos')
-    .select('id,quando,cliente_nome,cliente_telefone,status,temperatura,created_by,historico')
-    .eq('vendedor_nome', CONSULTOR)
-    .not('status', 'in', '(cancelado,sem_interesse)')
-    .gte('quando', VARREDURA_INICIO)
-    .order('quando', { ascending: true });
-  if (error) { logger.error('nilce-18h', 'falha lendo a agenda dela', error); return vazio; }
+  // DUAS leituras, e a distinção é o coração deste módulo: o que está parado sai
+  // da agenda da NILCE; a vaga é procurada na agenda da GIOVANNA.
+  const [daNilce, daGiovanna] = await Promise.all([
+    supabaseGerador.from('agendamentos')
+      .select('id,quando,cliente_nome,cliente_telefone,status,temperatura,created_by,historico')
+      .eq('vendedor_nome', DE)
+      .not('status', 'in', '(cancelado,sem_interesse)')
+      .gte('quando', VARREDURA_INICIO)
+      .order('quando', { ascending: true }),
+    supabaseGerador.from('agendamentos')
+      .select('id,quando,cliente_nome,cliente_telefone,status,temperatura,created_by,historico')
+      .eq('vendedor_nome', PARA)
+      .not('status', 'in', '(cancelado,sem_interesse)')
+      .gte('quando', agoraIso),
+  ]);
+  if (daNilce.error) { logger.error('nilce-19h', 'falha lendo a agenda da Nilce', daNilce.error); return vazio; }
+  if (daGiovanna.error) { logger.error('nilce-19h', 'falha lendo a agenda da Giovanna', daGiovanna.error); return vazio; }
 
-  const fichas = (data || []) as Ficha[];
-  const futuras = fichas.filter(f => f.quando > agoraIso);
+  const fichas = (daNilce.data || []) as Ficha[];
+  const agendaDela = (daGiovanna.data || []) as Ficha[];
 
-  // Cliente que JÁ tem horário futuro não entra: seria a mesma pessoa duas vezes.
-  const telsComFuturo = new Set(futuras.map(f => telKey(f.cliente_telefone)).filter(Boolean) as string[]);
+  // Cliente que JÁ tem horário futuro (com qualquer uma das duas) não entra:
+  // seria a mesma pessoa em dois lugares da agenda.
+  const telsComFuturo = new Set(
+    [...fichas.filter(f => f.quando > agoraIso), ...agendaDela]
+      .map(f => telKey(f.cliente_telefone)).filter(Boolean) as string[]);
 
   const paradas = fichas.filter(f =>
     f.quando <= agoraIso && f.status === 'agendado' && !f.temperatura
@@ -174,15 +177,14 @@ export async function runNilceVarredura18h(opts: { dry?: boolean } = {}): Promis
 
   if (!paradas.length) return { ...vazio, ...(dry ? { previa: [] } : {}) };
 
-  // Ocupação daqui pra frente, por intervalo. Vai crescendo conforme a varredura
-  // marca — senão duas fichas cairiam no mesmo horário.
-  const ocupado: Array<{ ini: number; dur: number }> = futuras.map(f => ({
+  // Ocupação da GIOVANNA daqui pra frente. Vai crescendo conforme a varredura
+  // marca — senão duas fichas cairiam no mesmo horário dela.
+  const ocupado: Array<{ ini: number; dur: number }> = agendaDela.map(f => ({
     ini: new Date(f.quando).getTime(), dur: duracaoDe(f.created_by),
   }));
   const cabe = (t: number) =>
     t > agora.getTime() && !ocupado.some(o => o.ini < t + DUR_LIGACAO_MS && t < o.ini + o.dur);
 
-  const quicadas = await quicadasDe(paradas.map(f => f.id));
   const dias = proximosDiasUteis(ymdSP(agora), HORIZONTE_DIAS_UTEIS);
 
   // Encaixe: dia a dia, horário a horário, do primeiro livre em diante.
@@ -199,13 +201,11 @@ export async function runNilceVarredura18h(opts: { dry?: boolean } = {}): Promis
     return null;
   }
 
-  let movidas = 0, puladas = 0, semVaga = 0;
+  let movidas = 0, semVaga = 0;
   const usados = new Set<string>();
   const previa: Array<{ id: number; cliente: string; de: string; para: string }> = [];
 
   for (const f of paradas) {
-    if ((quicadas.get(f.id) || 0) >= MAX_QUICADAS) { puladas++; continue; }
-
     const novoIso = proximaVaga();
     if (!novoIso) { semVaga++; continue; }
 
@@ -216,11 +216,11 @@ export async function runNilceVarredura18h(opts: { dry?: boolean } = {}): Promis
       continue;
     }
 
-    const vez = (quicadas.get(f.id) || 0) + 1;
-    const linha = `[${horaBonita(agoraIso)} · Sistema] 🕕 Fechamento do dia: sem ação até as 18h, `
-      + `remarcado de ${horaBonita(f.quando)} para ${horaBonita(novoIso)} (${vez}ª vez).`;
+    const linha = `[${horaBonita(agoraIso)} · Sistema] 🕖 Sem ação até as 19h: passou de ${DE} para ${PARA}, `
+      + `de ${horaBonita(f.quando)} para ${horaBonita(novoIso)}.`;
     const { error: erroUpd } = await supabaseGerador.from('agendamentos')
       .update({
+        vendedor_nome: PARA,
         quando: novoIso,
         historico: f.historico ? `${linha}\n\n${f.historico}` : linha,
       })
@@ -228,28 +228,27 @@ export async function runNilceVarredura18h(opts: { dry?: boolean } = {}): Promis
       // Corrida com gente: mexeu no status entre a leitura e agora? quem manda é ela.
       .eq('status', 'agendado');
     if (erroUpd) {
-      logger.error('nilce-18h', 'mover ficha falhou', { id: f.id, erro: String(erroUpd) });
+      logger.error('nilce-19h', 'passar ficha falhou', { id: f.id, erro: String(erroUpd) });
       continue;
     }
 
     ocupado.push({ ini: new Date(novoIso).getTime(), dur: DUR_LIGACAO_MS });
     usados.add(novoIso.slice(0, 10));
     await supabase.from('system_state').upsert(
-      { key: `${NILCE_18H_PREFIX}${f.id}`, value: { vezes: vez, em: agoraIso, de: f.quando, para: novoIso }, updated_at: agoraIso },
+      { key: `${PASSAGEM_PREFIX}${f.id}`, value: { em: agoraIso, de: f.quando, para: novoIso, dono: PARA }, updated_at: agoraIso },
       { onConflict: 'key' },
     ).then(undefined, (e: unknown) =>
-      logger.error('nilce-18h', 'carimbo do contador falhou', { id: f.id, erro: String(e) }));
+      logger.error('nilce-19h', 'carimbo da passagem falhou', { id: f.id, erro: String(e) }));
     movidas++;
   }
 
-  if (semVaga) logger.warn('nilce-18h', `${semVaga} ficha(s) sem vaga em ${HORIZONTE_DIAS_UTEIS} dias úteis — ficaram onde estavam`);
-  if (movidas) logger.info('nilce-18h', `${movidas} ficha(s) da Nilce empacotadas em ${usados.size} dia(s)`);
+  if (semVaga) logger.warn('nilce-19h', `${semVaga} ficha(s) sem vaga na agenda da ${PARA} em ${HORIZONTE_DIAS_UTEIS} dias úteis — ficaram com a ${DE}`);
+  if (movidas) logger.info('nilce-19h', `${movidas} ficha(s) passaram de ${DE} pra ${PARA}, em ${usados.size} dia(s)`);
 
   return {
     ok: true,
     paradas: paradas.length,
     movidas,
-    puladas_no_teto: puladas,
     sem_vaga: semVaga,
     dias_usados: [...usados].sort(),
     ...(dry ? { previa } : {}),
