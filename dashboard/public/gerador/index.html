@@ -345,6 +345,37 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .eletro-btn.primary{background:#3B82F6;border-color:#3B82F6;color:#fff}
 .eletro-btn.primary:hover{background:#2563EB}
 /* tabela de comparação */
+/* ===== Cadastros do eletroposto: Arrendamento × Investidores ===== */
+.cad-topo{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin:4px 0 14px}
+.cad-abas{display:flex;gap:6px;background:rgba(148,163,184,.10);padding:4px;border-radius:11px}
+.cad-aba{background:none;border:none;color:#94A3B8;font-family:inherit;font-size:14px;font-weight:700;
+  padding:9px 15px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:7px;min-height:40px}
+.cad-aba.ativa{background:rgba(255,255,255,.10);color:#fff}
+.cad-cnt{font-size:12px;font-weight:700;color:#0B1220;background:#7DD117;border-radius:999px;padding:1px 7px;min-width:20px;text-align:center}
+.cad-aba:not(.ativa) .cad-cnt{background:rgba(148,163,184,.30);color:#CBD5E1}
+#cad-aba-capital.ativa .cad-cnt{background:#60A5FA}
+.cad-acoes{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.cad-busca,.cad-filtro{background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.28);border-radius:9px;
+  color:#E5E7EB;font-family:inherit;font-size:13.5px;padding:9px 11px;min-height:40px;outline:none}
+.cad-busca{min-width:230px}
+.cad-busca:focus,.cad-filtro:focus{border-color:#3B82F6}
+.cad-wa{display:inline-flex;align-items:center;gap:5px;color:#7DD117;font-weight:700;text-decoration:none;font-size:12.5px;
+  border:1px solid rgba(125,209,23,.34);border-radius:8px;padding:7px 10px;min-height:36px}
+.cad-st{background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.28);border-radius:8px;color:#E5E7EB;
+  font-family:inherit;font-size:12.5px;font-weight:700;padding:7px 8px;min-height:36px;cursor:pointer}
+.cad-st[data-st="conectado"]{border-color:rgba(52,211,153,.5);color:#34D399}
+.cad-st[data-st="falando"]{border-color:rgba(250,204,21,.45);color:#FACC15}
+.cad-st[data-st="sem_interesse"]{opacity:.6}
+/* de onde a linha veio: cadastro na página × ficha antiga que ninguém trabalhou */
+.cad-org{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;border-radius:999px;padding:3px 8px;white-space:nowrap}
+.cad-org.cad{background:rgba(125,209,23,.16);color:#9BEE38}
+.cad-org.ficha{background:rgba(148,163,184,.18);color:#94A3B8}
+@media(max-width:720px){
+  .cad-topo{flex-direction:column;align-items:stretch}
+  .cad-busca{min-width:0;flex:1}
+  .cadtab .cad-end{max-width:200px}
+}
+
 .eletro-cmp-scroll{overflow-x:auto}
 .eletro-cmp{width:100%;border-collapse:collapse;font-size:13px}
 .eletro-cmp th,.eletro-cmp td{padding:9px 12px;text-align:right;border-bottom:1px solid rgba(255,255,255,.08);white-space:nowrap}
@@ -353,6 +384,15 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .eletro-cmp td.lbl,.eletro-cmp th:first-child{text-align:left;color:#94A3B8;font-weight:600}
 .eletro-cmp td{color:#E5E7EB;font-variant-numeric:tabular-nums}
 .eletro-cmp td.grn{color:#34D399;font-weight:700}
+/* A tabela de cadastro é de LEITURA + 1 ação, então alinha à ESQUERDA — as
+   regras de .eletro-cmp acima alinham tudo à direita, que é o certo pras
+   tabelas de número do simulador. Especificidade é a mesma (.classe + tipo),
+   então estas PRECISAM vir depois; movidas pra cá porque lá em cima elas eram
+   ignoradas em silêncio e as colunas saíam encostadas à direita. */
+.cadtab th,.cadtab td{text-align:left;vertical-align:top;white-space:normal}
+.cadtab td.nome{font-weight:700;color:#F8FAFC}
+.cadtab .cad-sub{display:block;font-size:11.5px;color:#94A3B8;font-weight:600;margin-top:2px}
+.cadtab .cad-end{max-width:280px;line-height:1.4}
 /* ===== container de impressão (escondido na tela; a tela só aparece no print) ===== */
 #eletro-print,#doc-print{display:none}
 @media print{
@@ -2373,6 +2413,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <button type="button" id="eletro-tab-recibo" class="eletro-subtab" onclick="eletroSubaba('recibo')">Recibo</button>
       <button type="button" id="eletro-tab-contrato" class="eletro-subtab" onclick="eletroSubaba('contrato')">Contrato</button>
       <button type="button" id="eletro-tab-procuracao" class="eletro-subtab" onclick="eletroSubaba('procuracao')">Procuração</button>
+      <button type="button" id="eletro-tab-cadastros" class="eletro-subtab" onclick="eletroSubaba('cadastros')">Cadastros</button>
       <button type="button" id="eletro-tab-historico" class="eletro-subtab" onclick="eletroSubaba('historico')">Histórico</button>
       <button type="button" id="eletro-tab-pesquisa" class="eletro-subtab" onclick="eletroSubaba('pesquisa')">Pesquisa</button>
       <button type="button" id="eletro-tab-mercado" class="eletro-subtab" onclick="eletroSubaba('mercado')">Mercado</button>
@@ -2875,6 +2916,50 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       </div>
     </div>
     </div><!-- /eletro-pane-procuracao -->
+
+
+    <!-- ===== PANE: CADASTROS (Arrendamento e Investidores) =====
+         Os dois lados que fecham um eletroposto sozinhos. A régua da LP define
+         NOTA 1 como quem NÃO tem local, então a base virou um lado só: quem tem
+         capital e não acha onde instalar. Quem tem o imóvel e não vai investir
+         só passou a existir quando /io/eletroposto/parceria abriu a porta dele.
+
+         Esta tela NÃO sugere par sozinha. Cidade igual é proximidade, não
+         compatibilidade — quem diz se o ponto serve é quem lê o endereço. O que
+         ela faz é deixar os dois à mão, com status pra ninguém ligar duas vezes
+         pro mesmo e nunca pro seguinte. -->
+    <div id="eletro-pane-cadastros" style="display:none;">
+      <div class="pesquisa-info">
+        Quem se cadastrou em <b>solardoc.app/io/eletroposto/parceria</b>. De um lado quem tem o
+        local e quer arrendar, do outro quem tem o capital e procura ponto. O status é seu:
+        marque conforme for falando, senão a lista vira uma pilha sem ordem.
+      </div>
+
+      <div class="cad-topo">
+        <div class="cad-abas">
+          <button type="button" class="cad-aba ativa" id="cad-aba-ponto" onclick="cadAba('ponto')">Arrendamento <span class="cad-cnt" id="cad-cnt-ponto">—</span></button>
+          <button type="button" class="cad-aba" id="cad-aba-capital" onclick="cadAba('capital')">Investidores <span class="cad-cnt" id="cad-cnt-capital">—</span></button>
+        </div>
+        <div class="cad-acoes">
+          <input type="search" class="cad-busca" id="cad-busca" placeholder="Buscar nome, cidade ou telefone" oninput="cadRender()">
+          <select class="cad-filtro" id="cad-filtro" onchange="cadRender()">
+            <option value="">Todos os status</option>
+            <option value="novo">Novo</option>
+            <option value="falando">Falando</option>
+            <option value="conectado">Conectado</option>
+            <option value="sem_interesse">Sem interesse</option>
+          </select>
+          <button type="button" class="ehist-btn" onclick="cadCarregar(true)">↻ Atualizar</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="eletro-sec-title" id="cad-titulo">Arrendamento — quem tem o local</div>
+        <div class="eletro-cmp-scroll"><table class="eletro-cmp cadtab" id="cad-tabela">
+          <tbody><tr><td style="color:#94A3B8;padding:18px">Carregando…</td></tr></tbody>
+        </table></div>
+      </div>
+    </div><!-- /eletro-pane-cadastros -->
 
 
     <!-- ===== PANE: HISTÓRICO (orçamentos de eletroposto salvos) ===== -->
@@ -6162,13 +6247,16 @@ function navEletroposto() {
 
 // Sub-abas dentro do Eletroposto: Simulador | Histórico | Pesquisa | Mercado | Postos | Mapa
 function eletroSubaba(qual) {
-  const abas = ['simulador', 'orcamento', 'recibo', 'contrato', 'procuracao', 'historico', 'pesquisa', 'mercado', 'postos', 'mapa'];
+  const abas = ['simulador', 'orcamento', 'recibo', 'contrato', 'procuracao', 'cadastros', 'historico', 'pesquisa', 'mercado', 'postos', 'mapa'];
   // A cada abertura: monta a lista de potências (uma vez) e tenta completar o
   // vendedor. Fica aqui, e não só no load, porque o cadastro de consultores
   // carrega assíncrono — na primeira abertura o telefone ainda pode não existir.
   eletroEquipRender();
   eletroVendedorAuto();
   if (qual === 'historico') { epHistOrcRender(); eletroHistCarregar(); }
+  // Cadastros lê a nuvem: só busca quando a aba abre, e reusa o que já tem em
+  // memória nas reaberturas seguintes (o ↻ da própria tela força a releitura).
+  if (qual === 'cadastros') cadCarregar();
   // Recibo e Contrato vivem dos campos do Orçamento (valor, CPF/endereço,
   // empresa). Abrir um deles como PRIMEIRA aba, sem nunca passar no Orçamento,
   // deixava valor, data e cláusula em branco — orcInit é quem preenche tudo isso.
@@ -6189,6 +6277,152 @@ function eletroSubaba(qual) {
   if (qual === 'pesquisa' || qual === 'mercado' || qual === 'postos') {
     const frame = document.getElementById('eletro-frame-' + qual);
     if (frame && !frame.src && frame.dataset.src) frame.src = frame.dataset.src;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CADASTROS — Arrendamento e Investidores
+//
+// Duas listas, duas origens de dado, e a diferença entre elas importa:
+//
+//   ARRENDAMENTO  eletroposto_parceria (lado='ponto') — quem tem o local e
+//                 topa arrendar. É o lado ESCASSO: sem ele os investidores da
+//                 outra aba não têm o que receber.
+//
+//   INVESTIDORES  eletroposto_parceria (lado='capital')  → se cadastrou na página
+//                 + eletroposto_nota1 com capital declarado → preencheu a LP,
+//                   foi recusado por não ter local e NINGUÉM falou com ele desde
+//                   então. São ~38 pessoas, e é o estoque inicial da lista.
+//
+// A etiqueta de origem fica na tela de propósito: "da ficha" é gente que nunca
+// foi tocada, e tratar isso como se fosse cadastro voluntário faz o consultor
+// abrir a conversa do jeito errado.
+//
+// Status grava na tabela DE ONDE A LINHA VEIO — por isso cada linha carrega
+// `tab`. Escrever tudo em eletroposto_parceria criaria cadastro fantasma pra
+// quem nunca se cadastrou.
+// ═══════════════════════════════════════════════════════════════════════════
+const CAD_CAPITAL_FICHA = ['proprio', 'proprio_credito', 'fin_aprovado', 'fin_cnpj'];
+const CAD_STATUS = { novo: 'Novo', falando: 'Falando', conectado: 'Conectado', sem_interesse: 'Sem interesse' };
+let cadLado = 'ponto';
+let cadDados = null;   // null = nunca carregou
+
+function cadAba(lado) {
+  cadLado = lado;
+  ['ponto', 'capital'].forEach(l => {
+    const b = document.getElementById('cad-aba-' + l);
+    if (b) b.classList.toggle('ativa', l === lado);
+  });
+  document.getElementById('cad-titulo').textContent = lado === 'ponto'
+    ? 'Arrendamento — quem tem o local' : 'Investidores — quem tem o capital';
+  cadRender();
+}
+
+async function cadCarregar(forcar) {
+  if (cadDados && !forcar) { cadRender(); return; }
+  const tb = document.querySelector('#cad-tabela tbody');
+  tb.innerHTML = '<tr><td style="color:#94A3B8;padding:18px">Carregando…</td></tr>';
+  try {
+    const [pontos, capital, fichas] = await Promise.all([
+      supaGet('eletroposto_parceria?lado=eq.ponto&order=created_at.desc&limit=500'),
+      supaGet('eletroposto_parceria?lado=eq.capital&order=created_at.desc&limit=500'),
+      supaGet('eletroposto_nota1?capital_faixa=in.(' + CAD_CAPITAL_FICHA.join(',') + ')'
+              + '&select=id,created_at,nome,telefone,cidade,invest,pts,status,nota_interna'
+              + '&order=created_at.desc&limit=500'),
+    ]);
+    // Quem já se cadastrou na página não aparece duas vezes: o cadastro é mais
+    // recente e mais completo que a ficha de onde ele saiu.
+    const jaTem = new Set((capital || []).map(c => String(c.telefone)));
+    cadDados = {
+      ponto: (pontos || []).map(r => ({ ...r, tab: 'eletroposto_parceria', deFicha: false })),
+      capital: (capital || []).map(r => ({ ...r, tab: 'eletroposto_parceria', deFicha: false }))
+        .concat((fichas || []).filter(f => !jaTem.has(String(f.telefone)))
+          .map(f => ({ ...f, tab: 'eletroposto_nota1', deFicha: true, capital_origem: f.invest }))),
+    };
+    // Reordena o lado do capital: as duas origens misturadas ficam em ordem de
+    // chegada, e não com os cadastros todos em cima e as fichas todas embaixo.
+    cadDados.capital.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+  } catch (e) {
+    tb.innerHTML = '<tr><td style="color:#fca5a5;padding:18px">Não consegui ler os cadastros: ' + escapeHtml(String(e.message || e)) + '</td></tr>';
+    return;
+  }
+  cadRender();
+}
+
+function cadRender() {
+  if (!cadDados) return;
+  const busca = (document.getElementById('cad-busca').value || '').trim().toLowerCase();
+  const filtro = document.getElementById('cad-filtro').value;
+  document.getElementById('cad-cnt-ponto').textContent = cadDados.ponto.length;
+  document.getElementById('cad-cnt-capital').textContent = cadDados.capital.length;
+
+  let linhas = cadDados[cadLado];
+  if (filtro) linhas = linhas.filter(r => (r.status || 'novo') === filtro);
+  if (busca) linhas = linhas.filter(r =>
+    [r.nome, r.cidade, r.telefone, r.ponto_endereco].filter(Boolean).join(' ').toLowerCase().includes(busca));
+
+  const tb = document.querySelector('#cad-tabela tbody');
+  if (!linhas.length) {
+    // Vazio tem DOIS motivos e eles pedem reação diferente: filtro que não
+    // achou nada é do usuário; lista sem ninguém é do negócio.
+    const semNinguem = !cadDados[cadLado].length;
+    tb.innerHTML = '<tr><td colspan="6" style="color:#94A3B8;padding:20px;line-height:1.6">' + (semNinguem
+      ? (cadLado === 'ponto'
+        ? '<b>Nenhum ponto cadastrado ainda.</b><br>Enquanto esta lista estiver vazia, os investidores da outra aba não têm o que receber — divulgar solardoc.app/io/eletroposto/parceria é o que destrava.'
+        : '<b>Ninguém com capital declarado ainda.</b>')
+      : 'Nada com esse filtro.') + '</td></tr>';
+    return;
+  }
+
+  const cab = cadLado === 'ponto'
+    ? '<tr><th>Quem</th><th>Cidade</th><th>Local</th><th>Endereço</th><th>Movimento</th><th>Status</th></tr>'
+    : '<tr><th>Quem</th><th>Cidade</th><th>Quanto</th><th>Com quê</th><th>Origem</th><th>Status</th></tr>';
+
+  tb.innerHTML = cab + linhas.map(r => {
+    const tel = String(r.telefone || '').replace(/\D/g, '');
+    const quando = r.created_at ? new Date(r.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '—';
+    const wa = tel ? '<a class="cad-wa" href="https://wa.me/' + tel + '" target="_blank" rel="noopener">WhatsApp</a>' : '';
+    const nome = '<td class="nome">' + escapeHtml(r.nome || '—')
+      + '<span class="cad-sub">' + quando + (r.ponto_relacao ? ' · ' + escapeHtml(r.ponto_relacao) : '') + '</span>'
+      + '<div style="margin-top:6px">' + wa + '</div></td>';
+    const st = '<td><select class="cad-st" data-st="' + (r.status || 'novo') + '" '
+      + 'onchange="cadStatus(\'' + r.tab + '\',' + r.id + ',this)">'
+      + Object.keys(CAD_STATUS).map(k => '<option value="' + k + '"' + ((r.status || 'novo') === k ? ' selected' : '') + '>'
+        + CAD_STATUS[k] + '</option>').join('') + '</select></td>';
+
+    if (cadLado === 'ponto') {
+      return '<tr>' + nome
+        + '<td>' + escapeHtml(r.cidade || '—') + '</td>'
+        + '<td>' + escapeHtml(r.ponto_tipo || '—') + '<span class="cad-sub">' + escapeHtml(r.ponto_vagas || '—')
+          + (r.ponto_energia ? ' · trifásica: ' + escapeHtml(r.ponto_energia) : '') + '</span></td>'
+        + '<td class="cad-end">' + escapeHtml(r.ponto_endereco || '—')
+          + (r.obs ? '<span class="cad-sub">' + escapeHtml(r.obs) + '</span>' : '') + '</td>'
+        + '<td>' + escapeHtml(r.ponto_fluxo || '—') + '</td>' + st + '</tr>';
+    }
+    return '<tr>' + nome
+      + '<td>' + escapeHtml(r.cidade || '—') + '</td>'
+      + '<td>' + escapeHtml(r.capital_faixa || '—') + '</td>'
+      + '<td>' + escapeHtml(r.capital_origem || '—') + (r.prazo ? '<span class="cad-sub">' + escapeHtml(r.prazo) + '</span>' : '') + '</td>'
+      + '<td><span class="cad-org ' + (r.deFicha ? 'ficha' : 'cad') + '">'
+        + (r.deFicha ? 'da ficha' : 'cadastro') + '</span></td>' + st + '</tr>';
+  }).join('');
+}
+
+async function cadStatus(tabela, id, sel) {
+  const valor = sel.value;
+  const antes = sel.getAttribute('data-st');
+  sel.setAttribute('data-st', valor);
+  sel.disabled = true;
+  try {
+    await supaPatch(tabela + '?id=eq.' + id, { status: valor });
+    // Espelha na memória pra o filtro continuar coerente sem recarregar tudo.
+    const alvo = (cadDados[cadLado] || []).find(r => r.id === id && r.tab === tabela);
+    if (alvo) alvo.status = valor;
+  } catch (e) {
+    sel.value = antes; sel.setAttribute('data-st', antes);
+    alert('Não consegui salvar o status: ' + (e.message || e));
+  } finally {
+    sel.disabled = false;
   }
 }
 

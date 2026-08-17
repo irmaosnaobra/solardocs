@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Conexão Eletroposto — quem tem o ponto e quem tem o capital</title>
-<meta name="description" content="Um lado tem o local. O outro tem o dinheiro. Entre no grupo do seu lado e a gente apresenta os dois.">
+<meta name="description" content="Um lado tem o local. O outro tem o dinheiro. Cadastre o seu e a gente apresenta os dois.">
 <link rel="icon" type="image/svg+xml" href="/io/eletroposto/img/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="/io/eletroposto/img/favicon-32.png">
 <link rel="apple-touch-icon" href="/io/eletroposto/img/apple-touch-icon.png">
 <meta name="theme-color" content="#0B2003">
 <meta property="og:title" content="Conexão Eletroposto — quem tem o ponto e quem tem o capital">
-<meta property="og:description" content="Um lado tem o local. O outro tem o dinheiro. Entre no grupo do seu lado e a gente apresenta os dois.">
+<meta property="og:description" content="Um lado tem o local. O outro tem o dinheiro. Cadastre o seu e a gente apresenta os dois.">
 <meta property="og:image" content="https://solardoc.app/io/eletroposto/img/og.jpg">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://solardoc.app/io/eletroposto/parceria/">
@@ -26,10 +26,10 @@
      redirecionado do formulário, e trocar de identidade visual no meio do
      caminho lê como "fui parar em outro site".
 
-     A página inteira existe pra UM gesto: escolher um lado e entrar no grupo.
+     A página inteira existe pra UM gesto: escolher um lado e se cadastrar nele.
      Tudo que não ajuda nessa escolha foi cortado — não há prova social longa,
-     não há oferta, não há vídeo. Duas portas, e o caminho mais curto até o
-     WhatsApp dentro de cada uma.
+     não há oferta, não há vídeo. Duas portas, e o formulário mais curto que dá
+     pra fazer dentro de cada uma sem perder o que a equipe precisa saber.
      ═══════════════════════════════════════════════════════════════════════════ */
   *{margin:0;padding:0;box-sizing:border-box}
   :root{
@@ -281,19 +281,19 @@
         </div>
         <p class="pOlho">Tenho o capital</p>
         <h2 class="pTit">Eu invisto.<br>Falta o lugar.</h2>
-        <p class="pSub">Você tem — ou consegue — o recurso, e o que trava é <b>não saber onde instalar</b>. O grupo é onde os pontos aparecem primeiro.</p>
+        <p class="pSub">Você tem — ou consegue — o recurso, e o que trava é <b>não saber onde instalar</b>. É pra você que a gente liga quando um ponto novo entra.</p>
         <ul class="pLista">
           <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Pontos oferecidos por quem é dono do imóvel</li>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Endereço, movimento e energia antes da visita</li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Endereço, movimento e energia conferidos antes</li>
           <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Estudo de viabilidade quando o ponto for seu</li>
         </ul>
 
         <div class="pFim">
           <button type="button" class="btn" id="btn-capital" onclick="abrirPorta('capital')">
-            <svg viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.9-4.44 9.9-9.9C21.95 6.45 17.5 2 12.04 2m0 18.15h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.19 8.19 0 0 1-1.26-4.38c0-4.54 3.7-8.23 8.25-8.23a8.23 8.23 0 0 1 0 16.47"/></svg>
-            <span id="btn-capital-tx">Entrar no grupo dos investidores</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            <span id="btn-capital-tx">Quero receber os pontos</span>
           </button>
-          <p class="pMicro" id="micro-capital">Grupo no WhatsApp · você entra direto, sem esperar aprovação</p>
+          <p class="pMicro" id="micro-capital">A equipe te avisa quando aparecer ponto no seu perfil e na sua região</p>
 
           <form class="pForm" id="form-capital" onsubmit="enviar(event,'capital')">
             <div class="erro" id="erro-capital"></div>
@@ -334,8 +334,8 @@
                 </select>
               </div>
             </div>
-            <button type="submit" class="btn" id="sub-capital">Entrar no grupo</button>
-            <p class="pMicro">Seus dados vão só pra equipe que faz a conexão. Nada é publicado no grupo.</p>
+            <button type="submit" class="btn" id="sub-capital">Cadastrar meu perfil</button>
+            <p class="pMicro">Seus dados vão só pra equipe que faz a conexão. Nada é publicado em lugar nenhum.</p>
           </form>
         </div>
       </div>
@@ -357,8 +357,8 @@
 
         <div class="pFim">
           <button type="button" class="btn amb" id="btn-ponto" onclick="abrirPorta('ponto')">
-            <svg viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.9-4.44 9.9-9.9C21.95 6.45 17.5 2 12.04 2m0 18.15h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.19 8.19 0 0 1-1.26-4.38c0-4.54 3.7-8.23 8.25-8.23a8.23 8.23 0 0 1 0 16.47"/></svg>
-            <span>Cadastrar meu ponto e entrar</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            <span>Cadastrar meu ponto</span>
           </button>
           <p class="pMicro">Leva 40 segundos · o endereço não é publicado em lugar nenhum</p>
 
@@ -446,8 +446,8 @@
               <label for="p-obs">Quer contar mais alguma coisa? <span style="font-weight:600;color:rgba(247,251,242,.45)">(opcional)</span></label>
               <textarea id="p-obs" placeholder="Ex.: já tenho energia sobrando do solar, o pátio fica aberto 24h…"></textarea>
             </div>
-            <button type="submit" class="btn amb" id="sub-ponto">Cadastrar e entrar no grupo</button>
-            <p class="pMicro">Seus dados vão só pra equipe que faz a conexão. Nada é publicado no grupo.</p>
+            <button type="submit" class="btn amb" id="sub-ponto">Cadastrar meu ponto</button>
+            <p class="pMicro">Seus dados vão só pra equipe que faz a conexão. Nada é publicado em lugar nenhum.</p>
           </form>
         </div>
       </div>
@@ -456,7 +456,7 @@
 
     <!-- a saída de quem não é nenhum dos dois: nem ponto, nem capital -->
     <div class="terceira">
-      <p><b>Ainda não tem nem um nem outro?</b> Se falta o ponto E falta o capital, entrar num grupo não resolve nada hoje. O caminho é aprender a achar e a medir o ponto antes de gastar o primeiro real.</p>
+      <p><b>Ainda não tem nem um nem outro?</b> Se falta o ponto E falta o capital, entrar numa lista de espera não resolve nada hoje. O caminho é aprender a achar e a medir o ponto antes de gastar o primeiro real.</p>
       <a class="lnk" href="/io/eletroposto/material" onclick="ev('parceria_material')">Ver o material de entrada
         <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
     </div>
@@ -464,13 +464,13 @@
 
   <!-- ══ COMO FUNCIONA ══ -->
   <section>
-    <h2 class="comoTit">O que acontece depois que você entra</h2>
-    <p class="comoSub">Não é grupo de conteúdo e não é lista de transmissão. É onde os dois lados se encontram — com a nossa equipe no meio, porque ponto errado quebra investidor e investidor errado queima ponto.</p>
+    <h2 class="comoTit">O que acontece depois que você se cadastra</h2>
+    <p class="comoSub">Não é grupo de WhatsApp e não é lista de transmissão. É um cadastro que a nossa equipe trabalha na mão — porque ponto errado quebra investidor e investidor errado queima ponto.</p>
     <div class="passos">
       <div class="ps">
         <div class="n">1</div>
-        <b>Você entra no grupo do seu lado</b>
-        <span>Investidores de um lado, donos de ponto do outro. Cada grupo vê o que interessa a ele — sem 200 mensagens por dia de assunto alheio.</span>
+        <b>Você entra no cadastro do seu lado</b>
+        <span>De um lado quem tem capital, do outro quem tem local. Ninguém vê o cadastro de ninguém: seu telefone e o seu endereço ficam só com a equipe.</span>
       </div>
       <div class="ps">
         <div class="n">2</div>
@@ -501,36 +501,33 @@
   </div>
 </footer>
 
-<!-- ══ tela de confirmação: a ponte entre o cadastro e o WhatsApp ══ -->
+<!-- ══ tela de confirmação — o cadastro É o fim do caminho ══
+     Não há grupo pra entrar nem link pra copiar: quem trabalha a lista é a
+     equipe, na aba Cadastros do /gerador. Então a tela promete UMA coisa só, e
+     é uma que a gente controla — alguém vai chamar. -->
 <div class="okBg" id="ok-bg">
   <div class="okCx">
     <div class="ic"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
-    <h3 id="ok-tit">Pronto. Falta um toque.</h3>
-    <p id="ok-tx">Seu cadastro chegou. Agora toque no botão para abrir o WhatsApp e entrar no grupo.</p>
-    <a class="btn" id="ok-btn" href="#" target="_blank" rel="noopener">Abrir o grupo no WhatsApp</a>
-    <a class="lnk" id="ok-copiar" href="#" onclick="copiarLink(event)" style="border:0">O botão não abriu? Copiar o link do grupo</a>
+    <h3 id="ok-tit">Cadastro recebido.</h3>
+    <p id="ok-tx">A equipe já tem os seus dados e vai te chamar no WhatsApp.</p>
+    <button type="button" class="btn" id="ok-btn" onclick="fecharOk()">Entendi</button>
+    <a class="lnk" href="/io/eletroposto/" style="border:0">Voltar para a página do eletroposto</a>
   </div>
 </div>
 
 <script>
 /* ═══════════════════════════════════════════════════════════════════════════
-   A regra que manda nesta página: NADA fica entre o dedo e o WhatsApp.
+   NÃO HÁ GRUPO (17/08/2026). Ordem do Thiago: em vez de grupo de WhatsApp, o
+   caminho é CADASTRO — e quem trabalha a lista é a equipe, na aba
+   Eletroposto → Cadastros do /gerador (Arrendamento e Investidores).
 
-   Por isso o botão do grupo é sempre uma NAVEGAÇÃO direta (href de verdade,
-   nunca um fetch que decide o destino depois): quem já veio identificado do
-   formulário da LP toca uma vez e cai no grupo. O registro sai em paralelo,
-   com keepalive — se ele falhar, o lead entrou do mesmo jeito. O contrário
-   (perder a entrada porque a gravação demorou) é o erro caro.
+   O que isso muda aqui: o fim do caminho é a tela de "recebemos", não um link
+   pra fora. Por isso a gravação passou a IMPORTAR de verdade — antes ela era
+   fire-and-forget porque o valor estava em entrar no grupo; agora ela É o
+   valor. Se falhar, a pessoa precisa saber e poder tentar de novo, em vez de
+   sair achando que se cadastrou.
    ═══════════════════════════════════════════════════════════════════════════ */
 var API = location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api';
-
-/* Fallback do link: a página é HTML estático e não lê env. Ela PERGUNTA os
-   links à API no load, mas nasce com o grupo que já existe hoje — assim um
-   /_api fora do ar não transforma o botão principal num botão morto. */
-var GRUPOS = {
-  capital: 'https://chat.whatsapp.com/BUhE93ZvMp2DZlZDsL2g7M',
-  ponto:   'https://chat.whatsapp.com/BUhE93ZvMp2DZlZDsL2g7M'
-};
 
 function ev(tag){ try{ if(window.fbq) fbq('trackCustom','EP_'+tag); }catch(e){} }
 
@@ -550,15 +547,6 @@ function utm(){
   });
   return u;
 }
-
-/* ── links dos grupos ──
-   Trocados assim que a API responde. O `href` do botão da tela de confirmação
-   e o do atalho de um toque apontam sempre pro valor mais recente. */
-fetch(API + '/io/eletroposto/grupos').then(function(r){ return r.json(); }).then(function(g){
-  if (g && g.capital) GRUPOS.capital = g.capital;
-  if (g && g.ponto)   GRUPOS.ponto   = g.ponto;
-  aplicarAtalho();
-}).catch(function(){});
 
 /* ── placar: prova social que se atualiza sozinha ──
    Contagem indisponível (null) não vira 0 — o bloco simplesmente não aparece.
@@ -598,66 +586,34 @@ fetch(API + '/io/eletroposto/parceria/placar').then(function(r){ return r.json()
   if (LEAD.lado === 'capital' || LEAD.lado === 'ponto') {
     document.getElementById('porta-' + LEAD.lado).classList.add('sug');
   }
-  aplicarAtalho();
 })();
 
-/* ── O ATALHO DE UM TOQUE ──
-   Quem veio da LP já está identificado: nome, WhatsApp e cidade vieram no
-   formulário. Então o botão do lado CAPITAL não abre formulário nenhum — ele
-   é um link direto pro grupo, e o cadastro sai junto do clique.
+/* O CADASTRO É O PRODUTO — então ele é esperado, não disparado e esquecido.
+   Enquanto o fim do caminho era entrar num grupo, gravação lenta não podia
+   segurar ninguém e o POST saía em keepalive. Sem grupo, quem não gravou não
+   se cadastrou: a tela de "recebemos" só pode aparecer depois do ok da API,
+   senão a pessoa vai embora achando que ficou na lista.
 
-   O lado PONTO nunca vira atalho, mesmo com o lead identificado: sem endereço,
-   tipo de local e movimento, um dono de ponto no grupo é um contato sem ativo —
-   e o ativo é o motivo do grupo existir. */
-function aplicarAtalho(){
-  if (!veioDaLP) return;
-  var b = document.getElementById('btn-capital');
-  if (!b) return;
-
-  // O BOTÃO VIRA LINK DE VERDADE, não um <button> que chama location.href.
-  // Com <a href> o toque funciona igual a qualquer link do celular: abre o
-  // WhatsApp direto, dá pra segurar e abrir em outra aba, e continua clicável
-  // se o JS engasgar. É essa a diferença entre "clica e entra" e "clica, o
-  // script decide, e às vezes não acontece nada".
-  if (b.tagName !== 'A') {
-    var a = document.createElement('a');
-    a.className = b.className; a.id = b.id; a.innerHTML = b.innerHTML;
-    a.setAttribute('rel', 'noopener');
-    b.parentNode.replaceChild(a, b);
-    b = a;
-  }
-  b.href = GRUPOS.capital;   // trocado de novo quando a API responder
-  document.getElementById('btn-capital-tx').textContent = 'Entrar no grupo agora';
-  document.getElementById('micro-capital').textContent = 'Você já se identificou no formulário · entra direto, sem aprovação';
-  b.onclick = function(){
-    // Só registra e deixa o link seguir — sem preventDefault, sem location.href.
-    registrar('capital', dadosDaLP('capital'));
-    ev('parceria_grupo_capital_1toque');
-  };
-}
-
-function dadosDaLP(lado){
-  return {
-    lado: lado, nome: LEAD.nome, telefone: LEAD.telefone, cidade: LEAD.cidade || '',
-    // `capital_origem`, não `capital_faixa`: o que a LP perguntou foi COM QUÊ
-    // ("recurso próprio", "financiamento aprovado"), e faixa em reais é outra
-    // pergunta — quem entra com um toque não respondeu essa.
-    capital_origem: LEAD.invest || '', origem: 'lp_nota1'
-  };
-}
-
-/* Registro fire-and-forget: keepalive faz o navegador terminar o POST mesmo
-   depois que a página começou a sair pro WhatsApp. */
+   Teto de 8s pra não pendurar quem está numa rede ruim — passou disso, o erro
+   aparece na tela com o telefone da equipe. */
 function registrar(lado, corpo){
-  try {
-    var body = {}; for (var k in corpo) body[k] = corpo[k];
-    var u = utm(); for (var j in u) body[j] = u[j];
-    body.lado = lado;
-    fetch(API + '/io/eletroposto/parceria', {
-      method:'POST', headers:{'Content-Type':'application/json'}, keepalive:true,
-      body: JSON.stringify(body)
-    }).catch(function(){});
-  } catch(_) {}
+  var body = {}; for (var k in corpo) body[k] = corpo[k];
+  var u = utm(); for (var j in u) body[j] = u[j];
+  body.lado = lado;
+  var abortou = false;
+  var ctrl = window.AbortController ? new AbortController() : null;
+  var relogio = setTimeout(function(){ abortou = true; if (ctrl) ctrl.abort(); }, 8000);
+  return fetch(API + '/io/eletroposto/parceria', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body), signal: ctrl ? ctrl.signal : undefined
+  }).then(function(r){
+    clearTimeout(relogio);
+    if (!r.ok) throw new Error('http ' + r.status);
+    return true;
+  }, function(e){
+    clearTimeout(relogio);
+    throw abortou ? new Error('demorou') : e;
+  });
 }
 
 /* ── abrir a porta (quem não veio identificado) ── */
@@ -687,7 +643,7 @@ function enviar(e, lado){
   var telRaw = val(pre + '-tel').replace(/\D/g,'');
   var cidade = val(pre + '-cidade');
 
-  if (nome.split(/\s+/).length < 2 || nome.length < 5) return erro(lado, 'Escreva seu nome completo — é assim que a equipe te encontra no grupo.');
+  if (nome.split(/\s+/).length < 2 || nome.length < 5) return erro(lado, 'Escreva seu nome completo — é por ele que a equipe te chama.');
   if (telRaw.length < 10 || telRaw.length > 11)        return erro(lado, 'Informe um WhatsApp válido com DDD.');
   if (cidade.length < 2)                               return erro(lado, 'Informe a cidade e o estado.');
 
@@ -715,43 +671,33 @@ function enviar(e, lado){
 
   esconderErro(lado);
   var sub = document.getElementById('sub-' + lado);
+  var rotulo = sub.textContent;
   sub.disabled = true; sub.textContent = 'Enviando…';
-  registrar(lado, corpo);
   ev('parceria_cadastro_' + lado);
 
-  // Não espera resposta: o cadastro é keepalive e o próximo passo é o WhatsApp.
-  // Um erro de rede aqui não pode segurar a pessoa na porta do grupo.
-  setTimeout(function(){ mostrarOk(lado); sub.disabled = false;
-    sub.textContent = lado === 'capital' ? 'Entrar no grupo' : 'Cadastrar e entrar no grupo'; }, 450);
+  // ESPERA a gravação. Sem grupo pra entrar, "recebemos" só pode aparecer
+  // depois que o cadastro existe de verdade — senão a pessoa sai da página
+  // achando que está na lista e ninguém nunca vai chamá-la.
+  registrar(lado, corpo).then(function(){
+    mostrarOk(lado);
+    sub.disabled = false; sub.textContent = rotulo;
+  }, function(){
+    sub.disabled = false; sub.textContent = rotulo;
+    erro(lado, 'Não consegui salvar seu cadastro agora — pode ser a sua conexão. ' +
+               'Tente de novo em alguns segundos; se insistir, chame a gente no (34) 99136-0223.');
+    ev('parceria_cadastro_falhou_' + lado);
+  });
 }
 
 function mostrarOk(lado){
-  var link = GRUPOS[lado];
-  document.getElementById('ok-btn').href = link;
-  document.getElementById('ok-tit').textContent = lado === 'ponto' ? 'Ponto cadastrado. Falta um toque.' : 'Pronto. Falta um toque.';
+  document.getElementById('ok-tit').textContent = lado === 'ponto' ? 'Ponto cadastrado.' : 'Cadastro recebido.';
   document.getElementById('ok-tx').textContent = lado === 'ponto'
-    ? 'A equipe já recebeu o seu local. Toque no botão para entrar no grupo dos donos de ponto — é lá que os investidores chegam.'
-    : 'Toque no botão para abrir o WhatsApp e entrar no grupo dos investidores.';
+    ? 'A equipe já recebeu o seu local e vai te chamar no WhatsApp — o próximo passo é conferir o endereço e o movimento antes de apresentar a um investidor.'
+    : 'A equipe já tem o seu perfil. Quando aparecer ponto na sua região, você é chamado no WhatsApp.';
   document.getElementById('ok-bg').classList.add('on');
-  // O toque no botão é o que conta como entrada de verdade.
-  document.getElementById('ok-btn').onclick = function(){ ev('parceria_grupo_' + lado); };
 }
 
-function copiarLink(e){
-  e.preventDefault();
-  var link = document.getElementById('ok-btn').getAttribute('href');
-  var alvo = e.target;
-  function feito(){ alvo.textContent = 'Link copiado — cole no WhatsApp'; }
-  try {
-    if (navigator.clipboard) { navigator.clipboard.writeText(link).then(feito, nada); }
-    else nada();
-  } catch(_) { nada(); }
-  function nada(){
-    // Sem clipboard (navegador antigo, http): mostra o link pra pessoa copiar na mão.
-    alvo.textContent = link;
-    alvo.style.wordBreak = 'break-all';
-  }
-}
+function fecharOk(){ document.getElementById('ok-bg').classList.remove('on'); }
 
 /* ── utilitários ── */
 function val(id){ var e = document.getElementById(id); return e ? String(e.value || '').trim() : ''; }

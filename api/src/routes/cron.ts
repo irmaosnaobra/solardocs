@@ -33,7 +33,6 @@ import { varrerComentariosFacebook } from '../services/instagram/fbComentarios';
 import { varrerInboxFacebook } from '../services/instagram/fbMensagens';
 import { runRepescagemTick, semearRepescagem } from '../services/io/eletropostoRepescagem';
 import { runEntradaIoDigest } from '../services/io/entradaIoDigest';
-import { runConviteNota1Garantido } from '../services/io/eletropostoConviteGarantido';
 import { runSementeTick, publicoSemente, bolhasSemente } from '../services/io/sementeSolarService';
 import { runGrupoFriosTick, publicoGrupoFrio, bolhasGrupoFrio } from '../services/io/eletropostoGrupoFrios';
 import { runEletropostoAgendaTick } from '../services/io/eletropostoAgenda';
@@ -299,7 +298,6 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       varrerComentariosFacebook(),     // Facebook: comentário em post/anúncio da Página → resposta privada (FB_COMENTARIOS_OFF desliga)
       varrerInboxFacebook(),           // Facebook: inbox do Messenger — responde, manda o menu e chama o humano (FB_INBOX_OFF desliga)
       runRepescagemTick(),             // eletroposto: 1 pessoa do apagão a cada 20min, 07h–20h
-      runConviteNota1Garantido(),      // eletroposto: TODO nota 1 entra no grupo — rede embaixo do envio da LP
       runSementeTick(),                // semente: nutrição de quem pediu orçamento de solar e não fechou
       runGrupoFriosTick(),             // eletroposto: quem esfriou (não atendeu / sem interesse) vai pro grupo
       runEletropostoAgendaTick(),      // eletroposto: confirmação ao marcar + bom dia + lembrete 1h e 5min (anti no-show)

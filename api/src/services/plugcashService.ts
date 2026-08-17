@@ -75,14 +75,15 @@ export function telNorm(t?: string | null): string | null {
 }
 
 // ── A oferta de entrada já está vendável? ───────────────────────────────────
-// FONTE ÚNICA da decisão "grupo de WhatsApp ou página de venda". Três caminhos
-// perguntam isso e precisam responder igual:
-//   · POST /io/eletroposto/nota1        — o envio imediato do convite
-//   · runConviteNota1Garantido()        — o tick que varre quem ficou sem convite
-//   · /io/eletroposto/material          — a própria página, via /plugcash/curso
+// Sobrou UM chamador desde 17/08/2026: a própria página do material, via
+// /plugcash/curso — é ela que decide mostrar preço e botão ou dizer que a oferta
+// ainda não abriu.
 //
-// Se divergirem, o pior caso é silencioso e caro: a página cobra R$ 197 e o tick
-// entrega o mesmo conteúdo de graça no WhatsApp dez minutos depois.
+// Os outros dois eram do fluxo do grupo de WhatsApp (o convite imediato do POST
+// /nota1 e o tick que varria quem ficou sem convite). O grupo deixou de ser o
+// destino do NOTA 1: agora ele se cadastra em /io/eletroposto/parceria e a
+// equipe trabalha a lista no /gerador. O tick foi apagado, e o EP_NOTA1_CONVITE_GRUPO
+// abaixo não liga grupo nenhum — só força a resposta desta função.
 //
 // Vendável = curso publicado E com link de checkout. Publicar sem link é meio
 // caminho, e meio caminho aqui é um botão que não compra nada.

@@ -1,17 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { supabaseGerador } from '../utils/supabaseGerador';
-// Quem decide entre o grupo de WhatsApp e a página de venda é o estado do
-// catálogo do PlugCash. A pergunta mora numa função só — este endpoint e o tick
-// do convite garantido precisam responder igual, senão a página cobra e o tick
-// entrega de graça dez minutos depois.
-import { ofertaDeEntradaVendavel } from '../services/plugcashService';
 // Os eventos do funil vivem em pc_eventos, no projeto solardoc-pro.
 import { supabase as supabasePc } from '../utils/supabase';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { logger } from '../utils/logger';
-// A copy do convite mora no serviço de repescagem (é a MESMA mensagem nos dois
-// caminhos: LP em tempo real e fila de quem ficou sem resposta no apagão).
-import { bolhaConviteDaPagina } from '../services/io/eletropostoRepescagem';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alerta de lead novo da LP do Eletroposto (/io/eletroposto) no WhatsApp da equipe.
@@ -165,21 +157,9 @@ router.post('/alerta', async (req: Request, res: Response): Promise<void> => {
 // Endpoint público, como o /alerta — a LP é HTML e não guarda segredo. O que ele
 // não pode virar é uma máquina de mandar mensagem pra número de estranho:
 //   1. Valida formato (telefone BR com DDD, nome de gente).
-//   2. Mesmo telefone só recebe convite uma vez a cada 24h.
-//   3. Teto global por hora — passou do teto, grava o lead e NÃO manda.
-// Gravar nunca é bloqueado por esses limites: perder o lead é o erro pior.
+//   2. Não manda mensagem nenhuma: desde 17/08 ele só GRAVA e avisa a equipe.
+// Gravar nunca é bloqueado: perder o lead é o erro pior.
 // ─────────────────────────────────────────────────────────────────────────────
-
-const CONVITE_TETO_HORA = 40;
-let conviteJanela = { hora: -1, enviados: 0 };
-
-function cabeNoTeto(): boolean {
-  const hora = Math.floor(Date.now() / 3_600_000);
-  if (conviteJanela.hora !== hora) conviteJanela = { hora, enviados: 0 };
-  if (conviteJanela.enviados >= CONVITE_TETO_HORA) return false;
-  conviteJanela.enviados++;
-  return true;
-}
 
 // Capital de verdade declarado: é o investidor sem local — o outro lado do
 // casamento com quem tem ponto e não tem dinheiro. Ganha selo no alerta.
@@ -281,73 +261,23 @@ router.post('/nota1', async (req: Request, res: Response): Promise<void> => {
     logger.error('io-eletroposto-nota1', `falha gravando ${telefone}`, err);
   }
 
-  // ── Grupo × oferta: quem decide é a oferta estar VENDÁVEL ──
-  // Desde 17/08/2026 o NOTA 1 cai em /io/eletroposto/parceria, a página das duas
-  // portas (tem o capital × tem o ponto), e o link do grupo está NA TELA. Por
-  // isso o convite por WhatsApp virou reforço, não caminho único: ele só sai
-  // quando não existe oferta paga concorrendo com ele no mesmo minuto.
+  // ── NENHUMA MENSAGEM SAI DAQUI (17/08/2026) ──
+  // Ordem do Thiago: em vez de grupo, o NOTA 1 se cadastra em
+  // /io/eletroposto/parceria e a equipe trabalha a lista na aba
+  // Eletroposto → Cadastros do /gerador (Arrendamento e Investidores).
   //
-  // Publicou o curso e colou o link no /admin? A bolha para sozinha. Despublicou?
-  // Ela volta sozinha. A página, o cadastro e o aviso da equipe acontecem nos
-  // três casos.
+  // A bolha que saía daqui empurrava um destino que deixou de existir. Some
+  // junto o teto por hora e a trava de 24h, que só existiam por causa dela.
+  // A varredura de "convite garantido" foi desligada no mesmo ato — sem isso ela
+  // viraria a ÚNICA remetente, porque procura exatamente ficha sem convite.
   //
-  // A ESTRUTURA MUDOU EM 17/08: até aqui, "oferta vendável" fazia o handler dar
-  // `return` — e levava junto o aviso da equipe lá embaixo, que é justamente o
-  // que faz alguém casar investidor com dono de ponto. O corte agora desliga só
-  // a bolha; gravação e aviso são incondicionais.
-  let convidar = !(await ofertaDeEntradaVendavel());
+  // O que continua saindo é o AVISO DA EQUIPE, e ele é incondicional: até 17/08
+  // o handler dava `return` quando a oferta do material estava vendável e levava
+  // esse aviso junto, calado.
+  res.json({ ok: true, id, convite: false });
 
-  // Já convidado nas últimas 24h? Não repete. Vale pro caso de o lead preencher
-  // o formulário duas vezes (acontece: ele volta pra corrigir o ponto).
-  try {
-    const desde = new Date(Date.now() - 24 * 3600_000).toISOString();
-    const { data: repetido } = await supabaseGerador
-      .from('eletroposto_nota1')
-      .select('id')
-      .eq('telefone', telefone)
-      .not('convite_enviado_at', 'is', null)
-      .gte('convite_enviado_at', desde)
-      .limit(1);
-    if (repetido && repetido.length) convidar = false;
-  } catch { /* na dúvida, convida — o teto por hora segura o estrago */ }
-
-  // `teste: true` grava e não manda — é assim que se confere o endpoint em produção
-  // sem disparar 5 bolhas pro WhatsApp de alguém.
-  if (b.teste === true) convidar = false;
-
-  if (convidar && !cabeNoTeto()) {
-    convidar = false;
-    logger.error('io-eletroposto-nota1', `teto de ${CONVITE_TETO_HORA}/h estourado — ${telefone} gravado sem convite`);
-  }
-
-  res.json({ ok: true, id, convite: convidar });
-
-  // Background: a LP não espera o WhatsApp pra levar o lead pra página das portas.
+  // Background: a LP não espera nada disto pra levar o lead pra página das portas.
   (async () => {
-    if (convidar) {
-      const primeiroNome = nome.split(/\s+/)[0];
-      try {
-        // UMA bolha, não cinco: a página das portas já mostrou o link, e repetir
-        // o passo anterior em cinco mensagens gasta a linha IO — que foi
-        // bloqueada uma vez justamente por volume.
-        for (const bolha of bolhaConviteDaPagina(primeiroNome)) {
-          await sendWhatsApp(telefone, bolha, 'io');
-          await new Promise(r => setTimeout(r, 1500));
-        }
-        if (id) {
-          await supabaseGerador.from('eletroposto_nota1')
-            .update({ convite_enviado_at: new Date().toISOString() }).eq('id', id);
-        }
-        logger.info('io-eletroposto-nota1', `convite do grupo enviado pra ${nome} (${telefone})`);
-      } catch (err) {
-        logger.error('io-eletroposto-nota1', `convite falhou pra ${telefone}`, err);
-        if (id) {
-          await supabaseGerador.from('eletroposto_nota1')
-            .update({ convite_erro: String(err).slice(0, 400) }).eq('id', id)
-            .then(undefined, () => {});
-        }
-      }
-    }
 
     // O NOTA 1 é avisado no WhatsApp da equipe, mesmo sem agendar (pedido do
     // Thiago em 01/08). Ele não ocupa agenda, mas continua sendo lead: quem tem
@@ -389,33 +319,17 @@ router.post('/nota1', async (req: Request, res: Response): Promise<void> => {
 // investir — nunca preencheu a LP, porque a LP pergunta por investidor.
 //
 // Estas rotas existem pra capturar os dois e deixar o casamento possível:
-//   GET  /grupos    → os links dos grupos (a página é HTML estático, não lê env)
-//   POST /parceria  → grava o lado escolhido e devolve o link do grupo certo
+//   GET  /parceria/placar → contagem de cada lado (a página mostra como prova)
+//   POST /parceria        → grava o cadastro do lado escolhido
+//
+// NÃO HÁ MAIS GRUPO (17/08/2026): ordem do Thiago é cadastro, e a equipe
+// trabalha a lista na aba Eletroposto → Cadastros do /gerador. Ninguém recebe
+// mensagem por se cadastrar — o único WhatsApp que sai daqui é o aviso INTERNO
+// de ponto novo, pra quem é da casa.
 //
 // Público, como o resto da LP. Se protege por formato + upsert por (lado,
 // telefone): reenviar o mesmo formulário atualiza a linha, não cria fila.
 // ─────────────────────────────────────────────────────────────────────────────
-
-/** O grupo que já existe hoje é o dos investidores — quem está lá é NOTA 1 com capital. */
-const GRUPO_CAPITAL = () => (process.env.IO_GRUPO_EP_CAPITAL_LINK || process.env.IO_GRUPO_ELETROPOSTO_LINK || '').trim()
-  || 'https://chat.whatsapp.com/BUhE93ZvMp2DZlZDsL2g7M';
-/**
- * O grupo dos donos de ponto ainda não existe — precisa ser criado no WhatsApp e
- * o link colado em IO_GRUPO_EP_PONTO_LINK. Enquanto não vier, cai no mesmo grupo
- * do capital: misturar os dois lados é pior que separar, mas é MUITO melhor que
- * mandar quem tem o ponto (o ativo escasso) pra um botão que não abre nada.
- */
-const GRUPO_PONTO = () => (process.env.IO_GRUPO_EP_PONTO_LINK || '').trim() || GRUPO_CAPITAL();
-
-router.get('/grupos', (_req: Request, res: Response): void => {
-  res.set('Cache-Control', 'public, max-age=300');
-  res.json({
-    capital: GRUPO_CAPITAL(),
-    ponto: GRUPO_PONTO(),
-    // A página avisa a equipe (não o lead) quando os dois são o mesmo link.
-    separados: GRUPO_PONTO() !== GRUPO_CAPITAL(),
-  });
-});
 
 // ── Placar da página: quantos já estão de cada lado ──
 // A página mostra isto como prova social, então tem que ser CONTAGEM DE VERDADE,
@@ -463,7 +377,6 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
     res.status(400).json({ error: 'telefone invalido' }); return;
   }
 
-  const link = lado === 'ponto' ? GRUPO_PONTO() : GRUPO_CAPITAL();
   const bruto = {
     lado, nome, telefone,
     cidade:         txt(b.cidade, 120),
@@ -482,7 +395,7 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
     ponto_energia:  txt(b.ponto_energia, 40),
     obs:            txt(b.obs, 600),
     origem:         b.origem === 'lp_nota1' ? 'lp_nota1' : 'link_direto',
-    grupo_click_at: new Date().toISOString(),
+    cadastrado_em: new Date().toISOString(),
     ...utm(b),
   };
 
@@ -497,9 +410,9 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
   const linha: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(bruto)) if (v !== null && v !== undefined) linha[k] = v;
 
-  // Responde ANTES do banco: o próximo passo do lead é abrir o WhatsApp, e ele
-  // não pode ficar olhando um botão girando enquanto a gente grava.
-  res.json({ ok: true, link });
+  // Responde ANTES do banco: a tela de "recebemos" aparece no ato, e gravação
+  // que demora não pode virar botão girando.
+  res.json({ ok: true });
 
   (async () => {
     let id: number | null = null;
