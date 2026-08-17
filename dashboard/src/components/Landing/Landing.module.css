@@ -3092,3 +3092,127 @@
   .modsCta { margin-top: 28px; }
 }
 
+
+/* ── VSL ABERTA (o orçamento pelo computador) ─────────────────────────────
+   Fica entre "Como funciona" e "Módulos", então o fundo continua a escada de
+   gradiente das seções vizinhas. O palco é 16:9 fixo: sem altura reservada o
+   player empurra a página inteira pra baixo quando o vídeo carrega. */
+.vsl {
+  padding: 80px 20px;
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.3), transparent);
+}
+.vslInner { max-width: 900px; margin: 0 auto; }
+
+.vslPalco {
+  position: relative;
+  aspect-ratio: 16 / 9;   /* padrão; VSL.proporcao sobrescreve inline */
+  margin: 0 auto;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: #0b1220;
+  box-shadow: 0 40px 90px rgba(2, 6, 23, 0.6);
+}
+.vslVideo {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  background: #0b1220;
+}
+
+/* A capa é um <button> do tamanho do palco: o alvo de toque é o vídeo inteiro,
+   não só o círculo do play (414px de largura no celular). */
+.vslCapa {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: #0b1220;
+  cursor: pointer;
+  display: block;
+}
+/* `contain` igual ao do <video>: com `cover` a capa cortaria e o vídeo
+   letterboxaria, então o quadro pularia de tamanho no clique do play. */
+.vslCapa img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  opacity: 0.82;
+  transition: opacity 0.25s ease, transform 0.4s ease;
+}
+.vslCapa:hover img { opacity: 1; transform: scale(1.02); }
+
+.vslPlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(226, 232, 240, 0.35);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.25s ease, background 0.25s ease;
+}
+.vslCapa:hover .vslPlay { transform: translate(-50%, -50%) scale(1.08); background: rgba(15, 23, 42, 0.9); }
+.vslPlay svg {
+  width: 34px;
+  height: 34px;
+  fill: #e2e8f0;
+  margin-left: 3px; /* o triângulo tem massa à esquerda: sem isso ele fica torto no círculo */
+}
+
+.vslDur {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #e2e8f0;
+  background: rgba(2, 6, 23, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+.vslPe {
+  display: flex;
+  justify-content: center;
+  margin-top: 28px;
+}
+
+@media (max-width: 760px) {
+  .vsl { padding: 60px 16px; }
+  .vslPlay { width: 62px; height: 62px; }
+  .vslPlay svg { width: 28px; height: 28px; }
+}
+
+/* Atalho no herói pro vídeo lá embaixo. Discreto de propósito: o botão que tem
+   que ganhar o clique na primeira tela continua sendo o de comprar. */
+.vslAtalho {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 9px 16px;
+  min-height: 44px;              /* alvo de toque no celular */
+  background: transparent;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.vslAtalho:hover { color: #e2e8f0; border-color: rgba(148, 163, 184, 0.55); }
+.vslAtalho svg { width: 13px; height: 13px; fill: currentColor; flex-shrink: 0; }
