@@ -81,6 +81,17 @@
     border-radius:0 14px 14px 0;padding:14px 18px;max-width:640px;font-size:14.5px;font-weight:700;line-height:1.5;color:var(--mut)}
   .doForm b{color:var(--cream)}
 
+  /* escolha rápida: os dois caminhos numa olhada só, acima da dobra do celular */
+  .atalhos{margin-top:22px;display:flex;flex-wrap:wrap;gap:10px}
+  .at{flex:1;min-width:150px;display:flex;align-items:center;justify-content:center;gap:9px;min-height:52px;padding:14px 16px;
+    background:rgba(125,209,23,.10);border:1.5px solid var(--line);border-radius:14px;color:var(--cream);
+    font-weight:900;font-size:15.5px;text-decoration:none;line-height:1.15}
+  .at.amb{background:rgba(242,180,23,.10);border-color:var(--amb-line)}
+  .at:active{transform:translateY(1px)}
+  .atI{display:flex}
+  .atI svg{width:19px;height:19px;stroke:var(--neon-b);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  .at.amb .atI svg{stroke:var(--amb-b)}
+
   /* placar: prova que se atualiza sozinha. Número que não veio some (não vira 0) */
   .placar{margin-top:26px;display:flex;flex-wrap:wrap;gap:10px}
   /* `display:flex` na classe vence o [hidden] do navegador — sem esta linha o
@@ -97,7 +108,9 @@
   @media(max-width:860px){.portas{grid-template-columns:1fr;gap:14px}}
 
   .porta{background:var(--card);border:1.5px solid var(--line);border-radius:22px;padding:26px 24px 24px;
-    display:flex;flex-direction:column;position:relative;overflow:hidden}
+    display:flex;flex-direction:column;position:relative;overflow:hidden;
+    /* o topo é sticky: sem esta margem o atalho joga o título da porta debaixo dele */
+    scroll-margin-top:80px}
   .porta.amb{border-color:var(--amb-line)}
   .porta::before{content:'';position:absolute;inset:0 0 auto 0;height:3px;background:linear-gradient(90deg,var(--neon),transparent)}
   .porta.amb::before{background:linear-gradient(90deg,var(--amb),transparent)}
@@ -230,6 +243,22 @@
       <b>Escolha o seu lado</b> — a gente apresenta os dois.
     </p>
     <div class="doForm" id="do-form"></div>
+
+    <!-- ESCOLHA RÁPIDA — as duas opções na MESMA olhada.
+         Medido a 390×700 (altura útil do Safari, não a do aparelho): a porta do
+         capital começa em y=441 e a do ponto em y=1048. Dois cartões inteiros
+         não cabem numa tela de celular, e quem vê só o primeiro decide achando
+         que é a única saída. Estes dois atalhos cabem, e levam ao cartão certo. -->
+    <div class="atalhos">
+      <a class="at" href="#porta-capital" onclick="ev('parceria_atalho_capital')">
+        <span class="atI"><svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+        Tenho o capital
+      </a>
+      <a class="at amb" href="#porta-ponto" onclick="ev('parceria_atalho_ponto')">
+        <span class="atI"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg></span>
+        Tenho o ponto
+      </a>
+    </div>
 
     <div class="placar" id="placar" hidden>
       <div class="pl"><span class="v" id="pl-cap">—</span><span class="l">com capital, procurando ponto</span></div>
@@ -580,12 +609,27 @@ fetch(API + '/io/eletroposto/parceria/placar').then(function(r){ return r.json()
 function aplicarAtalho(){
   if (!veioDaLP) return;
   var b = document.getElementById('btn-capital');
+  if (!b) return;
+
+  // O BOTÃO VIRA LINK DE VERDADE, não um <button> que chama location.href.
+  // Com <a href> o toque funciona igual a qualquer link do celular: abre o
+  // WhatsApp direto, dá pra segurar e abrir em outra aba, e continua clicável
+  // se o JS engasgar. É essa a diferença entre "clica e entra" e "clica, o
+  // script decide, e às vezes não acontece nada".
+  if (b.tagName !== 'A') {
+    var a = document.createElement('a');
+    a.className = b.className; a.id = b.id; a.innerHTML = b.innerHTML;
+    a.setAttribute('rel', 'noopener');
+    b.parentNode.replaceChild(a, b);
+    b = a;
+  }
+  b.href = GRUPOS.capital;   // trocado de novo quando a API responder
   document.getElementById('btn-capital-tx').textContent = 'Entrar no grupo agora';
   document.getElementById('micro-capital').textContent = 'Você já se identificou no formulário · entra direto, sem aprovação';
   b.onclick = function(){
+    // Só registra e deixa o link seguir — sem preventDefault, sem location.href.
     registrar('capital', dadosDaLP('capital'));
     ev('parceria_grupo_capital_1toque');
-    location.href = GRUPOS.capital;
   };
 }
 
