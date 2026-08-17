@@ -2240,11 +2240,24 @@
    pagina a pedido do Thiago. */
 
 /* ---------- OFERTA — card único ---------- */
+/* DOIS CARDS, um por ciclo. Antes o anual era um bloco DENTRO do card mensal
+   liderando com "R$ 47/mês": a pessoa clicava, o checkout pedia R$ 564 e ela
+   desistia. Lado a lado os dois preços são comparáveis de um olhar, e no celular
+   empilham (mensal primeiro, que é o que a maioria leva). */
+.offerGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 22px;
+  max-width: 900px;
+  margin: 44px auto 0;
+  align-items: start;
+}
+@media (min-width: 900px) {
+  .offerGrid { grid-template-columns: 1fr 1fr; gap: 24px; max-width: 1000px; }
+}
 .offer {
   position: relative;
-  max-width: 860px;
-  margin: 44px auto 0;
-  padding: 40px 36px 32px;
+  padding: 40px 28px 30px;
   border-radius: 24px;
   border: 2px solid rgba(245, 158, 11, 0.55);
   background:
@@ -2268,15 +2281,6 @@
   text-transform: uppercase;
   white-space: nowrap;
   box-shadow: 0 8px 22px rgba(245, 158, 11, 0.4);
-}
-.offerHead {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 26px;
-  align-items: start;
-}
-@media (min-width: 820px) {
-  .offerHead { grid-template-columns: 275px 1fr; gap: 38px; }
 }
 .offerName {
   font-size: 12px;
@@ -2306,8 +2310,18 @@
 }
 .offerPrice span { font-size: 26px; font-weight: 800; color: var(--color-text-muted); }
 .offerPrice small { font-size: 17px; font-weight: 700; color: var(--color-text-muted); }
+/* O que a Stripe vai cobrar, em texto, logo embaixo do número. Os dois cards têm
+   a linha equivalente: é ela que impede a pessoa de ler o preço de um e o ciclo
+   do outro. */
+.offerCobranca {
+  margin-top: 10px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+.offerCobranca b { color: #fbbf24; font-weight: 800; }
 .offerPerDay {
-  margin-top: 12px;
+  margin-top: 6px;
   font-size: 13.5px;
   line-height: 1.5;
   color: #94a3b8;
@@ -2315,8 +2329,9 @@
 .offerPerDay b { color: #fbbf24; font-weight: 800; }
 .offerList {
   list-style: none;
-  margin: 0;
-  padding: 0;
+  margin: 24px 0 0;
+  padding: 22px 0 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
   display: grid;
   gap: 11px;
 }
@@ -2347,14 +2362,14 @@
 .offerBtn {
   display: block;
   width: 100%;
-  margin-top: 30px;
-  padding: 26px 24px;
+  margin-top: 24px;
+  padding: 22px 20px;
   border: none;
   border-radius: 16px;
   background: linear-gradient(135deg, #fbbf24, #f59e0b);
   color: #0f172a;
   font-family: inherit;
-  font-size: 22px;
+  font-size: 19px;
   font-weight: 900;
   letter-spacing: -0.01em;
   cursor: pointer;
@@ -2372,65 +2387,88 @@
 }
 .offerFoot b { color: var(--color-text-muted); font-weight: 700; }
 
-/* ── ÂNCORA ANUAL ──────────────────────────────────────────────────────────
-   Mora DENTRO do card da oferta, separada por uma linha: é a mesma compra em
-   outro ciclo, não um segundo produto. Verde (e não o âmbar do botão principal)
-   pra ler como "economia" sem competir com o CTA de cima — duas chamadas do
-   mesmo peso na mesma tela é o jeito mais rápido de não vender nenhuma. */
-.anual {
-  margin-top: 26px;
-  padding: 22px;
-  border-radius: 16px;
-  border: 1px solid rgba(34, 197, 94, 0.32);
-  background: rgba(34, 197, 94, 0.06);
+/* ── CARD ANUAL ────────────────────────────────────────────────────────────
+   Card irmão do mensal, não um bloco dentro dele. Verde (e não o âmbar do card
+   principal) porque continua sendo a opção de economia: o mensal segue como o
+   caminho padrão, com o botão mais gritante. O que mudou de verdade é o preço em
+   destaque — R$ 564, o valor que a Stripe cobra. O /mês virou legenda. */
+.anualCard {
+  position: relative;
+  padding: 40px 28px 30px;
+  border-radius: 24px;
+  border: 2px solid rgba(34, 197, 94, 0.42);
+  background:
+    radial-gradient(90% 80% at 50% 0%, rgba(34, 197, 94, 0.12), transparent 62%),
+    linear-gradient(180deg, #16251f, #16203100);
+  background-color: var(--color-surface);
+  box-shadow: 0 30px 80px rgba(2, 6, 23, 0.5);
 }
-.anualTag {
+.anualCardTag {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 6px 12px;
+  padding: 6px 16px;
   border-radius: 999px;
-  background: rgba(34, 197, 94, 0.15);
-  color: #4ade80;
+  background: linear-gradient(135deg, #4ade80, #22c55e);
+  color: #052e16;
+  font-size: 11.5px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: 0 8px 22px rgba(34, 197, 94, 0.35);
+}
+.anualName {
   font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #4ade80;
+  margin-bottom: 10px;
 }
-.anualCorpo {
-  display: grid;
-  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
-  gap: 24px;
-  align-items: start;
-  margin-top: 18px;
+.anualAnchor {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #94a3b8;
+  margin-bottom: 10px;
 }
-.anualMes {
+.anualPrecoCheio {
   display: flex;
   align-items: baseline;
   gap: 4px;
-  font-size: 46px;
+  font-size: 64px;
   font-weight: 900;
   line-height: 1;
   letter-spacing: -0.04em;
   color: #fff;
 }
-.anualMes span { font-size: 20px; font-weight: 800; color: var(--color-text-muted); }
-.anualMes small { font-size: 15px; font-weight: 700; color: var(--color-text-muted); }
-.anualDe {
-  margin-top: 9px;
-  font-size: 13px;
-  color: #94a3b8;
-}
-.anualDe s { color: #64748b; }
-.anualTotal {
-  margin-top: 6px;
-  font-size: 13px;
-  font-weight: 700;
+.anualPrecoCheio span { font-size: 26px; font-weight: 800; color: var(--color-text-muted); }
+/* A linha anti-confusão. Fica em destaque de propósito: é o que a pessoa tem que
+   ter lido ANTES de chegar num checkout de R$ 564. */
+.anualCobranca {
+  margin-top: 10px;
+  font-size: 13.5px;
+  line-height: 1.5;
   color: var(--color-text-muted);
 }
+.anualCobranca b { color: #4ade80; font-weight: 800; }
+.anualEquiv {
+  margin-top: 6px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: #94a3b8;
+}
+.anualEquiv b { color: var(--color-text-muted); font-weight: 800; }
+.anualEquiv s { color: #64748b; }
 .anualList {
   list-style: none;
-  margin: 0;
-  padding: 0;
+  margin: 24px 0 0;
+  padding: 22px 0 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
   display: grid;
   gap: 9px;
 }
@@ -2455,14 +2493,14 @@
 .anualBtn {
   display: block;
   width: 100%;
-  margin-top: 20px;
-  padding: 18px 20px;
-  border-radius: 14px;
-  border: 1px solid rgba(34, 197, 94, 0.5);
-  background: rgba(34, 197, 94, 0.14);
+  margin-top: 24px;
+  padding: 22px 20px;
+  border-radius: 16px;
+  border: 1px solid rgba(34, 197, 94, 0.55);
+  background: rgba(34, 197, 94, 0.16);
   color: #4ade80;
   font-family: inherit;
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 900;
   letter-spacing: -0.01em;
   cursor: pointer;
@@ -2475,17 +2513,20 @@
 }
 .anualBtn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
 .anualFoot {
-  margin-top: 12px;
+  margin-top: 16px;
   text-align: center;
-  font-size: 12px;
-  line-height: 1.55;
+  font-size: 12.5px;
+  line-height: 1.6;
   color: #94a3b8;
 }
+/* Fora dos cards: a garantia vale pros dois igual, e repetida duas vezes ela
+   deixa de ser tranquilizadora e vira ruído. */
 .guarantee {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  margin-top: 24px;
+  max-width: 1000px;
+  margin: 22px auto 0;
   padding: 16px 18px;
   border-radius: 14px;
   border: 1px dashed rgba(34, 197, 94, 0.45);
@@ -2857,13 +2898,18 @@
   .offerList li { font-size: 13.5px; padding-left: 26px; }
   .offerBtn { font-size: 18px; padding: 22px 18px; margin-top: 24px; }
   .offerFoot { font-size: 11.5px; }
-  /* No celular as duas colunas viram uma: 0.85fr ao lado de 1.15fr em 390px
-     deixa o preço com 130px e quebra o "R$ 47" no meio. */
-  .anual { padding: 18px; margin-top: 22px; }
-  .anualCorpo { grid-template-columns: 1fr; gap: 16px; margin-top: 16px; }
-  .anualMes { font-size: 38px; }
-  .anualBtn { font-size: 15.5px; padding: 17px 14px; }
+  /* O card anual acompanha o mensal na mesma escala. Deixar o 564 em 64px com o
+     67 em 52px daria ao anual o maior número da tela — e o card grande é o
+     mensal, que é o que a maioria leva. */
+  .anualCard { padding: 32px 20px 26px; border-radius: 18px; }
+  .anualCardTag { font-size: 10.5px; padding: 5px 13px; top: -12px; }
+  .anualPrecoCheio { font-size: 52px; }
+  .anualPrecoCheio span { font-size: 22px; }
+  .anualAnchor { font-size: 11.5px; }
+  .anualList li { font-size: 13px; }
+  .anualBtn { font-size: 18px; padding: 22px 18px; }
   .anualFoot { font-size: 11.5px; }
+  .offerCobranca, .anualCobranca, .anualEquiv { font-size: 12.5px; }
   .guarantee { font-size: 12.5px; padding: 14px; gap: 11px; }
   .offerBadge { font-size: 11.5px; padding: 8px 12px; }
   .offerAnchor { font-size: 11.5px; }

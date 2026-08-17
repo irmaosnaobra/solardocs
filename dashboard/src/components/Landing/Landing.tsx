@@ -48,10 +48,14 @@ function useReveal() {
 const PRICE = 67;
 const PRICE_DIA = (PRICE / 30).toFixed(2).replace('.', ','); // "por dia" da oferta
 
-// ÂNCORA ANUAL (14/08/2026). R$ 564 de uma vez = R$ 47/mês. Não é só desconto:
-// é o número que faz o mensal ser LIDO como caro. Quem leva o anual paga um ano
-// à vista; quem não leva compra o mensal achando que escapou do compromisso — e
-// os dois desfechos servem.
+// PLANO ANUAL (14/08/2026). R$ 564 de uma vez, o que dá R$ 47/mês.
+//
+// A ordem dos dois números importa e foi corrigida em 15/08: nasceu com o
+// "R$ 47/mês" em destaque e o total em letra miúda, dentro do card do mensal.
+// Gente clicava achando que ia pagar 47, batia num checkout de R$ 564 e desistia
+// — abandono causado pela própria vitrine. Agora o preço em destaque é o COBRADO
+// (564) e o equivalente por mês é a legenda embaixo; ele continua fazendo o
+// mensal ser lido como caro, sem prometer um valor que a Stripe não vai cobrar.
 // Os R$ 240 são conta fechada e conferível na própria página: 67×12 = 804.
 const PRICE_ANUAL = 564;
 const PRICE_ANUAL_MES = 47;
@@ -769,39 +773,50 @@ export default function Landing() {
             <span className={styles.sectionLabel} data-reveal>A oferta</span>
           </div>
           <h2 className={styles.sectionTitle} data-reveal>
-            Um preço só. <strong>Tudo liberado.</strong>
+            Um acesso só. <strong>Você escolhe como pagar.</strong>
           </h2>
           <p className={styles.sectionSub} data-reveal>
-            Sem versão capada, sem escolher entre plano A e B, sem esperar liberação.
-            Você assina e entra na plataforma completa na hora.
+            A plataforma é a mesma nos dois, completa desde o primeiro minuto. A única
+            diferença é o ciclo: <b>R$ {PRICE} todo mês</b> ou <b>R$ {PRICE_ANUAL} uma vez</b>,
+            valendo o ano.
           </p>
 
-          <div className={styles.offer} data-reveal>
-            <div className={styles.offerTag}>Acesso imediato</div>
+          {/* DOIS CARDS SEPARADOS, e o anual mostrando o valor que a Stripe vai
+              cobrar. Antes o anual morava DENTRO do card mensal e liderava com
+              "R$ 47/mês" — a pessoa clicava achando que ia pagar 47, batia num
+              checkout de R$ 564 e desistia. O equivalente por mês continua na
+              tela (é ele que faz o anual parecer barato), mas embaixo do preço
+              cheio, nunca no lugar dele. */}
+          <div className={styles.offerGrid} data-reveal>
+            <div className={styles.offer}>
+              <div className={styles.offerTag}>Mensal</div>
 
-            <div className={styles.offerHead}>
-              <div>
-                <div className={styles.offerName}>SolarDoc Pro — completo</div>
-                <div className={styles.offerAnchor}>
-                  Software de proposta solar no mercado: <b>R$ 100 a R$ 300/mês</b>
-                </div>
-                <div className={styles.offerPrice}>
-                  <span>R$</span>{PRICE}<small>/mês</small>
-                </div>
-                <div className={styles.offerPerDay}>
-                  dá <b>R$ {PRICE_DIA} por dia</b> — menos que o combustível de uma visita
-                </div>
+              <div className={styles.offerName}>SolarDoc Pro — mês a mês</div>
+              <div className={styles.offerAnchor}>
+                Software de proposta solar no mercado: <b>R$ 100 a R$ 300/mês</b>
+              </div>
+              <div className={styles.offerPrice}>
+                <span>R$</span>{PRICE}<small>/mês</small>
+              </div>
+              <div className={styles.offerCobranca}>
+                Cobrado <b>todo mês</b> no cartão, R$ {PRICE} por vez
+              </div>
+              <div className={styles.offerPerDay}>
+                dá <b>R$ {PRICE_DIA} por dia</b> — menos que o combustível de uma visita
+              </div>
 
-                {/* Garantia de 7 dias — mesma política que a Sol (suporte) já informa
-                    aos clientes: devolução total sem perguntas. É o que substitui o
-                    risco que o trial cobria, agora que a cobrança é imediata. */}
-                <div className={styles.guarantee}>
-                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
-                  <div>
-                    <b>Garantia de 7 dias.</b> Não serviu? Chama no WhatsApp dentro dos 7 dias
-                    que a gente devolve o valor integral, sem perguntas.
-                  </div>
-                </div>
+              <button
+                onClick={() => goToCheckout('oferta')}
+                className={styles.offerBtn}
+                disabled={checkoutLoading}
+              >
+                {ctaLabel}
+              </button>
+
+              <div className={styles.offerFoot}>
+                Liberou o pagamento, você já cria a senha e entra.
+                <br />
+                Sem fidelidade — cancela sozinho em <b>Minha conta → Gerenciar assinatura</b>.
               </div>
 
               <ul className={styles.offerList}>
@@ -818,53 +833,28 @@ export default function Landing() {
               </ul>
             </div>
 
-            <button
-              onClick={() => goToCheckout('oferta')}
-              className={styles.offerBtn}
-              disabled={checkoutLoading}
-            >
-              {ctaLabel}
-            </button>
-
-            <div className={styles.offerFoot}>
-              Cobrança na hora, no cartão. Liberou o pagamento, você já cria a senha e entra.
-              <br />
-              Sem fidelidade — cancela sozinho em <b>Minha conta → Gerenciar assinatura</b>.
-            </div>
-
-            {/* ÂNCORA ANUAL — vem DEPOIS do mensal de propósito. Quem chegou até
-                aqui já aceitou os R$ 67; o anual não precisa convencer do valor,
-                só mostrar que o mesmo acesso custa menos por mês e ainda vira
-                posse de duas ferramentas. Quem não leva, leva o mensal com a
-                sensação de ter escolhido — que é o trabalho da âncora. */}
-            <div className={styles.anual}>
-              <div className={styles.anualTag}>
+            <div className={styles.anualCard}>
+              <div className={styles.anualCardTag}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden><path d="M20 6 9 17l-5-5"/></svg>
-                Economize R$ {PRICE_ANUAL_ECONOMIA} pagando o ano
+                Economize R$ {PRICE_ANUAL_ECONOMIA}
               </div>
 
-              <div className={styles.anualCorpo}>
-                <div className={styles.anualPreco}>
-                  <div className={styles.anualMes}>
-                    <span>R$</span>{PRICE_ANUAL_MES}<small>/mês</small>
-                  </div>
-                  <div className={styles.anualDe}>
-                    em vez de <s>R$ {PRICE}/mês</s>
-                  </div>
-                  <div className={styles.anualTotal}>
-                    R$ {PRICE_ANUAL} cobrados uma vez, valem 12 meses
-                  </div>
-                </div>
-
-                <ul className={styles.anualList}>
-                  <li>Tudo o que está no plano mensal, igual</li>
-                  <li>
-                    <b>Precificação Profissional</b> e <b>Inventário da Empresa</b> ficam
-                    seus <b>pra sempre</b> — continuam funcionando mesmo se um dia você
-                    parar de assinar
-                  </li>
-                  <li>Preço travado por 12 meses: reajuste não te pega no meio</li>
-                </ul>
+              <div className={styles.anualName}>SolarDoc Pro — 12 meses</div>
+              <div className={styles.anualAnchor}>
+                Mesma plataforma, um pagamento só no lugar de doze
+              </div>
+              <div className={styles.anualPrecoCheio}>
+                <span>R$</span>{PRICE_ANUAL}
+              </div>
+              {/* A frase que faltava. O checkout cobra 564 na hora, e é isso que
+                  a pessoa precisa ter lido ANTES de clicar. */}
+              <div className={styles.anualCobranca}>
+                Uma <b>única cobrança de R$ {PRICE_ANUAL}</b> hoje, no cartão — não é
+                parcelado nem mensal
+              </div>
+              <div className={styles.anualEquiv}>
+                sai <b>R$ {PRICE_ANUAL_MES} por mês</b> em vez de <s>R$ {PRICE}</s> — 12 meses
+                pelo preço de {Math.round(PRICE_ANUAL / PRICE)}
               </div>
 
               <button
@@ -872,13 +862,35 @@ export default function Landing() {
                 className={styles.anualBtn}
                 disabled={checkoutLoading}
               >
-                {checkoutLoading ? 'Abrindo checkout...' : `Quero o ano inteiro — R$ ${PRICE_ANUAL}`}
+                {checkoutLoading ? 'Abrindo checkout...' : `Pagar R$ ${PRICE_ANUAL} pelo ano`}
               </button>
 
               <div className={styles.anualFoot}>
-                Cobrança única de R$ {PRICE_ANUAL} no cartão, hoje. A mesma garantia de 7 dias
-                vale aqui: não serviu, devolvemos o valor inteiro.
+                Renova só daqui a 12 meses. A mesma garantia de 7 dias vale aqui: não
+                serviu, devolvemos o valor inteiro.
               </div>
+
+              <ul className={styles.anualList}>
+                <li><b>Tudo do plano mensal</b>, exatamente igual</li>
+                <li>
+                  <b>Precificação Profissional</b> e <b>Inventário da Empresa</b> ficam
+                  seus <b>pra sempre</b> — continuam funcionando mesmo se um dia você
+                  parar de assinar
+                </li>
+                <li>Preço travado por 12 meses: reajuste não te pega no meio</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Garantia de 7 dias — mesma política que a Sol (suporte) já informa
+              aos clientes: devolução total sem perguntas. É o que substitui o
+              risco que o trial cobria, agora que a cobrança é imediata. Fora dos
+              cards porque vale pros dois igual. */}
+          <div className={styles.guarantee} data-reveal>
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+            <div>
+              <b>Garantia de 7 dias nos dois planos.</b> Não serviu? Chama no WhatsApp
+              dentro dos 7 dias que a gente devolve o valor integral, sem perguntas.
             </div>
           </div>
 
