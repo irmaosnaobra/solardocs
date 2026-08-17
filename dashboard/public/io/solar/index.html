@@ -782,9 +782,15 @@ function medirTemperatura(conta, urgencia, pagamento, decisor, posse){
   return p >= 5 ? 'quente' : p >= 3 ? 'morno' : 'frio';
 }
 
-// ===== AGENDA (vistoria presencial) =====
+// ===== AGENDA (o que o lead marca aqui) =====
 // 3 dias rolantes a partir de HOJE, pulando fim de semana e feriado.
-// Seg–Sex, vistoria de ~1 hora, 1 técnico por horário.
+//
+// O que é marcado depende de QUEM atende, e é a diferença que manda em toda a
+// conta de ocupação daqui pra baixo:
+//   • Nilce  → LIGAÇÃO de ~15 min. É o primeiro contato dela; a vistoria, se o
+//     lead qualificar, é marcada DENTRO da ligação.
+//   • sócios → VISTORIA presencial de ~1 hora, no endereço do lead.
+// Quem traduz isso em minutos é o durSolarDe(), e é ele que o livresEm() usa.
 //
 // 12/08: quem atende depende do TAMANHO DA CONTA. Thiago e Diego só pegam lead
 // acima de 700 kWh/mês; abaixo disso é da Nilce. Como o simulador já está em cima
@@ -842,12 +848,10 @@ const SOCIOS = ['Thiago', 'Diego'];
 const GRADE_SOCIOS = ['08:00','08:30','09:00','09:30','10:30','11:30',
                       '13:30','14:30','15:30','16:30','17:30','18:30'];
 // Nilce, 17/08 (ordem do Thiago): 08:00–11:00 e 13:00–16:00, de 30 em 30. Ela não
-// tem eletroposto, então não precisa se encaixar em intervalo nenhum — o passo
-// menor é só pra dar mais opção de horário ao lead, e o almoço continua fechado.
-//
-// Isto é grade de VISTORIA, e a vistoria leva 1 hora: marcar 08:00 apaga o 08:30
-// DELA (o livresEm compara sobreposição). Ou seja, 14 horários na vitrine não são
-// 14 visitas — são ~7 visitas com o dobro de pontos de partida.
+// tem eletroposto, então não precisa se encaixar em intervalo nenhum, e o que ela
+// marca aqui é LIGAÇÃO de 15 min — não visita. Por isso os 14 horários são 14
+// ligações de verdade: com o passo de 30 e a ligação de 15, um horário nunca come
+// o seguinte. Sobra folga de 15 min entre uma e outra. O almoço segue fechado.
 //
 // NÃO confundir com a grade do CARD de ligação dela, que é outra coisa e vive no
 // backend (leadsMetaService.ts): 15 em 15 min, com teto no FIM_SOLAR_MIN.
@@ -885,12 +889,16 @@ async function carregarOcupados(deYmd, ateYmd){
     }));
   }catch(e){ compromissos = []; }   // falhou: não trava a agenda, valida no envio
 }
-/** Dos nomes passados, quem ainda cabe numa vistoria começando em `iso`.
+/** Dos nomes passados, quem ainda cabe num compromisso começando em `iso`.
  *
- *  Sobreposição de intervalos, não timestamp igual: [t, t+1h) da vistoria contra
- *  [c, c+duração) do que já existe. Horário colado na ponta NÃO é conflito — é a
- *  agenda emendando, que é o desenho inteiro da grade nova (13:00 de eletroposto
- *  acaba 13:30, e é aí que a vistoria começa). */
+ *  Sobreposição de intervalos, não timestamp igual: [t, t + o que ESTA pessoa
+ *  reserva) contra [c, c + o que aquele compromisso reserva). Os dois lados são
+ *  medidos por dono, e é isso que faz a mesma função servir pra ligação de 15 min
+ *  da Nilce e pra vistoria de 1 hora dos sócios.
+ *
+ *  Horário colado na ponta NÃO é conflito — é a agenda emendando, que é o desenho
+ *  inteiro da grade encaixada (13:00 de eletroposto acaba 13:30, e é aí que a
+ *  vistoria do sócio começa). */
 function livresEm(iso, nomes){
   const t = new Date(iso).getTime();
   return nomes.filter(n => !compromissos.some(c =>
@@ -950,8 +958,8 @@ function proximosDias(){
 //   • é lead novo de conta alta (> 700 kWh) — vai cair no Thiago ou no Diego.
 // Dono manda mais que o consumo: cliente que já é da Nilce continua com ela e vê a
 // grade dela, mesmo com conta grande. Mostra só o que a gente aceita em vez de
-// deixar escolher e recusar depois — quem marca uma hora pra receber técnico em
-// casa não pode ser realocado por baixo do pano.
+// deixar escolher e recusar depois — quem reservou um horário do próprio dia pra
+// atender não pode ser realocado por baixo do pano.
 const contaAltaAtual = () => computeSolar().consumoKwh > KWH_CORTE_TIME;
 const ehLeadDosSocios = () => donoLead ? donoLead !== 'Nilce' : contaAltaAtual();
 /** Quem pode receber ESTE lead: o dono dele, se já tiver; senão o par da vez. */
@@ -1174,9 +1182,10 @@ async function agendar(){
 }
 
 // ── Portão de presença ───────────────────────────────────────────────────────
-// Marcar é barato pro curioso e caro pra operação: a vistoria é presencial e tira um
-// técnico da rua por 1 hora. O portão cobra a intenção ANTES de reservar — quem
-// responde "Não" não deixa ficha nem ocupa horário, só vai embora.
+// Marcar é barato pro curioso e caro pra operação: do outro lado tem alguém
+// parando o dia pra ligar no horário combinado — e, quando o lead é dos sócios,
+// um técnico saindo pra rua por 1 hora. O portão cobra a intenção ANTES de
+// reservar: quem responde "Não" não deixa ficha nem ocupa horário, só vai embora.
 let pendente = null;
 
 function rotuloSlot(iso){
@@ -1214,7 +1223,7 @@ function confirmarNao(){
   pendente = null;
   document.getElementById('ag-btn').disabled = false;   // pode voltar atrás e confirmar
   const m = document.getElementById('ag-msg');
-  m.textContent = 'Tudo bem — nada foi agendado e o horário continua livre pra quem puder receber o técnico. Quando conseguir reservar a hora, é só confirmar aqui.';
+  m.textContent = 'Tudo bem — nada foi agendado e o horário continua livre pra quem puder atender. Quando puder falar uns 10 minutos, é só escolher um horário aqui.';
   m.className = 'agMsg info';
   m.scrollIntoView({behavior:'smooth', block:'center'});
 }
