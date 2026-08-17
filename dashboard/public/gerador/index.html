@@ -9319,10 +9319,18 @@ function procHTML(d) {
 
       <p class="ep-ctr-p" style="margin-top:14px">${d.cidade ? e(d.cidade) + ', ' : ''}${e(dataTxt)}.</p>
 
+      <!-- UMA assinatura só. Procuração é ato UNILATERAL: quem outorga concede
+           os poderes, e quem recebe não assina — a aceitação se prova usando a
+           procuração, não assinando ela. Eu tinha posto outorgante e outorgada
+           lado a lado copiando o fecho do contrato, que é bilateral e por isso
+           tem duas. Uma linha da OUTORGADA aqui sugere que o documento só vale
+           com a nossa assinatura junto, e não é assim: o cliente assina e leva.
+           A largura é limitada porque .a tem flex:1 — sozinha ela esticaria de
+           margem a margem, e risco de assinatura de ponta a ponta da folha é a
+           cara de documento montado às pressas. -->
       <div class="ep-ctr-fim">
-        <div class="ep-ctr-assin">
-          <div class="a"><b>${vazio(d.outorgante)}</b>${d.outorganteDoc ? `<span>CPF/CNPJ ${e(d.outorganteDoc)}</span>` : ''}${d.rep ? e(d.rep) + '<br>' : ''}OUTORGANTE</div>
-          <div class="a"><b>${vazio(d.empresa.razao || d.empresa.nome)}</b>${d.empresa.cnpj ? `<span>CNPJ ${e(d.empresa.cnpj)}</span>` : ''}OUTORGADA</div>
+        <div class="ep-ctr-assin" style="justify-content:center">
+          <div class="a" style="flex:0 1 58%"><b>${vazio(d.outorgante)}</b>${d.outorganteDoc ? `<span>CPF/CNPJ ${e(d.outorganteDoc)}</span>` : ''}${d.rep ? e(d.rep) + '<br>' : ''}OUTORGANTE</div>
         </div>
       </div>
       ${pageFoot}
