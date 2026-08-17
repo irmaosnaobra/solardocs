@@ -43,6 +43,16 @@ export interface ProdutoLoja {
   rota: string;
   /** Checkout avulso. Sem link configurado, cai no WhatsApp. */
   checkout: string;
+  /**
+   * PÁGINA DE VENDA QUE JÁ EXISTE, fora daqui. Dois produtos nasceram com funil
+   * próprio antes desta loja: o Kit em `solardoc.app/kit` (indexada, com os
+   * criativos apontando pra ela) e o LimpaPro em `limpapro.solardoc.app`.
+   *
+   * Quando existe, `/lp/<slug>` redireciona pra ela em vez de servir uma
+   * segunda oferta do mesmo produto. Duas páginas de venda pro mesmo curso é
+   * como o preço sobe numa e não na outra — e quem descobre é o cliente.
+   */
+  lpPropria?: string;
   /** Qual mockup a LP renderiza. */
   mockup: 'offgrid' | 'precificacao' | 'inventario' | 'curso';
   /**
@@ -328,7 +338,10 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
     preco: 27,
     naAssinatura: true,
     rota: '/cursos/kit-fechamento',
-    checkout: process.env.NEXT_PUBLIC_KIT_CHECKOUT_URL || WHATS + encodeURIComponent('Quero o Kit Fecha Vendas'),
+    // "Kit Fechamento - SolarDoc", R$ 27 — o mesmo checkout que a LP de
+    // solardoc.app/kit usa desde 28/jul. Não é link novo: já vendia.
+    checkout: process.env.NEXT_PUBLIC_KIT_CHECKOUT_URL || 'https://pay.kiwify.com.br/TGvxMl0',
+    lpPropria: '/kit',
     mockup: 'curso',
     cor: '#7C3AED',
   },
@@ -405,6 +418,7 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
     // Sem ele, o botão "Comprar" abria uma conversa no WhatsApp em vez de
     // cobrar — a pessoa estava com a carteira na mão e virava lead.
     checkout: process.env.NEXT_PUBLIC_LIMPAPRO_CHECKOUT_URL || 'https://pay.kiwify.com.br/ai1',
+    lpPropria: 'https://limpapro.solardoc.app',
     mockup: 'curso',
     cor: '#15803D',
   },

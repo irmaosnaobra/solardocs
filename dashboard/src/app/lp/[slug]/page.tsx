@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { PRODUTOS_LOJA, produtoPorSlug } from '@/lib/produtos';
 import { LpPublica } from './_Lp';
 
@@ -18,9 +18,13 @@ import { LpPublica } from './_Lp';
  * compartilhamento. O miolo interativo vive em `_Lp.tsx`.
  */
 
-/** Uma rota por produto, geradas no build. */
+/**
+ * Uma rota por produto, geradas no build — menos as que só redirecionam. Gerar
+ * HTML estático de uma página que nunca renderiza é trabalho jogado fora, e o
+ * `redirect()` precisa rodar na requisição.
+ */
 export function generateStaticParams() {
-  return PRODUTOS_LOJA.map((p) => ({ slug: p.slug }));
+  return PRODUTOS_LOJA.filter((p) => !p.lpPropria).map((p) => ({ slug: p.slug }));
 }
 
 export async function generateMetadata(
@@ -60,6 +64,11 @@ export async function generateMetadata(
 
 export default async function LpPublicaPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  if (!produtoPorSlug(slug)) return notFound();
+  const p = produtoPorSlug(slug);
+  if (!p) return notFound();
+  // Produto com funil próprio: quem chega aqui vai pra página que JÁ vende, não
+  // pra uma segunda versão dela. 307 (temporário) de propósito — 308 fica preso
+  // no cache do navegador e não teria volta se um dia a página de cá for a boa.
+  if (p.lpPropria) redirect(p.lpPropria);
   return <LpPublica slug={slug} />;
 }

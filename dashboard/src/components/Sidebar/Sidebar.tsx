@@ -232,7 +232,14 @@ export default function Sidebar({ user, hasCompany, companyNome, onUpgradeClick 
         // do app. E' uma pagina de venda so': a mesma que o anuncio abre, a
         // mesma que o cliente ve. Duas portas pro mesmo produto davam duas
         // ofertas pra manter em dia.
-        <Link key={item.href} href={`/lp/${prod.slug}`}
+        //
+        // EXCECAO: produto com pagina propria (Kit, LimpaPro) — la' o /lp/
+        // redireciona pra fora, e sair do app perde o `?email=` que o
+        // `checkoutCom` gruda no checkout. Sem ele, quem digita outro e-mail na
+        // Kiwify vira usuario novo: paga, libera numa conta e entra na outra.
+        // Quem esta' logado fica dentro, no /produtos/<slug>, que e' o MESMO
+        // componente de pagina de venda — nada diverge.
+        <Link key={item.href} href={prod.lpPropria ? `/produtos/${prod.slug}` : `/lp/${prod.slug}`}
               className={styles.navItemLocked} title={`${prod.nome} — ver o que tem dentro`}>
           <Lock className={styles.navIcon} size={15} strokeWidth={1.75} />
           <span className={styles.navLabel}>{item.label}</span>

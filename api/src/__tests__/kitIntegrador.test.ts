@@ -165,6 +165,8 @@ describe('classificarProdutoKit', () => {
     expect(classificarProdutoKit('Inventário da Empresa', null)).toBe('inventario');
     // E não podem se roubar: as duas custam R$ 67 e o nome é digitado à mão.
     expect(classificarProdutoKit('Dimensionamento Off-Grid', null)).toBe('offgrid');
+    // O nome REAL do produto no painel, o que o webhook recebe desde 28/jul.
+    expect(classificarProdutoKit('Kit Fechamento - SolarDoc', null)).toBe('kit');
   });
 
   it('NÃO captura produtos do LimpaPro (que é outro negócio, outro funil)', () => {
