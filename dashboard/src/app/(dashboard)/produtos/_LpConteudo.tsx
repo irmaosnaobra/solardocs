@@ -133,7 +133,9 @@ export function LpConteudo({
             <>
               <div className={styles.lpSelo}>
                 {p.tipo === 'curso' ? 'Curso' : 'Ferramenta'}
-                {p.naAssinatura && ' · incluso na assinatura'}
+                {p.naAssinatura
+                  ? ' · incluso na assinatura'
+                  : p.noPlanoAnual ? ' · incluso no plano anual' : ''}
               </div>
               <h1 className={styles.lpTitulo}>{p.nome}</h1>
               <p className={styles.lpPromessa}>{p.promessa}</p>
@@ -183,6 +185,15 @@ export function LpConteudo({
                 <p className={styles.lpAssinatura}>
                   Também vem junto com a <Link href="/minha-conta">assinatura do SolarDoc</Link>, com
                   todas as outras ferramentas inclusas.
+                </p>
+              )}
+              {/* Aparece pro mensalista TAMBÉM (não só pra quem não assina): é
+                  ele quem precisa saber que este acesso está no outro ciclo, e
+                  não no plano que ele já paga. */}
+              {!p.naAssinatura && p.noPlanoAnual && (
+                <p className={styles.lpAssinatura}>
+                  Vem inclusa no <Link href="/minha-conta">plano anual do SolarDoc</Link> — e nesse
+                  caso fica sua pra sempre, mesmo se um dia você parar de assinar.
                 </p>
               )}
               {/* Três públicos, três verdades diferentes:

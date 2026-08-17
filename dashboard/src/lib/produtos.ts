@@ -39,7 +39,14 @@ export interface ProdutoLoja {
   /** O que está incluso. */
   entrega: string[];
   preco: number;
+  /** Vem com a assinatura ativa, em qualquer ciclo (acesso derivado). */
   naAssinatura: boolean;
+  /**
+   * Vem no plano ANUAL, como posse permanente. Espelha `noPlanoAnual` do
+   * catálogo do servidor (api/src/services/produtos/catalogo.ts), que é quem o
+   * gate obedece — este campo só decide o que a loja ESCREVE.
+   */
+  noPlanoAnual?: boolean;
   rota: string;
   /** Checkout avulso. Sem link configurado, cai no WhatsApp. */
   checkout: string;
@@ -167,7 +174,10 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
       'O preço mínimo que ainda fecha, pra você negociar sabendo o piso',
     ],
     preco: 67,
-    naAssinatura: true,
+    // Exclusiva do plano ANUAL desde 17/08/2026 — o mensal não libera mais.
+    // A verdade do acesso está no catálogo do servidor; aqui é a cópia.
+    naAssinatura: false,
+    noPlanoAnual: true,
     beneficios: [
       { titulo: 'O custo inteiro na conta, não só o kit',
         texto: 'Material CA, mão de obra, deslocamento, ART e homologação entram junto. É o que some quando se calcula no olho — e é onde o lucro vai embora.' },
@@ -229,7 +239,9 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
       'Alerta do que está acabando antes de faltar na obra',
     ],
     preco: 67,
-    naAssinatura: true,
+    // Ver a nota da precificação: exclusiva do anual desde 17/08/2026.
+    naAssinatura: false,
+    noPlanoAnual: true,
     beneficios: [
       { titulo: 'Você sabe quanto vale a sua empresa',
         texto: 'O patrimônio total soma sozinho, item por item. É o número que o contador pede e que a seguradora exige na apólice.' },

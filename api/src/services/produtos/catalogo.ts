@@ -12,6 +12,9 @@
  *   2. ASSINATURA — o integrador de dentro já paga a mensalidade e recebe o que
  *      está marcado como `naAssinatura`. Esse acesso vale ENQUANTO ele assina, e
  *      por isso é derivado na leitura (não vira linha em entitlements).
+ *   3. PLANO ANUAL — `noPlanoAnual` marca o que o anual entrega como POSSE (o
+ *      webhook grava em entitlements e o cron repõe). Não é derivado: sobrevive
+ *      ao cancelamento, e é o que separa o anual de "12 mensais com desconto".
  */
 
 export type TipoProduto = 'ferramenta' | 'curso';
@@ -22,8 +25,21 @@ export interface Produto {
   tipo: TipoProduto;
   /** Preço da compra avulsa, em reais. */
   preco: number;
-  /** Vem junto com a assinatura ativa? */
+  /**
+   * Vem junto com a assinatura ativa (qualquer ciclo)? Acesso DERIVADO: existe
+   * enquanto a assinatura existir, não vira linha em entitlements.
+   */
   naAssinatura: boolean;
+  /**
+   * Vem no plano ANUAL, como POSSE — `entitlements` gravado pelo webhook da
+   * venda e reposto pelo cron de sincronia. Sobrevive ao cancelamento.
+   *
+   * Este campo é só pra COPY (loja, cadeado, página de venda): o gate continua
+   * lendo entitlements, que é onde a posse mora. Marcar aqui sem o webhook
+   * conceder daria uma promessa sem acesso — e o contrário (conceder sem marcar)
+   * daria acesso que a loja não sabe explicar.
+   */
+  noPlanoAnual?: boolean;
   /** Rota da ferramenta/curso dentro do app. */
   rota: string;
   /**
@@ -58,7 +74,17 @@ export const PRODUTOS: Produto[] = [
     nome: 'Precificação Profissional',
     tipo: 'ferramenta',
     preco: 67,
-    naAssinatura: true,
+    // EXCLUSIVA DO PLANO ANUAL desde 17/08/2026 (decisão do Thiago). O mensal
+    // NÃO libera mais: sem `naAssinatura`, `produtosDaAssinatura()` para de
+    // derivar acesso pra ele. Quem tem o anual continua entrando pela POSSE em
+    // entitlements, que o webhook grava na venda.
+    //
+    // Quem já pagava o mensal e usava as duas NÃO perdeu: 49 posses `cortesia`
+    // gravadas antes deste commit (obs 'grandfather 17/08/2026'), 18 de
+    // precificação e 31 de inventário. A regra vale daqui pra frente — mesmo
+    // princípio do piso duro da entrega do solar. Desfaz com um DELETE pelo obs.
+    naAssinatura: false,
+    noPlanoAnual: true,
     rota: '/precificacao',
     envIds: 'PRECIFICACAO_KIWIFY_PRODUCT_IDS',
     // Na Kiwify ela se chama "Calculadora Solar" — nome de tráfego frio. Manter
@@ -70,7 +96,9 @@ export const PRODUTOS: Produto[] = [
     nome: 'Inventário da Empresa',
     tipo: 'ferramenta',
     preco: 67,
-    naAssinatura: true,
+    // Ver a nota da precificação: exclusiva do anual desde 17/08/2026.
+    naAssinatura: false,
+    noPlanoAnual: true,
     rota: '/inventario',
     envIds: 'INVENTARIO_KIWIFY_PRODUCT_IDS',
     // "Inventário Empresarial" é o nome na Kiwify.

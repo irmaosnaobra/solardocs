@@ -2865,6 +2865,26 @@
   text-transform: uppercase;
   margin-bottom: 14px;
 }
+/* Módulo que é ferramenta do plano ANUAL. Verde, como todo lugar da página que
+   fala do anual, e com o selo no canto: sem ele a lista "o que você leva"
+   prometeria no mensal o que só o anual entrega. */
+.modAnual { border-color: rgba(74, 222, 128, 0.34); }
+.modAnual:hover { border-color: rgba(74, 222, 128, 0.6); }
+.modSeloAnual {
+  position: absolute;
+  top: 26px;
+  right: 20px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.16);
+  border: 1px solid rgba(74, 222, 128, 0.42);
+  color: #4ade80;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
 .modH {
   font-size: 19px;
   font-weight: 800;

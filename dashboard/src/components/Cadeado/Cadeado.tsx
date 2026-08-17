@@ -66,7 +66,11 @@ export default function Cadeado({
         <p className={styles.nota}>
           {p.naAssinatura
             ? 'Já vem incluso pra quem assina o SolarDoc — ou compre só esta ferramenta, uma vez, e use pra sempre.'
-            : 'Compra única. O acesso é seu enquanto sua conta existir.'}
+            : p.noPlanoAnual
+              // O mensal não libera: dizer "vem na assinatura" aqui seria mandar
+              // a pessoa procurar num lugar onde ela não vai achar.
+              ? 'Vem inclusa no plano ANUAL do SolarDoc, e nesse caso fica sua pra sempre — ou compre só esta ferramenta, uma vez.'
+              : 'Compra única. O acesso é seu enquanto sua conta existir.'}
         </p>
       </div>
     </div>

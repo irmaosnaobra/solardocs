@@ -365,15 +365,15 @@ export default function Landing() {
           <h2 className={styles.sectionTitle} data-reveal>
             A plataforma que <strong>fecha a venda solar</strong> — não só gera papel.
           </h2>
-          {/* As duas ferramentas viraram PRODUTO PAGO na loja (R$ 67 cada, quem não
-              assina compra à parte). Isso muda o que esta seção precisa fazer: em vez
-              de listá-las como "mais um recurso", dizer que o assinante entra com as
-              duas inclusas. Conferido no gate (`acessos()` → `produtosDaAssinatura`),
-              não na intenção: são as duas que a assinatura ativa libera de verdade. */}
+          {/* As duas ferramentas são produto pago na loja (R$ 67 cada) e, desde
+              17/08/2026, EXCLUSIVAS DO PLANO ANUAL — o mensal não libera. Elas
+              continuam nesta seção porque são parte do que a plataforma faz, mas
+              com o ciclo escrito na cara: prometer no mensal o que só o anual
+              entrega é a reclamação de amanhã. O gate obedece `entitlements`,
+              gravado na venda do anual. */}
           <p className={styles.sectionSub} data-reveal>
-            Tudo isto entra na assinatura — inclusive as <b>duas ferramentas que a loja
-            vende à parte por R$ {PRECO_FERRAMENTA} cada</b>. Assinando, elas já vêm
-            liberadas na sua conta.
+            Tudo isto entra na assinatura. As <b>duas ferramentas de R$ {PRECO_FERRAMENTA}</b>{' '}
+            que a loja vende à parte vêm no <b>plano anual</b> — e nele ficam suas pra sempre.
           </p>
 
           <div className={styles.diffsGrid} style={{ marginTop: 40 }}>
@@ -426,7 +426,7 @@ export default function Landing() {
               </p>
             </div>
             <div className={`${styles.diffCard} ${styles.diffPago}`} data-reveal style={{ transitionDelay: '0.3s' }}>
-              <div className={styles.diffFita}>Inclusa na assinatura · vale R$ {PRECO_FERRAMENTA}</div>
+              <div className={styles.diffFita}>Só no plano anual · vale R$ {PRECO_FERRAMENTA}</div>
               <div className={styles.diffIcon}><svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 6h8"/><circle cx="8.5" cy="11" r=".6" fill="currentColor" stroke="none"/><circle cx="12" cy="11" r=".6" fill="currentColor" stroke="none"/><circle cx="15.5" cy="11" r=".6" fill="currentColor" stroke="none"/><circle cx="8.5" cy="15" r=".6" fill="currentColor" stroke="none"/><circle cx="12" cy="15" r=".6" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15" r=".6" fill="currentColor" stroke="none"/><circle cx="8.5" cy="18.5" r=".6" fill="currentColor" stroke="none"/><circle cx="12" cy="18.5" r=".6" fill="currentColor" stroke="none"/><circle cx="15.5" cy="18.5" r=".6" fill="currentColor" stroke="none"/></svg></div>
               <h3 className={styles.diffH}>Precificação Profissional</h3>
               <p className={styles.diffP}>
@@ -442,7 +442,7 @@ export default function Landing() {
               </div>
             </div>
             <div className={`${styles.diffCard} ${styles.diffPago}`} data-reveal style={{ transitionDelay: '0.35s' }}>
-              <div className={styles.diffFita}>Incluso na assinatura · vale R$ {PRECO_FERRAMENTA}</div>
+              <div className={styles.diffFita}>Só no plano anual · vale R$ {PRECO_FERRAMENTA}</div>
               <div className={styles.diffIcon}><svg viewBox="0 0 24 24"><path d="M3 7 12 3l9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></div>
               <h3 className={styles.diffH}>Inventário da Empresa</h3>
               <p className={styles.diffP}>
@@ -456,18 +456,18 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* O fecho da seção: a soma. Duas ferramentas pagas dentro de uma
-              assinatura de R$ 67 é o argumento mais forte que a página tem — e
-              estava só implícito. O número é conferível na própria loja. */}
+          {/* O fecho da seção: a soma. R$ 134 em ferramentas pagas dentro de um
+              plano de R$ 564 é o argumento mais forte que a página tem — e é do
+              ANUAL, não da assinatura em geral. O número é conferível na loja. */}
           <div className={styles.diffResumo} data-reveal>
             <div className={styles.diffResumoTopo}>
-              <b>R$ {FERRAMENTAS_VALOR} em ferramentas</b> já inclusos na assinatura de
-              R$ {PRICE}/mês
+              <b>R$ {FERRAMENTAS_VALOR} em ferramentas</b> inclusas no plano anual
             </div>
             <p className={styles.diffResumoP}>
-              A Precificação e o Inventário são produtos pagos na nossa loja. Assinando,
-              as duas abrem na sua conta no mesmo minuto — e ficam <b>suas pra sempre</b> no
-              plano anual, mesmo se um dia você parar de assinar.
+              A Precificação e o Inventário são produtos pagos na nossa loja, R${' '}
+              {PRECO_FERRAMENTA} cada. No plano anual as duas abrem na sua conta no mesmo
+              minuto e ficam <b>suas pra sempre</b>, mesmo se um dia você parar de assinar.
+              No mensal, dá pra comprar cada uma à parte quando quiser.
             </p>
           </div>
         </div>
@@ -530,7 +530,9 @@ export default function Landing() {
           </h2>
           <p className={styles.sectionSub} data-reveal>
             Não é um gerador de contrato. É a papelada e a operação da venda solar inteira,
-            do orçamento à entrega da obra — item por item, é isto aqui:
+            do orçamento à entrega da obra — item por item, é isto aqui. Os dois blocos
+            marcados <b>&ldquo;no plano anual&rdquo;</b> são as ferramentas que a loja vende
+            à parte por R$ {PRECO_FERRAMENTA} cada.
           </p>
 
           <div className={styles.mods}>
@@ -563,29 +565,35 @@ export default function Landing() {
               </ul>
             </article>
 
-            <article className={styles.mod} data-reveal style={{ transitionDelay: '0.1s' }}>
+            {/* Estes dois módulos são as ferramentas do ANUAL (17/08). Ficam na
+                lista porque fazem parte do que a plataforma resolve — mas com a
+                etiqueta do ciclo, senão a seção "o que você leva" promete no
+                mensal o que só o anual entrega. */}
+            <article className={`${styles.mod} ${styles.modAnual}`} data-reveal style={{ transitionDelay: '0.1s' }}>
               <div className={styles.modTag}>Dinheiro</div>
+              <div className={styles.modSeloAnual}>No plano anual</div>
               <h3 className={styles.modH}>O preço certo da venda</h3>
               <p className={styles.modP}>
                 Pra parar de chutar valor e descobrir a margem depois da obra.
               </p>
               <ul className={styles.modList}>
-                <li>Calculadora de Precificação</li>
+                <li>Precificação Profissional</li>
                 <li>Custo do kit, margem e comissão na mesma tela</li>
                 <li>O preço sai pronto pra virar proposta</li>
               </ul>
             </article>
 
-            <article className={styles.mod} data-reveal style={{ transitionDelay: '0.15s' }}>
+            <article className={`${styles.mod} ${styles.modAnual}`} data-reveal style={{ transitionDelay: '0.15s' }}>
               <div className={styles.modTag}>Obra</div>
+              <div className={styles.modSeloAnual}>No plano anual</div>
               <h3 className={styles.modH}>A obra sob controle</h3>
               <p className={styles.modP}>
                 O que você hoje resolve em planilha paralela e grupo de WhatsApp.
               </p>
               <ul className={styles.modList}>
-                <li>Inventário de painel, inversor e material</li>
-                <li>Vistoria Solar de campo, com foto por item</li>
-                <li>Entrada e saída conforme você vende</li>
+                <li>Inventário da Empresa — painel, inversor e material</li>
+                <li>Onde está cada item e quanto vale o patrimônio</li>
+                <li>Aviso do que está acabando antes de faltar na obra</li>
               </ul>
             </article>
 
@@ -870,7 +878,9 @@ export default function Landing() {
                 <li>Os <b>8 tipos de documento</b> com a sua logo e a sua cor</li>
                 <li>Proposta solar completa pronta pra enviar no WhatsApp</li>
                 <li>Procurações aceitas nas principais concessionárias</li>
-                <li>Calculadora de precificação e controle de inventário</li>
+                {/* A precificação e o inventário SAÍRAM desta lista em 17/08: são
+                    do plano anual. Bullet de mensal prometendo ferramenta de anual
+                    é o cliente descobrindo por dentro, depois de pagar. */}
                 <li>Cadastro de clientes e de prestadores parceiros</li>
                 <li>Escaneia a conta de luz e preenche o cliente sozinho</li>
                 <li><b>Histórico salvo pra sempre</b> — acha qualquer contrato depois</li>
@@ -942,8 +952,8 @@ export default function Landing() {
 
                 <div className={styles.bonusNota}>
                   As duas ficam liberadas na sua conta <b>pra sempre</b> — continuam
-                  funcionando mesmo se um dia você parar de assinar. No mensal elas
-                  funcionam enquanto a assinatura estiver de pé.
+                  funcionando mesmo se um dia você parar de assinar. <b>Só no anual:</b> no
+                  plano mensal elas são compra à parte, R$ {PRECO_FERRAMENTA} cada.
                 </div>
               </div>
 

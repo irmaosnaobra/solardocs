@@ -55,6 +55,10 @@ export default function LojaPage() {
     }
     return p.naAssinatura
       ? (assinante ? 'Incluso na assinatura' : 'Compra única ou pela assinatura')
+      // Ferramenta do plano anual: quem está aqui sem ela ou é mensal ou é free.
+      // Nos dois casos o caminho é comprar avulso ou trocar de ciclo — e dizer
+      // "pela assinatura" mandaria o mensalista procurar o que ele não tem.
+      : p.noPlanoAnual ? 'Compra única ou no plano anual'
       : 'Compra única';
   };
 
