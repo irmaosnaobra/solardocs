@@ -8778,7 +8778,7 @@ function ctrHTML(d) {
       d.appTupi && 'o <b>aplicativo para o cliente final</b>, fornecido em parceria com a <b>Tupi</b>, pelo qual o motorista localiza a estação, inicia a recarga e paga',
     ].filter(Boolean).join('; e ') + '.') +
     (d.software ? li(`${num9}.2`, `Pela operação da plataforma, a CONTRATADA é remunerada em <b>${e(pctTxt)}% do faturamento bruto</b> da estação, apurado mensalmente e retido no repasse ao CONTRATANTE.`) : '') +
-    li(`${num9}.${d.software ? 3 : 2}`, `A contratação ${d.software ? 'da plataforma' : 'do aplicativo'} não é condição do fornecimento tratado nas Cláusulas 1ª a 8ª: o CONTRATANTE pode encerrá-la a qualquer tempo mediante aviso de 30 dias, cessando ${d.software ? 'o percentual e o serviço' : 'o serviço'}, e permanecendo com o equipamento e a obra já entregues.`)
+    li(`${num9}.${d.software ? 3 : 2}`, `O equipamento e a obra entregues na forma das Cláusulas 1ª a 8ª são de propriedade do CONTRATANTE e não dependem da manutenção ${d.software ? 'da plataforma' : 'do aplicativo'}, que constitui <b>serviço continuado</b>, prestado enquanto houver interesse das partes e denunciável por qualquer delas mediante aviso prévio de 30 (trinta) dias${d.software ? `, cessando a partir de então a remuneração da Cláusula ${num9}.2` : ''}.`)
   );
   const nResc = ++nCl, nGerais = ++nCl, nForo = ++nCl;
 
