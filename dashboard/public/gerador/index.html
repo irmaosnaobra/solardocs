@@ -641,10 +641,13 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-ctr-esc.fora h4{color:#8a94a3}
 .ep-ctr-esc ul{margin:0;padding-left:16px;font-size:11.5px;color:#333;line-height:1.6;font-family:var(--serif)}
 /* Fecho do contrato. A régua aqui é MILÍMETRO, não pixel: quem assina precisa
-   de espaço de caneta acima da linha, e as quatro linhas (duas partes, duas
-   testemunhas) têm que nascer com a mesma largura e o mesmo respiro — folha de
+   de espaço de caneta acima da linha, e as duas linhas (CONTRATADA e
+   CONTRATANTE) têm que nascer com a mesma largura e o mesmo respiro — folha de
    assinatura desalinhada é a primeira coisa que o cliente repara. O bloco
-   inteiro é indivisível: assinatura órfã em página nova não se manda. */
+   inteiro é indivisível: assinatura órfã em página nova não se manda.
+   O comentário dizia "quatro linhas (duas partes, duas testemunhas)" e o
+   contrato imprime DUAS desde sempre — descrição velha manda a próxima pessoa
+   procurar um bloco que não existe. */
 .ep-ctr-fim{break-inside:avoid;page-break-inside:avoid}
 .ep-ctr-assin{display:flex;gap:38px;margin-top:24mm}
 .ep-ctr-assin .a{flex:1;text-align:center;border-top:1.2px solid #1a1a1a;padding-top:7px;font-size:10.5px;color:#5a6472;line-height:1.55;letter-spacing:.2px}
