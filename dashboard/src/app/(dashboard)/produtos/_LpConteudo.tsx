@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft, Check, ExternalLink, Lock } from 'lucide-react';
+import { ArrowLeft, Check, ExternalLink, Lock, ShieldCheck, X } from 'lucide-react';
 import { checkoutCom, type ProdutoLoja } from '@/lib/produtos';
 import {
   MockupPrecificacao, MockupOffGrid, MockupInventario, MockupCurso,
@@ -144,7 +144,7 @@ export function LpConteudo({
 
           <div className={styles.lpDor}>{p.dorTexto}</div>
 
-          <h2 className={styles.lpH2}>O que você leva</h2>
+          <h2 className={styles.lpH2}>{p.titulos?.entrega || 'O que você leva'}</h2>
           <ul className={styles.lpLista}>
             {p.entrega.map((item) => (
               <li key={item}><Check size={15} /> <span>{item}</span></li>
@@ -250,7 +250,7 @@ export function LpConteudo({
               pelo mesmo motivo: quem nao entendeu COMO usa nao chega no preco. */}
           {p.comoFunciona && p.comoFunciona.length > 0 && (
             <section className={styles.lpBenefs}>
-              <h2 className={styles.lpH2Grande}>Como funciona</h2>
+              <h2 className={styles.lpH2Grande}>{p.titulos?.como || 'Como funciona'}</h2>
               <div className={styles.lpComo}>
                 {p.comoFunciona.map((c, i) => (
                   <div key={c.titulo} className={styles.lpComoItem}>
@@ -265,7 +265,7 @@ export function LpConteudo({
 
           {p.beneficios && p.beneficios.length > 0 && (
             <section className={styles.lpBenefs}>
-              <h2 className={styles.lpH2Grande}>O que muda no seu dia</h2>
+              <h2 className={styles.lpH2Grande}>{p.titulos?.beneficios || 'O que muda no seu dia'}</h2>
               <div className={styles.lpBenefGrid}>
                 {p.beneficios.map((b, i) => (
                   <div key={b.titulo} className={styles.lpBenef}>
@@ -278,12 +278,36 @@ export function LpConteudo({
             </section>
           )}
 
+          {/* ANTES E DEPOIS — a seção `compare` da home.
+              É onde a pessoa se reconhece. Tudo acima descreve a FERRAMENTA;
+              esta coluna da esquerda descreve o DIA DELA, e é por isso que ela
+              continua rolando. Sem este bloco a página vira ficha de produto. */}
+          {p.compara && (
+            <section className={styles.lpBenefs}>
+              <h2 className={styles.lpH2Grande}>{p.compara.titulo}</h2>
+              <div className={styles.lpCompara}>
+                <div className={styles.lpComparaCol} data-lado="antes">
+                  <h3><X size={15} /> Como é hoje</h3>
+                  <ul>
+                    {p.compara.antes.map((l) => <li key={l}>{l}</li>)}
+                  </ul>
+                </div>
+                <div className={styles.lpComparaCol} data-lado="depois">
+                  <h3><Check size={15} /> Com {p.nome}</h3>
+                  <ul>
+                    {p.compara.depois.map((l) => <li key={l}>{l}</li>)}
+                  </ul>
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* AS OBJEÇÕES, RESPONDIDAS.
               Dúvida que não é respondida aqui vira mensagem no WhatsApp — e
               dúvida que vira mensagem quase nunca vira compra. */}
           {p.faq && p.faq.length > 0 && (
             <section className={styles.lpBenefs}>
-              <h2 className={styles.lpH2Grande}>Perguntas que todo mundo faz</h2>
+              <h2 className={styles.lpH2Grande}>{p.titulos?.faq || 'Perguntas que todo mundo faz'}</h2>
               <div className={styles.lpFaq}>
                 {p.faq.map((f) => (
                   <details key={f.p}>
@@ -291,6 +315,18 @@ export function LpConteudo({
                     <p>{f.r}</p>
                   </details>
                 ))}
+              </div>
+            </section>
+          )}
+
+          {/* GARANTIA. Reversão de risco antes de pedir o cartão: quem chegou
+              até aqui já quer, e o que sobra é o medo de errar a compra. */}
+          {p.garantia && (
+            <section className={styles.lpGarantia}>
+              <span className={styles.lpGarantiaSelo}><ShieldCheck size={26} /></span>
+              <div>
+                <strong>{p.garantia.titulo}</strong>
+                <p>{p.garantia.texto}</p>
               </div>
             </section>
           )}
@@ -314,17 +350,30 @@ export function LpConteudo({
             </div>
           </section>
 
-          {/* Fechamento: quem rolou até aqui não pode ter que subir de volta
-              pra achar o botão. */}
-          <div className={styles.lpFechar}>
-            <div>
-              <strong>{p.nome}</strong>
-              <span>{brl(p.preco)} uma vez · acesso enquanto sua conta existir</span>
+          {/* FECHAMENTO — a `finalCta` da home.
+              Quem rolou 5 telas já foi convencido; o que falta é o empurrão e o
+              botão à mão. Antes isto era uma tarja com o nome e o preço, que é
+              rodapé, não fechamento. */}
+          <section className={styles.lpFechar}>
+            {p.fechamento && (
+              <>
+                <h2>{p.fechamento.titulo}</h2>
+                <p className={styles.lpFecharTexto}>{p.fechamento.texto}</p>
+              </>
+            )}
+            <div className={styles.lpFecharAcao}>
+              <a className={styles.lpFecharBtn} href={checkoutCom(p, email)} target="_blank" rel="noopener noreferrer">
+                Quero {p.tipo === 'curso' ? 'o curso' : 'a ferramenta'} <span>&rarr;</span>
+              </a>
+              <span className={styles.lpFecharPreco}>
+                <strong>{brl(p.preco)}</strong> · uma vez
+              </span>
             </div>
-            <a className={styles.lpBtn} href={checkoutCom(p, email)} target="_blank" rel="noopener noreferrer">
-              Comprar {p.tipo === 'curso' ? 'o curso' : 'a ferramenta'} <ExternalLink size={15} />
-            </a>
-          </div>
+            <p className={styles.lpFecharNota}>
+              Acesso enquanto a sua conta existir · sem mensalidade
+              {p.garantia ? ` · ${p.garantia.titulo.toLowerCase()}` : ''}
+            </p>
+          </section>
         </>
       )}
     </div>

@@ -77,6 +77,31 @@ export interface ProdutoLoja {
    * pro WhatsApp — e dúvida que vira mensagem quase nunca vira compra.
    */
   faq?: { p: string; r: string }[];
+  /**
+   * TÍTULO DE SEÇÃO QUE ARGUMENTA, não que etiqueta.
+   *
+   * "O QUE VOCÊ LEVA" é etiqueta e lê como ficha de produto; "8 custos na
+   * conta, não só o kit" é argumento e lê como página de venda. A home não tem
+   * uma única etiqueta: todo h2 dela defende alguma coisa. Sem título, cai no
+   * genérico — que é o que estava no ar.
+   */
+  titulos?: { entrega?: string; como?: string; beneficios?: string; faq?: string };
+  /**
+   * ANTES E DEPOIS — a seção `compare` da home. Duas colunas: como é hoje, sem
+   * a ferramenta, e como fica com ela. É onde a pessoa se reconhece; sem isso a
+   * página descreve um produto em vez de descrever a vida dela.
+   */
+  compara?: { titulo: string; antes: string[]; depois: string[] };
+  /**
+   * GARANTIA. Compra por impulso de R$ 67 sem reversão de risco perde venda na
+   * hora do cartão. O prazo aqui é o do Código de Defesa do Consumidor (art.
+   * 49, 7 dias em compra pela internet) — direito que existe com ou sem a
+   * gente escrever. Prometer prazo MAIOR que o configurado na Kiwify é o erro
+   * que o LimpaPro já cometeu: a página dizia 15 e a plataforma travava em 7.
+   */
+  garantia?: { titulo: string; texto: string };
+  /** O fechamento, com o preço de novo — a `finalCta` da home. */
+  fechamento?: { titulo: string; texto: string };
   /** Só pra ferramenta que dá pra experimentar antes de comprar. */
   experimentar?: { rota: string; texto: string };
   /**
@@ -88,6 +113,19 @@ export interface ProdutoLoja {
 }
 
 const WHATS = 'https://wa.me/5534991360223?text=';
+
+/**
+ * A MESMA garantia em todos os produtos de compra avulsa. É o prazo do Código
+ * de Defesa do Consumidor (art. 49) pra compra pela internet: existe com ou sem
+ * a gente escrever, e escrever converte. Número inventado aqui vira briga com o
+ * comprador depois — foi o que aconteceu no LimpaPro, com a página prometendo
+ * 15 dias e a plataforma travando em 7.
+ */
+const GARANTIA_PADRAO = {
+  titulo: '7 dias pra pedir o dinheiro de volta',
+  texto:
+    'Comprou, entrou e não era o que você esperava? Pede o reembolso e a gente devolve, sem discussão. É o prazo de arrependimento que a lei te dá em qualquer compra pela internet — a gente só está lembrando que ele existe.',
+};
 
 export const PRODUTOS_LOJA: ProdutoLoja[] = [
   {
@@ -117,6 +155,36 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
     // A ferramenta fica aberta de propósito: dimensionar e ver a autonomia é
     // grátis. A melhor página de vendas dela é ela mesma funcionando.
     experimentar: { rota: '/off-grid', texto: 'Dimensionar um sistema agora, de graça' },
+    titulos: {
+      entrega: 'Não é uma calculadora. É a proposta inteira.',
+      como: 'Do aparelho marcado ao PDF com a sua marca.',
+      beneficios: 'O que muda na visita ao sítio.',
+      faq: 'O que trava a compra, respondido.',
+    },
+    compara: {
+      titulo: 'A diferença entre voltar pra casa com a obra e voltar pra pensar.',
+      antes: [
+        'O cliente pergunta quanto tempo aguenta sem sol e você chuta',
+        'Meia hora de conta na mão — e o mês de inverno sai errado',
+        'Pede cotação do kit e some por dois dias esperando resposta',
+        'Manda a proposta em Word, sem comparativo com poste nem diesel',
+        'Esquece o surto da bomba e o inversor desarma na primeira partida',
+        'O cliente compara com outro orçamento e o seu vira o mais caro',
+      ],
+      depois: [
+        'A autonomia sai com número, em três cenários, na frente dele',
+        'O dimensionamento inteiro em minutos, incluindo dia de chuva',
+        'Preço do kit com frete até a obra na hora, sem pedir cotação',
+        'PDF com a sua marca e o comparativo de 10 anos junto',
+        'A conta já dimensiona pro pico de partida do motor',
+        'Você é o único que respondeu tudo na primeira visita',
+      ],
+    },
+    garantia: GARANTIA_PADRAO,
+    fechamento: {
+      titulo: 'A próxima venda de off-grid não precisa travar na pergunta da bateria.',
+      texto: 'Dimensionar e ver a autonomia é de graça — a ferramenta está aberta pra você testar antes. O que os R$ 97 liberam é a proposta em PDF com a sua marca, o preço do kit com frete e o comparativo que ganha a conversa. E se você pedir o kit pra gente, esses R$ 97 voltam como abatimento no primeiro pedido.',
+    },
     beneficios: [
       { titulo: 'Responde na hora a pergunta que trava tudo',
         texto: '"Quanto tempo aguenta sem sol?" sai com número, em três cenários: só o essencial, a casa inteira e chovendo o dia todo. Não é chute — é a mesma conta do dimensionamento, lida ao contrário.' },
@@ -215,6 +283,36 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
       { p: 'Já usava de graça. Vou perder?',
         r: 'Não. Quem já usava continua usando, de graça, pra sempre. A cobrança vale pra quem chega agora.' },
     ],
+    titulos: {
+      entrega: 'O custo inteiro na conta — não só o kit.',
+      como: 'Do custo ao preço final, numa tela só.',
+      beneficios: 'O que muda na hora de mandar o preço.',
+      faq: 'O que trava a compra, respondido.',
+    },
+    compara: {
+      titulo: 'A diferença entre fechar com lucro e descobrir depois que trabalhou de graça.',
+      antes: [
+        'Soma o kit, joga uma margem por cima e manda',
+        'Deslocamento, ART e homologação ficam de fora da conta',
+        'A nota fiscal aparece depois e come o que era lucro',
+        'A comissão do vendedor sai da sua parte, não do preço',
+        'O cliente pede desconto e você cede sem saber onde é o fundo',
+        'Cada pessoa da equipe precifica de um jeito diferente',
+      ],
+      depois: [
+        'Todo custo lançado antes de o preço existir',
+        'Material CA, mão de obra, deslocamento, ART e homologação juntos',
+        'Imposto escolhido e já descontado do que sobra',
+        'Comissão entra na conta antes, não depois',
+        'Você vê o preço mínimo que ainda dá lucro e negocia até ele',
+        'Mesma conta em toda proposta, por todo mundo',
+      ],
+    },
+    garantia: GARANTIA_PADRAO,
+    fechamento: {
+      titulo: 'O próximo orçamento pode sair sabendo quanto sobra pra você.',
+      texto: 'Uma obra precificada errada custa mais que a ferramenta inteira. Aqui você lança o custo real, arrasta a margem e vê a sua sobra mudar na hora — antes de mandar o preço, não depois de fechar.',
+    },
     rota: '/precificacao',
     // Na Kiwify o produto se chama "Calculadora Solar", R$ 67.
     checkout: process.env.NEXT_PUBLIC_PRECIFICACAO_CHECKOUT_URL || 'https://pay.kiwify.com.br/duOCDd0',
@@ -279,6 +377,36 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
       { p: 'Já usava de graça. Vou perder?',
         r: 'Não. Quem já usava continua usando, de graça, pra sempre. A cobrança vale pra quem chega agora.' },
     ],
+    titulos: {
+      entrega: 'Todo o patrimônio da empresa, somando sozinho.',
+      como: 'Do primeiro item ao PDF da contabilidade.',
+      beneficios: 'O que muda quando some uma furadeira.',
+      faq: 'O que trava a compra, respondido.',
+    },
+    compara: {
+      titulo: 'A diferença entre saber o que você tem e descobrir no telhado que faltou.',
+      antes: [
+        'Ninguém sabe quanto vale o que a empresa tem',
+        'O material acaba e você descobre com a equipe já na obra',
+        'Alguém corrige o número na mão e a história do item some',
+        'A furadeira sumiu e não dá pra dizer quem levou',
+        'O contador pede a relação de bens e vira um dia de trabalho',
+        'O seguro é feito no chute, por falta de número',
+      ],
+      depois: [
+        'Patrimônio total somado item por item, sempre atualizado',
+        'A linha fica vermelha e o aviso sobe antes de faltar',
+        'Entrada e saída em dois toques, com histórico de cada item',
+        'Cada ferramenta com local: escritório, veículo, obra do João',
+        'Um botão gera o PDF separado por local, com os totais',
+        'A apólice sai do valor real do que está lá dentro',
+      ],
+    },
+    garantia: GARANTIA_PADRAO,
+    fechamento: {
+      titulo: 'Amanhã de manhã dá pra saber onde está cada ferramenta.',
+      texto: 'Um toque monta um inventário de exemplo com 14 itens que toda equipe solar tem, já com valor e estoque mínimo — você ajusta em vez de começar do zero. Em uma tarde a empresa inteira está mapeada.',
+    },
     rota: '/inventario',
     // Na Kiwify o produto se chama "Inventário Empresarial", R$ 67.
     checkout: process.env.NEXT_PUBLIC_INVENTARIO_CHECKOUT_URL || 'https://pay.kiwify.com.br/ABSMgCu',
@@ -350,6 +478,34 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
     preco: 27,
     naAssinatura: true,
     rota: '/cursos/kit-fechamento',
+    titulos: {
+      entrega: 'A resposta pronta pra cada frase que derruba a venda.',
+      como: 'Uma lição por dia, no celular, entre uma visita e outra.',
+      beneficios: 'O que muda na próxima objeção.',
+      faq: 'O que trava a compra, respondido.',
+    },
+    compara: {
+      titulo: 'A diferença entre "vou pensar" e a assinatura.',
+      antes: [
+        'O cliente fala "tá caro" e você trava',
+        'Improvisa a resposta e cada visita sai diferente',
+        'O orçamento vai embora e o "vou pensar" nunca volta',
+        'Contrato e procuração feitos no Word, um por um',
+        'Aprende no erro, perdendo venda de verdade pra treinar',
+      ],
+      depois: [
+        '32 respostas de objeção, a fala pronta pra usar na hora',
+        'A mesma resposta boa em toda visita, sua e da equipe',
+        '15 mensagens prontas pra reaquecer quem sumiu',
+        'Contrato, procuração e vistoria com o CNPJ da sua empresa',
+        'Aprende com a venda dos outros, não com a sua perdida',
+      ],
+    },
+    garantia: GARANTIA_PADRAO,
+    fechamento: {
+      titulo: 'A próxima objeção já tem resposta.',
+      texto: 'R$ 27 é menos que o combustível de uma visita perdida. São 21 lições curtas, no celular, e o material fica disponível enquanto a sua conta existir.',
+    },
     // "Kit Fechamento - SolarDoc", R$ 27 — o mesmo checkout que a LP de
     // solardoc.app/kit usa desde 28/jul. Não é link novo: já vendia.
     checkout: process.env.NEXT_PUBLIC_KIT_CHECKOUT_URL || 'https://pay.kiwify.com.br/TGvxMl0',
@@ -440,6 +596,33 @@ export const PRODUTOS_LOJA: ProdutoLoja[] = [
     // — cobrar R$ 60 num card escrito R$ 47 é pior do que o botão quebrado.
     checkout: process.env.NEXT_PUBLIC_LIMPAPRO_CHECKOUT_URL || 'https://pay.kiwify.com.br/FUnHg3d',
     lpPropria: 'https://limpapro.solardoc.app',
+    titulos: {
+      entrega: 'Do primeiro telhado ao contrato que se repete.',
+      como: 'Técnica, preço e o cliente que volta sozinho.',
+      beneficios: 'O que muda no primeiro mês.',
+      faq: 'O que trava a compra, respondido.',
+    },
+    compara: {
+      titulo: 'A diferença entre um bico e uma carteira de clientes.',
+      antes: [
+        'Milhões de painéis instalados e ninguém oferece limpeza',
+        'Cobra pouco porque não sabe formar o preço',
+        'Arrisca riscar o vidro e responder por garantia quebrada',
+        'Sobe no telhado sem equipamento certo',
+        'Termina o serviço e perde o cliente de vista',
+      ],
+      depois: [
+        'Oferece pra uma base que já existe e ninguém atende',
+        'Preço saindo do tamanho, da altura e do deslocamento',
+        'Técnica que limpa sem riscar e sem quebrar a garantia',
+        'Segurança em altura, com menos de R$ 700 de equipamento',
+        'Contrato de manutenção: o mesmo telhado chama a cada 3 ou 6 meses',
+      ],
+    },
+    fechamento: {
+      titulo: 'Dá pra começar com menos de R$ 700 de equipamento.',
+      texto: 'Sem veículo próprio, sem ponto comercial e sem estoque — é a entrada mais barata do mercado de energia solar. O curso mostra a técnica, o preço e como transformar o serviço avulso em cliente que volta.',
+    },
     mockup: 'curso',
     cor: '#15803D',
   },
