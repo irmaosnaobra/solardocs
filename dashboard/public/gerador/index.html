@@ -2533,6 +2533,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div id="eletro-pane-orcamento" style="display:none;">
     <div class="pesquisa-info">Preencha os dados, adicione os itens e clique em <b>Gerar orçamento PDF</b>. Subtotal, total e vencimentos são calculados automaticamente. Os dados da sua empresa ficam salvos no navegador.</div>
     <div class="orc-wrap">
+      <div class="ep-pasta-host"></div>
+
 
       <!-- SUA EMPRESA (emitente) -->
       <div class="card">
@@ -2688,30 +2690,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div class="pesquisa-info">O papel do dinheiro que entra <b>antes</b> do contrato: o cliente paga uma parte (padrão 5%) pra tocar o projeto elétrico. O recibo declara que é <b>sinal e princípio de pagamento</b> — aprovado o projeto, é abatido do total.</div>
     <div class="orc-wrap">
 
-      <!-- Ponte com a pasta do cliente. O navegador não lê disco sozinho, então
-           quem recolhe dos PDFs é o coletar-docs.js (roda no computador) e o
-           que ele deixa pronto entra aqui por um arquivo só. -->
-      <div class="card">
-        <div class="calc-card-title"><span class="dot"></span>Puxar da pasta do cliente</div>
-        <div class="orc-note" style="margin-top:-2px;margin-bottom:10px">Conecte a pasta <b>#ELETROPOSTO</b> uma vez: cada subpasta vira um cliente na lista, e abrir Recibo ou Contrato já preenche os campos com o <b>_dados.json</b> de lá. O que você digitou à mão nunca é sobrescrito.</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <button type="button" class="eletro-btn" id="ep-pasta-btn" onclick="epPastaConectar()">
-            <svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-          Conectar pasta</button>
-          <div class="eletro-inp" style="flex:1;min-width:220px"><select id="ep-pasta-cliente" onchange="epPastaCarregar(this.value)"><option value="">— nenhum cliente —</option></select></div>
-        </div>
-        <div class="orc-note" id="ep-pasta-msg" style="margin-top:10px">Pasta não conectada.</div>
-        <div class="orc-note" id="ep-trello-msg" style="margin-top:6px">Trello: não configurado.</div>
-        <details style="margin-top:10px">
-          <summary class="orc-note" style="cursor:pointer">Sem a pasta conectada? escolher o arquivo na mão</summary>
-          <label class="eletro-btn" style="display:inline-flex;cursor:pointer;margin-top:8px">
-            <svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-            Escolher _dados.json
-            <input type="file" accept=".json,application/json" style="display:none" onchange="epImportarDados(this)">
-          </label>
-        </details>
-        <div class="orc-note" id="ep-import-msg" style="margin-top:10px">—</div>
-      </div>
+      <!-- O bloco da pasta e o mesmo nas tres abas: quem abre direto o Contrato
+           precisa do botao de conectar tanto quanto quem abre o Recibo. Um host
+           vazio por aba, e o JS pinta os tres com o MESMO estado. -->
+      <div class="ep-pasta-host"></div>
 
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Recibo de sinal</div>
@@ -2753,6 +2735,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div id="eletro-pane-contrato" style="display:none;">
     <div class="pesquisa-info">O contrato fecha o que o orçamento propôs. Partes, valor, prazos e obrigações saem do que já está preenchido nas outras abas — aqui você completa só o que é do contrato.</div>
     <div class="orc-wrap">
+      <div class="ep-pasta-host"></div>
+
 
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Partes</div>
@@ -8274,8 +8258,7 @@ const EP_IMPORT_MAPA = {
  * comportamentos diferentes pro mesmo _dados.json na primeira vez que alguém
  * mexer em um deles.
  */
-function epAplicarDados(d, msgId, origem) {
-  const msg = document.getElementById(msgId);
+function epAplicarDados(d, classeMsg, origem) {
   const postos = [], pulados = [];
   Object.entries(EP_IMPORT_MAPA).forEach(([campo, id]) => {
     const el = document.getElementById(id);
@@ -8287,14 +8270,14 @@ function epAplicarDados(d, msgId, origem) {
     postos.push(campo);
   });
   orcCalc(); recCalc(); recBanner(); ctrResumo();
-  if (!msg) return postos.length;
+  if (!classeMsg) return postos.length;
   // Só cobra o que o coletor TENTOU recolher (chave existe e veio vazia).
   // Campo que ele nem procura — telefone, e-mail — não é "faltando".
   const vazios = Object.keys(EP_IMPORT_MAPA).filter(c => (c in d) && !d[c] && d[c] !== 0);
-  msg.innerHTML = (origem ? `<b>${orcEsc(origem)}</b> · ` : '') +
+  epPastaTexto(classeMsg, (origem ? `<b>${orcEsc(origem)}</b> · ` : '') +
     `✅ <b>${postos.length}</b> campo(s) preenchido(s)` +
     (pulados.length ? ` · ${pulados.length} já tinham valor e foram mantidos` : '') +
-    (vazios.length ? `<br>O coletor deixou vazio (documentos não confirmam): <b>${orcEsc(vazios.join(', '))}</b>` : '');
+    (vazios.length ? `<br>O coletor deixou vazio (documentos não confirmam): <b>${orcEsc(vazios.join(', '))}</b>` : ''));
   return postos.length;
 }
 
@@ -8306,11 +8289,7 @@ function epImportarDados(input) {
   leitor.onload = () => {
     let d;
     try { d = JSON.parse(leitor.result); }
-    catch (e) {
-      const m = document.getElementById('ep-import-msg');
-      if (m) m.innerHTML = '❌ Esse arquivo não é um _dados.json válido.';
-      return;
-    }
+    catch (e) { epPastaTexto('ep-import-msg', '❌ Esse arquivo não é um _dados.json válido.'); return; }
     epAplicarDados(d, 'ep-import-msg');
   };
   leitor.readAsText(arq, 'utf-8');
@@ -8333,17 +8312,50 @@ function epImportarDados(input) {
 // Só preenche campo VAZIO (epAplicarDados) — abrir a aba de novo não desfaz
 // correção feita à mão.
 // ═══════════════════════════════════════════════════════════════════════════
+
+// O bloco da pasta, pintado igual nas tres abas. IDs viraram CLASSES: existem
+// tres copias vivas ao mesmo tempo, e id repetido faria getElementById devolver
+// so' a primeira - a mensagem apareceria numa aba e sumiria nas outras.
+const EP_PASTA_HTML = `
+  <div class="card">
+    <div class="calc-card-title"><span class="dot"></span>Puxar da pasta do cliente</div>
+    <div class="orc-note" style="margin-top:-2px;margin-bottom:10px">Conecte a pasta <b>#ELETROPOSTO</b> uma vez: cada subpasta vira um cliente na lista, e Orçamento, Recibo e Contrato passam a nascer preenchidos com o <b>_dados.json</b> de lá. O que você digitou à mão nunca é sobrescrito.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button type="button" class="eletro-btn ep-pasta-btn" onclick="epPastaConectar()">
+        <svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+      Conectar pasta</button>
+      <div class="eletro-inp" style="flex:1;min-width:220px"><select class="ep-pasta-cliente" onchange="epPastaCarregar(this.value)"><option value="">— nenhum cliente —</option></select></div>
+    </div>
+    <div class="orc-note ep-pasta-msg" style="margin-top:10px">Pasta não conectada.</div>
+    <div class="orc-note ep-trello-msg" style="margin-top:6px">Trello: —</div>
+    <details style="margin-top:10px">
+      <summary class="orc-note" style="cursor:pointer">Sem a pasta conectada? escolher o arquivo na mão</summary>
+      <label class="eletro-btn" style="display:inline-flex;cursor:pointer;margin-top:8px">
+        <svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        Escolher _dados.json
+        <input type="file" accept=".json,application/json" style="display:none" onchange="epImportarDados(this)">
+      </label>
+    </details>
+    <div class="orc-note ep-import-msg" style="margin-top:10px">—</div>
+  </div>`;
+
+function epPastaHostRender() {
+  document.querySelectorAll('.ep-pasta-host').forEach(h => {
+    if (!h.children.length) h.innerHTML = EP_PASTA_HTML;
+  });
+}
+/** Escreve a mesma mensagem nas tres copias. */
+function epPastaTexto(classe, html) {
+  document.querySelectorAll('.' + classe).forEach(el => { el.innerHTML = html; });
+}
+
 let epPastaHandle = null;
 let epPastaOcupado = false;
 const EP_PASTA_CLI = 'io-ep-pasta-cliente';   // último cliente escolhido
 
-function epPastaMsg(html) {
-  const el = document.getElementById('ep-pasta-msg');
-  if (el) el.innerHTML = html;
-}
+function epPastaMsg(html) { epPastaTexto('ep-pasta-msg', html); }
 function epPastaBotao(texto) {
-  const b = document.getElementById('ep-pasta-btn');
-  if (b) b.lastChild.textContent = texto;
+  document.querySelectorAll('.ep-pasta-btn').forEach(b => { b.lastChild.textContent = texto; });
 }
 
 // IndexedDB porque handle de pasta não sobrevive a JSON.stringify —
@@ -8385,16 +8397,17 @@ async function epPastaConectar() {
 
 /** Cada subpasta é um cliente. Ordem alfabética = a numeração #0001, #0002... */
 async function epPastaListar() {
-  const sel = document.getElementById('ep-pasta-cliente');
-  if (!sel || !epPastaHandle) return;
+  const sels = [...document.querySelectorAll('.ep-pasta-cliente')];
+  if (!sels.length || !epPastaHandle) return;
   const nomes = [];
   for await (const [nome, h] of epPastaHandle.entries()) {
     if (h.kind === 'directory' && !nome.startsWith('.')) nomes.push(nome);
   }
   nomes.sort((a, b) => a.localeCompare(b, 'pt-BR'));
   const anterior = (() => { try { return localStorage.getItem(EP_PASTA_CLI) || ''; } catch (e) { return ''; } })();
-  sel.innerHTML = '<option value="">— escolha o cliente —</option>' +
+  const opcoes = '<option value="">— escolha o cliente —</option>' +
     nomes.map(n => `<option value="${orcEsc(n)}"${n === anterior ? ' selected' : ''}>${orcEsc(n)}</option>`).join('');
+  sels.forEach(sl => { sl.innerHTML = opcoes; });
   epPastaBotao('Trocar pasta');
   epPastaMsg(`Pasta conectada · <b>${nomes.length}</b> cliente(s).`);
   if (anterior && nomes.includes(anterior)) await epPastaCarregar(anterior);
@@ -8448,8 +8461,8 @@ async function epPastaCarregar(nome) {
  */
 async function epPastaAuto() {
   if (epPastaOcupado) return;
-  const sel = document.getElementById('ep-pasta-cliente');
-  if (!sel) return;
+  epPastaHostRender();
+  if (!document.querySelector('.ep-pasta-cliente')) return;
   epPastaOcupado = true;
   try {
     if (epPastaHandle) { await epPastaListar(); return; }
@@ -8481,22 +8494,21 @@ async function epPastaAuto() {
  * Martins Lages".
  */
 async function epTrelloBuscar(cliente, num) {
-  const el = document.getElementById('ep-trello-msg');
-  if (!el || !cliente) return;
-  el.textContent = 'Trello: procurando…';
+  if (!cliente) return;
+  epPastaTexto('ep-trello-msg', 'Trello: procurando…');
   try {
     const r = await fetch('/_api/gerador/trello?cliente=' + encodeURIComponent(cliente) +
       (num ? '&num=' + encodeURIComponent(num) : ''));
     const j = await r.json();
-    if (!r.ok) { el.innerHTML = 'Trello: <b>' + orcEsc(j.error || ('erro ' + r.status)) + '</b>'; return; }
-    if (!j.cartao) { el.innerHTML = `Trello: nenhum cartão com o nome <b>${orcEsc(cliente)}</b>.`; return; }
+    if (!r.ok) { epPastaTexto('ep-trello-msg', 'Trello: <b>' + orcEsc(j.error || ('erro ' + r.status)) + '</b>'); return; }
+    if (!j.cartao) { epPastaTexto('ep-trello-msg', `Trello: nenhum cartão com o nome <b>${orcEsc(cliente)}</b>.`); return; }
     const c = j.cartao;
-    el.innerHTML = `Trello · <b>${orcEsc(c.lista || '—')}</b>` +
+    epPastaTexto('ep-trello-msg', `Trello · <b>${orcEsc(c.lista || '—')}</b>` +
       (c.etiquetas && c.etiquetas.length ? ' · ' + orcEsc(c.etiquetas.join(', ')) : '') +
       (c.prazo ? ` · prazo ${orcEsc(c.prazo)}` : '') +
-      (c.url ? ` · <a class="orc-link" href="${orcEsc(c.url)}" target="_blank" rel="noopener">abrir cartão</a>` : '');
+      (c.url ? ` · <a class="orc-link" href="${orcEsc(c.url)}" target="_blank" rel="noopener">abrir cartão</a>` : ''));
   } catch (e) {
-    el.textContent = 'Trello: sem resposta do servidor.';
+    epPastaTexto('ep-trello-msg', 'Trello: sem resposta do servidor.');
   }
 }
 
