@@ -2558,7 +2558,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="eletro-field"><label>E-mail</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-email" placeholder="contato@irmaosnaobra.com.br" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>Razão social <span style="opacity:.6;font-weight:600">(só no contrato)</span></label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-razao" placeholder="AIOROS HOLDING LTDA" oninput="orcEmitSalvar()"></div></div>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-razao" placeholder="AIOROS LTDA" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>Nome fantasia <span style="opacity:.6;font-weight:600">(só no contrato)</span></label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-fantasia" placeholder="AIOROS GROUP LTDA" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>CNPJ <span style="opacity:.6;font-weight:600">(só no contrato)</span></label>
@@ -7222,13 +7222,13 @@ function orcEmitSalvar() {
 }
 function orcEmitCarregar() {
   let o = {};
-  try { o = JSON.parse(localStorage.getItem(ORC_EMIT_KEY) || '{}') || {}; } catch (e) {}
+  try { o = epEmitCorrigir(JSON.parse(localStorage.getItem(ORC_EMIT_KEY) || '{}') || {}); } catch (e) {}
   // defaults da marca (só quando ainda não há nada salvo)
   // Razão social e CNPJ saem do Cartão CNPJ da empresa (dado público, o mesmo que
   // vai em toda nota fiscal). Ficam de default pra nenhum contrato sair sem a
   // qualificação da parte só porque ninguém preencheu o cadastro neste aparelho.
-  const def = { nome: 'Irmãos na Obra — Mobilidade Elétrica', end: '', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'contato@irmaosnaobra.com.br',
-                cnpj: '63.636.043/0001-88', razao: 'AIOROS HOLDING LTDA', fantasia: 'AIOROS GROUP LTDA' };
+  const def = { nome: 'Irmãos na Obra — Mobilidade Elétrica', end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'contato@irmaosnaobra.com.br',
+                cnpj: '63.636.043/0001-88', razao: 'AIOROS LTDA', fantasia: 'AIOROS GROUP LTDA' };
   orcEmitCampos().forEach(k => {
     const el = document.getElementById('orc-emit-' + k);
     if (el) el.value = (o[k] != null && o[k] !== '') ? o[k] : (def[k] || '');
@@ -7529,11 +7529,22 @@ function orc1Imprimir(html, nomeArq, opts) {
 
 // ===== Componentes compartilhados dos PDFs do eletroposto (padrão único) =====
 // Empresa (emitente) — localStorage salvo no Orçamento OU defaults da marca.
+const RAZAO_ERRADAS = ['aioros holding ltda', 'aioros group ltda'];
+const RAZAO_CERTA = 'AIOROS LTDA';
+/** Conserta a razao social salva neste aparelho. Roda uma vez por leitura e e'
+ *  barata: comparacao de string. Fantasia fica como o dono escreveu. */
+function epEmitCorrigir(o) {
+  if (o && typeof o.razao === 'string' && RAZAO_ERRADAS.includes(o.razao.trim().toLowerCase())) {
+    o.razao = RAZAO_CERTA;
+    try { localStorage.setItem(ORC_EMIT_KEY, JSON.stringify(o)); } catch (e) {}
+  }
+  return o;
+}
 function epEmitGet() {
   let o = {};
-  try { o = JSON.parse(localStorage.getItem(ORC_EMIT_KEY) || '{}') || {}; } catch (e) {}
-  const def = { nome: 'Irmãos na Obra — Mobilidade Elétrica', end: '', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'contato@irmaosnaobra.com.br',
-                cnpj: '63.636.043/0001-88', razao: 'AIOROS HOLDING LTDA', fantasia: 'AIOROS GROUP LTDA' };
+  try { o = epEmitCorrigir(JSON.parse(localStorage.getItem(ORC_EMIT_KEY) || '{}') || {}); } catch (e) {}
+  const def = { nome: 'Irmãos na Obra — Mobilidade Elétrica', end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'contato@irmaosnaobra.com.br',
+                cnpj: '63.636.043/0001-88', razao: 'AIOROS LTDA', fantasia: 'AIOROS GROUP LTDA' };
   const out = {};
   ['nome', 'end', 'cidade', 'tel', 'email', 'cnpj', 'razao', 'fantasia'].forEach(k => out[k] = (o[k] != null && o[k] !== '') ? o[k] : (def[k] || ''));
   return out;
@@ -8258,7 +8269,7 @@ const EP_IMPORT_MAPA = {
   base: 'orc-valor',
   contratante: 'ctr-contratante', contratanteDoc: 'ctr-contratante-doc',
   contratanteEnd: 'ctr-contratante-end', rep: 'ctr-rep', repDoc: 'ctr-rep-doc',
-  local: 'ctr-local', num: 'rec-num',
+  local: 'ctr-local', num: 'rec-num', extras: 'ctr-extras',
 };
 /**
  * Um caminho só de preenchimento — o arquivo escolhido na mão e a pasta
@@ -8656,7 +8667,16 @@ function ctrPagamentoSugestao(saldo) {
     const f = orcFinCalc(saldo);
     partes.push(`financiamento bancário${f.entrada > 0 ? ` com entrada de ${ORC_MONEY(f.entrada)}` : ''} em ${f.parcelas}x${f.parcela > 0 ? ` de ${ORC_MONEY(f.parcela)}` : ''}, sujeito à análise de crédito`);
   }
-  if (!partes.length) return `Saldo de ${ORC_MONEY(saldo)} — condição a combinar.`;
+  if (!partes.length) {
+    // Nenhuma forma marcada no Orçamento: em vez de mandar o contrato pro
+    // cliente dizendo "a combinar", usa a condição padrão da casa (18x com
+    // 22,5%), que e' a mesma que o orçamento oferece. O campo continua
+    // editável — o que nao pode e' o papel sair sem condicao nenhuma.
+    const e = orcEntradaCalc(saldo);
+    return `Saldo de ${ORC_MONEY(saldo)}, a ser pago ` +
+      (e.entrada > 0 ? `com entrada de ${ORC_MONEY(e.entrada)} e ` : 'em ') +
+      `${e.parcelas}x de ${ORC_MONEY(e.parcela)} no cartão de crédito.`;
+  }
   // Mais de uma marcada no orçamento? o contrato não escolhe por ninguém: lista
   // as duas com "ou" e o consultor apaga a que não foi fechada.
   return `Saldo de ${ORC_MONEY(saldo)}, a ser pago ${partes.join(' ou ')}.`;
@@ -8713,7 +8733,7 @@ function ctrDados() {
   const kit = orcLerItens().itens.map(i => i.desc + (i.variante ? ' ' + i.variante : ''));
   const marcados = new Set(orcLerItens().itens.map(i => i.desc));
   return {
-    num: orcVal('ctr-num'),
+    num: orcVal('ctr-num') || orcVal('rec-num'),
     data: new Date(dISO + 'T00:00:00'),
     // Quem NEGOCIOU (vai no cabeçalho, é o nome que o cliente reconhece) e quem
     // ASSINA (a qualificação da parte). Em branco, os dois são a mesma pessoa.
@@ -8809,7 +8829,7 @@ function ctrHTML(d) {
       ${li('1.2', `O escopo compreende o projeto de engenharia, o fornecimento dos equipamentos, a instalação e a homologação junto à concessionária de energia${temOperacao ? `, além ${entregaCrase}, na forma da Cláusula 9ª` : ''}, conforme a Cláusula 2ª.`)}
 
       ${cl(2, 'Do escopo')}
-      ${li('2.1', 'Estão incluídos no preço os itens a seguir; os demais, expressamente excluídos, correm por conta do CONTRATANTE.')}
+      ${li('2.1', 'Estão incluídos no preço os itens a seguir. O que não estiver relacionado como incluído não integra o preço, e as obrigações do CONTRATANTE quanto a documentação, demanda de energia e consumo seguem a Cláusula 6ª.')}
       <div class="ep-ctr-esc">
         <div><h4>Incluído</h4><ul>${incluidos.map(i => `<li>${e(i)}</li>`).join('')}</ul></div>
         <div class="fora"><h4>Não incluído</h4><ul><li>Obras de reforço da rede exigidas pela concessionária</li></ul></div>
@@ -8847,7 +8867,7 @@ function ctrHTML(d) {
       ${li('6.4', 'Efetuar os pagamentos nas datas acordadas.')}
 
       ${cl(7, 'Da garantia')}
-      ${li('7.1', `Os equipamentos e serviços têm garantia de <b>${d.garantia} meses</b> contados da emissão da nota fiscal, cobrindo defeitos de fabricação e de execução.`)}
+      ${li('7.1', `Os equipamentos e serviços têm garantia de <b>${d.garantia} meses</b> contados do <b>comissionamento</b> (Cláusula 5.3), cobrindo defeitos de fabricação e de execução.`)}
       ${li('7.2', 'A garantia não cobre danos por uso indevido, vandalismo, descargas atmosféricas, oscilação da rede, intervenção de terceiros não autorizados ou falta de manutenção.')}
 
       ${cl(8, 'Dos tributos e da nota fiscal')}
