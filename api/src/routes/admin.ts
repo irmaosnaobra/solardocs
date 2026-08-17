@@ -862,6 +862,74 @@ router.get('/nota1-funil', async (req: Request, res: Response): Promise<void> =>
   }
 });
 
+// ── Conexão Eletroposto: os dois lados, lado a lado — READ-ONLY ─────────────
+// Quem tem o ponto e quem tem o capital, na mesma tela, pra alguém fazer o
+// casamento na mão. NÃO existe algoritmo aqui de propósito: o que aproxima os
+// dois é a cidade, e cidade igual não quer dizer ponto compatível — quem decide
+// isso é o especialista olhando o endereço.
+//
+// O lado CAPITAL vem de duas origens que a tela precisa distinguir:
+//   · `eletroposto_parceria` — se cadastrou na página das portas
+//   · `eletroposto_nota1`    — declarou recurso no formulário e nunca clicou
+// O segundo grupo é maior e mais frio: ninguém falou com ele desde a recusa.
+router.get('/eletroposto-parceria', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const CAPITAL_DECLARADO = ['proprio', 'proprio_credito', 'fin_aprovado', 'fin_cnpj'];
+    const [parceriaQ, nota1Q] = await Promise.all([
+      supabaseGerador
+        .from('eletroposto_parceria')
+        .select('id, created_at, lado, nome, telefone, cidade, capital_faixa, prazo, ponto_relacao, ponto_tipo, ponto_endereco, ponto_vagas, ponto_fluxo, ponto_energia, obs, origem, par_id, par_em')
+        .order('created_at', { ascending: false })
+        .limit(400),
+      supabaseGerador
+        .from('eletroposto_nota1')
+        .select('id, created_at, nome, telefone, cidade, invest, capital_faixa, pts, lado')
+        .in('capital_faixa', CAPITAL_DECLARADO)
+        .order('created_at', { ascending: false })
+        .limit(300),
+    ]);
+
+    const linhas = (parceriaQ.data ?? []) as Array<Record<string, unknown>>;
+    const pontos = linhas.filter((l) => l.lado === 'ponto');
+    const capitalCadastrado = linhas.filter((l) => l.lado === 'capital');
+    const jaCadastrados = new Set(capitalCadastrado.map((l) => String(l.telefone)));
+
+    // Ficha de NOTA 1 que já virou cadastro na página não aparece duas vezes.
+    const capitalDaFicha = ((nota1Q.data ?? []) as Array<Record<string, unknown>>)
+      .filter((f) => !jaCadastrados.has(String(f.telefone)));
+
+    // Cidade normalizada (sem acento, sem UF) só pra agrupar quem está perto.
+    const chaveCidade = (c: unknown): string =>
+      String(c || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .toLowerCase().split(/[,/-]/)[0].trim();
+
+    const porCidade: Record<string, { pontos: number; capital: number }> = {};
+    const conta = (lista: Array<Record<string, unknown>>, campo: 'pontos' | 'capital') => {
+      for (const l of lista) {
+        const k = chaveCidade(l.cidade);
+        if (!k) continue;
+        porCidade[k] = porCidade[k] || { pontos: 0, capital: 0 };
+        porCidade[k][campo]++;
+      }
+    };
+    conta(pontos, 'pontos');
+    conta([...capitalCadastrado, ...capitalDaFicha], 'capital');
+
+    res.json({
+      pontos,
+      capital_cadastrado: capitalCadastrado,
+      capital_da_ficha: capitalDaFicha,
+      // Cidade com os DOIS lados presentes: é onde uma apresentação pode sair hoje.
+      cidades_com_par: Object.entries(porCidade)
+        .filter(([, v]) => v.pontos > 0 && v.capital > 0)
+        .map(([cidade, v]) => ({ cidade, ...v }))
+        .sort((a, b) => b.pontos + b.capital - (a.pontos + a.capital)),
+    });
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
 // ── Banco de comentários do curso (moderação) ──────────────────────────────
 // Lista TUDO que os alunos avaliaram; o Thiago escolhe o que vira depoimento na
 // página de venda. Só entra na LP o que for aprovado AQUI e tiver autorização

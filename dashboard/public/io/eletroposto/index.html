@@ -2129,23 +2129,36 @@ async function agendar(){
       }).catch(()=>{});
     } catch(_){}
 
-    // Destino do NOTA 1 a partir de 07/08/2026: a página de venda do material,
-    // no lugar do convite pro grupo de WhatsApp. O grupo entregava conteúdo de
-    // graça pra quem acabou de ser recusado — e conteúdo de graça na mesma tela
-    // mata a oferta paga que deveria ocupar esse espaço.
+    // Destino do NOTA 1 a partir de 17/08/2026: /io/eletroposto/parceria, a
+    // página das duas portas. Em 55 fichas NOTA 1, 42 declararam capital: a
+    // recusa quase sempre é falta de UMA peça (o local), não falta de negócio —
+    // e página de venda de material não entrega essa peça, entrega uma aula.
+    // A página de material continua existindo, como saída de quem não tem nem
+    // o ponto nem o capital: pra esse, entrar em grupo não resolve hoje.
     //
     // O motivo do descarte viaja por sessionStorage, NÃO por querystring: é a
     // resposta do lead, e URL vira print. Mesma origem, mesma aba — a página de
-    // destino lê e escolhe qual das quatro aberturas mostrar.
+    // destino lê e escolhe a abertura.
     try {
       sessionStorage.setItem('ep_desq', JSON.stringify({
         motivos: motivosDoDescarte({ perfil: perfil.value, ponto: ponto.value,
                                      invest: invest.value, decisor: decisor.value }),
         nome: nome,
       }));
+      // `ep_lead` é o que faz a próxima tela ser UM TOQUE: ela já sabe quem é a
+      // pessoa e não repete nada que o formulário perguntou. `lado` é sugestão,
+      // não trava — as duas portas continuam abertas. Quem respondeu "não sei
+      // como pagar" não recebe lado nenhum: sem ponto e sem capital ele não é
+      // nem investidor nem arrendador, e sugerir uma porta seria empurrar.
+      sessionStorage.setItem('ep_lead', JSON.stringify({
+        nome, telefone: '55' + telRaw,
+        telefone_visivel: document.getElementById('f-tel').value.trim(),
+        cidade, invest: txt(invest),
+        lado: invest.value === 'naosei' ? '' : 'capital',
+      }));
     } catch(_){}
-    track('nota1_material');
-    location.href = '/io/eletroposto/material';
+    track('nota1_parceria');
+    location.href = '/io/eletroposto/parceria';
     return;
   }
 

@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Conexão Eletroposto — quem tem o ponto e quem tem o capital</title>
+<meta name="description" content="Um lado tem o local. O outro tem o dinheiro. Entre no grupo do seu lado e a gente apresenta os dois.">
+<link rel="icon" type="image/svg+xml" href="/io/eletroposto/img/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/io/eletroposto/img/favicon-32.png">
+<link rel="apple-touch-icon" href="/io/eletroposto/img/apple-touch-icon.png">
+<meta name="theme-color" content="#0B2003">
+<meta property="og:title" content="Conexão Eletroposto — quem tem o ponto e quem tem o capital">
+<meta property="og:description" content="Um lado tem o local. O outro tem o dinheiro. Entre no grupo do seu lado e a gente apresenta os dois.">
+<meta property="og:image" content="https://solardoc.app/io/eletroposto/img/og.jpg">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://solardoc.app/io/eletroposto/parceria/">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  /* ═══════════════════════════════════════════════════════════════════════════
+     CONEXÃO ELETROPOSTO — a página das duas portas.
+
+     Herda a paleta da LP (/io/eletroposto) de propósito: o lead chega aqui
+     redirecionado do formulário, e trocar de identidade visual no meio do
+     caminho lê como "fui parar em outro site".
+
+     A página inteira existe pra UM gesto: escolher um lado e entrar no grupo.
+     Tudo que não ajuda nessa escolha foi cortado — não há prova social longa,
+     não há oferta, não há vídeo. Duas portas, e o caminho mais curto até o
+     WhatsApp dentro de cada uma.
+     ═══════════════════════════════════════════════════════════════════════════ */
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --neon:#7DD117; --neon-b:#9BEE38; --dk:#0B2003; --deep:#050d02;
+    --cream:#F7FBF2; --mut:rgba(247,251,242,.62); --line:rgba(125,209,23,.28);
+    --card:rgba(11,32,3,.72);
+    /* o lado do PONTO ganha âmbar: são dois caminhos diferentes, e a cor é o
+       jeito mais rápido de dizer isso antes da pessoa ler o rótulo */
+    --amb:#F2B417; --amb-b:#FFD05C; --amb-line:rgba(242,180,23,.32);
+  }
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Plus Jakarta Sans',sans-serif;color:var(--cream);
+    background:
+      radial-gradient(ellipse at 15% 0%, rgba(125,209,23,.15), transparent 55%),
+      radial-gradient(ellipse at 92% 42%, rgba(242,180,23,.10), transparent 46%),
+      linear-gradient(180deg,#060f02 0%, #0a1704 40%, var(--deep) 100%);
+    background-attachment:fixed;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+  section{padding:52px 0}
+  @media(max-width:760px){section{padding:34px 0}}
+
+  /* ===== topo ===== */
+  .nav{position:sticky;top:0;z-index:50;background:rgba(5,13,2,.88);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+  .nav .in{max-width:1080px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:14px}
+  .brand{display:flex;align-items:center;gap:11px}
+  .brand img{width:42px;height:42px;border-radius:9px;object-fit:contain;display:block}
+  .brand .t{font-weight:800;font-size:16px;line-height:1.05}
+  .brand .t span{display:block;font-size:9.5px;font-weight:700;color:var(--neon);letter-spacing:1.5px;text-transform:uppercase;margin-top:2px}
+  /* alvo de toque: a marca é o único link do topo e voltava pra LP num alvo de
+     28px de altura — o público é mais velho e erra a mira */
+  .brand{min-height:44px}
+  .navTag{color:var(--mut);font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;white-space:nowrap}
+  @media(max-width:560px){.brand .t{font-size:14px}.navTag{display:none}}
+
+  /* ===== hero — curto de propósito: as portas precisam aparecer no 1º scroll ===== */
+  .hero{padding:44px 0 6px}
+  @media(max-width:760px){.hero{padding:28px 0 4px}}
+  .kicker{display:inline-flex;align-items:center;gap:9px;background:rgba(125,209,23,.14);border:1px solid rgba(125,209,23,.42);color:var(--neon-b);font-size:12px;font-weight:900;letter-spacing:1.8px;text-transform:uppercase;padding:9px 17px;border-radius:999px}
+  h1{margin-top:18px;font-size:clamp(34px,5.6vw,60px);font-weight:900;line-height:1;letter-spacing:-2px;max-width:900px}
+  h1 .n{color:var(--neon-b)}
+  h1 .a{color:var(--amb-b)}
+  .lead{margin-top:18px;font-size:clamp(16px,2.05vw,19.5px);color:var(--mut);font-weight:600;line-height:1.55;max-width:640px}
+  .lead b{color:var(--cream);font-weight:800}
+  /* linha de contexto de quem veio do formulário — some pra quem chega pelo link */
+  .doForm{margin-top:16px;display:none;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--neon);
+    border-radius:0 14px 14px 0;padding:14px 18px;max-width:640px;font-size:14.5px;font-weight:700;line-height:1.5;color:var(--mut)}
+  .doForm b{color:var(--cream)}
+
+  /* placar: prova que se atualiza sozinha. Número que não veio some (não vira 0) */
+  .placar{margin-top:26px;display:flex;flex-wrap:wrap;gap:10px}
+  /* `display:flex` na classe vence o [hidden] do navegador — sem esta linha o
+     bloco aparece com os traços de espera quando a contagem não responde, que é
+     exatamente o que ele existe pra nunca fazer. */
+  .placar[hidden]{display:none}
+  .pl{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 16px;display:flex;align-items:baseline;gap:9px}
+  .pl .v{font-size:21px;font-weight:900;letter-spacing:-.6px;color:var(--neon-b);line-height:1}
+  .pl.amb .v{color:var(--amb-b)}
+  .pl .l{font-size:12.5px;font-weight:700;color:var(--mut)}
+
+  /* ═════ AS DUAS PORTAS ═════ */
+  .portas{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:8px}
+  @media(max-width:860px){.portas{grid-template-columns:1fr;gap:14px}}
+
+  .porta{background:var(--card);border:1.5px solid var(--line);border-radius:22px;padding:26px 24px 24px;
+    display:flex;flex-direction:column;position:relative;overflow:hidden}
+  .porta.amb{border-color:var(--amb-line)}
+  .porta::before{content:'';position:absolute;inset:0 0 auto 0;height:3px;background:linear-gradient(90deg,var(--neon),transparent)}
+  .porta.amb::before{background:linear-gradient(90deg,var(--amb),transparent)}
+  /* a porta que o formulário sugeriu ganha destaque — sem esconder a outra */
+  .porta.sug{border-color:var(--neon);box-shadow:0 0 0 1px rgba(125,209,23,.35),0 18px 44px rgba(0,0,0,.45)}
+  .porta.amb.sug{border-color:var(--amb);box-shadow:0 0 0 1px rgba(242,180,23,.35),0 18px 44px rgba(0,0,0,.45)}
+  .pSug{display:none;position:absolute;top:14px;right:14px;background:var(--neon);color:var(--dk);font-size:10.5px;font-weight:900;
+    letter-spacing:1.2px;text-transform:uppercase;padding:5px 11px;border-radius:999px}
+  .porta.amb .pSug{background:var(--amb)}
+  .porta.sug .pSug{display:block}
+
+  .pIc{width:46px;height:46px;border-radius:13px;background:rgba(125,209,23,.14);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+  .porta.amb .pIc{background:rgba(242,180,23,.13);border-color:var(--amb-line)}
+  .pIc svg{width:23px;height:23px;stroke:var(--neon-b);fill:none;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+  .porta.amb .pIc svg{stroke:var(--amb-b)}
+
+  .pOlho{font-size:11.5px;font-weight:900;letter-spacing:1.9px;text-transform:uppercase;color:var(--neon)}
+  .porta.amb .pOlho{color:var(--amb)}
+  .pTit{font-size:clamp(24px,3.3vw,30px);font-weight:900;letter-spacing:-1.1px;line-height:1.05;margin-top:9px}
+  .pSub{color:var(--mut);font-size:15px;font-weight:600;line-height:1.55;margin-top:12px}
+  .pSub b{color:var(--cream);font-weight:800}
+  .pLista{margin-top:16px;display:flex;flex-direction:column;gap:9px}
+  .pLista li{list-style:none;display:flex;gap:10px;align-items:flex-start;color:var(--mut);font-size:14px;font-weight:600;line-height:1.45}
+  .pLista svg{width:16px;height:16px;flex:none;margin-top:2px;stroke:var(--neon-b);fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+  .porta.amb .pLista svg{stroke:var(--amb-b)}
+  .pFim{margin-top:auto;padding-top:22px}
+
+  /* alvo de toque: 56px de altura mínima, largura cheia no celular */
+  .btn{background:linear-gradient(180deg,var(--neon-b) 0%,var(--neon) 58%,#5da80d 100%);color:var(--dk);font-weight:900;font-size:17px;
+    padding:19px 26px;border-radius:60px;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:10px;
+    border:2px solid rgba(255,255,255,.2);box-shadow:0 14px 34px rgba(125,209,23,.32);cursor:pointer;font-family:inherit;
+    width:100%;min-height:60px;text-align:center;line-height:1.15}
+  .btn.amb{background:linear-gradient(180deg,var(--amb-b) 0%,var(--amb) 58%,#c68f04 100%);box-shadow:0 14px 34px rgba(242,180,23,.28)}
+  .btn:active{transform:translateY(1px)}
+  .btn svg{width:20px;height:20px;flex:none;fill:currentColor}
+  .btn[disabled]{opacity:.6;pointer-events:none}
+  .pMicro{color:rgba(247,251,242,.5);font-size:12.5px;font-weight:700;margin-top:11px;text-align:center;line-height:1.45}
+
+  /* ===== formulário dentro da porta ===== */
+  .pForm{display:none;margin-top:20px;padding-top:20px;border-top:1px solid var(--line)}
+  .pForm.on{display:block}
+  .fld{margin-bottom:14px}
+  .fld label{display:block;font-size:13.5px;font-weight:800;margin-bottom:7px;color:var(--cream)}
+  .fld .hint{display:block;font-size:12px;font-weight:600;color:rgba(247,251,242,.45);margin-top:-3px;margin-bottom:7px}
+  .fld input,.fld select,.fld textarea{width:100%;background:rgba(5,13,2,.62);border:1.5px solid var(--line);border-radius:12px;
+    color:var(--cream);font-family:inherit;font-weight:700;font-size:16px;padding:16px 14px;outline:none}
+  .fld textarea{min-height:78px;resize:vertical;font-weight:600}
+  .fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--neon)}
+  .porta.amb .fld input:focus,.porta.amb .fld select:focus,.porta.amb .fld textarea:focus{border-color:var(--amb)}
+  .fld select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239BEE38' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 14px center;background-size:18px;padding-right:42px}
+  .fRow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:520px){.fRow{grid-template-columns:1fr;gap:0}}
+  .erro{display:none;background:rgba(255,90,70,.14);border:1px solid rgba(255,120,100,.42);color:#ffb3a6;
+    border-radius:11px;padding:12px 14px;font-size:13.5px;font-weight:800;margin-bottom:14px;line-height:1.45}
+  .erro.on{display:block}
+
+  /* ===== como funciona ===== */
+  .comoTit{font-size:clamp(24px,3.4vw,34px);font-weight:900;letter-spacing:-1.2px;line-height:1.08}
+  .comoSub{color:var(--mut);font-size:16px;font-weight:600;margin-top:12px;max-width:620px;line-height:1.55}
+  .passos{margin-top:26px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:820px){.passos{grid-template-columns:1fr}}
+  .ps{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 20px}
+  .ps .n{width:30px;height:30px;border-radius:9px;background:rgba(125,209,23,.16);border:1px solid var(--line);
+    color:var(--neon-b);font-size:14px;font-weight:900;display:flex;align-items:center;justify-content:center}
+  .ps b{display:block;font-size:17px;font-weight:900;margin-top:14px;letter-spacing:-.4px;line-height:1.2}
+  .ps span{display:block;color:var(--mut);font-size:14.5px;font-weight:600;line-height:1.55;margin-top:9px}
+
+  /* ===== a saída de quem não é nenhum dos dois ===== */
+  .terceira{margin-top:34px;background:rgba(11,32,3,.5);border:1px dashed var(--line);border-radius:16px;padding:20px 22px;
+    display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between}
+  .terceira p{color:var(--mut);font-size:14.5px;font-weight:700;line-height:1.5;flex:1;min-width:250px}
+  .terceira p b{color:var(--cream);font-weight:800}
+  .lnk{color:var(--neon-b);font-weight:900;font-size:14.5px;text-decoration:none;border-bottom:1.5px solid rgba(125,209,23,.45);
+    padding:12px 0;display:inline-flex;align-items:center;gap:7px;min-height:44px}
+
+  /* ===== tela de "entrou" ===== */
+  .okBg{display:none;position:fixed;inset:0;z-index:90;background:rgba(3,8,1,.9);backdrop-filter:blur(8px);
+    align-items:center;justify-content:center;padding:20px}
+  .okBg.on{display:flex}
+  .okCx{background:linear-gradient(180deg,#0d2404,#071302);border:1.5px solid var(--line);border-radius:22px;
+    padding:30px 26px;max-width:440px;width:100%;text-align:center}
+  .okCx .ic{width:56px;height:56px;border-radius:16px;background:rgba(125,209,23,.16);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;margin:0 auto 18px}
+  .okCx .ic svg{width:28px;height:28px;stroke:var(--neon-b);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+  .okCx h3{font-size:24px;font-weight:900;letter-spacing:-.9px;line-height:1.12}
+  .okCx p{color:var(--mut);font-size:15px;font-weight:600;line-height:1.55;margin-top:12px}
+  .okCx .btn{margin-top:20px}
+  .okCx .lnk{margin-top:14px;font-size:13.5px}
+
+  /* ===== rodapé ===== */
+  footer{border-top:1px solid var(--line);padding:30px 0;margin-top:16px}
+  .fRowF{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between}
+  .fc{display:flex;align-items:center;gap:9px;color:var(--mut);font-size:14px;font-weight:700}
+  .fc svg{width:16px;height:16px;stroke:var(--neon-b);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+  .fLegal{color:rgba(247,251,242,.4);font-size:11.5px;font-weight:600;line-height:1.6;margin-top:16px}
+
+  @media(max-width:640px){
+    .brand .t span{font-size:10.5px}
+    .porta{padding:22px 18px 20px;border-radius:18px}
+    /* 16px é o piso do iOS: abaixo disso o foco dá zoom na página e o público é
+       mais velho — perde o contexto do formulário inteiro */
+    .fld input,.fld select,.fld textarea{padding:18px 14px;font-size:17px}
+    .fld label{font-size:14.5px}
+    .btn{font-size:16.5px;padding:20px 20px}
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="in">
+    <a class="brand" href="/io/eletroposto/" style="text-decoration:none;color:inherit">
+      <img src="/io/eletroposto/img/logo.png" alt="Irmãos na Obra" onerror="this.style.display='none'">
+      <span class="t">Irmãos na Obra<span>Mobilidade Elétrica</span></span>
+    </a>
+    <span class="navTag">Conexão Eletroposto</span>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <!-- ══ HERO ══ -->
+  <section class="hero">
+    <span class="kicker">Falta uma peça, não o negócio</span>
+    <h1>Um lado tem o <span class="a">ponto</span>.<br>O outro tem o <span class="n">capital</span>.</h1>
+    <p class="lead" id="lead">
+      Eletroposto que não sai do papel quase sempre morre por metade: dinheiro sem local, ou local sem dinheiro.
+      <b>Escolha o seu lado</b> — a gente apresenta os dois.
+    </p>
+    <div class="doForm" id="do-form"></div>
+
+    <div class="placar" id="placar" hidden>
+      <div class="pl"><span class="v" id="pl-cap">—</span><span class="l">com capital, procurando ponto</span></div>
+      <div class="pl amb"><span class="v" id="pl-pon">—</span><span class="l">com ponto, procurando investidor</span></div>
+    </div>
+  </section>
+
+  <!-- ══ AS DUAS PORTAS ══ -->
+  <section style="padding-top:22px">
+    <div class="portas">
+
+      <!-- ── PORTA 1: CAPITAL ── -->
+      <div class="porta" id="porta-capital">
+        <span class="pSug">seu perfil</span>
+        <div class="pIc">
+          <svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <p class="pOlho">Tenho o capital</p>
+        <h2 class="pTit">Eu invisto.<br>Falta o lugar.</h2>
+        <p class="pSub">Você tem — ou consegue — o recurso, e o que trava é <b>não saber onde instalar</b>. O grupo é onde os pontos aparecem primeiro.</p>
+        <ul class="pLista">
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Pontos oferecidos por quem é dono do imóvel</li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Endereço, movimento e energia antes da visita</li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Estudo de viabilidade quando o ponto for seu</li>
+        </ul>
+
+        <div class="pFim">
+          <button type="button" class="btn" id="btn-capital" onclick="abrirPorta('capital')">
+            <svg viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.9-4.44 9.9-9.9C21.95 6.45 17.5 2 12.04 2m0 18.15h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.19 8.19 0 0 1-1.26-4.38c0-4.54 3.7-8.23 8.25-8.23a8.23 8.23 0 0 1 0 16.47"/></svg>
+            <span id="btn-capital-tx">Entrar no grupo dos investidores</span>
+          </button>
+          <p class="pMicro" id="micro-capital">Grupo no WhatsApp · você entra direto, sem esperar aprovação</p>
+
+          <form class="pForm" id="form-capital" onsubmit="enviar(event,'capital')">
+            <div class="erro" id="erro-capital"></div>
+            <div class="fld">
+              <label for="c-nome">Seu nome completo</label>
+              <input id="c-nome" type="text" autocomplete="name" placeholder="Nome e sobrenome">
+            </div>
+            <div class="fRow">
+              <div class="fld">
+                <label for="c-tel">WhatsApp com DDD</label>
+                <input id="c-tel" type="tel" inputmode="numeric" autocomplete="tel" placeholder="(34) 99999-9999">
+              </div>
+              <div class="fld">
+                <label for="c-cidade">Cidade e estado</label>
+                <input id="c-cidade" type="text" placeholder="Uberlândia, MG">
+              </div>
+            </div>
+            <div class="fRow">
+              <div class="fld">
+                <label for="c-faixa">Quanto pretende investir</label>
+                <select id="c-faixa">
+                  <option value="">Selecione</option>
+                  <option>Até R$ 50 mil</option>
+                  <option>R$ 50 mil a R$ 100 mil</option>
+                  <option>R$ 100 mil a R$ 200 mil</option>
+                  <option>Acima de R$ 200 mil</option>
+                  <option>Depende do ponto</option>
+                </select>
+              </div>
+              <div class="fld">
+                <label for="c-prazo">Quando pretende começar</label>
+                <select id="c-prazo">
+                  <option value="">Selecione</option>
+                  <option>Assim que achar o ponto</option>
+                  <option>Nos próximos 3 meses</option>
+                  <option>Neste ano</option>
+                  <option>Ainda estudando</option>
+                </select>
+              </div>
+            </div>
+            <button type="submit" class="btn" id="sub-capital">Entrar no grupo</button>
+            <p class="pMicro">Seus dados vão só pra equipe que faz a conexão. Nada é publicado no grupo.</p>
+          </form>
+        </div>
+      </div>
+
+      <!-- ── PORTA 2: PONTO ── -->
+      <div class="porta amb" id="porta-ponto">
+        <span class="pSug">seu perfil</span>
+        <div class="pIc">
+          <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+        <p class="pOlho">Tenho o ponto</p>
+        <h2 class="pTit">O lugar é meu.<br>O dinheiro, não.</h2>
+        <p class="pSub">Estacionamento, pátio, mercado, posto, terreno na rota. Você <b>não quer investir — quer alugar o espaço e receber</b> todo mês.</p>
+        <ul class="pLista">
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Quem paga o equipamento e a obra é o investidor</li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Você entra com o espaço e recebe pelo contrato</li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Hoje falta ponto, não falta investidor</li>
+        </ul>
+
+        <div class="pFim">
+          <button type="button" class="btn amb" id="btn-ponto" onclick="abrirPorta('ponto')">
+            <svg viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.9-4.44 9.9-9.9C21.95 6.45 17.5 2 12.04 2m0 18.15h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.19 8.19 0 0 1-1.26-4.38c0-4.54 3.7-8.23 8.25-8.23a8.23 8.23 0 0 1 0 16.47"/></svg>
+            <span>Cadastrar meu ponto e entrar</span>
+          </button>
+          <p class="pMicro">Leva 40 segundos · o endereço não é publicado em lugar nenhum</p>
+
+          <form class="pForm" id="form-ponto" onsubmit="enviar(event,'ponto')">
+            <div class="erro" id="erro-ponto"></div>
+            <div class="fld">
+              <label for="p-nome">Seu nome completo</label>
+              <input id="p-nome" type="text" autocomplete="name" placeholder="Nome e sobrenome">
+            </div>
+            <div class="fRow">
+              <div class="fld">
+                <label for="p-tel">WhatsApp com DDD</label>
+                <input id="p-tel" type="tel" inputmode="numeric" autocomplete="tel" placeholder="(34) 99999-9999">
+              </div>
+              <div class="fld">
+                <label for="p-cidade">Cidade e estado</label>
+                <input id="p-cidade" type="text" placeholder="Uberlândia, MG">
+              </div>
+            </div>
+            <div class="fRow">
+              <div class="fld">
+                <label for="p-relacao">O local é seu?</label>
+                <select id="p-relacao">
+                  <option value="">Selecione</option>
+                  <option>Sou o proprietário</option>
+                  <option>Administro o local</option>
+                  <option>Represento o proprietário</option>
+                  <option>Sou inquilino</option>
+                </select>
+              </div>
+              <div class="fld">
+                <label for="p-tipo">Que tipo de local</label>
+                <select id="p-tipo">
+                  <option value="">Selecione</option>
+                  <option>Estacionamento</option>
+                  <option>Posto de combustível</option>
+                  <option>Supermercado / atacado</option>
+                  <option>Shopping / galeria</option>
+                  <option>Hotel / pousada</option>
+                  <option>Restaurante / conveniência</option>
+                  <option>Condomínio</option>
+                  <option>Terreno em rota</option>
+                  <option>Outro</option>
+                </select>
+              </div>
+            </div>
+            <div class="fld">
+              <label for="p-end">Endereço do local</label>
+              <span class="hint">Rua, número e bairro. É o que decide se o ponto presta — e só a equipe vê.</span>
+              <input id="p-end" type="text" placeholder="Av. João Naves de Ávila, 1200 — Santa Mônica">
+            </div>
+            <div class="fRow">
+              <div class="fld">
+                <label for="p-vagas">Vagas disponíveis</label>
+                <select id="p-vagas">
+                  <option value="">Selecione</option>
+                  <option>1 a 2 vagas</option>
+                  <option>3 a 5 vagas</option>
+                  <option>6 a 10 vagas</option>
+                  <option>Mais de 10</option>
+                </select>
+              </div>
+              <div class="fld">
+                <label for="p-energia">Entrada de energia trifásica?</label>
+                <select id="p-energia">
+                  <option value="">Selecione</option>
+                  <option>Sim</option>
+                  <option>Não</option>
+                  <option>Não sei</option>
+                </select>
+              </div>
+            </div>
+            <div class="fld">
+              <label for="p-fluxo">Como é o movimento no local</label>
+              <select id="p-fluxo">
+                <option value="">Selecione</option>
+                <option>Rodovia / rota de passagem</option>
+                <option>Avenida movimentada</option>
+                <option>Rua comercial</option>
+                <option>Movimento próprio (clientes do local)</option>
+                <option>Movimento fraco hoje</option>
+              </select>
+            </div>
+            <div class="fld">
+              <label for="p-obs">Quer contar mais alguma coisa? <span style="font-weight:600;color:rgba(247,251,242,.45)">(opcional)</span></label>
+              <textarea id="p-obs" placeholder="Ex.: já tenho energia sobrando do solar, o pátio fica aberto 24h…"></textarea>
+            </div>
+            <button type="submit" class="btn amb" id="sub-ponto">Cadastrar e entrar no grupo</button>
+            <p class="pMicro">Seus dados vão só pra equipe que faz a conexão. Nada é publicado no grupo.</p>
+          </form>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- a saída de quem não é nenhum dos dois: nem ponto, nem capital -->
+    <div class="terceira">
+      <p><b>Ainda não tem nem um nem outro?</b> Se falta o ponto E falta o capital, entrar num grupo não resolve nada hoje. O caminho é aprender a achar e a medir o ponto antes de gastar o primeiro real.</p>
+      <a class="lnk" href="/io/eletroposto/material" onclick="ev('parceria_material')">Ver o material de entrada
+        <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+    </div>
+  </section>
+
+  <!-- ══ COMO FUNCIONA ══ -->
+  <section>
+    <h2 class="comoTit">O que acontece depois que você entra</h2>
+    <p class="comoSub">Não é grupo de conteúdo e não é lista de transmissão. É onde os dois lados se encontram — com a nossa equipe no meio, porque ponto errado quebra investidor e investidor errado queima ponto.</p>
+    <div class="passos">
+      <div class="ps">
+        <div class="n">1</div>
+        <b>Você entra no grupo do seu lado</b>
+        <span>Investidores de um lado, donos de ponto do outro. Cada grupo vê o que interessa a ele — sem 200 mensagens por dia de assunto alheio.</span>
+      </div>
+      <div class="ps">
+        <div class="n">2</div>
+        <b>A equipe cruza os dois</b>
+        <span>Um ponto novo chega com endereço, vagas e movimento. A gente confere se aquele local aguenta o projeto antes de apresentar a alguém.</span>
+      </div>
+      <div class="ps">
+        <div class="n">3</div>
+        <b>Vocês se falam com número na mesa</b>
+        <span>A apresentação vai com estudo de viabilidade: quanto custa, quanto entra, em quanto tempo volta. Quem decide são vocês — a gente executa.</span>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="fRowF">
+      <div class="fc"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>Irmãos na Obra · Mobilidade Elétrica</div>
+      <div class="fc"><svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>(34) 99136-0223</div>
+    </div>
+    <p class="fLegal">
+      Esta página conecta pessoas interessadas em projetos de recarga elétrica. A Irmãos na Obra não é parte do contrato entre
+      investidor e proprietário do local, não garante retorno financeiro e não intermedia pagamento entre as partes: atuamos no
+      projeto, na execução e no estudo de viabilidade. Qualquer acordo de arrendamento ou sociedade é firmado diretamente entre vocês.
+    </p>
+  </div>
+</footer>
+
+<!-- ══ tela de confirmação: a ponte entre o cadastro e o WhatsApp ══ -->
+<div class="okBg" id="ok-bg">
+  <div class="okCx">
+    <div class="ic"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
+    <h3 id="ok-tit">Pronto. Falta um toque.</h3>
+    <p id="ok-tx">Seu cadastro chegou. Agora toque no botão para abrir o WhatsApp e entrar no grupo.</p>
+    <a class="btn" id="ok-btn" href="#" target="_blank" rel="noopener">Abrir o grupo no WhatsApp</a>
+    <a class="lnk" id="ok-copiar" href="#" onclick="copiarLink(event)" style="border:0">O botão não abriu? Copiar o link do grupo</a>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   A regra que manda nesta página: NADA fica entre o dedo e o WhatsApp.
+
+   Por isso o botão do grupo é sempre uma NAVEGAÇÃO direta (href de verdade,
+   nunca um fetch que decide o destino depois): quem já veio identificado do
+   formulário da LP toca uma vez e cai no grupo. O registro sai em paralelo,
+   com keepalive — se ele falhar, o lead entrou do mesmo jeito. O contrário
+   (perder a entrada porque a gravação demorou) é o erro caro.
+   ═══════════════════════════════════════════════════════════════════════════ */
+var API = location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api';
+
+/* Fallback do link: a página é HTML estático e não lê env. Ela PERGUNTA os
+   links à API no load, mas nasce com o grupo que já existe hoje — assim um
+   /_api fora do ar não transforma o botão principal num botão morto. */
+var GRUPOS = {
+  capital: 'https://chat.whatsapp.com/BUhE93ZvMp2DZlZDsL2g7M',
+  ponto:   'https://chat.whatsapp.com/BUhE93ZvMp2DZlZDsL2g7M'
+};
+
+function ev(tag){ try{ if(window.fbq) fbq('trackCustom','EP_'+tag); }catch(e){} }
+
+/* ── quem chegou aqui ──────────────────────────────────────────────────────
+   `ep_lead` é escrito pela LP no instante em que a nota sai. Vem por
+   sessionStorage, NÃO por querystring: é o dado do lead, e URL vira print. */
+var LEAD = {};
+try { LEAD = JSON.parse(sessionStorage.getItem('ep_lead') || '{}') || {}; } catch(_){ LEAD = {}; }
+var veioDaLP = !!(LEAD.telefone && LEAD.nome);
+
+/* ── UTM de primeiro toque, no mesmo formato da LP ── */
+function utm(){
+  try { var s = JSON.parse(sessionStorage.getItem('ep_utm') || 'null'); if (s) return s; } catch(_){}
+  var p = new URLSearchParams(location.search), u = {};
+  ['utm_source','utm_medium','utm_campaign','utm_content','utm_term'].forEach(function(k){
+    var v = (p.get(k)||'').trim(); if(v) u[k] = v.slice(0,200);
+  });
+  return u;
+}
+
+/* ── links dos grupos ──
+   Trocados assim que a API responde. O `href` do botão da tela de confirmação
+   e o do atalho de um toque apontam sempre pro valor mais recente. */
+fetch(API + '/io/eletroposto/grupos').then(function(r){ return r.json(); }).then(function(g){
+  if (g && g.capital) GRUPOS.capital = g.capital;
+  if (g && g.ponto)   GRUPOS.ponto   = g.ponto;
+  aplicarAtalho();
+}).catch(function(){});
+
+/* ── placar: prova social que se atualiza sozinha ──
+   Contagem indisponível (null) não vira 0 — o bloco simplesmente não aparece.
+   O lado do PONTO só entra quando existe ponto: "0 pontos" é verdade, mas numa
+   página que está pedindo justamente por pontos ele lê como praça vazia. O
+   número do capital, esse aparece sempre: pra quem tem o local, gente com
+   dinheiro esperando é o argumento inteiro. */
+fetch(API + '/io/eletroposto/parceria/placar').then(function(r){ return r.json(); }).then(function(p){
+  if (!p || p.capital == null) return;
+  document.getElementById('pl-cap').textContent = p.capital;
+  if (p.ponto > 0) document.getElementById('pl-pon').textContent = p.ponto;
+  else document.querySelector('.pl.amb').remove();
+  document.getElementById('placar').hidden = false;
+}).catch(function(){});
+
+/* ── contexto de quem veio do formulário ── */
+(function(){
+  if (!veioDaLP) { ev('parceria_view_direto'); return; }
+  ev('parceria_view_lp');
+  var primeiro = String(LEAD.nome).trim().split(/\s+/)[0];
+  var cx = document.getElementById('do-form');
+  cx.innerHTML = '<b>' + esc(primeiro) + ', a reunião não foi marcada por um motivo só: o local ainda não está fechado.</b> ' +
+                 'Sem endereço não há o que estudar nem o que orçar — mas isso é falta de UMA peça, e é exatamente a peça que mora nesta página.';
+  cx.style.display = 'block';
+
+  // Prefill dos dois formulários com o que a LP já perguntou. Ninguém digita
+  // duas vezes o mesmo nome — foi assim que o formulário anterior perdeu gente.
+  ['c','p'].forEach(function(pre){
+    setV(pre + '-nome',   LEAD.nome);
+    setV(pre + '-tel',    LEAD.telefone_visivel || '');
+    setV(pre + '-cidade', LEAD.cidade || '');
+  });
+
+  // A porta sugerida vem da resposta de investimento: quem declarou recurso é
+  // investidor sem local. Quem respondeu "não sei como pagar" não tem lado
+  // nenhum ainda — as duas portas ficam neutras e a saída de baixo é a dele.
+  if (LEAD.lado === 'capital' || LEAD.lado === 'ponto') {
+    document.getElementById('porta-' + LEAD.lado).classList.add('sug');
+  }
+  aplicarAtalho();
+})();
+
+/* ── O ATALHO DE UM TOQUE ──
+   Quem veio da LP já está identificado: nome, WhatsApp e cidade vieram no
+   formulário. Então o botão do lado CAPITAL não abre formulário nenhum — ele
+   é um link direto pro grupo, e o cadastro sai junto do clique.
+
+   O lado PONTO nunca vira atalho, mesmo com o lead identificado: sem endereço,
+   tipo de local e movimento, um dono de ponto no grupo é um contato sem ativo —
+   e o ativo é o motivo do grupo existir. */
+function aplicarAtalho(){
+  if (!veioDaLP) return;
+  var b = document.getElementById('btn-capital');
+  document.getElementById('btn-capital-tx').textContent = 'Entrar no grupo agora';
+  document.getElementById('micro-capital').textContent = 'Você já se identificou no formulário · entra direto, sem aprovação';
+  b.onclick = function(){
+    registrar('capital', dadosDaLP('capital'));
+    ev('parceria_grupo_capital_1toque');
+    location.href = GRUPOS.capital;
+  };
+}
+
+function dadosDaLP(lado){
+  return {
+    lado: lado, nome: LEAD.nome, telefone: LEAD.telefone, cidade: LEAD.cidade || '',
+    capital_faixa: LEAD.invest || '', origem: 'lp_nota1'
+  };
+}
+
+/* Registro fire-and-forget: keepalive faz o navegador terminar o POST mesmo
+   depois que a página começou a sair pro WhatsApp. */
+function registrar(lado, corpo){
+  try {
+    var body = {}; for (var k in corpo) body[k] = corpo[k];
+    var u = utm(); for (var j in u) body[j] = u[j];
+    body.lado = lado;
+    fetch(API + '/io/eletroposto/parceria', {
+      method:'POST', headers:{'Content-Type':'application/json'}, keepalive:true,
+      body: JSON.stringify(body)
+    }).catch(function(){});
+  } catch(_) {}
+}
+
+/* ── abrir a porta (quem não veio identificado) ── */
+function abrirPorta(lado){
+  var porta = document.getElementById('porta-' + lado);
+  var f = document.getElementById('form-' + lado);
+  f.classList.add('on');
+  // O botão que abriu some junto com a sua micro-cópia: os dois falavam do
+  // gesto anterior, e deixá-los ali cria duas ações concorrentes na mesma porta.
+  document.getElementById('btn-' + lado).style.display = 'none';
+  var micro = porta.querySelector('.pFim > .pMicro');
+  if (micro) micro.style.display = 'none';
+  ev('parceria_abriu_' + lado);
+  setTimeout(function(){ try { f.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){} }, 60);
+  // Foca o primeiro campo AINDA VAZIO — com prefill da LP, focar o nome já
+  // preenchido faz o teclado subir em cima de um campo que ninguém vai mexer.
+  var vazio = null, campos = f.querySelectorAll('input,select,textarea');
+  for (var i = 0; i < campos.length; i++) if (!campos[i].value) { vazio = campos[i]; break; }
+  if (vazio && vazio.tagName === 'INPUT') setTimeout(function(){ try{ vazio.focus(); }catch(_){} }, 320);
+}
+
+/* ── envio do formulário ── */
+function enviar(e, lado){
+  e.preventDefault();
+  var pre = lado === 'capital' ? 'c' : 'p';
+  var nome   = val(pre + '-nome');
+  var telRaw = val(pre + '-tel').replace(/\D/g,'');
+  var cidade = val(pre + '-cidade');
+
+  if (nome.split(/\s+/).length < 2 || nome.length < 5) return erro(lado, 'Escreva seu nome completo — é assim que a equipe te encontra no grupo.');
+  if (telRaw.length < 10 || telRaw.length > 11)        return erro(lado, 'Informe um WhatsApp válido com DDD.');
+  if (cidade.length < 2)                               return erro(lado, 'Informe a cidade e o estado.');
+
+  var corpo = { nome: nome, telefone: '55' + telRaw, cidade: cidade,
+                origem: veioDaLP ? 'lp_nota1' : 'link_direto' };
+
+  if (lado === 'capital') {
+    if (!val('c-faixa')) return erro(lado, 'Informe quanto pretende investir — é o que decide qual ponto combina com você.');
+    corpo.capital_faixa = val('c-faixa');
+    corpo.prazo = val('c-prazo');
+  } else {
+    if (!val('p-relacao'))    return erro(lado, 'Informe qual é a sua relação com o local.');
+    if (!val('p-tipo'))       return erro(lado, 'Informe que tipo de local é.');
+    if (val('p-end').length < 8) return erro(lado, 'Informe o endereço do local (rua, número e bairro).');
+    if (!val('p-vagas'))      return erro(lado, 'Informe quantas vagas o local tem disponíveis.');
+    if (!val('p-fluxo'))      return erro(lado, 'Informe como é o movimento no local.');
+    corpo.ponto_relacao  = val('p-relacao');
+    corpo.ponto_tipo     = val('p-tipo');
+    corpo.ponto_endereco = val('p-end');
+    corpo.ponto_vagas    = val('p-vagas');
+    corpo.ponto_energia  = val('p-energia');
+    corpo.ponto_fluxo    = val('p-fluxo');
+    corpo.obs            = val('p-obs');
+  }
+
+  esconderErro(lado);
+  var sub = document.getElementById('sub-' + lado);
+  sub.disabled = true; sub.textContent = 'Enviando…';
+  registrar(lado, corpo);
+  ev('parceria_cadastro_' + lado);
+
+  // Não espera resposta: o cadastro é keepalive e o próximo passo é o WhatsApp.
+  // Um erro de rede aqui não pode segurar a pessoa na porta do grupo.
+  setTimeout(function(){ mostrarOk(lado); sub.disabled = false;
+    sub.textContent = lado === 'capital' ? 'Entrar no grupo' : 'Cadastrar e entrar no grupo'; }, 450);
+}
+
+function mostrarOk(lado){
+  var link = GRUPOS[lado];
+  document.getElementById('ok-btn').href = link;
+  document.getElementById('ok-tit').textContent = lado === 'ponto' ? 'Ponto cadastrado. Falta um toque.' : 'Pronto. Falta um toque.';
+  document.getElementById('ok-tx').textContent = lado === 'ponto'
+    ? 'A equipe já recebeu o seu local. Toque no botão para entrar no grupo dos donos de ponto — é lá que os investidores chegam.'
+    : 'Toque no botão para abrir o WhatsApp e entrar no grupo dos investidores.';
+  document.getElementById('ok-bg').classList.add('on');
+  // O toque no botão é o que conta como entrada de verdade.
+  document.getElementById('ok-btn').onclick = function(){ ev('parceria_grupo_' + lado); };
+}
+
+function copiarLink(e){
+  e.preventDefault();
+  var link = document.getElementById('ok-btn').getAttribute('href');
+  var alvo = e.target;
+  function feito(){ alvo.textContent = 'Link copiado — cole no WhatsApp'; }
+  try {
+    if (navigator.clipboard) { navigator.clipboard.writeText(link).then(feito, nada); }
+    else nada();
+  } catch(_) { nada(); }
+  function nada(){
+    // Sem clipboard (navegador antigo, http): mostra o link pra pessoa copiar na mão.
+    alvo.textContent = link;
+    alvo.style.wordBreak = 'break-all';
+  }
+}
+
+/* ── utilitários ── */
+function val(id){ var e = document.getElementById(id); return e ? String(e.value || '').trim() : ''; }
+function setV(id, v){ var e = document.getElementById(id); if (e && v) e.value = v; }
+function esc(s){ return String(s).replace(/[<>&"]/g, function(c){
+  return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]; }); }
+function erro(lado, msg){
+  var e = document.getElementById('erro-' + lado);
+  e.textContent = msg; e.classList.add('on');
+  try { e.scrollIntoView({behavior:'smooth', block:'center'}); } catch(_){}
+  return false;
+}
+function esconderErro(lado){ document.getElementById('erro-' + lado).classList.remove('on'); }
+
+/* Máscara leve de telefone: o público é mais velho e digita com pontuação. */
+['c-tel','p-tel'].forEach(function(id){
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', function(){
+    var d = el.value.replace(/\D/g,'').slice(0,11);
+    el.value = d.length > 10 ? '(' + d.slice(0,2) + ') ' + d.slice(2,7) + '-' + d.slice(7)
+             : d.length > 6  ? '(' + d.slice(0,2) + ') ' + d.slice(2,6) + '-' + d.slice(6)
+             : d.length > 2  ? '(' + d.slice(0,2) + ') ' + d.slice(2)
+             : d;
+  });
+});
+</script>
+
+<!-- Meta Pixel: mesmo id da LP — o NOTA 1 continua sendo o mesmo público -->
+<script>
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq('init','26788759654130722');fbq('track','PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=26788759654130722&ev=PageView&noscript=1"/></noscript>
+
+</body>
+</html>

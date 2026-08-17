@@ -282,23 +282,20 @@ router.post('/nota1', async (req: Request, res: Response): Promise<void> => {
   }
 
   // ── Grupo × oferta: quem decide é a oferta estar VENDÁVEL ──
-  // Desde 07/08/2026 o NOTA 1 cai na página de venda do material em vez do grupo
-  // de WhatsApp. Mandar o convite do grupo junto entregaria de graça, no mesmo
-  // minuto, o conteúdo que a página está cobrando.
+  // Desde 17/08/2026 o NOTA 1 cai em /io/eletroposto/parceria, a página das duas
+  // portas (tem o capital × tem o ponto), e o link do grupo está NA TELA. Por
+  // isso o convite por WhatsApp virou reforço, não caminho único: ele só sai
+  // quando não existe oferta paga concorrendo com ele no mesmo minuto.
   //
-  // Mas isso só vale quando a oferta EXISTE. Enquanto o curso de entrada estiver
-  // em rascunho ou sem link de checkout, o lead cairia numa página sem preço e
-  // sem botão — pior que o grupo. Então a troca não depende de alguém lembrar de
-  // virar uma chave: ela olha o estado real do catálogo a cada lead.
+  // Publicou o curso e colou o link no /admin? A bolha para sozinha. Despublicou?
+  // Ela volta sozinha. A página, o cadastro e o aviso da equipe acontecem nos
+  // três casos.
   //
-  // Publicou o curso e colou o link no /admin? O grupo para sozinho. Despublicou?
-  // O grupo volta sozinho. A gravação da ficha acontece nos dois casos — é ela
-  // que fecha o vazamento do NOTA 1.
+  // A ESTRUTURA MUDOU EM 17/08: até aqui, "oferta vendável" fazia o handler dar
+  // `return` — e levava junto o aviso da equipe lá embaixo, que é justamente o
+  // que faz alguém casar investidor com dono de ponto. O corte agora desliga só
+  // a bolha; gravação e aviso são incondicionais.
   let convidar = !(await ofertaDeEntradaVendavel());
-  if (!convidar) {
-    res.json({ ok: true, id, convite: false, motivo: 'oferta no ar — lead vai para /material' });
-    return;
-  }
 
   // Já convidado nas últimas 24h? Não repete. Vale pro caso de o lead preencher
   // o formulário duas vezes (acontece: ele volta pra corrigir o ponto).
@@ -325,40 +322,40 @@ router.post('/nota1', async (req: Request, res: Response): Promise<void> => {
 
   res.json({ ok: true, id, convite: convidar });
 
-  if (!convidar) return;
-
-  // Envio em background: a LP não espera o WhatsApp pra mostrar a tela do grupo.
+  // Background: a LP não espera o WhatsApp pra levar o lead pra página das portas.
   (async () => {
-    const primeiroNome = nome.split(/\s+/)[0];
-    try {
-      for (const bolha of bolhasConvite(primeiroNome)) {
-        await sendWhatsApp(telefone, bolha, 'io');
-        await new Promise(r => setTimeout(r, 1500));
-      }
-      if (id) {
-        await supabaseGerador.from('eletroposto_nota1')
-          .update({ convite_enviado_at: new Date().toISOString() }).eq('id', id);
-      }
-      logger.info('io-eletroposto-nota1', `convite do grupo enviado pra ${nome} (${telefone})`);
-    } catch (err) {
-      logger.error('io-eletroposto-nota1', `convite falhou pra ${telefone}`, err);
-      if (id) {
-        await supabaseGerador.from('eletroposto_nota1')
-          .update({ convite_erro: String(err).slice(0, 400) }).eq('id', id)
-          .then(undefined, () => {});
+    if (convidar) {
+      const primeiroNome = nome.split(/\s+/)[0];
+      try {
+        for (const bolha of bolhasConvite(primeiroNome)) {
+          await sendWhatsApp(telefone, bolha, 'io');
+          await new Promise(r => setTimeout(r, 1500));
+        }
+        if (id) {
+          await supabaseGerador.from('eletroposto_nota1')
+            .update({ convite_enviado_at: new Date().toISOString() }).eq('id', id);
+        }
+        logger.info('io-eletroposto-nota1', `convite do grupo enviado pra ${nome} (${telefone})`);
+      } catch (err) {
+        logger.error('io-eletroposto-nota1', `convite falhou pra ${telefone}`, err);
+        if (id) {
+          await supabaseGerador.from('eletroposto_nota1')
+            .update({ convite_erro: String(err).slice(0, 400) }).eq('id', id)
+            .then(undefined, () => {});
+        }
       }
     }
 
-    // TODO NOTA 1 é avisado no WhatsApp da equipe, mesmo sem agendar (pedido do
+    // O NOTA 1 é avisado no WhatsApp da equipe, mesmo sem agendar (pedido do
     // Thiago em 01/08). Ele não ocupa agenda, mas continua sendo lead: quem tem
     // capital e não tem local é o par de quem tem ponto e não tem dinheiro, e é a
     // equipe que faz esse casamento. Uma mensagem só, não as 5 do convite.
-    // Fora do try do convite de propósito: convite que falha não pode esconder o
-    // lead da equipe — é justamente aí que alguém precisa ir atrás na mão.
+    // Fora do `if` do convite de propósito: convite desligado (ou que falha) não
+    // pode esconder o lead da equipe — é justamente aí que alguém vai na mão.
     try {
       const comCapital = !!(lead.invest && INVEST_COM_CAPITAL.has(lead.invest));
       const aviso = [
-        comCapital ? '💰 *NOTA 1 COM CAPITAL — investidor sem local*' : '🔴 *NOTA 1 — foi pro grupo, não agendou*',
+        comCapital ? '💰 *NOTA 1 COM CAPITAL — investidor sem local*' : '🔴 *NOTA 1 — não agendou*',
         '',
         `*Nome:* ${nome}`,
         `*WhatsApp:* wa.me/${telefone}`,
@@ -370,12 +367,168 @@ router.post('/nota1', async (req: Request, res: Response): Promise<void> => {
         `*Pontuação:* ${lead.pts ?? '—'}/11`,
         '',
         comCapital
-          ? '_Tem com quê e não tem onde: é o par de quem tem ponto e não tem dinheiro. Convite do grupo já enviado._'
-          : '_Sem local definido não há o que orçar. Convite do grupo já enviado._',
+          ? '_Tem com quê e não tem onde: é o par de quem tem ponto e não tem dinheiro. Foi pra página das duas portas._'
+          : '_Sem local definido não há o que orçar. Foi pra página das duas portas._',
       ].join('\n');
       await Promise.allSettled(Object.values(EQUIPE).map(num => sendWhatsApp(num, aviso, 'io')));
     } catch (err) {
       logger.error('io-eletroposto-nota1', `aviso da equipe falhou pra ${telefone}`, err);
+    }
+  })();
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONEXÃO ELETROPOSTO — as duas portas de /io/eletroposto/parceria.
+//
+// A régua diz que NOTA 1 é quem não tem local. Em 55 fichas, 42 declararam
+// capital e 1 tinha ponto definido: a base inteira é UM lado do negócio. O outro
+// lado — quem tem o estacionamento, o pátio, o terreno na rota e não vai
+// investir — nunca preencheu a LP, porque a LP pergunta por investidor.
+//
+// Estas rotas existem pra capturar os dois e deixar o casamento possível:
+//   GET  /grupos    → os links dos grupos (a página é HTML estático, não lê env)
+//   POST /parceria  → grava o lado escolhido e devolve o link do grupo certo
+//
+// Público, como o resto da LP. Se protege por formato + upsert por (lado,
+// telefone): reenviar o mesmo formulário atualiza a linha, não cria fila.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** O grupo que já existe hoje é o dos investidores — quem está lá é NOTA 1 com capital. */
+const GRUPO_CAPITAL = () => (process.env.IO_GRUPO_EP_CAPITAL_LINK || process.env.IO_GRUPO_ELETROPOSTO_LINK || '').trim()
+  || 'https://chat.whatsapp.com/BUhE93ZvMp2DZlZDsL2g7M';
+/**
+ * O grupo dos donos de ponto ainda não existe — precisa ser criado no WhatsApp e
+ * o link colado em IO_GRUPO_EP_PONTO_LINK. Enquanto não vier, cai no mesmo grupo
+ * do capital: misturar os dois lados é pior que separar, mas é MUITO melhor que
+ * mandar quem tem o ponto (o ativo escasso) pra um botão que não abre nada.
+ */
+const GRUPO_PONTO = () => (process.env.IO_GRUPO_EP_PONTO_LINK || '').trim() || GRUPO_CAPITAL();
+
+router.get('/grupos', (_req: Request, res: Response): void => {
+  res.set('Cache-Control', 'public, max-age=300');
+  res.json({
+    capital: GRUPO_CAPITAL(),
+    ponto: GRUPO_PONTO(),
+    // A página avisa a equipe (não o lead) quando os dois são o mesmo link.
+    separados: GRUPO_PONTO() !== GRUPO_CAPITAL(),
+  });
+});
+
+// ── Placar da página: quantos já estão de cada lado ──
+// A página mostra isto como prova social, então tem que ser CONTAGEM DE VERDADE,
+// que sobe sozinha. O lado capital soma os dois caminhos: quem se cadastrou na
+// página e o NOTA 1 que declarou recurso e nunca clicou em nada — ele existe na
+// base e é exatamente quem um dono de ponto quer encontrar.
+// Contagem que falha vira null, nunca 0: zero afirmaria "não tem ninguém".
+router.get('/parceria/placar', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const [cadCapital, cadPonto, nota1Capital] = await Promise.all([
+      supabaseGerador.from('eletroposto_parceria').select('id', { count: 'exact', head: true }).eq('lado', 'capital'),
+      supabaseGerador.from('eletroposto_parceria').select('id', { count: 'exact', head: true }).eq('lado', 'ponto'),
+      supabaseGerador.from('eletroposto_nota1').select('id', { count: 'exact', head: true })
+        .in('capital_faixa', ['proprio', 'proprio_credito', 'fin_aprovado', 'fin_cnpj'])
+        .is('lado', null),
+    ]);
+    res.set('Cache-Control', 'public, max-age=300');
+    // Contagem que DEU CERTO devolve o número, zero inclusive — a página é que
+    // decide o que fazer com um zero (o lado do ponto começa vazio por
+    // definição, e "0 pontos com 38 investidores esperando" é justamente o
+    // argumento de quem tem o local). Null aqui significa só uma coisa: não
+    // consegui contar.
+    res.json({
+      capital: (cadCapital.count || 0) + (nota1Capital.count || 0),
+      ponto: cadPonto.count || 0,
+    });
+  } catch (err) {
+    logger.error('io-eletroposto-parceria', 'falha contando o placar', err);
+    res.json({ capital: null, ponto: null });
+  }
+});
+
+const LADOS = new Set(['capital', 'ponto']);
+const txt = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max) || null;
+
+router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
+  const b = req.body || {};
+  const lado = String(b.lado || '').trim();
+  const nome = String(b.nome || '').trim().slice(0, 120);
+  const telefone = soDigitos(String(b.telefone || ''));
+
+  if (!LADOS.has(lado)) { res.status(400).json({ error: 'lado invalido' }); return; }
+  if (nome.length < 3)  { res.status(400).json({ error: 'nome invalido' }); return; }
+  if (telefone.length < 12 || telefone.length > 13 || !telefone.startsWith('55')) {
+    res.status(400).json({ error: 'telefone invalido' }); return;
+  }
+
+  const link = lado === 'ponto' ? GRUPO_PONTO() : GRUPO_CAPITAL();
+  const linha = {
+    lado, nome, telefone,
+    cidade:         txt(b.cidade, 120),
+    capital_faixa:  txt(b.capital_faixa, 120),
+    prazo:          txt(b.prazo, 80),
+    ponto_relacao:  txt(b.ponto_relacao, 80),
+    ponto_tipo:     txt(b.ponto_tipo, 120),
+    ponto_endereco: txt(b.ponto_endereco, 300),
+    ponto_vagas:    txt(b.ponto_vagas, 40),
+    ponto_fluxo:    txt(b.ponto_fluxo, 120),
+    ponto_energia:  txt(b.ponto_energia, 40),
+    obs:            txt(b.obs, 600),
+    origem:         b.origem === 'lp_nota1' ? 'lp_nota1' : 'link_direto',
+    grupo_click_at: new Date().toISOString(),
+    ...utm(b),
+  };
+
+  // Responde ANTES do banco: o próximo passo do lead é abrir o WhatsApp, e ele
+  // não pode ficar olhando um botão girando enquanto a gente grava.
+  res.json({ ok: true, link });
+
+  (async () => {
+    let id: number | null = null;
+    try {
+      const { data, error } = await supabaseGerador
+        .from('eletroposto_parceria')
+        .upsert(linha, { onConflict: 'lado,telefone' })
+        .select('id').single();
+      if (error) throw error;
+      id = data?.id ?? null;
+    } catch (err) {
+      logger.error('io-eletroposto-parceria', `falha gravando ${lado} ${telefone}`, err);
+    }
+
+    // Carimba a porta na ficha do funil também: "quantos dos recusados escolheram
+    // alguma porta" é pergunta do funil, e o painel do /admin lê a ficha.
+    try {
+      await supabaseGerador.from('eletroposto_nota1')
+        .update({ lado, lado_em: new Date().toISOString() })
+        .eq('telefone', telefone).is('lado', null);
+    } catch { /* a ficha pode nem existir: quem entra por link direto não é NOTA 1 */ }
+
+    // ── Aviso da equipe ──
+    // Só o lado PONTO dispara: investidor sem local a equipe já recebe pelo aviso
+    // do NOTA 1, e repetir o mesmo lead em duas mensagens treina todo mundo a
+    // ignorar as duas. Ponto é o que não existe na base — esse acorda alguém.
+    if (lado !== 'ponto') return;
+    try {
+      const aviso = [
+        '📍 *PONTO NOVO — alguém quer arrendar o local*',
+        '',
+        `*Nome:* ${nome}`,
+        `*WhatsApp:* wa.me/${telefone}`,
+        `*Cidade:* ${linha.cidade || '—'}`,
+        `*Relação com o imóvel:* ${linha.ponto_relacao || '—'}`,
+        `*Tipo de local:* ${linha.ponto_tipo || '—'}`,
+        `*Endereço:* ${linha.ponto_endereco || '—'}`,
+        `*Vagas:* ${linha.ponto_vagas || '—'}`,
+        `*Movimento:* ${linha.ponto_fluxo || '—'}`,
+        `*Entrada trifásica:* ${linha.ponto_energia || '—'}`,
+        ...(linha.obs ? ['', `_${linha.obs}_`] : []),
+        '',
+        '_Este é o lado que falta na base. Tem investidor com capital esperando ponto no /admin → Nota 1._',
+      ].join('\n');
+      await Promise.allSettled(Object.values(EQUIPE).map(num => sendWhatsApp(num, aviso, 'io')));
+      logger.info('io-eletroposto-parceria', `ponto novo #${id ?? '?'} de ${nome} (${telefone})`);
+    } catch (err) {
+      logger.error('io-eletroposto-parceria', `aviso do ponto falhou pra ${telefone}`, err);
     }
   })();
 });

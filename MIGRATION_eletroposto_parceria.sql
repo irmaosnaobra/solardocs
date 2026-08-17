@@ -1,0 +1,77 @@
+-- ─────────────────────────────────────────────────────────────────────────────
+-- CONEXÃO ELETROPOSTO — os dois lados que fecham um negócio sozinhos.
+--
+-- APLICADA EM 17/08/2026 no projeto gerador-propostas (ancecdfqfwlaujknizof).
+-- Este arquivo é o registro do que foi rodado, não a fonte: arquivo no repo já
+-- ficou 5 dias sem chegar ao banco uma vez. Confira com:
+--   select column_name from information_schema.columns
+--    where table_name = 'eletroposto_parceria';
+--
+-- POR QUE ELA EXISTE
+-- O NOTA 1 é, por definição da régua, quem NÃO tem local (SEM_LOCAL). Em 55
+-- fichas, 42 declararam capital e 1 tinha ponto definido: a base é um lado só.
+-- O que falta é o outro — quem tem o imóvel, o estacionamento, o terreno na
+-- rota — e esse nunca preencheu a LP, porque a LP pergunta por investidor.
+--
+-- Esta tabela guarda OS DOIS e é o lugar do casamento: `par_id` aponta um lado
+-- para o outro quando a equipe conecta. Ela é separada de `eletroposto_nota1`
+-- de propósito: aquela é o funil da LP (com trigger que deriva as colunas slug
+-- da ficha e alimenta a métrica do /admin), esta é um cadastro de contraparte,
+-- que entra por link direto e não tem ficha nenhuma.
+-- ─────────────────────────────────────────────────────────────────────────────
+create table if not exists eletroposto_parceria (
+  id             bigserial primary key,
+  created_at     timestamptz not null default now(),
+
+  -- 'capital' = tem com quê e não tem onde · 'ponto' = tem onde e não vai investir
+  lado           text not null check (lado in ('capital','ponto')),
+  nome           text not null,
+  telefone       text not null,          -- só dígitos, com DDI 55 (normalizado na API)
+  cidade         text,
+
+  -- lado CAPITAL
+  capital_faixa  text,                   -- quanto pretende colocar
+  prazo          text,                   -- quando pretende começar
+
+  -- lado PONTO (o ativo escasso: é isto que faz o casamento existir)
+  ponto_relacao  text,                   -- dono / administro / represento
+  ponto_tipo     text,                   -- estacionamento, posto, mercado, terreno…
+  ponto_endereco text,
+  ponto_vagas    text,
+  ponto_fluxo    text,                   -- movimento declarado
+  ponto_energia  text,                   -- entrada trifásica?
+
+  obs            text,
+  origem         text not null default 'link_direto',   -- 'lp_nota1' | 'link_direto'
+  nota1_id       bigint references eletroposto_nota1(id) on delete set null,
+
+  -- Clicou no botão do grupo. NÃO prova que entrou (o WhatsApp fica com essa
+  -- verdade), mas separa quem se cadastrou e desistiu na porta.
+  grupo_click_at timestamptz,
+
+  -- O casamento. Aponta para a linha do OUTRO lado.
+  par_id         bigint references eletroposto_parceria(id) on delete set null,
+  par_em         timestamptz,
+
+  utm_source text, utm_medium text, utm_campaign text, utm_content text, utm_term text
+);
+
+-- Mesma pessoa mandando o formulário duas vezes atualiza a linha dela, não cria
+-- uma segunda. Um telefone pode aparecer nos dois lados (raro, mas legítimo:
+-- tem o terreno E o dinheiro) — por isso a chave é (lado, telefone).
+create unique index if not exists eletroposto_parceria_lado_tel
+  on eletroposto_parceria (lado, telefone);
+create index if not exists eletroposto_parceria_lado_criado
+  on eletroposto_parceria (lado, created_at desc);
+
+-- RLS fica DESLIGADA, igual a eletroposto_nota1: a API do /gerador fala com este
+-- projeto pela chave publishable (não há service role no servidor), então RLS
+-- ligada sem policy trancaria a própria gravação da LP.
+alter table eletroposto_parceria disable row level security;
+
+-- ── Do lado do funil: qual porta o NOTA 1 escolheu ──────────────────────────
+-- Fica em eletroposto_nota1 (e não só na tabela nova) porque a pergunta "quantos
+-- dos recusados escolheram alguma porta" é uma pergunta do FUNIL, e o painel do
+-- /admin lê a ficha, não o cadastro.
+alter table eletroposto_nota1 add column if not exists lado    text;
+alter table eletroposto_nota1 add column if not exists lado_em timestamptz;

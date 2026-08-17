@@ -33,6 +33,8 @@ import KitPanel from './_panels/KitPanel';
 import ComentariosCursoPanel from './_panels/ComentariosCursoPanel';
 // Nota 1: quem a LP do eletroposto recusa vai pra oferta de entrada — chegou lá?
 import Nota1Panel from './_panels/Nota1Panel';
+// Conexão: quem tem o ponto × quem tem o capital, pra alguém casar os dois na mão
+import ConexaoPanel from './_panels/ConexaoPanel';
 
 export type TabStatus = 'pronto' | 'parcial' | 'construir';
 
@@ -104,6 +106,9 @@ export const PRODUCTS: Product[] = [
       // Fica no hub do ELETROPOSTO porque é daqui que o lead sai (a LP recusa),
       // mesmo com a oferta e os eventos morando no banco do SolarDoc.
       { key: 'nota1',     label: 'Nota 1 / Material', status: 'pronto',   Comp: Nota1Panel },
+      // Desde 17/08 o NOTA 1 cai na página das duas portas, não na de material:
+      // é aqui que os dois lados do negócio ficam visíveis pra alguém conectar.
+      { key: 'conexao',   label: 'Conexão',          status: 'pronto',   Comp: ConexaoPanel },
       { key: 'followup',  label: 'Followup',         status: 'construir', nota: 'Só alerta à equipe hoje.', Comp: () => <FollowupPanel produto="eletroposto" /> },
       { key: 'agente',    label: 'Agente',           status: 'parcial',   Comp: () => <AgentePanel agent="none" /> },
       { key: 'config',    label: 'Config & Alertas', status: 'pronto',    Comp: () => <ConfigAlertasPanel produto="eletroposto" /> },
