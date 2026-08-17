@@ -1039,6 +1039,21 @@
   color: var(--color-text-muted);
 }
 .diffP b { color: var(--color-text); font-weight: 600; }
+/* Etiqueta de valor nas duas ferramentas que a loja também vende soltas (R$ 67
+   cada). Verde, o mesmo do card anual: é o fio que liga "vale R$ 67" aqui a
+   "R$ 134 inclusos" lá embaixo. */
+.diffValor {
+  display: inline-block;
+  margin-top: 14px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  background: rgba(34, 197, 94, 0.1);
+  font-size: 12px;
+  line-height: 1.4;
+  color: #94a3b8;
+}
+.diffValor b { color: #4ade80; font-weight: 800; }
 
 /* ---------- COMPARATIVO (cards mode, mobile-first) ---------- */
 .compare { padding: 80px 20px; }
@@ -2464,6 +2479,77 @@
 }
 .anualEquiv b { color: var(--color-text-muted); font-weight: 800; }
 .anualEquiv s { color: #64748b; }
+/* AS DUAS FERRAMENTAS DO ANUAL, com preço. Era um bullet no pé do card: o item
+   mais concreto da oferta (duas compras de R$ 67 que ficam da pessoa pra sempre)
+   lido como detalhe. Fundo mais claro que o card pra destacar sem virar um
+   terceiro card — não é outro produto, é o que vem dentro deste. */
+.bonus {
+  margin-top: 20px;
+  padding: 16px 16px 14px;
+  border-radius: 14px;
+  border: 1px dashed rgba(74, 222, 128, 0.45);
+  background: rgba(34, 197, 94, 0.1);
+}
+.bonusTopo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.bonusTitulo {
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+.bonusTitulo b { color: #fff; font-weight: 800; }
+.bonusValor {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #4ade80, #22c55e);
+  color: #052e16;
+  font-size: 11.5px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.bonusItens {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+.bonusItem {
+  padding: 11px 13px;
+  border-radius: 11px;
+  background: rgba(2, 6, 23, 0.35);
+  border: 1px solid rgba(74, 222, 128, 0.18);
+}
+.bonusNome {
+  font-size: 14px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+.bonusTexto {
+  margin-top: 4px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #94a3b8;
+}
+.bonusPreco {
+  margin-top: 7px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+.bonusPreco b { color: #4ade80; font-weight: 800; }
+.bonusNota {
+  margin-top: 11px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #94a3b8;
+}
+.bonusNota b { color: #4ade80; font-weight: 800; }
+
 .anualList {
   list-style: none;
   margin: 24px 0 0;

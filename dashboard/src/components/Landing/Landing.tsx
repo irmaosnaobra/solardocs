@@ -60,6 +60,14 @@ const PRICE_DIA = (PRICE / 30).toFixed(2).replace('.', ','); // "por dia" da ofe
 const PRICE_ANUAL = 564;
 const PRICE_ANUAL_MES = 47;
 const PRICE_ANUAL_ECONOMIA = PRICE * 12 - PRICE_ANUAL; // 240
+
+// As duas ferramentas que o anual entrega PRA SEMPRE (gravadas em `entitlements`
+// pelo webhook). O preço é o de venda avulsa na loja — `preco: 67` das duas em
+// `src/lib/produtos.ts`, e o mesmo que a Kiwify cobra por "Calculadora Solar" e
+// "Inventário Empresarial". Se mudar lá, muda aqui: número de vitrine que não
+// bate com a loja é promessa quebrada a um clique de distância.
+const PRECO_FERRAMENTA = 67;
+const FERRAMENTAS_VALOR = PRECO_FERRAMENTA * 2; // 134
 const WHATSAPP = 'https://wa.me/5534998165040';
 
 // Concessionárias da faixa de confiança (logo oficial em /public/conc).
@@ -414,6 +422,13 @@ export default function Landing() {
                 Monta o <b>preço certo da venda</b> na hora — custo do kit, margem e comissão.
                 Você para de chutar o valor e protege o seu lucro em cada proposta.
               </p>
+              {/* As duas ferramentas são vendidas soltas na loja por R$ 67 cada. Dizer
+                  isso AQUI, onde elas aparecem pela primeira vez, é o que faz os
+                  "R$ 134 inclusos" do card anual significarem alguma coisa lá embaixo:
+                  preço só vira desconto depois que a pessoa sabe o preço cheio. */}
+              <div className={styles.diffValor}>
+                Vendida à parte por <b>R$ {PRECO_FERRAMENTA}</b> — inclusa na assinatura
+              </div>
             </div>
             <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.35s' }}>
               <div className={styles.diffIcon}><svg viewBox="0 0 24 24"><path d="M3 7 12 3l9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></div>
@@ -422,6 +437,9 @@ export default function Landing() {
                 Sabe <b>quanto tem de painel, inversor e material</b> em estoque a qualquer hora.
                 Entra e sai automático conforme você vende — sem planilha paralela.
               </p>
+              <div className={styles.diffValor}>
+                Vendido à parte por <b>R$ {PRECO_FERRAMENTA}</b> — incluso na assinatura
+              </div>
             </div>
           </div>
         </div>
@@ -857,6 +875,50 @@ export default function Landing() {
                 pelo preço de {Math.round(PRICE_ANUAL / PRICE)}
               </div>
 
+              {/* AS DUAS FERRAMENTAS, com o preço que elas custam na loja. É o
+                  único item do anual que não é "o mesmo acesso mais barato": são
+                  duas compras que a pessoa levaria à parte por R$ 67 cada e que
+                  aqui ficam dela pra sempre. Estava escondido num bullet no pé do
+                  card — agora é bloco com valor na cara. */}
+              <div className={styles.bonus}>
+                <div className={styles.bonusTopo}>
+                  <span className={styles.bonusTitulo}>
+                    Leva <b>2 ferramentas pra sempre</b>
+                  </span>
+                  <span className={styles.bonusValor}>R$ {FERRAMENTAS_VALOR} inclusos</span>
+                </div>
+
+                <div className={styles.bonusItens}>
+                  <div className={styles.bonusItem}>
+                    <div className={styles.bonusNome}>Precificação Profissional</div>
+                    <div className={styles.bonusTexto}>
+                      O preço que fecha a venda e ainda sobra margem — com imposto, ART,
+                      deslocamento e comissão na conta
+                    </div>
+                    <div className={styles.bonusPreco}>
+                      vendida à parte por <b>R$ {PRECO_FERRAMENTA}</b>
+                    </div>
+                  </div>
+
+                  <div className={styles.bonusItem}>
+                    <div className={styles.bonusNome}>Inventário da Empresa</div>
+                    <div className={styles.bonusTexto}>
+                      Onde está cada ferramenta e quanto vale o patrimônio, com aviso do
+                      que está acabando
+                    </div>
+                    <div className={styles.bonusPreco}>
+                      vendido à parte por <b>R$ {PRECO_FERRAMENTA}</b>
+                    </div>
+                  </div>
+                </div>
+
+                <div className={styles.bonusNota}>
+                  As duas ficam liberadas na sua conta <b>pra sempre</b> — continuam
+                  funcionando mesmo se um dia você parar de assinar. No mensal elas
+                  funcionam enquanto a assinatura estiver de pé.
+                </div>
+              </div>
+
               <button
                 onClick={() => goToCheckout('oferta_anual', 'vip_anual')}
                 className={styles.anualBtn}
@@ -872,12 +934,8 @@ export default function Landing() {
 
               <ul className={styles.anualList}>
                 <li><b>Tudo do plano mensal</b>, exatamente igual</li>
-                <li>
-                  <b>Precificação Profissional</b> e <b>Inventário da Empresa</b> ficam
-                  seus <b>pra sempre</b> — continuam funcionando mesmo se um dia você
-                  parar de assinar
-                </li>
                 <li>Preço travado por 12 meses: reajuste não te pega no meio</li>
+                <li>Um pagamento no ano — sem cobrança voltando todo mês no cartão</li>
               </ul>
             </div>
           </div>
