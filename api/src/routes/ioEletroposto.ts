@@ -464,7 +464,7 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
   }
 
   const link = lado === 'ponto' ? GRUPO_PONTO() : GRUPO_CAPITAL();
-  const linha = {
+  const bruto = {
     lado, nome, telefone,
     cidade:         txt(b.cidade, 120),
     // QUANTO (faixa em reais) e COM QUÊ (recurso próprio, financiamento…) são
@@ -485,6 +485,17 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
     grupo_click_at: new Date().toISOString(),
     ...utm(b),
   };
+
+  // CAMPO VAZIO NÃO APAGA CAMPO CHEIO.
+  // O upsert é por (lado, telefone) e o PostgREST só sobrescreve as colunas que
+  // vêm no corpo — então mandar `null` num campo que este envio não perguntou
+  // apaga o que o envio anterior gravou. Pego em produção: a pessoa preenche o
+  // formulário inteiro, volta pela LP e entra pelo atalho de um toque (que só
+  // manda nome, telefone e cidade), e a faixa de capital some. Do lado do PONTO
+  // seria pior: sumiria o ENDEREÇO, que é o motivo do cadastro existir.
+  // Chave sem valor sai do objeto; o que está no banco fica onde está.
+  const linha: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(bruto)) if (v !== null && v !== undefined) linha[k] = v;
 
   // Responde ANTES do banco: o próximo passo do lead é abrir o WhatsApp, e ele
   // não pode ficar olhando um botão girando enquanto a gente grava.
@@ -525,14 +536,14 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
         '',
         `*Nome:* ${nome}`,
         `*WhatsApp:* wa.me/${telefone}`,
-        `*Cidade:* ${linha.cidade || '—'}`,
-        `*Relação com o imóvel:* ${linha.ponto_relacao || '—'}`,
-        `*Tipo de local:* ${linha.ponto_tipo || '—'}`,
-        `*Endereço:* ${linha.ponto_endereco || '—'}`,
-        `*Vagas:* ${linha.ponto_vagas || '—'}`,
-        `*Movimento:* ${linha.ponto_fluxo || '—'}`,
-        `*Entrada trifásica:* ${linha.ponto_energia || '—'}`,
-        ...(linha.obs ? ['', `_${linha.obs}_`] : []),
+        `*Cidade:* ${bruto.cidade || '—'}`,
+        `*Relação com o imóvel:* ${bruto.ponto_relacao || '—'}`,
+        `*Tipo de local:* ${bruto.ponto_tipo || '—'}`,
+        `*Endereço:* ${bruto.ponto_endereco || '—'}`,
+        `*Vagas:* ${bruto.ponto_vagas || '—'}`,
+        `*Movimento:* ${bruto.ponto_fluxo || '—'}`,
+        `*Entrada trifásica:* ${bruto.ponto_energia || '—'}`,
+        ...(bruto.obs ? ['', `_${bruto.obs}_`] : []),
         '',
         '_Este é o lado que falta na base. Tem investidor com capital esperando ponto no /admin → Nota 1._',
       ].join('\n');
