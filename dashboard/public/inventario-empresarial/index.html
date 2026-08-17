@@ -129,6 +129,140 @@
     border-radius: 18px; border: 5px solid #1b2740; box-shadow: 0 26px 54px -18px rgba(0,0,0,.95);
   }
 
+
+  /* ── APARELHOS: notebook aberto + celular encostado ──────────
+     Desenhados em CSS, sem imagem: fica nitido em qualquer tela, pesa nada e
+     a tela de dentro pode rolar de verdade. */
+  .aparelhos { position: relative; padding-bottom: 34px; }
+
+  .note { position: relative; width: 100%; }
+  .noteTampa {
+    position: relative;
+    background: #0b1320;
+    border: 9px solid #1b2740;
+    border-bottom-width: 6px;
+    border-radius: 13px 13px 5px 5px;
+    overflow: hidden;
+    box-shadow: 0 34px 74px -30px rgba(0,0,0,.95), inset 0 0 0 1px rgba(148,163,184,.1);
+    aspect-ratio: 16 / 10.2;
+  }
+  .noteBarra {
+    position: absolute; inset: 0 0 auto 0; z-index: 2; height: 30px;
+    display: flex; align-items: center; gap: 6px;
+    padding: 0 12px; background: #0e1728; border-bottom: 1px solid var(--line);
+  }
+  .noteBarra i { width: 8px; height: 8px; border-radius: 50%; background: #33415c; display: block; }
+  .noteBarra span {
+    margin-left: 8px; font-size: 10.5px; color: #64768f;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+  }
+  /* a janela por onde se ve' a tela; o conteudo dentro e' mais alto e sobe */
+  .noteVisor { position: absolute; inset: 30px 0 0 0; overflow: hidden; }
+  .noteBase {
+    height: 11px; margin: 0 -7%;
+    background: linear-gradient(180deg, #2a3852, #131c2e);
+    border-radius: 0 0 13px 13px;
+    box-shadow: 0 16px 30px -14px rgba(0,0,0,.9);
+  }
+  .noteBase::after {
+    content: ''; display: block; width: 16%; height: 3px; margin: 0 auto;
+    background: #0b1320; border-radius: 0 0 4px 4px;
+  }
+
+  /* O celular encosta na QUINA de baixo e pende pra FORA. Antes ficava em
+     cima do meio do notebook e escondia os valores da direita — que sao
+     justamente o que a tela tem de mais importante (preco, sobra, total). */
+  .fone {
+    /* -4% e nao -10%: a 1000px de janela o celular passava 20px da borda e o
+       overflow-x do body cortava ele ao meio. A sobra tem que caber na margem
+       do .wrap (24px), e 4% da coluna da arte da' no maximo 20px em 1280. */
+    position: absolute; right: -4%; bottom: -34px; z-index: 3;
+    width: 22%; max-width: 130px;
+    background: #0b1320;
+    border: 6px solid #1b2740; border-radius: 22px;
+    overflow: hidden; aspect-ratio: 9 / 17.5;
+    box-shadow: 0 26px 54px -18px rgba(0,0,0,.95);
+  }
+  .foneEntalhe {
+    position: absolute; top: 6px; left: 50%; transform: translateX(-50%); z-index: 2;
+    width: 34%; height: 5px; border-radius: 99px; background: #1b2740;
+  }
+  .foneVisor { position: absolute; inset: 0; overflow: hidden; }
+
+  /* ── a rolagem ──
+     translateY em porcentagem do PROPRIO conteudo: assim vale pra qualquer
+     altura de tela sem eu ter que saber o pixel exato. Sobe, segura em cima e
+     em baixo (as pausas sao onde o olho le) e volta. */
+  .rolagem { animation: rolar 26s ease-in-out infinite; }
+  .fone .rolagem { animation-duration: 22s; animation-delay: -6s; }
+  @keyframes rolar {
+    0%, 7%    { transform: translateY(0); }
+    48%, 57%  { transform: translateY(-52%); }
+    93%, 100% { transform: translateY(0); }
+  }
+
+  /* ── a tela do produto reproduzida ── */
+  .app { padding: 14px 15px 26px; font-size: 12.5px; line-height: 1.4; }
+  /* A faixa da direita fica livre pro celular: sem isto o valor termina
+     debaixo dele. Em PORCENTAGEM, nao em pixel: o celular tem 22% de largura e
+     sobra 4% pra fora, entao ele cobre 18% — 22% de reserva limpa em qualquer
+     tamanho de tela. Com pixel fixo, telas maiores voltavam a esconder. */
+  @media (min-width: 901px) { .note .app { padding-right: 22%; } }
+  .app h4 {
+    font-size: 9.5px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--muted); margin: 16px 0 8px;
+  }
+  .app h4:first-child { margin-top: 0; }
+  .aLinha {
+    display: flex; justify-content: space-between; gap: 10px;
+    padding: 7px 0; border-bottom: 1px solid rgba(148,163,184,.12); color: #cfd9e6;
+  }
+  .aLinha b { color: #fff; font-weight: 700; white-space: nowrap; }
+  .aLinha.total { border-bottom: none; padding-top: 10px; font-size: 14px; }
+  .aLinha.total b { color: var(--amber); }
+  .aLinha.alerta b { color: #ff9d8f; }
+  .aCartao {
+    background: rgba(148,163,184,.07); border: 1px solid rgba(148,163,184,.16);
+    border-radius: 10px; padding: 10px 12px; margin: 8px 0;
+  }
+  .aCartao span {
+    display: block; font-size: 8.5px; font-weight: 800; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 3px;
+  }
+  .aCartao b { font-size: 16px; font-weight: 800; letter-spacing: -.02em; }
+  .aCartao.bom { border-color: rgba(74,222,128,.32); background: rgba(74,222,128,.07); }
+  .aCartao.bom b { color: var(--green); }
+  .aDupla { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .aBarra { height: 6px; border-radius: 99px; background: rgba(148,163,184,.2); margin: 9px 0 4px; overflow: hidden; }
+  .aBarra i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--amber-d), var(--amber)); }
+  .aItem { display: flex; align-items: center; gap: 9px; padding: 6px 0; color: #cfd9e6; }
+  .aCheck {
+    flex: none; width: 15px; height: 15px; border-radius: 5px;
+    background: var(--amber); position: relative;
+  }
+  .aCheck::after {
+    content: ''; position: absolute; left: 4px; top: 2.5px; width: 4px; height: 7px;
+    border-right: 2px solid #0a0f1a; border-bottom: 2px solid #0a0f1a; transform: rotate(45deg);
+  }
+  .aCheck.off { background: transparent; border: 1.5px solid rgba(148,163,184,.4); }
+  .aCheck.off::after { display: none; }
+  .aTag {
+    display: inline-block; font-size: 9.5px; font-weight: 800; color: #0a0f1a;
+    background: var(--amber); padding: 2px 8px; border-radius: 99px; margin-bottom: 6px;
+  }
+  .fone .app { padding: 11px 8px 20px; font-size: 9.5px; }
+  .fone .app h4 { font-size: 7.5px; margin: 12px 0 6px; }
+  .fone .aCartao b { font-size: 12px; }
+  /* Empilhado: em 112px de largura "Piso que ainda da' lucro" quebrava em
+     quatro linhas ao lado do valor e virava sopa de letra. */
+  .fone .aLinha { padding: 5px 0; flex-direction: column; align-items: flex-start; gap: 1px; }
+  .fone .aLinha b { font-size: 11px; }
+  .fone .aTag { font-size: 8px; }
+  .fone .aDupla { grid-template-columns: 1fr; }
+
+  @media (max-width: 900px) { .fone { display: none; } }
+  @media (prefers-reduced-motion: reduce) { .rolagem { animation: none !important; } }
+
   .faixa { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--bg2); }
   .faixaGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 26px 0; text-align: center; }
   .faixaGrid b { display: block; font-size: clamp(21px, 3vw, 28px); color: var(--amber); font-weight: 800; letter-spacing: -.02em; }
@@ -525,40 +659,118 @@
       <span class="ctaNota">Pagamento único · Pix ou cartão · acesso em minutos</span>
     </div>
 
-    <div class="heroArte">
-      <div class="janela">
-        <div class="janelaBarra"><i></i><i></i><i></i><span class="janelaUrl">solardoc.app/inventario</span></div>
-        <div class="demo" data-cenas="4" role="img"
-             aria-label="Demonstração da tela do Inventário Empresarial em funcionamento">
-      <div class="demoTopo"><span>Inventário · Irmãos na Obra</span><span class="demoVivo"><i></i>ao vivo</span></div>
-      <div class="cena">
-        <div class="dLinha dEntra"><span>Furadeira de impacto <span class="muted">· Veículo 1</span></span><b>R$ 890</b></div>
-        <div class="dLinha dEntra"><span>Alicate crimpador MC4 <span class="muted">· Montagem</span></span><b>R$ 340</b></div>
-        <div class="dLinha dEntra"><span>Trena a laser <span class="muted">· Escritório</span></span><b>R$ 420</b></div>
-        <div class="dLinha dEntra"><span>Andaime 1,5 m <span class="muted">· Depósito</span></span><b>R$ 1.180</b></div>
-        <div class="dLinha dEntra"><span>Conector MC4 <span class="muted">· Depósito</span></span><b>R$ 6 / un</b></div>
+    <div class="heroArte aparelhos">
+      <div class="note">
+        <div class="noteTampa">
+          <div class="noteBarra"><i></i><i></i><i></i><span>solardoc.app/inventario</span></div>
+          <div class="noteVisor">
+            <div class="rolagem">
+      <div class="app">
+        <span class="aTag">Patrimônio R$ 82.615</span>
+        <h4>Escritório</h4>
+        <div class="aLinha"><span>Notebook Dell</span><b>R$ 4.200</b></div>
+        <div class="aLinha"><span>Trena a laser</span><b>R$ 420</b></div>
+        <div class="aLinha"><span>Multímetro</span><b>R$ 380</b></div>
+        <h4>Veículos</h4>
+        <div class="aLinha"><span>Furadeira de impacto</span><b>R$ 890</b></div>
+        <div class="aLinha"><span>Escada 7 degraus</span><b>R$ 640</b></div>
+        <div class="aLinha"><span>Kit ferramentas manuais</span><b>R$ 1.150</b></div>
+        <h4>Depósito</h4>
+        <div class="aLinha"><span>Andaime 1,5 m</span><b>R$ 1.180</b></div>
+        <div class="aLinha"><span>Alicate crimpador MC4</span><b>R$ 340</b></div>
+        <div class="aLinha alerta"><span>Conector MC4 · mín. 40</span><b>restam 6</b></div>
+        <div class="aLinha alerta"><span>Cabo solar 6 mm · mín. 100 m</span><b>restam 22 m</b></div>
+        <h4>Repor antes da próxima obra</h4>
+        <div class="aCartao"><span>2 materiais no mínimo</span><b>Conector MC4 · Cabo 6 mm</b></div>
+        <h4>Total por local</h4>
+        <div class="aLinha"><span>Escritório</span><b>R$ 12.480</b></div>
+        <div class="aLinha"><span>Veículos</span><b>R$ 24.900</b></div>
+        <div class="aLinha"><span>Depósito</span><b>R$ 31.235</b></div>
+        <div class="aLinha"><span>Montagem</span><b>R$ 14.000</b></div>
+        <div class="aLinha total"><span>Patrimônio total</span><b>R$ 82.615</b></div>
       </div>
-      <div class="cena">
-        <div class="dLinha" style="border:none"><span>Patrimônio da empresa</span></div>
-        <div style="font-size:30px;font-weight:800;letter-spacing:-.03em;color:var(--amber);line-height:1.15"><span class="rolo r4"><span>R$ 48.200</span><span>R$ 61.740</span><span>R$ 74.930</span><span>R$ 82.615</span></span></div>
-        <div class="dTanque"><i></i></div>
-        <p class="muted" style="font-size:12.5px;margin:0">Soma sozinho a cada item cadastrado</p>
+      <div class="app">
+        <span class="aTag">Patrimônio R$ 82.615</span>
+        <h4>Escritório</h4>
+        <div class="aLinha"><span>Notebook Dell</span><b>R$ 4.200</b></div>
+        <div class="aLinha"><span>Trena a laser</span><b>R$ 420</b></div>
+        <div class="aLinha"><span>Multímetro</span><b>R$ 380</b></div>
+        <h4>Veículos</h4>
+        <div class="aLinha"><span>Furadeira de impacto</span><b>R$ 890</b></div>
+        <div class="aLinha"><span>Escada 7 degraus</span><b>R$ 640</b></div>
+        <div class="aLinha"><span>Kit ferramentas manuais</span><b>R$ 1.150</b></div>
+        <h4>Depósito</h4>
+        <div class="aLinha"><span>Andaime 1,5 m</span><b>R$ 1.180</b></div>
+        <div class="aLinha"><span>Alicate crimpador MC4</span><b>R$ 340</b></div>
+        <div class="aLinha alerta"><span>Conector MC4 · mín. 40</span><b>restam 6</b></div>
+        <div class="aLinha alerta"><span>Cabo solar 6 mm · mín. 100 m</span><b>restam 22 m</b></div>
+        <h4>Repor antes da próxima obra</h4>
+        <div class="aCartao"><span>2 materiais no mínimo</span><b>Conector MC4 · Cabo 6 mm</b></div>
+        <h4>Total por local</h4>
+        <div class="aLinha"><span>Escritório</span><b>R$ 12.480</b></div>
+        <div class="aLinha"><span>Veículos</span><b>R$ 24.900</b></div>
+        <div class="aLinha"><span>Depósito</span><b>R$ 31.235</b></div>
+        <div class="aLinha"><span>Montagem</span><b>R$ 14.000</b></div>
+        <div class="aLinha total"><span>Patrimônio total</span><b>R$ 82.615</b></div>
+      </div></div>
+          </div>
+        </div>
+        <div class="noteBase"></div>
       </div>
-      <div class="cena">
-        <div class="dLinha"><span>Conector MC4 · mínimo 40</span><b style="color:#ff9d8f">restam 6</b></div>
-        <div class="dLinha"><span>Cabo solar 6 mm · mínimo 100 m</span><b style="color:#ff9d8f">restam 22 m</b></div>
-        <div class="dAlerta"><span>⚠</span><span><b>2 materiais no mínimo.</b> Repor antes da obra de quinta.</span></div>
+      <div class="fone" role="img" aria-label="A mesma tela no celular">
+        <span class="foneEntalhe"></span>
+        <div class="foneVisor">
+          <div class="rolagem">
+      <div class="app">
+        <span class="aTag">Patrimônio R$ 82.615</span>
+        <h4>Escritório</h4>
+        <div class="aLinha"><span>Notebook Dell</span><b>R$ 4.200</b></div>
+        <div class="aLinha"><span>Trena a laser</span><b>R$ 420</b></div>
+        <div class="aLinha"><span>Multímetro</span><b>R$ 380</b></div>
+        <h4>Veículos</h4>
+        <div class="aLinha"><span>Furadeira de impacto</span><b>R$ 890</b></div>
+        <div class="aLinha"><span>Escada 7 degraus</span><b>R$ 640</b></div>
+        <div class="aLinha"><span>Kit ferramentas manuais</span><b>R$ 1.150</b></div>
+        <h4>Depósito</h4>
+        <div class="aLinha"><span>Andaime 1,5 m</span><b>R$ 1.180</b></div>
+        <div class="aLinha"><span>Alicate crimpador MC4</span><b>R$ 340</b></div>
+        <div class="aLinha alerta"><span>Conector MC4 · mín. 40</span><b>restam 6</b></div>
+        <div class="aLinha alerta"><span>Cabo solar 6 mm · mín. 100 m</span><b>restam 22 m</b></div>
+        <h4>Repor antes da próxima obra</h4>
+        <div class="aCartao"><span>2 materiais no mínimo</span><b>Conector MC4 · Cabo 6 mm</b></div>
+        <h4>Total por local</h4>
+        <div class="aLinha"><span>Escritório</span><b>R$ 12.480</b></div>
+        <div class="aLinha"><span>Veículos</span><b>R$ 24.900</b></div>
+        <div class="aLinha"><span>Depósito</span><b>R$ 31.235</b></div>
+        <div class="aLinha"><span>Montagem</span><b>R$ 14.000</b></div>
+        <div class="aLinha total"><span>Patrimônio total</span><b>R$ 82.615</b></div>
       </div>
-      <div class="cena">
-        <div class="dLinha"><span>Escritório</span><b>R$ 12.480</b></div>
-        <div class="dLinha"><span>Veículos</span><b>R$ 24.900</b></div>
-        <div class="dLinha"><span>Depósito</span><b>R$ 31.235</b></div>
-        <div class="dLinha forte"><span>Total pra contabilidade</span><b>R$ 82.615</b></div>
-      </div>
-      <p class="demoNota">Um botão gera este mesmo relatório em PDF</p>
+      <div class="app">
+        <span class="aTag">Patrimônio R$ 82.615</span>
+        <h4>Escritório</h4>
+        <div class="aLinha"><span>Notebook Dell</span><b>R$ 4.200</b></div>
+        <div class="aLinha"><span>Trena a laser</span><b>R$ 420</b></div>
+        <div class="aLinha"><span>Multímetro</span><b>R$ 380</b></div>
+        <h4>Veículos</h4>
+        <div class="aLinha"><span>Furadeira de impacto</span><b>R$ 890</b></div>
+        <div class="aLinha"><span>Escada 7 degraus</span><b>R$ 640</b></div>
+        <div class="aLinha"><span>Kit ferramentas manuais</span><b>R$ 1.150</b></div>
+        <h4>Depósito</h4>
+        <div class="aLinha"><span>Andaime 1,5 m</span><b>R$ 1.180</b></div>
+        <div class="aLinha"><span>Alicate crimpador MC4</span><b>R$ 340</b></div>
+        <div class="aLinha alerta"><span>Conector MC4 · mín. 40</span><b>restam 6</b></div>
+        <div class="aLinha alerta"><span>Cabo solar 6 mm · mín. 100 m</span><b>restam 22 m</b></div>
+        <h4>Repor antes da próxima obra</h4>
+        <div class="aCartao"><span>2 materiais no mínimo</span><b>Conector MC4 · Cabo 6 mm</b></div>
+        <h4>Total por local</h4>
+        <div class="aLinha"><span>Escritório</span><b>R$ 12.480</b></div>
+        <div class="aLinha"><span>Veículos</span><b>R$ 24.900</b></div>
+        <div class="aLinha"><span>Depósito</span><b>R$ 31.235</b></div>
+        <div class="aLinha"><span>Montagem</span><b>R$ 14.000</b></div>
+        <div class="aLinha total"><span>Patrimônio total</span><b>R$ 82.615</b></div>
+      </div></div>
         </div>
       </div>
-      <img class="heroCel" src="/inventario-empresarial/img/celular.webp" loading="lazy" alt="A mesma tela no celular">
     </div>
   </div>
 </header>
@@ -645,9 +857,36 @@
         <p>Do alicate crimpador MC4 ao painel solar, são 46 materiais com nome certo esperando você escolher o local. O que não estiver na lista, você digita.</p>
       </div>
       <div class="pecaArte">
-      <div class="janela">
+<div class="janela">
         <div class="janelaBarra"><i></i><i></i><i></i><span class="janelaUrl">solardoc.app/inventario</span></div>
-        <img src="/inventario-empresarial/img/tela.webp" alt="O catálogo já vem pronto" loading="lazy">
+        <div class="demo" data-cenas="4" role="img" aria-label="Demonstração em funcionamento">
+      <div class="demoTopo"><span>Inventário · Irmãos na Obra</span><span class="demoVivo"><i></i>ao vivo</span></div>
+      <div class="cena">
+        <div class="dLinha dEntra"><span>Furadeira de impacto <span class="muted">· Veículo 1</span></span><b>R$ 890</b></div>
+        <div class="dLinha dEntra"><span>Alicate crimpador MC4 <span class="muted">· Montagem</span></span><b>R$ 340</b></div>
+        <div class="dLinha dEntra"><span>Trena a laser <span class="muted">· Escritório</span></span><b>R$ 420</b></div>
+        <div class="dLinha dEntra"><span>Andaime 1,5 m <span class="muted">· Depósito</span></span><b>R$ 1.180</b></div>
+        <div class="dLinha dEntra"><span>Conector MC4 <span class="muted">· Depósito</span></span><b>R$ 6 / un</b></div>
+      </div>
+      <div class="cena">
+        <div class="dLinha" style="border:none"><span>Patrimônio da empresa</span></div>
+        <div style="font-size:30px;font-weight:800;letter-spacing:-.03em;color:var(--amber);line-height:1.15"><span class="rolo r4"><span>R$ 48.200</span><span>R$ 61.740</span><span>R$ 74.930</span><span>R$ 82.615</span></span></div>
+        <div class="dTanque"><i></i></div>
+        <p class="muted" style="font-size:12.5px;margin:0">Soma sozinho a cada item cadastrado</p>
+      </div>
+      <div class="cena">
+        <div class="dLinha"><span>Conector MC4 · mínimo 40</span><b style="color:#ff9d8f">restam 6</b></div>
+        <div class="dLinha"><span>Cabo solar 6 mm · mínimo 100 m</span><b style="color:#ff9d8f">restam 22 m</b></div>
+        <div class="dAlerta"><span>⚠</span><span><b>2 materiais no mínimo.</b> Repor antes da obra de quinta.</span></div>
+      </div>
+      <div class="cena">
+        <div class="dLinha"><span>Escritório</span><b>R$ 12.480</b></div>
+        <div class="dLinha"><span>Veículos</span><b>R$ 24.900</b></div>
+        <div class="dLinha"><span>Depósito</span><b>R$ 31.235</b></div>
+        <div class="dLinha forte"><span>Total pra contabilidade</span><b>R$ 82.615</b></div>
+      </div>
+      <p class="demoNota">Um botão gera este mesmo relatório em PDF</p>
+        </div>
       </div>
       </div>
     </div>

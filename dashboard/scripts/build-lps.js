@@ -434,6 +434,140 @@ const CSS = `
     border-radius: 18px; border: 5px solid #1b2740; box-shadow: 0 26px 54px -18px rgba(0,0,0,.95);
   }
 
+
+  /* ── APARELHOS: notebook aberto + celular encostado ──────────
+     Desenhados em CSS, sem imagem: fica nitido em qualquer tela, pesa nada e
+     a tela de dentro pode rolar de verdade. */
+  .aparelhos { position: relative; padding-bottom: 34px; }
+
+  .note { position: relative; width: 100%; }
+  .noteTampa {
+    position: relative;
+    background: #0b1320;
+    border: 9px solid #1b2740;
+    border-bottom-width: 6px;
+    border-radius: 13px 13px 5px 5px;
+    overflow: hidden;
+    box-shadow: 0 34px 74px -30px rgba(0,0,0,.95), inset 0 0 0 1px rgba(148,163,184,.1);
+    aspect-ratio: 16 / 10.2;
+  }
+  .noteBarra {
+    position: absolute; inset: 0 0 auto 0; z-index: 2; height: 30px;
+    display: flex; align-items: center; gap: 6px;
+    padding: 0 12px; background: #0e1728; border-bottom: 1px solid var(--line);
+  }
+  .noteBarra i { width: 8px; height: 8px; border-radius: 50%; background: #33415c; display: block; }
+  .noteBarra span {
+    margin-left: 8px; font-size: 10.5px; color: #64768f;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+  }
+  /* a janela por onde se ve' a tela; o conteudo dentro e' mais alto e sobe */
+  .noteVisor { position: absolute; inset: 30px 0 0 0; overflow: hidden; }
+  .noteBase {
+    height: 11px; margin: 0 -7%;
+    background: linear-gradient(180deg, #2a3852, #131c2e);
+    border-radius: 0 0 13px 13px;
+    box-shadow: 0 16px 30px -14px rgba(0,0,0,.9);
+  }
+  .noteBase::after {
+    content: ''; display: block; width: 16%; height: 3px; margin: 0 auto;
+    background: #0b1320; border-radius: 0 0 4px 4px;
+  }
+
+  /* O celular encosta na QUINA de baixo e pende pra FORA. Antes ficava em
+     cima do meio do notebook e escondia os valores da direita — que sao
+     justamente o que a tela tem de mais importante (preco, sobra, total). */
+  .fone {
+    /* -4% e nao -10%: a 1000px de janela o celular passava 20px da borda e o
+       overflow-x do body cortava ele ao meio. A sobra tem que caber na margem
+       do .wrap (24px), e 4% da coluna da arte da' no maximo 20px em 1280. */
+    position: absolute; right: -4%; bottom: -34px; z-index: 3;
+    width: 22%; max-width: 130px;
+    background: #0b1320;
+    border: 6px solid #1b2740; border-radius: 22px;
+    overflow: hidden; aspect-ratio: 9 / 17.5;
+    box-shadow: 0 26px 54px -18px rgba(0,0,0,.95);
+  }
+  .foneEntalhe {
+    position: absolute; top: 6px; left: 50%; transform: translateX(-50%); z-index: 2;
+    width: 34%; height: 5px; border-radius: 99px; background: #1b2740;
+  }
+  .foneVisor { position: absolute; inset: 0; overflow: hidden; }
+
+  /* ── a rolagem ──
+     translateY em porcentagem do PROPRIO conteudo: assim vale pra qualquer
+     altura de tela sem eu ter que saber o pixel exato. Sobe, segura em cima e
+     em baixo (as pausas sao onde o olho le) e volta. */
+  .rolagem { animation: rolar 26s ease-in-out infinite; }
+  .fone .rolagem { animation-duration: 22s; animation-delay: -6s; }
+  @keyframes rolar {
+    0%, 7%    { transform: translateY(0); }
+    48%, 57%  { transform: translateY(-52%); }
+    93%, 100% { transform: translateY(0); }
+  }
+
+  /* ── a tela do produto reproduzida ── */
+  .app { padding: 14px 15px 26px; font-size: 12.5px; line-height: 1.4; }
+  /* A faixa da direita fica livre pro celular: sem isto o valor termina
+     debaixo dele. Em PORCENTAGEM, nao em pixel: o celular tem 22% de largura e
+     sobra 4% pra fora, entao ele cobre 18% — 22% de reserva limpa em qualquer
+     tamanho de tela. Com pixel fixo, telas maiores voltavam a esconder. */
+  @media (min-width: 901px) { .note .app { padding-right: 22%; } }
+  .app h4 {
+    font-size: 9.5px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--muted); margin: 16px 0 8px;
+  }
+  .app h4:first-child { margin-top: 0; }
+  .aLinha {
+    display: flex; justify-content: space-between; gap: 10px;
+    padding: 7px 0; border-bottom: 1px solid rgba(148,163,184,.12); color: #cfd9e6;
+  }
+  .aLinha b { color: #fff; font-weight: 700; white-space: nowrap; }
+  .aLinha.total { border-bottom: none; padding-top: 10px; font-size: 14px; }
+  .aLinha.total b { color: var(--amber); }
+  .aLinha.alerta b { color: #ff9d8f; }
+  .aCartao {
+    background: rgba(148,163,184,.07); border: 1px solid rgba(148,163,184,.16);
+    border-radius: 10px; padding: 10px 12px; margin: 8px 0;
+  }
+  .aCartao span {
+    display: block; font-size: 8.5px; font-weight: 800; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 3px;
+  }
+  .aCartao b { font-size: 16px; font-weight: 800; letter-spacing: -.02em; }
+  .aCartao.bom { border-color: rgba(74,222,128,.32); background: rgba(74,222,128,.07); }
+  .aCartao.bom b { color: var(--green); }
+  .aDupla { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .aBarra { height: 6px; border-radius: 99px; background: rgba(148,163,184,.2); margin: 9px 0 4px; overflow: hidden; }
+  .aBarra i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--amber-d), var(--amber)); }
+  .aItem { display: flex; align-items: center; gap: 9px; padding: 6px 0; color: #cfd9e6; }
+  .aCheck {
+    flex: none; width: 15px; height: 15px; border-radius: 5px;
+    background: var(--amber); position: relative;
+  }
+  .aCheck::after {
+    content: ''; position: absolute; left: 4px; top: 2.5px; width: 4px; height: 7px;
+    border-right: 2px solid #0a0f1a; border-bottom: 2px solid #0a0f1a; transform: rotate(45deg);
+  }
+  .aCheck.off { background: transparent; border: 1.5px solid rgba(148,163,184,.4); }
+  .aCheck.off::after { display: none; }
+  .aTag {
+    display: inline-block; font-size: 9.5px; font-weight: 800; color: #0a0f1a;
+    background: var(--amber); padding: 2px 8px; border-radius: 99px; margin-bottom: 6px;
+  }
+  .fone .app { padding: 11px 8px 20px; font-size: 9.5px; }
+  .fone .app h4 { font-size: 7.5px; margin: 12px 0 6px; }
+  .fone .aCartao b { font-size: 12px; }
+  /* Empilhado: em 112px de largura "Piso que ainda da' lucro" quebrava em
+     quatro linhas ao lado do valor e virava sopa de letra. */
+  .fone .aLinha { padding: 5px 0; flex-direction: column; align-items: flex-start; gap: 1px; }
+  .fone .aLinha b { font-size: 11px; }
+  .fone .aTag { font-size: 8px; }
+  .fone .aDupla { grid-template-columns: 1fr; }
+
+  @media (max-width: 900px) { .fone { display: none; } }
+  @media (prefers-reduced-motion: reduce) { .rolagem { animation: none !important; } }
+
   .faixa { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--bg2); }
   .faixaGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 26px 0; text-align: center; }
   .faixaGrid b { display: block; font-size: clamp(21px, 3vw, 28px); color: var(--amber); font-weight: 800; letter-spacing: -.02em; }
@@ -816,6 +950,12 @@ const CSS = `
  * Os numeros que mudam usam o "rolo": uma coluna de valores empilhados numa
  * janela de altura fixa, deslizando em steps() — como marcador de placar.
  */
+const TELAS = {
+  "calculadora": "\n      <div class=\"app\">\n        <h4>Custos da obra</h4>\n        <div class=\"aLinha\"><span>Kit fotovoltaico</span><b>R$ 18.400</b></div>\n        <div class=\"aLinha\"><span>Material CA</span><b>R$ 1.240</b></div>\n        <div class=\"aLinha\"><span>Mão de obra</span><b>R$ 3.200</b></div>\n        <div class=\"aLinha\"><span>Deslocamento</span><b>R$ 480</b></div>\n        <div class=\"aLinha\"><span>ART</span><b>R$ 590</b></div>\n        <div class=\"aLinha\"><span>Homologação</span><b>R$ 300</b></div>\n        <div class=\"aLinha total\"><span>Custo total</span><b>R$ 24.210</b></div>\n        <h4>Imposto e comissão</h4>\n        <div class=\"aLinha\"><span>NF sobre o serviço · 6%</span><b>R$ 552</b></div>\n        <div class=\"aLinha\"><span>Comissão do vendedor · 3%</span><b>R$ 920</b></div>\n        <h4>Margem</h4>\n        <div class=\"aLinha\" style=\"border:none\"><span>Sua margem</span><b class=\"amber\">28%</b></div>\n        <div class=\"aBarra\"><i style=\"width:58%\"></i></div>\n        <div class=\"aDupla\">\n          <div class=\"aCartao\"><span>Preço ao cliente</span><b>R$ 33.156</b></div>\n          <div class=\"aCartao bom\"><span>Sobra pra você</span><b>R$ 9.284</b></div>\n        </div>\n        <h4>Limite de negociação</h4>\n        <div class=\"aLinha\"><span>Piso que ainda dá lucro</span><b>R$ 26.259</b></div>\n        <div class=\"aLinha\"><span>Desconto máximo</span><b>20,8%</b></div>\n        <div class=\"aLinha\"><span>Preço por kWp</span><b>R$ 4.043</b></div>\n        <h4>Proposta</h4>\n        <div class=\"aLinha\"><span>Entrada 30%</span><b>R$ 9.947</b></div>\n        <div class=\"aLinha\"><span>Saldo em 12×</span><b>R$ 1.934</b></div>\n        <div class=\"aLinha total\"><span>Total ao cliente</span><b>R$ 33.156</b></div>\n      </div>",
+  "dimensionamento": "\n      <div class=\"app\">\n        <h4>O que vai ligar</h4>\n        <div class=\"aItem\"><span class=\"aCheck\"></span><span>Geladeira duplex</span></div>\n        <div class=\"aItem\"><span class=\"aCheck\"></span><span>Iluminação — 9 pontos LED</span></div>\n        <div class=\"aItem\"><span class=\"aCheck\"></span><span>Bomba d'água 1/2 cv</span></div>\n        <div class=\"aItem\"><span class=\"aCheck\"></span><span>TV e internet</span></div>\n        <div class=\"aItem\"><span class=\"aCheck\"></span><span>Máquina de lavar</span></div>\n        <div class=\"aItem\"><span class=\"aCheck off\"></span><span>Chuveiro elétrico</span></div>\n        <h4>Consumo</h4>\n        <div class=\"aLinha\"><span>Por dia</span><b>8,4 kWh</b></div>\n        <div class=\"aLinha\"><span>Pico de partida</span><b>2.400 W</b></div>\n        <div class=\"aLinha\"><span>Dias sem sol</span><b class=\"amber\">2 dias</b></div>\n        <h4>Kit dimensionado</h4>\n        <div class=\"aLinha\"><span>Painéis</span><b>12 × 570 W</b></div>\n        <div class=\"aLinha\"><span>Banco de baterias</span><b>19,2 kWh</b></div>\n        <div class=\"aLinha\"><span>Inversor</span><b>5 kW · 48 V</b></div>\n        <div class=\"aLinha\"><span>Ligação</span><b>2s × 6p</b></div>\n        <div class=\"aLinha\"><span>Controlador</span><b>MPPT 100 A</b></div>\n        <h4>Autonomia</h4>\n        <div class=\"aBarra\"><i style=\"width:88%\"></i></div>\n        <div class=\"aDupla\">\n          <div class=\"aCartao\"><span>Kit com frete</span><b>R$ 44.700</b></div>\n          <div class=\"aCartao bom\"><span>Aguenta sem sol</span><b>2 dias</b></div>\n        </div>\n        <h4>Comparativo em 10 anos</h4>\n        <div class=\"aLinha\"><span>Puxar rede (1,8 km)</span><b>R$ 112.000</b></div>\n        <div class=\"aLinha\"><span>Gerador a diesel</span><b>R$ 96.400</b></div>\n        <div class=\"aLinha total\"><span>Este sistema</span><b>R$ 44.700</b></div>\n      </div>",
+  "inventario-empresarial": "\n      <div class=\"app\">\n        <span class=\"aTag\">Patrimônio R$ 82.615</span>\n        <h4>Escritório</h4>\n        <div class=\"aLinha\"><span>Notebook Dell</span><b>R$ 4.200</b></div>\n        <div class=\"aLinha\"><span>Trena a laser</span><b>R$ 420</b></div>\n        <div class=\"aLinha\"><span>Multímetro</span><b>R$ 380</b></div>\n        <h4>Veículos</h4>\n        <div class=\"aLinha\"><span>Furadeira de impacto</span><b>R$ 890</b></div>\n        <div class=\"aLinha\"><span>Escada 7 degraus</span><b>R$ 640</b></div>\n        <div class=\"aLinha\"><span>Kit ferramentas manuais</span><b>R$ 1.150</b></div>\n        <h4>Depósito</h4>\n        <div class=\"aLinha\"><span>Andaime 1,5 m</span><b>R$ 1.180</b></div>\n        <div class=\"aLinha\"><span>Alicate crimpador MC4</span><b>R$ 340</b></div>\n        <div class=\"aLinha alerta\"><span>Conector MC4 · mín. 40</span><b>restam 6</b></div>\n        <div class=\"aLinha alerta\"><span>Cabo solar 6 mm · mín. 100 m</span><b>restam 22 m</b></div>\n        <h4>Repor antes da próxima obra</h4>\n        <div class=\"aCartao\"><span>2 materiais no mínimo</span><b>Conector MC4 · Cabo 6 mm</b></div>\n        <h4>Total por local</h4>\n        <div class=\"aLinha\"><span>Escritório</span><b>R$ 12.480</b></div>\n        <div class=\"aLinha\"><span>Veículos</span><b>R$ 24.900</b></div>\n        <div class=\"aLinha\"><span>Depósito</span><b>R$ 31.235</b></div>\n        <div class=\"aLinha\"><span>Montagem</span><b>R$ 14.000</b></div>\n        <div class=\"aLinha total\"><span>Patrimônio total</span><b>R$ 82.615</b></div>\n      </div>"
+};
+
 const DEMOS = {
   "calculadora": "\n      <div class=\"demoTopo\"><span>Precificação · obra de 8,2 kWp</span><span class=\"demoVivo\"><i></i>ao vivo</span></div>\n      <div class=\"cena\">\n        <div class=\"dLinha dEntra\"><span>Kit fotovoltaico</span><b>R$ 18.400</b></div>\n        <div class=\"dLinha dEntra\"><span>Material CA</span><b>R$ 1.240</b></div>\n        <div class=\"dLinha dEntra\"><span>Mão de obra</span><b>R$ 3.200</b></div>\n        <div class=\"dLinha dEntra\"><span>Deslocamento</span><b>R$ 480</b></div>\n        <div class=\"dLinha dEntra\"><span>ART e homologação</span><b>R$ 890</b></div>\n      </div>\n      <div class=\"cena\">\n        <div class=\"dLinha\"><span>Custo dos materiais</span><b>R$ 19.640</b></div>\n        <div class=\"dLinha\"><span>Serviço e deslocamento</span><b>R$ 3.680</b></div>\n        <div class=\"dLinha\"><span>Nota fiscal sobre o serviço</span><b>R$ 552</b></div>\n        <div class=\"dLinha forte\"><span>Custo total da obra</span><b>R$ 23.872</b></div>\n      </div>\n      <div class=\"cena\">\n        <div class=\"dLinha\" style=\"border:none\"><span>Sua margem</span><b class=\"amber\"><span class=\"rolo r4\"><span>22%</span><span>28%</span><span>34%</span><span>30%</span></span></b></div>\n        <div class=\"dBarra\"><span class=\"dBarraFill\"></span><span class=\"dBarraPino\"></span></div>\n        <p class=\"muted\" style=\"font-size:12.5px;margin:0\">Arraste e veja a sua sobra mudar junto</p>\n      </div>\n      <div class=\"cena\">\n        <div class=\"dCards\">\n          <div class=\"dCard\"><span>Preço ao cliente</span><b><span class=\"rolo r4\"><span>R$ 30.605</span><span>R$ 33.156</span><span>R$ 36.170</span><span>R$ 34.103</span></span></b></div>\n          <div class=\"dCard bom\"><span>Sobra pra você</span><b><span class=\"rolo r4\"><span>R$ 6.733</span><span>R$ 9.284</span><span>R$ 12.298</span><span>R$ 10.231</span></span></b></div>\n        </div>\n        <div class=\"dLinha\" style=\"border:none;margin-top:12px\"><span>Piso que ainda dá lucro</span><b>R$ 26.259</b></div>\n      </div>\n      <p class=\"demoNota\">É esta tela que você abre quando o cliente pede desconto</p>",
   "dimensionamento": "\n      <div class=\"demoTopo\"><span>Off-grid · sítio sem rede</span><span class=\"demoVivo\"><i></i>ao vivo</span></div>\n      <div class=\"cena\">\n        <div class=\"dItem dEntra\"><span class=\"dCheck\"></span><span>Geladeira duplex</span></div>\n        <div class=\"dItem dEntra\"><span class=\"dCheck\"></span><span>Iluminação — 9 pontos LED</span></div>\n        <div class=\"dItem dEntra\"><span class=\"dCheck\"></span><span>Bomba d'água 1/2 cv</span></div>\n        <div class=\"dItem dEntra\"><span class=\"dCheck\"></span><span>TV e internet</span></div>\n        <div class=\"dItem dEntra\"><span class=\"dCheck\"></span><span>Máquina de lavar</span></div>\n      </div>\n      <div class=\"cena\">\n        <div class=\"dLinha\"><span>Consumo por dia</span><b>8,4 kWh</b></div>\n        <div class=\"dLinha\"><span>Pico de partida da bomba</span><b>2.400 W</b></div>\n        <div class=\"dLinha\" style=\"border:none\"><span>Dias sem sol</span><b class=\"amber\"><span class=\"rolo r4\"><span>1 dia</span><span>2 dias</span><span>3 dias</span><span>2 dias</span></span></b></div>\n        <div class=\"dTanque\"><i></i></div>\n        <p class=\"muted\" style=\"font-size:12.5px;margin:0\">Autonomia do banco de baterias</p>\n      </div>\n      <div class=\"cena\">\n        <div class=\"dLinha\"><span>Painéis</span><b>12 × 570 W</b></div>\n        <div class=\"dLinha\"><span>Banco de baterias</span><b><span class=\"rolo r4\"><span>14,3 kWh</span><span>19,2 kWh</span><span>28,7 kWh</span><span>19,2 kWh</span></span></b></div>\n        <div class=\"dLinha\"><span>Inversor</span><b>5 kW · 48 V</b></div>\n        <div class=\"dLinha forte\"><span>Ligação</span><b>2 séries × 6 paralelo</b></div>\n      </div>\n      <div class=\"cena\">\n        <div class=\"dCards\">\n          <div class=\"dCard\"><span>Kit com frete até a obra</span><b><span class=\"rolo r4\"><span>R$ 38.900</span><span>R$ 44.700</span><span>R$ 56.200</span><span>R$ 44.700</span></span></b></div>\n          <div class=\"dCard bom\"><span>Aguenta sem sol</span><b><span class=\"rolo r4\"><span>1 dia</span><span>2 dias</span><span>3 dias</span><span>2 dias</span></span></b></div>\n        </div>\n        <div class=\"dLinha\" style=\"border:none;margin-top:12px\"><span>Contra puxar rede (1,8 km)</span><b class=\"amber\">R$ 112.000</b></div>\n      </div>\n      <p class=\"demoNota\">A resposta que o cliente sempre pergunta, com número</p>",
@@ -868,14 +1008,22 @@ ${d.bullets.map((b) => `        <li>${esc(b)}</li>`).join('\n')}
       <span class="ctaNota">${esc(d.ctaNota)}</span>
     </div>
 
-    <div class="heroArte">
-      <div class="janela">
-        <div class="janelaBarra"><i></i><i></i><i></i><span class="janelaUrl">${d.telaUrl}</span></div>
-        <div class="demo" data-cenas="4" role="img"
-             aria-label="Demonstração da tela do ${esc(d.ogTitulo.split(' — ')[0])} em funcionamento">${DEMOS[d.pasta]}
+    <div class="heroArte aparelhos">
+      <div class="note">
+        <div class="noteTampa">
+          <div class="noteBarra"><i></i><i></i><i></i><span>${d.telaUrl}</span></div>
+          <div class="noteVisor">
+            <div class="rolagem">${TELAS[d.pasta]}${TELAS[d.pasta]}</div>
+          </div>
+        </div>
+        <div class="noteBase"></div>
+      </div>
+      <div class="fone" role="img" aria-label="A mesma tela no celular">
+        <span class="foneEntalhe"></span>
+        <div class="foneVisor">
+          <div class="rolagem">${TELAS[d.pasta]}${TELAS[d.pasta]}</div>
         </div>
       </div>
-      <img class="heroCel" src="/${d.pasta}/img/celular.webp" loading="lazy" alt="A mesma tela no celular">
     </div>
   </div>
 </header>
@@ -926,7 +1074,13 @@ ${d.pecas.map(([t, p2, img], i) => `    <div class="peca${i % 2 ? ' inverso' : '
         <p>${esc(p2)}</p>
       </div>
       <div class="pecaArte">
-${janela(d, img, t, false)}
+${i === 0
+        ? `<div class="janela">
+        <div class="janelaBarra"><i></i><i></i><i></i><span class="janelaUrl">${d.telaUrl}</span></div>
+        <div class="demo" data-cenas="4" role="img" aria-label="Demonstração em funcionamento">${DEMOS[d.pasta]}
+        </div>
+      </div>`
+        : janela(d, img, t, false)}
       </div>
     </div>`).join('\n')}
   </div>
