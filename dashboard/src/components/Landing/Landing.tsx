@@ -312,21 +312,116 @@ export default function Landing() {
               acesso liberado na hora
             </div>
 
-            {/* A dúvida do "isso é só no celular?" nasce AQUI, na primeira tela,
-                em quem veio do criativo. O vídeo está lá embaixo; este link
-                pega a pessoa antes dela rolar (ou desistir de rolar). */}
+            {/* VÍDEO NA PRIMEIRA TELA (pedido do Thiago, 17/08).
+                A dúvida do "isso é só no celular?" nasce AQUI, em quem veio do
+                criativo — não lá embaixo. Fica logo abaixo do primeiro CTA,
+                com a pílula de preço ainda colada no botão (separar os dois
+                quebra o par "clica / é isso que custa"). */}
             {VSL.src ? (
-              <button
-                type="button"
-                className={styles.vslAtalho}
-                onClick={() => {
-                  trackEvent('cta_click', { label: 'vsl_atalho_hero' });
-                  document.getElementById('vsl')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }}
-              >
-                <svg viewBox="0 0 24 24" aria-hidden><path d="M8 5.5v13l11-6.5z" /></svg>
-                Prefere trabalhar no computador? Veja rodando
-              </button>
+              <div className={styles.vslHero} id="vsl">
+                <p className={styles.vslHeroLinha}>
+                  Prefere trabalhar no <b>computador</b>? Veja rodando na tela grande.
+                </p>
+
+                <div
+                  className={styles.vslPalco}
+                  style={{ aspectRatio: VSL.proporcao, maxWidth: VSL.proporcao === '9 / 16' ? 340 : undefined }}
+                >
+                  {/* O <video> fica SEMPRE montado, com a capa por cima. Trocar o
+                      botão pelo player no clique parece equivalente, mas o iOS só
+                      deixa tocar vídeo com som quando o play() sai do próprio gesto
+                      do dedo — num elemento que acabou de nascer, não sai, e o
+                      visitante ficaria olhando um player parado. Com `preload="none"`
+                      nada é baixado até o play, então montar cedo não custa banda. */}
+                  <video
+                    ref={vslRef}
+                    className={styles.vslVideo}
+                    src={VSL.src}
+                    poster={VSL.poster || undefined}
+                    controls={vslTocando}
+                    playsInline
+                    preload="none"
+                    onPlay={() => { setVslTocando(true); vslMarco('play'); }}
+                    onTimeUpdate={(e) => {
+                      const v = e.currentTarget;
+                      if (v.duration && v.currentTime / v.duration >= 0.5) vslMarco('metade');
+                    }}
+                    onEnded={() => vslMarco('fim')}
+                  />
+                  {!vslTocando ? (
+                    <button
+                      type="button"
+                      className={styles.vslCapa}
+                      onClick={() => {
+                        setVslTocando(true);
+                        vslMarco('play');
+                        vslRef.current?.play().catch(() => {
+                          // autoplay barrado: os controles nativos já apareceram,
+                          // a pessoa dá play neles. Melhor que capa travada.
+                        });
+                      }}
+                      aria-label="Assistir o vídeo: o orçamento pelo computador"
+                    >
+                      {VSL.poster ? (
+                        <img src={VSL.poster} alt="" width={720} height={1280} loading="lazy" />
+                      ) : null}
+                      <span className={styles.vslPlay} aria-hidden>
+                        <svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" /></svg>
+                      </span>
+                      {VSL.duracao ? <span className={styles.vslDur}>{VSL.duracao}</span> : null}
+                    </button>
+                  ) : null}
+                </div>
+
+                {/* FUNCIONA EM — mesma faixa das LPs de produto. O vídeo mostra
+                    rodando no notebook; isto responde "e no MEU aparelho?" sem
+                    obrigar ninguém a assistir 2:38 pra descobrir. */}
+                <div className={styles.rodaEm}>
+                  <span className={styles.rodaEmTitulo}>Funciona em</span>
+                  <ul className={styles.rodaEmLista}>
+                    <li>
+                      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                        <path d="M6.4 10.2h11.2v6.6a1.6 1.6 0 0 1-1.6 1.6H8a1.6 1.6 0 0 1-1.6-1.6v-6.6Z" />
+                        <rect x="3.1" y="10.2" width="2.4" height="6" rx="1.2" />
+                        <rect x="18.5" y="10.2" width="2.4" height="6" rx="1.2" />
+                        <rect x="8.9" y="18.4" width="2.3" height="4.2" rx="1.15" />
+                        <rect x="12.8" y="18.4" width="2.3" height="4.2" rx="1.15" />
+                        <path d="M6.6 9.2a5.4 5.4 0 0 1 10.8 0H6.6Z" />
+                        <path d="M8.2 4.1 7.1 2.3M15.8 4.1l1.1-1.8" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" fill="none" />
+                      </svg>
+                      Android
+                    </li>
+                    <li>
+                      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                        <path d="M16.9 12.6c0-2.4 2-3.6 2.1-3.7-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.15-2.9.88-3.65.88-.76 0-1.92-.86-3.16-.84-1.63.03-3.13.95-3.96 2.4-1.69 2.93-.43 7.27 1.21 9.65.8 1.16 1.76 2.47 3.02 2.42 1.21-.05 1.67-.78 3.14-.78 1.46 0 1.88.78 3.16.76 1.31-.02 2.14-1.19 2.94-2.36.92-1.35 1.3-2.65 1.32-2.72-.03-.01-2.54-.98-2.57-3.86Z" />
+                        <path d="M14.5 5.6c.67-.81 1.12-1.94.99-3.06-.96.04-2.12.64-2.81 1.45-.62.72-1.16 1.87-1.02 2.97 1.07.08 2.17-.55 2.84-1.36Z" />
+                      </svg>
+                      iPhone e iPad
+                    </li>
+                    <li>
+                      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                        <path d="M3 5.6l7.6-1.05v7.1H3V5.6Z" />
+                        <path d="M11.6 4.4 21 3.1v8.55h-9.4V4.4Z" />
+                        <path d="M3 12.65h7.6v7.1L3 18.7v-6.05Z" />
+                        <path d="M11.6 12.65H21v8.55l-9.4-1.3v-7.25Z" />
+                      </svg>
+                      Windows
+                    </li>
+                    <li>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+                        <circle cx="12" cy="12" r="9.1" strokeWidth="1.7" />
+                        <ellipse cx="12" cy="12" rx="4" ry="9.1" strokeWidth="1.5" />
+                        <path d="M3.3 9.2h17.4M3.3 14.8h17.4" strokeWidth="1.5" />
+                      </svg>
+                      Qualquer navegador
+                    </li>
+                  </ul>
+                  <p className={styles.rodaEmNota}>
+                    Abre no navegador — <b>nada pra instalar</b>. Se quiser, dá pra fixar na tela
+                    inicial do celular e usar como aplicativo.
+                  </p>
+                </div>
+              </div>
             ) : null}
 
             <div className={styles.trustRow} style={{ justifyContent: 'center', marginTop: 20 }}>
@@ -546,88 +641,6 @@ export default function Landing() {
           </div>
         </div>
       </section>
-
-      {/* VSL ABERTA — "e no computador, funciona?"
-          O criativo roda no feed mostrando o celular ("na palma da mão") e quem
-          trabalha sentado no escritório chega desconfiado de que é app de
-          celular só. O vídeo mora DEPOIS dos 3 passos (a pessoa já entendeu o
-          que é) e ANTES da lista de módulos (antes do trecho longo de leitura).
-          Aberto: sem e-mail, sem gate — é pra tirar dúvida, não pra capturar.
-          Só renderiza com VSL.src preenchido; a URL fica em ./vsl.ts. */}
-      {VSL.src ? (
-        <section className={styles.vsl} id="vsl">
-          <div className={styles.vslInner}>
-            <div className={styles.sectionLabelWrap}>
-              <span className={styles.sectionLabel} data-reveal>No computador</span>
-            </div>
-            <h2 className={styles.sectionTitle} data-reveal>
-              O orçamento sai <strong>pelo computador</strong> também.
-            </h2>
-            <p className={styles.sectionSub} data-reveal>
-              O anúncio mostra o celular porque é o que se usa em cima do telhado. Mas é a mesma
-              plataforma no notebook: abre no navegador, <b>sem instalar nada</b>, e o orçamento
-              sai igual. Veja rodando na tela grande.
-            </p>
-
-            {/* O <video> fica SEMPRE montado, com a capa por cima. Trocar o
-                botão pelo player no clique parece equivalente, mas o iOS só
-                deixa tocar vídeo com som quando o play() sai do próprio gesto
-                do dedo — num elemento que acabou de nascer, não sai, e o
-                visitante ficaria olhando um player parado. Com `preload="none"`
-                nada é baixado até o play, então montar cedo não custa banda. */}
-            <div
-              className={styles.vslPalco}
-              data-reveal
-              style={{ aspectRatio: VSL.proporcao, maxWidth: VSL.proporcao === '9 / 16' ? 420 : undefined }}
-            >
-              <video
-                ref={vslRef}
-                className={styles.vslVideo}
-                src={VSL.src}
-                poster={VSL.poster || undefined}
-                controls={vslTocando}
-                playsInline
-                preload="none"
-                onPlay={() => { setVslTocando(true); vslMarco('play'); }}
-                onTimeUpdate={(e) => {
-                  const v = e.currentTarget;
-                  if (v.duration && v.currentTime / v.duration >= 0.5) vslMarco('metade');
-                }}
-                onEnded={() => vslMarco('fim')}
-              />
-              {!vslTocando ? (
-                <button
-                  type="button"
-                  className={styles.vslCapa}
-                  onClick={() => {
-                    setVslTocando(true);
-                    vslMarco('play');
-                    vslRef.current?.play().catch(() => {
-                      // autoplay barrado: os controles nativos já apareceram,
-                      // a pessoa dá play neles. Melhor que capa travada.
-                    });
-                  }}
-                  aria-label="Assistir o vídeo: o orçamento pelo computador"
-                >
-                  {VSL.poster ? (
-                    <img src={VSL.poster} alt="" width={1280} height={720} loading="lazy" />
-                  ) : null}
-                  <span className={styles.vslPlay} aria-hidden>
-                    <svg viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" /></svg>
-                  </span>
-                  {VSL.duracao ? <span className={styles.vslDur}>{VSL.duracao}</span> : null}
-                </button>
-              ) : null}
-            </div>
-
-            <div className={styles.vslPe}>
-              <button className={styles.finalCtaBtn} onClick={() => scrollToPlans('vsl')}>
-                Quero acesso agora →
-              </button>
-            </div>
-          </div>
-        </section>
-      ) : null}
 
       {/* MÓDULOS — o acesso inteiro, item por item.
           A dinâmica veio da LP de pack de materiais que o Thiago mandou: ela
