@@ -6399,8 +6399,14 @@ async function cadCarregar(forcar) {
         .concat(livres.filter(f => f.capital_faixa === 'naosei'
                                && CAD_PONTO_FICHA.indexOf(f.tem_ponto) >= 0).map(daFichaPonto)),
       capital: (capital || []).map(r => ({ ...r, tab: 'eletroposto_parceria', deFicha: false }))
+        // `capital_faixa` volta a NULL na linha de ficha: na tabela ele é a
+        // coluna "Quanto", e a ficha guarda ali um slug interno (`proprio`,
+        // `fin_cnpj`) que não é faixa de dinheiro nenhuma — a LP nunca perguntou
+        // quanto. O que a pessoa respondeu ("Recurso próprio") já vai em "Com
+        // quê". Sem isto a tela publica o vocabulário do banco.
         .concat(livres.filter(f => CAD_CAPITAL_FICHA.indexOf(f.capital_faixa) >= 0)
-          .map(f => ({ ...f, tab: 'eletroposto_nota1', deFicha: true, capital_origem: f.invest }))),
+          .map(f => ({ ...f, tab: 'eletroposto_nota1', deFicha: true,
+                       capital_faixa: null, capital_origem: f.invest }))),
     };
     // Reordena as duas: origens misturadas ficam em ordem de chegada, e não com
     // os cadastros todos em cima e as fichas todas embaixo.
