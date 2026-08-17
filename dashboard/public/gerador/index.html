@@ -402,12 +402,18 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 /* na tela a linha de instrução sobe 4px (margin-top negativo) e aqui ela ficaria
    cortada pela borda de cima do clip — dentro da foto ela começa no zero. */
 .simshot .eletro-sub{margin:0 0 12px}
-.ep-doc{color:#1a1a1a;font-family:Arial,Helvetica,sans-serif;max-width:100%;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+/* TIPOGRAFIA DOS DOCUMENTOS (17/08) — um sistema só pro contrato, o recibo e o
+   orçamento. Estrutura (cabeçalho, títulos de cláusula, tabelas, rodapé) em
+   sans; PROSA em serifa, que é o que se lê em instrumento contratual e o que
+   sustenta linha longa justificada sem cansar. Trocar a família aqui troca nos
+   três — é esse o ponto de ter um lugar só. */
+.ep-doc{color:#1a1a1a;font-family:Arial,Helvetica,sans-serif;--serif:Georgia,'Times New Roman',Times,serif;max-width:100%;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 /* Páginas com quebra explícita e ALTURA NATURAL (sem min-height/altura de folha fixa):
    o conteúdo de cada página cabe em QUALQUER margem que o navegador do usuário aplicar.
    Lição: o Chrome pode ignorar @page{margin:0} (margem persistida na caixa de impressão);
    com altura fixa de 293mm cada página vazava e o PDF saía com o dobro de folhas. */
-.ep-page{box-sizing:border-box;padding:12mm 14mm;page-break-after:always;break-after:page;position:relative}
+.ep-page{box-sizing:border-box;padding:15mm 18mm;page-break-after:always;break-after:page;position:relative;display:flex;flex-direction:column;min-height:255mm}
+.ep-page>.ep-pagefoot{margin-top:auto}
 .ep-page:last-child{page-break-after:auto;break-after:auto}
 /* marca d'água: arte navy centrada atrás do conteúdo de cada folha (img imprime sempre, independe de "background graphics") */
 .ep-marca{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:78%;opacity:.16;z-index:0;pointer-events:none}
@@ -563,7 +569,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 /* O recibo é UMA folha por definição — segunda página de recibo é papel perdido.
    A folha dele respira menos que a do Estudo: as medidas abaixo são o aperto
    medido pra caber (documento fecha em ~1.100px dos 1.123px do A4). */
-.ep-rec{padding-top:10mm;padding-bottom:10mm}
+.ep-rec{padding-top:11mm;padding-bottom:11mm}
 .ep-rec .ep-section{margin:11px 0 8px}
 .ep-rec .ep-kv td{padding:5px 0}
 .ep-rec .ep-forma-label{margin:11px 0 6px}
@@ -573,9 +579,9 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-rec-hero .ext{font-size:11px;font-style:italic;opacity:.9;margin-top:5px}
 .ep-rec-hero .pct{text-align:right;font-size:11px;line-height:1.5;opacity:.9;flex:none}
 .ep-rec-hero .pct b{display:block;font-size:15px;font-weight:900}
-.ep-rec-corpo{font-size:12.5px;color:#2a3947;line-height:1.62;text-align:justify;margin-bottom:10px}
+.ep-rec-corpo{font-family:var(--serif);font-size:12.5px;color:#22303d;line-height:1.62;text-align:justify;margin-bottom:10px;hyphens:none}
 .ep-rec-corpo b{color:#1a1a1a}
-.ep-rec-clau{margin:0;padding-left:17px;font-size:11.5px;color:#333;line-height:1.5}
+.ep-rec-clau{font-family:var(--serif);margin:0;padding-left:18px;font-size:11.5px;color:#22303d;line-height:1.55;text-align:justify}
 .ep-rec-clau li{margin-bottom:5px}
 .ep-rec-clau li b{color:#2f6b10}
 /* Linha em branco pra preencher à mão (CPF que ninguém levantou, por exemplo).
@@ -584,7 +590,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-rec-assin{display:flex;gap:34px;margin-top:20px}
 .ep-rec-assin .a{flex:1;text-align:center;border-top:1px solid #1a1a1a;padding-top:6px;font-size:11px;color:#333;line-height:1.45}
 .ep-rec-assin .a b{display:block;font-size:11.5px;color:#1a1a1a}
-.ep-rec-local{font-size:12px;color:#333;margin-top:16px}
+.ep-rec-local{font-family:var(--serif);font-size:12px;color:#22303d;margin-top:16px}
 /* ===== PRÉVIA DOS DOCUMENTOS (recibo e contrato) =====
    Antes de imprimir, o consultor vê a folha do jeito que ela vai sair e pode
    voltar pros campos. Fica ENTRE o backdrop do menu (890) e o loading (9999).
@@ -607,24 +613,34 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-prev-folha .ep-page+.ep-page{border-top:12px solid #0B1628}
 /* ===== CONTRATO (documento de várias folhas) ===== */
 /* Ao contrário do recibo, aqui NÃO se encolhe pra caber: contrato pagina. */
-.ep-ctr-tit{text-align:center;font-size:14px;font-weight:900;color:#1a1a1a;text-transform:uppercase;letter-spacing:.6px;margin:16px 0 4px;line-height:1.4}
+.ep-ctr-tit{text-align:center;font-size:14px;font-weight:900;color:#1a1a1a;text-transform:uppercase;letter-spacing:.6px;margin:18px 0 5px;line-height:1.45}
 .ep-ctr-sub{text-align:center;font-size:10.5px;color:#8a94a3;margin-bottom:14px}
-.ep-ctr-p{font-size:11.5px;color:#2a3947;line-height:1.65;text-align:justify;margin:0 0 9px}
+.ep-ctr-p{font-family:var(--serif);font-size:12px;color:#22303d;line-height:1.62;text-align:justify;margin:0 0 10px;hyphens:none}
 .ep-ctr-p b{color:#1a1a1a}
-.ep-ctr-cl{font-size:11.5px;color:#2f6b10;font-weight:800;text-transform:uppercase;letter-spacing:.4px;margin:13px 0 6px}
-.ep-ctr-li{font-size:11.5px;color:#2a3947;line-height:1.6;margin:0 0 6px;padding-left:22px;text-indent:-22px;text-align:justify}
+.ep-ctr-cl{font-size:11px;color:#2f6b10;font-weight:800;text-transform:uppercase;letter-spacing:.6px;margin:15px 0 7px}
+.ep-ctr-li{font-family:var(--serif);font-size:12px;color:#22303d;line-height:1.62;margin:0 0 7px;padding-left:26px;text-indent:-26px;text-align:justify;hyphens:none}
 .ep-ctr-li b{color:#1a1a1a}
-.ep-ctr-esc{display:flex;gap:14px;margin:8px 0 4px}
+/* align-items:flex-start porque agora "Não incluído" tem UM item: esticado até
+   a altura do outro, o quadro vira um retângulo vazio de meia página. */
+.ep-ctr-esc{display:flex;gap:14px;margin:8px 0 4px;align-items:flex-start}
 .ep-ctr-esc>div{flex:1;border:1px solid #e5e7eb;border-radius:7px;padding:9px 12px}
 .ep-ctr-esc h4{margin:0 0 6px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#2f6b10}
 .ep-ctr-esc.fora h4{color:#8a94a3}
-.ep-ctr-esc ul{margin:0;padding-left:15px;font-size:11px;color:#333;line-height:1.55}
-.ep-ctr-assin{display:flex;gap:34px;margin-top:30px}
-.ep-ctr-assin .a{flex:1;text-align:center;border-top:1px solid #1a1a1a;padding-top:6px;font-size:11px;color:#444;line-height:1.45}
-.ep-ctr-assin .a b{display:block;font-size:11.5px;color:#1a1a1a}
-.ep-ctr-test{margin-top:24px;font-size:11px;color:#444}
-.ep-ctr-test .l{display:flex;gap:34px;margin-top:16px}
-.ep-ctr-test .l>div{flex:1;border-top:1px solid #98a3b3;padding-top:5px;line-height:1.5}
+.ep-ctr-esc ul{margin:0;padding-left:16px;font-size:11.5px;color:#333;line-height:1.6;font-family:var(--serif)}
+/* Fecho do contrato. A régua aqui é MILÍMETRO, não pixel: quem assina precisa
+   de espaço de caneta acima da linha, e as quatro linhas (duas partes, duas
+   testemunhas) têm que nascer com a mesma largura e o mesmo respiro — folha de
+   assinatura desalinhada é a primeira coisa que o cliente repara. O bloco
+   inteiro é indivisível: assinatura órfã em página nova não se manda. */
+.ep-ctr-fim{break-inside:avoid;page-break-inside:avoid}
+.ep-ctr-assin{display:flex;gap:38px;margin-top:24mm}
+.ep-ctr-assin .a{flex:1;text-align:center;border-top:1.2px solid #1a1a1a;padding-top:7px;font-size:10.5px;color:#5a6472;line-height:1.55;letter-spacing:.2px}
+.ep-ctr-assin .a b{display:block;font-size:11.5px;color:#1a1a1a;letter-spacing:.1px}
+.ep-ctr-assin .a span{display:block;font-size:9.5px;color:#8a94a3;margin-bottom:1px}
+.ep-ctr-test{margin-top:15mm;font-size:11px;color:#444}
+.ep-ctr-test>b{display:block;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#2f6b10}
+.ep-ctr-test .l{display:flex;gap:38px;margin-top:16mm}
+.ep-ctr-test .l>div{flex:1;border-top:1px solid #98a3b3;padding-top:6px;line-height:1.7;font-size:10.5px;color:#5a6472}
 /* formas de pagamento — caixas marcáveis (tela) */
 .orc-pg-formas{display:flex;flex-wrap:wrap;gap:8px}
 .orc-pg-forma{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;color:#CBD5E1;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:10px 14px;cursor:pointer;transition:border-color .2s,color .2s}
@@ -2677,12 +2693,23 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
            que ele deixa pronto entra aqui por um arquivo só. -->
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Puxar da pasta do cliente</div>
-        <div class="orc-note" style="margin-top:-2px;margin-bottom:10px">Rode <b>node coletar-docs.js "Nome"</b> no computador: ele lê CNH, contrato social e conta de luz da pasta do cliente e escreve um <b>_dados.json</b> lá dentro. Escolha esse arquivo aqui e os campos se preenchem.</div>
-        <label class="eletro-btn" style="display:inline-flex;cursor:pointer">
-          <svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-          Escolher _dados.json
-          <input type="file" accept=".json,application/json" style="display:none" onchange="epImportarDados(this)">
-        </label>
+        <div class="orc-note" style="margin-top:-2px;margin-bottom:10px">Conecte a pasta <b>#ELETROPOSTO</b> uma vez: cada subpasta vira um cliente na lista, e abrir Recibo ou Contrato já preenche os campos com o <b>_dados.json</b> de lá. O que você digitou à mão nunca é sobrescrito.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button type="button" class="eletro-btn" id="ep-pasta-btn" onclick="epPastaConectar()">
+            <svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+          Conectar pasta</button>
+          <div class="eletro-inp" style="flex:1;min-width:220px"><select id="ep-pasta-cliente" onchange="epPastaCarregar(this.value)"><option value="">— nenhum cliente —</option></select></div>
+        </div>
+        <div class="orc-note" id="ep-pasta-msg" style="margin-top:10px">Pasta não conectada.</div>
+        <div class="orc-note" id="ep-trello-msg" style="margin-top:6px">Trello: não configurado.</div>
+        <details style="margin-top:10px">
+          <summary class="orc-note" style="cursor:pointer">Sem a pasta conectada? escolher o arquivo na mão</summary>
+          <label class="eletro-btn" style="display:inline-flex;cursor:pointer;margin-top:8px">
+            <svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            Escolher _dados.json
+            <input type="file" accept=".json,application/json" style="display:none" onchange="epImportarDados(this)">
+          </label>
+        </details>
         <div class="orc-note" id="ep-import-msg" style="margin-top:10px">—</div>
       </div>
 
@@ -2761,9 +2788,9 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Prazos</div>
         <div class="eletro-field"><label>Projeto elétrico e protocolo</label>
-          <div class="eletro-inp has-suf"><input type="number" id="ctr-prazo-projeto" inputmode="numeric" min="1" value="15" oninput="ctrResumo()"><span class="suf">dias úteis</span></div></div>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-prazo-projeto" inputmode="numeric" min="1" value="30" oninput="ctrResumo()"><span class="suf">dias úteis</span></div></div>
         <div class="eletro-field"><label>Entrega da obra</label>
-          <div class="eletro-inp has-suf"><input type="number" id="ctr-prazo-obra" inputmode="numeric" min="1" value="90" oninput="ctrResumo()"><span class="suf">dias corridos</span></div></div>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-prazo-obra" inputmode="numeric" min="1" value="60" oninput="ctrResumo()"><span class="suf">dias úteis</span></div></div>
         <div class="orc-note">A entrega conta da <b>aprovação do projeto pela concessionária</b>, não da assinatura — é ela que libera a obra, e o prazo dela não é nosso.</div>
         <div class="eletro-field" style="margin-top:12px"><label>Garantia</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-garantia" inputmode="numeric" min="1" value="24"><span class="suf">meses</span></div></div>
@@ -6096,6 +6123,9 @@ function eletroSubaba(qual) {
   // empresa). Abrir um deles como PRIMEIRA aba, sem nunca passar no Orçamento,
   // deixava valor, data e cláusula em branco — orcInit é quem preenche tudo isso.
   if (qual === 'orcamento' || qual === 'recibo' || qual === 'contrato') orcInit();
+  // Depois do orcInit, nunca antes: a pasta só preenche campo vazio, e é o
+  // orcInit que decide quais campos nascem preenchidos.
+  if (qual === 'orcamento' || qual === 'recibo' || qual === 'contrato') epPastaAuto();
   if (qual === 'recibo') recBanner();
   if (qual === 'contrato') ctrInit();
   abas.forEach(a => {
@@ -6814,8 +6844,14 @@ const EP_KIT = [
   { id: 'trafo',  nome: 'Transformador 220/380' },
   { id: 'cabo',   nome: 'Cabeamento' },
   { id: 'civil',  nome: 'Obra civil' },
-  // `extra` = fora do padrão: nasce DESMARCADO, o consultor liga se for vender.
-  { id: 'cobert', nome: 'Cobertura', extra: true },
+  // 17/08: a cobertura passou a ser padrão da casa — nasce MARCADA. (`extra`
+  // continua valendo para quem voltar a nascer desmarcado.)
+  { id: 'cobert', nome: 'Cobertura' },
+  // As duas entregas de operação. Vivem aqui, e não chumbadas no contrato, porque
+  // venda que não leva plataforma existe — e aí a Cláusula 9ª some junto. O
+  // percentual é editável na própria linha: é ele que o contrato cobra.
+  { id: 'software', nome: 'Software de gestão', pct: 12 },
+  { id: 'apptupi', nome: 'App de clientes — Parceria Tupi' },
 ];
 
 // ═══ PREÇO CHAVE NA MÃO DO DECK ═══
@@ -6920,10 +6956,19 @@ function eletroVendedorAuto() {
 function orcKitRender() {
   const box = document.getElementById('orc-kit');
   if (!box || box.children.length) return;   // só monta uma vez (preserva o que foi marcado)
+  // O campo de % fica DENTRO da linha, ao lado do nome: separar o número do item
+  // que ele qualifica é como se perde o 12% na hora de conferir o contrato.
+  // Clique nele não marca nem desmarca a linha (stopPropagation).
+  const pctInput = it => `<span class="orc-kit-eq"><input type="number" id="orc-kit-pct-${it.id}" ` +
+    `value="${it.pct}" min="0" max="100" step="0.5" onclick="event.stopPropagation()" oninput="orcCalc()" ` +
+    `style="width:58px;padding:2px 6px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);` +
+    `border-radius:6px;color:#fff;font:inherit;font-size:12.5px;text-align:right"> % do faturamento</span>`;
   box.innerHTML = EP_KIT.map(it => `<label class="orc-kit-row ${it.extra ? 'off' : 'on'}" data-id="${it.id}">
         <input type="checkbox"${it.extra ? '' : ' checked'} onchange="orcKitToggle(this)">
         <span class="orc-kit-nome">${orcEsc(it.nome)}</span>
-        ${it.id === 'carreg' ? '<span class="orc-kit-eq" id="orc-kit-eq"></span>' : '<span class="orc-kit-vazio"></span>'}
+        ${it.pct != null ? pctInput(it)
+          : it.id === 'carreg' ? '<span class="orc-kit-eq" id="orc-kit-eq"></span>'
+          : '<span class="orc-kit-vazio"></span>'}
       </label>`).join('');
 }
 
@@ -6989,6 +7034,20 @@ function orcValorBanner() {
 
 // Lê o kit → [{desc, variante, qtd}] + os agregados de dinheiro. Item não carrega
 // preço: o valor do projeto é um só, do campo acima.
+/** Percentual editado na linha do kit (ex.: 12 do Software de gestão). */
+function orcPctKit(id) {
+  const padrao = (EP_KIT.find(k => k.id === id) || {}).pct || 0;
+  const el = document.getElementById('orc-kit-pct-' + id);
+  const v = el ? parseFloat(String(el.value).replace(',', '.')) : NaN;
+  return isFinite(v) && v >= 0 ? v : padrao;
+}
+
+/** Item do kit marcado no Orçamento? É o que liga a cláusula no contrato. */
+function orcKitMarcado(id) {
+  const row = document.querySelector(`#orc-kit .orc-kit-row[data-id="${id}"]`);
+  return !!(row && row.querySelector('input[type="checkbox"]').checked);
+}
+
 function orcLerItens() {
   const num = v => { const n = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(n) ? n : 0; };
   const itens = [];
@@ -6999,7 +7058,11 @@ function orcLerItens() {
     if (!row.querySelector('input[type="checkbox"]').checked) return;
     const it = EP_KIT.find(k => k.id === row.dataset.id);
     itens.push({
-      desc: it ? it.nome : '', variante: row.dataset.id === 'carreg' ? equip : '',
+      desc: it ? it.nome : '',
+      // A variante qualifica o item na composição: potência no carregador,
+      // percentual no software. Sai junto no orçamento e no escopo do contrato.
+      variante: row.dataset.id === 'carreg' ? equip
+              : (it && it.pct != null) ? `(${orcPctKit(it.id)}% do faturamento)` : '',
       // Só o carregador tem quantidade (1 ponto de recarga costuma ter 2). Sai no
       // documento como "Incluído · N un" pra não parecer que é um só.
       qtd: row.dataset.id === 'carreg' ? orcEpQtdCarregadores() : 1,
@@ -8205,35 +8268,236 @@ const EP_IMPORT_MAPA = {
   contratanteEnd: 'ctr-contratante-end', rep: 'ctr-rep', repDoc: 'ctr-rep-doc',
   local: 'ctr-local', num: 'rec-num',
 };
+/**
+ * Um caminho só de preenchimento — o arquivo escolhido na mão e a pasta
+ * conectada entram aqui. Dois preenchedores separados viram dois
+ * comportamentos diferentes pro mesmo _dados.json na primeira vez que alguém
+ * mexer em um deles.
+ */
+function epAplicarDados(d, msgId, origem) {
+  const msg = document.getElementById(msgId);
+  const postos = [], pulados = [];
+  Object.entries(EP_IMPORT_MAPA).forEach(([campo, id]) => {
+    const el = document.getElementById(id);
+    const v = d[campo];
+    if (!el || v == null || v === '') return;
+    if (String(el.value || '').trim()) { pulados.push(campo); return; }
+    el.value = v;
+    if (id === 'orc-valor') el.dataset.tocado = '1';   // veio de fora: não deixa o Simulador sobrescrever
+    postos.push(campo);
+  });
+  orcCalc(); recCalc(); recBanner(); ctrResumo();
+  if (!msg) return postos.length;
+  // Só cobra o que o coletor TENTOU recolher (chave existe e veio vazia).
+  // Campo que ele nem procura — telefone, e-mail — não é "faltando".
+  const vazios = Object.keys(EP_IMPORT_MAPA).filter(c => (c in d) && !d[c] && d[c] !== 0);
+  msg.innerHTML = (origem ? `<b>${orcEsc(origem)}</b> · ` : '') +
+    `✅ <b>${postos.length}</b> campo(s) preenchido(s)` +
+    (pulados.length ? ` · ${pulados.length} já tinham valor e foram mantidos` : '') +
+    (vazios.length ? `<br>O coletor deixou vazio (documentos não confirmam): <b>${orcEsc(vazios.join(', '))}</b>` : '');
+  return postos.length;
+}
+
 function epImportarDados(input) {
   const arq = input.files && input.files[0];
-  const msg = document.getElementById('ep-import-msg');
   input.value = '';   // permite reimportar o mesmo arquivo depois de editar
-  if (!arq || !msg) return;
+  if (!arq) return;
   const leitor = new FileReader();
   leitor.onload = () => {
     let d;
     try { d = JSON.parse(leitor.result); }
-    catch (e) { msg.innerHTML = '❌ Esse arquivo não é um _dados.json válido.'; return; }
-    const postos = [], pulados = [];
-    Object.entries(EP_IMPORT_MAPA).forEach(([campo, id]) => {
-      const el = document.getElementById(id);
-      const v = d[campo];
-      if (!el || v == null || v === '') return;
-      if (String(el.value || '').trim()) { pulados.push(campo); return; }
-      el.value = v;
-      if (id === 'orc-valor') el.dataset.tocado = '1';   // veio de fora: não deixa o Simulador sobrescrever
-      postos.push(campo);
-    });
-    orcCalc(); recCalc(); recBanner(); ctrResumo();
-    // Só cobra o que o coletor TENTOU recolher (chave existe e veio vazia).
-    // Campo que ele nem procura — telefone, e-mail — não é "faltando".
-    const vazios = Object.keys(EP_IMPORT_MAPA).filter(c => (c in d) && !d[c] && d[c] !== 0);
-    msg.innerHTML = `✅ <b>${postos.length}</b> campo(s) preenchido(s)` +
-      (pulados.length ? ` · ${pulados.length} já tinham valor e foram mantidos` : '') +
-      (vazios.length ? `<br>O coletor deixou vazio (documentos não confirmam): <b>${orcEsc(vazios.join(', '))}</b>` : '');
+    catch (e) {
+      const m = document.getElementById('ep-import-msg');
+      if (m) m.innerHTML = '❌ Esse arquivo não é um _dados.json válido.';
+      return;
+    }
+    epAplicarDados(d, 'ep-import-msg');
   };
   leitor.readAsText(arq, 'utf-8');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PASTA DO CLIENTE CONECTADA — abrir Recibo/Contrato já vem preenchido
+//
+// O navegador não lê `C:\...\#ELETROPOSTO` por caminho, e nunca vai ler: a
+// página é servida pela Vercel. O que existe é a File System Access API — o
+// humano ESCOLHE a pasta uma vez, o navegador guarda a permissão e a partir daí
+// a página lê de lá sozinha. Cada subpasta é um cliente; o `_dados.json` dentro
+// dela é o que preenche os campos.
+//
+// A permissão sobrevive ao fechamento da aba, mas NÃO ao fechamento do
+// navegador: ao voltar, o Chrome devolve 'prompt' e exige um clique humano pra
+// reconceder. Por isso o botão diz "Reconectar pasta" em vez de a tela fingir
+// que está tudo automático e mostrar campo vazio sem explicação.
+//
+// Só preenche campo VAZIO (epAplicarDados) — abrir a aba de novo não desfaz
+// correção feita à mão.
+// ═══════════════════════════════════════════════════════════════════════════
+let epPastaHandle = null;
+let epPastaOcupado = false;
+const EP_PASTA_CLI = 'io-ep-pasta-cliente';   // último cliente escolhido
+
+function epPastaMsg(html) {
+  const el = document.getElementById('ep-pasta-msg');
+  if (el) el.innerHTML = html;
+}
+function epPastaBotao(texto) {
+  const b = document.getElementById('ep-pasta-btn');
+  if (b) b.lastChild.textContent = texto;
+}
+
+// IndexedDB porque handle de pasta não sobrevive a JSON.stringify —
+// localStorage não guarda isto. Três linhas de store, sem biblioteca.
+function epIdb(fn) {
+  return new Promise((ok, err) => {
+    const r = indexedDB.open('gerador-pasta', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('h');
+    r.onerror = () => err(r.error);
+    r.onsuccess = () => {
+      const q = fn(r.result.transaction('h', 'readwrite').objectStore('h'));
+      q.onsuccess = () => ok(q.result);
+      q.onerror = () => err(q.error);
+    };
+  });
+}
+
+/** Botão único: reconcede a permissão do handle guardado, ou pede a pasta. */
+async function epPastaConectar() {
+  if (!('showDirectoryPicker' in window)) {
+    epPastaMsg('❌ Este navegador não abre pasta. Use Chrome ou Edge no computador — ou escolha o <b>_dados.json</b> na mão, aqui embaixo.');
+    return;
+  }
+  try {
+    const guardado = await epIdb(st => st.get('clientes')).catch(() => null);
+    if (guardado && (await guardado.requestPermission({ mode: 'read' })) === 'granted') {
+      epPastaHandle = guardado;
+    } else {
+      const h = await window.showDirectoryPicker({ id: 'ep-clientes', mode: 'read' });
+      epPastaHandle = h;
+      await epIdb(st => st.put(h, 'clientes')).catch(() => {});
+    }
+    await epPastaListar();
+  } catch (e) {
+    if (e && e.name === 'AbortError') return;    // fechou o seletor, não é erro
+    epPastaMsg('❌ Não consegui abrir a pasta: ' + orcEsc(String(e && e.message || e)));
+  }
+}
+
+/** Cada subpasta é um cliente. Ordem alfabética = a numeração #0001, #0002... */
+async function epPastaListar() {
+  const sel = document.getElementById('ep-pasta-cliente');
+  if (!sel || !epPastaHandle) return;
+  const nomes = [];
+  for await (const [nome, h] of epPastaHandle.entries()) {
+    if (h.kind === 'directory' && !nome.startsWith('.')) nomes.push(nome);
+  }
+  nomes.sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const anterior = (() => { try { return localStorage.getItem(EP_PASTA_CLI) || ''; } catch (e) { return ''; } })();
+  sel.innerHTML = '<option value="">— escolha o cliente —</option>' +
+    nomes.map(n => `<option value="${orcEsc(n)}"${n === anterior ? ' selected' : ''}>${orcEsc(n)}</option>`).join('');
+  epPastaBotao('Trocar pasta');
+  epPastaMsg(`Pasta conectada · <b>${nomes.length}</b> cliente(s).`);
+  if (anterior && nomes.includes(anterior)) await epPastaCarregar(anterior);
+}
+
+/**
+ * O nome da pasta é a única coisa garantida em todo cliente: a casa nomeia
+ * "#0001 - Bruno Lages - Itaobim MG". Dá número do recibo, nome e cidade — o
+ * suficiente pro documento não sair anônimo enquanto o coletor não roda.
+ */
+function epDadosDoNome(pasta) {
+  const partes = String(pasta || '').split(' - ').map(p => p.trim()).filter(Boolean);
+  const d = {};
+  if (partes[0] && partes[0].startsWith('#')) {
+    d.num = partes.shift().replace('#', '').trim();
+  }
+  if (partes[0]) d.cliente = partes[0];
+  if (partes[1]) d.cidade = partes[1];
+  return d;
+}
+
+async function epPastaCarregar(nome) {
+  try { localStorage.setItem(EP_PASTA_CLI, nome || ''); } catch (e) {}
+  if (!nome || !epPastaHandle) return;
+  try {
+    const dir = await epPastaHandle.getDirectoryHandle(nome);
+    let arq;
+    try { arq = await dir.getFileHandle('_dados.json'); }
+    catch (e) {
+      // Sem o arquivo, o nome da pasta ainda vale três campos — e dizer QUAL foi
+      // a fonte importa: nome de pasta é convenção, documento é prova.
+      const daPasta = epDadosDoNome(nome);
+      const n = epAplicarDados(daPasta, null);
+      if (daPasta.cliente) epTrelloBuscar(daPasta.cliente, daPasta.num);
+      epPastaMsg(`⚠️ <b>${orcEsc(nome)}</b> não tem <b>_dados.json</b>. ` +
+        (n ? `Preenchi <b>${n}</b> campo(s) pelo <b>nome da pasta</b> — confira, e o resto (CNPJ, endereço, UC) digite ou rode o coletor.`
+           : 'Nenhum campo foi tocado.'));
+      return;
+    }
+    const d = JSON.parse(await (await arq.getFile()).text());
+    epAplicarDados(d, 'ep-pasta-msg', nome);
+    epTrelloBuscar(d.cliente || nome, d.num || epDadosDoNome(nome).num);
+  } catch (e) {
+    epPastaMsg('❌ Não consegui ler a pasta desse cliente: ' + orcEsc(String(e && e.message || e)));
+  }
+}
+
+/**
+ * Chamado ao abrir Orçamento, Recibo e Contrato. Reconecta em silêncio quando a
+ * permissão ainda vale; quando não vale, pede o clique em vez de falhar mudo.
+ */
+async function epPastaAuto() {
+  if (epPastaOcupado) return;
+  const sel = document.getElementById('ep-pasta-cliente');
+  if (!sel) return;
+  epPastaOcupado = true;
+  try {
+    if (epPastaHandle) { await epPastaListar(); return; }
+    if (!('showDirectoryPicker' in window)) {
+      epPastaMsg('Este navegador não abre pasta — escolha o <b>_dados.json</b> na mão, aqui embaixo.');
+      return;
+    }
+    const guardado = await epIdb(st => st.get('clientes')).catch(() => null);
+    if (!guardado) { epPastaMsg('Pasta não conectada. Conecte a <b>#ELETROPOSTO</b> uma vez e ela passa a abrir sozinha.'); return; }
+    if ((await guardado.queryPermission({ mode: 'read' })) === 'granted') {
+      epPastaHandle = guardado;
+      await epPastaListar();
+    } else {
+      epPastaBotao('Reconectar pasta');
+      epPastaMsg('A pasta está lembrada, mas o navegador pede um clique pra liberar de novo — é assim toda vez que o Chrome é fechado.');
+    }
+  } catch (e) {
+    epPastaMsg('❌ ' + orcEsc(String(e && e.message || e)));
+  } finally {
+    epPastaOcupado = false;
+  }
+}
+
+/**
+ * Situação no Trello — em que lista da homologação o cliente está. Quem fala
+ * com o Trello é o servidor; o quadro é público, então não há credencial em
+ * jogo. O número da pasta vai junto porque é o que os dois lados compartilham:
+ * a pasta é "#0001 - Bruno Lages" e o cartão, "ELETROPOSTO #0001 - Bruno
+ * Martins Lages".
+ */
+async function epTrelloBuscar(cliente, num) {
+  const el = document.getElementById('ep-trello-msg');
+  if (!el || !cliente) return;
+  el.textContent = 'Trello: procurando…';
+  try {
+    const r = await fetch('/_api/gerador/trello?cliente=' + encodeURIComponent(cliente) +
+      (num ? '&num=' + encodeURIComponent(num) : ''));
+    const j = await r.json();
+    if (!r.ok) { el.innerHTML = 'Trello: <b>' + orcEsc(j.error || ('erro ' + r.status)) + '</b>'; return; }
+    if (!j.cartao) { el.innerHTML = `Trello: nenhum cartão com o nome <b>${orcEsc(cliente)}</b>.`; return; }
+    const c = j.cartao;
+    el.innerHTML = `Trello · <b>${orcEsc(c.lista || '—')}</b>` +
+      (c.etiquetas && c.etiquetas.length ? ' · ' + orcEsc(c.etiquetas.join(', ')) : '') +
+      (c.prazo ? ` · prazo ${orcEsc(c.prazo)}` : '') +
+      (c.url ? ` · <a class="orc-link" href="${orcEsc(c.url)}" target="_blank" rel="noopener">abrir cartão</a>` : '');
+  } catch (e) {
+    el.textContent = 'Trello: sem resposta do servidor.';
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -8445,8 +8709,8 @@ function ctrDados() {
     empresa: emp,
     total, sinal, saldo: Math.max(0, total - sinal),
     pagamento: orcVal('ctr-pagamento') || ctrPagamentoSugestao(Math.max(0, total - sinal)),
-    prazoProjeto: Math.max(1, Math.round(orcNum(orcVal('ctr-prazo-projeto')) || 15)),
-    prazoObra: Math.max(1, Math.round(orcNum(orcVal('ctr-prazo-obra')) || 90)),
+    prazoProjeto: Math.max(1, Math.round(orcNum(orcVal('ctr-prazo-projeto')) || 30)),
+    prazoObra: Math.max(1, Math.round(orcNum(orcVal('ctr-prazo-obra')) || 60)),
     garantia: Math.max(1, Math.round(orcNum(orcVal('ctr-garantia')) || 24)),
     multa: orcNum(orcVal('ctr-multa')),
     juros: orcNum(orcVal('ctr-juros')),
@@ -8456,6 +8720,11 @@ function ctrDados() {
     // O que NÃO foi marcado vira exclusão explícita. É a lista que evita o
     // "mas eu achei que a cobertura estava junto" depois da obra começar.
     fora: EP_KIT.filter(k => !marcados.has(k.nome)).map(k => k.nome),
+    // Operação: cada um liga a sua parte da Cláusula 9ª. Marcados os dois, ela
+    // fala dos dois; nenhum marcado, ela não existe e as seguintes sobem.
+    software: orcKitMarcado('software'),
+    softwarePct: orcPctKit('software'),
+    appTupi: orcKitMarcado('apptupi'),
     vendedor: { nome: t.autor, contato: t.contato },
   };
 }
@@ -8465,10 +8734,41 @@ function ctrHTML(d) {
   const vazio = v => v ? e(v) : '<span class="ep-rec-vazio"></span>';
   const cl = (n, titulo) => `<div class="ep-ctr-cl">Cláusula ${n}ª — ${e(titulo)}</div>`;
   const li = (n, txt) => `<p class="ep-ctr-li">${n} ${txt}</p>`;
+  const TOTP = 4;   // folhas do contrato — o rodapé conta a partir daqui
   const pageFoot = (n, tot) => `<div class="ep-pagefoot"><span>Contrato de Fornecimento e Instalação — Eletroposto${d.cliente ? ' · ' + e(d.cliente) : ''}</span><span>Página ${n} de ${tot}</span></div>`;
   const dataTxt = d.data.toLocaleDateString('pt-BR');
   const endCli = [d.contratanteEnd, d.cep, d.cidade].filter(Boolean).join(', ');
   const endEmp = [d.empresa.end, d.empresa.cidade].filter(Boolean).join(', ');
+
+  // O escopo é o que foi MARCADO no Orçamento — cobertura, software e app
+  // inclusive. Chumbar item aqui dentro criava um contrato que prometia o que a
+  // venda não tinha; a lista de "não incluído", essa sim, é fixa num item só:
+  // o que a concessionária exigir de reforço de rede.
+  const incluidos = [...(d.incluso || [])];
+  const temOperacao = d.software || d.appTupi;
+  // Texto da 1.2 e do subtítulo acompanham o que foi vendido.
+  const entregaOperacao = [d.software && 'plataforma de gestão', d.appTupi && 'aplicativo para o cliente']
+    .filter(Boolean).join(' e ');
+  const entregaCrase = [d.software && 'da plataforma de gestão', d.appTupi && 'do aplicativo para o cliente']
+    .filter(Boolean).join(' e ');
+
+  // Numeração DINÂMICA do fim do contrato: sem plataforma e sem app, a 9ª não
+  // existe e rescisão, disposições e foro sobem um número. Buraco na numeração é
+  // o tipo de coisa que faz o cliente perguntar o que foi tirado do contrato.
+  let nCl = 8;
+  const num9 = temOperacao ? ++nCl : 0;
+  const pctTxt = String(d.softwarePct).replace('.', ',');
+  const blocoOperacao = !temOperacao ? '' : (
+    cl(num9, d.software && d.appTupi ? 'Da plataforma de gestão e do aplicativo'
+           : d.software ? 'Da plataforma de gestão' : 'Do aplicativo para o cliente') +
+    li(`${num9}.1`, 'A CONTRATADA entrega e mantém ' + [
+      d.software && 'a <b>plataforma de gestão e cobrança</b> da estação (protocolo OCPP), com cadastro do ponto, definição do preço da recarga pelo CONTRATANTE, controle de acesso, meio de pagamento e relatórios de recarga e de faturamento',
+      d.appTupi && 'o <b>aplicativo para o cliente final</b>, fornecido em parceria com a <b>Tupi</b>, pelo qual o motorista localiza a estação, inicia a recarga e paga',
+    ].filter(Boolean).join('; e ') + '.') +
+    (d.software ? li(`${num9}.2`, `Pela operação da plataforma, a CONTRATADA é remunerada em <b>${e(pctTxt)}% do faturamento bruto</b> da estação, apurado mensalmente e retido no repasse ao CONTRATANTE.`) : '') +
+    li(`${num9}.${d.software ? 3 : 2}`, `A contratação ${d.software ? 'da plataforma' : 'do aplicativo'} não é condição do fornecimento tratado nas Cláusulas 1ª a 8ª: o CONTRATANTE pode encerrá-la a qualquer tempo mediante aviso de 30 dias, cessando ${d.software ? 'o percentual e o serviço' : 'o serviço'}, e permanecendo com o equipamento e a obra já entregues.`)
+  );
+  const nResc = ++nCl, nGerais = ++nCl, nForo = ++nCl;
 
   return `<div class="ep-doc">
     <div class="ep-page">
@@ -8478,23 +8778,27 @@ function ctrHTML(d) {
          ['Local', d.cidade ? e(d.cidade) : '']], '')}
 
       <div class="ep-ctr-tit">Contrato de Fornecimento e Instalação<br>de Estação de Recarga de Veículos Elétricos</div>
-      <div class="ep-ctr-sub">Regime chave na mão</div>
+      <div class="ep-ctr-sub">Fornecimento e instalação${temOperacao ? ', ' + entregaOperacao : ''}</div>
 
       <p class="ep-ctr-p"><b>CONTRATADA:</b> ${vazio(d.empresa.razao || d.empresa.nome)}${d.empresa.fantasia ? `, nome fantasia ${e(d.empresa.fantasia)}` : ''}, inscrita no CNPJ sob o nº ${vazio(d.empresa.cnpj)}${endEmp ? ', com sede em ' + e(endEmp) : ''}${d.empresa.tel ? ', telefone ' + e(d.empresa.tel) : ''}${d.empresa.email ? ', e-mail ' + e(d.empresa.email) : ''}.</p>
       <p class="ep-ctr-p"><b>CONTRATANTE:</b> ${vazio(d.contratante)}, inscrito(a) no CPF/CNPJ sob o nº ${vazio(d.contratanteDoc)}${endCli ? ', com endereço em ' + e(endCli) : ''}${d.tel ? ', telefone ' + e(d.tel) : ''}${d.email ? ', e-mail ' + e(d.email) : ''}${d.rep ? `, neste ato representado(a) por <b>${e(d.rep)}</b>${d.repDoc ? ', CPF nº ' + e(d.repDoc) : ''}` : ''}.</p>
       <p class="ep-ctr-p">As partes acima têm entre si justo e contratado o presente instrumento, que se regerá pelas cláusulas seguintes.</p>
 
       ${cl(1, 'Do objeto')}
-      ${li('1.1', `Fornecimento e instalação, em regime <b>chave na mão</b>, de estação de recarga de veículos elétricos composta por <b>${d.qtd} carregador(es) ${e(d.equip || 'de corrente contínua')}</b>, com ${d.plugs} ponto(s) de carregamento, a ser implantada em <b>${vazio(d.local)}</b>.`)}
-      ${li('1.2', 'O escopo compreende o projeto de engenharia, o fornecimento dos equipamentos, a instalação, a homologação junto à concessionária de energia e o suporte, conforme a Cláusula 2ª.')}
+      ${li('1.1', `Fornecimento e instalação de estação de recarga de veículos elétricos composta por <b>${d.qtd} carregador(es) ${e(d.equip || 'de corrente contínua')}</b>, com ${d.plugs} ponto(s) de carregamento, a ser implantada em <b>${vazio(d.local)}</b>.`)}
+      ${li('1.2', `O escopo compreende o projeto de engenharia, o fornecimento dos equipamentos, a instalação e a homologação junto à concessionária de energia${temOperacao ? `, além ${entregaCrase}, na forma da Cláusula 9ª` : ''}, conforme a Cláusula 2ª.`)}
 
       ${cl(2, 'Do escopo')}
       ${li('2.1', 'Estão incluídos no preço os itens a seguir; os demais, expressamente excluídos, correm por conta do CONTRATANTE.')}
       <div class="ep-ctr-esc">
-        <div><h4>Incluído</h4><ul>${(d.incluso.length ? d.incluso : ['A definir no orçamento']).map(i => `<li>${e(i)}</li>`).join('')}</ul></div>
-        <div class="fora"><h4>Não incluído</h4><ul>${(d.fora.length ? d.fora : ['—']).map(i => `<li>${e(i)}</li>`).join('')}<li>Obras de reforço da rede exigidas pela concessionária</li><li>Taxas, alvarás e licenças municipais</li><li>Fornecimento de energia e demanda contratada</li></ul></div>
+        <div><h4>Incluído</h4><ul>${incluidos.map(i => `<li>${e(i)}</li>`).join('')}</ul></div>
+        <div class="fora"><h4>Não incluído</h4><ul><li>Obras de reforço da rede exigidas pela concessionária</li></ul></div>
       </div>
 
+      ${pageFoot(1, TOTP)}
+    </div>
+
+    <div class="ep-page">
       ${cl(3, 'Do preço e da forma de pagamento')}
       ${li('3.1', `O preço total dos serviços e equipamentos é de <b>${money(d.total)}</b> (${e(recExtenso(d.total))}).`)}
       ${d.sinal > 0
@@ -8502,13 +8806,9 @@ function ctrHTML(d) {
         : li('3.2', 'Não houve pagamento de sinal antecipado, correndo o preço integralmente na forma do item seguinte.')}
       ${li('3.3', `Forma de pagamento acordada: ${e(d.pagamento)}`)}
       ${li('3.4', `O atraso no pagamento de qualquer parcela sujeita o CONTRATANTE a multa de ${e(String(d.multa).replace('.', ','))}% e juros de ${e(String(d.juros).replace('.', ','))}% ao mês, suspendendo os prazos da Cláusula 4ª enquanto perdurar.`)}
-      ${pageFoot(1, 3)}
-    </div>
-
-    <div class="ep-page">
       ${cl(4, 'Dos prazos')}
       ${li('4.1', `O projeto elétrico e o respectivo protocolo junto à concessionária serão apresentados em até <b>${d.prazoProjeto} dias úteis</b> contados da assinatura deste e da entrega, pelo CONTRATANTE, dos documentos da Cláusula 6ª.`)}
-      ${li('4.2', `A obra será entregue em até <b>${d.prazoObra} dias corridos</b> contados da <b>aprovação do projeto pela concessionária</b> — e não da assinatura, por não estar o prazo de análise sob governo das partes.`)}
+      ${li('4.2', `A obra será entregue em até <b>${d.prazoObra} dias úteis</b> contados da <b>aprovação do projeto pela concessionária</b> — e não da assinatura, por não estar o prazo de análise sob governo das partes.`)}
       ${li('4.3', 'Suspendem os prazos, pelo tempo que durarem: exigências ou atrasos da concessionária, falta de energia no local, embargos, indisponibilidade de acesso à obra e atrasos de pagamento.')}
 
       ${cl(5, 'Das obrigações da CONTRATADA')}
@@ -8516,9 +8816,13 @@ function ctrHTML(d) {
       ${li('5.2', 'Fornecer os equipamentos e executar a instalação com mão de obra especializada, atendendo às normas técnicas aplicáveis.')}
       ${li('5.3', 'Acompanhar a homologação e entregar a estação em funcionamento, com orientação de uso ao CONTRATANTE.')}
 
+      ${pageFoot(2, TOTP)}
+    </div>
+
+    <div class="ep-page">
       ${cl(6, 'Das obrigações do CONTRATANTE')}
       ${li('6.1', 'Disponibilizar o local da instalação livre e desimpedido, com acesso para equipe, veículos e equipamentos.')}
-      ${li('6.2', 'Fornecer a documentação necessária ao projeto e à homologação (titularidade do imóvel ou autorização do proprietário, conta de energia e dados cadastrais) e responder por alvarás e licenças municipais.')}
+      ${li('6.2', 'Fornecer a documentação necessária ao projeto e à homologação: titularidade do imóvel ou autorização do proprietário, conta de energia, autorização do titular da unidade consumidora quando esta estiver em nome de terceiro, e dados cadastrais.')}
       ${li('6.3', 'Contratar junto à concessionária a demanda de energia compatível com a potência instalada e arcar com o consumo.')}
       ${li('6.4', 'Efetuar os pagamentos nas datas acordadas.')}
 
@@ -8529,35 +8833,38 @@ function ctrHTML(d) {
       ${cl(8, 'Dos tributos e da nota fiscal')}
       ${li('8.1', 'Os tributos incidentes já estão computados no preço. Eventual DIFAL em operação interestadual, quando aplicável, é de responsabilidade do CONTRATANTE.')}
       ${li('8.2', 'A CONTRATADA emitirá a nota fiscal correspondente na forma da legislação.')}
-      ${pageFoot(2, 3)}
+      ${blocoOperacao}
+      ${pageFoot(3, TOTP)}
     </div>
 
     <div class="ep-page">
-      ${cl(9, 'Da rescisão')}
-      ${li('9.1', 'O descumprimento de qualquer cláusula autoriza a parte prejudicada a rescindir este contrato, mediante notificação com prazo de 10 dias para correção.')}
-      ${li('9.2', 'Rescindido por desistência do CONTRATANTE, ser-lhe-ão cobrados os custos já incorridos e o material já adquirido, sem prejuízo da retenção do sinal na forma do recibo de sinal firmado.')}
+      ${cl(nResc, 'Da rescisão')}
+      ${li(`${nResc}.1`, 'O descumprimento de qualquer cláusula autoriza a parte prejudicada a rescindir este contrato, mediante notificação com prazo de 10 dias para correção.')}
+      ${li(`${nResc}.2`, 'Rescindido por desistência do CONTRATANTE, ser-lhe-ão cobrados os custos já incorridos e o material já adquirido, sem prejuízo da retenção do sinal na forma do recibo de sinal firmado.')}
 
-      ${cl(10, 'Das disposições gerais')}
-      ${li('10.1', 'Este contrato substitui entendimentos anteriores sobre o objeto e só pode ser alterado por aditivo escrito assinado pelas partes.')}
-      ${li('10.2', 'A tolerância quanto ao descumprimento de qualquer cláusula não implica novação nem renúncia de direito.')}
-      ${d.extras ? li('10.3', e(d.extras)) : ''}
+      ${cl(nGerais, 'Das disposições gerais')}
+      ${li(`${nGerais}.1`, 'Este contrato substitui entendimentos anteriores sobre o objeto e só pode ser alterado por aditivo escrito assinado pelas partes.')}
+      ${li(`${nGerais}.2`, 'A tolerância quanto ao descumprimento de qualquer cláusula não implica novação nem renúncia de direito.')}
+      ${d.extras ? li(`${nGerais}.3`, e(d.extras)) : ''}
 
-      ${cl(11, 'Do foro')}
-      ${li('11.1', `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b> para dirimir as questões oriundas deste contrato, com renúncia a qualquer outro.`)}
+      ${cl(nForo, 'Do foro')}
+      ${li(`${nForo}.1`, `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b> para dirimir as questões oriundas deste contrato, com renúncia a qualquer outro.`)}
 
       <p class="ep-ctr-p" style="margin-top:14px">E por estarem justas e contratadas, as partes assinam o presente em duas vias de igual teor${d.cidade ? `, em ${e(d.cidade)}` : ''}, ${e(dataTxt)}.</p>
 
-      <div class="ep-ctr-assin">
-        <div class="a"><b>${vazio(d.empresa.razao || d.empresa.nome)}</b>CONTRATADA</div>
-        <div class="a"><b>${vazio(d.contratante)}</b>${d.rep ? e(d.rep) + '<br>' : ''}CONTRATANTE</div>
-      </div>
-      <div class="ep-ctr-test"><b>Testemunhas</b>
-        <div class="l">
-          <div>Nome:<br>CPF:</div>
-          <div>Nome:<br>CPF:</div>
+      <div class="ep-ctr-fim">
+        <div class="ep-ctr-assin">
+          <div class="a"><b>${vazio(d.empresa.razao || d.empresa.nome)}</b>${d.empresa.cnpj ? `<span>CNPJ ${e(d.empresa.cnpj)}</span>` : ''}CONTRATADA</div>
+          <div class="a"><b>${vazio(d.contratante)}</b>${d.contratanteDoc ? `<span>CPF/CNPJ ${e(d.contratanteDoc)}</span>` : ''}${d.rep ? e(d.rep) + '<br>' : ''}CONTRATANTE</div>
+        </div>
+        <div class="ep-ctr-test"><b>Testemunhas</b>
+          <div class="l">
+            <div>Nome:<br>CPF:</div>
+            <div>Nome:<br>CPF:</div>
+          </div>
         </div>
       </div>
-      ${pageFoot(3, 3)}
+      ${pageFoot(4, TOTP)}
     </div>
   </div>`;
 }
