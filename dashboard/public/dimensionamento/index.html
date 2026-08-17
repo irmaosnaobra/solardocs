@@ -263,6 +263,205 @@
   .depoAutor { font-size: 13px; color: var(--muted); margin: 0; }
   .depoAutor b { color: var(--text); font-weight: 700; display: block; font-size: 14px; }
 
+
+  /* ── MOCKUP ANIMADO ──────────────────────────────────
+     Um ciclo de 16s por demo. Cada cena entra, fica e sai; o resto do
+     movimento (barra, rolo de numeros, marca de check) roda no mesmo compasso.
+     Tudo em CSS: sem GIF, sem video, sem script. */
+  .demo {
+    position: relative; background: var(--surface);
+    padding: 20px 22px; min-height: 372px;
+    font-size: 14px; line-height: 1.45; overflow: hidden;
+  }
+  .demoTopo {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 10.5px; font-weight: 800; letter-spacing: .13em;
+    text-transform: uppercase; color: var(--muted);
+    padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid var(--line);
+  }
+  .demoVivo { display: inline-flex; align-items: center; gap: 6px; color: var(--green); }
+  .demoVivo i {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+    animation: demoPisca 2s ease-in-out infinite;
+  }
+  @keyframes demoPisca { 0%, 100% { opacity: 1 } 50% { opacity: .25 } }
+
+  .cena { position: absolute; left: 22px; right: 22px; top: 66px; opacity: 0; }
+  /* Timing LINEAR de proposito: o ease padrao faz a opacidade demorar a sair
+     do zero nas duas pontas, e a soma disso dava 0,22s de moldura vazia a cada
+     virada. Linear reparte o fade por igual e a piscada some.
+     (E sem crase nenhuma neste comentario: o CSS mora dentro de um template
+     literal do JS, entao uma crase aqui fecha a string e quebra o gerador.) */
+  .demo[data-cenas="4"] .cena { animation: cena4 16s linear infinite; }
+  /* AS CENAS ESTAVAM TOCANDO FORA DE ORDEM: 4, 1, 2, 3 — comecava pela
+     resposta (preco, autonomia) e so' depois mostrava as perguntas. Sentido
+     invertido justamente no que a demo existe pra contar.
+     A culpa era do nth-of-type: ele conta irmaos do MESMO TIPO, nao da mesma
+     classe. Dentro do .demo o primeiro <div> e' o .demoTopo, entao
+     nth-of-type(2) pegava a cena 1, nth-of-type(3) a cena 2... e a cena 4
+     ficava sem atraso nenhum e abria o ciclo.
+     A cadeia de "~" conta so' os .cena e nao se importa com quem mais e' div. */
+  .demo[data-cenas="4"] .cena ~ .cena { animation-delay: 4s; }
+  .demo[data-cenas="4"] .cena ~ .cena ~ .cena { animation-delay: 8s; }
+  .demo[data-cenas="4"] .cena ~ .cena ~ .cena ~ .cena { animation-delay: 12s; }
+  /* SEM SOBREPOSICAO E SEM BURACO.
+     Tentei os dois extremos e os dois quebram:
+     · encostando (saida em 25%, entrada em 25%) sobrava um piscar de 160ms
+       com a moldura vazia;
+     · cruzando (saida em 27%) as duas cenas ficavam meio transparentes ao
+       mesmo tempo e o texto de uma aparecia POR CIMA da outra — da' pra ler
+       "PRECO AO CLIENTE" atras de "Material CA". Le como defeito, nao como
+       transicao.
+     Entao a saida termina exatamente em 25%, quando a proxima comeca a
+     entrar, e a entrada dura 1,5% (0,24s): rapido demais pro olho registrar
+     como vazio, e sem nenhum quadro com as duas na tela. */
+  @keyframes cena4 {
+    0%          { opacity: 0; transform: translateY(10px); }
+    1.5%, 23.5% { opacity: 1; transform: none; }
+    25%, 100%   { opacity: 0; transform: translateY(-6px); }
+  }
+
+  /* linha de valor */
+  .dLinha {
+    display: flex; justify-content: space-between; gap: 12px;
+    padding: 9px 0; border-bottom: 1px solid var(--line); color: #cfd9e6;
+  }
+  .dLinha b { color: #fff; font-weight: 700; }
+  .dLinha.forte { border-bottom: none; padding-top: 13px; font-size: 15.5px; }
+  .dLinha.forte b { color: var(--amber); }
+
+  /* entra uma a uma */
+  .dEntra { opacity: 0; animation: dEntra 16s infinite; }
+  .dEntra:nth-of-type(1) { animation-delay: .25s; }
+  .dEntra:nth-of-type(2) { animation-delay: .65s; }
+  .dEntra:nth-of-type(3) { animation-delay: 1.05s; }
+  .dEntra:nth-of-type(4) { animation-delay: 1.45s; }
+  .dEntra:nth-of-type(5) { animation-delay: 1.85s; }
+  @keyframes dEntra {
+    0%     { opacity: 0; transform: translateX(-8px); }
+    2%, 22% { opacity: 1; transform: none; }
+    25%, 100% { opacity: 0; }
+  }
+
+  /* rolo de numeros: a coluna desliza e so' um valor aparece por vez */
+  /* O rolo NAO PODE QUEBRAR LINHA. Como e' inline-block, quando nao cabia ao
+     lado do "R$" ele descia pra linha seguinte e o cartao mostrava "R$" em cima
+     e "30.605" embaixo, como se fosse outro campo. O nowrap fica no PAI (o <b>),
+     que e' quem decide a quebra. */
+  .rolo { display: inline-block; height: 1.15em; line-height: 1.15; overflow: hidden; vertical-align: bottom; }
+  .dCard b, .dLinha b, .demo .amber { white-space: nowrap; }
+  .rolo span { display: block; height: 1.15em; }
+  .rolo.r4 span { animation: rolo4 16s steps(1) infinite; }
+  @keyframes rolo4 {
+    0%,   24% { transform: translateY(0); }
+    25%,  49% { transform: translateY(-1.15em); }
+    50%,  74% { transform: translateY(-2.3em); }
+    75%, 100% { transform: translateY(-3.45em); }
+  }
+
+  /* controle de margem que anda sozinho */
+  .dBarra { height: 7px; border-radius: 99px; background: rgba(148,163,184,.22); position: relative; margin: 12px 0 6px; }
+  .dBarraFill {
+    position: absolute; inset: 0 auto 0 0; border-radius: 99px;
+    background: linear-gradient(90deg, var(--amber-d), var(--amber));
+    animation: dBarra 16s cubic-bezier(.6,0,.2,1) infinite;
+  }
+  .dBarraPino {
+    position: absolute; top: 50%; width: 15px; height: 15px; border-radius: 50%;
+    background: var(--amber); border: 2px solid #10192b; transform: translate(-50%, -50%);
+    animation: dPino 16s cubic-bezier(.6,0,.2,1) infinite;
+  }
+  /* A barra anda em DEGRAUS, no mesmo compasso do rolo de numeros (a cada 25%
+     do ciclo). Ela era ease-in-out continua: dentro dos 4s de uma cena a barra
+     encolhia enquanto o "34%" ficava parado do lado, e o olho pega. */
+  @keyframes dBarra {
+    0%,  23% { width: 26% }  25%, 48% { width: 42% }
+    50%, 73% { width: 68% }  75%, 100% { width: 55% }
+  }
+  @keyframes dPino {
+    0%,  23% { left: 26% }   25%, 48% { left: 42% }
+    50%, 73% { left: 68% }   75%, 100% { left: 55% }
+  }
+
+  /* dois cartoes de resultado */
+  .dCards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+  .dCard { background: rgba(148,163,184,.08); border: 1px solid var(--line); border-radius: 11px; padding: 12px 13px; }
+  /* FILHO DIRETO, nao qualquer span. Escrito sem o sinal de filho, a regra
+     pegava tambem os <span> dos numeros dentro do rolo: o valor do cartao saia
+     a 9,5px em CAIXA ALTA e cinza, quando devia ser 19px branco. O rotulo e' o
+     span que fica direto no cartao; o valor mora dentro do <b>.
+     (Sem crase neste comentario: o CSS mora num template literal do JS.) */
+  .dCard > span { display: block; font-size: 9.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .dCard b { font-size: 19px; font-weight: 800; letter-spacing: -.02em; }
+  .dCard.bom { border-color: rgba(74,222,128,.35); background: rgba(74,222,128,.08); }
+  .dCard.bom b { color: var(--green); }
+
+  /* item marcavel */
+  .dItem { display: flex; align-items: center; gap: 11px; padding: 8px 0; color: #cfd9e6; }
+  .dCheck {
+    flex: none; width: 19px; height: 19px; border-radius: 6px;
+    border: 1.5px solid var(--line2); position: relative;
+  }
+  .dCheck::after {
+    content: ''; position: absolute; left: 5px; top: 3px; width: 5px; height: 9px;
+    border-right: 2px solid #0a0f1a; border-bottom: 2px solid #0a0f1a;
+    transform: rotate(45deg) scale(0); transform-origin: center;
+  }
+  .dEntra .dCheck { animation: dCaixa 16s infinite; }
+  .dEntra .dCheck::after { animation: dTique 16s infinite; }
+  @keyframes dCaixa {
+    0%, 3%   { background: transparent; border-color: var(--line2); }
+    6%, 22%  { background: var(--amber); border-color: var(--amber); }
+    25%, 100% { background: transparent; border-color: var(--line2); }
+  }
+  @keyframes dTique {
+    0%, 4%   { transform: rotate(45deg) scale(0); }
+    7%, 22%  { transform: rotate(45deg) scale(1); }
+    25%, 100% { transform: rotate(45deg) scale(0); }
+  }
+
+  /* barra de autonomia / patrimonio enchendo */
+  .dTanque { height: 10px; border-radius: 99px; background: rgba(148,163,184,.18); overflow: hidden; margin: 10px 0; }
+  .dTanque i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--green), #22d3ee); animation: dEnche 16s ease-out infinite; }
+  @keyframes dEnche { 0% { width: 8% } 15%, 24% { width: 92% } 25%, 100% { width: 8% } }
+
+  /* alerta de estoque minimo */
+  .dAlerta {
+    display: flex; align-items: center; gap: 9px; margin-top: 12px;
+    background: rgba(239,106,90,.1); border: 1px solid rgba(239,106,90,.36);
+    border-radius: 10px; padding: 10px 12px; font-size: 13px; color: #ffc9c1;
+    animation: dAlerta 16s infinite;
+  }
+  .dAlerta b { color: #ff9d8f; }
+  @keyframes dAlerta {
+    0%, 8%   { opacity: 0; transform: translateY(6px); }
+    12%, 22% { opacity: 1; transform: none; }
+    25%, 100% { opacity: 0; }
+  }
+
+  .demoNota {
+    position: absolute; left: 22px; right: 22px; bottom: 16px;
+    font-size: 11.5px; color: #64768f; text-align: center;
+  }
+
+  @media (max-width: 720px) { .demo { min-height: 392px; } }
+
+  /* Movimento reduzido: congela na cena 4, que e' a que tem a resposta —
+     preco, autonomia ou patrimonio. Pagina parada tem que continuar
+     explicando o produto. */
+  @media (prefers-reduced-motion: reduce) {
+    .demo .cena { animation: none !important; opacity: 0; }
+    .demo .cena:last-of-type { opacity: 1; }
+    .demo .dEntra, .demo .dCheck, .demo .dCheck::after,
+    .demo .dBarraFill, .demo .dBarraPino, .demo .dTanque i,
+    .demo .dAlerta, .demo .rolo span, .demo .demoVivo i { animation: none !important; opacity: 1; }
+    .demo .dCheck { background: var(--amber); border-color: var(--amber); }
+    .demo .dCheck::after { transform: rotate(45deg) scale(1); }
+    .demo .dBarraFill { width: 68%; } .demo .dBarraPino { left: 68%; }
+    .demo .dTanque i { width: 92%; }
+    .demo .rolo span { transform: translateY(-3.45em); }
+  }
+
   footer { padding: 44px 0 66px; text-align: center; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
   footer a { color: var(--muted); }
 
@@ -329,7 +528,38 @@
     <div class="heroArte">
       <div class="janela">
         <div class="janelaBarra"><i></i><i></i><i></i><span class="janelaUrl">solardoc.app/off-grid</span></div>
-        <img src="/dimensionamento/img/tela.webp" alt="Tela do Dimensionamento Off-Grid dentro da plataforma SolarDoc" fetchpriority="high">
+        <div class="demo" data-cenas="4" role="img"
+             aria-label="Demonstração da tela do Dimensionamento Off-Grid em funcionamento">
+      <div class="demoTopo"><span>Off-grid · sítio sem rede</span><span class="demoVivo"><i></i>ao vivo</span></div>
+      <div class="cena">
+        <div class="dItem dEntra"><span class="dCheck"></span><span>Geladeira duplex</span></div>
+        <div class="dItem dEntra"><span class="dCheck"></span><span>Iluminação — 9 pontos LED</span></div>
+        <div class="dItem dEntra"><span class="dCheck"></span><span>Bomba d'água 1/2 cv</span></div>
+        <div class="dItem dEntra"><span class="dCheck"></span><span>TV e internet</span></div>
+        <div class="dItem dEntra"><span class="dCheck"></span><span>Máquina de lavar</span></div>
+      </div>
+      <div class="cena">
+        <div class="dLinha"><span>Consumo por dia</span><b>8,4 kWh</b></div>
+        <div class="dLinha"><span>Pico de partida da bomba</span><b>2.400 W</b></div>
+        <div class="dLinha" style="border:none"><span>Dias sem sol</span><b class="amber"><span class="rolo r4"><span>1 dia</span><span>2 dias</span><span>3 dias</span><span>2 dias</span></span></b></div>
+        <div class="dTanque"><i></i></div>
+        <p class="muted" style="font-size:12.5px;margin:0">Autonomia do banco de baterias</p>
+      </div>
+      <div class="cena">
+        <div class="dLinha"><span>Painéis</span><b>12 × 570 W</b></div>
+        <div class="dLinha"><span>Banco de baterias</span><b><span class="rolo r4"><span>14,3 kWh</span><span>19,2 kWh</span><span>28,7 kWh</span><span>19,2 kWh</span></span></b></div>
+        <div class="dLinha"><span>Inversor</span><b>5 kW · 48 V</b></div>
+        <div class="dLinha forte"><span>Ligação</span><b>2 séries × 6 paralelo</b></div>
+      </div>
+      <div class="cena">
+        <div class="dCards">
+          <div class="dCard"><span>Kit com frete até a obra</span><b><span class="rolo r4"><span>R$ 38.900</span><span>R$ 44.700</span><span>R$ 56.200</span><span>R$ 44.700</span></span></b></div>
+          <div class="dCard bom"><span>Aguenta sem sol</span><b><span class="rolo r4"><span>1 dia</span><span>2 dias</span><span>3 dias</span><span>2 dias</span></span></b></div>
+        </div>
+        <div class="dLinha" style="border:none;margin-top:12px"><span>Contra puxar rede (1,8 km)</span><b class="amber">R$ 112.000</b></div>
+      </div>
+      <p class="demoNota">A resposta que o cliente sempre pergunta, com número</p>
+        </div>
       </div>
       <img class="heroCel" src="/dimensionamento/img/celular.webp" loading="lazy" alt="A mesma tela no celular">
     </div>
