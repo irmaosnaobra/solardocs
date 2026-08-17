@@ -519,9 +519,9 @@
   <!-- AGENDAMENTO -->
   <section id="agendar">
     <div class="sh">
-      <div class="eyebrow">Vistoria técnica gratuita</div>
+      <div class="eyebrow">Ligação com especialista</div>
       <h2>Escolha o melhor <em>horário</em></h2>
-      <p class="sub">Um técnico vai até você, mede o telhado e o padrão, e volta com o <b>valor exato</b> e o projeto. Sem custo e sem compromisso.</p>
+      <p class="sub">Primeiro a gente <b>liga</b> no horário que você escolher: uns 10 minutos pra entender sua conta e marcar a vistoria gratuita no seu endereço.</p>
     </div>
 
     <div class="agBox">
@@ -614,30 +614,30 @@
           </div>
         </div>
 
-        <button class="btn navy" style="width:100%;justify-content:center;margin-top:6px" id="ag-btn" onclick="agendar()">Confirmar minha vistoria →</button>
+        <button class="btn navy" style="width:100%;justify-content:center;margin-top:6px" id="ag-btn" onclick="agendar()">Confirmar minha ligação →</button>
         <div class="agMsg" id="ag-msg"></div>
-        <div class="fineprint">Seus dados são usados só para agendar esta vistoria. Sem spam.</div>
+        <div class="fineprint">Seus dados são usados só para agendar esta ligação. Sem spam.</div>
       </div>
 
       <div class="ok" id="ag-ok">
         <div class="ic"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
-        <h3>Vistoria agendada!</h3>
+        <h3>Ligação agendada!</h3>
         <p id="ok-txt">—</p>
         <div class="okCard">
           <div class="okRow">
             <div class="okIc"><svg viewBox="0 0 24 24"><path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
-            <div class="okTx"><b>Um técnico vai até você.</b>A vistoria é presencial e gratuita — a gente mede o telhado e o padrão de energia no seu endereço.</div>
+            <div class="okTx"><b>A gente liga pra você.</b>No horário marcado, do número do seu consultor. São uns 10 minutos pra entender sua conta e tirar suas dúvidas.</div>
           </div>
           <div class="okRow">
             <div class="okIc"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8"/></svg></div>
-            <div class="okTx"><b>Você recebe o valor exato.</b>Depois da vistoria entregamos a proposta fechada — projeto, potência, garantia e a parcela no cartão 21x.</div>
+            <div class="okTx"><b>A vistoria é marcada na ligação.</b>Um técnico vai até o seu endereço medir o telhado e o padrão — de graça — e é dela que sai a proposta fechada com o valor exato.</div>
           </div>
           <div class="okRow">
             <div class="okIc"><svg viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01"/><path d="M21 12a9 9 0 0 1-9 9 8.9 8.9 0 0 1-4.3-1.1L3 21l1.1-4.7A8.9 8.9 0 0 1 3 12a9 9 0 1 1 18 0z"/></svg></div>
             <div class="okTx"><b>Confirmamos pelo WhatsApp.</b>Enviamos a confirmação e um lembrete antes do horário. Qualquer coisa, é só responder por lá.</div>
           </div>
         </div>
-        <p class="okObs">Obrigado pela confiança. A gente se vê <span id="ok-dia">na vistoria</span>!</p>
+        <p class="okObs">Obrigado pela confiança. A gente se fala <span id="ok-dia">na ligação</span>!</p>
       </div>
     </div>
   </section>
@@ -650,12 +650,12 @@
   <div class="cfBg" id="cf-bg" onclick="if(event.target===this) confirmarNao()">
     <div class="cf" role="dialog" aria-modal="true" aria-labelledby="cf-tit">
       <div class="ic"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
-      <h3 id="cf-tit">Você vai mesmo estar no local?</h3>
+      <h3 id="cf-tit">Você vai poder atender?</h3>
       <div class="quando" id="cf-quando">—</div>
-      <p>A vistoria é <b>presencial e gratuita</b>: um técnico vai até o seu endereço medir o telhado e o padrão de energia. Reserve <b>cerca de 1 hora</b>.</p>
-      <p>A agenda está concorrida e <b>cada horário tira um técnico da rua</b>. Confirme só se você — ou alguém responsável — vai estar lá.</p>
+      <p>É uma <b>ligação de uns 10 minutos</b> no horário acima. Nela a gente entende sua conta e marca a vistoria gratuita no seu endereço.</p>
+      <p>A agenda está concorrida e <b>cada horário é de alguém</b>. Confirme só se você vai poder falar nesse horário.</p>
       <div class="cfBtns">
-        <button type="button" class="btn navy" id="cf-sim" onclick="confirmarSim()">Sim, vou estar lá</button>
+        <button type="button" class="btn navy" id="cf-sim" onclick="confirmarSim()">Sim, pode ligar</button>
         <button type="button" class="btn ghost" onclick="confirmarNao()">Não vou conseguir</button>
       </div>
     </div>
@@ -810,8 +810,11 @@ function medirTemperatura(conta, urgencia, pagamento, decisor, posse){
 // pessoas diferentes), e um 13:30 de vistoria come o 14:00 de eletroposto dele —
 // a LP do eletroposto enxerga isso, ela lê a duração da ficha pelo created_by.
 const KWH_CORTE_TIME = 700;   // mesmo corte do backend (leadSolarFicha.ts)
-const DUR_VISTORIA_MS = 60 * 60 * 1000;   // visita presencial: 1 hora na casa do lead
+const DUR_VISTORIA_MS = 60 * 60 * 1000;   // sócios: a hora que a agenda encaixada reserva
 const DUR_PADRAO_MS   = 30 * 60 * 1000;   // apresentação de eletroposto / card de lead
+const DUR_LIGACAO_MS  = 15 * 60 * 1000;   // Nilce: o primeiro contato é ligação, 15 min
+/** Quanto tempo um agendamento SOLAR ocupa, por quem atende. */
+const durSolarDe = dono => SOCIOS.includes(dono) ? DUR_VISTORIA_MS : DUR_LIGACAO_MS;
 let slotSel = null;
 let donoLead = null;             // consultor que JÁ atende o telefone digitado (null = novo/não sei)
 let compromissos = [];           // [{ts, dono, dur}] — a agenda dos três, com duração por tipo
@@ -834,11 +837,28 @@ const isoDe = (ymd, hhmm) => new Date(`${ymd}T${hhmm}:00-03:00`).toISOString();
 // Horários de INÍCIO, por quem atende. Os dos sócios são a lista fechada do
 // Thiago (17/08) — as meias-horas que sobram entre as apresentações de eletroposto
 // dele e do Diego, mais as duas primeiras horas da manhã, que o eletroposto não
-// usa. A da Nilce não mudou: ela não tem eletroposto, então segue de hora em hora.
+// usa.
 const SOCIOS = ['Thiago', 'Diego'];
 const GRADE_SOCIOS = ['08:00','08:30','09:00','09:30','10:30','11:30',
                       '13:30','14:30','15:30','16:30','17:30','18:30'];
-const GRADE_NILCE  = ['08:00','09:00','10:00','11:00','13:00','14:00','15:00','16:00'];
+// Nilce, 17/08 (ordem do Thiago): 08:00–11:00 e 13:00–16:00, de 30 em 30. Ela não
+// tem eletroposto, então não precisa se encaixar em intervalo nenhum — o passo
+// menor é só pra dar mais opção de horário ao lead, e o almoço continua fechado.
+//
+// Isto é grade de VISTORIA, e a vistoria leva 1 hora: marcar 08:00 apaga o 08:30
+// DELA (o livresEm compara sobreposição). Ou seja, 14 horários na vitrine não são
+// 14 visitas — são ~7 visitas com o dobro de pontos de partida.
+//
+// NÃO confundir com a grade do CARD de ligação dela, que é outra coisa e vive no
+// backend (leadsMetaService.ts): 15 em 15 min, com teto no FIM_SOLAR_MIN.
+const GRADE_NILCE = (() => {
+  const out = [];
+  for (let t = 8 * 60; t <= 16 * 60; t += 30) {
+    if (t > 11 * 60 && t < 13 * 60) continue;    // 11:30 e 12:xx: almoço
+    out.push(String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'));
+  }
+  return out;
+})();
 function gradeDoDia(ymd, dosSocios){
   const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
   if(dow === 0 || dow === 6) return [];        // fim de semana: fechado
@@ -857,9 +877,11 @@ async function carregarOcupados(deYmd, ateYmd){
     compromissos = (Array.isArray(rows)?rows:[]).filter(a=>a.quando).map(a=>({
       ts: new Date(a.quando).getTime(),
       dono: String(a.vendedor_nome),
-      // vistoria da LP tira o consultor da rua por 1 hora; o resto (apresentação de
-      // eletroposto, card de lead do Meta) ocupa meia hora e devolve a agenda.
-      dur: a.created_by === 'lp_solar' ? DUR_VISTORIA_MS : DUR_PADRAO_MS,
+      // O solar da LP ocupa conforme quem atende: 1 hora nos sócios (a vistoria
+      // presencial que a grade encaixada reserva) e 15 min na Nilce (ligação). O
+      // resto — apresentação de eletroposto, card de lead do Meta — ocupa meia
+      // hora e devolve a agenda.
+      dur: a.created_by === 'lp_solar' ? durSolarDe(String(a.vendedor_nome)) : DUR_PADRAO_MS,
     }));
   }catch(e){ compromissos = []; }   // falhou: não trava a agenda, valida no envio
 }
@@ -872,7 +894,7 @@ async function carregarOcupados(deYmd, ateYmd){
 function livresEm(iso, nomes){
   const t = new Date(iso).getTime();
   return nomes.filter(n => !compromissos.some(c =>
-    c.dono === n && c.ts < t + DUR_VISTORIA_MS && t < c.ts + c.dur));
+    c.dono === n && c.ts < t + durSolarDe(n) && t < c.ts + c.dur));
 }
 // Rodízio da CONTA ALTA (Thiago↔Diego). Lead abaixo do corte vai direto pra
 // Nilce, sem passar por aqui. O contador é quantas fichas da LP já foram pra
@@ -1216,7 +1238,7 @@ async function gravarAgendamento(){
       // ficha velha esperando é exatamente o jeito de gravar o dado errado depois
       slotSel = null; pendente = null;
       await montarSlots();
-      btn.disabled = false; btn.textContent = 'Confirmar minha vistoria →';
+      btn.disabled = false; btn.textContent = 'Confirmar minha ligação →';
       document.getElementById('slots').scrollIntoView({behavior:'smooth', block:'center'});
       return erro(passou ? 'Esse horário já passou. Escolha outro acima — a agenda foi atualizada.'
                          : 'Esse horário acabou de ser preenchido. Escolha o próximo disponível acima.');
@@ -1257,7 +1279,7 @@ async function gravarAgendamento(){
   }catch(e){
     console.error(e);
     erro('Não consegui agendar agora. Chame no WhatsApp (34) 99816-5040 que a gente marca na hora.');
-    btn.disabled = false; btn.textContent = 'Confirmar minha vistoria →';
+    btn.disabled = false; btn.textContent = 'Confirmar minha ligação →';
   }
 }
 
