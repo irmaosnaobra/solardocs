@@ -616,6 +616,14 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-prev-folha .ep-page{min-height:297mm}
 .ep-prev-folha .ep-page+.ep-page{border-top:12px solid #0B1628}
 /* ===== CONTRATO (documento de várias folhas) ===== */
+/* Cabecalho sobrio: logo pequena a esquerda, identificacao em uma linha a
+   direita, regua fina embaixo. Sem caixa verde — ela e' da vitrine (orcamento e
+   recibo), e num contrato pesa como propaganda dentro do instrumento. */
+.ep-ctr-topo{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  border-bottom:1px solid #d6dbe2;padding-bottom:9px;margin-bottom:4px}
+.ep-ctr-logo{height:26px;width:auto;opacity:.9}
+.ep-ctr-ident{font-size:10px;color:#6b7684;letter-spacing:.3px;text-align:right;white-space:nowrap}
+.ep-ctr-ident b{color:#1a1a1a;font-weight:700}
 /* Ao contrário do recibo, aqui NÃO se encolhe pra caber: contrato pagina. */
 .ep-ctr-tit{text-align:center;font-size:14px;font-weight:900;color:#1a1a1a;text-transform:uppercase;letter-spacing:.6px;margin:18px 0 5px;line-height:1.45}
 .ep-ctr-sub{text-align:center;font-size:10.5px;color:#8a94a3;margin-bottom:14px}
@@ -8788,10 +8796,10 @@ function ctrHTML(d) {
 
   return `<div class="ep-doc">
     <div class="ep-page">
-      ${epTopoHTML('Contrato', dataTxt,
-        [['Contrato nº', d.num ? e(d.num) : ''],
-         ['Contratante', d.contratante ? e(d.contratante) : ''],
-         ['Local', d.cidade ? e(d.cidade) : '']], '')}
+      <div class="ep-ctr-topo">
+        <img class="ep-ctr-logo" src="/gerador/logo-eletroposto.png" alt="Irmãos na Obra">
+        <div class="ep-ctr-ident">${d.num ? 'Contrato nº <b>' + e(d.num) + '</b> · ' : ''}${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}</div>
+      </div>
 
       <div class="ep-ctr-tit">Contrato de Fornecimento e Instalação<br>de Estação de Recarga de Veículos Elétricos</div>
       <div class="ep-ctr-sub">Fornecimento e instalação${temOperacao ? ', ' + entregaOperacao : ''}</div>
