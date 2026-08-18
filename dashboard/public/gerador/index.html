@@ -432,7 +432,8 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
   html,body{background:#fff!important;height:auto!important;margin:0!important;padding:0!important}
   /* margem 0 no papel = o navegador não tem onde carimbar data/URL/nº de página.
      O respiro de 14mm é o padding de cada .ep-page (páginas A4 explícitas, quebra controlada). */
-  @page{margin:0}
+  @page{size:A4;margin:0}
+
   /* Foto da tela do simulador: a folha INTEIRA fica escura, sem moldura branca em
      volta do retrato. Sem estado em JS pra limpar depois — quem decide é o que está
      dentro do host: só a foto tem .simshot, os documentos .ep-* seguem no branco. */
@@ -475,6 +476,17 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
    com altura fixa de 293mm cada página vazava e o PDF saía com o dobro de folhas. */
 .ep-page{box-sizing:border-box;padding:16mm 22mm;page-break-after:always;break-after:page;position:relative;display:flex;flex-direction:column;min-height:255mm}
 .ep-page>.ep-pagefoot{margin-top:auto}
+/* O RODAPE NO PE' DA FOLHA — a regra vive AQUI, depois da geral, de proposito.
+   Escrita la' em cima no @media print ela tinha a mesma especificidade e perdia
+   pro .ep-page de baixo; o rodape continuava a 234mm e ninguem via o porque.
+
+   Na impressao a caixa passa a valer 100vh: em pagina impressa o vh mede a
+   CAIXA DE PAGINA (a area util, ja' descontada a margem que o navegador
+   aplicar), entao a folha enche o que existe de verdade. Os 255mm eram defesa
+   contra altura fixa maior que a area util, que dobrava o numero de folhas —
+   com 100vh essa defesa deixa de ser necessaria, porque nunca passa do que
+   cabe. Medido: contrato segue em 4 folhas com margem 0 e com margem de 10mm. */
+@media print { .ep-page{min-height:100vh} }
 .ep-page:last-child{page-break-after:auto;break-after:auto}
 /* marca d'água: arte navy centrada atrás do conteúdo de cada folha (img imprime sempre, independe de "background graphics") */
 .ep-marca{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:78%;opacity:.16;z-index:0;pointer-events:none}
