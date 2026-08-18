@@ -2,8 +2,10 @@ import { Router } from 'express';
 import { createCheckout, createPublicCheckout, stripeWebhook, getCheckoutInfo, createBillingPortal, getCupomInfo, getPixCheckoutInfo } from '../controllers/paymentsController';
 import {
   criarPixRecorrenteHandler, statusPixRecorrenteHandler, cancelarPixRecorrenteHandler, asaasWebhookHandler,
+  criarPixPublicoHandler, statusPixPublicoHandler,
 } from '../controllers/asaasPixController';
 import { authMiddleware } from '../middleware/auth';
+import { pixPublicoRateLimit } from '../middleware/pixPublicoRateLimit';
 
 const router = Router();
 
@@ -20,6 +22,13 @@ router.get('/pix-checkout', getPixCheckoutInfo); // sem auth — a tela /quase-l
 router.post('/pix-recorrente', authMiddleware, criarPixRecorrenteHandler);
 router.get('/pix-recorrente', authMiddleware, statusPixRecorrenteHandler);
 router.post('/pix-recorrente/cancelar', authMiddleware, cancelarPixRecorrenteHandler);
+
+// SEM login: quem abandonou o checkout da Stripe cai direto na tela de Pix e
+// paga ali, antes de ter conta. Rate-limit porque é a única rota aberta que
+// cria cobrança de verdade no gateway, e trava de ambiente (PIX_PUBLICO_ATIVO)
+// dentro do handler — sem a variável, responde 503 e ninguém entra por aqui.
+router.post('/pix-recorrente/publico', pixPublicoRateLimit, criarPixPublicoHandler);
+router.get('/pix-recorrente/publico/:id', statusPixPublicoHandler);
 router.post('/asaas/webhook', asaasWebhookHandler); // sem auth — validado pelo header asaas-access-token
 
 export default router;

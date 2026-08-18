@@ -108,3 +108,15 @@ export function bolhasPixCheckout(): string[] {
     'Assim que o pagamento cair seu acesso libera sozinho — não precisa me mandar comprovante 🙌',
   ];
 }
+
+// Trava do caminho PÚBLICO de Pix (tela /pix-automatico e a rota sem login que
+// cria a cobrança). Fica aqui, e não no controller, porque quem decide o
+// cancel_url do Stripe é o paymentsController e quem serve a rota é o
+// asaasPixController — a regra tem que ser a MESMA nos dois, senão a Stripe
+// manda gente pra uma tela que responde 503.
+//
+// Sem a variável, desligado. Rota aberta que cria cobrança de verdade no
+// gateway não sobe ligada no mesmo empurrão em que é escrita.
+export function pixPublicoAtivo(): boolean {
+  return (process.env.PIX_PUBLICO_ATIVO || '').trim().toLowerCase() === 'true';
+}

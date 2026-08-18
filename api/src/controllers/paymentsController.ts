@@ -11,7 +11,7 @@ import { upsertSale, sendPurchaseForSale, classificarOrigem } from '../services/
 import { avisarVendaAoDono, avisarRenovacaoAoDono, historicoDoCliente } from '../services/vendaAviso';
 import { sendUtmifyOrder } from '../services/utmifyOrders';
 import { concederCursoPorAssinatura } from '../services/kitIntegradorService';
-import { pixCheckoutUrl, PIX_MES_VALOR } from '../utils/pixInfo';
+import { pixCheckoutUrl, PIX_MES_VALOR, pixPublicoAtivo } from '../utils/pixInfo';
 import { asaasHabilitado } from '../services/asaas/asaasClient';
 import { resolverPrecoAnual, precoAnualConhecido, ANUAL_VALOR, ANUAL_EQUIV_MES, FERRAMENTAS_DO_ANUAL } from '../services/precoAnual';
 import { concederAcesso } from '../services/produtos/acessos';
@@ -503,7 +503,11 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
   // passa pelo cancel_url da Stripe — ele desfaz a navegação e devolve a pessoa
   // pra página de onde ela saiu. Quem guarda esse destino é o front, pra levar
   // ela pra cá quando ela voltar por ali. Um destino só, calculado aqui.
-  const cancelUrl = `${dashboardUrl}/quase-la?cancelado=1&via=conta&plano=${encodeURIComponent(ehAnual ? 'anual' : planInfo.plano === 'ilimitado' ? 'vip' : planInfo.plano)}${aplicado ? `&cupom=${encodeURIComponent(aplicado.cupom.codigo)}` : ''}`;
+  const cancelUrl = destinoDeSaida({
+    dashboardUrl, via: 'conta', ehAnual,
+    plano: ehAnual ? 'anual' : planInfo.plano === 'ilimitado' ? 'vip' : planInfo.plano,
+    cupom: aplicado?.cupom.codigo ?? null,
+  });
 
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
@@ -554,6 +558,34 @@ export async function createCheckout(req: Request, res: Response): Promise<void>
   });
 
   res.json({ url: session.url, cancelUrl, cupom: aplicado?.cupom.codigo ?? null, primeiroMes: aplicado?.primeiroMes ?? null });
+}
+
+// Para onde vai quem SAI do checkout da Stripe.
+//
+// Antes era sempre a /quase-la, que oferece Pix e cartão lado a lado. Agora,
+// quando o trilho de Pix está no ar, a pessoa cai DIRETO na tela de pagar —
+// uma tela a menos entre a desistência e o Pix, que é onde ela ainda decide.
+//
+// Dois destinos porque são duas pessoas diferentes:
+//   `conta` → já tem login: /pix-recorrente, que existe desde 14/08 e puxa o
+//             e-mail dela sozinha.
+//   `lp`    → veio do anúncio e não tem conta: /pix-automatico, a tela pública,
+//             que só entra no ar com PIX_PUBLICO_ATIVO.
+//
+// O ANUAL nunca vai pro Pix: o trilho do Asaas só tem a mensalidade de R$ 67,
+// então mandar quem estava levando os 12 meses pra lá seria trocar o produto
+// dele no meio da compra. Esse segue na /quase-la, que mostra as duas opções.
+export function destinoDeSaida(args: {
+  dashboardUrl: string; via: 'conta' | 'lp'; ehAnual: boolean; plano: string; cupom?: string | null;
+}): string {
+  const qs = `cancelado=1&via=${args.via}&plano=${encodeURIComponent(args.plano)}`
+    + (args.cupom ? `&cupom=${encodeURIComponent(args.cupom)}` : '');
+
+  if (!args.ehAnual && asaasHabilitado()) {
+    if (args.via === 'conta') return `${args.dashboardUrl}/pix-recorrente?${qs}`;
+    if (pixPublicoAtivo()) return `${args.dashboardUrl}/pix-automatico?${qs}`;
+  }
+  return `${args.dashboardUrl}/quase-la?${qs}`;
 }
 
 // Checkout PÚBLICO (sem login) — fluxo LP → Stripe → Cadastro.
@@ -653,7 +685,11 @@ export async function createPublicCheckout(req: Request, res: Response): Promise
     // Ver a nota do outro checkout: "voltar" no Stripe cai na oferta de Pix,
     // com o mesmo plano e o mesmo cupom que ele estava levando. Vai junto na
     // resposta porque o voltar DO NAVEGADOR não aciona o cancel_url da Stripe.
-    const cancelUrl = `${dashboardUrl}/quase-la?cancelado=1&via=lp&plano=${encodeURIComponent(ehAnual ? 'anual' : planInfo.plano === 'ilimitado' ? 'vip' : planInfo.plano)}${aplicado ? `&cupom=${encodeURIComponent(aplicado.cupom.codigo)}` : ''}`;
+    const cancelUrl = destinoDeSaida({
+      dashboardUrl, via: 'lp', ehAnual,
+      plano: ehAnual ? 'anual' : planInfo.plano === 'ilimitado' ? 'vip' : planInfo.plano,
+      cupom: aplicado?.cupom.codigo ?? null,
+    });
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',

@@ -9,9 +9,11 @@ import { logger } from '../utils/logger';
 import { ApiError } from '../utils/apiError';
 import { asaasHabilitado } from '../services/asaas/asaasClient';
 import {
-  criarPixRecorrente, buscarAssinaturaAtiva, cancelarPixRecorrente, docValido, soDigitos, PLANOS_PIX,
+  criarPixRecorrente, buscarAssinaturaAtiva, buscarAssinaturaPorId,
+  cancelarPixRecorrente, docValido, soDigitos, PLANOS_PIX,
 } from '../services/asaas/pixRecorrenteService';
 import { processarWebhookAsaas, AsaasWebhookBody } from '../services/asaas/asaasWebhookService';
+import { pixPublicoAtivo } from '../utils/pixInfo';
 
 function responderErro(res: Response, err: unknown, contexto: string): void {
   const status = (err as { statusCode?: number; status?: number })?.statusCode
@@ -138,5 +140,96 @@ export async function asaasWebhookHandler(req: Request, res: Response): Promise<
     // travas de idempotência seguram a reentrega.
     logger.error('asaas-webhook', 'processamento falhou — devolvendo 500 pro Asaas reenviar', err);
     res.status(500).json({ error: 'falha ao processar' });
+  }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CAMINHO PÚBLICO — quem abandonou o checkout da Stripe e ainda não tem conta.
+//
+// O trilho de Pix já nasceu preparado pra isto: `criarPixRecorrente` aceita
+// `userId: null` e `asaas_pix_assinaturas.user_id` é nullable. O que faltava
+// era a porta. Ela fica atrás de PIX_PUBLICO_ATIVO: rota sem login que cria
+// cobrança de verdade não entra no ar no mesmo empurrão em que é escrita.
+//
+// Pagou sem conta, o webhook já sabe se virar: procura o dono pelo e-mail e,
+// não achando, avisa o Thiago pra criar na mão em vez de engolir o pagamento.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
+
+// POST /payments/pix-recorrente/publico — sem login.
+export async function criarPixPublicoHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const { plan, email, nome, cpfCnpj, whatsapp, cupom } = (req.body ?? {}) as Record<string, string>;
+
+    if (!pixPublicoAtivo()) throw new ApiError(503, 'Pagamento por Pix sem conta ainda não está disponível');
+    if (!asaasHabilitado()) throw new ApiError(503, 'Pagamento por Pix recorrente ainda não está disponível');
+    if (!PLANOS_PIX[plan]) throw new ApiError(400, 'Plano inválido');
+
+    const mail = (email || '').trim().toLowerCase();
+    if (!EMAIL_RE.test(mail)) throw new ApiError(400, 'Informe um e-mail válido');
+    if (!docValido(cpfCnpj)) throw new ApiError(400, 'Informe um CPF ou CNPJ válido');
+    if (!(nome || '').trim()) throw new ApiError(400, 'Informe seu nome');
+
+    // Já existe conta com esse e-mail? Amarra o contrato nela. Sem isto, quem
+    // tem conta mas não estava logado pagaria e cairia no alerta de
+    // "PAGAMENTO SEM CONTA" — dinheiro entrando e acesso preso na mão.
+    const { data: jaTem } = await supabase
+      .from('users').select('id, whatsapp').eq('email', mail).maybeSingle();
+    const dono = (jaTem as { id: string; whatsapp: string | null } | null) ?? null;
+
+    const criado = await criarPixRecorrente({
+      userId: dono?.id ?? null,
+      email: mail,
+      nome: nome.trim(),
+      cpfCnpj,
+      whatsapp: soDigitos(whatsapp) || dono?.whatsapp || null,
+      planKey: plan,
+      cupom,
+    });
+
+    const fone = soDigitos(whatsapp);
+    if (dono && fone && !dono.whatsapp) {
+      await supabase.from('users').update({ whatsapp: fone }).eq('id', dono.id);
+    }
+
+    logger.info('pix-publico', `contrato ${criado.contractId} para ${mail} (${criado.modo}, conta ${dono ? 'existente' : 'ainda não criada'})`);
+
+    res.json({
+      ...criado,
+      temConta: Boolean(dono),
+      instrucao: criado.modo === 'automatico'
+        ? `Pague este Pix${criado.cupom ? ` de R$ ${criado.primeiroMes}` : ''} no app do banco e autorize a cobrança mensal quando ele perguntar. Dos próximos meses em diante o débito é automático${criado.cupom ? `, de R$ ${criado.valor}` : ''}.`
+        : `Pague este Pix${criado.cupom ? ` de R$ ${criado.primeiroMes}` : ''} pra liberar o acesso. Todo mês você recebe um novo código no WhatsApp e no e-mail${criado.cupom ? ` (R$ ${criado.valor} a partir do mês que vem)` : ''} — a confirmação é automática.`,
+    });
+  } catch (err) {
+    responderErro(res, err, 'criar-publico');
+  }
+}
+
+// GET /payments/pix-recorrente/publico/:id — a tela pergunta se já caiu.
+// Chave é o uuid da linha, devolvido na criação. Responde SÓ o que a tela
+// desenha: e-mail, CPF e ids do Asaas não saem daqui.
+export async function statusPixPublicoHandler(req: Request, res: Response): Promise<void> {
+  try {
+    if (!pixPublicoAtivo()) throw new ApiError(503, 'Indisponível');
+    const linha = await buscarAssinaturaPorId(String(req.params.id || ''));
+    if (!linha) throw new ApiError(404, 'Contrato não encontrado');
+
+    res.json({
+      id: linha.id,
+      status: linha.status,
+      modo: linha.modo,
+      plano: linha.plano,
+      valor: Number(linha.valor),
+      primeiroMes: Number(linha.primeiro_mes ?? linha.valor),
+      cupom: linha.cupom,
+      contractId: linha.contract_id,
+      qrPayload: linha.qr_payload,
+      proximoVencimento: linha.proximo_vencimento,
+    });
+  } catch (err) {
+    responderErro(res, err, 'status-publico');
   }
 }

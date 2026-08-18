@@ -36,6 +36,11 @@ export const PLANOS_PIX = PLANOS;
 export type ModoPix = 'automatico' | 'assinatura';
 
 export interface PixRecorrenteCriado {
+  // uuid da linha em asaas_pix_assinaturas. E' a chave que a tela PUBLICA usa
+  // pra perguntar o status enquanto espera a autorizacao cair — o contract_id
+  // NAO serve pra isso: `SD-VIP-<timestamp base36><4 aleatorios>` e' curto e
+  // adivinhavel, e quem adivinhasse leria contrato dos outros.
+  id: string | null;
   modo: ModoPix;
   contractId: string;
   plano: string;
@@ -246,23 +251,24 @@ export async function criarPixRecorrente(args: {
 
   // Já tem contrato vivo? Devolve o mesmo em vez de abrir um segundo — dois
   // contratos ativos no mesmo CPF é cobrança em dobro com outro nome.
-  if (args.userId) {
-    const existente = await buscarAssinaturaAtiva(args.userId);
-    if (existente) {
-      return {
-        modo: existente.modo as ModoPix,
-        contractId: existente.contract_id,
-        plano: existente.plano,
-        valor: Number(existente.valor),
-        // Contrato que já existe mantém o cupom da adesão dele — aplicar um novo
-        // aqui daria segundo desconto a quem já entrou.
-        primeiroMes: Number(existente.primeiro_mes ?? existente.valor),
-        cupom: existente.cupom ?? null,
-        qrPayload: existente.qr_payload ?? null,
-        qrImagemBase64: null, // o QR só é entregue na criação; o copia-e-cola basta
-        status: existente.status,
-      };
-    }
+  const existente = args.userId
+    ? await buscarAssinaturaAtiva(args.userId)
+    : await buscarAssinaturaAtivaSemConta(args.email, args.cpfCnpj);
+  if (existente) {
+    return {
+      id: existente.id,
+      modo: existente.modo as ModoPix,
+      contractId: existente.contract_id,
+      plano: existente.plano,
+      valor: Number(existente.valor),
+      // Contrato que já existe mantém o cupom da adesão dele — aplicar um novo
+      // aqui daria segundo desconto a quem já entrou.
+      primeiroMes: Number(existente.primeiro_mes ?? existente.valor),
+      cupom: existente.cupom ?? null,
+      qrPayload: existente.qr_payload ?? null,
+      qrImagemBase64: null, // o QR só é entregue na criação; o copia-e-cola basta
+      status: existente.status,
+    };
   }
 
   const customerId = await garantirClienteAsaas({
@@ -308,7 +314,7 @@ export async function criarPixRecorrente(args: {
     qrImagem = qr?.encodedImage ?? null;
   }
 
-  const { error } = await supabase.from('asaas_pix_assinaturas').insert({
+  const { data: gravada, error } = await supabase.from('asaas_pix_assinaturas').insert({
     user_id: args.userId,
     email: args.email.toLowerCase().trim(),
     cpf_cnpj: soDigitos(args.cpfCnpj),
@@ -323,7 +329,7 @@ export async function criarPixRecorrente(args: {
     cupom: aplicado?.cupom.codigo ?? null,
     status,
     qr_payload: qrPayload,
-  });
+  }).select('id').maybeSingle();
 
   // Cobrança criada no Asaas e linha não gravada = cliente paga e o webhook não
   // acha a quem creditar. Grita alto: é o pior estado possível deste fluxo.
@@ -332,6 +338,7 @@ export async function criarPixRecorrente(args: {
   }
 
   return {
+    id: (gravada as { id: string } | null)?.id ?? null,
     modo, contractId, plano: info.plano, valor: info.valor, primeiroMes,
     cupom: aplicado?.cupom.codigo ?? null, qrPayload, qrImagemBase64: qrImagem, status,
   };
@@ -348,6 +355,40 @@ export interface LinhaPixRecorrente {
 }
 
 const COLS = 'id, user_id, email, modo, authorization_id, subscription_id, contract_id, plano, valor, primeiro_mes, cupom, status, qr_payload, ultimo_pagamento_em, proximo_vencimento';
+
+// Mesma trava do `buscarAssinaturaAtiva`, para quem AINDA NAO TEM CONTA: o
+// caminho publico (abandono de checkout) chega sem userId, e sem isto cada
+// tentativa abriria um contrato novo no mesmo CPF. Dois contratos ativos no
+// mesmo CPF e' cobranca em dobro — foi assim que nasceram as 111 assinaturas
+// para 85 e-mails do lado da Stripe. Procura por e-mail OU documento porque a
+// pessoa erra o e-mail com mais facilidade do que o proprio CPF.
+export async function buscarAssinaturaAtivaSemConta(
+  email: string, cpfCnpj: string,
+): Promise<LinhaPixRecorrente | null> {
+  const doc = soDigitos(cpfCnpj);
+  const alvo = email.toLowerCase().trim();
+  const { data } = await supabase
+    .from('asaas_pix_assinaturas')
+    .select(COLS)
+    .or(`email.eq.${alvo},cpf_cnpj.eq.${doc}`)
+    .in('status', ['pendente', 'ativo', 'inadimplente'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (data as LinhaPixRecorrente | null) ?? null;
+}
+
+// Status de UM contrato pela chave publica (o uuid da linha). Devolve a linha
+// inteira; quem expoe pra fora escolhe o que mostrar.
+export async function buscarAssinaturaPorId(id: string): Promise<LinhaPixRecorrente | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+  const { data } = await supabase
+    .from('asaas_pix_assinaturas')
+    .select(COLS)
+    .eq('id', id)
+    .maybeSingle();
+  return (data as LinhaPixRecorrente | null) ?? null;
+}
 
 export async function buscarAssinaturaAtiva(userId: string): Promise<LinhaPixRecorrente | null> {
   const { data } = await supabase
