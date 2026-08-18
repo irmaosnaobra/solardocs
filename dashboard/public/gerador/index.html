@@ -391,6 +391,18 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 /* padrão que não deve aguentar: é o aviso que evita marcar reunião pra um ponto
    que já nasce com obra de aumento de carga na concessionária */
 .cad-alerta{display:block;margin-top:4px;font-size:11px;font-weight:800;color:#FCA5A5;line-height:1.35}
+/* quantos do outro lado estão perto — clicável, abre o painel abaixo da tabela */
+.cad-par{background:rgba(96,165,250,.14);border:1px solid rgba(96,165,250,.38);border-radius:9px;
+  color:#93C5FD;font-family:inherit;font-size:15px;font-weight:800;padding:7px 11px;cursor:pointer;
+  min-height:40px;min-width:52px;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.1}
+.cad-par:hover{background:rgba(96,165,250,.22)}
+.cad-painel{margin-top:14px;border-top:1px solid rgba(148,163,184,.20);padding-top:12px}
+.cad-painel[hidden]{display:none}
+.cad-par-topo{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;font-size:13.5px}
+.cad-par-linha{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:9px 0;
+  border-bottom:1px solid rgba(148,163,184,.12);font-size:13.5px}
+.cad-par-linha b{min-width:170px}
+.cad-par-linha span{color:#94A3B8;font-weight:600}
 @media(max-width:720px){
   .cad-topo{flex-direction:column;align-items:stretch}
   .cad-busca{min-width:0;flex:1}
@@ -648,6 +660,15 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
    medido pra caber (documento fecha em ~1.100px dos 1.123px do A4). */
 .ep-rec{padding-top:11mm;padding-bottom:11mm}
 .ep-rec .ep-section{margin:11px 0 8px}
+/* ESTUDO: a folha 1 fechava em 309,9mm e vazava pra uma 5a folha enquanto o
+   rodape prometia 4. Aperto so' de MARGEM — fonte e conteudo ficam como estao,
+   porque e' documento que o cliente le' e encolher texto pra caber muda o que
+   ele recebe. Mesmo padrao de escopo do recibo, logo acima. */
+.ep-estudo .ep-section{margin:7px 0 6px}
+.ep-estudo .ep-exec{margin-bottom:9px;padding:10px 16px}
+.ep-estudo .ep-topo{margin-bottom:3px}
+.ep-estudo .ep-mkt{margin-bottom:6px}
+.ep-estudo .ep-mkt-note{margin-bottom:4px}
 .ep-rec .ep-kv td{padding:5px 0}
 .ep-rec .ep-forma-label{margin:11px 0 6px}
 .ep-rec-hero{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;background:#2f6b10;color:#fff;border-radius:8px;padding:14px 18px;margin:10px 0 12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -3041,6 +3062,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="eletro-cmp-scroll"><table class="eletro-cmp cadtab" id="cad-tabela">
           <tbody><tr><td style="color:#94A3B8;padding:18px">Carregando…</td></tr></tbody>
         </table></div>
+        <!-- Quem está perto: fica FORA da tabela porque cadRender remonta o
+             tbody a cada tecla da busca, e painel dentro da linha perderia o
+             estado a cada letra. -->
+        <div class="cad-painel" id="cad-painel-pares" hidden></div>
       </div>
     </div><!-- /eletro-pane-cadastros -->
 
@@ -6405,6 +6430,11 @@ const CAD_PONTO_FICHA = ['definido', 'em_vista'];
 const CAD_STATUS = { novo: 'Novo', falando: 'Falando', conectado: 'Conectado', sem_interesse: 'Sem interesse' };
 let cadLado = 'ponto';
 let cadDados = null;   // null = nunca carregou
+// Pareamento por proximidade, calculado no servidor (/_api/io/eletroposto/parceria/pares).
+// `null` significa "não consegui calcular" — que é diferente de "ninguém perto",
+// e a célula precisa dizer coisas diferentes nos dois casos.
+let cadPares = null;
+let cadParesAberto = null;   // "tab:id" da linha com o painel aberto
 
 function cadAba(lado) {
   cadLado = lado;
@@ -6425,13 +6455,21 @@ async function cadCarregar(forcar) {
     // A ficha vem INTEIRA (são poucas dezenas) e o lado é decidido aqui, não no
     // filtro do banco: a mesma leitura alimenta as duas abas, e a regra fica num
     // lugar só em vez de espalhada em dois querystrings.
-    const [pontos, capital, fichas] = await Promise.all([
+    const API_PARES = (location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api')
+      + '/io/eletroposto/parceria/pares';
+    const [pontos, capital, fichas, pares] = await Promise.all([
       supaGet('eletroposto_parceria?lado=eq.ponto&order=created_at.desc&limit=500&select=*'),
       supaGet('eletroposto_parceria?lado=eq.capital&order=created_at.desc&limit=500&select=*'),
       supaGet('eletroposto_nota1?select=id,created_at,nome,telefone,cidade,perfil,ponto,invest,'
               + 'endereco,capital_faixa,tem_ponto,pts,status,nota_interna'
               + '&order=created_at.desc&limit=500'),
+      // A distância é calculada no servidor (a tabela dos 5.570 municípios são
+      // 408 KB e a régua tem que ser a MESMA do aviso no WhatsApp). Se falhar, a
+      // lista carrega do mesmo jeito — perder a coluna de par é chato, perder a
+      // lista é a tela inteira.
+      fetch(API_PARES).then(r => r.json()).catch(() => null),
     ]);
+    cadPares = pares && pares.pares ? pares.pares : null;
     // Quem já se cadastrou na página não aparece duas vezes: o cadastro é mais
     // recente e mais completo que a ficha de onde ele saiu.
     const jaTem = new Set([...(capital || []), ...(pontos || [])].map(c => String(c.telefone)));
@@ -6505,7 +6543,10 @@ function cadRender() {
     // Vazio tem DOIS motivos e eles pedem reação diferente: filtro que não
     // achou nada é do usuário; lista sem ninguém é do negócio.
     const semNinguem = !cadDados[cadLado].length;
-    tb.innerHTML = '<tr><td colspan="6" style="color:#94A3B8;padding:20px;line-height:1.6">' + (semNinguem
+    // O colspan acompanha o cabeçalho de cada lado — fixo, ele encolhe a
+    // mensagem em silêncio quando uma coluna entra (não dá erro no console).
+    const nCols = cadLado === 'ponto' ? 8 : 7;
+    tb.innerHTML = '<tr><td colspan="' + nCols + '" style="color:#94A3B8;padding:20px;line-height:1.6">' + (semNinguem
       ? (cadLado === 'ponto'
         ? '<b>Nenhum ponto cadastrado ainda.</b><br>Enquanto esta lista estiver vazia, os investidores da outra aba não têm o que receber — divulgar solardoc.app/io/eletroposto/parceria é o que destrava.'
         : '<b>Ninguém com capital declarado ainda.</b>')
@@ -6513,9 +6554,10 @@ function cadRender() {
     return;
   }
 
+  const colPar = cadLado === 'ponto' ? '<th>Investidores perto</th>' : '<th>Pontos perto</th>';
   const cab = cadLado === 'ponto'
-    ? '<tr><th>Quem</th><th>Local</th><th>Cidade</th><th>Endereço</th><th>Padrão de entrada</th><th>Situação</th><th>Status</th></tr>'
-    : '<tr><th>Quem</th><th>Cidade</th><th>Quanto</th><th>Com quê</th><th>Origem</th><th>Status</th></tr>';
+    ? '<tr><th>Quem</th><th>Local</th><th>Cidade</th><th>Endereço</th><th>Padrão de entrada</th><th>Situação</th>' + colPar + '<th>Status</th></tr>'
+    : '<tr><th>Quem</th><th>Cidade</th><th>Quanto</th><th>Com quê</th><th>Origem</th>' + colPar + '<th>Status</th></tr>';
 
   tb.innerHTML = cab + linhas.map(r => {
     const tel = String(r.telefone || '').replace(/\D/g, '');
@@ -6544,15 +6586,73 @@ function cadRender() {
         + '<td class="cad-end">' + escapeHtml(r.ponto_endereco || '—')
           + (r.obs ? '<span class="cad-sub">' + escapeHtml(r.obs) + '</span>' : '') + '</td>'
         + cadPadraoCel(r)
-        + '<td>' + escapeHtml(r.ponto_fluxo || '—') + '</td>' + st + '</tr>';
+        + '<td>' + escapeHtml(r.ponto_fluxo || '—') + '</td>' + cadParesCel(r) + st + '</tr>';
     }
     return '<tr>' + nome
       + '<td>' + escapeHtml(r.cidade || '—') + '</td>'
       + '<td>' + escapeHtml(r.capital_faixa || '—') + '</td>'
       + '<td>' + escapeHtml(r.capital_origem || '—') + (r.prazo ? '<span class="cad-sub">' + escapeHtml(r.prazo) + '</span>' : '') + '</td>'
-      + '<td><span class="cad-org ' + (r.deFicha ? 'ficha' : 'cad') + '">'
-        + (r.deFicha ? 'da ficha' : 'cadastro') + '</span></td>' + st + '</tr>';
+      + '<td>' + org + '</td>' + cadParesCel(r) + st + '</tr>';
   }).join('');
+
+  cadPainelPares();
+}
+
+// ── A célula "quem está perto" ──────────────────────────────────────────────
+// TRÊS ESTADOS, e eles não podem se confundir — é a regra da casa: métrica que
+// não dá pra medir vira "—", nunca 0.
+//   número  medi e achei tantos dentro de 400 km (clicável, abre o painel)
+//   0       medi e não achei ninguém
+//   —       NÃO consegui medir (cidade que não resolve, ou o cálculo caiu)
+function cadParesCel(r) {
+  const ref = r.tab === 'eletroposto_parceria' ? 'parceria:' + r.id : 'nota1:' + r.id;
+  if (!cadPares) return '<td title="não consegui calcular as distâncias agora">—</td>';
+  const lista = cadPares[ref];
+  if (!lista) return '<td title="não consegui localizar esta cidade no mapa">—</td>';
+  if (!lista.length) return '<td>0</td>';
+  const maisPerto = lista[0].km === 0 ? 'mesma cidade' : lista[0].km + ' km';
+  return '<td><button type="button" class="cad-par" onclick="cadAbrirPares(\'' + ref + '\')">'
+    + lista.length + '<span class="cad-sub" style="margin:0">' + maisPerto + '</span></button></td>';
+}
+
+// O painel fica FORA da tabela de propósito: cadRender remonta o tbody inteiro a
+// cada tecla da busca, e linha expandida perderia o estado a cada letra digitada.
+function cadAbrirPares(ref) {
+  cadParesAberto = cadParesAberto === ref ? null : ref;
+  cadPainelPares();
+}
+
+function cadPainelPares() {
+  const el = document.getElementById('cad-painel-pares');
+  if (!el) return;
+  if (!cadParesAberto || !cadPares || !cadPares[cadParesAberto]) { el.hidden = true; return; }
+
+  // O outro lado é onde os pares moram: quem está na aba do ponto casa com
+  // investidor, e vice-versa.
+  const outro = cadLado === 'ponto' ? cadDados.capital : cadDados.ponto;
+  const eu = (cadDados[cadLado] || []).find(r =>
+    (r.tab === 'eletroposto_parceria' ? 'parceria:' : 'nota1:') + r.id === cadParesAberto);
+
+  const linhas = cadPares[cadParesAberto].map(p => {
+    const [tab, id] = p.ref.split(':');
+    const alvo = outro.find(o => o.id === Number(id)
+      && o.tab === (tab === 'parceria' ? 'eletroposto_parceria' : 'eletroposto_nota1'));
+    if (!alvo) return '';
+    const tel = String(alvo.telefone || '').replace(/\D/g, '');
+    return '<div class="cad-par-linha">'
+      + '<b>' + escapeHtml(alvo.nome || '—') + '</b>'
+      + '<span>' + escapeHtml(alvo.cidade || '—') + ' · ' + (p.km === 0 ? 'mesma cidade' : p.km + ' km') + '</span>'
+      + (alvo.deFicha ? '<span class="cad-org ficha">da ficha</span>' : '<span class="cad-org cad">cadastro</span>')
+      + (tel ? '<a class="cad-wa" href="https://wa.me/' + tel + '" target="_blank" rel="noopener">WhatsApp</a>' : '')
+      + '</div>';
+  }).filter(Boolean).join('');
+
+  el.innerHTML = '<div class="cad-par-topo"><b>'
+    + (cadLado === 'ponto' ? 'Investidores perto de ' : 'Pontos perto de ')
+    + escapeHtml((eu && eu.nome) || '—') + '</b>'
+    + '<button type="button" class="ehist-btn" onclick="cadAbrirPares(null)">fechar</button></div>'
+    + (linhas || '<div class="cad-sub" style="margin:0">Os pares saíram da lista com o filtro atual.</div>');
+  el.hidden = false;
 }
 
 // ── A célula do padrão de entrada ───────────────────────────────────────────
@@ -7247,7 +7347,7 @@ function eletroImprimir() {
   const pageFoot = n => `<div class="ep-pagefoot"><span>Estudo de Viabilidade — Eletroposto${t.cliente ? ' · ' + t.cliente : ''}</span><span>Página ${n} de 4</span></div>`;
 
   host.innerHTML = `
-    <div class="ep-doc">
+    <div class="ep-doc ep-estudo">
       <div class="ep-page">
       <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
       ${epTopoHTML('Estudo de Viabilidade — Eletroposto', hoje.toLocaleDateString('pt-BR'),
