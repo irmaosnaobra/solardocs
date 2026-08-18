@@ -355,6 +355,10 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .cad-aba:not(.ativa) .cad-cnt{background:rgba(148,163,184,.30);color:#CBD5E1}
 #cad-aba-capital.ativa .cad-cnt{background:#60A5FA}
 .cad-acoes{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.cad-fora{background:rgba(148,163,184,.08);border:1px dashed rgba(148,163,184,.28);border-radius:10px;
+  padding:11px 14px;margin-bottom:12px;font-size:12.5px;color:#94A3B8;line-height:1.55}
+.cad-fora b{color:#CBD5E1}
+.cad-fora[hidden]{display:none}
 .cad-busca,.cad-filtro{background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.28);border-radius:9px;
   color:#E5E7EB;font-family:inherit;font-size:13.5px;padding:9px 11px;min-height:40px;outline:none}
 .cad-busca{min-width:230px}
@@ -2983,6 +2987,11 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <button type="button" class="ehist-btn" onclick="cadCarregar(true)">↻ Atualizar</button>
         </div>
       </div>
+
+      <!-- Quem a régua deixou de fora, dito em voz alta. Lista que esconde o que
+           descartou parece completa e não é — e no dia em que alguém perguntar
+           "cadê o fulano que preencheu?", a resposta tem que estar na tela. -->
+      <div class="cad-fora" id="cad-fora" hidden></div>
 
       <div class="card">
         <div class="eletro-sec-title" id="cad-titulo">Arrendamento — quem tem o local</div>
@@ -6412,6 +6421,12 @@ async function cadCarregar(forcar) {
     // os cadastros todos em cima e as fichas todas embaixo.
     ['ponto', 'capital'].forEach(l =>
       cadDados[l].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))));
+
+    // Sem recurso E sem local: descarte, é curioso (regra do Thiago, 17/08).
+    // Não entra em lista nenhuma — mas a conta aparece na tela, senão a lista
+    // parece completa e a pessoa que preencheu some sem deixar rastro.
+    cadDados.fora = livres.filter(f => f.capital_faixa === 'naosei'
+                                    && CAD_PONTO_FICHA.indexOf(f.tem_ponto) < 0).length;
   } catch (e) {
     tb.innerHTML = '<tr><td style="color:#fca5a5;padding:18px">Não consegui ler os cadastros: ' + escapeHtml(String(e.message || e)) + '</td></tr>';
     return;
@@ -6425,6 +6440,17 @@ function cadRender() {
   const filtro = document.getElementById('cad-filtro').value;
   document.getElementById('cad-cnt-ponto').textContent = cadDados.ponto.length;
   document.getElementById('cad-cnt-capital').textContent = cadDados.capital.length;
+
+  const fora = document.getElementById('cad-fora');
+  if (cadDados.fora > 0) {
+    fora.innerHTML = '<b>' + cadDados.fora + ' ficha' + (cadDados.fora > 1 ? 's' : '') + ' fora das duas listas.</b> '
+      + 'Responderam que não sabem como pagar <b>e</b> que não têm ideia de onde instalar — sem recurso e sem local '
+      + 'não há conexão a fazer, é curioso. Desde 17/08 essa pessoa nem chega na página de cadastro: '
+      + 'ela cai direto em <b>/io/eletroposto/material</b>.';
+    fora.hidden = false;
+  } else {
+    fora.hidden = true;
+  }
 
   let linhas = cadDados[cadLado];
   if (filtro) linhas = linhas.filter(r => (r.status || 'novo') === filtro);

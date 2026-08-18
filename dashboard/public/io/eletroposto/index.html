@@ -2129,13 +2129,27 @@ async function agendar(){
       }).catch(()=>{});
     } catch(_){}
 
-    // Destino do NOTA 1 a partir de 17/08/2026: /io/eletroposto/parceria, a
-    // página das duas portas. Em 55 fichas NOTA 1, 42 declararam capital: a
-    // recusa quase sempre é falta de UMA peça (o local), não falta de negócio —
-    // e página de venda de material não entrega essa peça, entrega uma aula.
-    // A página de material continua existindo, como saída de quem não tem nem
-    // o ponto nem o capital: pra esse, entrar em grupo não resolve hoje.
+    // ── PRA ONDE VAI O NOTA 1 (régua de 17/08/2026) ──
     //
+    // Duas saídas, e o que decide é o CRUZAMENTO das duas respostas — a de
+    // dinheiro e a de local. É a mesma régua que separa as abas Arrendamento e
+    // Investidores no /gerador; mudar um lado sem o outro faz a pessoa cair numa
+    // página que promete uma coisa e numa lista que espera outra.
+    //
+    //   tem capital  (qualquer coisa que não "não sei")  → PARCERIA, lado capital
+    //   sem capital + tem/viu um local                   → PARCERIA, lado ponto
+    //   sem capital + sem local nenhum                   → MATERIAL
+    //
+    // A terceira linha é ordem do Thiago: sem recurso e sem local próprio é
+    // descarte, é curioso. Ele não entra em lista nenhuma no /gerador, e por isso
+    // também não vê as duas portas — oferecer cadastro a quem não tem os dois
+    // lados só enche a lista de quem ninguém vai conseguir conectar. O que sobra
+    // pra ele é o material, que é exatamente o produto de quem ainda vai
+    // aprender a achar o ponto.
+    const semCapital = invest.value === 'naosei';
+    const semLocal   = ponto.value === 'sem_ideia';       // "em vista" NÃO é sem local
+    const curioso    = semCapital && semLocal;
+
     // O motivo do descarte viaja por sessionStorage, NÃO por querystring: é a
     // resposta do lead, e URL vira print. Mesma origem, mesma aba — a página de
     // destino lê e escolhe a abertura.
@@ -2145,18 +2159,26 @@ async function agendar(){
                                      invest: invest.value, decisor: decisor.value }),
         nome: nome,
       }));
-      // `ep_lead` é o que faz a próxima tela ser UM TOQUE: ela já sabe quem é a
-      // pessoa e não repete nada que o formulário perguntou. `lado` é sugestão,
-      // não trava — as duas portas continuam abertas. Quem respondeu "não sei
-      // como pagar" não recebe lado nenhum: sem ponto e sem capital ele não é
-      // nem investidor nem arrendador, e sugerir uma porta seria empurrar.
+      // `ep_lead` faz a próxima tela já saber quem é a pessoa, pra ela não
+      // repetir nada que o formulário perguntou. `lado` é SUGESTÃO, não trava:
+      // as duas portas continuam abertas e quem se enganou muda de porta.
       sessionStorage.setItem('ep_lead', JSON.stringify({
         nome, telefone: '55' + telRaw,
         telefone_visivel: document.getElementById('f-tel').value.trim(),
         cidade, invest: txt(invest),
-        lado: invest.value === 'naosei' ? '' : 'capital',
+        // O curioso não recebe sugestão: ele nem vai pra página das portas, mas
+        // ela é alcançável pelo link do rodapé do material — e sugerir "tenho o
+        // ponto" a quem acabou de dizer que não tem ideia de onde instalar seria
+        // pedir um endereço que ele não tem.
+        lado: curioso ? '' : (semCapital ? 'ponto' : 'capital'),
       }));
     } catch(_){}
+
+    if (curioso) {
+      track('nota1_material');
+      location.href = '/io/eletroposto/material';
+      return;
+    }
     track('nota1_parceria');
     location.href = '/io/eletroposto/parceria';
     return;
