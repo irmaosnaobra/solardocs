@@ -22,11 +22,11 @@ function unsubFooter(userId: string): string {
   </div>`;
 }
 
-async function sendMarketingEmail(opts: { to: string; userId: string; subject: string; html: string }): Promise<void> {
+async function sendMarketingEmail(opts: { to: string; userId: string; subject: string; html: string; replyTo?: string }): Promise<void> {
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
     to: opts.to,
-    replyTo: REPLY_TO,
+    replyTo: opts.replyTo || REPLY_TO,
     subject: opts.subject,
     html: opts.html + unsubFooter(opts.userId),
     headers: {
@@ -1253,4 +1253,63 @@ export async function sendFerramentaAcessoEmail(opts: {
     html,
   });
   if (error) throw new Error(`Resend error: ${error.name} - ${error.message}`);
+}
+
+// ─── PESQUISA COM OS MELHORES CLIENTES (ago/2026) ──────────────────
+// E-mail deliberadamente SEM banner e SEM botão: parece escrito à mão pelo
+// Thiago, porque a resposta vem por reply e não por clique. Três perguntas,
+// a última pedindo autorização pra publicar o depoimento com nome/empresa —
+// sem isso a resposta boa não vira prova social na página de venda.
+export async function sendPesquisaSatisfacaoEmail(opts: {
+  to: string;
+  userId: string;
+  nome?: string | null;
+  docs: number;
+  diasAtivos: number;
+}): Promise<void> {
+  // Nome de verdade ou nada: "Oi ronailsonklesley1991" (o local-part do e-mail)
+  // denuncia o robô na primeira linha. Sem nome, "Oi," basta.
+  const primeiro = (opts.nome || '').trim().split(/\s+/)[0];
+  const ola = primeiro ? `Oi ${primeiro},` : 'Oi,';
+  const uso = `${opts.docs} ${opts.docs === 1 ? 'documento' : 'documentos'} em ${opts.diasAtivos} ${opts.diasAtivos === 1 ? 'dia' : 'dias'} diferentes`;
+
+  // "Entre os que mais usam" só quando é verdade. Na cauda da lista tem gente com
+  // 5 documentos em 1 dia — elogiar isso é bajulação de robô e queima a pergunta.
+  const destaque = opts.docs >= 20 || opts.diasAtivos >= 8;
+  const abertura = destaque
+    ? `Puxei o uso da plataforma e você aparece entre os que mais usam: <strong>${uso}</strong>.
+       Por isso queria te fazer 3 perguntas`
+    : `Puxei o uso da plataforma e vi que você já fez <strong>${uso}</strong> por aqui.
+       Queria te fazer 3 perguntas`;
+
+  const html = `
+<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:560px;margin:0 auto;color:#0f172a;font-size:16px;line-height:1.75;">
+  <p style="margin:0 0 16px;">${ola}</p>
+  <p style="margin:0 0 16px;">Aqui é o Thiago, do SolarDoc.</p>
+  <p style="margin:0 0 16px;">
+    ${abertura} — responder este e-mail já resolve, uma linha em cada uma serve.
+  </p>
+  <p style="margin:0 0 10px;"><strong>1.</strong> No dia a dia, o que o SolarDoc mais te ajuda? Qual parte você não abriria mão?</p>
+  <p style="margin:0 0 10px;"><strong>2.</strong> Antes do SolarDoc você fazia isso como? (planilha, Word, outra plataforma — se foi outra, qual?)</p>
+  <p style="margin:0 0 16px;"><strong>3.</strong> O que ainda falta, trava ou te irrita aqui dentro? Se já passou pela sua cabeça largar, o que foi?</p>
+  <p style="margin:0 0 16px;">
+    A 3 é a que mais me interessa. Pode ser duro comigo — é com ela que eu decido o que construir no próximo mês.
+  </p>
+  <p style="margin:0 0 16px;">
+    E uma última: se a sua resposta ficar boa, posso publicar ela na página do SolarDoc com o seu nome e o da sua empresa?
+    Se puder, escreve <strong>"pode publicar"</strong> no fim da mensagem. Se não escrever nada, fica só entre a gente.
+  </p>
+  <p style="margin:0 0 4px;">Obrigado de verdade,</p>
+  <p style="margin:0;">Thiago — SolarDoc</p>
+</div>`;
+
+  await sendMarketingEmail({
+    to: opts.to,
+    userId: opts.userId,
+    subject: primeiro ? `${primeiro}, posso te fazer 3 perguntas?` : 'Posso te fazer 3 perguntas?',
+    html,
+    // A resposta É o produto desta campanha, então o destino dela não pode
+    // depender de MAIL_REPLY_TO estar apontando pra caixa certa hoje.
+    replyTo: (process.env.PESQUISA_REPLY_TO || 'aiorosgroup@gmail.com').trim(),
+  });
 }

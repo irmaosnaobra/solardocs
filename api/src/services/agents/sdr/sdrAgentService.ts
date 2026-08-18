@@ -1493,6 +1493,33 @@ export async function pollZapiMessages(): Promise<{ processed: number }> {
         .maybeSingle();
       if (platformUser) continue;
 
+      // …mas `users.whatsapp` está VAZIO em boa parte da base (10 dos 15 clientes
+      // mais ativos, ago/2026): o número deles só existe em company.whatsapp, o
+      // que eles imprimem nos próprios documentos. Sem esta segunda checagem, o
+      // cliente pagante que RESPONDE a pesquisa do Thiago cai aqui como lead novo
+      // e leva pitch de venda de uma plataforma que ele já assina.
+      //
+      // Escopo estreito de propósito: só quem recebeu a pesquisa, e só por 14
+      // dias. Silenciar todo company.whatsapp seria calar o agente em 78 sessões
+      // já existentes — conserto grande demais pra entrar de carona aqui.
+      const semDdi = phone.startsWith('55') ? phone.slice(2) : phone;
+      const { data: empresaDoNumero } = await supabase
+        .from('company')
+        .select('user_id')
+        .or(`whatsapp.eq.${semDdi},whatsapp.eq.55${semDdi}`)
+        .limit(1)
+        .maybeSingle();
+      if (empresaDoNumero?.user_id) {
+        const desde = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+        const { data: naPesquisa } = await supabase
+          .from('users')
+          .select('id')
+          .eq('id', empresaDoNumero.user_id)
+          .gte('pesquisa_sent_at', desde)
+          .maybeSingle();
+        if (naPesquisa) continue;
+      }
+
       // Dedup contra race entre webhook /whatsapp e este polling.
       if (await hasRecentWebhookClaim(phone)) continue;
       const msgIdRaw = lastMsg.messageId || lastMsg.zaapId || lastMsg.id || `${msgTime}`;

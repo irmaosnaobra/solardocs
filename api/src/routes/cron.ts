@@ -6,6 +6,7 @@ import { reDrivePendingPurchases } from '../services/salesLedger';
 import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/whatsapp/whatsappFollowupService';
 import { runCarlaSemCnpjFollowup, runCarlaInativoFollowup, dispararOpenerTesteParaUser } from '../services/agents/whatsapp/carlaPlatformFollowupService';
 import { runCarlaCnpjKillerBroadcast } from '../services/agents/whatsapp/carlaCnpjKillerQuestion';
+import { dispararPesquisaSatisfacao, listarMelhoresClientes, textoPesquisa } from '../services/pesquisaSatisfacao';
 import { runCursoEntradaBroadcast } from '../services/agents/whatsapp/cursoEntradaBroadcast';
 import { runPromoGeradorBroadcast } from '../services/agents/whatsapp/promoGeradorBroadcast';
 import { runPromoGeradorV2Broadcast } from '../services/agents/whatsapp/promoGeradorV2Broadcast';
@@ -937,6 +938,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['curso-entrada-19',            () => runCursoEntradaBroadcast()],    // 3 toques; para quando o lead responde
     ['carla-sem-cnpj',              () => runCarlaSemCnpjFollowup()],     // follow-up Giovanna — 3 toques 30d
     ['carla-inativo',               () => runCarlaInativoFollowup()],     // follow-up Giovanna — 5 toques 60d
+    ['pesquisa-satisfacao',         () => dispararPesquisaSatisfacao()],  // 1 msg/tick; para com PESQUISA_WHATSAPP_OFF=1
     // FICA DESLIGADO. Conferido em 12/08/2026: sdrB2bMorningHook chama `sendZAPI`
     // CRU — fora do teto da linha, fora da margem de 5 min e fora da janela 08–21h.
     // É exatamente o caminho que bloqueou a linha de 01 a 03/ago (57 msgs em 5h).
@@ -988,6 +990,38 @@ router.get('/master', async (req: Request, res: Response) => {
   }
 
   res.json({ ok: true, results });
+});
+
+// Pesquisa de 3 perguntas com os 10 clientes mais contínuos (ago/2026), por
+// WhatsApp. SEM ?enviar=1 a rota só MOSTRA a lista. O envio está LIGADO desde
+// 18/08 (autorizado): o master cron horário manda UMA por tick, dentro do teto
+// da linha, até esvaziar. Pra parar no meio: PESQUISA_WHATSAPP_OFF=1.
+router.get('/pesquisa-satisfacao', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    if (req.query.enviar !== '1') {
+      const lista = await listarMelhoresClientes();
+      return res.json({
+        ok: true,
+        modo: 'preview — nada foi enviado. Repita com &enviar=1 pra disparar.',
+        ligada: process.env.PESQUISA_WHATSAPP_OFF !== '1',
+        elegiveis: lista.length,
+        pendentes: lista.filter((c) => !c.jaEnviado && c.telefone).length,
+        semTelefone: lista.filter((c) => !c.telefone).length,
+        clientes: lista.map((c) => ({
+          nome: c.nome, email: c.email, telefone: c.telefone, fonteTelefone: c.fonteTelefone,
+          docs30d: c.docs, diasAtivos30d: c.diasAtivos, pctDiasUteis: c.pctDiasUteis,
+          ultimoDoc: c.ultimoDoc.slice(0, 10), jaEnviado: c.jaEnviado,
+        })),
+        exemploMensagem: lista[0] ? textoPesquisa(lista[0]) : null,
+      });
+    }
+    const result = await dispararPesquisaSatisfacao();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'pesquisa-satisfacao falhou', err);
+    res.status(500).json({ error: 'Cron failed', message: String(err) });
+  }
 });
 
 export default router;
