@@ -6331,7 +6331,7 @@ function renderAbasTabelas() {
     const ativo = equipConfig[linha] !== false;
     const sel = linha === tblAbaAtiva ? ' ativo-aba' : '';
     const onoff = ativo ? 'on' : 'off desativado';
-    const nome = `${t.inv} + ${t.mod}`;
+    const nome = `${t.inv}${linha.endsWith('-PROMO') ? ' PROMO' : ''} + ${t.mod}`;
     return `<button type="button" class="tbl-aba${sel} ${onoff}" data-linha="${linha}">
       <span onclick="selecionarAba('${linha}')">${nome}</span>
       <span class="tbl-toggle" title="${ativo ? 'Ativo no gerador — clique p/ desativar' : 'Desativado — clique p/ ativar'}" onclick="toggleEquip('${linha}', event)">${ativo ? '✓' : '✕'}</span>
@@ -6368,7 +6368,7 @@ function renderTabelaAtiva() {
 
   // título com badge de status
   const h1 = document.querySelector('#tabelasSection .header-titulo h1');
-  if (h1) h1.innerHTML = `📊 ${t.inv} + ${t.mod} ${statusBadge}`;
+  if (h1) h1.innerHTML = `📊 ${t.inv}${tblAbaAtiva.endsWith('-PROMO') ? ' PROMO' : ''} + ${t.mod} ${statusBadge}`;
 }
 
 async function toggleEquip(linha, ev) {
