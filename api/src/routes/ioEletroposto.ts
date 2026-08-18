@@ -165,10 +165,6 @@ router.post('/alerta', async (req: Request, res: Response): Promise<void> => {
 // Gravar nunca é bloqueado: perder o lead é o erro pior.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Capital de verdade declarado: é o investidor sem local — o outro lado do
-// casamento com quem tem ponto e não tem dinheiro. Ganha selo no alerta.
-const INVEST_COM_CAPITAL = new Set(['Recurso próprio', 'Recurso próprio + financiamento', 'Financiamento já aprovado']);
-
 // UTM de primeiro toque que a LP guarda em sessionStorage. Chega como texto livre
 // de querystring pública: corta tamanho e descarta vazio pra não gravar ''.
 const UTM_CAMPOS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'] as const;
@@ -275,43 +271,20 @@ router.post('/nota1', async (req: Request, res: Response): Promise<void> => {
   // A varredura de "convite garantido" foi desligada no mesmo ato — sem isso ela
   // viraria a ÚNICA remetente, porque procura exatamente ficha sem convite.
   //
-  // O que continua saindo é o AVISO DA EQUIPE, e ele é incondicional: até 17/08
-  // o handler dava `return` quando a oferta do material estava vendável e levava
-  // esse aviso junto, calado.
+  // ── E NENHUM AVISO SAI DAQUI TAMBÉM (18/08/2026) ──
+  // Ordem do Thiago: o aviso passa a mostrar SÓ quem se cadastrou em
+  // ARRENDAMENTO ou INVESTIDOR. Ser recusado na LP não é notícia — é o caminho
+  // normal de 2 em cada 3 leads, e a mensagem chegava sempre igual, com o
+  // rodapé "foi pra página das duas portas" prometendo um cadastro que ainda
+  // nem tinha acontecido.
+  //
+  // Quem avisa agora é o POST /parceria, no instante em que a pessoa ESCOLHE
+  // uma porta — com o padrão do local, a faixa de capital e a dica de quem está
+  // perto. Aviso que só existe quando há o que fazer é aviso que se lê.
+  //
+  // A FICHA CONTINUA SENDO GRAVADA: ela é o funil (o /admin conta os recusados)
+  // e é o estoque da aba Investidores. Sumiu a mensagem, não o dado.
   res.json({ ok: true, id, convite: false });
-
-  // Background: a LP não espera nada disto pra levar o lead pra página das portas.
-  (async () => {
-
-    // O NOTA 1 é avisado no WhatsApp da equipe, mesmo sem agendar (pedido do
-    // Thiago em 01/08). Ele não ocupa agenda, mas continua sendo lead: quem tem
-    // capital e não tem local é o par de quem tem ponto e não tem dinheiro, e é a
-    // equipe que faz esse casamento. Uma mensagem só, não as 5 do convite.
-    // Fora do `if` do convite de propósito: convite desligado (ou que falha) não
-    // pode esconder o lead da equipe — é justamente aí que alguém vai na mão.
-    try {
-      const comCapital = !!(lead.invest && INVEST_COM_CAPITAL.has(lead.invest));
-      const aviso = [
-        comCapital ? '💰 *NOTA 1 COM CAPITAL — investidor sem local*' : '🔴 *NOTA 1 — não agendou*',
-        '',
-        `*Nome:* ${nome}`,
-        `*WhatsApp:* wa.me/${telefone}`,
-        `*Cidade:* ${lead.cidade || '—'}`,
-        `*Perfil:* ${lead.perfil || '—'}`,
-        `*Ponto:* ${lead.ponto || '—'}`,
-        `*Como pretende investir:* ${lead.invest || '—'}`,
-        `*Decisor:* ${lead.decisor || '—'}`,
-        `*Pontuação:* ${lead.pts ?? '—'}/11`,
-        '',
-        comCapital
-          ? '_Tem com quê e não tem onde: é o par de quem tem ponto e não tem dinheiro. Foi pra página das duas portas._'
-          : '_Sem local definido não há o que orçar. Foi pra página das duas portas._',
-      ].join('\n');
-      await Promise.allSettled(Object.values(EQUIPE).map(num => sendWhatsApp(num, aviso, 'io')));
-    } catch (err) {
-      logger.error('io-eletroposto-nota1', `aviso da equipe falhou pra ${telefone}`, err);
-    }
-  })();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -473,29 +446,6 @@ async function desmarcarAviso(lado: string, telefone: string): Promise<void> {
 }
 
 /**
- * Este lead já foi anunciado pelo POST /nota1 minutos atrás?
- *
- * Aconteceu de verdade: uma pessoa preencheu a LP às 23:40 (aviso de NOTA 1) e
- * se cadastrou como investidor às 23:41 — dois avisos quase idênticos sobre a
- * mesma pessoa, em 69 segundos.
- *
- * Duas travas porque uma só não basta: `origem` vem do cliente e some quando o
- * lead abre a página numa aba nova; a ficha no banco é a verdade durável.
- */
-async function jaAnunciadoPeloNota1(telefone: string, origem: string): Promise<boolean> {
-  if (origem === 'lp_nota1') return true;
-  try {
-    const desde = new Date(Date.now() - 30 * 60_000).toISOString();
-    const { data } = await supabaseGerador
-      .from('eletroposto_nota1').select('id')
-      .eq('telefone', telefone).gte('created_at', desde).limit(1);
-    return !!(data && data.length);
-  } catch {
-    return false;   // na dúvida avisa: silêncio é o erro caro
-  }
-}
-
-/**
  * O padrão declarado provavelmente NÃO aguenta um eletroposto.
  *
  * Não é laudo — é triagem: monofásico ou disjuntor de até 40 A não sustentam
@@ -521,7 +471,7 @@ const v = (r: Record<string, unknown>, k: string) => String(r[k] ?? '').trim() |
  */
 export function montarAvisoPonto(reg: Record<string, unknown>, dica: string[]): string {
   return [
-    '📍 *PONTO NOVO — alguém quer arrendar o local*',
+    '📍 *ARRENDAMENTO — cadastro novo*',
     '',
     `*Nome:* ${v(reg, 'nome')}`,
     `*WhatsApp:* wa.me/${String(reg.telefone || '')}`,
@@ -556,7 +506,7 @@ export function montarAvisoPonto(reg: Record<string, unknown>, dica: string[]): 
  */
 export function montarAvisoCapital(reg: Record<string, unknown>, dica: string[]): string {
   return [
-    '💰 *INVESTIDOR NOVO — tem o capital, falta o ponto*',
+    '💰 *INVESTIDOR — cadastro novo*',
     '',
     `*Nome:* ${v(reg, 'nome')}`,
     `*WhatsApp:* wa.me/${String(reg.telefone || '')}`,
@@ -709,17 +659,6 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
     const jaAvisou = await marcarAviso(lado, telefone);
     if (jaAvisou) {
       logger.info('io-eletroposto-parceria', `aviso repetido barrado: ${lado} ${telefone}`);
-      return;
-    }
-
-    // O lead que veio da LP recusada JÁ foi anunciado pelo POST /nota1 minutos
-    // antes, com a ficha inteira. Anunciar de novo é a mesma pessoa em duas
-    // mensagens quase iguais — o jeito mais rápido de a equipe parar de ler.
-    // Duas travas porque `origem` vem do cliente e some numa aba nova; a ficha
-    // no banco é a durável.
-    if (lado === 'capital' && await jaAnunciadoPeloNota1(telefone, String(bruto.origem || ''))) {
-      logger.info('io-eletroposto-parceria', `capital ${telefone} já anunciado pelo nota1`);
-      await desmarcarAviso(lado, telefone);   // não gastou a vaga: não fica marcado
       return;
     }
 

@@ -74,7 +74,7 @@ describe('as mensagens da equipe', () => {
 
   it('ponto: traz endereço, padrão e a dica', () => {
     const m = montarAvisoPonto(ponto, blocoPares(perto(1), 'capital'));
-    expect(m).toContain('PONTO NOVO');
+    expect(m).toContain('ARRENDAMENTO');
     expect(m).toContain('Av. João Naves, 1200');
     expect(m).toContain('PADRÃO DE ENTRADA');
     expect(m).toContain('Trifásico');
@@ -108,7 +108,7 @@ describe('as mensagens da equipe', () => {
       capital_faixa: 'R$ 100 mil a R$ 200 mil', capital_origem: 'Recurso próprio',
       prazo: 'Nos próximos 3 meses',
     }, blocoPares(perto(1), 'ponto'));
-    expect(m).toContain('INVESTIDOR NOVO');
+    expect(m).toContain('INVESTIDOR');
     expect(m).toContain('R$ 100 mil a R$ 200 mil');
     expect(m).toContain('Nos próximos 3 meses');
     expect(m).toContain('PONTOS MAIS PERTO');
@@ -116,7 +116,7 @@ describe('as mensagens da equipe', () => {
 
   it('sem dica nenhuma, a mensagem continua inteira', () => {
     const m = montarAvisoCapital({ id: 3, nome: 'Carlos', telefone: '5534992220000' }, []);
-    expect(m).toContain('INVESTIDOR NOVO');
+    expect(m).toContain('INVESTIDOR');
     expect(m.split('\n').filter(Boolean).length).toBeGreaterThan(5);
   });
 });
