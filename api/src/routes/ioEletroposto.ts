@@ -6,7 +6,8 @@ import { sendWhatsApp } from '../services/agents/zapiClient';
 import { logger } from '../utils/logger';
 // A dica de "quem está perto" no aviso: quem tem o ponto procura investidor e
 // vice-versa. Falha aqui nunca segura o aviso — devolve bloco vazio.
-import { blocoParesSeguro } from '../services/io/eletropostoPares';
+import { blocoParesSeguro, pool, TETO_KM } from '../services/io/eletropostoPares';
+import { distanciaKm } from '../services/io/geoCidade';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alerta de lead novo da LP do Eletroposto (/io/eletroposto) no WhatsApp da equipe.
@@ -362,6 +363,47 @@ router.get('/parceria/placar', async (_req: Request, res: Response): Promise<voi
   } catch (err) {
     logger.error('io-eletroposto-parceria', 'falha contando o placar', err);
     res.json({ capital: null, ponto: null });
+  }
+});
+
+// ── Quem está perto de quem, para a aba Cadastros do /gerador ──────────────
+// Devolve SÓ o pareamento por id e a distância: nenhum nome, nenhum telefone.
+// A aba já carregou as linhas com a chave publishable e junta localmente — e
+// assim este endpoint público não expõe nada que já não esteja exposto.
+//
+// O cálculo mora AQUI, e não no navegador, por dois motivos: a régua tem que ser
+// a mesma do aviso no WhatsApp (duas implementações divergem e ninguém percebe),
+// e a tabela de municípios são 408 KB que não vão para dentro de um PWA.
+router.get('/parceria/pares', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const [capital, pontos] = await Promise.all([pool('capital'), pool('ponto')]);
+    const chave = (c: { tab: string; id: number }) => `${c.tab}:${c.id}`;
+
+    const pares: Record<string, Array<{ ref: string; km: number }>> = {};
+    const semMapa: string[] = [];
+
+    const cruzar = (lado: typeof capital, outro: typeof capital) => {
+      for (const eu of lado) {
+        if (typeof eu.lat !== 'number') { semMapa.push(chave(eu)); continue; }
+        const perto = outro
+          .filter(o => typeof o.lat === 'number')
+          .map(o => ({ ref: chave(o), km: distanciaKm(
+            { lat: eu.lat!, lng: eu.lng! }, { lat: o.lat!, lng: o.lng! }) }))
+          .filter(o => o.km <= TETO_KM)
+          .sort((a, b) => a.km - b.km);
+        pares[chave(eu)] = perto;
+      }
+    };
+    cruzar(capital, pontos);
+    cruzar(pontos, capital);
+
+    res.set('Cache-Control', 'public, max-age=300');
+    res.json({ pares, sem_mapa: semMapa, teto_km: TETO_KM });
+  } catch (err) {
+    logger.error('io-eletroposto-pares', 'falha montando os pares', err);
+    // Null, não objeto vazio: vazio afirmaria "ninguém tem par", e a tela
+    // precisa distinguir isso de "não consegui calcular".
+    res.json({ pares: null, sem_mapa: null, teto_km: TETO_KM });
   }
 });
 
