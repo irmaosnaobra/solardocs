@@ -5,6 +5,7 @@ import { sendDunningDay0 } from './dunningService';
 import { FREE_LIMIT } from './planService';
 import { resolverPrecoAnual, precoAnualConhecido, FERRAMENTAS_DO_ANUAL } from './precoAnual';
 import { concederAcesso } from './produtos/acessos';
+import { sendOpsAlert } from '../utils/mailer';
 import { carregarPonteEmailConta } from './stripeContaLink';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
@@ -57,9 +58,28 @@ function produtoFromPrice(priceId: string): 'PRO' | 'VIP' | 'VIP PROMO' | 'VIP A
 // Google Pay / Link tem no Customer o e-mail da CARTEIRA, que não é o e-mail da
 // conta — e este cron, que trata "não achei" como "não assina", rebaixava esse
 // assinante pra free na primeira varredura depois da compra (caso de 18/08/26).
-async function fetchStripeTruth(): Promise<Map<string, StripeTruth>> {
+/**
+ * Além do `truth` (quem paga o quê), devolve o que a TRAVA precisa pra separar
+ * "cancelou" de "não achei":
+ *
+ *  - `vistos`: todo e-mail que apareceu em QUALQUER assinatura, de qualquer
+ *    status. Se a conta está aqui e não está no `truth`, a assinatura dela de
+ *    fato acabou — rebaixar é correto. Se não está em lugar nenhum, a Stripe
+ *    não disse "cancelou": ela não disse nada.
+ *  - `ativas`: as assinaturas vivas com as chaves por onde cada uma pode ser
+ *    encontrada, pra detectar assinatura ATIVA que não casa com conta nenhuma.
+ */
+interface VarreduraStripe {
+  truth: Map<string, StripeTruth>;
+  vistos: Set<string>;
+  ativas: { id: string; keys: string[] }[];
+}
+
+async function fetchStripeTruth(): Promise<VarreduraStripe> {
   const truth = new Map<string, StripeTruth>();
   const seenEmail = new Set<string>();
+  const vistos = new Set<string>();
+  const ativas: { id: string; keys: string[] }[] = [];
 
   // O price anual é resolvido em runtime (services/precoAnual.ts), então ele não
   // cabe no mapa estático acima. `criar: false`: o cron LÊ preço, não inventa.
@@ -106,6 +126,12 @@ async function fetchStripeTruth(): Promise<Map<string, StripeTruth>> {
       )];
       if (!keys.length) continue;
 
+      // CONTABILIDADE INDEPENDENTE — roda antes de qualquer `continue` de
+      // negócio e não encosta em `seenEmail`/`truth`. Se dependesse do
+      // bookkeeping abaixo, uma sub cancelada podia tomar a chave de uma viva.
+      for (const k of keys) vistos.add(k);
+      if (ACTIVE_STATUSES.has(s.status)) ativas.push({ id: s.id, keys });
+
       // Stripe lista por created desc → primeira sub ativa que aparecer pra esse
       // email é a vigente. Subs canceladas posteriores não devem sobrescrever.
       const pendentes = keys.filter(k => !seenEmail.has(k));
@@ -132,12 +158,48 @@ async function fetchStripeTruth(): Promise<Map<string, StripeTruth>> {
     cursor = subs.data[subs.data.length - 1]?.id;
   }
 
-  return truth;
+  return { truth, vistos, ativas };
+}
+
+/**
+ * A TRAVA: ausência não é cancelamento.
+ *
+ * O estrago de 18/08/2026 não foi o e-mail errado — foi `realPlano =
+ * stripeTruth?.plano ?? 'free'`, que lê "não encontrei esta conta na Stripe"
+ * como "esta conta não assina". Qualquer motivo futuro de não-encontrar
+ * (e-mail de carteira, Customer apagado, página que faltou, timeout) volta a
+ * rebaixar assinante pagante em silêncio.
+ *
+ * Só rebaixa com PROVA: a conta apareceu na Stripe com assinatura fora de
+ * status ativo. Sumiu inteira E tem compra confirmada no ledger? Segura o
+ * plano, não carimba a venda, e avisa. Preferir "acesso a mais por um dia" a
+ * "tirar acesso de quem pagou" — o primeiro custa centavos, o segundo custa
+ * o cliente.
+ *
+ * `compraConfirmada` NÃO pode olhar `sales.status`: quem escreve esse campo é
+ * este mesmo cron (`salesStatus = realStatus ?? 'canceled'`), então a primeira
+ * execução ruim envenenaria a própria trava na execução seguinte.
+ */
+export function deveSegurarRebaixamento(opts: {
+  temAssinaturaViva: boolean;
+  vistoNoStripe: boolean;
+  compraConfirmada: boolean;
+}): boolean {
+  if (opts.temAssinaturaViva) return false;   // assina: nada a rebaixar
+  if (opts.vistoNoStripe)     return false;   // a Stripe DISSE que acabou
+  return opts.compraConfirmada;               // sumiu, mas pagou: não confio
 }
 
 export async function syncStripePlans(): Promise<{
   scanned: number; upgraded: number; downgraded: number; unchanged: number;
   past_due_caught: number; recovered: number; trial_converted: number; errors: number;
+  // Contas que a TRAVA impediu de rebaixar (sumiram da Stripe mas têm compra
+  // confirmada). Em operação normal é 0 — acima disso é bug de casamento, e
+  // cada linha aqui é um cliente que teria perdido acesso pago em silêncio.
+  segurados: number;
+  // Assinatura ATIVA na Stripe que não casa com conta nenhuma. Dinheiro
+  // entrando sem ninguém do outro lado.
+  orfas: number;
   // Quantas ferramentas do anual o cron teve que REPOR. Em operação normal é 0:
   // qualquer número acima disso é webhook que não gravou — e é o único jeito de
   // essa falha aparecer, já que o cliente não sente falta enquanto assina.
@@ -146,13 +208,35 @@ export async function syncStripePlans(): Promise<{
   let scanned = 0, upgraded = 0, downgraded = 0, unchanged = 0;
   let past_due_caught = 0, recovered = 0, trial_converted = 0, errors = 0;
   let anual_ferramentas = 0;
+  const segurados: string[] = [];
+  let blindados = 0;   // pix/pack/admin — fora do funil da Stripe DE PROPÓSITO
 
-  let truth: Map<string, StripeTruth>;
+  let varredura: VarreduraStripe;
   try {
-    truth = await fetchStripeTruth();
+    varredura = await fetchStripeTruth();
   } catch (err) {
     logger.error('stripe-sync', 'fetchStripeTruth falhou — abortando', err);
     throw err;
+  }
+  const { truth, vistos, ativas } = varredura;
+
+  // Contas com COMPRA CONFIRMADA no ledger. Campos que este cron nunca escreve:
+  // `card_passed_at` (webhook do checkout) e `subscription_id` (nasce na venda).
+  // `sales.status` está fora de propósito — é escrito aqui, e usá-lo faria a
+  // trava confiar no resultado da execução anterior dela mesma.
+  const compraConfirmada = new Set<string>();
+  try {
+    const { data: pagos } = await supabase
+      .from('sales')
+      .select('email, card_passed_at, subscription_id');
+    for (const v of pagos || []) {
+      const e = (v.email || '').trim().toLowerCase();
+      if (e && (v.card_passed_at || v.subscription_id)) compraConfirmada.add(e);
+    }
+  } catch (err) {
+    // Set vazio = trava inerte (nunca segura). Falha aqui não pode abortar o
+    // sync, mas registra: sem ela a rede de proteção não existe nesta execução.
+    logger.error('stripe-sync', 'leitura de compras confirmadas falhou — TRAVA INERTE nesta execução', err);
   }
 
   const { data: users, error } = await supabase
@@ -169,6 +253,7 @@ export async function syncStripePlans(): Promise<{
     // manualmente. Sem este guard, o sync ia rebaixar admin pra free toda hora
     // (porque admin não tem sub no Stripe).
     if (u.is_admin) {
+      blindados++;
       unchanged++;
       continue;
     }
@@ -189,6 +274,7 @@ export async function syncStripePlans(): Promise<{
           .update({ plano: 'pro', limite_documentos: 90, billing_status: 'trialing' })
           .eq('id', u.id);
       }
+      blindados++;
       unchanged++;
       continue;
     }
@@ -201,6 +287,23 @@ export async function syncStripePlans(): Promise<{
       ? new Date(u.plano_expira_em).getTime() > Date.now()
       : false;
     if (pixAccessActive && !stripeTruth) {
+      blindados++;
+      unchanged++;
+      continue;
+    }
+
+    // ── TRAVA: ausência não é cancelamento ───────────────────────────────────
+    // Vem ANTES do patch do ledger de propósito: se só o `users` fosse
+    // protegido, a venda ainda seria carimbada `canceled` — o faturamento
+    // mentiria E a leitura de `compraConfirmada` da próxima execução ficaria
+    // envenenada. Segurando aqui, o cron não toca em NADA desta conta.
+    if (deveSegurarRebaixamento({
+      temAssinaturaViva: !!stripeTruth,
+      vistoNoStripe:     vistos.has(u.email.toLowerCase()),
+      compraConfirmada:  compraConfirmada.has(u.email.toLowerCase()),
+    })) {
+      segurados.push(u.email);
+      logger.error('stripe-sync', `${u.email}: SUMIU da Stripe mas tem compra confirmada — plano ${u.plano} mantido, nada carimbado`);
       unchanged++;
       continue;
     }
@@ -370,7 +473,34 @@ export async function syncStripePlans(): Promise<{
     logger.info('stripe-sync', `${u.email}: ${u.plano} → ${realPlano}`);
   }
 
-  const summary = { scanned, upgraded, downgraded, unchanged, past_due_caught, recovered, trial_converted, errors, anual_ferramentas };
+  // ── SENTINELA: assinatura ATIVA que não casa com conta nenhuma ────────────
+  // O outro lado da mesma moeda. A trava protege quem tem conta; isto acha o
+  // dinheiro que entra sem ninguém do outro lado — inclusive por motivos que
+  // ainda não aconteceram. Uma assinatura só é órfã quando NENHUMA das chaves
+  // por onde ela pode ser encontrada bate com um usuário.
+  const emailsDeContas = new Set(users.map(u => u.email.toLowerCase()));
+  const orfas = ativas.filter(a => !a.keys.some(k => emailsDeContas.has(k)));
+
+  // UM e-mail por execução, com as duas listas — nunca um por cliente
+  // (ver o padrão da fila do WhatsApp). Silêncio aqui significa "conferi e
+  // está tudo casando", por isso o relatório diz quantas contas foram
+  // deliberadamente puladas: blindagem não pode passar por cobertura.
+  if (segurados.length || orfas.length) {
+    const bloco = (titulo: string, itens: string[]) =>
+      itens.length
+        ? `<p style="margin:0 0 6px;"><strong>${titulo} (${itens.length})</strong></p><ul style="margin:0 0 16px;padding-left:18px;">${itens.map(i => `<li>${i}</li>`).join('')}</ul>`
+        : '';
+    sendOpsAlert(
+      `SolarDoc: ${segurados.length} assinante(s) sem par na Stripe`,
+      [
+        bloco('Pagaram e sumiram da Stripe — acesso MANTIDO, confira o casamento', segurados),
+        bloco('Assinatura ativa sem conta — dinheiro entrando sem acesso', orfas.map(o => `${o.id} · ${o.keys.join(' / ')}`)),
+        `<p style="color:#475569;font-size:13px;margin:0;">${scanned} contas conferidas · ${blindados} puladas de propósito (admin, trial Pack ou acesso Pix vigente) · ${downgraded} rebaixadas com prova de cancelamento.</p>`,
+      ].join(''),
+    ).catch(err => logger.error('stripe-sync', 'sendOpsAlert falhou', err));
+  }
+
+  const summary = { scanned, upgraded, downgraded, unchanged, past_due_caught, recovered, trial_converted, errors, anual_ferramentas, segurados: segurados.length, orfas: orfas.length };
   logger.info('stripe-sync', 'concluído', summary);
   return summary;
 }
