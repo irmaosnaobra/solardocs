@@ -717,6 +717,13 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-ctr-topo{display:flex;align-items:center;justify-content:space-between;gap:16px;
   border-bottom:1px solid #d6dbe2;padding-bottom:9px;margin-bottom:4px}
 .ep-ctr-logo{height:26px;width:auto;opacity:.9}
+/* O contrato e a procuracao tinham SO' a imagem do logo, sem o nome da casa —
+   os outros quatro documentos abrem com logo + "Irmãos na Obra". Agora os seis
+   abrem igual; o texto senta ao lado do logo, entao custa quase nada de altura. */
+.ep-ctr-topo .ep-brand{margin-bottom:0}
+.ep-ctr-topo .ep-brand-img{height:15mm}
+.ep-ctr-topo .ep-brand-tx{font-size:16px}
+.ep-ctr-topo .ep-brand-tx span{font-size:8px;letter-spacing:2px;margin-top:3px}
 .ep-ctr-ident{font-size:10px;color:#6b7684;letter-spacing:.3px;text-align:right;white-space:nowrap}
 .ep-ctr-ident b{color:#1a1a1a;font-weight:700}
 /* Ao contrário do recibo, aqui NÃO se encolhe pra caber: contrato pagina. */
@@ -8197,6 +8204,7 @@ function orc1HTML(d) {
       </div>
     </div>
   </div>
+  ${epPageFootHTML(d.titulo || 'Proposta Comercial', d.cliente || d.nome || '')}
 </div>`;
 }
 
@@ -8283,6 +8291,16 @@ function epTopoHTML(titulo, dataStr, rows, rodapeVal) {
         ${rodapeVal ? `<div class="ep-valid">${rodapeVal}</div>` : ''}
       </div>
     </div>`;
+}
+// RODAPE DE PAGINA — a barra fina no pe' da folha, igual nos seis documentos.
+// Regra: identificacao a' esquerda; a' direita a contagem quando o documento e'
+// PAGINADO, e "Documento de uma via" quando e' folha unica. Antes so' os
+// paginados tinham rodape; recibo e os dois orcamentos nao tinham nenhum, e o
+// papel chegava no cliente sem dizer o que era.
+function epPageFootHTML(doc, cliente, n, total) {
+  const esq = orcEsc(doc) + (cliente ? ' · ' + orcEsc(cliente) : '');
+  const dir = (n && total) ? `Página ${n} de ${total}` : 'Documento de uma via';
+  return `<div class="ep-pagefoot"><span>${esq}</span><span>${dir}</span></div>`;
 }
 // Rodapé escuro: Vendedor | Empresa (mesmo bloco nos dois documentos).
 function epFooterBlockHTML(vend) {
@@ -8955,6 +8973,7 @@ function recHTML(d) {
       </div>
 
       ${epFooterBlockHTML(d.vendedor)}
+      ${epPageFootHTML('Recibo de Sinal', d.cliente)}
     </div>
   </div>`;
 }
@@ -9544,7 +9563,7 @@ function ctrHTML(d) {
   return `<div class="ep-doc">
     <div class="ep-page">
       <div class="ep-ctr-topo">
-        <img class="ep-ctr-logo" src="/gerador/logo-eletroposto.png" alt="Irmãos na Obra">
+        <div class="ep-brand"><img class="ep-brand-img" src="/gerador/logo-eletroposto.png" alt="Irmãos na Obra"><div class="ep-brand-tx">Irmãos na Obra<span>Mobilidade Elétrica</span></div></div>
         <div class="ep-ctr-ident">${d.num ? 'Contrato nº <b>' + e(d.num) + '</b> · ' : ''}${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}</div>
       </div>
 
@@ -9766,7 +9785,7 @@ function procHTML(d) {
   return `<div class="ep-doc">
     <div class="ep-page ep-proc">
       <div class="ep-ctr-topo">
-        <img class="ep-ctr-logo" src="/gerador/logo-eletroposto.png" alt="Irmãos na Obra">
+        <div class="ep-brand"><img class="ep-brand-img" src="/gerador/logo-eletroposto.png" alt="Irmãos na Obra"><div class="ep-brand-tx">Irmãos na Obra<span>Mobilidade Elétrica</span></div></div>
         <div class="ep-ctr-ident">${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}</div>
       </div>
 
