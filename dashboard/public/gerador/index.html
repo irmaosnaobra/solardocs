@@ -696,6 +696,8 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-rec-assin .a{flex:1;text-align:center;border-top:1px solid #1a1a1a;padding-top:6px;font-size:11px;color:#333;line-height:1.45}
 .ep-rec-assin .a span{display:block;font-size:9.5px;color:#8a94a3;margin-bottom:1px}
 .ep-rec-assin .a b{display:block;font-size:11.5px;color:#1a1a1a}
+.ep-rec-assin.uma{justify-content:center}
+.ep-rec-assin.uma .a{flex:0 0 46%}
 .ep-rec-local{font-family:var(--serif);font-size:12px;color:#22303d;margin-top:16px}
 /* ===== PRÉVIA DOS DOCUMENTOS (recibo e contrato) =====
    Antes de imprimir, o consultor vê a folha do jeito que ela vai sair e pode
@@ -2832,13 +2834,19 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="ep-pasta-host"></div>
 
       <div class="card">
-        <div class="calc-card-title"><span class="dot"></span>Recibo de sinal</div>
+        <div class="calc-card-title"><span class="dot"></span><span id="rec-card-tit">Recibo de sinal</span></div>
         <div class="orc-cli-banner" id="rec-cli-banner">—</div>
-        <div class="eletro-field"><label>Nº do recibo</label>
+        <div class="eletro-field"><label>Tipo de recibo</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="rec-tipo" onchange="recTipoMudou()">
+            <option value="sinal">Sinal — abate no total do eletroposto</option>
+            <option value="projeto">Projeto elétrico avulso — não cita o eletroposto</option>
+          </select></div></div>
+        <div class="orc-note" id="rec-tipo-note">—</div>
+        <div class="eletro-field" style="margin-top:12px"><label>Nº do recibo</label>
           <div class="eletro-inp"><input type="text" id="rec-num" placeholder="001"></div></div>
         <div class="eletro-field"><label>Data do recebimento</label>
           <div class="eletro-inp eletro-inp-wide"><input type="date" id="rec-data"></div></div>
-        <div class="eletro-field"><label>Percentual do sinal</label>
+        <div class="eletro-field" id="rec-f-pct"><label>Percentual do sinal</label>
           <div class="eletro-inp has-suf"><input type="number" id="rec-pct" inputmode="decimal" step="0.5" min="0" max="100" value="5" oninput="recCalc()"><span class="suf">%</span></div></div>
         <div class="eletro-field"><label>Valor recebido</label>
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="rec-valor" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="recValorEditado(this)"></div></div>
@@ -2849,12 +2857,12 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           </select></div></div>
         <div class="eletro-field"><label>Destinação do valor</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="rec-fim" value="elaboração do projeto elétrico e sua homologação junto à concessionária de energia"></div></div>
-        <div class="eletro-field"><label>Gatilho do abatimento</label>
+        <div class="eletro-field" id="rec-f-gatilho"><label>Gatilho do abatimento</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="rec-gatilho" value="aprovado o projeto elétrico pela concessionária de energia"></div></div>
-        <div class="orc-note">Escreva <b>quem</b> aprova. "Após a aprovação" sem dono é a cláusula que se discute depois.</div>
+        <div class="orc-note" id="rec-f-gatilho-note">Escreva <b>quem</b> aprova. "Após a aprovação" sem dono é a cláusula que se discute depois.</div>
         <div class="eletro-field" style="margin-top:12px"><label>Observações (opcional)</label>
           <div class="eletro-inp eletro-inp-wide"><textarea id="rec-obs" rows="2" maxlength="260" placeholder="O que foi combinado fora do padrão. Em branco, não aparece no recibo." style="width:100%;box-sizing:border-box;padding:11px 12px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:13px;font-family:inherit;font-weight:500;line-height:1.5;outline:none;resize:vertical"></textarea></div></div>
-        <div class="eletro-field" style="margin-top:12px"><label>Cláusula de desistência</label>
+        <div class="eletro-field" id="rec-f-desist" style="margin-top:12px"><label>Cláusula de desistência</label>
           <div class="eletro-inp eletro-inp-wide"><textarea id="rec-desist" rows="3" maxlength="320" style="width:100%;box-sizing:border-box;padding:11px 12px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:13px;font-family:inherit;font-weight:500;line-height:1.5;outline:none;resize:vertical"></textarea></div></div>
       </div>
 
@@ -9037,9 +9045,36 @@ function recCalc() {
   }
   recResumo();
 }
+// Dois recibos moram nesta tela. O de SINAL fala do total do eletroposto e do
+// saldo; o AVULSO fala só do projeto elétrico. Campo que não sai no papel fica
+// ESCONDIDO, e não apenas ignorado: consultor que preenche "gatilho do
+// abatimento" num recibo que não abate nada acha que combinou algo com o cliente.
+function recAvulso() { return orcVal('rec-tipo') === 'projeto'; }
+function recTipoMudou() {
+  const av = recAvulso();
+  const most = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
+  most('rec-f-pct', !av); most('rec-f-gatilho', !av); most('rec-f-gatilho-note', !av); most('rec-f-desist', !av);
+  const t = document.getElementById('rec-card-tit');
+  if (t) t.textContent = av ? 'Recibo do projeto elétrico' : 'Recibo de sinal';
+  const n = document.getElementById('rec-tipo-note');
+  if (n) n.innerHTML = av
+    ? 'O papel fala <b>só do projeto elétrico</b>: sem valor total, sem saldo, sem abatimento e sem citar o eletroposto — e assina só a empresa, como todo recibo de quem recebe.'
+    : 'O valor é <b>sinal e princípio de pagamento</b>: o papel mostra o total, o saldo e o abatimento, e o cliente assina junto.';
+  // No avulso o valor é o que ENTROU, não uma conta sobre o orçamento: soltar do
+  // percentual evita o número trocar sozinho quando a tela é reaberta.
+  const el = document.getElementById('rec-valor');
+  if (el && av) el.dataset.tocado = '1';
+  recResumo();
+}
 function recResumo() {
   const n = document.getElementById('rec-resumo'); if (!n) return;
   const base = recBase(), sinal = orcNum(orcVal('rec-valor'));
+  if (recAvulso()) {
+    n.innerHTML = sinal > 0
+      ? `Recibo de <b>${ORC_MONEY(sinal)}</b> pelo projeto elétrico — sem vínculo com o valor do eletroposto.`
+      : 'Digite o <b>valor recebido</b>. Neste tipo o recibo não sai do orçamento: sai do que entrou.';
+    return;
+  }
   if (!(base > 0)) { n.textContent = 'Defina o "Valor do projeto" acima — é ele que dá a base do sinal.'; return; }
   const tocado = document.getElementById('rec-valor')?.dataset.tocado === '1';
   n.innerHTML = `Base <b>${ORC_MONEY(base)}</b> · sinal <b>${ORC_MONEY(sinal)}</b> · saldo após a aprovação <b>${ORC_MONEY(Math.max(0, base - sinal))}</b>` +
@@ -9061,6 +9096,7 @@ function recBanner() {
 function recInit() {
   const d = document.getElementById('rec-data'); if (d && !d.value) d.value = orcHojeISO();
   const t = document.getElementById('rec-desist'); if (t && !t.value.trim()) t.value = REC_DESIST_PADRAO;
+  recTipoMudou();
   recCalc();
   recBanner();
 }
@@ -9081,6 +9117,7 @@ function recDados() {
     fim: orcVal('rec-fim'), gatilho: orcVal('rec-gatilho'),
     desist: orcVal('rec-desist') || REC_DESIST_PADRAO,
     obs: orcVal('rec-obs'),
+    avulso: recAvulso(),
     vendedor: { nome: t.autor, contato: t.contato },
   };
 }
@@ -9103,16 +9140,30 @@ function recHTML(d) {
   const ouVazio = v => v ? e(v) : '<span class="ep-rec-vazio"></span>';
   const local = [d.cidade, d.data.toLocaleDateString('pt-BR')].filter(Boolean).join(', ');
   const emp = epEmitGet();
+  // ── Dois recibos, uma folha só ──
+  // AVULSO (d.avulso): o dinheiro paga o projeto elétrico e a conta fecha ali.
+  // Somem o total do eletroposto, o percentual, o saldo, o abatimento e o
+  // gatilho — nenhum dos cinco existe sem obra contratada, e citar o total da
+  // obra num recibo é o que faz o cliente ler promessa de contrato onde houve
+  // serviço. Some também o equipamento: recibo de projeto que diz "referente ao
+  // eletroposto DC 80 kW" vincula de novo pela porta dos fundos.
+  // E assina só a empresa: recibo é declaração de quem RECEBE. A assinatura do
+  // cliente existe no de sinal porque lá o papel também COMBINA o abatimento —
+  // isso é acordo, e acordo precisa das duas partes.
+  const av = !!d.avulso;
+  const titulo = av ? 'Recibo' : 'Recibo de Sinal';
+  const fimCap = (d.fim || '').charAt(0).toUpperCase() + (d.fim || '').slice(1);
 
   // Sem a marca d'água dos outros documentos de propósito: a arte esticada a 16%
   // de opacidade atrás de cláusula jurídica deixa a folha com cara de borrada e
   // não ajuda em nada num papel que só precisa ser lido e assinado.
   return `<div class="ep-doc">
     <div class="ep-page ep-rec">
-      ${epTopoHTML('Recibo de Sinal', d.data.toLocaleDateString('pt-BR'),
+      ${epTopoHTML(titulo, d.data.toLocaleDateString('pt-BR'),
         [['Recibo nº', d.num ? e(d.num) : ''],
          ['Cliente', d.cliente ? e(d.cliente) : ''],
-         ['Local', d.cidade ? e(d.cidade) : '']], '')}
+         ['Local', d.cidade ? e(d.cidade) : ''],
+         ['Referente a', av ? 'Projeto elétrico' : '']], '')}
 
       <div class="ep-rec-hero">
         <div>
@@ -9120,58 +9171,68 @@ function recHTML(d) {
           <div class="v">${money(d.sinal)}</div>
           <div class="ext">(${e(recExtenso(d.sinal))})</div>
         </div>
-        <div class="pct"><b>${pct}</b>do valor total do projeto<br>recebido em ${e(d.forma)}</div>
+        ${av
+          ? `<div class="pct"><b>${e(d.forma)}</b>forma de recebimento</div>`
+          : `<div class="pct"><b>${pct}</b>do valor total do projeto<br>recebido em ${e(d.forma)}</div>`}
       </div>
 
       <div class="ep-rec-corpo">
         Recebemos de <b>${ouVazio(d.cliente)}</b>, inscrito(a) no CPF/CNPJ sob o nº ${ouVazio(d.doc)}${d.end ? ', com endereço em ' + e(d.end) : ''}${d.cidade ? ' — ' + e(d.cidade) : ''},
-        a importância de <b>${money(d.sinal)}</b> (${e(recExtenso(d.sinal))}), a título de
-        <b>sinal e princípio de pagamento</b>, correspondente a ${pct} do valor total do projeto
-        de <b>${money(d.base)}</b>, destinada à ${e(d.fim)}${d.equip ? `, referente ao eletroposto ${e(d.equip)}` : ''}.
+        a importância de <b>${money(d.sinal)}</b> (${e(recExtenso(d.sinal))}), ${av
+          ? `em pagamento da <b>${e(d.fim)}</b>.`
+          : `a título de <b>sinal e princípio de pagamento</b>, correspondente a ${pct} do valor total do projeto
+        de <b>${money(d.base)}</b>, destinada à ${e(d.fim)}${d.equip ? `, referente ao eletroposto ${e(d.equip)}` : ''}.`}
       </div>
 
-      <div class="ep-section">Como este valor entra na conta</div>
+      ${av ? '' : `<div class="ep-section">Como este valor entra na conta</div>
       <table class="ep-kv">
         <tr><td>Valor total do projeto</td><td class="num">${money(d.base)}</td></tr>
         <tr><td>Sinal recebido nesta data (${pct})</td><td class="num">− ${money(d.sinal)}</td></tr>
         <tr class="hl"><td>Saldo a pagar após a aprovação do projeto</td><td class="num">${money(d.saldo)}</td></tr>
-      </table>
+      </table>`}
 
       <div class="ep-section">Condições</div>
       <ol class="ep-rec-clau">
-        <li><b>Natureza do valor.</b> A quantia acima é <b>sinal e princípio de pagamento</b> (arras confirmatórias, art. 417 do Código Civil) — parte do preço do projeto, e não taxa avulsa.</li>
-        <li><b>Abatimento.</b> Sendo ${e(d.gatilho)} e prosseguindo a contratação, este valor é <b>integralmente abatido do valor total</b>, restando o saldo de <b>${money(d.saldo)}</b>. Parcelamento ou financiamento, quando houver, incidem sobre esse saldo.</li>
-        <li><b>O que este valor cobre.</b> ${e((d.fim || '').charAt(0).toUpperCase() + (d.fim || '').slice(1))}, incluindo o recolhimento da ART e o protocolo junto à concessionária.</li>
-        <li><b>Desistência.</b> ${e(d.desist)}</li>
+        ${av
+          ? `<li><b>Natureza do valor.</b> A quantia acima é o <b>preço do serviço descrito neste recibo</b>, pago integralmente nesta data — não é sinal, adiantamento nem reserva de obra futura.</li>
+        <li><b>O que este valor cobre.</b> ${e(fimCap)}, incluindo o recolhimento da ART e o protocolo junto à concessionária.</li>
+        <li><b>Entrega.</b> Concluído o serviço, o projeto elétrico e a respectiva ART são entregues ao contratante.</li>
         <li><b>Exigência da concessionária.</b> Havendo exigência ou reprovação por causa não imputável ao contratante, as adequações e a reapresentação do projeto são feitas <b>sem custo adicional</b>.</li>
+        <li><b>Quitação.</b> O pagamento acima dá <b>plena e geral quitação</b> do serviço descrito, nada mais havendo a cobrar por ele.</li>`
+          : `<li><b>Natureza do valor.</b> A quantia acima é <b>sinal e princípio de pagamento</b> (arras confirmatórias, art. 417 do Código Civil) — parte do preço do projeto, e não taxa avulsa.</li>
+        <li><b>Abatimento.</b> Sendo ${e(d.gatilho)} e prosseguindo a contratação, este valor é <b>integralmente abatido do valor total</b>, restando o saldo de <b>${money(d.saldo)}</b>. Parcelamento ou financiamento, quando houver, incidem sobre esse saldo.</li>
+        <li><b>O que este valor cobre.</b> ${e(fimCap)}, incluindo o recolhimento da ART e o protocolo junto à concessionária.</li>
+        <li><b>Desistência.</b> ${e(d.desist)}</li>
+        <li><b>Exigência da concessionária.</b> Havendo exigência ou reprovação por causa não imputável ao contratante, as adequações e a reapresentação do projeto são feitas <b>sem custo adicional</b>.</li>`}
         <li><b>Documento fiscal.</b> Este recibo não substitui documento fiscal; a nota fiscal correspondente é emitida na forma da legislação.</li>
         ${d.obs ? `<li><b>Observações.</b> ${e(d.obs)}</li>` : ''}
       </ol>
 
       <div class="ep-rec-local">${local ? e(local) + '.' : ''}</div>
-      <div class="ep-rec-assin">
+      <div class="ep-rec-assin${av ? ' uma' : ''}">
         <div class="a"><b>${e(emp.razao || emp.nome || 'Irmãos na Obra')}</b>${emp.cnpj ? `<span>CNPJ ${e(emp.cnpj)}</span>` : ''}Recebedor</div>
-        <div class="a"><b>${d.cliente ? e(d.cliente) : '&nbsp;'}</b>${d.doc ? `<span>CPF/CNPJ ${e(d.doc)}</span>` : ''}Contratante</div>
+        ${av ? '' : `<div class="a"><b>${d.cliente ? e(d.cliente) : '&nbsp;'}</b>${d.doc ? `<span>CPF/CNPJ ${e(d.doc)}</span>` : ''}Contratante</div>`}
       </div>
 
       ${epFooterBlockHTML(d.vendedor)}
-      ${epPageFootHTML('Recibo de Sinal', d.cliente)}
+      ${epPageFootHTML(titulo, d.cliente)}
     </div>
   </div>`;
 }
-
 function recImprimir() {
   const d = recDados();
-  if (!(d.base > 0)) { alert('Defina o "Valor do projeto" no Orçamento (ou o investimento no Simulador) antes de gerar o recibo.'); return; }
-  if (!(d.sinal > 0)) { alert('O valor recebido está zerado. Confira o percentual do sinal.'); return; }
+  // O avulso não depende do orçamento — ele não cita total nenhum. Exigir base
+  // aqui travaria justamente o recibo que existe pra NÃO falar do eletroposto.
+  if (!d.avulso && !(d.base > 0)) { alert('Defina o "Valor do projeto" no Orçamento (ou o investimento no Simulador) antes de gerar o recibo.'); return; }
+  if (!(d.sinal > 0)) { alert(d.avulso ? 'Digite o "Valor recebido" antes de gerar o recibo.' : 'O valor recebido está zerado. Confira o percentual do sinal.'); return; }
   const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
   // Recibo é UMA folha. O documento fecha em ~1.100px dos 1.123px do A4, mas as
   // cláusulas são texto livre: duas linhas a mais empurravam o bloco de contato
   // pra uma segunda página em silêncio. Mesmo encolhimento dos orçamentos.
   epPreview({
     html: recHTML(d),
-    arquivo: ['Recibo', limpa(d.cliente) || 'Cliente', d.num ? 'N' + limpa(d.num) : ''].filter(Boolean).join('_'),
-    titulo: 'Recibo de sinal' + (d.cliente ? ' — ' + d.cliente : ''),
+    arquivo: [d.avulso ? 'Recibo_Projeto' : 'Recibo', limpa(d.cliente) || 'Cliente', d.num ? 'N' + limpa(d.num) : ''].filter(Boolean).join('_'),
+    titulo: (d.avulso ? 'Recibo do projeto elétrico' : 'Recibo de sinal') + (d.cliente ? ' — ' + d.cliente : ''),
     opts: { umaPagina: true, piso: 0.86, alvo: '.ep-rec' },
     hist: d.cliente ? { id: epId(), tipo: 'Recibo', cliente: d.cliente, valor: d.sinal, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
   });
@@ -10093,7 +10154,7 @@ function orcSnapTake() {
     // Recibo de sinal. Vai junto porque quem reabre um orçamento do histórico
     // geralmente quer o mesmo recibo de novo (2ª via) — e o valor do sinal tem
     // que voltar exatamente o que foi assinado, não um % recalculado hoje.
-    recNum: v('rec-num'), recData: v('rec-data'), recPct: v('rec-pct'),
+    recTipo: v('rec-tipo'), recNum: v('rec-num'), recData: v('rec-data'), recPct: v('rec-pct'),
     recValor: v('rec-valor'), recValorTocado: document.getElementById('rec-valor')?.dataset.tocado === '1',
     recForma: v('rec-forma'), recFim: v('rec-fim'), recGatilho: v('rec-gatilho'), recDesist: v('rec-desist'), recObs: v('rec-obs'),
     // Contrato. Mesma razão do recibo: reabrir pra tirar 2ª via tem que devolver
@@ -10172,13 +10233,16 @@ function orcSnapApply(s) {
   }
   // Recibo de sinal. Orçamento salvo antes deste campo não traz nada: o set()
   // ignora null e o recibo fica no padrão (5% do total), que é como ele nasceria.
-  set('rec-num', s.recNum); set('rec-data', s.recData); set('rec-pct', s.recPct);
+  set('rec-tipo', s.recTipo); set('rec-num', s.recNum); set('rec-data', s.recData); set('rec-pct', s.recPct);
   set('rec-forma', s.recForma); set('rec-fim', s.recFim); set('rec-gatilho', s.recGatilho); set('rec-desist', s.recDesist); set('rec-obs', s.recObs);
   const recEl = document.getElementById('rec-valor');
   if (recEl) {
     if (s.recValorTocado) { recEl.dataset.tocado = '1'; if (s.recValor != null) recEl.value = s.recValor; }
     else delete recEl.dataset.tocado;   // volta a acompanhar o percentual
   }
+  // Depois do rec-valor de propósito: no avulso o recTipoMudou trava o valor no
+  // que foi salvo. Rodar antes deixaria o delete acima soltar o número de novo.
+  if (typeof recTipoMudou === 'function') recTipoMudou();
   // Contrato. Snapshot antigo não tem nada disso: o set() ignora null e os
   // campos ficam no padrão, que é como nasceriam.
   set('ctr-num', s.ctrNum); set('ctr-data', s.ctrData); set('ctr-local', s.ctrLocal);
