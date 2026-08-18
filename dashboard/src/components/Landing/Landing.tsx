@@ -301,13 +301,23 @@ export default function Landing() {
               <span className={styles.eyebrowDot} />
               Pra integrador solar com CNPJ
             </span>
+            {/* A headline anterior era "Você fecha a venda solar com a sua marca.
+                Não só gera papel." Ela respondia uma objeção que o leitor ainda
+                não tinha feito ("papel"?) e vendia DIFERENCIAL DE PRODUTO (a
+                marca) no lugar de RESULTADO.
+
+                Quem lê isto fecha venda na hora, com o cliente na frente. O
+                inimigo dele não é outro software — é o "vou pensar", que é onde
+                a venda solar morre. Nomear a frase que ele ouve toda semana faz
+                a headline ser dele, não nossa. A marca não sumiu: desceu pro
+                sub, que é onde diferencial pertence. */}
             <h1 className={styles.h1}>
-              Você fecha a venda solar <strong>com a sua marca</strong>. Não só gera papel.
+              Feche a venda <strong>antes do &ldquo;vou pensar&rdquo;</strong>.
             </h1>
 
             <p className={styles.lead} style={{ margin: '0 auto 26px' }}>
-              Proposta solar e todos os contratos que o integrador precisa, prontos em minutos: seu nome,
-              sua logo, sua cor e os números certos — pra fechar mais rápido no WhatsApp do cliente.
+              Proposta e contrato com a <b>sua marca</b>, prontos em minutos — na frente do cliente
+              ou no WhatsApp dele. Enquanto o concorrente promete mandar depois, você já mandou.
             </p>
 
             {/* Mockup logo abaixo da subheadline (pedido do Thiago): a pessoa
