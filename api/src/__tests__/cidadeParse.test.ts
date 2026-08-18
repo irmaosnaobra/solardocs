@@ -125,3 +125,22 @@ describe('chaveMunicipio — casa grafias diferentes do mesmo lugar', () => {
     expect(chaveMunicipio('Rio Branco')).not.toBe(chaveMunicipio('Rio Verde'));
   });
 });
+
+describe('municípios que TÊM " e " no nome', () => {
+  it('Abreu e Lima, Pontes e Lacerda e Passa e Fica não são "duas cidades"', () => {
+    // São os três municípios do Brasil com " e " no nome. Sem a exceção, a regra
+    // de dois topônimos os classificaria como indecidíveis e eles nunca
+    // resolveriam — o morador de Abreu e Lima jamais entraria num match.
+    for (const [txt, uf] of [['Abreu e Lima-PE', 'PE'], ['Pontes e Lacerda/MT', 'MT'],
+                             ['Passa e Fica RN', 'RN'], ['Abreu e Lima', null]] as const) {
+      const r = normalizarCidade(txt);
+      expect(r.duasCidades, txt).toBe(false);
+      expect(r.cidade, txt).toBeTruthy();
+      expect(r.uf, txt).toBe(uf);
+    }
+  });
+
+  it('mas duas cidades DE VERDADE continuam sendo duas', () => {
+    expect(normalizarCidade('Porto seguro e Eunapolis/ BA').duasCidades).toBe(true);
+  });
+});

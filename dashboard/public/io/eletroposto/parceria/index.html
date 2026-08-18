@@ -750,6 +750,11 @@ function enviar(e, lado){
     if (!val('c-faixa')) return erro(lado, 'Informe quanto pretende investir — é o que decide qual ponto combina com você.');
     corpo.capital_faixa = val('c-faixa');
     corpo.prazo = val('c-prazo');
+    // COM QUÊ a pessoa paga: a página não pergunta (seria uma pergunta a mais
+    // num formulário que já tem seis), mas a LP perguntou — e o aviso da equipe
+    // e a aba Cadastros têm coluna pra isso. Sem esta linha, "Com quê" saía "—"
+    // em TODO cadastro, inclusive no de quem tinha acabado de responder.
+    if (LEAD.invest) corpo.capital_origem = LEAD.invest;
   } else {
     if (!val('p-relacao'))    return erro(lado, 'Informe qual é a sua relação com o local.');
     if (!val('p-tipo'))       return erro(lado, 'Informe que tipo de local é.');

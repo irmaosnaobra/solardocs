@@ -72,8 +72,16 @@ export interface Candidato {
 
 const soDigitos = (s: unknown) => String(s ?? '').replace(/\D/g, '');
 
-/** Carrega um lado inteiro, das duas origens, já com coordenada quando dá. */
-export async function pool(lado: Lado): Promise<Candidato[]> {
+/**
+ * Carrega um lado inteiro, das duas origens, já com coordenada quando dá.
+ *
+ * `jaNoOutroLado` existe por um motivo específico: uma pessoa PODE estar nos dois
+ * lados (tem o terreno E o dinheiro — o cadastro permite, a chave é lado+telefone).
+ * Sem cruzar os telefones entre as duas chamadas, ela viraria par DELA MESMA,
+ * a 0 km, no topo da fila do Match — que é onde o erro é mais visível e mais
+ * constrangedor. O lado do PONTO ganha a disputa: é o ativo escasso.
+ */
+export async function pool(lado: Lado, jaNoOutroLado?: Set<string>): Promise<Candidato[]> {
   const [cadastros, fichas] = await Promise.all([
     supabaseGerador.from('eletroposto_parceria')
       .select('id, nome, telefone, cidade').eq('lado', lado).limit(500),
@@ -82,7 +90,8 @@ export async function pool(lado: Lado): Promise<Candidato[]> {
   ]);
 
   const linhas: Candidato[] = [];
-  const vistos = new Set<string>();
+  // Nasce com quem já está do outro lado: ninguém aparece nos dois pools.
+  const vistos = new Set<string>(jaNoOutroLado || []);
 
   for (const c of (cadastros.data || []) as Record<string, unknown>[]) {
     const tel = soDigitos(c.telefone);
@@ -147,6 +156,14 @@ export async function sugerirPares(
   }
 
   const comMapa = candidatos.filter(c => typeof c.lat === 'number' && typeof c.lng === 'number');
+  // Tem gente do outro lado, mas de NINGUÉM eu sei a cidade. Não é pool vazio
+  // (a frase "ninguém cadastrado ainda" seria mentira com 45 pessoas na base) e
+  // não é "longe" (não medi distância nenhuma) — é o mesmo caso de não saber
+  // medir, só que do outro lado.
+  if (!comMapa.length) {
+    return { status: 'sem_mapa', perto: [],
+             motivo: `nenhum dos ${candidatos.length} do outro lado tem cidade que eu consiga localizar` };
+  }
   for (const c of comMapa) {
     c.km = distanciaKm({ lat: eu.lat!, lng: eu.lng! }, { lat: c.lat!, lng: c.lng! });
   }

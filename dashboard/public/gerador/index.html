@@ -6472,6 +6472,14 @@ function cadAba(lado) {
   // O painel de "quem está perto" é da tabela de lista; na aba Match o par já
   // está na própria linha, e deixá-lo aberto mostraria outra pessoa.
   cadParesAberto = null;
+  // O filtro de status some no Match: lá a linha é uma DUPLA, e cada metade tem
+  // o seu status. Um seletor que continua na tela sem fazer nada é pior que não
+  // existir — a pessoa filtra, não muda nada, e conclui que a tela travou.
+  const filtro = document.getElementById('cad-filtro');
+  if (filtro) {
+    if (lado === 'match') filtro.value = '';
+    filtro.style.display = lado === 'match' ? 'none' : '';
+  }
   cadRender();
 }
 
@@ -6504,8 +6512,17 @@ async function cadCarregar(forcar) {
     cadConexoes = conexoes || [];
     // Quem já se cadastrou na página não aparece duas vezes: o cadastro é mais
     // recente e mais completo que a ficha de onde ele saiu.
+    // O Set nasce com os cadastros e VAI CRESCENDO com as fichas já aceitas: sem
+    // isso, duas fichas do mesmo telefone (a pessoa preencheu a LP duas vezes)
+    // viram duas linhas da mesma pessoa na lista — e a de baixo mostra "—" na
+    // coluna de par, porque o cálculo do servidor dedupa e ela não existe lá.
     const jaTem = new Set([...(capital || []), ...(pontos || [])].map(c => String(c.telefone)));
-    const livres = (fichas || []).filter(f => !jaTem.has(String(f.telefone)));
+    const livres = (fichas || []).filter(f => {
+      const tel = String(f.telefone || '');
+      if (!tel || jaTem.has(tel)) return false;
+      jaTem.add(tel);
+      return true;
+    });
 
     // A ficha de arrendamento não tem os campos do cadastro (ninguém perguntou
     // vagas nem trifásica a ela). Os que existem são reaproveitados no mesmo
@@ -6677,7 +6694,11 @@ function cadRenderMatch(busca) {
     p: cadAcha(cadDados.ponto, m.ponto),
     c: cadAcha(cadDados.capital, m.capital),
     refP: m.ponto, refC: m.capital,
-  })).filter(d => d.p && d.c);
+  })).filter(d => d.p && d.c)
+    // Quem já disse não sai da fila. Oferecer de novo quem foi marcado como sem
+    // interesse é fazer o consultor ligar pra tomar o mesmo não — e é assim que
+    // uma fila de trabalho vira lista que ninguém confia.
+    .filter(d => d.p.status !== 'sem_interesse' && d.c.status !== 'sem_interesse');
 
   if (busca) duplas = duplas.filter(d =>
     [d.p.nome, d.c.nome, d.p.cidade, d.c.cidade].filter(Boolean).join(' ').toLowerCase().includes(busca));
@@ -6730,15 +6751,20 @@ async function cadConectar(refP, refC, km, btn) {
   btn.disabled = true; btn.textContent = 'Gravando…';
   try {
     const linha = { p_tab: pTab, p_id: Number(pId), c_tab: cTab, c_id: Number(cId),
-                    km: km, status: 'apresentado', quem: (window.CONSULTOR_NOME || null) };
+                    km: km, status: 'apresentado', quem: cadQuemSou() };
     const r = await fetch(SUPABASE_URL + '/rest/v1/eletroposto_match?on_conflict=p_tab,p_id,c_tab,c_id', {
       method: 'POST',
       headers: { ...supaHeaders(), 'Prefer': 'resolution=merge-duplicates,return=representation' },
       body: JSON.stringify(linha),
     });
     if (!r.ok) throw new Error(await r.text());
-    const [nova] = await r.json();
-    cadConexoes.push(nova || { ...linha, criado_em: new Date().toISOString() });
+    // Só entra na lista o que o banco DEVOLVEU. O fallback otimista pintava
+    // "apresentado" na tela mesmo quando o PostgREST respondia sem representação
+    // — e aí a tela dizia uma coisa e o banco outra, que é o pior dos dois.
+    const devolvido = await r.json();
+    const nova = Array.isArray(devolvido) ? devolvido[0] : devolvido;
+    if (!nova || !nova.id) throw new Error('o banco aceitou mas não devolveu a linha');
+    cadConexoes.push(nova);
     // Marca os DOIS lados como conectados na lista. Marcar um só deixaria a
     // outra aba dizendo "novo" sobre alguém que já foi apresentado.
     await Promise.all([
@@ -6755,6 +6781,11 @@ async function cadConectar(refP, refC, km, btn) {
   }
 }
 const tabelaDe = t => (t === 'parceria' ? 'eletroposto_parceria' : 'eletroposto_nota1');
+// Quem apresentou. Reusa o consultor do login (crmConsultorLogado) em vez de
+// inventar uma variável global — a primeira versão lia `window.CONSULTOR_NOME`,
+// que não existe em lugar nenhum do app: gravava `null` sempre, e o histórico
+// nasceria sem dono.
+const cadQuemSou = () => { try { return crmConsultorLogado() || null; } catch (e) { return null; } };
 
 // ── A célula "quem está perto" ──────────────────────────────────────────────
 // TRÊS ESTADOS, e eles não podem se confundir — é a regra da casa: métrica que

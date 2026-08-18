@@ -376,7 +376,11 @@ router.get('/parceria/placar', async (_req: Request, res: Response): Promise<voi
 // e a tabela de municípios são 408 KB que não vão para dentro de um PWA.
 router.get('/parceria/pares', async (_req: Request, res: Response): Promise<void> => {
   try {
-    const [capital, pontos] = await Promise.all([pool('capital'), pool('ponto')]);
+    // O PONTO primeiro, e o capital só com quem não está lá: o cadastro permite
+    // a mesma pessoa nos dois lados (tem o terreno E o dinheiro), e sem cruzar
+    // os telefones ela viraria par dela mesma a 0 km, no topo da fila.
+    const pontos = await pool('ponto');
+    const capital = await pool('capital', new Set(pontos.map(p => p.telefone)));
     const chave = (c: { tab: string; id: number }) => `${c.tab}:${c.id}`;
 
     const pares: Record<string, Array<{ ref: string; km: number }>> = {};
@@ -456,6 +460,15 @@ async function marcarAviso(lado: string, telefone: string): Promise<boolean> {
   } catch (err) {
     logger.error('io-eletroposto-parceria', `marcador de aviso falhou (${key})`, err);
     return false;
+  }
+}
+
+/** Devolve a vaga do marcador — usado quando o aviso NÃO saiu. */
+async function desmarcarAviso(lado: string, telefone: string): Promise<void> {
+  try {
+    await supabasePc.from('system_state').delete().eq('key', `ep_parceria_aviso:${lado}:${telefone}`);
+  } catch (err) {
+    logger.error('io-eletroposto-parceria', `nao consegui devolver o marcador de ${telefone}`, err);
   }
 }
 
@@ -613,29 +626,48 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
   const linha: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(bruto)) if (v !== null && v !== undefined) linha[k] = v;
 
-  // Responde ANTES do banco: a tela de "recebemos" aparece no ato, e gravação
-  // que demora não pode virar botão girando.
+  // ── GRAVA PRIMEIRO, E SÓ ENTÃO RESPONDE ──
+  // Até 18/08 a resposta saía ANTES do upsert. A página espera o ok da API pra
+  // mostrar "Cadastro recebido" — mas o ok não significava gravado, então
+  // qualquer falha (constraint, RLS, 5xx do PostgREST, rede) fazia a tela
+  // prometer uma coisa que não aconteceu, e a pessoa ia embora achando que
+  // estava na lista. Sem grupo pra entrar, o cadastro é o produto: quem não
+  // gravou não se cadastrou, e ele precisa saber pra tentar de novo.
+  //
+  // O resto — carimbo, aviso, dica de par — continua depois da resposta: aquilo
+  // é trabalho da casa, e prender o lead esperando WhatsApp da equipe seria
+  // cobrar dele o nosso tempo.
+  let reg: Record<string, unknown> | null = null;
+  try {
+    const { data, error } = await supabaseGerador
+      .from('eletroposto_parceria')
+      .upsert(linha, { onConflict: 'lado,telefone' })
+      .select('*').single();
+    if (error) throw error;
+    reg = data as Record<string, unknown>;
+  } catch (err) {
+    logger.error('io-eletroposto-parceria', `falha gravando ${lado} ${telefone}`, err);
+  }
+
+  if (!reg) {
+    res.status(500).json({ ok: false, error: 'nao consegui gravar' });
+    // Gravação que falha não pode virar silêncio: o lead existe e ninguém sabe
+    // dele. O aviso de perda sai mesmo com a resposta já sendo erro.
+    avisarEquipe([
+      '⚠️ *CADASTRO PERDIDO — grave na mão*',
+      '',
+      `Alguém se cadastrou como *${lado === 'ponto' ? 'DONO DE PONTO' : 'INVESTIDOR'}* e a gravação falhou.`,
+      '',
+      `*Nome:* ${nome}`,
+      `*WhatsApp:* wa.me/${telefone}`,
+      `*Cidade:* ${bruto.cidade || '—'}`,
+    ].join('\n')).catch(() => {});
+    return;
+  }
+
   res.json({ ok: true });
 
   (async () => {
-    // ── GRAVA, e o aviso só sai se a gravação deu certo ──
-    // `.select('*')` de propósito: a mensagem é montada do REGISTRO, não do
-    // corpo do request. O corpo tem os nulos removidos antes do upsert (pra
-    // envio parcial não apagar campo cheio), então num reenvio a linha do banco
-    // está completa e o corpo não — montar do corpo mandaria "Endereço: —" pra
-    // um ponto que tem endereço gravado. É a mesma razão do /alerta ler a ficha.
-    let reg: Record<string, unknown> | null = null;
-    try {
-      const { data, error } = await supabaseGerador
-        .from('eletroposto_parceria')
-        .upsert(linha, { onConflict: 'lado,telefone' })
-        .select('*').single();
-      if (error) throw error;
-      reg = data as Record<string, unknown>;
-    } catch (err) {
-      logger.error('io-eletroposto-parceria', `falha gravando ${lado} ${telefone}`, err);
-    }
-
     // Carimba a porta na ficha do funil também: "quantos dos recusados escolheram
     // alguma porta" é pergunta do funil, e o painel do /admin lê a ficha.
     try {
@@ -668,8 +700,12 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
     // ── UMA mensagem por pessoa por lado, e ponto ──
     // A página desiste em 8s e reabilita o botão: quem está em rede ruim manda
     // duas vezes, e o upsert absorve isso calado. O marcador é gravado ANTES do
-    // envio (MARK→SEND): duplicar aviso é pior que perder um, porque aviso
-    // repetido treina a equipe a ignorar todos.
+    // envio pra a segunda tentativa encontrar a vaga tomada.
+    //
+    // MAS ele é DEVOLVIDO quando o envio falha (o `catch` lá embaixo apaga a
+    // chave). Sem isso, um erro do Z-API — a linha já caiu por 41h uma vez —
+    // deixaria a marca no banco e o lead ficaria sem aviso PARA SEMPRE, sem
+    // ninguém saber. Perder um aviso é pior que arriscar um repetido.
     const jaAvisou = await marcarAviso(lado, telefone);
     if (jaAvisou) {
       logger.info('io-eletroposto-parceria', `aviso repetido barrado: ${lado} ${telefone}`);
@@ -683,18 +719,23 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
     // no banco é a durável.
     if (lado === 'capital' && await jaAnunciadoPeloNota1(telefone, String(bruto.origem || ''))) {
       logger.info('io-eletroposto-parceria', `capital ${telefone} já anunciado pelo nota1`);
+      await desmarcarAviso(lado, telefone);   // não gastou a vaga: não fica marcado
       return;
     }
 
     try {
-      const cidadeReg = (reg.cidade as string) || null;
+      const cidadeReg = (reg!.cidade as string) || null;
       // A dica olha o OUTRO lado: ponto novo procura investidor, e vice-versa.
       const dica = await blocoParesSeguro(cidadeReg, lado === 'ponto' ? 'capital' : 'ponto', telefone);
-      const aviso = lado === 'ponto' ? montarAvisoPonto(reg, dica) : montarAvisoCapital(reg, dica);
+      const aviso = lado === 'ponto' ? montarAvisoPonto(reg!, dica) : montarAvisoCapital(reg!, dica);
       await avisarEquipe(aviso);
-      logger.info('io-eletroposto-parceria', `${lado} novo #${reg.id} de ${nome} (${telefone})`);
+      logger.info('io-eletroposto-parceria', `${lado} novo #${reg!.id} de ${nome} (${telefone})`);
     } catch (err) {
       logger.error('io-eletroposto-parceria', `aviso falhou pra ${telefone}`, err);
+      // Devolve a vaga: com a marca no banco e a mensagem não enviada, este lead
+      // ficaria sem aviso PARA SEMPRE, e ninguém saberia. A linha já caiu 41h
+      // seguidas uma vez — isso não é hipótese.
+      await desmarcarAviso(lado, telefone);
     }
   })();
 });

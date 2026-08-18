@@ -92,3 +92,11 @@ describe('distanciaKm', () => {
     expect(distanciaKm(uberlandia, manaus)).toBe(distanciaKm(manaus, uberlandia));
   });
 });
+
+describe('os tres municipios com " e " no nome resolvem', () => {
+  it('Abreu e Lima, Pontes e Lacerda, Passa e Fica', () => {
+    expect(resolverCidade('Abreu e Lima-PE')).toMatchObject({ status: 'ok', municipio: 'Abreu e Lima', uf: 'PE' });
+    expect(resolverCidade('Pontes e Lacerda/MT')).toMatchObject({ status: 'ok', uf: 'MT' });
+    expect(resolverCidade('Passa e Fica')).toMatchObject({ status: 'ok', uf: 'RN' });
+  });
+});

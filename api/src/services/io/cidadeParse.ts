@@ -61,6 +61,13 @@ export function chaveMunicipio(s: string): string {
  */
 const PREPOSICOES = new Set(['do', 'da', 'de', 'dos', 'das', 'd', 'no', 'na']);
 
+/**
+ * Os municípios do Brasil que têm " e " no nome. São TRÊS, conferidos contra a
+ * tabela do IBGE — a lista é fechada e não muda sem município novo nascer.
+ * Sem esta exceção eles cairiam na regra de "duas cidades" e nunca resolveriam.
+ */
+const NOME_COM_E = new Set(['abreu e lima', 'pontes e lacerda', 'passa e fica']);
+
 export interface CidadeParseada {
   /** Nome do município, ou null quando o texto não permite decidir. */
   cidade: string | null;
@@ -144,7 +151,12 @@ export function normalizarCidade(texto: string | null | undefined): CidadeParsea
   const { resto, uf } = extrairUf(semVirgula);
 
   // Dois topônimos: " e " no meio do que sobrou. A UF sobrevive; a cidade não.
-  const duasCidades = / e /i.test(resto);
+  //
+  // MAS existem municípios com " e " no PRÓPRIO nome — Abreu e Lima/PE,
+  // Pontes e Lacerda/MT, Passa e Fica/RN. Tratar esses três como "duas cidades"
+  // faria eles nunca resolverem, e o morador de Abreu e Lima jamais apareceria
+  // num match. A lista é fechada e pequena: a checagem cabe aqui.
+  const duasCidades = / e /i.test(resto) && !NOME_COM_E.has(semAcento(resto));
   if (duasCidades) return { cidade: null, uf, duasCidades: true };
 
   const cidade = resto.trim();
