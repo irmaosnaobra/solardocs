@@ -19,10 +19,14 @@
 // pro /public: é subir o plano ou trocar por um embed do YouTube não listado
 // (banda ilimitada e qualidade adaptativa no 4G, ao custo da marca deles na
 // tela). Consumo atual: painel do Cloudinary → Usage.
+// DESLIGADO EM 18/08/2026, a pedido do Thiago. O arquivo continua no
+// Cloudinary e a configuração inteira continua aqui: pra religar, basta devolver
+// a URL abaixo pro `src` — nada mais. Enquanto ele esteve no ar (17/08 18h42 →
+// 18/08), 4 sessões por dia deram play, de 50 a 90 que entraram na página.
 export const VSL = {
-  // URL .mp4 entregue pelo CDN. Ex.:
-  // https://res.cloudinary.com/v755hoio/video/upload/f_auto,q_auto/solardoc/vsl-computador.mp4
-  src: 'https://res.cloudinary.com/v755hoio/video/upload/q_auto/v1787002688/solardoc/vsl-computador.mp4',
+  // URL .mp4 entregue pelo CDN. A do vídeo que saiu do ar (é só colar de volta):
+  // https://res.cloudinary.com/v755hoio/video/upload/q_auto/v1787002688/solardoc/vsl-computador.mp4
+  src: '',
 
   // Capa (primeiro quadro). Sem ela o player abre num retângulo preto.
   poster: 'https://res.cloudinary.com/v755hoio/image/upload/f_auto,q_auto/v1787002698/solardoc/vsl-computador-capa.jpg',

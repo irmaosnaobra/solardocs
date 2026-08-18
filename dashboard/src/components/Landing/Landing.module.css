@@ -3272,6 +3272,11 @@
 }
 
 /* ── FUNCIONA EM (mesma faixa das LPs de produto) ───────────────────────── */
+/* A faixa "Funciona em" quando ela aparece SOZINHA (sem o vídeo em cima):
+   herda a mesma caixa que o bloco da VSL dava — mesma largura e mesmo respiro,
+   pra faixa não nascer colada na pílula de preço nem esticar a página inteira. */
+.rodaEmSozinha { margin: 26px auto 0; max-width: 580px; }
+
 .rodaEm { margin-top: 18px; text-align: left; }
 .rodaEmTitulo {
   display: block;

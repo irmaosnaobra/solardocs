@@ -332,10 +332,10 @@ export default function Landing() {
               acesso liberado na hora
             </div>
 
-            {/* VÍDEO NA PRIMEIRA TELA (pedido do Thiago, 17/08).
-                A dúvida do "isso é só no celular?" nasce AQUI, em quem veio do
-                criativo — não lá embaixo. Fica logo abaixo do primeiro CTA,
-                com a pílula de preço ainda colada no botão (separar os dois
+            {/* VÍDEO NA PRIMEIRA TELA — DESLIGADO em 18/08/2026 (ordem do Thiago).
+                O bloco continua aqui inteiro e volta sozinho no dia em que
+                `VSL.src` receber uma URL de novo: entra logo abaixo do primeiro
+                CTA, com a pílula de preço ainda colada no botão (separar os dois
                 quebra o par "clica / é isso que custa"). */}
             {VSL.src ? (
               <div className={styles.vslHero} id="vsl">
@@ -392,10 +392,15 @@ export default function Landing() {
                     </button>
                   ) : null}
                 </div>
+              </div>
+            ) : null}
 
-                {/* FUNCIONA EM — mesma faixa das LPs de produto. O vídeo mostra
-                    rodando no notebook; isto responde "e no MEU aparelho?" sem
-                    obrigar ninguém a assistir 2:38 pra descobrir. */}
+            {/* FUNCIONA EM — mesma faixa das LPs de produto. Mora FORA do bloco
+                do vídeo de propósito: a pergunta "e no MEU aparelho?" continua
+                existindo com ou sem VSL na página. Enquanto a faixa estava
+                dentro do `VSL.src ?`, desligar o vídeo levava ela junto — e ela
+                nunca foi parte do vídeo, é a resposta pra quem NÃO quer assistir. */}
+            <div className={styles.rodaEmSozinha}>
                 <div className={styles.rodaEm}>
                   <span className={styles.rodaEmTitulo}>Funciona em</span>
                   <ul className={styles.rodaEmLista}>
@@ -441,8 +446,7 @@ export default function Landing() {
                     inicial do celular e usar como aplicativo.
                   </p>
                 </div>
-              </div>
-            ) : null}
+            </div>
 
             <div className={styles.trustRow} style={{ justifyContent: 'center', marginTop: 20 }}>
               <span className={styles.trustItem}>
