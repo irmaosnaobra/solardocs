@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // PARA ONDE VAI QUEM SAI DO CHECKOUT DA STRIPE.
@@ -25,7 +25,16 @@ vi.mock('../services/asaas/asaasClient', () => ({
   AsaasError: class extends Error {},
 }));
 
-const { destinoDeSaida } = await import('../controllers/paymentsController');
+// `await import` no TOPO nao compila no build da API (tsc com module=commonjs,
+// TS1378) — e' o que derrubou o deploy cc27aae. Dentro de um beforeAll async
+// nao e' top-level await, e o import segue tardio, que e' o que importa aqui:
+// o modulo so' carrega depois do vi.mock do asaasClient.
+type DestinoDeSaida = typeof import('../controllers/paymentsController')['destinoDeSaida'];
+let destinoDeSaida: DestinoDeSaida;
+
+beforeAll(async () => {
+  ({ destinoDeSaida } = await import('../controllers/paymentsController'));
+});
 
 const ORIGINAL = { ...process.env };
 beforeEach(() => {
