@@ -1287,8 +1287,16 @@ src="https://www.facebook.com/tr?id=26788759654130722&ev=PageView&noscript=1"
 <script>
 
 // ===== Supabase (mesmo projeto do /gerador) =====
-const SUPABASE_URL = 'https://ancecdfqfwlaujknizof.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6';
+// A CHAVE DO BANCO SAIU DAQUI EM 18/08/2026.
+// Esta página é pública: o que está no fonte dela está no "ver código-fonte" de
+// qualquer visitante. E as tabelas estão com RLS desligada — conferido com curl
+// de fora, a chave que ficava nesta linha lia as 63 fichas de eletroposto_nota1
+// com nome, telefone e endereço, e era aceita num DELETE.
+//
+// Agora a página fala com a nossa API, que fala com o banco. Ela pede só o que
+// precisa (horário ocupado, de quem é o telefone) e recebe só isso — nunca a
+// lista de clientes.
+const API = location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api';
 // ===== UTM de primeiro toque =====
 // Guardadas na 1ª visita e reusadas até o fim da sessão: o lead abre a página pelo
 // anúncio, some, volta pelo link direto e só então agenda — sem isto, a ficha que
@@ -1310,15 +1318,18 @@ function utmPrimeiroToque(){
   return u;
 }
 
-async function supaInsert(table, body){
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-    method:'POST',
-    headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}`,
-              'Content-Type':'application/json', Prefer:'return=representation' },
+// Grava a ficha PELA API. Antes era um INSERT direto no PostgREST com a chave
+// que estava nesta página — a mesma que dava pra ler e apagar o banco inteiro.
+// O servidor valida telefone, consultor e horário antes de gravar: o que chega
+// daqui é pedido, não comando.
+async function agendarNaApi(body){
+  const r = await fetch(`${API}/io/eletroposto/agendar`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify(body)
   });
-  if(!r.ok) throw new Error(await r.text());
-  return r.json();
+  const j = await r.json().catch(() => null);
+  if(!r.ok || !j || !j.ok) throw new Error((j && j.error) || ('http ' + r.status));
+  return j;
 }
 
 // ===== SIMULADOR — mesmas fórmulas do /gerador (computeEletro) =====
@@ -1676,15 +1687,15 @@ async function carregarOcupados(deYmd, ateYmd){
   try{
     const de  = isoDe(deYmd, '00:00');
     const ate = new Date(new Date(isoDe(ateYmd,'23:59')).getTime()).toISOString();
-    const q = `agendamentos?select=quando,vendedor_nome,created_by&quando=gte.${de}&quando=lte.${ate}`
-            + `&vendedor_nome=in.(Thiago,Diego)&status=not.in.(cancelado,sem_interesse)`;
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/${q}`,
-      { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}` } });
-    const rows = await r.json();
-    compromissos = (Array.isArray(rows)?rows:[])
-      .filter(a => a.quando)
-      .map(a => ({ ts: new Date(a.quando).getTime(), dono: String(a.vendedor_nome),
-                   dur: a.created_by === 'lp_solar' ? DUR_VISTORIA_MS : DURACAO_MS }));
+    const r = await fetch(`${API}/io/eletroposto/agenda?de=${encodeURIComponent(de)}&ate=${encodeURIComponent(ate)}`);
+    const j = await r.json();
+    // `ocupados: null` é a API dizendo que NÃO conseguiu ler — diferente de
+    // "não tem nada marcado". Nos dois casos a grade abre (a gravação valida de
+    // novo no servidor), mas só um deles é motivo de olhar o log.
+    compromissos = (j && Array.isArray(j.ocupados) ? j.ocupados : [])
+      .map(a => ({ ts: a.ts, dono: String(a.dono),
+                   dur: a.solar ? DUR_VISTORIA_MS : DURACAO_MS }));
+    if (j && j.proximoDono) rodizioSugerido = j.proximoDono;
   }catch(e){ compromissos = []; }   // falhou: não trava a agenda, valida no envio
 }
 
@@ -1731,14 +1742,10 @@ function leadSrc(){
 }
 
 const DONOS = ['Thiago', 'Diego'];
-async function proximoDono(){
-  try{
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/agendamentos?select=id&created_by=eq.lp_eletroposto`,
-      { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}`, Prefer:'count=exact', Range:'0-0' } });
-    const total = parseInt((r.headers.get('content-range')||'*/0').split('/')[1], 10) || 0;
-    return DONOS[total % DONOS.length];
-  }catch(e){ return DONOS[0]; }   // falhou a contagem: cai no primeiro, nunca deixa sem dono
-}
+// O rodízio vem junto com a agenda: era uma segunda leitura do banco só pra
+// contar quantas fichas a LP já marcou, e a API devolve o próximo nome pronto.
+let rodizioSugerido = DONOS[0];
+function proximoDono(){ return DONOS.includes(rodizioSugerido) ? rodizioSugerido : DONOS[0]; }
 // Cliente que JÁ tem dono fica com ele — nunca aparece sob 2 consultores e não
 // entra no rodízio. Chave = DDD + últimos 8 dígitos (tolera o "9" e o 55), a
 // mesma do CRM/backend (donoDoTelefone). O nome retornado veio de um agendamento
@@ -1748,40 +1755,27 @@ function telkeyLP(raw){
   if(dd.length < 10) return null;
   return dd.slice(0,2) + dd.slice(-8);
 }
-// Uma leitura só do histórico daquele telefone: ela responde as DUAS perguntas que
-// a gravação faz — de quem é este cliente, e ele já não tem reunião marcada?
-async function fichasDoTelefone(tel){
-  const alvo = telkeyLP(tel);
-  if(!alvo) return [];
+// UMA pergunta ao servidor, e ele responde as DUAS coisas que a gravação precisa:
+// de quem é este cliente, e ele já não tem reunião marcada?
+//
+// Antes a página baixava a LISTA de fichas de todo mundo cujos 8 últimos dígitos
+// batessem — quem digitasse um número qualquer recebia nome, horário e status de
+// outra pessoa. Agora vem um dono e um sinal, e mais nada.
+async function consultarCliente(tel){
   try{
-    const q = `agendamentos?select=vendedor_nome,cliente_telefone,quando,status,created_by&status=neq.cancelado`
-            + `&cliente_telefone=ilike.*${alvo.slice(-8)}&order=quando.desc&limit=20`;
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/${q}`,
-      { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}` } });
-    const rows = await r.json();
-    // O ilike casa pelos 8 últimos dígitos (tolera o 9 e o 55); o telkey confere o
-    // DDD junto, senão dois números de estados diferentes viram o mesmo cliente.
-    return (Array.isArray(rows)?rows:[]).filter(a => telkeyLP(a.cliente_telefone) === alvo);
-  }catch(e){ return []; }
-}
-function donoDaFicha(fichas){
-  for(const a of fichas) if(a.vendedor_nome) return a.vendedor_nome;
-  return null;
+    const r = await fetch(`${API}/io/eletroposto/cliente?tel=${encodeURIComponent(tel)}`);
+    const j = await r.json();
+    return { dono: (j && j.dono) || null, jaMarcado: (j && j.jaMarcado) || null };
+  }catch(e){ return { dono: null, jaMarcado: null }; }
 }
 
 // Uma reunião de eletroposto por cliente, ponto. Um mesmo lead marcou 10:00 e 11:30
 // da mesma segunda (06/08) e queimou dois horários de consultor — em agenda de 9
 // horários por dia isso é 11% do dia perdido com quem já está atendido. Quem já tem
 // horário e volta na página não marca de novo: remarcar é conversa com gente.
-// Só reunião de ELETROPOSTO no futuro trava. Reunião de solar não: é outro produto,
-// outra conversa, e o mesmo dono pode atender as duas (a agenda interna já divide o
-// quadro quando os horários coincidem).
-const EP_ORIGENS_LP = ['lp_eletroposto', 'manychat_eletroposto'];
-function reuniaoFutura(fichas){
-  const agora = Date.now();
-  return fichas.find(a => a.quando && new Date(a.quando).getTime() > agora
-    && a.status === 'agendado' && EP_ORIGENS_LP.includes(a.created_by)) || null;
-}
+// A regra de "só reunião de ELETROPOSTO no futuro trava" (solar não trava: é outro
+// produto e o mesmo dono atende os dois) mudou de lado — mora no GET /cliente,
+// junto da leitura que a aplica. Aqui só chega o resultado.
 
 // ── Qualificação por pontuação ───────────────────────────────────────────────
 // O que qualifica é a combinação de TER ONDE e TER COM QUÊ. Um sozinho não fecha:
@@ -2290,8 +2284,8 @@ async function gravarAgendamento(){
     // Este cliente já tem reunião marcada? Então ele não marca outra — remarcar é
     // com gente. A leitura vem antes de tudo: é a mais barata e a que mais evita
     // trabalho perdido (o horário nem chega a ser disputado).
-    const fichas = await fichasDoTelefone(tel);
-    const jaTem = reuniaoFutura(fichas);
+    const cliente = await consultarCliente(tel);
+    const jaTem = cliente.jaMarcado;
     if(jaTem){
       slotSel = null; pendente = null;
       await montarSlots();
@@ -2323,7 +2317,7 @@ async function gravarAgendamento(){
     // novo entra no rodízio — mas só pode cair em quem AINDA cabe neste horário,
     // senão os dois vão pro mesmo e o slot grava reunião sobreposta.
     const livres = donosLivres(slotSel);
-    const preferido = donoDaFicha(fichas);
+    const preferido = cliente.dono;
     if(preferido && DONOS.includes(preferido) && !livres.includes(preferido)){
       // Cliente que já é do Thiago não pode ser jogado pro Diego só porque o horário
       // apertou — o dono é fixo; quem muda é o horário.
@@ -2335,10 +2329,10 @@ async function gravarAgendamento(){
     }
     let dono = preferido;
     if(!dono){
-      const rodizio = await proximoDono();   // alterna Thiago/Diego pelo total já marcado
+      const rodizio = proximoDono();   // alterna Thiago/Diego pelo total já marcado
       dono = livres.includes(rodizio) ? rodizio : (livres[0] || rodizio);
     }
-    const novo = await supaInsert('agendamentos', {
+    const novo = await agendarNaApi({
       vendedor_nome:    dono,               // NOT NULL + FK consultores → dono existente ou rodízio Thiago/Diego
       quando:           slotSel,
       cliente_nome:     nome,
@@ -2357,7 +2351,7 @@ async function gravarAgendamento(){
       // Assim uma versão velha desta página em cache continua gravando ficha completa.
       // UTM é a exceção — não existe na observação, só na URL.
       ...utmPrimeiroToque(),
-    });
+    });   // devolve { ok:true, id }
 
     // Evento de conversão — é ESTE que a campanha otimiza
     try{ fbq('track','Schedule',{content_name:'Reuniao Eletroposto', content_category:perfil}); }catch(e){}
@@ -2372,7 +2366,7 @@ async function gravarAgendamento(){
     // está gravado no CRM — o alerta é conveniência, não pode derrubar o agendamento)
     fetch('/_api/io/eletroposto/alerta', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: novo && novo[0] && novo[0].id }),
+      body: JSON.stringify({ id: novo && novo.id }),
     }).catch(() => {});
 
     document.getElementById('ag-form').style.display = 'none';

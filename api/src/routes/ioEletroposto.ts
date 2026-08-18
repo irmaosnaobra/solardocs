@@ -287,6 +287,154 @@ router.post('/nota1', async (req: Request, res: Response): Promise<void> => {
   res.json({ ok: true, id, convite: false });
 });
 
+// ═══════════════════════════════════════════════════════════════════════════
+// A AGENDA DA LP, SEM CHAVE DE BANCO NO NAVEGADOR
+//
+// Até 18/08/2026 a LP falava direto com o PostgREST usando a chave publishable
+// — que fica no código-fonte da página, ou seja, no "ver fonte" de qualquer
+// visitante. E as tabelas estão com RLS desligada. Conferido com curl de fora:
+// a mesma chave lia as 63 fichas de `eletroposto_nota1` com nome, telefone e
+// endereço, e era aceita num DELETE.
+//
+// Estas três rotas dão à página EXATAMENTE o que ela precisa e nada além:
+//   GET  /agenda    → os horários ocupados (timestamp + de quem), sem nome nenhum
+//   GET  /cliente   → de quem é este telefone e se ele já tem reunião
+//   POST /agendar   → grava a ficha
+//
+// A diferença que importa: `/cliente` devolve UM dono e UM sinal, não a lista de
+// fichas. Antes a página baixava `cliente_telefone`, `quando` e `status` de todo
+// mundo cujos 8 últimos dígitos batessem — e quem digitasse um número qualquer
+// recebia a ficha de outra pessoa.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Só os donos que a LP do eletroposto distribui. */
+const DONOS_EP = ['Thiago', 'Diego'];
+
+/** Chave de telefone: DDD + 8 últimos. A MESMA do CRM (donoDoTelefone) — tolera
+ *  o 9 e o 55, e o DDD junto impede dois estados virarem o mesmo cliente. */
+function telKey(raw: unknown): string | null {
+  const d = String(raw ?? '').replace(/\D/g, '').replace(/^55/, '');
+  if (d.length < 10) return null;
+  return d.slice(0, 2) + d.slice(-8);
+}
+
+router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
+  const de = String(req.query.de || '').slice(0, 30);
+  const ate = String(req.query.ate || '').slice(0, 30);
+  if (!de || !ate) { res.status(400).json({ error: 'de/ate obrigatorios' }); return; }
+  try {
+    const [ocupadosQ, totalQ] = await Promise.all([
+      supabaseGerador.from('agendamentos')
+        .select('quando, vendedor_nome, created_by')
+        .gte('quando', de).lte('quando', ate)
+        .in('vendedor_nome', DONOS_EP)
+        .not('status', 'in', '(cancelado,sem_interesse)')
+        .limit(500),
+      // O rodízio é pelo TOTAL já marcado pela LP — a página só precisa do
+      // próximo nome, não da lista.
+      supabaseGerador.from('agendamentos')
+        .select('id', { count: 'exact', head: true })
+        .eq('created_by', 'lp_eletroposto'),
+    ]);
+
+    const ocupados = ((ocupadosQ.data || []) as Array<Record<string, unknown>>)
+      .filter(a => a.quando)
+      .map(a => ({
+        ts: new Date(String(a.quando)).getTime(),
+        dono: String(a.vendedor_nome),
+        // A LP do solar marca VISTORIA, que ocupa a agenda por outro tempo.
+        solar: a.created_by === 'lp_solar',
+      }));
+
+    res.set('Cache-Control', 'no-store');
+    res.json({ ocupados, proximoDono: DONOS_EP[(totalQ.count || 0) % DONOS_EP.length] });
+  } catch (err) {
+    logger.error('io-eletroposto-agenda', 'falha lendo a agenda', err);
+    // Lista vazia trava a agenda inteira (tudo pareceria livre e a gravação
+    // recusaria depois). `null` diz "não consegui ler" e a página avisa.
+    res.json({ ocupados: null, proximoDono: DONOS_EP[0] });
+  }
+});
+
+router.get('/cliente', async (req: Request, res: Response): Promise<void> => {
+  const alvo = telKey(req.query.tel);
+  if (!alvo) { res.json({ dono: null, jaMarcado: null }); return; }
+  try {
+    const { data } = await supabaseGerador.from('agendamentos')
+      .select('vendedor_nome, cliente_telefone, quando, status, created_by')
+      .neq('status', 'cancelado')
+      .ilike('cliente_telefone', `%${alvo.slice(-8)}`)
+      .order('quando', { ascending: false }).limit(20);
+
+    // O ilike casa pelos 8 últimos; o telKey confere o DDD junto.
+    const fichas = ((data || []) as Array<Record<string, unknown>>)
+      .filter(a => telKey(a.cliente_telefone) === alvo);
+
+    const dono = fichas.map(f => String(f.vendedor_nome || '')).find(Boolean) || null;
+    // Reunião de eletroposto ainda por vir: é o que impede marcar duas.
+    const agora = Date.now();
+    // Só reunião de ELETROPOSTO no futuro trava. Solar não: é outro produto,
+    // outra conversa, e o mesmo dono atende as duas. A lista de origens é a
+    // mesma que a LP usava (EP_ORIGENS_LP) — inclui o ManyChat.
+    const EP_ORIGENS = ['lp_eletroposto', 'manychat_eletroposto'];
+    const futura = fichas.find(f => EP_ORIGENS.includes(String(f.created_by || ''))
+      && f.quando && new Date(String(f.quando)).getTime() > agora
+      && String(f.status || '') === 'agendado');
+
+    res.set('Cache-Control', 'no-store');
+    res.json({
+      dono: dono && DONOS_EP.includes(dono) ? dono : dono,
+      jaMarcado: futura ? { quando: futura.quando } : null,
+    });
+  } catch (err) {
+    logger.error('io-eletroposto-cliente', 'falha lendo o historico', err);
+    res.json({ dono: null, jaMarcado: null });
+  }
+});
+
+router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
+  const b = req.body || {};
+  const nome = String(b.cliente_nome || '').trim().slice(0, 120);
+  const tel = soDigitos(String(b.cliente_telefone || ''));
+  const quando = String(b.quando || '');
+  const dono = String(b.vendedor_nome || '');
+
+  if (nome.length < 3) { res.status(400).json({ error: 'nome invalido' }); return; }
+  if (tel.length < 12 || tel.length > 13 || !tel.startsWith('55')) {
+    res.status(400).json({ error: 'telefone invalido' }); return;
+  }
+  if (!DONOS_EP.includes(dono)) { res.status(400).json({ error: 'consultor invalido' }); return; }
+  if (!quando || Number.isNaN(new Date(quando).getTime())) {
+    res.status(400).json({ error: 'horario invalido' }); return;
+  }
+
+  // A LP monta a observação — é dela que o trigger do banco deriva a nota e as
+  // colunas de qualificação, e é ela que o alerta da equipe lê linha a linha.
+  const ficha: Record<string, unknown> = {
+    vendedor_nome: dono,
+    quando,
+    cliente_nome: nome,
+    cliente_telefone: tel,
+    cidade: String(b.cidade || '').trim().slice(0, 120) || null,
+    status: 'agendado',
+    temperatura: b.temperatura === 'quente' ? 'quente' : 'morno',
+    observacao: String(b.observacao || '').slice(0, 4000),
+    created_by: 'lp_eletroposto',
+    src: String(b.src || '').trim().slice(0, 40) || null,
+    ...utm(b),
+  };
+
+  try {
+    const { data, error } = await supabaseGerador
+      .from('agendamentos').insert(ficha).select('id').single();
+    if (error) throw error;
+    res.json({ ok: true, id: data?.id ?? null });
+  } catch (err) {
+    logger.error('io-eletroposto-agendar', `falha gravando ${tel}`, err);
+    res.status(500).json({ ok: false, error: 'nao consegui gravar' });
+  }
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CONEXÃO ELETROPOSTO — as duas portas de /io/eletroposto/parceria.
 //
