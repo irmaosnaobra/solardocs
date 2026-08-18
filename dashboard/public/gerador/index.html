@@ -314,6 +314,20 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .eletro-bar-lbl{font-size:10px;color:#94A3B8;margin-top:6px;font-weight:600}
 /* ===== Eletroposto — sub-abas (Simulador | Pesquisa | Mercado) ===== */
 .eletro-subnav{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:0}
+/* Tarja do projeto retomado. Amarela e nao azul de propósito: azul aqui vira
+   informação de fundo, e esta precisa ser LIDA — ela avisa que os campos já
+   vieram preenchidos de outro atendimento. */
+.eletro-retomar{display:none;align-items:center;gap:12px;flex-wrap:wrap;
+  font-size:13px;color:#fde68a;background:rgba(247,164,28,.09);
+  border:1px solid rgba(247,164,28,.3);border-radius:10px;
+  padding:10px 14px;margin:-6px 0 16px;line-height:1.45}
+.eletro-retomar.on{display:flex}
+.eletro-retomar b{color:#fff7e6}
+.eletro-retomar .quando{color:#c8b48a}
+.eletro-retomar button{margin-left:auto;background:none;border:1px solid rgba(247,164,28,.45);
+  color:#fde68a;font-family:inherit;font-size:12.5px;font-weight:700;
+  padding:6px 13px;border-radius:8px;cursor:pointer}
+.eletro-retomar button:hover{background:rgba(247,164,28,.16)}
 .eletro-subtab{background:none;border:none;border-bottom:2px solid transparent;color:#94A3B8;padding:10px 16px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:-1px}
 .eletro-subtab:hover{color:#E5E7EB}
 .eletro-subtab.ativa{color:#fff;border-bottom-color:#3B82F6}
@@ -2431,6 +2445,12 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <button type="button" id="eletro-tab-mercado" class="eletro-subtab" onclick="eletroSubaba('mercado')">Mercado</button>
       <button type="button" id="eletro-tab-postos" class="eletro-subtab" onclick="eletroSubaba('postos')">Postos</button>
       <button type="button" id="eletro-tab-mapa" class="eletro-subtab" onclick="eletroSubaba('mapa')">Mapa</button>
+    </div>
+
+    <!-- Aparece só quando os campos vieram de um projeto anterior. -->
+    <div class="eletro-retomar" id="eletro-retomar">
+      <span>Continuando o projeto de <b id="eletro-retomar-quem">—</b> <span class="quando" id="eletro-retomar-quando"></span></span>
+      <button type="button" onclick="eletroNovoProjeto()">Começar novo</button>
     </div>
 
     <!-- ===== PANE: SIMULADOR ===== -->
@@ -6843,6 +6863,7 @@ function eletroWhatsApp() {
 // A página /gerador/apresentacao.html recalcula com as MESMAS fórmulas (cópia sincronizada).
 function eletroApresentacao() {
   eletroSalvarHistorico();   // registra o orçamento no histórico (fire-and-forget)
+  eletroUltimoSalvar();      // e guarda o estado local: daqui saem todas as outras abas
   const t = eletroTextos();
   const qs = new URLSearchParams({
     cliente: t.cliente, cidade: t.cidade, equip: t.equip, autor: t.autor, contato: t.contato,
@@ -6869,6 +6890,106 @@ function eletroInputsCrus() {
 function eletroConsultorLogado() {
   try { return (JSON.parse(localStorage.getItem(AUTH_KEY) || '{}').consultor || '').trim(); } catch (e) { return ''; }
 }
+
+// ════════════════════════════════════════════════════════════
+// ULTIMO PROJETO — o simulador volta como estava
+// ════════════════════════════════════════════════════════════
+// Orcamento, Recibo, Contrato e Procuracao derivam TODOS dos campos do
+// Simulador. Sem isto, fechar a aba zerava a base de tudo e o consultor
+// redigitava cliente, cidade, investimento e endereco a cada retomada.
+//
+// O historico no Supabase e' outra coisa: ele guarda pra CONSULTA, so' com
+// cliente preenchido, e nao devolve o estado. Este e' local e volta sozinho.
+const ELETRO_ULT_KEY = 'eletro_ultimo_v1';
+
+// Todo input/select COM ID do simulador, mais os campos de cliente do
+// orcamento. Varre o DOM em vez de listar id a id: campo novo no simulador
+// entra sozinho, sem alguem lembrar de vir aqui.
+function eletroUltimoCampos() {
+  const ids = [];
+  document.querySelectorAll('#eletro-pane-simulador input[id], #eletro-pane-simulador select[id]')
+    .forEach(el => { if (el.type !== 'button' && el.type !== 'checkbox') ids.push(el.id); });
+  ['orc-cli-doc', 'orc-cli-end', 'orc-cli-cep', 'orc-cli-tel', 'orc-cli-email'].forEach(id => {
+    if (document.getElementById(id)) ids.push(id);
+  });
+  return ids;
+}
+
+function eletroUltimoSalvar() {
+  try {
+    const campos = {};
+    eletroUltimoCampos().forEach(id => {
+      const el = document.getElementById(id);
+      // guarda o TEXTO do campo, nao o numero: o valor volta com a mascara
+      // ("180.000") do jeito que o consultor digitou.
+      if (el && el.value !== '') campos[id] = el.value;
+    });
+    if (!Object.keys(campos).length) return;
+    localStorage.setItem(ELETRO_ULT_KEY, JSON.stringify({
+      campos, cliente: eletroTextos().cliente || '', em: new Date().toISOString(),
+    }));
+  } catch (e) { /* localStorage cheio ou bloqueado: nao trava a geracao do PDF */ }
+}
+
+function eletroUltimoLer() {
+  try { return JSON.parse(localStorage.getItem(ELETRO_ULT_KEY) || 'null'); } catch (e) { return null; }
+}
+
+function eletroUltimoRestaurar() {
+  const u = eletroUltimoLer();
+  if (!u || !u.campos) return;
+  let pintou = 0;
+  Object.keys(u.campos).forEach(id => {
+    const el = document.getElementById(id);
+    // SO' CAMPO VAZIO. Escrever por cima de um cliente novo meio digitado e' o
+    // erro que custa proposta — mesma regra do orcInit e do procInit.
+    if (el && !el.value) {
+      el.value = u.campos[id];
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      pintou++;
+    }
+  });
+  if (pintou) eletroRetomarBanner(u);
+}
+
+function eletroRetomarBanner(u) {
+  const bar = document.getElementById('eletro-retomar');
+  if (!bar) return;
+  if (!u || !u.cliente) { bar.classList.remove('on'); return; }
+  document.getElementById('eletro-retomar-quem').textContent = u.cliente;
+  const q = document.getElementById('eletro-retomar-quando');
+  try {
+    const d = new Date(u.em);
+    const hoje = new Date().toDateString() === d.toDateString();
+    q.textContent = hoje
+      ? '· hoje, ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      : '· ' + d.toLocaleDateString('pt-BR');
+  } catch (e) { q.textContent = ''; }
+  bar.classList.add('on');
+}
+
+// Limpa os campos do simulador e do cliente e esquece o ultimo projeto.
+// Nao mexe no card da empresa nem nos procuradores: aqueles sao da CASA, valem
+// pra todo cliente, e apagar junto faria o consultor redigitar CNPJ e CREA.
+function eletroNovoProjeto() {
+  if (!confirm('Limpar os campos e começar um projeto novo?\n\nOs dados da sua empresa e dos procuradores continuam salvos.')) return;
+  eletroUltimoCampos().forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.tagName === 'SELECT') el.selectedIndex = 0; else el.value = '';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  try { localStorage.removeItem(ELETRO_ULT_KEY); } catch (e) {}
+  const bar = document.getElementById('eletro-retomar');
+  if (bar) bar.classList.remove('on');
+}
+
+// Volta o ultimo projeto assim que a pagina abre. Depois do load pra os campos
+// ja' existirem e os recalculos acharem o que precisam.
+window.addEventListener('DOMContentLoaded', () => { setTimeout(eletroUltimoRestaurar, 350); });
+
 async function eletroSalvarHistorico() {
   const t = eletroTextos();
   if (!t.cliente) return;   // orçamento sem cliente é rascunho — não polui o histórico
@@ -7009,6 +7130,7 @@ function eletroFluxoSVG(fluxo) {
 // ===== PDF: estudo de viabilidade técnico-econômica (container light dedicado), via window.print() =====
 function eletroImprimir() {
   eletroSalvarHistorico();   // registra o orçamento no histórico (fire-and-forget)
+  eletroUltimoSalvar();      // e guarda o estado local: daqui saem todas as outras abas
   const p = eletroParams();
   const r = computeEletro(p);
   const t = eletroTextos();
