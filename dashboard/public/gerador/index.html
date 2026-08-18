@@ -403,6 +403,12 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
   border-bottom:1px solid rgba(148,163,184,.12);font-size:13.5px}
 .cad-par-linha b{min-width:170px}
 .cad-par-linha span{color:#94A3B8;font-weight:600}
+/* aba Match: a distância é a primeira coluna porque é ela que ordena a fila */
+#cad-aba-match.ativa .cad-cnt{background:#A78BFA}
+.cad-conectar{background:linear-gradient(180deg,#9BEE38,#5da80d);border:none;border-radius:9px;color:#0B2003;
+  font-family:inherit;font-size:13px;font-weight:900;padding:10px 14px;cursor:pointer;min-height:40px;white-space:nowrap}
+.cad-conectar:hover{filter:brightness(1.07)}
+.cad-conectar[disabled]{opacity:.6;cursor:default}
 @media(max-width:720px){
   .cad-topo{flex-direction:column;align-items:stretch}
   .cad-busca{min-width:0;flex:1}
@@ -426,6 +432,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .cadtab td.nome{font-weight:700;color:#F8FAFC}
 .cadtab .cad-sub{display:block;font-size:11.5px;color:#94A3B8;font-weight:600;margin-top:2px}
 .cadtab .cad-end{max-width:280px;line-height:1.4}
+.cadtab .cad-km{font-size:19px;font-weight:900;color:#A78BFA;white-space:nowrap;line-height:1.15}
 /* ===== container de impressão (escondido na tela; a tela só aparece no print) ===== */
 #eletro-print,#doc-print{display:none}
 @media print{
@@ -3045,6 +3052,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="cad-abas">
           <button type="button" class="cad-aba ativa" id="cad-aba-ponto" onclick="cadAba('ponto')">Arrendamento <span class="cad-cnt" id="cad-cnt-ponto">—</span></button>
           <button type="button" class="cad-aba" id="cad-aba-capital" onclick="cadAba('capital')">Investidores <span class="cad-cnt" id="cad-cnt-capital">—</span></button>
+          <button type="button" class="cad-aba" id="cad-aba-match" onclick="cadAba('match')">Match <span class="cad-cnt" id="cad-cnt-match">—</span></button>
         </div>
         <div class="cad-acoes">
           <input type="search" class="cad-busca" id="cad-busca" placeholder="Buscar nome, cidade ou telefone" oninput="cadRender()">
@@ -6442,15 +6450,28 @@ let cadDados = null;   // null = nunca carregou
 // e a célula precisa dizer coisas diferentes nos dois casos.
 let cadPares = null;
 let cadParesAberto = null;   // "tab:id" da linha com o painel aberto
+// As duplas dentro do teto, já ordenadas por distância, e as que a equipe já
+// conectou (eletroposto_match). Teto vem do servidor: um número só nos três
+// lugares — aviso, coluna e esta aba.
+let cadMatches = null;
+let cadConexoes = [];
+let CAD_MATCH_KM = 200;
 
 function cadAba(lado) {
   cadLado = lado;
-  ['ponto', 'capital'].forEach(l => {
+  ['ponto', 'capital', 'match'].forEach(l => {
     const b = document.getElementById('cad-aba-' + l);
     if (b) b.classList.toggle('ativa', l === lado);
   });
-  document.getElementById('cad-titulo').textContent = lado === 'ponto'
-    ? 'Arrendamento — quem tem o local' : 'Investidores — quem tem o capital';
+  const TITULO = {
+    ponto: 'Arrendamento — quem tem o local',
+    capital: 'Investidores — quem tem o capital',
+    match: 'Match — duplas a até ' + CAD_MATCH_KM + ' km uma da outra',
+  };
+  document.getElementById('cad-titulo').textContent = TITULO[lado];
+  // O painel de "quem está perto" é da tabela de lista; na aba Match o par já
+  // está na própria linha, e deixá-lo aberto mostraria outra pessoa.
+  cadParesAberto = null;
   cadRender();
 }
 
@@ -6464,7 +6485,7 @@ async function cadCarregar(forcar) {
     // lugar só em vez de espalhada em dois querystrings.
     const API_PARES = (location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api')
       + '/io/eletroposto/parceria/pares';
-    const [pontos, capital, fichas, pares] = await Promise.all([
+    const [pontos, capital, fichas, pares, conexoes] = await Promise.all([
       supaGet('eletroposto_parceria?lado=eq.ponto&order=created_at.desc&limit=500&select=*'),
       supaGet('eletroposto_parceria?lado=eq.capital&order=created_at.desc&limit=500&select=*'),
       supaGet('eletroposto_nota1?select=id,created_at,nome,telefone,cidade,perfil,ponto,invest,'
@@ -6475,8 +6496,12 @@ async function cadCarregar(forcar) {
       // lista carrega do mesmo jeito — perder a coluna de par é chato, perder a
       // lista é a tela inteira.
       fetch(API_PARES).then(r => r.json()).catch(() => null),
+      supaGet('eletroposto_match?select=*&order=criado_em.desc&limit=500').catch(() => []),
     ]);
     cadPares = pares && pares.pares ? pares.pares : null;
+    cadMatches = pares && pares.matches ? pares.matches : null;
+    if (pares && pares.teto_km) CAD_MATCH_KM = pares.teto_km;
+    cadConexoes = conexoes || [];
     // Quem já se cadastrou na página não aparece duas vezes: o cadastro é mais
     // recente e mais completo que a ficha de onde ele saiu.
     const jaTem = new Set([...(capital || []), ...(pontos || [])].map(c => String(c.telefone)));
@@ -6528,6 +6553,11 @@ function cadRender() {
   const filtro = document.getElementById('cad-filtro').value;
   document.getElementById('cad-cnt-ponto').textContent = cadDados.ponto.length;
   document.getElementById('cad-cnt-capital').textContent = cadDados.capital.length;
+  // Contagem de match: "—" quando não deu pra calcular, nunca 0 — a mesma regra
+  // da coluna. Zero é "medi e não achei"; travessão é "não sei medir".
+  document.getElementById('cad-cnt-match').textContent = cadMatches ? cadMatches.length : '—';
+
+  if (cadLado === 'match') { cadRenderMatch(busca); return; }
 
   const fora = document.getElementById('cad-fora');
   if (cadDados.fora > 0) {
@@ -6604,6 +6634,127 @@ function cadRender() {
 
   cadPainelPares();
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// A ABA MATCH — as duplas, não as listas.
+//
+// Arrendamento e Investidores respondem "quem eu tenho". Esta responde a única
+// pergunta que fecha negócio: "quem eu apresento pra quem". Cada linha é UMA
+// dupla ponto × investidor dentro do teto, ordenada pela distância — o de cima
+// é o mais fácil de fechar.
+//
+// Conectar grava em `eletroposto_match` os DOIS lados na mesma linha, com a
+// distância congelada. Congelada de propósito: a cidade do cadastro pode ser
+// corrigida depois, e o histórico tem que dizer o que a equipe viu quando
+// decidiu apresentar.
+// ═══════════════════════════════════════════════════════════════════════════
+const cadRef = r => (r.tab === 'eletroposto_parceria' ? 'parceria:' : 'nota1:') + r.id;
+const cadAcha = (lista, ref) => {
+  const [tab, id] = String(ref).split(':');
+  return lista.find(r => r.id === Number(id)
+    && r.tab === (tab === 'parceria' ? 'eletroposto_parceria' : 'eletroposto_nota1'));
+};
+const cadConectado = (refP, refC) => {
+  const [pt, pi] = refP.split(':'), [ct, ci] = refC.split(':');
+  return cadConexoes.find(x => x.p_tab === pt && String(x.p_id) === pi
+                            && x.c_tab === ct && String(x.c_id) === ci);
+};
+
+function cadRenderMatch(busca) {
+  const tb = document.querySelector('#cad-tabela tbody');
+  document.getElementById('cad-painel-pares').hidden = true;
+
+  if (!cadMatches) {
+    tb.innerHTML = '<tr><td colspan="5" style="color:#94A3B8;padding:20px;line-height:1.6">'
+      + '<b>Não consegui calcular as distâncias agora.</b><br>'
+      + 'A lista de duplas depende do serviço de proximidade — as abas Arrendamento e '
+      + 'Investidores continuam funcionando. Tente ↻ Atualizar.</td></tr>';
+    return;
+  }
+
+  let duplas = cadMatches.map(m => ({
+    km: m.km,
+    p: cadAcha(cadDados.ponto, m.ponto),
+    c: cadAcha(cadDados.capital, m.capital),
+    refP: m.ponto, refC: m.capital,
+  })).filter(d => d.p && d.c);
+
+  if (busca) duplas = duplas.filter(d =>
+    [d.p.nome, d.c.nome, d.p.cidade, d.c.cidade].filter(Boolean).join(' ').toLowerCase().includes(busca));
+
+  if (!duplas.length) {
+    tb.innerHTML = '<tr><td colspan="5" style="color:#94A3B8;padding:20px;line-height:1.6">' + (cadMatches.length
+      ? 'Nenhuma dupla com esse filtro.'
+      : '<b>Nenhuma dupla dentro de ' + CAD_MATCH_KM + ' km.</b><br>'
+        + 'Ou falta gente de um dos lados, ou quem existe está longe demais um do outro. '
+        + 'A coluna "perto" nas outras abas mostra a que distância está o mais próximo de cada um.')
+      + '</td></tr>';
+    return;
+  }
+
+  tb.innerHTML = '<tr><th>Distância</th><th>Tem o ponto</th><th>Tem o capital</th><th>O que decide</th><th>Conexão</th></tr>'
+    + duplas.map(d => {
+      const conex = cadConectado(d.refP, d.refC);
+      const telP = String(d.p.telefone || '').replace(/\D/g, '');
+      const telC = String(d.c.telefone || '').replace(/\D/g, '');
+      const wa = t => t ? '<a class="cad-wa" href="https://wa.me/' + t + '" target="_blank" rel="noopener">WhatsApp</a>' : '';
+      // "O que decide" junta as duas coisas que fazem a apresentação dar certo ou
+      // não: o padrão do local e o quanto o investidor pode colocar.
+      const padrao = d.p.deFicha ? 'padrão não perguntado'
+        : (d.p.padrao_ligacao || '—') + (d.p.padrao_disjuntor ? ' · ' + d.p.padrao_disjuntor : '');
+      const fraco = /Monof/i.test(d.p.padrao_ligacao || '') || /Até 40/i.test(d.p.padrao_disjuntor || '');
+      return '<tr>'
+        + '<td class="cad-km">' + (d.km === 0 ? 'mesma<br>cidade' : d.km + '<span class="cad-sub" style="margin:0">km</span>') + '</td>'
+        + '<td class="nome">' + escapeHtml(d.p.nome || '—')
+          + '<span class="cad-sub">' + escapeHtml(d.p.cidade || '—')
+          + (d.p.ponto_tipo ? ' · ' + escapeHtml(d.p.ponto_tipo) : '') + '</span>'
+          + '<div style="margin-top:6px">' + wa(telP) + '</div></td>'
+        + '<td class="nome">' + escapeHtml(d.c.nome || '—')
+          + '<span class="cad-sub">' + escapeHtml(d.c.cidade || '—')
+          + (d.c.capital_faixa ? ' · ' + escapeHtml(d.c.capital_faixa) : '') + '</span>'
+          + '<div style="margin-top:6px">' + wa(telC) + '</div></td>'
+        + '<td>' + escapeHtml(padrao)
+          + (fraco ? '<span class="cad-alerta">padrão não deve aguentar</span>' : '')
+          + '<span class="cad-sub">' + escapeHtml(d.c.capital_origem || d.c.invest || '—') + '</span></td>'
+        + '<td>' + (conex
+            ? '<span class="cad-org cad">apresentado</span><span class="cad-sub">'
+              + new Date(conex.criado_em).toLocaleDateString('pt-BR') + '</span>'
+            : '<button type="button" class="cad-conectar" onclick="cadConectar(\'' + d.refP + '\',\'' + d.refC + '\',' + d.km + ',this)">Apresentar</button>')
+          + '</td>'
+        + '</tr>';
+    }).join('');
+}
+
+async function cadConectar(refP, refC, km, btn) {
+  const [pTab, pId] = refP.split(':'), [cTab, cId] = refC.split(':');
+  btn.disabled = true; btn.textContent = 'Gravando…';
+  try {
+    const linha = { p_tab: pTab, p_id: Number(pId), c_tab: cTab, c_id: Number(cId),
+                    km: km, status: 'apresentado', quem: (window.CONSULTOR_NOME || null) };
+    const r = await fetch(SUPABASE_URL + '/rest/v1/eletroposto_match?on_conflict=p_tab,p_id,c_tab,c_id', {
+      method: 'POST',
+      headers: { ...supaHeaders(), 'Prefer': 'resolution=merge-duplicates,return=representation' },
+      body: JSON.stringify(linha),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const [nova] = await r.json();
+    cadConexoes.push(nova || { ...linha, criado_em: new Date().toISOString() });
+    // Marca os DOIS lados como conectados na lista. Marcar um só deixaria a
+    // outra aba dizendo "novo" sobre alguém que já foi apresentado.
+    await Promise.all([
+      supaPatch(tabelaDe(pTab) + '?id=eq.' + pId, { status: 'conectado' }).catch(() => {}),
+      supaPatch(tabelaDe(cTab) + '?id=eq.' + cId, { status: 'conectado' }).catch(() => {}),
+    ]);
+    ['ponto', 'capital'].forEach(l => (cadDados[l] || []).forEach(x => {
+      if (cadRef(x) === refP || cadRef(x) === refC) x.status = 'conectado';
+    }));
+    cadRender();
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'Apresentar';
+    alert('Não consegui gravar a conexão: ' + (e.message || e));
+  }
+}
+const tabelaDe = t => (t === 'parceria' ? 'eletroposto_parceria' : 'eletroposto_nota1');
 
 // ── A célula "quem está perto" ──────────────────────────────────────────────
 // TRÊS ESTADOS, e eles não podem se confundir — é a regra da casa: métrica que

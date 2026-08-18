@@ -36,8 +36,19 @@ export const CAPITAL_DECLARADO = ['proprio', 'proprio_credito', 'fin_aprovado', 
 /** Ficha sem capital mas COM local: é o arrendador que a régua encontrou. */
 const PONTO_NA_FICHA = ['definido', 'em_vista'];
 
-/** Acima disso não é par, é outro mercado. */
-export const TETO_KM = 400;
+/**
+ * Acima disso não é par, é outro mercado.
+ *
+ * 200 km é o número do Thiago (18/08). É UM número só, e ele vale nos três
+ * lugares — o aviso no WhatsApp, a coluna "quem está perto" e a lista de match.
+ * Dois tetos diferentes fariam a mensagem citar alguém que a tela não considera
+ * par, e ninguém entenderia por quê.
+ *
+ * O que ele custa, com a base de hoje: 22 pares a 400 km viram 10 a 200 km. Os
+ * que caem não somem da tela — aparecem como "o mais perto está a X km, longe
+ * demais pra chamar de par", que é informação, não silêncio.
+ */
+export const TETO_KM = 200;
 /** Três nomes cabem numa mensagem de WhatsApp sem virar lista. */
 export const MAX_PARES = 3;
 

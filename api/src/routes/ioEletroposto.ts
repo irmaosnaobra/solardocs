@@ -397,13 +397,32 @@ router.get('/parceria/pares', async (_req: Request, res: Response): Promise<void
     cruzar(capital, pontos);
     cruzar(pontos, capital);
 
+    // ── A LISTA DE MATCH ──
+    // O mesmo cálculo virado do avesso: em vez de "quem está perto DESTE", é
+    // "quais duplas existem", já ordenadas pela distância. É o que a aba Match
+    // mostra, e é o que responde "quem eu apresento pra quem" sem ninguém
+    // precisar abrir linha por linha.
+    //
+    // O par é sempre gravado com o PONTO primeiro. Sem isso, (A,B) e (B,A)
+    // virariam duas conexões diferentes da mesma dupla.
+    const matches: Array<{ ponto: string; capital: string; km: number }> = [];
+    for (const p of pontos) {
+      if (typeof p.lat !== 'number') continue;
+      for (const c of capital) {
+        if (typeof c.lat !== 'number') continue;
+        const km = distanciaKm({ lat: p.lat, lng: p.lng! }, { lat: c.lat, lng: c.lng! });
+        if (km <= TETO_KM) matches.push({ ponto: chave(p), capital: chave(c), km });
+      }
+    }
+    matches.sort((a, b) => a.km - b.km);
+
     res.set('Cache-Control', 'public, max-age=300');
-    res.json({ pares, sem_mapa: semMapa, teto_km: TETO_KM });
+    res.json({ pares, matches, sem_mapa: semMapa, teto_km: TETO_KM });
   } catch (err) {
     logger.error('io-eletroposto-pares', 'falha montando os pares', err);
     // Null, não objeto vazio: vazio afirmaria "ninguém tem par", e a tela
     // precisa distinguir isso de "não consegui calcular".
-    res.json({ pares: null, sem_mapa: null, teto_km: TETO_KM });
+    res.json({ pares: null, matches: null, sem_mapa: null, teto_km: TETO_KM });
   }
 });
 

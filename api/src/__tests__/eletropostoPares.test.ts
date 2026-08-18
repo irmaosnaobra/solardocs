@@ -53,9 +53,12 @@ describe('blocoPares — as quatro formas', () => {
     expect(txt).not.toContain('Não consegui localizar');
   });
 
-  it('cabe na tela: no máximo 3 nomes', () => {
+  it('cabe na tela: no máximo 3 nomes, e o teto é UM só', () => {
     expect(MAX_PARES).toBe(3);
-    expect(TETO_KM).toBe(400);
+    // 200 km é o número do Thiago. O teste trava o valor porque ele vale nos
+    // TRÊS lugares — aviso no WhatsApp, coluna "perto" e aba Match. Mudar aqui
+    // sem querer faria a mensagem citar quem a tela não considera par.
+    expect(TETO_KM).toBe(200);
   });
 });
 
