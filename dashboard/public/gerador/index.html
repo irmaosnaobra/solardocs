@@ -6499,7 +6499,7 @@ function cadRender() {
   }
 
   const cab = cadLado === 'ponto'
-    ? '<tr><th>Quem</th><th>Local</th><th>Cidade</th><th>Endereço</th><th>Situação do ponto</th><th>Status</th></tr>'
+    ? '<tr><th>Quem</th><th>Local</th><th>Cidade</th><th>Endereço</th><th>Padrão de entrada</th><th>Situação</th><th>Status</th></tr>'
     : '<tr><th>Quem</th><th>Cidade</th><th>Quanto</th><th>Com quê</th><th>Origem</th><th>Status</th></tr>';
 
   tb.innerHTML = cab + linhas.map(r => {
@@ -6902,17 +6902,21 @@ function eletroConsultorLogado() {
 // cliente preenchido, e nao devolve o estado. Este e' local e volta sozinho.
 const ELETRO_ULT_KEY = 'eletro_ultimo_v1';
 
-// Todo input/select COM ID do simulador, mais os campos de cliente do
-// orcamento. Varre o DOM em vez de listar id a id: campo novo no simulador
-// entra sozinho, sem alguem lembrar de vir aqui.
+// Todo campo COM ID das abas que o consultor preenche: Simulador, Orcamento,
+// Recibo, Contrato e Procuracao. Varre o DOM em vez de listar id a id — campo
+// novo em qualquer uma delas entra sozinho, sem ninguem lembrar de vir aqui.
+//
+// Fora ficam as abas de CONSULTA (historico, pesquisa, mercado, postos, mapa):
+// la' nao ha' nada do cliente pra guardar, e um filtro de busca voltando
+// preenchido dias depois so' confunde.
+const ELETRO_ULT_PANES = ['simulador', 'orcamento', 'recibo', 'contrato', 'procuracao'];
 function eletroUltimoCampos() {
   const ids = [];
-  document.querySelectorAll('#eletro-pane-simulador input[id], #eletro-pane-simulador select[id]')
-    .forEach(el => { if (el.type !== 'button' && el.type !== 'checkbox') ids.push(el.id); });
-  ['orc-cli-doc', 'orc-cli-end', 'orc-cli-cep', 'orc-cli-tel', 'orc-cli-email'].forEach(id => {
-    if (document.getElementById(id)) ids.push(id);
+  ELETRO_ULT_PANES.forEach(pane => {
+    document.querySelectorAll(`#eletro-pane-${pane} input[id], #eletro-pane-${pane} select[id], #eletro-pane-${pane} textarea[id]`)
+      .forEach(el => { if (el.type !== 'button' && el.type !== 'submit' && el.type !== 'file') ids.push(el.id); });
   });
-  return ids;
+  return [...new Set(ids)];
 }
 
 function eletroUltimoSalvar() {
@@ -6920,9 +6924,13 @@ function eletroUltimoSalvar() {
     const campos = {};
     eletroUltimoCampos().forEach(id => {
       const el = document.getElementById(id);
-      // guarda o TEXTO do campo, nao o numero: o valor volta com a mascara
-      // ("180.000") do jeito que o consultor digitou.
-      if (el && el.value !== '') campos[id] = el.value;
+      if (!el) return;
+      // Caixa de marcacao guarda o ESTADO; o resto guarda o TEXTO, nao o
+      // numero — o valor volta com a mascara ("180.000") que o consultor
+      // digitou. Marcar quais itens entram no orcamento e' digitar tanto
+      // quanto escrever o CNPJ, entao os checkbox entram tambem.
+      if (el.type === 'checkbox') campos[id] = { c: !!el.checked };
+      else if (el.value !== '') campos[id] = el.value;
     });
     if (!Object.keys(campos).length) return;
     localStorage.setItem(ELETRO_ULT_KEY, JSON.stringify({
@@ -6941,14 +6949,19 @@ function eletroUltimoRestaurar() {
   let pintou = 0;
   Object.keys(u.campos).forEach(id => {
     const el = document.getElementById(id);
+    if (!el) return;
+    const v = u.campos[id];
     // SO' CAMPO VAZIO. Escrever por cima de um cliente novo meio digitado e' o
     // erro que custa proposta — mesma regra do orcInit e do procInit.
-    if (el && !el.value) {
-      el.value = u.campos[id];
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-      pintou++;
-    }
+    if (el.type === 'checkbox') {
+      // marcacao nao tem "vazio": so' repoe se ainda esta' no padrao (desmarcada)
+      if (v && typeof v === 'object' && v.c && !el.checked) { el.checked = true; pintou++; }
+      else return;
+    } else if (!el.value && typeof v === 'string') {
+      el.value = v; pintou++;
+    } else return;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
   });
   if (pintou) eletroRetomarBanner(u);
 }
@@ -6977,7 +6990,9 @@ function eletroNovoProjeto() {
   eletroUltimoCampos().forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
-    if (el.tagName === 'SELECT') el.selectedIndex = 0; else el.value = '';
+    if (el.type === 'checkbox') el.checked = false;
+    else if (el.tagName === 'SELECT') el.selectedIndex = 0;
+    else el.value = '';
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
   });
@@ -6985,6 +7000,24 @@ function eletroNovoProjeto() {
   const bar = document.getElementById('eletro-retomar');
   if (bar) bar.classList.remove('on');
 }
+
+// SALVA ENQUANTO DIGITA. Antes so' salvava na hora de gerar o PDF — quem
+// preenchia o orcamento pra apresentar depois, e fechava a aba antes de gerar,
+// perdia tudo. Que e' justamente o uso: montar agora, apresentar na visita.
+//
+// Delegado no documento e nao campo a campo: os panes sao montados e
+// remontados, e listener preso em elemento morre junto. Com respiro de 400ms
+// pra nao escrever no localStorage a cada tecla.
+let eletroUltimoT = null;
+function eletroUltimoAgendarSalvar(alvo) {
+  if (!alvo || !alvo.id) return;
+  // so' reage a campo que faz parte do conjunto salvo
+  if (!alvo.closest || !alvo.closest('[id^="eletro-pane-"]')) return;
+  clearTimeout(eletroUltimoT);
+  eletroUltimoT = setTimeout(eletroUltimoSalvar, 400);
+}
+document.addEventListener('input', (e) => eletroUltimoAgendarSalvar(e.target), true);
+document.addEventListener('change', (e) => eletroUltimoAgendarSalvar(e.target), true);
 
 // Volta o ultimo projeto assim que a pagina abre. Depois do load pra os campos
 // ja' existirem e os recalculos acharem o que precisam.
