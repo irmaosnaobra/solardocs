@@ -3808,9 +3808,88 @@ window.__geradorBooted = true;
 const SUPABASE_URL = 'https://ancecdfqfwlaujknizof.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6';
 
+// ── SESSÃO DO CONSULTOR ─────────────────────────────────────────────────────
+// O `apikey` continua sendo a chave pública (o Supabase exige o header em toda
+// requisição), mas o `Authorization` passa a ser o token DA PESSOA. É essa troca
+// que muda tudo pro banco: com token, ele sabe QUEM está pedindo; com a chave
+// anônima, ele via o mesmo "alguém" da landing pública e do CRM.
+//
+// Esta é a única função que monta header pro PostgREST — as 9 chamadas do app
+// passam por aqui. Por isso a migração inteira cabe neste lugar.
+const SESSAO_KEY = 'irmaos-na-obra-sessao-v1';
+let sessaoAtual = null;
+try { sessaoAtual = JSON.parse(localStorage.getItem(SESSAO_KEY) || 'null'); } catch (e) {}
+
+function authGuardar(s) {
+  sessaoAtual = {
+    access_token: s.access_token,
+    refresh_token: s.refresh_token,
+    // Renova ANTES de vencer: o token dura 1h e este app fica aberto o dia
+    // inteiro. Sem margem, o consultor tomaria erro no meio de um orçamento.
+    expira_em: Date.now() + (Number(s.expires_in || 3600) - 300) * 1000,
+  };
+  try { localStorage.setItem(SESSAO_KEY, JSON.stringify(sessaoAtual)); } catch (e) {}
+}
+function authLimpar() {
+  sessaoAtual = null;
+  try { localStorage.removeItem(SESSAO_KEY); } catch (e) {}
+}
+async function authEntrar(email, senha) {
+  const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password: senha }),
+  });
+  const j = await r.json().catch(() => null);
+  if (!r.ok || !j || !j.access_token) throw new Error((j && (j.error_description || j.msg)) || 'invalid');
+  return j;
+}
+/** Renova com o refresh_token. Falhou de verdade? volta pro login — token velho
+ *  em requisição é 401 em silêncio, e o app pareceria vazio em vez de deslogado. */
+async function authRenovar() {
+  if (!sessaoAtual || !sessaoAtual.refresh_token) return false;
+  try {
+    const r = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: sessaoAtual.refresh_token }),
+    });
+    const j = await r.json().catch(() => null);
+    if (!r.ok || !j || !j.access_token) throw new Error('refresh falhou');
+    authGuardar(j);
+    return true;
+  } catch (e) {
+    authLimpar();
+    document.documentElement.dataset.mode = 'login';
+    return false;
+  }
+}
+function authValida() { return !!(sessaoAtual && sessaoAtual.access_token); }
+
+// ── A sessão se mantém sozinha ──
+// O app fica aberto o dia inteiro num aparelho que dorme e acorda. Três gatilhos,
+// porque nenhum deles sozinho cobre o uso real:
+//   · na abertura      — o aparelho pode ter passado a noite fechado
+//   · a cada 10 min    — o uso normal, sem esperar o token vencer
+//   · ao voltar pra aba — timer de aba em segundo plano é estrangulado pelo
+//                         navegador, então voltar do WhatsApp precisa reavaliar
+async function authRenovarSePreciso() {
+  if (!authValida()) return;
+  if (Date.now() < (sessaoAtual.expira_em || 0)) return;
+  await authRenovar();
+}
+authRenovarSePreciso();
+setInterval(authRenovarSePreciso, 10 * 60 * 1000);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') authRenovarSePreciso();
+});
+
 const supaHeaders = () => ({
   'apikey': SUPABASE_KEY,
-  'Authorization': `Bearer ${SUPABASE_KEY}`,
+  // Sem sessão cai na chave pública — é o que mantém a tela de pé enquanto a
+  // RLS ainda está desligada. Quando ela ligar, esta linha vira 401 e a pessoa
+  // vê a tela de login, que é o comportamento certo.
+  'Authorization': `Bearer ${(sessaoAtual && sessaoAtual.access_token) || SUPABASE_KEY}`,
   'Content-Type': 'application/json'
 });
 
@@ -13217,24 +13296,53 @@ function fallbackCopy(txt) {
 // ⚠️ TROCAR ESTA SENHA quando quiser forçar logout de todos:
 //    basta alterar o valor e fazer deploy — sessões antigas continuam,
 //    mas pra realmente "deslogar todos", bumpe também a chave AUTH_KEY abaixo.
-const GERADOR_SENHA = 'irmaos2026';
+// ═══════════════════════════════════════════════════════════════════════════
+// LOGIN DE VERDADE (18/08/2026)
+//
+// Até hoje esta linha era `const GERADOR_SENHA = 'irmaos2026'`, comparada no
+// navegador — ou seja, a senha do CRM estava PUBLICADA: esta página é servida
+// sem autenticação nenhuma, e qualquer um que abrisse o código-fonte entrava e
+// via cliente, telefone, proposta e agenda de todo mundo.
+//
+// Agora cada consultor é um usuário do Supabase Auth e o navegador guarda um
+// token DELE. Isso não é só higiene de senha: é o que dá ao banco uma identidade
+// pra distinguir. Enquanto a landing pública e o CRM mandavam a MESMA chave
+// anônima, nenhuma policy de RLS tinha o que separar — o banco via a mesma
+// pessoa nos dois. Com token por consultor, dá pra dizer "authenticated lê o
+// CRM, anônimo não lê nada", que é o passo seguinte.
+//
+// O e-mail é derivado do nome e não precisa existir como caixa postal: o login
+// é por senha. A tela continua sendo "escolhe o nome e digita a senha".
 const AUTH_KEY      = 'irmaos-na-obra-auth-v1';
+const emailDoConsultor = n => String(n || '').trim().toLowerCase() + '@irmaosnaobra.app';
 
-function fazerLogin(ev) {
+async function fazerLogin(ev) {
   if (ev) ev.preventDefault();
   const consultor = document.getElementById('login-consultor').value.trim();
   const senha     = document.getElementById('login-senha').value.trim();
   const err       = document.getElementById('login-erro');
+  const btn       = document.querySelector('#loginSection button[type=submit]');
   err.textContent = '';
 
   if (!consultor) { err.textContent = 'Selecione o consultor.'; return; }
-  if (senha !== GERADOR_SENHA) {
-    err.textContent = 'Senha incorreta.';
+  if (!senha)     { err.textContent = 'Digite a senha.'; return; }
+
+  if (btn) { btn.disabled = true; btn.dataset.txt = btn.textContent; btn.textContent = 'Entrando…'; }
+  let sessao = null;
+  try {
+    sessao = await authEntrar(emailDoConsultor(consultor), senha);
+  } catch (e) {
+    err.textContent = /invalid/i.test(String(e && e.message))
+      ? 'Senha incorreta.'
+      : 'Não consegui entrar agora. Confira a internet e tente de novo.';
     document.getElementById('login-senha').value = '';
+    if (btn) { btn.disabled = false; btn.textContent = btn.dataset.txt || 'Entrar'; }
     return;
   }
+  if (btn) { btn.disabled = false; btn.textContent = btn.dataset.txt || 'Entrar'; }
 
   try {
+    authGuardar(sessao);
     localStorage.setItem(AUTH_KEY, JSON.stringify({ consultor, ts: Date.now() }));
     // Mantém PREFS_KEY em sincronia (consultor selecionado no form interno).
     const raw = localStorage.getItem(PREFS_KEY);
@@ -13260,7 +13368,7 @@ function fazerLogin(ev) {
 
 function sairGerador() {
   if (!confirm('Deseja sair do gerador?')) return;
-  try { localStorage.removeItem(AUTH_KEY); } catch (e) {}
+  try { localStorage.removeItem(AUTH_KEY); authLimpar(); } catch (e) {}
   document.documentElement.dataset.mode = 'login';
   const ls = document.getElementById('login-senha');
   if (ls) ls.value = '';

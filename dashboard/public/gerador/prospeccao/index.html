@@ -641,9 +641,20 @@ let fHist = { lista:'', consultor:'', produto:'', resultado:'', q:'' };
 let agendados = [], agendPorTel = new Map(), agendaPendente = null;
 
 // ============= UTILS =============
+// A sessão é a MESMA do /gerador — mesma origem, mesmo localStorage. Esta
+// página não tem login próprio: quem entra aqui já entrou lá, e o token que ele
+// ganhou vale aqui também. Sem sessão cai na chave pública, que é o que segura a
+// tela de pé enquanto a RLS ainda está desligada.
+const SESSAO_KEY = 'irmaos-na-obra-sessao-v1';
+function tokenDaSessao() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SESSAO_KEY) || 'null');
+    return (s && s.access_token) || null;
+  } catch (e) { return null; }
+}
 const supaHeaders = () => ({
   'apikey': SUPABASE_KEY,
-  'Authorization': `Bearer ${SUPABASE_KEY}`,
+  'Authorization': `Bearer ${tokenDaSessao() || SUPABASE_KEY}`,
   'Content-Type': 'application/json',
 });
 async function supaGet(q){
