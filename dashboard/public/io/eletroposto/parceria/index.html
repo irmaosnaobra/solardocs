@@ -168,6 +168,27 @@
     background-repeat:no-repeat;background-position:right 14px center;background-size:18px;padding-right:42px}
   .fRow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   @media(max-width:520px){.fRow{grid-template-columns:1fr;gap:0}}
+  /* ===== bloco do padrão de entrada =====
+     Destacado de propósito: é a informação que decide o projeto e a que mais
+     vem em branco. O bloco existe pra a pessoa PARAR e ler antes de responder —
+     um select solto no meio do formulário virava "não sei" automático. */
+  .padrao{margin:18px 0;padding:18px 16px;border:1.5px solid var(--amb-line);border-radius:16px;
+    background:linear-gradient(180deg,rgba(242,180,23,.10),rgba(242,180,23,.03))}
+  .padTopo{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px}
+  .padIc{flex:none;width:38px;height:38px;border-radius:11px;background:rgba(242,180,23,.16);
+    border:1px solid var(--amb-line);display:flex;align-items:center;justify-content:center}
+  .padIc svg{width:19px;height:19px;fill:var(--amb-b)}
+  .padTopo b{display:block;font-size:16px;font-weight:900;letter-spacing:-.3px;line-height:1.2}
+  .padTopo span{display:block;color:var(--mut);font-size:13px;font-weight:600;margin-top:3px;line-height:1.4}
+  .padTx{color:var(--mut);font-size:14px;font-weight:600;line-height:1.6;margin-bottom:12px}
+  .padTx b{color:var(--cream);font-weight:800}
+  .padOnde{border-top:1px solid rgba(242,180,23,.20);padding-top:12px}
+  .padrao .fld label{color:var(--amb-b)}
+  /* a setinha do select nasce verde (data-URI com a cor no SVG); dentro do bloco
+     âmbar ela era a única coisa da cor errada */
+  .padrao .fld select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23FFD05C' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
+  @media(max-width:520px){ .padrao{padding:16px 13px} .padTopo b{font-size:15px} }
+
   .erro{display:none;background:rgba(255,90,70,.14);border:1px solid rgba(255,120,100,.42);color:#ffb3a6;
     border-radius:11px;padding:12px 14px;font-size:13.5px;font-weight:800;margin-bottom:14px;line-height:1.45}
   .erro.on{display:block}
@@ -422,25 +443,100 @@
                 </select>
               </div>
               <div class="fld">
-                <label for="p-energia">Entrada de energia trifásica?</label>
-                <select id="p-energia">
+                <label for="p-fluxo">Como é o movimento no local</label>
+                <select id="p-fluxo">
                   <option value="">Selecione</option>
-                  <option>Sim</option>
-                  <option>Não</option>
-                  <option>Não sei</option>
+                  <option>Rodovia / rota de passagem</option>
+                  <option>Avenida movimentada</option>
+                  <option>Rua comercial</option>
+                  <option>Movimento próprio (clientes do local)</option>
+                  <option>Movimento fraco hoje</option>
                 </select>
               </div>
             </div>
-            <div class="fld">
-              <label for="p-fluxo">Como é o movimento no local</label>
-              <select id="p-fluxo">
-                <option value="">Selecione</option>
-                <option>Rodovia / rota de passagem</option>
-                <option>Avenida movimentada</option>
-                <option>Rua comercial</option>
-                <option>Movimento próprio (clientes do local)</option>
-                <option>Movimento fraco hoje</option>
-              </select>
+
+            <!-- ═══ O PADRÃO DE ENTRADA ═══
+                 Era UMA pergunta escondida no meio do formulário ("entrada
+                 trifásica? sim/não/não sei") e a maioria respondia "não sei" sem
+                 saber o que estava sendo perguntado — resposta que não serve
+                 pra nada. Vira um bloco próprio, com o porquê ANTES das
+                 perguntas: quem entende o que está em jogo vai atrás da conta de
+                 luz em vez de chutar. É a informação que decide o projeto
+                 inteiro, e ela é gratuita de obter — está impressa na conta. -->
+            <div class="padrao">
+              <div class="padTopo">
+                <span class="padIc">
+                  <svg viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                </span>
+                <div>
+                  <b>O padrão de entrada — leia antes de responder</b>
+                  <span>É o poste ou a caixa onde fica o relógio da luz do local.</span>
+                </div>
+              </div>
+              <p class="padTx">
+                <b>É a informação mais importante desta página</b>, e é a que quase ninguém traz.
+                O padrão decide <b>quantos carregadores cabem</b>, se vai <b>precisar de obra na
+                concessionária</b> — que custa dinheiro e meses de espera — e, no fim, se o
+                investidor topa ou não. Um ponto ótimo com padrão pequeno vira projeto caro.
+                Um ponto mediano com padrão forte fecha rápido.
+              </p>
+              <p class="padTx padOnde">
+                <b>Não sabe?</b> Está tudo na <b>conta de luz</b>: ela traz o tipo de ligação
+                (monofásico, bifásico ou trifásico) e o consumo. Ou olhe o <b>disjuntor geral</b>,
+                dentro da caixa do relógio — o número gravado nele é a amperagem.
+                Responder <b>"não sei" é aceito</b>, mas cada "não sei" empurra a resposta pra uma
+                visita técnica, e a visita entra na fila.
+              </p>
+
+              <div class="fRow">
+                <div class="fld">
+                  <label for="p-ligacao">Tipo de ligação</label>
+                  <span class="hint">Está escrito na conta de luz</span>
+                  <select id="p-ligacao">
+                    <option value="">Selecione</option>
+                    <option>Trifásico (4 fios na entrada)</option>
+                    <option>Bifásico (3 fios na entrada)</option>
+                    <option>Monofásico (2 fios na entrada)</option>
+                    <option>Não sei</option>
+                  </select>
+                </div>
+                <div class="fld">
+                  <label for="p-disjuntor">Disjuntor geral</label>
+                  <span class="hint">O número gravado nele, em amperes (A)</span>
+                  <select id="p-disjuntor">
+                    <option value="">Selecione</option>
+                    <option>Até 40 A</option>
+                    <option>De 40 a 63 A</option>
+                    <option>De 63 a 100 A</option>
+                    <option>Acima de 100 A</option>
+                    <option>Não sei</option>
+                  </select>
+                </div>
+              </div>
+              <div class="fRow">
+                <div class="fld">
+                  <label for="p-consumo">Consumo médio do local</label>
+                  <span class="hint">O kWh/mês da conta de luz</span>
+                  <select id="p-consumo">
+                    <option value="">Selecione</option>
+                    <option>Até 500 kWh/mês</option>
+                    <option>De 500 a 2.000 kWh/mês</option>
+                    <option>De 2.000 a 10.000 kWh/mês</option>
+                    <option>Acima de 10.000 kWh/mês</option>
+                    <option>Não sei</option>
+                  </select>
+                </div>
+                <div class="fld">
+                  <label for="p-foto">Consegue mandar foto do padrão e da conta?</label>
+                  <span class="hint">A equipe pede no WhatsApp — resolve sem visita</span>
+                  <select id="p-foto">
+                    <option value="">Selecione</option>
+                    <option>Sim, mando hoje mesmo</option>
+                    <option>Sim, mas preciso ir até o local</option>
+                    <option>Não consigo</option>
+                  </select>
+                </div>
+              </div>
             </div>
             <div class="fld">
               <label for="p-obs">Quer contar mais alguma coisa? <span style="font-weight:600;color:rgba(247,251,242,.45)">(opcional)</span></label>
@@ -660,12 +756,27 @@ function enviar(e, lado){
     if (val('p-end').length < 8) return erro(lado, 'Informe o endereço do local (rua, número e bairro).');
     if (!val('p-vagas'))      return erro(lado, 'Informe quantas vagas o local tem disponíveis.');
     if (!val('p-fluxo'))      return erro(lado, 'Informe como é o movimento no local.');
+    // O padrão é obrigatório — "Não sei" é uma resposta válida e está na lista.
+    // Deixar em branco não é: em branco a equipe não sabe se a pessoa não sabe
+    // ou se só passou batido, e são duas conversas diferentes.
+    if (!val('p-ligacao'))    return erro(lado, 'Informe o tipo de ligação do padrão. Se não souber, marque "Não sei" — mas leia o quadro acima antes.');
+    if (!val('p-disjuntor'))  return erro(lado, 'Informe o disjuntor geral. Se não souber, marque "Não sei".');
+    if (!val('p-consumo'))    return erro(lado, 'Informe o consumo médio do local. Está na conta de luz; se não tiver acesso, marque "Não sei".');
+    if (!val('p-foto'))       return erro(lado, 'Informe se consegue mandar foto do padrão e da conta.');
     corpo.ponto_relacao  = val('p-relacao');
     corpo.ponto_tipo     = val('p-tipo');
     corpo.ponto_endereco = val('p-end');
     corpo.ponto_vagas    = val('p-vagas');
-    corpo.ponto_energia  = val('p-energia');
     corpo.ponto_fluxo    = val('p-fluxo');
+    // `ponto_energia` continua sendo gravado pra não quebrar quem já lê essa
+    // coluna (aba Cadastros, alerta): ele passa a ser DERIVADO da ligação, que
+    // é a mesma pergunta feita direito.
+    corpo.ponto_energia  = /Trifásico/.test(val('p-ligacao')) ? 'Sim'
+                         : /Não sei/.test(val('p-ligacao'))   ? 'Não sei' : 'Não';
+    corpo.padrao_ligacao   = val('p-ligacao');
+    corpo.padrao_disjuntor = val('p-disjuntor');
+    corpo.padrao_consumo   = val('p-consumo');
+    corpo.padrao_foto      = val('p-foto');
     corpo.obs            = val('p-obs');
   }
 

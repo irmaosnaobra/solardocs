@@ -363,6 +363,23 @@ router.get('/parceria/placar', async (_req: Request, res: Response): Promise<voi
 });
 
 const LADOS = new Set(['capital', 'ponto']);
+
+/**
+ * O padrão declarado provavelmente NÃO aguenta um eletroposto.
+ *
+ * Não é laudo — é triagem: monofásico ou disjuntor de até 40 A não sustentam
+ * carregador de potência nenhuma sem aumento de carga, e aumento de carga na
+ * concessionária custa dinheiro e meses. O consultor precisa saber disso ANTES
+ * de marcar reunião pra um ponto que, no papel, já nasce com obra.
+ *
+ * "Não sei" NÃO entra aqui de propósito: desconhecimento não é diagnóstico, e
+ * marcar como fraco quem só não olhou a conta descartaria ponto bom.
+ */
+function padraoFraco(p: { padrao_ligacao?: string | null; padrao_disjuntor?: string | null }): boolean {
+  const lig = p.padrao_ligacao || '';
+  const dis = p.padrao_disjuntor || '';
+  return /Monof/i.test(lig) || /Até 40/i.test(dis);
+}
 const txt = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max) || null;
 
 router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
@@ -392,7 +409,16 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
     ponto_endereco: txt(b.ponto_endereco, 300),
     ponto_vagas:    txt(b.ponto_vagas, 40),
     ponto_fluxo:    txt(b.ponto_fluxo, 120),
+    // `ponto_energia` é derivado da ligação lá na página, e continua gravado
+    // porque a aba Cadastros e o alerta já leem esta coluna.
     ponto_energia:  txt(b.ponto_energia, 40),
+    // O PADRÃO DE ENTRADA — o que decide quantos carregadores cabem, se precisa
+    // de obra na concessionária e quanto tempo até ligar. Era uma pergunta só,
+    // respondida no chute; virou um bloco com o porquê antes das perguntas.
+    padrao_ligacao:   txt(b.padrao_ligacao, 60),
+    padrao_disjuntor: txt(b.padrao_disjuntor, 40),
+    padrao_consumo:   txt(b.padrao_consumo, 60),
+    padrao_foto:      txt(b.padrao_foto, 60),
     obs:            txt(b.obs, 600),
     origem:         b.origem === 'lp_nota1' ? 'lp_nota1' : 'link_direto',
     cadastrado_em: new Date().toISOString(),
@@ -455,7 +481,15 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
         `*Endereço:* ${bruto.ponto_endereco || '—'}`,
         `*Vagas:* ${bruto.ponto_vagas || '—'}`,
         `*Movimento:* ${bruto.ponto_fluxo || '—'}`,
-        `*Entrada trifásica:* ${bruto.ponto_energia || '—'}`,
+        '',
+        // O padrão vem em bloco próprio na mensagem: é por ele que o consultor
+        // decide se abre o caso ou se pede a foto antes de gastar uma hora.
+        `⚡ *PADRÃO DE ENTRADA*`,
+        `*Ligação:* ${bruto.padrao_ligacao || '—'}`,
+        `*Disjuntor:* ${bruto.padrao_disjuntor || '—'}`,
+        `*Consumo:* ${bruto.padrao_consumo || '—'}`,
+        `*Manda foto?* ${bruto.padrao_foto || '—'}`,
+        ...(padraoFraco(bruto) ? ['', '⚠️ *O padrão declarado provavelmente não aguenta* — antes de marcar qualquer coisa, peça a foto do padrão e da conta. Aumento de carga na concessionária custa dinheiro e meses.'] : []),
         ...(bruto.obs ? ['', `_${bruto.obs}_`] : []),
         '',
         '_Este é o lado que falta na base. Tem investidor com capital esperando ponto no /admin → Nota 1._',

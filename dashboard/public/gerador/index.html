@@ -388,6 +388,9 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .cad-org{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;border-radius:999px;padding:3px 8px;white-space:nowrap}
 .cad-org.cad{background:rgba(125,209,23,.16);color:#9BEE38}
 .cad-org.ficha{background:rgba(148,163,184,.18);color:#94A3B8}
+/* padrão que não deve aguentar: é o aviso que evita marcar reunião pra um ponto
+   que já nasce com obra de aumento de carga na concessionária */
+.cad-alerta{display:block;margin-top:4px;font-size:11px;font-weight:800;color:#FCA5A5;line-height:1.35}
 @media(max-width:720px){
   .cad-topo{flex-direction:column;align-items:stretch}
   .cad-busca{min-width:0;flex:1}
@@ -6411,8 +6414,8 @@ async function cadCarregar(forcar) {
     // filtro do banco: a mesma leitura alimenta as duas abas, e a regra fica num
     // lugar só em vez de espalhada em dois querystrings.
     const [pontos, capital, fichas] = await Promise.all([
-      supaGet('eletroposto_parceria?lado=eq.ponto&order=created_at.desc&limit=500'),
-      supaGet('eletroposto_parceria?lado=eq.capital&order=created_at.desc&limit=500'),
+      supaGet('eletroposto_parceria?lado=eq.ponto&order=created_at.desc&limit=500&select=*'),
+      supaGet('eletroposto_parceria?lado=eq.capital&order=created_at.desc&limit=500&select=*'),
       supaGet('eletroposto_nota1?select=id,created_at,nome,telefone,cidade,perfil,ponto,invest,'
               + 'endereco,capital_faixa,tem_ponto,pts,status,nota_interna'
               + '&order=created_at.desc&limit=500'),
@@ -6522,14 +6525,13 @@ function cadRender() {
       + (r.deFicha ? 'da ficha' : 'cadastro') + '</span>';
 
     if (cadLado === 'ponto') {
-      const detalhe = r.deFicha
-        ? org
-        : escapeHtml(r.ponto_vagas || '—') + (r.ponto_energia ? ' · trifásica: ' + escapeHtml(r.ponto_energia) : '');
+      const detalhe = r.deFicha ? org : escapeHtml(r.ponto_vagas || '—');
       return '<tr>' + nome
         + '<td>' + escapeHtml(r.ponto_tipo || '—') + '<span class="cad-sub">' + detalhe + '</span></td>'
         + '<td>' + escapeHtml(r.cidade || '—') + '</td>'
         + '<td class="cad-end">' + escapeHtml(r.ponto_endereco || '—')
           + (r.obs ? '<span class="cad-sub">' + escapeHtml(r.obs) + '</span>' : '') + '</td>'
+        + cadPadraoCel(r)
         + '<td>' + escapeHtml(r.ponto_fluxo || '—') + '</td>' + st + '</tr>';
     }
     return '<tr>' + nome
@@ -6539,6 +6541,33 @@ function cadRender() {
       + '<td><span class="cad-org ' + (r.deFicha ? 'ficha' : 'cad') + '">'
         + (r.deFicha ? 'da ficha' : 'cadastro') + '</span></td>' + st + '</tr>';
   }).join('');
+}
+
+// ── A célula do padrão de entrada ───────────────────────────────────────────
+// É o dado que decide o projeto: quantos carregadores cabem, se precisa de obra
+// na concessionária e quanto tempo até ligar. Por isso ele tem coluna própria, e
+// por isso o aviso de padrão fraco aparece ANTES de alguém marcar reunião.
+//
+// Três estados, e eles não podem se confundir:
+//   ficha antiga → "não perguntado" (a LP nunca perguntou isso a ela)
+//   "Não sei"    → a pessoa foi perguntada e não sabe: pedir a foto resolve
+//   declarado    → mostra ligação + disjuntor, com alerta se não aguentar
+function cadPadraoCel(r) {
+  if (r.deFicha) return '<td><span class="cad-sub" style="margin:0">não perguntado</span></td>';
+  const lig = r.padrao_ligacao || '', dis = r.padrao_disjuntor || '';
+  if (!lig && !dis) return '<td>—</td>';
+  // Mesma regra do alerta no WhatsApp (api/src/routes/ioEletroposto.ts,
+  // padraoFraco): monofásico ou até 40 A não sustentam carregador sem aumento
+  // de carga. "Não sei" NÃO é fraco — desconhecimento não é diagnóstico.
+  const fraco = /Monof/i.test(lig) || /Até 40/i.test(dis);
+  const naoSabe = /Não sei/i.test(lig) && /Não sei/i.test(dis);
+  const foto = r.padrao_foto || '';
+  return '<td>' + escapeHtml(lig || '—')
+    + '<span class="cad-sub">' + escapeHtml(dis || '—')
+    + (r.padrao_consumo ? ' · ' + escapeHtml(r.padrao_consumo) : '') + '</span>'
+    + (fraco ? '<span class="cad-alerta">não deve aguentar · peça a foto</span>' : '')
+    + (naoSabe && /Sim/i.test(foto) ? '<span class="cad-sub">não sabe, mas manda foto</span>' : '')
+    + '</td>';
 }
 
 async function cadStatus(tabela, id, sel) {
