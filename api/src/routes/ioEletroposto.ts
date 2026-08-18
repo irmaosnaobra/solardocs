@@ -4,6 +4,9 @@ import { supabaseGerador } from '../utils/supabaseGerador';
 import { supabase as supabasePc } from '../utils/supabase';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { logger } from '../utils/logger';
+// A dica de "quem está perto" no aviso: quem tem o ponto procura investidor e
+// vice-versa. Falha aqui nunca segura o aviso — devolve bloco vazio.
+import { blocoParesSeguro } from '../services/io/eletropostoPares';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alerta de lead novo da LP do Eletroposto (/io/eletroposto) no WhatsApp da equipe.
@@ -364,6 +367,60 @@ router.get('/parceria/placar', async (_req: Request, res: Response): Promise<voi
 
 const LADOS = new Set(['capital', 'ponto']);
 
+/** Recado interno pros 2 números salvos. Um envio que falha não impede o outro. */
+async function avisarEquipe(texto: string): Promise<void> {
+  await Promise.allSettled(Object.values(EQUIPE).map(num => sendWhatsApp(num, texto, 'io')));
+}
+
+/**
+ * MARK→SEND: carimba que este lado deste telefone já foi anunciado.
+ * Devolve `true` quando JÁ estava carimbado — ou seja, "não mande de novo".
+ *
+ * Por que no banco e não num Set em memória, como o /alerta faz: função
+ * serverless morre e renasce, e duas instâncias não compartilham memória. O
+ * reenvio é real — a página desiste em 8s e reabilita o botão, então quem está
+ * em rede ruim manda duas vezes.
+ *
+ * Falha de escrita libera o envio de propósito: perder um aviso é pior que
+ * mandar dois, e o único jeito de errar aqui é o banco estar fora.
+ */
+async function marcarAviso(lado: string, telefone: string): Promise<boolean> {
+  const key = `ep_parceria_aviso:${lado}:${telefone}`;
+  try {
+    const { data } = await supabasePc
+      .from('system_state').select('key').eq('key', key).maybeSingle();
+    if (data) return true;
+    await supabasePc.from('system_state').insert({ key, value: new Date().toISOString() });
+    return false;
+  } catch (err) {
+    logger.error('io-eletroposto-parceria', `marcador de aviso falhou (${key})`, err);
+    return false;
+  }
+}
+
+/**
+ * Este lead já foi anunciado pelo POST /nota1 minutos atrás?
+ *
+ * Aconteceu de verdade: uma pessoa preencheu a LP às 23:40 (aviso de NOTA 1) e
+ * se cadastrou como investidor às 23:41 — dois avisos quase idênticos sobre a
+ * mesma pessoa, em 69 segundos.
+ *
+ * Duas travas porque uma só não basta: `origem` vem do cliente e some quando o
+ * lead abre a página numa aba nova; a ficha no banco é a verdade durável.
+ */
+async function jaAnunciadoPeloNota1(telefone: string, origem: string): Promise<boolean> {
+  if (origem === 'lp_nota1') return true;
+  try {
+    const desde = new Date(Date.now() - 30 * 60_000).toISOString();
+    const { data } = await supabaseGerador
+      .from('eletroposto_nota1').select('id')
+      .eq('telefone', telefone).gte('created_at', desde).limit(1);
+    return !!(data && data.length);
+  } catch {
+    return false;   // na dúvida avisa: silêncio é o erro caro
+  }
+}
+
 /**
  * O padrão declarado provavelmente NÃO aguenta um eletroposto.
  *
@@ -375,10 +432,69 @@ const LADOS = new Set(['capital', 'ponto']);
  * "Não sei" NÃO entra aqui de propósito: desconhecimento não é diagnóstico, e
  * marcar como fraco quem só não olhou a conta descartaria ponto bom.
  */
-function padraoFraco(p: { padrao_ligacao?: string | null; padrao_disjuntor?: string | null }): boolean {
-  const lig = p.padrao_ligacao || '';
-  const dis = p.padrao_disjuntor || '';
+function padraoFraco(p: { padrao_ligacao?: unknown; padrao_disjuntor?: unknown }): boolean {
+  const lig = String(p.padrao_ligacao || '');
+  const dis = String(p.padrao_disjuntor || '');
   return /Monof/i.test(lig) || /Até 40/i.test(dis);
+}
+
+/** Campo do registro, sempre string legível. */
+const v = (r: Record<string, unknown>, k: string) => String(r[k] ?? '').trim() || '—';
+
+/**
+ * PONTO NOVO — o lado escasso. Este aviso é o que faz alguém largar o que está
+ * fazendo, então ele carrega o endereço, o padrão e quem está perto.
+ */
+export function montarAvisoPonto(reg: Record<string, unknown>, dica: string[]): string {
+  return [
+    '📍 *PONTO NOVO — alguém quer arrendar o local*',
+    '',
+    `*Nome:* ${v(reg, 'nome')}`,
+    `*WhatsApp:* wa.me/${String(reg.telefone || '')}`,
+    `*Cidade:* ${v(reg, 'cidade')}`,
+    `*Relação com o imóvel:* ${v(reg, 'ponto_relacao')}`,
+    `*Tipo de local:* ${v(reg, 'ponto_tipo')}`,
+    `*Endereço:* ${v(reg, 'ponto_endereco')}`,
+    `*Vagas:* ${v(reg, 'ponto_vagas')}`,
+    `*Movimento:* ${v(reg, 'ponto_fluxo')}`,
+    '',
+    // O padrão vem em bloco próprio: é por ele que o consultor decide se abre o
+    // caso ou se pede a foto antes de gastar uma hora.
+    '⚡ *PADRÃO DE ENTRADA*',
+    `*Ligação:* ${v(reg, 'padrao_ligacao')}`,
+    `*Disjuntor:* ${v(reg, 'padrao_disjuntor')}`,
+    `*Consumo:* ${v(reg, 'padrao_consumo')}`,
+    `*Manda foto?* ${v(reg, 'padrao_foto')}`,
+    ...(padraoFraco(reg)
+      ? ['', '⚠️ *O padrão declarado provavelmente não aguenta* — peça a foto do padrão e da conta antes de marcar qualquer coisa. Aumento de carga na concessionária custa dinheiro e meses.']
+      : []),
+    ...(reg.obs ? ['', `_${String(reg.obs)}_`] : []),
+    ...dica,
+    '',
+    '_Lista completa: solardoc.app/gerador → Eletroposto → Cadastros._',
+  ].join('\n');
+}
+
+/**
+ * INVESTIDOR NOVO. Passou a existir em 18/08 — antes o lado capital não avisava
+ * nada, e quem entrava por link direto (sem passar pela LP) não gerava aviso
+ * nenhum em lugar nenhum.
+ */
+export function montarAvisoCapital(reg: Record<string, unknown>, dica: string[]): string {
+  return [
+    '💰 *INVESTIDOR NOVO — tem o capital, falta o ponto*',
+    '',
+    `*Nome:* ${v(reg, 'nome')}`,
+    `*WhatsApp:* wa.me/${String(reg.telefone || '')}`,
+    `*Cidade:* ${v(reg, 'cidade')}`,
+    `*Quanto:* ${v(reg, 'capital_faixa')}`,
+    `*Com quê:* ${v(reg, 'capital_origem')}`,
+    `*Prazo:* ${v(reg, 'prazo')}`,
+    ...(reg.obs ? ['', `_${String(reg.obs)}_`] : []),
+    ...dica,
+    '',
+    '_Lista completa: solardoc.app/gerador → Eletroposto → Cadastros._',
+  ].join('\n');
 }
 const txt = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max) || null;
 
@@ -441,14 +557,20 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
   res.json({ ok: true });
 
   (async () => {
-    let id: number | null = null;
+    // ── GRAVA, e o aviso só sai se a gravação deu certo ──
+    // `.select('*')` de propósito: a mensagem é montada do REGISTRO, não do
+    // corpo do request. O corpo tem os nulos removidos antes do upsert (pra
+    // envio parcial não apagar campo cheio), então num reenvio a linha do banco
+    // está completa e o corpo não — montar do corpo mandaria "Endereço: —" pra
+    // um ponto que tem endereço gravado. É a mesma razão do /alerta ler a ficha.
+    let reg: Record<string, unknown> | null = null;
     try {
       const { data, error } = await supabaseGerador
         .from('eletroposto_parceria')
         .upsert(linha, { onConflict: 'lado,telefone' })
-        .select('id').single();
+        .select('*').single();
       if (error) throw error;
-      id = data?.id ?? null;
+      reg = data as Record<string, unknown>;
     } catch (err) {
       logger.error('io-eletroposto-parceria', `falha gravando ${lado} ${telefone}`, err);
     }
@@ -461,43 +583,57 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
         .eq('telefone', telefone).is('lado', null);
     } catch { /* a ficha pode nem existir: quem entra por link direto não é NOTA 1 */ }
 
-    // ── Aviso da equipe ──
-    // Só o lado PONTO dispara: investidor sem local a equipe já recebe pelo aviso
-    // do NOTA 1, e repetir o mesmo lead em duas mensagens treina todo mundo a
-    // ignorar as duas. Ponto é o que não existe na base — esse acorda alguém.
-    //
-    // `teste: true` grava e não manda, igual ao /nota1 — é assim que se confere a
-    // rota em produção sem tocar o WhatsApp do Thiago e do Diego.
-    if (lado !== 'ponto' || b.teste === true) return;
-    try {
-      const aviso = [
-        '📍 *PONTO NOVO — alguém quer arrendar o local*',
+    // `teste: true` grava e não manda — é assim que se confere a rota em
+    // produção sem tocar o WhatsApp do Thiago e do Diego. Fica ANTES da decisão
+    // por lado pra o modo teste valer em qualquer lado, hoje e nos que vierem.
+    if (b.teste === true) return;
+
+    // Gravação que falhou não vira aviso de cadastro — viraria mensagem sobre
+    // uma linha que não existe, e a equipe procuraria alguém que não está lá.
+    // Mas TAMBÉM não pode virar silêncio: o lead existe e ninguém sabe dele.
+    if (!reg) {
+      await avisarEquipe([
+        '⚠️ *CADASTRO PERDIDO — grave na mão*',
+        '',
+        `Alguém se cadastrou como *${lado === 'ponto' ? 'DONO DE PONTO' : 'INVESTIDOR'}* e a gravação falhou.`,
         '',
         `*Nome:* ${nome}`,
         `*WhatsApp:* wa.me/${telefone}`,
         `*Cidade:* ${bruto.cidade || '—'}`,
-        `*Relação com o imóvel:* ${bruto.ponto_relacao || '—'}`,
-        `*Tipo de local:* ${bruto.ponto_tipo || '—'}`,
-        `*Endereço:* ${bruto.ponto_endereco || '—'}`,
-        `*Vagas:* ${bruto.ponto_vagas || '—'}`,
-        `*Movimento:* ${bruto.ponto_fluxo || '—'}`,
-        '',
-        // O padrão vem em bloco próprio na mensagem: é por ele que o consultor
-        // decide se abre o caso ou se pede a foto antes de gastar uma hora.
-        `⚡ *PADRÃO DE ENTRADA*`,
-        `*Ligação:* ${bruto.padrao_ligacao || '—'}`,
-        `*Disjuntor:* ${bruto.padrao_disjuntor || '—'}`,
-        `*Consumo:* ${bruto.padrao_consumo || '—'}`,
-        `*Manda foto?* ${bruto.padrao_foto || '—'}`,
-        ...(padraoFraco(bruto) ? ['', '⚠️ *O padrão declarado provavelmente não aguenta* — antes de marcar qualquer coisa, peça a foto do padrão e da conta. Aumento de carga na concessionária custa dinheiro e meses.'] : []),
-        ...(bruto.obs ? ['', `_${bruto.obs}_`] : []),
-        '',
-        '_Este é o lado que falta na base. Tem investidor com capital esperando ponto no /admin → Nota 1._',
-      ].join('\n');
-      await Promise.allSettled(Object.values(EQUIPE).map(num => sendWhatsApp(num, aviso, 'io')));
-      logger.info('io-eletroposto-parceria', `ponto novo #${id ?? '?'} de ${nome} (${telefone})`);
+      ].join('\n'));
+      return;
+    }
+
+    // ── UMA mensagem por pessoa por lado, e ponto ──
+    // A página desiste em 8s e reabilita o botão: quem está em rede ruim manda
+    // duas vezes, e o upsert absorve isso calado. O marcador é gravado ANTES do
+    // envio (MARK→SEND): duplicar aviso é pior que perder um, porque aviso
+    // repetido treina a equipe a ignorar todos.
+    const jaAvisou = await marcarAviso(lado, telefone);
+    if (jaAvisou) {
+      logger.info('io-eletroposto-parceria', `aviso repetido barrado: ${lado} ${telefone}`);
+      return;
+    }
+
+    // O lead que veio da LP recusada JÁ foi anunciado pelo POST /nota1 minutos
+    // antes, com a ficha inteira. Anunciar de novo é a mesma pessoa em duas
+    // mensagens quase iguais — o jeito mais rápido de a equipe parar de ler.
+    // Duas travas porque `origem` vem do cliente e some numa aba nova; a ficha
+    // no banco é a durável.
+    if (lado === 'capital' && await jaAnunciadoPeloNota1(telefone, String(bruto.origem || ''))) {
+      logger.info('io-eletroposto-parceria', `capital ${telefone} já anunciado pelo nota1`);
+      return;
+    }
+
+    try {
+      const cidadeReg = (reg.cidade as string) || null;
+      // A dica olha o OUTRO lado: ponto novo procura investidor, e vice-versa.
+      const dica = await blocoParesSeguro(cidadeReg, lado === 'ponto' ? 'capital' : 'ponto', telefone);
+      const aviso = lado === 'ponto' ? montarAvisoPonto(reg, dica) : montarAvisoCapital(reg, dica);
+      await avisarEquipe(aviso);
+      logger.info('io-eletroposto-parceria', `${lado} novo #${reg.id} de ${nome} (${telefone})`);
     } catch (err) {
-      logger.error('io-eletroposto-parceria', `aviso do ponto falhou pra ${telefone}`, err);
+      logger.error('io-eletroposto-parceria', `aviso falhou pra ${telefone}`, err);
     }
   })();
 });
