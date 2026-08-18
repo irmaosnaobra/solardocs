@@ -9719,7 +9719,10 @@ function procHTML(d) {
   const dataTxt = d.data.toLocaleDateString('pt-BR');
   const endCli = [d.outorganteEnd, d.cep, d.cidade].filter(Boolean).join(', ');
   const endEmp = [d.empresa.end, d.empresa.cidade].filter(Boolean).join(', ');
-  const pageFoot = `<div class="ep-pagefoot"><span>Procuração — representação junto à concessionária${d.cliente ? ' · ' + e(d.cliente) : ''}</span><span>Página 1 de 1</span></div>`;
+  // Uma folha nao se numera: "Página 1 de 1" e' ruido, e foi essa contagem
+  // fixa que escondeu o vazamento pra 2 folhas. Fica so' a identificacao, que
+  // num papel de balcao vale.
+  const pageFoot = `<div class="ep-pagefoot"><span>Procuração — representação junto à concessionária${d.cliente ? ' · ' + e(d.cliente) : ''}</span><span>Documento de uma via</span></div>`;
 
   // Qualificacao no formato do modelo 3 da plataforma: nome em caixa alta,
   // depois nacionalidade, estado civil, profissao, RG, CPF, registro e
