@@ -157,7 +157,16 @@ export default function Landing() {
           obs.disconnect();
         }
       },
-      { threshold: 0.3 }
+      // ATENÇÃO ao threshold: #planos é MAIS ALTA que a tela do celular
+      // (2.877px contra os 844px do iPhone). Com `threshold: 0.3` o observer
+      // exigia 863px visíveis de uma vez — mais do que a tela inteira tem — e
+      // no celular NUNCA disparava. A seção cresceu duas vezes (card anual em
+      // 14/08, selos "só no plano anual" em 17/08) e o evento morreu em
+      // silêncio: 24 sessões/dia em 13/08 viraram 2 em 18/08 sem ninguém ter
+      // parado de rolar a página (a rolagem até 100% não mudou no mesmo
+      // período). Agora basta a seção encostar na metade de cima da tela —
+      // regra que vale pra qualquer altura que ela venha a ter.
+      { threshold: 0, rootMargin: '0px 0px -45% 0px' }
     );
     obs.observe(el);
     return () => obs.disconnect();
