@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useDashboard } from '@/contexts/DashboardContext';
 import api from '@/services/api';
+import { registrarEvento } from '@/hooks/useLpTracking';
 import styles from './pix-recorrente.module.css';
 
 // PREÇO ÚNICO: uma assinatura só. Aqui eram dois botões (PRO R$27 × VIP R$67) —
@@ -71,6 +72,16 @@ export default function PixRecorrentePage() {
   const [cupomOk, setCupomOk] = useState<{ codigo: string; primeiroMes: number; precoCheio: number } | null>(null);
 
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const jaMediu = useRef(false);
+
+  // CHEGOU. Mesmo evento da tela pública, com `tela` diferente — os dois
+  // caminhos de Pix caem no mesmo funil e dá pra comparar quem tem conta com
+  // quem veio do anúncio sem conta nenhuma.
+  useEffect(() => {
+    if (jaMediu.current) return;
+    jaMediu.current = true;
+    registrarEvento('pix_abriu', { tela: 'recorrente', cupom: cupomUrl || null });
+  }, [cupomUrl]);
 
   // Confere o cupom do link. Inválido/vencido some em silêncio — a pessoa
   // assina pelo preço normal em vez de ver um erro que não sabe resolver.
@@ -89,7 +100,16 @@ export default function PixRecorrentePage() {
     try {
       const { data } = await api.get('/payments/pix-recorrente');
       setDisponivel(data.disponivel !== false);
-      setContrato(data.contrato ?? null);
+      // Fecha o funil na própria tela: dispara UMA vez, na virada pra ativo.
+      // Sem a comparação com o estado anterior, cada rodada do poll (5 em 5
+      // segundos) mandaria um "pagou" novo e o número viraria ficção.
+      setContrato((antes) => {
+        const agora = data.contrato ?? null;
+        if (agora?.status === 'ativo' && antes?.status !== 'ativo') {
+          registrarEvento('pix_pago', { tela: 'recorrente', modo: agora.modo ?? null });
+        }
+        return agora;
+      });
       setAcessoAte(data.acessoAte ?? null);
       return data.contrato?.status as string | undefined;
     } catch {
@@ -123,9 +143,11 @@ export default function PixRecorrentePage() {
         cupom: cupomUrl || undefined,
       });
       setCriado(data);
+      registrarEvento('pix_gerou', { tela: 'recorrente', modo: data?.modo ?? null, contrato: data?.id ?? null });
       await carregarStatus();
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
+      registrarEvento('pix_falhou', { tela: 'recorrente', motivo: e?.response?.data?.error ?? 'erro-desconhecido' });
       setErro(e?.response?.data?.error ?? 'Não consegui gerar o Pix agora. Tenta de novo em instantes.');
     } finally {
       setCriando(false);
@@ -135,6 +157,7 @@ export default function PixRecorrentePage() {
   async function copiar(texto: string) {
     try {
       await navigator.clipboard.writeText(texto);
+      registrarEvento('pix_copiou', { tela: 'recorrente' });
       setCopiado(true);
       setTimeout(() => setCopiado(false), 2500);
     } catch {

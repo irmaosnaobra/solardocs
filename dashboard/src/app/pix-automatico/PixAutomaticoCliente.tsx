@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import api from '@/services/api';
+import { registrarEvento } from '@/hooks/useLpTracking';
 import styles from './pix-automatico.module.css';
 
 const ASSINATURA = {
@@ -55,6 +56,24 @@ export default function PixAutomaticoCliente() {
   const [cupomOk, setCupomOk] = useState<{ codigo: string; primeiroMes: number; precoCheio: number } | null>(null);
 
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const jaMediu = useRef(false);
+
+  // CHEGOU. Este é o número que não existia: até aqui dava pra saber quantos
+  // pagaram (linha no banco) e nenhum dos que olharam e foram embora. Uma vez
+  // por montagem — StrictMode em dev monta duas vezes e dobraria a contagem.
+  useEffect(() => {
+    if (jaMediu.current) return;
+    jaMediu.current = true;
+    registrarEvento('pix_abriu', {
+      tela: 'automatico',
+      via: params.get('via') || null,
+      plano: params.get('plano') || null,
+      cupom: cupomUrl || null,
+      // `cancelado=1` só existe no cancel_url da Stripe: separa quem desistiu
+      // do cartão de quem chegou aqui por link direto.
+      doCheckout: params.get('cancelado') === '1',
+    });
+  }, [params, cupomUrl]);
 
   // Cupom do link. Inválido some em silêncio — a pessoa assina pelo preço
   // normal em vez de ver um erro que ela não sabe resolver.
@@ -71,7 +90,16 @@ export default function PixAutomaticoCliente() {
     if (!criado?.id) return;
     try {
       const { data } = await api.get(`/payments/pix-recorrente/publico/${criado.id}`);
-      setStatus(data?.status ?? null);
+      const novo = data?.status ?? null;
+      // Fecha o funil na PRÓPRIA tela. O banco já sabe quem pagou; o que só
+      // daqui se enxerga é que a pessoa estava com a tela aberta na hora — é o
+      // que separa "pagou na hora" de "pagou dois dias depois pelo lembrete".
+      setStatus((antes) => {
+        if (novo === 'ativo' && antes !== 'ativo') {
+          registrarEvento('pix_pago', { tela: 'automatico', contrato: criado.id, modo: data?.modo ?? null });
+        }
+        return novo;
+      });
     } catch {
       // Falha de rede no meio da espera não vira erro na tela: a próxima rodada
       // tenta de novo e o pagamento não depende desta consulta.
@@ -104,8 +132,18 @@ export default function PixAutomaticoCliente() {
       });
       setCriado(data as Criado);
       setStatus((data as Criado).status);
+      registrarEvento('pix_gerou', {
+        tela: 'automatico',
+        modo: (data as Criado).modo,
+        contrato: (data as Criado).id,
+        temConta: (data as Criado).temConta,
+      });
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
+      const motivo = e?.response?.data?.error ?? 'erro-desconhecido';
+      // Falha ao gerar é o buraco mais caro do funil: a pessoa QUIS pagar e não
+      // conseguiu. Sem isto ela some entre "chegou" e "gerou" sem deixar rastro.
+      registrarEvento('pix_falhou', { tela: 'automatico', motivo });
       setErro(e?.response?.data?.error ?? 'Não consegui gerar o Pix agora. Tenta de novo em instantes.');
     } finally {
       setCriando(false);
@@ -115,6 +153,7 @@ export default function PixAutomaticoCliente() {
   async function copiar(texto: string) {
     try {
       await navigator.clipboard.writeText(texto);
+      registrarEvento('pix_copiou', { tela: 'automatico' });
       setCopiado(true);
       setTimeout(() => setCopiado(false), 2500);
     } catch {

@@ -4,6 +4,7 @@ import { authMiddleware } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/adminAuth';
 import { getUsers, triggerMonthlyReset, getVisits, getAnalytics, getMetaFunnel, getFunnel, getRevenue, getBilling } from '../controllers/adminController';
 import { getLimpaproFunnel, getLimpaproLeads, getLimpaproConversas, getLimpaproMembros } from '../controllers/limpaproController';
+import { getPixFunil } from '../controllers/pixFunilController';
 import { jornadaLimpapro } from '../controllers/limpaproJornadaController';
 import { getMetaAds } from '../controllers/metaAdsController';
 import { listarOrdens, marcarFeita, setModo, sincronizarOrdens } from '../services/metaOrdensService';
@@ -1037,6 +1038,7 @@ router.post('/ordens/modo', async (req: Request, res: Response): Promise<void> =
 });
 router.get('/funnel',         getFunnel);
 router.get('/funnel-limpapro', getLimpaproFunnel);
+router.get('/pix-funil',      getPixFunil); // quantos chegam na tela de Pix e quantos saem pagando
 // Jornada do lead na LP do LimpaPro. Aqui atras do auth de admin (o mesmo controller
 // tambem responde em /_t/limpapro/jornada?k=, pro painel avulso na pasta da landing).
 router.get('/jornada-limpapro', jornadaLimpapro);

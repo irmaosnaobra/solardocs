@@ -102,6 +102,34 @@ export function getCheckoutAttribution(): Record<string, string> {
   return out;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Rastreio FORA da landing (telas de Pix), sem arrastar o hook inteiro junto.
+//
+// Reaproveita a MESMA `sd_lp_session` de propósito: sessionStorage sobrevive à
+// ida ao checkout da Stripe e à volta, então a sessão que viu a LP é a mesma
+// que aparece na tela de Pix. É o que permite perguntar "de quem abandonou o
+// cartão, quantos chegaram no Pix" em vez de contar duas populações soltas.
+//
+// Não usar o useLpTracking nessas telas: ele registra page_visit, milestone de
+// scroll e time_on_page, que na LP querem dizer alguma coisa e numa tela de
+// pagamento só sujam o funil.
+export function sessaoLp(): string {
+  return getOrCreateSession();
+}
+
+// Dispara e esquece. Rastreio nunca pode derrubar (nem atrasar) um pagamento:
+// falha vira silêncio, e o dado que importa de verdade — o contrato criado —
+// está gravado no banco de qualquer jeito.
+export function registrarEvento(event_type: string, event_data?: Record<string, unknown>): void {
+  try {
+    void api.post('/_t/e', {
+      session_id: getOrCreateSession(),
+      event_type,
+      event_data: event_data ?? null,
+    }).catch(() => {});
+  } catch { /* sessionStorage bloqueado — segue sem medir */ }
+}
+
 export function useLpTracking() {
   const sessionId = useRef<string>('');
 
