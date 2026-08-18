@@ -697,17 +697,23 @@ src="https://www.facebook.com/tr?id=446093469730871&ev=PageView&noscript=1"/></n
 
 <script>
 // ===== Supabase (mesmo projeto do /gerador — CRM/agenda) =====
-const SUPABASE_URL = 'https://ancecdfqfwlaujknizof.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6';
-async function supaInsert(table, body){
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-    method:'POST',
-    headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}`,
-              'Content-Type':'application/json', Prefer:'return=representation' },
+// A CHAVE DO BANCO SAIU DAQUI EM 18/08/2026, pelo mesmo motivo da LP do
+// eletroposto: esta página é pública, e o que está no fonte dela está no "ver
+// código-fonte" de qualquer visitante. Com RLS desligada nas tabelas, aquela
+// chave lia as fichas inteiras e era aceita num DELETE — conferido com curl.
+//
+// Agora a página fala com a nossa API, que fala com o banco.
+const API = location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api';
+// Grava a vistoria PELA API. O servidor valida telefone, consultor e horário
+// antes de gravar: o que chega daqui é pedido, não comando.
+async function agendarNaApi(body){
+  const r = await fetch(`${API}/io/solar/agendar`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify(body)
   });
-  if(!r.ok) throw new Error(await r.text());
-  return r.json();
+  const j = await r.json().catch(() => null);
+  if(!r.ok || !j || !j.ok) throw new Error((j && j.error) || ('http ' + r.status));
+  return j;
 }
 
 // ===== SIMULADOR SOLAR =====
@@ -880,19 +886,22 @@ async function carregarOcupados(deYmd, ateYmd){
   try{
     const de  = isoDe(deYmd, '00:00');
     const ate = isoDe(ateYmd,'23:59');
-    const q = `agendamentos?select=quando,vendedor_nome,created_by&quando=gte.${de}&quando=lte.${ate}`
-            + `&vendedor_nome=in.(Nilce,Thiago,Diego)&status=not.in.(cancelado,sem_interesse)`;
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/${q}`,
-      { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}` } });
-    const rows = await r.json();
-    compromissos = (Array.isArray(rows)?rows:[]).filter(a=>a.quando).map(a=>({
-      ts: new Date(a.quando).getTime(),
-      dono: String(a.vendedor_nome),
+    const r = await fetch(`${API}/io/solar/agenda?de=${encodeURIComponent(de)}&ate=${encodeURIComponent(ate)}`);
+    const j = await r.json();
+    // Os dois rodízios vêm junto: eram duas leituras a mais só pra contar ficha.
+    if (j && j.proximoAlta)  rodizioAlta  = j.proximoAlta;
+    if (j && j.proximoBaixa) rodizioBaixa = j.proximoBaixa;
+    // `ocupados: null` é a API dizendo que NÃO conseguiu ler — diferente de
+    // "não tem nada marcado". A grade abre nos dois casos (a gravação valida de
+    // novo no servidor), mas só um deles é motivo de olhar o log.
+    compromissos = (j && Array.isArray(j.ocupados) ? j.ocupados : []).map(a=>({
+      ts: a.ts,
+      dono: String(a.dono),
       // O solar da LP ocupa conforme quem atende: 1 hora nos sócios (a vistoria
       // presencial que a grade encaixada reserva) e 15 min na Nilce (ligação). O
       // resto — apresentação de eletroposto, card de lead do Meta — ocupa meia
       // hora e devolve a agenda.
-      dur: a.created_by === 'lp_solar' ? durSolarDe(String(a.vendedor_nome)) : DUR_PADRAO_MS,
+      dur: a.solar ? durSolarDe(String(a.dono)) : DUR_PADRAO_MS,
     }));
   }catch(e){ compromissos = []; }   // falhou: não trava a agenda, valida no envio
 }
@@ -916,29 +925,20 @@ function livresEm(iso, nomes){
 // esses dois — não é rodízio exato, é "o próximo da vez"; quem já tem dono nem
 // chega a chamar isto.
 const DONOS_CONTA_ALTA = ['Thiago', 'Diego'];
-async function proximoDono(){
-  try{
-    const q = 'agendamentos?select=id&created_by=eq.lp_solar&vendedor_nome=in.(Thiago,Diego)';
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/${q}`,
-      { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}`, Prefer:'count=exact', Range:'0-0' } });
-    const total = parseInt((r.headers.get('content-range')||'*/0').split('/')[1], 10) || 0;
-    return DONOS_CONTA_ALTA[total % DONOS_CONTA_ALTA.length];
-  }catch(e){ return DONOS_CONTA_ALTA[0]; }
+// Os dois rodízios chegam junto com a agenda — eram duas leituras do banco só
+// pra contar ficha, e a API devolve o próximo nome pronto.
+let rodizioAlta  = DONOS_CONTA_ALTA[0];
+let rodizioBaixa = FILA_BAIXA[0];
+function proximoDono(){
+  return DONOS_CONTA_ALTA.includes(rodizioAlta) ? rodizioAlta : DONOS_CONTA_ALTA[0];
 }
 // Rodízio da CONTA BAIXA (3 Nilce : 1 Giovanna). Conta TODAS as fichas das duas,
 // não só as da LP: o lead entra por três portas (LP, formulário do Meta e DM), e
 // três contadores separados dariam três rodízios independentes — a proporção real
 // dependeria do mix do dia. O piso de data é o que faz o "começa amanhã" valer
 // sozinho: sem ele o resto da divisão sairia do histórico inteiro da Nilce.
-async function proximoDonoBaixa(){
-  try{
-    const q = `agendamentos?select=id&vendedor_nome=in.(${TIME_BAIXA.join(',')})`
-            + `&created_at=gte.${BAIXA_INICIO}`;
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/${q}`,
-      { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}`, Prefer:'count=exact', Range:'0-0' } });
-    const total = parseInt((r.headers.get('content-range')||'*/0').split('/')[1], 10) || 0;
-    return FILA_BAIXA[total % FILA_BAIXA.length];
-  }catch(e){ return FILA_BAIXA[0]; }   // falhou: cai na Nilce, nunca deixa sem dono
+function proximoDonoBaixa(){
+  return TIME_BAIXA.includes(rodizioBaixa) ? rodizioBaixa : FILA_BAIXA[0];
 }
 // Cliente que JÁ tem dono fica com ele — nunca aparece sob 2 consultores e não
 // entra no rodízio. Chave = DDD + últimos 8 dígitos (tolera o "9" e o 55), a
@@ -948,20 +948,15 @@ function telkeyLP(raw){
   if(dd.length < 10) return null;
   return dd.slice(0,2) + dd.slice(-8);
 }
+// UMA pergunta ao servidor: de quem é este telefone? Antes a página baixava a
+// LISTA de fichas de todo mundo cujos 8 últimos dígitos batessem — quem digitasse
+// um número qualquer recebia o horário e o consultor de outra pessoa.
 async function donoDoTelefone(tel){
-  const alvo = telkeyLP(tel);
-  if(!alvo) return null;
   try{
-    const q = `agendamentos?select=vendedor_nome,cliente_telefone,quando&status=neq.cancelado`
-            + `&cliente_telefone=ilike.*${alvo.slice(-8)}&order=quando.desc&limit=20`;
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/${q}`,
-      { headers:{ apikey:SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}` } });
-    const rows = await r.json();
-    for(const a of (Array.isArray(rows)?rows:[])){
-      if(a.vendedor_nome && telkeyLP(a.cliente_telefone) === alvo) return a.vendedor_nome;
-    }
-  }catch(e){}
-  return null;
+    const r = await fetch(`${API}/io/solar/cliente?tel=${encodeURIComponent(tel)}`);
+    const j = await r.json();
+    return (j && j.dono) || null;
+  }catch(e){ return null; }
 }
 function proximosDias(){
   const hoje = partesBR().ymd;
@@ -1279,9 +1274,9 @@ async function gravarAgendamento(){
     // da Nilce. O rodízio só vale entre quem ainda CABE no horário: se o da vez
     // está numa apresentação de eletroposto ali, quem vai é o outro.
     const daVez = candidatos.length === 1 ? candidatos[0]
-                : contaAlta ? await proximoDono() : await proximoDonoBaixa();
+                : contaAlta ? proximoDono() : proximoDonoBaixa();
     const dono = livres.includes(daVez) ? daVez : livres[0];
-    const novo = await supaInsert('agendamentos', {
+    const novo = await agendarNaApi({
       vendedor_nome:    dono,
       quando:           slotSel,
       cliente_nome:     nome,
@@ -1291,7 +1286,7 @@ async function gravarAgendamento(){
       temperatura:      temperatura,
       observacao:       obs,
       created_by:       'lp_solar',
-    });
+    });   // devolve { ok:true, id }
 
     try{ fbq('track','Schedule',{content_name:'Vistoria Solar', content_category:document.getElementById('s-tipo').value}); }catch(e){}
 
@@ -1302,7 +1297,7 @@ async function gravarAgendamento(){
     // Avisa a equipe no WhatsApp (fire-and-forget: o lead já está no CRM)
     fetch('/_api/io/solar/alerta', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: novo && novo[0] && novo[0].id }),
+      body: JSON.stringify({ id: novo && novo.id }),
     }).catch(() => {});
 
     document.getElementById('ag-form').style.display = 'none';
