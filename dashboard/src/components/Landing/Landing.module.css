@@ -1289,6 +1289,78 @@
   position: relative;
 }
 
+/* ----- DEPOIMENTO DE CLIENTE -----
+   So' entra no DOM quando DEPOIMENTOS tem item (Landing.tsx). Card de citacao,
+   sem cromo falso de rede social: nada de selo de verificado nem contador de
+   curtida, que seriam numero inventado. */
+.depoGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+@media (min-width: 880px) {
+  .depoGrid { grid-template-columns: repeat(3, 1fr); gap: 18px; max-width: none; }
+}
+.depoCard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 26px 24px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, var(--color-surface), var(--color-bg));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+.depoCard::before {
+  content: 'C';
+  position: absolute;
+  top: -18px;
+  right: 14px;
+  font-size: 96px;
+  line-height: 1;
+  font-weight: 900;
+  color: rgba(245, 158, 11, 0.14);
+  pointer-events: none;
+}
+.depoHead { display: flex; align-items: center; gap: 12px; }
+.depoAvatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  font-weight: 900;
+  font-size: 15px;
+  color: #0f172a;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.3);
+}
+.depoQuem { min-width: 0; line-height: 1.25; }
+.depoNome {
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.depoEmpresa { font-size: 13px; color: var(--color-text-muted); }
+.depoTexto {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--color-text);
+  position: relative;
+}
+@media (max-width: 540px) {
+  .depoCard { padding: 22px 20px; }
+  .depoTexto { font-size: 14.5px; }
+}
+
 .testimonialsGrid {
   display: grid;
   grid-template-columns: 1fr;

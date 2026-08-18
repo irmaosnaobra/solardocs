@@ -90,6 +90,17 @@ const CONCESSIONARIAS = [
 //    calculados pelo próprio sistema com os dados de exemplo;
 //  - o contrato é a tela de preview do app renderizando esse mesmo conteúdo;
 //  - precificação e inventário são as telas de verdade, com os cálculos feitos.
+/* DEPOIMENTOS — prova social de cliente.
+   VAZIO DE PROPOSITO. A secao so' aparece quando tiver frase de cliente de
+   verdade: nome, empresa e autorizacao pra publicar. Depoimento inventado e'
+   publicidade enganosa e e' o ponto fraco da concorrencia (as 3 conversas da
+   maletapainelsolar.netlify.app sao todas assinadas "Instalador Solar", sem
+   nome e sem foto — da' pra ver que e' montado).
+   Pra publicar: cola os objetos aqui. A secao monta sozinha.
+   { nome: 'Alessandro Goulart', empresa: 'Força Solar', iniciais: 'AG',
+     texto: 'frase exata que a pessoa mandou', quando: 'agosto de 2026' } */
+const DEPOIMENTOS: { nome: string; empresa: string; iniciais: string; texto: string; quando: string }[] = [];
+
 const TELAS = [
   { img: '/tela/doc-proposta-a4.webp',   imgMobile: '/tela/doc-proposta-a4-mobile.webp',
     titulo: 'Orçamento de 1 página',
@@ -291,7 +302,7 @@ export default function Landing() {
               Pra integrador solar com CNPJ
             </span>
             <h1 className={styles.h1}>
-              O melhor Gerador de Proposta do Brasil — <strong>com a sua marca</strong>.
+              Você fecha a venda solar <strong>com a sua marca</strong>. Não só gera papel.
             </h1>
 
             <p className={styles.lead} style={{ margin: '0 auto 26px' }}>
@@ -312,7 +323,7 @@ export default function Landing() {
             </div>
 
             <button className={styles.finalCtaBtn} onClick={() => scrollToPlans('hero')}>
-              Quero acesso agora →
+              Liberar meu acesso — R$ {PRICE}/mês →
             </button>
 
             <div className={styles.pricePill}>
@@ -502,7 +513,7 @@ export default function Landing() {
             <span className={styles.sectionLabel} data-reveal>Por que SolarDoc</span>
           </div>
           <h2 className={styles.sectionTitle} data-reveal>
-            A plataforma que <strong>fecha a venda solar</strong> — não só gera papel.
+            Tudo o que trava a sua venda, <strong>resolvido num acesso só</strong>.
           </h2>
           {/* As duas ferramentas são produto pago na loja (R$ 67 cada) e, desde
               17/08/2026, EXCLUSIVAS DO PLANO ANUAL — o mensal não libera. Elas
@@ -697,10 +708,10 @@ export default function Landing() {
               </p>
               <ul className={styles.modList}>
                 <li>Contrato de Compra e Venda Solar</li>
-                <li>Procuração pra concessionária</li>
-                <li>Recibo e Prestação de Serviço</li>
-                <li>Contrato Vendedor (parceiro comissionado)</li>
-                <li>Vistoria Técnica</li>
+                <li>A procuração que passa de primeira na concessionária</li>
+                <li>O recibo que mostra quanto o cliente já pagou</li>
+                <li>O contrato do vendedor parceiro, com a comissão no papel</li>
+                <li>A vistoria assinada antes de a obra começar</li>
               </ul>
             </article>
 
@@ -716,7 +727,7 @@ export default function Landing() {
                 Pra parar de chutar valor e descobrir a margem depois da obra.
               </p>
               <ul className={styles.modList}>
-                <li>Precificação Profissional</li>
+                <li>Precificação: quanto cobrar sem descobrir a margem depois</li>
                 <li>Custo do kit, margem e comissão na mesma tela</li>
                 <li>O preço sai pronto pra virar proposta</li>
               </ul>
@@ -730,7 +741,7 @@ export default function Landing() {
                 O que você hoje resolve em planilha paralela e grupo de WhatsApp.
               </p>
               <ul className={styles.modList}>
-                <li>Inventário da Empresa — painel, inversor e material</li>
+                <li>Inventário: onde foi parar o inversor, o painel e o material</li>
                 <li>Onde está cada item e quanto vale o patrimônio</li>
                 <li>Aviso do que está acabando antes de faltar na obra</li>
               </ul>
@@ -943,19 +954,47 @@ export default function Landing() {
           </h2>
 
           <div className={styles.statsGrid}>
+            {/* Numeros conferidos no banco em 18/08/2026 e SEM a conta dos socios
+                (aiorosgroup@gmail.com, 168 documentos de uso proprio) — o que esta'
+                aqui e' uso de empresa cliente. Ao atualizar, rodar de novo:
+                  documentos:  select count(*) from documents where user_id <> <socio>
+                  empresas:    select count(*) from company where cnpj <> ''
+                  ultimos 30d: idem documentos + created_at >= now() - interval '30 days' */}
             <div className={styles.stat} data-reveal>
-              <div className={styles.statN}>+200</div>
-              <div className={styles.statL}>Documentos solares já gerados na plataforma</div>
+              <div className={styles.statN}>1.671</div>
+              <div className={styles.statL}>Documentos solares gerados por empresas clientes</div>
             </div>
             <div className={styles.stat} data-reveal style={{ transitionDelay: '0.1s' }}>
-              <div className={styles.statN}>60+</div>
-              <div className={styles.statL}>Empresas solares ativas com CNPJ cadastrado</div>
+              <div className={styles.statN}>150</div>
+              <div className={styles.statL}>Empresas solares com CNPJ cadastradas</div>
             </div>
             <div className={styles.stat} data-reveal style={{ transitionDelay: '0.2s' }}>
-              <div className={styles.statN}>2 min</div>
-              <div className={styles.statL}>Pra gerar um contrato pronto do zero</div>
+              <div className={styles.statN}>956</div>
+              <div className={styles.statL}>Documentos gerados nos últimos 30 dias</div>
             </div>
           </div>
+
+          {DEPOIMENTOS.length > 0 && (
+            <div className={styles.depoGrid}>
+              {DEPOIMENTOS.map((d, i) => (
+                <article
+                  key={d.nome}
+                  className={styles.depoCard}
+                  data-reveal
+                  style={{ transitionDelay: `${0.05 * i}s` }}
+                >
+                  <div className={styles.depoHead}>
+                    <div className={styles.depoAvatar} aria-hidden>{d.iniciais}</div>
+                    <div className={styles.depoQuem}>
+                      <div className={styles.depoNome}>{d.nome}</div>
+                      <div className={styles.depoEmpresa}>{d.empresa} · {d.quando}</div>
+                    </div>
+                  </div>
+                  <p className={styles.depoTexto}>{d.texto}</p>
+                </article>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -1270,11 +1309,12 @@ export default function Landing() {
       <section className={styles.finalCta}>
         <div className={styles.finalCtaInner}>
           <h2 className={styles.finalCtaTitle} data-reveal>
-            Sua próxima venda solar fecha com{' '}<br />
-            <strong>proposta e contrato prontos em 2 minutos.</strong>
+            Você vai continuar pedindo pro cliente esperar o PDF{' '}<br />
+            <strong>ou mandar a proposta enquanto ele ainda está quente?</strong>
           </h2>
           <p className={styles.finalCtaSub} data-reveal>
-            Um plano só, R$ {PRICE} por mês, tudo liberado — e você entra hoje mesmo.
+            Quem espera documento compara preço. Enquanto o seu contrato não sai do Word,
+            o cliente já pediu orçamento pro próximo integrador.
           </p>
           <div data-reveal>
             <button className={styles.finalCtaBtn} onClick={() => goToCheckout('final')} disabled={checkoutLoading}>
