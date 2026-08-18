@@ -5,6 +5,7 @@ import { sendDunningDay0 } from './dunningService';
 import { FREE_LIMIT } from './planService';
 import { resolverPrecoAnual, precoAnualConhecido, FERRAMENTAS_DO_ANUAL } from './precoAnual';
 import { concederAcesso } from './produtos/acessos';
+import { carregarPonteEmailConta } from './stripeContaLink';
 
 const stripe = new Stripe((process.env.STRIPE_SECRET_KEY || '').trim());
 
@@ -49,6 +50,13 @@ function produtoFromPrice(priceId: string): 'PRO' | 'VIP' | 'VIP PROMO' | 'VIP A
 // Varre TODAS as subscriptions do Stripe (sem janela de data), monta um mapa
 // email → plano real. Pra cada email só guarda a sub MAIS RECENTE (created desc)
 // que esteja em status ativo — evita usar sub canceled antiga sobre a vigente.
+//
+// O email vem de DUAS fontes (ver services/stripeContaLink.ts): o e-mail da
+// CONTA, achado no ledger `sales` pelo subscription_id/customer_id, e o e-mail
+// do Customer da Stripe. Os dois são indexados. Quem paga por Apple Pay /
+// Google Pay / Link tem no Customer o e-mail da CARTEIRA, que não é o e-mail da
+// conta — e este cron, que trata "não achei" como "não assina", rebaixava esse
+// assinante pra free na primeira varredura depois da compra (caso de 18/08/26).
 async function fetchStripeTruth(): Promise<Map<string, StripeTruth>> {
   const truth = new Map<string, StripeTruth>();
   const seenEmail = new Set<string>();
@@ -61,6 +69,11 @@ async function fetchStripeTruth(): Promise<Map<string, StripeTruth>> {
   // pra free — o bug do VIP_PROMO, mas disparado por um segundo de rede ruim.
   // Estourando aqui, o sync inteiro aborta sem tocar em ninguém.
   const anualId = await resolverPrecoAnual(stripe, { criar: false });
+
+  // Ponte assinatura/cliente da Stripe → e-mail da conta. Uma consulta só, e
+  // best-effort por dentro: mapa vazio devolve o comportamento antigo (casar
+  // apenas pelo e-mail do Customer) em vez de derrubar o sync.
+  const ponte = await carregarPonteEmailConta();
   const priceToPlan: typeof PRICE_TO_PLAN = {
     ...PRICE_TO_PLAN,
     // Chave vazia nunca entra: PRICE_TO_PLAN[''] devolveria 'ilimitado' pra
@@ -78,14 +91,25 @@ async function fetchStripeTruth(): Promise<Map<string, StripeTruth>> {
     });
 
     for (const s of subs.data) {
-      const cust = s.customer as { email?: string | null; deleted?: boolean } | string;
-      const email = typeof cust === 'string' ? null : (cust.email ?? null);
-      if (!email) continue;
+      const cust = s.customer as { id?: string; email?: string | null; deleted?: boolean } | string;
+      const custId = typeof cust === 'string' ? cust : (cust.id ?? null);
+      const emailDoCustomer = typeof cust === 'string' ? null : (cust.email ?? null);
 
-      const key = email.toLowerCase();
+      // ADITIVO: indexa pelos DOIS e-mails. O da conta (ledger) entra primeiro
+      // porque é o que existe em `users`; o do Customer continua entrando pra
+      // que nenhuma assinatura que casava antes deixe de casar agora.
+      const emailDaConta = ponte.get(s.id) ?? (custId ? ponte.get(custId) : undefined) ?? null;
+      const keys = [...new Set(
+        [emailDaConta, emailDoCustomer]
+          .filter((e): e is string => !!e)
+          .map(e => e.toLowerCase()),
+      )];
+      if (!keys.length) continue;
+
       // Stripe lista por created desc → primeira sub ativa que aparecer pra esse
       // email é a vigente. Subs canceladas posteriores não devem sobrescrever.
-      if (seenEmail.has(key)) continue;
+      const pendentes = keys.filter(k => !seenEmail.has(k));
+      if (!pendentes.length) continue;
 
       if (!ACTIVE_STATUSES.has(s.status)) continue;
 
@@ -97,8 +121,11 @@ async function fetchStripeTruth(): Promise<Map<string, StripeTruth>> {
       const trialEnd = s.status === 'trialing' && s.trial_end
         ? new Date(s.trial_end * 1000)
         : null;
-      truth.set(key, { plano: planInfo.plano, limite: planInfo.limite, status: s.status, trial_end: trialEnd, priceId, valorReais: Math.round(unitAmount) / 100 });
-      seenEmail.add(key);
+      const verdade: StripeTruth = { plano: planInfo.plano, limite: planInfo.limite, status: s.status, trial_end: trialEnd, priceId, valorReais: Math.round(unitAmount) / 100 };
+      for (const k of pendentes) {
+        truth.set(k, verdade);
+        seenEmail.add(k);
+      }
     }
 
     if (!subs.has_more) break;

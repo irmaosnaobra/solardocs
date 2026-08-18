@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { supabase } from '../utils/supabase';
 import { processarEventoPlugcash } from '../services/plugcashService';
 import { sendDunningDay0, sendDunningRecovered } from '../services/dunningService';
+import { emailsDaConta } from '../services/stripeContaLink';
 import { sendCheckoutCompletionEmail } from '../utils/mailer';
 import { sendActivationWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
 import { upsertSale, sendPurchaseForSale, classificarOrigem } from '../services/salesLedger';
@@ -1259,7 +1260,11 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
     const sub    = event.data.object as any;
     const custId = sub.customer as string;
     const customer = await stripe.customers.retrieve(custId) as any;
-    if (customer.email) {
+    // Apple Pay / Google Pay / Link põem o e-mail da CARTEIRA no Customer, que
+    // não é o e-mail da conta. `emailsDaConta` devolve os dois (ver
+    // services/stripeContaLink.ts) — por isso `.in()` e nunca `.eq()`.
+    const emails = await emailsDaConta({ customerId: custId, subscriptionId: sub.id, emailDoCustomer: customer.email });
+    if (emails.length) {
       // GUARD PIX: NÃO suspende quem tem acesso Pix ATIVO (plano_expira_em no futuro).
       // Caso real: cliente em dunning paga por Pix → a gente CANCELA a sub de cartão no
       // Stripe (anti-cobrança-dupla) → este evento dispara. Sem o guard, re-suspendia o
@@ -1273,7 +1278,7 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
           documentos_usados: 0,
           dunning_last_day_sent: null,
         })
-        .eq('email', customer.email)
+        .in('email', emails)
         .or(`plano_expira_em.is.null,plano_expira_em.lt.${nowIso}`);
     }
   }
@@ -1290,7 +1295,8 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
     // checkout (cliente vê o erro na hora e tenta de novo).
     if (invoice.billing_reason === 'subscription_cycle') {
       const customer = await stripe.customers.retrieve(custId) as any;
-      if (customer.email) {
+      const emails = await emailsDaConta({ customerId: custId, subscriptionId: invoice.subscription as string | null, emailDoCustomer: customer.email });
+      if (emails.length) {
         // Idempotência: só carimba past_due_since se ainda for null. Cada
         // retentativa do Stripe dispara payment_failed de novo — sem o
         // guard, o usuário ganhava +7 dias de tolerância a cada falha.
@@ -1301,7 +1307,7 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
             past_due_since: new Date().toISOString(),
             dunning_last_day_sent: null,
           })
-          .eq('email', customer.email)
+          .in('email', emails)
           .is('past_due_since', null)
           .select('id')
           .maybeSingle();
@@ -1324,11 +1330,12 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
     if (sub.status === 'past_due' || sub.status === 'unpaid') {
       const custId   = sub.customer as string;
       const customer = await stripe.customers.retrieve(custId) as any;
-      if (customer.email) {
+      const emails = await emailsDaConta({ customerId: custId, subscriptionId: sub.id, emailDoCustomer: customer.email });
+      if (emails.length) {
         await supabase
           .from('users')
           .update({ billing_status: 'past_due' })
-          .eq('email', customer.email)
+          .in('email', emails)
           .eq('billing_status', 'active'); // só se ainda estava active — evita
                                             // sobrescrever 'suspended' caso evento chegue fora de ordem
       }
@@ -1349,13 +1356,15 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
         || invoice.billing_reason === 'subscription_create') {
       const custId   = invoice.customer as string;
       const customer = await stripe.customers.retrieve(custId) as any;
-      if (customer.email) {
+      const emails = await emailsDaConta({ customerId: custId, subscriptionId: invoice.subscription as string | null, emailDoCustomer: customer.email });
+      if (emails.length) {
         // Só notifica se o usuário estava de fato em dunning (past_due ou suspended).
         const { data: userBefore } = await supabase
           .from('users')
           .select('id, billing_status')
-          .eq('email', customer.email)
-          .single();
+          .in('email', emails)
+          .limit(1)
+          .maybeSingle();
 
         await supabase
           .from('users')
@@ -1364,7 +1373,7 @@ export async function stripeWebhook(req: Request, res: Response): Promise<void> 
             past_due_since: null,
             dunning_last_day_sent: null,
           })
-          .eq('email', customer.email);
+          .in('email', emails);
 
         const wasDunning = userBefore?.billing_status === 'past_due' || userBefore?.billing_status === 'suspended';
         if (wasDunning && userBefore?.id) {

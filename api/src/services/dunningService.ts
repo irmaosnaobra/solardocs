@@ -351,8 +351,16 @@ export async function cancelStripeSubsForEmail(email: string): Promise<number> {
     // (é a origem de todos os chargebacks do SolarDoc — 111 assinaturas para 85
     // e-mails). Varrer só os 5 primeiros deixava assinatura viva pra trás.
     const customers = await stripe.customers.list({ email, limit: 100 });
-    for (const cust of customers.data) {
-      const subs = await stripe.subscriptions.list({ customer: cust.id, status: 'all', limit: 20 });
+    // A busca por e-mail NÃO acha quem pagou por Apple Pay / Google Pay / Link:
+    // o Customer nasceu com o e-mail da carteira. Sem estes ids vindos do
+    // ledger, isto devolvia 0 e o cliente seguia sendo COBRADO depois de
+    // suspenso — cancelar sem cancelar é pior que não tentar.
+    const { customerIdsDaConta } = await import('./stripeContaLink');
+    const idsDoLedger = await customerIdsDaConta(email);
+    const ids = [...new Set([...customers.data.map(c => c.id), ...idsDoLedger])];
+
+    for (const custId of ids) {
+      const subs = await stripe.subscriptions.list({ customer: custId, status: 'all', limit: 20 });
       for (const s of subs.data) {
         if (s.status === 'active' || s.status === 'trialing' || s.status === 'past_due' || s.status === 'unpaid') {
           await stripe.subscriptions.cancel(s.id, { invoice_now: false, prorate: false });
