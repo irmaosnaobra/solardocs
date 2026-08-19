@@ -64,12 +64,9 @@ const PRICE_DIA = (PRICE / 30).toFixed(2).replace('.', ','); // "por dia" da ofe
 // anual por fora. As outras duas eram só do card e saíram com ele.
 const PRICE_ANUAL = 564;
 
-// As duas ferramentas que o anual entrega PRA SEMPRE (gravadas em `entitlements`
-// pelo webhook). O preço é o de venda avulsa na loja — `preco: 67` das duas em
-// `src/lib/produtos.ts`, e o mesmo que a Kiwify cobra por "Calculadora Solar" e
-// "Inventário Empresarial". Se mudar lá, muda aqui: número de vitrine que não
-// bate com a loja é promessa quebrada a um clique de distância.
-const PRECO_FERRAMENTA = 67;
+// PRECO_FERRAMENTA saiu em 19/08/2026 com as duas ferramentas: a página não
+// cita mais produto que a assinatura não entrega. O preço delas vive no
+// catálogo (api/src/services/produtos/catalogo.ts) e na loja de dentro do app.
 // FERRAMENTAS_VALOR (R$ 134) saiu com o card anual: era a soma que fechava a
 // seção com "inclusas no plano anual". Sem anual na vitrine, somar as duas não
 // diz nada — cada uma se vende pelo próprio preço.
@@ -142,13 +139,10 @@ const TELAS = [
     titulo: 'Checklist de vistoria',
     texto: 'A folha que vai pra obra: consumo, padrão, telhado, fotos e conclusão da visita.' },
 
-  { img: '/tela/doc-precificacao.webp',  imgMobile: '/tela/doc-precificacao-mobile.webp',
-    titulo: 'Fechamento de preço',
-    texto: 'Custo do kit, mão de obra e margem entram — preço de venda e lucro saem calculados.' },
-
-  { img: '/tela/doc-inventario.webp',    imgMobile: '/tela/doc-inventario-mobile.webp',
-    titulo: 'Inventário da empresa',
-    texto: 'Material, quantidade, valor unitário e o patrimônio total — pronto pra imprimir.' },
+  // O carrossel tinha mais duas folhas — "Fechamento de preço" e "Inventário da
+  // empresa". Saíram em 19/08/2026: são a saída das duas ferramentas que a
+  // assinatura não entrega, e mostrar a folha delas aqui promete no carrossel o
+  // que a oferta não cobre. Os .webp continuam em public/tela para quando voltarem.
 ];
 
 export default function Landing() {
@@ -550,9 +544,8 @@ export default function Landing() {
               entrega é a reclamação de amanhã. O gate obedece `entitlements`,
               gravado na venda do anual. */}
           <p className={styles.sectionSub} data-reveal>
-            Tudo isto entra na assinatura. As <b>duas ferramentas de R$ {PRECO_FERRAMENTA}</b>{' '}
-            são produtos separados da loja — dá pra comprar quando fizer falta, e aí ficam
-            suas pra sempre.
+            Tudo isto entra na assinatura, desde o primeiro minuto. Sem módulo extra,
+            sem cobrança por documento e sem surpresa no meio do mês.
           </p>
 
           <div className={styles.diffsGrid} style={{ marginTop: 40 }}>
@@ -604,52 +597,28 @@ export default function Landing() {
                 sozinho</b> — abre, cadastra, gera e envia.
               </p>
             </div>
-            <div className={`${styles.diffCard} ${styles.diffPago}`} data-reveal style={{ transitionDelay: '0.3s' }}>
-              <div className={styles.diffFita}>Produto à parte · R$ {PRECO_FERRAMENTA}</div>
-              <div className={styles.diffIcon}><svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 6h8"/><circle cx="8.5" cy="11" r=".6" fill="currentColor" stroke="none"/><circle cx="12" cy="11" r=".6" fill="currentColor" stroke="none"/><circle cx="15.5" cy="11" r=".6" fill="currentColor" stroke="none"/><circle cx="8.5" cy="15" r=".6" fill="currentColor" stroke="none"/><circle cx="12" cy="15" r=".6" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15" r=".6" fill="currentColor" stroke="none"/><circle cx="8.5" cy="18.5" r=".6" fill="currentColor" stroke="none"/><circle cx="12" cy="18.5" r=".6" fill="currentColor" stroke="none"/><circle cx="15.5" cy="18.5" r=".6" fill="currentColor" stroke="none"/></svg></div>
-              <h3 className={styles.diffH}>Precificação Profissional</h3>
-              <p className={styles.diffP}>
-                Monta o <b>preço certo da venda</b> na hora — custo do kit, imposto, ART,
-                deslocamento, margem e comissão. Você arrasta a margem e vê a sua sobra
-                antes de mandar o preço.
-              </p>
-              {/* Dizer o preço cheio AQUI, onde a ferramenta aparece pela primeira vez,
-                  é o que faz os "R$ 134 inclusos" do card anual significarem algo lá
-                  embaixo: preço só vira desconto depois que a pessoa sabe o preço. */}
-              <div className={styles.diffValor}>
-                Quem não assina compra por <b>R$ {PRECO_FERRAMENTA}</b> na loja
-              </div>
-            </div>
-            <div className={`${styles.diffCard} ${styles.diffPago}`} data-reveal style={{ transitionDelay: '0.35s' }}>
-              <div className={styles.diffFita}>Produto à parte · R$ {PRECO_FERRAMENTA}</div>
-              <div className={styles.diffIcon}><svg viewBox="0 0 24 24"><path d="M3 7 12 3l9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></div>
-              <h3 className={styles.diffH}>Inventário da Empresa</h3>
-              <p className={styles.diffP}>
-                Sabe <b>onde está cada ferramenta e quanto vale o patrimônio</b> — painel,
-                inversor, EPI e material. Com aviso do que está acabando antes de faltar
-                na obra.
-              </p>
-              <div className={styles.diffValor}>
-                Quem não assina compra por <b>R$ {PRECO_FERRAMENTA}</b> na loja
-              </div>
-            </div>
+            {/* AS DUAS FERRAMENTAS SAÍRAM DA PÁGINA EM 19/08/2026 (ordem do
+                Thiago): "remover os 2 produtos à parte, descobrem internamente".
+
+                Elas continuam existindo e sendo vendidas na loja de dentro da
+                plataforma — o que saiu foi a VITRINE. Numa página de oferta
+                única, mostrar dois produtos que a assinatura NÃO entrega faz o
+                contrário do que a página quer: o leitor sai contando o que não
+                vem, em vez de decidir sobre o que vem. Quem assina descobre as
+                duas por dentro, no momento em que fazem falta. */}
           </div>
 
-          {/* O fecho da seção. Falava "inclusas no plano anual" — e o anual saiu
-              da vitrine em 19/08. Prometer o que a página não vende mais é o
-              cliente descobrindo por dentro, depois de pagar. Agora diz o que é
-              verdade e continua sendo argumento: são produtos de verdade, com
-              preço de verdade, e a assinatura não os cobra de ninguém que não
-              quiser. */}
+          {/* O fecho da seção. Citava as duas ferramentas e o preço delas; saiu
+              em 19/08 com o resto. O argumento que fica é o da oferta única — um
+              preço, tudo dentro — que é o que a página inteira passou a defender. */}
           <div className={styles.diffResumo} data-reveal>
             <div className={styles.diffResumoTopo}>
-              A assinatura <b>não te obriga a comprar nada</b> além dela
+              <b>Um preço, e a plataforma inteira</b> — sem letra miúda
             </div>
             <p className={styles.diffResumoP}>
-              A Precificação e o Inventário são produtos pagos na nossa loja, R${' '}
-              {PRECO_FERRAMENTA} cada — e ficam <b>seus pra sempre</b>, mesmo se um dia você
-              parar de assinar. Compre no dia em que fizerem falta; a plataforma inteira
-              funciona sem elas.
+              Não tem plano de entrada com metade das coisas, não tem cobrança por
+              documento gerado e não tem fidelidade. É a mesma plataforma no primeiro dia
+              e no centésimo, por <b>R$ {PRICE} por mês</b>.
             </p>
           </div>
         </div>
@@ -698,23 +667,27 @@ export default function Landing() {
           A dinâmica veio da LP de pack de materiais que o Thiago mandou: ela
           NOMEIA os 100 arquivos em 5 módulos, e é isso que faz a oferta parecer
           grande. A nossa listava "8 documentos" e escondia metade da plataforma
-          (precificação, inventário, vistoria de campo, escanear conta, terceiros,
-          histórico). Aqui está tudo o que o plano de fato libera — nada do que
-          não libera: o Kit de Fechamento (curso) é compra à parte e NÃO entra. */}
+          (vistoria de campo, escanear conta, terceiros, histórico). Aqui está
+          tudo o que o plano de fato libera — e NADA do que não libera: nem o Kit
+          de Fechamento (curso), nem a Precificação e o Inventário, que são
+          produtos da loja de dentro do app. */}
       <section className={styles.docs}>
         <div className={styles.docsInner}>
           <div className={styles.sectionLabelWrap}>
             <span className={styles.sectionLabel} data-reveal>O que você leva</span>
           </div>
+          {/* Era "8 documentos + 8 ferramentas". Com a Precificação e o Inventário
+              fora da página (19/08), a lista abaixo mostra SEIS ferramentas — e
+              número de vitrine que não bate com a lista logo abaixo é a promessa
+              se desmentindo sozinha, a um scroll de distância. */}
           <h2 className={styles.sectionTitle} data-reveal>
-            <strong>8 documentos + 8 ferramentas</strong>{' '}<br />
+            <strong>8 documentos + 6 ferramentas</strong>{' '}<br />
             no mesmo acesso.
           </h2>
           <p className={styles.sectionSub} data-reveal>
             Não é um gerador de contrato. É a papelada e a operação da venda solar inteira,
-            do orçamento à entrega da obra — item por item, é isto aqui. Os dois blocos
-            marcados <b>&ldquo;à parte&rdquo;</b> são produtos da loja, R$ {PRECO_FERRAMENTA}{' '}
-            cada, e não vêm na assinatura.
+            do orçamento à entrega da obra — item por item, é isto aqui. Tudo o que está
+            nesta lista <b>vem na assinatura</b>.
           </p>
 
           <div className={styles.mods}>
@@ -747,38 +720,11 @@ export default function Landing() {
               </ul>
             </article>
 
-            {/* Estes dois módulos são as ferramentas do ANUAL (17/08). Ficam na
-                lista porque fazem parte do que a plataforma resolve — mas com a
-                etiqueta do ciclo, senão a seção "o que você leva" promete no
-                mensal o que só o anual entrega. */}
-            <article className={`${styles.mod} ${styles.modAnual}`} data-reveal style={{ transitionDelay: '0.1s' }}>
-              <div className={styles.modTag}>Dinheiro</div>
-              <div className={styles.modSeloAnual}>À parte</div>
-              <h3 className={styles.modH}>O preço certo da venda</h3>
-              <p className={styles.modP}>
-                Pra parar de chutar valor e descobrir a margem depois da obra.
-              </p>
-              <ul className={styles.modList}>
-                <li>Precificação: quanto cobrar sem descobrir a margem depois</li>
-                <li>Custo do kit, margem e comissão na mesma tela</li>
-                <li>O preço sai pronto pra virar proposta</li>
-              </ul>
-            </article>
-
-            <article className={`${styles.mod} ${styles.modAnual}`} data-reveal style={{ transitionDelay: '0.15s' }}>
-              <div className={styles.modTag}>Obra</div>
-              <div className={styles.modSeloAnual}>À parte</div>
-              <h3 className={styles.modH}>A obra sob controle</h3>
-              <p className={styles.modP}>
-                O que você hoje resolve em planilha paralela e grupo de WhatsApp.
-              </p>
-              <ul className={styles.modList}>
-                <li>Inventário: onde foi parar o inversor, o painel e o material</li>
-                <li>Onde está cada item e quanto vale o patrimônio</li>
-                <li>Aviso do que está acabando antes de faltar na obra</li>
-              </ul>
-            </article>
-
+            {/* Aqui moravam dois módulos — Precificação e Inventário. Saíram em
+                19/08/2026 junto com os cards da seção acima, pelo mesmo motivo:
+                eles são produtos da loja de dentro da plataforma, não vêm na
+                assinatura, e numa página de oferta única servem só pra o leitor
+                somar o que NÃO leva. Quem assina descobre as duas por dentro. */}
             <article className={styles.mod} data-reveal style={{ transitionDelay: '0.2s' }}>
               <div className={styles.modTag}>Cadastro</div>
               <h3 className={styles.modH}>Cliente e histórico</h3>
