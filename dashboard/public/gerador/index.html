@@ -3036,6 +3036,12 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="orc-note">A entrega conta da <b>aprovação do projeto pela concessionária</b>, não da assinatura — é ela que libera a obra, e o prazo dela não é nosso.</div>
         <div class="eletro-field" style="margin-top:12px"><label>Garantia</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-garantia" inputmode="numeric" min="1" value="24"><span class="suf">meses</span></div></div>
+        <div class="eletro-field" style="margin-top:12px"><label>Percentual da plataforma no contrato</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="ctr-mostra-pct" onchange="ctrPctNota()">
+            <option value="1">Mostrar — a cláusula diz quanto é cobrado</option>
+            <option value="">Não mostrar — omite a cláusula da remuneração</option>
+          </select></div></div>
+        <div class="orc-note" id="ctr-pct-nota">—</div>
       </div>
 
       <div class="card">
@@ -8380,10 +8386,15 @@ function orcLerItens() {
     const it = EP_KIT.find(k => k.id === row.dataset.id);
     itens.push({
       desc: it ? it.nome : '',
-      // A variante qualifica o item na composição: potência no carregador,
-      // percentual no software. Sai junto no orçamento e no escopo do contrato.
-      variante: row.dataset.id === 'carreg' ? equip
-              : (it && it.pct != null) ? `(${orcPctKit(it.id)}% do faturamento)` : '',
+      // A variante qualifica o item na composição: hoje só a potência do carregador.
+      //
+      // ⚠ 19/08: o percentual da plataforma SAIU daqui por decisão do Thiago. Ele
+      // vazava para quatro documentos de uma vez — orçamento, proposta comercial,
+      // escopo do contrato e a proposta de banco, que ia à instituição com
+      // "SOFTWARE DE GESTÃO — 12% DO FATURAMENTO" impresso na tabela de
+      // equipamentos. O número continua vivo no campo do kit (é ele que o contrato
+      // cobra) e agora só aparece na cláusula da plataforma, se o consultor mandar.
+      variante: row.dataset.id === 'carreg' ? equip : '',
       // Só o carregador tem quantidade (1 ponto de recarga costuma ter 2). Sai no
       // documento como "Incluído · N un" pra não parecer que é um só.
       qtd: row.dataset.id === 'carreg' ? orcEpQtdCarregadores() : 1,
@@ -10153,7 +10164,21 @@ function ctrResumo() {
   ctrBanner();
 }
 
+// A consequência de esconder tem que estar na tela, no momento da decisão: sem a
+// cláusula, o contrato não estabelece a remuneração da plataforma — e o que não
+// está escrito não se cobra.
+function ctrPctNota() {
+  const el = document.getElementById('ctr-pct-nota');
+  if (!el) return;
+  const mostra = orcVal('ctr-mostra-pct') !== '';
+  const pct = String(orcPctKit('software')).replace('.', ',');
+  el.innerHTML = mostra
+    ? 'A cláusula da plataforma dirá <b>' + pct + '% do faturamento bruto</b>. O percentual sai <b>só aqui</b> — orçamento, proposta comercial e proposta de banco não o mencionam.'
+    : '<b style="color:#fca5a5">Atenção:</b> sem essa cláusula o contrato não estabelece a remuneração da plataforma. O que não está escrito não se cobra — se a intenção é cobrar os ' + pct + '%, isso precisa estar em algum instrumento assinado.';
+}
+
 function ctrInit() {
+  ctrPctNota();
   // Sugestão VISÍVEL: o que está na tela é o que sai no papel. Campo vazio e
   // nunca tocado recebe a sugestão; digitado ou apagado, fica como está.
   epSugerir([['ctr-contratante', eletroTextos().cliente],
@@ -10208,6 +10233,8 @@ function ctrDados() {
     // fala dos dois; nenhum marcado, ela não existe e as seguintes sobem.
     software: orcKitMarcado('software'),
     softwarePct: orcPctKit('software'),
+    // Só o contrato pode mostrar o percentual, e só se o consultor mandar.
+    mostraPct: orcVal('ctr-mostra-pct') !== '',
     appTupi: orcKitMarcado('apptupi'),
     vendedor: { nome: t.autor, contato: t.contato },
   };
@@ -10256,6 +10283,10 @@ function ctrHTML(d) {
   let nCl = 9;
   const numOper = temOperacao ? ++nCl : 0;
   const pctTxt = String(d.softwarePct).replace('.', ',');
+  // Omitiu a remuneração? a subcláusula seguinte volta a ser .2 e a referência
+  // cruzada some junto — buraco na numeração é o que faz o cliente perguntar o
+  // que foi tirado do contrato.
+  const temRemun = d.software && d.mostraPct;
   const blocoOperacao = !temOperacao ? '' : (
     cl(numOper, d.software && d.appTupi ? 'Da plataforma de gestão e do aplicativo'
            : d.software ? 'Da plataforma de gestão' : 'Do aplicativo para o cliente') +
@@ -10263,8 +10294,8 @@ function ctrHTML(d) {
       d.software && 'a <b>plataforma de gestão e cobrança</b> da estação (protocolo OCPP), com cadastro do ponto, definição do preço da recarga pelo CONTRATANTE, controle de acesso, meio de pagamento e relatórios de recarga e de faturamento',
       d.appTupi && 'o <b>aplicativo para o cliente final</b>, fornecido em parceria com a <b>Tupi</b>, pelo qual o motorista localiza a estação, inicia a recarga e paga',
     ].filter(Boolean).join('; e ') + '.') +
-    (d.software ? li(`${numOper}.2`, `Pela operação da plataforma, a CONTRATADA é remunerada em <b>${e(pctTxt)}% do faturamento bruto</b> da estação, apurado mensalmente e retido no repasse ao CONTRATANTE.`) : '') +
-    li(`${numOper}.${d.software ? 3 : 2}`, `O equipamento e a obra entregues na forma das Cláusulas 1ª a 9ª são de propriedade do CONTRATANTE e não dependem da manutenção ${d.software ? 'da plataforma' : 'do aplicativo'}, que constitui <b>serviço continuado</b>, prestado enquanto houver interesse das partes e denunciável por qualquer delas mediante aviso prévio de 30 (trinta) dias${d.software ? `, cessando a partir de então a remuneração da Cláusula ${numOper}.2` : ''}.`)
+    (d.software && d.mostraPct ? li(`${numOper}.2`, `Pela operação da plataforma, a CONTRATADA é remunerada em <b>${e(pctTxt)}% do faturamento bruto</b> da estação, apurado mensalmente e retido no repasse ao CONTRATANTE.`) : '') +
+    li(`${numOper}.${temRemun ? 3 : 2}`, `O equipamento e a obra entregues na forma das Cláusulas 1ª a 9ª são de propriedade do CONTRATANTE e não dependem da manutenção ${d.software ? 'da plataforma' : 'do aplicativo'}, que constitui <b>serviço continuado</b>, prestado enquanto houver interesse das partes e denunciável por qualquer delas mediante aviso prévio de 30 (trinta) dias${temRemun ? `, cessando a partir de então a remuneração da Cláusula ${numOper}.2` : ''}.`)
   );
   const nResc = ++nCl, nGerais = ++nCl, nForo = ++nCl;
 
