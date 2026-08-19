@@ -46,10 +46,19 @@ const FERIADOS = new Set([
   '2027-05-27', '2027-09-07', '2027-10-12', '2027-11-02', '2027-11-15', '2027-11-20', '2027-12-25',
 ]);
 
-/** Horas de INÍCIO da grade, em ordem. Lista explícita e não um intervalo porque a
- *  grade tem BURACO no almoço: 12:00 não existe. A primeira reunião do dia começa
- *  10:00 e a última, 18:00. Espelha o `FAIXAS` da LP. */
-const HORAS = [10, 11, 13, 14, 15, 16, 17, 18];
+/** Horas de INÍCIO da grade, em ordem, POR DIA DA SEMANA (19/08/2026).
+ *
+ *  Segunda tem a grade cheia — 8 horários, com manhã — porque ela acumula o fim
+ *  de semana: sábado e domingo a agenda não abre e o anúncio continua rodando.
+ *  De terça a sexta é só a tarde, 13:00 às 17:00, que é a metade do dia que não
+ *  disputa com a agenda de solar dos sócios.
+ *
+ *  Lista explícita e não um intervalo porque a grade da segunda tem BURACO no
+ *  almoço: 12:00 não existe. Espelha o `FAIXAS_SEGUNDA`/`FAIXAS_PADRAO` da LP —
+ *  mudou lá, muda aqui, senão o robô oferece no WhatsApp horário que a página
+ *  não vende. */
+const HORAS_SEGUNDA = [10, 11, 13, 14, 15, 16, 17, 18];
+const HORAS_PADRAO = [13, 14, 15, 16, 17];
 const DIAS_UTEIS = new Set([1, 2, 3, 4, 5]);
 /** Duração da reunião — é ela que define sobreposição, não o passo da grade. */
 const DURACAO_MS = 30 * 60 * 1000;
@@ -71,6 +80,10 @@ const isoDe = (ymd: string, hora: number): string =>
 
 /** Dia da semana (0=dom) do YMD, lido ao meio-dia pra não escorregar no fuso. */
 const diaDaSemana = (ymd: string): number => new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
+
+/** A grade daquele dia: cheia na segunda, só a tarde de terça a sexta. */
+const horasDoDia = (ymd: string): number[] =>
+  (diaDaSemana(ymd) === 1 ? HORAS_SEGUNDA : HORAS_PADRAO);
 
 /** A agenda abre neste dia? (dia útil e não feriado) */
 export function agendaAbre(ymd: string): boolean {
@@ -152,7 +165,7 @@ export async function proximasVagas(
   for (let i = 0; i < DIAS_VARRIDOS && vagas.length < quantas; i++) {
     const ymd = diaBRT(agora + i * 86400_000);
     if (!agendaAbre(ymd)) continue;
-    for (const h of HORAS) {
+    for (const h of horasDoDia(ymd)) {
       if (vagas.length >= quantas) break;
       const iso = isoDe(ymd, h);
       const t = new Date(iso).getTime();

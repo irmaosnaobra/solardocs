@@ -1689,7 +1689,8 @@ function calc(){
 }
 
 // ===== AGENDA =====
-// Regras: SEG a SEX — 10:00, 11:00 e 13:00 às 18:00, de hora em hora (8 horários).
+// Regras: SEGUNDA — 10:00, 11:00 e 13:00 às 18:00 (8 horários); TERÇA A SEXTA —
+// 13:00 às 17:00 (5 horários). Tudo de hora em hora.
 // A vitrine mostra UM dia enquanto ele tem 3 horários ou mais; caindo pra 2, o
 // próximo dia útil entra junto, completo. Quando o de hoje fecha, ele sai sozinho.
 // Fecha o que já passou, o que está a menos de 30 min daqui e o horário em que os
@@ -1724,9 +1725,9 @@ function partesBR(d = new Date()){
 }
 const isoDe = (ymd, hhmm) => new Date(`${ymd}T${hhmm}:00-03:00`).toISOString();
 
-// 10:00, 11:00 e 13:00 às 18:00 — 8 horários por dia, de hora em hora. Os limites
-// de cada faixa são horários de INÍCIO e são inclusivos nas duas pontas: a primeira
-// reunião começa 10:00 e a última, 18:00. As 12:00 ficam de fora: é o almoço.
+// Os limites de cada faixa são horários de INÍCIO e são inclusivos nas duas
+// pontas: numa segunda a primeira reunião começa 10:00 e a última, 18:00; de terça
+// a sexta, 13:00 e 17:00. As 12:00 ficam de fora: é o almoço.
 //
 // A reunião continua sendo de 30 min (é o que a página promete). O passo de 1 hora
 // é ESPAÇO entre uma e outra: o consultor sai de uma apresentação, respira, e entra
@@ -1752,12 +1753,29 @@ const isoDe = (ymd, hhmm) => new Date(`${ymd}T${hhmm}:00-03:00`).toISOString();
 //           lê a duração de cada compromisso pelo created_by. Mexeu na grade de
 //           lá? confira aqui: dois horários redondos seguidos sem folga no meio
 //           deixam a vistoria sem onde entrar.
-const FAIXAS = [['10:00','11:00'], ['13:00','18:00']];
+// 19/08: A GRADE DEIXOU DE SER A MESMA TODO DIA (ordem do Thiago).
+//
+//   SEGUNDA  10:00, 11:00 e 13:00–18:00  → 8 horários (a grade cheia de antes)
+//   TER a SEX 13:00–17:00                → 5 horários
+//
+// O motivo da exceção é a segunda: ela ACUMULA O FIM DE SEMANA. Sábado e domingo
+// a agenda não abre, mas o anúncio roda e a LP continua recebendo gente — tudo
+// isso desemboca no primeiro dia útil. Cortar a manhã da segunda junto com o
+// resto empurraria esse acúmulo pra terça, que é o dia em que ninguém tem folga
+// pra remarcar.
+//
+// Nos outros dias a tarde basta, e ela é a metade do dia que NÃO disputa com a
+// agenda de solar dos sócios (08:00–11:30, ver o comentário logo acima): 10:00 e
+// 11:00 apareciam ocupados com frequência e, quando apareciam livres, competiam
+// com a manhã do solar.
+const FAIXAS_SEGUNDA = [['10:00','11:00'], ['13:00','18:00']];
+const FAIXAS_PADRAO  = [['13:00','17:00']];
 const PASSO_MIN = 60;               // 12/08: era 30 — a grade passou a ser de hora em hora
 const emMin = hhmm => Number(hhmm.slice(0,2)) * 60 + Number(hhmm.slice(3,5));
-function horariosDoDia(){
+/** 0=dom … 6=sáb. Só a segunda (1) tem a grade cheia. */
+function horariosDoDia(dow){
   const out = [];
-  for(const [ini,fim] of FAIXAS)
+  for(const [ini,fim] of (dow === 1 ? FAIXAS_SEGUNDA : FAIXAS_PADRAO))
     for(let m = emMin(ini); m <= emMin(fim); m += PASSO_MIN)
       out.push(`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`);
   return out;
@@ -1781,7 +1799,7 @@ const DIAS_UTEIS = new Set([1, 2, 3, 4, 5]);
 function gradeDoDia(ymd){
   if(FERIADOS.has(ymd)) return [];                          // feriado: fechado
   const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
-  return DIAS_UTEIS.has(dow) ? horariosDoDia() : [];        // sáb/dom: fechado
+  return DIAS_UTEIS.has(dow) ? horariosDoDia(dow) : [];     // sáb/dom: fechado
 }
 
 // Busca o que já está ocupado na agenda do Thiago/Diego na janela exibida.
@@ -2012,7 +2030,7 @@ function proximosDias(){
 //
 // CAIU DE 2h PRA 30 MIN EM 10/08/2026, e é ela que decide QUANDO O DIA FECHA — a
 // vitrine de um dia só (14/08) não tem relógio próprio: hoje sai da tela quando não
-// sobra horário vendável, e com o último às 18:00 essa folga de 30 min segura o dia
+// sobra horário vendável, e com o último às 17:00 (18:00 na segunda) essa folga de 30 min segura o dia
 // até as 17h30. Com as 2h de antes, o dia morreria às 16h.
 //
 // O QUE ISSO CUSTA: uma reunião das 18:00 pode ser marcada às 17h30, e aí o consultor
