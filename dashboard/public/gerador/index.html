@@ -536,6 +536,38 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-marca{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:78%;opacity:.16;z-index:0;pointer-events:none}
 .ep-page>*:not(.ep-marca){position:relative;z-index:1}
 .ep-pagefoot{margin-top:18px;padding-top:8px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:9px;color:#8a94a3}
+/* ── Proposta bancária: o sexto documento ────────────────────────────────────
+   Mesma folha .ep-page dos outros cinco. Tabela densa de propósito — analista de
+   crédito lê número, não respiro. */
+.ep-bco-kick{font-size:8.5px;font-weight:800;letter-spacing:2.2px;text-transform:uppercase;color:#8a6502}
+.ep-bco-h{margin-top:3px;font-size:20px;line-height:1.15;font-weight:800;color:#0B2545;letter-spacing:-.3px}
+.ep-bco-lead{margin:6px 0 0;font-size:10px;line-height:1.5;color:#5C6B84}
+.ep-bco-p{font-size:10px;line-height:1.55;margin:0}
+.ep-bco-sec{margin-top:11px;margin-bottom:4px;font-size:11px;font-weight:800;color:#0B2545}
+.ep-bco-src{color:#7b8496;font-size:8.4px;line-height:1.4;margin:4px 0 0}
+.ep-bco-flag{display:inline-block;font-size:7.4px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;
+  padding:1px 5px;border-radius:20px;background:#FFF3CD;color:#8A6502;vertical-align:1px}
+.ep-bco-t,.ep-bco-t2{width:100%;border-collapse:collapse;font-size:9.2px}
+.ep-bco-num{font-size:8.4px}
+.ep-bco-t th,.ep-bco-t2 th{text-align:left;font-weight:800;color:#0B2545;background:#F2F5FA;padding:4px 6px;
+  border-bottom:1.2px solid #DEE5EF;font-size:8.1px;text-transform:uppercase;letter-spacing:.5px}
+.ep-bco-t td,.ep-bco-t2 td{padding:3.6px 6px;border-bottom:1px solid #eef1f6;line-height:1.35;vertical-align:top}
+.ep-bco-t .n,.ep-bco-t2 .n{text-align:right;font-variant-numeric:tabular-nums}
+.ep-bco-t tr.tot td,.ep-bco-t2 tr.tot td{font-weight:800;color:#0B2545;background:#FBFCFE;
+  border-top:1.2px solid #0B2545;border-bottom:none}
+.ep-bco-2col{display:grid;grid-template-columns:1fr 1fr;gap:8mm;margin-top:6px}
+.ep-bco-box{margin-top:9px;border:1px solid #DEE5EF;border-left:3px solid #0B2545;border-radius:5px;
+  padding:8px 10px;background:#F7F9FC;font-size:9.3px;line-height:1.5}
+.ep-bco-kpis{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:14px}
+.ep-bco-kpi{border:1px solid #DEE5EF;border-radius:6px;padding:8px 10px}
+.ep-bco-kpi .k{display:block;font-size:7.6px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:#7b8496}
+.ep-bco-kpi .v{display:block;font-size:17px;font-weight:800;color:#0B2545;letter-spacing:-.5px;margin-top:2px;font-variant-numeric:tabular-nums}
+.ep-bco-kpi .s{display:block;font-size:8.2px;color:#7b8496;margin-top:1px;line-height:1.3}
+.ep-bco-fill{border-bottom:1px dotted #9AA7BC;min-width:70mm}
+.ep-bco-assin{display:grid;grid-template-columns:1fr 1fr;gap:14mm;margin-top:12mm}
+.ep-bco-assin .a{text-align:center;border-top:1px solid #1a1a1a;padding-top:5px;font-size:9.2px}
+.ep-bco-assin .a b{display:block}
+.ep-bco-assin .a span{color:#7b8496;font-size:8.4px}
 /* boxes filhos diretos da página mantêm altura natural (o flex:1 do .ep-box é só pro par lado-a-lado do .ep-cols) */
 .ep-page>.ep-box,.ep-page>.ep-avoid-break{flex:0 0 auto}
 /* logo oficial no topo da página 1 (badge circular Irmãos na Obra) */
@@ -2524,20 +2556,26 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div class="eletro-subnav">
       <button type="button" id="eletro-tab-simulador" class="eletro-subtab ativa" onclick="eletroSubaba('simulador')">Simulador</button>
       <button type="button" id="eletro-tab-orcamento" class="eletro-subtab" onclick="eletroSubaba('orcamento')">Orçamento</button>
-      <button type="button" id="eletro-tab-recibo" class="eletro-subtab" onclick="eletroSubaba('recibo')">Recibo</button>
-      <button type="button" id="eletro-tab-contrato" class="eletro-subtab" onclick="eletroSubaba('contrato')">Contrato</button>
-      <button type="button" id="eletro-tab-procuracao" class="eletro-subtab" onclick="eletroSubaba('procuracao')">Procuração</button>
+      <!-- Os quatro papéis do pós-venda. Viraram grupo quando o dossiê de crédito
+           entrou: cinco documentos em fila na régua 1 empurrava Cadastros e
+           Histórico pra fora da tela de novo. Abre no Recibo. -->
+      <button type="button" id="eletro-grp-fechamento" class="eletro-subtab" onclick="eletroGrupo('fechamento')">Fechamento</button>
       <button type="button" id="eletro-tab-cadastros" class="eletro-subtab" onclick="eletroSubaba('cadastros')">Cadastros</button>
       <button type="button" id="eletro-tab-historico" class="eletro-subtab" onclick="eletroSubaba('historico')">Histórico</button>
-      <!-- Cabeça do grupo. Abre em Frota (número na tela) e nunca no Mapa, que é um
-           cartão cujo único botão manda o consultor pra fora do app. -->
-      <button type="button" id="eletro-grp-mercado" class="eletro-subtab" onclick="eletroGrupoMercado()">Mercado</button>
+      <button type="button" id="eletro-grp-mercado" class="eletro-subtab" onclick="eletroGrupo('mercado')">Mercado</button>
     </div>
 
-    <!-- Régua 2: só acende dentro do grupo Mercado. Os ids eletro-tab-* seguem os mesmos
-         (o eletroSubaba acha por getElementById e não liga para a profundidade), e os
-         slugs também — mexer neles quebraria o lazy-load dos iframes eletro-frame-<slug>. -->
-    <div class="eletro-subnav2" id="eletro-subnav2">
+    <!-- Réguas 2: cada uma só acende dentro do seu grupo. Os ids eletro-tab-* seguem os
+         mesmos (o eletroSubaba acha por getElementById e não liga para a profundidade),
+         e os slugs também — mexer neles quebraria o deep-link ?orc=1 da Agenda e o
+         lazy-load dos iframes eletro-frame-<slug>. -->
+    <div class="eletro-subnav2" id="eletro-subnav2-fechamento">
+      <button type="button" id="eletro-tab-recibo" class="eletro-subtab2" onclick="eletroSubaba('recibo')">Recibo</button>
+      <button type="button" id="eletro-tab-contrato" class="eletro-subtab2" onclick="eletroSubaba('contrato')">Contrato</button>
+      <button type="button" id="eletro-tab-procuracao" class="eletro-subtab2" onclick="eletroSubaba('procuracao')">Procuração</button>
+      <button type="button" id="eletro-tab-banco" class="eletro-subtab2" onclick="eletroSubaba('banco')">Proposta bancária</button>
+    </div>
+    <div class="eletro-subnav2" id="eletro-subnav2-mercado">
       <button type="button" id="eletro-tab-mercado" class="eletro-subtab2" onclick="eletroSubaba('mercado')">Frota</button>
       <button type="button" id="eletro-tab-postos" class="eletro-subtab2" onclick="eletroSubaba('postos')">Postos</button>
       <button type="button" id="eletro-tab-pesquisa" class="eletro-subtab2" onclick="eletroSubaba('pesquisa')">Pesquisa</button>
@@ -3079,6 +3117,79 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       </div>
     </div>
     </div><!-- /eletro-pane-procuracao -->
+
+    <!-- ===== PANE: BANCO (dossiê de crédito) =====
+         O sexto documento, e o único que não é para o cliente: é para o gerente
+         dele. Existe porque depois da reprecificação de 02/08 a configuração de
+         entrada custa R$ 141.673 — quem declara até R$ 140 mil não compra à
+         vista, ou financia ou não é cliente de obra (o `financiar` da LP).
+
+         Banco NÃO aprova por payback, aprova por ICSD (cobertura do serviço da
+         dívida): quanto o caixa do mês gera contra a parcela do mês. Nenhum dos
+         outros cinco documentos calcula isso — o Estudo de Viabilidade nem
+         conhece dívida.
+
+         Tudo que é operação vem do Simulador (eletroParams), nada é digitado
+         duas vezes. O que mora AQUI é só o que o Simulador não tem: a estrutura
+         de crédito e as provisões de PJ. -->
+    <div id="eletro-pane-banco" style="display:none;">
+    <div class="pesquisa-info">Dossiê de <b>11 páginas</b> para o cliente levar ao gerente. Os números da operação descem do <b>Simulador</b>; aqui você define só a estrutura do crédito. A taxa é <b>premissa</b> — o documento já mostra o resultado a 14%, 18% e 22% a.a., então ele sobrevive ao que o banco ofertar.</div>
+    <div class="orc-wrap">
+
+      <div class="ep-pasta-host"></div>
+
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Proponente</div>
+        <div class="orc-cli-banner" id="bco-cli-banner">—</div>
+        <div class="eletro-field"><label>Razão social</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="bco-razao" placeholder="Como está no contrato social"></div></div>
+        <div class="eletro-field"><label>CNPJ</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="bco-cnpj" placeholder="00.000.000/0001-00"></div></div>
+        <div class="eletro-field"><label>Endereço do ponto</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="bco-endereco" placeholder="Onde a estação vai ser instalada"></div></div>
+        <div class="orc-note">Vazio, cai no que estiver no Orçamento. O <b>local do investimento</b> sai da cidade do Simulador.</div>
+      </div>
+
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Estrutura de crédito pleiteada</div>
+        <div class="eletro-field"><label>Participação própria (entrada)<span class="el-tip" tabindex="0" data-tip="Quanto o cliente põe do bolso. Nenhuma linha financia 100% de um ativo produtivo — estrutura sem entrada é recusada de saída.">?</span></label>
+          <div class="eletro-inp has-suf"><input type="number" id="bco-entrada" inputmode="decimal" step="1" min="0" max="90" value="20" oninput="bcoCalc()"><span class="suf">%</span></div></div>
+        <div class="eletro-field"><label>Taxa de juros<span class="el-tip" tabindex="0" data-tip="Premissa de trabalho até o gerente cotar. O documento traz a sensibilidade a 14%, 18% e 22% a.a., então trocar este número não invalida a proposta.">?</span></label>
+          <div class="eletro-inp has-suf"><input type="number" id="bco-taxa" inputmode="decimal" step="0.5" min="0" value="18" oninput="bcoCalc()"><span class="suf">% a.a.</span></div></div>
+        <div class="eletro-field"><label>Prazo total<span class="el-tip" tabindex="0" data-tip="Carência + amortização. Carência de 6 num prazo de 60 dá 54 parcelas cheias.">?</span></label>
+          <div class="eletro-inp has-suf"><input type="number" id="bco-prazo" inputmode="decimal" step="6" min="12" value="60" oninput="bcoCalc()"><span class="suf">meses</span></div></div>
+        <div class="eletro-field"><label>Carência de amortização<span class="el-tip" tabindex="0" data-tip="Meses pagando só juros. Não é cortesia: a estação abre a 50% de ocupação, e sem carência o mês 1 não paga a própria parcela.">?</span></label>
+          <div class="eletro-inp has-suf"><input type="number" id="bco-carencia" inputmode="decimal" step="1" min="0" max="24" value="6" oninput="bcoCalc()"><span class="suf">meses</span></div></div>
+        <div class="orc-note" id="bco-carencia-note">—</div>
+      </div>
+
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Provisões que o Estudo não carrega</div>
+        <div class="orc-note" style="margin-top:0">O Estudo de Viabilidade projeta só gateway, tributos, manutenção e seguro. Para crédito isso é pouco: uma PJ tem despesa que a projeção comercial ignora, e o analista acha o buraco em cinco minutos. Estas linhas entram <b>nomeadas</b> no documento — número declarado se discute, ausência não.</div>
+        <div class="eletro-field" style="margin-top:12px"><label>Contabilidade e obrigações da PJ</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="bco-prov-conta" inputmode="decimal" step="50" min="0" value="400" oninput="bcoCalc()"></div></div>
+        <div class="eletro-field"><label>Reserva técnica — cabo e conector CCS2</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="bco-prov-peca" inputmode="decimal" step="50" min="0" value="300" oninput="bcoCalc()"></div></div>
+        <div class="eletro-field"><label>Limpeza e conservação do pátio</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="bco-prov-patio" inputmode="decimal" step="50" min="0" value="200" oninput="bcoCalc()"></div></div>
+      </div>
+
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Como o banco vai ler</div>
+        <div class="eletro-kgrid">
+          <div class="eletro-kcard"><div class="k">Valor solicitado</div><div class="v" id="bco-k-valor">—</div><div class="s" id="bco-k-valor-s">—</div></div>
+          <div class="eletro-kcard"><div class="k">Parcela cheia</div><div class="v" id="bco-k-parcela">—</div><div class="s" id="bco-k-parcela-s">—</div></div>
+          <div class="eletro-kcard"><div class="k">ICSD mínimo</div><div class="v" id="bco-k-icsd">—</div><div class="s" id="bco-k-icsd-s">—</div></div>
+          <div class="eletro-kcard"><div class="k">Ponto de equilíbrio</div><div class="v" id="bco-k-be">—</div><div class="s" id="bco-k-be-s">—</div></div>
+        </div>
+        <div class="orc-note" id="bco-veredito">—</div>
+      </div>
+
+      <div class="eletro-acoes">
+        <button type="button" class="eletro-btn primary" onclick="bcoImprimir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line><line x1="6" y1="15" x2="10" y2="15"></line></svg> Gerar proposta bancária PDF</button>
+      </div>
+    </div>
+    </div><!-- /eletro-pane-banco -->
 
 
     <!-- ===== PANE: CADASTROS (Arrendamento e Investidores) =====
@@ -6501,17 +6612,26 @@ function navEletroposto() {
 }
 
 // Sub-abas dentro do Eletroposto: Simulador | Histórico | Pesquisa | Mercado | Postos | Mapa
-// Cabeça do grupo Mercado. Clicar nela JÁ estando dentro do grupo não faz nada:
-// as quatro pílulas já estão à vista, e toque acidental no cabeçalho não pode
-// custar o lugar onde a pessoa estava lendo (voltaria pra Frota).
-function eletroGrupoMercado() {
-  const r2 = document.getElementById('eletro-subnav2');
+// ── Os grupos da barra: rótulo do nível 1 → abas do nível 2 ──────────────────
+// A PRIMEIRA aba de cada lista é a que abre ao clicar no grupo. Em Fechamento é o
+// Recibo porque o dinheiro chega antes do contrato; em Mercado é a Frota, e nunca
+// o Mapa — cair num cartão cujo único botão manda o consultor pra fora do app é a
+// pior porta possível.
+const EP_GRUPOS = {
+  fechamento: ['recibo', 'contrato', 'procuracao', 'banco'],
+  mercado:    ['mercado', 'postos', 'pesquisa', 'mapa'],
+};
+
+// Clicar num grupo JÁ aberto não faz nada: as pílulas já estão à vista, e toque
+// acidental no cabeçalho não pode custar o lugar onde a pessoa estava lendo.
+function eletroGrupo(g) {
+  const r2 = document.getElementById('eletro-subnav2-' + g);
   if (r2 && r2.classList.contains('on')) return;
-  eletroSubaba('mercado');
+  eletroSubaba(EP_GRUPOS[g][0]);
 }
 
 function eletroSubaba(qual) {
-  const abas = ['simulador', 'orcamento', 'recibo', 'contrato', 'procuracao', 'cadastros', 'historico', 'pesquisa', 'mercado', 'postos', 'mapa'];
+  const abas = ['simulador', 'orcamento', 'recibo', 'contrato', 'procuracao', 'banco', 'cadastros', 'historico', 'pesquisa', 'mercado', 'postos', 'mapa'];
   // A cada abertura: monta a lista de potências (uma vez) e tenta completar o
   // vendedor. Fica aqui, e não só no load, porque o cadastro de consultores
   // carrega assíncrono — na primeira abertura o telefone ainda pode não existir.
@@ -6524,13 +6644,14 @@ function eletroSubaba(qual) {
   // Recibo e Contrato vivem dos campos do Orçamento (valor, CPF/endereço,
   // empresa). Abrir um deles como PRIMEIRA aba, sem nunca passar no Orçamento,
   // deixava valor, data e cláusula em branco — orcInit é quem preenche tudo isso.
-  if (qual === 'orcamento' || qual === 'recibo' || qual === 'contrato' || qual === 'procuracao') orcInit();
+  if (qual === 'orcamento' || qual === 'recibo' || qual === 'contrato' || qual === 'procuracao' || qual === 'banco') orcInit();
   // Depois do orcInit, nunca antes: a pasta só preenche campo vazio, e é o
   // orcInit que decide quais campos nascem preenchidos.
-  if (qual === 'orcamento' || qual === 'recibo' || qual === 'contrato' || qual === 'procuracao') epPastaAuto();
+  if (qual === 'orcamento' || qual === 'recibo' || qual === 'contrato' || qual === 'procuracao' || qual === 'banco') epPastaAuto();
   if (qual === 'recibo') recBanner();
   if (qual === 'contrato') ctrInit();
   if (qual === 'procuracao') procInit();
+  if (qual === 'banco') bcoInit();
   abas.forEach(a => {
     const pane = document.getElementById('eletro-pane-' + a);
     if (pane) pane.style.display = (a === qual) ? '' : 'none';
@@ -6544,18 +6665,26 @@ function eletroSubaba(qual) {
   // Simulador" e o "Preencher no Orçamento" dos banners. Se o grupo acendesse no
   // onclick do botão, qualquer um desses saltos deixaria o menu dizendo uma coisa
   // com outra na tela — e menu que mente na frente do cliente é pior que clique a mais.
-  const EP_MERCADO = ['mercado', 'postos', 'pesquisa', 'mapa'];
-  const noMercado = EP_MERCADO.includes(qual);
-  const regua2 = document.getElementById('eletro-subnav2');
-  if (regua2) regua2.classList.toggle('on', noMercado);
-  const grpMercado = document.getElementById('eletro-grp-mercado');
-  if (grpMercado) grpMercado.classList.toggle('ativa', noMercado);
+  //
+  // Tabela e não `if`: com dois grupos a lógica de um só deixou de generalizar, e
+  // duplicá-la era garantir que um dia só metade fosse atualizada. Grupo novo agora
+  // é uma linha aqui mais três no HTML.
+  let grpAtivo = null;
+  Object.keys(EP_GRUPOS).forEach(g => {
+    const dentro = EP_GRUPOS[g].includes(qual);
+    if (dentro) grpAtivo = g;
+    const r2 = document.getElementById('eletro-subnav2-' + g);
+    if (r2) r2.classList.toggle('on', dentro);
+    const bt = document.getElementById('eletro-grp-' + g);
+    if (bt) bt.classList.toggle('ativa', dentro);
+  });
 
   // Barra que rola precisa trazer o aceso pra vista, senão no celular o consultor
-  // clica em Mercado e o sublinhado acende num rótulo que ele não está vendo.
+  // clica no grupo e o sublinhado acende num rótulo que ele não está vendo.
   // Medido por rect e não por offsetLeft: os botões não têm offsetParent próprio.
   const regua1 = document.querySelector('.eletro-subnav');
-  const aceso = noMercado ? grpMercado : document.getElementById('eletro-tab-' + qual);
+  const aceso = grpAtivo ? document.getElementById('eletro-grp-' + grpAtivo)
+                         : document.getElementById('eletro-tab-' + qual);
   if (regua1 && aceso && regua1.scrollWidth > regua1.clientWidth + 1) {
     const cx = regua1.getBoundingClientRect(), ax = aceso.getBoundingClientRect();
     const alvo = regua1.scrollLeft + (ax.left - cx.left) - (cx.width - ax.width) / 2;
@@ -10254,6 +10383,657 @@ function procImprimir() {
     titulo: 'Procuração' + (d.cliente ? ' — ' + d.cliente : ''),
     opts: { umaPagina: true, piso: 0.86, alvo: '.ep-page' },
     hist: d.cliente ? { id: epId(), tipo: 'Procuração', cliente: d.cliente, valor: 0, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// BANCO — dossie de credito (o sexto documento)
+// ════════════════════════════════════════════════════════════
+// O unico documento que nao e' para o cliente: e' para o gerente dele.
+//
+// A conta da OPERACAO nao mora aqui: computeEletro ja' existe neste arquivo e
+// e' a fonte unica. Duplicar aquele motor era garantir que um dia os dois
+// divergissem em silencio. O que este bloco acrescenta e' a camada que o
+// /gerador nunca teve: DIVIDA — parcela, saldo devedor e, principalmente,
+// ICSD (indice de cobertura do servico da divida), que e' por onde banco
+// aprova. Payback e TIR, que o Estudo ja' mostra, nao decidem credito.
+
+// Price com carencia de amortizacao, juros PAGOS na carencia (sem capitalizar).
+// Capitalizar inflaria o saldo e melhoraria o ano 1 as custas dos seguintes —
+// analista desconta projecao que se ajuda sozinha.
+function bcoFinanciamento(valor, taxaAA, prazoTotal, carencia) {
+  const i = Math.pow(1 + taxaAA, 1 / 12) - 1;
+  const nAmort = Math.max(1, prazoTotal - carencia);
+  const pmt = i > 0 ? valor * i / (1 - Math.pow(1 + i, -nAmort)) : valor / nAmort;
+  const meses = [];
+  let saldo = valor;
+  for (let m = 1; m <= prazoTotal; m++) {
+    const juros = saldo * i;
+    const amort = m <= carencia ? 0 : pmt - juros;
+    saldo = Math.max(0, saldo - amort);
+    meses.push({ m, juros, amort, parcela: m <= carencia ? juros : pmt, saldo });
+  }
+  const totalPago = meses.reduce((a, x) => a + x.parcela, 0);
+  return { i, valor, taxaAA, prazoTotal, carencia, nAmort, pmt,
+           parcelaCarencia: meses.length ? meses[0].parcela : 0,
+           meses, totalPago, jurosTotais: totalPago - valor };
+}
+
+// Numerador = caixa OPERACIONAL do mes (antes de depreciacao e do servico da
+// divida). Denominador = parcela do mes. `r` vem de computeEletro.
+function bcoCobertura(r, fin, anos) {
+  anos = anos || 10;
+  // A margem variavel do mes NAO vem no retorno do computeEletro — e nao vai vir,
+  // porque forkar aquele motor pra acrescentar um campo era garantir divergencia
+  // silenciosa mais tarde. Ela sai da identidade que o proprio motor usa:
+  //   lucroMes = margemVarMes - fixosMes
+  // Este era o bug do primeiro teste: `r.margemVarMes` dava undefined, o ICSD
+  // inteiro virava NaN e o documento saia com "undefined" no meio, sem erro
+  // nenhum no console.
+  const mv = r.lucroMes + r.fixosMes;
+  const occ = m => (r.mesesRampa <= 1 || m >= r.mesesRampa)
+    ? 1 : r.ocupIni + (1 - r.ocupIni) * (m - 1) / (r.mesesRampa - 1);
+  const linhas = [];
+  for (let a = 0; a < anos; a++) {
+    let ger = 0, serv = 0, jur = 0, amo = 0;
+    for (let k = 1; k <= 12; k++) {
+      const m = a * 12 + k;
+      ger += mv * occ(m) - r.fixosMes;
+      const x = fin.meses[m - 1];
+      if (x) { serv += x.parcela; jur += x.juros; amo += x.amort; }
+    }
+    linhas.push({ ano: a + 1, geracao: ger, servico: serv, juros: jur, amort: amo,
+      sobra: ger - serv, icsd: serv > 0 ? ger / serv : null,
+      saldo: (fin.meses[(a + 1) * 12 - 1] || { saldo: 0 }).saldo });
+  }
+  const comDivida = linhas.filter(l => l.icsd != null);
+  return { linhas, occ,
+    icsdMin: comDivida.length ? Math.min.apply(null, comDivida.map(l => l.icsd)) : null,
+    anoCritico: comDivida.length ? comDivida.reduce((a, b) => (a.icsd <= b.icsd ? a : b)).ano : null };
+}
+
+// O ano 1 mes a mes — e' a pagina que o analista le com lapis na mao, e e' onde
+// a carencia se justifica: o ICSD anual esconde o mes que nao paga a parcela.
+function bcoAno1(r, fin) {
+  const occ = bcoCobertura(r, fin, 1).occ;
+  const mv = r.lucroMes + r.fixosMes;
+  const out = [];
+  for (let m = 1; m <= 12; m++) {
+    const ger = mv * occ(m) - r.fixosMes;
+    const x = fin.meses[m - 1] || { parcela: 0 };
+    out.push({ m, ocup: occ(m), ger, parcela: x.parcela, sobra: ger - x.parcela,
+               icsd: x.parcela > 0 ? ger / x.parcela : null });
+  }
+  return out;
+}
+
+// Quantos carros/dia a parcela exige. Busca binaria olhando o ANO 1, que e' o
+// da rampa e sempre o pior. A pergunta invertida: o dossie nao deve pedir que o
+// analista acredite numa projecao de frota, e sim mostrar quao POUCO precisa
+// acontecer pra divida ser honrada.
+function bcoCarrosPara(params, fin, alvo) {
+  const icsd1 = c => bcoCobertura(computeEletro(Object.assign({}, params, { carros: c })), fin, 1).linhas[0].icsd;
+  if (!(icsd1(200) >= alvo)) return null;
+  let lo = 0.01, hi = 200;
+  for (let k = 0; k < 60; k++) { const mid = (lo + hi) / 2; if (icsd1(mid) < alvo) lo = mid; else hi = mid; }
+  return (lo + hi) / 2;
+}
+
+// Reune TUDO: operacao do Simulador + credito desta aba. Nenhum numero de
+// operacao e' digitado aqui — se o Simulador mudar, isto muda junto.
+function bcoDados() {
+  const g = id => (document.getElementById(id) || {}).value || '';
+  const n = id => { const v = parseFloat(String(g(id)).replace(',', '.')); return isFinite(v) ? v : 0; };
+  const t = eletroTextos();
+  const base = eletroParams();
+  const provisoes = [
+    ['Contabilidade e obrigações acessórias da PJ', n('bco-prov-conta')],
+    ['Reserva técnica — peças, cabo e conector CCS2 (troca 24–36 meses)', n('bco-prov-peca')],
+    ['Limpeza, sinalização e conservação do pátio', n('bco-prov-patio')],
+  ].filter(x => x[1] > 0);
+  const provTotal = provisoes.reduce((a, x) => a + x[1], 0);
+
+  // A taxa de desconto do VPL passa a ser o CUSTO DA DIVIDA, e nao os 14,25%
+  // do Estudo. Descontar o fluxo a uma taxa MENOR do que a que se vai pagar ao
+  // banco produz um VPL artificialmente favoravel — e o analista percebe.
+  const taxaAA = n('bco-taxa') / 100;
+  const params = Object.assign({}, base, {
+    fixos: (base.fixos || 0) + provTotal,
+    taxaDesc: taxaAA,
+  });
+  const r = computeEletro(params);
+  const entradaPct = Math.min(0.9, Math.max(0, n('bco-entrada') / 100));
+  const entrada = r.investTotal * entradaPct;
+  const financiado = r.investTotal - entrada;
+  const prazo = Math.max(12, Math.round(n('bco-prazo')));
+  const carencia = Math.min(prazo - 1, Math.max(0, Math.round(n('bco-carencia'))));
+  const fin = bcoFinanciamento(financiado, taxaAA, prazo, carencia);
+  const cob = bcoCobertura(r, fin);
+  return {
+    params, r, fin, cob, entradaPct, entrada, financiado, taxaAA, prazo, carencia,
+    provisoes, provTotal,
+    ano1: bcoAno1(r, fin),
+    be100: bcoCarrosPara(params, fin, 1.00),
+    be120: bcoCarrosPara(params, fin, 1.20),
+    cliente: t.cliente, cidade: t.cidade, equip: t.equip,
+    razao: g('bco-razao').trim() || orcVal('orc-cli-nome') || t.cliente,
+    cnpj: g('bco-cnpj').trim() || orcVal('orc-cli-doc'),
+    endereco: g('bco-endereco').trim() || orcVal('orc-cli-end'),
+    vendedor: t.autor, contato: t.contato,
+    data: new Date(),
+  };
+}
+
+// Painel ao vivo: os quatro numeros pelos quais o credito e' decidido, antes de
+// gerar folha nenhuma. Roda a cada tecla dos campos de credito e na abertura.
+function bcoCalc() {
+  const el = id => document.getElementById(id);
+  const set = (id, v) => { const x = el(id); if (x) x.textContent = v; };
+  let d; try { d = bcoDados(); } catch (e) { return; }
+  const money0 = n => 'R$ ' + Math.round(n || 0).toLocaleString('pt-BR');
+  const x2 = v => v == null ? '—' : v.toFixed(2).replace('.', ',') + '×';
+  const n1 = v => v == null ? '—' : v.toFixed(1).replace('.', ',');
+  const pct0 = v => Math.round((v || 0) * 100) + '%';
+
+  if (!(d.r.investTotal > 0)) {
+    ['bco-k-valor', 'bco-k-parcela', 'bco-k-icsd', 'bco-k-be'].forEach(i => set(i, '—'));
+    ['bco-k-valor-s', 'bco-k-parcela-s', 'bco-k-icsd-s', 'bco-k-be-s'].forEach(i => set(i, '—'));
+    set('bco-veredito', 'Preencha o "Valor do investimento" no Simulador — é dele que sai tudo aqui.');
+    return;
+  }
+  set('bco-k-valor', money0(d.financiado));
+  set('bco-k-valor-s', pct0(1 - d.entradaPct) + ' de ' + money0(d.r.investTotal) + ' · entrada ' + money0(d.entrada));
+  set('bco-k-parcela', money0(d.fin.pmt));
+  set('bco-k-parcela-s', d.carencia > 0
+    ? money0(d.fin.parcelaCarencia) + ' na carência · cheia a partir do mês ' + (d.carencia + 1)
+    : 'sem carência, desde o mês 1');
+  set('bco-k-icsd', x2(d.cob.icsdMin));
+  set('bco-k-icsd-s', d.cob.anoCritico ? 'no ano ' + d.cob.anoCritico + ', o mais apertado' : '—');
+  set('bco-k-be', d.be100 == null ? '—' : n1(d.be100) + ' carros/dia');
+  set('bco-k-be-s', d.be100 == null ? 'a operação não cobre a parcela'
+    : 'contra ' + n1(d.r.carros) + '/dia projetados');
+
+  // O pior MES do ano 1 e' o que justifica a carencia — e o ICSD anual esconde.
+  const pior = d.ano1.filter(l => l.icsd != null).reduce((a, b) => (a.icsd <= b.icsd ? a : b), { icsd: Infinity, m: 0 });
+  const abaixo = d.ano1.filter(l => l.icsd != null && l.icsd < 1).length;
+  const nota = el('bco-carencia-note');
+  if (nota) {
+    nota.innerHTML = abaixo
+      ? '<b style="color:#fca5a5">' + abaixo + ' mês(es) do primeiro ano não pagam a própria parcela</b> (pior: ' +
+        x2(pior.icsd) + ' no mês ' + pior.m + '). Aumente a carência — a estação abre a ' +
+        pct0(d.r.ocupIni) + ' de ocupação.'
+      : 'Pior mês do contrato: <b>' + x2(pior.icsd) + '</b> (mês ' + pior.m + '). Nenhum mês abaixo de 1,00×.';
+  }
+  const icsd = d.cob.icsdMin;
+  set('bco-veredito', icsd == null ? '—'
+    : icsd >= 1.3 ? 'Cobertura de ' + x2(icsd) + ' contra o critério usual de 1,20× a 1,30× — a operação passa com folga.'
+    : icsd >= 1.2 ? 'Cobertura de ' + x2(icsd) + ': passa no critério de 1,20×, mas fica no limite do de 1,30×.'
+    : 'Cobertura de ' + x2(icsd) + ', ABAIXO do critério usual de 1,20×. Aumente a entrada, alongue o prazo ou reveja o movimento antes de protocolar.');
+}
+
+function bcoInit() {
+  const t = eletroTextos();
+  const b = document.getElementById('bco-cli-banner');
+  if (b) {
+    const partes = [t.cliente, t.cidade, t.equip].filter(Boolean);
+    b.textContent = partes.length ? partes.join(' · ') : 'Preencha cliente e cidade no Simulador';
+  }
+  bcoCalc();
+}
+
+// As 11 folhas. Segue a convencao da casa (.ep-page clara, Arial), e nao o PDF
+// escuro do gerador de fora — dossie de credito ao lado do contrato tem que ler
+// como a mesma empresa.
+function bcoHTML(d) {
+  const e = orcEsc, money = ORC_MONEY;
+  const m0 = n => 'R$ ' + Math.round(n || 0).toLocaleString('pt-BR');
+  const x2 = v => v == null ? '—' : v.toFixed(2).replace('.', ',') + '×';
+  const n1 = (v, c) => v == null ? '—' : v.toFixed(c == null ? 1 : c).replace('.', ',');
+  const pc = (v, c) => v == null ? '—' : (v * 100).toFixed(c == null ? 1 : c).replace('.', ',') + '%';
+  const p0 = v => Math.round((v || 0) * 100) + '%';
+  const TOTP = 11;
+  const dataTxt = d.data.toLocaleDateString('pt-BR');
+  const r = d.r, fin = d.fin, cob = d.cob;
+  // computeEletro calcula `sessoes` e `margemVarMes` mas NAO devolve nenhum dos
+  // dois (confira o return dele). Ler r.sessoes dava NaN, e ORC_MONEY(NaN) imprime
+  // R$ 0,00 em silencio — a taxa de ativacao sumia do documento sem avisar.
+  const sessoes = r.carros * 30;
+  const foot = n => `<div class="ep-pagefoot"><span>Proposta de financiamento — eletroposto${d.razao ? ' · ' + e(d.razao) : ''}</span><span>Página ${n} de ${TOTP}</span></div>`;
+  const h = (kick, tit, lead) => `<div class="ep-bco-kick">${e(kick)}</div><div class="ep-bco-h">${e(tit)}</div>${lead ? `<p class="ep-bco-lead">${lead}</p>` : ''}`;
+  const anosDiv = cob.linhas.filter(l => l.icsd != null).length;
+  const piorMes = d.ano1.filter(l => l.icsd != null).reduce((a, b) => (a.icsd <= b.icsd ? a : b), { icsd: null, m: 0 });
+  const HORAS = 12;
+  const kwPot = (() => { const mm = String(d.equip || '').replace(',', '.').match(/(\d+(?:\.\d+)?)\s*k\s*w/i); return mm ? parseFloat(mm[1]) : 80; })();
+  const utiliz = c => c * r.carga / (kwPot * HORAS);
+  const fatDe = c => c * r.carga * 30 * r.precoKwh + c * 30 * r.ativacao;
+
+  // Sensibilidades recalculadas com o MESMO computeEletro da tela.
+  const sensTaxa = [0.14, 0.18, 0.22].map(tx => {
+    const cels = [0, 6, 12].map(ca => {
+      const f = bcoFinanciamento(d.financiado, tx, d.prazo, Math.min(d.prazo - 1, ca));
+      const k = bcoCobertura(r, f);
+      const a1 = bcoAno1(r, f).filter(l => l.icsd != null);
+      const pm = a1.reduce((a, b) => (a.icsd <= b.icsd ? a : b), { icsd: null, m: 0 });
+      return { ca, pmt: f.pmt, icsdMin: k.icsdMin, piorMes: pm.icsd, mes: pm.m, abaixo: a1.filter(x => x.icsd < 1).length };
+    });
+    return { tx, cels };
+  });
+  const sensCarros = [0.6, 0.8, 1, 1.4, 1.8].map(f => Math.max(1, Math.round(r.carros * f)))
+    .filter((v, i, a) => a.indexOf(v) === i).map(c => {
+      const rr = computeEletro(Object.assign({}, d.params, { carros: c }));
+      const kk = bcoCobertura(rr, fin);
+      return { c, fat: rr.fatMes, lucro: rr.lucroMes, icsdMin: kk.icsdMin, pb: rr.payback };
+    });
+  const sensTar = [r.custoKwh * 0.85, r.custoKwh, r.custoKwh * 1.2, r.custoKwh * 1.45].map(t => {
+    const rr = computeEletro(Object.assign({}, d.params, { custoKwh: t }));
+    const kk = bcoCobertura(rr, fin);
+    return { t, lucro: rr.lucroMes, margem: rr.margem, icsdMin: kk.icsdMin };
+  });
+  const estresse = [Math.max(1, Math.round(r.carros * 0.6)), Math.max(1, Math.round(r.carros * 0.8)), Math.round(r.carros)]
+    .map(c => ({ c, cels: [r.custoKwh, r.custoKwh * 1.2, r.custoKwh * 1.45].map(t => ({
+      t, icsdMin: bcoCobertura(computeEletro(Object.assign({}, d.params, { carros: c, custoKwh: t })), fin).icsdMin })) }));
+
+  const tr = (a, b, cls) => `<tr${cls ? ` class="${cls}"` : ''}><td>${a}</td><td class="n">${b}</td></tr>`;
+
+  return `<div class="ep-doc ep-bco">
+
+  <div class="ep-page">
+    ${h('Proposta de financiamento', 'Eletroposto de recarga rápida' + (d.equip ? ' — ' + d.equip : ''),
+      'Dossiê de crédito para implantação de estação de recarga de veículos elétricos, com projeção operacional, capacidade de pagamento e análise de sensibilidade. Todos os números derivam de um único modelo, declarado e auditável.')}
+    <table class="ep-bco-t" style="margin-top:16px">
+      ${tr('Proponente', e(d.razao) || '—')}
+      ${tr('CNPJ', e(d.cnpj) || '—')}
+      ${tr('Local do investimento', e(d.cidade) || '—')}
+      ${tr('Endereço do ponto', e(d.endereco) || '—')}
+      ${tr('Finalidade', 'Implantação de eletroposto' + (d.equip ? ' — ' + e(d.equip) : ''))}
+    </table>
+    <div class="ep-bco-kpis">
+      <div class="ep-bco-kpi"><span class="k">Valor solicitado</span><span class="v">${m0(d.financiado)}</span><span class="s">${p0(1 - d.entradaPct)} de ${m0(r.investTotal)} · entrada própria de ${m0(d.entrada)}</span></div>
+      <div class="ep-bco-kpi"><span class="k">Prazo pleiteado</span><span class="v">${d.prazo} meses</span><span class="s">${d.carencia} de carência + ${fin.nAmort} parcelas</span></div>
+      <div class="ep-bco-kpi"><span class="k">Cobertura mínima (ICSD)</span><span class="v">${x2(cob.icsdMin)}</span><span class="s">no ano ${cob.anoCritico || '—'}, o mais apertado do contrato</span></div>
+      <div class="ep-bco-kpi"><span class="k">Cobertura no pior mês</span><span class="v">${x2(piorMes.icsd)}</span><span class="s">mês ${piorMes.m}, já com a carência pleiteada</span></div>
+    </div>
+    <p class="ep-bco-p" style="margin-top:14px">${e(d.cidade || '')}${d.cidade ? ', ' : ''}${e(dataTxt)}.</p>
+    ${foot(1)}
+  </div>
+
+  <div class="ep-page">
+    ${h('1 · Sumário', 'A operação em uma página', 'O que se pede, para quê, com que garantia e com que folga de pagamento. As nove páginas seguintes só detalham o que está aqui.')}
+    <div class="ep-bco-sec">Quadro de usos e fontes</div>
+    <table class="ep-bco-t2">
+      <tr><th>Usos — para onde vai o recurso</th><th class="n">Valor</th><th>Fontes — de onde vem</th><th class="n">Valor</th></tr>
+      <tr><td>Estação de recarga${d.equip ? ' ' + e(d.equip) : ''}, chave na mão</td><td class="n">${money(r.investTotal)}</td><td>Recurso próprio do proponente</td><td class="n">${money(d.entrada)}</td></tr>
+      <tr><td class="ep-bco-src">equipamento, projeto de engenharia, padrão de entrada, transformador,<br>cabeamento, obra civil, cobertura e comissionamento</td><td class="n"></td><td>Financiamento pleiteado</td><td class="n">${money(d.financiado)}</td></tr>
+      <tr class="tot"><td>Total dos usos</td><td class="n">${money(r.investTotal)}</td><td>Total das fontes</td><td class="n">${money(r.investTotal)}</td></tr>
+    </table>
+    <p class="ep-bco-src">Não há uso de recurso para capital de giro: a estação opera desassistida e o recebimento é por aplicativo, antes da liberação da recarga. Não há estoque a financiar.</p>
+    <div class="ep-bco-2col">
+      <div>
+        <div class="ep-bco-sec">Estrutura pleiteada</div>
+        <table class="ep-bco-t">
+          ${tr('Valor', money(d.financiado))}
+          ${tr('Prazo total', d.prazo + ' meses')}
+          ${tr('Carência de amortização', d.carencia + ' meses')}
+          ${tr('Parcelas de amortização', String(fin.nAmort))}
+          ${tr('Taxa considerada <span class="ep-bco-flag">premissa</span>', pc(d.taxaAA, 0) + ' a.a. · ' + pc(fin.i, 2) + ' a.m.')}
+          ${tr('Sistema', 'Price')}
+          ${tr('Parcela na carência (juros)', money(fin.parcelaCarencia))}
+          ${tr('Parcela cheia', money(fin.pmt), 'tot')}
+        </table>
+      </div>
+      <div>
+        <div class="ep-bco-sec">Como o projeto paga</div>
+        <table class="ep-bco-t">
+          ${tr('Geração de caixa — ano 1 (com rampa)', money(r.lucroAno1))}
+          ${tr('Geração de caixa — ano pleno', money(r.lucroAno))}
+          ${tr('Serviço da dívida — ano 2', money(cob.linhas[1] ? cob.linhas[1].servico : 0))}
+          ${tr('Sobra depois da parcela — ano 2', money(cob.linhas[1] ? cob.linhas[1].sobra : 0))}
+          ${tr('ICSD mínimo do contrato', x2(cob.icsdMin))}
+          ${tr('Payback do investimento', r.payback == null ? '—' : n1(r.payback) + ' anos')}
+          ${tr('TIR do projeto', r.tir == null ? '—' : pc(r.tir) + ' a.a.')}
+          ${tr('VPL a ' + pc(d.taxaAA, 0) + ' a.a.', money(r.vpl), 'tot')}
+        </table>
+      </div>
+    </div>
+    <div class="ep-bco-box">
+      <b>Por que financiar um projeto que se paga em ${r.payback == null ? '—' : n1(r.payback)} anos.</b>
+      O retorno curto não dispensa o crédito — ele é o que o torna seguro. A operação pleiteia financiamento para
+      <b>casar o desembolso com a geração de caixa do próprio ativo</b> e preservar o capital de giro do proponente,
+      e não para suprir insuficiência de recursos. A parcela cheia consome ${r.lucroMes > 0 ? pc(fin.pmt / r.lucroMes) : '—'}
+      da geração mensal em regime; o restante permanece no caixa da empresa.
+    </div>
+    <div class="ep-bco-box">
+      <b>Garantias oferecidas.</b> Alienação fiduciária do equipamento financiado (número de série identificado na
+      nota fiscal) · aval dos sócios · seguro do ativo contra danos, furto e responsabilidade civil, com o agente
+      financeiro como beneficiário. Detalhamento na página 10.
+    </div>
+    ${foot(2)}
+  </div>
+
+  <div class="ep-page">
+    ${h('2 · Objeto', 'O proponente e o que será construído', 'Uma estação entregue em regime chave na mão, com responsabilidade técnica identificada — não um equipamento comprado avulso.')}
+    <div class="ep-bco-2col">
+      <div><div class="ep-bco-sec">Proponente</div>
+        <table class="ep-bco-t">
+          ${tr('Razão social', e(d.razao) || '—')}
+          ${tr('CNPJ', e(d.cnpj) || '—')}
+          ${tr('Local do investimento', e(d.cidade) || '—')}
+          ${tr('Endereço do ponto', e(d.endereco) || '—')}
+          ${tr('Regime tributário', 'Simples Nacional')}
+        </table></div>
+      <div><div class="ep-bco-sec">Executor da obra</div>
+        <table class="ep-bco-t">
+          ${tr('Empresa', 'Irmãos na Obra')}
+          ${tr('Responsabilidade técnica', 'Engenheiro do quadro, com ART')}
+          ${tr('Regime', 'Chave na mão')}
+          ${tr('Homologação na concessionária', 'Incluída')}
+          ${tr('Comissionamento', 'Incluído')}
+        </table></div>
+    </div>
+    <div class="ep-bco-sec">O modelo de receita</div>
+    <table class="ep-bco-t">
+      ${tr('Energia comprada da concessionária', money(r.custoKwh) + '/kWh')}
+      ${tr('Preço de revenda ao motorista', money(r.precoKwh) + '/kWh')}
+      ${tr('Taxa de ativação por recarga', money(r.ativacao))}
+      ${tr('Recargas por dia (regime pleno)', n1(r.carros, 0))}
+      ${tr('Energia vendida por mês', Math.round(r.kwhMes).toLocaleString('pt-BR') + ' kWh')}
+      ${tr('Faturamento mensal em regime', money(r.fatMes), 'tot')}
+    </table>
+    <div class="ep-bco-box">
+      <b>Não há venda a prazo, inadimplência de cliente nem estoque.</b> O pagamento é feito no aplicativo
+      <b>antes</b> da liberação da recarga, e a liquidação é feita pela plataforma diretamente na conta da empresa.
+    </div>
+    <div class="ep-bco-box">
+      <b>Regulação.</b> A revenda de energia para recarga de veículos elétricos é atividade livre, sem necessidade
+      de concessão, conforme Resolução Normativa ANEEL nº 1.000/2021, que consolidou a REN 819/2018. A instalação
+      segue a ABNT NBR 17019 e as normas da concessionária local, com parecer de acesso obtido pela executora
+      antes da energização.
+    </div>
+    ${foot(3)}
+  </div>
+
+  <div class="ep-page">
+    ${h('3 · Demanda', 'O número que sustenta a dívida', 'Nenhuma projeção de mercado precisa acertar para a parcela ser paga. O que precisa acontecer é isto: <b>' + n1(d.be100) + ' carros por dia</b>.')}
+    <div class="ep-bco-box">
+      <b>A pergunta invertida.</b> Um dossiê de crédito não deve pedir que o analista acredite numa projeção de
+      frota. Deve mostrar <b>quão pouco precisa acontecer</b> para a dívida ser honrada. A conta abaixo parte da
+      parcela e volta até o movimento — não o contrário.
+    </div>
+    <div class="ep-bco-sec">Quanto movimento a parcela exige</div>
+    <table class="ep-bco-t2">
+      <tr><th>Cenário</th><th class="n">Carros/dia</th><th class="n">Faturamento/mês</th><th class="n">Utilização em ${HORAS} h/dia</th></tr>
+      <tr><td>Para cobrir exatamente a parcela (ICSD 1,00×)</td><td class="n">${n1(d.be100)}</td><td class="n">${d.be100 == null ? '—' : m0(fatDe(d.be100))}</td><td class="n">${d.be100 == null ? '—' : p0(utiliz(d.be100))}</td></tr>
+      <tr><td>Para cobrir com folga de 20% (ICSD 1,20×)</td><td class="n">${n1(d.be120)}</td><td class="n">${d.be120 == null ? '—' : m0(fatDe(d.be120))}</td><td class="n">${d.be120 == null ? '—' : p0(utiliz(d.be120))}</td></tr>
+      <tr class="tot"><td>Premissa desta proposta</td><td class="n">${n1(r.carros, 0)}</td><td class="n">${m0(r.fatMes)}</td><td class="n">${p0(utiliz(r.carros))}</td></tr>
+    </table>
+    <p class="ep-bco-src">Ponto de equilíbrio calculado sobre o <b>ano 1</b>, que já inclui a rampa de ocupação — é o ano mais apertado do contrato. Utilização medida contra uma janela comercial de ${HORAS} horas por dia, e não 24, para não afirmar demanda vendável de madrugada.</p>
+    <div class="ep-bco-sec">Praça e concorrência — a ser preenchido pelo proponente</div>
+    <p class="ep-bco-src">O agente financeiro avalia a praça, não o mercado nacional. Este quadro deve ser preenchido com levantamento local antes do protocolo.</p>
+    <table class="ep-bco-t2">
+      <tr><th>Item</th><th>Levantamento</th></tr>
+      <tr><td>Estações públicas de recarga rápida num raio de 10 km</td><td class="ep-bco-fill"></td></tr>
+      <tr><td>Estação mais próxima — distância e potência</td><td class="ep-bco-fill"></td></tr>
+      <tr><td>Fluxo diário estimado da via / do estabelecimento</td><td class="ep-bco-fill"></td></tr>
+      <tr><td>Frota de veículos eletrificados no município</td><td class="ep-bco-fill"></td></tr>
+      <tr><td>Âncora de permanência no local</td><td class="ep-bco-fill"></td></tr>
+    </table>
+    ${foot(4)}
+  </div>
+
+  <div class="ep-page">
+    ${h('4 · Premissas', 'Todo número do modelo, com a origem de cada um', 'Nada nesta proposta é estimado sem estar nesta tabela.')}
+    <div class="ep-bco-sec">Operação</div>
+    <table class="ep-bco-t2">
+      <tr><th>Premissa</th><th class="n">Valor</th><th>Origem</th></tr>
+      <tr><td>Recargas por dia (regime pleno)</td><td class="n">${n1(r.carros, 0)}</td><td>Simulador do projeto</td></tr>
+      <tr><td>Energia média por recarga</td><td class="n">${n1(r.carga, 0)} kWh</td><td>recarga urbana típica</td></tr>
+      <tr><td>Energia vendida por mês</td><td class="n">${Math.round(r.kwhMes).toLocaleString('pt-BR')} kWh</td><td>calculado</td></tr>
+      <tr><td>Preço de revenda ao motorista</td><td class="n">${money(r.precoKwh)}/kWh</td><td>praticado no mercado de recarga rápida</td></tr>
+      <tr><td>Taxa de ativação por recarga</td><td class="n">${money(r.ativacao)}</td><td>tabela da executora</td></tr>
+      <tr><td>Custo de energia na concessionária</td><td class="n">${money(r.custoKwh)}/kWh</td><td><span class="ep-bco-flag">confirmar</span> validar com a fatura real do ponto</td></tr>
+      <tr><td>Ocupação no mês 1 → plena</td><td class="n">${p0(r.ocupIni)} → 100%</td><td>rampa linear em ${r.mesesRampa} meses</td></tr>
+    </table>
+    <div class="ep-bco-sec">Custos e tributos</div>
+    <table class="ep-bco-t2">
+      <tr><th>Premissa</th><th class="n">Valor</th><th>Origem</th></tr>
+      <tr><td>Plataforma de gestão e gateway</td><td class="n">${pc(r.gateway, 0)} do faturamento</td><td>contrato da plataforma</td></tr>
+      <tr><td>Tributos sobre o faturamento</td><td class="n">${pc(r.imposto, 0)}</td><td><span class="ep-bco-flag">confirmar</span> faixa do Simples, com o contador</td></tr>
+      <tr><td>Manutenção corretiva</td><td class="n">${pc(r.manut, 1)} do faturamento</td><td>${money(r.fatMes * r.manut)}/mês — atendimento pontual. <b>A manutenção efetiva está na reserva técnica</b>, abaixo</td></tr>
+      <tr><td>Arrendamento do ponto</td><td class="n">${pc(r.arrend, 0)}</td><td>${r.arrend > 0 ? 'cessão de espaço de terceiro' : 'imóvel do próprio proponente'}</td></tr>
+      <tr><td>Seguro do ativo</td><td class="n">${money(r.seguroMes)}/mês</td><td>1% a.a. do investimento, rateado</td></tr>
+      ${d.provisoes.map(x => `<tr><td>${e(x[0])}</td><td class="n">${money(x[1])}/mês</td><td><span class="ep-bco-flag">provisão</span> acrescida para esta análise</td></tr>`).join('')}
+      <tr class="tot"><td>Custos fixos mensais</td><td class="n">${money(r.fixosMes)}</td><td></td></tr>
+    </table>
+    <div class="ep-bco-box">
+      <b>O que o estudo de viabilidade não carrega — e esta proposta carrega.</b> O estudo comercial projeta apenas
+      gateway, tributos, manutenção e seguro. Para efeito de crédito isso é insuficiente: uma pessoa jurídica tem
+      despesas que a projeção comercial ignora. Foram acrescidas <b>${money(d.provTotal)}/mês</b> de provisões,
+      nomeadas acima. Os números deste documento são, portanto, <b>piores</b> que os do material comercial — de propósito.
+    </div>
+    <div class="ep-bco-box">
+      <b>Definição do fluxo usado como capacidade de pagamento.</b> Onde se lê "geração de caixa", entenda:
+      <b>resultado operacional antes da depreciação e antes do serviço da dívida</b>. Não há depreciação no fluxo
+      porque ela não consome caixa; a reposição de partes de desgaste está provisionada como custo fixo. Não há
+      necessidade de capital de giro porque o recebimento antecede a entrega da energia.
+    </div>
+    ${foot(5)}
+  </div>
+
+  <div class="ep-page">
+    ${h('5 · Projeção', 'Resultado mensal e fluxo de dez anos', '')}
+    <div class="ep-bco-2col">
+      <div><div class="ep-bco-sec">Demonstrativo mensal — regime pleno</div>
+        <table class="ep-bco-t">
+          ${tr('Venda de energia', money(r.kwhMes * r.precoKwh))}
+          ${tr('Taxa de ativação — ' + Math.round(sessoes) + ' recargas', money(sessoes * r.ativacao))}
+          ${tr('Faturamento bruto', money(r.fatMes), 'tot')}
+          ${tr('(−) Energia comprada', '−' + money(r.kwhMes * r.custoKwh))}
+          ${tr('(−) Plataforma e gateway', '−' + money(r.fatMes * r.gateway))}
+          ${tr('(−) Tributos', '−' + money(r.fatMes * r.imposto))}
+          ${tr('(−) Manutenção corretiva', '−' + money(r.fatMes * r.manut))}
+          ${r.arrend > 0 ? tr('(−) Arrendamento do ponto', '−' + money(r.fatMes * r.arrend)) : ''}
+          ${tr('(−) Custos fixos e provisões', '−' + money(r.fixosMes))}
+          ${tr('Geração de caixa operacional', money(r.lucroMes), 'tot')}
+          ${tr('(−) Serviço da dívida — parcela cheia', '−' + money(fin.pmt))}
+          ${tr('Sobra livre no caixa', money(r.lucroMes - fin.pmt), 'tot')}
+        </table>
+        <p class="ep-bco-src">Margem operacional de ${pc(r.margem)} sobre o faturamento.</p>
+      </div>
+      <div><div class="ep-bco-sec">Indicadores</div>
+        <table class="ep-bco-t">
+          ${tr('Investimento', money(r.investTotal))}
+          ${tr('Geração de caixa — ano 1', money(r.lucroAno1))}
+          ${tr('Geração de caixa — ano pleno', money(r.lucroAno))}
+          ${tr('Payback simples', r.payback == null ? '—' : n1(r.payback) + ' anos')}
+          ${tr('TIR do projeto', r.tir == null ? '—' : pc(r.tir) + ' a.a.')}
+          ${tr('Taxa de desconto adotada', pc(d.taxaAA, 0) + ' a.a.')}
+          ${tr('VPL em 10 anos', money(r.vpl), 'tot')}
+        </table>
+        <div class="ep-bco-box" style="margin-top:10px"><b>Sobre a taxa de desconto.</b> O VPL foi descontado a
+        <b>${pc(d.taxaAA, 0)} a.a.</b>, a mesma taxa da dívida pleiteada. Descontar o fluxo a uma taxa menor do que
+        a que se pagará ao banco produziria um VPL artificialmente favorável.</div>
+      </div>
+    </div>
+    <div class="ep-bco-sec">Fluxo de caixa — dez anos (milhares de reais)</div>
+    <table class="ep-bco-t2 ep-bco-num">
+      <tr><th>Ano</th>${cob.linhas.map(l => `<th class="n">${l.ano}</th>`).join('')}</tr>
+      <tr><td>Geração operacional</td>${cob.linhas.map(l => `<td class="n">${Math.round(l.geracao / 1000)}</td>`).join('')}</tr>
+      <tr><td>Serviço da dívida</td>${cob.linhas.map(l => `<td class="n">${l.servico > 0 ? '−' + Math.round(l.servico / 1000) : '—'}</td>`).join('')}</tr>
+      <tr><td>Sobra no caixa</td>${cob.linhas.map(l => `<td class="n">${Math.round(l.sobra / 1000)}</td>`).join('')}</tr>
+      <tr class="tot"><td>Acumulado, líquido da entrada</td>${(() => { let a = -d.entrada; return cob.linhas.map(l => { a += l.sobra; return `<td class="n">${Math.round(a / 1000)}</td>`; }).join(''); })()}</tr>
+    </table>
+    <p class="ep-bco-src">A linha acumulada parte de −${m0(d.entrada)}, a entrada desembolsada pelo proponente. A dívida se extingue no ano ${anosDiv}. O fluxo <b>não atribui valor de revenda ao equipamento</b> nem valor terminal ao negócio no ano 10 — ambos existem e foram deixados de fora por conservadorismo.</p>
+    ${foot(6)}
+  </div>
+
+  <div class="ep-page">
+    ${h('6 · Capacidade de pagamento', 'Cobertura do serviço da dívida', 'É a página que decide o crédito. O índice de cobertura (ICSD) compara a geração de caixa do período com a parcela do mesmo período.')}
+    <div class="ep-bco-sec">Primeiro ano, mês a mês — o período crítico</div>
+    <table class="ep-bco-t2 ep-bco-num">
+      <tr><th>Mês</th>${d.ano1.map(l => `<th class="n">${l.m}</th>`).join('')}</tr>
+      <tr><td>Ocupação</td>${d.ano1.map(l => `<td class="n">${p0(l.ocup)}</td>`).join('')}</tr>
+      <tr><td>Geração de caixa (mil)</td>${d.ano1.map(l => `<td class="n">${n1(l.ger / 1000)}</td>`).join('')}</tr>
+      <tr><td>Parcela (mil)</td>${d.ano1.map(l => `<td class="n">${n1(l.parcela / 1000)}</td>`).join('')}</tr>
+      <tr class="tot"><td>ICSD</td>${d.ano1.map(l => `<td class="n">${l.icsd == null ? '—' : n1(l.icsd, 2)}</td>`).join('')}</tr>
+    </table>
+    <p class="ep-bco-src">${d.carencia > 0 ? `Meses 1 a ${d.carencia}: carência de amortização, paga-se apenas o juro de ${money(fin.parcelaCarencia)}. A partir do mês ${d.carencia + 1}: parcela cheia de ${money(fin.pmt)}.` : `Sem carência: parcela cheia de ${money(fin.pmt)} desde o mês 1.`}</p>
+    <div class="ep-bco-sec">Cobertura ano a ano</div>
+    <table class="ep-bco-t2">
+      <tr><th>Ano</th><th class="n">Geração de caixa</th><th class="n">Juros</th><th class="n">Amortização</th><th class="n">Serviço da dívida</th><th class="n">Sobra</th><th class="n">ICSD</th><th class="n">Saldo devedor</th></tr>
+      ${cob.linhas.map(l => `<tr${l.ano === cob.anoCritico ? ' class="tot"' : ''}><td>${l.ano}</td><td class="n">${m0(l.geracao)}</td><td class="n">${l.juros > 0 ? m0(l.juros) : '—'}</td><td class="n">${l.amort > 0 ? m0(l.amort) : '—'}</td><td class="n">${l.servico > 0 ? m0(l.servico) : '—'}</td><td class="n">${m0(l.sobra)}</td><td class="n">${x2(l.icsd)}</td><td class="n">${m0(l.saldo)}</td></tr>`).join('')}
+    </table>
+    <div class="ep-bco-box">
+      <b>Leitura.</b> O menor índice de cobertura do contrato inteiro é <b>${x2(cob.icsdMin)}</b>, no ano ${cob.anoCritico || '—'}.
+      O critério usual de aprovação para financiamento de ativo produtivo situa-se entre 1,20× e 1,30×.
+      ${cob.icsdMin != null && cob.icsdMin >= 1.3 ? `A operação o supera em <b>${p0(cob.icsdMin / 1.3 - 1)}</b> mesmo contra o critério mais exigente.` : 'A operação fica no limite desse critério — ver as alternativas de estrutura na página seguinte.'}
+    </div>
+    ${foot(7)}
+  </div>
+
+  <div class="ep-page">
+    ${h('7 · Estrutura', 'Por que a carência de ' + d.carencia + ' meses não é cortesia', 'É a única cláusula da estrutura pleiteada que decorre de uma restrição do projeto, e não de preferência do proponente.')}
+    <div class="ep-bco-box">
+      <b>Uma estação de recarga não abre cheia.</b> A projeção parte de ${p0(r.ocupIni)} de ocupação no mês 1 e chega
+      a 100% no mês ${r.mesesRampa}. Com amortização desde o mês 1, a parcela cheia vence enquanto a estação ainda
+      opera abaixo da capacidade projetada. A carência é o que <b>casa o vencimento da dívida com a maturação do
+      ativo</b>; encurtá-la não melhora o risco do agente financeiro — piora, porque desloca o aperto para o período
+      em que o projeto ainda não tem receita.
+    </div>
+    <div class="ep-bco-sec">Cobertura conforme a taxa e a carência contratadas</div>
+    <table class="ep-bco-t2">
+      <tr><th>Taxa</th>${sensTaxa[0].cels.map(c => `<th class="n">Carência ${c.ca} meses</th>`).join('')}</tr>
+      ${sensTaxa.map(sv => `<tr${Math.abs(sv.tx - d.taxaAA) < 1e-9 ? ' class="tot"' : ''}><td>${pc(sv.tx, 0)} a.a.</td>${sv.cels.map(c => `<td class="n">${x2(c.icsdMin)} anual<br><span class="ep-bco-src">${x2(c.piorMes)} no pior mês${c.abaixo ? ' — ' + c.abaixo + ' abaixo de 1,00×' : ''}</span><br><span class="ep-bco-src">parcela ${m0(c.pmt)}</span></td>`).join('')}</tr>`).join('')}
+    </table>
+    <p class="ep-bco-src">Cada célula traz o ICSD mínimo anual, a cobertura do pior mês do primeiro ano e a parcela cheia correspondente. A linha em destaque é a estrutura pleiteada.</p>
+    <div class="ep-bco-box">
+      <b>Pedido objetivo ao agente financeiro.</b> Prazo total de <b>${d.prazo} meses</b> com
+      <b>${d.carencia} meses de carência de amortização</b>, juros pagos durante a carência (sem capitalização).
+      Se a política da instituição não admitir carência, a alternativa que preserva a cobertura é elevar a
+      participação própria — nunca encurtar o prazo.
+    </div>
+    ${foot(8)}
+  </div>
+
+  <div class="ep-page">
+    ${h('8 · Sensibilidade', 'O que precisa dar errado para a dívida apertar', 'Duas variáveis explicam quase toda a variação do resultado: o movimento e a tarifa de energia.')}
+    <div class="ep-bco-sec">Movimento abaixo do projetado</div>
+    <table class="ep-bco-t2">
+      <tr><th>Carros/dia</th><th class="n">Utilização em ${HORAS} h</th><th class="n">Faturamento/mês</th><th class="n">Geração de caixa/mês</th><th class="n">ICSD mínimo</th><th class="n">Payback</th></tr>
+      ${sensCarros.map(x => `<tr${x.c === Math.round(r.carros) ? ' class="tot"' : ''}><td>${x.c}${x.c === Math.round(r.carros) ? ' <span class="ep-bco-src">(premissa)</span>' : ''}</td><td class="n">${p0(utiliz(x.c))}</td><td class="n">${m0(x.fat)}</td><td class="n">${m0(x.lucro)}</td><td class="n">${x2(x.icsdMin)}</td><td class="n">${x.pb == null ? '—' : n1(x.pb) + ' anos'}</td></tr>`).join('')}
+    </table>
+    <div class="ep-bco-sec">Tarifa de energia acima do previsto</div>
+    <table class="ep-bco-t2">
+      <tr><th>Custo do kWh</th><th class="n">Variação</th><th class="n">Geração de caixa/mês</th><th class="n">Margem</th><th class="n">ICSD mínimo</th></tr>
+      ${sensTar.map(x => `<tr${Math.abs(x.t - r.custoKwh) < 1e-9 ? ' class="tot"' : ''}><td>${money(x.t)}</td><td class="n">${Math.abs(x.t - r.custoKwh) < 1e-9 ? '—' : (x.t > r.custoKwh ? '+' : '') + p0(x.t / r.custoKwh - 1)}</td><td class="n">${m0(x.lucro)}</td><td class="n">${pc(x.margem)}</td><td class="n">${x2(x.icsdMin)}</td></tr>`).join('')}
+    </table>
+    <div class="ep-bco-sec">Matriz de estresse — as duas premissas falhando juntas</div>
+    <table class="ep-bco-t2">
+      <tr><th>ICSD mínimo</th>${estresse[0].cels.map(c => `<th class="n">Energia a ${money(c.t)}/kWh</th>`).join('')}</tr>
+      ${estresse.map(x => `<tr${x.c === Math.round(r.carros) ? ' class="tot"' : ''}><td>${x.c} carros/dia</td>${x.cels.map(c => `<td class="n">${x2(c.icsdMin)}</td>`).join('')}</tr>`).join('')}
+    </table>
+    <p class="ep-bco-src">Sensibilidade de uma variável por vez sempre parece confortável; esta matriz cruza as duas ao mesmo tempo. O preço de revenda foi mantido <b>constante em dez anos</b>, sem correção pela inflação — na prática ele acompanha o custo, então a projeção real tende a ser melhor que a apresentada.</p>
+    ${foot(9)}
+  </div>
+
+  <div class="ep-page">
+    ${h('9 · Garantias e riscos', 'O que garante a operação e o que pode dar errado', 'Riscos declarados pelo proponente, com o mitigante correspondente.')}
+    <div class="ep-bco-sec">Garantias oferecidas</div>
+    <table class="ep-bco-t2">
+      <tr><th>Garantia</th><th>Detalhe</th></tr>
+      <tr><td><b>Alienação fiduciária</b></td><td>a estação de recarga financiada, identificada por número de série na nota fiscal</td></tr>
+      <tr><td><b>Aval dos sócios</b></td><td>solidário, com declaração de bens em anexo</td></tr>
+      <tr><td><b>Seguro do ativo</b></td><td>danos, furto, incêndio e responsabilidade civil, com o agente financeiro como beneficiário</td></tr>
+      <tr><td><b>Garantia real adicional</b></td><td class="ep-bco-fill"></td></tr>
+    </table>
+    <div class="ep-bco-sec">Riscos e mitigantes</div>
+    <table class="ep-bco-t2">
+      <tr><th style="width:26%">Risco</th><th>Mitigante</th></tr>
+      <tr><td><b>Movimento abaixo do projetado</b></td><td>o ponto de equilíbrio é de ${n1(d.be100)} carros/dia contra ${n1(r.carros, 0)} projetados; a estação opera desassistida, e movimento baixo não gera custo variável relevante</td></tr>
+      <tr><td><b>Elevação da tarifa de energia</b></td><td>repasse imediato ao preço de revenda, definido pelo operador no painel da plataforma; não há contrato de preço fixo com o consumidor final</td></tr>
+      <tr><td><b>Enquadramento tarifário</b></td><td>se a concessionária exigir atendimento em média tensão, passa a incidir demanda contratada como custo fixo adicional; o parecer de acesso confirma o enquadramento <b>antes</b> da energização</td></tr>
+      <tr><td><b>Tributação da revenda</b></td><td>o tratamento de ICMS e ISS sobre a recarga ainda comporta divergência entre unidades da federação; a alíquota adotada corresponde ao Simples Nacional e deve ser confirmada com o contador</td></tr>
+      <tr><td><b>Obsolescência do equipamento</b></td><td>o padrão CCS2 é o adotado pela quase totalidade da frota comercializada no país; o protocolo OCPP permite troca de plataforma sem troca de equipamento</td></tr>
+      <tr><td><b>Falha ou vandalismo</b></td><td>seguro do ativo com o agente financeiro como beneficiário, monitoramento remoto e reserva técnica de peças provisionada</td></tr>
+      <tr><td><b>Concentração em um único ponto</b></td><td>é o risco mais relevante desta operação: há um ativo e um endereço. O aval e a alienação fiduciária respondem por ele; o equipamento é removível e realocável</td></tr>
+      <tr><td><b>Atraso na execução</b></td><td>contrato de empreitada com escopo fechado e responsabilidade técnica por ART; a carência de ${d.carencia} meses absorve deslocamento de cronograma</td></tr>
+    </table>
+    <div class="ep-bco-box">
+      <b>Declaração de natureza das projeções.</b> As projeções deste documento decorrem das premissas declaradas
+      na página 5 e <b>não constituem promessa, garantia ou compromisso de rendimento</b>, seja do proponente,
+      seja da empresa executora da obra. Resultados efetivos dependem de movimento, tarifa de energia, condições
+      regulatórias e execução operacional. Este documento destina-se exclusivamente à análise de crédito e não
+      configura oferta pública de investimento.
+    </div>
+    ${foot(10)}
+  </div>
+
+  <div class="ep-page">
+    ${h('10 · Execução', 'Cronograma de desembolso e documentação', 'Como o recurso é liberado contra entrega física.')}
+    <div class="ep-bco-sec">Cronograma físico-financeiro</div>
+    <table class="ep-bco-t2">
+      <tr><th>Etapa</th><th>Entrega física</th><th class="n">Prazo</th><th class="n">% do recurso</th><th class="n">Valor</th></tr>
+      <tr><td><b>1 · Projeto e parecer de acesso</b></td><td>projeto elétrico com ART e protocolo na concessionária</td><td class="n">semanas 1–4</td><td class="n">10%</td><td class="n">${m0(d.financiado * 0.10)}</td></tr>
+      <tr><td><b>2 · Aquisição do equipamento</b></td><td>nota fiscal da estação em nome do proponente</td><td class="n">semanas 3–8</td><td class="n">45%</td><td class="n">${m0(d.financiado * 0.45)}</td></tr>
+      <tr><td><b>3 · Obra civil e entrada de energia</b></td><td>base, padrão de entrada, transformador e cabeamento</td><td class="n">semanas 6–12</td><td class="n">30%</td><td class="n">${m0(d.financiado * 0.30)}</td></tr>
+      <tr><td><b>4 · Montagem e comissionamento</b></td><td>estação energizada, testada e cadastrada na plataforma</td><td class="n">semanas 12–16</td><td class="n">15%</td><td class="n">${m0(d.financiado * 0.15)}</td></tr>
+      <tr class="tot"><td>Total</td><td>início da operação — mês 1 da projeção</td><td class="n">16 semanas</td><td class="n">100%</td><td class="n">${m0(d.financiado)}</td></tr>
+    </table>
+    <p class="ep-bco-src">Percentuais propostos pelo proponente e ajustáveis à política da instituição. A liberação por etapa contra comprovação física reduz a exposição do agente financeiro e alinha o crédito ao avanço da obra.</p>
+    <div class="ep-bco-2col">
+      <div><div class="ep-bco-sec">Documentos que acompanham</div>
+        <table class="ep-bco-t">
+          ${tr('Contrato social e alterações', 'anexo I')}
+          ${tr('Cartão CNPJ e certidões negativas', 'anexo II')}
+          ${tr('Faturamento dos últimos 12 meses', 'anexo III')}
+          ${tr('Declaração de bens dos avalistas', 'anexo IV')}
+          ${tr('Proposta comercial da executora', 'anexo V')}
+          ${tr('Projeto elétrico e ART', 'anexo VI')}
+          ${tr('Matrícula ou cessão do imóvel', 'anexo VII')}
+          ${tr('Fatura de energia do ponto', 'anexo VIII')}
+        </table></div>
+      <div><div class="ep-bco-sec">Linhas candidatas <span class="ep-bco-flag">a confirmar</span></div>
+        <table class="ep-bco-t">
+          ${tr('Financiamento de máquinas e equipamentos', 'bem')}
+          ${tr('Linhas de eficiência energética e baixo carbono', 'projeto')}
+          ${tr('Linhas de banco de desenvolvimento estadual', 'projeto')}
+          ${tr('Crédito direto ao consumidor PJ', 'bem')}
+          ${tr('Arrendamento mercantil (leasing)', 'bem')}
+        </table>
+        <p class="ep-bco-src">Taxa, prazo, carência e garantia variam conforme a linha e a política vigente. As condições da página 2 são <b>premissas de trabalho</b> e serão substituídas pelas efetivamente ofertadas.</p></div>
+    </div>
+    <div class="ep-bco-assin">
+      <div class="a"><b>${e(d.razao) || '&nbsp;'}</b><span>${d.cnpj ? 'CNPJ ' + e(d.cnpj) + ' · ' : ''}proponente</span></div>
+      <div class="a"><b>Irmãos na Obra</b><span>responsável técnico pela execução</span></div>
+    </div>
+    <p class="ep-bco-src" style="text-align:center;margin-top:10px">${e(d.cidade || '')}${d.cidade ? ', ' : ''}${e(dataTxt)}</p>
+    ${foot(11)}
+  </div>
+
+  </div>`;
+}
+
+function bcoImprimir() {
+  const d = bcoDados();
+  if (!(d.r.investTotal > 0)) { alert('Defina o "Valor do investimento" no Simulador antes de gerar a proposta bancária — é dele que sai todo o dossiê.'); return; }
+  if (!(d.r.carros > 0)) { alert('Defina a "Quantidade de carros por dia" no Simulador: sem movimento não há geração de caixa para comparar com a parcela.'); return; }
+  // A trava que impede o documento mais caro de sair errado: custo de energia de
+  // usina propria (~R$ 0,15/kWh) casado com investimento de eletroposto SOZINHO
+  // inventa uma margem de 70%+ que nao existe. Onde ha carport, o investimento
+  // sobe junto — ou o analista rejeita, e com razao.
+  if (d.r.custoKwh > 0 && d.r.custoKwh < 0.30 && d.r.investTotal <= 300000) {
+    alert('Confira o cenário antes de gerar.\n\nO custo de energia está em ' + ORC_MONEY(d.r.custoKwh) + '/kWh, que só se sustenta com geração própria (usina/carport). ' +
+          'Mas o investimento de ' + ORC_MONEY(d.r.investTotal) + ' é de eletroposto sozinho.\n\n' +
+          'Custo de energia e investimento têm de ser o MESMO cenário: ou some a usina ao investimento, ou use a tarifa da concessionária.');
+    return;
+  }
+  if (d.entradaPct <= 0) { alert('Nenhuma linha financia 100% de um ativo produtivo. Defina a participação própria — 20% é o usual.'); return; }
+  const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
+  epPreview({
+    html: bcoHTML(d),
+    arquivo: ['Proposta-Bancaria', limpa(d.razao) || limpa(d.cliente) || 'Cliente'].filter(Boolean).join('_'),
+    titulo: 'Proposta bancária' + (d.razao ? ' — ' + d.razao : ''),
+    opts: null,
+    hist: d.cliente ? { id: epId(), tipo: 'Proposta bancária', cliente: d.cliente, valor: d.financiado, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
   });
 }
 
