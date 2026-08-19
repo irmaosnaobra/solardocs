@@ -6,7 +6,12 @@
 // consultivos (energia solar da Irmãos na Obra e investidor de Eletroposto),
 // precisa DEPOSITAR o lead no mesmo CRM/agenda que o Meta Lead Ads (leadsMeta)
 // e a LP do eletroposto já usam — roteado pro consultor da vez, com aviso no
-// WhatsApp. O ManyChat só sabe fazer HTTP (External Request); ele NÃO escreve
+// WhatsApp.
+//
+// EXCEÇÃO DO ELETROPOSTO (19/08/2026): ele deixou de marcar agenda por aqui. O
+// lead de Instagram vira ficha e é convidado pra LP, que é onde a régua NOTA
+// 1/2/3 roda. Ver `registrarLeadIgParaLP` mais abaixo e o tick
+// `eletropostoIgConvite`. O solar segue igual. O ManyChat só sabe fazer HTTP (External Request); ele NÃO escreve
 // no Supabase direto (como a LP faz). Então ESTE endpoint recebe a ficha no
 // corpo e escreve o card ele mesmo.
 //
@@ -38,6 +43,9 @@ import {
   montarObservacaoSolar, organizarFicha, FieldItem,
   consumoTipico, TIME_CONTA_ALTA, KWH_CORTE_TIME,
 } from './leadSolarFicha';
+// Quem GRAVA a ficha de Instagram e quem MANDA o convite têm que concordar na
+// mesma palavra de origem — por isso ela vem de lá, não é literal daqui.
+import { ORIGEM_IG } from '../io/eletropostoIgConvite';
 
 // Telefone de cada consultor (mesmo mapa da Luma / leadsMeta / ioEletroposto).
 const TEL_CONSULTOR: Record<string, string> = {
@@ -195,6 +203,33 @@ async function avisarEletroposto(lead: {
   });
 }
 
+/**
+ * Lead de ELETROPOSTO que veio do Instagram: não marca agenda, mas a equipe
+ * fica sabendo. O aviso precisa dizer o que NÃO aconteceu — sem isso ele seria
+ * lido como a antiga "NOVA REUNIÃO" e alguém apareceria num horário que não existe.
+ */
+async function avisarLeadIgSemAgenda(lead: {
+  nome: string; whatsapp: string; cidade: string; capital: string; perfil: string; temperatura: string;
+}): Promise<void> {
+  const msg = [
+    `*LEAD DO INSTAGRAM — ELETROPOSTO*`,
+    `_Sem reunião marcada: ele foi convidado a preencher a LP, que é onde a régua roda._`,
+    ``,
+    `*Cliente:* ${lead.nome}`,
+    `*WhatsApp:* wa.me/${soDigitos(lead.whatsapp)}`,
+    `*Cidade/Ponto:* ${lead.cidade || '—'}`,
+    `*Perfil:* ${lead.perfil || '—'}`,
+    `*Investimento pretendido:* ${lead.capital || '—'}`,
+    ``,
+    `_Se ele preencher, a reunião nasce sozinha com a nota. Pra puxar antes, é na mão pelo link acima._`,
+  ].join('\n');
+  const alvos = [TEL_CONSULTOR.thiago, TEL_CONSULTOR.diego];
+  const envios = await Promise.allSettled(alvos.map((n) => sendWhatsApp(n, msg, 'io')));
+  envios.forEach((e, i) => {
+    if (e.status === 'rejected') logger.error('manychat-lead', `falha avisando lead IG #${i}`, e.reason);
+  });
+}
+
 /** Lead fora da área de atendimento: não agenda, mas avisa o Thiago pra não perder. */
 async function avisarForaArea(produto: string, nome: string, whatsapp: string, cidade: string): Promise<void> {
   const msg = [
@@ -317,15 +352,121 @@ async function ingestSolar(p: ManychatLeadPayload, nome: string, whatsapp: strin
   };
 }
 
+/**
+ * ELETROPOSTO DO INSTAGRAM NÃO MARCA AGENDA — VAI PRA LP (19/08/2026).
+ *
+ * Ordem do Thiago: "está chegando alguns curiosos de eletroposto e frios; eles
+ * têm que ser convencidos a passar pelo solardoc.app/io/eletroposto e não marcar
+ * agenda direta."
+ *
+ * O que este caminho fazia até hoje: quem largava um telefone num comentário ou
+ * numa DM abria uma REUNIÃO de verdade na agenda do Thiago ou do Diego. Os três
+ * cards que existem são a prova — os três `agendado`, cidade nula, capital nulo,
+ * ponto nulo, e a observação afirmando "Lead qualificado no Instagram" sobre um
+ * lead de quem a gente só tinha o número. O último ocupou as 8h da manhã.
+ *
+ * A régua que decide quem merece reunião (NOTA 1/2/3) mora DENTRO da LP: é ela
+ * que pergunta o local, o decisor, a entrada trifásica e devolve a simulação. A
+ * DM não pergunta nada disso — nenhum lead de Instagram tem como provar que é
+ * NOTA 2, nem o que vem do ManyChat com a faixa de capital respondida (faixa de
+ * dinheiro não é ponto definido). Por isso o corte é seco e vale pros três
+ * canais que caem aqui: comentário do IG, Messenger e webhook do ManyChat.
+ *
+ * O lead NÃO se perde: vira ficha em `eletroposto_nota1` com origem
+ * `instagram_dm`, e o tick eletropostoIgConvite manda UM convite pra página
+ * dentro da janela diurna (ver o arquivo dele pro porquê de não sair daqui).
+ *
+ * Kill-switch pra voltar ao comportamento antigo: EP_IG_AGENDA_DIRETA=1.
+ */
+async function registrarLeadIgParaLP(
+  p: ManychatLeadPayload, nome: string, whatsapp: string, temperatura: string,
+): Promise<IngestResult> {
+  const cidadePonto = (p.cidade || '').trim();
+  const capital = (p.capital || '').trim();
+  const perfil = (p.perfil || '').trim();
+
+  // Idempotência: a mesma pessoa comentando três vezes não vira três fichas nem
+  // três convites. Chave é DDD + 8 últimos, a mesma do CRM (donoDoTelefone) —
+  // e o DDD é confirmado AQUI, não no ilike: o PostgREST só sabe filtrar pelos 8
+  // últimos, e sem o DDD dois clientes de estados diferentes viram o mesmo, com
+  // o segundo sumindo em silêncio como "duplicado".
+  const chaveTel = (raw: unknown): string | null => {
+    const d = String(raw ?? '').replace(/\D/g, '').replace(/^55/, '');
+    return d.length < 10 ? null : d.slice(0, 2) + d.slice(-8);
+  };
+  const alvo = chaveTel(whatsapp);
+  const { data: jaTem } = await supabaseGerador
+    .from('eletroposto_nota1').select('id, telefone')
+    .eq('origem', ORIGEM_IG)
+    .ilike('telefone', `%${soDigitos(whatsapp).slice(-8)}`)
+    .limit(20);
+  if (alvo && (jaTem ?? []).some((f: { telefone?: string }) => chaveTel(f.telefone) === alvo)) {
+    return { ok: true, duplicado: true, produto: 'eletroposto', destino: 'LP', temperatura };
+  }
+
+  // A ficha guarda o que a DM realmente respondeu e NADA além. `invest`/`ponto`
+  // ficam vazios de propósito: o trigger do banco deriva os slugs dos RÓTULOS da
+  // LP ("Recurso próprio", "Já tenho o ponto definido"), e a DM pergunta outra
+  // coisa (faixa de dinheiro). Escrever ali faria a ficha aparecer na aba
+  // Investidores afirmando uma resposta que ninguém deu.
+  const ficha = [
+    `INSTAGRAM ELETROPOSTO — ${perfil || '—'}`,
+    `Investimento pretendido: ${capital || '—'}`,
+    `Cidade/ponto informado: ${cidadePonto || '—'}`,
+    `Chegou por: DM/comentário do Instagram (${p.contact_id || 'sem contact_id'})`,
+    `→ Sem reunião marcada: convidado a preencher a LP (é lá que a régua roda)`,
+  ].join('\n');
+
+  const { data, error } = await supabaseGerador
+    .from('eletroposto_nota1')
+    .insert({
+      nome, telefone: whatsapp,
+      cidade: cidadePonto || null,
+      perfil: perfil || null,
+      email: p.email || null,
+      ficha,
+      origem: ORIGEM_IG,
+      utm_source: 'instagram',
+      utm_medium: 'dm',
+    })
+    .select('id')
+    .single();
+
+  if (error) {
+    logger.error('manychat-lead', 'erro gravando ficha de IG do eletroposto', error);
+    return { ok: false, motivo: 'erro ao gravar ficha' };
+  }
+
+  // O aviso continua saindo, mudou o que ele diz. Thiago reclamou de curioso na
+  // AGENDA, não de deixar de saber que o lead existe — e diferente da recusa em
+  // massa da LP (onde o silêncio foi decisão de 18/08), aqui tem uma pessoa que
+  // entregou o telefone na DM. O recado é interno, pra 2 contatos salvos, e diz
+  // na cara que NÃO há reunião: quem quiser puxar na mão tem o número.
+  await avisarLeadIgSemAgenda({ nome, whatsapp, cidade: cidadePonto, capital, perfil, temperatura });
+
+  logger.info('manychat-lead', `eletroposto/IG: ${nome} (${temperatura}) → ficha ${data?.id}, convite da LP na fila`);
+  return {
+    ok: true, produto: 'eletroposto', destino: 'LP', temperatura,
+    motivo: 'lead de Instagram não marca agenda direta — convidado pra LP',
+  };
+}
+
 async function ingestEletroposto(p: ManychatLeadPayload, nome: string, whatsapp: string): Promise<IngestResult> {
   const cidadePonto = (p.cidade || '').trim();
   const capital = (p.capital || '').trim();
   const perfil = (p.perfil || '').trim();
   const temperatura = tempEletroposto(capital);
+  const agendaDireta = (process.env.EP_IG_AGENDA_DIRETA || '').trim() === '1';
 
   if (p.test) {
-    return { ok: true, test: true, produto: 'eletroposto', destino: 'GERADOR', temperatura };
+    return {
+      ok: true, test: true, produto: 'eletroposto',
+      destino: agendaDireta ? 'GERADOR' : 'LP', temperatura,
+      ...(agendaDireta ? {} : { motivo: 'lead de Instagram não marca agenda direta — convidado pra LP' }),
+    };
   }
+
+  if (!agendaDireta) return registrarLeadIgParaLP(p, nome, whatsapp, temperatura);
 
   // Idempotência: card manychat_eletroposto do mesmo telefone nas últimas 24h.
   const desde = new Date(Date.now() - 24 * 3600 * 1000).toISOString();

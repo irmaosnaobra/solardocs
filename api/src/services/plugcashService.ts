@@ -245,8 +245,13 @@ export async function snapshotQualificacao(telefone: string | null) {
   try {
     // NOTA 1 primeiro: é o público do PlugCash. Quem agendou só cai no
     // `agendamentos` como plano B.
+    // `origem=lp_eletroposto`: a regra "NOTA 1 primeiro" só vale enquanto esta
+    // tabela significar "quem a LP recusou". Desde 19/08 ela guarda também o lead
+    // da DM do Instagram, que é nota 1 sem pts — e ele ganharia do card de quem
+    // preencheu a LP depois e virou NOTA 3. Ver o mesmo escopo em routes/plugcash.
     const { data: n1 } = await supabaseGerador
       .from('eletroposto_nota1').select(`id,pontuacao_total:pts,${campos}`)
+      .eq('origem', 'lp_eletroposto')
       .eq('telefone_norm', norm).order('id', { ascending: false }).limit(1).maybeSingle();
     if (n1) return { ...(n1 as any), origem_tabela: 'eletroposto_nota1', origem_id: (n1 as any).id };
 

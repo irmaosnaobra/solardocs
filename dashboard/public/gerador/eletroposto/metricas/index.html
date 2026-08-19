@@ -177,7 +177,10 @@ async function carregar(){
   const [fichas, nota1] = await Promise.all([
     supa('agendamentos?select=created_at,nota,pontuacao_total,motivo_descarte,utm_content,created_by,status'
          + '&created_by=like.*eletroposto*&' + filtro + '&limit=5000'),
-    supa('eletroposto_nota1?select=created_at,nota,pts,motivo_descarte,utm_content&' + filtro + '&limit=5000'),
+    // `origem=eq.lp_eletroposto`: esta tela mede a LP. Desde 19/08 a mesma tabela
+    // guarda o lead que veio da DM do Instagram (origem `instagram_dm`), que nunca
+    // abriu a página — contá-lo aqui inventaria NOTA 1 que a régua nunca avaliou.
+    supa('eletroposto_nota1?select=created_at,nota,pts,motivo_descarte,utm_content&origem=eq.lp_eletroposto&' + filtro + '&limit=5000'),
   ]);
   dados = { fichas, nota1 };
   desenhar();

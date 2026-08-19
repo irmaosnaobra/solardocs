@@ -2815,6 +2815,16 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-fantasia" placeholder="AIOROS GROUP LTDA" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>CNPJ <span style="opacity:.6;font-weight:600">(só no contrato)</span></label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-cnpj" placeholder="00.000.000/0000-00" oninput="orcEmitSalvar()"></div></div>
+        <div class="eletro-field"><label>Sócio administrador — nome</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-socio" placeholder="quem assina pela empresa" oninput="orcEmitSalvar()"></div></div>
+        <div class="eletro-field"><label>Sócio administrador — CPF</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-socioCpf" placeholder="000.000.000-00" oninput="orcEmitSalvar()"></div></div>
+        <div class="eletro-field"><label>Chave Pix para recebimento</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-pix" placeholder="CNPJ, telefone, e-mail ou chave aleatória" oninput="orcEmitSalvar()"></div></div>
+        <div class="eletro-field"><label>Banco / agência / conta</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-conta" placeholder="Ex: Sicoob 756 · ag 4264 · cc 168882" oninput="orcEmitSalvar()"></div></div>
+        <div class="orc-note">Aparecem <b>só no recibo</b>, e só se preenchidos. Hoje o recibo anuncia o saldo a pagar e não diz para onde mandar — o cliente termina de ler pronto para pagar e precisa procurar o consultor.</div>
+        <div class="orc-note">Empresa não assina sozinha. O contrato já <b>exige</b> o representante legal do cliente — a exigência vale para os dois lados, e a proposta de banco diz "assinada pelo seu representante legal" sobre uma linha que hoje não nomeia ninguém.</div>
         <div class="orc-note">O <b>orçamento</b> continua saindo com a marca e sem CNPJ, como você pediu. Estes dois só aparecem no <b>contrato</b>, porque quem assina contrato é a <b>pessoa jurídica</b> — "Irmãos na Obra" é marca, não é parte. Preencha uma vez: fica salvo.</div>
       </div>
 
@@ -8581,7 +8591,7 @@ function orcPgToggle() {
 // localStorage do emitente, porque sao dados da EMPRESA e nao do cliente —
 // preenche uma vez e vale pra toda procuracao.
 function orcEmitCampos() {
-  return ['nome', 'end', 'cidade', 'tel', 'email', 'cnpj', 'razao', 'fantasia',
+  return ['nome', 'end', 'cidade', 'tel', 'email', 'cnpj', 'razao', 'fantasia', 'socio', 'socioCpf', 'pix', 'conta',
           'engNome', 'engNac', 'engEc', 'engProf', 'engRg', 'engCpf', 'engCrea', 'engEnd',
           'tecNome', 'tecNac', 'tecEc', 'tecCrt', 'tecRg', 'tecCpf', 'tecEnd'];
 }
@@ -8598,7 +8608,7 @@ function orcEmitCarregar() {
   // vai em toda nota fiscal). Ficam de default pra nenhum contrato sair sem a
   // qualificação da parte só porque ninguém preencheu o cadastro neste aparelho.
   const def = { nome: 'Irmãos na Obra — Mobilidade Elétrica', end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'contato@irmaosnaobra.com.br',
-                cnpj: '63.636.043/0001-88', razao: 'AIOROS LTDA', fantasia: 'AIOROS GROUP LTDA' };
+                cnpj: '63.636.043/0001-88', razao: 'AIOROS LTDA', fantasia: 'AIOROS GROUP LTDA', socio: '', socioCpf: '', pix: '', conta: '' };
   orcEmitCampos().forEach(k => {
     const el = document.getElementById('orc-emit-' + k);
     if (el) el.value = (o[k] != null && o[k] !== '') ? o[k] : (def[k] || '');
@@ -8921,6 +8931,7 @@ function epEmitGet() {
   // concessionaria e' problema de outra ordem.
   const def = { nome: 'Irmãos na Obra — Mobilidade Elétrica', end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'contato@irmaosnaobra.com.br',
                 cnpj: '63.636.043/0001-88', razao: 'AIOROS LTDA', fantasia: 'AIOROS GROUP LTDA',
+                socio: '', socioCpf: '', pix: '', conta: '',
                 engNome: 'Guilherme Dornelas Ferreira', engNac: 'brasileiro', engEc: 'solteiro',
                 engProf: 'Engenheiro Eletricista', engRg: '', engCpf: '048.959.171-00',
                 engCrea: 'CREA-DF 27202', engEnd: 'Rua 19 Norte, lote 02, Águas Claras, Brasília/DF',
@@ -9602,6 +9613,10 @@ function recDados() {
     num: orcVal('rec-num'),
     data: new Date(dISO + 'T00:00:00'),
     // O CAMPO manda. Vazio sai como lacuna, nao como o dado do Orcamento.
+    // Dados de recebimento: entram no recibo so' quando ha' saldo e so' se
+    // preenchidos no cadastro da empresa.
+    pix: (epEmitGet().pix || '').trim(), conta: (epEmitGet().conta || '').trim(),
+    empresa: epEmitGet(),
     cliente: orcVal('rec-cli-nome'), cidade: t.cidade, equip: t.equip,
     doc: orcVal('rec-cli-doc'), end: orcVal('orc-cli-end'),
     base, sinal, saldo: Math.max(0, base - sinal), pct: orcNum(orcVal('rec-pct')),
@@ -9696,6 +9711,7 @@ function recHTML(d) {
         <li><b>O que este valor cobre.</b> ${e(fimCap)}, incluindo o recolhimento da ART e o protocolo junto à concessionária.</li>
         <li><b>Desistência.</b> ${e(d.desist)}</li>
         <li><b>Exigência da concessionária.</b> Havendo exigência ou reprovação por causa não imputável ao contratante, as adequações e a reapresentação do projeto são feitas <b>sem custo adicional</b>.</li>`}
+        ${!d.avulso && d.saldo > 0 && (d.pix || d.conta) ? `<li><b>Para pagar o saldo.</b> ${d.pix ? `Pix: <b>${e(d.pix)}</b>` : ''}${d.pix && d.conta ? ' · ' : ''}${d.conta ? e(d.conta) : ''}${d.empresa && d.empresa.razao ? ` — em nome de ${e(d.empresa.razao)}` : ''}.</li>` : ''}
         <li><b>Documento fiscal.</b> Este recibo não substitui documento fiscal; a nota fiscal correspondente é emitida na forma da legislação.</li>
         ${d.obs ? `<li><b>Observações.</b> ${e(d.obs)}</li>` : ''}
       </ol>
@@ -10402,7 +10418,7 @@ function ctrHTML(d) {
     <div class="ep-page">
       ${cl(6, 'Das obrigações do CONTRATANTE')}
       ${li('6.1', 'Disponibilizar o local da instalação livre e desimpedido, com acesso para equipe, veículos e equipamentos.')}
-      ${li('6.2', 'Fornecer a documentação necessária ao projeto e à homologação: titularidade do imóvel ou autorização do proprietário, conta de energia, autorização do titular da unidade consumidora quando esta estiver em nome de terceiro, e dados cadastrais.')}
+      ${li('6.2', 'Fornecer, em até <b>5 (cinco) dias úteis</b> contados da assinatura, a documentação necessária ao projeto e à homologação: titularidade do imóvel ou autorização do proprietário, conta de energia, autorização do titular da unidade consumidora quando esta estiver em nome de terceiro, e dados cadastrais. Vencido o prazo sem a entrega, os prazos da CONTRATADA ficam suspensos na forma da Cláusula 4.3, sem prejuízo do reajuste de custos de equipamento que decorrer da demora.')}
       ${li('6.3', 'Contratar junto à concessionária a demanda de energia compatível com a potência instalada e arcar com o consumo.')}
       ${li('6.4', 'Efetuar os pagamentos nas datas acordadas.')}
 
@@ -10440,7 +10456,7 @@ function ctrHTML(d) {
 
       <div class="ep-ctr-fim">
         <div class="ep-ctr-assin">
-          <div class="a"><b>${vazio(d.empresa.razao || d.empresa.nome)}</b>${d.empresa.cnpj ? `<span>CNPJ ${e(d.empresa.cnpj)}</span>` : ''}CONTRATADA</div>
+          <div class="a"><b>${vazio(d.empresa.razao || d.empresa.nome)}</b>${d.empresa.cnpj ? `<span>CNPJ ${e(d.empresa.cnpj)}</span>` : ''}${d.empresa.socio ? `<span>neste ato representada por ${e(d.empresa.socio)}${d.empresa.socioCpf ? ', CPF ' + e(d.empresa.socioCpf) : ''}</span>` : ''}CONTRATADA</div>
           <div class="a"><b>${vazio(d.contratante)}</b>${d.contratanteDoc ? `<span>CPF/CNPJ ${e(d.contratanteDoc)}</span>` : ''}${d.rep ? e(d.rep) + '<br>' : ''}CONTRATANTE</div>
         </div>
       </div>
@@ -11553,7 +11569,7 @@ function bnkHTML(d) {
   const foot = n => `<div class="ep-pagefoot"><span class="ep-foot-esq">${EP_FOOT_LOGO}<span>Proposta de banco${d.cliente ? ' · ' + e(d.cliente) : ''}</span></span><span>Página ${n} de 2</span></div>`;
   const assina = () => `<div class="ep-bnk-assin">
       <div class="a"><span class="l"></span><b>${e((d.cliente || '').toUpperCase())}</b><span>${e(d.doc || '')}</span></div>
-      <div class="a"><span class="l"></span><b>${e((emp.razao || emp.fantasia || '').toUpperCase())}</b><span>${e(emp.cnpj || '')}</span></div>
+      <div class="a"><span class="l"></span><b>${e((emp.razao || emp.fantasia || '').toUpperCase())}</b><span>${e(emp.cnpj || '')}</span>${emp.socio ? `<span>${e(emp.socio)}${emp.socioCpf ? ' · CPF ' + e(emp.socioCpf) : ''} — representante legal</span>` : ''}</div>
     </div>`;
   // Bairro tem linha PROPRIA no formulario do banco: concatenar aqui tambem
   // imprimia "Granville" duas vezes na mesma folha.

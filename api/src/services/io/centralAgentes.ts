@@ -23,6 +23,7 @@ import { tetosVigentesLinha } from '../agents/whatsapp/lineThrottle';
 import { MAX_CARLA_POR_HORA } from '../agents/whatsapp/carlaThrottle';
 import { solardocViaIo } from '../agents/zapiClient';
 import { EP_ORIGENS, EP_AGENDA_INICIO, EP_AGENDA_PREFIX } from './eletropostoAgenda';
+import { ORIGEM_IG } from './eletropostoIgConvite';
 import { SOLAR_ORIGENS, SOLAR_BOASVINDAS_INICIO, SOLAR_ENTREGA_AMPLA_INICIO } from './solarBoasVindas';
 import {
   consumoTipico, KWH_CORTE_TIME, TIME_CONTA_ALTA, TIME_CONTA_BAIXA,
@@ -255,7 +256,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
   const epDesde = desde30 > EP_AGENDA_INICIO ? desde30 : EP_AGENDA_INICIO;
   const [
     igEnviadas30, igRespostas30, igLinks30, inbound24, inbound7,
-    fichasEletro30, nota1_30, nota1SemConvite, indicacoes30, respostasBlast,
+    fichasEletro30, nota1_30, nota1SemConvite, ig30, igSemConvite, indicacoes30, respostasBlast,
     prospTotal, prospToques, seqAtivas, disparosRodando, igAutomacoes,
     epReunioesFuturas, epFuturasConfirmadas, epPresencaConfirmada, epLembretes5min30d, epUltimoToque,
     solarCadastros30, solarBoasVindas30, solarUltimoToque, roteamento,
@@ -272,8 +273,15 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
     contar('sdr_message_dedup', (q: any) => q.gte('processed_at', new Date(agora - D).toISOString())),
     contar('sdr_message_dedup', (q: any) => q.gte('processed_at', new Date(agora - 7 * D).toISOString())),
     contarGerador('agendamentos', (q: any) => q.eq('created_by', 'lp_eletroposto').gte('created_at', desde30)),
-    contarGerador('eletroposto_nota1', (q: any) => q.gte('created_at', desde30)),
-    contarGerador('eletroposto_nota1', (q: any) => q.is('convite_enviado_at', null)),
+    // Os dois contadores da LP são escopados por `origem`: desde 19/08 a mesma
+    // tabela guarda o lead que veio da DM do Instagram, e ele tem convite PRÓPRIO
+    // (a LP, não o grupo). Sem o escopo, "Nota 1 sem convite" — cujo sub diz
+    // "zero é o esperado" — acenderia alerta vermelho no primeiro lead de
+    // Instagram, cobrando dele um convite de grupo que não existe desde 17/08.
+    contarGerador('eletroposto_nota1', (q: any) => q.eq('origem', 'lp_eletroposto').gte('created_at', desde30)),
+    contarGerador('eletroposto_nota1', (q: any) => q.eq('origem', 'lp_eletroposto').is('convite_enviado_at', null)),
+    contarGerador('eletroposto_nota1', (q: any) => q.eq('origem', ORIGEM_IG).gte('created_at', desde30)),
+    contarGerador('eletroposto_nota1', (q: any) => q.eq('origem', ORIGEM_IG).is('convite_enviado_at', null)),
     contar('io_indicacoes', (q: any) => q.gte('created_at', desde30)),
     contar('io_blast_respostas', (q: any) => q.eq('atendido', false)),
     contarGerador('prospeccao_contatos', (q: any) => q),
@@ -575,11 +583,17 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         { label: 'Fichas nota 2/3 (30d)', valor: fichasEletro30 },
         { label: 'Nota 1 capturados (30d)', valor: nota1_30 },
         { label: 'Nota 1 sem convite', valor: nota1SemConvite, sub: 'zero é o esperado' },
+        { label: 'Do Instagram (30d)', valor: ig30, sub: 'não marcam agenda: vão pra LP' },
+        { label: 'Instagram na fila do convite', valor: igSemConvite, sub: '1 a cada 10 min, 9h–19h' },
       ],
       toques: [
         { titulo: 'convite do grupo (nota 1)', quando: 'segundos depois da simulação', copy: '5 bolhas: explica que o passo é definir o local e entrega o link do grupo gratuito.' },
+        { titulo: 'convite da LP (Instagram)', quando: 'na vez dele na fila, 9h–19h', copy: 'Uma bolha: quem veio da DM não marca agenda direta — recebe o link da LP pra simular e escolher o horário lá.' },
         { titulo: 'aviso da equipe', quando: 'assim que a ficha entra', copy: 'Card com selo da nota, pontuação e dados do ponto pro WhatsApp do Thiago e do Diego.' },
       ],
+      // Fila de Instagram NÃO é alerta: ela é o estado normal de quem acabou de
+      // chegar e ainda não chegou a vez dele. Só o convite da LP que nunca saiu
+      // é notícia, e quem conta isso é o `convite_erro` da ficha.
       alerta: (nota1SemConvite ?? 0) > 0 ? `${nota1SemConvite} lead(s) nota 1 estão sem o convite do grupo.` : undefined,
     },
     {

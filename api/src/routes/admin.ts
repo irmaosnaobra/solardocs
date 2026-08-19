@@ -801,6 +801,11 @@ router.get('/nota1-funil', async (req: Request, res: Response): Promise<void> =>
       supabaseGerador
         .from('eletroposto_nota1')
         .select('created_at, nome, telefone, cidade, pts, motivo_descarte, origem')
+        // Só quem foi recusado PELA LP. Desde 19/08 a tabela guarda também o lead
+        // que veio da DM do Instagram (origem `instagram_dm`) e nunca abriu a
+        // página — contá-lo como "mandado" faria a conversão desta tela despencar
+        // por gente que nunca esteve no funil que ela mede.
+        .eq('origem', 'lp_eletroposto')
         .gte('created_at', desde)
         .order('created_at', { ascending: false }),
       supabase

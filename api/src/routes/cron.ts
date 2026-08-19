@@ -40,6 +40,7 @@ import { runEletropostoAgendaTick } from '../services/io/eletropostoAgenda';
 import { runEletropostoRespostasTick } from '../services/io/eletropostoRespostas';
 import { runEletropostoNoShowTick } from '../services/io/eletropostoNoShow';
 import { runEletropostoCardPingTick } from '../services/io/eletropostoCardPing';
+import { runEletropostoIgConviteTick, publicoIgConvite, bolhaConviteLP } from '../services/io/eletropostoIgConvite';
 import { runSolarBoasVindasTick } from '../services/io/solarBoasVindas';
 import { runSolarRespostasTick } from '../services/io/solarRespostas';
 import { runNilceParaGiovanna } from '../services/agenda/nilceParaGiovanna';
@@ -277,7 +278,14 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // abaixo, senão a pessoa que acabou de pedir "pare" recebe o próximo slot.
     const blastRespResult = await runBlastRespostas().catch((e) => ({ error: String(e) }));
 
-    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, geradorSeqResult, igDrainResult, fbComentResult, fbInboxResult, repescagemResult, conviteResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult, solarBvResult, solarRespResult, curso19Result, carlaCnpjResult, carlaInativoResult] = await Promise.allSettled([
+    // ── A ORDEM DESTA LISTA É O CONTRATO ─────────────────────────────────────
+    // Os nomes à esquerda casam por POSIÇÃO com as chamadas abaixo. Até 19/08 a
+    // lista tinha 25 nomes pra 27 chamadas: tudo a partir do 11º vinha rotulado
+    // errado na resposta (o `gerador_seq` mostrava o resultado do LimpaPro, e as
+    // duas últimas cadências não apareciam). Os ticks sempre rodaram — quem
+    // mentia era o relatório, que é justamente onde a gente vai olhar quando
+    // desconfiar de um tick. Nome novo aqui exige chamada nova na MESMA posição.
+    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, limpaproAtendResult, geradorSeqResult, igDrainResult, fbComentResult, fbInboxResult, repescagemResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult, epNoShowResult, epCardPingResult, epIgConviteResult, solarBvResult, solarRespResult, curso19Result, carlaCnpjResult, carlaInativoResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),            // detecta inbound IO pra Cora processar
@@ -307,6 +315,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       runEletropostoRespostasTick(),   // eletroposto: lead respondeu a automação → recado pro Thiago e pro Diego
       runEletropostoNoShowTick(),      // eletroposto: card vermelho → 3 convites pra remarcar, com horários novos (EP_NOSHOW_OFF desliga)
       runEletropostoCardPingTick(),    // eletroposto: card que trocou de dono no repasse de 12h chega de novo no WhatsApp de quem está com ele (EP_CARD_PING_OFF desliga)
+      runEletropostoIgConviteTick(),   // eletroposto: lead que veio do Instagram não marca agenda — recebe UM convite pra LP (EP_IG_CONVITE_OFF desliga)
       runSolarBoasVindasTick(),        // solar: quem acabou de se cadastrar recebe o consultor, o contato e a pergunta do consumo (SOLAR_BOASVINDAS_OFF desliga)
       runSolarRespostasTick(),         // solar: cliente respondeu as boas-vindas → recado pro consultor dono da ficha
       // [06/08] As três cadências da linha B2B passam a drenar AQUI também, não só no
@@ -334,16 +343,19 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       recup_seeds:    recupSeedsResult.status === 'fulfilled' ? recupSeedsResult.value : { error: String((recupSeedsResult as any).reason) },
       recup_consumer: recupConsumerResult.status === 'fulfilled' ? recupConsumerResult.value : { error: String((recupConsumerResult as any).reason) },
       bia_poll:       biaPollResult.status === 'fulfilled' ? biaPollResult.value : { error: String((biaPollResult as any).reason) },
+      limpapro_atend: limpaproAtendResult.status === 'fulfilled' ? limpaproAtendResult.value : { error: String((limpaproAtendResult as any).reason) },
       gerador_seq:    geradorSeqResult.status === 'fulfilled' ? geradorSeqResult.value : { error: String((geradorSeqResult as any).reason) },
       ig_drain:       igDrainResult.status === 'fulfilled' ? igDrainResult.value : { error: String((igDrainResult as any).reason) },
       fb_comentarios: fbComentResult.status === 'fulfilled' ? fbComentResult.value : { error: String((fbComentResult as any).reason) },
       fb_inbox:       fbInboxResult.status === 'fulfilled' ? fbInboxResult.value : { error: String((fbInboxResult as any).reason) },
       ep_repescagem:  repescagemResult.status === 'fulfilled' ? repescagemResult.value : { error: String((repescagemResult as any).reason) },
-      ep_convite:     conviteResult.status === 'fulfilled' ? conviteResult.value : { error: String((conviteResult as any).reason) },
       semente:        sementeResult.status === 'fulfilled' ? sementeResult.value : { error: String((sementeResult as any).reason) },
       ep_grupo_frio:  grupoFrioResult.status === 'fulfilled' ? grupoFrioResult.value : { error: String((grupoFrioResult as any).reason) },
       ep_agenda:      epAgendaResult.status === 'fulfilled' ? epAgendaResult.value : { error: String((epAgendaResult as any).reason) },
       ep_respostas:   epRespostasResult.status === 'fulfilled' ? epRespostasResult.value : { error: String((epRespostasResult as any).reason) },
+      ep_noshow:      epNoShowResult.status === 'fulfilled' ? epNoShowResult.value : { error: String((epNoShowResult as any).reason) },
+      ep_card_ping:   epCardPingResult.status === 'fulfilled' ? epCardPingResult.value : { error: String((epCardPingResult as any).reason) },
+      ep_ig_convite:  epIgConviteResult.status === 'fulfilled' ? epIgConviteResult.value : { error: String((epIgConviteResult as any).reason) },
       solar_boas_vindas: solarBvResult.status === 'fulfilled' ? solarBvResult.value : { error: String((solarBvResult as any).reason) },
       solar_respostas:   solarRespResult.status === 'fulfilled' ? solarRespResult.value : { error: String((solarRespResult as any).reason) },
       curso19:        curso19Result.status === 'fulfilled' ? curso19Result.value : { error: String((curso19Result as any).reason) },
@@ -407,6 +419,24 @@ router.get('/eletroposto-grupo-frios', async (req: Request, res: Response) => {
     res.json({ ok: true, dry, ...(await runGrupoFriosTick({ dry })) });
   } catch (err: any) {
     logger.error('cron', 'eletroposto-grupo-frios falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
+// ── Convite pra LP de quem veio do Instagram (não marca agenda direta) ───────
+// ?publico=1 lista quem está na fila e a mensagem que sai, sem enviar.
+router.get('/eletroposto-ig-convite', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    if (req.query.publico === '1') {
+      const p = await publicoIgConvite();
+      res.json({ ok: true, total: p.length, amostra: p.slice(0, 20), exemplo: p[0] ? bolhaConviteLP(p[0].nome) : [] });
+      return;
+    }
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    res.json({ ok: true, dry, ...(await runEletropostoIgConviteTick({ dry })) });
+  } catch (err: any) {
+    logger.error('cron', 'eletroposto-ig-convite falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });
@@ -991,6 +1021,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['eletroposto-respostas',       () => runEletropostoRespostasTick()], // eletroposto: quem respondeu a automação vira recado pra equipe
     ['eletroposto-noshow',          () => runEletropostoNoShowTick()],    // eletroposto: repescagem do card vermelho (3 convites pra remarcar)
     ['eletroposto-card-ping',       () => runEletropostoCardPingTick()],  // eletroposto: reenvia o card pro consultor quando o repasse de 12h troca o dono
+    ['eletroposto-ig-convite',      () => runEletropostoIgConviteTick()], // eletroposto: lead de Instagram não marca agenda — recebe UM convite pra LP (EP_IG_CONVITE_OFF desliga)
     ['solar-boas-vindas',           () => runSolarBoasVindasTick()],     // solar: recibo do cadastro pro cliente (SOLAR_BOASVINDAS_OFF desliga)
     ['solar-respostas',             () => runSolarRespostasTick()],      // solar: resposta do cliente vira recado pro consultor dono
     ['dunning',                     () => runDunning()],            // 5 dias: D0-D4 lembrete, D5 cancela+free

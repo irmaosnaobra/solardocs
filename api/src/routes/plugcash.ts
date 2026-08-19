@@ -276,8 +276,15 @@ async function qualificacaoDoTelefone(telefone: string | null) {
     // Em `eletroposto_nota1` a pontuação mora em `pts` — coluna que já existia
     // antes da migration. O alias do PostgREST devolve os dois lados com o mesmo
     // nome, e `pc_membros` recebe um formato só.
+    // `origem=lp_eletroposto` porque a REGRA aqui é "nota 1 ganha do agendamento",
+    // e ela só vale enquanto esta tabela significar "quem a LP recusou". Desde
+    // 19/08 ela guarda também o lead da DM do Instagram (nota 1 por definição,
+    // sem pts e sem slug nenhum) — sem o escopo, quem veio do Instagram e DEPOIS
+    // preencheu a LP virando NOTA 3 com reunião marcada seria lido aqui como
+    // nota 1 sem pontuação, porque a ficha de IG ganharia do card.
     const { data: n1 } = await supabaseGerador
       .from('eletroposto_nota1').select(`id,pontuacao_total:pts,${campos}`)
+      .eq('origem', 'lp_eletroposto')
       .eq('telefone_norm', norm).order('id', { ascending: false }).limit(1).maybeSingle();
     if (n1) return { ...(n1 as any), origem_tabela: 'eletroposto_nota1', origem_id: (n1 as any).id };
 
