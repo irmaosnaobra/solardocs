@@ -516,8 +516,8 @@
   /* ===== VSL DE ENTRADA (tela cheia) ══════════════════════════════════════
      O vídeo é a primeira coisa que a pessoa encontra: cobre a tela inteira,
      começa mudo (única forma de autoplay passar) e a página fica travada
-     atrás. Aos 5 SEGUNDOS DE VÍDEO RODADO (não de relógio) nasce o botão de
-     agendar — e junto dele a saída discreta pra quem quer só ler a página.
+     atrás. Aos 5 SEGUNDOS DE VÍDEO RODADO (não de relógio) nasce o ÚNICO botão,
+     e ele abre a LP no começo — na headline, não no formulário.
 
      REGRA DURA: a porta sempre abre. Autoplay recusado, arquivo que não
      carrega, vídeo que trava — em qualquer um desses o portão se dissolve
@@ -574,11 +574,6 @@
     padding:16px 22px;border-radius:60px;text-decoration:none;text-align:center;border:0;cursor:pointer;
     font-family:inherit;min-height:54px;display:inline-flex;align-items:center;justify-content:center;
     box-shadow:0 10px 30px rgba(125,209,23,.28)}
-  .vslSair{background:none;border:0;cursor:pointer;font-family:inherit;
-    color:rgba(247,251,242,.68);font-size:13.5px;font-weight:700;padding:10px 16px;min-height:44px;
-    text-decoration:underline;text-underline-offset:3px;
-    opacity:0;pointer-events:none;transition:opacity .4s ease}
-  .vslSair.on{opacity:1;pointer-events:auto}
   @media(max-width:400px){.vslCta{font-size:15px}}
 </style>
 </head>
@@ -611,12 +606,13 @@
 
   <div class="vslPe">
     <div class="vslBarra"><i id="vslBarra"></i></div>
+    <!-- UM botão, e ele abre a LP no começo — não pula pro agendamento. Quem
+         acabou de ver o vídeo ainda está decidindo; jogar direto no formulário
+         cobra a decisão antes da página ter feito o trabalho dela. O agendar
+         continua a três toques de distância, no topo e em cada seção. -->
     <div class="vslAcao" id="vslAcao">
-      <button class="vslCta" id="vslCta" type="button">Agendar minha reunião →</button>
+      <button class="vslCta" id="vslCta" type="button">Ver a página →</button>
     </div>
-    <!-- Fora do bloco do CTA de propósito: quando o navegador recusa o autoplay,
-         a página tem que ter saída ANTES de existir 5s de vídeo assistido. -->
-    <button class="vslSair" id="vslSair" type="button">Ver a página</button>
   </div>
 </div>
 
@@ -2509,9 +2505,10 @@ setInterval(() => { if(!document.hidden && !slotSel) montarSlots(); }, 5*60*1000
        1) O PORTÃO. Vídeo em tela cheia, mudo (é a única forma de o autoplay
           passar em qualquer navegador). Um toque em qualquer lugar liga o som e
           volta pro começo — quem ligou o som quer ouvir desde a primeira frase.
-          Aos 5s de vídeo aparece o botão de agendar. A saída discreta aparece
-          junto: portão sem porta é armadilha, e o lead que só quer ler a página
-          vira reclamação, não reunião.
+          Aos 5s de vídeo aparece o ÚNICO botão, e ele abre a LP no começo — não
+          pula pro agendamento. Portão sem porta é armadilha; e quem acabou de
+          ver o vídeo ainda está decidindo, então a página fala antes do
+          formulário cobrar.
        2) A MEDIÇÃO. A página manda "fotografias" do que já foi assistido: um
           balde por trecho de `bs` segundos, com quantas vezes cada trecho rodou.
           Manda mais de uma vez (a cada 15s, no pause, no fim e na saída) porque
@@ -2519,9 +2516,10 @@ setInterval(() => { if(!document.hidden && !slotSel) montarSlots(); }, 5*60*1000
           elemento, então foto repetida ou fora de ordem não estraga a conta.
           É disso que sai a curva de retenção na aba Página de Venda.
 
-       QUALQUER FALHA DISSOLVE O PORTÃO: autoplay recusado com play manual também
-       recusado, arquivo que não carrega, vídeo que não começa em 8s. A LP tem que
-       abrir mesmo sem vídeo. -->
+       QUALQUER FALHA ABRE A PORTA: autoplay recusado com play manual também
+       recusado, arquivo que não carrega e vídeo que não começa em 8s dissolvem o
+       portão; vídeo que começa e CONGELA cai na trava de 15s, que acende o botão.
+       A LP tem que ser alcançável mesmo com o vídeo quebrado. -->
   <script>
   (() => {
     const raiz = document.documentElement;
@@ -2532,7 +2530,10 @@ setInterval(() => { if(!document.hidden && !slotSel) montarSlots(); }, 5*60*1000
     const src  = vid && vid.getAttribute('data-src');
 
     function abrirPagina(marcar) {
-      try { sessionStorage.setItem('io_ep_vsl', '1'); } catch (e) {}
+      // Só marca "já viu" quando a pessoa DECIDIU sair (apertou o botão). Saída
+      // de emergência não marca: um engasgo de rede não pode custar a VSL da
+      // sessão inteira — recarregar tem que dar uma segunda chance ao vídeo.
+      if (marcar) { try { sessionStorage.setItem('io_ep_vsl', '1'); } catch (e) {} }
       if (gate) gate.classList.add('sai');
       raiz.classList.remove('vslOn');
       setTimeout(() => { if (gate) gate.remove(); }, 400);
@@ -2571,7 +2572,7 @@ setInterval(() => { if(!document.hidden && !slotSel) montarSlots(); }, 5*60*1000
         bs: bs,
         b: baldes,
         som: !vid.muted,
-        viu5: mostrouCta,
+        viu5: mostrouCta,          // "o botão apareceu" (no caminho normal, aos 5s)
         fim: vid.ended || (vid.duration > 0 && vid.currentTime >= vid.duration - 1.5),
       }, saindo);
     }
@@ -2588,18 +2589,28 @@ setInterval(() => { if(!document.hidden && !slotSel) montarSlots(); }, 5*60*1000
     const acao  = document.getElementById('vslAcao');
     const barra = document.getElementById('vslBarra');
 
-    const sair = document.getElementById('vslSair');
     let baldeAtual = -1, ultimoEnvio = 0, mostrouCta = false;
+
+    // Único lugar que acende o botão — nasceu, não some mais. `mostrouCta` é o
+    // que a medição lê, e quer dizer "o botão apareceu na tela".
+    function mostrarBotao() { if (!mostrouCta) { mostrouCta = true; acao.classList.add('on'); } }
+
+    // TRAVA DE SEGURANÇA: 15s de relógio e o botão aparece, aconteça o que
+    // acontecer. É o que cobre o vídeo que COMEÇA e congela pra rebufferizar
+    // antes dos 5s — ali o `timeupdate` para, o `stalled` já não vale (só olha
+    // antes do primeiro quadro) e o relógio de 8s morreu no `playing`. Sem isto
+    // a pessoa fica olhando um quadro parado, rolagem travada e nenhuma porta.
+    setTimeout(mostrarBotao, 15000);
 
     vid.src = src;
     vid.play().catch(() => {
       // Autoplay recusado (iOS em economia de bateria, política do navegador).
       // O relógio de 8s sai de cena: existe um botão na tela, não é tela morta.
-      // Mas a saída abre JUNTO — senão a pessoa que não quer o vídeo fica presa
-      // esperando 5s de um vídeo que ela nunca vai dar play.
+      // Mas o botão de abrir a página nasce JUNTO — senão a pessoa que não quer
+      // o vídeo fica presa esperando 5s de um vídeo que ela nunca vai dar play.
       clearTimeout(salvaVidas);
       play.classList.add('on');
-      sair.classList.add('on');
+      mostrarBotao();
     });
     play.addEventListener('click', () => {
       // Autoplay recusado e a pessoa tocou: o toque É o gesto que libera o som,
@@ -2639,27 +2650,27 @@ setInterval(() => { if(!document.hidden && !slotSel) montarSlots(); }, 5*60*1000
         const i = Math.min(baldes.length - 1, Math.floor(t / bs));
         if (i !== baldeAtual) { baldes[i] = (baldes[i] || 0) + 1; baldeAtual = i; mexeu = true; }
       }
-      // O botão de agendar nasce aos 5 SEGUNDOS DE VÍDEO. Nasceu, não some mais.
-      if (!mostrouCta && t >= 5) { mostrouCta = true; acao.classList.add('on'); sair.classList.add('on'); }
+      // Caminho normal: o botão nasce aos 5 SEGUNDOS DE VÍDEO RODADO.
+      if (t >= 5) mostrarBotao();
 
       const agora = Date.now();
       if (agora - ultimoEnvio > 15000) { ultimoEnvio = agora; enviar(false); }
     });
 
     vid.addEventListener('pause', () => enviar(false));
-    vid.addEventListener('ended', () => { acao.classList.add('on'); sair.classList.add('on'); enviar(false); });
+    vid.addEventListener('ended', () => { mostrarBotao(); enviar(false); });
     document.addEventListener('visibilitychange', () => { if (document.hidden) enviar(true); });
     window.addEventListener('pagehide', () => enviar(true));
 
     document.getElementById('vslCta').addEventListener('click', () => {
+      // Volta pro topo ANTES de tirar o portão: quem chega em
+      // `/io/eletroposto#agendar` (URL que aparece de verdade na base) entrou com
+      // a página já rolada, e sem isto o botão entregaria o formulário em vez da
+      // headline. `auto` porque o html tem scroll-behavior:smooth, e animar aqui
+      // seria a página se mexendo sozinha na frente da pessoa.
+      try { window.scrollTo({ top: 0, behavior: 'auto' }); } catch (e) { window.scrollTo(0, 0); }
       evento('vsl_cta', { lp: 'eletroposto', s: Math.round(vid.currentTime || 0) });
       try { track('vsl_cta'); } catch (e) {}
-      abrirPagina(true);
-      setTimeout(() => { const alvo = document.getElementById('agendar'); if (alvo) alvo.scrollIntoView({ behavior: 'smooth' }); }, 60);
-    });
-    sair.addEventListener('click', () => {
-      evento('vsl_pular', { lp: 'eletroposto', s: Math.round(vid.currentTime || 0) });
-      try { track('vsl_pular'); } catch (e) {}
       abrirPagina(true);
     });
   })();
