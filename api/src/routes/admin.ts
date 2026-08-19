@@ -5,6 +5,7 @@ import { adminMiddleware } from '../middleware/adminAuth';
 import { getUsers, triggerMonthlyReset, getVisits, getAnalytics, getMetaFunnel, getFunnel, getRevenue, getBilling } from '../controllers/adminController';
 import { getLimpaproFunnel, getLimpaproLeads, getLimpaproConversas, getLimpaproMembros } from '../controllers/limpaproController';
 import { getPixFunil } from '../controllers/pixFunilController';
+import { getVslRetencao } from '../controllers/vslController';
 import { jornadaLimpapro } from '../controllers/limpaproJornadaController';
 import { getMetaAds } from '../controllers/metaAdsController';
 import { listarOrdens, marcarFeita, setModo, sincronizarOrdens } from '../services/metaOrdensService';
@@ -79,6 +80,7 @@ router.get('/users',          getUsers);
 router.post('/reset-monthly', triggerMonthlyReset);
 router.get('/visits',         getVisits);
 router.get('/analytics',      getAnalytics);
+router.get('/vsl',            getVslRetencao);
 router.get('/meta-funnel',    getMetaFunnel);
 router.get('/meta-ads',       getMetaAds);
 
