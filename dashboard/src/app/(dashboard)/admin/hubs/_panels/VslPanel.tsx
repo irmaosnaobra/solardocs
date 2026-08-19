@@ -22,7 +22,7 @@ import styles from '../../admin.module.css';
 interface Ponto { s: number; views: number; pct: number; rep: number }
 interface Retencao {
   visitas: number; plays: number; comSom: number; viramCta: number;
-  cliqueCta: number; pularam: number; completaram: number;
+  cliqueCta: number; cliqueSemPlay: number; pularam: number; completaram: number; cliqueSegundo: number | null;
   assistidoMedio: number | null; assistidoMediano: number | null;
   duracao: number | null; bucket: number | null; curva: Ponto[];
 }
@@ -98,6 +98,9 @@ export default function VslPanel({ lp }: { lp: string }) {
       ) : plays === 0 ? (
         <p className={styles.empty} style={{ margin: 0 }}>
           {loading ? 'Carregando…' : 'Nenhum play registrado no período.'}
+          {!loading && dados?.cliqueSemPlay
+            ? ` ${dados.cliqueSemPlay} abriram a página sem o vídeo chegar a rodar — navegador recusando o autoplay.`
+            : ''}
         </p>
       ) : (
         <>
@@ -106,8 +109,12 @@ export default function VslPanel({ lp }: { lp: string }) {
               sub={dados!.visitas > 0 ? `${pct(plays, dados!.visitas)}% de ${dados!.visitas} visitas` : 'sem visita casada'} />
             <Tile label="Ligaram o som" valor={dados!.comSom.toLocaleString('pt-BR')} sub={`${pct(dados!.comSom, plays)}% de quem deu play`} />
             <Tile label="Viram o botão" valor={dados!.viramCta.toLocaleString('pt-BR')} sub={`${pct(dados!.viramCta, plays)}% passaram dos 5s`} />
-            <Tile label="Clicaram no botão" valor={dados!.cliqueCta ? dados!.cliqueCta.toLocaleString('pt-BR') : '—'}
-              sub={dados!.cliqueCta ? `${pct(dados!.cliqueCta, plays)}% de quem deu play` : 'ninguém saiu pelo botão'} />
+            {/* O botão do portão não agenda: ele abre a LP. Aqui separa quem viu
+                o vídeo e ENTROU na página de quem viu e foi embora. */}
+            <Tile label="Abriram a página" valor={dados!.cliqueCta ? dados!.cliqueCta.toLocaleString('pt-BR') : '—'}
+              sub={dados!.cliqueCta
+                ? `${pct(dados!.cliqueCta, plays)}% de quem deu play${dados!.cliqueSegundo != null ? ` · mediana aos ${mmss(dados!.cliqueSegundo)}` : ''}`
+                : 'ninguém apertou o botão'} />
             <Tile label="Tempo assistido" valor={dados!.assistidoMedio != null ? mmss(dados!.assistidoMedio) : '—'}
               sub={dados!.duracao ? `de ${mmss(dados!.duracao)} · mediana ${mmss(dados!.assistidoMediano ?? 0)}` : 'média por sessão'} />
             <Tile label="Foram até o fim" valor={dados!.completaram.toLocaleString('pt-BR')} sub={`${pct(dados!.completaram, plays)}% de quem deu play`} />
@@ -150,7 +157,7 @@ export default function VslPanel({ lp }: { lp: string }) {
               <path d={`M ${curva.map((p, i) => `${i ? 'L' : ''} ${px(i, curva.length)} ${py(p.pct)}`).join(' ')}`}
                 fill="none" stroke="var(--color-primary)" strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
 
-              {/* Marco dos 5s: o segundo em que o botão de agendar nasce. */}
+              {/* Marco dos 5s: o segundo em que o botão de abrir a página nasce. */}
               {dados!.duracao ? (() => {
                 const i5 = Math.min(curva.length - 1, Math.round(5 / bucket));
                 return (
@@ -218,8 +225,9 @@ export default function VslPanel({ lp }: { lp: string }) {
           )}
 
           <p style={{ marginTop: 10, color: 'var(--color-text-muted)', fontSize: 12.5 }}>
-            Fonte: <code>/admin/vsl</code> — baldes de {bucket}s enviados pela própria LP
-            {dados!.pularam ? `. ${dados!.pularam} saíram pela porta "ver a página".` : '.'}
+            Fonte: <code>/admin/vsl</code> — baldes de {bucket}s enviados pela própria LP.
+            {dados!.cliqueSemPlay ? ` Fora da conta: ${dados!.cliqueSemPlay} abriram a página sem o vídeo rodar (autoplay recusado).` : ''}
+            {dados!.pularam ? ` ${dados!.pularam} usaram a saída discreta, que existiu até 19/08.` : ''}
           </p>
         </>
       )}

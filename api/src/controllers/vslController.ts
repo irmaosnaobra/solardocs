@@ -39,7 +39,7 @@ function inicioDoPeriodo(period: string): Date {
 type EventoVsl = {
   session_id: string;
   event_type: string;
-  event_data: { lp?: string; dur?: number; bs?: number; b?: number[]; som?: boolean; viu5?: boolean; fim?: boolean } | null;
+  event_data: { lp?: string; dur?: number; bs?: number; b?: number[]; som?: boolean; viu5?: boolean; fim?: boolean; s?: number } | null;
 };
 
 export async function getVslRetencao(req: Request, res: Response): Promise<void> {
@@ -88,10 +88,19 @@ export async function getVslRetencao(req: Request, res: Response): Promise<void>
     const porSessao = new Map<string, Sessao>();
     let comCta = 0, pulou = 0;
     const sessoesCta = new Set<string>(), sessoesPulou = new Set<string>();
+    // Em que segundo do vídeo a pessoa apertou o botão. Desde 19/08 o botão só
+    // abre a LP (não pula pro agendamento), então isso responde a pergunta que
+    // sobrou: quanto de vídeo bastou pra ela querer ver a página.
+    const segundoPorSessao = new Map<string, number>();
 
     for (const e of eventos) {
       const d = e.event_data || {};
-      if (e.event_type === 'vsl_cta')   { sessoesCta.add(e.session_id);   continue; }
+      if (e.event_type === 'vsl_cta') {
+        sessoesCta.add(e.session_id);
+        const seg = Number((d as { s?: number }).s);
+        if (Number.isFinite(seg)) segundoPorSessao.set(e.session_id, seg);
+        continue;
+      }
       if (e.event_type === 'vsl_pular') { sessoesPulou.add(e.session_id); continue; }
       if (!Array.isArray(d.b) || !d.b.length) continue;
 
@@ -116,16 +125,31 @@ export async function getVslRetencao(req: Request, res: Response): Promise<void>
         if (Number(d.dur) > atual.dur) atual.dur = Number(d.dur);
       }
     }
-    comCta = sessoesCta.size;
     pulou = sessoesPulou.size;
 
+    // O clique e o play vêm de tabelas de contagem diferentes, então SEPARAR
+    // importa: quem tem autoplay recusado vê o botão em t=0 e pode apertar sem
+    // nunca rodar um quadro. Somando tudo num número só, "abriram a página"
+    // passaria de 100% de quem deu play — etapa depois maior que a de antes.
+    const comPlay = new Set(
+      [...porSessao.entries()].filter(([, v]) => v.b.some((n) => n > 0)).map(([k]) => k),
+    );
     const sessoes = [...porSessao.values()].filter((s) => s.b.some((n) => n > 0));
     const plays = sessoes.length;
+
+    comCta = [...sessoesCta].filter((id) => comPlay.has(id)).length;
+    const cliqueSemPlay = sessoesCta.size - comCta;
+    // A mediana só olha quem assistiu: clique sem play entra sempre com s=0 e
+    // puxaria pra baixo justamente a resposta de "quanto de vídeo bastou".
+    const segundosDoClique = [...segundoPorSessao.entries()]
+      .filter(([id]) => comPlay.has(id))
+      .map(([, seg]) => seg)
+      .sort((a, b) => a - b);
 
     if (plays === 0) {
       res.json({
         lp, period, visitas: visitasSessoes.size, plays: 0,
-        comSom: 0, viramCta: 0, cliqueCta: comCta, pularam: pulou,
+        comSom: 0, viramCta: 0, cliqueCta: comCta, cliqueSemPlay, pularam: pulou, cliqueSegundo: null,
         assistidoMedio: null, assistidoMediano: null, completaram: 0,
         duracao: null, bucket: null, curva: [],
       });
@@ -166,9 +190,10 @@ export async function getVslRetencao(req: Request, res: Response): Promise<void>
     const assistidoMedio = Math.round(tempos.reduce((a, b) => a + b, 0) / tempos.length);
     const assistidoMediano = tempos[Math.floor(tempos.length / 2)];
 
-    // "Viu o botão": a própria página avisa quando o CTA nasceu (aos 5s de vídeo).
-    // Contar por balde erraria em até um balde pra cima; o campo `viu5` é a
-    // medida. Fotografia gravada antes desse campo existir cai no cálculo velho.
+    // "Viu o botão": a própria página avisa quando o botão apareceu — no caminho
+    // normal aos 5s de vídeo, e também pela trava de 15s ou pelo autoplay
+    // recusado. Contar por balde erraria em até um balde pra cima; o campo
+    // `viu5` é a medida. Foto gravada antes do campo existir cai no cálculo velho.
     const viramCta = sessoes.filter((s) => (
       s.viu5 || s.b.reduce((a, n) => a + (n > 0 ? s.bs : 0), 0) >= 5
     )).length;
@@ -189,7 +214,11 @@ export async function getVslRetencao(req: Request, res: Response): Promise<void>
       comSom: sessoes.filter((s) => s.som).length,
       viramCta,
       cliqueCta: comCta,
+      cliqueSemPlay,
       pularam: pulou,
+      cliqueSegundo: segundosDoClique.length
+        ? segundosDoClique[Math.floor(segundosDoClique.length / 2)]
+        : null,
       completaram: sessoes.filter((s) => s.fim).length,
       assistidoMedio,
       assistidoMediano,
