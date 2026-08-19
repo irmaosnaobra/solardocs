@@ -333,8 +333,17 @@ export default function Landing() {
               />
             </div>
 
+            {/* VOLTOU EM 19/08/2026, pelo mesmo motivo da headline logo acima:
+                este é o botão que estava de pé nas 26 vendas dos 15 dias. O
+                "Liberar meu acesso — R$ 67/mês" entrou ontem e viveu poucas
+                horas, sem venda nenhuma.
+
+                A tese dele não era ruim — preço no botão filtra clique, derruba
+                a taxa e costuma subir a conversão de quem clica. Mas tese sem
+                medição não vence 26 vendas: o preço continua logo abaixo, na
+                pílula, onde ele qualifica sem pagar o custo de frear o clique. */}
             <button className={styles.finalCtaBtn} onClick={() => scrollToPlans('hero')}>
-              Liberar meu acesso — R$ {PRICE}/mês →
+              Quero acesso agora →
             </button>
 
             <div className={styles.pricePill}>
