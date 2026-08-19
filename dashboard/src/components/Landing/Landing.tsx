@@ -94,15 +94,17 @@ const CONCESSIONARIAS = [
 /* DEPOIMENTOS — prova social de cliente.
 
    ESTE ARQUIVO E' BUNDLE DE CLIENTE. Tudo que estiver neste array VAI PRO
-   JAVASCRIPT que o navegador baixa — mesmo o que a pagina nao desenha. Depoimento
+   JAVASCRIPT que o navegador baixa, mesmo o que a pagina nao desenha. Depoimento
    sem autorizacao guardado aqui "esperando o sim" ja' esta' publicado pra quem
-   abrir o codigo-fonte. Por isso a regra e' dura:
+   abrir o codigo-fonte — aconteceu em 19/08/2026 e o conserto foi este comentario.
+   Regra dura: SO' ENTRA AQUI QUEM JA' DISSE SIM. Quem ainda nao disse fica em
+   COPY-SOLARDOC-DOR-MENSALIDADE.md, que nao vai pro ar.
 
-     SO' ENTRA AQUI QUEM JA' DISSE SIM.
-
-   Os que ainda nao autorizaram ficam FORA do codigo, em
-   COPY-SOLARDOC-DOR-MENSALIDADE.md (secao 6), que nao vai pro ar. Quando a pessoa
-   liberar, copia de la' pra ca' com `liberado: true`.
+   AUTORIZACAO DESTES SEIS: a GSI respondeu "Pode postar" no WhatsApp em 19/08/2026;
+   os outros cinco o Thiago confirmou pessoalmente, fora do WhatsApp. Nao ha' registro
+   na linha pra esses cinco — se um dia alguem reclamar, a palavra e' dele, nao da'
+   pra provar por `conversa_wa`. Registrado aqui pra ninguem procurar prova que
+   nao existe.
 
    `liberado` continua no tipo de proposito: obriga quem for colar um depoimento
    novo a afirmar a autorizacao numa palavra, em vez de colar no automatico.
@@ -111,14 +113,19 @@ const CONCESSIONARIAS = [
    fraco da concorrencia (as 3 conversas da maletapainelsolar.netlify.app sao todas
    assinadas "Instalador Solar", sem nome e sem foto — da' pra ver que e' montado).
 
-   COMO PEDIR A AUTORIZACAO: colando o card pronto, do jeito que vai aparecer. As
-   frases sao palavra da pessoa, mas passaram por corte e costura (juntar duas
-   passagens do mesmo audio, arrumar concordancia de fala falada). Perguntar por
-   "aquele trecho que voce falou" e publicar a costura nao e' a mesma coisa.
+   AS FRASES sao palavra da pessoa, mas passaram por corte e costura (juntar duas
+   passagens do mesmo audio, arrumar concordancia de fala falada). Nada acrescentado.
 
-   NOME DA EMPRESA: usar o nome de fachada, nunca o que esta' em `company.nome` —
-   metade da base guarda razao social de CPF ("67.010.604 RONAILSON KLESLEY...").
-   Onde nao existe nome de fachada conhecido, fica so' a cidade.
+   NOME DA EMPRESA: o nome de fachada, nunca `company.nome` — metade da base guarda
+   razao social de CPF ("67.010.604 RONAILSON KLESLEY..."). Quando o cadastro nao
+   tinha nome de fachada, o nome veio da propria logo que a pessoa subiu: e' por isso
+   que o Ronailson aparece como Alves Cardoso Solar.
+
+   LOGOS: sao as que cada um subiu pra marcar os proprios documentos (company.logo_base64),
+   exportadas e reduzidas pra webp de altura 120 em public/logos/. As 6 somam 56 KB;
+   em base64 no banco somavam 745 KB. Lander pesada e' imagem, nunca HTML — se entrar
+   logo nova, passar pelo mesmo aperto. Todas tem fundo claro proprio, entao o card
+   desenha elas sobre uma pastilha branca; logo clara em cima do card escuro sumiria.
 
    CONCORRENTE: as falas que citam outra plataforma pelo nome entram aqui como
    "outra plataforma". Dito pelo cliente e' relato da vida dele; estampado na nossa
@@ -126,12 +133,38 @@ const CONCESSIONARIAS = [
    objetiva e comprovavel. O argumento sobrevive sem a marca. Nao repor o nome sem
    decisao consciente. */
 const DEPOIMENTOS: {
-  nome: string; empresa: string; iniciais: string; texto: string; quando: string; liberado: boolean;
+  nome: string; empresa: string; cidade: string; logo: string; logoW: number;
+  texto: string; liberado: boolean;
 }[] = [
   {
-    nome: 'GSI Soluções', empresa: 'Unaí/MG', iniciais: 'GS', quando: 'agosto de 2026',
-    liberado: true, // respondeu "Pode postar" em 19/08/2026
+    nome: 'Juliano Grilo', empresa: 'Grilo Energia Solar', cidade: 'Artur Nogueira/SP',
+    logo: '/logos/grilo-energia.webp', logoW: 129, liberado: true,
+    texto: 'Pra mim foi um divisor de águas. Primeiro, o preço. E eu, exclusivamente, só trabalho com a proposta: a média do ano vem com o número escrito em cima. Na outra plataforma é gráfico — e gráfico dificulta a mente do cliente, você tem que bater uma régua pra enxergar.',
+  },
+  {
+    nome: 'Vanderlei', empresa: 'American Energy Solar', cidade: 'Rondonópolis/MT',
+    logo: '/logos/american-energy-solar.webp', logoW: 65, liberado: true,
+    texto: 'Usei três anos outra plataforma, passei um ano no e-mail. Entre todas que já usei e outras que apenas testei, essa é a que conseguimos gerar propostas mais rapidamente.',
+  },
+  {
+    nome: 'Lucas Paulino', empresa: 'RSC Solar', cidade: 'Londrina/PR',
+    logo: '/logos/rsc-solar.webp', logoW: 89, liberado: true,
+    texto: 'Rapidez. Eu coloquei ele no meu celular, então eu consigo responder de qualquer lugar que eu estiver. Rápido demais.',
+  },
+  {
+    nome: 'Alessandro Goulart', empresa: 'Força Solar', cidade: 'Feliz/RS',
+    logo: '/logos/forca-solar.webp', logoW: 123, liberado: true,
+    texto: 'Criava os meus orçamentos tudo através de planilha. Aqui, com quatro, cinco cliques eu consigo montar uma proposta. Recomendo.',
+  },
+  {
+    nome: 'GSI Energia Solar', empresa: '', cidade: 'Unaí/MG',
+    logo: '/logos/gsi-solucoes.webp', logoW: 67, liberado: true,
     texto: 'Tenho me surpreendido positivamente com o nível de detalhes das propostas. No geral, gostei muito do aplicativo e recomendo bastante!',
+  },
+  {
+    nome: 'Ronailson Klesley', empresa: 'Alves Cardoso Solar', cidade: 'Abreulândia/TO',
+    logo: '/logos/alves-cardoso-solar.webp', logoW: 57, liberado: true,
+    texto: 'Praticidade e agilidade. Antes eu não fazia — era só venda formal, sem nenhum documento apresentando dados reais.',
   },
 ];
 
@@ -1005,14 +1038,24 @@ export default function Landing() {
                   data-reveal
                   style={{ transitionDelay: `${0.05 * i}s` }}
                 >
-                  <div className={styles.depoHead}>
-                    <div className={styles.depoAvatar} aria-hidden>{d.iniciais}</div>
-                    <div className={styles.depoQuem}>
-                      <div className={styles.depoNome}>{d.nome}</div>
-                      <div className={styles.depoEmpresa}>{d.empresa} · {d.quando}</div>
-                    </div>
+                  <div className={styles.depoLogo}>
+                    {/* Altura fixa de 60: todas as fontes sao webp de 120 de altura,
+                        entao as 6 pousam na mesma linha optica e so' a largura varia. */}
+                    <img
+                      src={d.logo}
+                      alt={`Logo da ${d.empresa || d.nome}`}
+                      width={d.logoW}
+                      height={60}
+                      loading="lazy"
+                    />
                   </div>
                   <p className={styles.depoTexto}>{d.texto}</p>
+                  <div className={styles.depoQuem}>
+                    <div className={styles.depoNome}>{d.nome}</div>
+                    <div className={styles.depoEmpresa}>
+                      {[d.empresa, d.cidade].filter(Boolean).join(' · ')}
+                    </div>
+                  </div>
                 </article>
               ))}
             </div>
