@@ -25,6 +25,11 @@
 // As tabelas *-PROMO tem preco cravado (precoExato) e NAO acompanham custo sozinhas:
 // aumento de custo come a margem delas em silencio. Ao reajustar, refazer preservando a
 // razao preco/custo de cada linha — e nunca deixar uma PROMO passar do preco normal.
+//
+// CUIDADO com o modulo: nem todo kit "SAJ" usa a mesma placa. SAJ 2,25K, SAJ 3K PROMO e
+// SAJ 7,5K rodam com TCL 600W; SAJ 3K, SAJ 6K e as duas do 6K PROMO rodam com Tsun 600W.
+// O SAJ 3K PROMO NAO herda o custo da aba "SAJ 3K - TSUN 600W" — sao placas diferentes,
+// e o custo dele nao esta na planilha. Reajuste de Tsun nao pode passar por ele.
 const TABELAS = {
 
 "MICRODEYE-TSUN600W": {
@@ -52,7 +57,7 @@ const TABELAS = {
 },
 
 "SAJ-2.25K-TSUN600W": {
-  inv: "SAJ 2,25K", mod: "Tsun 600W", pot: 600,
+  inv: "SAJ 2,25K", mod: "TCL 600W", pot: 600,
   rows: [
     {n:3,  invs:1, g:255,  kwp:1.8,  descMax:5522.27,  pVista:5750,  pOrc:6037.50,  p18x:380.14},
     {n:4,  invs:1, g:340,  kwp:2.4,  descMax:6336.07,  pVista:6600,  pOrc:6930.00,  p18x:436.33},
@@ -109,12 +114,12 @@ const TABELAS = {
 },
 
 "SAJ-3K-PROMO": {
-  inv: "SAJ 3K", mod: "Tsun 600W", pot: 600, precoExato: true, soCartaoVista: true,
+  inv: "SAJ 3K", mod: "TCL 600W", pot: 600, precoExato: true, soCartaoVista: true,
   rows: [
-    {n:4, invs:1, g:320, kwp:2.4, descMax:7730 , pVista:7730 , pOrc:7730 , p18x:1197.38},
-    {n:5, invs:1, g:400, kwp:3.0, descMax:8930 , pVista:8930 , pOrc:8930 , p18x:1383.26},
-    {n:6, invs:1, g:480, kwp:3.6, descMax:10070, pVista:10070, pOrc:10070, p18x:1559.84},
-    {n:7, invs:1, g:560, kwp:4.2, descMax:11510, pVista:11510, pOrc:11510, p18x:1782.90}
+    {n:4, invs:1, g:320, kwp:2.4, descMax:6895, pVista:6895, pOrc:6895, p18x:1068.04},
+    {n:5, invs:1, g:400, kwp:3.0, descMax:7889, pVista:7889, pOrc:7889, p18x:1222.01},
+    {n:6, invs:1, g:480, kwp:3.6, descMax:8811, pVista:8811, pOrc:8811, p18x:1364.82},
+    {n:7, invs:1, g:560, kwp:4.2, descMax:9988, pVista:9988, pOrc:9988, p18x:1547.14}
   ]
 },
 
@@ -173,7 +178,7 @@ const TABELAS = {
 },
 
 "SAJ-7.5K": {
-  inv: "SAJ 7,5K", mod: "Tsun 600W", pot: 600,
+  inv: "SAJ 7,5K", mod: "TCL 600W", pot: 600,
   rows: [
     {n:15, invs:1, g:1200, kwp:9.0,  descMax:21000.00, pVista:22700, pOrc:23835.00, p18x:1500.72},
     {n:16, invs:1, g:1280, kwp:9.6,  descMax:22000.00, pVista:23700, pOrc:24885.00, p18x:1566.83},
