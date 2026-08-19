@@ -1023,6 +1023,20 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-chip{background:#0f1a2e;border:1px solid rgba(255,255,255,.12);color:#cbd5e1;padding:6px 12px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
 .crm-chip:hover{background:#1c2c47;color:#fff}
 .crm-chip.ativo{background:#3B82F6;border-color:#3B82F6;color:#fff}
+/* Sub-abas do CRM: Solar x Eletroposto. Mesma linguagem das sub-abas de Redes
+   (linha embaixo do rotulo), porque e' o mesmo gesto: uma tela, dois quadros.
+   A cor da linha segue a familia da etiqueta — laranja e' solar, verde e'
+   eletroposto (ver etiquetaCor em etiqueta.js) — pra bater o olho e saber
+   em qual quadro se esta' sem ler o texto. */
+.crm-subnav{display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08)}
+.crm-subtab{background:none;border:none;border-bottom:2px solid transparent;color:#94A3B8;padding:10px 16px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:-1px;display:flex;align-items:center;gap:8px}
+.crm-subtab:hover{color:#E5E7EB}
+.crm-subtab.ativo{color:#fff}
+.crm-subtab.ativo.solar{border-bottom-color:#F59E0B}
+.crm-subtab.ativo.ep{border-bottom-color:#22C55E}
+.crm-subtab-qt{background:rgba(255,255,255,.08);border-radius:999px;padding:1px 8px;font-size:12px;font-weight:700;color:#cbd5e1}
+.crm-subtab.ativo .crm-subtab-qt{background:rgba(255,255,255,.16);color:#fff}
+@media(max-width:600px){.crm-subtab{padding:9px 12px;font-size:14px}}
 .crm-busca-wrap{display:flex;gap:8px;margin:14px 0 18px}
 .crm-busca{flex:1;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);color:#fff;padding:10px 14px;border-radius:10px;font-size:14px;font-family:inherit}
 .crm-busca::placeholder{color:#7c8aa3}
@@ -3745,8 +3759,15 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <button class="btn-hist-voltar" onclick="navGerador()">← Voltar</button>
     </div>
 
+    <!-- Dois quadros na mesma tela. Solar abre por padrão (é o volume da casa);
+         Eletroposto tem o funil dele, com os mesmos gestos. -->
+    <div class="crm-subnav">
+      <button type="button" class="crm-subtab solar ativo" id="crm-subtab-solar" onclick="crmSetProduto('solar')">☀️ Solar <span class="crm-subtab-qt" id="crm-qt-solar">0</span></button>
+      <button type="button" class="crm-subtab ep" id="crm-subtab-ep" onclick="crmSetProduto('eletroposto')">⚡ Eletroposto <span class="crm-subtab-qt" id="crm-qt-ep">0</span></button>
+    </div>
+
     <div class="card">
-      <div class="leads-info">
+      <div class="leads-info" id="crm-info">
         Todo cliente que chega — de proposta, da agenda ou de anúncio — aparece aqui, unificado por WhatsApp. A etapa é calculada sozinha conforme o histórico e a agenda se atualizam.
       </div>
 
@@ -5971,9 +5992,13 @@ function crmCheckDeepLink() {
   const alvo = q.get('crm');
   if (!alvo) return;
   const consultor = q.get('consultor') || '__todos__';
+  // O aviso de lead quente manda ?crm=quentes (plural) e a coluna do kanban se
+  // chama 'quente' — sem traduzir, o link abria o CRM e não rolava pra lugar
+  // nenhum. O de reagendar já casa com o nome da coluna.
+  const coluna = alvo === 'quentes' ? 'quente' : alvo;
   // tira os params da URL pra não reabrir ao recarregar
   history.replaceState(null, '', location.pathname);
-  if (typeof navCRM === 'function') navCRM({ consultor, coluna: alvo });
+  if (typeof navCRM === 'function') navCRM({ consultor, coluna });
 }
 window.crmCheckDeepLink = crmCheckDeepLink;
 window.addEventListener('DOMContentLoaded', crmCheckDeepLink);
@@ -12641,6 +12666,12 @@ const CRM_STATUS_PERDIDO = new Set(['cancelado', 'sem_interesse', 'perdido', 'fe
 
 let crmClientes = [];          // lista unificada já processada
 let crmFiltroConsultor = '__todos__';
+// QUADRO ATIVO — o CRM é um só (o cliente continua unificado por WhatsApp), mas
+// a tela mostra um produto por vez. Solar é o padrão de abertura: é o volume da
+// casa, e quem entra no CRM está quase sempre atrás de um lead de solar.
+// O quadro NÃO é lembrado entre aberturas de propósito: abrir o CRM cai sempre
+// no Solar, e ir pro Eletroposto é um toque.
+let crmFiltroProduto = 'solar';
 let crmCarregado = false;
 let crmPerdidos = new Set();    // c.key dos leads sem ficha marcados como Perdido (tabela crm_perdidos)
 
@@ -12705,6 +12736,9 @@ function navCRM(opts) {
   marcarNavAtivo('nav-crm');
   fecharSidebarMobile();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  // Abrir o CRM sempre cai no quadro Solar (o padrão da casa). Um deep-link pode
+  // pedir outro quadro explicitamente com opts.produto.
+  crmFiltroProduto = (opts && opts.produto) || 'solar';
   // Deep-link: ?crm=reagendar&consultor=X — pré-seleciona o consultor e rola até a coluna.
   if (opts && opts.consultor) {
     crmFiltroConsultor = opts.consultor;
@@ -12716,6 +12750,17 @@ function navCRM(opts) {
     crmFiltroIniciado = true;
   }
   const apos = () => {
+    // O aviso do digest (17h / lead quente) é por CONSULTOR e não diz o produto.
+    // Se a coluna pedida está vazia no Solar mas tem gente no Eletroposto, abre
+    // no de Eletroposto — senão o link levaria a um quadro sem o cliente que ele
+    // mandou buscar. Com gente nos dois, manda o padrão (Solar).
+    if (opts && opts.coluna && !(opts && opts.produto)) {
+      const naCol = (prod) => crmClientes.filter(c =>
+        crmEhDoProduto(c, prod)
+        && (crmFiltroConsultor === '__todos__' || c.consultor === crmFiltroConsultor)
+        && c.etapa === opts.coluna).length;
+      if (!naCol('solar') && naCol('eletroposto')) crmFiltroProduto = 'eletroposto';
+    }
     crmRenderFiltros();
     renderCRM();
     if (opts && opts.coluna) crmScrollToCol(opts.coluna);
@@ -13329,7 +13374,11 @@ function abrirNovoContato() {
   document.getElementById('nc-cidade').value = '';
   document.getElementById('nc-erro').textContent = '';
   const selEt = document.getElementById('nc-etiqueta');
-  if (selEt) selEt.value = '';                 // volta pro padrão "Manual" a cada abertura
+  // A etiqueta define em que QUADRO o contato nasce (o produto sai do created_by).
+  // Cadastrando no quadro do Eletroposto, o padrão é EP Prospec — senão o contato
+  // nasceria "Manual", cairia no Solar e sumiria da tela onde acabou de ser
+  // criado. No Solar segue o "Manual" de sempre.
+  if (selEt) selEt.value = crmFiltroProduto === 'eletroposto' ? 'prosp_eletroposto' : '';
   // Dono do card = quem VAI ATENDER, não necessariamente quem está cadastrando:
   // indicação que chega pra um consultor costuma ser cliente de outro. Vem
   // pré-marcado no logado (caso comum) e é trocável no ato.
@@ -13411,6 +13460,10 @@ async function salvarNovoContato() {
     if (crmFiltroConsultor !== '__todos__' && crmFiltroConsultor !== dono) {
       crmFiltroConsultor = dono;
     }
+    // Mesma coisa pro QUADRO: a etiqueta escolhida decide se o card é de solar ou
+    // de eletroposto, e ela pode não ser a do quadro aberto (cadastrar "Manual"
+    // estando no Eletroposto joga o card no Solar). Aponta pra onde ele caiu.
+    crmFiltroProduto = String(etiqueta || '').includes('eletroposto') ? 'eletroposto' : 'solar';
     const inBusca = document.getElementById('crm-busca');
     if (inBusca) inBusca.value = '';
     const lblEt = etiqueta && typeof etiquetaDeLead === 'function' ? etiquetaDeLead(etiqueta, null) : '';
@@ -13689,6 +13742,20 @@ function crmDerivar(c) {
   c.propSolar = maisNovo(c.props.filter(p => !ehProdEp(p)));
   c.propEp    = maisNovo(c.props.filter(ehProdEp));
 
+  // ===== EM QUE QUADRO ESTE CLIENTE APARECE =====
+  // Eletroposto é a família NOMEADA (created_by com "eletroposto", proposta
+  // tipo='eletroposto'); solar é o resto — a mesma regra que a agenda e a função
+  // de repasse do banco já usam, e é ela que faz uma origem nova de solar entrar
+  // sozinha, sem lista pra manter. Cadastro manual, import e indicação caem no
+  // Solar por essa mesma regra.
+  // Quem tem os DOIS produtos aparece nos DOIS quadros (é o caso do José
+  // Horácio, e "terão muitos assim"): é o mesmo cliente, com o orçamento de cada
+  // lado à mão — dividir esconderia metade da negociação de quem abre o card.
+  c.temEp    = agOrd.some(a => crmEhEletroposto(a)) || !!c.propEp;
+  c.temSolar = agOrd.some(a => !crmEhEletroposto(a)) || !!c.propSolar || !!(c.leads && c.leads.length);
+  // Ficha sem pista nenhuma não pode sumir dos dois quadros: cai no Solar.
+  if (!c.temEp && !c.temSolar) c.temSolar = true;
+
   // Proposta mais recente (pra abrir / código)
   c.propRecente = c.props.length
     ? [...c.props].sort((x, y) => stamp(y.created_at) - stamp(x.created_at))[0]
@@ -13746,16 +13813,56 @@ function crmDerivar(c) {
   c.etapa = etapa;
 }
 
+// O cliente pertence ao quadro aberto? (ver c.temSolar / c.temEp em crmDerivar)
+function crmEhDoProduto(c, produto) {
+  return produto === 'eletroposto' ? !!c.temEp : !!c.temSolar;
+}
+
+// Troca de quadro. Nada mais muda: mesmo consultor, mesma busca — só o produto.
+function crmSetProduto(produto) {
+  if (produto !== 'eletroposto') produto = 'solar';
+  if (crmFiltroProduto === produto) return;
+  crmFiltroProduto = produto;
+  crmRenderFiltros();
+  renderCRM();
+}
+
 function crmRenderFiltros() {
-  // Consultores presentes nos dados (união real, sem hardcode)
+  // Consultores presentes NO QUADRO ABERTO (união real, sem hardcode): quem não
+  // tem cliente de eletroposto não vira chip no quadro do eletroposto.
   const setC = new Set();
-  crmClientes.forEach(c => { if (c.consultor) setC.add(c.consultor); });
+  crmClientes.forEach(c => { if (c.consultor && crmEhDoProduto(c, crmFiltroProduto)) setC.add(c.consultor); });
+  // O consultor SELECIONADO entra na lista mesmo sem card deste lado — senão
+  // trocar de quadro deixaria o board vazio E sem nenhum chip marcado, que se lê
+  // como tela quebrada em vez de "essa carteira não tem cliente deste lado".
+  if (crmFiltroConsultor !== '__todos__') setC.add(crmFiltroConsultor);
   const consultores = Array.from(setC).sort();
 
   const wrapC = document.getElementById('crm-chips-consultor');
   if (wrapC) {
     const chip = (val, lbl) => `<button type="button" class="crm-chip ${crmFiltroConsultor === val ? 'ativo' : ''}" onclick="crmSetConsultor('${val.replace(/'/g, "\\'")}')">${escapeHtml(lbl)}</button>`;
     wrapC.innerHTML = chip('__todos__', 'Geral') + consultores.map(c => chip(c, c)).join('');
+  }
+
+  // Sub-abas: qual está ativa e quantos clientes cada quadro tem NA CARTEIRA
+  // aberta (mesmo recorte de consultor do board, sem a busca). O número é o que
+  // faz o consultor saber que tem gente do outro lado sem precisar ir olhar.
+  const naCarteira = c => crmFiltroConsultor === '__todos__' || c.consultor === crmFiltroConsultor;
+  const qt = prod => crmClientes.filter(c => naCarteira(c) && crmEhDoProduto(c, prod)).length;
+  const tabS = document.getElementById('crm-subtab-solar');
+  const tabE = document.getElementById('crm-subtab-ep');
+  if (tabS) tabS.classList.toggle('ativo', crmFiltroProduto === 'solar');
+  if (tabE) tabE.classList.toggle('ativo', crmFiltroProduto === 'eletroposto');
+  const qtS = document.getElementById('crm-qt-solar');
+  const qtE = document.getElementById('crm-qt-ep');
+  if (qtS) qtS.textContent = qt('solar');
+  if (qtE) qtE.textContent = qt('eletroposto');
+
+  const info = document.getElementById('crm-info');
+  if (info) {
+    info.innerHTML = crmFiltroProduto === 'eletroposto'
+      ? 'Quadro do <b>Eletroposto</b>: quem chegou pela LP, pela automação ou pela prospecção de EP, e quem já recebeu orçamento de eletroposto. A etapa é calculada sozinha conforme o histórico e a agenda se atualizam.'
+      : 'Quadro do <b>Solar</b>: todo cliente que chega — de proposta, da agenda ou de anúncio — aparece aqui, unificado por WhatsApp. A etapa é calculada sozinha conforme o histórico e a agenda se atualizam.';
   }
 }
 
@@ -13764,6 +13871,7 @@ function crmSetConsultor(v) { crmFiltroConsultor = v; crmRenderFiltros(); render
 function crmFiltrados() {
   const busca = (document.getElementById('crm-busca')?.value || '').trim().toLowerCase();
   return crmClientes.filter(c => {
+    if (!crmEhDoProduto(c, crmFiltroProduto)) return false;
     if (crmFiltroConsultor !== '__todos__' && c.consultor !== crmFiltroConsultor) return false;
     if (busca) {
       const alvo = `${c.nome} ${c.tel} ${c.cidade}`.toLowerCase();
@@ -13782,7 +13890,8 @@ function renderCRM() {
   const lista = crmFiltrados();
 
   // ===== KPIs (sobre o conjunto filtrado por consultor, ignorando a busca) =====
-  const baseKpi = crmClientes.filter(c => crmFiltroConsultor === '__todos__' || c.consultor === crmFiltroConsultor);
+  const baseKpi = crmClientes.filter(c => crmEhDoProduto(c, crmFiltroProduto)
+    && (crmFiltroConsultor === '__todos__' || c.consultor === crmFiltroConsultor));
   const kpiBox = document.getElementById('crm-kpis');
   if (kpiBox) {
     const cont = (et) => baseKpi.filter(c => c.etapa === et).length;
