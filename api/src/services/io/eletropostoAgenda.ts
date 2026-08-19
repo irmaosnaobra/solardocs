@@ -171,6 +171,44 @@ const naoAtendeuAutoDesligado = () => (process.env.EP_NAO_ATENDEU_AUTO_OFF || ''
  *  fichas de uma vez num tick de 5 min é o tipo de coisa que ninguém revisa. */
 const NAO_ATENDEU_POR_TICK = 20;
 
+// ── O CORTE DAS 13H (ordem do Thiago, 19/08/2026) ───────────────────────────
+// "O lead que não responder a primeira msg fica em amarelo; o segundo contato às
+// 8h, se ele não atender até as 13h, coloca ele vermelho e libera o horário dele
+// na agenda."
+//
+// O AMARELO não mora aqui: ele é DERIVADO na tela da agenda (silêncio desde a
+// confirmação) e não muda o status de nada — é um aviso, não uma decisão. Quem
+// escreve o sinal que a tela lê é o `eletropostoRespostas` (`lead_resposta_at`).
+//
+// O VERMELHO mora aqui, e é o mesmo `nao_atendeu` de sempre — a cor já existe na
+// agenda. O que muda é O RELÓGIO: em vez de esperar o lembrete de 1h (que só cai
+// 30-60 min antes da reunião), quem passou pelo SEGUNDO contato e não deu sinal
+// nenhum até as 13h é dado como ausente COM HORAS DE ANTECEDÊNCIA. E é essa
+// antecedência que importa: o horário volta pra vitrine da LP a tempo de ser
+// vendido pra outra pessoa no mesmo dia (ver ioEletroposto `/agenda` e
+// eletropostoVagas — os dois passaram a ignorar o vermelho).
+//
+// QUEM ENTRA, exatamente:
+//   · recebeu o BOM DIA das 8h (carimbo `ep_agenda_sent:<id>:manha`). É o
+//     "segundo contato" da ordem, literalmente. Quem marcou hoje pra hoje não
+//     recebe bom dia e por isso NÃO entra neste corte — pra ele continua valendo
+//     a régua do lembrete de 1h + 15 min, que é a que faz sentido em quem acabou
+//     de chegar;
+//   · a reunião é HOJE e AINDA NÃO ACONTECEU. Marcar quem já perdeu a hora não
+//     libera horário nenhum — e é a régua de 1h que cobre esse caso;
+//   · silêncio de verdade: sem `lead_resposta_at`, sem presença confirmada e sem
+//     o marcador `ep_resposta:<id>`. Três provas da mesma coisa porque elas vêm
+//     de bancos diferentes e uma pode falhar sozinha.
+//
+// A VOLTA é a mesma do não atendido automático: o carimbo
+// `ep_nao_atendeu_auto:<id>` diz que a marca é do robô, e o agente de respostas
+// devolve pra `agendado` se a pessoa aparecer. Isso é o que torna aceitável
+// marcar às 13h uma reunião das 17h.
+//
+// Kill-switch próprio: EP_CORTE_13H_OFF=1 (volta a valer só a régua de 1h).
+const CORTE_VERMELHO_H = 13;
+const corteVermelhoDesligado = () => (process.env.EP_CORTE_13H_OFF || '').trim() === '1';
+
 /** Ficha nova demais pra ser backlog: confirma na hora, sem fila e sem janela. */
 const FRESCA_MS = 30 * 60 * 1000;
 // BACKLOG_ANTECEDENCIA_MIN (120) saiu em 10/08/2026: era ele que fazia ficha
@@ -372,6 +410,9 @@ interface Ficha {
   lembrete_1h_at: string | null;
   lembrete_5min_at: string | null;
   presenca_confirmada_at: string | null;
+  /** Última vez que o LEAD escreveu (coluna nova, 19/08/2026). Nulo = silêncio —
+   *  é o que pinta o card de amarelo na agenda e o que o corte das 13h exige. */
+  lead_resposta_at: string | null;
   historico: string | null;
 }
 
@@ -384,6 +425,10 @@ export type ResultadoAgendaEp = {
   lembretes_5min: number;
   /** Fichas que viraram NÃO ATENDIDO sozinhas nesta rodada. */
   nao_atendeu: number;
+  /** Destas, as que caíram pelo CORTE DAS 13H (silêncio depois do 2º contato).
+   *  Contadas à parte porque são as que LIBERAM horário na vitrine — a outra
+   *  régua marca perto da reunião, quando já não há o que revender. */
+  vermelho_13h: number;
   erros: number;
   motivo?: string;
   previa?: ToquePrevisto[];
@@ -432,7 +477,7 @@ export async function carregarConsultores(): Promise<Map<string, string>> {
 }
 
 const zero = (motivo?: string): ResultadoAgendaEp =>
-  ({ confirmacoes: 0, lembretes_manha: 0, lembretes_1h: 0, lembretes_5min: 0, nao_atendeu: 0, erros: 0, ...(motivo ? { motivo } : {}) });
+  ({ confirmacoes: 0, lembretes_manha: 0, lembretes_1h: 0, lembretes_5min: 0, nao_atendeu: 0, vermelho_13h: 0, erros: 0, ...(motivo ? { motivo } : {}) });
 
 /**
  * Quem passou por todos os toques e não confirmou nada vira NÃO ATENDIDO.
@@ -464,7 +509,57 @@ function lembreteEhDestaReuniao(f: Ficha): boolean {
   return distancia >= 0 && distancia <= JANELA_LEMBRETE_DA_REUNIAO_MS;
 }
 
-async function marcarNaoAtendeuAutomatico(fichas: Ficha[], agora: number, dry: boolean): Promise<number> {
+/**
+ * Quem ESCREVEU alguma coisa (não é ausente, é gente conversando) e quem este
+ * robô JÁ marcou (o status pode ter voltado pra `agendado` na mão de alguém —
+ * refazer a marca seria brigar com o humano).
+ *
+ * Uma leitura só, compartilhada pelas duas réguas de marcação: elas rodam no
+ * mesmo tick e perguntam exatamente a mesma coisa ao mesmo banco.
+ */
+async function marcadoresDeSilencio(): Promise<{ respondeu: Set<number>; jaMarcado: Set<number> }> {
+  const [{ data: falaram }, { data: marcados }] = await Promise.all([
+    supabase.from('system_state').select('key').like('key', `${EP_RESPOSTA_PREFIX}%`).limit(1000),
+    supabase.from('system_state').select('key').like('key', `${EP_NAO_ATENDEU_PREFIX}%`).limit(1000),
+  ]);
+  return {
+    respondeu: new Set((falaram ?? []).map(m => Number(String(m.key).slice(EP_RESPOSTA_PREFIX.length)))),
+    jaMarcado: new Set((marcados ?? []).map(m => Number(String(m.key).slice(EP_NAO_ATENDEU_PREFIX.length)))),
+  };
+}
+
+/** Escreve a marca: status, linha no histórico e carimbo de "foi o robô".
+ *  Devolve `false` se o update não pegou (falha ou corrida com gente). */
+async function escreverNaoAtendeu(f: Ficha, motivo: string): Promise<boolean> {
+  const nowIso = new Date().toISOString();
+  const carimbo = new Date().toLocaleString('pt-BR', {
+    timeZone: BRT_TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+  }).replace(',', ' ·');
+  const linha = `[${carimbo} · Sistema] 🚫 ${motivo}`;
+  const { error } = await supabaseGerador.from('agendamentos')
+    .update({
+      status: 'nao_atendeu',
+      historico: f.historico ? `${linha}\n\n${f.historico}` : linha,
+    })
+    .eq('id', f.id)
+    // Corrida com gente: se alguém mexeu no status entre a leitura e agora,
+    // quem manda é a pessoa. O update simplesmente não pega nenhuma linha.
+    .eq('status', 'agendado');
+  if (error) {
+    logger.error('ep-agenda', 'marcar não atendido falhou', { id: f.id, erro: String(error) });
+    return false;
+  }
+  await supabase.from('system_state').upsert(
+    { key: `${EP_NAO_ATENDEU_PREFIX}${f.id}`, value: { em: nowIso, lembrete_1h_at: f.lembrete_1h_at, quando: f.quando }, updated_at: nowIso },
+    { onConflict: 'key' },
+  ).then(undefined, (e: unknown) => logger.error('ep-agenda', 'carimbo do não atendido falhou', { id: f.id, erro: String(e) }));
+  return true;
+}
+
+async function marcarNaoAtendeuAutomatico(
+  fichas: Ficha[], agora: number, dry: boolean,
+  marcadores: { respondeu: Set<number>; jaMarcado: Set<number> } | null,
+): Promise<number> {
   if (naoAtendeuAutoDesligado()) return 0;
 
   const limite = agora - AUTO_NAO_ATENDEU_APOS_1H_MIN * 60_000;
@@ -473,53 +568,80 @@ async function marcarNaoAtendeuAutomatico(fichas: Ficha[], agora: number, dry: b
     && !!f.lembrete_1h_at
     && new Date(f.lembrete_1h_at).getTime() <= limite
     && lembreteEhDestaReuniao(f)
-    && !f.presenca_confirmada_at);
-  if (!candidatos.length) return 0;
+    && !f.presenca_confirmada_at
+    // A coluna nova entra como mais uma prova do silêncio: ela vem do banco da
+    // FICHA, enquanto o marcador `ep_resposta:` vem do outro projeto. Quando as
+    // duas discordam, quem tiver visto a pessoa falar ganha.
+    && !f.lead_resposta_at);
+  if (!candidatos.length || !marcadores) return 0;
 
-  // Quem ESCREVEU alguma coisa não é ausente — é gente conversando. O marcador
-  // do agente de respostas é o registro de que a pessoa falou; ele existe
-  // independente de a mensagem ter sido um "sim", uma dúvida ou um áudio.
-  const { data: falaram } = await supabase
-    .from('system_state').select('key').like('key', `${EP_RESPOSTA_PREFIX}%`).limit(1000);
-  const respondeu = new Set((falaram ?? []).map(m => Number(String(m.key).slice(EP_RESPOSTA_PREFIX.length))));
-  // E quem este robô já marcou não é marcado de novo (o status pode ter voltado
-  // pra `agendado` na mão de alguém — refazer a marca seria brigar com o humano).
-  const { data: marcados } = await supabase
-    .from('system_state').select('key').like('key', `${EP_NAO_ATENDEU_PREFIX}%`).limit(1000);
-  const jaMarcado = new Set((marcados ?? []).map(m => Number(String(m.key).slice(EP_NAO_ATENDEU_PREFIX.length))));
-
-  const alvos = candidatos.filter(f => !respondeu.has(f.id) && !jaMarcado.has(f.id)).slice(0, NAO_ATENDEU_POR_TICK);
+  const alvos = candidatos
+    .filter(f => !marcadores.respondeu.has(f.id) && !marcadores.jaMarcado.has(f.id))
+    .slice(0, NAO_ATENDEU_POR_TICK);
   if (!alvos.length) return 0;
   if (dry) return alvos.length;
 
   let n = 0;
   for (const f of alvos) {
-    const nowIso = new Date().toISOString();
-    const carimbo = new Date().toLocaleString('pt-BR', {
-      timeZone: BRT_TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-    }).replace(',', ' ·');
-    const linha = `[${carimbo} · Sistema] 🚫 Não atendido automático: passou por todos os avisos `
-      + `e não confirmou nem ${AUTO_NAO_ATENDEU_APOS_1H_MIN} min depois do lembrete de 1 hora.`;
-    const { error } = await supabaseGerador.from('agendamentos')
-      .update({
-        status: 'nao_atendeu',
-        historico: f.historico ? `${linha}\n\n${f.historico}` : linha,
-      })
-      .eq('id', f.id)
-      // Corrida com gente: se alguém mexeu no status entre a leitura e agora,
-      // quem manda é a pessoa. O update simplesmente não pega nenhuma linha.
-      .eq('status', 'agendado');
-    if (error) {
-      logger.error('ep-agenda', 'marcar não atendido falhou', { id: f.id, erro: String(error) });
-      continue;
-    }
-    await supabase.from('system_state').upsert(
-      { key: `${EP_NAO_ATENDEU_PREFIX}${f.id}`, value: { em: nowIso, lembrete_1h_at: f.lembrete_1h_at, quando: f.quando }, updated_at: nowIso },
-      { onConflict: 'key' },
-    ).then(undefined, (e: unknown) => logger.error('ep-agenda', 'carimbo do não atendido falhou', { id: f.id, erro: String(e) }));
-    n++;
+    const ok = await escreverNaoAtendeu(f, 'Não atendido automático: passou por todos os avisos '
+      + `e não confirmou nem ${AUTO_NAO_ATENDEU_APOS_1H_MIN} min depois do lembrete de 1 hora.`);
+    if (ok) n++;
   }
   if (n) logger.info('ep-agenda', `${n} ficha(s) viraram NÃO ATENDIDO sozinhas`);
+  return n;
+}
+
+/**
+ * O CORTE DAS 13H — quem levou o segundo contato e não deu sinal até as 13h vira
+ * vermelho, e o horário dele volta pra agenda ainda a tempo de ser vendido.
+ *
+ * A régua inteira está documentada no bloco de constantes lá em cima. O que vale
+ * repetir aqui é o desenho: esta função NÃO manda mensagem nenhuma e NÃO cancela
+ * nada — ela muda o status, escreve no histórico e carimba que a marca é do robô.
+ * Quem fala com a pessoa depois disso é o `eletropostoNoShow`, que usa exatamente
+ * este vermelho como gatilho pra oferecer horário novo.
+ */
+async function marcarVermelhoDoCorte(
+  fichas: Ficha[], agora: number, dry: boolean,
+  marcadores: { respondeu: Set<number>; jaMarcado: Set<number> } | null,
+): Promise<number> {
+  if (corteVermelhoDesligado()) return 0;
+  if (horaBrasilia() < CORTE_VERMELHO_H) return 0;
+
+  const hoje = diaBRT(agora);
+  const candidatos = fichas.filter(f =>
+    f.status === 'agendado'
+    && !!f.quando
+    && diaBRT(f.quando) === hoje
+    // Ainda por acontecer: é O HORÁRIO que este corte existe pra devolver. Quem
+    // já perdeu a hora não libera nada e continua com a régua do lembrete de 1h.
+    && new Date(f.quando).getTime() > agora
+    && !f.presenca_confirmada_at
+    && !f.lead_resposta_at);
+  if (!candidatos.length || !marcadores) return 0;
+
+  // O SEGUNDO CONTATO é o bom dia das 8h, e o carimbo dele é a única prova de que
+  // saiu (ele é o único toque sem coluna em `agendamentos`). Leitura falhou?
+  // `jaRecebeuManha` devolve null e ninguém é marcado — fail-closed, igual ao
+  // envio: marcar de ausente quem talvez não tenha recebido o 2º toque seria a
+  // pior das duas metades do erro.
+  const recebeuBomDia = await jaRecebeuManha(candidatos.map(f => f.id));
+  if (!recebeuBomDia) return 0;
+
+  const alvos = candidatos
+    .filter(f => recebeuBomDia.has(f.id)
+      && !marcadores.respondeu.has(f.id) && !marcadores.jaMarcado.has(f.id))
+    .slice(0, NAO_ATENDEU_POR_TICK);
+  if (!alvos.length) return 0;
+  if (dry) return alvos.length;
+
+  let n = 0;
+  for (const f of alvos) {
+    const ok = await escreverNaoAtendeu(f, `Sem resposta até as ${CORTE_VERMELHO_H}h: recebeu a confirmação `
+      + 'e o bom dia do dia e não respondeu nenhuma das duas. O horário voltou pra agenda.');
+    if (ok) n++;
+  }
+  if (n) logger.info('ep-agenda', `${n} ficha(s) viraram VERMELHO no corte das ${CORTE_VERMELHO_H}h — horário liberado`);
   return n;
 }
 
@@ -548,7 +670,7 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
   // `agendado` um a um — cancelado e sem_interesse seguem sem receber nada.
   const { data, error } = await supabaseGerador
     .from('agendamentos')
-    .select('id, vendedor_nome, quando, cliente_nome, cliente_telefone, created_at, created_by, status, confirmacao_at, lembrete_1h_at, lembrete_5min_at, presenca_confirmada_at, historico')
+    .select('id, vendedor_nome, quando, cliente_nome, cliente_telefone, created_at, created_by, status, confirmacao_at, lembrete_1h_at, lembrete_5min_at, presenca_confirmada_at, lead_resposta_at, historico')
     .in('status', ['agendado', 'nao_atendeu'])
     .gte('quando', piso)
     .lte('quando', teto)
@@ -569,10 +691,20 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
   // seguinte. Falhou a leitura? A frase do telefone some e o resto do aviso sai.
   const telPorConsultor = await carregarConsultores();
 
-  // ── NÃO ATENDIDO AUTOMÁTICO ────────────────────────────────────────────────
-  // Roda ANTES dos toques e num laço próprio: não manda mensagem, então não
-  // gasta o teto de toques da rodada nem passa pelo teto anti-ban da linha.
-  const naoAtendeu = await marcarNaoAtendeuAutomatico(fichas, agora, opts.dry === true);
+  // ── AS DUAS RÉGUAS DE "ELE NÃO VEM" ───────────────────────────────────────
+  // Rodam ANTES dos toques e num laço próprio: não mandam mensagem, então não
+  // gastam o teto de toques da rodada nem passam pelo teto anti-ban da linha.
+  //
+  // Elas não competem — cobrem gente diferente. O CORTE DAS 13H pega quem passou
+  // pelo bom dia do dia e ainda tem reunião pela frente (e é o único que devolve
+  // horário vendável); a régua do LEMBRETE DE 1H pega o resto, perto da hora.
+  // Uma leitura de marcadores serve às duas.
+  const marcadores = await marcadoresDeSilencio().catch(err => {
+    logger.error('ep-agenda', 'ler marcadores de silêncio falhou — ninguém é marcado nesta rodada', err);
+    return null;
+  });
+  const vermelho13h = await marcarVermelhoDoCorte(fichas, agora, opts.dry === true, marcadores);
+  const naoAtendeu = await marcarNaoAtendeuAutomatico(fichas, agora, opts.dry === true, marcadores);
 
   const foraDeHorario = foraDaJanela();
   let confirmacoes = 0, lManha = 0, l1h = 0, l5min = 0, erros = 0, backlog = 0, toques = 0;
@@ -756,7 +888,9 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
   }
   return {
     confirmacoes, lembretes_manha: lManha, lembretes_1h: l1h, lembretes_5min: l5min,
-    nao_atendeu: naoAtendeu, erros,
+    // O total soma as duas réguas (é ele que a Central das Agentes mostra); o
+    // corte das 13h aparece também sozinho, porque é o que libera horário.
+    nao_atendeu: naoAtendeu + vermelho13h, vermelho_13h: vermelho13h, erros,
     ...(opts.dry ? { motivo: 'dry', previa } : {}),
   };
 }

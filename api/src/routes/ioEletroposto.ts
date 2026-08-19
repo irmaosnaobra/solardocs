@@ -4,6 +4,7 @@ import { supabaseGerador } from '../utils/supabaseGerador';
 import { supabase as supabasePc } from '../utils/supabase';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { logger } from '../utils/logger';
+import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
 // A dica de "quem está perto" no aviso: quem tem o ponto procura investidor e
 // vice-versa. Falha aqui nunca segura o aviso — devolve bloco vazio.
 import { blocoParesSeguro, pool, TETO_KM } from '../services/io/eletropostoPares';
@@ -39,7 +40,7 @@ const jaAvisado = new Set<number>();
 
 const soDigitos = (s: string) => (s || '').replace(/\D/g, '');
 
-function montarMensagem(a: any): string {
+export function montarMensagem(a: any): string {
   const quando = a.quando
     ? new Date(a.quando).toLocaleString('pt-BR', {
         timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit',
@@ -325,7 +326,7 @@ router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
   try {
     const [ocupadosQ, totalQ] = await Promise.all([
       supabaseGerador.from('agendamentos')
-        .select('quando, vendedor_nome, created_by')
+        .select('quando, vendedor_nome, created_by, status')
         .gte('quando', de).lte('quando', ate)
         .in('vendedor_nome', DONOS_EP)
         .not('status', 'in', '(cancelado,sem_interesse)')
@@ -339,6 +340,23 @@ router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
 
     const ocupados = ((ocupadosQ.data || []) as Array<Record<string, unknown>>)
       .filter(a => a.quando)
+      // ── O VERMELHO DEVOLVE O HORÁRIO (19/08/2026) ──────────────────────────
+      // Ficha de eletroposto marcada como NÃO ATENDIDO deixa de reservar o
+      // quadro: o horário volta pra vitrine e é vendido pra quem vier. É a
+      // segunda metade da ordem do Thiago ("coloca ele vermelho e libera o
+      // horário dele na agenda, dividindo o espaço com o próximo se vier") — a
+      // primeira metade é o corte das 13h, no eletropostoAgenda.
+      //
+      // O card VERMELHO CONTINUA DESENHADO na agenda interna do /gerador: quem
+      // sumiu não é apagado, e se outra pessoa marcar o mesmo horário o consultor
+      // vê o quadro dividido em dois. Quem permite as duas fichas no mesmo slot é
+      // o índice `agendamentos_vq_naosolar_uniq`, que desde a mesma data ignora o
+      // `nao_atendeu`.
+      //
+      // Vale só pro eletroposto de propósito: vistoria de solar que não atendeu
+      // nunca passou por régua de cor nenhuma, e mexer nela aqui mudaria a agenda
+      // de um produto que ninguém pediu pra mudar.
+      .filter(a => !(a.status === 'nao_atendeu' && ehOrigemEletroposto(a.created_by)))
       .map(a => ({
         ts: new Date(String(a.quando)).getTime(),
         dono: String(a.vendedor_nome),

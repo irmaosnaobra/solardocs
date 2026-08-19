@@ -44,7 +44,7 @@ import { EQUIPE } from '../../routes/ioEletroposto';
 import {
   quandoPorExtenso, carregarConsultores, EP_NAO_ATENDEU_PREFIX, EP_RESPOSTA_PREFIX,
 } from './eletropostoAgenda';
-import { passoDeRemarcacao, linhaDoAviso } from './eletropostoRemarcar';
+import { passoDeRemarcacao, linhaDoAviso, ofertarPorConta, bolhasSlotTomado } from './eletropostoRemarcar';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 
 const INSTANCE_ID_IO = (process.env.ZAPI_INSTANCE_ID_IO || '3F26F6ECE67D72BB7FCA6244BF24326C').trim();
@@ -59,8 +59,15 @@ const ESPERA_MS = 30 * 1000;
 /** Teto de leitura: não acorda conversa velha ao subir o módulo pela primeira vez. */
 const LOOKBACK_MAX_MS = 3 * 24 * 3600_000;
 const MAX_AVISOS_POR_TICK = 5;
-/** Reunião que já passou há mais de 2 dias não gera mais aviso de agenda. */
-const PASSADO_MAX_MS = 2 * 24 * 3600_000;
+/** Reunião que já passou há mais de 5 dias não gera mais aviso de agenda.
+ *
+ *  Eram 2 dias até 19/08/2026. Subiu junto com a repescagem do vermelho
+ *  (`eletropostoNoShow`), que convida a pessoa a remarcar em D+0, D+1 e D+3: com
+ *  o corte antigo, a resposta ao TERCEIRO convite chegava com a reunião perdida
+ *  há 3 dias e esta consulta já não trazia a ficha — o lead escolhia "2", nenhum
+ *  robô lia, e ninguém remarcava. Quem protege contra acordar conversa velha
+ *  continua sendo o corte por ficha (LOOKBACK_MAX_MS + o marcador `ate`). */
+const PASSADO_MAX_MS = 5 * 24 * 3600_000;
 
 const desligado = () => (process.env.EP_RESPOSTAS_OFF || '').trim() === '1';
 
@@ -323,12 +330,22 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
     const textosDaVez = lista.map(m => m.texto).filter(Boolean);
     const marcarPresenca = confirmouMesmo(textosDaVez);
     const desmarcarPresenca = pediuRemarcar(textosDaVez);
-    if (marcarPresenca || desmarcarPresenca) {
-      await supabaseGerador.from('agendamentos')
-        .update({ presenca_confirmada_at: marcarPresenca ? nowIso : null })
-        .eq('id', id)
-        .then(undefined, (e: unknown) => logger.error('ep-respostas', 'gravar presença falhou', { id, erro: String(e) }));
-    }
+    // `lead_resposta_at` vai SEMPRE que a pessoa fala, qualquer que tenha sido o
+    // teor. Ele não é presença nem intenção: é o carimbo de "esta pessoa não está
+    // em silêncio", e é o que a agenda do /gerador lê pra tirar o card do amarelo
+    // (e o que as duas réguas de vermelho leem pra não marcar quem conversa). O
+    // marcador `ep_resposta:<id>` diz a mesma coisa, mas mora no OUTRO projeto —
+    // a tela não o enxerga.
+    const patch: Record<string, string | null> = { lead_resposta_at: nowIso };
+    if (marcarPresenca || desmarcarPresenca) patch.presenca_confirmada_at = marcarPresenca ? nowIso : null;
+    await supabaseGerador.from('agendamentos')
+      .update(patch)
+      .eq('id', id)
+      .then(undefined, (e: unknown) => logger.error('ep-respostas', 'gravar resposta/presença falhou', { id, erro: String(e) }));
+
+    /** O horário dele já é de outra pessoa: em vez de brigar pelo slot, o robô
+     *  põe horários novos na mesa (ver logo abaixo). */
+    let slotFoiTomado = false;
 
     // A VOLTA DO NÃO ATENDIDO AUTOMÁTICO. O robô da agenda marca ausente por
     // silêncio; quem confirma depois disso desfaz a marca — a previsão dele
@@ -341,14 +358,25 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
       const { data: carimbo } = await supabase
         .from('system_state').select('key').eq('key', `${EP_NAO_ATENDEU_PREFIX}${id}`).maybeSingle();
       if (carimbo) {
-        await supabaseGerador.from('agendamentos')
-          .update({ status: 'agendado' }).eq('id', id).eq('status', 'nao_atendeu')
-          .then(undefined, (e: unknown) => logger.error('ep-respostas', 'desfazer não atendido falhou', { id, erro: String(e) }));
-        // O carimbo sai junto: ele existe pra dizer "esta marca é do robô", e a
-        // marca deixou de existir. Deixá-lo travaria a remarcação de amanhã.
-        await supabase.from('system_state').delete().eq('key', `${EP_NAO_ATENDEU_PREFIX}${id}`)
-          .then(undefined, () => {});
-        logger.info('ep-respostas', `ficha ${id} voltou pra agendado: confirmou depois do não atendido automático`);
+        const { error: eVolta } = await supabaseGerador.from('agendamentos')
+          .update({ status: 'agendado' }).eq('id', id).eq('status', 'nao_atendeu');
+        // 23505 = o quadro daquele consultor naquele horário já é de outra
+        // pessoa. Desde 19/08 o vermelho LIBERA o horário na vitrine da LP, e
+        // quem sumiu pode voltar depois de o slot ter sido vendido: a ficha não
+        // pode voltar pra `agendado` por cima de quem chegou no lugar dela.
+        // Nesse caso o robô não some — ele oferece horário novo na hora.
+        if (eVolta && String((eVolta as { code?: string }).code) === '23505') {
+          slotFoiTomado = true;
+          logger.info('ep-respostas', `ficha ${id} confirmou tarde: o horário já tinha sido revendido`);
+        } else if (eVolta) {
+          logger.error('ep-respostas', 'desfazer não atendido falhou', { id, erro: String(eVolta) });
+        } else {
+          // O carimbo sai junto: ele existe pra dizer "esta marca é do robô", e a
+          // marca deixou de existir. Deixá-lo travaria a remarcação de amanhã.
+          await supabase.from('system_state').delete().eq('key', `${EP_NAO_ATENDEU_PREFIX}${id}`)
+            .then(undefined, () => {});
+          logger.info('ep-respostas', `ficha ${id} voltou pra agendado: confirmou depois do não atendido automático`);
+        }
       }
     }
 
@@ -360,9 +388,19 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
     let posRemarcacao: string | null = null;
     let novoQuando: string | null = null;
     try {
-      const r = await passoDeRemarcacao(
-        ficha, textosDaVez, telPorConsultor.get(String(ficha.vendedor_nome || '')) ?? null);
+      const r = slotFoiTomado
+        // Quem chegou tarde não recebe "sua reunião está de pé": recebe a lista
+        // dos próximos horários, com a frase que explica o que aconteceu.
+        ? await ofertarPorConta(ficha, bolhasSlotTomado, { rodada: 1 })
+        : await passoDeRemarcacao(
+          ficha, textosDaVez, telPorConsultor.get(String(ficha.vendedor_nome || '')) ?? null);
       posRemarcacao = linhaDoAviso(r);
+      if (slotFoiTomado) {
+        // O Thiago precisa ler isto em UMA linha: a pessoa apareceu, o horário
+        // dela já não existia, e o robô não deixou ela no vácuo.
+        const cabecalho = '⚠️ Ele apareceu DEPOIS de o horário dele ter sido liberado e vendido pra outra pessoa.';
+        posRemarcacao = posRemarcacao ? `${cabecalho}\n${posRemarcacao}` : cabecalho;
+      }
       if (r.acao === 'remarcou') { remarcadas++; novoQuando = r.para; }
     } catch (e) {
       logger.error('ep-respostas', 'passo de remarcação falhou', { id, erro: String(e) });

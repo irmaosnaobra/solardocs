@@ -9,6 +9,7 @@ let fichas: any[] = [];
 let inbound: any[] = [];
 const avisos: Array<{ phone: string; texto: string }> = [];
 const presencas: Array<{ id: number; valor: string | null }> = [];
+const respostas: Array<{ id: number; valor: string | null }> = [];
 
 vi.mock('../utils/supabase', () => ({
   supabase: {
@@ -60,7 +61,14 @@ vi.mock('../utils/supabaseGerador', () => ({
           if (q._update) {
             // Presença e remarcação escrevem na MESMA tabela: separa pelo patch.
             if ('quando' in q._update) remarcacoes.push({ id: Number(v), patch: q._update });
-            else presencas.push({ id: v, valor: q._update.presenca_confirmada_at });
+            else {
+              // Desde 19/08 o mesmo patch carrega duas coisas: `lead_resposta_at`
+              // (vai SEMPRE que a pessoa fala — é o que tira o card do amarelo) e
+              // `presenca_confirmada_at` (só quando ela confirma mesmo, ou some
+              // quando pede pra remarcar). Separados aqui pra cada teste olhar o seu.
+              if ('lead_resposta_at' in q._update) respostas.push({ id: Number(v), valor: q._update.lead_resposta_at });
+              if ('presenca_confirmada_at' in q._update) presencas.push({ id: v, valor: q._update.presenca_confirmada_at });
+            }
             return Promise.resolve({ error: null });
           }
           return q;
@@ -75,7 +83,11 @@ vi.mock('../utils/supabaseGerador', () => ({
       };
       // A consulta de vagas é a única que pede exatamente estas duas colunas.
       const select = q.select;
-      q.select = (cols?: string) => { q._vagas = cols === 'quando, vendedor_nome'; return select(); };
+      // A consulta de vagas passou a pedir `status` e `created_by` também (o
+      // vermelho deixou de ocupar horário em 19/08). Casar por prefixo em vez da
+      // string inteira: senão uma coluna nova lá faz este mock devolver FICHA no
+      // lugar de compromisso, e o teste segue verde testando outra coisa.
+      q.select = (cols?: string) => { q._vagas = String(cols || '').startsWith('quando, vendedor_nome'); return select(); };
       return q;
     },
   },
@@ -111,7 +123,7 @@ function msg(over: Partial<any> = {}) {
 
 const envOriginal = { ...process.env };
 beforeEach(() => {
-  state.clear(); avisos.length = 0; presencas.length = 0;
+  state.clear(); avisos.length = 0; presencas.length = 0; respostas.length = 0;
   aoLead.length = 0; remarcacoes.length = 0; compromissos = [];
   fichas = [ficha()]; inbound = [msg()];
   vi.useFakeTimers(); vi.setSystemTime(AGORA);
@@ -245,10 +257,13 @@ describe('presença na ficha', () => {
     expect(presencas).toEqual([{ id: 1, valor: expect.any(String) }]);
   });
 
-  it('quem só pergunta não sobe nada', async () => {
+  it('quem só pergunta não sobe presença — mas o silêncio acaba do mesmo jeito', async () => {
     inbound = [msg({ texto: 'quanto vou gastar?' })];
     await tick();
     expect(presencas).toHaveLength(0);
+    // Pergunta não é presença, mas é resposta: o card sai do amarelo na agenda e
+    // as duas réguas de vermelho param de mirar nele.
+    expect(respostas).toEqual([{ id: 1, valor: expect.any(String) }]);
   });
 
   it('quem confirmou e depois pediu remarcar CAI da conta', async () => {

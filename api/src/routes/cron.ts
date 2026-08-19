@@ -38,6 +38,8 @@ import { runSementeTick, publicoSemente, bolhasSemente } from '../services/io/se
 import { runGrupoFriosTick, publicoGrupoFrio, bolhasGrupoFrio } from '../services/io/eletropostoGrupoFrios';
 import { runEletropostoAgendaTick } from '../services/io/eletropostoAgenda';
 import { runEletropostoRespostasTick } from '../services/io/eletropostoRespostas';
+import { runEletropostoNoShowTick } from '../services/io/eletropostoNoShow';
+import { runEletropostoCardPingTick } from '../services/io/eletropostoCardPing';
 import { runSolarBoasVindasTick } from '../services/io/solarBoasVindas';
 import { runSolarRespostasTick } from '../services/io/solarRespostas';
 import { runNilceParaGiovanna } from '../services/agenda/nilceParaGiovanna';
@@ -303,6 +305,8 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       runGrupoFriosTick(),             // eletroposto: quem esfriou (não atendeu / sem interesse) vai pro grupo
       runEletropostoAgendaTick(),      // eletroposto: confirmação ao marcar + bom dia + lembrete 1h e 5min (anti no-show)
       runEletropostoRespostasTick(),   // eletroposto: lead respondeu a automação → recado pro Thiago e pro Diego
+      runEletropostoNoShowTick(),      // eletroposto: card vermelho → 3 convites pra remarcar, com horários novos (EP_NOSHOW_OFF desliga)
+      runEletropostoCardPingTick(),    // eletroposto: card que trocou de dono no repasse de 12h chega de novo no WhatsApp de quem está com ele (EP_CARD_PING_OFF desliga)
       runSolarBoasVindasTick(),        // solar: quem acabou de se cadastrar recebe o consultor, o contato e a pergunta do consumo (SOLAR_BOASVINDAS_OFF desliga)
       runSolarRespostasTick(),         // solar: cliente respondeu as boas-vindas → recado pro consultor dono da ficha
       // [06/08] As três cadências da linha B2B passam a drenar AQUI também, não só no
@@ -475,6 +479,34 @@ router.get('/eletroposto-respostas', async (req: Request, res: Response) => {
     res.json({ ok: true, dry, ...(await runEletropostoRespostasTick({ dry })) });
   } catch (err: any) {
     logger.error('cron', 'eletroposto-respostas falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
+// ── Repescagem do card VERMELHO (não atendeu → 3 convites pra remarcar) ─────
+// ?dry=1 mostra quem seria chamado e em que tentativa, sem enviar e sem gastar
+// a tentativa. Uma pessoa por rodada, 9h–19h.
+router.get('/eletroposto-noshow', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    res.json({ ok: true, dry, ...(await runEletropostoNoShowTick({ dry })) });
+  } catch (err: any) {
+    logger.error('cron', 'eletroposto-noshow falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
+// ── Card que trocou de dono no repasse de 12h → chega de novo no WhatsApp ────
+// ?dry=1 lista as trocas que virariam reenvio, sem mandar e SEM carimbar (então
+// a próxima rodada real ainda manda).
+router.get('/eletroposto-card-ping', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    res.json({ ok: true, dry, ...(await runEletropostoCardPingTick({ dry })) });
+  } catch (err: any) {
+    logger.error('cron', 'eletroposto-card-ping falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });
@@ -957,6 +989,8 @@ router.get('/master', async (req: Request, res: Response) => {
     ['lembretes-agenda',            () => processarLembretesAgenda()], // [AVISOS-AGENDA-OFF 28/07] no-op: kill-switch dentro do módulo
     ['eletroposto-agenda',          () => runEletropostoAgendaTick()], // eletroposto: confirma ao marcar, bom dia no dia, avisa 1h e 5min antes (anti no-show)
     ['eletroposto-respostas',       () => runEletropostoRespostasTick()], // eletroposto: quem respondeu a automação vira recado pra equipe
+    ['eletroposto-noshow',          () => runEletropostoNoShowTick()],    // eletroposto: repescagem do card vermelho (3 convites pra remarcar)
+    ['eletroposto-card-ping',       () => runEletropostoCardPingTick()],  // eletroposto: reenvia o card pro consultor quando o repasse de 12h troca o dono
     ['solar-boas-vindas',           () => runSolarBoasVindasTick()],     // solar: recibo do cadastro pro cliente (SOLAR_BOASVINDAS_OFF desliga)
     ['solar-respostas',             () => runSolarRespostasTick()],      // solar: resposta do cliente vira recado pro consultor dono
     ['dunning',                     () => runDunning()],            // 5 dias: D0-D4 lembrete, D5 cancela+free

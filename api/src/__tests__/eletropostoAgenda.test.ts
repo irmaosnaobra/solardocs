@@ -711,3 +711,88 @@ describe('não atendido automático', () => {
     expect((await tick()).nao_atendeu).toBe(0);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// O CORTE DAS 13H (ordem do Thiago, 19/08/2026)
+//
+// "O segundo contato às 8h — ele não atender até as 13h, coloca ele vermelho e
+// libera o horário dele na agenda."
+//
+// O risco aqui não é deixar de marcar: é marcar de ausente, com horas de
+// antecedência, quem ia aparecer — e ainda vender o horário dele pra outra
+// pessoa. Por isso todo teste abaixo é sobre QUEM FICA DE FORA.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('corte das 13h', () => {
+  /** Reunião hoje às 18h BRT (o relógio dos testes é 13h BRT), confirmada,
+   *  marcada num dia anterior — o retrato de quem levou o bom dia de manhã. */
+  const daTarde = (over: any = {}) => fichaConfirmada({ id: 7, quando: emMinutos(300), lead_resposta_at: null, ...over });
+  const comBomDia = () => { carimbos.push('ep_agenda_sent:7:manha'); };
+
+  beforeEach(() => { fichas = [daTarde()]; });
+
+  it('quem levou o bom dia e não respondeu nada vira vermelho', async () => {
+    comBomDia();
+    const r = await tick();
+    expect(r.vermelho_13h).toBe(1);
+    expect(r.nao_atendeu).toBe(1);                       // o total soma as duas réguas
+    expect(updates).toContainEqual({ id: 7, campo: 'status+historico' });
+    // A prova de que a marca é do ROBÔ — é ela que deixa o agente de respostas
+    // desfazer tudo se a pessoa aparecer falando.
+    expect(carimbos).toContain('ep_nao_atendeu_auto:7');
+  });
+
+  it('antes das 13h ninguém é marcado — a manhã inteira é dele', async () => {
+    comBomDia();
+    vi.setSystemTime(new Date('2026-08-04T14:00:00.000Z'));   // 11h BRT
+    expect((await tick()).vermelho_13h).toBe(0);
+  });
+
+  it('sem o segundo contato não há corte (quem marcou hoje pra hoje fica de fora)', async () => {
+    const r = await tick();                                   // nenhum carimbo de bom dia
+    expect(r.vermelho_13h).toBe(0);
+  });
+
+  it('quem escreveu qualquer coisa não é ausente', async () => {
+    comBomDia();
+    fichas = [daTarde({ lead_resposta_at: '2026-08-04T15:00:00.000Z' })];
+    expect((await tick()).vermelho_13h).toBe(0);
+  });
+
+  it('quem confirmou presença não é ausente', async () => {
+    comBomDia();
+    fichas = [daTarde({ presenca_confirmada_at: '2026-08-04T15:00:00.000Z' })];
+    expect((await tick()).vermelho_13h).toBe(0);
+  });
+
+  it('reunião que JÁ PASSOU não entra: não há horário pra devolver', async () => {
+    comBomDia();
+    fichas = [daTarde({ quando: emMinutos(-2) })];
+    expect((await tick()).vermelho_13h).toBe(0);
+  });
+
+  it('reunião de OUTRO DIA não entra: o bom dia dela ainda nem saiu', async () => {
+    comBomDia();
+    fichas = [daTarde({ quando: emMinutos(60 * 24) })];
+    expect((await tick()).vermelho_13h).toBe(0);
+  });
+
+  it('não marca duas vezes quem alguém devolveu pra agendado na mão', async () => {
+    comBomDia();
+    carimbos.push('ep_nao_atendeu_auto:7');
+    expect((await tick()).vermelho_13h).toBe(0);
+  });
+
+  it('kill-switch próprio, sem derrubar a régua do lembrete de 1h', async () => {
+    comBomDia();
+    process.env.EP_CORTE_13H_OFF = '1';
+    expect((await tick()).vermelho_13h).toBe(0);
+  });
+
+  it('dry conta e não escreve nada', async () => {
+    comBomDia();
+    const r = await tick({ dry: true });
+    expect(r.vermelho_13h).toBe(1);
+    expect(updates).toHaveLength(0);
+    expect(carimbos).not.toContain('ep_nao_atendeu_auto:7');
+  });
+});

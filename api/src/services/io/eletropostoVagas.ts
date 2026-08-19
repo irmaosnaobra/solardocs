@@ -34,6 +34,7 @@
 
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
+import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 
 const BRT_TZ = 'America/Sao_Paulo';
 
@@ -99,7 +100,7 @@ export function livrePara(iso: string, dono: string, compromissos: Compromisso[]
 export async function carregarCompromissos(deIso: string, ateIso: string): Promise<Compromisso[] | null> {
   try {
     const { data, error } = await supabaseGerador
-      .from('agendamentos').select('quando, vendedor_nome')
+      .from('agendamentos').select('quando, vendedor_nome, status, created_by')
       .gte('quando', deIso).lte('quando', ateIso)
       .not('status', 'in', '(cancelado,sem_interesse)')
       .limit(2000);
@@ -111,6 +112,12 @@ export async function carregarCompromissos(deIso: string, ateIso: string): Promi
     if (!data) throw new Error('resposta sem corpo');
     return data
       .filter(a => a.quando && a.vendedor_nome)
+      // Vermelho de eletroposto não ocupa (19/08/2026): quem foi dado como NÃO
+      // ATENDIDO devolveu o horário, na vitrine da LP e aqui. Se as duas listas
+      // discordassem, a página venderia um slot que o robô continuaria achando
+      // ocupado — e o lead que pedisse pra remarcar nunca receberia justamente o
+      // horário que a página oferece pra todo mundo.
+      .filter(a => !(a.status === 'nao_atendeu' && ehOrigemEletroposto(a.created_by)))
       .map(a => ({ ts: new Date(String(a.quando)).getTime(), dono: String(a.vendedor_nome) }));
   } catch (err) {
     logger.error('ep-vagas', 'ler compromissos falhou', err);

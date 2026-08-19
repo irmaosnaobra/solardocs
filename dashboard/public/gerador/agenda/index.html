@@ -290,6 +290,30 @@
   .slot.dividido .meia.status-proposta_apresentada { background: #0ea5e9; color: #fff; }
   .slot.dividido .meia.status-fechou_concorrente{ background: #92400e; color: #fff; }
   .slot.dividido .meia.status-perdido           { background: #475569; color: #fff; }
+  /* ── SILÊNCIO DO LEAD (ordem do Thiago, 19/08/2026) ──────────────────────────
+     "O lead do horário que não responder a primeira msg fica em amarelo."
+
+     Amarelo NÃO é status: é a resposta a outra pergunta. O status conta o que deu
+     na reunião; isto conta se a pessoa deu sinal de vida depois que a automação
+     falou com ela. Por isso ele é DERIVADO na tela (confirmação enviada há 2h+,
+     `lead_resposta_at` vazio) e não existe no banco como valor de `status` — um
+     status novo entraria no repasse de 12h, no índice do quadro e na LP, tudo de
+     uma vez, pra dizer uma coisa que é temporária por natureza: basta ela
+     responder que o card volta a ser o que era.
+
+     O passo seguinte do silêncio é o VERMELHO (`nao_atendeu`, que já existe e já
+     tem cor): o card fica amarelo durante o dia e, se nem depois do bom dia das
+     8h ele responder, às 13h o robô o marca de ausente e devolve o horário.
+
+     Âmbar cheio, texto escuro: o #fef3c7 de `fez_orcamento` é quase branco e some
+     ao lado do azul; este precisa saltar numa grade cheia de cards azuis. */
+  .slot.sem-resposta,
+  .slot.dividido .meia.sem-resposta { background: #f59e0b; color: #1f2937; }
+  .slot.sem-resposta .tel,
+  .slot.sem-resposta .cidade { color: #1f2937; opacity: .85; }
+  .slot.sem-resposta .ok-btn { background: rgba(31,41,55,.16); color: #1f2937; }
+  .slot.sem-resposta .ok-btn:hover { background: rgba(31,41,55,.28); }
+
   .slot.passado { opacity: .55; cursor: not-allowed; }
 
   /* ── PRESENÇA CONFIRMADA PELO LEAD ───────────────────────────────────────────
@@ -658,6 +682,7 @@
   .sw-livre  { background: #fff; }
   .sw-fora   { background: #fafafa; }
   .sw-ag     { background: #0d2d5e; }
+  .sw-sr     { background: #f59e0b; }
   .sw-na     { background: #dc2626; }
   .sw-wp     { background: #14b8a6; }
   .sw-si     { background: #64748b; }
@@ -873,6 +898,8 @@
   html[data-theme="dark"] .slot.status-agendado.confirmado,
   html[data-theme="dark"] .slot.dividido .meia.status-agendado.confirmado { background: #047857; color: #fff; }
   html[data-theme="dark"] .slot.status-nao_atendeu       { background: #dc2626; color: #fff; }
+  html[data-theme="dark"] .slot.sem-resposta,
+  html[data-theme="dark"] .slot.dividido .meia.sem-resposta { background: #f59e0b; color: #1f2937; }
   html[data-theme="dark"] .slot.status-falando_whatsapp  { background: #14b8a6; color: #fff; }
   html[data-theme="dark"] .slot.status-sem_interesse     { background: #64748b; color: #fff; }
   html[data-theme="dark"] .slot.status-sem_orcamento     { background: #ea580c; color: #fff; }
@@ -973,6 +1000,7 @@
     <div class="item"><div class="sw sw-livre"></div> Livre</div>
     <div class="item"><div class="sw sw-fora"></div> Após 18h</div>
     <div class="item"><div class="sw sw-ag"></div> Agendada</div>
+    <div class="item"><div class="sw sw-sr"></div> Não respondeu</div>
     <div class="item"><div class="sw sw-na"></div> Não atendeu</div>
     <div class="item"><div class="sw sw-wp"></div> Falando WhatsApp</div>
     <div class="item"><div class="sw sw-si"></div> Sem interesse</div>
@@ -1432,6 +1460,33 @@ function horaDoSlot(ag, iniSlot) {
   return `<span class="hora-exata">${pad(t.getHours())}h${pad(t.getMinutes())}</span> `;
 }
 
+// ── SILÊNCIO DO LEAD → CARD AMARELO ─────────────────────────────────────────
+// Ordem do Thiago (19/08/2026): "quando o lead do horário não responder a
+// primeira msg ele fica em amarelo".
+//
+// A "primeira msg" é a confirmação que o robô manda no instante em que a pessoa
+// marca (api/src/services/io/eletropostoAgenda.ts). Se ela não devolveu nada —
+// nem "sim", nem pergunta, nem áudio — o card fica amarelo até responder. Quem
+// escreve a prova é o agente de respostas, na coluna `lead_resposta_at`.
+//
+// AS DUAS HORAS DE FOLGA são o detalhe que faz a cor valer alguma coisa: sem
+// elas todo card nasceria amarelo no minuto seguinte ao agendamento (a
+// confirmação sai na hora, a resposta demora), e uma cor que todo mundo tem não
+// avisa nada. Com elas o amarelo quer dizer "já deu tempo de responder e não
+// respondeu".
+//
+// Só eletroposto: é o único produto onde a automação PEDE resposta ao lead. No
+// solar os avisos ao cliente estão desligados desde 28/07 — pintar de amarelo
+// quem nunca foi perguntado seria acusar o lead de um silêncio nosso.
+const SEM_RESPOSTA_APOS_MS = 2 * 60 * 60 * 1000;
+function semRespostaDoLead(ag) {
+  if (!ag || ag.status !== 'agendado') return false;              // vermelho, fechou, etc. têm cor própria
+  if (!String(ag.created_by || '').toLowerCase().includes('eletroposto')) return false;
+  if (ag.lead_resposta_at || ag.presenca_confirmada_at) return false;
+  if (!ag.confirmacao_at) return false;                           // ninguém falou com ele ainda
+  return Date.now() - new Date(ag.confirmacao_at).getTime() >= SEM_RESPOSTA_APOS_MS;
+}
+
 // ── PRESENÇA CONFIRMADA ──────────────────────────────────────────────────────
 // A coluna `presenca_confirmada_at` existe desde 04/08 e o agente de WhatsApp já a
 // preenche sozinho quando o lead responde SIM (api/src/services/io/eletropostoRespostas.ts
@@ -1535,7 +1590,7 @@ function renderGrid() {
             const etq = etqDeLead(a.created_by, a.src);
             const etqCls = (typeof etiquetaCor === 'function' ? etiquetaCor(etq) : '');
             const okA = !!a.presenca_confirmada_at;
-            return `<div class="meia ocupado status-${escapeHtml(a.status || 'agendado')}${okA ? ' confirmado' : ''}"
+            return `<div class="meia ocupado status-${escapeHtml(a.status || 'agendado')}${okA ? ' confirmado' : ''}${semRespostaDoLead(a) ? ' sem-resposta' : ''}"
               data-id="${a.id}" onclick="abrirDetalhes(${a.id})" title="${escapeHtml(a.cliente_nome || '')}">
               <div class="nome">${horaDoSlot(a, iniSlot)}${escapeHtml(a.cliente_nome)}</div>
               ${etq ? `<div class="cidade"><span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span></div>` : ''}
@@ -1557,7 +1612,8 @@ function renderGrid() {
             etq ? `<span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>` : '',
           ].filter(Boolean).join(' ');
           const okCls = ag.presenca_confirmada_at ? ' confirmado' : '';
-          html += `<div class="slot ocupado ${stCls}${tempCls}${okCls}" data-id="${ag.id}" onclick="abrirDetalhes(${ag.id})">
+          const srCls = semRespostaDoLead(ag) ? ' sem-resposta' : '';
+          html += `<div class="slot ocupado ${stCls}${tempCls}${okCls}${srCls}" data-id="${ag.id}" onclick="abrirDetalhes(${ag.id})">
             ${tempLabel ? `<div class="temp-mark">${tempLabel}</div>` : ''}
             <div class="nome">${horaDoSlot(ag, iniSlot)}${escapeHtml(ag.cliente_nome)}</div>
             <div class="tel">${escapeHtml(formatTelBR(ag.cliente_telefone))}</div>
