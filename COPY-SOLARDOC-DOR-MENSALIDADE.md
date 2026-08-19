@@ -507,15 +507,39 @@ A mensagem da pesquisa pedia autorização no fim. Só **um** respondeu isso:
 | Ronailson Klesley | 53 / 20 | mandou emoji — não é autorização |
 | Melque | 22 / 8 | não respondeu |
 
-**Mensagem pronta pra mandar (3 primeiros, hoje):**
+**Regra da autorização: colar o CARD, não resumir o trecho.** Os cards são
+costurados — o do Juliano junta três momentos do áudio dele, o do Ronailson junta
+as respostas 1 e 2. Nenhuma palavra foi inventada, mas o texto que vai pro ar não
+é uma frase corrida que ele lembra de ter dito. Perguntar "posso publicar aquilo
+que você falou?" e publicar a costura não é a mesma coisa. Então a mensagem leva o
+card inteiro, do jeitinho que vai aparecer.
 
-> Juliano, aquilo que você me falou no áudio sobre o preço e sobre você usar só a
-> proposta foi a melhor coisa que eu ouvi esse mês. Posso publicar esse trecho na
-> página do SolarDoc, com o seu nome e o da sua empresa? Se preferir só o primeiro
-> nome, ou sem o nome da outra plataforma, também tá ótimo — você manda.
+**Modelo:**
 
-*(Se ele autorizar o nome "Azume", a peça de 15s da §2 fica liberada e vira o
-melhor criativo que a gente já teve.)*
+> [Nome], aquilo que você me mandou sobre o SolarDoc foi a melhor coisa que eu ouvi
+> esse mês. Queria publicar na página, e ia ficar assim — juntei os pedaços da sua
+> resposta, sem mudar palavra:
+>
+> *"[COLAR O CARD]"*
+> *— [Nome], [empresa/cidade]*
+>
+> Pode ir assim? Se quiser tirar alguma parte, trocar o nome da empresa ou usar só
+> o primeiro nome, é só falar que eu ajusto.
+
+**Os 5 cards, prontos pra colar:**
+
+| Pra quem | Texto do card |
+|---|---|
+| **Juliano Grilo** · Artur Nogueira/SP | "Pra mim foi um divisor de águas. Primeiro, o preço. E eu, exclusivamente, só trabalho com a proposta: a média do ano vem com o número escrito em cima. Na outra plataforma é gráfico — e gráfico dificulta a mente do cliente, você tem que bater uma régua pra enxergar." |
+| **Vanderlei** · American Energy Solar | "Usei três anos outra plataforma, passei um ano no e-mail. Entre todas que já usei e outras que apenas testei, essa é a que conseguimos gerar propostas mais rapidamente." |
+| **Lucas Paulino** · RSC Solar | "Rapidez. Eu coloquei ele no meu celular, então eu consigo responder de qualquer lugar que eu estiver. Rápido demais." |
+| **Alessandro Goulart** · Feliz/RS | "Criava os meus orçamentos tudo através de planilha. Aqui, com quatro, cinco cliques eu consigo montar uma proposta. Recomendo." |
+| **Ronailson Klesley** · Abreulândia/TO | "Praticidade e agilidade. Antes eu não fazia — era só venda formal, sem nenhum documento apresentando dados reais." |
+
+*Nos cards do Juliano e do Vanderlei eu troquei "Azume" por "outra plataforma" —
+dito por eles é relato de vida, estampado na nossa página vira anúncio comparativo
+nosso. Vale avisar os dois disso na mensagem: eles podem preferir assim mesmo. Se
+o Juliano fizer questão do nome, aí a peça de 15s da §2 também fica liberada.*
 
 ---
 

@@ -1302,6 +1302,13 @@
 }
 @media (min-width: 880px) {
   .depoGrid { grid-template-columns: repeat(3, 1fr); gap: 18px; max-width: none; }
+  /* Com 1 ou 2 depoimentos liberados, `repeat(3, 1fr)` joga o card pra esquerda
+     com uma ou duas colunas vazias do lado — parece secao quebrada, nao secao
+     enxuta. Aqui as cartas ganham largura de leitura e ficam centradas. */
+  .depoGridPoucos {
+    grid-template-columns: repeat(auto-fit, minmax(0, 380px));
+    justify-content: center;
+  }
 }
 .depoCard {
   display: flex;
