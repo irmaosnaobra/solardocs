@@ -775,8 +775,13 @@ export default function Landing() {
             É <strong>isso que sai</strong> quando você clica em gerar.
           </h2>
           <p className={styles.sectionSub} data-reveal>
-            Onze páginas em A4, do orçamento ao inventário — geradas pelo próprio sistema.
-            Repare na cor: o documento sai com a marca <b>da sua empresa</b>, não com a nossa.
+            {/* Era "Onze páginas ... ao inventário". Duas folhas saíram do carrossel
+                em 19/08 (as das ferramentas), então o número virou nove e o
+                destino final da frase mudou junto — contar errado uma coisa que
+                a pessoa pode conferir rolando é o pior tipo de erro numa LP. */}
+            Nove páginas em A4, do orçamento à vistoria da obra — geradas pelo próprio
+            sistema. Repare na cor: o documento sai com a marca <b>da sua empresa</b>,
+            não com a nossa.
           </p>
 
           <div
