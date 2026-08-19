@@ -1301,14 +1301,23 @@
   margin: 0 auto;
 }
 @media (min-width: 880px) {
-  .depoGrid { grid-template-columns: repeat(3, 1fr); gap: 18px; max-width: none; }
-  /* Com 1 ou 2 depoimentos liberados, `repeat(3, 1fr)` joga o card pra esquerda
-     com uma ou duas colunas vazias do lado — parece secao quebrada, nao secao
-     enxuta. Aqui as cartas ganham largura de leitura e ficam centradas. */
-  .depoGridPoucos {
-    grid-template-columns: repeat(auto-fit, minmax(0, 380px));
+  /* FLEX, e nao grid de 3 colunas, por causa da ultima fileira. Com o card em
+     destaque ocupando uma fileira inteira sobram 5, que num grid viram 3 + 2 com
+     um buraco na direita. No flex com `justify-content: center` os dois ultimos
+     se centram sozinhos, e a conta continua valendo pra 4, 7, 8 depoimentos —
+     conforme os proximos clientes forem autorizando, nao precisa mexer aqui. */
+  .depoGrid {
+    display: flex;
+    flex-wrap: wrap;
     justify-content: center;
+    align-items: stretch;
+    gap: 18px;
+    max-width: none;
   }
+  .depoGrid > * { flex: 1 1 300px; max-width: calc((100% - 36px) / 3); }
+  /* Com 1 ou 2 liberados nao ha' fileira pra centrar: o que faltava era largura
+     de leitura, senao o card fica um terco esquisito no meio do vazio. */
+  .depoGridPoucos > * { max-width: 380px; }
 }
 .depoCard {
   display: flex;
@@ -1353,6 +1362,37 @@
   object-fit: contain;
 }
 .depoQuem { min-width: 0; line-height: 1.25; margin-top: auto; }
+
+/* ----- CARD EM DESTAQUE -----
+   Ocupa a grade inteira e vira duas colunas: marca de um lado, fala do outro.
+   No celular a grade ja' e' de uma coluna, entao ele so' herda o corpo maior —
+   nao adianta "destacar" onde todo card ja' ocupa a largura toda. */
+.depoDestaque { border-color: rgba(245, 158, 11, 0.28); }
+.depoDestaque .depoTexto { font-size: 17px; line-height: 1.5; }
+@media (min-width: 880px) {
+  .depoDestaque {
+    flex-basis: 100%;
+    max-width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 260px) minmax(0, 1fr);
+    align-items: center;
+    column-gap: 36px;
+    row-gap: 16px;
+    padding: 34px 36px;
+  }
+  /* A marca e a assinatura empilham na coluna da esquerda; a fala toma a direita
+     e atravessa as duas linhas. */
+  .depoDestaque .depoLogo { grid-column: 1; grid-row: 1; align-self: end; }
+  .depoDestaque .depoQuem { grid-column: 1; grid-row: 2; margin-top: 0; align-self: start; }
+  .depoDestaque .depoTexto {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    font-size: 20px;
+    line-height: 1.45;
+  }
+  .depoDestaque .depoLogo img { height: 76px; max-width: 232px; }
+  .depoDestaque::before { font-size: 128px; top: -24px; right: 22px; }
+}
 .depoNome {
   font-weight: 800;
   font-size: 15px;

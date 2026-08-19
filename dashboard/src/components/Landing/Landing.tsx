@@ -135,10 +135,16 @@ const CONCESSIONARIAS = [
 const DEPOIMENTOS: {
   nome: string; empresa: string; cidade: string; logo: string; logoW: number;
   texto: string; liberado: boolean;
+  /* `destaque` puxa o card pra largura inteira da grade, com a fala em corpo
+     maior. E' pra UM so': dois destaques nao destacam nada. Hoje e' o Juliano,
+     porque a fala dele e' a unica que junta as tres coisas que a pagina precisa
+     provar — o preco, o "so' uso a proposta" e o motivo tecnico de a nossa
+     ganhar. Se um depoimento melhor aparecer, move a marca, nao acumula. */
+  destaque?: boolean;
 }[] = [
   {
     nome: 'Juliano Grilo', empresa: 'Grilo Energia Solar', cidade: 'Artur Nogueira/SP',
-    logo: '/logos/grilo-energia.webp', logoW: 129, liberado: true,
+    logo: '/logos/grilo-energia.webp', logoW: 129, liberado: true, destaque: true,
     texto: 'Pra mim foi um divisor de águas. Primeiro, o preço. E eu, exclusivamente, só trabalho com a proposta: a média do ano vem com o número escrito em cima. Na outra plataforma é gráfico — e gráfico dificulta a mente do cliente, você tem que bater uma régua pra enxergar.',
   },
   {
@@ -568,6 +574,84 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* PROVA SOCIAL — SEGUNDA SECAO DA PAGINA, logo depois do hero.
+          Estava em 9o lugar, entre "quem fez" e o preco. O hero promete "o melhor
+          Gerador de Proposta do Brasil": superlativo que a pessoa nao tem motivo
+          nenhum pra acreditar, e ela precisava rolar sete telas da gente falando da
+          gente antes de ouvir um cliente. Aqui a promessa e' respondida onde ela e'
+          feita. A faixa das concessionarias vem depois de proposito: ela e'
+          tranquilizacao tecnica (a procuracao passa?), e isso so' importa pra quem
+          ja' acreditou na primeira parte. */}
+      <section className={styles.social}>
+        <div className={styles.socialInner}>
+          <div className={styles.sectionLabelWrap}>
+            <span className={styles.sectionLabel} data-reveal>Prova de quem usa</span>
+          </div>
+          <h2 className={styles.sectionTitle} data-reveal>
+            Quem já pagava caro em outra plataforma
+            {' '}<strong>explica melhor do que a gente</strong>.
+          </h2>
+
+          {DEPOIMENTOS_NO_AR.length > 0 && (
+            <div
+              className={`${styles.depoGrid} ${DEPOIMENTOS_NO_AR.length < 3 ? styles.depoGridPoucos : ''}`}
+            >
+              {DEPOIMENTOS_NO_AR.map((d, i) => (
+                <article
+                  key={d.nome}
+                  className={`${styles.depoCard} ${d.destaque ? styles.depoDestaque : ''}`}
+                  data-reveal
+                  style={{ transitionDelay: `${0.05 * i}s` }}
+                >
+                  <div className={styles.depoLogo}>
+                    {/* Altura fixa de 60: todas as fontes sao webp de 120 de altura,
+                        entao as 6 pousam na mesma linha optica e so' a largura varia. */}
+                    <img
+                      src={d.logo}
+                      alt={`Logo da ${d.empresa || d.nome}`}
+                      width={d.logoW}
+                      height={60}
+                      loading="lazy"
+                    />
+                  </div>
+                  <p className={styles.depoTexto}>{d.texto}</p>
+                  <div className={styles.depoQuem}>
+                    <div className={styles.depoNome}>{d.nome}</div>
+                    <div className={styles.depoEmpresa}>
+                      {[d.empresa, d.cidade].filter(Boolean).join(' · ')}
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+
+          {/* Os numeros vem DEPOIS das falas. O titulo da secao anuncia gente
+              falando; entregar tabela primeiro quebra a promessa da frase. Aqui
+              eles fecham a secao: a fala convence, o numero confirma. */}
+          <div className={styles.statsGrid}>
+            {/* Numeros conferidos no banco em 19/08/2026 e SEM a conta dos socios
+                (aiorosgroup@gmail.com, uso proprio) — o que esta' aqui e' uso de
+                empresa cliente. Ao atualizar, rodar de novo:
+                  documentos:  select count(*) from documents where user_id <> <socio>
+                  empresas:    select count(*) from company where cnpj <> ''
+                  ultimos 30d: idem documentos + created_at >= now() - interval '30 days' */}
+            <div className={styles.stat} data-reveal>
+              <div className={styles.statN}>1.714</div>
+              <div className={styles.statL}>Documentos solares gerados por empresas clientes</div>
+            </div>
+            <div className={styles.stat} data-reveal style={{ transitionDelay: '0.1s' }}>
+              <div className={styles.statN}>152</div>
+              <div className={styles.statL}>Empresas solares com CNPJ cadastradas</div>
+            </div>
+            <div className={styles.stat} data-reveal style={{ transitionDelay: '0.2s' }}>
+              <div className={styles.statN}>985</div>
+              <div className={styles.statL}>Documentos gerados nos últimos 30 dias</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* TRUST STRIP */}
       <section className={styles.trustStrip}>
         <div className={styles.trustStripInner}>
@@ -993,73 +1077,6 @@ export default function Landing() {
               </p>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* PROVA SOCIAL */}
-      <section className={styles.social}>
-        <div className={styles.socialInner}>
-          <div className={styles.sectionLabelWrap}>
-            <span className={styles.sectionLabel} data-reveal>Prova de quem usa</span>
-          </div>
-          <h2 className={styles.sectionTitle} data-reveal>
-            Empresas solares que <strong>pararam de perder venda</strong>.
-          </h2>
-
-          <div className={styles.statsGrid}>
-            {/* Numeros conferidos no banco em 19/08/2026 e SEM a conta dos socios
-                (aiorosgroup@gmail.com, uso proprio) — o que esta' aqui e' uso de
-                empresa cliente. Ao atualizar, rodar de novo:
-                  documentos:  select count(*) from documents where user_id <> <socio>
-                  empresas:    select count(*) from company where cnpj <> ''
-                  ultimos 30d: idem documentos + created_at >= now() - interval '30 days' */}
-            <div className={styles.stat} data-reveal>
-              <div className={styles.statN}>1.714</div>
-              <div className={styles.statL}>Documentos solares gerados por empresas clientes</div>
-            </div>
-            <div className={styles.stat} data-reveal style={{ transitionDelay: '0.1s' }}>
-              <div className={styles.statN}>152</div>
-              <div className={styles.statL}>Empresas solares com CNPJ cadastradas</div>
-            </div>
-            <div className={styles.stat} data-reveal style={{ transitionDelay: '0.2s' }}>
-              <div className={styles.statN}>985</div>
-              <div className={styles.statL}>Documentos gerados nos últimos 30 dias</div>
-            </div>
-          </div>
-
-          {DEPOIMENTOS_NO_AR.length > 0 && (
-            <div
-              className={`${styles.depoGrid} ${DEPOIMENTOS_NO_AR.length < 3 ? styles.depoGridPoucos : ''}`}
-            >
-              {DEPOIMENTOS_NO_AR.map((d, i) => (
-                <article
-                  key={d.nome}
-                  className={styles.depoCard}
-                  data-reveal
-                  style={{ transitionDelay: `${0.05 * i}s` }}
-                >
-                  <div className={styles.depoLogo}>
-                    {/* Altura fixa de 60: todas as fontes sao webp de 120 de altura,
-                        entao as 6 pousam na mesma linha optica e so' a largura varia. */}
-                    <img
-                      src={d.logo}
-                      alt={`Logo da ${d.empresa || d.nome}`}
-                      width={d.logoW}
-                      height={60}
-                      loading="lazy"
-                    />
-                  </div>
-                  <p className={styles.depoTexto}>{d.texto}</p>
-                  <div className={styles.depoQuem}>
-                    <div className={styles.depoNome}>{d.nome}</div>
-                    <div className={styles.depoEmpresa}>
-                      {[d.empresa, d.cidade].filter(Boolean).join(' · ')}
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
         </div>
       </section>
 
