@@ -313,7 +313,19 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .eletro-bar-val.neg{color:#FB7185}
 .eletro-bar-lbl{font-size:10px;color:#94A3B8;margin-top:6px;font-weight:600}
 /* ===== Eletroposto — sub-abas (Simulador | Pesquisa | Mercado) ===== */
-.eletro-subnav{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:0}
+/* Régua 1 — as sete telas de trabalho. Rola sozinha em vez de arrastar a página:
+   medido em 18/08, as 11 abas antigas somavam 1.044px e a 390px transbordavam 670px
+   SEM wrap e SEM overflow — o jeito de alcançar Contrato era panoramizar o documento
+   inteiro (scrollWidth 1.052px numa janela de 390). */
+.eletro-subnav{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid rgba(255,255,255,.08);
+  padding-bottom:0;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
+.eletro-subnav::-webkit-scrollbar{display:none}
+/* Régua 2 — só existe dentro de Mercado. Não é barra permanente: some nas outras abas,
+   senão o desenho novo devolveria em altura fixa o que economizou em rótulo. */
+.eletro-subnav2{display:none;gap:6px;margin:-10px 0 18px;overflow-x:auto;
+  scrollbar-width:none;-ms-overflow-style:none}
+.eletro-subnav2.on{display:flex}
+.eletro-subnav2::-webkit-scrollbar{display:none}
 /* Tarja do projeto retomado. Amarela e nao azul de propósito: azul aqui vira
    informação de fundo, e esta precisa ser LIDA — ela avisa que os campos já
    vieram preenchidos de outro atendimento. */
@@ -328,9 +340,22 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
   color:#fde68a;font-family:inherit;font-size:12.5px;font-weight:700;
   padding:6px 13px;border-radius:8px;cursor:pointer}
 .eletro-retomar button:hover{background:rgba(247,164,28,.16)}
-.eletro-subtab{background:none;border:none;border-bottom:2px solid transparent;color:#94A3B8;padding:10px 16px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:-1px}
+/* min-height 44: o botão media 39px, abaixo do alvo de toque. white-space:nowrap
+   porque agora o pai rola — sem isso o rótulo quebraria em duas linhas ao apertar. */
+.eletro-subtab{background:none;border:none;border-bottom:2px solid transparent;color:#94A3B8;
+  padding:10px 16px;min-height:44px;font-size:15px;font-weight:700;cursor:pointer;
+  font-family:inherit;margin-bottom:-1px;white-space:nowrap;flex:0 0 auto}
 .eletro-subtab:hover{color:#E5E7EB}
 .eletro-subtab.ativa{color:#fff;border-bottom-color:#3B82F6}
+/* Pílula no nível 2, sublinhado no nível 1 — é a mesma hierarquia que a casa já usa
+   em Redes (subnav sublinhada -> redes-tabs em pílula). Mesmo nome de classe ativa
+   ('ativa') nos dois níveis: a casa tem ativa/ativo/on em componentes diferentes, e
+   clonar CSS de um com JS de outro é como o ativo deixa de acender. */
+.eletro-subtab2{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.10);
+  border-radius:999px;color:#94A3B8;padding:8px 16px;min-height:44px;font-size:13.5px;
+  font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;flex:0 0 auto}
+.eletro-subtab2:hover{color:#E5E7EB;background:rgba(255,255,255,.08)}
+.eletro-subtab2.ativa{color:#fff;background:rgba(59,130,246,.18);border-color:#3B82F6}
 /* painéis Power BI embutidos (Pesquisa / Mercado) */
 .pesquisa-frame-wrap{position:relative;width:100%;background:#1E293B;border:1px solid rgba(255,255,255,.08);border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.25);overflow:hidden}
 .pesquisa-frame-wrap iframe{display:block;width:100%;height:min(82vh,880px);border:0}
@@ -2484,7 +2509,18 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <button class="btn-hist-voltar" onclick="navGerador()">← Voltar</button>
     </div>
 
-    <!-- sub-abas -->
+    <!-- ═══ SUB-ABAS, EM DOIS NÍVEIS (18/08/2026) ═══
+         Antes eram 11 rótulos numa régua só. O corte foi feito onde NÃO custa clique:
+         as sete telas de trabalho (Simulador → Procuração, mais Cadastros e Histórico)
+         continuam planas, a um toque uma da outra, porque é entre elas que o dia inteiro
+         acontece — e porque Orçamento, Recibo, Contrato e Procuração compartilham o mesmo
+         orcInit()/epPastaAuto() lá no eletroSubaba: separá-las em grupos cobraria pedágio
+         justo na hora de fechar uma obra de R$ 110k a R$ 280k.
+         O que virou grupo foram as QUATRO telas de leitura externa (3 Power BI + PlugShare),
+         que não alimentam nem consomem nada da tela e são as menos abertas. Elas moram
+         atrás de "Mercado" e só aí a régua 2 aparece.
+         "Mercado" é o nome do GRUPO, então a aba de dentro virou "Frota" — é literalmente
+         o relatório BI_Frota da ABVE, e pai com o mesmo nome do filho parece menu quebrado. -->
     <div class="eletro-subnav">
       <button type="button" id="eletro-tab-simulador" class="eletro-subtab ativa" onclick="eletroSubaba('simulador')">Simulador</button>
       <button type="button" id="eletro-tab-orcamento" class="eletro-subtab" onclick="eletroSubaba('orcamento')">Orçamento</button>
@@ -2493,10 +2529,19 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <button type="button" id="eletro-tab-procuracao" class="eletro-subtab" onclick="eletroSubaba('procuracao')">Procuração</button>
       <button type="button" id="eletro-tab-cadastros" class="eletro-subtab" onclick="eletroSubaba('cadastros')">Cadastros</button>
       <button type="button" id="eletro-tab-historico" class="eletro-subtab" onclick="eletroSubaba('historico')">Histórico</button>
-      <button type="button" id="eletro-tab-pesquisa" class="eletro-subtab" onclick="eletroSubaba('pesquisa')">Pesquisa</button>
-      <button type="button" id="eletro-tab-mercado" class="eletro-subtab" onclick="eletroSubaba('mercado')">Mercado</button>
-      <button type="button" id="eletro-tab-postos" class="eletro-subtab" onclick="eletroSubaba('postos')">Postos</button>
-      <button type="button" id="eletro-tab-mapa" class="eletro-subtab" onclick="eletroSubaba('mapa')">Mapa</button>
+      <!-- Cabeça do grupo. Abre em Frota (número na tela) e nunca no Mapa, que é um
+           cartão cujo único botão manda o consultor pra fora do app. -->
+      <button type="button" id="eletro-grp-mercado" class="eletro-subtab" onclick="eletroGrupoMercado()">Mercado</button>
+    </div>
+
+    <!-- Régua 2: só acende dentro do grupo Mercado. Os ids eletro-tab-* seguem os mesmos
+         (o eletroSubaba acha por getElementById e não liga para a profundidade), e os
+         slugs também — mexer neles quebraria o lazy-load dos iframes eletro-frame-<slug>. -->
+    <div class="eletro-subnav2" id="eletro-subnav2">
+      <button type="button" id="eletro-tab-mercado" class="eletro-subtab2" onclick="eletroSubaba('mercado')">Frota</button>
+      <button type="button" id="eletro-tab-postos" class="eletro-subtab2" onclick="eletroSubaba('postos')">Postos</button>
+      <button type="button" id="eletro-tab-pesquisa" class="eletro-subtab2" onclick="eletroSubaba('pesquisa')">Pesquisa</button>
+      <button type="button" id="eletro-tab-mapa" class="eletro-subtab2" onclick="eletroSubaba('mapa')">Mapa</button>
     </div>
 
     <!-- Aparece só quando os campos vieram de um projeto anterior. -->
@@ -6456,6 +6501,15 @@ function navEletroposto() {
 }
 
 // Sub-abas dentro do Eletroposto: Simulador | Histórico | Pesquisa | Mercado | Postos | Mapa
+// Cabeça do grupo Mercado. Clicar nela JÁ estando dentro do grupo não faz nada:
+// as quatro pílulas já estão à vista, e toque acidental no cabeçalho não pode
+// custar o lugar onde a pessoa estava lendo (voltaria pra Frota).
+function eletroGrupoMercado() {
+  const r2 = document.getElementById('eletro-subnav2');
+  if (r2 && r2.classList.contains('on')) return;
+  eletroSubaba('mercado');
+}
+
 function eletroSubaba(qual) {
   const abas = ['simulador', 'orcamento', 'recibo', 'contrato', 'procuracao', 'cadastros', 'historico', 'pesquisa', 'mercado', 'postos', 'mapa'];
   // A cada abertura: monta a lista de potências (uma vez) e tenta completar o
@@ -6483,6 +6537,31 @@ function eletroSubaba(qual) {
     const tab = document.getElementById('eletro-tab-' + a);
     if (tab) tab.classList.toggle('ativa', a === qual);
   });
+  // ── Nível 2: o grupo é DERIVADO da aba, nunca o contrário ──────────────────
+  // Isso tem que morar aqui dentro e em lugar nenhum mais. eletroSubaba é chamada
+  // de 9 lugares além dos botões — deep-link ?orc=1 da Agenda, CRM, os dois botões
+  // Abrir do Histórico, o "Orçamento completo" do Simulador, o "Ajustar no
+  // Simulador" e o "Preencher no Orçamento" dos banners. Se o grupo acendesse no
+  // onclick do botão, qualquer um desses saltos deixaria o menu dizendo uma coisa
+  // com outra na tela — e menu que mente na frente do cliente é pior que clique a mais.
+  const EP_MERCADO = ['mercado', 'postos', 'pesquisa', 'mapa'];
+  const noMercado = EP_MERCADO.includes(qual);
+  const regua2 = document.getElementById('eletro-subnav2');
+  if (regua2) regua2.classList.toggle('on', noMercado);
+  const grpMercado = document.getElementById('eletro-grp-mercado');
+  if (grpMercado) grpMercado.classList.toggle('ativa', noMercado);
+
+  // Barra que rola precisa trazer o aceso pra vista, senão no celular o consultor
+  // clica em Mercado e o sublinhado acende num rótulo que ele não está vendo.
+  // Medido por rect e não por offsetLeft: os botões não têm offsetParent próprio.
+  const regua1 = document.querySelector('.eletro-subnav');
+  const aceso = noMercado ? grpMercado : document.getElementById('eletro-tab-' + qual);
+  if (regua1 && aceso && regua1.scrollWidth > regua1.clientWidth + 1) {
+    const cx = regua1.getBoundingClientRect(), ax = aceso.getBoundingClientRect();
+    const alvo = regua1.scrollLeft + (ax.left - cx.left) - (cx.width - ax.width) / 2;
+    regua1.scrollTo({ left: Math.max(0, alvo), behavior: 'smooth' });
+  }
+
   // lazy-load dos iframes Power BI: só seta o src na 1ª abertura (Mapa é um card, não iframe)
   if (qual === 'pesquisa' || qual === 'mercado' || qual === 'postos') {
     const frame = document.getElementById('eletro-frame-' + qual);
