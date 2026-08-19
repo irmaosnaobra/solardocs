@@ -2687,6 +2687,13 @@ setInterval(() => { if(!document.hidden && !slotSel) montarSlots(); }, 5*60*1000
       // headline. `auto` porque o html tem scroll-behavior:smooth, e animar aqui
       // seria a página se mexendo sozinha na frente da pessoa.
       try { window.scrollTo({ top: 0, behavior: 'auto' }); } catch (e) { window.scrollTo(0, 0); }
+      // A foto do que foi assistido sai ANTES do portão morrer. Com o botão
+      // aceso desde o segundo 0 o clique rápido virou o caso comum, e aí o envio
+      // de 15 em 15s ainda não rodou: sem isto a sessão teria clique sem foto
+      // nenhuma e o /admin a leria como 'autoplay recusado'. Repetido não
+      // machuca — o mesmo array cai na guarda de assinatura e o /admin junta
+      // pelo máximo.
+      enviar(true);
       evento('vsl_cta', { lp: 'eletroposto', s: Math.round(vid.currentTime || 0) });
       try { track('vsl_cta'); } catch (e) {}
       abrirPagina(true);
