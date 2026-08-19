@@ -301,23 +301,24 @@ export default function Landing() {
               <span className={styles.eyebrowDot} />
               Pra integrador solar com CNPJ
             </span>
-            {/* A headline anterior era "Você fecha a venda solar com a sua marca.
-                Não só gera papel." Ela respondia uma objeção que o leitor ainda
-                não tinha feito ("papel"?) e vendia DIFERENCIAL DE PRODUTO (a
-                marca) no lugar de RESULTADO.
+            {/* VOLTOU EM 18/08/2026, e a decisão é do dado, não de gosto.
+                Esta headline foi a ÚNICA no ar nos 15 dias que vinham antes —
+                de 06/08 até 18/08 às 15h42 — e é a que estava de pé nas 26
+                vendas do período. As duas que a substituíram viveram 2h e 4h,
+                sem uma venda cada: trocar uma headline com 15 dias de resultado
+                por outra sem nenhum é apostar contra a única evidência que
+                existe.
 
-                Quem lê isto fecha venda na hora, com o cliente na frente. O
-                inimigo dele não é outro software — é o "vou pensar", que é onde
-                a venda solar morre. Nomear a frase que ele ouve toda semana faz
-                a headline ser dele, não nossa. A marca não sumiu: desceu pro
-                sub, que é onde diferencial pertence. */}
+                Se for testar outra, o certo é medir: 'Viu Secao Precos' e o
+                clique do CTA já são rastreados (useLpTracking), e sem comparar
+                por período a troca vira palpite com cara de decisão. */}
             <h1 className={styles.h1}>
-              Feche a venda <strong>antes do &ldquo;vou pensar&rdquo;</strong>.
+              O melhor Gerador de Proposta do Brasil — <strong>com a sua marca</strong>.
             </h1>
 
             <p className={styles.lead} style={{ margin: '0 auto 26px' }}>
-              Proposta e contrato com a <b>sua marca</b>, prontos em minutos — na frente do cliente
-              ou no WhatsApp dele. Enquanto o concorrente promete mandar depois, você já mandou.
+              Proposta solar e todos os contratos que o integrador precisa, prontos em minutos: seu nome,
+              sua logo, sua cor e os números certos — pra fechar mais rápido no WhatsApp do cliente.
             </p>
 
             {/* Mockup logo abaixo da subheadline (pedido do Thiago): a pessoa
