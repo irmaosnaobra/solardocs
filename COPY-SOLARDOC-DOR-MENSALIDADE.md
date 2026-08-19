@@ -317,57 +317,52 @@ payback de 5, 10 e 25 anos, número em cima em vez de gráfico, sua logo — e s
 
 ### Seção 4 — Prova (os depoimentos)
 
-> ### Quem já pagava caro foi quem melhor explicou a diferença
+**NO AR desde 19/08/2026**, com a logo de cada empresa. O texto abaixo é o que
+está publicado — mexeu aqui, mexe em `Landing.tsx` também, ou os dois divergem.
 
-**[card 1 — o divisor de águas]**
-> "Eu uso [a outra plataforma] há mais de quatro anos. O diferencial que eu gostei
-> no seu, pra mim foi um **divisor de águas**: primeiro, o preço. E eu,
-> exclusivamente, **só trabalho com a proposta**."
->
-> "Eu ainda tenho a outra contratada, **mas eu vou parar**."
->
-> — *Juliano G., integrador* · **pendente de liberação**
+> ### Empresas solares que pararam de perder venda
 
-**[card 2 — por que a proposta ganha]**
-> "A média do ano com os **números em cima**. Lá é por gráfico — e gráfico
-> **dificulta a mente do cliente**, você tem que bater uma régua pra enxergar. De
-> vocês, não."
->
-> — *Juliano G.* · **pendente de liberação**
+**[Juliano Grilo · Grilo Energia Solar · Artur Nogueira/SP]**
+> "Pra mim foi um divisor de águas. Primeiro, o preço. E eu, exclusivamente, só
+> trabalho com a proposta: a média do ano vem com o número escrito em cima. Na
+> outra plataforma é gráfico — e gráfico dificulta a mente do cliente, você tem
+> que bater uma régua pra enxergar."
 
-**[card 3 — velocidade, de quem já testou tudo]**
-> "Usei por três anos outra plataforma, passei um ano no e-mail... **entre todas
-> que já usei, essa é a que conseguimos gerar propostas mais rapidamente.**"
->
-> — *Vanderlei, American Energy Solar* · **pendente de liberação**
+**[Vanderlei · American Energy Solar · Rondonópolis/MT]**
+> "Usei três anos outra plataforma, passei um ano no e-mail. Entre todas que já
+> usei e outras que apenas testei, essa é a que conseguimos gerar propostas mais
+> rapidamente."
 
-**[card 4 — o celular]**
-> "**Rapidez.** Coloquei no meu celular, então respondo **de qualquer lugar que eu
-> estiver**. Rápido demais."
->
-> — *Lucas Paulino, RSC Solar — 105 propostas para 62 clientes em 24 dias* · **pendente**
+**[Lucas Paulino · RSC Solar · Londrina/PR]**
+> "Rapidez. Eu coloquei ele no meu celular, então eu consigo responder de qualquer
+> lugar que eu estiver. Rápido demais."
 
-**[card 5 — quem vinha da planilha]**
-> "Criava meus orçamentos **tudo através de planilha**. Aqui, com **quatro, cinco
-> cliques** eu monto uma proposta. Recomendo."
->
-> — *Alessandro Goulart, Feliz/RS — 103 propostas para 90 clientes em 24 dias* · **pendente**
+**[Alessandro Goulart · Força Solar · Feliz/RS]**
+> "Criava os meus orçamentos tudo através de planilha. Aqui, com quatro, cinco
+> cliques eu consigo montar uma proposta. Recomendo."
 
-> **Use "propostas para N clientes", nunca "N documentos".** Os dois números acima
-> foram reconferidos no banco em 19/08 e são clientes distintos de verdade. A
-> contagem de *documentos* infla, porque cada vez que o integrador refaz a mesma
-> proposta entra uma linha nova — foi exatamente isso que fez o Juliano responder
-> *"cê tá dizendo que eu fiz 34 documentos, isso aí não sou eu não, eu fiz 11 só"*.
-> Ele estava certo: são **30 propostas para 13 clientes**. Número que o cliente
-> contesta é pior que número nenhum.
+**[GSI Energia Solar · Unaí/MG]**
+> "Tenho me surpreendido positivamente com o nível de detalhes das propostas. No
+> geral, gostei muito do aplicativo e recomendo bastante!"
 
-**[card 6 — LIBERADO, pode subir hoje]**
-> "Tenho me surpreendido positivamente com o **nível de detalhes das propostas**.
-> No geral, gostei muito do aplicativo e **recomendo bastante!**"
->
-> — *GSI Energia Solar* · **autorizou publicar ("Pode postar")**
+**[Ronailson Klesley · Alves Cardoso Solar · Abreulândia/TO]**
+> "Praticidade e agilidade. Antes eu não fazia — era só venda formal, sem nenhum
+> documento apresentando dados reais."
 
----
+**As logos** são as que cada um subiu pra marcar os próprios documentos
+(`company.logo_base64`), reduzidas pra webp em `dashboard/public/logos/` — as 6
+somam 56 KB contra 745 KB de base64 no banco. Todas têm fundo claro embutido, então
+o card desenha cada uma sobre pastilha branca. Dois nomes vieram da própria logo,
+porque o cadastro só tinha razão social de CPF: **Alves Cardoso Solar** (Ronailson)
+e **GSI Energia Solar**.
+
+> **Se for citar volume de uso, diga "propostas para N clientes", nunca "N
+> documentos".** A contagem de documentos infla: cada vez que o integrador refaz a
+> mesma proposta entra uma linha nova. Foi isso que fez o Juliano responder *"cê tá
+> dizendo que eu fiz 34 documentos, isso aí não sou eu não, eu fiz 11 só"* — ele
+> estava certo, são **30 propostas para 13 clientes**. Conferidos em 19/08: RSC
+> Solar **105 propostas / 62 clientes**, Alessandro Goulart **103 / 90** (24 dias).
+> Número que o cliente contesta é pior que número nenhum.
 
 ### Seção 5 — O troco
 
@@ -493,78 +488,63 @@ mande espontaneamente.
 
 ---
 
-## 6. Liberação dos depoimentos — o que trava a publicação
+## 6. Autorização — quem liberou e como
 
-A mensagem da pesquisa pedia autorização no fim. Só **um** respondeu isso:
+**Os seis estão autorizados e no ar.** Como o registro de cada um é diferente, fica
+anotado aqui — pra ninguém procurar prova que não existe:
 
-| Cliente | Uso (30d) | Status |
-|---|---|---|
-| **GSI Energia Solar** | 32 docs / 15 dias | **"Pode postar"** — pode subir hoje |
-| Juliano Grilo | 34 docs / 11 dias | não respondeu a pergunta — **é o depoimento mais forte da página** |
-| Vanderlei — American Energy Solar | 32 / 14 | não respondeu |
-| Lucas Paulino — RSC Solar | 126 / 23 | respondeu "Tamo junto" — não é autorização |
-| Alessandro Goulart | 107 / 23 | não respondeu |
-| Ronailson Klesley | 53 / 20 | mandou emoji — não é autorização |
-| Melque | 22 / 8 | não respondeu |
-
-**Regra da autorização: colar o CARD, não resumir o trecho.** Os cards são
-costurados — o do Juliano junta três momentos do áudio dele, o do Ronailson junta
-as respostas 1 e 2. Nenhuma palavra foi inventada, mas o texto que vai pro ar não
-é uma frase corrida que ele lembra de ter dito. Perguntar "posso publicar aquilo
-que você falou?" e publicar a costura não é a mesma coisa. Então a mensagem leva o
-card inteiro, do jeitinho que vai aparecer.
-
-**Modelo:**
-
-> [Nome], aquilo que você me mandou sobre o SolarDoc foi a melhor coisa que eu ouvi
-> esse mês. Queria publicar na página, e ia ficar assim — juntei os pedaços da sua
-> resposta, sem mudar palavra:
->
-> *"[COLAR O CARD]"*
-> *— [Nome], [empresa/cidade]*
->
-> Pode ir assim? Se quiser tirar alguma parte, trocar o nome da empresa ou usar só
-> o primeiro nome, é só falar que eu ajusto.
-
-**Os 5 cards, prontos pra colar:**
-
-| Pra quem | Texto do card |
+| Cliente | Como autorizou |
 |---|---|
-| **Juliano Grilo** · Artur Nogueira/SP | "Pra mim foi um divisor de águas. Primeiro, o preço. E eu, exclusivamente, só trabalho com a proposta: a média do ano vem com o número escrito em cima. Na outra plataforma é gráfico — e gráfico dificulta a mente do cliente, você tem que bater uma régua pra enxergar." |
-| **Vanderlei** · American Energy Solar | "Usei três anos outra plataforma, passei um ano no e-mail. Entre todas que já usei e outras que apenas testei, essa é a que conseguimos gerar propostas mais rapidamente." |
-| **Lucas Paulino** · RSC Solar | "Rapidez. Eu coloquei ele no meu celular, então eu consigo responder de qualquer lugar que eu estiver. Rápido demais." |
-| **Alessandro Goulart** · Feliz/RS | "Criava os meus orçamentos tudo através de planilha. Aqui, com quatro, cinco cliques eu consigo montar uma proposta. Recomendo." |
-| **Ronailson Klesley** · Abreulândia/TO | "Praticidade e agilidade. Antes eu não fazia — era só venda formal, sem nenhum documento apresentando dados reais." |
+| **GSI Energia Solar** | Respondeu **"Pode postar"** no WhatsApp, 19/08/2026. Está em `conversa_wa`. |
+| Juliano Grilo | Thiago confirmou pessoalmente, **fora do WhatsApp** |
+| Vanderlei · American Energy Solar | idem |
+| Lucas Paulino · RSC Solar | idem |
+| Alessandro Goulart · Força Solar | idem |
+| Ronailson Klesley · Alves Cardoso Solar | idem |
 
-*Nos cards do Juliano e do Vanderlei eu troquei "Azume" por "outra plataforma" —
-dito por eles é relato de vida, estampado na nossa página vira anúncio comparativo
-nosso. Vale avisar os dois disso na mensagem: eles podem preferir assim mesmo. Se
-o Juliano fizer questão do nome, aí a peça de 15s da §2 também fica liberada.*
+**Dois pontos que continuam abertos:**
 
----
+1. **A logo é uma licença diferente da frase.** O que se pediu foi publicar o
+   depoimento "com o seu nome e o da sua empresa". As logos vieram de outro lugar:
+   o próprio cadastro, onde foram subidas pra marcar os documentos **deles**.
+   Ninguém foi perguntado sobre a logo. Se quiser fechar a porta, é uma linha a mais
+   na conversa que já existe — *"e posso usar a logo da sua empresa junto?"*.
+
+2. **O nome "Azume" continua fora.** As falas do Juliano e do Vanderlei citavam a
+   marca; na página entraram como "outra plataforma". Publicar o depoimento é uma
+   coisa; estampar a marca do concorrente na nossa página de vendas é outra, e essa
+   segunda ninguém autorizou. **A peça de 15s da §2 depende disso** — se o Juliano
+   liberar o nome, ela fica pronta pra rodar.
+
+**Se precisar de mais depoimento**, quem ficou de fora do corte e usa bastante:
+Melque (Iguatu/CE, vinha de planilha) — a logo dele **não serve**, tem dois
+telefones impressos.
 
 ## 7. Ordem de execução
 
-1. **Hoje:** mandar o pedido de liberação pro Juliano, Vanderlei e Lucas.
-2. **Hoje:** gravar o VSL de 2min40 — o roteiro está pronto, é só ler.
-3. **Assim que o Juliano liberar:** cortar o hook de 15s e subir como criativo.
-4. **Depois:** trocar as seções do site (o texto da §3 já está pronto pra colar).
-5. **Antes de publicar qualquer preço comparativo:** conferir o rodapé da §3.
+**Feito:**
 
-**Dica de quem olhou o dado:** o Juliano falou *"se tiver mais barato que 67, cê
-me fala"* — e o **anual sai a R$ 47/mês**. Ele está pedindo o anual sem saber que
-ele existe. Vale a linha "e no anual sai R$ 47" na resposta a ele, hoje, antes de
-fechar os R$ 67. É a mesma venda com 12 meses garantidos em vez de 1.
+- Os 6 depoimentos com logo estão no código, no branch
+  `lp/depoimentos-pesquisa-agosto`. Conferido em 1440px e 414px.
+- Números da prova social reconferidos: 1.714 documentos, 152 empresas, 985 em 30d.
+
+**Falta:**
+
+1. **Merge pro main** — o push dispara o deploy. Não rodar `vercel --prod` do
+   branch: isso publica o branch e já apagou correção que só existia no main.
+2. **Gravar o VSL** de 2min40 — o roteiro da §2 está pronto, é só ler.
+3. **Perguntar ao Juliano sobre o nome "Azume"** — destrava o corte de 15s.
+4. **Trocar o hero e as seções 1 a 3 e 5 a 7** pelo texto da §3. Hoje a LP ainda
+   lidera com "8 documentos"; o ângulo do preço só aparece nos depoimentos.
+5. **Antes de publicar o quadro comparativo:** conferir o rodapé da §3.
 
 **Conserto pra fazer antes do próximo lote da pesquisa:** a mensagem abre com
-"você fez N documentos em M dias" e o Juliano quase largou por isso — *"cê tá
-dizendo que eu fiz 34 documentos em 11 dias, isso aí não sou eu não, eu fiz 11
-só"*. Ele estava certo: são 30 propostas para **13 clientes**, o resto é ele
-refazendo a mesma. Trocar a abertura para **"X propostas para Y clientes"** em
-`api/src/services/pesquisaSatisfacao.ts` — o número fica menor e para de ser
-contestável.
+"você fez N documentos em M dias" e o Juliano quase largou por isso. Trocar para
+**"X propostas para Y clientes"** em `api/src/services/pesquisaSatisfacao.ts`.
 
----
+**Dica de quem olhou o dado:** o Juliano falou *"se tiver mais barato que 67, cê me
+fala"* — e o **anual sai a R$ 47/mês**. Ele está pedindo o anual sem saber que ele
+existe.
 
 ## 8. Duas coisas que eu fiz e você precisa saber
 
