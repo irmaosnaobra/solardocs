@@ -58,9 +58,11 @@ const PRICE_DIA = (PRICE / 30).toFixed(2).replace('.', ','); // "por dia" da ofe
 // (564) e o equivalente por mês é a legenda embaixo; ele continua fazendo o
 // mensal ser lido como caro, sem prometer um valor que a Stripe não vai cobrar.
 // Os R$ 240 são conta fechada e conferível na própria página: 67×12 = 804.
+// O anual saiu da VITRINE em 19/08/2026 (teste de oferta única), mas a oferta
+// continua existindo: link direto de checkout, PLAN_MAP e webhook intactos. Por
+// isso PRICE_ANUAL fica — é o `value` que a Meta otimiza quando alguém compra o
+// anual por fora. As outras duas eram só do card e saíram com ele.
 const PRICE_ANUAL = 564;
-const PRICE_ANUAL_MES = 47;
-const PRICE_ANUAL_ECONOMIA = PRICE * 12 - PRICE_ANUAL; // 240
 
 // As duas ferramentas que o anual entrega PRA SEMPRE (gravadas em `entitlements`
 // pelo webhook). O preço é o de venda avulsa na loja — `preco: 67` das duas em
@@ -68,7 +70,9 @@ const PRICE_ANUAL_ECONOMIA = PRICE * 12 - PRICE_ANUAL; // 240
 // "Inventário Empresarial". Se mudar lá, muda aqui: número de vitrine que não
 // bate com a loja é promessa quebrada a um clique de distância.
 const PRECO_FERRAMENTA = 67;
-const FERRAMENTAS_VALOR = PRECO_FERRAMENTA * 2; // 134
+// FERRAMENTAS_VALOR (R$ 134) saiu com o card anual: era a soma que fechava a
+// seção com "inclusas no plano anual". Sem anual na vitrine, somar as duas não
+// diz nada — cada uma se vende pelo próprio preço.
 const WHATSAPP = 'https://wa.me/5534998165040';
 
 // Concessionárias da faixa de confiança (logo oficial em /public/conc).
@@ -547,7 +551,8 @@ export default function Landing() {
               gravado na venda do anual. */}
           <p className={styles.sectionSub} data-reveal>
             Tudo isto entra na assinatura. As <b>duas ferramentas de R$ {PRECO_FERRAMENTA}</b>{' '}
-            que a loja vende à parte vêm no <b>plano anual</b> — e nele ficam suas pra sempre.
+            são produtos separados da loja — dá pra comprar quando fizer falta, e aí ficam
+            suas pra sempre.
           </p>
 
           <div className={styles.diffsGrid} style={{ marginTop: 40 }}>
@@ -600,7 +605,7 @@ export default function Landing() {
               </p>
             </div>
             <div className={`${styles.diffCard} ${styles.diffPago}`} data-reveal style={{ transitionDelay: '0.3s' }}>
-              <div className={styles.diffFita}>Só no plano anual · vale R$ {PRECO_FERRAMENTA}</div>
+              <div className={styles.diffFita}>Produto à parte · R$ {PRECO_FERRAMENTA}</div>
               <div className={styles.diffIcon}><svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 6h8"/><circle cx="8.5" cy="11" r=".6" fill="currentColor" stroke="none"/><circle cx="12" cy="11" r=".6" fill="currentColor" stroke="none"/><circle cx="15.5" cy="11" r=".6" fill="currentColor" stroke="none"/><circle cx="8.5" cy="15" r=".6" fill="currentColor" stroke="none"/><circle cx="12" cy="15" r=".6" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15" r=".6" fill="currentColor" stroke="none"/><circle cx="8.5" cy="18.5" r=".6" fill="currentColor" stroke="none"/><circle cx="12" cy="18.5" r=".6" fill="currentColor" stroke="none"/><circle cx="15.5" cy="18.5" r=".6" fill="currentColor" stroke="none"/></svg></div>
               <h3 className={styles.diffH}>Precificação Profissional</h3>
               <p className={styles.diffP}>
@@ -616,7 +621,7 @@ export default function Landing() {
               </div>
             </div>
             <div className={`${styles.diffCard} ${styles.diffPago}`} data-reveal style={{ transitionDelay: '0.35s' }}>
-              <div className={styles.diffFita}>Só no plano anual · vale R$ {PRECO_FERRAMENTA}</div>
+              <div className={styles.diffFita}>Produto à parte · R$ {PRECO_FERRAMENTA}</div>
               <div className={styles.diffIcon}><svg viewBox="0 0 24 24"><path d="M3 7 12 3l9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></div>
               <h3 className={styles.diffH}>Inventário da Empresa</h3>
               <p className={styles.diffP}>
@@ -630,18 +635,21 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* O fecho da seção: a soma. R$ 134 em ferramentas pagas dentro de um
-              plano de R$ 564 é o argumento mais forte que a página tem — e é do
-              ANUAL, não da assinatura em geral. O número é conferível na loja. */}
+          {/* O fecho da seção. Falava "inclusas no plano anual" — e o anual saiu
+              da vitrine em 19/08. Prometer o que a página não vende mais é o
+              cliente descobrindo por dentro, depois de pagar. Agora diz o que é
+              verdade e continua sendo argumento: são produtos de verdade, com
+              preço de verdade, e a assinatura não os cobra de ninguém que não
+              quiser. */}
           <div className={styles.diffResumo} data-reveal>
             <div className={styles.diffResumoTopo}>
-              <b>R$ {FERRAMENTAS_VALOR} em ferramentas</b> inclusas no plano anual
+              A assinatura <b>não te obriga a comprar nada</b> além dela
             </div>
             <p className={styles.diffResumoP}>
               A Precificação e o Inventário são produtos pagos na nossa loja, R${' '}
-              {PRECO_FERRAMENTA} cada. No plano anual as duas abrem na sua conta no mesmo
-              minuto e ficam <b>suas pra sempre</b>, mesmo se um dia você parar de assinar.
-              No mensal, dá pra comprar cada uma à parte quando quiser.
+              {PRECO_FERRAMENTA} cada — e ficam <b>seus pra sempre</b>, mesmo se um dia você
+              parar de assinar. Compre no dia em que fizerem falta; a plataforma inteira
+              funciona sem elas.
             </p>
           </div>
         </div>
@@ -705,8 +713,8 @@ export default function Landing() {
           <p className={styles.sectionSub} data-reveal>
             Não é um gerador de contrato. É a papelada e a operação da venda solar inteira,
             do orçamento à entrega da obra — item por item, é isto aqui. Os dois blocos
-            marcados <b>&ldquo;no plano anual&rdquo;</b> são as ferramentas que a loja vende
-            à parte por R$ {PRECO_FERRAMENTA} cada.
+            marcados <b>&ldquo;à parte&rdquo;</b> são produtos da loja, R$ {PRECO_FERRAMENTA}{' '}
+            cada, e não vêm na assinatura.
           </p>
 
           <div className={styles.mods}>
@@ -745,7 +753,7 @@ export default function Landing() {
                 mensal o que só o anual entrega. */}
             <article className={`${styles.mod} ${styles.modAnual}`} data-reveal style={{ transitionDelay: '0.1s' }}>
               <div className={styles.modTag}>Dinheiro</div>
-              <div className={styles.modSeloAnual}>No plano anual</div>
+              <div className={styles.modSeloAnual}>À parte</div>
               <h3 className={styles.modH}>O preço certo da venda</h3>
               <p className={styles.modP}>
                 Pra parar de chutar valor e descobrir a margem depois da obra.
@@ -759,7 +767,7 @@ export default function Landing() {
 
             <article className={`${styles.mod} ${styles.modAnual}`} data-reveal style={{ transitionDelay: '0.15s' }}>
               <div className={styles.modTag}>Obra</div>
-              <div className={styles.modSeloAnual}>No plano anual</div>
+              <div className={styles.modSeloAnual}>À parte</div>
               <h3 className={styles.modH}>A obra sob controle</h3>
               <p className={styles.modP}>
                 O que você hoje resolve em planilha paralela e grupo de WhatsApp.
@@ -1029,12 +1037,11 @@ export default function Landing() {
             <span className={styles.sectionLabel} data-reveal>A oferta</span>
           </div>
           <h2 className={styles.sectionTitle} data-reveal>
-            Um acesso só. <strong>Você escolhe como pagar.</strong>
+            Um acesso só. <strong>Um preço só.</strong>
           </h2>
           <p className={styles.sectionSub} data-reveal>
-            A plataforma é a mesma nos dois, completa desde o primeiro minuto. A única
-            diferença é o ciclo: <b>R$ {PRICE} todo mês</b> ou <b>R$ {PRICE_ANUAL} uma vez</b>,
-            valendo o ano.
+            A plataforma inteira, completa desde o primeiro minuto, por <b>R$ {PRICE} por mês</b>.
+            Sem degrau, sem versão capada e sem fidelidade — cancela quando quiser.
           </p>
 
           {/* DOIS CARDS SEPARADOS, e o anual mostrando o valor que a Stripe vai
@@ -1091,104 +1098,36 @@ export default function Landing() {
               </ul>
             </div>
 
-            <div className={styles.anualCard}>
-              <div className={styles.anualCardTag}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden><path d="M20 6 9 17l-5-5"/></svg>
-                Economize R$ {PRICE_ANUAL_ECONOMIA}
-              </div>
+            {/* ══ CARD ANUAL — FORA DA PÁGINA EM 19/08/2026 (teste do Thiago) ══
 
-              <div className={styles.anualName}>SolarDoc Pro — 12 meses</div>
-              <div className={styles.anualAnchor}>
-                Mesma plataforma, um pagamento só no lugar de doze
-              </div>
-              <div className={styles.anualPrecoCheio}>
-                <span>R$</span>{PRICE_ANUAL}
-              </div>
-              {/* A frase que faltava. O checkout cobra 564 na hora, e é isso que
-                  a pessoa precisa ter lido ANTES de clicar. */}
-              <div className={styles.anualCobranca}>
-                Uma <b>única cobrança de R$ {PRICE_ANUAL}</b> hoje, no cartão — não é
-                parcelado nem mensal
-              </div>
-              <div className={styles.anualEquiv}>
-                sai <b>R$ {PRICE_ANUAL_MES} por mês</b> em vez de <s>R$ {PRICE}</s> — 12 meses
-                pelo preço de {Math.round(PRICE_ANUAL / PRICE)}
-              </div>
+                Hipótese dele: quem bate o olho num segundo card de R$ 564
+                desmotiva, e oferta única converte melhor. O dado não contradiz:
+                em 5 dias no ar o anual fez ZERO venda — as 7 do período foram
+                todas VIP mensal — enquanto ocupava o bloco maior da seção.
 
-              {/* AS DUAS FERRAMENTAS, com o preço que elas custam na loja. É o
-                  único item do anual que não é "o mesmo acesso mais barato": são
-                  duas compras que a pessoa levaria à parte por R$ 67 cada e que
-                  aqui ficam dela pra sempre. Estava escondido num bullet no pé do
-                  card — agora é bloco com valor na cara. */}
-              <div className={styles.bonus}>
-                <div className={styles.bonusTopo}>
-                  <span className={styles.bonusTitulo}>
-                    Leva <b>2 ferramentas pra sempre</b>
-                  </span>
-                  <span className={styles.bonusValor}>R$ {FERRAMENTAS_VALOR} inclusos</span>
-                </div>
+                E o que o número diz do card, pra quem for reavaliar: ele NÃO
+                derrubou a conversão. 1,19% antes (12 vendas/1.007 sessões) e
+                1,71% com ele no ar (5/292). Ou seja, isto é teste de uma
+                hipótese boa, não conserto de um estrago.
 
-                <div className={styles.bonusItens}>
-                  <div className={styles.bonusItem}>
-                    <div className={styles.bonusNome}>Precificação Profissional</div>
-                    <div className={styles.bonusTexto}>
-                      O preço que fecha a venda e ainda sobra margem — com imposto, ART,
-                      deslocamento e comissão na conta
-                    </div>
-                    <div className={styles.bonusPreco}>
-                      vendida à parte por <b>R$ {PRECO_FERRAMENTA}</b>
-                    </div>
-                  </div>
+                O código do anual continua vivo INTEIRO — `vip_anual` no
+                PLAN_MAP, o price por lookup_key, o webhook e a posse das duas
+                ferramentas. Só a vitrine saiu: link direto de checkout do anual
+                continua funcionando, e devolver o card é reverter este commit.
 
-                  <div className={styles.bonusItem}>
-                    <div className={styles.bonusNome}>Inventário da Empresa</div>
-                    <div className={styles.bonusTexto}>
-                      Onde está cada ferramenta e quanto vale o patrimônio, com aviso do
-                      que está acabando
-                    </div>
-                    <div className={styles.bonusPreco}>
-                      vendido à parte por <b>R$ {PRECO_FERRAMENTA}</b>
-                    </div>
-                  </div>
-                </div>
-
-                <div className={styles.bonusNota}>
-                  As duas ficam liberadas na sua conta <b>pra sempre</b> — continuam
-                  funcionando mesmo se um dia você parar de assinar. <b>Só no anual:</b> no
-                  plano mensal elas são compra à parte, R$ {PRECO_FERRAMENTA} cada.
-                </div>
-              </div>
-
-              <button
-                onClick={() => goToCheckout('oferta_anual', 'vip_anual')}
-                className={styles.anualBtn}
-                disabled={checkoutLoading}
-              >
-                {checkoutLoading ? 'Abrindo checkout...' : `Pagar R$ ${PRICE_ANUAL} pelo ano`}
-              </button>
-
-              <div className={styles.anualFoot}>
-                Renova só daqui a 12 meses. A mesma garantia de 7 dias vale aqui: não
-                serviu, devolvemos o valor inteiro.
-              </div>
-
-              <ul className={styles.anualList}>
-                <li><b>Tudo do plano mensal</b>, exatamente igual</li>
-                <li>Preço travado por 12 meses: reajuste não te pega no meio</li>
-                <li>Um pagamento no ano — sem cobrança voltando todo mês no cartão</li>
-              </ul>
-            </div>
+                COMO LER O TESTE: comparar conversão de sessão→venda contra os
+                1,71% acima, com pelo menos 7 dias. Menos que isso é ruído — a
+                semana de 13-14/08 sozinha teve dois dias de 4 e 3 vendas. */}
           </div>
 
           {/* Garantia de 7 dias — mesma política que a Sol (suporte) já informa
               aos clientes: devolução total sem perguntas. É o que substitui o
-              risco que o trial cobria, agora que a cobrança é imediata. Fora dos
-              cards porque vale pros dois igual. */}
+              risco que o trial cobria, agora que a cobrança é imediata. */}
           <div className={styles.guarantee} data-reveal>
             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
             <div>
-              <b>Garantia de 7 dias nos dois planos.</b> Não serviu? Chama no WhatsApp
-              dentro dos 7 dias que a gente devolve o valor integral, sem perguntas.
+              <b>Garantia de 7 dias.</b> Não serviu? Chama no WhatsApp dentro dos 7 dias
+              que a gente devolve o valor integral, sem perguntas.
             </div>
           </div>
 
