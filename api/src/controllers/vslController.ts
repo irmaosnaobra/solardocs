@@ -190,10 +190,11 @@ export async function getVslRetencao(req: Request, res: Response): Promise<void>
     const assistidoMedio = Math.round(tempos.reduce((a, b) => a + b, 0) / tempos.length);
     const assistidoMediano = tempos[Math.floor(tempos.length / 2)];
 
-    // "Viu o botão": a própria página avisa quando o botão apareceu — no caminho
-    // normal aos 5s de vídeo, e também pela trava de 15s ou pelo autoplay
-    // recusado. Contar por balde erraria em até um balde pra cima; o campo
-    // `viu5` é a medida. Foto gravada antes do campo existir cai no cálculo velho.
+    // "Passaram dos 5s": quanto da audiência sobrevive ao começo do vídeo.
+    // Era "viu o botão" enquanto o botão nascia aos 5s; desde 19/08 ele nasce
+    // aceso e a LP parou de mandar `viu5`, então sessão nova sempre cai no
+    // caminho por baldes. O `s.viu5` fica pelas fotos gravadas antes disso —
+    // apagá-lo reescreveria o número do histórico.
     const viramCta = sessoes.filter((s) => (
       s.viu5 || s.b.reduce((a, n) => a + (n > 0 ? s.bs : 0), 0) >= 5
     )).length;

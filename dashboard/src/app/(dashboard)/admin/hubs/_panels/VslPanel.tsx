@@ -108,7 +108,9 @@ export default function VslPanel({ lp }: { lp: string }) {
             <Tile label="Deram play" valor={plays.toLocaleString('pt-BR')}
               sub={dados!.visitas > 0 ? `${pct(plays, dados!.visitas)}% de ${dados!.visitas} visitas` : 'sem visita casada'} />
             <Tile label="Ligaram o som" valor={dados!.comSom.toLocaleString('pt-BR')} sub={`${pct(dados!.comSom, plays)}% de quem deu play`} />
-            <Tile label="Viram o botão" valor={dados!.viramCta.toLocaleString('pt-BR')} sub={`${pct(dados!.viramCta, plays)}% passaram dos 5s`} />
+            {/* Foi "Viram o botão" até 19/08. O botão passou a nascer aceso, e a
+                pergunta que sobrou de pé é a retenção do começo do vídeo. */}
+            <Tile label="Passaram dos 5s" valor={dados!.viramCta.toLocaleString('pt-BR')} sub={`${pct(dados!.viramCta, plays)}% de quem deu play`} />
             {/* O botão do portão não agenda: ele abre a LP. Aqui separa quem viu
                 o vídeo e ENTROU na página de quem viu e foi embora. */}
             <Tile label="Abriram a página" valor={dados!.cliqueCta ? dados!.cliqueCta.toLocaleString('pt-BR') : '—'}
@@ -157,14 +159,14 @@ export default function VslPanel({ lp }: { lp: string }) {
               <path d={`M ${curva.map((p, i) => `${i ? 'L' : ''} ${px(i, curva.length)} ${py(p.pct)}`).join(' ')}`}
                 fill="none" stroke="var(--color-primary)" strokeWidth="2" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
 
-              {/* Marco dos 5s: o segundo em que o botão de abrir a página nasce. */}
+              {/* Marco dos 5s: o corte que separa quem só espiou de quem ficou. */}
               {dados!.duracao ? (() => {
                 const i5 = Math.min(curva.length - 1, Math.round(5 / bucket));
                 return (
                   <g>
                     <line x1={px(i5, curva.length)} x2={px(i5, curva.length)} y1={T} y2={H - B}
                       stroke="var(--color-text-muted)" strokeWidth="1" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
-                    <text x={px(i5, curva.length) + 6} y={H - B - 7} fontSize="10.5" fill="var(--color-text-muted)">botão aos 5s</text>
+                    <text x={px(i5, curva.length) + 6} y={H - B - 7} fontSize="10.5" fill="var(--color-text-muted)">5s</text>
                   </g>
                 );
               })() : null}

@@ -562,7 +562,7 @@
   .vslPlay i::after{content:'';border-left:26px solid var(--dk);border-top:16px solid transparent;
     border-bottom:16px solid transparent;margin-left:7px}
 
-  /* Rodapé do portão: barra de progresso + CTA que nasce aos 5s. */
+  /* Rodapé do portão: barra de progresso + CTA, que já nasce aceso. */
   .vslPe{position:absolute;left:0;right:0;bottom:0;padding:0 20px calc(env(safe-area-inset-bottom) + 20px);
     display:flex;flex-direction:column;align-items:center;gap:12px}
   .vslBarra{width:100%;max-width:520px;height:3px;border-radius:99px;background:rgba(247,251,242,.18);overflow:hidden}
@@ -570,11 +570,11 @@
   .vslAcao{width:100%;max-width:520px;display:flex;flex-direction:column;align-items:center;gap:10px;
     opacity:0;transform:translateY(14px);pointer-events:none;transition:opacity .4s ease,transform .4s ease}
   .vslAcao.on{opacity:1;transform:none;pointer-events:auto}
-  .vslCta{width:100%;background:var(--neon);color:var(--dk);font-weight:900;font-size:16px;
-    padding:16px 22px;border-radius:60px;text-decoration:none;text-align:center;border:0;cursor:pointer;
-    font-family:inherit;min-height:54px;display:inline-flex;align-items:center;justify-content:center;
-    box-shadow:0 10px 30px rgba(125,209,23,.28)}
-  @media(max-width:400px){.vslCta{font-size:15px}}
+  .vslCta{width:100%;background:var(--neon);color:var(--dk);font-weight:900;font-size:19px;
+    padding:20px 26px;border-radius:60px;text-decoration:none;text-align:center;border:0;cursor:pointer;
+    font-family:inherit;min-height:64px;display:inline-flex;align-items:center;justify-content:center;
+    box-shadow:0 12px 34px rgba(125,209,23,.32)}
+  @media(max-width:400px){.vslCta{font-size:17px;padding:18px 22px;min-height:60px}}
 </style>
 </head>
 <body>
@@ -2523,10 +2523,10 @@ setInterval(() => { if(!document.hidden && !slotSel) montarSlots(); }, 5*60*1000
        1) O PORTÃO. Vídeo em tela cheia, mudo (é a única forma de o autoplay
           passar em qualquer navegador). Um toque em qualquer lugar liga o som e
           volta pro começo — quem ligou o som quer ouvir desde a primeira frase.
-          Aos 5s de vídeo aparece o ÚNICO botão, e ele abre a LP no começo — não
-          pula pro agendamento. Portão sem porta é armadilha; e quem acabou de
-          ver o vídeo ainda está decidindo, então a página fala antes do
-          formulário cobrar.
+          O ÚNICO botão fica aceso DESDE O PRIMEIRO SEGUNDO, e abre a LP no
+          começo — não pula pro agendamento. Portão sem porta é armadilha; e quem
+          acabou de ver o vídeo ainda está decidindo, então a página fala antes
+          do formulário cobrar.
        2) A MEDIÇÃO. A página manda "fotografias" do que já foi assistido: um
           balde por trecho de `bs` segundos, com quantas vezes cada trecho rodou.
           Manda mais de uma vez (a cada 15s, no pause, no fim e na saída) porque
@@ -2536,8 +2536,9 @@ setInterval(() => { if(!document.hidden && !slotSel) montarSlots(); }, 5*60*1000
 
        QUALQUER FALHA ABRE A PORTA: autoplay recusado com play manual também
        recusado, arquivo que não carrega e vídeo que não começa em 8s dissolvem o
-       portão; vídeo que começa e CONGELA cai na trava de 15s, que acende o botão.
-       A LP tem que ser alcançável mesmo com o vídeo quebrado. -->
+       portão; e como o botão já nasce aceso, vídeo que começa e CONGELA também
+       não prende ninguém. A LP tem que ser alcançável mesmo com o vídeo
+       quebrado. -->
   <script>
   (() => {
     const raiz = document.documentElement;
@@ -2590,7 +2591,10 @@ setInterval(() => { if(!document.hidden && !slotSel) montarSlots(); }, 5*60*1000
         bs: bs,
         b: baldes,
         som: !vid.muted,
-        viu5: mostrouCta,          // "o botão apareceu" (no caminho normal, aos 5s)
+        // `viu5` saiu do payload em 19/08: o botão passou a nascer aceso, então o
+        // campo seria `true` em toda sessão e mataria o tile do /admin que ele
+        // alimentava. Sem ele o cálculo cai no caminho por baldes, que mede o que
+        // ainda tem sentido perguntar: quem ficou além dos 5 primeiros segundos.
         fim: vid.ended || (vid.duration > 0 && vid.currentTime >= vid.duration - 1.5),
       }, saindo);
     }
@@ -2613,22 +2617,21 @@ setInterval(() => { if(!document.hidden && !slotSel) montarSlots(); }, 5*60*1000
     // que a medição lê, e quer dizer "o botão apareceu na tela".
     function mostrarBotao() { if (!mostrouCta) { mostrouCta = true; acao.classList.add('on'); } }
 
-    // TRAVA DE SEGURANÇA: 15s de relógio e o botão aparece, aconteça o que
-    // acontecer. É o que cobre o vídeo que COMEÇA e congela pra rebufferizar
-    // antes dos 5s — ali o `timeupdate` para, o `stalled` já não vale (só olha
-    // antes do primeiro quadro) e o relógio de 8s morreu no `playing`. Sem isto
-    // a pessoa fica olhando um quadro parado, rolagem travada e nenhuma porta.
-    setTimeout(mostrarBotao, 15000);
+    // O botão está aceso DESDE O PRIMEIRO SEGUNDO (decisão de 19/08). Não espera
+    // mais os 5s de vídeo rodado nem a trava de 15s de relógio: a porta já está
+    // aberta, então vídeo que congela ou rebufferiza nunca prende ninguém.
+    // Efeito na medição: "viu o botão" passa a ser todo mundo que entrou no
+    // portão — quem separa quem assistiu de quem saiu na hora é `vsl_cta` com o
+    // segundo do clique, não mais esta etapa.
+    mostrarBotao();
 
     vid.src = src;
     vid.play().catch(() => {
       // Autoplay recusado (iOS em economia de bateria, política do navegador).
       // O relógio de 8s sai de cena: existe um botão na tela, não é tela morta.
-      // Mas o botão de abrir a página nasce JUNTO — senão a pessoa que não quer
-      // o vídeo fica presa esperando 5s de um vídeo que ela nunca vai dar play.
+      // O de abrir a página já está aceso desde o começo; aqui só aparece o play.
       clearTimeout(salvaVidas);
       play.classList.add('on');
-      mostrarBotao();
     });
     play.addEventListener('click', () => {
       // Autoplay recusado e a pessoa tocou: o toque É o gesto que libera o som,
@@ -2668,15 +2671,12 @@ setInterval(() => { if(!document.hidden && !slotSel) montarSlots(); }, 5*60*1000
         const i = Math.min(baldes.length - 1, Math.floor(t / bs));
         if (i !== baldeAtual) { baldes[i] = (baldes[i] || 0) + 1; baldeAtual = i; mexeu = true; }
       }
-      // Caminho normal: o botão nasce aos 5 SEGUNDOS DE VÍDEO RODADO.
-      if (t >= 5) mostrarBotao();
-
       const agora = Date.now();
       if (agora - ultimoEnvio > 15000) { ultimoEnvio = agora; enviar(false); }
     });
 
     vid.addEventListener('pause', () => enviar(false));
-    vid.addEventListener('ended', () => { mostrarBotao(); enviar(false); });
+    vid.addEventListener('ended', () => enviar(false));
     document.addEventListener('visibilitychange', () => { if (document.hidden) enviar(true); });
     window.addEventListener('pagehide', () => enviar(true));
 
