@@ -92,15 +92,67 @@ const CONCESSIONARIAS = [
 //  - o contrato é a tela de preview do app renderizando esse mesmo conteúdo;
 //  - precificação e inventário são as telas de verdade, com os cálculos feitos.
 /* DEPOIMENTOS — prova social de cliente.
-   VAZIO DE PROPOSITO. A secao so' aparece quando tiver frase de cliente de
-   verdade: nome, empresa e autorizacao pra publicar. Depoimento inventado e'
-   publicidade enganosa e e' o ponto fraco da concorrencia (as 3 conversas da
-   maletapainelsolar.netlify.app sao todas assinadas "Instalador Solar", sem
-   nome e sem foto — da' pra ver que e' montado).
-   Pra publicar: cola os objetos aqui. A secao monta sozinha.
-   { nome: 'Alessandro Goulart', empresa: 'Força Solar', iniciais: 'AG',
-     texto: 'frase exata que a pessoa mandou', quando: 'agosto de 2026' } */
-const DEPOIMENTOS: { nome: string; empresa: string; iniciais: string; texto: string; quando: string }[] = [];
+   Frases EXATAS da pesquisa por WhatsApp de 18-19/08/2026 (as de audio foram
+   transcritas). Nada aqui foi reescrito pra soar melhor: so' cortei o meio de
+   fala longa, sem mudar palavra. Depoimento inventado e' publicidade enganosa e
+   e' o ponto fraco da concorrencia (as 3 conversas da maletapainelsolar.netlify.app
+   sao todas assinadas "Instalador Solar", sem nome e sem foto — da' pra ver que
+   e' montado).
+
+   `liberado` E' O UNICO PORTAO. So' entra na pagina quem respondeu SIM a pergunta
+   "posso publicar com seu nome e o da sua empresa?", que vai no fim da mensagem
+   da pesquisa. Cliente elogiar nao e' cliente autorizar: "Tamo junto" e emoji de
+   aperto de mao NAO sao autorizacao. Quem liberar, vira `true` — a frase ja' esta'
+   escrita esperando.
+
+   NOME DA EMPRESA: usar o nome de fachada, nunca o que esta' em `company.nome` —
+   metade da base guarda razao social de CPF ("67.010.604 RONAILSON KLESLEY...").
+   Onde nao existe nome de fachada conhecido, fica so' a cidade.
+
+   CONCORRENTE: as falas do Juliano e do Vanderlei citavam o Azume pelo nome. Aqui
+   virou "outra plataforma" DE PROPOSITO — a frase e' declaracao de fato deles
+   sobre a vida deles, mas estampada na nossa pagina de vendas ela vira anuncio
+   comparativo nosso, e ai' precisaria de comparacao objetiva e comprovavel.
+   O argumento (tres/quatro anos pagando, grafico x numero) sobrevive inteiro sem
+   a marca. Nao repor o nome sem decisao consciente. */
+const DEPOIMENTOS: {
+  nome: string; empresa: string; iniciais: string; texto: string; quando: string; liberado: boolean;
+}[] = [
+  {
+    nome: 'GSI Soluções', empresa: 'Unaí/MG', iniciais: 'GS', quando: 'agosto de 2026',
+    liberado: true, // respondeu "Pode postar" em 19/08/2026
+    texto: 'Tenho me surpreendido positivamente com o nível de detalhes das propostas. No geral, gostei muito do aplicativo e recomendo bastante!',
+  },
+  {
+    nome: 'Juliano Grilo', empresa: 'Artur Nogueira/SP', iniciais: 'JG', quando: 'agosto de 2026',
+    liberado: false,
+    texto: 'Pra mim foi um divisor de águas. Primeiro, o preço. E eu, exclusivamente, só trabalho com a proposta: a média do ano vem com o número escrito em cima. Na outra plataforma é gráfico — e gráfico dificulta a mente do cliente, você tem que bater uma régua pra enxergar.',
+  },
+  {
+    nome: 'Vanderlei', empresa: 'American Energy Solar · Rondonópolis/MT', iniciais: 'VA', quando: 'agosto de 2026',
+    liberado: false,
+    texto: 'Usei três anos outra plataforma, passei um ano no e-mail. Entre todas que já usei e outras que apenas testei, essa é a que conseguimos gerar propostas mais rapidamente.',
+  },
+  {
+    nome: 'Lucas Paulino', empresa: 'RSC Solar · Londrina/PR', iniciais: 'LP', quando: 'agosto de 2026',
+    liberado: false,
+    texto: 'Rapidez. Eu coloquei ele no meu celular, então eu consigo responder de qualquer lugar que eu estiver. Rápido demais.',
+  },
+  {
+    nome: 'Alessandro Goulart', empresa: 'Feliz/RS', iniciais: 'AG', quando: 'agosto de 2026',
+    liberado: false,
+    texto: 'Criava os meus orçamentos tudo através de planilha. Aqui, com quatro, cinco cliques eu consigo montar uma proposta. Recomendo.',
+  },
+  {
+    nome: 'Ronailson Klesley', empresa: 'Abreulândia/TO', iniciais: 'RK', quando: 'agosto de 2026',
+    liberado: false,
+    texto: 'Praticidade e agilidade. Antes eu não fazia — era só venda formal, sem nenhum documento apresentando dados reais.',
+  },
+];
+
+/* O que a pagina pode mostrar hoje. Se ninguem liberou, a secao some sozinha —
+   e' o mesmo comportamento de quando o array estava vazio. */
+const DEPOIMENTOS_NO_AR = DEPOIMENTOS.filter((d) => d.liberado);
 
 const TELAS = [
   { img: '/tela/doc-proposta-a4.webp',   imgMobile: '/tela/doc-proposta-a4-mobile.webp',
@@ -937,29 +989,29 @@ export default function Landing() {
           </h2>
 
           <div className={styles.statsGrid}>
-            {/* Numeros conferidos no banco em 18/08/2026 e SEM a conta dos socios
-                (aiorosgroup@gmail.com, 168 documentos de uso proprio) — o que esta'
-                aqui e' uso de empresa cliente. Ao atualizar, rodar de novo:
+            {/* Numeros conferidos no banco em 19/08/2026 e SEM a conta dos socios
+                (aiorosgroup@gmail.com, uso proprio) — o que esta' aqui e' uso de
+                empresa cliente. Ao atualizar, rodar de novo:
                   documentos:  select count(*) from documents where user_id <> <socio>
                   empresas:    select count(*) from company where cnpj <> ''
                   ultimos 30d: idem documentos + created_at >= now() - interval '30 days' */}
             <div className={styles.stat} data-reveal>
-              <div className={styles.statN}>1.671</div>
+              <div className={styles.statN}>1.714</div>
               <div className={styles.statL}>Documentos solares gerados por empresas clientes</div>
             </div>
             <div className={styles.stat} data-reveal style={{ transitionDelay: '0.1s' }}>
-              <div className={styles.statN}>150</div>
+              <div className={styles.statN}>152</div>
               <div className={styles.statL}>Empresas solares com CNPJ cadastradas</div>
             </div>
             <div className={styles.stat} data-reveal style={{ transitionDelay: '0.2s' }}>
-              <div className={styles.statN}>956</div>
+              <div className={styles.statN}>985</div>
               <div className={styles.statL}>Documentos gerados nos últimos 30 dias</div>
             </div>
           </div>
 
-          {DEPOIMENTOS.length > 0 && (
+          {DEPOIMENTOS_NO_AR.length > 0 && (
             <div className={styles.depoGrid}>
-              {DEPOIMENTOS.map((d, i) => (
+              {DEPOIMENTOS_NO_AR.map((d, i) => (
                 <article
                   key={d.nome}
                   className={styles.depoCard}

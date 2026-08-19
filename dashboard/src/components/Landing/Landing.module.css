@@ -1315,7 +1315,7 @@
   overflow: hidden;
 }
 .depoCard::before {
-  content: 'C';
+  content: '“';
   position: absolute;
   top: -18px;
   right: 14px;
