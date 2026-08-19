@@ -3095,6 +3095,12 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <input type="text" id="proc-uc" placeholder="o número que aparece na conta"></div>
         <div class="eletro-field"><label>Endereço do ponto de recarga</label>
           <input type="text" id="proc-local" placeholder="onde a estação vai ser instalada"></div>
+        <div class="eletro-field"><label>O projeto inclui geração solar?</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="proc-solar">
+            <option value="">Não — só a estação de recarga</option>
+            <option value="1">Sim — tem usina ou carport junto</option>
+          </select></div></div>
+        <div class="orc-note">Só o "sim" acrescenta <b>formulário de rateio</b> e a homologação do sistema fotovoltaico aos poderes. Num ponto de recarga puro, rateio descreve um projeto que não existe — rateio distribui crédito de geração entre unidades consumidoras.</div>
       </div>
 
 
@@ -10368,9 +10374,15 @@ function ctrImprimir() {
 // RATEIO (instrumentos de geracao distribuida, que rateiam credito de energia
 // entre unidades — nao existem num ponto de recarga), e a "f" pedia a
 // "homologacao geral do sistema de geracao de energia solar fotovoltaica".
-// Nenhum balcao recusa por excesso de poder, mas o documento anunciava um
-// projeto que nao e' o do cliente. A "c" virou parecer de acesso e vistoria, que
-// e' o que de fato se pede aqui.
+// Rateio distribui credito de geracao entre unidades consumidoras: num ponto de
+// recarga puro descreve um projeto que nao existe, e papel devolvido no balcao
+// custa nova assinatura do cliente com a obra parada esperando energia.
+//
+// O conserto e' CONDICIONAR, nao apagar — duas ressalvas:
+//   · TRT FICA sempre. E' o termo de responsabilidade tecnica, valido para
+//     aumento de carga e troca de padrao; nao tem nada de solar.
+//   · eletroposto vendido CASADO COM USINA precisa dos poderes solares de
+//     verdade. Por isso o campo `proc-solar`, que nasce em "nao".
 
 function procBanner() {
   const t = eletroTextos();
@@ -10416,6 +10428,7 @@ function procDados() {
     concessionaria: orcVal('proc-concessionaria'),
     uc: orcVal('proc-uc'),
     local: orcVal('proc-local') || orcVal('orc-cli-end'),
+    solar: orcVal('proc-solar') === '1',
     validade: orcVal('proc-validade') || 'atividades',
     empresa: emp,
   };
@@ -10494,10 +10507,10 @@ function procHTML(d) {
       <p class="ep-ctr-p">Os poderes ora conferidos compreendem, especificamente:</p>
       <p class="ep-ctr-li">a) <b>troca de titularidade</b> da unidade consumidora;</p>
       <p class="ep-ctr-li">b) <b>solicitação de conexão</b> e formulário de <b>solicitação de acesso</b>;</p>
-      <p class="ep-ctr-li">c) <b>parecer de acesso</b> e vistoria da unidade consumidora;</p>
+      <p class="ep-ctr-li">c) emissão de <b>TRT</b>, <b>parecer de acesso</b> e vistoria da unidade consumidora${d.solar ? ', e formulário de <b>rateio</b>' : ''};</p>
       <p class="ep-ctr-li">d) <b>aumento de carga</b> e <b>nova ligação</b>, inclusive para atender a demanda da estação de recarga de veículos elétricos;</p>
       <p class="ep-ctr-li">e) <b>troca de medidor</b> e <b>mudança de padrão</b> de entrada, com a adequação da instalação às exigências da concessionária;</p>
-      <p class="ep-ctr-li">f) ou seja, a <b>homologação geral</b> da estação de recarga de veículos elétricos;</p>
+      <p class="ep-ctr-li">f) ou seja, a <b>homologação geral</b> da estação de recarga de veículos elétricos${d.solar ? ' e do sistema de geração de energia solar fotovoltaica' : ''};</p>
       <p class="ep-ctr-li">g) protocolar requerimentos, prestar e receber informações, retirar documentos e acompanhar o processo até a efetiva ligação;</p>
       <p class="ep-ctr-li">h) assinar o contrato de fornecimento, o contrato de uso e conexão e demais instrumentos exigidos pela concessionária para as finalidades acima.</p>
 
@@ -10675,9 +10688,15 @@ function bcoDados() {
     be100: bcoCarrosPara(params, fin, 1.00),
     be120: bcoCarrosPara(params, fin, 1.20),
     cliente: t.cliente, cidade: t.cidade, equip: t.equip,
-    razao: g('bco-razao').trim() || orcVal('orc-cli-nome') || t.cliente,
+    // Sem orc-cli-nome: esse id nao existe no HTML. Cai no nome do Simulador, que
+    // costuma ser PESSOA FISICA — por isso a tela avisa quando o documento e' CPF.
+    razao: g('bco-razao').trim() || t.cliente,
     cnpj: g('bco-cnpj').trim() || orcVal('orc-cli-doc'),
     endereco: g('bco-endereco').trim() || orcVal('orc-cli-end'),
+    // Responsabilidade tecnica e' de PESSOA FISICA com registro, nao de marca:
+    // o dossie apresentava "Irmaos na Obra" como responsavel tecnico. O dado ja'
+    // existia no epEmitGet, consumido so' pela procuracao.
+    exec: epEmitGet(),
     vendedor: t.autor, contato: t.contato,
     data: new Date(),
   };
@@ -10882,8 +10901,9 @@ function bcoHTML(d) {
         </table></div>
       <div><div class="ep-bco-sec">Executor da obra</div>
         <table class="ep-bco-t">
-          ${tr('Empresa', 'Irmãos na Obra')}
-          ${tr('Responsabilidade técnica', 'Engenheiro do quadro, com ART')}
+          ${tr('Empresa', e(d.exec.razao || 'Irmãos na Obra'))}
+          ${tr('CNPJ', e(d.exec.cnpj || '—'))}
+          ${tr('Responsabilidade técnica', d.exec.engNome ? e(d.exec.engNome) + (d.exec.engCrea ? ' — ' + e(d.exec.engCrea) : '') : 'Engenheiro do quadro, com ART')}
           ${tr('Regime', 'Chave na mão')}
           ${tr('Homologação na concessionária', 'Incluída')}
           ${tr('Comissionamento', 'Incluído')}
@@ -11162,7 +11182,7 @@ function bcoHTML(d) {
     </div>
     <div class="ep-bco-assin">
       <div class="a"><b>${e(d.razao) || '&nbsp;'}</b><span>${d.cnpj ? 'CNPJ ' + e(d.cnpj) + ' · ' : ''}proponente</span></div>
-      <div class="a"><b>Irmãos na Obra</b><span>responsável técnico pela execução</span></div>
+      <div class="a"><b>${e(d.exec.razao || 'Irmãos na Obra')}</b><span>${d.exec.engNome ? e(d.exec.engNome) + (d.exec.engCrea ? ' · ' + e(d.exec.engCrea) : '') : 'executora da obra'}</span></div>
     </div>
     <p class="ep-bco-src" style="text-align:center;margin-top:10px">${e(d.cidade || '')}${d.cidade ? ', ' : ''}${e(dataTxt)}</p>
     ${foot(11)}
@@ -11201,6 +11221,12 @@ function bcoImprimir() {
 // ════════════════════════════════════════════════════════════
 // NAO confundir com a Analise de credito (bco*). Aquela ARGUMENTA que a operacao
 // paga; esta FORMALIZA a venda pra instituicao liberar o dinheiro contra o bem.
+//
+// ⚠ Assina com RAZAO SOCIAL, nunca com a fantasia: e' peca fiscal, e o banco
+// confere o nome contra o CNPJ. "AIOROS GROUP LTDA" e' fantasia — tanto que o
+// RAZAO_ERRADAS deste arquivo a trata como razao social errada e a reescreve.
+// Nome que nao bate com o CNPJ num Finame volta na mesa, e devolucao no banco
+// trava o financiamento que fecha a venda.
 //
 // O padrao e' o `propostaBancoM1` que a plataforma ja' emite pro solar
 // (api/src/services/templateService.ts:867), acrescido dos quatro campos que o
@@ -11315,7 +11341,7 @@ function bnkHTML(d) {
   const foot = n => `<div class="ep-pagefoot"><span>Proposta de banco${d.cliente ? ' · ' + e(d.cliente) : ''}</span><span>Página ${n} de 2</span></div>`;
   const assina = () => `<div class="ep-bnk-assin">
       <div class="a"><span class="l"></span><b>${e((d.cliente || '').toUpperCase())}</b><span>${e(d.doc || '')}</span></div>
-      <div class="a"><span class="l"></span><b>${e((emp.fantasia || emp.razao || '').toUpperCase())}</b><span>${e(emp.cnpj || '')}</span></div>
+      <div class="a"><span class="l"></span><b>${e((emp.razao || emp.fantasia || '').toUpperCase())}</b><span>${e(emp.cnpj || '')}</span></div>
     </div>`;
   // Bairro tem linha PROPRIA no formulario do banco: concatenar aqui tambem
   // imprimia "Granville" duas vezes na mesma folha.
@@ -11329,7 +11355,8 @@ function bnkHTML(d) {
 
   <div class="ep-page">
     <div class="ep-bnk-emit">
-      <b>${e((emp.fantasia || emp.razao || '').toUpperCase())}</b>
+      <b>${e((emp.razao || emp.fantasia || '').toUpperCase())}</b>
+      ${emp.fantasia && emp.fantasia !== emp.razao ? `<span>Nome fantasia: ${e(emp.fantasia)}</span>` : ''}
       <span>CNPJ: ${e(emp.cnpj || '')}</span>
       ${emp.end || emp.cidade ? `<span>${e([emp.end, emp.cidade].filter(Boolean).join(' — '))}</span>` : ''}
       ${emp.tel ? `<span>Telefone: ${e(emp.tel)}</span>` : ''}
