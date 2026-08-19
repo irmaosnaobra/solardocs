@@ -39,7 +39,16 @@ import { dentroDaJanelaDiurna } from './agents/whatsapp/lineThrottle';
 import { dentroDoTetoCarla, marcarEnvioCarla } from './agents/whatsapp/carlaThrottle';
 import { logger } from '../utils/logger';
 
-const TOP_N = 10;           // quantos convidados no total (ordem do Thiago, 18/08)
+// TOP_N e' o total ACUMULADO de convidados, nao o tamanho da rodada: quem ja'
+// recebeu fica na lista (com jaEnviado) e e' filtrado na fila. Entao abrir uma
+// rodada nova = subir este numero. 10 na 1a rodada (18/08), 20 na 2a (20/08) —
+// os 10 seguintes pela mesma regua de continuidade.
+//
+// ATENCAO ao mexer: se este numero FICAR onde esta' depois de todos terem
+// recebido, a fila esvazia e a pesquisa para em silencio. Nao ha' erro, nao ha'
+// log de falha — simplesmente ninguem mais e' convidado.
+const TOP_N = 20;
+const RODADA_2_A_PARTIR_DE = '2026-08-20'; // ordem do Thiago: a 2a rodada comeca amanha
 const JANELA_DIAS = 30;     // janela de medição do uso
 const MIN_DIAS_ATIVOS = 5;  // piso de amostra
 const MAX_DIAS_SUMIDO = 3;  // continuidade vale no presente, não no passado
@@ -99,6 +108,10 @@ export interface ClientePesquisa {
   docs: number;
   /** Dias distintos com documento na janela. */
   diasAtivos: number;
+  /** Propostas solares na janela (o que a mensagem cita). */
+  propostas: number;
+  /** Clientes distintos que receberam proposta — o numero que o cliente reconhece. */
+  clientesDistintos: number;
   /** Dias ÚTEIS com documento ÷ dias úteis disponíveis, em %. A régua do ranking. */
   pctDiasUteis: number;
   ultimoDoc: string;
@@ -130,7 +143,11 @@ export async function listarMelhoresClientes(): Promise<ClientePesquisa[]> {
 
   const { data: docs, error: docsErr } = await supabase
     .from('documents')
-    .select('user_id, created_at')
+    // `tipo` e `cliente_nome` entram por causa da mensagem: contar DOCUMENTO
+    // infla, porque refazer a mesma proposta grava linha nova. O Juliano viu
+    // "34 documentos" e respondeu "isso ai' nao sou eu nao, eu fiz 11 so'" —
+    // e ele estava certo: eram 30 propostas para 13 clientes.
+    .select('user_id, created_at, tipo, cliente_nome')
     .in('user_id', ids)
     .gte('created_at', ymd(inicioJanela));
 
@@ -166,11 +183,26 @@ export async function listarMelhoresClientes(): Promise<ClientePesquisa[]> {
     if (t && !telDaVenda.has(chave)) telDaVenda.set(chave, t);
   }
 
-  const agg = new Map<string, { n: number; dias: Set<string>; diasUteis: Set<string>; ultimo: string }>();
-  for (const d of (docs as { user_id: string; created_at: string }[]) || []) {
-    const cur = agg.get(d.user_id) || { n: 0, dias: new Set<string>(), diasUteis: new Set<string>(), ultimo: '' };
+  const agg = new Map<string, {
+    n: number; dias: Set<string>; diasUteis: Set<string>; ultimo: string;
+    clientes: Set<string>; propostas: number;
+  }>();
+  for (const d of (docs as { user_id: string; created_at: string; tipo: string | null; cliente_nome: string | null }[]) || []) {
+    const cur = agg.get(d.user_id) || {
+      n: 0, dias: new Set<string>(), diasUteis: new Set<string>(), ultimo: '',
+      clientes: new Set<string>(), propostas: 0,
+    };
     const dia = d.created_at.slice(0, 10);
     cur.n++;
+    if (d.tipo === 'propostaSolar') {
+      cur.propostas++;
+      // Proposta SEM nome de cliente cai toda num balde so' ('—'), em vez de
+      // virar um cliente novo cada. Contar cada anonima como pessoa distinta
+      // inflaria o numero de novo — que e' exatamente o erro da 1a rodada, so'
+      // que com outra roupa. Subestimar aqui e' de proposito: o cliente pode
+      // dizer "foi mais que isso", nunca "isso ai' nao sou eu".
+      cur.clientes.add((d.cliente_nome || '').trim().toLowerCase() || '—');
+    }
     cur.dias.add(dia);
     if (ehDiaUtil(new Date(`${dia}T12:00:00Z`))) cur.diasUteis.add(dia);
     if (d.created_at > cur.ultimo) cur.ultimo = d.created_at;
@@ -206,6 +238,8 @@ export async function listarMelhoresClientes(): Promise<ClientePesquisa[]> {
         telefone,
         fonteTelefone: fonte,
         docs: a.n,
+        propostas: a.propostas,
+        clientesDistintos: a.clientes.size,
         diasAtivos: a.dias.size,
         pctDiasUteis: pct,
         ultimoDoc: a.ultimo,
@@ -224,7 +258,11 @@ export async function listarMelhoresClientes(): Promise<ClientePesquisa[]> {
  */
 export function textoPesquisa(c: ClientePesquisa): string {
   const ola = c.primeiroNome ? `Oi ${c.primeiroNome}, ` : 'Oi, ';
-  const uso = `${c.docs} ${c.docs === 1 ? 'documento' : 'documentos'} em ${c.diasAtivos} dias diferentes`;
+  // Propostas para N clientes, nao "N documentos": o numero fica menor e para de
+  // ser contestavel. Quem so' gera outros documentos (acontece) cai no antigo.
+  const uso = c.propostas > 0 && c.clientesDistintos > 0
+    ? `${c.propostas} ${c.propostas === 1 ? 'proposta' : 'propostas'} para ${c.clientesDistintos} ${c.clientesDistintos === 1 ? 'cliente' : 'clientes'} diferentes`
+    : `${c.docs} ${c.docs === 1 ? 'documento' : 'documentos'} em ${c.diasAtivos} dias diferentes`;
 
   return `${ola}aqui é o Thiago do SolarDoc.
 
@@ -261,6 +299,12 @@ export async function dispararPesquisaSatisfacao(): Promise<ResultadoPesquisa> {
 
   if (process.env.PESQUISA_WHATSAPP_OFF === '1') {
     return { ...base, motivo: 'parada por PESQUISA_WHATSAPP_OFF=1' };
+  }
+  // Piso duro da 2a rodada. Sem ele, subir TOP_N faz a fila comecar a escoar no
+  // minuto do deploy — e a ordem foi comecar amanha. Depois da data a linha fica
+  // inerte, entao nao precisa ser removida.
+  if (ymd(new Date()) < RODADA_2_A_PARTIR_DE) {
+    return { ...base, motivo: `2a rodada comeca em ${RODADA_2_A_PARTIR_DE}` };
   }
   if (!fila.length) return { ...base, restantes: 0, motivo: 'ninguém pendente' };
   if (!dentroDaJanelaDiurna()) return { ...base, motivo: 'fora da janela diurna' };
