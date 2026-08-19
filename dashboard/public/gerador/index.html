@@ -536,6 +536,17 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-marca{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:78%;opacity:.16;z-index:0;pointer-events:none}
 .ep-page>*:not(.ep-marca){position:relative;z-index:1}
 .ep-pagefoot{margin-top:18px;padding-top:8px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:9px;color:#8a94a3}
+/* Marca do rodapé: a logo em TODA folha, discreta. Documento de obra e' separado,
+   grampeado e fotocopiado — folha solta sem marca nenhuma nao diz de quem e'.
+   4,6mm e opacidade .6 para acompanhar o texto do rodape, nao competir com ele. */
+.ep-pagefoot .ep-foot-esq{display:flex;align-items:center;gap:6px;min-width:0}
+.ep-foot-logo{height:4.6mm;width:auto;opacity:.6;flex:0 0 auto}
+/* Topo dos dois documentos financeiros: mesma marca do contrato, sem a caixa de
+   proposta — aqui o titulo ja' e' o bloco de baixo. */
+.ep-bco-topo,.ep-bnk-topo{display:flex;align-items:center;gap:11px;margin-bottom:11px}
+.ep-bco-topo .ep-brand-img,.ep-bnk-topo .ep-brand-img{height:13mm}
+.ep-bco-topo .ep-brand-tx,.ep-bnk-topo .ep-brand-tx{font-size:15px;font-weight:800;color:#0B2545;line-height:1.05}
+.ep-bco-topo .ep-brand-tx span,.ep-bnk-topo .ep-brand-tx span{display:block;font-size:7.6px;font-weight:700;letter-spacing:2px;color:#7b8496;margin-top:3px;text-transform:uppercase}
 /* ── Proposta bancária: o sexto documento ────────────────────────────────────
    Mesma folha .ep-page dos outros cinco. Tabela densa de propósito — analista de
    crédito lê número, não respiro. */
@@ -1079,6 +1090,8 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-status-selo.selo-pa{background:rgba(14,165,233,.2);color:#7DD3FC}
 /* presenca confirmada: esmeralda, o mesmo par de cores do card da agenda */
 .crm-status-selo.selo-ok{background:rgba(52,211,153,.2);color:#6EE7B7}
+/* Silêncio do lead: o mesmo âmbar do card amarelo da agenda. */
+.crm-status-selo.selo-sr{background:rgba(245,158,11,.22);color:#FBBF24}
 .crm-act{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:#cbd5e1;font-size:14px;cursor:pointer;text-decoration:none;font-family:inherit}
 .crm-act:hover{background:rgba(255,255,255,.16);color:#fff}
 .crm-act-wpp:hover{background:rgba(37,211,102,.22);border-color:rgba(37,211,102,.5)}
@@ -7977,7 +7990,7 @@ function eletroImprimir() {
   const execHTML = `Este estudo avalia a implantação de um eletroposto${t.cidade ? ` em <b>${t.cidade}</b>` : ''}${t.cliente ? ` para <b>${t.cliente}</b>` : ''}, com investimento total de <b>${money(r.investTotal)}</b>${t.equip ? ` (${t.equip})` : ''}. No cenário-base — <b>${Math.round(r.carros)} carros/dia em regime</b>, atingidos após rampa de ocupação de ${r.mesesRampa} meses — o projeto gera <b>${money(r.lucroMes)}/mês</b> de lucro em regime pleno, com <b>payback em ${pb}</b> e ${tirFrase}. ${vplFrase} A análise de sensibilidade, as premissas e os riscos mapeados constam nas seções seguintes.`;
 
   // rodapé de cada folha A4 (paginação explícita — 4 páginas)
-  const pageFoot = n => `<div class="ep-pagefoot"><span>Estudo de Viabilidade — Eletroposto${t.cliente ? ' · ' + t.cliente : ''}</span><span>Página ${n} de 4</span></div>`;
+  const pageFoot = n => `<div class="ep-pagefoot"><span class="ep-foot-esq">${EP_FOOT_LOGO}<span>Estudo de Viabilidade — Eletroposto${t.cliente ? ' · ' + t.cliente : ''}</span></span><span>Página ${n} de 4</span></div>`;
 
   host.innerHTML = `
     <div class="ep-doc ep-estudo">
@@ -8910,6 +8923,13 @@ function epEmitGet() {
   return out;
 }
 // Cabeçalho: logo à esquerda + caixa "TÍTULO · Data" à direita (modelo da proposta).
+// A logo em toda folha de todo documento — pedido do Thiago (19/08). Discreta:
+// acompanha o texto do rodape em vez de competir com ele. Vale para o que e'
+// impresso E para o que e' baixado, que aqui e' o mesmo arquivo.
+const EP_FOOT_LOGO = '<img class="ep-foot-logo" src="/gerador/logo-eletroposto.png" alt="">';
+// Bloco de marca enxuto, para documentos cujo titulo ja' e' o proprio conteudo.
+const EP_TOPO_MARCA = cls => `<div class="${cls}"><img class="ep-brand-img" src="/gerador/logo-eletroposto.png" alt="Irmãos na Obra"><div class="ep-brand-tx">Irmãos na Obra<span>Mobilidade Elétrica</span></div></div>`;
+
 function epTopoHTML(titulo, dataStr, rows, rodapeVal) {
   const rowsHTML = (rows || []).filter(r => r && r[1])
     .map(r => `<div class="rowf"><span>${r[0]}</span><span class="v">${r[1]}</span></div>`).join('');
@@ -8929,9 +8949,9 @@ function epTopoHTML(titulo, dataStr, rows, rodapeVal) {
 // paginados tinham rodape; recibo e os dois orcamentos nao tinham nenhum, e o
 // papel chegava no cliente sem dizer o que era.
 function epPageFootHTML(doc, cliente, n, total) {
-  const esq = orcEsc(doc) + (cliente ? ' · ' + orcEsc(cliente) : '');
+  const esq = EP_FOOT_LOGO + '<span>' + orcEsc(doc) + (cliente ? ' · ' + orcEsc(cliente) : '') + '</span>';
   const dir = (n && total) ? `Página ${n} de ${total}` : 'Documento de uma via';
-  return `<div class="ep-pagefoot"><span>${esq}</span><span>${dir}</span></div>`;
+  return `<div class="ep-pagefoot"><span class="ep-foot-esq">${esq}</span><span>${dir}</span></div>`;
 }
 // Rodapé escuro: Vendedor | Empresa (mesmo bloco nos dois documentos).
 function epFooterBlockHTML(vend) {
@@ -10250,7 +10270,7 @@ function ctrHTML(d) {
   // no Simulador: num cliente com PF e dois CNPJs, o contrato da PJ carimbava a
   // pessoa física no pé de todas as folhas.
   const quem = d.contratante;   // apagou a parte? o rodapé fica sem nome. Apagar é apagar.
-  const pageFoot = (n, tot) => `<div class="ep-pagefoot"><span>Contrato de Fornecimento e Instalação — Eletroposto${quem ? ' · ' + e(quem) : ''}</span><span>Página ${n} de ${tot}</span></div>`;
+  const pageFoot = (n, tot) => `<div class="ep-pagefoot"><span class="ep-foot-esq">${EP_FOOT_LOGO}<span>Contrato de Fornecimento e Instalação — Eletroposto${quem ? ' · ' + e(quem) : ''}</span></span><span>Página ${n} de ${tot}</span></div>`;
   const dataTxt = d.data.toLocaleDateString('pt-BR');
   const endCli = [d.contratanteEnd, d.cep, d.cidade].filter(Boolean).join(', ');
   const endEmp = [d.empresa.end, d.empresa.cidade].filter(Boolean).join(', ');
@@ -10512,7 +10532,7 @@ function procHTML(d) {
   // no Simulador: num cliente com PF e dois CNPJs, o contrato da PJ carimbava a
   // pessoa física no pé de todas as folhas.
   const quem = d.outorgante;    // apagou a parte? o rodapé fica sem nome. Apagar é apagar.
-  const pageFoot = `<div class="ep-pagefoot"><span>Procuração — representação junto à concessionária${quem ? ' · ' + e(quem) : ''}</span><span>Documento de uma via</span></div>`;
+  const pageFoot = `<div class="ep-pagefoot"><span class="ep-foot-esq">${EP_FOOT_LOGO}<span>Procuração — representação junto à concessionária${quem ? ' · ' + e(quem) : ''}</span></span><span>Documento de uma via</span></div>`;
 
   // Qualificacao no formato do modelo 3 da plataforma: nome em caixa alta,
   // depois nacionalidade, estado civil, profissao, RG, CPF, registro e
@@ -10850,7 +10870,7 @@ function bcoHTML(d) {
   // dois (confira o return dele). Ler r.sessoes dava NaN, e ORC_MONEY(NaN) imprime
   // R$ 0,00 em silencio — a taxa de ativacao sumia do documento sem avisar.
   const sessoes = r.carros * 30;
-  const foot = n => `<div class="ep-pagefoot"><span>Proposta de financiamento — eletroposto${d.razao ? ' · ' + e(d.razao) : ''}</span><span>Página ${n} de ${TOTP}</span></div>`;
+  const foot = n => `<div class="ep-pagefoot"><span class="ep-foot-esq">${EP_FOOT_LOGO}<span>Análise de crédito — eletroposto${d.razao ? ' · ' + e(d.razao) : ''}</span></span><span>Página ${n} de ${TOTP}</span></div>`;
   const h = (kick, tit, lead) => `<div class="ep-bco-kick">${e(kick)}</div><div class="ep-bco-h">${e(tit)}</div>${lead ? `<p class="ep-bco-lead">${lead}</p>` : ''}`;
   const anosDiv = cob.linhas.filter(l => l.icsd != null).length;
   const piorMes = d.ano1.filter(l => l.icsd != null).reduce((a, b) => (a.icsd <= b.icsd ? a : b), { icsd: null, m: 0 });
@@ -10890,6 +10910,7 @@ function bcoHTML(d) {
   return `<div class="ep-doc ep-bco">
 
   <div class="ep-page">
+    ${EP_TOPO_MARCA('ep-bco-topo')}
     ${h('Proposta de financiamento', 'Eletroposto de recarga rápida' + (d.equip ? ' — ' + d.equip : ''),
       'Dossiê de crédito para implantação de estação de recarga de veículos elétricos, com projeção operacional, capacidade de pagamento e análise de sensibilidade. Todos os números derivam de um único modelo, declarado e auditável.')}
     <table class="ep-bco-t" style="margin-top:16px">
@@ -11482,7 +11503,7 @@ function bnkHTML(d) {
   const dataTxt = d.data.toLocaleDateString('pt-BR');
   const emp = d.empresa;
   const vazio = v => v ? e(v) : '<span class="ep-rec-vazio"></span>';
-  const foot = n => `<div class="ep-pagefoot"><span>Proposta de banco${d.cliente ? ' · ' + e(d.cliente) : ''}</span><span>Página ${n} de 2</span></div>`;
+  const foot = n => `<div class="ep-pagefoot"><span class="ep-foot-esq">${EP_FOOT_LOGO}<span>Proposta de banco${d.cliente ? ' · ' + e(d.cliente) : ''}</span></span><span>Página ${n} de 2</span></div>`;
   const assina = () => `<div class="ep-bnk-assin">
       <div class="a"><span class="l"></span><b>${e((d.cliente || '').toUpperCase())}</b><span>${e(d.doc || '')}</span></div>
       <div class="a"><span class="l"></span><b>${e((emp.razao || emp.fantasia || '').toUpperCase())}</b><span>${e(emp.cnpj || '')}</span></div>
@@ -11498,6 +11519,7 @@ function bnkHTML(d) {
   return `<div class="ep-doc ep-bnk">
 
   <div class="ep-page">
+    ${EP_TOPO_MARCA('ep-bnk-topo')}
     <div class="ep-bnk-emit">
       <b>${e((emp.razao || emp.fantasia || '').toUpperCase())}</b>
       ${emp.fantasia && emp.fantasia !== emp.razao ? `<span>Nome fantasia: ${e(emp.fantasia)}</span>` : ''}
@@ -13419,7 +13441,7 @@ async function carregarCRM(forcar) {
       // um card de eletroposto órfão, porque coluna do kanban, temperatura e
       // follow-up saem todos do agendamento, e agendamento não tem produto.
       supaGet('propostas?select=codigo,tipo,cliente_nome,cliente_cidade,cliente_uf,consultor_nome,kwp,created_at,acessos,enviado_wpp,vendido,vendido_em,vendido_por,valor_vendido,dados&order=created_at.desc&limit=1000'),
-      supaGet('agendamentos?select=id,cliente_nome,cliente_telefone,vendedor_nome,quando,status,temperatura,cidade,historico,observacao,created_at,created_by,src,proposta_por,proposta_em,presenca_confirmada_at&order=quando.desc&limit=1000'),
+      supaGet('agendamentos?select=id,cliente_nome,cliente_telefone,vendedor_nome,quando,status,temperatura,cidade,historico,observacao,created_at,created_by,src,proposta_por,proposta_em,presenca_confirmada_at,confirmacao_at,lead_resposta_at&order=quando.desc&limit=1000'),
       supaGet('leads_meta?select=lead_id,nome,whatsapp,cidade,consultor,created_time,agendado_id,fora_area&order=created_time.desc&limit=1000')
     ]);
   } catch (e) {
@@ -13552,6 +13574,15 @@ function crmDerivar(c) {
   // Presenca confirmada sai da reuniao FUTURA, nao da mais recente: "ele confirmou"
   // so diz alguma coisa sobre uma reuniao que ainda vai acontecer.
   c.presencaOk = !!(agFuturo && agFuturo.presenca_confirmada_at);
+  // SILÊNCIO DO LEAD (19/08/2026) — o mesmo amarelo da agenda, dito em selo aqui.
+  // Sai da reunião FUTURA pela mesma razão da presença: "ele não respondeu" só é
+  // cobrança enquanto ainda dá pra fazer alguma coisa a respeito. As 2 horas de
+  // folga são as mesmas da tela da agenda (a confirmação sai no ato do
+  // agendamento; sem a folga o selo nasceria em todo card novo).
+  c.semResposta = !!(agFuturo && agFuturo.status === 'agendado'
+    && String(agFuturo.created_by || '').toLowerCase().includes('eletroposto')
+    && agFuturo.confirmacao_at && !agFuturo.lead_resposta_at && !agFuturo.presenca_confirmada_at
+    && agora - stamp(agFuturo.confirmacao_at) >= 2 * 60 * 60 * 1000);
   c.temperatura = (agOrd.find(a => a.temperatura) || {}).temperatura || null;
 
   // Etiqueta de origem do lead (Solar Tráfego, EP Organic, Import…). Sai da
@@ -13736,7 +13767,9 @@ function renderCRM() {
   // proxima reuniao. Sem isto o dado aparecia num lugar e sumia no outro.
   const presencaBadge = (c) => c.presencaOk
     ? `<span class="crm-status-selo selo-ok" title="O cliente confirmou presenca">✓ Reuniao confirmada</span>`
-    : '';
+    : (c.semResposta
+      ? `<span class="crm-status-selo selo-sr" title="A automação confirmou a reunião no WhatsApp dele e ele não respondeu nada">Não respondeu</span>`
+      : '');
   const propBadge = (c) => c.propPor
     ? `<span class="crm-status-selo selo-pa" title="Proposta apresentada por ${escapeHtml(c.propPor)}">📑 Proposta: ${escapeHtml(c.propPor)}</span>`
     : '';
