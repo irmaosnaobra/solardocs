@@ -3270,6 +3270,9 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Como o banco parte o dinheiro</div>
         <div class="orc-note" style="margin-top:0">O Finame financia o <b>equipamento</b>, não a obra. Estas duas linhas são o que a instituição lê para decidir quanto libera — por isso <b>não têm valor sugerido</b>: um número que parece calculado é pior que um campo em branco.</div>
+        <div class="eletro-field" style="margin-top:12px"><label>Valor total da proposta</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="bnk-total" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="bnkTotalEditado(this)"></div></div>
+        <div class="orc-note" id="bnk-total-note">—</div>
         <div class="eletro-field" style="margin-top:12px"><label>Valor do equipamento</label>
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="bnk-eq" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="bnkCalc()"></div></div>
         <div class="eletro-field"><label>Valor da mão de obra</label>
@@ -11239,6 +11242,7 @@ function bcoImprimir() {
 const BNK_BEM = ['carreg', 'trafo', 'cabo', 'padrao', 'cobert'];
 
 function bnkIpiEditado(inp) { if (inp) inp.dataset.tocado = '1'; bnkCalc(); }
+function bnkTotalEditado(inp) { if (inp) inp.dataset.tocado = '1'; bnkCalc(); }
 
 // "Uberlandia-MG", "Uberlandia/MG", "Uberlandia MG" -> { cidade, uf }. Sem UF
 // reconhecivel devolve a string inteira como cidade e UF vazia: chutar sigla de
@@ -11274,7 +11278,12 @@ function bnkDados() {
     origem: g('bnk-origem'),
     prazo: g('bnk-prazo').trim(), validade: n('bnk-validade') || 30,
     eq: n('bnk-eq'), mo: n('bnk-mo'),
-    total: itens.total, itens: itens.itens,
+    // O total da PROPOSTA nao e' obrigatoriamente o total do Orcamento: pode haver
+    // entrada ja' paga, escopo parcial ou valor renegociado com o banco. O campo
+    // manda; o Orcamento fica como referencia, e a tela avisa quando os dois
+    // divergem — divergencia declarada e' decisao, divergencia muda e' erro.
+    total: n('bnk-total') > 0 ? n('bnk-total') : itens.total,
+    totalOrc: itens.total, itens: itens.itens,
     equip: t.equip, empresa: emp,
     data: dt ? new Date(dt + 'T12:00:00') : new Date(),
   };
@@ -11290,17 +11299,28 @@ function bnkCalc() {
   }
   const soma = d.eq + d.mo;
   const dif = d.total - soma;
+  // Nota do total: enquanto seguir o Orçamento, diz isso. Divergiu, mostra de
+  // quanto e sugere a leitura — entrada já paga, escopo parcial ou renegociação.
+  const difOrc = (d.totalOrc || 0) - d.total;
+  set('bnk-total-note', !(d.totalOrc > 0)
+    ? 'Preencha o <b>Orçamento</b> ou digite o valor da proposta aqui.'
+    : Math.abs(difOrc) < 0.01
+      ? 'Igual ao total do Orçamento. Pode mudar à vontade — o documento usa <b>este</b> valor.'
+      : 'Difere do Orçamento (' + ORC_MONEY(d.totalOrc) + ') em <b>' + ORC_MONEY(Math.abs(difOrc)) + '</b>' +
+        (difOrc > 0 ? ' a menos — é o caso de entrada já paga ou escopo parcial.' : ' a mais.'));
+
   if (!(d.total > 0)) {
-    set('bnk-split', 'Preencha o <b>Orçamento</b> primeiro — o valor total do documento sai de lá.');
+    set('bnk-split', 'Defina o <b>valor total da proposta</b> acima — é sobre ele que o split é conferido.');
   } else if (soma === 0) {
-    set('bnk-split', 'Total do Orçamento: <b>' + ORC_MONEY(d.total) + '</b>. Divida esse valor entre equipamento e mão de obra — <b>é o equipamento que o banco financia</b>.');
+    set('bnk-split', 'Total da proposta: <b>' + ORC_MONEY(d.total) + '</b>. Divida esse valor entre equipamento e mão de obra — <b>é o equipamento que o banco financia</b>.');
   } else if (Math.abs(dif) >= 0.01) {
     set('bnk-split', '<b style="color:#fca5a5">Não fecha:</b> equipamento + mão de obra = ' + ORC_MONEY(soma) +
-      ', e o total do Orçamento é ' + ORC_MONEY(d.total) + '. ' +
-      (dif > 0 ? 'Faltam <b>' + ORC_MONEY(dif) + '</b>.' : 'Sobram <b>' + ORC_MONEY(-dif) + '</b>.'));
+      ', e o total da proposta é ' + ORC_MONEY(d.total) + '. ' +
+      (dif > 0 ? 'Faltam <b>' + ORC_MONEY(dif) + '</b>.' : 'Sobram <b>' + ORC_MONEY(-dif) + '</b>.') +
+      (dif > 0 ? ' Se essa diferença é entrada já paga, baixe o total da proposta.' : ''));
   } else {
     const pct = d.total > 0 ? Math.round(d.eq / d.total * 100) : 0;
-    set('bnk-split', 'Fecha com o Orçamento. O banco financia <b>' + ORC_MONEY(d.eq) + '</b> (' + pct +
+    set('bnk-split', 'Fecha. O banco financia <b>' + ORC_MONEY(d.eq) + '</b> (' + pct +
       '% do total); a mão de obra de ' + ORC_MONEY(d.mo) + ' corre por fora.');
   }
   // Orienta o split mostrando o que foi marcado no kit, separado por natureza.
@@ -11316,6 +11336,14 @@ function bnkInit() {
   const dt = document.getElementById('bnk-data');
   if (dt && !dt.value) dt.value = new Date().toISOString().slice(0, 10);
   // Campo vazio recebe o deduzido; campo tocado nunca e' sobrescrito.
+  // O total nasce com o do Orcamento e SEGUE ele enquanto ninguem digitar. Depois
+  // de editado, para de seguir: quem definiu o valor da proposta na mao nao quer
+  // ver o numero mudar sozinho porque alguem mexeu num item do kit.
+  const tot = document.getElementById('bnk-total');
+  if (tot && tot.dataset.tocado !== '1') {
+    const o = orcLerItens().total;
+    tot.value = o > 0 ? o.toFixed(2) : '';
+  }
   const t0 = eletroTextos();
   const cu = bnkCidadeUF(t0.cidade);
   [['bnk-nome', t0.cliente], ['bnk-cidade', cu.cidade], ['bnk-uf', cu.uf]].forEach(([id, v]) => {
@@ -11429,7 +11457,7 @@ function bnkHTML(d) {
 
 function bnkImprimir() {
   const d = bnkDados();
-  if (!(d.total > 0)) { alert('Defina o "Valor do projeto" no Orçamento antes de gerar a proposta de banco.'); return; }
+  if (!(d.total > 0)) { alert('Defina o "Valor total da proposta" — ele nasce do Orçamento, mas você pode digitar outro.'); return; }
   if (!d.cliente) { alert('Preencha o nome do cliente no Orçamento — o banco identifica a operação por ele.'); return; }
   if (!d.banco || !d.agencia || !d.conta) { alert('Preencha banco, agência e conta corrente: é para essa conta que o crédito é liberado.'); return; }
   // Finame financia o BEM. Sem o split, o banco nao sabe quanto liberar — e um
@@ -11439,7 +11467,7 @@ function bnkImprimir() {
   if (Math.abs(dif) >= 0.01) {
     alert('Equipamento + mão de obra têm de fechar com o total do Orçamento.\n\n' +
           'Equipamento: ' + ORC_MONEY(d.eq) + '\nMão de obra: ' + ORC_MONEY(d.mo) +
-          '\nSoma: ' + ORC_MONEY(d.eq + d.mo) + '\nTotal do Orçamento: ' + ORC_MONEY(d.total) +
+          '\nSoma: ' + ORC_MONEY(d.eq + d.mo) + '\nTotal da proposta: ' + ORC_MONEY(d.total) +
           '\n\n' + (dif > 0 ? 'Faltam ' + ORC_MONEY(dif) : 'Sobram ' + ORC_MONEY(-dif)) + '.');
     return;
   }
