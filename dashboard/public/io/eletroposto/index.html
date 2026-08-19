@@ -21,6 +21,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+<script>
+  // Liga o portão da VSL ANTES do primeiro pixel — decidir isso lá embaixo faria
+  // o hero piscar antes do vídeo cobrir a tela. Uma vez por sessão: quem já viu
+  // (e voltou do #agendar, ou trocou de aba e voltou) cai direto na página.
+  try { if (!sessionStorage.getItem('io_ep_vsl')) document.documentElement.classList.add('vslOn'); } catch (e) {}
+</script>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   :root{
@@ -507,9 +513,112 @@
   .q[open]{border-color:rgba(125,209,23,.5)}
   .q .a{padding:0 19px 17px;color:var(--mut);font-size:14px;font-weight:600;line-height:1.55}
   .q .a b{color:var(--cream);font-weight:800}
+  /* ===== VSL DE ENTRADA (tela cheia) ══════════════════════════════════════
+     O vídeo é a primeira coisa que a pessoa encontra: cobre a tela inteira,
+     começa mudo (única forma de autoplay passar) e a página fica travada
+     atrás. Aos 5 SEGUNDOS DE VÍDEO RODADO (não de relógio) nasce o botão de
+     agendar — e junto dele a saída discreta pra quem quer só ler a página.
+
+     REGRA DURA: a porta sempre abre. Autoplay recusado, arquivo que não
+     carrega, vídeo que trava — em qualquer um desses o portão se dissolve
+     sozinho. Uma LP inteira presa atrás de um <video> quebrado é pior do que
+     LP sem vídeo nenhum. */
+  .vslGate{display:none}
+  html.vslOn .vslGate{position:fixed;inset:0;z-index:200;background:#03080f;
+    display:flex;align-items:center;justify-content:center;
+    opacity:1;transition:opacity .32s ease}
+  html.vslOn, html.vslOn body{overflow:hidden}
+  html.vslOn .vslGate.sai{opacity:0;pointer-events:none}
+  .vslGate video{position:absolute;inset:0;width:100%;height:100%;
+    object-fit:contain;background:#03080f}
+  /* Tela mais alta que o vídeo (celular de tela comprida contra um 9:16) sobra
+     tarja preta em cima e embaixo — e "tela cheia" com moldura preta não é tela
+     cheia. Aí o quadro preenche e corta ~9% de cada lado; o enquadramento é
+     centralizado e a legenda queimada fica no meio, então nada some. Acima
+     dessa proporção (tablet em pé, computador) volta a caber inteiro: cortar um
+     9:16 numa tela deitada decapitaria quem está falando. */
+  @media (max-aspect-ratio: 3/5){ .vslGate video{object-fit:cover} }
+  /* Sombra só nas pontas: o rosto no meio do quadro fica limpo. */
+  .vslGate .veu{position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(180deg,rgba(3,8,15,.55) 0%,transparent 22%,transparent 58%,rgba(3,8,15,.88) 100%)}
+
+  /* Botão de som — ocupa a tela toda enquanto está mudo, porque no celular o
+     dedo cai em qualquer lugar. Some no primeiro toque. */
+  .vslSom{position:absolute;inset:0;border:0;background:transparent;cursor:pointer;
+    display:flex;align-items:flex-start;justify-content:center;padding-top:calc(env(safe-area-inset-top) + 22px);
+    font-family:inherit;color:var(--cream)}
+  .vslSom span{display:inline-flex;align-items:center;gap:9px;background:rgba(3,8,15,.72);
+    border:1px solid var(--line);backdrop-filter:blur(8px);
+    padding:11px 18px;border-radius:60px;font-size:14px;font-weight:800;letter-spacing:-.2px}
+  .vslSom svg{width:17px;height:17px;fill:var(--neon);flex:none}
+  .vslSom.off{display:none}
+
+  /* Play manual — só aparece quando o navegador RECUSA o autoplay. */
+  .vslPlay{position:absolute;inset:0;border:0;background:rgba(3,8,15,.45);cursor:pointer;
+    display:none;align-items:center;justify-content:center;font-family:inherit}
+  .vslPlay.on{display:flex}
+  .vslPlay i{width:82px;height:82px;border-radius:50%;background:var(--neon);
+    display:flex;align-items:center;justify-content:center;box-shadow:0 12px 40px rgba(125,209,23,.45)}
+  .vslPlay i::after{content:'';border-left:26px solid var(--dk);border-top:16px solid transparent;
+    border-bottom:16px solid transparent;margin-left:7px}
+
+  /* Rodapé do portão: barra de progresso + CTA que nasce aos 5s. */
+  .vslPe{position:absolute;left:0;right:0;bottom:0;padding:0 20px calc(env(safe-area-inset-bottom) + 20px);
+    display:flex;flex-direction:column;align-items:center;gap:12px}
+  .vslBarra{width:100%;max-width:520px;height:3px;border-radius:99px;background:rgba(247,251,242,.18);overflow:hidden}
+  .vslBarra i{display:block;height:100%;width:0;background:var(--neon);border-radius:99px;transition:width .25s linear}
+  .vslAcao{width:100%;max-width:520px;display:flex;flex-direction:column;align-items:center;gap:10px;
+    opacity:0;transform:translateY(14px);pointer-events:none;transition:opacity .4s ease,transform .4s ease}
+  .vslAcao.on{opacity:1;transform:none;pointer-events:auto}
+  .vslCta{width:100%;background:var(--neon);color:var(--dk);font-weight:900;font-size:16px;
+    padding:16px 22px;border-radius:60px;text-decoration:none;text-align:center;border:0;cursor:pointer;
+    font-family:inherit;min-height:54px;display:inline-flex;align-items:center;justify-content:center;
+    box-shadow:0 10px 30px rgba(125,209,23,.28)}
+  .vslSair{background:none;border:0;cursor:pointer;font-family:inherit;
+    color:rgba(247,251,242,.68);font-size:13.5px;font-weight:700;padding:10px 16px;min-height:44px;
+    text-decoration:underline;text-underline-offset:3px;
+    opacity:0;pointer-events:none;transition:opacity .4s ease}
+  .vslSair.on{opacity:1;pointer-events:auto}
+  @media(max-width:400px){.vslCta{font-size:15px}}
 </style>
 </head>
 <body>
+
+<!-- ═══ VSL DE ENTRADA ═══════════════════════════════════════════════════════
+     Vídeo de tela cheia antes da página. O arquivo mora no Cloudinary (conta
+     v755hoio) e NUNCA em /public: mp4 no repositório engorda todo deploy, e o
+     peso de asset já derrubou landing daqui antes.
+     PRA DESLIGAR: apaga o `data-src` da tag <video>. O portão inteiro se
+     dissolve sozinho e a LP volta a abrir no hero, sem buraco.
+     PRA TROCAR O VÍDEO: `data-src` + `poster`. É só isso.
+     Entregue sem `q_auto` de propósito: o arquivo já sai comprimido do ffmpeg
+     (crf 27, 540x960) e a transformação media 22,3 MB contra 20,2 MB do
+     original — pagaria 10% a mais de banda pra entregar a mesma coisa. -->
+<div class="vslGate" id="vslGate">
+  <video id="vslVid" playsinline webkit-playsinline muted preload="metadata"
+    poster="https://res.cloudinary.com/v755hoio/image/upload/f_auto,q_auto/v1787107633/io/vsl-eletroposto-capa.jpg"
+    data-src="https://res.cloudinary.com/v755hoio/video/upload/v1787107619/io/vsl-eletroposto.mp4"></video>
+  <div class="veu"></div>
+
+  <button class="vslSom" id="vslSom" type="button" aria-label="Ativar o som do vídeo">
+    <span>
+      <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM14 1.2v2.1c3.4.9 6 4 6 7.7s-2.6 6.8-6 7.7v2.1c4.6-1 8-5 8-9.8s-3.4-8.8-8-9.8z"/></svg>
+      Toque para ouvir
+    </span>
+  </button>
+
+  <button class="vslPlay" id="vslPlay" type="button" aria-label="Tocar o vídeo"><i></i></button>
+
+  <div class="vslPe">
+    <div class="vslBarra"><i id="vslBarra"></i></div>
+    <div class="vslAcao" id="vslAcao">
+      <button class="vslCta" id="vslCta" type="button">Agendar minha reunião →</button>
+    </div>
+    <!-- Fora do bloco do CTA de propósito: quando o navegador recusa o autoplay,
+         a página tem que ter saída ANTES de existir 5s de vídeo assistido. -->
+    <button class="vslSair" id="vslSair" type="button">Ver a página</button>
+  </div>
+</div>
 
 <div class="nav">
   <div class="in">
@@ -2395,6 +2504,167 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden && !sl
 // Nunca remonta com horario escolhido: apagaria a escolha dele no meio do formulario.
 setInterval(() => { if(!document.hidden && !slotSel) montarSlots(); }, 5*60*1000);
 </script>
+  <!-- ═══ VSL: portão de entrada + medição de retenção ═════════════════════════
+       Duas coisas moram aqui:
+       1) O PORTÃO. Vídeo em tela cheia, mudo (é a única forma de o autoplay
+          passar em qualquer navegador). Um toque em qualquer lugar liga o som e
+          volta pro começo — quem ligou o som quer ouvir desde a primeira frase.
+          Aos 5s de vídeo aparece o botão de agendar. A saída discreta aparece
+          junto: portão sem porta é armadilha, e o lead que só quer ler a página
+          vira reclamação, não reunião.
+       2) A MEDIÇÃO. A página manda "fotografias" do que já foi assistido: um
+          balde por trecho de `bs` segundos, com quantas vezes cada trecho rodou.
+          Manda mais de uma vez (a cada 15s, no pause, no fim e na saída) porque
+          beacon de saída se perde — o /admin junta pelo MÁXIMO elemento a
+          elemento, então foto repetida ou fora de ordem não estraga a conta.
+          É disso que sai a curva de retenção na aba Página de Venda.
+
+       QUALQUER FALHA DISSOLVE O PORTÃO: autoplay recusado com play manual também
+       recusado, arquivo que não carrega, vídeo que não começa em 8s. A LP tem que
+       abrir mesmo sem vídeo. -->
+  <script>
+  (() => {
+    const raiz = document.documentElement;
+    if (!raiz.classList.contains('vslOn')) return;
+
+    const gate = document.getElementById('vslGate');
+    const vid  = document.getElementById('vslVid');
+    const src  = vid && vid.getAttribute('data-src');
+
+    function abrirPagina(marcar) {
+      try { sessionStorage.setItem('io_ep_vsl', '1'); } catch (e) {}
+      if (gate) gate.classList.add('sai');
+      raiz.classList.remove('vslOn');
+      setTimeout(() => { if (gate) gate.remove(); }, 400);
+      if (vid) { try { vid.pause(); } catch (e) {} }
+      if (marcar) enviar(true);
+    }
+    // Sem vídeo configurado (ou tag ausente) o portão nem chega a existir.
+    if (!gate || !vid || !src) { abrirPagina(false); return; }
+
+    // Mesma sessão do beacon do rodapé (io_sd_session). Se cunhar um id próprio,
+    // "quantos dos que visitaram deram play" fica impossível de calcular.
+    function uuid() {
+      if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random()*16|0; const v = c==='x'?r:(r&0x3)|0x8; return v.toString(16); });
+    }
+    let sid = '';
+    try { sid = sessionStorage.getItem('io_sd_session') || ''; if (!sid) { sid = uuid(); sessionStorage.setItem('io_sd_session', sid); } } catch (e) { sid = uuid(); }
+    const API = (location.hostname !== 'localhost') ? '/_api' : 'http://localhost:3001';
+
+    let bs = 5, baldes = [], mexeu = false, enviado = '';
+    function evento(tipo, dados, saindo) {
+      const corpo = JSON.stringify({ session_id: sid, event_type: tipo, event_data: dados });
+      try {
+        if (saindo && navigator.sendBeacon) { navigator.sendBeacon(API + '/_t/e', new Blob([corpo], { type: 'application/json' })); return; }
+        fetch(API + '/_t/e', { method:'POST', headers:{'Content-Type':'application/json'}, body: corpo, keepalive: true }).catch(()=>{});
+      } catch (e) {}
+    }
+    function enviar(saindo) {
+      if (!mexeu) return;                       // ninguém assistiu nada: não suja o banco
+      const assinatura = baldes.join(',');
+      if (assinatura === enviado && !saindo) return;   // nada novo desde a última foto
+      enviado = assinatura;
+      evento('vsl', {
+        lp: 'eletroposto',
+        dur: Math.round(vid.duration || 0),
+        bs: bs,
+        b: baldes,
+        som: !vid.muted,
+        viu5: mostrouCta,
+        fim: vid.ended || (vid.duration > 0 && vid.currentTime >= vid.duration - 1.5),
+      }, saindo);
+    }
+
+    // Rede de segurança: se em 8s o vídeo não começou a tocar, a página abre.
+    // Vale pro 4G ruim, pro Cloudinary fora do ar e pro iOS em modo economia.
+    let tocou = false;
+    const salvaVidas = setTimeout(() => { if (!tocou) abrirPagina(false); }, 8000);
+    vid.addEventListener('error',  () => abrirPagina(false));
+    vid.addEventListener('stalled',() => { if (!tocou) abrirPagina(false); });
+
+    const som   = document.getElementById('vslSom');
+    const play  = document.getElementById('vslPlay');
+    const acao  = document.getElementById('vslAcao');
+    const barra = document.getElementById('vslBarra');
+
+    const sair = document.getElementById('vslSair');
+    let baldeAtual = -1, ultimoEnvio = 0, mostrouCta = false;
+
+    vid.src = src;
+    vid.play().catch(() => {
+      // Autoplay recusado (iOS em economia de bateria, política do navegador).
+      // O relógio de 8s sai de cena: existe um botão na tela, não é tela morta.
+      // Mas a saída abre JUNTO — senão a pessoa que não quer o vídeo fica presa
+      // esperando 5s de um vídeo que ela nunca vai dar play.
+      clearTimeout(salvaVidas);
+      play.classList.add('on');
+      sair.classList.add('on');
+    });
+    play.addEventListener('click', () => {
+      // Autoplay recusado e a pessoa tocou: o toque É o gesto que libera o som,
+      // então já entra com áudio. Fazer ela tocar duas vezes (play, depois som)
+      // é pedir pra perder metade delas no caminho.
+      play.classList.remove('on');
+      som.classList.add('off');
+      vid.muted = false;
+      vid.play().catch(() => abrirPagina(false));            // recusou de novo: não prende ninguém
+    });
+
+    vid.addEventListener('playing', () => {
+      tocou = true; clearTimeout(salvaVidas);
+      if (vid.duration > 0 && baldes.length === 0) {
+        // ~120 baldes: resolução de sobra pra curva e payload de poucas centenas
+        // de bytes. Nada aqui fixa a duração do vídeo de hoje.
+        bs = Math.max(2, Math.round(vid.duration / 120));
+        baldes = new Array(Math.ceil(vid.duration / bs)).fill(0);
+      }
+    });
+
+    // Um toque em qualquer lugar liga o som e recomeça do zero.
+    som.addEventListener('click', () => {
+      som.classList.add('off');
+      vid.muted = false;
+      vid.currentTime = 0;
+      baldes.fill(0); baldeAtual = -1; enviado = '';   // o trecho mudo não conta duas vezes
+      vid.play().catch(()=>{});
+      try { track('vsl_som'); } catch (e) {}
+    });
+
+    vid.addEventListener('timeupdate', () => {
+      const t = vid.currentTime || 0, d = vid.duration || 0;
+      if (d > 0) barra.style.width = Math.min(100, (t / d) * 100) + '%';
+
+      if (baldes.length) {
+        const i = Math.min(baldes.length - 1, Math.floor(t / bs));
+        if (i !== baldeAtual) { baldes[i] = (baldes[i] || 0) + 1; baldeAtual = i; mexeu = true; }
+      }
+      // O botão de agendar nasce aos 5 SEGUNDOS DE VÍDEO. Nasceu, não some mais.
+      if (!mostrouCta && t >= 5) { mostrouCta = true; acao.classList.add('on'); sair.classList.add('on'); }
+
+      const agora = Date.now();
+      if (agora - ultimoEnvio > 15000) { ultimoEnvio = agora; enviar(false); }
+    });
+
+    vid.addEventListener('pause', () => enviar(false));
+    vid.addEventListener('ended', () => { acao.classList.add('on'); sair.classList.add('on'); enviar(false); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) enviar(true); });
+    window.addEventListener('pagehide', () => enviar(true));
+
+    document.getElementById('vslCta').addEventListener('click', () => {
+      evento('vsl_cta', { lp: 'eletroposto', s: Math.round(vid.currentTime || 0) });
+      try { track('vsl_cta'); } catch (e) {}
+      abrirPagina(true);
+      setTimeout(() => { const alvo = document.getElementById('agendar'); if (alvo) alvo.scrollIntoView({ behavior: 'smooth' }); }, 60);
+    });
+    sair.addEventListener('click', () => {
+      evento('vsl_pular', { lp: 'eletroposto', s: Math.round(vid.currentTime || 0) });
+      try { track('vsl_pular'); } catch (e) {}
+      abrirPagina(true);
+    });
+  })();
+  </script>
+
   <!-- Tracking page_visits (mesmo beacon do /io) — visita + scroll + tempo → aba LP em /admin/hubs -->
   <script>
   (() => {
