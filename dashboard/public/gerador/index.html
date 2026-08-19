@@ -10038,7 +10038,16 @@ let ctrPagTocado = false;
 
 // Sinal já pago = o valor do recibo. Zero significa contrato sem sinal, e o
 // documento diz isso em vez de fingir um abatimento que não houve.
-function ctrSinalPago() { return orcNum(orcVal('rec-valor')); }
+// Sinal que o contrato abate do total. So' conta recibo de SINAL: o recibo
+// AVULSO (projeto eletrico vendido sozinho) nao tem vinculo com o preco da obra —
+// a propria aba do Recibo esconde percentual, gatilho e desistencia quando ele
+// esta' selecionado, e o papel dele nao cita o eletroposto.
+//
+// ⚠ 19/08: faltava exatamente esta checagem. Quem recebia R$ 3.000 de projeto
+// avulso e depois gerava o contrato entregava um instrumento dizendo que o cliente
+// ja' havia pago R$ 3.000 DA OBRA — saldo menor, cobranca menor, e nada na tela
+// denunciando. Dinheiro saindo por um bug de uma linha.
+function ctrSinalPago() { return recAvulso() ? 0 : orcNum(orcVal('rec-valor')); }
 
 // Sugestão de condição, montada sobre o SALDO a partir do que está marcado no
 // card de pagamento do Orçamento. É texto: o consultor ajusta antes de imprimir.
@@ -10136,7 +10145,9 @@ function ctrDados() {
   const kit = orcLerItens().itens.map(i => i.desc + (i.variante ? ' ' + i.variante : ''));
   const marcados = new Set(orcLerItens().itens.map(i => i.desc));
   return {
-    num: orcVal('ctr-num') || orcVal('rec-num'),
+    // Numero do contrato. NAO herda mais do recibo: dois instrumentos diferentes
+    // saindo com o mesmo numero torna impossivel citar "o documento nº 001".
+    num: orcVal('ctr-num'),
     data: new Date(dISO + 'T00:00:00'),
     // Quem NEGOCIOU (vai no cabeçalho, é o nome que o cliente reconhece) e quem
     // ASSINA (a qualificação da parte). Em branco, os dois são a mesma pessoa.
@@ -10185,8 +10196,15 @@ function ctrHTML(d) {
 
   // O escopo é o que foi MARCADO no Orçamento — cobertura, software e app
   // inclusive. Chumbar item aqui dentro criava um contrato que prometia o que a
-  // venda não tinha; a lista de "não incluído", essa sim, é fixa num item só:
-  // o que a concessionária exigir de reforço de rede.
+  // venda não tinha.
+  //
+  // ⚠ 19/08: a coluna "Não incluído" imprimia UM item chumbado e ignorava `d.fora`,
+  // que o ctrDados já calculava (todo item do kit NÃO marcado). Resultado: cobertura,
+  // transformador ou obra civil desmarcados no Orçamento sumiam do papel — não
+  // estavam em Incluído nem em Não incluído. O contrato ficava omisso exatamente onde
+  // a briga nasce ("mas eu achei que a cobertura estava junto"), e omissão em contrato
+  // de adesão se interpreta contra quem redigiu. Agora `d.fora` sai antes do item fixo
+  // do reforço de rede, que continua valendo sempre.
   const incluidos = [...(d.incluso || [])];
   const temOperacao = d.software || d.appTupi;
   // Texto da 1.2 e do subtítulo acompanham o que foi vendido.
@@ -10198,18 +10216,21 @@ function ctrHTML(d) {
   // Numeração DINÂMICA do fim do contrato: sem plataforma e sem app, a 9ª não
   // existe e rescisão, disposições e foro sobem um número. Buraco na numeração é
   // o tipo de coisa que faz o cliente perguntar o que foi tirado do contrato.
-  let nCl = 8;
-  const num9 = temOperacao ? ++nCl : 0;
+  // 19/08: a base subiu de 8 para 9 — entrou a Cláusula 8ª (projeções de resultado)
+  // e os tributos passaram para a 9ª. Quem mexer aqui de novo: este número é
+  // SEMPRE o da última cláusula fixa acima, e o resto se numera sozinho.
+  let nCl = 9;
+  const numOper = temOperacao ? ++nCl : 0;
   const pctTxt = String(d.softwarePct).replace('.', ',');
   const blocoOperacao = !temOperacao ? '' : (
-    cl(num9, d.software && d.appTupi ? 'Da plataforma de gestão e do aplicativo'
+    cl(numOper, d.software && d.appTupi ? 'Da plataforma de gestão e do aplicativo'
            : d.software ? 'Da plataforma de gestão' : 'Do aplicativo para o cliente') +
-    li(`${num9}.1`, 'A CONTRATADA entrega e mantém ' + [
+    li(`${numOper}.1`, 'A CONTRATADA entrega e mantém ' + [
       d.software && 'a <b>plataforma de gestão e cobrança</b> da estação (protocolo OCPP), com cadastro do ponto, definição do preço da recarga pelo CONTRATANTE, controle de acesso, meio de pagamento e relatórios de recarga e de faturamento',
       d.appTupi && 'o <b>aplicativo para o cliente final</b>, fornecido em parceria com a <b>Tupi</b>, pelo qual o motorista localiza a estação, inicia a recarga e paga',
     ].filter(Boolean).join('; e ') + '.') +
-    (d.software ? li(`${num9}.2`, `Pela operação da plataforma, a CONTRATADA é remunerada em <b>${e(pctTxt)}% do faturamento bruto</b> da estação, apurado mensalmente e retido no repasse ao CONTRATANTE.`) : '') +
-    li(`${num9}.${d.software ? 3 : 2}`, `O equipamento e a obra entregues na forma das Cláusulas 1ª a 8ª são de propriedade do CONTRATANTE e não dependem da manutenção ${d.software ? 'da plataforma' : 'do aplicativo'}, que constitui <b>serviço continuado</b>, prestado enquanto houver interesse das partes e denunciável por qualquer delas mediante aviso prévio de 30 (trinta) dias${d.software ? `, cessando a partir de então a remuneração da Cláusula ${num9}.2` : ''}.`)
+    (d.software ? li(`${numOper}.2`, `Pela operação da plataforma, a CONTRATADA é remunerada em <b>${e(pctTxt)}% do faturamento bruto</b> da estação, apurado mensalmente e retido no repasse ao CONTRATANTE.`) : '') +
+    li(`${numOper}.${d.software ? 3 : 2}`, `O equipamento e a obra entregues na forma das Cláusulas 1ª a 9ª são de propriedade do CONTRATANTE e não dependem da manutenção ${d.software ? 'da plataforma' : 'do aplicativo'}, que constitui <b>serviço continuado</b>, prestado enquanto houver interesse das partes e denunciável por qualquer delas mediante aviso prévio de 30 (trinta) dias${d.software ? `, cessando a partir de então a remuneração da Cláusula ${numOper}.2` : ''}.`)
   );
   const nResc = ++nCl, nGerais = ++nCl, nForo = ++nCl;
 
@@ -10229,13 +10250,13 @@ function ctrHTML(d) {
 
       ${cl(1, 'Do objeto')}
       ${li('1.1', `Fornecimento e instalação de estação de recarga de veículos elétricos composta por <b>${d.qtd} carregador(es) ${e(d.equip || 'de corrente contínua')}</b>, com ${d.plugs} ponto(s) de carregamento, a ser implantada em <b>${vazio(d.local)}</b>.`)}
-      ${li('1.2', `O escopo compreende o projeto de engenharia, o fornecimento dos equipamentos, a instalação e a homologação junto à concessionária de energia${temOperacao ? `, além ${entregaCrase}, na forma da Cláusula 9ª` : ''}, conforme a Cláusula 2ª.`)}
+      ${li('1.2', `O escopo compreende o projeto de engenharia, o fornecimento dos equipamentos, a instalação e a homologação junto à concessionária de energia${temOperacao ? `, além ${entregaCrase}, na forma da Cláusula ${numOper}ª` : ''}, conforme a Cláusula 2ª.`)}
 
       ${cl(2, 'Do escopo')}
       ${li('2.1', 'Estão incluídos no preço os itens a seguir. O que não estiver relacionado como incluído não integra o preço, e as obrigações do CONTRATANTE quanto a documentação, demanda de energia e consumo seguem a Cláusula 6ª.')}
       <div class="ep-ctr-esc">
         <div><h4>Incluído</h4><ul>${incluidos.map(i => `<li>${e(i)}</li>`).join('')}</ul></div>
-        <div class="fora"><h4>Não incluído</h4><ul><li>Obras de reforço da rede exigidas pela concessionária</li></ul></div>
+        <div class="fora"><h4>Não incluído</h4><ul>${(d.fora || []).map(i => `<li>${e(i)}</li>`).join('')}<li>Obras de reforço da rede exigidas pela concessionária</li></ul></div>
       </div>
 
       ${pageFoot(1, TOTP)}
@@ -10270,10 +10291,16 @@ function ctrHTML(d) {
       ${li('6.4', 'Efetuar os pagamentos nas datas acordadas.')}
 
       ${cl(7, 'Da garantia')}
-      ${li('7.1', `Os equipamentos e serviços têm garantia de <b>${d.garantia} meses</b> contados do <b>comissionamento</b> (Cláusula 5.3), cobrindo defeitos de fabricação e de execução.`)}
-      ${li('7.2', 'A garantia não cobre danos por uso indevido, vandalismo, descargas atmosféricas, oscilação da rede, intervenção de terceiros não autorizados ou falta de manutenção.')}
+      ${li('7.1', `A <b>instalação</b> — projeto, montagem, infraestrutura elétrica e comissionamento — tem garantia de <b>${d.garantia} meses</b> contados do <b>comissionamento</b> (Cláusula 5.3), prestada pela CONTRATADA e cobrindo defeitos de execução.`)}
+      ${li('7.2', 'Os <b>equipamentos</b> são cobertos pela garantia do respectivo <b>fabricante</b>, nos prazos e condições do certificado que acompanha cada bem, entregue ao CONTRATANTE no recebimento. A CONTRATADA não amplia esse prazo, e se responsabiliza por intermediar o acionamento da garantia junto ao fabricante durante o período indicado na Cláusula 7.1, sem custo de mão de obra.')}
+      ${li('7.3', 'A garantia não cobre danos por uso indevido, vandalismo, descargas atmosféricas, oscilação da rede, intervenção de terceiros não autorizados ou falta de manutenção.')}
 
-      ${cl(8, 'Dos tributos e da nota fiscal')}
+      ${cl(8, 'Das projeções de resultado')}
+      ${li('8.1', 'Os estudos de viabilidade, simulações, orçamentos e demais materiais que estimem faturamento, lucro, retorno, payback ou volume de recargas constituem <b>projeção técnica fundamentada nas premissas neles declaradas</b>, e <b>não representam promessa, garantia ou compromisso de resultado econômico</b> por parte da CONTRATADA.')}
+      ${li('8.2', 'O resultado efetivo depende de fatores alheios à execução da obra — movimento de veículos no local, tarifa de energia da concessionária, preço praticado pelo CONTRATANTE, condições regulatórias e a própria operação do ponto —, todos sob gestão exclusiva do CONTRATANTE.')}
+      ${temOperacao ? li('8.3', `A remuneração da CONTRATADA pela plataforma, prevista na Cláusula ${numOper}ª, é contraprestação de serviço e não a torna sócia, participante do resultado ou responsável pelo desempenho econômico da operação.`) : ''}
+
+      ${cl(9, 'Dos tributos e da nota fiscal')}
       ${li('8.1', 'Os tributos incidentes já estão computados no preço. Eventual DIFAL em operação interestadual, quando aplicável, é de responsabilidade do CONTRATANTE.')}
       ${li('8.2', 'A CONTRATADA emitirá a nota fiscal correspondente na forma da legislação.')}
       ${blocoOperacao}
@@ -10335,6 +10362,15 @@ function ctrImprimir() {
 // energia solar fotovoltaica"); num eletroposto o que se pede e' aumento de
 // carga, acesso, nova ligacao e troca de padrao. Procuracao falando em geracao
 // solar pra ligar estacao de recarga e' o instrumento errado na cara do balcao.
+//
+// ⚠ 19/08: a troca estava INCOMPLETA. Duas alineas do M3 solar sobreviveram e
+// saiam em TODA procuracao de eletroposto: a "c" concedia TRT e formulario de
+// RATEIO (instrumentos de geracao distribuida, que rateiam credito de energia
+// entre unidades — nao existem num ponto de recarga), e a "f" pedia a
+// "homologacao geral do sistema de geracao de energia solar fotovoltaica".
+// Nenhum balcao recusa por excesso de poder, mas o documento anunciava um
+// projeto que nao e' o do cliente. A "c" virou parecer de acesso e vistoria, que
+// e' o que de fato se pede aqui.
 
 function procBanner() {
   const t = eletroTextos();
@@ -10458,10 +10494,10 @@ function procHTML(d) {
       <p class="ep-ctr-p">Os poderes ora conferidos compreendem, especificamente:</p>
       <p class="ep-ctr-li">a) <b>troca de titularidade</b> da unidade consumidora;</p>
       <p class="ep-ctr-li">b) <b>solicitação de conexão</b> e formulário de <b>solicitação de acesso</b>;</p>
-      <p class="ep-ctr-li">c) emissão de <b>TRT</b> e formulário de <b>rateio</b>;</p>
+      <p class="ep-ctr-li">c) <b>parecer de acesso</b> e vistoria da unidade consumidora;</p>
       <p class="ep-ctr-li">d) <b>aumento de carga</b> e <b>nova ligação</b>, inclusive para atender a demanda da estação de recarga de veículos elétricos;</p>
       <p class="ep-ctr-li">e) <b>troca de medidor</b> e <b>mudança de padrão</b> de entrada, com a adequação da instalação às exigências da concessionária;</p>
-      <p class="ep-ctr-li">f) ou seja, a <b>homologação geral</b> do sistema de geração de energia solar fotovoltaica e da estação de recarga de veículos elétricos;</p>
+      <p class="ep-ctr-li">f) ou seja, a <b>homologação geral</b> da estação de recarga de veículos elétricos;</p>
       <p class="ep-ctr-li">g) protocolar requerimentos, prestar e receber informações, retirar documentos e acompanhar o processo até a efetiva ligação;</p>
       <p class="ep-ctr-li">h) assinar o contrato de fornecimento, o contrato de uso e conexão e demais instrumentos exigidos pela concessionária para as finalidades acima.</p>
 
