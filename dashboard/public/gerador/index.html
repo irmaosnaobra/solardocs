@@ -3137,6 +3137,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <input type="text" id="orc-emit-engProf" placeholder="Engenheiro Eletricista" oninput="orcEmitSalvar()"></div>
         <div class="eletro-field"><label>Engenheiro — CREA</label>
           <input type="text" id="orc-emit-engCrea" placeholder="CREA-XX 00000" oninput="orcEmitSalvar()"></div>
+        <div class="eletro-field"><label>Engenheiro — nacionalidade</label>
+          <input type="text" id="orc-emit-engNac" placeholder="brasileiro" oninput="orcEmitSalvar()"></div>
+        <div class="eletro-field"><label>Engenheiro — estado civil</label>
+          <input type="text" id="orc-emit-engEc" placeholder="solteiro" oninput="orcEmitSalvar()"></div>
         <div class="eletro-field"><label>Engenheiro — CPF</label>
           <input type="text" id="orc-emit-engCpf" placeholder="000.000.000-00" oninput="orcEmitSalvar()"></div>
         <div class="eletro-field"><label>Engenheiro — RG</label>
@@ -3147,6 +3151,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <input type="text" id="orc-emit-tecNome" placeholder="nome completo" oninput="orcEmitSalvar()"></div>
         <div class="eletro-field"><label>Técnico — CRT/CFT</label>
           <input type="text" id="orc-emit-tecCrt" placeholder="em branco sai como lacuna no papel" oninput="orcEmitSalvar()"></div>
+        <div class="eletro-field"><label>Técnico — nacionalidade</label>
+          <input type="text" id="orc-emit-tecNac" placeholder="brasileiro" oninput="orcEmitSalvar()"></div>
+        <div class="eletro-field"><label>Técnico — estado civil</label>
+          <input type="text" id="orc-emit-tecEc" placeholder="casado" oninput="orcEmitSalvar()"></div>
         <div class="eletro-field"><label>Técnico — CPF</label>
           <input type="text" id="orc-emit-tecCpf" placeholder="000.000.000-00" oninput="orcEmitSalvar()"></div>
         <div class="eletro-field"><label>Técnico — RG</label>
@@ -3200,7 +3208,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="eletro-field"><label>Razão social</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="bco-razao" placeholder="Como está no contrato social"></div></div>
         <div class="eletro-field"><label>CNPJ</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="bco-cnpj" placeholder="00.000.000/0001-00"></div></div>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="bco-cnpj" oninput="bcoCalc()" placeholder="00.000.000/0001-00"></div></div>
+        <div class="orc-note" id="bco-doc-aviso">—</div>
         <div class="eletro-field"><label>Endereço do ponto</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="bco-endereco" placeholder="Onde a estação vai ser instalada"></div></div>
         <div class="orc-note">Vazio, cai no que estiver no Orçamento. O <b>local do investimento</b> sai da cidade do Simulador.</div>
@@ -9544,11 +9553,28 @@ function recResumo() {
 // O pagador é identificado no Orçamento. Aqui a tela só CONTA o que está lá — e
 // diz na cara quando o CPF/CNPJ está vazio: linha em branco escolhida é uma
 // coisa, linha em branco que ninguém viu é outra.
+// Proximo numero no formato NNN/ANO, lido do proprio historico deste aparelho.
+// Antes era texto livre com placeholder "001": numero que se repete entre
+// clientes e entre anos nao identifica nada, e recibo e' papel de prova.
+// E' SUGESTAO — o consultor troca se a numeracao da casa for outra.
+function recProxNum() {
+  const ano = new Date().getFullYear();
+  let maior = 0;
+  try {
+    epHistOrcList().forEach(h => {
+      const m = String(h && h.num || '').match(/^(\d+)\s*\/\s*(\d{4})$/);
+      if (m && Number(m[2]) === ano) maior = Math.max(maior, Number(m[1]));
+    });
+  } catch (e) {}
+  return String(maior + 1).padStart(3, '0') + '/' + ano;
+}
+
 function recBanner() {
   // Sugestão VISÍVEL: o que está na tela é o que sai no papel. Campo vazio e
   // nunca tocado recebe a sugestão; digitado ou apagado, fica como está.
   epSugerir([['rec-cli-nome', eletroTextos().cliente],
-             ['rec-cli-doc', orcVal('orc-cli-doc')]]);
+             ['rec-cli-doc', orcVal('orc-cli-doc')],
+             ['rec-num', recProxNum()]]);
   const el = document.getElementById('rec-cli-banner');
   if (!el) return;
   const quem = [orcVal('el-cliente'), orcVal('el-cidade')].filter(Boolean).join(' · ');
@@ -9700,7 +9726,8 @@ function recImprimir() {
     arquivo: [d.avulso ? 'Recibo_Projeto' : 'Recibo', limpa(d.cliente) || 'Cliente', d.num ? 'N' + limpa(d.num) : ''].filter(Boolean).join('_'),
     titulo: (d.avulso ? 'Recibo do projeto elétrico' : 'Recibo de sinal') + (d.cliente ? ' — ' + d.cliente : ''),
     opts: { umaPagina: true, piso: 0.86, alvo: '.ep-rec' },
-    hist: d.cliente ? { id: epId(), tipo: 'Recibo', cliente: d.cliente, valor: d.sinal, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
+    // `num` entra no historico porque e' dele que o proximo numero e' calculado.
+    hist: d.cliente ? { id: epId(), tipo: 'Recibo', num: d.num, cliente: d.cliente, valor: d.sinal, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
   });
 }
 
@@ -10265,7 +10292,11 @@ function ctrHTML(d) {
   const vazio = v => v ? e(v) : '<span class="ep-rec-vazio"></span>';
   const cl = (n, titulo) => `<div class="ep-ctr-cl">Cláusula ${n}ª — ${e(titulo)}</div>`;
   const li = (n, txt) => `<p class="ep-ctr-li">${n} ${txt}</p>`;
-  const TOTP = 4;   // folhas do contrato — o rodapé conta a partir daqui
+  // ⚠ Era `const TOTP = 4` cravado. O rodape jurava 4 folhas sem medir nenhuma:
+  // bastava alguem acrescentar uma clausula pra sair "Pagina 5 de 4" sem erro
+  // nenhum na tela. Agora imprime um marcador e a contagem real entra no fim,
+  // depois do documento montado — a folha e' quem diz quantas sao.
+  const TOTP = '{{TOT}}';
   // Rodapé e nome do arquivo seguem a PARTE do documento, não o nome do negócio
   // no Simulador: num cliente com PF e dois CNPJs, o contrato da PJ carimbava a
   // pessoa física no pé de todas as folhas.
@@ -10319,7 +10350,7 @@ function ctrHTML(d) {
   );
   const nResc = ++nCl, nGerais = ++nCl, nForo = ++nCl;
 
-  return `<div class="ep-doc">
+  const html = `<div class="ep-doc">
     <div class="ep-page">
       <div class="ep-ctr-topo">
         <div class="ep-brand"><img class="ep-brand-img" src="/gerador/logo-eletroposto.png" alt="Irmãos na Obra"><div class="ep-brand-tx">Irmãos na Obra<span>Mobilidade Elétrica</span></div></div>
@@ -10416,6 +10447,9 @@ function ctrHTML(d) {
       ${pageFoot(4, TOTP)}
     </div>
   </div>`;
+  // A contagem sai do proprio HTML montado, e nao de um numero escrito a mao.
+  const total = (html.match(/class="ep-page"/g) || []).length || 1;
+  return html.split('{{TOT}}').join(String(total));
 }
 
 function ctrImprimir() {
@@ -10428,7 +10462,7 @@ function ctrImprimir() {
     arquivo: ['Contrato', limpa(d.contratante) || 'Cliente', d.num ? 'N' + limpa(d.num) : ''].filter(Boolean).join('_'),
     titulo: 'Contrato' + (d.cliente ? ' — ' + d.cliente : ''),
     opts: null,
-    hist: d.cliente ? { id: epId(), tipo: 'Contrato', cliente: d.cliente, valor: d.total, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
+    hist: d.cliente ? { id: epId(), tipo: 'Contrato', num: d.num, cliente: d.cliente, valor: d.total, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
   });
 }
 
@@ -10831,6 +10865,19 @@ function bcoCalc() {
         pct0(d.r.ocupIni) + ' de ocupação.'
       : 'Pior mês do contrato: <b>' + x2(pior.icsd) + '</b> (mês ' + pior.m + '). Nenhum mês abaixo de 1,00×.';
   }
+  // O documento imprime "Razao social" e "CNPJ" nas 11 folhas. Com o cliente
+  // podendo ter PF e mais de um CNPJ, e' facil mandar o dossie com um CPF no
+  // campo do CNPJ — e o analista confere isso em 30 segundos.
+  const dig = (d.cnpj || '').replace(/\D/g, '');
+  const avisoDoc = document.getElementById('bco-doc-aviso');
+  if (avisoDoc) {
+    avisoDoc.innerHTML = !dig
+      ? 'Sem CNPJ o dossiê sai com a linha em branco — banco não abre análise de crédito sem identificar a PJ.'
+      : dig.length === 11
+        ? '<b style="color:#fca5a5">Isso é um CPF.</b> O documento imprime este número sob o rótulo <b>CNPJ</b> em 11 folhas. Se a operação é da pessoa jurídica, troque pelo CNPJ dela.'
+        : dig.length === 14 ? 'CNPJ válido em formato.' : 'Número com ' + dig.length + ' dígitos — não é CPF nem CNPJ.';
+  }
+
   const icsd = d.cob.icsdMin;
   set('bco-veredito', icsd == null ? '—'
     : icsd >= 1.3 ? 'Cobertura de ' + x2(icsd) + ' contra o critério usual de 1,20× a 1,30× — a operação passa com folga.'
