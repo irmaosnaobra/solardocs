@@ -29,8 +29,10 @@ function envPrice(key: string, fallback: string): string {
   return v || fallback;
 }
 
-// trialDias ausente = 7 (o padrão que sempre valeu). Uma oferta pode zerar com
-// trialDias: 0 quando a contrapartida for cobrança imediata — hoje nenhuma usa.
+// trialDias ausente = 7 (o padrão que sempre valeu). Desde 18/08/2026 NENHUMA
+// oferta usa o padrão: as quatro zeram explicitamente. O default fica de pé
+// como rede, não como regra — e oferta nova que esquecer a linha herda 7 dias
+// de graça, que foi o que matou 17 assinaturas (ver o bloco do vip_promo).
 const TRIAL_PADRAO_DIAS = 7;
 
 const PLAN_MAP: Record<string, { priceId: string; plano: string; limite: number; valor: number; descricao: string; trialDias?: number }> = {
@@ -68,7 +70,24 @@ const PLAN_MAP: Record<string, { priceId: string; plano: string; limite: number;
   // Downsell da LP: MESMO acesso ilimitado (VIP), preço promocional R$ 49/mês.
   // Oferecido no popup ao clicar no Pro. planByPrice() resolve isto pra plano
   // 'ilimitado' (libera VIP na plataforma) e valor 49 entra no Purchase da Meta
-  // (CAPI) — NÃO 67. Trial de 7 dias é herdado do createPublicCheckout.
+  // (CAPI) — NÃO 67.
+  //
+  // TRIAL ZERADO EM 18/08/2026 — era a ÚLTIMA oferta viva que ainda herdava os
+  // 7 dias, e o rastro dele está no banco:
+  //
+  //   17 dos 46 cancelamentos da base caem entre 289h e 292h do cadastro. Uma
+  //   janela de 4 horas, espalhada de junho a agosto, atravessando R$67, R$49 e
+  //   R$27. Não é cliente decidindo — 290h ≈ 7 dias de trial + ~5 de
+  //   retentativa de cobrança. E não eram curiosos: o grupo somou 182
+  //   documentos, média de 10,7 por pessoa.
+  //
+  //   O conserto de 06/08 (trialDias: 0 no pro, no ilimitado e no anual) já
+  //   parou a sangria: o ÚLTIMO cadastro cortado é de 04/08, e nenhum dos que
+  //   entraram depois caiu. `vip_promo` era o furo que sobrou, e 3 dos 17
+  //   mortos vieram exatamente por ela.
+  //
+  // Zerar aqui = cobra no ato, como as outras três. Assinatura já criada não é
+  // afetada: o trial só vale na criação do checkout.
   // Preço R$ 49/mês LIVE criado no produto SolarDoc VIP (prod_UIzsfi8HDwqOvu) em
   // 04/jul/2026. Fallback já é o price_id real; STRIPE_PRICE_VIP_PROMO no Vercel
   // é opcional (sobrescreve o fallback, boa prática).
@@ -77,6 +96,7 @@ const PLAN_MAP: Record<string, { priceId: string; plano: string; limite: number;
     plano: 'ilimitado',
     limite: 999999,
     valor: 49,
+    trialDias: 0,
     descricao: '📄 Documentos ilimitados  •  Dashboard completo  •  Acesso a toda expansão da plataforma  •  Suporte prioritário',
   },
   // ANUAL — a âncora. MESMO acesso do VIP, cobrado 12 meses de uma vez: R$ 564,
@@ -96,9 +116,10 @@ const PLAN_MAP: Record<string, { priceId: string; plano: string; limite: number;
     plano: 'ilimitado',
     limite: 999999,
     valor: ANUAL_VALOR,
-    // Explícito, não herdado: `vip_promo` acima OMITE trialDias e por isso pega
-    // os 7 dias padrão. Herdar aqui daria uma semana grátis numa cobrança de
-    // R$ 564 — e o cliente entraria, baixaria tudo e cancelaria no 6º dia.
+    // Explícito, não herdado: uma semana grátis numa cobrança de R$ 564 faria o
+    // cliente entrar, baixar tudo e cancelar no 6º dia. (O `vip_promo` acima,
+    // que este comentário citava como exemplo do que NÃO fazer, foi corrigido
+    // em 18/08 — agora as quatro ofertas zeram.)
     trialDias: 0,
     descricao: `📄 Documentos ilimitados por 12 meses  •  Precificação Profissional e Inventário da Empresa liberados pra sempre  •  R$ ${ANUAL_EQUIV_MES}/mês em vez de R$ 67  •  Suporte prioritário`,
   },
