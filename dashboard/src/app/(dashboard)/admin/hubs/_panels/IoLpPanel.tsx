@@ -8,6 +8,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import api from '@/services/api';
 import styles from '../../admin.module.css';
+// Retenção do vídeo de entrada. Mora aqui embaixo (e não em aba própria) porque
+// "deram play" só significa alguma coisa dividido pelas visitas desta mesma tela.
+import VslPanel from './VslPanel';
 
 interface SessionRow { landing_url: string | null; max_scroll: number; cta_clicks: { label?: string }[]; utm_source?: string | null; }
 interface Analytics { sessions: SessionRow[]; }
@@ -83,6 +86,8 @@ export default function IoLpPanel({ match }: { match: string }) {
       <p style={{ marginTop: 10, color: 'var(--color-text-muted)', fontSize: 12.5 }}>
         Fonte: <code>/admin/analytics</code> filtrado por <code>{match}</code> (page_visits, beacon novo na LP).
       </p>
+
+      {match === '/io/eletroposto' && <VslPanel lp="eletroposto" />}
     </div>
   );
 }
