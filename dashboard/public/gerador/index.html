@@ -2945,6 +2945,11 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span><span id="rec-card-tit">Recibo de sinal</span></div>
         <div class="orc-cli-banner" id="rec-cli-banner">—</div>
+        <div class="eletro-field"><label>Nome do pagador</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="rec-cli-nome" oninput="epTocar(this);recBanner()" placeholder="sugerido pelo Simulador"></div></div>
+        <div class="eletro-field"><label>CPF/CNPJ do pagador</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="rec-cli-doc" oninput="epTocar(this);recBanner()" placeholder="sugerido pelo Orçamento"></div></div>
+        <div class="orc-note">Cliente com CPF e mais de um CNPJ? O recibo pode sair no <b>CPF</b> e o contrato na <b>PJ</b> — cada documento tem o seu. Apagar deixa a linha em branco no papel, para preencher à mão.</div>
         <div class="eletro-field"><label>Tipo de recibo</label>
           <div class="eletro-inp eletro-inp-wide"><select id="rec-tipo" onchange="recTipoMudou()">
             <option value="sinal">Sinal — abate no total do eletroposto</option>
@@ -3259,6 +3264,12 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="orc-note" style="margin-top:0">O formulário do banco separa bairro, cidade e UF, e nem o Simulador nem o Orçamento guardam os três. Nascem do que dá para deduzir da cidade do Simulador e <b>todos são editáveis</b>.</div>
         <div class="eletro-field" style="margin-top:12px"><label>Nome do comprador</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="bnk-nome" oninput="this.dataset.tocado='1';bnkCalc()" placeholder="Vem do Simulador"></div></div>
+        <div class="eletro-field"><label>CPF/CNPJ do comprador</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="bnk-doc" oninput="epTocar(this);bnkCalc()" placeholder="sugerido pelo Orçamento"></div></div>
+        <div class="eletro-field"><label>Endereço</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="bnk-end" oninput="epTocar(this)" placeholder="sugerido pelo Orçamento"></div></div>
+        <div class="eletro-field"><label>CEP</label>
+          <div class="eletro-inp"><input type="text" id="bnk-cep" oninput="epTocar(this)" placeholder="00000-000"></div></div>
         <div class="eletro-field"><label>Bairro</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="bnk-bairro" oninput="this.dataset.tocado='1'" placeholder="Ex: Granville"></div></div>
         <div class="eletro-field"><label>Cidade</label>
@@ -9503,6 +9514,10 @@ function recResumo() {
 // diz na cara quando o CPF/CNPJ está vazio: linha em branco escolhida é uma
 // coisa, linha em branco que ninguém viu é outra.
 function recBanner() {
+  // Sugestão VISÍVEL: o que está na tela é o que sai no papel. Campo vazio e
+  // nunca tocado recebe a sugestão; digitado ou apagado, fica como está.
+  epSugerir([['rec-cli-nome', eletroTextos().cliente],
+             ['rec-cli-doc', orcVal('orc-cli-doc')]]);
   const el = document.getElementById('rec-cli-banner');
   if (!el) return;
   const quem = [orcVal('el-cliente'), orcVal('el-cidade')].filter(Boolean).join(' · ');
@@ -9529,8 +9544,9 @@ function recDados() {
   return {
     num: orcVal('rec-num'),
     data: new Date(dISO + 'T00:00:00'),
-    cliente: t.cliente, cidade: t.cidade, equip: t.equip,
-    doc: orcVal('orc-cli-doc'), end: orcVal('orc-cli-end'),
+    // O CAMPO manda. Vazio sai como lacuna, nao como o dado do Orcamento.
+    cliente: orcVal('rec-cli-nome'), cidade: t.cidade, equip: t.equip,
+    doc: orcVal('rec-cli-doc'), end: orcVal('orc-cli-end'),
     base, sinal, saldo: Math.max(0, base - sinal), pct: orcNum(orcVal('rec-pct')),
     forma: orcVal('rec-forma') || 'Pix',
     fim: orcVal('rec-fim'), gatilho: orcVal('rec-gatilho'),
@@ -10138,6 +10154,11 @@ function ctrResumo() {
 }
 
 function ctrInit() {
+  // Sugestão VISÍVEL: o que está na tela é o que sai no papel. Campo vazio e
+  // nunca tocado recebe a sugestão; digitado ou apagado, fica como está.
+  epSugerir([['ctr-contratante', eletroTextos().cliente],
+             ['ctr-contratante-doc', orcVal('orc-cli-doc')],
+             ['ctr-contratante-end', orcVal('orc-cli-end')]]);
   const d = document.getElementById('ctr-data'); if (d && !d.value) d.value = orcHojeISO();
   const f = document.getElementById('ctr-foro');
   if (f && !f.value.trim()) f.value = epEmitGet().cidade || '';
@@ -10161,9 +10182,9 @@ function ctrDados() {
     // Quem NEGOCIOU (vai no cabeçalho, é o nome que o cliente reconhece) e quem
     // ASSINA (a qualificação da parte). Em branco, os dois são a mesma pessoa.
     cliente: t.cliente, cidade: t.cidade, equip: t.equip,
-    contratante: orcVal('ctr-contratante') || t.cliente,
-    contratanteDoc: orcVal('ctr-contratante-doc') || orcVal('orc-cli-doc'),
-    contratanteEnd: orcVal('ctr-contratante-end') || orcVal('orc-cli-end'),
+    contratante: orcVal('ctr-contratante'),
+    contratanteDoc: orcVal('ctr-contratante-doc'),
+    contratanteEnd: orcVal('ctr-contratante-end'),
     rep: orcVal('ctr-rep'), repDoc: orcVal('ctr-rep-doc'),
     qtd: orcEpQtdCarregadores(), plugs: Math.max(1, Math.round(elNum('el-plugs') || 1)),
     doc: orcVal('orc-cli-doc'), end: orcVal('orc-cli-end'), cep: orcVal('orc-cli-cep'),
@@ -10198,7 +10219,11 @@ function ctrHTML(d) {
   const cl = (n, titulo) => `<div class="ep-ctr-cl">Cláusula ${n}ª — ${e(titulo)}</div>`;
   const li = (n, txt) => `<p class="ep-ctr-li">${n} ${txt}</p>`;
   const TOTP = 4;   // folhas do contrato — o rodapé conta a partir daqui
-  const pageFoot = (n, tot) => `<div class="ep-pagefoot"><span>Contrato de Fornecimento e Instalação — Eletroposto${d.cliente ? ' · ' + e(d.cliente) : ''}</span><span>Página ${n} de ${tot}</span></div>`;
+  // Rodapé e nome do arquivo seguem a PARTE do documento, não o nome do negócio
+  // no Simulador: num cliente com PF e dois CNPJs, o contrato da PJ carimbava a
+  // pessoa física no pé de todas as folhas.
+  const quem = d.contratante;   // apagou a parte? o rodapé fica sem nome. Apagar é apagar.
+  const pageFoot = (n, tot) => `<div class="ep-pagefoot"><span>Contrato de Fornecimento e Instalação — Eletroposto${quem ? ' · ' + e(quem) : ''}</span><span>Página ${n} de ${tot}</span></div>`;
   const dataTxt = d.data.toLocaleDateString('pt-BR');
   const endCli = [d.contratanteEnd, d.cep, d.cidade].filter(Boolean).join(', ');
   const endEmp = [d.empresa.end, d.empresa.cidade].filter(Boolean).join(', ');
@@ -10349,7 +10374,7 @@ function ctrImprimir() {
   // Contrato PAGINA — sem opts, nada de encolher pra caber numa folha.
   epPreview({
     html: ctrHTML(d),
-    arquivo: ['Contrato', limpa(d.cliente) || 'Cliente', d.num ? 'N' + limpa(d.num) : ''].filter(Boolean).join('_'),
+    arquivo: ['Contrato', limpa(d.contratante) || 'Cliente', d.num ? 'N' + limpa(d.num) : ''].filter(Boolean).join('_'),
     titulo: 'Contrato' + (d.cliente ? ' — ' + d.cliente : ''),
     opts: null,
     hist: d.cliente ? { id: epId(), tipo: 'Contrato', cliente: d.cliente, valor: d.total, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
@@ -10396,6 +10421,12 @@ function procBanner() {
 }
 
 function procInit() {
+  // Sugestão VISÍVEL: o que está na tela é o que sai no papel. Campo vazio e
+  // nunca tocado recebe a sugestão; digitado ou apagado, fica como está.
+  epSugerir([['proc-outorgante', eletroTextos().cliente],
+             ['proc-outorgante-doc', orcVal('orc-cli-doc')],
+             ['proc-outorgante-end', orcVal('orc-cli-end')],
+             ['proc-cidade', eletroTextos().cidade]]);
   // Data e cidade nascem preenchidas; o resto herda do Orcamento na hora de
   // gerar, pra o consultor nao ter que redigitar o que ja' existe.
   const d = document.getElementById('proc-data');
@@ -10422,10 +10453,10 @@ function procDados() {
   return {
     data: new Date(dISO + 'T00:00:00'),
     cliente: t.cliente,
-    cidade: orcVal('proc-cidade') || t.cidade,
-    outorgante: orcVal('proc-outorgante') || t.cliente,
-    outorganteDoc: orcVal('proc-outorgante-doc') || orcVal('orc-cli-doc'),
-    outorganteEnd: orcVal('proc-outorgante-end') || orcVal('orc-cli-end'),
+    cidade: orcVal('proc-cidade'),
+    outorgante: orcVal('proc-outorgante'),
+    outorganteDoc: orcVal('proc-outorgante-doc'),
+    outorganteEnd: orcVal('proc-outorgante-end'),
     cep: orcVal('orc-cli-cep'),
     rep: orcVal('proc-rep'), repDoc: orcVal('proc-rep-doc'),
     concessionaria: orcVal('proc-concessionaria'),
@@ -10446,7 +10477,11 @@ function procHTML(d) {
   // Uma folha nao se numera: "Página 1 de 1" e' ruido, e foi essa contagem
   // fixa que escondeu o vazamento pra 2 folhas. Fica so' a identificacao, que
   // num papel de balcao vale.
-  const pageFoot = `<div class="ep-pagefoot"><span>Procuração — representação junto à concessionária${d.cliente ? ' · ' + e(d.cliente) : ''}</span><span>Documento de uma via</span></div>`;
+  // Rodapé e nome do arquivo seguem a PARTE do documento, não o nome do negócio
+  // no Simulador: num cliente com PF e dois CNPJs, o contrato da PJ carimbava a
+  // pessoa física no pé de todas as folhas.
+  const quem = d.outorgante;    // apagou a parte? o rodapé fica sem nome. Apagar é apagar.
+  const pageFoot = `<div class="ep-pagefoot"><span>Procuração — representação junto à concessionária${quem ? ' · ' + e(quem) : ''}</span><span>Documento de uma via</span></div>`;
 
   // Qualificacao no formato do modelo 3 da plataforma: nome em caixa alta,
   // depois nacionalidade, estado civil, profissao, RG, CPF, registro e
@@ -10554,7 +10589,7 @@ function procImprimir() {
   // Sem isto a procuracao saia em 2 folhas com o rodape jurando "Página 1 de 1".
   epPreview({
     html: procHTML(d),
-    arquivo: ['Procuracao', limpa(d.cliente) || 'Cliente'].filter(Boolean).join('_'),
+    arquivo: ['Procuracao', limpa(d.outorgante) || 'Cliente'].filter(Boolean).join('_'),
     titulo: 'Procuração' + (d.cliente ? ' — ' + d.cliente : ''),
     opts: { umaPagina: true, piso: 0.86, alvo: '.ep-page' },
     hist: d.cliente ? { id: epId(), tipo: 'Procuração', cliente: d.cliente, valor: 0, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
@@ -10693,9 +10728,9 @@ function bcoDados() {
     cliente: t.cliente, cidade: t.cidade, equip: t.equip,
     // Sem orc-cli-nome: esse id nao existe no HTML. Cai no nome do Simulador, que
     // costuma ser PESSOA FISICA — por isso a tela avisa quando o documento e' CPF.
-    razao: g('bco-razao').trim() || t.cliente,
-    cnpj: g('bco-cnpj').trim() || orcVal('orc-cli-doc'),
-    endereco: g('bco-endereco').trim() || orcVal('orc-cli-end'),
+    razao: g('bco-razao').trim(),
+    cnpj: g('bco-cnpj').trim(),
+    endereco: g('bco-endereco').trim(),
     // Responsabilidade tecnica e' de PESSOA FISICA com registro, nao de marca:
     // o dossie apresentava "Irmaos na Obra" como responsavel tecnico. O dado ja'
     // existia no epEmitGet, consumido so' pela procuracao.
@@ -10753,6 +10788,11 @@ function bcoCalc() {
 }
 
 function bcoInit() {
+  // Sugestão VISÍVEL: o que está na tela é o que sai no papel. Campo vazio e
+  // nunca tocado recebe a sugestão; digitado ou apagado, fica como está.
+  epSugerir([['bco-razao', eletroTextos().cliente],
+             ['bco-cnpj', orcVal('orc-cli-doc')],
+             ['bco-endereco', orcVal('orc-cli-end')]]);
   const t = eletroTextos();
   const b = document.getElementById('bco-cli-banner');
   if (b) {
@@ -11241,6 +11281,50 @@ function bcoImprimir() {
 // que PARECE calculado e' pior que um campo em branco num papel que vai ao banco.
 const BNK_BEM = ['carreg', 'trafo', 'cabo', 'padrao', 'cobert'];
 
+// ════════════════════════════════════════════════════════════
+// CAMPOS DAS PARTES — sugestao VISIVEL, nunca amarra
+// ════════════════════════════════════════════════════════════
+// Regra unica dos cinco documentos do Fechamento, e ela e' a mesma do
+// eletroVendedorAuto: preenche campo VAZIO, nunca por cima do digitado, e
+// APAGAR CONTA COMO DIGITAR — quem limpou de proposito nao ve o valor voltar.
+//
+// ⚠ 19/08: antes disso a sugestao era INVISIVEL. Contrato, Procuracao e Analise
+// de credito nasciam com o campo em branco e o gerador do documento fazia
+// `orcVal('proc-outorgante-doc') || orcVal('orc-cli-doc')` na hora de imprimir.
+// Efeito: o consultor apagava o campo, a tela mostrava vazio, e o papel saia com
+// o CPF do Orcamento assim mesmo. Num cliente que tem PF e dois CNPJs — o caso
+// que motivou isto — nao havia como emitir o Recibo no CPF e o Contrato na PJ.
+// Agora o CAMPO manda: o que esta' na tela e' o que sai no papel, e vazio sai
+// como lacuna pra preencher a mao.
+// Os campos que epSugerir governa. Um listener delegado marca `tocado` no
+// primeiro toque de qualquer um deles — inclusive quando o toque e' APAGAR.
+// Delegado, e nao um oninput por input, porque estes campos ja' existiam sem
+// handler nenhum: sem isto, apagar limpava a tela e a sugestao voltava na
+// reabertura da aba, que e' exatamente o "amarrado" que isto veio consertar.
+const EP_PARTES_IDS = new Set([
+  'rec-cli-nome', 'rec-cli-doc',
+  'ctr-contratante', 'ctr-contratante-doc', 'ctr-contratante-end',
+  'proc-outorgante', 'proc-outorgante-doc', 'proc-outorgante-end', 'proc-cidade',
+  'bco-razao', 'bco-cnpj', 'bco-endereco',
+  'bnk-nome', 'bnk-doc', 'bnk-end', 'bnk-cep', 'bnk-cidade', 'bnk-uf', 'bnk-total',
+]);
+document.addEventListener('input', ev => {
+  const el = ev.target;
+  if (el && el.id && EP_PARTES_IDS.has(el.id)) el.dataset.tocado = '1';
+}, true);
+
+function epSugerir(pares) {
+  pares.forEach(([id, v]) => {
+    const el = document.getElementById(id);
+    if (!el || !v) return;
+    if (el.value.trim() !== '' || el.dataset.tocado === '1') return;
+    el.value = v;
+  });
+}
+// Marca o campo como tocado no primeiro toque do consultor. Vale para os inputs
+// das partes, que nao tem oninput proprio.
+function epTocar(inp) { if (inp) inp.dataset.tocado = '1'; }
+
 function bnkIpiEditado(inp) { if (inp) inp.dataset.tocado = '1'; bnkCalc(); }
 function bnkTotalEditado(inp) { if (inp) inp.dataset.tocado = '1'; bnkCalc(); }
 
@@ -11265,13 +11349,13 @@ function bnkDados() {
     // CEP e telefone sao do ORCAMENTO. Bairro e UF o banco pede separados e nenhuma
     // das duas telas tem — viram campo proprio aqui, editavel, nascendo do que der
     // pra deduzir da cidade do Simulador ("Uberlandia-MG" -> cidade + UF).
-    cliente: g('bnk-nome').trim() || t.cliente,
-    doc: orcVal('orc-cli-doc'),
-    end: orcVal('orc-cli-end'),
-    cep: orcVal('orc-cli-cep'),
+    cliente: g('bnk-nome').trim(),
+    doc: g('bnk-doc').trim(),
+    end: g('bnk-end').trim(),
+    cep: g('bnk-cep').trim(),
     bairro: g('bnk-bairro').trim(),
-    cidade: g('bnk-cidade').trim() || bnkCidadeUF(t.cidade).cidade,
-    uf: g('bnk-uf').trim() || bnkCidadeUF(t.cidade).uf,
+    cidade: g('bnk-cidade').trim(),
+    uf: g('bnk-uf').trim(),
     tel: orcVal('orc-cli-tel'),
     banco: g('bnk-banco').trim(), agencia: g('bnk-agencia').trim(), conta: g('bnk-conta').trim(),
     ncm: g('bnk-ncm').trim(), ipiPct: n('bnk-ipi-pct'), ipiVal: n('bnk-ipi-val'),
@@ -11346,14 +11430,15 @@ function bnkInit() {
   }
   const t0 = eletroTextos();
   const cu = bnkCidadeUF(t0.cidade);
-  [['bnk-nome', t0.cliente], ['bnk-cidade', cu.cidade], ['bnk-uf', cu.uf]].forEach(([id, v]) => {
-    const el = document.getElementById(id);
-    if (el && !el.value.trim() && el.dataset.tocado !== '1' && v) el.value = v;
-  });
+  // Sugestão VISÍVEL: o que está na tela é o que sai no papel. Campo vazio e
+  // nunca tocado recebe a sugestão; digitado ou apagado, fica como está.
+  epSugerir([['bnk-nome', t0.cliente], ['bnk-doc', orcVal('orc-cli-doc')],
+             ['bnk-end', orcVal('orc-cli-end')], ['bnk-cep', orcVal('orc-cli-cep')],
+             ['bnk-cidade', cu.cidade], ['bnk-uf', cu.uf]]);
   const b = document.getElementById('bnk-cli-banner');
   if (b) {
     const t = eletroTextos();
-    const partes = [(document.getElementById('bnk-nome') || {}).value || t.cliente, orcVal('orc-cli-doc'), t.cidade].filter(Boolean);
+    const partes = [orcVal('bnk-nome'), orcVal('bnk-doc'), orcVal('bnk-cidade')].filter(Boolean);
     b.textContent = partes.length ? partes.join(' · ') : 'Preencha o cliente no Simulador e no Orçamento';
   }
   bnkCalc();
