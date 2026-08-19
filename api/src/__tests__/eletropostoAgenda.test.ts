@@ -72,6 +72,11 @@ vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
 // alimenta: um mock com fixture separada deixaria "não manda duas vezes" passar
 // sem nunca poder falhar.
 let leituraCarimboFalha = false;
+/** Quando cada carimbo foi gravado. Desde 19/08 a leitura do bom dia olha a DATA:
+ *  ficha que o repasse do banco moveu pra hoje carrega o carimbo do dia da reunião
+ *  antiga, e ele não pode valer como "segundo contato de hoje". Sem data explícita,
+ *  o carimbo é de agora — que é o caso normal. */
+const carimboEm = new Map<string, string>();
 vi.mock('../utils/supabase', () => ({
   supabase: {
     from: () => ({
@@ -79,7 +84,11 @@ vi.mock('../utils/supabase', () => ({
       select: () => ({
         in: async (_col: string, chaves: string[]) => (leituraCarimboFalha
           ? { data: null, error: new Error('banco fora') }
-          : { data: chaves.filter(k => carimbos.includes(k)).map(key => ({ key })), error: null }),
+          : {
+            data: chaves.filter(k => carimbos.includes(k))
+              .map(key => ({ key, updated_at: carimboEm.get(key) ?? new Date().toISOString() })),
+            error: null,
+          }),
         // O NÃO ATENDIDO automático varre por PREFIXO (quem respondeu, quem já
         // foi marcado) — mesma lista de carimbos, outra forma de perguntar.
         like: (_col: string, padrao: string) => {
@@ -121,7 +130,7 @@ function fichaConfirmada(over: Partial<any> = {}) {
 const envOriginal = { ...process.env };
 beforeEach(() => {
   enviadas.length = 0; updates.length = 0;
-  carimbos.length = 0; tetoLivre = true; leituraCarimboFalha = false;
+  carimbos.length = 0; carimboEm.clear(); tetoLivre = true; leituraCarimboFalha = false;
   fichas = [ficha()];
   consultores = [{ nome: 'Diego', whatsapp: '5534991360172' }, { nome: 'Thiago', whatsapp: '5534991360223' }];
   vi.useFakeTimers(); vi.setSystemTime(AGORA);
@@ -521,6 +530,15 @@ describe('bom dia de quem marcou em outro dia', () => {
     expect(enviadas).toHaveLength(0);
   });
 
+  it('ficha que o repasse moveu pra hoje RECEBE o bom dia, mesmo com carimbo de ontem', async () => {
+    // `processar_repasses()` muda o dia da reunião e não apaga carimbo nenhum —
+    // ela é SQL no banco e não conhece o system_state. Enquanto a leitura só
+    // perguntava "existe?", essa ficha nunca mais recebia bom dia nenhum.
+    carimbos.push('ep_agenda_sent:1:manha');
+    carimboEm.set('ep_agenda_sent:1:manha', '2026-08-03T11:00:00.000Z');
+    expect((await tick()).lembretes_manha).toBe(1);
+  });
+
   it('quem marcou HOJE pra hoje não recebe — a confirmação acabou de sair', async () => {
     fichas = [fichaDeHoje({ created_at: '2026-08-04T11:00:00.000Z' })];
     expect((await tick()).lembretes_manha).toBe(0);
@@ -779,6 +797,15 @@ describe('corte das 13h', () => {
   it('não marca duas vezes quem alguém devolveu pra agendado na mão', async () => {
     comBomDia();
     carimbos.push('ep_nao_atendeu_auto:7');
+    expect((await tick()).vermelho_13h).toBe(0);
+  });
+
+  it('carimbo de bom dia de ONTEM não conta — o repasse move a ficha e não apaga carimbo', async () => {
+    // `processar_repasses()` é SQL no banco: ela troca o dia da reunião e não
+    // conhece o system_state. Sem olhar a data, esta ficha seria marcada de
+    // ausente hoje alegando um segundo contato que foi de outra reunião.
+    comBomDia();
+    carimboEm.set('ep_agenda_sent:7:manha', '2026-08-03T11:00:00.000Z');
     expect((await tick()).vermelho_13h).toBe(0);
   });
 

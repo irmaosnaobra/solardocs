@@ -135,6 +135,23 @@ describe('quando o dono muda', () => {
     expect(state.get('ep_card_dono:5')?.value).toMatchObject({ dono: 'Fulano' });
   });
 
+  it('avisa quando o LEAD ainda não sabe do horário novo', async () => {
+    // O repasse zera `confirmacao_at` e a re-confirmação sai pela fila lenta —
+    // pode levar horas. O consultor não pode cobrar presença de quem não foi
+    // avisado achando que os dois combinaram o horário.
+    jaVisto('Thiago');
+    fichas = [ficha({ confirmacao_at: null })];
+    await tick();
+    expect(enviadas[0].texto).toContain('O LEAD AINDA NÃO SABE');
+  });
+
+  it('e cala essa linha quando ele já foi avisado', async () => {
+    jaVisto('Thiago');
+    fichas = [ficha({ confirmacao_at: '2026-08-20T12:00:00.000Z' })];
+    await tick();
+    expect(enviadas[0].texto).not.toContain('O LEAD AINDA NÃO SABE');
+  });
+
   it('cadastro do CRM manda no telefone; a lista fixa é só a rede', async () => {
     jaVisto('Thiago');
     consultores = [{ nome: 'Diego', whatsapp: '5534900000000' }];

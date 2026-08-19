@@ -68,14 +68,27 @@ export type ResultadoCardPing = {
 const zero = (motivo?: string): ResultadoCardPing =>
   ({ reenviados: 0, novos: 0, erros: 0, ...(motivo ? { motivo } : {}) });
 
-/** O cabeçalho que explica por que este card está chegando de novo. */
-export function cabecalhoDoReenvio(deQuem: string, paraQuem: string, quandoIso: string | null): string {
+/**
+ * O cabeçalho que explica por que este card está chegando de novo.
+ *
+ * A linha do "o lead ainda não sabe" não é decoração. O repasse do banco muda o
+ * `quando` E zera o `confirmacao_at` — quem avisa o lead do horário novo é o
+ * agente de agenda, mandando a confirmação DE NOVO, e ele faz isso pela fila
+ * lenta (1 por tick, 08h–20h, atrás do teto anti-ban da linha). Um repasse às
+ * 19h só chega no lead no dia seguinte. Sem esta linha o consultor lê "a reunião
+ * foi remarcada pra amanhã às 14h" e assume que os dois lados combinaram isso —
+ * e cobra presença de quem nunca foi avisado.
+ */
+export function cabecalhoDoReenvio(
+  deQuem: string, paraQuem: string, quandoIso: string | null, leadJaAvisado = true,
+): string {
   return [
     `🔁 *CARD SEM AÇÃO EM 12H — AGORA É SEU*`,
     deQuem && deQuem !== paraQuem
       ? `Estava com o *${deQuem}* e ninguém mexeu nele em 12 horas. Passou pra você, ${paraQuem}.`
       : `Ninguém mexeu neste card em 12 horas, ${paraQuem}.`,
     quandoIso ? `A reunião foi remarcada pra *${quandoPorExtenso(quandoIso)}*.` : '',
+    leadJaAvisado ? '' : '⚠️ O LEAD AINDA NÃO SABE desse horário — a confirmação sai pela linha nas próximas horas.',
     '',
   ].filter(Boolean).join('\n');
 }
@@ -100,7 +113,7 @@ export async function runEletropostoCardPingTick(opts: { dry?: boolean } = {}): 
   const agora = Date.now();
   const { data, error } = await supabaseGerador
     .from('agendamentos')
-    .select('id, vendedor_nome, quando, cliente_nome, cliente_telefone, cidade, temperatura, observacao, created_at, created_by, status')
+    .select('id, vendedor_nome, quando, cliente_nome, cliente_telefone, cidade, temperatura, observacao, created_at, created_by, status, confirmacao_at')
     .eq('status', 'agendado')
     .gte('quando', new Date(agora - PASSADO_MAX_MS).toISOString())
     .lte('quando', new Date(agora + FUTURO_MAX_MS).toISOString())
@@ -167,7 +180,10 @@ export async function runEletropostoCardPingTick(opts: { dry?: boolean } = {}): 
       continue;
     }
     try {
-      await sendWhatsApp(tel, `${cabecalhoDoReenvio(de, para, f.quando ?? null)}${montarMensagem(f)}`, 'io');
+      await sendWhatsApp(
+        tel,
+        `${cabecalhoDoReenvio(de, para, f.quando ?? null, !!f.confirmacao_at)}${montarMensagem(f)}`,
+        'io');
       await carimbar(f.id, para);
       reenviados++;
       logger.info('ep-card-ping', `card #${f.id} reenviado: ${de} → ${para}`);

@@ -447,18 +447,40 @@ export type ResultadoAgendaEp = {
  * recebeu". Fail-closed de propósito: mandar bom dia duas vezes é pior que não
  * mandar — o toque de 1h ainda pega a pessoa no mesmo dia.
  */
-async function jaRecebeuManha(ids: number[]): Promise<Set<number> | null> {
-  if (!ids.length) return new Set();
+async function jaRecebeuManha(ids: number[]): Promise<Map<number, string> | null> {
+  if (!ids.length) return new Map();
   try {
     const { data, error } = await supabase
-      .from('system_state').select('key')
+      .from('system_state').select('key, updated_at')
       .in('key', ids.map(id => `${EP_AGENDA_PREFIX}${id}:manha`));
     if (error) throw error;
-    return new Set((data ?? []).map(r => Number(String(r.key).split(':')[1])));
+    return new Map((data ?? []).map(r => [Number(String(r.key).split(':')[1]), String(r.updated_at ?? '')]));
   } catch (err) {
     logger.error('ep-agenda', 'ler carimbo do bom dia falhou — ninguém recebe nesta rodada', err);
     return null;
   }
+}
+
+/**
+ * O bom dia saiu HOJE?
+ *
+ * A data importa por causa de uma ficha que muda de dia SEM passar por aqui: a
+ * `processar_repasses()` (SQL, no banco) move o `quando` pro próximo dia útil
+ * quando o card fica 12h sem ação — e ela não conhece carimbo nenhum do
+ * system_state, então o `ep_agenda_sent:<id>:manha` de ontem sobrevive à mudança.
+ * (O robô de remarcação apaga; o repasse do banco não.)
+ *
+ * Sem olhar a data isso produziria as duas metades erradas: a ficha repassada
+ * NUNCA receberia o bom dia do dia novo, e — pior — o corte das 13h a marcaria de
+ * ausente às 13h desse dia novo, alegando um segundo contato que não aconteceu.
+ *
+ * Carimbo sem data legível (não deveria existir: o upsert sempre grava
+ * `updated_at`) conta como recebido pro ENVIO, que é o lado conservador ali, e
+ * não conta pro CORTE, que é o lado conservador aqui.
+ */
+function bomDiaSaiuHoje(mapa: Map<number, string>, id: number, hoje: string): boolean {
+  const em = mapa.get(id);
+  return !!em && diaBRT(em) === hoje;
 }
 
 /** nome do consultor → WhatsApp dele, direto do cadastro do CRM. */
@@ -629,7 +651,7 @@ async function marcarVermelhoDoCorte(
   if (!recebeuBomDia) return 0;
 
   const alvos = candidatos
-    .filter(f => recebeuBomDia.has(f.id)
+    .filter(f => bomDiaSaiuHoje(recebeuBomDia, f.id, hoje)
       && !marcadores.respondeu.has(f.id) && !marcadores.jaMarcado.has(f.id))
     .slice(0, NAO_ATENDEU_POR_TICK);
   if (!alvos.length) return 0;
@@ -856,7 +878,11 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
     // Último da fila de propósito: é o toque menos urgente dos quatro, e a janela
     // dele tem 3 horas de folga. Se um lead tem reunião hoje E acabou de marcar
     // outra coisa, a confirmação passa na frente.
-    if (!manhaCega && !ausente && lManha < MANHA_POR_TICK && !manhaFeita!.has(ag.id) && ehDaManha(ag)) {
+    // `manhaFeita` guarda QUANDO o carimbo foi gravado, não só que existe: ficha
+    // que o repasse do banco moveu pra hoje carrega o carimbo do dia da reunião
+    // ANTIGA, e ele não pode calar o bom dia de hoje (ver `bomDiaSaiuHoje`).
+    if (!manhaCega && !ausente && lManha < MANHA_POR_TICK
+      && !bomDiaSaiuHoje(manhaFeita!, ag.id, hojeBRT) && ehDaManha(ag)) {
       // Este é o único toque que sai em LOTE (todo mundo do dia, na mesma faixa
       // de horário), então é o único que consegue fazer rajada sozinho. Fica
       // atrás do teto anti-ban — como transacional, que é o que ele é: mensagem
