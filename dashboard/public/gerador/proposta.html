@@ -1600,13 +1600,14 @@ function pmtPriceCarencia(pv, i, n, carenciaMeses) {
   return saldo * i / (1 - Math.pow(1 + i, -n));
 }
 
-// Acréscimo total sobre o valor do investimento por número de parcelas (MyGateway 2026).
+// Acréscimo total sobre o valor do investimento por número de parcelas (MyGateway 2026,
+// com +1 ponto percentual em todas as linhas desde 20/08/2026 — ver o index.html).
 const TABELA_CARTAO = {
-  1: 0.0439, 2: 0.0609, 3: 0.0665, 4: 0.0715, 5: 0.0769,
-  6: 0.0819, 7: 0.0909, 8: 0.0969, 9: 0.1025, 10: 0.1079,
-  11: 0.1139, 12: 0.1169, 13: 0.1255, 14: 0.1299, 15: 0.1369,
-  16: 0.1429, 17: 0.1485, 18: 0.1549, 19: 0.1639, 20: 0.1739,
-  21: 0.1828
+  1: 0.0539, 2: 0.0709, 3: 0.0765, 4: 0.0815, 5: 0.0869,
+  6: 0.0919, 7: 0.1009, 8: 0.1069, 9: 0.1125, 10: 0.1179,
+  11: 0.1239, 12: 0.1269, 13: 0.1355, 14: 0.1399, 15: 0.1469,
+  16: 0.1529, 17: 0.1585, 18: 0.1649, 19: 0.1739, 20: 0.1839,
+  21: 0.1928
 };
 function calcParcelaCartao(base, n) {
   const acresc = TABELA_CARTAO[n];

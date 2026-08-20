@@ -4732,12 +4732,19 @@ function pmtPriceCarencia(pv, i, n, carenciaMeses) {
 
 // ============= TABELA DE CARTÃO (MyGateway 2026, coluna da direita) =============
 // Acréscimo total sobre o valor do investimento por número de parcelas.
+//
+// 20/08/2026: +1 PONTO PERCENTUAL em todas as 21 linhas, ordem do Thiago. A 1x foi de
+// 4,39% para 5,39% e a 21x de 18,28% para 19,28%. NÃO é mais a coluna publicada pelo
+// gateway — quem for conferir contra a planilha do MyGateway vai achar 1 ponto de
+// diferença em cada linha, e isso é de propósito. A 21x é a parcela que vem marcada
+// por padrão (CARTAO_PARCELAS_DEFAULT), então isso muda o número de capa de toda
+// proposta nova.
 const TABELA_CARTAO = {
-  1: 0.0439, 2: 0.0609, 3: 0.0665, 4: 0.0715, 5: 0.0769,
-  6: 0.0819, 7: 0.0909, 8: 0.0969, 9: 0.1025, 10: 0.1079,
-  11: 0.1139, 12: 0.1169, 13: 0.1255, 14: 0.1299, 15: 0.1369,
-  16: 0.1429, 17: 0.1485, 18: 0.1549, 19: 0.1639, 20: 0.1739,
-  21: 0.1828
+  1: 0.0539, 2: 0.0709, 3: 0.0765, 4: 0.0815, 5: 0.0869,
+  6: 0.0919, 7: 0.1009, 8: 0.1069, 9: 0.1125, 10: 0.1179,
+  11: 0.1239, 12: 0.1269, 13: 0.1355, 14: 0.1399, 15: 0.1469,
+  16: 0.1529, 17: 0.1585, 18: 0.1649, 19: 0.1739, 20: 0.1839,
+  21: 0.1928
 };
 // Parcelas marcadas por padrão num novo orçamento. Só a 21x vem marcada;
 // as demais (6x–20x) continuam visíveis pra marcar quando o consultor quiser.
