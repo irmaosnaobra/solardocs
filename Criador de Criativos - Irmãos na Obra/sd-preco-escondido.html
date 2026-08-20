@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>SolarDoc · paga o CRM inteiro e só usa a proposta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ══ MASTER 1080x1920 COM JANELA SEGURA DE 1080x1350 EM y=250 ══════════════
+     A peça era 1080x1350 (só feed). Agora ela é a MÃE 9:16 e todo o conteúdo
+     mora entre y=250 e y=1600 — o story mostra a peça inteira, o feed é o
+     recorte dessa janela. É o mesmo contrato do gerar-formatos.py, e é o que
+     garante que nada corte em nenhum dos dois.
+     Quem mexer aqui: nada pode passar de y=250 nem de y=1600.               */
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1080px;height:1920px;overflow:hidden}
+  body{font-family:'Plus Jakarta Sans',sans-serif;background:#05080f}
+  :root{ --line:rgba(255,255,255,.08); --amb:#fbbf24; --white:#f7f9fc; --topo:250px; }
+
+  .art{position:relative;width:1080px;height:1920px;overflow:hidden;
+    background:
+      radial-gradient(1050px 640px at 80% 51%, rgba(251,191,36,.17), transparent 62%),
+      radial-gradient(700px 500px at 4% 17%, rgba(255,255,255,.05), transparent 60%),
+      linear-gradient(180deg,#090e19 0%, #05080f 54%, #04070d 100%);
+  }
+  .grain{position:absolute;inset:0;opacity:.5;
+    background-image:linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px);
+    background-size:60px 60px}
+
+  .kick{position:absolute;top:306px;left:60px;display:flex;align-items:center;gap:14px}
+  .kick i{display:block;width:44px;height:5px;background:var(--amb);border-radius:2px}
+  .kick span{font-size:21px;font-weight:800;letter-spacing:.19em;color:var(--amb);text-transform:uppercase;white-space:nowrap}
+
+  .h1{position:absolute;top:350px;left:58px;width:1000px;
+    font-family:'Archivo Black',sans-serif;color:var(--white);
+    font-size:78px;line-height:.94;letter-spacing:-.035em;text-transform:uppercase}
+  .h1 em{font-style:normal;color:var(--amb)}
+
+  /* COLUNA DOS CONCORRENTES — estreitou de 420 pra 400 e o cartão afastou.
+     Antes a coluna ia até x=480 e o cartão (com o anel escuro de 7px) começava
+     em 467: o anel passava por cima da lateral direita de cada fileira e
+     parecia que os cards estavam cortados. Agora sobram ~55px entre os dois. */
+  .left{position:absolute;left:60px;top:602px;width:400px}
+  .lbl{font-size:18px;font-weight:800;letter-spacing:.15em;color:#657081;text-transform:uppercase;margin-bottom:16px}
+  .row{height:140px;margin-bottom:15px;border-radius:16px;
+    background:linear-gradient(180deg,#111926 0%, #0b1320 100%);
+    border:1px solid var(--line);display:flex;flex-direction:column;align-items:flex-start;
+    justify-content:center;gap:13px;padding:0 24px}
+
+  /* AS QUATRO MARCAS NO MESMO MOLDE. A do Azume era um background-image com
+     zoom de 620% dentro de uma caixa de 240x44 — o SVG dela tem viewBox
+     2560x1440 com a marca pequena no meio, e o jeito rápido foi ampliar e
+     cortar. Só que aí ela não seguia altura, alinhamento nem recorte das
+     outras: ficava de outro tamanho e fora do eixo. O arquivo foi aparado de
+     verdade (azume-logo-trim.png, 688x180) e agora entra no MESMO <img> das
+     demais — mesma altura, mesma âncora à esquerda, mesmo blur.  */
+  .brand{height:42px;display:flex;align-items:center;filter:blur(5.5px);opacity:.94}
+  .brand img{height:42px;max-width:230px;width:auto;object-fit:contain;object-position:left center;display:block}
+  .ask{display:flex;align-items:baseline;gap:10px}
+  .ask b{font-family:'Archivo Black',sans-serif;font-size:36px;color:#c8d2e0;letter-spacing:-.03em;line-height:1;white-space:nowrap}
+  .ask u{font-size:16px;font-weight:700;color:#66707f;text-decoration:none;letter-spacing:.05em;text-transform:uppercase}
+
+  .tag{position:absolute;right:38px;top:596px;width:524px;
+    transform:rotate(-2.3deg);
+    background:linear-gradient(163deg,#ffd45e 0%, #fbbf24 44%, #eda405 100%);
+    border-radius:28px;box-shadow:0 26px 0 rgba(0,0,0,.5), 0 0 0 7px #05080f, 0 40px 84px rgba(0,0,0,.62);
+    padding:34px 36px 40px}
+  .tg-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .sd{font-family:'Archivo Black',sans-serif;font-size:35px;color:#1a1205;letter-spacing:-.03em}
+  .sd i{font-style:normal;color:#7d5c05}
+  .pill{background:#1a1205;color:#ffd257;font-size:15px;font-weight:800;letter-spacing:.11em;
+    padding:9px 13px;border-radius:9px;text-transform:uppercase;white-space:nowrap}
+  .money{display:flex;align-items:baseline;gap:8px;margin:10px 0 0 -4px}
+  .cur{font-family:'Archivo Black',sans-serif;font-size:66px;color:#1a1205;letter-spacing:-.04em}
+  .num{font-family:'Archivo Black',sans-serif;font-size:222px;line-height:.86;color:#1a1205;letter-spacing:-.065em}
+  .per{font-family:'Archivo Black',sans-serif;font-size:36px;color:#654a04;letter-spacing:-.02em}
+  .tg-sub{font-size:30px;font-weight:800;color:#1a1205;line-height:1.15;margin-top:16px;letter-spacing:-.015em}
+  .tg-mut{font-size:20px;font-weight:600;color:#6b4f05;margin-top:10px;line-height:1.34}
+
+  /* MOCKUP — abaixo do cartão de preço, do lado direito, sem encostar na coluna
+     das concorrentes. A sombra o descola do fundo escuro; sem ela o notebook
+     preto some no #05080f. */
+  .mock{position:absolute;right:38px;top:1140px;width:482px;text-align:center}
+  .mock img{width:100%;height:auto;display:block;
+    filter:drop-shadow(0 22px 40px rgba(0,0,0,.65))}
+  .mock .cap{margin-top:12px;font-size:19px;font-weight:600;color:#8b95a4;line-height:1.3}
+
+  .foot{position:absolute;left:60px;right:60px;top:1476px;display:flex;align-items:center;gap:26px}
+  .btn{background:var(--white);color:#05080f;font-family:'Archivo Black',sans-serif;font-size:34px;
+    padding:24px 38px;border-radius:14px;letter-spacing:-.02em;white-space:nowrap;
+    display:flex;align-items:center;gap:16px;box-shadow:0 10px 0 rgba(0,0,0,.45)}
+  .btn svg{display:block}
+  .foot-sub{font-size:25px;font-weight:700;color:#aab4c2;line-height:1.28}
+</style>
+</head>
+<body>
+<div class="art">
+  <div class="grain"></div>
+
+  <div class="kick"><i></i><span>Software de energia solar</span></div>
+
+  <div class="h1">Você paga o CRM<br>inteiro e só usa<br><em>a proposta.</em></div>
+
+  <div class="left">
+    <div class="lbl">O que elas cobram por mês</div>
+
+    <div class="row">
+      <div class="brand"><img src="logos-concorrentes/solarmarket-logo.webp" alt=""></div>
+      <div class="ask"><b>R$ 297</b><u>por mês</u></div>
+    </div>
+
+    <div class="row">
+      <div class="brand"><img src="logos-concorrentes/solarz-logo.svg" alt=""></div>
+      <div class="ask"><b>R$ 247</b><u>por mês</u></div>
+    </div>
+
+    <div class="row">
+      <div class="brand"><img src="logos-concorrentes/luvik-logo-white.png" alt=""></div>
+      <div class="ask"><b>R$ 197</b><u>por mês</u></div>
+    </div>
+
+    <div class="row">
+      <div class="brand"><img src="logos-concorrentes/azume-logo-trim.png" alt=""></div>
+      <div class="ask"><b>R$ 129,70</b><u>por mês</u></div>
+    </div>
+  </div>
+
+  <div class="tag">
+    <div class="tg-top">
+      <div class="sd">Solar<i>Doc</i></div>
+      <div class="pill">só o que você usa</div>
+    </div>
+    <div class="money">
+      <div class="cur">R$</div>
+      <div class="num">67</div>
+      <div class="per">/mês</div>
+    </div>
+    <div class="tg-sub">O gerador de proposta —<br>e melhor que o deles.</div>
+    <div class="tg-mut">Pronta em segundos, direto do celular.<br>Sem CRM que você não abre, sem fidelidade.</div>
+  </div>
+
+  <div class="mock">
+    <img src="mockup-proposta.webp" alt="">
+    <div class="cap">É isto que sai — no computador e no celular, com a sua marca.</div>
+  </div>
+
+  <div class="foot">
+    <div class="btn">Saiba mais
+      <svg width="30" height="20" viewBox="0 0 30 20" fill="none"><path d="M2 10h24m0 0l-8-8m8 8l-8 8" stroke="#05080f" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="foot-sub">Faça sua primeira proposta<br>ainda hoje.</div>
+  </div>
+</div>
+</body>
+</html>
