@@ -144,7 +144,13 @@ const DEPOIMENTOS: {
 }[] = [
   {
     nome: 'Juliano Grilo', empresa: 'Grilo Energia Solar', cidade: 'Artur Nogueira/SP',
-    logo: '/logos/grilo-energia.webp', logoW: 129, liberado: true, destaque: true,
+    // DESTAQUE DESLIGADO em 19/08/2026 (ordem do Thiago). Com ele ligado este
+    // card virava outra coisa — largura inteira, logo e fala maiores — e ficava
+    // fora do padrao dos outros cinco. E como ele comia uma fileira sozinho,
+    // sobravam 5 e a ultima fileira ficava com 2 centralizados e buraco dos dois
+    // lados. Desligado, sao 6 cards iguais em 3 + 3, sem sobra.
+    // O mecanismo continua no codigo: basta `destaque: true` pra reativar.
+    logo: '/logos/grilo-energia.webp', logoW: 129, liberado: true,
     texto: 'Pra mim foi um divisor de águas. Primeiro, o preço. E eu, exclusivamente, só trabalho com a proposta: a média do ano vem com o número escrito em cima. Na outra plataforma é gráfico — e gráfico dificulta a mente do cliente, você tem que bater uma régua pra enxergar.',
   },
   {
