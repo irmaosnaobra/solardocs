@@ -313,7 +313,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       runGrupoFriosTick(),             // eletroposto: quem esfriou (não atendeu / sem interesse) vai pro grupo
       runEletropostoAgendaTick(),      // eletroposto: confirmação ao marcar + bom dia + lembrete 1h e 5min (anti no-show)
       runEletropostoRespostasTick(),   // eletroposto: lead respondeu a automação → recado pro Thiago e pro Diego
-      runEletropostoReagendaAutoTick(), // eletroposto: card vermelho com o horário já vencido volta pro próximo dia útil e recomeça os avisos, até 3× (EP_REAGENDA_AUTO_OFF desliga)
+      runEletropostoReagendaAutoTick(), // eletroposto: card vermelho com o horário já vencido volta pro próximo dia útil e recomeça os avisos, até 2× (EP_REAGENDA_AUTO_OFF desliga)
       runEletropostoCardPingTick(),    // eletroposto: card que trocou de dono no repasse de 12h chega de novo no WhatsApp de quem está com ele (EP_CARD_PING_OFF desliga)
       runEletropostoIgConviteTick(),   // eletroposto: lead que veio do Instagram não marca agenda — recebe UM convite pra LP (EP_IG_CONVITE_OFF desliga)
       runSolarBoasVindasTick(),        // solar: quem acabou de se cadastrar recebe o consultor, o contato e a pergunta do consumo (SOLAR_BOASVINDAS_OFF desliga)
@@ -516,7 +516,7 @@ router.get('/eletroposto-respostas', async (req: Request, res: Response) => {
 // ── Card VERMELHO vencido → volta pro próximo dia útil sozinho ───────────
 // ?dry=1 mostra quem seria remarcado, de quando pra quando e em que tentativa,
 // sem mexer na ficha, sem enviar e sem gastar tentativa. Uma pessoa por rodada,
-// 9h–19h, até 3 reagendamentos por ficha.
+// 9h–19h, até 2 reagendamentos por ficha.
 router.get('/eletroposto-reagenda-auto', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
@@ -1020,7 +1020,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['lembretes-agenda',            () => processarLembretesAgenda()], // [AVISOS-AGENDA-OFF 28/07] no-op: kill-switch dentro do módulo
     ['eletroposto-agenda',          () => runEletropostoAgendaTick()], // eletroposto: confirma ao marcar, bom dia no dia, avisa 1h e 5min antes (anti no-show)
     ['eletroposto-respostas',       () => runEletropostoRespostasTick()], // eletroposto: quem respondeu a automação vira recado pra equipe
-    ['eletroposto-reagenda-auto',   () => runEletropostoReagendaAutoTick()], // eletroposto: vermelho vencido volta pro próximo dia útil sozinho (até 3×)
+    ['eletroposto-reagenda-auto',   () => runEletropostoReagendaAutoTick()], // eletroposto: vermelho vencido volta pro próximo dia útil sozinho (até 2×)
     ['eletroposto-card-ping',       () => runEletropostoCardPingTick()],  // eletroposto: reenvia o card pro consultor quando o repasse de 12h troca o dono
     ['eletroposto-ig-convite',      () => runEletropostoIgConviteTick()], // eletroposto: lead de Instagram não marca agenda — recebe UM convite pra LP (EP_IG_CONVITE_OFF desliga)
     ['solar-boas-vindas',           () => runSolarBoasVindasTick()],     // solar: recibo do cadastro pro cliente (SOLAR_BOASVINDAS_OFF desliga)

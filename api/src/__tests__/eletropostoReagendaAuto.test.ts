@@ -210,7 +210,7 @@ describe('o reagendamento em si', () => {
 
   it('a tentativa vira linha no card — vermelho parado e vermelho trabalhado não são a mesma tela', async () => {
     await tick();
-    expect(updates[0].patch.historico).toContain('Reagendamento automático 1/3');
+    expect(updates[0].patch.historico).toContain('Reagendamento automático 1/2');
   });
 
   it('sem vaga na mesma hora, pega o primeiro livre do dia', async () => {
@@ -247,15 +247,15 @@ describe('não falar demais com quem sumiu', () => {
     expect(r.remarcados).toBe(1);
   });
 
-  it('para no terceiro: quem já foi remarcado 3 vezes vira assunto de gente', async () => {
-    state.set('ep_reagenda_auto:3', { key: 'ep_reagenda_auto:3', value: { n: 3, ultimo: horasAtras(24) }, updated_at: horasAtras(24) });
+  it('para na segunda volta: quem já foi remarcado 2 vezes vira assunto de gente', async () => {
+    state.set('ep_reagenda_auto:3', { key: 'ep_reagenda_auto:3', value: { n: 2, ultimo: horasAtras(24) }, updated_at: horasAtras(24) });
     const r = await tick();
     expect(r.motivo).toBe('ninguem_na_vez');
     expect(fichas[0].status).toBe('nao_atendeu');
   });
 
-  it('a terceira tentativa avisa que é a última', async () => {
-    state.set('ep_reagenda_auto:3', { key: 'ep_reagenda_auto:3', value: { n: 2, ultimo: horasAtras(24) }, updated_at: horasAtras(24) });
+  it('a segunda tentativa avisa que é a última', async () => {
+    state.set('ep_reagenda_auto:3', { key: 'ep_reagenda_auto:3', value: { n: 1, ultimo: horasAtras(24) }, updated_at: horasAtras(24) });
     await tick();
     expect(enviadas[0].bolhas[2]).toContain('último horário');
   });
@@ -329,7 +329,7 @@ describe('nunca marcar sem conseguir avisar', () => {
   });
 });
 
-// "E assim até o terceiro dia" é a REQUISIÇÃO — e ela só existe se a ficha
+// "E assim até o terceiro dia" (2 voltas) é a REQUISIÇÃO — e ela só existe se a ficha
 // conseguir ficar vermelha DE NOVO depois de voltar pra agenda. As duas réguas
 // de marcação do `eletropostoAgenda` exigem `lead_resposta_at` vazio: sem zerar
 // a coluna, quem disse "SIM" e não apareceu (o no-show clássico) travaria na
@@ -359,8 +359,8 @@ describe('o ciclo chega ao terceiro dia', () => {
     expect(fichas[0].quando).toBe(SEGUNDA_13H);
     expect(fichas[0].status).toBe('agendado');
     expect(enviadas).toHaveLength(1);
-    // Nem a segunda volta é a última — quem avisa que é a última é a terceira.
-    expect(enviadas[0].bolhas[2]).not.toContain('último horário');
+    // E a segunda É a última (o Thiago fechou em 2 voltas): a copy tem que dizer.
+    expect(enviadas[0].bolhas[2]).toContain('último horário');
   });
 });
 

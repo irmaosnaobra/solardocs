@@ -7,6 +7,10 @@
 // agendado para o outro dia e recebe novamente os recados — e assim até o
 // terceiro dia."
 //
+// Perguntei se "até o terceiro dia" eram 2 ou 3 voltas e ele respondeu **"2
+// dias"**. Então são DOIS reagendamentos: o dia da reunião perdida mais dois —
+// três dias no total, que é o que a frase dele descreve.
+//
 // ── O que mudou em relação ao desenho de 19/08 ──
 // Até aqui o vermelho virava uma LISTA DE HORÁRIOS no WhatsApp ("responde 1, 2
 // ou 3") e esperava a pessoa escolher — o `eletropostoNoShow`, que este módulo
@@ -26,7 +30,7 @@
 //                                   se estiver livre, mesmo consultor
 //                    →  a régua da agenda manda bom dia, 1h e 5min
 //                    →  ficou vermelho de novo? repete
-//   Três reagendamentos e o robô para. A ficha fica vermelha e vira assunto de
+//   DOIS reagendamentos e o robô para. A ficha fica vermelha e vira assunto de
 //   gente (ou do convite do grupo de frios, que já pega quem não tem reunião
 //   futura).
 //
@@ -47,7 +51,7 @@
 //     pra reunião errada;
 //   · ficha sem consultor, sem telefone ou com a reunião perdida há mais de 7
 //     dias (aí não é remarcação, é lista fria);
-//   · quem já foi remarcado 3 vezes.
+//   · quem já foi remarcado 2 vezes.
 //
 // Vermelho marcado por GENTE entra igual: o consultor que ficou esperando na
 // chamada é o no-show clássico, e é dele que a ordem fala. O carimbo
@@ -93,8 +97,12 @@ export const EP_REAGENDA_PREFIX = 'ep_reagenda_auto:';
  *  a régua entrou no ar — o estoque velho de vermelhos não vira disparo. */
 const REAGENDA_INICIO = '2026-08-20T00:00:00.000Z';
 
-/** "e assim até o terceiro dia": três reagendamentos e o robô para. */
-export const MAX_REAGENDAMENTOS = 3;
+/** "e assim até o terceiro dia" — e o Thiago fechou em **2 dias** quando
+ *  perguntei (20/08). Então são DOIS reagendamentos: a reunião perdida mais duas
+ *  voltas, três dias no total. Depois disso a ficha fica vermelha e e' assunto de
+ *  gente. Este numero e' a conta de quantos slots vendaveis um lead que some pode
+ *  consumir — mexer nele mexe em estoque de agenda, nao so' em mensagem. */
+export const MAX_REAGENDAMENTOS = 2;
 /** Folga depois do horário perdido — o toque de 5 min ainda estava saindo. */
 const APOS_PERDER_MIN = 45;
 /** Reunião perdida há mais de 7 dias não é remarcação, é lista fria. */
