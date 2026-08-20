@@ -1289,6 +1289,17 @@
   position: relative;
 }
 
+/* Rodape da faixa de preco do comparativo: letra pequena de propósito — e' nota
+   de rodape, nao argumento. */
+.compareNota {
+  margin: 22px auto 0;
+  max-width: 62ch;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
 /* ----- DEPOIMENTO DE CLIENTE -----
    So' entra no DOM quando DEPOIMENTOS tem item (Landing.tsx). Card de citacao,
    sem cromo falso de rede social: nada de selo de verificado nem contador de

@@ -390,9 +390,23 @@ export default function Landing() {
               O melhor Gerador de Proposta do Brasil — <strong>com a sua marca</strong>.
             </h1>
 
+            {/* SUBHEADLINE reescrita em 19/08/2026, com o que a pesquisa dos 6
+                clientes mostrou. A anterior errava em dois pontos:
+
+                · liderava com "todos os contratos que o integrador precisa",
+                  quando 78% de tudo que se gera aqui e' a PROPOSTA e 42% dos
+                  clientes nunca geraram outro documento. Contrato e' troco.
+                · vendia "prontos em minutos", e o Azume anuncia proposta em 60
+                  segundos. Brigar de cronometro contra quem promete menos e'
+                  escolher a unica disputa que ja' esta' perdida.
+
+                O que entrou saiu da boca do cliente: o numero ESCRITO no lugar do
+                grafico ("grafico dificulta a mente do cliente, voce tem que bater
+                uma regua pra enxergar") e a proposta saindo com ele ainda na
+                frente. O H1 NAO foi tocado de proposito — ver o comentario dele. */}
             <p className={styles.lead} style={{ margin: '0 auto 26px' }}>
-              Proposta solar e todos os contratos que o integrador precisa, prontos em minutos: seu nome,
-              sua logo, sua cor e os números certos — pra fechar mais rápido no WhatsApp do cliente.
+              A proposta sai com o número escrito — quanto ele paga hoje, quanto vai pagar e em quanto
+              tempo se paga — numa folha só, do celular, com o cliente ainda na sua frente.
             </p>
 
             {/* Mockup logo abaixo da subheadline (pedido do Thiago): a pessoa
@@ -1005,14 +1019,25 @@ export default function Landing() {
               </ul>
             </div>
 
+            {/* Era "Com advogado". Ninguem contrata advogado pra fazer PROPOSTA —
+                aquela coluna sobrou de quando a promessa da pagina era "8
+                documentos". E metade do publico-alvo JA' PAGA plataforma (3 dos 6
+                depoimentos vieram de uma): ele lia as tres colunas e nao se
+                reconhecia em nenhuma.
+
+                Os itens falam do gasto e do uso DELE, nunca do produto alheio.
+                "Voce abre o gerador de proposta" e' a experiencia dele; "a
+                proposta deles sai em grafico" seria alegacao sobre terceiro, que
+                num quadro comparativo exige comparacao objetiva e comprovavel.
+                Quem cita marca aqui e' o cliente no depoimento, nao a gente. */}
             <div className={styles.compareCol} data-reveal style={{ transitionDelay: '0.08s' }}>
-              <div className={styles.compareTitle}>Com advogado</div>
+              <div className={styles.compareTitle}>Na plataforma que você já paga</div>
               <ul className={styles.compareList}>
-                <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>~</span> Custa caro por documento</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>~</span> Depende da agenda de outra pessoa</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>~</span> Demora dias pra voltar</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Não conhece o padrão da concessionária</li>
-                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Trava a sua venda</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>~</span> R$ 100 a R$ 300 por mês</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>~</span> Do sistema inteiro, você abre o gerador de proposta</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareMid}`}>~</span> O resto você configurou uma vez e não voltou</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> O preço não cai porque você usa menos</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareNo}`}>✕</span> Migrar dá trabalho — e é por isso que você continua lá</li>
               </ul>
             </div>
 
@@ -1027,6 +1052,20 @@ export default function Landing() {
               </ul>
             </div>
           </div>
+
+          {/* Rodape da faixa de preco. Nenhuma concorrente publica valor — Azume,
+              SolarMarket e Solarz mandam falar com vendas —, entao a faixa e'
+              AFIRMADA POR NOS, nunca preco de uma marca. Se um dia virar print
+              de fatura que cliente mandou, ai' sim vira dado.
+
+              O NUMERO E' UM SO' NA PAGINA: 100-300, igual ao que o card de preco
+              ja' dizia. O Thiago falou 170-450 em conversa; subir os dois juntos
+              e' decisao dele, mas duas faixas diferentes na mesma pagina destroem
+              as duas — o leitor nao escolhe a maior, ele para de acreditar. */}
+          <p className={styles.compareNota} data-reveal>
+            Faixa praticada no mercado brasileiro de software para integradores. Consulte o preço
+            vigente de cada fornecedor.
+          </p>
         </div>
       </section>
 
@@ -1181,6 +1220,22 @@ export default function Landing() {
             </div>
           </div>
 
+          {/* A garantia resolve o medo do DINHEIRO. Quem ja' paga plataforma tem
+              outro medo, maior: o da MIGRACAO — parar tudo, reconfigurar, e
+              descobrir no meio que foi pior. Esta caixa e' a saida que o proprio
+              cliente inventou: o Juliano nao cancelou o Azume pra testar, rodou
+              os dois em paralelo e so' depois decidiu.
+
+              Convidar a comparacao direta so' se faz quando se ganha nela. */}
+          <div className={styles.guarantee} data-reveal>
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><path d="M3 12h13"/><polyline points="12 8 16 12 12 16"/><path d="M20 5v14"/></svg>
+            <div>
+              <b>Não precisa cancelar a sua.</b> Pega a próxima proposta que cair na sua mão e faz
+              nas duas. Se a nossa não sair primeiro, e mais fácil do seu cliente entender, você fica
+              onde está — os 10 primeiros documentos são de graça.
+            </div>
+          </div>
+
           <div className={styles.offerBadges} data-reveal>
             <span className={styles.offerBadge}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
@@ -1239,23 +1294,6 @@ export default function Landing() {
 
           <div className={styles.faqList}>
             <details className={styles.faqItem} data-reveal>
-              <summary>Quando eu sou cobrado e quando libera?</summary>
-              <div className={styles.faqAnswer}>
-                A cobrança é <b>na hora</b>: você passa o cartão no checkout da Stripe e o acesso já é
-                liberado. Na sequência você define a senha e entra na plataforma. Depois disso,
-                renova uma vez por mês, no mesmo dia.
-              </div>
-            </details>
-
-            <details className={styles.faqItem} data-reveal>
-              <summary>E se eu pagar e não gostar?</summary>
-              <div className={styles.faqAnswer}>
-                Você tem <b>7 dias de garantia</b>: se não servir pra você, devolvemos o valor
-                integral, sem perguntas. É só chamar no WhatsApp dentro dos 7 dias.
-              </div>
-            </details>
-
-            <details className={styles.faqItem} data-reveal>
               <summary>Tem plano mais barato?</summary>
               <div className={styles.faqAnswer}>
                 Não tem plano capado. É <b>um preço só, R$ {PRICE} por mês</b>, com tudo liberado —
@@ -1266,10 +1304,19 @@ export default function Landing() {
             </details>
 
             <details className={styles.faqItem} data-reveal>
-              <summary>Posso cancelar depois?</summary>
+              <summary>O dono mesmo consegue usar?</summary>
               <div className={styles.faqAnswer}>
-                Pode, a qualquer momento e sem multa: <b>Minha conta → Gerenciar assinatura</b>. Você
-                mesmo cancela, sem precisar pedir pra ninguém, e não é cobrado no mês seguinte.
+                Esse é exatamente o público pra quem foi feito. Você não precisa de funcionário,
+                advogado ou escritório — abre o app, cadastra o cliente, gera o documento e manda.
+                <b> Sai perfeito.</b>
+              </div>
+            </details>
+
+            <details className={styles.faqItem} data-reveal>
+              <summary>Posso usar com a marca da minha empresa?</summary>
+              <div className={styles.faqAnswer}>
+                Sim. Você sobe a logo, define a cor da empresa e os documentos saem com a sua
+                identidade visual. <b>Você só preenche os dados — a formatação sai pronta.</b>
               </div>
             </details>
 
@@ -1291,19 +1338,27 @@ export default function Landing() {
             </details>
 
             <details className={styles.faqItem} data-reveal>
-              <summary>Posso usar com a marca da minha empresa?</summary>
+              <summary>E se eu pagar e não gostar?</summary>
               <div className={styles.faqAnswer}>
-                Sim. Você sobe a logo, define a cor da empresa e os documentos saem com a sua
-                identidade visual. <b>Você só preenche os dados — a formatação sai pronta.</b>
+                Você tem <b>7 dias de garantia</b>: se não servir pra você, devolvemos o valor
+                integral, sem perguntas. É só chamar no WhatsApp dentro dos 7 dias.
               </div>
             </details>
 
             <details className={styles.faqItem} data-reveal>
-              <summary>O dono mesmo consegue usar?</summary>
+              <summary>Posso cancelar depois?</summary>
               <div className={styles.faqAnswer}>
-                Esse é exatamente o público pra quem foi feito. Você não precisa de funcionário,
-                advogado ou escritório — abre o app, cadastra o cliente, gera o documento e manda.
-                <b> Sai perfeito.</b>
+                Pode, a qualquer momento e sem multa: <b>Minha conta → Gerenciar assinatura</b>. Você
+                mesmo cancela, sem precisar pedir pra ninguém, e não é cobrado no mês seguinte.
+              </div>
+            </details>
+
+            <details className={styles.faqItem} data-reveal>
+              <summary>Quando eu sou cobrado e quando libera?</summary>
+              <div className={styles.faqAnswer}>
+                A cobrança é <b>na hora</b>: você passa o cartão no checkout da Stripe e o acesso já é
+                liberado. Na sequência você define a senha e entra na plataforma. Depois disso,
+                renova uma vez por mês, no mesmo dia.
               </div>
             </details>
 
