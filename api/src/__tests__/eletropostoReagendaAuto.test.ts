@@ -133,6 +133,8 @@ const horasAtras = (h: number) => new Date(AGORA.getTime() - h * 3600_000).toISO
 /** Sexta 21/08: 13h e 14h BRT (16h e 17h UTC). */
 const SEXTA_13H = '2026-08-21T16:00:00.000Z';
 const SEXTA_14H = '2026-08-21T17:00:00.000Z';
+/** Segunda 24/08: 13h BRT. Sabado e domingo a agenda nao abre. */
+const SEGUNDA_13H = '2026-08-24T16:00:00.000Z';
 
 function ficha(over: Partial<any> = {}) {
   return {
@@ -324,6 +326,41 @@ describe('nunca marcar sem conseguir avisar', () => {
     expect(r.remarcados).toBe(0);
     expect(fichas[0].quando).toBe(antes);
     expect(enviadas).toHaveLength(0);
+  });
+});
+
+// "E assim até o terceiro dia" é a REQUISIÇÃO — e ela só existe se a ficha
+// conseguir ficar vermelha DE NOVO depois de voltar pra agenda. As duas réguas
+// de marcação do `eletropostoAgenda` exigem `lead_resposta_at` vazio: sem zerar
+// a coluna, quem disse "SIM" e não apareceu (o no-show clássico) travaria na
+// primeira volta e ficaria `agendado` até o repasse de 12h trocar o consultor
+// dele e jogá-lo num horário fora da grade.
+describe('o ciclo chega ao terceiro dia', () => {
+  it('o reagendamento zera o lead_resposta_at — é ele que deixa a ficha ficar vermelha de novo', async () => {
+    fichas = [ficha({ lead_resposta_at: '2026-08-19T12:00:00.000Z' })];   // falou ANTES da reunião
+    await tick();
+    expect(updates[0].patch.lead_resposta_at).toBeNull();
+    expect(fichas[0].lead_resposta_at).toBeNull();
+  });
+
+  it('duas voltas seguidas na mesma ficha: a tentativa anda de 1 pra 2 e o horário também', async () => {
+    await tick();
+    expect(state.get('ep_reagenda_auto:3')?.value).toMatchObject({ n: 1 });
+    expect(fichas[0].quando).toBe(SEXTA_13H);
+
+    // A régua da agenda dá a sexta como ausente e o horário passa.
+    fichas[0].status = 'nao_atendeu';
+    vi.setSystemTime(new Date(new Date(SEXTA_13H).getTime() + 60 * 60_000));   // sexta, 14h BRT
+    vagas = [SEGUNDA_13H];
+    enviadas.length = 0;
+
+    await tick();
+    expect(state.get('ep_reagenda_auto:3')?.value).toMatchObject({ n: 2 });
+    expect(fichas[0].quando).toBe(SEGUNDA_13H);
+    expect(fichas[0].status).toBe('agendado');
+    expect(enviadas).toHaveLength(1);
+    // Nem a segunda volta é a última — quem avisa que é a última é a terceira.
+    expect(enviadas[0].bolhas[2]).not.toContain('último horário');
   });
 });
 

@@ -93,7 +93,13 @@ vi.mock('../utils/supabase', () => ({
         // foi marcado) — mesma lista de carimbos, outra forma de perguntar.
         like: (_col: string, padrao: string) => {
           const p = String(padrao).replace(/%$/, '');
-          const resposta = { data: carimbos.filter(k => k.startsWith(p)).map(key => ({ key })), error: null };
+          const resposta = {
+            // `updated_at` importa desde 20/08: o marcador `ep_resposta:` só vale
+            // a partir da confirmação que está na ficha AGORA (`falouNesteCiclo`).
+            data: carimbos.filter(k => k.startsWith(p))
+              .map(key => ({ key, updated_at: carimboEm.get(key) ?? new Date().toISOString() })),
+            error: null,
+          };
           return { limit: async () => resposta };
         },
       }),
@@ -662,6 +668,28 @@ describe('não atendido automático', () => {
   it('quem ESCREVEU alguma coisa não é dado como ausente', async () => {
     fichas = [caladaDesde(60, { id: 7 })];
     carimbos.push('ep_resposta:7');
+    expect((await tick()).nao_atendeu).toBe(0);
+  });
+
+  // O `ep_resposta:<id>` mora no outro projeto, guarda só o id e nunca é
+  // apagado. Desde que o reagendamento automático (20/08) recomeça a régua do
+  // zero, um "SIM" de ANTES da confirmação vigente é de outro ciclo — e se ele
+  // continuasse valendo, a ficha voltaria pra agenda e nunca mais poderia ficar
+  // vermelha: o ciclo travaria na primeira volta.
+  it('marcador de resposta ANTERIOR à confirmação vigente é de outro ciclo e não segura mais nada', async () => {
+    fichas = [caladaDesde(60, { id: 7, confirmacao_at: '2026-08-03T12:00:00.000Z' })];
+    carimbos.push('ep_resposta:7');
+    carimboEm.set('ep_resposta:7', '2026-07-30T09:00:00.000Z');
+    expect((await tick()).nao_atendeu).toBe(1);
+  });
+
+  // A outra metade: ficha ainda sem confirmação (backlog, ou o instante entre
+  // remarcar e avisar). Aí não há ciclo pra comparar e o marcador vale cheio —
+  // lado conservador, não dar de ausente quem talvez esteja falando.
+  it('sem confirmação na ficha, o marcador de resposta vale cheio', async () => {
+    fichas = [caladaDesde(60, { id: 7, confirmacao_at: null })];
+    carimbos.push('ep_resposta:7');
+    carimboEm.set('ep_resposta:7', '2026-07-30T09:00:00.000Z');
     expect((await tick()).nao_atendeu).toBe(0);
   });
 

@@ -257,6 +257,14 @@ async function gravarNovoHorario(
         lembrete_1h_at: null,
         lembrete_5min_at: null,
         presenca_confirmada_at: null,
+        // "Sai LIMPO" inclui o silêncio. Sem zerar, quem disse "SIM" e não
+        // apareceu (o no-show clássico) voltava pra agenda e NUNCA MAIS podia
+        // ficar vermelho — as duas réguas de marcação exigem `lead_resposta_at`
+        // vazio. O ciclo travava em 1 e a ficha ficava `agendado` até o repasse
+        // de 12h pegá-la, trocar o consultor e jogá-la fora da grade.
+        // O que a pessoa escreveu não se perde: está no histórico do card e na
+        // conversa. O que se apaga é a afirmação "ela já falou NESTE ciclo".
+        lead_resposta_at: null,
         historico: f.historico ? `${linha}\n\n${f.historico}` : linha,
       })
       .eq('id', f.id)

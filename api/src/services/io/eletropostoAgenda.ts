@@ -539,15 +539,45 @@ function lembreteEhDestaReuniao(f: Ficha): boolean {
  * Uma leitura só, compartilhada pelas duas réguas de marcação: elas rodam no
  * mesmo tick e perguntam exatamente a mesma coisa ao mesmo banco.
  */
-async function marcadoresDeSilencio(): Promise<{ respondeu: Set<number>; jaMarcado: Set<number> }> {
+async function marcadoresDeSilencio(): Promise<{ respondeuEm: Map<number, string>; jaMarcado: Set<number> }> {
   const [{ data: falaram }, { data: marcados }] = await Promise.all([
-    supabase.from('system_state').select('key').like('key', `${EP_RESPOSTA_PREFIX}%`).limit(1000),
+    supabase.from('system_state').select('key, updated_at').like('key', `${EP_RESPOSTA_PREFIX}%`).limit(1000),
     supabase.from('system_state').select('key').like('key', `${EP_NAO_ATENDEU_PREFIX}%`).limit(1000),
   ]);
   return {
-    respondeu: new Set((falaram ?? []).map(m => Number(String(m.key).slice(EP_RESPOSTA_PREFIX.length)))),
+    respondeuEm: new Map((falaram ?? []).map(m =>
+      [Number(String(m.key).slice(EP_RESPOSTA_PREFIX.length)), String(m.updated_at ?? '')])),
     jaMarcado: new Set((marcados ?? []).map(m => Number(String(m.key).slice(EP_NAO_ATENDEU_PREFIX.length)))),
   };
+}
+
+/**
+ * A pessoa falou NESTE ciclo?
+ *
+ * O `lead_resposta_at` mora na ficha e é zerado quando o ciclo recomeça, então
+ * ele já responde certo sozinho. O marcador `ep_resposta:<id>` não: ele mora no
+ * outro projeto, guarda só o id e NUNCA é apagado.
+ *
+ * Isso bastava enquanto uma ficha tinha um ciclo só. Desde 20/08 o
+ * `eletropostoReagendaAuto` devolve pra agenda quem não apareceu e recomeça a
+ * régua do zero — e aí um "SIM" de três dias atrás calaria as DUAS marcações de
+ * vermelho pra sempre: a ficha voltaria pro dia seguinte e nunca mais poderia
+ * ser dada como ausente. Ela ficaria `agendado` até o repasse de 12h pegá-la,
+ * trocar o consultor e jogá-la num horário fora da grade.
+ *
+ * É a mesma armadilha do carimbo do bom dia (19/08) e a saída é a mesma: o
+ * carimbo só vale a partir do começo do ciclo — e o começo do ciclo é a
+ * confirmação que está na ficha AGORA.
+ *
+ * Ficha ainda sem `confirmacao_at` (backlog, ou o instante entre remarcar e
+ * avisar): o marcador vale cheio. É o lado conservador — não dar de ausente
+ * quem talvez esteja falando.
+ */
+function falouNesteCiclo(f: Ficha, respondeuEm: Map<number, string>): boolean {
+  if (f.lead_resposta_at) return true;
+  const em = respondeuEm.get(f.id);
+  if (!em) return false;
+  return !f.confirmacao_at || em >= f.confirmacao_at;
 }
 
 /** Escreve a marca: status, linha no histórico e carimbo de "foi o robô".
@@ -580,7 +610,7 @@ async function escreverNaoAtendeu(f: Ficha, motivo: string): Promise<boolean> {
 
 async function marcarNaoAtendeuAutomatico(
   fichas: Ficha[], agora: number, dry: boolean,
-  marcadores: { respondeu: Set<number>; jaMarcado: Set<number> } | null,
+  marcadores: { respondeuEm: Map<number, string>; jaMarcado: Set<number> } | null,
 ): Promise<number> {
   if (naoAtendeuAutoDesligado()) return 0;
 
@@ -590,15 +620,14 @@ async function marcarNaoAtendeuAutomatico(
     && !!f.lembrete_1h_at
     && new Date(f.lembrete_1h_at).getTime() <= limite
     && lembreteEhDestaReuniao(f)
-    && !f.presenca_confirmada_at
-    // A coluna nova entra como mais uma prova do silêncio: ela vem do banco da
-    // FICHA, enquanto o marcador `ep_resposta:` vem do outro projeto. Quando as
-    // duas discordam, quem tiver visto a pessoa falar ganha.
-    && !f.lead_resposta_at);
+    && !f.presenca_confirmada_at);
   if (!candidatos.length || !marcadores) return 0;
 
+  // As duas provas do silêncio ficam juntas no `falouNesteCiclo`: a coluna da
+  // ficha e o marcador do outro projeto dizem a mesma coisa, e quando discordam
+  // quem tiver visto a pessoa falar NESTE ciclo ganha.
   const alvos = candidatos
-    .filter(f => !marcadores.respondeu.has(f.id) && !marcadores.jaMarcado.has(f.id))
+    .filter(f => !falouNesteCiclo(f, marcadores.respondeuEm) && !marcadores.jaMarcado.has(f.id))
     .slice(0, NAO_ATENDEU_POR_TICK);
   if (!alvos.length) return 0;
   if (dry) return alvos.length;
@@ -627,7 +656,7 @@ async function marcarNaoAtendeuAutomatico(
  */
 async function marcarVermelhoDoCorte(
   fichas: Ficha[], agora: number, dry: boolean,
-  marcadores: { respondeu: Set<number>; jaMarcado: Set<number> } | null,
+  marcadores: { respondeuEm: Map<number, string>; jaMarcado: Set<number> } | null,
 ): Promise<number> {
   if (corteVermelhoDesligado()) return 0;
   if (horaBrasilia() < CORTE_VERMELHO_H) return 0;
@@ -640,8 +669,7 @@ async function marcarVermelhoDoCorte(
     // Ainda por acontecer: é O HORÁRIO que este corte existe pra devolver. Quem
     // já perdeu a hora não libera nada e continua com a régua do lembrete de 1h.
     && new Date(f.quando).getTime() > agora
-    && !f.presenca_confirmada_at
-    && !f.lead_resposta_at);
+    && !f.presenca_confirmada_at);
   if (!candidatos.length || !marcadores) return 0;
 
   // O SEGUNDO CONTATO é o bom dia das 8h, e o carimbo dele é a única prova de que
@@ -654,7 +682,7 @@ async function marcarVermelhoDoCorte(
 
   const alvos = candidatos
     .filter(f => bomDiaSaiuHoje(recebeuBomDia, f.id, hoje)
-      && !marcadores.respondeu.has(f.id) && !marcadores.jaMarcado.has(f.id))
+      && !falouNesteCiclo(f, marcadores.respondeuEm) && !marcadores.jaMarcado.has(f.id))
     .slice(0, NAO_ATENDEU_POR_TICK);
   if (!alvos.length) return 0;
   if (dry) return alvos.length;
