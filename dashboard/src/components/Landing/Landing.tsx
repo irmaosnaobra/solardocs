@@ -398,7 +398,10 @@ export default function Landing() {
                   clientes nunca geraram outro documento. Contrato e' troco.
                 · vendia "prontos em minutos", e o Azume anuncia proposta em 60
                   segundos. Brigar de cronometro contra quem promete menos e'
-                  escolher a unica disputa que ja' esta' perdida.
+                  escolher a unica disputa que ja' esta' perdida. (Em 19/08 os tres
+                  "2 minutos" da pagina viraram "segundos", por ordem do Thiago —
+                  a briga de tempo agora e' de igual pra igual. A subheadline segue
+                  sem prometer tempo: o que ela vende e' o numero escrito.)
 
                 O que entrou saiu da boca do cliente: o numero ESCRITO no lugar do
                 grafico ("grafico dificulta a mente do cliente, voce tem que bater
@@ -727,7 +730,12 @@ export default function Landing() {
             </div>
             <div className={styles.diffCard} data-reveal style={{ transitionDelay: '0.05s' }}>
               <div className={styles.diffIcon}><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 10-12h-7z"/></svg></div>
-              <h3 className={styles.diffH}>Pronto em 2 minutos</h3>
+              {/* "2 minutos" virou "segundos" em 19/08/2026 (ordem do Thiago).
+                  O que a frase promete e' o TEMPO DA MAQUINA — preencheu, clicou,
+                  saiu — e nao o tempo do preenchimento, que e' do integrador e
+                  varia com o cliente dele. O paragrafo abaixo diz isso na ordem:
+                  "preenche os dados" e DEPOIS "o documento sai". */}
+              <h3 className={styles.diffH}>Pronto em segundos</h3>
               <p className={styles.diffP}>
                 Preenche os dados do cliente e o documento sai <b>formatado e completo</b>.
                 Sem Word, sem template quebrado, sem perder a tarde.
@@ -1044,7 +1052,7 @@ export default function Landing() {
             <div className={`${styles.compareCol} ${styles.compareColBest}`} data-reveal style={{ transitionDelay: '0.16s' }}>
               <div className={styles.compareTitle}>Com SolarDoc</div>
               <ul className={styles.compareList}>
-                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Documento pronto em 2 minutos</li>
+                <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Documento pronto em segundos</li>
                 <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Procuração aceita nas concessionárias</li>
                 <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Tudo com a sua logo e a sua cor</li>
                 <li><span className={`${styles.compareIcon} ${styles.compareYes}`}>✓</span> Você mesmo faz, sem depender de ninguém</li>
@@ -1274,7 +1282,7 @@ export default function Landing() {
                 <span className={styles.afterNum}>3</span>
                 <div>
                   <b>Sobe a logo e gera</b> — cadastra a empresa uma vez e o primeiro documento
-                  sai com a sua marca em 2 minutos.
+                  sai com a sua marca em segundos.
                 </div>
               </li>
             </ol>
