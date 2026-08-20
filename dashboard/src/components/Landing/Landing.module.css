@@ -1289,6 +1289,22 @@
   position: relative;
 }
 
+/* ----- HERO POR PUBLICO -----
+   As tres versoes moram no HTML e o CSS mostra uma. `display:none` (e nao
+   visibility ou opacidade) porque so' ele tira o texto da arvore de
+   acessibilidade: leitor de tela nao le' as escondidas, e buscador nao ve'
+   tres headlines na mesma pagina.
+
+   A regra do padrao cobre os DOIS casos — sem atributo nenhum (trafego normal,
+   direto, organico) e com data-pub="padrao" explicito. Se so' cobrisse o
+   segundo, uma visita sem parametro ficaria com hero VAZIO, que e' a falha mais
+   cara que este arquivo pode ter. */
+.varPadrao, .varCrm, .varPlanilha { display: none; }
+:global(html:not([data-pub])) .varPadrao,
+:global(html[data-pub='padrao']) .varPadrao { display: block; }
+:global(html[data-pub='crm']) .varCrm { display: block; }
+:global(html[data-pub='planilha']) .varPlanilha { display: block; }
+
 /* Mockup abaixo do card de preco. Um pouco mais largo que o do hero (640 contra
    560): aqui ele nao divide a atencao com headline nenhuma, e' o proprio
    argumento. */

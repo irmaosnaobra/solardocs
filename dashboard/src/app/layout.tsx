@@ -39,6 +39,21 @@ export default function RootLayout({
             __html: `try{document.documentElement.dataset.theme='light';localStorage.removeItem('sd-theme');}catch(e){}`,
           }}
         />
+        {/* PUBLICO DO ANUNCIO — carimba <html data-pub> ANTES da primeira pintura.
+            O hero tem tres versoes no HTML e o CSS mostra uma; quem escolhe e' este
+            atributo. Feito com script sincrono no <head>, e nao com estado do React,
+            por dois motivos: em useEffect a headline padrao apareceria por um quadro
+            e piscaria pra outra (a pior coisa que pode acontecer com a primeira
+            frase que a pessoa le'), e ler a query durante o render quebraria a
+            hidratacao, porque o servidor gera o HTML sem saber a URL.
+
+            Sem parametro nao ha' atributo, e o CSS cai na versao padrao — a que
+            estava no ar nas 26 vendas de 06 a 18/08. Trafego sem tag nao muda. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var p=new URLSearchParams(location.search).get('p');if(p==='crm'||p==='planilha')document.documentElement.setAttribute('data-pub',p);}catch(e){}`,
+          }}
+        />
         {/* Cache-buster: garante que cliente nunca trave em chunk antigo após deploy */}
         <script
           dangerouslySetInnerHTML={{

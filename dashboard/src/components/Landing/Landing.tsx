@@ -392,8 +392,29 @@ export default function Landing() {
                 Se for testar outra, o certo é medir: 'Viu Secao Precos' e o
                 clique do CTA já são rastreados (useLpTracking), e sem comparar
                 por período a troca vira palpite com cara de decisão. */}
+            {/* TRES VERSOES, uma so' aparece — ver o script do <head> no layout.
+                Elas existem juntas no HTML de proposito: e' o que permite trocar a
+                frase sem pisca e sem quebrar a hidratacao. As escondidas saem com
+                display:none, entao nao sao lidas por leitor de tela nem contam como
+                texto duplicado.
+
+                padrao   — sem parametro. NAO MEXER sem medir: foi a unica no ar nas
+                           26 vendas de 06 a 18/08, e as duas que tentaram
+                           substitui-la viveram 2h e 4h.
+                crm      — pra quem ja' paga plataforma. Mesma frase do criativo
+                           "paga o CRM inteiro", pra pessoa reconhecer onde entrou.
+                planilha — pra quem faz na planilha, no Word ou nao faz. E' o publico
+                           do CVT1, que hoje leva 91% do investimento. */}
             <h1 className={styles.h1}>
-              O melhor Gerador de Proposta do Brasil — <strong>com a sua marca</strong>.
+              <span className={styles.varPadrao}>
+                O melhor Gerador de Proposta do Brasil — <strong>com a sua marca</strong>.
+              </span>
+              <span className={styles.varCrm}>
+                Você paga o CRM inteiro. <strong>E só usa a proposta.</strong>
+              </span>
+              <span className={styles.varPlanilha}>
+                Você promete &ldquo;mando ainda hoje&rdquo;. <strong>E manda depois de amanhã.</strong>
+              </span>
             </h1>
 
             {/* SUBHEADLINE reescrita em 19/08/2026, com o que a pesquisa dos 6
@@ -413,9 +434,25 @@ export default function Landing() {
                 grafico ("grafico dificulta a mente do cliente, voce tem que bater
                 uma regua pra enxergar") e a proposta saindo com ele ainda na
                 frente. O H1 NAO foi tocado de proposito — ver o comentario dele. */}
+            {/* Cada sub responde a tensao que a SUA headline abre. A do crm responde
+                "entao quanto custa so' a proposta?" logo na primeira linha; a da
+                planilha responde "e quanto tempo leva?". Trocar uma sem a outra
+                deixa a pergunta no ar. */}
             <p className={styles.lead} style={{ margin: '0 auto 26px' }}>
-              A proposta sai com o número escrito — quanto ele paga hoje, quanto vai pagar e em quanto
-              tempo se paga — numa folha só, do celular, com o cliente ainda na sua frente.
+              <span className={styles.varPadrao}>
+                A proposta sai com o número escrito — quanto ele paga hoje, quanto vai pagar e em
+                quanto tempo se paga — numa folha só, do celular, com o cliente ainda na sua frente.
+              </span>
+              <span className={styles.varCrm}>
+                São R$ 67 por mês só pelo gerador de proposta. Quanto ele paga hoje, quanto vai pagar
+                e em quanto tempo se paga — escrito numa folha só, do celular, com o cliente ainda na
+                sua frente.
+              </span>
+              <span className={styles.varPlanilha}>
+                Aqui ela sai na hora, do celular: quanto ele paga hoje, quanto vai pagar e em quanto
+                tempo se paga, numa folha só. R$ 67 por mês — sem planilha, sem Word, sem template
+                quebrando.
+              </span>
             </p>
 
             {/* Mockup logo abaixo da subheadline (pedido do Thiago): a pessoa
