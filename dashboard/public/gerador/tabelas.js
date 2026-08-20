@@ -21,10 +21,18 @@
 // cheio o kit de 8 placas do Deye foi a R$14.070 e parou de fechar; a R$55 ele sai por
 // R$12.862,50, que e' o que o vendedor consegue fechar hoje. Cada linha continua nascendo
 // da MESMA cadeia acima, com custo = custo_pre_aumento + 55 x n_placas.
-// O preco disso, medido contra o custo REAL (Tsun ja' a R$620): a venda roda com 17% a 21%
-// de margem em vez dos 25,9% do modelo, e o piso do desconto com 14% a 17,4% em vez de
-// 23,1%. A comissao de 6% do vendedor sai de dentro dessa margem.
+// O preco disso, medido contra o custo REAL (Tsun ja' a R$620), com a comissao de 6% do
+// vendedor saindo de dentro:
+//   normais (MICRODEYE, SAJ-3K, SAJ-6K): venda 17,2% a 21,0% (era 25,9% no modelo),
+//     piso do desconto 14,0% a 17,4% (era 23,1%).
+//   SAJ-6K-PROMO: 12,9% a 18,1%, e PROMO nao tem folga de desconto (preco = piso). A linha
+//     mais magra da tabela inteira e' a de 10 placas, com 12,9% — ~6,9% depois da comissao.
 // Mexeu em MICRODEYE, SAJ-3K, SAJ-6K e SAJ-6K-PROMO — as unicas que tinham levado o +164.
+//
+// A PLANILHA CONTINUA COM A PLACA A R$456: o Total Custo das abas e' o de antes do reajuste
+// (conferido em 20/08 — Microdeye 8 placas la' da' R$8.597,80, o mesmo custo-base usado aqui).
+// Os R$55 vivem so' neste arquivo. Quem regerar a tabela direto da planilha sem somar o
+// delta devolve os precos de antes de 18/08 e come o aumento inteiro calado.
 //
 // SAJ-6K de 5 a 7 placas nao existe na aba do SAJ 6K (ela comeca em 8). Sai da aba do
 // SAJ 3K, que cobre 4..8 com a mesma placa e o mesmo fornecedor, pela relacao exata
