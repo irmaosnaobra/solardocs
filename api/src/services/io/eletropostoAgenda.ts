@@ -652,7 +652,7 @@ async function marcarNaoAtendeuAutomatico(
  * Quem fala com a pessoa depois disso é o `eletropostoReagendaAuto`, que usa
  * exatamente este vermelho como gatilho: 45 min depois do horário perdido ele
  * remarca a ficha sozinho pro próximo dia útil e recomeça esta régua do zero
- * (ordem do Thiago, 20/08/2026 — até 2 reagendamentos por ficha).
+ * (ordem do Thiago, 20/08/2026 — até 2 reagendamentos, e SÓ pra lead quente).
  */
 async function marcarVermelhoDoCorte(
   fichas: Ficha[], agora: number, dry: boolean,

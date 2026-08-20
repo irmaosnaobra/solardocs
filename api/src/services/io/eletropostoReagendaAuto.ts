@@ -40,7 +40,28 @@
 // antes disso mandaria "é agora, ele já está te esperando" e, vinte minutos
 // depois, "remarquei pra amanhã". 45 min é a mesma folga que a repescagem usava.
 //
+// ── SÓ CLIENTE QUENTE (ordem do Thiago, 20/08/2026) ──────────────────────────
+// "Quero apenas os clientes QUENTES tenham uma 2ª e 3ª chance de uma reunião; os
+// demais mantêm."
+//
+// Quente no eletroposto não é palpite de ninguém: é `temperatura = 'quente'`, que
+// a LP grava sozinha no ato do agendamento e que quer dizer **NOTA 3** (9 a 11 dos
+// 11 pontos — tem onde instalar, tem com quê pagar e decide sozinho). NOTA 2 vira
+// `morno` e NOTA 1 nem chega a gravar ficha. O consultor pode rebaixar a
+// temperatura no CRM depois de conversar, e aí o rebaixamento MANDA: quem virou
+// frio na mão de gente para de ser repescado no mesmo minuto.
+//
+// Morno, frio e ficha sem temperatura (ManyChat, prospecção, cadastro manual)
+// seguem exatamente como antes desta régua existir: ficam vermelhos, devolvem o
+// horário pra vitrine e viram trabalho de gente. Nenhuma mensagem, nenhum slot.
+//
+// É o corte que faz a conta fechar. Nos últimos 30 dias foram 45 cards vermelhos
+// de eletroposto e só 7 eram quentes: o robô passa a mexer em ~1 a cada 4 dias em
+// vez de 1,5 por dia. Isso importa MAIS que a mensagem — cada volta ocupa um
+// horário vendável de uma grade de 10 por dia, e a linha IO tem teto diário.
+//
 // ── Quem NÃO entra ──
+//   · quem não é quente (acima);
 //   · reunião anterior ao piso duro (`REAGENDA_INICIO`). Sem ele, ligar o módulo
 //     remarcaria de uma vez os ~22 vermelhos parados no banco — o erro que já
 //     custou caro no solar (87 fichas de uma vez);
@@ -121,6 +142,16 @@ const CANDIDATOS_MAX = 3;
 
 const desligado = () => (process.env.EP_REAGENDA_AUTO_OFF || '').trim() === '1';
 
+/** Quente é só quem está escrito como quente.
+ *
+ *  Comparação EXPLÍCITA, sem "tudo que não é frio conta": ficha sem temperatura
+ *  (ManyChat, prospecção, cadastro na mão) tem que ficar de FORA, e um default
+ *  permissivo faria origem nova entrar calada na fila — justo o oposto do que a
+ *  ordem pede. Origem que passar a qualificar depois precisa gravar
+ *  `temperatura='quente'`, que é o mesmo contrato que a LP já cumpre. */
+export const ehQuente = (t: string | null | undefined): boolean =>
+  String(t || '').trim().toLowerCase() === 'quente';
+
 function horaBrasilia(): number {
   return Number(new Date().toLocaleString('en-US', { timeZone: BRT_TZ, hour12: false, hour: '2-digit' }));
 }
@@ -154,6 +185,8 @@ const zero = (motivo?: string): ResultadoReagendaAuto =>
 
 interface FichaVermelha {
   id: number;
+  /** `quente` | `morno` | `frio` | null. Só `quente` é repescado (ordem de 20/08). */
+  temperatura: string | null;
   cliente_nome: string | null;
   cliente_telefone: string | null;
   quando: string | null;
@@ -336,7 +369,7 @@ export async function runEletropostoReagendaAutoTick(
 
   const { data, error } = await supabaseGerador
     .from('agendamentos')
-    .select('id, cliente_nome, cliente_telefone, quando, vendedor_nome, created_by, status, lead_resposta_at, historico')
+    .select('id, cliente_nome, cliente_telefone, quando, vendedor_nome, created_by, status, temperatura, lead_resposta_at, historico')
     .eq('status', 'nao_atendeu')
     .gte('quando', de)
     .lte('quando', ate)
@@ -349,6 +382,9 @@ export async function runEletropostoReagendaAutoTick(
 
   const candidatos = ((data ?? []) as FichaVermelha[]).filter(f =>
     ehOrigemEletroposto(f.created_by)
+    // Só QUENTE ganha 2ª e 3ª chance. Morno, frio e sem temperatura ficam
+    // vermelhos como sempre foram — e o horário deles segue na vitrine.
+    && ehQuente(f.temperatura)
     && !!f.cliente_telefone
     && !!f.vendedor_nome
     && !!f.quando

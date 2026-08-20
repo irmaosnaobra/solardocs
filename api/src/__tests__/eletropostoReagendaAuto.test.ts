@@ -141,6 +141,8 @@ function ficha(over: Partial<any> = {}) {
     id: 3, cliente_nome: 'Irineu de Almeida', cliente_telefone: '5577991110001',
     quando: horasAtras(2),               // hoje 13h BRT, perdida há 2h
     vendedor_nome: 'Diego', created_by: 'lp_eletroposto',
+    // NOTA 3 na LP = `quente`. Só quente ganha 2ª e 3ª chance (ordem de 20/08).
+    temperatura: 'quente',
     status: 'nao_atendeu', lead_resposta_at: null, historico: null,
     confirmacao_at: '2026-08-18T12:00:00.000Z', lembrete_1h_at: 'x', lembrete_5min_at: 'x',
     ...over,
@@ -270,6 +272,29 @@ describe('não falar demais com quem sumiu', () => {
     vi.setSystemTime(new Date('2026-08-20T23:30:00.000Z'));   // 20h30 BRT
     const r = await tick();
     expect(r.motivo).toBe('fora_da_janela');
+  });
+
+  // "Quero apenas os clientes QUENTES tenham uma 2ª e 3ª chance; os demais
+  // mantêm." Morno é a MAIORIA dos vermelhos (30 dos 45 em 30 dias), então este
+  // corte é o que separa "o robô trabalha o funil" de "o robô enche a agenda".
+  it('morno não ganha segunda chance — fica vermelho como sempre foi', async () => {
+    fichas = [ficha({ temperatura: 'morno' })];
+    const r = await tick();
+    expect(r.motivo).toBe('nenhum_vermelho');
+    expect(fichas[0].status).toBe('nao_atendeu');
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('frio também não — e frio aqui costuma ser gente que rebaixou na mão', async () => {
+    fichas = [ficha({ temperatura: 'frio' })];
+    expect((await tick()).motivo).toBe('nenhum_vermelho');
+  });
+
+  // Origem que não qualifica (ManyChat, prospecção, cadastro na mão) grava a ficha
+  // sem temperatura. Default permissivo faria origem nova entrar calada na fila.
+  it('ficha SEM temperatura fica de fora — quente só quem está escrito como quente', async () => {
+    fichas = [ficha({ temperatura: null })];
+    expect((await tick()).motivo).toBe('nenhum_vermelho');
   });
 
   it('ficha de solar não entra — a copy é de eletroposto', async () => {

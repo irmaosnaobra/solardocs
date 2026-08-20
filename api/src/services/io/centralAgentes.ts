@@ -621,7 +621,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         },
         {
           label: 'Voltaram do vermelho', valor: epReagendado.total,
-          sub: `${epReagendado.h24} nas últimas 24h · ficha que não apareceu e o robô devolveu pro próximo dia útil sozinho, até 2×. Kill-switch EP_REAGENDA_AUTO_OFF`,
+          sub: `${epReagendado.h24} nas últimas 24h · lead QUENTE (nota 3) que não apareceu e o robô devolveu pro próximo dia útil sozinho, até 2×. Morno e frio ficam vermelhos. Kill-switch EP_REAGENDA_AUTO_OFF`,
         },
         {
           label: 'Confirmaram presença', valor: epPresencaConfirmada,
@@ -636,7 +636,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         { titulo: '4º · 5 minutos antes', quando: 'nos 12 min que antecedem o horário', copy: '"É agora, o consultor já está te esperando" — o link cai no WhatsApp dele a qualquer momento.' },
         { titulo: '↩ resposta do lead', quando: 'até 5 min depois de ele escrever', copy: 'Não é mensagem pro lead: é o recado que vai pro Thiago e pro Diego com o que a pessoa escreveu, a hora da reunião e de quem ela é. Kill-switch EP_RESPOSTAS_OFF.' },
         { titulo: '🔄 remarca sozinho', quando: 'quando o lead diz que não vai dar', copy: 'Oferece os 3 próximos horários livres DO MESMO consultor, espera a pessoa escolher o número e troca na hora — liberando o horário antigo pra agenda. Nunca cancela, nunca muda de consultor e nunca move sem escolha explícita. Quem pede pra CANCELAR (e não remarcar) continua indo pro humano. Kill-switch EP_REMARCAR_OFF.' },
-        { titulo: '♻️ card vermelho volta pro dia seguinte', quando: '45 min depois do horário que ele perdeu', copy: 'Quem não apareceu e nunca respondeu não recebe lista pra escolher: o robô MARCA. A ficha sai limpa, volta pro próximo dia útil no mesmo horário (ou no primeiro livre do dia) com o mesmo consultor, e a régua de avisos recomeça do zero — bom dia, 1 hora e 5 minutos. Duas vezes; na segunda a mensagem diz que é a última. Kill-switch EP_REAGENDA_AUTO_OFF.' },
+        { titulo: '♻️ card vermelho QUENTE volta pro dia seguinte', quando: '45 min depois do horário que ele perdeu', copy: 'Só lead QUENTE (nota 3: tem onde, tem com quê e decide sozinho) — morno e frio ficam vermelhos e viram trabalho de gente. Quem entra não recebe lista pra escolher: o robô MARCA. A ficha sai limpa, volta pro próximo dia útil no mesmo horário (ou no primeiro livre do dia) com o mesmo consultor, e a régua de avisos recomeça do zero — bom dia, 1 hora e 5 minutos. Duas vezes; na segunda a mensagem diz que é a última. Kill-switch EP_REAGENDA_AUTO_OFF.' },
       ],
       alerta: (epReunioesFuturas ?? 0) > 0 && (epFuturasConfirmadas ?? 0) < (epReunioesFuturas ?? 0)
         ? `${(epReunioesFuturas ?? 0) - (epFuturasConfirmadas ?? 0)} reunião(ões) futura(s) ainda sem a mensagem de confirmação — a fila de atraso sai 1 por rodada, das 08h às 20h.`
