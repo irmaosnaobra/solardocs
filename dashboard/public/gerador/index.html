@@ -597,6 +597,13 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-bnk-t th{border:1px solid #333;padding:5px 8px;text-align:center;font-weight:800;background:#f4f6f9}
 .ep-bnk-t td{border:1px solid #333;padding:4px 8px}
 .ep-bnk-t td.q{width:52px;text-align:center}
+.ep-bnk-t td.cod{width:38mm;text-align:center;font-variant-numeric:tabular-nums}
+/* Lista longa aperta a linha em vez de vazar pra 3ª folha: o rodapé desta peça
+   diz "Página X de 2" cravado, e medido (viewport A4, campos preenchidos) a
+   folha 2 estoura a partir do 10º item. Com a linha compacta ela aguenta 12. */
+.ep-bnk-t.compacta{font-size:10px}
+.ep-bnk-t.compacta td{padding:2px 8px}
+.ep-bnk-t.compacta th{padding:4px 8px}
 .ep-bnk-vals{margin-top:14px;line-height:1.75}
 .ep-bnk-src{margin-top:12px;font-size:9.5px;color:#7b8496}
 .ep-bnk-assin{margin-top:26mm;display:grid;grid-template-columns:1fr;gap:20mm}
@@ -691,6 +698,37 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
   .orc-kit-row{grid-template-columns:22px 1fr;grid-auto-rows:auto;row-gap:6px}
   .orc-kit-eq{grid-column:2/3;text-align:left}
   .orc-kit-vazio{display:none}
+}
+/* composição da proposta de banco: lista PRÓPRIA daquela folha, não é o kit.
+   Qtd · descrição · código (Finame). O código é o motivo de ela existir: o kit
+   do Orçamento não tem onde guardar um, e o Banco do Nordeste não lê orçamento
+   sem código no bem financiado. */
+.bnk-cabec,.bnk-linha{display:grid;grid-template-columns:62px 1fr 148px 30px;gap:8px;align-items:center}
+.bnk-cabec{padding:0 12px;font-size:10.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#64748B}
+.bnk-itens{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.bnk-linha{background:#0f1a2e;border:1px solid rgba(255,255,255,.10);border-radius:10px;padding:8px 10px}
+.bnk-linha input{width:100%;box-sizing:border-box;padding:8px 10px;background:#0b1424;border:1px solid rgba(255,255,255,.12);border-radius:8px;color:#fff;font-size:13px;font-family:inherit;font-weight:700;outline:none;transition:border-color .2s}
+.bnk-linha input:focus{border-color:#3B82F6}
+.bnk-linha input.q{text-align:center}
+.bnk-linha input.c{text-align:center;color:#93C5FD;font-variant-numeric:tabular-nums}
+.bnk-linha input.d:placeholder-shown{border-color:rgba(252,165,165,.45)}
+.bnk-linha .x{background:none;border:none;color:#64748B;font-size:15px;font-family:inherit;line-height:1;cursor:pointer;padding:10px 6px;border-radius:6px}
+.bnk-linha .x:hover{color:#fca5a5;background:rgba(248,113,113,.14)}
+.bnk-tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.bnk-tool{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.34);color:#bfdbfe;font-family:inherit;font-size:12.5px;font-weight:700;border-radius:9px;padding:8px 12px;cursor:pointer;transition:background .2s,color .2s}
+.bnk-tool:hover{background:rgba(59,130,246,.22);color:#fff}
+@media(max-width:640px){
+  /* dedo, não mouse: medido a 414px, tudo daqui fecha em 44px de altura */
+  .bnk-tool{padding:14px}
+  .bnk-linha input{padding:11px 10px;font-size:14px}
+  .bnk-linha .x{padding:14px 8px}
+  .bnk-cabec,.bnk-linha{grid-template-columns:56px 1fr 34px;grid-auto-rows:auto;row-gap:6px}
+  /* posição explícita: sem isso o ✕ desce sozinho pra uma terceira linha */
+  .bnk-linha input.q{grid-column:1;grid-row:1}
+  .bnk-linha input.d{grid-column:2;grid-row:1}
+  .bnk-linha .x{grid-column:3;grid-row:1}
+  .bnk-linha input.c{grid-column:1/4;grid-row:2}
+  .bnk-cabec .h-cod{display:none}
 }
 /* faixa que mostra de onde veio o valor (mesmo desenho do banner do cliente) */
 .orc-valor-banner{margin-top:16px;background:rgba(59,130,246,.10);border:1px solid rgba(59,130,246,.28);border-radius:10px;padding:10px 12px;font-size:12.5px;color:#CBD5E1;line-height:1.5}
@@ -3328,6 +3366,20 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       </div>
 
       <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Composição — a lista que sai no papel</div>
+        <div class="orc-note" style="margin-top:0">Esta lista é <b>desta folha</b>: nasce copiada do Orçamento, mas o que se muda aqui não muda o Orçamento nem o escopo do Contrato. O <b>Banco do Nordeste</b> exige <b>código</b> no bem financiado — a coluna existe por item e só sai impressa quando algum estiver preenchido. Código digitado fica <b>lembrado neste dispositivo</b> e volta sozinho no próximo cliente.</div>
+        <div class="bnk-tools">
+          <button type="button" class="bnk-tool" onclick="bnkCompPreset('bnb')">Modelo Banco do Nordeste</button>
+          <button type="button" class="bnk-tool" onclick="bnkCompPreset('orc')">Copiar do Orçamento</button>
+          <button type="button" class="bnk-tool" onclick="bnkCompAdd('Material elétrico geral')">+ Material elétrico geral</button>
+          <button type="button" class="bnk-tool" onclick="bnkCompAdd('')">+ Item</button>
+        </div>
+        <div class="bnk-cabec" style="margin-top:14px"><span>Qtd</span><span>Descrição</span><span class="h-cod">Código (Finame)</span><span></span></div>
+        <div class="bnk-itens" id="bnk-itens"></div>
+        <div class="orc-note" id="bnk-itens-note">—</div>
+      </div>
+
+      <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Como o banco parte o dinheiro</div>
         <div class="orc-note" style="margin-top:0">O Finame financia o <b>equipamento</b>, não a obra. Estas duas linhas são o que a instituição lê para decidir quanto libera — por isso <b>não têm valor sugerido</b>: um número que parece calculado é pior que um campo em branco.</div>
         <div class="eletro-field" style="margin-top:12px"><label>Valor total da proposta</label>
@@ -3345,7 +3397,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="calc-card-title"><span class="dot"></span>Dados fiscais do bem</div>
         <div class="orc-note" style="margin-top:0">O banco recusa orçamento sem isto. Nada aqui nasce preenchido: são declarações sobre <b>este</b> equipamento, e herdar do documento solar seria declarar errado numa peça fiscal.</div>
         <div class="eletro-field" style="margin-top:12px"><label>Classificação fiscal (NCM)</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="bnk-ncm" placeholder="Ex: 8504.40.90"></div></div>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="bnk-ncm" placeholder="Ex: 8504.40.90" oninput="epTocar(this)" onchange="bnkNcmGrava(this)"></div></div>
         <div class="eletro-field"><label>IPI</label>
           <div class="eletro-inp has-suf"><input type="number" id="bnk-ipi-pct" inputmode="decimal" step="0.5" min="0" placeholder="0" oninput="bnkCalc()"><span class="suf">%</span></div></div>
         <div class="eletro-field"><label>Valor do IPI</label>
@@ -11413,10 +11465,141 @@ function bcoImprimir() {
 // PDF real do Sicoob traz e o template nao tinha: classificacao fiscal, IPI,
 // telefone da emitente (pro nº do PAC) e a exclusao de frete/seguro.
 
-// Quais itens do EP_KIT sao BEM e quais sao SERVICO. Serve pra orientar o split,
-// nao pra calcula-lo: desde 05/08 nao ha preco por item, so' o total. Um numero
-// que PARECE calculado e' pior que um campo em branco num papel que vai ao banco.
-const BNK_BEM = ['carreg', 'trafo', 'cabo', 'padrao', 'cobert'];
+// O que conta como BEM e o que conta como SERVICO. Serve pra orientar o split,
+// nao pra calcula-lo: nao ha preco por item, so' o total. Um numero que PARECE
+// calculado e' pior que um campo em branco num papel que vai ao banco.
+//
+// 20/08: era lista de ids do EP_KIT (`['carreg','trafo',...]`). Virou regex sobre
+// a DESCRICAO porque a composicao desta folha deixou de ser espelho do kit: linha
+// escrita a mao ("Material eletrico geral") nao tem id pra casar.
+const BNK_BEM_RE = /carregad|estac[aã]o de recarga|transformad|cabeament|cabo|padr[aã]o de entrada|cobertur|material el[eé]tric|equipament/i;
+
+// ════════════════════════════════════════════════════════════
+// COMPOSICAO DA PROPOSTA DE BANCO — lista PROPRIA, e nao o kit
+// ════════════════════════════════════════════════════════════
+// 20/08: o Banco do Nordeste exige CODIGO (Finame) no bem financiado, e a lista
+// que ia no papel era espelho puro do kit do Orcamento — sem onde guardar codigo
+// e sem como enxugar. O formato que o BNB le e' curto:
+//
+//     Projeto de engenharia especializada
+//     Carregador DC 80 kW ....................... (codigo Finame)
+//     Material eletrico geral
+//     Mao de obra especializada
+//
+// "Material eletrico geral" agrupa padrao de entrada + transformador + cabeamento
+// e vive SO' aqui, FORA do EP_KIT de proposito: orcLerItens() alimenta orcamento,
+// proposta comercial, escopo do contrato e esta folha de uma vez — item novo la'
+// dentro aparece nos quatro. Foi o que aconteceu com o % da plataforma em 19/08,
+// e o Thiago mandou tirar.
+//
+// A lista NASCE copiada do Orcamento e segue o kit enquanto ninguem tocar nela.
+// No primeiro toque ela se solta: o consultor manda. Só as LINHAS ficam
+// independentes — o VALOR continua descendo do Simulador, como sempre.
+let BNK_ITENS = null;          // null = ainda nao semeada nesta sessao
+let BNK_ITENS_TOCADA = false;  // tocou uma vez? para de seguir o Orcamento
+
+// Codigo Finame e NCM sao fatos do EQUIPAMENTO, nao do cliente — mesma natureza
+// dos dados do emitente (ORC_EMIT_KEY), e por isso ficam no dispositivo em vez de
+// serem redigitados a cada proposta. Codigo redigitado e' codigo digitado errado.
+const BNK_COD_KEY = 'ep_finame_v1';
+const bnkCodChave = d => String(d || '').trim().toUpperCase().replace(/\s+/g, ' ');
+function bnkCodStore() { try { return JSON.parse(localStorage.getItem(BNK_COD_KEY) || '{}') || {}; } catch (e) { return {}; } }
+function bnkCodGrava(o) { try { localStorage.setItem(BNK_COD_KEY, JSON.stringify(o)); } catch (e) {} }
+function bnkCodDe(desc) { return (bnkCodStore().cods || {})[bnkCodChave(desc)] || ''; }
+function bnkCodLembra(desc, cod) {
+  const k = bnkCodChave(desc); if (!k) return;
+  const o = bnkCodStore(); o.cods = o.cods || {};
+  if (cod) o.cods[k] = cod; else delete o.cods[k];
+  bnkCodGrava(o);
+}
+function bnkNcmGrava(inp) {
+  const o = bnkCodStore();
+  o.ncm = ((inp && inp.value) || '').trim();
+  if (!o.ncm) delete o.ncm;
+  bnkCodGrava(o);
+}
+
+// Escape pra dentro de atributo: o orcEsc do arquivo nao mexe em aspas, e a
+// descricao aqui e' texto livre digitado pelo consultor.
+const bnkAttr = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// Os dois modelos. 'orc' e' o kit inteiro (Sicoob e o resto); 'bnb' e' a folha
+// curta do Banco do Nordeste.
+function bnkCompModelo(qual) {
+  const kit = orcLerItens().itens;
+  const equip = (orcVal('el-equip') || '').trim();
+  const qtdCarreg = (kit.find(i => /carregador/i.test(i.desc || '')) || {}).qtd || orcEpQtdCarregadores();
+  const linhas = qual === 'bnb'
+    ? [{ qtd: 1, desc: 'Projeto de engenharia especializada' },
+       { qtd: qtdCarreg, desc: ('Carregador ' + equip).trim() },
+       { qtd: 1, desc: 'Material elétrico geral' },
+       { qtd: 1, desc: 'Mão de obra especializada' }]
+    // Descricao e variante viram UMA string: daqui pra frente o texto e' editavel,
+    // e guardar a potencia num campo a' parte seria segunda fonte da mesma linha
+    // impressa — o erro que este arquivo ja' pagou tres vezes.
+    : kit.map(i => ({ qtd: i.qtd || 1, desc: (String(i.desc || '') + (i.variante ? ' ' + i.variante : '')).trim() }));
+  return linhas.map(l => ({ qtd: l.qtd, desc: l.desc, cod: bnkCodDe(l.desc) }));
+}
+
+function bnkCompPreset(qual) {
+  if (BNK_ITENS_TOCADA && !confirm('Isto substitui a lista que você editou. Continuar?')) return;
+  BNK_ITENS = bnkCompModelo(qual);
+  BNK_ITENS_TOCADA = true;   // escolheu um modelo? para de seguir o kit
+  bnkCompRender();
+}
+
+function bnkCompAdd(desc) {
+  BNK_ITENS = bnkCompDoDom();
+  BNK_ITENS.push({ qtd: 1, desc: desc || '', cod: bnkCodDe(desc) });
+  BNK_ITENS_TOCADA = true;
+  bnkCompRender();
+  const linhas = document.querySelectorAll('#bnk-itens .bnk-linha');
+  const ult = linhas[linhas.length - 1];
+  if (ult) ult.querySelector(desc ? '.c' : '.d').focus();
+}
+
+function bnkCompDel(i) {
+  BNK_ITENS = bnkCompDoDom().filter((_, n) => n !== i);
+  BNK_ITENS_TOCADA = true;
+  bnkCompRender();
+}
+
+// Le' a tela sem marcar nada: quem marca `tocada` e' o toque do consultor.
+function bnkCompDoDom() {
+  const host = document.getElementById('bnk-itens');
+  if (!host) return (BNK_ITENS || []).slice();
+  return [...host.querySelectorAll('.bnk-linha')].map(r => ({
+    qtd: Math.max(1, parseInt(r.querySelector('.q').value, 10) || 1),
+    desc: r.querySelector('.d').value.trim(),
+    cod: r.querySelector('.c').value.trim(),
+  }));
+}
+
+// Handler dos inputs. NAO re-renderiza: redesenhar a lista a cada tecla tira o
+// foco do campo no meio da digitacao.
+function bnkCompMudou() {
+  BNK_ITENS = bnkCompDoDom();
+  BNK_ITENS_TOCADA = true;
+  bnkCalc();
+}
+
+// Codigo digitado fica lembrado por descricao — volta sozinho no proximo cliente.
+function bnkCompCodSaiu(inp) {
+  const linha = inp.closest('.bnk-linha');
+  if (linha) bnkCodLembra(linha.querySelector('.d').value, inp.value.trim());
+}
+
+function bnkCompRender() {
+  const host = document.getElementById('bnk-itens');
+  if (!host) return;
+  host.innerHTML = (BNK_ITENS || []).map((it, i) => `<div class="bnk-linha">
+      <input class="q" type="number" min="1" step="1" inputmode="numeric" value="${bnkAttr(it.qtd || 1)}" oninput="bnkCompMudou()">
+      <input class="d" type="text" value="${bnkAttr(it.desc)}" placeholder="Descrição do item" oninput="bnkCompMudou()">
+      <input class="c" type="text" value="${bnkAttr(it.cod)}" placeholder="código (opcional)" oninput="bnkCompMudou()" onchange="bnkCompCodSaiu(this)">
+      <button type="button" class="x" title="Remover este item" onclick="bnkCompDel(${i})">✕</button>
+    </div>`).join('');
+  bnkCalc();
+}
 
 // ════════════════════════════════════════════════════════════
 // CAMPOS DAS PARTES — sugestao VISIVEL, nunca amarra
@@ -11504,7 +11687,9 @@ function bnkDados() {
     // manda; o Orcamento fica como referencia, e a tela avisa quando os dois
     // divergem — divergencia declarada e' decisao, divergencia muda e' erro.
     total: n('bnk-total') > 0 ? n('bnk-total') : itens.total,
-    totalOrc: itens.total, itens: itens.itens,
+    // O total continua sendo do Orcamento (que e' do Simulador). So' a LISTA e'
+    // propria desta folha: e' nela que mora o codigo Finame que o BNB exige.
+    totalOrc: itens.total, itens: bnkCompDoDom().filter(i => i.desc),
     equip: t.equip, empresa: emp,
     data: dt ? new Date(dt + 'T12:00:00') : new Date(),
   };
@@ -11544,13 +11729,31 @@ function bnkCalc() {
     set('bnk-split', 'Fecha. O banco financia <b>' + ORC_MONEY(d.eq) + '</b> (' + pct +
       '% do total); a mão de obra de ' + ORC_MONEY(d.mo) + ' corre por fora.');
   }
-  // Orienta o split mostrando o que foi marcado no kit, separado por natureza.
-  const marcados = new Set(d.itens.map(i => i.desc));
-  const bem = EP_KIT.filter(k => BNK_BEM.includes(k.id) && marcados.has(k.nome)).map(k => k.nome);
-  const serv = EP_KIT.filter(k => !BNK_BEM.includes(k.id) && marcados.has(k.nome)).map(k => k.nome);
-  set('bnk-comp', !d.itens.length ? 'Nenhum item marcado no kit do Orçamento.'
+  // Orienta o split mostrando a composicao separada por natureza.
+  const bem = d.itens.filter(i => BNK_BEM_RE.test(i.desc)).map(i => i.desc);
+  const serv = d.itens.filter(i => !BNK_BEM_RE.test(i.desc)).map(i => i.desc);
+  set('bnk-comp', !d.itens.length ? 'A composição está vazia — nada a dividir ainda.'
     : '<b>Contam como equipamento:</b> ' + (bem.join(' · ') || '—') +
       '<br><b>Contam como serviço:</b> ' + (serv.join(' · ') || '—'));
+
+  // Estado da lista. O aviso das folhas existe porque o rodape do documento diz
+  // "Pagina X de 2" cravado: lista longa demais pagina numa terceira folha com o
+  // rodape mentindo. 12 linhas e' o que cabe medido.
+  const todas = bnkCompDoDom();
+  const vazias = todas.filter(i => !i.desc).length;
+  const comCod = todas.filter(i => i.desc && i.cod).length;
+  const partes = [];
+  if (!todas.length) partes.push('Nenhum item. Use <b>Modelo Banco do Nordeste</b> ou <b>Copiar do Orçamento</b>.');
+  else {
+    partes.push('<b>' + (todas.length - vazias) + '</b> ' + (todas.length - vazias === 1 ? 'item' : 'itens') +
+      (comCod ? ' · <b>' + comCod + '</b> com código' : ' · <b>nenhum</b> com código — a coluna não sai impressa'));
+    if (vazias) partes.push('<b style="color:#fca5a5">' + vazias + ' linha' + (vazias > 1 ? 's' : '') + ' sem descrição</b> — não vai para o papel.');
+    // Medido com viewport A4 e os campos preenchidos: 9 itens é o teto da linha
+    // normal, 12 o da compacta (que entra sozinha a partir do 10º).
+    if (todas.length > 12) partes.push('<b style="color:#fca5a5">Lista longa demais:</b> acima de 12 itens o documento passa para uma 3ª folha e o rodapé continua dizendo "de 2". Agrupe em <b>Material elétrico geral</b>.');
+    else if (todas.length > 9) partes.push('Lista longa: a tabela sai com a linha compacta para caber nas 2 folhas.');
+  }
+  set('bnk-itens-note', partes.join(' '));
 }
 
 function bnkInit() {
@@ -11565,6 +11768,17 @@ function bnkInit() {
     const o = orcLerItens().total;
     tot.value = o > 0 ? o.toFixed(2) : '';
   }
+  // A lista segue o Orcamento ate' o primeiro toque; depois disso e' do consultor.
+  // Orcamento sem kit marcado abre no modelo do Banco do Nordeste em vez de vazio.
+  if (!BNK_ITENS_TOCADA) {
+    const doOrc = bnkCompModelo('orc');
+    BNK_ITENS = doOrc.length ? doOrc : bnkCompModelo('bnb');
+  }
+  bnkCompRender();
+  // NCM e' do equipamento, nao do cliente: volta do dispositivo, e so' em campo
+  // vazio e nunca tocado (mesma regra do epSugerir).
+  const ncm = document.getElementById('bnk-ncm');
+  if (ncm && !ncm.value.trim() && ncm.dataset.tocado !== '1') ncm.value = bnkCodStore().ncm || '';
   const t0 = eletroTextos();
   const cu = bnkCidadeUF(t0.cidade);
   // Sugestão VISÍVEL: o que está na tela é o que sai no papel. Campo vazio e
@@ -11597,9 +11811,13 @@ function bnkHTML(d) {
   // imprimia "Granville" duas vezes na mesma folha.
   const endLinha = d.end;
 
+  // A coluna do codigo so' existe quando ha' codigo: o modelo veio de um PDF do
+  // Sicoob, que nao pede nenhum — imprimir uma coluna de travessoes em toda venda
+  // pra atender um banco so' e' o contrario do que o formulario espera.
+  const temCod = d.itens.some(i => i.cod);
   const linhasItens = d.itens.length
-    ? d.itens.map(i => `<tr><td class="q">${i.qtd > 1 ? i.qtd : 1}</td><td>${e(String(i.desc || '').toUpperCase())}${i.variante ? ' — ' + e(String(i.variante).toUpperCase()) : ''}</td></tr>`).join('')
-    : `<tr><td class="q">—</td><td>Nenhum item marcado no kit do Orçamento</td></tr>`;
+    ? d.itens.map(i => `<tr><td class="q">${i.qtd > 1 ? i.qtd : 1}</td><td>${e(String(i.desc || '').toUpperCase())}</td>${temCod ? `<td class="cod">${i.cod ? e(i.cod) : '—'}</td>` : ''}</tr>`).join('')
+    : `<tr><td class="q">—</td><td${temCod ? ' colspan="2"' : ''}>Nenhum item na composição</td></tr>`;
 
   return `<div class="ep-doc ep-bnk">
 
@@ -11650,9 +11868,9 @@ function bnkHTML(d) {
 
     <p class="ep-bnk-p">Prezado(s) Senhor(s), atendendo solicitação de V.Sa., fornecemos características e preço público à vista do produto abaixo.</p>
 
-    <table class="ep-bnk-t">
-      <tr><th colspan="2">${e((d.equip || 'ESTAÇÃO DE RECARGA').toUpperCase())} — ELETROPOSTO DE RECARGA DE VEÍCULOS ELÉTRICOS</th></tr>
-      <tr><td class="q">QTD.</td><td>EQUIPAMENTOS</td></tr>
+    <table class="ep-bnk-t${d.itens.length > 9 ? ' compacta' : ''}">
+      <tr><th colspan="${temCod ? 3 : 2}">${e((d.equip || 'ESTAÇÃO DE RECARGA').toUpperCase())} — ELETROPOSTO DE RECARGA DE VEÍCULOS ELÉTRICOS</th></tr>
+      <tr><td class="q">QTD.</td><td>EQUIPAMENTOS</td>${temCod ? '<td class="cod">CÓDIGO</td>' : ''}</tr>
       ${linhasItens}
     </table>
 
@@ -11682,6 +11900,10 @@ function bnkImprimir() {
   const d = bnkDados();
   if (!(d.total > 0)) { alert('Defina o "Valor total da proposta" — ele nasce do Orçamento, mas você pode digitar outro.'); return; }
   if (!d.cliente) { alert('Preencha o nome do cliente no Orçamento — o banco identifica a operação por ele.'); return; }
+  // Codigo Finame NAO e' obrigatorio: so' o Banco do Nordeste exige, e o modelo
+  // desta folha veio de um Sicoob que nao pede nenhum. A lista, sim, tem de ter
+  // conteudo — orcamento sem item nao e' orcamento.
+  if (!d.itens.length) { alert('A composição está vazia.\n\nUse "Modelo Banco do Nordeste" ou "Copiar do Orçamento" no card Composição — é a lista de itens que o banco lê.'); return; }
   if (!d.banco || !d.agencia || !d.conta) { alert('Preencha banco, agência e conta corrente: é para essa conta que o crédito é liberado.'); return; }
   // Finame financia o BEM. Sem o split, o banco nao sabe quanto liberar — e um
   // split que nao fecha com o total e' orcamento rejeitado no protocolo.
