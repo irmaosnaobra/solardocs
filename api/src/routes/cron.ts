@@ -38,7 +38,7 @@ import { runSementeTick, publicoSemente, bolhasSemente } from '../services/io/se
 import { runGrupoFriosTick, publicoGrupoFrio, bolhasGrupoFrio } from '../services/io/eletropostoGrupoFrios';
 import { runEletropostoAgendaTick } from '../services/io/eletropostoAgenda';
 import { runEletropostoRespostasTick } from '../services/io/eletropostoRespostas';
-import { runEletropostoNoShowTick } from '../services/io/eletropostoNoShow';
+import { runEletropostoReagendaAutoTick } from '../services/io/eletropostoReagendaAuto';
 import { runEletropostoCardPingTick } from '../services/io/eletropostoCardPing';
 import { runEletropostoIgConviteTick, publicoIgConvite, bolhaConviteLP } from '../services/io/eletropostoIgConvite';
 import { runSolarBoasVindasTick } from '../services/io/solarBoasVindas';
@@ -285,7 +285,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // duas últimas cadências não apareciam). Os ticks sempre rodaram — quem
     // mentia era o relatório, que é justamente onde a gente vai olhar quando
     // desconfiar de um tick. Nome novo aqui exige chamada nova na MESMA posição.
-    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, limpaproAtendResult, geradorSeqResult, igDrainResult, fbComentResult, fbInboxResult, repescagemResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult, epNoShowResult, epCardPingResult, epIgConviteResult, solarBvResult, solarRespResult, curso19Result, carlaCnpjResult, carlaInativoResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, limpaproAtendResult, geradorSeqResult, igDrainResult, fbComentResult, fbInboxResult, repescagemResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult, epReagendaResult, epCardPingResult, epIgConviteResult, solarBvResult, solarRespResult, curso19Result, carlaCnpjResult, carlaInativoResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),            // detecta inbound IO pra Cora processar
@@ -313,7 +313,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       runGrupoFriosTick(),             // eletroposto: quem esfriou (não atendeu / sem interesse) vai pro grupo
       runEletropostoAgendaTick(),      // eletroposto: confirmação ao marcar + bom dia + lembrete 1h e 5min (anti no-show)
       runEletropostoRespostasTick(),   // eletroposto: lead respondeu a automação → recado pro Thiago e pro Diego
-      runEletropostoNoShowTick(),      // eletroposto: card vermelho → 3 convites pra remarcar, com horários novos (EP_NOSHOW_OFF desliga)
+      runEletropostoReagendaAutoTick(), // eletroposto: card vermelho com o horário já vencido volta pro próximo dia útil e recomeça os avisos, até 3× (EP_REAGENDA_AUTO_OFF desliga)
       runEletropostoCardPingTick(),    // eletroposto: card que trocou de dono no repasse de 12h chega de novo no WhatsApp de quem está com ele (EP_CARD_PING_OFF desliga)
       runEletropostoIgConviteTick(),   // eletroposto: lead que veio do Instagram não marca agenda — recebe UM convite pra LP (EP_IG_CONVITE_OFF desliga)
       runSolarBoasVindasTick(),        // solar: quem acabou de se cadastrar recebe o consultor, o contato e a pergunta do consumo (SOLAR_BOASVINDAS_OFF desliga)
@@ -353,7 +353,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       ep_grupo_frio:  grupoFrioResult.status === 'fulfilled' ? grupoFrioResult.value : { error: String((grupoFrioResult as any).reason) },
       ep_agenda:      epAgendaResult.status === 'fulfilled' ? epAgendaResult.value : { error: String((epAgendaResult as any).reason) },
       ep_respostas:   epRespostasResult.status === 'fulfilled' ? epRespostasResult.value : { error: String((epRespostasResult as any).reason) },
-      ep_noshow:      epNoShowResult.status === 'fulfilled' ? epNoShowResult.value : { error: String((epNoShowResult as any).reason) },
+      ep_reagenda_auto: epReagendaResult.status === 'fulfilled' ? epReagendaResult.value : { error: String((epReagendaResult as any).reason) },
       ep_card_ping:   epCardPingResult.status === 'fulfilled' ? epCardPingResult.value : { error: String((epCardPingResult as any).reason) },
       ep_ig_convite:  epIgConviteResult.status === 'fulfilled' ? epIgConviteResult.value : { error: String((epIgConviteResult as any).reason) },
       solar_boas_vindas: solarBvResult.status === 'fulfilled' ? solarBvResult.value : { error: String((solarBvResult as any).reason) },
@@ -513,16 +513,17 @@ router.get('/eletroposto-respostas', async (req: Request, res: Response) => {
   }
 });
 
-// ── Repescagem do card VERMELHO (não atendeu → 3 convites pra remarcar) ─────
-// ?dry=1 mostra quem seria chamado e em que tentativa, sem enviar e sem gastar
-// a tentativa. Uma pessoa por rodada, 9h–19h.
-router.get('/eletroposto-noshow', async (req: Request, res: Response) => {
+// ── Card VERMELHO vencido → volta pro próximo dia útil sozinho ───────────
+// ?dry=1 mostra quem seria remarcado, de quando pra quando e em que tentativa,
+// sem mexer na ficha, sem enviar e sem gastar tentativa. Uma pessoa por rodada,
+// 9h–19h, até 3 reagendamentos por ficha.
+router.get('/eletroposto-reagenda-auto', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
     const dry = req.query.dry === '1' || req.query.dry === 'true';
-    res.json({ ok: true, dry, ...(await runEletropostoNoShowTick({ dry })) });
+    res.json({ ok: true, dry, ...(await runEletropostoReagendaAutoTick({ dry })) });
   } catch (err: any) {
-    logger.error('cron', 'eletroposto-noshow falhou', err);
+    logger.error('cron', 'eletroposto-reagenda-auto falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });
@@ -1019,7 +1020,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['lembretes-agenda',            () => processarLembretesAgenda()], // [AVISOS-AGENDA-OFF 28/07] no-op: kill-switch dentro do módulo
     ['eletroposto-agenda',          () => runEletropostoAgendaTick()], // eletroposto: confirma ao marcar, bom dia no dia, avisa 1h e 5min antes (anti no-show)
     ['eletroposto-respostas',       () => runEletropostoRespostasTick()], // eletroposto: quem respondeu a automação vira recado pra equipe
-    ['eletroposto-noshow',          () => runEletropostoNoShowTick()],    // eletroposto: repescagem do card vermelho (3 convites pra remarcar)
+    ['eletroposto-reagenda-auto',   () => runEletropostoReagendaAutoTick()], // eletroposto: vermelho vencido volta pro próximo dia útil sozinho (até 3×)
     ['eletroposto-card-ping',       () => runEletropostoCardPingTick()],  // eletroposto: reenvia o card pro consultor quando o repasse de 12h troca o dono
     ['eletroposto-ig-convite',      () => runEletropostoIgConviteTick()], // eletroposto: lead de Instagram não marca agenda — recebe UM convite pra LP (EP_IG_CONVITE_OFF desliga)
     ['solar-boas-vindas',           () => runSolarBoasVindasTick()],     // solar: recibo do cadastro pro cliente (SOLAR_BOASVINDAS_OFF desliga)

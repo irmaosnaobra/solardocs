@@ -166,28 +166,11 @@ export function bolhasRemarcado(nome: string, novoIso: string, antigoIso: string
 // A lista de horários e o "responde o número" são os mesmos — o que muda é a
 // primeira bolha, que é onde mora o motivo do contato. Sem ela a pessoa recebe
 // uma lista de horários do nada, dias depois, e não liga uma coisa à outra.
-
-/** Repescagem do vermelho: a reunião passou e ele não apareceu nem respondeu. */
-export function bolhasRepescagemNoShow(
-  nome: string, ofertas: string[], quem: string, perdidoIso: string, tentativa: number,
-): string[] {
-  const quando = quandoPorExtenso(perdidoIso).replace('-feira', '');
-  // A abertura muda com a tentativa de propósito: repetir a mesma frase três
-  // vezes é o que faz robô parecer robô. E a última diz que é a última — quem
-  // não responde a um prazo responde ao fim dele.
-  const abre = tentativa <= 1
-    ? `Oi${comNome(nome)}, aqui é da *Irmãos na Obra*. A gente tinha a apresentação do eletroposto ${quando} e você não conseguiu entrar — sem problema, acontece.`
-    : tentativa === 2
-      ? `Oi${comNome(nome)}! Voltando aqui pra remarcar a apresentação do eletroposto que ficou pra trás.`
-      : `${nome ? nome + ', ú' : 'Ú'}ltima tentativa por aqui: separei mais alguns horários pra sua apresentação do eletroposto.`;
-  return [
-    abre,
-    `Estes são os próximos horários do *${quem}*:\n\n${ofertas.map(linhaDaOpcao).join('\n')}`,
-    tentativa >= 3
-      ? 'Me responde o número que eu marco. Se não for a hora, me fala que eu paro de te chamar — sem ressentimento.'
-      : 'Me responde só o número que eu já marco pra você. Se nenhum servir, me diz o dia que fica melhor.',
-  ];
-}
+//
+// [20/08/2026] Sobrou UM caso: o slot revendido. A repescagem do vermelho
+// (`bolhasRepescagemNoShow`, três convites pra escolher um número) saiu junto com
+// o `eletropostoNoShow` — quem sumiu não recebe mais lista pra escolher, recebe
+// horário já marcado pelo `eletropostoReagendaAuto`.
 
 /** O horário dele foi revendido enquanto ele estava em silêncio. Acontece porque
  *  o vermelho devolve o quadro pra vitrine — e quem some perde a vez. */
@@ -399,18 +382,17 @@ async function ofertar(
 /**
  * OFERTA ATIVA — aqui quem puxa a conversa é o robô, não o lead.
  *
- * Serve a dois chamadores, e os dois são a mesma situação vista de lados
- * diferentes: o `eletropostoNoShow` (a pessoa sumiu, o horário passou) e a volta
- * do não atendido quando o slot dela já foi revendido. Em ambos não existe
- * "pedido de remarcar" pra ler — existe um horário que precisa virar outro.
+ * Hoje serve a um chamador: a volta do não atendido quando o slot dela já foi
+ * revendido (`eletropostoRespostas`). Ali não existe "pedido de remarcar" pra
+ * ler — existe um horário que precisa virar outro.
  *
  * A oferta é gravada no MESMO estado do fluxo reativo (`ep_remarcar:<id>`), e é
  * isso que faz a resposta ("2") ser entendida sem nenhum código novo: o
  * `passoDeRemarcacao` acha a lista na mesa, casa a escolha e move a ficha.
  *
- * `transacional` é `false` de propósito nos dois casos: reengajar quem sumiu não
- * é resposta a mensagem de ninguém, então não pode comer a reserva anti-ban que
- * existe pra quem acabou de marcar.
+ * `transacional` é `false` de propósito: reengajar quem sumiu não é resposta a
+ * mensagem de ninguém, então não pode comer a reserva anti-ban que existe pra
+ * quem acabou de marcar.
  */
 export async function ofertarPorConta(
   ficha: Ficha,

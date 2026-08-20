@@ -61,12 +61,18 @@ const LOOKBACK_MAX_MS = 3 * 24 * 3600_000;
 const MAX_AVISOS_POR_TICK = 5;
 /** Reunião que já passou há mais de 5 dias não gera mais aviso de agenda.
  *
- *  Eram 2 dias até 19/08/2026. Subiu junto com a repescagem do vermelho
- *  (`eletropostoNoShow`), que convida a pessoa a remarcar em D+0, D+1 e D+3: com
- *  o corte antigo, a resposta ao TERCEIRO convite chegava com a reunião perdida
- *  há 3 dias e esta consulta já não trazia a ficha — o lead escolhia "2", nenhum
- *  robô lia, e ninguém remarcava. Quem protege contra acordar conversa velha
- *  continua sendo o corte por ficha (LOOKBACK_MAX_MS + o marcador `ate`). */
+ *  Eram 2 dias até 19/08/2026. Subiu junto com a repescagem do vermelho, que
+ *  convidava a pessoa a remarcar em D+0, D+1 e D+3: com o corte antigo, a
+ *  resposta ao TERCEIRO convite chegava com a reunião perdida há 3 dias e esta
+ *  consulta já não trazia a ficha — o lead escolhia "2", nenhum robô lia, e
+ *  ninguém remarcava.
+ *
+ *  Aquela repescagem virou o `eletropostoReagendaAuto` em 20/08 (o robô remarca
+ *  sozinho em vez de oferecer lista), e os 5 dias FICAM: agora eles cobrem quem
+ *  responde tarde a um reagendamento — a resposta chega com a reunião perdida há
+ *  dias e é ela que precisa cair aqui pra virar aviso e remarcação. Quem protege
+ *  contra acordar conversa velha continua sendo o corte por ficha
+ *  (LOOKBACK_MAX_MS + o marcador `ate`). */
 const PASSADO_MAX_MS = 5 * 24 * 3600_000;
 
 const desligado = () => (process.env.EP_RESPOSTAS_OFF || '').trim() === '1';

@@ -620,8 +620,10 @@ async function marcarNaoAtendeuAutomatico(
  * A régua inteira está documentada no bloco de constantes lá em cima. O que vale
  * repetir aqui é o desenho: esta função NÃO manda mensagem nenhuma e NÃO cancela
  * nada — ela muda o status, escreve no histórico e carimba que a marca é do robô.
- * Quem fala com a pessoa depois disso é o `eletropostoNoShow`, que usa exatamente
- * este vermelho como gatilho pra oferecer horário novo.
+ * Quem fala com a pessoa depois disso é o `eletropostoReagendaAuto`, que usa
+ * exatamente este vermelho como gatilho: 45 min depois do horário perdido ele
+ * remarca a ficha sozinho pro próximo dia útil e recomeça esta régua do zero
+ * (ordem do Thiago, 20/08/2026 — até 3 reagendamentos por ficha).
  */
 async function marcarVermelhoDoCorte(
   fichas: Ficha[], agora: number, dry: boolean,
