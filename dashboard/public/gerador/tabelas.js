@@ -24,11 +24,16 @@
 //
 // ENTROU no lugar: SAJ-6K-TCL (SAJ 6K com placa TCL 600W), de 5 a 20 placas, com a margem
 // cheia do modelo (26%). O custo dele e' o do SAJ 6K de ANTES de 18/08.
-// ATENCAO, ISSO E' UMA ASSUNCAO: a planilha nao tem custo de TCL — ela chama de "Tsun 600W"
-// o modulo de todas as abas, inclusive as dos kits que sabemos rodar com TCL (o Micro SAJ
-// 2,25K tem, linha por linha, o mesmo custo de kit que o Micro Deye tinha com a Tsun a
-// R$456). Dai a conta: TCL = R$456, o que a Tsun custava. Se a TCL custar mais que isso,
-// esta tabela vende abaixo do modelo. Confirmar o preco da TCL com o Thiago e refazer.
+// Isso equivale a dizer que a TCL custa o que a Tsun custava. Nao sai de uma celula "TCL"
+// — a planilha chama de "Tsun 600W" o modulo de TODAS as abas —, mas o degrau da coluna N
+// por placa fecha nos dois lados (conferido em 20/08):
+//   Micro SAJ 2,25K, que roda TCL ........... R$530 por placa
+//   Micro Deye, Tsun, tirando o +164 ........ R$530
+//   SAJ 3K (TCL) ............................ R$530 e R$650, conforme a faixa
+//   SAJ 6K (Tsun) antes do reajuste ......... R$530 e R$650, as mesmas faixas
+// Nao e' o preco da placa sozinha (a coluna N junta inversor, placa e estrutura), mas e' o
+// que entra por placa a mais — que e' exatamente o que a tabela precisa. Se a TCL tiver
+// preco proprio diferente disso, refazer.
 //
 // A PLANILHA JA' ESTA' COM A TSUN A R$620 na coluna N — o que esta' velho la' e' o
 // Total Custo (coluna P), formula cujo valor em cache e' anterior a' edicao. Quem ler o
