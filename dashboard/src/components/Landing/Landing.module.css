@@ -1289,6 +1289,32 @@
   position: relative;
 }
 
+/* Mockup abaixo do card de preco. Um pouco mais largo que o do hero (640 contra
+   560): aqui ele nao divide a atencao com headline nenhuma, e' o proprio
+   argumento. */
+.planoMockup {
+  max-width: 640px;
+  margin: 30px auto 6px;
+  padding: 0;
+}
+.planoMockup img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 14px;
+}
+.planoMockup figcaption {
+  margin-top: 14px;
+  text-align: center;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+@media (max-width: 640px) {
+  .planoMockup { margin: 24px auto 4px; }
+  .planoMockup figcaption { font-size: 13.5px; }
+}
+
 /* Rodape da faixa de preco do comparativo: letra pequena de propósito — e' nota
    de rodape, nao argumento. */
 .compareNota {

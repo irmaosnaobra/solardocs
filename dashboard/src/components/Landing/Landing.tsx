@@ -1223,6 +1223,26 @@ export default function Landing() {
                 semana de 13-14/08 sozinha teve dois dias de 4 e 3 vendas. */}
           </div>
 
+          {/* MOCKUP ABAIXO DO CARD DE PRECO (ordem do Thiago, 19/08/2026). Quem
+              chegou ate' aqui ja' leu o preco: a ultima coisa antes de decidir
+              deixa de ser texto e passa a ser o que ele leva.
+
+              E' o MESMO arquivo do hero (/hero-orcamento.webp) de proposito. O
+              navegador ja' baixou ele la' em cima com loading="eager", entao esta
+              segunda aparicao custa ZERO byte novo — a pagina ja' pesa 1,8 MB e
+              nao podia levar mais uma imagem grande so' pra repetir um argumento.
+              Trocar por outro arquivo aqui quebraria essa conta. */}
+          <figure className={styles.planoMockup} data-reveal>
+            <img
+              src="/hero-orcamento.webp"
+              width={1400}
+              height={760}
+              alt="A proposta de 1 página gerada no SolarDoc, aberta no notebook e no celular"
+              loading="lazy"
+            />
+            <figcaption>É isto que sai — no seu computador e no seu celular, com a sua marca.</figcaption>
+          </figure>
+
           {/* Garantia de 7 dias — mesma política que a Sol (suporte) já informa
               aos clientes: devolução total sem perguntas. É o que substitui o
               risco que o trial cobria, agora que a cobrança é imediata. */}
