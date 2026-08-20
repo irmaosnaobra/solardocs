@@ -51,7 +51,7 @@ export default function RootLayout({
             estava no ar nas 26 vendas de 06 a 18/08. Trafego sem tag nao muda. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var p=new URLSearchParams(location.search).get('p');if(p==='crm'||p==='planilha')document.documentElement.setAttribute('data-pub',p);}catch(e){}`,
+            __html: `try{var p=new URLSearchParams(location.search).get('p');if(p==='crm'||p==='planilha'||p==='marca')document.documentElement.setAttribute('data-pub',p);}catch(e){}`,
           }}
         />
         {/* Cache-buster: garante que cliente nunca trave em chunk antigo após deploy */}

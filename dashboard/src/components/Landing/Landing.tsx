@@ -398,15 +398,30 @@ export default function Landing() {
                 display:none, entao nao sao lidas por leitor de tela nem contam como
                 texto duplicado.
 
-                padrao   — sem parametro. NAO MEXER sem medir: foi a unica no ar nas
-                           26 vendas de 06 a 18/08, e as duas que tentaram
-                           substitui-la viveram 2h e 4h.
+                padrao   — sem parametro. TROCADA EM 20/08/2026 (ordem do Thiago).
+                           A anterior ("o melhor Gerador de Proposta do Brasil")
+                           nao foi apagada: virou ?p=marca, entao voltar e' trocar
+                           uma palavra, nao reescrever.
+                           O QUE ELA TINHA: foi a unica no ar nas 26 vendas de 06 a
+                           18/08 (as duas que tentaram substitui-la viveram 2h e 4h,
+                           que nao e' teste). Referencia pra ler a nova: conversao
+                           sessao->venda de 1,71%, com 7 dias no minimo — a semana de
+                           13-14/08 sozinha teve dias de 4 e de 3 vendas, entao menos
+                           que isso e' ruido.
+                           POR QUE ELA SAIU: "o melhor do Brasil" e' elogio que a
+                           gente da' a si mesmo e o leitor nao tem como conferir. A
+                           nova poe o meio em branco (clara, na hora) e o que ele quer
+                           em ambar (fecha mais) — mesma ideia, com hierarquia.
+                marca    — a headline antiga, guardada e alcancavel.
                 crm      — pra quem ja' paga plataforma. Mesma frase do criativo
                            "paga o CRM inteiro", pra pessoa reconhecer onde entrou.
                 planilha — pra quem faz na planilha, no Word ou nao faz. E' o publico
                            do CVT1, que hoje leva 91% do investimento. */}
             <h1 className={styles.h1}>
               <span className={styles.varPadrao}>
+                Proposta clara, pronta na hora. <strong>Você fecha mais.</strong>
+              </span>
+              <span className={styles.varMarca}>
                 O melhor Gerador de Proposta do Brasil — <strong>com a sua marca</strong>.
               </span>
               <span className={styles.varCrm}>
@@ -439,7 +454,21 @@ export default function Landing() {
                 planilha responde "e quanto tempo leva?". Trocar uma sem a outra
                 deixa a pergunta no ar. */}
             <p className={styles.lead} style={{ margin: '0 auto 26px' }}>
+              {/* A sub do padrao fala com os DOIS publicos de uma vez, porque quem
+                  chega sem tag pode vir de qualquer lugar: nomeia as duas origens
+                  (plataforma cara / planilha e Word) e as duas entregas (a cara da
+                  empresa dele / o cliente entender). As variantes ?p= continuam
+                  falando com um so', que e' o ganho de quem vem marcado.
+
+                  Os valores citados ficam DENTRO da faixa que o card de preco ja'
+                  anuncia (R$ 100 a R$ 300). Nao inventar numero novo aqui: duas
+                  faixas diferentes na mesma pagina derrubam as duas. */}
               <span className={styles.varPadrao}>
+                Chega de pagar R$ 150, R$ 200, R$ 300 por mês numa plataforma — ou de montar na
+                planilha e remendar no Word. A sua proposta sai com a cara da sua empresa e com os
+                números que o cliente entende sozinho. R$ 67 por mês.
+              </span>
+              <span className={styles.varMarca}>
                 A proposta sai com o número escrito — quanto ele paga hoje, quanto vai pagar e em
                 quanto tempo se paga — numa folha só, do celular, com o cliente ainda na sua frente.
               </span>

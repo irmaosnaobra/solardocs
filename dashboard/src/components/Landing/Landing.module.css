@@ -1299,10 +1299,11 @@
    direto, organico) e com data-pub="padrao" explicito. Se so' cobrisse o
    segundo, uma visita sem parametro ficaria com hero VAZIO, que e' a falha mais
    cara que este arquivo pode ter. */
-.varPadrao, .varCrm, .varPlanilha { display: none; }
+.varPadrao, .varCrm, .varPlanilha, .varMarca { display: none; }
 :global(html:not([data-pub])) .varPadrao,
 :global(html[data-pub='padrao']) .varPadrao { display: block; }
 :global(html[data-pub='crm']) .varCrm { display: block; }
+:global(html[data-pub='marca']) .varMarca { display: block; }
 :global(html[data-pub='planilha']) .varPlanilha { display: block; }
 
 /* Mockup abaixo do card de preco. Um pouco mais largo que o do hero (640 contra
