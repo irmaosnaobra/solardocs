@@ -16,6 +16,16 @@
 // estrutura. Reajuste de placa se aplica como delta por placa (N += delta x n_placas).
 // Ultimo: 18/08/2026, placa Tsun 600W de R$456 para R$620 (+R$164 por placa).
 //
+// REPASSE PARCIAL (20/08/2026, ordem do Thiago): dos R$164 que a Tsun subiu, a tabela cobra
+// R$55 por placa — um terco. Os outros R$109 saem da margem, de proposito: com o aumento
+// cheio o kit de 8 placas do Deye foi a R$14.070 e parou de fechar; a R$55 ele sai por
+// R$12.862,50, que e' o que o vendedor consegue fechar hoje. Cada linha continua nascendo
+// da MESMA cadeia acima, com custo = custo_pre_aumento + 55 x n_placas.
+// O preco disso, medido contra o custo REAL (Tsun ja' a R$620): a venda roda com 17% a 21%
+// de margem em vez dos 25,9% do modelo, e o piso do desconto com 14% a 17,4% em vez de
+// 23,1%. A comissao de 6% do vendedor sai de dentro dessa margem.
+// Mexeu em MICRODEYE, SAJ-3K, SAJ-6K e SAJ-6K-PROMO — as unicas que tinham levado o +164.
+//
 // SAJ-6K de 5 a 7 placas nao existe na aba do SAJ 6K (ela comeca em 8). Sai da aba do
 // SAJ 3K, que cobre 4..8 com a mesma placa e o mesmo fornecedor, pela relacao exata
 //   custo_6K(n) = custo_3K(n) + 24n + 400
@@ -35,24 +45,24 @@ const TABELAS = {
 "MICRODEYE-TSUN600W": {
   inv: "Deye 2,25K", mod: "Tsun 600W", pot: 600,
   rows: [
-    {n:3 , invs:1, g:255 , kwp:1.8 , descMax:6161.87 , pVista:6450 , pOrc:6772.50 , p18x:426.42},
-    {n:4 , invs:1, g:340 , kwp:2.4 , descMax:7188.87 , pVista:7500 , pOrc:7875.00 , p18x:495.83},
-    {n:5 , invs:2, g:425 , kwp:3.0 , descMax:9801.74 , pVista:10200, pOrc:10710.00, p18x:674.33},
-    {n:6 , invs:2, g:510 , kwp:3.6 , descMax:10828.74, pVista:11300, pOrc:11865.00, p18x:747.06},
-    {n:7 , invs:2, g:595 , kwp:4.2 , descMax:11855.74, pVista:12350, pOrc:12967.50, p18x:816.47},
-    {n:8 , invs:2, g:680 , kwp:4.8 , descMax:12882.74, pVista:13400, pOrc:14070.00, p18x:885.89},
-    {n:9 , invs:3, g:765 , kwp:5.4 , descMax:15495.61, pVista:16150, pOrc:16957.50, p18x:1067.69},
-    {n:10, invs:3, g:850 , kwp:6.0 , descMax:16522.61, pVista:17200, pOrc:18060.00, p18x:1137.11},
-    {n:11, invs:3, g:935 , kwp:6.6 , descMax:17549.61, pVista:18250, pOrc:19162.50, p18x:1206.53},
-    {n:12, invs:3, g:1020, kwp:7.2 , descMax:18576.61, pVista:19350, pOrc:20317.50, p18x:1279.25},
-    {n:13, invs:4, g:1105, kwp:7.8 , descMax:21189.48, pVista:22050, pOrc:23152.50, p18x:1457.75},
-    {n:14, invs:4, g:1190, kwp:8.4 , descMax:22216.48, pVista:23100, pOrc:24255.00, p18x:1527.17},
-    {n:15, invs:4, g:1275, kwp:9.0 , descMax:23243.48, pVista:24150, pOrc:25357.50, p18x:1596.58},
-    {n:16, invs:4, g:1360, kwp:9.6 , descMax:24270.48, pVista:25250, pOrc:26512.50, p18x:1669.31},
-    {n:17, invs:5, g:1445, kwp:10.2, descMax:26883.35, pVista:27950, pOrc:29347.50, p18x:1847.81},
-    {n:18, invs:5, g:1530, kwp:10.8, descMax:27910.35, pVista:29000, pOrc:30450.00, p18x:1917.22},
-    {n:19, invs:5, g:1615, kwp:11.4, descMax:28937.35, pVista:30100, pOrc:31605.00, p18x:1989.94},
-    {n:20, invs:5, g:1700, kwp:12.0, descMax:29964.35, pVista:31150, pOrc:32707.50, p18x:2059.36}
+    {n:3 , invs:1, g:255 , kwp:1.8 , descMax:5736.77 , pVista:6000 , pOrc:6300.00 , p18x:396.67},
+    {n:4 , invs:1, g:340 , kwp:2.4 , descMax:6622.33 , pVista:6900 , pOrc:7245.00 , p18x:456.17},
+    {n:5 , invs:2, g:425 , kwp:3.0 , descMax:9093.24 , pVista:9500 , pOrc:9975.00 , p18x:628.06},
+    {n:6 , invs:2, g:510 , kwp:3.6 , descMax:9978.54 , pVista:10400, pOrc:10920.00, p18x:687.56},
+    {n:7 , invs:2, g:595 , kwp:4.2 , descMax:10863.84, pVista:11300, pOrc:11865.00, p18x:747.06},
+    {n:8 , invs:2, g:680 , kwp:4.8 , descMax:11749.14, pVista:12250, pOrc:12862.50, p18x:809.86},
+    {n:9 , invs:3, g:765 , kwp:5.4 , descMax:14220.31, pVista:14800, pOrc:15540.00, p18x:978.44},
+    {n:10, invs:3, g:850 , kwp:6.0 , descMax:15105.61, pVista:15700, pOrc:16485.00, p18x:1037.94},
+    {n:11, invs:3, g:935 , kwp:6.6 , descMax:15990.91, pVista:16650, pOrc:17482.50, p18x:1100.75},
+    {n:12, invs:3, g:1020, kwp:7.2 , descMax:16876.21, pVista:17550, pOrc:18427.50, p18x:1160.25},
+    {n:13, invs:4, g:1105, kwp:7.8 , descMax:19347.38, pVista:20150, pOrc:21157.50, p18x:1332.14},
+    {n:14, invs:4, g:1190, kwp:8.4 , descMax:20232.68, pVista:21050, pOrc:22102.50, p18x:1391.64},
+    {n:15, invs:4, g:1275, kwp:9.0 , descMax:21117.98, pVista:21950, pOrc:23047.50, p18x:1451.14},
+    {n:16, invs:4, g:1360, kwp:9.6 , descMax:22003.28, pVista:22900, pOrc:24045.00, p18x:1513.94},
+    {n:17, invs:5, g:1445, kwp:10.2, descMax:24474.45, pVista:25450, pOrc:26722.50, p18x:1682.53},
+    {n:18, invs:5, g:1530, kwp:10.8, descMax:25359.75, pVista:26350, pOrc:27667.50, p18x:1742.03},
+    {n:19, invs:5, g:1615, kwp:11.4, descMax:26245.05, pVista:27300, pOrc:28665.00, p18x:1804.83},
+    {n:20, invs:5, g:1700, kwp:12.0, descMax:27130.35, pVista:28200, pOrc:29610.00, p18x:1864.33}
   ]
 },
 
@@ -83,33 +93,33 @@ const TABELAS = {
 "SAJ-3K": {
   inv: "SAJ 3K", mod: "Tsun 600W", pot: 600,
   rows: [
-    {n:4, invs:1, g:320, kwp:2.4, descMax:7969.00 , pVista:8300 , pOrc:8715.00 , p18x:548.72},
-    {n:5, invs:1, g:400, kwp:3.0, descMax:9191.00 , pVista:9600 , pOrc:10080.00, p18x:634.67},
-    {n:6, invs:1, g:480, kwp:3.6, descMax:10257.00, pVista:10700, pOrc:11235.00, p18x:707.39},
-    {n:7, invs:1, g:560, kwp:4.2, descMax:11323.00, pVista:11800, pOrc:12390.00, p18x:780.11},
-    {n:8, invs:1, g:640, kwp:4.8, descMax:12389.00, pVista:12900, pOrc:13545.00, p18x:852.83}
+    {n:4, invs:1, g:320, kwp:2.4, descMax:7402.20 , pVista:7700 , pOrc:8085.00 , p18x:509.06},
+    {n:5, invs:1, g:400, kwp:3.0, descMax:8482.50 , pVista:8850 , pOrc:9292.50 , p18x:585.08},
+    {n:6, invs:1, g:480, kwp:3.6, descMax:9406.80 , pVista:9800 , pOrc:10290.00, p18x:647.89},
+    {n:7, invs:1, g:560, kwp:4.2, descMax:10331.10, pVista:10750, pOrc:11287.50, p18x:710.69},
+    {n:8, invs:1, g:640, kwp:4.8, descMax:11255.40, pVista:11700, pOrc:12285.00, p18x:773.50}
   ]
 },
 
 "SAJ-6K": {
   inv: "SAJ 6K", mod: "Tsun 600W", pot: 600,
   rows: [
-    {n:5 , invs:1, g:400 , kwp:3.0 , descMax:9867.00 , pVista:10300, pOrc:10815.00, p18x:680.94},
-    {n:6 , invs:1, g:480 , kwp:3.6 , descMax:10964.20, pVista:11400, pOrc:11970.00, p18x:753.67},
-    {n:7 , invs:1, g:560 , kwp:4.2 , descMax:12061.40, pVista:12550, pOrc:13177.50, p18x:829.69},
-    {n:8 , invs:1, g:640 , kwp:4.8 , descMax:13158.60, pVista:13700, pOrc:14385.00, p18x:905.72},
-    {n:9 , invs:1, g:720 , kwp:5.4 , descMax:14411.80, pVista:15000, pOrc:15750.00, p18x:991.67},
-    {n:10, invs:1, g:800 , kwp:6.0 , descMax:15509.00, pVista:16150, pOrc:16957.50, p18x:1067.69},
-    {n:11, invs:1, g:880 , kwp:6.6 , descMax:16606.20, pVista:17300, pOrc:18165.00, p18x:1143.72},
-    {n:12, invs:1, g:960 , kwp:7.2 , descMax:17703.40, pVista:18400, pOrc:19320.00, p18x:1216.44},
-    {n:13, invs:1, g:1040, kwp:7.8 , descMax:18956.60, pVista:19700, pOrc:20685.00, p18x:1302.39},
-    {n:14, invs:1, g:1120, kwp:8.4 , descMax:20053.80, pVista:20850, pOrc:21892.50, p18x:1378.42},
-    {n:15, invs:1, g:1200, kwp:9.0 , descMax:21151.00, pVista:22000, pOrc:23100.00, p18x:1454.44},
-    {n:16, invs:1, g:1280, kwp:9.6 , descMax:22248.20, pVista:23150, pOrc:24307.50, p18x:1530.47},
-    {n:17, invs:1, g:1360, kwp:10.2, descMax:23501.40, pVista:24450, pOrc:25672.50, p18x:1616.42},
-    {n:18, invs:1, g:1440, kwp:10.8, descMax:24598.60, pVista:25600, pOrc:26880.00, p18x:1692.44},
-    {n:19, invs:1, g:1520, kwp:11.4, descMax:25695.80, pVista:26700, pOrc:28035.00, p18x:1765.17},
-    {n:20, invs:1, g:1600, kwp:12.0, descMax:26793.00, pVista:27850, pOrc:29242.50, p18x:1841.19}
+    {n:5 , invs:1, g:400 , kwp:3.0 , descMax:9158.50 , pVista:9550 , pOrc:10027.50, p18x:631.36},
+    {n:6 , invs:1, g:480 , kwp:3.6 , descMax:10114.00, pVista:10550, pOrc:11077.50, p18x:697.47},
+    {n:7 , invs:1, g:560 , kwp:4.2 , descMax:11069.50, pVista:11550, pOrc:12127.50, p18x:763.58},
+    {n:8 , invs:1, g:640 , kwp:4.8 , descMax:12025.00, pVista:12500, pOrc:13125.00, p18x:826.39},
+    {n:9 , invs:1, g:720 , kwp:5.4 , descMax:13136.50, pVista:13700, pOrc:14385.00, p18x:905.72},
+    {n:10, invs:1, g:800 , kwp:6.0 , descMax:14092.00, pVista:14650, pOrc:15382.50, p18x:968.53},
+    {n:11, invs:1, g:880 , kwp:6.6 , descMax:15047.50, pVista:15650, pOrc:16432.50, p18x:1034.64},
+    {n:12, invs:1, g:960 , kwp:7.2 , descMax:16003.00, pVista:16650, pOrc:17482.50, p18x:1100.75},
+    {n:13, invs:1, g:1040, kwp:7.8 , descMax:17114.50, pVista:17800, pOrc:18690.00, p18x:1176.78},
+    {n:14, invs:1, g:1120, kwp:8.4 , descMax:18070.00, pVista:18800, pOrc:19740.00, p18x:1242.89},
+    {n:15, invs:1, g:1200, kwp:9.0 , descMax:19025.50, pVista:19800, pOrc:20790.00, p18x:1309.00},
+    {n:16, invs:1, g:1280, kwp:9.6 , descMax:19981.00, pVista:20800, pOrc:21840.00, p18x:1375.11},
+    {n:17, invs:1, g:1360, kwp:10.2, descMax:21092.50, pVista:21950, pOrc:23047.50, p18x:1451.14},
+    {n:18, invs:1, g:1440, kwp:10.8, descMax:22048.00, pVista:22950, pOrc:24097.50, p18x:1517.25},
+    {n:19, invs:1, g:1520, kwp:11.4, descMax:23003.50, pVista:23900, pOrc:25095.00, p18x:1580.06},
+    {n:20, invs:1, g:1600, kwp:12.0, descMax:23959.00, pVista:24900, pOrc:26145.00, p18x:1646.17}
   ]
 },
 
@@ -126,22 +136,22 @@ const TABELAS = {
 "SAJ-6K-PROMO": {
   inv: "SAJ 6K", mod: "Tsun 600W", pot: 600, precoExato: true, soCartaoVista: true,
   rows: [
-    {n:5 , invs:1, g:400 , kwp:3.0 , descMax:9800 , pVista:9800 , pOrc:9800 , p18x:1518.02},
-    {n:6 , invs:1, g:480 , kwp:3.6 , descMax:10890, pVista:10890, pOrc:10890, p18x:1686.86},
-    {n:7 , invs:1, g:560 , kwp:4.2 , descMax:11980, pVista:11980, pOrc:11980, p18x:1855.70},
-    {n:8 , invs:1, g:640 , kwp:4.8 , descMax:13050, pVista:13050, pOrc:13050, p18x:2021.44},
-    {n:9 , invs:1, g:720 , kwp:5.4 , descMax:14290, pVista:14290, pOrc:14290, p18x:2213.52},
-    {n:10, invs:1, g:800 , kwp:6.0 , descMax:15070, pVista:15070, pOrc:15070, p18x:2334.45},
-    {n:11, invs:1, g:880 , kwp:6.6 , descMax:16300, pVista:16300, pOrc:16300, p18x:2524.99},
-    {n:12, invs:1, g:960 , kwp:7.2 , descMax:18190, pVista:18190, pOrc:18190, p18x:2817.63},
-    {n:13, invs:1, g:1040, kwp:7.8 , descMax:19700, pVista:19700, pOrc:19700, p18x:3051.54},
-    {n:14, invs:1, g:1120, kwp:8.4 , descMax:20790, pVista:20790, pOrc:20790, p18x:3220.38},
-    {n:15, invs:1, g:1200, kwp:9.0 , descMax:22000, pVista:22000, pOrc:22000, p18x:3407.80},
-    {n:16, invs:1, g:1280, kwp:9.6 , descMax:23070, pVista:23070, pOrc:23070, p18x:3573.55},
-    {n:17, invs:1, g:1360, kwp:10.2, descMax:24450, pVista:24450, pOrc:24450, p18x:3787.30},
-    {n:18, invs:1, g:1440, kwp:10.8, descMax:25580, pVista:25580, pOrc:25580, p18x:3962.34},
-    {n:19, invs:1, g:1520, kwp:11.4, descMax:26700, pVista:26700, pOrc:26700, p18x:4135.83},
-    {n:20, invs:1, g:1600, kwp:12.0, descMax:27360, pVista:27360, pOrc:27360, p18x:4238.14}
+    {n:5 , invs:1, g:400 , kwp:3.0 , descMax:9100 , pVista:9100 , pOrc:9100 , p18x:1409.59},
+    {n:6 , invs:1, g:480 , kwp:3.6 , descMax:10050, pVista:10050, pOrc:10050, p18x:1556.75},
+    {n:7 , invs:1, g:560 , kwp:4.2 , descMax:10990, pVista:10990, pOrc:10990, p18x:1702.35},
+    {n:8 , invs:1, g:640 , kwp:4.8 , descMax:11930, pVista:11930, pOrc:11930, p18x:1847.96},
+    {n:9 , invs:1, g:720 , kwp:5.4 , descMax:13020, pVista:13020, pOrc:13020, p18x:2016.80},
+    {n:10, invs:1, g:800 , kwp:6.0 , descMax:13690, pVista:13690, pOrc:13690, p18x:2120.58},
+    {n:11, invs:1, g:880 , kwp:6.6 , descMax:14770, pVista:14770, pOrc:14770, p18x:2287.87},
+    {n:12, invs:1, g:960 , kwp:7.2 , descMax:16430, pVista:16430, pOrc:16430, p18x:2545.01},
+    {n:13, invs:1, g:1040, kwp:7.8 , descMax:17800, pVista:17800, pOrc:17800, p18x:2757.22},
+    {n:14, invs:1, g:1120, kwp:8.4 , descMax:18730, pVista:18730, pOrc:18730, p18x:2901.28},
+    {n:15, invs:1, g:1200, kwp:9.0 , descMax:19800, pVista:19800, pOrc:19800, p18x:3067.02},
+    {n:16, invs:1, g:1280, kwp:9.6 , descMax:20710, pVista:20710, pOrc:20710, p18x:3207.98},
+    {n:17, invs:1, g:1360, kwp:10.2, descMax:21950, pVista:21950, pOrc:21950, p18x:3400.06},
+    {n:18, invs:1, g:1440, kwp:10.8, descMax:22930, pVista:22930, pOrc:22930, p18x:3551.86},
+    {n:19, invs:1, g:1520, kwp:11.4, descMax:23900, pVista:23900, pOrc:23900, p18x:3702.11},
+    {n:20, invs:1, g:1600, kwp:12.0, descMax:24460, pVista:24460, pOrc:24460, p18x:3788.85}
   ]
 },
 
