@@ -393,6 +393,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .cad-cnt{font-size:12px;font-weight:700;color:#0B1220;background:#7DD117;border-radius:999px;padding:1px 7px;min-width:20px;text-align:center}
 .cad-aba:not(.ativa) .cad-cnt{background:rgba(148,163,184,.30);color:#CBD5E1}
 #cad-aba-capital.ativa .cad-cnt{background:#60A5FA}
+#cad-aba-integrador.ativa .cad-cnt{background:#38BDF8}
 .cad-acoes{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .cad-fora{background:rgba(148,163,184,.08);border:1px dashed rgba(148,163,184,.28);border-radius:10px;
   padding:11px 14px;margin-bottom:12px;font-size:12.5px;color:#94A3B8;line-height:1.55}
@@ -3487,6 +3488,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="cad-abas">
           <button type="button" class="cad-aba ativa" id="cad-aba-ponto" onclick="cadAba('ponto')">Arrendamento <span class="cad-cnt" id="cad-cnt-ponto">—</span></button>
           <button type="button" class="cad-aba" id="cad-aba-capital" onclick="cadAba('capital')">Investidores <span class="cad-cnt" id="cad-cnt-capital">—</span></button>
+          <button type="button" class="cad-aba" id="cad-aba-integrador" onclick="cadAba('integrador')">Integradores <span class="cad-cnt" id="cad-cnt-integrador">—</span></button>
           <button type="button" class="cad-aba" id="cad-aba-match" onclick="cadAba('match')">Match <span class="cad-cnt" id="cad-cnt-match">—</span></button>
         </div>
         <div class="cad-acoes">
@@ -7044,13 +7046,14 @@ let CAD_MATCH_KM = 200;
 
 function cadAba(lado) {
   cadLado = lado;
-  ['ponto', 'capital', 'match'].forEach(l => {
+  ['ponto', 'capital', 'integrador', 'match'].forEach(l => {
     const b = document.getElementById('cad-aba-' + l);
     if (b) b.classList.toggle('ativa', l === lado);
   });
   const TITULO = {
     ponto: 'Arrendamento — quem tem o local',
     capital: 'Investidores — quem tem o capital',
+    integrador: 'Integradores — quem instala e quer vender eletroposto',
     match: 'Match — duplas a até ' + CAD_MATCH_KM + ' km uma da outra',
   };
   document.getElementById('cad-titulo').textContent = TITULO[lado];
@@ -7078,9 +7081,13 @@ async function cadCarregar(forcar) {
     // lugar só em vez de espalhada em dois querystrings.
     const API_PARES = (location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api')
       + '/io/eletroposto/parceria/pares';
-    const [pontos, capital, fichas, pares, conexoes] = await Promise.all([
+    const [pontos, capital, integradores, fichas, pares, conexoes] = await Promise.all([
       supaGet('eletroposto_parceria?lado=eq.ponto&order=created_at.desc&limit=500&select=*'),
       supaGet('eletroposto_parceria?lado=eq.capital&order=created_at.desc&limit=500&select=*'),
+      // INTEGRADORES (21/08): mesma tabela, terceiro lado. Leitura separada de
+      // propósito — ele não entra no dedupe das fichas nem no cálculo de pares,
+      // porque não tem contraparte pra casar.
+      supaGet('eletroposto_parceria?lado=eq.integrador&order=created_at.desc&limit=500&select=*'),
       supaGet('eletroposto_nota1?select=id,created_at,nome,telefone,cidade,perfil,ponto,invest,'
               + 'endereco,capital_faixa,tem_ponto,pts,status,nota_interna'
               + '&order=created_at.desc&limit=500'),
@@ -7119,6 +7126,10 @@ async function cadCarregar(forcar) {
       ponto_tipo: f.perfil, ponto_fluxo: f.ponto, ponto_endereco: f.endereco, ponto_relacao: null });
 
     cadDados = {
+      // O integrador NÃO entra no `jaTem` lá em cima: uma pessoa pode instalar
+      // E ter capital, e apagá-la da lista de investidores por causa disso
+      // esconderia um investidor de verdade.
+      integrador: (integradores || []).map(r => ({ ...r, tab: 'eletroposto_parceria', deFicha: false })),
       ponto: (pontos || []).map(r => ({ ...r, tab: 'eletroposto_parceria', deFicha: false }))
         .concat(livres.filter(f => f.capital_faixa === 'naosei'
                                && CAD_PONTO_FICHA.indexOf(f.tem_ponto) >= 0).map(daFichaPonto)),
@@ -7134,7 +7145,7 @@ async function cadCarregar(forcar) {
     };
     // Reordena as duas: origens misturadas ficam em ordem de chegada, e não com
     // os cadastros todos em cima e as fichas todas embaixo.
-    ['ponto', 'capital'].forEach(l =>
+    ['ponto', 'capital', 'integrador'].forEach(l =>
       cadDados[l].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))));
 
     // Sem recurso E sem local: descarte, é curioso (regra do Thiago, 17/08).
@@ -7155,6 +7166,7 @@ function cadRender() {
   const filtro = document.getElementById('cad-filtro').value;
   document.getElementById('cad-cnt-ponto').textContent = cadDados.ponto.length;
   document.getElementById('cad-cnt-capital').textContent = cadDados.capital.length;
+  document.getElementById('cad-cnt-integrador').textContent = cadDados.integrador.length;
   // Contagem de match: "—" quando não deu pra calcular, nunca 0 — a mesma regra
   // da coluna. Zero é "medi e não achei"; travessão é "não sei medir".
   document.getElementById('cad-cnt-match').textContent = cadMatches ? cadMatches.length : '—';
@@ -7162,7 +7174,9 @@ function cadRender() {
   if (cadLado === 'match') { cadRenderMatch(busca); return; }
 
   const fora = document.getElementById('cad-fora');
-  if (cadDados.fora > 0) {
+  // O aviso das fichas descartadas fala do funil da LP (recurso × local) e não
+  // diz nada sobre integrador — na aba dele vira ruído.
+  if (cadDados.fora > 0 && cadLado !== 'integrador') {
     fora.innerHTML = '<b>' + cadDados.fora + ' ficha' + (cadDados.fora > 1 ? 's' : '') + ' fora das duas listas.</b> '
       + 'Responderam que não sabem como pagar <b>e</b> que não têm ideia de onde instalar — sem recurso e sem local '
       + 'não há conexão a fazer, é curioso. Desde 17/08 essa pessoa nem chega na página de cadastro: '
@@ -7184,18 +7198,24 @@ function cadRender() {
     const semNinguem = !cadDados[cadLado].length;
     // O colspan acompanha o cabeçalho de cada lado — fixo, ele encolhe a
     // mensagem em silêncio quando uma coluna entra (não dá erro no console).
-    const nCols = cadLado === 'ponto' ? 8 : 7;
+    const nCols = cadLado === 'ponto' ? 8 : 7;   // integrador e capital têm 7
     tb.innerHTML = '<tr><td colspan="' + nCols + '" style="color:#94A3B8;padding:20px;line-height:1.6">' + (semNinguem
       ? (cadLado === 'ponto'
         ? '<b>Nenhum ponto cadastrado ainda.</b><br>Enquanto esta lista estiver vazia, os investidores da outra aba não têm o que receber — divulgar solardoc.app/io/eletroposto/parceria é o que destrava.'
+        : cadLado === 'integrador'
+        ? '<b>Nenhum integrador cadastrado ainda.</b><br>A porta existe na página de parceria, mas a LP do eletroposto foi escrita pra AFASTAR integrador — ela só enche com link próprio.'
         : '<b>Ninguém com capital declarado ainda.</b>')
       : 'Nada com esse filtro.') + '</td></tr>';
     return;
   }
 
+  // A coluna "perto" não existe pro integrador: ele não tem contraparte, e uma
+  // coluna que mostra sempre "—" convida a equipe a procurar defeito onde não há.
   const colPar = cadLado === 'ponto' ? '<th>Investidores perto</th>' : '<th>Pontos perto</th>';
   const cab = cadLado === 'ponto'
     ? '<tr><th>Quem</th><th>Local</th><th>Cidade</th><th>Endereço</th><th>Padrão de entrada</th><th>Situação</th>' + colPar + '<th>Status</th></tr>'
+    : cadLado === 'integrador'
+    ? '<tr><th>Quem</th><th>Cidade</th><th>O que faz</th><th>Como quer trabalhar</th><th>Experiência</th><th>Equipe</th><th>Status</th></tr>'
     : '<tr><th>Quem</th><th>Cidade</th><th>Quanto</th><th>Com quê</th><th>Origem</th>' + colPar + '<th>Status</th></tr>';
 
   tb.innerHTML = cab + linhas.map(r => {
@@ -7226,6 +7246,15 @@ function cadRender() {
           + (r.obs ? '<span class="cad-sub">' + escapeHtml(r.obs) + '</span>' : '') + '</td>'
         + cadPadraoCel(r)
         + '<td>' + escapeHtml(r.ponto_fluxo || '—') + '</td>' + cadParesCel(r) + st + '</tr>';
+    }
+    if (cadLado === 'integrador') {
+      return '<tr>' + nome
+        + '<td>' + escapeHtml(r.cidade || '—') + '</td>'
+        + '<td>' + escapeHtml(r.integrador_atuacao || '—') + '</td>'
+        + '<td>' + escapeHtml(r.integrador_interesse || '—')
+          + (r.obs ? '<span class="cad-sub">' + escapeHtml(r.obs) + '</span>' : '') + '</td>'
+        + '<td>' + escapeHtml(r.integrador_experiencia || '—') + '</td>'
+        + '<td>' + escapeHtml(r.integrador_equipe || '—') + '</td>' + st + '</tr>';
     }
     return '<tr>' + nome
       + '<td>' + escapeHtml(r.cidade || '—') + '</td>'

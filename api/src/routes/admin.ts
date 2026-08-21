@@ -893,6 +893,11 @@ router.get('/eletroposto-parceria', async (_req: Request, res: Response): Promis
       supabaseGerador
         .from('eletroposto_parceria')
         .select('id, created_at, lado, nome, telefone, cidade, capital_faixa, capital_origem, prazo, ponto_relacao, ponto_tipo, ponto_endereco, ponto_vagas, ponto_fluxo, ponto_energia, obs, origem, status, par_id, par_em')
+        // Esta tela é o CASAMENTO — só os dois lados que se casam. O integrador
+        // (21/08) mora na mesma tabela e não tem contraparte: sem este filtro
+        // ele não apareceria em lugar nenhum aqui e ainda comeria o teto de 400,
+        // empurrando investidor de verdade pra fora da tela em silêncio.
+        .in('lado', ['capital', 'ponto'])
         .order('created_at', { ascending: false })
         .limit(400),
       supabaseGerador

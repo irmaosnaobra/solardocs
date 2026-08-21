@@ -39,6 +39,11 @@
     /* o lado do PONTO ganha âmbar: são dois caminhos diferentes, e a cor é o
        jeito mais rápido de dizer isso antes da pessoa ler o rótulo */
     --amb:#F2B417; --amb-b:#FFD05C; --amb-line:rgba(242,180,23,.32);
+    /* o INTEGRADOR (21/08) precisa de cor propria: verde e capital, ambar e
+       ponto, e um terceiro cartao repetindo uma das duas leria como variacao
+       de uma delas. Azul e a unica fria da paleta - le como "tecnico" ao lado
+       das duas quentes, sem competir com nenhuma. */
+    --azu:#3E9BF0; --azu-b:#7EC4FF; --azu-line:rgba(62,155,240,.34);
   }
   html{scroll-behavior:smooth}
   body{
@@ -74,6 +79,7 @@
   h1{margin-top:18px;font-size:clamp(34px,5.6vw,60px);font-weight:900;line-height:1;letter-spacing:-2px;max-width:900px}
   h1 .n{color:var(--neon-b)}
   h1 .a{color:var(--amb-b)}
+  h1 .z{color:var(--azu-b)}
   .lead{margin-top:18px;font-size:clamp(16px,2.05vw,19.5px);color:var(--mut);font-weight:600;line-height:1.55;max-width:640px}
   .lead b{color:var(--cream);font-weight:800}
   /* linha de contexto de quem veio do formulário — some pra quem chega pelo link */
@@ -193,6 +199,31 @@
     border-radius:11px;padding:12px 14px;font-size:13.5px;font-weight:800;margin-bottom:14px;line-height:1.45}
   .erro.on{display:block}
 
+  /* ===== A TERCEIRA PORTA: QUEM INSTALA =====
+     Ela e FULL-WIDTH embaixo do par, e isso e decisao de conteudo, nao de
+     layout: capital e ponto sao as duas metades do MESMO negocio (por isso lado
+     a lado, do mesmo tamanho), e o integrador e outra conversa - ele nao se
+     casa com ninguem. Empata-lo com os outros dois afirmaria que sao tres lados
+     do mesmo negocio, o que e falso, e ainda estouraria a dobra medida do
+     celular, que ja nao comporta dois cartoes inteiros. */
+  .porta.wide{grid-column:1/-1}
+  .porta.azu{border-color:var(--azu-line)}
+  .porta.azu::before{background:linear-gradient(90deg,var(--azu),transparent)}
+  .porta.azu .pIc{background:rgba(62,155,240,.13);border-color:var(--azu-line)}
+  .porta.azu .pIc svg{stroke:var(--azu-b)}
+  .porta.azu .pOlho{color:var(--azu-b)}
+  .porta.azu .pLista svg{stroke:var(--azu-b)}
+  .porta.azu .fld input:focus,.porta.azu .fld select:focus,.porta.azu .fld textarea:focus{border-color:var(--azu)}
+  /* a setinha do select nasce verde: a cor mora dentro do data-URI */
+  .porta.azu .fld select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237EC4FF' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
+  /* claro em cima e no meio: o texto do botao e verde-escuro, e um azul fechado
+     no corpo do degrade apagaria o rotulo */
+  .btn.azu{background:linear-gradient(180deg,#A6D8FF 0%,var(--azu-b) 52%,var(--azu) 100%);box-shadow:0 14px 34px rgba(62,155,240,.28)}
+  .at.azu{background:rgba(62,155,240,.10);border-color:var(--azu-line)}
+  .at.azu .atI svg{stroke:var(--azu-b)}
+  /* no desktop o cartao largo deixava linha de texto longa demais pra ler */
+  @media(min-width:861px){ .porta.wide .pSub,.porta.wide .pLista{max-width:720px} }
+
   /* ===== como funciona ===== */
   .comoTit{font-size:clamp(24px,3.4vw,34px);font-weight:900;letter-spacing:-1.2px;line-height:1.08}
   .comoSub{color:var(--mut);font-size:16px;font-weight:600;margin-top:12px;max-width:620px;line-height:1.55}
@@ -264,12 +295,16 @@
     <!-- A headline anterior descrevia o MERCADO ("um lado tem… o outro tem"). É
          verdade e não vende: quem lê fecha negócio na hora e quer saber o que
          GANHA, não um diagnóstico do setor. Esta fala com ele e entrega a
-         promessa na segunda frase — e mantém as duas cores, que são as mesmas
-         das duas portas logo abaixo. -->
-    <h1>Você tem o <span class="a">ponto</span> ou o <span class="n">capital</span>.<br>A gente traz a outra metade.</h1>
+         promessa na segunda frase — e mantém as cores, que são as mesmas das
+         portas logo abaixo.
+
+         21/08: viraram TRÊS. Enquanto a porta do integrador existir logo
+         abaixo, uma headline que diz "ponto OU capital" mente na primeira linha
+         da página — e o cartão a mais lê como enfeite, não como caminho. -->
+    <h1>Você tem o <span class="a">ponto</span>, o <span class="n">capital</span> ou faz a <span class="z">obra</span>.<br>A gente junta as três peças.</h1>
     <p class="lead" id="lead">
-      <b>Cadastre o seu lado e a gente vai atrás do outro.</b> Ponto conferido antes de apresentar,
-      número na mesa, e vocês decidem — a execução é com a gente.
+      <b>Cadastre o seu lado e a gente vai atrás do que falta.</b> Ponto conferido antes de apresentar,
+      número na mesa, e quem decide são as partes — projeto e obra saem com quem já entregou.
     </p>
     <div class="doForm" id="do-form"></div>
 
@@ -286,6 +321,13 @@
       <a class="at amb" href="#porta-ponto" onclick="ev('parceria_atalho_ponto')">
         <span class="atI"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></svg></span>
         Tenho o ponto
+      </a>
+      <!-- O terceiro atalho quebra pra segunda linha no celular de proposito:
+           os dois de cima sao as duas metades do mesmo negocio e tem que ficar
+           lado a lado; este e outra conversa. -->
+      <a class="at azu" href="#porta-integrador" onclick="ev('parceria_atalho_integrador')">
+        <span class="atI"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>
+        Sou integrador
       </a>
     </div>
 
@@ -553,11 +595,108 @@
         </div>
       </div>
 
+      <!-- - PORTA 3: INTEGRADOR -
+           Nao e um lado do negocio: e quem executa. Por isso ela nao entra no
+           casamento (nem no calculo de pares do servidor) e a lista dela e
+           trabalhada a parte, na aba Integradores do /gerador. -->
+      <div class="porta azu wide" id="porta-integrador">
+        <div class="pIc">
+          <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        </div>
+        <p class="pOlho">Sou integrador</p>
+        <h2 class="pTit">Eu instalo.<br>Falta eletroposto na minha carteira.</h2>
+        <p class="pSub">Integrador solar, eletricista, engenheiro, empresa de instalação. Você já atende cliente na sua região e quer <b>somar recarga elétrica ao que vende</b> — sem começar do zero e sem virar concorrente de ninguém.</p>
+        <ul class="pLista">
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Cadastro sem custo e sem exclusividade</li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Projeto, dimensionamento e homologação com quem já entregou</li>
+          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>A equipe olha a sua região antes de te chamar</li>
+        </ul>
+
+        <div class="pFim">
+          <button type="button" class="btn azu" id="btn-integrador" onclick="abrirPorta('integrador')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            <span>Quero trabalhar com eletroposto</span>
+          </button>
+          <p class="pMicro">Leva 40 segundos · a conversa começa pela sua região e pelo que você já instala</p>
+
+          <form class="pForm" id="form-integrador" onsubmit="enviar(event,'integrador')">
+            <div class="erro" id="erro-integrador"></div>
+            <div class="fld">
+              <label for="i-nome">Seu nome completo</label>
+              <input id="i-nome" type="text" autocomplete="name" placeholder="Nome e sobrenome">
+            </div>
+            <div class="fRow">
+              <div class="fld">
+                <label for="i-tel">WhatsApp com DDD</label>
+                <input id="i-tel" type="tel" inputmode="numeric" autocomplete="tel" placeholder="(34) 99999-9999">
+              </div>
+              <div class="fld">
+                <label for="i-cidade">Cidade e estado</label>
+                <input id="i-cidade" type="text" placeholder="Uberlândia, MG">
+              </div>
+            </div>
+            <div class="fRow">
+              <div class="fld">
+                <label for="i-atuacao">O que você faz hoje</label>
+                <select id="i-atuacao">
+                  <option value="">Selecione</option>
+                  <option>Integrador solar (projeto e instalação)</option>
+                  <option>Eletricista / instalador</option>
+                  <option>Engenheiro eletricista</option>
+                  <option>Empresa de instalação ou construtora</option>
+                  <option>Vendedor ou representante técnico</option>
+                  <option>Ainda não atuo na área</option>
+                </select>
+              </div>
+              <div class="fld">
+                <label for="i-interesse">Como quer trabalhar com eletroposto</label>
+                <select id="i-interesse">
+                  <option value="">Selecione</option>
+                  <option>Vender pro meu cliente e vocês executam</option>
+                  <option>Executar a obra na minha região</option>
+                  <option>As duas coisas: vender e executar</option>
+                  <option>Comprar o equipamento e fazer por conta</option>
+                  <option>Ainda não sei, quero entender</option>
+                </select>
+              </div>
+            </div>
+            <div class="fRow">
+              <div class="fld">
+                <label for="i-exp">Já instalou carregador?</label>
+                <select id="i-exp">
+                  <option value="">Selecione</option>
+                  <option>Nunca instalei</option>
+                  <option>1 a 3 instalados</option>
+                  <option>Mais de 3 instalados</option>
+                  <option>Sou certificado por fabricante</option>
+                </select>
+              </div>
+              <div class="fld">
+                <label for="i-equipe">Sua equipe hoje</label>
+                <select id="i-equipe">
+                  <option value="">Selecione</option>
+                  <option>Tenho equipe própria</option>
+                  <option>Terceirizo a instalação</option>
+                  <option>Trabalho sozinho</option>
+                  <option>Só vendo, não instalo</option>
+                </select>
+              </div>
+            </div>
+            <div class="fld">
+              <label for="i-obs">Quer contar mais alguma coisa? <span style="font-weight:600;color:rgba(247,251,242,.45)">(opcional)</span></label>
+              <textarea id="i-obs" placeholder="Ex.: atendo três cidades da região, tenho equipe de 4 pessoas e já fiz entrada trifásica…"></textarea>
+            </div>
+            <button type="submit" class="btn azu" id="sub-integrador">Cadastrar meu perfil de integrador</button>
+            <p class="pMicro">Seus dados vão só pra equipe. Nada é publicado em lugar nenhum.</p>
+          </form>
+        </div>
+      </div>
+
     </div>
 
-    <!-- a saída de quem não é nenhum dos dois: nem ponto, nem capital -->
+    <!-- a saída de quem não é nenhuma das três: nem ponto, nem capital, nem obra -->
     <div class="terceira">
-      <p><b>Ainda não tem nem um nem outro?</b> Se falta o ponto E falta o capital, entrar numa lista de espera não resolve nada hoje. O caminho é aprender a achar e a medir o ponto antes de gastar o primeiro real.</p>
+      <p><b>Não é nenhuma das três?</b> Se falta o ponto, falta o capital e você também não trabalha com instalação, entrar numa lista de espera não resolve nada hoje. O caminho é aprender a achar e a medir o ponto antes de gastar o primeiro real.</p>
       <a class="lnk" href="/io/eletroposto/material" onclick="ev('parceria_material')">Ver o material de entrada
         <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
     </div>
@@ -675,7 +814,7 @@ fetch(API + '/io/eletroposto/parceria/placar').then(function(r){ return r.json()
 
   // Prefill dos dois formulários com o que a LP já perguntou. Ninguém digita
   // duas vezes o mesmo nome — foi assim que o formulário anterior perdeu gente.
-  ['c','p'].forEach(function(pre){
+  ['c','p','i'].forEach(function(pre){
     setV(pre + '-nome',   LEAD.nome);
     setV(pre + '-tel',    LEAD.telefone_visivel || '');
     setV(pre + '-cidade', LEAD.cidade || '');
@@ -739,7 +878,10 @@ function abrirPorta(lado){
 /* ── envio do formulário ── */
 function enviar(e, lado){
   e.preventDefault();
-  var pre = lado === 'capital' ? 'c' : 'p';
+  // MAPA, nao ternario: com tres portas um ternario manda o lado novo ler os
+  // campos do lado errado - o integrador cairia no 'p' e seria reprovado por
+  // nao ter preenchido o endereco de um ponto que ele nunca teve.
+  var pre = { capital: 'c', ponto: 'p', integrador: 'i' }[lado];
   var nome   = val(pre + '-nome');
   var telRaw = val(pre + '-tel').replace(/\D/g,'');
   var cidade = val(pre + '-cidade');
@@ -760,6 +902,16 @@ function enviar(e, lado){
     // e a aba Cadastros têm coluna pra isso. Sem esta linha, "Com quê" saía "—"
     // em TODO cadastro, inclusive no de quem tinha acabado de responder.
     if (LEAD.invest) corpo.capital_origem = LEAD.invest;
+  } else if (lado === 'integrador') {
+    if (!val('i-atuacao'))   return erro(lado, 'Informe o que você faz hoje — é por aí que a equipe entende com quem está falando.');
+    if (!val('i-interesse')) return erro(lado, 'Informe como você quer trabalhar com eletroposto.');
+    if (!val('i-exp'))       return erro(lado, 'Informe se já instalou carregador. "Nunca instalei" é uma resposta válida e está na lista.');
+    if (!val('i-equipe'))    return erro(lado, 'Informe como é a sua equipe hoje.');
+    corpo.integrador_atuacao     = val('i-atuacao');
+    corpo.integrador_interesse   = val('i-interesse');
+    corpo.integrador_experiencia = val('i-exp');
+    corpo.integrador_equipe      = val('i-equipe');
+    corpo.obs                    = val('i-obs');
   } else {
     if (!val('p-relacao'))    return erro(lado, 'Informe qual é a sua relação com o local.');
     if (!val('p-tipo'))       return erro(lado, 'Informe que tipo de local é.');
@@ -810,11 +962,17 @@ function enviar(e, lado){
   });
 }
 
+// Mapa em vez de ternario pelo mesmo motivo do roteamento la em cima: com tres
+// portas, quem nao e 'ponto' recebia a promessa feita ao investidor.
+var OK_TIT = { ponto: 'Ponto cadastrado.', capital: 'Cadastro recebido.', integrador: 'Cadastro recebido.' };
+var OK_TX = {
+  ponto: 'A equipe já recebeu o seu local e vai te chamar no WhatsApp — o próximo passo é conferir o endereço e o movimento antes de apresentar a um investidor.',
+  capital: 'A equipe já tem o seu perfil. Quando aparecer ponto na sua região, você é chamado no WhatsApp.',
+  integrador: 'A equipe já tem o seu perfil de integrador e vai te chamar no WhatsApp pra entender a sua região e o que você instala hoje.'
+};
 function mostrarOk(lado){
-  document.getElementById('ok-tit').textContent = lado === 'ponto' ? 'Ponto cadastrado.' : 'Cadastro recebido.';
-  document.getElementById('ok-tx').textContent = lado === 'ponto'
-    ? 'A equipe já recebeu o seu local e vai te chamar no WhatsApp — o próximo passo é conferir o endereço e o movimento antes de apresentar a um investidor.'
-    : 'A equipe já tem o seu perfil. Quando aparecer ponto na sua região, você é chamado no WhatsApp.';
+  document.getElementById('ok-tit').textContent = OK_TIT[lado] || 'Cadastro recebido.';
+  document.getElementById('ok-tx').textContent  = OK_TX[lado]  || OK_TX.capital;
   document.getElementById('ok-bg').classList.add('on');
 }
 
@@ -834,7 +992,7 @@ function erro(lado, msg){
 function esconderErro(lado){ document.getElementById('erro-' + lado).classList.remove('on'); }
 
 /* Máscara leve de telefone: o público é mais velho e digita com pontuação. */
-['c-tel','p-tel'].forEach(function(id){
+['c-tel','p-tel','i-tel'].forEach(function(id){
   var el = document.getElementById(id);
   if (!el) return;
   el.addEventListener('input', function(){

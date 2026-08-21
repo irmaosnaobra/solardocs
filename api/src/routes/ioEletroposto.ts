@@ -569,7 +569,20 @@ router.get('/parceria/pares', async (_req: Request, res: Response): Promise<void
   }
 });
 
-const LADOS = new Set(['capital', 'ponto']);
+// A TERCEIRA PORTA (21/08/2026): quem instala.
+// Capital e ponto são os dois lados de UM negócio (dinheiro × lugar) e por isso
+// se casam. O integrador não é lado nenhum desse negócio — é quem executa —, e
+// por isso ele não entra no cálculo de pares. Mora aqui porque o gesto é o
+// mesmo (cadastro pela página das portas) e a equipe trabalha as três listas
+// no mesmo lugar: /gerador → Eletroposto → Cadastros.
+const LADOS = new Set(['capital', 'ponto', 'integrador']);
+
+/** Como a equipe chama cada lado no WhatsApp. Lado novo sem rótulo vira o slug
+ *  em maiúsculas em vez de virar "INVESTIDOR" por descuido do ternário. */
+const ROTULO: Record<string, string> = {
+  ponto: 'DONO DE PONTO', capital: 'INVESTIDOR', integrador: 'INTEGRADOR',
+};
+const rotuloLado = (l: string) => ROTULO[l] || l.toUpperCase();
 
 /** Recado interno pros 2 números salvos. Um envio que falha não impede o outro. */
 async function avisarEquipe(texto: string): Promise<void> {
@@ -686,6 +699,28 @@ export function montarAvisoCapital(reg: Record<string, unknown>, dica: string[])
     '_Lista completa: solardoc.app/gerador → Eletroposto → Cadastros._',
   ].join('\n');
 }
+
+/**
+ * INTEGRADOR NOVO. Sem bloco de pares de propósito: ele não tem contraparte —
+ * quem procura ponto é investidor, e oferecer um ponto a quem só quer instalar
+ * faria o consultor abrir a conversa errada.
+ */
+export function montarAvisoIntegrador(reg: Record<string, unknown>): string {
+  return [
+    '🔧 *INTEGRADOR — cadastro novo*',
+    '',
+    `*Nome:* ${v(reg, 'nome')}`,
+    `*WhatsApp:* wa.me/${String(reg.telefone || '')}`,
+    `*Cidade:* ${v(reg, 'cidade')}`,
+    `*O que faz hoje:* ${v(reg, 'integrador_atuacao')}`,
+    `*Como quer trabalhar:* ${v(reg, 'integrador_interesse')}`,
+    `*Já instalou carregador:* ${v(reg, 'integrador_experiencia')}`,
+    `*Equipe:* ${v(reg, 'integrador_equipe')}`,
+    ...(reg.obs ? ['', `_${String(reg.obs)}_`] : []),
+    '',
+    '_Lista completa: solardoc.app/gerador → Eletroposto → Cadastros._',
+  ].join('\n');
+}
 const txt = (v: unknown, max: number) => String(v ?? '').trim().slice(0, max) || null;
 
 router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
@@ -725,6 +760,11 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
     padrao_disjuntor: txt(b.padrao_disjuntor, 40),
     padrao_consumo:   txt(b.padrao_consumo, 60),
     padrao_foto:      txt(b.padrao_foto, 60),
+    // lado INTEGRADOR
+    integrador_atuacao:     txt(b.integrador_atuacao, 120),
+    integrador_interesse:   txt(b.integrador_interesse, 160),
+    integrador_experiencia: txt(b.integrador_experiencia, 80),
+    integrador_equipe:      txt(b.integrador_equipe, 80),
     obs:            txt(b.obs, 600),
     origem:         b.origem === 'lp_nota1' ? 'lp_nota1' : 'link_direto',
     cadastrado_em: new Date().toISOString(),
@@ -772,7 +812,7 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
     avisarEquipe([
       '⚠️ *CADASTRO PERDIDO — grave na mão*',
       '',
-      `Alguém se cadastrou como *${lado === 'ponto' ? 'DONO DE PONTO' : 'INVESTIDOR'}* e a gravação falhou.`,
+      `Alguém se cadastrou como *${rotuloLado(lado)}* e a gravação falhou.`,
       '',
       `*Nome:* ${nome}`,
       `*WhatsApp:* wa.me/${telefone}`,
@@ -804,7 +844,7 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
       await avisarEquipe([
         '⚠️ *CADASTRO PERDIDO — grave na mão*',
         '',
-        `Alguém se cadastrou como *${lado === 'ponto' ? 'DONO DE PONTO' : 'INVESTIDOR'}* e a gravação falhou.`,
+        `Alguém se cadastrou como *${rotuloLado(lado)}* e a gravação falhou.`,
         '',
         `*Nome:* ${nome}`,
         `*WhatsApp:* wa.me/${telefone}`,
@@ -831,8 +871,14 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
     try {
       const cidadeReg = (reg!.cidade as string) || null;
       // A dica olha o OUTRO lado: ponto novo procura investidor, e vice-versa.
-      const dica = await blocoParesSeguro(cidadeReg, lado === 'ponto' ? 'capital' : 'ponto', telefone);
-      const aviso = lado === 'ponto' ? montarAvisoPonto(reg!, dica) : montarAvisoCapital(reg!, dica);
+      // O integrador NÃO tem outro lado: pedir a dica pra ele devolveria pontos
+      // ou investidores que não são dele, e o consultor abriria a conversa
+      // errada. Sem bloco é melhor que bloco errado.
+      const dica: string[] = lado === 'integrador' ? []
+        : await blocoParesSeguro(cidadeReg, lado === 'ponto' ? 'capital' : 'ponto', telefone);
+      const aviso = lado === 'ponto'      ? montarAvisoPonto(reg!, dica)
+                  : lado === 'integrador' ? montarAvisoIntegrador(reg!)
+                  :                         montarAvisoCapital(reg!, dica);
       await avisarEquipe(aviso);
       logger.info('io-eletroposto-parceria', `${lado} novo #${reg!.id} de ${nome} (${telefone})`);
     } catch (err) {

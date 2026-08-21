@@ -75,3 +75,30 @@ alter table eletroposto_parceria disable row level security;
 -- /admin lê a ficha, não o cadastro.
 alter table eletroposto_nota1 add column if not exists lado    text;
 alter table eletroposto_nota1 add column if not exists lado_em timestamptz;
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- A TERCEIRA PORTA — INTEGRADOR
+-- APLICADA EM 21/08/2026 no mesmo projeto (ancecdfqfwlaujknizof), e conferida:
+--   select pg_get_constraintdef(oid) from pg_constraint
+--    where conname = 'eletroposto_parceria_lado_check';
+--   -> CHECK (lado = ANY (ARRAY['capital','ponto','integrador']))
+--
+-- Quem é: instalador, integrador solar, eletricista, empresa de instalação —
+-- gente que já atende cliente e quer somar recarga elétrica ao que vende.
+--
+-- POR QUE ELE NÃO ENTRA NO CASAMENTO
+-- Capital e ponto são as duas metades de UM negócio (dinheiro × lugar) e por
+-- isso se casam. O integrador não é metade de nada: ele executa. Por isso
+--   · `pool()` e `/parceria/pares` continuam só com 'ponto' e 'capital'
+--   · o aviso dele sai sem bloco de pares
+--   · /admin/eletroposto-parceria passou a filtrar `lado in ('capital','ponto')`
+--     — sem isso o integrador comeria o teto de 400 daquela tela em silêncio.
+-- ────────────────────────────────────────────────────────────────────────────
+alter table eletroposto_parceria drop constraint if exists eletroposto_parceria_lado_check;
+alter table eletroposto_parceria add constraint eletroposto_parceria_lado_check
+  check (lado in ('capital','ponto','integrador'));
+
+alter table eletroposto_parceria add column if not exists integrador_atuacao     text;
+alter table eletroposto_parceria add column if not exists integrador_interesse   text;
+alter table eletroposto_parceria add column if not exists integrador_experiencia text;
+alter table eletroposto_parceria add column if not exists integrador_equipe      text;
