@@ -111,6 +111,17 @@ const CONCESSIONARIAS = [
    da empresa e depois corrigiu o proprio nome ("Meu nome e' Vicente"). Fica em
    `conversa_wa('19988288802')`.
 
+   O OITAVO E O NONO (Antonio Henrique/Exxel Solar e Eduardo Boso/Eclipse Solar) entraram
+   em 21/08/2026 POR ORDEM DO THIAGO, com as respostas curtas da 2a rodada da pesquisa.
+   Nenhum dos dois escreveu "sim": responderam as 3 perguntas e o Antonio mandou nome e
+   empresa quando a mensagem pediu. Mesmo caso dos cinco la' de cima — a palavra e' do
+   Thiago, e esta' registrada aqui pra ninguem procurar prova que nao existe. As falas sao
+   LITERAIS, so' com a cola que espelha a pergunta ("Antes eu usava..."), igual ja' se fez
+   com o Ronailson. Foi pedido pra "incrementar em cima do que disseram" e isso NAO foi
+   feito: frase que o cliente nao disse e' depoimento inventado, que e' exatamente o ponto
+   fraco da concorrencia descrito acima. Curto e verdadeiro passa; longo e escrito por nos
+   nao. O material bruto esta' em conversa_wa('74999508439') e conversa_wa('44998086082').
+
    `liberado` continua no tipo de proposito: obriga quem for colar um depoimento
    novo a afirmar a autorizacao numa palavra, em vez de colar no automatico.
    Cliente elogiar nao e' cliente autorizar — "Tamo junto" e emoji de aperto de mao
@@ -191,6 +202,21 @@ const DEPOIMENTOS: {
     nome: 'Vicente', empresa: 'VFF Energia Solar', cidade: 'Campinas/SP',
     logo: '/logos/vff-energia-solar.webp', logoW: 60, liberado: true,
     texto: 'A praticidade do sistema: fazendo o download da fatura, ele calcula o consumo médio. E a agilidade de editar contrato, recibo, procuração. Uso outra plataforma, muito boa também, mas o custo é alto pelo que oferecem.',
+  },
+  {
+    // A fala mais curta da pagina e a que mais serve: ele NOMEOU o que trocou.
+    // "CRM" e' palavra dele, nao nossa — e e' a tese da secao inteira dita por um
+    // cliente que nao foi perguntado sobre preco.
+    nome: 'Antônio Henrique', empresa: 'Exxel Solar', cidade: 'Xique-Xique/BA',
+    logo: '/logos/exxel-solar.webp', logoW: 60, liberado: true,
+    texto: 'Praticidade na confecção das propostas. Eu tinha outro CRM — o custo benefício dessa proposta me fez optar.',
+  },
+  {
+    // Duas frases, e as duas dele. A logo tem fundo escuro, ao contrario das
+    // outras oito: na pastilha branca vira um quadrado escuro legivel, nao some.
+    nome: 'Eduardo Boso', empresa: 'Eclipse Solar', cidade: 'Sarandi/PR',
+    logo: '/logos/eclipse-solar.webp', logoW: 60, liberado: true,
+    texto: 'Agilidade. Antes eu usava outra plataforma.',
   },
 ];
 

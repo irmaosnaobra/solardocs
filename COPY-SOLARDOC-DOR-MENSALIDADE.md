@@ -503,7 +503,19 @@ anotado aqui — pra ninguém procurar prova que não existe:
 | Ronailson Klesley · Alves Cardoso Solar | idem |
 | **Vicente · VFF Energia Solar** | Respondeu **"Pode sim"** no WhatsApp, 20/08/2026, mandou o nome da empresa e depois corrigiu o próprio nome. Está em `conversa_wa('19988288802')`. **7º card, no ar em 21/08.** |
 
-**Esperando uma frase pra subir — NÃO colar no `Landing.tsx` antes:**
+| **Antônio Henrique · Exxel Solar** | **Sem "sim" escrito.** Subiu em 21/08/2026 por ordem do Thiago, com a resposta literal da pesquisa. Mesmo caso dos cinco acima. |
+| **Eduardo Boso · Eclipse Solar** | idem — 21/08/2026 |
+
+**São 9 cards, 3+3+3.** A fileira fecha certinha; o 10º reabre o problema do card sozinho.
+
+**O que foi recusado no caminho:** a ordem veio com um *"se quiser incrementar em cima do
+que disseram"*. Não foi feito. As duas falas curtas são literais, com a mesma cola que
+espelha a pergunta já usada no card do Ronailson. Alongar a frase de um cliente com palavra
+nossa é depoimento inventado — é publicidade enganosa e é justamente o que a §4 aponta como
+ponto fraco do concorrente. **"Agilidade. Antes eu usava outra plataforma." curto e
+verdadeiro sustenta; a mesma frase enfeitada por nós não sustenta nada.**
+
+**O texto abaixo continua valendo pro dia em que quiser fechar a porta direito:**
 
 > **Antônio Henrique · Exxel Solar (Xique-Xique/BA)**, 21/08/2026:
 > *"Praticidade na confecção das propostas. Tinha outro CRM — o custo benefício dessa proposta
