@@ -267,6 +267,29 @@ const TELAS = [
   // que a oferta não cobre. Os .webp continuam em public/tela para quando voltarem.
 ];
 
+/* ESTEIRA — a faixa de documentos passando que fecha o hero (21/08/2026).
+   Miniaturas PROPRIAS em /esteira: sao o recorte do papel das mesmas imagens da
+   galeria, altura 360 (retina de 180) e q70 — as 8 somam 54 KB. As da galeria
+   somam 550 KB e nao podiam subir pro topo da pagina.
+
+   A ORDEM COMECA NAS DUAS PROPOSTAS de proposito: 78% do uso e' propostaSolar e
+   42% dos clientes nunca geraram outra coisa. O catalogo e' o troco, nao a
+   promessa — ele passa depois.
+
+   Precificacao e Inventario ficam FORA, pelo mesmo motivo que sairam do carrossel
+   em 19/08: sao exclusivos do anual e esta faixa mora logo abaixo da pilula de
+   R$ 67/mes. */
+const ESTEIRA = [
+  { img: '/esteira/doc-proposta-a4.webp',   nome: 'Orçamento de 1 página' },
+  { img: '/esteira/doc-proposta.webp',      nome: 'Proposta comercial' },
+  { img: '/esteira/doc-contrato.webp',      nome: 'Contrato de compra e venda' },
+  { img: '/esteira/doc-procuracao.webp',    nome: 'Procuração' },
+  { img: '/esteira/doc-recibo.webp',        nome: 'Recibo de pagamento' },
+  { img: '/esteira/doc-servico.webp',       nome: 'Prestação de serviço' },
+  { img: '/esteira/doc-vistoria.webp',      nome: 'Checklist de vistoria' },
+  { img: '/esteira/doc-banco.webp',         nome: 'Proposta pro banco' },
+];
+
 export default function Landing() {
   const router = useRouter();
   useReveal();
@@ -700,6 +723,32 @@ export default function Landing() {
             </div>
           </div>
 
+        </div>
+      </section>
+
+      {/* ESTEIRA DE DOCUMENTOS — 21/08/2026.
+          O buraco entre o hero e a prova social era de 144px (64 de padding do
+          hero + 80 do social) e no celular lia como fim de pagina: a pessoa
+          acabava de ver o preco e a proxima coisa era vazio. Aqui entra
+          movimento no lugar do espaco.
+
+          E' DECORACAO, e por isso `aria-hidden` e `alt` vazio: a mesma galeria
+          aparece legivel mais pra baixo, com nome e explicacao de cada folha.
+          Leitor de tela nao precisa ouvir os oito nomes duas vezes.
+
+          A faixa tem DUAS COPIAS da lista e anda ate' -50%: quando a primeira
+          copia sai, a segunda esta' exatamente no lugar dela e o laco nao tem
+          emenda. Por isso o respiro entre os cards e' `margin-right` no item, e
+          nao `gap` na trilha — com gap, metade da trilha nao bate com o inicio
+          do 9o card e o laco pula um dedo a cada volta. */}
+      <section className={styles.esteira} aria-hidden>
+        <div className={styles.esteiraTrilha}>
+          {[...ESTEIRA, ...ESTEIRA].map((d, i) => (
+            <figure className={styles.esteiraItem} key={`${d.img}-${i}`}>
+              <img src={d.img} width={127} height={180} alt="" loading="lazy" decoding="async" />
+              <figcaption>{d.nome}</figcaption>
+            </figure>
+          ))}
         </div>
       </section>
 

@@ -1241,6 +1241,66 @@
 }
 
 /* ---------- PROVA SOCIAL ---------- */
+/* ----- ESTEIRA DE DOCUMENTOS -----
+   Faixa que fecha o hero. Sobe 24px pra dentro do padding de 64 do hero e come
+   16px do social: a faixa ocupa o buraco em vez de empurrar a pagina pra baixo.
+   O mask apaga as duas pontas, senao o card aparece e some com corte reto. */
+.esteira {
+  position: relative;
+  overflow: hidden;
+  margin: -24px 0 -16px;
+  padding: 4px 0;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+}
+.esteiraTrilha {
+  display: flex;
+  width: max-content;
+  animation: esteiraRola 52s linear infinite;
+}
+.esteira:hover .esteiraTrilha { animation-play-state: paused; }
+@keyframes esteiraRola {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.esteiraItem {
+  flex: 0 0 auto;
+  margin: 0 14px 0 0;   /* respiro no ITEM, nao gap na trilha — ver o porque no JSX */
+  width: 127px;
+  text-align: center;
+}
+.esteiraItem img {
+  display: block;
+  width: 127px;
+  height: 180px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.38);
+}
+.esteiraItem figcaption {
+  margin-top: 9px;
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--color-text-muted);
+  opacity: 0.72;
+  /* DUAS LINHAS em vez de reticencia: "Contrato de compra e venda" nao cabe em
+     127px e virava "Contrato de compra e v...". A altura minima segura as
+     legendas de uma linha na mesma altura das de duas, senao a fileira dança. */
+  min-height: 28px;
+}
+@media (min-width: 880px) {
+  .esteira { margin: -28px 0 -8px; }
+  .esteiraItem { width: 148px; margin-right: 18px; }
+  .esteiraItem img { width: 148px; height: 210px; }
+  .esteiraItem figcaption { font-size: 12px; }
+}
+/* Quem pediu menos movimento no sistema ve' a faixa parada e rola na mao. */
+@media (prefers-reduced-motion: reduce) {
+  .esteiraTrilha { animation: none; }
+  .esteira { overflow-x: auto; }
+}
+
 .social { padding: 80px 20px; }
 .socialInner { max-width: 1080px; margin: 0 auto; }
 .statsGrid {
