@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { blocoPares, TETO_KM, MAX_PARES, type Sugestao } from '../services/io/eletropostoPares';
-import { montarAvisoPonto, montarAvisoCapital } from '../routes/ioEletroposto';
+import { montarAvisoPonto, montarAvisoCapital, montarAvisoIntegrador } from '../routes/ioEletroposto';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // O que este arquivo trava: o TEXTO que chega no WhatsApp do Thiago e do Diego.
@@ -118,5 +118,34 @@ describe('as mensagens da equipe', () => {
     const m = montarAvisoCapital({ id: 3, nome: 'Carlos', telefone: '5534992220000' }, []);
     expect(m).toContain('INVESTIDOR');
     expect(m.split('\n').filter(Boolean).length).toBeGreaterThan(5);
+  });
+
+  // O integrador não tem contraparte: ele não recebe bloco de pares, e a função
+  // nem aceita um. O teste existe pra travar isso — o dia em que alguém
+  // "padronizar" as três assinaturas, a mensagem passa a oferecer ponto a quem
+  // só quer instalar.
+  it('integrador: traz o perfil e NÃO traz bloco de pares', () => {
+    const m = montarAvisoIntegrador({
+      id: 9, nome: 'Marcos Vieira', telefone: '5534991110000', cidade: 'Uberaba-MG',
+      integrador_atuacao: 'Integrador solar (projeto e instalação)',
+      integrador_interesse: 'As duas coisas: vender e executar',
+      integrador_experiencia: '1 a 3 instalados',
+      integrador_equipe: 'Tenho equipe própria',
+      obs: 'atendo três cidades',
+    });
+    expect(m).toContain('INTEGRADOR');
+    expect(m).toContain('Integrador solar (projeto e instalação)');
+    expect(m).toContain('1 a 3 instalados');
+    expect(m).toContain('atendo três cidades');
+    expect(m).not.toContain('MAIS PERTO');
+    expect(m).not.toContain('undefined');
+  });
+
+  it('integrador sem nada preenchido não vaza undefined nem null', () => {
+    const m = montarAvisoIntegrador({ id: 10, nome: 'X', telefone: '5534991110001' });
+    expect(m).toContain('*Cidade:* —');
+    expect(m).toContain('*Equipe:* —');
+    expect(m).not.toContain('undefined');
+    expect(m).not.toContain('null');
   });
 });
