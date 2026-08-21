@@ -501,6 +501,21 @@ anotado aqui — pra ninguém procurar prova que não existe:
 | Lucas Paulino · RSC Solar | idem |
 | Alessandro Goulart · Força Solar | idem |
 | Ronailson Klesley · Alves Cardoso Solar | idem |
+| **Vicente · VFF Energia Solar** | Respondeu **"Pode sim"** no WhatsApp, 20/08/2026, mandou o nome da empresa e depois corrigiu o próprio nome. Está em `conversa_wa('19988288802')`. **7º card, no ar em 21/08.** |
+
+**Esperando uma frase pra subir — NÃO colar no `Landing.tsx` antes:**
+
+> **Antônio Henrique · Exxel Solar (Xique-Xique/BA)**, 21/08/2026:
+> *"Praticidade na confecção das propostas. Tinha outro CRM — o custo benefício dessa proposta
+> me fez optar. O que falta é a integração da precificação com o gerador de proposta."*
+>
+> Ele mandou nome e empresa logo depois, mas isso foi **atender ao pedido de nome e empresa**, não
+> dizer "pode publicar". Falta a pergunta direta. É a segunda fala da base a dizer **"custo
+> benefício"** contra um CRM sem ser perguntada — se ele liberar, vira o par do Juliano.
+
+> **Eduardo Boso · Eclipse Solar (Sarandi/PR)**, 21/08/2026: *"Agilidade. Vinha da plataforma da
+> Reonic. Falta uma capa na proposta."* Curto demais pra card, e sem autorização. Serve como
+> terceira marca concorrente citada espontaneamente.
 
 **Dois pontos que continuam abertos:**
 

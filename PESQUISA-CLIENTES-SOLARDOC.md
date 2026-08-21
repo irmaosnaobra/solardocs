@@ -141,3 +141,108 @@ READY, se estiver dentro da janela de 9h–20h.
 O aviso do Supabase de hoje: `users`, `sales`, `documents` e mais 36 tabelas do solardoc-pro estão
 com RLS desligada — quem tiver a chave anon lê e escreve tudo. Mesmo problema que provei no gerador
 em 18/08. Não mexi.
+
+---
+
+# Resultado da 2ª rodada — lido em 21/08/2026
+
+**22 pessoas já receberam** (10 na 1ª rodada, 12 desde 20/08). `TOP_N` está em 20: o número passou
+porque a lista é **re-rankeada a cada tick** — quem esfria cai do top e abre vaga pra quem entrou
+usando. Não é bug, mas tem um efeito colateral: o **cimigno@gmail.com** recebeu *"você é um dos que
+mais usam a plataforma — 5 propostas para 4 clientes"*. Com 5 propostas a frase deixou de ser
+verdade. Se a régua não subir, a próxima leva abre com um elogio que o cliente sabe que é falso.
+
+**Chegaram 4 respostas novas aproveitáveis** desde a última leitura (19/08): Vicente, Antônio
+Henrique, Eduardo Boso e o Max. Outras 3 foram **robô de recepção do próprio cliente** respondendo
+ao nosso robô (Luz Energy, EJB, RC Projetos) e 1 foi áudio de intermediário.
+
+## 1) O que mais ajuda
+
+| Quem | Fala |
+|---|---|
+| **Vicente** · VFF Energia Solar (Campinas/SP) | *"A praticidade do sistema: fazendo o download da fatura, ele calcula o consumo médio. E a agilidade de editar contrato, recibo, procuração."* |
+| **Antônio Henrique** · Exxel Solar (Xique-Xique/BA) | *"Praticidade na confecção das propostas."* |
+| **Eduardo Boso** · Eclipse Solar (Sarandi/PR) | *"Agilidade."* |
+| **Max** · GreenMax Solar (Maricá/RJ) | *"Pra mim tá ótimo."* |
+
+Nenhuma palavra sobre aparência, de novo. É velocidade e é a proposta — o mesmo que a base já disse
+em 19/08.
+
+## 2) Com o que comparou — os 3 vieram de plataforma paga
+
+| Quem | De onde veio |
+|---|---|
+| **Vicente** | *"Uso a iSales, plataforma muito boa também, mas **o custo é alto pelo que oferecem**."* |
+| **Antônio Henrique** | *"Tinha outro CRM. **O custo benefício dessa proposta me fez optar**."* |
+| **Eduardo Boso** | *"Plataforma da Reonic."* |
+
+**3 de 3 trocaram uma plataforma paga pela nossa, e 2 disseram "custo" sem serem perguntados.** O
+ângulo de [COPY-SOLARDOC-DOR-MENSALIDADE.md](COPY-SOLARDOC-DOR-MENSALIDADE.md) ganhou duas
+testemunhas novas — e agora são **três marcas concorrentes citadas espontaneamente** (Azume, iSales,
+Reonic) por clientes diferentes.
+
+## 3) O que falta — e o pedido que 3 pessoas fizeram com 3 nomes diferentes
+
+| Quem | O que pediu | Rodada |
+|---|---|---|
+| **Melque** | *"Colocar o preço individual das placas, inversor e estrutura"* | 1ª |
+| **Max** | *"Poder montar os kit, já deixar o kit montado, pra eu não ter que fazer tudo novamente"* | 2ª |
+| **Antônio Henrique** | *"A integração da precificação com o gerador de proposta"* | 2ª |
+
+**É o mesmo pedido.** Três pessoas, três formas de dizer: *o preço dos itens tem que morar dentro da
+proposta, e o conjunto tem que ficar salvo pra reusar.* Nenhum deles pediu documento novo.
+
+**A ironia que dói:** a **Precificação já existe** — e virou exclusiva do plano anual em 17/08. O
+Antônio é `pro`. O pedido nº 1 da base é ligar uma ferramenta que quem pede **não consegue abrir**.
+Duas saídas, e as duas são decisão do Thiago: ou a Precificação volta a aparecer (mesmo capada) pra
+quem é `pro`, ou isso vira o argumento do upgrade — *"você pediu; está no anual"*.
+
+Pedidos avulsos, sem repetição ainda:
+
+- **Eduardo Boso**: *"Falta uma capa na proposta."*
+- **Melque** (1ª rodada): kanban de projetos por etapa, com anexo.
+- **GSI** (1ª rodada): quantidade de baterias some no PDF da proposta; geração estimada devia entrar
+  no contrato. **Esse é bug, não pedido.**
+- **American Energy** (1ª rodada): logo maior na proposta com gráfico; e não consegue baixar pela
+  nuvem, no celular, uma proposta já gerada.
+
+## 4) Depoimentos
+
+**No ar desde hoje:** o **Vicente (VFF Energia Solar)** entrou como 7º card em
+`dashboard/src/components/Landing/Landing.tsx`. Autorização por escrito, na linha, 20/08 — *"Pode
+sim"*, mandou o nome da empresa e depois corrigiu o próprio nome. Está em
+`conversa_wa('19988288802')`, é o **segundo** com prova (o primeiro é a GSI).
+
+**Parado esperando uma frase:** o **Antônio Henrique** respondeu as 3 perguntas e mandou *"Antônio
+Henrique, Exxel Solar, Xique-Xique-Bahia"* logo em seguida. Isso é ele **atendendo** o pedido de
+nome e empresa, **não é um "pode publicar"**. Fica fora do `Landing.tsx` — nem com `liberado:
+false`, que já vazou uma vez. Uma pergunta na conversa resolve.
+
+## 5) Quatro clientes responderam e ninguém respondeu de volta
+
+Sem drama, mas está aberto:
+
+| Quem | Quando respondeu | Por que ficou mudo |
+|---|---|---|
+| American Energy | 20/08, 00h53 | fora da janela diurna (9h–20h) |
+| Max · GreenMax | 20/08, 07h56 | fora da janela diurna |
+| **Antônio Henrique** | 21/08, 09h09 | **mordaça de 14 dias** |
+| **Eduardo Boso** | 21/08, 10h51 | **mordaça de 14 dias** |
+
+Os dois de baixo são o preço da correção de 18/08 e ela **está funcionando como foi desenhada**: o
+telefone deles só existe em `company.whatsapp`, então o robô de vendas foi calado pra não empurrar
+pitch em cliente pagante. Só que o atendimento (`whatsappAgentService.ts:691`) procura o dono da
+conta **só** por `users.whatsapp` — não acha, e também não fala. Resultado: protegido do pitch,
+órfão de resposta.
+
+**Não é conserto de uma linha.** `company.whatsapp` é texto livre (tem `11-93962-2890` na base), e
+tratar todo `company.whatsapp` como dono de conta é justamente o que se decidiu não fazer em 18/08
+(calaria 78 conversas). O caminho honesto é casar por **8 últimos dígitos**, no banco, e só isso já é
+uma tarefa própria.
+
+**Enquanto isso, são 4 mensagens na mão** — e uma delas destrava um depoimento.
+
+## 6) Áudio do New Energy RS: não era feedback
+
+Transcrito (7 s): *"Fala Thiago, beleza? É Saul aqui. Ela já é sua cliente aí de vocês, cara."*
+É intermediário confirmando que a conta é de outra pessoa. **A resposta do dono ainda não veio.**

@@ -106,6 +106,11 @@ const CONCESSIONARIAS = [
    pra provar por `conversa_wa`. Registrado aqui pra ninguem procurar prova que
    nao existe.
 
+   O SETIMO (Vicente, VFF Energia Solar) autorizou na propria linha em 20/08/2026 e
+   esse TEM prova: perguntado se podia publicar, respondeu "Pode sim", mandou o nome
+   da empresa e depois corrigiu o proprio nome ("Meu nome e' Vicente"). Fica em
+   `conversa_wa('19988288802')`.
+
    `liberado` continua no tipo de proposito: obriga quem for colar um depoimento
    novo a afirmar a autorizacao numa palavra, em vez de colar no automatico.
    Cliente elogiar nao e' cliente autorizar — "Tamo junto" e emoji de aperto de mao
@@ -177,6 +182,15 @@ const DEPOIMENTOS: {
     nome: 'Ronailson Klesley', empresa: 'Alves Cardoso Solar', cidade: 'Abreulândia/TO',
     logo: '/logos/alves-cardoso-solar.webp', logoW: 57, liberado: true,
     texto: 'Praticidade e agilidade. Antes eu não fazia — era só venda formal, sem nenhum documento apresentando dados reais.',
+  },
+  {
+    // Autorizado por escrito na linha em 20/08/2026 (ver cabecalho). A fala e' dele,
+    // reordenada: a praticidade primeiro, o custo da outra plataforma no fim, que e'
+    // o argumento da pagina. "Isales" virou "outra plataforma" pela regra do
+    // cabecalho — quem nomeia marca e' o cliente na conversa, nao a nossa vitrine.
+    nome: 'Vicente', empresa: 'VFF Energia Solar', cidade: 'Campinas/SP',
+    logo: '/logos/vff-energia-solar.webp', logoW: 60, liberado: true,
+    texto: 'A praticidade do sistema: fazendo o download da fatura, ele calcula o consumo médio. E a agilidade de editar contrato, recibo, procuração. Uso outra plataforma, muito boa também, mas o custo é alto pelo que oferecem.',
   },
 ];
 
