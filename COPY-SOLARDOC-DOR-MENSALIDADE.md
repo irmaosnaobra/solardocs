@@ -513,6 +513,36 @@ anotado aqui — pra ninguém procurar prova que não existe:
 > dizer "pode publicar". Falta a pergunta direta. É a segunda fala da base a dizer **"custo
 > benefício"** contra um CRM sem ser perguntada — se ele liberar, vira o par do Juliano.
 
+**Pronto pra subir no minuto em que ele disser sim** (nada disso está no `Landing.tsx` ainda):
+
+1. A mensagem, pra mandar no 74 99950-8439:
+
+   > Antônio, obrigado pelo retorno — anotei os três pontos. Uma pergunta rápida: posso publicar
+   > a sua frase na página do SolarDoc, com seu nome e a Exxel Solar? E se puder usar a logo da
+   > empresa junto, me confirma também.
+
+   A segunda frase existe porque **a logo é licença separada** e nenhum dos seis foi perguntado
+   sobre ela. Esta é a chance de fechar a porta sem custo.
+
+2. A logo já está recortada e apertada (120px de altura, 2,5 KB), fora do repo pra não publicar
+   antes da hora:
+   `mv <scratchpad>/exxel-solar.webp dashboard/public/logos/exxel-solar.webp`
+
+3. O card, pra colar depois do Vicente em `Landing.tsx`:
+
+```tsx
+  {
+    // Autorizado por escrito na linha em __/08/2026 — anotar aqui como.
+    nome: 'Antônio Henrique', empresa: 'Exxel Solar', cidade: 'Xique-Xique/BA',
+    logo: '/logos/exxel-solar.webp', logoW: 60, liberado: true,
+    texto: 'Praticidade na confecção das propostas. Eu tinha outro CRM — o custo benefício dessa proposta me fez optar.',
+  },
+```
+
+   A terceira resposta dele (integração da precificação) fica **fora do card** de propósito: é
+   pedido, não elogio, e vive em `PESQUISA-CLIENTES-SOLARDOC.md`. Com ele são **8 cards**, 3+3+2 —
+   a última fileira volta a fechar centrada, sem card sozinho.
+
 > **Eduardo Boso · Eclipse Solar (Sarandi/PR)**, 21/08/2026: *"Agilidade. Vinha da plataforma da
 > Reonic. Falta uma capa na proposta."* Curto demais pra card, e sem autorização. Serve como
 > terceira marca concorrente citada espontaneamente.
