@@ -641,73 +641,6 @@ export default function Landing() {
               </div>
             ) : null}
 
-            {/* FUNCIONA EM — mesma faixa das LPs de produto. Mora FORA do bloco
-                do vídeo de propósito: a pergunta "e no MEU aparelho?" continua
-                existindo com ou sem VSL na página. Enquanto a faixa estava
-                dentro do `VSL.src ?`, desligar o vídeo levava ela junto — e ela
-                nunca foi parte do vídeo, é a resposta pra quem NÃO quer assistir. */}
-            <div className={styles.rodaEmSozinha}>
-                <div className={styles.rodaEm}>
-                  <span className={styles.rodaEmTitulo}>Funciona em</span>
-                  <ul className={styles.rodaEmLista}>
-                    <li>
-                      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                        <path d="M6.4 10.2h11.2v6.6a1.6 1.6 0 0 1-1.6 1.6H8a1.6 1.6 0 0 1-1.6-1.6v-6.6Z" />
-                        <rect x="3.1" y="10.2" width="2.4" height="6" rx="1.2" />
-                        <rect x="18.5" y="10.2" width="2.4" height="6" rx="1.2" />
-                        <rect x="8.9" y="18.4" width="2.3" height="4.2" rx="1.15" />
-                        <rect x="12.8" y="18.4" width="2.3" height="4.2" rx="1.15" />
-                        <path d="M6.6 9.2a5.4 5.4 0 0 1 10.8 0H6.6Z" />
-                        <path d="M8.2 4.1 7.1 2.3M15.8 4.1l1.1-1.8" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" fill="none" />
-                      </svg>
-                      Android
-                    </li>
-                    <li>
-                      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                        <path d="M16.9 12.6c0-2.4 2-3.6 2.1-3.7-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.15-2.9.88-3.65.88-.76 0-1.92-.86-3.16-.84-1.63.03-3.13.95-3.96 2.4-1.69 2.93-.43 7.27 1.21 9.65.8 1.16 1.76 2.47 3.02 2.42 1.21-.05 1.67-.78 3.14-.78 1.46 0 1.88.78 3.16.76 1.31-.02 2.14-1.19 2.94-2.36.92-1.35 1.3-2.65 1.32-2.72-.03-.01-2.54-.98-2.57-3.86Z" />
-                        <path d="M14.5 5.6c.67-.81 1.12-1.94.99-3.06-.96.04-2.12.64-2.81 1.45-.62.72-1.16 1.87-1.02 2.97 1.07.08 2.17-.55 2.84-1.36Z" />
-                      </svg>
-                      iPhone e iPad
-                    </li>
-                    <li>
-                      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                        <path d="M3 5.6l7.6-1.05v7.1H3V5.6Z" />
-                        <path d="M11.6 4.4 21 3.1v8.55h-9.4V4.4Z" />
-                        <path d="M3 12.65h7.6v7.1L3 18.7v-6.05Z" />
-                        <path d="M11.6 12.65H21v8.55l-9.4-1.3v-7.25Z" />
-                      </svg>
-                      Windows
-                    </li>
-                    <li>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-                        <circle cx="12" cy="12" r="9.1" strokeWidth="1.7" />
-                        <ellipse cx="12" cy="12" rx="4" ry="9.1" strokeWidth="1.5" />
-                        <path d="M3.3 9.2h17.4M3.3 14.8h17.4" strokeWidth="1.5" />
-                      </svg>
-                      Qualquer navegador
-                    </li>
-                  </ul>
-                  <p className={styles.rodaEmNota}>
-                    Abre no navegador — <b>nada pra instalar</b>. Se quiser, dá pra fixar na tela
-                    inicial do celular e usar como aplicativo.
-                  </p>
-                </div>
-            </div>
-
-            <div className={styles.trustRow} style={{ justifyContent: 'center', marginTop: 20 }}>
-              <span className={styles.trustItem}>
-                {/* uma frase por item: .trustItem é flex com gap, então texto solto
-                    ao lado do <b> abre um buraco no meio da frase */}
-                <span className={styles.trustCheck}>✓</span> <b>Tudo liberado, sem plano capado</b>
-              </span>
-              <span className={styles.trustItem}>
-                <span className={styles.trustCheck}>✓</span> Garantia de 7 dias
-              </span>
-              <span className={styles.trustItem}>
-                <span className={styles.trustCheck}>✓</span> Cancele quando quiser
-              </span>
-            </div>
-
             {/* Quem está por trás — prova de gente de verdade, já na dobra */}
             <div className={styles.heroFounders} data-reveal>
               <span className={styles.heroFoundersPics} aria-hidden>
@@ -749,6 +682,87 @@ export default function Landing() {
               <figcaption>{d.nome}</figcaption>
             </figure>
           ))}
+        </div>
+      </section>
+
+      {/* FICHA TECNICA — "Funciona em" + as tres garantias. Saiu de dentro do
+          hero em 21/08/2026 (ordem do Thiago): ali ela ficava entre o preco e a
+          esteira, alongando a primeira tela justo onde a pessoa acabou de ver o
+          botao. Aqui embaixo da faixa ela continua respondendo "e no MEU
+          aparelho?" pra quem desceu.
+
+          ATENCAO PRA QUEM MEXER DEPOIS: "Garantia de 7 dias" e "Cancele quando
+          quiser" eram reversao de risco COLADA no botao. Se a conversao do hero
+          cair, este movimento e' o primeiro suspeito — devolver e' recortar este
+          bloco de volta pra depois da pilula de preco. */}
+      <section className={styles.fichaTecnica}>
+        <div className={styles.fichaTecnicaInner}>
+        {/* FUNCIONA EM — mesma faixa das LPs de produto. Mora FORA do bloco
+            do vídeo de propósito: a pergunta "e no MEU aparelho?" continua
+            existindo com ou sem VSL na página. Enquanto a faixa estava
+            dentro do `VSL.src ?`, desligar o vídeo levava ela junto — e ela
+            nunca foi parte do vídeo, é a resposta pra quem NÃO quer assistir. */}
+        <div className={styles.rodaEmSozinha}>
+            <div className={styles.rodaEm}>
+              <span className={styles.rodaEmTitulo}>Funciona em</span>
+              <ul className={styles.rodaEmLista}>
+                <li>
+                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                    <path d="M6.4 10.2h11.2v6.6a1.6 1.6 0 0 1-1.6 1.6H8a1.6 1.6 0 0 1-1.6-1.6v-6.6Z" />
+                    <rect x="3.1" y="10.2" width="2.4" height="6" rx="1.2" />
+                    <rect x="18.5" y="10.2" width="2.4" height="6" rx="1.2" />
+                    <rect x="8.9" y="18.4" width="2.3" height="4.2" rx="1.15" />
+                    <rect x="12.8" y="18.4" width="2.3" height="4.2" rx="1.15" />
+                    <path d="M6.6 9.2a5.4 5.4 0 0 1 10.8 0H6.6Z" />
+                    <path d="M8.2 4.1 7.1 2.3M15.8 4.1l1.1-1.8" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" fill="none" />
+                  </svg>
+                  Android
+                </li>
+                <li>
+                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                    <path d="M16.9 12.6c0-2.4 2-3.6 2.1-3.7-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.15-2.9.88-3.65.88-.76 0-1.92-.86-3.16-.84-1.63.03-3.13.95-3.96 2.4-1.69 2.93-.43 7.27 1.21 9.65.8 1.16 1.76 2.47 3.02 2.42 1.21-.05 1.67-.78 3.14-.78 1.46 0 1.88.78 3.16.76 1.31-.02 2.14-1.19 2.94-2.36.92-1.35 1.3-2.65 1.32-2.72-.03-.01-2.54-.98-2.57-3.86Z" />
+                    <path d="M14.5 5.6c.67-.81 1.12-1.94.99-3.06-.96.04-2.12.64-2.81 1.45-.62.72-1.16 1.87-1.02 2.97 1.07.08 2.17-.55 2.84-1.36Z" />
+                  </svg>
+                  iPhone e iPad
+                </li>
+                <li>
+                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                    <path d="M3 5.6l7.6-1.05v7.1H3V5.6Z" />
+                    <path d="M11.6 4.4 21 3.1v8.55h-9.4V4.4Z" />
+                    <path d="M3 12.65h7.6v7.1L3 18.7v-6.05Z" />
+                    <path d="M11.6 12.65H21v8.55l-9.4-1.3v-7.25Z" />
+                  </svg>
+                  Windows
+                </li>
+                <li>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
+                    <circle cx="12" cy="12" r="9.1" strokeWidth="1.7" />
+                    <ellipse cx="12" cy="12" rx="4" ry="9.1" strokeWidth="1.5" />
+                    <path d="M3.3 9.2h17.4M3.3 14.8h17.4" strokeWidth="1.5" />
+                  </svg>
+                  Qualquer navegador
+                </li>
+              </ul>
+              <p className={styles.rodaEmNota}>
+                Abre no navegador — <b>nada pra instalar</b>. Se quiser, dá pra fixar na tela
+                inicial do celular e usar como aplicativo.
+              </p>
+            </div>
+        </div>
+
+        <div className={styles.trustRow} style={{ justifyContent: 'center', marginTop: 20 }}>
+          <span className={styles.trustItem}>
+            {/* uma frase por item: .trustItem é flex com gap, então texto solto
+                ao lado do <b> abre um buraco no meio da frase */}
+            <span className={styles.trustCheck}>✓</span> <b>Tudo liberado, sem plano capado</b>
+          </span>
+          <span className={styles.trustItem}>
+            <span className={styles.trustCheck}>✓</span> Garantia de 7 dias
+          </span>
+          <span className={styles.trustItem}>
+            <span className={styles.trustCheck}>✓</span> Cancele quando quiser
+          </span>
+        </div>
         </div>
       </section>
 

@@ -1241,6 +1241,15 @@
 }
 
 /* ---------- PROVA SOCIAL ---------- */
+/* ----- FICHA TECNICA -----
+   O "Funciona em" + as tres garantias, depois da esteira. Herdam o estilo que ja'
+   tinham dentro do hero; aqui so' entra o respiro e a centralizacao. */
+/* O -30 come parte dos 80px de topo do .social: sem ele sobrava o mesmo vazio
+   que a esteira veio resolver, so' que 200px mais abaixo. */
+.fichaTecnica { padding: 30px 20px 0; margin-bottom: -30px; }
+.fichaTecnicaInner { max-width: 580px; margin: 0 auto; text-align: center; }
+.fichaTecnicaInner .trustRow { margin-bottom: 0; }
+
 /* ----- ESTEIRA DE DOCUMENTOS -----
    Faixa que fecha o hero. Sobe 24px pra dentro do padding de 64 do hero e come
    16px do social: a faixa ocupa o buraco em vez de empurrar a pagina pra baixo.
