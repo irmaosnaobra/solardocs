@@ -714,10 +714,28 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .bnk-linha input.d:placeholder-shown{border-color:rgba(252,165,165,.45)}
 .bnk-linha .x{background:none;border:none;color:#64748B;font-size:15px;font-family:inherit;line-height:1;cursor:pointer;padding:10px 6px;border-radius:6px}
 .bnk-linha .x:hover{color:#fca5a5;background:rgba(248,113,113,.14)}
+/* o objeto e' uma frase inteira ("… + SISTEMA FOTOVOLTAICO 12,00 kWp"): no campo
+   estreito do .eletro-field ele sai cortado e ninguem confere o que vai no papel */
+.bnk-obj{margin-top:14px}
+.bnk-obj label{display:block;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#64748B;margin-bottom:6px}
+.bnk-obj input{width:100%;box-sizing:border-box;padding:12px;background:#0b1424;border:1px solid rgba(255,255,255,.12);border-radius:9px;color:#fff;font-family:inherit;font-size:13.5px;font-weight:700;outline:none;transition:border-color .2s}
+.bnk-obj input:focus{border-color:#3B82F6}
+.bnk-fv{margin-top:14px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:11px 12px}
+.bnk-fv-tit{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#94A3B8;margin-bottom:9px}
+.bnk-fv-linha{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.bnk-fv-linha select{flex:1 1 210px;min-width:0;padding:12px;background:#0b1424;border:1px solid rgba(255,255,255,.12);border-radius:9px;color:#fff;font-family:inherit;font-size:13px;font-weight:700}
+.bnk-fv-qtd{display:flex;align-items:center;gap:7px}
+.bnk-fv-qtd input{width:78px;padding:12px 10px;background:#0b1424;border:1px solid rgba(255,255,255,.12);border-radius:9px;color:#fff;font-family:inherit;font-size:13px;font-weight:700;text-align:center}
+.bnk-fv-qtd span{font-size:12.5px;color:#94A3B8;font-weight:700}
 .bnk-tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .bnk-tool{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.34);color:#bfdbfe;font-family:inherit;font-size:12.5px;font-weight:700;border-radius:9px;padding:8px 12px;cursor:pointer;transition:background .2s,color .2s}
 .bnk-tool:hover{background:rgba(59,130,246,.22);color:#fff}
 @media(max-width:640px){
+  /* a faixa do kit empurrava a página 17px pra fora a 414px: o select ocupa a
+     linha inteira e a quantidade divide a de baixo com o botão */
+  .bnk-fv-linha select{flex:1 1 100%}
+  .bnk-fv-qtd,.bnk-fv-linha .bnk-tool{flex:1 1 auto}
+  .bnk-fv-qtd input{flex:1 1 auto;width:auto;min-width:0}
   /* dedo, não mouse: medido a 414px, tudo daqui fecha em 44px de altura */
   .bnk-tool{padding:14px}
   .bnk-linha input{padding:11px 10px;font-size:14px}
@@ -3364,11 +3382,25 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Composição — a lista que sai no papel</div>
         <div class="orc-note" style="margin-top:0">Esta lista é <b>desta folha</b>: nasce copiada do Orçamento, mas o que se muda aqui não muda o Orçamento nem o escopo do Contrato. O <b>Banco do Nordeste</b> exige <b>código</b> no bem financiado — a coluna existe por item e só sai impressa quando algum estiver preenchido. Código digitado fica <b>lembrado neste dispositivo</b> e volta sozinho no próximo cliente.</div>
+        <div class="bnk-obj">
+          <label for="bnk-objeto">Objeto — o título da tabela no papel</label>
+          <input type="text" id="bnk-objeto" oninput="epTocar(this)" placeholder="Segue a composição">
+        </div>
+        <div class="orc-note" id="bnk-objeto-note">—</div>
         <div class="bnk-tools">
           <button type="button" class="bnk-tool" onclick="bnkCompPreset('bnb')">Modelo Banco do Nordeste</button>
           <button type="button" class="bnk-tool" onclick="bnkCompPreset('orc')">Copiar do Orçamento</button>
           <button type="button" class="bnk-tool" onclick="bnkCompAdd('Material elétrico geral')">+ Material elétrico geral</button>
           <button type="button" class="bnk-tool" onclick="bnkCompAdd('')">+ Item</button>
+        </div>
+        <div class="bnk-fv">
+          <div class="bnk-fv-tit">Kit fotovoltaico junto</div>
+          <div class="bnk-fv-linha">
+            <select id="bnk-fv-kit" onchange="bnkFvNota()"></select>
+            <div class="bnk-fv-qtd"><input type="number" id="bnk-fv-placas" min="1" step="1" inputmode="numeric" value="10" oninput="bnkFvNota()"><span>placas</span></div>
+            <button type="button" class="bnk-tool" onclick="bnkFvAdd()">Somar ao papel</button>
+          </div>
+          <div class="orc-note" id="bnk-fv-nota">—</div>
         </div>
         <div class="bnk-cabec" style="margin-top:14px"><span>Qtd</span><span>Descrição</span><span class="h-cod">Código (Finame)</span><span></span></div>
         <div class="bnk-itens" id="bnk-itens"></div>
@@ -11475,7 +11507,12 @@ function bcoImprimir() {
 // 20/08: era lista de ids do EP_KIT (`['carreg','trafo',...]`). Virou regex sobre
 // a DESCRICAO porque a composicao desta folha deixou de ser espelho do kit: linha
 // escrita a mao ("Material eletrico geral") nao tem id pra casar.
-const BNK_BEM_RE = /carregad|estac[aã]o de recarga|transformad|cabeament|cabo|padr[aã]o de entrada|cobertur|material el[eé]tric|equipament/i;
+const BNK_BEM_RE = /carregad|estac[aã]o de recarga|transformad|cabeament|cabo|padr[aã]o de entrada|cobertur|material el[eé]tric|equipament|m[oó]dulo|painel|placa|inversor|estrutura|string ?box|fotovolta|bateria/i;
+// Serviço ganha do bem quando os dois casam na mesma linha: "Projeto e homologação
+// do sistema FOTOVOLTAICO" e' servico, e sem esta precedencia o `fotovolta` do
+// BNK_BEM_RE mandava projeto e mao de obra pro lado do equipamento financiado.
+const BNK_SERV_RE = /projeto|m[aã]o de obra|instala[çc][aã]o|homologa|servi[çc]o|engenharia|comissionamento|consultoria|treinamento|software|aplicativo|plataforma/i;
+const bnkEhBem = desc => BNK_BEM_RE.test(desc) && !BNK_SERV_RE.test(desc);
 
 // ════════════════════════════════════════════════════════════
 // COMPOSICAO DA PROPOSTA DE BANCO — lista PROPRIA, e nao o kit
@@ -11542,6 +11579,91 @@ function bnkCompModelo(qual) {
     // impressa — o erro que este arquivo ja' pagou tres vezes.
     : kit.map(i => ({ qtd: i.qtd || 1, desc: (String(i.desc || '') + (i.variante ? ' ' + i.variante : '')).trim() }));
   return linhas.map(l => ({ qtd: l.qtd, desc: l.desc, cod: bnkCodDe(l.desc) }));
+}
+
+// ═══ KIT FOTOVOLTAICO NA MESMA FOLHA ═══
+// Eletroposto casado com solar e' venda da casa (ver o caso do Josevaldo), e o
+// banco financia os dois juntos numa proposta so'. As linhas saem dos kits
+// VIGENTES (TABELAS, o mesmo dado da tela Tabelas) pra descricao nunca discordar
+// do que a casa vende — mas nada aqui trava: entram como linha comum, editaveis,
+// e "Outro" monta o esqueleto pra escrever a mao.
+//
+// ⚠ A quantidade de placas NAO e' limitada pela faixa da tabela. Eletroposto pede
+// usina maior do que os kits residenciais cobrem; fora da faixa a tela avisa que
+// nao ha' preco nem nº de inversores conferidos, e segue.
+function bnkFvKits() {
+  return (typeof TABELAS === 'object' && TABELAS) ? Object.keys(TABELAS) : [];
+}
+function bnkFvLinhaTab(k, n) {
+  const t = (typeof TABELAS === 'object' && TABELAS || {})[k];
+  return t && t.rows ? t.rows.find(r => r.n === n) : null;
+}
+function bnkFvInit() {
+  const sel = document.getElementById('bnk-fv-kit');
+  if (!sel || sel.options.length) return;
+  const kits = bnkFvKits();
+  sel.innerHTML = kits.map(k => {
+    const t = TABELAS[k];
+    // "SAJ 3K" e "SAJ 3K PROMO" sao a mesma dupla inversor+modulo: sem o rotulo da
+    // chave as duas linhas do seletor sairiam com o mesmo nome.
+    const promo = /promo/i.test(k) ? ' PROMO' : '';
+    return `<option value="${bnkAttr(k)}">${orcEsc(t.inv + promo + ' · ' + t.mod)}</option>`;
+  }).join('') + '<option value="">Outro — escrevo à mão</option>';
+  bnkFvNota();
+}
+function bnkFvNota() {
+  const el = document.getElementById('bnk-fv-nota');
+  if (!el) return;
+  const k = (document.getElementById('bnk-fv-kit') || {}).value || '';
+  const n = Math.max(1, parseInt((document.getElementById('bnk-fv-placas') || {}).value, 10) || 0);
+  if (!k) { el.innerHTML = 'Entram quatro linhas em branco (módulo, inversor, estrutura e projeto) para você escrever o que for.'; return; }
+  const t = TABELAS[k];
+  const linha = bnkFvLinhaTab(k, n);
+  const kwp = (n * (t.pot || 0) / 1000);
+  const partes = ['<b>' + n + '</b> × ' + orcEsc(t.mod) + ' = <b>' + kwp.toFixed(2).replace('.', ',') + ' kWp</b>'];
+  if (linha) partes.push('Na tabela vigente este kit sai por <b>' + ORC_MONEY(linha.pVista) + '</b> à vista — <b>some ao total</b> se ele entra na venda (o campo do total não muda sozinho).');
+  else partes.push('<b style="color:#fcd34d">Fora da faixa da tabela</b> (' + t.rows[0].n + ' a ' + t.rows[t.rows.length - 1].n + ' placas): sem preço e sem nº de inversores conferidos. As linhas entram assim mesmo — confira a quantidade de inversores.');
+  el.innerHTML = partes.join(' ');
+}
+function bnkFvAdd() {
+  const k = (document.getElementById('bnk-fv-kit') || {}).value || '';
+  const n = Math.max(1, parseInt((document.getElementById('bnk-fv-placas') || {}).value, 10) || 1);
+  const t = k ? TABELAS[k] : null;
+  const linha = k ? bnkFvLinhaTab(k, n) : null;
+  const novas = t
+    ? [{ qtd: n, desc: 'Módulo fotovoltaico ' + t.mod },
+       // invs so' sai da tabela: fora da faixa vira 1 e a nota manda conferir —
+       // dividir placas por um numero de cabeca inventaria equipamento na peca fiscal.
+       { qtd: linha ? linha.invs : 1, desc: 'Inversor ' + t.inv },
+       { qtd: 1, desc: 'Estrutura de fixação e cabeamento CC' },
+       { qtd: 1, desc: 'Projeto e homologação do sistema fotovoltaico' }]
+    : [{ qtd: n, desc: 'Módulo fotovoltaico' }, { qtd: 1, desc: 'Inversor' },
+       { qtd: 1, desc: 'Estrutura de fixação e cabeamento CC' },
+       { qtd: 1, desc: 'Projeto e homologação do sistema fotovoltaico' }];
+  BNK_ITENS = bnkCompDoDom().concat(novas.map(l => ({ qtd: l.qtd, desc: l.desc, cod: bnkCodDe(l.desc) })));
+  BNK_ITENS_TOCADA = true;
+  bnkCompRender();
+}
+
+// ═══ O OBJETO DA FOLHA — segue a composição até alguém escrever por cima ═══
+// Era cravado ("… — ELETROPOSTO DE RECARGA DE VEÍCULOS ELÉTRICOS"), o que fazia a
+// folha mentir assim que o kit fotovoltaico entrava na mesma proposta.
+function bnkObjetoSugerido(itens) {
+  const txt = itens.map(i => i.desc).join(' | ');
+  const temFV = /m[óo]dulo|painel|fotovolta|inversor/i.test(txt);
+  const temEP = /carregad|eletroposto|esta[çc][ãa]o de recarga/i.test(txt);
+  // kWp sai da própria linha do módulo (600W, 620W…): número lido, não estimado.
+  let kwp = 0;
+  itens.forEach(i => {
+    if (!/m[óo]dulo|painel|placa/i.test(i.desc)) return;
+    const m = String(i.desc).match(/(\d{3,4})\s*w/i);
+    if (m) kwp += (i.qtd || 1) * parseInt(m[1], 10) / 1000;
+  });
+  const fv = 'SISTEMA FOTOVOLTAICO' + (kwp > 0 ? ' ' + kwp.toFixed(2).replace('.', ',') + ' kWp' : '');
+  const ep = ((orcVal('el-equip') || '').trim().toUpperCase() + ' — ELETROPOSTO DE RECARGA DE VEÍCULOS ELÉTRICOS').replace(/^ — /, '');
+  if (temFV && temEP) return 'ELETROPOSTO DE RECARGA DE VEÍCULOS ELÉTRICOS + ' + fv;
+  if (temFV) return fv;
+  return ep;
 }
 
 function bnkCompPreset(qual) {
@@ -11693,6 +11815,7 @@ function bnkDados() {
     // O total continua sendo do Orcamento (que e' do Simulador). So' a LISTA e'
     // propria desta folha: e' nela que mora o codigo Finame que o BNB exige.
     totalOrc: itens.total, itens: bnkCompDoDom().filter(i => i.desc),
+    objeto: g('bnk-objeto').trim(),
     equip: t.equip, empresa: emp,
     data: dt ? new Date(dt + 'T12:00:00') : new Date(),
   };
@@ -11733,11 +11856,21 @@ function bnkCalc() {
       '% do total); a mão de obra de ' + ORC_MONEY(d.mo) + ' corre por fora.');
   }
   // Orienta o split mostrando a composicao separada por natureza.
-  const bem = d.itens.filter(i => BNK_BEM_RE.test(i.desc)).map(i => i.desc);
-  const serv = d.itens.filter(i => !BNK_BEM_RE.test(i.desc)).map(i => i.desc);
+  const bem = d.itens.filter(i => bnkEhBem(i.desc)).map(i => i.desc);
+  const serv = d.itens.filter(i => !bnkEhBem(i.desc)).map(i => i.desc);
   set('bnk-comp', !d.itens.length ? 'A composição está vazia — nada a dividir ainda.'
     : '<b>Contam como equipamento:</b> ' + (bem.join(' · ') || '—') +
       '<br><b>Contam como serviço:</b> ' + (serv.join(' · ') || '—'));
+
+  // O objeto SEGUE a composição enquanto ninguém escrever por cima — mesma regra
+  // do total. Tocou (inclusive apagando), a tela para de mexer.
+  const obj = document.getElementById('bnk-objeto');
+  const sugerido = bnkObjetoSugerido(d.itens);
+  if (obj && obj.dataset.tocado !== '1') obj.value = sugerido;
+  const objNote = document.getElementById('bnk-objeto-note');
+  if (objNote) objNote.innerHTML = !obj ? '' : obj.dataset.tocado === '1'
+    ? 'Escrito à mão — a composição não mexe mais aqui. Apague para voltar a seguir: <b>' + orcEsc(sugerido) + '</b>'
+    : 'É o cabeçalho da tabela no papel. Segue a composição sozinho; digite por cima quando quiser outro texto.';
 
   // Estado da lista. O aviso das folhas existe porque o rodape do documento diz
   // "Pagina X de 2" cravado: lista longa demais pagina numa terceira folha com o
@@ -11745,6 +11878,7 @@ function bnkCalc() {
   const todas = bnkCompDoDom();
   const vazias = todas.filter(i => !i.desc).length;
   const comCod = todas.filter(i => i.desc && i.cod).length;
+  const temFV = /m[óo]dulo|painel|fotovolta|inversor/i.test(todas.map(i => i.desc).join(' | '));
   const partes = [];
   if (!todas.length) partes.push('Nenhum item. Use <b>Modelo Banco do Nordeste</b> ou <b>Copiar do Orçamento</b>.');
   else {
@@ -11756,6 +11890,7 @@ function bnkCalc() {
     if (todas.length > 12) partes.push('<b style="color:#fca5a5">Lista longa demais:</b> acima de 12 itens o documento passa para uma 3ª folha e o rodapé continua dizendo "de 2". Agrupe em <b>Material elétrico geral</b>.');
     else if (todas.length > 9) partes.push('Lista longa: a tabela sai com a linha compacta para caber nas 2 folhas.');
   }
+  if (temFV) partes.push('Tem <b>kit fotovoltaico</b> na lista: o total do Orçamento cobre só o eletroposto, então o valor do kit entra <b>por cima</b>, no campo do total.');
   set('bnk-itens-note', partes.join(' '));
 }
 
@@ -11778,6 +11913,7 @@ function bnkInit() {
     BNK_ITENS = doOrc.length ? doOrc : bnkCompModelo('bnb');
   }
   bnkCompRender();
+  bnkFvInit();
   // NCM e' do equipamento, nao do cliente: volta do dispositivo, e so' em campo
   // vazio e nunca tocado (mesma regra do epSugerir).
   const ncm = document.getElementById('bnk-ncm');
@@ -11872,7 +12008,7 @@ function bnkHTML(d) {
     <p class="ep-bnk-p">Prezado(s) Senhor(s), atendendo solicitação de V.Sa., fornecemos características e preço público à vista do produto abaixo.</p>
 
     <table class="ep-bnk-t${d.itens.length > 9 ? ' compacta' : ''}">
-      <tr><th colspan="${temCod ? 3 : 2}">${e((d.equip || 'ESTAÇÃO DE RECARGA').toUpperCase())} — ELETROPOSTO DE RECARGA DE VEÍCULOS ELÉTRICOS</th></tr>
+      <tr><th colspan="${temCod ? 3 : 2}">${e((d.objeto || ((d.equip || 'ESTAÇÃO DE RECARGA') + ' — ELETROPOSTO DE RECARGA DE VEÍCULOS ELÉTRICOS')).toUpperCase())}</th></tr>
       <tr><td class="q">QTD.</td><td>EQUIPAMENTOS</td>${temCod ? '<td class="cod">CÓDIGO</td>' : ''}</tr>
       ${linhasItens}
     </table>
