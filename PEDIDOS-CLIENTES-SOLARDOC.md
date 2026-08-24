@@ -14,21 +14,23 @@ Dificuldade: **trivial** = uma linha · **baixa** = uma tarde · **média** = al
 
 ## A tabela
 
-| # | Pedido | Quem pediu | Pessoas | Prior. | Dificuldade | Onde mexe |
+| # | Pedido | Quem pediu | Pessoas | Prior. | Dificuldade | Situação |
 |---|---|---|:---:|:---:|:---:|---|
-| 1 | Cliente pagante escreve e ninguém responde | Carlos Vinícius, Antônio Henrique, Eduardo Boso | **3** | **P0** | média | `whatsappAgentService.ts:691` — casar telefone por 8 dígitos |
-| 2 | "Documentos Salvos" não leva aos documentos | Carlos Vinícius, American Energy | **2** | **P0** | **trivial** | `Sidebar.tsx:134` — apontar pra `/historico` |
-| 3 | Preço por item dentro da proposta | Melque, Max, Antônio Henrique | **3** | **P1** | alta | Precificação × Gerador de Proposta |
-| 4 | Quantidade de baterias (campo não existe) | GSI | 1 | P2 | baixa | 2 formulários + `parseBateria` |
-| 5 | Geração estimada no contrato | GSI | 1 | P2 | baixa | template do contrato |
-| 6 | Capa na proposta | Eduardo Boso | 1 | P3 | média | template da proposta |
-| 7 | Salvar localização do cliente com as fotos | Gedalih | 1 | P3 | média | vistoria / cadastro de cliente |
-| 8 | Logo maior na proposta com gráfico | American Energy | 1 | P3 | **trivial** | CSS do template |
-| 9 | Kanban de projetos com anexo | Melque | 1 | P3 | alta | módulo novo (base: `/crm`) |
-| 10 | Monitoramento de usinas barato | American Energy | 1 | P3 | fora de escopo | integração com inversor |
-| 11 | Abertura da pesquisa virou mentira | — (nossa casa) | — | P4 | **trivial** | `pesquisaSatisfacao.ts` — régua ou frase |
+| 1 | Cliente pagante escreve e ninguém responde | Carlos Vinícius, Antônio Henrique, Eduardo Boso | **3** | **P0** | média | aberto — `whatsappAgentService.ts:691` |
+| 2 | "Documentos Salvos" não leva aos documentos | Carlos Vinícius, American Energy | **2** | **P0** | **trivial** | aberto — `Sidebar.tsx:134` |
+| 3 | Preço por item dentro da proposta | Melque, Max, Antônio Henrique | **3** | **P1** | alta | aberto — espera decisão de plano |
+| 4 | Quantidade de baterias (campo não existe) | GSI | 1 | P2 | baixa | **FEITO** 24/08 · `3714c41` |
+| 5 | Geração estimada no contrato | GSI | 1 | P2 | baixa | **FEITO** 24/08 · `50a0412` |
+| 6 | Capa na proposta | Eduardo Boso | 1 | P3 | média | **FEITO** 24/08 · `cde6ad0` |
+| 7 | Salvar localização do cliente com as fotos | Gedalih | 1 | P3 | média | **FEITO** 24/08 · `59b5abe` |
+| 8 | Logo maior na proposta com gráfico | American Energy | 1 | P3 | **trivial** | aberto |
+| 9 | Kanban de projetos com anexo | Melque | 1 | P3 | alta | aberto |
+| 10 | Monitoramento de usinas barato | American Energy | 1 | P3 | fora de escopo | aberto |
+| 11 | Abertura da pesquisa virou mentira | — (nossa casa) | — | P4 | **trivial** | aberto |
 
-**Se for fazer um só hoje:** o **2**. É uma linha e cala reclamação de dois clientes.
+**Entregues em 24/08/2026: 4, 5, 6 e 7** — detalhe de cada um no fim do arquivo.
+
+**Se for fazer um só agora:** o **2**. É uma linha e cala reclamação de dois clientes.
 **O que trava sozinho:** o **3** não começa sem você decidir se a Precificação volta pro `pro`.
 **O que não é bug:** o **2** é navegação, o **4** é campo que nunca existiu. Nenhum dos dois é
 defeito de renderização — mandar alguém caçar erro no template é jogar tempo fora.
@@ -162,3 +164,37 @@ números e não perder arquivo**, que é o mesmo que os dados de uso já diziam 
 `solardoc-valor-e-a-proposta`.
 
 E o mais barato da lista (item 2, uma linha no menu) resolve reclamação de dois clientes.
+
+---
+
+## O que foi entregue em 24/08/2026
+
+**4 · Quantidade de baterias** (`3714c41`) — campo novo ponta a ponta: formulário da
+proposta, formulário do contrato e template. Sai como `2× BYD`, no mesmo idioma que o
+inversor já usava. Vazio ou 1 renderiza igual ao que já saía. Duas travas ficaram no
+código: quantidade **sem marca** não acende a linha da bateria (senão um número digitado
+por engano vira bateria fantasma), e capacidade/potência ganham **"cada"** acima de 1
+unidade — essas duas somam, e um banco leria "10,24 kWh" como o banco inteiro.
+
+**5 · Geração estimada no contrato** (`50a0412`) — nos dois modelos. Sempre com a palavra
+**"estimada"** e a ressalva de que a produção real varia com clima, sombreamento,
+temperatura e sujidade, e **não é garantia de geração mínima**. O pedido era mostrar o
+número, não assinar embaixo dele: contrato que promete kWh cravado é processo no primeiro
+mês nublado. Campo vazio some com a linha E com a ressalva.
+
+**6 · Capa na proposta** (`cde6ad0`) — entrou como **modelo 3, "Moderno com capa"**, e não
+como mudança do Moderno: quem já manda o modelo 2 continua mandando o mesmo PDF byte por
+byte (conferido no render). Não é um segundo template — o 3 chama o mesmo corpo com a
+folha de rosto ligada, então mudar o Moderno arruma os dois. A capa leva logo, nome do
+cliente, os três números e o rodapé com data, código e validade; na impressão vira uma
+folha A4 inteira.
+
+**7 · Localização da vistoria** (`59b5abe`) — o caso do Gedalih desenhou a solução: o
+caminho principal **não é o GPS**, é **colar** o que o cliente mandou no WhatsApp, porque
+ele não está no sítio quando a mensagem chega. O campo aceita coordenada, link do Maps,
+link curto do goo.gl ou só um apelido do ponto; o que dá pra ler vira lat/lng, o que não
+dá fica guardado como link e continua abrindo. **Nada é recusado em silêncio.** A
+localização aparece no relatório público, junto das fotos — que é o link que vai pro
+WhatsApp. 10 testes travam o parser, inclusive o que **não** pode virar coordenada
+(preço colado por engano, "15, 30" de módulo e inversor). Coluna `localizacao jsonb`
+aplicada no solardoc-pro e conferida no `information_schema`.
