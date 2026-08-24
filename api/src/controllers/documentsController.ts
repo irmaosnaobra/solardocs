@@ -595,8 +595,12 @@ export async function getDocumentForEdit(req: Request, res: Response): Promise<v
         cliente_nome: doc.cliente_nome,
         dados_json: dados,
         // 'modelo-2' → 2. Sem isso a reedição cairia sempre no modelo padrão e
-        // trocaria o layout da proposta que o cliente já tinha aberto.
-        modelo_numero: Number(String(doc.modelo_usado || '').replace(/\D/g, '')) === 2 ? 2 : 1,
+        // trocaria o layout da proposta que o cliente já tinha aberto. O 3 (Moderno
+        // com capa) entrou em 24/08/2026 e precisou entrar aqui junto: preso em
+        // "=== 2 ? 2 : 1", reabrir uma proposta com capa devolvia o modelo 1.
+        modelo_numero: [2, 3].includes(Number(String(doc.modelo_usado || '').replace(/\D/g, '')))
+          ? (Number(String(doc.modelo_usado || '').replace(/\D/g, '')) as 2 | 3)
+          : 1,
         content: doc.content ?? '',
         codigo: (dados.codigo as string) ?? null,
         codigo_curto: doc.codigo_curto ?? null,

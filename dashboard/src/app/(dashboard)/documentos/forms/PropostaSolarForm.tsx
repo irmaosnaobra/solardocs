@@ -8,7 +8,7 @@ import api from '@/services/api';
 import { prewarmPdf, sharePrewarmedPdf, type PdfAsset } from '@/services/downloadPdf';
 import InfoHint from '@/components/InfoHint/InfoHint';
 import { Escolha, Escolhas } from '@/components/Escolha/Escolha';
-import { Home, Building2, Factory, Layers, Mountain, Car, Grid3x3, FileText, LineChart } from 'lucide-react';
+import { Home, Building2, Factory, Layers, Mountain, Car, Grid3x3, FileText, LineChart, BookOpen } from 'lucide-react';
 import styles from '../documentos.module.css';
 
 interface GeneratedDoc { content: string; modelo_usado: string; cliente_nome: string; doc_id: string | null; codigo?: string | null; codigo_curto?: string | null; empresa_slug?: string | null; resumo_whatsapp?: string | null }
@@ -259,8 +259,11 @@ export default function PropostaSolarPage() {
   const [clienteNome, setClienteNome] = useState('');
   const [cidadeUf, setCidadeUf] = useState('');
   const [fields, setFields] = useState(initialFields);
-  // Modelo da proposta: 1 = "1 Página" (padrão) · 2 = "Moderno" (completo).
-  const [modelo, setModelo] = useState<1 | 2>(1);
+  // Modelo da proposta: 1 = "1 Página" (padrão) · 2 = "Moderno" (completo)
+  // · 3 = o MESMO Moderno com uma folha de rosto na frente (pedido do Eduardo
+  // Boso, 21/08/2026: "falta uma capa na proposta"). O 3 nao muda o 2 — quem
+  // ja' manda o Moderno continua mandando exatamente o mesmo PDF.
+  const [modelo, setModelo] = useState<1 | 2 | 3>(1);
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState<GeneratedDoc | null>(null);
   // Corrigindo uma proposta JÁ emitida: volta pro form com tudo preenchido e o
@@ -438,7 +441,7 @@ export default function PropostaSolarPage() {
       setClienteNome(String(d.cliente_nome || ''));
       const cid = String(dados.cidade || '').trim(), uf = String(dados.uf || '').trim();
       if (cid || uf) setCidadeUf([cid, uf].filter(Boolean).join(' - '));
-      setModelo(d.modelo_numero === 2 ? 2 : 1);
+      setModelo(d.modelo_numero === 2 ? 2 : d.modelo_numero === 3 ? 3 : 1);
       setGenerated({
         content: String(d.content || ''),
         modelo_usado: `modelo-${d.modelo_numero}`,
@@ -1023,6 +1026,13 @@ export default function PropostaSolarPage() {
                 onClick={() => setModelo(2)}
                 titulo="Moderno"
                 desc="completo, com gráfico de 25 anos"
+              />
+              <Escolha
+                on={modelo === 3}
+                icone={BookOpen}
+                onClick={() => setModelo(3)}
+                titulo="Moderno com capa"
+                desc="o mesmo, com folha de rosto na frente"
               />
             </Escolhas>
           </div>

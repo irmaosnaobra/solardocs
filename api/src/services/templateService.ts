@@ -96,7 +96,10 @@ export function generateFromTemplate(
       // não recalcula nada (senão a autonomia impressa diverge da tela).
       return propostaOffGrid(company, client, fields, out);
     case 'propostaSolar':
-      // Modelo 1 (padrão) = "1 Página"; Modelo 2 = "Moderno" (o completo).
+      // Modelo 1 (padrão) = "1 Página"; Modelo 2 = "Moderno"; Modelo 3 = o MESMO
+      // Moderno com uma capa na frente. O 3 nao e' um template novo: chama o mesmo
+      // corpo com a folha de rosto ligada, entao mexer no Moderno arruma os dois.
+      if (modelo === 3) return propostaSolarM1(company, client, fields, out, { capa: true });
       return modelo === 2
         ? propostaSolarM1(company, client, fields, out)
         : propostaSolar1Pagina(company, client, fields, out);
@@ -2115,7 +2118,11 @@ html,body{ font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif; colo
 </body></html>`;
 }
 
-function propostaSolarM1(company: Company, client: Client, f: Record<string, unknown>, out?: { resumo?: string }): string {
+function propostaSolarM1(company: Company, client: Client, f: Record<string, unknown>, out?: { resumo?: string }, opts?: { capa?: boolean }): string {
+  // CAPA (modelo 3). O corpo da proposta e' EXATAMENTE o mesmo do modelo 2 — a capa
+  // e' uma folha a mais na frente, nao um segundo template. Se fossem dois templates,
+  // toda mudanca futura teria que ser feita duas vezes e uma delas seria esquecida.
+  const comCapa = opts?.capa === true;
   // Inputs do form
   // Paleta: SEMPRE a cor de marca da empresa (sem escolha de cor na proposta).
   const palette: Palette = derivePalette(String((company as { cor_marca?: string }).cor_marca || ''), 'Empresa');
@@ -2557,6 +2564,22 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
 .hero .economia-value { font-size: 44px; font-weight: 900; line-height: 1; letter-spacing: -1px; }
 .hero .economia-period { font-size: 12px; opacity: 0.85; margin-top: 6px; }
 /* Stats grid */
+/* Capa (modelo 3) */
+.capa { position: relative; overflow: hidden; background: linear-gradient(150deg, var(--c1) 0%, var(--c2) 100%); color: #fff; padding: 54px 46px 44px; display: flex; flex-direction: column; min-height: 900px; }
+.capa::after { content: ''; position: absolute; right: -180px; bottom: -220px; width: 620px; height: 620px; border-radius: 50%; background: rgba(255,255,255,0.07); }
+/* Cor explicita: quando a empresa nao tem logo, o logoHtml cai num div de texto
+   SEM cor propria. Dentro da capa ele herdaria o branco e sumiria na pastilha
+   branca — foi o que aconteceu no primeiro render. (E nada de crase aqui: este
+   CSS mora dentro de um template literal e a crase fecha a string.) */
+.capa-topo { position: relative; z-index: 1; background: #fff; color: var(--c-text); border-radius: 14px; padding: 16px 20px; align-self: flex-start; }
+.capa-selo { position: relative; z-index: 1; margin-top: 44px; font-size: 12px; letter-spacing: 4px; text-transform: uppercase; font-weight: 700; opacity: 0.85; }
+.capa-cliente { position: relative; z-index: 1; font-size: 46px; line-height: 1.08; font-weight: 800; letter-spacing: -1.4px; margin-top: 10px; }
+.capa-sub { position: relative; z-index: 1; font-size: 16px; opacity: 0.9; margin-top: 14px; max-width: 460px; line-height: 1.45; }
+.capa-numeros { position: relative; z-index: 1; display: flex; gap: 14px; margin-top: auto; padding-top: 40px; flex-wrap: wrap; }
+.capa-num { background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.22); border-radius: 12px; padding: 14px 18px; min-width: 150px; }
+.capa-num-v { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+.capa-num-l { font-size: 10px; text-transform: uppercase; letter-spacing: 1.6px; opacity: 0.8; margin-top: 3px; }
+.capa-rodape { position: relative; z-index: 1; margin-top: 34px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,0.25); font-size: 12px; opacity: 0.9; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 32px 40px; background: var(--c3); }
 .stat { background: white; border-radius: 12px; padding: 18px 12px; text-align: center; border-bottom: 3px solid var(--c1); }
 .stat-icon { font-size: 22px; margin-bottom: 6px; }
@@ -2663,6 +2686,8 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
   html, body { background: white !important; font-size: 10pt; }
   body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
   .page { box-shadow: none !important; max-width: 100% !important; margin: 0 !important; }
+  /* A capa ocupa a folha inteira e empurra o corpo pra pagina 2. */
+  .capa { min-height: 0 !important; height: 271mm !important; page-break-after: always; break-after: page; }
   .topbar { padding: 6px 0 8px !important; }
   .hero { padding: 22px 20px !important; }
   .hero h1 { font-size: 20px !important; margin-bottom: 4px !important; }
@@ -2733,6 +2758,23 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
 </head>
 <body>
 <div class="page">
+${comCapa ? `
+  <div class="capa">
+    <div class="capa-topo">${logoHtml}</div>
+    <div class="capa-selo">Proposta comercial</div>
+    <div class="capa-cliente">${pEsc(client.nome.trim())}</div>
+    <p class="capa-sub">Projeto de energia solar dimensionado para o seu consumo — com o investimento, a economia e o retorno na frente, sem letra miúda.</p>
+    <div class="capa-numeros">
+      <div class="capa-num"><div class="capa-num-v">${pKwp(kwp)} kWp</div><div class="capa-num-l">Sistema</div></div>
+      <div class="capa-num"><div class="capa-num-v">${pNum(mediaMensalGerada)}</div><div class="capa-num-l">kWh por mês</div></div>
+      ${economia25 > 0 ? `<div class="capa-num"><div class="capa-num-v">${pBRL(economia25)}</div><div class="capa-num-l">Economia em 25 anos</div></div>` : ''}
+    </div>
+    <div class="capa-rodape">
+      <span>${pEsc(displayNomeM)}</span>
+      <span>${today}${codigoProposta ? ` · Proposta ${pEsc(codigoProposta)}` : ''} · ${pEsc(validade.longo)}</span>
+    </div>
+  </div>
+` : ''}
   <div class="topbar">
     ${logoHtml}
     <div class="meta">
