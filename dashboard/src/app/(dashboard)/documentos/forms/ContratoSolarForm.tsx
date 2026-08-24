@@ -16,6 +16,11 @@ interface GeneratedDoc {
 
 const initialFields = {
   potencia_kwp: '',
+  // Geração estimada (kWh/mês). Pedido da GSI: o contrato não trazia o número que
+  // a proposta já mostra. Opcional — vazio faz a linha inteira sumir do contrato.
+  // Quando preenchido, o template escreve "estimada" e a ressalva de que não é
+  // garantia de geração mínima; sem isso o contrato vira promessa de kWh.
+  geracao_media_kwh: '',
   quantidade_modulos: '',
   marca_modulos: '',
   quantidade_inversores: '',
@@ -122,6 +127,10 @@ export default function ContratoSolarPage() {
             <div className={styles.field}>
               <label className={styles.label}>Qtd Módulos *</label>
               <input type="number" value={fields.quantidade_modulos} onChange={e => setFields({...fields, quantidade_modulos: e.target.value})} placeholder="Ex: 12" className="input-field" required />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Geração estimada (kWh/mês)</label>
+              <input type="text" inputMode="decimal" value={fields.geracao_media_kwh} onChange={e => setFields({...fields, geracao_media_kwh: e.target.value})} placeholder="Ex: 1134 — o mesmo da proposta" className="input-field" />
             </div>
             <div className={styles.field}>
               <label className={styles.label}>Marca dos Módulos *</label>

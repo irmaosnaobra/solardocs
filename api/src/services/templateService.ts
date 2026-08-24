@@ -118,6 +118,11 @@ function contratoSolarM1(
   const cidade = foro;
   const endInst = str(f.endereco_instalacao) !== '___' ? str(f.endereco_instalacao) : (client.endereco || '___');
   const bat = parseBateria(f); // opcional — só entra no contrato se a marca vier preenchida
+  // GERAÇÃO ESTIMADA (pedido da GSI, 19/08/2026). O número já existe na proposta;
+  // aqui ele vira compromisso escrito, então SEMPRE sai com a palavra "estimada" e
+  // com a ressalva logo abaixo. Contrato que promete kWh cravado é processo na mão
+  // do integrador no primeiro mês nublado. Vazio = a linha inteira some.
+  const geracaoMes = parseBRL(f.geracao_media_kwh);
 
   const isPJClient = (client as { tipo?: string }).tipo === 'PJ';
   const endInstCompleto = enderecoCompleto(endInst, client.bairro, client.cidade, client.uf);
@@ -147,14 +152,17 @@ Especificações do sistema contratado:
    Potência instalada:    ${str(f.potencia_kwp)} kWp
    Módulos:               ${str(f.quantidade_modulos)} unidade(s) — ${str(f.marca_modulos)}
    Inversores:            ${str(f.quantidade_inversores)} unidade(s) — ${str(f.tipo_inversor)} / ${str(f.marca_inversor)}${bat.tem ? `
-   Bateria:               ${bat.titulo}${bat.specParts.length ? ' — ' + bat.specParts.join(' · ') : ''}` : ''}
+   Bateria:               ${bat.titulo}${bat.specParts.length ? ' — ' + bat.specParts.join(' · ') : ''}` : ''}${geracaoMes > 0 ? `
+   Geração estimada:      ~${pNum(geracaoMes)} kWh/mês (média anual)` : ''}
    Local de instalação:   ${endInstCompleto}
 
 O escopo completo da CONTRATADA inclui: levantamento técnico no local, elaboração do projeto elétrico, aquisição e transporte dos equipamentos, instalação dos módulos, inversores e demais componentes, realização dos testes de funcionamento (comissionamento) e encaminhamento do pedido de conexão à concessionária de energia.
 
 Adequações estruturais no imóvel — como reforço de telhado, terraplanagem ou obras civis — não estão incluídas no escopo deste contrato e serão informadas ao CONTRATANTE previamente, caso necessário, para deliberação conjunta.
 
-Todos os serviços serão executados em conformidade com as normas da ABNT NBR 16690, com as resoluções normativas da ANEEL e com os requisitos técnicos da concessionária local de energia elétrica.
+Todos os serviços serão executados em conformidade com as normas da ABNT NBR 16690, com as resoluções normativas da ANEEL e com os requisitos técnicos da concessionária local de energia elétrica.${geracaoMes > 0 ? `
+
+A geração informada é uma ESTIMATIVA calculada a partir da irradiação solar histórica da região e da potência instalada. A produção real varia conforme condições climáticas, sombreamento, temperatura, sujidade dos módulos e disponibilidade da rede da concessionária, não constituindo garantia de geração mínima.` : ''}
 
 
 2. IDENTIFICAÇÃO E QUALIFICAÇÃO DAS PARTES
@@ -357,6 +365,7 @@ function contratoSolarM2(
   const cidade = foro;
   const endInst = str(f.endereco_instalacao) !== '___' ? str(f.endereco_instalacao) : (client.endereco || '___');
   const bat = parseBateria(f); // opcional — só entra no contrato se a marca vier preenchida
+  const geracaoMes = parseBRL(f.geracao_media_kwh); // ver a nota no modelo 1
 
   const isPJClient = (client as { tipo?: string }).tipo === 'PJ';
   const endInstCompleto = enderecoCompleto(endInst, client.bairro, client.cidade, client.uf);
@@ -375,7 +384,9 @@ e ${clienteIdent}, doravante denominado CLIENTE, tem-se ajustado o presente CONT
 
 1. OBJETO
 
-A CONTRATADA se compromete a instalar uma usina fotovoltaica com capacidade operacional de ${str(f.potencia_kwp)} kWp, fornecendo materiais, equipamentos e executando o comissionamento.
+A CONTRATADA se compromete a instalar uma usina fotovoltaica com capacidade operacional de ${str(f.potencia_kwp)} kWp${geracaoMes > 0 ? `, com geração estimada de ~${pNum(geracaoMes)} kWh/mês em média anual` : ''}, fornecendo materiais, equipamentos e executando o comissionamento.${geracaoMes > 0 ? `
+
+A geração informada é uma ESTIMATIVA baseada na irradiação solar histórica da região e na potência instalada. A produção real varia conforme clima, sombreamento, temperatura, sujidade dos módulos e disponibilidade da rede, não constituindo garantia de geração mínima.` : ''}
 
 Os componentes principais incluem ${str(f.quantidade_modulos)} módulos de ${str(f.marca_modulos)}, ${str(f.quantidade_inversores)} inversor ${str(f.tipo_inversor)} ${str(f.marca_inversor)}${bat.tem ? `, sistema de armazenamento com ${bat.qtd > 1 ? `${bat.qtd} baterias` : 'bateria'} ${bat.marca}${bat.specParts.length ? ' (' + bat.specParts.join(' · ') + ')' : ''}` : ''}, cabos e conectores. Todas as especificações técnicas seguirão as normas e resoluções aplicáveis da Agência Nacional de Energia Elétrica (ANEEL).
 
