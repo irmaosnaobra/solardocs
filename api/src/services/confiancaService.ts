@@ -111,14 +111,22 @@ export async function runConfiancaNutricao(opts: { seco?: boolean } = {}): Promi
     const count: number = u.confianca_count ?? 0;
     const diasDeCasa = Math.floor((agora - ancora) / DIA_MS);
 
-    // A pessoa ENTRA no toque que corresponde ao tempo de casa dela, não no
-    // toque 1. Sem isto, ligar a cadência mandaria "Dia 1 — comece por aqui,
+    // ENTRAR e SEGUIR são duas regras diferentes, de propósito.
+    //
+    // Entrar (count = 0): a pessoa entra no toque que corresponde ao TEMPO DE
+    // CASA dela. Sem isto, ligar a cadência mandaria "Dia 1 — comece por aqui,
     // economiza a primeira meia hora" pros 62 assinantes que já existem, um
-    // deles com 47 dias de casa. Quem tem 8 dias entra no toque do dia 7; quem
-    // já passou dos 30 recebe o último e a cadência se encerra pra ele.
+    // deles com 47 dias. Quem tem 8 dias entra no toque do dia 7; quem passou
+    // dos 30 recebe o último e a cadência se encerra pra ele.
+    //
+    // Seguir (count > 0): vai de um em um. Se a regra de entrada valesse aqui
+    // também, uma rodada falha entre o dia 3 e o dia 7 faria a pessoa pular do
+    // toque 1 direto pro 3 — e o toque 2, que é o de pôr a logo no documento,
+    // sumiria sem ninguém ver. Atraso é aceitável; buraco no meio não.
     const jaVencidos = DIAS_DO_TOQUE.filter(d => diasDeCasa >= d).length;
-    if (jaVencidos <= count) continue;   // nada novo venceu desde o último toque
-    const proximo = jaVencidos;
+    const proximo = count === 0 ? jaVencidos : count + 1;
+    if (proximo < 1 || proximo > DIAS_DO_TOQUE.length) continue;
+    if (diasDeCasa < DIAS_DO_TOQUE[proximo - 1]) continue;
 
     // Não empilha dois e-mails nossos no mesmo dia — a trava é compartilhada com
     // as outras cadências (ver recebeuEmailRecente no followupService).

@@ -166,6 +166,17 @@ describe('quando cada toque vence', () => {
     expect(enviados[1].toque).toBe(4);
   });
 
+  it('quem JÁ está na cadência não pula toque quando uma rodada falha', async () => {
+    // Levou o toque 1 no dia 1 e o cron ficou uma semana sem rodar. No dia 8 ele
+    // recebe o toque 2 — não o 3. Atrasar é aceitável; perder o toque da logo não.
+    const u = pagante({ confianca_count: 1 }); db.users.push(u); db.sales.push(venda(u.email, 8));
+
+    const r = await runConfiancaNutricao();
+    expect(r.enviados).toBe(1);
+    expect(enviados[0].toque).toBe(2);
+    expect(db.users[0].confianca_count).toBe(2);
+  });
+
   it('termina no quinto toque e não recomeça', async () => {
     const u = pagante({ confianca_count: 5 }); db.users.push(u); db.sales.push(venda(u.email, 120));
     const r = await runConfiancaNutricao();
