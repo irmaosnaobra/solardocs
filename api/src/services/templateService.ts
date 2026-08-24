@@ -2197,15 +2197,22 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
     return Math.ceil(pmtPriceCarencia(investimento, taxaFin(n) / 100, n, FIN_CARENCIA_MESES));
   }
   // Entrada + saldo: integrador define a entrada (R$) e como/quando quitar o restante.
-  // Modo do restante: 'dias' (N dias) | 'entrega' | 'montagem' | 'liberacao'.
+  // Modo do restante, em ordem de tempo:
+  // 'contrato' (na assinatura) | 'dias' (N dias) | 'entrega' | 'montagem' | 'liberacao'.
+  //
+  // 'contrato' entrou em 24/08/2026 a pedido do Thiago. E' o marco mais cedo da lista:
+  // a entrada segura o pedido e o saldo vence quando o contrato e' assinado, sem
+  // depender de material chegar nem de obra andar. Quem nao escolher continua no
+  // 'dias', que e' o padrao — proposta antiga sai igual.
   const entradaValor = parseBRL(f.entrada_valor);
   const entradaRestante = investimento > 0 && entradaValor > 0 ? Math.max(0, investimento - entradaValor) : 0;
   const entradaModoRaw = String(f.entrada_modo || 'dias');
-  const entradaModo: 'dias' | 'entrega' | 'montagem' | 'liberacao' =
-    entradaModoRaw === 'entrega' || entradaModoRaw === 'montagem' || entradaModoRaw === 'liberacao' ? entradaModoRaw : 'dias';
+  const entradaModo: 'contrato' | 'dias' | 'entrega' | 'montagem' | 'liberacao' =
+    entradaModoRaw === 'contrato' || entradaModoRaw === 'entrega' || entradaModoRaw === 'montagem' || entradaModoRaw === 'liberacao' ? entradaModoRaw : 'dias';
   const entradaDias = parseInt(String(f.entrada_dias || '30'), 10) || 30;
   const entradaPrazoLabel = entradaModo === 'dias'
     ? `em ${entradaDias} dia${entradaDias === 1 ? '' : 's'}`
+    : entradaModo === 'contrato'   ? 'no ato do contrato'
     : entradaModo === 'entrega'    ? 'na entrega do material'
     : entradaModo === 'montagem'   ? 'na montagem do sistema'
     :                                 'na liberação do sistema';

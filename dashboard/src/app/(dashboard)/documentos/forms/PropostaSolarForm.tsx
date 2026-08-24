@@ -185,13 +185,14 @@ const initialFields = {
   taxa_fin_84: '2,20',
   pag_entrada: false,
   entrada_valor: '',
-  entrada_modo: 'dias' as 'dias' | 'entrega' | 'montagem' | 'liberacao',
+  entrada_modo: 'dias' as 'contrato' | 'dias' | 'entrega' | 'montagem' | 'liberacao',
   entrada_dias: '30',
   pag_custom: '',
 };
 
 // Rótulo do marco que o integrador escolhe pra quitação do saldo.
-const ENTRADA_MODO_LABEL: Record<'dias' | 'entrega' | 'montagem' | 'liberacao', string> = {
+const ENTRADA_MODO_LABEL: Record<'contrato' | 'dias' | 'entrega' | 'montagem' | 'liberacao', string> = {
+  contrato:  'No ato do contrato',
   dias:      'Em X dias',
   entrega:   'Na entrega do material',
   montagem:  'Na montagem do sistema',
@@ -1485,7 +1486,8 @@ export default function PropostaSolarPage() {
                     onChange={(e) => setField('entrada_modo', e.target.value as typeof fields.entrada_modo)}
                     className="input-field"
                   >
-                    {(['dias', 'entrega', 'montagem', 'liberacao'] as const).map((m) => (
+                    {/* Ordem de tempo: o ato do contrato e' o marco mais cedo. */}
+                    {(['contrato', 'dias', 'entrega', 'montagem', 'liberacao'] as const).map((m) => (
                       <option key={m} value={m}>{ENTRADA_MODO_LABEL[m]}</option>
                     ))}
                   </select>
