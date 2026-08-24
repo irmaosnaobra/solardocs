@@ -122,6 +122,12 @@ const CONCESSIONARIAS = [
    fraco da concorrencia descrito acima. Curto e verdadeiro passa; longo e escrito por nos
    nao. O material bruto esta' em conversa_wa('74999508439') e conversa_wa('44998086082').
 
+   O DECIMO E O DECIMO-PRIMEIRO (VS Solar e Gedalih) entraram em 24/08/2026, mesma
+   regra: elogio espontaneo na pesquisa, sem "sim" escrito, palavra do Thiago. O do
+   Gedalih veio de AUDIO — transcrito, e a fala do card e' recorte literal dele, com
+   as repeticoes de fala falada tiradas ("esse, esse, esse aplicativo"). O da VS Solar
+   tinha "ágio" onde ele quis dizer "ágil"; erro de digitacao arrumado, resto intacto.
+
    `liberado` continua no tipo de proposito: obriga quem for colar um depoimento
    novo a afirmar a autorizacao numa palavra, em vez de colar no automatico.
    Cliente elogiar nao e' cliente autorizar — "Tamo junto" e emoji de aperto de mao
@@ -217,6 +223,20 @@ const DEPOIMENTOS: {
     nome: 'Eduardo Boso', empresa: 'Eclipse Solar', cidade: 'Sarandi/PR',
     logo: '/logos/eclipse-solar.webp', logoW: 60, liberado: true,
     texto: 'Agilidade. Antes eu usava outra plataforma.',
+  },
+  {
+    // "Antes eu fazia por escrito" — o unico da pagina que nao vinha nem de
+    // planilha nem de concorrente. E' o piso do mercado, e vale ter um na vitrine.
+    nome: 'Carlos Vinícius', empresa: 'VS Solar Energia Solar', cidade: 'Piripiri/PI',
+    logo: '/logos/vs-solar.webp', logoW: 70, liberado: true,
+    texto: 'A SolarDoc me ajuda a ser ágil e preciso no orçamento que passo pro meu cliente, com todas as informações que ele precisa, de formas de pagamento. Antes eu fazia por escrito, nada profissional.',
+  },
+  {
+    // Sem nome de pessoa de proposito: ele mandou audio e nao se apresentou. Mesmo
+    // caso da GSI — nome da empresa no lugar do nome, campo empresa vazio.
+    nome: 'Gedalih Energia Solar', empresa: '', cidade: 'Varginha/MG',
+    logo: '/logos/gedalih-energia-solar.webp', logoW: 66, liberado: true,
+    texto: 'Eu usava planilha, tinha que ficar salvando no computador. Facilitou muito: salvar a foto, deixar tudo bonitinho, tudo certinho, conseguir ter acesso. Muito top, gostei bastante.',
   },
 ];
 
