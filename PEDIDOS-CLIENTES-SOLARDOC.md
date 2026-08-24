@@ -12,6 +12,29 @@ Dificuldade: **trivial** = uma linha · **baixa** = uma tarde · **média** = al
 
 ---
 
+## A tabela
+
+| # | Pedido | Quem pediu | Pessoas | Prior. | Dificuldade | Onde mexe |
+|---|---|---|:---:|:---:|:---:|---|
+| 1 | Cliente pagante escreve e ninguém responde | Carlos Vinícius, Antônio Henrique, Eduardo Boso | **3** | **P0** | média | `whatsappAgentService.ts:691` — casar telefone por 8 dígitos |
+| 2 | "Documentos Salvos" não leva aos documentos | Carlos Vinícius, American Energy | **2** | **P0** | **trivial** | `Sidebar.tsx:134` — apontar pra `/historico` |
+| 3 | Preço por item dentro da proposta | Melque, Max, Antônio Henrique | **3** | **P1** | alta | Precificação × Gerador de Proposta |
+| 4 | Quantidade de baterias (campo não existe) | GSI | 1 | P2 | baixa | 2 formulários + `parseBateria` |
+| 5 | Geração estimada no contrato | GSI | 1 | P2 | baixa | template do contrato |
+| 6 | Capa na proposta | Eduardo Boso | 1 | P3 | média | template da proposta |
+| 7 | Salvar localização do cliente com as fotos | Gedalih | 1 | P3 | média | vistoria / cadastro de cliente |
+| 8 | Logo maior na proposta com gráfico | American Energy | 1 | P3 | **trivial** | CSS do template |
+| 9 | Kanban de projetos com anexo | Melque | 1 | P3 | alta | módulo novo (base: `/crm`) |
+| 10 | Monitoramento de usinas barato | American Energy | 1 | P3 | fora de escopo | integração com inversor |
+| 11 | Abertura da pesquisa virou mentira | — (nossa casa) | — | P4 | **trivial** | `pesquisaSatisfacao.ts` — régua ou frase |
+
+**Se for fazer um só hoje:** o **2**. É uma linha e cala reclamação de dois clientes.
+**O que trava sozinho:** o **3** não começa sem você decidir se a Precificação volta pro `pro`.
+**O que não é bug:** o **2** é navegação, o **4** é campo que nunca existiu. Nenhum dos dois é
+defeito de renderização — mandar alguém caçar erro no template é jogar tempo fora.
+
+---
+
 ## P0 — está custando venda agora
 
 ### 1. Cliente pagante manda mensagem e ninguém responde
