@@ -35,6 +35,7 @@ const initialFields = {
   // Render-if-filled: só aparece no contrato se a marca vier preenchida.
   // NÃO são required — contratos sem bateria seguem intactos.
   bateria_marca: '',
+  bateria_qtd: '',
   bateria_capacidade_kwh: '',
   bateria_potencia_kw: '',
   bateria_ciclos: '',
@@ -155,7 +156,11 @@ export default function ContratoSolarPage() {
               <input type="text" value={fields.bateria_marca} onChange={e => setFields({...fields, bateria_marca: e.target.value})} placeholder="Ex: BYD, Pylontech" className="input-field" />
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Capacidade (kWh)</label>
+              <label className={styles.label}>Quantidade</label>
+              <input type="text" inputMode="numeric" value={fields.bateria_qtd} onChange={e => setFields({...fields, bateria_qtd: e.target.value})} placeholder="Ex: 2" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label}>Capacidade (kWh, por bateria)</label>
               <input type="text" value={fields.bateria_capacidade_kwh} onChange={e => setFields({...fields, bateria_capacidade_kwh: e.target.value})} placeholder="Ex: 10,24" className="input-field" />
             </div>
             <div className={styles.field}>

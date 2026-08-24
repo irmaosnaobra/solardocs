@@ -147,7 +147,7 @@ Especificações do sistema contratado:
    Potência instalada:    ${str(f.potencia_kwp)} kWp
    Módulos:               ${str(f.quantidade_modulos)} unidade(s) — ${str(f.marca_modulos)}
    Inversores:            ${str(f.quantidade_inversores)} unidade(s) — ${str(f.tipo_inversor)} / ${str(f.marca_inversor)}${bat.tem ? `
-   Bateria:               ${bat.marca}${bat.specParts.length ? ' — ' + bat.specParts.join(' · ') : ''}` : ''}
+   Bateria:               ${bat.titulo}${bat.specParts.length ? ' — ' + bat.specParts.join(' · ') : ''}` : ''}
    Local de instalação:   ${endInstCompleto}
 
 O escopo completo da CONTRATADA inclui: levantamento técnico no local, elaboração do projeto elétrico, aquisição e transporte dos equipamentos, instalação dos módulos, inversores e demais componentes, realização dos testes de funcionamento (comissionamento) e encaminhamento do pedido de conexão à concessionária de energia.
@@ -377,7 +377,7 @@ e ${clienteIdent}, doravante denominado CLIENTE, tem-se ajustado o presente CONT
 
 A CONTRATADA se compromete a instalar uma usina fotovoltaica com capacidade operacional de ${str(f.potencia_kwp)} kWp, fornecendo materiais, equipamentos e executando o comissionamento.
 
-Os componentes principais incluem ${str(f.quantidade_modulos)} módulos de ${str(f.marca_modulos)}, ${str(f.quantidade_inversores)} inversor ${str(f.tipo_inversor)} ${str(f.marca_inversor)}${bat.tem ? `, sistema de armazenamento por bateria ${bat.marca}${bat.specParts.length ? ' (' + bat.specParts.join(' · ') + ')' : ''}` : ''}, cabos e conectores. Todas as especificações técnicas seguirão as normas e resoluções aplicáveis da Agência Nacional de Energia Elétrica (ANEEL).
+Os componentes principais incluem ${str(f.quantidade_modulos)} módulos de ${str(f.marca_modulos)}, ${str(f.quantidade_inversores)} inversor ${str(f.tipo_inversor)} ${str(f.marca_inversor)}${bat.tem ? `, sistema de armazenamento com ${bat.qtd > 1 ? `${bat.qtd} baterias` : 'bateria'} ${bat.marca}${bat.specParts.length ? ' (' + bat.specParts.join(' · ') + ')' : ''}` : ''}, cabos e conectores. Todas as especificações técnicas seguirão as normas e resoluções aplicáveis da Agência Nacional de Energia Elétrica (ANEEL).
 
 Local de instalação: ${endInstCompleto}
 
@@ -2141,6 +2141,7 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   const bat = parseBateria(f);
   const temBateria = bat.tem;
   const bateriaMarca = bat.marca;
+  const bateriaTitulo = bat.titulo;
   const bateriaGarantia = bat.garantia;
   const bateriaSpecParts = bat.specParts;
   const investimento = parseBRL(f.investimento);
@@ -2318,7 +2319,7 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
     if (sistemaItens) sysL.push(`* ${sistemaItens}`);
     if (kwp > 0) sysL.push(`* ${pKwp(kwp)} kWp${mediaMensalGerada > 0 ? ` · gera ~${pNum(mediaMensalGerada)} kWh/mês` : ''}`);
     if (temBateria) {
-      const batParte = [bateriaMarca, ...bateriaSpecParts].filter(Boolean).join(' · ');
+      const batParte = [bateriaTitulo, ...bateriaSpecParts].filter(Boolean).join(' · ');
       if (batParte) sysL.push(`* Bateria: ${batParte}`);
     }
     if (sysL.length) L.push('🔋 SISTEMA', ...sysL, '');
@@ -2809,7 +2810,7 @@ html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif
       </div>
       ${temBateria ? `<div class="spec">
         <div class="spec-label">Bateria</div>
-        <div class="spec-value">${pEsc(bateriaMarca)}${bateriaSpecParts.length ? ' — ' + bateriaSpecParts.join(' · ') : ''}</div>
+        <div class="spec-value">${pEsc(bateriaTitulo)}${bateriaSpecParts.length ? ' — ' + bateriaSpecParts.join(' · ') : ''}</div>
       </div>` : ''}
       <div class="spec">
         <div class="spec-label">Localização</div>
@@ -3042,11 +3043,16 @@ function garantiaInstalacaoExtenso(f: Record<string, unknown>): string {
 interface Bateria {
   tem: boolean;
   marca: string;
+  // `titulo` já vem com a quantidade na frente, no mesmo idioma do inversor
+  // ("2× BYD"). Quando a quantidade não foi informada — ou é 1 — é só a marca,
+  // então proposta antiga sai idêntica ao que já saía.
+  titulo: string;
+  qtd: number;        // 0 = não informada
   capacidade: number; // kWh
   potencia: number;   // kW
   ciclos: number;
   garantia: number;   // anos
-  specParts: string[]; // ['10,24 kWh', '5 kW', '6.000 ciclos'] — só as preenchidas
+  specParts: string[]; // ['10,24 kWh cada', '5 kW cada', '6.000 ciclos'] — só as preenchidas
 }
 function parseBateria(f: Record<string, unknown>): Bateria {
   const marca = String(f.bateria_marca ?? '').trim();
@@ -3054,12 +3060,21 @@ function parseBateria(f: Record<string, unknown>): Bateria {
   const potencia = parseFloat(String(f.bateria_potencia_kw ?? '0').replace(',', '.')) || 0;
   const ciclos = parseInt(String(f.bateria_ciclos ?? '0').replace(/\D/g, ''), 10) || 0;
   const garantia = parseInt(String(f.bateria_garantia_anos ?? '0'), 10) || 0;
+  const qtd = parseInt(String(f.bateria_qtd ?? '0').replace(/\D/g, ''), 10) || 0;
+  // "cada" só com mais de uma unidade, e só na capacidade e na potência: essas duas
+  // SOMAM entre si e um banco lendo a proposta leria "10,24 kWh" como o total do
+  // banco de baterias. Ciclo não soma — é característica da célula, então fica sem.
+  const cada = qtd > 1 ? ' cada' : '';
   const specParts = [
-    capacidade > 0 ? capacidade.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' kWh' : '',
-    potencia > 0 ? potencia.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' kW' : '',
+    capacidade > 0 ? capacidade.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' kWh' + cada : '',
+    potencia > 0 ? potencia.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' kW' + cada : '',
     ciclos > 0 ? ciclos.toLocaleString('pt-BR') + ' ciclos' : '',
   ].filter(Boolean);
-  return { tem: marca.length > 0, marca, capacidade, potencia, ciclos, garantia, specParts };
+  // `tem` continua preso SÓ à marca. Quantidade sem marca não pode acender a linha
+  // da bateria, senão quem digitar um número por engano ganha uma bateria fantasma
+  // na proposta inteira.
+  const titulo = qtd > 1 ? `${qtd}× ${marca}` : marca;
+  return { tem: marca.length > 0, marca, titulo, qtd, capacidade, potencia, ciclos, garantia, specParts };
 }
 
 function extenso(v: unknown): string {

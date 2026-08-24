@@ -87,6 +87,10 @@ const initialFields = {
   // Padrão render-if-filled, mesmo idioma das garantias extras (nada é persistido
   // como "tem bateria": deriva de marca preenchida → propostas antigas intactas).
   bateria_marca: '',
+  // Quantidade de baterias. Pedido da GSI em 19/08/2026 — o campo NAO existia, nem
+  // aqui nem no template, entao "a quantidade nao aparece no PDF" nunca foi bug de
+  // renderizacao. Vazio ou 1 sai igual ao que ja' saia; de 2 pra cima vira "2× BYD".
+  bateria_qtd: '',
   bateria_capacidade_kwh: '',
   bateria_potencia_kw: '',
   bateria_ciclos: '',
@@ -611,7 +615,7 @@ export default function PropostaSolarPage() {
       qtd_inversores: initialFields.qtd_inversores, potencia_inversor: '',
       // bateria: capacidade/potência/ciclos são específicos da venda; marca e
       // garantia ficam (template do integrador, igual marca_inversor).
-      bateria_capacidade_kwh: '', bateria_potencia_kw: '', bateria_ciclos: '',
+      bateria_qtd: '', bateria_capacidade_kwh: '', bateria_potencia_kw: '', bateria_ciclos: '',
       geracao_media_kwh: '', hsp: '', investimento: '', preco_avista: '',
       foto_telhado_b64: '', tipo_telhado: '',
       // marca/garantias/pagamento ficam como estão (template do integrador).
@@ -1250,7 +1254,13 @@ export default function PropostaSolarPage() {
               <datalist id="marcas-bateria">{marcasBat.map(m => <option key={m} value={m} />)}</datalist>
             </div>
             <div className={styles.field}>
-              <label className={styles.label}>Capacidade (kWh)</label>
+              <label className={styles.label}>Quantidade</label>
+              <input type="text" inputMode="numeric" value={fields.bateria_qtd} onChange={e => setField('bateria_qtd', e.target.value)} placeholder="Ex: 2" className="input-field" />
+            </div>
+            <div className={styles.field}>
+              {/* "cada" entra sozinho na proposta quando a quantidade passa de 1 —
+                  senao um banco lendo "10,24 kWh" entende como o banco inteiro. */}
+              <label className={styles.label}>Capacidade (kWh, por bateria)</label>
               <input type="text" inputMode="decimal" value={fields.bateria_capacidade_kwh} onChange={e => setField('bateria_capacidade_kwh', e.target.value)} placeholder="Ex: 5 ou 10,24" className="input-field" />
             </div>
             <div className={styles.field}>
