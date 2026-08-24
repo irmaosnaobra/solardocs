@@ -120,3 +120,28 @@ export function bolhasPixCheckout(): string[] {
 export function pixPublicoAtivo(): boolean {
   return (process.env.PIX_PUBLICO_ATIVO || '').trim().toLowerCase() === 'true';
 }
+
+/**
+ * A tela PÚBLICA de Pix do Asaas (`/pix-automatico`), quando ela está no ar.
+ * Vazio = desligada, e aí ela não existe pra ninguém: a rota devolve 503.
+ *
+ * ⚠️ NÃO é substituta do checkout da Kiwify, por mais que as duas sejam "um
+ * link de Pix". São produtos diferentes vendidos pra mesma pessoa:
+ *
+ *   Kiwify (`pixCheckoutUrl`)  → UM MÊS avulso de R$ 67, acaba e acabou. O
+ *     webhook cria a conta se ela não existir e libera sozinho.
+ *   Asaas (`pixPublicoUrl`)    → ASSINATURA. Com `ASAAS_PIX_MODO` no padrão
+ *     ('auto') o cliente autoriza débito mensal no app do banco; o pagamento
+ *     dele se repete. Pede CPF/CNPJ e nome no formulário. E se o e-mail não
+ *     tiver conta, o webhook NÃO cria: ele avisa o Thiago pra fazer na mão
+ *     (4 dos 17 abandonos de hoje cairiam aí).
+ *
+ * Por isso esta função existe mas ninguém a usa nas mensagens ainda: o roteiro
+ * da Giovanna promete "R$ 67, um mês do plano completo", e trocar o trilho por
+ * baixo transformaria isso em mentira. Trocar é decisão de produto, não de env.
+ */
+export function pixPublicoUrl(): string {
+  if (!pixPublicoAtivo()) return '';
+  const base = (process.env.DASHBOARD_URL || 'https://solardoc.app').trim();
+  return `${base}/pix-automatico`;
+}
