@@ -12045,9 +12045,9 @@ function bnkHTML(d) {
     ${d.origem ? `<p class="ep-bnk-p ep-bnk-origem">${e(d.origem)}</p>` : '<p class="ep-bnk-p ep-bnk-origem ep-bnk-falta">ORIGEM DA MERCADORIA NÃO INFORMADA</p>'}
 
     <div class="ep-bnk-vals">
-      <div><b>VALOR TOTAL:</b> ${money(d.total)}</div>
-      <div><b>VALOR EQUIPAMENTO:</b> ${money(d.eq)}</div>
-      <div><b>VALOR MÃO DE OBRA:</b> ${money(d.mo)}</div>
+      <div><b>VALOR TOTAL:</b> ${d.total > 0 ? money(d.total) : vazio('')}</div>
+      <div><b>VALOR EQUIPAMENTO:</b> ${d.eq > 0 ? money(d.eq) : vazio('')}</div>
+      <div><b>VALOR MÃO DE OBRA:</b> ${d.mo > 0 ? money(d.mo) : vazio('')}</div>
       ${d.ncm ? `<div><b>CLASSIFICAÇÃO FISCAL (NCM):</b> ${e(d.ncm)}</div>` : ''}
       ${d.ipiPct > 0 || d.ipiVal > 0 ? `<div><b>IPI:</b> ${d.ipiPct > 0 ? String(d.ipiPct).replace('.', ',') + '% — ' : ''}${money(d.ipiVal)}</div>` : ''}
       ${d.prazo ? `<div><b>PRAZO DE ENTREGA:</b> ${e(d.prazo)}</div>` : ''}
