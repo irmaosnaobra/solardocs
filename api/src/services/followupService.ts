@@ -23,7 +23,7 @@ const MIN_GAP_MS = 23 * 60 * 60 * 1000;
 // O /master roda de hora em hora, então o teto por rodada vira rampa sozinho:
 // 10 por cadência escoa a fila em ~13 horas em vez de um minuto. Quem não coube
 // não é perdido, é o primeiro da próxima rodada.
-const EMAIL_TETO_POR_RODADA = 10;
+export const EMAIL_TETO_POR_RODADA = 10;
 
 /** Timestamp do Postgres → ms. Aceita timestamptz ("...+00") e timestamp seco. */
 function tsMs(v: unknown): number {
@@ -40,9 +40,12 @@ function tsMs(v: unknown): number {
  * inativo ao mesmo tempo — sem esta trava elas receberiam DOIS e-mails
  * nossos no mesmo minuto, que é o jeito mais rápido de virar spam.
  */
-function recebeuEmailRecente(u: Record<string, unknown>): boolean {
+export function recebeuEmailRecente(u: Record<string, unknown>): boolean {
   const agora = Date.now();
-  return ['followup_email_last_sent_at', 'upgrade_nudge_last_sent_at', 'contract_reminder_last_sent_at']
+  // Toda cadência de e-mail entra nesta lista. Cadência nova que esqueça de se
+  // incluir aqui manda o SEGUNDO e-mail do dia pra quem se qualifica em duas —
+  // que é exatamente o pico que o bloco acima existe pra evitar.
+  return ['followup_email_last_sent_at', 'upgrade_nudge_last_sent_at', 'contract_reminder_last_sent_at', 'confianca_last_sent_at']
     .some(col => {
       const t = tsMs(u[col]);
       return t > 0 && agora - t < MIN_GAP_MS;

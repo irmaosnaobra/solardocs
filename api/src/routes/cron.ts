@@ -11,6 +11,7 @@ import { runCursoEntradaBroadcast } from '../services/agents/whatsapp/cursoEntra
 import { runPromoGeradorBroadcast } from '../services/agents/whatsapp/promoGeradorBroadcast';
 import { runPromoGeradorV2Broadcast } from '../services/agents/whatsapp/promoGeradorV2Broadcast';
 import { runPixVipReminder } from '../services/agents/whatsapp/pixVipReminderService';
+import { runConfiancaNutricao } from '../services/confiancaService';
 import { runLimpaproRecoveryConsumer, runLimpaproRecoverySeeds, seedLimpaproRecoveryBacklog, seedLimpaproCupomBacklog, seedLimpaproFechamentoBacklog, seedLimpaproGrupoBacklog, enviarOpenerTeste } from '../services/agents/whatsapp/limpaproRecoveryService';
 import { pollBiaRecuperacao } from '../services/agents/whatsapp/biaInboundService';
 import { pollLimpaproAtendimento } from '../services/agents/whatsapp/limpaproAtendimentoService';
@@ -683,6 +684,23 @@ router.get('/curso-entrada-19', async (req: Request, res: Response) => {
   }
 });
 
+// Cadência de Confiança — nutrição do assinante NOVO por e-mail (dias 1/3/7/14/30).
+// Entrega uma coisa útil + uma fala de cliente real por toque; não vende nada.
+// `?seco=1` NÃO envia e NÃO grava: devolve a fila de quem receberia e qual toque.
+// A prévia funciona MESMO com a cadência desligada — é ela que serve pra decidir
+// se liga. O envio de verdade exige CONFIANCA_ENABLED=true no Vercel.
+router.get('/confianca', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const seco = req.query.seco === '1' || req.query.seco === 'true';
+    const result = await runConfiancaNutricao({ seco });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'confianca falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
 // Carla — usuários da plataforma sem CNPJ. 3 toques em 30d (D+2, D+10, D+30).
 router.get('/carla-sem-cnpj', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
@@ -983,6 +1001,11 @@ router.get('/master', async (req: Request, res: Response) => {
     // "sua conta está parada, é só abrir e gerar" — nada de "ative sua conta
     // grátis" — e assinante inativo é justamente quem cancela em 12 dias.
     ['no-contracts-reminder',       () => runNoContractsEmailReminder()], // lembrete de inativo por email
+    // DESLIGADA até CONFIANCA_ENABLED=true (tick no-op barato sem ela). Nutrição
+    // do assinante NOVO nos dias 1/3/7/14/30 — a janela em que metade de quem
+    // cancela cancela (mediana 14,1 dias). Útil + fala de cliente, sem oferta.
+    // Prévia sem enviar: GET /cron/confianca?seco=1
+    ['confianca',                   () => runConfiancaNutricao()],       // 5 e-mails/30d — assinante novo
     // 2026-06-30: WhatsApp Carla RELIGADO já como UMA persona (Giovanna) que leva
     //   o follow-up até a venda. Conserto feito: (1) o opener é salvo na sessão por
     //   user_id (registrarMsgProativa) → quando o cliente responde, a Giovanna lê o

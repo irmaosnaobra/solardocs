@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import { unsubToken } from '../controllers/unsubscribeController';
 import { pixBlocoEmailHtml } from './pixInfo';
+import { DEPOIMENTOS, blocoDepoimentoHtml, Depoimento } from './depoimentos';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -282,6 +283,122 @@ export async function sendUpgradeNudgeEmail(email: string, userId: string, toque
   if (!builder) return;
   const firstName = (nome || '').trim().split(/\s+/)[0] || 'Olá';
   const { subject, html } = builder(firstName, docsFeitos);
+  await sendMarketingEmail({ to: email, userId, subject, html });
+}
+
+// ─── CADÊNCIA DE CONFIANÇA (assinante novo, dias 1/3/7/14/30) ───────────────
+// Por que existe: metade de quem cancela cancela em ≤12 dias (mediana 14,1 —
+// medido em 24/08/2026 sobre os cancelamentos com venda casada). Nesse intervalo
+// o cliente não precisa de oferta, precisa de MOTIVO pra confiar no que acabou de
+// pagar. Então cada toque entrega UMA coisa útil e UMA fala de cliente real.
+//
+// Nada aqui vende. O único pedido da cadência inteira é no último toque, e é
+// "responde este e-mail" — de propósito: o plano anual só é vendido na LP
+// pública, e mandar quem JÁ é assinante pro checkout de lá cria um Customer novo
+// (é a origem das assinaturas duplicadas e dos chargebacks). Troca de plano
+// passa por gente.
+//
+// As falas vêm de utils/depoimentos.ts, que espelha só o que já está publicado
+// na LP — a autorização é a mesma, e não há segundo lugar pra revogar.
+const CONFIANCA: Record<number, (nome: string) => { subject: string; html: string }> = {
+  1: (nome) => ({
+    subject: `${nome}, comece por aqui — a proposta sai em poucos cliques`,
+    html: confiancaHtml({
+      chapeu: 'Dia 1',
+      titulo: 'Comece pela proposta',
+      corpo: [
+        `${nome}, uma dica que economiza a primeira meia hora: <strong style="color:#fbbf24;">suba a fatura do seu cliente</strong> na hora de criar a proposta. A plataforma lê o consumo médio sozinha — você não precisa digitar mês a mês.`,
+        `E se estiver em dúvida por onde começar: <strong style="color:#f8fafc;">78% de tudo que se gera aqui é proposta</strong>. É o coração da ferramenta, e é onde ela devolve o tempo mais rápido.`,
+      ],
+      depo: DEPOIMENTOS.alessandro,
+    }),
+  }),
+  2: (nome) => ({
+    subject: `${nome}, põe sua logo antes da próxima proposta`,
+    html: confiancaHtml({
+      chapeu: 'Dia 3',
+      titulo: 'O documento é seu, não nosso',
+      corpo: [
+        `${nome}, se você ainda não fez isso: em <strong style="color:#fbbf24;">Configurações</strong> dá pra subir a <strong style="color:#f8fafc;">logo da sua empresa e escolher a cor</strong> dos documentos.`,
+        `Quem recebe a proposta vê a sua marca do começo ao fim — nosso nome não aparece pro seu cliente. É a diferença entre mandar um documento e mandar o <em>seu</em> documento.`,
+      ],
+      depo: DEPOIMENTOS.ronailson,
+    }),
+  }),
+  3: (nome) => ({
+    subject: `${nome}, por que o número vem escrito em cima`,
+    html: confiancaHtml({
+      chapeu: 'Dia 7',
+      titulo: 'O número em cima, não o gráfico',
+      corpo: [
+        `${nome}, uma coisa que a gente decidiu de propósito e vale você saber na hora de apresentar: <strong style="color:#fbbf24;">a média do ano vai escrita, em número</strong>, não só desenhada num gráfico.`,
+        `Na hora do fechamento isso muda a conversa — o cliente lê o valor e responde, em vez de tentar interpretar uma barra. Quando for apresentar, abra por essa parte.`,
+      ],
+      depo: DEPOIMENTOS.juliano,
+    }),
+  }),
+  4: (nome) => ({
+    subject: `${nome}, dá pra responder cliente do celular`,
+    html: confiancaHtml({
+      chapeu: 'Dia 14',
+      titulo: 'Leva no bolso',
+      corpo: [
+        `${nome}, a plataforma <strong style="color:#fbbf24;">instala na tela inicial do celular</strong>: abra o solardoc.app pelo navegador do telefone e escolha "adicionar à tela de início".`,
+        `A partir daí você monta e manda proposta de onde estiver — na obra, no carro, na casa do cliente. Boa parte das vendas se decide no intervalo entre a visita e o orçamento chegar.`,
+      ],
+      depo: DEPOIMENTOS.lucas,
+    }),
+  }),
+  5: (nome) => ({
+    subject: `${nome}, os documentos que quase ninguém abre`,
+    html: confiancaHtml({
+      chapeu: 'Dia 30',
+      titulo: 'Tem mais coisa aí dentro',
+      corpo: [
+        `${nome}, um mês de casa. Já que a proposta você domina, vale saber o que mais está incluído e passa despercebido: <strong style="color:#f8fafc;">contrato, procuração, recibo, vistoria</strong> e a <strong style="color:#fbbf24;">proposta pro banco</strong> — essa última quase ninguém descobre que existe.`,
+        `São os mesmos dados que você já preencheu na proposta: não tem retrabalho, é escolher o documento e gerar.`,
+      ],
+      depo: DEPOIMENTOS.vicente,
+      rodape: `Ah — se você preferir pagar o ano de uma vez, sai bem mais barato por mês. <strong style="color:#f8fafc;">Responde este e-mail</strong> que a gente troca pra você sem perder nada do que já tem.`,
+    }),
+  }),
+};
+
+/** Molde comum dos cinco: chapéu, título, corpo, fala do cliente, botão. */
+function confiancaHtml(a: {
+  chapeu: string; titulo: string; corpo: string[]; depo: Depoimento; rodape?: string;
+}): string {
+  const paragrafos = a.corpo
+    .map(t => `<p style="color:#e2e8f0;font-size:16px;line-height:1.75;margin:0 0 18px;">${t}</p>`)
+    .join('');
+  const rodape = a.rodape
+    ? `<p style="color:#94a3b8;font-size:14.5px;line-height:1.7;margin:22px 0 0;">${a.rodape}</p>`
+    : '';
+  return `
+<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0f172a;border-radius:16px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%);padding:30px 36px;">
+    <p style="margin:0;color:#0f172a;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">SolarDoc · ${a.chapeu}</p>
+    <h1 style="margin:8px 0 0;color:#0f172a;font-size:24px;font-weight:900;line-height:1.2;">${a.titulo}</h1>
+  </div>
+  <div style="padding:32px 36px;">
+    ${paragrafos}
+    ${blocoDepoimentoHtml(a.depo)}
+    <div style="text-align:center;margin:26px 0 0;">
+      <a href="${APP_URL}" style="display:inline-block;background:#f59e0b;color:#0f172a;font-weight:900;font-size:16px;padding:15px 38px;border-radius:12px;text-decoration:none;">Abrir a plataforma →</a>
+    </div>
+    ${rodape}
+    <p style="color:#64748b;font-size:13px;margin:22px 0 0;line-height:1.6;text-align:center;">É só responder este e-mail se precisar de alguma coisa — chega na gente.</p>
+  </div>
+</div>`;
+}
+
+export const CONFIANCA_TOQUES = Object.keys(CONFIANCA).length;
+
+export async function sendConfiancaEmail(email: string, userId: string, toque: number, nome: string | null): Promise<void> {
+  const builder = CONFIANCA[toque];
+  if (!builder) return;
+  const firstName = (nome || '').trim().split(/\s+/)[0] || 'Olá';
+  const { subject, html } = builder(firstName);
   await sendMarketingEmail({ to: email, userId, subject, html });
 }
 
