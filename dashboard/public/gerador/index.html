@@ -15448,6 +15448,11 @@ async function fazerLogin(ev) {
   if (typeof crmCheckDeepLink === 'function') crmCheckDeepLink();
   // Se veio do "Gerar orçamento" da Agenda (?orc=1...), pré-preenche o form.
   if (typeof orcCheckDeepLink === 'function') orcCheckDeepLink();
+  // Se veio de um link de proposta de banco (?banco=1&d=...), abre a folha.
+  // Sem esta linha o link aberto DESLOGADO era descartado em silêncio: o
+  // DOMContentLoaded roda antes do login, sai fora no teste de modo, e a folha
+  // sumia sem aviso nenhum — o pior jeito de perder uma proposta montada.
+  if (typeof bnkCheckDeepLink === 'function') bnkCheckDeepLink();
 }
 
 function sairGerador() {
