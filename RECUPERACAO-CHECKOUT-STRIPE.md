@@ -103,6 +103,11 @@ Coberto agora pelo par:
 Enquanto `SOLARDOC_PIX_CHECKOUT_URL` estiver vazia, o botão verde da `/quase-la`
 abre `wa.me/5534998165040` com "Oi! Quero assinar o SolarDoc pagando por Pix.".
 
+> ⚠️ Desde 14/08 nem todo mundo chega na `/quase-la`: com o Asaas ligado,
+> `destinoDeSaida` manda quem tem conta direto pra `/pix-recorrente`. A
+> `/quase-la` ficou pra quem está levando o **anual** e (enquanto
+> `PIX_PUBLICO_ATIVO` estiver desligada) pra quem veio da LP sem conta.
+
 Duas coisas pra saber sobre esse caminho:
 
 - **A linha está de pé** (conferido em 14/08 às 16:53 UTC: `zapi_io_health` com
@@ -112,6 +117,35 @@ Duas coisas pra saber sobre esse caminho:
   early-return pra `'io'` de propósito: quem chega ali cai pra **humano**. Ou
   seja, o Pix de hoje converte na velocidade de quem olha o telefone. É esse o
   trabalho que o checkout da Kiwify (abaixo) elimina.
+
+## "Mas o Asaas não resolve isso?" (não — conferido em 24/08)
+
+Pergunta que volta toda vez que o aviso de "falta o link do Pix" chega, porque o
+Pix recorrente do Asaas **está ligado em produção** desde 14/08. Está — e atende
+outro caminho:
+
+| | Asaas (`/pix-recorrente`, `/pix-automatico`) | Kiwify (`mes_pix`) |
+|---|---|---|
+| **quem alcança** | quem SAI do checkout da Stripe **já logado**, no mesmo minuto | quem abandonou e é reencontrado **dias depois**, no WhatsApp/e-mail |
+| **o que vende** | **assinatura** — débito mensal autorizado no app do banco (`ASAAS_PIX_MODO` padrão `auto`) | **um mês avulso** de R$ 67, acaba e acabou |
+| **pede** | e-mail + nome + **CPF/CNPJ** | e-mail |
+| **e-mail sem conta** | webhook **não cria** — avisa o Thiago pra fazer na mão | webhook **cria e libera** sozinho |
+| **estado** | ligado (`ASAAS_API_KEY` em produção); a tela pública `/pix-automatico` está **desligada**, falta `PIX_PUBLICO_ATIVO=true` | falta criar o produto |
+
+Por que isso importa aqui: **nenhum toque da recuperação conhece o Asaas.** A
+Giovanna (`pixRecoveryAgentService`), o e-mail de abandono (`mailer`) e o
+lembrete mensal (`pixVipReminderService`) olham só `pixCheckoutUrl()`. Sem essa
+env, todos caem no copia-e-cola manual — não no Asaas.
+
+E ligar `PIX_PUBLICO_ATIVO` **não** conserta: o roteiro da Giovanna promete na
+lata *"R$ 67, um mês do plano completo"*, e o trilho do Asaas cobra todo mês.
+Além disso o `pixVipReminderService` mandaria cobrança de renovação pra quem já
+autorizou débito automático. Trocar o trilho da recuperação pro Asaas é
+**mudança de produto** — mexe no roteiro, no e-mail e no lembrete —, não flip de
+env. Por isso `pixInfo.pixPublicoUrl()` existe mas ninguém a chama nas mensagens.
+
+Medida em 24/08: dos 17 abandonos, **13 já têm conta e 4 não** — esses 4 são
+exatamente quem o Asaas não libera sozinho.
 
 ## O que falta pra ligar o Pix automático (1 configuração)
 
