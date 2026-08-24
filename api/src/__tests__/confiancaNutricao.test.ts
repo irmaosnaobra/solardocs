@@ -97,7 +97,8 @@ describe('trava de segurança', () => {
     const r = await runConfiancaNutricao({ seco: true });
     expect(r.enviados).toBe(0);
     expect(r.previstos).toBe(1);
-    expect(r.fila?.[0]).toMatchObject({ email: u.email, toque: 1 });
+    // 3 dias de casa entrando do zero: o toque da vez é o do dia 3, não o do dia 1.
+    expect(r.fila?.[0]).toMatchObject({ email: u.email, toque: 2, diasDeCasa: 3 });
     expect(enviados).toHaveLength(0);   // seco NÃO envia
   });
 
@@ -138,13 +139,31 @@ describe('quando cada toque vence', () => {
     expect(enviados[0].toque).toBe(2);
   });
 
-  it('quem entrou há muito tempo pega o toque da vez, não uma enxurrada', async () => {
+  it('quem entrou há muito tempo NÃO recebe o "Dia 1" — entra pelo toque do tempo de casa', async () => {
     const u = pagante(); db.users.push(u); db.sales.push(venda(u.email, 90));
 
     const r = await runConfiancaNutricao();
     expect(r.enviados).toBe(1);
-    expect(enviados).toHaveLength(1);   // UM e-mail, não cinco
-    expect(enviados[0].toque).toBe(1);
+    expect(enviados).toHaveLength(1);       // UM e-mail, não cinco
+    expect(enviados[0].toque).toBe(5);      // o último, não o de boas-vindas
+    expect(db.users[0].confianca_count).toBe(5);   // e a cadência se encerra pra ele
+  });
+
+  it('quem tem 8 dias entra no toque do dia 7 e segue normal a partir dali', async () => {
+    const u = pagante(); db.users.push(u); db.sales.push(venda(u.email, 8));
+
+    expect((await runConfiancaNutricao()).enviados).toBe(1);
+    expect(enviados[0].toque).toBe(3);
+    expect(db.users[0].confianca_count).toBe(3);
+
+    // Dia 8 ainda, nada novo venceu.
+    db.users[0].confianca_last_sent_at = null;
+    expect((await runConfiancaNutricao()).enviados).toBe(0);
+
+    // Dia 14: o toque 4 vence.
+    db.sales[0].created_at = DIAS(14);
+    expect((await runConfiancaNutricao()).enviados).toBe(1);
+    expect(enviados[1].toque).toBe(4);
   });
 
   it('termina no quinto toque e não recomeça', async () => {

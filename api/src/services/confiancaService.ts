@@ -109,12 +109,16 @@ export async function runConfiancaNutricao(opts: { seco?: boolean } = {}): Promi
     if (!ancora) { semAncora++; continue; }
 
     const count: number = u.confianca_count ?? 0;
-    const proximo = count + 1;
-    const vence = DIAS_DO_TOQUE[count];
-    if (vence == null) continue;
-
     const diasDeCasa = Math.floor((agora - ancora) / DIA_MS);
-    if (diasDeCasa < vence) continue;
+
+    // A pessoa ENTRA no toque que corresponde ao tempo de casa dela, não no
+    // toque 1. Sem isto, ligar a cadência mandaria "Dia 1 — comece por aqui,
+    // economiza a primeira meia hora" pros 62 assinantes que já existem, um
+    // deles com 47 dias de casa. Quem tem 8 dias entra no toque do dia 7; quem
+    // já passou dos 30 recebe o último e a cadência se encerra pra ele.
+    const jaVencidos = DIAS_DO_TOQUE.filter(d => diasDeCasa >= d).length;
+    if (jaVencidos <= count) continue;   // nada novo venceu desde o último toque
+    const proximo = jaVencidos;
 
     // Não empilha dois e-mails nossos no mesmo dia — a trava é compartilhada com
     // as outras cadências (ver recebeuEmailRecente no followupService).

@@ -355,7 +355,7 @@ const CONFIANCA: Record<number, (nome: string) => { subject: string; html: strin
       chapeu: 'Dia 30',
       titulo: 'Tem mais coisa aí dentro',
       corpo: [
-        `${nome}, um mês de casa. Já que a proposta você domina, vale saber o que mais está incluído e passa despercebido: <strong style="color:#f8fafc;">contrato, procuração, recibo, vistoria</strong> e a <strong style="color:#fbbf24;">proposta pro banco</strong> — essa última quase ninguém descobre que existe.`,
+        `${nome}, já tem um tempo de casa. Já que a proposta você domina, vale saber o que mais está incluído e passa despercebido: <strong style="color:#f8fafc;">contrato, procuração, recibo, vistoria</strong> e a <strong style="color:#fbbf24;">proposta pro banco</strong> — essa última quase ninguém descobre que existe.`,
         `São os mesmos dados que você já preencheu na proposta: não tem retrabalho, é escolher o documento e gerar.`,
       ],
       depo: DEPOIMENTOS.vicente,
