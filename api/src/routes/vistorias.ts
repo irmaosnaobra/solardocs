@@ -62,16 +62,46 @@ function seedItens(): ItemVistoria[] {
   }));
 }
 
+// LOCALIZAÇÃO DA VISTORIA — pedido do Gedalih (24/08/2026), e o caso dele manda no
+// desenho: *"o cliente me mandou a localização, aí não sei o que aconteceu no celular,
+// acabei perdendo. É na roça."* Ou seja, o caminho principal NÃO é o GPS do aparelho —
+// ele não está no telhado quando a mensagem chega. É COLAR o que o cliente mandou.
+//
+// Por isso o campo aceita qualquer coisa: par de coordenadas, link do Google Maps, link
+// curto do maps.app.goo.gl. O que dá pra ler vira lat/lng; o que não dá é guardado como
+// link mesmo, que continua abrindo no celular de quem clicar. Nada é rejeitado — jogar
+// fora a localização do cliente é exatamente o problema que ele relatou.
+export interface Localizacao {
+  lat: number | null;
+  lng: number | null;
+  link: string | null;   // o que a pessoa colou, quando não é coordenada pura
+  texto: string | null;  // apelido do ponto ("portão de trás", "fundos do sítio")
+  origem: 'gps' | 'colado';
+  em: string;
+}
+
+// Acha um par lat,lng dentro de qualquer texto — inclusive no meio de uma URL do Maps
+// (`/@-22.1,-45.6,17z` e `?q=-22.1,-45.6` caem os dois aqui).
+export function lerCoordenadas(bruto: string): { lat: number; lng: number } | null {
+  const m = bruto.match(/(-?\d{1,3}[.,]\d{4,})\s*[,;]\s*(-?\d{1,3}[.,]\d{4,})/);
+  if (!m) return null;
+  const lat = parseFloat(m[1].replace(',', '.'));
+  const lng = parseFloat(m[2].replace(',', '.'));
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng };
+}
+
 // Confere que a vistoria existe e é do usuário logado. Devolve a linha ou null.
 async function getOwned(id: string, userId: string) {
   const { data } = await supabase
     .from('vistorias')
-    .select('id, user_id, cliente_id, cliente_nome, status, itens, created_at')
+    .select('id, user_id, cliente_id, cliente_nome, status, itens, localizacao, created_at')
     .eq('id', id)
     .eq('user_id', userId)
     .maybeSingle();
   return data as
-    | { id: string; user_id: string; cliente_id: string | null; cliente_nome: string | null; status: string; itens: ItemVistoria[]; created_at: string }
+    | { id: string; user_id: string; cliente_id: string | null; cliente_nome: string | null; status: string; itens: ItemVistoria[]; localizacao: Localizacao | null; created_at: string }
     | null;
 }
 
@@ -118,7 +148,7 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
       status: 'em_andamento',
       itens: seedItens(),
     })
-    .select('id, cliente_id, cliente_nome, status, itens, created_at')
+    .select('id, cliente_id, cliente_nome, status, itens, localizacao, created_at')
     .single();
 
   if (error || !data) {
@@ -134,7 +164,7 @@ router.post('/', authMiddleware, async (req: Request, res: Response): Promise<vo
 router.get('/list', authMiddleware, async (req: Request, res: Response): Promise<void> => {
   const { data, error } = await supabase
     .from('vistorias')
-    .select('id, cliente_id, cliente_nome, status, itens, created_at')
+    .select('id, cliente_id, cliente_nome, status, itens, localizacao, created_at')
     .eq('user_id', req.userId)
     .order('created_at', { ascending: false })
     .limit(200);
@@ -145,7 +175,7 @@ router.get('/list', authMiddleware, async (req: Request, res: Response): Promise
     return;
   }
 
-  const lista = (data ?? []).map((v: { id: string; cliente_id: string | null; cliente_nome: string | null; status: string; itens: ItemVistoria[]; created_at: string }) => {
+  const lista = (data ?? []).map((v: { id: string; cliente_id: string | null; cliente_nome: string | null; status: string; itens: ItemVistoria[]; localizacao: Localizacao | null; created_at: string }) => {
     const itens = Array.isArray(v.itens) ? v.itens : [];
     return {
       id: v.id,
@@ -154,6 +184,7 @@ router.get('/list', authMiddleware, async (req: Request, res: Response): Promise
       status: v.status,
       total: itens.length,
       preenchidos: itens.filter((i) => fotosDe(i).length > 0).length,
+      tem_local: !!v.localizacao,
       created_at: v.created_at,
     };
   });
@@ -341,6 +372,66 @@ router.patch('/:id/item', authMiddleware, async (req: Request, res: Response): P
     return;
   }
   res.json({ ok: true });
+});
+
+// ── PUT /vistorias/:id/localizacao — guarda (ou apaga) o ponto da vistoria ─────
+// `colado` é o caminho principal: o que o cliente mandou no WhatsApp. `lat`/`lng`
+// diretos são o botão "usar minha localização", que só serve pra quem já está no
+// local. Mandar tudo vazio APAGA — precisa dar pra corrigir um ponto errado.
+const localSchema = z.object({
+  colado: z.string().max(2000).optional(),
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
+  texto: z.string().max(120).optional(),
+});
+
+router.put('/:id/localizacao', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  const parsed = localSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Localização inválida.' });
+    return;
+  }
+  const v = await getOwned(String(req.params.id), req.userId);
+  if (!v) {
+    res.status(404).json({ error: 'Vistoria não encontrada.' });
+    return;
+  }
+
+  const { colado, lat, lng, texto } = parsed.data;
+  const bruto = (colado ?? '').trim();
+  let local: Localizacao | null = null;
+
+  if (typeof lat === 'number' && typeof lng === 'number') {
+    local = { lat, lng, link: null, texto: texto?.trim() || null, origem: 'gps', em: new Date().toISOString() };
+  } else if (bruto) {
+    const coord = lerCoordenadas(bruto);
+    const ehLink = /^https?:\/\//i.test(bruto);
+    local = {
+      lat: coord?.lat ?? null,
+      lng: coord?.lng ?? null,
+      // guarda o link mesmo quando as coordenadas saíram dele: link curto do
+      // maps.app.goo.gl não tem coordenada nenhuma e continua sendo o que abre.
+      link: ehLink ? bruto : null,
+      texto: texto?.trim() || (coord || ehLink ? null : bruto),
+      origem: 'colado',
+      em: new Date().toISOString(),
+    };
+    // Nem coordenada, nem link, nem texto: não há o que guardar.
+    if (!local.lat && !local.link && !local.texto) local = null;
+  }
+
+  const { error } = await supabase
+    .from('vistorias')
+    .update({ localizacao: local, updated_at: new Date().toISOString() })
+    .eq('id', v.id)
+    .eq('user_id', req.userId);
+
+  if (error) {
+    logger.error('vistorias', 'falha salvando localizacao', error);
+    res.status(500).json({ error: 'Não consegui salvar a localização.' });
+    return;
+  }
+  res.json({ ok: true, localizacao: local });
 });
 
 // ── POST /vistorias/:id/concluir — fecha a vistoria e devolve o id do relatório ─

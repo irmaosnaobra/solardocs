@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, type ComponentProps } from 'r
 import Link from 'next/link';
 import {
   ClipboardCheck, Camera, Paperclip, Check, X, RefreshCw, Share2, Copy, Plus, Trash2, FileText, Download,
+  MapPin, LocateFixed,
 } from 'lucide-react';
 import api from '@/services/api';
 import ClientModal from '@/components/ClientModal/ClientModal';
@@ -36,7 +37,8 @@ interface Foto {
 }
 
 interface Item { key: string; label: string; dica: string; obs: string; fotos: Foto[] }
-interface Vistoria { id: string; cliente_id: string | null; cliente_nome: string | null; status: string; itens: Item[] }
+interface Localizacao { lat: number | null; lng: number | null; link: string | null; texto: string | null; origem: 'gps' | 'colado'; em: string }
+interface Vistoria { id: string; cliente_id: string | null; cliente_nome: string | null; status: string; itens: Item[]; localizacao?: Localizacao | null }
 
 const MAX_DIM = 1568;
 let CID = 0;
@@ -96,6 +98,13 @@ export default function VistoriaPage() {
   const [copiado, setCopiado] = useState(false);
   const [lightbox, setLightbox] = useState<{ itemKey: string; foto: Foto } | null>(null);
 
+  // LOCALIZAÇÃO — o caminho principal é COLAR o que o cliente mandou no WhatsApp,
+  // não o GPS: quem pediu (Gedalih, 24/08/2026) perdeu justamente a localização que
+  // recebeu por mensagem, e ele não está no sítio quando ela chega.
+  const [localTxt, setLocalTxt] = useState('');
+  const [localBusy, setLocalBusy] = useState(false);
+  const [localMsg, setLocalMsg] = useState('');
+
   // "Cadastrar Cliente": dados lidos dos documentos (conta de luz + RG/CNH) que
   // pré-preenchem o ClientModal. scanBusy = leitura em andamento.
   const [seedNovo, setSeedNovo] = useState<Record<string, string>>({});
@@ -117,6 +126,35 @@ export default function VistoriaPage() {
     if (!opened.current) { opened.current = true; logUso('open'); }
     carregarGrupos();
   }, [carregarGrupos]);
+
+  // ── Localização ──
+  async function salvarLocal(corpo: { colado?: string; lat?: number; lng?: number }) {
+    if (!vistoria) return;
+    setLocalBusy(true); setLocalMsg('');
+    try {
+      const r = await api.put(`/vistorias/${vistoria.id}/localizacao`, corpo);
+      const loc = r.data.localizacao as Localizacao | null;
+      setVistoria((v) => v && ({ ...v, localizacao: loc }));
+      setLocalTxt('');
+      setLocalMsg(loc ? 'Localização salva.' : 'Localização removida.');
+      setTimeout(() => setLocalMsg(''), 3000);
+    } catch (err: unknown) {
+      setErro(apiError(err) || 'Não consegui salvar a localização.');
+    } finally {
+      setLocalBusy(false);
+    }
+  }
+
+  // Botão do GPS: só serve pra quem JÁ está no local. É o caminho secundário.
+  function usarLocalAtual() {
+    if (!navigator.geolocation) { setErro('Este aparelho não informa a localização.'); return; }
+    setLocalBusy(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { void salvarLocal({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
+      () => { setLocalBusy(false); setErro('Não consegui pegar a localização. Autorize no navegador ou cole o link do cliente.'); },
+      { enableHighAccuracy: true, timeout: 12000 },
+    );
+  }
 
   // ── Mutação de estado: mexe nas fotos de um item ──
   function setItemFotos(itemKey: string, fn: (fotos: Foto[]) => Foto[]) {
@@ -445,6 +483,66 @@ export default function VistoriaPage() {
           <span>Câmera ou arquivo · várias por item</span>
         </div>
         <div className="vst-progressBar"><div className="vst-progressFill" style={{ width: `${pct}%` }} /></div>
+      </div>
+
+      {/* LOCALIZAÇÃO DO LOCAL — fica ANTES dos itens de propósito: é a primeira coisa
+          que se perde e a última que alguém lembra de anotar. O campo de colar vem
+          primeiro que o botão de GPS porque o caso real é a mensagem do cliente. */}
+      <div className="vst-item2" style={{ marginBottom: 12 }}>
+        <div className="vst-itemTitle">
+          <span className={`vst-itemNum ${vistoria.localizacao ? 'done' : ''}`}>
+            {vistoria.localizacao ? <Check size={13} strokeWidth={3} /> : <MapPin size={13} strokeWidth={2.6} />}
+          </span>
+          <div>
+            <strong>Localização do local</strong>
+            <p className="vst-itemDica">Cole o ponto que o cliente mandou no WhatsApp — link do mapa ou as coordenadas.</p>
+          </div>
+        </div>
+
+        {vistoria.localizacao ? (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginTop: 10 }}>
+            <a
+              className="vst-ghostBtn"
+              style={{ marginTop: 0 }}
+              href={vistoria.localizacao.lat != null && vistoria.localizacao.lng != null
+                ? `https://maps.google.com/?q=${vistoria.localizacao.lat},${vistoria.localizacao.lng}`
+                : (vistoria.localizacao.link || '#')}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <MapPin size={15} />{' '}
+              {vistoria.localizacao.lat != null && vistoria.localizacao.lng != null
+                ? `${vistoria.localizacao.lat.toFixed(5)}, ${vistoria.localizacao.lng.toFixed(5)}`
+                : (vistoria.localizacao.texto || 'Abrir no mapa')}
+            </a>
+            <button className="vst-ghostBtn" style={{ marginTop: 0 }} disabled={localBusy} onClick={() => void salvarLocal({ colado: '' })}>
+              <Trash2 size={15} /> Trocar
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="vst-linkBox" style={{ marginTop: 10 }}>
+              <input
+                className="vst-input"
+                value={localTxt}
+                onChange={(e) => setLocalTxt(e.target.value)}
+                placeholder="Cole aqui: link do mapa ou -22.12345, -45.67890"
+              />
+              <button
+                className="vst-copyBtn"
+                disabled={localBusy || !localTxt.trim()}
+                onClick={() => void salvarLocal({ colado: localTxt })}
+                title="Salvar localização"
+              >
+                <Check size={15} />
+              </button>
+            </div>
+            <button className="vst-ghostBtn" style={{ marginTop: 10 }} disabled={localBusy} onClick={usarLocalAtual}>
+              <LocateFixed size={15} /> Estou no local agora
+            </button>
+          </>
+        )}
+        {localMsg && <p className="vst-toast" style={{ marginTop: 8 }}>{localMsg}</p>}
       </div>
 
       <div className="vst-items">

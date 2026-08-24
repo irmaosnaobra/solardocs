@@ -52,7 +52,7 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
 
     const { data: v } = await supabase
       .from('vistorias')
-      .select('id, cliente_nome, status, itens, created_at')
+      .select('id, cliente_nome, status, itens, localizacao, created_at')
       .eq('id', id)
       .maybeSingle();
 
@@ -94,6 +94,21 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
       ? `<div class="faltando"><strong>Sem registro:</strong> ${faltando.join(' · ')}</div>`
       : '';
 
+    // LOCALIZAÇÃO — o pedido do Gedalih era "salvar a localização junto com as fotos",
+    // e as fotos moram neste relatório: é este link que vai pro WhatsApp e é aqui que
+    // ele vai procurar meses depois. Botão de mapa quando há coordenada; senão o link
+    // cru que ele colou (o curto do maps.app.goo.gl abre igual).
+    const loc = (v as { localizacao?: { lat: number | null; lng: number | null; link: string | null; texto: string | null } | null }).localizacao;
+    const hrefLocal = loc
+      ? (loc.lat != null && loc.lng != null ? `https://maps.google.com/?q=${loc.lat},${loc.lng}` : (loc.link || ''))
+      : '';
+    const rotuloLocal = loc?.texto
+      ? esc(loc.texto)
+      : (loc?.lat != null && loc?.lng != null ? `${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}` : 'Abrir no mapa');
+    const linkLocal = hrefLocal
+      ? `<a class="dlBtn" href="${esc(hrefLocal)}" target="_blank" rel="noopener noreferrer">📍 ${rotuloLocal}</a>`
+      : (loc?.texto ? `<span class="meta">📍 ${esc(loc.texto)}</span>` : '');
+
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'public, max-age=120, s-maxage=120');
     res.send(`<!DOCTYPE html>
@@ -129,6 +144,7 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   <h1>${v.cliente_nome ? esc(v.cliente_nome) : 'Vistoria técnica'}</h1>
   <div class="meta"><span>📅 ${data}</span><span>✅ ${comFoto.length} de ${itens.length} itens</span><span>${v.status === 'concluida' ? 'Concluída' : 'Em andamento'}</span></div>
   ${totalFotos > 0 ? `<a class="dlBtn" href="/v/${esc(v.id)}/fotos.zip" download>⬇️ Baixar todas as fotos (${totalFotos})</a>` : ''}
+  ${linkLocal}
 </div></header>
 <main class="wrap">
   ${comFoto.length ? blocos : `<div class="empty">Nenhum registro ainda.</div>`}
