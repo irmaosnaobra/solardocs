@@ -3459,6 +3459,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
       <div class="eletro-acoes">
         <button type="button" class="eletro-btn primary" onclick="bnkImprimir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Gerar proposta de banco PDF</button>
+        <button type="button" class="eletro-btn" onclick="bnkCopiarLink()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg> Copiar link pra editar</button>
       </div>
     </div>
     </div><!-- /eletro-pane-finame -->
@@ -6136,6 +6137,57 @@ function orcCheckDeepLink() {
 }
 window.orcCheckDeepLink = orcCheckDeepLink;
 window.addEventListener('DOMContentLoaded', orcCheckDeepLink);
+
+// Deep-link da Proposta de banco: ?banco=1&d=<json em base64>
+//   → abre a aba com a folha montada e TODOS os campos editáveis.
+//
+// Existe porque PDF não se edita: quem prepara a proposta (eu, outro consultor)
+// mandava um papel pronto, e a pessoa do outro lado não tinha como mexer. O link
+// entrega a folha na tela, no lugar onde ela se muda. Espelha os outros dois
+// deep-links: só autenticado, e limpa a URL pra não reabrir no F5.
+//
+// O rascunho é aplicado por bnkInit(), não aqui: os campos só existem depois que
+// a sub-aba abre, e é bnkInit quem sabe a ordem de preenchimento.
+let BNK_RASCUNHO = null;
+function bnkCheckDeepLink() {
+  if (document.documentElement.dataset.mode !== 'app') return;
+  const q = new URLSearchParams(location.search);
+  if (q.get('banco') !== '1') return;
+  let p = null;
+  try { p = JSON.parse(decodeURIComponent(escape(atob(q.get('d') || '')))); } catch (e) { p = null; }
+  history.replaceState(null, '', location.pathname);
+  if (!p || !Array.isArray(p.itens)) { alert('O link da proposta de banco veio quebrado — peça outro.'); return; }
+  BNK_RASCUNHO = p;
+  navEletroposto();
+  eletroSubaba('finame');
+  if (typeof showToast === 'function') showToast('Proposta carregada — confira e edite o que precisar');
+}
+window.bnkCheckDeepLink = bnkCheckDeepLink;
+window.addEventListener('DOMContentLoaded', bnkCheckDeepLink);
+
+// Monta o link desta folha pra alguém abrir e editar. Vive aqui do lado do
+// leitor: link e leitor que discordam do formato é bug que só aparece no outro
+// aparelho, quando já não dá pra conferir.
+function bnkLinkDaFolha() {
+  const g = id => (document.getElementById(id) || {}).value || '';
+  const p = { itens: bnkCompDoDom().filter(i => i.desc), objeto: g('bnk-objeto'),
+    nome: g('bnk-nome'), doc: g('bnk-doc'), end: g('bnk-end'), cep: g('bnk-cep'),
+    bairro: g('bnk-bairro'), cidade: g('bnk-cidade'), uf: g('bnk-uf'),
+    banco: g('bnk-banco'), agencia: g('bnk-agencia'), conta: g('bnk-conta'),
+    total: g('bnk-total'), eq: g('bnk-eq'), mo: g('bnk-mo'),
+    ncm: g('bnk-ncm'), origem: g('bnk-origem'), prazo: g('bnk-prazo'), validade: g('bnk-validade') };
+  const d = btoa(unescape(encodeURIComponent(JSON.stringify(p))));
+  return location.origin + '/gerador/?banco=1&d=' + encodeURIComponent(d);
+}
+async function bnkCopiarLink() {
+  const url = bnkLinkDaFolha();
+  try {
+    await navigator.clipboard.writeText(url);
+    if (typeof showToast === 'function') showToast('Link copiado — quem abrir vê esta folha e pode editar');
+  } catch (e) {
+    prompt('Copie o link da proposta:', url);
+  }
+}
 
 // Cadastro dos consultores (nome → WhatsApp) na entrada do app. Fica aqui e não
 // só no fazerLogin porque quem já está logado entra pelo script do <head>, que
@@ -11934,6 +11986,23 @@ function bnkInit() {
   if (tot && tot.dataset.tocado !== '1') {
     const o = orcLerItens().total;
     tot.value = o > 0 ? o.toFixed(2) : '';
+  }
+  // Chegou por link? A folha inteira vem de la' e nasce TOCADA: veio pronta de
+  // fora, entao nada nesta tela pode reescrever por cima do que o outro montou.
+  if (BNK_RASCUNHO) {
+    const p = BNK_RASCUNHO; BNK_RASCUNHO = null;
+    BNK_ITENS = p.itens.map(i => ({ qtd: Math.max(1, parseInt(i.qtd, 10) || 1), desc: String(i.desc || ''), cod: String(i.cod || '') }));
+    BNK_ITENS_TOCADA = true;
+    [['bnk-objeto', p.objeto], ['bnk-nome', p.nome], ['bnk-doc', p.doc], ['bnk-end', p.end],
+     ['bnk-cep', p.cep], ['bnk-bairro', p.bairro], ['bnk-cidade', p.cidade], ['bnk-uf', p.uf],
+     ['bnk-banco', p.banco], ['bnk-agencia', p.agencia], ['bnk-conta', p.conta],
+     ['bnk-total', p.total], ['bnk-eq', p.eq], ['bnk-mo', p.mo], ['bnk-ncm', p.ncm],
+     ['bnk-origem', p.origem], ['bnk-prazo', p.prazo], ['bnk-validade', p.validade],
+    ].forEach(([id, v]) => {
+      const el = document.getElementById(id);
+      if (!el || v == null || v === '') return;
+      el.value = v; el.dataset.tocado = '1';
+    });
   }
   // A lista segue o Orcamento ate' o primeiro toque; depois disso e' do consultor.
   // Orcamento sem kit marcado abre no modelo do Banco do Nordeste em vez de vazio.
