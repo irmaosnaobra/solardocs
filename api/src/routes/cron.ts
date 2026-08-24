@@ -12,6 +12,7 @@ import { runPromoGeradorBroadcast } from '../services/agents/whatsapp/promoGerad
 import { runPromoGeradorV2Broadcast } from '../services/agents/whatsapp/promoGeradorV2Broadcast';
 import { runPixVipReminder } from '../services/agents/whatsapp/pixVipReminderService';
 import { runConfiancaNutricao } from '../services/confiancaService';
+import { runConfiancaWhatsApp } from '../services/confiancaWhatsAppService';
 import { runLimpaproRecoveryConsumer, runLimpaproRecoverySeeds, seedLimpaproRecoveryBacklog, seedLimpaproCupomBacklog, seedLimpaproFechamentoBacklog, seedLimpaproGrupoBacklog, enviarOpenerTeste } from '../services/agents/whatsapp/limpaproRecoveryService';
 import { pollBiaRecuperacao } from '../services/agents/whatsapp/biaInboundService';
 import { pollLimpaproAtendimento } from '../services/agents/whatsapp/limpaproAtendimentoService';
@@ -701,6 +702,22 @@ router.get('/confianca', async (req: Request, res: Response) => {
   }
 });
 
+// Braço de WhatsApp da Cadência de Confiança — 3 toques (dias 5/12/25), cada um
+// UMA imagem (card de depoimento) com legenda curta. Só fala com quem JÁ paga.
+// `?seco=1` devolve a fila e a legenda de cada um sem enviar nem gravar.
+// O envio de verdade exige CONFIANCA_WA_ENABLED=true no Vercel.
+router.get('/confianca-whatsapp', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const seco = req.query.seco === '1' || req.query.seco === 'true';
+    const result = await runConfiancaWhatsApp({ seco });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'confianca-whatsapp falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
 // Carla — usuários da plataforma sem CNPJ. 3 toques em 30d (D+2, D+10, D+30).
 router.get('/carla-sem-cnpj', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
@@ -1006,6 +1023,11 @@ router.get('/master', async (req: Request, res: Response) => {
     // cancela cancela (mediana 14,1 dias). Útil + fala de cliente, sem oferta.
     // Prévia sem enviar: GET /cron/confianca?seco=1
     ['confianca',                   () => runConfiancaNutricao()],       // 5 e-mails/30d — assinante novo
+    // Braço de WhatsApp da mesma cadência, também DESLIGADO (CONFIANCA_WA_ENABLED).
+    // 3 toques (dias 5/12/25), UMA imagem com legenda curta cada. Divide o teto
+    // anti-ban da linha solardoc com a Giovanna (carlaThrottle), não abre outro.
+    // Prévia sem enviar: GET /cron/confianca-whatsapp?seco=1
+    ['confianca-whatsapp',          () => runConfiancaWhatsApp()],       // 3 cards/25d — assinante novo
     // 2026-06-30: WhatsApp Carla RELIGADO já como UMA persona (Giovanna) que leva
     //   o follow-up até a venda. Conserto feito: (1) o opener é salvo na sessão por
     //   user_id (registrarMsgProativa) → quando o cliente responde, a Giovanna lê o

@@ -21,3 +21,4 @@ node_modules/
 # reinstalaveis e sao 220+ arquivos. Igual node_modules: nao versionar.
 .claude/skills/remotion-*/
 
+api/scripts/out/

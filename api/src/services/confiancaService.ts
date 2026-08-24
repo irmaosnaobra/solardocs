@@ -61,7 +61,7 @@ export interface ResultadoConfianca {
  * de fora e são contados em `semAncora` em vez de receberem o toque no dia
  * errado. Chutar a data seria mandar "dia 1" pra quem tem três meses de casa.
  */
-async function ancorasPorEmail(): Promise<Map<string, number>> {
+export async function ancorasPorEmail(): Promise<Map<string, number>> {
   const { data } = await supabase.from('sales').select('email, created_at');
   const mapa = new Map<string, number>();
   for (const v of (data ?? []) as Array<{ email: string | null; created_at: string | null }>) {
