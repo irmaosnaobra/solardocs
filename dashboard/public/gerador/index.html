@@ -728,6 +728,11 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .bnk-fv-qtd{display:flex;align-items:center;gap:7px}
 .bnk-fv-qtd input{width:78px;padding:12px 10px;background:#0b1424;border:1px solid rgba(255,255,255,.12);border-radius:9px;color:#fff;font-family:inherit;font-size:13px;font-weight:700;text-align:center}
 .bnk-fv-qtd span{font-size:12.5px;color:#94A3B8;font-weight:700}
+.bnk-pct{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-top:12px;padding:10px 12px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.12);border-radius:10px}
+.bnk-pct>span{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#94A3B8}
+.bnk-pct-in{display:flex;align-items:center;gap:7px}
+.bnk-pct-in input{width:72px;padding:10px;background:#0b1424;border:1px solid rgba(255,255,255,.12);border-radius:9px;color:#fff;font-family:inherit;font-size:13px;font-weight:700;text-align:center}
+.bnk-pct-in span{font-size:12.5px;color:#94A3B8;font-weight:700}
 .bnk-tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .bnk-tool{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.34);color:#bfdbfe;font-family:inherit;font-size:12.5px;font-weight:700;border-radius:9px;padding:8px 12px;cursor:pointer;transition:background .2s,color .2s}
 .bnk-tool:hover{background:rgba(59,130,246,.22);color:#fff}
@@ -3418,6 +3423,11 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="bnk-eq" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="bnkCalc()"></div></div>
         <div class="eletro-field"><label>Valor da mão de obra</label>
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="bnk-mo" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="bnkCalc()"></div></div>
+        <div class="bnk-pct">
+          <span>Dividir por percentual</span>
+          <div class="bnk-pct-in"><input type="number" id="bnk-pct-eq" min="0" max="100" step="1" inputmode="numeric" value="85"><span>% equipamento</span></div>
+          <button type="button" class="bnk-tool" onclick="bnkSplitPorPct()">Preencher</button>
+        </div>
         <div class="orc-note" id="bnk-split">—</div>
         <div class="orc-note" id="bnk-comp" style="margin-top:8px">—</div>
       </div>
@@ -3444,6 +3454,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <option value="ESTRANGEIRA, ADQUIRIDA NO MERCADO INTERNO, SEM SIMILAR NACIONAL">7 — Estrangeira, adquirida no mercado interno, sem similar</option>
             <option value="NACIONAL, MERCADORIA OU BEM COM CONTEÚDO DE IMPORTAÇÃO SUPERIOR A 70%">8 — Nacional, conteúdo de importação acima de 70%</option>
           </select></div></div>
+        <div class="orc-note" id="bnk-origem-note">Em branco, a folha <b>não fala de origem</b> — não sai aviso nenhum no papel.</div>
         <div class="orc-note">O documento solar declara o código <b>3</b>. Isso valia para um kit Helius/Solax — <b>não</b> se herda para um carregador DC sem conferir a nota do fornecedor.</div>
       </div>
 
@@ -11851,6 +11862,21 @@ function epSugerir(pares) {
 // das partes, que nao tem oninput proprio.
 function epTocar(inp) { if (inp) inp.dataset.tocado = '1'; }
 
+// Divide o total pelo percentual que o consultor digitar. NAO e' default nem
+// sugestao: so' roda no clique, e o numero e' dele — 85/15 nao sai de conta
+// nenhuma da casa, sai do que o banco aceita como equipamento. O centavo da
+// diferenca vai pra mao de obra pra soma fechar sempre com o total.
+function bnkSplitPorPct() {
+  const d = bnkDados();
+  if (!(d.total > 0)) { alert('Defina o "Valor total da proposta" antes de dividir.'); return; }
+  const pct = Math.min(100, Math.max(0, parseFloat((document.getElementById('bnk-pct-eq') || {}).value) || 0));
+  const eq = Math.round(d.total * pct) / 100;
+  const set = (id, v) => { const el = document.getElementById(id); if (el) { el.value = v.toFixed(2); el.dataset.tocado = '1'; } };
+  set('bnk-eq', eq);
+  set('bnk-mo', Math.round((d.total - eq) * 100) / 100);
+  bnkCalc();
+}
+
 function bnkIpiEditado(inp) { if (inp) inp.dataset.tocado = '1'; bnkCalc(); }
 function bnkTotalEditado(inp) { if (inp) inp.dataset.tocado = '1'; bnkCalc(); }
 
@@ -12111,7 +12137,7 @@ function bnkHTML(d) {
       ${linhasItens}
     </table>
 
-    ${d.origem ? `<p class="ep-bnk-p ep-bnk-origem">${e(d.origem)}</p>` : '<p class="ep-bnk-p ep-bnk-origem ep-bnk-falta">ORIGEM DA MERCADORIA NÃO INFORMADA</p>'}
+    ${d.origem ? `<p class="ep-bnk-p ep-bnk-origem">${e(d.origem)}</p>` : ''}
 
     <div class="ep-bnk-vals">
       <div><b>VALOR TOTAL:</b> ${d.total > 0 ? money(d.total) : vazio('')}</div>
@@ -12153,10 +12179,9 @@ function bnkImprimir() {
           '\n\n' + (dif > 0 ? 'Faltam ' + ORC_MONEY(dif) : 'Sobram ' + ORC_MONEY(-dif)) + '.');
     return;
   }
-  if (!d.origem) {
-    alert('Selecione a "Origem da mercadoria".\n\nÉ declaração fiscal sobre ESTE equipamento — o documento solar declara conteúdo de importação entre 40% e 70%, e isso valia para um kit fotovoltaico. Confira a nota do fornecedor do carregador antes de escolher.');
-    return;
-  }
+  // 24/08: a origem deixou de travar a emissão e de imprimir aviso no papel —
+  // ordem do Thiago. Continua sendo declaração fiscal: quando escolhida, sai; em
+  // branco, a folha simplesmente não fala de origem. O lembrete vive na TELA.
   const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
   epPreview({
     html: bnkHTML(d),
