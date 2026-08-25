@@ -579,7 +579,7 @@ export async function handleSolarDocB2bLead(
       max_tokens: 700,
       // cache_control: o prompt passa de ~2 mil pra ~11 mil tokens e não muda entre
       // mensagens. Sem cache, cada bolha do lead relê o texto inteiro.
-      system: [{ type: 'text', text: systemVivo, cache_control: { type: 'ephemeral' } }] as any,
+      system: [{ type: 'text', text: systemVivo, cache_control: { type: 'ephemeral' } }],
       tools: CARLA_TOOLS,
       messages: messages.filter(m => m.content),
     });
