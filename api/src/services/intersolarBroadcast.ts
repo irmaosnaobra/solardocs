@@ -154,11 +154,18 @@ export async function listarClientesIntersolar(): Promise<ClienteIntersolar[]> {
   // Último documento — só pra ORDENAR. Quem está com proposta na mão hoje é quem
   // mais tem motivo pra estar na feira, então ouve primeiro. Não filtra ninguém:
   // cliente pagante que nunca gerou nada continua na lista, no fim.
+  //
+  // O limite de 1000 é DE PROPÓSITO e não é truncamento acidental: esses users têm
+  // 1.838 documentos no total e o PostgREST corta em 1000 de qualquer jeito. Como a
+  // ordem é created_at DESC, as 1000 linhas lidas são as 1000 MAIS RECENTES — então
+  // todo mundo com atividade recente sai com a data certa, e quem ficou de fora sai
+  // com null e cai no fim da fila, que é exatamente onde "menos ativo" pertence.
   const { data: docs } = await supabase
     .from('documents')
     .select('user_id, created_at')
     .in('user_id', ids)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(1000);
 
   const ultimoDoc = new Map<string, string>();
   for (const d of (docs as { user_id: string; created_at: string }[]) || []) {
