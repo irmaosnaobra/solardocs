@@ -43,14 +43,37 @@ function normalizar(texto: string): string {
 
 const NOME_PRODUTO = /sol(?:ar)?\s?a?doc/;
 
+// O gatilho é UM: "pediu informação sobre o SolarDoc". O que varia é a forma de
+// pedir, e casar a frase exata do anúncio já provou ser frágil duas vezes —
+// primeiro deixando passar a frase nova, depois (25/08, ao apertar demais)
+// deixando passar a frase ANTIGA do anúncio, "Quero saber MAIS sobre o
+// SolarDoc.App", que é a do único lead real que já existiu.
+//
+// O log de 2 meses tem 4 pessoas que escreveram do jeito delas e não receberam
+// resposta nenhuma: "gostaria de mais informações sobre o app solardoc",
+// "Gostaria de saber sobre o SolarDoc", "Sobre o Solardoc". Nenhuma tinha conta,
+// nenhuma virou lead. Continuam sendo uma regra só — a intenção, não a frase.
+const PEDIDO_DE_INFO = [
+  'saber',        // quero saber · quero saber mais · gostaria de saber
+  'conhecer',
+  'informacao', 'informacoes',
+  'sobre o ', 'sobre a ',   // "Sobre o Solardoc" sozinho já é pedido
+];
+
 /**
- * A frase do anúncio. EXPORTADO porque o webhook /io precisa da MESMA definição
- * pra ceder a mensagem — duas cópias é como uma delas envelhece sozinha.
+ * Alguém pedindo informação sobre o SolarDoc. EXPORTADO porque o webhook /io
+ * precisa da MESMA definição pra ceder a mensagem — duas cópias é como uma delas
+ * envelhece sozinha.
+ *
+ * Só roda para número SEM conta na plataforma (o roteador procura em `users`
+ * antes), então "dúvida sobre o solardoc" aqui é lead, não cliente. Quem já é
+ * cliente escreve "estou usando o SolarDoc Pro e preciso de ajuda" — sem pedido
+ * de informação, não casa, e segue pro suporte como sempre.
  */
 export function ehGatilhoSolarDoc(texto: string): boolean {
   const t = normalizar(texto);
-  if (!t) return false;
-  return t.includes('quero saber sobre') && NOME_PRODUTO.test(t);
+  if (!t || !NOME_PRODUTO.test(t)) return false;
+  return PEDIDO_DE_INFO.some((p) => t.includes(p));
 }
 
 /** Variantes BR do número: a Z-API alterna o 9º dígito e o DDI entre mensagens. */
