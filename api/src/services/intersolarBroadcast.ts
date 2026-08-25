@@ -128,18 +128,27 @@ export async function listarClientesIntersolar(): Promise<ClienteIntersolar[]> {
     if (t && !telDaEmpresa.has(c.user_id)) telDaEmpresa.set(c.user_id, t);
   }
 
-  // sales.phone é o telefone confirmado no checkout — melhor que o comercial.
+  // sales dá o telefone confirmado no checkout (melhor que o comercial) e — o que
+  // salva a saudação — o NOME que a pessoa digitou pra pagar. users.nome só serve
+  // pra 21 dos 68: está vazio na maioria e, quando existe, metade das vezes é
+  // razão social ("Vs Solar", "American Energy Solar"). sales.nome é sempre gente
+  // ("Carlos Nascimento", "Vanderlei S Silva") e leva a saudação a 48 dos 68.
   const { data: vendas } = await supabase
     .from('sales')
-    .select('email, phone, created_at')
+    .select('email, phone, nome, created_at')
     .in('email', emails)
     .order('created_at', { ascending: false });
 
   const telDaVenda = new Map<string, string>();
-  for (const s of (vendas as { email: string; phone: string | null }[]) || []) {
+  const nomeDaVenda = new Map<string, string>();
+  for (const s of (vendas as { email: string; phone: string | null; nome: string | null }[]) || []) {
     const chave = (s.email || '').toLowerCase();
     const t = telefoneValido(s.phone);
     if (t && !telDaVenda.has(chave)) telDaVenda.set(chave, t);
+    // Passa pelo MESMO filtro de "isso é nome de gente?" — quem paga como PJ
+    // digita a razão social no checkout, e aí a saudação genérica é a certa.
+    const n = primeiroNomeDeGente(s.nome);
+    if (n && !nomeDaVenda.has(chave)) nomeDaVenda.set(chave, n);
   }
 
   // Último documento — só pra ORDENAR. Quem está com proposta na mão hoje é quem
@@ -174,7 +183,7 @@ export async function listarClientesIntersolar(): Promise<ClienteIntersolar[]> {
         userId: u.id,
         email: u.email,
         nome: (u.nome || '').trim() || nomeDaEmpresa.get(u.id) || null,
-        primeiroNome: primeiroNomeDeGente(u.nome),
+        primeiroNome: primeiroNomeDeGente(u.nome) || nomeDaVenda.get((u.email || '').toLowerCase()) || null,
         telefone,
         fonteTelefone: doPerfil ? 'users' : daVenda ? 'sales' : daEmpresa ? 'company' : null,
         plano: u.plano,
