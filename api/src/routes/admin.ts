@@ -16,6 +16,9 @@ import {
   NOTA1_MATERIAL_DESDE, NOTA1_MATERIAL_ATE, NOTA1_TIPOS, inicioDaJanela, linhasDoFunil, somaColuna,
 } from '../services/io/nota1Funil';
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
+import {
+  ATENDENTE_PROMPT_KEY, PROMPT_PADRAO, PLACEHOLDERS, numerosVivos, resolverPlaceholders,
+} from '../services/agents/whatsapp/atendenteAnuncioPrompt';
 
 const router = Router();
 
@@ -2548,6 +2551,63 @@ router.delete('/leads/google/searches/:id', async (req: Request, res: Response):
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Erro delete search', message: String(err) });
+  }
+});
+
+
+// ── ATENDENTE DE ANÚNCIO (SolarDoc) — aba /admin/hubs → SolarDoc → Atendente ──
+// O texto do system prompt vive em `system_state` pra ser editável sem deploy; o
+// padrão de fábrica mora no código. GET devolve os dois + os números vivos que
+// resolvem os placeholders, porque é isso que impede o prompt de envelhecer
+// (152 empresas viraram 154 em duas semanas — número digitado mente sozinho).
+router.get('/atendente-prompt', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const { data } = await supabase
+      .from('system_state').select('value, updated_at').eq('key', ATENDENTE_PROMPT_KEY).maybeSingle();
+    const salvo = (data?.value ?? null) as { texto?: string; por?: string } | null;
+    const texto = typeof salvo?.texto === 'string' && salvo.texto.trim() ? salvo.texto : PROMPT_PADRAO;
+    const numeros = await numerosVivos().catch(() => ({}));
+    res.json({
+      texto,
+      padrao: PROMPT_PADRAO,
+      editado: texto !== PROMPT_PADRAO,
+      atualizado_em: data?.updated_at ?? null,
+      atualizado_por: salvo?.por ?? null,
+      placeholders: PLACEHOLDERS,
+      numeros,
+      resolvido: resolverPlaceholders(texto, numeros),
+    });
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
+// PUT grava a versão vigente. Texto vazio seria um agente sem cabeça — recusa.
+router.put('/atendente-prompt', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const texto = String((req.body as { texto?: string })?.texto ?? '');
+    if (!texto.trim()) { res.status(400).json({ error: 'texto_vazio' }); return; }
+    const por = (req as any).userEmail || (req as any).userId || 'admin';
+    const { error } = await supabase.from('system_state').upsert(
+      { key: ATENDENTE_PROMPT_KEY, value: { texto, por }, updated_at: new Date().toISOString() },
+      { onConflict: 'key' },
+    );
+    if (error) throw error;
+    res.json({ ok: true, editado: texto !== PROMPT_PADRAO });
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
+// DELETE volta pro padrão de fábrica (apaga a versão editada). Reversível: o
+// padrão está no código, então nada se perde de verdade.
+router.delete('/atendente-prompt', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const { error } = await supabase.from('system_state').delete().eq('key', ATENDENTE_PROMPT_KEY);
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
   }
 });
 

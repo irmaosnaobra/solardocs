@@ -35,6 +35,8 @@ import ComentariosCursoPanel from './_panels/ComentariosCursoPanel';
 import Nota1Panel from './_panels/Nota1Panel';
 // Conexão: quem tem o ponto × quem tem o capital, pra alguém casar os dois na mão
 import ConexaoPanel from './_panels/ConexaoPanel';
+// Atendente de anuncio: o system prompt do WhatsApp que nasce do anuncio (editavel sem deploy)
+import AtendentePanel from './_panels/AtendentePanel';
 
 export type TabStatus = 'pronto' | 'parcial' | 'construir';
 
@@ -77,6 +79,8 @@ export const PRODUCTS: Product[] = [
       { key: 'lp',        label: 'Página de Venda',   status: 'pronto',   Comp: LpVendaPanel },
       { key: 'followup',  label: 'Followup',         status: 'pronto',    Comp: () => <FollowupPanel produto="solardoc" /> },
       { key: 'agente',    label: 'Agente',           status: 'pronto',    Comp: () => <AgentePanel agent="giovanna" /> },
+      // 'parcial' de proposito: o texto esta pronto e editavel, mas nenhuma linha le ele ainda.
+      { key: 'atendente', label: 'Atendente',        status: 'parcial',   Comp: AtendentePanel, nota: 'System prompt do lead de anuncio — guardado e editavel, ainda nao ligado a nenhuma linha.' },
       { key: 'kit',       label: 'Kit / Isca R$27',  status: 'pronto',    Comp: KitPanel },
       { key: 'comentarios', label: 'Comentários do Curso', status: 'pronto', Comp: ComentariosCursoPanel },
       { key: 'receita',   label: 'Receita/ROAS',     status: 'pronto',    Comp: ReceitaPanel },
