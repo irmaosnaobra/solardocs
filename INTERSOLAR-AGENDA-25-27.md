@@ -85,12 +85,17 @@ vistoria é outra — quem combina o dia é o consultor.
 
 ## 3. O gargalo: a linha de WhatsApp está cheia
 
-Medido às **17h03 de 25/08**, com os prefixos que o teto realmente conta:
+Medido às **17h03 de 25/08**: 7 na última hora (teto 6) e 51 em 24h (teto 40).
 
-| Janela | Envios | Teto | Situação |
+**Correção da medição, 18h45:** aqueles 51 incluíam o `carla_sent`, que só entra no
+orçamento da linha IO quando `ZAPI_SOLARDOC_VIA_IO=1` — e não está. A conta que o
+teto realmente faz era ~41. Continuava tampada, mas na fronteira, e foi por isso que
+o primeiro aviso saiu às **18h36**, assim que a régua parou de gastar.
+
+| Janela | Envios que contam | Teto | Situação às 18h45 |
 |---|---|---|---|
-| última hora | 7 | 6 | **estourado** |
-| últimas 24h | 51 | 40 (30 para mensagem fria) | **estourado** |
+| última hora | 2 | 6 | folga |
+| últimas 24h | 41 | 40 (30 para mensagem fria) | no limite, drenando |
 
 Com a linha assim, **nada sai** — nem os avisos da feira, nem a campanha dos 69
 clientes. Quem consumiu as 24h:
@@ -111,19 +116,20 @@ O que já foi feito por conta:
 - os avisos da feira passaram a contar como **transacional** — é mensagem sobre a
   reunião que a própria pessoa marcou —, então têm prioridade sobre campanha fria.
 
-**Isso não destrava hoje.** A conta de 24h é deslizante: os 37 toques só saem dela
-ao longo de amanhã, na mesma hora em que entraram. Pela projeção, a fila só começa
-a andar por volta das **10h de amanhã**, a ~6/h — o que avisa os clientes de hoje
-amanhã de manhã e os de amanhã à tarde em cima da hora. Os de quinta ficam por
-último.
+**A fila começou a andar às 18h36** (primeiro aviso: Edelvan Campos). O gargalo
+agora é a conta de 24h, que é deslizante: os 37 toques da régua só saem dela ao
+longo de amanhã, na mesma hora em que entraram. Hoje ainda saem uma ou duas
+mensagens até a janela fechar às 20h; o grosso da fila anda a partir das **10h de
+amanhã**, a ~6/h — o que avisa os de amanhã à tarde em cima da hora e deixa os de
+quinta por último.
 
 **Decisão que é sua** (qualquer combinação das três):
 
-1. **Subir o teto por dois dias** — na Vercel (projeto `solardocs-api`):
-   `LINHA_MAX_DIA` de 40 para 80 e `LINHA_MAX_HORA` de 6 para 8. Vale sem deploy.
-   É o único caminho que avisa gente ainda **hoje**, e o conteúdo é o de menor risco
-   de denúncia que existe: aviso de reunião para quem marcou com a gente. Depois de
-   quinta, voltar aos 40/6.
+1. **Subir o teto do dia por dois dias** — na Vercel (projeto `solardocs-api`):
+   `LINHA_MAX_DIA` de 40 para 80. Vale sem deploy e é o que faz a fila escoar em
+   horas em vez de dois dias; o conteúdo é o de menor risco de denúncia que existe
+   (aviso de reunião para quem marcou com a gente). O `LINHA_MAX_HORA` pode ficar em
+   6: com a régua calada, a hora tem folga. Depois de quinta, voltar aos 40.
 2. **Pausar a campanha dos 69 clientes** — `INTERSOLAR_OFF=1`. Libera 10 envios/dia
    do mesmo orçamento (foi o que ela gastou hoje).
 3. **Avisar na mão os mais urgentes** — a tabela da seção 2 está em ordem de
