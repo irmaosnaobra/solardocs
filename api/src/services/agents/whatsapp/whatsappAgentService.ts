@@ -749,6 +749,14 @@ export async function handleIncomingWhatsApp(
       'sobre o solardoc.app', 'sobre a solardoc.app',
       'sou empresario solar', 'sou empresário solar',
       'integrador solar',
+      // REDE FINAL (24/08/2026, campanha nova no ar). O gatilho do anuncio virou
+      // "Quero saber sobre a SolarDoc" — SEM o "mais" — e NENHUMA das frases acima
+      // casava com ele: 'saber mais sobre...' pede o "mais", 'quero a solardoc' pede
+      // as palavras coladas, 'sobre a solardoc.app' pede o ".app". O lead cairia no
+      // fallback do ctwa_clid, que depende do Z-API mandar a referral, ou seria
+      // IGNORADO EM SILENCIO. Numero desconhecido que escreve o nome do produto e'
+      // lead: casar pelo nome torna o roteamento imune a mudanca de copy do anuncio.
+      'solardoc', 'soladoc', 'solar doc',
     ];
     const isB2bTriggered = B2B_TRIGGERS.some(t => lowerText.includes(t));
     const isFromAd = !!tracking?.ctwa_clid;
