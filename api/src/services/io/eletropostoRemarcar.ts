@@ -390,14 +390,21 @@ async function ofertar(
  * isso que faz a resposta ("2") ser entendida sem nenhum código novo: o
  * `passoDeRemarcacao` acha a lista na mesa, casa a escolha e move a ficha.
  *
- * `transacional` é `false` de propósito: reengajar quem sumiu não é resposta a
+ * `transacional` é `false` POR PADRÃO: reengajar quem sumiu não é resposta a
  * mensagem de ninguém, então não pode comer a reserva anti-ban que existe pra
  * quem acabou de marcar.
+ *
+ * [25/08/2026] Virou parâmetro por causa do aviso da Intersolar. Lá a oferta não
+ * é reengajamento: é dizer a quem TEM reunião marcada que ela não vai acontecer,
+ * que é a mesma natureza da confirmação de agenda (o `eletropostoAgenda` manda os
+ * toques dele como transacional pelo mesmo motivo, e está escrito lá). Quem passa
+ * `true` está afirmando isso da própria mensagem — o teto por HORA continua
+ * valendo igual pros dois, então isto muda prioridade, não volume.
  */
 export async function ofertarPorConta(
   ficha: Ficha,
   copy: (nome: string, ofertas: string[], quem: string) => string[],
-  opts: { rodada?: number; dry?: boolean; silencioSemVaga?: boolean } = {},
+  opts: { rodada?: number; dry?: boolean; silencioSemVaga?: boolean; transacional?: boolean } = {},
 ): Promise<ResultadoRemarcar> {
   if (desligado() || !ficha.cliente_telefone) return { acao: 'nada' };
   const quem = String(ficha.vendedor_nome || '').trim();
@@ -409,7 +416,7 @@ export async function ofertarPorConta(
 
   const falar = async (bolhas: string[], etapa: string): Promise<boolean> => {
     if (opts.dry) return true;
-    if (!(await dentroDoTetoHorarioLinha({ transacional: false }))) {
+    if (!(await dentroDoTetoHorarioLinha({ transacional: opts.transacional === true }))) {
       logger.info('ep-remarcar', 'teto da linha estourado — oferta ativa espera o próximo tick', { id: ficha.id });
       return false;
     }

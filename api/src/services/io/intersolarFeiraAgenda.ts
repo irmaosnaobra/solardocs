@@ -285,7 +285,12 @@ export async function runIntersolarFeiraTick(opts: { dry?: boolean } = {}): Prom
         const r = await ofertarPorConta(
           ficha,
           (nomeC, ofertas, quemC) => bolhasFeiraEletroposto(nomeC, ofertas, quemC, quandoIso, passou),
-          { rodada: 0, silencioSemVaga: true },
+          // TRANSACIONAL: esta mensagem é sobre a reunião que a PRÓPRIA PESSOA
+          // marcou e que não vai acontecer — a mesma natureza da confirmação de
+          // agenda, que já viaja assim. Não afrouxa nada (o teto por hora vale
+          // igual): decide quem gasta a vaga quando a linha está disputada, e
+          // avisar de um cancelamento vale mais que qualquer campanha.
+          { rodada: 0, silencioSemVaga: true, transacional: true },
         );
         if (r.acao === 'ofertou') { await marcar(f.id, { via: 'oferta' }); n++; }
         else if (r.acao === 'sem_vaga') {
@@ -301,7 +306,7 @@ export async function runIntersolarFeiraTick(opts: { dry?: boolean } = {}): Prom
           break;
         }
       } else {
-        if (!(await dentroDoTetoHorarioLinha({ transacional: false }))) {
+        if (!(await dentroDoTetoHorarioLinha({ transacional: true }))) {
           logger.info('intersolar-feira', 'teto da linha estourado — espera o próximo tick', { id: f.id });
           break;
         }
