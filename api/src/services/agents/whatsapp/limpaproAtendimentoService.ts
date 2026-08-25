@@ -301,6 +301,15 @@ export async function handleLimpaproAtendimento(
   const clean = (text || '').trim();
   if (!clean) return;
 
+  // ── GUARDA DE PORTA: conversa do SolarDoc é da vendedora do SolarDoc ──
+  // Mesma guarda da Bia, mesmo motivo: o aluno do LimpaPro que clicar no anúncio do
+  // SolarDoc receberia DOIS atendimentos na mesma linha, um dizendo que o produto do
+  // anúncio não é com ele. Cede no gatilho e enquanto a vendedora for dona (sdr_b2b).
+  {
+    const { ehGatilhoSolarDoc, vendedoraJaAtende } = await import('./whatsappAgentService');
+    if (ehGatilhoSolarDoc(clean) || await vendedoraJaAtende(rawPhone)) return;
+  }
+
   const aluno = alunoJaCarregado ?? await ehAlunoLimpapro(rawPhone);
   if (!aluno) return;
 

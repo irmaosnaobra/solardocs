@@ -247,6 +247,18 @@ export async function handleBiaInbound(rawPhone: string, text: string, senderNam
   const clean = (text || '').trim();
   if (!clean) return;
 
+  // ── GUARDA DE PORTA: conversa do SolarDoc é da vendedora do SolarDoc ──
+  // Mora AQUI, dentro do agente, e não em quem chama: a Bia tem mais de uma porta
+  // (webhook /io, webhook próprio e o poll do cron) e tapar UMA só não resolveu —
+  // no teste de 25/08 o lead recebeu "Não tenho informações sobre a SolarDoc, não é
+  // o que represento aqui" seguido de um pitch de outro produto, e só depois a
+  // vendedora. Cede no gatilho e enquanto ela for dona da conversa (sessão sdr_b2b),
+  // porque a 2ª mensagem do lead não carrega mais a frase do anúncio.
+  {
+    const { ehGatilhoSolarDoc, vendedoraJaAtende } = await import('./whatsappAgentService');
+    if (ehGatilhoSolarDoc(clean) || await vendedoraJaAtende(rawPhone)) return;
+  }
+
   const session = await loadSession(rawPhone);
   const phone = session.phoneCanonico;     // chave da sessão (salvar aqui pra não duplicar)
   const nome = session.nome ?? senderName ?? null;
