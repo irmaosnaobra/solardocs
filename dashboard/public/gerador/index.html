@@ -3395,6 +3395,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="orc-note" id="bnk-objeto-note">—</div>
         <div class="bnk-tools">
           <button type="button" class="bnk-tool" onclick="bnkCompPreset('bnb')">Modelo Banco do Nordeste</button>
+          <button type="button" class="bnk-tool" onclick="bnkCompPreset('epsolar')">Eletroposto + solar</button>
           <button type="button" class="bnk-tool" onclick="bnkCompPreset('orc')">Copiar do Orçamento</button>
           <button type="button" class="bnk-tool" onclick="bnkCompAdd('Material elétrico geral')">+ Material elétrico geral</button>
           <button type="button" class="bnk-tool" onclick="bnkCompAdd('')">+ Item</button>
@@ -11661,7 +11662,24 @@ function bnkCompModelo(qual) {
   const kit = orcLerItens().itens;
   const equip = (orcVal('el-equip') || '').trim();
   const qtdCarreg = (kit.find(i => /carregador/i.test(i.desc || '')) || {}).qtd || orcEpQtdCarregadores();
-  const linhas = qual === 'bnb'
+  // 'epsolar' e' o desenho que fechou no Josevaldo (24/08) e virou padrao da casa
+  // pra venda casada: bloco do eletroposto, bloco do fotovoltaico, e o servico de
+  // cada um separado — e' assim que o banco le' os dois financiamentos na mesma
+  // folha. Marca e modelo dos equipamentos ficam em branco de proposito: variam
+  // por venda (Helius/Livoltek no Josevaldo, outro no proximo) e chutar modelo em
+  // peca fiscal e' pior que a lacuna.
+  const linhas = qual === 'epsolar'
+    ? [{ qtd: 1, desc: 'Projeto de engenharia especializada' },
+       { qtd: qtdCarreg, desc: ('Carregador ' + equip).trim() },
+       { qtd: 1, desc: 'Material elétrico geral' },
+       { qtd: 1, desc: 'Obra civil' },
+       { qtd: 1, desc: 'Mão de obra especializada' },
+       { qtd: 1, desc: 'Módulo fotovoltaico' },
+       { qtd: 1, desc: 'Inversor' },
+       { qtd: 1, desc: 'Estrutura e materiais elétricos' },
+       { qtd: 1, desc: 'Projeto de engenharia e conexão à rede' },
+       { qtd: 1, desc: 'Serviço de instalação' }]
+    : qual === 'bnb'
     ? [{ qtd: 1, desc: 'Projeto de engenharia especializada' },
        { qtd: qtdCarreg, desc: ('Carregador ' + equip).trim() },
        { qtd: 1, desc: 'Material elétrico geral' },
@@ -11797,6 +11815,18 @@ function bnkCompDoDom() {
 function bnkCompMudou() {
   BNK_ITENS = bnkCompDoDom();
   BNK_ITENS_TOCADA = true;
+  // Escreveu o nome de um equipamento que este aparelho ja' conhece? o codigo
+  // volta sozinho. So' em campo VAZIO — codigo digitado nunca e' sobrescrito.
+  // Escrito direto no input, e nao por re-render: redesenhar a lista no meio da
+  // digitacao tira o foco do campo.
+  document.querySelectorAll('#bnk-itens .bnk-linha').forEach((linha, i) => {
+    const cod = linha.querySelector('.c');
+    if (!cod || cod.value.trim()) return;
+    const lembrado = bnkCodDe(linha.querySelector('.d').value);
+    if (!lembrado) return;
+    cod.value = lembrado;
+    if (BNK_ITENS[i]) BNK_ITENS[i].cod = lembrado;
+  });
   bnkCalc();
 }
 
@@ -12019,6 +12049,11 @@ function bnkInit() {
     const p = BNK_RASCUNHO; BNK_RASCUNHO = null;
     BNK_ITENS = p.itens.map(i => ({ qtd: Math.max(1, parseInt(i.qtd, 10) || 1), desc: String(i.desc || ''), cod: String(i.cod || '') }));
     BNK_ITENS_TOCADA = true;
+    // O aparelho APRENDE os códigos que vieram no link. Sem isto o link entregava
+    // a folha certa e o consultor tinha que redigitar tudo no próximo cliente —
+    // o código só era memorizado por quem o digitasse com o dedo, no blur.
+    BNK_ITENS.forEach(i => { if (i.cod) bnkCodLembra(i.desc, i.cod); });
+    if (p.ncm) { const o = bnkCodStore(); o.ncm = p.ncm; bnkCodGrava(o); }
     [['bnk-objeto', p.objeto], ['bnk-nome', p.nome], ['bnk-doc', p.doc], ['bnk-end', p.end],
      ['bnk-cep', p.cep], ['bnk-bairro', p.bairro], ['bnk-cidade', p.cidade], ['bnk-uf', p.uf],
      ['bnk-banco', p.banco], ['bnk-agencia', p.agencia], ['bnk-conta', p.conta],
@@ -12185,6 +12220,10 @@ function bnkImprimir() {
   // ordem do Thiago. Continua sendo declaração fiscal: quando escolhida, sai; em
   // branco, a folha simplesmente não fala de origem. O lembrete vive na TELA.
   const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
+  // Emitiu? o aparelho guarda os códigos desta folha. O onchange do campo cobre
+  // quem digita; colar e mandar imprimir, não — e aí o código se perdia.
+  d.itens.forEach(i => { if (i.cod) bnkCodLembra(i.desc, i.cod); });
+  if (d.ncm) { const o = bnkCodStore(); o.ncm = d.ncm; bnkCodGrava(o); }
   epPreview({
     html: bnkHTML(d),
     arquivo: ['propostabanco', limpa(d.cliente).toLowerCase() || 'cliente'].join('-'),
