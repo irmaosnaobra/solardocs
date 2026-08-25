@@ -259,17 +259,24 @@ export async function dispararIntersolar(): Promise<ResultadoIntersolar> {
   if (!dentroDaJanelaDiurna()) return { ...base, motivo: 'fora da janela diurna' };
   if (!(await dentroDoTetoCarla())) return { ...base, motivo: 'teto/espaçamento da linha' };
 
-  // Marca ANTES de enviar. A rota pode ser chamada por mais de um caminho (o
-  // master horário, o workflow de 10 em 10 min, curl na mão) e dois ticks
-  // simultâneos leriam o mesmo fila[0]: o gate da linha é pré-claim e não segura
-  // corrida. Marcado antes, o pior caso é alguém ficar sem mensagem; marcado
-  // depois, o pior caso é o cliente pagante receber duas.
+  // Marca ANTES de enviar, e com INSERT — não upsert. Aqui tem uma corrida que a
+  // pesquisaSatisfacao (de onde este desenho veio) nunca teve, porque ela só tem um
+  // chamador: esta rota tem DOIS. O master é '0 * * * *' e o workflow é '*/10', e
+  // os dois batem no minuto :00 de toda hora. Nesse instante as duas invocações leem
+  // o mesmo fila[0], as duas passam no gate da linha (que é pré-claim) e as duas
+  // enviam — cliente pagante recebendo a mesma mensagem duas vezes.
+  //
+  // O upsert NÃO resolve: o segundo simplesmente sobrescreve e segue. Já o insert
+  // estoura na primary key de system_state.key, então quem perde a corrida sai sem
+  // enviar. A reserva vira atômica: um cliente, um envio, mesmo com N ticks juntos.
   const c = fila[0];
   const agora = new Date().toISOString();
-  await supabase.from('system_state').upsert(
+  const { error: erroDaReserva } = await supabase.from('system_state').insert(
     { key: CHAVE(c.userId), value: { sent_at: agora, email: c.email }, updated_at: agora },
-    { onConflict: 'key' },
   );
+  if (erroDaReserva) {
+    return { ...base, motivo: `outro tick pegou ${c.email} primeiro` };
+  }
 
   // O giro do fecho vem de quantos já saíram — determinístico e sem estado novo.
   const giro = todos.length - fila.length;

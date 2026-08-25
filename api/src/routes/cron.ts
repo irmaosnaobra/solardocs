@@ -9,6 +9,7 @@ import { runCarlaCnpjKillerBroadcast } from '../services/agents/whatsapp/carlaCn
 import { dispararPesquisaSatisfacao, listarMelhoresClientes, textoPesquisa } from '../services/pesquisaSatisfacao';
 import { dispararIntersolar, listarClientesIntersolar, textoIntersolar } from '../services/intersolarBroadcast';
 import { dentroDaJanelaDiurna } from '../services/agents/whatsapp/lineThrottle';
+import { dentroDoTetoCarla } from '../services/agents/whatsapp/carlaThrottle';
 import { runCursoEntradaBroadcast } from '../services/agents/whatsapp/cursoEntradaBroadcast';
 import { runPromoGeradorBroadcast } from '../services/agents/whatsapp/promoGeradorBroadcast';
 import { runPromoGeradorV2Broadcast } from '../services/agents/whatsapp/promoGeradorV2Broadcast';
@@ -1157,6 +1158,10 @@ router.get('/intersolar', async (req: Request, res: Response) => {
         modo: 'preview — nada foi enviado. Repita com &enviar=1 pra disparar.',
         ligada: (process.env.INTERSOLAR_OFF || '').trim() !== '1',
         janelaAberta: dentroDaJanelaDiurna(),
+        // O que decide se a fila anda de verdade. Sem isto na prévia, campanha
+        // barrada pelo teto da linha é indistinguível de campanha andando devagar:
+        // as duas mostram "pendentes: 68" e nenhum erro em lugar nenhum.
+        linhaLiberada: await dentroDoTetoCarla(),
         elegiveis: lista.length,
         pendentes: pendentes.length,
         jaEnviados: lista.filter((c) => c.jaEnviado).length,
