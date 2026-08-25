@@ -70,6 +70,11 @@ const POR_TICK = 1;
 const INSTAGRAM = '@irmaosnaobra__';
 
 const desligado = () => (process.env.INTERSOLAR_FEIRA_OFF || '').trim() === '1';
+/** O caminho do eletroposto (que é quase toda a fila) passa por dentro do robô de
+ *  remarcação. Se ELE estiver desligado, `ofertarPorConta` devolve 'nada' e a fila
+ *  fica parada em silêncio — indistinguível de "o teto da linha segurou". Isto não
+ *  desliga nada, só faz o motivo aparecer no log em vez de ser adivinhado. */
+const remarcarDesligado = () => (process.env.EP_REMARCAR_OFF || '').trim() === '1';
 
 type FichaFeira = {
   id: number;
@@ -195,6 +200,10 @@ async function carimbarEnvio(id: number): Promise<void> {
 export async function runIntersolarFeiraTick(opts: { dry?: boolean } = {}): Promise<ResultadoFeira> {
   if (desligado()) return zero('desligado');
   if (!temAgendaFechada()) return zero('sem_agenda_fechada');
+  if (remarcarDesligado()) {
+    logger.error('intersolar-feira', 'EP_REMARCAR_OFF=1 — o aviso do eletroposto não sai enquanto isso estiver ligado');
+    return zero('remarcar_desligado');
+  }
   // Fora da janela civil ninguém é tocado — mas nada se perde: o marcador só é
   // gravado depois do envio, então a fila drena no próximo tick de manhã.
   if (!opts.dry && !dentroDaJanelaDiurna()) return zero('fora_da_janela');
