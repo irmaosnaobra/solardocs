@@ -220,17 +220,38 @@ export function dentroDaJanelaDiurna(now: Date = new Date()): boolean {
 // Régua fixa é padrão detectável: um envio a cada 5:00 min, hora após hora, é assinatura
 // de robô tão clara quanto a rajada. Com jitter os intervalos ficam 10–15 min, irregulares,
 // e o dia inteiro cabe no teto diário sem precisar de fila parada.
-export const ESPACAMENTO_MIN_MS = Number(process.env.ESPACAMENTO_MIN_MS || 10 * 60 * 1000);
+// [25/08] Ordem do Thiago: 6 min até a Intersolar acabar. A 10 min a fila da feira
+// andava a ~2,2/h e só fecharia na sexta — depois do evento. A 6 min ela fecha na
+// quarta, ainda com a feira de pé.
+//
+// A DATA está aqui de propósito, e não numa env var na Vercel: campanha com prazo
+// que afrouxa o anti-ban tem que voltar sozinha, senão a linha fica 6 min pra sempre
+// e ninguém lembra por quê. Mesma ideia da rampa de reconexão, que também expira só.
+// Passado o dia 28 volta pros 10 min sem ninguém precisar fazer nada.
+//
+// O que NÃO muda: o teto por hora (6) e o teto do dia. São eles que impedem rajada;
+// isto aqui só encurta a espera entre um envio e o seguinte.
+const APERTO_INTERSOLAR_ATE = Date.parse('2026-08-28T00:00:00-03:00');
+const espacamentoBaseMs = (): number => {
+  const daEnv = Number(process.env.ESPACAMENTO_MIN_MS || 0);
+  if (daEnv > 0) return daEnv;                       // env manda, como sempre mandou
+  return Date.now() < APERTO_INTERSOLAR_ATE ? 6 * 60 * 1000 : 10 * 60 * 1000;
+};
+
+// Compat: quem importava a constante continua lendo o valor vigente no arranque.
+export const ESPACAMENTO_MIN_MS = espacamentoBaseMs();
 const ESPACAMENTO_JITTER_MS     = Number(process.env.ESPACAMENTO_JITTER_MS || 5 * 60 * 1000);
 
 /**
- * Passaram-se ≥5 min desde o último envio automático desta linha?
- * Pergunta na forma "houve QUALQUER envio nos últimos 5 min?" — mesma forma do teto
+ * Passou tempo suficiente desde o último envio automático desta linha?
+ * Pergunta na forma "houve QUALQUER envio na última janela?" — mesma forma do teto
  * horário (janela + limit), sem depender de ordenação.
  */
 export async function respeitaEspacamentoLinha(prefixos = prefixosDaLinha()): Promise<boolean> {
   if (process.env.ESPACAMENTO_OFF === '1') return true;
-  const alvo = ESPACAMENTO_MIN_MS + Math.floor(Math.random() * ESPACAMENTO_JITTER_MS);
+  // Lido a cada chamada (não da constante): instância quente não recarrega módulo, e
+  // sem isto o aperto não expiraria até o próximo deploy.
+  const alvo = espacamentoBaseMs() + Math.floor(Math.random() * ESPACAMENTO_JITTER_MS);
   const desde = new Date(Date.now() - alvo).toISOString();
   const { data } = await supabase
     .from('system_state').select('key')
