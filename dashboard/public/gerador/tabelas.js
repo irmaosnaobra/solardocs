@@ -24,10 +24,13 @@
 //   Deye 2,25K + TCL 600W ....... 3 a 20 placas (micro)
 //   SAJ 3K PROMO + TCL 600W ..... 4 a 7   (preco cravado, so' cartao e a' vista)
 //   SAJ 6K + TCL 600W ........... 5 a 18  (o teto de 18 e' ordem do Thiago, 20/08)
+//   SAJ 7,3K + TCL 600W ......... 10 a 23 (destravado em 25/08 — ver bloco proprio abaixo)
 //   SOLAX 1,875K + Era 620W ..... 3 a 32  (preco cravado)
 // Sairam de linha, alem das quatro com Tsun: Micro SAJ 2,25K, SAJ 7,5K, Sungrow 5K,
-// Sungrow 7,5K e Tsunnes 2,25K. Nenhum kit atende acima de 18 placas hoje — o SAJ 7,3K
-// (10 a 23 placas) foi pedido em 20/08 e esta' parado esperando o custo do inversor.
+// Sungrow 7,5K e Tsunnes 2,25K.
+// O SAJ 7,3K, pedido em 20/08, ficou parado esperando o custo do inversor ate' o Thiago
+// dar a diferenca pro 6K (R$958) em 25/08. E' o unico kit que passa de 18 placas em
+// string — acima disso, so' ele ou o SOLAX (micro).
 // Quem precisar de qualquer tabela removida: `git show a1086ed:.../tabelas.js`.
 //
 // O Deye e o SAJ 6K rodam com o custo do kit de ANTES de 18/08, o que equivale a dizer que
@@ -112,6 +115,48 @@ const TABELAS = {
     {n:16, invs:1, g:1200, kwp:9.6 , descMax:18837.00, pVista:19600, pOrc:20580.00, p18x:1295.78},
     {n:17, invs:1, g:1275, kwp:10.2, descMax:19877.00, pVista:20700, pOrc:21735.00, p18x:1368.50},
     {n:18, invs:1, g:1350, kwp:10.8 , descMax:20761.00, pVista:21600, pOrc:22680.00, p18x:1428.00}
+  ]
+},
+
+// ═══ SAJ 7,3K — como este kit foi montado (21/08/2026) ═══
+// Nao veio de aba propria na planilha: nao existe aba do 7,3K. Veio do SAJ 6K pela
+// mesma relacao que o 3K->6K ja' usa neste arquivo:
+//
+//   custo_7,3K(n) = custo_6K(n) + 958
+//
+// DUAS ASSUNCOES, as duas do Thiago em 25/08 e nenhuma conferida na planilha:
+//   1. os R$958 sao CUSTO do inversor (coluna N), no mesmo sentido do "+400" do 3K->6K,
+//      e nao diferenca de preco de venda;
+//   2. a Montagem do 7,3K segue kWp x 200, igual a' do 6K — mesmo n, mesmo kWp, mesma
+//      montagem. Por isso o inversor e' o UNICO termo que muda.
+// Se a aba do 7,3K aparecer e disser outra coisa, refazer daqui.
+//
+// custo_6K(10..18) sai do descMax da tabela do 6K (descMax = custo x 1,30). De 19 a 23 o
+// 6K nao tem linha, entao o custo foi estendido pelo degrau da propria aba: +680 por
+// placa, +800 quando n%4==1 (n=9, 13, 17, 21) — padrao regular nas 14 linhas do 6K.
+//   n=19 e n=20 NAO sao chute: conferem exato contra a aba do 6K de antes de 20/08
+//   (`git show a1086ed`), descontados os R$55/placa do repasse da Tsun — 16650 e 17330.
+//   n=21, 22 e 23 sao INFERIDOS: nenhuma versao da planilha chegou a ter essas linhas.
+//
+// De 10 a 18 este kit e' mais caro que o SAJ 6K (+R$1.250 a R$1.300) pela MESMA geracao —
+// so' faz sentido quando o cliente quer folga de inversor. Quem quer barato usa o 6K.
+"SAJ-7.3K-TCL": {
+  inv: "SAJ 7,3K", mod: "TCL 600W", pot: 600,
+  rows: [
+    {n:10, invs:1, g:750 , kwp:6   , descMax:14622.40, pVista:15200, pOrc:15960.00, p18x:1004.89},
+    {n:11, invs:1, g:825 , kwp:6.6 , descMax:15506.40, pVista:16150, pOrc:16957.50, p18x:1067.69},
+    {n:12, invs:1, g:900 , kwp:7.2 , descMax:16390.40, pVista:17050, pOrc:17902.50, p18x:1127.19},
+    {n:13, invs:1, g:975 , kwp:7.8 , descMax:17430.40, pVista:18150, pOrc:19057.50, p18x:1199.92},
+    {n:14, invs:1, g:1050, kwp:8.4 , descMax:18314.40, pVista:19050, pOrc:20002.50, p18x:1259.42},
+    {n:15, invs:1, g:1125, kwp:9   , descMax:19198.40, pVista:19950, pOrc:20947.50, p18x:1318.92},
+    {n:16, invs:1, g:1200, kwp:9.6 , descMax:20082.40, pVista:20900, pOrc:21945.00, p18x:1381.72},
+    {n:17, invs:1, g:1275, kwp:10.2, descMax:21122.40, pVista:21950, pOrc:23047.50, p18x:1451.14},
+    {n:18, invs:1, g:1350, kwp:10.8, descMax:22006.40, pVista:22900, pOrc:24045.00, p18x:1513.94},
+    {n:19, invs:1, g:1425, kwp:11.4, descMax:22890.40, pVista:23800, pOrc:24990.00, p18x:1573.44},
+    {n:20, invs:1, g:1500, kwp:12  , descMax:23774.40, pVista:24700, pOrc:25935.00, p18x:1632.94},
+    {n:21, invs:1, g:1575, kwp:12.6, descMax:24814.40, pVista:25800, pOrc:27090.00, p18x:1705.67},
+    {n:22, invs:1, g:1650, kwp:13.2, descMax:25698.40, pVista:26700, pOrc:28035.00, p18x:1765.17},
+    {n:23, invs:1, g:1725, kwp:13.8, descMax:26582.40, pVista:27650, pOrc:29032.50, p18x:1827.97}
   ]
 },
 

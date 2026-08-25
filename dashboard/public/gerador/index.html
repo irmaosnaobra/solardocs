@@ -1927,6 +1927,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <option value="MICRODEYE-TCL600W">Micro Deye 2,25K + TCL 600W</option>
             <option value="SAJ-3K-PROMO">String SAJ 3K PROMO + TCL 600W</option>
             <option value="SAJ-6K-TCL">String SAJ 6K + TCL 600W</option>
+            <option value="SAJ-7.3K-TCL">String SAJ 7,3K + TCL 600W</option>
             <option value="SOLAX-1.875K-ERA620W">Micro SOLAX 1,875K + Era 620W</option>
             <option value="MANUAL">✏️ Editar manualmente (equipamento fora da lista)</option>
           </select>
@@ -5376,14 +5377,25 @@ async function gerar() {
   // tira a urgência de fechar.
   const validade = lerValidade('f-validade-modo', 'f-validade');
 
-  // DC/AC ratio (kWp painéis / kW inversores). Padrão de mercado 1,05-1,30.
+  // DC/AC ratio (kWp painéis / kW inversores). Padrão de mercado 1,05-1,30, mas a casa
+  // monta bem acima disso em string, de proposito.
+  //
+  // O limite era 1,35 e por isso o aviso disparava nos kits da PROPRIA casa: 5 das 14
+  // linhas do SAJ 6K (o teto de 18 placas da 1,80) e a de 7 placas do SAJ 3K PROMO (1,40).
+  // Aviso que acende no kit de tabela nao ajuda ninguem — o vendedor nao escolheu o
+  // inversor, a casa escolheu, e ele aprende a ignorar o alerta justo pra quando importa.
+  // Subiu pra 1,95 em 25/08, que e' o ratio com que a casa monta o 7,3K no modo manual
+  // (6 vezes em jul-ago/2026). Assim nenhuma linha de tabela acende (a maior e' o 7,3K
+  // com 23 placas, 1,89) e o aviso volta a valer pro que ele existe: montagem manual
+  // acima do que a casa pratica.
+  const DCAC_LIMITE = 1.95;
   // Tenta extrair kW do nome do inversor (ex: "Growatt 5K" → 5). Se não conseguir, pula o aviso.
   const potInvMatch = String(tab.inv || '').match(/([\d.,]+)\s*k/i);
   const potInvKw = potInvMatch ? parseFloat(potInvMatch[1].replace(',', '.')) : 0;
   const dcAcRatio = (potInvKw > 0 && qtdInv > 0) ? (item.kwp / (potInvKw * qtdInv)) : 0;
   let dcAcWarning = '';
   if (dcAcRatio > 0) {
-    if (dcAcRatio > 1.35) dcAcWarning = `Inversor subdimensionado (ratio ${dcAcRatio.toFixed(2).replace('.',',')}). Vai perder geração nos picos — considere inversor maior.`;
+    if (dcAcRatio > DCAC_LIMITE) dcAcWarning = `Inversor subdimensionado (ratio ${dcAcRatio.toFixed(2).replace('.',',')}). Vai perder geração nos picos — considere inversor maior.`;
   }
 
   // Formas de pagamento. Kits marcados `soCartaoVista` (tabelas PROMO) valem
