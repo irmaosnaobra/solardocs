@@ -3,6 +3,9 @@ import { supabase } from '../../../utils/supabase';
 import { sendMetaEvent } from '../../../utils/metaPixel';
 import { sendHuman, ZapiInstance } from '../zapiClient';
 import { porBarras } from '../bolhas';
+import {
+  ATENDENTE_PROMPT_KEY, PROMPT_PADRAO, numerosVivos, resolverPlaceholders,
+} from '../whatsapp/atendenteAnuncioPrompt';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -394,7 +397,19 @@ async function saveSession(
   messages: { role: 'user' | 'assistant'; content: any }[],
   nome?: string | null,
 ): Promise<void> {
-  const trimmed = messages.slice(-MAX_HISTORY * 2);
+  // A FOTO NÃO FICA NO HISTÓRICO. O prompt convida o lead a mandar a proposta dele
+  // ("se ele mandar a proposta dele, responda com a sua"), e a imagem chega como
+  // base64 dentro do content. Guardada aqui, ela era RE-ENVIADA à API em toda
+  // mensagem seguinte pelas próximas 40 rodadas — e ainda inchava a linha da sessão
+  // no banco. Ela já foi lida na hora em que chegou; o que a conversa precisa
+  // depois é a lembrança de que veio uma imagem, não os bytes dela.
+  const semBase64 = messages.map((m) => {
+    if (!Array.isArray(m.content)) return m;
+    const blocos = m.content.map((b: any) =>
+      b?.type === 'image' ? { type: 'text', text: '[imagem que o lead enviou]' } : b);
+    return { ...m, content: blocos };
+  });
+  const trimmed = semBase64.slice(-MAX_HISTORY * 2);
   const payload: any = {
     phone,
     tipo: 'sdr_b2b',
@@ -462,6 +477,65 @@ async function upsertCrmLead(params: {
   await supabase.from('sdr_leads').upsert(payload, { onConflict: 'phone' });
 }
 
+// ─── system prompt VIVO: o texto da aba /admin → SolarDoc → Atendente ──────
+//
+// Quem conversa com o lead do anúncio é o texto que o Thiago edita na aba, não
+// mais uma constante compilada. O CARLA_SYSTEM_PROMPT acima continua no arquivo
+// como REDE: se o banco falhar, o lead é atendido do mesmo jeito — atendimento
+// que cai porque um select falhou é pior que atendimento com o texto anterior.
+//
+// O contrato abaixo é anexado sempre. Ele não fala de venda: fala de TRANSPORTE.
+// O prompt da aba foi escrito pra um humano ler, e não sabe que este canal quebra
+// bolha em "||" nem que o CRM lê [ESTAGIO:]. Sem isso, a resposta vira um
+// parágrafo único (o tell de robô que o próprio texto manda evitar) e todo lead
+// entra no funil como "novo".
+const CONTRATO_DO_CANAL = `
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# CONTRATO DO CANAL (sistema — não é sobre o que você diz, é sobre como chega)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. BOLHAS: separe cada bolha com || (duas barras). O sistema quebra ali e envia
+   uma mensagem por pedaço, com "digitando" entre elas. SEM o ||, tudo vira um
+   parágrafo só — exatamente o que denuncia robô. No máximo 3 bolhas por resposta.
+2. ESTÁGIO: termine SEMPRE a resposta com um marcador (o lead não vê, é o CRM):
+   [ESTAGIO:novo] ainda sem nome · [ESTAGIO:frio] não é integrador nem empresa do setor
+   [ESTAGIO:morno] qualificou em parte · [ESTAGIO:quente] prestes a receber o link
+   [ESTAGIO:fechado] já recebeu o link · [ESTAGIO:perdido] recusou ou pediu pra parar
+   [ESTAGIO:problema_tecnico] é cliente com problema, não lead novo
+   Sem o marcador, o lead entra no funil como "novo" para sempre.
+3. LINK: o checkout é ${APP_URL}. Nunca invente outra URL nem outro caminho.
+4. SUAS TOOLS SÃO DUAS: verificar_status_plataforma (lead relatou erro/instabilidade —
+   chame ANTES de responder) e registrar_chamado (escalar de verdade pro time). Não
+   diga "vou verificar" sem chamar a tool.
+5. VOCÊ NÃO CONSEGUE MANDAR IMAGEM. A biblioteca da seção de mídia ainda não está
+   ligada neste canal: não prometa print, foto nem exemplo em imagem. Descreva com
+   palavras, ou mande o link. Prometer imagem que não chega derruba a conversa.
+`;
+
+// Prompt vivo em memória: sem isto, CADA mensagem de CADA lead pagaria um select
+// no system_state mais três counts do banco. TTL curto porque a aba tem que
+// refletir a edição rápido — 5 min é o meio-termo entre "editei e não mudou nada"
+// e "todo lead custa quatro queries".
+const PROMPT_TTL_MS = 5 * 60 * 1000;
+let promptCache: { texto: string; em: number } | null = null;
+
+async function systemPromptVivo(): Promise<string> {
+  if (promptCache && Date.now() - promptCache.em < PROMPT_TTL_MS) return promptCache.texto;
+  try {
+    const { data } = await supabase
+      .from('system_state').select('value').eq('key', ATENDENTE_PROMPT_KEY).maybeSingle();
+    const salvo = (data?.value ?? null) as { texto?: string } | null;
+    const base = typeof salvo?.texto === 'string' && salvo.texto.trim() ? salvo.texto : PROMPT_PADRAO;
+    const nums = await numerosVivos().catch(() => ({}));
+    const texto = resolverPlaceholders(base, nums) + CONTRATO_DO_CANAL;
+    promptCache = { texto, em: Date.now() };
+    return texto;
+  } catch {
+    // Rede: texto anterior da Carla. O lead é atendido de qualquer forma.
+    return CARLA_SYSTEM_PROMPT;
+  }
+}
+
 // ─── handler principal com tool calling ────────────────────────────
 
 export async function handleSolarDocB2bLead(
@@ -494,13 +568,18 @@ export async function handleSolarDocB2bLead(
     { role: 'user', content: userContent },
   ];
 
-  // Loop de tool calling — Carla pode chamar tools antes de responder
+  // Resolve UMA vez por mensagem (não por volta do loop de tools).
+  const systemVivo = await systemPromptVivo();
+
+  // Loop de tool calling — a atendente pode chamar tools antes de responder
   let finalText = '';
   for (let turn = 0; turn < 4; turn++) {
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 700,
-      system: CARLA_SYSTEM_PROMPT,
+      // cache_control: o prompt passa de ~2 mil pra ~11 mil tokens e não muda entre
+      // mensagens. Sem cache, cada bolha do lead relê o texto inteiro.
+      system: [{ type: 'text', text: systemVivo, cache_control: { type: 'ephemeral' } }] as any,
       tools: CARLA_TOOLS,
       messages: messages.filter(m => m.content),
     });
