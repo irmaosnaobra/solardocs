@@ -7,6 +7,8 @@ import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/w
 import { runCarlaSemCnpjFollowup, runCarlaInativoFollowup, dispararOpenerTesteParaUser } from '../services/agents/whatsapp/carlaPlatformFollowupService';
 import { runCarlaCnpjKillerBroadcast } from '../services/agents/whatsapp/carlaCnpjKillerQuestion';
 import { dispararPesquisaSatisfacao, listarMelhoresClientes, textoPesquisa } from '../services/pesquisaSatisfacao';
+import { dispararIntersolar, listarClientesIntersolar, textoIntersolar } from '../services/intersolarBroadcast';
+import { dentroDaJanelaDiurna } from '../services/agents/whatsapp/lineThrottle';
 import { runCursoEntradaBroadcast } from '../services/agents/whatsapp/cursoEntradaBroadcast';
 import { runPromoGeradorBroadcast } from '../services/agents/whatsapp/promoGeradorBroadcast';
 import { runPromoGeradorV2Broadcast } from '../services/agents/whatsapp/promoGeradorV2Broadcast';
@@ -1047,6 +1049,11 @@ router.get('/master', async (req: Request, res: Response) => {
     ['carla-sem-cnpj',              () => runCarlaSemCnpjFollowup()],     // follow-up Giovanna — 3 toques 30d
     ['carla-inativo',               () => runCarlaInativoFollowup()],     // follow-up Giovanna — 5 toques 60d
     ['pesquisa-satisfacao',         () => dispararPesquisaSatisfacao()],  // 1 msg/tick; para com PESQUISA_WHATSAPP_OFF=1
+    // Aviso da Intersolar (25–27/08/2026) pros 69 clientes pagantes. 1 msg/tick,
+    // no MESMO teto da Carla. Quem faz a fila escoar em 2 dias não é este tick
+    // horário e sim o workflow intersolar-2026.yml (10 em 10 min, 12–23h UTC);
+    // este aqui é a rede de segurança se aquele falhar. Para: INTERSOLAR_OFF=1.
+    ['intersolar',                  () => dispararIntersolar()],
     // FICA DESLIGADO. Conferido em 12/08/2026: sdrB2bMorningHook chama `sendZAPI`
     // CRU — fora do teto da linha, fora da margem de 5 min e fora da janela 08–21h.
     // É exatamente o caminho que bloqueou a linha de 01 a 03/ago (57 msgs em 5h).
@@ -1131,6 +1138,43 @@ router.get('/pesquisa-satisfacao', async (req: Request, res: Response) => {
     res.json({ ok: true, ...result });
   } catch (err) {
     logger.error('cron', 'pesquisa-satisfacao falhou', err);
+    res.status(500).json({ error: 'Cron failed', message: String(err) });
+  }
+});
+
+// Aviso da Intersolar South America 2026 (25–27/08) pros clientes pagantes.
+// SEM ?enviar=1 a rota só MOSTRA a fila e o texto exato que vai sair — é essa a
+// prévia que precisa ser conferida ANTES de deixar o workflow drenar. Com
+// &enviar=1 manda UMA mensagem, dentro do teto da linha. Para: INTERSOLAR_OFF=1.
+router.get('/intersolar', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    if (req.query.enviar !== '1') {
+      const lista = await listarClientesIntersolar();
+      const pendentes = lista.filter((c) => !c.jaEnviado && c.telefone);
+      return res.json({
+        ok: true,
+        modo: 'preview — nada foi enviado. Repita com &enviar=1 pra disparar.',
+        ligada: (process.env.INTERSOLAR_OFF || '').trim() !== '1',
+        janelaAberta: dentroDaJanelaDiurna(),
+        elegiveis: lista.length,
+        pendentes: pendentes.length,
+        jaEnviados: lista.filter((c) => c.jaEnviado).length,
+        semTelefone: lista.filter((c) => !c.telefone).length,
+        clientes: lista.map((c) => ({
+          nome: c.nome, email: c.email, plano: c.plano,
+          telefone: c.telefone, fonteTelefone: c.fonteTelefone,
+          saudacao: c.primeiroNome ? `Oi ${c.primeiroNome},` : 'Oi,',
+          ultimoDoc: c.ultimoDoc ? c.ultimoDoc.slice(0, 10) : null,
+          jaEnviado: c.jaEnviado,
+        })),
+        exemploMensagem: pendentes[0] ? textoIntersolar(pendentes[0]) : null,
+      });
+    }
+    const result = await dispararIntersolar();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'intersolar falhou', err);
     res.status(500).json({ error: 'Cron failed', message: String(err) });
   }
 });
