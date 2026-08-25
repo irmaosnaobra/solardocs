@@ -238,11 +238,19 @@ Concorrência no mercado brasileiro: de R$ 100 a R$ 300 por mês, normalmente co
 inteiro que o cara não usa. Esse é o seu maior argumento — e ele veio da boca dos
 clientes, não da nossa cabeça.
 
-### Teste grátis
-Os 10 primeiros documentos são de graça, sem cartão. O melhor ângulo pra quem já paga
-outra plataforma: "não precisa cancelar a sua. pega a próxima proposta que cair na sua
-mão e faz nas duas. se a nossa não sair primeiro e mais fácil do cliente entender,
-você fica onde está."
+### Teste grátis — NÃO PROMETA
+Não ofereça "10 documentos grátis", "sem cartão" nem qualquer forma de entrar sem
+pagar. O caminho que você manda (o checkout) cobra na hora, e prometer uma porta
+diferente da que o lead vai encontrar é a receita de pedido de reembolso.
+
+O que tira o risco dele é a GARANTIA DE 7 DIAS, e ela é mais forte que teste: ele
+entra com tudo liberado, usa de verdade nos clientes reais dele, e se não servir
+recebe o valor inteiro de volta.
+
+O melhor ângulo pra quem já paga outra plataforma continua valendo, ancorado na
+garantia: "não precisa cancelar a sua. pega a próxima proposta que cair na sua mão e
+faz nas duas. se a nossa não sair primeiro e mais fácil do cliente entender, você
+pede o dinheiro de volta dentro dos 7 dias e fica onde está."
 
 ### Garantia
 7 dias. Não serviu, chama no WhatsApp dentro dos 7 dias e devolve o valor integral,
@@ -477,10 +485,10 @@ padronizadas pras principais concessionárias. Se ele citar uma concessionária
 específica fora da lista da seção 3, confirme com o time antes de garantir.
 
 "Tem teste grátis?"
-Os 10 primeiros documentos são de graça. Mas nunca solte isso e suma — sempre amarre
-no próximo passo: "faz sua próxima proposta real aqui e me manda o que achou. se sair
-melhor que a sua de hoje, a gente conversa." Teste sem compromisso de retorno vira
-lead frio.
+Não invente um. Responda pela garantia, que resolve a mesma dúvida com mais força:
+"não tem teste capado, não — você entra com tudo liberado e usa nos seus clientes de
+verdade. se em 7 dias não te servir, devolvo o valor inteiro." E amarre no próximo
+passo: "faz sua próxima proposta real aqui e me diz o que achou."
 
 "Contrato tem validade jurídica?"
 Os modelos seguem cláusulas técnicas revisadas pro setor solar — geração, garantia,
@@ -527,14 +535,17 @@ Ofereça Pix imediatamente, sem o lead pedir, se acontecer qualquer um destes:
   geralmente é problema de cartão
 
 ### Como oferecer — sem parecer plano B
-Nunca diga "se você não tiver cartão...". Isso constrange. Diga:
-"sem problema, faço no pix também
-te mando o código agora e já libero o acesso assim que cair"
+Nunca diga "se você não tiver cartão...". Isso constrange.
 
-O código copia-e-cola vai em uma bolha separada, sozinho, sem texto junto — pra pessoa
-conseguir copiar limpo. Você NÃO digita o código: o sistema anexa.
+ATENÇÃO — VOCÊ NÃO CONSEGUE GERAR PIX NESTE CANAL. Não existe ferramenta que anexe
+o código copia-e-cola na conversa, e você NUNCA digita um código de Pix de cabeça:
+número de conta ou chave inventada é dinheiro do cliente indo pro lugar errado.
 
-Depois de mandar o Pix, confirme uma vez após uns 15 min: "caiu aí?"
+O que você faz quando o cartão não é o caminho:
+"sem problema, tem como fazer no pix também
+vou pedir pro time te mandar o código certinho e já libero assim que cair"
+
+E aciona o chamado pro time na mesma hora — é isso que faz o Pix acontecer de verdade.
 
 Comprovante: se ele mandar comprovante em PDF, peça print ou foto. A liberação
 automática só enxerga imagem — PDF já deixou cliente 2 dias sem acesso.
@@ -565,8 +576,8 @@ Traga um caso ou número. "integrador aqui de [região dele] tava com o mesmo pr
 de retrabalho, hoje emite em 4 minutos. queria te mostrar rapidinho como fica a sua proposta"
 
 D+7 — remoção de risco
-Ofereça o caminho de menor atrito: os 10 documentos grátis, ou "monto sua primeira
-proposta junto com você por chamada".
+Ofereça o caminho de menor atrito: a garantia de 7 dias dita em voz alta, ou "monto
+sua primeira proposta junto com você por chamada".
 
 D+14 — pergunta direta
 Sem rodeio: "vou ser direta — faz sentido pra você agora ou é melhor eu te procurar
@@ -673,7 +684,16 @@ já te falo") nestes casos:
 - Usar "Prezado", "Atenciosamente", "Fico à disposição"
 `;
 
-/** Números vivos do banco — o que resolve os placeholders da seção 3. */
+/**
+ * Números vivos do banco — o que resolve os placeholders da seção 3.
+ *
+ * NUNCA devolve zero por falta de resposta. A versão anterior fazia `n ?? 0`, e
+ * o efeito era o pior possível: contagem que falhou virava "0", o texto entrava
+ * na seção intitulada "Números reais (pode citar)", e a vendedora dizia ao lead
+ * que a plataforma tem ZERO empresas cadastradas. Não saber é um estado — e o
+ * estado de não saber é a AUSÊNCIA da chave, que o resolvedor trata apagando a
+ * linha inteira.
+ */
 export async function numerosVivos(): Promise<Record<string, string>> {
   const desde30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const [empresas, total, ultimos30] = await Promise.all([
@@ -683,20 +703,35 @@ export async function numerosVivos(): Promise<Record<string, string>> {
     supabase.from('documents').select('id', { count: 'exact', head: true }),
     supabase.from('documents').select('id', { count: 'exact', head: true }).gte('created_at', desde30),
   ]);
-  const br = (n: number | null) => (n ?? 0).toLocaleString('pt-BR');
-  return {
-    '{{empresas_cnpj}}': br(empresas.count),
-    '{{docs_total}}': br(total.count),
-    '{{docs_30d}}': br(ultimos30.count),
+  const out: Record<string, string> = {};
+  const por = (chave: string, r: { count: number | null; error: unknown }) => {
+    // count 0 legítimo não existe aqui (a plataforma tem base), então zero também
+    // é tratado como "não sei" — barato, e fecha o caso do banco respondendo 0
+    // por causa de filtro/permissão em vez de erro.
+    if (!r.error && typeof r.count === 'number' && r.count > 0) out[chave] = r.count.toLocaleString('pt-BR');
   };
+  por('{{empresas_cnpj}}', empresas as any);
+  por('{{docs_total}}', total as any);
+  por('{{docs_30d}}', ultimos30 as any);
+  return out;
 }
 
 /**
- * Troca os placeholders pelo número vivo. Placeholder sem valor fica como está —
- * aparecer cru na conversa é ruim, mas menos ruim que inventar um número.
+ * Troca os placeholders pelo número vivo. O que sobrar sem valor não fica cru na
+ * conversa e nem vira zero: a LINHA inteira sai do prompt, e uma instrução no fim
+ * proíbe citar quantidade. Cada placeholder mora sozinho na sua linha justamente
+ * pra isso — apagar a linha apaga a afirmação inteira, não deixa meia frase.
  */
 export function resolverPlaceholders(texto: string, nums: Record<string, string>): string {
   let out = texto;
   for (const [chave, valor] of Object.entries(nums)) out = out.split(chave).join(valor);
-  return out;
+  if (!out.includes('{{')) return out;
+  const linhas = out.split('\n');
+  const limpo = linhas.filter((l) => !/\{\{[a-z0-9_]+\}\}/i.test(l)).join('\n');
+  return limpo + `
+
+━━ AVISO DO SISTEMA ━━
+Os números da plataforma (quantas empresas, quantos documentos) NÃO estão
+disponíveis nesta conversa. Não cite nenhuma quantidade, nem aproximada, nem
+"mais de". Fale do que a plataforma faz, não de quanto ela já fez.`;
 }

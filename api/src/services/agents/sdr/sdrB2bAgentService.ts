@@ -3,6 +3,7 @@ import { supabase } from '../../../utils/supabase';
 import { sendMetaEvent } from '../../../utils/metaPixel';
 import { sendHuman, ZapiInstance } from '../zapiClient';
 import { porBarras } from '../bolhas';
+import { logger } from '../../../utils/logger';
 import {
   ATENDENTE_PROMPT_KEY, PROMPT_PADRAO, numerosVivos, resolverPlaceholders,
 } from '../whatsapp/atendenteAnuncioPrompt';
@@ -424,10 +425,36 @@ async function saveSession(
 
 type Estagio = 'novo' | 'frio' | 'morno' | 'quente' | 'fechado' | 'perdido' | 'problema_tecnico';
 
-function extractEstagio(raw: string): { text: string; estagio: Estagio } {
-  const match = raw.match(/\[ESTAGIO:(novo|frio|morno|quente|fechado|perdido|problema_tecnico)\]/i);
-  const estagio = (match?.[1]?.toLowerCase() ?? 'novo') as Estagio;
-  const text = raw.replace(/\[ESTAGIO:(novo|frio|morno|quente|fechado|perdido|problema_tecnico)\]/gi, '').trim();
+// A remoção é GENÉRICA e o reconhecimento é que é restrito. Era o contrário, e o
+// contrário vaza: o replace listava as 7 palavras exatas, então QUALQUER outro
+// token entre colchetes sobrevivia e ia inteiro pro WhatsApp do lead. O prompt
+// vivo pede "marque como desqualificado" e "marca como encerrado" — nenhuma das
+// duas está no enum. E o precedente já existe neste repo: sdrAgentService remove
+// 'fechamento' sem reconhecê-lo, remendo que alguém aplicou depois de a tag
+// vazar em produção.
+//
+// A garantia mora AQUI e não no texto, porque o texto é editável pela aba do
+// /admin — amanhã alguém escreve outra palavra e o transporte tem que aguentar.
+const TAG_ESTAGIO = /\[\s*EST[AÁ]GIO\s*:\s*([a-zà-ÿ_ ]+?)\s*\]/gi;
+
+// O que o modelo escreve quando não usa a palavra do enum. Mapear em vez de só
+// apagar evita o meio-conserto: tirar a tag da tela e ainda arquivar como 'novo'.
+const SINONIMOS_ESTAGIO: Record<string, Estagio> = {
+  desqualificado: 'frio', desqualificada: 'frio', descartado: 'frio', descartada: 'frio',
+  encerrado: 'perdido', encerrada: 'perdido', encerrar: 'perdido',
+  fechamento: 'fechado', fechada: 'fechado', ganho: 'fechado',
+  tecnico: 'problema_tecnico', problema: 'problema_tecnico', suporte: 'problema_tecnico',
+};
+
+function extractEstagio(raw: string): { text: string; estagio: Estagio | null } {
+  const VALIDOS: string[] = ['novo', 'frio', 'morno', 'quente', 'fechado', 'perdido', 'problema_tecnico'];
+  let estagio: Estagio | null = null;
+  for (const m of raw.matchAll(TAG_ESTAGIO)) {
+    const palavra = (m[1] ?? '').toLowerCase().trim().replace(/\s+/g, '_');
+    const achado = VALIDOS.includes(palavra) ? (palavra as Estagio) : SINONIMOS_ESTAGIO[palavra];
+    if (achado) estagio = achado;   // a última tag válida vence
+  }
+  const text = raw.replace(TAG_ESTAGIO, '').replace(/[ 	]{2,}/g, ' ').trim();
   return { text, estagio };
 }
 
@@ -436,7 +463,7 @@ function extractEstagio(raw: string): { text: string; estagio: Estagio } {
 async function upsertCrmLead(params: {
   phone: string;
   nome?: string | null;
-  estagio: Estagio;
+  estagio: Estagio | null;
   ultimaMensagem: string;
   totalMensagens: number;
   tracking?: { ctwa_clid?: string | null };
@@ -446,7 +473,6 @@ async function upsertCrmLead(params: {
   const payload: any = {
     phone,
     tipo: 'b2b',
-    estagio: estagio === 'problema_tecnico' ? 'morno' : estagio,
     ultima_mensagem: ultimaMensagem.slice(0, 300),
     total_mensagens: totalMensagens,
     aguardando_resposta: false,
@@ -454,6 +480,10 @@ async function upsertCrmLead(params: {
     contatos: 0,
     updated_at: new Date().toISOString(),
   };
+  // estagio null = o modelo não marcou nesta resposta (esqueceu, ou a resposta foi
+  // truncada no teto de tokens antes do marcador). Antes isso virava 'novo' e o
+  // lead REGREDIA no funil a cada mensagem sem marcador. Não marcou, não mexe.
+  if (estagio) payload.estagio = estagio === 'problema_tecnico' ? 'morno' : estagio;
   if (nome) payload.nome = nome;
   if (tracking?.ctwa_clid) payload.ctwa_clid = tracking.ctwa_clid;
 
@@ -467,6 +497,9 @@ async function upsertCrmLead(params: {
   if (existing?.estagio && protegidos.includes(existing.estagio)) {
     payload.estagio = existing.estagio;
   }
+  // Lead novo sem marcador precisa nascer com ALGUM estágio (a coluna não aceita
+  // vazio); daí em diante, silêncio do modelo mantém o que já estava lá.
+  if (!payload.estagio && !existing) payload.estagio = 'novo';
 
   if (!existing && tracking?.ctwa_clid) {
     await sendMetaEvent('Lead', {
@@ -507,9 +540,15 @@ const CONTRATO_DO_CANAL = `
 4. SUAS TOOLS SÃO DUAS: verificar_status_plataforma (lead relatou erro/instabilidade —
    chame ANTES de responder) e registrar_chamado (escalar de verdade pro time). Não
    diga "vou verificar" sem chamar a tool.
-5. VOCÊ NÃO CONSEGUE MANDAR IMAGEM. A biblioteca da seção de mídia ainda não está
-   ligada neste canal: não prometa print, foto nem exemplo em imagem. Descreva com
-   palavras, ou mande o link. Prometer imagem que não chega derruba a conversa.
+5. O QUE ESTE CANAL NÃO FAZ — vale mais que qualquer seção do texto acima:
+   - NÃO manda imagem. A biblioteca de mídia não está ligada aqui: nada de print,
+     foto ou "te mando um exemplo". Descreva com palavras ou mande o link.
+   - NÃO gera Pix, cupom nem link personalizado. O único endereço é o do item 3.
+     Nunca digite código de Pix, chave ou número de conta — cliente mandando
+     dinheiro pro lugar errado é o pior desfecho possível desta conversa.
+   - NÃO confirma pagamento. Você não vê o caixa; quem confirma é o time.
+   Em qualquer um desses casos o caminho é o mesmo: registrar_chamado, e dizer ao
+   lead que o time resolve. Prometer o que não chega derruba a conversa.
 `;
 
 // Prompt vivo em memória: sem isto, CADA mensagem de CADA lead pagaria um select
@@ -633,6 +672,14 @@ export async function handleSolarDocB2bLead(
   const { text: cleanText, estagio } = extractEstagio(finalText);
   const parts = porBarras(cleanText);
 
+  // Resposta que era SÓ o marcador vira zero bolhas — o lead ficaria sem resposta
+  // nenhuma, em silêncio, e nós sem saber. Melhor um pedido de desculpa curto que
+  // um vácuo no meio da venda.
+  if (!parts.length) {
+    logger.error('carla', `resposta vazia depois de limpar o marcador (${cleanPhone}): ${finalText.slice(0, 200)}`);
+    parts.push('opa, me perdi aqui — pode repetir a última?');
+  }
+
   await sendHuman(cleanPhone, parts, originInstance, { slow: true });
 
   const allMessages = [...messages, { role: 'assistant', content: cleanText }];
@@ -642,6 +689,8 @@ export async function handleSolarDocB2bLead(
     upsertCrmLead({
       phone: phoneKey,
       nome,
+      // null = o modelo não marcou (resposta truncada em max_tokens, ou esqueceu).
+      // Sem isto o lead REGREDIA pra 'novo' a cada mensagem sem marcador.
       estagio,
       ultimaMensagem: text,
       totalMensagens: allMessages.filter((m: any) => m.role === 'user' && typeof m.content === 'string').length,
