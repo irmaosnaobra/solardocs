@@ -9,6 +9,7 @@ import { ofertaCupomAtiva, bolhasOferta, OfertaCupom } from '../../../utils/ofer
 import { detectAndActivatePromoCredits } from './promoGeradorActivation';
 import { flushAvisoFila, registrarAbandono } from './filaAlerta';
 import { encaminharMidiaAoConsultor, TipoMidia } from '../../io/encaminharMidiaConsultor';
+import { pareceRoboDeles, nossaRespostaJaDesconfiou, marcarRoboDoOutroLado, temRoboAtendendo } from './roboDoOutroLado';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const APP_URL = process.env.DASHBOARD_URL || 'https://solardoc.app';
@@ -915,6 +916,30 @@ export async function handleIncomingWhatsApp(
   // despedidas ("abraço! até logo 👋" × N) — queima mensagem e arrisca ban.
   // Prompt não segura (Haiku ignora o anti-loop soft). Teto DURO: passou de
   // MAX_TURNOS_AUTO respostas nossas, PARA de responder e deixa pro humano.
+  // [25/08] O teto de 12 turnos acima é a rede — ele só corta DEPOIS de 12
+  // respostas nossas, ou seja, depois do estrago. Ordem do Thiago: "percebeu que
+  // é robô, corta". Estes dois cortes são no primeiro sinal, antes de gastar o
+  // Sonnet e antes de gastar a linha.
+  if (await temRoboAtendendo(cleanPhone)) {
+    logger.info('robo-outro-lado', `${cleanPhone} em silêncio (robô detectado nas últimas 12h) — não responde`);
+    return;
+  }
+  const veredito = pareceRoboDeles(text);
+  if (veredito.nivel === 'certeza') {
+    await marcarRoboDoOutroLado(cleanPhone, veredito.sinal);
+    // Mesmo gesto do teto de turnos: sai da cadência pra não reabrir o ciclo, e
+    // fica visível pra um humano decidir se vale ligar pra empresa.
+    await supabase.from('users').update({ whatsapp_replied_at: new Date().toISOString() }).eq('id', user.id);
+    return;
+  }
+  if (veredito.nivel === 'suspeita') {
+    // Suspeita NÃO cala o número: só não responde ESTA. Se do outro lado tiver
+    // gente, a próxima mensagem dela é atendida normalmente — o preço de errar
+    // aqui não pode ser cliente pagante sem suporte por 12h.
+    logger.info('robo-outro-lado', `${cleanPhone} — ${veredito.sinal}; pula esta resposta, sem silenciar`);
+    return;
+  }
+
   const MAX_TURNOS_AUTO = 12;
   const turnosNossos = session.messages.filter((m) => m.role === 'assistant').length;
   if (turnosNossos >= MAX_TURNOS_AUTO) {
@@ -955,6 +980,16 @@ export async function handleIncomingWhatsApp(
   const { pedeHumano, pedePix, pedePixCurso, pedeLinkCupom, pedeImagemKit, parts } = parseTagsResposta(raw);
 
   await sendHuman(cleanPhone, parts, originInstance);  // responde pela linha que o cliente contatou
+
+  // A frente robusta do corte: se a PRÓPRIA Giovanna acabou de dizer que está
+  // falando com um sistema automático, essa é a última mensagem. No caso da Luz
+  // Energy ela disse isso e mandou mais TRÊS depois — não depender de adivinhar
+  // a redação do bot alheio é o que faz esta checagem valer mais que a regex.
+  if (nossaRespostaJaDesconfiou(parts.join(' '))) {
+    await marcarRoboDoOutroLado(cleanPhone, 'a própria Giovanna desconfiou');
+    await supabase.from('users').update({ whatsapp_replied_at: new Date().toISOString() }).eq('id', user.id);
+    return;
+  }
 
   // Giovanna decidiu MOSTRAR o curso (oferta "o curso entra junto na assinatura") → anexa a
   // imagem do produto DEPOIS das bolhas, como um vendedor que fala primeiro e só então
