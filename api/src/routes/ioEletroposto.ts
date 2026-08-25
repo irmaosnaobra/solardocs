@@ -5,6 +5,7 @@ import { supabase as supabasePc } from '../utils/supabase';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { logger } from '../utils/logger';
 import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
+import { agendaFechadaNoIso, MOTIVO_FECHADA } from '../services/agenda/agendaFechada';
 // A dica de "quem está perto" no aviso: quem tem o ponto procura investidor e
 // vice-versa. Falha aqui nunca segura o aviso — devolve bloco vazio.
 import { blocoParesSeguro, pool, TETO_KM } from '../services/io/eletropostoPares';
@@ -424,6 +425,12 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
   if (!DONOS_EP.includes(dono)) { res.status(400).json({ error: 'consultor invalido' }); return; }
   if (!quando || Number.isNaN(new Date(quando).getTime())) {
     res.status(400).json({ error: 'horario invalido' }); return;
+  }
+  // AGENDA FECHADA (25–27/08/2026, Intersolar): a vitrine da LP já não mostra
+  // esses dias, mas aba aberta desde ontem tem a grade velha em memória e mandaria
+  // o POST assim mesmo. Aqui é a última porta — a página avisa e recarrega.
+  if (agendaFechadaNoIso(quando)) {
+    res.status(409).json({ error: 'dia fechado', motivo: MOTIVO_FECHADA }); return;
   }
 
   // A LP monta a observação — é dela que o trigger do banco deriva a nota e as

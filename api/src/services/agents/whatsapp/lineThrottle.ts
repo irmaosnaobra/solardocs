@@ -133,6 +133,7 @@ const BOT_SENT_PREFIXES = [
   // fazia rajada sozinho — mas somado ao resto subcontava o dia inteiro.
   'semente:',                // semente solar (toques da lista fria de solar)
   'ep_grupo_frio:',          // convite de grupo pros frios do eletroposto
+  'intersolar_feira_sent:',  // aviso da feira pra quem tinha reunião nos dias fechados
 ] as const;
 
 // Desvio da linha B2B ligado (ZAPI_SOLARDOC_VIA_IO=1)? Então Giovanna, curso de

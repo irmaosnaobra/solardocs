@@ -35,6 +35,7 @@
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
+import { agendaFechadaEm } from '../agenda/agendaFechada';
 
 const BRT_TZ = 'America/Sao_Paulo';
 
@@ -85,9 +86,15 @@ const diaDaSemana = (ymd: string): number => new Date(`${ymd}T12:00:00-03:00`).g
 const horasDoDia = (ymd: string): number[] =>
   (diaDaSemana(ymd) === 1 ? HORAS_SEGUNDA : HORAS_PADRAO);
 
-/** A agenda abre neste dia? (dia útil e não feriado) */
+/** A agenda abre neste dia? (dia útil, não feriado e sem bloqueio pontual)
+ *
+ *  O terceiro termo é o dos dias em que os sócios estão FORA — hoje, a Intersolar
+ *  (25–27/08/2026). Ele mora no `agendaFechada` e não numa constante daqui porque
+ *  as mesmas datas fecham a vitrine das duas LPs, os toques da régua de avisos e a
+ *  gravação nas rotas: cinco lugares, uma lista. Fechar só aqui faria o robô parar
+ *  de oferecer os dias que a página continuaria vendendo. */
 export function agendaAbre(ymd: string): boolean {
-  return !FERIADOS.has(ymd) && DIAS_UTEIS.has(diaDaSemana(ymd));
+  return !FERIADOS.has(ymd) && !agendaFechadaEm(ymd) && DIAS_UTEIS.has(diaDaSemana(ymd));
 }
 
 export type Compromisso = { ts: number; dono: string };

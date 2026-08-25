@@ -1691,8 +1691,24 @@ function horariosDoDia(dow){
 // Sábado, domingo e feriado seguem fechados.
 const DIAS_UTEIS = new Set([1, 2, 3, 4, 5]);
 
+// ── AGENDA FECHADA: os dias em que o Thiago e o Diego estão FORA ─────────────
+// 25 a 27/08/2026 — INTERSOLAR SOUTH AMERICA (Expo Center Norte, São Paulo). Os
+// dois sócios ficam na feira os três dias, então a vitrine pula direto pra sexta.
+// Ordem do Thiago (25/08): "os novos entram apenas sexta e segunda".
+//
+// NÃO entra no FERIADOS de propósito: feriado é anual e nacional, isto é pontual
+// e tem data pra sumir. Passou a feira? esvazie a lista — a agenda volta sozinha.
+//
+// A MESMA lista existe em três lugares, porque três coisas diferentes precisam
+// dela: esta vitrine, a régua do servidor (`api/src/services/agenda/agendaFechada.ts`,
+// que fecha as rotas de gravação e o robô que remarca no WhatsApp) e a LP do solar
+// (lá vale só pros sócios — a Nilce e a Giovanna seguem atendendo). Mexeu numa,
+// mexa nas três.
+const AGENDA_FECHADA = new Set(['2026-08-25','2026-08-26','2026-08-27']);
+
 function gradeDoDia(ymd){
   if(FERIADOS.has(ymd)) return [];                          // feriado: fechado
+  if(AGENDA_FECHADA.has(ymd)) return [];                    // os dois na Intersolar
   const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
   return DIAS_UTEIS.has(dow) ? horariosDoDia(dow) : [];     // sáb/dom: fechado
 }
@@ -2392,7 +2408,16 @@ async function gravarAgendamento(){
     document.getElementById('ag-ok').scrollIntoView({behavior:'smooth', block:'center'});
   }catch(e){
     console.error(e);
-    erro('Não consegui agendar agora. Chame no WhatsApp (34) 99816-5040 que a gente marca na hora.');
+    // 'dia fechado' é o servidor recusando um horário que esta aba ainda mostra:
+    // ela foi aberta antes de o dia sair da grade e ficou com a lista velha em
+    // memória. Remontar a vitrine é o conserto — o texto genérico mandaria a
+    // pessoa pro WhatsApp por um horário que ela mesma pode reescolher aqui.
+    if(String(e && e.message) === 'dia fechado'){
+      montarSlots();
+      erro('Esse horário não está mais disponível — atualizei os horários aí em cima, é só escolher outro.');
+    } else {
+      erro('Não consegui agendar agora. Chame no WhatsApp (34) 99816-5040 que a gente marca na hora.');
+    }
     btn.disabled = false; btn.textContent = 'Confirmar agendamento →';
   }
 }

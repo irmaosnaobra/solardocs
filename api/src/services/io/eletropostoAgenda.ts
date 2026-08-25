@@ -63,6 +63,7 @@ import { logger } from '../../utils/logger';
 import { sendHuman } from '../agents/zapiClient';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
+import { agendaFechadaNoIso } from '../agenda/agendaFechada';
 
 /** Marcador de envio efetivado, pro teto anti-ban da linha enxergar este agente. */
 export const EP_AGENDA_PREFIX = 'ep_agenda_sent:';
@@ -735,7 +736,18 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
   }
   // Aqui é que entra o produto. Ficha de solar não passa: a copy é de
   // eletroposto e o solar tem módulo próprio (desligado desde 28/07).
-  const fichas = ((data ?? []) as Ficha[]).filter(f => ehOrigemEletroposto(f.created_by));
+  //
+  // E aqui sai a AGENDA FECHADA (25–27/08/2026, Intersolar). Um filtro só, no
+  // ponto em que as sete réguas deste módulo já se abastecem, porque todas elas
+  // estariam erradas nesses dias: a confirmação combinaria uma reunião que não
+  // vai ter, o bom dia diria "hoje é o dia", o toque de 1h prometeria um link que
+  // ninguém vai mandar, e as duas réguas de vermelho (corte das 13h e o não
+  // atendido automático) dariam de AUSENTE o cliente — quando quem não apareceu
+  // fomos nós. Quem fala com essa gente é o `intersolarFeiraAgenda`, que avisa e
+  // oferece horário novo.
+  const fichas = ((data ?? []) as Ficha[])
+    .filter(f => ehOrigemEletroposto(f.created_by))
+    .filter(f => !agendaFechadaNoIso(f.quando));
   if (!fichas.length) return zero('nenhuma_reuniao');
 
   // Telefone do consultor: fonte é a tabela `consultores` (a mesma que o CRM usa),

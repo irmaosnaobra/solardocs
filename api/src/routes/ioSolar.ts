@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { supabaseGerador } from '../utils/supabaseGerador';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { logger } from '../utils/logger';
+import { agendaFechadaNoIso, ehSocio, MOTIVO_FECHADA } from '../services/agenda/agendaFechada';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alerta de lead novo da LP de Energia Solar (/io/solar) no WhatsApp da equipe.
@@ -241,6 +242,12 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
   if (!PERMITIDOS.includes(dono)) { res.status(400).json({ error: 'consultor invalido' }); return; }
   if (!quando || Number.isNaN(new Date(quando).getTime())) {
     res.status(400).json({ error: 'horario invalido' }); return;
+  }
+  // AGENDA FECHADA (25–27/08/2026, Intersolar) — só pros SÓCIOS, que são quem
+  // está na feira. A Nilce e a Giovanna continuam recebendo ligação normalmente
+  // nesses três dias, e por isso o corte é por nome e não pela data sozinha.
+  if (ehSocio(dono) && agendaFechadaNoIso(quando)) {
+    res.status(409).json({ error: 'dia fechado', motivo: MOTIVO_FECHADA }); return;
   }
 
   try {

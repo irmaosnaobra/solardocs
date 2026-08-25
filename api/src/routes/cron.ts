@@ -42,6 +42,7 @@ import { runEntradaIoDigest } from '../services/io/entradaIoDigest';
 import { runSementeTick, publicoSemente, bolhasSemente } from '../services/io/sementeSolarService';
 import { runGrupoFriosTick, publicoGrupoFrio, bolhasGrupoFrio } from '../services/io/eletropostoGrupoFrios';
 import { runEletropostoAgendaTick } from '../services/io/eletropostoAgenda';
+import { runIntersolarFeiraTick } from '../services/io/intersolarFeiraAgenda';
 import { runEletropostoRespostasTick } from '../services/io/eletropostoRespostas';
 import { runEletropostoReagendaAutoTick } from '../services/io/eletropostoReagendaAuto';
 import { runEletropostoCardPingTick } from '../services/io/eletropostoCardPing';
@@ -317,6 +318,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       runSementeTick(),                // semente: nutrição de quem pediu orçamento de solar e não fechou
       runGrupoFriosTick(),             // eletroposto: quem esfriou (não atendeu / sem interesse) vai pro grupo
       runEletropostoAgendaTick(),      // eletroposto: confirmação ao marcar + bom dia + lembrete 1h e 5min (anti no-show)
+      runIntersolarFeiraTick(),        // Intersolar 25–27/08: quem tinha reunião nos dias fechados é avisado e recebe 3 horários (INTERSOLAR_FEIRA_OFF desliga)
       runEletropostoRespostasTick(),   // eletroposto: lead respondeu a automação → recado pro Thiago e pro Diego
       runEletropostoReagendaAutoTick(), // eletroposto: card vermelho QUENTE com o horário vencido volta pro próximo dia útil e recomeça os avisos, até 2× (EP_REAGENDA_AUTO_OFF desliga)
       runEletropostoCardPingTick(),    // eletroposto: card que trocou de dono no repasse de 12h chega de novo no WhatsApp de quem está com ele (EP_CARD_PING_OFF desliga)
@@ -456,6 +458,21 @@ router.get('/eletroposto-agenda', async (req: Request, res: Response) => {
     res.json({ ok: true, dry, ...(await runEletropostoAgendaTick({ dry })) });
   } catch (err: any) {
     logger.error('cron', 'eletroposto-agenda falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
+// ── Intersolar: aviso de quem já estava marcado nos dias da feira ───────────
+// ?dry=1 devolve a fila inteira (quem, quando, de quem e de que produto) sem
+// mandar nada — é assim que se confere a lista antes de o primeiro sair.
+// O tick normal roda no /process-messages a cada 5 min.
+router.get('/intersolar-feira', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    res.json({ ok: true, dry, ...(await runIntersolarFeiraTick({ dry })) });
+  } catch (err: any) {
+    logger.error('cron', 'intersolar-feira falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });
@@ -1072,6 +1089,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['process-message-queue',       () => processMessageQueue()],
     ['lembretes-agenda',            () => processarLembretesAgenda()], // [AVISOS-AGENDA-OFF 28/07] no-op: kill-switch dentro do módulo
     ['eletroposto-agenda',          () => runEletropostoAgendaTick()], // eletroposto: confirma ao marcar, bom dia no dia, avisa 1h e 5min antes (anti no-show)
+    ['intersolar-feira',            () => runIntersolarFeiraTick()],   // Intersolar 25–27/08: avisa quem já estava marcado nos dias fechados e oferece horário novo
     ['eletroposto-respostas',       () => runEletropostoRespostasTick()], // eletroposto: quem respondeu a automação vira recado pra equipe
     ['eletroposto-reagenda-auto',   () => runEletropostoReagendaAutoTick()], // eletroposto: vermelho QUENTE vencido volta pro próximo dia útil sozinho (até 2×)
     ['eletroposto-card-ping',       () => runEletropostoCardPingTick()],  // eletroposto: reenvia o card pro consultor quando o repasse de 12h troca o dono

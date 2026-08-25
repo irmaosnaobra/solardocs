@@ -108,6 +108,7 @@ import {
 } from './eletropostoAgenda';
 import { EP_REMARCAR_PREFIX } from './eletropostoRemarcar';
 import { proximasVagas, diaBRT } from './eletropostoVagas';
+import { agendaFechadaNoIso } from '../agenda/agendaFechada';
 
 const BRT_TZ = 'America/Sao_Paulo';
 
@@ -390,7 +391,12 @@ export async function runEletropostoReagendaAutoTick(
     && !!f.quando
     // Escreveu DEPOIS de perder o horário? Não sumiu — está conversando, e essa
     // conversa é do agente de respostas, que já sabe remarcar.
-    && !(f.lead_resposta_at && f.lead_resposta_at > f.quando));
+    && !(f.lead_resposta_at && f.lead_resposta_at > f.quando)
+    // Reunião perdida num dia de AGENDA FECHADA (25–27/08/2026, Intersolar) não
+    // é no-show: o consultor é que não estava. A copy daqui abre com "você não
+    // conseguiu entrar na apresentação" e culparia o cliente pela nossa ausência.
+    // Quem cuida dessas fichas é o `intersolarFeiraAgenda`.
+    && !agendaFechadaNoIso(f.quando));
   if (!candidatos.length) return zero('nenhum_vermelho');
 
   const ids = candidatos.map(f => f.id);
