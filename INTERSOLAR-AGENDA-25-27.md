@@ -85,34 +85,52 @@ vistoria é outra — quem combina o dia é o consultor.
 
 ## 3. O gargalo: a linha de WhatsApp está cheia
 
-Medido às 16h50 de 25/08: **51 envios nas últimas 24h** (teto do dia = 40, sendo 30
-para mensagem fria) e **7 na última hora** (teto = 6). Com a linha nesse estado
-**nada sai** — nem esses avisos, nem a campanha da feira para os 69 clientes.
+Medido às **17h03 de 25/08**, com os prefixos que o teto realmente conta:
+
+| Janela | Envios | Teto | Situação |
+|---|---|---|---|
+| última hora | 7 | 6 | **estourado** |
+| últimas 24h | 51 | 40 (30 para mensagem fria) | **estourado** |
+
+Com a linha assim, **nada sai** — nem os avisos da feira, nem a campanha dos 69
+clientes. Quem consumiu as 24h:
+
+| Agente | Envios | O que é |
+|---|---|---|
+| `ep_agenda_sent` | **37** | a régua de avisos do eletroposto — em boa parte "hoje é o dia" e "falta 1 hora" de reuniões destes três dias, que não vão acontecer |
+| `carla_sent` | 10 | Giovanna + a campanha da feira para os clientes pagantes |
+| `solar_boasvindas_sent` | 4 | recibo de cadastro do solar |
+
+Três quartos do orçamento da linha estavam sendo gastos avisando gente sobre
+reuniões que nós mesmos não íamos atender. O último toque desses saiu **16h49**;
+o corte entrou no ar às **16h57**. Daqui pra frente essa fatia não volta.
 
 O que já foi feito por conta:
 
-- os avisos da feira passaram a contar como **transacional** (é mensagem sobre a
-  reunião que a própria pessoa marcou), então têm prioridade sobre campanha fria;
-- a régua de avisos parou de gastar 5–7 mensagens/hora com "falta 1 hora para sua
-  reunião" de reuniões desses três dias, que não vão acontecer. Só isso já devolve
-  quase todo o teto por hora.
+- a régua parou de gastar com as reuniões dos três dias (o corte acima);
+- os avisos da feira passaram a contar como **transacional** — é mensagem sobre a
+  reunião que a própria pessoa marcou —, então têm prioridade sobre campanha fria.
 
-**Decisão que é sua:** mesmo assim, com 51 na janela de 24h, a fila só começa a
-escoar quando ela drenar — hoje sai pouca coisa, e as 25 mensagens levam mais de um
-dia nesse ritmo. As saídas:
+**Isso não destrava hoje.** A conta de 24h é deslizante: os 37 toques só saem dela
+ao longo de amanhã, na mesma hora em que entraram. Pela projeção, a fila só começa
+a andar por volta das **10h de amanhã**, a ~6/h — o que avisa os clientes de hoje
+amanhã de manhã e os de amanhã à tarde em cima da hora. Os de quinta ficam por
+último.
 
-1. **Subir o teto do dia por 2 dias** — `LINHA_MAX_DIA` de 40 para 60 na Vercel
-   (projeto solardocs-api). É o caminho mais rápido e o conteúdo é o de menor risco
-   de denúncia que existe: aviso de reunião para quem marcou com a gente.
-2. **Pausar a campanha dos 69 clientes** — `INTERSOLAR_OFF=1` até a fila de avisos
-   escoar. Ela consome o mesmo orçamento.
-3. **Avisar na mão os mais urgentes** — a tabela acima está em ordem; os de hoje 17h
-   e os de amanhã à tarde são os que não podem esperar.
+**Decisão que é sua** (qualquer combinação das três):
 
-As três podem ser combinadas. Se nada for feito, o robô continua tentando e a fila
-escoa sozinha ao longo de quarta e quinta — tarde demais para boa parte dela.
+1. **Subir o teto por dois dias** — na Vercel (projeto `solardocs-api`):
+   `LINHA_MAX_DIA` de 40 para 80 e `LINHA_MAX_HORA` de 6 para 8. Vale sem deploy.
+   É o único caminho que avisa gente ainda **hoje**, e o conteúdo é o de menor risco
+   de denúncia que existe: aviso de reunião para quem marcou com a gente. Depois de
+   quinta, voltar aos 40/6.
+2. **Pausar a campanha dos 69 clientes** — `INTERSOLAR_OFF=1`. Libera 10 envios/dia
+   do mesmo orçamento (foi o que ela gastou hoje).
+3. **Avisar na mão os mais urgentes** — a tabela da seção 2 está em ordem de
+   urgência.
 
----
+Se nada for feito, o robô continua tentando e a fila escoa sozinha ao longo de
+quarta e quinta — tarde demais para boa parte dela.
 
 ## 4. Onde os remarcados cabem
 
