@@ -9,7 +9,7 @@ import { transcribeAudio, downloadImageAsAnthropicSource } from '../utils/mediaP
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { kiwifyWebhook } from '../controllers/limpaproController';
 import { handleBiaInbound, ehLeadRecuperacao, marcarTakeoverBia } from '../services/agents/whatsapp/biaInboundService';
-import { ehGatilhoSolarDoc } from '../services/agents/whatsapp/whatsappAgentService';
+import { ehGatilhoSolarDoc, vendedoraJaAtende } from '../services/agents/whatsapp/whatsappAgentService';
 import { encaminharMidiaAoConsultor, MidiaLead } from '../services/io/encaminharMidiaConsultor';
 import { ehAlunoLimpapro, handleLimpaproAtendimento, marcarTakeoverLimpapro } from '../services/agents/whatsapp/limpaproAtendimentoService';
 
@@ -414,7 +414,11 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
   // fluxo daqui cai na Luma (energia solar B2C), que atende TODA mensagem desta
   // linha — ou seja, todo lead do anúncio levaria dois atendimentos diferentes.
   // Esta rota cede: a fila já roteia o gatilho pra atendente do SolarDoc.
-  if (textoRecup && ehGatilhoSolarDoc(textoRecup)) return;
+  // Cede no gatilho E enquanto a vendedora for dona da conversa. Só o gatilho não
+  // basta: a 2ª mensagem do lead ("sou integrador, faço 10 por mês") não carrega a
+  // frase do anúncio, e sem a posse ela voltaria a cair na Bia ou na Luma no meio
+  // do atendimento. "Entra só a vendedora" vale pra conversa inteira.
+  if (textoRecup && (ehGatilhoSolarDoc(textoRecup) || await vendedoraJaAtende(String(phone)))) return;
 
   if (textoRecup && await ehLeadRecuperacao(String(phone))) {
     handleBiaInbound(String(phone), textoRecup, body.senderName || body.pushname)

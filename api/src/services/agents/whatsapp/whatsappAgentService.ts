@@ -23,44 +23,57 @@ const INSTANCE_ID_IO = '3F26F6ECE67D72BB7FCA6244BF24326C';
 // como conversa; depois disso ela chega como fantasma e o certo é o humano assumir.
 const JANELA_RETRY_FILA_MIN = 45;
 
-// ─── gatilho do anúncio B2B ──────────────────────────────────────
-// EXPORTADO de propósito: o webhook /io precisa da MESMA definição pra ceder a
-// mensagem em vez de responder por cima. Duas cópias desta lista é como uma
-// delas envelhece sozinha — e envelhecer aqui é lead pago no silêncio.
-// B2B signals (SolarDoc) — inclui typos comuns ("soladoc") e variacoes.
-// Match é lowerText.includes(t): use SUBSTRING robusta, não a frase inteira, pra
-// pegar pontuação/sufixo do anúncio ("...SolarDoc.App" → "solardoc.app" ainda casa).
-const B2B_TRIGGERS = [
-  'eu quero o solardoc', 'eu quero a solardoc',
-  'eu quero o soladoc',  'eu quero a soladoc',
-  'quero o solardoc',    'quero a solardoc',
-  'quero o soladoc',     'quero a soladoc',
-  'quero conhecer a solardoc', 'quero conhecer o solardoc',
-  // Gatilho do anúncio Meta B2B (jul/2026). O texto REAL do anúncio é
-  // "Quero saber mais sobre o SolarDoc.App" — cobrimos "sobre o/a", "da/do" e
-  // a forma mínima "mais solardoc" pra pegar qualquer variação que o lead digite.
-  // Match é lowerText.includes(t): o ".app" e a pontuação caem fora e ainda casa.
-  'saber mais sobre o solardoc', 'saber mais sobre a solardoc',
-  'saber mais sobre o soladoc',  'saber mais sobre a soladoc',
-  'saber mais da solardoc', 'saber mais do solardoc',
-  'saber mais da soladoc',  'saber mais do soladoc',
-  'mais sobre o solardoc', 'mais sobre a solardoc',
-  'sobre o solardoc.app', 'sobre a solardoc.app',
-  'sou empresario solar', 'sou empresário solar',
-  'integrador solar',
-  // REDE FINAL (24/08/2026, campanha nova no ar). O gatilho do anuncio virou
-  // "Quero saber sobre a SolarDoc" — SEM o "mais" — e NENHUMA das frases acima
-  // casava com ele: 'saber mais sobre...' pede o "mais", 'quero a solardoc' pede
-  // as palavras coladas, 'sobre a solardoc.app' pede o ".app". O lead cairia no
-  // fallback do ctwa_clid, que depende do Z-API mandar a referral, ou seria
-  // IGNORADO EM SILENCIO. Numero desconhecido que escreve o nome do produto e'
-  // lead: casar pelo nome torna o roteamento imune a mudanca de copy do anuncio.
-  'solardoc', 'soladoc', 'solar doc',
-];
+// ─── gatilho do anúncio (ÚNICO) e posse da conversa ──────────────
+// Ordem do Thiago (25/08): UM gatilho, não uma lista. O anúncio manda sempre a
+// mesma frase — "Quero saber sobre a SolarDoc" — e é ela que abre o atendimento
+// da vendedora. A lista antiga tinha 20 frases e mesmo assim não pegou esta:
+// gatilho que se defende acumulando variação é gatilho que envelhece calado.
+//
+// A tolerância mora na NORMALIZAÇÃO, não em mais frases: caixa, acento e
+// pontuação caem fora, e o nome do produto é aceito nas formas que a pessoa
+// realmente digita (solardoc · soladoc · solar doc).
+function normalizar(texto: string): string {
+  return (texto || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
+const NOME_PRODUTO = /sol(?:ar)?\s?a?doc/;
+
+/**
+ * A frase do anúncio. EXPORTADO porque o webhook /io precisa da MESMA definição
+ * pra ceder a mensagem — duas cópias é como uma delas envelhece sozinha.
+ */
 export function ehGatilhoSolarDoc(texto: string): boolean {
-  const t = (texto || '').trim().toLowerCase();
-  return !!t && B2B_TRIGGERS.some(g => t.includes(g));
+  const t = normalizar(texto);
+  if (!t) return false;
+  return t.includes('quero saber sobre') && NOME_PRODUTO.test(t);
+}
+
+/** Variantes BR do número: a Z-API alterna o 9º dígito e o DDI entre mensagens. */
+export function variantesBR(phone: string): string[] {
+  const limpo = (phone || '').replace('@c.us', '').replace(/\D/g, '');
+  const c55 = limpo.startsWith('55') ? limpo : `55${limpo}`;
+  const com9 = c55.length === 12 ? c55.slice(0, 4) + '9' + c55.slice(4) : c55;
+  const sem9 = c55.length === 13 && c55[4] === '9' ? c55.slice(0, 4) + c55.slice(5) : c55;
+  return Array.from(new Set([limpo, c55, com9, sem9, c55.replace(/^55/, ''), com9.replace(/^55/, ''), sem9.replace(/^55/, '')].filter(Boolean)));
+}
+
+/**
+ * A vendedora já é DONA desta conversa? Uma vez que ela abre (sessão sdr_b2b),
+ * ninguém mais responde esse número — nem a Bia da recuperação, nem a Luma da
+ * linha. "Entra só a vendedora" vale pra conversa inteira, não só pro 1º toque:
+ * a segunda mensagem do lead ("sou integrador, faço 10 por mês") não carrega o
+ * gatilho, e sem esta posse ela cairia de volta no robô errado.
+ */
+export async function vendedoraJaAtende(phone: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('whatsapp_sessions').select('id')
+    .in('phone', variantesBR(phone)).eq('tipo', 'sdr_b2b').limit(1).maybeSingle();
+  return !!data;
 }
 
 // ─── system prompt ───────────────────────────────────────────────
@@ -772,10 +785,16 @@ export async function handleIncomingWhatsApp(
     const isFromAd = !!tracking?.ctwa_clid;
 
     // Sessões existentes
+    // .in(variantes) e não .eq(cleanPhone): a sessão pode ter sido gravada com o
+    // 9º dígito e a mensagem seguinte chegar sem ele (ou o contrário). Com o eq,
+    // a 2ª mensagem do lead não achava sessão, não casava o gatilho e caía no
+    // "ignora em silêncio" do fim do roteamento — a conversa morria no 2º toque.
     const { data: b2cSession } = await supabase
-      .from('whatsapp_sessions').select('id').eq('phone', cleanPhone).eq('tipo', 'sdr').single();
+      .from('whatsapp_sessions').select('id')
+      .in('phone', variantesBR(cleanPhone)).eq('tipo', 'sdr').limit(1).maybeSingle();
     const { data: b2bSession } = await supabase
-      .from('whatsapp_sessions').select('id').eq('phone', cleanPhone).eq('tipo', 'sdr_b2b').single();
+      .from('whatsapp_sessions').select('id')
+      .in('phone', variantesBR(cleanPhone)).eq('tipo', 'sdr_b2b').limit(1).maybeSingle();
 
     // Roteamento: prioriza sessão existente, depois trigger, depois ad (B2B por default).
     // originInstance vai pra Carla → ela responde pela MESMA linha que o lead contatou
