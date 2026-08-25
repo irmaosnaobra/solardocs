@@ -23,6 +23,46 @@ const INSTANCE_ID_IO = '3F26F6ECE67D72BB7FCA6244BF24326C';
 // como conversa; depois disso ela chega como fantasma e o certo é o humano assumir.
 const JANELA_RETRY_FILA_MIN = 45;
 
+// ─── gatilho do anúncio B2B ──────────────────────────────────────
+// EXPORTADO de propósito: o webhook /io precisa da MESMA definição pra ceder a
+// mensagem em vez de responder por cima. Duas cópias desta lista é como uma
+// delas envelhece sozinha — e envelhecer aqui é lead pago no silêncio.
+// B2B signals (SolarDoc) — inclui typos comuns ("soladoc") e variacoes.
+// Match é lowerText.includes(t): use SUBSTRING robusta, não a frase inteira, pra
+// pegar pontuação/sufixo do anúncio ("...SolarDoc.App" → "solardoc.app" ainda casa).
+const B2B_TRIGGERS = [
+  'eu quero o solardoc', 'eu quero a solardoc',
+  'eu quero o soladoc',  'eu quero a soladoc',
+  'quero o solardoc',    'quero a solardoc',
+  'quero o soladoc',     'quero a soladoc',
+  'quero conhecer a solardoc', 'quero conhecer o solardoc',
+  // Gatilho do anúncio Meta B2B (jul/2026). O texto REAL do anúncio é
+  // "Quero saber mais sobre o SolarDoc.App" — cobrimos "sobre o/a", "da/do" e
+  // a forma mínima "mais solardoc" pra pegar qualquer variação que o lead digite.
+  // Match é lowerText.includes(t): o ".app" e a pontuação caem fora e ainda casa.
+  'saber mais sobre o solardoc', 'saber mais sobre a solardoc',
+  'saber mais sobre o soladoc',  'saber mais sobre a soladoc',
+  'saber mais da solardoc', 'saber mais do solardoc',
+  'saber mais da soladoc',  'saber mais do soladoc',
+  'mais sobre o solardoc', 'mais sobre a solardoc',
+  'sobre o solardoc.app', 'sobre a solardoc.app',
+  'sou empresario solar', 'sou empresário solar',
+  'integrador solar',
+  // REDE FINAL (24/08/2026, campanha nova no ar). O gatilho do anuncio virou
+  // "Quero saber sobre a SolarDoc" — SEM o "mais" — e NENHUMA das frases acima
+  // casava com ele: 'saber mais sobre...' pede o "mais", 'quero a solardoc' pede
+  // as palavras coladas, 'sobre a solardoc.app' pede o ".app". O lead cairia no
+  // fallback do ctwa_clid, que depende do Z-API mandar a referral, ou seria
+  // IGNORADO EM SILENCIO. Numero desconhecido que escreve o nome do produto e'
+  // lead: casar pelo nome torna o roteamento imune a mudanca de copy do anuncio.
+  'solardoc', 'soladoc', 'solar doc',
+];
+
+export function ehGatilhoSolarDoc(texto: string): boolean {
+  const t = (texto || '').trim().toLowerCase();
+  return !!t && B2B_TRIGGERS.some(g => t.includes(g));
+}
+
 // ─── system prompt ───────────────────────────────────────────────
 
 export function buildSystemPrompt(user: {
@@ -727,38 +767,8 @@ export async function handleIncomingWhatsApp(
       'tenho interesse em energia solar',
     ];
     const isB2cTriggered = B2C_TRIGGERS.some(t => lowerText.includes(t));
+    const isB2bTriggered = ehGatilhoSolarDoc(text);
 
-    // B2B signals (SolarDoc) — inclui typos comuns ("soladoc") e variacoes.
-    // Match é lowerText.includes(t): use SUBSTRING robusta, não a frase inteira, pra
-    // pegar pontuação/sufixo do anúncio ("...SolarDoc.App" → "solardoc.app" ainda casa).
-    const B2B_TRIGGERS = [
-      'eu quero o solardoc', 'eu quero a solardoc',
-      'eu quero o soladoc',  'eu quero a soladoc',
-      'quero o solardoc',    'quero a solardoc',
-      'quero o soladoc',     'quero a soladoc',
-      'quero conhecer a solardoc', 'quero conhecer o solardoc',
-      // Gatilho do anúncio Meta B2B (jul/2026). O texto REAL do anúncio é
-      // "Quero saber mais sobre o SolarDoc.App" — cobrimos "sobre o/a", "da/do" e
-      // a forma mínima "mais solardoc" pra pegar qualquer variação que o lead digite.
-      // Match é lowerText.includes(t): o ".app" e a pontuação caem fora e ainda casa.
-      'saber mais sobre o solardoc', 'saber mais sobre a solardoc',
-      'saber mais sobre o soladoc',  'saber mais sobre a soladoc',
-      'saber mais da solardoc', 'saber mais do solardoc',
-      'saber mais da soladoc',  'saber mais do soladoc',
-      'mais sobre o solardoc', 'mais sobre a solardoc',
-      'sobre o solardoc.app', 'sobre a solardoc.app',
-      'sou empresario solar', 'sou empresário solar',
-      'integrador solar',
-      // REDE FINAL (24/08/2026, campanha nova no ar). O gatilho do anuncio virou
-      // "Quero saber sobre a SolarDoc" — SEM o "mais" — e NENHUMA das frases acima
-      // casava com ele: 'saber mais sobre...' pede o "mais", 'quero a solardoc' pede
-      // as palavras coladas, 'sobre a solardoc.app' pede o ".app". O lead cairia no
-      // fallback do ctwa_clid, que depende do Z-API mandar a referral, ou seria
-      // IGNORADO EM SILENCIO. Numero desconhecido que escreve o nome do produto e'
-      // lead: casar pelo nome torna o roteamento imune a mudanca de copy do anuncio.
-      'solardoc', 'soladoc', 'solar doc',
-    ];
-    const isB2bTriggered = B2B_TRIGGERS.some(t => lowerText.includes(t));
     const isFromAd = !!tracking?.ctwa_clid;
 
     // Sessões existentes

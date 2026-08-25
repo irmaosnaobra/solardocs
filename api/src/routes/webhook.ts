@@ -9,6 +9,7 @@ import { transcribeAudio, downloadImageAsAnthropicSource } from '../utils/mediaP
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { kiwifyWebhook } from '../controllers/limpaproController';
 import { handleBiaInbound, ehLeadRecuperacao, marcarTakeoverBia } from '../services/agents/whatsapp/biaInboundService';
+import { ehGatilhoSolarDoc } from '../services/agents/whatsapp/whatsappAgentService';
 import { encaminharMidiaAoConsultor, MidiaLead } from '../services/io/encaminharMidiaConsultor';
 import { ehAlunoLimpapro, handleLimpaproAtendimento, marcarTakeoverLimpapro } from '../services/agents/whatsapp/limpaproAtendimentoService';
 
@@ -399,6 +400,22 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
   // quem ELA abordou (tem sessão tipo='recuperacao'). Cliente de energia NUNCA cai aqui
   // (nunca terá essa sessão). Texto-only no v1; mídia segue pro fluxo humano abaixo.
   const textoRecup = extractText(body);
+
+  // ── QUEM PEDIU O SOLARDOC É DO SOLARDOC ──
+  // Esta rota e a fila do Worker são DOIS pipelines independentes sobre a MESMA
+  // mensagem — o `return` daqui não impede a fila de responder, e vice-versa.
+  // Foi assim que o teste do gatilho novo (25/08) recebeu, em 3 segundos:
+  //   "Sobre a SolarDoc não tenho informações — não é o meu campo" (Bia, porque o
+  //   número tinha sessão velha de recuperação do LimpaPro)
+  //   "O que eu posso te ajudar é com o LimpaPro Solar..."        (Bia)
+  //   "Oi! Sou a Carla, da SolarDoc."                             (fila)
+  // Dois robôs se contradizendo na frente do lead, e o primeiro dizendo que o
+  // produto do anúncio não é com ele. Sem sessão de recuperação seria PIOR: o
+  // fluxo daqui cai na Luma (energia solar B2C), que atende TODA mensagem desta
+  // linha — ou seja, todo lead do anúncio levaria dois atendimentos diferentes.
+  // Esta rota cede: a fila já roteia o gatilho pra atendente do SolarDoc.
+  if (textoRecup && ehGatilhoSolarDoc(textoRecup)) return;
+
   if (textoRecup && await ehLeadRecuperacao(String(phone))) {
     handleBiaInbound(String(phone), textoRecup, body.senderName || body.pushname)
       .catch(err => console.error('[webhook:io] handleBiaInbound falhou:', err));
