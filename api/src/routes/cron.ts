@@ -1088,8 +1088,12 @@ router.get('/master', async (req: Request, res: Response) => {
     ['monthly-reset',               () => runMonthlyReset()],
     ['process-message-queue',       () => processMessageQueue()],
     ['lembretes-agenda',            () => processarLembretesAgenda()], // [AVISOS-AGENDA-OFF 28/07] no-op: kill-switch dentro do módulo
+    // O `intersolar-feira` NÃO entra aqui: ele já roda no /process-messages (5 min).
+    // Dois chamadores é o bug de bd6f994 — no minuto :00 os dois leem a mesma fila,
+    // os dois passam no teto (que é pré-claim) e a MESMA pessoa recebe duas listas
+    // de horários, com a segunda sobrescrevendo a oferta gravada. Aí o "2" dela
+    // move a reunião pro horário da lista errada.
     ['eletroposto-agenda',          () => runEletropostoAgendaTick()], // eletroposto: confirma ao marcar, bom dia no dia, avisa 1h e 5min antes (anti no-show)
-    ['intersolar-feira',            () => runIntersolarFeiraTick()],   // Intersolar 25–27/08: avisa quem já estava marcado nos dias fechados e oferece horário novo
     ['eletroposto-respostas',       () => runEletropostoRespostasTick()], // eletroposto: quem respondeu a automação vira recado pra equipe
     ['eletroposto-reagenda-auto',   () => runEletropostoReagendaAutoTick()], // eletroposto: vermelho QUENTE vencido volta pro próximo dia útil sozinho (até 2×)
     ['eletroposto-card-ping',       () => runEletropostoCardPingTick()],  // eletroposto: reenvia o card pro consultor quando o repasse de 12h troca o dono

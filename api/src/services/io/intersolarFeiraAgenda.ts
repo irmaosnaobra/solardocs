@@ -188,6 +188,33 @@ async function marcar(id: number, extra: Record<string, unknown> = {}): Promise<
   ).then(undefined, (e: unknown) => logger.error('intersolar-feira', 'marcar falhou', { id, erro: String(e) }));
 }
 
+/**
+ * PÕE A FICHA NO RADAR DE QUEM LÊ A RESPOSTA.
+ *
+ * O `eletropostoRespostas` — que é quem casa o "2" do cliente com a ficha e chama
+ * o robô de remarcação — só olha ficha que já recebeu ALGUM toque da régua:
+ * `.or(confirmacao_at, lembrete_1h_at, lembrete_5min_at not null)`. É a trava que
+ * impede o robô de acordar conversa velha com quem nunca foi tocado.
+ *
+ * Seis das 25 fichas da feira não têm nenhum dos três. Sem isto, elas receberiam a
+ * lista de horários e a resposta cairia no vácuo — justamente o silêncio que este
+ * agente existe pra evitar.
+ *
+ * `confirmacao_at` é o campo certo e não é carimbo mentiroso: ele quer dizer "o
+ * robô já falou com esta pessoa sobre esta reunião", que é exatamente o que acabou
+ * de acontecer. Só é gravado quando está VAZIO (`is null`), pra não reescrever o
+ * piso de ciclo de quem já tinha confirmação — é esse piso que o `falouNesteCiclo`
+ * usa. E não é `lembrete_1h_at`: ESSE dispara o não-atendido automático 15 min
+ * depois.
+ */
+async function abrirPortaDaResposta(id: number): Promise<void> {
+  await supabaseGerador.from('agendamentos')
+    .update({ confirmacao_at: new Date().toISOString() })
+    .eq('id', id).is('confirmacao_at', null)
+    .then(undefined, (e: unknown) =>
+      logger.error('intersolar-feira', 'abrir porta da resposta falhou', { id, erro: String(e) }));
+}
+
 async function carimbarEnvio(id: number): Promise<void> {
   const agoraIso = new Date().toISOString();
   await supabase.from('system_state').upsert(
@@ -292,7 +319,7 @@ export async function runIntersolarFeiraTick(opts: { dry?: boolean } = {}): Prom
           // avisar de um cancelamento vale mais que qualquer campanha.
           { rodada: 0, silencioSemVaga: true, transacional: true },
         );
-        if (r.acao === 'ofertou') { await marcar(f.id, { via: 'oferta' }); n++; }
+        if (r.acao === 'ofertou') { await abrirPortaDaResposta(f.id); await marcar(f.id, { via: 'oferta' }); n++; }
         else if (r.acao === 'sem_vaga') {
           // Não trava a fila: marca e avisa no log. Agenda sem uma vaga em 21
           // dias é sinal de gente, não de robô.
@@ -313,6 +340,9 @@ export async function runIntersolarFeiraTick(opts: { dry?: boolean } = {}): Prom
         await sendHuman(String(f.cliente_telefone).replace(/\D/g, ''),
           bolhasFeiraSolar(nome, quem, quandoIso, passou), 'io');
         await carimbarEnvio(f.id);
+        // Ficha de solar não passa pelo robô de remarcação, mas quem responder
+        // "pode ser sexta" tem que virar recado pra equipe do mesmo jeito.
+        await abrirPortaDaResposta(f.id);
         await marcar(f.id, { via: 'solar' });
         n++;
       }
