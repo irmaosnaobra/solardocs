@@ -2587,7 +2587,15 @@ router.put('/atendente-prompt', async (req: Request, res: Response): Promise<voi
   try {
     const texto = String((req.body as { texto?: string })?.texto ?? '');
     if (!texto.trim()) { res.status(400).json({ error: 'texto_vazio' }); return; }
-    const por = (req as any).userEmail || (req as any).userId || 'admin';
+    // O auth so' poe userId no request (uuid). Guardar uuid aqui deixaria a tela
+    // dizendo 'atualizado por 7f3a-...', que nao identifica ninguem — entao troca
+    // pelo e-mail; se a busca falhar, guarda 'admin' em vez de um id cru.
+    const uid = (req as any).userId as string | undefined;
+    let por = 'admin';
+    if (uid) {
+      const { data: quem } = await supabase.from('users').select('email').eq('id', uid).maybeSingle();
+      por = quem?.email || 'admin';
+    }
     const { error } = await supabase.from('system_state').upsert(
       { key: ATENDENTE_PROMPT_KEY, value: { texto, por }, updated_at: new Date().toISOString() },
       { onConflict: 'key' },

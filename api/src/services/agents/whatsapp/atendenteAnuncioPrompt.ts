@@ -661,7 +661,9 @@ já te falo") nestes casos:
 export async function numerosVivos(): Promise<Record<string, string>> {
   const desde30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const [empresas, total, ultimos30] = await Promise.all([
-    supabase.from('company').select('id', { count: 'exact', head: true }).not('cnpj', 'is', null),
+    // .neq('') junto do not-null de proposito: a frase do prompt e 'empresas COM
+    // CNPJ', e cnpj = '' passaria pelo not-null contando empresa sem CNPJ.
+    supabase.from('company').select('id', { count: 'exact', head: true }).not('cnpj', 'is', null).neq('cnpj', ''),
     supabase.from('documents').select('id', { count: 'exact', head: true }),
     supabase.from('documents').select('id', { count: 'exact', head: true }).gte('created_at', desde30),
   ]);
