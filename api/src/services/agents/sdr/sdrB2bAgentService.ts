@@ -1,12 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { sendMetaEvent } from '../../../utils/metaPixel';
-import { sendHuman, ZapiInstance } from '../zapiClient';
+import { sendHuman, sendImage, sendWhatsApp, ZapiInstance } from '../zapiClient';
 import { porBarras } from '../bolhas';
 import { logger } from '../../../utils/logger';
 import {
   ATENDENTE_PROMPT_KEY, PROMPT_PADRAO, numerosVivos, resolverPlaceholders,
 } from '../whatsapp/atendenteAnuncioPrompt';
+import { parseAcoesCarla, pecaDaTag, blocoDeAcoes } from './carlaAcoes';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -351,7 +352,27 @@ async function registrarChamado(phone: string, nome: string | null, area: string
     .single();
 
   if (error) return `falha ao registrar (${error.message.slice(0, 80)})`;
-  return `chamado #${(data?.id as string)?.slice(0, 8)} aberto`;
+
+  const protocolo = (data?.id as string)?.slice(0, 8);
+
+  // AVISA O DONO NA HORA. Sem isto o chamado morre numa tabela que nenhuma tela
+  // do repositório lê: em 29/08/2026 havia 20 chamados desde 11/07, todos com
+  // status 'aberto' e resolved_at nulo. Cinco eram da Bruna, que pediu a chave
+  // Pix à meia-noite, foi escalada cinco vezes em nove horas — a última marcada
+  // como emergência — e às 10h44 escreveu "fechei com outra plataforma".
+  // A Giovanna já fazia isso para cliente pago; faltava do lado que VENDE.
+  // Best-effort de propósito: falha de WhatsApp não pode derrubar o atendimento.
+  await sendWhatsApp(
+    '34991360223',
+    `🔥 *Lead da Carla precisa de você*\n\n` +
+      `${nome || 'sem nome'} — ${area}\n` +
+      `WhatsApp: ${phone}\n\n` +
+      `"${descricao.slice(0, 220)}"\n\n` +
+      `Chamado #${protocolo}. Fala com ele: wa.me/55${phone.replace(/^55/, '')}`,
+    'solardoc',
+  ).catch((err) => logger.error('carla', 'aviso de chamado ao dono falhou', err));
+
+  return `chamado #${protocolo} aberto`;
 }
 
 // ─── sessao ─────────────────────────────────────────────────────────
@@ -541,14 +562,19 @@ const CONTRATO_DO_CANAL = `
    chame ANTES de responder) e registrar_chamado (escalar de verdade pro time). Não
    diga "vou verificar" sem chamar a tool.
 5. O QUE ESTE CANAL NÃO FAZ — vale mais que qualquer seção do texto acima:
-   - NÃO manda imagem. A biblioteca de mídia não está ligada aqui: nada de print,
-     foto ou "te mando um exemplo". Descreva com palavras ou mande o link.
-   - NÃO gera Pix, cupom nem link personalizado. O único endereço é o do item 3.
-     Nunca digite código de Pix, chave ou número de conta — cliente mandando
-     dinheiro pro lugar errado é o pior desfecho possível desta conversa.
    - NÃO confirma pagamento. Você não vê o caixa; quem confirma é o time.
-   Em qualquer um desses casos o caminho é o mesmo: registrar_chamado, e dizer ao
-   lead que o time resolve. Prometer o que não chega derruba a conversa.
+   - NÃO dá desconto, não inventa parcelamento, não muda a garantia de 7 dias.
+   - NÃO digita chave de Pix, código de pagamento ou número de conta à mão.
+     Para cobrar existe a tag [[ENVIAR_PIX]], que anexa o código certo pelo
+     sistema — cliente mandando dinheiro pro lugar errado é o pior desfecho
+     possível desta conversa, e é por isso que quem monta o código não é você.
+   Nesses casos o caminho é registrar_chamado, e dizer ao lead que o time
+   resolve. Prometer o que não chega derruba a conversa.
+
+   O que você PODE fazer (imagem dos documentos e Pix copia-e-cola) está na
+   seção "O QUE VOCÊ CONSEGUE FAZER DE VERDADE", que vem logo abaixo. Ela é a
+   lista real das suas ações — se um texto mais acima disser que você não manda
+   imagem, aquele texto está velho e esta seção vale.
 `;
 
 // Prompt vivo em memória: sem isto, CADA mensagem de CADA lead pagaria um select
@@ -566,12 +592,16 @@ async function systemPromptVivo(): Promise<string> {
     const salvo = (data?.value ?? null) as { texto?: string } | null;
     const base = typeof salvo?.texto === 'string' && salvo.texto.trim() ? salvo.texto : PROMPT_PADRAO;
     const nums = await numerosVivos().catch(() => ({}));
-    const texto = resolverPlaceholders(base, nums) + CONTRATO_DO_CANAL;
+    // blocoDeAcoes vem POR ÚLTIMO de propósito: é a única seção que descreve
+    // capacidade real, e as anteriores (inclusive o texto editado na aba) podem
+    // estar afirmando o contrário. Em prompt, quem fala por último ganha.
+    const texto = resolverPlaceholders(base, nums) + CONTRATO_DO_CANAL + blocoDeAcoes();
     promptCache = { texto, em: Date.now() };
     return texto;
   } catch {
-    // Rede: texto anterior da Carla. O lead é atendido de qualquer forma.
-    return CARLA_SYSTEM_PROMPT;
+    // Rede: texto anterior da Carla + as ações, senão a queda de um select
+    // devolveria uma agente que não sabe mandar a proposta nem cobrar.
+    return CARLA_SYSTEM_PROMPT + blocoDeAcoes();
   }
 }
 
@@ -669,18 +699,60 @@ export async function handleSolarDocB2bLead(
     finalText = 'Tive um problema aqui pra te responder, me da 30 segundos. [ESTAGIO:morno]';
   }
 
-  const { text: cleanText, estagio } = extractEstagio(finalText);
+  const { text: semEstagio, estagio } = extractEstagio(finalText);
+  // As tags de AÇÃO saem depois do marcador de estágio: colchete duplo não colide
+  // com [ESTAGIO:x], mas o texto que vai pro lead tem que estar limpo dos dois.
+  const acoes = parseAcoesCarla(semEstagio);
+  const cleanText = acoes.limpo;
   const parts = porBarras(cleanText);
+
+  if (acoes.imagemInvalida) {
+    // Ela quis mostrar algo que não existe no catálogo. O lead não vê a tag (foi
+    // removida), mas fica sem a peça — e isso precisa aparecer no log, senão vira
+    // "a Carla prometeu e não mandou" sem rastro.
+    logger.error('carla', `tag de imagem desconhecida "${acoes.imagemInvalida}" (${cleanPhone})`);
+  }
 
   // Resposta que era SÓ o marcador vira zero bolhas — o lead ficaria sem resposta
   // nenhuma, em silêncio, e nós sem saber. Melhor um pedido de desculpa curto que
   // um vácuo no meio da venda.
-  if (!parts.length) {
+  //
+  // Exceção: se ela pediu imagem ou Pix, o anexo JÁ é a resposta. Um "me perdi
+  // aqui" grudado numa proposta é pior que o silêncio que ele conserta.
+  if (!parts.length && !acoes.imagem && !acoes.pix) {
     logger.error('carla', `resposta vazia depois de limpar o marcador (${cleanPhone}): ${finalText.slice(0, 200)}`);
     parts.push('opa, me perdi aqui — pode repetir a última?');
   }
 
-  await sendHuman(cleanPhone, parts, originInstance, { slow: true });
+  if (parts.length) await sendHuman(cleanPhone, parts, originInstance, { slow: true });
+
+  // ── as ações, sempre DEPOIS das bolhas ──────────────────────────────
+  // Ordem importa: texto primeiro, anexo depois. Imagem chegando antes da frase
+  // que a explica é catálogo; chegando depois, é demonstração.
+  const peca = pecaDaTag(acoes.imagem);
+  if (peca) {
+    try {
+      await sendImage(cleanPhone, peca.url, peca.legenda, originInstance);
+      logger.info('carla', `imagem ${acoes.imagem} enviada (${cleanPhone})`);
+    } catch (err) {
+      logger.error('carla', `enviar imagem ${acoes.imagem} falhou (${cleanPhone})`, err);
+    }
+  }
+
+  if (acoes.pix) {
+    // O código é gerado aqui, não escrito pelo modelo. Mesmo txid e mesmo valor
+    // que a Giovanna usa — é o que a auto-liberação por comprovante reconhece.
+    try {
+      const { gerarPixCopiaECola } = await import('../../../utils/pixBrCode');
+      const { bolhasPix, registrarPixEnviado } = await import('../whatsapp/pixSolicitado');
+      const copia = gerarPixCopiaECola({ valor: 67, txid: 'SOLARDOCVIP' });
+      await sendHuman(cleanPhone, bolhasPix(copia, 67), originInstance);
+      await registrarPixEnviado(cleanPhone, 67, nome);
+      logger.info('carla', `pix R$67 enviado (${cleanPhone})`);
+    } catch (err) {
+      logger.error('carla', `enviar pix falhou (${cleanPhone})`, err);
+    }
+  }
 
   const allMessages = [...messages, { role: 'assistant', content: cleanText }];
 
