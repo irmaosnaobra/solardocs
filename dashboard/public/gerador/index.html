@@ -7104,7 +7104,15 @@ function eletroSubaba(qual) {
 // sem dinheiro não há conexão pra fazer hoje, e enfiá-las numa das listas só faz
 // o consultor gastar ligação. O público delas é a página de material.
 const CAD_CAPITAL_FICHA = ['proprio', 'proprio_credito', 'fin_aprovado', 'fin_cnpj', 'fin_banco'];
-const CAD_PONTO_FICHA = ['definido', 'em_vista'];
+// 29/08/2026: 'negociando' entrou na lista junto com a régua de PONTO PRÓPRIO da LP.
+// Ele nunca tinha produzido ficha de NOTA 1 — passava e ia marcar reunião. Agora não
+// marca mais e a LP manda essa pessoa pra porta do ponto em /io/eletroposto/parceria:
+// sem ele aqui, a página convidaria pro cadastro e a aba Arrendamento não listaria
+// ninguém. As duas réguas são a MESMA, e mudar um lado sem o outro faz o lead cair numa
+// página que promete uma coisa e numa lista que espera outra.
+// 'definido' também continua aqui porque a régua nova gera NOTA 1 com ponto definido:
+// é quem disse ter o local e, na pergunta seguinte, que ele ainda não é dele.
+const CAD_PONTO_FICHA = ['definido', 'negociando', 'em_vista'];
 const CAD_STATUS = { novo: 'Novo', falando: 'Falando', conectado: 'Conectado', sem_interesse: 'Sem interesse' };
 let cadLado = 'ponto';
 let cadDados = null;   // null = nunca carregou
@@ -7199,7 +7207,11 @@ async function cadCarregar(forcar) {
     //   ponto     → a resposta da LP, que aqui vale como situação do local
     //   endereco  → só existe pra quem respondeu "já tenho o ponto definido"
     const daFichaPonto = f => ({ ...f, tab: 'eletroposto_nota1', deFicha: true,
-      ponto_tipo: f.perfil, ponto_fluxo: f.ponto, ponto_endereco: f.endereco, ponto_relacao: null });
+      // ponto_relacao existe na ficha desde 29/08 (a LP passou a perguntar "o local é
+      // seu?" a quem diz ter o ponto) — mas só sai do banco depois da migration que
+      // cria a coluna; até lá é undefined e a coluna mostra "—", como sempre mostrou.
+      ponto_tipo: f.perfil, ponto_fluxo: f.ponto, ponto_endereco: f.endereco,
+      ponto_relacao: f.ponto_relacao || null });
 
     cadDados = {
       // O integrador NÃO entra no `jaTem` lá em cima: uma pessoa pode instalar

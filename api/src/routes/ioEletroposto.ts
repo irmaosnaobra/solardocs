@@ -93,6 +93,11 @@ export function montarMensagem(a: any): string {
     // condicional: fixa, ela viraria "Endereço: —" em toda reunião de quem ainda está
     // negociando o local — ruído no lugar de informação.
     ...(tem('Endereço:') ? [`*Endereço:* ${linha('Endereço:')}`] : []),
+    // "Local é seu:" entrou em 29/08 com a régua de ponto próprio. Toda reunião nova
+    // traz a linha (só agenda quem tem o local sob controle), e ela muda a conversa de
+    // contrato: dono, inquilino e quem apenas representa o proprietário são três
+    // negociações diferentes. Condicional pelas fichas anteriores a essa data.
+    ...(tem('Local é seu:') ? [`*Local é seu:* ${linha('Local é seu:')}`] : []),
     `*Perfil:* ${perfil}`,
     ...(tem('Rota de passagem:') ? [`*Rota de passagem:* ${linha('Rota de passagem:')}`] : []),
     ``,

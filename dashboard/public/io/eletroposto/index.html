@@ -310,8 +310,6 @@
   .okTx b{display:block;color:var(--cream);font-weight:800;font-size:15px;margin-bottom:3px}
   .ok .okObs{color:rgba(247,251,242,.5);font-size:14px;font-weight:700;margin-top:22px}
   .ok .okObs #ok-dia{color:var(--neon-b)}
-  /* parágrafo extra do lead NOTA 2: a reunião dele começa pelo local, não pelo preço */
-  .ok #ok-nota2{max-width:520px;margin-left:auto;margin-right:auto}
 
   /* ===== convite do grupo (NOTA 1) =====
      Não é tela de recusa: é a etapa ANTERIOR. Herda o bloco .ok (mesma moldura da
@@ -1116,18 +1114,42 @@
              estudo de viabilidade (concessionária, fluxo da via, distância da entrada de
              energia) chegar pronto na reunião. Quem não tem ponto nunca vê estes campos. -->
         <div id="box-endereco" style="display:none">
-          <div class="fld" style="margin-bottom:0">
-            <label>Endereço do ponto <span class="hint">(a equipe leva o estudo do seu local pronto na reunião)</span></label>
+          <!-- O LOCAL É SEU? (29/08/2026) — a pergunta que separa ponto próprio de
+               intenção. "Já tenho o ponto definido" é auto-declarado e virou a resposta
+               que destrava a agenda: chegava gente dizendo ter o ponto e, na reunião, o
+               local era de terceiro com quem ela nunca falou. Os quatro primeiros
+               rótulos são os MESMOS de /io/eletroposto/parceria (porta do ponto) de
+               propósito — dois formulários, uma régua só. Quem responde "ainda não é
+               meu" não marca reunião: vira NOTA 1 e vai pro cadastro de parceria. -->
+          <div class="fld">
+            <label for="f-relacao">O local é seu?</label>
+            <div class="inp"><select id="f-relacao" onchange="onRelacao()">
+              <option value="">Selecione…</option>
+              <option value="proprietario">Sou o proprietário</option>
+              <option value="administro">Administro o local</option>
+              <option value="represento">Represento o proprietário</option>
+              <option value="inquilino">Sou inquilino</option>
+              <option value="nao_e_meu">Ainda não é meu — pretendo alugar ou comprar</option>
+            </select></div>
           </div>
-          <div class="f2">
-            <div class="fld"><label for="f-cep">CEP <span class="hint" id="cep-st">(opcional — completa o endereço)</span></label><div class="inp"><input type="text" id="f-cep" placeholder="00000-000" inputmode="numeric" autocomplete="postal-code" oninput="maskCep(this)"></div></div>
-            <div class="fld"><label for="f-rua">Rua / Avenida</label><div class="inp"><input type="text" id="f-rua" placeholder="Ex: Av. João Naves de Ávila"></div></div>
+          <!-- O endereço só é cobrado de quem tem o local na mão: pedir rua e número a
+               quem acabou de dizer que o ponto ainda não é dele é atrito puro — ele já
+               saiu da agenda pela resposta de cima, e o que a equipe precisa dele é o
+               cadastro, não o estudo de viabilidade. -->
+          <div id="box-endereco-campos">
+            <div class="fld" style="margin-bottom:0">
+              <label>Endereço do ponto <span class="hint">(a equipe leva o estudo do seu local pronto na reunião)</span></label>
+            </div>
+            <div class="f2">
+              <div class="fld"><label for="f-cep">CEP <span class="hint" id="cep-st">(opcional — completa o endereço)</span></label><div class="inp"><input type="text" id="f-cep" placeholder="00000-000" inputmode="numeric" autocomplete="postal-code" oninput="maskCep(this)"></div></div>
+              <div class="fld"><label for="f-rua">Rua / Avenida</label><div class="inp"><input type="text" id="f-rua" placeholder="Ex: Av. João Naves de Ávila"></div></div>
+            </div>
+            <div class="f2">
+              <div class="fld"><label for="f-numero">Número</label><div class="inp"><input type="text" id="f-numero" placeholder="Ex: 1200" inputmode="numeric"></div></div>
+              <div class="fld"><label for="f-bairro">Bairro</label><div class="inp"><input type="text" id="f-bairro" placeholder="Ex: Santa Mônica"></div></div>
+            </div>
+            <div class="fld"><label for="f-compl">Complemento / referência <span class="hint">(opcional)</span></label><div class="inp"><input type="text" id="f-compl" placeholder="Posto, galpão, esquina de referência"></div></div>
           </div>
-          <div class="f2">
-            <div class="fld"><label for="f-numero">Número</label><div class="inp"><input type="text" id="f-numero" placeholder="Ex: 1200" inputmode="numeric"></div></div>
-            <div class="fld"><label for="f-bairro">Bairro</label><div class="inp"><input type="text" id="f-bairro" placeholder="Ex: Santa Mônica"></div></div>
-          </div>
-          <div class="fld"><label for="f-compl">Complemento / referência <span class="hint">(opcional)</span></label><div class="inp"><input type="text" id="f-compl" placeholder="Posto, galpão, esquina de referência"></div></div>
         </div>
 
         <div class="fld">
@@ -1179,10 +1201,10 @@
         <div class="ic"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
         <h3>Está marcado!</h3>
         <p id="ok-txt">—</p>
-        <!-- Só para quem está negociando o ponto — desde 14/08 é o ÚNICO caso que marca
-             reunião sem endereço fechado. Ajusta a expectativa antes da conversa, senão
-             o lead chega esperando orçamento e ouve "onde vai ser?". -->
-        <p id="ok-nota2" style="display:none">Como o seu ponto ainda está em negociação, essa primeira conversa vai focar em validar o local com você. O orçamento vem depois, quando o ponto estiver fechado.</p>
+        <!-- O parágrafo de "seu ponto ainda está em negociação" saiu em 29/08: com o
+             corte do 'negociando', ninguém que chega nesta tela está negociando local.
+             Ele existia pra avisar o lead de que a reunião seria de validação, não de
+             orçamento — e essa reunião não é mais vendida aqui. -->
 
         <div class="okCard">
           <div class="okRow">
@@ -1828,11 +1850,28 @@ const PESO_PONTO   = { definido:3, negociando:2, em_vista:1, sem_ideia:0 };
 const PESO_INVEST  = { proprio:3, proprio_credito:3, fin_aprovado:2, fin_cnpj:2, fin_banco:1, naosei:0 };
 const PESO_DECISOR = { eu:2, socio:1, terceiros:0 };
 const PESO_ROTA    = { rodovia:2, comercial:1, naosei:0 };
-// SEM LOCAL = o lead não tem onde instalar HOJE. "Em vista, mas ainda não conversei"
-// entra aqui (régua de 14/08): quem só olhou uma esquina e nunca falou com o dono do
-// imóvel é curioso de mercado — não há endereço pra estudar, e a reunião vira aula.
-// 'negociando' fica de fora: ali existe conversa com o proprietário, é negócio andando.
-const SEM_LOCAL = new Set(['sem_ideia', 'em_vista']);
+// SEM LOCAL = o lead não tem o ponto HOJE. Desde 29/08/2026 a régua é PONTO PRÓPRIO:
+// agenda quem já tem o local na mão, e mais ninguém. Sobrou uma resposta só —
+// 'definido' — e as outras três são todas NOTA 1:
+//
+//   sem_ideia   não sabe onde instalar
+//   em_vista    olhou uma esquina e nunca falou com o dono (corte de 14/08)
+//   negociando  conversa aberta com o proprietário, mas o ponto ainda não é dele
+//
+// 'negociando' entrou no corte agora. Ele valia 2 pts e passava porque "existe conversa
+// com o dono" — só que conversa não é ponto: o consultor chegava na reunião pra estudar
+// um local que o lead ainda pode não conseguir, e o estudo de viabilidade (concessionária,
+// entrada de energia, fluxo da via) não tem endereço definitivo pra morder. O lugar dele
+// agora é o cadastro de parceria, que é onde a equipe trabalha quem ainda vai fechar o local.
+const SEM_LOCAL = new Set(['sem_ideia', 'em_vista', 'negociando']);
+// A OUTRA METADE DO MESMO CORTE. "Já tenho o ponto definido" é auto-declarado e é a
+// resposta que destrava a agenda — então é a que o lead aprende a marcar. Quem diz ter o
+// ponto responde em seguida QUAL é a relação dele com o imóvel, e só passa quem controla
+// o local hoje: proprietário, quem administra, quem representa o dono e o inquilino. Os
+// quatro são os mesmos rótulos da porta do ponto em /io/eletroposto/parceria — quem tem a
+// chave do lugar fecha negócio, com ou sem escritura no nome. "Ainda não é meu" é
+// intenção, e intenção não ocupa horário de especialista.
+const SEM_CONTROLE = new Set(['nao_e_meu']);
 // Perfis sem fluxo próprio: são estes que abrem a pergunta da rota de passagem.
 const PERFIL_SEM_FLUXO = new Set(['investidor', 'outro']);
 
@@ -1843,7 +1882,9 @@ const PERFIL_SEM_FLUXO = new Set(['investidor', 'outro']);
 // banco é o trigger, a partir da ficha.
 function motivosDoDescarte(f){
   var m = [];
-  if (SEM_LOCAL.has(f.ponto))    m.push('sem_ponto');
+  // 'sem_ponto' cobre os dois lados do corte: não ter local, e ter escolhido um
+  // local que ainda não é dele — a página de destino fala do mesmo bloqueio.
+  if (SEM_LOCAL.has(f.ponto) || SEM_CONTROLE.has(f.relacao)) m.push('sem_ponto');
   if (f.invest  === 'naosei')    m.push('sem_capital');
   if (f.decisor === 'terceiros') m.push('nao_decisor');
   if (PERFIL_SEM_FLUXO.has(f.perfil)) m.push('fluxo_baixo');
@@ -1863,7 +1904,13 @@ function pontuar(f){
   // 14/08: "local em vista, mas ainda não conversei" entrou no mesmo corte. Valia 1 pt
   // — o bastante pra alcançar os 5 da NOTA 2 — e virou 16 das 63 reuniões marcadas em
   // 13 dias: um quarto da agenda com quem nunca falou com o dono do imóvel.
-  const corte = SEM_LOCAL.has(f.ponto);
+  //
+  // 29/08: a régua virou PONTO PRÓPRIO (ordem do Thiago). 'negociando' entrou no corte
+  // e, junto, a relação com o imóvel: dizer "tenho o ponto" não basta mais, tem que ser
+  // seu ou estar sob o seu controle. Os PESOS abaixo continuam de pé porque separam
+  // NOTA 2 de NOTA 3 entre os que passaram — PESO_PONTO.negociando nunca mais é somado
+  // numa ficha que agenda, e sobrevive só pela conta de pontos da ficha de NOTA 1.
+  const corte = SEM_LOCAL.has(f.ponto) || SEM_CONTROLE.has(f.relacao);
   const nota  = corte ? 1 : (pts >= 9 ? 3 : pts >= 5 ? 2 : 1);
   return { pts, nota, corte };
 }
@@ -2063,22 +2110,40 @@ function maskCep(i){
 // consegue estudar antes da reunião. Trocou a resposta depois? O bloco some, e o que ele
 // tinha digitado some junto — endereço de um ponto que ele acabou de dizer que não tem
 // viajaria na ficha e mandaria o consultor pro lugar errado.
+function limparEndereco(){
+  cepSeq++;                                         // invalida busca de CEP em voo
+  ['f-cep','f-rua','f-numero','f-bairro','f-compl'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  // A cidade fica na tela, então ela volta a ser a do lead — o CEP do ponto não pode
+  // sobreviver ao ponto que o lead acabou de dizer que não tem.
+  if(cidadeDoLead !== null){
+    document.getElementById('f-cidade').value = cidadeDoLead;
+    cidadeDoLead = null;
+  }
+  cepStatus(CEP_HINT, false);
+}
 function onPonto(){
   const definido = document.getElementById('f-ponto').value === 'definido';
   document.getElementById('box-endereco').style.display = definido ? '' : 'none';
   if(!definido){
-    cepSeq++;                                       // invalida busca de CEP em voo
-    ['f-cep','f-rua','f-numero','f-bairro','f-compl'].forEach(id => {
-      document.getElementById(id).value = '';
-    });
-    // A cidade fica na tela, então ela volta a ser a do lead — o CEP do ponto não pode
-    // sobreviver ao ponto que o lead acabou de dizer que não tem.
-    if(cidadeDoLead !== null){
-      document.getElementById('f-cidade').value = cidadeDoLead;
-      cidadeDoLead = null;
-    }
-    cepStatus(CEP_HINT, false);
+    // A relação com o imóvel morre junto: ela é a segunda metade da resposta "tenho o
+    // ponto", e guardá-la depois de trocar a primeira faria a ficha dizer que o lead é
+    // proprietário de um local que ele acabou de dizer que não tem.
+    document.getElementById('f-relacao').value = '';
+    limparEndereco();
   }
+  onRelacao();
+}
+// Quem respondeu que o ponto ainda não é dele já saiu da agenda — cobrar rua, número e
+// bairro dele é atrito por nada. O bloco some e o que estava digitado some junto, pelo
+// mesmo motivo do onPonto: endereço de um ponto que a pessoa diz não ter viajaria na
+// ficha e mandaria o consultor pro lugar errado.
+function onRelacao(){
+  const rel = document.getElementById('f-relacao').value;
+  const mostra = !!rel && !SEM_CONTROLE.has(rel);
+  document.getElementById('box-endereco-campos').style.display = mostra ? '' : 'none';
+  if(!mostra) limparEndereco();
 }
 function erro(txt){
   const m = document.getElementById('ag-msg');
@@ -2101,6 +2166,7 @@ async function agendar(){
   const perfil  = document.getElementById('f-perfil');
   const rota    = document.getElementById('f-rota');
   const ponto   = document.getElementById('f-ponto');
+  const relacao = document.getElementById('f-relacao');
   const invest  = document.getElementById('f-invest');
   const decisor = document.getElementById('f-decisor');
   const trif    = document.getElementById('f-trifasica');
@@ -2117,19 +2183,24 @@ async function agendar(){
   if(PERFIL_SEM_FLUXO.has(perfil.value) && !rota.value)
                           return erro('Informe se o local fica em rota de passagem.');
   if(!ponto.value)        return erro('Informe como está o seu ponto hoje.');
-  // Endereço só é cobrado de quem disse ter o ponto — para o resto o bloco nem existe
-  // na tela. Rua, número e bairro são obrigatórios; CEP e complemento, não.
+  // Quem diz ter o ponto responde de quem é o local — sem isso não dá pra saber se é
+  // ponto próprio ou intenção, que é a régua inteira desde 29/08. O endereço vem depois
+  // e só de quem controla o local: rua, número e bairro obrigatórios; CEP e
+  // complemento, não. Pra quem não tem o ponto o bloco nem existe na tela.
   if(ponto.value === 'definido'){
-    if(rua.length < 3)    return erro('Informe a rua ou avenida do ponto.');
-    if(!numero)           return erro('Informe o número do endereço do ponto.');
-    if(bairro.length < 2) return erro('Informe o bairro do ponto.');
+    if(!relacao.value)    return erro('Informe qual é a sua relação com o local.');
+    if(!SEM_CONTROLE.has(relacao.value)){
+      if(rua.length < 3)    return erro('Informe a rua ou avenida do ponto.');
+      if(!numero)           return erro('Informe o número do endereço do ponto.');
+      if(bairro.length < 2) return erro('Informe o bairro do ponto.');
+    }
   }
   if(!invest.value)       return erro('Informe como pretende investir.');
   if(!decisor.value)      return erro('Informe quem decide o investimento.');
   if(!trif.value)         return erro('Informe se a entrada de energia do local é trifásica.');
 
   const q = pontuar({ perfil:perfil.value, rota:rota.value, ponto:ponto.value,
-                      invest:invest.value, decisor:decisor.value });
+                      relacao:relacao.value, invest:invest.value, decisor:decisor.value });
 
   // NOTA 1 não vê horário: o próximo passo dele é achar o ponto, não o orçamento.
   // Mas a ficha VAI pro banco (`eletroposto_nota1`) e o convite do grupo sai sozinho
@@ -2147,8 +2218,12 @@ async function agendar(){
           ...utmPrimeiroToque(),
           ficha: [
             `LP ELETROPOSTO — ${perfilTexto(perfil)}`,
-            `NOTA 1 · ${q.pts}/11 pts (sem local definido)`,
+            `NOTA 1 · ${q.pts}/11 pts (sem ponto próprio)`,
             `Ponto: ${txt(ponto)}`,
+            // Só existe pra quem disse ter o ponto: é a resposta que o cortou, e sem
+            // ela a lista de arrendamento não sabe separar quem tem o local de quem
+            // só escolheu um. Mesmo rótulo do agendamento e do banco.
+            ...(ponto.value === 'definido' && relacao.value ? [`Local é seu: ${txt(relacao)}`] : []),
             `Como pretende investir: ${txt(invest)}`,
             `Decisor: ${txt(decisor)}`,
             `Entrada trifásica: ${txt(trif)}`,
@@ -2184,7 +2259,8 @@ async function agendar(){
     try {
       sessionStorage.setItem('ep_desq', JSON.stringify({
         motivos: motivosDoDescarte({ perfil: perfil.value, ponto: ponto.value,
-                                     invest: invest.value, decisor: decisor.value }),
+                                     relacao: relacao.value, invest: invest.value,
+                                     decisor: decisor.value }),
         nome: nome,
       }));
       // `ep_lead` faz a próxima tela já saber quem é a pessoa, pra ela não
@@ -2240,6 +2316,10 @@ async function agendar(){
                       compl ? `ref.: ${compl}` : ''].filter(Boolean).join(' — ')}`
       : '',
     `Ponto: ${txt(ponto)}`,
+    // Desde 29/08 TODA reunião tem esta linha (quem agenda tem o ponto definido e sob
+    // controle) — ela diz ao consultor com quem ele vai falar de contrato: dono,
+    // inquilino ou quem só representa o proprietário são três conversas diferentes.
+    `Local é seu: ${txt(relacao)}`,
     PERFIL_SEM_FLUXO.has(perfil.value) ? `Rota de passagem: ${txt(rota)}` : '',
     `Como pretende investir: ${txt(invest)}`,
     `Decisor: ${txt(decisor)}`,
@@ -2253,7 +2333,7 @@ async function agendar(){
   // A temperatura do CRM agora vem da nota (era da forma de pagamento, que mudou de
   // valores — mantê-la no `forma` faria todo lead virar morno em silêncio).
   pendente = { nome, tel, cidade, perfil:perfilTexto(perfil), obs,
-               temperatura: q.nota === 3 ? 'quente' : 'morno', pontoDefinido };
+               temperatura: q.nota === 3 ? 'quente' : 'morno' };
   document.getElementById('ag-msg').className = 'agMsg';   // limpa aviso de tentativa anterior
   abrirConfirma();
 }
@@ -2310,7 +2390,7 @@ document.addEventListener('keydown', e => {
 
 async function gravarAgendamento(){
   if(!pendente || !slotSel) return;
-  const { nome, tel, cidade, perfil, obs, temperatura, pontoDefinido } = pendente;
+  const { nome, tel, cidade, perfil, obs, temperatura } = pendente;
   const btn = document.getElementById('ag-btn');
   btn.disabled = true; btn.textContent = 'Agendando…';
 
@@ -2393,9 +2473,6 @@ async function gravarAgendamento(){
     const rot = rotuloSlot(slotSel);   // mesma formatação que o portão mostrou
     document.getElementById('ok-txt').textContent = `${rot.completo} — horário de Brasília`;
     document.getElementById('ok-dia').textContent = rot.diaSemana;
-    // O parágrafo fala do ponto em negociação — quem já tem o ponto e caiu em NOTA 2 por
-    // outro motivo (crédito, decisor) não pode ler que o dele "ainda não está fechado".
-    document.getElementById('ok-nota2').style.display = pontoDefinido ? 'none' : 'block';
     // Avisa a equipe no WhatsApp na hora (fire-and-forget: se falhar, o lead já
     // está gravado no CRM — o alerta é conveniência, não pode derrubar o agendamento)
     fetch('/_api/io/eletroposto/alerta', {
@@ -2429,6 +2506,7 @@ setConfig();      // aplica a config default (80 kW) e calcula
 pintarAncora();   // faixa de investimento da seção de cima = min/max do CONFIGS
 onPerfil();       // o browser pode restaurar o perfil ao voltar pra página (bfcache)
 onPonto();        // idem pro ponto: sem isto o endereço restaurado ficaria escondido
+                  // (e ele chama onRelacao, que reavalia o bloco do endereço)
 // a aba pode ficar aberta horas: ao voltar pra ela, refaz a agenda (horário que passou some)
 document.addEventListener('visibilitychange', () => { if(!document.hidden && !slotSel) montarSlots(); });
 // A aba tambem fica ABERTA por horas sem trocar de foco — e a vitrine anda sozinha o
