@@ -34,7 +34,11 @@ import { resolverCidade, distanciaKm } from './geoCidade';
  */
 export const CAPITAL_DECLARADO = ['proprio', 'proprio_credito', 'fin_aprovado', 'fin_cnpj', 'fin_banco'];
 /** Ficha sem capital mas COM local: é o arrendador que a régua encontrou. */
-const PONTO_NA_FICHA = ['definido', 'em_vista'];
+// 29/08/2026: 'negociando' entrou junto com a régua de PONTO PRÓPRIO da LP — ele saiu
+// da agenda e virou ficha de NOTA 1, e a aba Arrendamento (CAD_PONTO_FICHA no /gerador)
+// já o lista. Sem ele aqui a mesma pessoa aparece na lista e some do Match e da coluna
+// "perto": a régua do pool tem que ser a mesma da aba, como o TETO_KM é um número só.
+const PONTO_NA_FICHA = ['definido', 'negociando', 'em_vista'];
 
 /**
  * Acima disso não é par, é outro mercado.

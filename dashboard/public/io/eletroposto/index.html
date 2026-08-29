@@ -2212,7 +2212,16 @@ async function agendar(){
         method:'POST', headers:{'Content-Type':'application/json'}, keepalive:true,
         body: JSON.stringify({
           nome, telefone:'55'+telRaw, cidade,
-          perfil: perfilTexto(perfil), ponto: txt(ponto), invest: txt(invest),
+          perfil: perfilTexto(perfil),
+          // O texto do ponto leva um sufixo quando a resposta SEGUINTE desmentiu a
+          // primeira. A aba Arrendamento do /gerador mostra este campo como "situação
+          // do ponto", e sem o sufixo a linha de quem só escolheu um local lê igualzinha
+          // à de quem tem a chave do lugar — na lista mais escassa da operação (1 ponto
+          // para 96 investidores). O slug do banco não muda: ep_slug_ponto casa por
+          // 'Já tenho o ponto definido%' e continua gravando 'definido'. Quem separa em
+          // coluna é ponto_relacao, que só existe depois da migration.
+          ponto: txt(ponto) + (SEM_CONTROLE.has(relacao.value) ? ' — mas o local ainda não é meu' : ''),
+          invest: txt(invest),
           decisor: txt(decisor), rota: PERFIL_SEM_FLUXO.has(perfil.value) ? txt(rota) : '',
           trifasica: txt(trif), pts: q.pts,
           ...utmPrimeiroToque(),

@@ -14,12 +14,22 @@
 --      é NOTA 1 — os mesmos rótulos da porta do ponto em /io/eletroposto/parceria.
 --
 -- Esta migration é a ponta do BANCO da mesma régua. Ela NÃO decide quem agenda
--- (isso é o `pontuar()` da LP, e o trigger só lê o texto "NOTA x" da observação):
--- o que ela faz é guardar a resposta nova em coluna e corrigir o motivo do
--- descarte, que é o que o /gerador e o PlugCash leem.
+-- (isso é o `pontuar()` da LP, e o trigger só lê o texto "NOTA x" da observação) —
+-- mas ela NÃO é enfeite de relatório: `ponto_relacao` é o que deixa a régua nova
+-- LEGÍVEL pra equipe. Sem a coluna, a ficha de quem disse ter o ponto e respondeu
+-- que ele ainda não é dele entra na aba Arrendamento com tem_ponto = 'definido',
+-- do lado de quem tem a chave do lugar — e é a lista mais escassa da operação
+-- (1 ponto para 96 investidores no placar de hoje). Enquanto ela não roda, quem
+-- separa os dois é o sufixo que a LP escreve no texto da resposta.
 --
 -- Ordem de leitura: MIGRATION_eletroposto_qualificacao.sql vem antes desta.
 -- ─────────────────────────────────────────────────────────────────────────────
+
+-- TUDO EM UMA TRANSAÇÃO. O passo 3 DERRUBA a ep_motivos de 4 argumentos que os
+-- triggers em produção ainda chamam: entre esse drop e o create das funções novas
+-- (passo 4) qualquer insert em agendamentos ou eletroposto_nota1 quebraria — e é
+-- exatamente nesse intervalo que a LP grava reunião. Uma transação fecha a janela.
+begin;
 
 -- ── 1 · Rótulo → slug da relação com o imóvel ───────────────────────────────
 -- A LP grava o texto que o lead viu ("Sou o proprietário"), como faz com todas
@@ -156,6 +166,8 @@ begin
   end if;
   return new;
 end $$;
+
+commit;
 
 -- ── 5 · Sem backfill, de propósito ──────────────────────────────────────────
 -- Reprocessar o histórico com a régua nova marcaria 'sem_ponto' em reunião que
