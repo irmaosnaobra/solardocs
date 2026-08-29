@@ -338,6 +338,21 @@ async function verificarStatusPlataforma(area: string): Promise<string> {
 }
 
 async function registrarChamado(phone: string, nome: string | null, area: string, descricao: string, diagnostico: string): Promise<string> {
+  // Quantos minutos de silêncio entre dois avisos do MESMO lead. A Bruna abriu 5
+  // chamados em 9 horas: sem trava seriam 5 pushes seguidos, e o 3º é onde o dono
+  // silencia a conversa — aí o aviso deixa de existir justamente quando começa a
+  // importar. Uma hora deixa passar a escalada real (a dela levaria ~3 avisos em
+  // 9h) e mata a rajada. Não é dedup do CHAMADO: o registro continua sendo criado
+  // sempre, porque o histórico do que ele pediu é o que vale depois.
+  const JANELA_AVISO_MIN = 60;
+  const { data: recente } = await supabase
+    .from('tech_issues')
+    .select('created_at')
+    .eq('phone', phone)
+    .gte('created_at', new Date(Date.now() - JANELA_AVISO_MIN * 60_000).toISOString())
+    .limit(1)
+    .maybeSingle();
+
   const { data, error } = await supabase
     .from('tech_issues')
     .insert({
@@ -362,15 +377,19 @@ async function registrarChamado(phone: string, nome: string | null, area: string
   // como emergência — e às 10h44 escreveu "fechei com outra plataforma".
   // A Giovanna já fazia isso para cliente pago; faltava do lado que VENDE.
   // Best-effort de propósito: falha de WhatsApp não pode derrubar o atendimento.
-  await sendWhatsApp(
-    '34991360223',
-    `🔥 *Lead da Carla precisa de você*\n\n` +
-      `${nome || 'sem nome'} — ${area}\n` +
-      `WhatsApp: ${phone}\n\n` +
-      `"${descricao.slice(0, 220)}"\n\n` +
-      `Chamado #${protocolo}. Fala com ele: wa.me/55${phone.replace(/^55/, '')}`,
-    'solardoc',
-  ).catch((err) => logger.error('carla', 'aviso de chamado ao dono falhou', err));
+  if (recente) {
+    logger.info('carla', `chamado #${protocolo} registrado sem novo aviso (${phone} avisado há < 1h)`);
+  } else {
+    await sendWhatsApp(
+      '34991360223',
+      `🔥 *Lead da Carla precisa de você*\n\n` +
+        `${nome || 'sem nome'} — ${area}\n` +
+        `WhatsApp: ${phone}\n\n` +
+        `"${descricao.slice(0, 220)}"\n\n` +
+        `Chamado #${protocolo}. Fala com ele: wa.me/55${phone.replace(/^55/, '')}`,
+      'solardoc',
+    ).catch((err) => logger.error('carla', 'aviso de chamado ao dono falhou', err));
+  }
 
   return `chamado #${protocolo} aberto`;
 }
