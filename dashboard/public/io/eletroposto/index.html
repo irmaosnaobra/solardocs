@@ -2227,7 +2227,12 @@ async function agendar(){
           ...utmPrimeiroToque(),
           ficha: [
             `LP ELETROPOSTO — ${perfilTexto(perfil)}`,
-            `NOTA 1 · ${q.pts}/11 pts (sem ponto próprio)`,
+            // O motivo vem do que REALMENTE cortou. Nem toda NOTA 1 é falta de ponto:
+            // um dono de local sem capital e sem poder de decisão soma menos de 5 e cai
+            // aqui com o ponto na mão (é o arrendador que vai pra porta do ponto) —
+            // escrever "sem ponto próprio" na ficha dele mandaria a equipe procurar o
+            // que ele já tem.
+            `NOTA 1 · ${q.pts}/11 pts (${q.corte ? 'sem ponto próprio' : 'pontuação baixa'})`,
             `Ponto: ${txt(ponto)}`,
             // Só existe pra quem disse ter o ponto: é a resposta que o cortou, e sem
             // ela a lista de arrendamento não sabe separar quem tem o local de quem
