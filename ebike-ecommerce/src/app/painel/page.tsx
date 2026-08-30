@@ -33,10 +33,10 @@ function Cartao({
 }) {
   const cor =
     tom === 'bom'
-      ? 'border-acento/40 bg-acento/5'
+      ? 'border-acao/40 bg-acao-clara'
       : tom === 'atencao'
         ? 'border-alerta/40 bg-alerta/5'
-        : 'border-borda bg-superficie';
+        : 'border-borda bg-white';
   return (
     <div className={`rounded-2xl border p-5 ${cor}`}>
       <p className="text-xs text-suave">{titulo}</p>
@@ -73,14 +73,14 @@ export default async function Painel() {
           <form action={atualizarAgora}>
             <button
               type="submit"
-              className="toque rounded-xl border border-borda px-5 text-sm font-semibold transition hover:border-acento/60"
+              className="toque rounded-xl border border-borda px-5 text-sm font-semibold transition hover:border-acao/60"
             >
               Atualizar agora
             </button>
           </form>
           <Link
             href="/"
-            className="toque rounded-xl bg-acento px-5 text-sm font-semibold text-black transition hover:bg-acento-escuro"
+            className="toque rounded-xl bg-acao px-5 text-sm font-semibold text-white transition hover:bg-acao-escura"
           >
             Ver a loja
           </Link>
@@ -148,9 +148,9 @@ export default async function Painel() {
         </ul>
       )}
 
-      <div className="overflow-x-auto rounded-2xl border border-borda">
+      <div className="overflow-x-auto cartao border border-borda">
         <table className="w-full min-w-[46rem] text-sm">
-          <thead className="bg-superficie text-left text-xs text-suave">
+          <thead className="bg-white text-left text-xs text-suave">
             <tr>
               <th className="px-4 py-3 font-medium">Modelo</th>
               <th className="px-4 py-3 font-medium">Código</th>
@@ -165,7 +165,7 @@ export default async function Painel() {
             {bikes.map((b) => (
               <tr key={b.id} className="border-t border-borda align-middle">
                 <td className="px-4 py-3">
-                  <Link href={`/modelo/${b.slug}`} className="hover:text-acento">
+                  <Link href={`/modelo/${b.slug}`} className="hover:text-acao">
                     {b.titulo}
                   </Link>
                   {b.previsao ? (

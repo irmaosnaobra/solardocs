@@ -63,12 +63,12 @@ export default async function Entrar({
             type="password"
             autoComplete="current-password"
             required
-            className="h-12 rounded-xl border border-borda bg-superficie px-4 text-texto focus:border-acento focus:outline-none"
+            className="h-12 rounded-xl border border-borda bg-white px-4 text-texto focus:border-acao focus:outline-none"
           />
         </label>
         <button
           type="submit"
-          className="toque rounded-xl bg-acento px-6 font-semibold text-black transition hover:bg-acento-escuro"
+          className="toque rounded-xl bg-acao px-6 font-semibold text-white transition hover:bg-acao-escura"
         >
           Entrar
         </button>
