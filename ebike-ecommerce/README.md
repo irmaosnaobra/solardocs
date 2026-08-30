@@ -4,6 +4,19 @@ Vitrine das bicicletas e scooters elétricas do nosso fornecedor, com a nossa
 margem embutida. O cliente escolhe o modelo, diz como quer pagar e cai no
 WhatsApp do Thiago ou do Diego com tudo escrito.
 
+## Onde está
+
+| | |
+| --- | --- |
+| Loja | https://solardoc.app/bike |
+| Painel | https://solardoc.app/bike/painel |
+| Projeto Vercel | `bikes-irmaos-na-obra` (root `ebike-ecommerce`) |
+
+O domínio é do SolarDoc: o projeto `solardocs-dashboard` só empresta o caminho,
+por um rewrite em `dashboard/next.config.ts`, e `/bike` está no PUBLIC_PATHS do
+proxy dele. A loja roda com `basePath: /bike` e é um projeto Vercel separado,
+com cron próprio.
+
 ## Como funciona
 
 ```
