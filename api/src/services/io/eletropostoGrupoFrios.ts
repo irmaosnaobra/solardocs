@@ -140,6 +140,19 @@ type Resultado = { enviados: number; motivo?: string; publico?: number; previa?:
 
 export async function runGrupoFriosTick(opts: { dry?: boolean } = {}): Promise<Resultado> {
   if (desligado()) return { enviados: 0, motivo: 'desligado' };
+  // PARADO EM 30/08/2026, por duas razões que se somam:
+  //
+  // 1. O DESTINO NÃO EXISTE MAIS. O grupo de WhatsApp foi descartado pelo Thiago em
+  //    17/08: quem não qualifica passou a ir para o cadastro de /io/eletroposto/parceria.
+  //    Este tick continuou convidando gente para um lugar que saiu do funil.
+  // 2. Ordem do Thiago hoje, sobre a pesquisa do treinamento de ponto: "não pode entrar
+  //    NENHUMA automação neles". Medido antes de desligar: 45 das 184 pessoas da pesquisa
+  //    estavam no público deste tick. Elas receberiam, no mesmo dia, a pergunta do dono e
+  //    um convite de grupo — dois assuntos, duas vozes, na mesma linha.
+  //
+  // Religar exige decidir para ONDE ele convida. Enquanto isso não for respondido, a
+  // função devolve zero sem tocar no banco. Voltar é apagar este bloco.
+  if (!opts.dry) return { enviados: 0, motivo: 'parado-30-08: grupo descontinuado e pesquisa em campo' };
 
   const publico = await publicoGrupoFrio();
   if (opts.dry) {

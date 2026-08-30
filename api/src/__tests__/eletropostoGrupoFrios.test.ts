@@ -104,9 +104,20 @@ describe('convite do grupo — quem entra', () => {
     expect(await publico()).toHaveLength(0);
   });
 
-  it('convida uma vez só — depois do marcador, sai do público', async () => {
-    expect((await tick()).enviados).toBe(1);
+  // O tick está PARADO desde 30/08/2026 (grupo descontinuado + pesquisa em campo), então
+  // a régua de "convida uma vez só" agora se prova pelo PÚBLICO, não pelo envio: quem já
+  // tem marcador não aparece na lista. É a mesma garantia, medida um passo antes.
+  it('quem já tem o marcador sai do público', async () => {
+    expect(await publico()).toHaveLength(1);
+    const chave = (await publico())[0].chave;
+    state.set(`ep_grupo_frio:${chave}`, { key: `ep_grupo_frio:${chave}`, value: {}, updated_at: HOJE });
     expect(await publico()).toHaveLength(0);
+  });
+
+  it('o tick não envia mais nada — está parado', async () => {
+    const r = await tick();
+    expect(r.enviados).toBe(0);
+    expect(r.motivo).toContain('parado-30-08');
   });
 });
 
@@ -126,12 +137,14 @@ describe('convite do grupo — o que fala', () => {
     }
   });
 
+  // A parada vem ANTES da janela e do teto: com o tick parado, nenhum dos dois chega a
+  // ser consultado. O que estes testes ainda garantem é o que importa — não sai mensagem.
   it('não envia fora da janela nem com o teto estourado', async () => {
     vi.setSystemTime(FORA);
-    expect((await tick()).motivo).toBe('fora_da_janela');
+    expect((await tick()).enviados).toBe(0);
     vi.setSystemTime(DENTRO);
     tetoOk = false;
-    expect((await tick()).motivo).toBe('teto_linha');
+    expect((await tick()).enviados).toBe(0);
     expect(enviadas).toHaveLength(0);
   });
 
