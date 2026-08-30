@@ -165,7 +165,14 @@ export function paraCartao(b: Bike): Cartao {
 
 export async function bikePorSlug(slug: string): Promise<Bike | null> {
   const { bikes } = await catalogoPublico();
-  return bikes.find((b) => b.slug === slug) ?? null;
+  const exata = bikes.find((b) => b.slug === slug);
+  if (exata) return exata;
+
+  // O slug termina no código do produto. Se o fornecedor renomear o modelo, o
+  // começo do slug muda e todo link já mandado por WhatsApp quebraria; pelo
+  // código a bike continua sendo encontrada.
+  const codigo = slug.split('-').pop();
+  return codigo ? (bikes.find((b) => b.codigo === codigo) ?? null) : null;
 }
 
 /** Marcas presentes no catálogo de hoje, com a contagem. Nunca uma lista fixa. */

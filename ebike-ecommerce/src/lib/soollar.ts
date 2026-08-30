@@ -162,7 +162,12 @@ function lerFlight<T>(texto: string): T {
       de = texto.indexOf(abertura, de + 1);
     }
   }
-  throw new ErroSoollar('Resposta do fornecedor sem o resultado esperado.', texto.slice(0, 300));
+  throw new ErroSoollar(
+    'Resposta do fornecedor sem o resultado esperado. Se o portal deles fez ' +
+      'deploy, os IDs das Server Actions mudaram: rode `npm run acoes` e ' +
+      'atualize o objeto ACAO deste arquivo.',
+    texto.slice(0, 300),
+  );
 }
 
 type Envelope<T> = {

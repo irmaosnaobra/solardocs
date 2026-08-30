@@ -26,6 +26,25 @@ function autorizado(req: NextRequest): boolean {
   return req.headers.get('x-vercel-cron') !== null;
 }
 
+/**
+ * Sem isto a loja envelheceria em silêncio: o portal do fornecedor muda, a
+ * leitura ao vivo para, a reserva segura a página e tudo PARECE saudável.
+ * O aviso só sai quando cai para a reserva, então não vira ruído diário.
+ */
+async function avisarQueCaiu(mensagem: string) {
+  const destino = process.env.ALERTA_WEBHOOK;
+  if (!destino) return;
+  try {
+    await fetch(destino, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texto: `Loja de bikes: ${mensagem}` }),
+    });
+  } catch {
+    // Alerta que falha não pode derrubar a atualização.
+  }
+}
+
 export async function GET(req: NextRequest) {
   if (!autorizado(req)) {
     return NextResponse.json({ ok: false, erro: 'não autorizado' }, { status: 401 });
@@ -39,6 +58,12 @@ export async function GET(req: NextRequest) {
   revalidatePath('/', 'layout');
 
   const ok = meta.origem === 'ao-vivo' && bikes.length > 0;
+  if (!ok) {
+    await avisarQueCaiu(
+      `a leitura do fornecedor falhou e a página está servindo a cópia de reserva de ${meta.atualizadoEm}. Motivo: ${meta.erro ?? 'não informado'}`,
+    );
+  }
+
   return NextResponse.json(
     {
       ok,

@@ -12,8 +12,27 @@
 
 import 'server-only';
 
-/** Margem em reais somada a cada item. Padrão combinado: R$ 2.000. */
-export const MARGEM_EM_REAIS = Number(process.env.MARGEM_REAIS ?? 2000);
+const MARGEM_PADRAO = 2000;
+
+/**
+ * Margem em reais somada a cada item. Padrão combinado: R$ 2.000.
+ *
+ * A variável vazia daria `Number('') === 0` e a loja venderia tudo pelo custo;
+ * lixo daria `NaN` e todo card mostraria "R$ NaN". Nos dois casos o certo é
+ * cair no padrão e gritar no log, nunca publicar o número errado.
+ */
+function margemConfigurada(): number {
+  const bruto = process.env.MARGEM_REAIS;
+  if (bruto === undefined || bruto.trim() === '') return MARGEM_PADRAO;
+  const n = Number(bruto);
+  if (!Number.isFinite(n) || n < 0) {
+    console.error(`MARGEM_REAIS inválida ("${bruto}"). Usando R$ ${MARGEM_PADRAO}.`);
+    return MARGEM_PADRAO;
+  }
+  return n;
+}
+
+export const MARGEM_EM_REAIS = margemConfigurada();
 
 export function precoDeVenda(custoEmReais: number): number {
   return Math.round((custoEmReais + MARGEM_EM_REAIS) * 100) / 100;

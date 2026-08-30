@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "sync": "node scripts/sync.mjs",
-    "probe": "node scripts/probe.mjs"
+    "probe": "node scripts/probe.mjs",
+    "acoes": "node scripts/acoes.mjs"
   },
   "dependencies": {
     "next": "16.2.4",

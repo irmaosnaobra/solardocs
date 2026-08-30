@@ -43,6 +43,7 @@ Copie `.env.local.example` para `.env.local`. As que importam:
 | `PAINEL_SENHA` | Senha do `/painel`. **Sem ela ninguém entra no painel** |
 | `SITE_PRIVADO` | `1` = a loja inteira pede a senha (só você vê) |
 | `CRON_SECRET` | Segredo do agendamento diário |
+| `ALERTA_WEBHOOK` | Recebe um POST quando a leitura ao vivo falha |
 
 ## Comandos
 
@@ -51,6 +52,7 @@ npm run dev      # desenvolvimento
 npm run build    # build de produção
 npm run sync     # regera a cópia de reserva (src/data/snapshot.json)
 npm run probe    # mostra o que o fornecedor está devolvendo agora
+npm run acoes    # redescobre os IDs das Server Actions do portal deles
 ```
 
 ## Cópia de reserva
@@ -66,7 +68,7 @@ para a reserva não envelhecer.
 - **O fornecedor não tem API.** O portal dele é Next.js e conversa por Server
   Actions; `src/lib/soollar.ts` fala esse mesmo protocolo. Se eles fizerem
   deploy, os IDs das ações mudam e a leitura ao vivo para. A reserva segura a
-  loja e o painel denuncia. Os IDs novos saem dos chunks JS do portal.
+  loja, o painel denuncia e `npm run acoes` imprime os IDs novos.
 - **Sem o cookie `distribution-center` a listagem volta vazia**, com status 200
   e sem erro. Já custou horas.
 - **`fetch` do Node leva 403 do Cloudflare deles; HTTP/2 passa.** Por isso o
