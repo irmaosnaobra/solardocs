@@ -151,13 +151,22 @@ function prefixosDaLinha(): string[] {
  * `true` = pode enviar; `false` = estourou, segura pro próximo tick.
  */
 export async function dentroDoTetoHorarioLinha(
-  opts: { transacional?: boolean } = {},
+  opts: { transacional?: boolean; pisoHora?: number; pisoDia?: number } = {},
 ): Promise<boolean> {
   const tetos = await tetosVigentesLinha();
   // Frio não encosta na reserva; transacional usa o dia inteiro.
-  const tetoDia = opts.transacional
+  const tetoDiaBase = opts.transacional
     ? tetos.dia
     : Math.max(1, tetos.dia - Math.min(RESERVA_TRANSACIONAL(), tetos.dia - 1));
+  // PISO PARA TOQUE DO DIA DA REUNIÃO (30/08/2026). Um aviso de reunião que
+  // acontece HOJE não pode ficar preso atrás do orçamento gasto ontem: numa
+  // agenda concentrada (36 reuniões numa segunda) as 24h anteriores já chegam
+  // cheias, e o "bom dia" morria antes do primeiro envio. Quem passa piso aqui é
+  // só quem tem volume LIMITADO PELA AGENDA — não dá pra explodir além do número
+  // de reuniões do dia. O teto por HORA continua sendo o freio de rajada, que é o
+  // que derrubou a linha em agosto; o piso o eleva, não o remove.
+  const tetoHora = Math.max(tetos.hora, opts.pisoHora ?? 0);
+  const tetoDia = Math.max(tetoDiaBase, opts.pisoDia ?? 0);
   const orFilter = prefixosDaLinha().map(p => `key.like.${p}%`).join(',');
 
   const contar = async (janelaMs: number, teto: number): Promise<number> => {
@@ -170,7 +179,7 @@ export async function dentroDoTetoHorarioLinha(
     return data?.length ?? 0;
   };
 
-  if (await contar(60 * 60 * 1000, tetos.hora) >= tetos.hora) return false;
+  if (await contar(60 * 60 * 1000, tetoHora) >= tetoHora) return false;
   // Teto do DIA (24h corridas). Sem ele, 6/h autorizava 144 contatos frios num dia.
   return (await contar(24 * 60 * 60 * 1000, tetoDia)) < tetoDia;
 }

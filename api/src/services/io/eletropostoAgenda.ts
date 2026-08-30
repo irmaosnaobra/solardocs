@@ -113,7 +113,12 @@ const MIN_1H = { de: 45, ate: 75 };
 // 4 horas dão folga, e não custam nada — quem tem reunião às 13h já é barrado pelo
 // MANHA_ANTECEDENCIA_MIN a partir das 11h, então a hora extra serve pros horários
 // de 14h em diante.
-const MANHA = { de: 8, ate: 12 };
+const MANHA = { de: 7, ate: 12 };
+/** Piso do teto da linha só para o bom dia: ele é 1 mensagem por reunião do dia,
+ *  então o volume é limitado pela agenda e não pode explodir. Sem isto, o orçamento
+ *  de 24h gasto na véspera (confirmações) calava o aviso do próprio dia. */
+const MANHA_TETO_HORA = Number(process.env.EP_MANHA_TETO_HORA || 10);
+const MANHA_TETO_DIA = Number(process.env.EP_MANHA_TETO_DIA || 200);
 /** Nunca a menos de 2h da reunião: abaixo disso quem fala é o toque de 1h, e um
  *  "hoje é o dia" 40 minutos antes é ruído.
  *
@@ -221,7 +226,9 @@ const FRESCA_MS = 30 * 60 * 1000;
 // represada a menos de 2h da reunião nunca receber confirmação nenhuma.
 const BACKLOG_POR_TICK = 1;
 const MAX_TOQUES_POR_TICK = 6;
-const JANELA_INICIO_H = 8;
+// 30/08/2026: 7h por ordem do Thiago. Com 36 reuniões num dia só e a primeira às
+// 09:00, a hora extra é o que faz o aviso da manhã caber antes do dia começar.
+const JANELA_INICIO_H = 7;
 const JANELA_FIM_H = 20;
 
 const desligado = () => (process.env.EP_LEMBRETES_OFF || '').trim() === '1';
@@ -936,7 +943,9 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
       // de horário), então é o único que consegue fazer rajada sozinho. Fica
       // atrás do teto anti-ban — como transacional, que é o que ele é: mensagem
       // sobre a reunião que a própria pessoa marcou.
-      if (!opts.dry && !(await dentroDoTetoHorarioLinha({ transacional: true }))) {
+      if (!opts.dry && !(await dentroDoTetoHorarioLinha({
+        transacional: true, pisoHora: MANHA_TETO_HORA, pisoDia: MANHA_TETO_DIA,
+      }))) {
         manhaSegurados++;
         continue;
       }

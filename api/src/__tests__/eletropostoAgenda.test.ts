@@ -566,10 +566,18 @@ describe('bom dia de quem marcou em outro dia', () => {
     expect((await tick()).lembretes_manha).toBe(0);
   });
 
-  // A menos de 2h quem fala é o toque de 1h. "Hoje é o dia" 40 minutos antes é
-  // a mesma informação duas vezes, e o bom dia ainda pediria material.
-  it('reunião perto demais fica pro toque de 1h', async () => {
+  // A folga caiu de 2h pra 1h em 30/08/2026 (ordem do Thiago: "todos têm que
+  // receber essa msg na parte da manhã"). Uma reunião a 1h30 daqui, que antes
+  // ficava só com o toque de 1h, PASSA a receber o bom dia.
+  it('reunião a 1h30 daqui recebe o bom dia', async () => {
     fichas = [fichaDeHoje({ quando: '2026-08-04T13:00:00.000Z' })]; // 1h30 de distância
+    expect((await tick()).lembretes_manha).toBe(1);
+  });
+
+  // Abaixo da folga quem fala é o toque de 1h: "hoje é o dia" 40 minutos antes é
+  // a mesma informação duas vezes.
+  it('reunião perto demais fica pro toque de 1h', async () => {
+    fichas = [fichaDeHoje({ quando: '2026-08-04T12:10:00.000Z' })]; // 40 min de distância
     expect((await tick()).lembretes_manha).toBe(0);
   });
 
@@ -581,9 +589,11 @@ describe('bom dia de quem marcou em outro dia', () => {
   // Este é o único toque que sai em LOTE — todo mundo do dia na mesma faixa de
   // horário. É o único que consegue fazer rajada sozinho, e rajada bloqueou a
   // linha IO duas vezes.
-  it('no máximo 2 por rodada, e nenhum com o teto da linha estourado', async () => {
+  // 3 desde 30/08/2026 (era 2): a agenda passou a caber 36 reuniões num dia só e
+  // o lote de 2 não drenava dentro da janela da manhã.
+  it('no máximo 3 por rodada, e nenhum com o teto da linha estourado', async () => {
     fichas = [1, 2, 3, 4, 5].map(id => fichaDeHoje({ id, cliente_telefone: `553499111000${id}` }));
-    expect((await tick()).lembretes_manha).toBe(2);
+    expect((await tick()).lembretes_manha).toBe(3);
 
     carimbos.length = 0; enviadas.length = 0; tetoLivre = false;
     expect((await tick()).lembretes_manha).toBe(0);
