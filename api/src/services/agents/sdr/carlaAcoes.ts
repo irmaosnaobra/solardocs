@@ -1,14 +1,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// AÇÕES DA CARLA — o que ela DECIDE virando o que o sistema FAZ.
+// AÇÕES DA CARLA, o que ela DECIDE virando o que o sistema FAZ.
 //
 // Por que este arquivo existe. Até 29/08/2026 a Carla só sabia escrever texto:
 // o handler dela reconhecia [ESTAGIO:x] e jogava fora qualquer outro colchete
 // (extractEstagio). A Giovanna, a agente irmã que atende quem JÁ é cliente,
-// tem o oposto — parseTagsResposta lê tags de ação e o handler as executa:
+// tem o oposto, parseTagsResposta lê tags de ação e o handler as executa:
 // manda imagem, gera Pix, chama humano.
 //
-// O preço dessa assimetria está medido. Nos 24 leads de 25–29/08 o cérebro da
-// Carla mandava, na seção 10, "MANDAR IMAGEM — SUA ARMA MAIS FORTE" e listava
+// O preço dessa assimetria está medido. Nos 24 leads de 25 a 29/08 o cérebro da
+// Carla mandava, na seção 10, "MANDAR IMAGEM, SUA ARMA MAIS FORTE" e listava
 // 11 peças "pedidas pela tag". Nenhuma dessas tags existia no código. Três leads
 // pediram para ver a proposta (um deles quatro vezes, e encerrou com "sem
 // análise da proposta fica difícil prosseguir") e os três ouviram que não dava
@@ -17,7 +17,7 @@
 // A regra de projeto aqui é uma só: a agente é livre para AGIR e continua presa
 // para AFIRMAR. Ela escolhe QUANDO mostrar e QUANDO cobrar; ela nunca digita a
 // URL nem o código do Pix. O texto que vai para o cliente sai de constante, e o
-// copia-e-cola sai de gerarPixCopiaECola — determinístico. Modelo escolhendo a
+// copia-e-cola sai de gerarPixCopiaECola, determinístico. Modelo escolhendo a
 // hora é bom; modelo escrevendo chave de pagamento de cabeça é dinheiro do
 // cliente indo para o lugar errado.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -32,7 +32,7 @@ import { porBarras } from '../bolhas';
  * real, não maquete de marketing.
  *
  * Por que Cloudinary e não solardoc.app/tela/*.webp: o WhatsApp trata WEBP como
- * FIGURINHA. As 26 folhas publicadas no domínio são todas .webp — mandar
+ * FIGURINHA. As 26 folhas publicadas no domínio são todas .webp, e mandar
  * qualquer uma delas direto entregaria um sticker no lugar da proposta. A
  * conversão para JPG é feita no Cloudinary (mesma hospedagem que a Giovanna já
  * usa para a imagem do curso), o que também deixa trocar a peça sem deploy.
@@ -52,7 +52,7 @@ export const MIDIA_CARLA: Record<string, PecaCarla> = {
   orcamento_1pagina: {
     url: `${CLOUD}/v1788036736/solardoc/carla/proposta-1pagina.jpg`,
     legenda:
-      'é essa folha aqui. repara que a economia mensal e o tempo de retorno vêm escritos, não em gráfico — o cliente bate o olho e entende. e sai com a sua logo e a sua cor, o nome SolarDoc não aparece em lugar nenhum',
+      'é essa folha aqui. repara que a economia mensal e o tempo de retorno vêm escritos, não em gráfico. o cliente bate o olho e entende. e sai com a sua logo e a sua cor, o nome SolarDoc não aparece em lugar nenhum',
   },
   doc_proposta: {
     url: `${CLOUD}/v1788036765/solardoc/carla/proposta-completa.jpg`,
@@ -86,7 +86,7 @@ export const MIDIA_CARLA: Record<string, PecaCarla> = {
   },
 };
 
-/** Tags aceitas — usada pelo prompt e pelo teste, para as duas pontas não divergirem. */
+/** Tags aceitas, usada pelo prompt e pelo teste, para as duas pontas não divergirem. */
 export const TAGS_MIDIA = Object.keys(MIDIA_CARLA);
 
 // Uma tag por resposta é regra de produto, não limitação técnica: a linha
@@ -104,7 +104,7 @@ export interface AcoesCarla {
   pix: boolean;
   /** Texto sem nenhuma tag, pronto para quebrar em bolhas. */
   limpo: string;
-  /** Tag de imagem que veio escrita mas não existe no catálogo — para log. */
+  /** Tag de imagem que veio escrita mas não existe no catálogo, para log. */
   imagemInvalida: string | null;
 }
 
@@ -112,7 +112,7 @@ export interface AcoesCarla {
  * Lê as tags de ação e devolve o texto limpo.
  *
  * Roda DEPOIS de extractEstagio: [ESTAGIO:x] usa colchete simples e estas usam
- * duplo, então não colidem — mas a ordem importa porque extractEstagio faz
+ * duplo, então não colidem: mas a ordem importa porque extractEstagio faz
  * `replace` só do próprio padrão dele e deixa o resto passar.
  *
  * Toda tag sai do texto mesmo quando é inválida. Tag vazando para o WhatsApp do
@@ -163,7 +163,7 @@ O lead NUNCA vê a tag.
 
 1. MOSTRAR O DOCUMENTO. Escreva UMA destas:
 ${catalogo}
-   A imagem sai depois das suas bolhas, com legenda própria — então NÃO escreva
+   A imagem sai depois das suas bolhas, com legenda própria, então NÃO escreva
    "olha o anexo" nem descreva a folha em palavras. Fale o que importa e deixe a
    peça falar.
    Quando usar: ele perguntou como é a proposta, disse que a atual é feia, pediu
