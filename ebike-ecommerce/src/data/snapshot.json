@@ -1,0 +1,1748 @@
+{
+ "bikes": [
+  {
+   "id": "022a27cd-fc3a-4d96-a882-253920ba9a50",
+   "slug": "scooter-eletrica-b3-1000w-preto-658014",
+   "codigo": "658014",
+   "titulo": "Scooter Elétrica B3 1000W Preto",
+   "nomeOriginal": "PREVISÃO 28/08 - SCOOTER ELETRICA B3 1000W PRETO BATERIA DE GRAFENO 60V 26AH MARCA NEW E-BIKE",
+   "marca": "New E-Bike",
+   "linha": "B3",
+   "cor": "Preto",
+   "categoria": "Scooter elétrica",
+   "potencia": "1000W",
+   "bateria": "Grafeno 60V 26AH",
+   "autonomia": "95 km",
+   "velocidade": "32 km/h",
+   "recarga": "Aproximadamente 6 a 7 horas",
+   "ficha": [
+    {
+     "rotulo": "Marca",
+     "valor": "New E-Bike"
+    },
+    {
+     "rotulo": "Linha",
+     "valor": "B3"
+    },
+    {
+     "rotulo": "Cor",
+     "valor": "Preto"
+    },
+    {
+     "rotulo": "Motor Elétrico",
+     "valor": "1000W"
+    },
+    {
+     "rotulo": "Bateria",
+     "valor": "Grafeno 60V 26AH"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32 km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "95 km"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 6 a 7 horas"
+    },
+    {
+     "rotulo": "Capacidade máxima de carga",
+     "valor": "200 kg"
+    },
+    {
+     "rotulo": "Painel",
+     "valor": "LED sem NFC"
+    },
+    {
+     "rotulo": "Freio Dianteiro",
+     "valor": "Freios"
+    },
+    {
+     "rotulo": "Freio Traseiro",
+     "valor": "Dsico Hidráulico"
+    },
+    {
+     "rotulo": "Pneus/Rodas",
+     "valor": ": 3.0*10 Polegadas sem câmara de ar"
+    },
+    {
+     "rotulo": "Controlador",
+     "valor": "12 MOSFETs"
+    },
+    {
+     "rotulo": "Carregador",
+     "valor": "60V 4A carregador bivolt (100–240V)"
+    },
+    {
+     "rotulo": "Entre-eixos",
+     "valor": "1180mm"
+    },
+    {
+     "rotulo": "Dimensões",
+     "valor": "149x44x83 cm"
+    },
+    {
+     "rotulo": "Peso Líquido",
+     "valor": "101 kg"
+    },
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Grafeno 60V 26AH"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/99d2ac7c-8552-4c7a-b529-f98eb2db6bbc.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/ba50fa3d-1a79-41fe-a18f-75a72cf45315.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/a6cfc3d6-cfc2-4ca4-8381-3c3d4d0c5b48.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/c8485d46-9df2-4f8e-a65b-7df03c467bee.png"
+   ],
+   "estoque": null,
+   "disponivel": false,
+   "previsao": "28/08",
+   "custoEmReais": 5994,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "0b39a368-b873-4ef3-bd9e-05ff9bc66c1d",
+   "slug": "bicicleta-eletrica-advantage-750w-preto-branco-670506",
+   "codigo": "670506",
+   "titulo": "Bicicleta Elétrica Advantage 750W Preto/Branco",
+   "nomeOriginal": "BICICLETA ELETRICA ADVANTAGE 750W PRETO/BRANCO BATERIA DE LITIO 48V 18,2AH MARCA KONNAN",
+   "marca": "Konnan",
+   "linha": null,
+   "cor": null,
+   "categoria": "Bicicleta elétrica",
+   "potencia": null,
+   "bateria": "Litio 48V 18,2AH",
+   "autonomia": "50kms",
+   "velocidade": "32km/h",
+   "recarga": "Aproximadamente 4/6hrs",
+   "ficha": [
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Litio 48V 18,2AH"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "50kms"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 4/6hrs"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/0017da29-d2d3-4418-8f48-9a818b24a4e1.png"
+   ],
+   "estoque": null,
+   "disponivel": true,
+   "previsao": null,
+   "custoEmReais": 3999.9,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "1e841efb-490f-494e-871e-2543e7f27361",
+   "slug": "scooter-eletrica-shark-1000w-vermelho-658013",
+   "codigo": "658013",
+   "titulo": "Scooter Elétrica Shark 1000W Vermelho",
+   "nomeOriginal": "PREVISÃO 25/08 - SCOOTER ELETRICA SHARK 1000W VERMELHO BATERIA DE GRAFENO 72V 26AH MARCA NEW E-BIKE",
+   "marca": "New E-Bike",
+   "linha": "SHARK",
+   "cor": "Vermelho",
+   "categoria": "Scooter elétrica",
+   "potencia": "1.000W",
+   "bateria": "Grafeno 72V 26AH",
+   "autonomia": "95 km",
+   "velocidade": "32 km/h",
+   "recarga": "Aproximadamente 6 a 9 horas",
+   "ficha": [
+    {
+     "rotulo": "Marca",
+     "valor": "New E-Bike"
+    },
+    {
+     "rotulo": "Linha",
+     "valor": "SHARK"
+    },
+    {
+     "rotulo": "Cor",
+     "valor": "Vermelho"
+    },
+    {
+     "rotulo": "Motor Elétrico",
+     "valor": "1.000W"
+    },
+    {
+     "rotulo": "Bateria",
+     "valor": "Grafeno 72V 26AH"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32 km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "95 km"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 6 a 9 horas"
+    },
+    {
+     "rotulo": "Capacidade máxima de carga",
+     "valor": "200 kg"
+    },
+    {
+     "rotulo": "Marchas",
+     "valor": "3 velocidades"
+    },
+    {
+     "rotulo": "Painel",
+     "valor": "LED sem NFC"
+    },
+    {
+     "rotulo": "Freio Dianteiro",
+     "valor": "Hidráulico"
+    },
+    {
+     "rotulo": "Freio Traseiro",
+     "valor": "Disco"
+    },
+    {
+     "rotulo": "Pneus/Rodas",
+     "valor": "Pneu sem câmara (tubeless) 3.0-10\" Polegadas"
+    },
+    {
+     "rotulo": "Controlador",
+     "valor": "12 tubos"
+    },
+    {
+     "rotulo": "Carregador",
+     "valor": "72V 3A Bivolt (100-240V)"
+    },
+    {
+     "rotulo": "Entre-eixos",
+     "valor": "1.290 mm"
+    },
+    {
+     "rotulo": "Dimensões",
+     "valor": "183x57x86 cm"
+    },
+    {
+     "rotulo": "Peso Líquido",
+     "valor": "118 kg"
+    },
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Grafeno 72V 26AH"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/c62f3751-74f5-4703-970a-e9866011f79f.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/f84d7d6a-de4a-413e-9af8-e75680322f26.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/1b3eadeb-7506-4d5c-aaf9-9d04a0a3646f.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/db7a12f9-8655-464e-bcc4-5315b3af23fa.png"
+   ],
+   "estoque": null,
+   "disponivel": false,
+   "previsao": "25/08",
+   "custoEmReais": 6750,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "2ae662ce-91e5-4189-a046-3faa2b0dd98e",
+   "slug": "bicicleta-eletrica-advantage-750w-preto-cinza-670572",
+   "codigo": "670572",
+   "titulo": "Bicicleta Elétrica Advantage 750W Preto/Cinza",
+   "nomeOriginal": "BICICLETA ELETRICA ADVANTAGE 750W PRETO/CINZA BATERIA DE LITIO 48V 18,2AH MARCA KONNAN",
+   "marca": "Konnan",
+   "linha": null,
+   "cor": null,
+   "categoria": "Bicicleta elétrica",
+   "potencia": null,
+   "bateria": "Litio 48V 18,2AH",
+   "autonomia": "50kms",
+   "velocidade": "32km/h",
+   "recarga": "Aproximadamente 4/6hrs",
+   "ficha": [
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Litio 48V 18,2AH"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "50kms"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 4/6hrs"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/837d3cde-57f2-4087-86a7-65b7fec9b3bd.png"
+   ],
+   "estoque": null,
+   "disponivel": true,
+   "previsao": null,
+   "custoEmReais": 3999.9,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "2db8dd91-4d6c-469c-861f-a39092571764",
+   "slug": "bicicleta-eletrica-advantage-750w-cinza-vermelho-670734",
+   "codigo": "670734",
+   "titulo": "Bicicleta Elétrica Advantage 750W Cinza/Vermelho",
+   "nomeOriginal": "BICICLETA ELETRICA ADVANTAGE 750W CINZA/VERMELHO BATERIA DE LITIO 48V 18,2AH MARCA KONNAN",
+   "marca": "Konnan",
+   "linha": null,
+   "cor": null,
+   "categoria": "Bicicleta elétrica",
+   "potencia": null,
+   "bateria": "Litio 48V 18,2AH",
+   "autonomia": "50kms",
+   "velocidade": "32km/h",
+   "recarga": "Aproximadamente 4/6hrs",
+   "ficha": [
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Litio 48V 18,2AH"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "50kms"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 4/6hrs"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/63479249-97ac-4cc7-9cec-9a59d23556ac.png"
+   ],
+   "estoque": null,
+   "disponivel": true,
+   "previsao": null,
+   "custoEmReais": 3999.9,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "2ddc2845-9a14-4764-b11f-a19499bd6915",
+   "slug": "bicicleta-eletrica-voyager-750w-preto-vermelho-670773",
+   "codigo": "670773",
+   "titulo": "Bicicleta Elétrica Voyager 750W Preto/Vermelho",
+   "nomeOriginal": "BICICLETA ELETRICA VOYAGER 750W PRETO/VERMELHO BATERIA DE LITIO 48V 18,2AH MARCA KONNAN",
+   "marca": "Konnan",
+   "linha": null,
+   "cor": null,
+   "categoria": "Bicicleta elétrica",
+   "potencia": null,
+   "bateria": "Litio 48V 18,2AH",
+   "autonomia": "50kms",
+   "velocidade": "32km/h",
+   "recarga": "Aproximadamente 4/6hrs",
+   "ficha": [
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Litio 48V 18,2AH"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "50kms"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 4/6hrs"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/57654951-0897-4bb3-a07a-3c68a8f2ddc5.png"
+   ],
+   "estoque": null,
+   "disponivel": true,
+   "previsao": null,
+   "custoEmReais": 4999.9,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "360fde46-f7b7-4a4d-906a-c9cf46362004",
+   "slug": "bicicleta-eletrica-voyager-750w-preto-verde-670768",
+   "codigo": "670768",
+   "titulo": "Bicicleta Elétrica Voyager 750W Preto/Verde",
+   "nomeOriginal": "BICICLETA ELETRICA VOYAGER 750W PRETO/VERDE BATERIA DE LITIO 48V - LE-152",
+   "marca": "Konnan",
+   "linha": null,
+   "cor": null,
+   "categoria": "Bicicleta elétrica",
+   "potencia": null,
+   "bateria": "Litio 48v 18,2ah",
+   "autonomia": "50kms",
+   "velocidade": "32km/h",
+   "recarga": "Aproximadamente 4/6hrs",
+   "ficha": [
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Litio 48v 18,2ah"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "50kms"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 4/6hrs"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/ed2eb45a-d5ad-4dfd-ba72-4eeef8c78e53.png"
+   ],
+   "estoque": null,
+   "disponivel": true,
+   "previsao": null,
+   "custoEmReais": 4999.9,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "3a117408-6758-4efc-bb52-7bad99674e46",
+   "slug": "bicicleta-eletrica-fast-trail-750w-preto-branco-658033",
+   "codigo": "658033",
+   "titulo": "Bicicleta Elétrica Fast Trail 750W Preto/Branco",
+   "nomeOriginal": "BICICLETA ELETRICA FAST TRAIL 750W PRETO/BRANCO BATERIA DE LITIO 48V MARCA KONNAN - PX-FT04",
+   "marca": "Konnan",
+   "linha": null,
+   "cor": null,
+   "categoria": "Bicicleta elétrica",
+   "potencia": null,
+   "bateria": "Litio 48v 18,2ah",
+   "autonomia": "50kms",
+   "velocidade": "32km/h",
+   "recarga": "Aproximadamente 4/6hrs",
+   "ficha": [
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Litio 48v 18,2ah"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "50kms"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 4/6hrs"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/92f363ca-1769-4588-91db-f5e11bc4d010.png"
+   ],
+   "estoque": null,
+   "disponivel": true,
+   "previsao": null,
+   "custoEmReais": 3999.9,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "3db237c7-8fc4-4301-9ac5-574b033aec6f",
+   "slug": "scooter-eletrica-cappuccino-1000w-rosa-bege-662429",
+   "codigo": "662429",
+   "titulo": "Scooter Elétrica Cappuccino 1000W Rosa/Bege",
+   "nomeOriginal": "PREVISÃO 05/09 - SCOOTER ELETRICA CAPPUCCINO 1000W ROSA/BEGE BATERIA DE LITIO 60V 20AH MARCA NEW E-BIKE",
+   "marca": "New E-Bike",
+   "linha": "Cappuccino",
+   "cor": "Rosa/Bege",
+   "categoria": "Scooter elétrica",
+   "potencia": "1.000W",
+   "bateria": "Lítio 60V 20AH",
+   "autonomia": "60-80 km",
+   "velocidade": "32 km/h",
+   "recarga": "Aproximadamente 6 horas",
+   "ficha": [
+    {
+     "rotulo": "Marca",
+     "valor": "New E-Bike"
+    },
+    {
+     "rotulo": "Linha",
+     "valor": "Cappuccino"
+    },
+    {
+     "rotulo": "Cor",
+     "valor": "Rosa/Bege"
+    },
+    {
+     "rotulo": "Motor Elétrico",
+     "valor": "1.000W"
+    },
+    {
+     "rotulo": "Bateria",
+     "valor": "Lítio 60V 20AH"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32 km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "60-80 km"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 6 horas"
+    },
+    {
+     "rotulo": "Capacidade máxima de carga",
+     "valor": "180 kg"
+    },
+    {
+     "rotulo": "Marchas",
+     "valor": "3 velocidades"
+    },
+    {
+     "rotulo": "Painel",
+     "valor": "NFC"
+    },
+    {
+     "rotulo": "Freio Dianteiro",
+     "valor": "Disco"
+    },
+    {
+     "rotulo": "Freio Traseiro",
+     "valor": "Tambor"
+    },
+    {
+     "rotulo": "Pneus/Rodas",
+     "valor": "3.0-10\" Polegadas"
+    },
+    {
+     "rotulo": "Controlador",
+     "valor": "12 tubos"
+    },
+    {
+     "rotulo": "Carregador",
+     "valor": "60V 3A Bivolt (100-240V)"
+    },
+    {
+     "rotulo": "Entre-eixos",
+     "valor": "1.285 mm"
+    },
+    {
+     "rotulo": "Dimensões",
+     "valor": "165x45x87 cm"
+    },
+    {
+     "rotulo": "Peso Líquido",
+     "valor": "66 kg"
+    },
+    {
+     "rotulo": "CÓD",
+     "valor": "662429"
+    },
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Lítio 60V 20AH"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/d0b7eece-ee06-4b34-a5c2-d781c5099e00.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/9dd5fddf-8510-4653-85d0-bb4e37ed0f1f.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/bb038fa2-ed59-4088-9155-5d76601afe36.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/6f66b8f3-0bf5-4089-928c-c02d58f000ee.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/0156b87d-7af9-4214-bb0d-bb05a875d58c.png"
+   ],
+   "estoque": null,
+   "disponivel": false,
+   "previsao": "05/09",
+   "custoEmReais": 5990,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "5ef4f60c-2ba1-4572-8e9f-554a6c5bdafd",
+   "slug": "bicicleta-eletrica-advantage-750w-preto-vermelho-670714",
+   "codigo": "670714",
+   "titulo": "Bicicleta Elétrica Advantage 750W Preto/Vermelho",
+   "nomeOriginal": "BICICLETA ELETRICA ADVANTAGE 750W PRETO/VERMELHO BATERIA DE LITIO 48V 18,2AH MARCA KONNAN",
+   "marca": "Konnan",
+   "linha": null,
+   "cor": null,
+   "categoria": "Bicicleta elétrica",
+   "potencia": null,
+   "bateria": "Litio 48V 18,2AH",
+   "autonomia": "50kms",
+   "velocidade": "32km/h",
+   "recarga": "Aproximadamente 4/6hrs",
+   "ficha": [
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Litio 48V 18,2AH"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "50kms"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 4/6hrs"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/3d1fc7b4-7125-49ff-ab3d-97817fff853f.png"
+   ],
+   "estoque": null,
+   "disponivel": true,
+   "previsao": null,
+   "custoEmReais": 3999.9,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "61757ede-cc4b-4043-8940-789abb35c08a",
+   "slug": "bicicleta-eletrica-fast-trail-750w-preto-azul-658032",
+   "codigo": "658032",
+   "titulo": "Bicicleta Elétrica Fast Trail 750W Preto/Azul",
+   "nomeOriginal": "BICICLETA ELETRICA FAST TRAIL 750W PRETO/AZUL BATERIA DE LITIO 48V  18,2AH MARCA KONNAN",
+   "marca": "Konnan",
+   "linha": null,
+   "cor": null,
+   "categoria": "Bicicleta elétrica",
+   "potencia": null,
+   "bateria": "Litio 48V 18,2AH",
+   "autonomia": "50kms",
+   "velocidade": "32km/h",
+   "recarga": "Aproximadamente 4/6hrs",
+   "ficha": [
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Litio 48V 18,2AH"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "50kms"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 4/6hrs"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/acbe8bd8-8bae-4eb7-ba59-b6b1e690bf83.png"
+   ],
+   "estoque": null,
+   "disponivel": true,
+   "previsao": null,
+   "custoEmReais": 3999.9,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "6878f513-23aa-43e3-91f8-ea7d4e45d9cd",
+   "slug": "scooter-eletrica-mg-16-1000w-bandeira-inglesa-573632",
+   "codigo": "573632",
+   "titulo": "Scooter Elétrica MG-16 1000W Bandeira Inglesa",
+   "nomeOriginal": "SCOOTER ELETRICA MG-16 1000W BANDEIRA INGLESA BATERIA DE LITIO 48V MARCA GTS - DG-232",
+   "marca": "GTS",
+   "linha": null,
+   "cor": null,
+   "categoria": "Scooter elétrica",
+   "potencia": null,
+   "bateria": "Litio 48v 18,2ah",
+   "autonomia": "45kms",
+   "velocidade": "32km/h",
+   "recarga": "Aproximadamente 5/6hrs",
+   "ficha": [
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Litio 48v 18,2ah"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "45kms"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 5/6hrs"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/9c7343e3-1dab-4a06-ac6f-a59347a92f34.jpeg",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/7670aaf8-d2c4-43b8-9b71-3656430e8fbf.jpeg",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/6e3ed1dc-ed49-4074-a9c9-b379182e4b30.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/3441909d-c54a-4ea9-9dfa-b009d93eddb5.png"
+   ],
+   "estoque": null,
+   "disponivel": true,
+   "previsao": null,
+   "custoEmReais": 5990,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "79adfee3-2d89-490e-81a4-941eb3dd20da",
+   "slug": "scooter-eletrica-cappuccino-1000w-verde-bege-662470",
+   "codigo": "662470",
+   "titulo": "Scooter Elétrica Cappuccino 1000W Verde/Bege",
+   "nomeOriginal": "PREVISÃO 05/09 - SCOOTER ELETRICA CAPPUCCINO 1000W VERDE/BEGE BATERIA DE LITIO 60V 20AH MARCA NEW E-BIKE",
+   "marca": "New E-Bike",
+   "linha": "Cappuccino",
+   "cor": "Verde/Bege",
+   "categoria": "Scooter elétrica",
+   "potencia": "1.000W",
+   "bateria": "Lítio 60V 20AH",
+   "autonomia": "60-80 km",
+   "velocidade": "32 km/h",
+   "recarga": "Aproximadamente 6 horas",
+   "ficha": [
+    {
+     "rotulo": "Marca",
+     "valor": "New E-Bike"
+    },
+    {
+     "rotulo": "Linha",
+     "valor": "Cappuccino"
+    },
+    {
+     "rotulo": "Cor",
+     "valor": "Verde/Bege"
+    },
+    {
+     "rotulo": "Motor Elétrico",
+     "valor": "1.000W"
+    },
+    {
+     "rotulo": "Bateria",
+     "valor": "Lítio 60V 20AH"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32 km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "60-80 km"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 6 horas"
+    },
+    {
+     "rotulo": "Capacidade máxima de carga",
+     "valor": "180 kg"
+    },
+    {
+     "rotulo": "Marchas",
+     "valor": "3 velocidades"
+    },
+    {
+     "rotulo": "Painel",
+     "valor": "NFC"
+    },
+    {
+     "rotulo": "Freio Dianteiro",
+     "valor": "Disco"
+    },
+    {
+     "rotulo": "Freio Traseiro",
+     "valor": "Tambor"
+    },
+    {
+     "rotulo": "Pneus/Rodas",
+     "valor": "3.0-10\" Polegadas"
+    },
+    {
+     "rotulo": "Controlador",
+     "valor": "12 tubos"
+    },
+    {
+     "rotulo": "Carregador",
+     "valor": "60V 3A Bivolt (100-240V)"
+    },
+    {
+     "rotulo": "Entre-eixos",
+     "valor": "1.285 mm"
+    },
+    {
+     "rotulo": "Dimensões",
+     "valor": "165x45x87 cm"
+    },
+    {
+     "rotulo": "Peso Líquido",
+     "valor": "66 kg"
+    },
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Lítio 60V 20AH"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/ddca118f-87df-4564-8aa3-8a509ecff408.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/6bfa7679-380b-4741-9a38-cd3ead0d8b4a.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/bb23f587-db52-4049-ab33-8925ab4b0491.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/d8b218fd-8d53-4cd3-a9a2-0b4525d351ae.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/2d906f97-19ba-4237-a7e1-99e8fd91320c.png"
+   ],
+   "estoque": null,
+   "disponivel": false,
+   "previsao": "05/09",
+   "custoEmReais": 5990,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "7a829020-abcc-4fe2-a6c0-3bbc2daeb11c",
+   "slug": "bicicleta-eletrica-advantage-750w-cinza-laranja-670729",
+   "codigo": "670729",
+   "titulo": "Bicicleta Elétrica Advantage 750W Cinza/Laranja",
+   "nomeOriginal": "BICICLETA ELETRICA ADVANTAGE 750W CINZA/LARANJA BATERIA DE LITIO 48V 18,2AH MARCA KONNAN",
+   "marca": "Konnan",
+   "linha": null,
+   "cor": null,
+   "categoria": "Bicicleta elétrica",
+   "potencia": null,
+   "bateria": "Litio 48V 18,2AH",
+   "autonomia": "50kms",
+   "velocidade": "32km/h",
+   "recarga": "Aproximadamente 4/6hrs",
+   "ficha": [
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Litio 48V 18,2AH"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "50kms"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 4/6hrs"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/843be845-1e90-468e-ae7c-6fc224e6058d.png"
+   ],
+   "estoque": null,
+   "disponivel": true,
+   "previsao": null,
+   "custoEmReais": 3999.9,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "842c9118-5cb2-4d80-b687-fa9305a84774",
+   "slug": "bicicleta-black-fish-500w-preto-695723",
+   "codigo": "695723",
+   "titulo": "Bicicleta Black Fish 500W Preto",
+   "nomeOriginal": "BICICLETA BLACK FISH 500W PRETO BATERIA DE CHUMBO 48V 12AH MARCA GTS",
+   "marca": "GTS",
+   "linha": null,
+   "cor": null,
+   "categoria": "Bicicleta elétrica",
+   "potencia": null,
+   "bateria": "Chumbo Acido 48V 12AH",
+   "autonomia": "25/30kms",
+   "velocidade": "32km/h",
+   "recarga": "Aproximadamente 6hrs",
+   "ficha": [
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Chumbo Acido 48V 12AH"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "25/30kms"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 6hrs"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/bd352494-e557-4bdc-a2b5-2531fab54ab0.png"
+   ],
+   "estoque": null,
+   "disponivel": true,
+   "previsao": null,
+   "custoEmReais": 2990,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "8e99461d-c738-42bd-afb4-204930491a67",
+   "slug": "scooter-eletrica-h9-1000w-preto-prata-661424",
+   "codigo": "661424",
+   "titulo": "Scooter Elétrica H9 1000W Preto/Prata",
+   "nomeOriginal": "PREVISÃO 05/09 - SCOOTER ELETRICA H9 1000W PRETO/PRATA  BATERIA DE LITIO 60V 20AH MARCA NEW E-BIKE",
+   "marca": "New E-Bike",
+   "linha": "H9",
+   "cor": "Preto/Prata",
+   "categoria": "Scooter elétrica",
+   "potencia": "1.000W",
+   "bateria": "Lítio 60V 20AH",
+   "autonomia": "60-80 km",
+   "velocidade": "32 km/h",
+   "recarga": "Aproximadamente 6 horas",
+   "ficha": [
+    {
+     "rotulo": "Marca",
+     "valor": "New E-Bike"
+    },
+    {
+     "rotulo": "Linha",
+     "valor": "H9"
+    },
+    {
+     "rotulo": "Cor",
+     "valor": "Preto/Prata"
+    },
+    {
+     "rotulo": "Motor Elétrico",
+     "valor": "1.000W"
+    },
+    {
+     "rotulo": "Bateria",
+     "valor": "Lítio 60V 20AH"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32 km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "60-80 km"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 6 horas"
+    },
+    {
+     "rotulo": "Capacidade máxima de carga",
+     "valor": "180 kg"
+    },
+    {
+     "rotulo": "Marchas",
+     "valor": "3 Velocidades"
+    },
+    {
+     "rotulo": "Painel",
+     "valor": "LED"
+    },
+    {
+     "rotulo": "Freio Dianteiro",
+     "valor": "Disco"
+    },
+    {
+     "rotulo": "Freio Traseiro",
+     "valor": "Tambor"
+    },
+    {
+     "rotulo": "Pneus/Rodas",
+     "valor": "3.0-20\" Polegadas"
+    },
+    {
+     "rotulo": "Controlador",
+     "valor": "12 tubos"
+    },
+    {
+     "rotulo": "Carregador",
+     "valor": "60V 3A Bivolt (100-240V)"
+    },
+    {
+     "rotulo": "Entre-eixos",
+     "valor": "1.290 mm"
+    },
+    {
+     "rotulo": "Dimensões",
+     "valor": "165x45x87 cm"
+    },
+    {
+     "rotulo": "Peso Líquido",
+     "valor": "71 kg"
+    },
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Lítio 60V 20AH"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/92fb4600-d4f5-4a8e-bc71-e1e2b357ff40.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/996d0927-6c18-476a-9569-91068caaff62.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/dc7cf9a9-3f24-4c31-877d-a0f2158ccffe.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/0795fb9a-26c5-4ee2-b33f-f390bc031c5e.png"
+   ],
+   "estoque": null,
+   "disponivel": false,
+   "previsao": "05/09",
+   "custoEmReais": 5999.01,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "92703aa4-2e01-4047-9597-b1eee94c847a",
+   "slug": "scooter-eletrica-cappuccino-1000w-vermelho-bege-662438",
+   "codigo": "662438",
+   "titulo": "Scooter Elétrica Cappuccino 1000W Vermelho/Bege",
+   "nomeOriginal": "PREVISÃO 05/09 - SCOOTER ELETRICA CAPPUCCINO 1000W VERMELHO/BEGE BATERIA DE LITIO 60V 20AH MARCA NEW E-BIKE",
+   "marca": "New E-Bike",
+   "linha": "Cappuccino",
+   "cor": "Vermelho/Bege",
+   "categoria": "Scooter elétrica",
+   "potencia": "1.000W",
+   "bateria": "Lítio 60V 20AH",
+   "autonomia": "60-80 km",
+   "velocidade": "32 km/h",
+   "recarga": "Aproximadamente 6 horas",
+   "ficha": [
+    {
+     "rotulo": "Marca",
+     "valor": "New E-Bike"
+    },
+    {
+     "rotulo": "Linha",
+     "valor": "Cappuccino"
+    },
+    {
+     "rotulo": "Cor",
+     "valor": "Vermelho/Bege"
+    },
+    {
+     "rotulo": "Motor Elétrico",
+     "valor": "1.000W"
+    },
+    {
+     "rotulo": "Bateria",
+     "valor": "Lítio 60V 20AH"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32 km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "60-80 km"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 6 horas"
+    },
+    {
+     "rotulo": "Capacidade máxima de carga",
+     "valor": "180 kg"
+    },
+    {
+     "rotulo": "Marchas",
+     "valor": "3 velocidades"
+    },
+    {
+     "rotulo": "Painel",
+     "valor": "NFC"
+    },
+    {
+     "rotulo": "Freio Dianteiro",
+     "valor": "Disco"
+    },
+    {
+     "rotulo": "Freio Traseiro",
+     "valor": "Tambor"
+    },
+    {
+     "rotulo": "Pneus/Rodas",
+     "valor": "3.0-10\" Polegadas"
+    },
+    {
+     "rotulo": "Controlador",
+     "valor": "12 tubos"
+    },
+    {
+     "rotulo": "Carregador",
+     "valor": "60V 3A Bivolt (100-240V)"
+    },
+    {
+     "rotulo": "Entre-eixos",
+     "valor": "1.285 mm"
+    },
+    {
+     "rotulo": "Dimensões",
+     "valor": "165x45x87 cm"
+    },
+    {
+     "rotulo": "Peso Líquido",
+     "valor": "66 kg"
+    },
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Lítio 60V 20AH"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/833cdcbe-e175-473b-a52c-b45c26da55a7.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/b72dfc2d-4689-4756-a065-3a2473813f8a.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/902388a3-a06b-4076-97b4-5183be202e8f.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/2e3441bc-47b6-41a8-8e06-30c0bc0ffd82.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/4817bafa-cd97-4b81-8715-603ea20c433d.png"
+   ],
+   "estoque": null,
+   "disponivel": false,
+   "previsao": "05/09",
+   "custoEmReais": 5990,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "96bf81b3-1ead-457b-b07f-68edd091f28f",
+   "slug": "bicicleta-eletrica-voyager-750w-preto-laranja-670763",
+   "codigo": "670763",
+   "titulo": "Bicicleta Elétrica Voyager 750W Preto/Laranja",
+   "nomeOriginal": "BICICLETA ELETRICA VOYAGER 750W PRETO/LARANJA BATERIA DE LITIO 48V - LE-150",
+   "marca": "Konnan",
+   "linha": null,
+   "cor": null,
+   "categoria": "Bicicleta elétrica",
+   "potencia": null,
+   "bateria": "Litio 48v 18,2ah",
+   "autonomia": "50kms",
+   "velocidade": "32km/h",
+   "recarga": "Aproximadamente 4/6hrs",
+   "ficha": [
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Litio 48v 18,2ah"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "50kms"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 4/6hrs"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/bc4016ed-cb16-4067-ae3e-ff246fc9fa70.png"
+   ],
+   "estoque": null,
+   "disponivel": true,
+   "previsao": null,
+   "custoEmReais": 4999.9,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "a7119466-b496-4ffd-a732-c4480316a667",
+   "slug": "bicicleta-eletrica-advantage-750w-preto-laranja-670631",
+   "codigo": "670631",
+   "titulo": "Bicicleta Elétrica Advantage 750W Preto/Laranja",
+   "nomeOriginal": "BICICLETA ELETRICA ADVANTAGE 750W PRETO/LARANJA BATERIA DE LITIO 48V 18,2AH MARCA KONNAN",
+   "marca": "Konnan",
+   "linha": null,
+   "cor": null,
+   "categoria": "Bicicleta elétrica",
+   "potencia": null,
+   "bateria": "Litio 48V 18,2AH",
+   "autonomia": "50kms",
+   "velocidade": "32km/h",
+   "recarga": "Aproximadamente 4/6hrs",
+   "ficha": [
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Litio 48V 18,2AH"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "50kms"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 4/6hrs"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/ac83d6bc-aaf2-4e83-a8d6-e9112f022fc5.png"
+   ],
+   "estoque": null,
+   "disponivel": true,
+   "previsao": null,
+   "custoEmReais": 3999.9,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "b1164895-5555-4d7e-96aa-4a88ac1a0efa",
+   "slug": "bicicleta-black-fish-500w-preto-bege-695730",
+   "codigo": "695730",
+   "titulo": "Bicicleta Black Fish 500W Preto/Bege",
+   "nomeOriginal": "BICICLETA BLACK FISH 500W PRETO/BEGE BATERIA DE CHUMBO 48V 12AH MARCA GTS",
+   "marca": "GTS",
+   "linha": null,
+   "cor": null,
+   "categoria": "Bicicleta elétrica",
+   "potencia": null,
+   "bateria": "Chumbo Acido 48V 12AH",
+   "autonomia": "25/30kms",
+   "velocidade": "32km/h",
+   "recarga": "Aproximadamente 6hrs",
+   "ficha": [
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Chumbo Acido 48V 12AH"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "25/30kms"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 6hrs"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/30d88a0c-29ec-490b-b505-3575d2e55be8.png"
+   ],
+   "estoque": null,
+   "disponivel": true,
+   "previsao": null,
+   "custoEmReais": 2990,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "b7356b46-c0b6-47e2-89a0-dac3a361b0dc",
+   "slug": "scooter-eletrica-shark-1000w-amarelo-658009",
+   "codigo": "658009",
+   "titulo": "Scooter Elétrica Shark 1000W Amarelo",
+   "nomeOriginal": "PREVISÃO 25/08 - SCOOTER ELETRICA SHARK 1000W AMARELO BATERIA DE GRAFENO 72V 26AH MARCA NEW E-BIKE",
+   "marca": "New E-Bike",
+   "linha": "SHARK",
+   "cor": "Amarelo",
+   "categoria": "Scooter elétrica",
+   "potencia": "1.000W",
+   "bateria": "Grafeno 72V 26AH",
+   "autonomia": "95 km",
+   "velocidade": "32 km/h",
+   "recarga": "Aproximadamente 6 a 9 horas",
+   "ficha": [
+    {
+     "rotulo": "Marca",
+     "valor": "New E-Bike"
+    },
+    {
+     "rotulo": "Linha",
+     "valor": "SHARK"
+    },
+    {
+     "rotulo": "Cor",
+     "valor": "Amarelo"
+    },
+    {
+     "rotulo": "Motor Elétrico",
+     "valor": "1.000W"
+    },
+    {
+     "rotulo": "Bateria",
+     "valor": "Grafeno 72V 26AH"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32 km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "95 km"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 6 a 9 horas"
+    },
+    {
+     "rotulo": "Capacidade máxima de carga",
+     "valor": "200 kg"
+    },
+    {
+     "rotulo": "Marchas",
+     "valor": "3 velocidades"
+    },
+    {
+     "rotulo": "Painel",
+     "valor": "LED sem NFC"
+    },
+    {
+     "rotulo": "Freio Dianteiro",
+     "valor": "Hidráulico"
+    },
+    {
+     "rotulo": "Freio Traseiro",
+     "valor": "Disco"
+    },
+    {
+     "rotulo": "Pneus/Rodas",
+     "valor": "Pneu sem câmara (tubeless) 3.0-10\" Polegadas"
+    },
+    {
+     "rotulo": "Controlador",
+     "valor": "12 tubos"
+    },
+    {
+     "rotulo": "Carregador",
+     "valor": "72V 3A Bivolt (100-240V)"
+    },
+    {
+     "rotulo": "Entre-eixos",
+     "valor": "1.290 mm"
+    },
+    {
+     "rotulo": "Dimensões",
+     "valor": "183x57x86 cm"
+    },
+    {
+     "rotulo": "Peso Líquido",
+     "valor": "118 kg"
+    },
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Grafeno 72V 26AH"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/b8e10712-c9b0-4caa-87f6-ca00cf90f95a.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/2f22d277-0d85-4e92-8b2f-54d1f57a257d.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/3a0eb443-7d78-41c9-8e0e-2de360650bb5.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/837e15ac-8f38-4316-83dc-4caad7749b2b.png"
+   ],
+   "estoque": null,
+   "disponivel": false,
+   "previsao": "25/08",
+   "custoEmReais": 6750,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "c219236f-f728-4458-81c2-3ed20663dd6d",
+   "slug": "scooter-eletrica-b3-1000w-verde-658015",
+   "codigo": "658015",
+   "titulo": "Scooter Elétrica B3 1000W Verde",
+   "nomeOriginal": "PREVISÃO 28/08 - SCOOTER ELETRICA B3 1000W VERDE BATERIA DE GRAFENO 60V 26AH MARCA NEW E-BIKE",
+   "marca": "New E-Bike",
+   "linha": "B3",
+   "cor": "Verde",
+   "categoria": "Scooter elétrica",
+   "potencia": "1000W",
+   "bateria": "Grafeno 60V 26AH",
+   "autonomia": "95 km",
+   "velocidade": "32 km/h",
+   "recarga": "Aproximadamente 6 a 7 horas",
+   "ficha": [
+    {
+     "rotulo": "Marca",
+     "valor": "New E-Bike"
+    },
+    {
+     "rotulo": "Linha",
+     "valor": "B3"
+    },
+    {
+     "rotulo": "Cor",
+     "valor": "Verde"
+    },
+    {
+     "rotulo": "Motor Elétrico",
+     "valor": "1000W"
+    },
+    {
+     "rotulo": "Bateria",
+     "valor": "Grafeno 60V 26AH"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32 km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "95 km"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 6 a 7 horas"
+    },
+    {
+     "rotulo": "Capacidade máxima de carga",
+     "valor": "200 kg"
+    },
+    {
+     "rotulo": "Painel",
+     "valor": "LED sem NFC"
+    },
+    {
+     "rotulo": "Freio Dianteiro",
+     "valor": "Freios"
+    },
+    {
+     "rotulo": "Freio Traseiro",
+     "valor": "Disco Hidráulico"
+    },
+    {
+     "rotulo": "Pneus/Rodas",
+     "valor": ": 3.0*10 Polegadas sem câmara de ar"
+    },
+    {
+     "rotulo": "Controlador",
+     "valor": "12 MOSFETs"
+    },
+    {
+     "rotulo": "Carregador",
+     "valor": "60V 4A carregador bivolt (100–240V)"
+    },
+    {
+     "rotulo": "Entre-eixos",
+     "valor": "1180mm"
+    },
+    {
+     "rotulo": "Dimensões",
+     "valor": "149x44x83 cm"
+    },
+    {
+     "rotulo": "Peso Líquido",
+     "valor": "101 kg"
+    },
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Grafeno 60V 26AH"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/f59dac0f-4f16-41f0-8ac9-ee5513feba57.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/90ede77c-54cf-457d-af9b-9e91f24cdf39.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/35c87cc1-e284-40cf-8977-86e50dc292dd.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/1015dd4a-27c1-4731-941b-4aa0e41dba16.png"
+   ],
+   "estoque": null,
+   "disponivel": false,
+   "previsao": "28/08",
+   "custoEmReais": 5994,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "c736de97-a0f4-40dd-bed9-3d6f3847bc1a",
+   "slug": "bicicleta-eletrica-voyager-750w-preto-branco-670750",
+   "codigo": "670750",
+   "titulo": "Bicicleta Elétrica Voyager 750W Preto/Branco",
+   "nomeOriginal": "BICICLETA ELETRICA VOYAGER 750W PRETO/BRANCO BATERIA DE LITIO 48V - LE-151",
+   "marca": "Konnan",
+   "linha": null,
+   "cor": null,
+   "categoria": "Bicicleta elétrica",
+   "potencia": null,
+   "bateria": "Litio 48v 18,2ah",
+   "autonomia": "50kms",
+   "velocidade": "32km/h",
+   "recarga": "Aproximadamente 4/6hrs",
+   "ficha": [
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Litio 48v 18,2ah"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "50kms"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 4/6hrs"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/7e22bc78-02bb-4cdc-9ea3-c3eb812fdd8e.png"
+   ],
+   "estoque": null,
+   "disponivel": true,
+   "previsao": null,
+   "custoEmReais": 4999.9,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "d0b09fb4-759b-4fe5-a563-acf910801ded",
+   "slug": "scooter-eletrica-cappuccino-1000w-bege-662443",
+   "codigo": "662443",
+   "titulo": "Scooter Elétrica Cappuccino 1000W Bege",
+   "nomeOriginal": "PREVISÃO 05/09 - SCOOTER ELETRICA CAPPUCCINO 1000W BEGE BATERIA DE LITIO 60V 20AH MARCA NEW E-BIKE",
+   "marca": "New E-Bike",
+   "linha": "Cappuccino",
+   "cor": "Rosa/Bege",
+   "categoria": "Scooter elétrica",
+   "potencia": "1.000W",
+   "bateria": "Lítio 60V 20AH",
+   "autonomia": "60-80 km",
+   "velocidade": "32 km/h",
+   "recarga": "Aproximadamente 6 horas",
+   "ficha": [
+    {
+     "rotulo": "Marca",
+     "valor": "New E-Bike"
+    },
+    {
+     "rotulo": "Linha",
+     "valor": "Cappuccino"
+    },
+    {
+     "rotulo": "Cor",
+     "valor": "Rosa/Bege"
+    },
+    {
+     "rotulo": "Motor Elétrico",
+     "valor": "1.000W"
+    },
+    {
+     "rotulo": "Bateria",
+     "valor": "Lítio 60V 20AH"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32 km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "60-80 km"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 6 horas"
+    },
+    {
+     "rotulo": "Capacidade máxima de carga",
+     "valor": "180 kg"
+    },
+    {
+     "rotulo": "Marchas",
+     "valor": "3 velocidades"
+    },
+    {
+     "rotulo": "Painel",
+     "valor": "NFC"
+    },
+    {
+     "rotulo": "Freio Dianteiro",
+     "valor": "Disco"
+    },
+    {
+     "rotulo": "Freio Traseiro",
+     "valor": "Tambor"
+    },
+    {
+     "rotulo": "Pneus/Rodas",
+     "valor": "3.0-10\" Polegadas"
+    },
+    {
+     "rotulo": "Controlador",
+     "valor": "12 tubos"
+    },
+    {
+     "rotulo": "Carregador",
+     "valor": "60V 3A Bivolt (100-240V)"
+    },
+    {
+     "rotulo": "Entre-eixos",
+     "valor": "1.285 mm"
+    },
+    {
+     "rotulo": "Dimensões",
+     "valor": "165x45x87 cm"
+    },
+    {
+     "rotulo": "Peso Líquido",
+     "valor": "66 kg"
+    },
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Lítio 60V 20AH"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/fc90aac8-b750-4f56-828c-33ee0e1f9196.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/1a44f438-dcc3-4dd9-a649-2ab02743a6a2.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/689e3202-55da-4549-92dd-cf83209fb22e.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/a534395c-584e-426d-b3f1-a865a3b9be9b.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/fc66266c-8911-4c41-b129-ab64e2897ce5.png"
+   ],
+   "estoque": null,
+   "disponivel": false,
+   "previsao": "05/09",
+   "custoEmReais": 5990,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "eafce46a-0dde-4843-8cf0-9ebfccc49132",
+   "slug": "bicicleta-eletrica-fast-trail-750w-preto-verde-658031",
+   "codigo": "658031",
+   "titulo": "Bicicleta Elétrica Fast Trail 750W Preto/Verde",
+   "nomeOriginal": "BICICLETA ELETRICA FAST TRAIL 750W PRETO/VERDE BATERIA DE LITIO 48V MARCA KONNAN - PX-FT02",
+   "marca": "Konnan",
+   "linha": null,
+   "cor": null,
+   "categoria": "Bicicleta elétrica",
+   "potencia": null,
+   "bateria": "Litio 48v 18,2ah",
+   "autonomia": "50kms",
+   "velocidade": "32km/h",
+   "recarga": "Aproximadamente 4/6hrs",
+   "ficha": [
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Litio 48v 18,2ah"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "50kms"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 4/6hrs"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/5d744b32-6b10-479b-ac40-f8fe50ad7db2.png"
+   ],
+   "estoque": null,
+   "disponivel": true,
+   "previsao": null,
+   "custoEmReais": 3999.9,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "f3553564-b410-4ed9-96f8-2cebf5978e5b",
+   "slug": "bicicleta-eletrica-advantage-750w-cinza-branco-670726",
+   "codigo": "670726",
+   "titulo": "Bicicleta Elétrica Advantage 750W Cinza/Branco",
+   "nomeOriginal": "BICICLETA ELETRICA ADVANTAGE 750W CINZA/BRANCO BATERIA DE LITIO 48V 18,2AH MARCA KONNAN",
+   "marca": "Konnan",
+   "linha": null,
+   "cor": null,
+   "categoria": "Bicicleta elétrica",
+   "potencia": null,
+   "bateria": "Litio 48V 18,2AH",
+   "autonomia": "50kms",
+   "velocidade": "32km/h",
+   "recarga": "Aproximadamente 4/6hrs",
+   "ficha": [
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Litio 48V 18,2AH"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "50kms"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 4/6hrs"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/42d28628-d053-437c-8a49-470d223f6544.png"
+   ],
+   "estoque": null,
+   "disponivel": true,
+   "previsao": null,
+   "custoEmReais": 3999.9,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "f79dc698-97b6-4b4d-a557-4005fadf07e7",
+   "slug": "bicicleta-eletrica-fast-trail-750w-preto-laranja-658030",
+   "codigo": "658030",
+   "titulo": "Bicicleta Elétrica Fast Trail 750W Preto/Laranja",
+   "nomeOriginal": "BICICLETA ELETRICA FAST TRAIL 750W PRETO/LARANJA BATERIA DE LITIO 48V MARCA KONNAN - PX-FT01",
+   "marca": "Konnan",
+   "linha": null,
+   "cor": null,
+   "categoria": "Bicicleta elétrica",
+   "potencia": null,
+   "bateria": "Litio 48v 18,2ah",
+   "autonomia": "50kms",
+   "velocidade": "32km/h",
+   "recarga": "Aproximadamente 4/6hrs",
+   "ficha": [
+    {
+     "rotulo": "Bateria/Voltagem",
+     "valor": "Litio 48v 18,2ah"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "50kms"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 4/6hrs"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/aa8dc41a-3265-4f93-a693-f4c205e3e2ea.png"
+   ],
+   "estoque": null,
+   "disponivel": true,
+   "previsao": null,
+   "custoEmReais": 3999.9,
+   "origemDoCusto": "tabela-publica"
+  }
+ ],
+ "lidoEm": "2026-08-30T05:57:30.249Z",
+ "logado": false,
+ "cd": "MG - UBERLÂNDIA",
+ "secao": "Ebike"
+}

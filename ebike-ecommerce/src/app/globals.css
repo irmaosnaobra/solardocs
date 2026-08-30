@@ -1,0 +1,90 @@
+@import 'tailwindcss';
+
+/*
+  Tema escuro de propósito: as fotos do fornecedor são PNG com fundo
+  transparente, então o produto recorta limpo sobre o preto e o verde-elétrico
+  faz o papel de acento sem competir com a bike.
+*/
+@theme {
+  --color-fundo: #0a0a0b;
+  --color-superficie: #141416;
+  --color-superficie-alta: #1c1c20;
+  --color-borda: #26262b;
+  --color-texto: #f4f4f5;
+  --color-suave: #a1a1aa;
+  --color-acento: #c8f751;
+  --color-acento-escuro: #a8d431;
+  --color-alerta: #f5b544;
+
+  --font-sans:
+    var(--fonte-sans), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-fundo);
+  color: var(--color-texto);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* O canvas onde a bike aparece: um brilho suave atrás do recorte. */
+@utility palco {
+  /* Metade do catálogo é preta. Sem esta base clara, a bike some no fundo. */
+  background-image:
+    radial-gradient(ellipse 62% 46% at 50% 78%, rgb(0 0 0 / 0.55), transparent 72%),
+    radial-gradient(ellipse 72% 64% at 50% 46%, rgb(255 255 255 / 0.14), transparent 70%),
+    radial-gradient(ellipse 96% 88% at 50% 50%, rgb(200 247 81 / 0.1), transparent 72%);
+}
+
+@utility linha-fina {
+  border: 1px solid var(--color-borda);
+}
+
+/* Alvo de toque confortável no celular sem depender de padding solto. */
+@utility toque {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+::selection {
+  background-color: var(--color-acento);
+  color: #10120a;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-acento);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background-color: var(--color-fundo);
+}
+::-webkit-scrollbar-thumb {
+  background-color: #2f2f36;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: #3d3d45;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

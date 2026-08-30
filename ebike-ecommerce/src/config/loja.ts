@@ -1,0 +1,77 @@
+/**
+ * Configuração pública da loja. Tudo aqui pode aparecer no navegador:
+ * NADA de custo, margem ou credencial neste arquivo.
+ */
+
+export const LOJA = {
+  nome: 'Irmãos na Obra Mobilidade',
+  nomeCurto: 'Irmãos na Obra',
+  chamada: 'Bikes e scooters elétricas com entrega no Triângulo Mineiro',
+  cidade: 'Uberlândia, MG',
+  descricao:
+    'Catálogo completo de bicicletas e scooters elétricas. Você escolhe o modelo e a forma de pagamento, e fala direto com quem vende.',
+} as const;
+
+/**
+ * Quem atende. É uma LISTA de propósito: quando entrar um terceiro vendedor,
+ * basta acrescentar aqui. Nenhum código depende de existirem exatamente dois.
+ */
+export type Consultor = { nome: string; whatsapp: string; apelido: string };
+
+export const CONSULTORES: Consultor[] = [
+  { nome: 'Thiago', apelido: 'thiago', whatsapp: '5534991360223' },
+  { nome: 'Diego', apelido: 'diego', whatsapp: '5534991360172' },
+];
+
+/** Como a pessoa quer pagar. Vai junto na mensagem do WhatsApp. */
+export type FormaDePagamento = { id: string; rotulo: string; detalhe: string };
+
+export const FORMAS_DE_PAGAMENTO: FormaDePagamento[] = [
+  { id: 'pix', rotulo: 'Pix à vista', detalhe: 'Pagamento em uma vez, no Pix' },
+  { id: 'cartao', rotulo: 'Cartão de crédito', detalhe: 'Parcelado no cartão' },
+  { id: 'boleto', rotulo: 'Boleto', detalhe: 'Boleto bancário à vista' },
+  { id: 'financiamento', rotulo: 'Financiamento', detalhe: 'Quero simular financiamento' },
+];
+
+export function consultorPorApelido(apelido: string | null | undefined): Consultor | null {
+  if (!apelido) return null;
+  return CONSULTORES.find((c) => c.apelido === apelido.toLowerCase()) ?? null;
+}
+
+export function formaPorId(id: string | null | undefined): FormaDePagamento | null {
+  if (!id) return null;
+  return FORMAS_DE_PAGAMENTO.find((f) => f.id === id) ?? null;
+}
+
+/** Monta o link do WhatsApp já com modelo, código, preço e forma de pagamento. */
+export function linkWhatsApp(opcoes: {
+  consultor: Consultor;
+  titulo: string;
+  codigo: string;
+  preco: number;
+  pagamento?: FormaDePagamento | null;
+  url?: string;
+}): string {
+  const preco = opcoes.preco.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  });
+  const linhas = [
+    `Olá, ${opcoes.consultor.nome}! Vi no site da ${LOJA.nomeCurto} e quero esta:`,
+    '',
+    `Modelo: ${opcoes.titulo}`,
+    `Código: ${opcoes.codigo}`,
+    `Valor: ${preco}`,
+  ];
+  if (opcoes.pagamento) linhas.push(`Pagamento: ${opcoes.pagamento.rotulo}`);
+  if (opcoes.url) linhas.push('', opcoes.url);
+  return `https://wa.me/${opcoes.consultor.whatsapp}?text=${encodeURIComponent(linhas.join('\n'))}`;
+}
+
+export function emReais(valor: number): string {
+  return valor.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+  });
+}
