@@ -64,48 +64,62 @@
 
 ---
 
-## 3 · AS PERGUNTAS (só para quem respondeu — uma por mensagem)
+## 3 · AS PERGUNTAS (só para quem responder — uma por vez, no ritmo da conversa)
 
-**P2 — o travamento**
+**REGRA QUE MANDA EM TUDO: não se fala de preço.** Nem faixa, nem "vai custar em torno de",
+nem sinal. Se ele perguntar, a resposta é a verdade: *"ainda não montei — quero entender o
+que você precisa antes de desenhar. Quando existir, você vê antes de todo mundo."* O que a
+pesquisa quer medir é a VONTADE de entrar nesse mercado e o que trava essa vontade.
+
+**Nada de robô nessas conversas.** Quem responde é gente, uma mensagem por vez, sem script
+lido. As perguntas abaixo são a espinha, não um formulário: se a pessoa contar a história
+dela, deixa contar — é isso que a gente quer.
+
+**P2 — o que trava**
 > Se um ponto bom aparecesse amanhã na sua cidade, o que te travaria PRIMEIRO?
 > A) não sei dizer se o ponto é bom ou ruim
 > B) não sei negociar sem o dono perceber o que vai ali e subir o preço
 > C) não sei fechar um contrato longo que se segure
-> D) só falta o dinheiro
-> E) nada disso, é só executar
-> Me manda só a letra.
+> D) não é nada disso — é outra coisa (me conta qual)
 
-**P3 — o formato**
-> Pensa num treinamento que te leva do zero até o contrato assinado. O que resolveria o SEU caso?
-> A) só as aulas
-> B) as aulas + os documentos (contrato de arrendamento, carta de proposta, planilha do ponto)
-> C) tudo isso e alguém do nosso lado na sua primeira negociação
+**P3 — há quanto tempo essa ideia está com ele**
+> Há quanto tempo você está querendo entrar nesse mercado? E já chegou a olhar algum local ou falar com algum dono de imóvel?
 
-**P4 — o piso de preço**
-> Abaixo de qual desses valores você desconfiaria que não entrega o que promete? 400 / 900 / 1.800 / 3.500
-> Não é quanto você pagaria. É a partir de onde parece barato demais para ser sério.
+**P4 — o gatilho de começar**
+> Se o ponto certo aparecesse esse mês, quando você começaria?
+> A) começava agora
+> B) nos próximos 3 meses
+> C) esse ano ainda
+> D) sem data — depende de coisas que não controlo
 
-**P5 — o sinal**
-> Se eu abrir a primeira turma, 10 pessoas, com R$300 de sinal para segurar a vaga — abatido do valor e devolvido se você desistir antes de começar ou se eu não abrir a turma:
-> 1) entro, me manda o pix
-> 2) quero ver o programa antes
-> 3) agora não
-> O sinal não é o preço. O valor sai depois desta pesquisa.
+**P5 — o que ele quer que isso seja**
+> E o que você quer que esse negócio seja pra você: uma renda a mais, o seu negócio principal, ou entrar antes de todo mundo numa coisa que ainda vai crescer?
 
-**Cortada de propósito:** "quantos pontos você olhou nos últimos 6 meses" — não decide nada e custa uma mensagem.
-**Cortada de propósito:** a âncora de "caro demais" — ela premia quem responde baixo. Fica só o piso.
+**Fora, de propósito:** preço, faixa de preço e sinal de reserva. O Thiago cortou — a
+pesquisa é sobre vontade, não sobre bolso. Preço se pergunta depois, quando o produto
+existir e para quem já disse que quer.
 
 ---
 
 ## 4 · COMO LER AS RESPOSTAS
 
-- **B + C somam metade ou mais na P2** → a tese está de pé, constrói o treinamento.
-- **A lidera** → o produto certo é o curso que já existe. Conserta a oferta, não o conteúdo.
-- **D lidera** → não é treinamento, é dinheiro. O produto seria sociedade, não curso.
-- **P3 com B na frente** → kit (aulas + documentos). **C na frente com 3+ sinais pagos** → acompanhamento de 3 a 5 pessoas, preço no topo da faixa, não turma de 10.
-- **P4 só vale com 15+ respostas.** Se a mediana bater 900, o curso de R$67 não foi caro — foi barato demais para parecer sério.
-- **P5 só conta pix.** 5 pagos em 48h = constrói. 8 dizem "entro" e menos de 3 pagam = o problema é confiança, não preço.
-- **Menos de 25 respostas na abertura** → não decide nada. Não conclui e não desiste: reabre com outro texto.
+O que a gente está tentando enxergar é **a vontade e o que a bloqueia** — não a intenção de
+compra imediata.
+
+- **B + C somam metade ou mais na P2** → a tese está de pé: a dor é negociar e contratar, e
+  o treinamento tem conteúdo definido.
+- **A lidera** → a dor é anterior: ele nem sabe avaliar um ponto. Muda a primeira aula, não
+  o produto.
+- **D aparece muito** → escuta o que vem escrito ali. É a resposta que diz se a tese está
+  errada, e é a mais valiosa da pesquisa.
+- **P3:** quem está há mais de um ano querendo e nunca falou com um dono de imóvel é o
+  retrato do público — e é a prova de que o obstáculo não é dinheiro.
+- **P4 com A ou B na frente** → existe fila esperando. Com C e D na frente, existe interesse
+  mas não urgência: o produto vira nutrição, não lançamento.
+- **P5** → define a linguagem da oferta. "Renda a mais" e "meu negócio principal" são duas
+  vendas diferentes, com riscos diferentes na cabeça de quem compra.
+- **Menos de 25 respostas** → não decide nada. Não conclui e não desiste: reabre com outro
+  texto.
 
 ---
 
@@ -147,6 +161,9 @@ Minha recomendação é o plano de 3 dias. A decisão é sua e eu executo a que 
 
 ## 7 · QUEM RESPONDE
 
-Gente, não robô. As respostas chegam no WhatsApp da linha e são conversa — quem responde é quem faz a reunião de sócio. Prazo: 1 hora, entre 9h e 18h. As perguntas P2 a P5 vão uma por vez, no ritmo da pessoa.
+Gente, e só gente. Nenhuma automação toca em quem está nesta lista: o desvio de resposta já
+está no ar (quem responde é avisado à equipe e o robô da linha não entra) e o tick de convite
+de grupo, que alcançaria 45 destas 184 pessoas, foi parado. As perguntas P2 a P5 vão uma por
+vez, no ritmo da pessoa. Prazo de resposta: 1 hora, entre 9h e 18h.
 
 **Nada de link na primeira mensagem.** A pergunta se responde no próprio chat.
