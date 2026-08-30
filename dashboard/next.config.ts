@@ -4,6 +4,20 @@ const nextConfig: NextConfig = {
   compiler: {
     removeConsole: false,
   },
+  async rewrites() {
+    return [
+      // A loja de bikes é um projeto Vercel separado (bikes-irmaos-na-obra):
+      // tem cron próprio, lê o catálogo do fornecedor e guarda custo e margem,
+      // então não entra no build deste app. Aqui só emprestamos o caminho
+      // /bike do domínio. O app de lá roda com basePath /bike, por isso o
+      // destino repete o prefixo em vez de removê-lo.
+      { source: '/bike', destination: 'https://bikes-irmaos-na-obra.vercel.app/bike' },
+      {
+        source: '/bike/:caminho*',
+        destination: 'https://bikes-irmaos-na-obra.vercel.app/bike/:caminho*',
+      },
+    ];
+  },
   async redirects() {
     return [
       { source: '/login', destination: '/auth', permanent: false },
