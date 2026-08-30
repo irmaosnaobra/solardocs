@@ -32,13 +32,24 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* O canvas onde a bike aparece: um brilho suave atrás do recorte. */
+/*
+  O canvas onde a bike aparece.
+  Metade do catálogo é preta e as fotos são PNG recortado, então o fundo é
+  CLARO de propósito: preto sobre preto não deixava ver a bike. O cinza quente
+  no lugar do branco puro evita o estouro de brilho no meio da página escura,
+  e a elipse escura embaixo faz a sombra de contato para a bike não parecer
+  flutuando.
+*/
 @utility palco {
-  /* Metade do catálogo é preta. Sem esta base clara, a bike some no fundo. */
+  background-color: #eeeeec;
   background-image:
-    radial-gradient(ellipse 62% 46% at 50% 78%, rgb(0 0 0 / 0.55), transparent 72%),
-    radial-gradient(ellipse 72% 64% at 50% 46%, rgb(255 255 255 / 0.14), transparent 70%),
-    radial-gradient(ellipse 96% 88% at 50% 50%, rgb(200 247 81 / 0.1), transparent 72%);
+    radial-gradient(ellipse 50% 12% at 50% 86%, rgb(0 0 0 / 0.22), transparent 70%),
+    radial-gradient(ellipse 78% 72% at 50% 40%, #ffffff, transparent 72%);
+}
+
+/* Versão lisa, para miniatura: a elipse não cabe em 80px. */
+@utility palco-liso {
+  background-color: #f2f2f0;
 }
 
 @utility linha-fina {

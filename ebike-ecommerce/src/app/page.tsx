@@ -82,7 +82,7 @@ export default async function Pagina() {
           </div>
 
           {destaque ? (
-            <div className="palco relative aspect-[4/3] w-full">
+            <div className="palco relative aspect-[4/3] w-full overflow-hidden rounded-3xl">
               <Image
                 src={destaque.imagens[0]}
                 alt={destaque.titulo}

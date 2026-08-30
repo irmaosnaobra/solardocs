@@ -9,7 +9,7 @@ export function Galeria({ imagens, titulo }: { imagens: string[]; titulo: string
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="palco relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-borda bg-superficie">
+      <div className="palco relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-borda">
         {principal ? (
           <Image
             src={principal}
@@ -32,7 +32,7 @@ export function Galeria({ imagens, titulo }: { imagens: string[]; titulo: string
                 aria-label={`Ver foto ${i + 1}`}
                 aria-current={i === atual}
                 className={
-                  'relative block aspect-square w-full overflow-hidden rounded-xl border bg-superficie transition ' +
+                  'palco-liso relative block aspect-square w-full overflow-hidden rounded-xl border transition ' +
                   (i === atual ? 'border-acento' : 'border-borda hover:border-acento/50')
                 }
               >
