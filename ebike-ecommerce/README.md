@@ -28,6 +28,13 @@ portal do fornecedor  ──(1x por dia)──>  loja  ──>  WhatsApp do vend
 - **Catálogo**: lido direto do portal do fornecedor (seção Ebike do CD de
   Uberlândia). Nada é digitado à mão: nome, foto, ficha técnica e preço vêm
   de lá.
+- **Rodízio**: o clique no botão passa por `/falar`, e é o SERVIDOR que escolhe
+  o consultor, alternando Thiago, Diego, Thiago. O contador vive no Postgres
+  (`bike_rodizio`, projeto solardoc-pro) e é incrementado no mesmo UPDATE que
+  devolve o número, então dois cliques no mesmo segundo pegam nomes diferentes.
+  Cada lead fica registrado em `bike_leads` com modelo, valor e forma de
+  pagamento. Banco fora do ar não segura o lead: cai no revezamento por relógio
+  e a conversa acontece.
 - **Preço**: `custo do fornecedor + R$ 2.000`. A conta mora em um lugar só,
   `src/lib/preco.ts`, e o valor da margem sai de `MARGEM_REAIS`.
 - **Atualização**: a loja se regenera a cada 24 h, e o cron da Vercel
