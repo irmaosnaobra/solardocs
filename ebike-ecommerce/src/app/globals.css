@@ -1,28 +1,33 @@
 @import 'tailwindcss';
 
 /*
-  Tema escuro de propósito: as fotos do fornecedor são PNG com fundo
-  transparente, então o produto recorta limpo sobre o preto e o verde-elétrico
-  faz o papel de acento sem competir com a bike.
+  Paleta de vitrine de marketplace: fundo cinza claro, conteudo em cartao
+  branco, azul para acao e verde para o que e vantagem.
+
+  A foto do produto e PNG recortado e fica sobre branco puro, SEM sombra
+  embaixo: em fundo claro a sombra de contato vira mancha suja.
 */
 @theme {
-  --color-fundo: #0a0a0b;
-  --color-superficie: #141416;
-  --color-superficie-alta: #1c1c20;
-  --color-borda: #26262b;
-  --color-texto: #f4f4f5;
-  --color-suave: #a1a1aa;
-  --color-acento: #c8f751;
-  --color-acento-escuro: #a8d431;
-  --color-alerta: #f5b544;
+  --color-fundo: #ebebeb;
+  --color-cartao: #ffffff;
+  --color-topo: #ffe600;
+  --color-texto: #333333;
+  --color-suave: #666666;
+  --color-fraco: #999999;
+  --color-borda: #ededed;
+  --color-borda-forte: #dddddd;
+  --color-acao: #3483fa;
+  --color-acao-escura: #2968c8;
+  --color-acao-clara: #e3edfb;
+  --color-vantagem: #00a650;
+  --color-alerta: #f5a623;
 
   --font-sans:
     var(--fonte-sans), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
 html {
-  color-scheme: dark;
-  scroll-behavior: smooth;
+  color-scheme: light;
 }
 
 body {
@@ -32,31 +37,14 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/*
-  O canvas onde a bike aparece.
-  Metade do catálogo é preta e as fotos são PNG recortado, então o fundo é
-  CLARO de propósito: preto sobre preto não deixava ver a bike. O cinza quente
-  no lugar do branco puro evita o estouro de brilho no meio da página escura,
-  e a elipse escura embaixo faz a sombra de contato para a bike não parecer
-  flutuando.
-*/
-@utility palco {
-  background-color: #eeeeec;
-  background-image:
-    radial-gradient(ellipse 50% 12% at 50% 86%, rgb(0 0 0 / 0.22), transparent 70%),
-    radial-gradient(ellipse 78% 72% at 50% 40%, #ffffff, transparent 72%);
+/* Cartao branco com a sombra discreta que separa do fundo cinza. */
+@utility cartao {
+  background-color: var(--color-cartao);
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
 }
 
-/* Versão lisa, para miniatura: a elipse não cabe em 80px. */
-@utility palco-liso {
-  background-color: #f2f2f0;
-}
-
-@utility linha-fina {
-  border: 1px solid var(--color-borda);
-}
-
-/* Alvo de toque confortável no celular sem depender de padding solto. */
+/* Alvo de toque confortavel no celular sem depender de padding solto. */
 @utility toque {
   min-height: 48px;
   display: inline-flex;
@@ -64,30 +52,36 @@ body {
   justify-content: center;
 }
 
+@utility botao-principal {
+  background-color: var(--color-acao);
+  color: #fff;
+  border-radius: 6px;
+  font-weight: 600;
+  transition: background-color 0.15s;
+  &:hover {
+    background-color: var(--color-acao-escura);
+  }
+}
+
+@utility botao-secundario {
+  background-color: var(--color-acao-clara);
+  color: var(--color-acao);
+  border-radius: 6px;
+  font-weight: 600;
+  transition: background-color 0.15s;
+  &:hover {
+    background-color: #d3e2f7;
+  }
+}
+
 ::selection {
-  background-color: var(--color-acento);
-  color: #10120a;
+  background-color: #d3e2f7;
 }
 
 *:focus-visible {
-  outline: 2px solid var(--color-acento);
+  outline: 2px solid var(--color-acao);
   outline-offset: 2px;
-  border-radius: 6px;
-}
-
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-::-webkit-scrollbar-track {
-  background-color: var(--color-fundo);
-}
-::-webkit-scrollbar-thumb {
-  background-color: #2f2f36;
-  border-radius: 9999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background-color: #3d3d45;
+  border-radius: 4px;
 }
 
 @media (prefers-reduced-motion: reduce) {

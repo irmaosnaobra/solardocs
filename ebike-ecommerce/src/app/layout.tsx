@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import Link from 'next/link';
+import { Suspense } from 'react';
 
 import './globals.css';
+import { Cabecalho } from '../components/Cabecalho.tsx';
 import { LOJA } from '../config/loja.ts';
 
 const inter = Inter({
@@ -22,27 +24,28 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0a0a0b',
+  themeColor: '#ffe600',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" className={inter.variable}>
       <body className="min-h-screen font-sans antialiased">
-        <a
-          href="#catalogo"
-          className="sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:rounded-lg focus:bg-acento focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-black"
-        >
-          Ir para o catálogo
-        </a>
+        {/* O cabeçalho lê a busca da URL, e useSearchParams exige Suspense
+            para a página continuar sendo gerada estaticamente. */}
+        <Suspense fallback={<div className="h-[92px] bg-topo" />}>
+          <Cabecalho />
+        </Suspense>
+
         {children}
-        <footer className="mt-24 border-t border-borda">
-          <div className="mx-auto flex max-w-6xl flex-col gap-3 px-5 py-10 text-sm text-suave sm:flex-row sm:items-center sm:justify-between">
+
+        <footer className="mt-10 bg-white">
+          <div className="mx-auto flex max-w-[1200px] flex-col gap-3 px-4 py-8 text-xs text-suave sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="font-semibold text-texto">{LOJA.nome}</p>
+              <p className="text-sm font-semibold text-texto">{LOJA.nome}</p>
               <p>{LOJA.cidade}</p>
             </div>
-            <p className="max-w-md text-xs leading-relaxed">
+            <p className="max-w-md leading-relaxed">
               Preços e disponibilidade sujeitos a confirmação no atendimento. Imagens e
               especificações fornecidas pelo fabricante.
             </p>
@@ -51,7 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               // Sem isto o Next pré-carrega o painel para todo visitante e leva
               // 404 na portaria, sujando o console de quem só veio ver bike.
               prefetch={false}
-              className="toque -mx-2 px-2 text-xs underline underline-offset-4 hover:text-texto"
+              className="toque -mx-2 px-2 hover:text-texto hover:underline"
             >
               Painel
             </Link>

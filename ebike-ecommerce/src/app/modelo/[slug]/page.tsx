@@ -40,94 +40,78 @@ export default async function PaginaDaBike({ params }: { params: Promise<{ slug:
   const { bikes } = await catalogoPublico();
   const parecidas = bikes
     .filter((b) => b.id !== bike.id && (b.marca === bike.marca || b.categoria === bike.categoria))
-    .slice(0, 3)
+    .slice(0, 4)
     .map(paraCartao);
 
-  const resumo = [
-    ['Motor', bike.potencia],
-    ['Bateria', bike.bateria],
-    ['Autonomia', bike.autonomia],
-    ['Velocidade máxima', bike.velocidade],
-    ['Tempo de recarga', bike.recarga],
-  ].filter(([, v]) => v) as Array<[string, string]>;
-
   return (
-    <main className="mx-auto max-w-6xl px-5 py-10">
-      <nav className="mb-8 text-sm text-suave">
-        <Link href="/" className="toque -my-2 py-2 hover:text-texto">
-          Catálogo
+    <div className="mx-auto max-w-[1200px] px-4 py-4">
+      <nav className="mb-3 text-xs text-suave">
+        <Link href="/" className="hover:text-acao">
+          Todos os modelos
         </Link>
-        <span className="px-2">/</span>
-        <span className="text-texto">{bike.titulo}</span>
+        <span className="px-2 text-fraco">›</span>
+        <Link href={`/?categoria=${encodeURIComponent(bike.categoria)}`} className="hover:text-acao">
+          {bike.categoria}
+        </Link>
+        <span className="px-2 text-fraco">›</span>
+        <span className="text-fraco">{bike.titulo}</span>
       </nav>
 
-      <div className="grid gap-10 lg:grid-cols-2 lg:items-start">
-        <Galeria imagens={bike.imagens} titulo={bike.titulo} />
+      <div className="cartao grid gap-6 p-4 sm:p-6 lg:grid-cols-[1fr_340px]">
+        <div className="min-w-0 lg:border-r lg:border-borda lg:pr-6">
+          <Galeria imagens={bike.imagens} titulo={bike.titulo} />
+        </div>
 
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4">
           <div>
-            <p className="mb-2 text-xs font-semibold tracking-[0.18em] text-acento uppercase">
-              {bike.marca} · {bike.categoria}
+            <p className="text-xs text-suave">
+              {bike.categoria} · {bike.marca}
+              {bike.cor ? ` · ${bike.cor}` : ''}
             </p>
-            <h1 className="text-3xl leading-tight font-bold tracking-tight sm:text-4xl">
-              {bike.titulo}
-            </h1>
-            {bike.previsao ? (
-              <p className="mt-3 rounded-xl border border-alerta/40 bg-alerta/10 px-4 py-3 text-sm text-alerta">
-                Item sob encomenda. O fornecedor informa previsão de chegada em {bike.previsao}.
-                Confirme o prazo no atendimento.
-              </p>
-            ) : null}
+            <h1 className="mt-1 text-xl leading-snug font-semibold text-texto">{bike.titulo}</h1>
+            <p className="mt-1 text-xs text-fraco">Código {bike.codigo}</p>
           </div>
-
-          {resumo.length ? (
-            <dl className="grid grid-cols-2 gap-3">
-              {resumo.map(([rotulo, valor]) => (
-                <div key={rotulo} className="rounded-xl border border-borda bg-superficie px-4 py-3">
-                  <dt className="text-[11px] text-suave">{rotulo}</dt>
-                  <dd className="text-sm font-semibold">{valor}</dd>
-                </div>
-              ))}
-            </dl>
-          ) : null}
 
           <Fechamento bike={bike} />
         </div>
       </div>
 
       {bike.ficha.length ? (
-        <section className="mt-16">
-          <h2 className="mb-4 text-xl font-bold tracking-tight">Ficha técnica</h2>
-          <p className="mb-4 text-xs text-suave">
+        <section className="cartao mt-4 p-4 sm:p-6">
+          <h2 className="mb-1 text-lg font-semibold text-texto">Características do produto</h2>
+          <p className="mb-4 text-xs text-fraco">
             Informações como o fabricante publicou, sem edição.
           </p>
-          <dl className="grid gap-x-10 gap-y-0 sm:grid-cols-2">
-            {bike.ficha.map((item) => (
+          <dl className="grid gap-x-10 sm:grid-cols-2">
+            {bike.ficha.map((item, i) => (
               <div
                 key={item.rotulo}
-                className="flex justify-between gap-6 border-b border-borda py-3 text-sm"
+                className={
+                  'flex justify-between gap-6 px-3 py-2.5 text-sm ' +
+                  (i % 2 === 0 ? 'bg-fundo/60' : '')
+                }
               >
-                <dt className="text-suave">{item.rotulo}</dt>
-                <dd className="text-right font-medium">{item.valor}</dd>
+                <dt className="font-semibold text-texto">{item.rotulo}</dt>
+                <dd className="text-right text-suave">{item.valor}</dd>
               </div>
             ))}
           </dl>
-          <p className="mt-5 text-xs text-suave">
-            Descrição do fornecedor: <span className="text-texto">{bike.nomeOriginal}</span>
+          <p className="mt-5 text-xs text-fraco">
+            Descrição do fornecedor: <span className="text-suave">{bike.nomeOriginal}</span>
           </p>
         </section>
       ) : null}
 
       {parecidas.length ? (
-        <section className="mt-16">
-          <h2 className="mb-5 text-xl font-bold tracking-tight">Você também pode gostar</h2>
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="mt-4">
+          <h2 className="mb-3 text-lg font-semibold text-texto">Quem viu esta, viu também</h2>
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             {parecidas.map((b) => (
               <CardBike key={b.id} bike={b} />
             ))}
           </div>
         </section>
       ) : null}
-    </main>
+    </div>
   );
 }
