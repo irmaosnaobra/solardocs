@@ -38,5 +38,9 @@ export default async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  // O '/' solto não é luxo: com basePath o Next prefixa os matchers, e
+  // '/((?!...).*)' vira '/bike/(...)', que exige a barra e mais alguma coisa.
+  // Sem esta primeira entrada a home ficava aberta com o site privado ligado,
+  // e só ela.
+  matcher: ['/', '/((?!_next/static|_next/image|favicon.ico).*)'],
 };
