@@ -24,6 +24,7 @@ import { handleSdrLead, tryClaimMessage, hasRecentWebhookClaim, isLumaWorkingNow
 import { sendToGroup, sendWhatsApp, type ZapiInstance } from '../zapiClient';
 import { respostaPendenteRepescagem, marcarRespostaAvisada } from '../../io/eletropostoRepescagem';
 import { EQUIPE } from '../../../routes/ioEletroposto';
+import { respostaDeCampanhaPonto, avisoDeResposta } from '../../io/pesquisaPontoRespostas';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -123,6 +124,24 @@ export async function pollZapiMessagesIO(): Promise<{ processed: number; skipped
       }
     } catch (err) {
       logger.error('sdr-io-poll', `aviso de resposta da repescagem falhou pra ${phone}`, err);
+    }
+
+    // RESPOSTA DE CAMPANHA NOSSA — não é lead de anúncio (30/08/2026). Quem já está na
+    // base do eletroposto e responde uma pergunta que a gente fez vai pra GENTE, não pra
+    // Luma: ela abriria outro assunto e tentaria agendar reunião, que é o que a régua de
+    // ponto próprio proíbe pra quem não tem local. Quem tem reunião futura não cai aqui —
+    // esse é do agente de agendamento.
+    try {
+      const camp = await respostaDeCampanhaPonto(phone);
+      if (camp) {
+        const aviso = avisoDeResposta(camp, chat.lastMessage ?? null);
+        await Promise.allSettled(Object.values(EQUIPE).map(num => sendWhatsApp(num, aviso, 'io')));
+        logger.info('sdr-io-poll', `resposta de campanha avisada: ${camp.nome} (${phone})`);
+        processed++;
+        continue;
+      }
+    } catch (err) {
+      logger.error('sdr-io-poll', `aviso de resposta de campanha falhou pra ${phone}`, err);
     }
 
     // Lead NOVO — dispara fluxo da Luma com frase padrao do anuncio
