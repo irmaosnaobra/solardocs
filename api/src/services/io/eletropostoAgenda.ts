@@ -122,13 +122,18 @@ const MANHA = { de: 8, ate: 12 };
  *  "bom dia" num tick exatamente às 8:00 — na prática, não recebe. Quem cobre é o
  *  toque de 1h (9:00, dentro da janela de envio), e reunião de manhã marcada com
  *  antecedência é justamente a que menos precisa de aviso ao acordar. */
-const MANHA_ANTECEDENCIA_MIN = 120;
+// 30/08/2026: de 120 pra 60 por ordem do Thiago ("todos têm que receber essa msg na
+// parte da manhã"). Com a agenda concentrada — 36 reuniões numa segunda, começando às
+// 09:00 — a folga de 2h calava justamente quem abre o dia: às 08:00 a reunião das 09:00
+// está a 60 minutos. O toque de 1h continua saindo depois; quem é das 9h recebe os dois
+// em sequência, e isso é aceito de propósito (a alternativa é não receber o bom dia).
+const MANHA_ANTECEDENCIA_MIN = 60;
 /** 2 por tick. Com o tick de 5 min, a grade cheia (16 reuniões/dia) drena em 40
  *  minutos, sobrando muito da janela de 4h. Sem esse freio, um tick soltaria os 6
  *  do MAX_TOQUES — 6 pessoas × 4 bolhas em ~2 minutos é exatamente a rajada que
  *  bloqueou a linha IO em 04/08. O teto anti-ban é checado ANTES de cada envio,
  *  então quem não couber espera o próximo tick em vez de furar. */
-const MANHA_POR_TICK = 2;
+const MANHA_POR_TICK = 3;
 
 // ── NÃO ATENDIDO AUTOMÁTICO (ordem do Thiago, 14/08/2026) ───────────────────
 // "Se a pessoa não confirma nenhuma das vezes, coloca em NÃO ATENDIDO
@@ -359,9 +364,11 @@ export function bolhasManha(
     // saía repetido em mensagens seguidas ("com o Diego" / "do Diego") — que é
     // exatamente o jeito que um robô escreve e uma pessoa não.
     `Bom dia${comNome(n)}! Hoje é o dia: sua reunião de eletroposto é *${horaCurta(quandoIso)}*, com o *${quem}* — o link chega no WhatsApp dele${tel ? `, *${tel}*` : ''}.`,
-    // "Se ainda não mandou" e não "me manda": metade já mandou na confirmação, e
-    // pedir de novo a quem já atendeu passa a impressão de que ninguém leu.
-    'Se ainda não me mandou a conta de luz e a localização do ponto, dá tempo até lá — é o que faz a reunião render.',
+    // Ordem do Thiago (30/08/2026): o pedido da manhã é UM só, e é o endereço.
+    // A ficha já traz o endereço digitado no formulário, mas é ele escrito no
+    // WhatsApp que o consultor abre no mapa antes de entrar na chamada — e quem
+    // responde aqui prova, de quebra, que o ponto existe e que a pessoa está viva.
+    'Me envia o endereço de onde será sua estação de recarga',
     'E se não der mais, me fala agora que eu remarco — a procura está alta e o horário fica bloqueado.',
   ];
 }
