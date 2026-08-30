@@ -66,7 +66,7 @@ export default async function Pagina() {
               </Link>
               {destaque ? (
                 <Link
-                  href={`/bike/${destaque.slug}`}
+                  href={`/modelo/${destaque.slug}`}
                   className="toque rounded-xl border border-borda px-6 text-base font-semibold text-texto transition hover:border-acento/60"
                 >
                   A partir de {emReais(menorPreco)}

@@ -165,7 +165,7 @@ export default async function Painel() {
             {bikes.map((b) => (
               <tr key={b.id} className="border-t border-borda align-middle">
                 <td className="px-4 py-3">
-                  <Link href={`/bike/${b.slug}`} className="hover:text-acento">
+                  <Link href={`/modelo/${b.slug}`} className="hover:text-acento">
                     {b.titulo}
                   </Link>
                   {b.previsao ? (

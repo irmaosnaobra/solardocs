@@ -34,7 +34,7 @@ function Disponibilidade({ bike }: { bike: Cartao }) {
 export function CardBike({ bike, prioridade = false }: { bike: Cartao; prioridade?: boolean }) {
   return (
     <Link
-      href={`/bike/${bike.slug}`}
+      href={`/modelo/${bike.slug}`}
       className="group flex flex-col overflow-hidden rounded-2xl border border-borda bg-superficie transition hover:border-acento/50 hover:bg-superficie-alta"
     >
       <div className="palco relative aspect-[4/3] w-full">
