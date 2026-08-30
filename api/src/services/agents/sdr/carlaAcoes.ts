@@ -86,6 +86,20 @@ export const MIDIA_CARLA: Record<string, PecaCarla> = {
   },
 };
 
+/**
+ * Como a resposta da Carla sai na linha.
+ *
+ * Mora aqui, e não solto na chamada do handler, porque é regra de produto e tem
+ * teste: o Thiago pediu "bolhas curtas sempre" em 30/08/2026 e sem trava esse
+ * teto sobe de novo sem ninguém ver.
+ *
+ * slow=true gasta de 8 a 15s de "digitando" por bolha mais 2,5 a 5,5s de
+ * intervalo. No teto padrão de 5, uma resposta ocupa de 50 a 97 SEGUNDOS da tela
+ * do lead. A mediana de texto dela era 128 caracteres, ou seja, curta: o que
+ * pesava era o tempo, não o tamanho.
+ */
+export const BOLHAS_CARLA = { slow: true, max: 120, maxBolhas: 3 } as const;
+
 /** Tags aceitas, usada pelo prompt e pelo teste, para as duas pontas não divergirem. */
 export const TAGS_MIDIA = Object.keys(MIDIA_CARLA);
 
@@ -154,6 +168,20 @@ export function pecaDaTag(tag: string | null): PecaCarla | null {
 export function blocoDeAcoes(): string {
   const catalogo = TAGS_MIDIA.map((t) => `   [[ENVIAR_IMAGEM:${t}]]`).join('\n');
   return `
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# O TAMANHO DA SUA RESPOSTA (vale acima de tudo que veio antes)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Bolha curta, sempre. Uma ideia por bolha, 1 ou 2 linhas, no máximo 3 bolhas na
+resposta inteira, e o normal é 1 ou 2.
+
+O motivo é físico, não estético: cada bolha sua fica de 10 a 20 segundos com o
+"digitando" ligado na tela dele. Três bolhas já são quase um minuto. Cinco são
+um minuto e meio de alguém parado vendo você escrever, e é assim que texto curto
+vira parede.
+
+Se não cabe em 3 bolhas curtas, você está explicando demais. Responde o que ele
+perguntou e para. O que faltar, ele pergunta, e aí você tem outro turno.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # O QUE VOCÊ CONSEGUE FAZER DE VERDADE (não é figura de linguagem)

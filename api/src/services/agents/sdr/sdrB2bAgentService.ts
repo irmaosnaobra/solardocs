@@ -7,7 +7,7 @@ import { logger } from '../../../utils/logger';
 import {
   ATENDENTE_PROMPT_KEY, PROMPT_PADRAO, numerosVivos, resolverPlaceholders,
 } from '../whatsapp/atendenteAnuncioPrompt';
-import { parseAcoesCarla, pecaDaTag, blocoDeAcoes } from './carlaAcoes';
+import { parseAcoesCarla, pecaDaTag, blocoDeAcoes, BOLHAS_CARLA } from './carlaAcoes';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -664,7 +664,13 @@ export async function handleSolarDocB2bLead(
   for (let turn = 0; turn < 4; turn++) {
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 700,
+      // 700 dava espaço pra ela escrever cinco bolhas cheias, e o transporte não
+      // trunca de propósito: resposta comprida sempre chegava inteira, só que
+      // fatiada. 500 é apertado pro texto e folgado pro resto, porque o corte por
+      // max_tokens levaria junto o que vem no FIM da resposta: o [ESTAGIO:x] e as
+      // tags de ação. Três bolhas de 120 caracteres cabem em ~90 tokens; o que
+      // sobra existe pra nunca perder o marcador.
+      max_tokens: 500,
       // cache_control: o prompt passa de ~2 mil pra ~11 mil tokens e não muda entre
       // mensagens. Sem cache, cada bolha do lead relê o texto inteiro.
       system: [{ type: 'text', text: systemVivo, cache_control: { type: 'ephemeral' } }],
@@ -743,7 +749,19 @@ export async function handleSolarDocB2bLead(
     parts.push('opa, me perdi aqui, pode repetir a última?');
   }
 
-  if (parts.length) await sendHuman(cleanPhone, parts, originInstance, { slow: true });
+  // Bolha curta, e poucas. A Carla envia com slow=true, que gasta 8 a 15s de
+  // "digitando" por bolha mais 2,5 a 5,5s de intervalo: no teto padrão de 5, uma
+  // resposta ocupa de 50 a 97 SEGUNDOS da tela do lead. Não é texto longo (a
+  // mediana medida foi 128 caracteres), é tempo longo, e foi isso que o Thiago
+  // leu como parede.
+  //
+  // O teto de 3 é rede, não solução: emBolhas nunca trunca, então texto comprido
+  // vira 3 bolhas GRANDES em vez de 5 médias, o que é pior. Quem entrega bolha
+  // curta de verdade é o prompt escrevendo pouco; isto só garante que nunca vire
+  // metralhadora.
+  if (parts.length) {
+    await sendHuman(cleanPhone, parts, originInstance, BOLHAS_CARLA);
+  }
 
   // ── as ações, sempre DEPOIS das bolhas ──────────────────────────────
   // Ordem importa: texto primeiro, anexo depois. Imagem chegando antes da frase

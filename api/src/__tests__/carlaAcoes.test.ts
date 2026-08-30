@@ -2,7 +2,9 @@ import { describe, it, expect } from 'vitest';
 
 import {
   parseAcoesCarla, pecaDaTag, MIDIA_CARLA, TAGS_MIDIA, blocoDeAcoes,
+  BOLHAS_CARLA,
 } from '../services/agents/sdr/carlaAcoes';
+import { emBolhas } from '../services/agents/bolhas';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Ações da Carla.
@@ -109,5 +111,50 @@ describe('catálogo de mídia', () => {
   it('pecaDaTag devolve null pra tag inexistente e pra null', () => {
     expect(pecaDaTag('nao_existe')).toBeNull();
     expect(pecaDaTag(null)).toBeNull();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Bolhas curtas.
+//
+// Ordem do Thiago em 30/08/2026: "bolhas curtas sempre". O que ele leu como
+// parede não era texto longo (mediana medida: 128 caracteres), era TEMPO: com
+// slow=true cada bolha gasta de 8 a 15s de "digitando" mais 2,5 a 5,5s de
+// intervalo, então o teto padrão de 5 bolhas ocupa de 50 a 97 segundos da tela.
+// Sem teste, esse teto sobe de novo na primeira vez que alguém mexer no envio.
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('BOLHAS_CARLA', () => {
+  it('mantém o teto em 3 bolhas e 120 caracteres', () => {
+    expect(BOLHAS_CARLA.maxBolhas).toBe(3);
+    expect(BOLHAS_CARLA.max).toBe(120);
+  });
+
+  it('continua com slow ligado (ritmo de vendedora, não de bot de suporte)', () => {
+    expect(BOLHAS_CARLA.slow).toBe(true);
+  });
+
+  it('resposta comprida sai em no máximo 3 bolhas, sem perder texto', () => {
+    const longo = [
+      'primeira ideia que ela quer passar pro lead aqui',
+      'segunda ideia completamente diferente da primeira',
+      'terceira ideia que também é longa e ocupa espaço',
+      'quarta ideia que deveria ser juntada com as outras',
+      'quinta ideia que estouraria o teto se não houvesse trava',
+    ].join('||');
+    const saida = emBolhas(longo, { max: BOLHAS_CARLA.max, maxBolhas: BOLHAS_CARLA.maxBolhas });
+    expect(saida.length).toBeLessThanOrEqual(3);
+    // emBolhas nunca trunca: junta o excesso. Todo pedaço tem que sobreviver.
+    for (const p of ['primeira ideia', 'quinta ideia']) {
+      expect(saida.join(' ')).toContain(p);
+    }
+  });
+
+  it('resposta curta de verdade sai em bolha curta', () => {
+    const saida = emBolhas('então você paga 100% e usa 30%||aqui é R$ 67 o mês inteiro', {
+      max: BOLHAS_CARLA.max, maxBolhas: BOLHAS_CARLA.maxBolhas,
+    });
+    expect(saida.length).toBe(2);
+    for (const b of saida) expect(b.length).toBeLessThanOrEqual(120);
   });
 });
