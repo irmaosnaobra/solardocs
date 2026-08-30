@@ -43,3 +43,6 @@ next-env.d.ts
 
 # saída de sonda local
 scripts/.probe.json
+
+.vercel
+.env*

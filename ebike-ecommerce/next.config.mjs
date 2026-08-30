@@ -1,9 +1,11 @@
+import { BASE_PATH } from './src/config/basePath.mjs';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // A loja é servida em solardoc.app/bike, por rewrite do projeto do SolarDoc.
   // Sem basePath o HTML pediria /_next/... na raiz do domínio, que é do outro
   // app, e a página viria sem estilo nenhum.
-  basePath: '/bike',
+  basePath: BASE_PATH,
   experimental: {
     // Com o rewrite, o navegador manda Origin: solardoc.app e o servidor vê o
     // host da Vercel. Sem esta lista o Next recusa a Server Action do login do

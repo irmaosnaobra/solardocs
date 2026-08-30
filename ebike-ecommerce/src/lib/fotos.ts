@@ -7,6 +7,8 @@
  * para a origem não estar escrita na página.
  */
 
+import { BASE_PATH } from '../config/basePath.mjs';
+
 const CDN = 'https://d242jwkdtnhx89.cloudfront.net';
 
 /** Hospedeiros de onde aceitamos servir imagem. Nada fora desta lista passa. */
@@ -32,10 +34,19 @@ function deBase64url(token: string): string {
  */
 const PADRAO = /^https:\/\/([^/]+)\/soollar_prd\/products\/([0-9a-f-]{36})\.(png|jpe?g|webp)$/i;
 
+/**
+ * O prefixo entra na mão de propósito. O `next/image` NÃO acrescenta o basePath
+ * dentro do parâmetro `url`, só no caminho do otimizador: com src "/foto/x" ele
+ * pede /bike/_next/image?url=/foto/x, e aí o servidor procura /foto/x, que sob
+ * basePath não existe. Resultado: 404 em toda foto. Provado em produção.
+ */
 export function enderecoInterno(urlDoCdn: string): string {
   const m = urlDoCdn.match(PADRAO);
-  if (m && m[1] === new URL(CDN).hostname) return `/foto/p${m[2]}.${m[3].toLowerCase()}`;
-  return `/foto/${base64url(urlDoCdn)}`;
+  const nome =
+    m && m[1] === new URL(CDN).hostname
+      ? `p${m[2]}.${m[3].toLowerCase()}`
+      : base64url(urlDoCdn);
+  return `${BASE_PATH}/foto/${nome}`;
 }
 
 /** Devolve a URL original do token, ou null se o token apontar para fora. */
