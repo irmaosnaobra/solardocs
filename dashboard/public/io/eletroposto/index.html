@@ -2155,6 +2155,14 @@ function erro(txt){
 async function agendar(){
   const nome    = document.getElementById('f-nome').value.trim();
   const telRaw  = document.getElementById('f-tel').value.replace(/\D/g,'');
+  // QUEM DIGITA O PAIS JA TRAZ O 55 (29/08/2026). O campo aceita "+55 61 98408-8520",
+  // e o '55' + telRaw de antes gerava 15 digitos que o banco cortava em 13: o numero
+  // virava inexistente e a pessoa nao recebia NADA — nem confirmacao, nem lembrete.
+  // Foram 8 fichas assim desde julho, quase todas viraram "nao atendeu" ou perdido
+  // (o Vladimir chegou a faltar numa reuniao que ele nunca soube que existia).
+  // DDD 55 (Santa Maria, Uruguaiana) nao cai aqui: numero do RS sem o pais tem 11
+  // digitos, e a regra so age a partir de 12.
+  const telE164 = (telRaw.length >= 12 && telRaw.slice(0,2) === '55') ? telRaw : '55' + telRaw;
   const cidade  = document.getElementById('f-cidade').value.trim();
   const cep     = document.getElementById('f-cep').value.trim();
   const rua     = document.getElementById('f-rua').value.trim();
@@ -2211,7 +2219,7 @@ async function agendar(){
       fetch('/_api/io/eletroposto/nota1', {
         method:'POST', headers:{'Content-Type':'application/json'}, keepalive:true,
         body: JSON.stringify({
-          nome, telefone:'55'+telRaw, cidade,
+          nome, telefone: telE164, cidade,
           perfil: perfilTexto(perfil),
           // O texto do ponto leva um sufixo quando a resposta SEGUINTE desmentiu a
           // primeira. A aba Arrendamento do /gerador mostra este campo como "situação
@@ -2281,7 +2289,7 @@ async function agendar(){
       // repetir nada que o formulário perguntou. `lado` é SUGESTÃO, não trava:
       // as duas portas continuam abertas e quem se enganou muda de porta.
       sessionStorage.setItem('ep_lead', JSON.stringify({
-        nome, telefone: '55' + telRaw,
+        nome, telefone: telE164,
         telefone_visivel: document.getElementById('f-tel').value.trim(),
         cidade, invest: txt(invest),
         // O curioso não recebe sugestão: ele nem vai pra página das portas, mas
@@ -2305,7 +2313,7 @@ async function agendar(){
   if(!slotSel) return erro('Escolha um horário na lista acima para confirmar.');
 
   const p = params(), r = compute(p);
-  const tel = '55' + telRaw;
+  const tel = telE164;
   const kw  = document.getElementById('s-config').value;
   const pontoDefinido = ponto.value === 'definido';
   // Ponto na mão mas sem capital: é candidato a parceria com quem tem o dinheiro.
