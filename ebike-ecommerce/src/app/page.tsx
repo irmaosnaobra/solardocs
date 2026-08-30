@@ -2,7 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import { Vitrine } from '../components/Vitrine.tsx';
-import { catalogoPublico, categoriasDe, marcasDe } from '../lib/catalogo.ts';
+import { catalogoPublico, categoriasDe, marcasDe, paraCartao } from '../lib/catalogo.ts';
 import { LOJA, emReais } from '../config/loja.ts';
 
 /**
@@ -22,11 +22,12 @@ function Estatistica({ valor, rotulo }: { valor: string; rotulo: string }) {
 }
 
 export default async function Pagina() {
-  const { bikes, meta } = await catalogoPublico();
+  const { bikes: completas, meta } = await catalogoPublico();
+  const bikes = completas.map(paraCartao);
   const marcas = marcasDe(bikes);
   const categorias = categoriasDe(bikes);
   // A vitrine abre com a bike que tem mais fotos: é a que rende no topo.
-  const destaque = [...bikes].sort((a, b) => b.imagens.length - a.imagens.length)[0];
+  const destaque = [...completas].sort((a, b) => b.imagens.length - a.imagens.length)[0];
   const menorPreco = bikes.length ? Math.min(...bikes.map((b) => b.preco)) : 0;
   const quando = new Date(meta.atualizadoEm);
   const fusoBR = { timeZone: 'America/Sao_Paulo' } as const;

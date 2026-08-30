@@ -19,7 +19,14 @@ import { buscarNoFornecedor } from './montarCatalogo.ts';
 import type { BikeNormalizada } from './normalizar.ts';
 import { enderecoInterno } from './fotos.ts';
 import { MARGEM_EM_REAIS, precoDeVenda } from './preco.ts';
-import type { Bike, BikeInterna, Catalogo, CatalogoInterno, MetaCatalogo } from '../types/bike.ts';
+import type {
+  Bike,
+  BikeInterna,
+  Cartao,
+  Catalogo,
+  CatalogoInterno,
+  MetaCatalogo,
+} from '../types/bike.ts';
 
 export const TAG_CATALOGO = 'catalogo';
 
@@ -135,13 +142,34 @@ export async function catalogoPublico(): Promise<Catalogo> {
   return { bikes: bikes.map(paraPublica), meta };
 }
 
+/** Recorta a bike para o que a listagem realmente usa. */
+export function paraCartao(b: Bike): Cartao {
+  return {
+    id: b.id,
+    slug: b.slug,
+    codigo: b.codigo,
+    titulo: b.titulo,
+    marca: b.marca,
+    linha: b.linha,
+    cor: b.cor,
+    categoria: b.categoria,
+    potencia: b.potencia,
+    autonomia: b.autonomia,
+    velocidade: b.velocidade,
+    preco: b.preco,
+    estoque: b.estoque,
+    previsao: b.previsao,
+    capa: b.imagens[0] ?? '',
+  };
+}
+
 export async function bikePorSlug(slug: string): Promise<Bike | null> {
   const { bikes } = await catalogoPublico();
   return bikes.find((b) => b.slug === slug) ?? null;
 }
 
 /** Marcas presentes no catálogo de hoje, com a contagem. Nunca uma lista fixa. */
-export function marcasDe(bikes: Bike[]): Array<{ marca: string; quantidade: number }> {
+export function marcasDe(bikes: Array<Bike | Cartao>): Array<{ marca: string; quantidade: number }> {
   const conta = new Map<string, number>();
   for (const b of bikes) conta.set(b.marca, (conta.get(b.marca) ?? 0) + 1);
   return [...conta]
@@ -149,7 +177,7 @@ export function marcasDe(bikes: Bike[]): Array<{ marca: string; quantidade: numb
     .sort((a, b) => b.quantidade - a.quantidade || a.marca.localeCompare(b.marca, 'pt-BR'));
 }
 
-export function categoriasDe(bikes: Bike[]): Array<{ categoria: string; quantidade: number }> {
+export function categoriasDe(bikes: Array<Bike | Cartao>): Array<{ categoria: string; quantidade: number }> {
   const conta = new Map<string, number>();
   for (const b of bikes) conta.set(b.categoria, (conta.get(b.categoria) ?? 0) + 1);
   return [...conta]

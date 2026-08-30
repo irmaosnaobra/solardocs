@@ -128,7 +128,7 @@ export function Fechamento({ bike }: { bike: Bike }) {
                   setConsultor(c);
                   setTrocando(false);
                 }}
-                className="underline underline-offset-4 hover:text-texto"
+                className="toque -my-2 px-1 py-2 underline underline-offset-4 hover:text-texto"
               >
                 {c.nome}
               </button>
@@ -138,7 +138,7 @@ export function Fechamento({ bike }: { bike: Bike }) {
           <button
             type="button"
             onClick={() => setTrocando(true)}
-            className="underline underline-offset-4 hover:text-texto"
+            className="toque -my-2 py-2 underline underline-offset-4 hover:text-texto"
           >
             Falar com outro consultor
           </button>

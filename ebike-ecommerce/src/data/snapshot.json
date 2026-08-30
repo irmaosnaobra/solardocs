@@ -66,7 +66,7 @@
     },
     {
      "rotulo": "Pneus/Rodas",
-     "valor": ": 3.0*10 Polegadas sem câmara de ar"
+     "valor": "3.0*10 Polegadas sem câmara de ar"
     },
     {
      "rotulo": "Controlador",
@@ -74,7 +74,7 @@
     },
     {
      "rotulo": "Carregador",
-     "valor": "60V 4A carregador bivolt (100–240V)"
+     "valor": "60V 4A carregador bivolt (100 a 240V)"
     },
     {
      "rotulo": "Entre-eixos",
@@ -87,10 +87,6 @@
     {
      "rotulo": "Peso Líquido",
      "valor": "101 kg"
-    },
-    {
-     "rotulo": "Bateria/Voltagem",
-     "valor": "Grafeno 60V 26AH"
     }
    ],
    "imagens": [
@@ -238,10 +234,6 @@
     {
      "rotulo": "Peso Líquido",
      "valor": "118 kg"
-    },
-    {
-     "rotulo": "Bateria/Voltagem",
-     "valor": "Grafeno 72V 26AH"
     }
    ],
    "imagens": [
@@ -561,10 +553,6 @@
     {
      "rotulo": "CÓD",
      "valor": "662429"
-    },
-    {
-     "rotulo": "Bateria/Voltagem",
-     "valor": "Lítio 60V 20AH"
     }
    ],
    "imagens": [
@@ -800,10 +788,6 @@
     {
      "rotulo": "Peso Líquido",
      "valor": "66 kg"
-    },
-    {
-     "rotulo": "Bateria/Voltagem",
-     "valor": "Lítio 60V 20AH"
     }
    ],
    "imagens": [
@@ -994,10 +978,6 @@
     {
      "rotulo": "Peso Líquido",
      "valor": "71 kg"
-    },
-    {
-     "rotulo": "Bateria/Voltagem",
-     "valor": "Lítio 60V 20AH"
     }
    ],
    "imagens": [
@@ -1103,10 +1083,6 @@
     {
      "rotulo": "Peso Líquido",
      "valor": "66 kg"
-    },
-    {
-     "rotulo": "Bateria/Voltagem",
-     "valor": "Lítio 60V 20AH"
     }
    ],
    "imagens": [
@@ -1339,10 +1315,6 @@
     {
      "rotulo": "Peso Líquido",
      "valor": "118 kg"
-    },
-    {
-     "rotulo": "Bateria/Voltagem",
-     "valor": "Grafeno 72V 26AH"
     }
    ],
    "imagens": [
@@ -1423,7 +1395,7 @@
     },
     {
      "rotulo": "Pneus/Rodas",
-     "valor": ": 3.0*10 Polegadas sem câmara de ar"
+     "valor": "3.0*10 Polegadas sem câmara de ar"
     },
     {
      "rotulo": "Controlador",
@@ -1431,7 +1403,7 @@
     },
     {
      "rotulo": "Carregador",
-     "valor": "60V 4A carregador bivolt (100–240V)"
+     "valor": "60V 4A carregador bivolt (100 a 240V)"
     },
     {
      "rotulo": "Entre-eixos",
@@ -1444,10 +1416,6 @@
     {
      "rotulo": "Peso Líquido",
      "valor": "101 kg"
-    },
-    {
-     "rotulo": "Bateria/Voltagem",
-     "valor": "Grafeno 60V 26AH"
     }
    ],
    "imagens": [
@@ -1595,10 +1563,6 @@
     {
      "rotulo": "Peso Líquido",
      "valor": "66 kg"
-    },
-    {
-     "rotulo": "Bateria/Voltagem",
-     "valor": "Lítio 60V 20AH"
     }
    ],
    "imagens": [
@@ -1741,7 +1705,7 @@
    "origemDoCusto": "tabela-publica"
   }
  ],
- "lidoEm": "2026-08-30T05:57:30.249Z",
+ "lidoEm": "2026-08-30T06:21:45.007Z",
  "logado": false,
  "cd": "MG - UBERLÂNDIA",
  "secao": "Ebike"

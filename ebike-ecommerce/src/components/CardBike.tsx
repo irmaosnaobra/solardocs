@@ -2,10 +2,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import { emReais } from '../config/loja.ts';
-import type { Bike } from '../types/bike.ts';
+import type { Cartao } from '../types/bike.ts';
 
 /** Etiqueta de estoque: fala o que o fornecedor informou e nada além disso. */
-function Disponibilidade({ bike }: { bike: Bike }) {
+function Disponibilidade({ bike }: { bike: Cartao }) {
   if (bike.previsao) {
     return (
       <span className="rounded-full bg-alerta/15 px-2.5 py-1 text-[11px] font-semibold text-alerta">
@@ -31,7 +31,7 @@ function Disponibilidade({ bike }: { bike: Bike }) {
   );
 }
 
-export function CardBike({ bike, prioridade = false }: { bike: Bike; prioridade?: boolean }) {
+export function CardBike({ bike, prioridade = false }: { bike: Cartao; prioridade?: boolean }) {
   return (
     <Link
       href={`/bike/${bike.slug}`}
@@ -39,7 +39,7 @@ export function CardBike({ bike, prioridade = false }: { bike: Bike; prioridade?
     >
       <div className="palco relative aspect-[4/3] w-full">
         <Image
-          src={bike.imagens[0]}
+          src={bike.capa}
           alt={bike.titulo}
           fill
           sizes="(max-width: 640px) 92vw, (max-width: 1024px) 45vw, 30vw"

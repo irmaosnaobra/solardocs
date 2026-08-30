@@ -28,6 +28,10 @@ export function htmlParaLinhas(html: string | null | undefined): string[] {
     .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, '\n')
     .replace(/<[^>]*>/g, '')
     .replace(/&#?\w+;/g, (e) => ENTIDADES[e.toLowerCase()] ?? ' ')
+    // O fabricante escreve faixa com travessao ("100-240V" com o traco longo).
+    // Ninguem digita isso, entao vira "a". So faixa entre numeros: qualquer
+    // outra troca cega estragaria o texto dele.
+    .replace(/(\d)\s*[–—]\s*(\d)/g, '$1 a $2')
     .split('\n')
     .map((l) => l.replace(/\s+/g, ' ').trim())
     .filter(Boolean);

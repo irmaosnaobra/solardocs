@@ -46,7 +46,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               Preços e disponibilidade sujeitos a confirmação no atendimento. Imagens e
               especificações fornecidas pelo fabricante.
             </p>
-            <Link href="/painel" className="text-xs underline underline-offset-4 hover:text-texto">
+            <Link
+              href="/painel"
+              className="toque -mx-2 px-2 text-xs underline underline-offset-4 hover:text-texto"
+            >
               Painel
             </Link>
           </div>

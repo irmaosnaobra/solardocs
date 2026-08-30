@@ -34,6 +34,28 @@ export type Bike = {
   previsao: string | null;
 };
 
+/**
+ * O recorte que a vitrine manda para o navegador. A ficha técnica inteira das
+ * 27 bikes não cabe no payload de uma listagem que nem mostra ficha.
+ */
+export type Cartao = Pick<
+  Bike,
+  | 'id'
+  | 'slug'
+  | 'codigo'
+  | 'titulo'
+  | 'marca'
+  | 'linha'
+  | 'cor'
+  | 'categoria'
+  | 'potencia'
+  | 'autonomia'
+  | 'velocidade'
+  | 'preco'
+  | 'estoque'
+  | 'previsao'
+> & { capa: string };
+
 /** A mesma bike com os números que só nós podemos ver. */
 export type BikeInterna = Bike & {
   custo: number;

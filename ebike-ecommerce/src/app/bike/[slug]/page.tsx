@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 import { Fechamento } from '../../../components/Fechamento.tsx';
 import { Galeria } from '../../../components/Galeria.tsx';
 import { CardBike } from '../../../components/CardBike.tsx';
-import { bikePorSlug, catalogoPublico } from '../../../lib/catalogo.ts';
+import { bikePorSlug, catalogoPublico, paraCartao } from '../../../lib/catalogo.ts';
 
 export const revalidate = 86400;
 /** Modelo novo no fornecedor abre na hora, sem esperar o próximo build. */
@@ -40,7 +40,8 @@ export default async function PaginaDaBike({ params }: { params: Promise<{ slug:
   const { bikes } = await catalogoPublico();
   const parecidas = bikes
     .filter((b) => b.id !== bike.id && (b.marca === bike.marca || b.categoria === bike.categoria))
-    .slice(0, 3);
+    .slice(0, 3)
+    .map(paraCartao);
 
   const resumo = [
     ['Motor', bike.potencia],
@@ -53,7 +54,7 @@ export default async function PaginaDaBike({ params }: { params: Promise<{ slug:
   return (
     <main className="mx-auto max-w-6xl px-5 py-10">
       <nav className="mb-8 text-sm text-suave">
-        <Link href="/" className="hover:text-texto">
+        <Link href="/" className="toque -my-2 py-2 hover:text-texto">
           Catálogo
         </Link>
         <span className="px-2">/</span>

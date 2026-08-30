@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 
 import { CardBike } from './CardBike.tsx';
 import { emReais } from '../config/loja.ts';
-import type { Bike } from '../types/bike.ts';
+import type { Cartao } from '../types/bike.ts';
 
 type Ordem = 'menor-preco' | 'maior-preco' | 'a-z';
 
@@ -45,7 +45,7 @@ export function Vitrine({
   marcas,
   categorias,
 }: {
-  bikes: Bike[];
+  bikes: Cartao[];
   marcas: Array<{ marca: string; quantidade: number }>;
   categorias: Array<{ categoria: string; quantidade: number }>;
 }) {
