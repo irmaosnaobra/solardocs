@@ -85,12 +85,13 @@ export function Entregar({ compacto = false }: { compacto?: boolean }) {
         </svg>
         {entrega ? (
           <span>
-            {/* Escolheu pelo estado? A loja não inventa a cidade dela: mostra o
-                estado, que foi o que a pessoa realmente disse. */}
+            {/* Quem escolheu a cidade disse onde ESTÁ; quem deu o CEP disse
+                para onde ENTREGAR. São promessas diferentes: só a segunda a
+                loja consegue cumprir com valor fechado. */}
             {entrega.aproximado ? 'Você está em' : 'Entregar em'}
             <br />
             <strong className="font-semibold text-tinta">
-              {entrega.aproximado ? entrega.uf : `${entrega.cidade} — ${entrega.uf}`}
+              {entrega.cidade} — {entrega.uf}
             </strong>
           </span>
         ) : (
