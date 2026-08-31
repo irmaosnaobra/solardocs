@@ -1,9 +1,9 @@
-import { NextResponse, type NextRequest } from 'next/server';
+import { NextResponse, type NextRequest } from "next/server";
 
-import { BASE_PATH } from '../../config/basePath.mjs';
-import { bikePorSlug } from '../../lib/catalogo.ts';
-import { formaPorId, linkWhatsApp } from '../../config/loja.ts';
-import { proximoConsultor } from '../../lib/rodizio.ts';
+import { BASE_PATH } from "../../config/basePath.mjs";
+import { bikePorSlug } from "../../lib/catalogo.ts";
+import { formaPorId, linkWhatsApp } from "../../config/loja.ts";
+import { proximoConsultor } from "../../lib/rodizio.ts";
 
 /**
  * O botão da bike passa por aqui antes de ir para o WhatsApp.
@@ -15,29 +15,34 @@ import { proximoConsultor } from '../../lib/rodizio.ts';
  * `force-dynamic` não é enfeite: se esta rota fosse cacheada, todo lead cairia
  * no mesmo consultor, que é exatamente o defeito que ela existe para evitar.
  */
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  const slug = req.nextUrl.searchParams.get('bike') ?? '';
-  const pagamento = formaPorId(req.nextUrl.searchParams.get('pagamento'));
-  const cidade = req.nextUrl.searchParams.get('cidade')?.slice(0, 80) ?? null;
-  const cep = req.nextUrl.searchParams.get('cep')?.slice(0, 9) ?? null;
-  const entrega = cidade ? `${cidade}${cep ? ` (${cep})` : ''}` : null;
-  const freteBruto = Number(req.nextUrl.searchParams.get('frete'));
+  const slug = req.nextUrl.searchParams.get("bike") ?? "";
+  const pagamento = formaPorId(req.nextUrl.searchParams.get("pagamento"));
+  const cidade = req.nextUrl.searchParams.get("cidade")?.slice(0, 80) ?? null;
+  const cep = req.nextUrl.searchParams.get("cep")?.slice(0, 9) ?? null;
+  const entrega = cidade ? `${cidade}${cep ? ` (${cep})` : ""}` : null;
+  const saiDe = req.nextUrl.searchParams.get("origem")?.slice(0, 80) || null;
+  const freteBruto = Number(req.nextUrl.searchParams.get("frete"));
   const frete =
     Number.isFinite(freteBruto) && freteBruto > 0
-      ? freteBruto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+      ? freteBruto.toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+        })
       : null;
 
   const bike = await bikePorSlug(slug);
-  if (!bike) return NextResponse.redirect(new URL(BASE_PATH, req.nextUrl.origin));
+  if (!bike)
+    return NextResponse.redirect(new URL(BASE_PATH, req.nextUrl.origin));
 
   const { consultor } = await proximoConsultor({
     codigo: bike.codigo,
     titulo: bike.titulo,
     preco: bike.preco,
     pagamento: pagamento?.rotulo ?? null,
-    origem: entrega ? `loja · ${entrega}` : 'loja',
+    origem: entrega ? `loja · ${entrega}` : "loja",
   });
 
   // Atrás do rewrite o host que chega aqui é o da Vercel, não o solardoc.app.
@@ -53,9 +58,10 @@ export async function GET(req: NextRequest) {
       preco: bike.preco,
       pagamento,
       entrega,
+      saiDe,
       frete,
       url: pagina,
     }),
-    { status: 302, headers: { 'Cache-Control': 'no-store' } },
+    { status: 302, headers: { "Cache-Control": "no-store" } },
   );
 }
