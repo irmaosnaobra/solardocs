@@ -3,15 +3,18 @@
  *
  *     frete = PISO + (km de ida e volta x R$/km)
  *
- * É o modelo de ENTREGA DEDICADA: sai de Uberlândia, leva a bike e volta. O
- * caminhão volta vazio, então quem paga a viagem paga os dois trechos. Por isso
- * a conta é sobre ida e volta, e não sobre a distância até o cliente.
+ * É o modelo de ENTREGA DEDICADA, e desde 31/08 vale para TODAS as unidades: o
+ * piso de R$ 250 conta da sede de cada uma, não só de Uberlândia. Quem está em
+ * São Paulo é atendido de São Bernardo pelo mesmo preço de tabela que quem está
+ * em Uberlândia é atendido daqui.
  *
- * Dentro de Uberlândia a rodagem é perto de zero e o cliente paga só o piso.
- * Foi assim que o Thiago descreveu, e é assim que está.
+ * O caminhão volta vazio, então quem paga a viagem paga os dois trechos: a
+ * conta é sobre ida e volta, não sobre a distância até o cliente.
+ *
+ * Na cidade da unidade a rodagem é perto de zero e o cliente paga só o piso.
  */
 
-/** PISO. Número do Thiago: é o que se cobra em Uberlândia, na porta. */
+/** PISO. Número do Thiago: é o que se cobra na cidade da unidade, na porta. */
 export const FRETE_MINIMO = 250;
 
 /**
@@ -19,21 +22,25 @@ export const FRETE_MINIMO = 250;
  *
  * Onde ele se encaixa: o piso legal da ANTT para carga geral em veículo de 2
  * eixos é R$ 3,9826/km (Resolução 6.076/2026). Esse piso vale para CAMINHÃO
- * CONTRATADO. Para entrega própria em utilitário não existe piso legal, e
- * R$ 3,00 fica coerente com combustível, desgaste e o tempo do motorista.
+ * CONTRATADO. Para entrega própria em utilitário não existe piso legal.
  *
- * Regra prática: se um dia a entrega passar a ser feita por transportadora
- * contratada, este número tem que subir para 3,98 ou mais, senão o frete sai do
- * seu bolso.
+ * Passou de 3,00 para 2,00 em 31/08, por decisão do Thiago, junto com a
+ * extensão do piso a todas as unidades — o que faz sentido: com a bike saindo
+ * de perto, a rodagem é curta e o piso já cobre a maior parte do serviço.
+ *
+ * Regra prática que continua valendo: se a entrega passar a ser feita por
+ * transportadora contratada, este número tem que subir para 3,98 ou mais,
+ * senão o frete sai do bolso de vocês.
  */
-export const REAIS_POR_KM = 3.0;
+export const REAIS_POR_KM = 2.0;
 
 /**
  * Até onde a entrega própria faz sentido, em quilômetros de IDA.
  *
- * Além disso a viagem dedicada vira absurdo: São Paulo daria R$ 6.383 de frete
- * numa bike de R$ 6.000. Fora do raio a tela para de dar número e manda cotar
- * no atendimento, que é onde se decide entre transportadora e entrega própria.
+ * Com a bike saindo da unidade mais perto, quase todo mundo cai dentro. O raio
+ * segue existindo para o caso que sobra: ninguém no meio do Amazonas deve ver
+ * "R$ 6.250 de frete" numa bike de R$ 6.000. Fora do raio a tela para de dar
+ * número e manda cotar no atendimento.
  */
 export const RAIO_MAXIMO_KM = 300;
 
@@ -58,12 +65,14 @@ export const PERTO_KM = 150;
 export const ORIGEM_UNICA: string | null = null;
 
 /**
- * Onde temos veículo próprio.
+ * A nossa casa. Já NÃO decide mais preço.
  *
- * Só daqui a gente sabe o preço da entrega, porque é a nossa van que roda. De
- * qualquer outra base a bike existe e está perto do cliente, mas quem leva é
- * transportadora, e esse valor a gente ainda não tem contratado: a tela diz de
- * onde sai e manda fechar o frete no atendimento.
+ * Até 31/08 só daqui saía valor, porque só aqui roda a nossa van; de qualquer
+ * outra base a tela dizia "cotamos no atendimento". Com o piso valendo da sede
+ * de cada unidade, toda base cota, e a origem passou a ser simplesmente a mais
+ * perto de quem compra — que é também a mais barata.
+ *
+ * Continua servindo para o texto da loja saber qual base é a nossa.
  */
 export const BASE_PROPRIA = 'cduberlandiamg';
 

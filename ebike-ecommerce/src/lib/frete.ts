@@ -45,7 +45,7 @@ export type Cotacao = {
   presumido: boolean;
   /** True quando o destino passou do raio de entrega própria. */
   foraDoRaio: boolean;
-  /** True quando a bike sai de uma base onde não temos veículo. */
+  /** True quando a bike não sai da nossa base. Informa a tela; não muda o preço. */
   outraBase: boolean;
   valor: number | null;
   prazoDias: number | null;
@@ -83,9 +83,11 @@ export async function cotar(opcoes: {
 
   // Fora do raio a viagem dedicada não faz sentido, e um número absurdo na tela
   // mata a venda. Melhor dizer que se cota do que assustar.
-  // Preço só sai da base onde temos van. Das outras a bike está perto do
-  // cliente, e isso já é notícia boa, mas quem leva é transportadora.
-  const semPreco = km === null || foraDoRaio || outraBase;
+  //
+  // `outraBase` NÃO cala mais o preço: com o piso valendo da sede de cada
+  // unidade, sair de São Bernardo para São Paulo é a mesma tabela de sair daqui
+  // para Uberlândia. O campo continua porque a tela avisa de onde vem.
+  const semPreco = km === null || foraDoRaio;
   const valor = semPreco ? null : Math.round((FRETE_MINIMO + rodagem) * 100) / 100;
   const prazoDias = semPreco || km === null ? null : Math.ceil(km / KM_POR_DIA) + DIAS_DE_SEPARACAO;
 

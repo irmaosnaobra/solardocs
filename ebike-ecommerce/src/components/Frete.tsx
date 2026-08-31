@@ -174,15 +174,8 @@ export function Frete({
               <strong className="font-semibold">
                 Boa notícia: essa bike já está a {r.km} km de você.
               </strong>{' '}
-              Ela não sai do nosso galpão em Uberlândia, então quem leva é transportadora — e sair
-              de perto é justamente o que deixa esse frete barato. A gente cota na hora, na
-              conversa.
-            </p>
-          ) : r.outraBase ? (
-            <p className="mt-1.5 rounded-lg bg-fundo p-2 text-xs text-tinta">
-              Essa bike está no galpão de {r.origem?.cidade}, não no nosso, em Uberlândia. Como a
-              viagem não é da nossa van, o valor vem da transportadora e sai na conversa, junto com
-              o prazo. Se preferir um modelo que sai daqui com o frete já fechado, a gente indica.
+              Ela sai da nossa unidade em {r.origem?.cidade}, não de Uberlândia — e é essa
+              proximidade que deixa o frete nesse valor.
             </p>
           ) : r.foraDoRaio ? (
             <p className="mt-1.5 rounded-lg bg-fundo p-2 text-xs text-tinta">

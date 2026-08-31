@@ -1,4 +1,4 @@
-import { BASE_PROPRIA, ORIGEM_UNICA, RAIO_MAXIMO_KM } from '../config/frete.ts';
+import { ORIGEM_UNICA } from '../config/frete.ts';
 import { kmDeEstrada } from './geo.ts';
 
 /**
@@ -22,12 +22,10 @@ export type Galpao = {
  * Contagem ganhou de Uberlândia por alguns quilômetros — e é de Uberlândia, e
  * só de lá, que sai a nossa van com preço fechado.
  *
- * A regra, então, não é a menor distância: é o melhor desfecho para quem compra.
- *   1. Se a NOSSA base tem o modelo e o destino cabe no raio, sai daqui. Preço
- *      cravado na tela vale mais do que estar cem quilômetros mais perto de um
- *      galpão que não é nosso.
- *   2. Fora do raio a van não vai de jeito nenhum. Aí a base mais perto é a
- *      resposta honesta: é ela que faz o frete de transportadora ficar menor.
+ * A regra é a MENOR DISTÂNCIA, e agora ela também é o menor preço: desde 31/08
+ * o piso de R$ 250 conta da sede de cada unidade, então toda base cota. Antes a
+ * loja preferia a nossa base mesmo estando mais longe, porque era a única que
+ * sabia dar valor — a preferência sumiu junto com o motivo dela.
  */
 
 export type Escolha<B extends Galpao> = { base: B; km: number };
@@ -50,9 +48,6 @@ export function escolherOrigem<B extends Galpao>(
       km: kmDeEstrada({ lat: b.lat!, lon: b.lon! }, destino),
     }))
     .sort((x, y) => x.km - y.km);
-
-  const nossa = medidas.find((m) => m.base.slug === BASE_PROPRIA);
-  if (nossa && nossa.km <= RAIO_MAXIMO_KM) return nossa;
 
   return medidas[0];
 }
