@@ -5,7 +5,7 @@ import { Suspense } from 'react';
 
 import './globals.css';
 import { Cabecalho } from '../components/Cabecalho.tsx';
-import { Marca } from '../components/Logo.tsx';
+import { Logo } from '../components/Logo.tsx';
 import { LOJA } from '../config/loja.ts';
 
 const inter = Inter({
@@ -42,15 +42,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         <footer className="mt-12 border-t border-borda bg-white">
           <div className="mx-auto flex max-w-[1240px] flex-col gap-6 px-4 py-10 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex items-start gap-3 text-tinta">
-              <Marca tamanho={40} />
-              <div>
-                <p className="text-base font-extrabold tracking-[-0.03em] uppercase">
-                  {LOJA.nomeCurto}
-                </p>
-                <p className="text-sm text-suave">{LOJA.slogan}</p>
-                <p className="mt-1 text-xs text-fraco">Entrega em todo o Brasil</p>
-              </div>
+            <div>
+              <Logo />
+              <p className="mt-3 text-sm text-suave">{LOJA.slogan}</p>
             </div>
 
             <p className="max-w-md text-xs leading-relaxed text-suave">

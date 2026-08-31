@@ -12,7 +12,8 @@
 export const LOJA = {
   nome: 'Corrente Mobilidade Elétrica',
   nomeCurto: 'Corrente',
-  assinatura: 'mobilidade elétrica',
+  /** Descritor do logotipo: o que a marca vende, embaixo do nome. */
+  descritor: 'Bikes elétricas',
   slogan: 'Sem gasolina. Sem desculpa.',
   chamada: 'Bicicletas e scooters elétricas, entregues em todo o Brasil',
   descricao:
