@@ -1,26 +1,29 @@
 @import 'tailwindcss';
 
 /*
-  Paleta de vitrine de marketplace: fundo cinza claro, conteudo em cartao
-  branco, azul para acao e verde para o que e vantagem.
+  Vitrine de veiculo, versao 2026: fundo quase branco, cartao branco com canto
+  generoso, tinta quase preta e um azul eletrico para acao. Sem cinza pesado e
+  sem borda dura, que e o que datava as vitrines antigas.
 
   A foto do produto e PNG recortado e fica sobre branco puro, SEM sombra
   embaixo: em fundo claro a sombra de contato vira mancha suja.
 */
 @theme {
-  --color-fundo: #ebebeb;
+  --color-fundo: #f4f5f7;
   --color-cartao: #ffffff;
-  --color-topo: #ffe600;
-  --color-texto: #333333;
-  --color-suave: #666666;
-  --color-fraco: #999999;
-  --color-borda: #ededed;
-  --color-borda-forte: #dddddd;
-  --color-acao: #3483fa;
-  --color-acao-escura: #2968c8;
-  --color-acao-clara: #e3edfb;
-  --color-vantagem: #00a650;
-  --color-alerta: #f5a623;
+  --color-tinta: #0e1116;
+  --color-texto: #1f2530;
+  --color-suave: #6b7280;
+  --color-fraco: #9aa1ad;
+  --color-borda: #e8eaee;
+  --color-borda-forte: #d5d9e0;
+  --color-acao: #1b4dff;
+  --color-acao-escura: #143bd1;
+  --color-acao-clara: #eaefff;
+  --color-vantagem: #00875a;
+  --color-vantagem-clara: #e6f5ef;
+  --color-alerta: #b45309;
+  --color-alerta-clara: #fdf3e3;
 
   --font-sans:
     var(--fonte-sans), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -37,11 +40,34 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Cartao branco com a sombra discreta que separa do fundo cinza. */
+/* Preco e numero de ficha alinham melhor com algarismo de largura fixa. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
 @utility cartao {
   background-color: var(--color-cartao);
-  border-radius: 6px;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+  border-radius: 14px;
+  box-shadow:
+    0 1px 2px rgb(14 17 22 / 0.04),
+    0 1px 3px rgb(14 17 22 / 0.06);
+}
+
+@utility cartao-clicavel {
+  background-color: var(--color-cartao);
+  border-radius: 14px;
+  box-shadow:
+    0 1px 2px rgb(14 17 22 / 0.04),
+    0 1px 3px rgb(14 17 22 / 0.06);
+  transition:
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+  &:hover {
+    box-shadow:
+      0 6px 14px rgb(14 17 22 / 0.08),
+      0 2px 4px rgb(14 17 22 / 0.06);
+    transform: translateY(-2px);
+  }
 }
 
 /* Alvo de toque confortavel no celular sem depender de padding solto. */
@@ -55,7 +81,7 @@ body {
 @utility botao-principal {
   background-color: var(--color-acao);
   color: #fff;
-  border-radius: 6px;
+  border-radius: 10px;
   font-weight: 600;
   transition: background-color 0.15s;
   &:hover {
@@ -63,25 +89,41 @@ body {
   }
 }
 
-@utility botao-secundario {
-  background-color: var(--color-acao-clara);
-  color: var(--color-acao);
-  border-radius: 6px;
+@utility botao-contorno {
+  border: 1px solid var(--color-borda-forte);
+  color: var(--color-texto);
+  border-radius: 10px;
   font-weight: 600;
-  transition: background-color 0.15s;
+  background-color: #fff;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
   &:hover {
-    background-color: #d3e2f7;
+    border-color: var(--color-acao);
+    color: var(--color-acao);
   }
 }
 
+@utility chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 9999px;
+  border: 1px solid var(--color-borda-forte);
+  background-color: #fff;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--color-texto);
+}
+
 ::selection {
-  background-color: #d3e2f7;
+  background-color: var(--color-acao-clara);
 }
 
 *:focus-visible {
   outline: 2px solid var(--color-acao);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 @media (prefers-reduced-motion: reduce) {

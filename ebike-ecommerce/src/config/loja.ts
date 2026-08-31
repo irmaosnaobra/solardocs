@@ -13,6 +13,7 @@ export const LOJA = {
   nome: 'Corrente Mobilidade Elétrica',
   nomeCurto: 'Corrente',
   assinatura: 'mobilidade elétrica',
+  slogan: 'A corrente que te move.',
   chamada: 'Bikes e scooters elétricas com entrega no Triângulo Mineiro',
   cidade: 'Uberlândia, MG',
   descricao:
@@ -57,6 +58,7 @@ export function linkWhatsApp(opcoes: {
   codigo: string;
   preco: number;
   pagamento?: FormaDePagamento | null;
+  entrega?: string | null;
   url?: string;
 }): string {
   const preco = opcoes.preco.toLocaleString('pt-BR', {
@@ -71,6 +73,7 @@ export function linkWhatsApp(opcoes: {
     `Valor: ${preco}`,
   ];
   if (opcoes.pagamento) linhas.push(`Pagamento: ${opcoes.pagamento.rotulo}`);
+  if (opcoes.entrega) linhas.push(`Entrega em: ${opcoes.entrega}`);
   if (opcoes.url) linhas.push('', opcoes.url);
   return `https://wa.me/${opcoes.consultor.whatsapp}?text=${encodeURIComponent(linhas.join('\n'))}`;
 }

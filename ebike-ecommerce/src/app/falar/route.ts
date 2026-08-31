@@ -20,6 +20,9 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   const slug = req.nextUrl.searchParams.get('bike') ?? '';
   const pagamento = formaPorId(req.nextUrl.searchParams.get('pagamento'));
+  const cidade = req.nextUrl.searchParams.get('cidade')?.slice(0, 80) ?? null;
+  const cep = req.nextUrl.searchParams.get('cep')?.slice(0, 9) ?? null;
+  const entrega = cidade ? `${cidade}${cep ? ` (${cep})` : ''}` : null;
 
   const bike = await bikePorSlug(slug);
   if (!bike) return NextResponse.redirect(new URL(BASE_PATH, req.nextUrl.origin));
@@ -29,7 +32,7 @@ export async function GET(req: NextRequest) {
     titulo: bike.titulo,
     preco: bike.preco,
     pagamento: pagamento?.rotulo ?? null,
-    origem: 'loja',
+    origem: entrega ? `loja · ${entrega}` : 'loja',
   });
 
   // Atrás do rewrite o host que chega aqui é o da Vercel, não o solardoc.app.
@@ -44,6 +47,7 @@ export async function GET(req: NextRequest) {
       codigo: bike.codigo,
       preco: bike.preco,
       pagamento,
+      entrega,
       url: pagina,
     }),
     { status: 302, headers: { 'Cache-Control': 'no-store' } },

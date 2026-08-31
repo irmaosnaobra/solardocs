@@ -4,54 +4,89 @@ import Link from 'next/link';
 import { emReais } from '../config/loja.ts';
 import type { Cartao } from '../types/bike.ts';
 
+function Icone({ d }: { d: string }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d={d} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+const RAIO = 'M13 2 4 14h7l-1 8 9-12h-7z';
+const ESTRADA = 'M4 20 8 4M20 20 16 4M12 5v2m0 4v2m0 4v2';
+const RELOGIO = 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 7v5l3 2';
+
 /** Etiqueta de estoque: fala o que o fornecedor informou e nada além disso. */
-function Disponibilidade({ bike }: { bike: Cartao }) {
+function Selo({ bike }: { bike: Cartao }) {
   if (bike.previsao) {
     return (
-      <p className="text-xs font-semibold text-alerta">Sob encomenda · chega {bike.previsao}</p>
+      <span className="rounded-full bg-alerta-clara px-2.5 py-1 text-[11px] font-semibold text-alerta">
+        Sob encomenda
+      </span>
     );
   }
-  if (typeof bike.estoque === 'number') {
-    return bike.estoque > 0 ? (
-      <p className="text-xs font-semibold text-vantagem">
-        {bike.estoque} {bike.estoque === 1 ? 'disponível' : 'disponíveis'}
-      </p>
-    ) : (
-      <p className="text-xs text-fraco">Sem estoque hoje</p>
+  if (typeof bike.estoque === 'number' && bike.estoque > 0) {
+    return (
+      <span className="rounded-full bg-vantagem-clara px-2.5 py-1 text-[11px] font-semibold text-vantagem">
+        Em estoque
+      </span>
     );
   }
-  return <p className="text-xs text-fraco">Consultar disponibilidade</p>;
+  return null;
 }
 
 export function CardBike({ bike, prioridade = false }: { bike: Cartao; prioridade?: boolean }) {
+  const fatos: Array<[string, string]> = [];
+  if (bike.potencia) fatos.push([RAIO, bike.potencia]);
+  if (bike.autonomia) fatos.push([ESTRADA, bike.autonomia]);
+  if (bike.velocidade) fatos.push([RELOGIO, bike.velocidade]);
+
   return (
-    <Link
-      href={`/modelo/${bike.slug}`}
-      className="cartao group flex flex-col overflow-hidden transition hover:shadow-[0_4px_12px_rgb(0_0_0/0.16)]"
-    >
-      <div className="relative aspect-square w-full bg-white">
+    <Link href={`/modelo/${bike.slug}`} className="cartao-clicavel group flex flex-col overflow-hidden">
+      <div className="relative aspect-[4/3] w-full bg-white">
         <Image
           src={bike.capa}
           alt={bike.titulo}
           fill
-          sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 240px"
-          className="object-contain p-4 transition duration-200 group-hover:scale-[1.04]"
+          sizes="(max-width: 640px) 46vw, (max-width: 1024px) 31vw, 280px"
+          className="object-contain p-4 transition duration-300 group-hover:scale-[1.05]"
           priority={prioridade}
         />
+        <span className="absolute top-3 left-3">
+          <Selo bike={bike} />
+        </span>
       </div>
 
-      <div className="flex flex-1 flex-col gap-1.5 border-t border-borda p-4">
-        <p className="text-[11px] tracking-wide text-fraco uppercase">{bike.marca}</p>
+      <div className="flex flex-1 flex-col gap-2 p-4">
+        <p className="text-[11px] font-semibold tracking-wide text-fraco uppercase">{bike.marca}</p>
 
-        <h3 className="line-clamp-2 text-sm leading-snug text-texto group-hover:text-acao">
+        <h3 className="line-clamp-2 text-sm leading-snug font-semibold text-tinta group-hover:text-acao">
           {bike.titulo}
         </h3>
 
-        <p className="mt-1 text-2xl leading-none font-light text-texto">{emReais(bike.preco)}</p>
-        <p className="text-xs text-vantagem">à vista, com a bike na sua mão</p>
+        {fatos.length ? (
+          <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-suave">
+            {fatos.map(([d, valor]) => (
+              <li key={valor} className="flex items-center gap-1">
+                <Icone d={d} />
+                {valor}
+              </li>
+            ))}
+          </ul>
+        ) : null}
 
         <div className="mt-auto pt-2">
-          <Disponibilidade bike={bike} />
+          <p className="tabular text-xl leading-none font-bold text-tinta">{emReais(bike.preco)}</p>
+          <p className="mt-1 text-xs text-vantagem">à vista, no Pix ou no cartão</p>
+          {bike.previsao ? (
+            <p className="mt-1 text-xs text-alerta">chega {bike.previsao}</p>
+          ) : typeof bike.estoque === 'number' && bike.estoque > 0 ? (
+            <p className="mt-1 text-xs text-suave">
+              {bike.estoque} {bike.estoque === 1 ? 'unidade' : 'unidades'}
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-fraco">consultar disponibilidade</p>
+          )}
         </div>
       </div>
     </Link>

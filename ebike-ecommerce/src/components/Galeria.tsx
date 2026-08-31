@@ -69,7 +69,7 @@ export function Galeria({ imagens, titulo }: { imagens: string[]; titulo: string
           type="button"
           onClick={() => setAmpliada(true)}
           aria-label="Ampliar foto"
-          className="relative block aspect-square w-full cursor-zoom-in bg-white"
+          className="relative block aspect-[4/3] w-full cursor-zoom-in bg-white"
         >
           {principal ? (
             <Image

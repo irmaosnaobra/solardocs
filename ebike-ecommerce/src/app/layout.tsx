@@ -5,6 +5,7 @@ import { Suspense } from 'react';
 
 import './globals.css';
 import { Cabecalho } from '../components/Cabecalho.tsx';
+import { Marca } from '../components/Logo.tsx';
 import { LOJA } from '../config/loja.ts';
 
 const inter = Inter({
@@ -15,7 +16,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: `${LOJA.nome}: bikes e scooters elétricas`,
+    default: `${LOJA.nomeCurto}: ${LOJA.slogan}`,
     template: `%s | ${LOJA.nomeCurto}`,
   },
   description: LOJA.descricao,
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#ffe600',
+  themeColor: '#ffffff',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -33,28 +34,36 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen font-sans antialiased">
         {/* O cabeçalho lê a busca da URL, e useSearchParams exige Suspense
             para a página continuar sendo gerada estaticamente. */}
-        <Suspense fallback={<div className="h-[92px] bg-topo" />}>
+        <Suspense fallback={<div className="h-[68px] border-b border-borda bg-white" />}>
           <Cabecalho />
         </Suspense>
 
         {children}
 
-        <footer className="mt-10 bg-white">
-          <div className="mx-auto flex max-w-[1200px] flex-col gap-3 px-4 py-8 text-xs text-suave sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-texto">{LOJA.nome}</p>
-              <p>{LOJA.cidade}</p>
+        <footer className="mt-12 border-t border-borda bg-white">
+          <div className="mx-auto flex max-w-[1240px] flex-col gap-6 px-4 py-10 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-3 text-tinta">
+              <Marca tamanho={34} />
+              <div>
+                <p className="text-base font-extrabold tracking-[-0.03em] uppercase">
+                  {LOJA.nomeCurto}
+                </p>
+                <p className="text-sm text-suave">{LOJA.slogan}</p>
+                <p className="mt-1 text-xs text-fraco">{LOJA.cidade}</p>
+              </div>
             </div>
-            <p className="max-w-md leading-relaxed">
+
+            <p className="max-w-md text-xs leading-relaxed text-suave">
               Preços e disponibilidade sujeitos a confirmação no atendimento. Imagens e
               especificações fornecidas pelo fabricante.
             </p>
+
             <Link
               href="/painel"
               // Sem isto o Next pré-carrega o painel para todo visitante e leva
               // 404 na portaria, sujando o console de quem só veio ver bike.
               prefetch={false}
-              className="toque -mx-2 px-2 hover:text-texto hover:underline"
+              className="toque -mx-2 px-2 text-xs text-suave hover:text-acao"
             >
               Painel
             </Link>

@@ -1,13 +1,16 @@
 import { BASE_PATH } from '../config/basePath.mjs';
+import { Frete } from './Frete.tsx';
 import { FORMAS_DE_PAGAMENTO, emReais } from '../config/loja.ts';
 import type { Bike } from '../types/bike.ts';
 
 /**
- * A caixa de compra. É um formulário comum, sem JavaScript: quem escolhe o
- * consultor é o servidor, na rota /falar, e é de lá que sai o link do WhatsApp.
+ * A caixa de compra. É um formulário comum, sem JavaScript no caminho crítico:
+ * quem escolhe o consultor é o servidor, na rota /falar, e é de lá que sai o
+ * link do WhatsApp.
  *
- * Sem JS de propósito. O botão que leva o lead embora é a peça que não pode
- * falhar, e formulário HTML funciona mesmo com o bundle quebrado.
+ * O botão que leva o lead embora é a peça que não pode falhar, e formulário
+ * HTML funciona mesmo com o bundle quebrado. O cálculo do CEP é a única parte
+ * com JavaScript, e ela é opcional: sem preencher, o lead sai igual.
  */
 export function Fechamento({ bike }: { bike: Bike }) {
   return (
@@ -16,40 +19,32 @@ export function Fechamento({ bike }: { bike: Bike }) {
       <input type="hidden" name="bike" value={bike.slug} />
 
       <div>
-        <p className="text-3xl leading-none font-light text-texto">{emReais(bike.preco)}</p>
-        <p className="mt-1 text-sm text-vantagem">
-          à vista &middot; entrega combinada no atendimento
-        </p>
+        <p className="tabular text-3xl leading-none font-bold text-tinta">{emReais(bike.preco)}</p>
+        <p className="mt-1.5 text-sm text-vantagem">à vista, no Pix ou no cartão</p>
       </div>
 
       {bike.previsao ? (
-        <p className="rounded-sm bg-alerta/10 px-3 py-2 text-sm text-texto">
-          <strong className="font-semibold">Sob encomenda.</strong> O fornecedor informa chegada
-          prevista em {bike.previsao}. Confirme o prazo no atendimento.
+        <p className="rounded-xl bg-alerta-clara px-3 py-2.5 text-sm text-texto">
+          <strong className="font-semibold text-alerta">Sob encomenda.</strong> O fornecedor informa
+          chegada prevista em {bike.previsao}. Confirme o prazo no atendimento.
         </p>
       ) : typeof bike.estoque === 'number' && bike.estoque > 0 ? (
-        <p className="text-sm text-texto">
-          <strong className="font-semibold">Estoque:</strong> {bike.estoque}{' '}
-          {bike.estoque === 1 ? 'unidade disponível' : 'unidades disponíveis'}
+        <p className="rounded-xl bg-vantagem-clara px-3 py-2.5 text-sm text-texto">
+          <strong className="font-semibold text-vantagem">Em estoque.</strong> {bike.estoque}{' '}
+          {bike.estoque === 1 ? 'unidade disponível' : 'unidades disponíveis'} agora.
         </p>
       ) : null}
 
+      <Frete />
+
       <fieldset>
-        <legend className="mb-2 text-sm font-semibold text-texto">
-          Como você prefere pagar?
-        </legend>
+        <legend className="mb-2 text-sm font-semibold text-tinta">Como você prefere pagar?</legend>
         <div className="flex flex-col gap-2">
           {FORMAS_DE_PAGAMENTO.map((f) => (
             <label key={f.id} className="block cursor-pointer">
-              <input
-                type="radio"
-                name="pagamento"
-                value={f.id}
-                required
-                className="peer sr-only"
-              />
-              <span className="flex min-h-12 flex-col justify-center rounded-sm border border-borda-forte px-3 py-2 transition peer-checked:border-acao peer-checked:bg-acao-clara peer-focus-visible:outline peer-focus-visible:outline-acao">
-                <span className="text-sm font-semibold text-texto">{f.rotulo}</span>
+              <input type="radio" name="pagamento" value={f.id} required className="peer sr-only" />
+              <span className="flex min-h-12 flex-col justify-center rounded-xl border border-borda-forte px-3 py-2 transition peer-checked:border-acao peer-checked:bg-acao-clara peer-focus-visible:outline peer-focus-visible:outline-acao">
+                <span className="text-sm font-semibold text-tinta">{f.rotulo}</span>
                 <span className="text-xs text-suave">{f.detalhe}</span>
               </span>
             </label>
@@ -63,7 +58,7 @@ export function Fechamento({ bike }: { bike: Bike }) {
 
       <p className="text-xs text-suave">
         Você fala direto com um dos nossos consultores, sem cadastro e sem formulário. O modelo, o
-        código, o valor e a forma de pagamento já vão escritos na mensagem.
+        código, o valor, a forma de pagamento e o seu CEP já vão escritos na mensagem.
       </p>
     </form>
   );
