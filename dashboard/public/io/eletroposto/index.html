@@ -1686,14 +1686,22 @@ const isoDe = (ymd, hhmm) => new Date(`${ymd}T${hhmm}:00-03:00`).toISOString();
 // 11:00 apareciam ocupados com frequência e, quando apareciam livres, competiam
 // com a manhã do solar.
 const FAIXAS_SEGUNDA = [['10:00','11:00'], ['13:00','18:00']];
-const FAIXAS_PADRAO  = [['13:00','17:00']];
-const PASSO_MIN = 60;               // 12/08: era 30 — a grade passou a ser de hora em hora
+const FAIXAS_PADRAO  = [['13:00','17:30']];
+// O passo é POR DIA desde 31/08/2026: a segunda continua de hora em hora, e de terça
+// a sexta a tarde abriu as meias-horas (13:30, 14:30, 15:30, 16:30, 17:30) — de 5 para
+// 10 horários por consultor. Ordem do Thiago, pra encaixar a semana que ficou represada
+// com a queda da linha no domingo. A sobreposição de ±30 min usa `<`, então 13:00 e
+// 13:30 convivem sem um bloquear o outro; o que some é a folga entre uma reunião e a
+// seguinte, que era o espaço de 30 min que o passo de 60 dava.
+const PASSO_SEGUNDA = 60;
+const PASSO_PADRAO  = 30;
 const emMin = hhmm => Number(hhmm.slice(0,2)) * 60 + Number(hhmm.slice(3,5));
 /** 0=dom … 6=sáb. Só a segunda (1) tem a grade cheia. */
 function horariosDoDia(dow){
   const out = [];
+  const passo = dow === 1 ? PASSO_SEGUNDA : PASSO_PADRAO;
   for(const [ini,fim] of (dow === 1 ? FAIXAS_SEGUNDA : FAIXAS_PADRAO))
-    for(let m = emMin(ini); m <= emMin(fim); m += PASSO_MIN)
+    for(let m = emMin(ini); m <= emMin(fim); m += passo)
       out.push(`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`);
   return out;
 }

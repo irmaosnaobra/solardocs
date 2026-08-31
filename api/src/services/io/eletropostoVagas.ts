@@ -58,8 +58,17 @@ const FERIADOS = new Set([
  *  almoço: 12:00 não existe. Espelha o `FAIXAS_SEGUNDA`/`FAIXAS_PADRAO` da LP —
  *  mudou lá, muda aqui, senão o robô oferece no WhatsApp horário que a página
  *  não vende. */
-const HORAS_SEGUNDA = [10, 11, 13, 14, 15, 16, 17, 18];
-const HORAS_PADRAO = [13, 14, 15, 16, 17];
+// 31/08/2026: de terça a sexta a tarde passou a ter as MEIAS-HORAS abertas
+// (13:30, 14:30, 15:30, 16:30, 17:30), dobrando a capacidade de 5 para 10 por
+// consultor. Ordem do Thiago, pra encaixar a semana que ficou represada quando a
+// linha caiu no domingo e as 35 reuniões de segunda tiveram que ser diluídas.
+//
+// Passou a ser 'HH:MM' e não mais número de hora: a grade deixou de caber em hora
+// cheia. A sobreposição continua sendo de ±30 min e usa `<` — então 13:00 e 13:30
+// convivem (|30 min| não é MENOR que 30 min), que é exatamente o que faz a grade
+// de meia em meia hora funcionar sem bloquear a si mesma.
+const HORAS_SEGUNDA = ['10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
+const HORAS_PADRAO = ['13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30'];
 const DIAS_UTEIS = new Set([1, 2, 3, 4, 5]);
 /** Duração da reunião — é ela que define sobreposição, não o passo da grade. */
 const DURACAO_MS = 30 * 60 * 1000;
@@ -76,14 +85,14 @@ export function diaBRT(d: Date | string | number): string {
 }
 
 /** ISO de um horário de Brasília. `-03:00` fixo: o Brasil não tem horário de verão desde 2019. */
-const isoDe = (ymd: string, hora: number): string =>
-  new Date(`${ymd}T${String(hora).padStart(2, '0')}:00:00-03:00`).toISOString();
+const isoDe = (ymd: string, hora: string): string =>
+  new Date(`${ymd}T${hora}:00-03:00`).toISOString();
 
 /** Dia da semana (0=dom) do YMD, lido ao meio-dia pra não escorregar no fuso. */
 const diaDaSemana = (ymd: string): number => new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
 
 /** A grade daquele dia: cheia na segunda, só a tarde de terça a sexta. */
-const horasDoDia = (ymd: string): number[] =>
+const horasDoDia = (ymd: string): readonly string[] =>
   (diaDaSemana(ymd) === 1 ? HORAS_SEGUNDA : HORAS_PADRAO);
 
 /** A agenda abre neste dia? (dia útil, não feriado e sem bloqueio pontual)

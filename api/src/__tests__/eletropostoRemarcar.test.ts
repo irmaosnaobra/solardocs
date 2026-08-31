@@ -63,7 +63,12 @@ vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
 // pra testar oferta de HOJE e de outro dia.
 const AGORA = new Date('2026-08-13T13:00:00.000Z');
 /** Horário de Brasília → ISO. Deixa o teste legível: `brt('2026-08-13', 15)`. */
-const brt = (ymd: string, h: number) => new Date(`${ymd}T${String(h).padStart(2, '0')}:00:00-03:00`).toISOString();
+const brt = (ymd: string, h: number, min = 0) =>
+  new Date(`${ymd}T${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}:00-03:00`).toISOString();
+/** A tarde inteira de terça a sexta desde 31/08/2026: 13h às 17h30, de meia em meia. */
+const TARDE: Array<[number, number]> = [
+  [13, 0], [13, 30], [14, 0], [14, 30], [15, 0], [15, 30], [16, 0], [16, 30], [17, 0], [17, 30],
+];
 
 /** Reunião marcada pra HOJE às 14h com o Diego. */
 const ficha = (over: Partial<any> = {}) => ({
@@ -86,18 +91,19 @@ describe('a régua de horários livres', () => {
   // 13/08/2026 é uma QUINTA, e desde 19/08 quinta é só a tarde: 13:00 às 17:00.
   // O relógio dos testes é 10h BRT, então a primeira vaga do dia é a primeira da
   // grade — a manhã deixou de existir fora da segunda.
-  it('oferece a grade do dia, de hora em hora', async () => {
+  // 31/08/2026: de terça a sexta a tarde passou a ser de MEIA em meia hora.
+  it('oferece a grade do dia, de meia em meia hora', async () => {
     const { proximasVagas } = await vagasMod();
     const v = (await proximasVagas('Diego', 3))!;
-    expect(v).toEqual([brt('2026-08-13', 13), brt('2026-08-13', 14), brt('2026-08-13', 15)]);
+    expect(v).toEqual([brt('2026-08-13', 13), brt('2026-08-13', 13, 30), brt('2026-08-13', 14)]);
   });
 
   // A grade da SEGUNDA não mudou: ela acumula o fim de semana e mantém a manhã.
   // Lotando a quinta e a sexta inteiras, o que sobra é a segunda começando às 10h.
   it('segunda continua com a manhã — é o dia que acumula o fim de semana', async () => {
-    compromissos = [13, 14, 15, 16, 17].flatMap(h => ([
-      { quando: brt('2026-08-13', h), vendedor_nome: 'Diego' },
-      { quando: brt('2026-08-14', h), vendedor_nome: 'Diego' },
+    compromissos = TARDE.flatMap(([h, m]) => ([
+      { quando: brt('2026-08-13', h, m), vendedor_nome: 'Diego' },
+      { quando: brt('2026-08-14', h, m), vendedor_nome: 'Diego' },
     ]));
     const { proximasVagas } = await vagasMod();
     const v = (await proximasVagas('Diego', 3))!;
@@ -130,9 +136,9 @@ describe('a régua de horários livres', () => {
   // o próximo tem que ser segunda 17/08 — nunca sábado. Lotar quinta e sexta são
   // as 5 horas da tarde (19/08: fora da segunda, a grade é 13 às 17).
   it('sábado e domingo não entram', async () => {
-    compromissos = [13, 14, 15, 16, 17].flatMap(h => ([
-      { quando: brt('2026-08-13', h), vendedor_nome: 'Diego' },
-      { quando: brt('2026-08-14', h), vendedor_nome: 'Diego' },
+    compromissos = TARDE.flatMap(([h, m]) => ([
+      { quando: brt('2026-08-13', h, m), vendedor_nome: 'Diego' },
+      { quando: brt('2026-08-14', h, m), vendedor_nome: 'Diego' },
     ]));
     const { proximasVagas } = await vagasMod();
     expect((await proximasVagas('Diego', 1))![0]).toBe(brt('2026-08-17', 10));
@@ -239,8 +245,7 @@ describe('a conversa de ponta a ponta', () => {
   it('o consultor NÃO muda: as opções são todas da agenda de quem já estava marcado', async () => {
     // Diego lotado hoje; Thiago livre. A oferta tem que pular pro próximo dia do
     // DIEGO, nunca oferecer o horário livre do Thiago.
-    compromissos = [10, 11, 13, 14, 15, 16, 17, 18]
-      .map(h => ({ quando: brt('2026-08-13', h), vendedor_nome: 'Diego' }));
+    compromissos = TARDE.map(([h, m]) => ({ quando: brt('2026-08-13', h, m), vendedor_nome: 'Diego' }));
     const { passoDeRemarcacao } = await mod();
     const r = (await passoDeRemarcacao(ficha(), ['pode ser outro dia?'], null)) as any;
     expect(r.acao).toBe('ofertou');
@@ -272,9 +277,11 @@ describe('a conversa de ponta a ponta', () => {
 
   it('agenda sem vaga nenhuma: chama gente em vez de inventar horário', async () => {
     // Diego lotado nos 21 dias varridos.
+    // Lotar de verdade agora exige a grade das duas formas: a tarde de meia em meia
+    // (ter–sex) e a manhã que só a segunda tem.
     compromissos = Array.from({ length: 21 }, (_, d) =>
-      [10, 11, 13, 14, 15, 16, 17, 18].map(h => ({
-        quando: new Date(new Date(brt('2026-08-13', h)).getTime() + d * 86400_000).toISOString(),
+      [...TARDE, [10, 0], [11, 0], [18, 0]].map(([h, m]) => ({
+        quando: new Date(new Date(brt('2026-08-13', h, m)).getTime() + d * 86400_000).toISOString(),
         vendedor_nome: 'Diego',
       }))).flat();
     const { passoDeRemarcacao } = await mod();
