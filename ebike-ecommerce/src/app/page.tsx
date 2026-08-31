@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 
+import { Vitrifoto } from '../components/Vitrifoto.tsx';
 import { Vitrine } from '../components/Vitrine.tsx';
 import { catalogoPublico, marcasDe, paraCartao } from '../lib/catalogo.ts';
 import { LOJA, emReais } from '../config/loja.ts';
@@ -32,10 +33,12 @@ export default async function Pagina() {
     timeZone: 'America/Sao_Paulo',
   });
 
+  const fotos = bikes.map((b) => ({ src: b.capa, titulo: b.titulo }));
+
   return (
     <>
       <section className="mx-auto max-w-[1240px] px-4 pt-4 sm:pt-6">
-        <div className="cartao flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <div className="cartao grid gap-4 p-4 sm:grid-cols-[1fr_300px] sm:items-center sm:gap-6 sm:p-6">
           <div>
             <p className="text-xs font-semibold tracking-[0.16em] text-mata uppercase">
               {LOJA.slogan}
@@ -44,12 +47,15 @@ export default async function Pagina() {
               {LOJA.chamada}
             </h1>
             <p className="mt-1 max-w-2xl text-sm text-suave">{LOJA.descricao}</p>
+
+            <dl className="mt-4 flex gap-6">
+              <Numero valor={String(bikes.length)} rotulo="modelos" />
+              <Numero valor={String(marcas.length)} rotulo="marcas" />
+              <Numero valor={emReais(menorPreco)} rotulo="a partir de" />
+            </dl>
           </div>
-          <dl className="flex shrink-0 gap-6">
-            <Numero valor={String(bikes.length)} rotulo="modelos" />
-            <Numero valor={String(marcas.length)} rotulo="marcas" />
-            <Numero valor={emReais(menorPreco)} rotulo="a partir de" />
-          </dl>
+
+          <Vitrifoto fotos={fotos} />
         </div>
       </section>
 

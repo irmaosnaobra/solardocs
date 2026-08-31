@@ -1,5 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40">
   <rect width="40" height="40" rx="9" fill="#0a0a0a"/>
-  <path fill-rule="evenodd" d="M20 5.5a14.5 14.5 0 1 0 0 29 14.5 14.5 0 0 0 0-29Zm0 6.5a8 8 0 1 1 0 16 8 8 0 0 1 0-16Z" fill="#ffffff"/>
-  <path d="M25.4 4.5 13.4 21h5.7l-3 14.5L29 19h-5.7l2.1-14.5Z" fill="#39ff14" stroke="#0a0a0a" stroke-width="3" stroke-linejoin="round" paint-order="stroke"/>
+  <g fill="#39ff14" transform="translate(20 20) skewX(-9) translate(-14 -12)">
+    <rect x="0" y="0" width="28" height="6.4" rx="1.8"/>
+    <rect x="0" y="8.8" width="20" height="6.4" rx="1.8"/>
+    <rect x="0" y="17.6" width="28" height="6.4" rx="1.8"/>
+  </g>
 </svg>
