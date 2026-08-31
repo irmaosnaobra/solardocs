@@ -5,15 +5,14 @@ import { notFound } from 'next/navigation';
 import { Fechamento } from '../../../components/Fechamento.tsx';
 import { Galeria } from '../../../components/Galeria.tsx';
 import { CardBike } from '../../../components/CardBike.tsx';
-import { bikePorSlug, catalogoPublico, paraCartao } from '../../../lib/catalogo.ts';
+import { bikePorSlug, catalogoPublico, paraCartao, slugsDaReserva } from '../../../lib/catalogo.ts';
 
 export const revalidate = 86400;
 /** Modelo novo no fornecedor abre na hora, sem esperar o próximo build. */
 export const dynamicParams = true;
 
-export async function generateStaticParams() {
-  const { bikes } = await catalogoPublico();
-  return bikes.map((b) => ({ slug: b.slug }));
+export function generateStaticParams() {
+  return slugsDaReserva().map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({

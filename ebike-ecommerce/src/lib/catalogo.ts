@@ -208,16 +208,40 @@ export async function basesDoCatalogo(): Promise<Base[]> {
   return [...porSlug.values()];
 }
 
+/**
+ * Os endereços que o build vai gerar, tirados da CÓPIA DE RESERVA.
+ *
+ * De propósito não é a leitura ao vivo. O build reparte as páginas entre vários
+ * processos, e cada um lê o fornecedor por conta. Com 22 bases basta uma
+ * responder diferente para o processo A prometer um endereço que o processo B
+ * não acha — e aí o Next derruba o build inteiro no export. Foi exatamente o
+ * que aconteceu com a Cappuccino Rosa/Bege.
+ *
+ * A reserva é arquivo commitado: todo processo lê a mesma coisa. Modelo que só
+ * existe ao vivo continua abrindo, porque a página tem `dynamicParams`.
+ */
+export function slugsDaReserva(): string[] {
+  return ((reserva as unknown as Bruto).bikes ?? []).map((b) => b.slug);
+}
+
 export async function bikePorSlug(slug: string): Promise<Bike | null> {
   const { bikes } = await catalogoPublico();
-  const exata = bikes.find((b) => b.slug === slug);
-  if (exata) return exata;
-
   // O slug termina no código do produto. Se o fornecedor renomear o modelo, o
   // começo do slug muda e todo link já mandado por WhatsApp quebraria; pelo
   // código a bike continua sendo encontrada.
   const codigo = slug.split('-').pop();
-  return codigo ? (bikes.find((b) => b.codigo === codigo) ?? null) : null;
+  const achar = (lista: Bike[]) =>
+    lista.find((b) => b.slug === slug) ??
+    (codigo ? lista.find((b) => b.codigo === codigo) : undefined);
+
+  const viva = achar(bikes);
+  if (viva) return viva;
+
+  // Não achou ao vivo: pode ser uma base que não respondeu nesta leitura. A
+  // reserva responde, e mostrar a ficha de ontem é melhor do que uma página de
+  // erro em cima de um link que a pessoa recebeu no WhatsApp.
+  const guardadas = ((reserva as unknown as Bruto).bikes ?? []).map(paraInterna).map(paraPublica);
+  return achar(guardadas) ?? null;
 }
 
 /** Marcas presentes no catálogo de hoje, com a contagem. Nunca uma lista fixa. */
