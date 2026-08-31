@@ -33,7 +33,15 @@ type Cotacao = {
  * O CEP resolvido vira campo escondido do formulário e viaja junto na mensagem
  * do WhatsApp, que é o que poupa a primeira pergunta do vendedor.
  */
-export function Frete({ slug }: { slug: string }) {
+export function Frete({
+  bases,
+  pesoKg,
+  preco,
+}: {
+  bases: string[];
+  pesoKg: number | null;
+  preco: number;
+}) {
   const [cep, setCep] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [r, setR] = useState<Cotacao | null>(null);
@@ -46,9 +54,13 @@ export function Frete({ slug }: { slug: string }) {
     }
     setCarregando(true);
     try {
-      const resposta = await fetch(
-        `${BASE_PATH}/api/cep?cep=${limpo}&bike=${encodeURIComponent(slug)}`,
-      );
+      const busca = new URLSearchParams({
+        cep: limpo,
+        bases: bases.join(','),
+        preco: String(preco),
+        ...(pesoKg ? { peso: String(pesoKg) } : {}),
+      });
+      const resposta = await fetch(`${BASE_PATH}/api/cep?${busca}`);
       setR((await resposta.json()) as Cotacao);
     } catch {
       setR({ ok: false, erro: 'Não consegui consultar agora. Fale com a gente no WhatsApp.' });

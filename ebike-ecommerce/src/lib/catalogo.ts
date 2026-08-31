@@ -128,10 +128,6 @@ function paraPublica(b: BikeInterna): Bike {
   };
 }
 
-/** As bases do fornecedor, com coordenada. Usadas para calcular a entrega. */
-export async function basesDoCatalogo(): Promise<Base[]> {
-  return (await lerFornecedor()).bases ?? [];
-}
 
 export async function catalogoInterno(): Promise<CatalogoInterno> {
   const bruto = await lerFornecedor();
