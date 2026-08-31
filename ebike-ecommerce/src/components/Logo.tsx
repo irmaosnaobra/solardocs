@@ -1,50 +1,46 @@
 import { LOJA } from '../config/loja.ts';
 
 /**
- * A marca desenhada: um elo de corrente aberto, em forma de C, com o raio
- * dentro. As duas leituras do nome numa figura só, e sem nenhum detalhe que
- * suma a 24px, que é o tamanho em que ela vai viver na aba do navegador.
+ * A marca: um distintivo preto com o raio em verde neon vazado no meio, e o
+ * raio é feito de dois elos de corrente encaixados.
  *
- * `currentColor` de propósito: o mesmo arquivo serve em cima do claro e do
- * escuro sem virar duas versões que depois divergem.
+ * Preto sólido em vez de traço fino de propósito: a marca precisa aguentar
+ * 16px na aba do navegador e continuar sendo reconhecida. Traço fino some,
+ * mancha cheia não.
  */
-export function Marca({ tamanho = 30 }: { tamanho?: number }) {
+export function Marca({ tamanho = 34 }: { tamanho?: number }) {
   return (
     <svg
       width={tamanho}
       height={tamanho}
-      viewBox="0 0 32 32"
+      viewBox="0 0 40 40"
       fill="none"
       aria-hidden="true"
       className="shrink-0"
     >
-      <path
-        d="M23.2 8.6a10.6 10.6 0 1 0 0 14.8"
-        stroke="currentColor"
-        strokeWidth="4.2"
-        strokeLinecap="round"
-      />
-      <path d="M17.9 8.4 12.2 17h3.7l-1.6 6.6 5.8-8.9h-3.7z" fill="currentColor" />
+      <rect width="40" height="40" rx="11" fill="#0a0a0a" />
+      {/* Raio: dois elos que se encaixam e formam o traço da corrente. */}
+      <path d="M22.6 6.5 12 21.4h6.2l-1.5 12.1L28.4 18h-6.6l3.4-11.5z" fill="#39ff14" />
     </svg>
   );
 }
 
 export function Logo({ compacto = false }: { compacto?: boolean }) {
   return (
-    <span className="flex items-center gap-2 text-tinta">
-      <Marca tamanho={compacto ? 26 : 32} />
+    <span className="flex items-center gap-2.5 text-tinta">
+      <Marca tamanho={compacto ? 30 : 38} />
       <span className="leading-none">
         <span
           className={
-            'block font-extrabold tracking-[-0.03em] uppercase ' +
-            (compacto ? 'text-lg' : 'text-xl')
+            'block font-black tracking-[-0.045em] uppercase ' +
+            (compacto ? 'text-xl' : 'text-2xl')
           }
         >
           {LOJA.nomeCurto}
         </span>
         {compacto ? null : (
-          <span className="mt-0.5 block text-[10px] tracking-[0.16em] text-suave uppercase">
-            {LOJA.assinatura}
+          <span className="mt-1 block text-[10px] font-semibold tracking-[0.1em] text-suave uppercase">
+            {LOJA.slogan}
           </span>
         )}
       </span>

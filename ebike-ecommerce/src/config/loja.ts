@@ -13,7 +13,7 @@ export const LOJA = {
   nome: 'Corrente Mobilidade Elétrica',
   nomeCurto: 'Corrente',
   assinatura: 'mobilidade elétrica',
-  slogan: 'A corrente que te move.',
+  slogan: 'Sem gasolina. Sem desculpa.',
   chamada: 'Bicicletas e scooters elétricas, entregues em todo o Brasil',
   descricao:
     'Catálogo completo de bicicletas e scooters elétricas. Você escolhe o modelo, calcula o frete pelo seu CEP e fala direto com quem vende.',

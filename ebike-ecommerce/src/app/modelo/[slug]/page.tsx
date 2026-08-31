@@ -53,11 +53,11 @@ export default async function PaginaDaBike({ params }: { params: Promise<{ slug:
   return (
     <div className="mx-auto max-w-[1240px] px-4 py-5">
       <nav className="mb-3 text-xs text-suave">
-        <Link href="/" className="hover:text-acao">
+        <Link href="/" className="hover:text-mata">
           Todos os modelos
         </Link>
         <span className="px-2 text-fraco">›</span>
-        <Link href={`/?categoria=${encodeURIComponent(bike.categoria)}`} className="hover:text-acao">
+        <Link href={`/?categoria=${encodeURIComponent(bike.categoria)}`} className="hover:text-mata">
           {bike.categoria}
         </Link>
         <span className="px-2 text-fraco">›</span>

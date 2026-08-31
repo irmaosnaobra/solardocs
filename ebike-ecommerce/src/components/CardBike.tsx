@@ -60,7 +60,7 @@ export function CardBike({ bike, prioridade = false }: { bike: Cartao; prioridad
       <div className="flex flex-1 flex-col gap-2 p-4">
         <p className="text-[11px] font-semibold tracking-wide text-fraco uppercase">{bike.marca}</p>
 
-        <h3 className="line-clamp-2 text-sm leading-snug font-semibold text-tinta group-hover:text-acao">
+        <h3 className="line-clamp-2 text-sm leading-snug font-semibold text-tinta group-hover:text-mata">
           {bike.titulo}
         </h3>
 

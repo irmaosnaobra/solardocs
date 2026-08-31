@@ -1,26 +1,25 @@
 import 'server-only';
 
 import {
-  AD_VALOREM,
-  CAPACIDADE_PAGANTE_KG,
-  CCD_ANTT_POR_KM,
-  DIAS_DE_COLETA_E_ENTREGA,
-  FATOR_MERCADO,
+  DIAS_DE_SEPARACAO,
   FRETE_MINIMO,
   KG_POR_M3,
   KM_POR_DIA,
+  ORIGEM_UNICA,
   PRESUMIDO,
-  REAIS_POR_KG_KM,
+  RAIO_MAXIMO_KM,
+  REAIS_POR_KM,
 } from '../config/frete.ts';
 import { enderecoDoCep, kmDeEstrada } from './geo.ts';
 import type { Base } from './montarCatalogo.ts';
 
 /**
- * O cálculo do frete, ponta a ponta.
+ * O cálculo do frete.
  *
- * Segue a estrutura de carga fracionada: peso taxado (o maior entre balança e
- * cubagem), frete-peso proporcional aos quilômetros, ad valorem sobre o valor
- * da mercadoria, e um piso que cobre coleta, despacho e entrega.
+ *     frete = PISO + (km de ida e volta x R$/km)
+ *
+ * Entrega dedicada: sai de Uberlândia, leva e volta. O veículo volta vazio,
+ * então quem paga a viagem paga os dois trechos.
  *
  * Devolve as PARTES, não só o total: quando o cliente pergunta por que o frete
  * dele deu isso, a resposta está na tela em vez de virar discussão.
@@ -31,19 +30,19 @@ export type Cotacao = {
   cidade: string;
   uf: string;
   bairro: string | null;
-  /** Base do fornecedor mais perto do cliente, entre as que têm o modelo. */
   origem: { cidade: string; uf: string } | null;
+  /** Distância só de ida, em quilômetros de estrada. */
   km: number | null;
+  kmIdaEVolta: number | null;
+  rodagem: number;
   pesoRealKg: number | null;
-  pesoCubadoKg: number | null;
+  pesoCubadoKg: number;
   pesoTaxadoKg: number;
   /** True quando peso e medida saíram de presunção, não da ficha do fabricante. */
   presumido: boolean;
-  fretePeso: number;
-  freteValor: number;
-  /** True quando o piso foi maior que a soma das partes. */
-  noPiso: boolean;
-  valor: number;
+  /** True quando o destino passou do raio de entrega própria. */
+  foraDoRaio: boolean;
+  valor: number | null;
   prazoDias: number | null;
 };
 
@@ -54,18 +53,17 @@ export async function cotar(opcoes: {
   pesoKg: number | null;
   volumeM3: number | null;
   categoria: string;
-  precoDaBike: number;
 }): Promise<Cotacao | null> {
   const endereco = await enderecoDoCep(opcoes.cep);
   if (!endereco) return null;
 
-  // Só as bases que têm ESTE modelo, e só as que têm coordenada.
-  const candidatas = opcoes.bases.filter(
-    (b) =>
-      b.lat !== null &&
-      b.lon !== null &&
-      (opcoes.basesDoProduto.length === 0 || opcoes.basesDoProduto.includes(b.slug)),
-  );
+  // Hoje a operação sai só de Uberlândia. Com ORIGEM_UNICA em null, o cálculo
+  // volta a escolher a base do fornecedor mais perto de quem comprou.
+  const candidatas = opcoes.bases.filter((b) => {
+    if (b.lat === null || b.lon === null) return false;
+    if (ORIGEM_UNICA) return b.slug === ORIGEM_UNICA;
+    return opcoes.basesDoProduto.length === 0 || opcoes.basesDoProduto.includes(b.slug);
+  });
 
   let origem: Base | null = null;
   let km: number | null = null;
@@ -83,18 +81,19 @@ export async function cotar(opcoes: {
   const semFicha = opcoes.pesoKg === null && opcoes.volumeM3 === null;
   const pesoReal = opcoes.pesoKg ?? presumido.pesoKg;
   const volume = opcoes.volumeM3 ?? presumido.m3;
-
   const pesoCubado = Math.round(volume * KG_POR_M3);
-  const pesoTaxado = Math.max(pesoReal, pesoCubado);
 
-  const fretePeso = km === null ? 0 : REAIS_POR_KG_KM * pesoTaxado * km;
-  const freteValor = AD_VALOREM * opcoes.precoDaBike;
-  const soma = fretePeso + freteValor;
+  const foraDoRaio = km !== null && km > RAIO_MAXIMO_KM;
+  const kmIdaEVolta = km === null ? null : km * 2;
+  const rodagem = kmIdaEVolta === null ? 0 : kmIdaEVolta * REAIS_POR_KM;
 
-  const noPiso = soma < FRETE_MINIMO;
-  const valor = Math.round(Math.max(FRETE_MINIMO, soma) * 100) / 100;
+  // Fora do raio a viagem dedicada não faz sentido, e um número absurdo na tela
+  // mata a venda. Melhor dizer que se cota do que assustar.
+  const valor =
+    km === null || foraDoRaio ? null : Math.round((FRETE_MINIMO + rodagem) * 100) / 100;
 
-  const prazoDias = km === null ? null : Math.ceil(km / KM_POR_DIA) + DIAS_DE_COLETA_E_ENTREGA;
+  const prazoDias =
+    km === null || foraDoRaio ? null : Math.ceil(km / KM_POR_DIA) + DIAS_DE_SEPARACAO;
 
   return {
     cep: endereco.cep,
@@ -103,29 +102,14 @@ export async function cotar(opcoes: {
     bairro: endereco.bairro,
     origem: origem ? { cidade: origem.cidade, uf: origem.uf } : null,
     km,
+    kmIdaEVolta,
+    rodagem: Math.round(rodagem * 100) / 100,
     pesoRealKg: opcoes.pesoKg,
     pesoCubadoKg: pesoCubado,
-    pesoTaxadoKg: pesoTaxado,
+    pesoTaxadoKg: Math.max(pesoReal, pesoCubado),
     presumido: semFicha,
-    fretePeso: Math.round(fretePeso * 100) / 100,
-    freteValor: Math.round(freteValor * 100) / 100,
-    noPiso,
+    foraDoRaio,
     valor,
     prazoDias,
-  };
-}
-
-/** Os números que sustentam a conta, para o painel mostrar de onde ela sai. */
-export function parametrosDoFrete() {
-  return {
-    piso: FRETE_MINIMO,
-    kgPorM3: KG_POR_M3,
-    ccdAntt: CCD_ANTT_POR_KM,
-    capacidadePagante: CAPACIDADE_PAGANTE_KG,
-    fatorMercado: FATOR_MERCADO,
-    reaisPorKgKm: REAIS_POR_KG_KM,
-    adValorem: AD_VALOREM,
-    kmPorDia: KM_POR_DIA,
-    diasDeColetaEEntrega: DIAS_DE_COLETA_E_ENTREGA,
   };
 }

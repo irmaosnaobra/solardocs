@@ -17,11 +17,22 @@
   --color-fraco: #9aa1ad;
   --color-borda: #e8eaee;
   --color-borda-forte: #d5d9e0;
-  --color-acao: #1b4dff;
-  --color-acao-escura: #143bd1;
-  --color-acao-clara: #eaefff;
-  --color-vantagem: #00875a;
-  --color-vantagem-clara: #e6f5ef;
+  /*
+    Preto e verde neon. O neon puro (#39ff14) NÃO serve para texto sobre
+    branco: contraste de 1,4:1, ilegível. Ele é fundo de botão e traço de
+    marca, sempre com preto por cima. Para texto verde existe o `--color-mata`,
+    que é o mesmo verde puxado para baixo até passar em contraste.
+  */
+  --color-neon: #39ff14;
+  --color-neon-escuro: #2ee00c;
+  --color-neon-fraco: #eeffe6;
+  --color-mata: #1d7a08;
+
+  --color-acao: #0a0a0a;
+  --color-acao-escura: #000000;
+  --color-acao-clara: #f2fbee;
+  --color-vantagem: #1d7a08;
+  --color-vantagem-clara: #eeffe6;
   --color-alerta: #b45309;
   --color-alerta-clara: #fdf3e3;
 
@@ -78,19 +89,24 @@ body {
   justify-content: center;
 }
 
+/* Verde neon com texto preto: é o par que fica legível e ainda grita. */
 @utility botao-principal {
-  background-color: var(--color-acao);
-  color: #fff;
+  background-color: var(--color-neon);
+  color: #0a0a0a;
   border-radius: 10px;
-  font-weight: 600;
-  transition: background-color 0.15s;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  transition:
+    background-color 0.15s,
+    box-shadow 0.15s;
   &:hover {
-    background-color: var(--color-acao-escura);
+    background-color: var(--color-neon-escuro);
+    box-shadow: 0 0 0 3px rgb(57 255 20 / 0.25);
   }
 }
 
 @utility botao-contorno {
-  border: 1px solid var(--color-borda-forte);
+  border: 1px solid var(--color-tinta);
   color: var(--color-texto);
   border-radius: 10px;
   font-weight: 600;
@@ -99,8 +115,8 @@ body {
     border-color 0.15s,
     color 0.15s;
   &:hover {
-    border-color: var(--color-acao);
-    color: var(--color-acao);
+    background-color: var(--color-tinta);
+    color: #fff;
   }
 }
 
@@ -117,11 +133,12 @@ body {
 }
 
 ::selection {
-  background-color: var(--color-acao-clara);
+  background-color: var(--color-neon);
+  color: #0a0a0a;
 }
 
 *:focus-visible {
-  outline: 2px solid var(--color-acao);
+  outline: 2px solid var(--color-mata);
   outline-offset: 2px;
   border-radius: 6px;
 }

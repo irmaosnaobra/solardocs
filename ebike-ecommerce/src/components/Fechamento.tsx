@@ -40,7 +40,6 @@ export function Fechamento({ bike }: { bike: Bike }) {
         pesoKg={bike.pesoKg}
         volumeM3={bike.volumeM3}
         categoria={bike.categoria}
-        preco={bike.preco}
       />
 
       <fieldset>

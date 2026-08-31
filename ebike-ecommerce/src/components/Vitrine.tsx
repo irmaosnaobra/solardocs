@@ -88,12 +88,12 @@ function Secao({
         <ul className="mt-3 flex flex-col gap-2 text-sm">
           {itens.map((i) => (
             <li key={i.rotulo}>
-              <label className="flex cursor-pointer items-center gap-2 text-suave hover:text-acao">
+              <label className="flex cursor-pointer items-center gap-2 text-suave hover:text-mata">
                 <input
                   type="checkbox"
                   checked={ativo === i.rotulo}
                   onChange={() => aoEscolher(ativo === i.rotulo ? null : i.rotulo)}
-                  className="size-4 accent-[var(--color-acao)]"
+                  className="size-4 accent-[var(--color-mata)]"
                 />
                 <span className={ativo === i.rotulo ? 'font-semibold text-tinta' : ''}>
                   {i.rotulo}
@@ -173,14 +173,14 @@ export function Vitrine({ bikes }: { bikes: Cartao[] }) {
             <div className="mb-3 flex items-center justify-between">
               <p className="text-sm font-semibold text-tinta">
                 Filtros aplicados
-                <span className="ml-2 rounded-full bg-acao px-1.5 py-0.5 text-[11px] text-white">
+                <span className="ml-2 rounded-full bg-neon px-1.5 py-0.5 text-[11px] font-bold text-tinta">
                   {aplicados.length + (busca ? 1 : 0)}
                 </span>
               </p>
               <button
                 type="button"
                 onClick={limparTudo}
-                className="text-xs text-acao underline underline-offset-2"
+                className="text-xs text-mata underline underline-offset-2"
               >
                 Limpar todos
               </button>
@@ -234,7 +234,7 @@ export function Vitrine({ bikes }: { bikes: Cartao[] }) {
             <select
               value={ordem}
               onChange={(e) => trocar('ordem', e.target.value)}
-              className="h-10 rounded-lg border border-borda-forte bg-white px-3 text-sm font-medium text-tinta focus:border-acao focus:outline-none"
+              className="h-10 rounded-lg border border-borda-forte bg-white px-3 text-sm font-medium text-tinta focus:border-tinta focus:outline-none"
             >
               {ORDENS.map((o) => (
                 <option key={o.id} value={o.id}>

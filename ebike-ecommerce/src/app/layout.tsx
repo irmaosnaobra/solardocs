@@ -63,7 +63,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               // Sem isto o Next pré-carrega o painel para todo visitante e leva
               // 404 na portaria, sujando o console de quem só veio ver bike.
               prefetch={false}
-              className="toque -mx-2 px-2 text-xs text-suave hover:text-acao"
+              className="toque -mx-2 px-2 text-xs text-suave hover:text-mata"
             >
               Painel
             </Link>
