@@ -48,8 +48,23 @@ function daReserva(erro: string): Bruto & { origem: 'reserva'; erro: string } {
   return { ...r, origem: 'reserva', erro };
 }
 
+/**
+ * Durante o BUILD, o catálogo sai da cópia de reserva. Nunca do fornecedor.
+ *
+ * O build reparte as 46 páginas entre sete processos, e `unstable_cache` não
+ * atravessa processo: cada um refazia a leitura das 22 bases ao mesmo tempo.
+ * São ~800 chamadas ao fornecedor num piscar, ele segura, e toda página estoura
+ * o teto de 60 segundos — o build inteiro cai. Com uma base só a leitura levava
+ * 2 segundos e isso nunca apareceu.
+ *
+ * Não é perda de frescor: `npm run sync` grava a reserva imediatamente antes de
+ * publicar, e no ar a página volta a ler ao vivo na primeira revalidação.
+ */
+const NO_BUILD = process.env.NEXT_PHASE === 'phase-production-build';
+
 const lerFornecedor = unstable_cache(
   async (): Promise<Bruto & { origem: 'ao-vivo' | 'reserva'; erro?: string }> => {
+    if (NO_BUILD) return daReserva('Build: catálogo da cópia de reserva, por escolha.');
     try {
       const vivo = await buscarCatalogoNacional();
       if (vivo.bikes.length === 0) {
