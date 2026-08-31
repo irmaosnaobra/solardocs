@@ -151,6 +151,7 @@ export function Vitrine({ bikes, bases }: { bikes: Cartao[]; bases: BaseNaVitrin
         cidade: escolha.base.cidade,
         uf: escolha.base.uf,
         km: escolha.km,
+        aproximado: entrega.aproximado,
       });
     }
     return m;
