@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from 'react';
 
-import { BASE_PATH } from "../config/basePath.mjs";
-import { emReais } from "../config/loja.ts";
-import { FRETE_MINIMO, REAIS_POR_KM, formatarCep } from "../config/frete.ts";
-import { useEntrega } from "../lib/cepSalvo.ts";
+import { BASE_PATH } from '../config/basePath.mjs';
+import { emReais } from '../config/loja.ts';
+import { FRETE_MINIMO, PERTO_KM, REAIS_POR_KM, formatarCep } from '../config/frete.ts';
+import { useEntrega } from '../lib/cepSalvo.ts';
 
 type Cotacao = {
   ok: boolean;
@@ -50,53 +50,66 @@ export function Frete({
   categoria: string;
 }) {
   const entrega = useEntrega();
-  const [cep, setCep] = useState("");
+  // O campo deriva do CEP já informado no alto da loja. Escrever nele dentro do
+  // efeito seria um render a mais e um estado que pode discordar da fonte.
+  const [digitado, setDigitado] = useState<string | null>(null);
+  const cep = digitado ?? (entrega ? formatarCep(entrega.cep) : '');
+  const setCep = setDigitado;
   const [carregando, setCarregando] = useState(false);
   const [r, setR] = useState<Cotacao | null>(null);
   const [aberto, setAberto] = useState(false);
 
-  const cotar = useCallback(
-    async (limpo: string) => {
-      setCarregando(true);
-      try {
-        const busca = new URLSearchParams({
-          cep: limpo,
-          bases: bases.join(","),
-          categoria,
-          ...(pesoKg ? { peso: String(pesoKg) } : {}),
-          ...(volumeM3 ? { m3: String(volumeM3) } : {}),
-        });
-        const resposta = await fetch(`${BASE_PATH}/api/cep?${busca}`);
-        setR((await resposta.json()) as Cotacao);
-      } catch {
-        setR({
-          ok: false,
-          erro: "Não consegui calcular agora. Fale com a gente no WhatsApp.",
-        });
-      } finally {
-        setCarregando(false);
-      }
+  /**
+   * Só busca e devolve. Não mexe em estado — é isso que deixa o efeito abaixo
+   * apenas ligar a loja ao serviço, em vez de disparar render em cascata.
+   */
+  const buscarCotacao = useCallback(
+    async (limpo: string, sinal?: AbortSignal): Promise<Cotacao> => {
+      const busca = new URLSearchParams({
+        cep: limpo,
+        bases: bases.join(','),
+        categoria,
+        ...(pesoKg ? { peso: String(pesoKg) } : {}),
+        ...(volumeM3 ? { m3: String(volumeM3) } : {}),
+      });
+      const resposta = await fetch(`${BASE_PATH}/api/cep?${busca}`, { signal: sinal });
+      return (await resposta.json()) as Cotacao;
     },
     [bases, categoria, pesoKg, volumeM3],
   );
 
-  // Quem já disse o CEP lá em cima não digita de novo aqui: a entrega desta
-  // bike aparece calculada assim que a página abre.
+  // Quem já disse onde está não digita de novo aqui: a entrega desta bike
+  // aparece calculada assim que a página abre.
   useEffect(() => {
     if (!entrega) return;
-    const limpo = entrega.cep.replace(/\D/g, "");
+    const limpo = entrega.cep.replace(/\D/g, '');
     if (limpo.length !== 8) return;
-    setCep(formatarCep(limpo));
-    void cotar(limpo);
-  }, [entrega, cotar]);
+
+    const corte = new AbortController();
+    buscarCotacao(limpo, corte.signal)
+      .then((c) => {
+        if (!corte.signal.aborted) setR(c);
+      })
+      .catch(() => {
+        /* trocou de CEP ou saiu da página */
+      });
+    return () => corte.abort();
+  }, [entrega, buscarCotacao]);
 
   async function consultar() {
-    const limpo = cep.replace(/\D/g, "");
+    const limpo = cep.replace(/\D/g, '');
     if (limpo.length !== 8) {
-      setR({ ok: false, erro: "Digite os 8 números do CEP." });
+      setR({ ok: false, erro: 'Digite os 8 números do CEP.' });
       return;
     }
-    await cotar(limpo);
+    setCarregando(true);
+    try {
+      setR(await buscarCotacao(limpo));
+    } catch {
+      setR({ ok: false, erro: 'Não consegui calcular agora. Fale com a gente no WhatsApp.' });
+    } finally {
+      setCarregando(false);
+    }
   }
 
   return (
@@ -115,7 +128,7 @@ export function Frete({
           onChange={(e) => setCep(formatarCep(e.target.value))}
           onKeyDown={(e) => {
             // Enter aqui calcularia o frete e enviaria o formulário junto.
-            if (e.key === "Enter") {
+            if (e.key === 'Enter') {
               e.preventDefault();
               void consultar();
             }
@@ -130,7 +143,7 @@ export function Frete({
           disabled={carregando}
           className="botao-contorno h-11 px-4 text-sm disabled:opacity-60"
         >
-          {carregando ? "Calculando…" : "Calcular"}
+          {carregando ? 'Calculando…' : 'Calcular'}
         </button>
       </div>
 
@@ -142,42 +155,43 @@ export function Frete({
             <p className="font-semibold text-tinta">
               {r.cidade} — {r.uf}
             </p>
-            {typeof r.valor === "number" ? (
-              <p className="tabular text-lg font-bold text-tinta">
-                {emReais(r.valor)}
-              </p>
+            {typeof r.valor === 'number' ? (
+              <p className="tabular text-lg font-bold text-tinta">{emReais(r.valor)}</p>
             ) : null}
           </div>
 
           <p className="mt-0.5 text-xs text-suave">
-            Sai de{" "}
-            {r.origem ? `${r.origem.cidade} — ${r.origem.uf}` : "Uberlândia"}
-            {r.km ? ` · ${r.km.toLocaleString("pt-BR")} km` : ""}
-            {r.prazoDias ? ` · cerca de ${r.prazoDias} dias úteis` : ""}
+            Sai de {r.origem ? `${r.origem.cidade} — ${r.origem.uf}` : 'Uberlândia'}
+            {r.km ? ` · ${r.km.toLocaleString('pt-BR')} km` : ''}
+            {r.prazoDias ? ` · cerca de ${r.prazoDias} dias úteis` : ''}
           </p>
 
           {/* Sem valor na tela, a pessoa merece saber POR QUE. Cidade e
               quilometragem sozinhas, sem preço e sem motivo, é a forma mais
               rápida de perder alguém que estava decidido. */}
-          {r.outraBase ? (
+          {r.outraBase && (r.km ?? Infinity) <= PERTO_KM ? (
             <p className="mt-1.5 rounded-lg bg-vantagem-clara p-2 text-xs text-tinta">
               <strong className="font-semibold">
-                Boa notícia: essa bike já está perto de você.
-              </strong>{" "}
-              Ela não sai do nosso galpão em Uberlândia, então quem leva é
-              transportadora, e o valor depende da praça. A gente cota na hora,
-              na conversa — e é quase sempre mais barato do que trazer de
-              Uberlândia até a sua porta.
+                Boa notícia: essa bike já está a {r.km} km de você.
+              </strong>{' '}
+              Ela não sai do nosso galpão em Uberlândia, então quem leva é transportadora — e sair
+              de perto é justamente o que deixa esse frete barato. A gente cota na hora, na
+              conversa.
+            </p>
+          ) : r.outraBase ? (
+            <p className="mt-1.5 rounded-lg bg-fundo p-2 text-xs text-tinta">
+              Essa bike está no galpão de {r.origem?.cidade}, não no nosso, em Uberlândia. Como a
+              viagem não é da nossa van, o valor vem da transportadora e sai na conversa, junto com
+              o prazo. Se preferir um modelo que sai daqui com o frete já fechado, a gente indica.
             </p>
           ) : r.foraDoRaio ? (
             <p className="mt-1.5 rounded-lg bg-fundo p-2 text-xs text-tinta">
-              Fica longe para a nossa entrega própria. O valor sai no
-              atendimento, junto com a melhor transportadora para o seu
-              endereço.
+              Fica longe para a nossa entrega própria. O valor sai no atendimento, junto com a
+              melhor transportadora para o seu endereço.
             </p>
           ) : null}
 
-          {typeof r.valor === "number" ? (
+          {typeof r.valor === 'number' ? (
             <>
               <button
                 type="button"
@@ -185,38 +199,34 @@ export function Frete({
                 aria-expanded={aberto}
                 className="mt-2 text-xs text-mata underline underline-offset-2"
               >
-                {aberto ? "Esconder a conta" : "Como chegamos nesse valor"}
+                {aberto ? 'Esconder a conta' : 'Como chegamos nesse valor'}
               </button>
 
               {aberto ? (
                 <dl className="mt-2 flex flex-col gap-1 rounded-lg bg-white p-3 text-xs text-suave">
                   <div className="flex justify-between gap-4">
                     <dt>Mínimo (coleta, embalagem e entrega)</dt>
-                    <dd className="tabular text-tinta">
-                      {emReais(FRETE_MINIMO)}
-                    </dd>
+                    <dd className="tabular text-tinta">{emReais(FRETE_MINIMO)}</dd>
                   </div>
                   <div className="flex justify-between gap-4">
                     <dt>
-                      Rodagem: {r.kmIdaEVolta?.toLocaleString("pt-BR")} km de
-                      ida e volta × {emReais(REAIS_POR_KM)}
+                      Rodagem: {r.kmIdaEVolta?.toLocaleString('pt-BR')} km de ida e volta ×{' '}
+                      {emReais(REAIS_POR_KM)}
                     </dt>
-                    <dd className="tabular text-tinta">
-                      {emReais(r.rodagem ?? 0)}
-                    </dd>
+                    <dd className="tabular text-tinta">{emReais(r.rodagem ?? 0)}</dd>
                   </div>
                   <div className="mt-1 flex justify-between gap-4 border-t border-borda pt-1 font-semibold">
                     <dt className="text-tinta">Total</dt>
                     <dd className="tabular text-tinta">{emReais(r.valor)}</dd>
                   </div>
                   <p className="mt-1 border-t border-borda pt-1">
-                    A entrega é dedicada: o veículo leva a sua bike e volta
-                    vazio, por isso a conta é sobre ida e volta.
+                    A entrega é dedicada: o veículo leva a sua bike e volta vazio, por isso a conta
+                    é sobre ida e volta.
                     {r.pesoTaxadoKg ? (
                       <>
-                        {" "}
+                        {' '}
                         Peso da carga: {r.pesoTaxadoKg} kg
-                        {r.presumido ? " (estimado)" : ""}.
+                        {r.presumido ? ' (estimado)' : ''}.
                       </>
                     ) : null}
                   </p>
@@ -227,16 +237,16 @@ export function Frete({
 
           {/* Vai junto na mensagem do WhatsApp: o vendedor já abre a conversa
               sabendo para onde é a entrega e por quanto. */}
-          <input type="hidden" name="cep" value={r.cep ?? ""} />
+          <input type="hidden" name="cep" value={r.cep ?? ''} />
           <input type="hidden" name="cidade" value={`${r.cidade} - ${r.uf}`} />
           {r.origem ? (
             <input
               type="hidden"
               name="origem"
-              value={`${r.origem.cidade} - ${r.origem.uf}${r.km ? ` (${r.km} km)` : ""}`}
+              value={`${r.origem.cidade} - ${r.origem.uf}${r.km ? ` (${r.km} km)` : ''}`}
             />
           ) : null}
-          {typeof r.valor === "number" ? (
+          {typeof r.valor === 'number' ? (
             <input type="hidden" name="frete" value={String(r.valor)} />
           ) : null}
         </div>

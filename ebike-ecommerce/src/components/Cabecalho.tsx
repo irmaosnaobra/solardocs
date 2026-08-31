@@ -34,7 +34,12 @@ export function Cabecalho() {
       <div className="mx-auto flex max-w-[1240px] items-center gap-3 px-4 py-2.5 sm:gap-4 sm:py-3">
         {/* No celular vai a versão compacta: a logo inteira roubaria a
             largura da busca, que é o que mais se usa ali. */}
-        <Link href="/" aria-label={LOJA.nome} prefetch={false} className="flex min-h-11 shrink-0 items-center">
+        <Link
+          href="/"
+          aria-label={LOJA.nome}
+          prefetch={false}
+          className="flex min-h-11 shrink-0 items-center"
+        >
           <span className="hidden sm:block">
             <Logo />
           </span>
@@ -63,7 +68,12 @@ export function Cabecalho() {
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-              <path d="m16.5 16.5 4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <path
+                d="m16.5 16.5 4 4"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
             </svg>
           </button>
         </form>

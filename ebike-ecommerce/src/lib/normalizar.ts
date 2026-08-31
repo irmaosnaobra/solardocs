@@ -23,18 +23,20 @@ const ENTIDADES: Record<string, string> = {
 /** HTML do editor do fornecedor -> texto com uma informação por linha. */
 export function htmlParaLinhas(html: string | null | undefined): string[] {
   if (!html) return [];
-  return html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, '\n')
-    .replace(/<[^>]*>/g, '')
-    .replace(/&#?\w+;/g, (e) => ENTIDADES[e.toLowerCase()] ?? ' ')
-    // O fabricante escreve faixa com travessao ("100-240V" com o traco longo).
-    // Ninguem digita isso, entao vira "a". So faixa entre numeros: qualquer
-    // outra troca cega estragaria o texto dele.
-    .replace(/(\d)\s*[–—]\s*(\d)/g, '$1 a $2')
-    .split('\n')
-    .map((l) => l.replace(/\s+/g, ' ').trim())
-    .filter(Boolean);
+  return (
+    html
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, '\n')
+      .replace(/<[^>]*>/g, '')
+      .replace(/&#?\w+;/g, (e) => ENTIDADES[e.toLowerCase()] ?? ' ')
+      // O fabricante escreve faixa com travessao ("100-240V" com o traco longo).
+      // Ninguem digita isso, entao vira "a". So faixa entre numeros: qualquer
+      // outra troca cega estragaria o texto dele.
+      .replace(/(\d)\s*[–—]\s*(\d)/g, '$1 a $2')
+      .split('\n')
+      .map((l) => l.replace(/\s+/g, ' ').trim())
+      .filter(Boolean)
+  );
 }
 
 /** Pesca os pares "Rótulo: valor" que o fabricante escreveu. */
@@ -142,7 +144,9 @@ function tituloComercial(nomeSemPrevisao: string): string {
 }
 
 function marcaDoNome(nome: string): string | null {
-  const m = nome.match(/MARCA\s+([A-Z0-9ÀÁÂÃÉÊÍÓÔÕÚÇ][A-Z0-9ÀÁÂÃÉÊÍÓÔÕÚÇ&.\s-]*?)(?:\s+-\s+\S+)?\s*$/i);
+  const m = nome.match(
+    /MARCA\s+([A-Z0-9ÀÁÂÃÉÊÍÓÔÕÚÇ][A-Z0-9ÀÁÂÃÉÊÍÓÔÕÚÇ&.\s-]*?)(?:\s+-\s+\S+)?\s*$/i,
+  );
   if (!m) return null;
   return titulizar(m[1].trim());
 }
@@ -235,8 +239,7 @@ export function normalizar(
   const tabela =
     typeof lista.stockValue === 'number' && lista.stockValue > 0 ? lista.stockValue / 100 : null;
 
-  const estoque =
-    typeof lista.availableQuantity === 'number' ? lista.availableQuantity : null;
+  const estoque = typeof lista.availableQuantity === 'number' ? lista.availableQuantity : null;
 
   return {
     id: lista.id,

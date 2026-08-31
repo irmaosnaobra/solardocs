@@ -16,10 +16,7 @@ export function Galeria({ imagens, titulo }: { imagens: string[]; titulo: string
   const [ampliada, setAmpliada] = useState(false);
 
   const total = imagens.length;
-  const ir = useCallback(
-    (passo: number) => setAtual((i) => (i + passo + total) % total),
-    [total],
-  );
+  const ir = useCallback((passo: number) => setAtual((i) => (i + passo + total) % total), [total]);
 
   useEffect(() => {
     if (!ampliada) return;
@@ -106,10 +103,7 @@ export function Galeria({ imagens, titulo }: { imagens: string[]; titulo: string
             </button>
           </div>
 
-          <div
-            className="relative flex-1"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="relative flex-1" onClick={(e) => e.stopPropagation()}>
             {principal ? (
               <Image
                 src={principal}

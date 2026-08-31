@@ -1,14 +1,15 @@
-"use client";
+'use client';
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 
-import { CardBike } from "./CardBike.tsx";
-import { emReais } from "../config/loja.ts";
-import { useEntrega } from "../lib/cepSalvo.ts";
-import { escolherOrigem } from "../lib/origem.ts";
-import { aindaVaiChegar } from "../lib/previsao.ts";
-import type { Cartao } from "../types/bike.ts";
+import { CardBike } from './CardBike.tsx';
+import { PERTO_KM } from '../config/frete.ts';
+import { emReais } from '../config/loja.ts';
+import { useEntrega } from '../lib/cepSalvo.ts';
+import { escolherOrigem } from '../lib/origem.ts';
+import { aindaVaiChegar } from '../lib/previsao.ts';
+import type { Cartao } from '../types/bike.ts';
 
 /** Base do fornecedor, só o que a vitrine precisa para medir distância. */
 export type BaseNaVitrine = {
@@ -19,31 +20,26 @@ export type BaseNaVitrine = {
   lon: number | null;
 };
 
-/** A partir daqui a bike deixa de ser "perto de você". */
-const PERTO_KM = 150;
-
-type Ordem = "menor-preco" | "maior-preco" | "a-z";
+type Ordem = 'menor-preco' | 'maior-preco' | 'a-z';
 
 const ORDENS: Array<{ id: Ordem; rotulo: string }> = [
-  { id: "menor-preco", rotulo: "Menor preço" },
-  { id: "maior-preco", rotulo: "Maior preço" },
-  { id: "a-z", rotulo: "Nome de A a Z" },
+  { id: 'menor-preco', rotulo: 'Menor preço' },
+  { id: 'maior-preco', rotulo: 'Maior preço' },
+  { id: 'a-z', rotulo: 'Nome de A a Z' },
 ];
 
-const FILTROS = ["perto", "categoria", "marca", "cor", "estoque"] as const;
+const FILTROS = ['perto', 'categoria', 'marca', 'cor', 'estoque'] as const;
 type Filtro = (typeof FILTROS)[number];
 
 const TITULO: Record<Filtro, string> = {
-  perto: "Entrega",
-  categoria: "Categoria",
-  marca: "Marca",
-  cor: "Cor",
-  estoque: "Disponibilidade",
+  perto: 'Entrega',
+  categoria: 'Categoria',
+  marca: 'Marca',
+  cor: 'Cor',
+  estoque: 'Disponibilidade',
 };
 
-function contar(
-  valores: Array<string | null>,
-): Array<{ rotulo: string; quantidade: number }> {
+function contar(valores: Array<string | null>): Array<{ rotulo: string; quantidade: number }> {
   const conta = new Map<string, number>();
   for (const v of valores) {
     if (!v) continue;
@@ -51,32 +47,24 @@ function contar(
   }
   return [...conta]
     .map(([rotulo, quantidade]) => ({ rotulo, quantidade }))
-    .sort(
-      (a, b) =>
-        b.quantidade - a.quantidade ||
-        a.rotulo.localeCompare(b.rotulo, "pt-BR"),
-    );
+    .sort((a, b) => b.quantidade - a.quantidade || a.rotulo.localeCompare(b.rotulo, 'pt-BR'));
 }
 
 function disponibilidadeDe(b: Cartao): string {
-  if (aindaVaiChegar(b.previsao)) return "Sob encomenda";
-  if (typeof b.estoque === "number" && b.estoque > 0) return "Em estoque";
-  return "A consultar";
+  if (aindaVaiChegar(b.previsao)) return 'Sob encomenda';
+  if (typeof b.estoque === 'number' && b.estoque > 0) return 'Em estoque';
+  return 'A consultar';
 }
 
-function valorDe(
-  b: Cartao,
-  f: Filtro,
-  origens: Map<string, Origem>,
-): string | null {
-  if (f === "perto") {
+function valorDe(b: Cartao, f: Filtro, origens: Map<string, Origem>): string | null {
+  if (f === 'perto') {
     const o = origens.get(b.id);
     if (!o) return null;
-    return o.km <= PERTO_KM ? "Sai de perto de você" : "Vem de outro estado";
+    return o.km <= PERTO_KM ? 'Sai de perto de você' : 'Vem de outro estado';
   }
-  if (f === "categoria") return b.categoria;
-  if (f === "marca") return b.marca;
-  if (f === "cor") return b.cor;
+  if (f === 'categoria') return b.categoria;
+  if (f === 'marca') return b.marca;
+  if (f === 'cor') return b.cor;
   return disponibilidadeDe(b);
 }
 
@@ -109,14 +97,9 @@ function Secao({
           viewBox="0 0 24 24"
           fill="none"
           aria-hidden="true"
-          className={aberta ? "rotate-180 transition" : "transition"}
+          className={aberta ? 'rotate-180 transition' : 'transition'}
         >
-          <path
-            d="m6 9 6 6 6-6"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
+          <path d="m6 9 6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
       </button>
 
@@ -129,16 +112,10 @@ function Secao({
                 <input
                   type="checkbox"
                   checked={ativo === i.rotulo}
-                  onChange={() =>
-                    aoEscolher(ativo === i.rotulo ? null : i.rotulo)
-                  }
+                  onChange={() => aoEscolher(ativo === i.rotulo ? null : i.rotulo)}
                   className="size-4 shrink-0 accent-[var(--color-mata)]"
                 />
-                <span
-                  className={
-                    ativo === i.rotulo ? "font-semibold text-tinta" : ""
-                  }
-                >
+                <span className={ativo === i.rotulo ? 'font-semibold text-tinta' : ''}>
                   {i.rotulo}
                 </span>
                 <span className="text-fraco">({i.quantidade})</span>
@@ -151,15 +128,9 @@ function Secao({
   );
 }
 
-export type Origem = { cidade: string; uf: string; km: number };
+export type Origem = { cidade: string; uf: string; km: number; aproximado?: boolean };
 
-export function Vitrine({
-  bikes,
-  bases,
-}: {
-  bikes: Cartao[];
-  bases: BaseNaVitrine[];
-}) {
+export function Vitrine({ bikes, bases }: { bikes: Cartao[]; bases: BaseNaVitrine[] }) {
   const router = useRouter();
   const parametros = useSearchParams();
   const [gaveta, setGaveta] = useState(false);
@@ -185,21 +156,22 @@ export function Vitrine({
     return m;
   }, [bikes, bases, entrega]);
 
-  const busca = parametros.get("q") ?? "";
-  const ordem = (parametros.get("ordem") as Ordem | null) ?? "menor-preco";
-  const escolhido = Object.fromEntries(
-    FILTROS.map((f) => [f, parametros.get(f)]),
-  ) as Record<Filtro, string | null>;
+  const busca = parametros.get('q') ?? '';
+  const ordem = (parametros.get('ordem') as Ordem | null) ?? 'menor-preco';
+  const escolhido = Object.fromEntries(FILTROS.map((f) => [f, parametros.get(f)])) as Record<
+    Filtro,
+    string | null
+  >;
 
   // Com a gaveta aberta, a lista atrás não pode rolar junto.
   useEffect(() => {
     if (!gaveta) return;
-    const fechar = (e: KeyboardEvent) => e.key === "Escape" && setGaveta(false);
-    document.addEventListener("keydown", fechar);
-    document.body.style.overflow = "hidden";
+    const fechar = (e: KeyboardEvent) => e.key === 'Escape' && setGaveta(false);
+    document.addEventListener('keydown', fechar);
+    document.body.style.overflow = 'hidden';
     return () => {
-      document.removeEventListener("keydown", fechar);
-      document.body.style.overflow = "";
+      document.removeEventListener('keydown', fechar);
+      document.body.style.overflow = '';
     };
   }, [gaveta]);
 
@@ -208,11 +180,11 @@ export function Vitrine({
     if (valor) p.set(chave, valor);
     else p.delete(chave);
     const qs = p.toString();
-    router.push(qs ? `/?${qs}` : "/", { scroll: false });
+    router.push(qs ? `/?${qs}` : '/', { scroll: false });
   }
 
   function limparTudo() {
-    router.push("/", { scroll: false });
+    router.push('/', { scroll: false });
     setGaveta(false);
   }
 
@@ -226,28 +198,24 @@ export function Vitrine({
     const casa = (b: Cartao, ignorar?: Filtro) => {
       for (const f of FILTROS) {
         if (f === ignorar) continue;
-        if (escolhido[f] && valorDe(b, f, origens) !== escolhido[f])
-          return false;
+        if (escolhido[f] && valorDe(b, f, origens) !== escolhido[f]) return false;
       }
       if (!termo) return true;
-      return [b.titulo, b.marca, b.codigo, b.linha ?? "", b.cor ?? ""]
-        .join(" ")
+      return [b.titulo, b.marca, b.codigo, b.linha ?? '', b.cor ?? '']
+        .join(' ')
         .toLowerCase()
         .includes(termo);
     };
 
     const ordenadas = bikes.filter((b) => casa(b));
-    if (ordem === "menor-preco") ordenadas.sort((a, b) => a.preco - b.preco);
-    if (ordem === "maior-preco") ordenadas.sort((a, b) => b.preco - a.preco);
-    if (ordem === "a-z")
-      ordenadas.sort((a, b) => a.titulo.localeCompare(b.titulo, "pt-BR"));
+    if (ordem === 'menor-preco') ordenadas.sort((a, b) => a.preco - b.preco);
+    if (ordem === 'maior-preco') ordenadas.sort((a, b) => b.preco - a.preco);
+    if (ordem === 'a-z') ordenadas.sort((a, b) => a.titulo.localeCompare(b.titulo, 'pt-BR'));
 
     const facetas = Object.fromEntries(
       FILTROS.map((f) => [
         f,
-        contar(
-          bikes.filter((b) => casa(b, f)).map((b) => valorDe(b, f, origens)),
-        ),
+        contar(bikes.filter((b) => casa(b, f)).map((b) => valorDe(b, f, origens))),
       ]),
     ) as Record<Filtro, Array<{ rotulo: string; quantidade: number }>>;
 
@@ -263,9 +231,7 @@ export function Vitrine({
       {quantosFiltros ? (
         <div className="border-b border-borda p-4">
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-sm font-semibold text-tinta">
-              Filtros aplicados
-            </p>
+            <p className="text-sm font-semibold text-tinta">Filtros aplicados</p>
             <button
               type="button"
               onClick={limparTudo}
@@ -276,11 +242,7 @@ export function Vitrine({
           </div>
           <div className="flex flex-wrap gap-2">
             {busca ? (
-              <button
-                type="button"
-                onClick={() => trocar("q", null)}
-                className="chip min-h-9"
-              >
+              <button type="button" onClick={() => trocar('q', null)} className="chip min-h-9">
                 {busca}
                 <span aria-hidden="true">✕</span>
                 <span className="sr-only">remover busca</span>
@@ -325,14 +287,12 @@ export function Vitrine({
       <main className="min-w-0 flex-1">
         <div className="mb-4 flex items-center justify-between gap-2">
           <p className="text-sm text-suave">
-            <strong className="font-semibold text-tinta">{lista.length}</strong>{" "}
-            {lista.length === 1 ? "modelo" : "modelos"}
+            <strong className="font-semibold text-tinta">{lista.length}</strong>{' '}
+            {lista.length === 1 ? 'modelo' : 'modelos'}
             {lista.length ? (
               <span className="hidden sm:inline">
-                {" · a partir de "}
-                <strong className="tabular font-semibold text-tinta">
-                  {emReais(menor)}
-                </strong>
+                {' · a partir de '}
+                <strong className="tabular font-semibold text-tinta">{emReais(menor)}</strong>
               </span>
             ) : null}
           </p>
@@ -343,13 +303,7 @@ export function Vitrine({
               onClick={() => setGaveta(true)}
               className="botao-contorno flex min-h-11 items-center gap-2 px-3 text-sm lg:hidden"
             >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden="true"
-              >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path
                   d="M4 6h16M7 12h10M10 18h4"
                   stroke="currentColor"
@@ -369,7 +323,7 @@ export function Vitrine({
               <span className="hidden sm:inline">Ordenar por</span>
               <select
                 value={ordem}
-                onChange={(e) => trocar("ordem", e.target.value)}
+                onChange={(e) => trocar('ordem', e.target.value)}
                 aria-label="Ordenar por"
                 className="h-11 rounded-lg border border-borda-forte bg-white px-2 text-sm font-medium text-tinta focus:border-tinta focus:outline-none"
               >
@@ -385,9 +339,7 @@ export function Vitrine({
 
         {lista.length === 0 ? (
           <div className="cartao p-10 text-center">
-            <p className="text-sm text-suave">
-              Nenhum modelo com esses filtros.
-            </p>
+            <p className="text-sm text-suave">Nenhum modelo com esses filtros.</p>
             <button
               type="button"
               onClick={limparTudo}
@@ -399,12 +351,7 @@ export function Vitrine({
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
             {lista.map((b, i) => (
-              <CardBike
-                key={b.id}
-                bike={b}
-                prioridade={i < 4}
-                origem={origens.get(b.id)}
-              />
+              <CardBike key={b.id} bike={b} prioridade={i < 4} origem={origens.get(b.id)} />
             ))}
           </div>
         )}
@@ -436,9 +383,7 @@ export function Vitrine({
               </button>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-              {painel}
-            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{painel}</div>
 
             <div className="border-t border-borda p-3">
               <button
@@ -446,7 +391,7 @@ export function Vitrine({
                 onClick={() => setGaveta(false)}
                 className="botao-principal toque w-full text-base"
               >
-                Ver {lista.length} {lista.length === 1 ? "modelo" : "modelos"}
+                Ver {lista.length} {lista.length === 1 ? 'modelo' : 'modelos'}
               </button>
             </div>
           </div>

@@ -17,13 +17,22 @@ import { useSyncExternalStore } from 'react';
 
 const CHAVE = 'corrente-entrega';
 const EVENTO = 'corrente-entrega-mudou';
+/** Quem fechou o convite sem responder não é convidado de novo. */
+const CHAVE_PULOU = 'corrente-entrega-pulou';
 
 export type Entrega = {
+  /** Vazio quando a pessoa escolheu o estado em vez de digitar o CEP. */
   cep: string;
   cidade: string;
   uf: string;
   lat: number;
   lon: number;
+  /**
+   * True quando o ponto é da capital do estado, não do endereço. A loja então
+   * mostra a distância com "≈" e não promete preço de frete: frete de
+   * Presidente Prudente não é frete da capital de São Paulo.
+   */
+  aproximado?: boolean;
 };
 
 /**
@@ -90,4 +99,21 @@ export function useEntrega(): Entrega | null {
     ler,
     () => null,
   );
+}
+
+export function pularEntrega() {
+  try {
+    localStorage.setItem(CHAVE_PULOU, '1');
+  } catch {
+    /* sem armazenamento, o convite volta na próxima visita */
+  }
+  window.dispatchEvent(new Event(EVENTO));
+}
+
+export function jaPulou(): boolean {
+  try {
+    return localStorage.getItem(CHAVE_PULOU) === '1';
+  } catch {
+    return false;
+  }
 }

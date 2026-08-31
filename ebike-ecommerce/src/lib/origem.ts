@@ -1,5 +1,5 @@
-import { BASE_PROPRIA, ORIGEM_UNICA, RAIO_MAXIMO_KM } from "../config/frete.ts";
-import { kmDeEstrada } from "./geo.ts";
+import { BASE_PROPRIA, ORIGEM_UNICA, RAIO_MAXIMO_KM } from '../config/frete.ts';
+import { kmDeEstrada } from './geo.ts';
 
 /**
  * O mínimo para medir distância. Genérico de propósito: o servidor passa a

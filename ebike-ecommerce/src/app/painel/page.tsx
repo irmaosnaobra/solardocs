@@ -105,7 +105,11 @@ export default async function Painel() {
       ) : null}
 
       <section className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Cartao titulo="Modelos no ar" valor={String(bikes.length)} detalhe={`${marcas.length} marcas`} />
+        <Cartao
+          titulo="Modelos no ar"
+          valor={String(bikes.length)}
+          detalhe={`${marcas.length} marcas`}
+        />
         <Cartao
           titulo="Margem por unidade"
           valor={emReais(MARGEM_EM_REAIS)}
@@ -135,8 +139,8 @@ export default async function Painel() {
           ) : null}
           {semEstoque ? (
             <li>
-              {semEstoque} de {bikes.length} itens estão sem quantidade, então a loja mostra “consultar
-              disponibilidade” neles.
+              {semEstoque} de {bikes.length} itens estão sem quantidade, então a loja mostra
+              “consultar disponibilidade” neles.
             </li>
           ) : null}
           {sitePrivado() ? (

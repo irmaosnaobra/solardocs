@@ -6,14 +6,14 @@
  * `catalogo.ts` é `server-only`.
  */
 
-import { abrirSessao, ErroSoollar } from "./soollar.ts";
-import type { CD, ProdutoBruto } from "./soollar.ts";
-import { enderecoDoCep } from "./geo.ts";
-import { normalizar } from "./normalizar.ts";
-import type { BikeNormalizada } from "./normalizar.ts";
+import { abrirSessao, ErroSoollar } from './soollar.ts';
+import type { CD, ProdutoBruto } from './soollar.ts';
+import { enderecoDoCep } from './geo.ts';
+import { normalizar } from './normalizar.ts';
+import type { BikeNormalizada } from './normalizar.ts';
 
-export const CD_PADRAO = "cduberlandiamg";
-export const SECAO_PADRAO = "ebike";
+export const CD_PADRAO = 'cduberlandiamg';
+export const SECAO_PADRAO = 'ebike';
 
 /** Uma base do fornecedor, com a coordenada já resolvida a partir do CEP. */
 export type Base = {
@@ -45,13 +45,13 @@ async function comCoordenada(cds: CD[]): Promise<Base[]> {
   // Em lotes: as 22 de uma vez levavam limite do serviço de CEP e voltavam sem
   // coordenada, o que apaga a base do mapa da loja.
   const bases = await emLotes(cds, 4, async (cd) => {
-    const cep = (cd.zipCode ?? "").replace(/\D/g, "");
+    const cep = (cd.zipCode ?? '').replace(/\D/g, '');
     const e = cep ? await enderecoDoCep(cep).catch(() => null) : null;
     return {
       slug: cd.slug,
       nome: cd.name,
-      cidade: e?.cidade ?? cd.city ?? "",
-      uf: e?.uf ?? cd.state ?? "",
+      cidade: e?.cidade ?? cd.city ?? '',
+      uf: e?.uf ?? cd.state ?? '',
       cep,
       lat: e?.ponto?.lat ?? null,
       lon: e?.ponto?.lon ?? null,
@@ -79,10 +79,10 @@ async function emLotes<T, R>(
  * é melhor a loja não dizer a marca do que dizer a errada.
  */
 function completarMarcas(bikes: BikeNormalizada[]): BikeNormalizada[] {
-  const SEM_MARCA = "Não informada";
+  const SEM_MARCA = 'Não informada';
   const porModelo = new Map<string, Set<string>>();
   const modeloDe = (b: BikeNormalizada) =>
-    b.titulo.split(/\s+/).slice(0, 4).join(" ").toLowerCase();
+    b.titulo.split(/\s+/).slice(0, 4).join(' ').toLowerCase();
 
   for (const b of bikes) {
     if (b.marca === SEM_MARCA) continue;
@@ -107,8 +107,7 @@ export async function buscarNoFornecedor(opcoes?: {
   comFicha?: boolean;
 }): Promise<CatalogoBruto> {
   const cdSlug = opcoes?.cdSlug ?? process.env.SOOLLAR_CD ?? CD_PADRAO;
-  const secaoSlug =
-    opcoes?.secaoSlug ?? process.env.SOOLLAR_SECAO ?? SECAO_PADRAO;
+  const secaoSlug = opcoes?.secaoSlug ?? process.env.SOOLLAR_SECAO ?? SECAO_PADRAO;
   const email = opcoes?.email ?? process.env.SOOLLAR_EMAIL;
   const senha = opcoes?.senha ?? process.env.SOOLLAR_SENHA;
 
@@ -118,10 +117,7 @@ export async function buscarNoFornecedor(opcoes?: {
     email,
     senha,
   });
-  const lista = await sessao.listarProdutos(
-    cd.distributionCenterId,
-    secao.sectionId,
-  );
+  const lista = await sessao.listarProdutos(cd.distributionCenterId, secao.sectionId);
   const bases = await comCoordenada(todosOsCds);
 
   // A ficha técnica completa só vem no detalhe, um produto por chamada.
@@ -143,10 +139,7 @@ export async function buscarNoFornecedor(opcoes?: {
     // e é o que permite dizer de onde a bike sai mais perto de quem comprou.
     const ondeTem = await emLotes(lista, 5, async (p) => {
       try {
-        return [
-          p.id,
-          (await sessao.cdsComOProduto(p.id)).map((c) => c.slug),
-        ] as const;
+        return [p.id, (await sessao.cdsComOProduto(p.id)).map((c) => c.slug)] as const;
       } catch {
         return [p.id, [] as string[]] as const;
       }
@@ -155,9 +148,7 @@ export async function buscarNoFornecedor(opcoes?: {
   }
 
   const bikes = completarMarcas(
-    lista.map((p) =>
-      normalizar(p, fichas.get(p.id), basesDoProduto.get(p.id) ?? [cd.slug]),
-    ),
+    lista.map((p) => normalizar(p, fichas.get(p.id), basesDoProduto.get(p.id) ?? [cd.slug])),
   ).filter((b) => b.custoEmReais !== null && b.imagens.length > 0);
 
   return {

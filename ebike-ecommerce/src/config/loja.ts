@@ -10,14 +10,14 @@
  * só soar bonito.
  */
 export const LOJA = {
-  nome: "Corrente Mobilidade Elétrica",
-  nomeCurto: "Corrente",
+  nome: 'Corrente Mobilidade Elétrica',
+  nomeCurto: 'Corrente',
   /** Descritor do logotipo: o que a marca vende, embaixo do nome. */
-  descritor: "Bikes elétricas",
-  slogan: "Sem gasolina. Sem desculpa.",
-  chamada: "Bicicletas e scooters elétricas, entregues em todo o Brasil",
+  descritor: 'Bikes elétricas',
+  slogan: 'Sem gasolina. Sem desculpa.',
+  chamada: 'Bicicletas e scooters elétricas, entregues em todo o Brasil',
   descricao:
-    "Catálogo completo de bicicletas e scooters elétricas. Você escolhe o modelo, calcula o frete pelo seu CEP e fala direto com quem vende.",
+    'Catálogo completo de bicicletas e scooters elétricas. Você escolhe o modelo, calcula o frete pelo seu CEP e fala direto com quem vende.',
 } as const;
 
 /**
@@ -27,28 +27,24 @@ export const LOJA = {
 export type Consultor = { nome: string; whatsapp: string; apelido: string };
 
 export const CONSULTORES: Consultor[] = [
-  { nome: "Thiago", apelido: "thiago", whatsapp: "5534991360223" },
-  { nome: "Diego", apelido: "diego", whatsapp: "5534991360172" },
+  { nome: 'Thiago', apelido: 'thiago', whatsapp: '5534991360223' },
+  { nome: 'Diego', apelido: 'diego', whatsapp: '5534991360172' },
 ];
 
 /** Como a pessoa quer pagar. Vai junto na mensagem do WhatsApp. */
 export type FormaDePagamento = { id: string; rotulo: string; detalhe: string };
 
 export const FORMAS_DE_PAGAMENTO: FormaDePagamento[] = [
-  { id: "avista", rotulo: "À vista", detalhe: "Pagamento em uma vez" },
-  { id: "cartao", rotulo: "Cartão de crédito", detalhe: "Parcelado no cartão" },
+  { id: 'avista', rotulo: 'À vista', detalhe: 'Pagamento em uma vez' },
+  { id: 'cartao', rotulo: 'Cartão de crédito', detalhe: 'Parcelado no cartão' },
 ];
 
-export function consultorPorApelido(
-  apelido: string | null | undefined,
-): Consultor | null {
+export function consultorPorApelido(apelido: string | null | undefined): Consultor | null {
   if (!apelido) return null;
   return CONSULTORES.find((c) => c.apelido === apelido.toLowerCase()) ?? null;
 }
 
-export function formaPorId(
-  id: string | null | undefined,
-): FormaDePagamento | null {
+export function formaPorId(id: string | null | undefined): FormaDePagamento | null {
   if (!id) return null;
   return FORMAS_DE_PAGAMENTO.find((f) => f.id === id) ?? null;
 }
@@ -65,13 +61,13 @@ export function linkWhatsApp(opcoes: {
   saiDe?: string | null;
   url?: string;
 }): string {
-  const preco = opcoes.preco.toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
+  const preco = opcoes.preco.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
   });
   const linhas = [
     `Olá, ${opcoes.consultor.nome}! Vi no site da ${LOJA.nomeCurto} e quero esta:`,
-    "",
+    '',
     `Modelo: ${opcoes.titulo}`,
     `Código: ${opcoes.codigo}`,
     `Valor: ${preco}`,
@@ -82,14 +78,14 @@ export function linkWhatsApp(opcoes: {
   // devolve "vou verificar" e a conversa esfria justamente na hora da decisão.
   if (opcoes.saiDe) linhas.push(`Sai de: ${opcoes.saiDe}`);
   if (opcoes.frete) linhas.push(`Frete calculado: ${opcoes.frete}`);
-  if (opcoes.url) linhas.push("", opcoes.url);
-  return `https://wa.me/${opcoes.consultor.whatsapp}?text=${encodeURIComponent(linhas.join("\n"))}`;
+  if (opcoes.url) linhas.push('', opcoes.url);
+  return `https://wa.me/${opcoes.consultor.whatsapp}?text=${encodeURIComponent(linhas.join('\n'))}`;
 }
 
 export function emReais(valor: number): string {
-  return valor.toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
+  return valor.toLocaleString('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
     minimumFractionDigits: 2,
   });
 }

@@ -242,7 +242,9 @@ export class SessaoSoollar {
         fn();
       };
       cliente.on('error', (e) =>
-        encerrar(() => rejeitar(new ErroSoollar('Não consegui falar com o fornecedor.', e.message))),
+        encerrar(() =>
+          rejeitar(new ErroSoollar('Não consegui falar com o fornecedor.', e.message)),
+        ),
       );
 
       const req = cliente.request({

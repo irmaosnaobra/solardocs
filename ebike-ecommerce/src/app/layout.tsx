@@ -6,6 +6,7 @@ import { Suspense } from 'react';
 import './globals.css';
 import { Cabecalho } from '../components/Cabecalho.tsx';
 import { Logo } from '../components/Logo.tsx';
+import { OndeVoceEsta } from '../components/OndeVoceEsta.tsx';
 import { LOJA } from '../config/loja.ts';
 
 const inter = Inter({
@@ -39,6 +40,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </Suspense>
 
         {children}
+
+        {/* Pergunta uma vez de onde a pessoa e. Vale no site inteiro, entao
+            mora aqui e nao so na vitrine. */}
+        <OndeVoceEsta />
 
         <footer className="mt-12 border-t border-borda bg-white">
           <div className="mx-auto flex max-w-[1240px] flex-col gap-6 px-4 py-10 sm:flex-row sm:items-start sm:justify-between">

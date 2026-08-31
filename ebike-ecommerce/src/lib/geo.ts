@@ -23,8 +23,7 @@ export function distanciaKm(a: Ponto, b: Ponto): number {
   const dLat = rad(b.lat - a.lat);
   const dLon = rad(b.lon - a.lon);
   const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLon / 2) ** 2;
+    Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLon / 2) ** 2;
   return 2 * RAIO_DA_TERRA_KM * Math.asin(Math.sqrt(h));
 }
 

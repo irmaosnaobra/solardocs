@@ -1,4 +1,4 @@
-import "server-only";
+import 'server-only';
 
 import {
   BASE_PROPRIA,
@@ -9,10 +9,10 @@ import {
   PRESUMIDO,
   RAIO_MAXIMO_KM,
   REAIS_POR_KM,
-} from "../config/frete.ts";
-import { enderecoDoCep } from "./geo.ts";
-import type { Base } from "./montarCatalogo.ts";
-import { escolherOrigem } from "./origem.ts";
+} from '../config/frete.ts';
+import { enderecoDoCep } from './geo.ts';
+import type { Base } from './montarCatalogo.ts';
+import { escolherOrigem } from './origem.ts';
 
 /**
  * O cálculo do frete.
@@ -86,13 +86,8 @@ export async function cotar(opcoes: {
   // Preço só sai da base onde temos van. Das outras a bike está perto do
   // cliente, e isso já é notícia boa, mas quem leva é transportadora.
   const semPreco = km === null || foraDoRaio || outraBase;
-  const valor = semPreco
-    ? null
-    : Math.round((FRETE_MINIMO + rodagem) * 100) / 100;
-  const prazoDias =
-    semPreco || km === null
-      ? null
-      : Math.ceil(km / KM_POR_DIA) + DIAS_DE_SEPARACAO;
+  const valor = semPreco ? null : Math.round((FRETE_MINIMO + rodagem) * 100) / 100;
+  const prazoDias = semPreco || km === null ? null : Math.ceil(km / KM_POR_DIA) + DIAS_DE_SEPARACAO;
 
   return {
     cep: endereco.cep,
@@ -100,9 +95,7 @@ export async function cotar(opcoes: {
     uf: endereco.uf,
     bairro: endereco.bairro,
     ponto: endereco.ponto,
-    origem: origem
-      ? { slug: origem.slug, cidade: origem.cidade, uf: origem.uf }
-      : null,
+    origem: origem ? { slug: origem.slug, cidade: origem.cidade, uf: origem.uf } : null,
     km,
     kmIdaEVolta,
     rodagem: Math.round(rodagem * 100) / 100,

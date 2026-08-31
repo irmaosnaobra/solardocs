@@ -38,6 +38,15 @@ export const REAIS_POR_KM = 3.0;
 export const RAIO_MAXIMO_KM = 300;
 
 /**
+ * A partir daqui a bike deixa de ser "perto de você".
+ *
+ * Fica aqui, e não na vitrine, porque o card e o quadro de frete precisam
+ * concordar: um dizendo "perto" e o outro tratando como longe é pior do que
+ * qualquer um dos dois sozinho.
+ */
+export const PERTO_KM = 150;
+
+/**
  * De onde sai a entrega.
  *
  * `null` = a bike sai da base do fornecedor mais perto do cliente, contando só

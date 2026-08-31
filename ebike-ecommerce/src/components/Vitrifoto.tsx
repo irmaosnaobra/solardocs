@@ -21,11 +21,7 @@ const INTERVALO_MS = 2000;
  * automático é exatamente o tipo de coisa que essa preferência existe para
  * desligar.
  */
-export function Vitrifoto({
-  fotos,
-}: {
-  fotos: Array<{ src: string; titulo: string }>;
-}) {
+export function Vitrifoto({ fotos }: { fotos: Array<{ src: string; titulo: string }> }) {
   const [atual, setAtual] = useState(0);
 
   useEffect(() => {

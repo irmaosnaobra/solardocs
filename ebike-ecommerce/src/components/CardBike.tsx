@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 
+import { PERTO_KM } from '../config/frete.ts';
 import { emReais } from '../config/loja.ts';
 import { aindaVaiChegar } from '../lib/previsao.ts';
 import type { Cartao } from '../types/bike.ts';
@@ -8,7 +9,13 @@ import type { Cartao } from '../types/bike.ts';
 function Icone({ d }: { d: string }) {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d={d} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d={d}
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -43,8 +50,8 @@ export function CardBike({
 }: {
   bike: Cartao;
   prioridade?: boolean;
-  /** De onde esta bike sai para o CEP informado. Ausente = CEP não informado. */
-  origem?: { cidade: string; uf: string; km: number };
+  /** De onde esta bike sai para quem está comprando. Ausente = não sabemos onde a pessoa está. */
+  origem?: { cidade: string; uf: string; km: number; aproximado?: boolean };
 }) {
   const fatos: Array<[string, string]> = [];
   if (bike.potencia) fatos.push([RAIO, bike.potencia]);
@@ -102,7 +109,10 @@ export function CardBike({
           {origem ? (
             <p className="mt-1 text-xs text-suave">
               sai de {origem.cidade} — {origem.uf} ·{' '}
-              <span className={origem.km <= 150 ? 'font-semibold text-vantagem' : ''}>
+              <span className={origem.km <= PERTO_KM ? 'font-semibold text-vantagem' : ''}>
+                {/* Ponto da capital não é o endereço de ninguém: o "≈" é o que
+                    impede a loja de afirmar um número que ela não mediu. */}
+                {origem.aproximado ? '≈ ' : ''}
                 {origem.km.toLocaleString('pt-BR')} km
               </span>
             </p>

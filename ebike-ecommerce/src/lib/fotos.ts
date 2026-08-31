@@ -43,9 +43,7 @@ const PADRAO = /^https:\/\/([^/]+)\/soollar_prd\/products\/([0-9a-f-]{36})\.(png
 export function enderecoInterno(urlDoCdn: string): string {
   const m = urlDoCdn.match(PADRAO);
   const nome =
-    m && m[1] === new URL(CDN).hostname
-      ? `p${m[2]}.${m[3].toLowerCase()}`
-      : base64url(urlDoCdn);
+    m && m[1] === new URL(CDN).hostname ? `p${m[2]}.${m[3].toLowerCase()}` : base64url(urlDoCdn);
   return `${BASE_PATH}/foto/${nome}`;
 }
 
