@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { CardBike } from './CardBike.tsx';
 import { emReais } from '../config/loja.ts';
+import { aindaVaiChegar } from '../lib/previsao.ts';
 import type { Cartao } from '../types/bike.ts';
 
 type Ordem = 'menor-preco' | 'maior-preco' | 'a-z';
@@ -37,7 +38,7 @@ function contar(valores: Array<string | null>): Array<{ rotulo: string; quantida
 }
 
 function disponibilidadeDe(b: Cartao): string {
-  if (b.previsao) return 'Sob encomenda';
+  if (aindaVaiChegar(b.previsao)) return 'Sob encomenda';
   if (typeof b.estoque === 'number' && b.estoque > 0) return 'Em estoque';
   return 'A consultar';
 }

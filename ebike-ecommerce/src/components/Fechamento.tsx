@@ -1,6 +1,7 @@
 import { BASE_PATH } from '../config/basePath.mjs';
 import { Frete } from './Frete.tsx';
 import { FORMAS_DE_PAGAMENTO, emReais } from '../config/loja.ts';
+import { aindaVaiChegar } from '../lib/previsao.ts';
 import type { Bike } from '../types/bike.ts';
 
 /**
@@ -23,7 +24,7 @@ export function Fechamento({ bike }: { bike: Bike }) {
         <p className="mt-1.5 text-sm text-vantagem">à vista ou parcelado no cartão</p>
       </div>
 
-      {bike.previsao ? (
+      {aindaVaiChegar(bike.previsao) ? (
         <p className="rounded-xl bg-alerta-clara px-3 py-2.5 text-sm text-texto">
           <strong className="font-semibold text-alerta">Sob encomenda.</strong> O fornecedor informa
           chegada prevista em {bike.previsao}. Confirme o prazo no atendimento.

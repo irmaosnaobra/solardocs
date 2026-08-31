@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import { emReais } from '../config/loja.ts';
+import { aindaVaiChegar } from '../lib/previsao.ts';
 import type { Cartao } from '../types/bike.ts';
 
 function Icone({ d }: { d: string }) {
@@ -18,7 +19,7 @@ const RELOGIO = 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 7v5l3 2';
 
 /** Etiqueta de estoque: fala o que o fornecedor informou e nada além disso. */
 function Selo({ bike }: { bike: Cartao }) {
-  if (bike.previsao) {
+  if (aindaVaiChegar(bike.previsao)) {
     return (
       <span className="rounded-full bg-alerta-clara px-2.5 py-1 text-[11px] font-semibold text-alerta">
         Sob encomenda
@@ -85,7 +86,7 @@ export function CardBike({ bike, prioridade = false }: { bike: Cartao; prioridad
         <div className="mt-auto pt-2">
           <p className="tabular text-xl leading-none font-bold text-tinta">{emReais(bike.preco)}</p>
           <p className="mt-1 text-xs text-vantagem">à vista ou parcelado no cartão</p>
-          {bike.previsao ? (
+          {aindaVaiChegar(bike.previsao) ? (
             <p className="mt-1 text-xs text-alerta">chega {bike.previsao}</p>
           ) : typeof bike.estoque === 'number' && bike.estoque > 0 ? (
             <p className="mt-1 text-xs text-suave">
