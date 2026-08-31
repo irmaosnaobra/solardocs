@@ -3,9 +3,16 @@
  * NADA de custo, margem ou credencial neste arquivo.
  */
 
+/**
+ * O nome nasceu do próprio produto: corrente é a peça que move a bicicleta e é
+ * a corrente elétrica que move o motor. As duas coisas são literalmente
+ * verdade sobre o que se vende aqui, e é isso que faz o nome grudar em vez de
+ * só soar bonito.
+ */
 export const LOJA = {
-  nome: 'Irmãos na Obra Mobilidade',
-  nomeCurto: 'Irmãos na Obra',
+  nome: 'Corrente Mobilidade Elétrica',
+  nomeCurto: 'Corrente',
+  assinatura: 'mobilidade elétrica',
   chamada: 'Bikes e scooters elétricas com entrega no Triângulo Mineiro',
   cidade: 'Uberlândia, MG',
   descricao:

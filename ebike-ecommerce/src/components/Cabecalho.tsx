@@ -31,10 +31,12 @@ export function Cabecalho() {
     <header className="bg-topo">
       <div className="mx-auto flex max-w-[1200px] flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:gap-6">
         <Link href="/" className="shrink-0 leading-tight">
-          <span className="block text-lg font-bold tracking-tight text-texto">
+          <span className="block text-xl font-extrabold tracking-[-0.02em] text-texto uppercase">
             {LOJA.nomeCurto}
           </span>
-          <span className="block text-[11px] text-suave">Mobilidade elétrica</span>
+          <span className="block text-[10px] tracking-[0.22em] text-suave uppercase">
+            {LOJA.assinatura}
+          </span>
         </Link>
 
         <form onSubmit={buscar} className="relative flex-1">
