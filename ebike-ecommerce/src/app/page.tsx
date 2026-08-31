@@ -43,10 +43,15 @@ export default async function Pagina() {
             <p className="text-xs font-semibold tracking-[0.16em] text-mata uppercase">
               {LOJA.slogan}
             </p>
-            <h1 className="mt-1.5 text-xl leading-snug font-bold text-tinta sm:text-2xl">
-              {LOJA.chamada}
+            {/* O verde não vira texto: vira marca-texto atrás do preto. Neon
+                em letra sobre branco dá 1,4:1 de contraste e some no sol. */}
+            <h1 className="mt-2 text-[26px] leading-[1.1] font-black tracking-[-0.02em] text-tinta sm:text-4xl">
+              Bicicletas e scooters{' '}
+              <span className="bg-neon px-1.5 decoration-clone box-decoration-clone">
+                elétricas
+              </span>
+              , entregues em todo o Brasil
             </h1>
-            <p className="mt-1 max-w-2xl text-sm text-suave">{LOJA.descricao}</p>
 
             <dl className="mt-4 flex gap-6">
               <Numero valor={String(bikes.length)} rotulo="modelos" />

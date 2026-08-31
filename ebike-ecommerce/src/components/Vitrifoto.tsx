@@ -8,6 +8,10 @@ const INTERVALO_MS = 2000;
 /**
  * As bikes passando no quadro de cima, uma a cada dois segundos.
  *
+ * Todas as fotos são pedidas na MESMA largura. Cada largura diferente é uma
+ * otimização a mais para o servidor gerar na primeira visita, e é nesse
+ * instante que a foto aparece em branco por um segundo.
+ *
  * Só a foto ATUAL e a SEGUINTE ficam montadas. Montar as 29 de uma vez faria o
  * navegador pedir 29 imagens no primeiro segundo, e no 4G isso atrasa o que a
  * pessoa veio ver, que é a vitrine. Montando a seguinte, ela já chega carregada
@@ -45,7 +49,7 @@ export function Vitrifoto({
             src={f.src}
             alt={i === atual ? f.titulo : ''}
             fill
-            sizes="(max-width: 640px) 92vw, 300px"
+            sizes="320px"
             priority={i === 0}
             className={
               'object-contain transition-opacity duration-500 ' +
@@ -54,11 +58,6 @@ export function Vitrifoto({
           />
         ) : null,
       )}
-
-      {/* Diz qual bike está passando. Sem isso é enfeite; com isso é vitrine. */}
-      <p className="absolute inset-x-0 bottom-0 truncate text-center text-[11px] text-suave">
-        {fotos[atual].titulo}
-      </p>
     </div>
   );
 }
