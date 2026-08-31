@@ -30,12 +30,19 @@ export function Cabecalho() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-borda bg-white/95 backdrop-blur">
-      <div className="mx-auto flex max-w-[1240px] items-center gap-4 px-4 py-3">
-        <Link href="/" aria-label={LOJA.nome}>
-          <Logo />
+      <div className="mx-auto flex max-w-[1240px] items-center gap-3 px-4 py-2.5 sm:gap-4 sm:py-3">
+        {/* No celular vai a versão compacta: a logo inteira roubaria a
+            largura da busca, que é o que mais se usa ali. */}
+        <Link href="/" aria-label={LOJA.nome} prefetch={false} className="flex min-h-11 shrink-0 items-center">
+          <span className="hidden sm:block">
+            <Logo />
+          </span>
+          <span className="sm:hidden">
+            <Logo compacto />
+          </span>
         </Link>
 
-        <form onSubmit={buscar} className="relative ml-auto w-full max-w-lg">
+        <form onSubmit={buscar} className="relative ml-auto w-full min-w-0 max-w-lg">
           <label className="sr-only" htmlFor="busca">
             Buscar modelo, marca ou código
           </label>

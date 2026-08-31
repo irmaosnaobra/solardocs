@@ -51,13 +51,17 @@ export default async function PaginaDaBike({ params }: { params: Promise<{ slug:
   ].filter(([, v]) => v) as Array<[string, string]>;
 
   return (
-    <div className="mx-auto max-w-[1240px] px-4 py-5">
+    <div className="mx-auto max-w-[1240px] px-4 py-4 sm:py-5">
       <nav className="mb-3 text-xs text-suave">
-        <Link href="/" className="hover:text-mata">
+        <Link href="/" prefetch={false} className="toque -my-2 py-2 hover:text-mata">
           Todos os modelos
         </Link>
         <span className="px-2 text-fraco">›</span>
-        <Link href={`/?categoria=${encodeURIComponent(bike.categoria)}`} className="hover:text-mata">
+        <Link
+          href={`/?categoria=${encodeURIComponent(bike.categoria)}`}
+          prefetch={false}
+          className="toque -my-2 py-2 hover:text-mata"
+        >
           {bike.categoria}
         </Link>
         <span className="px-2 text-fraco">›</span>
@@ -65,7 +69,7 @@ export default async function PaginaDaBike({ params }: { params: Promise<{ slug:
       </nav>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_368px] lg:items-start">
-        <div className="cartao min-w-0 p-4 sm:p-6">
+        <div className="cartao min-w-0 p-3 sm:p-6">
           <div className="mb-4">
             <p className="text-xs text-suave">
               {bike.categoria} · {bike.marca}
@@ -93,7 +97,7 @@ export default async function PaginaDaBike({ params }: { params: Promise<{ slug:
 
         {/* A caixa acompanha a rolagem: em ficha técnica longa, o preço e o
             botão sumiam da tela justo quando a pessoa acabava de se convencer. */}
-        <div className="cartao p-5 lg:sticky lg:top-20">
+        <div className="cartao p-4 sm:p-5 lg:sticky lg:top-24">
           <Fechamento bike={bike} />
         </div>
       </div>
@@ -127,7 +131,7 @@ export default async function PaginaDaBike({ params }: { params: Promise<{ slug:
       {parecidas.length ? (
         <section className="mt-6">
           <h2 className="mb-3 text-lg font-bold text-tinta">Quem viu esta, viu também</h2>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
             {parecidas.map((b) => (
               <CardBike key={b.id} bike={b} />
             ))}

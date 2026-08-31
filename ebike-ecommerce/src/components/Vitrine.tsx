@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { CardBike } from './CardBike.tsx';
 import { emReais } from '../config/loja.ts';
@@ -69,7 +69,7 @@ function Secao({
         type="button"
         onClick={() => setAberta((a) => !a)}
         aria-expanded={aberta}
-        className="flex w-full items-center justify-between text-sm font-semibold text-tinta"
+        className="flex min-h-11 w-full items-center justify-between text-sm font-semibold text-tinta"
       >
         {titulo}
         <svg
@@ -85,15 +85,16 @@ function Secao({
       </button>
 
       {aberta ? (
-        <ul className="mt-3 flex flex-col gap-2 text-sm">
+        <ul className="mt-2 flex flex-col text-sm">
           {itens.map((i) => (
             <li key={i.rotulo}>
-              <label className="flex cursor-pointer items-center gap-2 text-suave hover:text-mata">
+              {/* min-h-11: no celular a linha do filtro é alvo de dedo, não de mouse. */}
+              <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-suave">
                 <input
                   type="checkbox"
                   checked={ativo === i.rotulo}
                   onChange={() => aoEscolher(ativo === i.rotulo ? null : i.rotulo)}
-                  className="size-4 accent-[var(--color-mata)]"
+                  className="size-4 shrink-0 accent-[var(--color-mata)]"
                 />
                 <span className={ativo === i.rotulo ? 'font-semibold text-tinta' : ''}>
                   {i.rotulo}
@@ -111,6 +112,7 @@ function Secao({
 export function Vitrine({ bikes }: { bikes: Cartao[] }) {
   const router = useRouter();
   const parametros = useSearchParams();
+  const [gaveta, setGaveta] = useState(false);
 
   const busca = parametros.get('q') ?? '';
   const ordem = (parametros.get('ordem') as Ordem | null) ?? 'menor-preco';
@@ -118,6 +120,18 @@ export function Vitrine({ bikes }: { bikes: Cartao[] }) {
     Filtro,
     string | null
   >;
+
+  // Com a gaveta aberta, a lista atrás não pode rolar junto.
+  useEffect(() => {
+    if (!gaveta) return;
+    const fechar = (e: KeyboardEvent) => e.key === 'Escape' && setGaveta(false);
+    document.addEventListener('keydown', fechar);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', fechar);
+      document.body.style.overflow = '';
+    };
+  }, [gaveta]);
 
   function trocar(chave: string, valor: string | null) {
     const p = new URLSearchParams(parametros.toString());
@@ -129,6 +143,7 @@ export function Vitrine({ bikes }: { bikes: Cartao[] }) {
 
   function limparTudo() {
     router.push('/', { scroll: false });
+    setGaveta(false);
   }
 
   /**
@@ -163,86 +178,118 @@ export function Vitrine({ bikes }: { bikes: Cartao[] }) {
   }, [bikes, busca, ordem, escolhido]);
 
   const aplicados = FILTROS.filter((f) => escolhido[f]);
+  const quantosFiltros = aplicados.length + (busca ? 1 : 0);
   const menor = lista.length ? Math.min(...lista.map((b) => b.preco)) : 0;
 
-  return (
-    <div className="mx-auto flex max-w-[1240px] flex-col gap-5 px-4 py-6 lg:flex-row">
-      <aside className="h-fit w-full shrink-0 lg:sticky lg:top-20 lg:w-[260px]">
-        {aplicados.length || busca ? (
-          <div className="cartao mb-4 p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-sm font-semibold text-tinta">
-                Filtros aplicados
-                <span className="ml-2 rounded-full bg-neon px-1.5 py-0.5 text-[11px] font-bold text-tinta">
-                  {aplicados.length + (busca ? 1 : 0)}
-                </span>
-              </p>
-              <button
-                type="button"
-                onClick={limparTudo}
-                className="text-xs text-mata underline underline-offset-2"
-              >
-                Limpar todos
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {busca ? (
-                <button type="button" onClick={() => trocar('q', null)} className="chip">
-                  {busca}
-                  <span aria-hidden="true">✕</span>
-                  <span className="sr-only">remover busca</span>
-                </button>
-              ) : null}
-              {aplicados.map((f) => (
-                <button key={f} type="button" onClick={() => trocar(f, null)} className="chip">
-                  {escolhido[f]}
-                  <span aria-hidden="true">✕</span>
-                  <span className="sr-only">remover filtro {TITULO[f]}</span>
-                </button>
-              ))}
-            </div>
+  const painel = (
+    <>
+      {quantosFiltros ? (
+        <div className="border-b border-borda p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-sm font-semibold text-tinta">Filtros aplicados</p>
+            <button
+              type="button"
+              onClick={limparTudo}
+              className="min-h-11 text-xs text-mata underline underline-offset-2"
+            >
+              Limpar todos
+            </button>
           </div>
-        ) : null}
-
-        <div className="cartao">
-          {FILTROS.map((f) => (
-            <Secao
-              key={f}
-              titulo={TITULO[f]}
-              itens={facetas[f]}
-              ativo={escolhido[f]}
-              aoEscolher={(v) => trocar(f, v)}
-            />
-          ))}
+          <div className="flex flex-wrap gap-2">
+            {busca ? (
+              <button type="button" onClick={() => trocar('q', null)} className="chip min-h-9">
+                {busca}
+                <span aria-hidden="true">✕</span>
+                <span className="sr-only">remover busca</span>
+              </button>
+            ) : null}
+            {aplicados.map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => trocar(f, null)}
+                className="chip min-h-9"
+              >
+                {escolhido[f]}
+                <span aria-hidden="true">✕</span>
+                <span className="sr-only">remover filtro {TITULO[f]}</span>
+              </button>
+            ))}
+          </div>
         </div>
+      ) : null}
+
+      {FILTROS.map((f) => (
+        <Secao
+          key={f}
+          titulo={TITULO[f]}
+          itens={facetas[f]}
+          ativo={escolhido[f]}
+          aoEscolher={(v) => trocar(f, v)}
+        />
+      ))}
+    </>
+  );
+
+  return (
+    <div className="mx-auto flex max-w-[1240px] gap-5 px-4 py-5 lg:py-6">
+      {/* No desktop o filtro é coluna fixa. No celular ele vira gaveta: uma
+          coluna de filtros empurraria a vitrine para baixo da dobra. */}
+      <aside className="cartao hidden h-fit w-[260px] shrink-0 lg:sticky lg:top-24 lg:block">
+        {painel}
       </aside>
 
       <main className="min-w-0 flex-1">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-4 flex items-center justify-between gap-2">
           <p className="text-sm text-suave">
             <strong className="font-semibold text-tinta">{lista.length}</strong>{' '}
             {lista.length === 1 ? 'modelo' : 'modelos'}
             {lista.length ? (
-              <>
+              <span className="hidden sm:inline">
                 {' · a partir de '}
                 <strong className="tabular font-semibold text-tinta">{emReais(menor)}</strong>
-              </>
+              </span>
             ) : null}
           </p>
-          <label className="flex items-center gap-2 text-sm text-suave">
-            Ordenar por
-            <select
-              value={ordem}
-              onChange={(e) => trocar('ordem', e.target.value)}
-              className="h-10 rounded-lg border border-borda-forte bg-white px-3 text-sm font-medium text-tinta focus:border-tinta focus:outline-none"
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setGaveta(true)}
+              className="botao-contorno flex min-h-11 items-center gap-2 px-3 text-sm lg:hidden"
             >
-              {ORDENS.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.rotulo}
-                </option>
-              ))}
-            </select>
-          </label>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M4 6h16M7 12h10M10 18h4"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+              Filtrar
+              {quantosFiltros ? (
+                <span className="rounded-full bg-neon px-1.5 text-[11px] font-bold text-tinta">
+                  {quantosFiltros}
+                </span>
+              ) : null}
+            </button>
+
+            <label className="flex items-center gap-2 text-sm text-suave">
+              <span className="hidden sm:inline">Ordenar por</span>
+              <select
+                value={ordem}
+                onChange={(e) => trocar('ordem', e.target.value)}
+                aria-label="Ordenar por"
+                className="h-11 rounded-lg border border-borda-forte bg-white px-2 text-sm font-medium text-tinta focus:border-tinta focus:outline-none"
+              >
+                {ORDENS.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.rotulo}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
         </div>
 
         {lista.length === 0 ? (
@@ -257,13 +304,49 @@ export function Vitrine({ bikes }: { bikes: Cartao[] }) {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
             {lista.map((b, i) => (
               <CardBike key={b.id} bike={b} prioridade={i < 4} />
             ))}
           </div>
         )}
       </main>
+
+      {gaveta ? (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Filtros">
+          <button
+            type="button"
+            aria-label="Fechar filtros"
+            onClick={() => setGaveta(false)}
+            className="absolute inset-0 bg-tinta/45"
+          />
+          <div className="absolute inset-y-0 left-0 flex w-[86%] max-w-[340px] flex-col bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-borda px-4 py-3">
+              <p className="text-base font-bold text-tinta">Filtrar</p>
+              <button
+                type="button"
+                onClick={() => setGaveta(false)}
+                aria-label="Fechar"
+                className="toque -mr-2 size-11 text-2xl text-suave"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{painel}</div>
+
+            <div className="border-t border-borda p-3">
+              <button
+                type="button"
+                onClick={() => setGaveta(false)}
+                className="botao-principal toque w-full text-base"
+              >
+                Ver {lista.length} {lista.length === 1 ? 'modelo' : 'modelos'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

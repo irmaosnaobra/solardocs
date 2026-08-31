@@ -42,7 +42,14 @@ export function CardBike({ bike, prioridade = false }: { bike: Cartao; prioridad
   if (bike.velocidade) fatos.push([RELOGIO, bike.velocidade]);
 
   return (
-    <Link href={`/modelo/${bike.slug}`} className="cartao-clicavel group flex flex-col overflow-hidden">
+    <Link
+      href={`/modelo/${bike.slug}`}
+      // Atravessando o rewrite do domínio, o pedido de prefetch do Next volta
+      // 404: o app da frente tenta responder por uma rota que é de outro app.
+      // Pedir e levar 404 gasta dado do cliente no 4G sem acelerar nada.
+      prefetch={false}
+      className="cartao-clicavel group flex flex-col overflow-hidden"
+    >
       <div className="relative aspect-[4/3] w-full bg-white">
         <Image
           src={bike.capa}

@@ -34,8 +34,8 @@ export default async function Pagina() {
 
   return (
     <>
-      <section className="mx-auto max-w-[1240px] px-4 pt-6">
-        <div className="cartao flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+      <section className="mx-auto max-w-[1240px] px-4 pt-4 sm:pt-6">
+        <div className="cartao flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div>
             <p className="text-xs font-semibold tracking-[0.16em] text-mata uppercase">
               {LOJA.slogan}
