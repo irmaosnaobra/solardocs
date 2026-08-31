@@ -174,8 +174,8 @@ export function Frete({
               <strong className="font-semibold">
                 Boa notícia: essa bike já está a {r.km} km de você.
               </strong>{' '}
-              Ela sai da nossa unidade em {r.origem?.cidade}, não de Uberlândia — e é essa
-              proximidade que deixa o frete nesse valor.
+              Ela sai da unidade de {r.origem?.cidade}, não de Uberlândia — e é essa proximidade que
+              deixa o frete nesse valor.
             </p>
           ) : r.foraDoRaio ? (
             <p className="mt-1.5 rounded-lg bg-fundo p-2 text-xs text-tinta">

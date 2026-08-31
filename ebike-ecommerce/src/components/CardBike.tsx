@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 
-import { PERTO_KM } from '../config/frete.ts';
+import { PERTO_KM, RAIO_MAXIMO_KM } from '../config/frete.ts';
 import { emReais } from '../config/loja.ts';
 import { aindaVaiChegar } from '../lib/previsao.ts';
 import type { Cartao } from '../types/bike.ts';
@@ -110,12 +110,18 @@ export function CardBike({
             <p className="mt-1 text-xs text-suave">
               sai de {origem.cidade} — {origem.uf} ·{' '}
               <span className={origem.km <= PERTO_KM ? 'font-semibold text-vantagem' : ''}>
-                {/* Ponto da capital não é o endereço de ninguém: o "≈" é o que
+                {/* Ponto da cidade não é o endereço de ninguém: o "≈" é o que
                     impede a loja de afirmar um número que ela não mediu. */}
                 {origem.aproximado ? '≈ ' : ''}
                 {origem.km.toLocaleString('pt-BR')} km
               </span>
             </p>
+          ) : null}
+          {/* Fora do raio a cotação não dá número. Sem este aviso o card ficava
+              igual ao dos outros e a pessoa só descobria depois de clicar —
+              que é exatamente a frustração que mostrar a origem veio matar. */}
+          {origem && origem.km > RAIO_MAXIMO_KM ? (
+            <p className="mt-0.5 text-xs text-alerta">frete cotado no atendimento</p>
           ) : null}
           {aindaVaiChegar(bike.previsao) ? (
             <p className="mt-1 text-xs text-alerta">chega {bike.previsao}</p>
