@@ -1,10 +1,27 @@
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 
+import { BASE_PATH } from '../../../config/basePath.mjs';
 import { COOKIE_PAINEL, crachaDaSenha, iguais, senhaConfigurada } from '../../../lib/portaria.ts';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Entrar' };
+
+/**
+ * Para onde mandar depois da senha, escrito por extenso.
+ *
+ * `redirect('/')` dentro de Server Action nem sempre acrescenta o basePath, e
+ * quando não acrescenta o visitante cai na raiz do domínio, que é OUTRO app.
+ * Endereço absoluto não deixa margem: o que sai daqui é exatamente para onde a
+ * pessoa vai.
+ */
+async function enderecoAbsoluto(caminho: string): Promise<string> {
+  const h = await headers();
+  const host = h.get('x-forwarded-host') ?? h.get('host');
+  const protocolo = h.get('x-forwarded-proto') ?? 'https';
+  const base = host ? `${protocolo}://${host}` : (process.env.SITE_URL ?? '');
+  return `${base}${BASE_PATH}${caminho.startsWith('/') ? caminho : `/${caminho}`}`;
+}
 
 async function entrar(formData: FormData) {
   'use server';
@@ -14,7 +31,7 @@ async function entrar(formData: FormData) {
   const destino = String(formData.get('de') ?? '/painel') || '/painel';
 
   if (!senha || !iguais(await crachaDaSenha(digitada), await crachaDaSenha(senha))) {
-    redirect(`/painel/entrar?erro=1&de=${encodeURIComponent(destino)}`);
+    redirect(await enderecoAbsoluto(`/painel/entrar?erro=1&de=${encodeURIComponent(destino)}`));
   }
 
   (await cookies()).set(COOKIE_PAINEL, await crachaDaSenha(senha), {
@@ -24,7 +41,7 @@ async function entrar(formData: FormData) {
     path: '/',
     maxAge: 60 * 60 * 24 * 30,
   });
-  redirect(destino);
+  redirect(await enderecoAbsoluto(destino));
 }
 
 export default async function Entrar({
