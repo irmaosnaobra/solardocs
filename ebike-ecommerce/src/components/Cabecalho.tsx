@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import { Logo } from './Logo.tsx';
+import { Entregar } from './Entregar.tsx';
 import { LOJA } from '../config/loja.ts';
 
 /**
@@ -67,11 +68,15 @@ export function Cabecalho() {
           </button>
         </form>
 
-        <p className="hidden shrink-0 text-xs text-suave lg:block">
-          Entrega calculada
-          <br />
-          <strong className="font-semibold text-tinta">pelo seu CEP</strong>
-        </p>
+        <div className="hidden lg:block">
+          <Entregar />
+        </div>
+      </div>
+
+      {/* No celular a barra de cima não tem espaço: o CEP ganha a própria linha,
+          fina, logo abaixo. É a primeira coisa que a pessoa vê. */}
+      <div className="border-t border-borda px-4 lg:hidden">
+        <Entregar compacto />
       </div>
     </header>
   );

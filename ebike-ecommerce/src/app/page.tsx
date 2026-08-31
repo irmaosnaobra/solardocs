@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 
 import { Vitrifoto } from '../components/Vitrifoto.tsx';
 import { Vitrine } from '../components/Vitrine.tsx';
-import { catalogoPublico, marcasDe, paraCartao } from '../lib/catalogo.ts';
+import { basesDoCatalogo, catalogoPublico, marcasDe, paraCartao } from '../lib/catalogo.ts';
 import { LOJA, emReais } from '../config/loja.ts';
 
 /**
@@ -34,6 +34,7 @@ export default async function Pagina() {
   });
 
   const fotos = bikes.map((b) => ({ src: b.capa, titulo: b.titulo }));
+  const bases = await basesDoCatalogo();
 
   return (
     <>
@@ -71,7 +72,7 @@ export default async function Pagina() {
           <p className="mx-auto max-w-[1240px] px-4 py-10 text-sm text-suave">Carregando…</p>
         }
       >
-        <Vitrine bikes={bikes} />
+        <Vitrine bikes={bikes} bases={bases} />
       </Suspense>
 
       <p className="mx-auto max-w-[1240px] px-4 pb-2 text-xs text-fraco">

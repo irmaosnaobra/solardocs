@@ -60,6 +60,7 @@ export type Cartao = Pick<
   | 'preco'
   | 'estoque'
   | 'previsao'
+  | 'bases'
 > & { capa: string };
 
 /** A mesma bike com os números que só nós podemos ver. */

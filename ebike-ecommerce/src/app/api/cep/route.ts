@@ -52,5 +52,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, erro: 'CEP não encontrado.' }, { status: 404 });
   }
 
-  return NextResponse.json({ ok: true, ...cotacao, cep: formatarCep(cotacao.cep) });
+  return NextResponse.json({
+    ok: true,
+    ...cotacao,
+    cep: formatarCep(cotacao.cep),
+    // A vitrine guarda isto e mede a distância de CADA bike no próprio
+    // navegador. Sem a coordenada aqui, seriam 29 idas ao servidor para
+    // montar uma listagem.
+    ponto: cotacao.ponto,
+  });
 }

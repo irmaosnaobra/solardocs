@@ -11,15 +11,15 @@
  * dentro do JS da página.
  */
 
-import 'server-only';
-import { unstable_cache } from 'next/cache';
+import "server-only";
+import { unstable_cache } from "next/cache";
 
-import reserva from '../data/snapshot.json';
-import { buscarNoFornecedor } from './montarCatalogo.ts';
-import type { Base } from './montarCatalogo.ts';
-import type { BikeNormalizada } from './normalizar.ts';
-import { enderecoInterno } from './fotos.ts';
-import { MARGEM_EM_REAIS, precoDeVenda } from './preco.ts';
+import reserva from "../data/snapshot.json";
+import { buscarNoFornecedor } from "./montarCatalogo.ts";
+import type { Base } from "./montarCatalogo.ts";
+import type { BikeNormalizada } from "./normalizar.ts";
+import { enderecoInterno } from "./fotos.ts";
+import { MARGEM_EM_REAIS, precoDeVenda } from "./preco.ts";
 import type {
   Bike,
   BikeInterna,
@@ -27,12 +27,14 @@ import type {
   Catalogo,
   CatalogoInterno,
   MetaCatalogo,
-} from '../types/bike.ts';
+} from "../types/bike.ts";
 
-export const TAG_CATALOGO = 'catalogo';
+export const TAG_CATALOGO = "catalogo";
 
 /** De quanto em quanto tempo a loja relê o fornecedor. Padrão: uma vez por dia. */
-const SEGUNDOS_ENTRE_LEITURAS = Number(process.env.CATALOGO_REVALIDA_SEGUNDOS ?? 86400);
+const SEGUNDOS_ENTRE_LEITURAS = Number(
+  process.env.CATALOGO_REVALIDA_SEGUNDOS ?? 86400,
+);
 
 type Bruto = {
   bikes: BikeNormalizada[];
@@ -43,24 +45,26 @@ type Bruto = {
   secao: string;
 };
 
-function daReserva(erro: string): Bruto & { origem: 'reserva'; erro: string } {
+function daReserva(erro: string): Bruto & { origem: "reserva"; erro: string } {
   const r = reserva as unknown as Bruto;
-  return { ...r, origem: 'reserva', erro };
+  return { ...r, origem: "reserva", erro };
 }
 
 const lerFornecedor = unstable_cache(
-  async (): Promise<Bruto & { origem: 'ao-vivo' | 'reserva'; erro?: string }> => {
+  async (): Promise<
+    Bruto & { origem: "ao-vivo" | "reserva"; erro?: string }
+  > => {
     try {
       const vivo = await buscarNoFornecedor();
       if (vivo.bikes.length === 0) {
-        return daReserva('O fornecedor respondeu, mas não veio nenhuma bike.');
+        return daReserva("O fornecedor respondeu, mas não veio nenhuma bike.");
       }
-      return { ...vivo, origem: 'ao-vivo' };
+      return { ...vivo, origem: "ao-vivo" };
     } catch (e) {
       return daReserva(e instanceof Error ? e.message : String(e));
     }
   },
-  ['catalogo-soollar'],
+  ["catalogo-soollar"],
   { tags: [TAG_CATALOGO], revalidate: SEGUNDOS_ENTRE_LEITURAS },
 );
 
@@ -130,7 +134,6 @@ function paraPublica(b: BikeInterna): Bike {
   };
 }
 
-
 export async function catalogoInterno(): Promise<CatalogoInterno> {
   const bruto = await lerFornecedor();
   const bikes = bruto.bikes.map(paraInterna).sort((a, b) => a.preco - b.preco);
@@ -168,8 +171,45 @@ export function paraCartao(b: Bike): Cartao {
     preco: b.preco,
     estoque: b.estoque,
     previsao: b.previsao,
-    capa: b.imagens[0] ?? '',
+    bases: b.bases,
+    capa: b.imagens[0] ?? "",
   };
+}
+
+/**
+ * As bases do fornecedor, com coordenada. A vitrine mede distância com elas.
+ *
+ * A COORDENADA VEM DA CÓPIA DE RESERVA, não da leitura ao vivo. Ao vivo, a
+ * montagem resolve os 22 CEPs no mesmo instante; em produção 21 voltaram vazios
+ * e o dia inteiro ficou congelado no cache com UMA base no mapa — resultado: em
+ * Uberlândia a loja anunciava que toda bike vinha do Paraná.
+ *
+ * Endereço de galpão não muda de um dia para o outro, então a lista boa é a que
+ * o `npm run sync` gravou. A leitura ao vivo ainda vale para o texto (nome,
+ * cidade) e para revelar base nova: ela entra sem coordenada e passa a medir
+ * distância no próximo sync.
+ */
+export async function basesDoCatalogo(): Promise<Base[]> {
+  const gravadas = (
+    (reserva as unknown as { bases?: Base[] }).bases ?? []
+  ).filter((b) => b.lat !== null && b.lon !== null);
+  const aoVivo = (await lerFornecedor()).bases ?? [];
+  const porSlug = new Map(gravadas.map((b) => [b.slug, b]));
+
+  for (const v of aoVivo) {
+    const g = porSlug.get(v.slug);
+    if (!g) {
+      porSlug.set(v.slug, v);
+      continue;
+    }
+    porSlug.set(v.slug, {
+      ...g,
+      nome: v.nome || g.nome,
+      cidade: v.cidade || g.cidade,
+      uf: v.uf || g.uf,
+    });
+  }
+  return [...porSlug.values()];
 }
 
 export async function bikePorSlug(slug: string): Promise<Bike | null> {
@@ -180,23 +220,35 @@ export async function bikePorSlug(slug: string): Promise<Bike | null> {
   // O slug termina no código do produto. Se o fornecedor renomear o modelo, o
   // começo do slug muda e todo link já mandado por WhatsApp quebraria; pelo
   // código a bike continua sendo encontrada.
-  const codigo = slug.split('-').pop();
+  const codigo = slug.split("-").pop();
   return codigo ? (bikes.find((b) => b.codigo === codigo) ?? null) : null;
 }
 
 /** Marcas presentes no catálogo de hoje, com a contagem. Nunca uma lista fixa. */
-export function marcasDe(bikes: Array<Bike | Cartao>): Array<{ marca: string; quantidade: number }> {
+export function marcasDe(
+  bikes: Array<Bike | Cartao>,
+): Array<{ marca: string; quantidade: number }> {
   const conta = new Map<string, number>();
   for (const b of bikes) conta.set(b.marca, (conta.get(b.marca) ?? 0) + 1);
   return [...conta]
     .map(([marca, quantidade]) => ({ marca, quantidade }))
-    .sort((a, b) => b.quantidade - a.quantidade || a.marca.localeCompare(b.marca, 'pt-BR'));
+    .sort(
+      (a, b) =>
+        b.quantidade - a.quantidade || a.marca.localeCompare(b.marca, "pt-BR"),
+    );
 }
 
-export function categoriasDe(bikes: Array<Bike | Cartao>): Array<{ categoria: string; quantidade: number }> {
+export function categoriasDe(
+  bikes: Array<Bike | Cartao>,
+): Array<{ categoria: string; quantidade: number }> {
   const conta = new Map<string, number>();
-  for (const b of bikes) conta.set(b.categoria, (conta.get(b.categoria) ?? 0) + 1);
+  for (const b of bikes)
+    conta.set(b.categoria, (conta.get(b.categoria) ?? 0) + 1);
   return [...conta]
     .map(([categoria, quantidade]) => ({ categoria, quantidade }))
-    .sort((a, b) => b.quantidade - a.quantidade || a.categoria.localeCompare(b.categoria, 'pt-BR'));
+    .sort(
+      (a, b) =>
+        b.quantidade - a.quantidade ||
+        a.categoria.localeCompare(b.categoria, "pt-BR"),
+    );
 }

@@ -36,7 +36,16 @@ function Selo({ bike }: { bike: Cartao }) {
   return null;
 }
 
-export function CardBike({ bike, prioridade = false }: { bike: Cartao; prioridade?: boolean }) {
+export function CardBike({
+  bike,
+  prioridade = false,
+  origem,
+}: {
+  bike: Cartao;
+  prioridade?: boolean;
+  /** De onde esta bike sai para o CEP informado. Ausente = CEP não informado. */
+  origem?: { cidade: string; uf: string; km: number };
+}) {
   const fatos: Array<[string, string]> = [];
   if (bike.potencia) fatos.push([RAIO, bike.potencia]);
   if (bike.autonomia) fatos.push([ESTRADA, bike.autonomia]);
@@ -86,6 +95,18 @@ export function CardBike({ bike, prioridade = false }: { bike: Cartao; prioridad
         <div className="mt-auto pt-2">
           <p className="tabular text-xl leading-none font-bold text-tinta">{emReais(bike.preco)}</p>
           <p className="mt-1 text-xs text-vantagem">à vista ou parcelado no cartão</p>
+
+          {/* De onde sai, ANTES de a pessoa clicar. É o que evita descobrir o
+              frete só depois de escolher, que é a hora mais cara para uma
+              notícia ruim. */}
+          {origem ? (
+            <p className="mt-1 text-xs text-suave">
+              sai de {origem.cidade} — {origem.uf} ·{' '}
+              <span className={origem.km <= 150 ? 'font-semibold text-vantagem' : ''}>
+                {origem.km.toLocaleString('pt-BR')} km
+              </span>
+            </p>
+          ) : null}
           {aindaVaiChegar(bike.previsao) ? (
             <p className="mt-1 text-xs text-alerta">chega {bike.previsao}</p>
           ) : typeof bike.estoque === 'number' && bike.estoque > 0 ? (

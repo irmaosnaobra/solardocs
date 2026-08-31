@@ -40,11 +40,23 @@ export const RAIO_MAXIMO_KM = 300;
 /**
  * De onde sai a entrega.
  *
- * O fornecedor tem 22 bases e o cálculo sabe escolher a mais perto do cliente,
- * mas hoje a operação é só Uberlândia. Trocar para `null` liga o despacho pela
- * base mais próxima, e o frete de quem mora longe despenca.
+ * `null` = a bike sai da base do fornecedor mais perto do cliente, contando só
+ * as que TÊM aquele modelo. Das 22 bases, 13 estocam bike; o Norte e o Nordeste
+ * inteiros não têm nenhuma. Uberlândia tem os 29 modelos.
+ *
+ * Preencher com um slug prende tudo numa base só.
  */
-export const ORIGEM_UNICA: string | null = 'cduberlandiamg';
+export const ORIGEM_UNICA: string | null = null;
+
+/**
+ * Onde temos veículo próprio.
+ *
+ * Só daqui a gente sabe o preço da entrega, porque é a nossa van que roda. De
+ * qualquer outra base a bike existe e está perto do cliente, mas quem leva é
+ * transportadora, e esse valor a gente ainda não tem contratado: a tela diz de
+ * onde sai e manda fechar o frete no atendimento.
+ */
+export const BASE_PROPRIA = 'cduberlandiamg';
 
 /** Estimativa de prazo da viagem dedicada. */
 export const KM_POR_DIA = 500;

@@ -1,17 +1,18 @@
-import 'server-only';
+import "server-only";
 
 import {
+  BASE_PROPRIA,
   DIAS_DE_SEPARACAO,
   FRETE_MINIMO,
   KG_POR_M3,
   KM_POR_DIA,
-  ORIGEM_UNICA,
   PRESUMIDO,
   RAIO_MAXIMO_KM,
   REAIS_POR_KM,
-} from '../config/frete.ts';
-import { enderecoDoCep, kmDeEstrada } from './geo.ts';
-import type { Base } from './montarCatalogo.ts';
+} from "../config/frete.ts";
+import { enderecoDoCep } from "./geo.ts";
+import type { Base } from "./montarCatalogo.ts";
+import { escolherOrigem } from "./origem.ts";
 
 /**
  * O cálculo do frete.
@@ -30,7 +31,9 @@ export type Cotacao = {
   cidade: string;
   uf: string;
   bairro: string | null;
-  origem: { cidade: string; uf: string } | null;
+  /** Coordenada do cliente, para a vitrine medir distância sem novo pedido. */
+  ponto: { lat: number; lon: number } | null;
+  origem: { slug: string; cidade: string; uf: string } | null;
   /** Distância só de ida, em quilômetros de estrada. */
   km: number | null;
   kmIdaEVolta: number | null;
@@ -42,6 +45,8 @@ export type Cotacao = {
   presumido: boolean;
   /** True quando o destino passou do raio de entrega própria. */
   foraDoRaio: boolean;
+  /** True quando a bike sai de uma base onde não temos veículo. */
+  outraBase: boolean;
   valor: number | null;
   prazoDias: number | null;
 };
@@ -57,25 +62,13 @@ export async function cotar(opcoes: {
   const endereco = await enderecoDoCep(opcoes.cep);
   if (!endereco) return null;
 
-  // Hoje a operação sai só de Uberlândia. Com ORIGEM_UNICA em null, o cálculo
-  // volta a escolher a base do fornecedor mais perto de quem comprou.
-  const candidatas = opcoes.bases.filter((b) => {
-    if (b.lat === null || b.lon === null) return false;
-    if (ORIGEM_UNICA) return b.slug === ORIGEM_UNICA;
-    return opcoes.basesDoProduto.length === 0 || opcoes.basesDoProduto.includes(b.slug);
-  });
-
-  let origem: Base | null = null;
-  let km: number | null = null;
-
-  if (endereco.ponto && candidatas.length) {
-    const destino = endereco.ponto;
-    const maisPerto = candidatas
-      .map((b) => ({ b, km: kmDeEstrada({ lat: b.lat!, lon: b.lon! }, destino) }))
-      .sort((x, y) => x.km - y.km)[0];
-    origem = maisPerto.b;
-    km = maisPerto.km;
-  }
+  // A MESMA regra que a vitrine usa no card, para o card e a cotação nunca
+  // discordarem sobre de onde a bike sai.
+  const escolha = endereco.ponto
+    ? escolherOrigem(opcoes.bases, opcoes.basesDoProduto, endereco.ponto)
+    : null;
+  const origem: Base | null = escolha?.base ?? null;
+  const km: number | null = escolha?.km ?? null;
 
   const presumido = PRESUMIDO[opcoes.categoria] ?? PRESUMIDO.padrao;
   const semFicha = opcoes.pesoKg === null && opcoes.volumeM3 === null;
@@ -83,24 +76,33 @@ export async function cotar(opcoes: {
   const volume = opcoes.volumeM3 ?? presumido.m3;
   const pesoCubado = Math.round(volume * KG_POR_M3);
 
+  const outraBase = origem !== null && origem.slug !== BASE_PROPRIA;
   const foraDoRaio = km !== null && km > RAIO_MAXIMO_KM;
   const kmIdaEVolta = km === null ? null : km * 2;
   const rodagem = kmIdaEVolta === null ? 0 : kmIdaEVolta * REAIS_POR_KM;
 
   // Fora do raio a viagem dedicada não faz sentido, e um número absurdo na tela
   // mata a venda. Melhor dizer que se cota do que assustar.
-  const valor =
-    km === null || foraDoRaio ? null : Math.round((FRETE_MINIMO + rodagem) * 100) / 100;
-
+  // Preço só sai da base onde temos van. Das outras a bike está perto do
+  // cliente, e isso já é notícia boa, mas quem leva é transportadora.
+  const semPreco = km === null || foraDoRaio || outraBase;
+  const valor = semPreco
+    ? null
+    : Math.round((FRETE_MINIMO + rodagem) * 100) / 100;
   const prazoDias =
-    km === null || foraDoRaio ? null : Math.ceil(km / KM_POR_DIA) + DIAS_DE_SEPARACAO;
+    semPreco || km === null
+      ? null
+      : Math.ceil(km / KM_POR_DIA) + DIAS_DE_SEPARACAO;
 
   return {
     cep: endereco.cep,
     cidade: endereco.cidade,
     uf: endereco.uf,
     bairro: endereco.bairro,
-    origem: origem ? { cidade: origem.cidade, uf: origem.uf } : null,
+    ponto: endereco.ponto,
+    origem: origem
+      ? { slug: origem.slug, cidade: origem.cidade, uf: origem.uf }
+      : null,
     km,
     kmIdaEVolta,
     rodagem: Math.round(rodagem * 100) / 100,
@@ -109,6 +111,7 @@ export async function cotar(opcoes: {
     pesoTaxadoKg: Math.max(pesoReal, pesoCubado),
     presumido: semFicha,
     foraDoRaio,
+    outraBase,
     valor,
     prazoDias,
   };
