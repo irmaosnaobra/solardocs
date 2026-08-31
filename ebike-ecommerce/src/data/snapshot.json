@@ -98,6 +98,21 @@
    "estoque": null,
    "disponivel": false,
    "previsao": "28/08",
+   "pesoKg": 101,
+   "bases": [
+    "cdaeroportogo",
+    "cdgoiania",
+    "cdcontagemmg",
+    "cduberlandiamg",
+    "cdcampograndems",
+    "cdcuiabamt",
+    "cdcampolargopr",
+    "cdriodejaneirorj",
+    "cdportoalegrers",
+    "cdnavegantes",
+    "cdcampinassp",
+    "cdsaobernardo"
+   ],
    "custoEmReais": 5994,
    "origemDoCusto": "tabela-publica"
   },
@@ -140,6 +155,12 @@
    "estoque": null,
    "disponivel": true,
    "previsao": null,
+   "pesoKg": null,
+   "bases": [
+    "cdaeroportogo",
+    "cdcontagemmg",
+    "cduberlandiamg"
+   ],
    "custoEmReais": 3999.9,
    "origemDoCusto": "tabela-publica"
   },
@@ -245,6 +266,21 @@
    "estoque": null,
    "disponivel": false,
    "previsao": "25/08",
+   "pesoKg": 118,
+   "bases": [
+    "cdaeroportogo",
+    "cdgoiania",
+    "cdcontagemmg",
+    "cduberlandiamg",
+    "cdcampograndems",
+    "cdcuiabamt",
+    "cdcampolargopr",
+    "cdriodejaneirorj",
+    "cdportoalegrers",
+    "cdnavegantes",
+    "cdcampinassp",
+    "cdsaobernardo"
+   ],
    "custoEmReais": 6750,
    "origemDoCusto": "tabela-publica"
   },
@@ -287,6 +323,13 @@
    "estoque": null,
    "disponivel": true,
    "previsao": null,
+   "pesoKg": null,
+   "bases": [
+    "cdaeroportogo",
+    "cdfeiradesantanaba",
+    "cdcontagemmg",
+    "cduberlandiamg"
+   ],
    "custoEmReais": 3999.9,
    "origemDoCusto": "tabela-publica"
   },
@@ -329,6 +372,13 @@
    "estoque": null,
    "disponivel": true,
    "previsao": null,
+   "pesoKg": null,
+   "bases": [
+    "cdaeroportogo",
+    "cdfeiradesantanaba",
+    "cdcontagemmg",
+    "cduberlandiamg"
+   ],
    "custoEmReais": 3999.9,
    "origemDoCusto": "tabela-publica"
   },
@@ -371,6 +421,13 @@
    "estoque": null,
    "disponivel": true,
    "previsao": null,
+   "pesoKg": null,
+   "bases": [
+    "cdaeroportogo",
+    "cdfeiradesantanaba",
+    "cdcontagemmg",
+    "cduberlandiamg"
+   ],
    "custoEmReais": 4999.9,
    "origemDoCusto": "tabela-publica"
   },
@@ -413,6 +470,13 @@
    "estoque": null,
    "disponivel": true,
    "previsao": null,
+   "pesoKg": null,
+   "bases": [
+    "cdaeroportogo",
+    "cdfeiradesantanaba",
+    "cdcontagemmg",
+    "cduberlandiamg"
+   ],
    "custoEmReais": 4999.9,
    "origemDoCusto": "tabela-publica"
   },
@@ -455,6 +519,15 @@
    "estoque": null,
    "disponivel": true,
    "previsao": null,
+   "pesoKg": null,
+   "bases": [
+    "cdaeroportogo",
+    "cdgoiania",
+    "cduberlandiamg",
+    "cdcampolargopr",
+    "cdportoalegrers",
+    "cdcampinassp"
+   ],
    "custoEmReais": 3999.9,
    "origemDoCusto": "tabela-publica"
   },
@@ -556,16 +629,254 @@
     }
    ],
    "imagens": [
-    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/d0b7eece-ee06-4b34-a5c2-d781c5099e00.png",
-    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/9dd5fddf-8510-4653-85d0-bb4e37ed0f1f.png",
-    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/bb038fa2-ed59-4088-9155-5d76601afe36.png",
-    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/6f66b8f3-0bf5-4089-928c-c02d58f000ee.png",
-    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/0156b87d-7af9-4214-bb0d-bb05a875d58c.png"
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/91e54614-1b7f-4f33-adbe-4ccd9b515c72.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/c5755ec2-9644-4ebd-be53-f4ce5f526bf2.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/ee234dac-4790-4f60-b827-84a7e5e0e0b6.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/d1a32186-1c52-4ff2-ac31-c0dd622ed26b.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/29fb431e-f282-420a-bf5f-51475a9a47c5.png"
    ],
    "estoque": null,
    "disponivel": false,
    "previsao": "05/09",
+   "pesoKg": 66,
+   "bases": [
+    "cdaeroportogo",
+    "cdgoiania",
+    "cdcontagemmg",
+    "cduberlandiamg",
+    "cdcampograndems",
+    "cdcuiabamt",
+    "cdcampolargopr",
+    "cdriodejaneirorj",
+    "cdportoalegrers",
+    "cdnavegantes",
+    "cdcampinassp",
+    "cdsaobernardo"
+   ],
    "custoEmReais": 5990,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "42522a17-33a2-4331-8dd6-99cdbb805686",
+   "slug": "scooter-eletrica-tank-800w-cinza-658016",
+   "codigo": "658016",
+   "titulo": "Scooter Elétrica Tank 800W Cinza",
+   "nomeOriginal": "PREVISÃO 10/09 -  SCOOTER ELETRICA TANK 800W CINZA BATERIA DE GRAFENO 60V 26AH ARCA NEW E-BIKE",
+   "marca": "New E-Bike",
+   "linha": "TANK",
+   "cor": "Cinza",
+   "categoria": "Scooter elétrica",
+   "potencia": "800W",
+   "bateria": "Grafeno 60V 26AH",
+   "autonomia": "70 km",
+   "velocidade": "32 km/h",
+   "recarga": "Aproximadamente 6 a 7 horas",
+   "ficha": [
+    {
+     "rotulo": "Marca",
+     "valor": "New E-Bike"
+    },
+    {
+     "rotulo": "Linha",
+     "valor": "TANK"
+    },
+    {
+     "rotulo": "Cor",
+     "valor": "Cinza"
+    },
+    {
+     "rotulo": "Motor Elétrico",
+     "valor": "800W"
+    },
+    {
+     "rotulo": "Bateria",
+     "valor": "Grafeno 60V 26AH"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32 km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "70 km"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 6 a 7 horas"
+    },
+    {
+     "rotulo": "Capacidade máxima de carga",
+     "valor": "200 kg"
+    },
+    {
+     "rotulo": "Painel",
+     "valor": "LED sem NFC"
+    },
+    {
+     "rotulo": "Freio Dianteiro",
+     "valor": "Disco"
+    },
+    {
+     "rotulo": "Freio Traseiro",
+     "valor": "Tambor"
+    },
+    {
+     "rotulo": "Pneus/Rodas",
+     "valor": "Pneu sem câmara (tubeless) 2.75-10 Polegadas"
+    },
+    {
+     "rotulo": "Controlador",
+     "valor": "12 tubos"
+    },
+    {
+     "rotulo": "Carregador",
+     "valor": "60V 4A Bivolt (100-240V)"
+    },
+    {
+     "rotulo": "Entre-eixos",
+     "valor": "1.100 mm"
+    },
+    {
+     "rotulo": "Dimensões",
+     "valor": "140x35x76 cm"
+    },
+    {
+     "rotulo": "Peso Líquido",
+     "valor": "81 kg"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/1e99be19-4277-4df5-b662-f798e12e1022.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/715dc264-9068-40bf-be56-67ee1d03e161.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/2d2b1bd6-d911-4118-9b46-b19a798a705c.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/72171b32-c51c-4309-8927-e600867925e7.png"
+   ],
+   "estoque": null,
+   "disponivel": false,
+   "previsao": "10/09",
+   "pesoKg": 81,
+   "bases": [
+    "cdgoiania",
+    "cdcontagemmg",
+    "cduberlandiamg",
+    "cdcuiabamt",
+    "cdnavegantes",
+    "cdcampinassp",
+    "cdsaobernardo"
+   ],
+   "custoEmReais": 5990.91,
+   "origemDoCusto": "tabela-publica"
+  },
+  {
+   "id": "4b3cd776-ccb1-440b-be43-4398470b9319",
+   "slug": "scooter-eletrica-tank-800w-preto-658017",
+   "codigo": "658017",
+   "titulo": "Scooter Elétrica Tank 800W Preto",
+   "nomeOriginal": "PREVISÃO 10/09 -  SCOOTER ELETRICA TANK 800W PRETO BATERIA DE GRAFENO 60V 26AH MARCA NEW E-BIKE",
+   "marca": "New E-Bike",
+   "linha": "TANK",
+   "cor": "Preto",
+   "categoria": "Scooter elétrica",
+   "potencia": "800W",
+   "bateria": "Grafeno 60V 26AH",
+   "autonomia": "70 km",
+   "velocidade": "32 km/h",
+   "recarga": "Aproximadamente 6 a 7 horas",
+   "ficha": [
+    {
+     "rotulo": "Marca",
+     "valor": "New E-Bike"
+    },
+    {
+     "rotulo": "Linha",
+     "valor": "TANK"
+    },
+    {
+     "rotulo": "Cor",
+     "valor": "Preto"
+    },
+    {
+     "rotulo": "Motor Elétrico",
+     "valor": "800W"
+    },
+    {
+     "rotulo": "Bateria",
+     "valor": "Grafeno 60V 26AH"
+    },
+    {
+     "rotulo": "Velocidade Máxima",
+     "valor": "32 km/h"
+    },
+    {
+     "rotulo": "Autonomia",
+     "valor": "70 km"
+    },
+    {
+     "rotulo": "Tempo de Recarga",
+     "valor": "Aproximadamente 6 a 7 horas"
+    },
+    {
+     "rotulo": "Capacidade máxima de carga",
+     "valor": "200 kg"
+    },
+    {
+     "rotulo": "Painel",
+     "valor": "LED sem NFC"
+    },
+    {
+     "rotulo": "Freio Dianteiro",
+     "valor": "Disco"
+    },
+    {
+     "rotulo": "Freio Traseiro",
+     "valor": "Tambor"
+    },
+    {
+     "rotulo": "Pneus/Rodas",
+     "valor": "Pneu sem câmara (tubeless) 2.75-10 Polegadas"
+    },
+    {
+     "rotulo": "Controlador",
+     "valor": "12 tubos"
+    },
+    {
+     "rotulo": "Carregador",
+     "valor": "60V 4A Bivolt (100-240V)"
+    },
+    {
+     "rotulo": "Entre-eixos",
+     "valor": "1.100 mm"
+    },
+    {
+     "rotulo": "Dimensões",
+     "valor": "140x35x76 cm"
+    },
+    {
+     "rotulo": "Peso Líquido",
+     "valor": "81 kg"
+    }
+   ],
+   "imagens": [
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/4919efc1-643a-47f7-9801-ca5bf0aababe.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/9b2dc922-1d12-411b-82d4-042aac5119e8.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/9b9b07d5-a0ba-472c-ad68-72f4d7a2086e.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/5d7e9732-edf6-43e5-aacb-fb01616d6727.png"
+   ],
+   "estoque": null,
+   "disponivel": false,
+   "previsao": "10/09",
+   "pesoKg": 81,
+   "bases": [
+    "cdaeroportogo",
+    "cdgoiania",
+    "cdcontagemmg",
+    "cduberlandiamg",
+    "cdcuiabamt",
+    "cdnavegantes",
+    "cdcampinassp",
+    "cdsaobernardo"
+   ],
+   "custoEmReais": 5990.91,
    "origemDoCusto": "tabela-publica"
   },
   {
@@ -607,6 +918,12 @@
    "estoque": null,
    "disponivel": true,
    "previsao": null,
+   "pesoKg": null,
+   "bases": [
+    "cdaeroportogo",
+    "cdcontagemmg",
+    "cduberlandiamg"
+   ],
    "custoEmReais": 3999.9,
    "origemDoCusto": "tabela-publica"
   },
@@ -649,6 +966,16 @@
    "estoque": null,
    "disponivel": true,
    "previsao": null,
+   "pesoKg": null,
+   "bases": [
+    "cdaeroportogo",
+    "cdgoiania",
+    "cduberlandiamg",
+    "cdcampolargopr",
+    "cdportoalegrers",
+    "cdcampinassp",
+    "cdsaobernardo"
+   ],
    "custoEmReais": 3999.9,
    "origemDoCusto": "tabela-publica"
   },
@@ -694,6 +1021,15 @@
    "estoque": null,
    "disponivel": true,
    "previsao": null,
+   "pesoKg": null,
+   "bases": [
+    "cdgoiania",
+    "cdcontagemmg",
+    "cduberlandiamg",
+    "cdportoalegrers",
+    "cdcampinassp",
+    "cdsaobernardo"
+   ],
    "custoEmReais": 5990,
    "origemDoCusto": "tabela-publica"
   },
@@ -800,6 +1136,21 @@
    "estoque": null,
    "disponivel": false,
    "previsao": "05/09",
+   "pesoKg": 66,
+   "bases": [
+    "cdaeroportogo",
+    "cdgoiania",
+    "cdcontagemmg",
+    "cduberlandiamg",
+    "cdcampograndems",
+    "cdcuiabamt",
+    "cdcampolargopr",
+    "cdriodejaneirorj",
+    "cdportoalegrers",
+    "cdnavegantes",
+    "cdcampinassp",
+    "cdsaobernardo"
+   ],
    "custoEmReais": 5990,
    "origemDoCusto": "tabela-publica"
   },
@@ -842,6 +1193,13 @@
    "estoque": null,
    "disponivel": true,
    "previsao": null,
+   "pesoKg": null,
+   "bases": [
+    "cdaeroportogo",
+    "cdfeiradesantanaba",
+    "cdcontagemmg",
+    "cduberlandiamg"
+   ],
    "custoEmReais": 3999.9,
    "origemDoCusto": "tabela-publica"
   },
@@ -884,6 +1242,12 @@
    "estoque": null,
    "disponivel": true,
    "previsao": null,
+   "pesoKg": null,
+   "bases": [
+    "cdaeroportogo",
+    "cdcontagemmg",
+    "cduberlandiamg"
+   ],
    "custoEmReais": 2990,
    "origemDoCusto": "tabela-publica"
   },
@@ -989,6 +1353,21 @@
    "estoque": null,
    "disponivel": false,
    "previsao": "05/09",
+   "pesoKg": 71,
+   "bases": [
+    "cdaeroportogo",
+    "cdgoiania",
+    "cdcontagemmg",
+    "cduberlandiamg",
+    "cdcampograndems",
+    "cdcuiabamt",
+    "cdcampolargopr",
+    "cdriodejaneirorj",
+    "cdportoalegrers",
+    "cdnavegantes",
+    "cdcampinassp",
+    "cdsaobernardo"
+   ],
    "custoEmReais": 5999.01,
    "origemDoCusto": "tabela-publica"
   },
@@ -1095,6 +1474,21 @@
    "estoque": null,
    "disponivel": false,
    "previsao": "05/09",
+   "pesoKg": 66,
+   "bases": [
+    "cdaeroportogo",
+    "cdgoiania",
+    "cdcontagemmg",
+    "cduberlandiamg",
+    "cdcampograndems",
+    "cdcuiabamt",
+    "cdcampolargopr",
+    "cdriodejaneirorj",
+    "cdportoalegrers",
+    "cdnavegantes",
+    "cdcampinassp",
+    "cdsaobernardo"
+   ],
    "custoEmReais": 5990,
    "origemDoCusto": "tabela-publica"
   },
@@ -1137,6 +1531,13 @@
    "estoque": null,
    "disponivel": true,
    "previsao": null,
+   "pesoKg": null,
+   "bases": [
+    "cdaeroportogo",
+    "cdfeiradesantanaba",
+    "cdcontagemmg",
+    "cduberlandiamg"
+   ],
    "custoEmReais": 4999.9,
    "origemDoCusto": "tabela-publica"
   },
@@ -1179,6 +1580,11 @@
    "estoque": null,
    "disponivel": true,
    "previsao": null,
+   "pesoKg": null,
+   "bases": [
+    "cdaeroportogo",
+    "cduberlandiamg"
+   ],
    "custoEmReais": 3999.9,
    "origemDoCusto": "tabela-publica"
   },
@@ -1221,6 +1627,12 @@
    "estoque": null,
    "disponivel": true,
    "previsao": null,
+   "pesoKg": null,
+   "bases": [
+    "cdaeroportogo",
+    "cdcontagemmg",
+    "cduberlandiamg"
+   ],
    "custoEmReais": 2990,
    "origemDoCusto": "tabela-publica"
   },
@@ -1326,6 +1738,21 @@
    "estoque": null,
    "disponivel": false,
    "previsao": "25/08",
+   "pesoKg": 118,
+   "bases": [
+    "cdaeroportogo",
+    "cdgoiania",
+    "cdcontagemmg",
+    "cduberlandiamg",
+    "cdcampograndems",
+    "cdcuiabamt",
+    "cdcampolargopr",
+    "cdriodejaneirorj",
+    "cdportoalegrers",
+    "cdnavegantes",
+    "cdcampinassp",
+    "cdsaobernardo"
+   ],
    "custoEmReais": 6750,
    "origemDoCusto": "tabela-publica"
   },
@@ -1427,6 +1854,21 @@
    "estoque": null,
    "disponivel": false,
    "previsao": "28/08",
+   "pesoKg": 101,
+   "bases": [
+    "cdaeroportogo",
+    "cdgoiania",
+    "cdcontagemmg",
+    "cduberlandiamg",
+    "cdcampograndems",
+    "cdcuiabamt",
+    "cdcampolargopr",
+    "cdriodejaneirorj",
+    "cdportoalegrers",
+    "cdnavegantes",
+    "cdcampinassp",
+    "cdsaobernardo"
+   ],
    "custoEmReais": 5994,
    "origemDoCusto": "tabela-publica"
   },
@@ -1469,6 +1911,12 @@
    "estoque": null,
    "disponivel": true,
    "previsao": null,
+   "pesoKg": null,
+   "bases": [
+    "cdaeroportogo",
+    "cdfeiradesantanaba",
+    "cduberlandiamg"
+   ],
    "custoEmReais": 4999.9,
    "origemDoCusto": "tabela-publica"
   },
@@ -1575,6 +2023,21 @@
    "estoque": null,
    "disponivel": false,
    "previsao": "05/09",
+   "pesoKg": 66,
+   "bases": [
+    "cdaeroportogo",
+    "cdgoiania",
+    "cdcontagemmg",
+    "cduberlandiamg",
+    "cdcampograndems",
+    "cdcuiabamt",
+    "cdcampolargopr",
+    "cdriodejaneirorj",
+    "cdportoalegrers",
+    "cdnavegantes",
+    "cdcampinassp",
+    "cdsaobernardo"
+   ],
    "custoEmReais": 5990,
    "origemDoCusto": "tabela-publica"
   },
@@ -1617,6 +2080,17 @@
    "estoque": null,
    "disponivel": true,
    "previsao": null,
+   "pesoKg": null,
+   "bases": [
+    "cdaeroportogo",
+    "cdgoiania",
+    "cdcontagemmg",
+    "cduberlandiamg",
+    "cdcampolargopr",
+    "cdportoalegrers",
+    "cdcampinassp",
+    "cdsaobernardo"
+   ],
    "custoEmReais": 3999.9,
    "origemDoCusto": "tabela-publica"
   },
@@ -1659,6 +2133,13 @@
    "estoque": null,
    "disponivel": true,
    "previsao": null,
+   "pesoKg": null,
+   "bases": [
+    "cdaeroportogo",
+    "cdfeiradesantanaba",
+    "cdcontagemmg",
+    "cduberlandiamg"
+   ],
    "custoEmReais": 3999.9,
    "origemDoCusto": "tabela-publica"
   },
@@ -1701,11 +2182,221 @@
    "estoque": null,
    "disponivel": true,
    "previsao": null,
+   "pesoKg": null,
+   "bases": [
+    "cdaeroportogo",
+    "cdgoiania",
+    "cduberlandiamg",
+    "cdcampolargopr",
+    "cdportoalegrers",
+    "cdcampinassp",
+    "cdsaobernardo"
+   ],
    "custoEmReais": 3999.9,
    "origemDoCusto": "tabela-publica"
   }
  ],
- "lidoEm": "2026-08-30T06:21:45.007Z",
+ "bases": [
+  {
+   "slug": "cdcampolargopr",
+   "nome": "PR - CURITIBA",
+   "cidade": "São José dos Pinhais",
+   "uf": "PR",
+   "cep": "83015140",
+   "lat": -25.5302,
+   "lon": -49.20836
+  },
+  {
+   "slug": "cdsaoluisma",
+   "nome": "MA - SÃO LUIS",
+   "cidade": "São Luís",
+   "uf": "MA",
+   "cep": "65090272",
+   "lat": -2.52972,
+   "lon": -44.30278
+  },
+  {
+   "slug": "cdportoalegrers",
+   "nome": "RS - PORTO ALEGRE",
+   "cidade": "Sapucaia do Sul",
+   "uf": "RS",
+   "cep": "93212110",
+   "lat": -29.81782,
+   "lon": -51.14551
+  },
+  {
+   "slug": "cdcuiabamt",
+   "nome": "MT - CUIABÁ",
+   "cidade": "Cuiabá",
+   "uf": "MT",
+   "cep": "78098282",
+   "lat": -15.59611,
+   "lon": -56.09667
+  },
+  {
+   "slug": "cdaeroportogo",
+   "nome": "GO - AEROPORTO",
+   "cidade": "Goiânia",
+   "uf": "GO",
+   "cep": "74672839",
+   "lat": -16.6283698,
+   "lon": -49.2214781
+  },
+  {
+   "slug": "cdjoaopessoapb",
+   "nome": "PB - JOÃO PESSOA",
+   "cidade": "João Pessoa",
+   "uf": "PB",
+   "cep": "58069708",
+   "lat": -7.115,
+   "lon": -34.86306
+  },
+  {
+   "slug": "cdcampinassp",
+   "nome": "SP - JUNDIAÍ",
+   "cidade": "Jundiaí",
+   "uf": "SP",
+   "cep": "13212240",
+   "lat": -23.18639,
+   "lon": -46.88417
+  },
+  {
+   "slug": "cdbelempa",
+   "nome": "PA - BELÉM",
+   "cidade": "Benevides",
+   "uf": "PA",
+   "cep": "68795000",
+   "lat": -1.36139,
+   "lon": -48.24472
+  },
+  {
+   "slug": "cdsaobernardo",
+   "nome": "SP - SÃO BERNARDO",
+   "cidade": "São Bernardo do Campo",
+   "uf": "SP",
+   "cep": "09854513",
+   "lat": -23.69389,
+   "lon": -46.565
+  },
+  {
+   "slug": "cdnavegantes",
+   "nome": "SC - ITAJAÍ",
+   "cidade": "Itajaí",
+   "uf": "SC",
+   "cep": "88318290",
+   "lat": -26.90778,
+   "lon": -48.66194
+  },
+  {
+   "slug": "cdteresinapi",
+   "nome": "PI - TERESINA",
+   "cidade": "Teresina",
+   "uf": "PI",
+   "cep": "64038030",
+   "lat": -5.08917,
+   "lon": -42.80194
+  },
+  {
+   "slug": "cdcontagemmg",
+   "nome": "MG - BELO HORIZONTE",
+   "cidade": "Betim",
+   "uf": "MG",
+   "cep": "32685200",
+   "lat": -19.96778,
+   "lon": -44.19833
+  },
+  {
+   "slug": "cdfortalezace",
+   "nome": "CE - FORTALEZA",
+   "cidade": "Itaitinga",
+   "uf": "CE",
+   "cep": "61886170",
+   "lat": -3.96944,
+   "lon": -38.52806
+  },
+  {
+   "slug": "cdcampograndems",
+   "nome": "MS - CAMPO GRANDE",
+   "cidade": "Campo Grande",
+   "uf": "MS",
+   "cep": "79062002",
+   "lat": -20.44278,
+   "lon": -54.64639
+  },
+  {
+   "slug": "cdmaceioal",
+   "nome": "AL - MACEIÓ",
+   "cidade": "Rio Largo",
+   "uf": "AL",
+   "cep": "57100000",
+   "lat": -9.477829,
+   "lon": -35.839435
+  },
+  {
+   "slug": "cdfeiradesantanaba",
+   "nome": "BA - FEIRA DE SANTANA",
+   "cidade": "Feira de Santana",
+   "uf": "BA",
+   "cep": "44097324",
+   "lat": -12.26667,
+   "lon": -38.96667
+  },
+  {
+   "slug": "cdnatalrn",
+   "nome": "RN - NATAL",
+   "cidade": "Natal",
+   "uf": "RN",
+   "cep": "59066240",
+   "lat": -5.795,
+   "lon": -35.20944
+  },
+  {
+   "slug": "cdaracajuse",
+   "nome": "SE - ARACAJU",
+   "cidade": "Nossa Senhora do Socorro",
+   "uf": "SE",
+   "cep": "49160000",
+   "lat": -10.8646904,
+   "lon": -37.1274661
+  },
+  {
+   "slug": "cduberlandiamg",
+   "nome": "MG - UBERLÂNDIA",
+   "cidade": "Uberlândia",
+   "uf": "MG",
+   "cep": "38402356",
+   "lat": -18.91861,
+   "lon": -48.27722
+  },
+  {
+   "slug": "cdriodejaneirorj",
+   "nome": "RJ - RIO DE JANEIRO",
+   "cidade": "Rio de Janeiro",
+   "uf": "RJ",
+   "cep": "21535501",
+   "lat": -22.90642,
+   "lon": -43.18223
+  },
+  {
+   "slug": "cdgoiania",
+   "nome": "GO - MATRIZ",
+   "cidade": "Aparecida de Goiânia",
+   "uf": "GO",
+   "cep": "74993386",
+   "lat": -16.82333,
+   "lon": -49.24389
+  },
+  {
+   "slug": "cdrecifepe",
+   "nome": "PE - RECIFE",
+   "cidade": "Cabo de Santo Agostinho",
+   "uf": "PE",
+   "cep": "54503010",
+   "lat": -8.28773,
+   "lon": -35.02925
+  }
+ ],
+ "lidoEm": "2026-08-31T16:25:05.183Z",
  "logado": false,
  "cd": "MG - UBERLÂNDIA",
  "secao": "Ebike"

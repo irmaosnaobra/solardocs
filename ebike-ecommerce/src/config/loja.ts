@@ -14,10 +14,9 @@ export const LOJA = {
   nomeCurto: 'Corrente',
   assinatura: 'mobilidade elétrica',
   slogan: 'A corrente que te move.',
-  chamada: 'Bikes e scooters elétricas com entrega no Triângulo Mineiro',
-  cidade: 'Uberlândia, MG',
+  chamada: 'Bicicletas e scooters elétricas, entregues em todo o Brasil',
   descricao:
-    'Catálogo completo de bicicletas e scooters elétricas. Você escolhe o modelo e a forma de pagamento, e fala direto com quem vende.',
+    'Catálogo completo de bicicletas e scooters elétricas. Você escolhe o modelo, calcula o frete pelo seu CEP e fala direto com quem vende.',
 } as const;
 
 /**

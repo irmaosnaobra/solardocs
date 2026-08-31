@@ -49,6 +49,8 @@ export type CD = {
   city?: string;
   state?: string;
   phone?: string;
+  /** CEP da base. É daqui que sai o cálculo de distância até o cliente. */
+  zipCode?: string;
 };
 
 export type Secao = {
@@ -357,7 +359,7 @@ export async function abrirSessao(opcoes: {
   secaoSlug: string;
   email?: string;
   senha?: string;
-}): Promise<{ sessao: SessaoSoollar; cd: CD; secao: Secao }> {
+}): Promise<{ sessao: SessaoSoollar; cd: CD; secao: Secao; todosOsCds: CD[] }> {
   const sessao = new SessaoSoollar();
   const { sections, distributionCenters } = await sessao.configs();
 
@@ -379,5 +381,5 @@ export async function abrirSessao(opcoes: {
   sessao.usarCD(cd);
   if (opcoes.email && opcoes.senha) await sessao.entrar(opcoes.email, opcoes.senha);
 
-  return { sessao, cd, secao };
+  return { sessao, cd, secao, todosOsCds: distributionCenters };
 }

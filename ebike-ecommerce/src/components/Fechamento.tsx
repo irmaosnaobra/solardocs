@@ -35,7 +35,7 @@ export function Fechamento({ bike }: { bike: Bike }) {
         </p>
       ) : null}
 
-      <Frete />
+      <Frete slug={bike.slug} />
 
       <fieldset>
         <legend className="mb-2 text-sm font-semibold text-tinta">Como você prefere pagar?</legend>

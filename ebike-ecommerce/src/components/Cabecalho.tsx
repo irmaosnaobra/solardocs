@@ -61,9 +61,9 @@ export function Cabecalho() {
         </form>
 
         <p className="hidden shrink-0 text-xs text-suave lg:block">
-          Entregamos a partir de
+          Entregamos para
           <br />
-          <strong className="font-semibold text-tinta">{LOJA.cidade}</strong>
+          <strong className="font-semibold text-tinta">todo o Brasil</strong>
         </p>
       </div>
     </header>

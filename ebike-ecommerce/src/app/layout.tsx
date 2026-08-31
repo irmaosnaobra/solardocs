@@ -49,7 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   {LOJA.nomeCurto}
                 </p>
                 <p className="text-sm text-suave">{LOJA.slogan}</p>
-                <p className="mt-1 text-xs text-fraco">{LOJA.cidade}</p>
+                <p className="mt-1 text-xs text-fraco">Entrega em todo o Brasil</p>
               </div>
             </div>
 

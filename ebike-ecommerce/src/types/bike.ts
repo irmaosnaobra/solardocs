@@ -32,6 +32,10 @@ export type Bike = {
   disponivel: boolean;
   /** Data de chegada quando o item ainda não está no CD (ex.: "28/08"). */
   previsao: string | null;
+  /** Peso em quilos, como o fabricante publicou. Entra no cálculo do frete. */
+  pesoKg: number | null;
+  /** Bases do fornecedor que têm este modelo, por slug. */
+  bases: string[];
 };
 
 /**

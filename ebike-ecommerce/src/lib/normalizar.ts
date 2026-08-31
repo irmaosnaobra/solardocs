@@ -155,6 +155,15 @@ function categoriaDoNome(nome: string): string {
   return 'Elétrico';
 }
 
+/** "101 kg", "66 kg" -> 101, 66. Nulo quando o fabricante nao informou. */
+function pesoDaFicha(ficha: ItemFicha[]): number | null {
+  const bruto = daFicha(ficha, 'Peso Líquido', 'Peso Liquido', 'Peso');
+  if (!bruto) return null;
+  const m = bruto.replace(',', '.').match(/(\d+(?:\.\d+)?)\s*kg/i);
+  const n = m ? Number(m[1]) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 export type BikeNormalizada = {
   id: string;
   slug: string;
@@ -175,12 +184,20 @@ export type BikeNormalizada = {
   estoque: number | null;
   disponivel: boolean;
   previsao: string | null;
+  /** Peso em quilos, como o fabricante publicou. Entra no cálculo do frete. */
+  pesoKg: number | null;
+  /** Slugs das bases do fornecedor que têm este item. */
+  bases: string[];
   custoEmReais: number | null;
   origemDoCusto: 'preco-logado' | 'tabela-publica';
 };
 
 /** Junta a linha da listagem com a ficha do detalhe (quando houver). */
-export function normalizar(lista: ProdutoBruto, detalhe?: ProdutoBruto | null): BikeNormalizada {
+export function normalizar(
+  lista: ProdutoBruto,
+  detalhe?: ProdutoBruto | null,
+  bases: string[] = [],
+): BikeNormalizada {
   const nome = (lista.name ?? '').trim();
   const { previsao, resto } = separarPrevisao(nome);
 
@@ -225,6 +242,8 @@ export function normalizar(lista: ProdutoBruto, detalhe?: ProdutoBruto | null): 
     // conversa. Quem confirma unidade é o atendimento.
     disponivel: previsao ? false : estoque === null || estoque > 0,
     previsao,
+    pesoKg: pesoDaFicha(ficha),
+    bases,
     custoEmReais: precoLogado ?? tabela,
     origemDoCusto: precoLogado ? 'preco-logado' : 'tabela-publica',
   };

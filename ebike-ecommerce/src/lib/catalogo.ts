@@ -16,6 +16,7 @@ import { unstable_cache } from 'next/cache';
 
 import reserva from '../data/snapshot.json';
 import { buscarNoFornecedor } from './montarCatalogo.ts';
+import type { Base } from './montarCatalogo.ts';
 import type { BikeNormalizada } from './normalizar.ts';
 import { enderecoInterno } from './fotos.ts';
 import { MARGEM_EM_REAIS, precoDeVenda } from './preco.ts';
@@ -35,6 +36,7 @@ const SEGUNDOS_ENTRE_LEITURAS = Number(process.env.CATALOGO_REVALIDA_SEGUNDOS ??
 
 type Bruto = {
   bikes: BikeNormalizada[];
+  bases: Base[];
   lidoEm: string;
   logado: boolean;
   cd: string;
@@ -86,6 +88,8 @@ function paraInterna(b: BikeNormalizada): BikeInterna {
     estoque: b.estoque,
     disponivel: b.disponivel,
     previsao: b.previsao,
+    pesoKg: b.pesoKg,
+    bases: b.bases,
     custo,
     margem: MARGEM_EM_REAIS,
     origemDoCusto: b.origemDoCusto,
@@ -119,7 +123,14 @@ function paraPublica(b: BikeInterna): Bike {
     estoque: b.estoque,
     disponivel: b.disponivel,
     previsao: b.previsao,
+    pesoKg: b.pesoKg,
+    bases: b.bases,
   };
+}
+
+/** As bases do fornecedor, com coordenada. Usadas para calcular a entrega. */
+export async function basesDoCatalogo(): Promise<Base[]> {
+  return (await lerFornecedor()).bases ?? [];
 }
 
 export async function catalogoInterno(): Promise<CatalogoInterno> {
