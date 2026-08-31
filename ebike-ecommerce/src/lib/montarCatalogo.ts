@@ -13,6 +13,18 @@ import { normalizar } from './normalizar.ts';
 import type { BikeNormalizada } from './normalizar.ts';
 
 export const CD_PADRAO = 'cduberlandiamg';
+/**
+ * A loja mostra o catálogo do BRASIL INTEIRO, não o de um galpão.
+ *
+ * Uberlândia tem 29 modelos; somando as 22 bases são 46. Os 17 que faltavam
+ * quase todos estão em Goiânia, e não havia motivo para escondê-los de quem
+ * está em Goiás — ou de quem está em Uberlândia e topa esperar.
+ *
+ * Ler base por base seria 22 leituras completas. Não precisa: o fornecedor
+ * responde, para cada produto, em quais CDs ele existe (`cdsComOProduto`).
+ * Então são 22 LISTAGENS (baratas) e ficha só dos modelos únicos.
+ */
+export const CATALOGO_NACIONAL = true;
 export const SECAO_PADRAO = 'ebike';
 
 /** Uma base do fornecedor, com a coordenada já resolvida a partir do CEP. */
@@ -157,6 +169,116 @@ export async function buscarNoFornecedor(opcoes?: {
     lidoEm: new Date().toISOString(),
     logado: sessao.logado,
     cd: cd.name,
+    secao: secao.name,
+  };
+}
+
+/**
+ * O catálogo do Brasil inteiro: as 22 bases numa lista só.
+ *
+ * Uma sessão, trocando o cookie de CD entre as listagens. Sessão por base seria
+ * 22 logins, e o login é a parte cara.
+ *
+ * A linha que vale é a da NOSSA base quando o modelo existe lá. Preço é igual
+ * em todas (conferido: 35 modelos repetidos, zero divergência), mas
+ * `availableQuantity` é por galpão — e quando o login do fornecedor entrar, é
+ * o estoque de Uberlândia que a gente quer mostrar, não o de Cuiabá.
+ */
+export async function buscarCatalogoNacional(opcoes?: {
+  secaoSlug?: string;
+  email?: string;
+  senha?: string;
+  comFicha?: boolean;
+}): Promise<CatalogoBruto> {
+  const secaoSlug = opcoes?.secaoSlug ?? process.env.SOOLLAR_SECAO ?? SECAO_PADRAO;
+  const email = opcoes?.email ?? process.env.SOOLLAR_EMAIL;
+  const senha = opcoes?.senha ?? process.env.SOOLLAR_SENHA;
+
+  const {
+    sessao,
+    cd: cdPadrao,
+    secao,
+    todosOsCds,
+  } = await abrirSessao({
+    cdSlug: CD_PADRAO,
+    secaoSlug,
+    email,
+    senha,
+  });
+  const bases = await comCoordenada(todosOsCds);
+
+  // Sequencial de propósito: o cookie de CD é da sessão, então duas listagens
+  // ao mesmo tempo brigariam por ele e uma delas leria o galpão errado.
+  const linhas = new Map<string, ProdutoBruto>();
+  const ondeVimos = new Map<string, Set<string>>();
+  const falhas: string[] = [];
+
+  for (const cd of todosOsCds) {
+    try {
+      sessao.usarCD(cd);
+      const lista = await sessao.listarProdutos(cd.distributionCenterId, secao.sectionId);
+      for (const p of lista) {
+        const codigo = String(p.ref ?? p.referenceCode ?? p.id);
+        if (!ondeVimos.has(codigo)) ondeVimos.set(codigo, new Set());
+        ondeVimos.get(codigo)!.add(cd.slug);
+        // A nossa base ganha; fora dela, a primeira que aparecer.
+        if (!linhas.has(codigo) || cd.slug === CD_PADRAO) linhas.set(codigo, p);
+      }
+    } catch {
+      // Uma base fora do ar não derruba o catálogo inteiro: as outras 21
+      // continuam valendo, e o item que só existia nela some da vitrine em vez
+      // de aparecer sem preço.
+      falhas.push(cd.slug);
+    }
+  }
+
+  if (falhas.length) console.warn(`Bases que não responderam: ${falhas.join(', ')}`);
+
+  const unicos = [...linhas.values()];
+  // Volta para a nossa base: o resto da leitura (ficha, detalhe) é feito com o
+  // cookie apontando para casa, que é o estado que o restante do código assume.
+  sessao.usarCD(cdPadrao);
+
+  const fichas = new Map<string, ProdutoBruto | null>();
+  const basesDoProduto = new Map<string, string[]>();
+
+  if (opcoes?.comFicha !== false) {
+    const detalhes = await emLotes(unicos, 5, async (p) => {
+      try {
+        return [p.id, await sessao.produto(p.id)] as const;
+      } catch {
+        return [p.id, null] as const;
+      }
+    });
+    for (const [id, d] of detalhes) fichas.set(id, d);
+
+    const ondeTem = await emLotes(unicos, 5, async (p) => {
+      try {
+        return [p.id, (await sessao.cdsComOProduto(p.id)).map((c) => c.slug)] as const;
+      } catch {
+        return [p.id, [] as string[]] as const;
+      }
+    });
+    for (const [id, slugs] of ondeTem) basesDoProduto.set(id, slugs);
+  }
+
+  const bikes = completarMarcas(
+    unicos.map((p) => {
+      const codigo = String(p.ref ?? p.referenceCode ?? p.id);
+      // O que o fornecedor responde vale mais; se ele não responder, vale o que
+      // a gente VIU, que agora é a lista completa das 22 listagens.
+      const doFornecedor = basesDoProduto.get(p.id) ?? [];
+      const vistas = [...(ondeVimos.get(codigo) ?? [])];
+      return normalizar(p, fichas.get(p.id), doFornecedor.length ? doFornecedor : vistas);
+    }),
+  ).filter((b) => b.custoEmReais !== null && b.imagens.length > 0);
+
+  return {
+    bikes,
+    bases,
+    lidoEm: new Date().toISOString(),
+    logado: sessao.logado,
+    cd: 'Brasil (22 bases)',
     secao: secao.name,
   };
 }

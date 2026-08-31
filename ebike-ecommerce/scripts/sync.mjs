@@ -10,11 +10,11 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { buscarNoFornecedor } from '../src/lib/montarCatalogo.ts';
+import { buscarCatalogoNacional } from '../src/lib/montarCatalogo.ts';
 
 const destino = path.join(process.cwd(), 'src', 'data', 'snapshot.json');
 
-const catalogo = await buscarNoFornecedor();
+const catalogo = await buscarCatalogoNacional();
 
 if (catalogo.bikes.length === 0) {
   console.error('Nenhuma bike voltou do fornecedor. A reserva NAO foi sobrescrita.');

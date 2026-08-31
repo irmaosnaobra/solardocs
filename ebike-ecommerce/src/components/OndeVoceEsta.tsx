@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { BuscaDeCidade } from './BuscaDeCidade.tsx';
 import { BASE_PATH } from '../config/basePath.mjs';
-import { ESTADOS } from '../config/estados.ts';
 import { formatarCep } from '../config/frete.ts';
 import { jaPulou, pularEntrega, salvarEntrega, useEntrega } from '../lib/cepSalvo.ts';
 
@@ -24,7 +24,7 @@ import { jaPulou, pularEntrega, salvarEntrega, useEntrega } from '../lib/cepSalv
 export function OndeVoceEsta() {
   const entrega = useEntrega();
   const [visivel, setVisivel] = useState(false);
-  const [porEstado, setPorEstado] = useState(false);
+  const [porCidade, setPorCidade] = useState(false);
   const [cep, setCep] = useState('');
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
@@ -115,7 +115,7 @@ export function OndeVoceEsta() {
           de qual sai a sua e a quantos quilômetros.
         </p>
 
-        {!porEstado ? (
+        {!porCidade ? (
           <>
             <div className="mt-4 flex gap-2">
               <label className="sr-only" htmlFor="onde-cep">
@@ -154,44 +154,34 @@ export function OndeVoceEsta() {
 
             <button
               type="button"
-              onClick={() => setPorEstado(true)}
+              onClick={() => setPorCidade(true)}
               className="toque mt-3 w-full text-sm font-semibold text-mata underline underline-offset-2"
             >
-              Não sei meu CEP — escolher pelo estado
+              Não sei meu CEP — buscar pela cidade
             </button>
           </>
         ) : (
           <>
-            <div className="mt-4 grid grid-cols-4 gap-1.5 sm:grid-cols-5">
-              {ESTADOS.map((e) => (
-                <button
-                  key={e.uf}
-                  type="button"
-                  title={e.nome}
-                  onClick={() => {
-                    salvarEntrega({
-                      cep: '',
-                      cidade: e.capital,
-                      uf: e.uf,
-                      lat: e.lat,
-                      lon: e.lon,
-                      aproximado: true,
-                    });
-                    setVisivel(false);
-                  }}
-                  className="h-11 rounded-lg border border-borda bg-white text-sm font-semibold text-tinta hover:border-tinta hover:bg-fundo"
-                >
-                  {e.uf}
-                </button>
-              ))}
-            </div>
+            <BuscaDeCidade
+              onEscolher={(c) => {
+                salvarEntrega({
+                  cep: '',
+                  cidade: c.nome,
+                  uf: c.uf,
+                  lat: c.lat,
+                  lon: c.lon,
+                  aproximado: true,
+                });
+                setVisivel(false);
+              }}
+            />
             <p className="mt-2 text-xs text-suave">
-              Pelo estado a distância é aproximada e o frete não sai fechado. Para o valor exato, é
-              o CEP.
+              Pela cidade a distância é do centro dela, então o frete não sai fechado. Para o valor
+              exato, é o CEP.
             </p>
             <button
               type="button"
-              onClick={() => setPorEstado(false)}
+              onClick={() => setPorCidade(false)}
               className="toque mt-3 w-full text-sm font-semibold text-mata underline underline-offset-2"
             >
               Voltar e digitar o CEP

@@ -128,6 +128,21 @@ export function paraSlug(texto: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
+/**
+ * "R$3.999,00 ACIMA 3 PEÇAS - BICICLETA..." -> "BICICLETA...".
+ *
+ * Essa faixa é preço de ATACADO, de três unidades para cima, e não é o nosso:
+ * o custo que o portal lista na linha é o de uma peça. Deixar isso no título
+ * estamparia no card um preço que a loja não pratica, ao lado do preço que ela
+ * pratica. O item continua à venda; só o rótulo sai.
+ */
+function tirarFaixaDeAtacado(nome: string): string {
+  return nome.replace(
+    /^R\$\s*[\d.,]+\s*(?:ACIMA|A\s+PARTIR\s+DE)\s+\d+\s*(?:PE[ÇC]AS?|UN\.?|UNIDADES?)\s*-\s*/i,
+    '',
+  );
+}
+
 /** "PREVISÃO 28/08 - SCOOTER..." -> { previsao: "28/08", resto: "SCOOTER..." } */
 function separarPrevisao(nome: string): { previsao: string | null; resto: string } {
   const m = nome.match(/^PREVIS[ÃA]O\s+(\d{2}\/\d{2})\s*-\s*(.+)$/i);
@@ -221,7 +236,7 @@ export function normalizar(
   bases: string[] = [],
 ): BikeNormalizada {
   const nome = (lista.name ?? '').trim();
-  const { previsao, resto } = separarPrevisao(nome);
+  const { previsao, resto } = separarPrevisao(tirarFaixaDeAtacado(nome));
 
   const ficha = juntarFichas(
     fichaDoHtml(detalhe?.technicalInformation),

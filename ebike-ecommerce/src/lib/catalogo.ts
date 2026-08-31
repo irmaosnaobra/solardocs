@@ -15,7 +15,7 @@ import 'server-only';
 import { unstable_cache } from 'next/cache';
 
 import reserva from '../data/snapshot.json';
-import { buscarNoFornecedor } from './montarCatalogo.ts';
+import { buscarCatalogoNacional } from './montarCatalogo.ts';
 import type { Base } from './montarCatalogo.ts';
 import type { BikeNormalizada } from './normalizar.ts';
 import { enderecoInterno } from './fotos.ts';
@@ -51,7 +51,7 @@ function daReserva(erro: string): Bruto & { origem: 'reserva'; erro: string } {
 const lerFornecedor = unstable_cache(
   async (): Promise<Bruto & { origem: 'ao-vivo' | 'reserva'; erro?: string }> => {
     try {
-      const vivo = await buscarNoFornecedor();
+      const vivo = await buscarCatalogoNacional();
       if (vivo.bikes.length === 0) {
         return daReserva('O fornecedor respondeu, mas não veio nenhuma bike.');
       }
