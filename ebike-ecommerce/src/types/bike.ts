@@ -34,6 +34,8 @@ export type Bike = {
   previsao: string | null;
   /** Peso em quilos, como o fabricante publicou. Entra no cálculo do frete. */
   pesoKg: number | null;
+  /** Volume em metros cúbicos, da medida do fabricante. Manda na cubagem. */
+  volumeM3: number | null;
   /** Bases do fornecedor que têm este modelo, por slug. */
   bases: string[];
 };

@@ -89,6 +89,7 @@ function paraInterna(b: BikeNormalizada): BikeInterna {
     disponivel: b.disponivel,
     previsao: b.previsao,
     pesoKg: b.pesoKg,
+    volumeM3: b.volumeM3,
     bases: b.bases,
     custo,
     margem: MARGEM_EM_REAIS,
@@ -124,6 +125,7 @@ function paraPublica(b: BikeInterna): Bike {
     disponivel: b.disponivel,
     previsao: b.previsao,
     pesoKg: b.pesoKg,
+    volumeM3: b.volumeM3,
     bases: b.bases,
   };
 }

@@ -164,6 +164,22 @@ function pesoDaFicha(ficha: ItemFicha[]): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+/**
+ * "149x44x83 cm" -> 0.5442 m3. É o número que manda no frete: bike ocupa muito
+ * espaço para o que pesa, e transportadora cobra pelo espaço.
+ */
+function volumeDaFicha(ficha: ItemFicha[]): number | null {
+  const bruto = daFicha(ficha, 'Dimensões', 'Dimensoes', 'Medidas');
+  if (!bruto) return null;
+  const m = bruto
+    .replace(',', '.')
+    .match(/(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)/i);
+  if (!m) return null;
+  const emMetros = bruto.toLowerCase().includes('mm') ? 1000 : 100;
+  const v = (Number(m[1]) / emMetros) * (Number(m[2]) / emMetros) * (Number(m[3]) / emMetros);
+  return Number.isFinite(v) && v > 0 && v < 20 ? Math.round(v * 10000) / 10000 : null;
+}
+
 export type BikeNormalizada = {
   id: string;
   slug: string;
@@ -186,6 +202,8 @@ export type BikeNormalizada = {
   previsao: string | null;
   /** Peso em quilos, como o fabricante publicou. Entra no cálculo do frete. */
   pesoKg: number | null;
+  /** Volume em metros cúbicos, da medida do fabricante. Manda na cubagem. */
+  volumeM3: number | null;
   /** Slugs das bases do fornecedor que têm este item. */
   bases: string[];
   custoEmReais: number | null;
@@ -243,6 +261,7 @@ export function normalizar(
     disponivel: previsao ? false : estoque === null || estoque > 0,
     previsao,
     pesoKg: pesoDaFicha(ficha),
+    volumeM3: volumeDaFicha(ficha),
     bases,
     custoEmReais: precoLogado ?? tabela,
     origemDoCusto: precoLogado ? 'preco-logado' : 'tabela-publica',

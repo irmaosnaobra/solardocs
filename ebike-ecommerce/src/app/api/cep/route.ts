@@ -36,10 +36,22 @@ export async function GET(req: NextRequest) {
   const pesoBruto = Number(p.get('peso'));
   const pesoKg = Number.isFinite(pesoBruto) && pesoBruto > 0 && pesoBruto < 1000 ? pesoBruto : null;
 
+  const volumeBruto = Number(p.get('m3'));
+  const volumeM3 =
+    Number.isFinite(volumeBruto) && volumeBruto > 0 && volumeBruto < 20 ? volumeBruto : null;
+
   const precoBruto = Number(p.get('preco'));
   const precoDaBike = Number.isFinite(precoBruto) && precoBruto > 0 ? precoBruto : 0;
 
-  const cotacao = await cotar({ cep, bases, basesDoProduto, pesoKg, precoDaBike });
+  const cotacao = await cotar({
+    cep,
+    bases,
+    basesDoProduto,
+    pesoKg,
+    volumeM3,
+    categoria: p.get('categoria') ?? '',
+    precoDaBike,
+  });
   if (!cotacao) {
     return NextResponse.json({ ok: false, erro: 'CEP não encontrado.' }, { status: 404 });
   }

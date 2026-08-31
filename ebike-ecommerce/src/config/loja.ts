@@ -58,6 +58,7 @@ export function linkWhatsApp(opcoes: {
   preco: number;
   pagamento?: FormaDePagamento | null;
   entrega?: string | null;
+  frete?: string | null;
   url?: string;
 }): string {
   const preco = opcoes.preco.toLocaleString('pt-BR', {
@@ -73,6 +74,7 @@ export function linkWhatsApp(opcoes: {
   ];
   if (opcoes.pagamento) linhas.push(`Pagamento: ${opcoes.pagamento.rotulo}`);
   if (opcoes.entrega) linhas.push(`Entrega em: ${opcoes.entrega}`);
+  if (opcoes.frete) linhas.push(`Frete calculado: ${opcoes.frete}`);
   if (opcoes.url) linhas.push('', opcoes.url);
   return `https://wa.me/${opcoes.consultor.whatsapp}?text=${encodeURIComponent(linhas.join('\n'))}`;
 }

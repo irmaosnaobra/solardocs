@@ -99,6 +99,7 @@
    "disponivel": false,
    "previsao": "28/08",
    "pesoKg": 101,
+   "volumeM3": 0.5441,
    "bases": [
     "cdaeroportogo",
     "cdgoiania",
@@ -156,6 +157,7 @@
    "disponivel": true,
    "previsao": null,
    "pesoKg": null,
+   "volumeM3": null,
    "bases": [
     "cdaeroportogo",
     "cdcontagemmg",
@@ -267,6 +269,7 @@
    "disponivel": false,
    "previsao": "25/08",
    "pesoKg": 118,
+   "volumeM3": 0.8971,
    "bases": [
     "cdaeroportogo",
     "cdgoiania",
@@ -324,9 +327,9 @@
    "disponivel": true,
    "previsao": null,
    "pesoKg": null,
+   "volumeM3": null,
    "bases": [
     "cdaeroportogo",
-    "cdfeiradesantanaba",
     "cdcontagemmg",
     "cduberlandiamg"
    ],
@@ -373,6 +376,7 @@
    "disponivel": true,
    "previsao": null,
    "pesoKg": null,
+   "volumeM3": null,
    "bases": [
     "cdaeroportogo",
     "cdfeiradesantanaba",
@@ -422,6 +426,7 @@
    "disponivel": true,
    "previsao": null,
    "pesoKg": null,
+   "volumeM3": null,
    "bases": [
     "cdaeroportogo",
     "cdfeiradesantanaba",
@@ -471,6 +476,7 @@
    "disponivel": true,
    "previsao": null,
    "pesoKg": null,
+   "volumeM3": null,
    "bases": [
     "cdaeroportogo",
     "cdfeiradesantanaba",
@@ -520,6 +526,7 @@
    "disponivel": true,
    "previsao": null,
    "pesoKg": null,
+   "volumeM3": null,
    "bases": [
     "cdaeroportogo",
     "cdgoiania",
@@ -629,16 +636,17 @@
     }
    ],
    "imagens": [
-    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/91e54614-1b7f-4f33-adbe-4ccd9b515c72.png",
-    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/c5755ec2-9644-4ebd-be53-f4ce5f526bf2.png",
-    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/ee234dac-4790-4f60-b827-84a7e5e0e0b6.png",
-    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/d1a32186-1c52-4ff2-ac31-c0dd622ed26b.png",
-    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/29fb431e-f282-420a-bf5f-51475a9a47c5.png"
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/4e64b936-ae13-4e33-ad1f-fdeb60e5b1d4.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/aaddb352-3fc7-4a9f-b255-1c95267919d3.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/ab042d5a-a258-44ec-8d79-8a4fd9c8eb01.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/4252533b-59b1-4def-b9bd-ea7af3be26bb.png",
+    "https://d242jwkdtnhx89.cloudfront.net/soollar_prd/products/adfd9825-972a-4a7d-a2a6-ffaa25d34715.png"
    ],
    "estoque": null,
    "disponivel": false,
    "previsao": "05/09",
    "pesoKg": 66,
+   "volumeM3": 0.646,
    "bases": [
     "cdaeroportogo",
     "cdgoiania",
@@ -755,6 +763,7 @@
    "disponivel": false,
    "previsao": "10/09",
    "pesoKg": 81,
+   "volumeM3": 0.3724,
    "bases": [
     "cdgoiania",
     "cdcontagemmg",
@@ -866,6 +875,7 @@
    "disponivel": false,
    "previsao": "10/09",
    "pesoKg": 81,
+   "volumeM3": 0.3724,
    "bases": [
     "cdaeroportogo",
     "cdgoiania",
@@ -919,6 +929,7 @@
    "disponivel": true,
    "previsao": null,
    "pesoKg": null,
+   "volumeM3": null,
    "bases": [
     "cdaeroportogo",
     "cdcontagemmg",
@@ -967,6 +978,7 @@
    "disponivel": true,
    "previsao": null,
    "pesoKg": null,
+   "volumeM3": null,
    "bases": [
     "cdaeroportogo",
     "cdgoiania",
@@ -984,20 +996,20 @@
    "slug": "scooter-eletrica-mg-16-1000w-bandeira-inglesa-573632",
    "codigo": "573632",
    "titulo": "Scooter Elétrica MG-16 1000W Bandeira Inglesa",
-   "nomeOriginal": "SCOOTER ELETRICA MG-16 1000W BANDEIRA INGLESA BATERIA DE LITIO 48V MARCA GTS - DG-232",
+   "nomeOriginal": "SCOOTER ELETRICA MG-16 1000W BANDEIRA INGLESA BATERIA DE LITIO 48V 18,2AH MARCA GTS",
    "marca": "GTS",
    "linha": null,
    "cor": null,
    "categoria": "Scooter elétrica",
    "potencia": null,
-   "bateria": "Litio 48v 18,2ah",
-   "autonomia": "45kms",
+   "bateria": "Litio 48V 18,2AH",
+   "autonomia": "45km",
    "velocidade": "32km/h",
    "recarga": "Aproximadamente 5/6hrs",
    "ficha": [
     {
      "rotulo": "Bateria/Voltagem",
-     "valor": "Litio 48v 18,2ah"
+     "valor": "Litio 48V 18,2AH"
     },
     {
      "rotulo": "Velocidade Máxima",
@@ -1005,7 +1017,7 @@
     },
     {
      "rotulo": "Autonomia",
-     "valor": "45kms"
+     "valor": "45km"
     },
     {
      "rotulo": "Tempo de Recarga",
@@ -1022,8 +1034,8 @@
    "disponivel": true,
    "previsao": null,
    "pesoKg": null,
+   "volumeM3": null,
    "bases": [
-    "cdgoiania",
     "cdcontagemmg",
     "cduberlandiamg",
     "cdportoalegrers",
@@ -1137,6 +1149,7 @@
    "disponivel": false,
    "previsao": "05/09",
    "pesoKg": 66,
+   "volumeM3": 0.646,
    "bases": [
     "cdaeroportogo",
     "cdgoiania",
@@ -1194,6 +1207,7 @@
    "disponivel": true,
    "previsao": null,
    "pesoKg": null,
+   "volumeM3": null,
    "bases": [
     "cdaeroportogo",
     "cdfeiradesantanaba",
@@ -1243,6 +1257,7 @@
    "disponivel": true,
    "previsao": null,
    "pesoKg": null,
+   "volumeM3": null,
    "bases": [
     "cdaeroportogo",
     "cdcontagemmg",
@@ -1354,6 +1369,7 @@
    "disponivel": false,
    "previsao": "05/09",
    "pesoKg": 71,
+   "volumeM3": 0.646,
    "bases": [
     "cdaeroportogo",
     "cdgoiania",
@@ -1475,6 +1491,7 @@
    "disponivel": false,
    "previsao": "05/09",
    "pesoKg": 66,
+   "volumeM3": 0.646,
    "bases": [
     "cdaeroportogo",
     "cdgoiania",
@@ -1532,6 +1549,7 @@
    "disponivel": true,
    "previsao": null,
    "pesoKg": null,
+   "volumeM3": null,
    "bases": [
     "cdaeroportogo",
     "cdfeiradesantanaba",
@@ -1581,6 +1599,7 @@
    "disponivel": true,
    "previsao": null,
    "pesoKg": null,
+   "volumeM3": null,
    "bases": [
     "cdaeroportogo",
     "cduberlandiamg"
@@ -1628,6 +1647,7 @@
    "disponivel": true,
    "previsao": null,
    "pesoKg": null,
+   "volumeM3": null,
    "bases": [
     "cdaeroportogo",
     "cdcontagemmg",
@@ -1739,6 +1759,7 @@
    "disponivel": false,
    "previsao": "25/08",
    "pesoKg": 118,
+   "volumeM3": 0.8971,
    "bases": [
     "cdaeroportogo",
     "cdgoiania",
@@ -1855,6 +1876,7 @@
    "disponivel": false,
    "previsao": "28/08",
    "pesoKg": 101,
+   "volumeM3": 0.5441,
    "bases": [
     "cdaeroportogo",
     "cdgoiania",
@@ -1912,6 +1934,7 @@
    "disponivel": true,
    "previsao": null,
    "pesoKg": null,
+   "volumeM3": null,
    "bases": [
     "cdaeroportogo",
     "cdfeiradesantanaba",
@@ -2024,6 +2047,7 @@
    "disponivel": false,
    "previsao": "05/09",
    "pesoKg": 66,
+   "volumeM3": 0.646,
    "bases": [
     "cdaeroportogo",
     "cdgoiania",
@@ -2081,6 +2105,7 @@
    "disponivel": true,
    "previsao": null,
    "pesoKg": null,
+   "volumeM3": null,
    "bases": [
     "cdaeroportogo",
     "cdgoiania",
@@ -2134,6 +2159,7 @@
    "disponivel": true,
    "previsao": null,
    "pesoKg": null,
+   "volumeM3": null,
    "bases": [
     "cdaeroportogo",
     "cdfeiradesantanaba",
@@ -2183,6 +2209,7 @@
    "disponivel": true,
    "previsao": null,
    "pesoKg": null,
+   "volumeM3": null,
    "bases": [
     "cdaeroportogo",
     "cdgoiania",
@@ -2239,8 +2266,8 @@
    "cidade": "Goiânia",
    "uf": "GO",
    "cep": "74672839",
-   "lat": -16.6283698,
-   "lon": -49.2214781
+   "lat": -16.67861,
+   "lon": -49.25389
   },
   {
    "slug": "cdjoaopessoapb",
@@ -2338,8 +2365,8 @@
    "cidade": "Feira de Santana",
    "uf": "BA",
    "cep": "44097324",
-   "lat": -12.26667,
-   "lon": -38.96667
+   "lat": -12.3448099,
+   "lon": -38.839781
   },
   {
    "slug": "cdnatalrn",
@@ -2396,7 +2423,7 @@
    "lon": -35.02925
   }
  ],
- "lidoEm": "2026-08-31T16:25:05.183Z",
+ "lidoEm": "2026-08-31T20:57:13.296Z",
  "logado": false,
  "cd": "MG - UBERLÂNDIA",
  "secao": "Ebike"

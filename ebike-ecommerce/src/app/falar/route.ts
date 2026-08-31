@@ -23,6 +23,11 @@ export async function GET(req: NextRequest) {
   const cidade = req.nextUrl.searchParams.get('cidade')?.slice(0, 80) ?? null;
   const cep = req.nextUrl.searchParams.get('cep')?.slice(0, 9) ?? null;
   const entrega = cidade ? `${cidade}${cep ? ` (${cep})` : ''}` : null;
+  const freteBruto = Number(req.nextUrl.searchParams.get('frete'));
+  const frete =
+    Number.isFinite(freteBruto) && freteBruto > 0
+      ? freteBruto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+      : null;
 
   const bike = await bikePorSlug(slug);
   if (!bike) return NextResponse.redirect(new URL(BASE_PATH, req.nextUrl.origin));
@@ -48,6 +53,7 @@ export async function GET(req: NextRequest) {
       preco: bike.preco,
       pagamento,
       entrega,
+      frete,
       url: pagina,
     }),
     { status: 302, headers: { 'Cache-Control': 'no-store' } },

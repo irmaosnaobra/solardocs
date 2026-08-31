@@ -1,16 +1,29 @@
 import 'server-only';
 
-import { FRETE_GRATIS_ACIMA_DE, TABELA, tabelaPreenchida } from '../config/frete.ts';
+import {
+  AD_VALOREM,
+  CAPACIDADE_PAGANTE_KG,
+  CCD_ANTT_POR_KM,
+  DIAS_DE_COLETA_E_ENTREGA,
+  FATOR_MERCADO,
+  FRETE_MINIMO,
+  KG_POR_M3,
+  KM_POR_DIA,
+  PRESUMIDO,
+  REAIS_POR_KG_KM,
+} from '../config/frete.ts';
 import { enderecoDoCep, kmDeEstrada } from './geo.ts';
 import type { Base } from './montarCatalogo.ts';
 
 /**
  * O cálculo do frete, ponta a ponta.
  *
- * A parte que a loja sabe sozinha (de onde sai, quantos km, quantos kg) é
- * calculada sempre. O VALOR só sai se a tabela estiver preenchida — sem ela a
- * resposta diz "a combinar", e isso é melhor do que um número inventado que o
- * cliente vai cobrar depois.
+ * Segue a estrutura de carga fracionada: peso taxado (o maior entre balança e
+ * cubagem), frete-peso proporcional aos quilômetros, ad valorem sobre o valor
+ * da mercadoria, e um piso que cobre coleta, despacho e entrega.
+ *
+ * Devolve as PARTES, não só o total: quando o cliente pergunta por que o frete
+ * dele deu isso, a resposta está na tela em vez de virar discussão.
  */
 
 export type Cotacao = {
@@ -21,10 +34,17 @@ export type Cotacao = {
   /** Base do fornecedor mais perto do cliente, entre as que têm o modelo. */
   origem: { cidade: string; uf: string } | null;
   km: number | null;
-  pesoKg: number | null;
-  valor: number | null;
+  pesoRealKg: number | null;
+  pesoCubadoKg: number | null;
+  pesoTaxadoKg: number;
+  /** True quando peso e medida saíram de presunção, não da ficha do fabricante. */
+  presumido: boolean;
+  fretePeso: number;
+  freteValor: number;
+  /** True quando o piso foi maior que a soma das partes. */
+  noPiso: boolean;
+  valor: number;
   prazoDias: number | null;
-  gratis: boolean;
 };
 
 export async function cotar(opcoes: {
@@ -32,6 +52,8 @@ export async function cotar(opcoes: {
   bases: Base[];
   basesDoProduto: string[];
   pesoKg: number | null;
+  volumeM3: number | null;
+  categoria: string;
   precoDaBike: number;
 }): Promise<Cotacao | null> {
   const endereco = await enderecoDoCep(opcoes.cep);
@@ -57,23 +79,22 @@ export async function cotar(opcoes: {
     km = maisPerto.km;
   }
 
-  const peso = opcoes.pesoKg ?? TABELA.pesoPadraoKg;
+  const presumido = PRESUMIDO[opcoes.categoria] ?? PRESUMIDO.padrao;
+  const semFicha = opcoes.pesoKg === null && opcoes.volumeM3 === null;
+  const pesoReal = opcoes.pesoKg ?? presumido.pesoKg;
+  const volume = opcoes.volumeM3 ?? presumido.m3;
 
-  let valor: number | null = null;
-  if (tabelaPreenchida() && km !== null) {
-    const soma =
-      (TABELA.base ?? 0) + (TABELA.porKm ?? 0) * km + (TABELA.porKg ?? 0) * (peso ?? 0);
-    valor = Math.round(soma * 100) / 100;
-  }
+  const pesoCubado = Math.round(volume * KG_POR_M3);
+  const pesoTaxado = Math.max(pesoReal, pesoCubado);
 
-  const gratis =
-    FRETE_GRATIS_ACIMA_DE !== null && opcoes.precoDaBike >= FRETE_GRATIS_ACIMA_DE;
-  if (gratis) valor = 0;
+  const fretePeso = km === null ? 0 : REAIS_POR_KG_KM * pesoTaxado * km;
+  const freteValor = AD_VALOREM * opcoes.precoDaBike;
+  const soma = fretePeso + freteValor;
 
-  const prazoDias =
-    km !== null && TABELA.kmPorDia
-      ? Math.ceil(km / TABELA.kmPorDia) + (TABELA.prazoBaseDias ?? 0)
-      : null;
+  const noPiso = soma < FRETE_MINIMO;
+  const valor = Math.round(Math.max(FRETE_MINIMO, soma) * 100) / 100;
+
+  const prazoDias = km === null ? null : Math.ceil(km / KM_POR_DIA) + DIAS_DE_COLETA_E_ENTREGA;
 
   return {
     cep: endereco.cep,
@@ -82,9 +103,29 @@ export async function cotar(opcoes: {
     bairro: endereco.bairro,
     origem: origem ? { cidade: origem.cidade, uf: origem.uf } : null,
     km,
-    pesoKg: peso,
+    pesoRealKg: opcoes.pesoKg,
+    pesoCubadoKg: pesoCubado,
+    pesoTaxadoKg: pesoTaxado,
+    presumido: semFicha,
+    fretePeso: Math.round(fretePeso * 100) / 100,
+    freteValor: Math.round(freteValor * 100) / 100,
+    noPiso,
     valor,
     prazoDias,
-    gratis,
+  };
+}
+
+/** Os números que sustentam a conta, para o painel mostrar de onde ela sai. */
+export function parametrosDoFrete() {
+  return {
+    piso: FRETE_MINIMO,
+    kgPorM3: KG_POR_M3,
+    ccdAntt: CCD_ANTT_POR_KM,
+    capacidadePagante: CAPACIDADE_PAGANTE_KG,
+    fatorMercado: FATOR_MERCADO,
+    reaisPorKgKm: REAIS_POR_KG_KM,
+    adValorem: AD_VALOREM,
+    kmPorDia: KM_POR_DIA,
+    diasDeColetaEEntrega: DIAS_DE_COLETA_E_ENTREGA,
   };
 }

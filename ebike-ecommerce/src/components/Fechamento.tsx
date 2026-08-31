@@ -35,7 +35,13 @@ export function Fechamento({ bike }: { bike: Bike }) {
         </p>
       ) : null}
 
-      <Frete bases={bike.bases} pesoKg={bike.pesoKg} preco={bike.preco} />
+      <Frete
+        bases={bike.bases}
+        pesoKg={bike.pesoKg}
+        volumeM3={bike.volumeM3}
+        categoria={bike.categoria}
+        preco={bike.preco}
+      />
 
       <fieldset>
         <legend className="mb-2 text-sm font-semibold text-tinta">Como você prefere pagar?</legend>
