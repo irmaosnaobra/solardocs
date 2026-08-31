@@ -17,10 +17,11 @@ import { escolherOrigem } from './origem.ts';
 /**
  * O cálculo do frete.
  *
- *     frete = PISO + (km de ida e volta x R$/km)
+ *     na cidade da unidade  -> PISO, fechado
+ *     fora dela             -> PISO + (km de ida e volta x R$/km)
  *
- * Entrega dedicada: sai de Uberlândia, leva e volta. O veículo volta vazio,
- * então quem paga a viagem paga os dois trechos.
+ * Entrega dedicada, saindo da unidade mais perto de quem compra. O veículo
+ * volta vazio, então quem paga a viagem paga os dois trechos.
  *
  * Devolve as PARTES, não só o total: quando o cliente pergunta por que o frete
  * dele deu isso, a resposta está na tela em vez de virar discussão.
@@ -45,11 +46,24 @@ export type Cotacao = {
   presumido: boolean;
   /** True quando o destino passou do raio de entrega própria. */
   foraDoRaio: boolean;
+  /** True quando quem compra está na mesma cidade da unidade: preço fechado. */
+  naCidade: boolean;
   /** True quando a bike não sai da nossa base. Informa a tela; não muda o preço. */
   outraBase: boolean;
   valor: number | null;
   prazoDias: number | null;
 };
+
+/** "Sao Jose" e "São José" são a mesma cidade. Acento e caixa não decidem preço. */
+function mesmoNome(a: string, b: string): boolean {
+  const limpar = (s: string) =>
+    s
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .toLowerCase()
+      .replace(/[^a-z]/g, '');
+  return limpar(a) === limpar(b) && limpar(a).length > 0;
+}
 
 export async function cotar(opcoes: {
   cep: string;
@@ -78,7 +92,16 @@ export async function cotar(opcoes: {
 
   const outraBase = origem !== null && origem.slug !== BASE_PROPRIA;
   const foraDoRaio = km !== null && km > RAIO_MAXIMO_KM;
-  const kmIdaEVolta = km === null ? null : km * 2;
+
+  // MESMA CIDADE DA UNIDADE = preço fechado, sem rodagem.
+  //
+  // Regra do Thiago: "sempre 250 na cidade". Sem isso, quem mora no centro de
+  // Uberlândia pagava R$ 278 porque o galpão fica a 7 km — e explicar 28 reais
+  // de rodagem dentro da própria cidade é briga que não vale a pena comprar.
+  const naCidade =
+    origem !== null && endereco.uf === origem.uf && mesmoNome(endereco.cidade, origem.cidade);
+
+  const kmIdaEVolta = km === null || naCidade ? null : km * 2;
   const rodagem = kmIdaEVolta === null ? 0 : kmIdaEVolta * REAIS_POR_KM;
 
   // Fora do raio a viagem dedicada não faz sentido, e um número absurdo na tela
@@ -87,7 +110,7 @@ export async function cotar(opcoes: {
   // `outraBase` NÃO cala mais o preço: com o piso valendo da sede de cada
   // unidade, sair de São Bernardo para São Paulo é a mesma tabela de sair daqui
   // para Uberlândia. O campo continua porque a tela avisa de onde vem.
-  const semPreco = km === null || foraDoRaio;
+  const semPreco = !naCidade && (km === null || foraDoRaio);
   const valor = semPreco ? null : Math.round((FRETE_MINIMO + rodagem) * 100) / 100;
   const prazoDias = semPreco || km === null ? null : Math.ceil(km / KM_POR_DIA) + DIAS_DE_SEPARACAO;
 
@@ -107,6 +130,7 @@ export async function cotar(opcoes: {
     presumido: semFicha,
     foraDoRaio,
     outraBase,
+    naCidade,
     valor,
     prazoDias,
   };

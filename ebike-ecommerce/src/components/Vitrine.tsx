@@ -157,6 +157,19 @@ export function Vitrine({ bikes, bases }: { bikes: Cartao[]; bases: BaseNaVitrin
     return m;
   }, [bikes, bases, entrega]);
 
+  /**
+   * A unidade mais perto de quem está comprando, olhando TODAS as bases.
+   *
+   * É diferente da origem do card: aquela é a mais perto QUE TEM o modelo. Esta
+   * é a casa da pessoa — a que atende a cidade dela — e é a resposta para
+   * "qual é a minha unidade?", que é a primeira coisa que se quer saber depois
+   * de dizer onde mora.
+   */
+  const suaUnidade = useMemo(() => {
+    if (!entrega) return null;
+    return escolherOrigem(bases, [], entrega);
+  }, [bases, entrega]);
+
   const busca = parametros.get('q') ?? '';
   const ordem = (parametros.get('ordem') as Ordem | null) ?? 'menor-preco';
   const escolhido = Object.fromEntries(FILTROS.map((f) => [f, parametros.get(f)])) as Record<
@@ -286,6 +299,21 @@ export function Vitrine({ bikes, bases }: { bikes: Cartao[]; bases: BaseNaVitrin
       </aside>
 
       <main className="min-w-0 flex-1">
+        {/* Antes da lista: qual é a unidade dela. Dizer só no card, modelo a
+            modelo, deixava a pergunta "de onde vocês atendem aqui?" sem
+            resposta direta. */}
+        {suaUnidade ? (
+          <p className="mb-3 rounded-lg bg-fundo px-3 py-2 text-xs text-suave">
+            Sua unidade mais próxima:{' '}
+            <strong className="font-semibold text-tinta">
+              {suaUnidade.base.cidade} — {suaUnidade.base.uf}
+            </strong>
+            {' · '}
+            {entrega?.aproximado ? '≈ ' : ''}
+            {suaUnidade.km.toLocaleString('pt-BR')} km de {entrega?.cidade}
+          </p>
+        ) : null}
+
         <div className="mb-4 flex items-center justify-between gap-2">
           <p className="text-sm text-suave">
             <strong className="font-semibold text-tinta">{lista.length}</strong>{' '}

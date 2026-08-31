@@ -24,6 +24,7 @@ type Cotacao = {
   presumido?: boolean;
   foraDoRaio?: boolean;
   outraBase?: boolean;
+  naCidade?: boolean;
   valor?: number | null;
   prazoDias?: number | null;
 };
@@ -162,7 +163,7 @@ export function Frete({
 
           <p className="mt-0.5 text-xs text-suave">
             Sai de {r.origem ? `${r.origem.cidade} — ${r.origem.uf}` : 'Uberlândia'}
-            {r.km ? ` · ${r.km.toLocaleString('pt-BR')} km` : ''}
+            {!r.naCidade && r.km ? ` · ${r.km.toLocaleString('pt-BR')} km` : ''}
             {r.prazoDias ? ` · cerca de ${r.prazoDias} dias úteis` : ''}
           </p>
 
@@ -198,23 +199,30 @@ export function Frete({
               {aberto ? (
                 <dl className="mt-2 flex flex-col gap-1 rounded-lg bg-white p-3 text-xs text-suave">
                   <div className="flex justify-between gap-4">
-                    <dt>Mínimo (coleta, embalagem e entrega)</dt>
+                    <dt>
+                      {r.naCidade
+                        ? `Entrega em ${r.cidade} (coleta, embalagem e entrega)`
+                        : 'Mínimo (coleta, embalagem e entrega)'}
+                    </dt>
                     <dd className="tabular text-tinta">{emReais(FRETE_MINIMO)}</dd>
                   </div>
-                  <div className="flex justify-between gap-4">
-                    <dt>
-                      Rodagem: {r.kmIdaEVolta?.toLocaleString('pt-BR')} km de ida e volta ×{' '}
-                      {emReais(REAIS_POR_KM)}
-                    </dt>
-                    <dd className="tabular text-tinta">{emReais(r.rodagem ?? 0)}</dd>
-                  </div>
+                  {r.naCidade ? null : (
+                    <div className="flex justify-between gap-4">
+                      <dt>
+                        Rodagem: {r.kmIdaEVolta?.toLocaleString('pt-BR')} km de ida e volta ×{' '}
+                        {emReais(REAIS_POR_KM)}
+                      </dt>
+                      <dd className="tabular text-tinta">{emReais(r.rodagem ?? 0)}</dd>
+                    </div>
+                  )}
                   <div className="mt-1 flex justify-between gap-4 border-t border-borda pt-1 font-semibold">
                     <dt className="text-tinta">Total</dt>
                     <dd className="tabular text-tinta">{emReais(r.valor)}</dd>
                   </div>
                   <p className="mt-1 border-t border-borda pt-1">
-                    A entrega é dedicada: o veículo leva a sua bike e volta vazio, por isso a conta
-                    é sobre ida e volta.
+                    {r.naCidade
+                      ? `Entrega dentro de ${r.cidade}: preço fechado, sem conta de quilometragem.`
+                      : 'A entrega é dedicada: o veículo leva a sua bike e volta vazio, por isso a conta é sobre ida e volta.'}
                     {r.pesoTaxadoKg ? (
                       <>
                         {' '}
