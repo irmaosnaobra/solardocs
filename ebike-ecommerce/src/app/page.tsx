@@ -46,11 +46,11 @@ export default async function Pagina() {
             {/* O verde não vira texto: vira marca-texto atrás do preto. Neon
                 em letra sobre branco dá 1,4:1 de contraste e some no sol. */}
             <h1 className="mt-2 text-[26px] leading-[1.1] font-black tracking-[-0.02em] text-tinta sm:text-4xl">
+              {/* Sem vírgula depois do destaque: a pontuação cai fora do
+                  bloco verde e fica boiando a um espaço da palavra. */}
               Bicicletas e scooters{' '}
-              <span className="bg-neon px-1.5 decoration-clone box-decoration-clone">
-                elétricas
-              </span>
-              , entregues em todo o Brasil
+              <span className="box-decoration-clone bg-neon px-1.5">elétricas</span> entregues em
+              todo o Brasil
             </h1>
 
             <dl className="mt-4 flex gap-6">
