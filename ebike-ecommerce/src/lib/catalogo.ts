@@ -235,12 +235,17 @@ export async function basesDoCatalogo(): Promise<Base[]> {
  * A reserva é arquivo commitado: todo processo lê a mesma coisa. Modelo que só
  * existe ao vivo continua abrindo, porque a página tem `dynamicParams`.
  */
+/** Os códigos que a cópia de reserva conhece, para a revisão dizer o que mudou. */
+export function codigosDaReserva(): Set<string> {
+  return new Set(((reserva as unknown as Bruto).bikes ?? []).map((b) => b.codigo));
+}
+
 export function slugsDaReserva(): string[] {
   return ((reserva as unknown as Bruto).bikes ?? []).map((b) => b.slug);
 }
 
 export async function bikePorSlug(slug: string): Promise<Bike | null> {
-  const { bikes } = await catalogoPublico();
+  const { bikes, meta } = await catalogoPublico();
   // O slug termina no código do produto. Se o fornecedor renomear o modelo, o
   // começo do slug muda e todo link já mandado por WhatsApp quebraria; pelo
   // código a bike continua sendo encontrada.
@@ -252,9 +257,15 @@ export async function bikePorSlug(slug: string): Promise<Bike | null> {
   const viva = achar(bikes);
   if (viva) return viva;
 
-  // Não achou ao vivo: pode ser uma base que não respondeu nesta leitura. A
-  // reserva responde, e mostrar a ficha de ontem é melhor do que uma página de
-  // erro em cima de um link que a pessoa recebeu no WhatsApp.
+  // Leitura AO VIVO que não achou = o modelo saiu do fornecedor. Some da loja,
+  // e é para isso que o estoque é revisado duas vezes por dia: vender o que não
+  // existe mais é pior do que uma página a menos.
+  if (meta.origem === 'ao-vivo') return null;
+
+  // Só quando a leitura falhou é que a reserva responde. Aí sim mostrar a ficha
+  // de ontem é melhor do que página de erro em cima de um link que a pessoa
+  // recebeu no WhatsApp — e é este caminho que faz o build passar, porque no
+  // build o catálogo sai justamente da reserva.
   const guardadas = ((reserva as unknown as Bruto).bikes ?? []).map(paraInterna).map(paraPublica);
   return achar(guardadas) ?? null;
 }

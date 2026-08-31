@@ -2,7 +2,11 @@
   "crons": [
     {
       "path": "/bike/api/sync",
-      "schedule": "0 9 * * *"
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/bike/api/sync",
+      "schedule": "0 16 * * *"
     }
   ]
 }

@@ -1,15 +1,25 @@
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { NextResponse, type NextRequest } from 'next/server';
 
-import { TAG_CATALOGO, catalogoInterno } from '../../../lib/catalogo.ts';
+import {
+  TAG_CATALOGO,
+  basesDoCatalogo,
+  catalogoInterno,
+  codigosDaReserva,
+} from '../../../lib/catalogo.ts';
 import { iguais } from '../../../lib/portaria.ts';
 
 /**
- * Atualização diária do catálogo. O cron da Vercel (ver vercel.json) chama esta
- * rota de manhã; ela joga fora o cache, relê o fornecedor e regenera a loja.
+ * A revisão do estoque. Duas vezes por dia, 7h e 13h (ver vercel.json).
  *
- * Responde com o resultado da leitura. Se der ruim, o erro aparece aqui e nos
- * logs, em vez de a loja envelhecer em silêncio.
+ * Joga fora o cache, relê as 22 unidades e regenera a loja. Modelo que saiu do
+ * fornecedor sai da vitrine no mesmo movimento: a lista de cada unidade é a
+ * dela, de agora — não há nada a "remover", o que não voltar simplesmente não
+ * existe mais.
+ *
+ * Responde com a contagem POR UNIDADE e com o que mudou desde a cópia de
+ * reserva. Sem isso, "o site está atualizado" é promessa sem prova: se a
+ * leitura parar, a reserva segura a página e tudo PARECE saudável.
  */
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -57,6 +67,19 @@ export async function GET(req: NextRequest) {
   const { bikes, meta } = await catalogoInterno();
   revalidatePath('/', 'layout');
 
+  // Quantos modelos cada unidade tem AGORA. É a revisão de estoque em número:
+  // unidade que zerou aparece como zero em vez de sumir sem explicação.
+  const bases = await basesDoCatalogo();
+  const porUnidade: Record<string, number> = {};
+  for (const b of bases) {
+    porUnidade[`${b.cidade} - ${b.uf}`] = bikes.filter((k) => k.bases.includes(b.slug)).length;
+  }
+
+  const agora = new Set(bikes.map((b) => b.codigo));
+  const antes = codigosDaReserva();
+  const sairam = [...antes].filter((c) => !agora.has(c));
+  const entraram = [...agora].filter((c) => !antes.has(c));
+
   const ok = meta.origem === 'ao-vivo' && bikes.length > 0;
   if (!ok) {
     await avisarQueCaiu(
@@ -71,6 +94,10 @@ export async function GET(req: NextRequest) {
       origem: meta.origem,
       logadoNoFornecedor: meta.logado,
       modelos: bikes.length,
+      unidades: bases.length,
+      porUnidade,
+      sairam,
+      entraram,
       semEstoqueInformado: bikes.filter((b) => b.estoque === null).length,
       ...(meta.erro ? { erro: meta.erro } : {}),
     },
