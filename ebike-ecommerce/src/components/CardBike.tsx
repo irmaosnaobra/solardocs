@@ -77,7 +77,7 @@ export function CardBike({ bike, prioridade = false }: { bike: Cartao; prioridad
 
         <div className="mt-auto pt-2">
           <p className="tabular text-xl leading-none font-bold text-tinta">{emReais(bike.preco)}</p>
-          <p className="mt-1 text-xs text-vantagem">à vista, no Pix ou no cartão</p>
+          <p className="mt-1 text-xs text-vantagem">à vista ou parcelado no cartão</p>
           {bike.previsao ? (
             <p className="mt-1 text-xs text-alerta">chega {bike.previsao}</p>
           ) : typeof bike.estoque === 'number' && bike.estoque > 0 ? (

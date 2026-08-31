@@ -34,10 +34,8 @@ export const CONSULTORES: Consultor[] = [
 export type FormaDePagamento = { id: string; rotulo: string; detalhe: string };
 
 export const FORMAS_DE_PAGAMENTO: FormaDePagamento[] = [
-  { id: 'pix', rotulo: 'Pix à vista', detalhe: 'Pagamento em uma vez, no Pix' },
+  { id: 'avista', rotulo: 'À vista', detalhe: 'Pagamento em uma vez' },
   { id: 'cartao', rotulo: 'Cartão de crédito', detalhe: 'Parcelado no cartão' },
-  { id: 'boleto', rotulo: 'Boleto', detalhe: 'Boleto bancário à vista' },
-  { id: 'financiamento', rotulo: 'Financiamento', detalhe: 'Quero simular financiamento' },
 ];
 
 export function consultorPorApelido(apelido: string | null | undefined): Consultor | null {

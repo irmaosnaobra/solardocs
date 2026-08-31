@@ -43,7 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <footer className="mt-12 border-t border-borda bg-white">
           <div className="mx-auto flex max-w-[1240px] flex-col gap-6 px-4 py-10 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-start gap-3 text-tinta">
-              <Marca tamanho={34} />
+              <Marca tamanho={40} />
               <div>
                 <p className="text-base font-extrabold tracking-[-0.03em] uppercase">
                   {LOJA.nomeCurto}

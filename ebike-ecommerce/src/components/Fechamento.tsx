@@ -20,7 +20,7 @@ export function Fechamento({ bike }: { bike: Bike }) {
 
       <div>
         <p className="tabular text-3xl leading-none font-bold text-tinta">{emReais(bike.preco)}</p>
-        <p className="mt-1.5 text-sm text-vantagem">à vista, no Pix ou no cartão</p>
+        <p className="mt-1.5 text-sm text-vantagem">à vista ou parcelado no cartão</p>
       </div>
 
       {bike.previsao ? (

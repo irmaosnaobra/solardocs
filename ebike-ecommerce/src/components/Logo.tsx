@@ -1,14 +1,28 @@
 import { LOJA } from '../config/loja.ts';
 
 /**
- * A marca: um distintivo preto com o raio em verde neon vazado no meio, e o
- * raio é feito de dois elos de corrente encaixados.
+ * A marca: um elo de corrente cortado por um raio.
  *
- * Preto sólido em vez de traço fino de propósito: a marca precisa aguentar
- * 16px na aba do navegador e continuar sendo reconhecida. Traço fino some,
- * mancha cheia não.
+ * O anel é o elo, e é grosso de propósito: a marca precisa aguentar 16px na aba
+ * do navegador e continuar sendo reconhecida, e traço fino some. O raio não
+ * passa POR CIMA do elo, ele CORTA: o vão de respiro em volta do raio é o que
+ * faz o desenho parecer partido pela corrente em vez de dois adesivos
+ * empilhados. Foi o que separou este das outras quatro versões desenhadas.
+ *
+ * `fundo` é a cor desse vão. Tem que ser a cor de trás da marca, senão o
+ * respiro some e o raio volta a parecer colado.
  */
-export function Marca({ tamanho = 34 }: { tamanho?: number }) {
+export function Marca({
+  tamanho = 40,
+  cor = '#0a0a0a',
+  raio = '#39ff14',
+  fundo = '#ffffff',
+}: {
+  tamanho?: number;
+  cor?: string;
+  raio?: string;
+  fundo?: string;
+}) {
   return (
     <svg
       width={tamanho}
@@ -18,9 +32,19 @@ export function Marca({ tamanho = 34 }: { tamanho?: number }) {
       aria-hidden="true"
       className="shrink-0"
     >
-      <rect width="40" height="40" rx="11" fill="#0a0a0a" />
-      {/* Raio: dois elos que se encaixam e formam o traço da corrente. */}
-      <path d="M22.6 6.5 12 21.4h6.2l-1.5 12.1L28.4 18h-6.6l3.4-11.5z" fill="#39ff14" />
+      <path
+        fillRule="evenodd"
+        d="M20 4a16 16 0 1 0 0 32 16 16 0 0 0 0-32Zm0 7a9 9 0 1 1 0 18 9 9 0 0 1 0-18Z"
+        fill={cor}
+      />
+      <path
+        d="M26 3 13 21h6.2L16 37l13-18h-6.2L26 3Z"
+        fill={raio}
+        stroke={fundo}
+        strokeWidth="3.2"
+        strokeLinejoin="round"
+        paintOrder="stroke"
+      />
     </svg>
   );
 }
@@ -28,7 +52,7 @@ export function Marca({ tamanho = 34 }: { tamanho?: number }) {
 export function Logo({ compacto = false }: { compacto?: boolean }) {
   return (
     <span className="flex items-center gap-2.5 text-tinta">
-      <Marca tamanho={compacto ? 30 : 38} />
+      <Marca tamanho={compacto ? 32 : 42} />
       <span className="leading-none">
         <span
           className={
@@ -39,7 +63,7 @@ export function Logo({ compacto = false }: { compacto?: boolean }) {
           {LOJA.nomeCurto}
         </span>
         {compacto ? null : (
-          <span className="mt-1 block text-[10px] font-semibold tracking-[0.1em] text-suave uppercase">
+          <span className="mt-1.5 block text-[8.5px] font-bold tracking-[0.14em] text-suave uppercase">
             {LOJA.slogan}
           </span>
         )}
