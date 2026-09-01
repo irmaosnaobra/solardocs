@@ -349,7 +349,7 @@ const PAGINAS = [
   // lazy, menos a primeira.
   marca: 'Irmãos na Obra',
   favicon: true,
-  heroFoto: 'estacao-branca.webp',
+  heroFoto: 'kilova-frente.webp',
   logo: 'logo-io.webp',
   autoridade: {
     eyebrow: 'Quem está te ensinando',
@@ -413,12 +413,11 @@ const PAGINAS = [
     veredito: 'O mercado não é difícil. O ponto é — e ele é a única coisa entre o seu dinheiro e a sua estação.',
   },
   fotosEyebrow: 'O que existe no fim desse caminho',
-  fotosTitulo: 'O ponto é a parte difícil. A estação, a gente monta.',
+  fotosTitulo: 'O ponto é a parte difícil. A estação é nossa.',
   fotos: [
-    ['linha-producao.webp', 'Linha de produção das estações de recarga rápida — o equipamento que vai para o ponto que você fechar.'],
-    ['estacao-branca.webp', 'Estação DC com dois bicos: um carro carrega enquanto o outro espera.'],
-    ['estacao-dc.webp', 'Painel de recarga rápida em corrente contínua, com os dois conectores no mesmo gabinete.'],
-    ['estacao-cinza.webp', 'A mesma estação pronta para embarque. É o que ocupa as duas vagas que você vai negociar.'],
+    ['kilova-linha.webp', 'Estações KILOVA na linha de montagem.'],
+    ['kilova-dupla.webp', 'Dois conectores no mesmo gabinete: um carro carrega enquanto o outro espera.'],
+    ['kilova-lateral.webp', 'Pronta para embarque. É o que ocupa as duas vagas que você vai negociar.'],
   ],
   numeros: [
     ['7', 'aulas'],
