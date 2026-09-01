@@ -70,8 +70,13 @@ export async function GET(req: NextRequest) {
   // O MESMO evento pelo servidor, com o id que o navegador usou. Daqui não tem
   // bloqueador: o lead chega na Meta mesmo quando o pixel do navegador não
   // chegou, e o id em comum impede que os dois virem dois leads.
+  //
+  // Exige FORMA DE PAGAMENTO escolhida. No formulário ela é obrigatória, então
+  // todo clique de gente tem; sem esta trava, porém, quem abrisse /falar pela
+  // barra de endereço mandaria um Lead para a Meta. Um evento falso vale menos
+  // que zero: é ele que ela usa para decidir a quem mostrar o anúncio.
   const eventoId = req.nextUrl.searchParams.get('evento_id')?.slice(0, 60) || null;
-  if (eventoId) {
+  if (eventoId && pagamento) {
     await enviarLeadParaMeta({
       eventoId,
       url: `${process.env.SITE_URL ?? req.nextUrl.origin}${BASE_PATH}/modelo/${bike.slug}`,
