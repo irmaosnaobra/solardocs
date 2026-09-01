@@ -107,13 +107,26 @@ export async function ofertaDeEntradaVendavel(): Promise<boolean> {
 }
 
 // ── De que item do PlugCash é este pedido? ──────────────────────────────────
-// Casa primeiro por ID (estável) e só depois por nome (que o operador pode
-// renomear). Produto que não está cadastrado devolve null — e null aqui
-// significa "não é nosso", não "erro": o mesmo webhook da Kiwify recebe venda
-// do LimpaPro e do Kit, e cada um só trata o que é seu.
+// Três chaves, da mais estável para a menos: ID do produto, código do checkout
+// e nome. Produto que não está cadastrado devolve null — e null aqui significa
+// "não é nosso", não "erro": o mesmo webhook da Kiwify recebe venda do LimpaPro
+// e do Kit, e cada um só trata o que é seu.
+//
+// O CÓDIGO DO CHECKOUT entrou porque é o único identificador que a gente
+// controla. O `product_id` da Kiwify só aparece no painel dela e num payload já
+// recebido — não dá pra cadastrar um produto antes da primeira venda sem ir
+// buscar. O nome casa por igualdade exata e já custou uma venda: "SolarDoc VIP —
+// 30 dias" virou "SolarDoc - 30 dias" no painel e o mapeamento parou de casar em
+// silêncio. Já o `pay.kiwify.com.br/BtebJFP` está escrito na nossa landing, no
+// nosso repositório, e a Kiwify o devolve em `checkout_link` a cada pedido.
+//
+// Ele divide a coluna `produto_id` de propósito: os dois são identificadores
+// opacos da Kiwify, nenhum colide com o outro, e assim cadastrar um produto novo
+// segue sem migração.
 export async function classificarProdutoPlugcash(
   produtoNome: string | null,
   produtoId: string | null,
+  checkoutLink?: string | null,
 ) {
   const { data } = await supabase
     .from('pc_gateway_produtos')
@@ -125,6 +138,13 @@ export async function classificarProdutoPlugcash(
   if (produtoId) {
     const porId = lista.find((p) => p.produto_id && p.produto_id === produtoId);
     if (porId) return porId;
+  }
+  // `checkout_link` chega como o código puro ("BtebJFP"), mas aceita a URL
+  // inteira: é assim que ela está na landing, e é assim que alguém vai colar.
+  const codigo = (checkoutLink || '').trim().split('/').filter(Boolean).pop() || '';
+  if (codigo) {
+    const porCheckout = lista.find((p) => p.produto_id && p.produto_id === codigo);
+    if (porCheckout) return porCheckout;
   }
   if (produtoNome) {
     const alvo = produtoNome.trim().toLowerCase();
@@ -272,7 +292,7 @@ export async function processarEventoPlugcash(evt: EventoPlugcash): Promise<Resu
 
   const item = evt.itemDireto
     ? { concede_nivel: null, gera_credito: true, ...evt.itemDireto }
-    : await classificarProdutoPlugcash(evt.produtoNome, evt.produtoId);
+    : await classificarProdutoPlugcash(evt.produtoNome, evt.produtoId, evt.checkoutLink);
   if (!item) return { ok: true, acao: 'ignorado', detalhe: 'produto nao e do plugcash' };
 
   // Abandono de carrinho não é pedido. Gravá-lo cria venda fantasma: a Kiwify

@@ -5,6 +5,7 @@ import { authMiddleware } from '../middleware/auth';
 import { adminMiddleware } from '../middleware/adminAuth';
 import { logger } from '../utils/logger';
 import { criarSessaoPlugcash } from '../services/plugcashCheckout';
+import { temChaveDeBootstrap } from '../utils/bootstrapKey';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PLUGCASH — API do app de conteúdo do mercado de eletroposto.
@@ -52,7 +53,7 @@ const alcanca = (tem: string | null | undefined, exige: string | null | undefine
 const OBJETIVO_CURSO: Record<string, string> = {
   entender:  'fundamentos',
   executar:  'integrador',
-  investir:  'ponto-zero',
+  investir:  'ponto-certo',
   monetizar: 'operacao',
 };
 
@@ -968,6 +969,125 @@ router.get('/admin/metricas', ...admin, async (_req: Request, res: Response): Pr
   } catch (err) {
     logger.error('plugcash', 'falha nas metricas', err);
     res.status(500).json({ error: 'falha ao carregar metricas' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROVISIONAR — curso, aulas e o mapeamento do gateway numa chamada só
+//
+// Por que uma rota e não o /admin: um curso deste catálogo tem sete aulas de
+// oito páginas, e cada página é um objeto com texto, lista e destaque. São 56
+// formulários. A tela do /admin foi feita pra CORRIGIR uma aula, não pra nascer
+// um curso — e curso que nasce à mão nasce com página faltando.
+//
+// Por que a chave de bootstrap e não a sessão de admin: `adminMiddleware` lê
+// `is_admin` no banco a cada chamada, e o banco de produção não aceita mais
+// chave de máquina. Quem popula catálogo é quem tem a porta de serviço.
+//
+// O que ela NÃO faz, de propósito:
+//   · não apaga nada — curso casa por slug, aula casa por (curso, ordem);
+//   · não publica por conta própria: `status` vem no corpo. A ordem correta é
+//     curso em rascunho → aulas publicadas → curso publicado, porque
+//     `/curso/:slug` filtra por status e um curso em rascunho devolve 404 pra
+//     quem JÁ comprou — o acesso existe em `pc_acessos` e não abre nada;
+//   · não toca em curso, aula ou linha de gateway que não sejam os do corpo.
+router.post('/provisionar', async (req: Request, res: Response): Promise<void> => {
+  if (!temChaveDeBootstrap(req)) { res.status(403).json({ error: 'forbidden' }); return; }
+
+  const corpo = (req.body || {}) as Record<string, any>;
+  const curso = corpo.curso as Record<string, any> | undefined;
+  const aulas = Array.isArray(corpo.aulas) ? corpo.aulas : [];
+  const gateway = corpo.gateway as Record<string, any> | undefined;
+  if (!curso?.slug) { res.status(400).json({ error: 'curso.slug obrigatorio' }); return; }
+
+  const feito: Record<string, unknown> = { slug: curso.slug };
+
+  try {
+    // ── 1 · o curso ─────────────────────────────────────────────────────────
+    const patchCurso: Record<string, unknown> = {};
+    for (const k of CAMPOS_CURSO) if (k in curso) patchCurso[k] = curso[k];
+
+    const { data: existente } = await supabase
+      .from('pc_cursos').select('id').eq('slug', curso.slug).maybeSingle();
+
+    let cursoId = (existente as any)?.id as string | undefined;
+    if (cursoId) {
+      const { error } = await supabase.from('pc_cursos').update(patchCurso).eq('id', cursoId);
+      if (error) throw error;
+      feito.curso = 'atualizado';
+    } else {
+      const { data, error } = await supabase
+        .from('pc_cursos').insert(patchCurso).select('id').single();
+      if (error) throw error;
+      cursoId = (data as any).id;
+      feito.curso = 'criado';
+    }
+    feito.curso_id = cursoId;
+
+    // ── 2 · as aulas ────────────────────────────────────────────────────────
+    // Casadas por (curso_id, ordem): rodar de novo corrige o texto sem duplicar.
+    // O mesmo filtro de SVG do /admin vale aqui — a porta de serviço não é
+    // desculpa pra gravar diagrama com script na sessão de todo aluno.
+    const { data: jaExistem } = await supabase
+      .from('pc_aulas').select('id,ordem').eq('curso_id', cursoId);
+    const porOrdem = new Map(((jaExistem || []) as any[]).map((a) => [a.ordem, a.id]));
+
+    let criadas = 0, atualizadas = 0;
+    for (const aula of aulas) {
+      const patch: Record<string, unknown> = { curso_id: cursoId };
+      for (const k of CAMPOS_AULA) if (k in aula) patch[k] = aula[k];
+      if ('paginas' in patch) {
+        const v = paginasSeguras(patch.paginas);
+        if (!v.ok) { res.status(400).json({ error: `aula ${aula.ordem}: ${v.erro}` }); return; }
+      }
+      const id = porOrdem.get(aula.ordem);
+      if (id) {
+        const { error } = await supabase.from('pc_aulas').update(patch).eq('id', id);
+        if (error) throw error;
+        atualizadas++;
+      } else {
+        const { error } = await supabase.from('pc_aulas').insert(patch);
+        if (error) throw error;
+        criadas++;
+      }
+    }
+    feito.aulas = { criadas, atualizadas };
+
+    // ── 3 · a ponte com o gateway ───────────────────────────────────────────
+    // Sem esta linha o webhook recebe o pagamento e não sabe o que liberar: a
+    // venda entra, a conta não nasce e o comprador fica do lado de fora.
+    if (gateway?.produto_id || gateway?.produto_nome) {
+      const chave: Record<string, string> = { gateway: gateway.gateway || 'kiwify' };
+      if (gateway.produto_id) chave.produto_id = gateway.produto_id;
+      else chave.produto_nome = gateway.produto_nome;
+
+      const { data: linha } = await supabase
+        .from('pc_gateway_produtos').select('id').match(chave).maybeSingle();
+
+      const patch = {
+        gateway: gateway.gateway || 'kiwify',
+        produto_id: gateway.produto_id ?? null,
+        produto_nome: gateway.produto_nome ?? null,
+        item_tipo: gateway.item_tipo || 'curso',
+        item_slug: gateway.item_slug || curso.slug,
+        ativo: gateway.ativo !== false,
+      };
+      if ((linha as any)?.id) {
+        const { error } = await supabase
+          .from('pc_gateway_produtos').update(patch).eq('id', (linha as any).id);
+        if (error) throw error;
+        feito.gateway = 'atualizado';
+      } else {
+        const { error } = await supabase.from('pc_gateway_produtos').insert(patch);
+        if (error) throw error;
+        feito.gateway = 'criado';
+      }
+    }
+
+    res.json({ ok: true, ...feito });
+  } catch (err) {
+    logger.error('plugcash', `falha provisionando ${curso.slug}`, err);
+    res.status(500).json({ error: 'falha ao provisionar', detalhe: String((err as any)?.message || err), feito });
   }
 });
 

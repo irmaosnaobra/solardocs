@@ -254,7 +254,8 @@ export async function kiwifyWebhook(req: Request, res: Response): Promise<void> 
     // pode exigir deploy. Produto que não está mapeado devolve null e o fluxo
     // segue — não é erro, é "não é nosso".
     if (emailComprador) {
-      const itemPc = await classificarProdutoPlugcash(nomeProduto, idProduto);
+      const itemPc = await classificarProdutoPlugcash(
+        nomeProduto, idProduto, (evt as { checkout_link?: string }).checkout_link || null);
       if (itemPc) {
         try {
           const r = await processarEventoPlugcash({

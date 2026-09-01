@@ -1,10 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { supabase } from '../utils/supabase';
+import { BOOTSTRAP_KEY } from '../utils/bootstrapKey';
 
 const router = Router();
 
-// Bootstrap key: hardcoded por ser temporario / debug. Remover quando linha IO estiver estavel.
-const BOOTSTRAP_KEY = 'ZAPI_IO_2026_BOOTSTRAP';
 
 interface IOCreds { id: string; token: string; client: string; }
 
