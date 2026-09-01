@@ -36,6 +36,9 @@ vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), war
 vi.mock('../services/io/ioSend', () => ({
   sleep: vi.fn(), humanizar: vi.fn((s: string) => s), enviarZapiIO: vi.fn(),
   carregarSupressao: vi.fn(async () => () => false),
+  // O portão real junta opt-out com "nunca respondeu e já levou 3 toques".
+  // Aqui devolve false pra manter o teste focado nos freios de volume.
+  carregarBloqueioProativo: vi.fn(async () => () => false),
   adquirirLockBlast: vi.fn(async () => true),
   liberarLockBlast: vi.fn(async () => undefined),
 }));

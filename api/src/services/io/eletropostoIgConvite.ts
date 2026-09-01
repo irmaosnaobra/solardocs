@@ -41,7 +41,7 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendFrio } from '../agents/zapiClient';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
-import { carregarSupressao } from './ioSend';
+import { carregarBloqueioProativo } from './ioSend';
 // Família de origem, não lista fixa: origem nova de EP entra sozinha na trava.
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 
@@ -128,7 +128,7 @@ export async function publicoIgConvite(): Promise<CandidatoIgConvite[]> {
   if (error) throw new Error('ep-ig-convite: ler eletroposto_nota1 falhou — ' + error.message);
   if (!fichas || !fichas.length) return [];
 
-  const estaBloqueado = await carregarSupressao();
+  const estaBloqueado = await carregarBloqueioProativo();
 
   const out: CandidatoIgConvite[] = [];
   for (const f of (fichas as Array<{ id: number; nome: string | null; telefone: string | null; created_at: string }>)) {

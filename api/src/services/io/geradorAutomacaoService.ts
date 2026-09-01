@@ -21,7 +21,7 @@ import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import {
-  MediaType, sleep, humanizar, enviarZapiIO, carregarSupressao,
+  MediaType, sleep, humanizar, enviarZapiIO, carregarBloqueioProativo,
   adquirirLockBlast, liberarLockBlast,
 } from './ioSend';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
@@ -153,7 +153,7 @@ async function broadcastTickInner(): Promise<TickResult> {
     const enviadosSet = new Set<string>((enviadosRows as { phone: string; slot: number }[] | null ?? []).map(e => `${e.phone}|${e.slot}`));
 
     // Travas: supressão (MAIN) + allow-list do CRM (GERADOR).
-    const estaBloqueado = await carregarSupressao();
+    const estaBloqueado = await carregarBloqueioProativo();
     const crm = await carregarSufixosCRM();
     const noCRM = (phone: string): boolean => { const s = sufixo10(phone); return !!s && crm.has(s); };
 
@@ -271,7 +271,7 @@ export async function runGeradorSequenciasConsumer(opts: { dry?: boolean } = {})
   if (error) { logger.error('gerador-automacao', 'erro buscando inscrições', error); return { enviados: 0, avancados: 0, concluidos: 0, reason: 'erro_busca' }; }
   if (!rows || rows.length === 0) return { enviados: 0, avancados: 0, concluidos: 0, reason: 'nada_pendente' };
 
-  const estaBloqueado = await carregarSupressao();
+  const estaBloqueado = await carregarBloqueioProativo();
   const crm = await carregarSufixosCRM();
   const noCRM = (phone: string): boolean => { const s = sufixo10(phone); return !!s && crm.has(s); };
 

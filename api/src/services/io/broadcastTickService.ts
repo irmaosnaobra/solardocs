@@ -1,6 +1,6 @@
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
-import { MediaType, sleep, humanizar, enviarZapiIO, carregarSupressao, adquirirLockBlast, liberarLockBlast } from './ioSend';
+import { MediaType, sleep, humanizar, enviarZapiIO, carregarBloqueioProativo, adquirirLockBlast, liberarLockBlast } from './ioSend';
 
 interface Mensagem {
   slot: number;
@@ -158,7 +158,7 @@ async function runIoBroadcastTickInner(): Promise<TickResult> {
     //      contatado (opt-out/denúncia). É o que impede re-contatar alguém cujo
     //      número foi raspado de novo do Google Maps. Casa por sufixo de 10 dígitos
     //      (com/sem 9º dígito/DDI). Anti-denúncia de verdade.
-    const estaBloqueado = await carregarSupressao();
+    const estaBloqueado = await carregarBloqueioProativo();
 
     // 3.6. Dedup GLOBAL: enviadosSet acima é por broadcast_id, então listas que se
     //      sobrepõem (o mesmo integrador aparecendo em duas raspagens) batiam no

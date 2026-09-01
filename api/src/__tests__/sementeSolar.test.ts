@@ -50,6 +50,10 @@ vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
 }));
 vi.mock('../services/io/ioSend', () => ({
   carregarSupressao: vi.fn(async () => (tel: string) => suprimidos.some(s => tel.includes(s))),
+  // Portão de disparo proativo: no runtime junta o opt-out com quem nunca
+  // respondeu e já levou toque demais. No teste, a mesma lista, porque o que
+  // se verifica aqui é que o chamador RESPEITA o portão.
+  carregarBloqueioProativo: vi.fn(async () => (tel: string) => suprimidos.some(s => tel.includes(s))),
 }));
 
 const DENTRO = new Date('2026-08-05T15:00:00.000Z');   // 12h BRT

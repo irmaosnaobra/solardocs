@@ -34,7 +34,7 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendFrio } from '../agents/zapiClient';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
-import { carregarSupressao } from './ioSend';
+import { carregarBloqueioProativo } from './ioSend';
 
 export const SEMENTE_PREFIX = 'semente:';
 const ULTIMO_KEY = 'semente_ultimo';
@@ -157,7 +157,7 @@ export async function publicoSemente(): Promise<CandidatoSemente[]> {
 
   const alvo = new Set(statusAlvo());
   const estados = await lerEstados();
-  const estaBloqueado = await carregarSupressao();
+  const estaBloqueado = await carregarBloqueioProativo();
 
   const out: CandidatoSemente[] = [];
   for (const [chave, f] of maisRecente) {

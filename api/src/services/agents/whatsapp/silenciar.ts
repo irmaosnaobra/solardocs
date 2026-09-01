@@ -99,3 +99,47 @@ export async function carregarSilenciados(): Promise<(phone: string) => boolean>
     return k !== null && chaves.has(k);
   };
 }
+
+/** Toques sem resposta a partir dos quais o robô para de insistir. */
+export const TOQUES_ATE_DESISTIR = Number(process.env.ANTIBAN_TOQUES_MUDO || 3);
+
+/**
+ * Predicado "esta pessoa nunca deu sinal de vida e já levou toque demais".
+ *
+ * É a regra que mais reduz risco de ban, porque falar três vezes com quem nunca
+ * respondeu é exatamente o que produz o "bloquear e denunciar", e denúncia é o
+ * que a Meta usa pra derrubar número. Medido em 60 dias: 230 contatos nessa
+ * situação, depois de já descontar quem tem conta.
+ *
+ * O SINAL DE VIDA NÃO É SÓ RESPONDER NO WHATSAPP, e isso não é detalhe: 54 dos
+ * 415 mudos TÊM CONTA na plataforma. São clientes cadastrados que nunca
+ * escreveram no zap, e um corte por "não respondeu" calaria o follow-up de quem
+ * paga. A função wa_mudos no banco já exclui esses.
+ *
+ * SÓ VALE PRA TOQUE PROATIVO. Quem escreveu primeiro é sempre respondido, e
+ * mensagem transacional sobre algo que a própria pessoa marcou (confirmação de
+ * reunião) também passa: ali o sinal de contato é o formulário que ela preencheu.
+ *
+ * Fail-open com log, pelo mesmo motivo do carregarSilenciados: banco fora do ar
+ * não pode calar a régua inteira.
+ */
+export async function carregarMudos(
+  minToques = TOQUES_ATE_DESISTIR,
+  dias = 60,
+): Promise<(phone: string) => boolean> {
+  const chaves = new Set<string>();
+  try {
+    const { data, error } = await supabase.rpc('wa_mudos', { min_toques: minToques, dias });
+    if (error) throw error;
+    for (const r of (data ?? []) as { telefone: string }[]) {
+      if (r.telefone) chaves.add(r.telefone);
+    }
+    logger.info('antiban', `${chaves.size} contatos mudos com ${minToques}+ toques`);
+  } catch (err) {
+    logger.error('antiban', 'leitura de mudos falhou: ninguém será barrado nesta rodada', err);
+  }
+  return (phone: string): boolean => {
+    const k = chaveContato(phone);
+    return k !== null && chaves.has(k);
+  };
+}

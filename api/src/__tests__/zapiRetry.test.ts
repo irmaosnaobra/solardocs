@@ -35,10 +35,14 @@ describe('zapiPost: retry', () => {
     Object.assign(process.env, ENV);
     fetchSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
-    // O sleep entre tentativas não pode fazer o teste esperar de verdade.
-    vi.useFakeTimers({ shouldAdvanceTime: true });
   });
-  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  // Os casos que RETENTAM esperam de verdade: o backoff é 1s + 2s. Fake timer
+  // aqui não ajuda (o sleep vive dentro do módulo importado dinamicamente e não
+  // avança confiável), então o caminho honesto é dar folga. Isolado roda em ~3s;
+  // a folga existe pra suíte cheia, onde o import concorre com 77 arquivos.
+  const COM_BACKOFF = 20_000;
 
   it('4xx bate UMA vez só: retentar não muda a resposta e triplica o tráfego', async () => {
     for (const status of [400, 401, 403, 404, 422]) {
@@ -54,14 +58,14 @@ describe('zapiPost: retry', () => {
     }
   });
 
-  it('429 continua retentando: ali o servidor está pedindo espera', async () => {
+  it('429 continua retentando: ali o servidor está pedindo espera', { timeout: COM_BACKOFF }, async () => {
     fetchSpy.mockResolvedValue(respostaCom(429));
     const { zapiPost } = await import('../services/agents/zapiClient');
     await expect(zapiPost('send-text', {}, 2, 'io')).rejects.toThrow();
     expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
 
-  it('5xx continua retentando: é do lado deles e costuma passar', async () => {
+  it('5xx continua retentando: é do lado deles e costuma passar', { timeout: COM_BACKOFF }, async () => {
     fetchSpy.mockResolvedValue(respostaCom(503));
     const { zapiPost } = await import('../services/agents/zapiClient');
     await expect(zapiPost('send-text', {}, 2, 'io')).rejects.toThrow();

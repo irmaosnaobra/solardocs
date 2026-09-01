@@ -16,7 +16,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
-import { carregarSilenciados } from '../agents/whatsapp/silenciar';
+import { carregarSilenciados, carregarMudos } from '../agents/whatsapp/silenciar';
 
 export type MediaType = 'image' | 'video' | 'audio';
 
@@ -118,6 +118,28 @@ export async function carregarSupressao(): Promise<(phone: string) => boolean> {
   // A chave nova é DDD + 8 últimos dígitos, estável nas duas formas. Os 3.043
   // registros de 13 dígitos da base passam a casar com os de 12.
   return carregarSilenciados();
+}
+
+/**
+ * O portão de TODO disparo proativo: junta quem pediu pra parar com quem nunca
+ * deu sinal de vida e já levou toque demais.
+ *
+ * São dois motivos diferentes de não mandar e os dois derrubam número pelo mesmo
+ * caminho, que é a denúncia. O opt-out é explícito; o silêncio é o implícito, e
+ * é o mais comum: em 60 dias, 230 pessoas levaram 3 toques ou mais sem nunca
+ * responder, e sem ter conta na plataforma.
+ *
+ * Existe separado do carregarSupressao de propósito. Supressão é "esta pessoa
+ * pediu", e vale pra sempre e pra tudo. Isto aqui é uma regra de PRUDÊNCIA, que
+ * só vale pra quem está começando conversa. Misturar as duas semânticas num nome
+ * só é como um dia alguém desliga a errada.
+ */
+export async function carregarBloqueioProativo(): Promise<(phone: string) => boolean> {
+  const [pediuParar, estaMudo] = await Promise.all([
+    carregarSilenciados(),
+    carregarMudos(),
+  ]);
+  return (phone: string): boolean => pediuParar(phone) || estaMudo(phone);
 }
 
 // ── Lock de linha compartilhado entre os motores de blast ────────────────────

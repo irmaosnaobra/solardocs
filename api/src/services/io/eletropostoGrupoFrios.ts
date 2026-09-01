@@ -27,7 +27,7 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendFrio } from '../agents/zapiClient';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
-import { carregarSupressao } from './ioSend';
+import { carregarBloqueioProativo } from './ioSend';
 
 export const EP_GRUPO_FRIO_PREFIX = 'ep_grupo_frio:';
 const ULTIMO_KEY = 'ep_grupo_frio_ultimo';
@@ -118,7 +118,7 @@ export async function publicoGrupoFrio(): Promise<CandidatoGrupoFrio[]> {
     .from('system_state').select('key').like('key', `${EP_GRUPO_FRIO_PREFIX}%`).limit(2000);
   const jaFalado = new Set((marcadores ?? []).map(m => String(m.key).slice(EP_GRUPO_FRIO_PREFIX.length)));
 
-  const estaBloqueado = await carregarSupressao();
+  const estaBloqueado = await carregarBloqueioProativo();
 
   const out: CandidatoGrupoFrio[] = [];
   for (const [chave, f] of maisRecente) {
