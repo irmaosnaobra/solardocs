@@ -12,15 +12,34 @@ declare global {
   }
 }
 
-/** Dispara um evento sem quebrar nada se o pixel estiver bloqueado. */
+/**
+ * Dispara um evento, ESPERANDO o pixel aparecer.
+ *
+ * A espera é o que faz a diferença: o script entra como `afterInteractive`,
+ * então os componentes da página rodam ANTES dele. O ViewContent do modelo caía
+ * no vazio em silêncio — `window.fbq` ainda não existia e o `?.` engolia a
+ * chamada sem reclamar, sem erro no console, sem nada.
+ *
+ * Tenta por cinco segundos e desiste. Desistir é o certo quando o pixel está
+ * mesmo bloqueado: o lead que importa já vai pela API de Conversões, que sai do
+ * servidor e ninguém bloqueia.
+ */
 export function marcarNaMeta(evento: string, dados?: Record<string, unknown>, eventoId?: string) {
-  try {
-    // O quarto argumento é o que permite casar com o evento do servidor.
-    if (eventoId) window.fbq?.('track', evento, dados, { eventID: eventoId });
-    else window.fbq?.('track', evento, dados);
-  } catch {
-    /* bloqueador de anúncio: a loja segue igual */
-  }
+  let tentativas = 0;
+  const tentar = () => {
+    try {
+      if (typeof window.fbq === 'function') {
+        // O quarto argumento é o que permite casar com o evento do servidor.
+        if (eventoId) window.fbq('track', evento, dados, { eventID: eventoId });
+        else window.fbq('track', evento, dados);
+        return;
+      }
+    } catch {
+      return; // bloqueador de anúncio: a loja segue igual
+    }
+    if (++tentativas <= 25) setTimeout(tentar, 200);
+  };
+  tentar();
 }
 
 /**
