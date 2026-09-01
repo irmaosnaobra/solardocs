@@ -15,6 +15,7 @@ import { etiquetaDeLead, ETIQUETAS_ORDEM } from '../services/agenda/origemEtique
 import {
   NOTA1_MATERIAL_DESDE, NOTA1_MATERIAL_ATE, NOTA1_TIPOS, inicioDaJanela, linhasDoFunil, somaColuna,
 } from '../services/io/nota1Funil';
+import * as pc from '../services/io/pontoCertoFunil';
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 import {
   ATENDENTE_PROMPT_KEY, PROMPT_PADRAO, PLACEHOLDERS, numerosVivos, resolverPlaceholders,
@@ -946,6 +947,109 @@ router.get('/eletroposto-parceria', async (_req: Request, res: Response): Promis
         .filter(([, v]) => v.pontos > 0 && v.capital > 0)
         .map(([cidade, v]) => ({ cidade, ...v }))
         .sort((a, b) => b.pontos + b.capital - (a.pontos + a.capital)),
+    });
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
+// ── Funil do Ponto Certo: quem tem o dinheiro e não tem o lugar ────────────
+// Desde 01/09/2026 o investidor recusado pela régua não para mais na tela de
+// "cadastro recebido": ele é levado pra landing do material que ensina a achar
+// o ponto. Esta rota mede esse caminho inteiro.
+//
+// Lê os DOIS projetos: as fichas e os cadastros moram no gerador, as sessões e
+// as vendas moram no SolarDoc. Não existe chave entre eles — por isso cada
+// etapa vem como total próprio, e a conversão entre elas está marcada como
+// estimativa na tela.
+router.get('/ponto-certo-funil', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const dias = Math.min(180, Math.max(7, Number(req.query.dias) || 30));
+    const desde = pc.inicioDaJanela(dias);
+
+    const [fichasQ, cadastrosQ, filaQ, eventosQ, vendasQ] = await Promise.all([
+      supabaseGerador
+        .from('eletroposto_nota1')
+        .select('created_at, nome, telefone, cidade, origem, capital_faixa, tem_ponto, lado, lado_em, motivo_descarte')
+        // Só quem passou pela LP. O lead que veio da DM do Instagram entra nesta
+        // mesma tabela sem `capital_faixa` (o serviço do ManyChat grava a faixa
+        // só como texto na ficha), então ele nunca conta como investidor aqui —
+        // e contá-lo como "mandado" afundaria a conversão com gente que nunca
+        // viu o formulário.
+        .eq('origem', 'lp_eletroposto')
+        .gte('created_at', desde)
+        .order('created_at', { ascending: false }),
+      supabaseGerador
+        .from('eletroposto_parceria')
+        .select('created_at, lado, nome, telefone, cidade, capital_faixa, status')
+        .eq('lado', 'capital')
+        .gte('created_at', desde)
+        .order('created_at', { ascending: false }),
+      // A fila é a base INTEIRA, sem janela: a desproporção entre capital e
+      // ponto é acúmulo, e recortá-la em trinta dias esconde o que ela mostra.
+      supabaseGerador
+        .from('eletroposto_parceria')
+        .select('created_at, lado, nome, telefone, cidade, capital_faixa, status'),
+      supabase
+        .from('pc_eventos')
+        .select('tipo, session_id, created_at')
+        .in('tipo', pc.PONTO_CERTO_TIPOS)
+        .gte('created_at', desde),
+      supabase
+        .from('pc_compras')
+        .select('created_at, nome, email, valor_centavos, status')
+        .eq('item_slug', 'ponto-certo')
+        .gte('created_at', desde)
+        .order('created_at', { ascending: false }),
+    ]);
+
+    const fichas = (fichasQ.data ?? []) as pc.FichaNota1[];
+    const cadastros = (cadastrosQ.data ?? []) as pc.Cadastro[];
+    const eventos = (eventosQ.data ?? []) as pc.EventoLp[];
+    const vendasTodas = (vendasQ.data ?? []) as pc.Venda[];
+    // Pendente e reembolsada continuam na lista de baixo (é dinheiro que passou
+    // por aqui), mas o número do card é só o que virou acesso.
+    const vendas = vendasTodas.filter((v) => v.status === 'aprovada');
+
+    const linhas = pc.linhasDoFunil(fichas, eventos, vendas);
+    const mandados = pc.somaColuna(linhas, 'mandados');
+    const cadastraram = pc.somaColuna(linhas, 'cadastraram');
+    const visitas = pc.somaColuna(linhas, 'visitas');
+    const checkout = pc.somaColuna(linhas, 'checkout');
+    const compras = pc.somaColuna(linhas, 'vendas');
+
+    res.json({
+      desde,
+      dias,
+      redirect_desde: pc.REDIRECT_DESDE,
+      // A landing só passou a avisar que foi aberta quando ganhou o beacon. Sem
+      // isto o painel não sabe distinguir "ninguém abriu" de "ninguém contou".
+      lp_medida: visitas !== null,
+      mandados,
+      cadastraram,
+      visitas,
+      checkout,
+      compras,
+      perdidos_no_caminho: mandados != null && cadastraram != null ? mandados - cadastraram : null,
+      conv_mandado_cadastro: pc.conversao(mandados, cadastraram),
+      conv_cadastro_visita: pc.conversao(cadastraram, visitas),
+      conv_visita_checkout: pc.conversao(visitas, checkout),
+      conv_checkout_compra: pc.conversao(checkout, compras),
+      fila: pc.filaDosCadastros((filaQ.data ?? []) as pc.Cadastro[]),
+      receita_centavos: vendas.reduce((s, v) => s + (v.valor_centavos || 0), 0),
+      linhas,
+      // Quem tem o dinheiro, foi mandado pras portas e NÃO se cadastrou. É a
+      // lista de trabalho da tela: cada linha aqui é um investidor que a equipe
+      // pode chamar na mão com o link do material.
+      sumidos: fichas
+        .filter((f) => pc.CAPITAL_DECLARADO.includes(f.capital_faixa || '') && f.lado !== 'capital')
+        .slice(0, 60)
+        .map((f) => ({
+          quando: f.created_at, nome: f.nome, telefone: f.telefone,
+          cidade: f.cidade, capital: f.capital_faixa, ponto: f.tem_ponto,
+        })),
+      cadastrados: cadastros.slice(0, 40),
+      vendas: vendasTodas.slice(0, 20),
     });
   } catch (err) {
     res.status(500).json({ error: String((err as Error)?.message || err) });
