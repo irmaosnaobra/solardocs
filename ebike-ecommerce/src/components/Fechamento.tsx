@@ -1,5 +1,6 @@
 import { BASE_PATH } from '../config/basePath.mjs';
 import { CampanhaOculta } from './CampanhaOculta.tsx';
+import { PixelLead } from './PixelLead.tsx';
 import { Frete } from './Frete.tsx';
 import { FORMAS_DE_PAGAMENTO, PARCELAS_MAXIMAS, emReais } from '../config/loja.ts';
 import { aindaVaiChegar } from '../lib/previsao.ts';
@@ -38,6 +39,7 @@ export function Fechamento({ bike }: { bike: Bike }) {
       ) : null}
 
       <CampanhaOculta />
+      <PixelLead codigo={bike.codigo} preco={bike.preco} />
 
       <Frete
         bases={bike.bases}

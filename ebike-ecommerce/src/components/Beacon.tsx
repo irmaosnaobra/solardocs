@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 import { BASE_PATH } from '../config/basePath.mjs';
 import { useEntrega } from '../lib/cepSalvo.ts';
 import { campanhaDaVisita, idDaSessao, marcarCookie } from '../lib/sessao.ts';
+import { marcarNaMeta } from './Pixel.tsx';
 
 /**
  * Avisa o servidor em que ponto do funil a visita chegou.
@@ -17,7 +18,7 @@ import { campanhaDaVisita, idDaSessao, marcarCookie } from '../lib/sessao.ts';
  * recarregar a página não pode virar visita nova, senão a conversão aparece
  * menor do que é.
  */
-export function Beacon({ modelo }: { modelo?: string }) {
+export function Beacon({ modelo, preco }: { modelo?: string; preco?: number }) {
   const entrega = useEntrega();
   // O que já foi mandado nesta sessão. Sem isto, cada render repetiria o pedido
   // — o banco descartaria, mas o celular no 4G pagaria a conta.
@@ -44,9 +45,22 @@ export function Beacon({ modelo }: { modelo?: string }) {
     };
 
     avisar('loja');
-    if (modelo) avisar('modelo', { modelo });
+    if (modelo) {
+      avisar('modelo', { modelo });
+      // Mesmo degrau, dois destinos: o banco para a gente medir, a Meta para
+      // ela aprender quem tem cara de comprador.
+      if (!enviados.current.has('meta-modelo')) {
+        enviados.current.add('meta-modelo');
+        marcarNaMeta('ViewContent', {
+          content_ids: [modelo],
+          content_type: 'product',
+          currency: 'BRL',
+          ...(preco ? { value: preco } : {}),
+        });
+      }
+    }
     if (entrega) avisar('local', { cidade: entrega.cidade, uf: entrega.uf });
-  }, [modelo, entrega]);
+  }, [modelo, preco, entrega]);
 
   return null;
 }

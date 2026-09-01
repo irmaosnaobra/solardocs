@@ -7,6 +7,7 @@ import './globals.css';
 import { Cabecalho } from '../components/Cabecalho.tsx';
 import { Beacon } from '../components/Beacon.tsx';
 import { Logo } from '../components/Logo.tsx';
+import { Pixel } from '../components/Pixel.tsx';
 import { OndeVoceEsta } from '../components/OndeVoceEsta.tsx';
 import { LOJA } from '../config/loja.ts';
 
@@ -50,6 +51,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             quantas visitas ele saiu. */}
         <Suspense fallback={null}>
           <Beacon />
+        </Suspense>
+
+        {/* O pixel da Meta. Ele OTIMIZA a entrega do anúncio; quem MEDE é o
+            beacon acima, que roda no servidor e ninguém bloqueia. */}
+        <Suspense fallback={null}>
+          <Pixel />
         </Suspense>
 
         <footer className="mt-12 border-t border-borda bg-white">
