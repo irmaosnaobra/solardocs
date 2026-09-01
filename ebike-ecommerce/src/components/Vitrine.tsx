@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
 import { CardBike } from './CardBike.tsx';
-import { PERTO_KM } from '../config/frete.ts';
+import { RAIO_MAXIMO_KM } from '../config/frete.ts';
 import { emReais } from '../config/loja.ts';
 import { useEntrega } from '../lib/cepSalvo.ts';
 import { escolherOrigem } from '../lib/origem.ts';
@@ -56,11 +56,22 @@ function disponibilidadeDe(b: Cartao): string {
   return 'A consultar';
 }
 
+/**
+ * UM corte, não dois. Antes a faceta dizia "perto" a 150 km e o card avisava
+ * "cotado no atendimento" a 300 km — dois números para a mesma ideia, e a
+ * contagem da faceta contradizia o aviso do card. Agora os dois usam o raio da
+ * entrega própria, que é o único corte com consequência real: dentro dele sai
+ * preço de frete na tela; fora, não sai.
+ */
+export function temFreteFechado(o: Origem | undefined): boolean {
+  return !!o && o.km <= RAIO_MAXIMO_KM;
+}
+
 function valorDe(b: Cartao, f: Filtro, origens: Map<string, Origem>): string | null {
   if (f === 'perto') {
     const o = origens.get(b.id);
     if (!o) return null;
-    return o.km <= PERTO_KM ? 'Sai de perto de você' : 'Vem de outro estado';
+    return temFreteFechado(o) ? 'Com frete fechado' : 'Frete cotado no atendimento';
   }
   if (f === 'categoria') return b.categoria;
   if (f === 'marca') return b.marca;
@@ -222,6 +233,29 @@ export function Vitrine({
    * Assim o número ao lado de "Konnan" é quantas Konnan restam depois da cor já
    * escolhida, e nunca se clica numa opção que devolve lista vazia.
    */
+  /**
+   * A vitrine abre mostrando SÓ o que sai com frete fechado para a pessoa.
+   *
+   * Pedido do Thiago, e a razão é boa: não adianta alguém se apaixonar por uma
+   * bike que vem de mil quilômetros e descobrir o frete depois. Aqui o modelo
+   * distante nem aparece.
+   *
+   * Duas travas para isso não virar loja vazia:
+   *  - quando NADA cabe no raio (Recife: zero dos 46), mostra tudo e explica.
+   *    Vitrine vazia é pior que frete caro — é a loja parecendo quebrada.
+   *  - "ver os outros" está sempre na tela. Esconder é padrão, não prisão.
+   */
+  const semLocal = !entrega;
+  const cabemNoFrete = useMemo(
+    () => (semLocal ? bikes : bikes.filter((b) => temFreteFechado(origens.get(b.id)))),
+    [bikes, origens, semLocal],
+  );
+  const verTodos = parametros.get('todos') === '1';
+  const escondidos = bikes.length - cabemNoFrete.length;
+  // Nenhum cabe? Não dá para esconder tudo.
+  const filtrando = !semLocal && !verTodos && cabemNoFrete.length > 0;
+  const universo = filtrando ? cabemNoFrete : bikes;
+
   const { lista, facetas } = useMemo(() => {
     const termo = busca.trim().toLowerCase();
     const casa = (b: Cartao, ignorar?: Filtro) => {
@@ -236,7 +270,7 @@ export function Vitrine({
         .includes(termo);
     };
 
-    const ordenadas = bikes.filter((b) => casa(b));
+    const ordenadas = universo.filter((b) => casa(b));
     if (ordem === 'menor-preco') ordenadas.sort((a, b) => a.preco - b.preco);
     if (ordem === 'maior-preco') ordenadas.sort((a, b) => b.preco - a.preco);
     if (ordem === 'a-z') ordenadas.sort((a, b) => a.titulo.localeCompare(b.titulo, 'pt-BR'));
@@ -244,12 +278,12 @@ export function Vitrine({
     const facetas = Object.fromEntries(
       FILTROS.map((f) => [
         f,
-        contar(bikes.filter((b) => casa(b, f)).map((b) => valorDe(b, f, origens))),
+        contar(universo.filter((b) => casa(b, f)).map((b) => valorDe(b, f, origens))),
       ]),
     ) as Record<Filtro, Array<{ rotulo: string; quantidade: number }>>;
 
     return { lista: ordenadas, facetas };
-  }, [bikes, busca, ordem, escolhido, origens]);
+  }, [universo, busca, ordem, escolhido, origens]);
 
   const aplicados = FILTROS.filter((f) => escolhido[f]);
   const quantosFiltros = aplicados.length + (busca ? 1 : 0);
@@ -317,6 +351,44 @@ export function Vitrine({
         {/* Antes da lista: qual é a unidade dela. Dizer só no card, modelo a
             modelo, deixava a pergunta "de onde vocês atendem aqui?" sem
             resposta direta. */}
+        {/* O que a loja está escondendo, e como ver. Esconder sem dizer seria
+            a pessoa achando que o catálogo é pequeno. */}
+        {!semLocal && escondidos > 0 ? (
+          <p className="mb-3 rounded-lg bg-fundo px-3 py-2 text-xs text-suave">
+            {filtrando ? (
+              <>
+                Mostrando os modelos que chegam em {entrega?.cidade}{' '}
+                <strong className="font-semibold text-tinta">com o frete já fechado</strong>. Outros{' '}
+                {escondidos} vêm de longe e o frete sai no atendimento.{' '}
+                <button
+                  type="button"
+                  onClick={() => trocar('todos', '1')}
+                  className="font-semibold text-mata underline underline-offset-2"
+                >
+                  Ver todos os {bikes.length}
+                </button>
+              </>
+            ) : cabemNoFrete.length === 0 ? (
+              <>
+                Nenhum modelo sai com frete fechado para {entrega?.cidade} — a unidade com estoque
+                mais próxima está longe. Você vê o catálogo inteiro, e o frete a gente cota na
+                conversa.
+              </>
+            ) : (
+              <>
+                Mostrando os {bikes.length} modelos do Brasil, inclusive os que vêm de longe.{' '}
+                <button
+                  type="button"
+                  onClick={() => trocar('todos', null)}
+                  className="font-semibold text-mata underline underline-offset-2"
+                >
+                  Só os com frete fechado
+                </button>
+              </>
+            )}
+          </p>
+        ) : null}
+
         {suaUnidade ? (
           <p className="mb-3 rounded-lg bg-fundo px-3 py-2 text-xs text-suave">
             Sua unidade mais próxima:{' '}

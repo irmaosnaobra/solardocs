@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { BASE_PATH } from '../config/basePath.mjs';
 import { emReais } from '../config/loja.ts';
-import { FRETE_MINIMO, PERTO_KM, REAIS_POR_KM, formatarCep } from '../config/frete.ts';
+import { FRETE_MINIMO, REAIS_POR_KM, formatarCep } from '../config/frete.ts';
 import { useEntrega } from '../lib/cepSalvo.ts';
 
 type Cotacao = {
@@ -170,7 +170,7 @@ export function Frete({
           {/* Sem valor na tela, a pessoa merece saber POR QUE. Cidade e
               quilometragem sozinhas, sem preço e sem motivo, é a forma mais
               rápida de perder alguém que estava decidido. */}
-          {r.outraBase && (r.km ?? Infinity) <= PERTO_KM ? (
+          {r.outraBase && !r.foraDoRaio ? (
             <p className="mt-1.5 rounded-lg bg-vantagem-clara p-2 text-xs text-tinta">
               <strong className="font-semibold">
                 Boa notícia: essa bike já está a {r.km} km de você.

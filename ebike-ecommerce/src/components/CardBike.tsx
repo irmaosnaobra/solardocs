@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 
-import { PERTO_KM, RAIO_MAXIMO_KM } from '../config/frete.ts';
+import { RAIO_MAXIMO_KM } from '../config/frete.ts';
 import { emReais } from '../config/loja.ts';
 import { aindaVaiChegar } from '../lib/previsao.ts';
 import type { Cartao } from '../types/bike.ts';
@@ -112,7 +112,7 @@ export function CardBike({
           {origem ? (
             <p className="mt-1 text-xs text-suave">
               sai de {origem.cidade} — {origem.uf} ·{' '}
-              <span className={origem.km <= PERTO_KM ? 'font-semibold text-vantagem' : ''}>
+              <span className={origem.km <= RAIO_MAXIMO_KM ? 'font-semibold text-vantagem' : ''}>
                 {/* Ponto da cidade não é o endereço de ninguém: o "≈" é o que
                     impede a loja de afirmar um número que ela não mediu. */}
                 {origem.aproximado ? '≈ ' : ''}
