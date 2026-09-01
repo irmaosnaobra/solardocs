@@ -1097,6 +1097,11 @@ router.get('/ponto-certo-funil', async (req: Request, res: Response): Promise<vo
       checkout,
       compras,
       perdidos_no_caminho: mandados != null && cadastraram != null ? mandados - cadastraram : null,
+      // A conversão que manda agora é esta: desde 01/09 o lado do capital vai
+      // da recusa DIRETO pra landing, sem o formulário no meio. Mistura ficha
+      // com sessão de navegador, e a tela diz isso.
+      conv_mandado_visita: pc.conversao(mandados, visitas),
+      nao_chegaram: mandados != null && visitas != null ? mandados - visitas : null,
       conv_mandado_cadastro: pc.conversao(mandados, cadastraram),
       conv_cadastro_visita: pc.conversao(cadastraram, visitas),
       conv_visita_checkout: pc.conversao(visitas, checkout),

@@ -47,7 +47,8 @@ interface Funil {
   desde: string; dias: number; redirect_desde: string; lp_medida: boolean;
   mandados: number | null; cadastraram: number | null;
   visitas: number | null; checkout: number | null; compras: number | null;
-  perdidos_no_caminho: number | null;
+  perdidos_no_caminho: number | null; nao_chegaram: number | null;
+  conv_mandado_visita: number | null;
   conv_mandado_cadastro: number | null; conv_cadastro_visita: number | null;
   conv_visita_checkout: number | null; conv_checkout_compra: number | null;
   fila: Fila; receita_centavos: number;
@@ -99,14 +100,17 @@ export default function PontoCertoPanel() {
   useEffect(() => { load(dias); }, [load, dias]);
 
   const f = data;
-  const conv = f?.conv_mandado_cadastro ?? null;
-  // A passagem da LP pra página das portas é um redirect na mesma aba: perder
-  // gente ali não é copy fraca, é atrito de tela. Por isso a régua é dura.
-  const corConv = conv == null ? undefined : conv >= 60 ? VERDE : conv >= 35 ? AMBAR : VERMELHO;
+  // Desde 01/09 o lado do capital sai da recusa DIRETO pra landing — o
+  // formulário das portas deixou de ser pedágio. Então a conversão que manda
+  // é recusa → página, não recusa → cadastro.
+  const conv = f?.conv_mandado_visita ?? null;
+  // É um redirect na mesma aba, sem clique no meio: abaixo de 85% não é copy
+  // fraca, é coisa quebrada — beacon, bloqueador ou a navegação morrendo antes
+  // de o evento sair.
+  const corConv = conv == null ? undefined : conv >= 85 ? VERDE : conv >= 60 ? AMBAR : VERMELHO;
 
   const etapas: Array<[string, number | null, string]> = [
     ['Recusados com o dinheiro na mão', f?.mandados ?? null, 'fichas nota 1 com capital declarado'],
-    ['Se cadastraram na porta do capital', f?.cadastraram ?? null, 'ficha de lead'],
     ['Abriram a página do material', f?.visitas ?? null, 'sessões de navegador'],
     ['Clicaram pra comprar', f?.checkout ?? null, 'sessões que foram pra Kiwify'],
     ['Compraram', f?.compras ?? null, 'pedidos aprovados'],
@@ -119,7 +123,7 @@ export default function PontoCertoPanel() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, gap: 10, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12, opacity: 0.7 }}>
-          solardoc.app/ponto-certo · R$ 297 na Kiwify · redirect ligado em{' '}
+          solardoc.app/ponto-certo · R$ 297 na Kiwify · a recusa cai direto aqui desde{' '}
           {f?.redirect_desde ? dia(f.redirect_desde) : '01/09'}
         </span>
         <div style={{ display: 'flex', gap: 6 }}>
@@ -171,10 +175,10 @@ export default function PontoCertoPanel() {
 
       <div className={styles.cards}>
         <div className={styles.card}>
-          <div className={styles.cardLabel}>Recusado → se cadastrou</div>
+          <div className={styles.cardLabel}>Recusado → abriu a página</div>
           <div className={styles.cardValue} style={{ color: corConv }}>{pct(conv)}</div>
           <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
-            é um redirect na mesma aba — abaixo de 60% o atrito está na tela, não na oferta
+            redirect na mesma aba, sem clique no meio — abaixo de 85% procure defeito, não copy
           </div>
         </div>
         <div className={styles.card}>
@@ -183,18 +187,18 @@ export default function PontoCertoPanel() {
           <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>fichas nota 1 com capital declarado</div>
         </div>
         <div className={styles.card}>
-          <div className={styles.cardLabel}>Sumiram no caminho</div>
-          <div className={styles.cardValue} style={{ color: (f?.perdidos_no_caminho ?? 0) > 0 ? VERMELHO : undefined }}>
-            {num(f?.perdidos_no_caminho)}
+          <div className={styles.cardLabel}>Não chegaram</div>
+          <div className={styles.cardValue} style={{ color: (f?.nao_chegaram ?? 0) > 0 ? VERMELHO : undefined }}>
+            {num(f?.nao_chegaram)}
           </div>
           <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
-            foram mandados pras portas e não preencheram nada
+            recusados com dinheiro que a página nunca registrou
           </div>
         </div>
         <div className={styles.card}>
           <div className={styles.cardLabel}>Abriram a página</div>
           <div className={styles.cardValue}>{num(f?.visitas)}</div>
-          <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>sessões — outra unidade, não some com a de cima</div>
+          <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>sessões de navegador — outra unidade, não some com a de cima</div>
         </div>
         <div className={styles.card}>
           <div className={styles.cardLabel}>Foram pro checkout</div>
@@ -215,9 +219,10 @@ export default function PontoCertoPanel() {
       <div className={styles.card} style={{ marginTop: 14 }}>
         <div style={{ fontWeight: 700, marginBottom: 4 }}>Da recusa até a compra</div>
         <div style={{ fontSize: 11.5, opacity: 0.6, marginBottom: 12 }}>
-          As duas primeiras barras são fichas de lead; as duas seguintes são sessões de navegador,
-          em outro banco. Não existe chave ligando as duas metades — serve pra achar buraco, não
-          pra apontar pessoa.
+          A primeira barra é ficha de lead; as três seguintes são sessões de navegador, em outro
+          banco. Não existe chave ligando as duas metades — serve pra achar buraco, não pra
+          apontar pessoa. O formulário das portas saiu deste funil em 01/09: ele deixou de ficar
+          no meio do caminho e virou a fila logo abaixo.
         </div>
         {etapas.map(([label, n, nota]) => (
           <div key={label} style={{ marginBottom: 10 }}>
@@ -243,7 +248,8 @@ export default function PontoCertoPanel() {
           Cadastros na página das portas, base inteira — sem recorte de período, porque a
           desproporção é acúmulo e trinta dias escondem justamente o que ela mostra. Quando um lado
           é muito maior que o outro, esperar aparecer contraparte é esperar o que não existe: é
-          esse desequilíbrio que sustenta o produto.
+          esse desequilíbrio que sustenta o produto. No período escolhido,{' '}
+          {num(f?.cadastraram)} de {num(f?.mandados)} preferiram esperar a se cadastrar aqui.
         </div>
         {([
           ['Têm o capital', fila?.capital ?? 0, 'e nenhum lugar pra instalar'],
@@ -314,12 +320,14 @@ export default function PontoCertoPanel() {
 
       <div className={styles.card} style={{ marginTop: 14 }}>
         <div style={{ fontWeight: 700, marginBottom: 4 }}>
-          Tinham o dinheiro e não se cadastraram
+          Tinham o dinheiro e nunca entraram na fila
         </div>
         <div style={{ fontSize: 11.5, opacity: 0.6, marginBottom: 10 }}>
-          Cada linha aqui é um investidor que a régua recusou, que declarou ter o recurso, e que
-          fechou a aba antes de preencher a porta do capital. É a lista de trabalho da tela: nenhuma
-          automação alcança essas pessoas hoje.
+          Investidores que a régua recusou e que não se cadastraram do lado do capital. Desde 01/09
+          isso deixou de significar que eles não viram o material — a recusa leva direto pra
+          landing agora. Mas a lista continua sendo a de trabalho: <strong>nenhuma automação
+          alcança essas pessoas</strong>, e as duas réguas que rodam no cron ainda mandam o link do
+          grupo, que foi cancelado.
         </div>
         <div className={styles.tableWrap}>
           <table className={styles.table}>
