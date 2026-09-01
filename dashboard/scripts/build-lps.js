@@ -326,7 +326,7 @@ const PAGINAS = [
   titulo: 'O Ponto Certo — como achar, negociar e fechar o local do seu eletroposto',
   descricao: 'Você tem o capital e não tem o lugar. Este material é a régua que a gente usa pra escolher um ponto, chegar no dono do imóvel sem levantar a lebre e fechar um contrato longo antes de gastar o primeiro real. Sete aulas e doze instrumentos, R$ 297.',
   ogTitulo: 'O Ponto Certo — R$ 297',
-  checkout: 'https://wa.me/5534998165040?text=Quero%20o%20Ponto%20Certo%20(R%24%20297)',
+  checkout: 'https://pay.kiwify.com.br/BtebJFP',
   preco: '297',
   precoNota: 'pagamento único · acesso a todo o material e aos instrumentos',
   ctaTexto: 'Quero o material por R$ 297 →',
@@ -343,6 +343,22 @@ const PAGINAS = [
   ],
   ctaNota: 'Quem já tem o ponto sob controle não precisa disto — marque uma reunião com a gente',
   telaUrl: 'solardoc.app/ponto-certo',
+  // Fotos reais das estações. Legenda honesta: são os equipamentos que a gente
+  // instala, fotografados na fábrica — não são obra entregue, e a página não diz
+  // que são. Convertidas para webp (de ~1 MB para ~630 KB no total) e todas com
+  // lazy, menos a primeira.
+  marca: 'Irmãos na Obra',
+  topoSelo: 'Material completo · 7 dias de garantia',
+  donosTexto: 'Somos o Thiago e o Diego, irmãos, do Triângulo Mineiro. A gente monta eletroposto chave na mão — projeto, equipamento e obra. Este material é a régua que a gente usa quando escolhe um ponto, escrita do jeito que a gente explicaria para um sócio.',
+  rodape: 'Irmãos na Obra — eletroposto de recarga chave na mão',
+  fotosEyebrow: 'O que existe no fim desse caminho',
+  fotosTitulo: 'O ponto é a parte difícil. A estação, a gente monta.',
+  fotos: [
+    ['linha-producao.webp', 'Linha de produção das estações de recarga rápida — o equipamento que vai para o ponto que você fechar.'],
+    ['estacao-branca.webp', 'Estação DC com dois bicos: um carro carrega enquanto o outro espera.'],
+    ['estacao-dc.webp', 'Painel de recarga rápida em corrente contínua, com os dois conectores no mesmo gabinete.'],
+    ['estacao-cinza.webp', 'A mesma estação pronta para embarque. É o que ocupa as duas vagas que você vai negociar.'],
+  ],
   numeros: [
     ['7', 'aulas, nenhuma sem uma ação no fim'],
     ['12', 'instrumentos: planilha, ficha, script e modelo'],
@@ -1118,14 +1134,29 @@ function pagina(d) {
 <meta property="og:description" content="${esc(d.descricao)}">
 <meta property="og:image" content="https://solardoc.app/capas/${d.pasta === 'calculadora' ? 'calculadora-solar' : d.pasta === 'dimensionamento' ? 'dimensionamento-off-grid' : 'inventario-empresarial'}@2x.png">
 <link rel="canonical" href="https://solardoc.app/${d.pasta}/">
-<style>${CSS}</style>
+<style>${CSS}
+  /* ── GALERIA DE FOTOS (opcional, só nas páginas que trazem o campo fotos) ──────
+     Uma foto grande e as demais em grade. No celular vira coluna: o que
+     interessa é a estação ocupar a largura da tela, não caber ao lado. */
+  .galeria{border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .fotos{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:34px}
+  .fotos figure{margin:0;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface)}
+  .fotos figure.larga{grid-column:1 / -1}
+  .fotos img{display:block;width:100%;height:auto;object-fit:cover}
+  .fotos figure.larga img{max-height:420px;object-position:center 42%}
+  .fotos figcaption{padding:11px 14px;font-size:13.5px;line-height:1.45;color:var(--muted)}
+  @media (max-width:820px){
+    .fotos{grid-template-columns:1fr;gap:12px}
+    .fotos figure.larga img{max-height:none}
+  }
+</style>
 </head>
 <body>
 
 <div class="topo">
   <div class="wrap">
-    <span class="marca">SolarDoc <span>Pro</span></span>
-    <span class="topoSelo">Acesso imediato · 7 dias de garantia</span>
+    <span class="marca">${d.marca ? esc(d.marca) : 'SolarDoc <span>Pro</span>'}</span>
+    <span class="topoSelo">${esc(d.topoSelo || 'Acesso imediato · 7 dias de garantia')}</span>
   </div>
 </div>
 
@@ -1192,6 +1223,22 @@ ${d.falas.map((f) => `      <p class="fala">${esc(f)}</p>`).join('\n')}
     <p class="muted" style="margin-top:26px">${esc(d.dorTexto)}</p>
   </div>
 </section>
+
+${!d.fotos ? '' : `
+<section class="galeria">
+  <div class="wrap">
+    <div class="narrow" style="text-align:center">
+      <span class="eyebrow">${esc(d.fotosEyebrow || 'O que nasce no fim disso')}</span>
+      <h2>${esc(d.fotosTitulo || '')}</h2>
+    </div>
+    <div class="fotos">
+${d.fotos.map(([arq, leg], i) => `      <figure${i === 0 ? ' class="larga"' : ''}>
+        <img src="img/${arq}" alt="${esc(leg)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="async" width="1100" height="825">
+        <figcaption>${esc(leg)}</figcaption>
+      </figure>`).join(String.fromCharCode(10))}
+    </div>
+  </div>
+</section>`}
 
 <section style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
   <div class="wrap">
@@ -1290,9 +1337,7 @@ ${d.passos.map(([t, p2], i) => `      <div class="passo">
       </div>
       <div class="donosTxt">
         <h3>Quem fez</h3>
-        <p>Somos o Thiago e o Diego, irmãos, do Triângulo Mineiro. Trabalhamos com energia solar —
-        e o SolarDoc nasceu de um problema que era nosso: a venda esfriava esperando papel. Cada
-        tela desta plataforma passou por uma venda nossa antes de virar produto.</p>
+        <p>${esc(d.donosTexto || 'Somos o Thiago e o Diego, irmãos, do Triângulo Mineiro. Trabalhamos com energia solar — e o SolarDoc nasceu de um problema que era nosso: a venda esfriava esperando papel. Cada tela desta plataforma passou por uma venda nossa antes de virar produto.')}</p>
       </div>
     </div>
   </div>
@@ -1355,7 +1400,7 @@ ${d.faq.map(([q, r]) => `    <details>
 
 <footer>
   <div class="wrap">
-    <p>SolarDoc Pro — documentos e ferramentas para integradores solares</p>
+    <p>${esc(d.rodape || 'SolarDoc Pro — documentos e ferramentas para integradores solares')}</p>
     <p>Dúvidas: <a href="https://wa.me/5534991360223">WhatsApp (34) 99136-0223</a> ·
        <a href="/privacidade/">Privacidade</a></p>
   </div>
