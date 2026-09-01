@@ -11,6 +11,7 @@ import { getMetaAds } from '../controllers/metaAdsController';
 import { listarOrdens, marcarFeita, setModo, sincronizarOrdens } from '../services/metaOrdensService';
 import { supabase } from '../utils/supabase';
 import { supabaseGerador } from '../utils/supabaseGerador';
+import { temChaveDeBootstrap } from '../utils/bootstrapKey';
 import { etiquetaDeLead, ETIQUETAS_ORDEM } from '../services/agenda/origemEtiqueta';
 import {
   NOTA1_MATERIAL_DESDE, NOTA1_MATERIAL_ATE, NOTA1_TIPOS, inicioDaJanela, linhasDoFunil, somaColuna,
@@ -74,6 +75,71 @@ router.post('/users/delete-bootstrap', async (req: Request, res: Response): Prom
     res.json({ ok: true, user_id: userId, email: userEmail, deleted });
   } catch (err) {
     res.status(500).json({ error: 'Erro ao deletar user', message: String(err) });
+  }
+});
+
+// ── Pulso do Ponto Certo — SÓ CONTAGEM, fora do auth de admin ──────────────
+// Existe por um motivo estreito: a aba Ponto Certo mede uma landing que acabou
+// de ganhar beacon, e conferir se a medição está viva exige a mesma sessão de
+// admin que só existe no navegador do dono. Ficar sem resposta a "já entrou
+// alguém?" é ficar sem saber se o beacon quebrou.
+//
+// O QUE ELA NÃO DEVOLVE, de propósito: nome, telefone, e-mail, id de sessão.
+// Só quantidades. A rota de verdade — com a lista de quem sumiu no caminho e as
+// vendas — continua sendo /admin/ponto-certo-funil, atrás do login.
+router.get('/ponto-certo-pulso', async (req: Request, res: Response): Promise<void> => {
+  if (!temChaveDeBootstrap(req)) { res.status(403).json({ error: 'forbidden' }); return; }
+  try {
+    const agora = Date.now();
+    const desde7 = new Date(agora - 7 * 86400_000).toISOString();
+    const hoje = pc.diaSP(new Date(agora).toISOString());
+    const inicioDeHoje = new Date(`${hoje}T00:00:00-03:00`).toISOString();
+
+    const [eventosQ, vendasQ, cadQ] = await Promise.all([
+      supabase.from('pc_eventos').select('tipo, session_id, created_at')
+        .in('tipo', pc.PONTO_CERTO_TIPOS).gte('created_at', desde7),
+      supabase.from('pc_compras').select('created_at, status, valor_centavos')
+        .eq('item_slug', 'ponto-certo'),
+      supabaseGerador.from('eletroposto_parceria').select('created_at, lado').eq('lado', 'capital'),
+    ]);
+
+    const eventos = (eventosQ.data ?? []) as Array<{ tipo: string; session_id: string | null; created_at: string }>;
+    const sessoes = (tipo: string, desde?: string) => new Set(
+      eventos.filter((e) => e.tipo === tipo && (!desde || e.created_at >= desde))
+        .map((e) => e.session_id || e.created_at),
+    ).size;
+
+    const vendas = (vendasQ.data ?? []) as Array<{ created_at: string; status: string | null; valor_centavos: number | null }>;
+    const cadastros = (cadQ.data ?? []) as Array<{ created_at: string }>;
+    const aprovadas = vendas.filter((v) => v.status === 'aprovada');
+
+    res.json({
+      agora: new Date(agora).toISOString(),
+      hoje,
+      // Sessões de navegador, não pessoas: a página é anônima.
+      lp: {
+        abriram_hoje: sessoes('pc_lp_view', inicioDeHoje),
+        abriram_7d: sessoes('pc_lp_view'),
+        rolaram_7d: sessoes('pc_lp_rolou'),
+        checkout_7d: sessoes('pc_lp_checkout'),
+        primeiro_evento: eventos.length
+          ? eventos.map((e) => e.created_at).sort()[0] : null,
+        ultimo_evento: eventos.length
+          ? eventos.map((e) => e.created_at).sort().slice(-1)[0] : null,
+      },
+      cadastros_capital: {
+        hoje: cadastros.filter((c) => c.created_at >= inicioDeHoje).length,
+        total: cadastros.length,
+        depois_do_redirect: cadastros.filter((c) => pc.diaSP(c.created_at) >= pc.REDIRECT_DESDE).length,
+      },
+      vendas: {
+        aprovadas: aprovadas.length,
+        todas: vendas.length,
+        receita_centavos: aprovadas.reduce((t, v) => t + (v.valor_centavos || 0), 0),
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
   }
 });
 
