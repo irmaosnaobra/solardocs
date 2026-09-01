@@ -717,6 +717,31 @@
   .credenciais span{font-size:14px;line-height:1.5;color:var(--muted)}
   .assinatura{font-size:16px;line-height:1.6;font-style:italic;border-left:3px solid var(--amber);padding-left:16px;margin:0}
   @media (max-width:640px){.credenciais{grid-template-columns:1fr}}
+
+  /* ── A ESTEIRA DO APP (opcional: campo app) ──────────────────────────────
+     As telas andam sozinhas porque são cinco e a página é vertical: numa grade
+     elas virariam miniaturas. O trilho tem o conteúdo DUPLICADO e anda metade
+     da largura — é o que faz o loop não ter emenda. Para no hover, no foco e
+     para quem pediu menos movimento. */
+  .appSec{background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);overflow:hidden}
+  .esteira{margin-top:34px;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
+  .trilho{display:flex;gap:18px;width:max-content;animation:anda 44s linear infinite}
+  .esteira:hover .trilho,.esteira:focus-within .trilho{animation-play-state:paused}
+  @keyframes anda{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .foneApp{margin:0;width:216px;flex:none}
+  .foneApp img{display:block;width:100%;height:auto;border-radius:20px;border:1px solid #2b3446;box-shadow:0 18px 40px -20px rgba(0,0,0,.85);background:#141414}
+  .foneApp figcaption{margin-top:11px;font-size:12.5px;line-height:1.4;color:var(--muted);text-align:center;padding:0 6px}
+  @media (max-width:640px){
+    .foneApp{width:184px}
+    .trilho{animation-duration:34s;gap:14px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .trilho{animation:none;overflow-x:auto;width:auto;padding-bottom:8px}
+    .esteira{-webkit-mask-image:none;mask-image:none}
+  }
+
+  .heroFoto img{display:block;width:100%;height:auto;border-radius:18px;border:1px solid var(--line);box-shadow:0 30px 60px -30px rgba(0,0,0,.9)}
+  @media (max-width:900px){.heroFoto{margin-top:26px}}
 </style>
 </head>
 <body>
@@ -760,22 +785,9 @@
       </div>
     </div>
 
-    <div class="heroArte aparelhos">
-      <div class="note">
-        <div class="noteTampa">
-          <div class="noteBarra"><i></i><i></i><i></i><span>solardoc.app/ponto-certo</span></div>
-          <div class="noteVisor">
-            <div class="rolagem">undefinedundefined</div>
-          </div>
-        </div>
-        <div class="noteBase"></div>
-      </div>
-      <div class="fone" role="img" aria-label="A mesma tela no celular">
-        <span class="foneEntalhe"></span>
-        <div class="foneVisor">
-          <div class="rolagem">undefinedundefined</div>
-        </div>
-      </div>
+
+    <div class="heroArte heroFoto">
+      <img src="/ponto-certo/img/estacao-branca.webp" alt="" width="1100" height="825" fetchpriority="high" decoding="async">
     </div>
   </div>
 </header>
@@ -799,6 +811,61 @@
       <p class="fala">“Ainda estamos estudando como faremos esse negócio.”</p>
     </div>
     <p class="muted" style="margin-top:26px">São respostas reais de investidores da nossa base, desta semana. Todos têm capital declarado. Nenhum tem o local. O que separa os dois não é dinheiro nem vontade — é não saber qual endereço presta, como chegar no proprietário sem encarecer o aluguel e o que precisa estar escrito antes de assinar.</p>
+  </div>
+</section>
+
+
+<section class="appSec">
+  <div class="wrap">
+    <div class="narrow" style="text-align:center">
+      <span class="eyebrow">A tela que você abre depois de comprar</span>
+      <h2>O material mora num app, e ele foi feito pro celular</h2>
+      <p class="muted" style="margin-top:12px">Você abre no telefone, no meio da rua, na frente do imóvel. As aulas avançam em telas curtas e os instrumentos ficam a um toque — a ficha se preenche ali mesmo, em pé no local.</p>
+    </div>
+  </div>
+  <div class="esteira" aria-label="Telas do aplicativo">
+    <div class="trilho">
+      <figure class="foneApp">
+        <img src="/ponto-certo/img/app-curso.webp" alt="As sete aulas, com o que você já concluiu" loading="lazy" decoding="async" width="390" height="800">
+        <figcaption>As sete aulas, com o que você já concluiu</figcaption>
+      </figure>
+      <figure class="foneApp">
+        <img src="/ponto-certo/img/app-aula.webp" alt="A aula avança em telas curtas, uma ideia por vez" loading="lazy" decoding="async" width="390" height="800">
+        <figcaption>A aula avança em telas curtas, uma ideia por vez</figcaption>
+      </figure>
+      <figure class="foneApp">
+        <img src="/ponto-certo/img/app-travas.webp" alt="As sete travas que matam um endereço de graça" loading="lazy" decoding="async" width="390" height="800">
+        <figcaption>As sete travas que matam um endereço de graça</figcaption>
+      </figure>
+      <figure class="foneApp">
+        <img src="/ponto-certo/img/app-ficha.webp" alt="A ficha de vistoria preenchida em pé, no local" loading="lazy" decoding="async" width="390" height="800">
+        <figcaption>A ficha de vistoria preenchida em pé, no local</figcaption>
+      </figure>
+      <figure class="foneApp">
+        <img src="/ponto-certo/img/app-placar.webp" alt="O placar fechando em A, B, C ou X" loading="lazy" decoding="async" width="390" height="800">
+        <figcaption>O placar fechando em A, B, C ou X</figcaption>
+      </figure>
+      <figure class="foneApp">
+        <img src="/ponto-certo/img/app-curso.webp" alt="As sete aulas, com o que você já concluiu" loading="lazy" decoding="async" width="390" height="800">
+        <figcaption>As sete aulas, com o que você já concluiu</figcaption>
+      </figure>
+      <figure class="foneApp">
+        <img src="/ponto-certo/img/app-aula.webp" alt="A aula avança em telas curtas, uma ideia por vez" loading="lazy" decoding="async" width="390" height="800">
+        <figcaption>A aula avança em telas curtas, uma ideia por vez</figcaption>
+      </figure>
+      <figure class="foneApp">
+        <img src="/ponto-certo/img/app-travas.webp" alt="As sete travas que matam um endereço de graça" loading="lazy" decoding="async" width="390" height="800">
+        <figcaption>As sete travas que matam um endereço de graça</figcaption>
+      </figure>
+      <figure class="foneApp">
+        <img src="/ponto-certo/img/app-ficha.webp" alt="A ficha de vistoria preenchida em pé, no local" loading="lazy" decoding="async" width="390" height="800">
+        <figcaption>A ficha de vistoria preenchida em pé, no local</figcaption>
+      </figure>
+      <figure class="foneApp">
+        <img src="/ponto-certo/img/app-placar.webp" alt="O placar fechando em A, B, C ou X" loading="lazy" decoding="async" width="390" height="800">
+        <figcaption>O placar fechando em A, B, C ou X</figcaption>
+      </figure>
+    </div>
   </div>
 </section>
 

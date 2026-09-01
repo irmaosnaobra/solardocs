@@ -349,6 +349,7 @@ const PAGINAS = [
   // lazy, menos a primeira.
   marca: 'Irmãos na Obra',
   favicon: true,
+  heroFoto: 'estacao-branca.webp',
   logo: 'logo-io.webp',
   autoridade: {
     eyebrow: 'Quem está te ensinando',
@@ -365,6 +366,18 @@ const PAGINAS = [
   topoSelo: 'Material completo · 7 dias de garantia',
   donosTexto: 'Somos o Thiago e o Diego, irmãos, do Triângulo Mineiro. A gente monta eletroposto chave na mão — projeto, equipamento e obra. Este material é a régua que a gente usa quando escolhe um ponto, escrita do jeito que a gente explicaria para um sócio.',
   rodape: 'Irmãos na Obra — eletroposto de recarga chave na mão',
+  app: {
+    eyebrow: 'A tela que você abre depois de comprar',
+    titulo: 'O material mora num app, e ele foi feito pro celular',
+    sub: 'Você abre no telefone, no meio da rua, na frente do imóvel. As aulas avançam em telas curtas e os instrumentos ficam a um toque — a ficha se preenche ali mesmo, em pé no local.',
+    telas: [
+      ['app-curso.webp', 'As sete aulas, com o que você já concluiu'],
+      ['app-aula.webp', 'A aula avança em telas curtas, uma ideia por vez'],
+      ['app-travas.webp', 'As sete travas que matam um endereço de graça'],
+      ['app-ficha.webp', 'A ficha de vistoria preenchida em pé, no local'],
+      ['app-placar.webp', 'O placar fechando em A, B, C ou X'],
+    ],
+  },
   instrEyebrow: 'Não é PDF de curso. É o material de trabalho',
   instrTitulo: 'Os documentos que você abre e usa',
   instrSub: 'Aula ninguém aplica depois. Instrumento você abre no local, preenche em pé e leva na conversa. É por eles que se paga R$ 297.',
@@ -1233,6 +1246,31 @@ ${d.favicon ? `<link rel="icon" type="image/svg+xml" href="/${d.pasta}/img/favic
   .credenciais span{font-size:14px;line-height:1.5;color:var(--muted)}
   .assinatura{font-size:16px;line-height:1.6;font-style:italic;border-left:3px solid var(--amber);padding-left:16px;margin:0}
   @media (max-width:640px){.credenciais{grid-template-columns:1fr}}
+
+  /* ── A ESTEIRA DO APP (opcional: campo app) ──────────────────────────────
+     As telas andam sozinhas porque são cinco e a página é vertical: numa grade
+     elas virariam miniaturas. O trilho tem o conteúdo DUPLICADO e anda metade
+     da largura — é o que faz o loop não ter emenda. Para no hover, no foco e
+     para quem pediu menos movimento. */
+  .appSec{background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line);overflow:hidden}
+  .esteira{margin-top:34px;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)}
+  .trilho{display:flex;gap:18px;width:max-content;animation:anda 44s linear infinite}
+  .esteira:hover .trilho,.esteira:focus-within .trilho{animation-play-state:paused}
+  @keyframes anda{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .foneApp{margin:0;width:216px;flex:none}
+  .foneApp img{display:block;width:100%;height:auto;border-radius:20px;border:1px solid #2b3446;box-shadow:0 18px 40px -20px rgba(0,0,0,.85);background:#141414}
+  .foneApp figcaption{margin-top:11px;font-size:12.5px;line-height:1.4;color:var(--muted);text-align:center;padding:0 6px}
+  @media (max-width:640px){
+    .foneApp{width:184px}
+    .trilho{animation-duration:34s;gap:14px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .trilho{animation:none;overflow-x:auto;width:auto;padding-bottom:8px}
+    .esteira{-webkit-mask-image:none;mask-image:none}
+  }
+
+  .heroFoto img{display:block;width:100%;height:auto;border-radius:18px;border:1px solid var(--line);box-shadow:0 30px 60px -30px rgba(0,0,0,.9)}
+  @media (max-width:900px){.heroFoto{margin-top:26px}}
 </style>
 </head>
 <body>
@@ -1272,7 +1310,10 @@ ${d.bullets.map((b) => `        <li>${esc(b)}</li>`).join('\n')}
       </div>
     </div>
 
-    <div class="heroArte aparelhos">
+${!TELAS[d.pasta] ? (d.heroFoto ? `
+    <div class="heroArte heroFoto">
+      <img src="/${d.pasta}/img/${d.heroFoto}" alt="" width="1100" height="825" fetchpriority="high" decoding="async">
+    </div>` : '') : `    <div class="heroArte aparelhos">
       <div class="note">
         <div class="noteTampa">
           <div class="noteBarra"><i></i><i></i><i></i><span>${d.telaUrl}</span></div>
@@ -1288,7 +1329,7 @@ ${d.bullets.map((b) => `        <li>${esc(b)}</li>`).join('\n')}
           <div class="rolagem">${TELAS[d.pasta]}${TELAS[d.pasta]}</div>
         </div>
       </div>
-    </div>
+    </div>`}
   </div>
 </header>
 
@@ -1307,6 +1348,25 @@ ${d.falas.map((f) => `      <p class="fala">${esc(f)}</p>`).join('\n')}
     <p class="muted" style="margin-top:26px">${esc(d.dorTexto)}</p>
   </div>
 </section>
+
+${!d.app ? '' : `
+<section class="appSec">
+  <div class="wrap">
+    <div class="narrow" style="text-align:center">
+      <span class="eyebrow">${esc(d.app.eyebrow)}</span>
+      <h2>${esc(d.app.titulo)}</h2>
+      <p class="muted" style="margin-top:12px">${esc(d.app.sub)}</p>
+    </div>
+  </div>
+  <div class="esteira" aria-label="Telas do aplicativo">
+    <div class="trilho">
+${[0, 1].map(() => d.app.telas.map(([arq, leg]) => `      <figure class="foneApp">
+        <img src="/${d.pasta}/img/${arq}" alt="${esc(leg)}" loading="lazy" decoding="async" width="390" height="800">
+        <figcaption>${esc(leg)}</figcaption>
+      </figure>`).join(String.fromCharCode(10))).join(String.fromCharCode(10))}
+    </div>
+  </div>
+</section>`}
 
 ${!d.instrumentos ? '' : `
 <section class="instr">
