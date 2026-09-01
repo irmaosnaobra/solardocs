@@ -364,6 +364,7 @@ const PAGINAS = [
     assinatura: 'Somos o Thiago e o Diego, irmãos, do Triângulo Mineiro. A gente não vende curso: vende eletroposto. Este material existe porque a parte que trava o cliente — achar o lugar — é justamente a que a gente não consegue fazer por ele.',
   },
   topoLimpo: true,
+  medir: true,   // beacon de visita/rolagem/checkout → /admin, aba Ponto Certo
   donosTexto: 'Somos o Thiago e o Diego, irmãos, do Triângulo Mineiro. A gente monta eletroposto chave na mão — projeto, equipamento e obra. Este material é a régua que a gente usa quando escolhe um ponto, escrita do jeito que a gente explicaria para um sócio.',
   rodape: 'Irmãos na Obra — eletroposto de recarga chave na mão',
   app: {
@@ -1620,6 +1621,66 @@ ${d.faq.map(([q, r]) => `    <details>
 <div class="barra">
   ${cta('barra')}
 </div>
+
+${!d.medir ? '' : `
+<script>
+/* MEDIÇÃO DA PÁGINA — três sinais, nada além disso.
+ *
+ * Esta landing nasceu sem uma linha de script, e o efeito aparecia do outro
+ * lado: o painel do funil mostrava travessão no meio, porque ninguém sabia
+ * dizer se quem foi mandado pra cá chegou. Zero teria sido pior que travessão
+ * — zero afirma que ninguém abriu.
+ *
+ * A sessão é do NAVEGADOR, não da pessoa: vive em sessionStorage e some com a
+ * aba. Não vai nome, telefone nem e-mail — a página é anônima até o checkout,
+ * e quem identifica a compra é a Kiwify.
+ *
+ * Cada sinal sai UMA vez por sessão: rolar dez vezes é uma rolagem. E tudo é
+ * keepalive, porque o clique no checkout troca de site e sem isso o navegador
+ * cancelaria justo o evento que mais importa. */
+(function(){
+  var ja = {}, sess;
+  try {
+    sess = sessionStorage.getItem('pc_sess');
+    if (!sess) { sess = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+                 sessionStorage.setItem('pc_sess', sess); }
+  } catch (e) { sess = 'sem-storage'; }
+
+  function sinal(tipo){
+    if (ja[tipo]) return; ja[tipo] = 1;
+    try {
+      fetch('/_api/plugcash/evento', {
+        method: 'POST', keepalive: true,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo: tipo, session_id: sess, payload: { pagina: '${d.pasta}' } })
+      }).catch(function(){});
+    } catch (e) {}
+  }
+
+  sinal('pc_lp_view');
+
+  /* Metade da página, não 30%: numa landing longa como esta 30% ainda é o
+   * hero, e contar quem parou ali como "rolou" faz o número mentir pra cima.
+   * Já custou caro na LP do SolarDoc — limiar de 0,3 numa seção de 2.877px
+   * que simplesmente nunca disparava no celular. */
+  function olhaRolagem(){
+    var h = document.documentElement.scrollHeight - window.innerHeight;
+    if (h > 0 && (window.scrollY / h) >= 0.5) {
+      sinal('pc_lp_rolou');
+      window.removeEventListener('scroll', olhaRolagem);
+    }
+  }
+  window.addEventListener('scroll', olhaRolagem, { passive: true });
+
+  /* O clique que sai daqui pro gateway. Delegado no documento porque os botões
+   * de compra são vários e estão espalhados pela página. */
+  document.addEventListener('click', function(e){
+    var a = e.target && e.target.closest && e.target.closest('a[href*="kiwify"]');
+    if (a) sinal('pc_lp_checkout');
+  }, true);
+})();
+</script>
+`}
 
 </body>
 </html>

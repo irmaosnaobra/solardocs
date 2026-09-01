@@ -35,6 +35,8 @@ import ComentariosCursoPanel from './_panels/ComentariosCursoPanel';
 import Nota1Panel from './_panels/Nota1Panel';
 // Conexão: quem tem o ponto × quem tem o capital, pra alguém casar os dois na mão
 import ConexaoPanel from './_panels/ConexaoPanel';
+// Ponto Certo: o investidor recusado por falta de local — chegou no material?
+import PontoCertoPanel from './_panels/PontoCertoPanel';
 // Atendente de anuncio: o system prompt do WhatsApp que nasce do anuncio (editavel sem deploy)
 import AtendentePanel from './_panels/AtendentePanel';
 
@@ -113,6 +115,10 @@ export const PRODUCTS: Product[] = [
       // Desde 17/08 o NOTA 1 cai na página das duas portas, não na de material:
       // é aqui que os dois lados do negócio ficam visíveis pra alguém conectar.
       { key: 'conexao',   label: 'Conexão',          status: 'pronto',   Comp: ConexaoPanel },
+      // Desde 01/09 o lado do CAPITAL não para na tela de cadastro recebido: é
+      // levado pra /ponto-certo. Esta aba mede esse caminho ponta a ponta — e é
+      // a única que enxerga a fila dos dois lados sem recorte de período.
+      { key: 'pontocerto', label: 'Ponto Certo',     status: 'pronto',   Comp: PontoCertoPanel },
       { key: 'followup',  label: 'Followup',         status: 'construir', nota: 'Só alerta à equipe hoje.', Comp: () => <FollowupPanel produto="eletroposto" /> },
       { key: 'agente',    label: 'Agente',           status: 'parcial',   Comp: () => <AgentePanel agent="none" /> },
       { key: 'config',    label: 'Config & Alertas', status: 'pronto',    Comp: () => <ConfigAlertasPanel produto="eletroposto" /> },
