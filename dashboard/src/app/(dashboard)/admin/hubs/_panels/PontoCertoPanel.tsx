@@ -39,6 +39,10 @@ interface Venda {
   created_at: string; nome: string | null; email: string | null;
   valor_centavos: number | null; status: string | null;
 }
+interface Comprador {
+  nome: string; telefone: string; cidade: string; capital: string; ponto: string;
+  fonte: string; dias: number; pontos: number; porque: string;
+}
 interface Fila {
   capital: number; ponto: number; integrador: number;
   capital_antes_do_redirect: number;
@@ -52,6 +56,7 @@ interface Funil {
   conv_mandado_cadastro: number | null; conv_cadastro_visita: number | null;
   conv_visita_checkout: number | null; conv_checkout_compra: number | null;
   fila: Fila; receita_centavos: number;
+  compradores: Comprador[]; compradores_total: number;
   linhas: Linha[]; sumidos: Sumido[]; cadastrados: Cadastrado[]; vendas: Venda[];
 }
 
@@ -350,6 +355,48 @@ export default function PontoCertoPanel() {
               ))}
               {!f?.sumidos?.length && (
                 <tr><td colSpan={6} className={styles.empty}>Ninguém sumiu no caminho neste período.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className={styles.card} style={{ marginTop: 14 }}>
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>
+          Quem compraria — {num(f?.compradores_total)} nomes
+        </div>
+        <div style={{ fontSize: 11.5, opacity: 0.6, marginBottom: 10 }}>
+          A régua não é ter dinheiro, é a dor que o material resolve: <strong>tem o recurso e não
+          tem o local</strong>. Quem já tem o ponto definido fica de fora porque a própria página
+          manda não comprar, quem não sabe como pagar é público do Fundamentos de R$ 67, e quem
+          está com reunião viva não entra — oferecer curso a quem está negociando eletroposto
+          atravessa a própria venda. Base inteira, sem recorte de período.
+        </div>
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th style={{ textAlign: 'right' }}>Pts</th>
+                <th>Nome</th><th>Telefone</th><th>Cidade</th>
+                <th>Dinheiro</th><th>Local</th><th>Por que está aqui</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(f?.compradores ?? []).map((c, i) => (
+                <tr key={`${c.telefone}-${i}`}>
+                  <td style={{ textAlign: 'right', fontWeight: 700, color: c.pontos >= 90 ? VERDE : c.pontos >= 60 ? AMBAR : undefined }}>
+                    {c.pontos}
+                  </td>
+                  <td>{c.nome}</td>
+                  <td>{c.telefone}</td>
+                  <td>{c.cidade}</td>
+                  <td>{c.capital}</td>
+                  <td>{c.ponto}</td>
+                  <td style={{ opacity: 0.75 }}>{c.porque}</td>
+                </tr>
+              ))}
+              {!f?.compradores?.length && (
+                <tr><td colSpan={7} className={styles.empty}>Ninguém na régua ainda.</td></tr>
               )}
             </tbody>
           </table>

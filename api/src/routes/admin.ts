@@ -1033,7 +1033,7 @@ router.get('/ponto-certo-funil', async (req: Request, res: Response): Promise<vo
     const dias = Math.min(180, Math.max(7, Number(req.query.dias) || 30));
     const desde = pc.inicioDaJanela(dias);
 
-    const [fichasQ, cadastrosQ, filaQ, eventosQ, vendasQ] = await Promise.all([
+    const [fichasQ, cadastrosQ, filaQ, eventosQ, vendasQ, todasFichasQ, agendaQ] = await Promise.all([
       supabaseGerador
         .from('eletroposto_nota1')
         .select('created_at, nome, telefone, cidade, origem, capital_faixa, tem_ponto, lado, lado_em, motivo_descarte')
@@ -1067,6 +1067,18 @@ router.get('/ponto-certo-funil', async (req: Request, res: Response): Promise<vo
         .eq('item_slug', 'ponto-certo')
         .gte('created_at', desde)
         .order('created_at', { ascending: false }),
+      // A lista de oferta olha a base INTEIRA, não a janela: um investidor de
+      // 40 dias atrás continua sem local, e recortá-lo fora esconde justamente
+      // quem está esperando há mais tempo.
+      supabaseGerador
+        .from('eletroposto_nota1')
+        .select('created_at, nome, telefone, cidade, capital_faixa, tem_ponto, status'),
+      // A pesquisa de 30/08 foi mandada pra quem TEVE REUNIÃO e não fechou —
+      // gente que mora aqui, não em eletroposto_nota1. É o público mais quente
+      // que existe: já falou com a gente e mesmo assim continua sem o ponto.
+      supabaseGerador
+        .from('agendamentos')
+        .select('created_at, cliente_nome, cliente_telefone, cidade, capital_faixa, tem_ponto, status, created_by'),
     ]);
 
     const fichas = (fichasQ.data ?? []) as pc.FichaNota1[];
@@ -1084,10 +1096,35 @@ router.get('/ponto-certo-funil', async (req: Request, res: Response): Promise<vo
     const checkout = pc.somaColuna(linhas, 'checkout');
     const compras = pc.somaColuna(linhas, 'vendas');
 
+    // ── Quem compraria ──────────────────────────────────────────────────────
+    const ultimos8 = (t: string | null) => String(t || '').replace(/D/g, '').slice(-8);
+    const noCapital = new Set(
+      ((filaQ.data ?? []) as pc.Cadastro[])
+        .filter((c) => c.lado === 'capital')
+        .map((c) => ultimos8(c.telefone)),
+    );
+    const cruas = [
+      ...((todasFichasQ.data ?? []) as any[]).map((f) => ({
+        nome: f.nome, telefone: f.telefone, cidade: f.cidade,
+        capital_faixa: f.capital_faixa, tem_ponto: f.tem_ponto,
+        created_at: f.created_at, status: f.status, fonte: 'ficha' as const,
+      })),
+      ...((agendaQ.data ?? []) as any[])
+        .filter((a) => /eletroposto/i.test(a.created_by || ''))
+        .map((a) => ({
+          nome: a.cliente_nome, telefone: a.cliente_telefone, cidade: a.cidade,
+          capital_faixa: a.capital_faixa, tem_ponto: a.tem_ponto,
+          created_at: a.created_at, status: a.status, fonte: 'reunião' as const,
+        })),
+    ];
+    const compradores = pc.ranquearCompradores(cruas, noCapital);
+
     res.json({
       desde,
       dias,
       redirect_desde: pc.REDIRECT_DESDE,
+      compradores: compradores.slice(0, 80),
+      compradores_total: compradores.length,
       // A landing só passou a avisar que foi aberta quando ganhou o beacon. Sem
       // isto o painel não sabe distinguir "ninguém abriu" de "ninguém contou".
       lp_medida: visitas !== null,

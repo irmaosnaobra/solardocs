@@ -198,3 +198,115 @@ export function filaDosCadastros(todos: Cadastro[]): Fila {
     capital_antes_do_redirect: capital.filter((c) => diaSP(c.created_at) < REDIRECT_DESDE).length,
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QUEM COMPRARIA — a lista de oferta, ordenada.
+//
+// A régua não é "tem dinheiro". É a dor exata que o material resolve: TEM O
+// RECURSO E NÃO TEM O LOCAL. Dois cortes duros saem daí, e os dois são a própria
+// página falando:
+//   · quem tem o ponto DEFINIDO está fora — o FAQ manda não comprar e ir marcar
+//     reunião, e vender pra ele é vender o que ele não precisa;
+//   · quem não sabe como pagar está fora — o produto dele é o Fundamentos de
+//     R$67, e oferecer R$297 a quem declarou não ter recurso é queimar a lista.
+//
+// Um terceiro corte é de etiqueta, não de perfil: quem está com REUNIÃO VIVA não
+// entra. Mandar oferta de curso pra quem está negociando eletroposto conosco
+// atravessa a própria venda.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Peso de cada faixa de capital. Recurso na mão vale mais que promessa de banco. */
+const PESO_CAPITAL: Record<string, number> = {
+  proprio: 25, proprio_credito: 20, fin_aprovado: 15, fin_cnpj: 12, fin_banco: 8,
+};
+
+/**
+ * Peso da situação do ponto. `em_vista` lidera de propósito: quem já achou um
+ * lugar e não sabe dizer se presta está a uma aula de decidir, enquanto quem não
+ * tem ideia de onde começar ainda vai precisar de tudo. `definido` não aparece
+ * aqui porque é corte, não peso.
+ */
+const PESO_PONTO: Record<string, number> = { em_vista: 20, negociando: 18, sem_ideia: 15 };
+
+/** Status de agenda que significam "acabou e não fechou". */
+const REUNIAO_ENCERRADA = new Set(['cancelado', 'sem_interesse', 'nao_atendeu', 'perdido']);
+
+export interface Comprador {
+  nome: string;
+  telefone: string;
+  cidade: string;
+  capital: string;
+  ponto: string;
+  /** 'reunião' (já falou com a gente) ou 'ficha' (só preencheu a LP). */
+  fonte: string;
+  dias: number;
+  pontos: number;
+  /** Em uma linha, por que esta pessoa está na lista. */
+  porque: string;
+}
+
+const CAPITAL_TX: Record<string, string> = {
+  proprio: 'recurso próprio', proprio_credito: 'próprio + crédito',
+  fin_aprovado: 'financiamento aprovado', fin_cnpj: 'financiamento pelo CNPJ',
+  fin_banco: 'vai buscar no banco',
+};
+const PONTO_TX: Record<string, string> = {
+  em_vista: 'tem um em vista', negociando: 'negociando', sem_ideia: 'sem ideia de onde',
+};
+
+interface LinhaCrua {
+  nome: string | null; telefone: string | null; cidade: string | null;
+  capital_faixa: string | null; tem_ponto: string | null;
+  created_at: string; status: string | null; fonte: 'reunião' | 'ficha';
+}
+
+export function ranquearCompradores(
+  linhas: LinhaCrua[],
+  cadastradosNoCapital: Set<string>,
+  agora: number = Date.now(),
+): Comprador[] {
+  const ultimos8 = (t: string | null) => String(t || '').replace(/\D/g, '').slice(-8);
+  const saida: Comprador[] = [];
+
+  for (const l of linhas) {
+    if (!l.telefone) continue;
+    if (!l.capital_faixa || !PESO_CAPITAL[l.capital_faixa]) continue;
+    if (l.tem_ponto === 'definido') continue;
+    if (l.fonte === 'reunião' && !REUNIAO_ENCERRADA.has(l.status || '')) continue;
+
+    const dias = Math.floor((agora - new Date(l.created_at).getTime()) / 86400_000);
+    const chave = ultimos8(l.telefone);
+    const porque: string[] = [];
+
+    let pontos = PESO_CAPITAL[l.capital_faixa] + (PESO_PONTO[l.tem_ponto || ''] || 0);
+    if (l.fonte === 'reunião') { pontos += 30; porque.push('já falou com a gente e não fechou'); }
+    if (cadastradosNoCapital.has(chave)) { pontos += 40; porque.push('se cadastrou na porta do capital'); }
+    if (dias <= 7) { pontos += 15; porque.push('lead da última semana'); }
+    else if (dias <= 30) pontos += 8;
+    // Quem disse "não tenho interesse" na reunião ainda pode querer o material,
+    // mas entra atrás de quem não disse.
+    if (l.status === 'sem_interesse') pontos -= 25;
+
+    saida.push({
+      nome: (l.nome || '—').trim(),
+      telefone: l.telefone,
+      cidade: (l.cidade || '—').trim(),
+      capital: CAPITAL_TX[l.capital_faixa],
+      ponto: PONTO_TX[l.tem_ponto || ''] || '—',
+      fonte: l.fonte,
+      dias,
+      pontos,
+      porque: porque.join(' · ') || 'tem o recurso e não tem o local',
+    });
+  }
+
+  // Uma pessoa pode ter ficha E reunião. Fica a melhor pontuação, não as duas.
+  const porTelefone = new Map<string, Comprador>();
+  for (const c of saida) {
+    const k = ultimos8(c.telefone);
+    const atual = porTelefone.get(k);
+    if (!atual || atual.pontos < c.pontos) porTelefone.set(k, c);
+  }
+
+  return [...porTelefone.values()].sort((a, b) => b.pontos - a.pontos);
+}
