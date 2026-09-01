@@ -16,6 +16,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
+import { carregarSilenciados } from '../agents/whatsapp/silenciar';
 
 export type MediaType = 'image' | 'video' | 'audio';
 
@@ -103,20 +104,20 @@ export async function enviarZapiIO(
 
 /**
  * Carrega a lista de bloqueio (whatsapp_suppression) e devolve um matcher.
- * Casa por sufixo de 10 dígitos (com/sem 9º dígito/DDI) — mesma regra do
- * broadcast antigo. É o que impede re-contatar quem pediu opt-out/denunciou.
+ * Casa por DDD + 8 últimos dígitos, estável com ou sem o nono dígito e o DDI.
+ * É o que impede re-contatar quem pediu opt-out ou denunciou.
  */
 export async function carregarSupressao(): Promise<(phone: string) => boolean> {
-  const suf = new Set<string>();
-  const { data } = await supabase.from('whatsapp_suppression').select('phone');
-  for (const r of data ?? []) {
-    const d = String(r.phone || '').replace(/\D/g, '');
-    if (d.length >= 10) suf.add(d.slice(-10));
-  }
-  return (phone: string): boolean => {
-    const d = String(phone || '').replace(/\D/g, '');
-    return d.length >= 10 && suf.has(d.slice(-10));
-  };
+  // Delega pro módulo único de silêncio. A implementação anterior morava aqui e
+  // casava por `slice(-10)`, que QUEBRA no Brasil: a Z-API alterna o nono dígito
+  // entre mensagens do mesmo contato, e 5534991360172 dava "4991360172" enquanto
+  // 553491360172 dava "3491360172". Mesmo telefone, duas chaves, e quem pediu
+  // pra parar num formato voltava a receber no outro. Falha de chave não dá
+  // erro: dá silêncio do lado errado, e ninguém vê.
+  //
+  // A chave nova é DDD + 8 últimos dígitos, estável nas duas formas. Os 3.043
+  // registros de 13 dígitos da base passam a casar com os de 12.
+  return carregarSilenciados();
 }
 
 // ── Lock de linha compartilhado entre os motores de blast ────────────────────

@@ -26,6 +26,7 @@ import { sendHuman, sendWhatsApp, fmtPhone } from '../zapiClient';
 import { porBarras } from '../bolhas';
 import { tryClaimMessage } from '../sdr/sdrAgentService';
 import { logger } from '../../../utils/logger';
+import { silenciarContato } from './silenciar';
 import { followupHabilitado } from './geradorFollowupService';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -167,6 +168,7 @@ export async function handleSolarInbound(rawPhone: string, text: string, senderN
   if (OPT_OUT.test(clean)) {
     await sendHuman(rawPhone, ['Sem problema, não te incomodo mais por aqui.', 'Qualquer coisa é só chamar. 👍'], INSTANCE);
     await saveSession(session, [...session.messages, { role: 'user', content: clean }], { ...ld, human_takeover: true });
+    await silenciarContato(session.phoneCanonico, 'opt_out', 'gerador');
     logger.info('gerador-inbound', `opt-out ${session.phoneCanonico}`);
     return;
   }

@@ -38,6 +38,7 @@ import { tryClaimMessage } from '../sdr/sdrAgentService';
 import { phoneVariants, ehLeadRecuperacao } from './biaInboundService';
 import { carregarCerebro } from '../../io/cerebroAgentes';
 import { logger } from '../../../utils/logger';
+import { silenciarContato } from './silenciar';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const INSTANCE = 'io' as const;
@@ -326,6 +327,7 @@ export async function handleLimpaproAtendimento(
     await sendHuman(rawPhone, ['Sem problema, parei por aqui.', 'Seu acesso ao curso continua normal — qualquer coisa é só chamar.'], INSTANCE);
     await saveSession(phone, [...session.messages, { role: 'user', content: clean }], nome,
       { ...session.lead_data, human_takeover: true });
+    await silenciarContato(phone, 'opt_out', 'limpapro');
     logger.info('limpapro-atendimento', `opt-out → silêncio ${phone}`);
     return;
   }

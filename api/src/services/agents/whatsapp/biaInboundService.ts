@@ -27,6 +27,7 @@ import { porBarras } from '../bolhas';
 import { tryClaimMessage } from '../sdr/sdrAgentService';
 import { carregarCerebro } from '../../io/cerebroAgentes';
 import { logger } from '../../../utils/logger';
+import { silenciarContato } from './silenciar';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 // Recuperação sai pela MESMA linha IO (decisão Thiago). Roteamento seguro: a Bia só
@@ -273,6 +274,11 @@ export async function handleBiaInbound(rawPhone: string, text: string, senderNam
     await sendHuman(rawPhone, ['Sem problema, parei por aqui.', 'Se precisar é só me chamar neste número.'], INSTANCE);
     await saveSession(phone, [...session.messages, { role: 'user', content: clean }], nome,
       { ...session.lead_data, status: 'perdido', perdido_em: new Date().toISOString() });
+    // Silencia em TODAS as trilhas, não só nesta conversa. Antes daqui o
+    // opt-out morria no lead_data da sessão, que nenhum agente de saída lê:
+    // a pessoa era acolhida com 'parei por aqui' e continuava recebendo do
+    // eletroposto, do gerador e do blast.
+    await silenciarContato(phone, 'opt_out', 'bia');
     logger.info('bia-inbound', `opt-out → perdido ${phone}`);
     return;
   }
