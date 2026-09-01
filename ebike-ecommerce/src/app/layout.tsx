@@ -8,7 +8,6 @@ import { Cabecalho } from '../components/Cabecalho.tsx';
 import { Beacon } from '../components/Beacon.tsx';
 import { Logo } from '../components/Logo.tsx';
 import { Pixel } from '../components/Pixel.tsx';
-import { OndeVoceEsta } from '../components/OndeVoceEsta.tsx';
 import { EMPRESA } from '../config/empresa.ts';
 import { LOJA } from '../config/loja.ts';
 
@@ -43,10 +42,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </Suspense>
 
         {children}
-
-        {/* Pergunta uma vez de onde a pessoa e. Vale no site inteiro, entao
-            mora aqui e nao so na vitrine. */}
-        <OndeVoceEsta />
 
         {/* Mede o funil. Sem isto a gente ve o lead chegar e nao sabe de
             quantas visitas ele saiu. */}
