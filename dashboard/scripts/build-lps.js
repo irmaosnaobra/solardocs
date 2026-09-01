@@ -1361,7 +1361,7 @@ ${!d.app ? '' : `
   <div class="esteira" aria-label="Telas do aplicativo">
     <div class="trilho">
 ${[0, 1].map((volta) => d.app.telas.map(([arq, leg]) => `      <figure class="foneApp"${volta ? ' aria-hidden="true"' : ''}>
-        <img src="/${d.pasta}/img/${arq}" alt="${volta ? '' : esc(leg)}" loading="${volta ? 'lazy' : 'eager'}" decoding="async" width="390" height="800">
+        <img src="/${d.pasta}/img/${arq}" alt="${volta ? '' : esc(leg)}" loading="${volta ? 'lazy' : 'eager'}" fetchpriority="low" decoding="async" width="390" height="800">
         <figcaption>${esc(leg)}</figcaption>
       </figure>`).join(String.fromCharCode(10))).join(String.fromCharCode(10))}
     </div>
