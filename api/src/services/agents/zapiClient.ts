@@ -116,7 +116,19 @@ export async function zapiPost(
       }
       const txt = await res.text().catch(() => res.status.toString());
       lastErr = new Error(`[zapi:${tag}] HTTP ${res.status} — ${txt}`);
+      // 4xx é a linha (ou o pedido) dizendo NÃO: número inválido, sessão caída,
+      // desconectado, limite. Retentar não muda a resposta, só triplica o
+      // tráfego exatamente na hora em que a linha estava pedindo silêncio, que é
+      // a hora em que ela mais precisa parar. 429 e 408 são a exceção: ali o
+      // servidor está pedindo espera, e esperar é a resposta certa.
+      //
+      // 5xx continua retentando, porque é do lado deles e costuma passar.
+      if (res.status >= 400 && res.status < 500 && res.status !== 429 && res.status !== 408) {
+        instanceCooldownUntil[linha] = Date.now() + COOLDOWN_MS;
+        throw lastErr;
+      }
     } catch (err) {
+      if (err instanceof Error && /HTTP 4\d\d/.test(err.message)) throw err;  // já classificado acima
       lastErr = err instanceof Error ? err : new Error(String(err));
     }
     // Erro PERMANENTE (instância não existe): abre o cooldown e para de retentar
