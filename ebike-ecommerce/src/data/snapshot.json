@@ -123,39 +123,23 @@
    "codigo": "658013",
    "titulo": "Scooter Elétrica Shark 1000W Vermelho",
    "nomeOriginal": "PREVISÃO 25/08 - SCOOTER ELETRICA SHARK 1000W VERMELHO BATERIA DE GRAFENO 72V 26AH MARCA NEW E-BIKE",
-   "marca": "New E-Bike",
-   "linha": "SHARK",
-   "cor": "Vermelho",
+   "marca": "NEW E-bike",
+   "linha": null,
+   "cor": null,
    "categoria": "Scooter elétrica",
-   "potencia": "1.000W",
+   "potencia": null,
    "bateria": "Grafeno 72V 26AH",
    "autonomia": "95 km",
-   "velocidade": "32 km/h",
-   "recarga": "Aproximadamente 6 a 9 horas",
+   "velocidade": "32km/h",
+   "recarga": "Aproximadamente 6/9 horas",
    "ficha": [
     {
-     "rotulo": "Marca",
-     "valor": "New E-Bike"
-    },
-    {
-     "rotulo": "Linha",
-     "valor": "SHARK"
-    },
-    {
-     "rotulo": "Cor",
-     "valor": "Vermelho"
-    },
-    {
-     "rotulo": "Motor Elétrico",
-     "valor": "1.000W"
-    },
-    {
-     "rotulo": "Bateria",
+     "rotulo": "Bateria/Voltagem",
      "valor": "Grafeno 72V 26AH"
     },
     {
      "rotulo": "Velocidade Máxima",
-     "valor": "32 km/h"
+     "valor": "32km/h"
     },
     {
      "rotulo": "Autonomia",
@@ -163,51 +147,7 @@
     },
     {
      "rotulo": "Tempo de Recarga",
-     "valor": "Aproximadamente 6 a 9 horas"
-    },
-    {
-     "rotulo": "Capacidade máxima de carga",
-     "valor": "200 kg"
-    },
-    {
-     "rotulo": "Marchas",
-     "valor": "3 velocidades"
-    },
-    {
-     "rotulo": "Painel",
-     "valor": "LED sem NFC"
-    },
-    {
-     "rotulo": "Freio Dianteiro",
-     "valor": "Hidráulico"
-    },
-    {
-     "rotulo": "Freio Traseiro",
-     "valor": "Disco"
-    },
-    {
-     "rotulo": "Pneus/Rodas",
-     "valor": "Pneu sem câmara (tubeless) 3.0-10\" Polegadas"
-    },
-    {
-     "rotulo": "Controlador",
-     "valor": "12 tubos"
-    },
-    {
-     "rotulo": "Carregador",
-     "valor": "72V 3A Bivolt (100-240V)"
-    },
-    {
-     "rotulo": "Entre-eixos",
-     "valor": "1.290 mm"
-    },
-    {
-     "rotulo": "Dimensões",
-     "valor": "183x57x86 cm"
-    },
-    {
-     "rotulo": "Peso Líquido",
-     "valor": "118 kg"
+     "valor": "Aproximadamente 6/9 horas"
     }
    ],
    "imagens": [
@@ -219,8 +159,8 @@
    "estoque": null,
    "disponivel": false,
    "previsao": "25/08",
-   "pesoKg": 118,
-   "volumeM3": 0.8971,
+   "pesoKg": null,
+   "volumeM3": null,
    "bases": [
     "cdaeroportogo",
     "cdgoiania",
@@ -3170,8 +3110,8 @@
    "cidade": "Rio Largo",
    "uf": "AL",
    "cep": "57100000",
-   "lat": -9.47833,
-   "lon": -35.85333
+   "lat": -9.477829,
+   "lon": -35.839435
   },
   {
    "slug": "cdfeiradesantanaba",
@@ -3206,8 +3146,8 @@
    "cidade": "Uberlândia",
    "uf": "MG",
    "cep": "38402356",
-   "lat": -18.8829309,
-   "lon": -48.3062746
+   "lat": -18.91861,
+   "lon": -48.27722
   },
   {
    "slug": "cdriodejaneirorj",
@@ -3237,7 +3177,7 @@
    "lon": -35.02925
   }
  ],
- "lidoEm": "2026-08-31T23:16:48.946Z",
+ "lidoEm": "2026-09-01T02:56:20.478Z",
  "logado": false,
  "cd": "Brasil (22 bases)",
  "secao": "Ebike"

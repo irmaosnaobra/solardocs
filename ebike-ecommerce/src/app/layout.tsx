@@ -9,6 +9,7 @@ import { Beacon } from '../components/Beacon.tsx';
 import { Logo } from '../components/Logo.tsx';
 import { Pixel } from '../components/Pixel.tsx';
 import { OndeVoceEsta } from '../components/OndeVoceEsta.tsx';
+import { EMPRESA } from '../config/empresa.ts';
 import { LOJA } from '../config/loja.ts';
 
 const inter = Inter({
@@ -66,10 +67,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <p className="mt-3 text-sm text-suave">{LOJA.slogan}</p>
             </div>
 
-            <p className="max-w-md text-xs leading-relaxed text-suave">
-              Preços e disponibilidade sujeitos a confirmação no atendimento. Imagens e
-              especificações fornecidas pelo fabricante.
-            </p>
+            {/* Nome empresarial, CNPJ e endereço não são enfeite: o Decreto
+                7.962/2013 obriga todo site de venda a mostrá-los em destaque. */}
+            <div className="max-w-md text-xs leading-relaxed text-suave">
+              <p>
+                {LOJA.nomeCurto} é a marca de bicicletas e scooters elétricas da{' '}
+                <strong className="font-semibold text-tinta">{EMPRESA.razaoSocial}</strong>
+                {' — '}
+                CNPJ <span className="tabular">{EMPRESA.cnpj}</span>.
+              </p>
+              <p className="mt-1">{EMPRESA.endereco}</p>
+              <p className="mt-2">
+                Imagens e especificações fornecidas pelo fabricante. A quantidade em estoque é
+                confirmada no atendimento.
+              </p>
+            </div>
 
             <Link
               href="/painel"

@@ -47,11 +47,14 @@ export function CardBike({
   bike,
   prioridade = false,
   origem,
+  conferidoEm,
 }: {
   bike: Cartao;
   prioridade?: boolean;
   /** De onde esta bike sai para quem está comprando. Ausente = não sabemos onde a pessoa está. */
   origem?: { cidade: string; uf: string; km: number; aproximado?: boolean };
+  /** Quando a loja leu o fornecedor pela última vez. Já vem formatado. */
+  conferidoEm?: string | null;
 }) {
   const fatos: Array<[string, string]> = [];
   if (bike.potencia) fatos.push([RAIO, bike.potencia]);
@@ -129,9 +132,13 @@ export function CardBike({
             <p className="mt-1 text-xs text-suave">
               {bike.estoque} {bike.estoque === 1 ? 'unidade' : 'unidades'}
             </p>
-          ) : (
-            <p className="mt-1 text-xs text-fraco">consultar disponibilidade</p>
-          )}
+          ) : conferidoEm ? (
+            /* Sem o login do fornecedor não vem QUANTIDADE, só a presença no
+               catálogo. Então a loja diz o que sabe — a hora em que conferiu —
+               em vez de "consultar disponibilidade", que lê como "não sabemos
+               se temos" para quem está decidindo gastar oito mil reais. */
+            <p className="mt-1 text-xs text-fraco">conferido {conferidoEm}</p>
+          ) : null}
         </div>
       </div>
     </Link>

@@ -15,7 +15,7 @@ import type { Bike } from '../types/bike.ts';
  * HTML funciona mesmo com o bundle quebrado. O cálculo do CEP é a única parte
  * com JavaScript, e ela é opcional: sem preencher, o lead sai igual.
  */
-export function Fechamento({ bike }: { bike: Bike }) {
+export function Fechamento({ bike, conferidoEm }: { bike: Bike; conferidoEm?: string | null }) {
   return (
     // Formulário HTML puro não ganha o basePath sozinho, igual à foto.
     <form action={`${BASE_PATH}/falar`} method="get" className="flex flex-col gap-4">
@@ -35,6 +35,16 @@ export function Fechamento({ bike }: { bike: Bike }) {
         <p className="rounded-xl bg-vantagem-clara px-3 py-2.5 text-sm text-texto">
           <strong className="font-semibold text-vantagem">Em estoque.</strong> {bike.estoque}{' '}
           {bike.estoque === 1 ? 'unidade disponível' : 'unidades disponíveis'} agora.
+        </p>
+      ) : conferidoEm ? (
+        /* Sem o login do fornecedor não vem a QUANTIDADE. Então a loja diz a
+           única coisa que sabe de verdade, e ela não é fraca: este modelo
+           estava no catálogo do fornecedor na última varredura, que roda duas
+           vezes por dia. */
+        <p className="rounded-xl bg-fundo px-3 py-2.5 text-sm text-suave">
+          <strong className="font-semibold text-tinta">Disponível no fornecedor.</strong> Conferido
+          em {conferidoEm}. A loja revisa o estoque das 22 unidades duas vezes por dia, às 7h e às
+          13h; a quantidade exata o vendedor confirma na conversa.
         </p>
       ) : null}
 

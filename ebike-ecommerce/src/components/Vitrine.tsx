@@ -130,7 +130,15 @@ function Secao({
 
 export type Origem = { cidade: string; uf: string; km: number; aproximado?: boolean };
 
-export function Vitrine({ bikes, bases }: { bikes: Cartao[]; bases: BaseNaVitrine[] }) {
+export function Vitrine({
+  bikes,
+  bases,
+  conferidoEm,
+}: {
+  bikes: Cartao[];
+  bases: BaseNaVitrine[];
+  conferidoEm?: string | null;
+}) {
   const router = useRouter();
   const parametros = useSearchParams();
   const [gaveta, setGaveta] = useState(false);
@@ -387,7 +395,13 @@ export function Vitrine({ bikes, bases }: { bikes: Cartao[]; bases: BaseNaVitrin
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
             {lista.map((b, i) => (
-              <CardBike key={b.id} bike={b} prioridade={i < 4} origem={origens.get(b.id)} />
+              <CardBike
+                key={b.id}
+                bike={b}
+                prioridade={i < 4}
+                origem={origens.get(b.id)}
+                conferidoEm={conferidoEm}
+              />
             ))}
           </div>
         )}

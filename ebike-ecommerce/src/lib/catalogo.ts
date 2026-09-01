@@ -19,7 +19,7 @@ import { buscarCatalogoNacional } from './montarCatalogo.ts';
 import type { Base } from './montarCatalogo.ts';
 import type { BikeNormalizada } from './normalizar.ts';
 import { enderecoInterno } from './fotos.ts';
-import { MARGEM_EM_REAIS, precoDeVenda } from './preco.ts';
+import { margemDoItem, precoDeVenda } from './preco.ts';
 import type {
   Bike,
   BikeInterna,
@@ -107,7 +107,7 @@ function paraInterna(b: BikeNormalizada): BikeInterna {
     volumeM3: b.volumeM3,
     bases: b.bases,
     custo,
-    margem: MARGEM_EM_REAIS,
+    margem: margemDoItem(custo),
     origemDoCusto: b.origemDoCusto,
   };
 }

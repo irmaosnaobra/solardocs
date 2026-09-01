@@ -6,7 +6,9 @@ import { Beacon } from '../../../components/Beacon.tsx';
 import { Fechamento } from '../../../components/Fechamento.tsx';
 import { Galeria } from '../../../components/Galeria.tsx';
 import { CardBike } from '../../../components/CardBike.tsx';
+import { Confianca } from '../../../components/Confianca.tsx';
 import { bikePorSlug, catalogoPublico, paraCartao, slugsDaReserva } from '../../../lib/catalogo.ts';
+import { textoDeConferencia } from '../../../lib/conferido.ts';
 
 export const revalidate = 86400;
 /** Modelo novo no fornecedor abre na hora, sem esperar o próximo build. */
@@ -37,7 +39,7 @@ export default async function PaginaDaBike({ params }: { params: Promise<{ slug:
   const bike = await bikePorSlug(slug);
   if (!bike) notFound();
 
-  const { bikes } = await catalogoPublico();
+  const { bikes, meta } = await catalogoPublico();
   const parecidas = bikes
     .filter((b) => b.id !== bike.id && (b.marca === bike.marca || b.categoria === bike.categoria))
     .slice(0, 4)
@@ -100,8 +102,14 @@ export default async function PaginaDaBike({ params }: { params: Promise<{ slug:
 
         {/* A caixa acompanha a rolagem: em ficha técnica longa, o preço e o
             botão sumiam da tela justo quando a pessoa acabava de se convencer. */}
-        <div className="cartao p-4 sm:p-5 lg:sticky lg:top-24">
-          <Fechamento bike={bike} />
+        <div className="flex flex-col gap-4 lg:sticky lg:top-24">
+          <div className="cartao p-4 sm:p-5">
+            <Fechamento bike={bike} conferidoEm={textoDeConferencia(meta.atualizadoEm)} />
+          </div>
+
+          {/* Junto do preço e do botão, não no rodapé: a dúvida "posso confiar
+              nisso?" nasce no segundo em que a pessoa lê oito mil reais. */}
+          <Confianca />
         </div>
       </div>
 
@@ -136,7 +144,7 @@ export default async function PaginaDaBike({ params }: { params: Promise<{ slug:
           <h2 className="mb-3 text-lg font-bold text-tinta">Quem viu esta, viu também</h2>
           <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
             {parecidas.map((b) => (
-              <CardBike key={b.id} bike={b} />
+              <CardBike key={b.id} bike={b} conferidoEm={textoDeConferencia(meta.atualizadoEm)} />
             ))}
           </div>
         </section>

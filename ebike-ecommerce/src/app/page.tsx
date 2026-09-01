@@ -4,6 +4,7 @@ import { Vitrifoto } from '../components/Vitrifoto.tsx';
 import { Vitrine } from '../components/Vitrine.tsx';
 import { basesDoCatalogo, catalogoPublico, marcasDe, paraCartao } from '../lib/catalogo.ts';
 import { LOJA, emReais } from '../config/loja.ts';
+import { textoDeConferencia } from '../lib/conferido.ts';
 
 /**
  * A página é gerada de novo uma vez por dia, e é isso que mantém preço e estoque
@@ -72,7 +73,7 @@ export default async function Pagina() {
           <p className="mx-auto max-w-[1240px] px-4 py-10 text-sm text-suave">Carregando…</p>
         }
       >
-        <Vitrine bikes={bikes} bases={bases} />
+        <Vitrine bikes={bikes} bases={bases} conferidoEm={textoDeConferencia(meta.atualizadoEm)} />
       </Suspense>
 
       <p className="mx-auto max-w-[1240px] px-4 pb-2 text-xs text-fraco">
