@@ -20,9 +20,48 @@ export type BaseNaVitrine = {
   lon: number | null;
 };
 
-type Ordem = 'menor-preco' | 'maior-preco' | 'a-z';
+type Ordem = 'variedade' | 'menor-preco' | 'maior-preco' | 'a-z';
+
+/**
+ * A identidade do modelo: tudo até a potência ("Bicicleta Elétrica Fast Trail
+ * 750W"). O que vem depois é cor, e cor não é modelo novo.
+ */
+function modeloDe(titulo: string): string {
+  const m = titulo.match(/^(.*?d+s*W)/i);
+  return (m ? m[1] : titulo).trim().toLowerCase();
+}
+
+/**
+ * Um de cada modelo primeiro, do mais barato para o mais caro; as outras cores
+ * depois.
+ *
+ * É a ordem que a loja abre, e o motivo é medido: os 46 cards são só 16
+ * modelos. Ordenando por preço, os oito primeiros cards mostravam QUATRO
+ * modelos — dois Black Fish e quatro Fast Trail em cores diferentes — e a
+ * primeira scooter só aparecia no card 34 de 46. Justo as scooters, que são a
+ * posição mais forte da loja: R$ 7.990 contra R$ 10.000 de mercado.
+ *
+ * Assim os oito primeiros cards mostram oito modelos diferentes, e quem chega
+ * vê o tamanho do catálogo sem rolar nada.
+ */
+function porVariedade(bikes: Cartao[]): Cartao[] {
+  const porPreco = [...bikes].sort((a, b) => a.preco - b.preco);
+  const vistos = new Set<string>();
+  const primeiros: Cartao[] = [];
+  const repetidos: Cartao[] = [];
+  for (const b of porPreco) {
+    const m = modeloDe(b.titulo);
+    if (vistos.has(m)) repetidos.push(b);
+    else {
+      vistos.add(m);
+      primeiros.push(b);
+    }
+  }
+  return [...primeiros, ...repetidos];
+}
 
 const ORDENS: Array<{ id: Ordem; rotulo: string }> = [
+  { id: 'variedade', rotulo: 'Um de cada modelo' },
   { id: 'menor-preco', rotulo: 'Menor preço' },
   { id: 'maior-preco', rotulo: 'Maior preço' },
   { id: 'a-z', rotulo: 'Nome de A a Z' },
@@ -197,7 +236,7 @@ export function Vitrine({
   }, [bases, bikes, entrega]);
 
   const busca = parametros.get('q') ?? '';
-  const ordem = (parametros.get('ordem') as Ordem | null) ?? 'menor-preco';
+  const ordem = (parametros.get('ordem') as Ordem | null) ?? 'variedade';
   const escolhido = Object.fromEntries(FILTROS.map((f) => [f, parametros.get(f)])) as Record<
     Filtro,
     string | null
@@ -282,7 +321,7 @@ export function Vitrine({
       ]),
     ) as Record<Filtro, Array<{ rotulo: string; quantidade: number }>>;
 
-    return { lista: ordenadas, facetas };
+    return { lista: ordem === 'variedade' ? porVariedade(ordenadas) : ordenadas, facetas };
   }, [universo, busca, ordem, escolhido, origens]);
 
   const aplicados = FILTROS.filter((f) => escolhido[f]);
