@@ -333,7 +333,7 @@ const PAGINAS = [
   eyebrow: 'Para quem tem o capital e ainda não tem o local',
   aspas: '“Estou inclinado a arrumar até loja. Mas ainda não consegui.”',
   h1: ['O dinheiro não é o seu problema. ', 'O ponto é.'],
-  heroSub: 'Quem já montou eletroposto sabe: o negócio se ganha ou se perde no local, e o local se perde na hora em que o dono do imóvel descobre o que vai nascer ali. Este material é a régua que a gente usa — pra escolher o ponto, chegar no proprietário sem levantar a lebre e fechar um contrato que se sustenta.',
+  heroSub: 'O negócio se ganha ou se perde no local — e o local se perde na hora em que o dono descobre o que vai nascer ali. Esta é a régua que a gente usa para escolher o ponto, chegar no proprietário e fechar o contrato.',
   bullets: [
     'Dez endereços na mesa e sete riscados sem você sair de casa',
     'A leitura da conta de luz e do disjuntor que diz se o ponto aguenta',
@@ -341,7 +341,7 @@ const PAGINAS = [
     'A régua que transforma qualquer aluguel pedido em carros por dia',
     'O term sheet de 12 campos que vai para o advogado',
   ],
-  ctaNota: 'Quem já tem o ponto sob controle não precisa disto — marque uma reunião com a gente',
+  ctaNota: 'Acesso imediato por e-mail. Quem já tem o ponto sob controle não precisa disto.',
   telaUrl: 'solardoc.app/ponto-certo',
   // Fotos reais das estações. Legenda honesta: são os equipamentos que a gente
   // instala, fotografados na fábrica — não são obra entregue, e a página não diz
@@ -354,27 +354,28 @@ const PAGINAS = [
   autoridade: {
     eyebrow: 'Quem está te ensinando',
     titulo: 'A régua deste material é a que a gente usa quando escolhe um ponto',
-    texto: 'A Irmãos na Obra monta eletroposto de recarga chave na mão: projeto, equipamento, obra e a operação depois. Não somos uma escola que resolveu falar de carro elétrico — somos quem vai ao local, lê a conta de luz, protocola na distribuidora e assina o contrato. Este material é o nosso processo escrito, sem a parte que a gente cobra para fazer.',
+    texto: 'Não somos uma escola que resolveu falar de carro elétrico. Somos quem vai ao local, lê a conta de luz, protocola na distribuidora e assina o contrato. Este material é o nosso processo escrito.',
     itens: [
       ['Chave na mão, de verdade', 'Projeto, equipamento, obra e comissionamento. Quem escreveu as aulas é quem assina a ART e responde pelo ponto depois de pronto.'],
       ['236 reuniões de projeto', 'Desde julho de 2026, conduzidas por nós dois. A régua de energia, fluxo e negociação saiu dessas conversas — inclusive dos pontos que a gente recusou.'],
       ['Os contratos existem', 'Turnkey e operação da plataforma escritos e em uso. O term sheet que você recebe é o mesmo esqueleto que a gente leva para a mesa.'],
       ['O simulador é nosso', 'Carga, carros por dia, ticket, custo de energia e payback — a ferramenta que roda a viabilidade dos nossos pontos é a mesma que está por trás das contas deste material.'],
     ],
-    assinatura: 'Somos o Thiago e o Diego, irmãos, do Triângulo Mineiro. A gente não vende curso: vende eletroposto. Este material existe porque a parte que trava o cliente — achar o lugar — é justamente a que a gente não consegue fazer por ele.',
+    assinatura: 'A gente não vende curso: vende eletroposto. Este material existe porque a parte que trava o cliente — achar o lugar — é a única que a gente não consegue fazer por ele.',
   },
   topoLimpo: true,
   medir: true,   // beacon de visita/rolagem/checkout → /admin, aba Ponto Certo
+  semSuporte: true, // sem WhatsApp no rodapé: aqui a venda é direta, sem conversa antes
   // A porta de saída pra quem prefere esperar em vez de aprender. Fica como
   // link discreto, não como botão: a fila tem 35 de um lado e 3 do outro, e
   // oferecê-la com o mesmo peso da oferta seria vender a espera.
   acolhe: { fila: 'Prefiro entrar na fila e esperar a equipe achar um ponto pra mim →' },
-  donosTexto: 'Somos o Thiago e o Diego, irmãos, do Triângulo Mineiro. A gente monta eletroposto chave na mão — projeto, equipamento e obra. Este material é a régua que a gente usa quando escolhe um ponto, escrita do jeito que a gente explicaria para um sócio.',
+  donosTexto: 'Thiago e Diego, irmãos, do Triângulo Mineiro. A gente monta eletroposto chave na mão — projeto, equipamento e obra.',
   rodape: 'Irmãos na Obra — eletroposto de recarga chave na mão',
   app: {
     eyebrow: 'A tela que você abre depois de comprar',
     titulo: 'O material mora num app, e ele foi feito pro celular',
-    sub: 'Você abre no telefone, no meio da rua, na frente do imóvel. As aulas avançam em telas curtas e os instrumentos ficam a um toque — a ficha se preenche ali mesmo, em pé no local.',
+    sub: 'Você abre no telefone, em pé na frente do imóvel. Aulas em telas curtas, instrumentos a um toque, ficha preenchida ali mesmo.',
     telas: [
       ['app-curso.webp', 'As sete aulas, com o que você já concluiu'],
       ['app-aula.webp', 'A aula avança em telas curtas, uma ideia por vez'],
@@ -407,7 +408,7 @@ const PAGINAS = [
       'Quem sai à procura sem régua visita dez lugares, gasta o mês e não fecha nenhum — e conclui que o mercado é difícil.',
       'Quem chega no dono do imóvel dizendo para que quer o espaço vê o aluguel subir na mesma conversa. O preço deixa de ser de duas vagas paradas e passa a ser de novidade.',
       'Quem assina antes do parecer de acesso paga aluguel de um ponto que pode ser inviável — e esse dinheiro não volta.',
-      'E quem erra o contrato erra por anos: 1 ponto percentual de arrendamento custa R$ 144,60 por mês num ponto de dez carros por dia. Dois pontos a mais somam R$ 3.470 no ano, todo ano, num papel que se assina uma vez.',
+      'E quem erra o contrato erra por anos: o aluguel se assina uma vez e se paga todo mês, com reajuste, até o fim do prazo.',
     ],
     veredito: 'O mercado não é difícil. O ponto é — e ele é a única coisa entre o seu dinheiro e a sua estação.',
   },
@@ -420,11 +421,10 @@ const PAGINAS = [
     ['estacao-cinza.webp', 'A mesma estação pronta para embarque. É o que ocupa as duas vagas que você vai negociar.'],
   ],
   numeros: [
-    ['7', 'aulas, nenhuma sem uma ação no fim'],
-    ['12', 'instrumentos: planilha, ficha, script e modelo'],
-    ['R$ 144,60', 'o que 1 ponto de arrendamento custa por mês'],
-    ['12', 'campos que fecham o acordo antes do advogado'],
-    ['R$ 297', 'uma vez'],
+    ['7', 'aulas'],
+    ['12', 'instrumentos prontos para usar'],
+    ['7', 'travas que matam um endereço de graça'],
+    ['R$ 297', 'pagamento único'],
   ],
   dorTitulo: 'Ninguém trava por falta de dinheiro. Trava na porta do dono do imóvel.',
   falas: [
@@ -432,17 +432,17 @@ const PAGINAS = [
     '“Preciso entender melhor este mercado.”',
     '“Ainda estamos estudando como faremos esse negócio.”',
   ],
-  dorTexto: 'São respostas reais de investidores da nossa base, desta semana. Todos têm capital declarado. Nenhum tem o local. O que separa os dois não é dinheiro nem vontade — é não saber qual endereço presta, como chegar no proprietário sem encarecer o aluguel e o que precisa estar escrito antes de assinar.',
+  dorTexto: 'São respostas reais de investidores da nossa base. Todos têm capital declarado. Nenhum tem o local. O que separa os dois não é dinheiro nem vontade — é não saber qual endereço presta, como chegar no proprietário sem encarecer o aluguel e o que precisa estar escrito antes de assinar.',
   recebeEyebrow: 'As sete aulas',
   recebeTitulo: 'Cada uma termina com você fazendo uma coisa',
   mods: [
-    ['01', 'A lista: dez endereços, sete riscados', 'Você abre o aplicativo de recarga, acha o trecho da sua cidade que não tem ponto nenhum e escreve dez endereços. Sete morrem ali mesmo, nas sete travas — e trava mata de graça, antes de qualquer visita.', 'Sem sair da cadeira'],
-    ['02', 'Os primeiros 30 segundos', 'O que dizer no balcão, no WhatsApp e no telefone, palavra por palavra. O objetivo da primeira conversa não é fechar nada: é sair de lá com a foto da conta de luz e do padrão de entrada.', 'E as 9 frases proibidas'],
-    ['03', 'Cabe ou não cabe: as duas fotos', 'A informação mais cara do negócio é de graça e está na conta de luz. Tipo de ligação, tensão, disjuntor e consumo — e o veredito escrito em uma linha, sem visita técnica.', 'Onde os projetos morrem'],
-    ['04', 'A visita e o placar', 'Sete blocos percorridos no local, o movimento medido em vez de sentido, e uma letra escrita no fim: A, B, C ou X. Você sai de lá com nota, não com impressão.', 'Uma visita só'],
-    ['05', 'Fixo, percentual ou misto', 'O dono pediu R$ 1.200? São 8,3 carros por dia. A régua converte qualquer pedido em movimento — e traz os dez itens que não se cedem em hipótese nenhuma.', 'E o “quero uma parte”'],
-    ['06', 'A proposta de uma página', 'O papel que fica no balcão dele, com o croqui do pátio anexo. Uma página ele lê em pé e pergunta na hora; dez páginas ele guarda para ver com calma, e “com calma” não tem data.', 'O que quase ninguém leva'],
-    ['07', 'A ordem de assinar', 'Qual papel se assina antes do parecer e qual não — e os 12 campos que vão para o advogado com as seis perguntas fechadas que ele responde.', 'Term sheet, não minuta'],
+    ['01', 'A lista: dez endereços, sete riscados', 'Dez endereços escritos sentado. Sete morrem nas sete travas, antes de qualquer visita.', 'Sem sair da cadeira'],
+    ['02', 'Os primeiros 30 segundos', 'O que dizer no balcão, na mensagem e no telefone, palavra por palavra. A primeira conversa não fecha nada: ela traz as duas fotos.', 'E as 9 frases proibidas'],
+    ['03', 'Cabe ou não cabe: as duas fotos', 'A informação mais cara do negócio é de graça e está na conta de luz. O veredito sai em uma linha, sem visita técnica.', 'Onde os projetos morrem'],
+    ['04', 'A visita e o placar', 'Sete blocos no local, movimento medido em vez de sentido, e uma letra no fim: A, B, C ou X. Nota, não impressão.', 'Uma visita só'],
+    ['05', 'Fixo, percentual ou misto', 'O dono pediu R$ 1.200? A régua converte o pedido em carros por dia — e traz os dez itens que não se cedem.', 'E o “quero uma parte”'],
+    ['06', 'A proposta de uma página', 'Uma página ele lê em pé e pergunta na hora. Dez páginas ele guarda para ver com calma — e “com calma” não tem data.', 'O que quase ninguém leva'],
+    ['07', 'A ordem de assinar', 'Qual papel se assina antes do parecer e qual não. Os 12 campos vão prontos para o advogado.', 'Term sheet, não minuta'],
   ],
   dentroEyebrow: 'O que sustenta o preço',
   dentroTitulo: 'Aula ninguém aplica. Instrumento você abre e usa',
@@ -490,7 +490,7 @@ const PAGINAS = [
     ['Eu já tenho o ponto. Serve para mim?', 'Não compre. Se o local é seu, você administra, representa o proprietário ou é inquilino com anuência, o seu próximo passo é uma reunião de projeto com a gente — não um material sobre como achar ponto.'],
   ],
   fechaTitulo: 'O ponto que você ainda não tem é a única coisa entre você e a estação',
-  fechaTexto: 'Sete aulas, doze instrumentos e a régua que a gente usa quando escolhe um local. R$ 297, pagamento único. Se você já tem o ponto, fale com a gente direto — a sua conversa é outra.',
+  fechaTexto: 'Sete aulas, doze instrumentos, R$ 297 uma vez. Se você já tem o ponto, este material não é para você.',
 },
 ];
 
@@ -1636,8 +1636,9 @@ ${d.faq.map(([q, r]) => `    <details>
 <footer>
   <div class="wrap">
     <p>${esc(d.rodape || 'SolarDoc Pro — documentos e ferramentas para integradores solares')}</p>
-    <p>Dúvidas: <a href="https://wa.me/5534991360223">WhatsApp (34) 99136-0223</a> ·
-       <a href="/privacidade/">Privacidade</a></p>
+    ${d.semSuporte
+      ? '<p><a href="/privacidade/">Privacidade</a></p>'
+      : '<p>Dúvidas: <a href="https://wa.me/5534991360223">WhatsApp (34) 99136-0223</a> · <a href="/privacidade/">Privacidade</a></p>'}
   </div>
 </footer>
 
