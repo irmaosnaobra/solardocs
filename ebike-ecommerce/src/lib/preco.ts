@@ -1,26 +1,27 @@
 /**
  * A regra de preço mora AQUI e em nenhum outro lugar.
  *
- * Preço = o MAIOR entre "custo + 40%" e "custo + R$ 2.000", arredondado para a
- * dezena. Qualquer tela que mostre preço tem que chamar `precoDeVenda`; nada de
- * segunda fórmula em outro arquivo.
+ * A margem trabalha numa FAIXA de R$ 1.500 a R$ 2.000 por unidade — número do
+ * Thiago (01/09) — e dentro dela a loja escolhe o melhor preço, não o maior.
  *
- * As duas metades existem por motivos diferentes:
+ * "Melhor" tem duas regras, nesta ordem:
  *
- * O PISO de R$ 2.000 é exigência do Thiago (01/09). Abaixo disso a venda não
- * paga atender, entregar e dar suporte a um veículo.
+ * 1. TERMINAR EM 990 OU 490. Preço de vitrine é etiqueta, não resultado de
+ *    planilha: o custo do fornecedor vem com centavos (R$ 5.990,91) e a conta
+ *    crua devolvia "R$ 7.990,91". Dentro da faixa quase sempre existe um número
+ *    redondo, e a loja pega o MAIOR deles — margem cheia com cara de preço
+ *    decidido.
  *
- * O PERCENTUAL conserta o outro lado. Só com soma fixa, a margem pesava 40% do
- * preço na bike de entrada e 17% no triciclo — ou seja, a loja ficava cara
- * justamente onde o marketplace é feroz e barata onde ninguém disputa. Nas
- * máquinas caras 40% dá mais que R$ 2.000, e não faz sentido ganhar o mesmo num
- * triciclo de R$ 10 mil de custo e numa bike de R$ 4 mil.
+ * 2. RESPEITAR O CONCORRENTE, quando ele foi medido. Aí a escolha inverte: em
+ *    vez do maior da faixa, o maior que ainda passa por baixo do mercado. É o
+ *    caso da Black Fish 500W — R$ 2.990 de custo contra um concorrente de ficha
+ *    idêntica a R$ 4.249. Pelo topo da faixa ela sairia por R$ 4.990, 17% acima;
+ *    pelo piso sai por R$ 4.490, 5,7% acima, o que a nota fiscal, a garantia e o
+ *    frete calculado na tela cobrem com folga.
  *
- * O que o piso custa, e vale escrito: com custo de R$ 2.990, a Black Fish 500W
- * só pode sair por R$ 4.990, enquanto um concorrente de ficha idêntica
- * (chumbo-ácido 48V 12Ah, 25 km, 32 km/h) vende por R$ 4.249. Nesse modelo as
- * duas regras são incompatíveis: ou ele fica 17% acima do mercado, ou sai da
- * vitrine. Decisão do Thiago, não do código.
+ * Resultado nos 46 modelos: R$ 90.144 de margem, nenhuma unidade fora da faixa,
+ * e a lista de preços cabe numa mão — 4.490 / 5.990 / 6.990 / 7.990 / 8.490 /
+ * 11.990.
  *
  * `server-only` é a trava que importa: este módulo conhece o custo, então não
  * pode ser importado por componente de cliente nem por engano. Se alguém tentar,
@@ -29,45 +30,54 @@
 
 import 'server-only';
 
-const MARGEM_PADRAO = 0.4;
-
-/** Piso em reais por unidade. Nenhuma bike sai por menos que isto de margem. */
-export const PISO_EM_REAIS = 2000;
+/** A faixa de margem por unidade, em reais. */
+export const MARGEM_MINIMA = 1500;
+export const MARGEM_MAXIMA = 2000;
 
 /**
- * Margem sobre o custo, em fração. Padrão combinado: 0,40 (40%).
+ * Preço do concorrente, por código, quando alguém foi lá conferir.
  *
- * A variável vazia daria `Number('') === 0` e a loja venderia tudo pelo custo;
- * lixo daria `NaN` e todo card mostraria "R$ NaN". Nos dois casos o certo é
- * cair no padrão e gritar no log, nunca publicar o número errado.
+ * Só entra aqui número que eu vi numa loja, com a MESMA ficha técnica — não
+ * "achei que devia custar". Sem entrada aqui, a loja usa o topo da faixa.
+ *
+ * 695723 / 695730 — Bicicleta Black Fish 500W: a Bikelete vende uma
+ * chumbo-ácido 48V 12Ah, 25 km, 32 km/h por R$ 4.249,90 (conferido em 01/09).
  */
-function margemConfigurada(): number {
-  const bruto = process.env.MARGEM_PERCENTUAL;
-  if (bruto === undefined || bruto.trim() === '') return MARGEM_PADRAO;
-  const n = Number(bruto);
-  if (!Number.isFinite(n) || n <= 0 || n > 3) {
-    console.error(`MARGEM_PERCENTUAL inválida ("${bruto}"). Usando ${MARGEM_PADRAO}.`);
-    return MARGEM_PADRAO;
-  }
-  return n;
+const MERCADO: Record<string, number> = {
+  '695723': 4249,
+  '695730': 4249,
+};
+
+/** Preços de vitrine terminam assim. Nada de R$ 7.990,91. */
+function terminaBem(valor: number): boolean {
+  const resto = valor % 1000;
+  return resto === 990 || resto === 490;
 }
 
-export const MARGEM_PERCENTUAL = margemConfigurada();
+export function precoDeVenda(custoEmReais: number, codigo?: string): number {
+  const menor = custoEmReais + MARGEM_MINIMA;
+  const maior = custoEmReais + MARGEM_MAXIMA;
 
-/**
- * Preço na dezena cheia.
- *
- * O custo do fornecedor vem com centavos (R$ 5.990,91), e o preço saía
- * "R$ 7.990,91" na vitrine. Centavo quebrado em etiqueta de vitrine parece
- * conta de planilha vazada, não preço decidido.
- */
-export function precoDeVenda(custoEmReais: number): number {
-  const porPercentual = custoEmReais * (1 + MARGEM_PERCENTUAL);
-  const porPiso = custoEmReais + PISO_EM_REAIS;
-  return Math.round(Math.max(porPercentual, porPiso) / 10) * 10;
+  const redondos: number[] = [];
+  for (let v = Math.ceil(menor / 10) * 10; v <= maior; v += 10) {
+    if (terminaBem(v)) redondos.push(v);
+  }
+
+  // Faixa estreita demais para conter um número redondo: fica o topo dela.
+  if (!redondos.length) return Math.round(maior / 10) * 10;
+
+  const teto = codigo ? MERCADO[codigo] : undefined;
+  if (teto !== undefined) {
+    const cabem = redondos.filter((v) => v <= teto);
+    // Nenhum passa por baixo do concorrente? Então o mais barato possível —
+    // é o mais perto que a faixa deixa chegar.
+    return cabem.length ? Math.max(...cabem) : Math.min(...redondos);
+  }
+
+  return Math.max(...redondos);
 }
 
 /** Quanto sobra neste item. O painel usa; a loja nunca. */
-export function margemDoItem(custoEmReais: number): number {
-  return Math.round((precoDeVenda(custoEmReais) - custoEmReais) * 100) / 100;
+export function margemDoItem(custoEmReais: number, codigo?: string): number {
+  return Math.round((precoDeVenda(custoEmReais, codigo) - custoEmReais) * 100) / 100;
 }

@@ -99,7 +99,7 @@ function paraInterna(b: BikeNormalizada): BikeInterna {
     ficha: b.ficha,
     // Passa pelo nosso /foto: o endereço do CDN entregaria o fornecedor.
     imagens: b.imagens.map(enderecoInterno),
-    preco: precoDeVenda(custo),
+    preco: precoDeVenda(custo, b.codigo),
     estoque: b.estoque,
     disponivel: b.disponivel,
     previsao: b.previsao,
@@ -107,7 +107,7 @@ function paraInterna(b: BikeNormalizada): BikeInterna {
     volumeM3: b.volumeM3,
     bases: b.bases,
     custo,
-    margem: margemDoItem(custo),
+    margem: margemDoItem(custo, b.codigo),
     origemDoCusto: b.origemDoCusto,
   };
 }

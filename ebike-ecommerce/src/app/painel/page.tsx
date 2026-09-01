@@ -2,7 +2,7 @@ import { updateTag } from 'next/cache';
 import Link from 'next/link';
 
 import { TAG_CATALOGO, catalogoInterno, marcasDe } from '../../lib/catalogo.ts';
-import { MARGEM_PERCENTUAL } from '../../lib/preco.ts';
+import { MARGEM_MAXIMA, MARGEM_MINIMA } from '../../lib/preco.ts';
 import { emReais } from '../../config/loja.ts';
 import { sitePrivado } from '../../lib/portaria.ts';
 import { funilDeHoje } from '../../lib/funil.ts';
@@ -188,8 +188,8 @@ export default async function Painel() {
         />
         <Cartao
           titulo="Margem"
-          valor={`${Math.round(MARGEM_PERCENTUAL * 100)}%`}
-          detalhe={`sobre o custo · R$ ${Math.round(bikes.reduce((a, b) => a + b.margem, 0)).toLocaleString('pt-BR')} no catálogo`}
+          valor={`R$ ${MARGEM_MINIMA.toLocaleString('pt-BR')}–${MARGEM_MAXIMA.toLocaleString('pt-BR')}`}
+          detalhe={`por unidade · R$ ${Math.round(bikes.reduce((a, b) => a + b.margem, 0)).toLocaleString('pt-BR')} no catálogo`}
           tom="bom"
         />
         <Cartao
