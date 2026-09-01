@@ -27,7 +27,7 @@ type Ordem = 'variedade' | 'menor-preco' | 'maior-preco' | 'a-z';
  * 750W"). O que vem depois é cor, e cor não é modelo novo.
  */
 function modeloDe(titulo: string): string {
-  const m = titulo.match(/^(.*?d+s*W)/i);
+  const m = titulo.match(new RegExp(String.raw`^(.*?\d+\s*W)\b`, 'i'));
   return (m ? m[1] : titulo).trim().toLowerCase();
 }
 
