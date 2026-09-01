@@ -34,7 +34,12 @@ export default async function Pagina() {
     timeZone: 'America/Sao_Paulo',
   });
 
-  const fotos = bikes.map((b) => ({ src: b.capa, titulo: b.titulo }));
+  // Da mais cara para a mais barata: o quadro de cima é a primeira coisa que a
+  // pessoa vê, e é onde a loja mostra do que ela é capaz. A vitrine embaixo
+  // continua abrindo pelo menor preço, que é o que quem está pesquisando quer.
+  const fotos = [...bikes]
+    .sort((a, b) => b.preco - a.preco)
+    .map((b) => ({ src: b.capa, titulo: b.titulo }));
   const bases = await basesDoCatalogo();
 
   return (

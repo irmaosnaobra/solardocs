@@ -3,10 +3,11 @@
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 
-const INTERVALO_MS = 2000;
+const INTERVALO_MS = 1500;
 
 /**
- * As bikes passando no quadro de cima, uma a cada dois segundos.
+ * As bikes passando no quadro de cima, uma a cada segundo e meio, da mais
+ * cara para a mais barata.
  *
  * Todas as fotos são pedidas na MESMA largura. Cada largura diferente é uma
  * otimização a mais para o servidor gerar na primeira visita, e é nesse
