@@ -1,0 +1,697 @@
+[
+ {
+  "titulo": "Cabe ou não cabe: as duas fotos",
+  "descricao": "Olhe a foto da conta de luz e a do disjuntor e escreva, em uma linha, se aquele ponto aguenta a estação — antes de gastar um real.",
+  "duracao_seg": 360,
+  "paginas": [
+   {
+    "ordem": 1,
+    "titulo": "Duas imagens na mesa",
+    "texto": "A primeira página da conta de luz e o disjuntor geral com o número legível. Com essas duas na mão você fecha um endereço sem visita técnica, sem engenheiro e sem gastar um real.\n\nTrês números decidem, e os três estão aí: o tipo de ligação com a tensão, o número do disjuntor e o consumo em kWh por mês. O quarto item não está na conta, e a gente chega nele no fim.",
+    "lista": [
+     "Foto 1 — primeira página da conta de luz",
+     "Foto 2 — o disjuntor geral, número legível",
+     "Caixa fechada não serve: te obriga a pedir de novo"
+    ],
+    "destaque": "A informação mais cara desse negócio é de graça: está impressa na conta e gravada no disjuntor."
+   },
+   {
+    "ordem": 2,
+    "titulo": "Número um — a ligação e a tensão",
+    "texto": "Na primeira página da conta você procura duas coisas, não uma. Se o local é monofásico, bifásico ou trifásico. E em que tensão: 380/220 ou 220/127.\n\nO carregador é carga trifásica, e a corrente que ele puxa depende da tensão. A mesma máquina de 80 kW pede perto de 128 amperes numa rede de 380 volts e perto de 221 amperes numa de 220. Quase o dobro. Perguntar \"é trifásica?\" sem perguntar \"em que tensão?\" deixa metade da resposta na mesa.\n\nSe a conta disser monofásico, ou se não existir rede trifásica atendendo aquele endereço, acabou. Rede monofásica não vira eletroposto com jeitinho.\n\nRepare no \"perto de\" de cada linha abaixo. É ordem de grandeza, para você decidir se vale seguir naquele endereço. A corrente exata de entrada está na ficha técnica do modelo do carregador, e quem confirma é ela e o projeto.",
+    "lista": [
+     "60 kW — perto de 96 A em 380 V, perto de 166 A em 220 V",
+     "80 kW — perto de 128 A em 380 V, perto de 221 A em 220 V",
+     "120 kW — perto de 192 A em 380 V, perto de 332 A em 220 V",
+     "160 kW — perto de 256 A em 380 V, perto de 443 A em 220 V"
+    ],
+    "destaque": "\"Cabe no seu padrão\", dito como fato, é a frase mais cara do curso inteiro. Você não é o engenheiro dele — não prometa dimensionamento a ninguém."
+   },
+   {
+    "ordem": 3,
+    "titulo": "Número dois — o disjuntor diz o teto, não a sobra",
+    "texto": "O número está gravado no corpo do disjuntor, dentro da caixa do relógio. É por isso que a foto tem que ter o número legível.\n\nE aqui vem o erro mais comum de todos: o disjuntor não diz o que sobra. Ele diz o teto.\n\ncapacidade do padrão − o que o estabelecimento já usa no pico = o que sobra para o carregador\n\nUm posto de combustível com padrão de 200 amperes, com bomba, compressor e câmara fria rodando às seis da tarde, não tem 200 amperes livres. Tem o que sobra. E o carregador não é carga que você liga quando o resto está desligado: ele liga quando tem carro, e carro tem no fim da tarde.",
+    "destaque": "O disjuntor é o teto físico do padrão. A sobra é outra conta — e é a que decide o seu ponto."
+   },
+   {
+    "ordem": 4,
+    "titulo": "Número três — o consumo, e a pergunta que ninguém faz",
+    "texto": "O consumo em kWh por mês diz o tamanho do que já roda ali. Um lugar de 500 kWh/mês é um comércio pequeno, com padrão pequeno. Um de 10.000 kWh/mês é um mercado grande, e mercado grande costuma ter padrão de verdade.\n\nSe a conta trouxer demanda contratada em kW, melhor ainda: aquele ponto já está em média tensão, e isso é meio caminho andado.\n\nE tem a pergunta mais barata da ficha inteira, que ninguém faz: tem solar instalado? Local com geração própria quase sempre teve o padrão reforçado para receber ela. Você descobre olhando a conta ou olhando o telhado. Só cuidado com a leitura do consumo nesse caso: onde tem solar, o kWh que aparece na conta já vem descontado da geração, então ele sozinho não mede o que o local usa.",
+    "lista": [
+     "até 500 kWh/mês",
+     "500 a 2.000 kWh/mês",
+     "2.000 a 10.000 kWh/mês",
+     "acima de 10.000 kWh/mês"
+    ],
+    "destaque": "Solar no local é padrão reforçado e conta baixa: dois problemas resolvidos de graça, e ninguém pergunta."
+   },
+   {
+    "ordem": 5,
+    "titulo": "A carga é somada — a régua dos 75 kW",
+    "texto": "Existe uma régua que se usa no Brasil inteiro: unidade consumidora com carga instalada acima de 75 kW é atendida em tensão primária. Média tensão. Na prática, isso quer dizer transformador próprio, medição própria, projeto maior, obra maior e mais tempo.\n\nE a carga é cumulativa. Um mercado que já tem 40 kW instalados, mais um carregador de 60 kW, já são 100 kW naquele endereço.\n\nIr para média tensão custa duas vezes: uma na obra, e outra todo mês — porque lá se paga um valor fixo de demanda contratada, chovendo ou fazendo sol, com carro no bico ou sem carro nenhum.\n\nA régua é a mesma no país inteiro, mas como cada distribuidora conta a carga instalada de um carregador está na norma dela, e quem lê essa norma é o projetista local. Nunca diga ao dono do imóvel que o ponto \"continua em baixa tensão\": dita como certeza, essa frase volta como parecer exigindo subestação.",
+    "lista": [
+     "60 kW — sozinho, fica abaixo de 75 kW",
+     "80 kW — passa",
+     "120 kW — passa",
+     "160 kW — passa"
+    ],
+    "destaque": "Quem escolhe a configuração do seu ponto não é o seu gosto nem o preço da máquina. É a entrada de energia. Leve o número dela para a reunião."
+   },
+   {
+    "ordem": 6,
+    "titulo": "A quarta coisa, que não está na conta",
+    "texto": "Essa você tira da foto da vaga: a distância entre o padrão de entrada e o lugar onde o carregador vai ficar.\n\nEntre um e outro tem vala e cabo. Cabo de 128 amperes não é fio de tomada. A vala atravessa o pátio de alguém, corta piso e tem que ser recomposta.\n\nEletricamente a distância aguenta mais do que o bolso: quem fecha esse cálculo é o projeto. Comercialmente, ela vira metro de vala, metro de cabo e recomposição — item que não aparece em preço de tabela.",
+    "lista": [
+     "Até 30 metros — não muda a conversa",
+     "De 30 a 80 — entra no orçamento e ainda fecha",
+     "De 80 a 150 — pesa; vale reavaliar onde a vaga vai ficar",
+     "Acima de 150 — quase sempre compensa levar a entrada de energia para perto do carregador, em vez do cabo até ele"
+    ],
+    "destaque": "Estas quatro faixas são régua nossa de campo, não exigência técnica."
+   },
+   {
+    "ordem": 7,
+    "titulo": "O veredito, em uma linha",
+    "texto": "Com as duas fotos e mais nada, você fecha uma de três frases. Uma só.\n\nCabe hoje. Trifásico, tensão conhecida, disjuntor com folga sobre a corrente da configuração que você quer, e o consumo do local não come tudo. Segue para o estudo.\n\nCabe com obra de entrada. Trifásico, mas o padrão não aguenta. O ponto não morreu: ele ganhou um item de orçamento que você ainda não sabe quanto custa. E você não vai chutar esse número.\n\nNão cabe. Monofásico, ou não existe trifásico na rua. Risca e agradece. Custou duas fotos.",
+    "destaque": "Ao dono do imóvel você diz isto, e nada além disto: \"a energia do local não aguenta a estação como ela está hoje. Isso é obra de entrada, quem orça é a concessionária, e eu volto com o número.\""
+   },
+   {
+    "ordem": 8,
+    "titulo": "Hoje: escreva o veredito",
+    "texto": "Pegue a foto que já chegou e feche o ponto hoje. Se você tem três pontos, feche os três — a planilha leva o mesmo tempo.",
+    "lista": [
+     "Abra a planilha Cabe ou não cabe e digite tensão, disjuntor, consumo e a potência pretendida.",
+     "Escreva o veredito de cada ponto em uma linha: cabe hoje, cabe com obra de entrada, ou não cabe.",
+     "Quem não mandou a foto, cobre hoje — e peça o disjuntor com o número legível, não a caixa fechada.",
+     "Na próxima vez que for a um local, saia com as quatro fotos: padrão de entrada inteiro, disjuntor com o número legível, primeira página da conta e a vaga pretendida vista da rua."
+    ],
+    "destaque": "Quem sai com as quatro fotos não volta ao mesmo lugar duas vezes. A segunda visita é a mais cara que existe, porque não descobre nada de novo."
+   }
+  ]
+ },
+ {
+  "titulo": "A proposta de uma página",
+  "descricao": "Você sai daqui com a folha preenchida e o croqui marcado — o papel que fica no balcão do dono do imóvel.",
+  "duracao_seg": 430,
+  "paginas": [
+   {
+    "ordem": 1,
+    "titulo": "O papel que fica com ele",
+    "texto": "Você já leu a conta de luz do local, já ouviu o \"se der certo na energia, eu separo as duas vagas ali\" e já escreveu o percentual que vai propor naquele endereço. O que falta é o papel.\n\nUma página, no seu nome, com o endereço dele em cima. Você lê junto com ele no balcão, responde ali mesmo o que ele perguntar, e deixa a folha quando sair. A partir daí a conversa para de morar na sua boca e passa a morar na mesa dele.\n\nEssa folha é o que quase ninguém leva. Quando o dono disser \"já veio outro aqui\", a pergunta seguinte é o que o outro deixou escrito. Quase sempre a resposta é nada.",
+    "destaque": "Enquanto não tem papel, o que você falou vira o que ele lembrou."
+   },
+   {
+    "ordem": 2,
+    "titulo": "Por que uma página fecha e dez não",
+    "texto": "Dez páginas o dono não lê na sua frente. Ele diz \"deixa aí que eu vejo com calma\", e \"com calma\" não tem data. Pior: documento comprido vai direto para a mão de outra pessoa — o filho, o contador, o advogado dele — e essa pessoa lê sem você por perto para explicar coisa nenhuma.\n\nUma página ele lê em pé. E aí acontece a única coisa que importa nessa visita: a dúvida sai da boca dele enquanto você ainda está ali para responder.",
+    "lista": [
+     "Documento comprido adia. Documento curto provoca resposta.",
+     "O que ele não entende, ele não assina — e ele vai perguntar a quem não conhece o negócio.",
+     "Cada campo a mais é uma chance a mais de travar em algo que ainda nem foi decidido.",
+     "O documento longo existe, e é o da próxima aula. Ele vai para o advogado, não para o balcão."
+    ],
+    "destaque": "Esta folha não é resumo de contrato. É o papel que faz o dono dizer sim, ou dizer o que ele quer diferente."
+   },
+   {
+    "ordem": 3,
+    "titulo": "O que entra na folha",
+    "texto": "São poucos campos, e cada um responde a uma pergunta que o dono do imóvel faz sozinho. Nada aqui é enfeite.",
+    "lista": [
+     "O endereço completo e o nome do proprietário do imóvel — o que você confirmou, não o que o balcão chutou.",
+     "As duas vagas: quais são e onde ficam.",
+     "O percentual sobre o faturamento da estação — o mesmo que você escreveu na aula passada. Copiado, não recalculado agora.",
+     "O prazo, com data para começar e data para acabar.",
+     "Quando o aluguel começa: na primeira recarga, não na assinatura.",
+     "O reajuste, por IPCA. Índice com nome, nunca \"a combinar\".",
+     "Quem paga o quê: energia, conectividade, seguro do ativo, IPTU."
+    ],
+    "destaque": "Campo que você ainda não decidiu não vira \"a combinar\" na folha. Fica de fora."
+   },
+   {
+    "ordem": 4,
+    "titulo": "O croqui vale mais que o texto",
+    "texto": "A pergunta que vem sempre é \"vai furar meu piso?\". A resposta que funciona não é uma frase. É um desenho.\n\nNão precisa de planta de engenheiro. Uma foto do pátio vista de cima com três marcas feitas à mão resolve: onde fica o padrão de entrada, onde ficam as duas vagas, e por onde passa o cabo entre um e outro. Esse traço do meio é o que vai virar vala e corte de piso — e é exatamente o que ele quer ver antes de dizer sim.\n\nO croqui vai anexo à folha, e ele aprova o desenho. Pátio marcado é pátio que ele para de imaginar.",
+    "destaque": "Ele não tem medo da obra. Tem medo de não saber onde ela vai ser."
+   },
+   {
+    "ordem": 5,
+    "titulo": "As duas linhas que quase ninguém escreve",
+    "texto": "Duas coisas todo proprietário pergunta, e quase nenhuma proposta responde por escrito.\n\nA energia. \"E a minha conta de luz?\" A recarga não entra na conta dele: a estação tem medidor próprio, unidade consumidora nova, no seu nome. A conta da energia vendida vem para você, e a dele continua exatamente como está hoje.\n\nO fim. \"Como fica o meu pátio quando isso acabar?\" No fim do contrato você retira o equipamento e recompõe o local. Escreva como compromisso seu, porque é seu.",
+    "lista": [
+     "Medidor próprio só se escreve onde dá para abrir unidade consumidora nova. Em condomínio, galeria e imóvel com uma entrada só, muitas vezes não dá — e a saída que se improvisa em campo é sub-medição, que muda quem é o titular da energia. Esse caso não se resolve no balcão: ele vai para a próxima aula e para o advogado.",
+     "Retirada e recomposição: quem paga e em que estado o local é devolvido é redação de advogado. Você escreve o compromisso; a cláusula quem escreve é ele."
+    ],
+    "destaque": "Objeção respondida por escrito não volta na terceira conversa."
+   },
+   {
+    "ordem": 6,
+    "titulo": "O que não entra, e por quê",
+    "texto": "A tentação é encher a folha para parecer sério. Ela faz o contrário.\n\nProposta de imóvel não é prospecto de investimento. O dono do imóvel não é seu sócio: ele não precisa da sua conta, e todo número seu que entra ali vira um número que ele cobra de você depois.",
+    "lista": [
+     "Payback. É estudo seu, e existe mais de uma versão dele circulando.",
+     "Projeção de faturamento, e qualquer \"o senhor vai ganhar tanto por mês\". Isso é promessa de rendimento, e no primeiro mês fraco ela volta para a mesa.",
+     "Quanto custou o equipamento e quanto você está investindo.",
+     "Marca, potência, kW e jargão. Quem fecha a configuração é a entrada de energia, depois do parecer — e isso não é assunto do proprietário.",
+     "Pedido de assinatura na hora, e pedido de exclusividade sem prazo."
+    ],
+    "destaque": "Da sua planilha não entra nada. Os números da folha são os dele: percentual, prazo e a data em que o aluguel começa."
+   },
+   {
+    "ordem": 7,
+    "titulo": "O que esta folha não decide",
+    "texto": "A folha do balcão e o documento do advogado não são o mesmo papel — e é isso que faz um deles caber numa página.\n\nSete campos são os mesmos nos dois: as vagas e o croqui, o prazo, o percentual, quando o aluguel começa, o reajuste, a unidade consumidora, e a retirada com recomposição. Eles se copiam de um para o outro. Você não responde duas vezes.\n\nO resto fica só no documento da próxima aula, e é de propósito: a prova de quem tem poder para assinar, o piso, os limites da exclusividade, a propriedade do equipamento e a condição que amarra tudo ao parecer de acesso. É o que o advogado precisa e o dono do imóvel não precisa ler.\n\nEsta folha não substitui contrato nem advogado. Ela existe para você sair da conversa com uma resposta.",
+    "destaque": "O piso não vai na proposta. Você escreveu o piso para você, não para ele."
+   },
+   {
+    "ordem": 8,
+    "titulo": "Hoje",
+    "texto": "Uma folha preenchida, do endereço que você já tem na mão.",
+    "lista": [
+     "Abra o modelo da Proposta de 1 Página e escreva o endereço e o nome do proprietário.",
+     "Copie o percentual e o prazo que você escreveu na aula passada. Copie — não refaça a conta agora.",
+     "Escreva quando o aluguel começa: na primeira recarga.",
+     "Escreva IPCA no reajuste e preencha a linha de quem paga o quê: energia, conectividade, seguro do ativo, IPTU.",
+     "Monte o croqui: foto do pátio de cima, três marcas — padrão de entrada, as duas vagas, caminho do cabo.",
+     "Escreva as duas linhas: medidor próprio (se o local aceita unidade consumidora nova) e retirada com recomposição no fim.",
+     "Leia a folha inteira em voz alta. Passou de uma página, corte adjetivo — nunca campo.",
+     "Imprima e leve na próxima ida. A folha fica com ele."
+    ],
+    "destaque": "Sem endereço com dono falando com você, não preencha em branco. Volte para a lista da aula 1 e traga um."
+   }
+  ]
+ },
+ {
+  "titulo": "A visita e o placar",
+  "descricao": "Você percorre o local em sete blocos, mede o movimento em vez de sentir, e sai de lá com uma letra escrita — A, B, C ou X — sem precisar voltar uma segunda vez.",
+  "duracao_seg": 420,
+  "paginas": [
+   {
+    "ordem": 1,
+    "titulo": "Você não vai lá descobrir quem é o dono",
+    "texto": "Quando você entra no carro, a parte mais cara da ficha já está respondida. Quem controla o imóvel você descobriu na aula 1, com uma ligação. Tipo de ligação, tensão, disjuntor e consumo você leu na aula 3, em duas fotos. Ir até o local para responder isso é gastar meio dia numa pergunta de dois minutos.\n\nA ordem do curso inteiro é uma só: começa pelo que custa nada e mata tudo, termina pelo que custa meio dia. A visita é a última linha dessa ordem. Ela existe pelo que só existe estando lá.",
+    "lista": [
+     "Antes de sair de casa: quem controla o imóvel, e se alguma das travas da aula 1 já matou o endereço",
+     "Antes de sair de casa: ligação, tensão, disjuntor e consumo, pela conta de luz e pela foto do padrão",
+     "Só na visita: entrada, visibilidade, vaga, manobra, piso, iluminação e horário de acesso",
+     "Só na visita: a contagem do movimento e a permanência natural do cliente daquele local"
+    ],
+    "destaque": "Visita é meio dia seu. Ela não existe para responder o que uma ligação responde."
+   },
+   {
+    "ordem": 2,
+    "titulo": "A ficha: sete blocos, no celular",
+    "texto": "Você preenche a ficha andando, no celular, na ordem em que a coisa se decide. Nenhum campo é de texto livre, a não ser um. E você não sai do local com bloco pela metade — ficha incompleta é o que produz a segunda visita, e a segunda visita é a mais cara que existe, porque ela não descobre nada de novo.\n\nAs fotos fecham a ficha. Quatro delas você já pediu na aula 3: o padrão de entrada inteiro, o disjuntor com o número legível, a primeira página da conta e a vaga vista da rua. As outras só existem estando lá — a vaga vista de dentro do local, o percurso do padrão até a vaga, a frente do local nos dois sentidos da via e a vista geral do pátio.",
+    "lista": [
+     "Identificação: endereço completo, data e hora, e o nome e telefone de quem abriu o local",
+     "O que trava antes de sair de casa: controle do imóvel, anuência escrita do proprietário, condomínio ou órgão público no meio",
+     "Energia: ligação, tensão, disjuntor, consumo, carga já instalada, solar no telhado e a distância do padrão até a vaga",
+     "Fluxo e permanência: o tipo de movimento, as contagens e quanto tempo o cliente daquele local fica",
+     "Visibilidade e acesso: se aparece a 50 metros, se a entrada é direta, se dá para sinalizar, e quantos pontos públicos existem no raio de 5 km",
+     "Vaga e manobra: quantas vagas podem ficar exclusivas, se um SUV entra e sai sem manobra em três tempos, piso e proteção do gabinete",
+     "Segurança e horário: iluminação, câmera, gente no local, furto no entorno — e a pergunta que vale, que não é a que horas o local abre, é quantas horas por dia o carregador fica acessível a quem não é cliente dali"
+    ],
+    "destaque": "\"Não sei\" não é resposta aceita nesta ficha. Na landing quem responde é o lead; aqui quem responde é quem foi até lá."
+   },
+   {
+    "ordem": 3,
+    "titulo": "Passar não é parar",
+    "texto": "\"Aqui é movimentado\" não é medida, e é a frase que mais faz gente comprar ponto ruim. O que interessa não é carro que passa: é carro que para e desliga o motor.\n\nO protocolo são três janelas de 20 minutos, em dois dias. Duas num dia útil — pico da manhã e fim de tarde — e uma no sábado, no horário que o próprio local diz ser de pico. Em cada janela você conta uma coisa só, e é sempre a mesma para aquele endereço.\n\nE tem uma regra que vale dinheiro: o número que você contou não vira carros por dia sozinho. Não existe taxa fechada aqui em casa que transforme carro contado numa rua em carro elétrico parado no seu bico, e os números de mercado que circulam por aí são de venda de carro novo, não de frota rodando naquela avenida. Você anota o bruto e para. Quem converte fluxo em faturamento é o Estudo de Viabilidade, na reunião.",
+    "lista": [
+     "Ponto de movimento próprio — mercado, posto, estacionamento: conte os veículos que ENTRAM no local",
+     "Ponto de rota — rodovia, avenida: conte os veículos que PASSAM no sentido de acesso ao local",
+     "Nunca os dois misturados na mesma ficha",
+     "Anote o número bruto e o horário exato de cada janela. Impressão não entra"
+    ],
+    "destaque": "A contagem ordena a sua fila de visitas e entra na conversa como faixa. Ela não entra em proposta."
+   },
+   {
+    "ordem": 4,
+    "titulo": "A permanência é a outra metade da contagem",
+    "texto": "Recarga não é abastecer. Um tanque enche em quatro minutos com o motorista em pé do lado da bomba. Uma recarga leva de 15 a 40 minutos e o motorista vai embora do carro. Então não basta passar carro na frente: tem que existir onde ele ficar naquela janela.\n\nÉ por isso que a ficha tem um único campo de texto livre, de uma linha só: o que o motorista faz nos 30 minutos da recarga? Se a resposta honesta for \"nada\", você acabou de achar o defeito daquele endereço — por melhor que o imóvel pareça.",
+    "lista": [
+     "Menos de 15 minutos — farmácia, padaria, lotérica: curto demais, o motorista não espera",
+     "De 20 a 60 minutos — posto com conveniência, mercado, atacado, restaurante rápido, estacionamento rotativo: é a janela certa",
+     "De 60 a 120 minutos — academia, restaurante de almoço, shopping: bico preso, você fatura uma recarga onde cabiam duas",
+     "Pernoite — hotel, condomínio: recarga rápida é o produto errado ali, por melhor que seja o imóvel"
+    ],
+    "destaque": "Fluxo alto com permanência errada não vira faturamento. É o erro que um ponto bonito esconde melhor."
+   },
+   {
+    "ordem": 5,
+    "titulo": "O placar: 30 pontos, cinco critérios",
+    "texto": "No fim da visita você soma. São 30 pontos repartidos em cinco critérios, e o peso de cada um é o peso que ele tem no seu bolso: energia decide se o ponto existe, fluxo decide quanto ele fatura, o resto ajusta.\n\nDois zeros não são zero, são trava. Zero em energia é monofásico, ou não existe rede trifásica atendendo aquele endereço. Zero em vaga é nenhuma vaga que possa ficar exclusiva do carregador. Qualquer um dos dois encerra a vistoria ali mesmo, sem soma e sem negociação.",
+    "lista": [
+     "Energia — até 10",
+     "Fluxo e permanência — até 8",
+     "Vaga e manobra — até 5",
+     "Visibilidade e acesso — até 4",
+     "Segurança e horário — até 3"
+    ],
+    "destaque": "A distância do padrão até a vaga conta dentro do critério de energia: acima de 80 metros você desce uma linha da tabela, acima de 150 desce duas. Teto 10, piso 2 — distância encarece, não trava."
+   },
+   {
+    "ordem": 6,
+    "titulo": "A letra: A, B, C ou X",
+    "texto": "Somou, escreve a letra. Ali, no local, antes de entrar no carro — não depois, não \"quando eu pensar melhor\". Ponto avaliado em casa vira ponto reavaliado pela lembrança, e lembrança é sempre mais otimista que a ficha.\n\nE a letra não é sentença. Os pesos e os dois cortes são calibragem da casa, arbitrada, e ainda não rodaram vistoria suficiente em campo para valer como veredito. Trava reprova sozinha e não tem recurso. Um B, ou um A baixo, é assunto de conversa com quem entende do assunto — não é um não.",
+    "lista": [
+     "24 a 30 — PONTO A: fecha. Segue para visita técnica e orçamento",
+     "16 a 23 — PONTO B: fecha condicionado ao orçamento da entrada de energia. Nada de preço prometido antes do parecer",
+     "Até 15 — PONTO C: não fecha hoje. Vira registro no seu banco de pontos, para voltar quando algo mudar",
+     "Qualquer trava — PONTO X: sai da fila, e a vistoria acabou no bloco em que travou"
+    ],
+    "destaque": "O placar mede o LOCAL. Ele não mede você e não mede o dono do imóvel. Um investidor excelente olhando um PONTO C continua diante de um PONTO C."
+   },
+   {
+    "ordem": 7,
+    "titulo": "Os dois \"não\" que você vai dizer",
+    "texto": "Sair de uma visita com um não é resultado, desde que você saiba qual dos dois é. Eles se dizem de jeitos opostos, e trocar um pelo outro custa o ponto.\n\nTrava mata de graça, e se diz na hora, sem rodeio: não é de quem fala com você, não há vaga que possa ficar exclusiva, não há trifásico na via, o inquilino não tem anuência escrita do proprietário. Trava não se negocia e não soma com nada.\n\nPreço não mata, orça. Reforço de entrada, transformador, vala longa, cobertura, pavimentação, alvará e licença são itens que se orçam depois da visita técnica, correm por conta do cliente, e ele é notificado com o orçamento antes de qualquer execução. Diga exatamente isso e nada além disso. E se aquele local aberto ao público exigir vaga acessível — de quem é a obrigação varia por município e por tipo de edificação: anota na ficha e leva ao advogado, não improvisa resposta no pátio.",
+    "destaque": "Trava você diz na hora. Preço você nunca chuta — quem orça é a visita técnica e a distribuidora, não você no meio do pátio."
+   },
+   {
+    "ordem": 8,
+    "titulo": "Hoje",
+    "texto": "Pegue um dos endereços que sobraram vivos na sua lista e marque a visita. Vá com a ficha aberta no celular, com o bloco das travas e o bloco de energia já preenchidos, e com a bateria carregada — quem fotografa com 6% de bateria volta.",
+    "lista": [
+     "Marque a visita para um dia útil, de manhã: a primeira janela de contagem começa nela",
+     "Percorra os sete blocos na ordem, andando pelo local, sem pular campo — todo \"não sei\" você resolve antes de ir embora",
+     "Tire as fotos que só existem estando lá: a vaga vista de dentro, o percurso do padrão até a vaga, a frente nos dois sentidos da via e a vista geral do pátio",
+     "Faça a contagem do fim de tarde no mesmo dia, e a do sábado no fim de semana seguinte",
+     "Some os 30 pontos e escreva a letra ainda no local, antes de entrar no carro",
+     "Travou? Escreva qual trava foi, agradeça e risque o endereço. Trava descoberta hoje é meio dia que você economizou"
+    ],
+    "destaque": "Ficha preenchida e fotos na mão é o que transforma uma hora paga com um sócio em decisão. Quem chega com a ficha vazia gasta a hora coletando dado — e não é visita ao seu imóvel: é sobre as fotos e os números que você levar."
+   }
+  ]
+ },
+ {
+  "titulo": "Os primeiros 30 segundos",
+  "descricao": "Você sai da primeira conversa com o WhatsApp do dono salvo e o pedido das duas fotos já mandado por escrito — sem ter falado um número.",
+  "duracao_seg": 330,
+  "paginas": [
+   {
+    "ordem": 1,
+    "titulo": "Você não vai lá vender. Vai buscar duas fotos",
+    "texto": "Você vai bater na porta de um dos três endereços que sobraram vivos na aula passada. Não vai lá vender nada: vai buscar duas imagens — uma da conta de luz e uma do quadro onde fica o relógio de energia, o padrão de entrada.\n\nO motivo cabe numa frase: o que mata um ponto de eletroposto é a energia, e a energia é de graça de descobrir. Ela está impressa na conta e gravada no disjuntor. Enquanto você não tiver essas duas fotos, tudo que você fizer naquele endereço é chute.\n\nE como a foto quase nunca sai na hora — ele vai ter que abrir a caixa, vai ter que achar a conta —, a visita ter valido é isto, exatamente: você sai de lá com o WhatsApp dele salvo e o pedido da foto já mandado por escrito, ali na frente dele.",
+    "destaque": "Se você sair com um \"vou pensar com carinho\" e sem o número dele no seu celular, não valeu."
+   },
+   {
+    "ordem": 2,
+    "titulo": "O texto do balcão, palavra por palavra",
+    "texto": "\"Bom dia. Meu nome é [nome], eu trabalho com estação de recarga de carro elétrico aqui na região.\n\nEu não vim vender nada pro senhor. Eu instalo a estação por minha conta, com o meu equipamento e no meu nome. O que eu procuro é o espaço: duas vagas ali no canto, que ficam paradas.\n\nA pergunta que decide se dá ou não dá aqui é a energia do local. O senhor consegue me mandar uma foto da conta de luz e uma do quadro do relógio? Com isso, em uma semana eu volto e te digo se o seu ponto presta ou não. E se não prestar, eu te falo também.\"\n\nAcabou. São três frases, e cada uma faz um trabalho. Depois da pergunta da foto, cala a boca e deixa ele responder. Silêncio no balcão é ferramenta.",
+    "lista": [
+     "\"Eu não vim vender nada\" desarma — ele já tinha a resposta pronta pro vendedor, e você tirou o chão dela",
+     "\"Por minha conta, com o meu equipamento, no meu nome\" responde metade das objeções antes de elas nascerem",
+     "\"Se não prestar eu te falo também\" é credibilidade barata — e é verdade, porque a maioria dos pontos não presta"
+    ],
+    "destaque": "A pergunta que fecha é sempre a mesma, e não é \"o senhor tem interesse?\". É: \"consegue me mandar a foto da conta de luz e a do padrão de entrada?\" — interesse é opinião e muda, foto é ação e qualifica."
+   },
+   {
+    "ordem": 3,
+    "titulo": "Quando não é no balcão: WhatsApp e telefone",
+    "texto": "Achou o telefone antes de achar o dono? É o mesmo trabalho, por escrito:\n\n\"Bom dia, [nome]. Falo daqui de [cidade] — trabalho com estação de recarga de carro elétrico.\n\nEstou procurando dois lugares aqui na região pra instalar. O investimento é meu: equipamento, obra e operação. O que eu preciso do dono do local é o espaço de duas vagas.\n\nAntes de tomar o seu tempo com visita, dá pra resolver por foto: uma da conta de luz e uma do quadro onde fica o relógio. Se a energia do local aguentar, a gente conversa. Se não aguentar, eu te aviso e não incomodo mais. Pode ser?\"\n\nNo telefone, a estrutura é a mesma com uma diferença que decide tudo: você pede o WhatsApp na primeira frase útil e manda o pedido por escrito ainda na ligação.",
+    "destaque": "Pedido de foto por telefone não vira foto — vira \"depois eu vejo isso\"."
+   },
+   {
+    "ordem": 4,
+    "titulo": "Ele vai dizer \"depois eu te mando\"",
+    "texto": "Vai dizer. Quase sempre. E \"depois eu te mando\" morre sozinho se você deixar.\n\nVocê não sai de lá sem fazer isto, ali na frente dele: \"me passa o seu WhatsApp que eu já te mando a mensagem agora, aí fica salvo aí e o senhor me responde quando abrir a caixa.\" Você manda na hora. Ele vê o celular apitar. Agora o pedido existe por escrito, no telefone dele, com o seu nome.\n\nSe em dois dias não vier nada, você manda uma vez — uma só:\n\n\"Bom dia, [nome]. É o [nome], da estação de recarga — passei aí na [dia da semana]. É só aquelas duas fotos: a conta de luz e o quadro do relógio. Com elas eu já te digo se o seu ponto presta. Se não der, sem problema nenhum, é só me falar que eu não incomodo mais.\"\n\nQuem não responde ao segundo pedido não vai responder ao quinto — e você tem outros nove endereços na lista.",
+    "destaque": "Um follow-up. Não dois, não cinco."
+   },
+   {
+    "ordem": 5,
+    "titulo": "O que não pode sair da sua boca — 1 a 5",
+    "texto": "Esta é a parte mais importante da aula. Cada item aqui já custou dinheiro pra alguém.",
+    "lista": [
+     "\"Sociedade\" e \"parceria\" — as duas significam \"quero uma parte\" na cabeça de quem ouve, e você abre essa porta sem ter um único número na mão",
+     "Nenhum valor. Nem faixa, nem \"gira em torno de\" — você ainda não sabe se o padrão dele aguenta, e preço dito antes da conta de luz vira âncora que você não desfaz mais",
+     "\"O senhor vai ganhar tanto por mês\" — é promessa de rendimento; você não tem como sustentar, e é a frase que reaparece na discussão daqui a dois anos",
+     "\"Não te custa nada\" — custa: custa vaga, custa obra no piso dele, e pode custar energia se a instalação não for em medidor próprio",
+     "\"Só uma autorizaçãozinha pra eu protocolar\" — assinatura pedida de surpresa mata a confiança, e se ele assinar sem ler, mata o contrato depois"
+    ]
+   },
+   {
+    "ordem": 6,
+    "titulo": "O que não pode sair da sua boca — 6 a 9",
+    "texto": "As quatro últimas, e a única que não é frase: é comportamento.\n\nSe ele perguntar quanto você paga, a resposta é: \"primeiro eu preciso saber se a energia do local aguenta. Se aguentar, eu volto com número.\"",
+    "lista": [
+     "\"Eu vou instalar aqui\" — você não sabe. O certo é \"eu vou avaliar se cabe aqui\"",
+     "kW, OCPP, CCS2, parecer de acesso, REN — ele não é engenheiro; jargão faz ele achar que isso é complicado demais pra ele, e a resposta vira não",
+     "Deixar ele falar o preço primeiro — quem fala o número primeiro define a régua, e dono de imóvel chuta alto porque está precificando novidade, não metro quadrado",
+     "Pedir exclusividade agora — exclusividade antes de viabilidade é o pedido que faz o dono desconfiar de você"
+    ],
+    "destaque": "Oito das nove são a mesma coisa: não levanta a lebre. Enquanto ele estiver te vendendo duas vagas paradas, o preço é de duas vagas paradas."
+   },
+   {
+    "ordem": 7,
+    "titulo": "\"E a minha conta de luz?\"",
+    "texto": "Ele vai perguntar. É a pergunta mais comum que existe no balcão, e a resposta é uma frase:\n\n\"A recarga não entra na sua conta. A estação tem medidor próprio, unidade consumidora nova, no meu nome. A conta da energia vendida vem pra mim, e a sua continua exatamente como está hoje.\"\n\nE não é gentileza sua, é como tem que ser: quem responde pela energia da operação é você.\n\nResponda com essa frase e volte para a pergunta da foto. Nada além disso cabe em trinta segundos.",
+    "destaque": "A conta dele continua exatamente como está hoje. Essa é a resposta inteira."
+   },
+   {
+    "ordem": 8,
+    "titulo": "Hoje: três portas, três números salvos",
+    "texto": "Pega a lista da aula 1 e vai. Presencial nas que der, WhatsApp nas outras. Hoje, não amanhã.",
+    "lista": [
+     "Vá nas três portas — bater numa e achar que fez o trabalho é o erro mais comum",
+     "Fale as três frases e pare na pergunta da foto",
+     "Salve o WhatsApp de cada um e mande o pedido das duas fotos por escrito, ali na frente dele",
+     "Não aceite \"me manda por e-mail que eu vejo\" — é \"me passa o seu WhatsApp que eu mando agora\"",
+     "Daqui a dois dias, um follow-up em quem não respondeu. Um só",
+     "Abra a próxima aula quando a primeira foto chegar"
+    ],
+    "destaque": "Se nenhuma das três mandar foto, o problema não é o ponto: é o texto. Grave o áudio de você falando e escute — você vai ouvir o vendedor que jurou que não era."
+   }
+  ]
+ },
+ {
+  "titulo": "Fixo, percentual ou misto — e o \"quero uma parte\"",
+  "descricao": "Você converte qualquer aluguel pedido em carros por dia e sai com o percentual e o piso escritos para um endereço seu.",
+  "duracao_seg": 400,
+  "paginas": [
+   {
+    "ordem": 1,
+    "titulo": "Aluguel se mede em carros por dia",
+    "texto": "O dono do imóvel vai te pedir um número. Antes de ouvir esse número você precisa dos seus, e eles saem todos da mesma base — a mesma do curso inteiro, sem trocar de configuração no meio.\n\nUm carro fatura R$ 48,20 (20 kWh × R$ 2,35 + R$ 1,20 de ativação). Um carro por dia, portanto, vale R$ 1.446 de faturamento por mês. E 10% disso são R$ 144,60.\n\nCuidado com a palavra: R$ 48,20 é o que ENTRA, não o que sobra. Depois de pagar a energia daquela recarga sobram cerca de R$ 34,20. O percentual que você negocia incide sobre o que entra — é por isso que ele é auditável.\n\nO mesmo R$ 144,60 aparece de outro jeito, e é o jeito que importa quando você está discutindo pontos percentuais: num ponto de 10 carros por dia, 1 ponto percentual vale R$ 144,60 por mês. É a mesma conta vista do outro lado — 10% de um carro por dia é igual a 1% de dez carros por dia. Num ponto de 1 carro por dia, o ponto percentual vale R$ 14,46. O número anda com o movimento; diga sempre sobre qual movimento você está falando.",
+    "lista": [
+     "80 kW, 2 bicos — investimento R$ 144.595",
+     "Recarga vendida a R$ 2,35/kWh, energia comprada a R$ 0,70/kWh",
+     "20 kWh por recarga e R$ 1,20 de ativação por sessão",
+     "30 dias no mês"
+    ],
+    "destaque": "Num ponto de 10 carros por dia, errar dois pontos percentuais custa R$ 289 por mês — R$ 3.470 em um ano."
+   },
+   {
+    "ordem": 2,
+    "titulo": "A conversão, na hora da conversa",
+    "texto": "Ele pediu R$ 1.200 por mês? Divide por R$ 144,60: são 8,3 carros por dia. Agora a pergunta deixou de ser \"é caro?\" e virou \"eu acredito que esse ponto faz mais de 8,3 carros por dia?\".\n\nSe você acredita que faz mais, o fixo é barato para você. Se acredita que faz menos, o fixo é caro e o seu caminho é empurrar para o percentual.\n\nE o divisor não é lei da natureza. R$ 144,60 são 10% do que um carro fatura na régua desta base. Se você vender a recarga por outro preço, refaça: preço do kWh × 20, mais a ativação, e tire 10%. É a mesma régua com outro número.",
+    "lista": [
+     "R$ 500 pedidos = 3,5 carros/dia",
+     "R$ 700 = 4,8 carros/dia",
+     "R$ 1.000 = 6,9 carros/dia",
+     "R$ 1.446 = 10 carros/dia",
+     "R$ 2.000 = 13,8 carros/dia",
+     "R$ 2.892 = 20 carros/dia"
+    ],
+    "destaque": "Você não discute se o aluguel é caro ou barato. Você devolve um número de carros por dia."
+   },
+   {
+    "ordem": 3,
+    "titulo": "O percentual come a mesma fatia. O fixo é aposta",
+    "texto": "Mesma configuração, mesmo equipamento, mesma tarifa. Só o movimento muda. Compare quanto o aluguel come do que sobra, com 10% do faturamento e com um fixo de R$ 1.446.\n\nLeia só a última coluna de cada linha. O percentual custa cerca de um quinto do lucro em ponto fraco, médio ou forte — ele acompanha o ponto. O fixo não acompanha nada: num ponto forte ele é o melhor negócio que existe, e num ponto fraco ele dobra de peso e come quase metade do que sobra.\n\nVocê ainda não sabe em qual dos três cenários o seu endereço vai cair. É exatamente por isso que a régua padrão é o percentual.",
+    "lista": [
+     "5 carros/dia — faturamento R$ 7.230: 10% comem 22% do lucro, o fixo come 44%",
+     "10 carros/dia — faturamento R$ 14.460: 10% comem 21%, o fixo come 21%",
+     "20 carros/dia — faturamento R$ 28.920: 10% comem 20%, o fixo come 10%",
+     "Premissa: regime pleno, ponto já maduro, sobre a base declarada na página 1"
+    ],
+    "destaque": "O percentual cobra a mesma fatia em ponto fraco ou forte. O fixo é uma aposta em quanto o ponto vai fazer — e a aposta é sua."
+   },
+   {
+    "ordem": 4,
+    "titulo": "O empate do meio é falso",
+    "texto": "Na coluna dos 10 carros por dia os dois empatam: 21% e 21%. Esse empate é de ponto maduro, e o seu ponto não nasce maduro.\n\nA rampa da casa vai de metade da ocupação até a ocupação cheia em 24 meses. No mês 1 o ponto fatura cerca de R$ 7.230. Os 10% custam ali R$ 723. O fixo cobra os R$ 1.446 inteiros — o dobro, no mês em que você tem menos caixa e ainda está pagando obra.\n\nÉ isso que separa os dois no payback, mesmo pagando igual lá na frente: sem nenhum aluguel, 2,27 anos; com 10% do faturamento, cerca de 2,7 anos; com o fixo de R$ 1.446, cerca de 2,9 anos.\n\nE essa conta tem uma versão que o dono do imóvel entende, porque ela protege o bolso dele também.",
+    "lista": [
+     "Sem aluguel: payback de 2,27 anos",
+     "Com 10% do faturamento: cerca de 2,7 anos",
+     "Com fixo de R$ 1.446: cerca de 2,9 anos"
+    ],
+    "destaque": "\"Eu prefiro o percentual porque no começo o ponto não fatura nada. Se eu te prometo um fixo alto no mês 1, eu quebro antes de o negócio pegar — e aí o senhor perde o inquilino.\""
+   },
+   {
+    "ordem": 5,
+    "titulo": "Os quatro degraus, nesta ordem",
+    "texto": "Você entra pelo degrau 1 e só desce se ele recusar. Desce um degrau por vez.\n\nO piso do degrau 2 você calcula, não chuta: veja quanto o percentual pagaria se o ponto fizer o mínimo que você acredita que ele faz, e escreva um piso abaixo disso. Ele começa depois da rampa, nunca no mês 1 — piso alto na rampa é o que quebra o ponto no primeiro ano. E no papel a expressão é \"o maior entre\" o piso e o percentual. \"Piso mais percentual\" é pagar duas vezes pelo mesmo espaço.\n\nO degrau 4 não é o pior modelo — ele nem é modelo. É o que você põe na mesa ANTES de ceder um ponto percentual, porque custa pouco e o dono valoriza: a placa na fachada e o nome do local aparecendo nos aplicativos de recarga põem o comércio dele no mapa. Só tome cuidado com condição preferencial de recarga para os carros dele: isso é custo real, sai do seu bolso, e a tarifa é sua para definir. Não vire promessa aberta.",
+    "lista": [
+     "1º — Percentual puro sobre o faturamento: o padrão para ponto novo, sem histórico, com movimento estimado",
+     "2º — Misto: piso mínimo e percentual, o MAIOR ENTRE os dois. Nunca a soma",
+     "3º — Fixo puro: só se as três forem verdade juntas — fluxo que você mediu (não sentiu), valor pedido abaixo dos carros/dia que você acredita fazer, e dono que só aceita previsibilidade",
+     "4º — O que não é dinheiro: placa na fachada, o nome do local nos aplicativos de recarga, prioridade de vaga em horário definido"
+    ],
+    "destaque": "Antes de subir um ponto percentual, gaste o degrau 4 inteiro. Ele custa quase nada e é o que o dono mais enxerga."
+   },
+   {
+    "ordem": 6,
+    "titulo": "\"Quero uma parte\" são três pedidos",
+    "texto": "Essa é a frase mais cara da conversa, porque quase todo mundo responde as três como se fossem uma só. Antes de responder qualquer coisa, descubra qual delas ele está pedindo.\n\nO percentual sobre o faturamento funciona por três motivos: é auditável sem você abrir seus livros (o painel da plataforma mostra sessões, kWh e faturamento), ele não carrega custo nenhum — não paga energia, manutenção nem imposto — e ele vira aliado. Dono que ganha percentual manda cliente para o ponto, põe placa e reclama quando o equipamento está fora do ar.\n\nSobre o lucro você recusa sem ofender: \"sobre o lucro eu não faço, e vou ser franco do porquê: aí a gente ia discutir todo mês o que é despesa e o que não é. Sobre o faturamento é um número só, e ele está no relatório.\"\n\nE se ele quer sociedade, você para. Isso muda quem responde pelo CNPJ, pela tarifa, pelo imposto e pela dívida — não é o mesmo papel e não se improvisa. Aqui a resposta honesta é que é outra conversa, e que ela passa por advogado.",
+    "lista": [
+     "Uma parte do FATURAMENTO — sim. É a régua: um percentual do que entra, todo mês, com o relatório na mão dele",
+     "Uma parte do LUCRO — nunca. Transforma toda despesa em discussão mensal e joga a rampa no colo de quem já banca a rampa",
+     "Uma parte do NEGÓCIO, sócio — outro contrato e outra conversa. Não se resolve no balcão"
+    ],
+    "destaque": "\"Parte de quê, exatamente? Porque tem três jeitos bem diferentes e um deles eu faço com prazer.\""
+   },
+   {
+    "ordem": 7,
+    "titulo": "Os dez que não se cedem",
+    "texto": "Nenhum desses dez aparece como problema na conversa. Todos aparecem depois, quando não dá mais para consertar — e cada um tem preço.\n\nVocê não precisa recitar os dez para o dono do imóvel. Precisa reconhecer, na hora, quando um deles está dentro da frase que ele acabou de falar — e dizer não ali, antes de virar papel.",
+    "lista": [
+     "A tarifa: quem opera define o preço da recarga",
+     "A propriedade do equipamento: o carregador não é benfeitoria do imóvel, e isso vai escrito",
+     "O direito de retirar no fim: sem essa cláusula, o fim do contrato entrega o seu ativo ao imóvel",
+     "Percentual sobre o lucro",
+     "Exclusividade sem prazo ou sem contrapartida — e nunca a que te proíba de instalar em outro ponto da mesma cidade: você está montando uma operação, não um ponto",
+     "Prazo curto: com 10% de arrendamento o dinheiro volta perto de 2,7 anos. Contrato que acaba antes disso é doação",
+     "Reajuste \"por combinação\": sem índice, reajusta por humor. O índice é o IPCA",
+     "Aluguel começando na assinatura: ele começa na primeira recarga",
+     "Assinar o arrendamento definitivo antes do parecer de acesso — a ordem de assinar é a aula 7",
+     "Os dados operacionais: sessões, kWh e faturamento são seus. O dono do imóvel recebe relatório, não acesso"
+    ],
+    "destaque": "Ceder um desses dez não custa nada na conversa. Custa no primeiro ano, quando já está assinado."
+   },
+   {
+    "ordem": 8,
+    "titulo": "Hoje",
+    "texto": "Pegue a ficha da aula 4 e escolha um endereço só — o que saiu A, ou o melhor B. Não faça isso para os três de uma vez.\n\nEscreva, em uma linha, o que você vai propor naquele endereço. Sem esses dois números escritos, a proposta de uma página da próxima aula não tem o que preencher.",
+    "lista": [
+     "Escreva o percentual que você vai propor: sobre o faturamento, começando na primeira recarga",
+     "Calcule o piso: quanto o percentual pagaria se o ponto fizer o mínimo que você acredita, e escreva um valor abaixo disso, valendo só depois da rampa",
+     "Escreva \"o maior entre\" ao lado dos dois. Nunca \"mais\"",
+     "Se já pediram um aluguel para você, divida por R$ 144,60 e anote os carros por dia que aquele valor custa",
+     "Decore a frase de manejo do \"quero uma parte\" e leve a página dos dez inegociáveis para a próxima conversa"
+    ],
+    "destaque": "Um endereço, um percentual, um piso. Escritos hoje, no papel, antes de a próxima conversa acontecer."
+   }
+  ]
+ },
+ {
+  "titulo": "A lista: dez endereços, sete riscados",
+  "descricao": "Hoje você termina com dez endereços da sua cidade escritos, sete riscados sem sair da cadeira e três vivos — cada um com o nome e o telefone de quem decide.",
+  "duracao_seg": 480,
+  "paginas": [
+   {
+    "ordem": 1,
+    "titulo": "Olhe onde não tem",
+    "texto": "Abra o aplicativo de recarga no seu celular e olhe a sua cidade. Não olhe onde tem ponto. Olhe onde não tem.\n\nAquele trecho de avenida ou de rodovia sem nenhum ponto num raio grande é onde você vai trabalhar hoje. No fim desta aula você tem dez endereços escritos numa lista e sete deles riscados, sem sair da cadeira. Os três que sobrarem são os que merecem o seu sapato.",
+    "destaque": "O aplicativo de recarga é o seu mapa de concorrência, e ele é de graça."
+   },
+   {
+    "ordem": 2,
+    "titulo": "Comece pelo que custa nada e mata tudo",
+    "texto": "Tudo que decide um ponto tem duas coisas: um custo para descobrir e um poder de matar. A ordem certa não é a ordem do interesse — é começar pelo que custa nada e mata tudo, e terminar pelo que custa meio dia.",
+    "lista": [
+     "Quem controla o imóvel: custa uma pergunta e mata tudo.",
+     "Se a energia do local aguenta: custa uma foto, e mata ou põe preço.",
+     "Se passa carro que para: custa três contagens de vinte minutos.",
+     "Se dá para manobrar ali: custa ir até lá — meio dia seu."
+    ],
+    "destaque": "Quem inverte essa ordem visita dez lugares por mês e não fecha nenhum."
+   },
+   {
+    "ordem": 3,
+    "titulo": "Onde procurar — cinco lugares",
+    "texto": "Nesta ordem, e os dois primeiros você faz sentado. Metade dos endereços você elimina de casa, na vista de rua.",
+    "lista": [
+     "O buraco do mapa: o trecho sem nenhum ponto que você acabou de ver no aplicativo.",
+     "Vista de rua, antes de pôr o carro na rua. Dali você vê a fachada, conta as vagas, acha o padrão de entrada e mede a distância dele até onde o carregador ficaria.",
+     "Placa de aluga-se em pátio comercial, e imobiliária de imóvel comercial. Dono de imóvel comercial parado é quem menos resiste a uma conversa.",
+     "Associação e sindicato da sua cidade: de posto, de supermercado, de hotelaria. Uma reunião de associação vale trinta portas.",
+     "Rede e franquia. Nunca comece pela loja — comece por quem decide a rede."
+    ],
+    "destaque": "Gerente de loja de rede não pode dizer sim — só pode dizer não."
+   },
+   {
+    "ordem": 4,
+    "titulo": "A régua que quase ninguém usa: permanência",
+    "texto": "A pergunta que todo mundo faz é \"passa muito carro aí?\". Ela está errada.\n\nRecarga não é abastecer. Um tanque enche em quatro minutos e o motorista fica em pé do lado da bomba. Uma recarga leva de quinze a quarenta minutos e o motorista vai embora do carro. Não adianta passar carro na frente: tem que ter onde o motorista ficar naquela janela.\n\nGuarde esta régua. É a mais útil da aula.",
+    "lista": [
+     "Menos de 15 minutos — farmácia, padaria, lotérica. Curto demais, o motorista não para. Farmácia só vale em avenida de fluxo; em rua de bairro, não.",
+     "De 20 a 60 minutos — posto com conveniência, mercado, atacado, restaurante rápido, estacionamento rotativo. É a janela certa: o carro carrega enquanto a pessoa faz o que veio fazer.",
+     "De 60 a 120 minutos — academia, restaurante de almoço, shopping. Bico preso: você fatura uma recarga onde cabiam duas.",
+     "Pernoite — hotel, condomínio. Aqui o produto está errado. A exceção é hotel de beira de rodovia com pátio aberto a quem não é hóspede, porque aí o fluxo não é o hóspede, é a rota."
+    ],
+    "destaque": "Hotel é um cliente excelente para a gente e um locador ruim para você — são duas coisas diferentes."
+   },
+   {
+    "ordem": 5,
+    "titulo": "As sete travas",
+    "texto": "Trava é diferente de preço. Preço se resolve depois, com orçamento. Trava mata de graça e não passa da primeira página.",
+    "lista": [
+     "Ninguém que fala com você controla aquele imóvel.",
+     "O ponto está \"em vista\" ou \"em negociação\". Conversa não é ponto.",
+     "O imóvel é alugado e o proprietário não deu autorização escrita para obra fixa.",
+     "Não existe nenhuma vaga que possa ficar exclusiva do carregador.",
+     "Não existe rede trifásica atendendo aquele endereço.",
+     "Aquele local já teve parecer de acesso negado por inviabilidade técnica.",
+     "Tem condomínio, shopping ou órgão público no meio, e ninguém deu autorização formal."
+    ],
+    "destaque": "Trava não soma com nada: um endereço perfeito que não é de ninguém que fala com você não é um ponto, é uma esquina."
+   },
+   {
+    "ordem": 6,
+    "titulo": "Você pergunta de quem é, e para",
+    "texto": "As duas primeiras travas, no seu caso, invertem. Você não tem imóvel nenhum: não é você que responde, é você que vai atrás da resposta. São quatro coisas — quem é o proprietário de fato, se o imóvel está alugado e se o locador autoriza obra fixa no pátio, se tem condomínio ou administradora no meio, e se o proprietário topa arrendar a vaga.\n\nE quando for atrás, você não diz para que é. Não fala em eletroposto, não fala em carro elétrico, não fala que quer alugar. O motivo é dinheiro: enquanto o dono estiver te vendendo duas vagas paradas, o preço é de duas vagas paradas. No minuto em que ele entende que ali vai nascer um negócio, ele para de precificar espaço e começa a precificar novidade.\n\nCinco caminhos até o nome, do mais barato ao mais caro:",
+    "lista": [
+     "A placa. Ligue para a imobiliária: \"vi a placa de vocês no imóvel da rua tal, número tal. Quem é o proprietário?\"",
+     "O balcão. Pergunte a quem está no caixa se o ponto é próprio ou alugado. Se for alugado, a próxima é \"e o proprietário, o senhor sabe quem é?\".",
+     "O CNPJ da fachada. A razão social está na porta ou na nota; o CNPJ te dá os sócios e um telefone antes de você falar com alguém.",
+     "O vizinho, o porteiro, o frentista. Quem trabalha na rua sabe de quem é o imóvel da esquina. É a fonte mais rápida que existe e ninguém usa.",
+     "O IPTU e a matrícula. Resolve imóvel fechado, terreno e espólio, mas custa tempo: é o quinto lugar onde você vai, nunca o primeiro."
+    ],
+    "destaque": "Se depois dos cinco caminhos você ainda não tem um nome, o endereço travou na trava um — ninguém negocia com \"é de um pessoal aí\"."
+   },
+   {
+    "ordem": 7,
+    "titulo": "Dois endereços rodados na sua frente",
+    "texto": "Galeria comercial na avenida principal. Oito lojas, estacionamento na frente com umas doze vagas, visível dos dois sentidos, entrada direta. No papel é ótimo. Você liga para a imobiliária que tem placa na galeria e faz uma pergunta: de quem é a galeria? É de um espólio, com inventário correndo, e a imobiliária só administra as locações. Acabou — trava um e trava sete ao mesmo tempo. Risque, com o motivo escrito na coluna. Custou uma ligação de dois minutos e economizou meio dia de visita.\n\nMercado de bairro grande, na saída da cidade. Estacionamento próprio de umas trinta vagas, movimento forte de sexta e sábado, e quem faz compra de mês fica quarenta minutos lá dentro: está na janela certa. Você liga e pergunta de quem é. É do próprio dono do mercado, que opera o negócio e está lá todo dia. Agora rode as sete:",
+    "lista": [
+     "Controle do imóvel: passou, o dono fala com você.",
+     "O ponto existe: passou.",
+     "Alugado: passou, o imóvel é dele.",
+     "Vaga exclusiva: passou — das trinta dá para separar duas no canto do muro, dá para ver na vista de rua.",
+     "Trifásico: a confirmar. Mercado desse tamanho quase sempre é, mas \"quase sempre\" não é \"passou\".",
+     "Parecer negado, condomínio ou órgão público: não se aplicam.",
+     "Veredito: esse é um dos três que sobram."
+    ],
+    "destaque": "Repare no que você não fez: não perguntou quanto ele quer de aluguel, não disse para que queria saber, e não foi até lá."
+   },
+   {
+    "ordem": 8,
+    "titulo": "Hoje",
+    "texto": "Faça agora, nesta ordem. Dá uma tarde, e no fim dela você tem dez linhas escritas e três vivas. Uma tarde é barato — ponto errado descoberto lá na frente custa o projeto e a ART.",
+    "lista": [
+     "Abra o aplicativo de recarga e ache o buraco da sua cidade.",
+     "Escreva dez endereços na Lista dos 10, com o tipo de cada um. Só endereço e tipo, cinco minutos.",
+     "Anote ao lado de cada um a permanência natural do cliente daquele lugar, em minutos.",
+     "Risque quem ficar abaixo de quinze minutos e quem for pernoite sem pátio aberto ao público.",
+     "Rode os dez nas sete travas. Uma ligação por endereço, no máximo, e marque passou, travou ou a confirmar.",
+     "Escreva o nome e o telefone de quem decide ao lado dos que sobraram.",
+     "Pare em três endereços vivos. Na próxima aula você bate numa dessas três portas."
+    ],
+    "destaque": "Se as dez travarem, a lista está errada, não você: volte ao mapa e escolha outros dez."
+   }
+  ]
+ },
+ {
+  "titulo": "A ordem de assinar",
+  "descricao": "Você sai com os doze campos preenchidos e a carta no e-mail do seu advogado — sabendo qual papel se assina antes do parecer e qual não.",
+  "duracao_seg": 420,
+  "paginas": [
+   {
+    "ordem": 1,
+    "titulo": "Duas coisas que não podem ser as primeiras",
+    "texto": "Tem um nó no fechamento, e ele explica a ordem inteira.\n\nVocê não protocola na distribuidora sem ter direito sobre o imóvel — quem faz a obra exige que você comprove legitimidade sobre o local antes de mexer um dedo. E você não quer assinar um arrendamento de anos antes de saber se o ponto é viável. Quem responde isso é o parecer de acesso, e o parecer só sai depois do protocolo.\n\nUm depende do outro. Quem resolve esse nó no impulso assina o arrendamento primeiro, e esse é o erro mais caro desta aula.\n\nA saída é assinar em dois estágios: um papel curto, que trava o ponto pelo tempo do estudo e custa pouco, e o arrendamento definitivo só depois do parecer — quando o número final do investimento finalmente existe.",
+    "destaque": "Papel curto agora. Contrato de anos só depois do parecer."
+   },
+   {
+    "ordem": 2,
+    "titulo": "A ordem, do zero ao oito",
+    "texto": "Nove etapas. Cada uma está nessa posição porque a de cima custa menos para descobrir e mata mais coisa.\n\nDuas leituras que a ordem esconde. A etapa 5 é a linha de corte: antes dela o custo de reforço de rede não existe em número, e reforço corre por sua conta. E a etapa 8 acaba na primeira recarga, não na instalação — equipamento montado e desligado não é entrega.\n\nO estudo de viabilidade da etapa 3 você lê com o aluguel já descontado. O cenário sem arrendamento não é o seu.",
+    "lista": [
+     "0 · Quem assina — matrícula ou IPTU, contrato social ou procuração, contrato de locação e a anuência escrita do proprietário se o imóvel for alugado",
+     "1 · Os três números da energia — foto do padrão e da conta: ligação, disjuntor, kWh/mês",
+     "2 · O instrumento curto de opção ou exclusividade, com prazo",
+     "3 · Visita técnica e estudo de viabilidade daquele endereço",
+     "4 · Solicitação de acesso protocolada na distribuidora",
+     "5 · Parecer aprovado, com o custo de reforço de rede escrito em número",
+     "6 · Arrendamento definitivo assinado",
+     "7 · Obra e operação — dois contratos separados, mesma mesa, mesmo dia",
+     "8 · Obra, comissionamento e primeira recarga"
+    ],
+    "destaque": "Antes do parecer, o número final do investimento não existe."
+   },
+   {
+    "ordem": 3,
+    "titulo": "O preço de inverter cada passo",
+    "texto": "Inverter a ordem não trava o negócio. Inverter cobra. Cada linha abaixo é uma etapa fora de lugar e a conta que ela deixa.",
+    "lista": [
+     "Assinar o arrendamento antes do parecer — você paga aluguel de um ponto que pode ser inviável",
+     "Protocolar sem papel assinado com o dono — ele fecha com outro depois que você já pagou projeto e ART",
+     "Falar valor de aluguel antes da conta de luz — você ancora um preço sem saber se vai precisar de transformador, e transformador muda o investimento inteiro",
+     "Pedir a foto do padrão depois da visita — a resposta vira visita técnica, e visita entra na fila",
+     "Fechar com o inquilino sem o proprietário — contrato que não se executa"
+    ],
+    "destaque": "O contrato de obra devolve o dinheiro da obra descontado o projeto. Nada devolve aluguel pago."
+   },
+   {
+    "ordem": 4,
+    "titulo": "Os doze campos",
+    "texto": "O que vai para o advogado não é um contrato. É o term sheet: uma folha com doze campos preenchidos, que resume o acordo antes de existir minuta.\n\nSete deles você já respondeu na proposta que deixou com o dono do imóvel. Copie — não responda de novo. Se as duas folhas divergirem num número, o advogado vai redigir a divergência, e você descobre depois da caneta.",
+    "lista": [
+     "1 · Partes e prova de quem assina",
+     "2 · Área e croqui — vem da proposta",
+     "3 · Prazo e renovação — vem da proposta",
+     "4 · Percentual e base de cálculo — vem da proposta",
+     "5 · Piso, se houver",
+     "6 · Quando o aluguel começa — vem da proposta",
+     "7 · Reajuste e vencimento — vem da proposta",
+     "8 · Unidade consumidora — vem da proposta",
+     "9 · Exclusividade e seus limites",
+     "10 · Obra, retirada e recomposição — vem da proposta",
+     "11 · Propriedade do equipamento",
+     "12 · Venda do imóvel e condição resolutiva"
+    ],
+    "destaque": "Sete campos se copiam. Nenhum se responde duas vezes."
+   },
+   {
+    "ordem": 5,
+    "titulo": "Os cinco que o dono do imóvel não lê",
+    "texto": "Os outros cinco ficam fora da proposta de propósito: não são assunto do dono do imóvel, são assunto do advogado. E são eles que decidem se o contrato protege você.",
+    "lista": [
+     "Prova de quem assina — matrícula, contrato social ou procuração. É o campo que impede você fechar com um herdeiro quando eram cinco",
+     "Piso, se houver — escrito como \"o maior entre\" piso e percentual, nunca \"piso mais percentual\". Somar os dois é pagar duas vezes",
+     "Limites da exclusividade — ela tem prazo e tem contrapartida, e nunca te proíbe de instalar em outro ponto da mesma cidade: você está montando uma operação, não um ponto",
+     "Propriedade do equipamento — o carregador não é benfeitoria do imóvel, e o direito de retirar no fim precisa estar escrito",
+     "Venda do imóvel e condição resolutiva — o que acontece se ele vender, e a trava que derruba o contrato se o parecer for negado"
+    ],
+    "destaque": "Sem cláusula de retirada, o fim do contrato entrega o seu equipamento ao imóvel."
+   },
+   {
+    "ordem": 6,
+    "titulo": "A carta: o que ele escreve",
+    "texto": "A carta tem uma página e abre dizendo onde você está: nada assinado, term sheet preenchido, documentos do imóvel em anexo. Depois ela pede duas peças escritas.\n\nNenhuma das duas acompanha este curso, e isso é decisão, não falta. Contrato de anos com obra fixa no pátio dos outros é redação de advogado. Modelo baixado da internet, aqui, é o papel mais caro que você pode assinar.",
+    "lista": [
+     "O instrumento curto de opção ou exclusividade, com prazo — é o papel da etapa 2, o que segura o ponto enquanto o estudo roda",
+     "O arrendamento definitivo, redigido em cima dos doze campos — com a cláusula de retirada e recomposição escrita, e a condição resolutiva vinculada ao parecer"
+    ],
+    "destaque": "Nenhuma minuta vem com o curso. Quem redige é o seu advogado."
+   },
+   {
+    "ordem": 7,
+    "titulo": "A carta: o que ele decide",
+    "texto": "A segunda metade da carta são perguntas, e todas são fechadas. Advogado que recebe \"dá uma olhada nisso aqui\" cobra caro e devolve devagar. Advogado que recebe pergunta fechada responde.",
+    "lista": [
+     "A redação da retirada e recomposição: quem paga, em que estado o local volta, e como evitar que o equipamento seja tratado como benfeitoria",
+     "O arrendamento vale contra quem comprar o imóvel? Depende de registro ou averbação, e em qual cartório?",
+     "Se a distribuidora exigir o arrendamento definitivo para protocolar, como a condição resolutiva vinculada ao parecer me protege?",
+     "Quando não der para abrir unidade consumidora nova: sub-medição com reembolso é viável? Quem fica titular da energia e como o consumo se comprova?",
+     "Se o dono do imóvel quiser entrar como sócio, que instrumento se usa — porque arrendamento não é",
+     "As certidões do imóvel entram sempre, ou só acima de certo porte?"
+    ],
+    "destaque": "Você não leva um contrato ao advogado. Leva decisão tomada e pergunta fechada."
+   },
+   {
+    "ordem": 8,
+    "titulo": "Hoje",
+    "texto": "Uma folha, um telefonema e um e-mail. Dá para fazer os três antes de o dia acabar.",
+    "lista": [
+     "Abra a proposta que você montou na aula passada e copie para o term sheet os sete campos que já estão respondidos",
+     "Preencha os cinco que faltam: prova de quem assina, piso, limites da exclusividade, propriedade do equipamento e a condição resolutiva",
+     "Junte matrícula ou IPTU, contrato social ou procuração e, se o imóvel for alugado, a anuência escrita do proprietário",
+     "Ligue na sua distribuidora e faça uma pergunta só: para protocolar a solicitação de acesso, ela aceita instrumento de opção ou exclusividade, ou exige o arrendamento definitivo? Anote a resposta e o nome de quem atendeu",
+     "Mande a carta e o term sheet ao seu advogado no mesmo e-mail, com os documentos anexados"
+    ],
+    "destaque": "Enquanto o parecer não sair, o único papel que você assina é o curto."
+   }
+  ]
+ }
+]
