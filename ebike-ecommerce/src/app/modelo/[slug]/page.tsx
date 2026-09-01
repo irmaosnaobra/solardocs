@@ -74,29 +74,61 @@ export default async function PaginaDaBike({ params }: { params: Promise<{ slug:
       </nav>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_368px] lg:items-start">
-        <div className="cartao min-w-0 p-3 sm:p-6">
-          <div className="mb-4">
-            <p className="text-xs text-suave">
-              {bike.categoria} · {bike.marca}
-              {bike.cor ? ` · ${bike.cor}` : ''}
-            </p>
-            <h1 className="mt-1 text-xl leading-snug font-bold text-tinta sm:text-2xl">
-              {bike.titulo}
-            </h1>
-            <p className="mt-1 text-xs text-fraco">Código {bike.codigo}</p>
+        {/* A ficha técnica vive DENTRO da coluna da foto, não embaixo das duas.
+            Fora dela, a coluna da direita (preço, frete, pagamento, confiança)
+            ficava muito mais alta e sobrava um bloco de branco do lado
+            esquerdo — e a ficha só começava depois de todo esse vazio. */}
+        <div className="flex min-w-0 flex-col gap-5">
+          <div className="cartao min-w-0 p-3 sm:p-6">
+            <div className="mb-4">
+              <p className="text-xs text-suave">
+                {bike.categoria} · {bike.marca}
+                {bike.cor ? ` · ${bike.cor}` : ''}
+              </p>
+              <h1 className="mt-1 text-xl leading-snug font-bold text-tinta sm:text-2xl">
+                {bike.titulo}
+              </h1>
+              <p className="mt-1 text-xs text-fraco">Código {bike.codigo}</p>
+            </div>
+
+            <Galeria imagens={bike.imagens} titulo={bike.titulo} />
+
+            {resumo.length ? (
+              <dl className="mt-6 grid grid-cols-2 gap-3 border-t border-borda pt-5 sm:grid-cols-4">
+                {resumo.map(([rotulo, valor]) => (
+                  <div key={rotulo} className="rounded-xl bg-fundo/70 px-3 py-2.5">
+                    <dt className="text-[11px] text-suave">{rotulo}</dt>
+                    <dd className="text-sm font-semibold text-tinta">{valor}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : null}
           </div>
 
-          <Galeria imagens={bike.imagens} titulo={bike.titulo} />
-
-          {resumo.length ? (
-            <dl className="mt-6 grid grid-cols-2 gap-3 border-t border-borda pt-5 sm:grid-cols-4">
-              {resumo.map(([rotulo, valor]) => (
-                <div key={rotulo} className="rounded-xl bg-fundo/70 px-3 py-2.5">
-                  <dt className="text-[11px] text-suave">{rotulo}</dt>
-                  <dd className="text-sm font-semibold text-tinta">{valor}</dd>
-                </div>
-              ))}
-            </dl>
+          {bike.ficha.length ? (
+            <section className="cartao p-5 sm:p-6">
+              <h2 className="text-lg font-bold text-tinta">Características do produto</h2>
+              <p className="mt-1 mb-4 text-xs text-fraco">
+                Informações como o fabricante publicou, sem edição.
+              </p>
+              <dl className="grid gap-x-10 sm:grid-cols-2">
+                {bike.ficha.map((item, i) => (
+                  <div
+                    key={item.rotulo}
+                    className={
+                      'flex justify-between gap-6 rounded-lg px-3 py-2.5 text-sm ' +
+                      (i % 2 === 0 ? 'bg-fundo/70' : '')
+                    }
+                  >
+                    <dt className="font-semibold text-tinta">{item.rotulo}</dt>
+                    <dd className="text-right text-suave">{item.valor}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-5 text-xs text-fraco">
+                Descrição do fornecedor: <span className="text-suave">{bike.nomeOriginal}</span>
+              </p>
+            </section>
           ) : null}
         </div>
 
@@ -112,32 +144,6 @@ export default async function PaginaDaBike({ params }: { params: Promise<{ slug:
           <Confianca />
         </div>
       </div>
-
-      {bike.ficha.length ? (
-        <section className="cartao mt-5 p-5 sm:p-6">
-          <h2 className="text-lg font-bold text-tinta">Características do produto</h2>
-          <p className="mt-1 mb-4 text-xs text-fraco">
-            Informações como o fabricante publicou, sem edição.
-          </p>
-          <dl className="grid gap-x-10 sm:grid-cols-2">
-            {bike.ficha.map((item, i) => (
-              <div
-                key={item.rotulo}
-                className={
-                  'flex justify-between gap-6 rounded-lg px-3 py-2.5 text-sm ' +
-                  (i % 2 === 0 ? 'bg-fundo/70' : '')
-                }
-              >
-                <dt className="font-semibold text-tinta">{item.rotulo}</dt>
-                <dd className="text-right text-suave">{item.valor}</dd>
-              </div>
-            ))}
-          </dl>
-          <p className="mt-5 text-xs text-fraco">
-            Descrição do fornecedor: <span className="text-suave">{bike.nomeOriginal}</span>
-          </p>
-        </section>
-      ) : null}
 
       {parecidas.length ? (
         <section className="mt-6">
