@@ -1,0 +1,137 @@
+{
+  "_leia_antes": [
+    "Payloads prontos para POST https://graph.facebook.com/v23.0/{WABA_ID}/message_templates",
+    "Authorization: Bearer {SYSTEM_USER_TOKEN}  |  Content-Type: application/json",
+    "Enviar UM objeto de `templates` por request.",
+    "",
+    "REGRAS QUE JA ESTAO RESPEITADAS AQUI (nao mexer sem reconferir):",
+    "- body nao comeca nem termina com variavel;",
+    "- variaveis sao posicionais, sequenciais e cada uma aparece UMA vez (repetir e motivo comum de rejeicao);",
+    "- nenhum parametro pode chegar vazio, com \n, \t ou 4+ espacos seguidos;",
+    "- nenhuma clausula de escassez ('a procura esta alta', 'o horario fica bloqueado'): escassez e",
+    "  elemento promocional e reclassifica o template inteiro para MARKETING (~9x o preco).",
+    "  A escassez volta a ser dita DENTRO da janela de 24h, em texto livre, de graca.",
+    "",
+    "BOTOES: os dois titulos sao identicos nos quatro templates de proposito.",
+    "'Confirmado' casa com RE_AFIRMATIVA_INTEIRA (eletropostoRespostas.ts:101) e",
+    "'Preciso remarcar' casa com RE_REAGENDAR (eletropostoRemarcar.ts:67) sem casar RE_CANCELAR (:66).",
+    "As DUAS regex ficam intactas — MAS so funcionam se o parser da Meta jogar messages[0].button.text (resposta de quick reply de TEMPLATE, shape que extractText nao tem hoje) na mesma saida de texto. Sem esse branch o botao e invisivel para eletropostoRespostas e o lead 'confirma' no vazio."
+  ],
+
+  "templates": [
+    {
+      "name": "eletroposto_confirmacao",
+      "language": "pt_BR",
+      "category": "UTILITY",
+      "parameter_format": "POSITIONAL",
+      "components": [
+        { "type": "HEADER", "format": "TEXT", "text": "Reunião confirmada" },
+        {
+          "type": "BODY",
+          "text": "Oi, {{1}}. Aqui é da Irmãos na Obra. Sua reunião de eletroposto está confirmada para {{2}}, horário de Brasília.\n\nQuem vai te atender é {{3}}. É por vídeo, e o link da chamada chega pelo WhatsApp de quem te atende, no {{4}}. Salva esse contato. Não precisa instalar nada.\n\nJá me manda por aqui o que tiver do ponto: onde é, foto ou localização, conta de luz, e o que já pesquisou ou orçou. Pode ser texto, foto ou áudio.\n\nSe atrasar uns minutos no dia, me espera aí, que a reunião de antes costuma esticar quando o cliente fecha.",
+          "example": { "body_text": [["Marcos", "segunda-feira, 01/09 às 14h00", "o Diego", "(34) 99136-0172"]] }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            { "type": "QUICK_REPLY", "text": "Confirmado" },
+            { "type": "QUICK_REPLY", "text": "Preciso remarcar" }
+          ]
+        }
+      ],
+      "_params": {
+        "1": "primeiroNome(cliente_nome) || 'tudo bem'   -> 'Oi, tudo bem. Aqui é da...' le natural",
+        "2": "quandoPorExtenso(quando) -> 'segunda-feira, 01/09 as 14h00'. Verificado: linha unica, sem quebra de linha, tab ou 4+ espacos. Sempre existe (ficha sem quando nao gera toque)",
+        "3": "artigo + vendedor_nome || 'o nosso consultor'",
+        "4": "telefoneBonito(telPorConsultor) — OBRIGATORIO. Sem numero o toque NAO sai e alerta interno dispara."
+      },
+      "_substitui": "bolhasConfirmacao() — eletropostoAgenda.ts:329"
+    },
+
+    {
+      "name": "eletroposto_bom_dia",
+      "language": "pt_BR",
+      "category": "UTILITY",
+      "parameter_format": "POSITIONAL",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "Bom dia, {{1}}. Hoje é o dia: sua reunião de eletroposto é às {{2}}, com {{3}}. O link da chamada chega no WhatsApp de quem te atende, no {{4}}.\n\nAntes da reunião, me envia aqui o endereço de onde vai ser a sua estação de recarga. É o que a gente abre no mapa antes de entrar na chamada.\n\nSe hoje não der mais, toca no botão aqui embaixo que eu remarco.",
+          "example": { "body_text": [["Marcos", "14h00", "o Diego", "(34) 99136-0172"]] }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            { "type": "QUICK_REPLY", "text": "Confirmado" },
+            { "type": "QUICK_REPLY", "text": "Preciso remarcar" }
+          ]
+        }
+      ],
+      "_params": {
+        "1": "primeiroNome || 'tudo bem'  -> 'Bom dia, tudo bem.' le natural",
+        "2": "horaCurta(quando) -> '14h00'. Verificado: linha unica, sem quebra de linha, tab ou 4+ espacos",
+        "3": "artigo + vendedor_nome || 'o nosso consultor'",
+        "4": "telefoneBonito(telPorConsultor) — OBRIGATORIO"
+      },
+      "_substitui": "bolhasManha() — eletropostoAgenda.ts:365",
+      "_nota": "O pedido do endereco (ordem do Thiago, 30/08) sobrevive inteiro, e e ele que abre a janela de 24h e faz o toque de 1h e o de 5min sairem DE GRACA."
+    },
+
+    {
+      "name": "eletroposto_1h",
+      "language": "pt_BR",
+      "category": "UTILITY",
+      "parameter_format": "POSITIONAL",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "Oi, {{1}}. Falta 1 hora para a sua reunião de eletroposto com {{2}}, às {{3}}.\n\nO link da chamada chega no WhatsApp de quem te atende, no {{4}}. Fica de olho lá, e separa um canto com internet, que a reunião é por vídeo.\n\nSe atrasar uns minutos, segura aí, que a reunião de antes costuma esticar quando o cliente fecha.",
+          "example": { "body_text": [["Marcos", "o Diego", "14h00", "(34) 99136-0172"]] }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            { "type": "QUICK_REPLY", "text": "Confirmado" },
+            { "type": "QUICK_REPLY", "text": "Preciso remarcar" }
+          ]
+        }
+      ],
+      "_params": {
+        "1": "primeiroNome || 'tudo bem'",
+        "2": "artigo + vendedor_nome || 'o nosso consultor'",
+        "3": "horaCurta(quando) -> '14h00'. Verificado: linha unica, sem quebra de linha, tab ou 4+ espacos",
+        "4": "telefoneBonito(telPorConsultor) — OBRIGATORIO"
+      },
+      "_substitui": "bolhas1h() — eletropostoAgenda.ts:387",
+      "_nota": "So sai como template para quem NAO respondeu nada em 24h. Quem apertou botao ou mandou o endereco recebe o mesmo conteudo em texto livre, em bolhas, de graca."
+    },
+
+    {
+      "name": "eletroposto_5min",
+      "language": "pt_BR",
+      "category": "UTILITY",
+      "parameter_format": "POSITIONAL",
+      "components": [
+        {
+          "type": "BODY",
+          "text": "Olá, {{1}}. É agora: sua reunião de eletroposto começa às {{2}}.\n\nE {{3}} já está te esperando. O link da chamada chega no WhatsApp {{4}} a qualquer momento, é só clicar e entrar.\n\nSe demorar uns minutos, não desiste, que a reunião de antes costuma esticar quando o cliente fecha.",
+          "example": { "body_text": [["Marcos", "14h00", "o Diego", "(34) 99136-0172"]] }
+        },
+        {
+          "type": "BUTTONS",
+          "buttons": [
+            { "type": "QUICK_REPLY", "text": "Confirmado" }
+          ]
+        }
+      ],
+      "_params": {
+        "1": "primeiroNome || 'tudo bem'",
+        "2": "horaCurta(quando) -> '14h00'. Verificado: linha unica, sem quebra de linha, tab ou 4+ espacos",
+        "3": "artigo + vendedor_nome || 'o nosso consultor'",
+        "4": "telefoneBonito(telPorConsultor) — OBRIGATORIO"
+      },
+      "_substitui": "bolhas5min() — eletropostoAgenda.ts:405",
+      "_nota": "O botao unico existe para ABRIR A JANELA: se o lead toca, o consultor pode escrever livre por 24h sem template."
+    }
+  ]
+}
