@@ -363,7 +363,7 @@ const PAGINAS = [
     ],
     assinatura: 'Somos o Thiago e o Diego, irmãos, do Triângulo Mineiro. A gente não vende curso: vende eletroposto. Este material existe porque a parte que trava o cliente — achar o lugar — é justamente a que a gente não consegue fazer por ele.',
   },
-  topoSelo: 'Material completo · 7 dias de garantia',
+  topoLimpo: true,
   donosTexto: 'Somos o Thiago e o Diego, irmãos, do Triângulo Mineiro. A gente monta eletroposto chave na mão — projeto, equipamento e obra. Este material é a régua que a gente usa quando escolhe um ponto, escrita do jeito que a gente explicaria para um sócio.',
   rodape: 'Irmãos na Obra — eletroposto de recarga chave na mão',
   app: {
@@ -554,6 +554,28 @@ const CSS = `
   .marca { font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
   .marca span { color: var(--amber); }
   .topoSelo { font-size: 12.5px; color: var(--muted); }
+
+  /* Topo limpo: só a marca, centralizada. Sem selo, sem link, sem promessa —
+     a primeira coisa que a pessoa lê é quem está falando com ela. */
+  .topo.limpo { border-bottom: none; }
+  .topo.limpo::after {
+    content: ''; display: block; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--line) 22%, rgba(247,164,28,.5) 50%, var(--line) 78%, transparent);
+  }
+  .topo.limpo .wrap { justify-content: center; padding-top: 20px; padding-bottom: 20px; }
+  .marcaLimpa {
+    display: inline-flex; align-items: center; gap: 12px;
+    font-size: 23px; font-weight: 800; letter-spacing: -.022em; line-height: 1;
+  }
+  .marcaLimpa img {
+    width: 42px; height: 42px; border-radius: 10px; display: block;
+    box-shadow: 0 0 0 1px rgba(247,164,28,.28), 0 6px 20px rgba(247,164,28,.14);
+  }
+  @media (max-width: 520px) {
+    .topo.limpo .wrap { padding-top: 15px; padding-bottom: 15px; }
+    .marcaLimpa { font-size: 19px; gap: 10px; }
+    .marcaLimpa img { width: 34px; height: 34px; border-radius: 9px; }
+  }
 
   .hero {
     padding: 64px 0 56px;
@@ -1275,10 +1297,10 @@ ${d.favicon ? `<link rel="icon" type="image/svg+xml" href="/${d.pasta}/img/favic
 </head>
 <body>
 
-<div class="topo">
+<div class="topo${d.topoLimpo ? ' limpo' : ''}">
   <div class="wrap">
-    <span class="marca">${d.logo ? `<img src="/${d.pasta}/img/${d.logo}" alt="" width="26" height="26" style="vertical-align:-6px;margin-right:9px;border-radius:6px">` : ''}${d.marca ? esc(d.marca) : 'SolarDoc <span>Pro</span>'}</span>
-    <span class="topoSelo">${esc(d.topoSelo || 'Acesso imediato · 7 dias de garantia')}</span>
+    ${d.topoLimpo ? `<span class="marcaLimpa">${d.logo ? `<img src="/${d.pasta}/img/${d.logo}" alt="" width="42" height="42">` : ''}${d.marca ? esc(d.marca) : 'SolarDoc <span>Pro</span>'}</span>` : `<span class="marca">${d.logo ? `<img src="/${d.pasta}/img/${d.logo}" alt="" width="26" height="26" style="vertical-align:-6px;margin-right:9px;border-radius:6px">` : ''}${d.marca ? esc(d.marca) : 'SolarDoc <span>Pro</span>'}</span>
+    <span class="topoSelo">${esc(d.topoSelo || 'Acesso imediato · 7 dias de garantia')}</span>`}
   </div>
 </div>
 

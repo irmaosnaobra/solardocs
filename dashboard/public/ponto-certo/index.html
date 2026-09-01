@@ -77,6 +77,28 @@
   .marca span { color: var(--amber); }
   .topoSelo { font-size: 12.5px; color: var(--muted); }
 
+  /* Topo limpo: só a marca, centralizada. Sem selo, sem link, sem promessa —
+     a primeira coisa que a pessoa lê é quem está falando com ela. */
+  .topo.limpo { border-bottom: none; }
+  .topo.limpo::after {
+    content: ''; display: block; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--line) 22%, rgba(247,164,28,.5) 50%, var(--line) 78%, transparent);
+  }
+  .topo.limpo .wrap { justify-content: center; padding-top: 20px; padding-bottom: 20px; }
+  .marcaLimpa {
+    display: inline-flex; align-items: center; gap: 12px;
+    font-size: 23px; font-weight: 800; letter-spacing: -.022em; line-height: 1;
+  }
+  .marcaLimpa img {
+    width: 42px; height: 42px; border-radius: 10px; display: block;
+    box-shadow: 0 0 0 1px rgba(247,164,28,.28), 0 6px 20px rgba(247,164,28,.14);
+  }
+  @media (max-width: 520px) {
+    .topo.limpo .wrap { padding-top: 15px; padding-bottom: 15px; }
+    .marcaLimpa { font-size: 19px; gap: 10px; }
+    .marcaLimpa img { width: 34px; height: 34px; border-radius: 9px; }
+  }
+
   .hero {
     padding: 64px 0 56px;
     background:
@@ -746,10 +768,9 @@
 </head>
 <body>
 
-<div class="topo">
+<div class="topo limpo">
   <div class="wrap">
-    <span class="marca"><img src="/ponto-certo/img/logo-io.webp" alt="" width="26" height="26" style="vertical-align:-6px;margin-right:9px;border-radius:6px">Irmãos na Obra</span>
-    <span class="topoSelo">Material completo · 7 dias de garantia</span>
+    <span class="marcaLimpa"><img src="/ponto-certo/img/logo-io.webp" alt="" width="42" height="42">Irmãos na Obra</span>
   </div>
 </div>
 
