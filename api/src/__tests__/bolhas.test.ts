@@ -29,10 +29,18 @@ describe('emBolhas', () => {
       'Isso costuma encurtar bastante o tempo entre a visita e a assinatura do cliente. ' +
       'Faz sentido testar sete dias grátis pra ver funcionando na prática?';
 
+    // Com teto de 5 esta parede cabia em bolhas de 160. Com teto de 2 (baixado em
+    // 31/08/2026 porque o WhatsApp conta BOLHA e o robô gastava 3,78 por toque) a
+    // válvula precisa juntar, e junta acima de 160 DE PROPÓSITO: o módulo nunca
+    // trunca, e bolha grande é menos pior que metralhadora. O que continua
+    // inegociável é não perder texto, e é isso que a última linha guarda.
     const bolhas = emBolhas(parede);
     expect(bolhas.length).toBeGreaterThan(1);
-    for (const b of bolhas) expect(b.length).toBeLessThanOrEqual(160);
+    expect(bolhas.length).toBeLessThanOrEqual(2);
     expect(semEspaco(bolhas.join(' '))).toBe(semEspaco(parede));
+
+    // Sem o teto apertando, o corte por tamanho continua valendo.
+    for (const b of emBolhas(parede, { maxBolhas: 9 })) expect(b.length).toBeLessThanOrEqual(160);
   });
 
   it('template curto com linha em branco continua UMA bolha (link não desgruda)', () => {

@@ -829,7 +829,16 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
       previa.push({ id: ag.id, cliente: String(ag.cliente_nome || '—'), toque, quando: String(ag.quando), bolhas });
       return;
     }
-    await sendHuman(tel, bolhas, 'io');
+    // Teto de 3, não o padrão de 2 da casa. Este agente é o MAIOR emissor da
+    // linha: media 5,22 bolhas por toque, contra 3,78 do resto (medido em 30 dias
+    // em 31/08/2026). Baixar para 2 corta 62%, mas afunda o pedido de *SIM* num
+    // parágrafo de 404 caracteres, e o SIM é a única alavanca contra o no-show.
+    // Em 3 o corte ainda é de 42% e a alavanca continua numa bolha própria e
+    // legível, que é o que o teste 'o pedido de SIM sobrevive' guarda.
+    //
+    // A exceção se defende também pelo risco: isto é transacional, vai pra quem
+    // marcou a reunião. O contador ele enche; denúncia, não.
+    await sendHuman(tel, bolhas, 'io', { maxBolhas: 3 });
     // Carimbo pro teto anti-ban da linha (lineThrottle: `ep_agenda_sent:`). Este
     // agente vivia FORA do teto, e em 04/08 a fila de atraso soltou 8 pessoas na
     // mesma hora — 37 mensagens numa linha cujo teto é 12. A linha bloqueou.

@@ -30,14 +30,27 @@
 export interface OpcoesBolhas {
   /** Teto de caracteres por bolha (fronteira, não tesoura). Default 160. */
   max?: number;
-  /** Teto de bolhas na mensagem INTEIRA — anti-metralhadora. Default 5. */
+  /** Teto de bolhas na mensagem INTEIRA, anti-metralhadora. Default 2. */
   maxBolhas?: number;
 }
 
 // 160 é o tamanho de uma mensagem que um humano digita de verdade: duas frases
 // curtas só ficam juntas se somarem menos que isso; frase normal vai sozinha.
 const MAX_PADRAO = 160;
-const MAX_BOLHAS_PADRAO = 5;
+
+// DOIS, nao cinco. O WhatsApp conta BOLHA; o resto do sistema contava toque, e a
+// diferenca entre as duas unidades e o que derrubou a linha tres vezes.
+//
+// Medido em 30 dias na linha IO: 1.471 toques de robo para 538 pessoas sairam
+// como 5.564 mensagens, 3,78 bolhas por toque (5,22 na confirmacao de reuniao).
+// Com teto 2, os MESMOS toques, para as MESMAS pessoas, com as MESMAS palavras,
+// sairiam em 2.570: corte de 53,8% no contador sem perder um contato sequer.
+// A razao saida/entrada, que e o sinal que o WhatsApp le, cai de 3,28 para 1,81.
+//
+// O modulo nunca trunca: o que passa do teto e JUNTADO de volta. Entao baixar
+// para 2 nao corta texto, junta bolha. Bolha um pouco maior e melhor que
+// metralhadora, e o comentario do topo do arquivo ja dizia isso.
+const MAX_BOLHAS_PADRAO = 2;
 
 // Abreviações comuns em pt-BR: o ponto delas NÃO termina frase.
 const ABREVS = /^(sr|sra|srta|dr|dra|prof|profa|eng|arq|ltda|etc|ex|obs|av|r|nº|no|cia|pág|pag|fl|art|min|máx|max|aprox|séc|tel)$/i;
@@ -106,7 +119,17 @@ function empacotar(segmentos: string[], limite: number): string[] {
   const out: string[] = [];
   for (const seg of segmentos) {
     const atual = out[out.length - 1];
-    if (atual !== undefined) {
+    // Bloco intocável (Pix copia-e-cola, URL, token) nunca é fundido com vizinho,
+    // nem quando o orçamento permitiria. Ele PODE ser cortado? não, `fatiar` já
+    // protege. O que faltava era a outra ponta: ao baixar o teto de bolhas para 2
+    // a válvula passou a GRUDAR o código do Pix numa frase, e código de pagamento
+    // no meio de texto é um copia-e-cola que o cliente não consegue copiar. O
+    // teste "o código continua uma bolha só" pegou isso antes de ir pro ar.
+    //
+    // Consequência aceita: uma resposta com Pix sai em 3 bolhas mesmo com teto 2.
+    // O teto protege a reputação do número; o Pix é a receita entrando. Quando os
+    // dois brigam, ganha o Pix, e é raro o bastante pra não mover o contador.
+    if (atual !== undefined && !intocavel(seg) && !intocavel(atual)) {
       const sep = separador(atual, seg);
       if (atual.length + sep.length + seg.length <= limite) {
         out[out.length - 1] = atual + sep + seg;
@@ -145,15 +168,32 @@ export function emBolhas(bruto: string | null | undefined, opts: OpcoesBolhas = 
   const bolhas = blocos.flatMap(b => empacotar(fatiar(b, max), max));
   if (bolhas.length <= maxBolhas) return bolhas;
 
-  // Válvula: reagrupa TUDO (inclusive atravessando o ||) com um orçamento maior,
-  // afrouxando até caber no teto. Perder frase seria pior que bolha grande — e
-  // com orçamento = mensagem inteira, o pior caso é uma bolha só.
-  const total = segmentos.reduce((n, s) => n + s.length + 1, 0);
-  let limite = Math.max(max, Math.ceil(total / maxBolhas));
-  let saida = empacotar(segmentos, limite);
-  while (saida.length > maxBolhas && limite < total) {
-    limite = Math.min(total, Math.ceil(limite * 1.3) + 1);
-    saida = empacotar(segmentos, limite);
+  // Válvula: junta o MÍNIMO necessário pra caber no teto.
+  //
+  // A versão anterior reagrupava tudo com um orçamento único (total/maxBolhas) e
+  // por isso cortava demais: pedindo 4 ela devolvia 3, e a confirmação de reunião
+  // ia de 5 bolhas de ~140 caracteres para 3 de ~280, afundando o pedido de *SIM*
+  // que é a única alavanca contra o no-show. Reduzir mais do que o pedido não é
+  // conservador, é destruir fronteira que o autor escreveu de propósito.
+  //
+  // Agora funde de par em par, sempre o par adjacente de menor soma, até bater o
+  // teto. As fronteiras que sobrevivem são as que mais separam ideia grande, e o
+  // resultado tem EXATAMENTE maxBolhas bolhas (ou menos, se algum par não puder
+  // ser fundido).
+  const saida = bolhas.slice();
+  while (saida.length > maxBolhas) {
+    let alvo = -1;
+    let menor = Infinity;
+    for (let i = 0; i < saida.length - 1; i++) {
+      // Bloco intocável (Pix, URL, token) nunca entra numa fusão.
+      if (intocavel(saida[i]!) || intocavel(saida[i + 1]!)) continue;
+      const soma = saida[i]!.length + saida[i + 1]!.length;
+      if (soma < menor) { menor = soma; alvo = i; }
+    }
+    if (alvo < 0) break;   // só sobraram intocáveis: o teto cede, o código não.
+    const a = saida[alvo]!;
+    const b = saida[alvo + 1]!;
+    saida.splice(alvo, 2, a + separador(a, b) + b);
   }
   return saida;
 }

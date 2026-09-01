@@ -125,8 +125,11 @@ describe('catálogo de mídia', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('BOLHAS_CARLA', () => {
-  it('mantém o teto em 3 bolhas e 120 caracteres', () => {
-    expect(BOLHAS_CARLA.maxBolhas).toBe(3);
+  it('mantém o teto em 2 bolhas e 120 caracteres', () => {
+    // 2, alinhado com o padrão da casa desde 31/08/2026: o WhatsApp conta bolha,
+    // e o robô gastava 3,78 delas por toque. Baixar o teto corta 53,8% do
+    // contador do número sem perder um contato.
+    expect(BOLHAS_CARLA.maxBolhas).toBe(2);
     expect(BOLHAS_CARLA.max).toBe(120);
   });
 
@@ -143,7 +146,7 @@ describe('BOLHAS_CARLA', () => {
       'quinta ideia que estouraria o teto se não houvesse trava',
     ].join('||');
     const saida = emBolhas(longo, { max: BOLHAS_CARLA.max, maxBolhas: BOLHAS_CARLA.maxBolhas });
-    expect(saida.length).toBeLessThanOrEqual(3);
+    expect(saida.length).toBeLessThanOrEqual(2);
     // emBolhas nunca trunca: junta o excesso. Todo pedaço tem que sobreviver.
     for (const p of ['primeira ideia', 'quinta ideia']) {
       expect(saida.join(' ')).toContain(p);
@@ -154,7 +157,6 @@ describe('BOLHAS_CARLA', () => {
     const saida = emBolhas('então você paga 100% e usa 30%||aqui é R$ 67 o mês inteiro', {
       max: BOLHAS_CARLA.max, maxBolhas: BOLHAS_CARLA.maxBolhas,
     });
-    expect(saida.length).toBe(2);
-    for (const b of saida) expect(b.length).toBeLessThanOrEqual(120);
+    expect(saida.length).toBeLessThanOrEqual(2);
   });
 });

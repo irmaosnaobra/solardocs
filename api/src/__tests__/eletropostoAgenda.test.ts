@@ -357,7 +357,9 @@ describe('o que ele fala', () => {
   it('o pedido de SIM sobrevive ao fatiamento em bolhas do envio', async () => {
     const { emBolhas } = await import('../services/agents/bolhas');
     const { bolhasConfirmacao } = await mod();
-    const saida = emBolhas(bolhasConfirmacao('Irineu', '2026-08-05T18:30:00.000Z', 'Diego', '5534991360172').join('||'));
+    // maxBolhas 3 é o que o entregar() passa pra este agente desde 31/08/2026:
+    // o padrão da casa caiu pra 2 e afundaria o SIM num parágrafo de 404 chars.
+    const saida = emBolhas(bolhasConfirmacao('Irineu', '2026-08-05T18:30:00.000Z', 'Diego', '5534991360172').join('||'), { maxBolhas: 3 });
     expect(saida.join(' ')).toContain('*SIM*');
     expect(saida.join(' ')).toContain('05/08 às 15h30');
     // Não basta sobreviver: tem que dar pra ler. Se o pedido de SIM for engolido
@@ -366,10 +368,14 @@ describe('o que ele fala', () => {
     expect(bolhaDoSim.length).toBeLessThan(260);
   });
 
-  // A confirmação sai como foi escrita: 5 bolhas, uma ideia cada. Se alguém
-  // acrescentar uma 6ª, o teto do sendHuman reagrupa e a mensagem volta a ser
-  // parágrafo — foi por isso que a versão de 8 bolhas chegava embolada.
-  it('a confirmação cabe no teto de bolhas sem ser reagrupada', async () => {
+  // Desde 31/08/2026 a confirmação SAI reagrupada, de 5 bolhas para 3, e isso é
+  // deliberado: ela é o maior emissor da linha (5,22 bolhas por toque medidas em
+  // 30 dias) e o WhatsApp conta bolha, não toque. O que este teste guarda mudou
+  // de "não reagrupa" para "reagrupa até 3 e nenhuma ideia se perde": as três
+  // informações que fazem a pessoa aparecer (dia e hora, que é por vídeo, e o
+  // pedido de SIM) continuam todas lá, e o SIM continua legível, o que o teste
+  // anterior verifica em separado.
+  it('a confirmação reagrupa em 3 bolhas sem perder nenhuma ideia', async () => {
     const { emBolhas } = await import('../services/agents/bolhas');
     const { bolhasConfirmacao } = await mod();
     // O pior caso mora na 1ª bolha e é o mais longo que a régua consegue montar:
@@ -381,7 +387,11 @@ describe('o que ele fala', () => {
       bolhasConfirmacao('Wanderleia', '2026-08-17T20:30:00.000Z', null, '5534991360172'),
       bolhasConfirmacao('Wanderleia', '2026-08-17T20:30:00.000Z', null),
     ]) {
-      expect(emBolhas(partes.join('||'))).toEqual(partes);
+      const saida = emBolhas(partes.join('||'), { maxBolhas: 3 });
+      expect(saida.length).toBeLessThanOrEqual(3);
+      // Nada some: o texto inteiro sobrevive, só as fronteiras é que cedem.
+      const semEsp = (s: string) => s.replace(/\s+/g, '');
+      expect(semEsp(saida.join(''))).toBe(semEsp(partes.join('')));
     }
   });
 

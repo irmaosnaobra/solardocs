@@ -102,7 +102,7 @@ export const MIDIA_CARLA: Record<string, PecaCarla> = {
  * do lead. A mediana de texto dela era 128 caracteres, ou seja, curta: o que
  * pesava era o tempo, não o tamanho.
  */
-export const BOLHAS_CARLA = { slow: true, max: 120, maxBolhas: 3 } as const;
+export const BOLHAS_CARLA = { slow: true, max: 120, maxBolhas: 2 } as const;
 
 /** Tags aceitas, usada pelo prompt e pelo teste, para as duas pontas não divergirem. */
 export const TAGS_MIDIA = Object.keys(MIDIA_CARLA);
