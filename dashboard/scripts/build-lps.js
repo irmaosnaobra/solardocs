@@ -1290,7 +1290,7 @@ ${!d.instrumentos ? '' : `
     </div>
     <div class="instrGrade">
 ${d.instrumentos.map(([arq, tit, desc]) => `      <figure>
-        <img src="img/${arq}" alt="${esc(tit)}" loading="lazy" decoding="async">
+        <img src="/${d.pasta}/img/${arq}" alt="${esc(tit)}" loading="lazy" decoding="async">
         <figcaption><b>${esc(tit)}</b><span>${esc(desc)}</span></figcaption>
       </figure>`).join(String.fromCharCode(10))}
     </div>
@@ -1321,7 +1321,7 @@ ${!d.fotos ? '' : `
     </div>
     <div class="fotos">
 ${d.fotos.map(([arq, leg], i) => `      <figure${i === 0 ? ' class="larga"' : ''}>
-        <img src="img/${arq}" alt="${esc(leg)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="async" width="1100" height="825">
+        <img src="/${d.pasta}/img/${arq}" alt="${esc(leg)}" loading="${i === 0 ? 'eager' : 'lazy'}" decoding="async" width="1100" height="825">
         <figcaption>${esc(leg)}</figcaption>
       </figure>`).join(String.fromCharCode(10))}
     </div>
