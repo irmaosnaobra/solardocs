@@ -24,23 +24,24 @@ export const EMPRESA = {
   cnpj: '63.636.043/0001-88',
   endereco: 'Rua Ana Godoy de Sousa, 890 — Santa Mônica, Uberlândia/MG, 38408-290',
   cidade: 'Uberlândia — MG',
+  /** Endereço eletrônico. O Decreto 7.962/2013 exige junto com o físico. */
+  email: 'aiorosgroup@gmail.com',
 } as const;
 
 /**
- * As garantias que a loja pode prometer HOJE, e nada além.
+ * O que a loja promete, e nada além.
  *
- * O fabricante não publica prazo de garantia em lugar nenhum: nem na ficha do
- * fornecedor, nem no manual que ele linka. Então a loja cita a garantia LEGAL,
- * que existe por lei e não depende de ninguém confirmar, e para por aí.
- *
- * Falta perguntar à Soollar qual é a garantia de fábrica (o normal no setor é
- * 6 a 12 meses em motor e quadro, 3 a 6 na bateria). Quando ela vier, entra
- * aqui e esta seção deixa de ser defensiva.
+ * A garantia é de 90 dias (informado pelo Thiago em 01/09). Vale registrar que
+ * isso é EXATAMENTE a garantia legal de produto durável do CDC (art. 26, II):
+ * não é vantagem sobre concorrente nenhum, é o mínimo que a lei já obriga. Por
+ * isso o texto não vende os 90 dias como diferencial — diz o prazo, diz quem
+ * resolve, e deixa o argumento de venda para o frete e a nota fiscal, que aí
+ * sim nem todo mundo dá.
  */
 export const DIREITOS = [
   {
     titulo: 'Nota fiscal em toda venda',
-    texto: `Vendido e faturado por ${'AIOROS LTDA'}, CNPJ ${'63.636.043/0001-88'}. Você recebe a nota junto com a bike.`,
+    texto: `Vendido e faturado por ${EMPRESA.razaoSocial}, CNPJ ${EMPRESA.cnpj}. Você recebe a nota junto com a bike.`,
   },
   {
     titulo: '7 dias para desistir',
@@ -48,9 +49,13 @@ export const DIREITOS = [
       'Comprou pela internet e se arrependeu? Devolve em até 7 dias do recebimento e recebe tudo de volta, inclusive o frete. É o direito de arrependimento do Código de Defesa do Consumidor (art. 49).',
   },
   {
-    titulo: 'Garantia legal de 90 dias',
+    titulo: 'Garantia de 90 dias',
     texto:
-      'Defeito de fabricação em produto durável tem 90 dias de garantia por lei (CDC, art. 26). A gente resolve com o fabricante; você fala com a gente.',
+      'Defeito de fabricação nos primeiros 90 dias, a gente resolve com o fabricante — você fala com a gente, não com o fornecedor. É o prazo do Código de Defesa do Consumidor (art. 26) para produto durável.',
+  },
+  {
+    titulo: 'Fala com gente, não com robô',
+    texto: `WhatsApp direto com um dos sócios, ou ${EMPRESA.email}. Sem cadastro, sem formulário, sem fila.`,
   },
   {
     titulo: 'Preço e frete fechados antes de você decidir',

@@ -77,6 +77,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 CNPJ <span className="tabular">{EMPRESA.cnpj}</span>.
               </p>
               <p className="mt-1">{EMPRESA.endereco}</p>
+              <p className="mt-1">
+                <a href={`mailto:${EMPRESA.email}`} className="toque hover:text-mata">
+                  {EMPRESA.email}
+                </a>
+              </p>
               <p className="mt-2">
                 Imagens e especificações fornecidas pelo fabricante. A quantidade em estoque é
                 confirmada no atendimento.
