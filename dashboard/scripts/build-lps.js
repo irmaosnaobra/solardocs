@@ -351,6 +351,34 @@ const PAGINAS = [
   topoSelo: 'Material completo · 7 dias de garantia',
   donosTexto: 'Somos o Thiago e o Diego, irmãos, do Triângulo Mineiro. A gente monta eletroposto chave na mão — projeto, equipamento e obra. Este material é a régua que a gente usa quando escolhe um ponto, escrita do jeito que a gente explicaria para um sócio.',
   rodape: 'Irmãos na Obra — eletroposto de recarga chave na mão',
+  instrEyebrow: 'Não é PDF de curso. É o material de trabalho',
+  instrTitulo: 'Os documentos que você abre e usa',
+  instrSub: 'Aula ninguém aplica depois. Instrumento você abre no local, preenche em pé e leva na conversa. É por eles que se paga R$ 297.',
+  instrumentos: [
+    ['inst-ficha.webp', 'Ficha de vistoria', 'Sete blocos, feita para o celular. O bloco 0 se responde antes de você entrar no carro — e se travar ali, você não vai.'],
+    ['inst-placar.webp', 'Placar de 30 pontos', 'Energia, fluxo, vaga, visibilidade e segurança. No fim sai uma letra: A, B, C ou X.'],
+    ['inst-energia.webp', 'Cabe ou não cabe', 'A leitura da conta de luz e do disjuntor, com a corrente de cada configuração. Descarta endereço sem gastar visita.'],
+    ['inst-cartao.webp', 'Cartão de bolso', 'Os primeiros 30 segundos nos três canais, o que você pede — e as nove frases que fazem o aluguel subir.'],
+    ['inst-proposta.webp', 'Proposta de uma página', 'O papel que fica no balcão do dono, com o croqui anexo. E a lista do que nunca entra nele.'],
+    ['inst-termsheet.webp', 'Term sheet de 12 campos', 'O que precisa estar decidido antes de o advogado escrever a primeira linha. Sete campos vêm copiados da proposta.'],
+  ],
+  dificuldade: {
+    eyebrow: 'A conta que ninguém te mostra',
+    titulo: 'Ter o dinheiro é a parte fácil. Olha o placar.',
+    placar: [
+      ['184', 'pessoas na nossa base com capital declarado e nenhum local'],
+      ['1', 'ponto disponível, cadastrado por quem tem o imóvel'],
+      ['5,4%', 'das reuniões com investidor viram proposta — contra 16,8% de quem já tem o local'],
+    ],
+    porques: [
+      'Quem espera aparecer um ponto está esperando o que não existe: são 184 de um lado e 1 do outro.',
+      'Quem sai à procura sem régua visita dez lugares, gasta o mês e não fecha nenhum — e conclui que o mercado é difícil.',
+      'Quem chega no dono do imóvel dizendo para que quer o espaço vê o aluguel subir na mesma conversa. O preço deixa de ser de duas vagas paradas e passa a ser de novidade.',
+      'Quem assina antes do parecer de acesso paga aluguel de um ponto que pode ser inviável — e esse dinheiro não volta.',
+      'E quem erra o contrato erra por anos: 1 ponto percentual de arrendamento custa R$ 144,60 por mês num ponto de dez carros por dia. Dois pontos a mais somam R$ 3.470 no ano, todo ano, num papel que se assina uma vez.',
+    ],
+    veredito: 'O mercado não é difícil. O ponto é — e ele é a única coisa entre o seu dinheiro e a sua estação.',
+  },
   fotosEyebrow: 'O que existe no fim desse caminho',
   fotosTitulo: 'O ponto é a parte difícil. A estação, a gente monta.',
   fotos: [
@@ -386,10 +414,6 @@ const PAGINAS = [
   ],
   dentroEyebrow: 'O que sustenta o preço',
   dentroTitulo: 'Aula ninguém aplica. Instrumento você abre e usa',
-  pecas: [
-    ['A ficha de vistoria e o placar', 'Sete blocos feitos para o celular, preenchidos em pé no local, e um placar de 30 pontos que fecha em A, B, C ou X. O bloco zero se responde antes de sair de casa — e se travar ali, você não vai.', 'tela'],
-    ['O term sheet de 12 campos', 'Partes, área, prazo, percentual, piso, quando o aluguel começa, reajuste, unidade consumidora, exclusividade, obra e retirada, propriedade do equipamento e venda do imóvel. É o que o advogado precisa para redigir — e sete deles se copiam da proposta.', 'celular'],
-  ],
   compEyebrow: 'A diferença que importa',
   compTitulo: 'Procurar ponto no impulso ou com régua',
   compMauTitulo: 'Do jeito que quase todo mundo faz',
@@ -1149,6 +1173,38 @@ function pagina(d) {
     .fotos{grid-template-columns:1fr;gap:12px}
     .fotos figure.larga img{max-height:none}
   }
+
+  /* ── POR QUE QUASE NINGUÉM ENTRA (opcional: campo dificuldade) ───────────
+     A seção existe pra provar, com número da casa, que o obstáculo não é
+     dinheiro. O placar é o argumento inteiro: muita gente com capital, quase
+     nenhum ponto. */
+  .dificil{background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .placar{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin:26px 0 28px}
+  .placar div{background:var(--surface);padding:20px 16px;text-align:center}
+  .placar b{display:block;font-size:34px;line-height:1;font-weight:800;letter-spacing:-.02em;color:var(--amber)}
+  .placar span{display:block;margin-top:8px;font-size:13.5px;line-height:1.4;color:var(--muted)}
+  .porques{list-style:none;padding:0;margin:0 0 24px;display:grid;gap:12px}
+  .porques li{padding-left:26px;position:relative;line-height:1.6}
+  .porques li:before{content:"—";position:absolute;left:0;color:var(--amber);font-weight:700}
+  .veredito{font-size:19px;line-height:1.5;font-weight:600;border-left:3px solid var(--amber);padding:4px 0 4px 18px;margin:0}
+  @media (max-width:640px){
+    .placar{grid-template-columns:1fr}
+    .placar b{font-size:30px}
+    .veredito{font-size:17px}
+  }
+
+  /* ── INSTRUMENTOS (opcional: campo instrumentos) ─────────────────────────
+     São os documentos do produto, fotografados. Prova melhor que descrição:
+     o comprador vê o que vai abrir. */
+  .instr{border-top:1px solid var(--line)}
+  .instrGrade{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:36px}
+  .instrGrade figure{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+  .instrGrade img{display:block;width:100%;height:auto;border-bottom:1px solid var(--line)}
+  .instrGrade figcaption{padding:14px 16px}
+  .instrGrade figcaption b{display:block;font-size:15px;margin-bottom:5px}
+  .instrGrade figcaption span{font-size:13.5px;line-height:1.45;color:var(--muted)}
+  @media (max-width:900px){.instrGrade{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:620px){.instrGrade{grid-template-columns:1fr;gap:14px}}
 </style>
 </head>
 <body>
@@ -1224,6 +1280,38 @@ ${d.falas.map((f) => `      <p class="fala">${esc(f)}</p>`).join('\n')}
   </div>
 </section>
 
+${!d.instrumentos ? '' : `
+<section class="instr">
+  <div class="wrap">
+    <div class="narrow" style="text-align:center">
+      <span class="eyebrow">${esc(d.instrEyebrow || 'O que você recebe')}</span>
+      <h2>${esc(d.instrTitulo || '')}</h2>
+      <p class="muted" style="margin-top:12px">${esc(d.instrSub || '')}</p>
+    </div>
+    <div class="instrGrade">
+${d.instrumentos.map(([arq, tit, desc]) => `      <figure>
+        <img src="img/${arq}" alt="${esc(tit)}" loading="lazy" decoding="async">
+        <figcaption><b>${esc(tit)}</b><span>${esc(desc)}</span></figcaption>
+      </figure>`).join(String.fromCharCode(10))}
+    </div>
+  </div>
+</section>`}
+
+${!d.dificuldade ? '' : `
+<section class="dificil">
+  <div class="wrap narrow">
+    <span class="eyebrow">${esc(d.dificuldade.eyebrow)}</span>
+    <h2>${esc(d.dificuldade.titulo)}</h2>
+    <div class="placar">
+${d.dificuldade.placar.map(([v, r]) => `      <div><b>${esc(v)}</b><span>${esc(r)}</span></div>`).join(String.fromCharCode(10))}
+    </div>
+    <ul class="porques">
+${d.dificuldade.porques.map((t) => `      <li>${esc(t)}</li>`).join(String.fromCharCode(10))}
+    </ul>
+    <p class="veredito">${esc(d.dificuldade.veredito)}</p>
+  </div>
+</section>`}
+
 ${!d.fotos ? '' : `
 <section class="galeria">
   <div class="wrap">
@@ -1257,7 +1345,7 @@ ${d.mods.map(([n, t, p2, tag]) => `      <div class="mod">
   </div>
 </section>
 
-<section>
+${!d.pecas ? '' : `<section>
   <div class="wrap">
     <div class="narrow" style="text-align:center;margin-bottom:48px">
       <span class="eyebrow">${esc(d.dentroEyebrow)}</span>
@@ -1280,7 +1368,7 @@ ${i === 0
       </div>
     </div>`).join('\n')}
   </div>
-</section>
+</section>`}
 
 <section style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
   <div class="wrap">

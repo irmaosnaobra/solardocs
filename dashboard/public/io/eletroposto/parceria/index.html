@@ -757,7 +757,7 @@
     <h3 id="ok-tit">Cadastro recebido.</h3>
     <p id="ok-tx">A equipe já tem os seus dados e vai te chamar no WhatsApp.</p>
     <button type="button" class="btn" id="ok-btn" onclick="fecharOk()">Entendi</button>
-    <a class="lnk" href="/io/eletroposto/" style="border:0">Voltar para a página do eletroposto</a>
+    <a class="lnk" id="ok-lnk" href="/io/eletroposto/" style="border:0">Voltar para a página do eletroposto</a>
   </div>
 </div>
 
@@ -973,16 +973,48 @@ function enviar(e, lado){
 var OK_TIT = { ponto: 'Ponto cadastrado.', capital: 'Cadastro recebido.', integrador: 'Cadastro recebido.' };
 var OK_TX = {
   ponto: 'A equipe já recebeu o seu local e vai te chamar no WhatsApp — o próximo passo é conferir o endereço e o movimento antes de apresentar a um investidor.',
-  capital: 'A equipe já tem o seu perfil. Quando aparecer ponto na sua região, você é chamado no WhatsApp.',
+  capital: 'A equipe já tem o seu perfil e te chama quando aparecer ponto na sua região. Mas seja honesto com o seu tempo: hoje tem muito mais gente com capital do que ponto disponível. Quem entra nesse mercado é quem acha o próprio local — e é isso que a gente vai te mostrar agora.',
   integrador: 'A equipe já tem o seu perfil de integrador e vai te chamar no WhatsApp pra entender a sua região e o que você instala hoje.'
 };
+/* O INVESTIDOR NÃO PARA AQUI (01/09/2026, ordem do Thiago).
+ *
+ * Quem se cadastra do lado do CAPITAL entrou numa fila que hoje tem 122 pessoas
+ * de um lado e 1 ponto do outro — esperar aparecer um local é esperar o que não
+ * existe. Então a tela de recebido deixa de ser fim de caminho pra ele: ela
+ * confirma o cadastro e leva pro material que ensina a achar o próprio ponto.
+ *
+ * O redirecionamento tem 4 segundos de propósito. Mandar na hora faz parecer que
+ * o cadastro não salvou, e o botão continua ali pra quem quiser ir antes ou ficar.
+ * As outras duas portas não mudam: quem tem PONTO é chamado pela equipe, e o
+ * integrador também. */
+var LEVA_PRO_MATERIAL = { capital: '/ponto-certo/' };
+var redirTimer = null;
+
 function mostrarOk(lado){
   document.getElementById('ok-tit').textContent = OK_TIT[lado] || 'Cadastro recebido.';
   document.getElementById('ok-tx').textContent  = OK_TX[lado]  || OK_TX.capital;
+
+  var destino = LEVA_PRO_MATERIAL[lado];
+  var btn = document.getElementById('ok-btn');
+  var lnk = document.getElementById('ok-lnk');
+  if (destino) {
+    btn.textContent = 'Ver como achar o meu ponto →';
+    btn.onclick = function(){ irProMaterial(destino); };
+    lnk.textContent = 'Prefiro só esperar a equipe chamar';
+    lnk.setAttribute('href', '/io/eletroposto/');
+    clearTimeout(redirTimer);
+    redirTimer = setTimeout(function(){ irProMaterial(destino); }, 4000);
+  }
   document.getElementById('ok-bg').classList.add('on');
 }
 
-function fecharOk(){ document.getElementById('ok-bg').classList.remove('on'); }
+function irProMaterial(destino){
+  clearTimeout(redirTimer);
+  ev('parceria_capital_para_material');
+  location.href = destino;
+}
+
+function fecharOk(){ clearTimeout(redirTimer); document.getElementById('ok-bg').classList.remove('on'); }
 
 /* ── utilitários ── */
 function val(id){ var e = document.getElementById(id); return e ? String(e.value || '').trim() : ''; }

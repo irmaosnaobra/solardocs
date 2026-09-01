@@ -671,6 +671,38 @@
     .fotos{grid-template-columns:1fr;gap:12px}
     .fotos figure.larga img{max-height:none}
   }
+
+  /* ── POR QUE QUASE NINGUÉM ENTRA (opcional: campo dificuldade) ───────────
+     A seção existe pra provar, com número da casa, que o obstáculo não é
+     dinheiro. O placar é o argumento inteiro: muita gente com capital, quase
+     nenhum ponto. */
+  .dificil{background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .placar{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin:26px 0 28px}
+  .placar div{background:var(--surface);padding:20px 16px;text-align:center}
+  .placar b{display:block;font-size:34px;line-height:1;font-weight:800;letter-spacing:-.02em;color:var(--amber)}
+  .placar span{display:block;margin-top:8px;font-size:13.5px;line-height:1.4;color:var(--muted)}
+  .porques{list-style:none;padding:0;margin:0 0 24px;display:grid;gap:12px}
+  .porques li{padding-left:26px;position:relative;line-height:1.6}
+  .porques li:before{content:"—";position:absolute;left:0;color:var(--amber);font-weight:700}
+  .veredito{font-size:19px;line-height:1.5;font-weight:600;border-left:3px solid var(--amber);padding:4px 0 4px 18px;margin:0}
+  @media (max-width:640px){
+    .placar{grid-template-columns:1fr}
+    .placar b{font-size:30px}
+    .veredito{font-size:17px}
+  }
+
+  /* ── INSTRUMENTOS (opcional: campo instrumentos) ─────────────────────────
+     São os documentos do produto, fotografados. Prova melhor que descrição:
+     o comprador vê o que vai abrir. */
+  .instr{border-top:1px solid var(--line)}
+  .instrGrade{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:36px}
+  .instrGrade figure{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+  .instrGrade img{display:block;width:100%;height:auto;border-bottom:1px solid var(--line)}
+  .instrGrade figcaption{padding:14px 16px}
+  .instrGrade figcaption b{display:block;font-size:15px;margin-bottom:5px}
+  .instrGrade figcaption span{font-size:13.5px;line-height:1.45;color:var(--muted)}
+  @media (max-width:900px){.instrGrade{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:620px){.instrGrade{grid-template-columns:1fr;gap:14px}}
 </style>
 </head>
 <body>
@@ -867,6 +899,10 @@
     <p class="muted" style="margin-top:26px">Nenhuma delas aparece na hora de fechar. Todas aparecem depois, quando o dinheiro já entrou e a conta não fecha — e aí não dá mais para renegociar com o cliente.</p>
   </div>
 </section>
+
+
+
+
 
 
 
