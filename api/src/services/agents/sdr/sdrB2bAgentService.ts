@@ -768,11 +768,41 @@ export async function handleSolarDocB2bLead(
   // que a explica é catálogo; chegando depois, é demonstração.
   const peca = pecaDaTag(acoes.imagem);
   if (peca) {
+    // UMA VEZ POR CONVERSA, e isso é código, não recomendação de prompt.
+    // Em 01/09 o Alam recebeu a MESMA folha duas vezes em quatro minutos: o
+    // prompt pede "uma imagem a cada 4 ou 5 mensagens" e o modelo não conta
+    // mensagem. Mandar de novo o que a pessoa já viu não é insistência, é
+    // desatenção, e num fio onde ela está decidindo se confia isso custa caro.
+    //
+    // A marca vive em system_state, como as outras da casa (curso19:, pix19_),
+    // porque não exige migração e some junto se a peça sair do catálogo.
+    const chaveEnvio = `carla_peca:${cleanPhone}:${acoes.imagem}`;
+    // Fail-open com log: se a leitura falhar, a peça VAI. Mandar duas vezes é
+    // feio; não mandar é perder o argumento de venda mais forte que ela tem.
+    let jaMandou: unknown = null;
     try {
-      await sendImage(cleanPhone, peca.url, peca.legenda, originInstance);
-      logger.info('carla', `imagem ${acoes.imagem} enviada (${cleanPhone})`);
+      const r = await supabase
+        .from('system_state').select('key').eq('key', chaveEnvio).maybeSingle();
+      jaMandou = r.data;
     } catch (err) {
-      logger.error('carla', `enviar imagem ${acoes.imagem} falhou (${cleanPhone})`, err);
+      logger.error('carla', `checagem de peça repetida falhou (${cleanPhone})`, err);
+    }
+
+    if (jaMandou) {
+      logger.info('carla', `imagem ${acoes.imagem} pulada, já enviada antes (${cleanPhone})`);
+    } else {
+      try {
+        await sendImage(cleanPhone, peca.url, peca.legenda, originInstance);
+        // Grava DEPOIS do envio dar certo: falha vira nova tentativa no próximo
+        // turno, não um bloqueio permanente de uma peça que nunca chegou.
+        await supabase.from('system_state').upsert(
+          { key: chaveEnvio, value: {}, updated_at: new Date().toISOString() },
+          { onConflict: 'key' },
+        );
+        logger.info('carla', `imagem ${acoes.imagem} enviada (${cleanPhone})`);
+      } catch (err) {
+        logger.error('carla', `enviar imagem ${acoes.imagem} falhou (${cleanPhone})`, err);
+      }
     }
   }
 
