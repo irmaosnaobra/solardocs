@@ -158,17 +158,24 @@ export function Vitrine({ bikes, bases }: { bikes: Cartao[]; bases: BaseNaVitrin
   }, [bikes, bases, entrega]);
 
   /**
-   * A unidade mais perto de quem está comprando, olhando TODAS as bases.
+   * A unidade mais perto de quem está comprando, contando só as que TÊM BIKE.
    *
-   * É diferente da origem do card: aquela é a mais perto QUE TEM o modelo. Esta
-   * é a casa da pessoa — a que atende a cidade dela — e é a resposta para
-   * "qual é a minha unidade?", que é a primeira coisa que se quer saber depois
-   * de dizer onde mora.
+   * O "têm bike" não é detalhe: das 22 unidades, 8 estão com zero. Em Recife a
+   * mais perto no mapa é Cabo de Santo Agostinho, a 40 km — e sem uma bike
+   * dentro. A tela anunciava 40 km e logo abaixo os 46 modelos apareciam com
+   * "frete cotado no atendimento", o que lê como defeito. A resposta honesta
+   * para Recife é Betim, a 2.160 km, e ela explica os avisos em vez de
+   * contradizê-los.
    */
   const suaUnidade = useMemo(() => {
     if (!entrega) return null;
-    return escolherOrigem(bases, [], entrega);
-  }, [bases, entrega]);
+    const comBike = new Set(bikes.flatMap((b) => b.bases));
+    return escolherOrigem(
+      bases.filter((b) => comBike.has(b.slug)),
+      [],
+      entrega,
+    );
+  }, [bases, bikes, entrega]);
 
   const busca = parametros.get('q') ?? '';
   const ordem = (parametros.get('ordem') as Ordem | null) ?? 'menor-preco';
