@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { supabase } from '../utils/supabase';
 
 const router = Router();
 
@@ -449,6 +450,47 @@ router.post('/io/send-text', async (req: Request, res: Response): Promise<void> 
   let body: unknown;
   try { body = JSON.parse(txt); } catch { body = txt; }
   res.json({ status: r.status, body });
+});
+
+/**
+ * APURAÇÃO DE RESPOSTAS — leitura, nunca envio.
+ *
+ * A Z-API não entrega histórico em multi-device (GET /chat-messages responde
+ * "Does not work in multi device version"), mas toda mensagem que chega no webhook é
+ * normalizada em `wa_mensagens` no solardoc-pro. Esta rota é o único jeito de ler de fora:
+ * ela devolve o que os telefones informados RESPONDERAM depois de uma data.
+ *
+ * Recorte fechado de propósito, porque isto é conversa de cliente:
+ *   · `telefones` é obrigatório — não existe "me dá tudo";
+ *   · só inbound (`from_me = false`), sem grupo, e só a linha IO;
+ *   · casa pelos 8 últimos dígitos, como o `conversa_wa()` faz — o 9 na frente varia.
+ */
+router.post('/io/inbound', async (req: Request, res: Response): Promise<void> => {
+  if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }
+
+  const desde = String((req.body as Record<string, unknown>)?.desde || '').trim();
+  const brutos = (req.body as Record<string, unknown>)?.telefones;
+  if (!desde) { res.status(400).json({ error: 'body.desde (ISO) obrigatorio' }); return; }
+  if (!Array.isArray(brutos) || !brutos.length) { res.status(400).json({ error: 'body.telefones (array) obrigatorio' }); return; }
+
+  const cauda = (t: unknown) => String(t ?? '').replace(/\D/g, '').slice(-8);
+  const alvo = new Set(brutos.slice(0, 500).map(cauda).filter(c => c.length === 8));
+  if (!alvo.size) { res.status(400).json({ error: 'nenhum telefone valido' }); return; }
+
+  const instancia = process.env.ZAPI_INSTANCE_ID_IO?.trim();
+  const { data, error } = await supabase
+    .from('wa_mensagens')
+    .select('telefone, texto, tipo, momment, sender_name, from_api')
+    .eq('from_me', false)
+    .eq('is_group', false)
+    .eq('instancia', instancia)
+    .gte('momment', desde)
+    .order('momment', { ascending: true })
+    .limit(3000);
+  if (error) { res.status(500).json({ error: 'falha lendo wa_mensagens', detail: error.message }); return; }
+
+  const respostas = (data || []).filter(m => alvo.has(cauda(m.telefone)));
+  res.json({ desde, telefones: alvo.size, mensagens: respostas.length, respostas });
 });
 
 export default router;
