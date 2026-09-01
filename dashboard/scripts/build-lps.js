@@ -348,6 +348,20 @@ const PAGINAS = [
   // que são. Convertidas para webp (de ~1 MB para ~630 KB no total) e todas com
   // lazy, menos a primeira.
   marca: 'Irmãos na Obra',
+  favicon: true,
+  logo: 'logo-io.webp',
+  autoridade: {
+    eyebrow: 'Quem está te ensinando',
+    titulo: 'A régua deste material é a que a gente usa quando escolhe um ponto',
+    texto: 'A Irmãos na Obra monta eletroposto de recarga chave na mão: projeto, equipamento, obra e a operação depois. Não somos uma escola que resolveu falar de carro elétrico — somos quem vai ao local, lê a conta de luz, protocola na distribuidora e assina o contrato. Este material é o nosso processo escrito, sem a parte que a gente cobra para fazer.',
+    itens: [
+      ['Chave na mão, de verdade', 'Projeto, equipamento, obra e comissionamento. Quem escreveu as aulas é quem assina a ART e responde pelo ponto depois de pronto.'],
+      ['236 reuniões de projeto', 'Desde julho de 2026, conduzidas por nós dois. A régua de energia, fluxo e negociação saiu dessas conversas — inclusive dos pontos que a gente recusou.'],
+      ['Os contratos existem', 'Turnkey e operação da plataforma escritos e em uso. O term sheet que você recebe é o mesmo esqueleto que a gente leva para a mesa.'],
+      ['O simulador é nosso', 'Carga, carros por dia, ticket, custo de energia e payback — a ferramenta que roda a viabilidade dos nossos pontos é a mesma que está por trás das contas deste material.'],
+    ],
+    assinatura: 'Somos o Thiago e o Diego, irmãos, do Triângulo Mineiro. A gente não vende curso: vende eletroposto. Este material existe porque a parte que trava o cliente — achar o lugar — é justamente a que a gente não consegue fazer por ele.',
+  },
   topoSelo: 'Material completo · 7 dias de garantia',
   donosTexto: 'Somos o Thiago e o Diego, irmãos, do Triângulo Mineiro. A gente monta eletroposto chave na mão — projeto, equipamento e obra. Este material é a régua que a gente usa quando escolhe um ponto, escrita do jeito que a gente explicaria para um sócio.',
   rodape: 'Irmãos na Obra — eletroposto de recarga chave na mão',
@@ -1153,7 +1167,10 @@ function pagina(d) {
 <meta name="robots" content="index, follow">
 <title>${esc(d.titulo)}</title>
 <meta name="description" content="${esc(d.descricao)}">
-<link rel="icon" href="/icon-192.png">
+${d.favicon ? `<link rel="icon" type="image/svg+xml" href="/${d.pasta}/img/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/${d.pasta}/img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/${d.pasta}/img/favicon-16.png">
+<link rel="apple-touch-icon" href="/${d.pasta}/img/apple-touch-icon.png">` : '<link rel="icon" href="/icon-192.png">'}
 <meta property="og:title" content="${esc(d.ogTitulo)}">
 <meta property="og:description" content="${esc(d.descricao)}">
 <meta property="og:image" content="https://solardoc.app/capas/${d.pasta === 'calculadora' ? 'calculadora-solar' : d.pasta === 'dimensionamento' ? 'dimensionamento-off-grid' : 'inventario-empresarial'}@2x.png">
@@ -1205,13 +1222,24 @@ function pagina(d) {
   .instrGrade figcaption span{font-size:13.5px;line-height:1.45;color:var(--muted)}
   @media (max-width:900px){.instrGrade{grid-template-columns:repeat(2,1fr)}}
   @media (max-width:620px){.instrGrade{grid-template-columns:1fr;gap:14px}}
+
+  /* ── QUEM ESTÁ ENSINANDO (opcional: campo autoridade) ────────────────────
+     A régua do curso é a régua que a casa usa. Esta seção existe pra dizer de
+     onde ela vem, com fato verificável e sem medalha inventada. */
+  .quemSomos{background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .credenciais{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin:28px 0 24px}
+  .credenciais div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .credenciais b{display:block;font-size:15px;margin-bottom:6px;color:var(--amber)}
+  .credenciais span{font-size:14px;line-height:1.5;color:var(--muted)}
+  .assinatura{font-size:16px;line-height:1.6;font-style:italic;border-left:3px solid var(--amber);padding-left:16px;margin:0}
+  @media (max-width:640px){.credenciais{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 
 <div class="topo">
   <div class="wrap">
-    <span class="marca">${d.marca ? esc(d.marca) : 'SolarDoc <span>Pro</span>'}</span>
+    <span class="marca">${d.logo ? `<img src="/${d.pasta}/img/${d.logo}" alt="" width="26" height="26" style="vertical-align:-6px;margin-right:9px;border-radius:6px">` : ''}${d.marca ? esc(d.marca) : 'SolarDoc <span>Pro</span>'}</span>
     <span class="topoSelo">${esc(d.topoSelo || 'Acesso imediato · 7 dias de garantia')}</span>
   </div>
 </div>
@@ -1430,6 +1458,19 @@ ${d.passos.map(([t, p2], i) => `      <div class="passo">
     </div>
   </div>
 </section>
+
+${!d.autoridade ? '' : `
+<section class="quemSomos">
+  <div class="wrap narrow">
+    <span class="eyebrow">${esc(d.autoridade.eyebrow)}</span>
+    <h2>${esc(d.autoridade.titulo)}</h2>
+    <p class="muted" style="margin-top:14px">${esc(d.autoridade.texto)}</p>
+    <div class="credenciais">
+${d.autoridade.itens.map(([t, p2]) => `      <div><b>${esc(t)}</b><span>${esc(p2)}</span></div>`).join(String.fromCharCode(10))}
+    </div>
+    <p class="assinatura">${esc(d.autoridade.assinatura)}</p>
+  </div>
+</section>`}
 
 <section class="oferta" id="comprar">
   <div class="wrap">
