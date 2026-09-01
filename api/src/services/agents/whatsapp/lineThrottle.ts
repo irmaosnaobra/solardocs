@@ -134,6 +134,10 @@ const BOT_SENT_PREFIXES = [
   'semente:',                // semente solar (toques da lista fria de solar)
   'ep_grupo_frio:',          // convite de grupo pros frios do eletroposto
   'intersolar_feira_sent:',  // aviso da feira pra quem tinha reunião nos dias fechados
+  // [01/09] Retomada do 1x1 do SolarDoc: a Carla voltando em quem ficou sem
+  // desfecho. Entra na conta desde o primeiro dia, e não depois de uma queda,
+  // que é como quase todos os de cima entraram nesta lista.
+  'carla_retomada:',
 ] as const;
 
 // Desvio da linha B2B ligado (ZAPI_SOLARDOC_VIA_IO=1)? Então Giovanna, curso de

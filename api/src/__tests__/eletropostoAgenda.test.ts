@@ -390,7 +390,14 @@ describe('o que ele fala', () => {
       const saida = emBolhas(partes.join('||'), { maxBolhas: 3 });
       expect(saida.length).toBeLessThanOrEqual(3);
       // Nada some: o texto inteiro sobrevive, só as fronteiras é que cedem.
-      const semEsp = (s: string) => s.replace(/\s+/g, '');
+      //
+      // O travessão é a exceção, e é de propósito: desde 01/09/2026 o transporte
+      // troca por vírgula tudo que sai pra cliente, porque prompt não segurava.
+      // Esta confirmação tinha QUATRO deles, e é o maior emissor da linha. Por
+      // isso os dois lados da comparação são normalizados igual: o que se
+      // verifica aqui é que nenhuma IDEIA se perde no reagrupamento, não que o
+      // byte seja idêntico.
+      const semEsp = (s: string) => s.replace(/\s+/g, '').replace(/[—–]/g, ',').replace(/,+/g, ',');
       expect(semEsp(saida.join(''))).toBe(semEsp(partes.join('')));
     }
   });

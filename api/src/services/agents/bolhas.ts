@@ -55,6 +55,29 @@ const MAX_BOLHAS_PADRAO = 2;
 // Abreviações comuns em pt-BR: o ponto delas NÃO termina frase.
 const ABREVS = /^(sr|sra|srta|dr|dra|prof|profa|eng|arq|ltda|etc|ex|obs|av|r|nº|no|cia|pág|pag|fl|art|min|máx|max|aprox|séc|tel)$/i;
 
+/**
+ * Tira o travessão de tudo que sai pra cliente.
+ *
+ * Ordem do Thiago (30/08/2026): ninguém digita travessão no celular, o teclado
+ * do WhatsApp não tem, e quem escreve assim copiou de algum lugar. É o tell de
+ * robô mais fácil de ver no Brasil.
+ *
+ * Mora AQUI, no transporte, e não só no prompt, porque prompt não pega: a regra
+ * está escrita em três lugares diferentes do cérebro da Carla e ela ainda
+ * escreveu "no envio do pix — isso é real" no primeiro teste da retomada. Regra
+ * de estilo que precisa valer 100% das vezes é código, não pedido.
+ *
+ * Vira vírgula quando separa oração e some quando é decorativo, que é o que um
+ * humano faria ao reescrever a mesma frase no polegar.
+ */
+function semTravessao(s: string): string {
+  return s
+    .replace(/\s+[—–]\s+/g, ', ')   // "frase — outra" vira "frase, outra"
+    .replace(/[—–]/g, ', ')          // colado, raro
+    .replace(/,\s*,/g, ',')
+    .replace(/\s+([,.!?])/g, '$1');
+}
+
 /** Bloco que não pode ser tocado: Pix copia-e-cola (EMV) ou token único (URL/código). */
 function intocavel(s: string): boolean {
   return s.startsWith('000201') || !/\s/.test(s);
@@ -160,7 +183,7 @@ export function emBolhas(bruto: string | null | undefined, opts: OpcoesBolhas = 
   const max = opts.max ?? MAX_PADRAO;
   const maxBolhas = opts.maxBolhas ?? MAX_BOLHAS_PADRAO;
 
-  const texto = String(bruto ?? '').replace(/\r\n/g, '\n').trim();
+  const texto = semTravessao(String(bruto ?? '').replace(/\r\n/g, '\n').trim());
   if (!texto) return [];
 
   const blocos = porBarras(texto);

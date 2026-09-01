@@ -116,3 +116,36 @@ describe('emBolhas', () => {
     expect(porBarras('  ||  ')).toEqual([]);
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Travessão nunca chega no cliente.
+//
+// A regra está escrita em três lugares do cérebro da Carla e ela escreveu
+// "no envio do pix — isso é real" no primeiro teste da retomada. Regra de estilo
+// que precisa valer 100% das vezes é código, não pedido ao modelo.
+// ═══════════════════════════════════════════════════════════════════════════
+describe('emBolhas: travessão', () => {
+  it('travessão separando oração vira vírgula', () => {
+    expect(emBolhas('foi falha nossa — sem justificativa')[0])
+      .toBe('foi falha nossa, sem justificativa');
+  });
+
+  it('pega o travessão médio também', () => {
+    expect(emBolhas('são R$ 67 – sem fidelidade')[0]).toBe('são R$ 67, sem fidelidade');
+  });
+
+  it('não inventa vírgula dupla quando já havia pontuação', () => {
+    expect(emBolhas('entendi, — e agora?')[0]).not.toMatch(/,\s*,/);
+  });
+
+  it('hífen de palavra composta continua intacto', () => {
+    // copia-e-cola, bem-vindo e afins não podem virar vírgula.
+    expect(emBolhas('te mando o copia-e-cola, é bem-vindo')[0])
+      .toBe('te mando o copia-e-cola, é bem-vindo');
+  });
+
+  it('o código do Pix atravessa sem ser tocado', () => {
+    const pix = gerarPixCopiaECola({ valor: 67, txid: 'SOLARDOCVIP' });
+    expect(emBolhas(`segue o código||${pix}`)).toContain(pix);
+  });
+});
