@@ -4,6 +4,7 @@ import { BASE_PATH } from '../../config/basePath.mjs';
 import { bikePorSlug } from '../../lib/catalogo.ts';
 import { PARCELAS_MAXIMAS, formaPorId, linkWhatsApp } from '../../config/loja.ts';
 import { proximoConsultor } from '../../lib/rodizio.ts';
+import { enviarLeadParaMeta } from '../../lib/meta.ts';
 import { registrarVisita } from '../../lib/visita.ts';
 
 /**
@@ -65,6 +66,28 @@ export async function GET(req: NextRequest) {
     origem: entrega ? `loja · ${entrega}` : 'loja',
     campanha,
   });
+
+  // O MESMO evento pelo servidor, com o id que o navegador usou. Daqui não tem
+  // bloqueador: o lead chega na Meta mesmo quando o pixel do navegador não
+  // chegou, e o id em comum impede que os dois virem dois leads.
+  const eventoId = req.nextUrl.searchParams.get('evento_id')?.slice(0, 60) || null;
+  if (eventoId) {
+    await enviarLeadParaMeta({
+      eventoId,
+      url: `${process.env.SITE_URL ?? req.nextUrl.origin}${BASE_PATH}/modelo/${bike.slug}`,
+      ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? req.headers.get('x-real-ip'),
+      navegador: req.headers.get('user-agent'),
+      // Cookies que o proprio pixel grava. Sao o que mais aumenta o casamento
+      // do lead com a conta da pessoa na Meta.
+      fbp: req.cookies.get('_fbp')?.value ?? null,
+      fbc: req.cookies.get('_fbc')?.value ?? null,
+      codigo: bike.codigo,
+      preco: bike.preco,
+      cep,
+      cidade: cidade?.split(' - ')[0] ?? null,
+      uf: cidade?.split(' - ')[1] ?? null,
+    });
+  }
 
   // Atrás do rewrite o host que chega aqui é o da Vercel, não o solardoc.app.
   // O link que vai no WhatsApp tem que ser o que o cliente consegue abrir.

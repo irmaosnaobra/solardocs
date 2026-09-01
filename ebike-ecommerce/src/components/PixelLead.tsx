@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { marcarNaMeta } from './Pixel.tsx';
 
@@ -19,25 +19,37 @@ import { marcarNaMeta } from './Pixel.tsx';
  */
 export function PixelLead({ codigo, preco }: { codigo: string; preco: number }) {
   const ancora = useRef<HTMLSpanElement>(null);
+  // O MESMO id vai no evento do navegador e no do servidor. É ele que faz a
+  // Meta entender que os dois avisos são um lead só; sem ele, ela conta em
+  // dobro e otimiza a entrega por um número inventado.
+  const [eventoId] = useState(() =>
+    typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `e${Date.now()}${Math.round(Math.random() * 1e6)}`,
+  );
 
   useEffect(() => {
     const form = ancora.current?.closest('form');
     if (!form) return;
 
     const aoEnviar = () => {
-      marcarNaMeta('Lead', {
-        content_ids: [codigo],
-        content_type: 'product',
-        currency: 'BRL',
-        value: preco,
-      });
+      marcarNaMeta(
+        'Lead',
+        { content_ids: [codigo], content_type: 'product', currency: 'BRL', value: preco },
+        eventoId,
+      );
     };
     // `submit` e não `click`: pega o Enter no teclado do celular também, e não
     // dispara quando o navegador barra o formulário por falta da forma de
     // pagamento.
     form.addEventListener('submit', aoEnviar);
     return () => form.removeEventListener('submit', aoEnviar);
-  }, [codigo, preco]);
+  }, [codigo, preco, eventoId]);
 
-  return <span ref={ancora} hidden />;
+  return (
+    <>
+      <input type="hidden" name="evento_id" value={eventoId} />
+      <span ref={ancora} hidden />
+    </>
+  );
 }

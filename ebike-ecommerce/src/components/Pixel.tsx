@@ -13,9 +13,11 @@ declare global {
 }
 
 /** Dispara um evento sem quebrar nada se o pixel estiver bloqueado. */
-export function marcarNaMeta(evento: string, dados?: Record<string, unknown>) {
+export function marcarNaMeta(evento: string, dados?: Record<string, unknown>, eventoId?: string) {
   try {
-    window.fbq?.('track', evento, dados);
+    // O quarto argumento é o que permite casar com o evento do servidor.
+    if (eventoId) window.fbq?.('track', evento, dados, { eventID: eventoId });
+    else window.fbq?.('track', evento, dados);
   } catch {
     /* bloqueador de anúncio: a loja segue igual */
   }
