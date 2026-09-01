@@ -7,6 +7,8 @@ import { runWhatsappFollowup, runInactiveEngagement } from '../services/agents/w
 import { runCarlaSemCnpjFollowup, runCarlaInativoFollowup, dispararOpenerTesteParaUser } from '../services/agents/whatsapp/carlaPlatformFollowupService';
 import { runCarlaCnpjKillerBroadcast } from '../services/agents/whatsapp/carlaCnpjKillerQuestion';
 import { dispararPesquisaSatisfacao, listarMelhoresClientes, textoPesquisa } from '../services/pesquisaSatisfacao';
+import { runLinhaSaudeMonitor } from '../services/agents/whatsapp/linhaSaudeMonitor';
+import { runCarlaRetomada } from '../services/agents/sdr/carlaRetomada';
 import { dispararIntersolar, listarClientesIntersolar, textoIntersolar } from '../services/intersolarBroadcast';
 import { dentroDaJanelaDiurna } from '../services/agents/whatsapp/lineThrottle';
 import { dentroDoTetoCarla } from '../services/agents/whatsapp/carlaThrottle';
@@ -705,6 +707,44 @@ router.get('/curso-entrada-19', async (req: Request, res: Response) => {
   }
 });
 
+// RETOMADA DO 1x1 DO SOLARDOC: a Carla volta em quem ficou sem desfecho.
+// O funil B2B nunca teve segundo toque, e quem reabria conversa era sempre o lead.
+//
+// A régua separa por quem RESPONDEU, não por volume: falar de novo com quem já
+// conversou é continuar; falar de novo com quem nunca respondeu é o que gera
+// denúncia. Engajou (2+ falas) leva até 2 toques; quem só mandou a frase de
+// entrada leva UM e nunca mais. Tudo passa pelo bloqueio proativo e pelo teto.
+//
+// `?seco=1` NÃO envia: devolve a MENSAGEM que sairia pra cada um, escrita em
+// cima da conversa real que ela teve com a pessoa. Use antes de ligar.
+// Só dispara com CARLA_RETOMADA_ON=true (o modo seco ignora a trava de propósito).
+router.get('/carla-retomada', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const seco = req.query.seco === '1' || req.query.seco === 'true';
+    const result = await runCarlaRetomada({ dry: seco });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'carla-retomada falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// SAÚDE DA LINHA: os sinais que sobem antes do bloqueio (razão saída/entrada,
+// pico por hora, contatos mudos, volume em 24h). Não manda mensagem pra ninguém.
+// `?seco=1` devolve os números sem mandar o e-mail de alerta.
+router.get('/linha-saude', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const seco = req.query.seco === '1' || req.query.seco === 'true';
+    const result = await runLinhaSaudeMonitor({ dry: seco });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'linha-saude falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
 // Cadência de Confiança — nutrição do assinante NOVO por e-mail (dias 1/3/7/14/30).
 // Entrega uma coisa útil + uma fala de cliente real por toque; não vende nada.
 // `?seco=1` NÃO envia e NÃO grava: devolve a fila de quem receberia e qual toque.
@@ -1067,6 +1107,16 @@ router.get('/master', async (req: Request, res: Response) => {
     ['carla-sem-cnpj',              () => runCarlaSemCnpjFollowup()],     // follow-up Giovanna — 3 toques 30d
     ['carla-inativo',               () => runCarlaInativoFollowup()],     // follow-up Giovanna — 5 toques 60d
     ['pesquisa-satisfacao',         () => dispararPesquisaSatisfacao()],  // 1 msg/tick; para com PESQUISA_WHATSAPP_OFF=1
+    // Saúde da linha: o aviso que chega ANTES do bloqueio. Não manda mensagem
+    // pra ninguém e não consulta IA, só lê números e avisa por e-mail quando a
+    // razão saída/entrada, o pico por hora ou os contatos mudos passam do limite.
+    // Existe porque nas TRÊS quedas a descoberta foi cliente reclamando, e em uma
+    // delas 42 reuniões ficaram sem lembrete por 41 horas. Um alerta por dia.
+    ['linha-saude',                 () => runLinhaSaudeMonitor()],
+    // Retomada do 1x1 do SolarDoc. Igual ao curso19, NÃO dispara sozinha: exige
+    // CARLA_RETOMADA_ON=true. Sem a variável é no-op barato.
+    // Prévia sem enviar: GET /cron/carla-retomada?seco=1
+    ['carla-retomada',              () => runCarlaRetomada()],
     // Aviso da Intersolar (25–27/08/2026) pros 69 clientes pagantes. 1 msg/tick,
     // no MESMO teto da Carla. Quem faz a fila escoar em 2 dias não é este tick
     // horário e sim o workflow intersolar-2026.yml (10 em 10 min, 12–23h UTC);
