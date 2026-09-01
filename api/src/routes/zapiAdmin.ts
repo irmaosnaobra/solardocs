@@ -479,7 +479,11 @@ router.post('/io/inbound', async (req: Request, res: Response): Promise<void> =>
   const instancia = process.env.ZAPI_INSTANCE_ID_IO?.trim();
   const { data, error } = await supabase
     .from('wa_mensagens')
-    .select('telefone, texto, tipo, momment, sender_name, from_api')
+    // media_url entra porque metade das respostas desta base vem em ÁUDIO, e
+    // sem a URL a mensagem chega aqui como {texto: null, tipo: 'audio'} — some
+    // quem respondeu com mais vontade. A coluna sempre existiu; era o select que
+    // não pedia. solarRespostas.ts já lê assim.
+    .select('telefone, texto, tipo, momment, sender_name, from_api, media_url')
     .eq('from_me', false)
     .eq('is_group', false)
     .eq('instancia', instancia)
