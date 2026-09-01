@@ -99,7 +99,7 @@ section{padding:44px 0 0}
 .modelo .preco b{font-family:var(--serif);font-size:21px;color:var(--tinta)}
 .modelo .preco span{display:block;font-size:11.5px;color:var(--fraco)}
 .modelo .btn{height:44px;margin-top:10px;font-size:14.5px;width:100%}
-.selo{align-self:flex-start;border-radius:999px;background:var(--verde-fraco);color:var(--verde-tinta);
+.selo{align-self:flex-start;border-radius:999px;background:#EEF0F3;color:var(--aco);
   padding:3px 9px;font-size:11px;font-weight:600}
 .selo.destaque{background:var(--amarelo-fraco);color:#8A5B00}
 
@@ -149,6 +149,11 @@ details p{margin-top:9px;color:var(--suave);font-size:14.5px}
 footer{margin-top:40px;padding:26px 0 40px;border-top:1px solid var(--borda);color:var(--fraco);font-size:12.5px}
 footer .faixa{display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-between}
 footer a{text-decoration:underline;text-underline-offset:3px}
+/* wallbox: foto e texto lado a lado no desktop, empilhados no celular */
+.wb{display:grid;grid-template-columns:1fr;gap:0}
+.wb img{width:100%;height:100%;object-fit:cover;max-height:340px}
+.wb .texto{padding:24px}
+@media(min-width:860px){.wb{grid-template-columns:1fr 1.15fr}.wb img{max-height:none}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto}}
 </style>
 </head>
@@ -257,7 +262,7 @@ footer a{text-decoration:underline;text-underline-offset:3px}
         </svg>
       </div>
       <div class="corpo">
-        <span class="selo destaque">Mais vendido</span>
+        <span class="selo destaque">Mais indicado</span>
         <p class="nome">KILOVA D80</p>
         <p class="kw tabular">80<small>kW</small></p>
         <ul>
@@ -371,7 +376,7 @@ footer a{text-decoration:underline;text-underline-offset:3px}
       <figcaption><b>Estrutura luminosa</b>Cobertura com luz âmbar embaixo e totem que acende a marca — o ponto aparece de longe, de noite e na chuva.</figcaption>
     </figure>
     <figure class="foto">
-      <img src="/kilova/img/vaga.webp" width="1300" height="971" alt="Vaga de recarga com marcação amarela KILOVA pintada no asfalto e carregador grafite" loading="lazy">
+      <img src="/kilova/img/vaga.webp" width="1200" height="896" alt="Vaga de recarga com marcação amarela KILOVA pintada no asfalto e carregador grafite" loading="lazy">
       <figcaption><b>Vaga marcada</b>Amarelo no piso e o símbolo pintado dentro da vaga: ninguém estaciona no lugar de quem vai carregar.</figcaption>
     </figure>
   </div>
@@ -380,9 +385,9 @@ footer a{text-decoration:underline;text-underline-offset:3px}
 <!-- ══════════ WALLBOX ══════════ -->
 <section id="wallbox" class="faixa">
   <div class="cartao" style="display:grid;gap:0;grid-template-columns:1fr;overflow:hidden">
-    <div style="display:grid;grid-template-columns:1fr;gap:0" class="wb">
-      <img src="/kilova/img/wallbox.webp" width="1100" height="821" alt="Wallbox KILOVA em corrente alternada instalado na parede de uma garagem" loading="lazy" style="width:100%;height:100%;object-fit:cover;max-height:340px">
-      <div style="padding:24px">
+    <div class="wb">
+      <img src="/kilova/img/wallbox.webp" width="1100" height="821" alt="Wallbox KILOVA em corrente alternada instalado na parede de uma garagem" loading="lazy">
+      <div class="texto">
         <p class="rotulo">Corrente alternada</p>
         <h2 style="font-size:24px;margin-top:8px">Wallbox para quem fica horas parado</h2>
         <p style="color:var(--suave);font-size:15px;margin-top:10px">Condomínio, hotel, escritório e garagem de
@@ -400,7 +405,6 @@ footer a{text-decoration:underline;text-underline-offset:3px}
     </div>
   </div>
 </section>
-<style>@media(min-width:860px){.wb{grid-template-columns:1fr 1.15fr!important}.wb img{max-height:none!important}}</style>
 
 <!-- ══════════ O QUE VEM JUNTO ══════════ -->
 <section id="junto" class="faixa">
@@ -478,7 +482,8 @@ footer a{text-decoration:underline;text-underline-offset:3px}
     <summary>O preço inclui instalação?</summary>
     <p>Não. O valor é do equipamento. Projeto elétrico, parecer de acesso na concessionária, obra civil,
       padrão de entrada e comissionamento entram no orçamento do ponto, que muda conforme a distância do
-      transformador e a estrutura que já existe no local.</p>
+      transformador e a estrutura que já existe no local. Para dar ordem de grandeza: um ponto completo
+      de 80 kW costuma fechar na faixa de R$ 160 mil com tudo dentro.</p>
   </details>
   <details>
     <summary>E quando quebrar?</summary>
