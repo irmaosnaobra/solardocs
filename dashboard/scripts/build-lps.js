@@ -1689,7 +1689,7 @@ ${!d.medir ? '' : `
   try {
     var lead = JSON.parse(sessionStorage.getItem('ep_lead') || 'null');
     var desq = JSON.parse(sessionStorage.getItem('ep_desq') || 'null');
-    var nome = ((lead && lead.nome) || (desq && desq.nome) || '').trim().split(/\s+/)[0];
+    var nome = ((lead && lead.nome) || (desq && desq.nome) || '').trim().split(' ')[0];  // espaco literal, nao classe de regex: barra invertida some no template
     if (nome) {
       var el = document.getElementById('acolhe');
       var tx = document.getElementById('acolheTx');
