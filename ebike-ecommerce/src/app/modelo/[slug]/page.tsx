@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { Beacon } from '../../../components/Beacon.tsx';
 import { Fechamento } from '../../../components/Fechamento.tsx';
 import { Galeria } from '../../../components/Galeria.tsx';
 import { CardBike } from '../../../components/CardBike.tsx';
@@ -51,6 +52,9 @@ export default async function PaginaDaBike({ params }: { params: Promise<{ slug:
 
   return (
     <div className="mx-auto max-w-[1240px] px-4 py-4 sm:py-5">
+      {/* Qual modelo a pessoa abriu: é o degrau entre "entrou na loja" e
+          "clicou no WhatsApp", e é onde o funil costuma vazar. */}
+      <Beacon modelo={bike.codigo} />
       <nav className="mb-3 text-xs text-suave">
         <Link href="/" prefetch={false} className="toque -my-2 py-2 hover:text-mata">
           Todos os modelos

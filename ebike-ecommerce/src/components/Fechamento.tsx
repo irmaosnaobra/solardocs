@@ -1,4 +1,5 @@
 import { BASE_PATH } from '../config/basePath.mjs';
+import { CampanhaOculta } from './CampanhaOculta.tsx';
 import { Frete } from './Frete.tsx';
 import { FORMAS_DE_PAGAMENTO, PARCELAS_MAXIMAS, emReais } from '../config/loja.ts';
 import { aindaVaiChegar } from '../lib/previsao.ts';
@@ -35,6 +36,8 @@ export function Fechamento({ bike }: { bike: Bike }) {
           {bike.estoque === 1 ? 'unidade disponível' : 'unidades disponíveis'} agora.
         </p>
       ) : null}
+
+      <CampanhaOculta />
 
       <Frete
         bases={bike.bases}

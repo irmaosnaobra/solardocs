@@ -4,6 +4,7 @@ import { BASE_PATH } from '../../config/basePath.mjs';
 import { bikePorSlug } from '../../lib/catalogo.ts';
 import { PARCELAS_MAXIMAS, formaPorId, linkWhatsApp } from '../../config/loja.ts';
 import { proximoConsultor } from '../../lib/rodizio.ts';
+import { registrarVisita } from '../../lib/visita.ts';
 
 /**
  * O botão da bike passa por aqui antes de ir para o WhatsApp.
@@ -40,6 +41,20 @@ export async function GET(req: NextRequest) {
   const bike = await bikePorSlug(slug);
   if (!bike) return NextResponse.redirect(new URL(BASE_PATH, req.nextUrl.origin));
 
+  // De qual anúncio veio, e qual visita fechou. O clique é gravado AQUI, no
+  // servidor: é o único ponto por onde todo lead passa de verdade.
+  const campanha = req.nextUrl.searchParams.get('campanha')?.slice(0, 120) || null;
+  const sessao = req.cookies.get('corrente-sessao')?.value?.slice(0, 40) || null;
+  if (sessao) {
+    await registrarVisita({
+      sessao,
+      etapa: 'whatsapp',
+      modelo: bike.codigo,
+      cidade,
+      campanha,
+    });
+  }
+
   const { consultor } = await proximoConsultor({
     codigo: bike.codigo,
     titulo: bike.titulo,
@@ -48,6 +63,7 @@ export async function GET(req: NextRequest) {
       ? `${pagamento.rotulo}${parcelas && parcelas > 1 ? ` ${parcelas}x` : ''}`
       : null,
     origem: entrega ? `loja · ${entrega}` : 'loja',
+    campanha,
   });
 
   // Atrás do rewrite o host que chega aqui é o da Vercel, não o solardoc.app.

@@ -28,6 +28,8 @@ export type Lead = {
   preco: number;
   pagamento: string | null;
   origem: string;
+  /** De qual anúncio veio. Coluna própria: `origem` já é a cidade da entrega. */
+  campanha?: string | null;
 };
 
 export async function proximoConsultor(
@@ -51,6 +53,7 @@ export async function proximoConsultor(
         p_preco: lead.preco,
         p_pagamento: lead.pagamento,
         p_origem: lead.origem,
+        p_campanha: lead.campanha ?? null,
       }),
       cache: 'no-store',
       signal: AbortSignal.timeout(TEMPO_LIMITE_MS),

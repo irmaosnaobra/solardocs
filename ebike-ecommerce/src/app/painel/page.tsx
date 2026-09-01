@@ -5,6 +5,7 @@ import { TAG_CATALOGO, catalogoInterno, marcasDe } from '../../lib/catalogo.ts';
 import { MARGEM_EM_REAIS } from '../../lib/preco.ts';
 import { emReais } from '../../config/loja.ts';
 import { sitePrivado } from '../../lib/portaria.ts';
+import { funilDeHoje } from '../../lib/funil.ts';
 
 /**
  * Painel interno. Renderiza no servidor e nada aqui vira componente de cliente,
@@ -47,6 +48,7 @@ function Cartao({
 }
 
 export default async function Painel() {
+  const funil = await funilDeHoje();
   const { bikes, meta } = await catalogoInterno();
   const marcas = marcasDe(bikes);
 
@@ -103,6 +105,80 @@ export default async function Painel() {
           negociado e o estoque real.
         </p>
       ) : null}
+
+      {/* O funil de hoje. Vem antes do catálogo de propósito: com anúncio
+          rodando, a primeira pergunta é quantas visitas viraram conversa. */}
+      <section className="mb-8">
+        <h2 className="mb-2 text-sm font-semibold text-tinta">Hoje na loja</h2>
+        {!funil.disponivel ? (
+          <p className="rounded-xl border border-borda bg-fundo px-4 py-3 text-sm text-suave">
+            Sem medição ainda. Ela grava a partir da primeira visita de hoje.
+          </p>
+        ) : (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <Cartao
+                titulo="Entraram na loja"
+                valor={String(funil.loja)}
+                detalhe="visitas de hoje"
+              />
+              <Cartao
+                titulo="Disseram de onde são"
+                valor={String(funil.local)}
+                detalhe={
+                  funil.loja
+                    ? `${Math.round((funil.local / funil.loja) * 100)}% de quem entrou`
+                    : '—'
+                }
+              />
+              <Cartao
+                titulo="Abriram um modelo"
+                valor={String(funil.modelo)}
+                detalhe={
+                  funil.loja
+                    ? `${Math.round((funil.modelo / funil.loja) * 100)}% de quem entrou`
+                    : '—'
+                }
+              />
+              <Cartao
+                titulo="Foram para o WhatsApp"
+                valor={String(funil.whatsapp)}
+                detalhe={
+                  funil.loja
+                    ? `${Math.round((funil.whatsapp / funil.loja) * 100)}% de quem entrou`
+                    : '—'
+                }
+                tom={funil.whatsapp > 0 ? 'bom' : undefined}
+              />
+            </div>
+
+            {funil.porCampanha.length ? (
+              <table className="mt-4 w-full text-sm">
+                <thead>
+                  <tr className="border-b border-borda text-left text-xs text-suave">
+                    <th className="py-2 font-medium">Campanha</th>
+                    <th className="py-2 text-right font-medium">Visitas</th>
+                    <th className="py-2 text-right font-medium">WhatsApp</th>
+                    <th className="py-2 text-right font-medium">Conversão</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {funil.porCampanha.map((c) => (
+                    <tr key={c.campanha} className="border-b border-borda last:border-0">
+                      <td className="py-2 text-tinta">{c.campanha}</td>
+                      <td className="tabular py-2 text-right text-tinta">{c.visitas}</td>
+                      <td className="tabular py-2 text-right text-tinta">{c.leads}</td>
+                      <td className="tabular py-2 text-right text-suave">
+                        {c.visitas ? `${Math.round((c.leads / c.visitas) * 100)}%` : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : null}
+          </>
+        )}
+      </section>
 
       <section className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Cartao
