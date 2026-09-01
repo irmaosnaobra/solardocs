@@ -1714,6 +1714,21 @@ ${!d.medir ? '' : `
   }
   window.addEventListener('scroll', olhaRolagem, { passive: true });
 
+  /* A oferta entrou na tela. IntersectionObserver e não posição de scroll: o
+   * botão muda de lugar conforme o texto acima cresce, e coordenada fixa
+   * envelhece em silêncio no primeiro deploy que mexe na copy. */
+  try {
+    var alvo = document.querySelector('a[href*="kiwify"]');
+    if (alvo && window.IntersectionObserver) {
+      var obs = new IntersectionObserver(function (linhas) {
+        for (var k = 0; k < linhas.length; k++) {
+          if (linhas[k].isIntersecting) { sinal('pc_lp_oferta'); obs.disconnect(); }
+        }
+      }, { threshold: 0.5 });
+      obs.observe(alvo);
+    }
+  } catch (e) {}
+
   /* O clique que sai daqui pro gateway. Delegado no documento porque os botões
    * de compra são vários e estão espalhados pela página. */
   document.addEventListener('click', function(e){

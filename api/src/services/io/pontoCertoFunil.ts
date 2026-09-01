@@ -45,7 +45,7 @@ export const CAPITAL_DECLARADO = [
 ];
 
 /** Eventos que a landing do Ponto Certo dispara. Ver `ev()` no HTML dela. */
-export const PONTO_CERTO_TIPOS = ['pc_lp_view', 'pc_lp_rolou', 'pc_lp_checkout'];
+export const PONTO_CERTO_TIPOS = ['pc_lp_view', 'pc_lp_rolou', 'pc_lp_oferta', 'pc_lp_checkout'];
 
 export interface FichaNota1 {
   created_at: string;
@@ -92,6 +92,8 @@ export interface LinhaDia {
   cadastraram: number;
   /** Sessões que abriram a landing. `null` enquanto não houver medição no dia. */
   visitas: number | null;
+  /** Sessões em que o botão de compra chegou a aparecer na tela. */
+  oferta: number | null;
   /** Sessões que clicaram no checkout da Kiwify. */
   checkout: number | null;
   vendas: number;
@@ -125,7 +127,7 @@ export function linhasDoFunil(
   const pega = (d: string): LinhaDia => {
     let l = dias.get(d);
     if (!l) {
-      l = { dia: d, mandados: 0, cadastraram: 0, visitas: null, checkout: null, vendas: 0 };
+      l = { dia: d, mandados: 0, cadastraram: 0, visitas: null, oferta: null, checkout: null, vendas: 0 };
       dias.set(d, l);
     }
     return l;
@@ -155,6 +157,7 @@ export function linhasDoFunil(
   for (const [d, porTipo] of sessoes) {
     const l = pega(d);
     l.visitas = porTipo.get('pc_lp_view')?.size ?? 0;
+    l.oferta = porTipo.get('pc_lp_oferta')?.size ?? 0;
     l.checkout = porTipo.get('pc_lp_checkout')?.size ?? 0;
   }
 

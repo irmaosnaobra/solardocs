@@ -121,6 +121,10 @@ router.get('/ponto-certo-pulso', async (req: Request, res: Response): Promise<vo
         abriram_hoje: sessoes('pc_lp_view', inicioDeHoje),
         abriram_7d: sessoes('pc_lp_view'),
         rolaram_7d: sessoes('pc_lp_rolou'),
+        // A pergunta que 'rolou metade' não respondia: o botão de compra chegou
+        // a aparecer na tela? Numa página de 15 mil pixels, metade é longe demais
+        // pra servir de sinal.
+        viram_a_oferta_7d: sessoes('pc_lp_oferta'),
         checkout_7d: sessoes('pc_lp_checkout'),
         primeiro_evento: eventos.length
           ? eventos.map((e) => e.created_at).sort()[0] : null,
