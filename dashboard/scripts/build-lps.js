@@ -311,6 +311,115 @@ const PAGINAS = [
   fechaTitulo: 'Amanhã de manhã dá para saber onde está cada ferramenta',
   fechaTexto: 'Um toque monta um inventário de exemplo com 14 itens que toda equipe solar tem. Você ajusta em vez de começar do zero — e em uma tarde a empresa inteira está mapeada.',
 },
+{
+  // ── O PONTO CERTO ────────────────────────────────────────────────────────
+  // Produto de R$297 pra quem tem capital e não tem local: os 184 investidores
+  // da base do eletroposto. A régua de ponto próprio (29/08) cortou essa gente
+  // da agenda dos sócios, e esta página é o destino deles — aprende o difícil,
+  // acha o ponto, e volta como cliente da obra.
+  //
+  // CHECKOUT: enquanto o produto não existe na Kiwify, o botão abre conversa no
+  // WhatsApp da linha IO com a mensagem pronta. Vender atendido por gente é
+  // honesto enquanto os instrumentos estão sendo empacotados; trocar por
+  // 'https://pay.kiwify.com.br/...' quando o produto estiver criado.
+  pasta: 'ponto-certo',
+  titulo: 'O Ponto Certo — como achar, negociar e fechar o local do seu eletroposto',
+  descricao: 'Você tem o capital e não tem o lugar. Este material é a régua que a gente usa pra escolher um ponto, chegar no dono do imóvel sem levantar a lebre e fechar um contrato longo antes de gastar o primeiro real. Sete aulas e doze instrumentos, R$ 297.',
+  ogTitulo: 'O Ponto Certo — R$ 297',
+  checkout: 'https://wa.me/5534998165040?text=Quero%20o%20Ponto%20Certo%20(R%24%20297)',
+  preco: '297',
+  precoNota: 'pagamento único · acesso a todo o material e aos instrumentos',
+  ctaTexto: 'Quero o material por R$ 297 →',
+  eyebrow: 'Para quem tem o capital e ainda não tem o local',
+  aspas: '“Estou inclinado a arrumar até loja. Mas ainda não consegui.”',
+  h1: ['O dinheiro não é o seu problema. ', 'O ponto é.'],
+  heroSub: 'Quem já montou eletroposto sabe: o negócio se ganha ou se perde no local, e o local se perde na hora em que o dono do imóvel descobre o que vai nascer ali. Este material é a régua que a gente usa — pra escolher o ponto, chegar no proprietário sem levantar a lebre e fechar um contrato que se sustenta.',
+  bullets: [
+    'Dez endereços na mesa e sete riscados sem você sair de casa',
+    'A leitura da conta de luz e do disjuntor que diz se o ponto aguenta',
+    'O que falar nos primeiros 30 segundos — e as nove frases que queimam a conversa',
+    'A régua que transforma qualquer aluguel pedido em carros por dia',
+    'O term sheet de 12 campos que vai para o advogado',
+  ],
+  ctaNota: 'Quem já tem o ponto sob controle não precisa disto — marque uma reunião com a gente',
+  telaUrl: 'solardoc.app/ponto-certo',
+  numeros: [
+    ['7', 'aulas, nenhuma sem uma ação no fim'],
+    ['12', 'instrumentos: planilha, ficha, script e modelo'],
+    ['R$ 144,60', 'o que 1 ponto de arrendamento custa por mês'],
+    ['12', 'campos que fecham o acordo antes do advogado'],
+    ['R$ 297', 'uma vez'],
+  ],
+  dorTitulo: 'Ninguém trava por falta de dinheiro. Trava na porta do dono do imóvel.',
+  falas: [
+    '“Estou inclinado a arrumar até loja. Mas ainda não consegui.”',
+    '“Preciso entender melhor este mercado.”',
+    '“Ainda estamos estudando como faremos esse negócio.”',
+  ],
+  dorTexto: 'São respostas reais de investidores da nossa base, desta semana. Todos têm capital declarado. Nenhum tem o local. O que separa os dois não é dinheiro nem vontade — é não saber qual endereço presta, como chegar no proprietário sem encarecer o aluguel e o que precisa estar escrito antes de assinar.',
+  recebeEyebrow: 'As sete aulas',
+  recebeTitulo: 'Cada uma termina com você fazendo uma coisa',
+  mods: [
+    ['01', 'A lista: dez endereços, sete riscados', 'Você abre o aplicativo de recarga, acha o trecho da sua cidade que não tem ponto nenhum e escreve dez endereços. Sete morrem ali mesmo, nas sete travas — e trava mata de graça, antes de qualquer visita.', 'Sem sair da cadeira'],
+    ['02', 'Os primeiros 30 segundos', 'O que dizer no balcão, no WhatsApp e no telefone, palavra por palavra. O objetivo da primeira conversa não é fechar nada: é sair de lá com a foto da conta de luz e do padrão de entrada.', 'E as 9 frases proibidas'],
+    ['03', 'Cabe ou não cabe: as duas fotos', 'A informação mais cara do negócio é de graça e está na conta de luz. Tipo de ligação, tensão, disjuntor e consumo — e o veredito escrito em uma linha, sem visita técnica.', 'Onde os projetos morrem'],
+    ['04', 'A visita e o placar', 'Sete blocos percorridos no local, o movimento medido em vez de sentido, e uma letra escrita no fim: A, B, C ou X. Você sai de lá com nota, não com impressão.', 'Uma visita só'],
+    ['05', 'Fixo, percentual ou misto', 'O dono pediu R$ 1.200? São 8,3 carros por dia. A régua converte qualquer pedido em movimento — e traz os dez itens que não se cedem em hipótese nenhuma.', 'E o “quero uma parte”'],
+    ['06', 'A proposta de uma página', 'O papel que fica no balcão dele, com o croqui do pátio anexo. Uma página ele lê em pé e pergunta na hora; dez páginas ele guarda para ver com calma, e “com calma” não tem data.', 'O que quase ninguém leva'],
+    ['07', 'A ordem de assinar', 'Qual papel se assina antes do parecer e qual não — e os 12 campos que vão para o advogado com as seis perguntas fechadas que ele responde.', 'Term sheet, não minuta'],
+  ],
+  dentroEyebrow: 'O que sustenta o preço',
+  dentroTitulo: 'Aula ninguém aplica. Instrumento você abre e usa',
+  pecas: [
+    ['A ficha de vistoria e o placar', 'Sete blocos feitos para o celular, preenchidos em pé no local, e um placar de 30 pontos que fecha em A, B, C ou X. O bloco zero se responde antes de sair de casa — e se travar ali, você não vai.', 'tela'],
+    ['O term sheet de 12 campos', 'Partes, área, prazo, percentual, piso, quando o aluguel começa, reajuste, unidade consumidora, exclusividade, obra e retirada, propriedade do equipamento e venda do imóvel. É o que o advogado precisa para redigir — e sete deles se copiam da proposta.', 'celular'],
+  ],
+  compEyebrow: 'A diferença que importa',
+  compTitulo: 'Procurar ponto no impulso ou com régua',
+  compMauTitulo: 'Do jeito que quase todo mundo faz',
+  compMau: [
+    'Visita dez lugares e não fecha nenhum',
+    'Diz para que é logo na primeira frase e o aluguel sobe',
+    'Descobre a energia depois de assinar',
+    'Assina arrendamento antes do parecer',
+    'Baixa um contrato pronto da internet',
+  ],
+  compBomTitulo: 'Com o Ponto Certo',
+  compBom: [
+    'Risca sete de dez sem sair de casa',
+    'Sai da primeira conversa com a foto da conta de luz',
+    'Escreve o veredito de energia antes de gastar um real',
+    'Papel curto agora, contrato de anos só depois do parecer',
+    'Term sheet decidido e o advogado só redige',
+  ],
+  comoEyebrow: 'Como funciona',
+  comoTitulo: 'Você não assiste. Você faz junto',
+  passos: [
+    ['Monte a lista', 'Dez endereços da sua cidade e sete riscados no mesmo dia, pelas sete travas.'],
+    ['Vá buscar duas fotos', 'A conversa dos 30 segundos existe para isso: a conta de luz e o padrão de entrada.'],
+    ['Feche com papel', 'Placar escrito, proposta de uma página no balcão do dono e os 12 campos no e-mail do advogado.'],
+  ],
+  ofertaTitulo: 'Custa menos que um mês de aluguel errado',
+  ofertaLista: [
+    'As 7 aulas, nenhuma sem uma ação no fim',
+    'A lista dos 10 e as 7 travas que matam um endereço de graça',
+    'O cartão de bolso: três scripts e as nove frases proibidas',
+    'A planilha de energia e as quatro fotos que dispensam visita',
+    'A ficha de vistoria em sete blocos e o placar de 30 pontos',
+    'A régua de negociação e os dez itens inegociáveis',
+    'A proposta de uma página e o term sheet de 12 campos',
+  ],
+  faq: [
+    ['Vocês acham o ponto para mim?', 'Não. A gente te ensina a achar. Quem bate na porta é você — somos dois sócios com agenda cheia em Uberlândia, não visitamos imóvel em outra cidade e não vamos fingir que visitamos.'],
+    ['Serve para a minha cidade?', 'Serve. A régua de energia, fluxo, vaga e negociação é a mesma no Brasil inteiro. O que muda de cidade para cidade é a distribuidora — e quem lê a norma dela é o projetista local.'],
+    ['Preciso já ter um local em vista?', 'Não. A primeira aula começa antes disso: como descartar dez endereços sem sair de casa.'],
+    ['Isso substitui advogado?', 'Não, e desconfie de quem disser que sim. Você sai com as 12 decisões fechadas para entregar ao seu advogado. Isso encurta o trabalho dele e barateia a sua conta — não elimina.'],
+    ['Sou obrigado a comprar o eletroposto de vocês depois?', 'Não. A gente monta eletroposto chave na mão e obviamente gostaria de montar o seu. A régua que está aqui dentro funciona igual se você comprar de outro fornecedor.'],
+    ['Eu já tenho o ponto. Serve para mim?', 'Não compre. Se o local é seu, você administra, representa o proprietário ou é inquilino com anuência, o seu próximo passo é uma reunião de projeto com a gente — não um material sobre como achar ponto.'],
+  ],
+  fechaTitulo: 'O ponto que você ainda não tem é a única coisa entre você e a estação',
+  fechaTexto: 'Sete aulas, doze instrumentos e a régua que a gente usa quando escolhe um local. R$ 297, pagamento único. Se você já tem o ponto, fale com a gente direto — a sua conversa é outra.',
+},
 ];
 
 // ══════════════════════════════════════════════════════════════════

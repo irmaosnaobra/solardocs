@@ -48,7 +48,7 @@ import type { NextRequest } from 'next/server';
 // `/inventario-empresarial` não colide com a ferramenta `/inventario`: o
 // startsWith é do mais específico pro mais curto, e '/inventario' não está na
 // lista justamente porque é rota logada.
-const PUBLIC_PATHS = ['/lp/', '/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/orc/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular', '/kit', '/dimensionamento', '/calculadora', '/inventario-empresarial', '/oferta', '/eletroposto', '/plugcash', '/assinar', '/quase-la', '/pix-automatico', '/lib', '/bike', '/robots.txt', '/sitemap.xml'];
+const PUBLIC_PATHS = ['/lp/', '/auth', '/_api', '/limpar-cache', '/p/', '/v/', '/orc/', '/gerador', '/io', '/apresentacao', '/privacidade', '/exclusao-de-dados', '/simular', '/kit', '/dimensionamento', '/calculadora', '/inventario-empresarial', '/oferta', '/eletroposto', '/ponto-certo', '/plugcash', '/assinar', '/quase-la', '/pix-automatico', '/lib', '/bike', '/robots.txt', '/sitemap.xml'];
 
 export function proxy(request: NextRequest) {
   const token = request.cookies.get('solardoc_token')?.value;

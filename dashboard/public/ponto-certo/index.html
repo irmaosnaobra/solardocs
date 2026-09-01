@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="index, follow">
+<title>O Ponto Certo — como achar, negociar e fechar o local do seu eletroposto</title>
+<meta name="description" content="Você tem o capital e não tem o lugar. Este material é a régua que a gente usa pra escolher um ponto, chegar no dono do imóvel sem levantar a lebre e fechar um contrato longo antes de gastar o primeiro real. Sete aulas e doze instrumentos, R$ 297.">
+<link rel="icon" href="/icon-192.png">
+<meta property="og:title" content="O Ponto Certo — R$ 297">
+<meta property="og:description" content="Você tem o capital e não tem o lugar. Este material é a régua que a gente usa pra escolher um ponto, chegar no dono do imóvel sem levantar a lebre e fechar um contrato longo antes de gastar o primeiro real. Sete aulas e doze instrumentos, R$ 297.">
+<meta property="og:image" content="https://solardoc.app/capas/inventario-empresarial@2x.png">
+<link rel="canonical" href="https://solardoc.app/ponto-certo/">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #080d18;
+    --bg2: #0d1424;
+    --surface: #121b2e;
+    --line: rgba(148,163,184,.16);
+    --line2: rgba(148,163,184,.26);
+    --text: #f4f7fb;
+    --muted: #93a3b8;
+    --amber: #f7a41c;
+    --amber-d: #d9860a;
+    --green: #4ade80;
+    --radius: 18px;
+  }
+
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+    line-height: 1.65;
+    font-size: 17px;
+    overflow-x: hidden;
+  }
+
+  img { max-width: 100%; height: auto; display: block; }
+
+  .wrap { width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+  .narrow { max-width: 760px; margin: 0 auto; }
+
+  section { padding: 74px 0; }
+
+  h1, h2, h3 { line-height: 1.16; letter-spacing: -.022em; text-wrap: balance; }
+  h1 { font-size: clamp(31px, 5.6vw, 52px); font-weight: 800; }
+  h2 { font-size: clamp(25px, 4vw, 36px); font-weight: 800; margin-bottom: 16px; }
+  h3 { font-size: 19px; font-weight: 700; }
+  p { margin-bottom: 15px; }
+  strong { color: #fff; font-weight: 700; }
+  .amber { color: var(--amber); }
+  .muted { color: var(--muted); }
+
+  .eyebrow {
+    display: inline-block;
+    font-size: 11px; font-weight: 800; letter-spacing: .2em; text-transform: uppercase;
+    color: var(--amber); background: rgba(247,164,28,.1);
+    border: 1px solid rgba(247,164,28,.28);
+    padding: 7px 15px; border-radius: 999px; margin-bottom: 22px;
+  }
+
+  .topo {
+    border-bottom: 1px solid var(--line);
+    background: rgba(8,13,24,.9);
+    backdrop-filter: blur(8px);
+    position: sticky; top: 0; z-index: 40;
+  }
+  .topo .wrap { display: flex; align-items: center; justify-content: space-between; padding-top: 14px; padding-bottom: 14px; }
+  .marca { font-size: 15px; font-weight: 800; letter-spacing: -.01em; }
+  .marca span { color: var(--amber); }
+  .topoSelo { font-size: 12.5px; color: var(--muted); }
+
+  .hero {
+    padding: 64px 0 56px;
+    background:
+      radial-gradient(1100px 520px at 12% -10%, rgba(247,164,28,.16), transparent 62%),
+      radial-gradient(900px 480px at 92% 8%, rgba(56,110,180,.16), transparent 60%),
+      var(--bg);
+  }
+  .heroGrid { display: grid; grid-template-columns: 1.02fr .98fr; gap: 52px; align-items: center; }
+  .heroAspas {
+    font-size: clamp(19px, 2.6vw, 23px); font-style: italic; color: var(--muted);
+    border-left: 3px solid var(--amber); padding-left: 16px; margin-bottom: 20px;
+  }
+  .heroSub { color: var(--muted); font-size: clamp(16px, 1.7vw, 18.5px); margin: 20px 0 26px; max-width: 52ch; }
+  ul.bullets { list-style: none; display: grid; gap: 11px; margin-bottom: 30px; }
+  ul.bullets li { position: relative; padding-left: 30px; font-size: 15.5px; color: #d5deea; }
+  ul.bullets li::before {
+    content: ''; position: absolute; left: 0; top: 7px; width: 17px; height: 17px; border-radius: 50%;
+    background: rgba(74,222,128,.16); border: 1px solid rgba(74,222,128,.5);
+  }
+  ul.bullets li::after {
+    content: ''; position: absolute; left: 5.5px; top: 11px; width: 6px; height: 3px;
+    border-left: 2px solid var(--green); border-bottom: 2px solid var(--green);
+    transform: rotate(-45deg);
+  }
+
+  .cta {
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    background: linear-gradient(180deg, var(--amber), var(--amber-d));
+    color: #0a0f1a; font-weight: 800; font-size: 17px;
+    padding: 18px 34px; border-radius: 13px; text-decoration: none;
+    box-shadow: 0 10px 30px -10px rgba(247,164,28,.65);
+    transition: transform .15s ease, box-shadow .15s ease;
+    border: none; cursor: pointer; font-family: inherit; text-align: center;
+  }
+  .cta:hover { transform: translateY(-2px); box-shadow: 0 16px 34px -10px rgba(247,164,28,.75); }
+  .cta:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+  .ctaNota { display: block; font-size: 13px; color: var(--muted); margin-top: 13px; }
+
+  .janela {
+    background: var(--surface); border: 1px solid var(--line2); border-radius: 14px;
+    overflow: hidden; box-shadow: 0 30px 70px -30px rgba(0,0,0,.9);
+  }
+  .janelaBarra {
+    display: flex; align-items: center; gap: 7px;
+    padding: 11px 14px; background: #0e1728; border-bottom: 1px solid var(--line);
+  }
+  .janelaBarra i { width: 9px; height: 9px; border-radius: 50%; background: #33415c; display: block; }
+  .janelaUrl { margin-left: 8px; font-size: 11.5px; color: #64768f; font-family: ui-monospace, Menlo, Consolas, monospace; }
+
+  .heroArte { position: relative; }
+  .heroCel {
+    position: absolute; right: 5%; bottom: -30px; width: 27%; max-width: 158px;
+    border-radius: 18px; border: 5px solid #1b2740; box-shadow: 0 26px 54px -18px rgba(0,0,0,.95);
+  }
+
+
+  /* ── APARELHOS: notebook aberto + celular encostado ──────────
+     Desenhados em CSS, sem imagem: fica nitido em qualquer tela, pesa nada e
+     a tela de dentro pode rolar de verdade. */
+  .aparelhos { position: relative; padding-bottom: 34px; }
+
+  .note { position: relative; width: 100%; }
+  .noteTampa {
+    position: relative;
+    background: #0b1320;
+    border: 9px solid #1b2740;
+    border-bottom-width: 6px;
+    border-radius: 13px 13px 5px 5px;
+    overflow: hidden;
+    box-shadow: 0 34px 74px -30px rgba(0,0,0,.95), inset 0 0 0 1px rgba(148,163,184,.1);
+    aspect-ratio: 16 / 10.2;
+  }
+  .noteBarra {
+    position: absolute; inset: 0 0 auto 0; z-index: 2; height: 30px;
+    display: flex; align-items: center; gap: 6px;
+    padding: 0 12px; background: #0e1728; border-bottom: 1px solid var(--line);
+  }
+  .noteBarra i { width: 8px; height: 8px; border-radius: 50%; background: #33415c; display: block; }
+  .noteBarra span {
+    margin-left: 8px; font-size: 10.5px; color: #64768f;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+  }
+  /* a janela por onde se ve' a tela; o conteudo dentro e' mais alto e sobe */
+  .noteVisor { position: absolute; inset: 30px 0 0 0; overflow: hidden; }
+  .noteBase {
+    height: 11px; margin: 0 -7%;
+    background: linear-gradient(180deg, #2a3852, #131c2e);
+    border-radius: 0 0 13px 13px;
+    box-shadow: 0 16px 30px -14px rgba(0,0,0,.9);
+  }
+  .noteBase::after {
+    content: ''; display: block; width: 16%; height: 3px; margin: 0 auto;
+    background: #0b1320; border-radius: 0 0 4px 4px;
+  }
+
+  /* O celular encosta na QUINA de baixo e pende pra FORA. Antes ficava em
+     cima do meio do notebook e escondia os valores da direita — que sao
+     justamente o que a tela tem de mais importante (preco, sobra, total). */
+  .fone {
+    /* -4% e nao -10%: a 1000px de janela o celular passava 20px da borda e o
+       overflow-x do body cortava ele ao meio. A sobra tem que caber na margem
+       do .wrap (24px), e 4% da coluna da arte da' no maximo 20px em 1280. */
+    position: absolute; right: -4%; bottom: -34px; z-index: 3;
+    width: 22%; max-width: 130px;
+    background: #0b1320;
+    border: 6px solid #1b2740; border-radius: 22px;
+    overflow: hidden; aspect-ratio: 9 / 17.5;
+    box-shadow: 0 26px 54px -18px rgba(0,0,0,.95);
+  }
+  .foneEntalhe {
+    position: absolute; top: 6px; left: 50%; transform: translateX(-50%); z-index: 2;
+    width: 34%; height: 5px; border-radius: 99px; background: #1b2740;
+  }
+  .foneVisor { position: absolute; inset: 0; overflow: hidden; }
+
+  /* ── a rolagem ──
+     translateY em porcentagem do PROPRIO conteudo: assim vale pra qualquer
+     altura de tela sem eu ter que saber o pixel exato. Sobe, segura em cima e
+     em baixo (as pausas sao onde o olho le) e volta. */
+  .rolagem { animation: rolar 26s ease-in-out infinite; }
+  .fone .rolagem { animation-duration: 22s; animation-delay: -6s; }
+  @keyframes rolar {
+    0%, 7%    { transform: translateY(0); }
+    48%, 57%  { transform: translateY(-52%); }
+    93%, 100% { transform: translateY(0); }
+  }
+
+  /* ── a tela do produto reproduzida ── */
+  .app { padding: 14px 15px 26px; font-size: 12.5px; line-height: 1.4; }
+  /* A faixa da direita fica livre pro celular: sem isto o valor termina
+     debaixo dele. Em PORCENTAGEM, nao em pixel: o celular tem 22% de largura e
+     sobra 4% pra fora, entao ele cobre 18% — 22% de reserva limpa em qualquer
+     tamanho de tela. Com pixel fixo, telas maiores voltavam a esconder. */
+  @media (min-width: 901px) { .note .app { padding-right: 22%; } }
+  .app h4 {
+    font-size: 9.5px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--muted); margin: 16px 0 8px;
+  }
+  .app h4:first-child { margin-top: 0; }
+  .aLinha {
+    display: flex; justify-content: space-between; gap: 10px;
+    padding: 7px 0; border-bottom: 1px solid rgba(148,163,184,.12); color: #cfd9e6;
+  }
+  .aLinha b { color: #fff; font-weight: 700; white-space: nowrap; }
+  .aLinha.total { border-bottom: none; padding-top: 10px; font-size: 14px; }
+  .aLinha.total b { color: var(--amber); }
+  .aLinha.alerta b { color: #ff9d8f; }
+  .aCartao {
+    background: rgba(148,163,184,.07); border: 1px solid rgba(148,163,184,.16);
+    border-radius: 10px; padding: 10px 12px; margin: 8px 0;
+  }
+  .aCartao span {
+    display: block; font-size: 8.5px; font-weight: 800; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 3px;
+  }
+  .aCartao b { font-size: 16px; font-weight: 800; letter-spacing: -.02em; }
+  .aCartao.bom { border-color: rgba(74,222,128,.32); background: rgba(74,222,128,.07); }
+  .aCartao.bom b { color: var(--green); }
+  .aDupla { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .aBarra { height: 6px; border-radius: 99px; background: rgba(148,163,184,.2); margin: 9px 0 4px; overflow: hidden; }
+  .aBarra i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--amber-d), var(--amber)); }
+  .aItem { display: flex; align-items: center; gap: 9px; padding: 6px 0; color: #cfd9e6; }
+  .aCheck {
+    flex: none; width: 15px; height: 15px; border-radius: 5px;
+    background: var(--amber); position: relative;
+  }
+  .aCheck::after {
+    content: ''; position: absolute; left: 4px; top: 2.5px; width: 4px; height: 7px;
+    border-right: 2px solid #0a0f1a; border-bottom: 2px solid #0a0f1a; transform: rotate(45deg);
+  }
+  .aCheck.off { background: transparent; border: 1.5px solid rgba(148,163,184,.4); }
+  .aCheck.off::after { display: none; }
+  .aTag {
+    display: inline-block; font-size: 9.5px; font-weight: 800; color: #0a0f1a;
+    background: var(--amber); padding: 2px 8px; border-radius: 99px; margin-bottom: 6px;
+  }
+  .fone .app { padding: 11px 8px 20px; font-size: 9.5px; }
+  .fone .app h4 { font-size: 7.5px; margin: 12px 0 6px; }
+  .fone .aCartao b { font-size: 12px; }
+  /* Empilhado: em 112px de largura "Piso que ainda da' lucro" quebrava em
+     quatro linhas ao lado do valor e virava sopa de letra. */
+  .fone .aLinha { padding: 5px 0; flex-direction: column; align-items: flex-start; gap: 1px; }
+  .fone .aLinha b { font-size: 11px; }
+  .fone .aTag { font-size: 8px; }
+  .fone .aDupla { grid-template-columns: 1fr; }
+
+  @media (max-width: 900px) { .fone { display: none; } }
+  @media (prefers-reduced-motion: reduce) { .rolagem { animation: none !important; } }
+
+
+  /* -- FUNCIONA EM: os sistemas ------------------------
+     Responde "abre no meu aparelho?" antes de a pessoa perguntar. Silhuetas
+     DESENHADAS, nao logo oficial de terceiro: marca alheia em pagina de venda
+     cria problema de uso de marca sem necessidade, e uma silhueta reconhecivel
+     ja' responde a pergunta. */
+  .rodaEm { margin-top: 22px; }
+  .rodaEmTitulo {
+    display: block; font-size: 10px; font-weight: 800; letter-spacing: .18em;
+    text-transform: uppercase; color: #64768f; margin-bottom: 10px;
+  }
+  .rodaEmLista { list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 9px; margin: 0 0 10px; }
+  .rodaEmLista li {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 7px 12px 7px 10px; border-radius: 10px;
+    border: 1px solid var(--line); background: rgba(148,163,184,.06);
+    font-size: 12.5px; font-weight: 600; color: #cfd9e6;
+  }
+  .rodaEmLista svg { flex: none; color: var(--muted); }
+  .rodaEmNota { font-size: 12.5px; color: var(--muted); margin: 0; }
+  .rodaEmNota b { color: var(--text); font-weight: 700; }
+  @media (max-width: 420px) {
+    .rodaEmLista { gap: 7px; }
+    .rodaEmLista li { padding: 6px 10px 6px 8px; font-size: 11.5px; }
+  }
+
+  .faixa { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--bg2); }
+  .faixaGrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; padding: 26px 0; text-align: center; }
+  .faixaGrid b { display: block; font-size: clamp(21px, 3vw, 28px); color: var(--amber); font-weight: 800; letter-spacing: -.02em; }
+  .faixaGrid span { font-size: 12.5px; color: var(--muted); line-height: 1.45; display: block; margin-top: 3px; }
+
+  .falas { display: grid; gap: 13px; margin-top: 26px; }
+  .fala {
+    background: var(--surface); border: 1px solid var(--line);
+    border-left: 3px solid #ef6a5a; border-radius: 0 12px 12px 0; padding: 17px 21px;
+    font-size: 17.5px; font-style: italic; color: #dfe6f0;
+  }
+
+  .mods { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 18px; margin-top: 34px; }
+  .mod {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 26px 24px; position: relative; overflow: hidden;
+  }
+  .mod::before {
+    content: ''; position: absolute; inset: 0 0 auto 0; height: 3px;
+    background: linear-gradient(90deg, var(--amber), transparent 70%);
+  }
+  .modNum { font-size: 12px; font-weight: 800; letter-spacing: .16em; color: var(--amber); display: block; margin-bottom: 9px; }
+  .mod h3 { margin-bottom: 8px; }
+  .mod p { color: var(--muted); font-size: 15px; margin: 0 0 12px; }
+  .modTag {
+    display: inline-block; font-size: 11.5px; font-weight: 700; color: #cbd5e1;
+    background: rgba(148,163,184,.12); padding: 4px 11px; border-radius: 999px;
+  }
+
+  .peca { display: grid; grid-template-columns: 1fr 1fr; gap: 46px; align-items: center; margin-bottom: 64px; }
+  .peca:last-child { margin-bottom: 0; }
+  .peca.inverso .pecaArte { order: -1; }
+  .pecaTxt h3 { font-size: 23px; margin-bottom: 12px; }
+  .pecaTxt p { color: var(--muted); font-size: 16px; }
+  .pecaSelo {
+    display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .15em;
+    text-transform: uppercase; color: var(--amber); margin-bottom: 10px;
+  }
+
+  .comp { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 30px; }
+  .compCard { border-radius: var(--radius); padding: 26px 24px; border: 1px solid var(--line); background: var(--surface); }
+  .compCard.mau { opacity: .78; }
+  .compCard.bom { border-color: rgba(247,164,28,.4); background: linear-gradient(180deg, rgba(247,164,28,.1), rgba(247,164,28,.02)); }
+  .compCard h3 { font-size: 17px; margin-bottom: 14px; }
+  .compCard ul { list-style: none; display: grid; gap: 10px; }
+  .compCard li { font-size: 14.5px; color: #cbd5e1; padding-left: 26px; position: relative; }
+  .compCard.mau li::before { content: '✕'; position: absolute; left: 0; color: #ef6a5a; font-weight: 700; }
+  .compCard.bom li::before { content: '✓'; position: absolute; left: 0; color: var(--green); font-weight: 700; }
+
+  .passos { display: grid; gap: 16px; margin-top: 30px; }
+  .passo { display: grid; grid-template-columns: 44px 1fr; gap: 18px; align-items: start; }
+  .passoN {
+    width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+    background: rgba(247,164,28,.12); border: 1px solid rgba(247,164,28,.35);
+    color: var(--amber); font-weight: 800; font-size: 17px;
+  }
+  .passo h3 { font-size: 18px; margin-bottom: 4px; }
+  .passo p { color: var(--muted); font-size: 15.5px; margin: 0; }
+
+  .oferta { background: var(--bg2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .ofertaBox {
+    background: var(--surface); border: 1px solid rgba(247,164,28,.34); border-radius: 22px;
+    padding: 42px 38px; text-align: center; max-width: 760px; margin: 0 auto;
+    box-shadow: 0 30px 80px -40px rgba(247,164,28,.5);
+  }
+  .preco { font-size: clamp(52px, 10vw, 74px); font-weight: 900; color: var(--amber); line-height: 1; letter-spacing: -.035em; margin: 8px 0 6px; }
+  .preco small { font-size: .34em; font-weight: 700; letter-spacing: 0; color: var(--muted); }
+  .ofertaLista { list-style: none; display: grid; gap: 11px; text-align: left; max-width: 480px; margin: 26px auto 30px; }
+  .ofertaLista li { position: relative; padding-left: 28px; font-size: 15.5px; color: #d5deea; }
+  .ofertaLista li::before { content: '✓'; position: absolute; left: 0; color: var(--green); font-weight: 800; }
+
+  .garantia {
+    display: flex; gap: 15px; align-items: flex-start; text-align: left;
+    background: rgba(148,163,184,.07); border: 1px solid var(--line);
+    border-radius: 14px; padding: 20px 22px; margin-top: 28px;
+  }
+  .garantia .selo { flex: none; display: grid; place-items: center; width: 26px; height: 26px; }
+  .garantia p { margin: 0; font-size: 14.5px; color: var(--muted); }
+
+  details {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 13px; padding: 19px 23px; margin-bottom: 12px;
+  }
+  details[open] { border-color: var(--line2); }
+  summary {
+    cursor: pointer; font-weight: 700; font-size: 16.5px; list-style: none;
+    display: flex; justify-content: space-between; gap: 16px; align-items: center;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: '+'; color: var(--amber); font-size: 23px; font-weight: 400; flex: none; line-height: 1; }
+  details[open] summary::after { content: '−'; }
+  details p { color: var(--muted); font-size: 15.5px; margin: 13px 0 0; }
+
+  /* Selo de compra segura — as TRES referencias tem, as minhas nao tinham.
+     Numa compra de R$ 67 de quem nunca ouviu falar da gente, e' a linha que
+     tira o ultimo medo antes do cartao. */
+  .seguro {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-size: 12.5px; color: var(--muted); margin-top: 14px;
+  }
+  .seguro svg { flex: none; }
+
+  /* Quem fez — a home tem, a /kit nao. Vale mais numa venda pra desconhecido
+     do que qualquer adjetivo sobre a ferramenta: a pessoa esta' dando o cartao
+     pra um site na internet. */
+  .donos {
+    display: flex; gap: 22px; align-items: center; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 28px 30px;
+  }
+  .donosFotos { display: flex; flex: none; }
+  .donosFotos img {
+    width: 74px; height: 74px; border-radius: 50%; object-fit: cover;
+    border: 3px solid var(--surface); box-shadow: 0 6px 18px rgba(0,0,0,.5);
+  }
+  .donosFotos img + img { margin-left: -22px; }
+  .donosTxt { flex: 1 1 320px; min-width: 0; }
+  .donosTxt h3 { font-size: 20px; margin-bottom: 8px; }
+  .donosTxt p { color: var(--muted); font-size: 15.5px; margin: 0; }
+
+  /* Depoimentos: a secao EXISTE e fica escondida ate' haver depoimento real —
+     e' o que a /kit faz. Inventar frase de cliente e' o caminho curto pro
+     reembolso. */
+  .depoGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 16px; }
+  .depo {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 16px; padding: 24px 22px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .depoEstrelas { display: flex; gap: 3px; color: var(--amber); }
+  .depoTexto { font-size: 15.5px; line-height: 1.7; color: #dfe6f0; margin: 0; }
+  .depoAutor { font-size: 13px; color: var(--muted); margin: 0; }
+  .depoAutor b { color: var(--text); font-weight: 700; display: block; font-size: 14px; }
+
+
+  /* ── MOCKUP ANIMADO ──────────────────────────────────
+     Um ciclo de 16s por demo. Cada cena entra, fica e sai; o resto do
+     movimento (barra, rolo de numeros, marca de check) roda no mesmo compasso.
+     Tudo em CSS: sem GIF, sem video, sem script. */
+  .demo {
+    position: relative; background: var(--surface);
+    padding: 20px 22px; min-height: 372px;
+    font-size: 14px; line-height: 1.45; overflow: hidden;
+  }
+  .demoTopo {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 10.5px; font-weight: 800; letter-spacing: .13em;
+    text-transform: uppercase; color: var(--muted);
+    padding-bottom: 12px; margin-bottom: 14px; border-bottom: 1px solid var(--line);
+  }
+  .demoVivo { display: inline-flex; align-items: center; gap: 6px; color: var(--green); }
+  .demoVivo i {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+    animation: demoPisca 2s ease-in-out infinite;
+  }
+  @keyframes demoPisca { 0%, 100% { opacity: 1 } 50% { opacity: .25 } }
+
+  .cena { position: absolute; left: 22px; right: 22px; top: 66px; opacity: 0; }
+  /* Timing LINEAR de proposito: o ease padrao faz a opacidade demorar a sair
+     do zero nas duas pontas, e a soma disso dava 0,22s de moldura vazia a cada
+     virada. Linear reparte o fade por igual e a piscada some.
+     (E sem crase nenhuma neste comentario: o CSS mora dentro de um template
+     literal do JS, entao uma crase aqui fecha a string e quebra o gerador.) */
+  .demo[data-cenas="4"] .cena { animation: cena4 16s linear infinite; }
+  /* AS CENAS ESTAVAM TOCANDO FORA DE ORDEM: 4, 1, 2, 3 — comecava pela
+     resposta (preco, autonomia) e so' depois mostrava as perguntas. Sentido
+     invertido justamente no que a demo existe pra contar.
+     A culpa era do nth-of-type: ele conta irmaos do MESMO TIPO, nao da mesma
+     classe. Dentro do .demo o primeiro <div> e' o .demoTopo, entao
+     nth-of-type(2) pegava a cena 1, nth-of-type(3) a cena 2... e a cena 4
+     ficava sem atraso nenhum e abria o ciclo.
+     A cadeia de "~" conta so' os .cena e nao se importa com quem mais e' div. */
+  .demo[data-cenas="4"] .cena ~ .cena { animation-delay: 4s; }
+  .demo[data-cenas="4"] .cena ~ .cena ~ .cena { animation-delay: 8s; }
+  .demo[data-cenas="4"] .cena ~ .cena ~ .cena ~ .cena { animation-delay: 12s; }
+  /* SEM SOBREPOSICAO E SEM BURACO.
+     Tentei os dois extremos e os dois quebram:
+     · encostando (saida em 25%, entrada em 25%) sobrava um piscar de 160ms
+       com a moldura vazia;
+     · cruzando (saida em 27%) as duas cenas ficavam meio transparentes ao
+       mesmo tempo e o texto de uma aparecia POR CIMA da outra — da' pra ler
+       "PRECO AO CLIENTE" atras de "Material CA". Le como defeito, nao como
+       transicao.
+     Entao a saida termina exatamente em 25%, quando a proxima comeca a
+     entrar, e a entrada dura 1,5% (0,24s): rapido demais pro olho registrar
+     como vazio, e sem nenhum quadro com as duas na tela. */
+  @keyframes cena4 {
+    0%          { opacity: 0; transform: translateY(10px); }
+    1.5%, 23.5% { opacity: 1; transform: none; }
+    25%, 100%   { opacity: 0; transform: translateY(-6px); }
+  }
+
+  /* linha de valor */
+  .dLinha {
+    display: flex; justify-content: space-between; gap: 12px;
+    padding: 9px 0; border-bottom: 1px solid var(--line); color: #cfd9e6;
+  }
+  .dLinha b { color: #fff; font-weight: 700; }
+  .dLinha.forte { border-bottom: none; padding-top: 13px; font-size: 15.5px; }
+  .dLinha.forte b { color: var(--amber); }
+
+  /* entra uma a uma */
+  .dEntra { opacity: 0; animation: dEntra 16s infinite; }
+  .dEntra:nth-of-type(1) { animation-delay: .25s; }
+  .dEntra:nth-of-type(2) { animation-delay: .65s; }
+  .dEntra:nth-of-type(3) { animation-delay: 1.05s; }
+  .dEntra:nth-of-type(4) { animation-delay: 1.45s; }
+  .dEntra:nth-of-type(5) { animation-delay: 1.85s; }
+  @keyframes dEntra {
+    0%     { opacity: 0; transform: translateX(-8px); }
+    2%, 22% { opacity: 1; transform: none; }
+    25%, 100% { opacity: 0; }
+  }
+
+  /* rolo de numeros: a coluna desliza e so' um valor aparece por vez */
+  /* O rolo NAO PODE QUEBRAR LINHA. Como e' inline-block, quando nao cabia ao
+     lado do "R$" ele descia pra linha seguinte e o cartao mostrava "R$" em cima
+     e "30.605" embaixo, como se fosse outro campo. O nowrap fica no PAI (o <b>),
+     que e' quem decide a quebra. */
+  .rolo { display: inline-block; height: 1.15em; line-height: 1.15; overflow: hidden; vertical-align: bottom; }
+  .dCard b, .dLinha b, .demo .amber { white-space: nowrap; }
+  .rolo span { display: block; height: 1.15em; }
+  .rolo.r4 span { animation: rolo4 16s steps(1) infinite; }
+  @keyframes rolo4 {
+    0%,   24% { transform: translateY(0); }
+    25%,  49% { transform: translateY(-1.15em); }
+    50%,  74% { transform: translateY(-2.3em); }
+    75%, 100% { transform: translateY(-3.45em); }
+  }
+
+  /* controle de margem que anda sozinho */
+  .dBarra { height: 7px; border-radius: 99px; background: rgba(148,163,184,.22); position: relative; margin: 12px 0 6px; }
+  .dBarraFill {
+    position: absolute; inset: 0 auto 0 0; border-radius: 99px;
+    background: linear-gradient(90deg, var(--amber-d), var(--amber));
+    animation: dBarra 16s cubic-bezier(.6,0,.2,1) infinite;
+  }
+  .dBarraPino {
+    position: absolute; top: 50%; width: 15px; height: 15px; border-radius: 50%;
+    background: var(--amber); border: 2px solid #10192b; transform: translate(-50%, -50%);
+    animation: dPino 16s cubic-bezier(.6,0,.2,1) infinite;
+  }
+  /* A barra anda em DEGRAUS, no mesmo compasso do rolo de numeros (a cada 25%
+     do ciclo). Ela era ease-in-out continua: dentro dos 4s de uma cena a barra
+     encolhia enquanto o "34%" ficava parado do lado, e o olho pega. */
+  @keyframes dBarra {
+    0%,  23% { width: 26% }  25%, 48% { width: 42% }
+    50%, 73% { width: 68% }  75%, 100% { width: 55% }
+  }
+  @keyframes dPino {
+    0%,  23% { left: 26% }   25%, 48% { left: 42% }
+    50%, 73% { left: 68% }   75%, 100% { left: 55% }
+  }
+
+  /* dois cartoes de resultado */
+  .dCards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+  .dCard { background: rgba(148,163,184,.08); border: 1px solid var(--line); border-radius: 11px; padding: 12px 13px; }
+  /* FILHO DIRETO, nao qualquer span. Escrito sem o sinal de filho, a regra
+     pegava tambem os <span> dos numeros dentro do rolo: o valor do cartao saia
+     a 9,5px em CAIXA ALTA e cinza, quando devia ser 19px branco. O rotulo e' o
+     span que fica direto no cartao; o valor mora dentro do <b>.
+     (Sem crase neste comentario: o CSS mora num template literal do JS.) */
+  .dCard > span { display: block; font-size: 9.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .dCard b { font-size: 19px; font-weight: 800; letter-spacing: -.02em; }
+  .dCard.bom { border-color: rgba(74,222,128,.35); background: rgba(74,222,128,.08); }
+  .dCard.bom b { color: var(--green); }
+
+  /* item marcavel */
+  .dItem { display: flex; align-items: center; gap: 11px; padding: 8px 0; color: #cfd9e6; }
+  .dCheck {
+    flex: none; width: 19px; height: 19px; border-radius: 6px;
+    border: 1.5px solid var(--line2); position: relative;
+  }
+  .dCheck::after {
+    content: ''; position: absolute; left: 5px; top: 3px; width: 5px; height: 9px;
+    border-right: 2px solid #0a0f1a; border-bottom: 2px solid #0a0f1a;
+    transform: rotate(45deg) scale(0); transform-origin: center;
+  }
+  .dEntra .dCheck { animation: dCaixa 16s infinite; }
+  .dEntra .dCheck::after { animation: dTique 16s infinite; }
+  @keyframes dCaixa {
+    0%, 3%   { background: transparent; border-color: var(--line2); }
+    6%, 22%  { background: var(--amber); border-color: var(--amber); }
+    25%, 100% { background: transparent; border-color: var(--line2); }
+  }
+  @keyframes dTique {
+    0%, 4%   { transform: rotate(45deg) scale(0); }
+    7%, 22%  { transform: rotate(45deg) scale(1); }
+    25%, 100% { transform: rotate(45deg) scale(0); }
+  }
+
+  /* barra de autonomia / patrimonio enchendo */
+  .dTanque { height: 10px; border-radius: 99px; background: rgba(148,163,184,.18); overflow: hidden; margin: 10px 0; }
+  .dTanque i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--green), #22d3ee); animation: dEnche 16s ease-out infinite; }
+  @keyframes dEnche { 0% { width: 8% } 15%, 24% { width: 92% } 25%, 100% { width: 8% } }
+
+  /* alerta de estoque minimo */
+  .dAlerta {
+    display: flex; align-items: center; gap: 9px; margin-top: 12px;
+    background: rgba(239,106,90,.1); border: 1px solid rgba(239,106,90,.36);
+    border-radius: 10px; padding: 10px 12px; font-size: 13px; color: #ffc9c1;
+    animation: dAlerta 16s infinite;
+  }
+  .dAlerta b { color: #ff9d8f; }
+  @keyframes dAlerta {
+    0%, 8%   { opacity: 0; transform: translateY(6px); }
+    12%, 22% { opacity: 1; transform: none; }
+    25%, 100% { opacity: 0; }
+  }
+
+  .demoNota {
+    position: absolute; left: 22px; right: 22px; bottom: 16px;
+    font-size: 11.5px; color: #64768f; text-align: center;
+  }
+
+  @media (max-width: 720px) { .demo { min-height: 392px; } }
+
+  /* Movimento reduzido: congela na cena 4, que e' a que tem a resposta —
+     preco, autonomia ou patrimonio. Pagina parada tem que continuar
+     explicando o produto. */
+  @media (prefers-reduced-motion: reduce) {
+    .demo .cena { animation: none !important; opacity: 0; }
+    .demo .cena:last-of-type { opacity: 1; }
+    .demo .dEntra, .demo .dCheck, .demo .dCheck::after,
+    .demo .dBarraFill, .demo .dBarraPino, .demo .dTanque i,
+    .demo .dAlerta, .demo .rolo span, .demo .demoVivo i { animation: none !important; opacity: 1; }
+    .demo .dCheck { background: var(--amber); border-color: var(--amber); }
+    .demo .dCheck::after { transform: rotate(45deg) scale(1); }
+    .demo .dBarraFill { width: 68%; } .demo .dBarraPino { left: 68%; }
+    .demo .dTanque i { width: 92%; }
+    .demo .rolo span { transform: translateY(-3.45em); }
+  }
+
+  footer { padding: 44px 0 66px; text-align: center; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
+  footer a { color: var(--muted); }
+
+  .barra {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+    background: rgba(8,13,24,.96); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line2); padding: 11px 16px; display: none;
+  }
+  .barra .cta { width: 100%; padding: 15px 20px; font-size: 16px; }
+
+  @media (max-width: 900px) {
+    .heroGrid, .peca { grid-template-columns: 1fr; gap: 34px; }
+    .peca.inverso .pecaArte { order: 0; }
+    .comp { grid-template-columns: 1fr; }
+    .faixaGrid { grid-template-columns: repeat(3, 1fr); gap: 18px 6px; }
+    .heroCel { display: none; }
+  }
+  @media (max-width: 720px) {
+    section { padding: 52px 0; }
+    .barra { display: block; }
+    body { padding-bottom: 80px; }
+    .ofertaBox { padding: 32px 22px; }
+    .peca .janela { overflow: hidden; }
+    .peca .janela img {
+      width: 152%; max-width: none;
+      -webkit-mask-image: linear-gradient(90deg, #000 82%, transparent 100%);
+      mask-image: linear-gradient(90deg, #000 82%, transparent 100%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+    html { scroll-behavior: auto; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topo">
+  <div class="wrap">
+    <span class="marca">SolarDoc <span>Pro</span></span>
+    <span class="topoSelo">Acesso imediato · 7 dias de garantia</span>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap heroGrid">
+    <div>
+      <span class="eyebrow">Para quem tem o capital e ainda não tem o local</span>
+      <p class="heroAspas">“Estou inclinado a arrumar até loja. Mas ainda não consegui.”</p>
+      <h1>O dinheiro não é o seu problema. <span class="amber">O ponto é.</span></h1>
+      <p class="heroSub">Quem já montou eletroposto sabe: o negócio se ganha ou se perde no local, e o local se perde na hora em que o dono do imóvel descobre o que vai nascer ali. Este material é a régua que a gente usa — pra escolher o ponto, chegar no proprietário sem levantar a lebre e fechar um contrato que se sustenta.</p>
+      <ul class="bullets">
+        <li>Dez endereços na mesa e sete riscados sem você sair de casa</li>
+        <li>A leitura da conta de luz e do disjuntor que diz se o ponto aguenta</li>
+        <li>O que falar nos primeiros 30 segundos — e as nove frases que queimam a conversa</li>
+        <li>A régua que transforma qualquer aluguel pedido em carros por dia</li>
+        <li>O term sheet de 12 campos que vai para o advogado</li>
+      </ul>
+      <a href="https://wa.me/5534998165040?text=Quero%20o%20Ponto%20Certo%20(R%24%20297)" class="cta" data-cta="hero">Quero o material por R$ 297 →</a>
+      <span class="ctaNota">Quem já tem o ponto sob controle não precisa disto — marque uma reunião com a gente</span>
+
+      <div class="rodaEm">
+        <span class="rodaEmTitulo">Funciona em</span>
+        <ul class="rodaEmLista">
+          <li><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.4 10.2h11.2v6.6a1.6 1.6 0 0 1-1.6 1.6H8a1.6 1.6 0 0 1-1.6-1.6v-6.6Z"/><rect x="3.1" y="10.2" width="2.4" height="6" rx="1.2"/><rect x="18.5" y="10.2" width="2.4" height="6" rx="1.2"/><rect x="8.9" y="18.4" width="2.3" height="4.2" rx="1.15"/><rect x="12.8" y="18.4" width="2.3" height="4.2" rx="1.15"/><path d="M6.6 9.2a5.4 5.4 0 0 1 10.8 0H6.6Z"/><path d="M8.2 4.1 7.1 2.3M15.8 4.1l1.1-1.8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" fill="none"/><circle cx="9.6" cy="6.6" r=".72" fill="#0a0f1a"/><circle cx="14.4" cy="6.6" r=".72" fill="#0a0f1a"/></svg>Android</li>
+          <li><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.9 12.6c0-2.4 2-3.6 2.1-3.7-1.1-1.7-2.9-1.9-3.5-1.9-1.5-.15-2.9.88-3.65.88-.76 0-1.92-.86-3.16-.84-1.63.03-3.13.95-3.96 2.4-1.69 2.93-.43 7.27 1.21 9.65.8 1.16 1.76 2.47 3.02 2.42 1.21-.05 1.67-.78 3.14-.78 1.46 0 1.88.78 3.16.76 1.31-.02 2.14-1.19 2.94-2.36.92-1.35 1.3-2.65 1.32-2.72-.03-.01-2.54-.98-2.57-3.86Z"/><path d="M14.5 5.6c.67-.81 1.12-1.94.99-3.06-.96.04-2.12.64-2.81 1.45-.62.72-1.16 1.87-1.02 2.97 1.07.08 2.17-.55 2.84-1.36Z"/></svg>iPhone e iPad</li>
+          <li><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.6l7.6-1.05v7.1H3V5.6Z"/><path d="M11.6 4.4 21 3.1v8.55h-9.4V4.4Z"/><path d="M3 12.65h7.6v7.1L3 18.7v-6.05Z"/><path d="M11.6 12.65H21v8.55l-9.4-1.3v-7.25Z"/></svg>Windows</li>
+          <li><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="9.1" fill="none" stroke="currentColor" stroke-width="1.7"/><ellipse cx="12" cy="12" rx="4" ry="9.1" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3.3 9.2h17.4M3.3 14.8h17.4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>Qualquer navegador</li>
+        </ul>
+        <p class="rodaEmNota">
+          Abre no navegador &mdash; <b>nada pra instalar</b>. Se quiser, d&aacute; pra fixar na tela
+          inicial do celular e usar como aplicativo.
+        </p>
+      </div>
+    </div>
+
+    <div class="heroArte aparelhos">
+      <div class="note">
+        <div class="noteTampa">
+          <div class="noteBarra"><i></i><i></i><i></i><span>solardoc.app/ponto-certo</span></div>
+          <div class="noteVisor">
+            <div class="rolagem">undefinedundefined</div>
+          </div>
+        </div>
+        <div class="noteBase"></div>
+      </div>
+      <div class="fone" role="img" aria-label="A mesma tela no celular">
+        <span class="foneEntalhe"></span>
+        <div class="foneVisor">
+          <div class="rolagem">undefinedundefined</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="faixa">
+  <div class="wrap faixaGrid">
+    <div><b>7</b><span>aulas, nenhuma sem uma ação no fim</span></div>
+    <div><b>12</b><span>instrumentos: planilha, ficha, script e modelo</span></div>
+    <div><b>R$ 144,60</b><span>o que 1 ponto de arrendamento custa por mês</span></div>
+    <div><b>12</b><span>campos que fecham o acordo antes do advogado</span></div>
+    <div><b>R$ 297</b><span>uma vez</span></div>
+  </div>
+</div>
+
+<section>
+  <div class="wrap narrow">
+    <h2>Ninguém trava por falta de dinheiro. Trava na porta do dono do imóvel.</h2>
+    <div class="falas">
+      <p class="fala">“Estou inclinado a arrumar até loja. Mas ainda não consegui.”</p>
+      <p class="fala">“Preciso entender melhor este mercado.”</p>
+      <p class="fala">“Ainda estamos estudando como faremos esse negócio.”</p>
+    </div>
+    <p class="muted" style="margin-top:26px">São respostas reais de investidores da nossa base, desta semana. Todos têm capital declarado. Nenhum tem o local. O que separa os dois não é dinheiro nem vontade — é não saber qual endereço presta, como chegar no proprietário sem encarecer o aluguel e o que precisa estar escrito antes de assinar.</p>
+  </div>
+</section>
+
+<section style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+  <div class="wrap">
+    <div class="narrow" style="text-align:center">
+      <span class="eyebrow">As sete aulas</span>
+      <h2>Cada uma termina com você fazendo uma coisa</h2>
+    </div>
+    <div class="mods">
+      <div class="mod">
+        <span class="modNum">01</span>
+        <h3>A lista: dez endereços, sete riscados</h3>
+        <p>Você abre o aplicativo de recarga, acha o trecho da sua cidade que não tem ponto nenhum e escreve dez endereços. Sete morrem ali mesmo, nas sete travas — e trava mata de graça, antes de qualquer visita.</p>
+        <span class="modTag">Sem sair da cadeira</span>
+      </div>
+      <div class="mod">
+        <span class="modNum">02</span>
+        <h3>Os primeiros 30 segundos</h3>
+        <p>O que dizer no balcão, no WhatsApp e no telefone, palavra por palavra. O objetivo da primeira conversa não é fechar nada: é sair de lá com a foto da conta de luz e do padrão de entrada.</p>
+        <span class="modTag">E as 9 frases proibidas</span>
+      </div>
+      <div class="mod">
+        <span class="modNum">03</span>
+        <h3>Cabe ou não cabe: as duas fotos</h3>
+        <p>A informação mais cara do negócio é de graça e está na conta de luz. Tipo de ligação, tensão, disjuntor e consumo — e o veredito escrito em uma linha, sem visita técnica.</p>
+        <span class="modTag">Onde os projetos morrem</span>
+      </div>
+      <div class="mod">
+        <span class="modNum">04</span>
+        <h3>A visita e o placar</h3>
+        <p>Sete blocos percorridos no local, o movimento medido em vez de sentido, e uma letra escrita no fim: A, B, C ou X. Você sai de lá com nota, não com impressão.</p>
+        <span class="modTag">Uma visita só</span>
+      </div>
+      <div class="mod">
+        <span class="modNum">05</span>
+        <h3>Fixo, percentual ou misto</h3>
+        <p>O dono pediu R$ 1.200? São 8,3 carros por dia. A régua converte qualquer pedido em movimento — e traz os dez itens que não se cedem em hipótese nenhuma.</p>
+        <span class="modTag">E o “quero uma parte”</span>
+      </div>
+      <div class="mod">
+        <span class="modNum">06</span>
+        <h3>A proposta de uma página</h3>
+        <p>O papel que fica no balcão dele, com o croqui do pátio anexo. Uma página ele lê em pé e pergunta na hora; dez páginas ele guarda para ver com calma, e “com calma” não tem data.</p>
+        <span class="modTag">O que quase ninguém leva</span>
+      </div>
+      <div class="mod">
+        <span class="modNum">07</span>
+        <h3>A ordem de assinar</h3>
+        <p>Qual papel se assina antes do parecer e qual não — e os 12 campos que vão para o advogado com as seis perguntas fechadas que ele responde.</p>
+        <span class="modTag">Term sheet, não minuta</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="narrow" style="text-align:center;margin-bottom:48px">
+      <span class="eyebrow">O que sustenta o preço</span>
+      <h2>Aula ninguém aplica. Instrumento você abre e usa</h2>
+    </div>
+    <div class="peca">
+      <div class="pecaTxt">
+        <span class="pecaSelo">Por dentro</span>
+        <h3>A ficha de vistoria e o placar</h3>
+        <p>Sete blocos feitos para o celular, preenchidos em pé no local, e um placar de 30 pontos que fecha em A, B, C ou X. O bloco zero se responde antes de sair de casa — e se travar ali, você não vai.</p>
+      </div>
+      <div class="pecaArte">
+<div class="janela">
+        <div class="janelaBarra"><i></i><i></i><i></i><span class="janelaUrl">solardoc.app/ponto-certo</span></div>
+        <div class="demo" data-cenas="4" role="img" aria-label="Demonstração em funcionamento">undefined
+        </div>
+      </div>
+      </div>
+    </div>
+    <div class="peca inverso">
+      <div class="pecaTxt">
+        <span class="pecaSelo">Por dentro</span>
+        <h3>O term sheet de 12 campos</h3>
+        <p>Partes, área, prazo, percentual, piso, quando o aluguel começa, reajuste, unidade consumidora, exclusividade, obra e retirada, propriedade do equipamento e venda do imóvel. É o que o advogado precisa para redigir — e sete deles se copiam da proposta.</p>
+      </div>
+      <div class="pecaArte">
+      <div class="janela">
+        <div class="janelaBarra"><i></i><i></i><i></i><span class="janelaUrl">solardoc.app/ponto-certo</span></div>
+        <img src="/ponto-certo/img/celular.webp" alt="O term sheet de 12 campos" loading="lazy">
+      </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+  <div class="wrap">
+    <div class="narrow" style="text-align:center">
+      <span class="eyebrow">A diferença que importa</span>
+      <h2>Procurar ponto no impulso ou com régua</h2>
+    </div>
+    <div class="comp">
+      <div class="compCard mau">
+        <h3>Do jeito que quase todo mundo faz</h3>
+        <ul>
+          <li>Visita dez lugares e não fecha nenhum</li>
+          <li>Diz para que é logo na primeira frase e o aluguel sobe</li>
+          <li>Descobre a energia depois de assinar</li>
+          <li>Assina arrendamento antes do parecer</li>
+          <li>Baixa um contrato pronto da internet</li>
+        </ul>
+      </div>
+      <div class="compCard bom">
+        <h3>Com o Ponto Certo</h3>
+        <ul>
+          <li>Risca sete de dez sem sair de casa</li>
+          <li>Sai da primeira conversa com a foto da conta de luz</li>
+          <li>Escreve o veredito de energia antes de gastar um real</li>
+          <li>Papel curto agora, contrato de anos só depois do parecer</li>
+          <li>Term sheet decidido e o advogado só redige</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap narrow">
+    <span class="eyebrow">Como funciona</span>
+    <h2>Você não assiste. Você faz junto</h2>
+    <div class="passos">
+      <div class="passo">
+        <span class="passoN">1</span>
+        <div><h3>Monte a lista</h3><p>Dez endereços da sua cidade e sete riscados no mesmo dia, pelas sete travas.</p></div>
+      </div>
+      <div class="passo">
+        <span class="passoN">2</span>
+        <div><h3>Vá buscar duas fotos</h3><p>A conversa dos 30 segundos existe para isso: a conta de luz e o padrão de entrada.</p></div>
+      </div>
+      <div class="passo">
+        <span class="passoN">3</span>
+        <div><h3>Feche com papel</h3><p>Placar escrito, proposta de uma página no balcão do dono e os 12 campos no e-mail do advogado.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="depoimentos" style="display:none">
+  <div class="wrap">
+    <div class="narrow" style="text-align:center">
+      <span class="eyebrow">Quem já usa</span>
+      <h2>O que os integradores dizem</h2>
+    </div>
+    <div class="depoGrid"><!-- preenchido quando houver depoimento REAL --></div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap narrow">
+    <div class="donos">
+      <div class="donosFotos">
+        <img src="/founder-thiago.webp" width="74" height="74" loading="lazy" alt="Thiago">
+        <img src="/founder-diego.webp" width="74" height="74" loading="lazy" alt="Diego">
+      </div>
+      <div class="donosTxt">
+        <h3>Quem fez</h3>
+        <p>Somos o Thiago e o Diego, irmãos, do Triângulo Mineiro. Trabalhamos com energia solar —
+        e o SolarDoc nasceu de um problema que era nosso: a venda esfriava esperando papel. Cada
+        tela desta plataforma passou por uma venda nossa antes de virar produto.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="oferta" id="comprar">
+  <div class="wrap">
+    <div class="ofertaBox">
+      <span class="eyebrow">Acesso imediato</span>
+      <h2 style="margin-bottom:6px">Custa menos que um mês de aluguel errado</h2>
+      <div class="preco">R$ 297<small> à vista</small></div>
+      <p class="muted" style="font-size:14.5px">pagamento único · acesso a todo o material e aos instrumentos</p>
+      <ul class="ofertaLista">
+        <li>As 7 aulas, nenhuma sem uma ação no fim</li>
+        <li>A lista dos 10 e as 7 travas que matam um endereço de graça</li>
+        <li>O cartão de bolso: três scripts e as nove frases proibidas</li>
+        <li>A planilha de energia e as quatro fotos que dispensam visita</li>
+        <li>A ficha de vistoria em sete blocos e o placar de 30 pontos</li>
+        <li>A régua de negociação e os dez itens inegociáveis</li>
+        <li>A proposta de uma página e o term sheet de 12 campos</li>
+      </ul>
+      <a href="https://wa.me/5534998165040?text=Quero%20o%20Ponto%20Certo%20(R%24%20297)" class="cta" data-cta="oferta">Quero o material por R$ 297 →</a>
+      <span class="ctaNota">Quem já tem o ponto sob controle não precisa disto — marque uma reunião com a gente</span>
+      <p class="seguro">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="4" y="10.5" width="16" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/>
+        </svg>
+        Compra segura pela Kiwify · Pix, cartão ou boleto
+      </p>
+      <div class="garantia">
+        <span class="selo amber">✓</span>
+        <p><strong>7 dias para pedir o dinheiro de volta.</strong> Comprou, entrou e não era o que
+        você esperava? Pede o reembolso e a gente devolve, sem discussão. É o prazo de arrependimento
+        que a lei te dá em compra pela internet — a gente só está lembrando que ele existe.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap narrow">
+    <h2>Perguntas que todo mundo faz</h2>
+    <details>
+      <summary>Vocês acham o ponto para mim?</summary>
+      <p>Não. A gente te ensina a achar. Quem bate na porta é você — somos dois sócios com agenda cheia em Uberlândia, não visitamos imóvel em outra cidade e não vamos fingir que visitamos.</p>
+    </details>
+    <details>
+      <summary>Serve para a minha cidade?</summary>
+      <p>Serve. A régua de energia, fluxo, vaga e negociação é a mesma no Brasil inteiro. O que muda de cidade para cidade é a distribuidora — e quem lê a norma dela é o projetista local.</p>
+    </details>
+    <details>
+      <summary>Preciso já ter um local em vista?</summary>
+      <p>Não. A primeira aula começa antes disso: como descartar dez endereços sem sair de casa.</p>
+    </details>
+    <details>
+      <summary>Isso substitui advogado?</summary>
+      <p>Não, e desconfie de quem disser que sim. Você sai com as 12 decisões fechadas para entregar ao seu advogado. Isso encurta o trabalho dele e barateia a sua conta — não elimina.</p>
+    </details>
+    <details>
+      <summary>Sou obrigado a comprar o eletroposto de vocês depois?</summary>
+      <p>Não. A gente monta eletroposto chave na mão e obviamente gostaria de montar o seu. A régua que está aqui dentro funciona igual se você comprar de outro fornecedor.</p>
+    </details>
+    <details>
+      <summary>Eu já tenho o ponto. Serve para mim?</summary>
+      <p>Não compre. Se o local é seu, você administra, representa o proprietário ou é inquilino com anuência, o seu próximo passo é uma reunião de projeto com a gente — não um material sobre como achar ponto.</p>
+    </details>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap narrow" style="text-align:center">
+    <h2>O ponto que você ainda não tem é a única coisa entre você e a estação</h2>
+    <p class="muted">Sete aulas, doze instrumentos e a régua que a gente usa quando escolhe um local. R$ 297, pagamento único. Se você já tem o ponto, fale com a gente direto — a sua conversa é outra.</p>
+    <a href="https://wa.me/5534998165040?text=Quero%20o%20Ponto%20Certo%20(R%24%20297)" class="cta" data-cta="final">Quero o material por R$ 297 →</a>
+    <span class="ctaNota">Quem já tem o ponto sob controle não precisa disto — marque uma reunião com a gente</span>
+    <p class="seguro">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="4" y="10.5" width="16" height="10" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/>
+      </svg>
+      Compra segura pela Kiwify · 7 dias de garantia
+    </p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>SolarDoc Pro — documentos e ferramentas para integradores solares</p>
+    <p>Dúvidas: <a href="https://wa.me/5534991360223">WhatsApp (34) 99136-0223</a> ·
+       <a href="/privacidade/">Privacidade</a></p>
+  </div>
+</footer>
+
+<div class="barra">
+  <a href="https://wa.me/5534998165040?text=Quero%20o%20Ponto%20Certo%20(R%24%20297)" class="cta" data-cta="barra">Quero o material por R$ 297 →</a>
+</div>
+
+</body>
+</html>
