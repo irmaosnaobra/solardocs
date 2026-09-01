@@ -44,6 +44,16 @@ export function consultorPorApelido(apelido: string | null | undefined): Consult
   return CONSULTORES.find((c) => c.apelido === apelido.toLowerCase()) ?? null;
 }
 
+/**
+ * Até quantas vezes no cartão. Número do Thiago (31/08).
+ *
+ * A loja NÃO estampa o valor da parcela, só a quantidade. O valor depende de
+ * juros que ele nunca confirmou, e "18x de R$ 388,89" numa página pública é uma
+ * promessa que quem atende teria de desdizer na conversa. A escolha viaja no
+ * WhatsApp e o vendedor fecha a condição.
+ */
+export const PARCELAS_MAXIMAS = 18;
+
 export function formaPorId(id: string | null | undefined): FormaDePagamento | null {
   if (!id) return null;
   return FORMAS_DE_PAGAMENTO.find((f) => f.id === id) ?? null;
@@ -56,6 +66,7 @@ export function linkWhatsApp(opcoes: {
   codigo: string;
   preco: number;
   pagamento?: FormaDePagamento | null;
+  parcelas?: number | null;
   entrega?: string | null;
   frete?: string | null;
   saiDe?: string | null;
@@ -72,7 +83,10 @@ export function linkWhatsApp(opcoes: {
     `Código: ${opcoes.codigo}`,
     `Valor: ${preco}`,
   ];
-  if (opcoes.pagamento) linhas.push(`Pagamento: ${opcoes.pagamento.rotulo}`);
+  if (opcoes.pagamento) {
+    const emVezes = opcoes.parcelas && opcoes.parcelas > 1 ? ` em ${opcoes.parcelas}x` : '';
+    linhas.push(`Pagamento: ${opcoes.pagamento.rotulo}${emVezes}`);
+  }
   if (opcoes.entrega) linhas.push(`Entrega em: ${opcoes.entrega}`);
   // Sem preço na tela, o consultor precisa saber DE ONDE cotar. Sem isso ele
   // devolve "vou verificar" e a conversa esfria justamente na hora da decisão.

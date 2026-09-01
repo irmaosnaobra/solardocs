@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { BASE_PATH } from '../../config/basePath.mjs';
 import { bikePorSlug } from '../../lib/catalogo.ts';
-import { formaPorId, linkWhatsApp } from '../../config/loja.ts';
+import { PARCELAS_MAXIMAS, formaPorId, linkWhatsApp } from '../../config/loja.ts';
 import { proximoConsultor } from '../../lib/rodizio.ts';
 
 /**
@@ -24,6 +24,10 @@ export async function GET(req: NextRequest) {
   const cep = req.nextUrl.searchParams.get('cep')?.slice(0, 9) ?? null;
   const entrega = cidade ? `${cidade}${cep ? ` (${cep})` : ''}` : null;
   const saiDe = req.nextUrl.searchParams.get('origem')?.slice(0, 80) || null;
+  // Só aceita o que a loja realmente oferece: número inteiro dentro do teto.
+  const pedidas = Number(req.nextUrl.searchParams.get('parcelas'));
+  const parcelas =
+    Number.isInteger(pedidas) && pedidas >= 1 && pedidas <= PARCELAS_MAXIMAS ? pedidas : null;
   const freteBruto = Number(req.nextUrl.searchParams.get('frete'));
   const frete =
     Number.isFinite(freteBruto) && freteBruto > 0
@@ -40,7 +44,9 @@ export async function GET(req: NextRequest) {
     codigo: bike.codigo,
     titulo: bike.titulo,
     preco: bike.preco,
-    pagamento: pagamento?.rotulo ?? null,
+    pagamento: pagamento?.rotulo
+      ? `${pagamento.rotulo}${parcelas && parcelas > 1 ? ` ${parcelas}x` : ''}`
+      : null,
     origem: entrega ? `loja · ${entrega}` : 'loja',
   });
 
@@ -56,6 +62,7 @@ export async function GET(req: NextRequest) {
       codigo: bike.codigo,
       preco: bike.preco,
       pagamento,
+      parcelas,
       entrega,
       saiDe,
       frete,

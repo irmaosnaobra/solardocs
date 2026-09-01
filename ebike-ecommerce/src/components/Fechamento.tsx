@@ -1,6 +1,6 @@
 import { BASE_PATH } from '../config/basePath.mjs';
 import { Frete } from './Frete.tsx';
-import { FORMAS_DE_PAGAMENTO, emReais } from '../config/loja.ts';
+import { FORMAS_DE_PAGAMENTO, PARCELAS_MAXIMAS, emReais } from '../config/loja.ts';
 import { aindaVaiChegar } from '../lib/previsao.ts';
 import type { Bike } from '../types/bike.ts';
 
@@ -47,13 +47,55 @@ export function Fechamento({ bike }: { bike: Bike }) {
         <legend className="mb-2 text-sm font-semibold text-tinta">Como você prefere pagar?</legend>
         <div className="flex flex-col gap-2">
           {FORMAS_DE_PAGAMENTO.map((f) => (
-            <label key={f.id} className="block cursor-pointer">
-              <input type="radio" name="pagamento" value={f.id} required className="peer sr-only" />
-              <span className="flex min-h-12 flex-col justify-center rounded-xl border border-borda-forte px-3 py-2 transition peer-checked:border-acao peer-checked:bg-acao-clara peer-focus-visible:outline peer-focus-visible:outline-acao">
+            /* O input é irmão do rótulo e do bloco de parcelas, não pai deles:
+               é isso que deixa "peer-checked" abrir as parcelas SEM javascript.
+               Este formulário é o que leva o lead embora, e ele tem que
+               funcionar mesmo se o bundle quebrar. */
+            <div key={f.id}>
+              <input
+                type="radio"
+                id={`pagamento-${f.id}`}
+                name="pagamento"
+                value={f.id}
+                required
+                className="peer sr-only"
+              />
+              <label
+                htmlFor={`pagamento-${f.id}`}
+                className="flex min-h-12 cursor-pointer flex-col justify-center rounded-xl border border-borda-forte px-3 py-2 transition peer-checked:border-acao peer-checked:bg-acao-clara peer-focus-visible:outline peer-focus-visible:outline-acao"
+              >
                 <span className="text-sm font-semibold text-tinta">{f.rotulo}</span>
                 <span className="text-xs text-suave">{f.detalhe}</span>
-              </span>
-            </label>
+              </label>
+
+              {f.id === 'cartao' ? (
+                <div className="hidden peer-checked:block">
+                  <label className="mt-2 block text-xs font-semibold text-tinta" htmlFor="parcelas">
+                    Em quantas vezes?
+                  </label>
+                  <select
+                    id="parcelas"
+                    name="parcelas"
+                    defaultValue=""
+                    className="mt-1 h-12 w-full rounded-xl border border-borda-forte bg-white px-3 text-sm text-tinta focus:border-tinta focus:outline-none"
+                  >
+                    <option value="">A combinar com o vendedor</option>
+                    {Array.from({ length: PARCELAS_MAXIMAS }, (_, i) => i + 1).map((n) => (
+                      <option key={n} value={n}>
+                        {n}x
+                      </option>
+                    ))}
+                  </select>
+                  {/* Só a QUANTIDADE. O valor da parcela depende de juros que
+                      não foram confirmados, e número errado numa página pública
+                      é promessa que quem atende teria de desdizer. */}
+                  <p className="mt-1 text-xs text-suave">
+                    A sua escolha vai na mensagem. O valor de cada parcela o vendedor confirma na
+                    conversa.
+                  </p>
+                </div>
+              ) : null}
+            </div>
           ))}
         </div>
       </fieldset>
