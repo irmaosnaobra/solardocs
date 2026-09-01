@@ -365,6 +365,10 @@ const PAGINAS = [
   },
   topoLimpo: true,
   medir: true,   // beacon de visita/rolagem/checkout → /admin, aba Ponto Certo
+  // A porta de saída pra quem prefere esperar em vez de aprender. Fica como
+  // link discreto, não como botão: a fila tem 35 de um lado e 3 do outro, e
+  // oferecê-la com o mesmo peso da oferta seria vender a espera.
+  acolhe: { fila: 'Prefiro entrar na fila e esperar a equipe achar um ponto pra mim →' },
   donosTexto: 'Somos o Thiago e o Diego, irmãos, do Triângulo Mineiro. A gente monta eletroposto chave na mão — projeto, equipamento e obra. Este material é a régua que a gente usa quando escolhe um ponto, escrita do jeito que a gente explicaria para um sócio.',
   rodape: 'Irmãos na Obra — eletroposto de recarga chave na mão',
   app: {
@@ -577,6 +581,20 @@ const CSS = `
     .marcaLimpa { font-size: 19px; gap: 10px; }
     .marcaLimpa img { width: 34px; height: 34px; border-radius: 9px; }
   }
+
+  /* Faixa de acolhimento: só existe para quem chegou aqui recusado pela régua
+     do eletroposto. Ela nomeia o motivo da recusa antes de a página vender
+     qualquer coisa — cair numa oferta logo depois de ouvir "não" parece
+     atropelo; ouvir o motivo repetido de volta parece resposta. */
+  .acolhe { background: rgba(247,164,28,.07); border-bottom: 1px solid var(--line); }
+  .acolhe .wrap { padding-top: 16px; padding-bottom: 16px; }
+  .acolheTx { font-size: 15px; line-height: 1.6; }
+  .acolheTx strong { color: var(--amber); }
+  .acolheLnk {
+    display: inline-block; margin-top: 7px; font-size: 13px;
+    color: var(--muted); text-decoration: underline; text-underline-offset: 3px;
+  }
+  @media (max-width: 520px) { .acolheTx { font-size: 14px; } }
 
   .hero {
     padding: 64px 0 56px;
@@ -1305,6 +1323,11 @@ ${d.favicon ? `<link rel="icon" type="image/svg+xml" href="/${d.pasta}/img/favic
   </div>
 </div>
 
+${!d.acolhe ? '' : '<div class="acolhe" id="acolhe" hidden><div class="wrap">'
+  + '<p class="acolheTx" id="acolheTx"></p>'
+  + '<a class="acolheLnk" href="/io/eletroposto/parceria">' + d.acolhe.fila + '</a>'
+  + '</div></div>'}
+
 <header class="hero">
   <div class="wrap heroGrid">
     <div>
@@ -1658,6 +1681,25 @@ ${!d.medir ? '' : `
   }
 
   sinal('pc_lp_view');
+
+  /* QUEM CHEGOU RECUSADO. A landing do eletroposto grava nome e motivos em
+   * sessionStorage antes de mandar pra cá — mesma origem, mesma aba, e nada
+   * na URL, porque URL vira print. Se não houver nada gravado, a pessoa veio
+   * de link ou anúncio e a faixa simplesmente não aparece. */
+  try {
+    var lead = JSON.parse(sessionStorage.getItem('ep_lead') || 'null');
+    var desq = JSON.parse(sessionStorage.getItem('ep_desq') || 'null');
+    var nome = ((lead && lead.nome) || (desq && desq.nome) || '').trim().split(/\s+/)[0];
+    if (nome) {
+      var el = document.getElementById('acolhe');
+      var tx = document.getElementById('acolheTx');
+      if (el && tx) {
+        tx.innerHTML = nome.replace(/[<>&]/g, '') + ', a reunião não sai agora por um motivo só: '
+          + '<strong>você ainda não tem o local</strong>. É exatamente disso que este material trata.';
+        el.hidden = false;
+      }
+    }
+  } catch (e) {}
 
   /* Metade da página, não 30%: numa landing longa como esta 30% ainda é o
    * hero, e contar quem parou ali como "rolou" faz o número mentir pra cima.

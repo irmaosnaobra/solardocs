@@ -2319,6 +2319,32 @@ async function agendar(){
       location.href = '/io/eletroposto/material';
       return;
     }
+
+    // QUEM TEM O DINHEIRO VAI DIRETO PRO MATERIAL (01/09/2026).
+    //
+    // Antes ele passava pela página das portas e só via o material DEPOIS de
+    // preencher o formulário do capital. Esse formulário pede nome, WhatsApp,
+    // cidade, quanto pretende investir e quando pretende começar — e os quatro
+    // primeiros acabaram de ser digitados aqui. Ou seja: a gente cobrava um
+    // segundo cadastro para descobrir UM campo, o prazo.
+    //
+    // O preço disso foi medido: em 30 dias, 126 pessoas com recurso declarado
+    // foram mandadas pras portas e 34 preencheram. 92 fecharam a aba, e como o
+    // único link para o material está atrás do envio bem-sucedido, nenhuma
+    // delas viu a oferta que resolve exatamente o que a levou a ser recusada.
+    //
+    // Não se perde lead: a ficha NOTA 1 já foi gravada acima, e a aba
+    // Investidores do /gerador lê as duas tabelas — parceria E nota1. O prazo
+    // passa a ser pergunta de conversa, não pedágio de tela.
+    //
+    // A porta do PONTO continua exigindo cadastro, e com razão: lá se pergunta
+    // endereço, vagas, fluxo e energia — dado que a LP não tem.
+    if (!semCapital) {
+      track('nota1_ponto_certo');
+      location.href = '/ponto-certo/';
+      return;
+    }
+
     track('nota1_parceria');
     location.href = '/io/eletroposto/parceria';
     return;

@@ -96,6 +96,20 @@
     .marcaLimpa img { width: 34px; height: 34px; border-radius: 9px; }
   }
 
+  /* Faixa de acolhimento: só existe para quem chegou aqui recusado pela régua
+     do eletroposto. Ela nomeia o motivo da recusa antes de a página vender
+     qualquer coisa — cair numa oferta logo depois de ouvir "não" parece
+     atropelo; ouvir o motivo repetido de volta parece resposta. */
+  .acolhe { background: rgba(247,164,28,.07); border-bottom: 1px solid var(--line); }
+  .acolhe .wrap { padding-top: 16px; padding-bottom: 16px; }
+  .acolheTx { font-size: 15px; line-height: 1.6; }
+  .acolheTx strong { color: var(--amber); }
+  .acolheLnk {
+    display: inline-block; margin-top: 7px; font-size: 13px;
+    color: var(--muted); text-decoration: underline; text-underline-offset: 3px;
+  }
+  @media (max-width: 520px) { .acolheTx { font-size: 14px; } }
+
   .hero {
     padding: 64px 0 56px;
     background:
@@ -772,6 +786,8 @@
   </div>
 </div>
 
+
+
 <header class="hero">
   <div class="wrap heroGrid">
     <div>
@@ -1248,6 +1264,8 @@
 <div class="barra">
   <a href="https://pay.kiwify.com.br/Je9pKBV" class="cta" data-cta="barra">Quero a ferramenta por R$ 97 →</a>
 </div>
+
+
 
 </body>
 </html>
