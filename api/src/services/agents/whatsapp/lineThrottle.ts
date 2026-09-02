@@ -133,7 +133,6 @@ const BOT_SENT_PREFIXES = [
   // fazia rajada sozinho — mas somado ao resto subcontava o dia inteiro.
   'semente:',                // semente solar (toques da lista fria de solar)
   'ep_grupo_frio:',          // convite de grupo pros frios do eletroposto
-  'intersolar_feira_sent:',  // aviso da feira pra quem tinha reunião nos dias fechados
   // [01/09] Retomada do 1x1 do SolarDoc: a Carla voltando em quem ficou sem
   // desfecho. Entra na conta desde o primeiro dia, e não depois de uma queda,
   // que é como quase todos os de cima entraram nesta lista.
@@ -233,22 +232,20 @@ export function dentroDaJanelaDiurna(now: Date = new Date()): boolean {
 // Régua fixa é padrão detectável: um envio a cada 5:00 min, hora após hora, é assinatura
 // de robô tão clara quanto a rajada. Com jitter os intervalos ficam 10–15 min, irregulares,
 // e o dia inteiro cabe no teto diário sem precisar de fila parada.
-// [25/08] Ordem do Thiago: 6 min até a Intersolar acabar. A 10 min a fila da feira
-// andava a ~2,2/h e só fecharia na sexta — depois do evento. A 6 min ela fecha na
-// quarta, ainda com a feira de pé.
+// [25/08 → 02/09] Houve aqui um aperto temporário de 10 para 6 min, com data de
+// expiração no código, para uma campanha com prazo. Ele expirou sozinho em 28/08 e
+// a campanha foi removida em 02/09 — o desenho fica registrado porque funcionou e
+// é o que se repete na próxima: afrouxamento de anti-ban carrega a data DENTRO do
+// código, nunca numa env na Vercel, senão a linha fica no valor apertado para
+// sempre e ninguém lembra por quê. Mesma ideia da rampa de reconexão, que também
+// se desarma sem ninguém tocar.
 //
-// A DATA está aqui de propósito, e não numa env var na Vercel: campanha com prazo
-// que afrouxa o anti-ban tem que voltar sozinha, senão a linha fica 6 min pra sempre
-// e ninguém lembra por quê. Mesma ideia da rampa de reconexão, que também expira só.
-// Passado o dia 28 volta pros 10 min sem ninguém precisar fazer nada.
-//
-// O que NÃO muda: o teto por hora (6) e o teto do dia. São eles que impedem rajada;
-// isto aqui só encurta a espera entre um envio e o seguinte.
-const APERTO_INTERSOLAR_ATE = Date.parse('2026-08-28T00:00:00-03:00');
+// O que NUNCA se afrouxa: o teto por hora e o teto do dia. São eles que impedem
+// rajada; isto aqui só encurta a espera entre um envio e o seguinte.
 const espacamentoBaseMs = (): number => {
   const daEnv = Number(process.env.ESPACAMENTO_MIN_MS || 0);
   if (daEnv > 0) return daEnv;                       // env manda, como sempre mandou
-  return Date.now() < APERTO_INTERSOLAR_ATE ? 6 * 60 * 1000 : 10 * 60 * 1000;
+  return 10 * 60 * 1000;
 };
 
 // Compat: quem importava a constante continua lendo o valor vigente no arranque.

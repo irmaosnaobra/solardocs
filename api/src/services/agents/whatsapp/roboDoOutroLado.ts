@@ -6,7 +6,7 @@
 // responde é o robô deles — e a Giovanna responde de volta. Duas IAs se
 // cumprimentando, uma a cada minuto, numa linha que já foi bloqueada três vezes.
 //
-// O caso que motivou isto (25/08, aviso da Intersolar pra Luz Energy), 12
+// O caso que motivou isto (25/08, um aviso de campanha pra Luz Energy), 12
 // mensagens em 13 minutos:
 //   << Ana Clara: "Desculpe, mas não posso ajudar com esse tipo de mensagem..."
 //   >> Giovanna:  "Sem problemas! Se precisar de algo do SolarDoc, é só chamar."

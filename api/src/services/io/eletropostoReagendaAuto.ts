@@ -392,10 +392,12 @@ export async function runEletropostoReagendaAutoTick(
     // Escreveu DEPOIS de perder o horário? Não sumiu — está conversando, e essa
     // conversa é do agente de respostas, que já sabe remarcar.
     && !(f.lead_resposta_at && f.lead_resposta_at > f.quando)
-    // Reunião perdida num dia de AGENDA FECHADA (25–27/08/2026, Intersolar) não
+    // Reunião perdida num dia de AGENDA FECHADA (sócios fora) não
     // é no-show: o consultor é que não estava. A copy daqui abre com "você não
     // conseguiu entrar na apresentação" e culparia o cliente pela nossa ausência.
-    // Quem cuida dessas fichas é o `intersolarFeiraAgenda`.
+    // Elas ficam SEM DONO: este filtro só impede a acusação errada, não avisa
+    // ninguém. Quem fechar um dia na `agendaFechada` precisa avisar à mão quem já
+    // estava marcado nele — senão o lead espera por uma reunião que não vai ter.
     && !agendaFechadaNoIso(f.quando));
   if (!candidatos.length) return zero('nenhum_vermelho');
 

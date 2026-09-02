@@ -243,7 +243,7 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
   if (!quando || Number.isNaN(new Date(quando).getTime())) {
     res.status(400).json({ error: 'horario invalido' }); return;
   }
-  // AGENDA FECHADA (25–27/08/2026, Intersolar) — só pros SÓCIOS, que são quem
+  // AGENDA FECHADA (dias em que os sócios estão fora) — só pros SÓCIOS, que são quem
   // está na feira. A Nilce e a Giovanna continuam recebendo ligação normalmente
   // nesses três dias, e por isso o corte é por nome e não pela data sozinha.
   if (ehSocio(dono) && agendaFechadaNoIso(quando)) {

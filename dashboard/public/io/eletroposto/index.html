@@ -1728,23 +1728,21 @@ function horariosDoDia(dow){
 const DIAS_UTEIS = new Set([1, 2, 3, 4, 5]);
 
 // ── AGENDA FECHADA: os dias em que o Thiago e o Diego estão FORA ─────────────
-// 25 a 27/08/2026 — INTERSOLAR SOUTH AMERICA (Expo Center Norte, São Paulo). Os
-// dois sócios ficam na feira os três dias, então a vitrine pula direto pra sexta.
-// Ordem do Thiago (25/08): "os novos entram apenas sexta e segunda".
+// HOJE VAZIA: a vitrine mostra a grade inteira. Preencher com YMD fecha o dia.
 //
 // NÃO entra no FERIADOS de propósito: feriado é anual e nacional, isto é pontual
-// e tem data pra sumir. Passou a feira? esvazie a lista — a agenda volta sozinha.
+// e tem data pra sumir. Terminou a viagem? esvazie a lista — a agenda volta sozinha.
 //
 // A MESMA lista existe em três lugares, porque três coisas diferentes precisam
 // dela: esta vitrine, a régua do servidor (`api/src/services/agenda/agendaFechada.ts`,
 // que fecha as rotas de gravação e o robô que remarca no WhatsApp) e a LP do solar
 // (lá vale só pros sócios — a Nilce e a Giovanna seguem atendendo). Mexeu numa,
 // mexa nas três.
-const AGENDA_FECHADA = new Set(['2026-08-25','2026-08-26','2026-08-27']);
+const AGENDA_FECHADA = new Set([]);   // vazio = agenda normal. Formato: '2026-08-25'
 
 function gradeDoDia(ymd){
   if(FERIADOS.has(ymd)) return [];                          // feriado: fechado
-  if(AGENDA_FECHADA.has(ymd)) return [];                    // os dois na Intersolar
+  if(AGENDA_FECHADA.has(ymd)) return [];                    // sócios fora
   const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
   return DIAS_UTEIS.has(dow) ? horariosDoDia(dow) : [];     // sáb/dom: fechado
 }

@@ -97,7 +97,7 @@ const horasDoDia = (ymd: string): readonly string[] =>
 
 /** A agenda abre neste dia? (dia útil, não feriado e sem bloqueio pontual)
  *
- *  O terceiro termo é o dos dias em que os sócios estão FORA — hoje, a Intersolar
+ *  O terceiro termo é o dos dias em que os sócios estão FORA (`agendaFechada`)
  *  (25–27/08/2026). Ele mora no `agendaFechada` e não numa constante daqui porque
  *  as mesmas datas fecham a vitrine das duas LPs, os toques da régua de avisos e a
  *  gravação nas rotas: cinco lugares, uma lista. Fechar só aqui faria o robô parar

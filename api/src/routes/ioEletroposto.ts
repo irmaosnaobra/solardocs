@@ -431,7 +431,7 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
   if (!quando || Number.isNaN(new Date(quando).getTime())) {
     res.status(400).json({ error: 'horario invalido' }); return;
   }
-  // AGENDA FECHADA (25–27/08/2026, Intersolar): a vitrine da LP já não mostra
+  // AGENDA FECHADA (dias em que os sócios estão fora): a vitrine da LP já não mostra
   // esses dias, mas aba aberta desde ontem tem a grade velha em memória e mandaria
   // o POST assim mesmo. Aqui é a última porta — a página avisa e recarrega.
   if (agendaFechadaNoIso(quando)) {

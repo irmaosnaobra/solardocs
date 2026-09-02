@@ -394,7 +394,7 @@ async function ofertar(
  * mensagem de ninguém, então não pode comer a reserva anti-ban que existe pra
  * quem acabou de marcar.
  *
- * [25/08/2026] Virou parâmetro por causa do aviso da Intersolar. Lá a oferta não
+ * [25/08/2026] Virou parâmetro por causa de um aviso de agenda fechada. Lá a oferta não
  * é reengajamento: é dizer a quem TEM reunião marcada que ela não vai acontecer,
  * que é a mesma natureza da confirmação de agenda (o `eletropostoAgenda` manda os
  * toques dele como transacional pelo mesmo motivo, e está escrito lá). Quem passa

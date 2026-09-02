@@ -9,7 +9,6 @@ import { runCarlaCnpjKillerBroadcast } from '../services/agents/whatsapp/carlaCn
 import { dispararPesquisaSatisfacao, listarMelhoresClientes, textoPesquisa } from '../services/pesquisaSatisfacao';
 import { runLinhaSaudeMonitor } from '../services/agents/whatsapp/linhaSaudeMonitor';
 import { runCarlaRetomada } from '../services/agents/sdr/carlaRetomada';
-import { dispararIntersolar, listarClientesIntersolar, textoIntersolar } from '../services/intersolarBroadcast';
 import { dentroDaJanelaDiurna } from '../services/agents/whatsapp/lineThrottle';
 import { dentroDoTetoCarla } from '../services/agents/whatsapp/carlaThrottle';
 import { runCursoEntradaBroadcast } from '../services/agents/whatsapp/cursoEntradaBroadcast';
@@ -44,7 +43,6 @@ import { runEntradaIoDigest } from '../services/io/entradaIoDigest';
 import { runSementeTick, publicoSemente, bolhasSemente } from '../services/io/sementeSolarService';
 import { runGrupoFriosTick, publicoGrupoFrio, bolhasGrupoFrio } from '../services/io/eletropostoGrupoFrios';
 import { runEletropostoAgendaTick } from '../services/io/eletropostoAgenda';
-import { runIntersolarFeiraTick } from '../services/io/intersolarFeiraAgenda';
 import { runEletropostoRespostasTick } from '../services/io/eletropostoRespostas';
 import { runEletropostoReagendaAutoTick } from '../services/io/eletropostoReagendaAuto';
 import { runEletropostoCardPingTick } from '../services/io/eletropostoCardPing';
@@ -320,7 +318,6 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       runSementeTick(),                // semente: nutrição de quem pediu orçamento de solar e não fechou
       runGrupoFriosTick(),             // eletroposto: quem esfriou (não atendeu / sem interesse) vai pro grupo
       runEletropostoAgendaTick(),      // eletroposto: confirmação ao marcar + bom dia + lembrete 1h e 5min (anti no-show)
-      runIntersolarFeiraTick(),        // Intersolar 25–27/08: quem tinha reunião nos dias fechados é avisado e recebe 3 horários (INTERSOLAR_FEIRA_OFF desliga)
       runEletropostoRespostasTick(),   // eletroposto: lead respondeu a automação → recado pro Thiago e pro Diego
       runEletropostoReagendaAutoTick(), // eletroposto: card vermelho QUENTE com o horário vencido volta pro próximo dia útil e recomeça os avisos, até 2× (EP_REAGENDA_AUTO_OFF desliga)
       runEletropostoCardPingTick(),    // eletroposto: card que trocou de dono no repasse de 12h chega de novo no WhatsApp de quem está com ele (EP_CARD_PING_OFF desliga)
@@ -464,20 +461,6 @@ router.get('/eletroposto-agenda', async (req: Request, res: Response) => {
   }
 });
 
-// ── Intersolar: aviso de quem já estava marcado nos dias da feira ───────────
-// ?dry=1 devolve a fila inteira (quem, quando, de quem e de que produto) sem
-// mandar nada — é assim que se confere a lista antes de o primeiro sair.
-// O tick normal roda no /process-messages a cada 5 min.
-router.get('/intersolar-feira', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    const dry = req.query.dry === '1' || req.query.dry === 'true';
-    res.json({ ok: true, dry, ...(await runIntersolarFeiraTick({ dry })) });
-  } catch (err: any) {
-    logger.error('cron', 'intersolar-feira falhou', err);
-    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
-  }
-});
 
 // ── Boas-vindas do solar (1 toque, na hora do cadastro) ──────────────────────
 // ?dry=1 devolve quem receberia e o texto de cada bolha, sem enviar e sem gravar
@@ -1117,11 +1100,6 @@ router.get('/master', async (req: Request, res: Response) => {
     // CARLA_RETOMADA_ON=true. Sem a variável é no-op barato.
     // Prévia sem enviar: GET /cron/carla-retomada?seco=1
     ['carla-retomada',              () => runCarlaRetomada()],
-    // Aviso da Intersolar (25–27/08/2026) pros 69 clientes pagantes. 1 msg/tick,
-    // no MESMO teto da Carla. Quem faz a fila escoar em 2 dias não é este tick
-    // horário e sim o workflow intersolar-2026.yml (10 em 10 min, 12–23h UTC);
-    // este aqui é a rede de segurança se aquele falhar. Para: INTERSOLAR_OFF=1.
-    ['intersolar',                  () => dispararIntersolar()],
     // FICA DESLIGADO. Conferido em 12/08/2026: sdrB2bMorningHook chama `sendZAPI`
     // CRU — fora do teto da linha, fora da margem de 5 min e fora da janela 08–21h.
     // É exatamente o caminho que bloqueou a linha de 01 a 03/ago (57 msgs em 5h).
@@ -1138,11 +1116,15 @@ router.get('/master', async (req: Request, res: Response) => {
     ['monthly-reset',               () => runMonthlyReset()],
     ['process-message-queue',       () => processMessageQueue()],
     ['lembretes-agenda',            () => processarLembretesAgenda()], // [AVISOS-AGENDA-OFF 28/07] no-op: kill-switch dentro do módulo
-    // O `intersolar-feira` NÃO entra aqui: ele já roda no /process-messages (5 min).
-    // Dois chamadores é o bug de bd6f994 — no minuto :00 os dois leem a mesma fila,
-    // os dois passam no teto (que é pré-claim) e a MESMA pessoa recebe duas listas
-    // de horários, com a segunda sobrescrevendo a oferta gravada. Aí o "2" dela
-    // move a reunião pro horário da lista errada.
+    // TICK QUE JÁ RODA NO /process-messages NÃO ENTRA AQUI. Regra da lista inteira,
+    // e ela custou caro (bug de bd6f994): no minuto :00 os dois chamadores leem a
+    // MESMA fila, os dois passam no teto — que é pré-claim, não trava nada — e a
+    // mesma pessoa recebe a mensagem duas vezes. Quando a mensagem carrega oferta
+    // de horário, a segunda ainda sobrescreve a primeira, e o "2" que o lead
+    // responde passa a apontar pro horário da lista errada.
+    //
+    // O caso que ensinou isso era da agenda da Intersolar, removida em 02/09/2026.
+    // A regra fica: ela vale pra toda linha desta lista, não valia só pra aquela.
     ['eletroposto-agenda',          () => runEletropostoAgendaTick()], // eletroposto: confirma ao marcar, bom dia no dia, avisa 1h e 5min antes (anti no-show)
     ['eletroposto-respostas',       () => runEletropostoRespostasTick()], // eletroposto: quem respondeu a automação vira recado pra equipe
     ['eletroposto-reagenda-auto',   () => runEletropostoReagendaAutoTick()], // eletroposto: vermelho QUENTE vencido volta pro próximo dia útil sozinho (até 2×)
@@ -1215,45 +1197,5 @@ router.get('/pesquisa-satisfacao', async (req: Request, res: Response) => {
   }
 });
 
-// Aviso da Intersolar South America 2026 (25–27/08) pros clientes pagantes.
-// SEM ?enviar=1 a rota só MOSTRA a fila e o texto exato que vai sair — é essa a
-// prévia que precisa ser conferida ANTES de deixar o workflow drenar. Com
-// &enviar=1 manda UMA mensagem, dentro do teto da linha. Para: INTERSOLAR_OFF=1.
-router.get('/intersolar', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    if (req.query.enviar !== '1') {
-      const lista = await listarClientesIntersolar();
-      const pendentes = lista.filter((c) => !c.jaEnviado && c.telefone);
-      return res.json({
-        ok: true,
-        modo: 'preview — nada foi enviado. Repita com &enviar=1 pra disparar.',
-        ligada: (process.env.INTERSOLAR_OFF || '').trim() !== '1',
-        janelaAberta: dentroDaJanelaDiurna(),
-        // O que decide se a fila anda de verdade. Sem isto na prévia, campanha
-        // barrada pelo teto da linha é indistinguível de campanha andando devagar:
-        // as duas mostram "pendentes: 68" e nenhum erro em lugar nenhum.
-        linhaLiberada: await dentroDoTetoCarla(),
-        elegiveis: lista.length,
-        pendentes: pendentes.length,
-        jaEnviados: lista.filter((c) => c.jaEnviado).length,
-        semTelefone: lista.filter((c) => !c.telefone).length,
-        clientes: lista.map((c) => ({
-          nome: c.nome, email: c.email, plano: c.plano,
-          telefone: c.telefone, fonteTelefone: c.fonteTelefone,
-          saudacao: c.primeiroNome ? `Oi ${c.primeiroNome},` : 'Oi,',
-          ultimoDoc: c.ultimoDoc ? c.ultimoDoc.slice(0, 10) : null,
-          jaEnviado: c.jaEnviado,
-        })),
-        exemploMensagem: pendentes[0] ? textoIntersolar(pendentes[0]) : null,
-      });
-    }
-    const result = await dispararIntersolar();
-    res.json({ ok: true, ...result });
-  } catch (err) {
-    logger.error('cron', 'intersolar falhou', err);
-    res.status(500).json({ error: 'Cron failed', message: String(err) });
-  }
-});
 
 export default router;

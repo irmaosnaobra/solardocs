@@ -877,21 +877,21 @@ const GRADE_NILCE = (() => {
   return out;
 })();
 // ── AGENDA FECHADA: os dias em que os SÓCIOS estão fora ─────────────────────
-// 25 a 27/08/2026 — INTERSOLAR SOUTH AMERICA, em São Paulo. Vale SÓ pro Thiago e
-// pro Diego: a Nilce e a Giovanna não vão à feira, o que elas marcam é ligação de
-// 15 min e a grade delas continua inteira nos três dias. Fechar tudo jogaria fora
-// três dias de lead de conta baixa, que é o volume do Meta.
+// HOJE VAZIA. Quando preencher, vale SÓ pro Thiago e pro Diego: a Nilce e a
+// Giovanna não viajam, o que elas marcam é ligação de 15 min e a grade delas
+// continua inteira. Fechar tudo jogaria fora dias de lead de conta baixa, que é
+// o volume do Meta.
 //
 // Lista pontual, com data pra sumir — por isso não entra no FERIADOS. Ela existe
 // em três lugares (esta LP, a do eletroposto e a régua do servidor em
 // `api/src/services/agenda/agendaFechada.ts`); mexeu numa, mexa nas três.
-const AGENDA_FECHADA = new Set(['2026-08-25','2026-08-26','2026-08-27']);
+const AGENDA_FECHADA = new Set([]);   // vazio = agenda normal. Formato: '2026-08-25'
 
 function gradeDoDia(ymd, dosSocios){
   const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
   if(dow === 0 || dow === 6) return [];        // fim de semana: fechado
   if(FERIADOS.has(ymd)) return [];             // feriado: fechado
-  if(dosSocios && AGENDA_FECHADA.has(ymd)) return [];   // os dois na Intersolar
+  if(dosSocios && AGENDA_FECHADA.has(ymd)) return [];   // sócios fora
   return dosSocios ? GRADE_SOCIOS : GRADE_NILCE;
 }
 async function carregarOcupados(deYmd, ateYmd){
@@ -1318,7 +1318,7 @@ async function gravarAgendamento(){
   }catch(e){
     console.error(e);
     // 'dia fechado' é o servidor recusando um dia que ESTA aba ainda mostra: ela
-    // foi aberta antes de a Intersolar sair da grade e ficou com a lista velha.
+    // foi aberta antes de o dia sair da grade e ficou com a lista velha.
     // Remontar a vitrine resolve na hora, sem mandar a pessoa pro WhatsApp.
     if(String(e && e.message) === 'dia fechado'){
       montarSlots();

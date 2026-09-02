@@ -1,4 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────────────
 // OS DIAS EM QUE A AGENDA DOS SÓCIOS NÃO ABRE — fonte única.
 //
 // Feriado é uma coisa (ele já mora nas grades, é anual e vale pra todo mundo).
@@ -6,13 +6,10 @@
 // estão fora e ninguém pode marcar com eles — nem a vitrine da LP, nem o robô que
 // remarca, nem o card do Meta.
 //
-// 25 a 27/08/2026 — INTERSOLAR SOUTH AMERICA. Datas conferidas na fonte oficial
-// (intersolar.net.br/dados-do-evento, lido em 25/08/2026): 25 a 27 de agosto,
-// Expo Center Norte, São Paulo. Os dois sócios estão na feira os três dias.
-//
-// Ordem do Thiago (25/08/2026): "hoje, amanhã e quinta estaremos na Intersolar,
-// os novos entram apenas sexta e segunda, e os que já estão agendados serão
-// avisados e orientados a remarcar".
+// HOJE A LISTA ESTÁ VAZIA e a régua inteira sai de cena (`temAgendaFechada()`
+// devolve false e as cinco portas abaixo passam direto). O módulo fica de pé
+// porque o caso volta: toda vez que os dois viajam juntos, o conserto é escrever
+// as datas em `DIAS_FECHADOS` e nada mais.
 //
 // ── Quem consulta isto (cinco portas, e é de propósito que sejam as cinco) ──
 //   1. eletropostoVagas.agendaAbre   → o robô para de OFERECER estes dias
@@ -28,15 +25,16 @@
 // e `dashboard/public/io/solar/index.html`, procure por AGENDA_FECHADA.
 //
 // ── NILCE E GIOVANNA CONTINUAM TRABALHANDO ──
-// Elas não vão à feira e o que elas marcam é LIGAÇÃO de 15 min de conta baixa.
-// Fechar a agenda delas jogaria fora três dias de lead do Meta sem motivo. Por
-// isso o corte aqui é por NOME (`ehSocio`), nunca por "não é Nilce" — com duas
-// pessoas no time de conta baixa, `dono !== 'Nilce'` é bug (18/08/2026).
+// Elas não viajam e o que elas marcam é LIGAÇÃO de 15 min de conta baixa. Fechar
+// a agenda delas jogaria fora dias de lead do Meta sem motivo. Por isso o corte
+// aqui é por NOME (`ehSocio`), nunca por "não é Nilce" — com duas pessoas no time
+// de conta baixa, `dono !== 'Nilce'` é bug (18/08/2026).
 //
-// ── Quando a feira passar ──
-// Esvaziar `DIAS_FECHADOS` devolve tudo ao normal sem mexer em mais nada. A lista
-// é de datas passadas depois de 28/08 — inofensiva, mas é lixo: apague.
-// ─────────────────────────────────────────────────────────────────────────────
+// ── AO FECHAR A AGENDA DE NOVO ──
+// Quem já tinha reunião marcada nos dias que você fechar NÃO é avisado por nada
+// disto: estas funções só impedem NOVA marcação e calam as réguas. Avisar quem
+// já estava na agenda é trabalho separado, e da última vez foi um módulo próprio.
+// ──────────────────────────────────────────────────────────────────────────────
 
 const BRT_TZ = 'America/Sao_Paulo';
 
@@ -44,11 +42,11 @@ const BRT_TZ = 'America/Sao_Paulo';
 const SOCIOS = ['Thiago', 'Diego'];
 
 /** O motivo que vai no bloqueio da agenda interna e no log. */
-export const MOTIVO_FECHADA = 'Intersolar South America 2026 — feira em São Paulo';
+export const MOTIVO_FECHADA = 'Os sócios estão fora neste dia';
 
 /** Os dias fechados, em YMD de Brasília. Vazio = agenda normal. */
-const DIAS_FECHADOS = new Set([
-  '2026-08-25', '2026-08-26', '2026-08-27',
+const DIAS_FECHADOS = new Set<string>([
+  // Vazio = agenda normal. Formato: '2026-08-25'.
 ]);
 
 /** "2026-08-25" no fuso de Brasília. Cópia local de 3 linhas de propósito:

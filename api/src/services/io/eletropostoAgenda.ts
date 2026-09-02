@@ -774,14 +774,15 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
   // Aqui é que entra o produto. Ficha de solar não passa: a copy é de
   // eletroposto e o solar tem módulo próprio (desligado desde 28/07).
   //
-  // E aqui sai a AGENDA FECHADA (25–27/08/2026, Intersolar). Um filtro só, no
+  // E aqui sai a AGENDA FECHADA (os dias em que os sócios estão fora). Um filtro só, no
   // ponto em que as sete réguas deste módulo já se abastecem, porque todas elas
   // estariam erradas nesses dias: a confirmação combinaria uma reunião que não
   // vai ter, o bom dia diria "hoje é o dia", o toque de 1h prometeria um link que
   // ninguém vai mandar, e as duas réguas de vermelho (corte das 13h e o não
   // atendido automático) dariam de AUSENTE o cliente — quando quem não apareceu
-  // fomos nós. Quem fala com essa gente é o `intersolarFeiraAgenda`, que avisa e
-  // oferece horário novo.
+  // fomos nós. AVISAR quem já estava marcado nesses dias é trabalho de outro
+  // módulo, e hoje não existe nenhum: fechar dia sem escrever esse aviso deixa o
+  // lead esperando por uma reunião que ninguém vai fazer.
   const fichas = ((data ?? []) as Ficha[])
     .filter(f => ehOrigemEletroposto(f.created_by))
     .filter(f => !agendaFechadaNoIso(f.quando));
