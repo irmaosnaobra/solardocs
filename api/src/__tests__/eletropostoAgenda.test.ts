@@ -63,8 +63,15 @@ vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), war
 // pessoas na mesma hora (37 mensagens, teto 12) e o 5040 bloqueou.
 let tetoLivre = true;
 const carimbos: string[] = [];
+/** O que cada régua PEDIU ao teto. Guardado porque em 02/09 o defeito não foi o
+ *  teto responder não — foi a confirmação perguntar errado, sem piso, e por isso
+ *  levar não. Um mock que só devolve booleano não consegue ver essa diferença. */
+const tetoChamadas: Array<Record<string, unknown>> = [];
 vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
-  dentroDoTetoHorarioLinha: vi.fn(async () => tetoLivre),
+  dentroDoTetoHorarioLinha: vi.fn(async (opts?: Record<string, unknown>) => {
+    tetoChamadas.push(opts ?? {});
+    return tetoLivre;
+  }),
 }));
 // O system_state guarda DUAS coisas aqui: o carimbo do teto anti-ban e — pro bom
 // dia, que não tem coluna em `agendamentos` — a própria prova de que já saiu. Por
@@ -137,6 +144,7 @@ const envOriginal = { ...process.env };
 beforeEach(() => {
   enviadas.length = 0; updates.length = 0;
   carimbos.length = 0; carimboEm.clear(); tetoLivre = true; leituraCarimboFalha = false;
+  tetoChamadas.length = 0;
   fichas = [ficha()];
   consultores = [{ nome: 'Diego', whatsapp: '5534991360172' }, { nome: 'Thiago', whatsapp: '5534991360223' }];
   vi.useFakeTimers(); vi.setSystemTime(AGORA);
@@ -277,6 +285,36 @@ describe('confirmação ao marcar', () => {
     fichas = [ficha({ quando: emMinutos(3 * 24 * 60) })];
     expect((await tick()).confirmacoes).toBe(0);
     expect(enviadas).toHaveLength(0);
+  });
+
+  // 02/09/2026: 13 fichas com reunião no dia seguinte passaram o dia sem
+  // confirmação, com a API de pé. Medido na hora: 46 envios em 24h contra teto
+  // de 20. Os bons dias das 7h gastaram o orçamento passando pelo piso DELES, e
+  // a confirmação — a única das quatro réguas que pedia o teto sem piso — leu
+  // 46 >= 20 e parou. Fome, não fila lenta: no dia seguinte os bons dias comem
+  // o teto de novo, mais cedo, e ela nunca alcança.
+  //
+  // Este teste guarda a PERGUNTA, não a resposta. Um teste de "confirmou?" passa
+  // verde com o piso removido sempre que a linha estiver folgada — que é o dia
+  // normal. O defeito só aparece com o orçamento estourado, e é aí que a
+  // confirmação de eletroposto não pode falhar.
+  it('a confirmação pede o teto com piso próprio — senão o bom dia a mata de fome', async () => {
+    fichas = [ficha({ quando: emMinutos(3 * 24 * 60) })];
+    expect((await tick()).confirmacoes).toBe(1);
+    const pedido = tetoChamadas[tetoChamadas.length - 1];
+    expect(pedido.transacional).toBe(true);
+    expect(Number(pedido.pisoHora)).toBeGreaterThan(0);
+    expect(Number(pedido.pisoDia)).toBeGreaterThan(0);
+  });
+
+  // O piso não pode virar cheque em branco: cada toque manda até 3 bolhas, então
+  // um piso de 10/h seriam ~30 mensagens numa linha que bloqueou com 37.
+  it('mas o piso da confirmação fica abaixo do bom dia — 3 bolhas por toque', async () => {
+    fichas = [ficha({ quando: emMinutos(3 * 24 * 60) })];
+    await tick();
+    const piso = Number(tetoChamadas[tetoChamadas.length - 1].pisoHora);
+    expect(Number.isFinite(piso)).toBe(true);
+    expect(piso).toBeLessThanOrEqual(6);
   });
 
   // A outra metade da regra: reunião acontecendo AGORA fura o teto de propósito.

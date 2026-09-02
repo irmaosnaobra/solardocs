@@ -119,6 +119,29 @@ const MANHA = { de: 7, ate: 12 };
  *  de 24h gasto na véspera (confirmações) calava o aviso do próprio dia. */
 const MANHA_TETO_HORA = Number(process.env.EP_MANHA_TETO_HORA || 10);
 const MANHA_TETO_DIA = Number(process.env.EP_MANHA_TETO_DIA || 200);
+/** O MESMO piso, agora para a confirmação — e a falta dele era a assimetria que
+ *  travou 13 fichas em 02/09/2026. O comentário acima descreve este bug ao
+ *  contrário ("o orçamento gasto na véspera pelas confirmações calava o bom
+ *  dia"); consertaram um lado só, e o lado sem piso virou o lado faminto.
+ *
+ *  Medido na hora do travamento: 46 envios em 24h contra teto de 20 (rampa de
+ *  aquecimento da linha, 2º dia). Os 10 bons dias das 7h passaram pelo piso
+ *  DELES e gastaram o orçamento; a confirmação, única das quatro réguas sem
+ *  piso, leu 46 >= 20 e parou. Não é fila lenta — é fome, e ela não drena
+ *  sozinha: no dia seguinte os bons dias comem o teto de novo, antes.
+ *
+ *  A confirmação é a régua que MAIS merece piso, não a que menos: é a primeira
+ *  mensagem que o lead recebe da empresa, e é 1 por ficha para a vida inteira
+ *  (`confirmacao_at` é carimbado uma vez). Volume limitado pela agenda, que é
+ *  exatamente o critério que o bom dia usa para ter piso.
+ *
+ *  6/h e não 10/h como o bom dia: `entregar` manda até 3 bolhas por toque, então
+ *  10 seriam ~30 mensagens/hora — perto das 37 que bloquearam a linha em 04/08.
+ *  Em 6 são ~18, metade daquilo, e ainda drena 13 fichas em pouco mais de 2h
+ *  dentro de uma janela de 13. O freio de rajada continua sendo o
+ *  BACKLOG_POR_TICK (1 por tick de 2 min), que este piso não toca. */
+const CONFIRMA_TETO_HORA = Number(process.env.EP_CONFIRMA_TETO_HORA || 6);
+const CONFIRMA_TETO_DIA = Number(process.env.EP_CONFIRMA_TETO_DIA || 200);
 /** Nunca a menos de 2h da reunião: abaixo disso quem fala é o toque de 1h, e um
  *  "hoje é o dia" 40 minutos antes é ruído.
  *
@@ -791,6 +814,12 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
    *  reunião hoje" são o MESMO silêncio no log — e o primeiro é um bom dia que
    *  nunca sai, já que a janela fecha ao meio-dia. */
   let manhaSegurados = 0;
+  /** O mesmo, para a confirmação. Sem este contador o travamento de 02/09 é
+   *  invisível: "13 fichas esperando o teto" e "ninguém para confirmar" saem
+   *  como o mesmo silêncio, e foi preciso ir ao banco contar system_state à mão
+   *  para descobrir qual dos dois era. Confirmação segurada é a falha mais cara
+   *  do módulo — o lead fica sem saber com quem, nem a que horas. */
+  let confirmaSegurados = 0;
   const previa: ToquePrevisto[] = [];
 
   // ── Quem entra no bom dia de hoje ──────────────────────────────────────────
@@ -894,7 +923,10 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
         // pessoas na mesma hora — 37 mensagens, teto de 12, linha bloqueada pela
         // 2ª vez. Ficha FRESCA e os avisos de 1h/5min seguem furando o teto de
         // propósito: são de reunião acontecendo agora. Backlog não é urgente.
-        if (!opts.dry && !(await dentroDoTetoHorarioLinha({ transacional: true })  /* confirmação de agenda: quem marcou está esperando */)) {
+        if (!opts.dry && !(await dentroDoTetoHorarioLinha({
+          transacional: true, pisoHora: CONFIRMA_TETO_HORA, pisoDia: CONFIRMA_TETO_DIA,
+        })  /* confirmação de agenda: quem marcou está esperando */)) {
+          confirmaSegurados++;
           logger.info('ep-agenda', 'teto da linha estourado — fila de atraso espera o próximo tick');
           continue;
         }
@@ -977,6 +1009,16 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
   if (manhaSegurados > 0 && !opts.dry) {
     logger.info('ep-agenda', `${manhaSegurados} bom dia segurado(s) pelo teto da linha`, {
       candidatos: candidatosManha.length, enviados: lManha,
+    });
+  }
+  // Nível `warn` e não `info`, de propósito: confirmação segurada é a prioridade
+  // número um do módulo parando de sair, e num log cheio de `info` de rotina ela
+  // tem que saltar. Se esta linha aparecer repetida entre 7h e 20h, o piso acima
+  // está apertado demais para a agenda do dia — é o sinal para revisar
+  // EP_CONFIRMA_TETO_HORA, não para esperar drenar.
+  if (confirmaSegurados > 0 && !opts.dry) {
+    logger.warn('ep-agenda', `${confirmaSegurados} CONFIRMAÇÃO segurada(s) pelo teto da linha`, {
+      enviadas: confirmacoes, pisoHora: CONFIRMA_TETO_HORA, pisoDia: CONFIRMA_TETO_DIA,
     });
   }
   return {
