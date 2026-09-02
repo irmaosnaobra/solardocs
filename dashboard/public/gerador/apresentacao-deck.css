@@ -1,0 +1,373 @@
+
+/* ══════════════════════════════════════════════════════════════════════
+   IRMÃOS NA OBRA · APRESENTAÇÃO DE PROJETO — FOLHA DE ESTILO DO PADRÃO
+   1920x1080 em paisagem, 1080x1920 no modo celular (body.movel).
+   Esta folha é o PADRÃO: nasceu do deck do Edeilson (02/09/2026) e é a mesma para
+   todo cliente. Quem muda de cliente para cliente é só o window.__DECK.
+   Renderizar:  node render.js
+
+   TODO número financeiro desta página saiu do simulador.js desta mesma pasta,
+   que confere o motor contra o PDF do Simulador antes de calcular. O deck inteiro
+   roda em INVESTIMENTO DE R$ 146.000 para o eletroposto — o valor impresso no
+   orçamento que o Edeilson já tem na mão. Ver LEIA-ME.
+   ══════════════════════════════════════════════════════════════════════ */
+:root{
+  /* --veu é o RGB do véu que cobre as fotos. Ele muda por vertical: azul-marinho no
+     solar, verde-escuro no eletroposto. É o que faz a cor "predominar" na página
+     inteira, e não só nos detalhes. */
+  --veu:4,7,13;
+  --bg:#05070D;
+  --bg2:#0A1020;
+  --acc:#FFC400;
+  --acc-deep:#123A8C;
+  --ink:#FFFFFF;
+  --muted:rgba(255,255,255,.94);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{background:#000;font-family:'Poppins',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+
+.slide{position:relative;width:1920px;height:1080px;overflow:hidden;
+  background:var(--bg);color:var(--ink);page-break-after:always;break-after:page}
+.slide:last-child{page-break-after:auto;break-after:auto}
+.slide.sol{--acc:#FFC400;--acc-deep:#123A8C;--bg:#08152B;--veu:8,24,54}
+.slide.ele{--acc:#7CE500;--acc-deep:#1B3D14;--bg:#061407;--veu:5,20,10}
+.slide.sol{background:#08152B}
+.slide.ele{background:#061407}
+
+/* ---------- camadas ---------- */
+.bg{position:absolute;inset:0;background-size:cover;background-position:center;z-index:0;
+  filter:brightness(.58) saturate(.88)}
+.bg.dof{filter:blur(6px) brightness(.50) saturate(.82);transform:scale(1.04)}
+.bg.dof-soft{filter:blur(3px) brightness(.54) saturate(.86);transform:scale(1.03)}
+.scrim{position:absolute;inset:0;z-index:1}
+.scrim.dark{background:linear-gradient(180deg,rgba(var(--veu),.86) 0%,rgba(var(--veu),.76) 45%,rgba(var(--veu),.95) 100%)}
+.scrim.left{background:linear-gradient(90deg,rgba(var(--veu),.97) 0%,rgba(var(--veu),.93) 42%,rgba(var(--veu),.62) 78%,rgba(var(--veu),.78) 100%)}
+.scrim.right{background:linear-gradient(270deg,rgba(var(--veu),.97) 0%,rgba(var(--veu),.90) 45%,rgba(var(--veu),.58) 100%)}
+.scrim.soft{background:linear-gradient(180deg,rgba(var(--veu),.72) 0%,rgba(var(--veu),.58) 50%,rgba(var(--veu),.92) 100%)}
+.scrim.bottom{background:linear-gradient(180deg,rgba(var(--veu),.42) 0%,rgba(var(--veu),.52) 52%,rgba(var(--veu),.97) 100%)}
+.wrap{position:relative;z-index:3;width:100%;height:100%;padding:74px 96px;
+  display:flex;flex-direction:column;justify-content:center}
+.bar{position:absolute;left:0;top:0;bottom:0;width:22px;z-index:2;
+  background:linear-gradient(180deg,var(--acc) 0%,var(--acc) 45%,rgba(255,255,255,.12) 100%)}
+/* no solar a faixa fecha em azul: dourado em cima, azul da marca embaixo */
+.slide.sol .bar{background:linear-gradient(180deg,var(--acc) 0%,var(--acc) 38%,var(--acc-deep) 100%)}
+
+/* ---------- marca ---------- */
+.lockup{display:flex;align-items:center;gap:16px}
+.lockup img{width:64px;height:64px;border-radius:50%;object-fit:cover;
+  box-shadow:0 0 0 2px rgba(255,255,255,.35),0 8px 26px rgba(0,0,0,.65)}
+.lockup .n1{font-size:22px;font-weight:700;letter-spacing:.16em;line-height:1.15}
+.lockup .n2{font-size:13px;font-weight:500;letter-spacing:.32em;color:var(--acc)}
+/* duas logos lado a lado. NAO usar a classe .duo: ela ja e o grafico de barras */
+.lockup.duplo img + img{margin-left:-18px}
+.lockup.duplo .n2{color:#fff}
+.brand-tr{position:absolute;top:56px;right:96px;z-index:5}
+.brand-tl{position:absolute;top:56px;left:96px;z-index:5}
+
+/* ---------- tipografia ---------- */
+h1.title{font-size:76px;font-weight:800;line-height:1.05;letter-spacing:-.018em}
+h2.title{font-size:58px;font-weight:800;line-height:1.08;letter-spacing:-.012em}
+h3.title{font-size:44px;font-weight:700;line-height:1.14}
+.g{color:var(--acc)}
+.mark{background:var(--acc);color:#0A1020;padding:2px 18px 6px;display:inline-block;line-height:1.05}
+.rule{width:110px;height:5px;background:var(--acc);border-radius:3px;margin:24px 0 32px}
+p.lead{font-size:26px;line-height:1.55;color:var(--muted);font-weight:400;max-width:1180px}
+p.lead + p.lead{margin-top:20px}
+p.lead b{color:#fff;font-weight:700}
+.eyebrow{font-size:15px;font-weight:700;letter-spacing:.36em;color:var(--acc);margin-bottom:18px}
+.nota{font-size:18px;color:rgba(255,255,255,.80);font-weight:400;line-height:1.5}
+.nota b{color:#fff;font-weight:700}
+
+.slide:not(.claro) h1.title,
+.slide:not(.claro) h2.title,
+.slide:not(.claro) h3.title,
+.slide:not(.claro) p.lead,
+.slide:not(.claro) ul.bullets li,
+.slide:not(.claro) .stat .n,
+.slide:not(.claro) .stat .t,
+.slide:not(.claro) .kpi .val,
+.slide:not(.claro) .nota,
+.slide:not(.claro) .eyebrow{text-shadow:0 2px 16px rgba(0,0,0,.55)}
+
+/* ---------- caixas ---------- */
+.glass{background:rgba(var(--veu),.80);border:1.5px solid var(--acc);border-radius:28px;
+  padding:42px 50px;backdrop-filter:blur(9px)}
+.glass.plain{border-color:rgba(255,255,255,.34)}
+.glass.tint{background:linear-gradient(120deg,rgba(var(--veu),.88),rgba(var(--veu),.72))}
+ul.bullets{list-style:none}
+ul.bullets li{position:relative;padding-left:36px;font-size:25px;line-height:1.5;
+  color:#fff;font-weight:400;margin-bottom:20px}
+ul.bullets li:last-child{margin-bottom:0}
+ul.bullets li::before{content:"";position:absolute;left:6px;top:15px;width:11px;height:11px;
+  border-radius:50%;background:var(--acc)}
+ul.bullets li b{font-weight:700}
+ul.bullets.tight li{font-size:23px;margin-bottom:14px}
+ul.bullets.tight li::before{top:13px;width:9px;height:9px}
+
+/* ---------- números ---------- */
+.stat{border-left:5px solid var(--acc);padding-left:24px;margin-bottom:30px}
+.stat .n{font-size:54px;font-weight:800;line-height:1}
+.stat .t{font-size:21px;color:var(--muted);font-weight:400;margin-top:8px;line-height:1.4}
+.stat .t b{color:#fff;font-weight:700}
+.kpis{display:flex;gap:26px;position:relative;z-index:4}
+.kpi{flex:1;background:rgba(var(--veu),.80);border:1.5px solid rgba(255,255,255,.30);
+  border-radius:24px;padding:30px 32px}
+.kpi.on{border-color:var(--acc);background:rgba(var(--veu),.84)}
+.kpi .lbl{font-size:15px;letter-spacing:.24em;font-weight:700;color:var(--acc);margin-bottom:14px}
+.kpi .val{font-size:52px;font-weight:800;line-height:1}
+.kpi .val small{font-size:23px;font-weight:600;margin-left:6px;color:var(--muted)}
+.kpi .sub{font-size:19px;color:var(--muted);font-weight:400;margin-top:12px;line-height:1.4}
+
+/* ---------- tabela de ficha ---------- */
+.ficha{width:100%;border-collapse:collapse;font-size:23px;
+  background:rgba(var(--veu),.74);border-radius:16px;overflow:hidden}
+.ficha td{padding:17px 26px;border-bottom:1px solid rgba(255,255,255,.14);font-weight:400;color:var(--muted)}
+.ficha tr:nth-child(odd) td{background:rgba(255,255,255,.07)}
+.ficha td:last-child{text-align:right;font-weight:700;color:#fff}
+.ficha .inc{color:var(--acc);font-weight:700;letter-spacing:.10em;font-size:20px}
+.ficha .tag{background:var(--acc);color:#0A1020;font-size:16px;font-weight:800;
+  padding:3px 12px;border-radius:5px;margin-left:12px;letter-spacing:.04em}
+
+/* ---------- gráfico de colunas ----------
+   Fluxo do eletroposto: mínimo −56.222 e máximo 873.741 sobre 929.963 de amplitude
+   → a linha do zero fica em 93,95% da altura. As alturas das barras positivas são
+   valor / 873.741. Não mexer sem recalcular no simulador.js. */
+.chart{display:flex;align-items:stretch;gap:22px;height:330px;position:relative;z-index:4}
+.col{display:flex;flex-direction:column;height:100%;flex:1}
+.col .up{height:93.95%;display:flex;flex-direction:column;justify-content:flex-end}
+.col .dn{height:6.05%}
+.colbar{width:100%;border-radius:10px 10px 0 0;
+  background:linear-gradient(180deg,var(--acc) 0%,rgba(255,255,255,.18) 160%)}
+.colbar.neg{height:100%;border-radius:0 0 10px 10px;background:rgba(255,255,255,.32)}
+.colval{font-size:18px;font-weight:700;margin-bottom:10px;color:#fff;text-align:center}
+.colval.neg{font-size:17px;margin-bottom:8px;color:rgba(255,255,255,.80)}
+.zero{position:absolute;left:0;right:0;top:93.95%;border-top:1.5px dashed rgba(255,255,255,.50);z-index:5}
+.anos{display:flex;gap:22px;margin-top:14px;position:relative;z-index:4}
+.anos > div{flex:1;text-align:center;font-size:17px;font-weight:600;color:var(--muted)}
+
+.conta{margin-bottom:42px}
+.conta .cl{font-size:16px;letter-spacing:.22em;font-weight:700;color:rgba(255,255,255,.88);margin-bottom:14px}
+.conta .cb{height:34px;border-radius:6px;min-width:7px}
+.conta .cv{font-size:40px;font-weight:800;margin-top:14px;line-height:1}
+
+.duo{display:flex;align-items:flex-end;gap:80px;height:360px}
+.duo .c{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+.duo .b{width:210px;border-radius:14px 14px 0 0}
+.duo .v{font-size:34px;font-weight:800;margin-bottom:16px}
+.duo .l{font-size:20px;color:var(--muted);margin-top:16px;font-weight:500;text-align:center;line-height:1.35}
+
+/* ---------- tabela de cenários ---------- */
+.cen{width:100%;border-collapse:collapse;font-size:22px;
+  background:rgba(var(--veu),.74);border-radius:16px}
+.cen th{font-size:15px;letter-spacing:.20em;font-weight:700;color:var(--muted);
+  padding:22px 24px 18px;text-align:right}
+.cen th:first-child{text-align:left}
+.cen th.base{color:var(--acc)}
+.cen th span{display:block;font-size:13px;letter-spacing:.14em;font-weight:600;
+  color:rgba(255,255,255,.70);margin-top:6px}
+.cen td{padding:16px 24px;text-align:right;font-weight:600;border-top:1px solid rgba(255,255,255,.14)}
+.cen td:first-child{text-align:left;font-weight:400;color:var(--muted)}
+.cen td.base{color:var(--acc);font-weight:800;background:rgba(255,255,255,.08)}
+.cen th.base{background:rgba(255,255,255,.08)}
+
+/* ---------- fotos ---------- */
+.tira{display:grid;gap:22px;position:relative;z-index:4}
+.tira figure{background:rgba(var(--veu),.80);border:1.5px solid rgba(255,255,255,.28);
+  border-radius:20px;overflow:hidden}
+.tira img{display:block;width:100%;object-fit:cover}
+.tira figcaption{padding:16px 20px 20px;font-size:19px;line-height:1.4;font-weight:400;color:#fff}
+.tira .et{display:block;font-size:13px;font-weight:700;letter-spacing:.24em;
+  color:var(--acc);margin-bottom:7px}
+.tira4{grid-template-columns:repeat(4,1fr)}
+.tira4 img{height:430px}
+.tira2{grid-template-columns:repeat(2,1fr)}
+.tira2 img{height:520px}
+.quadro{border:2px solid var(--acc);border-radius:22px;overflow:hidden;position:relative;z-index:4;
+  box-shadow:0 30px 70px rgba(0,0,0,.65)}
+.quadro img{display:block;width:100%;height:100%;object-fit:cover}
+.legenda{font-size:18px;font-style:italic;color:rgba(255,255,255,.80);font-weight:400;margin-top:14px}
+
+.prancha{background:#fff;border-radius:22px;padding:26px;position:relative;z-index:4;
+  box-shadow:0 26px 60px rgba(0,0,0,.5)}
+.prancha img{display:block;width:100%;height:100%;object-fit:contain}
+
+
+/* ---------- páginas do projeto inteiro ----------
+   Amarelo é solar, verde é eletroposto. Página que fala das DUAS metades não pode
+   puxar para um lado: fica neutra, com a barra em degradê das duas cores, e cada
+   item colorido pela vertical a que pertence (.c-sol / .c-ele). */
+.slide.amb{--acc:#FFFFFF;--acc-deep:#1A2333;--bg:#0A0E16;background:#0A0E16;--veu:6,12,24}
+.slide.amb .bar{background:linear-gradient(180deg,#FFC400 0%,#7CE500 55%,rgba(255,255,255,.12) 100%)}
+.slide.amb .parte-num{color:#fff;opacity:.22}
+.slide.amb .mark{background:#fff;color:#0A1020}
+.c-sol{color:#FFC400}
+.c-ele{color:#7CE500}
+.ficha td.c-sol,.ficha td.c-ele{font-weight:700}
+
+/* ---------- divisores de parte ---------- */
+.parte-num{font-size:230px;font-weight:800;line-height:.86;color:var(--acc);opacity:.30}
+.parte .wrap{justify-content:center}
+
+/* ---------- cronograma ----------
+   A análise da distribuidora é 30 dos 45 dias: uma barra proporcional deixaria as
+   outras seis etapas invisíveis. Por isso os cartões têm largura igual e o peso da
+   etapa aparece no número, não na geometria. */
+.crono{display:flex;gap:14px;position:relative;z-index:4;align-items:stretch}
+.crono .et{flex:1;background:rgba(var(--veu),.82);border:1.5px solid rgba(255,255,255,.24);
+  border-radius:18px;padding:22px 18px;display:flex;flex-direction:column}
+.crono .et.forte{border-color:var(--acc);background:rgba(var(--veu),.92)}
+.crono .dia{font-size:13px;letter-spacing:.18em;font-weight:700;color:var(--acc);margin-bottom:12px}
+.crono .n{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.14);
+  color:#fff;font-size:17px;font-weight:800;display:flex;align-items:center;
+  justify-content:center;margin-bottom:14px}
+.crono .et.forte .n{background:var(--acc);color:#0A1020}
+.crono h5{font-size:19px;font-weight:700;line-height:1.25;margin-bottom:10px;flex:1}
+.crono .dur{font-size:26px;font-weight:800;color:#fff;line-height:1}
+.crono .dur small{font-size:15px;font-weight:600;color:var(--muted);margin-left:5px}
+.trilho{height:3px;background:linear-gradient(90deg,rgba(255,255,255,.10),var(--acc));
+  border-radius:2px;margin:0 0 22px}
+/* no celular as seis etapas viram grade 2x3: em coluna única passavam 937px da folha */
+body.movel .crono{flex-direction:row !important;flex-wrap:wrap;gap:14px !important}
+body.movel .crono .et{flex:1 1 calc(33.333% - 10px);min-width:calc(33.333% - 10px);padding:18px 14px}
+body.movel .crono h5{font-size:20px;flex:1;margin-bottom:8px;line-height:1.2}
+body.movel .crono .dur{font-size:26px}
+body.movel .crono .dia{font-size:14px;margin-bottom:8px;letter-spacing:.12em}
+body.movel .crono .n{width:34px;height:34px;font-size:16px;margin-bottom:10px}
+body.movel .crono + [data-row]{gap:24px !important;margin-top:26px !important}
+body.movel .trilho{margin-bottom:16px}
+body.movel .contato-crono{gap:28px}
+body.movel .contato-crono > div:first-child{flex-shrink:0}
+body.movel .contato-crono p.lead{font-size:24px !important}
+body.movel .crono + [data-row] .glass{padding:22px 28px}
+body.movel .crono + [data-row] .glass > div:first-child{font-size:52px}
+/* o cronograma é a página mais cheia do deck no modo retrato: margem e miolo apertam
+   mais um pouco aqui do que no resto (medido com _medir.js) */
+body.movel .cronograma .wrap{padding:104px 54px 76px}
+body.movel .cronograma .crono .et{padding:16px 13px}
+body.movel .cronograma .crono h5{font-size:18px;line-height:1.16}
+body.movel .cronograma .crono .n{width:30px;height:30px;font-size:15px;margin-bottom:8px}
+body.movel .cronograma .crono .dur{font-size:24px}
+body.movel .cronograma p.lead{font-size:21px !important;line-height:1.42}
+
+/* ---------- passos ---------- */
+.passos{display:flex;gap:0;position:relative;z-index:4}
+.passo{flex:1;padding:0 30px;border-left:3px solid rgba(255,255,255,.14)}
+.passo:first-child{padding-left:0;border-left:0}
+.passo .n{width:52px;height:52px;border-radius:50%;background:var(--acc);color:#0A1020;
+  font-size:24px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-bottom:20px}
+.passo h5{font-size:25px;font-weight:700;line-height:1.2;margin-bottom:12px}
+.passo p{font-size:20px;line-height:1.45;color:var(--muted);font-weight:400}
+
+/* ---------- rodapé ---------- */
+.foot{position:absolute;left:96px;bottom:44px;z-index:5;font-size:14px;letter-spacing:.22em;
+  color:rgba(255,255,255,.66);font-weight:600}
+.pg{position:absolute;right:96px;bottom:44px;z-index:5;font-size:14px;
+  color:rgba(255,255,255,.66);font-weight:700}
+.selo{display:inline-block;border:1.5px solid var(--acc);color:var(--acc);border-radius:8px;
+  padding:9px 20px;font-size:17px;font-weight:700;letter-spacing:.10em}
+
+/* ---------- a conta do conjunto (página 17) ---------- */
+.somar{display:flex;align-items:stretch;gap:22px;position:relative;z-index:4}
+.somar .p{flex:1;background:rgba(var(--veu),.82);border:1.5px solid rgba(255,255,255,.28);
+  border-radius:22px;padding:28px 32px}
+.somar .p .r{font-size:14px;letter-spacing:.22em;font-weight:700;color:rgba(255,255,255,.72);margin-bottom:12px}
+.somar .p .v{font-size:46px;font-weight:800;line-height:1}
+.somar .p .d{font-size:18px;color:var(--muted);margin-top:12px;line-height:1.42;font-weight:400}
+.somar .op{display:flex;align-items:center;font-size:44px;font-weight:300;color:#7CE500}
+.somar .p.tot{border-color:#7CE500;background:rgba(10,22,8,.82)}
+.somar .p.tot .v{color:#7CE500;font-size:56px}
+
+/* ══════════════════════════════════════════════════════════════════════
+   MODO CELULAR — body.movel · 1080x1920
+   ══════════════════════════════════════════════════════════════════════ */
+body.movel .slide{width:1080px;height:1920px}
+body.movel .wrap{padding:150px 66px 110px}
+body.movel [data-row]{flex-direction:column !important;align-items:stretch !important;
+  gap:40px !important;justify-content:center !important}
+body.movel [data-row] > *{width:100% !important;max-width:100% !important}
+body.movel .kpis{flex-direction:column}
+body.movel .passos{flex-direction:column;gap:34px}
+body.movel .passo{padding:0 0 0 28px;border-left:3px solid rgba(255,255,255,.14)}
+body.movel .passo:first-child{padding-left:28px;border-left:3px solid rgba(255,255,255,.14)}
+body.movel .somar{flex-direction:column;gap:18px}
+body.movel .somar .op{justify-content:center;font-size:38px}
+body.movel .tira4{grid-template-columns:repeat(2,1fr)}
+body.movel .tira4 img{height:380px}
+body.movel .tira2{grid-template-columns:1fr}
+body.movel .tira2 img{height:460px}
+body.movel h1.title{font-size:78px !important;line-height:1.07}
+body.movel h2.title{font-size:60px !important;line-height:1.12}
+body.movel h3.title{font-size:48px !important;line-height:1.16}
+body.movel p.lead{font-size:31px !important;max-width:100% !important}
+body.movel ul.bullets li{font-size:31px !important;line-height:1.48}
+body.movel ul.bullets.tight li{font-size:28px !important}
+body.movel .glass{width:100% !important;max-width:100% !important;padding:46px 42px}
+body.movel .eyebrow{font-size:18px}
+body.movel .stat .n{font-size:62px}
+body.movel .stat .t{font-size:25px}
+body.movel .kpi .val{font-size:58px}
+body.movel .kpi .lbl{font-size:18px}
+body.movel .kpi .sub{font-size:22px}
+body.movel .ficha{font-size:27px}
+body.movel .ficha td{padding:20px 22px}
+body.movel .ficha .inc{font-size:23px}
+body.movel .cen{font-size:24px}
+body.movel .cen th{font-size:16px;padding:0 12px 16px}
+body.movel .cen td{padding:16px 12px}
+body.movel .nota{font-size:21px}
+body.movel .legenda{font-size:20px}
+body.movel .passo h5{font-size:30px}
+body.movel .passo p{font-size:24px}
+body.movel .chart{gap:10px;height:320px}
+body.movel .colval{font-size:13px}
+body.movel .colval.neg{font-size:12px}
+body.movel .anos > div{font-size:14px}
+body.movel .duo{gap:50px;height:330px}
+body.movel .duo .b{width:170px}
+body.movel .duo .v{font-size:30px}
+body.movel .duo .l{font-size:19px}
+body.movel .conta .cl{font-size:19px}
+body.movel .conta .cv{font-size:46px}
+body.movel .conta .cb{height:40px}
+body.movel .somar .p .v{font-size:54px}
+body.movel .somar .p.tot .v{font-size:64px}
+body.movel .somar .p .d{font-size:22px}
+/* ---------- páginas densas no modo celular ----------
+   Empilhar linha em coluna multiplica a altura: as páginas 7, 15, 18, 24 e 25 passavam
+   da folha em pé (medido com _medir.js — 374, 28, 626, 224 e 47 px). A classe .denso
+   aperta tipografia e respiro SÓ no celular; em paisagem nada muda. Mexeu no conteúdo
+   dessas páginas? rode `node _medir.js` de novo antes de renderizar. */
+body.movel .denso h2.title{font-size:50px !important;line-height:1.1}
+body.movel .denso .rule{margin:18px 0 24px}
+body.movel .denso .kpis{gap:16px}
+body.movel .denso .kpi{padding:22px 28px}
+body.movel .denso .kpi .lbl{font-size:15px;margin-bottom:9px}
+body.movel .denso .kpi .val{font-size:46px}
+body.movel .denso .kpi .sub{font-size:19px;margin-top:8px}
+body.movel .denso .glass{padding:28px 32px}
+body.movel .denso p.lead{font-size:25px !important;line-height:1.44}
+body.movel .denso ul.bullets.tight li{font-size:24px !important;margin-bottom:12px}
+body.movel .denso .ficha{font-size:23px}
+body.movel .denso .ficha td{padding:14px 20px}
+body.movel .denso .nota{font-size:19px}
+body.movel .denso [data-row]{gap:24px !important}
+body.movel .denso .somar{gap:16px}
+body.movel .denso .somar .p{padding:22px 28px}
+body.movel .denso .somar .p .v{font-size:46px}
+body.movel .denso .denso .p.tot .v{font-size:54px}
+body.movel .denso .somar .p .d{font-size:20px}
+body.movel .denso .somar .op{font-size:30px}
+/* a conta desenhada da página 13 continua deitada no celular, quebrando em linhas:
+   empilhar os 7 blocos em coluna sozinho já custava 626px */
+body.movel .conta-fluxo{flex-direction:row !important;flex-wrap:wrap;
+  justify-content:center;gap:8px 18px !important;align-items:center !important}
+body.movel .conta-fluxo > *{width:auto !important}
+body.movel .conta-fluxo > div > div:first-child{font-size:34px !important}
+body.movel .conta-fluxo > div > div:last-child{font-size:16px !important;margin-top:4px !important}
+body.movel .parte-num{font-size:200px}
+body.movel .brand-tr{top:60px;right:66px}
+body.movel .brand-tl{top:60px;left:66px}
+body.movel .foot,body.movel .pg{bottom:54px}
+body.movel .foot{left:66px}
+body.movel .pg{right:66px}
+body.movel .selo{font-size:22px}

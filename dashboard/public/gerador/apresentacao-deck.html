@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<title>Apresentação de projeto — Irmãos na Obra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,700;1,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/gerador/apresentacao-deck.css">
+</head>
+<body>
+<div id="deck"></div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   APRESENTAÇÃO DE PROJETO — MOTOR DO PADRÃO
+   ──────────────────────────────────────────────────────────────────────────
+   Esta página NÃO tem conteúdo próprio: ela monta as 21 páginas a partir de
+   um único objeto, o window.__DECK. Quem injeta esse objeto é o servidor
+   (Puppeteer, via evaluateOnNewDocument) ou o ?d=<base64 do JSON> para prévia
+   no navegador.
+
+   O padrão nasceu do deck do Edeilson (02/09/2026) e as regras que ele
+   carrega valem para todo cliente:
+
+     1. NENHUM número financeiro é escrito aqui. Todos chegam prontos no
+        __DECK, calculados pelo computeEletro() — a mesma função do Simulador.
+        Este arquivo formata, não calcula.
+     2. Amarelo/dourado é a USINA, verde é o ELETROPOSTO. Página que fala das
+        duas metades é neutra (.amb) e colore cada item pela sua vertical
+        (.c-sol / .c-ele). Nenhuma cor aparece fora da vertical dela.
+     3. Nada de ressalva, alerta ou nota de risco: é proposta de venda. O que
+        precisa ser dito vai em linguagem afirmativa.
+     4. Foto que não é do terreno do cliente leva legenda dizendo isso.
+     5. A ordem das páginas é fixa. É ela que garante 10/10 toda vez, em vez
+        de 10/10 uma vez.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+// ── entrada ────────────────────────────────────────────────────────────────
+function carregarDados() {
+  if (window.__DECK) return window.__DECK;
+  const q = new URLSearchParams(location.search).get('d');
+  if (q) { try { return JSON.parse(decodeURIComponent(escape(atob(q)))); } catch (e) { console.error('__DECK inválido', e); } }
+  return null;
+}
+
+// ── formatadores ───────────────────────────────────────────────────────────
+const brl  = n => 'R$ ' + Math.round(Number(n) || 0).toLocaleString('pt-BR');
+const brl2 = n => 'R$ ' + (Number(n) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const num  = n => Math.round(Number(n) || 0).toLocaleString('pt-BR');
+const dec  = (n, c = 1) => (Number(n) || 0).toFixed(c).replace('.', ',');
+const esc  = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+/** deixa passar o negrito que os textos do __DECK usam, e mais nada */
+const rich = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+/** número para dentro de style="": SEMPRE ponto decimal. dec() usa vírgula e é só
+ *  para texto — se vazar para o CSS, a regra inteira é descartada pelo navegador
+ *  (foi o que quebrou a barra da conta de luz e as colunas do gráfico). */
+const css  = (n, c = 2) => (Number(n) || 0).toFixed(c);
+const mil  = n => { const v = Math.round(Number(n) || 0); return Math.abs(v) >= 1000 ? (v / 1000).toFixed(0) + ' mil' : String(v); };
+
+// ── blocos reaproveitados ──────────────────────────────────────────────────
+function marca(tipo, D) {
+  const L = D.logos || {};
+  if (tipo === 'sol')  return lock([L.solar], 'ENERGIA SOLAR');
+  if (tipo === 'ele')  return lock([L.eletroposto], 'MOBILIDADE ELÉTRICA');
+  return lock([L.solar, L.eletroposto], 'SOLAR &middot; MOBILIDADE ELÉTRICA', true);
+}
+function lock(srcs, sub, duplo) {
+  const imgs = srcs.filter(Boolean).map(s => `<img src="${esc(s)}" alt="">`).join('\n    ');
+  if (!imgs) return '';
+  return `  <div class="brand-tr lockup${duplo ? ' duplo' : ''}">
+    ${imgs}
+    <div><div class="n1">IRMÃOS NA OBRA</div><div class="n2">${sub}</div></div>
+  </div>\n`;
+}
+const fundo = (src, cls) => src ? `  <div class="bg${cls ? ' ' + cls : ''}" style="background-image:url('${esc(src)}')"></div>\n` : '';
+const veu   = cls => `  <div class="scrim ${cls}"></div>\n`;
+const barra = () => '  <div class="bar"></div>\n';
+const rodape = (esq, pg) => `  <div class="foot">${esq}</div>\n  <div class="pg">${String(pg).padStart(2, '0')}</div>\n`;
+
+/** linhas: [rotulo, valor, classe?, cruHtml?] — com cruHtml o rótulo passa sem escape,
+ *  para os casos em que a própria linha traz negrito com estilo (a linha de total). */
+function ficha(linhas) {
+  return `<table class="ficha">` + linhas.map(l =>
+    `<tr><td>${l[3] ? l[0] : rich(l[0])}</td><td${l[2] ? ' class="' + l[2] + '"' : ''}>${rich(l[1])}</td></tr>`).join('') + `</table>`;
+}
+function kpis(itens) {
+  return `<div class="kpis">` + itens.map(k =>
+    `<div class="kpi on"><div class="lbl">${esc(k.lbl)}</div><div class="val"${k.pequeno ? ' style="font-size:46px"' : ''}>${rich(k.val)}${k.un ? `<small>${esc(k.un)}</small>` : ''}</div>${k.sub ? `<div class="sub">${rich(k.sub)}</div>` : ''}</div>`).join('') + `</div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// AS 21 PÁGINAS
+// ══════════════════════════════════════════════════════════════════════════
+function montar(D) {
+  const S = D.solar || {}, P = D.posto || {}, C = D.conjunto || {}, F = D.fotos || {}, T = D.textos || {};
+  const p = [];
+  const N = () => p.length + 1;
+
+  // ── 01 · CAPA ────────────────────────────────────────────────────────────
+  p.push(`<section class="slide amb">
+${fundo(F.capa || F.terreno)}${veu('left')}
+  <div class="wrap" style="justify-content:center">
+    <div style="max-width:1080px">
+      <div class="eyebrow">APRESENTAÇÃO DE PROJETO</div>
+      <h1 class="title" style="font-size:88px">PROJETO<br><span style="color:#fff">${esc(String(D.cliente || '').toUpperCase())}</span></h1>
+      <div style="font-size:30px;font-weight:600;letter-spacing:.14em;margin-top:22px">${esc(D.cidade)}</div>
+      <div style="margin-top:38px;font-size:25px;color:var(--muted);line-height:1.55;max-width:920px">
+        Uma <b class="c-sol">usina solar de ${dec(S.kwp)} kWp</b> no telhado que já é seu, e um
+        <b class="c-ele">eletroposto de recarga rápida</b> que vende essa mesma energia para
+        quem passa na porta.
+      </div>
+      <div style="margin-top:44px"><span class="selo">${esc(D.validade)}</span></div>
+    </div>
+  </div>
+  <div class="foot">APRESENTAÇÃO COMERCIAL &middot; ${esc(D.data)}</div>
+</section>`);
+
+  // ── 02 · O TERRENO HOJE ──────────────────────────────────────────────────
+  p.push(`<section class="slide amb">
+  <div class="bg" style="background-image:url('${esc(F.terreno || F.capa)}');background-position:center 52%;filter:brightness(.88) saturate(1)"></div>
+  <div class="scrim bottom" style="background:linear-gradient(180deg,rgba(var(--veu),.26) 0%,rgba(var(--veu),.40) 44%,rgba(var(--veu),.98) 100%)"></div>
+${marca('amb', D)}
+  <div class="wrap" style="justify-content:flex-end">
+    <div class="eyebrow">PONTO DE PARTIDA</div>
+    <h2 class="title" style="font-size:54px">${rich(T.terrenoTitulo || 'O seu telhado hoje')}</h2>
+    <p class="lead" style="margin-top:20px;max-width:1300px">${rich(T.terrenoHoje)}</p>
+  </div>
+${rodape('IMAGEM DE SATÉLITE DO LOCAL &middot; BASE DO ESTUDO', N())}</section>`);
+
+  // ── 03 · A TESE ──────────────────────────────────────────────────────────
+  p.push(`<section class="slide amb">
+${fundo(F.tese, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
+  <div class="wrap">
+    <div class="eyebrow">A TESE DO PROJETO</div>
+    <h2 class="title" style="max-width:1500px">O mesmo telhado <span class="c-sol">gera</span> a energia<br>e o mesmo pátio <span class="c-ele">vende</span> ela.</h2>
+    <div class="rule"></div>
+    <div data-row style="display:flex;gap:26px;margin-top:6px">
+      <div class="glass" style="flex:1;border-color:#FFC400">
+        <div class="eyebrow" style="margin-bottom:14px;color:#FFC400">O QUE PRODUZ</div>
+        <div style="font-size:60px;font-weight:800;line-height:1;color:#FFC400">${num(S.geracao)} <span style="font-size:26px;color:var(--muted);font-weight:600">kWh/mês</span></div>
+        <p class="lead" style="font-size:22px;margin-top:18px">${dec(S.kwp)} kWp de módulos sobre o telhado existente. Energia própria, gerada no mesmo endereço onde ela é consumida.</p>
+      </div>
+      <div class="glass" style="flex:1;border-color:#7CE500">
+        <div class="eyebrow" style="margin-bottom:14px;color:#7CE500">O QUE VENDE</div>
+        <div style="font-size:60px;font-weight:800;line-height:1;color:#7CE500">${brl2(P.preco)} <span style="font-size:26px;color:var(--muted);font-weight:600">por kWh</span></div>
+        <p class="lead" style="font-size:22px;margin-top:18px">Um carregador ${esc(P.potenciaTxt)} revende parte dessa energia para o motorista que precisa carregar, mais a taxa de ativação.</p>
+      </div>
+    </div>
+    <div class="glass tint" style="margin-top:30px;border-color:var(--acc);padding:28px 42px">
+      <div data-row style="display:flex;align-items:center;gap:34px">
+        <div style="white-space:nowrap">
+          <div style="font-size:56px;font-weight:800;color:var(--acc);line-height:1">${brl(C.ganhoMes)}<span style="font-size:24px;color:#fff;font-weight:600">/mês</span></div>
+          <div style="font-size:19px;color:var(--muted);font-weight:600;margin-top:8px">é o que os dois juntos põem no caixa</div>
+        </div>
+        <p class="lead" style="font-size:22px;margin:0">
+          <b class="c-sol">${brl(C.ecoLiquida)}</b> de energia que a usina abate da sua conta, mais
+          <b class="c-ele">${brl(C.lucroPosto)}</b> de lucro na revenda do posto. <b>Cada kWh alocado
+          onde rende mais</b> — e a página ${D._pgConjunto || 17} abre a conta inteira.
+        </p>
+      </div>
+    </div>
+  </div>
+${rodape('APRESENTAÇÃO COMERCIAL &middot; ' + esc(D.data), N())}</section>`);
+
+  // ── 04 · DIVISOR PARTE 1 ─────────────────────────────────────────────────
+  p.push(`<section class="slide sol parte">
+${fundo(F.divisorSolar || F.tese, 'dof-soft')}${veu('left')}${barra()}
+  <div class="wrap">
+    <div style="max-width:1100px">
+      <div class="parte-num">01</div>
+      <div class="eyebrow" style="margin-top:26px">PARTE 1 &middot; A USINA</div>
+      <h1 class="title">A usina que fica<br><span class="mark">em cima do galpão</span></h1>
+      <p class="lead" style="margin-top:32px">${dec(S.kwp)} kWp, ${num(S.modulos)} módulos, ${num(S.geracao)} kWh por mês. O que ela faz com a sua conta de luz — e por que ela é o que torna o posto lucrativo.</p>
+    </div>
+  </div>
+${rodape('PARTE 1 DE 4', N())}</section>`);
+
+  // ── 05 · O LAYOUT DAS PLACAS ─────────────────────────────────────────────
+  const aguas = (S.aguas || []).map(a => `<li><b>${num(a.placas)} placas</b> ${esc(a.onde)}</li>`).join('\n          ');
+  p.push(`<section class="slide sol">
+${marca('sol', D)}
+  <div class="wrap" style="padding:60px 80px">
+    <div data-row style="display:flex;gap:44px;height:100%;align-items:center">
+      <div style="width:600px;flex-shrink:0">
+        <div class="eyebrow">O LAYOUT SOBRE O SEU TELHADO</div>
+        <h2 class="title" style="font-size:48px">${num(S.modulos)} placas já têm<br><span class="g">lugar marcado</span></h2>
+        <div class="rule" style="margin:22px 0 28px"></div>
+        <ul class="bullets tight">
+          ${aguas}
+          <li><b>${num(S.modulos)} placas posicionadas</b> — ${dec(S.kwp)} kWp, o que está desenhado em verde</li>
+        </ul>
+        <div class="glass" style="margin-top:28px;padding:26px 30px">
+          <div style="font-size:14px;letter-spacing:.22em;font-weight:700;color:var(--acc);margin-bottom:12px">O ORÇAMENTO É EXATAMENTE ESTE SISTEMA</div>
+          <p class="lead" style="font-size:21px;margin:0">As ${num(S.modulos)} placas do orçamento são <b>estas</b> — não é estimativa nem média de mercado. <b>O que está desenhado aqui é o sistema que você está comprando</b> — placa por placa, água por água.</p>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column">
+        <div class="quadro" style="height:820px"><img src="${esc(F.layout || F.terreno)}" alt=""></div>
+        <p class="legenda" style="margin-top:16px">${rich(F.layoutLegenda || 'Imagem de satélite do local, com as águas destacadas. <b style="font-style:normal;color:#fff">Os números são quantidade de placas</b>, não metros quadrados. O posicionamento definitivo sai no projeto executivo.')}</p>
+      </div>
+    </div>
+  </div>
+${rodape('PARTE 1 &middot; A USINA', N())}</section>`);
+
+  // ── 06 · O SISTEMA E O QUE ESTÁ NO PREÇO ─────────────────────────────────
+  p.push(`<section class="slide sol denso">
+${fundo(F.sistema, 'dof')}${veu('dark')}${barra()}${marca('sol', D)}
+  <div class="wrap">
+    <div class="eyebrow">O SISTEMA E O QUE ESTÁ NO PREÇO</div>
+    <h2 class="title">O sistema cotado</h2>
+    <div class="rule"></div>
+    ${kpis([
+      { lbl: 'POTÊNCIA',  val: dec(S.kwp), un: 'kWp', sub: `${num(S.modulos)} módulos de ${num(S.wpModulo)} W` },
+      { lbl: 'PRODUÇÃO',  val: num(S.geracao), un: 'kWh/mês', sub: `média anual em ${esc(D.cidadeCurta || D.cidade)}` },
+      { lbl: 'AUTONOMIA', val: num(S.autonomiaPct), un: '%', sub: 'do consumo estimado' },
+    ])}
+    <div data-row style="display:flex;gap:34px;margin-top:38px;align-items:flex-start">
+      <div style="flex:1">${ficha([
+        ['Módulos fotovoltaicos', `${num(S.modulos)} un · ${num(S.wpModulo)} W`, 'c-sol'],
+        ['Inversores', esc(S.inversores), 'c-sol'],
+        ['Área ocupada no telhado', `${num(S.areaM2)} m²`],
+        ['Tarifa de energia considerada', `${brl2(S.tarifa)} /kWh`],
+      ])}</div>
+      <div style="flex:1">${ficha((S.incluido || []).map(i => [i, 'INCLUÍDO', 'inc']))}</div>
+    </div>
+    <p class="nota" style="margin-top:28px"><b>Tudo o que aparece nesta página está no valor da página ${D._pgInvest || 20}.</b> Equipamento, projeto, instalação, homologação e garantias no mesmo preço fechado.</p>
+  </div>
+${rodape('PARTE 1 &middot; A USINA', N())}</section>`);
+
+  // ── 07 · A ENGENHARIA ────────────────────────────────────────────────────
+  const eng = (T.engenharia || []).map(b => `<li>${rich(b)}</li>`).join('\n          ');
+  const vant = (T.vantagens || []).map(v => `<div class="glass plain" style="padding:26px 32px;margin-bottom:18px">
+          <div style="font-size:38px;font-weight:800;color:var(--acc);line-height:1">${rich(v.n)} <span style="font-size:22px;color:#fff;font-weight:600">${rich(v.t)}</span></div>
+          <p class="lead" style="font-size:20px;margin-top:12px">${rich(v.p)}</p>
+        </div>`).join('\n        ');
+  p.push(`<section class="slide sol">
+${fundo(F.engenharia, 'dof')}${veu('dark')}${barra()}${marca('sol', D)}
+  <div class="wrap">
+    <div class="eyebrow">ENGENHARIA E MONTAGEM</div>
+    <h2 class="title" style="font-size:52px">A engenharia já esteve <span class="g">no seu telhado</span></h2>
+    <div class="rule"></div>
+    <div data-row style="display:flex;gap:44px;align-items:flex-start">
+      <div style="flex:1"><ul class="bullets tight">
+          ${eng}
+        </ul></div>
+      <div style="width:660px;flex-shrink:0">
+        ${vant}
+      </div>
+    </div>
+  </div>
+${rodape('PARTE 1 &middot; A USINA', N())}</section>`);
+
+  // ── 08 · A CONTA DE LUZ ──────────────────────────────────────────────────
+  const larg = Math.max(0.6, (Number(S.contaDepois) || 0) / Math.max(1, Number(S.contaHoje) || 1) * 100);
+  p.push(`<section class="slide sol">
+${fundo(F.contaLuz, 'dof')}${veu('dark')}${barra()}${marca('sol', D)}
+  <div class="wrap">
+    <div class="eyebrow">ANÁLISE FINANCEIRA &middot; A USINA SOZINHA</div>
+    <h2 class="title">O que muda na conta de luz</h2>
+    <div class="rule"></div>
+    <div data-row style="display:flex;gap:64px;align-items:center;margin-top:10px">
+      <div class="glass plain" style="width:740px;padding:38px 42px">
+        <div class="conta">
+          <div class="cl">CONTA DE LUZ HOJE</div>
+          <div class="cb" style="width:100%;background:linear-gradient(90deg,rgba(255,255,255,.42),rgba(255,255,255,.16))"></div>
+          <div class="cv">${brl(S.contaHoje)} <span style="font-size:20px;font-weight:400;color:var(--muted)">/mês</span></div>
+        </div>
+        <div class="conta" style="margin-bottom:0">
+          <div class="cl" style="color:var(--acc)">CONTA DEPOIS DA USINA</div>
+          <div class="cb" style="width:${css(larg)}%;background:var(--acc)"></div>
+          <div class="cv" style="color:var(--acc)">${brl(S.contaDepois)} <span style="font-size:20px;font-weight:400;color:var(--muted)">/mês</span></div>
+        </div>
+        <p class="nota" style="margin-top:26px"><b>As duas barras estão na escala real.</b> A usina cobre ${num(S.autonomiaPct)}% do consumo.</p>
+      </div>
+      <div style="flex:1">
+        <div class="stat"><div class="n">${brl(S.economia)}</div><div class="t">deixam de sair do caixa <b>todo mês</b>, com a usina sozinha.</div></div>
+        <div class="stat"><div class="n">${esc(S.paybackTxt)}</div><div class="t">é o tempo em que a usina, sozinha, devolve o que custou.</div></div>
+        <div class="stat" style="margin-bottom:0"><div class="n" style="color:var(--acc)">25 anos</div><div class="t">de garantia dos módulos — o sistema segue gerando muito depois de quitado.</div></div>
+      </div>
+    </div>
+    <p class="nota" style="margin-top:30px">Esta página mostra a usina trabalhando sozinha. Com o eletroposto no terreno, parte dessa energia passa a ser <b>vendida a ${brl2(P.preco)} o kWh</b> em vez de abater a conta a ${brl2(S.tarifa)} — <b>o número do conjunto está na página ${D._pgConjunto || 17}</b>.</p>
+  </div>
+${rodape('PARTE 1 &middot; A USINA', N())}</section>`);
+
+  // ── 09 · DIVISOR PARTE 2 ─────────────────────────────────────────────────
+  p.push(`<section class="slide ele parte">
+${fundo(F.divisorPosto, 'dof-soft')}${veu('left')}${barra()}
+  <div class="wrap">
+    <div style="max-width:1100px">
+      <div class="parte-num">02</div>
+      <div class="eyebrow" style="margin-top:26px">PARTE 2 &middot; O POSTO</div>
+      <h1 class="title">O posto que vende<br><span class="mark">a energia do telhado</span></h1>
+      <p class="lead" style="margin-top:32px">Um carregador ${esc(P.potenciaTxt)} com ${num(P.bicos)} bicos. Quanto ele fatura, quanto sobra depois de tudo, e em quanto tempo devolve o investimento.</p>
+    </div>
+  </div>
+${rodape('PARTE 2 DE 4', N())}</section>`);
+
+  // ── 10 · O MERCADO E O PONTO ─────────────────────────────────────────────
+  const stats = (T.mercadoStats || []).map((s, i) =>
+    `<div class="stat"${i === 2 ? ' style="margin-bottom:0"' : ''}><div class="n"${i === 2 ? ' style="color:var(--acc)"' : ''}>${rich(s.n)}</div><div class="t">${rich(s.t)}</div></div>`).join('\n        ');
+  const cards = (T.pontoCards || []).map(c => `<li>${rich(c)}</li>`).join('\n          ');
+  p.push(`<section class="slide ele">
+${fundo(F.mercado, 'dof')}${veu('dark')}${barra()}${marca('ele', D)}
+  <div class="wrap">
+    <div class="eyebrow">POR QUE AGORA, E POR QUE AQUI</div>
+    <h2 class="title">A frota cresceu. <span class="g">A tomada não.</span></h2>
+    <div class="rule"></div>
+    <div data-row style="display:flex;gap:60px;align-items:flex-start;margin-top:6px">
+      <div style="width:660px">
+        ${stats}
+        <p class="nota" style="margin-top:20px">${rich(T.mercadoFonte || 'Fonte: ABVE — abve.org.br')}</p>
+      </div>
+      <div class="glass" style="flex:1">
+        <h3 class="title" style="font-size:34px;color:var(--acc)">E o seu endereço tem as três coisas que importam</h3>
+        <ul class="bullets tight" style="margin-top:24px">
+          ${cards}
+        </ul>
+        <p class="lead" style="font-size:22px;margin-top:22px">${rich(T.pontoFecho)}</p>
+      </div>
+    </div>
+  </div>
+${rodape('PARTE 2 &middot; O POSTO', N())}</section>`);
+
+  // ── 11 · A ESTAÇÃO ───────────────────────────────────────────────────────
+  p.push(`<section class="slide ele denso">
+${fundo(F.estacao, 'dof')}${veu('dark')}${barra()}${marca('ele', D)}
+  <div class="wrap">
+    <div class="eyebrow">DETALHAMENTO DA ESTAÇÃO</div>
+    <h2 class="title">A estação de recarga</h2>
+    <div class="rule"></div>
+    ${kpis([
+      { lbl: 'CARREGADORES', val: num(P.carregadores), un: 'un', sub: `corrente contínua, ${esc(P.potenciaNum)}` },
+      { lbl: 'BICOS',        val: num(P.bicos), un: 'saídas', sub: 'dois carros ao mesmo tempo' },
+      { lbl: 'SESSÕES',      val: num(P.sessoes), un: '/mês', sub: `${num(P.carros)} carros por dia, 30 dias` },
+    ])}
+    <div data-row style="display:flex;gap:40px;margin-top:44px;align-items:flex-start">
+      <div style="flex:1">${ficha([
+        ['Carga média por sessão', `${num(P.carga)} kWh`, 'c-ele'],
+        ['Energia vendida por mês', `${num(P.kwhMes)} kWh`],
+        ['Preço ao motorista', `${brl2(P.preco)} /kWh`],
+        ['Taxa de ativação por sessão', brl2(P.ativacao)],
+        ['Custo da energia (gerada no telhado)', `${brl2(P.custoKwh)} /kWh`],
+        ['Padrão de entrada', esc(P.padraoEntrada || '—'), 'c-ele'],
+      ])}</div>
+      <div class="glass" style="width:620px;padding:30px 36px">
+        <p class="lead" style="font-size:22px">Um carregador ${esc(P.potenciaNum)} enche a bateria da maioria dos elétricos em torno de <b>30 minutos</b> — o tempo de um café, e o que faz o motorista parar aqui em vez da tomada lenta do shopping.</p>
+        ${P.padraoArgumento ? `<p class="lead" style="font-size:22px;margin-top:16px">${rich(P.padraoArgumento)}</p>` : ''}
+      </div>
+    </div>
+  </div>
+${rodape('PARTE 2 &middot; O POSTO', N())}</section>`);
+
+  // ── 12 · O EQUIPAMENTO (fundo claro) ─────────────────────────────────────
+  const eq = (T.equipamento || []).map(b => `<li style="color:#1B2A20">${rich(b)}</li>`).join('\n          ');
+  p.push(`<section class="slide ele claro" style="background:#F2F4F1;color:#0B1410">
+${marca('ele', D)}
+  <div class="wrap" style="padding:74px 100px">
+    <div data-row style="display:flex;gap:60px;height:100%;align-items:center">
+      <div style="flex:1">
+        <div class="eyebrow" style="color:#3E8A00">O EQUIPAMENTO</div>
+        <h2 class="title" style="font-size:56px;color:#0B1410">Carregador<br>${esc(P.potenciaPrefixo || 'DC de')} <span style="background:#7CE500;padding:0 16px">${esc(P.potenciaNum)}</span></h2>
+        <div style="width:110px;height:5px;background:#0B1410;border-radius:3px;margin:28px 0 30px"></div>
+        <ul class="bullets tight" style="color:#0B1410;font-weight:400">
+          ${eq}
+        </ul>
+      </div>
+      <div style="width:660px;height:840px;border-radius:28px;overflow:hidden;flex-shrink:0;box-shadow:0 26px 60px rgba(0,0,0,.20)">
+        <img src="${esc(F.produto)}" style="width:100%;height:100%;object-fit:cover" alt="">
+      </div>
+    </div>
+  </div>
+  <div class="foot" style="color:rgba(11,20,16,.62)">PARTE 2 &middot; O POSTO</div>
+  <div class="pg" style="color:rgba(11,20,16,.62)">${String(N()).padStart(2, '0')}</div>
+</section>`);
+
+  // ── 13 · DE ONDE VEM CADA REAL ───────────────────────────────────────────
+  p.push(`<section class="slide ele denso">
+${fundo(F.receita, 'dof')}${veu('dark')}${barra()}${marca('ele', D)}
+  <div class="wrap">
+    <div class="eyebrow">A CONTA, ABERTA</div>
+    <h2 class="title">De onde vem cada real</h2>
+    <div class="rule"></div>
+    <div class="glass" style="padding:38px 46px;margin-top:4px">
+      <div data-row class="conta-fluxo" style="display:flex;align-items:center;gap:24px">
+        <div style="text-align:center"><div style="font-size:42px;font-weight:800">${num(P.sessoes)}</div><div style="font-size:17px;color:var(--muted);margin-top:8px">recargas/mês</div></div>
+        <div style="font-size:34px;color:var(--acc);font-weight:300">&times;</div>
+        <div style="text-align:center"><div style="font-size:42px;font-weight:800">${num(P.carga)} kWh</div><div style="font-size:17px;color:var(--muted);margin-top:8px">por sessão</div></div>
+        <div style="font-size:34px;color:var(--acc);font-weight:300">&times;</div>
+        <div style="text-align:center"><div style="font-size:42px;font-weight:800">${brl2(P.preco)}</div><div style="font-size:17px;color:var(--muted);margin-top:8px">por kWh</div></div>
+        <div style="font-size:34px;color:var(--acc);font-weight:300">+</div>
+        <div style="text-align:center"><div style="font-size:42px;font-weight:800">${brl(P.ativacaoMes)}</div><div style="font-size:17px;color:var(--muted);margin-top:8px">ativações</div></div>
+        <div style="font-size:34px;color:var(--acc);font-weight:300">=</div>
+        <div style="text-align:center"><div style="font-size:52px;font-weight:800;color:var(--acc)">${brl(P.fatMes)}</div><div style="font-size:17px;color:var(--muted);margin-top:8px">faturamento/mês</div></div>
+      </div>
+    </div>
+    <div data-row style="display:flex;gap:26px;margin-top:34px">
+      <div class="glass plain" style="flex:1;padding:30px 34px">
+        <div class="eyebrow" style="margin-bottom:12px">O QUE SAI</div>
+        <div style="font-size:40px;font-weight:800;line-height:1">${brl(P.custosMes)}<span style="font-size:20px;color:var(--muted);font-weight:600">/mês</span></div>
+        <p class="lead" style="font-size:20px;margin-top:14px">${rich(P.custoDetalhe)}</p>
+      </div>
+      <div class="glass plain" style="flex:1;padding:30px 34px">
+        <div class="eyebrow" style="margin-bottom:12px">POR QUE A ENERGIA CUSTA POUCO</div>
+        <div style="font-size:40px;font-weight:800;line-height:1">${brl2(P.custoKwh)}<span style="font-size:20px;color:var(--muted);font-weight:600">/kWh</span></div>
+        <p class="lead" style="font-size:20px;margin-top:14px">Porque ela vem do seu telhado, na parte em que a geração sobra do seu próprio consumo. <b>A usina multiplica o lucro do posto por ${dec(P.multiplicador, 1)}×</b> e derruba o payback de ${esc(P.paybackSemSol)} para ${esc(P.paybackTxt)}.</p>
+      </div>
+      <div class="glass" style="flex:1;padding:30px 34px">
+        <div class="eyebrow" style="margin-bottom:12px">O QUE SOBRA</div>
+        <div style="font-size:40px;font-weight:800;line-height:1;color:var(--acc)">${brl(P.lucroMes)}<span style="font-size:20px;color:var(--muted);font-weight:600">/mês</span></div>
+        <p class="lead" style="font-size:20px;margin-top:14px">Margem de <b>${num(P.margemPct)}%</b> sobre o faturamento, já com imposto do Simples Nacional descontado.</p>
+      </div>
+    </div>
+  </div>
+${rodape('PARTE 2 &middot; O POSTO', N())}</section>`);
+
+  // ── 14 · O RETORNO ───────────────────────────────────────────────────────
+  const fl = (P.fluxo || []).map(Number);
+  const maxF = Math.max(...fl, 1), minF = Math.min(...fl, 0);
+  const amp = maxF - minF || 1, zeroPct = (maxF / amp) * 100;
+  const cols = fl.map(v => v < 0
+    ? `<div class="col"><div class="up"><div class="colval neg">&minus;${mil(Math.abs(v))}</div></div><div class="dn"><div class="colbar neg"></div></div></div>`
+    : `<div class="col"><div class="up"><div class="colval">${mil(v)}</div><div class="colbar" style="height:${css(v / maxF * 100)}%"></div></div><div class="dn"></div></div>`).join('\n      ');
+  const anos = fl.map((_, i) => `<div>${i === 0 ? 'ANO 1' : i + 1}</div>`).join('');
+  p.push(`<section class="slide ele">
+${barra()}${marca('ele', D)}
+  <div class="wrap">
+    <div class="eyebrow">RETORNO DO POSTO &middot; INVESTIMENTO DE ${brl2(P.invest)}</div>
+    <h2 class="title">O que o posto vira em 10 anos</h2>
+    <div class="rule"></div>
+    <div class="kpis" style="margin-bottom:40px">
+      <div class="kpi on"><div class="lbl">PAYBACK</div><div class="val">${esc(P.paybackNum)}<small>anos</small></div></div>
+      <div class="kpi on"><div class="lbl">TIR</div><div class="val">${dec(P.tirPct)}<small>% a.a.</small></div></div>
+      <div class="kpi on"><div class="lbl">VPL @ ${dec(P.taxaDescPct, 2)}%</div><div class="val" style="font-size:44px">${brl(P.vpl)}</div></div>
+      <div class="kpi on"><div class="lbl">PATRIMÔNIO EM 10 ANOS</div><div class="val" style="font-size:44px">${brl(P.acumulado10)}</div></div>
+    </div>
+    <div class="chart">
+      <div class="zero" style="top:${css(zeroPct)}%"></div>
+      ${cols}
+    </div>
+    <div class="anos">${anos}</div>
+    <p class="nota" style="margin-top:20px"><b>A linha tracejada é o zero: o projeto a cruza no mês ${num(P.paybackMes)}</b> — dali em diante é lucro acumulando, mês após mês, sobre um ativo que já é seu.</p>
+  </div>
+${rodape('PARTE 2 &middot; O POSTO', N())}</section>`);
+  // as colunas usam a altura do bloco .up, que o CSS fixa em 93,95%: ajusta pro caso
+  // A linha do zero muda de cliente para cliente (depende de quanto o ano 1 fica
+  // negativo), então a altura dos blocos .up/.dn é calculada aqui e escrita inline —
+  // o CSS traz só o valor do caso Edeilson como padrão.
+  p[p.length - 1] = p[p.length - 1]
+    .replace(/<div class="col"><div class="up"/g, `<div class="col"><div class="up" style="height:${css(zeroPct)}%"`)
+    .replace(/<div class="dn">/g, `<div class="dn" style="height:${css(100 - zeroPct)}%">`);
+
+  // ── 15 · PISO, BASE E TETO ───────────────────────────────────────────────
+  const cen = D.cenarios || {};
+  const linhas = (cen.linhas || []).map(l =>
+    `<tr><td>${rich(l.nome)}</td><td>${rich(l.piso)}</td><td class="base">${rich(l.base)}</td><td>${rich(l.teto)}</td></tr>`).join('\n      ');
+  p.push(`<section class="slide ele">
+${fundo(F.cenarios, 'dof')}${veu('dark')}${barra()}${marca('ele', D)}
+  <div class="wrap">
+    <div class="eyebrow">ANÁLISE DE SENSIBILIDADE &middot; DEMANDA</div>
+    <h2 class="title">O piso, a base e o teto do projeto</h2>
+    <div class="rule"></div>
+    <table class="cen" style="margin-top:4px">
+      <tr><th>INDICADOR</th><th>PISO<span>${esc(cen.piso)}</span></th><th class="base">A CONTA DESTE PROJETO<span>${esc(cen.base)}</span></th><th>TETO DESTA PÁGINA<span>${esc(cen.teto)}</span></th></tr>
+      ${linhas}
+    </table>
+    <p class="nota" style="margin-top:26px">${rich(cen.nota)}</p>
+  </div>
+${rodape('PARTE 2 &middot; O POSTO', N())}</section>`);
+
+  // ── 16 · DIVISOR PARTE 3 ─────────────────────────────────────────────────
+  p.push(`<section class="slide amb parte">
+${fundo(F.divisorConjunto || F.tese, 'dof-soft')}${veu('left')}${barra()}
+  <div class="wrap">
+    <div style="max-width:1100px">
+      <div class="parte-num">03</div>
+      <div class="eyebrow" style="margin-top:26px">PARTE 3 &middot; O CONJUNTO</div>
+      <h1 class="title">Os dois juntos,<br><span class="mark">num número só</span></h1>
+      <p class="lead" style="margin-top:32px">A usina e o posto trabalham com a mesma energia. Aqui está o resultado dos dois juntos, com a conta aberta de onde cada kWh rende mais.</p>
+    </div>
+  </div>
+${rodape('PARTE 3 DE 4', N())}</section>`);
+
+  // ── 17 · O CONSOLIDADO ───────────────────────────────────────────────────
+  D._pgConjunto = N();
+  p.push(`<section class="slide amb denso">
+${barra()}${marca('amb', D)}
+  <div class="wrap">
+    <div class="eyebrow">O PROJETO INTEIRO</div>
+    <h2 class="title">O que entra no seu caixa por mês</h2>
+    <div class="rule" style="background:#fff"></div>
+    <div class="somar" style="margin-top:4px">
+      <div class="p">
+        <div class="r">A USINA, DEPOIS DO POSTO</div>
+        <div class="v" style="color:#FFC400">${brl(C.ecoLiquida)}</div>
+        <div class="d">O posto leva ${num(P.kwhMes)} dos ${num(S.geracao)} kWh gerados. O que a usina ainda abate da sua conta de luz, depois disso, vale ${brl(C.ecoLiquida)} por mês.</div>
+      </div>
+      <div class="op">+</div>
+      <div class="p">
+        <div class="r">O POSTO</div>
+        <div class="v" style="color:#7CE500">${brl(C.lucroPosto)}</div>
+        <div class="d">Lucro líquido da revenda de ${num(P.kwhMes)} kWh, já descontados energia, gateway, imposto, seguro e assinatura.</div>
+      </div>
+      <div class="op">=</div>
+      <div class="p tot">
+        <div class="r">O CONJUNTO</div>
+        <div class="v">${brl(C.ganhoMes)}</div>
+        <div class="d">Por mês, em regime pleno. Sobre um investimento total de ${brl(C.investTotal)}, que se paga em <b style="color:#fff">${esc(C.paybackTxt)}</b>.</div>
+      </div>
+    </div>
+    <div class="glass tint" style="margin-top:34px;border-color:var(--acc);padding:30px 42px">
+      <div style="font-size:15px;letter-spacing:.24em;font-weight:700;color:var(--acc);margin-bottom:14px">COMO OS DOIS SE SOMAM</div>
+      <p class="lead" style="font-size:23px;margin:0">
+        A usina gera <b>${num(S.geracao)} kWh</b> por mês. O carregador compra <b>${num(P.kwhMes)}</b> deles e revende a ${brl2(P.preco)} o kWh — é a parte da sua energia que vale mais vendida do que economizada. Os <b>${num(C.sobraKwh)} kWh</b> que sobram abatem a sua conta de luz a ${brl2(S.tarifa)}. <b>Cada kWh trabalha uma vez, no lugar onde rende mais</b> — e é assim que se chega aos ${brl(C.ganhoMes)} por mês.
+      </p>
+    </div>
+    ${ficha([
+      [`Usina solar ${dec(S.kwp)} kWp`, brl2(S.invest), 'c-sol'],
+      [`Eletroposto ${esc(P.potenciaTxt)}`, brl2(P.invest), 'c-ele'],
+      ['<b style="color:#fff">Investimento total do projeto</b>', brl2(C.investTotal), '', true],
+    ])}
+  </div>
+${rodape('PARTE 3 &middot; O CONJUNTO', N())}</section>`);
+
+  // ── 18 · QUEM EXECUTA ────────────────────────────────────────────────────
+  const cred = (T.credenciais || []).map(c => `<li>${rich(c)}</li>`).join('\n        ');
+  const obra = (F.obra || []).slice(0, 4).map(o =>
+    `<figure><img src="${esc(o.src)}" alt="" style="height:300px"><figcaption><span class="et">${esc(o.etapa)}</span>${rich(o.txt)}</figcaption></figure>`).join('\n        ');
+  p.push(`<section class="slide amb">
+${barra()}${marca('amb', D)}
+  <div class="wrap" style="padding:66px 80px">
+    <div data-row style="display:flex;align-items:flex-end;gap:34px">
+      <div style="font-size:104px;font-weight:800;line-height:.8;color:#fff;opacity:.20">04</div>
+      <div style="flex:1">
+        <div class="eyebrow">PARTE 4 &middot; EXECUÇÃO</div>
+        <h2 class="title" style="font-size:50px">Equipe própria, do projeto à primeira recarga</h2>
+      </div>
+    </div>
+    <div data-row style="display:flex;gap:50px;margin-top:26px;align-items:flex-start">
+      <ul class="bullets tight" style="flex:1">
+        ${cred}
+      </ul>
+      <div class="tira tira4" style="flex:2;margin:0">
+        ${obra}
+      </div>
+    </div>
+    <p class="legenda" style="margin-top:18px">${rich(F.obraLegenda || 'Fotos de obras anteriores executadas pela equipe de montagem que atende este projeto.')}</p>
+  </div>
+${rodape('PARTE 4 &middot; EXECUÇÃO', N())}</section>`);
+
+  // ── 19 · ESCOPO E GARANTIAS ──────────────────────────────────────────────
+  const escopo = (T.escopo || []).map(e => `<li>${rich(e)}</li>`).join('\n          ');
+  p.push(`<section class="slide amb denso">
+${fundo(F.escopo, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
+  <div class="wrap">
+    <div class="eyebrow">ESCOPO CHAVE NA MÃO E GARANTIAS</div>
+    <h2 class="title">O que entregamos e o que fica assinado</h2>
+    <div class="rule" style="background:#fff"></div>
+    <div data-row style="display:flex;gap:40px;margin-top:6px;align-items:flex-start">
+      <div style="flex:1">
+        <div class="eyebrow" style="margin-bottom:16px">FICA POR NOSSA CONTA</div>
+        <ul class="bullets tight">
+          ${escopo}
+        </ul>
+      </div>
+      <div style="flex:1">
+        <div class="eyebrow" style="margin-bottom:16px">O QUE FICA ASSINADO</div>
+        ${ficha((D.garantias || []).map(g => [g.item, g.prazo, g.cor || '']))}
+      </div>
+    </div>
+    <p class="nota" style="margin-top:28px"><b>Chave na mão:</b> a coluna da esquerda inteira está no valor da página ${D._pgInvest || 20}, executada e homologada por nós, do projeto à primeira recarga. De você precisamos do acesso ao telhado nos dias de montagem e da documentação — que preenchemos e protocolamos.</p>
+  </div>
+${rodape('PARTE 4 &middot; EXECUÇÃO', N())}</section>`);
+
+  // ── 20 · INVESTIMENTO ────────────────────────────────────────────────────
+  D._pgInvest = N();
+  p.push(`<section class="slide amb">
+${fundo(F.investimento, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
+  <div class="wrap">
+    <div class="eyebrow">INVESTIMENTO</div>
+    <h2 class="title">O que custa o projeto inteiro</h2>
+    <div class="rule" style="background:#fff"></div>
+    <table class="ficha" style="margin-top:10px;font-size:26px">
+      <tr><td>Usina solar ${dec(S.kwp)} kWp — ${num(S.modulos)} módulos, ${esc(S.inversores)}</td><td class="c-sol">${brl2(S.invest)}</td></tr>
+      <tr><td>Eletroposto ${esc(P.potenciaTxt)} — ${num(P.carregadores)} carregador, ${num(P.bicos)} bicos</td><td class="c-ele">${brl2(P.invest)}</td></tr>
+    </table>
+    <div class="glass tint" style="margin-top:26px;border-color:#fff;padding:34px 46px">
+      <div data-row style="display:flex;align-items:center;gap:44px">
+        <div style="white-space:nowrap">
+          <div style="font-size:16px;letter-spacing:.26em;font-weight:700;color:rgba(255,255,255,.72);margin-bottom:12px">TOTAL — CHAVE NA MÃO</div>
+          <div style="font-size:76px;font-weight:800;line-height:1">${brl(C.investTotal)}<span style="font-size:30px;color:var(--muted);font-weight:600">,00</span></div>
+        </div>
+        <div style="flex:1;border-left:3px solid rgba(255,255,255,.22);padding-left:44px">
+          <div style="font-size:16px;letter-spacing:.26em;font-weight:700;color:#7CE500;margin-bottom:12px">E DEVOLVE POR MÊS</div>
+          <div style="font-size:60px;font-weight:800;line-height:1;color:#7CE500">${brl(C.ganhoMes)}</div>
+          <div style="font-size:21px;color:var(--muted);font-weight:600;margin-top:10px">o conjunto se paga em <b style="color:#fff">${esc(C.paybackTxt)}</b></div>
+        </div>
+      </div>
+    </div>
+    <div data-row style="display:flex;gap:34px;margin-top:30px;align-items:center">
+      <div class="glass plain" style="flex:1;padding:28px 34px">
+        <div class="eyebrow" style="margin-bottom:12px">FORMA DE PAGAMENTO</div>
+        <p class="lead" style="font-size:21px;margin:0">${rich(T.pagamento)}</p>
+      </div>
+      <div style="width:520px;text-align:center">
+        <span class="selo" style="border-color:#FFC400;color:#FFC400;font-size:19px">${esc(D.validade)}</span>
+        <p class="nota" style="margin-top:18px;font-size:18px">${rich(T.notaValidade)}</p>
+      </div>
+    </div>
+  </div>
+${rodape('PROPOSTA COMERCIAL &middot; ' + esc(D.data), N())}</section>`);
+
+  // ── 21 · CRONOGRAMA ──────────────────────────────────────────────────────
+  const cr = D.cronograma || {};
+  const etapas = (cr.etapas || []).map((e, i) =>
+    `<div class="et${e.forte ? ' forte' : ''}"><div class="dia">DIA ${num(e.dia)}</div><div class="n">${i + 1}</div>
+        <h5>${rich(e.titulo)}</h5><div class="dur">${num(e.dur)}<small>${esc(e.un)}</small></div></div>`).join('\n      ');
+  p.push(`<section class="slide amb denso cronograma">
+${fundo(F.cronograma, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
+  <div class="wrap">
+    <div class="eyebrow">CRONOGRAMA</div>
+    <h2 class="title">Do contrato à <span class="c-ele">primeira recarga</span></h2>
+    <div class="rule" style="background:#fff"></div>
+    <div class="trilho"></div>
+    <div class="crono" data-row>
+      ${etapas}
+    </div>
+    <div data-row style="display:flex;gap:34px;margin-top:34px;align-items:center">
+      <div class="glass" style="width:500px;padding:28px 36px;border-color:#7CE500">
+        <div style="font-size:62px;font-weight:800;line-height:1;color:#7CE500">${num(cr.totalDias)} <span style="font-size:26px;color:#fff;font-weight:600">dias</span></div>
+        <div style="font-size:20px;color:var(--muted);font-weight:600;margin-top:8px">do contrato à primeira recarga vendida</div>
+      </div>
+      <div style="flex:1"><p class="lead" style="font-size:22px;margin:0">${rich(cr.nota)}</p></div>
+    </div>
+    <div class="contato-crono" style="margin-top:28px;display:flex;align-items:center;gap:40px">
+      <div>
+        <div style="font-size:15px;letter-spacing:.30em;color:rgba(255,255,255,.55);font-weight:600">FALE COM</div>
+        <div style="font-size:38px;font-weight:800;margin-top:6px">${esc(D.vendedor)}</div>
+        <div style="font-size:27px;font-weight:600;color:#FFC400;margin-top:4px">${esc(D.contato)}</div>
+      </div>
+      <div style="flex:1;border-left:3px solid rgba(255,255,255,.2);padding-left:40px">
+        <p class="lead" style="font-size:22px;margin:0">${rich(T.fechamento)}</p>
+      </div>
+    </div>
+  </div>
+${rodape('PROPOSTA COMERCIAL &middot; ' + esc(D.data), N())}</section>`);
+
+  return p.join('\n');
+}
+
+// ── boot ───────────────────────────────────────────────────────────────────
+(function () {
+  const D = carregarDados();
+  if (!D) { document.getElementById('deck').innerHTML = '<div style="color:#fff;padding:60px;font:16px sans-serif">Sem dados: injete window.__DECK ou passe ?d=&lt;base64&gt;.</div>'; return; }
+  // as referências cruzadas precisam do número final da página; monta duas vezes,
+  // a primeira só para descobrir onde caíram o consolidado e o investimento
+  montar(D);
+  document.getElementById('deck').innerHTML = montar(D);
+  window.__DECK_PRONTO = true;
+})();
+</script>
+</body>
+</html>

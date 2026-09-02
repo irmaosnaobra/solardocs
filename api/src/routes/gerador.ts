@@ -1,5 +1,6 @@
-import { Router, Request, Response } from 'express';
+import express, { Router, Request, Response } from 'express';
 import { generateGeradorPdf } from '../controllers/pdfGeradorController';
+import { montarApresentacao } from '../controllers/apresentacaoController';
 import { trackEvent } from '../controllers/trackingGeradorController';
 import { gerarIdeiasSociais, roteirizarTema, roteirizarUpload } from '../services/agenda/socialIdeiasService';
 import { varrerAdLibrary, gerarVideoAvatar } from '../services/agenda/socialStudioStubs';
@@ -25,6 +26,11 @@ const router = Router();
 // é pesada (Puppeteer), mas controller verifica existência da proposta antes
 // de levantar o browser.
 router.get('/pdf/:codigo', generateGeradorPdf);
+
+// Monta a apresentação de projeto (21 páginas, padrão da casa) a partir dos
+// parâmetros do Simulador + orçamentos + fotos com legenda. O corpo carrega
+// imagens em base64, então tem limite próprio, maior que o 10mb global.
+router.post('/apresentacao', express.json({ limit: '40mb' }), montarApresentacao);
 
 // Tracking server-side de acessos e cliques (lê IP + UA da request, resolve geo).
 router.post('/track', trackEvent);
