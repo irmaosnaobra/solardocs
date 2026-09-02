@@ -103,3 +103,49 @@ export function emReais(valor: number): string {
     minimumFractionDigits: 2,
   });
 }
+
+/**
+ * O WhatsApp da central. É o número que atende quem chega pelo botão flutuante
+ * — o que só quer ser chamado, sem ter escolhido modelo ainda.
+ *
+ * Fora do rodízio de propósito: `CONSULTORES` é quem recebe o lead COM modelo,
+ * código e preço escritos. Misturar os dois faria o contador do rodízio andar
+ * sem que ninguém da lista tivesse recebido a conversa, e o próximo cliente de
+ * verdade pularia um consultor.
+ */
+export const ATENDIMENTO = '5534998165040';
+
+/** (34) 99816-5040 — como a pessoa lê, quando o número aparece escrito. */
+export function telefoneLegivel(digitos: string): string {
+  const so = digitos.replace(/\D/g, '').replace(/^55/, '');
+  if (so.length < 10 || so.length > 11) return digitos;
+  const ddd = so.slice(0, 2);
+  const resto = so.slice(2);
+  return `(${ddd}) ${resto.slice(0, resto.length - 4)}-${resto.slice(-4)}`;
+}
+
+/**
+ * A mensagem de quem pediu contato pelo botão flutuante.
+ *
+ * O telefone digitado entra só no TEXTO, nunca no destino do wa.me: o destino é
+ * sempre `ATENDIMENTO`. Número de visitante em campo de endereço é como se
+ * manda mensagem para o lugar errado.
+ */
+export function linkAtendimento(dados: {
+  nome: string;
+  telefone: string;
+  cidade?: string | null;
+  campanha?: string | null;
+  url?: string | null;
+}): string {
+  const linhas = [
+    `Olá! Sou ${dados.nome} e vi o site da ${LOJA.nomeCurto}. Quero falar sobre as bikes elétricas.`,
+    '',
+    `Nome: ${dados.nome}`,
+    `Telefone: ${telefoneLegivel(dados.telefone)}`,
+  ];
+  if (dados.cidade) linhas.push(`Cidade: ${dados.cidade}`);
+  if (dados.campanha) linhas.push(`Veio de: ${dados.campanha}`);
+  if (dados.url) linhas.push('', dados.url);
+  return `https://wa.me/${ATENDIMENTO}?text=${encodeURIComponent(linhas.join('\n'))}`;
+}

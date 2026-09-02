@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 
+import { Atendimento } from '../components/Atendimento.tsx';
 import { Vitrifoto } from '../components/Vitrifoto.tsx';
 import { Vitrine } from '../components/Vitrine.tsx';
 import { basesDoCatalogo, catalogoPublico, marcasDe, paraCartao } from '../lib/catalogo.ts';
@@ -85,6 +86,12 @@ export default async function Pagina() {
         Catálogo lido do nosso fornecedor em {atualizado}
         {meta.origem === 'reserva' ? ' (última leitura bem-sucedida).' : '.'}
       </p>
+
+      {/* Só aqui, não no layout: na página do modelo o `Fechamento` já leva o
+          lead para o consultor do rodízio, com modelo e preço escritos, e um
+          botão flutuante do lado tiraria conversa dessa fila para um número
+          que não entra no revezamento. E o layout também embrulha o /painel. */}
+      <Atendimento />
     </>
   );
 }
