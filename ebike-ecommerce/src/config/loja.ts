@@ -117,7 +117,10 @@ export const ATENDIMENTO = '5534998165040';
 
 /** (34) 99816-5040 — como a pessoa lê, quando o número aparece escrito. */
 export function telefoneLegivel(digitos: string): string {
-  const so = digitos.replace(/\D/g, '').replace(/^55/, '');
+  // O 55 só é país quando sobra DDD + número embaixo dele. Cortar sempre
+  // estragaria todo telefone de Santa Maria, que é DDD 55.
+  const cru = digitos.replace(/\D/g, '');
+  const so = cru.length >= 12 && cru.startsWith('55') ? cru.slice(2) : cru;
   if (so.length < 10 || so.length > 11) return digitos;
   const ddd = so.slice(0, 2);
   const resto = so.slice(2);

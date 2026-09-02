@@ -61,7 +61,10 @@ export function Atendimento() {
           uma setinha "Detalhes" no lugar. Quem o coloca acima do botão na tela
           é o `absolute bottom-full`, e é acima que ele cabe no celular sem
           ficar embaixo da mão de quem tocou. */}
-      <div className="absolute right-0 bottom-full mb-3 w-[min(20rem,calc(100vw-2rem))] origin-bottom-right">
+      {/* `svh` e não `vh`: no celular a barra do navegador entra e sai, e com
+          `vh` o painel é medido pela tela GRANDE e some por baixo. O desconto é
+          o botão, a margem e a folga de cima; o que não couber rola dentro. */}
+      <div className="absolute right-0 bottom-full mb-3 max-h-[calc(100svh-7rem)] w-[min(20rem,calc(100vw-2rem))] overflow-y-auto overscroll-contain">
         <form
           // Formulário HTML puro não ganha o basePath sozinho, igual à foto.
           action={`${BASE_PATH}/contato`}
@@ -110,6 +113,11 @@ export function Atendimento() {
               required
               inputMode="tel"
               maxLength={20}
+              // Dez dígitos é o piso do /contato. Sem esta trava, quem digita o
+              // número sem o DDD passa pelo `required`, é recusado no servidor e
+              // volta para a loja sem entender por quê — beco sem saída.
+              pattern="(?:\D*\d){10,}\D*"
+              title="Digite o DDD e o número, como (34) 99816-5040"
               autoComplete="tel"
               placeholder="(34) 99999-9999"
               className="tabular mt-1 h-12 w-full rounded-xl border border-borda-forte bg-white px-3 text-base text-tinta placeholder:text-fraco focus:border-tinta focus:outline-none"
