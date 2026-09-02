@@ -1,0 +1,109 @@
+name: A conta da Vercel esta viva?
+
+# Por que este arquivo existe: em 01/09/2026 a conta da Vercel foi desligada por
+# pagamento (HTTP 402 DEPLOYMENT_DISABLED) e TUDO parou — API, crons, landings,
+# checkout. Ninguem soube por 5 horas. Foi a segunda vez.
+#
+# Nao adianta o alerta morar dentro do que cai: os avisos por e-mail e os
+# relatorios diarios rodam na propria API, entao morrem junto. Os crons deste
+# repositorio tambem nao denunciam, porque `curl` sem --fail sai com codigo 0
+# mesmo tomando 402: as Actions ficaram VERDES a noite inteira chamando uma API
+# morta.
+#
+# Este roda no GitHub, que e um lugar diferente, e abre uma issue quando cai.
+# Issue nova = e-mail do GitHub pra quem segue o repositorio.
+# Quando volta, ela se fecha sozinha — e chega o e-mail avisando que voltou.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  pulso:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Medir o pulso da API e do site
+        id: pulso
+        run: |
+          bate() {
+            curl -s -o /dev/null -w '%{http_code}' --max-time 25 "$1" || echo "000"
+          }
+          API=$(bate "https://api.solardoc.app/")
+          APP=$(bate "https://solardoc.app/")
+          echo "api=$API" >> "$GITHUB_OUTPUT"
+          echo "app=$APP" >> "$GITHUB_OUTPUT"
+          echo "API https://api.solardoc.app/ -> $API"
+          echo "APP https://solardoc.app/     -> $APP"
+
+          # 000 = nem conectou. 402 = conta desligada por pagamento.
+          # 5xx = plataforma quebrada. Qualquer um dos tres e queda.
+          caiu=nao
+          for c in "$API" "$APP"; do
+            case "$c" in
+              2*|3*) ;;
+              *) caiu=sim ;;
+            esac
+          done
+          echo "caiu=$caiu" >> "$GITHUB_OUTPUT"
+
+          motivo="resposta inesperada (API $API / site $APP)"
+          if [ "$API" = "402" ] || [ "$APP" = "402" ]; then
+            motivo="CONTA DESLIGADA POR PAGAMENTO — 402 DEPLOYMENT_DISABLED. Va em vercel.com, time aioros, Settings > Billing, e quite a fatura em aberto."
+          elif [ "$API" = "000" ] && [ "$APP" = "000" ]; then
+            motivo="nao respondeu nada (DNS, rede, ou a Vercel inteira fora)"
+          fi
+          echo "motivo=$motivo" >> "$GITHUB_OUTPUT"
+
+      - name: Abrir a issue se caiu (uma so, sem spam)
+        if: steps.pulso.outputs.caiu == 'sim'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          API_CODE: ${{ steps.pulso.outputs.api }}
+          APP_CODE: ${{ steps.pulso.outputs.app }}
+          MOTIVO: ${{ steps.pulso.outputs.motivo }}
+        run: |
+          ABERTA=$(gh issue list --label fora-do-ar --state open --json number --jq 'length')
+          if [ "$ABERTA" != "0" ]; then
+            echo "Ja existe issue aberta. Nao abro outra."
+            exit 0
+          fi
+          gh label create fora-do-ar --color B60205 --description "Producao fora do ar" --force || true
+          {
+            echo "**Tudo parado.** O pulso automatico nao conseguiu falar com a producao."
+            echo
+            echo "| endereco | resposta |"
+            echo "|---|---|"
+            echo "| https://api.solardoc.app/ | \`$API_CODE\` |"
+            echo "| https://solardoc.app/ | \`$APP_CODE\` |"
+            echo
+            echo "**Provavel causa:** $MOTIVO"
+            echo
+            echo "Enquanto isso esta parado: os robos de WhatsApp, os lembretes de reuniao,"
+            echo "o checkout, os webhooks de pagamento (Kiwify/Stripe/Asaas) e todas as"
+            echo "landings. Webhook que toma erro pode nao ser reentregue nunca."
+            echo
+            echo "Esta issue fecha sozinha assim que a producao voltar a responder."
+            echo
+            echo "_Aberta pelo workflow .github/workflows/vercel-vivo.yml_"
+          } > corpo.md
+          gh issue create \
+            --label fora-do-ar \
+            --title "FORA DO AR: solardoc.app nao esta respondendo" \
+            --body-file corpo.md
+
+      - name: Fechar a issue se voltou
+        if: steps.pulso.outputs.caiu == 'nao'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          API_CODE: ${{ steps.pulso.outputs.api }}
+          APP_CODE: ${{ steps.pulso.outputs.app }}
+        run: |
+          for n in $(gh issue list --label fora-do-ar --state open --json number --jq '.[].number'); do
+            gh issue comment "$n" --body "Voltou. API \`$API_CODE\`, site \`$APP_CODE\`. Agora confira o que caiu na janela: pagamentos, lembretes de reuniao e a fila do WhatsApp."
+            gh issue close "$n"
+          done
