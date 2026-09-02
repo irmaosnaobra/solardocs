@@ -255,6 +255,26 @@ export async function dispararIntersolar(): Promise<ResultadoIntersolar> {
   if ((process.env.INTERSOLAR_OFF || '').trim() === '1') {
     return { ...base, motivo: 'parada por INTERSOLAR_OFF=1' };
   }
+  // A FEIRA ACABA SOZINHA — o convite tinha que acabar junto.
+  //
+  // Em 02/09/2026 esta campanha ainda estava convidando cliente pagante para uma
+  // feira encerrada em 27/08: 45 pessoas já tinham recebido e ~24 seguiam na fila,
+  // com o último envio às 13h19 daquele dia. A data estava escrita no comentário do
+  // topo deste arquivo desde o primeiro commit, e em lugar nenhum no código.
+  //
+  // O convite escorre por dias de propósito (4/h no teto da Carla, janela diurna,
+  // sem domingo), então "mandei tudo no mesmo dia" nunca foi verdade aqui: uma fila
+  // que leva mais de uma semana para drenar OBRIGATORIAMENTE atravessa o evento.
+  // Depender de alguém lembrar de pôr INTERSOLAR_OFF=1 no dia certo é depender do
+  // esquecimento — e o esquecimento ganhou por seis dias.
+  //
+  // Convite para data que passou nao e so inutil: ele diz ao cliente que paga que
+  // ninguém aqui está olhando. Fecha no fim do último dia da feira, no fuso de
+  // Brasília, porque é o fuso em que a feira aconteceu.
+  const ULTIMO_DIA_BRT = Date.parse('2026-08-27T23:59:59-03:00');
+  if (Date.now() > ULTIMO_DIA_BRT) {
+    return { ...base, motivo: 'a feira acabou em 27/08/2026 — convite encerrado' };
+  }
   if (!fila.length) return { ...base, restantes: 0, motivo: 'ninguém pendente' };
   if (!dentroDaJanelaDiurna()) return { ...base, motivo: 'fora da janela diurna' };
   if (!(await dentroDoTetoCarla())) return { ...base, motivo: 'teto/espaçamento da linha' };
