@@ -448,6 +448,14 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
       paginas_estourando: estouro,
     });
   } catch (e: any) {
+    // Corpo malformado é erro de quem chamou, não da API: 400. Sem essa distinção
+    // todo campo esquecido no formulário vira um 500 no monitoramento.
+    if (e instanceof z.ZodError) {
+      const onde = e.issues.map(i => i.path.join('.')).filter(Boolean).join(', ');
+      console.warn('[apresentacao] corpo invalido:', onde);
+      res.status(400).json({ error: `Faltou preencher: ${onde || 'campos obrigatórios'}` });
+      return;
+    }
     console.error('[apresentacao] falhou em', etapa, e?.message);
     res.status(500).json({ error: `Falhou em ${etapa}: ${e?.message || 'erro'}` });
   }
