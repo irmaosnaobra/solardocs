@@ -9,7 +9,7 @@ import { Beacon } from '../components/Beacon.tsx';
 import { Logo } from '../components/Logo.tsx';
 import { Pixel } from '../components/Pixel.tsx';
 import { EMPRESA } from '../config/empresa.ts';
-import { LOJA } from '../config/loja.ts';
+import { ATENDIMENTO, LOJA, telefoneLegivel } from '../config/loja.ts';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -73,10 +73,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <p className="mt-1">{EMPRESA.endereco}</p>
               <p className="mt-1">
                 {/* Era um mailto para a caixa aiorosgroup@ — o endereço soletrava
-                    o nome que saiu do site. /falar é o WhatsApp com rodízio. */}
-                <Link href="/falar" prefetch={false} className="toque hover:text-mata">
-                  Falar com a gente no WhatsApp
-                </Link>
+                    na tela o nome que saiu do site. Aqui vai a CENTRAL, não a
+                    rota /falar: /falar exige `?bike=` e, sem modelo escolhido,
+                    devolve 307 para a home — um link de contato que não contata.
+                    wa.me direto também sobrevive ao bundle quebrado. */}
+                <a
+                  href={`https://wa.me/${ATENDIMENTO}`}
+                  className="toque hover:text-mata"
+                  rel="noopener"
+                >
+                  WhatsApp {telefoneLegivel(ATENDIMENTO)}
+                </a>
               </p>
               <p className="mt-2">
                 Imagens e especificações fornecidas pelo fabricante. A quantidade em estoque é
