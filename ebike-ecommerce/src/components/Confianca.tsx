@@ -29,9 +29,10 @@ function Check() {
  * dúvida "posso confiar nisso?" aparece no segundo em que a pessoa olha o preço
  * de oito mil reais, não depois de rolar a página inteira.
  *
- * A primeira linha é a mais importante de todas. Ela liga a marca à empresa:
- * quem consultar o CNPJ vai achar AIOROS LTDA, e sem essa frase a consulta —
- * que a loja QUER que aconteça — vira suspeita em vez de confirmação.
+ * A primeira linha liga a marca à empresa que fatura. O CNPJ NÃO entra aqui:
+ * por decisão do Thiago (03/09) ele só aparece no contrato/nota do fechamento.
+ * O que sustenta a confiança nesta tela é a nota fiscal, o prazo de garantia e
+ * o preço fechado — não o número.
  */
 export function Confianca() {
   return (
@@ -41,8 +42,7 @@ export function Confianca() {
       <p className="mt-1.5 text-xs leading-relaxed text-suave">
         <strong className="font-semibold text-tinta">{LOJA.nomeCurto}</strong> é a marca de
         bicicletas e scooters elétricas da{' '}
-        <strong className="text-tinta">{EMPRESA.razaoSocial}</strong>, CNPJ{' '}
-        <span className="tabular">{EMPRESA.cnpj}</span>, em {EMPRESA.cidade}. Pode consultar.
+        <strong className="text-tinta">{EMPRESA.razaoSocial}</strong>, em {EMPRESA.cidade}.
       </p>
 
       <ul className="mt-3 flex flex-col gap-2.5">

@@ -1,27 +1,23 @@
 /**
- * Quem vende. Isto não é enfeite de rodapé: é obrigação.
+ * Quem vende.
  *
  * O Decreto 7.962/2013 (art. 2º) manda todo site de venda mostrar, em local de
- * destaque, o NOME EMPRESARIAL, o CNPJ e o endereço físico e eletrônico do
- * fornecedor. A loja ficou no ar sem nada disso.
+ * destaque, o nome empresarial, o CNPJ e o endereço físico e eletrônico do
+ * fornecedor. O CNPJ foi RETIRADO do site por decisão do Thiago (03/09/2026):
+ * ele só aparece no contrato/nota do fechamento, nunca na vitrine. É uma
+ * escolha comercial consciente e ela deixa a loja fora desse item do decreto —
+ * o campo não existe mais neste arquivo justamente para que ninguém reponha o
+ * número numa tela sem querer.
  *
- * E tem o lado comercial, que é ainda mais direto: quem vai gastar oito mil
- * reais numa marca criada ontem procura o CNPJ. Se achar uma empresa cujo ramo
- * declarado é energia elétrica e nenhuma explicação, desiste — a consulta que
- * era para tranquilizar vira suspeita. Por isso o texto AMARRA as duas coisas:
- * Corrente é a marca, AIOROS LTDA é a empresa. Uma frase, e a consulta passa a
- * confirmar em vez de assustar.
- *
- * Dados conferidos na base pública da Receita em 31/08/2026 (CNPJ ativo desde
- * 12/11/2025). O CNAE 4789-0/99 — comércio varejista de outros produtos —
- * cobre a venda de bicicleta e scooter, então a nota fiscal sai.
+ * O que continua aqui é o mínimo que identifica o vendedor: razão social,
+ * endereço físico e endereço eletrônico. A razão social precisa ficar porque é
+ * ela que emite a nota fiscal — "vendido e faturado por" sem nome não diz nada.
  *
  * De propósito NÃO entra aqui o capital social: R$ 30.000 ao lado de um
  * triciclo de R$ 14.000 argumenta contra a loja, não a favor.
  */
 export const EMPRESA = {
   razaoSocial: 'AIOROS LTDA',
-  cnpj: '63.636.043/0001-88',
   endereco: 'Rua Ana Godoy de Sousa, 890 — Santa Mônica, Uberlândia/MG, 38408-290',
   cidade: 'Uberlândia — MG',
   /** Endereço eletrônico. O Decreto 7.962/2013 exige junto com o físico. */
@@ -41,7 +37,7 @@ export const EMPRESA = {
 export const DIREITOS = [
   {
     titulo: 'Nota fiscal em toda venda',
-    texto: `Vendido e faturado por ${EMPRESA.razaoSocial}, CNPJ ${EMPRESA.cnpj}. Você recebe a nota junto com a bike.`,
+    texto: `Vendido e faturado por ${EMPRESA.razaoSocial}. Você recebe a nota junto com a bike.`,
   },
   {
     titulo: '7 dias para desistir',

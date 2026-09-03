@@ -62,14 +62,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <p className="mt-3 text-sm text-suave">{LOJA.slogan}</p>
             </div>
 
-            {/* Nome empresarial, CNPJ e endereço não são enfeite: o Decreto
-                7.962/2013 obriga todo site de venda a mostrá-los em destaque. */}
+            {/* Identificação do vendedor: nome empresarial e endereço. O CNPJ
+                saiu do site por decisão do Thiago (03/09) — ele só aparece no
+                contrato/nota do fechamento. Não repor aqui. */}
             <div className="max-w-md text-xs leading-relaxed text-suave">
               <p>
                 {LOJA.nomeCurto} é a marca de bicicletas e scooters elétricas da{' '}
-                <strong className="font-semibold text-tinta">{EMPRESA.razaoSocial}</strong>
-                {' — '}
-                CNPJ <span className="tabular">{EMPRESA.cnpj}</span>.
+                <strong className="font-semibold text-tinta">{EMPRESA.razaoSocial}</strong>.
               </p>
               <p className="mt-1">{EMPRESA.endereco}</p>
               <p className="mt-1">
