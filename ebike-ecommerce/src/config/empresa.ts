@@ -14,12 +14,17 @@
  *
  * O e-mail também saiu, pelo mesmo motivo: `aiorosgroup@gmail.com` soletra na
  * tela exatamente o nome que era para não aparecer. O canal de contato da loja
- * passa a ser só o WhatsApp (rota /falar, que já faz o rodízio de consultor).
- * No dia em que existir uma caixa neutra — contato@irmaosnaobra.com.br hoje tem
- * MX nulo e devolve tudo — é só recolocar aqui e no rodapé.
+ * é o WhatsApp da central. No dia em que existir uma caixa neutra —
+ * contato@irmaosnaobra.com.br hoje tem MX nulo e devolve tudo — é só recolocar.
  *
- * O que sobra é o que uma loja precisa para ser localizável: o nome pelo qual
- * o cliente nos conhece e o endereço físico.
+ * E o ENDEREÇO saiu em 03/09, no mesmo pedido ("todos os sites, evitar o
+ * endereço também"). Sobrou a CIDADE, e de propósito: a página do frete já diz
+ * de qual base a bike sai ("Sai de Uberlândia — MG"), porque quem vai pagar
+ * frete precisa saber de onde ele vem. Esconder a cidade no rodapé enquanto a
+ * tela do frete a anuncia não protegeria nada e deixaria a loja sem lugar
+ * nenhum no mundo.
+ *
+ * O que sobra, então, é só a marca e a cidade.
  *
  * De propósito NÃO entra aqui o capital social: R$ 30.000 ao lado de um
  * triciclo de R$ 14.000 argumenta contra a loja, não a favor.
@@ -27,7 +32,7 @@
 export const EMPRESA = {
   /** Como a loja se apresenta. NÃO é a razão social — essa fica no contrato. */
   nome: 'Irmãos na Obra',
-  endereco: 'Rua Ana Godoy de Sousa, 890 — Santa Mônica, Uberlândia/MG, 38408-290',
+  /** Só a cidade. O endereço com rua, número e CEP não existe mais aqui. */
   cidade: 'Uberlândia — MG',
 } as const;
 

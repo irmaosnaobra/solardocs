@@ -62,15 +62,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <p className="mt-3 text-sm text-suave">{LOJA.slogan}</p>
             </div>
 
-            {/* Identificação do vendedor pela MARCA, mais o endereço. Razão
-                social e CNPJ saíram por decisão do Thiago (03/09) — em site e
-                LP é Irmãos na Obra, o resto fica no contrato. Não repor. */}
+            {/* Identificação do vendedor pela MARCA e nada além. Razão social,
+                CNPJ, e-mail e endereço saíram por decisão do Thiago (03/09) —
+                em site e LP é Irmãos na Obra, o resto fica no contrato. A
+                cidade fica porque a tela do frete já diz de onde a bike sai.
+                Não repor nenhum dos quatro. */}
             <div className="max-w-md text-xs leading-relaxed text-suave">
               <p>
                 {LOJA.nomeCurto} é a marca de bicicletas e scooters elétricas da{' '}
                 <strong className="font-semibold text-tinta">{EMPRESA.nome}</strong>.
               </p>
-              <p className="mt-1">{EMPRESA.endereco}</p>
               <p className="mt-1">
                 {/* Era um mailto para a caixa aiorosgroup@ — o endereço soletrava
                     na tela o nome que saiu do site. Aqui vai a CENTRAL, não a
