@@ -158,8 +158,12 @@ const bodySchema = z.object({
     aguas: z.array(z.object({ placas: z.number(), onde: z.string() })).default([]),
     incluido: listaTxt,
   }).default({} as any),
+  // Uma etapa nao tem prazo: tem ORDEM e DONO. 'nos' | 'seu' | 'dist' — e sao os
+  // dois ultimos que fazem a pagina valer, porque mostram onde o relogio nao e nosso.
   cronograma: z.array(z.object({
-    titulo: z.string(), dur: z.number(), un: z.string(), dias: z.number(),
+    titulo: z.string(), texto: z.string().default(''),
+    dono: z.enum(['nos', 'seu', 'dist', 'nos_seu', 'dist_nos']).default('nos'),
+    grupo: z.string().default(''),
   })).default([]),
   garantias: z.array(z.object({ item: z.string(), prazo: z.string() })).default([]),
   escopo: listaTxt, credenciais: listaTxt, equipamento: listaTxt, pontoCards: listaTxt,
@@ -184,7 +188,7 @@ const bodySchema = z.object({
   textos: z.object({
     terrenoHoje: z.string().default(''), pontoFecho: z.string().default(''),
     pagamento: z.string().default(''), notaValidade: z.string().default(''),
-    fechamento: z.string().default(''),
+    fechamento: z.string().default(''), fechoTitulo: z.string().default(''),
   }).default({} as any),
   fotos: z.array(fotoSchema).max(20).default([]),
   arquivos: z.array(arquivoSchema).max(8).default([]),
@@ -204,6 +208,7 @@ const ESPACOS = [
   { id: 'obra2',       o: 'Tira de obra, etapa 2. Forma, ferragem, estrutura.' },
   { id: 'obra3',       o: 'Tira de obra, etapa 3. Concretagem, base pronta, eletrodutos.' },
   { id: 'obra4',       o: 'Tira de obra, etapa 4. Quadro montado, acabamento, entrega.' },
+  { id: 'fecho',       o: 'Fundo da ultima pagina. Carro carregando, por do sol, algo que fecha.' },
 ];
 
 // ── a IA ──────────────────────────────────────────────────────────────────
@@ -473,7 +478,30 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
     });
 
     const semSol = computeEletro({ ...E, custoKwh: S.tarifa || E.custoKwh });
-    const acumDias = (() => { let t = 0; return body.cronograma.map(c => ({ ...c, dia: (t += c.dias) })); })();
+    // ── O CRONOGRAMA, SEM DATA ──────────────────────────────────────────
+    // O nome da distribuidora vem da conta de luz do cliente. E texto livre vindo da
+    // extracao ("Energisa Mato Grosso do Sul") e o selo tem 11px: fica a primeira
+    // palavra, que e a marca.
+    const distNome = (body.conta.concessionaria || '').trim().split(/\s+/)[0]
+      .toUpperCase().slice(0, 12) || 'DISTRIBUIDORA';
+    // `txt` e o selo do cartao; `rotuloCurto` e como a nota chama esse dono na frase.
+    const DONOS: Record<string, { txt: string; classe: string; rotuloCurto: string; nosso: boolean }> = {
+      nos:      { txt: 'NOSSO',                 classe: 'nos',  rotuloCurto: 'nossa',  nosso: true  },
+      seu:      { txt: 'SEU',                   classe: 'seu',  rotuloCurto: 'sua',    nosso: false },
+      dist:     { txt: distNome,                classe: 'dist', rotuloCurto: distNome, nosso: false },
+      nos_seu:  { txt: 'NOSSO · SEU',         classe: 'nos',  rotuloCurto: 'nossa',  nosso: true  },
+      dist_nos: { txt: distNome + ' · NOSSO', classe: 'dist', rotuloCurto: distNome, nosso: false },
+    };
+    const etapas = body.cronograma
+      .filter(c => (c.titulo || '').trim())
+      .map((c, i) => ({
+        n: i + 1, titulo: c.titulo, texto: c.texto, grupo: c.grupo,
+        dono: DONOS[c.dono] || DONOS.nos,
+        // marco = a etapa que o consultor ja destacou escrevendo em **negrito** no
+        // texto dela. O dado ja existe; inventar uma coluna so para isso seria pedir
+        // duas vezes a mesma coisa.
+        forte: /\*\*[^*]+\*\*/.test(c.texto || ''),
+      }));
     // um texto escrito no formulário sempre ganha do que a IA propôs
     const txt = (meu: string, dela: string) => (meu && meu.trim()) ? meu.trim() : (dela || '');
     const lista = (minha: any[], dela: any[]) => (minha && minha.length) ? minha : (dela || []);
@@ -571,10 +599,14 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
         sobra: EN.sobra, descricao: EN.descricao,
       } : null,
       cenarios: temPosto && E.carros > 0 ? cenarios(E, calc) : null,
-      cronograma: acumDias.length ? {
-        totalDias: acumDias[acumDias.length - 1].dia,
-        etapas: acumDias.map(c => ({ dia: c.dia, titulo: c.titulo, dur: c.dur, un: c.un, forte: c.dur >= 30 })),
-        nota: 'A **logística roda em paralelo** com a análise: o pedido sai no fechamento e o material chega antes da aprovação. Nós protocolamos e acompanhamos os dois pedidos na distribuidora, a geração e a carga.',
+      cronograma: etapas.length ? {
+        etapas,
+        titulo: `O caminho inteiro, em ${etapas.length} etapas`,
+        // so os selos que aparecem de verdade entram na legenda
+        legenda: ['nos', 'seu', 'dist']
+          .filter(k => etapas.some(e => e.dono.classe === DONOS[k].classe))
+          .map(k => DONOS[k]),
+        nota: notaCronograma(etapas),
       } : null,
       garantias: body.garantias.map(g => ({
         item: g.item, prazo: g.prazo,
@@ -629,11 +661,12 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
           temPosto && '**Movimento extra no seu negócio.** Quem carrega fica parado ali. Isso não virou receita aqui.',
           temSolar && temPosto && '**Crédito de energia injetada.** A geração acima do seu consumo só foi contada como combustível do posto, nunca como economia.',
           EN.invest > 0 && EN.sobra && `**${EN.sobra} que sobram** na entrada nova. É capacidade sua para crescer, e nenhuma linha desta conta remunera isso.`,
-          '**Prazo de obra.** Quem manda no cronograma é o parecer de acesso da distribuidora.',
+          `**Prazo de obra.** Quem manda no cronograma é o parecer de acesso da ${
+            body.conta.concessionaria ? body.conta.concessionaria.trim() : 'distribuidora'}.`,
         ].filter(Boolean) as string[],
         pagamento: body.textos.pagamento,
         notaValidade: body.textos.notaValidade,
-        fechamento: body.textos.fechamento,
+        fechamento: body.textos.fechamento, fechoTitulo: body.textos.fechoTitulo,
       },
     };
 
@@ -650,7 +683,7 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
       temSolar && !S.aguas.length && !porEspaco.layout && 'o layout das placas',
       !porEspaco.produto && 'a página do equipamento (falta a foto)',
       !body.garantias.length && !body.escopo.length && 'escopo e garantias',
-      !acumDias.length && 'o cronograma',
+      !etapas.length && 'o cronograma',
       !body.mercado.length && !deck.textos.pontoCards.length && 'a página de mercado',
       !body.credenciais.length && !obra.length && 'quem executa',
     ].filter(Boolean) as string[];
@@ -683,6 +716,49 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
     console.error('[apresentacao] falhou em', etapa, e?.message);
     res.status(500).json({ error: `Falhou em ${etapa}: ${e?.message || 'erro'}` });
   }
+}
+
+// ── a nota do cronograma, DERIVADA dos donos ──────────────────────────────
+type Etapa = { n: number; dono: { classe: string; rotuloCurto: string; nosso: boolean } };
+
+/**
+ * A frase que explica por que a página não tem data. Ela é montada a partir de quem
+ * é dono de cada etapa, e nunca escrita à mão: bastaria um consultor trocar um dono
+ * na aba para a página passar a se contradizer em silêncio — dizendo "8 dependem de
+ * nós" numa lista onde já são 9.
+ */
+function notaCronograma(etapas: Etapa[]) {
+  const nossas = etapas.filter(e => e.dono.nosso);
+  const fora = etapas.filter(e => !e.dono.nosso);
+  if (!fora.length) {
+    return '**Não há uma data nesta página, e isso é de propósito.** Todas as ' +
+      `${etapas.length} etapas dependem de nós, e a gente cumpre. A data cravada sai no ` +
+      'contrato, quando o escopo estiver fechado.';
+  }
+  // Agrupa pela CLASSE, e não pelo rótulo: 'ENERGISA' e 'ENERGISA · NOSSO' são a mesma
+  // pessoa segurando o relógio, e listá-las separadas fazia a frase dizer duas vezes
+  // a mesma coisa com números diferentes.
+  const porClasse = new Map<string, { rot: string; ns: number[] }>();
+  fora.forEach(e => {
+    const at = porClasse.get(e.dono.classe) || { rot: e.dono.rotuloCurto, ns: [] };
+    at.ns.push(e.n);
+    porClasse.set(e.dono.classe, at);
+  });
+  const lista = (ns: number[]) => ns.length === 1 ? `a etapa ${ns[0]}`
+    : `as etapas ${ns.slice(0, -1).join(', ')} e ${ns[ns.length - 1]}`;
+  const trechos = [...porClasse].map(([classe, { rot, ns }]) => classe === 'seu'
+    ? `${lista(ns)} ${ns.length === 1 ? 'depende' : 'dependem'} de você`
+    : `${lista(ns)} ${ns.length === 1 ? 'é' : 'são'} da ${rot}`);
+  // Depois de QUAL etapa dá para cravar a data: a última da distribuidora que não é a
+  // última do cronograma — é o parecer de acesso que abre o calendário, e não a
+  // energização lá no fim, nem a papelada do cliente lá no começo.
+  const daDist = fora.filter(e => e.dono.classe === 'dist');
+  const meio = daDist.filter(e => e.n < etapas.length);
+  const trava = (meio.length ? meio : daDist).slice(-1)[0] || fora[fora.length - 1];
+  return '**Não há uma data nesta página, e isso é de propósito.** Das ' +
+    `${etapas.length} etapas, ${nossas.length} dependem de nós e a gente cumpre. ` +
+    `As outras não: ${trechos.join(', e ')}. **Prometer prazo que não controlamos seria ` +
+    `desonesto — depois da etapa ${trava.n} a gente crava a data.**`;
 }
 
 // ── auxiliares de texto ───────────────────────────────────────────────────

@@ -680,36 +680,90 @@ ${fundo(F.investimento, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
   </div>
 ${rodape('PROPOSTA COMERCIAL &middot; ' + esc(D.data), N())}</section>`);
 
-  // ── 21 · CRONOGRAMA ──────────────────────────────────────────────────────
+  // ── O CRONOGRAMA: A ORDEM E O DONO, NUNCA A DATA ★ ────────────────
+  // Esta página deliberadamente NÃO tem prazo. Algumas etapas não são nossas — o
+  // parecer de acesso da distribuidora é que define o calendário real, e prometer data
+  // que não controlamos seria vender o que não se pode entregar. O que a página
+  // acrescenta é QUEM controla cada etapa: assim ela mostra onde o relógio não é nosso
+  // sem acusar ninguém. Os grupos são DERIVADOS do campo `grupo`, na ordem em que
+  // aparecem — cronograma de 9 ou de 13 etapas monta igual, sem lista fixa.
   const cr = D.cronograma || {};
-  const etapas = (cr.etapas || []).map((e, i) =>
-    `<div class="et${e.forte ? ' forte' : ''}"><div class="dia">DIA ${num(e.dia)}</div><div class="n">${i + 1}</div>
-        <h5>${rich(e.titulo)}</h5><div class="dur">${num(e.dur)}<small>${esc(e.un)}</small></div></div>`).join('\n      ');
-  if (D.cronograma && tem(D.cronograma.etapas)) p.push(`<section class="slide amb denso cronograma">
+  if (tem(cr.etapas)) {
+    const selo = d => `<span class="quem quem-${d && d.classe || 'nos'}">${esc(d && d.txt || 'NOSSO')}</span>`;
+    const fases = [];
+    cr.etapas.forEach(e => {
+      const g = (e.grupo || '').trim();
+      const ultima = fases[fases.length - 1];
+      if (ultima && ultima.g === g) ultima.itens.push(e);
+      else fases.push({ g, itens: [e] });
+    });
+    p.push(`<section class="slide amb denso cronograma">
 ${fundo(F.cronograma, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
   <div class="wrap">
-    <div class="eyebrow">CRONOGRAMA</div>
-    <h2 class="title">Do contrato à <span class="c-ele">primeira recarga</span></h2>
-    <div class="rule" style="background:#fff"></div>
-    <div class="trilho"></div>
-    <div class="crono" data-row>
-      ${etapas}
-    </div>
-    <div data-row style="display:flex;gap:34px;margin-top:34px;align-items:center">
-      <div class="glass" style="width:500px;padding:28px 36px;border-color:#7CE500">
-        <div style="font-size:62px;font-weight:800;line-height:1;color:#7CE500">${num(cr.totalDias)} <span style="font-size:26px;color:#fff;font-weight:600">dias</span></div>
-        <div style="font-size:20px;color:var(--muted);font-weight:600;margin-top:8px">do contrato à primeira recarga vendida</div>
-      </div>
-      <div style="flex:1"><p class="lead" style="font-size:22px;margin:0">${rich(cr.nota)}</p></div>
-    </div>
-    <div class="contato-crono" style="margin-top:28px;display:flex;align-items:center;gap:40px">
+    <div data-row style="display:flex;align-items:flex-end;gap:40px">
       <div>
-        <div style="font-size:15px;letter-spacing:.30em;color:rgba(255,255,255,.55);font-weight:600">FALE COM</div>
-        <div style="font-size:38px;font-weight:800;margin-top:6px">${esc(D.vendedor)}</div>
-        <div style="font-size:27px;font-weight:600;color:#FFC400;margin-top:4px">${esc(D.contato)}</div>
+        <div class="eyebrow">DA ASSINATURA AO PRIMEIRO CARRO</div>
+        <h2 class="title" style="font-size:52px">${rich(cr.titulo)}</h2>
       </div>
-      <div style="flex:1;border-left:3px solid rgba(255,255,255,.2);padding-left:40px">
-        ${se(tem(T.fechamento), `<p class="lead" style="font-size:22px;margin:0">${rich(T.fechamento)}</p>`)}
+      ${se(tem(cr.legenda), `<div style="display:flex;gap:12px;margin-bottom:10px;margin-left:auto">
+        ${(cr.legenda || []).map(selo).join('')}
+      </div>`)}
+    </div>
+    <div class="rule" style="background:#fff;margin:18px 0 24px"></div>
+    ${fases.map(fa => `<div class="fase">
+      ${se(tem(fa.g), `<div class="fase-tag">${rich(fa.g)}</div>`)}
+      <div class="etapas">
+        ${fa.itens.map(e => `<div class="etapa${e.forte ? ' destaque' : ''}">
+          <div class="et-n">${num(e.n)}</div>
+          <h5>${rich(e.titulo)}</h5>
+          ${se(tem(e.texto), `<p>${rich(e.texto)}</p>`)}
+          ${selo(e.dono)}
+        </div>`).join('')}
+      </div>
+    </div>`).join('')}
+    <p class="nota" style="margin-top:22px">${rich(cr.nota)}</p>
+  </div>
+${rodape('O CRONOGRAMA', N())}</section>`);
+  }
+
+  // ── O FECHO ★ ───────────────────────────────────
+  // A página que fica PARADA na tela enquanto se conversa, e por isso não pode ter
+  // nenhum próximo passo que não seja assinar — nada de visita, medição ou "vamos
+  // agendar". Nenhum número novo também: os três já apareceram no consolidado, no
+  // retorno e no investimento. É a Única página que NÃO some com tudo em branco: a
+  // frase de cima é daquele cliente, mas o pedido é sempre o mesmo.
+  p.push(`<section class="slide amb fecho">
+${fundo(F.fecho || F.capa, '')}${veu('left')}${barra()}
+  <div class="wrap" style="padding:70px 96px">
+    <div class="eyebrow">A DECISÃO</div>
+    <h1 class="title" style="font-size:66px;max-width:1280px">
+      ${se(tem(T.fechoTitulo), rich(T.fechoTitulo) + '<br>')}
+      <span class="mark" style="background:#FFC400;color:#0A1020">Falta a sua assinatura.</span>
+    </h1>
+    ${se(tem(T.fechamento), `<p class="lead" style="margin-top:30px;max-width:1220px;font-size:27px">${rich(T.fechamento)}</p>`)}
+    ${kpis([
+      { lbl: 'ENTRA NO SEU BOLSO, TODO MÊS', val: tem(C.ganhoMes) ? brl(C.ganhoMes) : '', un: '/mês', pequeno: 1 },
+      { lbl: 'O DINHEIRO VOLTA EM', val: tem(C.paybackMeses) ? num(C.paybackMeses) : '', un: 'meses', pequeno: 1 },
+      { lbl: 'E EM 10 ANOS VIRA', val: tem(C.acumulado10) ? brl(C.acumulado10) : '', pequeno: 1 },
+    ]).replace('class="kpis"', 'class="kpis" style="margin-top:40px"')}
+    <div class="glass tint" style="margin-top:34px;border-color:#FFC400;padding:26px 40px">
+      <p class="lead" style="font-size:24px;margin:0">
+        <b>A assinatura é a etapa 1 — o marco zero.</b> Enquanto ela não acontece, nenhuma das
+        outras começa. Assinando hoje, o projeto entra em produção imediatamente:
+        <b>cada dia de assinatura é um dia a menos para o seu primeiro faturamento.</b>
+      </p>
+    </div>
+    <div style="margin-top:36px;display:flex;align-items:center;gap:54px" data-row>
+      ${se(tem(D.validade), `<span class="selo" style="border-color:#FFC400;color:#FFC400;font-size:19px;padding:12px 24px">${esc(D.validade)}</span>`)}
+      ${se(tem(D.vendedor), `<div>
+        <div style="font-size:14px;letter-spacing:.30em;color:rgba(255,255,255,.55);font-weight:600">FALE COM</div>
+        <div style="font-size:38px;font-weight:800;margin-top:8px;line-height:1.1">${esc(D.vendedor)}</div>
+        <div style="font-size:27px;font-weight:600;color:#FFC400">${esc(D.contato)}</div>
+      </div>`)}
+      <div>
+        <div style="font-size:14px;letter-spacing:.30em;color:rgba(255,255,255,.55);font-weight:600">EMPRESA</div>
+        <div style="font-size:28px;font-weight:800;margin-top:8px;line-height:1.1">Irmãos na Obra</div>
+        <div style="font-size:20px;font-weight:500;color:var(--muted)">Energia Solar &middot; Mobilidade Elétrica</div>
       </div>
     </div>
   </div>

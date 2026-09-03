@@ -1768,8 +1768,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 .apx-lb-tit{font-size:12px;opacity:.75;margin-bottom:8px;display:flex;align-items:center;gap:8px}
 .apx-lb-linhas{display:flex;flex-direction:column;gap:6px}
 .apx-lb-linha{display:flex;gap:8px;align-items:center}
-.apx-lb-linha input{font-size:13.5px;min-width:0}
+.apx-lb-linha input,.apx-lb-linha select{font-size:13.5px;min-width:0}
 .apx-lb-linha input.cresce{flex:1}
+/* o select herda a caixa do input da aba para a linha nao desalinhar */
+.apx-lb-linha select{flex-shrink:0}
 .apx-lb-add{background:none;border:1px dashed rgba(255,255,255,.22);border-radius:8px;color:inherit;
   cursor:pointer;font-size:12.5px;padding:6px 12px;margin-top:8px;opacity:.8}
 .apx-lb-add:hover{opacity:1}
@@ -3717,7 +3719,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <label class="apx-campo"><span>Fecho do "por que este endereço" <i class="apx-lim" data-max="300"></i></span><textarea id="apx-t-pontofecho" rows="2" maxlength="300" placeholder="o que vocês viram no local"></textarea></label>
           <label class="apx-campo"><span>Forma de pagamento <i class="apx-lim" data-max="320"></i></span><textarea id="apx-t-pagamento" rows="2" maxlength="320"></textarea></label>
           <label class="apx-campo"><span>Observação de validade <i class="apx-lim" data-max="240"></i></span><textarea id="apx-t-validade" rows="2" maxlength="240"></textarea></label>
-          <label class="apx-campo"><span>Frase de fechamento <i class="apx-lim" data-max="200"></i></span><textarea id="apx-t-fechamento" rows="2" maxlength="200"></textarea></label>
+          <label class="apx-campo"><span>Título da última página <i class="apx-lim" data-max="140"></i></span><textarea id="apx-t-fechotitulo" rows="2" maxlength="140" placeholder="o que ele JÁ tem — ex.: O terreno já é seu. A rodovia já passa na porta."></textarea></label>
+          <label class="apx-campo"><span>Frase de fechamento <i class="apx-lim" data-max="240"></i></span><textarea id="apx-t-fechamento" rows="2" maxlength="240" placeholder="por que este projeto não pede que ele mude de ramo"></textarea></label>
         </div>
         <div class="apx-lista-bloco" data-lista="pontoCards"></div>
         <div class="apx-lista-bloco" data-lista="equipamento"></div>
@@ -7266,9 +7269,14 @@ const APX_LISTAS = {
                 cols: [{ k: 'v', t: 'item', cresce: 1 }] },
   garantias:  { tit: 'Garantias', add: 'garantia',
                 cols: [{ k: 'item', t: 'item', cresce: 1 }, { k: 'prazo', t: 'prazo', w: 150 }] },
-  cronograma: { tit: 'Cronograma — a soma dos dias é o prazo total', add: 'etapa',
-                cols: [{ k: 'titulo', t: 'etapa', cresce: 1 }, { k: 'dur', t: 'duração', w: 90 },
-                       { k: 'un', t: 'unidade', w: 100 }, { k: 'dias', t: 'dias corridos', w: 120 }] },
+  // Sem prazo, de proposito: a pagina mostra a ORDEM e o DONO. O que estiver em
+  // **negrito** no texto marca a etapa como marco e ela ganha destaque na pagina.
+  cronograma: { tit: 'Cronograma — a ordem e quem controla cada etapa (sem data)', add: 'etapa',
+                cols: [{ k: 'grupo', t: 'fase', w: 150 }, { k: 'titulo', t: 'etapa', w: 230 },
+                       { k: 'texto', t: 'o que acontece — use **negrito** no que for marco', cresce: 1 },
+                       { k: 'dono', t: 'quem', w: 130, opc: [
+                          ['nos', 'Nosso'], ['seu', 'Do cliente'], ['dist', 'Distribuidora'],
+                          ['nos_seu', 'Nosso + cliente'], ['dist_nos', 'Distribuidora + nosso']] }] },
   pontoCards: { tit: 'Por que este endereço — três cartões', add: 'cartão', max: 3,
                 cols: [{ k: 'v', t: 'ex.: **Frente para a via.** o carro entra, carrega e sai', cresce: 1 }] },
   equipamento:{ tit: 'O equipamento — bullets', add: 'bullet',
@@ -7287,10 +7295,18 @@ function apxListaRender(chave) {
   const cheio = cfg.max && linhas.length >= cfg.max;
   alvo.innerHTML =
     `<div class="apx-lb-tit">${cfg.tit}</div><div class="apx-lb-linhas">` +
-    linhas.map((l, i) => `<div class="apx-lb-linha">` + cfg.cols.map(c =>
-      `<input type="text" class="${c.cresce ? 'cresce' : ''}" ${c.w ? `style="width:${c.w}px"` : ''}` +
-      ` placeholder="${c.t}" value="${String(l[c.k] == null ? '' : l[c.k]).replace(/"/g, '&quot;')}"` +
-      ` oninput="apxListaSet('${chave}',${i},'${c.k}',this.value)">`).join('') +
+    linhas.map((l, i) => `<div class="apx-lb-linha">` + cfg.cols.map(c => {
+      const v = String(l[c.k] == null ? '' : l[c.k]);
+      // coluna com lista fechada vira select: dono de etapa digitado a mao seria
+      // valor invalido chegando na API, e o zod devolveria 400 sem dizer onde
+      if (c.opc) return `<select ${c.w ? `style="width:${c.w}px"` : ''}` +
+        ` onchange="apxListaSet('${chave}',${i},'${c.k}',this.value)">` +
+        c.opc.map(([val, rot]) => `<option value="${val}"${v === val ? ' selected' : ''}>${rot}</option>`).join('') +
+        `</select>`;
+      return `<input type="text" class="${c.cresce ? 'cresce' : ''}" ${c.w ? `style="width:${c.w}px"` : ''}` +
+        ` placeholder="${c.t}" value="${v.replace(/"/g, '&quot;')}"` +
+        ` oninput="apxListaSet('${chave}',${i},'${c.k}',this.value)">`;
+    }).join('') +
       `<button type="button" class="apx-x" title="remover" onclick="apxListaDel('${chave}',${i})">&times;</button></div>`).join('') +
     `</div>` +
     (cheio ? '' : `<button type="button" class="apx-lb-add" onclick="apxListaAdd('${chave}')">+ ${cfg.add}</button>`);
@@ -7550,12 +7566,28 @@ function apxInit() {
 
   // cronograma padrão da operação: prazos nossos, não do cliente
   if (primeira && !APX.listas.cronograma) APX.listas.cronograma = [
-    { titulo: 'Documentação recolhida', dur: 72, un: 'horas', dias: 3 },
-    { titulo: 'Projeto de engenharia protocolado', dur: 24, un: 'horas', dias: 1 },
-    { titulo: 'Análise da distribuidora', dur: 30, un: 'dias', dias: 30 },
-    { titulo: 'Obra do padrão e civil', dur: 5, un: 'dias', dias: 5 },
-    { titulo: 'Carregador e pintura', dur: 4, un: 'dias', dias: 4 },
-    { titulo: 'Software e aplicativo', dur: 2, un: 'dias', dias: 2 },
+    { grupo: 'CONTRATO E PROJETO', dono: 'nos_seu', titulo: 'Assinatura de contrato',
+      texto: 'Escopo, valores e garantias fechados. Marco zero — nada corre antes.' },
+    { grupo: 'CONTRATO E PROJETO', dono: 'seu', titulo: 'Recolhimento de documentos',
+      texto: 'Documentos da empresa, titularidade da UC e conta de luz.' },
+    { grupo: 'CONTRATO E PROJETO', dono: 'nos', titulo: 'Montagem de projeto',
+      texto: 'Projeto executivo das duas frentes e da entrada, com ART.' },
+    { grupo: 'CONTRATO E PROJETO', dono: 'dist', titulo: 'Análise de projeto',
+      texto: 'A distribuidora recebe e analisa o pedido de acesso.' },
+    { grupo: 'CONTRATO E PROJETO', dono: 'dist', titulo: 'Aprovação de projeto',
+      texto: 'Sai o parecer de acesso. **É ele que define o cronograma real.**' },
+    { grupo: 'MATERIAL E OBRA', dono: 'nos', titulo: 'Logística de material',
+      texto: 'Módulos, inversores, carregador e transformador comprados e postos no canteiro.' },
+    { grupo: 'MATERIAL E OBRA', dono: 'nos', titulo: 'Início de obra',
+      texto: 'Fundação, padrão de entrada e estruturas — equipe própria, não terceirizada.' },
+    { grupo: 'MATERIAL E OBRA', dono: 'nos', titulo: 'Final de obra',
+      texto: 'Usina montada, carregador instalado e a entrada pronta para energizar.' },
+    { grupo: 'ENTREGA', dono: 'nos', titulo: 'Comissionamento dos equipamentos',
+      texto: 'Testes de carga, proteções e medição, com laudo assinado.' },
+    { grupo: 'ENTREGA', dono: 'nos', titulo: 'Instalação de app e software',
+      texto: 'Plataforma configurada, tarifa e taxa definidas por você, app publicado.' },
+    { grupo: 'ENTREGA', dono: 'dist_nos', titulo: 'Liberação total dos sistemas',
+      texto: 'Vistoria, troca de medidor e energização. **O posto abre ao motorista.**' },
   ];
   if (primeira) Object.keys(APX_LISTAS).forEach(apxListaRender);
   apxTarifaEfetiva(); apxAvisoGrupo();
@@ -7642,7 +7674,7 @@ async function apxMontar() {
       mes: v('apx-c-mes'),
     },
     cronograma: apxListaLimpa('cronograma', ['titulo']).map(c => ({
-      titulo: c.titulo, dur: Number(c.dur) || 0, un: c.un || 'dias', dias: Number(c.dias) || 0,
+      titulo: c.titulo, texto: c.texto || '', dono: c.dono || 'nos', grupo: c.grupo || '',
     })),
     garantias: apxListaLimpa('garantias', ['item']).map(g => ({ item: g.item, prazo: g.prazo || '' })),
     escopo: apxListaLimpa('escopo').map(x => x.v),
@@ -7653,7 +7685,7 @@ async function apxMontar() {
     textos: {
       terrenoHoje: v('apx-t-terreno'), pontoFecho: v('apx-t-pontofecho'),
       pagamento: v('apx-t-pagamento'), notaValidade: v('apx-t-validade'),
-      fechamento: v('apx-t-fechamento'),
+      fechamento: v('apx-t-fechamento'), fechoTitulo: v('apx-t-fechotitulo'),
     },
     fotos: APX.fotos.map(f => ({ nome: f.nome, descricao: f.descricao, media_type: f.media_type, base64: f.base64 })),
     arquivos: APX.arquivos,

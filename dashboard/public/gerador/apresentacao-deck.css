@@ -245,46 +245,66 @@ body.movel .somar{gap:12px}
 .parte-num{font-size:230px;font-weight:800;line-height:.86;color:var(--acc);opacity:.30}
 .parte .wrap{justify-content:center}
 
-/* ---------- cronograma ----------
-   A análise da distribuidora é 30 dos 45 dias: uma barra proporcional deixaria as
-   outras seis etapas invisíveis. Por isso os cartões têm largura igual e o peso da
-   etapa aparece no número, não na geometria. */
-.crono{display:flex;gap:14px;position:relative;z-index:4;align-items:stretch}
-.crono .et{flex:1;background:rgba(var(--veu),.82);border:1.5px solid rgba(255,255,255,.24);
-  border-radius:18px;padding:22px 18px;display:flex;flex-direction:column}
-.crono .et.forte{border-color:var(--acc);background:rgba(var(--veu),.92)}
-.crono .dia{font-size:13px;letter-spacing:.18em;font-weight:700;color:var(--acc);margin-bottom:12px}
-.crono .n{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.14);
-  color:#fff;font-size:17px;font-weight:800;display:flex;align-items:center;
-  justify-content:center;margin-bottom:14px}
-.crono .et.forte .n{background:var(--acc);color:#0A1020}
-.crono h5{font-size:19px;font-weight:700;line-height:1.25;margin-bottom:10px;flex:1}
-.crono .dur{font-size:26px;font-weight:800;color:#fff;line-height:1}
-.crono .dur small{font-size:15px;font-weight:600;color:var(--muted);margin-left:5px}
-.trilho{height:3px;background:linear-gradient(90deg,rgba(255,255,255,.10),var(--acc));
-  border-radius:2px;margin:0 0 22px}
-/* no celular as seis etapas viram grade 2x3: em coluna única passavam 937px da folha */
-body.movel .crono{flex-direction:row !important;flex-wrap:wrap;gap:14px !important}
-body.movel .crono .et{flex:1 1 calc(33.333% - 10px);min-width:calc(33.333% - 10px);padding:18px 14px}
-body.movel .crono h5{font-size:20px;flex:1;margin-bottom:8px;line-height:1.2}
-body.movel .crono .dur{font-size:26px}
-body.movel .crono .dia{font-size:14px;margin-bottom:8px;letter-spacing:.12em}
-body.movel .crono .n{width:34px;height:34px;font-size:16px;margin-bottom:10px}
-body.movel .crono + [data-row]{gap:24px !important;margin-top:26px !important}
-body.movel .trilho{margin-bottom:16px}
-body.movel .contato-crono{gap:28px}
-body.movel .contato-crono > div:first-child{flex-shrink:0}
-body.movel .contato-crono p.lead{font-size:24px !important}
-body.movel .crono + [data-row] .glass{padding:22px 28px}
-body.movel .crono + [data-row] .glass > div:first-child{font-size:52px}
-/* o cronograma é a página mais cheia do deck no modo retrato: margem e miolo apertam
-   mais um pouco aqui do que no resto (medido com _medir.js) */
+/* ---------- cronograma: a ORDEM e o DONO, nunca a data ----------
+   A página não promete prazo porque três das etapas não são nossas — o parecer de
+   acesso da distribuidora é que define o calendário real. O que ela acrescenta é
+   QUEM controla cada etapa, e é isso que o selo faz. Cartão de largura igual: o
+   peso da etapa está no texto, não na geometria. */
+.fase{display:flex;align-items:stretch;gap:22px;margin-bottom:16px;position:relative;z-index:4}
+.fase:last-of-type{margin-bottom:0}
+.fase-tag{width:132px;flex-shrink:0;display:flex;align-items:center;justify-content:flex-end;
+  text-align:right;font-size:14px;letter-spacing:.16em;font-weight:800;color:var(--acc);
+  line-height:1.35;border-right:2px solid rgba(255,255,255,.16);padding-right:20px}
+.etapas{flex:1;display:flex;gap:14px}
+.etapa{flex:1;background:rgba(var(--veu),.80);border:1.5px solid rgba(255,255,255,.24);
+  border-radius:16px;padding:16px 18px 14px;display:flex;flex-direction:column}
+.etapa.destaque{border-color:var(--acc);background:rgba(var(--veu),.92)}
+.etapa .et-n{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.16);
+  color:#fff;font-size:15px;font-weight:800;display:flex;align-items:center;
+  justify-content:center;margin-bottom:10px}
+.etapa.destaque .et-n{background:var(--acc);color:#0A1020}
+.etapa h5{font-size:19px;font-weight:700;line-height:1.2;margin-bottom:8px}
+.etapa p{font-size:15.5px;line-height:1.4;color:var(--muted);font-weight:400;margin-bottom:12px}
+.etapa p b{color:#fff;font-weight:700}
+/* o selo de dono. Verde é nosso, dourado é do cliente, cinza é da distribuidora —
+   e a página inteira se lê de longe só pela cor. */
+.quem{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.14em;
+  padding:4px 10px;border-radius:6px;margin-top:auto;align-self:flex-start}
+.quem-nos{background:#7CE500;color:#0A1020}
+.quem-seu{background:#FFC400;color:#0A1020}
+.quem-dist{background:rgba(255,255,255,.26);color:#fff}
+/* no retrato a faixa vira bloco e as etapas caem em duas colunas: em coluna única
+   as onze passavam muito da folha */
+body.movel .fase{flex-direction:column;gap:10px;margin-bottom:14px}
+body.movel .fase-tag{width:100%;justify-content:flex-start;text-align:left;border-right:0;
+  border-left:3px solid var(--acc);padding:0 0 0 14px;font-size:15px}
+body.movel .fase-tag br{display:none}
+body.movel .etapas{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+body.movel .etapa{padding:12px 14px 11px;border-radius:13px}
+body.movel .etapa h5{font-size:18px;margin-bottom:6px}
+body.movel .etapa p{font-size:14.5px;line-height:1.34;margin-bottom:9px}
+body.movel .etapa .et-n{width:26px;height:26px;font-size:13px;margin-bottom:7px}
+body.movel .quem{font-size:10.5px;padding:3px 8px;letter-spacing:.10em}
+
+/* ---------- o fecho ----------
+   A página que fica PARADA na tela enquanto se conversa. Nenhum próximo passo que
+   não seja assinar, e nenhum número novo: os três já apareceram no consolidado, no
+   retorno e no investimento. */
+body.movel .fecho h1.title{font-size:56px !important;line-height:1.06}
+body.movel .fecho p.lead{font-size:24px !important}
+body.movel .fecho .kpis{gap:14px;margin-top:28px !important}
+body.movel .fecho .kpi{padding:18px 22px}
+body.movel .fecho .kpi .lbl{font-size:14px;margin-bottom:8px}
+body.movel .fecho .kpi .val{font-size:40px !important}
+body.movel .fecho .glass{padding:24px 26px;margin-top:24px !important}
+body.movel .fecho .glass p.lead{font-size:20px !important}
+body.movel .fecho .selo{font-size:17px;padding:10px 18px}
+body.movel .fecho [data-row]{gap:24px !important;margin-top:26px !important}
+body.movel .fecho [data-row] > div > div:nth-child(2){font-size:32px !important}
+/* o cronograma é a página mais cheia do deck no retrato: margem e miolo apertam
+   para as onze etapas caberem junto com a nota. */
 body.movel .cronograma .wrap{padding:104px 54px 76px}
-body.movel .cronograma .crono .et{padding:16px 13px}
-body.movel .cronograma .crono h5{font-size:18px;line-height:1.16}
-body.movel .cronograma .crono .n{width:30px;height:30px;font-size:15px;margin-bottom:8px}
-body.movel .cronograma .crono .dur{font-size:24px}
-body.movel .cronograma p.lead{font-size:21px !important;line-height:1.42}
+body.movel .cronograma p.nota{font-size:19px !important;line-height:1.42}
 
 /* ---------- passos ---------- */
 .passos{display:flex;gap:0;position:relative;z-index:4}
