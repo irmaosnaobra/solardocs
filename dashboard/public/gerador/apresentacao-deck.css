@@ -204,6 +204,43 @@ ul.bullets.tight li::before{top:13px;width:9px;height:9px}
 .c-ele{color:#7CE500}
 .ficha td.c-sol,.ficha td.c-ele{font-weight:700}
 
+/* ---------- balanço de energia ----------
+   A página que MOSTRA que a mesma energia não foi contada duas vezes, em vez de
+   afirmar. Três barras de demanda contra uma de geração, todas na mesma escala:
+   é a escala comum que faz o argumento — barra fora de proporção aqui destrói a
+   única página do deck que se prova sozinha. */
+.bal{display:grid;grid-template-columns:290px 1fr 160px;gap:16px 22px;align-items:center;
+  position:relative;z-index:4}
+.bal .rot{text-align:right;font-size:20px;color:var(--muted);line-height:1.3}
+.bal .rot b{color:#fff;font-weight:700}
+.bal .rot small{display:block;font-size:15px;opacity:.7;margin-top:3px}
+.bal .tr{height:50px;display:flex;border-radius:9px;overflow:hidden}
+.bal .b{height:100%;display:flex;align-items:center;padding:0 18px;font-weight:700;
+  font-size:18px;white-space:nowrap;min-width:0}
+.bal .b.cinza{background:rgba(255,255,255,.26);color:#fff}
+.bal .b.ele{background:#7CE500;color:#08240a}
+.bal .b.sol{background:#FFC400;color:#1a1200}
+.bal .val{text-align:right;font-size:26px;font-weight:800;white-space:nowrap}
+.bal .val small{font-size:16px;font-weight:600;color:var(--muted);margin-left:5px}
+.bal .risca{grid-column:2 / 4;height:1px;background:rgba(255,255,255,.22);margin:2px 0}
+body.movel .bal{grid-template-columns:1fr;gap:6px}
+body.movel .bal .rot{text-align:left;font-size:24px}
+body.movel .bal .val{text-align:left;font-size:30px}
+body.movel .bal .risca{grid-column:1}
+
+/* A página do ponto carrega bullets, três fotos do padrão e uma ficha de seis
+   linhas no mesmo slide: é a mais cheia do deck e aperta em paisagem também,
+   não só no celular. */
+.slide.ponto .ficha{font-size:21px}
+.slide.ponto .ficha td{padding:12px 20px}
+.slide.ponto ul.bullets.tight li{font-size:22px;margin-bottom:13px}
+.slide.ponto .glass{padding:26px 30px}
+body.movel .slide.ponto .ficha{font-size:24px}
+body.movel .somar .p .d{font-size:18px;line-height:1.38}
+body.movel .somar .p{padding:18px 22px}
+body.movel .somar .p .v{font-size:44px}
+body.movel .somar{gap:12px}
+
 /* ---------- divisores de parte ---------- */
 .parte-num{font-size:230px;font-weight:800;line-height:.86;color:var(--acc);opacity:.30}
 .parte .wrap{justify-content:center}
@@ -269,10 +306,10 @@ body.movel .cronograma p.lead{font-size:21px !important;line-height:1.42}
 /* ---------- a conta do conjunto (página 17) ---------- */
 .somar{display:flex;align-items:stretch;gap:22px;position:relative;z-index:4}
 .somar .p{flex:1;background:rgba(var(--veu),.82);border:1.5px solid rgba(255,255,255,.28);
-  border-radius:22px;padding:28px 32px}
+  border-radius:22px;padding:24px 26px;min-width:0}
 .somar .p .r{font-size:14px;letter-spacing:.22em;font-weight:700;color:rgba(255,255,255,.72);margin-bottom:12px}
-.somar .p .v{font-size:46px;font-weight:800;line-height:1}
-.somar .p .d{font-size:18px;color:var(--muted);margin-top:12px;line-height:1.42;font-weight:400}
+.somar .p .v{font-size:42px;font-weight:800;line-height:1}
+.somar .p .d{font-size:17px;color:var(--muted);margin-top:12px;line-height:1.42;font-weight:400}
 .somar .op{display:flex;align-items:center;font-size:44px;font-weight:300;color:#7CE500}
 .somar .p.tot{border-color:#7CE500;background:rgba(10,22,8,.82)}
 .somar .p.tot .v{color:#7CE500;font-size:56px}
@@ -354,7 +391,9 @@ body.movel .denso [data-row]{gap:24px !important}
 body.movel .denso .somar{gap:16px}
 body.movel .denso .somar .p{padding:22px 28px}
 body.movel .denso .somar .p .v{font-size:46px}
-body.movel .denso .denso .p.tot .v{font-size:54px}
+/* era ".denso .denso", que nunca casa: o total do consolidado ficava no tamanho
+   cheio de 64px no celular e empurrava a página 24px para fora da folha. */
+body.movel .denso .somar .p.tot .v{font-size:50px}
 body.movel .denso .somar .p .d{font-size:20px}
 body.movel .denso .somar .op{font-size:30px}
 /* a conta desenhada da página 13 continua deitada no celular, quebrando em linhas:

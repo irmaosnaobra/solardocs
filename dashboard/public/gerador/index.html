@@ -3666,6 +3666,23 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       </details>
 
       <details class="apx-grupo">
+        <summary>A entrada de energia <i class="apx-conta" data-conta="entrada"></i></summary>
+        <p class="apx-grupo-sub">Quando a obra do padrão é grande, ela é a <b>terceira linha</b> do
+          investimento — não some dentro do preço do posto. Preenchida, ganha uma página própria
+          com as fotos do padrão e o que sobra de capacidade para o cliente.</p>
+        <div class="apx-campos" data-grupo="entrada">
+          <label class="apx-campo"><span>Investimento da entrada (R$)</span><input id="apx-e-inv" type="text" inputmode="numeric" placeholder="135000"></label>
+          <label class="apx-campo"><span>Transformador (kVA)</span><input id="apx-e-kva" type="text" inputmode="numeric" placeholder="300"></label>
+          <label class="apx-campo"><span>Entrada hoje</span><input id="apx-e-hoje" type="text" placeholder="150 A · medição com demanda"></label>
+          <label class="apx-campo"><span>Entrada nova</span><input id="apx-e-nova" type="text" placeholder="456 A"></label>
+          <label class="apx-campo"><span>O carregador pede</span><input id="apx-e-cc" type="text" placeholder="198 A"></label>
+          <label class="apx-campo"><span>Os inversores pedem</span><input id="apx-e-cu" type="text" placeholder="114 A"></label>
+          <label class="apx-campo"><span>Sobra para o negócio</span><input id="apx-e-sobra" type="text" placeholder="170 kVA"></label>
+          <label class="apx-campo"><span>Observação</span><input id="apx-e-obs" type="text" placeholder="o que a entrada nova atende além do posto"></label>
+        </div>
+      </details>
+
+      <details class="apx-grupo">
         <summary>Custos e modelagem <i class="apx-conta" data-conta="custos"></i></summary>
         <p class="apx-grupo-sub">Vêm do Simulador. Mexa aqui só se esta proposta usar outra condição.</p>
         <div class="apx-campos" data-grupo="custos">
@@ -7400,6 +7417,8 @@ const APX_DE_PARA = {
   conta_concessionaria: 'apx-c-conc', conta_grupo: 'apx-c-grupo', conta_subgrupo: 'apx-c-sub',
   conta_demanda_kw: 'apx-c-dem', conta_total_reais: 'apx-c-total', conta_kwh: 'apx-c-kwh',
   conta_mes: 'apx-c-mes',
+  entrada_invest: 'apx-e-inv', entrada_kva: 'apx-e-kva',
+  entrada_hoje: 'apx-e-hoje', entrada_nova: 'apx-e-nova',
 };
 
 /** Tarifa efetiva = total da fatura ÷ kWh faturados. É o número que interessa para a
@@ -7588,6 +7607,12 @@ async function apxMontar() {
       areaM2: n('apx-area'), inversores: v('apx-inversores'),
       aguas: apxListaLimpa('aguas', ['placas', 'onde']).map(a => ({ placas: Number(a.placas) || 0, onde: a.onde || '' })),
       incluido: apxListaLimpa('incluido').map(x => x.v),
+    },
+    entrada: {
+      invest: n('apx-e-inv'), kva: n('apx-e-kva'),
+      correnteHoje: v('apx-e-hoje'), correnteNova: v('apx-e-nova'),
+      cargaCarregador: v('apx-e-cc'), cargaUsina: v('apx-e-cu'),
+      sobra: v('apx-e-sobra'), descricao: v('apx-e-obs'),
     },
     conta: {
       concessionaria: v('apx-c-conc'), grupo: v('apx-c-grupo'), subgrupo: v('apx-c-sub'),

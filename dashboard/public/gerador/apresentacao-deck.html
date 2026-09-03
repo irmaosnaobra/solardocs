@@ -182,19 +182,57 @@ ${fundo(F.tese, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
   </div>
 ${rodape('APRESENTAÇÃO COMERCIAL &middot; ' + esc(D.data), N())}</section>`);
 
-  // ── 04 · DIVISOR PARTE 1 ─────────────────────────────────────────────────
-  if (D.temSolar) p.push(`<section class="slide sol parte">
-${fundo(F.divisorSolar || F.tese, 'dof-soft')}${veu('left')}${barra()}
-  <div class="wrap">
-    <div style="max-width:1100px">
-      <div class="parte-num">01</div>
-      <div class="eyebrow" style="margin-top:26px">PARTE 1 &middot; A USINA</div>
-      <h1 class="title">A usina que fica<br><span class="mark">em cima do galpão</span></h1>
-      <p class="lead" style="margin-top:32px">${dec(S.kwp)} kWp, ${num(S.modulos)} módulos, ${num(S.geracao)} kWh por mês. O que ela faz com a sua conta de luz — e por que ela é o que torna o posto lucrativo.</p>
-    </div>
-  </div>
-${rodape('PARTE 1 DE 4', N())}</section>`);
 
+
+  // ── O BALANÇO DE ENERGIA ★ ────────────────────────────────────────────
+  // A página que separa esta apresentação de uma planilha: ela MOSTRA que a mesma
+  // energia não foi contada duas vezes. Só existe com consumo — sem ele não há o
+  // que balancear, e um consumo chutado contaminaria justamente a página que
+  // sustenta todo o resto.
+  const B = D.balanco;
+  if (B) {
+    const teto = Math.max(B.demanda, B.geracao, 1);
+    const w = v => css(v / teto * 100) + '%';
+    p.push(`<section class="slide amb denso">
+${fundo(F.balanco, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
+  <div class="wrap">
+    <div class="eyebrow">A ENERGIA, ANTES DO DINHEIRO</div>
+    <h2 class="title">Quem produz, quem consome</h2>
+    <div class="rule" style="background:#fff"></div>
+    <div class="bal" style="margin-top:8px">
+      <div class="rot">A sua conta de luz hoje</div>
+      <div class="tr"><div class="b cinza" style="width:${w(B.consumo)}">consumo atual</div></div>
+      <div class="val">${num(B.consumo)}<small>kWh</small></div>
+
+      <div class="rot">O que o carregador vende<small>${esc(B.carrosTxt)}</small></div>
+      <div class="tr"><div class="b ele" style="width:${w(B.posto)}">o posto</div></div>
+      <div class="val">${num(B.posto)}<small>kWh</small></div>
+
+      <div class="risca"></div>
+
+      <div class="rot"><b>Demanda somada</b></div>
+      <div class="tr" style="width:${w(B.demanda)}">
+        <div class="b cinza" style="width:${css(B.consumo / Math.max(1, B.demanda) * 100)}%"></div>
+        <div class="b ele" style="flex:1"></div>
+      </div>
+      <div class="val">${num(B.demanda)}<small>kWh</small></div>
+
+      <div class="rot" style="color:#FFC400"><b style="color:#FFC400">A usina de ${dec(S.kwp)} kWp gera</b></div>
+      <div class="tr"><div class="b sol" style="width:${w(B.geracao)}">${num(B.geracao)} kWh &mdash; cobre ${num(B.coberturaPct)}% de tudo</div></div>
+      <div class="val" style="color:#FFC400">${num(B.geracao)}<small>kWh</small></div>
+    </div>
+    <div class="glass" style="margin-top:32px;padding:28px 40px">
+      <p class="lead" style="font-size:23px;margin:0">
+        A usina cobre <b>${num(B.coberturaPct)}% de tudo</b>${B.faltaKwh > 0
+          ? ` — a sua conta inteira e a maior parte do que o carregador vende. <b>Faltam
+             ${num(B.faltaKwh)} kWh por mês, que vêm da rede</b>, e esse custo já está
+             descontado do resultado. Não arredondamos para cima.`
+          : ` — a sua conta inteira e tudo o que o carregador vende, com folga.`}
+      </p>
+    </div>
+    <p class="nota" style="margin-top:22px">${rich(B.origem)}</p>
+  </div>
+${rodape('O BALANÇO DE ENERGIA', N())}</section>`);
   // ── 05 · O LAYOUT DAS PLACAS ─────────────────────────────────────────────
   const aguas = (S.aguas || []).map(a => `<li><b>${num(a.placas)} placas</b> ${esc(a.onde)}</li>`).join('\n          ');
   if (D.temSolar && (tem(S.aguas) || tem(F.layout))) p.push(`<section class="slide sol">
@@ -270,76 +308,52 @@ ${fundo(F.engenharia, 'dof')}${veu('dark')}${barra()}${marca('sol', D)}
   </div>
 ${rodape('PARTE 1 &middot; A USINA', N())}</section>`);
 
-  // ── 08 · A CONTA DE LUZ ──────────────────────────────────────────────────
-  const larg = Math.max(0.6, (Number(S.contaDepois) || 0) / Math.max(1, Number(S.contaHoje) || 1) * 100);
-  if (D.temSolar && tem(S.contaHoje)) p.push(`<section class="slide sol">
-${fundo(F.contaLuz, 'dof')}${veu('dark')}${barra()}${marca('sol', D)}
+  }
+
+
+
+
+  // ── O PONTO E A ENTRADA DE ENERGIA ★ ──────────────────────────────────
+  // A página que prova que alguém foi olhar antes de vir: leitura do endereço à
+  // esquerda, e à direita o que a entrada de energia precisa virar, com as fotos
+  // do padrão DO CLIENTE. É ela que transforma o transformador de custo em ativo.
+  const EN = D.entrada;
+  if (EN || tem(T.pontoCards)) {
+    const fotosPadrao = (F.padrao || []).slice(0, 3);
+    p.push(`<section class="slide ele denso ponto">
+${fundo(F.ponto || F.terreno, 'dof')}${veu('dark')}${barra()}${marca('ele', D)}
   <div class="wrap">
-    <div class="eyebrow">ANÁLISE FINANCEIRA &middot; A USINA SOZINHA</div>
-    <h2 class="title">O que muda na conta de luz</h2>
+    <div class="eyebrow">O PONTO</div>
+    <h2 class="title">${rich(T.pontoTitulo || 'Por que este endereço')}</h2>
     <div class="rule"></div>
-    <div data-row style="display:flex;gap:64px;align-items:center;margin-top:10px">
-      <div class="glass plain" style="width:740px;padding:38px 42px">
-        <div class="conta">
-          <div class="cl">CONTA DE LUZ HOJE</div>
-          <div class="cb" style="width:100%;background:linear-gradient(90deg,rgba(255,255,255,.42),rgba(255,255,255,.16))"></div>
-          <div class="cv">${brl(S.contaHoje)} <span style="font-size:20px;font-weight:400;color:var(--muted)">/mês</span></div>
-        </div>
-        <div class="conta" style="margin-bottom:0">
-          <div class="cl" style="color:var(--acc)">CONTA DEPOIS DA USINA</div>
-          <div class="cb" style="width:${css(larg)}%;background:var(--acc)"></div>
-          <div class="cv" style="color:var(--acc)">${brl(S.contaDepois)} <span style="font-size:20px;font-weight:400;color:var(--muted)">/mês</span></div>
-        </div>
-        <p class="nota" style="margin-top:26px"><b>As duas barras estão na escala real.</b> A usina cobre ${num(S.autonomiaPct)}% do consumo.</p>
-      </div>
+    <div data-row style="display:flex;gap:44px;align-items:flex-start;margin-top:4px">
       <div style="flex:1">
-        <div class="stat"><div class="n">${brl(S.economia)}</div><div class="t">deixam de sair do caixa <b>todo mês</b>, com a usina sozinha.</div></div>
-        <div class="stat"><div class="n">${esc(S.paybackTxt)}</div><div class="t">é o tempo em que a usina, sozinha, devolve o que custou.</div></div>
-        <div class="stat" style="margin-bottom:0"><div class="n" style="color:var(--acc)">25 anos</div><div class="t">de garantia dos módulos — o sistema segue gerando muito depois de quitado.</div></div>
+        ${se(tem(T.pontoCards), `<ul class="bullets tight">${(T.pontoCards || []).map(c => `<li>${rich(c)}</li>`).join('')}</ul>`)}
+        ${se(tem(T.pontoFecho), `<p class="nota" style="margin-top:22px">${rich(T.pontoFecho)}</p>`)}
       </div>
+      ${se(!!EN, `<div class="glass" style="width:760px;flex-shrink:0;padding:30px 34px">
+        <div class="eyebrow" style="margin-bottom:12px">O QUE VI NO SEU PADRÃO</div>
+        ${se(fotosPadrao.length > 0, `<div class="tira" style="grid-template-columns:repeat(${fotosPadrao.length},1fr);gap:12px;margin-bottom:14px">
+          ${fotosPadrao.map(x => `<figure><img src="${esc(x)}" alt="" style="height:120px"></figure>`).join('')}
+        </div>`)}
+        ${ficha([
+          ['Entrada hoje', EN && EN.correnteHoje],
+          ['Entrada nova — transformador', EN && EN.kva ? `${num(EN.kva)} kVA${EN.correnteNova ? ` · ${EN.correnteNova}` : ''}` : '', 'c-ele'],
+          ['O carregador pede', EN && EN.cargaCarregador],
+          ['Os inversores da usina pedem', EN && EN.cargaUsina],
+          ['<b style="color:#fff">Sobra para o seu negócio</b>', EN && EN.sobra, 'c-ele', true],
+        ])}
+        ${se(!!(EN && EN.invest), `<p class="lead" style="font-size:20px;margin-top:16px">
+          <b>A obra da entrada custa ${brl(EN ? EN.invest : 0)} e já está no investimento total</b>
+          — não é um extra que aparece depois.
+        </p>`)}
+        ${se(!!(EN && EN.descricao), `<p class="nota" style="margin-top:14px;font-size:17px">${rich(EN ? EN.descricao : '')}</p>`)}
+      </div>`)}
     </div>
-    <p class="nota" style="margin-top:30px">Esta página mostra a usina trabalhando sozinha. Com o eletroposto no terreno, parte dessa energia passa a ser <b>vendida a ${brl2(P.preco)} o kWh</b> em vez de abater a conta a ${brl2(S.tarifa)} — ${D._pgConjunto ? `<b>o número do conjunto está na página ${D._pgConjunto}</b>.` : ''}</p>
   </div>
-${rodape('PARTE 1 &middot; A USINA', N())}</section>`);
+${rodape('O PONTO E A ENTRADA', N())}</section>`);
+  }
 
-  // ── 09 · DIVISOR PARTE 2 ─────────────────────────────────────────────────
-  if (D.temPosto) p.push(`<section class="slide ele parte">
-${fundo(F.divisorPosto, 'dof-soft')}${veu('left')}${barra()}
-  <div class="wrap">
-    <div style="max-width:1100px">
-      <div class="parte-num">02</div>
-      <div class="eyebrow" style="margin-top:26px">PARTE 2 &middot; O POSTO</div>
-      <h1 class="title">O posto que vende<br><span class="mark">a energia do telhado</span></h1>
-      <p class="lead" style="margin-top:32px">Um carregador ${esc(P.potenciaTxt)} com ${num(P.bicos)} bicos. Quanto ele fatura, quanto sobra depois de tudo, e em quanto tempo devolve o investimento.</p>
-    </div>
-  </div>
-${rodape('PARTE 2 DE 4', N())}</section>`);
-
-  // ── 10 · O MERCADO E O PONTO ─────────────────────────────────────────────
-  const stats = (T.mercadoStats || []).map((s, i) =>
-    `<div class="stat"${i === 2 ? ' style="margin-bottom:0"' : ''}><div class="n"${i === 2 ? ' style="color:var(--acc)"' : ''}>${rich(s.n)}</div><div class="t">${rich(s.t)}</div></div>`).join('\n        ');
-  const cards = (T.pontoCards || []).map(c => `<li>${rich(c)}</li>`).join('\n          ');
-  if (D.temPosto && (tem(T.mercadoStats) || tem(T.pontoCards))) p.push(`<section class="slide ele">
-${fundo(F.mercado, 'dof')}${veu('dark')}${barra()}${marca('ele', D)}
-  <div class="wrap">
-    <div class="eyebrow">POR QUE AGORA, E POR QUE AQUI</div>
-    <h2 class="title">A frota cresceu. <span class="g">A tomada não.</span></h2>
-    <div class="rule"></div>
-    <div data-row style="display:flex;gap:60px;align-items:flex-start;margin-top:6px">
-      <div style="width:660px">
-        ${stats}
-        ${se(tem(T.mercadoFonte), `<p class="nota" style="margin-top:20px">${rich(T.mercadoFonte)}</p>`)}
-      </div>
-      <div class="glass" style="flex:1">
-        <h3 class="title" style="font-size:34px;color:var(--acc)">E o seu endereço tem as três coisas que importam</h3>
-        <ul class="bullets tight" style="margin-top:24px">
-          ${cards}
-        </ul>
-        ${se(tem(T.pontoFecho), `<p class="lead" style="font-size:22px;margin-top:22px">${rich(T.pontoFecho)}</p>`)}
-      </div>
-    </div>
-  </div>
-${rodape('PARTE 2 &middot; O POSTO', N())}</section>`);
 
   // ── 11 · A ESTAÇÃO ───────────────────────────────────────────────────────
   if (D.temPosto) p.push(`<section class="slide ele denso">
@@ -368,7 +382,7 @@ ${fundo(F.estacao, 'dof')}${veu('dark')}${barra()}${marca('ele', D)}
       </div>
     </div>
   </div>
-${rodape('PARTE 2 &middot; O POSTO', N())}</section>`);
+${rodape('O POSTO', N())}</section>`);
 
   // ── 12 · O EQUIPAMENTO (fundo claro) ─────────────────────────────────────
   const eq = (T.equipamento || []).map(b => `<li style="color:#1B2A20">${rich(b)}</li>`).join('\n          ');
@@ -389,7 +403,7 @@ ${marca('ele', D)}
       </div>
     </div>
   </div>
-  <div class="foot" style="color:rgba(11,20,16,.62)">PARTE 2 &middot; O POSTO</div>
+  <div class="foot" style="color:rgba(11,20,16,.62)">O POSTO</div>
   <div class="pg" style="color:rgba(11,20,16,.62)">${String(N()).padStart(2, '0')}</div>
 </section>`);
 
@@ -431,74 +445,7 @@ ${fundo(F.receita, 'dof')}${veu('dark')}${barra()}${marca('ele', D)}
       </div>
     </div>
   </div>
-${rodape('PARTE 2 &middot; O POSTO', N())}</section>`);
-
-  // ── 14 · O RETORNO ───────────────────────────────────────────────────────
-  const fl = (P.fluxo || []).map(Number);
-  const maxF = Math.max(...fl, 1), minF = Math.min(...fl, 0);
-  const amp = maxF - minF || 1, zeroPct = (maxF / amp) * 100;
-  const cols = fl.map(v => v < 0
-    ? `<div class="col"><div class="up"><div class="colval neg">&minus;${mil(Math.abs(v))}</div></div><div class="dn"><div class="colbar neg"></div></div></div>`
-    : `<div class="col"><div class="up"><div class="colval">${mil(v)}</div><div class="colbar" style="height:${css(v / maxF * 100)}%"></div></div><div class="dn"></div></div>`).join('\n      ');
-  const anos = fl.map((_, i) => `<div>${i === 0 ? 'ANO 1' : i + 1}</div>`).join('');
-  if (D.temPosto && tem(P.fluxo)) p.push(`<section class="slide ele">
-${barra()}${marca('ele', D)}
-  <div class="wrap">
-    <div class="eyebrow">RETORNO DO POSTO &middot; INVESTIMENTO DE ${brl2(P.invest)}</div>
-    <h2 class="title">O que o posto vira em 10 anos</h2>
-    <div class="rule"></div>
-    <div class="kpis" style="margin-bottom:40px">
-      <div class="kpi on"><div class="lbl">PAYBACK</div><div class="val">${esc(P.paybackNum)}<small>anos</small></div></div>
-      <div class="kpi on"><div class="lbl">TIR</div><div class="val">${dec(P.tirPct)}<small>% a.a.</small></div></div>
-      <div class="kpi on"><div class="lbl">VPL @ ${dec(P.taxaDescPct, 2)}%</div><div class="val" style="font-size:44px">${brl(P.vpl)}</div></div>
-      <div class="kpi on"><div class="lbl">PATRIMÔNIO EM 10 ANOS</div><div class="val" style="font-size:44px">${brl(P.acumulado10)}</div></div>
-    </div>
-    <div class="chart">
-      <div class="zero" style="top:${css(zeroPct)}%"></div>
-      ${cols}
-    </div>
-    <div class="anos">${anos}</div>
-    <p class="nota" style="margin-top:20px"><b>A linha tracejada é o zero: o projeto a cruza no mês ${num(P.paybackMes)}</b> — dali em diante é lucro acumulando, mês após mês, sobre um ativo que já é seu.</p>
-  </div>
-${rodape('PARTE 2 &middot; O POSTO', N())}</section>`);
-  // as colunas usam a altura do bloco .up, que o CSS fixa em 93,95%: ajusta pro caso
-  // A linha do zero muda de cliente para cliente (depende de quanto o ano 1 fica
-  // negativo), então a altura dos blocos .up/.dn é calculada aqui e escrita inline —
-  // o CSS traz só o valor do caso Edeilson como padrão.
-  if (D.temPosto && tem(P.fluxo)) p[p.length - 1] = p[p.length - 1]
-    .replace(/<div class="col"><div class="up"/g, `<div class="col"><div class="up" style="height:${css(zeroPct)}%"`)
-    .replace(/<div class="dn">/g, `<div class="dn" style="height:${css(100 - zeroPct)}%">`);
-
-  // ── 15 · PISO, BASE E TETO ───────────────────────────────────────────────
-  const cen = D.cenarios || {};
-  const linhas = (cen.linhas || []).map(l =>
-    `<tr><td>${rich(l.nome)}</td><td>${rich(l.piso)}</td><td class="base">${rich(l.base)}</td><td>${rich(l.teto)}</td></tr>`).join('\n      ');
-  if (D.cenarios && tem(D.cenarios.linhas)) p.push(`<section class="slide ele">
-${fundo(F.cenarios, 'dof')}${veu('dark')}${barra()}${marca('ele', D)}
-  <div class="wrap">
-    <div class="eyebrow">ANÁLISE DE SENSIBILIDADE &middot; DEMANDA</div>
-    <h2 class="title">O piso, a base e o teto do projeto</h2>
-    <div class="rule"></div>
-    <table class="cen" style="margin-top:4px">
-      <tr><th>INDICADOR</th><th>PISO<span>${esc(cen.piso)}</span></th><th class="base">A CONTA DESTE PROJETO<span>${esc(cen.base)}</span></th><th>TETO DESTA PÁGINA<span>${esc(cen.teto)}</span></th></tr>
-      ${linhas}
-    </table>
-    <p class="nota" style="margin-top:26px">${rich(cen.nota)}</p>
-  </div>
-${rodape('PARTE 2 &middot; O POSTO', N())}</section>`);
-
-  // ── 16 · DIVISOR PARTE 3 ─────────────────────────────────────────────────
-  if (D.temSolar && D.temPosto) p.push(`<section class="slide amb parte">
-${fundo(F.divisorConjunto || F.tese, 'dof-soft')}${veu('left')}${barra()}
-  <div class="wrap">
-    <div style="max-width:1100px">
-      <div class="parte-num">03</div>
-      <div class="eyebrow" style="margin-top:26px">PARTE 3 &middot; O CONJUNTO</div>
-      <h1 class="title">Os dois juntos,<br><span class="mark">num número só</span></h1>
-      <p class="lead" style="margin-top:32px">A usina e o posto trabalham com a mesma energia. Aqui está o resultado dos dois juntos, com a conta aberta de onde cada kWh rende mais.</p>
-    </div>
-  </div>
-${rodape('PARTE 3 DE 4', N())}</section>`);
+${rodape('O POSTO', N())}</section>`);
 
   // ── 17 · O CONSOLIDADO ───────────────────────────────────────────────────
   D._pgConjunto = N();
@@ -520,26 +467,112 @@ ${barra()}${marca('amb', D)}
         <div class="v" style="color:#7CE500">${brl(C.lucroPosto)}</div>
         <div class="d">Lucro líquido da revenda de ${num(P.kwhMes)} kWh, já descontados energia, gateway, imposto, seguro e assinatura.</div>
       </div>
+      ${se(tem(C.ajusteRede), `<div class="op">&minus;</div>
+      <div class="p">
+        <div class="r">A ENERGIA QUE A USINA NÃO COBRE</div>
+        <div class="v" style="color:rgba(255,255,255,.80);font-size:40px">${brl(C.ajusteRede)}</div>
+        <div class="d">${num(C.faltaKwh)} kWh vindos da rede. <b>O que a usina não cobre, a gente
+          desconta em vez de esconder.</b></div>
+      </div>`)}
       <div class="op">=</div>
       <div class="p tot">
         <div class="r">O CONJUNTO</div>
         <div class="v">${brl(C.ganhoMes)}</div>
-        <div class="d">Por mês, em regime pleno. Sobre um investimento total de ${brl(C.investTotal)}, que se paga em <b style="color:#fff">${esc(C.paybackTxt)}</b>.</div>
+        <div class="d">Por mês, em regime pleno &mdash; ${brl(C.ganhoAno)} por ano. Sobre ${brl(C.investTotal)}, que se paga em <b style="color:#fff">${esc(C.paybackTxt)}</b>.</div>
       </div>
     </div>
-    <div class="glass tint" style="margin-top:34px;border-color:var(--acc);padding:30px 42px">
-      <div style="font-size:15px;letter-spacing:.24em;font-weight:700;color:var(--acc);margin-bottom:14px">COMO OS DOIS SE SOMAM</div>
-      <p class="lead" style="font-size:23px;margin:0">
+    <div class="glass tint" style="margin-top:22px;border-color:var(--acc);padding:22px 32px">
+      <div style="font-size:14px;letter-spacing:.24em;font-weight:700;color:var(--acc);margin-bottom:10px">COMO OS DOIS SE SOMAM</div>
+      <p class="lead" style="font-size:21px;margin:0">
         A usina gera <b>${num(S.geracao)} kWh</b> por mês. O carregador compra <b>${num(P.kwhMes)}</b> deles e revende a ${brl2(P.preco)} o kWh — é a parte da sua energia que vale mais vendida do que economizada. Os <b>${num(C.sobraKwh)} kWh</b> que sobram abatem a sua conta de luz a ${brl2(S.tarifa)}. <b>Cada kWh trabalha uma vez, no lugar onde rende mais</b> — e é assim que se chega aos ${brl(C.ganhoMes)} por mês.
       </p>
     </div>
-    ${ficha([
-      [`Usina solar ${dec(S.kwp)} kWp`, tem(S.invest) ? brl2(S.invest) : '', 'c-sol'],
-      [`Eletroposto ${esc(P.potenciaTxt)}`, tem(P.invest) ? brl2(P.invest) : '', 'c-ele'],
-      ['<b style="color:#fff">Investimento total do projeto</b>', brl2(C.investTotal), '', true],
-    ])}
   </div>
-${rodape('PARTE 3 &middot; O CONJUNTO', N())}</section>`);
+${rodape('O PROJETO INTEIRO', N())}</section>`);
+
+  // ── 14 · O RETORNO ───────────────────────────────────────────────────────
+  const fl = ((C.fluxo && C.fluxo.length ? C.fluxo : P.fluxo) || []).map(Number);
+  const maxF = Math.max(...fl, 1), minF = Math.min(...fl, 0);
+  const amp = maxF - minF || 1, zeroPct = (maxF / amp) * 100;
+  const cols = fl.map(v => v < 0
+    ? `<div class="col"><div class="up"><div class="colval neg">&minus;${mil(Math.abs(v))}</div></div><div class="dn"><div class="colbar neg"></div></div></div>`
+    : `<div class="col"><div class="up"><div class="colval">${mil(v)}</div><div class="colbar" style="height:${css(v / maxF * 100)}%"></div></div><div class="dn"></div></div>`).join('\n      ');
+  const anos = fl.map((_, i) => `<div>${i === 0 ? 'ANO 1' : i + 1}</div>`).join('');
+  if (tem(fl)) p.push(`<section class="slide amb">
+${barra()}${marca('amb', D)}
+  <div class="wrap">
+    <div class="eyebrow">RETORNO DO INVESTIMENTO TOTAL &middot; ${brl(C.investTotal)}</div>
+    <h2 class="title">O que o projeto inteiro vira em 10 anos</h2>
+    <div class="rule" style="background:#fff"></div>
+    <div class="kpis" style="margin-bottom:40px">
+      <div class="kpi on"><div class="lbl">PAYBACK</div><div class="val">${num(C.paybackMeses)}<small>meses</small></div></div>
+      <div class="kpi on"><div class="lbl">TIR</div><div class="val">${dec(C.tirPct)}<small>% a.a.</small></div></div>
+      <div class="kpi on"><div class="lbl">VPL @ ${dec(P.taxaDescPct, 2)}%</div><div class="val" style="font-size:44px">${brl(C.vpl)}</div></div>
+      <div class="kpi on"><div class="lbl">PATRIMÔNIO EM 10 ANOS</div><div class="val" style="font-size:44px">${brl(C.acumulado10)}</div></div>
+    </div>
+    <div class="chart">
+      <div class="zero" style="top:${css(zeroPct)}%"></div>
+      ${cols}
+    </div>
+    <div class="anos">${anos}</div>
+    <p class="nota" style="margin-top:20px"><b>A linha tracejada é o zero: o projeto a cruza no mês ${num(C.paybackMeses)}</b> — dali em diante é lucro. E não há reajuste de tarifa em nenhuma coluna: <b>tudo em valores de hoje</b>. Se a energia subir, este gráfico melhora sozinho.</p>
+  </div>
+${rodape('O POSTO', N())}</section>`);
+  // as colunas usam a altura do bloco .up, que o CSS fixa em 93,95%: ajusta pro caso
+  // A linha do zero muda de cliente para cliente (depende de quanto o ano 1 fica
+  // negativo), então a altura dos blocos .up/.dn é calculada aqui e escrita inline —
+  // o CSS traz só o valor do caso Edeilson como padrão.
+  if (tem(fl)) p[p.length - 1] = p[p.length - 1]
+    .replace(/<div class="col"><div class="up"/g, `<div class="col"><div class="up" style="height:${css(zeroPct)}%"`)
+    .replace(/<div class="dn">/g, `<div class="dn" style="height:${css(100 - zeroPct)}%">`);
+
+  // ── 15 · PISO, BASE E TETO ───────────────────────────────────────────────
+  const cen = D.cenarios || {};
+  const linhas = (cen.linhas || []).map(l =>
+    `<tr><td>${rich(l.nome)}</td><td>${rich(l.piso)}</td><td class="base">${rich(l.base)}</td><td>${rich(l.teto)}</td></tr>`).join('\n      ');
+  if (D.cenarios && tem(D.cenarios.linhas)) p.push(`<section class="slide ele">
+${fundo(F.cenarios, 'dof')}${veu('dark')}${barra()}${marca('ele', D)}
+  <div class="wrap">
+    <div class="eyebrow">ANÁLISE DE SENSIBILIDADE &middot; DEMANDA</div>
+    <h2 class="title">O piso, a base e o teto do projeto</h2>
+    <div class="rule"></div>
+    <table class="cen" style="margin-top:4px">
+      <tr><th>INDICADOR</th><th>PISO<span>${esc(cen.piso)}</span></th><th class="base">A CONTA DESTE PROJETO<span>${esc(cen.base)}</span></th><th>TETO DESTA PÁGINA<span>${esc(cen.teto)}</span></th></tr>
+      ${linhas}
+    </table>
+    <p class="nota" style="margin-top:26px">${rich(cen.nota)}</p>
+  </div>
+${rodape('O POSTO', N())}</section>`);
+
+
+
+  // ── AS PREMISSAS, EM DUAS COLUNAS ★ ───────────────────────────────────
+  // À esquerda o que entrou na conta, montado a partir dos parâmetros que de fato
+  // rodaram — nunca de uma lista escrita à mão, que envelheceria sozinha. À
+  // direita o que NÃO entrou, e cada linha ali é um ganho que o cliente leva sem
+  // estar no número. É a segunda coluna que compra a credibilidade.
+  if (tem(T.premissasEntraram) || tem(T.premissasNaoEntraram)) p.push(`<section class="slide amb denso">
+${fundo(F.premissas, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
+  <div class="wrap">
+    <div class="eyebrow">TUDO O QUE A CONTA ASSUMIU</div>
+    <h2 class="title">As premissas, na mesa</h2>
+    <div class="rule" style="background:#fff"></div>
+    <div data-row style="display:flex;gap:44px;align-items:flex-start;margin-top:4px">
+      <div style="flex:1">
+        <div class="eyebrow" style="margin-bottom:16px;color:#FFC400">O QUE ENTROU NA CONTA</div>
+        <ul class="bullets tight">${(T.premissasEntraram || []).map(x => `<li>${rich(x)}</li>`).join('')}</ul>
+      </div>
+      <div style="flex:1;border-left:2px solid rgba(255,255,255,.14);padding-left:44px">
+        <div class="eyebrow" style="margin-bottom:16px">O QUE NÃO ENTROU — E POR QUÊ</div>
+        <ul class="bullets tight">${(T.premissasNaoEntraram || []).map(x => `<li>${rich(x)}</li>`).join('')}</ul>
+      </div>
+    </div>
+    <p class="nota" style="margin-top:28px">
+      <b>Mexeu numa premissa, o número muda na hora.</b> A conta roda no mesmo motor do
+      orçamento que você já recebeu — se quiser ver outro cenário, a gente refaz na sua frente.
+    </p>
+  </div>
+${rodape('O PROJETO INTEIRO', N())}</section>`);
 
   // ── 18 · QUEM EXECUTA ────────────────────────────────────────────────────
   const cred = (T.credenciais || []).map(c => `<li>${rich(c)}</li>`).join('\n        ');
@@ -551,7 +584,7 @@ ${barra()}${marca('amb', D)}
     <div data-row style="display:flex;align-items:flex-end;gap:34px">
       <div style="font-size:104px;font-weight:800;line-height:.8;color:#fff;opacity:.20">04</div>
       <div style="flex:1">
-        <div class="eyebrow">PARTE 4 &middot; EXECUÇÃO</div>
+        <div class="eyebrow">EXECUÇÃO</div>
         <h2 class="title" style="font-size:50px">Equipe própria, do projeto à primeira recarga</h2>
       </div>
     </div>
@@ -563,7 +596,7 @@ ${barra()}${marca('amb', D)}
     </div>
     ${se(tem(F.obraLegenda), `<p class="legenda" style="margin-top:18px">${rich(F.obraLegenda)}</p>`)}
   </div>
-${rodape('PARTE 4 &middot; EXECUÇÃO', N())}</section>`);
+${rodape('EXECUÇÃO', N())}</section>`);
 
   // ── 19 · ESCOPO E GARANTIAS ──────────────────────────────────────────────
   const escopo = (T.escopo || []).map(e => `<li>${rich(e)}</li>`).join('\n          ');
@@ -587,7 +620,7 @@ ${fundo(F.escopo, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
     </div>
     <p class="nota" style="margin-top:28px"><b>Chave na mão:</b> a coluna da esquerda inteira está no valor${D._pgInvest ? ` da página ${D._pgInvest}` : ''}, executada e homologada por nós, do projeto à primeira recarga. De você precisamos do acesso ao telhado nos dias de montagem e da documentação — que preenchemos e protocolamos.</p>
   </div>
-${rodape('PARTE 4 &middot; EXECUÇÃO', N())}</section>`);
+${rodape('EXECUÇÃO', N())}</section>`);
 
   // ── 20 · INVESTIMENTO ────────────────────────────────────────────────────
   D._pgInvest = N();
@@ -602,6 +635,8 @@ ${fundo(F.investimento, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
         tem(S.invest) ? brl2(S.invest) : '', 'c-sol'],
       [`Eletroposto ${esc(P.potenciaTxt)}${tem(P.carregadores) ? ` — ${num(P.carregadores)} carregador, ${num(P.bicos)} bicos` : ''}`,
         tem(P.invest) ? brl2(P.invest) : '', 'c-ele'],
+      [`Entrada de energia${D.entrada && tem(D.entrada.kva) ? ` — transformador ${num(D.entrada.kva)} kVA` : ''}`,
+        D.entrada && tem(D.entrada.invest) ? brl2(D.entrada.invest) : ''],
     ]).replace('class="ficha"', 'class="ficha" style="margin-top:10px;font-size:26px"')}
     <div class="glass tint" style="margin-top:26px;border-color:#fff;padding:34px 46px">
       <div data-row style="display:flex;align-items:center;gap:44px">

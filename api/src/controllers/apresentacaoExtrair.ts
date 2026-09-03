@@ -83,6 +83,12 @@ const CAMPOS = {
     posto_padrao:       { type: 'string',  description: 'Padrão de entrada, como "T5 · disjuntor 200 A".' },
     posto_trafo:        { type: 'string',  description: 'Transformador, como "220 V / 380 V".' },
 
+    // ── a obra da entrada de energia, quando o projeto tiver uma ──
+    entrada_invest: { type: 'number', description: 'Custo da obra de entrada de energia / padrão / transformador, em reais.' },
+    entrada_kva:    { type: 'number', description: 'Potência do transformador em kVA.' },
+    entrada_hoje:   { type: 'string', description: 'Entrada existente, como "150 A" ou "150 A · medição com demanda".' },
+    entrada_nova:   { type: 'string', description: 'Entrada depois da obra, como "456 A".' },
+
     custo_gateway:  { type: 'number', description: 'Gateway de pagamento, em % (só o número).' },
     custo_arrend:   { type: 'number', description: 'Arrendamento do ponto, em %.' },
     custo_manut:    { type: 'number', description: 'Manutenção, em %.' },

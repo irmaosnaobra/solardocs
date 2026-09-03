@@ -160,6 +160,16 @@ const bodySchema = z.object({
   garantias: z.array(z.object({ item: z.string(), prazo: z.string() })).default([]),
   escopo: listaTxt, credenciais: listaTxt, equipamento: listaTxt, pontoCards: listaTxt,
   mercado: z.array(z.object({ n: z.string(), t: z.string() })).default([]),
+  // A entrada de energia é a TERCEIRA linha do investimento quando a obra do padrão
+  // é grande. Ela não é do posto: atende o imóvel inteiro, e o que sobra é
+  // capacidade do cliente. Escondê-la dentro do preço do posto é o que faz o
+  // cliente descobrir na obra.
+  entrada: z.object({
+    invest: z.number().default(0), kva: z.number().default(0),
+    correnteHoje: z.string().default(''), correnteNova: z.string().default(''),
+    cargaCarregador: z.string().default(''), cargaUsina: z.string().default(''),
+    sobra: z.string().default(''), descricao: z.string().default(''),
+  }).default({} as any),
   // O que a conta de luz do cliente disse. É a única fonte da tarifa que ele paga
   // de verdade — com bandeira, PIS/COFINS e ICMS já embutidos, no mês certo.
   conta: z.object({
@@ -391,17 +401,41 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
     // informada, ela não entra no consolidado em vez de entrar errada.
     const ecoLiquida = grupoA ? Math.max(0, S.economiaMes - 0)
                               : Math.max(0, sobraKwh * S.tarifa - S.contaMinima);
-    const investTotal = S.invest + E.invest;
-    const ganhoMes = ecoLiquida + calc.lucroMes;
+    const EN = body.entrada;
+    const investTotal = S.invest + E.invest + EN.invest;
+    // Seguro da entrada: 1% ao ano, o mesmo critério que o computeEletro usa no posto.
+    // Ficar de fora seria custo declarado e não descontado — a única coisa que uma
+    // proposta assim não pode ter, porque contradiz a página que a defende.
+    const seguroEntrada = EN.invest * 0.01 / 12;
+    // Energia de rede que a usina não cobre: só o DELTA, porque os R$/kWh do custo do
+    // posto já estão cobrados dentro do lucro dele. Cobrar a tarifa cheia aqui contaria
+    // esse pedaço duas vezes.
+    const faltaKwh = Math.max(0, (consumo + calc.kwhMes) - S.geracao);
+    const ajusteRede = (temConta || S.economiaMes > 0) ? faltaKwh * Math.max(0, S.tarifa - E.custoKwh) : 0;
+    const ganhoMes = ecoLiquida + calc.lucroMes - ajusteRede - seguroEntrada;
 
-    // payback do conjunto, mês a mês, com a rampa do posto no ano 1
-    let acc = 0, meses = 0;
-    const postoMes1 = calc.lucroAno1 / 12;
-    while (acc < investTotal && meses < 360) { meses++; acc += ecoLiquida + (meses <= 12 ? postoMes1 : calc.lucroMes); }
-    const anos = Math.floor(meses / 12), resto = meses % 12;
-    const paybackConj = anos > 0
-      ? `${anos} ano${anos > 1 ? 's' : ''}${resto ? ` e ${resto} ${resto > 1 ? 'meses' : 'mês'}` : ''}`
-      : `${meses} meses`;
+    // ── RETORNO DO CONJUNTO ────────────────────────────────────────────────
+    // O cliente não compra o posto: compra o projeto. O fluxo que interessa é o dos
+    // três investimentos juntos, com a rampa do posto pesando só no ano 1.
+    const fixoAnual = (ecoLiquida - ajusteRede - seguroEntrada) * 12;
+    const fluxoConjAnual: number[] = [];
+    for (let a = 1; a <= 10; a++) fluxoConjAnual.push(fixoAnual + (a === 1 ? calc.lucroAno1 : calc.lucroAno));
+    const fluxoConj: number[] = [];
+    let accC = -investTotal;
+    fluxoConjAnual.forEach(f => { accC += f; fluxoConj.push(accC); });
+    let mesesConj = 0, accM = 0;
+    while (mesesConj < 360 && accM < investTotal) {
+      mesesConj++;
+      accM += ecoLiquida - ajusteRede - seguroEntrada + (mesesConj <= 12 ? calc.lucroAno1 / 12 : calc.lucroMes);
+    }
+    const vplConj = fluxoConjAnual.reduce((v, f, i) => v + f / Math.pow(1 + E.taxaDesc, i + 1), -investTotal);
+    let tirConj: number | null = null;
+    if (investTotal > 0 && fluxoConjAnual.some(f => f > 0)) {
+      const npvC = (r: number) => fluxoConjAnual.reduce((v, f, i) => v + f / Math.pow(1 + r, i + 1), -investTotal);
+      if (npvC(0) > 0) { let lo = 0, hi = 10; for (let i = 0; i < 80; i++) { const m = (lo + hi) / 2; if (npvC(m) > 0) lo = m; else hi = m; } tirConj = (lo + hi) / 2; }
+    }
+
+    const paybackConj = `${mesesConj} meses`;
 
     etapa = 'ia';
     const ia = body.fotos.length || body.arquivos.length
@@ -469,8 +503,35 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
       },
       conjunto: {
         investTotal, ecoLiquida, lucroPosto: calc.lucroMes, ganhoMes,
-        paybackTxt: paybackConj, sobraKwh,
+        paybackTxt: paybackConj, paybackMeses: mesesConj, sobraKwh,
+        ajusteRede, faltaKwh, seguroEntrada,
+        ganhoAno: ganhoMes * 12,
+        // o retorno que o cliente compra é o do projeto inteiro, não o do posto
+        fluxo: fluxoConj, tirPct: (tirConj || 0) * 100, vpl: vplConj,
+        acumulado10: fluxoConj[fluxoConj.length - 1],
       },
+
+      // ── O BALANÇO DE ENERGIA ────────────────────────────────────────────
+      // A página que MOSTRA que não somamos duas vezes, em vez de afirmar. Só
+      // existe com consumo: sem ele não há o que balancear, e um consumo chutado
+      // aqui contaminaria a página mais importante do deck.
+      balanco: consumo > 0 ? {
+        consumo, posto: calc.kwhMes, demanda: consumo + calc.kwhMes, geracao: S.geracao,
+        coberturaPct: Math.round(Math.min(1, S.geracao / Math.max(1, consumo + calc.kwhMes)) * 100),
+        faltaKwh, ajusteRede,
+        carrosTxt: `${E.carros} carros/dia × ${E.carga} kWh`,
+        origem: body.conta.kwh > 0
+          ? `Consumo lido da sua conta de luz${body.conta.mes ? ` de ${body.conta.mes}` : ''}.`
+          : 'Consumo estimado a partir do orçamento solar. **Traga uma conta de luz e a gente confirma na hora.**',
+      } : null,
+
+      // ── A ENTRADA DE ENERGIA ────────────────────────────────────────────
+      entrada: EN.invest > 0 || EN.kva > 0 ? {
+        invest: EN.invest, kva: EN.kva,
+        correnteHoje: EN.correnteHoje, correnteNova: EN.correnteNova,
+        cargaCarregador: EN.cargaCarregador, cargaUsina: EN.cargaUsina,
+        sobra: EN.sobra, descricao: EN.descricao,
+      } : null,
       cenarios: temPosto && E.carros > 0 ? cenarios(E, calc) : null,
       cronograma: acumDias.length ? {
         totalDias: acumDias[acumDias.length - 1].dia,
@@ -510,6 +571,28 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
           { n: '0 m²', t: 'de chão ocupado', p: 'O pátio continua inteiro para a operação e para o carregador.' },
           { n: 'Obra seca', t: 'na usina', p: 'Trilho, fixação, cabo e inversor. A única obra civil é a base do carregador.' },
         ] : [],
+        // ── AS PREMISSAS, EM DUAS COLUNAS ────────────────────────────────
+        // A da esquerda é montada a partir dos parâmetros que realmente rodaram, e
+        // não de uma lista escrita à mão — assim ela nunca diverge da conta.
+        premissasEntraram: [
+          E.carros && `**${E.carros} carros por dia**, ${E.carga} kWh por sessão`,
+          E.precoKwh && `**${brlTxt(E.precoKwh)} o kWh** ao motorista${E.ativacao ? ` e ${brlTxt(E.ativacao)} de ativação por sessão` : ''}`,
+          E.custoKwh && `**${brlTxt(E.custoKwh)} o kWh** de custo, porque a energia é sua`,
+          E.ocupIni < 1 && `Ocupação de **${Math.round(E.ocupIni * 100)}%** subindo ao pleno em ${E.mesesRampa} meses`,
+          (E.gateway || E.imposto) && `**${Math.round(E.gateway * 100)}% de gateway**${E.imposto ? `, ${Math.round(E.imposto * 100)}% de imposto` : ''}${E.assinat ? `, ${brlTxt(E.assinat)} de assinatura` : ''}`,
+          S.tarifa && `Tarifa de **${brlTxt(S.tarifa)} o kWh** na conta de luz de hoje`,
+          E.taxaDesc && `Taxa de referência de **${(E.taxaDesc * 100).toFixed(2).replace('.', ',')}% a.a.** para o VPL`,
+        ].filter(Boolean) as string[],
+        // A da direita é o que ficou FORA — e cada linha é um ganho que o cliente
+        // leva sem estar no número. É a página que compra credibilidade.
+        premissasNaoEntraram: [
+          '**Reajuste de tarifa.** Tudo está em valores de hoje. Energia subindo, o projeto melhora.',
+          E.arrend === 0 && '**Aluguel do ponto.** O terreno é seu — se um dia arrendar, a conta muda.',
+          temPosto && '**Movimento extra no seu negócio.** Quem carrega fica parado ali. Isso não virou receita aqui.',
+          temSolar && temPosto && '**Crédito de energia injetada.** A geração acima do seu consumo só foi contada como combustível do posto, nunca como economia.',
+          EN.invest > 0 && EN.sobra && `**${EN.sobra} que sobram** na entrada nova. É capacidade sua para crescer, e nenhuma linha desta conta remunera isso.`,
+          '**Prazo de obra.** Quem manda no cronograma é o parecer de acesso da distribuidora.',
+        ].filter(Boolean) as string[],
         pagamento: body.textos.pagamento,
         notaValidade: body.textos.notaValidade,
         fechamento: body.textos.fechamento,
@@ -522,7 +605,8 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
     const omitidas = [
       !temSolar && 'a usina',
       !temPosto && 'o eletroposto',
-      temSolar && !temConta && 'a página da conta de luz (falta o consumo)',
+      temSolar && consumo <= 0 && 'o balanço de energia (falta o consumo do imóvel)',
+      !EN.invest && !EN.kva && 'a página da entrada de energia',
       temSolar && !S.aguas.length && !porEspaco.layout && 'o layout das placas',
       !porEspaco.produto && 'a página do equipamento (falta a foto)',
       !body.garantias.length && !body.escopo.length && 'escopo e garantias',
@@ -562,6 +646,11 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
 }
 
 // ── auxiliares de texto ───────────────────────────────────────────────────
+/** R$ com centavos só quando existem: "R$ 2,35" mas "R$ 300". */
+function brlTxt(v: number) {
+  return 'R$ ' + (Number.isInteger(v) ? v.toLocaleString('pt-BR')
+    : v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+}
 function anosTxt(p: number | null) {
   if (p == null) return '—';
   return p.toFixed(1).replace('.', ',') + (p < 2 ? ' ano' : ' anos');
