@@ -57,6 +57,8 @@ const rich = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
  *  para texto — se vazar para o CSS, a regra inteira é descartada pelo navegador
  *  (foi o que quebrou a barra da conta de luz e as colunas do gráfico). */
 const css  = (n, c = 2) => (Number(n) || 0).toFixed(c);
+/** potência: "120 kWp" e não "120,0 kWp"; mas "87,5" continua com a casa. */
+const kwp  = n => { const v = Number(n) || 0; return Number.isInteger(v) ? String(v) : v.toFixed(1).replace('.', ','); };
 const mil  = n => { const v = Math.round(Number(n) || 0); return Math.abs(v) >= 1000 ? (v / 1000).toFixed(0) + ' mil' : String(v); };
 
 // ── blocos reaproveitados ──────────────────────────────────────────────────
@@ -120,11 +122,11 @@ ${fundo(F.capa || F.terreno)}${veu('left')}
       <div style="font-size:30px;font-weight:600;letter-spacing:.14em;margin-top:22px">${esc(D.cidade)}</div>
       <div style="margin-top:38px;font-size:25px;color:var(--muted);line-height:1.55;max-width:920px">
         ${D.temSolar && D.temPosto
-          ? `Uma <b class="c-sol">usina solar de ${dec(S.kwp)} kWp</b> no telhado que já é seu, e um
+          ? `Uma <b class="c-sol">usina solar de ${kwp(S.kwp)} kWp</b> no telhado que já é seu, e um
              <b class="c-ele">eletroposto de recarga rápida</b> que vende essa mesma energia para
              quem passa na porta.`
           : D.temSolar
-          ? `Uma <b class="c-sol">usina solar de ${dec(S.kwp)} kWp</b> sobre o telhado que já é seu,
+          ? `Uma <b class="c-sol">usina solar de ${kwp(S.kwp)} kWp</b> sobre o telhado que já é seu,
              gerando ${num(S.geracao)} kWh por mês de energia própria.`
           : `Um <b class="c-ele">eletroposto de recarga rápida ${esc(P.potenciaTxt)}</b> no pátio que
              já é seu, vendendo energia para quem passa na porta.`}
@@ -158,7 +160,7 @@ ${fundo(F.tese, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
       ${se(D.temSolar, `<div class="glass" style="flex:1;border-color:#FFC400">
         <div class="eyebrow" style="margin-bottom:14px;color:#FFC400">O QUE PRODUZ</div>
         <div style="font-size:60px;font-weight:800;line-height:1;color:#FFC400">${num(S.geracao)} <span style="font-size:26px;color:var(--muted);font-weight:600">kWh/mês</span></div>
-        <p class="lead" style="font-size:22px;margin-top:18px">${dec(S.kwp)} kWp de módulos sobre o telhado existente. Energia própria, gerada no mesmo endereço onde ela é consumida.</p>
+        <p class="lead" style="font-size:22px;margin-top:18px">${kwp(S.kwp)} kWp de módulos sobre o telhado existente. Energia própria, gerada no mesmo endereço onde ela é consumida.</p>
       </div>`)}
       <div class="glass" style="flex:1;border-color:#7CE500">
         <div class="eyebrow" style="margin-bottom:14px;color:#7CE500">O QUE VENDE</div>
@@ -184,55 +186,68 @@ ${rodape('APRESENTAÇÃO COMERCIAL &middot; ' + esc(D.data), N())}</section>`);
 
 
 
-  // ── O BALANÇO DE ENERGIA ★ ────────────────────────────────────────────
-  // A página que separa esta apresentação de uma planilha: ela MOSTRA que a mesma
-  // energia não foi contada duas vezes. Só existe com consumo — sem ele não há o
-  // que balancear, e um consumo chutado contaminaria justamente a página que
-  // sustenta todo o resto.
+  // ── O CAMINHO DA ENERGIA ★ ────────────────────────────────────────────
+  // A página que separa esta apresentação de uma planilha. Ela mostra para onde
+  // vai cada kWh, e NÃO depende de saber o consumo do cliente — que é o número
+  // que os orçamentos solares não dão: a "economia" que eles imprimem é
+  // `geração × tarifa − mínima`, ou seja, é a própria geração. Deduzir consumo
+  // dali é conta circular. Aqui os dois primeiros destinos saem só da geração e
+  // do que o carregador leva, e o terceiro é honestamente não-quantificado.
   const B = D.balanco;
   if (B) {
-    const teto = Math.max(B.demanda, B.geracao, 1);
-    const w = v => css(v / teto * 100) + '%';
     p.push(`<section class="slide amb denso">
 ${fundo(F.balanco, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
   <div class="wrap">
     <div class="eyebrow">A ENERGIA, ANTES DO DINHEIRO</div>
-    <h2 class="title">Quem produz, quem consome</h2>
+    <h2 class="title">Para onde vai cada kWh que você produz</h2>
     <div class="rule" style="background:#fff"></div>
-    <div class="bal" style="margin-top:8px">
-      <div class="rot">A sua conta de luz hoje</div>
-      <div class="tr"><div class="b cinza" style="width:${w(B.consumo)}">consumo atual</div></div>
-      <div class="val">${num(B.consumo)}<small>kWh</small></div>
-
-      <div class="rot">O que o carregador vende<small>${esc(B.carrosTxt)}</small></div>
-      <div class="tr"><div class="b ele" style="width:${w(B.posto)}">o posto</div></div>
-      <div class="val">${num(B.posto)}<small>kWh</small></div>
-
-      <div class="risca"></div>
-
-      <div class="rot"><b>Demanda somada</b></div>
-      <div class="tr" style="width:${w(B.demanda)}">
-        <div class="b cinza" style="width:${css(B.consumo / Math.max(1, B.demanda) * 100)}%"></div>
-        <div class="b ele" style="flex:1"></div>
+    <div data-row style="display:flex;gap:26px;align-items:stretch;margin-top:6px">
+      <div class="glass" style="width:430px;flex-shrink:0;border-color:#FFC400">
+        <div class="eyebrow" style="color:#FFC400;margin-bottom:12px">A USINA DE ${kwp(S.kwp)} kWp GERA</div>
+        <div style="font-size:72px;font-weight:800;line-height:1">${num(B.geracao)}</div>
+        <div style="font-size:22px;color:var(--muted);font-weight:600;margin-top:8px">kWh por mês</div>
+        <p class="lead" style="font-size:21px;margin-top:20px">Toda essa energia nasce no seu terreno.
+          <b>Ela tem três destinos, nessa ordem.</b></p>
       </div>
-      <div class="val">${num(B.demanda)}<small>kWh</small></div>
-
-      <div class="rot" style="color:#FFC400"><b style="color:#FFC400">A usina de ${dec(S.kwp)} kWp gera</b></div>
-      <div class="tr"><div class="b sol" style="width:${w(B.geracao)}">${num(B.geracao)} kWh &mdash; cobre ${num(B.coberturaPct)}% de tudo</div></div>
-      <div class="val" style="color:#FFC400">${num(B.geracao)}<small>kWh</small></div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:14px">
+        <div class="glass plain" style="padding:22px 26px;display:flex;align-items:center;gap:20px">
+          <div style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;flex-shrink:0">1</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:24px;font-weight:700">O carregador vende</div>
+            <div style="font-size:19px;color:var(--muted);margin-top:5px">${esc(B.carrosTxt)}${B.precoTxt ? ` &mdash; é a parte que sai a <b style="color:#fff">${esc(B.precoTxt)} o kWh</b> para o motorista` : ''}</div>
+          </div>
+          <div style="text-align:right;white-space:nowrap"><span style="font-size:34px;font-weight:800;color:#7CE500">${num(B.aoPosto)}</span><span style="font-size:17px;color:var(--muted);margin-left:5px">kWh</span></div>
+        </div>
+        <div class="glass plain" style="padding:22px 26px;display:flex;align-items:center;gap:20px">
+          <div style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;flex-shrink:0">2</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:24px;font-weight:700">O que sobra abate a sua conta de luz</div>
+            <div style="font-size:19px;color:var(--muted);margin-top:5px">Todo kWh que a sua operação consumir sai da usina, e não da distribuidora.</div>
+          </div>
+          <div style="text-align:right;white-space:nowrap"><span style="font-size:34px;font-weight:800;color:#FFC400">${num(B.aConta)}</span><span style="font-size:17px;color:var(--muted);margin-left:5px">kWh</span></div>
+        </div>
+        <div class="glass plain" style="padding:22px 26px;display:flex;align-items:center;gap:20px">
+          <div style="width:38px;height:38px;border-radius:50%;background:#FFC400;color:#1a1200;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;flex-shrink:0">3</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:24px;font-weight:700">E o que a sua conta não usar não se perde</div>
+            <div style="font-size:19px;color:var(--muted);margin-top:5px">Vira <b style="color:#fff">crédito de energia, válido por 60 meses</b> &mdash; guardado no seu nome.</div>
+          </div>
+          <div style="text-align:right;white-space:nowrap"><span style="font-size:26px;font-weight:800;color:#FFC400">crédito</span><div style="font-size:16px;color:var(--muted)">acumulado</div></div>
+        </div>
+      </div>
     </div>
-    <div class="glass" style="margin-top:32px;padding:28px 40px">
-      <p class="lead" style="font-size:23px;margin:0">
-        A usina cobre <b>${num(B.coberturaPct)}% de tudo</b>${B.faltaKwh > 0
-          ? ` — a sua conta inteira e a maior parte do que o carregador vende. <b>Faltam
-             ${num(B.faltaKwh)} kWh por mês, que vêm da rede</b>, e esse custo já está
-             descontado do resultado. Não arredondamos para cima.`
-          : ` — a sua conta inteira e tudo o que o carregador vende, com folga.`}
-      </p>
+    <div class="glass" style="margin-top:24px;padding:26px 36px;border-color:#FFC400">
+      <div data-row style="display:flex;gap:32px;align-items:center">
+        <h3 class="title" style="font-size:30px;color:#FFC400;white-space:nowrap">Crédito é uma<br>poupança de energia</h3>
+        <p class="lead" style="font-size:21px;margin:0">Ele não vira dinheiro na conta, mas <b>vira desconto quando você precisar</b>: num mês de consumo maior, ou para <b>abater o consumo de um segundo carregador</b> quando você quiser ampliar. Enquanto você não usa, ele fica guardado.</p>
+      </div>
     </div>
-    <p class="nota" style="margin-top:22px">${rich(B.origem)}</p>
+    ${se(tem(B.coberturaPct), `<p class="nota" style="margin-top:18px">${rich(B.origem)} Somando a sua conta e o que o carregador vende, a usina cobre <b>${num(B.coberturaPct)}%</b> da demanda${B.faltaKwh > 0 ? `, e os ${num(B.faltaKwh)} kWh que faltam vêm da rede — já descontados do resultado` : ', com folga'}.</p>`)}
+    <p class="nota" style="margin-top:14px;font-size:17px">O crédito vale dentro da <b>mesma titularidade e da mesma distribuidora</b>. A Lei 14.300 cobra uma parcela do uso da rede sobre a energia injetada &mdash; <b>por isso o crédito não vale a tarifa cheia</b>, e nenhum número desta apresentação conta com ele.</p>
   </div>
-${rodape('O BALANÇO DE ENERGIA', N())}</section>`);
+${rodape('O CAMINHO DA ENERGIA', N())}</section>`);
+  }
+
   // ── 05 · O LAYOUT DAS PLACAS ─────────────────────────────────────────────
   const aguas = (S.aguas || []).map(a => `<li><b>${num(a.placas)} placas</b> ${esc(a.onde)}</li>`).join('\n          ');
   if (D.temSolar && (tem(S.aguas) || tem(F.layout))) p.push(`<section class="slide sol">
@@ -245,7 +260,7 @@ ${marca('sol', D)}
         <div class="rule" style="margin:22px 0 28px"></div>
         <ul class="bullets tight">
           ${aguas}
-          <li><b>${num(S.modulos)} placas posicionadas</b> — ${dec(S.kwp)} kWp, o que está desenhado em verde</li>
+          <li><b>${num(S.modulos)} placas posicionadas</b> — ${kwp(S.kwp)} kWp, o que está desenhado em verde</li>
         </ul>
         <div class="glass" style="margin-top:28px;padding:26px 30px">
           <div style="font-size:14px;letter-spacing:.22em;font-weight:700;color:var(--acc);margin-bottom:12px">O ORÇAMENTO É EXATAMENTE ESTE SISTEMA</div>
@@ -258,7 +273,7 @@ ${marca('sol', D)}
       </div>
     </div>
   </div>
-${rodape('PARTE 1 &middot; A USINA', N())}</section>`);
+${rodape('A USINA', N())}</section>`);
 
   // ── 06 · O SISTEMA E O QUE ESTÁ NO PREÇO ─────────────────────────────────
   if (D.temSolar) p.push(`<section class="slide sol denso">
@@ -268,7 +283,7 @@ ${fundo(F.sistema, 'dof')}${veu('dark')}${barra()}${marca('sol', D)}
     <h2 class="title">O sistema cotado</h2>
     <div class="rule"></div>
     ${kpis([
-      { lbl: 'POTÊNCIA',  val: dec(S.kwp), un: 'kWp', sub: `${num(S.modulos)} módulos de ${num(S.wpModulo)} W` },
+      { lbl: 'POTÊNCIA',  val: kwp(S.kwp), un: 'kWp', sub: `${num(S.modulos)} módulos de ${num(S.wpModulo)} W` },
       { lbl: 'PRODUÇÃO',  val: num(S.geracao), un: 'kWh/mês', sub: `média anual em ${esc(D.cidadeCurta || D.cidade)}` },
       { lbl: 'AUTONOMIA', val: num(S.autonomiaPct), un: '%', sub: 'do consumo estimado' },
     ])}
@@ -283,7 +298,7 @@ ${fundo(F.sistema, 'dof')}${veu('dark')}${barra()}${marca('sol', D)}
     </div>
     <p class="nota" style="margin-top:28px">${D._pgInvest ? `<b>Tudo o que aparece nesta página está no valor da página ${D._pgInvest}.</b>` : ''} Equipamento, projeto, instalação, homologação e garantias no mesmo preço fechado.</p>
   </div>
-${rodape('PARTE 1 &middot; A USINA', N())}</section>`);
+${rodape('A USINA', N())}</section>`);
 
   // ── 07 · A ENGENHARIA ────────────────────────────────────────────────────
   const eng = (T.engenharia || []).map(b => `<li>${rich(b)}</li>`).join('\n          ');
@@ -306,12 +321,7 @@ ${fundo(F.engenharia, 'dof')}${veu('dark')}${barra()}${marca('sol', D)}
       </div>
     </div>
   </div>
-${rodape('PARTE 1 &middot; A USINA', N())}</section>`);
-
-  }
-
-
-
+${rodape('A USINA', N())}</section>`);
 
   // ── O PONTO E A ENTRADA DE ENERGIA ★ ──────────────────────────────────
   // A página que prova que alguém foi olhar antes de vir: leitura do endereço à
@@ -631,7 +641,7 @@ ${fundo(F.investimento, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
     <h2 class="title">O que custa o projeto inteiro</h2>
     <div class="rule" style="background:#fff"></div>
     ${ficha([
-      [`Usina solar ${dec(S.kwp)} kWp${tem(S.modulos) ? ` — ${num(S.modulos)} módulos` : ''}${tem(S.inversores) ? `, ${esc(S.inversores)}` : ''}`,
+      [`Usina solar ${kwp(S.kwp)} kWp${tem(S.modulos) ? ` — ${num(S.modulos)} módulos` : ''}${tem(S.inversores) ? `, ${esc(S.inversores)}` : ''}`,
         tem(S.invest) ? brl2(S.invest) : '', 'c-sol'],
       [`Eletroposto ${esc(P.potenciaTxt)}${tem(P.carregadores) ? ` — ${num(P.carregadores)} carregador, ${num(P.bicos)} bicos` : ''}`,
         tem(P.invest) ? brl2(P.invest) : '', 'c-ele'],

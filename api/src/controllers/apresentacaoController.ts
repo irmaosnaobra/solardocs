@@ -515,14 +515,30 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
       // A página que MOSTRA que não somamos duas vezes, em vez de afirmar. Só
       // existe com consumo: sem ele não há o que balancear, e um consumo chutado
       // aqui contaminaria a página mais importante do deck.
-      balanco: consumo > 0 ? {
-        consumo, posto: calc.kwhMes, demanda: consumo + calc.kwhMes, geracao: S.geracao,
-        coberturaPct: Math.round(Math.min(1, S.geracao / Math.max(1, consumo + calc.kwhMes)) * 100),
-        faltaKwh, ajusteRede,
-        carrosTxt: `${E.carros} carros/dia × ${E.carga} kWh`,
+      // ── O CAMINHO DA ENERGIA ────────────────────────────────────────────
+      // NÃO depende do consumo, e essa é a decisão inteira desta página.
+      // A "economia" que os orçamentos solares imprimem é `geração × tarifa − mínima`,
+      // ou seja: é GERAÇÃO, não consumo. Deduzir o consumo dela é conta circular —
+      // devolve a própria geração. Descoberto num projeto real, depois de o deck já
+      // estar montado em cima do número deduzido.
+      // Por isso a página mostra o CAMINHO de cada kWh (o carregador leva tanto, o
+      // resto vai para a conta, o que a conta não usar vira crédito), que é verdade
+      // com qualquer consumo. A cobertura em % só aparece quando existe uma CONTA DE
+      // LUZ de verdade por trás — nunca a partir de consumo estimado.
+      balanco: temSolar && S.geracao > 0 ? {
+        geracao: S.geracao,
+        aoPosto: Math.min(S.geracao, calc.kwhMes),
+        aConta: Math.max(0, S.geracao - calc.kwhMes),
+        carrosTxt: E.carros ? `${E.carros} carros por dia × ${E.carga} kWh` : '',
+        precoTxt: E.precoKwh ? brlTxt(E.precoKwh) : '',
+        // só com conta de luz na mão: consumo estimado não sustenta percentual
+        consumoReal: body.conta.kwh > 0 ? consumo : 0,
+        coberturaPct: body.conta.kwh > 0 && consumo > 0
+          ? Math.round(Math.min(1, S.geracao / (consumo + calc.kwhMes)) * 100) : 0,
+        faltaKwh: body.conta.kwh > 0 ? faltaKwh : 0,
         origem: body.conta.kwh > 0
           ? `Consumo lido da sua conta de luz${body.conta.mes ? ` de ${body.conta.mes}` : ''}.`
-          : 'Consumo estimado a partir do orçamento solar. **Traga uma conta de luz e a gente confirma na hora.**',
+          : '',
       } : null,
 
       // ── A ENTRADA DE ENERGIA ────────────────────────────────────────────
