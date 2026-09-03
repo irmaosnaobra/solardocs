@@ -1630,13 +1630,45 @@ let compromissos = [];             // [{ts, dono, dur}] — TUDO que já está n
 //  decisão, não o número que a grade lê.)
 const REUNIOES_POR_HORARIO = 2;
 
-// Feriados nacionais (data BR). Ponto facultativo não entra — só o que fecha mesmo.
-const FERIADOS = new Set([
-  '2026-01-01','2026-02-16','2026-02-17','2026-04-03','2026-04-21','2026-05-01',
-  '2026-06-04','2026-09-07','2026-10-12','2026-11-02','2026-11-15','2026-11-20','2026-12-25',
-  '2027-01-01','2027-02-08','2027-02-09','2027-03-26','2027-04-21','2027-05-01',
-  '2027-05-27','2027-09-07','2027-10-12','2027-11-02','2027-11-15','2027-11-20','2027-12-25',
-]);
+// ── FERIADOS NACIONAIS, CALCULADOS ──────────────────────────────────────────
+// Era uma lista escrita à mão que ia até 2027. Em 01/01/2028 ela pararia de
+// conhecer feriado em silêncio e esta vitrine venderia horário no Natal.
+// Agora sai de conta e vale pra qualquer ano (03/09/2026). Mesma regra do
+// backend (`api/src/utils/feriadosBR.ts`) — se mexer em uma, mexa na outra.
+// Feriado NACIONAL só: ponto facultativo e feriado da cidade não entram.
+const _p2 = n => String(n).padStart(2,'0');
+const _ymd = d => `${d.getUTCFullYear()}-${_p2(d.getUTCMonth()+1)}-${_p2(d.getUTCDate())}`;
+/** Domingo de Páscoa (algoritmo gregoriano anônimo). Os móveis penduram nele. */
+function _pascoa(ano){
+  const a=ano%19, b=Math.floor(ano/100), c=ano%100;
+  const d=Math.floor(b/4), e=b%4, f=Math.floor((b+8)/25);
+  const g=Math.floor((b-f+1)/3), h=(19*a+b-d-g+15)%30;
+  const i=Math.floor(c/4), k=c%4, l=(32+2*e+2*i-h-k)%7;
+  const m=Math.floor((a+11*h+22*l)/451);
+  const mes=Math.floor((h+l-7*m+114)/31), dia=((h+l-7*m+114)%31)+1;
+  return new Date(Date.UTC(ano, mes-1, dia));
+}
+function _daPascoa(ano, dias){ const d=_pascoa(ano); d.setUTCDate(d.getUTCDate()+dias); return _ymd(d); }
+const _FIXOS = ['01-01','04-21','05-01','09-07','10-12','11-02','11-15','11-20','12-25'];
+const _feriadosCache = new Map();
+function feriadosDoAno(ano){
+  if(_feriadosCache.has(ano)) return _feriadosCache.get(ano);
+  const s = new Set([
+    ..._FIXOS.map(md => `${ano}-${md}`),
+    _daPascoa(ano,-48),  // Carnaval (segunda)
+    _daPascoa(ano,-47),  // Carnaval (terça)
+    _daPascoa(ano,-2),   // Sexta-feira Santa
+    _daPascoa(ano, 60),  // Corpus Christi
+  ]);
+  _feriadosCache.set(ano, s);
+  return s;
+}
+/** É feriado nacional? `ymd` = 'YYYY-MM-DD' no fuso de Brasília. */
+function ehFeriado(ymd){
+  const ano = Number(String(ymd).slice(0,4));
+  if(!Number.isInteger(ano) || ano < 1900 || ano > 2200) return false;
+  return feriadosDoAno(ano).has(ymd);
+}
 
 // "agora" e as datas SEMPRE no fuso de Brasília, nunca no relógio do visitante.
 const TZ_BR = 'America/Sao_Paulo';
@@ -1693,6 +1725,12 @@ const isoDe = (ymd, hhmm) => new Date(`${ymd}T${hhmm}:00-03:00`).toISOString();
 // com a manhã do solar.
 const FAIXAS_SEGUNDA = [['10:00','11:00'], ['13:00','18:00']];
 const FAIXAS_PADRAO  = [['13:00','17:30']];
+// 03/09/2026: a manhã deixou de ser "da segunda" e passou a ser DO DIA QUE ABSORVE
+// A EMENDA. O motivo escrito acima é o acúmulo, não o dia da semana — e num feriado
+// de segunda (07/09, Independência) quem acumula três dias de anúncio é a terça, que
+// até aqui herdava o acúmulo sem herdar a manhã. A segunda segue intocada; os outros
+// dias GANHAM 10:00 e 11:00 e mantêm a tarde de meia em meia (12 horários).
+const FAIXA_MANHA_ACUMULO = ['10:00','11:00'];
 // O passo é POR DIA desde 31/08/2026: a segunda continua de hora em hora, e de terça
 // a sexta a tarde abriu as meias-horas (13:30, 14:30, 15:30, 16:30, 17:30) — de 5 para
 // 10 horários por consultor. Ordem do Thiago, pra encaixar a semana que ficou represada
@@ -1702,14 +1740,42 @@ const FAIXAS_PADRAO  = [['13:00','17:30']];
 const PASSO_SEGUNDA = 60;
 const PASSO_PADRAO  = 30;
 const emMin = hhmm => Number(hhmm.slice(0,2)) * 60 + Number(hhmm.slice(3,5));
-/** 0=dom … 6=sáb. Só a segunda (1) tem a grade cheia. */
-function horariosDoDia(dow){
-  const out = [];
-  const passo = dow === 1 ? PASSO_SEGUNDA : PASSO_PADRAO;
-  for(const [ini,fim] of (dow === 1 ? FAIXAS_SEGUNDA : FAIXAS_PADRAO))
+/** Expande [inicio, fim] de `passo` em `passo` minutos. */
+function expandir(faixas, passo, out){
+  for(const [ini,fim] of faixas)
     for(let m = emMin(ini); m <= emMin(fim); m += passo)
       out.push(`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`);
   return out;
+}
+
+/** Quantos dias fechados vêm logo antes deste. 2 ou mais e o dia herda a manhã.
+ *  Teto de 7 dias: emenda maior não existe, e sem teto um erro aqui trava a página. */
+function diasFechadosAntes(ymd){
+  let n = 0;
+  for(let i = 1; i <= 7; i++){
+    const d = new Date(`${ymd}T12:00:00-03:00`);
+    d.setUTCDate(d.getUTCDate() - i);
+    const anterior = new Intl.DateTimeFormat('en-CA', { timeZone: TZ_BR,
+      year:'numeric', month:'2-digit', day:'2-digit' }).format(d);
+    if(diaAberto(anterior)) break;
+    n++;
+  }
+  return n;
+}
+
+/** O dia abre? (dia útil, sem feriado e sem bloqueio pontual) */
+function diaAberto(ymd){
+  if(ehFeriado(ymd) || AGENDA_FECHADA.has(ymd)) return false;
+  return DIAS_UTEIS.has(new Date(`${ymd}T12:00:00-03:00`).getUTCDay());
+}
+
+/** A grade do dia. Segunda: a lista fechada do Thiago. Outro dia que absorve uma
+ *  emenda: a manhã dela + a tarde de meia em meia. O resto: só a tarde. */
+function horariosDoDia(ymd){
+  const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
+  if(dow === 1) return expandir(FAIXAS_SEGUNDA, PASSO_SEGUNDA, []);
+  const out = diasFechadosAntes(ymd) >= 2 ? [...FAIXA_MANHA_ACUMULO] : [];
+  return expandir(FAIXAS_PADRAO, PASSO_PADRAO, out);
 }
 
 // Dias que a agenda abre (0=dom … 6=sáb): SEG a SEX, todos, sempre.
@@ -1741,10 +1807,7 @@ const DIAS_UTEIS = new Set([1, 2, 3, 4, 5]);
 const AGENDA_FECHADA = new Set([]);   // vazio = agenda normal. Formato: '2026-08-25'
 
 function gradeDoDia(ymd){
-  if(FERIADOS.has(ymd)) return [];                          // feriado: fechado
-  if(AGENDA_FECHADA.has(ymd)) return [];                    // sócios fora
-  const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
-  return DIAS_UTEIS.has(dow) ? horariosDoDia(dow) : [];     // sáb/dom: fechado
+  return diaAberto(ymd) ? horariosDoDia(ymd) : [];   // feriado, sócios fora, sáb/dom
 }
 
 // Busca o que já está ocupado na agenda do Thiago/Diego na janela exibida.

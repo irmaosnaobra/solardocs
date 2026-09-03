@@ -36,16 +36,13 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 import { agendaFechadaEm } from '../agenda/agendaFechada';
+import { ehFeriadoBR } from '../../utils/feriadosBR';
 
 const BRT_TZ = 'America/Sao_Paulo';
 
-/** Feriados nacionais — cópia da lista da LP. Data que some daqui vira dia útil. */
-const FERIADOS = new Set([
-  '2026-01-01', '2026-02-16', '2026-02-17', '2026-04-03', '2026-04-21', '2026-05-01',
-  '2026-06-04', '2026-09-07', '2026-10-12', '2026-11-02', '2026-11-15', '2026-11-20', '2026-12-25',
-  '2027-01-01', '2027-02-08', '2027-02-09', '2027-03-26', '2027-04-21', '2027-05-01',
-  '2027-05-27', '2027-09-07', '2027-10-12', '2027-11-02', '2027-11-15', '2027-11-20', '2027-12-25',
-]);
+// Feriado nacional vem de `utils/feriadosBR`, que CALCULA o ano inteiro. Era uma
+// cópia escrita à mão que acabava em 2027 — a agenda abriria no Natal de 2028
+// sem ninguém notar (03/09/2026).
 
 /** Horas de INÍCIO da grade, em ordem, POR DIA DA SEMANA (19/08/2026).
  *
@@ -69,6 +66,10 @@ const FERIADOS = new Set([
 // de meia em meia hora funcionar sem bloquear a si mesma.
 const HORAS_SEGUNDA = ['10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
 const HORAS_PADRAO = ['13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30'];
+/** A manhã que a segunda tem e os outros dias não. De hora em hora de propósito:
+ *  10:30 e 11:30 são da vistoria de solar dos sócios, e abrir meia-hora aqui
+ *  comeria a manhã deles. */
+const HORAS_MANHA_ACUMULO = ['10:00', '11:00'];
 const DIAS_UTEIS = new Set([1, 2, 3, 4, 5]);
 /** Duração da reunião — é ela que define sobreposição, não o passo da grade. */
 const DURACAO_MS = 30 * 60 * 1000;
@@ -91,9 +92,44 @@ const isoDe = (ymd: string, hora: string): string =>
 /** Dia da semana (0=dom) do YMD, lido ao meio-dia pra não escorregar no fuso. */
 const diaDaSemana = (ymd: string): number => new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
 
-/** A grade daquele dia: cheia na segunda, só a tarde de terça a sexta. */
-const horasDoDia = (ymd: string): readonly string[] =>
-  (diaDaSemana(ymd) === 1 ? HORAS_SEGUNDA : HORAS_PADRAO);
+/**
+ * Quantos dias fechados vêm IMEDIATAMENTE antes deste. Dois ou mais e o dia
+ * seguinte é o que recebe o acúmulo.
+ *
+ * Olha no máximo uma semana pra trás: emenda maior que isso não existe no
+ * calendário nacional, e sem teto um bug em `agendaAbre` viraria laço infinito.
+ */
+function diasFechadosAntes(ymd: string): number {
+  let n = 0;
+  for (let i = 1; i <= 7; i++) {
+    const d = new Date(`${ymd}T12:00:00-03:00`);
+    d.setUTCDate(d.getUTCDate() - i);
+    if (agendaAbre(diaBRT(d))) break;
+    n++;
+  }
+  return n;
+}
+
+/**
+ * A grade daquele dia.
+ *
+ * A regra NÃO é "segunda-feira": é O DIA QUE ABSORVE A EMENDA. A manhã existe
+ * na segunda porque sábado e domingo a agenda não abre enquanto o anúncio roda,
+ * e tudo isso desemboca no primeiro dia útil (19/08, ordem do Thiago). Num
+ * feriado de segunda quem herda o acúmulo é a terça — e até 03/09/2026 ela
+ * herdava o acúmulo SEM herdar a manhã, que é o pior dos dois mundos.
+ *
+ * Feriado de 07/09/2026 (Independência, uma segunda) é o primeiro caso: a terça
+ * 08/09 abre 10:00 e 11:00 além da tarde dela.
+ *
+ * A segunda continua com a lista fechada do Thiago, intocada. Os outros dias
+ * GANHAM a manhã e mantêm a tarde de meia em meia hora — 12 horários por
+ * consultor contra os 8 da segunda, que é o certo para um dia que acumula três.
+ */
+export const horasDoDia = (ymd: string): readonly string[] => {
+  if (diaDaSemana(ymd) === 1) return HORAS_SEGUNDA;
+  return diasFechadosAntes(ymd) >= 2 ? [...HORAS_MANHA_ACUMULO, ...HORAS_PADRAO] : HORAS_PADRAO;
+};
 
 /** A agenda abre neste dia? (dia útil, não feriado e sem bloqueio pontual)
  *
@@ -103,7 +139,7 @@ const horasDoDia = (ymd: string): readonly string[] =>
  *  gravação nas rotas: cinco lugares, uma lista. Fechar só aqui faria o robô parar
  *  de oferecer os dias que a página continuaria vendendo. */
 export function agendaAbre(ymd: string): boolean {
-  return !FERIADOS.has(ymd) && !agendaFechadaEm(ymd) && DIAS_UTEIS.has(diaDaSemana(ymd));
+  return !ehFeriadoBR(ymd) && !agendaFechadaEm(ymd) && DIAS_UTEIS.has(diaDaSemana(ymd));
 }
 
 export type Compromisso = { ts: number; dono: string };
