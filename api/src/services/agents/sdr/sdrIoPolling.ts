@@ -20,6 +20,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { logger } from '../../../utils/logger';
+import { ehFeriadoBR } from '../../../utils/feriadosBR';
 import { handleSdrLead, tryClaimMessage, hasRecentWebhookClaim, isLumaWorkingNow } from './sdrAgentService';
 import { sendToGroup, sendWhatsApp, type ZapiInstance } from '../zapiClient';
 import { respostaPendenteRepescagem, marcarRespostaAvisada } from '../../io/eletropostoRepescagem';
@@ -182,7 +183,7 @@ function diasUteisRestantesMes(): number {
     const dow = dt.getUTCDay();
     const iso = dt.toISOString().slice(0, 10);
     if (dow === 0 || dow === 6) continue;
-    if (FERIADOS_BR_LUMA.has(iso)) continue;
+    if (ehFeriadoBR(iso)) continue;
     count++;
   }
   return count;
@@ -422,14 +423,8 @@ export async function cleanupMessageDedup(): Promise<{ deleted: number }> {
 // Quando o lead RESPONDE, handleSdrLead processa normalmente: a Luma faz a
 // qualificação e o estagio sai de 'reativacao' pra 'morno' (ou outro).
 
-const FERIADOS_BR_LUMA: Set<string> = new Set([
-  '2026-01-01','2026-02-16','2026-02-17','2026-04-03','2026-04-21',
-  '2026-05-01','2026-06-04','2026-09-07','2026-10-12','2026-11-02',
-  '2026-11-15','2026-11-20','2026-12-25',
-  '2027-01-01','2027-02-08','2027-02-09','2027-03-26','2027-04-21',
-  '2027-05-01','2027-05-27','2027-09-07','2027-10-12','2027-11-02',
-  '2027-11-15','2027-11-20','2027-12-25',
-]);
+// Era a terceira cópia da lista de feriados, parando em 2027. Agora é a mesma
+// conta que o resto do sistema usa, válida pra qualquer ano (03/09/2026).
 
 // Janela de reativação: Seg-Qui das 19h às 20h BRT.
 // Por que: cliente em casa após expediente, bom horário pra reabrir conversa.
@@ -442,7 +437,7 @@ function emHorarioOperacional(): boolean {
   if (hora !== 19) return false;
   // Skip feriado nacional mesmo se cair em dia útil
   const iso = brt.toISOString().slice(0, 10);
-  if (FERIADOS_BR_LUMA.has(iso)) return false;
+  if (ehFeriadoBR(iso)) return false;
   return true;
 }
 
