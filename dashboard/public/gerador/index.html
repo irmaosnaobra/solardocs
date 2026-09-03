@@ -2754,7 +2754,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
     <!-- Aparece só quando os campos vieram de um projeto anterior. -->
     <div class="eletro-retomar" id="eletro-retomar">
-      <span>Continuando o projeto de <b id="eletro-retomar-quem">—</b> <span class="quando" id="eletro-retomar-quando"></span></span>
+      <span>Preenchido para <b id="eletro-retomar-quem">—</b><span class="quando" id="eletro-retomar-quando"></span></span>
       <button type="button" onclick="eletroNovoProjeto()">Começar novo</button>
     </div>
 
@@ -7248,7 +7248,7 @@ function eletroGrupo(g) {
 // As fotos são reduzidas no navegador antes de virar base64 — uma foto de
 // celular sozinha passa de 4 MB e o corpo da requisição tem teto. 1600px no
 // maior lado é mais do que o deck usa (a maior moldura tem 1156px).
-const APX = { arquivos: [], fotos: [], listas: {}, doPdf: {} };
+const APX = { arquivos: [], fotos: [], listas: {}, doPdf: {}, digitado: {} };
 
 // ── as listas repetíveis, todas pelo mesmo componente ──────────────────────
 // Quatro renderizadores diferentes para quatro listas é exatamente onde a
@@ -7484,7 +7484,7 @@ async function apxLer(auto) {
       if (!e) return;
       // Campo já preenchido só cede se o valor tiver vindo de uma leitura anterior.
       // O que a pessoa digitou nunca é sobrescrito: ela digitou depois de olhar.
-      if (e.value.trim() && !APX.doPdf[id]) { pulados++; return; }
+      if (e.value.trim() && APX.digitado[id]) { pulados++; return; }
       e.value = typeof v === 'number' ? String(v).replace('.', ',') : String(v);
       apxMarcar(id, true); postos++;
     });
@@ -7508,10 +7508,24 @@ async function apxLer(auto) {
 
 // ── abertura da aba ───────────────────────────────────────────────────────
 function apxInit() {
-  if (APX.pronto) { apxContar(); return; }
+  const primeira = !APX.pronto;
   APX.pronto = true;
   const t = (typeof eletroTextos === 'function') ? eletroTextos() : {};
-  const põe = (id, v) => { const e = document.getElementById(id); if (e && !e.value && v != null && v !== '') e.value = v; };
+  // Toda abertura re-sincroniza com o Simulador. O campo só é sobrescrito se
+  // NINGUÉM digitou nele: o que você escreveu fica, o resto acompanha. É o que
+  // deixa a aba adiantada sem nunca apagar trabalho seu.
+  const põe = (id, v) => {
+    const e = document.getElementById(id);
+    if (!e || v == null || v === '') return;
+    // Dois donos protegem o campo: quem digitou e a leitura dos anexos. Sem o
+    // segundo, os padrões daqui (625 W, R$ 1,20, R$ 95) voltariam por cima do
+    // que o PDF disse toda vez que a aba reabrisse — e o consultor teria de
+    // corrigir de novo o que já tinha sido lido certo.
+    if (APX.digitado[id] || APX.doPdf[id]) return;
+    if (e.value === String(v)) return;
+    e.value = v;
+    if (!primeira) apxMarcar(id, false);
+  };
   const nz = v => (Number(v) ? String(v).replace('.', ',') : '');
 
   põe('apx-cliente', t.cliente);  põe('apx-cidade', t.cidade);
@@ -7531,7 +7545,7 @@ function apxInit() {
   põe('apx-tarifa', '1,20');  põe('apx-contamin', '95');
 
   // cronograma padrão da operação: prazos nossos, não do cliente
-  if (!APX.listas.cronograma) APX.listas.cronograma = [
+  if (primeira && !APX.listas.cronograma) APX.listas.cronograma = [
     { titulo: 'Documentação recolhida', dur: 72, un: 'horas', dias: 3 },
     { titulo: 'Projeto de engenharia protocolado', dur: 24, un: 'horas', dias: 1 },
     { titulo: 'Análise da distribuidora', dur: 30, un: 'dias', dias: 30 },
@@ -7539,11 +7553,14 @@ function apxInit() {
     { titulo: 'Carregador e pintura', dur: 4, un: 'dias', dias: 4 },
     { titulo: 'Software e aplicativo', dur: 2, un: 'dias', dias: 2 },
   ];
-  Object.keys(APX_LISTAS).forEach(apxListaRender);
+  if (primeira) Object.keys(APX_LISTAS).forEach(apxListaRender);
+  apxTarifaEfetiva(); apxAvisoGrupo();
 
-  // digitou por cima? o selo "do PDF" some, e o contador acompanha
-  document.querySelectorAll('#eletro-pane-apresentacao input, #eletro-pane-apresentacao textarea')
+  // digitou por cima? o selo "do PDF" some, o campo passa a ser seu e nem o
+  // Simulador nem uma releitura escrevem por cima dele de novo
+  if (primeira) document.querySelectorAll('#eletro-pane-apresentacao input, #eletro-pane-apresentacao textarea')
     .forEach(e => e.addEventListener('input', () => {
+      if (e.id) APX.digitado[e.id] = true;
       if (e.id && APX.doPdf[e.id]) apxMarcar(e.id, false);
       if (e.id === 'apx-c-total' || e.id === 'apx-c-kwh') apxTarifaEfetiva();
       if (e.id === 'apx-c-grupo') apxAvisoGrupo();
@@ -8613,7 +8630,14 @@ function eletroConsultorLogado() {
 //
 // O historico no Supabase e' outra coisa: ele guarda pra CONSULTA, so' com
 // cliente preenchido, e nao devolve o estado. Este e' local e volta sozinho.
+// SESSÃO, e não localStorage. A diferença é a que importa: guardar entre
+// sessões fazia o próximo cliente abrir com os números do anterior já na tela,
+// e proposta com dado de outro cliente é o pior defeito que esta ferramenta
+// pode ter. Na sessão, o estado serve só para o que ele foi feito: não perder
+// vinte minutos de digitação se a aba recarregar — e o PWA recarrega sozinho
+// quando sai versão nova. Fechou o navegador, começa limpo.
 const ELETRO_ULT_KEY = 'eletro_ultimo_v1';
+const eletroGuarda = () => window.sessionStorage;
 
 // Todo campo COM ID das abas que o consultor preenche: Simulador, Orcamento,
 // Recibo, Contrato e Procuracao. Varre o DOM em vez de listar id a id — campo
@@ -8646,14 +8670,14 @@ function eletroUltimoSalvar() {
       else if (el.value !== '') campos[id] = el.value;
     });
     if (!Object.keys(campos).length) return;
-    localStorage.setItem(ELETRO_ULT_KEY, JSON.stringify({
+    eletroGuarda().setItem(ELETRO_ULT_KEY, JSON.stringify({
       campos, cliente: eletroTextos().cliente || '', em: new Date().toISOString(),
     }));
   } catch (e) { /* localStorage cheio ou bloqueado: nao trava a geracao do PDF */ }
 }
 
 function eletroUltimoLer() {
-  try { return JSON.parse(localStorage.getItem(ELETRO_ULT_KEY) || 'null'); } catch (e) { return null; }
+  try { return JSON.parse(eletroGuarda().getItem(ELETRO_ULT_KEY) || 'null'); } catch (e) { return null; }
 }
 
 function eletroUltimoRestaurar() {
@@ -8684,14 +8708,9 @@ function eletroRetomarBanner(u) {
   if (!bar) return;
   if (!u || !u.cliente) { bar.classList.remove('on'); return; }
   document.getElementById('eletro-retomar-quem').textContent = u.cliente;
-  const q = document.getElementById('eletro-retomar-quando');
-  try {
-    const d = new Date(u.em);
-    const hoje = new Date().toDateString() === d.toDateString();
-    q.textContent = hoje
-      ? '· hoje, ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-      : '· ' + d.toLocaleDateString('pt-BR');
-  } catch (e) { q.textContent = ''; }
+  // Sem data: dentro da sessão isso é o trabalho de agora, não um projeto de
+  // outro dia. Carimbo de data aqui só faria parecer que veio de trás.
+  document.getElementById('eletro-retomar-quando').textContent = '';
   bar.classList.add('on');
 }
 
@@ -8709,7 +8728,7 @@ function eletroNovoProjeto() {
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
   });
-  try { localStorage.removeItem(ELETRO_ULT_KEY); } catch (e) {}
+  try { eletroGuarda().removeItem(ELETRO_ULT_KEY); } catch (e) {}
   const bar = document.getElementById('eletro-retomar');
   if (bar) bar.classList.remove('on');
 }
@@ -8734,7 +8753,12 @@ document.addEventListener('change', (e) => eletroUltimoAgendarSalvar(e.target), 
 
 // Volta o ultimo projeto assim que a pagina abre. Depois do load pra os campos
 // ja' existirem e os recalculos acharem o que precisam.
-window.addEventListener('DOMContentLoaded', () => { setTimeout(eletroUltimoRestaurar, 350); });
+window.addEventListener('DOMContentLoaded', () => {
+  // varre o resto de versões antigas: sem isso o primeiro acesso depois do
+  // deploy ainda abriria com o cliente de ontem
+  try { localStorage.removeItem(ELETRO_ULT_KEY); } catch (e) {}
+  setTimeout(eletroUltimoRestaurar, 350);
+});
 
 async function eletroSalvarHistorico() {
   const t = eletroTextos();
