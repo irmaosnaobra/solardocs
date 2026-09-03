@@ -46,6 +46,7 @@ import { runEletropostoAgendaTick } from '../services/io/eletropostoAgenda';
 import { runEletropostoRespostasTick } from '../services/io/eletropostoRespostas';
 import { runEletropostoReagendaAutoTick } from '../services/io/eletropostoReagendaAuto';
 import { runEletropostoCardPingTick } from '../services/io/eletropostoCardPing';
+import { runEletropostoAlerta10minTick } from '../services/io/eletropostoAlerta10min';
 import { runEletropostoIgConviteTick, publicoIgConvite, bolhaConviteLP } from '../services/io/eletropostoIgConvite';
 import { runSolarBoasVindasTick } from '../services/io/solarBoasVindas';
 import { runSolarRespostasTick } from '../services/io/solarRespostas';
@@ -291,7 +292,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // duas últimas cadências não apareciam). Os ticks sempre rodaram — quem
     // mentia era o relatório, que é justamente onde a gente vai olhar quando
     // desconfiar de um tick. Nome novo aqui exige chamada nova na MESMA posição.
-    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, limpaproAtendResult, geradorSeqResult, igDrainResult, fbComentResult, fbInboxResult, repescagemResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult, epReagendaResult, epCardPingResult, epIgConviteResult, solarBvResult, solarRespResult, curso19Result, carlaCnpjResult, carlaInativoResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, limpaproAtendResult, geradorSeqResult, igDrainResult, fbComentResult, fbInboxResult, repescagemResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult, epReagendaResult, epCardPingResult, epIgConviteResult, solarBvResult, solarRespResult, curso19Result, carlaCnpjResult, carlaInativoResult, epAlerta10minResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),            // detecta inbound IO pra Cora processar
@@ -334,6 +335,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       runCursoEntradaBroadcast(),      // curso R$19: 3 toques (exige CAMPANHA_CURSO19_ON)
       runCarlaSemCnpjFollowup(),       // Giovanna: 3 toques em 30d
       runCarlaInativoFollowup(),       // Giovanna: 5 toques em 60d
+      runEletropostoAlerta10minTick(), // eletroposto: 10 min antes da reunião CONFIRMADA, alerta no WhatsApp do consultor dono (EP_ALERTA_10MIN_OFF desliga)
     ]);
     res.json({
       ok: true,
@@ -367,6 +369,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       curso19:        curso19Result.status === 'fulfilled' ? curso19Result.value : { error: String((curso19Result as any).reason) },
       carla_sem_cnpj: carlaCnpjResult.status === 'fulfilled' ? carlaCnpjResult.value : { error: String((carlaCnpjResult as any).reason) },
       carla_inativo:  carlaInativoResult.status === 'fulfilled' ? carlaInativoResult.value : { error: String((carlaInativoResult as any).reason) },
+      ep_alerta_10min: epAlerta10minResult.status === 'fulfilled' ? epAlerta10minResult.value : { error: String((epAlerta10minResult as any).reason) },
       luma_io_off: 'Linha IO: polling ativo só pra Cora ouvir inbound, demais tarefas Luma desligadas',
     });
   } catch (err) {
@@ -538,6 +541,17 @@ router.get('/eletroposto-reagenda-auto', async (req: Request, res: Response) => 
 // ── Card que trocou de dono no repasse de 12h → chega de novo no WhatsApp ────
 // ?dry=1 lista as trocas que virariam reenvio, sem mandar e SEM carimbar (então
 // a próxima rodada real ainda manda).
+router.get('/eletroposto-alerta-10min', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    res.json({ ok: true, dry, ...(await runEletropostoAlerta10minTick({ dry })) });
+  } catch (err: any) {
+    logger.error('cron', 'eletroposto-alerta-10min falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
 router.get('/eletroposto-card-ping', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
@@ -1129,6 +1143,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['eletroposto-respostas',       () => runEletropostoRespostasTick()], // eletroposto: quem respondeu a automação vira recado pra equipe
     ['eletroposto-reagenda-auto',   () => runEletropostoReagendaAutoTick()], // eletroposto: vermelho QUENTE vencido volta pro próximo dia útil sozinho (até 2×)
     ['eletroposto-card-ping',       () => runEletropostoCardPingTick()],  // eletroposto: reenvia o card pro consultor quando o repasse de 12h troca o dono
+    ['eletroposto-alerta-10min',    () => runEletropostoAlerta10minTick()], // eletroposto: 10 min antes da reunião CONFIRMADA, alerta no WhatsApp do dono (EP_ALERTA_10MIN_OFF desliga)
     ['eletroposto-ig-convite',      () => runEletropostoIgConviteTick()], // eletroposto: lead de Instagram não marca agenda — recebe UM convite pra LP (EP_IG_CONVITE_OFF desliga)
     ['solar-boas-vindas',           () => runSolarBoasVindasTick()],     // solar: recibo do cadastro pro cliente (SOLAR_BOASVINDAS_OFF desliga)
     ['solar-respostas',             () => runSolarRespostasTick()],      // solar: resposta do cliente vira recado pro consultor dono
