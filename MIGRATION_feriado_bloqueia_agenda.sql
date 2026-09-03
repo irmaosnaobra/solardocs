@@ -59,15 +59,23 @@ returns boolean language sql immutable as $$
   select extract(dow from d) not in (0,6) and not public.eh_feriado_br(d);
 $$;
 
+-- ── O TETO DOS LAÇOS NÃO PODE VIRAR "DESISTI, MARCA NESSE DIA MESMO" ─────────
+-- As duas funções pulam dia fechado num while com trava de segurança. Na 1ª
+-- versão desta migration elas SEGUIAM em frente com o dia fechado na mão quando
+-- a trava estourava (`return cand` logo depois do laço). Não dispara com o
+-- calendário nacional — emenda máxima é de 4 dias — mas é a diferença entre um
+-- bug latente e uma reunião marcada no Natal.
+-- NULL é a saída certa: processar_repasses() já trata `novo_quando is null`
+-- reagendando o repasse pra dali a 1 hora. Falhar alto é melhor que marcar torto.
+
 create or replace function public.proximo_dia_util(base date)
 returns date language plpgsql immutable as $$
 declare d date := base + 1; voltas int := 0;
 begin
-  -- Teto: emenda maior que 10 dias não existe no calendário nacional, e sem ele
-  -- um erro em dia_util_br viraria laço infinito dentro do cron do repasse.
-  while not public.dia_util_br(d) and voltas < 10 loop
+  while not public.dia_util_br(d) and voltas < 30 loop
     d := d + 1; voltas := voltas + 1;
   end loop;
+  if not public.dia_util_br(d) then return null; end if;
   return d;
 end;
 $$;
@@ -81,10 +89,12 @@ declare
   voltas int := 0;
   pulos  int := 0;
 begin
-  -- garante dia útil (agora inclui feriado)
-  while not public.dia_util_br(dia) and pulos < 10 loop
+  if dia is null then return null; end if;
+  -- garante dia útil (fim de semana E feriado)
+  while not public.dia_util_br(dia) and pulos < 30 loop
     dia := dia + 1; pulos := pulos + 1;
   end loop;
+  if not public.dia_util_br(dia) then return null; end if;
   loop
     exit when voltas > 10;  -- trava de segurança: até 10 dias úteis
     h := greatest(hora_desejada, time '08:00');
@@ -101,9 +111,10 @@ begin
     -- dia cheio: próximo dia útil, começando na hora original de novo
     dia := dia + 1;
     pulos := 0;
-    while not public.dia_util_br(dia) and pulos < 10 loop
+    while not public.dia_util_br(dia) and pulos < 30 loop
       dia := dia + 1; pulos := pulos + 1;
     end loop;
+    if not public.dia_util_br(dia) then return null; end if;
     voltas := voltas + 1;
   end loop;
   return null;
