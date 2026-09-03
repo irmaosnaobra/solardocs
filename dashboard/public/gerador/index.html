@@ -3619,7 +3619,11 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <label class="apx-campo"><span>Investimento da usina (R$)</span><input id="apx-invsolar" type="text" inputmode="numeric" placeholder="167877"></label>
           <label class="apx-campo"><span>Inversores</span><input id="apx-inversores" type="text" placeholder="2 un · 25 kW"></label>
           <label class="apx-campo"><span>Tarifa da concessionária (R$/kWh)</span><input id="apx-tarifa" type="text" inputmode="decimal" placeholder="1,20"></label>
-          <label class="apx-campo"><span>Consumo do imóvel (kWh/mês)</span><input id="apx-consumo" type="text" inputmode="numeric" placeholder="sem isso a página da conta de luz sai"></label>
+          <label class="apx-campo"><span>A usina atende</span><select id="apx-finalidade">
+            <option value="imovel">O imóvel e o posto</option>
+            <option value="posto">Só o posto</option>
+          </select></label>
+          <label class="apx-campo"><span>Consumo do imóvel (kWh/mês)</span><input id="apx-consumo" type="text" inputmode="numeric" placeholder="vazio = a sobra vira crédito, não economia"></label>
           <label class="apx-campo"><span>Conta após a instalação (R$)</span><input id="apx-contamin" type="text" inputmode="numeric" placeholder="95"></label>
           <label class="apx-campo"><span>Economia mensal da usina (R$)</span><input id="apx-economia" type="text" inputmode="numeric" placeholder="vazio = calcula de consumo × tarifa"></label>
           <label class="apx-campo"><span>Área ocupada (m²)</span><input id="apx-area" type="text" inputmode="numeric" placeholder="calcula sozinho"></label>
@@ -7620,6 +7624,7 @@ async function apxMontar() {
       modulos, wpModulo: wp, kwp: n('apx-kwp') || +(modulos * wp / 1000).toFixed(2),
       geracao: n('apx-geracao'), invest: n('apx-invsolar'), tarifa: n('apx-tarifa') || 1.2,
       consumoGalpao: n('apx-consumo'), contaMinima: n('apx-contamin'),
+      finalidade: v('apx-finalidade') || 'imovel',
       economiaMes: n('apx-economia'),
       areaM2: n('apx-area'), inversores: v('apx-inversores'),
       aguas: apxListaLimpa('aguas', ['placas', 'onde']).map(a => ({ placas: Number(a.placas) || 0, onde: a.onde || '' })),

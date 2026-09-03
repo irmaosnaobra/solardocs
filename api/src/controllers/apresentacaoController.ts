@@ -150,6 +150,10 @@ const bodySchema = z.object({
     // Economia informada direto. É a saída para o Grupo A, onde economia NÃO é
     // consumo × tarifa: preenchida, ela ganha da conta calculada.
     economiaMes: z.number().default(0),
+    // 'posto'  → a usina existe só para abastecer o carregador: não há conta de
+    //            luz para abater, e a sobra vira crédito, não dinheiro.
+    // 'imovel' → a usina atende o imóvel e o posto (o caso comum).
+    finalidade: z.enum(['posto', 'imovel']).default('imovel'),
     areaM2: z.number().default(0), inversores: z.string().default(''),
     aguas: z.array(z.object({ placas: z.number(), onde: z.string() })).default([]),
     incluido: listaTxt,
@@ -397,10 +401,24 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
     const contaHoje = temConta ? consumo * S.tarifa : 0;
     const contaDepois = temConta ? naoCoberto * S.tarifa + S.contaMinima : 0;
     const sobraKwh = Math.max(0, S.geracao - calc.kwhMes);
-    // No Grupo A a sobra também não vira reais por tarifa cheia; sem economia
-    // informada, ela não entra no consolidado em vez de entrar errada.
-    const ecoLiquida = grupoA ? Math.max(0, S.economiaMes - 0)
-                              : Math.max(0, sobraKwh * S.tarifa - S.contaMinima);
+    // ── A SOBRA DA USINA SÓ VIRA DINHEIRO SE HOUVER CONTA PARA ABATER ─────
+    // Três coisas diferentes, e confundi-las infla o resultado em silêncio:
+    //
+    //   1. Usina SÓ PARA O POSTO: não existe conta de luz para abater. A sobra
+    //      vira crédito de energia, que sob a Lei 14.300 não vale a tarifa
+    //      cheia — e nenhum número desta proposta conta com crédito.
+    //   2. Consumo DESCONHECIDO: pode haver conta, mas não sabemos de quanto.
+    //      Contar a sobra inteira seria afirmar sobre o que não se sabe.
+    //   3. Consumo CONHECIDO: a sobra abate a conta ATÉ o tamanho dela. O que
+    //      passa disso é crédito, não economia — antes daqui a conta creditava
+    //      a sobra inteira à tarifa cheia, mesmo maior que o consumo.
+    const soPosto = S.finalidade === 'posto';
+    const abativel = soPosto ? 0 : Math.min(sobraKwh, consumo);
+    const ecoLiquida = grupoA ? Math.max(0, S.economiaMes)
+                     : S.economiaMes > 0 ? S.economiaMes
+                     : abativel > 0 ? Math.max(0, abativel * S.tarifa - S.contaMinima)
+                     : 0;
+    const sobraCredito = Math.max(0, sobraKwh - abativel);
     const EN = body.entrada;
     const investTotal = S.invest + E.invest + EN.invest;
     // Seguro da entrada: 1% ao ano, o mesmo critério que o computeEletro usa no posto.
@@ -528,7 +546,11 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
       balanco: temSolar && S.geracao > 0 ? {
         geracao: S.geracao,
         aoPosto: Math.min(S.geracao, calc.kwhMes),
-        aConta: Math.max(0, S.geracao - calc.kwhMes),
+        aConta: soPosto ? 0 : Math.max(0, S.geracao - calc.kwhMes),
+        soPosto, credito: sobraCredito,
+        // sem consumo não dá para dizer QUANTO da sobra a conta absorve: o
+        // destino existe, o número não
+        contaSemNumero: !soPosto && consumo <= 0,
         carrosTxt: E.carros ? `${E.carros} carros por dia × ${E.carga} kWh` : '',
         precoTxt: E.precoKwh ? brlTxt(E.precoKwh) : '',
         // só com conta de luz na mão: consumo estimado não sustenta percentual
@@ -621,7 +643,9 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
     const omitidas = [
       !temSolar && 'a usina',
       !temPosto && 'o eletroposto',
-      temSolar && consumo <= 0 && 'o balanço de energia (falta o consumo do imóvel)',
+      temSolar && soPosto && 'a economia de conta de luz (a usina é só para o posto)',
+      temSolar && !soPosto && consumo <= 0 && !S.economiaMes &&
+        'a economia da usina (sem o consumo do imóvel, a sobra vira crédito e não entra como dinheiro)',
       !EN.invest && !EN.kva && 'a página da entrada de energia',
       temSolar && !S.aguas.length && !porEspaco.layout && 'o layout das placas',
       !porEspaco.produto && 'a página do equipamento (falta a foto)',
