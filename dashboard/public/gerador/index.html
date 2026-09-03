@@ -3578,21 +3578,21 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="apx-zonas">
         <div class="apx-zona">
           <div class="apx-zona-tit">Orçamentos e documentos</div>
-          <p class="apx-zona-sub">PDF ou imagem. É daqui que os campos abaixo se preenchem.</p>
+          <p class="apx-zona-sub">Orçamentos, estudo e <b>a conta de luz</b>. É daqui que os campos se preenchem, sozinhos.</p>
           <input type="file" id="apx-arqs" accept=".pdf,image/*" multiple hidden onchange="apxAddArquivos(this.files)">
           <button type="button" class="eletro-btn" onclick="document.getElementById('apx-arqs').click()">Escolher arquivos</button>
           <div id="apx-lista-arqs" class="apx-lista"></div>
         </div>
         <div class="apx-zona">
           <div class="apx-zona-tit">Fotos</div>
-          <p class="apx-zona-sub">Escreva o que é cada uma — é isso que diz onde ela entra.</p>
+          <p class="apx-zona-sub">Escreva o que é cada uma — é isso que diz onde ela entra. As fotos também são lidas: a do padrão de entrada mostra o disjuntor e o medidor.</p>
           <input type="file" id="apx-fotos" accept="image/*" multiple hidden onchange="apxAddFotos(this.files)">
           <button type="button" class="eletro-btn" onclick="document.getElementById('apx-fotos').click()">Escolher fotos</button>
           <div id="apx-lista-fotos" class="apx-lista"></div>
         </div>
       </div>
       <div class="apx-acao">
-        <button type="button" class="eletro-btn" id="apx-btn-ler" onclick="apxLer()">Ler os anexos e preencher</button>
+        <button type="button" class="eletro-btn" id="apx-btn-ler" onclick="apxLer()">Ler de novo</button>
         <span id="apx-ler-status" class="apx-status"></span>
       </div>
 
@@ -7335,6 +7335,17 @@ function apxLerArquivo(file, maxLado) {
     r.readAsDataURL(file);
   });
 }
+// Soltar arquivo dispara a leitura sozinho. O atraso de 1,4 s existe porque quem
+// solta cinco PDFs de uma vez dispara cinco eventos: sem ele seriam cinco chamadas
+// à IA, cada uma enxergando um pedaço. Espera o lote assentar e lê tudo junto.
+let APX_TIMER = null;
+function apxAgendarLeitura() {
+  clearTimeout(APX_TIMER);
+  const st = document.getElementById('apx-ler-status');
+  if (st && !APX.lendo) st.textContent = 'Vou ler assim que parar de chegar arquivo…';
+  APX_TIMER = setTimeout(() => { if (!APX.lendo) apxLer(true); }, 1400);
+}
+
 async function apxAddArquivos(files) {
   for (const f of Array.from(files || [])) {
     try {
@@ -7343,6 +7354,7 @@ async function apxAddArquivos(files) {
     } catch (e) { alert(e.message); }
   }
   apxRenderListas();
+  apxAgendarLeitura();
 }
 async function apxAddFotos(files) {
   for (const f of Array.from(files || [])) {
@@ -7352,6 +7364,7 @@ async function apxAddFotos(files) {
     } catch (e) { alert(e.message); }
   }
   apxRenderListas();
+  apxAgendarLeitura();
 }
 function apxRemover(tipo, i) { APX[tipo].splice(i, 1); apxRenderListas(); }
 function apxDescricao(i, v) { if (APX.fotos[i]) APX.fotos[i].descricao = v; }
@@ -7421,15 +7434,25 @@ function apxAvisoGrupo() {
     'Sem isso a montagem recusa, de propósito.';
 }
 
-async function apxLer() {
-  if (!APX.arquivos.length) { alert('Escolha ao menos um arquivo.'); return; }
+async function apxLer(auto) {
+  if (!APX.arquivos.length && !APX.fotos.length) {
+    if (!auto) alert('Escolha ao menos um arquivo.');
+    return;
+  }
+  if (APX.lendo) return;
+  APX.lendo = true;
   const btn = document.getElementById('apx-btn-ler');
   const st = document.getElementById('apx-ler-status');
-  btn.disabled = true; st.textContent = 'Lendo…';
+  btn.disabled = true; st.textContent = 'Lendo os anexos…';
   try {
+    // As FOTOS também vão para a leitura, não só os PDFs: a foto do padrão de
+    // entrada é onde se enxerga o disjuntor e o medidor com demanda — que é o
+    // sinal de Grupo A. Seis é o teto por chamada; o resto serve só de imagem.
+    const paraLer = APX.arquivos.concat(
+      APX.fotos.slice(0, 6).map(f => ({ nome: f.nome, media_type: f.media_type, base64: f.base64 })));
     const r = await fetch(APX_API + '/gerador/apresentacao/extrair', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ arquivos: APX.arquivos }),
+      body: JSON.stringify({ arquivos: paraLer }),
     });
     const j = await r.json();
     if (!r.ok || !j.ok) throw new Error(j.error || 'não consegui ler');
@@ -7440,7 +7463,9 @@ async function apxLer() {
       if (v === undefined || v === null || v === '') return;
       const e = document.getElementById(id);
       if (!e) return;
-      if (e.value.trim()) { pulados++; return; }
+      // Campo já preenchido só cede se o valor tiver vindo de uma leitura anterior.
+      // O que a pessoa digitou nunca é sobrescrito: ela digitou depois de olhar.
+      if (e.value.trim() && !APX.doPdf[id]) { pulados++; return; }
       e.value = typeof v === 'number' ? String(v).replace('.', ',') : String(v);
       apxMarcar(id, true); postos++;
     });
@@ -7459,7 +7484,7 @@ async function apxLer() {
       `. Confira o que está marcado como "do PDF".`;
   } catch (e) {
     st.textContent = 'Não deu: ' + e.message;
-  } finally { btn.disabled = false; }
+  } finally { APX.lendo = false; btn.disabled = false; }
 }
 
 // ── abertura da aba ───────────────────────────────────────────────────────

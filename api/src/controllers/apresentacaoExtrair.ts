@@ -28,7 +28,9 @@ const anexoSchema = z.object({
   base64: z.string().min(10),
 });
 const bodySchema = z.object({
-  arquivos: z.array(anexoSchema).min(1).max(8),
+  // 8 documentos + até 6 fotos que a tela manda junto: a foto do padrão de entrada
+  // é onde se lê o disjuntor e o tipo de medidor.
+  arquivos: z.array(anexoSchema).min(1).max(14),
 });
 
 // O formato que o formulário espera de volta. Tudo opcional: o que o anexo não
@@ -115,8 +117,15 @@ export async function extrairApresentacao(req: Request, res: Response): Promise<
         : { type: 'image', source: { type: 'base64', media_type: a.media_type, data: a.base64 } });
     });
     conteudo.push({ type: 'text', text: `
-Leia os anexos acima — são orçamentos, estudos de viabilidade e imagens de um projeto de
-energia solar com eletroposto — e devolva os campos que você CONSEGUIR LER neles.
+Leia os anexos acima — orçamentos, estudos, CONTA DE LUZ e fotos do local — e devolva os
+campos que você CONSEGUIR LER neles.
+
+Preste atenção especial em dois anexos, quando existirem:
+• A CONTA DE LUZ. É a fonte da tarifa e do consumo reais.
+• A FOTO DO PADRÃO DE ENTRADA / DO MEDIDOR. Dela sai a corrente do disjuntor e o tipo de
+  medição. Medidor com medição indireta, TCs ou registro de demanda indica GRUPO A mesmo
+  que não haja conta anexada — nesse caso preencha conta_grupo com "A". Medidor comum,
+  direto, indica Grupo B. Se a foto não deixar claro, deixe conta_grupo de fora.
 
 REGRAS:
 • Só preencha um campo se o valor estiver no anexo. Campo que você não achou, DEIXE FORA
