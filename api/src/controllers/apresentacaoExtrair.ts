@@ -45,8 +45,20 @@ const CAMPOS = {
     solar_geracao:   { type: 'integer', description: 'Geração média mensal em kWh.' },
     solar_invest:    { type: 'number',  description: 'Investimento da usina solar, em reais, só o número.' },
     solar_inversores:{ type: 'string',  description: 'Inversores como "2 un · 25 kW". Sem marca.' },
-    solar_tarifa:    { type: 'number',  description: 'Tarifa de energia da concessionária em R$/kWh.' },
-    solar_consumo:   { type: 'integer', description: 'Consumo mensal do imóvel em kWh, se o documento disser.' },
+    solar_tarifa:    { type: 'number',  description: 'Tarifa de energia em R$/kWh. Se houver uma CONTA DE LUZ entre os anexos, use a tarifa efetiva dela (total da fatura ÷ kWh consumidos), não a tarifa de tabela.' },
+    solar_consumo:   { type: 'integer', description: 'Consumo mensal do imóvel em kWh. Da conta de luz, se houver; senão do que o documento disser.' },
+
+    // ── da CONTA DE LUZ, quando ela estiver entre os anexos ──
+    // A conta é a única fonte que traz a tarifa que o cliente REALMENTE paga, com
+    // bandeira, PIS/COFINS e ICMS já embutidos, no mês certo e na classe certa.
+    // Nenhuma tabela de tarifa por cidade chega perto disso.
+    conta_concessionaria: { type: 'string',  description: 'Nome da distribuidora impresso na conta.' },
+    conta_grupo:          { type: 'string',  description: 'Grupo tarifário: "A" se a conta tiver linhas de Demanda Contratada ou Demanda Faturada (média/alta tensão); "B" se não tiver.' },
+    conta_subgrupo:       { type: 'string',  description: 'Subgrupo/modalidade, como "B3", "A4 Verde", "A4 Azul".' },
+    conta_demanda_kw:     { type: 'number',  description: 'Demanda contratada em kW, só se a conta tiver.' },
+    conta_total_reais:    { type: 'number',  description: 'Valor total da fatura em reais.' },
+    conta_kwh:            { type: 'integer', description: 'Consumo faturado em kWh no período da conta.' },
+    conta_mes:            { type: 'string',  description: 'Mês de referência da conta, como "07/2026".' },
     solar_contaMin:  { type: 'number',  description: 'Conta após a instalação / taxa mínima, em reais.' },
     solar_area:      { type: 'integer', description: 'Área necessária ou ocupada, em m².' },
     solar_aguas: {
@@ -113,7 +125,14 @@ REGRAS:
 • Percentuais vão como número puro: 10 para 10%, 6 para 6%.
 • Dinheiro vai como número puro, sem "R$" e sem separador de milhar: 167877.
 • Não copie nome de fornecedor, marca ou modelo de equipamento para nenhum campo.
-• Se dois anexos discordarem, use o do orçamento mais recente.
+• Se dois anexos discordarem, use o do orçamento mais recente. **Exceção: para tarifa e
+  consumo, a CONTA DE LUZ ganha de qualquer orçamento** — o orçamento estima, a conta é
+  o que o cliente paga.
+• Se houver conta de luz, olhe se ela tem "Demanda Contratada" ou "Demanda Faturada".
+  Se tiver, conta_grupo é "A". Se não tiver, é "B". Não chute: se você não conseguir ler
+  a conta inteira, deixe conta_grupo de fora.
+• A tarifa efetiva é o total da fatura dividido pelo consumo em kWh. É ela que interessa,
+  porque já traz bandeira, PIS/COFINS e ICMS embutidos.
 ` });
 
     const r = await cli.messages.create({

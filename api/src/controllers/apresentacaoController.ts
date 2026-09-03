@@ -147,6 +147,9 @@ const bodySchema = z.object({
     kwp: z.number().default(0), geracao: z.number().default(0),
     invest: z.number().default(0), tarifa: z.number().default(0),
     consumoGalpao: z.number().default(0), contaMinima: z.number().default(0),
+    // Economia informada direto. É a saída para o Grupo A, onde economia NÃO é
+    // consumo × tarifa: preenchida, ela ganha da conta calculada.
+    economiaMes: z.number().default(0),
     areaM2: z.number().default(0), inversores: z.string().default(''),
     aguas: z.array(z.object({ placas: z.number(), onde: z.string() })).default([]),
     incluido: listaTxt,
@@ -157,6 +160,13 @@ const bodySchema = z.object({
   garantias: z.array(z.object({ item: z.string(), prazo: z.string() })).default([]),
   escopo: listaTxt, credenciais: listaTxt, equipamento: listaTxt, pontoCards: listaTxt,
   mercado: z.array(z.object({ n: z.string(), t: z.string() })).default([]),
+  // O que a conta de luz do cliente disse. É a única fonte da tarifa que ele paga
+  // de verdade — com bandeira, PIS/COFINS e ICMS já embutidos, no mês certo.
+  conta: z.object({
+    concessionaria: z.string().default(''), grupo: z.string().default(''),
+    subgrupo: z.string().default(''), demandaKw: z.number().default(0),
+    totalReais: z.number().default(0), kwh: z.number().default(0), mes: z.string().default(''),
+  }).default({} as any),
   textos: z.object({
     terrenoHoje: z.string().default(''), pontoFecho: z.string().default(''),
     pagamento: z.string().default(''), notaValidade: z.string().default(''),
@@ -340,16 +350,36 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
     // O consolidado NÃO é a soma dos dois orçamentos: o posto revende parte da energia
     // que a usina gera, e esse kWh não pode ao mesmo tempo abater a conta e ser vendido.
     // Cada kWh entra uma vez, no destino onde rende mais.
-    // Sem consumo informado não dá para dizer o que a conta era antes: a página
-    // da conta de luz simplesmente não entra, em vez de sair com número inventado.
+    // ── A ECONOMIA SOLAR, E A TRAVA DO GRUPO A ────────────────────────────
+    // consumo × tarifa só descreve a conta de um consumidor do GRUPO B. No Grupo A
+    // o cliente paga demanda contratada todo mês, a geração não abate essa demanda,
+    // e a energia é cobrada separada do uso do fio, em ponta e fora de ponta. Rodar
+    // a conta de Grupo B numa conta de Grupo A produz uma economia inflada que
+    // ninguém percebe — e foi o que quase saiu numa proposta real.
+    const grupoA = /^a/i.test(String(body.conta.grupo || '').trim());
     const consumo = S.consumoGalpao;
-    const temConta = consumo > 0 && S.tarifa > 0;
+    if (grupoA && !S.economiaMes) {
+      res.status(400).json({
+        error: 'A conta de luz é do Grupo A (tem demanda contratada). Em Grupo A a geração ' +
+               'solar não abate a demanda, então a economia não é consumo × tarifa e eu não ' +
+               'vou calcular. Preencha "Economia mensal da usina (R$)" com o valor calculado ' +
+               'para Grupo A — ou apague o consumo, e o deck sai sem a página da conta de luz.',
+        grupo_a: true,
+      });
+      return;
+    }
+    // Economia informada manda sobre a calculada: ela vale para A e para B.
+    const economiaSolo = S.economiaMes > 0 ? S.economiaMes
+                       : (consumo > 0 && S.tarifa > 0 ? consumo * S.tarifa - (Math.max(0, consumo - S.geracao) * S.tarifa + S.contaMinima) : 0);
+    const temConta = economiaSolo > 0 && consumo > 0 && S.tarifa > 0 && !grupoA;
     const naoCoberto = Math.max(0, consumo - S.geracao);
     const contaHoje = temConta ? consumo * S.tarifa : 0;
     const contaDepois = temConta ? naoCoberto * S.tarifa + S.contaMinima : 0;
-    const economiaSolo = temConta ? contaHoje - contaDepois : 0;
     const sobraKwh = Math.max(0, S.geracao - calc.kwhMes);
-    const ecoLiquida = Math.max(0, sobraKwh * S.tarifa - S.contaMinima);
+    // No Grupo A a sobra também não vira reais por tarifa cheia; sem economia
+    // informada, ela não entra no consolidado em vez de entrar errada.
+    const ecoLiquida = grupoA ? Math.max(0, S.economiaMes - 0)
+                              : Math.max(0, sobraKwh * S.tarifa - S.contaMinima);
     const investTotal = S.invest + E.invest;
     const ganhoMes = ecoLiquida + calc.lucroMes;
 
@@ -496,6 +526,13 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
       pdf_base64: pdf.toString('base64'),
       nome: `Apresentacao-${body.cliente.replace(/[^\w]+/g, '')}.pdf`,
       fotos: relatorio,
+      conta: body.conta.grupo ? {
+        grupo: body.conta.grupo, subgrupo: body.conta.subgrupo,
+        concessionaria: body.conta.concessionaria, demandaKw: body.conta.demandaKw,
+        tarifaEfetiva: body.conta.totalReais && body.conta.kwh
+          ? +(body.conta.totalReais / body.conta.kwh).toFixed(4) : null,
+        mes: body.conta.mes,
+      } : null,
       omitidas,
       paginas_estourando: estouro,
     });

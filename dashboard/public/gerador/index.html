@@ -1774,6 +1774,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   cursor:pointer;font-size:12.5px;padding:6px 12px;margin-top:8px;opacity:.8}
 .apx-lb-add:hover{opacity:1}
 
+.apx-aviso{margin:0 16px 16px;padding:13px 16px;border-radius:10px;font-size:13px;line-height:1.5;
+  border:1px solid rgba(255,176,32,.45);background:rgba(255,176,32,.10)}
+.apx-aviso b{color:#ffb020}
+.apx-campo input[readonly]{opacity:.75;cursor:default}
 .apx-acao{display:flex;align-items:center;gap:14px;margin-top:14px;flex-wrap:wrap}
 .apx-status{font-size:13px;opacity:.8}
 .apx-resultado{margin-top:16px}
@@ -3617,6 +3621,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <label class="apx-campo"><span>Tarifa da concessionária (R$/kWh)</span><input id="apx-tarifa" type="text" inputmode="decimal" placeholder="1,20"></label>
           <label class="apx-campo"><span>Consumo do imóvel (kWh/mês)</span><input id="apx-consumo" type="text" inputmode="numeric" placeholder="sem isso a página da conta de luz sai"></label>
           <label class="apx-campo"><span>Conta após a instalação (R$)</span><input id="apx-contamin" type="text" inputmode="numeric" placeholder="95"></label>
+          <label class="apx-campo"><span>Economia mensal da usina (R$)</span><input id="apx-economia" type="text" inputmode="numeric" placeholder="vazio = calcula de consumo × tarifa"></label>
           <label class="apx-campo"><span>Área ocupada (m²)</span><input id="apx-area" type="text" inputmode="numeric" placeholder="calcula sozinho"></label>
         </div>
         <div class="apx-lista-bloco" data-lista="aguas"></div>
@@ -3639,6 +3644,25 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <label class="apx-campo"><span>Transformador</span><input id="apx-trafo" type="text" placeholder="220 V / 380 V"></label>
           <label class="apx-campo"><span>Tempo de recarga</span><input id="apx-tempo" type="text" placeholder="cerca de 30 minutos"></label>
         </div>
+      </details>
+
+      <details class="apx-grupo" open>
+        <summary>A conta de luz <i class="apx-conta" data-conta="conta"></i></summary>
+        <p class="apx-grupo-sub">Solte a conta junto com os orçamentos e clique em <b>Ler os anexos</b>.
+          É a única fonte da tarifa que o cliente paga de verdade — com bandeira, PIS/COFINS e
+          ICMS já embutidos. <b>Se ela tiver demanda contratada, o projeto é Grupo A</b> e a
+          economia solar não é consumo × tarifa: aí use o campo de economia informada.</p>
+        <div class="apx-campos" data-grupo="conta">
+          <label class="apx-campo"><span>Concessionária</span><input id="apx-c-conc" type="text" placeholder="da conta"></label>
+          <label class="apx-campo"><span>Grupo tarifário</span><input id="apx-c-grupo" type="text" placeholder="A ou B"></label>
+          <label class="apx-campo"><span>Subgrupo</span><input id="apx-c-sub" type="text" placeholder="B3, A4 Verde…"></label>
+          <label class="apx-campo"><span>Demanda contratada (kW)</span><input id="apx-c-dem" type="text" inputmode="numeric" placeholder="só no Grupo A"></label>
+          <label class="apx-campo"><span>Total da fatura (R$)</span><input id="apx-c-total" type="text" inputmode="numeric" placeholder="da conta"></label>
+          <label class="apx-campo"><span>Consumo faturado (kWh)</span><input id="apx-c-kwh" type="text" inputmode="numeric" placeholder="da conta"></label>
+          <label class="apx-campo"><span>Mês de referência</span><input id="apx-c-mes" type="text" placeholder="07/2026"></label>
+          <label class="apx-campo"><span>Tarifa efetiva (R$/kWh)</span><input id="apx-c-tarifa" type="text" readonly placeholder="total ÷ kWh"></label>
+        </div>
+        <div id="apx-aviso-grupo" class="apx-aviso" hidden></div>
       </details>
 
       <details class="apx-grupo">
@@ -7360,7 +7384,42 @@ const APX_DE_PARA = {
   custo_gateway: 'apx-gateway', custo_arrend: 'apx-arrend', custo_manut: 'apx-manut',
   custo_imposto: 'apx-imposto', custo_assinat: 'apx-assinat', custo_fixos: 'apx-fixos',
   custo_ocupIni: 'apx-ocup', custo_rampa: 'apx-rampa',
+  conta_concessionaria: 'apx-c-conc', conta_grupo: 'apx-c-grupo', conta_subgrupo: 'apx-c-sub',
+  conta_demanda_kw: 'apx-c-dem', conta_total_reais: 'apx-c-total', conta_kwh: 'apx-c-kwh',
+  conta_mes: 'apx-c-mes',
 };
+
+/** Tarifa efetiva = total da fatura ÷ kWh faturados. É o número que interessa para a
+ *  economia, porque já traz bandeira e impostos dentro. Calculado, nunca digitado. */
+function apxTarifaEfetiva() {
+  const n = id => { const e = document.getElementById(id); return e ? (Number(String(e.value).replace(/\./g, '').replace(',', '.')) || 0) : 0; };
+  const t = n('apx-c-total'), k = n('apx-c-kwh');
+  const campo = document.getElementById('apx-c-tarifa');
+  if (!campo) return;
+  if (t > 0 && k > 0) {
+    const tar = t / k;
+    campo.value = tar.toFixed(2).replace('.', ',');
+    // a tarifa da conta manda sobre a do orçamento — o orçamento estima, a conta é fato
+    const alvo = document.getElementById('apx-tarifa');
+    if (alvo) { alvo.value = tar.toFixed(2).replace('.', ','); apxMarcar('apx-tarifa', true); }
+  } else campo.value = '';
+}
+
+/** O Grupo A muda a natureza da conta, não só o número: a geração não abate a demanda
+ *  contratada. Em vez de deixar o cálculo de Grupo B rodar calado sobre uma conta de
+ *  Grupo A, a tela avisa aqui e o servidor recusa montar sem a economia informada. */
+function apxAvisoGrupo() {
+  const g = (document.getElementById('apx-c-grupo') || {}).value || '';
+  const box = document.getElementById('apx-aviso-grupo');
+  if (!box) return;
+  const ehA = /^\s*a/i.test(g);
+  box.hidden = !ehA;
+  if (ehA) box.innerHTML =
+    '<b>Grupo A.</b> A geração solar não abate a demanda contratada, e a tarifa não é um ' +
+    'R$/kWh único. A economia <b>não</b> pode sair de consumo × tarifa aqui — preencha ' +
+    '<b>Economia mensal da usina</b>, em A usina, com o valor calculado para Grupo A. ' +
+    'Sem isso a montagem recusa, de propósito.';
+}
 
 async function apxLer() {
   if (!APX.arquivos.length) { alert('Escolha ao menos um arquivo.'); return; }
@@ -7394,7 +7453,7 @@ async function apxLer() {
         apxListaRender(para); postos++;
       });
 
-    apxContar();
+    apxTarifaEfetiva(); apxAvisoGrupo(); apxContar();
     st.textContent = `${postos} campo(s) preenchido(s)` +
       (pulados ? `, ${pulados} deixado(s) como você digitou` : '') +
       `. Confira o que está marcado como "do PDF".`;
@@ -7442,6 +7501,8 @@ function apxInit() {
   document.querySelectorAll('#eletro-pane-apresentacao input, #eletro-pane-apresentacao textarea')
     .forEach(e => e.addEventListener('input', () => {
       if (e.id && APX.doPdf[e.id]) apxMarcar(e.id, false);
+      if (e.id === 'apx-c-total' || e.id === 'apx-c-kwh') apxTarifaEfetiva();
+      if (e.id === 'apx-c-grupo') apxAvisoGrupo();
       apxLimite(e); apxContar();
     }));
   apxContar();
@@ -7498,9 +7559,15 @@ async function apxMontar() {
       modulos, wpModulo: wp, kwp: n('apx-kwp') || +(modulos * wp / 1000).toFixed(2),
       geracao: n('apx-geracao'), invest: n('apx-invsolar'), tarifa: n('apx-tarifa') || 1.2,
       consumoGalpao: n('apx-consumo'), contaMinima: n('apx-contamin'),
+      economiaMes: n('apx-economia'),
       areaM2: n('apx-area'), inversores: v('apx-inversores'),
       aguas: apxListaLimpa('aguas', ['placas', 'onde']).map(a => ({ placas: Number(a.placas) || 0, onde: a.onde || '' })),
       incluido: apxListaLimpa('incluido').map(x => x.v),
+    },
+    conta: {
+      concessionaria: v('apx-c-conc'), grupo: v('apx-c-grupo'), subgrupo: v('apx-c-sub'),
+      demandaKw: n('apx-c-dem'), totalReais: n('apx-c-total'), kwh: n('apx-c-kwh'),
+      mes: v('apx-c-mes'),
     },
     cronograma: apxListaLimpa('cronograma', ['titulo']).map(c => ({
       titulo: c.titulo, dur: Number(c.dur) || 0, un: c.un || 'dias', dias: Number(c.dias) || 0,
@@ -7541,6 +7608,8 @@ async function apxMontar() {
     out.innerHTML =
       `<div class="pesquisa-info"><b>${j.paginas} páginas prontas.</b> ` +
       `${usadas.length} foto(s) entraram${fora.length ? `, ${fora.length} ficaram de fora` : ''}.` +
+      (j.conta ? ` Conta: ${j.conta.concessionaria || 'distribuidora'}, Grupo ${j.conta.grupo}` +
+        (j.conta.tarifaEfetiva ? `, tarifa efetiva R$ ${j.conta.tarifaEfetiva.toFixed(2).replace('.', ',')}/kWh` : '') + '.' : '') +
       (j.omitidas && j.omitidas.length ? ` Fora da proposta por falta de dado: ${j.omitidas.join(', ')}.` : '') +
       (j.paginas_estourando && j.paginas_estourando.length
         ? ` <b style="color:#ffb020">Confira as páginas ${j.paginas_estourando.join(', ')}: o texto passou da folha.</b>` : '') +
