@@ -29,10 +29,10 @@ function Check() {
  * dúvida "posso confiar nisso?" aparece no segundo em que a pessoa olha o preço
  * de oito mil reais, não depois de rolar a página inteira.
  *
- * A primeira linha liga a marca à empresa que fatura. O CNPJ NÃO entra aqui:
- * por decisão do Thiago (03/09) ele só aparece no contrato/nota do fechamento.
- * O que sustenta a confiança nesta tela é a nota fiscal, o prazo de garantia e
- * o preço fechado — não o número.
+ * A primeira linha diz quem está por trás da marca: Irmãos na Obra. CNPJ e
+ * razão social NÃO entram aqui — por decisão do Thiago (03/09) eles só aparecem
+ * no contrato/nota do fechamento. O que sustenta a confiança nesta tela é a
+ * nota fiscal, o prazo de garantia e o preço fechado, não o número.
  */
 export function Confianca() {
   return (
@@ -42,7 +42,7 @@ export function Confianca() {
       <p className="mt-1.5 text-xs leading-relaxed text-suave">
         <strong className="font-semibold text-tinta">{LOJA.nomeCurto}</strong> é a marca de
         bicicletas e scooters elétricas da{' '}
-        <strong className="text-tinta">{EMPRESA.razaoSocial}</strong>, em {EMPRESA.cidade}.
+        <strong className="text-tinta">{EMPRESA.nome}</strong>, em {EMPRESA.cidade}.
       </p>
 
       <ul className="mt-3 flex flex-col gap-2.5">

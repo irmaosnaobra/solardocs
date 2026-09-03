@@ -3,25 +3,32 @@
  *
  * O Decreto 7.962/2013 (art. 2º) manda todo site de venda mostrar, em local de
  * destaque, o nome empresarial, o CNPJ e o endereço físico e eletrônico do
- * fornecedor. O CNPJ foi RETIRADO do site por decisão do Thiago (03/09/2026):
- * ele só aparece no contrato/nota do fechamento, nunca na vitrine. É uma
- * escolha comercial consciente e ela deixa a loja fora desse item do decreto —
- * o campo não existe mais neste arquivo justamente para que ninguém reponha o
- * número numa tela sem querer.
+ * fornecedor. Nada disso aparece aqui por decisão do Thiago (03/09/2026): em
+ * site e LP a gente se apresenta como IRMÃOS NA OBRA e ponto — o CNPJ e a
+ * razão social só entram no contrato/nota do fechamento. É escolha comercial
+ * consciente, e deixa a loja fora desse item do decreto.
  *
- * O que continua aqui é o mínimo que identifica o vendedor: razão social,
- * endereço físico e endereço eletrônico. A razão social precisa ficar porque é
- * ela que emite a nota fiscal — "vendido e faturado por" sem nome não diz nada.
+ * Os campos `cnpj` e `razaoSocial` foram APAGADOS deste arquivo de propósito,
+ * não só das telas: sem campo, nenhuma tela nova reimprime o dado por descuido
+ * e o `tsc` derruba o build de quem tentar. Não repor.
+ *
+ * O e-mail também saiu, pelo mesmo motivo: `aiorosgroup@gmail.com` soletra na
+ * tela exatamente o nome que era para não aparecer. O canal de contato da loja
+ * passa a ser só o WhatsApp (rota /falar, que já faz o rodízio de consultor).
+ * No dia em que existir uma caixa neutra — contato@irmaosnaobra.com.br hoje tem
+ * MX nulo e devolve tudo — é só recolocar aqui e no rodapé.
+ *
+ * O que sobra é o que uma loja precisa para ser localizável: o nome pelo qual
+ * o cliente nos conhece e o endereço físico.
  *
  * De propósito NÃO entra aqui o capital social: R$ 30.000 ao lado de um
  * triciclo de R$ 14.000 argumenta contra a loja, não a favor.
  */
 export const EMPRESA = {
-  razaoSocial: 'AIOROS LTDA',
+  /** Como a loja se apresenta. NÃO é a razão social — essa fica no contrato. */
+  nome: 'Irmãos na Obra',
   endereco: 'Rua Ana Godoy de Sousa, 890 — Santa Mônica, Uberlândia/MG, 38408-290',
   cidade: 'Uberlândia — MG',
-  /** Endereço eletrônico. O Decreto 7.962/2013 exige junto com o físico. */
-  email: 'aiorosgroup@gmail.com',
 } as const;
 
 /**
@@ -37,7 +44,7 @@ export const EMPRESA = {
 export const DIREITOS = [
   {
     titulo: 'Nota fiscal em toda venda',
-    texto: `Vendido e faturado por ${EMPRESA.razaoSocial}. Você recebe a nota junto com a bike.`,
+    texto: `Toda bike sai com nota fiscal em seu nome, emitida pela ${EMPRESA.nome}. Você recebe junto com a bike.`,
   },
   {
     titulo: '7 dias para desistir',
@@ -51,7 +58,8 @@ export const DIREITOS = [
   },
   {
     titulo: 'Fala com gente, não com robô',
-    texto: `WhatsApp direto com um dos sócios, ou ${EMPRESA.email}. Sem cadastro, sem formulário, sem fila.`,
+    texto:
+      'WhatsApp direto com um dos sócios. Sem cadastro, sem formulário, sem fila de atendimento.',
   },
   {
     titulo: 'Preço e frete fechados antes de você decidir',

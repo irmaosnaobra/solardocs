@@ -62,19 +62,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <p className="mt-3 text-sm text-suave">{LOJA.slogan}</p>
             </div>
 
-            {/* Identificação do vendedor: nome empresarial e endereço. O CNPJ
-                saiu do site por decisão do Thiago (03/09) — ele só aparece no
-                contrato/nota do fechamento. Não repor aqui. */}
+            {/* Identificação do vendedor pela MARCA, mais o endereço. Razão
+                social e CNPJ saíram por decisão do Thiago (03/09) — em site e
+                LP é Irmãos na Obra, o resto fica no contrato. Não repor. */}
             <div className="max-w-md text-xs leading-relaxed text-suave">
               <p>
                 {LOJA.nomeCurto} é a marca de bicicletas e scooters elétricas da{' '}
-                <strong className="font-semibold text-tinta">{EMPRESA.razaoSocial}</strong>.
+                <strong className="font-semibold text-tinta">{EMPRESA.nome}</strong>.
               </p>
               <p className="mt-1">{EMPRESA.endereco}</p>
               <p className="mt-1">
-                <a href={`mailto:${EMPRESA.email}`} className="toque hover:text-mata">
-                  {EMPRESA.email}
-                </a>
+                {/* Era um mailto para a caixa aiorosgroup@ — o endereço soletrava
+                    o nome que saiu do site. /falar é o WhatsApp com rodízio. */}
+                <Link href="/falar" prefetch={false} className="toque hover:text-mata">
+                  Falar com a gente no WhatsApp
+                </Link>
               </p>
               <p className="mt-2">
                 Imagens e especificações fornecidas pelo fabricante. A quantidade em estoque é
