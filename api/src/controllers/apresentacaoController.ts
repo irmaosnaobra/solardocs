@@ -204,7 +204,13 @@ async function pensar(body: z.infer<typeof bodySchema>, calc: ReturnType<typeof 
       : { type: 'image', source: { type: 'base64', media_type: a.media_type, data: a.base64 } } as any);
   });
   body.fotos.forEach((f, i) => {
-    conteudo.push({ type: 'text', text: `FOTO ${i + 1} — o vendedor descreveu assim: "${f.descricao || '(sem descrição)'}"` } as any);
+    // A descrição do vendedor é OPCIONAL e entra como correção, não como
+    // requisito: o modelo está vendo a foto: pedir que alguém digite o que ela
+    // mostra é pedir que a pessoa faça o trabalho do modelo. Quando ela existe,
+    // manda — é o conserto para a foto que o modelo lê errado.
+    conteudo.push({ type: 'text', text: f.descricao
+      ? `FOTO ${i + 1} — olhe a imagem e, se ela discordar, siga o que o vendedor escreveu: "${f.descricao}"`
+      : `FOTO ${i + 1} — olhe a imagem e diga você mesmo o que ela mostra.` } as any);
     conteudo.push({ type: 'image', source: { type: 'base64', media_type: f.media_type, data: f.base64 } } as any);
   });
   const jaTem = [
@@ -232,8 +238,13 @@ REGRAS, todas obrigatórias:
 • Foto que não seja do terreno deste cliente precisa de legenda dizendo que é de obra
   anterior da equipe.
 • Português do Brasil, tom direto, frases curtas. Use **negrito** no que importa.
-• Para cada foto, escolha UM espaço da lista, ou deixe de fora. Não repita espaço. É
-  melhor deixar de fora do que colocar uma foto num espaço que não combina.
+• Para cada foto, OLHE A IMAGEM, entenda o que ela é e escolha UM espaço da lista — ou
+  deixe de fora. Não repita espaço, e não dependa de o vendedor ter escrito alguma coisa:
+  a maioria das fotos chega sem descrição nenhuma, e é seu trabalho reconhecê-las. Aérea
+  do terreno, quadro elétrico, padrão de entrada, fundação, carregador, obra em andamento
+  — cada uma tem um lugar. É melhor deixar de fora do que pôr num espaço que não combina.
+• A legenda que você escrever é a que vai impressa no slide. Ela descreve o quadro e para:
+  sem inventar cidade, cliente, prazo ou etapa que a imagem não mostra.
 
 ESPAÇOS DE FOTO DISPONÍVEIS:
 ${ESPACOS.map(e => `  ${e.id} — ${e.o}`).join('\n')}

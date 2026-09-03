@@ -3585,7 +3585,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         </div>
         <div class="apx-zona">
           <div class="apx-zona-tit">Fotos</div>
-          <p class="apx-zona-sub">Escreva o que é cada uma — é isso que diz onde ela entra. As fotos também são lidas: a do padrão de entrada mostra o disjuntor e o medidor.</p>
+          <p class="apx-zona-sub">Solte e pronto: a leitura olha cada foto, entende o que é e escolhe onde ela entra. Escreva algo <b>só se ela errar</b>.</p>
           <input type="file" id="apx-fotos" accept="image/*" multiple hidden onchange="apxAddFotos(this.files)">
           <button type="button" class="eletro-btn" onclick="document.getElementById('apx-fotos').click()">Escolher fotos</button>
           <div id="apx-lista-fotos" class="apx-lista"></div>
@@ -7377,7 +7377,7 @@ function apxRenderListas() {
   if (lf) lf.innerHTML = APX.fotos.map((f, i) =>
     `<div class="apx-item"><img src="${f.preview}" alt="">` +
     `<div class="apx-meta"><div class="apx-nome">${f.nome}</div>` +
-    `<input type="text" placeholder="o que é esta foto?" value="${(f.descricao || '').replace(/"/g, '&quot;')}" oninput="apxDescricao(${i}, this.value)"></div>` +
+    `<input type="text" placeholder="opcional — só se a leitura errar" value="${(f.descricao || '').replace(/"/g, '&quot;')}" oninput="apxDescricao(${i}, this.value)"></div>` +
     `<button type="button" class="apx-x" title="remover" onclick="apxRemover('fotos',${i})">&times;</button></div>`).join('');
 }
 
