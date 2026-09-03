@@ -1,6 +1,7 @@
 import express, { Router, Request, Response } from 'express';
 import { generateGeradorPdf } from '../controllers/pdfGeradorController';
 import { montarApresentacao } from '../controllers/apresentacaoController';
+import { extrairApresentacao } from '../controllers/apresentacaoExtrair';
 import { trackEvent } from '../controllers/trackingGeradorController';
 import { gerarIdeiasSociais, roteirizarTema, roteirizarUpload } from '../services/agenda/socialIdeiasService';
 import { varrerAdLibrary, gerarVideoAvatar } from '../services/agenda/socialStudioStubs';
@@ -31,6 +32,10 @@ router.get('/pdf/:codigo', generateGeradorPdf);
 // parâmetros do Simulador + orçamentos + fotos com legenda. O corpo carrega
 // imagens em base64, então tem limite próprio, maior que o 10mb global.
 router.post('/apresentacao', express.json({ limit: '40mb' }), montarApresentacao);
+
+// Le os anexos e devolve os campos para o formulario. Separado da montagem de
+// proposito: leitura errada nao pode custar um render inteiro para aparecer.
+router.post('/apresentacao/extrair', express.json({ limit: '40mb' }), extrairApresentacao);
 
 // Tracking server-side de acessos e cliques (lê IP + UA da request, resolve geo).
 router.post('/track', trackEvent);

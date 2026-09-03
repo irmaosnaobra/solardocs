@@ -118,34 +118,52 @@ const arquivoSchema = z.object({
   base64: z.string().min(10),
 });
 
+const listaTxt = z.array(z.string()).default([]);
+
+// Quase tudo é opcional de propósito: campo em branco no formulário significa
+// "não tenho esse dado", e o deck OMITE o que não recebeu em vez de imprimir
+// linha vazia. É o que deixa a proposta do tamanho do que se sabe do cliente.
 const bodySchema = z.object({
   cliente: z.string().min(1),
   cidade: z.string().default(''),
-  vendedor: z.string().default('Thiago'),
-  contato: z.string().default('(34) 99136-0223'),
+  vendedor: z.string().default(''),
+  contato: z.string().default(''),
   validade: z.string().default(''),
   eletro: z.object({
-    carros: z.number(), carga: z.number(), custoKwh: z.number(), precoKwh: z.number(),
-    ativacao: z.number(), invest: z.number(), gateway: z.number(), arrend: z.number(),
-    manut: z.number(), imposto: z.number(), assinat: z.number(), fixos: z.number(),
-    ocupIni: z.number(), mesesRampa: z.number(), taxaDesc: z.number(),
+    carros: z.number().default(0), carga: z.number().default(0),
+    custoKwh: z.number().default(0), precoKwh: z.number().default(0),
+    ativacao: z.number().default(0), invest: z.number().default(0),
+    gateway: z.number().default(0), arrend: z.number().default(0),
+    manut: z.number().default(0), imposto: z.number().default(0),
+    assinat: z.number().default(0), fixos: z.number().default(0),
+    ocupIni: z.number().default(1), mesesRampa: z.number().default(1),
+    taxaDesc: z.number().default(0.1425),
     carregadores: z.number().default(1), bicos: z.number().default(2),
-    potenciaTxt: z.string().default('DC 80 kW'),
-    padraoEntrada: z.string().default(''),
-  }),
+    potenciaTxt: z.string().default(''), padraoEntrada: z.string().default(''),
+    transformador: z.string().default(''), tempoRecarga: z.string().default(''),
+  }).default({} as any),
   solar: z.object({
-    modulos: z.number(), wpModulo: z.number().default(625), kwp: z.number(),
-    geracao: z.number(), invest: z.number(), tarifa: z.number().default(1.2),
-    consumoGalpao: z.number().default(0), contaMinima: z.number().default(95),
-    inversores: z.string().default(''), aguas: z.array(z.object({
-      placas: z.number(), onde: z.string(),
-    })).default([]),
-  }),
+    modulos: z.number().default(0), wpModulo: z.number().default(0),
+    kwp: z.number().default(0), geracao: z.number().default(0),
+    invest: z.number().default(0), tarifa: z.number().default(0),
+    consumoGalpao: z.number().default(0), contaMinima: z.number().default(0),
+    areaM2: z.number().default(0), inversores: z.string().default(''),
+    aguas: z.array(z.object({ placas: z.number(), onde: z.string() })).default([]),
+    incluido: listaTxt,
+  }).default({} as any),
   cronograma: z.array(z.object({
     titulo: z.string(), dur: z.number(), un: z.string(), dias: z.number(),
   })).default([]),
+  garantias: z.array(z.object({ item: z.string(), prazo: z.string() })).default([]),
+  escopo: listaTxt, credenciais: listaTxt, equipamento: listaTxt, pontoCards: listaTxt,
+  mercado: z.array(z.object({ n: z.string(), t: z.string() })).default([]),
+  textos: z.object({
+    terrenoHoje: z.string().default(''), pontoFecho: z.string().default(''),
+    pagamento: z.string().default(''), notaValidade: z.string().default(''),
+    fechamento: z.string().default(''),
+  }).default({} as any),
   fotos: z.array(fotoSchema).max(20).default([]),
-  arquivos: z.array(arquivoSchema).max(6).default([]),
+  arquivos: z.array(arquivoSchema).max(8).default([]),
 });
 
 // ── espaços de foto que o deck tem ────────────────────────────────────────
@@ -179,7 +197,15 @@ async function pensar(body: z.infer<typeof bodySchema>, calc: ReturnType<typeof 
     conteudo.push({ type: 'text', text: `FOTO ${i + 1} — o vendedor descreveu assim: "${f.descricao || '(sem descrição)'}"` } as any);
     conteudo.push({ type: 'image', source: { type: 'base64', media_type: f.media_type, data: f.base64 } } as any);
   });
+  const jaTem = [
+    body.textos.terrenoHoje && 'terrenoHoje',
+    body.pontoCards.length && 'pontoCards',
+    body.textos.pontoFecho && 'pontoFecho',
+    body.equipamento.length && 'equipamento',
+    body.escopo.length && 'escopo',
+  ].filter(Boolean) as string[];
   conteudo.push({ type: 'text', text: `
+${jaTem.length ? `O consultor JÁ ESCREVEU estes campos e você NÃO deve reescrevê-los — devolva-os vazios: ${jaTem.join(', ')}.\n` : ''}
 Monte o conteúdo de texto de uma apresentação comercial da Irmãos na Obra para o cliente
 ${body.cliente}, em ${body.cidade}. O projeto é uma usina solar de ${body.solar.kwp} kWp
 (${body.solar.modulos} módulos) mais um eletroposto ${body.eletro.potenciaTxt} com
@@ -301,16 +327,27 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
     const S = body.solar, E = body.eletro;
 
     etapa = 'calcular';
+    // Metade do projeto é um projeto válido: dá para propor só a usina ou só o
+    // posto, e o deck se encolhe em vez de imprimir uma metade vazia.
+    const temSolar = S.modulos > 0 && S.geracao > 0 && S.invest > 0;
+    const temPosto = E.invest > 0 && E.carros > 0 && E.carga > 0;
+    if (!temSolar && !temPosto) {
+      res.status(400).json({ error: 'Preencha ao menos uma das metades: a usina (módulos, geração e investimento) ou o posto (investimento, carros por dia e carga).' });
+      return;
+    }
     const calc = computeEletro(E);
 
     // O consolidado NÃO é a soma dos dois orçamentos: o posto revende parte da energia
     // que a usina gera, e esse kWh não pode ao mesmo tempo abater a conta e ser vendido.
     // Cada kWh entra uma vez, no destino onde rende mais.
-    const consumo = S.consumoGalpao || S.geracao;
+    // Sem consumo informado não dá para dizer o que a conta era antes: a página
+    // da conta de luz simplesmente não entra, em vez de sair com número inventado.
+    const consumo = S.consumoGalpao;
+    const temConta = consumo > 0 && S.tarifa > 0;
     const naoCoberto = Math.max(0, consumo - S.geracao);
-    const contaHoje = consumo * S.tarifa;
-    const contaDepois = naoCoberto * S.tarifa + S.contaMinima;
-    const economiaSolo = contaHoje - contaDepois;
+    const contaHoje = temConta ? consumo * S.tarifa : 0;
+    const contaDepois = temConta ? naoCoberto * S.tarifa + S.contaMinima : 0;
+    const economiaSolo = temConta ? contaHoje - contaDepois : 0;
     const sobraKwh = Math.max(0, S.geracao - calc.kwhMes);
     const ecoLiquida = Math.max(0, sobraKwh * S.tarifa - S.contaMinima);
     const investTotal = S.invest + E.invest;
@@ -342,26 +379,35 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
       relatorio.push({ foto: f.nome || `foto ${d.indice}`, espaco: dentro ? d.espaco : null, legenda: d.legenda, motivo: dentro ? '' : (d.motivo || 'sem espaço compatível') });
     });
 
-    const semSol = computeEletro({ ...E, custoKwh: S.tarifa });
+    const semSol = computeEletro({ ...E, custoKwh: S.tarifa || E.custoKwh });
     const acumDias = (() => { let t = 0; return body.cronograma.map(c => ({ ...c, dia: (t += c.dias) })); })();
+    // um texto escrito no formulário sempre ganha do que a IA propôs
+    const txt = (meu: string, dela: string) => (meu && meu.trim()) ? meu.trim() : (dela || '');
+    const lista = (minha: any[], dela: any[]) => (minha && minha.length) ? minha : (dela || []);
+
+    const obra = ['obra1', 'obra2', 'obra3', 'obra4']
+      .map((k, i) => porEspaco[k] && { src: porEspaco[k].src, etapa: `ETAPA ${i + 1}`, txt: porEspaco[k].legenda })
+      .filter(Boolean);
 
     const deck = {
-      cliente: body.cliente, cidade: body.cidade, cidadeCurta: body.cidade.split(/[·,-]/)[0].trim(),
+      cliente: body.cliente, cidade: body.cidade,
+      cidadeCurta: (body.cidade || '').split(/[·,-]/)[0].trim(),
       data: new Date().toLocaleDateString('pt-BR'), validade: body.validade,
       vendedor: body.vendedor, contato: body.contato,
       logos: { solar: '/gerador/logo.png', eletroposto: '/gerador/logo-eletroposto.png' },
+      temSolar, temPosto,
       solar: {
-        modulos: S.modulos, wpModulo: S.wpModulo, kwp: S.kwp, geracao: S.geracao,
-        invest: S.invest, areaM2: Math.round(S.modulos * 2.5), tarifa: S.tarifa,
-        autonomiaPct: Math.round(Math.min(1, S.geracao / Math.max(1, consumo)) * 100),
+        modulos: S.modulos, wpModulo: S.wpModulo, kwp: S.kwp || +(S.modulos * S.wpModulo / 1000).toFixed(2),
+        geracao: S.geracao, invest: S.invest,
+        areaM2: S.areaM2 || (S.modulos ? Math.round(S.modulos * 2.5) : 0),
+        tarifa: S.tarifa, autonomiaPct: consumo ? Math.round(Math.min(1, S.geracao / consumo) * 100) : 0,
         inversores: S.inversores, contaHoje, contaDepois, economia: economiaSolo,
-        paybackTxt: mesesTxt(S.invest / Math.max(1, economiaSolo)),
-        aguas: S.aguas,
-        incluido: ['Estrutura de fixação e materiais', 'Projeto de engenharia e conexão', 'Serviço de instalação', 'Garantias — 25 anos nos painéis'],
+        paybackTxt: economiaSolo > 0 ? mesesTxt(S.invest / economiaSolo) : '',
+        aguas: S.aguas, incluido: S.incluido,
       },
       posto: {
         carregadores: E.carregadores, bicos: E.bicos, potenciaTxt: E.potenciaTxt,
-        potenciaNum: (E.potenciaTxt.match(/[\d.,]+\s*kW/i) || ['80 kW'])[0],
+        potenciaNum: (E.potenciaTxt.match(/[\d.,]+\s*kW/i) || [''])[0],
         potenciaPrefixo: 'DC de', carros: E.carros, carga: E.carga, sessoes: calc.sessoes,
         kwhMes: calc.kwhMes, preco: E.precoKwh, ativacao: E.ativacao, ativacaoMes: calc.ativacaoMes,
         custoKwh: E.custoKwh, invest: E.invest, fatMes: calc.fatMes, custosMes: calc.custosMes,
@@ -371,73 +417,78 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
         paybackMes: Math.round((calc.payback || 0) * 12),
         tirPct: (calc.tir || 0) * 100, vpl: calc.vpl, taxaDescPct: E.taxaDesc * 100,
         acumulado10: calc.acumulado10, fluxo: calc.fluxo,
-        padraoEntrada: E.padraoEntrada,
-        custoDetalhe: `Energia R$ ${Math.round(calc.custoEnergiaMes)} · gateway **${Math.round(E.gateway * 100)}%** R$ ${Math.round(calc.gatewayMes)} · imposto **${Math.round(E.imposto * 100)}%** do Simples R$ ${Math.round(calc.impostoMes)} · assinatura R$ ${Math.round(E.assinat)} · seguro R$ ${Math.round(calc.seguroMes)}.`,
-        multiplicador: semSol.lucroMes > 0 ? calc.lucroMes / semSol.lucroMes : 1,
+        padraoEntrada: E.padraoEntrada, transformador: E.transformador,
+        tempoRecarga: E.tempoRecarga,
+        padraoArgumento: E.padraoEntrada
+          ? `A entrada é um **padrão ${E.padraoEntrada}**: atende o carregador e a operação do imóvel ao mesmo tempo, **sem precisar entrar em média tensão**.` : '',
+        custoDetalhe: calc.fatMes > 0
+          ? `Energia R$ ${Math.round(calc.custoEnergiaMes)} · gateway R$ ${Math.round(calc.gatewayMes)} · imposto R$ ${Math.round(calc.impostoMes)} · assinatura R$ ${Math.round(E.assinat)} · seguro R$ ${Math.round(calc.seguroMes)}.` : '',
+        multiplicador: semSol.lucroMes > 0 ? calc.lucroMes / semSol.lucroMes : 0,
         paybackSemSol: anosTxt(semSol.payback),
       },
       conjunto: {
         investTotal, ecoLiquida, lucroPosto: calc.lucroMes, ganhoMes,
         paybackTxt: paybackConj, sobraKwh,
       },
-      cenarios: cenarios(E, calc),
-      cronograma: {
-        totalDias: acumDias.length ? acumDias[acumDias.length - 1].dia : 0,
+      cenarios: temPosto && E.carros > 0 ? cenarios(E, calc) : null,
+      cronograma: acumDias.length ? {
+        totalDias: acumDias[acumDias.length - 1].dia,
         etapas: acumDias.map(c => ({ dia: c.dia, titulo: c.titulo, dur: c.dur, un: c.un, forte: c.dur >= 30 })),
         nota: 'A **logística roda em paralelo** com a análise: o pedido sai no fechamento e o material chega antes da aprovação. Nós protocolamos e acompanhamos os dois pedidos na distribuidora, a geração e a carga.',
-      },
-      garantias: [
-        { item: 'Módulos fotovoltaicos', prazo: '25 anos', cor: 'c-sol' },
-        { item: 'Inversores', prazo: '10 anos', cor: 'c-sol' },
-        { item: 'Serviços de instalação e montagem', prazo: '5 anos' },
-        { item: 'Carregador — garantia de fábrica', prazo: '24 meses', cor: 'c-ele' },
-        { item: 'ART de projeto e de execução', prazo: 'ASSINADA', cor: 'inc' },
-        { item: 'Nota fiscal de equipamento e serviço', prazo: 'EMITIDA', cor: 'inc' },
-      ],
+      } : null,
+      garantias: body.garantias.map(g => ({
+        item: g.item, prazo: g.prazo,
+        cor: /módulo|painel|inversor/i.test(g.item) ? 'c-sol'
+           : /carregador|posto/i.test(g.item) ? 'c-ele'
+           : /assinad|emitid|inclu/i.test(g.prazo) ? 'inc' : '',
+      })),
       fotos: {
         ...Object.fromEntries(Object.entries(porEspaco).map(([k, v]) => [k, v.src])),
         layoutLegenda: porEspaco.layout?.legenda || '',
-        obra: ['obra1', 'obra2', 'obra3', 'obra4']
-          .map((k, i) => porEspaco[k] && { src: porEspaco[k].src, etapa: `ETAPA ${i + 1}`, txt: porEspaco[k].legenda })
-          .filter(Boolean),
-        obraLegenda: 'Fotos de obras anteriores executadas pela equipe de montagem que atende este projeto.',
+        obra,
+        obraLegenda: obra.length ? 'Fotos de obras anteriores executadas pela equipe de montagem que atende este projeto.' : '',
       },
       textos: {
-        terrenoHoje: ia.terrenoHoje,
-        pontoCards: ia.pontoCards, pontoFecho: ia.pontoFecho,
-        equipamento: ia.equipamento, escopo: ia.escopo,
-        engenharia: [
+        terrenoHoje: txt(body.textos.terrenoHoje, ia.terrenoHoje),
+        pontoCards: lista(body.pontoCards, ia.pontoCards),
+        pontoFecho: txt(body.textos.pontoFecho, ia.pontoFecho),
+        equipamento: lista(body.equipamento, ia.equipamento),
+        escopo: lista(body.escopo, ia.escopo),
+        credenciais: body.credenciais,
+        mercadoStats: body.mercado,
+        mercadoFonte: body.mercado.length ? 'Fonte: ABVE — abve.org.br' : '',
+        engenharia: temSolar ? [
           '**Levantamento feito em campo** — vão, inclinação e estado de cada água',
           '**Verificação estrutural** da cobertura para o peso e a carga de vento, com memorial de cálculo',
           '**Dimensionamento elétrico** — proteções, aterramento e o ponto de conexão com o padrão de entrada',
           '**Parecer de acesso** protocolado e acompanhado por nós até a liberação',
           '**ART de projeto e de execução** assinada por engenheiro do nosso quadro',
-        ],
-        vantagens: [
+        ] : [],
+        vantagens: temSolar ? [
           { n: 'R$ 0', t: 'de estrutura de solo', p: 'Os módulos são fixados por trilhos sobre as terças que já existem. Sem fundação, sem perfil metálico.' },
           { n: '0 m²', t: 'de chão ocupado', p: 'O pátio continua inteiro para a operação e para o carregador.' },
           { n: 'Obra seca', t: 'na usina', p: 'Trilho, fixação, cabo e inversor. A única obra civil é a base do carregador.' },
-        ],
-        mercadoStats: [
-          { n: '181 mil', t: 'veículos plug-in vendidos no Brasil em 2025 — alta de **26%** em um ano.' },
-          { n: '21 mil', t: 'pontos de recarga no país inteiro, somando todos os tipos.' },
-          { n: '1 para 8,6', t: 'carros elétricos vendidos em 2025 para cada ponto de recarga que existe.' },
-        ],
-        mercadoFonte: 'Fonte: ABVE — abve.org.br',
-        credenciais: [
-          '**9+ anos** de energia solar — experiência real de campo, não de catálogo',
-          'Equipe própria de **projeto, obra e comissionamento**',
-          '**ART assinada** por engenheiro do nosso quadro, não terceirizada',
-          'Atendimento nacional, com base no Triângulo Mineiro',
-        ],
-        pagamento: 'Condições combinadas diretamente com o vendedor. Financiamento bancário com garantia do próprio equipamento é possível.',
-        notaValidade: 'Valores válidos durante o prazo desta proposta. Garantia de 24 meses do carregador a partir da emissão da nota fiscal.',
-        fechamento: '**O sistema já está fechado.** O relógio começa a correr no seu aceite.',
+        ] : [],
+        pagamento: body.textos.pagamento,
+        notaValidade: body.textos.notaValidade,
+        fechamento: body.textos.fechamento,
       },
     };
 
     etapa = 'render';
     const { pdf, paginas, estouro } = await renderizar(deck);
+
+    const omitidas = [
+      !temSolar && 'a usina',
+      !temPosto && 'o eletroposto',
+      temSolar && !temConta && 'a página da conta de luz (falta o consumo)',
+      temSolar && !S.aguas.length && !porEspaco.layout && 'o layout das placas',
+      !porEspaco.produto && 'a página do equipamento (falta a foto)',
+      !body.garantias.length && !body.escopo.length && 'escopo e garantias',
+      !acumDias.length && 'o cronograma',
+      !body.mercado.length && !deck.textos.pontoCards.length && 'a página de mercado',
+      !body.credenciais.length && !obra.length && 'quem executa',
+    ].filter(Boolean) as string[];
 
     res.json({
       ok: true,
@@ -445,6 +496,7 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
       pdf_base64: pdf.toString('base64'),
       nome: `Apresentacao-${body.cliente.replace(/[^\w]+/g, '')}.pdf`,
       fotos: relatorio,
+      omitidas,
       paginas_estourando: estouro,
     });
   } catch (e: any) {

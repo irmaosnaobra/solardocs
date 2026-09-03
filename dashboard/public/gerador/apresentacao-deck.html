@@ -79,16 +79,28 @@ const veu   = cls => `  <div class="scrim ${cls}"></div>\n`;
 const barra = () => '  <div class="bar"></div>\n';
 const rodape = (esq, pg) => `  <div class="foot">${esq}</div>\n  <div class="pg">${String(pg).padStart(2, '0')}</div>\n`;
 
-/** linhas: [rotulo, valor, classe?, cruHtml?] — com cruHtml o rótulo passa sem escape,
- *  para os casos em que a própria linha traz negrito com estilo (a linha de total). */
+/** tem conteúdo de verdade? zero, vazio e "—" contam como não-preenchido. */
+const tem = v => v !== null && v !== undefined && String(v).trim() !== '' && String(v).trim() !== '—'
+              && !(typeof v === 'number' && !v) && !(Array.isArray(v) && !v.length);
+
+/** linhas: [rotulo, valor, classe?, cruHtml?]
+ *  LINHA SEM VALOR NÃO É IMPRESSA. É a regra da tela: campo em branco no
+ *  formulário não vira linha vazia na proposta — some. */
 function ficha(linhas) {
-  return `<table class="ficha">` + linhas.map(l =>
+  const vivas = linhas.filter(l => tem(l[1]));
+  if (!vivas.length) return '';
+  return `<table class="ficha">` + vivas.map(l =>
     `<tr><td>${l[3] ? l[0] : rich(l[0])}</td><td${l[2] ? ' class="' + l[2] + '"' : ''}>${rich(l[1])}</td></tr>`).join('') + `</table>`;
 }
+/** KPI sem número sai da fileira, e os que restam se reacomodam sozinhos no flex. */
 function kpis(itens) {
-  return `<div class="kpis">` + itens.map(k =>
+  const vivos = itens.filter(k => tem(k.val));
+  if (!vivos.length) return '';
+  return `<div class="kpis">` + vivos.map(k =>
     `<div class="kpi on"><div class="lbl">${esc(k.lbl)}</div><div class="val"${k.pequeno ? ' style="font-size:46px"' : ''}>${rich(k.val)}${k.un ? `<small>${esc(k.un)}</small>` : ''}</div>${k.sub ? `<div class="sub">${rich(k.sub)}</div>` : ''}</div>`).join('') + `</div>`;
 }
+/** bloco que só existe se o texto existir — evita título órfão e caixa vazia */
+const se = (cond, html) => cond ? html : '';
 
 // ══════════════════════════════════════════════════════════════════════════
 // AS 21 PÁGINAS
@@ -107,9 +119,15 @@ ${fundo(F.capa || F.terreno)}${veu('left')}
       <h1 class="title" style="font-size:88px">PROJETO<br><span style="color:#fff">${esc(String(D.cliente || '').toUpperCase())}</span></h1>
       <div style="font-size:30px;font-weight:600;letter-spacing:.14em;margin-top:22px">${esc(D.cidade)}</div>
       <div style="margin-top:38px;font-size:25px;color:var(--muted);line-height:1.55;max-width:920px">
-        Uma <b class="c-sol">usina solar de ${dec(S.kwp)} kWp</b> no telhado que já é seu, e um
-        <b class="c-ele">eletroposto de recarga rápida</b> que vende essa mesma energia para
-        quem passa na porta.
+        ${D.temSolar && D.temPosto
+          ? `Uma <b class="c-sol">usina solar de ${dec(S.kwp)} kWp</b> no telhado que já é seu, e um
+             <b class="c-ele">eletroposto de recarga rápida</b> que vende essa mesma energia para
+             quem passa na porta.`
+          : D.temSolar
+          ? `Uma <b class="c-sol">usina solar de ${dec(S.kwp)} kWp</b> sobre o telhado que já é seu,
+             gerando ${num(S.geracao)} kWh por mês de energia própria.`
+          : `Um <b class="c-ele">eletroposto de recarga rápida ${esc(P.potenciaTxt)}</b> no pátio que
+             já é seu, vendendo energia para quem passa na porta.`}
       </div>
       <div style="margin-top:44px"><span class="selo">${esc(D.validade)}</span></div>
     </div>
@@ -118,7 +136,7 @@ ${fundo(F.capa || F.terreno)}${veu('left')}
 </section>`);
 
   // ── 02 · O TERRENO HOJE ──────────────────────────────────────────────────
-  p.push(`<section class="slide amb">
+  if (tem(F.terreno) || tem(T.terrenoHoje)) p.push(`<section class="slide amb">
   <div class="bg" style="background-image:url('${esc(F.terreno || F.capa)}');background-position:center 52%;filter:brightness(.88) saturate(1)"></div>
   <div class="scrim bottom" style="background:linear-gradient(180deg,rgba(var(--veu),.26) 0%,rgba(var(--veu),.40) 44%,rgba(var(--veu),.98) 100%)"></div>
 ${marca('amb', D)}
@@ -130,18 +148,18 @@ ${marca('amb', D)}
 ${rodape('IMAGEM DE SATÉLITE DO LOCAL &middot; BASE DO ESTUDO', N())}</section>`);
 
   // ── 03 · A TESE ──────────────────────────────────────────────────────────
-  p.push(`<section class="slide amb">
+  if (D.temSolar && D.temPosto) p.push(`<section class="slide amb">
 ${fundo(F.tese, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
   <div class="wrap">
     <div class="eyebrow">A TESE DO PROJETO</div>
     <h2 class="title" style="max-width:1500px">O mesmo telhado <span class="c-sol">gera</span> a energia<br>e o mesmo pátio <span class="c-ele">vende</span> ela.</h2>
     <div class="rule"></div>
     <div data-row style="display:flex;gap:26px;margin-top:6px">
-      <div class="glass" style="flex:1;border-color:#FFC400">
+      ${se(D.temSolar, `<div class="glass" style="flex:1;border-color:#FFC400">
         <div class="eyebrow" style="margin-bottom:14px;color:#FFC400">O QUE PRODUZ</div>
         <div style="font-size:60px;font-weight:800;line-height:1;color:#FFC400">${num(S.geracao)} <span style="font-size:26px;color:var(--muted);font-weight:600">kWh/mês</span></div>
         <p class="lead" style="font-size:22px;margin-top:18px">${dec(S.kwp)} kWp de módulos sobre o telhado existente. Energia própria, gerada no mesmo endereço onde ela é consumida.</p>
-      </div>
+      </div>`)}
       <div class="glass" style="flex:1;border-color:#7CE500">
         <div class="eyebrow" style="margin-bottom:14px;color:#7CE500">O QUE VENDE</div>
         <div style="font-size:60px;font-weight:800;line-height:1;color:#7CE500">${brl2(P.preco)} <span style="font-size:26px;color:var(--muted);font-weight:600">por kWh</span></div>
@@ -157,7 +175,7 @@ ${fundo(F.tese, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
         <p class="lead" style="font-size:22px;margin:0">
           <b class="c-sol">${brl(C.ecoLiquida)}</b> de energia que a usina abate da sua conta, mais
           <b class="c-ele">${brl(C.lucroPosto)}</b> de lucro na revenda do posto. <b>Cada kWh alocado
-          onde rende mais</b> — e a página ${D._pgConjunto || 17} abre a conta inteira.
+          onde rende mais</b> — ${D._pgConjunto ? `e a página ${D._pgConjunto} abre a conta inteira.` : ''}
         </p>
       </div>
     </div>
@@ -165,7 +183,7 @@ ${fundo(F.tese, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
 ${rodape('APRESENTAÇÃO COMERCIAL &middot; ' + esc(D.data), N())}</section>`);
 
   // ── 04 · DIVISOR PARTE 1 ─────────────────────────────────────────────────
-  p.push(`<section class="slide sol parte">
+  if (D.temSolar) p.push(`<section class="slide sol parte">
 ${fundo(F.divisorSolar || F.tese, 'dof-soft')}${veu('left')}${barra()}
   <div class="wrap">
     <div style="max-width:1100px">
@@ -179,7 +197,7 @@ ${rodape('PARTE 1 DE 4', N())}</section>`);
 
   // ── 05 · O LAYOUT DAS PLACAS ─────────────────────────────────────────────
   const aguas = (S.aguas || []).map(a => `<li><b>${num(a.placas)} placas</b> ${esc(a.onde)}</li>`).join('\n          ');
-  p.push(`<section class="slide sol">
+  if (D.temSolar && (tem(S.aguas) || tem(F.layout))) p.push(`<section class="slide sol">
 ${marca('sol', D)}
   <div class="wrap" style="padding:60px 80px">
     <div data-row style="display:flex;gap:44px;height:100%;align-items:center">
@@ -198,14 +216,14 @@ ${marca('sol', D)}
       </div>
       <div style="flex:1;display:flex;flex-direction:column">
         <div class="quadro" style="height:820px"><img src="${esc(F.layout || F.terreno)}" alt=""></div>
-        <p class="legenda" style="margin-top:16px">${rich(F.layoutLegenda || 'Imagem de satélite do local, com as águas destacadas. <b style="font-style:normal;color:#fff">Os números são quantidade de placas</b>, não metros quadrados. O posicionamento definitivo sai no projeto executivo.')}</p>
+        ${se(tem(F.layoutLegenda), `<p class="legenda" style="margin-top:16px">${rich(F.layoutLegenda)}</p>`)}
       </div>
     </div>
   </div>
 ${rodape('PARTE 1 &middot; A USINA', N())}</section>`);
 
   // ── 06 · O SISTEMA E O QUE ESTÁ NO PREÇO ─────────────────────────────────
-  p.push(`<section class="slide sol denso">
+  if (D.temSolar) p.push(`<section class="slide sol denso">
 ${fundo(F.sistema, 'dof')}${veu('dark')}${barra()}${marca('sol', D)}
   <div class="wrap">
     <div class="eyebrow">O SISTEMA E O QUE ESTÁ NO PREÇO</div>
@@ -225,7 +243,7 @@ ${fundo(F.sistema, 'dof')}${veu('dark')}${barra()}${marca('sol', D)}
       ])}</div>
       <div style="flex:1">${ficha((S.incluido || []).map(i => [i, 'INCLUÍDO', 'inc']))}</div>
     </div>
-    <p class="nota" style="margin-top:28px"><b>Tudo o que aparece nesta página está no valor da página ${D._pgInvest || 20}.</b> Equipamento, projeto, instalação, homologação e garantias no mesmo preço fechado.</p>
+    <p class="nota" style="margin-top:28px">${D._pgInvest ? `<b>Tudo o que aparece nesta página está no valor da página ${D._pgInvest}.</b>` : ''} Equipamento, projeto, instalação, homologação e garantias no mesmo preço fechado.</p>
   </div>
 ${rodape('PARTE 1 &middot; A USINA', N())}</section>`);
 
@@ -235,7 +253,7 @@ ${rodape('PARTE 1 &middot; A USINA', N())}</section>`);
           <div style="font-size:38px;font-weight:800;color:var(--acc);line-height:1">${rich(v.n)} <span style="font-size:22px;color:#fff;font-weight:600">${rich(v.t)}</span></div>
           <p class="lead" style="font-size:20px;margin-top:12px">${rich(v.p)}</p>
         </div>`).join('\n        ');
-  p.push(`<section class="slide sol">
+  if (D.temSolar && tem(T.engenharia)) p.push(`<section class="slide sol">
 ${fundo(F.engenharia, 'dof')}${veu('dark')}${barra()}${marca('sol', D)}
   <div class="wrap">
     <div class="eyebrow">ENGENHARIA E MONTAGEM</div>
@@ -254,7 +272,7 @@ ${rodape('PARTE 1 &middot; A USINA', N())}</section>`);
 
   // ── 08 · A CONTA DE LUZ ──────────────────────────────────────────────────
   const larg = Math.max(0.6, (Number(S.contaDepois) || 0) / Math.max(1, Number(S.contaHoje) || 1) * 100);
-  p.push(`<section class="slide sol">
+  if (D.temSolar && tem(S.contaHoje)) p.push(`<section class="slide sol">
 ${fundo(F.contaLuz, 'dof')}${veu('dark')}${barra()}${marca('sol', D)}
   <div class="wrap">
     <div class="eyebrow">ANÁLISE FINANCEIRA &middot; A USINA SOZINHA</div>
@@ -280,12 +298,12 @@ ${fundo(F.contaLuz, 'dof')}${veu('dark')}${barra()}${marca('sol', D)}
         <div class="stat" style="margin-bottom:0"><div class="n" style="color:var(--acc)">25 anos</div><div class="t">de garantia dos módulos — o sistema segue gerando muito depois de quitado.</div></div>
       </div>
     </div>
-    <p class="nota" style="margin-top:30px">Esta página mostra a usina trabalhando sozinha. Com o eletroposto no terreno, parte dessa energia passa a ser <b>vendida a ${brl2(P.preco)} o kWh</b> em vez de abater a conta a ${brl2(S.tarifa)} — <b>o número do conjunto está na página ${D._pgConjunto || 17}</b>.</p>
+    <p class="nota" style="margin-top:30px">Esta página mostra a usina trabalhando sozinha. Com o eletroposto no terreno, parte dessa energia passa a ser <b>vendida a ${brl2(P.preco)} o kWh</b> em vez de abater a conta a ${brl2(S.tarifa)} — ${D._pgConjunto ? `<b>o número do conjunto está na página ${D._pgConjunto}</b>.` : ''}</p>
   </div>
 ${rodape('PARTE 1 &middot; A USINA', N())}</section>`);
 
   // ── 09 · DIVISOR PARTE 2 ─────────────────────────────────────────────────
-  p.push(`<section class="slide ele parte">
+  if (D.temPosto) p.push(`<section class="slide ele parte">
 ${fundo(F.divisorPosto, 'dof-soft')}${veu('left')}${barra()}
   <div class="wrap">
     <div style="max-width:1100px">
@@ -301,7 +319,7 @@ ${rodape('PARTE 2 DE 4', N())}</section>`);
   const stats = (T.mercadoStats || []).map((s, i) =>
     `<div class="stat"${i === 2 ? ' style="margin-bottom:0"' : ''}><div class="n"${i === 2 ? ' style="color:var(--acc)"' : ''}>${rich(s.n)}</div><div class="t">${rich(s.t)}</div></div>`).join('\n        ');
   const cards = (T.pontoCards || []).map(c => `<li>${rich(c)}</li>`).join('\n          ');
-  p.push(`<section class="slide ele">
+  if (D.temPosto && (tem(T.mercadoStats) || tem(T.pontoCards))) p.push(`<section class="slide ele">
 ${fundo(F.mercado, 'dof')}${veu('dark')}${barra()}${marca('ele', D)}
   <div class="wrap">
     <div class="eyebrow">POR QUE AGORA, E POR QUE AQUI</div>
@@ -310,21 +328,21 @@ ${fundo(F.mercado, 'dof')}${veu('dark')}${barra()}${marca('ele', D)}
     <div data-row style="display:flex;gap:60px;align-items:flex-start;margin-top:6px">
       <div style="width:660px">
         ${stats}
-        <p class="nota" style="margin-top:20px">${rich(T.mercadoFonte || 'Fonte: ABVE — abve.org.br')}</p>
+        ${se(tem(T.mercadoFonte), `<p class="nota" style="margin-top:20px">${rich(T.mercadoFonte)}</p>`)}
       </div>
       <div class="glass" style="flex:1">
         <h3 class="title" style="font-size:34px;color:var(--acc)">E o seu endereço tem as três coisas que importam</h3>
         <ul class="bullets tight" style="margin-top:24px">
           ${cards}
         </ul>
-        <p class="lead" style="font-size:22px;margin-top:22px">${rich(T.pontoFecho)}</p>
+        ${se(tem(T.pontoFecho), `<p class="lead" style="font-size:22px;margin-top:22px">${rich(T.pontoFecho)}</p>`)}
       </div>
     </div>
   </div>
 ${rodape('PARTE 2 &middot; O POSTO', N())}</section>`);
 
   // ── 11 · A ESTAÇÃO ───────────────────────────────────────────────────────
-  p.push(`<section class="slide ele denso">
+  if (D.temPosto) p.push(`<section class="slide ele denso">
 ${fundo(F.estacao, 'dof')}${veu('dark')}${barra()}${marca('ele', D)}
   <div class="wrap">
     <div class="eyebrow">DETALHAMENTO DA ESTAÇÃO</div>
@@ -354,7 +372,7 @@ ${rodape('PARTE 2 &middot; O POSTO', N())}</section>`);
 
   // ── 12 · O EQUIPAMENTO (fundo claro) ─────────────────────────────────────
   const eq = (T.equipamento || []).map(b => `<li style="color:#1B2A20">${rich(b)}</li>`).join('\n          ');
-  p.push(`<section class="slide ele claro" style="background:#F2F4F1;color:#0B1410">
+  if (D.temPosto && tem(F.produto)) p.push(`<section class="slide ele claro" style="background:#F2F4F1;color:#0B1410">
 ${marca('ele', D)}
   <div class="wrap" style="padding:74px 100px">
     <div data-row style="display:flex;gap:60px;height:100%;align-items:center">
@@ -376,7 +394,7 @@ ${marca('ele', D)}
 </section>`);
 
   // ── 13 · DE ONDE VEM CADA REAL ───────────────────────────────────────────
-  p.push(`<section class="slide ele denso">
+  if (D.temPosto) p.push(`<section class="slide ele denso">
 ${fundo(F.receita, 'dof')}${veu('dark')}${barra()}${marca('ele', D)}
   <div class="wrap">
     <div class="eyebrow">A CONTA, ABERTA</div>
@@ -423,7 +441,7 @@ ${rodape('PARTE 2 &middot; O POSTO', N())}</section>`);
     ? `<div class="col"><div class="up"><div class="colval neg">&minus;${mil(Math.abs(v))}</div></div><div class="dn"><div class="colbar neg"></div></div></div>`
     : `<div class="col"><div class="up"><div class="colval">${mil(v)}</div><div class="colbar" style="height:${css(v / maxF * 100)}%"></div></div><div class="dn"></div></div>`).join('\n      ');
   const anos = fl.map((_, i) => `<div>${i === 0 ? 'ANO 1' : i + 1}</div>`).join('');
-  p.push(`<section class="slide ele">
+  if (D.temPosto && tem(P.fluxo)) p.push(`<section class="slide ele">
 ${barra()}${marca('ele', D)}
   <div class="wrap">
     <div class="eyebrow">RETORNO DO POSTO &middot; INVESTIMENTO DE ${brl2(P.invest)}</div>
@@ -447,7 +465,7 @@ ${rodape('PARTE 2 &middot; O POSTO', N())}</section>`);
   // A linha do zero muda de cliente para cliente (depende de quanto o ano 1 fica
   // negativo), então a altura dos blocos .up/.dn é calculada aqui e escrita inline —
   // o CSS traz só o valor do caso Edeilson como padrão.
-  p[p.length - 1] = p[p.length - 1]
+  if (D.temPosto && tem(P.fluxo)) p[p.length - 1] = p[p.length - 1]
     .replace(/<div class="col"><div class="up"/g, `<div class="col"><div class="up" style="height:${css(zeroPct)}%"`)
     .replace(/<div class="dn">/g, `<div class="dn" style="height:${css(100 - zeroPct)}%">`);
 
@@ -455,7 +473,7 @@ ${rodape('PARTE 2 &middot; O POSTO', N())}</section>`);
   const cen = D.cenarios || {};
   const linhas = (cen.linhas || []).map(l =>
     `<tr><td>${rich(l.nome)}</td><td>${rich(l.piso)}</td><td class="base">${rich(l.base)}</td><td>${rich(l.teto)}</td></tr>`).join('\n      ');
-  p.push(`<section class="slide ele">
+  if (D.cenarios && tem(D.cenarios.linhas)) p.push(`<section class="slide ele">
 ${fundo(F.cenarios, 'dof')}${veu('dark')}${barra()}${marca('ele', D)}
   <div class="wrap">
     <div class="eyebrow">ANÁLISE DE SENSIBILIDADE &middot; DEMANDA</div>
@@ -470,7 +488,7 @@ ${fundo(F.cenarios, 'dof')}${veu('dark')}${barra()}${marca('ele', D)}
 ${rodape('PARTE 2 &middot; O POSTO', N())}</section>`);
 
   // ── 16 · DIVISOR PARTE 3 ─────────────────────────────────────────────────
-  p.push(`<section class="slide amb parte">
+  if (D.temSolar && D.temPosto) p.push(`<section class="slide amb parte">
 ${fundo(F.divisorConjunto || F.tese, 'dof-soft')}${veu('left')}${barra()}
   <div class="wrap">
     <div style="max-width:1100px">
@@ -484,7 +502,7 @@ ${rodape('PARTE 3 DE 4', N())}</section>`);
 
   // ── 17 · O CONSOLIDADO ───────────────────────────────────────────────────
   D._pgConjunto = N();
-  p.push(`<section class="slide amb denso">
+  if (D.temSolar && D.temPosto) p.push(`<section class="slide amb denso">
 ${barra()}${marca('amb', D)}
   <div class="wrap">
     <div class="eyebrow">O PROJETO INTEIRO</div>
@@ -516,8 +534,8 @@ ${barra()}${marca('amb', D)}
       </p>
     </div>
     ${ficha([
-      [`Usina solar ${dec(S.kwp)} kWp`, brl2(S.invest), 'c-sol'],
-      [`Eletroposto ${esc(P.potenciaTxt)}`, brl2(P.invest), 'c-ele'],
+      [`Usina solar ${dec(S.kwp)} kWp`, tem(S.invest) ? brl2(S.invest) : '', 'c-sol'],
+      [`Eletroposto ${esc(P.potenciaTxt)}`, tem(P.invest) ? brl2(P.invest) : '', 'c-ele'],
       ['<b style="color:#fff">Investimento total do projeto</b>', brl2(C.investTotal), '', true],
     ])}
   </div>
@@ -527,7 +545,7 @@ ${rodape('PARTE 3 &middot; O CONJUNTO', N())}</section>`);
   const cred = (T.credenciais || []).map(c => `<li>${rich(c)}</li>`).join('\n        ');
   const obra = (F.obra || []).slice(0, 4).map(o =>
     `<figure><img src="${esc(o.src)}" alt="" style="height:300px"><figcaption><span class="et">${esc(o.etapa)}</span>${rich(o.txt)}</figcaption></figure>`).join('\n        ');
-  p.push(`<section class="slide amb">
+  if (tem(T.credenciais) || tem(F.obra)) p.push(`<section class="slide amb">
 ${barra()}${marca('amb', D)}
   <div class="wrap" style="padding:66px 80px">
     <div data-row style="display:flex;align-items:flex-end;gap:34px">
@@ -541,17 +559,15 @@ ${barra()}${marca('amb', D)}
       <ul class="bullets tight" style="flex:1">
         ${cred}
       </ul>
-      <div class="tira tira4" style="flex:2;margin:0">
-        ${obra}
-      </div>
+      ${se(tem(F.obra), `<div class="tira tira4" style="flex:2;margin:0">${obra}</div>`)}
     </div>
-    <p class="legenda" style="margin-top:18px">${rich(F.obraLegenda || 'Fotos de obras anteriores executadas pela equipe de montagem que atende este projeto.')}</p>
+    ${se(tem(F.obraLegenda), `<p class="legenda" style="margin-top:18px">${rich(F.obraLegenda)}</p>`)}
   </div>
 ${rodape('PARTE 4 &middot; EXECUÇÃO', N())}</section>`);
 
   // ── 19 · ESCOPO E GARANTIAS ──────────────────────────────────────────────
   const escopo = (T.escopo || []).map(e => `<li>${rich(e)}</li>`).join('\n          ');
-  p.push(`<section class="slide amb denso">
+  if (tem(T.escopo) || tem(D.garantias)) p.push(`<section class="slide amb denso">
 ${fundo(F.escopo, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
   <div class="wrap">
     <div class="eyebrow">ESCOPO CHAVE NA MÃO E GARANTIAS</div>
@@ -569,7 +585,7 @@ ${fundo(F.escopo, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
         ${ficha((D.garantias || []).map(g => [g.item, g.prazo, g.cor || '']))}
       </div>
     </div>
-    <p class="nota" style="margin-top:28px"><b>Chave na mão:</b> a coluna da esquerda inteira está no valor da página ${D._pgInvest || 20}, executada e homologada por nós, do projeto à primeira recarga. De você precisamos do acesso ao telhado nos dias de montagem e da documentação — que preenchemos e protocolamos.</p>
+    <p class="nota" style="margin-top:28px"><b>Chave na mão:</b> a coluna da esquerda inteira está no valor${D._pgInvest ? ` da página ${D._pgInvest}` : ''}, executada e homologada por nós, do projeto à primeira recarga. De você precisamos do acesso ao telhado nos dias de montagem e da documentação — que preenchemos e protocolamos.</p>
   </div>
 ${rodape('PARTE 4 &middot; EXECUÇÃO', N())}</section>`);
 
@@ -581,10 +597,12 @@ ${fundo(F.investimento, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
     <div class="eyebrow">INVESTIMENTO</div>
     <h2 class="title">O que custa o projeto inteiro</h2>
     <div class="rule" style="background:#fff"></div>
-    <table class="ficha" style="margin-top:10px;font-size:26px">
-      <tr><td>Usina solar ${dec(S.kwp)} kWp — ${num(S.modulos)} módulos, ${esc(S.inversores)}</td><td class="c-sol">${brl2(S.invest)}</td></tr>
-      <tr><td>Eletroposto ${esc(P.potenciaTxt)} — ${num(P.carregadores)} carregador, ${num(P.bicos)} bicos</td><td class="c-ele">${brl2(P.invest)}</td></tr>
-    </table>
+    ${ficha([
+      [`Usina solar ${dec(S.kwp)} kWp${tem(S.modulos) ? ` — ${num(S.modulos)} módulos` : ''}${tem(S.inversores) ? `, ${esc(S.inversores)}` : ''}`,
+        tem(S.invest) ? brl2(S.invest) : '', 'c-sol'],
+      [`Eletroposto ${esc(P.potenciaTxt)}${tem(P.carregadores) ? ` — ${num(P.carregadores)} carregador, ${num(P.bicos)} bicos` : ''}`,
+        tem(P.invest) ? brl2(P.invest) : '', 'c-ele'],
+    ]).replace('class="ficha"', 'class="ficha" style="margin-top:10px;font-size:26px"')}
     <div class="glass tint" style="margin-top:26px;border-color:#fff;padding:34px 46px">
       <div data-row style="display:flex;align-items:center;gap:44px">
         <div style="white-space:nowrap">
@@ -601,11 +619,11 @@ ${fundo(F.investimento, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
     <div data-row style="display:flex;gap:34px;margin-top:30px;align-items:center">
       <div class="glass plain" style="flex:1;padding:28px 34px">
         <div class="eyebrow" style="margin-bottom:12px">FORMA DE PAGAMENTO</div>
-        <p class="lead" style="font-size:21px;margin:0">${rich(T.pagamento)}</p>
+        ${se(tem(T.pagamento), `<p class="lead" style="font-size:21px;margin:0">${rich(T.pagamento)}</p>`)}
       </div>
       <div style="width:520px;text-align:center">
         <span class="selo" style="border-color:#FFC400;color:#FFC400;font-size:19px">${esc(D.validade)}</span>
-        <p class="nota" style="margin-top:18px;font-size:18px">${rich(T.notaValidade)}</p>
+        ${se(tem(T.notaValidade), `<p class="nota" style="margin-top:18px;font-size:18px">${rich(T.notaValidade)}</p>`)}
       </div>
     </div>
   </div>
@@ -616,7 +634,7 @@ ${rodape('PROPOSTA COMERCIAL &middot; ' + esc(D.data), N())}</section>`);
   const etapas = (cr.etapas || []).map((e, i) =>
     `<div class="et${e.forte ? ' forte' : ''}"><div class="dia">DIA ${num(e.dia)}</div><div class="n">${i + 1}</div>
         <h5>${rich(e.titulo)}</h5><div class="dur">${num(e.dur)}<small>${esc(e.un)}</small></div></div>`).join('\n      ');
-  p.push(`<section class="slide amb denso cronograma">
+  if (D.cronograma && tem(D.cronograma.etapas)) p.push(`<section class="slide amb denso cronograma">
 ${fundo(F.cronograma, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
   <div class="wrap">
     <div class="eyebrow">CRONOGRAMA</div>
@@ -640,7 +658,7 @@ ${fundo(F.cronograma, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
         <div style="font-size:27px;font-weight:600;color:#FFC400;margin-top:4px">${esc(D.contato)}</div>
       </div>
       <div style="flex:1;border-left:3px solid rgba(255,255,255,.2);padding-left:40px">
-        <p class="lead" style="font-size:22px;margin:0">${rich(T.fechamento)}</p>
+        ${se(tem(T.fechamento), `<p class="lead" style="font-size:22px;margin:0">${rich(T.fechamento)}</p>`)}
       </div>
     </div>
   </div>

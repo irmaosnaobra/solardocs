@@ -1726,7 +1726,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 }
 
 /* ── Apresentação de projeto ─────────────────────────────────────────────── */
-.apx-zonas{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+.apx-passo{display:flex;align-items:center;gap:10px;margin:22px 0 12px;font-weight:700;font-size:15px}
+.apx-passo-n{width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.14);
+  display:flex;align-items:center;justify-content:center;font-size:12.5px;flex-shrink:0}
+.apx-zonas{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media(max-width:900px){.apx-zonas{grid-template-columns:1fr}}
 .apx-zona{border:1px dashed rgba(255,255,255,.18);border-radius:12px;padding:16px}
 .apx-zona-tit{font-weight:700;font-size:14px;margin-bottom:4px}
@@ -1737,8 +1740,41 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 .apx-item .apx-meta{flex:1;min-width:0}
 .apx-item .apx-nome{font-size:12px;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .apx-item input{width:100%;margin-top:4px;font-size:13px}
-.apx-item button{background:none;border:0;color:#ff8a8a;cursor:pointer;font-size:18px;line-height:1;padding:0 4px}
-.apx-acao{display:flex;align-items:center;gap:14px;margin-top:18px;flex-wrap:wrap}
+.apx-x{background:none;border:0;color:#ff8a8a;cursor:pointer;font-size:18px;line-height:1;padding:0 4px;flex-shrink:0}
+
+/* grupos recolhíveis: os que quase sempre vêm prontos nascem fechados */
+.apx-grupo{border:1px solid rgba(255,255,255,.10);border-radius:12px;margin-bottom:10px;overflow:hidden}
+.apx-grupo>summary{cursor:pointer;padding:13px 16px;font-weight:700;font-size:14px;
+  background:rgba(255,255,255,.035);list-style:none;display:flex;align-items:center;gap:10px}
+.apx-grupo>summary::-webkit-details-marker{display:none}
+.apx-grupo>summary::before{content:'';width:7px;height:7px;border-right:2px solid currentColor;
+  border-bottom:2px solid currentColor;transform:rotate(-45deg);opacity:.5;transition:transform .15s;flex-shrink:0}
+.apx-grupo[open]>summary::before{transform:rotate(45deg)}
+.apx-conta{font-style:normal;font-weight:600;font-size:11.5px;opacity:.55;margin-left:auto}
+.apx-grupo-sub{font-size:12.5px;opacity:.7;margin:0;padding:12px 16px 0}
+.apx-campos{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;padding:14px 16px}
+.apx-campos.um{grid-template-columns:1fr}
+.apx-campo{display:flex;flex-direction:column;gap:5px;min-width:0}
+.apx-campo>span{font-size:12px;opacity:.75;display:flex;align-items:center;gap:6px}
+.apx-campo input,.apx-campo textarea{width:100%;font-size:13.5px;font-family:inherit;resize:vertical}
+/* campo que veio do anexo: fica marcado até alguém digitar por cima */
+.apx-campo.dopdf>span::after{content:'do PDF';font-size:10px;font-weight:700;letter-spacing:.08em;
+  background:rgba(124,229,0,.16);color:#9ae84a;border-radius:4px;padding:1px 6px}
+.apx-lim{font-style:normal;font-size:10.5px;opacity:.5;margin-left:auto}
+.apx-lim.perto{opacity:1;color:#ffb020}
+
+/* listas repetíveis: um componente só para águas, garantias, cronograma e o resto */
+.apx-lista-bloco{padding:4px 16px 16px}
+.apx-lb-tit{font-size:12px;opacity:.75;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.apx-lb-linhas{display:flex;flex-direction:column;gap:6px}
+.apx-lb-linha{display:flex;gap:8px;align-items:center}
+.apx-lb-linha input{font-size:13.5px;min-width:0}
+.apx-lb-linha input.cresce{flex:1}
+.apx-lb-add{background:none;border:1px dashed rgba(255,255,255,.22);border-radius:8px;color:inherit;
+  cursor:pointer;font-size:12.5px;padding:6px 12px;margin-top:8px;opacity:.8}
+.apx-lb-add:hover{opacity:1}
+
+.apx-acao{display:flex;align-items:center;gap:14px;margin-top:14px;flex-wrap:wrap}
 .apx-status{font-size:13px;opacity:.8}
 .apx-resultado{margin-top:16px}
 .apx-relatorio{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px}
@@ -3520,42 +3556,132 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
          computeEletro do Simulador — a IA só lê os anexos, escolhe onde cada
          foto entra e escreve as poucas linhas que são deste cliente. Foto sem
          lugar não some calada: volta no relatório dizendo por quê. -->
+    <!-- ═══ APRESENTAÇÃO DE PROJETO ═══
+         Três passos na vertical: solta os anexos, confere o que foi lido, manda montar.
+         O formulário tem TODOS os campos que o deck sabe usar — e campo em branco não
+         vira linha vazia na proposta, some. Por isso "não sei" é uma resposta válida
+         aqui: é assim que a proposta fica do tamanho do que se sabe do cliente.
+         Os grupos que quase sempre vêm prontos do Simulador nascem fechados. -->
     <div id="eletro-pane-apresentacao" style="display:none;">
       <div class="pesquisa-info">
-        <b>Apresentação de projeto.</b> Os números vêm do Simulador e do Orçamento desta tela.
-        Solte abaixo os orçamentos e as fotos — <b>escreva o que é cada foto</b>, é isso que
-        diz para a montagem onde ela entra.
+        <b>Apresentação de projeto.</b> Solte os orçamentos e as fotos, clique em
+        <b>Ler os anexos</b> e confira o que foi preenchido — o que ficar em branco
+        simplesmente não entra na proposta.
       </div>
 
-      <div class="orc-grid" style="margin-top:14px">
-        <div class="orc-campo"><label>Cliente</label><input id="apx-cliente" type="text" placeholder="do Simulador"></div>
-        <div class="orc-campo"><label>Cidade</label><input id="apx-cidade" type="text" placeholder="do Simulador"></div>
-        <div class="orc-campo"><label>Consumo do galpão (kWh/mês)</label><input id="apx-consumo" type="text" inputmode="numeric" placeholder="deixe vazio para usar a geração"></div>
-        <div class="orc-campo"><label>Módulos</label><input id="apx-modulos" type="text" inputmode="numeric" placeholder="120"></div>
-        <div class="orc-campo"><label>Potência do módulo (W)</label><input id="apx-wp" type="text" inputmode="numeric" placeholder="625"></div>
-        <div class="orc-campo"><label>Geração (kWh/mês)</label><input id="apx-geracao" type="text" inputmode="numeric" placeholder="9000"></div>
-        <div class="orc-campo"><label>Investimento da usina (R$)</label><input id="apx-invsolar" type="text" inputmode="numeric" placeholder="167877"></div>
-        <div class="orc-campo"><label>Inversores</label><input id="apx-inversores" type="text" placeholder="2 un · 25 kW"></div>
-        <div class="orc-campo"><label>Padrão de entrada</label><input id="apx-padrao" type="text" placeholder="T5 · disjuntor 200 A"></div>
-      </div>
-
+      <!-- passo 1 -->
+      <div class="apx-passo"><span class="apx-passo-n">1</span> Os anexos</div>
       <div class="apx-zonas">
         <div class="apx-zona">
           <div class="apx-zona-tit">Orçamentos e documentos</div>
-          <p class="apx-zona-sub">PDF ou imagem. É daqui que a montagem confere os dados do sistema.</p>
+          <p class="apx-zona-sub">PDF ou imagem. É daqui que os campos abaixo se preenchem.</p>
           <input type="file" id="apx-arqs" accept=".pdf,image/*" multiple hidden onchange="apxAddArquivos(this.files)">
           <button type="button" class="eletro-btn" onclick="document.getElementById('apx-arqs').click()">Escolher arquivos</button>
           <div id="apx-lista-arqs" class="apx-lista"></div>
         </div>
         <div class="apx-zona">
           <div class="apx-zona-tit">Fotos</div>
-          <p class="apx-zona-sub">Escreva o que é cada uma. Sem isso a montagem não sabe onde ela entra.</p>
+          <p class="apx-zona-sub">Escreva o que é cada uma — é isso que diz onde ela entra.</p>
           <input type="file" id="apx-fotos" accept="image/*" multiple hidden onchange="apxAddFotos(this.files)">
           <button type="button" class="eletro-btn" onclick="document.getElementById('apx-fotos').click()">Escolher fotos</button>
           <div id="apx-lista-fotos" class="apx-lista"></div>
         </div>
       </div>
+      <div class="apx-acao">
+        <button type="button" class="eletro-btn" id="apx-btn-ler" onclick="apxLer()">Ler os anexos e preencher</button>
+        <span id="apx-ler-status" class="apx-status"></span>
+      </div>
 
+      <!-- passo 2 -->
+      <div class="apx-passo"><span class="apx-passo-n">2</span> Os dados</div>
+
+      <details class="apx-grupo" open>
+        <summary>Identificação <i class="apx-conta" data-conta="ident"></i></summary>
+        <div class="apx-campos" data-grupo="ident">
+          <label class="apx-campo"><span>Cliente</span><input id="apx-cliente" type="text" placeholder="quem recebe a proposta"></label>
+          <label class="apx-campo"><span>Cidade e UF</span><input id="apx-cidade" type="text" placeholder="São Paulo · SP"></label>
+          <label class="apx-campo"><span>Vendedor</span><input id="apx-vendedor" type="text" placeholder="do cadastro"></label>
+          <label class="apx-campo"><span>Contato</span><input id="apx-contato" type="text" placeholder="(34) 99999-0000"></label>
+        </div>
+      </details>
+
+      <details class="apx-grupo" open>
+        <summary>A usina <i class="apx-conta" data-conta="usina"></i></summary>
+        <div class="apx-campos" data-grupo="usina">
+          <label class="apx-campo"><span>Módulos</span><input id="apx-modulos" type="text" inputmode="numeric" placeholder="120"></label>
+          <label class="apx-campo"><span>Potência do módulo (W)</span><input id="apx-wp" type="text" inputmode="numeric" placeholder="625"></label>
+          <label class="apx-campo"><span>Potência total (kWp)</span><input id="apx-kwp" type="text" inputmode="decimal" placeholder="calcula sozinho"></label>
+          <label class="apx-campo"><span>Geração (kWh/mês)</span><input id="apx-geracao" type="text" inputmode="numeric" placeholder="9000"></label>
+          <label class="apx-campo"><span>Investimento da usina (R$)</span><input id="apx-invsolar" type="text" inputmode="numeric" placeholder="167877"></label>
+          <label class="apx-campo"><span>Inversores</span><input id="apx-inversores" type="text" placeholder="2 un · 25 kW"></label>
+          <label class="apx-campo"><span>Tarifa da concessionária (R$/kWh)</span><input id="apx-tarifa" type="text" inputmode="decimal" placeholder="1,20"></label>
+          <label class="apx-campo"><span>Consumo do imóvel (kWh/mês)</span><input id="apx-consumo" type="text" inputmode="numeric" placeholder="sem isso a página da conta de luz sai"></label>
+          <label class="apx-campo"><span>Conta após a instalação (R$)</span><input id="apx-contamin" type="text" inputmode="numeric" placeholder="95"></label>
+          <label class="apx-campo"><span>Área ocupada (m²)</span><input id="apx-area" type="text" inputmode="numeric" placeholder="calcula sozinho"></label>
+        </div>
+        <div class="apx-lista-bloco" data-lista="aguas"></div>
+        <div class="apx-lista-bloco" data-lista="incluido"></div>
+      </details>
+
+      <details class="apx-grupo" open>
+        <summary>O eletroposto <i class="apx-conta" data-conta="posto"></i></summary>
+        <div class="apx-campos" data-grupo="posto">
+          <label class="apx-campo"><span>Carregadores</span><input id="apx-carregadores" type="text" inputmode="numeric" placeholder="do Simulador"></label>
+          <label class="apx-campo"><span>Bicos</span><input id="apx-bicos" type="text" inputmode="numeric" placeholder="do Simulador"></label>
+          <label class="apx-campo"><span>Potência do carregador</span><input id="apx-potencia" type="text" placeholder="DC 80 kW"></label>
+          <label class="apx-campo"><span>Carros por dia</span><input id="apx-carros" type="text" inputmode="numeric" placeholder="do Simulador"></label>
+          <label class="apx-campo"><span>Carga média (kWh)</span><input id="apx-carga" type="text" inputmode="decimal" placeholder="do Simulador"></label>
+          <label class="apx-campo"><span>Preço ao motorista (R$/kWh)</span><input id="apx-preco" type="text" inputmode="decimal" placeholder="do Simulador"></label>
+          <label class="apx-campo"><span>Taxa de ativação (R$)</span><input id="apx-ativacao" type="text" inputmode="decimal" placeholder="do Simulador"></label>
+          <label class="apx-campo"><span>Custo do kWh (R$)</span><input id="apx-custokwh" type="text" inputmode="decimal" placeholder="do Simulador"></label>
+          <label class="apx-campo"><span>Investimento do posto (R$)</span><input id="apx-invposto" type="text" inputmode="numeric" placeholder="do Simulador"></label>
+          <label class="apx-campo"><span>Padrão de entrada</span><input id="apx-padrao" type="text" placeholder="T5 · disjuntor 200 A"></label>
+          <label class="apx-campo"><span>Transformador</span><input id="apx-trafo" type="text" placeholder="220 V / 380 V"></label>
+          <label class="apx-campo"><span>Tempo de recarga</span><input id="apx-tempo" type="text" placeholder="cerca de 30 minutos"></label>
+        </div>
+      </details>
+
+      <details class="apx-grupo">
+        <summary>Custos e modelagem <i class="apx-conta" data-conta="custos"></i></summary>
+        <p class="apx-grupo-sub">Vêm do Simulador. Mexa aqui só se esta proposta usar outra condição.</p>
+        <div class="apx-campos" data-grupo="custos">
+          <label class="apx-campo"><span>Gateway (%)</span><input id="apx-gateway" type="text" inputmode="decimal"></label>
+          <label class="apx-campo"><span>Arrendamento (%)</span><input id="apx-arrend" type="text" inputmode="decimal"></label>
+          <label class="apx-campo"><span>Manutenção (%)</span><input id="apx-manut" type="text" inputmode="decimal"></label>
+          <label class="apx-campo"><span>Imposto (%)</span><input id="apx-imposto" type="text" inputmode="decimal"></label>
+          <label class="apx-campo"><span>Assinatura mensal (R$)</span><input id="apx-assinat" type="text" inputmode="numeric"></label>
+          <label class="apx-campo"><span>Outros fixos (R$)</span><input id="apx-fixos" type="text" inputmode="numeric"></label>
+          <label class="apx-campo"><span>Ocupação inicial (%)</span><input id="apx-ocup" type="text" inputmode="numeric"></label>
+          <label class="apx-campo"><span>Meses de rampa</span><input id="apx-rampa" type="text" inputmode="numeric"></label>
+          <label class="apx-campo"><span>Taxa de desconto do VPL (%)</span><input id="apx-taxadesc" type="text" inputmode="decimal"></label>
+        </div>
+      </details>
+
+      <details class="apx-grupo">
+        <summary>Escopo, garantias e cronograma <i class="apx-conta" data-conta="listas"></i></summary>
+        <div class="apx-lista-bloco" data-lista="escopo"></div>
+        <div class="apx-lista-bloco" data-lista="garantias"></div>
+        <div class="apx-lista-bloco" data-lista="cronograma"></div>
+      </details>
+
+      <details class="apx-grupo">
+        <summary>Textos da proposta <i class="apx-conta" data-conta="textos"></i></summary>
+        <p class="apx-grupo-sub">Deixe em branco e a montagem escreve a partir dos anexos. O que você escrever aqui manda.</p>
+        <div class="apx-campos um" data-grupo="textos">
+          <label class="apx-campo"><span>Leitura do terreno <i class="apx-lim" data-max="360"></i></span><textarea id="apx-t-terreno" rows="3" maxlength="360" placeholder="como é o local hoje, terminando no que ele não produz"></textarea></label>
+          <label class="apx-campo"><span>Fecho do "por que este endereço" <i class="apx-lim" data-max="300"></i></span><textarea id="apx-t-pontofecho" rows="2" maxlength="300" placeholder="o que vocês viram no local"></textarea></label>
+          <label class="apx-campo"><span>Forma de pagamento <i class="apx-lim" data-max="320"></i></span><textarea id="apx-t-pagamento" rows="2" maxlength="320"></textarea></label>
+          <label class="apx-campo"><span>Observação de validade <i class="apx-lim" data-max="240"></i></span><textarea id="apx-t-validade" rows="2" maxlength="240"></textarea></label>
+          <label class="apx-campo"><span>Frase de fechamento <i class="apx-lim" data-max="200"></i></span><textarea id="apx-t-fechamento" rows="2" maxlength="200"></textarea></label>
+        </div>
+        <div class="apx-lista-bloco" data-lista="pontoCards"></div>
+        <div class="apx-lista-bloco" data-lista="equipamento"></div>
+        <div class="apx-lista-bloco" data-lista="credenciais"></div>
+        <div class="apx-lista-bloco" data-lista="mercado"></div>
+      </details>
+
+      <!-- passo 3 -->
+      <div class="apx-passo"><span class="apx-passo-n">3</span> A apresentação</div>
       <div class="apx-acao">
         <button type="button" class="eletro-btn primario" id="apx-btn" onclick="apxMontar()">Montar apresentação</button>
         <span id="apx-status" class="apx-status"></span>
@@ -7074,22 +7200,94 @@ function eletroGrupo(g) {
 
 
 // ═══ APRESENTAÇÃO DE PROJETO ═══════════════════════════════════════════════
-// A tela junta o que já está preenchido no Simulador/Orçamento com os anexos e
-// manda para /api/gerador/apresentacao, que devolve o PDF pronto.
+// Três passos: solta anexos → lê e preenche → monta. O formulário tem todos os
+// campos que o deck sabe usar, e CAMPO EM BRANCO NÃO VIRA LINHA VAZIA na
+// proposta: some. É por isso que quase nada aqui é obrigatório.
 //
-// As fotos são REDUZIDAS aqui, no navegador, antes de virar base64: o corpo da
-// requisição tem teto e uma foto de celular moderna sozinha já passa de 4 MB.
-// 1600px no maior lado é mais do que o deck usa (a maior moldura é 1156px).
-const APX = { arquivos: [], fotos: [] };
+// As fotos são reduzidas no navegador antes de virar base64 — uma foto de
+// celular sozinha passa de 4 MB e o corpo da requisição tem teto. 1600px no
+// maior lado é mais do que o deck usa (a maior moldura tem 1156px).
+const APX = { arquivos: [], fotos: [], listas: {}, doPdf: {} };
 
-function apxInit() {
-  const t = (typeof eletroTextos === 'function') ? eletroTextos() : {};
-  const set = (id, v) => { const e = document.getElementById(id); if (e && !e.value) e.value = v || ''; };
-  set('apx-cliente', t.cliente);
-  set('apx-cidade', t.cidade);
-  set('apx-wp', '625');
+// ── as listas repetíveis, todas pelo mesmo componente ──────────────────────
+// Quatro renderizadores diferentes para quatro listas é exatamente onde a
+// gambiarra aparece. Aqui é um só, dirigido por esta tabela.
+const APX_LISTAS = {
+  aguas:      { tit: 'Águas do telhado e quantas placas em cada', add: 'água',
+                cols: [{ k: 'placas', t: 'placas', w: 90 }, { k: 'onde', t: 'onde fica', cresce: 1 }] },
+  incluido:   { tit: 'O que está incluído na usina', add: 'item',
+                cols: [{ k: 'v', t: 'item', cresce: 1 }] },
+  escopo:     { tit: 'Escopo — fica por nossa conta', add: 'item',
+                cols: [{ k: 'v', t: 'item', cresce: 1 }] },
+  garantias:  { tit: 'Garantias', add: 'garantia',
+                cols: [{ k: 'item', t: 'item', cresce: 1 }, { k: 'prazo', t: 'prazo', w: 150 }] },
+  cronograma: { tit: 'Cronograma — a soma dos dias é o prazo total', add: 'etapa',
+                cols: [{ k: 'titulo', t: 'etapa', cresce: 1 }, { k: 'dur', t: 'duração', w: 90 },
+                       { k: 'un', t: 'unidade', w: 100 }, { k: 'dias', t: 'dias corridos', w: 120 }] },
+  pontoCards: { tit: 'Por que este endereço — três cartões', add: 'cartão', max: 3,
+                cols: [{ k: 'v', t: 'ex.: **Frente para a via.** o carro entra, carrega e sai', cresce: 1 }] },
+  equipamento:{ tit: 'O equipamento — bullets', add: 'bullet',
+                cols: [{ k: 'v', t: 'característica', cresce: 1 }] },
+  credenciais:{ tit: 'Quem executa — credenciais', add: 'credencial',
+                cols: [{ k: 'v', t: 'credencial', cresce: 1 }] },
+  mercado:    { tit: 'Números de mercado', add: 'número', max: 3,
+                cols: [{ k: 'n', t: 'número', w: 150 }, { k: 't', t: 'o que ele é', cresce: 1 }] },
+};
+
+function apxListaRender(chave) {
+  const cfg = APX_LISTAS[chave];
+  const alvo = document.querySelector(`.apx-lista-bloco[data-lista="${chave}"]`);
+  if (!cfg || !alvo) return;
+  const linhas = APX.listas[chave] || (APX.listas[chave] = []);
+  const cheio = cfg.max && linhas.length >= cfg.max;
+  alvo.innerHTML =
+    `<div class="apx-lb-tit">${cfg.tit}</div><div class="apx-lb-linhas">` +
+    linhas.map((l, i) => `<div class="apx-lb-linha">` + cfg.cols.map(c =>
+      `<input type="text" class="${c.cresce ? 'cresce' : ''}" ${c.w ? `style="width:${c.w}px"` : ''}` +
+      ` placeholder="${c.t}" value="${String(l[c.k] == null ? '' : l[c.k]).replace(/"/g, '&quot;')}"` +
+      ` oninput="apxListaSet('${chave}',${i},'${c.k}',this.value)">`).join('') +
+      `<button type="button" class="apx-x" title="remover" onclick="apxListaDel('${chave}',${i})">&times;</button></div>`).join('') +
+    `</div>` +
+    (cheio ? '' : `<button type="button" class="apx-lb-add" onclick="apxListaAdd('${chave}')">+ ${cfg.add}</button>`);
+  apxContar();
+}
+function apxListaAdd(c) { (APX.listas[c] = APX.listas[c] || []).push({}); apxListaRender(c); }
+function apxListaDel(c, i) { APX.listas[c].splice(i, 1); apxListaRender(c); }
+function apxListaSet(c, i, k, v) { APX.listas[c][i][k] = v; apxContar(); }
+/** só as linhas com conteúdo de verdade — linha em branco não vai para a proposta */
+function apxListaLimpa(c, obrig) {
+  return (APX.listas[c] || []).filter(l => (obrig || Object.keys(l))
+    .some(k => String(l[k] == null ? '' : l[k]).trim()));
 }
 
+// ── contadores por grupo, para saber o que falta sem abrir tudo ────────────
+function apxContar() {
+  document.querySelectorAll('.apx-conta').forEach(el => {
+    const g = el.dataset.conta;
+    if (g === 'listas' || g === 'textos') {
+      const chaves = g === 'listas' ? ['escopo', 'garantias', 'cronograma']
+                                    : ['pontoCards', 'equipamento', 'credenciais', 'mercado'];
+      const n = chaves.reduce((a, c) => a + apxListaLimpa(c).length, 0)
+              + (g === 'textos' ? [...document.querySelectorAll('[data-grupo="textos"] textarea')].filter(t => t.value.trim()).length : 0);
+      el.textContent = n ? `${n} preenchido${n > 1 ? 's' : ''}` : 'vazio';
+      return;
+    }
+    const campos = [...document.querySelectorAll(`[data-grupo="${g}"] input, [data-grupo="${g}"] textarea`)];
+    const n = campos.filter(c => c.value.trim()).length;
+    el.textContent = `${n} de ${campos.length}`;
+  });
+}
+
+// ── marcador de origem: o que veio do anexo fica assinalado até alguém digitar ──
+function apxMarcar(id, veioDoPdf) {
+  const e = document.getElementById(id);
+  if (!e) return;
+  const campo = e.closest('.apx-campo');
+  if (campo) campo.classList.toggle('dopdf', !!veioDoPdf);
+  APX.doPdf[id] = !!veioDoPdf;
+}
+
+// ── anexos ────────────────────────────────────────────────────────────────
 function apxLerArquivo(file, maxLado) {
   return new Promise((res, rej) => {
     const r = new FileReader();
@@ -7113,7 +7311,6 @@ function apxLerArquivo(file, maxLado) {
     r.readAsDataURL(file);
   });
 }
-
 async function apxAddArquivos(files) {
   for (const f of Array.from(files || [])) {
     try {
@@ -7123,7 +7320,6 @@ async function apxAddArquivos(files) {
   }
   apxRenderListas();
 }
-
 async function apxAddFotos(files) {
   for (const f of Array.from(files || [])) {
     try {
@@ -7133,34 +7329,134 @@ async function apxAddFotos(files) {
   }
   apxRenderListas();
 }
-
 function apxRemover(tipo, i) { APX[tipo].splice(i, 1); apxRenderListas(); }
 function apxDescricao(i, v) { if (APX.fotos[i]) APX.fotos[i].descricao = v; }
-
 function apxRenderListas() {
   const la = document.getElementById('apx-lista-arqs');
   if (la) la.innerHTML = APX.arquivos.map((a, i) =>
     `<div class="apx-item"><div class="apx-meta"><div class="apx-nome">${a.nome}</div></div>` +
-    `<button type="button" title="remover" onclick="apxRemover('arquivos',${i})">&times;</button></div>`).join('');
+    `<button type="button" class="apx-x" title="remover" onclick="apxRemover('arquivos',${i})">&times;</button></div>`).join('');
   const lf = document.getElementById('apx-lista-fotos');
   if (lf) lf.innerHTML = APX.fotos.map((f, i) =>
     `<div class="apx-item"><img src="${f.preview}" alt="">` +
     `<div class="apx-meta"><div class="apx-nome">${f.nome}</div>` +
     `<input type="text" placeholder="o que é esta foto?" value="${(f.descricao || '').replace(/"/g, '&quot;')}" oninput="apxDescricao(${i}, this.value)"></div>` +
-    `<button type="button" title="remover" onclick="apxRemover('fotos',${i})">&times;</button></div>`).join('');
+    `<button type="button" class="apx-x" title="remover" onclick="apxRemover('fotos',${i})">&times;</button></div>`).join('');
 }
 
-// O cronograma é o mesmo para todo projeto: são os prazos da operação, não do cliente.
-const APX_CRONO = [
-  { titulo: 'Documentação recolhida', dur: 72, un: 'horas', dias: 3 },
-  { titulo: 'Projeto de engenharia protocolado', dur: 24, un: 'horas', dias: 1 },
-  { titulo: 'Análise da distribuidora', dur: 30, un: 'dias', dias: 30 },
-  { titulo: 'Obra do padrão e civil', dur: 5, un: 'dias', dias: 5 },
-  { titulo: 'Carregador e pintura', dur: 4, un: 'dias', dias: 4 },
-  { titulo: 'Software e aplicativo', dur: 2, un: 'dias', dias: 2 },
-];
+// ── passo 1: ler os anexos e preencher ────────────────────────────────────
+// Só preenche campo VAZIO: o que o consultor já digitou manda sobre o que o PDF
+// disser. Ele digitou depois de olhar; o modelo leu antes.
+const APX_DE_PARA = {
+  cliente: 'apx-cliente', cidade: 'apx-cidade',
+  solar_modulos: 'apx-modulos', solar_wp: 'apx-wp', solar_kwp: 'apx-kwp',
+  solar_geracao: 'apx-geracao', solar_invest: 'apx-invsolar', solar_inversores: 'apx-inversores',
+  solar_tarifa: 'apx-tarifa', solar_consumo: 'apx-consumo', solar_contaMin: 'apx-contamin',
+  solar_area: 'apx-area',
+  posto_carregadores: 'apx-carregadores', posto_bicos: 'apx-bicos', posto_potencia: 'apx-potencia',
+  posto_carros: 'apx-carros', posto_carga: 'apx-carga', posto_preco: 'apx-preco',
+  posto_ativacao: 'apx-ativacao', posto_custoKwh: 'apx-custokwh', posto_invest: 'apx-invposto',
+  posto_padrao: 'apx-padrao', posto_trafo: 'apx-trafo',
+  custo_gateway: 'apx-gateway', custo_arrend: 'apx-arrend', custo_manut: 'apx-manut',
+  custo_imposto: 'apx-imposto', custo_assinat: 'apx-assinat', custo_fixos: 'apx-fixos',
+  custo_ocupIni: 'apx-ocup', custo_rampa: 'apx-rampa',
+};
 
-// Mesmo selo de validade do orçamento: sexta às 18h, em caixa alta como no deck.
+async function apxLer() {
+  if (!APX.arquivos.length) { alert('Escolha ao menos um arquivo.'); return; }
+  const btn = document.getElementById('apx-btn-ler');
+  const st = document.getElementById('apx-ler-status');
+  btn.disabled = true; st.textContent = 'Lendo…';
+  try {
+    const r = await fetch(APX_API + '/gerador/apresentacao/extrair', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ arquivos: APX.arquivos }),
+    });
+    const j = await r.json();
+    if (!r.ok || !j.ok) throw new Error(j.error || 'não consegui ler');
+
+    let postos = 0, pulados = 0;
+    Object.entries(APX_DE_PARA).forEach(([campo, id]) => {
+      const v = j.campos[campo];
+      if (v === undefined || v === null || v === '') return;
+      const e = document.getElementById(id);
+      if (!e) return;
+      if (e.value.trim()) { pulados++; return; }
+      e.value = typeof v === 'number' ? String(v).replace('.', ',') : String(v);
+      apxMarcar(id, true); postos++;
+    });
+    [['solar_aguas', 'aguas'], ['garantias', 'garantias'], ['escopo', 'escopo'], ['incluido_usina', 'incluido']]
+      .forEach(([de, para]) => {
+        const v = j.campos[de];
+        if (!Array.isArray(v) || !v.length) return;
+        if (apxListaLimpa(para).length) { pulados++; return; }
+        APX.listas[para] = para === 'escopo' || para === 'incluido' ? v.map(x => ({ v: x })) : v;
+        apxListaRender(para); postos++;
+      });
+
+    apxContar();
+    st.textContent = `${postos} campo(s) preenchido(s)` +
+      (pulados ? `, ${pulados} deixado(s) como você digitou` : '') +
+      `. Confira o que está marcado como "do PDF".`;
+  } catch (e) {
+    st.textContent = 'Não deu: ' + e.message;
+  } finally { btn.disabled = false; }
+}
+
+// ── abertura da aba ───────────────────────────────────────────────────────
+function apxInit() {
+  if (APX.pronto) { apxContar(); return; }
+  APX.pronto = true;
+  const t = (typeof eletroTextos === 'function') ? eletroTextos() : {};
+  const põe = (id, v) => { const e = document.getElementById(id); if (e && !e.value && v != null && v !== '') e.value = v; };
+  const nz = v => (Number(v) ? String(v).replace('.', ',') : '');
+
+  põe('apx-cliente', t.cliente);  põe('apx-cidade', t.cidade);
+  põe('apx-vendedor', t.autor);   põe('apx-contato', t.contato);
+  põe('apx-wp', '625');
+  põe('apx-potencia', t.equip);
+  // o que já está no Simulador desce preenchido: é a mesma obra
+  põe('apx-carregadores', nz(elNum('el-qtd')));   põe('apx-bicos', nz(elNum('el-plugs')));
+  põe('apx-carros', nz(elNum('el-carros')));      põe('apx-carga', nz(elNum('el-carga')));
+  põe('apx-preco', nz(elNum('el-precokwh')));     põe('apx-ativacao', nz(elNum('el-ativacao')));
+  põe('apx-custokwh', nz(elNum('el-custokwh')));  põe('apx-invposto', nz(elMilhar('el-invest')));
+  põe('apx-gateway', nz(elNum('el-gateway')));    põe('apx-arrend', nz(elNum('el-arrend')));
+  põe('apx-manut', nz(elNum('el-manut')));        põe('apx-imposto', nz(elNum('el-imposto')));
+  põe('apx-assinat', nz(elNum('el-assinatura'))); põe('apx-fixos', nz(elNum('el-fixos')));
+  põe('apx-ocup', nz(elNum('el-ocup')));          põe('apx-rampa', nz(elNum('el-rampa')));
+  põe('apx-taxadesc', nz(EL_TAXA_DESC));
+  põe('apx-tarifa', '1,20');  põe('apx-contamin', '95');
+
+  // cronograma padrão da operação: prazos nossos, não do cliente
+  if (!APX.listas.cronograma) APX.listas.cronograma = [
+    { titulo: 'Documentação recolhida', dur: 72, un: 'horas', dias: 3 },
+    { titulo: 'Projeto de engenharia protocolado', dur: 24, un: 'horas', dias: 1 },
+    { titulo: 'Análise da distribuidora', dur: 30, un: 'dias', dias: 30 },
+    { titulo: 'Obra do padrão e civil', dur: 5, un: 'dias', dias: 5 },
+    { titulo: 'Carregador e pintura', dur: 4, un: 'dias', dias: 4 },
+    { titulo: 'Software e aplicativo', dur: 2, un: 'dias', dias: 2 },
+  ];
+  Object.keys(APX_LISTAS).forEach(apxListaRender);
+
+  // digitou por cima? o selo "do PDF" some, e o contador acompanha
+  document.querySelectorAll('#eletro-pane-apresentacao input, #eletro-pane-apresentacao textarea')
+    .forEach(e => e.addEventListener('input', () => {
+      if (e.id && APX.doPdf[e.id]) apxMarcar(e.id, false);
+      apxLimite(e); apxContar();
+    }));
+  apxContar();
+}
+
+/** contador de caracteres nos textos livres: o limite existe porque texto longo
+ *  estoura a página, e descobrir isso depois de um render de 60 s é tarde. */
+function apxLimite(e) {
+  const campo = e.closest('.apx-campo'); if (!campo) return;
+  const lim = campo.querySelector('.apx-lim'); if (!lim || !e.maxLength || e.maxLength < 0) return;
+  const n = e.value.length;
+  lim.textContent = `${n}/${e.maxLength}`;
+  lim.classList.toggle('perto', n > e.maxLength * 0.85);
+}
+
 function apxValidade() {
   try {
     const ate = proximaSexta18();
@@ -7169,45 +7465,57 @@ function apxValidade() {
   } catch (e) { return ''; }
 }
 
-// A tela fala com a API pelo mesmo caminho do resto do /gerador: /_api em produção
-// (reescrito pelo proxy) e a porta local no desenvolvimento.
 const APX_API = (location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api');
 
+// ── passo 3: montar ───────────────────────────────────────────────────────
 async function apxMontar() {
   const btn = document.getElementById('apx-btn');
   const st = document.getElementById('apx-status');
   const out = document.getElementById('apx-resultado');
   const v = id => { const e = document.getElementById(id); return e ? e.value.trim() : ''; };
-  const n = id => Number(String(v(id)).replace(/\./g, '').replace(',', '.')) || 0;
+  const n = id => { const t = v(id); return t ? (Number(t.replace(/\./g, '').replace(',', '.')) || 0) : 0; };
 
   if (!v('apx-cliente')) { alert('Falta o cliente.'); return; }
-  if (!n('apx-modulos') || !n('apx-geracao') || !n('apx-invsolar')) {
-    alert('Preencha módulos, geração e investimento da usina.'); return;
-  }
-  const t = (typeof eletroTextos === 'function') ? eletroTextos() : {};
-  const modulos = n('apx-modulos'), wp = n('apx-wp') || 625;
+  if (!n('apx-invposto') && !n('apx-invsolar')) { alert('Falta ao menos um investimento — do posto ou da usina.'); return; }
 
+  const modulos = n('apx-modulos'), wp = n('apx-wp') || 625;
   const corpo = {
     cliente: v('apx-cliente'), cidade: v('apx-cidade'),
-    vendedor: t.autor || 'Thiago', contato: t.contato || '',
-    validade: apxValidade(),
+    vendedor: v('apx-vendedor'), contato: v('apx-contato'), validade: apxValidade(),
     eletro: {
-      carros: elNum('el-carros'), carga: elNum('el-carga'), custoKwh: elNum('el-custokwh'),
-      precoKwh: elNum('el-precokwh'), ativacao: elNum('el-ativacao'), invest: elMilhar('el-invest'),
-      gateway: elNum('el-gateway') / 100, arrend: elNum('el-arrend') / 100,
-      manut: elNum('el-manut') / 100, imposto: elNum('el-imposto') / 100,
-      assinat: elNum('el-assinatura'), fixos: elNum('el-fixos'),
-      ocupIni: elNum('el-ocup') / 100, mesesRampa: elNum('el-rampa'), taxaDesc: EL_TAXA_DESC / 100,
-      carregadores: elNum('el-qtd') || 1, bicos: elNum('el-plugs') || 2,
-      potenciaTxt: t.equip || 'DC 80 kW', padraoEntrada: v('apx-padrao'),
+      carros: n('apx-carros'), carga: n('apx-carga'), custoKwh: n('apx-custokwh'),
+      precoKwh: n('apx-preco'), ativacao: n('apx-ativacao'), invest: n('apx-invposto'),
+      gateway: n('apx-gateway') / 100, arrend: n('apx-arrend') / 100,
+      manut: n('apx-manut') / 100, imposto: n('apx-imposto') / 100,
+      assinat: n('apx-assinat'), fixos: n('apx-fixos'),
+      ocupIni: n('apx-ocup') / 100, mesesRampa: n('apx-rampa') || 1,
+      taxaDesc: n('apx-taxadesc') / 100,
+      carregadores: n('apx-carregadores') || 1, bicos: n('apx-bicos') || 2,
+      potenciaTxt: v('apx-potencia'), padraoEntrada: v('apx-padrao'),
+      transformador: v('apx-trafo'), tempoRecarga: v('apx-tempo'),
     },
     solar: {
-      modulos, wpModulo: wp, kwp: +(modulos * wp / 1000).toFixed(2),
-      geracao: n('apx-geracao'), invest: n('apx-invsolar'), tarifa: 1.2,
-      consumoGalpao: n('apx-consumo'), contaMinima: 95,
-      inversores: v('apx-inversores'), aguas: [],
+      modulos, wpModulo: wp, kwp: n('apx-kwp') || +(modulos * wp / 1000).toFixed(2),
+      geracao: n('apx-geracao'), invest: n('apx-invsolar'), tarifa: n('apx-tarifa') || 1.2,
+      consumoGalpao: n('apx-consumo'), contaMinima: n('apx-contamin'),
+      areaM2: n('apx-area'), inversores: v('apx-inversores'),
+      aguas: apxListaLimpa('aguas', ['placas', 'onde']).map(a => ({ placas: Number(a.placas) || 0, onde: a.onde || '' })),
+      incluido: apxListaLimpa('incluido').map(x => x.v),
     },
-    cronograma: APX_CRONO,
+    cronograma: apxListaLimpa('cronograma', ['titulo']).map(c => ({
+      titulo: c.titulo, dur: Number(c.dur) || 0, un: c.un || 'dias', dias: Number(c.dias) || 0,
+    })),
+    garantias: apxListaLimpa('garantias', ['item']).map(g => ({ item: g.item, prazo: g.prazo || '' })),
+    escopo: apxListaLimpa('escopo').map(x => x.v),
+    credenciais: apxListaLimpa('credenciais').map(x => x.v),
+    equipamento: apxListaLimpa('equipamento').map(x => x.v),
+    pontoCards: apxListaLimpa('pontoCards').map(x => x.v),
+    mercado: apxListaLimpa('mercado', ['n', 't']).map(m => ({ n: m.n, t: m.t })),
+    textos: {
+      terrenoHoje: v('apx-t-terreno'), pontoFecho: v('apx-t-pontofecho'),
+      pagamento: v('apx-t-pagamento'), notaValidade: v('apx-t-validade'),
+      fechamento: v('apx-t-fechamento'),
+    },
     fotos: APX.fotos.map(f => ({ nome: f.nome, descricao: f.descricao, media_type: f.media_type, base64: f.base64 })),
     arquivos: APX.arquivos,
   };
@@ -7233,6 +7541,7 @@ async function apxMontar() {
     out.innerHTML =
       `<div class="pesquisa-info"><b>${j.paginas} páginas prontas.</b> ` +
       `${usadas.length} foto(s) entraram${fora.length ? `, ${fora.length} ficaram de fora` : ''}.` +
+      (j.omitidas && j.omitidas.length ? ` Fora da proposta por falta de dado: ${j.omitidas.join(', ')}.` : '') +
       (j.paginas_estourando && j.paginas_estourando.length
         ? ` <b style="color:#ffb020">Confira as páginas ${j.paginas_estourando.join(', ')}: o texto passou da folha.</b>` : '') +
       `</div>` +
