@@ -333,10 +333,12 @@ export default function PixRecorrentePage() {
             </button>
           </div>
 
+          {/* Aqui NÃO entra razão social nem CNPJ (decisão do Thiago, 03/09):
+              em tela de cliente a gente é Irmãos na Obra. O nome jurídico do
+              recebedor o banco mostra na hora de autorizar, como manda o Pix. */}
           <div className={styles.aviso}>
-            O Pix é da <strong>AIOROS LTDA (CNPJ 63.636.043/0001-88)</strong>. Se o seu banco já
-            suporta Pix Automático, a mensalidade passa a ser debitada sozinha — e você cancela
-            quando quiser, aqui ou no próprio app do banco.
+            Se o seu banco já suporta Pix Automático, a mensalidade passa a ser debitada sozinha —
+            e você cancela quando quiser, aqui ou no próprio app do banco.
           </div>
         </div>
       )}
