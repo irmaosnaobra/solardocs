@@ -18,6 +18,10 @@
  *
  *   node scripts/build-prints-instagram.js
  *
+ * O recorte pega a LARGURA DA LISTA e nao a do elemento do texto: a foto de
+ * perfil do cliente fica num irmao a esquerda, e recortando so' o elemento o
+ * print saia sem o rosto de ninguem.
+ *
  * O @ nao e' marcado na imagem: quem destaca ele e' o site, num rotulo dourado
  * embaixo do print. Escrever em cima de um print e' comecar a editar prova.
  */
@@ -126,7 +130,10 @@ const HANDLES = [
       const l = lista.getBoundingClientRect();
       // so' vale se o comentario couber INTEIRO dentro da lista visivel
       if (r.top < l.top - 1 || r.bottom > l.bottom + 1) return null;
-      return { x: r.x, y: r.y, w: r.width, h: r.height, texto: alvo.innerText.trim() };
+      // x/largura vem da LISTA, nao do elemento: o elemento que comeca com o @
+      // e' so' a coluna de texto, e a foto de perfil fica num irmao a esquerda
+      // dele. Recortando so' o elemento, o print saia sem o rosto do cliente.
+      return { x: l.x, y: r.y, w: l.width, h: r.height, texto: alvo.innerText.trim() };
     }, handle);
     if (!caixa) {
       // comentario alto que nao coube: encosta ele no topo e mede de novo
@@ -157,15 +164,16 @@ const HANDLES = [
         if (!alvo) return null;
         const r = alvo.getBoundingClientRect(), l = lista.getBoundingClientRect();
         if (r.top < l.top - 1 || r.bottom > l.bottom + 1) return null;
-        return { x: r.x, y: r.y, w: r.width, h: r.height };
+        return { x: l.x, y: r.y, w: l.width, h: r.height };
       }, handle);
     }
     if (!caixa) { faltou.push(handle); continue; }
 
     const pad = 10;
+    const padTopo = 14; // o avatar comeca acima da primeira linha de texto
     await p.screenshot({ path: tmp, clip: {
-      x: Math.max(0, caixa.x - pad), y: Math.max(0, caixa.y - pad),
-      width: caixa.w + pad * 2, height: caixa.h + pad * 2 } });
+      x: Math.max(0, caixa.x - pad), y: Math.max(0, caixa.y - padTopo),
+      width: caixa.w + pad * 2, height: caixa.h + padTopo + pad } });
 
     const nome = 'insta-' + handle.replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '.webp';
     await sharp(tmp).resize(700, null, { withoutEnlargement: true })
