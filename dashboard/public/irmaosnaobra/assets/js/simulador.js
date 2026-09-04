@@ -36,6 +36,7 @@
     btnResultado: document.getElementById('btn-resultado'),
     btnZap: document.getElementById('btn-zap-simulador'),
     resultado: document.getElementById('sim-resultado'),
+    atendimento: document.querySelectorAll('input[name="atendimento"]'),
     paineis: document.getElementById('r-paineis'),
     potenciaPainel: document.getElementById('r-potencia-painel'),
     kwp: document.getElementById('r-kwp'),
@@ -67,6 +68,7 @@
     const tipo = form.querySelector('input[name="tipo"]:checked').value;
     const ligacao = form.querySelector('input[name="ligacao"]:checked').value;
     const cidadeNome = el.cidade.value;
+    const escolhido = document.querySelector('input[name="atendimento"]:checked');
     const cidade = CIDADES.find(function (c) { return c.nome === cidadeNome; });
     const hsp = cidade ? cidade.hsp : CIDADES[0].hsp;
 
@@ -92,6 +94,9 @@
 
     return {
       conta: conta, tipo: tipo, ligacao: ligacao,
+      // nasce vazio de proposito: nenhuma opcao vem marcada, entao "" quer
+      // dizer que a pessoa nao escolheu — e nao que ela escolheu WhatsApp
+      atendimento: escolhido ? escolhido.value : '',
       cidade: cidadeNome || '', hsp: hsp,
       paineis: paineis, kwpReal: kwpReal, geracaoMes: geracaoMes, area: area,
       economiaMes: economiaMes, economiaAno: economiaMes * 12,
@@ -153,6 +158,9 @@
       umaCasa(r.kwpReal) + ' kWp\n' +
       'Economia estimada: ' + reais(r.economiaMes) + ' por mês (a conta cairia para ' +
       reais(r.contaNova) + ')\n' +
+      // só entra a linha se a pessoa marcou. Mandar "Atendimento: WhatsApp"
+      // por padrão faria o consultor ler escolha onde não houve nenhuma
+      (r.atendimento ? 'Prefiro atendimento: ' + r.atendimento + '\n' : '') +
       'Quero um orçamento.';
     return 'https://wa.me/' + CONFIG.whatsapp + '?text=' + encodeURIComponent(texto);
   }
@@ -192,6 +200,10 @@
   });
   el.conta.addEventListener('input', function () { acenderPassos(4); atualizar(false); });
   el.conta.addEventListener('change', function () { atualizar(true); });
+  // nao mexe no calculo, so' no texto que vai pro WhatsApp
+  el.atendimento.forEach(function (i) {
+    i.addEventListener('change', function () { atualizar(false); });
+  });
 
   el.btnResultado.addEventListener('click', function () {
     if (!el.cidade.value) {
