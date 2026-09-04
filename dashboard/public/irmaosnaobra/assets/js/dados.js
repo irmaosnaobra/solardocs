@@ -260,6 +260,14 @@ const OBRAS = [
     alt: 'Inversor SAJ e caixa de proteção Clamper Front Box instalados na parede'
   },
   {
+    img: '/irmaosnaobra/assets/img/obra-11.webp',
+    bairro: 'Equipe na obra',
+    cidade: 'Triângulo Mineiro e Catalão',
+    badge: 'Zona rural',
+    ficha: ['chácara, telhado de telha colonial', 'equipe montando no dia', 'foto de drone da própria obra'],
+    alt: 'Vista de drone de uma chácara com a equipe instalando módulos solares no telhado'
+  },
+  {
     img: '/irmaosnaobra/assets/img/obra-10.webp',
     bairro: 'Quadro acabado',
     cidade: 'Triângulo Mineiro e Catalão',

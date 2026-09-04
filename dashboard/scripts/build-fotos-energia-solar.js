@@ -26,18 +26,19 @@ const fedd = (n) => path.join(RAIZ, 'io', 'img', 'fedd' + n + '.jpg');
 
 fs.mkdirSync(SAIDA, { recursive: true });
 
-// AS 3 FOTOS DE SERVICO sao as que o visitante ve antes de decidir se fica. O
-// Thiago pediu que fossem mais bonitas, entao mudaram de origem E ganham
-// tratamento de cor: as escolhidas sao as de ceu aberto, e nao as de dia
-// nublado. Continuam sendo FOTO REAL da equipe.
-//   residencial mosaico  9  telhado inteiro com o horizonte verde atras
-//   industria   mosaico  6  telhado de galpao (e a unica industrial que existe)
-//   rural       mosaico  4  drone na chacara, com a equipe montando
-// As 11 do mosaico seguem todas no ar: as que sairam do hero (10 e 11) ja'
-// estavam tambem na secao de obras.
+// OS TRES CARDS DE SERVICO agora usam imagem que o Thiago mandou (04/09/2026),
+// e nao mais foto do mosaico:
+//   residencial  casa com paineis no telhado, gerada por IA
+//   industria    telhado laranja de galpao com duas fileiras de modulos
+//   rural        usina no solo na beira da lavoura, vista de drone
+// ILUSTRACAO, as tres — mesma regra da capa: elas ficam nos cards de categoria
+// e nao encostam na secao de obras. Ver o LEIA-ME da pasta fontes.
+// As 11 fotos do mosaico continuam todas no ar, na secao de obras.
 // O tratamento e' correcao de cor, nao maquiagem: satura 8%, abre um pouco o
 // contraste e da' um sharpen leve. Nada entra ou sai da foto.
-const VITRINE = new Set(['servico-residencial','servico-industria','servico-rural']);
+// Nada mais leva tratamento de cor: capa e os tres servicos vieram prontos do
+// Thiago, e as fotos de obra sao documento e nao se mexe.
+const VITRINE = new Set([]);
 
 // A CAPA E' ILUSTRACAO, e por isso nao esta na lista das fotos de obra.
 // Veio pronta do Thiago (scripts/fontes/capa-hero.png, gerada por IA) e so'
@@ -52,9 +53,9 @@ const TRABALHOS = [
   [path.join(FONTES, 'capa-hero.png'), 'hero-desktop', 1600, 900, 80],
   [path.join(FONTES, 'capa-hero.png'), 'hero-mobile', 900, 675, 82],
 
-  [mosaico(9), 'servico-residencial', 800, 597, 86],
-  [mosaico(6), 'servico-industria', 800, 597, 86],
-  [mosaico(4), 'servico-rural', 800, 597, 86],
+  [path.join(FONTES, 'servico-residencial.png'), 'servico-residencial', 800, 597, 84],
+  [path.join(FONTES, 'servico-industria.jpg'), 'servico-industria', 800, 597, 86],
+  [path.join(FONTES, 'servico-rural.jpg'), 'servico-rural', 800, 597, 84],
 
   // obras: as 10 restantes em 4:3, SEM tratamento — foto de obra e' documento,
   // fica do jeito que a equipe tirou
@@ -68,6 +69,9 @@ const TRABALHOS = [
   [mosaico(2), 'obra-08', 760, 570, 80],
   [mosaico(7), 'obra-09', 760, 570, 80],
   [mosaico(8), 'obra-10', 760, 570, 80],
+  // a do drone saiu do card de rural quando ele virou ilustracao. Ela e' a
+  // UNICA foto com a equipe trabalhando no telhado — nao podia ficar fora.
+  [mosaico(4), 'obra-11', 760, 570, 80],
 
   // os dois irmaos
   [path.join(RAIZ, 'founder-thiago.webp'), 'irmao-thiago', 360, 360, 82],
@@ -91,7 +95,10 @@ const TRABALHOS = [
   for (const [origem, nome, largura, altura, q] of TRABALHOS) {
     const destino = path.join(SAIDA, nome + '.webp');
     const meta = await sharp(origem).metadata();
-    const w = Math.min(largura, meta.width); // nunca ampliar
+    const w = Math.min(largura, meta.width); // nunca ampliar: fonte pequena
+                                            // (a de industria tem 743px) fica
+                                            // no tamanho dela e o cover do CSS
+                                            // preenche o card
     let pipe = sharp(origem);
     if (altura) {
       const h = Math.round((altura / largura) * w);
