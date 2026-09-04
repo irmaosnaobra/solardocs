@@ -94,6 +94,7 @@
 
     return {
       conta: conta, tipo: tipo, ligacao: ligacao,
+      consumo: consumo,
       // nasce vazio de proposito: nenhuma opcao vem marcada, entao "" quer
       // dizer que a pessoa nao escolheu — e nao que ela escolheu WhatsApp
       atendimento: escolhido ? escolhido.value : '',
@@ -146,6 +147,29 @@
     posicionarPino();
   }
 
+  /* --------------------------------------------------- pra quem vai o lead */
+  // Sorteia UMA vez por time e guarda. Sem isso, cada mexida no valor da conta
+  // re-sortearia o dono e o lead trocaria de consultor no meio da simulacao.
+  // Atravessar o corte de kWh TROCA de time, e isso e' certo: e' a regra.
+  const sorteado = { alta: null, baixa: null };
+
+  function consultorDoLead(consumoKwh) {
+    const alta = consumoKwh > KWH_CORTE;
+    const chave = alta ? 'alta' : 'baixa';
+    if (sorteado[chave]) return sorteado[chave];
+
+    const time = alta ? TIME_CONTA_ALTA : TIME_CONTA_BAIXA;
+    const total = time.reduce(function (s, c) { return s + c.peso; }, 0);
+    let n = Math.random() * total;
+    let escolhido = time[time.length - 1];
+    for (let i = 0; i < time.length; i++) {
+      n -= time[i].peso;
+      if (n <= 0) { escolhido = time[i]; break; }
+    }
+    sorteado[chave] = escolhido;
+    return escolhido;
+  }
+
   function linkWhatsapp(r) {
     const ligacoes = { mono: 'monofásica', bi: 'bifásica', tri: 'trifásica' };
     const onde = r.cidade ? r.cidade : 'Uberlândia e região';
@@ -162,7 +186,10 @@
       // por padrão faria o consultor ler escolha onde não houve nenhuma
       (r.atendimento ? 'Prefiro atendimento: ' + r.atendimento + '\n' : '') +
       'Quero um orçamento.';
-    return 'https://wa.me/' + CONFIG.whatsapp + '?text=' + encodeURIComponent(texto);
+    // aqui e' o celular do consultor, nao a linha central: quem preencheu a
+    // simulacao ja' chega falando com quem vai atender
+    const dono = consultorDoLead(r.consumo);
+    return 'https://wa.me/' + dono.whatsapp + '?text=' + encodeURIComponent(texto);
   }
 
   /* ------------------------------------------------- pino do slider e trilho */

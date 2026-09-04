@@ -21,6 +21,39 @@ const CONFIG = {
 };
 
 /* --------------------------------------------------------------------------
+   PARA QUEM VAI O LEAD DO SIMULADOR
+
+   Quem preenche o simulador e clica no botão cai DIRETO no celular do
+   consultor, com a ficha já escrita na mensagem — não passa pela linha central.
+
+   O corte é o consumo em kWh calculado a partir da conta, não o valor em reais:
+     acima de 1.000 kWh  →  50% Thiago, 50% Diego
+     até 1.000 kWh       →  70% Nilce, 30% Giovanna
+
+   Os números vieram da tabela `consultores` do banco do /gerador, que é a fonte
+   de verdade de quem atende o quê. Se alguém trocar de númera lá, tem que
+   trocar aqui também — esta lista é uma cópia, o site não consulta o banco.
+
+   ATENÇÃO, DIVERGÊNCIA COM O BACKEND (falar com o Thiago):
+   o roteamento que já roda no servidor (leadSolarFicha.ts) corta em 700 kWh e
+   divide a conta baixa 75/25, não 70/30. Este site corta em 1.000 e divide
+   70/30, que foi o que o Thiago pediu em 04/09/2026. Enquanto os dois não
+   forem alinhados, um lead entre 700 e 1.000 kWh cai na Nilce/Giovanna pelo
+   site e conta como time de conta alta pelo servidor.
+   -------------------------------------------------------------------------- */
+const KWH_CORTE = 1000;
+
+const TIME_CONTA_ALTA = [
+  { nome: 'Thiago', whatsapp: '5534991360223', peso: 50 },
+  { nome: 'Diego', whatsapp: '5534991360172', peso: 50 }
+];
+
+const TIME_CONTA_BAIXA = [
+  { nome: 'Nilce', whatsapp: '5534991516846', peso: 70 },
+  { nome: 'Giovanna', whatsapp: '5534993396255', peso: 30 }
+];
+
+/* --------------------------------------------------------------------------
    PARÂMETROS DO SIMULADOR
 
    A conta nova NÃO é só o custo de disponibilidade. Depois da Lei 14.300
