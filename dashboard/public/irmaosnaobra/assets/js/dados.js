@@ -130,7 +130,7 @@ const CIDADES_DAS_OBRAS = ['Uberlândia', 'Araguari', 'Catalão', 'Uberaba', 'It
    -------------------------------------------------------------------------- */
 const OBRAS = [
   {
-    img: 'assets/img/obra-01.webp',
+    img: '/irmaosnaobra/assets/img/obra-01.webp',
     bairro: 'Telha colonial',
     cidade: 'Triângulo Mineiro e Catalão',
     badge: 'Residencial',
@@ -138,7 +138,7 @@ const OBRAS = [
     alt: 'Telhado de telha colonial com módulos solares instalados, vista alta da cidade ao fundo'
   },
   {
-    img: 'assets/img/obra-02.webp',
+    img: '/irmaosnaobra/assets/img/obra-02.webp',
     bairro: 'Duas orientações',
     cidade: 'Triângulo Mineiro e Catalão',
     badge: 'Residencial',
@@ -146,7 +146,7 @@ const OBRAS = [
     alt: 'Duas fileiras de módulos solares em águas diferentes de um telhado de telha colonial'
   },
   {
-    img: 'assets/img/obra-03.webp',
+    img: '/irmaosnaobra/assets/img/obra-03.webp',
     bairro: 'Módulos all-black',
     cidade: 'Triângulo Mineiro e Catalão',
     badge: 'All-black',
@@ -154,7 +154,7 @@ const OBRAS = [
     alt: 'Módulos solares all-black instalados sobre telhado de fibrocimento'
   },
   {
-    img: 'assets/img/obra-04.webp',
+    img: '/irmaosnaobra/assets/img/obra-04.webp',
     bairro: 'Telha de concreto',
     cidade: 'Triângulo Mineiro e Catalão',
     badge: 'Residencial',
@@ -162,7 +162,7 @@ const OBRAS = [
     alt: 'Fileira de módulos solares sobre telhado de telha de concreto em rua residencial'
   },
   {
-    img: 'assets/img/obra-05.webp',
+    img: '/irmaosnaobra/assets/img/obra-05.webp',
     bairro: 'Telhado de galpão',
     cidade: 'Triângulo Mineiro e Catalão',
     badge: 'Comercial',
@@ -170,7 +170,7 @@ const OBRAS = [
     alt: 'Módulos solares em fileira longa no telhado de fibrocimento de um galpão'
   },
   {
-    img: 'assets/img/obra-06.webp',
+    img: '/irmaosnaobra/assets/img/obra-06.webp',
     bairro: 'Módulo instalado',
     cidade: 'Triângulo Mineiro e Catalão',
     badge: 'Residencial',
@@ -178,7 +178,7 @@ const OBRAS = [
     alt: 'Detalhe do vidro de um módulo solar recém-instalado com o céu refletido'
   },
   {
-    img: 'assets/img/obra-07.webp',
+    img: '/irmaosnaobra/assets/img/obra-07.webp',
     bairro: 'Água única',
     cidade: 'Triângulo Mineiro e Catalão',
     badge: 'Residencial',
@@ -186,7 +186,7 @@ const OBRAS = [
     alt: 'Módulos solares de célula azul instalados em telhado de telha colonial'
   },
   {
-    img: 'assets/img/obra-08.webp',
+    img: '/irmaosnaobra/assets/img/obra-08.webp',
     bairro: 'Vista da rua',
     cidade: 'Triângulo Mineiro e Catalão',
     badge: 'Residencial',
@@ -194,7 +194,7 @@ const OBRAS = [
     alt: 'Casa térrea vista da rua com módulos solares instalados no telhado'
   },
   {
-    img: 'assets/img/obra-09.webp',
+    img: '/irmaosnaobra/assets/img/obra-09.webp',
     bairro: 'Inversor e proteção',
     cidade: 'Triângulo Mineiro e Catalão',
     badge: 'Inversor SAJ',
@@ -202,7 +202,7 @@ const OBRAS = [
     alt: 'Inversor SAJ e caixa de proteção Clamper Front Box instalados na parede'
   },
   {
-    img: 'assets/img/obra-10.webp',
+    img: '/irmaosnaobra/assets/img/obra-10.webp',
     bairro: 'Quadro acabado',
     cidade: 'Triângulo Mineiro e Catalão',
     badge: 'Inversor SAJ',
@@ -231,42 +231,42 @@ const DEPOIMENTOS = [
     texto: 'Estou satisfeito com a agilidade e com o comprometimento durante a instalação do kit solar. Me explicaram muito bem como funciona o sistema e está funcionando a todo vapor.',
     nome: 'Denivan',
     marca: 'Conversa no WhatsApp',
-    print: 'assets/img/depo-1.webp',
+    print: '/irmaosnaobra/assets/img/depo-1.webp',
     alt: 'Print da conversa no WhatsApp com o cliente Denivan'
   },
   {
     texto: 'Fiquei muito satisfeita com o trabalho de vocês, com certeza eu indicaria sim. Nota 10 por tudo. 100% satisfeita.',
     nome: 'Sueli',
     marca: 'Conversa no WhatsApp',
-    print: 'assets/img/depo-3.webp',
+    print: '/irmaosnaobra/assets/img/depo-3.webp',
     alt: 'Print da conversa no WhatsApp com a cliente Sueli'
   },
   {
     texto: 'Passando aqui pra deixar meu agradecimento a todos da equipe Irmãos na Obra pelo profissionalismo e transparência com o serviço prestado, tudo dentro do combinado. Pelo suporte e atenção antes do término do serviço e após o término.',
     nome: 'Cléber',
     marca: 'Conversa no WhatsApp',
-    print: 'assets/img/depo-6.webp',
+    print: '/irmaosnaobra/assets/img/depo-6.webp',
     alt: 'Print da conversa no WhatsApp com o cliente Cléber'
   },
   {
     texto: 'Foi top meu irmão, muito rápido, tanto o processo quanto a montagem. Gostei muito viu.',
     nome: 'Andrigo',
     marca: 'Conversa no WhatsApp',
-    print: 'assets/img/depo-7.webp',
+    print: '/irmaosnaobra/assets/img/depo-7.webp',
     alt: 'Print da conversa no WhatsApp com o cliente Andrigo'
   },
   {
     texto: 'Estou extremamente satisfeito com os resultados adquiridos com a instalação do meu sistema fotovoltaico. Tenho verificado uma produção de energia muito satisfatória, dentro do nosso combinado, onde até mesmo nos dias de pouca incidência do sol segue atendendo à minha demanda. Super recomendo.',
     nome: 'Márcio',
     marca: 'Conversa no WhatsApp',
-    print: 'assets/img/depo-4.webp',
+    print: '/irmaosnaobra/assets/img/depo-4.webp',
     alt: 'Print da conversa no WhatsApp com o cliente Márcio'
   },
   {
     texto: 'Bom dia, Diego. Indicaria sim.',
     nome: 'Sebastião',
     marca: 'Conversa no WhatsApp',
-    print: 'assets/img/depo-2.webp',
+    print: '/irmaosnaobra/assets/img/depo-2.webp',
     alt: 'Print da conversa no WhatsApp com o cliente Sebastião'
   },
   {
@@ -274,7 +274,7 @@ const DEPOIMENTOS = [
     texto: 'Meu nome é Huberth e tenho uma satisfação a declarar sobre a empresa Irmãos na Obra. Comprei um kit energia fotovoltaica, tive um excelente atendimento, tanto na instalação e o pós, algo que merece parabenizá-los. Até o momento, qualquer ajuda sobre o sistema eles estão sempre dispostos a ajudar. Encerro com meu muito obrigado a toda equipe, pela idoneidade de todos.',
     nome: 'Huberth',
     marca: 'Conversa no WhatsApp',
-    print: 'assets/img/depo-5.webp',
+    print: '/irmaosnaobra/assets/img/depo-5.webp',
     alt: 'Print da conversa no WhatsApp com o cliente Huberth'
   }
 ];

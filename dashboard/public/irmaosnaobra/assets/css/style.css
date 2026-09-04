@@ -169,7 +169,7 @@ svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-l
    ========================================================================== */
 .hero{position:relative;overflow:hidden;padding-block:0;background:var(--azul-fundo);}
 .hero__fundo{position:absolute;inset:0;
-  background:url('../img/hero-desktop.webp') center right/cover no-repeat;}
+  background:url('/irmaosnaobra/assets/img/hero-desktop.webp') center right/cover no-repeat;}
 .hero__fundo::after{content:'';position:absolute;inset:0;
   background:linear-gradient(90deg,var(--azul-fundo) 6%,rgba(6,26,56,.86) 34%,rgba(6,26,56,0) 66%);}
 .hero__interno{position:relative;z-index:1;
@@ -521,7 +521,7 @@ svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-l
   .hero__interno{min-height:0;padding-block:96px 44px;text-align:left;}
   .hero__titulo{max-width:none;}
   .hero__foto{display:block;margin-top:22px;border-radius:12px;overflow:hidden;
-    aspect-ratio:1;background:url('../img/hero-mobile.webp') center/cover no-repeat;
+    aspect-ratio:1;background:url('/irmaosnaobra/assets/img/hero-mobile.webp') center/cover no-repeat;
     box-shadow:0 26px 50px -30px #000;}
   .hero__texto{margin-top:20px;max-width:none;}
   .hero__acoes{flex-direction:column;align-items:stretch;}
