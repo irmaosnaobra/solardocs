@@ -390,7 +390,9 @@ svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-l
 /* ==========================================================================
    OBRAS
    ========================================================================== */
-.obras{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;}
+/* 4 colunas e nao 5: com 7 cards, cinco colunas deixavam uma fileira de dois
+   sozinhos no canto. Em quatro fica 4+3, e o card cresce. */
+.obras{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;}
 .obra{background:linear-gradient(160deg,#0B2A57,#071D3F);border:1px solid var(--azul-linha);
   border-radius:12px;overflow:hidden;
   transition:transform var(--transicao),border-color var(--transicao),box-shadow var(--transicao);}

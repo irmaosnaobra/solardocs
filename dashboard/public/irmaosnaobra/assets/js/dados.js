@@ -177,6 +177,12 @@ const CIDADES_DAS_OBRAS = ['Uberlândia', 'Araguari', 'Catalão', 'Uberaba', 'It
    Então cada legenda aqui descreve o que está NO QUADRO e para. Nenhum número
    inventado. O selo diz o tipo de telhado ou o equipamento, não "9,76 kWp".
 
+   Eram 11 cards. Em 04/09/2026 o Thiago riscou quatro e sobraram 7: saíram a
+   vista da rua, as duas do inversor na parede e a de drone com a equipe no
+   telhado. Decisão dele. Consequência, pra ficar registrada: essas quatro
+   fotos (mosaico 2, 4, 7 e 8) não aparecem mais em lugar nenhum do site, e a
+   de drone era a única em que a equipe aparecia trabalhando.
+
    As cidades das obras eu tenho — Uberlândia, Araguari, Catalão, Uberaba e
    Ituiutaba — mas não sei qual foto é de qual. Por isso elas aparecem como
    faixa da seção (CIDADES_DAS_OBRAS) e o campo `cidade` de cada card fica na
@@ -242,38 +248,6 @@ const OBRAS = [
     badge: 'Residencial',
     ficha: ['telha colonial', 'módulos de célula azul', 'estrutura na inclinação do telhado'],
     alt: 'Módulos solares de célula azul instalados em telhado de telha colonial'
-  },
-  {
-    img: '/irmaosnaobra/assets/img/obra-08.webp',
-    bairro: 'Vista da rua',
-    cidade: 'Triângulo Mineiro e Catalão',
-    badge: 'Residencial',
-    ficha: ['casa térrea de esquina', 'duas águas com módulos', 'obra entregue e ligada'],
-    alt: 'Casa térrea vista da rua com módulos solares instalados no telhado'
-  },
-  {
-    img: '/irmaosnaobra/assets/img/obra-09.webp',
-    bairro: 'Inversor e proteção',
-    cidade: 'Triângulo Mineiro e Catalão',
-    badge: 'Inversor SAJ',
-    ficha: ['inversor SAJ na parede', 'Clamper Front Box de proteção', 'eletroduto aparente e alinhado'],
-    alt: 'Inversor SAJ e caixa de proteção Clamper Front Box instalados na parede'
-  },
-  {
-    img: '/irmaosnaobra/assets/img/obra-11.webp',
-    bairro: 'Equipe na obra',
-    cidade: 'Triângulo Mineiro e Catalão',
-    badge: 'Zona rural',
-    ficha: ['chácara, telhado de telha colonial', 'equipe montando no dia', 'foto de drone da própria obra'],
-    alt: 'Vista de drone de uma chácara com a equipe instalando módulos solares no telhado'
-  },
-  {
-    img: '/irmaosnaobra/assets/img/obra-10.webp',
-    bairro: 'Quadro acabado',
-    cidade: 'Triângulo Mineiro e Catalão',
-    badge: 'Inversor SAJ',
-    ficha: ['inversor SAJ', 'string box com DPS', 'condutores identificados por cor'],
-    alt: 'Inversor SAJ com string box e eletroduto instalados em parede de área de serviço'
   }
 ];
 

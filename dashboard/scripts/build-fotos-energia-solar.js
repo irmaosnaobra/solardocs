@@ -33,7 +33,7 @@ fs.mkdirSync(SAIDA, { recursive: true });
 //   rural        usina no solo na beira da lavoura, vista de drone
 // ILUSTRACAO, as tres — mesma regra da capa: elas ficam nos cards de categoria
 // e nao encostam na secao de obras. Ver o LEIA-ME da pasta fontes.
-// As 11 fotos do mosaico continuam todas no ar, na secao de obras.
+// Do mosaico, 7 estao no ar (1, 3, 5, 6, 9, 10, 11). As outras 4 sairam.
 // O tratamento e' correcao de cor, nao maquiagem: satura 8%, abre um pouco o
 // contraste e da' um sharpen leve. Nada entra ou sai da foto.
 // Nada mais leva tratamento de cor: capa e os tres servicos vieram prontos do
@@ -66,12 +66,14 @@ const TRABALHOS = [
   [mosaico(6), 'obra-05', 760, 570, 80],
   [mosaico(10), 'obra-06', 760, 570, 80],
   [mosaico(5), 'obra-07', 760, 570, 80],
-  [mosaico(2), 'obra-08', 760, 570, 80],
-  [mosaico(7), 'obra-09', 760, 570, 80],
-  [mosaico(8), 'obra-10', 760, 570, 80],
-  // a do drone saiu do card de rural quando ele virou ilustracao. Ela e' a
-  // UNICA foto com a equipe trabalhando no telhado — nao podia ficar fora.
-  [mosaico(4), 'obra-11', 760, 570, 80],
+  // FORA DO SITE desde 04/09/2026, riscadas pelo Thiago: mosaico 2 (vista da
+  // rua), 7 e 8 (inversor na parede) e 4 (drone com a equipe no telhado). Nao
+  // sao geradas mais. Pra trazer alguma de volta e' descomentar aqui E por o
+  // card de volta no OBRAS do dados.js — as duas coisas.
+  //   [mosaico(2), 'obra-08', 760, 570, 80],
+  //   [mosaico(7), 'obra-09', 760, 570, 80],
+  //   [mosaico(8), 'obra-10', 760, 570, 80],
+  //   [mosaico(4), 'obra-11', 760, 570, 80],
 
   // os dois irmaos
   [path.join(RAIZ, 'founder-thiago.webp'), 'irmao-thiago', 360, 360, 82],
