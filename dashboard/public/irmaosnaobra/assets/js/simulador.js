@@ -5,9 +5,14 @@
    DIMENSIONAMENTO
    consumo (kWh/mês) = (conta - iluminação pública) / tarifa
    excedente         = consumo - custo de disponibilidade da ligação
-   kWp necessário    = (excedente / 30) / (HSP x performance)
-   nº de painéis     = arredonda pra cima (kWp x 1000 / potência do painel)
+   nº de painéis     = arredonda pra cima (excedente / 75)
+   geração           = nº painéis x 75
    área no telhado   = nº painéis x área do painel x folga
+
+   O 75 é a regra da casa: cada placa gera 75 kWh por mês. Antes o número de
+   placas vinha de (excedente / 30) / (HSP x performance) e dava o mesmo —
+   600 W x 5,2 x 0,80 x 30 = 74,9 kWh. A conta de três fatores foi trocada pelo
+   número direto porque é ele que o time fala e consegue conferir de cabeça.
 
    O QUE CONTINUA NA CONTA DEPOIS DO SISTEMA INSTALADO
    custo de disponibilidade = kWh mínimos da ligação x tarifa
@@ -41,6 +46,7 @@
     potenciaPainel: document.getElementById('r-potencia-painel'),
     kwp: document.getElementById('r-kwp'),
     area: document.getElementById('r-area'),
+    geracao: document.getElementById('r-geracao'),
     economia: document.getElementById('r-economia'),
     contaAtual: document.getElementById('r-conta-atual'),
     contaNova: document.getElementById('r-conta-nova'),
@@ -77,10 +83,13 @@
     const minimoKwh = PARAMS.taxaMinima[ligacao];
     const excedente = Math.max(0, consumo - minimoKwh);
 
-    const kwpNecessario = (excedente / 30) / (hsp * PARAMS.performance);
-    const paineis = Math.max(2, Math.ceil((kwpNecessario * 1000) / PARAMS.potenciaPainel));
+    // O dimensionamento sai da regra da casa: cada placa gera 75 kWh por mês.
+    // Cidade com HSP diferente do de referência gera proporcionalmente mais ou
+    // menos — hoje todas estão em 5,2, então o fator é 1.
+    const geracaoPainel = PARAMS.geracaoPorPainel * (hsp / PARAMS.hspBase);
+    const paineis = Math.max(2, Math.ceil(excedente / geracaoPainel));
     const kwpReal = (paineis * PARAMS.potenciaPainel) / 1000;
-    const geracaoMes = kwpReal * hsp * 30 * PARAMS.performance;
+    const geracaoMes = paineis * geracaoPainel;
     const area = paineis * PARAMS.areaPainel * PARAMS.folgaArea;
 
     // o que sobra na fatura todo mês, mesmo com o sistema gerando
@@ -100,6 +109,7 @@
       atendimento: escolhido ? escolhido.value : '',
       cidade: cidadeNome || '', hsp: hsp,
       paineis: paineis, kwpReal: kwpReal, geracaoMes: geracaoMes, area: area,
+      geracaoPainel: geracaoPainel,
       economiaMes: economiaMes, economiaAno: economiaMes * 12,
       contaNova: contaNova, percentual: percentual,
       custoDisponibilidade: custoDisponibilidade,
@@ -133,6 +143,7 @@
     el.paineis.textContent = r.paineis;
     el.kwp.textContent = umaCasa(r.kwpReal);
     el.area.textContent = Math.round(r.area);
+    el.geracao.textContent = Math.round(r.geracaoMes).toLocaleString('pt-BR');
     el.contaAtual.textContent = reais(r.conta);
     el.contaNova.textContent = reais(r.contaNova);
     el.percentual.textContent = Math.round(r.percentual) + '% mais barata';
@@ -180,6 +191,7 @@
       'Conta de luz: ' + reais(r.conta) + ' por mês\n' +
       'Resultado: ' + r.paineis + ' painéis de ' + PARAMS.potenciaPainel + 'W, ' +
       umaCasa(r.kwpReal) + ' kWp\n' +
+      'Geração estimada: ' + Math.round(r.geracaoMes).toLocaleString('pt-BR') + ' kWh por mês\n' +
       'Economia estimada: ' + reais(r.economiaMes) + ' por mês (a conta cairia para ' +
       reais(r.contaNova) + ')\n' +
       // só entra a linha se a pessoa marcou. Mandar "Atendimento: WhatsApp"

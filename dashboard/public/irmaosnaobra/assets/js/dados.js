@@ -30,9 +30,20 @@ const CONFIG = {
      acima de 1.000 kWh  →  50% Thiago, 50% Diego
      até 1.000 kWh       →  70% Nilce, 30% Giovanna
 
-   Os números vieram da tabela `consultores` do banco do /gerador, que é a fonte
-   de verdade de quem atende o quê. Se alguém trocar de númera lá, tem que
-   trocar aqui também — esta lista é uma cópia, o site não consulta o banco.
+   Três números (Thiago, Diego, Nilce) vieram da tabela `consultores` do banco do
+   /gerador. O da Giovanna NÃO: o Thiago corrigiu à mão em 04/09/2026 para
+   5534998165040, que é a MESMA linha central usada nos botões soltos da página.
+   No banco, a Giovanna está como 5534993396255.
+
+   Isso tem duas consequências que valem saber:
+     1. o banco e o site discordam sobre o WhatsApp da Giovanna. O do site é o
+        que o Thiago mandou usar; quem for mexer no banco decide qual corrigir.
+     2. o lead de conta baixa sorteado pra Giovanna cai na linha central, a
+        mesma dos botões de hero/rodapé. Ou seja: 30% da conta baixa não cai num
+        celular pessoal, cai na linha que a automação também usa.
+
+   Esta lista é uma cópia — o site não consulta banco nenhum. Trocou número em
+   qualquer lugar, tem que trocar aqui também.
 
    ATENÇÃO, DIVERGÊNCIA COM O BACKEND (falar com o Thiago):
    o roteamento que já roda no servidor (leadSolarFicha.ts) corta em 700 kWh e
@@ -50,7 +61,7 @@ const TIME_CONTA_ALTA = [
 
 const TIME_CONTA_BAIXA = [
   { nome: 'Nilce', whatsapp: '5534991516846', peso: 70 },
-  { nome: 'Giovanna', whatsapp: '5534993396255', peso: 30 }
+  { nome: 'Giovanna', whatsapp: '5534998165040', peso: 30 }
 ];
 
 /* --------------------------------------------------------------------------
@@ -77,8 +88,22 @@ const TIME_CONTA_BAIXA = [
    -------------------------------------------------------------------------- */
 const PARAMS = {
   tarifa: 1.05,          // R$/kWh cheia com impostos (mesmo número do /io/solar)
-  performance: 0.80,     // perdas de inversor, cabo, temperatura e sujeira
   potenciaPainel: 600,   // watts por painel (TCL 600W, kit atual do /gerador)
+
+  // CADA PLACA GERA 75 kWh POR MÊS. É a regra que o time usa em campo, e
+  // agora é ela que dimensiona o sistema — não o contrário.
+  //
+  // Ela não brigou com o cálculo antigo, confirmou: 600 W x 5,2 HSP x 0,80 de
+  // performance x 30 dias = 74,9 kWh. Antes o número de placas saía dessa
+  // conta de três fatores; agora sai do 75 direto. Muda pra melhor porque o 75
+  // é o que dá pra conferir de cabeça e o que vocês falam com o cliente —
+  // ninguém discute performance ratio no telhado.
+  //
+  // Se a placa do kit mudar de potência, este número muda junto:
+  //   geracaoPorPainel ≈ potenciaPainel / 1000 x hsp x 0,80 x 30
+  geracaoPorPainel: 75,  // kWh/mês por placa, no HSP da região (5,2)
+  hspBase: 5.2,          // o HSP em que o 75 vale. Cidade com HSP diferente
+                         // escala em cima dele, em vez de ter número próprio
   areaPainel: 2.58,      // m² por painel (2,28 x 1,13)
   folgaArea: 1.15,       // espaçamento entre fileiras
   taxaMinima: { mono: 30, bi: 50, tri: 100 }, // kWh de custo de disponibilidade
