@@ -169,19 +169,40 @@ svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-l
    ========================================================================== */
 .hero{position:relative;overflow:hidden;padding-block:0;background:var(--azul-fundo);}
 .hero__fundo{position:absolute;inset:0;
-  background:url('/irmaosnaobra/assets/img/hero-desktop.webp') center right/cover no-repeat;}
+  background:url('/irmaosnaobra/assets/img/hero-desktop.webp') center/cover no-repeat;}
+/* Degradê em duas camadas, e cada uma tem um trabalho:
+   1. horizontal — segura o texto legível na esquerda sem apagar o pôr do sol,
+      que é justamente o que a capa tem de bonito. Por isso ele não fecha em
+      100%: some antes, deixando a casa e o céu limpos na direita.
+   2. vertical — escurece o topo (o cabeçalho é fixo e transparente, o menu
+      sumia no céu claro) e o rodapé, pra emendar na barra escura de baixo sem
+      linha de corte. */
 .hero__fundo::after{content:'';position:absolute;inset:0;
-  background:linear-gradient(90deg,var(--azul-fundo) 6%,rgba(6,26,56,.86) 34%,rgba(6,26,56,0) 66%);}
+  background:
+    linear-gradient(90deg,
+      rgba(6,26,56,.84) 0%,
+      rgba(6,26,56,.78) 28%,
+      rgba(6,26,56,.48) 52%,
+      rgba(6,26,56,.14) 76%,
+      rgba(6,26,56,.04) 100%),
+    linear-gradient(180deg,
+      rgba(6,26,56,.60) 0%,
+      rgba(6,26,56,.10) 24%,
+      rgba(6,26,56,0) 48%,
+      rgba(6,26,56,.50) 88%,
+      var(--azul-fundo) 100%);}
 .hero__interno{position:relative;z-index:1;
   min-height:min(86vh,720px);display:flex;flex-direction:column;justify-content:center;
   padding-block:150px 90px;max-width:min(100% - 40px,var(--largura));}
-.hero__titulo{font-size:clamp(34px,5.4vw,58px);max-width:24ch;}
+.hero__titulo{font-size:clamp(34px,5.4vw,58px);max-width:24ch;
+  text-shadow:0 2px 24px rgba(3,11,24,.85),0 1px 3px rgba(3,11,24,.7);}
 .hero__titulo .destaque{font-size:1.24em;line-height:.9;
   text-shadow:0 0 46px rgba(255,194,32,.6);}
 .hero__foto{display:none;margin:0;}
 /* o par de .hero__fundo: cada uma só existe na largura dela, e como as duas
    são background e não <img>, o navegador baixa uma foto de hero por tela */
-.hero__texto{margin-top:22px;max-width:44ch;font-size:17px;color:#D5E2F3;}
+.hero__texto{margin-top:22px;max-width:44ch;font-size:17px;color:#E4EDF9;
+  text-shadow:0 1px 14px rgba(3,11,24,.9);}
 .hero__acoes{display:flex;flex-wrap:wrap;gap:14px;margin-top:34px;}
 
 /* ==========================================================================
@@ -491,14 +512,20 @@ svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-l
 /* ==========================================================================
    WHATSAPP FLUTUANTE
    ========================================================================== */
+/* Era a bolinha verde do WhatsApp. Virou pastilha dourada que leva pro
+   simulador: desde 04/09/2026 nao existe atalho pro WhatsApp nesta pagina, e
+   um botao fixo verde de telefone prometeria exatamente o atalho que sumiu. */
 .zap-flutuante{position:fixed;right:18px;bottom:18px;z-index:55;
-  width:56px;height:56px;border-radius:50%;display:grid;place-items:center;
-  background:var(--zap);color:#fff;box-shadow:0 12px 30px -10px rgba(37,211,102,.85);
+  display:flex;align-items:center;gap:9px;padding:14px 20px;border-radius:999px;
+  background:linear-gradient(135deg,var(--amarelo),var(--laranja));color:var(--azul-preto);
+  box-shadow:0 14px 34px -10px rgba(255,194,32,.75);
   opacity:0;visibility:hidden;transform:translateY(14px);
   transition:opacity 300ms ease,transform 300ms ease,visibility 300ms;}
 .zap-flutuante.aparece{opacity:1;visibility:visible;transform:none;}
-.zap-flutuante:hover{transform:scale(1.08);}
-.zap-flutuante svg{width:29px;height:29px;fill:currentColor;stroke:none;}
+.zap-flutuante:hover{transform:translateY(-2px) scale(1.03);}
+.zap-flutuante span{font-family:var(--display);font-weight:700;font-size:15px;
+  text-transform:uppercase;letter-spacing:.1em;}
+.zap-flutuante svg{width:21px;height:21px;fill:currentColor;stroke:none;flex:none;}
 
 /* ==========================================================================
    RESPONSIVO
@@ -531,7 +558,7 @@ svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-l
   .hero__interno{min-height:0;padding-block:96px 44px;text-align:left;}
   .hero__titulo{max-width:none;}
   .hero__foto{display:block;margin-top:22px;border-radius:12px;overflow:hidden;
-    aspect-ratio:1;background:url('/irmaosnaobra/assets/img/hero-mobile.webp') center/cover no-repeat;
+    aspect-ratio:4/3;background:url('/irmaosnaobra/assets/img/hero-mobile.webp') center/cover no-repeat;
     box-shadow:0 26px 50px -30px #000;}
   .hero__texto{margin-top:20px;max-width:none;}
   .hero__acoes{flex-direction:column;align-items:stretch;}
@@ -567,6 +594,8 @@ svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-l
 }
 
 @media (max-width:560px){
+  .zap-flutuante{padding:12px 16px;right:14px;bottom:14px;}
+  .zap-flutuante span{font-size:13.5px;}
   .secao{padding-block:60px;}
   .simulador-secao{padding-block:64px;}
   .dores{grid-template-columns:1fr;gap:10px;}
@@ -604,32 +633,32 @@ svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-l
 .mural__titulo{font-size:clamp(25px,3vw,34px);text-align:center;color:var(--branco);}
 .mural__lead{text-align:center;max-width:620px;margin:14px auto 34px;
   color:var(--claro-sobre-escuro);font-size:15px;}
-.mural__prints{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
-.print-insta{display:block;width:100%;padding:0;margin:0;cursor:zoom-in;
-  background:#0A1B33;border:1px solid var(--azul-linha);border-radius:12px;
-  overflow:hidden;transition:border-color var(--transicao),transform var(--transicao);}
-.print-insta:hover{border-color:var(--azul-claro);transform:translateY(-4px);}
-.print-insta img{width:100%;display:block;}
+/* Coluna em vez de grade: os comentarios tem alturas muito diferentes (um tem
+   uma linha, outro tem dez) e a grade deixaria buraco embaixo dos curtos. */
+.mural__lista{columns:3;column-gap:16px;}
+.comentario{break-inside:avoid;margin-bottom:16px;
+  background:rgba(11,42,87,.5);border:1px solid var(--azul-linha);border-radius:12px;
+  padding:10px 10px 4px;transition:border-color var(--transicao),transform var(--transicao);}
+.comentario:hover{border-color:var(--azul-claro);transform:translateY(-3px);}
+.comentario__print{display:block;width:100%;padding:0;margin:0;border:0;cursor:zoom-in;
+  background:none;border-radius:8px;overflow:hidden;}
+.comentario__print img{width:100%;display:block;}
+/* o @ em destaque, no tipo do site — nao escrito por cima do print */
+.comentario__arroba{display:block;padding:11px 6px 9px;text-align:center;
+  font-family:var(--mono);font-weight:700;font-size:13px;letter-spacing:.02em;
+  color:var(--amarelo);transition:color var(--transicao);}
+.comentario__arroba:hover{color:var(--branco);text-decoration:underline;}
 
-.mural__transcricao{max-width:760px;margin:30px auto 0;
-  border:1px solid var(--azul-linha);border-radius:11px;background:rgba(11,42,87,.4);}
-.mural__transcricao summary{cursor:pointer;padding:14px 18px;
-  font-family:var(--display);font-weight:600;font-size:13.5px;text-transform:uppercase;
-  letter-spacing:.13em;color:var(--azul-texto);}
-.mural__transcricao summary:hover{color:var(--amarelo);}
-.mural__transcricao ul{padding:0 18px 18px;display:flex;flex-direction:column;gap:13px;}
-.mural__transcricao li{font-size:14px;line-height:1.6;color:#D5E2F3;}
-.mural__transcricao b{font-family:var(--mono);font-size:12.5px;color:var(--azul-texto);}
 .mural__fonte{text-align:center;margin-top:10px;}
 .mural__fonte a{font-family:var(--display);font-weight:700;font-size:14px;
   text-transform:uppercase;letter-spacing:.12em;color:var(--amarelo);
   border-bottom:1px solid rgba(255,194,32,.4);padding-bottom:2px;}
 
 @media (max-width:900px){
-  .mural__prints{grid-template-columns:repeat(2,1fr);}
+  .mural__lista{columns:2;}
 }
 @media (max-width:680px){
-  .mural__prints{grid-template-columns:1fr;max-width:420px;margin-inline:auto;}
+  .mural__lista{columns:1;max-width:440px;margin-inline:auto;}
   .obras__cidades li{font-size:12px;padding:5px 12px;}
 }
 

@@ -339,53 +339,73 @@ const DEPOIMENTOS = [
 
 
 /* --------------------------------------------------------------------------
-   COMENTÁRIOS DO INSTAGRAM
+   COMENTÁRIOS DO INSTAGRAM — UM PRINT POR CLIENTE
 
-   Agora vão como PRINT da conversa, e não como texto reescrito: são seis
-   recortes seguidos da própria coluna de comentários do post, na ordem em que
-   ela rola. Print de tela é o formato que o Thiago pediu e é mais difícil de
-   duvidar do que um card bonito com aspas.
+   Cada card é o recorte do comentário daquela pessoa, sozinho, tirado da
+   página pública do post. Um por cliente foi pedido do Thiago: prova separada
+   é mais fácil de ler e de conferir do que uma tira com vários juntos.
 
    O post: https://www.instagram.com/p/DYx8CyPplKy/
    A pergunta que a empresa fez lá: "Espaço para nossos clientes contar sobre a
    sua experiência e deixar sua avaliação do nosso trabalho. Indicaria nossa
    empresa?"
 
-   A transcrição continua no site, dentro do "ler a transcrição": print não é
-   lido por leitor de tela nem por buscador, e no celular texto pequeno de
-   imagem cansa. As duas coisas juntas.
+   O @ NÃO foi marcado em cima da imagem. Quem destaca ele é o site, no rótulo
+   dourado embaixo do print — escrever por cima de um print é começar a editar
+   prova, e aí ela deixa de valer como prova.
 
-   PENDENTE: os prints são de 04/09/2026. Se aparecer comentário novo (já
-   apareceu um do @luizantonionakano enquanto eu montava a página), é rodar
-   `node scripts/build-prints-instagram.js` de novo.
+   `texto` é transcrição LIDA DO PRÓPRIO PRINT, com os erros de digitação de
+   quem escreveu. Ela serve pro leitor de tela, pro buscador e pra quem está no
+   celular — print não é lido por nenhum dos três.
+
+   Fora daqui, de propósito: o comentário do @savioejakezanotto, que é pedido de
+   assistência ("estou precisando de assistência ao aplicativo"), não avaliação.
+   Publicar aquilo como elogio seria mentira — e, pior, é um cliente pedindo
+   ajuda.
+
+   Comentário novo no post? É rodar `node scripts/build-prints-instagram.js`,
+   conferir os recortes e acrescentar a linha aqui.
    -------------------------------------------------------------------------- */
 const POST_INSTAGRAM = 'https://www.instagram.com/p/DYx8CyPplKy/';
 
-const PRINTS_INSTAGRAM = [
-  { img: '/irmaosnaobra/assets/img/insta-1.webp', alt: 'Print do Instagram: a pergunta da Irmãos na Obra aos clientes e os primeiros comentários' },
-  { img: '/irmaosnaobra/assets/img/insta-2.webp', alt: 'Print do Instagram com os comentários de isa.valesca, contarimcarlos e mariperinstay' },
-  { img: '/irmaosnaobra/assets/img/insta-3.webp', alt: 'Print do Instagram com os comentários de mariperinstay e fgadia' },
-  { img: '/irmaosnaobra/assets/img/insta-4.webp', alt: 'Print do Instagram com os comentários de fgadia, sthefano e cortes_marcio' },
-  { img: '/irmaosnaobra/assets/img/insta-5.webp', alt: 'Print do Instagram com os comentários de evertonjosebraga e granjaoliveiracarvalho' },
-  { img: '/irmaosnaobra/assets/img/insta-6.webp', alt: 'Print do Instagram com os comentários de andrigojs, hvillela73 e martincleber' }
-];
-
-/* Transcrição, lida do próprio print. Texto na íntegra, com a pontuação de
-   quem escreveu. Não entrou o do @savioejakezanotto, que é pedido de
-   assistência e não avaliação — publicar aquilo como elogio seria mentira, e
-   pior, é um cliente que estava pedindo ajuda. */
 const COMENTARIOS = [
-  { texto: 'Tudo correu bem da compra até o funcionamento do equipamento.', arroba: 'luizantonionakano' },
-  { texto: 'Excelente profissional, empresa idônea, recomendo a todos', arroba: 'isa.valesca' },
-  { texto: 'eu indico foi bem rápido fiquei satisfeito', arroba: 'contarimcarlos' },
-  { texto: 'Gostei muito do trabalho de vcs... cumpre com o prazo.... matérias de boa qualidade... podem fazer sem medo.... profissionais os meninos', arroba: 'mariperinstay' },
-  { texto: 'Equipe capacitada, educada e ágil no serviço. No futuro próximo ampliarei o número das placas solares e com certeza será com os @irmaosnaobra__. Recomendo demais o serviço deles. Nota 10', arroba: 'fgadia' },
-  { texto: 'Votei sim, super indico a turma. Projeto junto a cemig, equipamentos, instalacao e tudo mais. Tudo com preço justo e condicao de pagamento facilitada.', arroba: 'sthefano' },
-  { texto: 'Belíssimo trabalho executado em minha residência, recomendo "Irmãos na Obra" para quem deseja um trabalho de qualidade e muita eficiência.', arroba: 'cortes_marcio' },
-  { texto: 'Estou passando aqui para agradecer os irmãos na obra pela eficiência, qualidade e rapidez e atenção. Estou muito satisfeito pelo trabalho, estão no caminho certo, parabéns, super indico', arroba: 'evertonjosebraga' },
-  { texto: 'Boa noite, olha, esse pessoal tem um ótimo atendimento, parte de compra e instalação foi muito rápido, assistência a qualquer hora que chama. A gente estamos muitos satisfeitos com trabalho da empresa, podem comprar sem medo, só temos a agradecer pela atenção deles com a gente..', arroba: 'granjaoliveiracarvalho' },
-  { texto: 'Estou muito satisfeito com o serviço prestado, a agilidade e rapidez q foi feito do projeto até a instalação. Muito obg msm meninos pelo produto. Super indico.', arroba: 'andrigojs' },
-  { texto: 'Fiquei muito satisfeito com a honestidade e o serviço prestado. E olhe que tomei muito cuidado, e visitei a empresa, pq hoje temos muitos golpistas.', arroba: 'hvillela73' },
-  { texto: 'Fiquei satisfeito com o trabalho de vcs e indiquei para meu irmão e meus amigos. Obrigado pelo profissionalismo e pela assistência antes e depois da instalação.', arroba: 'martincleber' },
-  { texto: 'São excepcionais! Serviço prestado com muita qualidade! São transparentes, honestos ao extremo!!! Recomendados sem dúvidas... Recomendados! Chame e faça seu orçamento', arroba: '_vida_com_proposito__' }
+  { arroba: '_vida_com_proposito__',
+    print: '/irmaosnaobra/assets/img/insta--vida-com-proposito-.webp',
+    texto: '👏 São excepcionais! Serviço prestado com muita qualidade! São transparentes, honestos ao extremo!!! Recomendados sem dúvidas para você, que como nós, recebemos uma prestação de serviço maravilhosa e a economia está ativa desde o primeiro dia de funcionamento. 💯% Recomendados! Chame e faça seu orçamento, você nunca arrependerá!' },
+  { arroba: 'fgadia',
+    print: '/irmaosnaobra/assets/img/insta-fgadia.webp',
+    texto: 'Atendimento espetacular desde a cotação até a instalação das placas. Equipe capacitada, educada e ágil no serviço. No futuro próximo ampliarei o número das placas solares e com certeza será com os @irmaosnaobra__. Recomendo demais o serviço deles. 👏 Nota 10' },
+  { arroba: 'granjaoliveiracarvalho',
+    print: '/irmaosnaobra/assets/img/insta-granjaoliveiracarvalho.webp',
+    texto: '❤️ sempre nos atendendo com rapidez e fazendo um serviço espetacular 👏' },
+  { arroba: 'evertonjosebraga',
+    print: '/irmaosnaobra/assets/img/insta-evertonjosebraga.webp',
+    texto: 'Estou passando aqui para agradecer os irmãos na obra pela eficiência, qualilidade e rapidez e atenção estou muito satisfeito pelo trabalho estão no caminho certo parabéns super índico 🙌' },
+  { arroba: 'sthefano',
+    print: '/irmaosnaobra/assets/img/insta-sthefano.webp',
+    texto: 'Votei sim, super indico a turma. Projeto junto a cemig, equipamentos, instalacao e tudo mais. Tudo com preço justo e condicao de pagamento facilitada.' },
+  { arroba: 'cortes_marcio',
+    print: '/irmaosnaobra/assets/img/insta-cortes-marcio.webp',
+    texto: 'Belíssimo trabalho executado em minha residência, recomendo "Irmãos na Obra" para quem deseja um trabalho de qualidade e muita eficiência.' },
+  { arroba: 'martincleber',
+    print: '/irmaosnaobra/assets/img/insta-martincleber.webp',
+    texto: 'Fiquei satisfeito com o trabalho de vcs e indiquei para meu irmão e meus amigos. Obrigado pelo profissionalismo e pela assistência antes e depois da instalação.' },
+  { arroba: 'hvillela73',
+    print: '/irmaosnaobra/assets/img/insta-hvillela73.webp',
+    texto: 'Fiquei muito satisfeito com a honestidade e o serviço prestado. E olhe que tomei muito cuidado, e visitei a empresa, pq hoje temos muitos golpistas.' },
+  { arroba: 'andrigojs',
+    print: '/irmaosnaobra/assets/img/insta-andrigojs.webp',
+    texto: 'Estou muito satisfeito com o serviço prestado, a agilidade e rapidez q foi feito do projeto ate a instalação. Muito obg msm meninos pelo produto. Super indico.' },
+  { arroba: 'mariperinstay',
+    print: '/irmaosnaobra/assets/img/insta-mariperinstay.webp',
+    texto: 'Gostei muito do trabalho de vcs... cumpre com o prazo.... matérias de boa qualidade... podem fazer sem medo.... profissionais os meninos' },
+  { arroba: 'isa.valesca',
+    print: '/irmaosnaobra/assets/img/insta-isa-valesca.webp',
+    texto: 'Excelente profissional, empresa idônea, recomendo a todos' },
+  { arroba: 'contarimcarlos',
+    print: '/irmaosnaobra/assets/img/insta-contarimcarlos.webp',
+    texto: 'eu índico foi bem rápido fiquei satisfeito' },
+  { arroba: 'luizantonionakano',
+    print: '/irmaosnaobra/assets/img/insta-luizantonionakano.webp',
+    texto: 'Tudo correu bem da compra até o funcionamento do equipamento.' },
 ];

@@ -1,0 +1,14 @@
+FONTE DAS IMAGENS QUE NAO SAO FOTO DE OBRA
+
+capa-hero.png  ILUSTRACAO. Gerada por IA (ChatGPT), entregue pelo Thiago em
+               04/09/2026 pra ser a capa do /irmaosnaobra. NAO e' obra da
+               empresa: casa de estilo europeu, telhado escuro, nao e' de
+               Uberlandia nem do Triangulo.
+
+REGRA: ilustracao mora no hero e em lugar nenhum mais. A secao "Obra entregue,
+telhado por telhado" e' so' foto real da equipe, e a legenda de cada uma
+descreve o que esta no quadro e para. Misturar as duas e' o que transforma
+capa bonita em propaganda enganosa.
+
+O alt/aria-label da capa descreve a cena ("casa com paineis ao entardecer") e
+nao diz que a obra e' nossa. Isso e' de proposito.

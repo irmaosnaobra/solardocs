@@ -19,30 +19,38 @@ const fs = require('fs');
 const sharp = require('sharp');
 
 const RAIZ = path.join(__dirname, '..', 'public');
+const FONTES = path.join(__dirname, 'fontes');
 const SAIDA = path.join(RAIZ, 'irmaosnaobra', 'assets', 'img');
 const mosaico = (n) => path.join(RAIZ, 'io', 'mosaico', n + '.jpeg');
 const fedd = (n) => path.join(RAIZ, 'io', 'img', 'fedd' + n + '.jpg');
 
 fs.mkdirSync(SAIDA, { recursive: true });
 
-// AS 4 FOTOS DE VITRINE (hero + os tres servicos) sao as que o visitante ve
-// antes de decidir se fica. O Thiago pediu que fossem mais bonitas, entao elas
-// mudaram de origem E ganham tratamento de cor: as escolhidas agora sao as de
-// ceu aberto, e nao as de dia nublado.
-//   hero        mosaico 10  painel de perto, ceu azul com nuvem e morro verde
-//   hero cel.   mosaico 11  fileira limpa em telha de concreto, ceu fechado de azul
+// AS 3 FOTOS DE SERVICO sao as que o visitante ve antes de decidir se fica. O
+// Thiago pediu que fossem mais bonitas, entao mudaram de origem E ganham
+// tratamento de cor: as escolhidas sao as de ceu aberto, e nao as de dia
+// nublado. Continuam sendo FOTO REAL da equipe.
 //   residencial mosaico  9  telhado inteiro com o horizonte verde atras
 //   industria   mosaico  6  telhado de galpao (e a unica industrial que existe)
 //   rural       mosaico  4  drone na chacara, com a equipe montando
+// As 11 do mosaico seguem todas no ar: as que sairam do hero (10 e 11) ja'
+// estavam tambem na secao de obras.
 // O tratamento e' correcao de cor, nao maquiagem: satura 8%, abre um pouco o
 // contraste e da' um sharpen leve. Nada entra ou sai da foto.
-const VITRINE = new Set(['hero-desktop','hero-mobile','servico-residencial',
-                         'servico-industria','servico-rural']);
+const VITRINE = new Set(['servico-residencial','servico-industria','servico-rural']);
+
+// A CAPA E' ILUSTRACAO, e por isso nao esta na lista das fotos de obra.
+// Veio pronta do Thiago (scripts/fontes/capa-hero.png, gerada por IA) e so'
+// precisa de recorte: a larga pro fundo do desktop, a fechada pro cartao do
+// celular. Nao leva tratamento de cor — ja' vem tratada.
+// A regra que vale: ilustracao no hero e em lugar nenhum mais. Ver o LEIA-ME
+// da pasta fontes.
 
 // [origem, nome de saida, largura, altura ou null pra manter proporcao, qualidade]
 const TRABALHOS = [
-  [mosaico(10), 'hero-desktop', 1600, 900, 82],
-  [mosaico(11), 'hero-mobile', 900, 900, 84],
+  // capa: 16:9 no desktop, e no celular um recorte 4:3 puxado pra casa
+  [path.join(FONTES, 'capa-hero.png'), 'hero-desktop', 1600, 900, 80],
+  [path.join(FONTES, 'capa-hero.png'), 'hero-mobile', 900, 675, 82],
 
   [mosaico(9), 'servico-residencial', 800, 597, 86],
   [mosaico(6), 'servico-industria', 800, 597, 86],

@@ -13,27 +13,31 @@
     try { if (window.fbq) window.fbq('track', nome, dados || {}); } catch (_) {}
   }
 
-  /* ------------------------------------------------------ links de WhatsApp */
-  document.querySelectorAll('[data-whatsapp]').forEach(function (a) {
-    a.setAttribute('href', zap(a.dataset.whatsapp));
-    a.setAttribute('target', '_blank');
-    a.setAttribute('rel', 'noopener');
-  });
-
+  /* ------------------------------------------------------ o único WhatsApp */
+  // SÓ EXISTE UMA PORTA PRO WHATSAPP NESTA PÁGINA: o botão do simulador.
+  // Foi decisão do Thiago em 04/09/2026 e é o que faz o resto funcionar — lead
+  // que chega por atalho vem sem consumo, sem cidade e sem ligacão, então cai
+  // na linha central sem roteamento e alguém tem que perguntar tudo de novo.
+  // Passando pelo simulador, ele chega com a ficha pronta E no consultor certo.
+  // Quem for acrescentar botão de WhatsApp aqui: não acrescente.
   const flutuante = document.getElementById('zap-flutuante');
-  flutuante.setAttribute('href', zap('Olá! Vim pelo site e quero falar sobre energia solar.'));
-  flutuante.setAttribute('target', '_blank');
-  flutuante.setAttribute('rel', 'noopener');
 
   const btnSim = document.getElementById('btn-zap-simulador');
   if (btnSim) { btnSim.setAttribute('target', '_blank'); btnSim.setAttribute('rel', 'noopener'); }
 
-  // Todo clique que sai pro WhatsApp é um contato — inclusive o do simulador,
-  // que é o mais quente porque a pessoa já viu o número dela.
   document.addEventListener('click', function (e) {
     const link = e.target.closest && e.target.closest('a[href*="wa.me/"]');
     if (!link) return;
-    pixel('Contact', { origem: link.id || link.className || 'link' });
+    pixel('Contact', { origem: 'simulador' });
+  });
+
+  // O card de serviço leva pro simulador já marcando o tipo de imóvel: a pessoa
+  // clicou em "rural", não faz sentido o formulário abrir em "casa".
+  document.querySelectorAll('[data-tipo]').forEach(function (a) {
+    a.addEventListener('click', function () {
+      const alvo = document.querySelector('input[name="tipo"][value="' + a.dataset.tipo + '"]');
+      if (alvo) { alvo.checked = true; alvo.dispatchEvent(new Event('change', { bubbles: true })); }
+    });
   });
 
   /* --------------------------------------------------------------- obras */
@@ -87,20 +91,19 @@
   }).join('');
 
   /* -------------------------------------------- comentários do Instagram */
-  // Print, e não card reescrito: é o formato que o Thiago pediu, e é o mesmo
-  // que já carrega a seção de conversa do WhatsApp logo acima. Cada um abre
-  // grande na lupa, igual aos outros.
-  document.getElementById('mural-prints').innerHTML = PRINTS_INSTAGRAM.map(function (t) {
-    return '<button class="print-insta revelar" type="button" data-print="' + t.img + '" ' +
-      'data-legenda="' + t.alt + '" aria-label="Ampliar este print do Instagram">' +
-        '<img src="' + t.img + '" alt="' + t.alt + '" loading="lazy">' +
-      '</button>';
-  }).join('');
-
-  // A transcrição fica junto porque print nenhum é lido por leitor de tela nem
-  // por buscador — e no celular, texto pequeno dentro de imagem cansa.
-  document.getElementById('mural-transcricao').innerHTML = COMENTARIOS.map(function (c) {
-    return '<li><b>@' + c.arroba + '</b> ' + c.texto + '</li>';
+  // Um card por cliente: o print do comentário dele sozinho, e o @ em destaque
+  // logo abaixo, no tipo do site. O @ NÃO é escrito por cima da imagem — print
+  // com marcação em cima deixa de servir como prova.
+  document.getElementById('mural-lista').innerHTML = COMENTARIOS.map(function (c) {
+    const legenda = 'Comentário de @' + c.arroba + ' no Instagram da Irmãos na Obra';
+    return '<li class="comentario revelar">' +
+      '<button class="comentario__print" type="button" data-print="' + c.print + '" ' +
+        'data-legenda="' + legenda + '" aria-label="Ampliar o comentário de @' + c.arroba + '">' +
+        '<img src="' + c.print + '" alt="' + legenda + ': ' + c.texto.replace(/"/g, '&quot;') + '" loading="lazy">' +
+      '</button>' +
+      '<a class="comentario__arroba" href="' + POST_INSTAGRAM + '" target="_blank" rel="noopener">@' +
+        c.arroba + '</a>' +
+    '</li>';
   }).join('');
 
   document.getElementById('mural-fonte').setAttribute('href', POST_INSTAGRAM);
@@ -152,6 +155,7 @@
     email: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>',
     local: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
     relogio: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    raio: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6Z"/></svg>',
     insta: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="3.6"/><path d="M17.5 6.5v.01"/></svg>',
     face: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 8h3V4h-3a4 4 0 0 0-4 4v2H8v4h2v8h4v-8h3l1-4h-4V8Z"/></svg>',
     tube: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="4"/><path d="m10 9 5 3-5 3Z"/></svg>'
@@ -159,9 +163,9 @@
 
   document.getElementById('rodape-contato').insertAdjacentHTML('beforeend',
     '<ul>' +
-      '<li>' + icones.zap + '<a href="' + zap('Olá! Vim pelo site e quero falar sobre energia solar.') +
-        '" target="_blank" rel="noopener">' + CONFIG.whatsappVisivel + '<br><small>WhatsApp</small></a></li>' +
+      // sem linha de WhatsApp aqui: a única porta é o simulador
       '<li>' + icones.fone + '<a href="tel:+' + CONFIG.whatsapp + '">' + CONFIG.whatsappVisivel + '<br><small>Ligar agora</small></a></li>' +
+      '<li>' + icones.raio + '<a href="#simulador">Simular a minha economia<br><small>e falar com um consultor</small></a></li>' +
       '<li>' + icones.email + '<a href="mailto:' + CONFIG.email + '">' + CONFIG.email + '</a></li>' +
       '<li>' + icones.local + '<span>' + CONFIG.endereco + '</span></li>' +
       '<li>' + icones.relogio + '<span>' + CONFIG.horario + '</span></li>' +
@@ -179,8 +183,7 @@
   document.getElementById('rodape-sociais').innerHTML =
     redes.map(function (r) {
       return '<a href="' + r.url + '" target="_blank" rel="noopener" aria-label="' + r.nome + '">' + r.icone + '</a>';
-    }).join('') +
-    '<a href="' + zap('Olá! Vim pelo site.') + '" target="_blank" rel="noopener" aria-label="WhatsApp">' + icones.zap + '</a>';
+    }).join('');
 
   document.getElementById('ano').textContent = new Date().getFullYear();
 
