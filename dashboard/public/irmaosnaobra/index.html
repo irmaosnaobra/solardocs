@@ -319,7 +319,7 @@ fbq('track', 'PageView');
     <div class="servicos">
       <article class="servico revelar">
         <div class="servico__foto">
-          <img src="/irmaosnaobra/assets/img/servico-residencial.webp" alt="Casa com módulos solares instalados em telhado de telha colonial" width="800" height="597" loading="lazy">
+          <img src="/irmaosnaobra/assets/img/servico-residencial.webp" alt="Fileira de módulos solares instalada no telhado de uma casa, sob céu aberto" width="800" height="597" loading="lazy">
         </div>
         <div class="servico__corpo">
           <span class="servico__selo">
@@ -333,15 +333,15 @@ fbq('track', 'PageView');
 
       <article class="servico revelar">
         <div class="servico__foto">
-          <img src="/irmaosnaobra/assets/img/servico-empresas.webp" alt="Telhado de galpão comercial com módulos solares instalados" width="800" height="597" loading="lazy">
+          <img src="/irmaosnaobra/assets/img/servico-industria.webp" alt="Usina solar instalada no telhado de um galpão industrial" width="800" height="597" loading="lazy">
         </div>
         <div class="servico__corpo">
           <span class="servico__selo">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21h18M4 21V8h16v13"/><path d="M3 8l1.5-4h15L21 8"/><path d="M9 21v-6h6v6"/></svg>
           </span>
-          <h3>Energia solar para empresas</h3>
-          <p>Reduza o custo operacional da sua empresa. Consumo maior, retorno mais rápido.</p>
-          <a class="botao botao--linha" href="#" data-whatsapp="Olá! Vim pelo site e gostaria de um orçamento de *energia solar para empresa*.">Pedir orçamento</a>
+          <h3>Energia solar para indústria e comércio</h3>
+          <p>Galpão, fábrica ou loja. Consumo maior, retorno mais rápido — a energia deixa de ser custo fixo.</p>
+          <a class="botao botao--linha" href="#" data-whatsapp="Olá! Vim pelo site e gostaria de um orçamento de *energia solar para indústria ou comércio*.">Pedir orçamento</a>
         </div>
       </article>
 
@@ -432,7 +432,7 @@ fbq('track', 'PageView');
 <section class="secao secao--escura" id="depoimentos">
   <div class="container depo">
     <div class="nota revelar">
-      <p class="nota__valor" id="nota-valor">19</p>
+      <p class="nota__valor" id="nota-valor">20</p>
       <p class="nota__texto" id="nota-texto">depoimentos publicados, com nome ou @</p>
     </div>
     <div class="depo__lista" id="depo-lista"></div>
@@ -444,7 +444,12 @@ fbq('track', 'PageView');
     <h2 class="mural__titulo revelar">A gente perguntou <span class="destaque">em público</span></h2>
     <p class="mural__lead revelar">Postamos no Instagram: “indicaria nossa empresa?”. Estas são as respostas, do jeito que chegaram — com o @ de quem escreveu, pra você ir lá conferir.</p>
 
-    <ul class="mural__lista" id="mural-lista"></ul>
+    <div class="mural__prints" id="mural-prints"></div>
+
+    <details class="mural__transcricao revelar">
+      <summary>Ler a transcrição dos comentários</summary>
+      <ul id="mural-transcricao"></ul>
+    </details>
 
     <p class="mural__fonte revelar">
       <a id="mural-fonte" href="https://www.instagram.com/p/DYx8CyPplKy/" target="_blank" rel="noopener">Ver o post original no Instagram</a>
@@ -513,7 +518,7 @@ fbq('track', 'PageView');
     <div class="rodape__coluna">
       <h3>Serviços</h3>
       <a href="#servicos">Energia solar residencial</a>
-      <a href="#servicos">Energia solar para empresas</a>
+      <a href="#servicos">Energia solar para indústria</a>
       <a href="#servicos">Energia solar rural</a>
       <a href="#simulador">Simulador de economia</a>
       <a href="#sobre">Homologação na concessionária</a>

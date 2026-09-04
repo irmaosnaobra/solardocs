@@ -87,15 +87,22 @@
   }).join('');
 
   /* -------------------------------------------- comentários do Instagram */
-  // O @ não é enfeite: é o que deixa a pessoa abrir o post e conferir que o
-  // comentário existe de verdade. Por isso ele é link pro post, não texto solto.
-  document.getElementById('mural-lista').innerHTML = COMENTARIOS.map(function (c) {
-    return '<li class="comentario revelar">' +
-      '<p class="comentario__texto">' + c.texto + '</p>' +
-      '<a class="comentario__arroba" href="' + POST_INSTAGRAM + '" target="_blank" rel="noopener">@' +
-        c.arroba + '</a>' +
-    '</li>';
+  // Print, e não card reescrito: é o formato que o Thiago pediu, e é o mesmo
+  // que já carrega a seção de conversa do WhatsApp logo acima. Cada um abre
+  // grande na lupa, igual aos outros.
+  document.getElementById('mural-prints').innerHTML = PRINTS_INSTAGRAM.map(function (t) {
+    return '<button class="print-insta revelar" type="button" data-print="' + t.img + '" ' +
+      'data-legenda="' + t.alt + '" aria-label="Ampliar este print do Instagram">' +
+        '<img src="' + t.img + '" alt="' + t.alt + '" loading="lazy">' +
+      '</button>';
   }).join('');
+
+  // A transcrição fica junto porque print nenhum é lido por leitor de tela nem
+  // por buscador — e no celular, texto pequeno dentro de imagem cansa.
+  document.getElementById('mural-transcricao').innerHTML = COMENTARIOS.map(function (c) {
+    return '<li><b>@' + c.arroba + '</b> ' + c.texto + '</li>';
+  }).join('');
+
   document.getElementById('mural-fonte').setAttribute('href', POST_INSTAGRAM);
 
   /* ------------------------------------------------------ lupa do print */

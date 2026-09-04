@@ -221,10 +221,10 @@ const OBRAS = [
    O sobrenome não vai porque não está no print. A cidade também não — nenhum
    dos prints diz de onde a pessoa é, e eu não vou deduzir.
    -------------------------------------------------------------------------- */
-// 19 é a contagem de DEPOIMENTOS (7 conversas + 12 comentários), não de gente:
+// 20 é a contagem de DEPOIMENTOS (7 conversas + 13 comentários), não de gente:
 // Márcio, Cléber, Andrigo e Huberth aparecem nas duas fontes. Por isso o texto
-// diz "depoimentos", e não "clientes" — a contagem de pessoas seria uns 15.
-const AVALIACAO = { nota: '19', total: 'depoimentos publicados, com nome ou @' };
+// diz "depoimentos", e não "clientes" — a contagem de pessoas seria uns 16.
+const AVALIACAO = { nota: '20', total: 'depoimentos publicados, com nome ou @' };
 
 const DEPOIMENTOS = [
   {
@@ -283,34 +283,51 @@ const DEPOIMENTOS = [
 /* --------------------------------------------------------------------------
    COMENTÁRIOS DO INSTAGRAM
 
-   São as respostas ao post em que a empresa perguntou, em público:
-   "Espaço para nossos clientes contar sobre a sua experiência e deixar sua
-   avaliação do nosso trabalho. Indicaria nossa empresa?"
-   https://www.instagram.com/p/DYx8CyPplKy/
+   Agora vão como PRINT da conversa, e não como texto reescrito: são seis
+   recortes seguidos da própria coluna de comentários do post, na ordem em que
+   ela rola. Print de tela é o formato que o Thiago pediu e é mais difícil de
+   duvidar do que um card bonito com aspas.
 
-   Vão para o site com o @ que a pessoa usou, porque é o @ que faz o
-   comentário ser verificável — dá pra abrir o post e achar cada um. Todos
-   estão públicos no perfil da empresa desde antes deste site existir.
-   Se alguém pedir pra sair, apaga a linha aqui e pronto.
+   O post: https://www.instagram.com/p/DYx8CyPplKy/
+   A pergunta que a empresa fez lá: "Espaço para nossos clientes contar sobre a
+   sua experiência e deixar sua avaliação do nosso trabalho. Indicaria nossa
+   empresa?"
 
-   Um comentário do post NÃO entrou: o do @savioejakezanotto, que é pedido de
-   assistência ("estou precisando de assistência ao aplicativo"), não é
-   avaliação. Publicar aquilo como elogio seria mentira — e, pior, é um
-   cliente que estava pedindo ajuda.
+   A transcrição continua no site, dentro do "ler a transcrição": print não é
+   lido por leitor de tela nem por buscador, e no celular texto pequeno de
+   imagem cansa. As duas coisas juntas.
+
+   PENDENTE: os prints são de 04/09/2026. Se aparecer comentário novo (já
+   apareceu um do @luizantonionakano enquanto eu montava a página), é rodar
+   `node scripts/build-prints-instagram.js` de novo.
    -------------------------------------------------------------------------- */
 const POST_INSTAGRAM = 'https://www.instagram.com/p/DYx8CyPplKy/';
 
+const PRINTS_INSTAGRAM = [
+  { img: '/irmaosnaobra/assets/img/insta-1.webp', alt: 'Print do Instagram: a pergunta da Irmãos na Obra aos clientes e os primeiros comentários' },
+  { img: '/irmaosnaobra/assets/img/insta-2.webp', alt: 'Print do Instagram com os comentários de isa.valesca, contarimcarlos e mariperinstay' },
+  { img: '/irmaosnaobra/assets/img/insta-3.webp', alt: 'Print do Instagram com os comentários de mariperinstay e fgadia' },
+  { img: '/irmaosnaobra/assets/img/insta-4.webp', alt: 'Print do Instagram com os comentários de fgadia, sthefano e cortes_marcio' },
+  { img: '/irmaosnaobra/assets/img/insta-5.webp', alt: 'Print do Instagram com os comentários de evertonjosebraga e granjaoliveiracarvalho' },
+  { img: '/irmaosnaobra/assets/img/insta-6.webp', alt: 'Print do Instagram com os comentários de andrigojs, hvillela73 e martincleber' }
+];
+
+/* Transcrição, lida do próprio print. Texto na íntegra, com a pontuação de
+   quem escreveu. Não entrou o do @savioejakezanotto, que é pedido de
+   assistência e não avaliação — publicar aquilo como elogio seria mentira, e
+   pior, é um cliente que estava pedindo ajuda. */
 const COMENTARIOS = [
-  { texto: 'São excepcionais! Serviço prestado com muita qualidade! São transparentes, honestos ao extremo!!! Recomendados sem dúvidas.', arroba: '_vida_com_proposito__' },
-  { texto: 'Atendimento espetacular. Equipe capacitada, educada e ágil no serviço. Recomendo demais o serviço deles. Nota 10.', arroba: 'fgadia' },
-  { texto: 'Votei sim, super indico a turma. Projeto junto à Cemig, equipamentos, instalação e tudo mais.', arroba: 'sthefano' },
-  { texto: 'Gostei muito do trabalho de vcs. Cumpre com o prazo, materiais de boa qualidade. Podem fazer sem medo, profissionais os meninos.', arroba: 'mariperinstay' },
-  { texto: 'Belíssimo trabalho executado em minha residência, recomendo Irmãos na Obra.', arroba: 'cortes_marcio' },
-  { texto: 'Excelente profissional, empresa idônea, recomendo a todos.', arroba: 'isa.valesca' },
-  { texto: 'Olha, esse pessoal tem um ótimo atendimento. Foi muito rápido, assistência a qualquer hora que chama.', arroba: 'granjaoliveiracarvalho' },
-  { texto: 'Estou muito satisfeito pelo trabalho, estão no caminho certo. Parabéns, super indico.', arroba: 'evertonjosebraga' },
-  { texto: 'Estou muito satisfeito com o serviço prestado, a agilidade e rapidez. Super indico.', arroba: 'andrigojs' },
-  { texto: 'Fiquei satisfeito com o trabalho de vcs e indiquei para meu irmão e meus amigos.', arroba: 'martincleber' },
-  { texto: 'Fiquei muito satisfeito com a honestidade e o serviço prestado.', arroba: 'hvillela73' },
-  { texto: 'Eu indico, foi bem rápido, fiquei satisfeito.', arroba: 'contarimcarlos' }
+  { texto: 'Tudo correu bem da compra até o funcionamento do equipamento.', arroba: 'luizantonionakano' },
+  { texto: 'Excelente profissional, empresa idônea, recomendo a todos', arroba: 'isa.valesca' },
+  { texto: 'eu indico foi bem rápido fiquei satisfeito', arroba: 'contarimcarlos' },
+  { texto: 'Gostei muito do trabalho de vcs... cumpre com o prazo.... matérias de boa qualidade... podem fazer sem medo.... profissionais os meninos', arroba: 'mariperinstay' },
+  { texto: 'Equipe capacitada, educada e ágil no serviço. No futuro próximo ampliarei o número das placas solares e com certeza será com os @irmaosnaobra__. Recomendo demais o serviço deles. Nota 10', arroba: 'fgadia' },
+  { texto: 'Votei sim, super indico a turma. Projeto junto a cemig, equipamentos, instalacao e tudo mais. Tudo com preço justo e condicao de pagamento facilitada.', arroba: 'sthefano' },
+  { texto: 'Belíssimo trabalho executado em minha residência, recomendo "Irmãos na Obra" para quem deseja um trabalho de qualidade e muita eficiência.', arroba: 'cortes_marcio' },
+  { texto: 'Estou passando aqui para agradecer os irmãos na obra pela eficiência, qualidade e rapidez e atenção. Estou muito satisfeito pelo trabalho, estão no caminho certo, parabéns, super indico', arroba: 'evertonjosebraga' },
+  { texto: 'Boa noite, olha, esse pessoal tem um ótimo atendimento, parte de compra e instalação foi muito rápido, assistência a qualquer hora que chama. A gente estamos muitos satisfeitos com trabalho da empresa, podem comprar sem medo, só temos a agradecer pela atenção deles com a gente..', arroba: 'granjaoliveiracarvalho' },
+  { texto: 'Estou muito satisfeito com o serviço prestado, a agilidade e rapidez q foi feito do projeto até a instalação. Muito obg msm meninos pelo produto. Super indico.', arroba: 'andrigojs' },
+  { texto: 'Fiquei muito satisfeito com a honestidade e o serviço prestado. E olhe que tomei muito cuidado, e visitei a empresa, pq hoje temos muitos golpistas.', arroba: 'hvillela73' },
+  { texto: 'Fiquei satisfeito com o trabalho de vcs e indiquei para meu irmão e meus amigos. Obrigado pelo profissionalismo e pela assistência antes e depois da instalação.', arroba: 'martincleber' },
+  { texto: 'São excepcionais! Serviço prestado com muita qualidade! São transparentes, honestos ao extremo!!! Recomendados sem dúvidas... Recomendados! Chame e faça seu orçamento', arroba: '_vida_com_proposito__' }
 ];

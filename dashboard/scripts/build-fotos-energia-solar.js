@@ -25,18 +25,31 @@ const fedd = (n) => path.join(RAIZ, 'io', 'img', 'fedd' + n + '.jpg');
 
 fs.mkdirSync(SAIDA, { recursive: true });
 
+// AS 4 FOTOS DE VITRINE (hero + os tres servicos) sao as que o visitante ve
+// antes de decidir se fica. O Thiago pediu que fossem mais bonitas, entao elas
+// mudaram de origem E ganham tratamento de cor: as escolhidas agora sao as de
+// ceu aberto, e nao as de dia nublado.
+//   hero        mosaico 10  painel de perto, ceu azul com nuvem e morro verde
+//   hero cel.   mosaico 11  fileira limpa em telha de concreto, ceu fechado de azul
+//   residencial mosaico  9  telhado inteiro com o horizonte verde atras
+//   industria   mosaico  6  telhado de galpao (e a unica industrial que existe)
+//   rural       mosaico  4  drone na chacara, com a equipe montando
+// O tratamento e' correcao de cor, nao maquiagem: satura 8%, abre um pouco o
+// contraste e da' um sharpen leve. Nada entra ou sai da foto.
+const VITRINE = new Set(['hero-desktop','hero-mobile','servico-residencial',
+                         'servico-industria','servico-rural']);
+
 // [origem, nome de saida, largura, altura ou null pra manter proporcao, qualidade]
 const TRABALHOS = [
-  // hero: a de cima e' fundo em CSS (cover), a de baixo entra como <img> no celular
-  [mosaico(9), 'hero-desktop', 1600, 900, 76],
-  [mosaico(11), 'hero-mobile', 900, 900, 78],
+  [mosaico(10), 'hero-desktop', 1600, 900, 82],
+  [mosaico(11), 'hero-mobile', 900, 900, 84],
 
-  // servicos: 3 fotos, 4:3
-  [mosaico(1), 'servico-residencial', 800, 597, 80],
-  [mosaico(6), 'servico-empresas', 800, 597, 80],
-  [mosaico(4), 'servico-rural', 800, 597, 80],
+  [mosaico(9), 'servico-residencial', 800, 597, 86],
+  [mosaico(6), 'servico-industria', 800, 597, 86],
+  [mosaico(4), 'servico-rural', 800, 597, 86],
 
-  // obras: as 10 restantes em 4:3
+  // obras: as 10 restantes em 4:3, SEM tratamento — foto de obra e' documento,
+  // fica do jeito que a equipe tirou
   [mosaico(9), 'obra-01', 760, 570, 80],
   [mosaico(1), 'obra-02', 760, 570, 80],
   [mosaico(3), 'obra-03', 760, 570, 80],
@@ -62,6 +75,10 @@ const TRABALHOS = [
 });
 
 (async () => {
+  // o card do meio virou "industria": o arquivo antigo nao pode ficar orfao
+  const velho = path.join(SAIDA, 'servico-empresas.webp');
+  if (fs.existsSync(velho)) { fs.unlinkSync(velho); console.log('apaguei servico-empresas.webp'); }
+
   let total = 0;
   for (const [origem, nome, largura, altura, q] of TRABALHOS) {
     const destino = path.join(SAIDA, nome + '.webp');
@@ -74,16 +91,20 @@ const TRABALHOS = [
     } else {
       pipe = pipe.resize(w, null, { withoutEnlargement: true });
     }
+    if (VITRINE.has(nome)) {
+      pipe = pipe.modulate({ saturation: 1.08 }).linear(1.05, -6).sharpen({ sigma: 0.7 });
+    }
     await pipe.webp({ quality: q }).toFile(destino);
     const kb = fs.statSync(destino).size / 1024;
     total += kb;
     console.log(nome.padEnd(22) + w + 'px'.padEnd(4) + '  ' + kb.toFixed(1) + ' KB');
   }
 
-  // favicon: PNG pequeno, nao o logoio de 500x500 que o navegador baixava 3x
+  // favicon: PNG pequeno, nao o logoio de 500x500 que o navegador baixava 3x.
+  // 96px com paleta: 7 KB no lugar de 90 KB, e na aba ninguem ve diferenca.
   await sharp(path.join(RAIZ, 'io', 'img', 'logoio.webp'))
-    .resize(192, 192)
-    .png({ compressionLevel: 9 })
+    .resize(96, 96)
+    .png({ compressionLevel: 9, palette: true, quality: 80 })
     .toFile(path.join(SAIDA, 'icone-192.png'));
   const kbIcone = fs.statSync(path.join(SAIDA, 'icone-192.png')).size / 1024;
   total += kbIcone;
