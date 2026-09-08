@@ -29,7 +29,7 @@ const CONFIG = {
    O corte é o VALOR DA CONTA, em reais — e não o consumo em kWh, como era até
    08/09/2026. O Thiago disse: "Thiago e Diego atendem apenas acima de R$ 800".
      acima de R$ 800  →  a cada 10: 4 Thiago, 4 Diego, 2 Nilce
-     até R$ 800       →  70% Nilce, 30% Giovanna
+     até R$ 800       →  a cada 10: 7 Nilce, 3 Giovanna
 
    "A cada 10" aqui é proporção, não fila. O sorteio roda no navegador de cada
    visitante e um não sabe do outro, então não dá pra garantir 4-4-2 exatos em
@@ -79,9 +79,11 @@ const TIME_CONTA_ALTA = [
   { nome: 'Nilce', whatsapp: '5534991516846', peso: 2 }
 ];
 
+// 7 e 3, nao 70 e 30: a proporcao e' a mesma e o ciclo do rodizio fica com 10
+// posicoes em vez de 100 — do tamanho do de cima, e da' pra ler de uma vez.
 const TIME_CONTA_BAIXA = [
-  { nome: 'Nilce', whatsapp: '5534991516846', peso: 70 },
-  { nome: 'Giovanna', whatsapp: '5534998165040', peso: 30 }
+  { nome: 'Nilce', whatsapp: '5534991516846', peso: 7 },
+  { nome: 'Giovanna', whatsapp: '5534998165040', peso: 3 }
 ];
 
 /* --------------------------------------------------------------------------

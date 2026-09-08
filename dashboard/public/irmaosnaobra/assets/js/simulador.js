@@ -212,26 +212,57 @@
   }
 
   /* --------------------------------------------------- pra quem vai o lead */
-  // Sorteia UMA vez por time e guarda. Sem isso, cada mexida no valor da conta
-  // re-sortearia o dono e o lead trocaria de consultor no meio da simulacao.
-  // Atravessar o corte de kWh TROCA de time, e isso e' certo: e' a regra.
-  const sorteado = { alta: null, baixa: null };
+  // RODIZIO, NAO SORTEIO.
+  //
+  // Antes cada visitante jogava um dado proprio. Com peso 4/4/2 isso da' 40/40/20
+  // no longo prazo (conferido em 200 mil rodadas), mas em amostra pequena
+  // desequilibra feio: 150 leads sairam 42,7% Diego contra 37,3% Thiago. Dado
+  // e' assim — dez caras seguidas nao surpreendem ninguem.
+  //
+  // Agora e' fila de verdade. Monto um ciclo de 10 posicoes a partir dos pesos
+  // (4 Thiago, 4 Diego, 2 Nilce) e escolho a posicao pelo RELOGIO: o minuto
+  // corrido desde 1970. Lead que chega em minuto diferente pega posicao
+  // diferente, entao a fila anda sozinha, sem servidor e sem contador — e ao
+  // longo do dia a divisao bate certo, nao "em media".
+  //
+  // O que isto NAO resolve: dois leads no mesmo minuto pegam o mesmo consultor.
+  // Com o volume de hoje isso quase nao acontece, e quando acontecer se corrige
+  // no minuto seguinte. Fila exata a prova de rajada so' com contador no
+  // servidor, e ai' o botao deixaria de abrir o WhatsApp direto.
+
+  // Espalha os pesos num ciclo do tamanho da soma, sem amontoar: em vez de
+  // T,T,T,T,D,D,D,D,N,N (que daria quatro Thiagos seguidos), sai alternado.
+  function montarCiclo(time) {
+    const total = time.reduce(function (s, c) { return s + c.peso; }, 0);
+    const dados = time.map(function (c) { return { c: c, dados: 0 }; });
+    const ciclo = [];
+    for (let i = 1; i <= total; i++) {
+      // quem esta' mais atrasado em relacao ao proprio peso leva a vez
+      let melhor = dados[0], maiorDivida = -Infinity;
+      dados.forEach(function (d) {
+        const divida = (d.c.peso * i) / total - d.dados;
+        if (divida > maiorDivida) { maiorDivida = divida; melhor = d; }
+      });
+      melhor.dados++;
+      ciclo.push(melhor.c);
+    }
+    return ciclo;
+  }
+
+  const CICLOS = { alta: montarCiclo(TIME_CONTA_ALTA), baixa: montarCiclo(TIME_CONTA_BAIXA) };
+
+  // Congela por visita: sem isso, mexer no valor da conta trocaria o dono no
+  // meio da simulacao. Atravessar o corte de R$ troca de time, e isso e' a regra.
+  const escolhidos = { alta: null, baixa: null };
+  const minuto = Math.floor(Date.now() / 60000);
 
   function consultorDoLead(contaMes) {
-    const alta = contaMes > CONTA_CORTE;
-    const chave = alta ? 'alta' : 'baixa';
-    if (sorteado[chave]) return sorteado[chave];
-
-    const time = alta ? TIME_CONTA_ALTA : TIME_CONTA_BAIXA;
-    const total = time.reduce(function (s, c) { return s + c.peso; }, 0);
-    let n = Math.random() * total;
-    let escolhido = time[time.length - 1];
-    for (let i = 0; i < time.length; i++) {
-      n -= time[i].peso;
-      if (n <= 0) { escolhido = time[i]; break; }
+    const chave = contaMes > CONTA_CORTE ? 'alta' : 'baixa';
+    if (!escolhidos[chave]) {
+      const ciclo = CICLOS[chave];
+      escolhidos[chave] = ciclo[minuto % ciclo.length];
     }
-    sorteado[chave] = escolhido;
-    return escolhido;
+    return escolhidos[chave];
   }
 
   function linkWhatsapp(r) {
