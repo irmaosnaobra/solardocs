@@ -49,7 +49,11 @@ fbq('track', 'PageView');
 ['scroll','pointerdown','keydown','touchstart'].forEach(function(ev){
   addEventListener(ev, window.__carregaPixel, { once: true, passive: true });
 });
-setTimeout(window.__carregaPixel, 3500);
+addEventListener('load', function(){
+  var ocioso = window.requestIdleCallback || function(f){ setTimeout(f, 700); };
+  ocioso(window.__carregaPixel, { timeout: 2000 });
+});
+setTimeout(window.__carregaPixel, 10000);   // rede travada: rede de seguranca
 </script>
 <noscript><img height="1" width="1" style="display:none" alt=""
   src="https://www.facebook.com/tr?id=446093469730871&ev=PageView&noscript=1"></noscript>
@@ -112,8 +116,13 @@ setTimeout(window.__carregaPixel, 3500);
       pode virar <span class="destaque">R$&nbsp;115</span>
     </h1>
 
-    <div class="hero__foto revelar" role="img"
-         aria-label="Casa com painéis solares no telhado ao entardecer"></div>
+    <picture class="hero__foto revelar">
+      <source media="(min-width:901px)"
+              srcset="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
+      <img src="/irmaosnaobra/assets/img/hero-mobile.webp"
+           alt="Casa com painéis solares no telhado ao entardecer"
+           width="820" height="615" fetchpriority="high" decoding="async">
+    </picture>
 
     <p class="hero__texto revelar">
       Energia solar em Uberlândia, Araguari, Uberaba, Ituiutaba e Catalão,

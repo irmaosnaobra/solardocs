@@ -207,6 +207,7 @@ svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-l
 .hero__titulo .destaque{font-size:1.24em;line-height:.9;
   text-shadow:0 0 46px rgba(255,194,32,.6);}
 .hero__foto{display:none;margin:0;}
+.hero__foto img{width:100%;height:100%;object-fit:cover;display:block;}
 /* o par de .hero__fundo: cada uma só existe na largura dela, e como as duas
    são background e não <img>, o navegador baixa uma foto de hero por tela */
 .hero__texto{margin-top:22px;max-width:44ch;font-size:17px;color:#E4EDF9;
@@ -586,9 +587,10 @@ svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-l
   .hero__fundo{display:none;}
   .hero__interno{min-height:0;padding-block:96px 44px;text-align:left;}
   .hero__titulo{max-width:none;}
+  /* a capa do celular agora e' <img> no HTML, nao fundo: e' o que faz o
+     navegador achar ela antes do CSS. O quadro segue 4:3. */
   .hero__foto{display:block;margin-top:22px;border-radius:12px;overflow:hidden;
-    aspect-ratio:4/3;background:url('/irmaosnaobra/assets/img/hero-mobile.webp') center/cover no-repeat;
-    box-shadow:0 26px 50px -30px #000;}
+    aspect-ratio:4/3;box-shadow:0 26px 50px -30px #000;}
   .hero__texto{margin-top:20px;max-width:none;}
   .hero__acoes{flex-direction:column;align-items:stretch;}
   .hero__acoes .botao{width:100%;}
