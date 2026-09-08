@@ -910,7 +910,7 @@ footer a{text-decoration:underline;text-underline-offset:3px;display:inline-bloc
     barra.querySelector('i').style.width = pct + '%';
     barra.setAttribute('aria-valuenow', String(pct));
     barra.hidden = i > ULTIMA;
-    navBtn.hidden = i === 0 || i > ULTIMA;
+    navBtn.hidden = i === 0 || i >= ULTIMA;   // na etapa de dados o Voltar ja' vive dentro dela
     if (i === ULTIMA) pintaResumo();
   }
 
