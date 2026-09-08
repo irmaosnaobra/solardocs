@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NEXUS — Carregadores para carro elétrico de 60 a 240 kW</title>
-<meta name="description" content="Carregadores DC de 60 a 240 kW e wallbox AC com peça de reposição no Brasil, protocolo OCPP aberto e a sua estação no mapa do aplicativo desde o primeiro dia. A partir de R$ 69.000.">
+<meta name="description" content="Carregadores DC de 60 a 240 kW e wallbox AC com peça de reposição no Brasil, protocolo OCPP aberto e preço publicado. A partir de R$ 69.000.">
 <link rel="canonical" href="https://solardoc.app/nexus">
 <meta property="og:type" content="website">
 <meta property="og:title" content="NEXUS — Energia que conecta">
-<meta property="og:description" content="Carregadores DC de 60 a 240 kW com peça no Brasil, OCPP aberto e app próprio. A partir de R$ 69.000.">
-<meta property="og:image" content="https://solardoc.app/nexus/img/hero.webp">
+<meta property="og:description" content="Carregadores DC de 60 a 240 kW com peça no Brasil, OCPP aberto e preço publicado. A partir de R$ 69.000.">
+<meta property="og:image" content="https://solardoc.app/nexus/img/p-d80.webp">
 <meta property="og:url" content="https://solardoc.app/nexus">
 <meta name="theme-color" content="#07203D">
 <link rel="icon" href="/nexus/img/icone.svg" type="image/svg+xml">
@@ -42,8 +42,6 @@ a{color:inherit;text-decoration:none}
 .btn{background:var(--verde);color:#04301B;border-radius:10px;font-weight:700;padding:0 20px;border:0;
   font-family:inherit;font-size:15px;cursor:pointer;transition:background .15s,box-shadow .15s}
 .btn:hover{background:var(--verde-escuro);color:#fff;box-shadow:0 0 0 3px rgb(0 196 106/.26)}
-.btn-azul{background:var(--azul);color:#fff}
-.btn-azul:hover{background:var(--azul-escuro);box-shadow:0 0 0 3px rgb(11 92 255/.24)}
 .btn-linha{border:1px solid var(--tinta);color:var(--tinta);border-radius:10px;font-weight:600;padding:0 18px;
   background:#fff;font-family:inherit;font-size:15px;cursor:pointer}
 .btn-linha:hover{background:var(--tinta);color:#fff}
@@ -61,12 +59,13 @@ header.topo{position:sticky;top:0;z-index:40;background:rgb(255 255 255/.94);bac
 .topo .faixa{display:flex;align-items:center;gap:16px;padding:10px 0}
 .logo{display:flex;align-items:center;gap:9px;font-family:var(--serif);font-size:19px;color:var(--tinta);
   letter-spacing:.01em;min-height:44px}
-.topo nav{display:flex;gap:22px;margin-left:auto;font-size:14.5px;color:var(--texto)}
+.topo nav{display:flex;gap:20px;margin-left:auto;font-size:14.5px;color:var(--texto)}
+.topo nav a{min-height:44px;display:inline-flex;align-items:center}
 .topo nav a:hover{color:var(--azul);text-decoration:underline;text-underline-offset:4px}
-@media(max-width:900px){.topo nav{display:none}}
+@media(max-width:1080px){.topo nav{display:none}}
 .topo .btn{margin-left:auto;height:44px}
-@media(max-width:900px){.topo .btn{padding:0 14px;font-size:14px}}
-@media(min-width:901px){.topo .btn{margin-left:0}}
+@media(max-width:1080px){.topo .btn{padding:0 14px;font-size:14px}}
+@media(min-width:1081px){.topo .btn{margin-left:0}}
 
 /* hero */
 .hero{padding:18px 0 0}
@@ -78,66 +77,29 @@ header.topo{position:sticky;top:0;z-index:40;background:rgb(255 255 255/.94);bac
 @media(max-width:560px){.numeros{gap:14px 26px}}
 .numeros b{display:block;font-family:var(--serif);font-size:22px;color:var(--tinta)}
 .numeros span{font-size:11.5px;color:var(--suave)}
-.hero figure{margin:0;border-radius:12px;overflow:hidden;background:#EDEFF2}
-.hero figure img{width:100%;height:100%;object-fit:cover;aspect-ratio:3/2}
+.hero figure{margin:0;border-radius:12px;overflow:hidden;background:#fff}
+.hero figure img{width:100%;height:100%;object-fit:contain;aspect-ratio:1/1;background:#fff}
 .acoes{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}
 @media(max-width:560px){.acoes{flex-direction:column;align-items:stretch}
   .acoes .btn,.acoes .btn-linha{width:100%}}
-
-/* barra de confianca */
 .confianca{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
 .confianca span{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--suave)}
 .confianca svg{flex:none;color:var(--verde)}
 
 /* secoes */
-section{padding:44px 0 0;scroll-margin-top:76px}
-#especialista{scroll-margin-top:76px}
+section{padding:52px 0 0;scroll-margin-top:76px}
+#contato{scroll-margin-top:76px}
 .cabeca{display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:18px;flex-wrap:wrap}
 .cabeca h2{font-size:clamp(22px,3vw,30px)}
-.cabeca p{color:var(--suave);font-size:14.5px;max-width:56ch;margin-top:8px}
+.cabeca p{color:var(--suave);font-size:14.5px;max-width:58ch;margin-top:8px}
 
-/* perfis */
-.perfis{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(232px,1fr))}
-.perfil{text-align:left;padding:18px;border:1px solid var(--borda);background:#fff;border-radius:14px;
-  cursor:pointer;font-family:inherit;font-size:15px;color:var(--texto);display:flex;flex-direction:column;gap:8px;
-  transition:border-color .15s,box-shadow .15s,transform .15s}
-.perfil:hover{border-color:var(--azul);box-shadow:0 8px 18px rgb(7 32 61/.08);transform:translateY(-2px)}
-.perfil .ico{width:34px;height:34px;border-radius:9px;background:var(--azul-fraco);color:var(--azul);
-  display:grid;place-items:center;flex:none}
-.perfil b{font-family:var(--serif);font-weight:400;font-size:16px;color:var(--tinta)}
-.perfil small{color:var(--suave);font-size:13.5px;line-height:1.5}
-.perfil .leva{margin-top:auto;padding-top:6px;color:var(--azul);font-size:13px;font-weight:600}
-
-/* simulador */
-.sim{display:grid;gap:0;grid-template-columns:1fr;overflow:hidden}
-@media(min-width:920px){.sim{grid-template-columns:1.05fr .95fr}}
-.sim .controles{padding:24px}
-.sim .painel{background:var(--tinta);color:#fff;padding:24px;display:flex;flex-direction:column}
-.campo{margin-bottom:16px}
-.campo label{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:13.5px;
-  color:var(--suave);margin-bottom:7px}
-.campo label b{font-family:var(--mono);font-size:14px;color:var(--tinta);font-weight:500}
-.campo input[type=range]{width:100%;accent-color:var(--azul);height:44px}
-.campo select{width:100%;min-height:48px;border:1px solid var(--borda-forte);border-radius:10px;padding:0 12px;
-  font-family:inherit;font-size:15px;color:var(--texto);background:#fff}
-.sim .painel .rotulo{color:#8FA0B4}
-.painel .grande{font-family:var(--serif);font-size:clamp(30px,5vw,42px);color:#fff;line-height:1;margin-top:6px}
-.painel .grande small{font-family:var(--mono);font-size:14px;color:#8FA0B4;margin-left:6px}
-.linhas{margin-top:20px;border-top:1px solid #1C3550;padding-top:6px}
-.linhas div{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #12293F;
-  font-size:14px;color:#AEBACA}
-.linhas div:last-child{border-bottom:0}
-.linhas div b{color:#fff;font-family:var(--mono);font-weight:500}
-.linhas div.destaque b{color:var(--verde)}
-.aviso{margin-top:14px;font-size:12px;color:#7E8EA1;line-height:1.5}
-
-/* vitrine */
-.vitrine{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(228px,1fr))}
+/* vitrine de produto */
+.vitrine{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
 .modelo{display:flex;flex-direction:column;overflow:hidden;transition:box-shadow .18s ease,transform .18s ease}
 .modelo:hover{box-shadow:0 8px 18px rgb(7 32 61/.10),0 2px 5px rgb(7 32 61/.06);transform:translateY(-2px)}
-.modelo .desenho{background:#EDEFF2;overflow:hidden}
-.modelo .desenho img{width:100%;height:100%;object-fit:cover;aspect-ratio:4/5;display:block;
-  transition:transform .3s ease}
+.modelo .desenho{background:#fff;overflow:hidden;border-bottom:1px solid var(--borda)}
+.modelo .desenho img{width:100%;height:100%;object-fit:contain;aspect-ratio:1/1;display:block;
+  transition:transform .3s ease;padding:6px}
 .modelo:hover .desenho img{transform:scale(1.04)}
 .modelo .corpo{padding:14px 16px 18px;display:flex;flex-direction:column;gap:9px;flex:1}
 .modelo .nome{font-family:var(--serif);font-size:17px;color:var(--tinta)}
@@ -154,15 +116,76 @@ section{padding:44px 0 0;scroll-margin-top:76px}
 .selo{align-self:flex-start;border-radius:999px;background:#EEF1F5;color:var(--suave);
   padding:3px 9px;font-size:11px;font-weight:600}
 .selo.destaque{background:var(--verde-fraco);color:var(--verde-escuro)}
+.nota{margin-top:12px;font-size:12.5px;color:var(--fraco)}
 
-/* galeria */
-.galeria{display:grid;gap:14px;grid-template-columns:1fr}
-@media(min-width:820px){.galeria{grid-template-columns:1.35fr 1fr}}
-.foto{overflow:hidden;border-radius:14px;position:relative;background:#E9ECEF}
-.foto img{width:100%;height:100%;object-fit:cover}
-.foto figcaption{position:absolute;left:0;right:0;bottom:0;padding:26px 18px 14px;color:#fff;font-size:13.5px;
-  background:linear-gradient(180deg,rgb(7 32 61/0),rgb(7 32 61/.82))}
-.foto figcaption b{font-family:var(--serif);font-weight:400;display:block;font-size:16px;margin-bottom:2px}
+/* beneficios */
+.beneficios{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(268px,1fr))}
+.beneficio{background:#fff;border:1px solid var(--borda);border-radius:14px;padding:20px}
+.beneficio .ico{width:36px;height:36px;border-radius:10px;background:var(--azul-fraco);color:var(--azul);
+  display:grid;place-items:center;margin-bottom:12px}
+.beneficio h3{font-size:16px;margin-bottom:6px}
+.beneficio p{font-size:13.8px;color:var(--suave)}
+
+/* faixa de posicionamento */
+.posic{margin-top:16px;background:var(--tinta);border-radius:16px;padding:30px 24px;color:#fff;
+  position:relative;overflow:hidden}
+.posic .textura{position:absolute;inset:0;width:100%;height:100%;opacity:.05}
+.posic > *{position:relative;z-index:2}
+.posic h2{color:#fff;font-size:clamp(21px,3vw,29px);max-width:22ch}
+.posic p{color:#9FADBE;margin-top:12px;max-width:58ch;font-size:15px}
+
+/* solucoes */
+.solucoes{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(290px,1fr))}
+.solucao{background:#fff;border:1px solid var(--borda);border-radius:14px;padding:22px;display:flex;
+  flex-direction:column;gap:10px}
+.solucao .quem{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--azul)}
+.solucao h3{font-size:19px}
+.solucao > p{font-size:14px;color:var(--suave)}
+.solucao ul{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:7px;font-size:13.8px}
+.solucao ul li{display:flex;gap:8px;align-items:flex-start;color:var(--texto)}
+.solucao ul li svg{flex:none;color:var(--verde);margin-top:4px}
+.solucao .btn{margin-top:auto;height:46px}
+
+/* numeros do produto */
+.placar{display:grid;gap:1px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));background:var(--borda);
+  border:1px solid var(--borda);border-radius:14px;overflow:hidden}
+.placar div{background:#fff;padding:20px 18px}
+.placar b{display:block;font-family:var(--serif);font-size:clamp(20px,2.6vw,26px);color:var(--tinta);line-height:1.1}
+.placar span{display:block;font-size:12.5px;color:var(--suave);margin-top:6px}
+
+/* pontos de recarga + app */
+.plataforma{display:grid;gap:22px;grid-template-columns:1fr;align-items:center}
+@media(min-width:920px){.plataforma{grid-template-columns:1.05fr .95fr;gap:34px}}
+.fone{margin:0 auto;width:265px;max-width:100%;background:#07203D;border-radius:34px;padding:9px;
+  box-shadow:0 18px 40px rgb(7 32 61/.20)}
+.fone .tela{background:#F1F4F8;border-radius:26px;overflow:hidden;position:relative;aspect-ratio:9/18.5}
+.fone .mapa{position:absolute;inset:0;
+  background:
+    radial-gradient(circle at 30% 24%, rgb(11 92 255/.10) 0 22%, transparent 23%),
+    radial-gradient(circle at 72% 62%, rgb(0 196 106/.12) 0 20%, transparent 21%),
+    repeating-linear-gradient(0deg,#E4E9F0 0 1px,transparent 1px 34px),
+    repeating-linear-gradient(90deg,#E4E9F0 0 1px,transparent 1px 30px),
+    #F1F4F8}
+.fone .via{position:absolute;background:#DDE3EC;border-radius:2px}
+.fone .pin{position:absolute;width:26px;height:26px;border-radius:50% 50% 50% 4px;transform:rotate(-45deg);
+  background:var(--verde);box-shadow:0 3px 8px rgb(7 32 61/.28);display:grid;place-items:center}
+.fone .pin i{transform:rotate(45deg);color:#04301B;font-family:var(--mono);font-size:10px;font-style:normal;
+  font-weight:600}
+.fone .pin.azul{background:var(--azul)}
+.fone .pin.azul i{color:#fff}
+.fone .topo-app{position:absolute;left:10px;right:10px;top:10px;background:#fff;border-radius:11px;
+  padding:9px 11px;display:flex;align-items:center;gap:8px;box-shadow:0 2px 8px rgb(7 32 61/.10)}
+.fone .topo-app span{font-size:11px;color:var(--fraco)}
+.fone .ficha{position:absolute;left:10px;right:10px;bottom:10px;background:#fff;border-radius:14px;padding:13px;
+  box-shadow:0 6px 18px rgb(7 32 61/.16)}
+.fone .ficha b{display:block;font-family:var(--serif);font-size:13px;color:var(--tinta)}
+.fone .ficha .li{display:flex;justify-content:space-between;font-size:11px;color:var(--suave);margin-top:7px}
+.fone .ficha .li b{font-family:var(--mono);font-size:11.5px;font-weight:500;color:var(--tinta)}
+.fone .ficha .acao{margin-top:11px;background:var(--verde);color:#04301B;border-radius:9px;height:34px;
+  display:grid;place-items:center;font-size:12px;font-weight:700}
+.fone .barra{position:absolute;left:50%;transform:translateX(-50%);bottom:3px;width:78px;height:4px;
+  border-radius:99px;background:rgb(7 32 61/.22)}
 
 /* blocos escuros */
 .escuro{background:var(--tinta);color:#E7ECF2;border-radius:14px;padding:26px}
@@ -173,13 +196,36 @@ section{padding:44px 0 0;scroll-margin-top:76px}
 .junto h3{font-size:15.5px;margin-bottom:6px}
 .junto p{font-size:13.5px}
 
-/* passos */
-.passos{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));counter-reset:p}
-.passo{background:#fff;border-radius:14px;padding:18px;border:1px solid var(--borda)}
-.passo b{display:block;font-family:var(--serif);font-weight:400;font-size:15.5px;color:var(--tinta);margin:10px 0 5px}
-.passo p{font-size:13.5px;color:var(--suave)}
-.passo i{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:var(--tinta);
-  color:#fff;font-family:var(--mono);font-size:13px;font-style:normal}
+/* simulador */
+.sim{display:grid;gap:0;grid-template-columns:1fr;overflow:hidden}
+@media(min-width:920px){.sim{grid-template-columns:1.05fr .95fr}}
+.sim .controles{padding:24px}
+.sim .painel{background:var(--tinta);color:#fff;padding:24px;display:flex;flex-direction:column}
+.campo{margin-bottom:16px}
+.campo label{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:13.5px;
+  color:var(--suave);margin-bottom:7px}
+.campo label b{font-family:var(--mono);font-size:14px;color:var(--tinta);font-weight:500}
+.campo input[type=range]{width:100%;accent-color:var(--azul);height:44px}
+.campo select{width:100%;min-height:48px;border:1px solid var(--borda-forte);border-radius:10px;padding:0 12px;
+  font-family:inherit;font-size:15px;color:var(--texto);background:#fff}
+.sim .painel .rotulo{color:#8FA0B4}
+.painel .grande{font-family:var(--serif);font-size:clamp(30px,5vw,42px);color:#fff;line-height:1;margin-top:6px}
+.linhas{margin-top:20px;border-top:1px solid #1C3550;padding-top:6px}
+.linhas div{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #12293F;
+  font-size:14px;color:#AEBACA}
+.linhas div:last-child{border-bottom:0}
+.linhas div b{color:#fff;font-family:var(--mono);font-weight:500}
+.linhas div.destaque b{color:var(--verde)}
+.aviso{margin-top:14px;font-size:12px;color:#7E8EA1;line-height:1.5}
+
+/* galeria */
+.galeria{display:grid;gap:14px;grid-template-columns:1fr}
+@media(min-width:820px){.galeria{grid-template-columns:1.35fr 1fr}}
+.foto{overflow:hidden;border-radius:14px;position:relative;background:#E9ECEF}
+.foto img{width:100%;height:100%;object-fit:cover}
+.foto figcaption{position:absolute;left:0;right:0;bottom:0;padding:26px 18px 14px;color:#fff;font-size:13.5px;
+  background:linear-gradient(180deg,rgb(7 32 61/0),rgb(7 32 61/.82))}
+.foto figcaption b{font-family:var(--serif);font-weight:400;display:block;font-size:16px;margin-bottom:2px}
 
 /* tabela */
 .tabela{overflow-x:auto;border-radius:14px;background:#fff;box-shadow:0 1px 3px rgb(7 32 61/.06)}
@@ -200,8 +246,8 @@ summary::after{content:"+";font-family:var(--mono);color:var(--verde-escuro);fon
 details[open] summary::after{content:"–"}
 details p{margin-top:9px;color:var(--suave);font-size:14.5px}
 
-/* especialista */
-.espec{margin-top:44px;background:var(--tinta);border-radius:16px;padding:0;overflow:hidden;position:relative}
+/* contato */
+.espec{margin-top:52px;background:var(--tinta);border-radius:16px;padding:0;overflow:hidden;position:relative}
 .espec .textura{position:absolute;inset:0;width:100%;height:100%;opacity:.05;z-index:1}
 .espec .dentro{position:relative;z-index:2;padding:30px 24px 34px}
 @media(min-width:860px){.espec .dentro{padding:38px}}
@@ -235,15 +281,15 @@ details p{margin-top:9px;color:var(--suave);font-size:14.5px}
 .pronto .certo{width:52px;height:52px;border-radius:50%;background:var(--verde);color:#04301B;display:grid;
   place-items:center;margin:0 auto 16px}
 
-footer{margin-top:40px;padding:26px 0 40px;border-top:1px solid var(--borda);color:var(--fraco);font-size:12.5px}
-footer .faixa{display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-between}
-footer a{text-decoration:underline;text-underline-offset:3px;display:inline-block;padding:15px 2px}
-
-/* wallbox */
-.wb{display:grid;grid-template-columns:1fr;gap:0}
-.wb img{width:100%;height:100%;object-fit:cover;max-height:340px}
-.wb .texto{padding:24px}
-@media(min-width:860px){.wb{grid-template-columns:1fr 1.15fr}.wb img{max-height:none}}
+footer{margin-top:44px;padding:30px 0 40px;border-top:1px solid var(--borda);color:var(--fraco);font-size:12.5px}
+footer .colunas{display:grid;gap:22px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin-bottom:22px}
+footer h4{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--suave);
+  margin:0 0 10px;font-weight:500}
+footer ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+footer a{text-decoration:none;color:var(--suave);display:inline-block;padding:12px 0}
+footer a:hover{color:var(--azul);text-decoration:underline;text-underline-offset:3px}
+footer .base{border-top:1px solid var(--borda);padding-top:18px;display:flex;gap:14px;flex-wrap:wrap;
+  justify-content:space-between;align-items:center}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto}}
 </style>
 </head>
@@ -272,24 +318,26 @@ footer a{text-decoration:underline;text-underline-offset:3px;display:inline-bloc
       NEXUS
     </a>
     <nav>
-      <a href="#perfis">Para quem é</a>
-      <a href="#retorno">Retorno</a>
-      <a href="#modelos">Modelos</a>
-      <a href="#ficha">Ficha técnica</a>
-      <a href="#duvidas">Dúvidas</a>
+      <a href="#inicio">Início</a>
+      <a href="#produtos">Produtos</a>
+      <a href="#beneficios">Benefícios</a>
+      <a href="#solucoes">Soluções</a>
+      <a href="#pontos">Pontos de Recarga</a>
+      <a href="#contato">Contato</a>
     </nav>
-    <button class="btn toque" type="button" data-abre="especialista">Falar com especialista</button>
+    <button class="btn toque" type="button" data-abre="contato">Falar com especialista</button>
   </div>
 </header>
 
-<!-- ══════════ HERO ══════════ -->
-<div class="hero faixa">
+<!-- ══════════ INÍCIO ══════════ -->
+<div class="hero faixa" id="inicio">
   <div class="cartao">
     <div>
       <p class="rotulo">Carregadores para carro elétrico</p>
       <h1>Recarga rápida de 60 a 240&nbsp;kW com <span class="marca-texto">peça no Brasil</span></h1>
-      <p class="linha-fina">Equipamento em estoque no Brasil, protocolo aberto e a sua estação no mapa
-        do aplicativo desde o primeiro dia.</p>
+      <p class="linha-fina">Somos importadora e revenda: o equipamento sai do nosso estoque e a obra é do
+        nosso time. Preço publicado, protocolo aberto e a sua estação no mapa do aplicativo desde o
+        primeiro dia.</p>
 
       <dl class="numeros">
         <div><b class="tabular">5</b><span>modelos em corrente contínua</span></div>
@@ -298,74 +346,309 @@ footer a{text-decoration:underline;text-underline-offset:3px;display:inline-bloc
       </dl>
 
       <div class="acoes">
-        <button class="btn toque" type="button" data-abre="especialista">Falar com especialista</button>
-        <a class="btn-linha toque" href="#modelos">Ver os modelos</a>
+        <button class="btn toque" type="button" data-abre="contato">Falar com especialista</button>
+        <a class="btn-linha toque" href="#produtos">Ver os produtos</a>
       </div>
 
       <div class="confianca">
         <span><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><use href="#ok"></use></svg>OCPP 1.6J aberto</span>
-        <span><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><use href="#ok"></use></svg>Conector CCS2</span>
+        <span><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><use href="#ok"></use></svg>CCS2 e Tipo 2</span>
         <span><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><use href="#ok"></use></svg>Peça de reposição no país</span>
         <span><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><use href="#ok"></use></svg>Pronta entrega</span>
       </div>
     </div>
 
     <figure>
-      <img src="/nexus/img/hero.webp" width="1080" height="720" alt="Três carregadores NEXUS de corrente contínua na linha de produção, prontos para embarque" fetchpriority="high">
+      <img src="/nexus/img/p-d80.webp" width="1200" height="1200" alt="Carregador NEXUS D80 de 80 kW, com dois cabos CCS2 e anel de luz verde no encaixe" fetchpriority="high">
     </figure>
   </div>
 </div>
 
-<!-- ══════════ PARA QUEM É ══════════ -->
-<section id="perfis" class="faixa">
+<!-- ══════════ PRODUTOS ══════════ -->
+<section id="produtos" class="faixa">
   <div class="cabeca">
     <div>
-      <h2>Você está em qual desses lugares?</h2>
-      <p>O modelo certo e a conta certa mudam bastante conforme o motivo da compra. Escolha o seu que a
-        gente já começa a conversa pelo lugar certo.</p>
+      <h2>Corrente contínua: a recarga rápida</h2>
+      <p>O número do modelo é a potência em kW. O preço é do equipamento — projeto, obra e instalação
+        entram no orçamento do ponto.</p>
+    </div>
+    <span class="chip">Preço publicado · sem "consulte-nos"</span>
+  </div>
+
+  <div class="vitrine">
+
+    <article class="cartao modelo">
+      <div class="desenho"><img src="/nexus/img/p-d60.webp" width="1200" height="1200" alt="Carregador NEXUS D60 de 60 kW, coluna estreita com um cabo CCS2" loading="lazy"></div>
+      <div class="corpo">
+        <span class="selo">Entrada de rede</span>
+        <p class="nome">NEXUS D60</p>
+        <p class="kw tabular">60<small>kW</small></p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>CCS2 · 1 ou 2 plugues</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Refrigeração ativa</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>OCPP 1.6J</li>
+        </ul>
+        <div class="preco"><b class="tabular">R$ 69.000</b><span>equipamento, à vista</span></div>
+        <button class="btn toque" type="button" data-abre="contato" data-modelo="NEXUS D60 (60 kW)">Pedir proposta</button>
+      </div>
+    </article>
+
+    <article class="cartao modelo">
+      <div class="desenho"><img src="/nexus/img/p-d80.webp" width="1200" height="1200" alt="Carregador NEXUS D80 de 80 kW com dois conectores CCS2" loading="lazy"></div>
+      <div class="corpo">
+        <span class="selo destaque">Mais indicado</span>
+        <p class="nome">NEXUS D80</p>
+        <p class="kw tabular">80<small>kW</small></p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>CCS2 · 1 ou 2 plugues</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Dois carros ao mesmo tempo</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>OCPP 1.6J</li>
+        </ul>
+        <div class="preco"><b class="tabular">R$ 79.000</b><span>equipamento, à vista</span></div>
+        <button class="btn toque" type="button" data-abre="contato" data-modelo="NEXUS D80 (80 kW)">Pedir proposta</button>
+      </div>
+    </article>
+
+    <article class="cartao modelo">
+      <div class="desenho"><img src="/nexus/img/p-d120.webp" width="1200" height="1200" alt="Carregador NEXUS D120 de 120 kW, gabinete de porte médio com dois cabos CCS2" loading="lazy"></div>
+      <div class="corpo">
+        <span class="selo">Corredor movimentado</span>
+        <p class="nome">NEXUS D120</p>
+        <p class="kw tabular">120<small>kW</small></p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>CCS2 · 2 plugues</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Divide potência entre as vagas</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>OCPP 1.6J</li>
+        </ul>
+        <div class="preco"><b class="tabular">R$ 119.000</b><span>equipamento, à vista</span></div>
+        <button class="btn toque" type="button" data-abre="contato" data-modelo="NEXUS D120 (120 kW)">Pedir proposta</button>
+      </div>
+    </article>
+
+    <article class="cartao modelo">
+      <div class="desenho"><img src="/nexus/img/p-d120.webp" width="1200" height="1200" alt="Carregador NEXUS D160 de 160 kW para rodovia, com dois cabos CCS2" loading="lazy"></div>
+      <div class="corpo">
+        <span class="selo">Rodovia</span>
+        <p class="nome">NEXUS D160</p>
+        <p class="kw tabular">160<small>kW</small></p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>CCS2 · 2 plugues</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Duas vagas em carga cheia</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>OCPP 1.6J</li>
+        </ul>
+        <div class="preco"><b class="tabular">R$ 149.000</b><span>equipamento, à vista</span></div>
+        <button class="btn toque" type="button" data-abre="contato" data-modelo="NEXUS D160 (160 kW)">Pedir proposta</button>
+      </div>
+    </article>
+
+    <article class="cartao modelo">
+      <div class="desenho"><img src="/nexus/img/p-d240.webp" width="1200" height="1200" alt="Carregador NEXUS D240 de 240 kW, gabinete alto tipo hub com dois cabos refrigerados" loading="lazy"></div>
+      <div class="corpo">
+        <span class="selo">Hub</span>
+        <p class="nome">NEXUS D240</p>
+        <p class="kw tabular">240<small>kW</small></p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>CCS2 · 2 plugues</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>O topo da linha</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>OCPP 1.6J</li>
+        </ul>
+        <div class="preco"><b class="tabular">R$ 189.000</b><span>equipamento, à vista</span></div>
+        <button class="btn toque" type="button" data-abre="contato" data-modelo="NEXUS D240 (240 kW)">Pedir proposta</button>
+      </div>
+    </article>
+
+  </div>
+
+  <div class="cabeca" style="margin-top:34px">
+    <div>
+      <h2>Corrente alternada: o wallbox</h2>
+      <p>Para quem fica horas parado no mesmo lugar — condomínio, hotel, escritório e frota.</p>
     </div>
   </div>
 
-  <div class="perfis">
-    <button class="perfil" type="button" data-perfil="faturar">
-      <span class="ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
-        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 7-7"/><path d="M14 8h6v6"/></svg></span>
-      <b>Quero faturar com recarga</b>
-      <small>Comprar o carregador, montar o ponto e cobrar por kWh. É o caminho de quem trata isso
-        como investimento.</small>
-      <span class="leva">Começar por aqui →</span>
-    </button>
+  <div class="vitrine">
+    <article class="cartao modelo">
+      <div class="desenho"><img src="/nexus/img/p-wallbox.webp" width="1200" height="1200" alt="Wallbox NEXUS W7 de 7,3 kW, de parede, com cabo Tipo 2 espiralado" loading="lazy"></div>
+      <div class="corpo">
+        <span class="selo">Casa e condomínio</span>
+        <p class="nome">NEXUS W7</p>
+        <p class="kw tabular">7,3<small>kW</small></p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Conector Tipo 2</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Parede ou pedestal</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Monofásico</li>
+        </ul>
+        <div class="preco"><b class="tabular">Sob consulta</b><span>preço no orçamento</span></div>
+        <button class="btn toque" type="button" data-abre="contato" data-modelo="Wallbox NEXUS W7 (7,3 kW)">Pedir preço</button>
+      </div>
+    </article>
 
-    <button class="perfil" type="button" data-perfil="estabelecimento">
-      <span class="ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
-        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21V9l9-6 9 6v12"/><path d="M9 21v-7h6v7"/></svg></span>
-      <b>Tenho um estabelecimento</b>
-      <small>Mercado, restaurante, hotel ou shopping: o carregador segura o cliente no local por mais
-        tempo e ainda vende energia.</small>
-      <span class="leva">Começar por aqui →</span>
-    </button>
+    <article class="cartao modelo">
+      <div class="desenho"><img src="/nexus/img/p-wallbox.webp" width="1200" height="1200" alt="Wallbox NEXUS W11 de 11 kW trifásico, de parede, com cabo Tipo 2" loading="lazy"></div>
+      <div class="corpo">
+        <span class="selo">Estacionamento longo</span>
+        <p class="nome">NEXUS W11</p>
+        <p class="kw tabular">11<small>kW</small></p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Conector Tipo 2</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Trifásico</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Leitor de aproximação</li>
+        </ul>
+        <div class="preco"><b class="tabular">Sob consulta</b><span>preço no orçamento</span></div>
+        <button class="btn toque" type="button" data-abre="contato" data-modelo="Wallbox NEXUS W11 (11 kW)">Pedir preço</button>
+      </div>
+    </article>
 
-    <button class="perfil" type="button" data-perfil="frota">
-      <span class="ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
-        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17h18"/><path d="M5 17V9l3-4h8l3 4v8"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="16.5" cy="17.5" r="1.5"/></svg></span>
-      <b>Condomínio ou frota</b>
-      <small>Carro parado horas no mesmo lugar. Aqui o wallbox em corrente alternada costuma resolver
-        por bem menos dinheiro.</small>
-      <span class="leva">Começar por aqui →</span>
-    </button>
+    <article class="cartao modelo">
+      <div class="desenho"><img src="/nexus/img/p-wallbox.webp" width="1200" height="1200" alt="Wallbox NEXUS W22 de 22 kW trifásico, com cabo Tipo 2" loading="lazy"></div>
+      <div class="corpo">
+        <span class="selo">Hotel e escritório</span>
+        <p class="nome">NEXUS W22</p>
+        <p class="kw tabular">22<small>kW</small></p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Conector Tipo 2</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Trifásico</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Mesma plataforma dos DC</li>
+        </ul>
+        <div class="preco"><b class="tabular">Sob consulta</b><span>preço no orçamento</span></div>
+        <button class="btn toque" type="button" data-abre="contato" data-modelo="Wallbox NEXUS W22 (22 kW)">Pedir preço</button>
+      </div>
+    </article>
+  </div>
 
-    <button class="perfil" type="button" data-perfil="expandir">
-      <span class="ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
-        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg></span>
-      <b>Já opero e quero expandir</b>
-      <small>Você já tem ponto rodando e quer mais potência, mais vagas ou sair de uma plataforma
-        que prende o equipamento.</small>
-      <span class="leva">Começar por aqui →</span>
-    </button>
+  <p class="nota">As imagens de produto são renders da família de gabinetes: o formato exato, a quantidade
+    de plugues e o acabamento são confirmados na proposta. As fotos do equipamento real que sai do estoque
+    estão logo abaixo, na seção "O equipamento que sai do nosso estoque".</p>
+</section>
+
+<!-- ══════════ NÚMEROS DO PRODUTO ══════════ -->
+<section class="faixa">
+  <div class="placar">
+    <div><b class="tabular">5 modelos DC</b><span>de 60 a 240 kW, todos CCS2</span></div>
+    <div><b class="tabular">3 modelos AC</b><span>de 7,3 a 22 kW, Tipo 2</span></div>
+    <div><b class="tabular">OCPP 1.6J</b><span>protocolo aberto, sem amarra</span></div>
+    <div><b class="tabular">R$ 69 a 189 mil</b><span>preço de equipamento publicado</span></div>
   </div>
 </section>
 
-<!-- ══════════ SIMULADOR ══════════ -->
+<!-- ══════════ BENEFÍCIOS ══════════ -->
+<section id="beneficios" class="faixa">
+  <div class="cabeca">
+    <div>
+      <h2>Por que comprar da NEXUS</h2>
+      <p>Seis coisas que dá para conferir antes de assinar — nenhuma delas é promessa de folheto.</p>
+    </div>
+  </div>
+
+  <div class="beneficios">
+    <div class="beneficio">
+      <span class="ico"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h13v10H3z"/><path d="M16 10h3l2 3v4h-5"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg></span>
+      <h3>Peça de reposição no Brasil</h3>
+      <p>Quando queima uma placa, a estação não espera contêiner. A peça já está no país e o técnico
+        troca aqui mesmo.</p>
+    </div>
+    <div class="beneficio">
+      <span class="ico"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H4z"/><path d="M9 20h6"/><path d="M12 16v4"/></svg></span>
+      <h3>Pronta entrega, do estoque</h3>
+      <p>O equipamento já está aqui, embalado no palete. Você não entra na fila de importação nem
+        depende de câmbio para saber quando começa.</p>
+    </div>
+    <div class="beneficio">
+      <span class="ico"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 11V7a4 4 0 1 1 8 0v4"/><rect x="5" y="11" width="14" height="9" rx="2"/></svg></span>
+      <h3>OCPP 1.6J aberto</h3>
+      <p>Protocolo padrão de mercado. Se um dia você quiser trocar de plataforma de gestão, o
+        carregador vai junto — ele não é refém de ninguém.</p>
+    </div>
+    <div class="beneficio">
+      <span class="ico"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg></span>
+      <h3>App do motorista incluído</h3>
+      <p>NEXUS REDE acha a estação no mapa, ativa por QR Code e cobra no Pix ou cartão. Não é módulo
+        à parte, vem com o equipamento.</p>
+    </div>
+    <div class="beneficio">
+      <span class="ico"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 7-7"/><path d="M14 8h6v6"/></svg></span>
+      <h3>Painel que mostra o dinheiro</h3>
+      <p>Faturamento, consumo e status de cada tomada em tempo real. A tarifa por kWh é você quem
+        define, e muda quando quiser.</p>
+    </div>
+    <div class="beneficio">
+      <span class="ico"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4v5c0 4.5-3.2 8.2-8 9-4.8-.8-8-4.5-8-9V7z"/><path d="m9 12 2 2 4-4"/></svg></span>
+      <h3>Projeto, obra e parecer com a gente</h3>
+      <p>Não vendemos a caixa e sumimos. Projeto elétrico, parecer de acesso na concessionária,
+        instalação e comissionamento são do nosso time.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ POSICIONAMENTO ══════════ -->
+<section class="faixa">
+  <div class="posic">
+    <svg class="textura" aria-hidden="true"><rect width="100%" height="100%" fill="url(#malha)"></rect></svg>
+    <h2>Importadora e revenda: o equipamento é nosso estoque, a obra é nosso time.</h2>
+    <p>É por isso que o preço está escrito na página e o prazo não depende de um fornecedor do outro lado
+      do mundo. Quem te vende é quem instala e quem atende quando dá problema.</p>
+    <div class="acoes">
+      <button class="btn toque" type="button" data-abre="contato">Falar com especialista</button>
+      <a class="btn-linha toque" href="#retorno" style="background:transparent;color:#fff;border-color:#3A5474">Ver a conta do ponto</a>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ SOLUÇÕES ══════════ -->
+<section id="solucoes" class="faixa">
+  <div class="cabeca">
+    <div>
+      <h2>Uma linha, três jeitos de usar</h2>
+      <p>O modelo certo muda bastante conforme o motivo da compra. Escolha o seu que a conversa já
+        começa no lugar certo.</p>
+    </div>
+  </div>
+
+  <div class="solucoes">
+    <div class="solucao">
+      <span class="quem">Para quem investe</span>
+      <h3>Eletroposto próprio</h3>
+      <p>Você tem o ponto e quer faturar vendendo kWh. Aqui o carregador é ativo, não despesa.</p>
+      <ul>
+        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>Linha DC de 60 a 240 kW</li>
+        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>Você define a tarifa por kWh</li>
+        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>Ponto completo de 80 kW na faixa de R$ 160 mil</li>
+        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>Dossiê de crédito montado para o banco</li>
+      </ul>
+      <button class="btn toque" type="button" data-abre="contato" data-perfil="faturar">Quero faturar com recarga</button>
+    </div>
+
+    <div class="solucao">
+      <span class="quem">Para quem recebe cliente</span>
+      <h3>Estabelecimento comercial</h3>
+      <p>Mercado, restaurante, hotel ou shopping. O carregador segura o cliente no local e ainda vende
+        energia enquanto ele gasta lá dentro.</p>
+      <ul>
+        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>DC de 60 ou 80 kW resolve a maioria</li>
+        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>Sua marca aparece no app do motorista</li>
+        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>Recarga gratuita ou paga, você escolhe</li>
+        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>Taxa de ociosidade para girar a vaga</li>
+      </ul>
+      <button class="btn toque" type="button" data-abre="contato" data-perfil="estabelecimento">Quero no meu estabelecimento</button>
+    </div>
+
+    <div class="solucao">
+      <span class="quem">Para quem fica horas parado</span>
+      <h3>Condomínio e frota</h3>
+      <p>Carro parado a noite inteira ou o dia todo não precisa de recarga rápida — precisa de wallbox
+        e de controle de quem gastou o quê.</p>
+      <ul>
+        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>Wallbox W7, W11 ou W22 em Tipo 2</li>
+        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>Investimento bem menor que o DC</li>
+        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>Consumo separado por morador ou motorista</li>
+        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>Mesma plataforma de gestão dos DC</li>
+      </ul>
+      <button class="btn toque" type="button" data-abre="contato" data-perfil="frota">Quero para condomínio ou frota</button>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ RETORNO ══════════ -->
 <section id="retorno" class="faixa">
   <div class="cabeca">
     <div>
@@ -387,32 +670,26 @@ footer a{text-decoration:underline;text-underline-offset:3px;display:inline-bloc
           <option value="240|189000">NEXUS D240 — 240 kW — R$ 189.000</option>
         </select>
       </div>
-
       <div class="campo">
         <label for="s-carros">Carros por dia <b><span id="v-carros">6</span></b></label>
         <input type="range" id="s-carros" min="1" max="30" step="1" value="6">
       </div>
-
       <div class="campo">
         <label for="s-kwh">kWh por recarga <b><span id="v-kwh">25</span> kWh</b></label>
         <input type="range" id="s-kwh" min="10" max="70" step="1" value="25">
       </div>
-
       <div class="campo">
         <label for="s-tarifa">Quanto você cobra por kWh <b>R$ <span id="v-tarifa">2,20</span></b></label>
         <input type="range" id="s-tarifa" min="1.2" max="4" step="0.05" value="2.20">
       </div>
-
       <div class="campo">
         <label for="s-custo">Quanto o kWh custa pra você <b>R$ <span id="v-custo">0,95</span></b></label>
         <input type="range" id="s-custo" min="0.4" max="1.8" step="0.05" value="0.95">
       </div>
-
       <div class="campo">
         <label for="s-obra">Obra e instalação do ponto <b>R$ <span id="v-obra">80.000</span></b></label>
         <input type="range" id="s-obra" min="20000" max="180000" step="5000" value="80000">
       </div>
-
       <div class="campo" style="margin-bottom:0">
         <label for="s-ativa">Taxa de ativação por recarga <b>R$ <span id="v-ativa">1,50</span></b></label>
         <input type="range" id="s-ativa" min="0" max="5" step="0.25" value="1.50">
@@ -422,7 +699,6 @@ footer a{text-decoration:underline;text-underline-offset:3px;display:inline-bloc
     <div class="painel">
       <p class="rotulo">Sobra por mês</p>
       <p class="grande tabular">R$ <span id="r-sobra">5.895</span></p>
-
       <div class="linhas">
         <div><span>Recargas no mês</span><b class="tabular" id="r-sessoes">180</b></div>
         <div><span>Energia vendida</span><b class="tabular" id="r-kwh">4.500 kWh</b></div>
@@ -431,128 +707,100 @@ footer a{text-decoration:underline;text-underline-offset:3px;display:inline-bloc
         <div class="destaque"><span>Investimento no ponto</span><b class="tabular" id="r-invest">R$ 159.000</b></div>
         <div class="destaque"><span>Se paga em</span><b class="tabular" id="r-payback">27 meses</b></div>
       </div>
-
       <p class="aviso">Estimativa para você enxergar a ordem de grandeza. Não entra imposto, aluguel do
         ponto, manutenção nem custo do dinheiro. A conta fechada, com a tarifa da sua distribuidora e a
         obra do seu endereço, sai na proposta.</p>
-
       <div class="acoes" style="margin-top:auto">
-        <button class="btn toque" type="button" data-abre="especialista" style="width:100%">
+        <button class="btn toque" type="button" data-abre="contato" style="width:100%">
           Quero a conta do meu ponto</button>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ══════════ MODELOS ══════════ -->
-<section id="modelos" class="faixa">
+<!-- ══════════ PONTOS DE RECARGA ══════════ -->
+<section id="pontos" class="faixa">
   <div class="cabeca">
     <div>
-      <h2>A linha em corrente contínua</h2>
-      <p>O número do modelo é a potência em kW.</p>
+      <h2>O seu ponto no mapa do motorista</h2>
+      <p>A NEXUS não opera rede de recarga — a estação é sua e o faturamento é seu. O que a gente
+        entrega é o caminho para o motorista te achar e conseguir pagar.</p>
     </div>
-    <span class="chip">Preço do equipamento · instalação sob orçamento</span>
   </div>
 
-  <div class="vitrine">
-
-    <article class="cartao modelo">
-      <div class="desenho"><img src="/nexus/img/d60.webp" width="620" height="775" alt="Carregador NEXUS D60 de 60 kW" loading="lazy"></div>
-      <div class="corpo">
-        <span class="selo">Entrada de rede</span>
-        <p class="nome">NEXUS D60</p>
-        <p class="kw tabular">60<small>kW</small></p>
-        <ul>
-          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>CCS2 · 1 ou 2 plugues</li>
-          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Refrigeração ativa</li>
-          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>OCPP 1.6J</li>
-        </ul>
-        <div class="preco"><b class="tabular">R$ 69.000</b><span>equipamento, à vista</span></div>
-        <button class="btn toque" type="button" data-abre="especialista" data-modelo="NEXUS D60 (60 kW)">Pedir proposta</button>
+  <div class="plataforma">
+    <div class="beneficios" style="grid-template-columns:1fr">
+      <div class="beneficio">
+        <h3>Achou, encostou, carregou</h3>
+        <p>Sua estação aparece no mapa do NEXUS REDE com potência, tipo de conector e o preço por kWh
+          que você definiu. O motorista ativa por QR Code — sem cadastro de máquina, sem cartão da rede.</p>
       </div>
-    </article>
-
-    <article class="cartao modelo">
-      <div class="desenho"><img src="/nexus/img/d80.webp" width="620" height="775" alt="Carregador NEXUS D80 de 80 kW com dois conectores CCS2" loading="lazy"></div>
-      <div class="corpo">
-        <span class="selo destaque">Mais indicado</span>
-        <p class="nome">NEXUS D80</p>
-        <p class="kw tabular">80<small>kW</small></p>
-        <ul>
-          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>CCS2 · 1 ou 2 plugues</li>
-          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Dois carros ao mesmo tempo</li>
-          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>OCPP 1.6J</li>
-        </ul>
-        <div class="preco"><b class="tabular">R$ 79.000</b><span>equipamento, à vista</span></div>
-        <button class="btn toque" type="button" data-abre="especialista" data-modelo="NEXUS D80 (80 kW)">Pedir proposta</button>
+      <div class="beneficio">
+        <h3>O dinheiro cai na sua conta</h3>
+        <p>Pix ou cartão, cobrado por kWh entregue. Você também pode cobrar taxa de ociosidade de quem
+          fica ocupando a vaga depois que o carro encheu.</p>
       </div>
-    </article>
-
-    <article class="cartao modelo">
-      <div class="desenho"><img src="/nexus/img/d120.webp" width="620" height="775" alt="Carregador NEXUS D120 de 120 kW" loading="lazy"></div>
-      <div class="corpo">
-        <span class="selo">Corredor movimentado</span>
-        <p class="nome">NEXUS D120</p>
-        <p class="kw tabular">120<small>kW</small></p>
-        <ul>
-          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>CCS2 · 2 plugues</li>
-          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Divide potência entre as vagas</li>
-          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>OCPP 1.6J</li>
-        </ul>
-        <div class="preco"><b class="tabular">R$ 119.000</b><span>equipamento, à vista</span></div>
-        <button class="btn toque" type="button" data-abre="especialista" data-modelo="NEXUS D120 (120 kW)">Pedir proposta</button>
+      <div class="beneficio">
+        <h3>Vazio também é informação</h3>
+        <p>O painel mostra hora a hora quando a estação trabalha e quando fica parada. É com isso que
+          você ajusta a tarifa e decide se cabe a segunda vaga.</p>
       </div>
-    </article>
+    </div>
 
-    <article class="cartao modelo">
-      <div class="desenho"><img src="/nexus/img/d160.webp" width="620" height="775" alt="Carregadores NEXUS D160 de 160 kW prontos para embarque" loading="lazy"></div>
-      <div class="corpo">
-        <span class="selo">Rodovia</span>
-        <p class="nome">NEXUS D160</p>
-        <p class="kw tabular">160<small>kW</small></p>
-        <ul>
-          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>CCS2 · 2 plugues</li>
-          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Duas vagas em carga cheia</li>
-          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>OCPP 1.6J</li>
-        </ul>
-        <div class="preco"><b class="tabular">R$ 149.000</b><span>equipamento, à vista</span></div>
-        <button class="btn toque" type="button" data-abre="especialista" data-modelo="NEXUS D160 (160 kW)">Pedir proposta</button>
+    <div class="fone" aria-hidden="true">
+      <div class="tela">
+        <div class="mapa"></div>
+        <div class="via" style="left:0;right:0;top:38%;height:9px"></div>
+        <div class="via" style="left:0;right:0;top:66%;height:6px"></div>
+        <div class="via" style="left:28%;top:0;bottom:0;width:8px"></div>
+        <div class="via" style="left:71%;top:0;bottom:0;width:5px"></div>
+        <div class="pin"      style="left:26%;top:33%"><i>80</i></div>
+        <div class="pin azul" style="left:63%;top:52%"><i>60</i></div>
+        <div class="pin azul" style="left:38%;top:60%"><i>22</i></div>
+        <div class="topo-app">
+          <svg viewBox="0 0 96 96" width="15" height="15"><use href="#mk"></use></svg>
+          <span>Estações perto de você</span>
+        </div>
+        <div class="ficha">
+          <b>Posto Vila Nova · NEXUS D80</b>
+          <div class="li"><span>Potência</span><b>80 kW · CCS2</b></div>
+          <div class="li"><span>Preço</span><b>R$ 2,20 /kWh</b></div>
+          <div class="li"><span>Situação</span><b>2 vagas livres</b></div>
+          <div class="acao">Iniciar recarga</div>
+        </div>
+        <div class="barra"></div>
       </div>
-    </article>
-
-    <article class="cartao modelo">
-      <div class="desenho"><img src="/nexus/img/d240.webp" width="620" height="775" alt="Carregador NEXUS D240 de 240 kW visto de frente" loading="lazy"></div>
-      <div class="corpo">
-        <span class="selo">Hub</span>
-        <p class="nome">NEXUS D240</p>
-        <p class="kw tabular">240<small>kW</small></p>
-        <ul>
-          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>CCS2 · 2 plugues</li>
-          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>O topo da linha</li>
-          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>OCPP 1.6J</li>
-        </ul>
-        <div class="preco"><b class="tabular">R$ 189.000</b><span>equipamento, à vista</span></div>
-        <button class="btn toque" type="button" data-abre="especialista" data-modelo="NEXUS D240 (240 kW)">Pedir proposta</button>
-      </div>
-    </article>
-
+    </div>
   </div>
-  <p style="margin-top:12px;font-size:12.5px;color:var(--fraco)">
-    Preço do equipamento. Projeto, parecer de acesso, obra e instalação entram no orçamento do ponto.
-    O gabinete muda conforme a potência e a configuração de plugues é confirmada na proposta.
-  </p>
+
+  <div class="escuro" style="margin-top:22px">
+    <h2 style="font-size:clamp(20px,2.8vw,26px)">O que vem junto com o equipamento</h2>
+    <div class="junto">
+      <div><h3>NEXUS REDE</h3><p>O app do motorista: mapa, ativação por QR Code e pagamento no Pix ou cartão.</p></div>
+      <div><h3>NEXUS PAINEL</h3><p>Faturamento, consumo e status em tempo real. A tarifa por kWh é você quem define.</p></div>
+      <div><h3>NEXUS 24</h3><p>Instalação, garantia e peça de reposição no país.</p></div>
+      <div><h3>OCPP 1.6J aberto</h3><p>Protocolo padrão de mercado: ninguém fica preso a uma plataforma.</p></div>
+    </div>
+    <p style="margin-top:18px;font-size:12.5px;color:#7E8EA1">NEXUS REDE e NEXUS PAINEL são acessados pelo
+      navegador do celular. Não temos aplicativo publicado em loja — quando tiver, o link estará aqui.</p>
+  </div>
 </section>
 
-<!-- ══════════ EQUIPAMENTO ══════════ -->
+<!-- ══════════ EQUIPAMENTO REAL ══════════ -->
 <section id="equipamento" class="faixa">
   <div class="cabeca">
     <div>
       <h2>O equipamento que sai do nosso estoque</h2>
-      <p>Foto do que a gente entrega, com peça de reposição já no Brasil.</p>
+      <p>Foto do que a gente entrega — sem render, sem estúdio.</p>
     </div>
   </div>
-
-  <div class="galeria">
+  <div class="galeria" style="grid-template-columns:1fr">
+    <figure class="foto">
+      <img src="/nexus/img/hero.webp" width="1080" height="720" alt="Três carregadores NEXUS de corrente contínua na linha de produção, prontos para embarque" loading="lazy">
+      <figcaption><b>Estoque, não catálogo</b>Unidades na linha, prontas para embarque — é daqui que sai o seu.</figcaption>
+    </figure>
+  </div>
+  <div class="galeria" style="margin-top:14px">
     <figure class="foto">
       <img src="/nexus/img/equipamento.webp" width="820" height="1093" alt="Carregador NEXUS de corrente contínua visto de frente, com dois conectores CCS2 e luz verde no encaixe" loading="lazy">
       <figcaption><b>Dois plugues, luz verde no encaixe</b>CCS2 dos dois lados e refrigeração ativa.</figcaption>
@@ -564,86 +812,12 @@ footer a{text-decoration:underline;text-underline-offset:3px;display:inline-bloc
   </div>
 </section>
 
-<!-- ══════════ WALLBOX ══════════ -->
-<section id="wallbox" class="faixa">
-  <div class="cartao" style="overflow:hidden">
-    <div class="wb">
-      <img src="/nexus/img/wallbox.webp" width="1100" height="733" alt="Wallbox NEXUS com anel de luz verde e conector Tipo 2 encaixado" loading="lazy">
-      <div class="texto">
-        <p class="rotulo">Corrente alternada</p>
-        <h2 style="font-size:24px;margin-top:8px">Wallbox para quem fica horas parado</h2>
-        <p style="color:var(--suave);font-size:15px;margin-top:10px">Condomínio, hotel, escritório e frota.
-          Conector Tipo 2, parede ou pedestal, mesma plataforma de gestão dos modelos DC.</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">
-          <span class="chip">NEXUS W7 · 7,3 kW</span>
-          <span class="chip">NEXUS W11 · 11 kW trifásico</span>
-          <span class="chip">NEXUS W22 · 22 kW trifásico</span>
-        </div>
-        <div class="acoes">
-          <button class="btn toque" type="button" data-abre="especialista" data-modelo="Wallbox NEXUS (corrente alternada)">Pedir preço do wallbox</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ══════════ O QUE VEM JUNTO ══════════ -->
-<section id="junto" class="faixa">
-  <div class="escuro">
-    <h2 style="font-size:clamp(22px,3vw,30px)">O que vem junto com o equipamento</h2>
-    <p style="margin-top:10px;max-width:56ch">O que faz o ponto faturar todo dia e continuar de pé.</p>
-
-    <div class="junto">
-      <div>
-        <h3>NEXUS REDE</h3>
-        <p>O app do motorista: acha a estação no mapa, ativa por QR Code e paga no Pix ou cartão.</p>
-      </div>
-      <div>
-        <h3>NEXUS PAINEL</h3>
-        <p>Faturamento, consumo e status em tempo real. A tarifa por kWh é você quem define.</p>
-      </div>
-      <div>
-        <h3>NEXUS 24</h3>
-        <p>Instalação, garantia e peça de reposição no país.</p>
-      </div>
-      <div>
-        <h3>OCPP 1.6J aberto</h3>
-        <p>Protocolo padrão de mercado: ninguém fica preso a uma plataforma.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ══════════ COMO FUNCIONA ══════════ -->
-<section id="passos" class="faixa">
-  <div class="cabeca">
-    <div>
-      <h2>Do primeiro contato à primeira recarga</h2>
-      <p>Sem mistério e sem visita para descobrir o óbvio.</p>
-    </div>
-  </div>
-  <div class="passos">
-    <div class="passo"><i>1</i><b>Duas informações</b>
-      <p>Se a entrada do local é trifásica e qual o disjuntor geral. Com isso a gente já diz qual
-        modelo cabe.</p></div>
-    <div class="passo"><i>2</i><b>Proposta fechada</b>
-      <p>Equipamento, obra, prazo e a conta do ponto no seu endereço, com a tarifa da sua
-        distribuidora.</p></div>
-    <div class="passo"><i>3</i><b>Projeto e parecer</b>
-      <p>A gente cuida do projeto elétrico e do parecer de acesso junto à concessionária.</p></div>
-    <div class="passo"><i>4</i><b>Obra e comissionamento</b>
-      <p>Instalação, energização e teste de carga com o equipamento que já está no estoque.</p></div>
-    <div class="passo"><i>5</i><b>No mapa, faturando</b>
-      <p>A estação entra no app, você define a tarifa e o dinheiro do motorista cai na sua conta.</p></div>
-  </div>
-</section>
-
-<!-- ══════════ FICHA ══════════ -->
+<!-- ══════════ FICHA TÉCNICA ══════════ -->
 <section id="ficha" class="faixa">
   <div class="cabeca">
     <div>
-      <h2>Ficha técnica</h2>
-      <p>O que muda de um modelo para o outro.</p>
+      <h2>Ficha técnica e preços</h2>
+      <p>A linha inteira numa tabela só.</p>
     </div>
   </div>
   <div class="tabela">
@@ -663,9 +837,8 @@ footer a{text-decoration:underline;text-underline-offset:3px;display:inline-bloc
       </tbody>
     </table>
   </div>
-  <p style="margin-top:10px;font-size:12.5px;color:var(--fraco)">
-    Todos com OCPP 1.6J. Refrigeração ativa nos modelos em corrente contínua.
-  </p>
+  <p class="nota">Todos com OCPP 1.6J. Refrigeração ativa nos modelos em corrente contínua. Valores do
+    equipamento, à vista, e podem ser atualizados — o que vale é o da proposta.</p>
 </section>
 
 <!-- ══════════ DÚVIDAS ══════════ -->
@@ -678,9 +851,15 @@ footer a{text-decoration:underline;text-underline-offset:3px;display:inline-bloc
       que a gente responde qual modelo cabe, sem precisar de visita.</p>
   </details>
   <details>
-    <summary>O preço inclui instalação?</summary>
-    <p>Não, o valor é do equipamento. Projeto, parecer de acesso, obra e comissionamento entram no
-      orçamento do ponto: um ponto completo de 80 kW costuma fechar na faixa de R$ 160 mil.</p>
+    <summary>Quanto custa um ponto completo de 80 kW?</summary>
+    <p>Costuma fechar na faixa de R$ 160 mil. Entram o equipamento (R$ 79.000), projeto elétrico, parecer
+      de acesso, obra civil, cabeamento, proteção e comissionamento. Não entram aluguel do terreno,
+      impostos da sua operação nem eventual reforço de entrada pedido pela concessionária.</p>
+  </details>
+  <details>
+    <summary>O preço da tabela inclui instalação?</summary>
+    <p>Não, o valor é do equipamento. A obra é orçada por endereço, porque depende da distância até o
+      quadro, do tipo de piso e do que a concessionária exigir no parecer.</p>
   </details>
   <details>
     <summary>E quando quebrar?</summary>
@@ -700,11 +879,16 @@ footer a{text-decoration:underline;text-underline-offset:3px;display:inline-bloc
     <p>A gente monta o dossiê de crédito do projeto — investimento, geração de caixa e prazo — no formato
       que o banco pede. A aprovação é do banco, mas o material vai pronto.</p>
   </details>
+  <details>
+    <summary>Serve para qualquer carro elétrico?</summary>
+    <p>Os DC usam CCS2 e os wallbox usam Tipo 2, que são os dois padrões dos elétricos e híbridos plug-in
+      vendidos no Brasil. Carro com outro padrão de fábrica precisa do adaptador do próprio fabricante.</p>
+  </details>
 </section>
 
-<!-- ══════════ ESPECIALISTA ══════════ -->
+<!-- ══════════ CONTATO ══════════ -->
 <div class="faixa">
-  <div class="espec" id="especialista">
+  <div class="espec" id="contato">
     <svg class="textura" aria-hidden="true"><rect width="100%" height="100%" fill="url(#malha)"></rect></svg>
     <div class="dentro">
       <h2>Fale com quem monta ponto de recarga todo mês</h2>
@@ -798,14 +982,44 @@ footer a{text-decoration:underline;text-underline-offset:3px;display:inline-bloc
 
 <footer>
   <div class="faixa">
-    <span style="display:flex;align-items:center;gap:8px;color:var(--suave)">
-      <svg viewBox="0 0 96 96" width="18" height="18" aria-hidden="true"><use href="#mk"></use></svg>
-      NEXUS — carregadores para carro elétrico. Uma marca Irmãos na Obra.
-    </span>
-    <span>
-      <a href="/eletroposto">Eletroposto chave na mão</a> ·
-      <a href="/privacidade">Privacidade</a>
-    </span>
+    <div class="colunas">
+      <div>
+        <span style="display:flex;align-items:center;gap:8px;color:var(--tinta);font-family:var(--serif);font-size:16px">
+          <svg viewBox="0 0 96 96" width="19" height="19" aria-hidden="true"><use href="#mk"></use></svg>
+          NEXUS
+        </span>
+        <p style="margin-top:10px;color:var(--suave);max-width:30ch">Carregadores para carro elétrico.
+          Uma marca Irmãos na Obra.</p>
+      </div>
+      <div>
+        <h4>A linha</h4>
+        <ul>
+          <li><a href="#produtos">Carregadores DC</a></li>
+          <li><a href="#produtos">Wallbox AC</a></li>
+          <li><a href="#ficha">Ficha técnica e preços</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Para decidir</h4>
+        <ul>
+          <li><a href="#retorno">Conta do ponto</a></li>
+          <li><a href="#solucoes">Soluções</a></li>
+          <li><a href="#duvidas">Dúvidas</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Falar com a gente</h4>
+        <ul>
+          <li><a href="#contato">Falar com especialista</a></li>
+          <li><a href="/eletroposto">Eletroposto chave na mão</a></li>
+          <li><a href="/privacidade">Privacidade</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="base">
+      <span>NEXUS — carregadores para carro elétrico.</span>
+      <span>Suporte NEXUS 24 pelo mesmo canal do comercial.</span>
+    </div>
   </div>
 </footer>
 
@@ -829,7 +1043,7 @@ footer a{text-decoration:underline;text-underline-offset:3px;display:inline-bloc
     try {
       i = parseInt(localStorage.getItem('nexus_rodizio') || '0', 10) || 0;
       localStorage.setItem('nexus_rodizio', String((i + 1) % ativos.length));
-    } catch (e) { i = Math.floor(Math.random() * ativos.length); }
+    } catch (e) { i = 0; }
     return ativos[i % ativos.length];
   }
 
@@ -982,9 +1196,11 @@ footer a{text-decoration:underline;text-underline-offset:3px;display:inline-bloc
   };
 
   document.addEventListener('click', function(ev){
-    var p = ev.target.closest('[data-perfil]');
-    if (p){
-      var valor = PERFIL[p.dataset.perfil];
+    var a = ev.target.closest('[data-abre="contato"]');
+    if (!a) return;
+    if (a.dataset.modelo) modeloPedido = a.dataset.modelo;
+    if (a.dataset.perfil && PERFIL[a.dataset.perfil]){
+      var valor = PERFIL[a.dataset.perfil];
       var alvo  = form.querySelector('.opcoes[data-campo="objetivo"] .opcao[value="' + valor + '"]');
       if (alvo){
         form.querySelectorAll('.opcoes[data-campo="objetivo"] .opcao')
@@ -993,16 +1209,10 @@ footer a{text-decoration:underline;text-underline-offset:3px;display:inline-bloc
         resp.objetivo = valor;
         mostra(1);
       }
-      document.getElementById('especialista').scrollIntoView({ block: 'start' });
-      return;
     }
-    var a = ev.target.closest('[data-abre="especialista"]');
-    if (a){
-      if (a.dataset.modelo) modeloPedido = a.dataset.modelo;
-      document.getElementById('especialista').scrollIntoView({ block: 'start' });
-      var foco = etapas[atual].querySelector('.opcao, input');
-      if (foco) setTimeout(function(){ foco.focus({ preventScroll: true }); }, 320);
-    }
+    document.getElementById('contato').scrollIntoView({ block: 'start' });
+    var foco = etapas[atual].querySelector('.opcao, input');
+    if (foco) setTimeout(function(){ foco.focus({ preventScroll: true }); }, 320);
   });
 
   mostra(0);
