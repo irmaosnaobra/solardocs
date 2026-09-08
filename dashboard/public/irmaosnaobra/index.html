@@ -20,16 +20,42 @@
 <link rel="icon" href="/irmaosnaobra/assets/img/icone-192.png" type="image/png">
 <link rel="apple-touch-icon" href="/irmaosnaobra/assets/img/icone-192.png">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<!-- As fontes moram aqui, nao no Google. Com o <link> pro fonts.googleapis.com
+     o navegador tinha que abrir DUAS conexoes novas antes de desenhar a
+     primeira letra, e o CSS de la' bloqueia a pintura. Ver
+     scripts/build-fontes-irmaosnaobra.js.
+     As duas pre-carregadas sao as que a primeira tela usa: o titulo (Barlow
+     800) e o texto (Inter). As outras tres o navegador busca quando precisar. -->
+<link rel="preload" as="font" type="font/woff2" crossorigin
+      href="/irmaosnaobra/assets/fontes/barlow-condensed-800.woff2">
+<link rel="preload" as="font" type="font/woff2" crossorigin
+      href="/irmaosnaobra/assets/fontes/inter-variavel.woff2">
 <link rel="stylesheet" href="/irmaosnaobra/assets/css/style.css">
 
-<!-- Pixel da Meta — o mesmo das outras páginas da Irmãos na Obra -->
+<!-- A foto do topo e' o maior elemento da primeira tela, e ela vem de
+     background-image no CSS: o navegador so' descobre que precisa dela depois
+     de baixar E interpretar a folha de estilo. O preload adianta o pedido.
+     Uma por largura, com media, senao o celular baixaria as duas. -->
+<link rel="preload" as="image" media="(min-width:901px)"
+      href="/irmaosnaobra/assets/img/hero-desktop.webp">
+<link rel="preload" as="image" media="(max-width:900px)"
+      href="/irmaosnaobra/assets/img/hero-mobile.webp">
+
+<!-- Pixel da Meta — o mesmo das outras páginas da Irmãos na Obra.
+     ELE CHEGA DEPOIS, DE PROPÓSITO. O fbevents.js sozinho é mais pesado que a
+     página inteira, e num celular ele disputava o processador justamente no
+     segundo em que o site deveria estar aparecendo. Agora só entra quando a
+     pessoa dá sinal de vida (rolou, tocou, apertou tecla) ou 3,5s depois — o
+     que vier primeiro. Nenhum evento se perde: a fila do fbq() guarda o
+     PageView e ele dispara assim que o script chega. -->
 <script>
-!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];f.__carregaPixel=function(){if(f.__pixelIndo)return;f.__pixelIndo=!0;t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
 fbq('init', '446093469730871');
 fbq('track', 'PageView');
+['scroll','pointerdown','keydown','touchstart'].forEach(function(ev){
+  addEventListener(ev, window.__carregaPixel, { once: true, passive: true });
+});
+setTimeout(window.__carregaPixel, 3500);
 </script>
 <noscript><img height="1" width="1" style="display:none" alt=""
   src="https://www.facebook.com/tr?id=446093469730871&ev=PageView&noscript=1"></noscript>
@@ -587,9 +613,9 @@ fbq('track', 'PageView');
   <img id="lupa-img" alt="">
 </div>
 
-<script src="/irmaosnaobra/assets/js/dados.js"></script>
-<script src="/irmaosnaobra/assets/js/simulador.js"></script>
-<script src="/irmaosnaobra/assets/js/main.js"></script>
+<script src="/irmaosnaobra/assets/js/dados.js" defer></script>
+<script src="/irmaosnaobra/assets/js/simulador.js" defer></script>
+<script src="/irmaosnaobra/assets/js/main.js" defer></script>
 <script src="/lib/telemetria.js" defer></script>
 </body>
 </html>

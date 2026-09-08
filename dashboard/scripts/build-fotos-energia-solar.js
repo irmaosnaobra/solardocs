@@ -49,9 +49,13 @@ const VITRINE = new Set([]);
 
 // [origem, nome de saida, largura, altura ou null pra manter proporcao, qualidade]
 const TRABALHOS = [
-  // capa: 16:9 no desktop, e no celular um recorte 4:3 puxado pra casa
-  [path.join(FONTES, 'capa-hero.png'), 'hero-desktop', 1600, 900, 80],
-  [path.join(FONTES, 'capa-hero.png'), 'hero-mobile', 900, 675, 82],
+  // Capa: 16:9 no desktop, 4:3 no celular. Ela e' o maior elemento da primeira
+  // tela, entao o tamanho aqui e' o que decide se o site abre rapido.
+  // 1440 q74 contra 1600 q80: 143 KB no lugar de 202, e lado a lado no mesmo
+  // recorte nao da' pra ver diferenca. No celular, 820px cobre 390 CSS em tela
+  // retina — 73 KB no lugar de 106.
+  [path.join(FONTES, 'capa-hero.png'), 'hero-desktop', 1440, 810, 74],
+  [path.join(FONTES, 'capa-hero.png'), 'hero-mobile', 820, 615, 76],
 
   [path.join(FONTES, 'servico-residencial.png'), 'servico-residencial', 800, 597, 84],
   [path.join(FONTES, 'servico-industria.jpg'), 'servico-industria', 800, 597, 86],
