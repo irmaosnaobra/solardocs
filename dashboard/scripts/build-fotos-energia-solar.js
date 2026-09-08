@@ -83,10 +83,12 @@ const TRABALHOS = [
   [path.join(RAIZ, 'io', 'img', 'logoio.webp'), 'logo-simbolo', 160, 160, 85],
 ];
 
-// prints de conversa: sao estreitos de origem, nao da' pra ampliar sem borrar
-[1, 2, 3, 4, 5, 6, 7].forEach((n) => {
-  TRABALHOS.push([fedd(n), 'depo-' + n, 440, null, 74]);
-});
+// Os prints de conversa do WhatsApp sairam da pagina em 08/09/2026 (o Thiago
+// preferiu ficar so' com o mural do Instagram). Nao sao mais gerados. Pra
+// voltar, e' descomentar aqui E repor a secao no dados.js/index.html.
+//   [1, 2, 3, 4, 5, 6, 7].forEach((n) => {
+//     TRABALHOS.push([fedd(n), 'depo-' + n, 440, null, 74]);
+//   });
 
 (async () => {
   // o card do meio virou "industria": o arquivo antigo nao pode ficar orfao

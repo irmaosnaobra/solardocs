@@ -252,73 +252,17 @@ const OBRAS = [
 ];
 
 /* --------------------------------------------------------------------------
-   DEPOIMENTOS
+   OS PRINTS DE CONVERSA DO WHATSAPP SAÍRAM
 
-   Cada um destes é a transcrição de um print de conversa que a empresa já
-   publica no /io. O print vai junto, do lado, e abre em tamanho grande no
-   clique: o texto é pra ler no celular, o print é a prova de que ele existe.
+   Existiam sete cards com print de conversa no WhatsApp (Denivan, Sueli,
+   Cléber, Andrigo, Márcio, Sebastião e Huberth), transcritos. O Thiago mandou
+   tirar em 08/09/2026 — achou a seção do Instagram mais organizada e não quis
+   as duas.
 
-   O sobrenome não vai porque não está no print. A cidade também não — nenhum
-   dos prints diz de onde a pessoa é, e eu não vou deduzir.
+   As sete imagens saíram do repo junto (assets/img/depo-1..7.webp). Os originais
+   continuam em public/io/img/fedd1..7.jpg e a página /io ainda usa. Pra trazer
+   de volta: gerar os webp de novo pelo build-fotos e repor a seção.
    -------------------------------------------------------------------------- */
-// 20 é a contagem de DEPOIMENTOS (7 conversas + 13 comentários), não de gente:
-// Márcio, Cléber, Andrigo e Huberth aparecem nas duas fontes. Por isso o texto
-// diz "depoimentos", e não "clientes" — a contagem de pessoas seria uns 16.
-const AVALIACAO = { nota: '20', total: 'depoimentos publicados, com nome ou @' };
-
-const DEPOIMENTOS = [
-  {
-    texto: 'Estou satisfeito com a agilidade e com o comprometimento durante a instalação do kit solar. Me explicaram muito bem como funciona o sistema e está funcionando a todo vapor.',
-    nome: 'Denivan',
-    marca: 'Conversa no WhatsApp',
-    print: '/irmaosnaobra/assets/img/depo-1.webp',
-    alt: 'Print da conversa no WhatsApp com o cliente Denivan'
-  },
-  {
-    texto: 'Fiquei muito satisfeita com o trabalho de vocês, com certeza eu indicaria sim. Nota 10 por tudo. 100% satisfeita.',
-    nome: 'Sueli',
-    marca: 'Conversa no WhatsApp',
-    print: '/irmaosnaobra/assets/img/depo-3.webp',
-    alt: 'Print da conversa no WhatsApp com a cliente Sueli'
-  },
-  {
-    texto: 'Passando aqui pra deixar meu agradecimento a todos da equipe Irmãos na Obra pelo profissionalismo e transparência com o serviço prestado, tudo dentro do combinado. Pelo suporte e atenção antes do término do serviço e após o término.',
-    nome: 'Cléber',
-    marca: 'Conversa no WhatsApp',
-    print: '/irmaosnaobra/assets/img/depo-6.webp',
-    alt: 'Print da conversa no WhatsApp com o cliente Cléber'
-  },
-  {
-    texto: 'Foi top meu irmão, muito rápido, tanto o processo quanto a montagem. Gostei muito viu.',
-    nome: 'Andrigo',
-    marca: 'Conversa no WhatsApp',
-    print: '/irmaosnaobra/assets/img/depo-7.webp',
-    alt: 'Print da conversa no WhatsApp com o cliente Andrigo'
-  },
-  {
-    texto: 'Estou extremamente satisfeito com os resultados adquiridos com a instalação do meu sistema fotovoltaico. Tenho verificado uma produção de energia muito satisfatória, dentro do nosso combinado, onde até mesmo nos dias de pouca incidência do sol segue atendendo à minha demanda. Super recomendo.',
-    nome: 'Márcio',
-    marca: 'Conversa no WhatsApp',
-    print: '/irmaosnaobra/assets/img/depo-4.webp',
-    alt: 'Print da conversa no WhatsApp com o cliente Márcio'
-  },
-  {
-    texto: 'Bom dia, Diego. Indicaria sim.',
-    nome: 'Sebastião',
-    marca: 'Conversa no WhatsApp',
-    print: '/irmaosnaobra/assets/img/depo-2.webp',
-    alt: 'Print da conversa no WhatsApp com o cliente Sebastião'
-  },
-  {
-    destaque: true,
-    texto: 'Meu nome é Huberth e tenho uma satisfação a declarar sobre a empresa Irmãos na Obra. Comprei um kit energia fotovoltaica, tive um excelente atendimento, tanto na instalação e o pós, algo que merece parabenizá-los. Até o momento, qualquer ajuda sobre o sistema eles estão sempre dispostos a ajudar. Encerro com meu muito obrigado a toda equipe, pela idoneidade de todos.',
-    nome: 'Huberth',
-    marca: 'Conversa no WhatsApp',
-    print: '/irmaosnaobra/assets/img/depo-5.webp',
-    alt: 'Print da conversa no WhatsApp com o cliente Huberth'
-  }
-];
-
 
 /* --------------------------------------------------------------------------
    COMENTÁRIOS DO INSTAGRAM — UM PRINT POR CLIENTE

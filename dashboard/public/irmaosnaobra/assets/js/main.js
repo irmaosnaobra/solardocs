@@ -59,37 +59,6 @@
     '</article>';
   }).join('');
 
-  /* ---------------------------------------------------------- depoimentos */
-  // NÃO tem estrela em lugar nenhum desta seção, e é de propósito. Ninguém aqui
-  // deu nota: as pessoas responderam "indicaria?" e escreveram um texto. Pintar
-  // cinco estrelas em cima de "Indicaria sim" seria eu inventando a nota delas.
-  // O número é a contagem de DEPOIMENTOS, não de pessoas — quatro clientes
-  // aparecem nas duas fontes (Márcio, Cléber, Andrigo e Huberth mandaram
-  // mensagem e também comentaram no post), então a contagem de gente é menor.
-  document.getElementById('nota-valor').textContent = AVALIACAO.nota;
-  document.getElementById('nota-texto').textContent = AVALIACAO.total;
-
-  document.getElementById('depo-lista').innerHTML = DEPOIMENTOS.map(function (d) {
-    // O print entra como botão porque ele ABRE alguma coisa. Se fosse só <img>
-    // o leitor de tela anunciaria uma foto sem dizer que dá pra ampliar.
-    const prova = d.print
-      ? '<button class="depoimento__print" type="button" data-print="' + d.print + '" ' +
-        'data-legenda="' + d.alt + '" aria-label="Ver o print da conversa com ' + d.nome + '">' +
-          '<img src="' + d.print + '" alt="' + d.alt + '" loading="lazy">' +
-          '<span class="depoimento__lupa">Ver a conversa</span>' +
-        '</button>'
-      : '';
-
-    return '<article class="depoimento revelar' + (d.destaque ? ' depoimento--destaque' : '') + '">' +
-      prova +
-      '<div class="depoimento__corpo">' +
-        '<p class="depoimento__fonte">' + d.marca + '</p>' +
-        '<p class="depoimento__texto">"' + d.texto + '"</p>' +
-        '<p class="depoimento__nome">' + d.nome + '</p>' +
-      '</div>' +
-    '</article>';
-  }).join('');
-
   /* -------------------------------------------- comentários do Instagram */
   // Um card por cliente: o print do comentário dele sozinho, e o @ em destaque
   // logo abaixo, no tipo do site. O @ NÃO é escrito por cima da imagem — print
@@ -212,6 +181,16 @@
   }
   window.addEventListener('scroll', aoRolar, { passive: true });
   aoRolar();
+
+  // A pastilha existe pra levar ao simulador. Com o simulador na tela ela nao
+  // tem funcao e ainda atrapalha: no celular ela encosta no "Ver meu
+  // resultado". Some enquanto ele estiver visivel.
+  const simulador = document.getElementById('simulador');
+  if (simulador && 'IntersectionObserver' in window) {
+    new IntersectionObserver(function (e) {
+      flutuante.classList.toggle('escondida', e[0].isIntersecting);
+    }, { threshold: 0.08 }).observe(simulador);
+  }
 
   /* -------------------------------------------------- revelação ao rolar */
   const alvos = document.querySelectorAll('.revelar');
