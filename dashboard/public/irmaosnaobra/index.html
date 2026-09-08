@@ -35,15 +35,6 @@
      mexer aqui, meca de novo antes. -->
 <link rel="stylesheet" href="/irmaosnaobra/assets/css/style.css">
 
-<!-- A foto do topo e' o maior elemento da primeira tela, e ela vem de
-     background-image no CSS: o navegador so' descobre que precisa dela depois
-     de baixar E interpretar a folha de estilo. O preload adianta o pedido.
-     Uma por largura, com media, senao o celular baixaria as duas. -->
-<link rel="preload" as="image" media="(min-width:901px)"
-      href="/irmaosnaobra/assets/img/hero-desktop.webp">
-<link rel="preload" as="image" media="(max-width:900px)"
-      href="/irmaosnaobra/assets/img/hero-mobile.webp">
-
 <!-- Pixel da Meta — o mesmo das outras páginas da Irmãos na Obra.
      ELE CHEGA DEPOIS, DE PROPÓSITO. O fbevents.js sozinho é mais pesado que a
      página inteira, e num celular ele disputava o processador justamente no
