@@ -1,0 +1,1013 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NEXUS — Carregadores para carro elétrico de 60 a 240 kW</title>
+<meta name="description" content="Carregadores DC de 60 a 240 kW e wallbox AC com peça de reposição no Brasil, protocolo OCPP aberto e a sua estação no mapa do aplicativo desde o primeiro dia. A partir de R$ 69.000.">
+<link rel="canonical" href="https://solardoc.app/nexus">
+<meta property="og:type" content="website">
+<meta property="og:title" content="NEXUS — Energia que conecta">
+<meta property="og:description" content="Carregadores DC de 60 a 240 kW com peça no Brasil, OCPP aberto e app próprio. A partir de R$ 69.000.">
+<meta property="og:image" content="https://solardoc.app/nexus/img/hero.webp">
+<meta property="og:url" content="https://solardoc.app/nexus">
+<meta name="theme-color" content="#07203D">
+<link rel="icon" href="/nexus/img/icone.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --fundo:#F4F6F9; --cartao:#FFFFFF; --tinta:#07203D; --texto:#1C2733;
+  --suave:#66707F; --fraco:#98A1AE; --borda:#E4E8EE; --borda-forte:#D2D8E1;
+  --azul:#0B5CFF; --azul-escuro:#0A46C8; --azul-fraco:#E9F0FF;
+  --verde:#00C46A; --verde-escuro:#00A257; --verde-fraco:#E2FAEF;
+  --serif:"Archivo Black","Arial Black",Impact,sans-serif;
+  --sans:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"Courier New",monospace;
+}
+*{box-sizing:border-box}
+html{color-scheme:light;scroll-behavior:smooth}
+body{margin:0;background:var(--fundo);color:var(--texto);font-family:var(--sans);font-size:16px;line-height:1.6;
+  -webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--serif);font-weight:400;letter-spacing:-.02em;line-height:1.06;margin:0;text-wrap:balance;
+  color:var(--tinta)}
+p{margin:0}
+img{max-width:100%;display:block}
+a{color:inherit;text-decoration:none}
+.tabular{font-variant-numeric:tabular-nums}
+.faixa{width:min(1240px,100% - 32px);margin-inline:auto}
+.cartao{background:var(--cartao);border-radius:14px;box-shadow:0 1px 2px rgb(7 32 61/.04),0 1px 3px rgb(7 32 61/.07)}
+.toque{min-height:48px;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn{background:var(--verde);color:#04301B;border-radius:10px;font-weight:700;padding:0 20px;border:0;
+  font-family:inherit;font-size:15px;cursor:pointer;transition:background .15s,box-shadow .15s}
+.btn:hover{background:var(--verde-escuro);color:#fff;box-shadow:0 0 0 3px rgb(0 196 106/.26)}
+.btn-azul{background:var(--azul);color:#fff}
+.btn-azul:hover{background:var(--azul-escuro);box-shadow:0 0 0 3px rgb(11 92 255/.24)}
+.btn-linha{border:1px solid var(--tinta);color:var(--tinta);border-radius:10px;font-weight:600;padding:0 18px;
+  background:#fff;font-family:inherit;font-size:15px;cursor:pointer}
+.btn-linha:hover{background:var(--tinta);color:#fff}
+.marca-texto{background:linear-gradient(180deg,transparent 58%,rgb(0 196 106/.42) 0);padding:0 2px;
+  box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.rotulo{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--suave)}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;border:1px solid var(--borda-forte);
+  background:#fff;padding:6px 12px;font-size:13px;color:var(--texto)}
+::selection{background:var(--verde);color:#04301B}
+*:focus-visible{outline:2px solid var(--azul);outline-offset:2px;border-radius:6px}
+
+/* topo */
+header.topo{position:sticky;top:0;z-index:40;background:rgb(255 255 255/.94);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--borda)}
+.topo .faixa{display:flex;align-items:center;gap:16px;padding:10px 0}
+.logo{display:flex;align-items:center;gap:9px;font-family:var(--serif);font-size:19px;color:var(--tinta);
+  letter-spacing:.01em;min-height:44px}
+.topo nav{display:flex;gap:22px;margin-left:auto;font-size:14.5px;color:var(--texto)}
+.topo nav a:hover{color:var(--azul);text-decoration:underline;text-underline-offset:4px}
+@media(max-width:900px){.topo nav{display:none}}
+.topo .btn{margin-left:auto;height:44px}
+@media(max-width:900px){.topo .btn{padding:0 14px;font-size:14px}}
+@media(min-width:901px){.topo .btn{margin-left:0}}
+
+/* hero */
+.hero{padding:18px 0 0}
+.hero .cartao{display:grid;gap:22px;padding:22px;grid-template-columns:1fr;align-items:center}
+@media(min-width:900px){.hero .cartao{grid-template-columns:1fr 1.06fr;gap:34px;padding:30px}}
+.hero h1{font-size:clamp(28px,4.6vw,46px);margin:10px 0 0}
+.hero .linha-fina{color:var(--suave);margin-top:14px;max-width:52ch;font-size:15.5px}
+.numeros{display:flex;gap:26px;margin-top:20px;flex-wrap:wrap}
+@media(max-width:560px){.numeros{gap:14px 26px}}
+.numeros b{display:block;font-family:var(--serif);font-size:22px;color:var(--tinta)}
+.numeros span{font-size:11.5px;color:var(--suave)}
+.hero figure{margin:0;border-radius:12px;overflow:hidden;background:#EDEFF2}
+.hero figure img{width:100%;height:100%;object-fit:cover;aspect-ratio:3/2}
+.acoes{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}
+@media(max-width:560px){.acoes{flex-direction:column;align-items:stretch}
+  .acoes .btn,.acoes .btn-linha{width:100%}}
+
+/* barra de confianca */
+.confianca{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.confianca span{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--suave)}
+.confianca svg{flex:none;color:var(--verde)}
+
+/* secoes */
+section{padding:44px 0 0;scroll-margin-top:76px}
+#especialista{scroll-margin-top:76px}
+.cabeca{display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:18px;flex-wrap:wrap}
+.cabeca h2{font-size:clamp(22px,3vw,30px)}
+.cabeca p{color:var(--suave);font-size:14.5px;max-width:56ch;margin-top:8px}
+
+/* perfis */
+.perfis{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(232px,1fr))}
+.perfil{text-align:left;padding:18px;border:1px solid var(--borda);background:#fff;border-radius:14px;
+  cursor:pointer;font-family:inherit;font-size:15px;color:var(--texto);display:flex;flex-direction:column;gap:8px;
+  transition:border-color .15s,box-shadow .15s,transform .15s}
+.perfil:hover{border-color:var(--azul);box-shadow:0 8px 18px rgb(7 32 61/.08);transform:translateY(-2px)}
+.perfil .ico{width:34px;height:34px;border-radius:9px;background:var(--azul-fraco);color:var(--azul);
+  display:grid;place-items:center;flex:none}
+.perfil b{font-family:var(--serif);font-weight:400;font-size:16px;color:var(--tinta)}
+.perfil small{color:var(--suave);font-size:13.5px;line-height:1.5}
+.perfil .leva{margin-top:auto;padding-top:6px;color:var(--azul);font-size:13px;font-weight:600}
+
+/* simulador */
+.sim{display:grid;gap:0;grid-template-columns:1fr;overflow:hidden}
+@media(min-width:920px){.sim{grid-template-columns:1.05fr .95fr}}
+.sim .controles{padding:24px}
+.sim .painel{background:var(--tinta);color:#fff;padding:24px;display:flex;flex-direction:column}
+.campo{margin-bottom:16px}
+.campo label{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:13.5px;
+  color:var(--suave);margin-bottom:7px}
+.campo label b{font-family:var(--mono);font-size:14px;color:var(--tinta);font-weight:500}
+.campo input[type=range]{width:100%;accent-color:var(--azul);height:44px}
+.campo select{width:100%;min-height:48px;border:1px solid var(--borda-forte);border-radius:10px;padding:0 12px;
+  font-family:inherit;font-size:15px;color:var(--texto);background:#fff}
+.sim .painel .rotulo{color:#8FA0B4}
+.painel .grande{font-family:var(--serif);font-size:clamp(30px,5vw,42px);color:#fff;line-height:1;margin-top:6px}
+.painel .grande small{font-family:var(--mono);font-size:14px;color:#8FA0B4;margin-left:6px}
+.linhas{margin-top:20px;border-top:1px solid #1C3550;padding-top:6px}
+.linhas div{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #12293F;
+  font-size:14px;color:#AEBACA}
+.linhas div:last-child{border-bottom:0}
+.linhas div b{color:#fff;font-family:var(--mono);font-weight:500}
+.linhas div.destaque b{color:var(--verde)}
+.aviso{margin-top:14px;font-size:12px;color:#7E8EA1;line-height:1.5}
+
+/* vitrine */
+.vitrine{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(228px,1fr))}
+.modelo{display:flex;flex-direction:column;overflow:hidden;transition:box-shadow .18s ease,transform .18s ease}
+.modelo:hover{box-shadow:0 8px 18px rgb(7 32 61/.10),0 2px 5px rgb(7 32 61/.06);transform:translateY(-2px)}
+.modelo .desenho{background:#EDEFF2;overflow:hidden}
+.modelo .desenho img{width:100%;height:100%;object-fit:cover;aspect-ratio:4/5;display:block;
+  transition:transform .3s ease}
+.modelo:hover .desenho img{transform:scale(1.04)}
+.modelo .corpo{padding:14px 16px 18px;display:flex;flex-direction:column;gap:9px;flex:1}
+.modelo .nome{font-family:var(--serif);font-size:17px;color:var(--tinta)}
+.modelo .kw{font-family:var(--serif);font-size:30px;color:var(--tinta);line-height:1}
+.modelo .kw small{font-size:14px;color:var(--suave);font-family:var(--mono);margin-left:4px}
+.modelo ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px;font-size:13.5px;
+  color:var(--suave)}
+.modelo ul li{display:flex;gap:7px;align-items:center}
+.modelo ul li svg{flex:none;color:var(--verde)}
+.modelo .preco{margin-top:auto;padding-top:10px;border-top:1px solid var(--borda)}
+.modelo .preco b{font-family:var(--serif);font-size:21px;color:var(--tinta)}
+.modelo .preco span{display:block;font-size:11.5px;color:var(--fraco)}
+.modelo .btn{height:44px;margin-top:10px;width:100%}
+.selo{align-self:flex-start;border-radius:999px;background:#EEF1F5;color:var(--suave);
+  padding:3px 9px;font-size:11px;font-weight:600}
+.selo.destaque{background:var(--verde-fraco);color:var(--verde-escuro)}
+
+/* galeria */
+.galeria{display:grid;gap:14px;grid-template-columns:1fr}
+@media(min-width:820px){.galeria{grid-template-columns:1.35fr 1fr}}
+.foto{overflow:hidden;border-radius:14px;position:relative;background:#E9ECEF}
+.foto img{width:100%;height:100%;object-fit:cover}
+.foto figcaption{position:absolute;left:0;right:0;bottom:0;padding:26px 18px 14px;color:#fff;font-size:13.5px;
+  background:linear-gradient(180deg,rgb(7 32 61/0),rgb(7 32 61/.82))}
+.foto figcaption b{font-family:var(--serif);font-weight:400;display:block;font-size:16px;margin-bottom:2px}
+
+/* blocos escuros */
+.escuro{background:var(--tinta);color:#E7ECF2;border-radius:14px;padding:26px}
+.escuro h2,.escuro h3{color:#fff}
+.escuro p{color:#9FADBE}
+.junto{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-top:22px}
+.junto div{border-top:1px solid #1C3550;padding-top:14px}
+.junto h3{font-size:15.5px;margin-bottom:6px}
+.junto p{font-size:13.5px}
+
+/* passos */
+.passos{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));counter-reset:p}
+.passo{background:#fff;border-radius:14px;padding:18px;border:1px solid var(--borda)}
+.passo b{display:block;font-family:var(--serif);font-weight:400;font-size:15.5px;color:var(--tinta);margin:10px 0 5px}
+.passo p{font-size:13.5px;color:var(--suave)}
+.passo i{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:var(--tinta);
+  color:#fff;font-family:var(--mono);font-size:13px;font-style:normal}
+
+/* tabela */
+.tabela{overflow-x:auto;border-radius:14px;background:#fff;box-shadow:0 1px 3px rgb(7 32 61/.06)}
+table{border-collapse:collapse;width:100%;min-width:660px;font-size:14.5px}
+th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--borda);white-space:nowrap}
+th{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--suave);
+  font-weight:500}
+tbody tr:last-child td{border-bottom:0}
+td b{font-family:var(--serif);font-weight:400}
+
+/* faq */
+details{background:#fff;border-radius:12px;padding:6px 16px 14px;box-shadow:0 1px 2px rgb(7 32 61/.05)}
+details + details{margin-top:8px}
+summary{cursor:pointer;font-weight:600;color:var(--tinta);list-style:none;display:flex;justify-content:space-between;
+  gap:12px;min-height:44px;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font-family:var(--mono);color:var(--verde-escuro);font-size:18px;line-height:1}
+details[open] summary::after{content:"–"}
+details p{margin-top:9px;color:var(--suave);font-size:14.5px}
+
+/* especialista */
+.espec{margin-top:44px;background:var(--tinta);border-radius:16px;padding:0;overflow:hidden;position:relative}
+.espec .textura{position:absolute;inset:0;width:100%;height:100%;opacity:.05;z-index:1}
+.espec .dentro{position:relative;z-index:2;padding:30px 24px 34px}
+@media(min-width:860px){.espec .dentro{padding:38px}}
+.espec h2{color:#fff;font-size:clamp(24px,3.6vw,34px)}
+.espec .sub{color:#9FADBE;margin-top:12px;max-width:56ch;font-size:15px}
+.barra{height:4px;border-radius:99px;background:#1C3550;margin:24px 0 20px;overflow:hidden}
+.barra i{display:block;height:100%;background:var(--verde);border-radius:99px;transition:width .25s ease}
+.etapa[hidden]{display:none}
+.etapa .pergunta{font-family:var(--serif);color:#fff;font-size:clamp(18px,2.6vw,23px);line-height:1.2}
+.opcoes{display:grid;gap:9px;margin-top:18px;grid-template-columns:1fr}
+@media(min-width:700px){.opcoes{grid-template-columns:1fr 1fr}}
+.opcao{text-align:left;min-height:56px;display:flex;align-items:center;gap:11px;padding:12px 16px;border-radius:11px;
+  border:1px solid #24405F;background:#0D2B49;color:#DCE5EF;font-family:inherit;font-size:15px;cursor:pointer;
+  transition:border-color .14s,background .14s}
+.opcao:hover{border-color:var(--verde);background:#12385C}
+.opcao.marcada{border-color:var(--verde);background:#12385C;color:#fff}
+.opcao span.n{font-family:var(--mono);font-size:12px;color:#7E93AC;flex:none}
+.campos{display:grid;gap:12px;grid-template-columns:1fr;margin-top:18px}
+@media(min-width:700px){.campos{grid-template-columns:1fr 1fr}}
+.campos input{min-height:52px;border-radius:11px;border:1px solid #24405F;background:#0D2B49;color:#fff;
+  padding:0 15px;font-family:inherit;font-size:16px}
+.campos input::placeholder{color:#6F869F}
+.rodape-etapa{display:flex;gap:10px;align-items:center;margin-top:20px;flex-wrap:wrap}
+.voltar{background:none;border:0;color:#8FA0B4;font-family:inherit;font-size:14px;cursor:pointer;
+  min-height:48px;padding:0 4px}
+.voltar:hover{color:#fff;text-decoration:underline}
+.resumo{margin-top:16px;display:flex;gap:8px;flex-wrap:wrap}
+.resumo span{font-size:12px;color:#9FADBE;background:#0D2B49;border:1px solid #24405F;border-radius:99px;
+  padding:5px 11px}
+.pronto{text-align:center;padding:8px 0}
+.pronto .certo{width:52px;height:52px;border-radius:50%;background:var(--verde);color:#04301B;display:grid;
+  place-items:center;margin:0 auto 16px}
+
+footer{margin-top:40px;padding:26px 0 40px;border-top:1px solid var(--borda);color:var(--fraco);font-size:12.5px}
+footer .faixa{display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+footer a{text-decoration:underline;text-underline-offset:3px;display:inline-block;padding:15px 2px}
+
+/* wallbox */
+.wb{display:grid;grid-template-columns:1fr;gap:0}
+.wb img{width:100%;height:100%;object-fit:cover;max-height:340px}
+.wb .texto{padding:24px}
+@media(min-width:860px){.wb{grid-template-columns:1fr 1.15fr}.wb img{max-height:none}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="gN" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#0B5CFF"/><stop offset="1" stop-color="#00C46A"/>
+  </linearGradient>
+  <g id="mk">
+    <path fill="#0B5CFF" d="M6 88V8h20v80z"/>
+    <path fill="url(#gN)" d="M26 8h20l24 52v28H50L26 36z"/>
+    <path fill="#00C46A" d="M70 88V8h20v80z"/>
+  </g>
+  <pattern id="malha" width="46" height="46" patternUnits="userSpaceOnUse">
+    <g transform="scale(0.22)"><use href="#mk"></use></g>
+  </pattern>
+  <g id="ok"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.5"
+      stroke-linecap="round" stroke-linejoin="round"/></g>
+</defs></svg>
+
+<header class="topo">
+  <div class="faixa">
+    <a class="logo" href="/nexus" aria-label="NEXUS">
+      <svg viewBox="0 0 96 96" width="22" height="22" aria-hidden="true"><use href="#mk"></use></svg>
+      NEXUS
+    </a>
+    <nav>
+      <a href="#perfis">Para quem é</a>
+      <a href="#retorno">Retorno</a>
+      <a href="#modelos">Modelos</a>
+      <a href="#ficha">Ficha técnica</a>
+      <a href="#duvidas">Dúvidas</a>
+    </nav>
+    <button class="btn toque" type="button" data-abre="especialista">Falar com especialista</button>
+  </div>
+</header>
+
+<!-- ══════════ HERO ══════════ -->
+<div class="hero faixa">
+  <div class="cartao">
+    <div>
+      <p class="rotulo">Carregadores para carro elétrico</p>
+      <h1>Recarga rápida de 60 a 240&nbsp;kW com <span class="marca-texto">peça no Brasil</span></h1>
+      <p class="linha-fina">Equipamento em estoque no Brasil, protocolo aberto e a sua estação no mapa
+        do aplicativo desde o primeiro dia.</p>
+
+      <dl class="numeros">
+        <div><b class="tabular">5</b><span>modelos em corrente contínua</span></div>
+        <div><b class="tabular">60–240 kW</b><span>faixa de potência</span></div>
+        <div><b class="tabular">R$ 69.000</b><span>a partir de</span></div>
+      </dl>
+
+      <div class="acoes">
+        <button class="btn toque" type="button" data-abre="especialista">Falar com especialista</button>
+        <a class="btn-linha toque" href="#modelos">Ver os modelos</a>
+      </div>
+
+      <div class="confianca">
+        <span><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><use href="#ok"></use></svg>OCPP 1.6J aberto</span>
+        <span><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><use href="#ok"></use></svg>Conector CCS2</span>
+        <span><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><use href="#ok"></use></svg>Peça de reposição no país</span>
+        <span><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><use href="#ok"></use></svg>Pronta entrega</span>
+      </div>
+    </div>
+
+    <figure>
+      <img src="/nexus/img/hero.webp" width="1080" height="720" alt="Três carregadores NEXUS de corrente contínua na linha de produção, prontos para embarque" fetchpriority="high">
+    </figure>
+  </div>
+</div>
+
+<!-- ══════════ PARA QUEM É ══════════ -->
+<section id="perfis" class="faixa">
+  <div class="cabeca">
+    <div>
+      <h2>Você está em qual desses lugares?</h2>
+      <p>O modelo certo e a conta certa mudam bastante conforme o motivo da compra. Escolha o seu que a
+        gente já começa a conversa pelo lugar certo.</p>
+    </div>
+  </div>
+
+  <div class="perfis">
+    <button class="perfil" type="button" data-perfil="faturar">
+      <span class="ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 7-7"/><path d="M14 8h6v6"/></svg></span>
+      <b>Quero faturar com recarga</b>
+      <small>Comprar o carregador, montar o ponto e cobrar por kWh. É o caminho de quem trata isso
+        como investimento.</small>
+      <span class="leva">Começar por aqui →</span>
+    </button>
+
+    <button class="perfil" type="button" data-perfil="estabelecimento">
+      <span class="ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21V9l9-6 9 6v12"/><path d="M9 21v-7h6v7"/></svg></span>
+      <b>Tenho um estabelecimento</b>
+      <small>Mercado, restaurante, hotel ou shopping: o carregador segura o cliente no local por mais
+        tempo e ainda vende energia.</small>
+      <span class="leva">Começar por aqui →</span>
+    </button>
+
+    <button class="perfil" type="button" data-perfil="frota">
+      <span class="ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17h18"/><path d="M5 17V9l3-4h8l3 4v8"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="16.5" cy="17.5" r="1.5"/></svg></span>
+      <b>Condomínio ou frota</b>
+      <small>Carro parado horas no mesmo lugar. Aqui o wallbox em corrente alternada costuma resolver
+        por bem menos dinheiro.</small>
+      <span class="leva">Começar por aqui →</span>
+    </button>
+
+    <button class="perfil" type="button" data-perfil="expandir">
+      <span class="ico"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg></span>
+      <b>Já opero e quero expandir</b>
+      <small>Você já tem ponto rodando e quer mais potência, mais vagas ou sair de uma plataforma
+        que prende o equipamento.</small>
+      <span class="leva">Começar por aqui →</span>
+    </button>
+  </div>
+</section>
+
+<!-- ══════════ SIMULADOR ══════════ -->
+<section id="retorno" class="faixa">
+  <div class="cabeca">
+    <div>
+      <h2>Quanto esse ponto devolve por mês</h2>
+      <p>Mexa nos números do seu caso. A conta é simples de propósito: o que entra de recarga, menos
+        o que a energia custa.</p>
+    </div>
+  </div>
+
+  <div class="cartao sim">
+    <div class="controles">
+      <div class="campo">
+        <label for="s-modelo">Modelo</label>
+        <select id="s-modelo">
+          <option value="60|69000">NEXUS D60 — 60 kW — R$ 69.000</option>
+          <option value="80|79000" selected>NEXUS D80 — 80 kW — R$ 79.000</option>
+          <option value="120|119000">NEXUS D120 — 120 kW — R$ 119.000</option>
+          <option value="160|149000">NEXUS D160 — 160 kW — R$ 149.000</option>
+          <option value="240|189000">NEXUS D240 — 240 kW — R$ 189.000</option>
+        </select>
+      </div>
+
+      <div class="campo">
+        <label for="s-carros">Carros por dia <b><span id="v-carros">6</span></b></label>
+        <input type="range" id="s-carros" min="1" max="30" step="1" value="6">
+      </div>
+
+      <div class="campo">
+        <label for="s-kwh">kWh por recarga <b><span id="v-kwh">25</span> kWh</b></label>
+        <input type="range" id="s-kwh" min="10" max="70" step="1" value="25">
+      </div>
+
+      <div class="campo">
+        <label for="s-tarifa">Quanto você cobra por kWh <b>R$ <span id="v-tarifa">2,20</span></b></label>
+        <input type="range" id="s-tarifa" min="1.2" max="4" step="0.05" value="2.20">
+      </div>
+
+      <div class="campo">
+        <label for="s-custo">Quanto o kWh custa pra você <b>R$ <span id="v-custo">0,95</span></b></label>
+        <input type="range" id="s-custo" min="0.4" max="1.8" step="0.05" value="0.95">
+      </div>
+
+      <div class="campo">
+        <label for="s-obra">Obra e instalação do ponto <b>R$ <span id="v-obra">80.000</span></b></label>
+        <input type="range" id="s-obra" min="20000" max="180000" step="5000" value="80000">
+      </div>
+
+      <div class="campo" style="margin-bottom:0">
+        <label for="s-ativa">Taxa de ativação por recarga <b>R$ <span id="v-ativa">1,50</span></b></label>
+        <input type="range" id="s-ativa" min="0" max="5" step="0.25" value="1.50">
+      </div>
+    </div>
+
+    <div class="painel">
+      <p class="rotulo">Sobra por mês</p>
+      <p class="grande tabular">R$ <span id="r-sobra">5.895</span></p>
+
+      <div class="linhas">
+        <div><span>Recargas no mês</span><b class="tabular" id="r-sessoes">180</b></div>
+        <div><span>Energia vendida</span><b class="tabular" id="r-kwh">4.500 kWh</b></div>
+        <div><span>Faturamento</span><b class="tabular" id="r-faturamento">R$ 10.170</b></div>
+        <div><span>Custo da energia</span><b class="tabular" id="r-energia">– R$ 4.275</b></div>
+        <div class="destaque"><span>Investimento no ponto</span><b class="tabular" id="r-invest">R$ 159.000</b></div>
+        <div class="destaque"><span>Se paga em</span><b class="tabular" id="r-payback">27 meses</b></div>
+      </div>
+
+      <p class="aviso">Estimativa para você enxergar a ordem de grandeza. Não entra imposto, aluguel do
+        ponto, manutenção nem custo do dinheiro. A conta fechada, com a tarifa da sua distribuidora e a
+        obra do seu endereço, sai na proposta.</p>
+
+      <div class="acoes" style="margin-top:auto">
+        <button class="btn toque" type="button" data-abre="especialista" style="width:100%">
+          Quero a conta do meu ponto</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ MODELOS ══════════ -->
+<section id="modelos" class="faixa">
+  <div class="cabeca">
+    <div>
+      <h2>A linha em corrente contínua</h2>
+      <p>O número do modelo é a potência em kW.</p>
+    </div>
+    <span class="chip">Preço do equipamento · instalação sob orçamento</span>
+  </div>
+
+  <div class="vitrine">
+
+    <article class="cartao modelo">
+      <div class="desenho"><img src="/nexus/img/d60.webp" width="620" height="775" alt="Carregador NEXUS D60 de 60 kW" loading="lazy"></div>
+      <div class="corpo">
+        <span class="selo">Entrada de rede</span>
+        <p class="nome">NEXUS D60</p>
+        <p class="kw tabular">60<small>kW</small></p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>CCS2 · 1 ou 2 plugues</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Refrigeração ativa</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>OCPP 1.6J</li>
+        </ul>
+        <div class="preco"><b class="tabular">R$ 69.000</b><span>equipamento, à vista</span></div>
+        <button class="btn toque" type="button" data-abre="especialista" data-modelo="NEXUS D60 (60 kW)">Pedir proposta</button>
+      </div>
+    </article>
+
+    <article class="cartao modelo">
+      <div class="desenho"><img src="/nexus/img/d80.webp" width="620" height="775" alt="Carregador NEXUS D80 de 80 kW com dois conectores CCS2" loading="lazy"></div>
+      <div class="corpo">
+        <span class="selo destaque">Mais indicado</span>
+        <p class="nome">NEXUS D80</p>
+        <p class="kw tabular">80<small>kW</small></p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>CCS2 · 1 ou 2 plugues</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Dois carros ao mesmo tempo</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>OCPP 1.6J</li>
+        </ul>
+        <div class="preco"><b class="tabular">R$ 79.000</b><span>equipamento, à vista</span></div>
+        <button class="btn toque" type="button" data-abre="especialista" data-modelo="NEXUS D80 (80 kW)">Pedir proposta</button>
+      </div>
+    </article>
+
+    <article class="cartao modelo">
+      <div class="desenho"><img src="/nexus/img/d120.webp" width="620" height="775" alt="Carregador NEXUS D120 de 120 kW" loading="lazy"></div>
+      <div class="corpo">
+        <span class="selo">Corredor movimentado</span>
+        <p class="nome">NEXUS D120</p>
+        <p class="kw tabular">120<small>kW</small></p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>CCS2 · 2 plugues</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Divide potência entre as vagas</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>OCPP 1.6J</li>
+        </ul>
+        <div class="preco"><b class="tabular">R$ 119.000</b><span>equipamento, à vista</span></div>
+        <button class="btn toque" type="button" data-abre="especialista" data-modelo="NEXUS D120 (120 kW)">Pedir proposta</button>
+      </div>
+    </article>
+
+    <article class="cartao modelo">
+      <div class="desenho"><img src="/nexus/img/d160.webp" width="620" height="775" alt="Carregadores NEXUS D160 de 160 kW prontos para embarque" loading="lazy"></div>
+      <div class="corpo">
+        <span class="selo">Rodovia</span>
+        <p class="nome">NEXUS D160</p>
+        <p class="kw tabular">160<small>kW</small></p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>CCS2 · 2 plugues</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Duas vagas em carga cheia</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>OCPP 1.6J</li>
+        </ul>
+        <div class="preco"><b class="tabular">R$ 149.000</b><span>equipamento, à vista</span></div>
+        <button class="btn toque" type="button" data-abre="especialista" data-modelo="NEXUS D160 (160 kW)">Pedir proposta</button>
+      </div>
+    </article>
+
+    <article class="cartao modelo">
+      <div class="desenho"><img src="/nexus/img/d240.webp" width="620" height="775" alt="Carregador NEXUS D240 de 240 kW visto de frente" loading="lazy"></div>
+      <div class="corpo">
+        <span class="selo">Hub</span>
+        <p class="nome">NEXUS D240</p>
+        <p class="kw tabular">240<small>kW</small></p>
+        <ul>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>CCS2 · 2 plugues</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>O topo da linha</li>
+          <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>OCPP 1.6J</li>
+        </ul>
+        <div class="preco"><b class="tabular">R$ 189.000</b><span>equipamento, à vista</span></div>
+        <button class="btn toque" type="button" data-abre="especialista" data-modelo="NEXUS D240 (240 kW)">Pedir proposta</button>
+      </div>
+    </article>
+
+  </div>
+  <p style="margin-top:12px;font-size:12.5px;color:var(--fraco)">
+    Preço do equipamento. Projeto, parecer de acesso, obra e instalação entram no orçamento do ponto.
+    O gabinete muda conforme a potência e a configuração de plugues é confirmada na proposta.
+  </p>
+</section>
+
+<!-- ══════════ EQUIPAMENTO ══════════ -->
+<section id="equipamento" class="faixa">
+  <div class="cabeca">
+    <div>
+      <h2>O equipamento que sai do nosso estoque</h2>
+      <p>Foto do que a gente entrega, com peça de reposição já no Brasil.</p>
+    </div>
+  </div>
+
+  <div class="galeria">
+    <figure class="foto">
+      <img src="/nexus/img/equipamento.webp" width="820" height="1093" alt="Carregador NEXUS de corrente contínua visto de frente, com dois conectores CCS2 e luz verde no encaixe" loading="lazy">
+      <figcaption><b>Dois plugues, luz verde no encaixe</b>CCS2 dos dois lados e refrigeração ativa.</figcaption>
+    </figure>
+    <figure class="foto">
+      <img src="/nexus/img/unidade.webp" width="820" height="1093" alt="Unidade NEXUS sobre palete, com os cabos embalados, pronta para embarque" loading="lazy">
+      <figcaption><b>Pronta entrega</b>A unidade já está aqui, embalada. Sem fila de importação.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ══════════ WALLBOX ══════════ -->
+<section id="wallbox" class="faixa">
+  <div class="cartao" style="overflow:hidden">
+    <div class="wb">
+      <img src="/nexus/img/wallbox.webp" width="1100" height="733" alt="Wallbox NEXUS com anel de luz verde e conector Tipo 2 encaixado" loading="lazy">
+      <div class="texto">
+        <p class="rotulo">Corrente alternada</p>
+        <h2 style="font-size:24px;margin-top:8px">Wallbox para quem fica horas parado</h2>
+        <p style="color:var(--suave);font-size:15px;margin-top:10px">Condomínio, hotel, escritório e frota.
+          Conector Tipo 2, parede ou pedestal, mesma plataforma de gestão dos modelos DC.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">
+          <span class="chip">NEXUS W7 · 7,3 kW</span>
+          <span class="chip">NEXUS W11 · 11 kW trifásico</span>
+          <span class="chip">NEXUS W22 · 22 kW trifásico</span>
+        </div>
+        <div class="acoes">
+          <button class="btn toque" type="button" data-abre="especialista" data-modelo="Wallbox NEXUS (corrente alternada)">Pedir preço do wallbox</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ O QUE VEM JUNTO ══════════ -->
+<section id="junto" class="faixa">
+  <div class="escuro">
+    <h2 style="font-size:clamp(22px,3vw,30px)">O que vem junto com o equipamento</h2>
+    <p style="margin-top:10px;max-width:56ch">O que faz o ponto faturar todo dia e continuar de pé.</p>
+
+    <div class="junto">
+      <div>
+        <h3>NEXUS REDE</h3>
+        <p>O app do motorista: acha a estação no mapa, ativa por QR Code e paga no Pix ou cartão.</p>
+      </div>
+      <div>
+        <h3>NEXUS PAINEL</h3>
+        <p>Faturamento, consumo e status em tempo real. A tarifa por kWh é você quem define.</p>
+      </div>
+      <div>
+        <h3>NEXUS 24</h3>
+        <p>Instalação, garantia e peça de reposição no país.</p>
+      </div>
+      <div>
+        <h3>OCPP 1.6J aberto</h3>
+        <p>Protocolo padrão de mercado: ninguém fica preso a uma plataforma.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ COMO FUNCIONA ══════════ -->
+<section id="passos" class="faixa">
+  <div class="cabeca">
+    <div>
+      <h2>Do primeiro contato à primeira recarga</h2>
+      <p>Sem mistério e sem visita para descobrir o óbvio.</p>
+    </div>
+  </div>
+  <div class="passos">
+    <div class="passo"><i>1</i><b>Duas informações</b>
+      <p>Se a entrada do local é trifásica e qual o disjuntor geral. Com isso a gente já diz qual
+        modelo cabe.</p></div>
+    <div class="passo"><i>2</i><b>Proposta fechada</b>
+      <p>Equipamento, obra, prazo e a conta do ponto no seu endereço, com a tarifa da sua
+        distribuidora.</p></div>
+    <div class="passo"><i>3</i><b>Projeto e parecer</b>
+      <p>A gente cuida do projeto elétrico e do parecer de acesso junto à concessionária.</p></div>
+    <div class="passo"><i>4</i><b>Obra e comissionamento</b>
+      <p>Instalação, energização e teste de carga com o equipamento que já está no estoque.</p></div>
+    <div class="passo"><i>5</i><b>No mapa, faturando</b>
+      <p>A estação entra no app, você define a tarifa e o dinheiro do motorista cai na sua conta.</p></div>
+  </div>
+</section>
+
+<!-- ══════════ FICHA ══════════ -->
+<section id="ficha" class="faixa">
+  <div class="cabeca">
+    <div>
+      <h2>Ficha técnica</h2>
+      <p>O que muda de um modelo para o outro.</p>
+    </div>
+  </div>
+  <div class="tabela">
+    <table>
+      <thead>
+        <tr><th>Modelo</th><th>Potência</th><th>Corrente</th><th>Conector</th><th>Onde faz sentido</th><th>Equipamento</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><b>NEXUS D60</b></td><td class="tabular">60 kW</td><td>Contínua</td><td>CCS2 · 1 ou 2</td><td>Mercado, restaurante, bairro</td><td class="tabular">R$ 69.000</td></tr>
+        <tr><td><b>NEXUS D80</b></td><td class="tabular">80 kW</td><td>Contínua</td><td>CCS2 · 1 ou 2</td><td>Configuração de referência</td><td class="tabular">R$ 79.000</td></tr>
+        <tr><td><b>NEXUS D120</b></td><td class="tabular">120 kW</td><td>Contínua</td><td>CCS2 · 2</td><td>Corredor de tráfego pesado</td><td class="tabular">R$ 119.000</td></tr>
+        <tr><td><b>NEXUS D160</b></td><td class="tabular">160 kW</td><td>Contínua</td><td>CCS2 · 2</td><td>Rodovia</td><td class="tabular">R$ 149.000</td></tr>
+        <tr><td><b>NEXUS D240</b></td><td class="tabular">240 kW</td><td>Contínua</td><td>CCS2 · 2</td><td>Hub com duas vagas</td><td class="tabular">R$ 189.000</td></tr>
+        <tr><td><b>NEXUS W7</b></td><td class="tabular">7,3 kW</td><td>Alternada</td><td>Tipo 2</td><td>Casa, condomínio, frota</td><td>Sob consulta</td></tr>
+        <tr><td><b>NEXUS W11</b></td><td class="tabular">11 kW</td><td>Alternada</td><td>Tipo 2</td><td>Estacionamento longo</td><td>Sob consulta</td></tr>
+        <tr><td><b>NEXUS W22</b></td><td class="tabular">22 kW</td><td>Alternada</td><td>Tipo 2</td><td>Hotel, escritório</td><td>Sob consulta</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="margin-top:10px;font-size:12.5px;color:var(--fraco)">
+    Todos com OCPP 1.6J. Refrigeração ativa nos modelos em corrente contínua.
+  </p>
+</section>
+
+<!-- ══════════ DÚVIDAS ══════════ -->
+<section id="duvidas" class="faixa">
+  <div class="cabeca"><div><h2>O que perguntam antes de comprar</h2></div></div>
+
+  <details open>
+    <summary>Qual modelo cabe no meu ponto?</summary>
+    <p>De duas informações: se a entrada é trifásica e qual o disjuntor geral. Manda as duas no WhatsApp
+      que a gente responde qual modelo cabe, sem precisar de visita.</p>
+  </details>
+  <details>
+    <summary>O preço inclui instalação?</summary>
+    <p>Não, o valor é do equipamento. Projeto, parecer de acesso, obra e comissionamento entram no
+      orçamento do ponto: um ponto completo de 80 kW costuma fechar na faixa de R$ 160 mil.</p>
+  </details>
+  <details>
+    <summary>E quando quebrar?</summary>
+    <p>Peça no Brasil e equipamento no nosso estoque: a estação não espera contêiner para voltar a faturar.</p>
+  </details>
+  <details>
+    <summary>Como o dinheiro entra?</summary>
+    <p>O motorista paga no app, por Pix ou cartão. Você define a tarifa por kWh e recebe também pela
+      taxa de ociosidade de quem fica parado depois de carregar.</p>
+  </details>
+  <details>
+    <summary>Fico preso à plataforma de vocês?</summary>
+    <p>Não. O equipamento fala OCPP 1.6J, padrão de mercado: trocou de plataforma, o carregador vai junto.</p>
+  </details>
+  <details>
+    <summary>Dá para financiar?</summary>
+    <p>A gente monta o dossiê de crédito do projeto — investimento, geração de caixa e prazo — no formato
+      que o banco pede. A aprovação é do banco, mas o material vai pronto.</p>
+  </details>
+</section>
+
+<!-- ══════════ ESPECIALISTA ══════════ -->
+<div class="faixa">
+  <div class="espec" id="especialista">
+    <svg class="textura" aria-hidden="true"><rect width="100%" height="100%" fill="url(#malha)"></rect></svg>
+    <div class="dentro">
+      <h2>Fale com quem monta ponto de recarga todo mês</h2>
+      <p class="sub">Cinco perguntas rápidas. No fim você abre a conversa no WhatsApp já com o
+        contexto todo escrito — ninguém perde tempo repetindo o básico.</p>
+
+      <div class="barra" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="q-barra"><i style="width:0%"></i></div>
+
+      <form id="q-form" novalidate>
+        <div class="etapa" data-etapa="0">
+          <p class="pergunta">O que você quer fazer agora?</p>
+          <div class="opcoes" data-campo="objetivo">
+            <button class="opcao" type="button" value="Comprar carregador para faturar com recarga"><span class="n">01</span>Comprar carregador para faturar</button>
+            <button class="opcao" type="button" value="Instalar no meu estabelecimento"><span class="n">02</span>Instalar no meu estabelecimento</button>
+            <button class="opcao" type="button" value="Atender condomínio ou frota"><span class="n">03</span>Atender condomínio ou frota</button>
+            <button class="opcao" type="button" value="Já opero e quero expandir"><span class="n">04</span>Já opero e quero expandir</button>
+            <button class="opcao" type="button" value="Ainda estou avaliando"><span class="n">05</span>Ainda estou avaliando</button>
+          </div>
+        </div>
+
+        <div class="etapa" data-etapa="1" hidden>
+          <p class="pergunta">Como está o projeto hoje?</p>
+          <div class="opcoes" data-campo="estagio">
+            <button class="opcao" type="button" value="Tenho o ponto e quero comprar agora"><span class="n">01</span>Tenho o ponto e quero comprar agora</button>
+            <button class="opcao" type="button" value="Estou definindo o projeto"><span class="n">02</span>Estou definindo o projeto</button>
+            <button class="opcao" type="button" value="Estou avaliando se invisto"><span class="n">03</span>Estou avaliando se invisto</button>
+            <button class="opcao" type="button" value="Já tenho carregador instalado"><span class="n">04</span>Já tenho carregador instalado</button>
+          </div>
+        </div>
+
+        <div class="etapa" data-etapa="2" hidden>
+          <p class="pergunta">Quantos pontos você pretende instalar em 12 meses?</p>
+          <div class="opcoes" data-campo="quantidade">
+            <button class="opcao" type="button" value="1 ponto"><span class="n">01</span>1 ponto</button>
+            <button class="opcao" type="button" value="2 a 3 pontos"><span class="n">02</span>2 a 3 pontos</button>
+            <button class="opcao" type="button" value="4 a 10 pontos"><span class="n">03</span>4 a 10 pontos</button>
+            <button class="opcao" type="button" value="Mais de 10 pontos"><span class="n">04</span>Mais de 10 pontos</button>
+            <button class="opcao" type="button" value="Ainda não defini"><span class="n">05</span>Ainda não defini</button>
+          </div>
+        </div>
+
+        <div class="etapa" data-etapa="3" hidden>
+          <p class="pergunta">Quando você quer começar?</p>
+          <div class="opcoes" data-campo="prazo">
+            <button class="opcao" type="button" value="Agora"><span class="n">01</span>Agora</button>
+            <button class="opcao" type="button" value="Até 3 meses"><span class="n">02</span>Até 3 meses</button>
+            <button class="opcao" type="button" value="De 3 a 6 meses"><span class="n">03</span>De 3 a 6 meses</button>
+            <button class="opcao" type="button" value="Ainda sem previsão"><span class="n">04</span>Ainda sem previsão</button>
+          </div>
+        </div>
+
+        <div class="etapa" data-etapa="4" hidden>
+          <p class="pergunta">A entrada de energia do local é trifásica?</p>
+          <div class="opcoes" data-campo="entrada">
+            <button class="opcao" type="button" value="Trifásica"><span class="n">01</span>Trifásica</button>
+            <button class="opcao" type="button" value="Monofásica"><span class="n">02</span>Monofásica</button>
+            <button class="opcao" type="button" value="Não sei dizer"><span class="n">03</span>Não sei dizer</button>
+          </div>
+        </div>
+
+        <div class="etapa" data-etapa="5" hidden>
+          <p class="pergunta">Só falta saber com quem eu falo.</p>
+          <div class="campos">
+            <input type="text" id="q-nome" name="nome" placeholder="Seu nome" autocomplete="name" required>
+            <input type="text" id="q-cidade" name="cidade" placeholder="Cidade e estado" autocomplete="address-level2" required>
+          </div>
+          <div class="resumo" id="q-resumo"></div>
+          <div class="rodape-etapa">
+            <button class="btn toque" type="submit" id="q-enviar">Abrir conversa no WhatsApp</button>
+            <button class="voltar" type="button" data-voltar>← Voltar</button>
+          </div>
+          <p class="aviso" id="q-erro" hidden style="color:#FF9C8A">Preencha o nome e a cidade.</p>
+        </div>
+
+        <div class="etapa pronto" data-etapa="6" hidden>
+          <div class="certo"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><use href="#ok"></use></svg></div>
+          <p class="pergunta" id="q-final">Abrimos o WhatsApp com o seu resumo.</p>
+          <p class="sub" style="margin-inline:auto">Se a conversa não abriu, use o botão abaixo.</p>
+          <div class="rodape-etapa" style="justify-content:center">
+            <a class="btn toque" id="q-link" href="#" rel="noopener">Abrir de novo</a>
+          </div>
+        </div>
+
+        <div class="rodape-etapa" id="q-nav">
+          <button class="voltar" type="button" data-voltar hidden>← Voltar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="faixa">
+    <span style="display:flex;align-items:center;gap:8px;color:var(--suave)">
+      <svg viewBox="0 0 96 96" width="18" height="18" aria-hidden="true"><use href="#mk"></use></svg>
+      NEXUS — carregadores para carro elétrico. Uma marca Irmãos na Obra.
+    </span>
+    <span>
+      <a href="/eletroposto">Eletroposto chave na mão</a> ·
+      <a href="/privacidade">Privacidade</a>
+    </span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ── Quem recebe o lead ───────────────────────────────────────────────
+     O rodízio alterna entre os consultores com número preenchido. Enquanto
+     o número do Diego estiver vazio, tudo cai no Thiago — é só preencher
+     aqui que o rodízio liga sozinho, sem mexer em mais nada.            */
+  var CONSULTORES = [
+    { nome: 'Thiago', fone: '5534998165040' },
+    { nome: 'Diego',  fone: '' }
+  ];
+
+  function proximoConsultor(){
+    var ativos = CONSULTORES.filter(function(c){ return c.fone; });
+    if (!ativos.length) return null;
+    var i = 0;
+    try {
+      i = parseInt(localStorage.getItem('nexus_rodizio') || '0', 10) || 0;
+      localStorage.setItem('nexus_rodizio', String((i + 1) % ativos.length));
+    } catch (e) { i = Math.floor(Math.random() * ativos.length); }
+    return ativos[i % ativos.length];
+  }
+
+  /* ── Simulador ──────────────────────────────────────────────────────── */
+  var moeda = function(n){ return Math.round(n).toLocaleString('pt-BR'); };
+  var dec2  = function(n){ return n.toFixed(2).replace('.', ','); };
+
+  var S = {
+    modelo:  document.getElementById('s-modelo'),
+    carros:  document.getElementById('s-carros'),
+    kwh:     document.getElementById('s-kwh'),
+    tarifa:  document.getElementById('s-tarifa'),
+    custo:   document.getElementById('s-custo'),
+    obra:    document.getElementById('s-obra'),
+    ativa:   document.getElementById('s-ativa')
+  };
+
+  function conta(){
+    var eq       = parseFloat(S.modelo.value.split('|')[1]);
+    var carros   = +S.carros.value;
+    var kwh      = +S.kwh.value;
+    var tarifa   = +S.tarifa.value;
+    var custo    = +S.custo.value;
+    var obra     = +S.obra.value;
+    var ativa    = +S.ativa.value;
+
+    var sessoes     = carros * 30;
+    var energia     = sessoes * kwh;
+    var faturamento = energia * tarifa + sessoes * ativa;
+    var gastoKwh    = energia * custo;
+    var sobra       = faturamento - gastoKwh;
+    var invest      = eq + obra;
+    var meses       = sobra > 0 ? Math.ceil(invest / sobra) : 0;
+
+    document.getElementById('v-carros').textContent  = carros;
+    document.getElementById('v-kwh').textContent     = kwh;
+    document.getElementById('v-tarifa').textContent  = dec2(tarifa);
+    document.getElementById('v-custo').textContent   = dec2(custo);
+    document.getElementById('v-obra').textContent    = moeda(obra);
+    document.getElementById('v-ativa').textContent   = dec2(ativa);
+
+    document.getElementById('r-sessoes').textContent     = moeda(sessoes);
+    document.getElementById('r-kwh').textContent         = moeda(energia) + ' kWh';
+    document.getElementById('r-faturamento').textContent = 'R$ ' + moeda(faturamento);
+    document.getElementById('r-energia').textContent     = '– R$ ' + moeda(gastoKwh);
+    document.getElementById('r-invest').textContent      = 'R$ ' + moeda(invest);
+    document.getElementById('r-sobra').textContent       = moeda(sobra);
+    document.getElementById('r-payback').textContent     =
+      meses ? (meses > 120 ? 'mais de 10 anos' : meses + (meses === 1 ? ' mês' : ' meses')) : '—';
+  }
+
+  Object.keys(S).forEach(function(k){
+    S[k].addEventListener('input', conta);
+    S[k].addEventListener('change', conta);
+  });
+  conta();
+
+  function resumoSimulador(){
+    var m = S.modelo.options[S.modelo.selectedIndex].text.split(' — ')[0];
+    return m + ', ' + S.carros.value + ' carros/dia, ' + S.kwh.value +
+           ' kWh por recarga, R$ ' + dec2(+S.tarifa.value) + '/kWh';
+  }
+
+  /* ── Qualificação ───────────────────────────────────────────────────── */
+  var form    = document.getElementById('q-form');
+  var etapas  = Array.prototype.slice.call(form.querySelectorAll('.etapa'));
+  var barra   = document.getElementById('q-barra');
+  var navBtn  = document.querySelector('#q-nav [data-voltar]');
+  var ULTIMA  = etapas.length - 2;          // a etapa de dados
+  var atual   = 0;
+  var resp    = {};
+  var modeloPedido = '';
+
+  function mostra(i){
+    atual = i;
+    etapas.forEach(function(e, n){ e.hidden = n !== i; });
+    var pct = Math.round((Math.min(i, ULTIMA) / ULTIMA) * 100);
+    barra.querySelector('i').style.width = pct + '%';
+    barra.setAttribute('aria-valuenow', String(pct));
+    barra.hidden = i > ULTIMA;
+    navBtn.hidden = i === 0 || i > ULTIMA;
+    if (i === ULTIMA) pintaResumo();
+  }
+
+  function pintaResumo(){
+    var alvo = document.getElementById('q-resumo');
+    alvo.textContent = '';
+    Object.keys(resp).forEach(function(k){
+      var s = document.createElement('span');
+      s.textContent = resp[k];
+      alvo.appendChild(s);
+    });
+    if (modeloPedido){
+      var s = document.createElement('span');
+      s.textContent = modeloPedido;
+      alvo.appendChild(s);
+    }
+  }
+
+  form.addEventListener('click', function(ev){
+    var op = ev.target.closest('.opcao');
+    if (op){
+      var grupo = op.closest('.opcoes');
+      grupo.querySelectorAll('.opcao').forEach(function(b){ b.classList.remove('marcada'); });
+      op.classList.add('marcada');
+      resp[grupo.dataset.campo] = op.value;
+      setTimeout(function(){ mostra(Math.min(atual + 1, ULTIMA)); }, 140);
+      return;
+    }
+    if (ev.target.closest('[data-voltar]')) mostra(Math.max(atual - 1, 0));
+  });
+
+  form.addEventListener('submit', function(ev){
+    ev.preventDefault();
+    var nome   = document.getElementById('q-nome').value.trim();
+    var cidade = document.getElementById('q-cidade').value.trim();
+    var erro   = document.getElementById('q-erro');
+    if (!nome || !cidade){ erro.hidden = false; return; }
+    erro.hidden = true;
+
+    var c = proximoConsultor();
+    if (!c) return;
+
+    var linhas = [
+      'Olá, ' + c.nome + '. Sou ' + nome + ', de ' + cidade + '.',
+      '',
+      'Vim pelo site da NEXUS e respondi o formulário:',
+      '• Objetivo: '   + (resp.objetivo   || '—'),
+      '• Projeto: '    + (resp.estagio    || '—'),
+      '• Pontos em 12 meses: ' + (resp.quantidade || '—'),
+      '• Prazo: '      + (resp.prazo      || '—'),
+      '• Entrada de energia: ' + (resp.entrada || '—')
+    ];
+    if (modeloPedido) linhas.push('• Modelo de interesse: ' + modeloPedido);
+    linhas.push('• Simulei no site: ' + resumoSimulador());
+
+    var url = 'https://wa.me/' + c.fone + '?text=' + encodeURIComponent(linhas.join('\n'));
+    document.getElementById('q-link').href = url;
+    document.getElementById('q-final').textContent = 'Pronto, ' + nome.split(' ')[0] + '. Abrimos a conversa com ' + c.nome + '.';
+    mostra(etapas.length - 1);
+    window.open(url, '_blank', 'noopener');
+  });
+
+  /* ── Atalhos que levam ao formulário ────────────────────────────────── */
+  var PERFIL = {
+    faturar:          'Comprar carregador para faturar com recarga',
+    estabelecimento:  'Instalar no meu estabelecimento',
+    frota:            'Atender condomínio ou frota',
+    expandir:         'Já opero e quero expandir'
+  };
+
+  document.addEventListener('click', function(ev){
+    var p = ev.target.closest('[data-perfil]');
+    if (p){
+      var valor = PERFIL[p.dataset.perfil];
+      var alvo  = form.querySelector('.opcoes[data-campo="objetivo"] .opcao[value="' + valor + '"]');
+      if (alvo){
+        form.querySelectorAll('.opcoes[data-campo="objetivo"] .opcao')
+            .forEach(function(b){ b.classList.remove('marcada'); });
+        alvo.classList.add('marcada');
+        resp.objetivo = valor;
+        mostra(1);
+      }
+      document.getElementById('especialista').scrollIntoView({ block: 'start' });
+      return;
+    }
+    var a = ev.target.closest('[data-abre="especialista"]');
+    if (a){
+      if (a.dataset.modelo) modeloPedido = a.dataset.modelo;
+      document.getElementById('especialista').scrollIntoView({ block: 'start' });
+      var foco = etapas[atual].querySelector('.opcao, input');
+      if (foco) setTimeout(function(){ foco.focus({ preventScroll: true }); }, 320);
+    }
+  });
+
+  mostra(0);
+})();
+</script>
+
+</body>
+</html>
