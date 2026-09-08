@@ -24,12 +24,15 @@
      o navegador tinha que abrir DUAS conexoes novas antes de desenhar a
      primeira letra, e o CSS de la' bloqueia a pintura. Ver
      scripts/build-fontes-irmaosnaobra.js.
-     As duas pre-carregadas sao as que a primeira tela usa: o titulo (Barlow
-     800) e o texto (Inter). As outras tres o navegador busca quando precisar. -->
-<link rel="preload" as="font" type="font/woff2" crossorigin
-      href="/irmaosnaobra/assets/fontes/barlow-condensed-800.woff2">
-<link rel="preload" as="font" type="font/woff2" crossorigin
-      href="/irmaosnaobra/assets/fontes/inter-variavel.woff2">
+
+     E NAO TEM PRELOAD AQUI, de proposito. Eu tinha posto preload nas duas
+     fontes da primeira tela e na capa, achando que ajudaria. Medido, PIOROU:
+     a primeira pintura caiu de 2.320 ms pra 1.344 so' tirando os quatro.
+     Preload pede prioridade maxima, e num 4G esses 142 KB passavam na frente
+     do style.css — que e' justamente o arquivo que destrava a pintura. Fonte
+     com font-display:swap nao precisa chegar antes: o texto aparece na fonte
+     do sistema e troca depois. Testado em 11 medicoes por variante; se for
+     mexer aqui, meca de novo antes. -->
 <link rel="stylesheet" href="/irmaosnaobra/assets/css/style.css">
 
 <!-- A foto do topo e' o maior elemento da primeira tela, e ela vem de
