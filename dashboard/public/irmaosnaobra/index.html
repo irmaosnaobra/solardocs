@@ -35,6 +35,12 @@
      mexer aqui, meca de novo antes. -->
 <link rel="stylesheet" href="/irmaosnaobra/assets/css/style.css">
 
+<!-- A animação de entrada só existe se este script rodar. Sem ele — JS
+     bloqueado, erro de rede, navegador antigo — `.revelar` fica visível do
+     jeito normal, em vez de deixar meia página invisível para sempre. Fica
+     aqui no <head>, antes de qualquer conteúdo, para não piscar. -->
+<script>document.documentElement.classList.add('anima');</script>
+
 <!-- Pixel da Meta — o mesmo das outras páginas da Irmãos na Obra.
      ELE CHEGA DEPOIS, DE PROPÓSITO. O fbevents.js sozinho é mais pesado que a
      página inteira, e num celular ele disputava o processador justamente no
@@ -111,12 +117,12 @@ setTimeout(window.__carregaPixel, 10000);   // rede travada: rede de seguranca
   <div class="hero__fundo" aria-hidden="true"></div>
 
   <div class="hero__interno container">
-    <h1 class="hero__titulo revelar">
+    <h1 class="hero__titulo">
       Sua conta de luz de R$&nbsp;550<br>
       pode virar <span class="destaque">R$&nbsp;115</span>
     </h1>
 
-    <picture class="hero__foto revelar">
+    <picture class="hero__foto">
       <source media="(min-width:901px)"
               srcset="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
       <img src="/irmaosnaobra/assets/img/hero-mobile.webp"
@@ -124,12 +130,12 @@ setTimeout(window.__carregaPixel, 10000);   // rede travada: rede de seguranca
            width="820" height="615" fetchpriority="high" decoding="async">
     </picture>
 
-    <p class="hero__texto revelar">
+    <p class="hero__texto">
       Energia solar em Uberlândia, Araguari, Uberaba, Ituiutaba e Catalão,
       com projeto dimensionado pelo seu consumo real. Simule agora, de graça.
     </p>
 
-    <div class="hero__acoes revelar">
+    <div class="hero__acoes">
       <a class="botao botao--sol botao--g" href="#simulador">Simular minha economia</a>
       <a class="botao botao--vazado botao--g" href="#obras">Ver obras entregues</a>
     </div>

@@ -69,9 +69,13 @@ svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-l
 :focus-visible{outline:2px solid var(--amarelo);outline-offset:3px;border-radius:4px;}
 
 /* --------------------------------------------------------------- revelação */
-.revelar{opacity:0;transform:translateY(20px);
+/* O padrão é VISÍVEL. Só esconde se o <html> tiver a classe `anima`, que um
+   script de uma linha no <head> coloca. Assim, se o JS não rodar por qualquer
+   motivo, a página aparece inteira em vez de ficar meia em branco. */
+.revelar{opacity:1;transform:none;}
+.anima .revelar{opacity:0;transform:translateY(20px);
   transition:opacity .65s cubic-bezier(.22,.61,.36,1),transform .65s cubic-bezier(.22,.61,.36,1);}
-.revelar.visivel{opacity:1;transform:none;}
+.anima .revelar.visivel{opacity:1;transform:none;}
 
 /* ==========================================================================
    BOTÕES
