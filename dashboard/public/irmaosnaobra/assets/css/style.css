@@ -306,6 +306,47 @@ svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-l
 .faixa__marcas{display:flex;justify-content:space-between;margin-top:9px;padding-inline:30px;
   font-family:var(--mono);font-size:12px;color:#8FA6C6;}
 
+/* ---------- obrigatorio: as cinco perguntas ---------- */
+/* A pessoa nao chega no resultado sem responder as cinco. Tres coisas dizem
+   isso na tela, e nenhuma delas cobra antes da hora:
+     1. o aviso no topo do formulario, antes de qualquer pergunta;
+     2. o contador "falta N respostas" no painel do resultado;
+     3. a marca vermelha no campo, que so' aparece DEPOIS que a pessoa aperta
+        "Ver meu resultado" — acusar quem ainda nem chegou la' e' antipatico. */
+.sim-aviso{margin:-6px 0 22px;font-size:13.5px;line-height:1.5;color:#B9CBE4;
+  padding:11px 14px;border-radius:var(--raio);
+  background:rgba(255,194,32,.07);border:1px solid rgba(255,194,32,.22);}
+.sim-aviso b{color:var(--amarelo);}
+
+.campo__falta{display:none;margin:-4px 0 9px;
+  font-size:12.5px;font-weight:600;color:#FF9B8A;}
+.campo--falta .campo__falta{display:block;}
+.campo--falta .opcao__caixa,
+.campo--falta .selecao select,
+.campo--falta .faixa{border-color:#FF7A63;}
+.campo--falta legend,.campo--falta .campo__rotulo{color:#FF9B8A;}
+
+/* respondida: um tique discreto no rotulo, sem festa */
+.campo--ok legend::after,.campo--ok .campo__rotulo::after{
+  content:'\2713';margin-left:7px;color:var(--zap);font-weight:700;}
+
+.botao--esperando{filter:saturate(.55);}
+
+/* ---------- resultado: a espera ---------- */
+/* [hidden] traz display:none, mas qualquer display: na propria regra vence ele.
+   Sem estas duas linhas os dois paineis apareciam ao mesmo tempo: "falta 5
+   respostas" em cima do resultado preenchido. Mesmo tropeco da lupa. */
+.sim-espera[hidden],.sim-pronto[hidden]{display:none;}
+.sim-espera{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;gap:14px;min-height:320px;padding:20px 6px;}
+.sim-espera svg{width:44px;height:44px;color:var(--amarelo);opacity:.85;
+  fill:currentColor;stroke:none;}
+.sim-espera__titulo{font-family:var(--display);font-weight:700;font-size:23px;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--branco);}
+.sim-espera__titulo b{color:var(--amarelo);}
+.sim-espera__texto{font-size:14.5px;line-height:1.6;color:#B9CBE4;max-width:34ch;}
+.sim-pronto{display:flex;flex-direction:column;flex:1;}
+
 /* ---------- resultado ---------- */
 .sim-resultado{padding:32px 30px 30px;display:flex;flex-direction:column;}
 .sim-resultado__etiqueta{font-family:var(--display);font-weight:700;font-size:15px;

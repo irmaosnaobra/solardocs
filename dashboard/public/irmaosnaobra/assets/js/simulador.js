@@ -41,6 +41,11 @@
     btnResultado: document.getElementById('btn-resultado'),
     btnZap: document.getElementById('btn-zap-simulador'),
     resultado: document.getElementById('sim-resultado'),
+    espera: document.getElementById('sim-espera'),
+    pronto: document.getElementById('sim-pronto'),
+    falta: document.getElementById('sim-falta'),
+    faltaPalavra: document.getElementById('sim-falta-palavra'),
+    faltaVerbo: document.getElementById('sim-falta-verbo'),
     atendimento: document.querySelectorAll('input[name="atendimento"]'),
     paineis: document.getElementById('r-paineis'),
     potenciaPainel: document.getElementById('r-potencia-painel'),
@@ -68,13 +73,60 @@
   });
   el.potenciaPainel.textContent = PARAMS.potenciaPainel;
 
+  /* -------------------------------------------- as cinco, todas obrigatorias
+     Nenhuma opcao nasce marcada e o valor da conta so' conta depois que a
+     pessoa encosta no controle. Antes o formulario ja' vinha respondido (Casa,
+     monofasica, R$ 550) e o resultado aparecia pronto — numero de ninguem.
+     Agora o resultado so' existe quando as cinco tiverem resposta. */
+  const contaTocada = { valor: false };
+
+  const PERGUNTAS = [
+    { campo: 'tipo',        ok: function () { return !!form.querySelector('input[name="tipo"]:checked'); } },
+    { campo: 'cidade',      ok: function () { return !!el.cidade.value; } },
+    { campo: 'ligacao',     ok: function () { return !!form.querySelector('input[name="ligacao"]:checked'); } },
+    { campo: 'conta',       ok: function () { return contaTocada.valor; } },
+    { campo: 'atendimento', ok: function () { return !!form.querySelector('input[name="atendimento"]:checked'); } }
+  ];
+
+  function pendentes() {
+    return PERGUNTAS.filter(function (q) { return !q.ok(); });
+  }
+
+  // Pinta o estado sem acusar ninguem: o passo acende, o campo respondido perde
+  // o aviso. O vermelho de "falta isto" so' aparece depois que a pessoa tenta
+  // ver o resultado — cobrar antes de ela tentar e' antipatico.
+  function pintarEstado(acusar) {
+    const falta = pendentes();
+
+    PERGUNTAS.forEach(function (q, i) {
+      const caixa = form.querySelector('[data-campo="' + q.campo + '"]');
+      const respondida = q.ok();
+      if (caixa) {
+        caixa.classList.toggle('campo--ok', respondida);
+        caixa.classList.toggle('campo--falta', acusar && !respondida);
+      }
+      if (el.passos[i]) el.passos[i].classList.toggle('passo--ativo', respondida);
+    });
+
+    el.falta.textContent = falta.length;
+    el.faltaPalavra.textContent = falta.length === 1 ? 'resposta' : 'respostas';
+    el.faltaVerbo.textContent = falta.length === 1 ? 'Falta' : 'Faltam';
+    el.espera.hidden = falta.length === 0;
+    el.pronto.hidden = falta.length > 0;
+    el.btnResultado.classList.toggle('botao--esperando', falta.length > 0);
+
+    return falta;
+  }
+
   /* ------------------------------------------------------------- a conta */
   function calcular() {
     const conta = Number(el.conta.value);
-    const tipo = form.querySelector('input[name="tipo"]:checked').value;
-    const ligacao = form.querySelector('input[name="ligacao"]:checked').value;
+    const marcadoTipo = form.querySelector('input[name="tipo"]:checked');
+    const marcadoLig = form.querySelector('input[name="ligacao"]:checked');
+    const tipo = marcadoTipo ? marcadoTipo.value : 'Casa';
+    const ligacao = marcadoLig ? marcadoLig.value : 'mono';
     const cidadeNome = el.cidade.value;
-    const escolhido = document.querySelector('input[name="atendimento"]:checked');
+    const escolhido = form.querySelector('input[name="atendimento"]:checked');
     const cidade = CIDADES.find(function (c) { return c.nome === cidadeNome; });
     const hsp = cidade ? cidade.hsp : CIDADES[0].hsp;
 
@@ -137,7 +189,8 @@
   }
 
   /* --------------------------------------------------------- pinta na tela */
-  function atualizar(animarValor) {
+  function atualizar(animarValor, acusar) {
+    pintarEstado(!!acusar);
     const r = calcular();
 
     el.paineis.textContent = r.paineis;
@@ -220,43 +273,41 @@
     el.faixaValor.style.left = x + 'px';
   }
 
-  /* ----------------------------------------------------- indicador de passos */
-  let passoMax = 1;
-  function acenderPassos(ate) {
-    passoMax = Math.max(passoMax, ate);
-    el.passos.forEach(function (p, i) {
-      p.classList.toggle('passo--ativo', i < passoMax);
-    });
-  }
-
   /* ------------------------------------------------------------- eventos */
   form.querySelectorAll('input[name="tipo"]').forEach(function (i) {
-    i.addEventListener('change', function () { acenderPassos(1); atualizar(true); });
+    i.addEventListener('change', function () { atualizar(true); });
   });
-  el.cidade.addEventListener('change', function () { acenderPassos(2); atualizar(true); });
+  el.cidade.addEventListener('change', function () { atualizar(true); });
   form.querySelectorAll('input[name="ligacao"]').forEach(function (i) {
-    i.addEventListener('change', function () { acenderPassos(3); atualizar(true); });
+    i.addEventListener('change', function () { atualizar(true); });
   });
-  el.conta.addEventListener('input', function () { acenderPassos(4); atualizar(false); });
-  el.conta.addEventListener('change', function () { atualizar(true); });
-  // nao mexe no calculo, so' no texto que vai pro WhatsApp
+  el.conta.addEventListener('input', function () { contaTocada.valor = true; atualizar(false); });
+  el.conta.addEventListener('change', function () { contaTocada.valor = true; atualizar(true); });
   el.atendimento.forEach(function (i) {
     i.addEventListener('change', function () { atualizar(false); });
   });
 
   el.btnResultado.addEventListener('click', function () {
-    if (!el.cidade.value) {
-      el.cidade.focus();
-      if (!semMovimento) {
-        el.cidade.animate(
-          [{ transform: 'translateX(0)' }, { transform: 'translateX(-6px)' },
-           { transform: 'translateX(6px)' }, { transform: 'translateX(0)' }],
-          { duration: 320, easing: 'ease-out' }
-        );
+    const falta = pintarEstado(true);
+
+    if (falta.length) {
+      // leva ate' a primeira que ficou sem resposta, e balanca ela
+      const caixa = form.querySelector('[data-campo="' + falta[0].campo + '"]');
+      if (caixa) {
+        caixa.scrollIntoView({ behavior: semMovimento ? 'auto' : 'smooth', block: 'center' });
+        if (!semMovimento) {
+          caixa.animate(
+            [{ transform: 'translateX(0)' }, { transform: 'translateX(-6px)' },
+             { transform: 'translateX(6px)' }, { transform: 'translateX(0)' }],
+            { duration: 320, easing: 'ease-out' }
+          );
+        }
+        const primeiro = caixa.querySelector('select,input');
+        if (primeiro) primeiro.focus({ preventScroll: true });
       }
       return;
     }
-    acenderPassos(4);
+
     atualizar(true);
     if (window.matchMedia('(max-width: 900px)').matches) {
       el.resultado.scrollIntoView({ behavior: semMovimento ? 'auto' : 'smooth', block: 'start' });
@@ -266,5 +317,5 @@
   window.addEventListener('resize', posicionarPino);
   window.addEventListener('load', posicionarPino);
 
-  atualizar(false);
+  atualizar(false, false);
 })();
