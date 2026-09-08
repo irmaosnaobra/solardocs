@@ -217,8 +217,8 @@
   // Atravessar o corte de kWh TROCA de time, e isso e' certo: e' a regra.
   const sorteado = { alta: null, baixa: null };
 
-  function consultorDoLead(consumoKwh) {
-    const alta = consumoKwh > KWH_CORTE;
+  function consultorDoLead(contaMes) {
+    const alta = contaMes > CONTA_CORTE;
     const chave = alta ? 'alta' : 'baixa';
     if (sorteado[chave]) return sorteado[chave];
 
@@ -253,7 +253,7 @@
       'Quero um orçamento.';
     // aqui e' o celular do consultor, nao a linha central: quem preencheu a
     // simulacao ja' chega falando com quem vai atender
-    const dono = consultorDoLead(r.consumo);
+    const dono = consultorDoLead(r.conta);
     return 'https://wa.me/' + dono.whatsapp + '?text=' + encodeURIComponent(texto);
   }
 

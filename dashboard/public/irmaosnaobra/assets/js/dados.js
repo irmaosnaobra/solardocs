@@ -26,9 +26,28 @@ const CONFIG = {
    Quem preenche o simulador e clica no botão cai DIRETO no celular do
    consultor, com a ficha já escrita na mensagem — não passa pela linha central.
 
-   O corte é o consumo em kWh calculado a partir da conta, não o valor em reais:
-     acima de 1.000 kWh  →  50% Thiago, 50% Diego
-     até 1.000 kWh       →  70% Nilce, 30% Giovanna
+   O corte é o VALOR DA CONTA, em reais — e não o consumo em kWh, como era até
+   08/09/2026. O Thiago disse: "Thiago e Diego atendem apenas acima de R$ 800".
+     acima de R$ 800  →  a cada 10: 4 Thiago, 4 Diego, 2 Nilce
+     até R$ 800       →  70% Nilce, 30% Giovanna
+
+   "A cada 10" aqui é proporção, não fila. O sorteio roda no navegador de cada
+   visitante e um não sabe do outro, então não dá pra garantir 4-4-2 exatos em
+   dez leads seguidos — em cem, chega perto; em dez, pode sair 5-3-2. Fila de
+   verdade só com contador no servidor, e aí o link do botão deixaria de ser
+   direto. Se a divisão exata importar mais que o clique direto, dá pra trocar.
+
+   A Nilce aparece nos dois times, e isso é de propósito: ela pega 2 de cada 10
+   acima de R$ 800 e 70% do que está abaixo.
+
+   R$ 800 exatos ficam com a Nilce/Giovanna: "acima de 800" é acima, não a
+   partir de.
+
+   Efeito colateral bom: R$ 800 dá uns 735 kWh na conta do simulador, e o
+   roteamento do servidor (leadSolarFicha.ts) corta em 700 kWh. Os dois estavam
+   longe (1.000 kWh ≈ R$ 1.080) e agora quase encostam. A diferença que sobra é
+   a faixa R$ 763–800, que o servidor manda pros sócios e o site manda pra
+   conta baixa. Vale alinhar um dia; hoje não atrapalha ninguém.
 
    Três números (Thiago, Diego, Nilce) vieram da tabela `consultores` do banco do
    /gerador. O da Giovanna NÃO: o Thiago corrigiu à mão em 04/09/2026 para
@@ -52,11 +71,12 @@ const CONFIG = {
    forem alinhados, um lead entre 700 e 1.000 kWh cai na Nilce/Giovanna pelo
    site e conta como time de conta alta pelo servidor.
    -------------------------------------------------------------------------- */
-const KWH_CORTE = 1000;
+const CONTA_CORTE = 800;   // R$/mês na conta de luz
 
 const TIME_CONTA_ALTA = [
-  { nome: 'Thiago', whatsapp: '5534991360223', peso: 50 },
-  { nome: 'Diego', whatsapp: '5534991360172', peso: 50 }
+  { nome: 'Thiago', whatsapp: '5534991360223', peso: 4 },
+  { nome: 'Diego', whatsapp: '5534991360172', peso: 4 },
+  { nome: 'Nilce', whatsapp: '5534991516846', peso: 2 }
 ];
 
 const TIME_CONTA_BAIXA = [
