@@ -37,7 +37,7 @@
 import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
-import { sendFrio, sendHuman } from '../agents/zapiClient';
+import { sendFrio, sendHuman, sendWhatsApp } from '../agents/zapiClient';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { quandoPorExtenso } from './eletropostoAgenda';
 import { proximasVagas, aindaLivre } from './eletropostoVagas';
@@ -331,6 +331,50 @@ async function proximoDono(): Promise<string> {
   return DONOS_EP[n % DONOS_EP.length]!;
 }
 
+// ─── FILA PARADA NÃO PODE SER SILENCIOSA ─────────────────────────────────────
+// `teto_linha` devolve `{enviados: 0}` e não escreve nada em lugar nenhum. Numa
+// linha compartilhada isso é uma armadilha: no dia em que este robô entrou no ar
+// o orçamento frio do dia (30) já estava gasto — 26 dos 30 eram lembrete de
+// agenda, que é transacional e sai pelo mesmo número. A fila teria ficado parada
+// com 67 pessoas dentro e ninguém saberia, que é a mesma ferida do `status =
+// agendado` que escondeu 87 de 99 leads de solar.
+//
+// UM aviso, depois de 3h travado, no máximo um a cada 12h — a régua do
+// filaAlerta: quem lê parede de aviso aprende a ignorar o próximo.
+const TRAVA_KEY = 'ep_convinv_travado';
+const AVISAR_DEPOIS_MS = 3 * 3600_000;
+const AVISO_CARENCIA_MS = 12 * 3600_000;
+const ALERTA_FONE = (process.env.FILA_ALERTA_PHONE || '34991360223').trim();
+
+async function marcarTravado(restam: number): Promise<void> {
+  const { data } = await supabase
+    .from('system_state').select('value').eq('key', TRAVA_KEY).maybeSingle();
+  const st = (data?.value ?? {}) as { desde?: string; avisado_em?: string };
+  const agora = Date.now();
+  const desde = st.desde ? new Date(st.desde).getTime() : agora;
+  const avisado = st.avisado_em ? new Date(st.avisado_em).getTime() : 0;
+  const avisar = agora - desde >= AVISAR_DEPOIS_MS && agora - avisado >= AVISO_CARENCIA_MS;
+
+  if (avisar) {
+    const horas = Math.floor((agora - desde) / 3600_000);
+    await sendWhatsApp(ALERTA_FONE,
+      `Convite ao investidor parado há ${horas}h: ${restam} pessoa(s) na fila e o teto `
+      + 'DIÁRIO da linha já foi gasto pelos outros robôs do mesmo número '
+      + '(lembrete de agenda, semente, Bia).\n\n'
+      + 'Ninguém foi perdido — a fila drena sozinha quando abrir vaga. Se quiser '
+      + 'acelerar, o que segura é LINHA_MAX_DIA na Vercel.')
+      .catch((e) => logger.error('ep-convite', 'aviso de fila travada falhou', e));
+  }
+  await supabase.from('system_state').upsert({
+    key: TRAVA_KEY,
+    value: {
+      desde: new Date(desde).toISOString(),
+      avisado_em: avisar ? new Date(agora).toISOString() : (st.avisado_em ?? null),
+    },
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'key' });
+}
+
 export async function runConviteTick(): Promise<TickConvite> {
   if (desligado()) return { enviados: 0, motivo: 'desligado' };
   if (foraDaJanela()) return { enviados: 0, motivo: 'fora_da_janela' };
@@ -353,7 +397,10 @@ export async function runConviteTick(): Promise<TickConvite> {
   if (agora - ultimoAt < INTERVALO_MS) return { enviados: 0, motivo: 'intervalo', restam: rows.length };
 
   // Teto da linha física: a Bia e o followup saem pelo mesmo número.
-  if (!(await dentroDoTetoHorarioLinha())) return { enviados: 0, motivo: 'teto_linha', restam: rows.length };
+  if (!(await dentroDoTetoHorarioLinha())) {
+    await marcarTravado(rows.length);
+    return { enviados: 0, motivo: 'teto_linha', restam: rows.length };
+  }
 
   const alvo = prontos[0]!;
   const marcador = alvo.value as MarcadorConvite;
@@ -415,6 +462,9 @@ export async function runConviteTick(): Promise<TickConvite> {
         updated_at: new Date().toISOString(),
       },
     ], { onConflict: 'key' });
+    // Destravou: o relogio do aviso zera, senao um dia ruim de ontem mandaria
+    // aviso hoje com a fila andando normalmente.
+    await supabase.from('system_state').delete().eq('key', TRAVA_KEY);
     logger.info('ep-convite', `convite enviado pra ${marcador.nome} (${telefone}) com ${vagas.length} horarios de ${dono}`);
     return { enviados: 1, restam: rows.length - 1 };
   } catch (err) {
