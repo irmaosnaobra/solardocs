@@ -4,15 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NEXUS ELETROPOSTOS — Carregadores de 40 a 240 kW para o seu ponto</title>
-<meta name="description" content="Montamos o seu eletroposto: carregadores DC de 40 a 240 kW e wallbox AC, peça de reposição no Brasil, OCPP aberto e preço publicado. A partir de R$ 64.970.">
+<meta name="description" content="Montamos o seu eletroposto: carregadores DC de 40 a 240 kW e wallbox AC, peça de reposição no Brasil, OCPP aberto e preço publicado. A partir de R$ 32.500.">
 <link rel="canonical" href="https://solardoc.app/nexus">
 <meta property="og:type" content="website">
 <meta property="og:title" content="NEXUS ELETROPOSTOS — Energia que move o amanhã">
-<meta property="og:description" content="Carregadores DC de 40 a 240 kW com peça no Brasil, OCPP aberto e preço publicado. A partir de R$ 64.970.">
-<meta property="og:image" content="https://solardoc.app/nexus/img/p-dc-compacto.webp">
+<meta property="og:description" content="Carregadores DC de 40 a 240 kW com peça no Brasil, OCPP aberto e preço publicado. A partir de R$ 32.500.">
+<meta property="og:image" content="https://solardoc.app/nexus/img/p-dc.webp">
 <meta property="og:url" content="https://solardoc.app/nexus">
 <meta name="theme-color" content="#0B1A2B">
 <link rel="icon" href="/nexus/img/icone.svg" type="image/svg+xml">
+<link rel="icon" type="image/png" sizes="32x32" href="/nexus/img/icone-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/nexus/img/icone-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/nexus/img/icone-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap">
@@ -65,10 +68,10 @@ a{color:inherit;text-decoration:none}
 header.topo{position:sticky;top:0;z-index:40;background:rgba(11,26,43,.88);backdrop-filter:blur(10px);
   border-bottom:1px solid var(--linha)}
 .topo .faixa{display:flex;align-items:center;gap:16px;padding:10px 0}
-.logo{display:flex;align-items:center;gap:10px;min-height:46px}
-.logo .nome{display:flex;flex-direction:column;line-height:1}
-.logo .nome b{font-weight:800;font-size:19px;letter-spacing:.02em;color:#fff}
-.logo .nome span{font-size:8.5px;letter-spacing:.30em;color:var(--suave);font-weight:600;margin-top:3px}
+.logo{display:flex;align-items:center;min-height:46px}
+.logo img{height:34px;width:auto}
+@media(max-width:420px){.logo img{height:29px}}
+.logo-rodape{height:56px;width:auto}
 .topo nav{display:flex;gap:20px;margin-left:auto;font-size:14.5px;color:var(--texto)}
 .topo nav a{min-height:44px;display:inline-flex;align-items:center;font-weight:500}
 .topo nav a:hover{color:var(--verde)}
@@ -92,7 +95,7 @@ header.topo{position:sticky;top:0;z-index:40;background:rgba(11,26,43,.88);backd
 @media(max-width:560px){.numeros{gap:14px 28px}}
 .numeros b{display:block;font-weight:800;font-size:23px;color:#fff}
 .numeros span{font-size:11.5px;color:var(--suave)}
-.poco{border-radius:14px;overflow:hidden;background:linear-gradient(160deg,#FFFFFF,#E5E7EB);
+.poco{border-radius:14px;overflow:hidden;background:#fff;
   display:grid;place-items:center}
 .poco img{width:100%;height:100%;object-fit:contain;aspect-ratio:1/1}
 .acoes{display:flex;gap:10px;margin-top:24px;flex-wrap:wrap}
@@ -122,13 +125,11 @@ section{padding:56px 0 0;scroll-margin-top:78px}
 .modelo{display:flex;flex-direction:column;overflow:hidden;background:var(--cartao);
   border:1px solid var(--linha);border-radius:16px;transition:border-color .18s,transform .18s}
 .modelo:hover{border-color:var(--verde-linha);transform:translateY(-3px)}
-.modelo .desenho{background:linear-gradient(160deg,#FFFFFF,#E5E7EB);overflow:hidden}
+.modelo .desenho{background:#fff;overflow:hidden}
 .modelo .desenho img{width:100%;height:100%;object-fit:contain;aspect-ratio:1/1;display:block;
   transition:transform .3s ease;padding:8px}
 .modelo:hover .desenho img{transform:scale(1.05)}
-.ilustra{font-size:10px;color:var(--fraco);letter-spacing:.1em;text-transform:uppercase;
-  padding:9px 16px 0;font-weight:600}
-.modelo .corpo{padding:8px 16px 18px;display:flex;flex-direction:column;gap:9px;flex:1}
+.modelo .corpo{padding:16px 16px 18px;display:flex;flex-direction:column;gap:9px;flex:1}
 .modelo .nome{font-weight:800;font-size:17px;color:#fff;letter-spacing:.01em}
 .modelo .kw{font-weight:800;font-size:31px;color:#fff;line-height:1}
 .modelo .kw small{font-size:13px;color:var(--suave);margin-left:5px;font-weight:600}
@@ -139,6 +140,8 @@ section{padding:56px 0 0;scroll-margin-top:78px}
 .modelo .preco{margin-top:auto;padding-top:12px;border-top:1px solid var(--linha)}
 .modelo .preco b{font-weight:800;font-size:21px;color:#fff}
 .modelo .preco span{display:block;font-size:11.5px;color:var(--fraco)}
+.modelo .preco .parcela{color:var(--texto);font-size:12.5px;font-weight:600;margin-top:5px}
+.modelo .preco .parcela b{font-weight:800;color:var(--verde);font-size:12.5px}
 .modelo .btn{height:44px;margin-top:11px;width:100%}
 .selo{align-self:flex-start;border-radius:999px;background:rgba(229,231,235,.07);color:var(--suave);
   padding:4px 10px;font-size:11px;font-weight:600}
@@ -246,7 +249,7 @@ section{padding:56px 0 0;scroll-margin-top:78px}
 
 /* ── tabela ──────────────────────────────────────────────────────────── */
 .tabela{overflow-x:auto;border-radius:16px;background:var(--cartao);border:1px solid var(--linha)}
-table{border-collapse:collapse;width:100%;min-width:680px;font-size:14.5px}
+table{border-collapse:collapse;width:100%;min-width:760px;font-size:14.5px}
 th,td{text-align:left;padding:13px 16px;border-bottom:1px solid var(--linha);white-space:nowrap}
 th{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--suave);font-weight:700}
 tbody tr:last-child td{border-bottom:0}
@@ -313,6 +316,42 @@ footer a{color:var(--suave);display:inline-block;padding:12px 0}
 footer a:hover{color:var(--verde)}
 footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap:16px;flex-wrap:wrap;
   justify-content:space-between;align-items:center}
+
+/* ── celular: a pagina inteira em pe, sem virar rolagem infinita ─────── */
+@media(max-width:700px){
+  section{padding:40px 0 0;scroll-margin-top:70px}
+  .cabeca{margin-bottom:14px}
+  /* vitrine em duas colunas: corta a altura da secao pela metade */
+  .vitrine{grid-template-columns:repeat(2,1fr);gap:10px}
+  .modelo .desenho img{aspect-ratio:4/3;padding:4px}
+  .modelo .corpo{padding:12px 12px 14px;gap:7px}
+  .modelo .nome{font-size:14.5px}
+  .modelo .kw{font-size:24px}
+  .modelo .kw small{font-size:11px}
+  .modelo ul{font-size:12px;gap:5px}
+  .modelo ul li svg{width:11px;height:11px}
+  .modelo .preco{padding-top:10px}
+  .modelo .preco b{font-size:17px}
+  .modelo .preco span{font-size:11.5px}
+  .modelo .preco .parcela{font-size:12px;margin-top:5px}
+  .modelo .btn{font-size:13px;padding:0 6px;margin-top:9px}
+  .selo{font-size:11.5px;padding:3px 8px}
+  .rotulo{font-size:12px}
+  .pilar{padding:18px}
+  .pilar .anel{width:40px;height:40px;margin-bottom:11px}
+  .solucao{padding:20px}
+  .sim .controles,.sim .painel{padding:20px}
+  .escuro{padding:22px}
+  .posic{padding:26px 20px}
+  .espec .dentro{padding:26px 18px 30px}
+  details{padding:4px 15px 13px}
+  footer .colunas{gap:10px}
+  footer a{padding:12px 0}
+}
+@media(max-width:380px){
+  .vitrine{grid-template-columns:1fr}
+  .modelo .desenho img{aspect-ratio:16/10}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto}}
 </style>
 </head>
@@ -322,9 +361,15 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
   <linearGradient id="gX" x1="0" y1="0" x2="1" y2="0">
     <stop offset="0" stop-color="#39FF14"/><stop offset="1" stop-color="#0085FF"/>
   </linearGradient>
+  <linearGradient id="gXv" x1="0" y1=".15" x2="1" y2=".85">
+    <stop offset="0" stop-color="#2FA80E"/><stop offset="1" stop-color="#5BFF2A"/>
+  </linearGradient>
+  <linearGradient id="gXa" x1="0" y1=".4" x2="1" y2=".6">
+    <stop offset="0" stop-color="#00A6FF"/><stop offset="1" stop-color="#0055D0"/>
+  </linearGradient>
   <g id="xis">
-    <path fill="url(#gX)" d="M4 6h26l66 88H70z"/>
-    <path fill="url(#gX)" d="M70 6h26L30 94H4z"/>
+    <path fill="url(#gXa)" d="M65.99,49.40L103.35,0L141,0L90.66,51.73L141,103.03L98.98,103.03Z"/>
+    <path fill="url(#gXv)" d="M0,4.03L38.63,4.03L84.74,54.27L34.69,103.03L0,103.03L49.07,50.88Z"/>
   </g>
   <g id="ok"><path d="M20 6 9 17l-5-5" fill="none" stroke="currentColor" stroke-width="2.6"
       stroke-linecap="round" stroke-linejoin="round"/></g>
@@ -332,9 +377,8 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
 
 <header class="topo">
   <div class="faixa">
-    <a class="logo" href="/nexus" aria-label="NEXUS ELETROPOSTOS">
-      <svg viewBox="0 0 100 100" width="26" height="26" aria-hidden="true"><use href="#xis"></use></svg>
-      <span class="nome"><b>NEXUS</b><span>ELETROPOSTOS</span></span>
+    <a class="logo" href="/nexus">
+      <img src="/nexus/img/logo.webp" width="1842" height="450" alt="NEXUS ELETROPOSTOS">
     </a>
     <nav>
       <a href="#inicio">Início</a>
@@ -361,7 +405,7 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
       <dl class="numeros">
         <div><b class="tabular">6</b><span>modelos em corrente contínua</span></div>
         <div><b class="tabular">40–240 kW</b><span>faixa de potência</span></div>
-        <div><b class="tabular">R$ 64.970</b><span>a partir de</span></div>
+        <div><b class="tabular">R$ 32.500</b><span>a partir de</span></div>
       </dl>
 
       <div class="acoes">
@@ -378,7 +422,7 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
     </div>
 
     <figure class="poco" style="margin:0">
-      <img src="/nexus/img/p-dc-compacto.webp" width="1200" height="1200" alt="Carregador NEXUS DC60 de 60 kW, gabinete compacto com dois cabos CCS2" fetchpriority="high">
+      <img src="/nexus/img/p-dc.webp" width="1200" height="1200" alt="Carregador NEXUS DC60 de 60 kW, gabinete compacto com dois cabos CCS2" fetchpriority="high">
     </figure>
   </div>
 </div>
@@ -427,8 +471,7 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
   <div class="vitrine">
 
     <article class="modelo">
-      <div class="desenho"><img src="/nexus/img/p-dc-compacto.webp" width="1200" height="1200" alt="Carregador NEXUS DC40 de 40 kW, gabinete compacto com dois cabos CCS2" loading="lazy"></div>
-      <p class="ilustra">Imagem ilustrativa</p>
+      <div class="desenho"><img src="/nexus/img/p-dc.webp" width="1200" height="1200" alt="Carregador NEXUS DC40 de 40 kW, gabinete compacto com dois cabos CCS2" loading="lazy"></div>
       <div class="corpo">
         <span class="selo">Começo de operação</span>
         <p class="nome">NEXUS DC40</p>
@@ -438,14 +481,13 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
           <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Refrigeração ativa</li>
           <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>OCPP 1.6J</li>
         </ul>
-        <div class="preco"><b class="tabular">Sob consulta</b><span>preço no orçamento</span></div>
+        <div class="preco"><b class="tabular">R$ 32.500</b><span>equipamento, à vista</span><span class="parcela">ou 18x de <b>R$ 1.805,56</b> no cartão</span></div>
         <button class="btn toque" type="button" data-abre="contato" data-modelo="NEXUS DC40 (40 kW)">Pedir proposta</button>
       </div>
     </article>
 
     <article class="modelo">
-      <div class="desenho"><img src="/nexus/img/p-dc-compacto.webp" width="1200" height="1200" alt="Carregador NEXUS DC60 de 60 kW, gabinete compacto com dois cabos CCS2" loading="lazy"></div>
-      <p class="ilustra">Imagem ilustrativa</p>
+      <div class="desenho"><img src="/nexus/img/p-dc.webp" width="1200" height="1200" alt="Carregador NEXUS DC60 de 60 kW, gabinete compacto com dois cabos CCS2" loading="lazy"></div>
       <div class="corpo">
         <span class="selo">Entrada de rede</span>
         <p class="nome">NEXUS DC60</p>
@@ -455,16 +497,15 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
           <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Refrigeração ativa</li>
           <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>OCPP 1.6J</li>
         </ul>
-        <div class="preco"><b class="tabular">R$ 64.970</b><span>equipamento, à vista</span></div>
+        <div class="preco"><b class="tabular">R$ 60.000</b><span>equipamento, à vista</span><span class="parcela">ou 18x de <b>R$ 3.333,33</b> no cartão</span></div>
         <button class="btn toque" type="button" data-abre="contato" data-modelo="NEXUS DC60 (60 kW)">Pedir proposta</button>
       </div>
     </article>
 
     <article class="modelo">
-      <div class="desenho"><img src="/nexus/img/p-dc-grande.webp" width="1200" height="1200" alt="Carregador NEXUS DC80 de 80 kW visto na fábrica, pronto para embarque" loading="lazy"></div>
-      <p class="ilustra">Imagem ilustrativa</p>
+      <div class="desenho"><img src="/nexus/img/p-dc.webp" width="1200" height="1200" alt="Carregador NEXUS DC80 de 80 kW visto de frente, com dois cabos CCS2" loading="lazy"></div>
       <div class="corpo">
-        <span class="selo destaque">Mais indicado</span>
+        <span class="selo">Duas vagas</span>
         <p class="nome">NEXUS DC80</p>
         <p class="kw tabular">80<small>kW</small></p>
         <ul>
@@ -472,14 +513,13 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
           <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Dois carros ao mesmo tempo</li>
           <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>OCPP 1.6J</li>
         </ul>
-        <div class="preco"><b class="tabular">R$ 69.970</b><span>equipamento, à vista</span></div>
+        <div class="preco"><b class="tabular">R$ 69.990</b><span>equipamento, à vista</span><span class="parcela">ou 18x de <b>R$ 3.888,33</b> no cartão</span></div>
         <button class="btn toque" type="button" data-abre="contato" data-modelo="NEXUS DC80 (80 kW)">Pedir proposta</button>
       </div>
     </article>
 
     <article class="modelo">
-      <div class="desenho"><img src="/nexus/img/p-dc-grande.webp" width="1200" height="1200" alt="Carregador NEXUS DC120 de 120 kW, gabinete de porte médio com dois cabos CCS2" loading="lazy"></div>
-      <p class="ilustra">Imagem ilustrativa</p>
+      <div class="desenho"><img src="/nexus/img/p-dc.webp" width="1200" height="1200" alt="Carregador NEXUS DC120 de 120 kW, gabinete de porte médio com dois cabos CCS2" loading="lazy"></div>
       <div class="corpo">
         <span class="selo">Corredor movimentado</span>
         <p class="nome">NEXUS DC120</p>
@@ -489,14 +529,13 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
           <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Divide potência entre as vagas</li>
           <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>OCPP 1.6J</li>
         </ul>
-        <div class="preco"><b class="tabular">R$ 109.970</b><span>equipamento, à vista</span></div>
+        <div class="preco"><b class="tabular">R$ 89.990</b><span>equipamento, à vista</span><span class="parcela">ou 18x de <b>R$ 4.999,44</b> no cartão</span></div>
         <button class="btn toque" type="button" data-abre="contato" data-modelo="NEXUS DC120 (120 kW)">Pedir proposta</button>
       </div>
     </article>
 
     <article class="modelo">
-      <div class="desenho"><img src="/nexus/img/p-dc-grande.webp" width="1200" height="1200" alt="Carregador NEXUS DC160 de 160 kW para rodovia, com dois cabos CCS2" loading="lazy"></div>
-      <p class="ilustra">Imagem ilustrativa</p>
+      <div class="desenho"><img src="/nexus/img/p-dc.webp" width="1200" height="1200" alt="Carregador NEXUS DC160 de 160 kW para rodovia, com dois cabos CCS2" loading="lazy"></div>
       <div class="corpo">
         <span class="selo">Rodovia</span>
         <p class="nome">NEXUS DC160</p>
@@ -506,14 +545,13 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
           <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Duas vagas em carga cheia</li>
           <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>OCPP 1.6J</li>
         </ul>
-        <div class="preco"><b class="tabular">R$ 139.970</b><span>equipamento, à vista</span></div>
+        <div class="preco"><b class="tabular">Sob consulta</b><span>preço no orçamento</span></div>
         <button class="btn toque" type="button" data-abre="contato" data-modelo="NEXUS DC160 (160 kW)">Pedir proposta</button>
       </div>
     </article>
 
     <article class="modelo">
-      <div class="desenho"><img src="/nexus/img/p-dc-grande.webp" width="1200" height="1200" alt="Carregador NEXUS DC240 de 240 kW, o topo da linha, com dois cabos CCS2" loading="lazy"></div>
-      <p class="ilustra">Imagem ilustrativa</p>
+      <div class="desenho"><img src="/nexus/img/p-dc.webp" width="1200" height="1200" alt="Carregador NEXUS DC240 de 240 kW, o topo da linha, com dois cabos CCS2" loading="lazy"></div>
       <div class="corpo">
         <span class="selo">Hub</span>
         <p class="nome">NEXUS DC240</p>
@@ -523,7 +561,7 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
           <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>O topo da linha</li>
           <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>OCPP 1.6J</li>
         </ul>
-        <div class="preco"><b class="tabular">R$ 169.970</b><span>equipamento, à vista</span></div>
+        <div class="preco"><b class="tabular">Sob consulta</b><span>preço no orçamento</span></div>
         <button class="btn toque" type="button" data-abre="contato" data-modelo="NEXUS DC240 (240 kW)">Pedir proposta</button>
       </div>
     </article>
@@ -533,7 +571,9 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
   <div class="cabeca" style="margin-top:38px">
     <div>
       <h2>Corrente alternada: o wallbox</h2>
-      <p>Para quem fica horas parado no mesmo lugar — condomínio, hotel, escritório e frota.</p>
+      <p>Para quem fica horas parado no mesmo lugar — condomínio, hotel, escritório e frota.
+        Diferente da linha DC, o wallbox é encomendado direto da China: entra com prazo de
+        importação, não sai do estoque.</p>
     </div>
   </div>
 
@@ -541,7 +581,6 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
 
     <article class="modelo">
       <div class="desenho"><img src="/nexus/img/p-ac7.webp" width="1200" height="1200" alt="Wallbox NEXUS AC7 de 7,3 kW, de parede, com cabo Tipo 2" loading="lazy"></div>
-      <p class="ilustra">Imagem ilustrativa</p>
       <div class="corpo">
         <span class="selo">Casa e condomínio</span>
         <p class="nome">NEXUS AC7</p>
@@ -551,14 +590,13 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
           <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Parede ou pedestal</li>
           <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Monofásico</li>
         </ul>
-        <div class="preco"><b class="tabular">Sob consulta</b><span>preço no orçamento</span></div>
+        <div class="preco"><b class="tabular">R$ 2.499</b><span>equipamento, à vista</span><span class="parcela">ou 18x de <b>R$ 138,83</b> no cartão</span></div>
         <button class="btn toque" type="button" data-abre="contato" data-modelo="Wallbox NEXUS AC7 (7,3 kW)">Pedir proposta</button>
       </div>
     </article>
 
     <article class="modelo">
       <div class="desenho"><img src="/nexus/img/p-ac11.webp" width="1200" height="1200" alt="Wallbox NEXUS AC11 de 11 kW trifásico, em versão branca e preta" loading="lazy"></div>
-      <p class="ilustra">Imagem ilustrativa</p>
       <div class="corpo">
         <span class="selo">Estacionamento longo</span>
         <p class="nome">NEXUS AC11</p>
@@ -568,14 +606,13 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
           <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Trifásico</li>
           <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Branco ou preto</li>
         </ul>
-        <div class="preco"><b class="tabular">Sob consulta</b><span>preço no orçamento</span></div>
+        <div class="preco"><b class="tabular">R$ 5.999</b><span>equipamento, à vista</span><span class="parcela">ou 18x de <b>R$ 333,28</b> no cartão</span></div>
         <button class="btn toque" type="button" data-abre="contato" data-modelo="Wallbox NEXUS AC11 (11 kW)">Pedir proposta</button>
       </div>
     </article>
 
     <article class="modelo">
       <div class="desenho"><img src="/nexus/img/p-ac22.webp" width="1200" height="1200" alt="Wallbox NEXUS AC22 de 22 kW trifásico, com leitor de aproximação" loading="lazy"></div>
-      <p class="ilustra">Imagem ilustrativa</p>
       <div class="corpo">
         <span class="selo">Hotel e escritório</span>
         <p class="nome">NEXUS AC22</p>
@@ -585,16 +622,15 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
           <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Trifásico</li>
           <li><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><use href="#ok"></use></svg>Leitor de aproximação</li>
         </ul>
-        <div class="preco"><b class="tabular">Sob consulta</b><span>preço no orçamento</span></div>
+        <div class="preco"><b class="tabular">R$ 6.999</b><span>equipamento, à vista</span><span class="parcela">ou 18x de <b>R$ 388,83</b> no cartão</span></div>
         <button class="btn toque" type="button" data-abre="contato" data-modelo="Wallbox NEXUS AC22 (22 kW)">Pedir proposta</button>
       </div>
     </article>
 
   </div>
 
-  <p class="nota">As imagens de produto são renders: o formato exato do gabinete, a quantidade de plugues
-    e o acabamento são confirmados na proposta. As fotos do equipamento real que sai do estoque estão logo
-    abaixo, na seção "O equipamento que sai do nosso estoque".</p>
+  <p class="nota">A configuração exata — número de plugues, acabamento e potência do gabinete — é
+    confirmada na proposta.</p>
 </section>
 
 <!-- ══════════ NÚMEROS ══════════ -->
@@ -603,7 +639,7 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
     <div><b class="tabular">6 modelos DC</b><span>de 40 a 240 kW, todos CCS2</span></div>
     <div><b class="tabular">3 modelos AC</b><span>de 7,3 a 22 kW, Tipo 2</span></div>
     <div><b class="tabular">OCPP 1.6J</b><span>protocolo aberto, sem amarra</span></div>
-    <div><b class="tabular">R$ 65 a 170 mil</b><span>preço de equipamento publicado</span></div>
+    <div><b class="tabular">R$ 2.499 a 89.990</b><span>preço de equipamento publicado</span></div>
   </div>
 </section>
 
@@ -739,11 +775,10 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
       <div class="campo">
         <label for="s-modelo">Modelo</label>
         <select id="s-modelo">
-          <option value="60|64970">NEXUS DC60 — 60 kW — R$ 64.970</option>
-          <option value="80|69970" selected>NEXUS DC80 — 80 kW — R$ 69.970</option>
-          <option value="120|109970">NEXUS DC120 — 120 kW — R$ 109.970</option>
-          <option value="160|139970">NEXUS DC160 — 160 kW — R$ 139.970</option>
-          <option value="240|169970">NEXUS DC240 — 240 kW — R$ 169.970</option>
+          <option value="40|32500">NEXUS DC40 — 40 kW — R$ 32.500</option>
+          <option value="60|60000">NEXUS DC60 — 60 kW — R$ 60.000</option>
+          <option value="80|69990" selected>NEXUS DC80 — 80 kW — R$ 69.990</option>
+          <option value="120|89990">NEXUS DC120 — 120 kW — R$ 89.990</option>
         </select>
       </div>
       <div class="campo">
@@ -780,7 +815,7 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
         <div><span>Energia vendida</span><b class="tabular" id="r-kwh">3.600 kWh</b></div>
         <div><span>Faturamento</span><b class="tabular" id="r-faturamento">R$ 8.730</b></div>
         <div><span>Custo da energia</span><b class="tabular" id="r-energia">– R$ 4.320</b></div>
-        <div class="destaque"><span>Investimento no ponto</span><b class="tabular" id="r-invest">R$ 139.970</b></div>
+        <div class="destaque"><span>Investimento no ponto</span><b class="tabular" id="r-invest">R$ 139.990</b></div>
         <div class="destaque"><span>Se paga em</span><b class="tabular" id="r-payback">32 meses</b></div>
       </div>
       <p class="aviso">Estimativa para você enxergar a ordem de grandeza. Não entra imposto, aluguel do
@@ -848,7 +883,7 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
           <div class="via" style="left:71%;top:0;bottom:0;width:5px"></div>
           <div class="pin" style="left:26%;top:33%"><i>80</i></div>
           <div class="topo-app">
-            <svg viewBox="0 0 100 100" width="15" height="15"><use href="#xis"></use></svg>
+            <svg viewBox="0 0 141 103" width="19" height="14"><use href="#xis"></use></svg>
             <span>O seu ponto, no mapa do motorista</span>
           </div>
           <div class="ficha">
@@ -915,23 +950,24 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
   <div class="tabela">
     <table>
       <thead>
-        <tr><th>Modelo</th><th>Potência</th><th>Corrente</th><th>Conector</th><th>Onde faz sentido</th><th>Equipamento</th></tr>
+        <tr><th>Modelo</th><th>Potência</th><th>Corrente</th><th>Conector</th><th>Onde faz sentido</th><th>À vista</th><th>18x no cartão</th></tr>
       </thead>
       <tbody>
-        <tr><td><b>NEXUS DC40</b></td><td class="tabular">40 kW</td><td>Contínua</td><td>CCS2 · 2</td><td>Começo de operação</td><td>Sob consulta</td></tr>
-        <tr><td><b>NEXUS DC60</b></td><td class="tabular">60 kW</td><td>Contínua</td><td>CCS2 · 2</td><td>Mercado, restaurante, bairro</td><td class="tabular">R$ 64.970</td></tr>
-        <tr><td><b>NEXUS DC80</b></td><td class="tabular">80 kW</td><td>Contínua</td><td>CCS2 · 2</td><td>Configuração de referência</td><td class="tabular">R$ 69.970</td></tr>
-        <tr><td><b>NEXUS DC120</b></td><td class="tabular">120 kW</td><td>Contínua</td><td>CCS2 · 2</td><td>Corredor de tráfego pesado</td><td class="tabular">R$ 109.970</td></tr>
-        <tr><td><b>NEXUS DC160</b></td><td class="tabular">160 kW</td><td>Contínua</td><td>CCS2 · 2</td><td>Rodovia</td><td class="tabular">R$ 139.970</td></tr>
-        <tr><td><b>NEXUS DC240</b></td><td class="tabular">240 kW</td><td>Contínua</td><td>CCS2 · 2</td><td>Hub com duas vagas</td><td class="tabular">R$ 169.970</td></tr>
-        <tr><td><b>NEXUS AC7</b></td><td class="tabular">7,3 kW</td><td>Alternada</td><td>Tipo 2</td><td>Casa, condomínio, frota</td><td>Sob consulta</td></tr>
-        <tr><td><b>NEXUS AC11</b></td><td class="tabular">11 kW</td><td>Alternada</td><td>Tipo 2</td><td>Estacionamento longo</td><td>Sob consulta</td></tr>
-        <tr><td><b>NEXUS AC22</b></td><td class="tabular">22 kW</td><td>Alternada</td><td>Tipo 2</td><td>Hotel, escritório</td><td>Sob consulta</td></tr>
+        <tr><td><b>NEXUS DC40</b></td><td class="tabular">40 kW</td><td>Contínua</td><td>CCS2 · 2</td><td>Começo de operação</td><td class="tabular">R$ 32.500</td><td class="tabular">R$ 1.805,56</td></tr>
+        <tr><td><b>NEXUS DC60</b></td><td class="tabular">60 kW</td><td>Contínua</td><td>CCS2 · 2</td><td>Mercado, restaurante, bairro</td><td class="tabular">R$ 60.000</td><td class="tabular">R$ 3.333,33</td></tr>
+        <tr><td><b>NEXUS DC80</b></td><td class="tabular">80 kW</td><td>Contínua</td><td>CCS2 · 2</td><td>Configuração de referência</td><td class="tabular">R$ 69.990</td><td class="tabular">R$ 3.888,33</td></tr>
+        <tr><td><b>NEXUS DC120</b></td><td class="tabular">120 kW</td><td>Contínua</td><td>CCS2 · 2</td><td>Corredor de tráfego pesado</td><td class="tabular">R$ 89.990</td><td class="tabular">R$ 4.999,44</td></tr>
+        <tr><td><b>NEXUS DC160</b></td><td class="tabular">160 kW</td><td>Contínua</td><td>CCS2 · 2</td><td>Rodovia</td><td>Sob consulta</td><td>—</td></tr>
+        <tr><td><b>NEXUS DC240</b></td><td class="tabular">240 kW</td><td>Contínua</td><td>CCS2 · 2</td><td>Hub com duas vagas</td><td>Sob consulta</td><td>—</td></tr>
+        <tr><td><b>NEXUS AC7</b></td><td class="tabular">7,3 kW</td><td>Alternada</td><td>Tipo 2</td><td>Casa, condomínio, frota</td><td class="tabular">R$ 2.499</td><td class="tabular">R$ 138,83</td></tr>
+        <tr><td><b>NEXUS AC11</b></td><td class="tabular">11 kW</td><td>Alternada</td><td>Tipo 2</td><td>Estacionamento longo</td><td class="tabular">R$ 5.999</td><td class="tabular">R$ 333,28</td></tr>
+        <tr><td><b>NEXUS AC22</b></td><td class="tabular">22 kW</td><td>Alternada</td><td>Tipo 2</td><td>Hotel, escritório</td><td class="tabular">R$ 6.999</td><td class="tabular">R$ 388,83</td></tr>
       </tbody>
     </table>
   </div>
   <p class="nota">Todos com OCPP 1.6J. Refrigeração ativa nos modelos em corrente contínua. Valores do
-    equipamento, à vista, e podem ser atualizados — o que vale é o da proposta.</p>
+    equipamento, à vista, e podem ser atualizados — o que vale é o da proposta. O valor da
+    parcela é o preço dividido por 18; juros e taxas da operadora do cartão entram por fora.</p>
 </section>
 
 <!-- ══════════ DÚVIDAS ══════════ -->
@@ -945,7 +981,7 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
   </details>
   <details>
     <summary>Quanto custa um ponto completo de 80 kW?</summary>
-    <p>Costuma fechar na faixa de R$ 140 mil. Entram o equipamento (R$ 69.970), projeto elétrico, parecer
+    <p>Costuma fechar na faixa de R$ 140 mil. Entram o equipamento (R$ 69.990), projeto elétrico, parecer
       de acesso, obra civil, cabeamento, proteção e comissionamento. Não entram aluguel do terreno,
       impostos da sua operação nem eventual reforço de entrada pedido pela concessionária.</p>
   </details>
@@ -1083,11 +1119,8 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
   <div class="faixa">
     <div class="colunas">
       <div>
-        <span class="logo" style="min-height:0">
-          <svg viewBox="0 0 100 100" width="24" height="24" aria-hidden="true"><use href="#xis"></use></svg>
-          <span class="nome"><b>NEXUS</b><span>ELETROPOSTOS</span></span>
-        </span>
-        <p class="assina" style="margin-top:14px">Energia que <b>move</b> o amanhã</p>
+        <img class="logo-rodape" src="/nexus/img/logo-completo.webp" width="1736" height="630"
+             alt="NEXUS ELETROPOSTOS — Energia que move o amanhã">
         <p style="margin-top:12px;color:var(--fraco);max-width:30ch">Carregadores para carro elétrico.
           Uma marca Irmãos na Obra.</p>
       </div>
