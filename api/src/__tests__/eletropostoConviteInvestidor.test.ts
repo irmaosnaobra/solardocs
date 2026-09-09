@@ -14,7 +14,9 @@ import { describe, it, expect } from 'vitest';
 //     por pessoa em vez de um.
 //   • telefone sem DDI não entra: 8 fichas do eletroposto já ficaram mudas
 //     porque o número foi montado errado.
-import { bolhaConvite, normalizarTel } from '../services/io/eletropostoConviteInvestidor';
+import {
+  bolhaConvite, normalizarTel, foraDaJanela, minutosBrasilia, positivoSemHorario,
+} from '../services/io/eletropostoConviteInvestidor';
 
 const OFERTAS = [
   '2026-09-14T17:00:00.000Z',   // segunda, 14h BRT
@@ -97,5 +99,67 @@ describe('convite ao investidor — o telefone', () => {
     expect(normalizarTel(null)).toBeNull();
     expect(normalizarTel('')).toBeNull();
     expect(normalizarTel('abc')).toBeNull();
+  });
+});
+
+
+// A JANELA VAI ATÉ 21:45, E 45 MINUTOS NÃO CABEM EM HORA CHEIA.
+//
+// Com corte por hora só existiam duas saídas erradas: parar às 21:00 (perder os
+// 45min que o dono pediu) ou varar as 22h. O relógio da linha é em minuto.
+const brt = (dia: string, hhmm: string) => new Date(`${dia}T${hhmm}:00-03:00`);
+
+describe('convite ao investidor — janela de envio', () => {
+  it('19:30 está dentro: é a hora em que o dono mandou começar', () => {
+    expect(foraDaJanela(brt('2026-09-09', '19:30'))).toBe(false);
+  });
+
+  it('21:44 ainda manda; 21:45 já não', () => {
+    expect(foraDaJanela(brt('2026-09-09', '21:44'))).toBe(false);
+    expect(foraDaJanela(brt('2026-09-09', '21:45'))).toBe(true);
+  });
+
+  it('07:00 abre e 06:59 não', () => {
+    expect(foraDaJanela(brt('2026-09-10', '07:00'))).toBe(false);
+    expect(foraDaJanela(brt('2026-09-10', '06:59'))).toBe(true);
+  });
+
+  it('madrugada fica fora — foi o que já saiu por engano às 01h13', () => {
+    expect(foraDaJanela(brt('2026-09-10', '01:13'))).toBe(true);
+  });
+
+  it('lê minuto de verdade, não só a hora', () => {
+    expect(minutosBrasilia(brt('2026-09-09', '19:30'))).toBe(19 * 60 + 30);
+  });
+});
+
+// POSITIVO QUE NÃO ESCOLHEU HORÁRIO AINDA É POSITIVO.
+//
+// Sem este caminho, "tenho interesse" caía no `nada`: virava aviso pra equipe e
+// a reunião ficava esperando alguém ler o recado. É o buraco que fez 178 das 194
+// fichas nunca chegarem à agenda.
+describe('convite ao investidor — quem diz sim sem apontar horário', () => {
+  it.each([
+    ['tenho interesse'], ['quero sim'], ['pode marcar'], ['bora'],
+    ['me interessa'], ['fechado'], ['perfeito'], ['pode ser'],
+  ])('reconhece "%s" como positivo', (t) => {
+    expect(positivoSemHorario([t])).toBe(true);
+  });
+
+  it.each([
+    ['não tenho interesse'], ['nao quero'], ['sem interesse'],
+    ['pare de mandar mensagem'], ['desisti'],
+  ])('NÃO confunde "%s" com positivo', (t) => {
+    expect(positivoSemHorario([t])).toBe(false);
+  });
+
+  it('mensagem vazia não é sim', () => {
+    expect(positivoSemHorario([])).toBe(false);
+    expect(positivoSemHorario([''])).toBe(false);
+  });
+
+  it('"não tenho interesse" contém "interesse" e mesmo assim é não', () => {
+    // a negativa é testada ANTES da positiva de propósito
+    expect(positivoSemHorario(['Obrigado, mas não tenho interesse'])).toBe(false);
   });
 });

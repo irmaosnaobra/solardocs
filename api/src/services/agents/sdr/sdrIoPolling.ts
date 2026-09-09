@@ -143,6 +143,10 @@ export async function pollZapiMessagesIO(): Promise<{ processed: number; skipped
              `wa.me/${phone}`,
              `${quandoPorExtenso(passo.iso).replace('-feira', '')} com o ${passo.dono}.`,
              'Ele tem capital declarado e já viu um ponto — peça o endereço na conversa.'].join('\n')
+          : passo.acao === 'reofertou'
+            ? ['🟢 *CONVITE: respondeu positivo e o robô repôs os horários*',
+               `wa.me/${phone}`,
+               'Ele disse sim sem escolher horário. Se ele não responder o número, vale uma ligação.'].join('\n')
           : passo.acao === 'slot_tomado'
             ? ['⚠️ *CONVITE: o horário escolhido já tinha sido vendido*',
                `wa.me/${phone}`,

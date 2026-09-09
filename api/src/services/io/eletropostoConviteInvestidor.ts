@@ -55,8 +55,11 @@ const DONOS_EP = ['Thiago', 'Diego'] as const;
 
 /** 1 pessoa a cada 20 min — régua pós-bloqueio de 30/08. */
 const INTERVALO_MS = 20 * 60 * 1000;
-const JANELA_INICIO_H = 7;
-const JANELA_FIM_H = 20;
+/** Janela de envio pedida pelo dono (09/09): 07:00 às 21:45.
+ *  Em minutos porque 21:45 não cabe em hora cheia — com corte por hora o robô
+ *  ou parava às 21:00 (perdia 45min) ou varava as 22h. */
+const JANELA_INICIO_MIN = 7 * 60;
+const JANELA_FIM_MIN = 21 * 60 + 45;
 const MAX_TENTATIVAS = 3;
 /** Três é escolha; cinco é formulário. Mesma conta do remarcar. */
 const QUANTAS_OPCOES = 3;
@@ -81,16 +84,41 @@ interface OfertaConvite {
   nome: string;
   cidade: string | null;
   em: string;
+  /** Quantas vezes a lista já foi posta na mesa. Duas no máximo. */
+  rodada?: number;
 }
 
-/** Hora de Brasília — o servidor roda em UTC. */
-function horaBrasilia(d = new Date()): number {
-  return Number(d.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo', hour12: false, hour: '2-digit' }));
+// ── QUEM RESPONDEU BEM MAS NÃO ESCOLHEU ─────────────────────────────────────
+// "Tenho interesse", "pode marcar", "boa" — é gente dizendo sim sem apontar o
+// dedo pra um horário. Sem este caminho a mensagem cairia no `nada`, viraria só
+// um aviso pra equipe e a reunião ficaria dependendo de alguém ver o recado:
+// exatamente o buraco que fez 178 das 194 fichas nunca chegarem à agenda.
+//
+// A negativa vem primeiro de propósito: "não tenho interesse" contém "interesse".
+const RE_NEGATIVO = /\b(n[ãa]o (tenho|quero|vou|posso|d[áa]|tenho interesse)|sem interesse|desist|descadastr|para de mandar|pare de mandar|n[ãa]o me interessa)\b/i;
+const RE_POSITIVO = /\b(sim|quero|queria|tenho interesse|me interessa|interessado|pode ser|pode marcar|podemos|vamos|bora|claro|aceito|topo|fechado|beleza|blz|show|perfeito|[óo]timo|combinado|t[ôo] dentro|manda|marca)\b/i;
+
+/** Disse sim, mas não escolheu horário nenhum? */
+export function positivoSemHorario(textos: string[]): boolean {
+  const t = textos.map(x => String(x || '').trim()).filter(Boolean).join(' ');
+  if (!t) return false;
+  if (RE_NEGATIVO.test(t)) return false;
+  return RE_POSITIVO.test(t);
 }
 
-function foraDaJanela(d = new Date()): boolean {
-  const h = horaBrasilia(d);
-  return h < JANELA_INICIO_H || h >= JANELA_FIM_H;
+/** Minutos desde a meia-noite em Brasília — o servidor roda em UTC. */
+export function minutosBrasilia(d = new Date()): number {
+  const s = d.toLocaleString('pt-BR', {
+    timeZone: 'America/Sao_Paulo', hour12: false, hour: '2-digit', minute: '2-digit',
+  });
+  const m = /(\d{1,2})\D(\d{2})/.exec(s);
+  if (!m) return -1;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+export function foraDaJanela(d = new Date()): boolean {
+  const t = minutosBrasilia(d);
+  return t < JANELA_INICIO_MIN || t >= JANELA_FIM_MIN;
 }
 
 /** Telefone só dígitos com DDI — é a chave da fila (1 pessoa = 1 marcador). */
@@ -153,6 +181,11 @@ const bolhaMarcado = (nome: string, iso: string, dono: string): string[] => [
   + 'chego na conversa com a conta dele pronta.',
 ];
 
+const bolhaReoferta = (ofertas: string[]): string[] => [
+  'Boa! Pra já deixar marcado, me diz qual desses fica melhor:\n'
+  + `${ofertas.map(linhaDaOpcao).join('\n')}\n\nÉ só responder o número.`,
+];
+
 const bolhaSlotTomado = (ofertas: string[]): string[] => [
   'Esse horário acabou de ser preenchido, desculpa. '
   + `Ainda tenho:\n${ofertas.map(linhaDaOpcao).join('\n')}\n\nQual desses?`,
@@ -168,7 +201,7 @@ const bolhaSlotTomado = (ofertas: string[]): string[] => [
  * assim que se gasta linha e esfria lead. Quem tem ponto 'definido' ou
  * 'negociando' (8) é mais quente ainda e entra primeiro na ordenação.
  */
-export async function semearConvites(opts: { dry?: boolean; limite?: number } = {}): Promise<{
+export async function semearConvites(opts: { dry?: boolean; limite?: number; naoAntesDe?: string } = {}): Promise<{
   candidatos: number; enfileirados: number; pulados: number; motivos: Record<string, number>;
 }> {
   const motivos: Record<string, number> = {};
@@ -215,7 +248,10 @@ export async function semearConvites(opts: { dry?: boolean; limite?: number } = 
 
   const linhas: { key: string; value: MarcadorConvite; updated_at: string }[] = [];
   const vistos = new Set<string>();
-  let base = Date.now();
+  // O dono pediu pra começar 19:30 de hoje: sem este piso, semear às 19:20
+  // dispararia a primeira mensagem no mesmo minuto.
+  const piso = opts.naoAntesDe ? new Date(opts.naoAntesDe).getTime() : 0;
+  let base = Math.max(Date.now(), Number.isFinite(piso) ? piso : 0);
 
   for (const f of ordenados) {
     if (opts.limite && linhas.length >= opts.limite) break;
@@ -257,13 +293,25 @@ export async function semearConvites(opts: { dry?: boolean; limite?: number } = 
 // ─── TICK: uma pessoa por vez ────────────────────────────────────────────────
 export type TickConvite = { enviados: number; motivo?: string; restam?: number };
 
-/** De quem é a vez. Mesma conta da LP: rodízio pelo total já marcado. */
+/**
+ * De quem é a vez — alterna a cada ENVIO, não a cada fechamento.
+ *
+ * A LP faz o rodízio contando o que já foi marcado, e ali está certo: lá cada
+ * visita vira (ou não) uma reunião na hora. Aqui não: entre um convite e o
+ * próximo pode não fechar nada, e contar fechamento deixaria dez pessoas
+ * seguidas recebendo os horários do mesmo consultor. O contador é do disparo.
+ */
+const VEZ_KEY = 'ep_convite_vez';
+
 async function proximoDono(): Promise<string> {
-  const { count } = await supabaseGerador
-    .from('agendamentos')
-    .select('id', { count: 'exact', head: true })
-    .in('vendedor_nome', DONOS_EP as unknown as string[]);
-  return DONOS_EP[(count || 0) % DONOS_EP.length]!;
+  const { data } = await supabase
+    .from('system_state').select('value').eq('key', VEZ_KEY).maybeSingle();
+  const n = Number((data?.value as { n?: number } | null)?.n ?? 0);
+  await supabase.from('system_state').upsert(
+    { key: VEZ_KEY, value: { n: n + 1 }, updated_at: new Date().toISOString() },
+    { onConflict: 'key' },
+  );
+  return DONOS_EP[n % DONOS_EP.length]!;
 }
 
 export async function runConviteTick(): Promise<TickConvite> {
@@ -320,8 +368,14 @@ export async function runConviteTick(): Promise<TickConvite> {
     logger.error('ep-convite', `${motivo} pra ${telefone} (tentativa ${tentativas}/${MAX_TENTATIVAS})`, null);
   };
 
-  const dono = await proximoDono();
-  const vagas = await proximasVagas(dono, QUANTAS_OPCOES, { agora });
+  // A vez é de um, mas a agenda manda: consultor lotado não pode travar a fila.
+  let dono = await proximoDono();
+  let vagas = await proximasVagas(dono, QUANTAS_OPCOES, { agora });
+  if (vagas !== null && !vagas.length) {
+    const outro = DONOS_EP.find(d => d !== dono)!;
+    const doOutro = await proximasVagas(outro, QUANTAS_OPCOES, { agora });
+    if (doOutro && doOutro.length) { dono = outro; vagas = doOutro; }
+  }
   // `null` é "não consegui ler a agenda" — diferente de "não tem vaga". Nos dois
   // casos não dá pra oferecer, mas só o primeiro merece voltar pra fila.
   if (vagas === null) { await devolverPraFila('agenda_ilegivel'); return { enviados: 0, motivo: 'agenda_ilegivel' }; }
@@ -358,6 +412,7 @@ export type PassoConvite =
   | { acao: 'nada' }
   | { acao: 'marcou'; iso: string; dono: string; id: number | null }
   | { acao: 'slot_tomado' }
+  | { acao: 'reofertou' }
   | { acao: 'ambiguo' };
 
 /**
@@ -387,7 +442,28 @@ export async function passoDoConvite(telefone: string, textos: string[]): Promis
   }
 
   const i = escolhaDaResposta(textos, oferta.ofertas);
-  if (i === null) return { acao: 'nada' };          // não falou de horário nenhum
+  if (i === null) {
+    // Disse sim e não apontou horário. Repõe a lista UMA vez — quem responde bem
+    // e some é o lead mais caro que existe: já custou a mensagem e o interesse.
+    // Duas vezes seria insistência, e insistência nesta linha é o que a derruba.
+    if (positivoSemHorario(textos) && (oferta.rodada ?? 1) < 2) {
+      const novas = await proximasVagas(oferta.dono, QUANTAS_OPCOES, {});
+      if (novas && novas.length) {
+        await supabase.from('system_state').upsert(
+          {
+            key: chave,
+            value: { ...oferta, ofertas: novas, rodada: 2, em: new Date().toISOString() } as unknown as Record<string, unknown>,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'key' },
+        );
+        await sendHuman(tel, bolhaReoferta(novas), 'io');
+        logger.info('ep-convite', `positivo sem horario, lista reposta (${tel})`);
+        return { acao: 'reofertou' };
+      }
+    }
+    return { acao: 'nada' };                        // não falou de horário nenhum
+  }
   if (i === -1) return { acao: 'ambiguo' };         // citou dois: quem desempata é gente
 
   const iso = oferta.ofertas[i]!;

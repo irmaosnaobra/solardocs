@@ -405,7 +405,10 @@ router.get('/eletroposto-convite', async (req: Request, res: Response) => {
     const dry = req.query.dry === '1' || req.query.dry === 'true';
     if (dry || req.query.semear === '1') {
       const limite = Number(req.query.limite) || undefined;
-      res.json({ ok: true, dry, ...(await semearConvites({ dry, limite })) });
+      // ?desde=2026-09-09T19:30:00-03:00 — piso do PRIMEIRO envio. Sem ele, semear
+      // 19:20 dispararia no mesmo minuto em vez de esperar a hora combinada.
+      const naoAntesDe = String(req.query.desde || '').trim() || undefined;
+      res.json({ ok: true, dry, ...(await semearConvites({ dry, limite, naoAntesDe })) });
       return;
     }
     res.json({ ok: true, ...(await runConviteTick()) });
