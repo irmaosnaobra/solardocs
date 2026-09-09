@@ -26,6 +26,8 @@ import { sendToGroup, sendWhatsApp, type ZapiInstance } from '../zapiClient';
 import { respostaPendenteRepescagem, marcarRespostaAvisada } from '../../io/eletropostoRepescagem';
 import { EQUIPE } from '../../../routes/ioEletroposto';
 import { respostaDeCampanhaPonto, avisoDeResposta } from '../../io/pesquisaPontoRespostas';
+import { passoDoConvite } from '../../io/eletropostoConviteInvestidor';
+import { quandoPorExtenso } from '../../io/eletropostoAgenda';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -125,6 +127,36 @@ export async function pollZapiMessagesIO(): Promise<{ processed: number; skipped
       }
     } catch (err) {
       logger.error('sdr-io-poll', `aviso de resposta da repescagem falhou pra ${phone}`, err);
+    }
+
+    // ESCOLHEU HORÁRIO NO CONVITE AO INVESTIDOR — este é o único caminho em que
+    // uma resposta na linha VIRA REUNIÃO sozinha. A pessoa não tem ficha em
+    // `agendamentos` ainda (é o "1" dela que cria), então o agente de agendamento
+    // não a enxerga: se este bloco não existisse, um "1" cairia na Luma como lead
+    // novo de anúncio e o horário oferecido morreria sem ninguém marcar.
+    // Vem antes da campanha e da Luma de propósito: é o mais específico dos três.
+    try {
+      const passo = await passoDoConvite(phone, [chat.lastMessage ?? ''].filter(Boolean));
+      if (passo.acao !== 'nada') {
+        const aviso = passo.acao === 'marcou'
+          ? ['✅ *REUNIÃO MARCADA PELO CONVITE AO INVESTIDOR*',
+             `wa.me/${phone}`,
+             `${quandoPorExtenso(passo.iso).replace('-feira', '')} com o ${passo.dono}.`,
+             'Ele tem capital declarado e já viu um ponto — peça o endereço na conversa.'].join('\n')
+          : passo.acao === 'slot_tomado'
+            ? ['⚠️ *CONVITE: o horário escolhido já tinha sido vendido*',
+               `wa.me/${phone}`,
+               'O robô já mandou a lista nova. Se ele não escolher, alguém precisa ligar.'].join('\n')
+            : ['⚠️ *CONVITE: a resposta citou mais de um horário*',
+               `wa.me/${phone}`,
+               'O robô não chuta no empate — quem desempata é gente.'].join('\n');
+        await Promise.allSettled(Object.values(EQUIPE).map(num => sendWhatsApp(num, aviso, 'io')));
+        logger.info('sdr-io-poll', `convite ao investidor: ${passo.acao} (${phone})`);
+        processed++;
+        continue;
+      }
+    } catch (err) {
+      logger.error('sdr-io-poll', `passo do convite ao investidor falhou pra ${phone}`, err);
     }
 
     // RESPOSTA DE CAMPANHA NOSSA — não é lead de anúncio (30/08/2026). Quem já está na

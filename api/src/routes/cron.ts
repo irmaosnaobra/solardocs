@@ -39,6 +39,7 @@ import { drainIgQueue, refreshIgToken } from '../services/instagram/igEngine';
 import { varrerComentariosFacebook } from '../services/instagram/fbComentarios';
 import { varrerInboxFacebook } from '../services/instagram/fbMensagens';
 import { runRepescagemTick, semearRepescagem } from '../services/io/eletropostoRepescagem';
+import { runConviteTick, semearConvites } from '../services/io/eletropostoConviteInvestidor';
 import { runEntradaIoDigest } from '../services/io/entradaIoDigest';
 import { runSementeTick, publicoSemente, bolhasSemente } from '../services/io/sementeSolarService';
 import { runGrupoFriosTick, publicoGrupoFrio, bolhasGrupoFrio } from '../services/io/eletropostoGrupoFrios';
@@ -292,7 +293,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // duas últimas cadências não apareciam). Os ticks sempre rodaram — quem
     // mentia era o relatório, que é justamente onde a gente vai olhar quando
     // desconfiar de um tick. Nome novo aqui exige chamada nova na MESMA posição.
-    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, limpaproAtendResult, geradorSeqResult, igDrainResult, fbComentResult, fbInboxResult, repescagemResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult, epReagendaResult, epCardPingResult, epIgConviteResult, solarBvResult, solarRespResult, curso19Result, carlaCnpjResult, carlaInativoResult, epAlerta10minResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, limpaproAtendResult, geradorSeqResult, igDrainResult, fbComentResult, fbInboxResult, repescagemResult, conviteResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult, epReagendaResult, epCardPingResult, epIgConviteResult, solarBvResult, solarRespResult, curso19Result, carlaCnpjResult, carlaInativoResult, epAlerta10minResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),            // detecta inbound IO pra Cora processar
@@ -316,6 +317,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       varrerComentariosFacebook(),     // Facebook: comentário em post/anúncio da Página → resposta privada (FB_COMENTARIOS_OFF desliga)
       varrerInboxFacebook(),           // Facebook: inbox do Messenger — responde, manda o menu e chama o humano (FB_INBOX_OFF desliga)
       runRepescagemTick(),             // eletroposto: 1 pessoa do apagão a cada 20min, 07h–20h
+      runConviteTick(),                // eletroposto: convite ao investidor com horários na mesa, 1 a cada 20min (EP_CONVITE_OFF desliga)
       runSementeTick(),                // semente: nutrição de quem pediu orçamento de solar e não fechou
       runGrupoFriosTick(),             // eletroposto: quem esfriou (não atendeu / sem interesse) vai pro grupo
       runEletropostoAgendaTick(),      // eletroposto: confirmação ao marcar + bom dia + lembrete 1h e 5min (anti no-show)
@@ -357,6 +359,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       fb_comentarios: fbComentResult.status === 'fulfilled' ? fbComentResult.value : { error: String((fbComentResult as any).reason) },
       fb_inbox:       fbInboxResult.status === 'fulfilled' ? fbInboxResult.value : { error: String((fbInboxResult as any).reason) },
       ep_repescagem:  repescagemResult.status === 'fulfilled' ? repescagemResult.value : { error: String((repescagemResult as any).reason) },
+      ep_convite:     conviteResult.status === 'fulfilled' ? conviteResult.value : { error: String((conviteResult as any).reason) },
       semente:        sementeResult.status === 'fulfilled' ? sementeResult.value : { error: String((sementeResult as any).reason) },
       ep_grupo_frio:  grupoFrioResult.status === 'fulfilled' ? grupoFrioResult.value : { error: String((grupoFrioResult as any).reason) },
       ep_agenda:      epAgendaResult.status === 'fulfilled' ? epAgendaResult.value : { error: String((epAgendaResult as any).reason) },
@@ -392,6 +395,26 @@ router.get('/limpapro-recovery-consume', async (req: Request, res: Response) => 
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });
+// ── Convite ao investidor: quem tem capital e já viu um ponto, e nunca sentou.
+// ?dry=1 mostra quem entraria (e por que cada um foi pulado) sem gravar nada.
+// ?semear=1 enfileira de verdade. Sem parâmetro, roda um tick à mão — o consumo
+// normal é no /process-messages, 1 pessoa a cada 20min entre 07h e 20h.
+router.get('/eletroposto-convite', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    if (dry || req.query.semear === '1') {
+      const limite = Number(req.query.limite) || undefined;
+      res.json({ ok: true, dry, ...(await semearConvites({ dry, limite })) });
+      return;
+    }
+    res.json({ ok: true, ...(await runConviteTick()) });
+  } catch (err: any) {
+    logger.error('cron', 'eletroposto-convite falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
 // ── Repescagem do eletroposto: quem chegou no apagão de 01–03/ago e ficou sem resposta.
 // Semeia a fila UMA vez (?semear=1); ?dry=1 mostra quem entraria sem gravar nada.
 // Sem parâmetro, roda um tick à mão — o consumo normal é no /process-messages,
