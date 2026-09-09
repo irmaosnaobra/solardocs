@@ -137,6 +137,11 @@ const BOT_SENT_PREFIXES = [
   // desfecho. Entra na conta desde o primeiro dia, e não depois de uma queda,
   // que é como quase todos os de cima entraram nesta lista.
   'carla_retomada:',
+  // [09/09] Convite ao investidor: fala com quem tem capital e ja viu um ponto,
+  // oferecendo horario. E' drenagem de fila, entao entra na conta desde o
+  // primeiro dia. O prefixo e 'convinv' porque 'ep_convite_sent:' logo acima ja
+  // pertence a outro robo.
+  'ep_convinv_sent:',
 ] as const;
 
 // Desvio da linha B2B ligado (ZAPI_SOLARDOC_VIA_IO=1)? Então Giovanna, curso de

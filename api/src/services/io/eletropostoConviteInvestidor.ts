@@ -25,7 +25,7 @@
 // levam cerca de quatro dias.
 //
 // ── O que ele NUNCA faz ──
-//   • Não manda duas vezes pra mesma pessoa (marcador `ep_convite_sent:`).
+//   • Não manda duas vezes pra mesma pessoa (marcador `ep_convinv_sent:`).
 //   • Não fala com quem já tem reunião futura marcada — esse já está no funil.
 //   • Não insiste: uma oferta por pessoa. Sem resposta, o assunto vira do humano.
 //   • Não grava sem conferir: entre oferecer e o lead responder passam horas, e o
@@ -43,12 +43,17 @@ import { quandoPorExtenso } from './eletropostoAgenda';
 import { proximasVagas, aindaLivre } from './eletropostoVagas';
 import { escolhaDaResposta } from './eletropostoRemarcar';
 
-const PENDING_PREFIX = 'ep_convite_pending:';
+// PREFIXO 'ep_convinv_', nao 'ep_convite_': este ultimo JA' E' de outro robo (o
+// convite de grupo garantido) e ja' esta' no teto da linha. Compartilhar o
+// prefixo faria duas coisas ruins e caladas: o seed leria os telefones daquele
+// robo como 'ja recebeu o meu convite' e pularia gente da lista, e os dois
+// passariam a escrever value de formato diferente na mesma chave.
+const PENDING_PREFIX = 'ep_convinv_pending:';
 /** Marcador de envio efetivado. Contado no teto anti-ban da linha. */
-export const EP_CONVITE_SENT_PREFIX = 'ep_convite_sent:';
-/** Oferta em aberto: `ep_convite_oferta:<telefone>` → { ofertas, dono, nome, em }. */
-export const EP_CONVITE_OFERTA_PREFIX = 'ep_convite_oferta:';
-const ULTIMO_KEY = 'ep_convite_ultimo';
+export const EP_CONVITE_SENT_PREFIX = 'ep_convinv_sent:';
+/** Oferta em aberto: `ep_convinv_oferta:<telefone>` → { ofertas, dono, nome, em }. */
+export const EP_CONVITE_OFERTA_PREFIX = 'ep_convinv_oferta:';
+const ULTIMO_KEY = 'ep_convinv_ultimo';
 
 /** Os dois que atendem eletroposto. A mesma lista da LP (ioEletroposto). */
 const DONOS_EP = ['Thiago', 'Diego'] as const;
@@ -301,7 +306,7 @@ export type TickConvite = { enviados: number; motivo?: string; restam?: number }
  * próximo pode não fechar nada, e contar fechamento deixaria dez pessoas
  * seguidas recebendo os horários do mesmo consultor. O contador é do disparo.
  */
-const VEZ_KEY = 'ep_convite_vez';
+const VEZ_KEY = 'ep_convinv_vez';
 
 async function proximoDono(): Promise<string> {
   const { data } = await supabase
