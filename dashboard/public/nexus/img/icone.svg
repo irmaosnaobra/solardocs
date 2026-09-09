@@ -1,11 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="NEXUS">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="NEXUS ELETROPOSTOS">
   <defs>
-    <linearGradient id="n" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#0B5CFF"/>
-      <stop offset="1" stop-color="#00C46A"/>
+    <linearGradient id="x" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#39FF14"/>
+      <stop offset="1" stop-color="#0085FF"/>
     </linearGradient>
   </defs>
-  <path fill="#0B5CFF" d="M6 88V8h20v80z"/>
-  <path fill="url(#n)" d="M26 8h20l24 52v28H50L26 36z"/>
-  <path fill="#00C46A" d="M70 88V8h20v80z"/>
+  <path fill="url(#x)" d="M4 6h26l66 88H70z"/>
+  <path fill="url(#x)" d="M70 6h26L30 94H4z"/>
 </svg>
