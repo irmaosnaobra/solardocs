@@ -95,9 +95,8 @@ header.topo{position:sticky;top:0;z-index:40;background:rgba(11,26,43,.88);backd
 @media(max-width:560px){.numeros{gap:14px 28px}}
 .numeros b{display:block;font-weight:800;font-size:23px;color:#fff}
 .numeros span{font-size:11.5px;color:var(--suave)}
-.poco{border-radius:14px;overflow:hidden;background:#fff;
-  display:grid;place-items:center}
-.poco img{width:100%;height:100%;object-fit:contain;aspect-ratio:1/1}
+.cena{border-radius:14px;overflow:hidden;background:#0E1B2A;border:1px solid var(--linha)}
+.cena img{width:100%;height:100%;object-fit:cover;aspect-ratio:16/10;display:block}
 .acoes{display:flex;gap:10px;margin-top:24px;flex-wrap:wrap}
 @media(max-width:560px){.acoes{flex-direction:column;align-items:stretch}
   .acoes .btn,.acoes .btn-linha{width:100%}}
@@ -119,6 +118,14 @@ section{padding:56px 0 0;scroll-margin-top:78px}
   background:var(--verde-fundo);color:var(--verde);display:grid;place-items:center;margin-bottom:14px}
 .pilar h3{font-size:16.5px;margin-bottom:7px}
 .pilar p{font-size:13.8px;color:var(--suave)}
+
+/* formas de pagar */
+.pagamento{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));margin-top:14px}
+.forma{background:var(--cartao);border:1px solid var(--verde-linha);border-radius:16px;padding:22px}
+.forma b{display:block;font-weight:800;font-size:clamp(26px,4vw,34px);color:var(--verde);line-height:1;
+  text-shadow:0 0 28px rgba(57,255,20,.25)}
+.forma span{display:block;font-size:13px;color:var(--texto);font-weight:600;margin:6px 0 10px}
+.forma p{font-size:13.4px;color:var(--suave)}
 
 /* ── vitrine ─────────────────────────────────────────────────────────── */
 .vitrine{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(232px,1fr))}
@@ -268,8 +275,11 @@ details[open] summary::after{content:"–"}
 details p{margin-top:10px;color:var(--suave);font-size:14.5px}
 
 /* ── contato ─────────────────────────────────────────────────────────── */
-.espec{margin-top:56px;background:linear-gradient(150deg,#16304C,#0B1A2B);border:1px solid var(--linha);
-  border-radius:20px;overflow:hidden;position:relative}
+.espec{margin-top:56px;background:linear-gradient(150deg,#1A3A5C,#0B1A2B);
+  border:1px solid var(--verde-linha);border-radius:22px;overflow:hidden;position:relative;
+  box-shadow:0 0 0 1px rgba(57,255,20,.10),0 26px 70px rgba(0,0,0,.55),0 0 90px rgba(57,255,20,.12)}
+.espec .risca{height:4px}
+.nav-destaque{color:var(--verde)!important;font-weight:700}
 .espec .risca{position:absolute;left:0;right:0;top:0;height:3px;
   background:linear-gradient(90deg,var(--verde),var(--azul))}
 .espec .dentro{position:relative;z-index:2;padding:32px 24px 36px}
@@ -347,11 +357,18 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
   details{padding:4px 15px 13px}
   footer .colunas{gap:10px}
   footer a{padding:12px 0}
+  th{font-size:11.5px;letter-spacing:.12em}
 }
 @media(max-width:380px){
   .vitrine{grid-template-columns:1fr}
   .modelo .desenho img{aspect-ratio:16/10}
 }
+/* barra fixa no celular: o contato fica sempre a um toque */
+.barra-fixa{position:fixed;left:0;right:0;bottom:0;z-index:60;background:rgba(8,20,34,.94);
+  padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+  backdrop-filter:blur(10px);border-top:1px solid var(--linha);display:none}
+.barra-fixa .btn{width:100%;height:52px;font-size:16px}
+@media(max-width:820px){.barra-fixa{display:block}body{padding-bottom:78px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto}}
 </style>
 </head>
@@ -381,12 +398,12 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
       <img src="/nexus/img/logo.webp" width="1842" height="450" alt="NEXUS ELETROPOSTOS">
     </a>
     <nav>
-      <a href="#inicio">Início</a>
-      <a href="#produtos">Produtos</a>
-      <a href="#beneficios">Benefícios</a>
-      <a href="#solucoes">Soluções</a>
-      <a href="#pontos">Pontos de Recarga</a>
-      <a href="#contato">Contato</a>
+      <a href="#produtos">Carregadores</a>
+      <a href="#negocio">Como pagar</a>
+      <a href="#retorno">Retorno</a>
+      <a href="#ficha">Ficha técnica</a>
+      <a href="#duvidas">Dúvidas</a>
+      <a href="#contato" class="nav-destaque">Contato</a>
     </nav>
     <button class="btn toque" type="button" data-abre="contato">Falar com especialista</button>
   </div>
@@ -421,41 +438,11 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
       </div>
     </div>
 
-    <figure class="poco" style="margin:0">
-      <img src="/nexus/img/p-dc.webp" width="1200" height="1200" alt="Carregador NEXUS DC60 de 60 kW, gabinete compacto com dois cabos CCS2" fetchpriority="high">
+    <figure class="cena" style="margin:0">
+      <img src="/nexus/img/garagem.webp" width="644" height="376" alt="Carregador NEXUS instalado na vaga de um estacionamento coberto, ao lado de um carro" fetchpriority="high">
     </figure>
   </div>
 </div>
-
-<!-- ══════════ PILARES ══════════ -->
-<section class="faixa" id="pilares">
-  <div class="pilares">
-    <div class="pilar">
-      <span class="anel"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></span>
-      <h3>Recarga rápida e segura</h3>
-      <p>De 40 a 240 kW com refrigeração ativa e as proteções elétricas que a norma exige. O carro
-        carrega no tempo de um café, e a tomada para sozinha se a leitura sair do esperado.</p>
-    </div>
-    <div class="pilar">
-      <span class="anel"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 4C10 4 4 9 4 17c0 1 .2 2 .5 3C7 13 12 10 18 9c-4 2-7 5-9 11"/></svg></span>
-      <h3>Energia limpa e sustentável</h3>
-      <p>O carro elétrico não solta fumaça na esquina onde ele carrega. E o quadro do ponto aceita
-        geração própria no mesmo padrão de entrada, se um dia você quiser abater a conta.</p>
-    </div>
-    <div class="pilar">
-      <span class="anel"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4v5c0 4.5-3.2 8.2-8 9-4.8-.8-8-4.5-8-9V7z"/><path d="m9 12 2 2 4-4"/></svg></span>
-      <h3>Tecnologia de ponta</h3>
-      <p>OCPP 1.6J aberto, tela sensível ao toque e telemetria de cada tomada em tempo real. Protocolo
-        padrão de mercado: trocou de plataforma, o carregador vai junto.</p>
-    </div>
-    <div class="pilar">
-      <span class="anel"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.5 2.7 3.8 5.7 3.8 9S14.5 18.3 12 21c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z"/></svg></span>
-      <h3>Mobilidade para todos</h3>
-      <p>CCS2 no DC e Tipo 2 no AC — os dois padrões dos elétricos e híbridos plug-in vendidos no
-        Brasil. Ninguém precisa de cartão de bandeira nenhuma para carregar no seu ponto.</p>
-    </div>
-  </div>
-</section>
 
 <!-- ══════════ PRODUTOS ══════════ -->
 <section id="produtos" class="faixa">
@@ -631,6 +618,44 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
 
   <p class="nota">A configuração exata — número de plugues, acabamento e potência do gabinete — é
     confirmada na proposta.</p>
+
+  <div class="acoes" style="justify-content:center">
+    <button class="btn toque" type="button" data-abre="contato">Pedir proposta do meu ponto</button>
+  </div>
+</section>
+
+<!-- ══════════ PILARES ══════════ -->
+<section class="faixa" id="pilares">
+  <div class="pilares">
+    <div class="pilar">
+      <span class="anel"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></span>
+      <h3>Recarga rápida e segura</h3>
+      <p>De 40 a 240 kW com refrigeração ativa e as proteções elétricas que a norma exige. O carro
+        carrega no tempo de um café, e a tomada para sozinha se a leitura sair do esperado.</p>
+    </div>
+    <div class="pilar">
+      <span class="anel"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 4C10 4 4 9 4 17c0 1 .2 2 .5 3C7 13 12 10 18 9c-4 2-7 5-9 11"/></svg></span>
+      <h3>Energia limpa e sustentável</h3>
+      <p>O carro elétrico não solta fumaça na esquina onde ele carrega. E o quadro do ponto aceita
+        geração própria no mesmo padrão de entrada, se um dia você quiser abater a conta.</p>
+    </div>
+    <div class="pilar">
+      <span class="anel"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4v5c0 4.5-3.2 8.2-8 9-4.8-.8-8-4.5-8-9V7z"/><path d="m9 12 2 2 4-4"/></svg></span>
+      <h3>Tecnologia de ponta</h3>
+      <p>OCPP 1.6J aberto, tela sensível ao toque e telemetria de cada tomada em tempo real. Protocolo
+        padrão de mercado: trocou de plataforma, o carregador vai junto.</p>
+    </div>
+    <div class="pilar">
+      <span class="anel"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.5 2.7 3.8 5.7 3.8 9S14.5 18.3 12 21c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z"/></svg></span>
+      <h3>Mobilidade para todos</h3>
+      <p>CCS2 no DC e Tipo 2 no AC — os dois padrões dos elétricos e híbridos plug-in vendidos no
+        Brasil. Ninguém precisa de cartão de bandeira nenhuma para carregar no seu ponto.</p>
+    </div>
+  </div>
+
+  <div class="acoes" style="justify-content:center">
+    <button class="btn toque" type="button" data-abre="contato">Falar com especialista</button>
+  </div>
 </section>
 
 <!-- ══════════ NÚMEROS ══════════ -->
@@ -643,120 +668,59 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
   </div>
 </section>
 
-<!-- ══════════ BENEFÍCIOS ══════════ -->
-<section id="beneficios" class="faixa">
+<!-- ══════════ COMO FAZEMOS NEGÓCIO ══════════ -->
+<section id="negocio" class="faixa">
   <div class="cabeca">
     <div>
-      <h2>Por que comprar da NEXUS</h2>
-      <p>Seis coisas que dá para conferir antes de assinar — nenhuma delas é promessa de folheto.</p>
+      <h2>De todo jeito a gente faz negócio</h2>
+      <p>Você leva só o carregador, ou o ponto inteiro montado. E o dinheiro tem mais de um
+        caminho até chegar lá.</p>
     </div>
   </div>
 
   <div class="pilares">
     <div class="pilar">
       <span class="anel"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h13v10H3z"/><path d="M16 10h3l2 3v4h-5"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg></span>
-      <h3>Peça de reposição no Brasil</h3>
-      <p>Quando queima uma placa, a estação não espera contêiner. A peça já está no país e o técnico
-        troca aqui mesmo.</p>
-    </div>
-    <div class="pilar">
-      <span class="anel"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H4z"/><path d="M9 20h6"/><path d="M12 16v4"/></svg></span>
-      <h3>Pronta entrega, do estoque</h3>
-      <p>O equipamento já está aqui, embalado no palete. Você não entra na fila de importação nem
-        depende de câmbio para saber quando começa.</p>
-    </div>
-    <div class="pilar">
-      <span class="anel"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 11V7a4 4 0 1 1 8 0v4"/><rect x="5" y="11" width="14" height="9" rx="2"/></svg></span>
-      <h3>OCPP 1.6J aberto</h3>
-      <p>Protocolo padrão de mercado. Se um dia você quiser trocar de plataforma de gestão, o
-        carregador vai junto — ele não é refém de ninguém.</p>
-    </div>
-    <div class="pilar">
-      <span class="anel"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg></span>
-      <h3>App do motorista incluído</h3>
-      <p>O NEXUS MAPA acha a estação, ativa por QR Code e cobra no Pix ou cartão. Não é módulo à
-        parte, vem com o equipamento.</p>
-    </div>
-    <div class="pilar">
-      <span class="anel"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 7-7"/><path d="M14 8h6v6"/></svg></span>
-      <h3>Painel que mostra o dinheiro</h3>
-      <p>Faturamento, consumo e status de cada tomada em tempo real. A tarifa por kWh é você quem
-        define, e muda quando quiser.</p>
+      <h3>Só o equipamento</h3>
+      <p>Você já tem projetista e eletricista. A gente vende o carregador, entrega e sai do seu caminho. O preço é o da tabela aqui em cima.</p>
     </div>
     <div class="pilar">
       <span class="anel"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 20h20"/><path d="M5 20V9l7-5 7 5v11"/><path d="M10 20v-6h4v6"/></svg></span>
-      <h3>Projeto, obra e parecer com a gente</h3>
-      <p>Não vendemos a caixa e sumimos. Projeto elétrico, parecer de acesso na concessionária,
-        instalação e comissionamento são do nosso time.</p>
+      <h3>O ponto inteiro montado</h3>
+      <p>Projeto elétrico, parecer de acesso na concessionária, obra civil, cabeamento, proteção e comissionamento. Você recebe funcionando.</p>
     </div>
-  </div>
-</section>
-
-<!-- ══════════ POSICIONAMENTO ══════════ -->
-<section class="faixa">
-  <div class="posic">
-    <span class="risca"></span>
-    <h2>Importadora e revenda: o equipamento é nosso estoque, a obra é nosso time.</h2>
-    <p>É por isso que o preço está escrito na página e o prazo não depende de um fornecedor do outro lado
-      do mundo. Quem te vende é quem instala e quem atende quando dá problema.</p>
-    <div class="acoes">
-      <button class="btn toque" type="button" data-abre="contato">Falar com especialista</button>
-      <a class="btn-linha toque" href="#retorno">Ver a conta do ponto</a>
+    <div class="pilar">
+      <span class="anel"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 21l-4.3-4.3"/><circle cx="11" cy="11" r="7"/></svg></span>
+      <h3>Consultoria antes de gastar</h3>
+      <p>Quer entrar e não sabe por onde. A gente olha o seu endereço, dimensiona a entrada de energia e diz se o ponto fecha conta — antes de você assinar qualquer coisa.</p>
     </div>
-  </div>
-</section>
-
-<!-- ══════════ SOLUÇÕES ══════════ -->
-<section id="solucoes" class="faixa">
-  <div class="cabeca">
-    <div>
-      <h2>Uma linha, três jeitos de usar</h2>
-      <p>O modelo certo muda bastante conforme o motivo da compra. Escolha o seu que a conversa já
-        começa no lugar certo.</p>
+    <div class="pilar">
+      <span class="anel"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 0 20a15 15 0 0 1 0-20z"/><circle cx="12" cy="12" r="10"/></svg></span>
+      <h3>Encomenda direta da China</h3>
+      <p>Volume grande ou configuração fora da linha? A gente importa sob encomenda, com prazo fechado antes de você pagar. É por esse caminho que vem o wallbox.</p>
     </div>
   </div>
 
-  <div class="solucoes">
-    <div class="solucao">
-      <span class="quem">Para quem investe</span>
-      <h3>Eletroposto próprio</h3>
-      <p>Você tem o ponto e quer faturar vendendo kWh. Aqui o carregador é ativo, não despesa.</p>
-      <ul>
-        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>Linha DC de 40 a 240 kW</li>
-        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>Você define a tarifa por kWh</li>
-        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>Ponto completo de 80 kW na faixa de R$ 140 mil</li>
-        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>Dossiê de crédito montado para o banco</li>
-      </ul>
-      <button class="btn toque" type="button" data-abre="contato" data-perfil="faturar">Quero faturar com recarga</button>
+  <div class="pagamento">
+    <div class="forma">
+      <b class="tabular">Até 72x</b>
+      <span>no financiamento</span>
+      <p>Trabalhamos com financeiras que parcelam o projeto em até 72 meses. A gente monta o dossiê de crédito no formato que o banco pede — a aprovação é do banco.</p>
     </div>
+    <div class="forma">
+      <b class="tabular">Até 18x</b>
+      <span>no cartão de crédito</span>
+      <p>O valor de cada parcela está no cartão de cada modelo. Juros e taxas da operadora do cartão entram por fora.</p>
+    </div>
+    <div class="forma">
+      <b class="tabular">À vista</b>
+      <span>é o preço da tabela</span>
+      <p>O número publicado em cada modelo é o de pagamento à vista, do equipamento. Obra e instalação são orçadas por endereço.</p>
+    </div>
+  </div>
 
-    <div class="solucao">
-      <span class="quem">Para quem recebe cliente</span>
-      <h3>Estabelecimento comercial</h3>
-      <p>Mercado, restaurante, hotel ou shopping. O carregador segura o cliente no local e ainda vende
-        energia enquanto ele gasta lá dentro.</p>
-      <ul>
-        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>DC de 60 ou 80 kW resolve a maioria</li>
-        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>Sua marca aparece no app do motorista</li>
-        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>Recarga gratuita ou paga, você escolhe</li>
-        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>Taxa de ociosidade para girar a vaga</li>
-      </ul>
-      <button class="btn toque" type="button" data-abre="contato" data-perfil="estabelecimento">Quero no meu estabelecimento</button>
-    </div>
-
-    <div class="solucao">
-      <span class="quem">Para quem fica horas parado</span>
-      <h3>Condomínio e frota</h3>
-      <p>Carro parado a noite inteira ou o dia todo não precisa de recarga rápida — precisa de wallbox
-        e de controle de quem gastou o quê.</p>
-      <ul>
-        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>Wallbox AC7, AC11 ou AC22 em Tipo 2</li>
-        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>Investimento bem menor que o DC</li>
-        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>Consumo separado por morador ou motorista</li>
-        <li><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><use href="#ok"></use></svg>Mesma plataforma de gestão dos DC</li>
-      </ul>
-      <button class="btn toque" type="button" data-abre="contato" data-perfil="frota">Quero para condomínio ou frota</button>
-    </div>
+  <div class="acoes" style="justify-content:center">
+    <button class="btn toque" type="button" data-abre="contato">Quero falar com um especialista</button>
   </div>
 </section>
 
@@ -829,90 +793,6 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
   </div>
 </section>
 
-<!-- ══════════ PONTOS DE RECARGA ══════════ -->
-<section id="pontos" class="faixa">
-  <div class="cabeca">
-    <div>
-      <h2>A rede não é nossa. O ponto é seu.</h2>
-      <p>Vendemos o equipamento; quem opera, cobra e recebe é você. Nosso trabalho é fazer o motorista
-        achar o seu endereço, conseguir pagar nele e voltar.</p>
-    </div>
-  </div>
-
-  <div class="plataforma">
-    <div class="pilares" style="grid-template-columns:1fr">
-      <div class="pilar">
-        <h3>A gente vende o carregador e sai da sua conta</h3>
-        <p>ELETROPOSTOS no nome é o que a gente entrega, não uma rede que a gente opera. Não operamos
-          ponto: sem franquia, sem bandeira nossa na sua fachada, sem exclusividade, sem royalty. Quem
-          compra manda no preço do kWh, no horário e em quem estaciona ali. A placa é sua, o cliente é seu.</p>
-      </div>
-      <div class="pilar">
-        <h3>Quem põe o seu ponto no mapa</h3>
-        <p>No comissionamento a estação sobe com ficha completa: endereço, potência, conector, preço do
-          kWh e foto de como entrar. É essa ficha que o motorista lê antes de virar o volante — e o
-          cadastro nos mapas que o pessoal de carro elétrico já usa é trabalho nosso.</p>
-      </div>
-      <div class="pilar">
-        <h3>A esquina decide. O mapa só confirma.</h3>
-        <p>Nenhum pino faz um carro sair da pista. Faz entrada larga, retorno perto, vaga iluminada e
-          alguém para abrir às 6 da manhã. Ponto errado com 240 kW fatura menos que ponto certo com
-          60 kW — quando é o caso, a gente indica o modelo menor e você fica com a diferença.</p>
-      </div>
-      <div class="pilar">
-        <h3>Pino apagado queima o ponto duas vezes</h3>
-        <p>Quem dirigiu 20 minutos até você e achou o carregador apagado não volta — e ainda escreve
-          isso na ficha do seu ponto para todo mundo ler. Por isso a peça fica no Brasil: conserto é
-          viagem de técnico, não fila de contêiner.</p>
-      </div>
-      <div class="pilar">
-        <h3>Meia hora parada na sua porta vale duas vezes</h3>
-        <p>20 kWh num DC60 dá vinte e poucos minutos — meia hora na conta redonda. Meia hora é café, é almoço, é uma volta no
-          mercado. O kWh você já cobrou — o que a pessoa faz nesse tempo é o segundo faturamento, e
-          esse é inteiro seu.</p>
-      </div>
-    </div>
-
-    <div>
-      <div class="fone" aria-hidden="true">
-        <div class="tela">
-          <div class="mapa"></div>
-          <div class="via" style="left:0;right:0;top:38%;height:9px"></div>
-          <div class="via" style="left:0;right:0;top:66%;height:6px"></div>
-          <div class="via" style="left:28%;top:0;bottom:0;width:8px"></div>
-          <div class="via" style="left:71%;top:0;bottom:0;width:5px"></div>
-          <div class="pin" style="left:26%;top:33%"><i>80</i></div>
-          <div class="topo-app">
-            <svg viewBox="0 0 141 103" width="19" height="14"><use href="#xis"></use></svg>
-            <span>O seu ponto, no mapa do motorista</span>
-          </div>
-          <div class="ficha">
-            <b>Seu posto · NEXUS DC80</b>
-            <div class="li"><span>Potência</span><b>80 kW · CCS2</b></div>
-            <div class="li"><span>Preço</span><b>R$ 2,20 /kWh</b></div>
-            <div class="li"><span>Situação</span><b>2 vagas livres</b></div>
-            <div class="acao">Iniciar recarga</div>
-          </div>
-          <div class="barra"></div>
-        </div>
-      </div>
-      <p class="exemplo">Exemplo de tela</p>
-    </div>
-  </div>
-
-  <div class="escuro" style="margin-top:24px">
-    <h2 style="font-size:clamp(20px,2.8vw,26px)">O que vem junto com o equipamento</h2>
-    <div class="junto">
-      <div><h3>NEXUS MAPA</h3><p>O app do motorista: acha a estação, ativa por QR Code e paga no Pix ou cartão.</p></div>
-      <div><h3>NEXUS PAINEL</h3><p>Faturamento, consumo e status em tempo real. A tarifa por kWh é você quem define.</p></div>
-      <div><h3>NEXUS 24</h3><p>Instalação, garantia e peça de reposição no país.</p></div>
-      <div><h3>OCPP 1.6J aberto</h3><p>Protocolo padrão de mercado: ninguém fica preso a uma plataforma.</p></div>
-    </div>
-    <p style="margin-top:20px;font-size:12.5px;color:var(--fraco)">NEXUS MAPA e NEXUS PAINEL são acessados
-      pelo navegador do celular. Não temos aplicativo publicado em loja — quando tiver, o link estará aqui.</p>
-  </div>
-</section>
-
 <!-- ══════════ EQUIPAMENTO REAL ══════════ -->
 <section id="equipamento" class="faixa">
   <div class="cabeca">
@@ -936,6 +816,10 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
       <img src="/nexus/img/unidade.webp" width="820" height="1093" alt="Unidade NEXUS sobre palete, com os cabos embalados, pronta para embarque" loading="lazy">
       <figcaption><b>Pronta entrega</b>A unidade já está aqui, embalada. Sem fila de importação.</figcaption>
     </figure>
+  </div>
+
+  <div class="acoes" style="justify-content:center">
+    <button class="btn toque" type="button" data-abre="contato">Quero um desse no meu ponto</button>
   </div>
 </section>
 
@@ -968,6 +852,10 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
   <p class="nota">Todos com OCPP 1.6J. Refrigeração ativa nos modelos em corrente contínua. Valores do
     equipamento, à vista, e podem ser atualizados — o que vale é o da proposta. O valor da
     parcela é o preço dividido por 18; juros e taxas da operadora do cartão entram por fora.</p>
+
+  <div class="acoes" style="justify-content:center">
+    <button class="btn toque" type="button" data-abre="contato">Pedir proposta</button>
+  </div>
 </section>
 
 <!-- ══════════ DÚVIDAS ══════════ -->
@@ -1019,6 +907,10 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
     <p>Os DC usam CCS2 e os wallbox usam Tipo 2, que são os dois padrões dos elétricos e híbridos plug-in
       vendidos no Brasil. Carro com outro padrão de fábrica precisa do adaptador do próprio fabricante.</p>
   </details>
+
+  <div class="acoes" style="justify-content:center">
+    <button class="btn toque" type="button" data-abre="contato">Ficou outra dúvida? Fala com a gente</button>
+  </div>
 </section>
 
 <!-- ══════════ CONTATO ══════════ -->
@@ -1026,9 +918,10 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
   <div class="espec" id="contato">
     <span class="risca"></span>
     <div class="dentro">
-      <h2>Fale com quem monta ponto de recarga todo mês</h2>
-      <p class="sub">Cinco perguntas rápidas. No fim você abre a conversa no WhatsApp já com o
-        contexto todo escrito — ninguém perde tempo repetindo o básico.</p>
+      <p class="rotulo" style="color:var(--verde)">Fala com a gente</p>
+      <h2 style="margin-top:10px">Comprar o carregador, montar o ponto inteiro ou só entender se fecha conta</h2>
+      <p class="sub">De todo jeito a conversa começa igual: cinco perguntas rápidas e o WhatsApp
+        abre com o contexto todo escrito. Ninguém perde tempo repetindo o básico.</p>
 
       <div class="barra" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="q-barra"><i style="width:0%"></i></div>
 
@@ -1136,7 +1029,7 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
         <h4>Para decidir</h4>
         <ul>
           <li><a href="#retorno">Conta do ponto</a></li>
-          <li><a href="#solucoes">Soluções</a></li>
+          <li><a href="#negocio">Como fazemos negócio</a></li>
           <li><a href="#duvidas">Dúvidas</a></li>
         </ul>
       </div>
@@ -1155,6 +1048,10 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
     </div>
   </div>
 </footer>
+
+<div class="barra-fixa">
+  <button class="btn toque" type="button" data-abre="contato">Falar com especialista</button>
+</div>
 
 <script>
 (function(){
