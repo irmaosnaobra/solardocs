@@ -95,6 +95,23 @@ describe('convite ao investidor — o telefone', () => {
     expect(normalizarTel('+55 (34) 99816-5040')).toBe('5534998165040');
   });
 
+  // O 55 duplicado NEM SEMPRE estoura o tamanho: quando o que a pessoa digitou
+  // ja vinha curto, sobra um numero de 13 digitos bem-formado e inexistente.
+  // Tres fichas da base estavam assim (Jacinto, Rilson, Agostinho).
+  it.each([
+    ['5555619810221'], ['5555819980060'], ['5555859993262'],
+  ])('recusa %s: depois do DDI o celular nao comeca com 9', (t) => {
+    expect(normalizarTel(t)).toBeNull();
+  });
+
+  it('deixa passar o formato antigo de 12 digitos, sem o nono', () => {
+    expect(normalizarTel('553498165040')).toBe('553498165040');
+  });
+
+  it('recusa DDD que nao existe', () => {
+    expect(normalizarTel('5501998165040')).toBeNull();
+  });
+
   it('recusa vazio e lixo', () => {
     expect(normalizarTel(null)).toBeNull();
     expect(normalizarTel('')).toBeNull();

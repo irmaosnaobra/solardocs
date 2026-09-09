@@ -130,7 +130,19 @@ export function foraDaJanela(d = new Date()): boolean {
 export function normalizarTel(raw: string | null | undefined): string | null {
   const d = String(raw || '').replace(/\D/g, '');
   if (d.length < 12 || d.length > 13) return null;
-  return d.startsWith('55') ? d : null;
+  if (!d.startsWith('55')) return null;
+  // Tamanho e DDI certos ainda deixam passar numero que nao existe. O 55
+  // duplicado da ficha antiga vira exatamente isso: `5555819980060` tem 13
+  // digitos, comeca com 55, e o que sobra depois do DDI e '55'+'819980060' —
+  // um celular que comeca com 8. Discar nisso e' tentativa perdida numa linha
+  // que ja foi bloqueada tres vezes, entao a regra e' do proprio numero:
+  //   13 digitos -> 55 + DDD + 9 digitos, e o primeiro deles TEM que ser 9
+  //   12 digitos -> 55 + DDD + 8 digitos (formato antigo, sem o nono)
+  const ddd = Number(d.slice(2, 4));
+  if (!(ddd >= 11 && ddd <= 99)) return null;
+  const numero = d.slice(4);
+  if (numero.length === 9 && !numero.startsWith('9')) return null;
+  return d;
 }
 
 /**
