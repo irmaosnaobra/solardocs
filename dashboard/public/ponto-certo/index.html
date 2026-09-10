@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="index, follow">
 <title>O Ponto Certo · achar, negociar e fechar o local do seu eletroposto</title>
-<meta name="description" content="Você tem o capital e não tem o lugar. Este material é a régua que a gente usa pra escolher um ponto, chegar no dono do imóvel sem levantar a lebre e fechar um contrato longo antes de gastar o primeiro real. Sete aulas e doze instrumentos, R$ 297.">
+<meta name="description" content="Você tem o capital e não tem o lugar. Este material é a régua que a gente usa pra escolher um ponto, chegar no dono do imóvel sem levantar a lebre e fechar um contrato longo antes de gastar o primeiro real. Sete aulas e doze instrumentos, R$ 177.">
 <link rel="icon" type="image/svg+xml" href="/ponto-certo/img/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="/ponto-certo/img/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/ponto-certo/img/favicon-16.png">
 <link rel="apple-touch-icon" href="/ponto-certo/img/apple-touch-icon.png">
 <meta property="og:title" content="O Ponto Certo · a régua para achar o local do seu eletroposto">
-<meta property="og:description" content="Você tem o capital e não tem o lugar. Este material é a régua que a gente usa pra escolher um ponto, chegar no dono do imóvel sem levantar a lebre e fechar um contrato longo antes de gastar o primeiro real. Sete aulas e doze instrumentos, R$ 297.">
+<meta property="og:description" content="Você tem o capital e não tem o lugar. Este material é a régua que a gente usa pra escolher um ponto, chegar no dono do imóvel sem levantar a lebre e fechar um contrato longo antes de gastar o primeiro real. Sete aulas e doze instrumentos, R$ 177.">
 <meta property="og:image" content="https://solardoc.app/nexus/img/capa.webp">
 <link rel="canonical" href="https://solardoc.app/ponto-certo/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -786,6 +786,21 @@
     .foneApp{width:184px}
     .trilho{animation-duration:34s;gap:14px}
   }
+  /* ===== 100% no celular =====
+     O publico daqui e mais velho e le no telefone. Duas coisas quebravam isso:
+     etiqueta de 10 e 11px, que a nossa propria nota ja registra como ilegivel
+     no celular, e o link do rodape com 16px de alvo, contra os 44 que Apple e
+     Google pedem e que o resto da pagina ja respeita. */
+  @media (max-width:640px){
+    .eyebrow{font-size:12px;letter-spacing:.14em;padding:8px 14px}
+    .rodaEmTitulo{font-size:12px;letter-spacing:.14em}
+    .modTag{font-size:12.5px}
+    .modNum{font-size:13px}
+    .ctaNota{font-size:13.5px}
+    /* alvo de toque do rodape */
+    .rodape a, .rodapeLinks a{display:inline-flex;align-items:center;min-height:44px}
+  }
+
   @media (prefers-reduced-motion:reduce){
     .trilho{animation:none;overflow-x:auto;width:auto;padding-bottom:8px}
     .esteira{-webkit-mask-image:none;mask-image:none}
@@ -819,7 +834,7 @@
         <li>A régua que transforma qualquer aluguel pedido em carros por dia</li>
         <li>O term sheet de 12 campos que vai para o advogado</li>
       </ul>
-      <a href="https://pay.kiwify.com.br/BtebJFP" class="cta" data-cta="hero">Quero o material por R$ 297 →</a>
+      <a href="https://pay.kiwify.com.br/BtebJFP" class="cta" data-cta="hero">Quero o material por R$ 177 →</a>
       <span class="ctaNota">Acesso imediato por e-mail. Quem já tem o ponto sob controle não precisa disto.</span>
 
       <div class="rodaEm">
@@ -849,7 +864,7 @@
     <div><b>7</b><span>aulas</span></div>
     <div><b>12</b><span>instrumentos prontos para usar</span></div>
     <div><b>7</b><span>travas que matam um endereço de graça</span></div>
-    <div><b>R$ 297</b><span>pagamento único</span></div>
+    <div><b>R$ 177</b><span>pagamento único, ou 6x</span></div>
   </div>
 </div>
 
@@ -926,7 +941,7 @@
     <div class="narrow" style="text-align:center">
       <span class="eyebrow">Não é PDF de curso. É o material de trabalho</span>
       <h2>Os documentos que você abre e usa</h2>
-      <p class="muted" style="margin-top:12px">Aula ninguém aplica depois. Instrumento você abre no local, preenche em pé e leva na conversa. É por eles que se paga R$ 297.</p>
+      <p class="muted" style="margin-top:12px">Aula ninguém aplica depois. Instrumento você abre no local, preenche em pé e leva na conversa. É por eles que se paga R$ 177.</p>
     </div>
     <div class="instrGrade">
       <figure>
@@ -1155,7 +1170,7 @@
     <div class="ofertaBox">
       <span class="eyebrow">Acesso imediato</span>
       <h2 style="margin-bottom:6px">Custa menos que um mês de aluguel errado</h2>
-      <div class="preco">R$ 297<small> à vista</small></div>
+      <div class="preco">R$ 177<small> à vista, ou 6x de R$ 33,21</small></div>
       <p class="muted" style="font-size:14.5px">pagamento único · acesso a todo o material e aos instrumentos</p>
       <ul class="ofertaLista">
         <li>As 7 aulas, nenhuma sem uma ação no fim</li>
@@ -1166,7 +1181,7 @@
         <li>A régua de negociação e os dez itens inegociáveis</li>
         <li>A proposta de uma página e o term sheet de 12 campos</li>
       </ul>
-      <a href="https://pay.kiwify.com.br/BtebJFP" class="cta" data-cta="oferta">Quero o material por R$ 297 →</a>
+      <a href="https://pay.kiwify.com.br/BtebJFP" class="cta" data-cta="oferta">Quero o material por R$ 177 →</a>
       <span class="ctaNota">Acesso imediato por e-mail. Quem já tem o ponto sob controle não precisa disto.</span>
       <p class="seguro">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -1218,8 +1233,8 @@
 <section style="padding-top:0">
   <div class="wrap narrow" style="text-align:center">
     <h2>O ponto que você ainda não tem é a única coisa entre você e a estação</h2>
-    <p class="muted">Sete aulas, doze instrumentos, R$ 297 uma vez. Se você já tem o ponto, este material não é para você.</p>
-    <a href="https://pay.kiwify.com.br/BtebJFP" class="cta" data-cta="final">Quero o material por R$ 297 →</a>
+    <p class="muted">Sete aulas, doze instrumentos, R$ 177 uma vez. Se você já tem o ponto, este material não é para você.</p>
+    <a href="https://pay.kiwify.com.br/BtebJFP" class="cta" data-cta="final">Quero o material por R$ 177 →</a>
     <span class="ctaNota">Acesso imediato por e-mail. Quem já tem o ponto sob controle não precisa disto.</span>
     <p class="seguro">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -1234,12 +1249,12 @@
 <footer>
   <div class="wrap">
     <p>Irmãos na Obra · eletroposto de recarga chave na mão</p>
-    <p><a href="/privacidade/">Privacidade</a></p>
+    <p class="rodapeLinks"><a href="/privacidade/">Privacidade</a></p>
   </div>
 </footer>
 
 <div class="barra">
-  <a href="https://pay.kiwify.com.br/BtebJFP" class="cta" data-cta="barra">Quero o material por R$ 297 →</a>
+  <a href="https://pay.kiwify.com.br/BtebJFP" class="cta" data-cta="barra">Quero o material por R$ 177 →</a>
 </div>
 
 
