@@ -1,0 +1,30 @@
+name: Peso das landers
+
+on:
+  pull_request:
+    paths:
+      - 'dashboard/public/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  medir:
+    name: quanto a página manda pro celular
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+
+      # O peso das landers nunca foi HTML: a /io mandava 2,58 MB por causa de um
+      # favicon de 468 KB baixado 3×. Aqui o PR que engorda a pasta aparece no log
+      # antes de virar página lenta no celular de quem clicou no anúncio.
+      - run: npm ci
+        working-directory: api
+      - run: npx ts-node --transpile-only scripts/peso-das-landers.ts
+        working-directory: api

@@ -7,6 +7,12 @@ dotenv.config();
 
 import * as Sentry from '@sentry/node';
 
+// Logo depois do dotenv e antes de qualquer serviço: diz na cara quais variáveis
+// críticas faltam e o que quebra sem cada uma. Por padrão só avisa; derruba o
+// processo apenas com ENV_STRICT=true. Ver src/utils/env.ts.
+import { verificarEnv } from './utils/env';
+verificarEnv();
+
 const dsn = process.env.SENTRY_DSN;
 
 // Sem DSN o Sentry fica desligado e nada quebra: é o estado normal em dev e

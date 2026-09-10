@@ -1,0 +1,40 @@
+name: Qualidade
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    name: api — typecheck e testes
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - run: npm ci
+
+      # BLOQUEIA. Baseline em 10/09/2026 é 0 erro — então qualquer erro aqui é novo.
+      # É o gate que faltava: `tsc` verde na sua máquina não prova que o COMMIT compila,
+      # porque commit parcial deixa a dependência de fora.
+      - name: tsc --noEmit
+        run: npx tsc --noEmit
+
+      # NÃO BLOQUEIA ainda. Baseline em 10/09/2026: 17 testes vermelhos em 5 arquivos
+      # (agendaSolarSocios, centralRoteamentoSolar, leadSolar700kwh, nilceParaGiovanna),
+      # todos em código que estava sendo mexido. Gate vermelho no dia 1 é gate que
+      # ninguém olha. Quando esses 17 fecharem, apagar o continue-on-error abaixo.
+      - name: vitest
+        run: npx vitest run
+        continue-on-error: true

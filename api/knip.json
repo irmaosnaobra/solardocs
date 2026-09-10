@@ -1,0 +1,15 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/app.ts",
+    "src/instrument.ts",
+    "scripts/**/*.ts"
+  ],
+  "project": ["src/**/*.ts", "scripts/**/*.ts"],
+  "ignore": ["src/__tests__/**"],
+  "ignoreDependencies": [
+    "@sparticuz/chromium-min",
+    "puppeteer-core"
+  ],
+  "vitest": { "config": ["vitest.config.ts"] }
+}
