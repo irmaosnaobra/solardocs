@@ -349,7 +349,7 @@ tbody tr:hover{background:#233047}
     <div id="aleg-corpo" style="max-height:52vh;overflow:auto;margin-top:4px"></div>
     <div class="mo-acts">
       <button class="btn" onclick="fecharModal('ov-alegacoes')">Fechar</button>
-      <button class="btn primary" onclick="fecharModal('ov-alegacoes');irAba('listas')">Editar o script</button>
+      <button class="btn primary" onclick="reescreverScript()">Reescrever o script</button>
     </div>
   </div>
 </div>
@@ -1743,6 +1743,14 @@ function abrirAlegacoes(){
       </div>`).join('')}</div>` : ''}`;
   abrirModal('ov-alegacoes');
 }
+/** A segunda saída da trava. Existe porque "provar" não pode ser o único
+ *  caminho: alegação que ninguém consegue medir precisa sair do texto, e obrigar
+ *  o consultor a inventar uma fonte pra destravar seria pior que não ter trava. */
+function reescreverScript(){
+  const pid = alvoAtual();
+  fecharModal('ov-alegacoes');
+  abrirProdutos(pid);
+}
 async function verificarAlegacao(id){
   const fonte = (document.getElementById('fonte-' + id) || {}).value || '';
   // O mínimo de 8 caracteres é o mesmo CHECK que existe no banco. Validar aqui
@@ -3116,7 +3124,12 @@ async function importarLista(){
 }
 
 // ============= PRODUTOS E SCRIPTS =============
-function abrirProdutos(){ prodEditando = produtos[0] ? produtos[0].id : null; renderProdutos(); abrirModal('ov-prod'); }
+/** `pid` abre já no produto certo. Quem chega aqui vindo da trava de alegação
+ *  precisa cair no script que está bloqueado, não no primeiro do catálogo. */
+function abrirProdutos(pid){
+  prodEditando = (pid && produtos.some(p => p.id === pid)) ? pid : (produtos[0] ? produtos[0].id : null);
+  renderProdutos(); abrirModal('ov-prod');
+}
 function renderProdutos(){
   document.getElementById('prod-lista').innerHTML = produtos.map(p =>
     `<div class="prodrow${prodEditando===p.id?' on':''}" onclick="editarProduto('${p.id}')">
@@ -3168,9 +3181,14 @@ async function salvarProduto(){
     const existe = produtos.some(p => p.id === id);
     if (existe) await supaPatch(`prospeccao_produtos?id=eq.${id}`, body);
     else        await supaInsert('prospeccao_produtos', body);
-    await supaDelete(`prospeccao_scripts?produto_id=eq.${id}`);
+    // O textarea só edita ABERTURAS (`vars` em renderProdutos lê de `scripts`,
+    // que carregar() monta só com tipo='abertura'). Apagar tudo do produto
+    // levava junto as respostas prontas — objeção, fechamento, follow, quebra
+    // de gelo — que não estão no textarea e voltariam vazias. Eram 10 objeções
+    // num produto em 10/09. O delete agora é escopado ao que o campo edita.
+    await supaDelete(`prospeccao_scripts?produto_id=eq.${id}&or=(tipo.is.null,tipo.eq.abertura)`);
     if (textos.length) await supaInsert('prospeccao_scripts',
-      textos.map((t,i)=>({ produto_id:id, ordem:i+1, texto:t })));
+      textos.map((t,i)=>({ produto_id:id, ordem:i+1, texto:t, tipo:'abertura' })));
     await carregar();
     prodEditando = id; renderProdutos(); renderTudo();
     showToast('Produto salvo');
