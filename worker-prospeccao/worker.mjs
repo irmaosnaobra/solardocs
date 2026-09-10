@@ -233,7 +233,15 @@ function montarMensagem(c, scripts, alegacoes, produtoId, preco) {
   const s = limpos[(c.empresa || '').length % limpos.length];
   const primeiro = (c.socio || '').trim().split(/\s+/)[0] || '';
   let t = s.texto;
-  if (!primeiro) t = t.replaceAll(', {socio}', '').replaceAll('{socio}', 'você');
+  // Sem nome na ficha, o vocativo SOME — nao vira "voce". "fala voce" e
+  // "oi, voce" sao a cara de mensagem automatica que a gente esta evitando.
+  // Tira a virgula e o espaco junto, e limpa pontuacao orfa no comeco da linha.
+  if (!primeiro) {
+    t = t.replace(/[ 	]*,?[ 	]*\{socio\}/g, '')
+         .replace(/\{socio\}[ 	]*,?[ 	]*/g, '')
+         .replace(/^[ 	]*,[ 	]*/gm, '')
+         .replace(/[ 	]+$/gm, '');
+  }
   return t
     .replaceAll('{empresa}', c.empresa || '')
     .replaceAll('{cidade}', c.cidade || '')
