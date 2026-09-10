@@ -610,8 +610,13 @@ async function umaAbordagem() {
 async function modoContinuo() {
   console.log('\n  MODO CONTÍNUO — trabalha sozinho das '
     + CFG.horaIni + 'h às ' + (CFG.horaFim === 24 ? '23h59' : CFG.horaFim + 'h') + '.');
-  console.log('  Aborda de ' + Math.round(CFG.minSeg / 60) + ' a ' + Math.round(CFG.maxSeg / 60)
-    + ' min. Confere resposta a cada ' + Math.round(CFG.olharSeg / 60) + ' min.');
+  console.log('  Aborda de ' + Math.round(CFG.minSeg / 60) + ' a ' + Math.round(CFG.maxSeg / 60) + ' min.');
+  if (CANAL === 'instagram') {
+    console.log('  Quem RESPONDE e o webhook da Meta, no servidor — nao este worker.');
+    console.log('  Aqui so sai a primeira mensagem de cada empresa.');
+  } else {
+    console.log('  Confere resposta a cada ' + Math.round(CFG.olharSeg / 60) + ' min.');
+  }
   console.log('  Ctrl+C para parar. Deixe esta janela aberta.\n');
 
   let proximaAbordagem = 0;   // epoch em que pode mandar a próxima fria
@@ -633,14 +638,21 @@ async function modoContinuo() {
       continue;
     }
 
-    // ── 1. RESPONDER vem sempre primeiro, e roda em TODA volta ────────────
-    // Ler conversa não gasta teto e não tem risco: o que arrisca é enviar frio.
-    // Por isso ela confere de 2 em 2 minutos e larga o que estiver fazendo pra
-    // responder quem escreveu. Resposta rápida é o que separa conversa de
-    // formulário — e responder não consome a cota de abordagem.
-    try {
-      await modoResponder();
-    } catch (e) { log('rodada de resposta falhou: ' + e.message); }
+    // ── 1. RESPONDER ──────────────────────────────────────────────────────
+    // No Instagram isto NÃO roda mais: quem responde é o webhook da Meta, que
+    // recebe a mensagem pronta no servidor e devolve pela API oficial.
+    //
+    // Ler pelo navegador aqui era pior que inútil — era o que travava o loop.
+    // Cada conversa custa ~8s (navegar + esperar) e são 170: mais de 20 minutos
+    // por volta, ANTES da primeira mensagem sair. A tela parecia parada porque
+    // estava moendo conversa que o webhook já cobre.
+    //
+    // No WhatsApp continua rodando: lá não existe webhook, e o navegador é o
+    // único jeito de saber que alguém respondeu.
+    if (CANAL !== 'instagram') {
+      try { await modoResponder(); }
+      catch (e) { log('rodada de resposta falhou: ' + e.message); }
+    }
 
     // ── 2. ABORDAR, se já passou o intervalo e ainda tem teto ─────────────
     if (Date.now() >= proximaAbordagem) {
