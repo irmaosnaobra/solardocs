@@ -21,7 +21,6 @@
     "@sentry/node": "^10.69.0",
     "@sparticuz/chromium-min": "^147.0.0",
     "@supabase/supabase-js": "^2.102.1",
-    "@t3-oss/env-core": "^0.13.11",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.1",
     "bcryptjs": "^3.0.3",
