@@ -95,6 +95,39 @@ h1{font-size:16px;font-weight:750;letter-spacing:.02em}
 .nota{font-size:11.5px;color:var(--faint);line-height:1.65;margin-top:11px}
 .erro{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.35);border-radius:11px;
   padding:12px 14px;font-size:12.5px;color:#FECACA;margin-bottom:14px;line-height:1.6}
+/* ── abas ──────────────────────────────────────────────────────────────────── */
+.abas{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.aba{background:transparent;border:1px solid var(--linha);color:var(--dim);padding:8px 16px;
+  border-radius:9px;font-size:12.5px;font-weight:650;cursor:pointer;font-family:inherit;
+  display:inline-flex;align-items:center;gap:8px;transition:all .15s}
+.aba:hover{color:var(--txt);border-color:rgba(120,160,255,.28)}
+.aba.on{background:rgba(34,211,238,.1);border-color:var(--ciano);color:var(--ciano)}
+.aba .cnt{font-family:var(--mono);font-size:11px;opacity:.75}
+
+/* ── busca ─────────────────────────────────────────────────────────────────── */
+.busca{width:100%;padding:12px 15px;border-radius:11px;border:1px solid var(--linha);
+  background:var(--bg2);color:var(--txt);font-size:14px;font-family:inherit;margin-bottom:14px}
+.busca:focus{outline:none;border-color:var(--ciano)}
+.busca::placeholder{color:var(--faint)}
+
+/* ── linha de cliente ──────────────────────────────────────────────────────── */
+.cli{display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:10px;
+  border:1px solid transparent;transition:background .15s}
+.cli:hover{background:rgba(255,255,255,.025);border-color:var(--linha)}
+.cli + .cli{border-top:1px solid rgba(255,255,255,.04)}
+.cli .nm{flex:1;min-width:0}
+.cli .nm b{display:block;font-size:13.5px;font-weight:650;color:var(--txt);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cli .nm span{font-size:11.5px;color:var(--faint)}
+.chip{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  padding:3px 8px;border-radius:5px;flex:none;white-space:nowrap}
+.cli .qd{font-family:var(--mono);font-size:11.5px;color:var(--dim);flex:none;
+  width:74px;text-align:right;font-variant-numeric:tabular-nums}
+.abrir{flex:none;width:30px;height:30px;border-radius:8px;border:1px solid var(--linha);
+  display:grid;place-items:center;color:var(--dim);text-decoration:none;transition:all .15s}
+.abrir:hover{color:var(--ciano);border-color:var(--ciano)}
+.abrir svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2}
+
 @media(max-width:640px){ .big{font-size:31px} .wrap{padding:14px 12px 50px} }
 </style>
 </head>
@@ -114,7 +147,18 @@ h1{font-size:16px;font-weight:750;letter-spacing:.02em}
     <div class="relogio" id="relogio">--:--:--</div>
   </header>
 
+  <div class="abas" id="abas"></div>
+
   <div id="avisos"></div>
+
+  <!-- ONDE CADA CLIENTE ESTÁ -->
+  <div id="painel-clientes" hidden>
+    <input class="busca" id="q" placeholder="Buscar empresa ou cidade — digite pra ver onde qualquer cliente está"
+           oninput="buscar(this.value)" autocomplete="off">
+    <div id="clientes"></div>
+  </div>
+
+  <div id="painel-geral">
 
   <!-- números do dia -->
   <div class="grid g4" style="margin-bottom:13px" id="kpis"></div>
@@ -157,6 +201,8 @@ h1{font-size:16px;font-weight:750;letter-spacing:.02em}
       <div id="custo"></div>
     </div>
   </div>
+
+  </div><!-- /painel-geral -->
 
   <div class="nota" style="text-align:center;margin-top:22px" id="rodape">carregando…</div>
 </div>
@@ -370,6 +416,157 @@ function desenharAvisos(){
   document.getElementById('avisos').innerHTML = h;
 }
 
+// ═══ ONDE CADA CLIENTE ESTÁ ═════════════════════════════════════════════════
+// A visão agregada responde "quantos". Esta responde "quem, e o que faço com
+// ele". São perguntas diferentes e por isso são abas diferentes — empilhar as
+// duas numa tela só faria a urgente sumir embaixo da bonita.
+//
+// Nunca carrega os 1.107 nunca-tocados: eles não têm nada pra contar ainda. O
+// que se carrega é quem tem conversa aberta (~170) e os próximos da fila (60).
+// Buscar por nome vai ao banco na hora, aí sim atravessando a base inteira.
+
+let aba = 'geral';
+let cli = { agora: [], esperando: [], fila: [], busca: null, termo: '' };
+
+const CHIP = {
+  conversa_viva: ['CONVERSA VIVA', '#34D399'],
+  aguardando:    ['AGUARDANDO',    '#60A5FA'],
+  sem_retorno:   ['SEM RETORNO',   '#FBBF24'],
+  nunca_tocado:  ['NA FILA',       '#4A5772'],
+  nao_perturbar: ['NÃO PERTURBAR', '#F87171'],
+  encerrado:     ['ENCERRADO',     '#3F4A63'],
+};
+const ETAPA_ROT = {
+  novo: 'novo', abordado: 'abordado', respondeu: 'respondeu',
+  interessado: 'interessado', cliente: 'CLIENTE', encerrado: 'encerrado',
+};
+
+const SVG_ABRIR = '<svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>';
+
+/** O link que abre a conversa. Instagram primeiro: é o canal da operação. */
+function linkDe(c) {
+  if ((c.instagram || '').trim()) return 'https://www.instagram.com/' + c.instagram + '/';
+  if ((c.telefone || '').trim())  return 'https://wa.me/' + c.telefone;
+  return null;
+}
+
+function linhaCliente(c) {
+  const [rot, cor] = CHIP[c.canal] || [c.canal, 'var(--dim)'];
+  const href = linkDe(c);
+  const quando = c.dias_desde_ultimo_toque === null || c.dias_desde_ultimo_toque === undefined
+    ? '—'
+    : (c.dias_desde_ultimo_toque === 0 ? 'hoje' : c.dias_desde_ultimo_toque + 'd');
+  const onde = [c.cidade, c.uf].filter(Boolean).join('/');
+  const marca = (c.instagram || '').trim() ? '@' + c.instagram : (c.telefone || '');
+  return `<div class="cli">
+    <div class="nm">
+      <b>${esc(c.empresa)}</b>
+      <span>${esc(onde)}${onde && marca ? ' · ' : ''}${esc(marca)}${
+        c.etapa && c.etapa !== 'novo' ? ' · ' + ETAPA_ROT[c.etapa] : ''}</span>
+    </div>
+    <span class="chip" style="background:${cor}1f;color:${cor}">${rot}</span>
+    <span class="qd">${quando}</span>
+    ${href ? `<a class="abrir" href="${href}" target="_blank" rel="noopener"
+       title="abrir conversa">${SVG_ABRIR}</a>` : '<span style="width:30px"></span>'}
+  </div>`;
+}
+
+function bloco(titulo, lista, vazioTxt, nota) {
+  return `<div class="card" style="margin-bottom:13px">
+    <div class="ct">${titulo}<span class="spacer"></span>
+      <span class="mono" style="color:var(--dim);font-size:12px">${lista.length}</span></div>
+    ${lista.length ? lista.map(linhaCliente).join('') : `<div class="vazio">${vazioTxt}</div>`}
+    ${nota ? `<div class="nota">${nota}</div>` : ''}
+  </div>`;
+}
+
+async function carregarClientes() {
+  const campos = 'contato_id,empresa,telefone,etapa,canal,dias_desde_ultimo_toque,ultimo_resultado';
+  const [abertas, fila] = await Promise.all([
+    // conversa aberta: quem respondeu, quem está esperando, quem sumiu
+    ler(`prospeccao_contato_estado?select=${campos}&canal=in.(conversa_viva,aguardando,sem_retorno)` +
+        `&order=dias_desde_ultimo_toque.asc&limit=400`),
+    // os próximos da fila, na ORDEM EXATA em que o worker vai pegá-los
+    ler('prospeccao_fila_worker?select=id,empresa,cidade,uf,telefone,instagram,etapa,canal,dias_desde_ultimo_toque&limit=60'),
+  ]);
+  // cidade e @ moram em prospeccao_contatos, não na view de estado; uma consulta
+  // só pros que vão aparecer, em vez de inchar a view pra todo mundo
+  const ids = abertas.map(c => c.contato_id).slice(0, 400);
+  let extra = new Map();
+  if (ids.length) {
+    const cs = await ler(`prospeccao_contatos?select=id,cidade,uf,instagram&id=in.(${ids.join(',')})`);
+    cs.forEach(c => extra.set(c.id, c));
+  }
+  const rico = abertas.map(c => ({ ...c, ...(extra.get(c.contato_id) || {}) }));
+
+  cli.agora     = rico.filter(c => c.canal === 'conversa_viva');
+  cli.esperando = rico.filter(c => c.canal === 'aguardando' || c.canal === 'sem_retorno');
+  cli.fila      = fila;
+}
+
+function renderClientes() {
+  const el = document.getElementById('clientes');
+  if (cli.termo) {
+    el.innerHTML = cli.busca === null
+      ? '<div class="vazio">procurando…</div>'
+      : bloco(`Resultado para “${esc(cli.termo)}”`, cli.busca,
+          'Nenhuma empresa com esse nome na base.',
+          'A busca atravessa os 1.299 contatos, inclusive os que ainda não foram abordados.');
+    return;
+  }
+  el.innerHTML =
+    bloco('Precisa de você agora', cli.agora,
+      'Nenhuma conversa viva ainda.<br>Assim que alguém responder, aparece aqui primeiro.',
+      'Quem respondeu e a conversa está de pé. É por aqui que se começa o dia.') +
+    bloco('Esperando retorno', cli.esperando.slice(0, 60),
+      'Ninguém aguardando resposta.',
+      cli.esperando.length > 60
+        ? `Mostrando 60 de ${cli.esperando.length}, os que sumiram há menos tempo primeiro — quem sumiu ontem volta mais que quem sumiu mês passado.`
+        : 'Abordados que ainda não responderam.') +
+    bloco('Próximos na fila', cli.fila,
+      'Fila vazia — ou todos já foram tocados hoje.',
+      'A ordem exata em que o worker vai pegá-los. Follow-up antes de contato frio, integradora antes de mista.');
+}
+
+let buscaTimer = null;
+function buscar(termo) {
+  cli.termo = termo.trim();
+  clearTimeout(buscaTimer);
+  if (!cli.termo) { cli.busca = null; renderClientes(); return; }
+  cli.busca = null; renderClientes();
+  // 350ms: digitar "energia" não pode virar 7 consultas
+  buscaTimer = setTimeout(async () => {
+    const t = encodeURIComponent('*' + cli.termo.replace(/[*,()]/g, '') + '*');
+    try {
+      const r = await ler(`prospeccao_contatos?select=id,empresa,cidade,uf,telefone,instagram` +
+        `&or=(empresa.ilike.${t},cidade.ilike.${t})&limit=50`);
+      const ids = r.map(c => c.id);
+      let est = new Map();
+      if (ids.length) {
+        const e = await ler(`prospeccao_contato_estado?select=contato_id,etapa,canal,dias_desde_ultimo_toque` +
+          `&contato_id=in.(${ids.join(',')})`);
+        e.forEach(x => est.set(x.contato_id, x));
+      }
+      cli.busca = r.map(c => ({ ...c, ...(est.get(c.id) || { canal: 'nunca_tocado', etapa: 'novo' }) }));
+    } catch { cli.busca = []; }
+    renderClientes();
+  }, 350);
+}
+
+function renderAbas() {
+  const abertas = cli.agora.length + cli.esperando.length;
+  const defs = [
+    ['geral',    'Visão geral', null],
+    ['clientes', 'Onde cada cliente está', abertas || null],
+  ];
+  document.getElementById('abas').innerHTML = defs.map(([k, l, n]) =>
+    `<button class="aba${aba === k ? ' on' : ''}" onclick="irAba('${k}')">${l}` +
+    (n ? `<span class="cnt">${n}</span>` : '') + '</button>').join('');
+  document.getElementById('painel-geral').hidden    = aba !== 'geral';
+  document.getElementById('painel-clientes').hidden = aba !== 'clientes';
+}
+function irAba(k) { aba = k; renderAbas(); if (k === 'clientes') renderClientes(); }
+
 // ── ciclo ──────────────────────────────────────────────────────────────────
 function relogio(){
   document.getElementById('relogio').textContent =
@@ -378,6 +575,8 @@ function relogio(){
 async function ciclo(){
   try {
     await carregar();
+    await carregarClientes();
+    renderAbas(); if (aba === 'clientes' && !cli.termo) renderClientes();
     desenharSelo(); desenharAvisos(); desenharKpis(); desenharPorHora();
     barrasDe(ETAPAS,'etapa','etapas'); barrasDe(CANAIS,'canal','canais');
     desenharDisjuntor(); desenharTetos(); desenharFeed(); desenharCusto();
