@@ -168,6 +168,61 @@ De 22h em diante não há um único toque registrado — nenhuma evidência, nem
 nem ruim. A janela aberta é segura pela densidade; se o resultado das 22h vier
 ruim, o dado vai aparecer no radar antes de virar problema.
 
+## Operação 100% Instagram
+
+### 1. Registre a conta nova na rampa
+
+Conta de Instagram recém-criada mandando DM frio é o jeito mais rápido de perder
+a conta. A rampa protege isso sozinha — **se você registrar a conta como um
+consultor novo**:
+
+```sql
+insert into prospeccao_rampa (consultor, iniciou_em, obs)
+values ('IG Prospeccao', current_date, 'conta de Instagram criada para prospeccao');
+```
+
+Depois rode o worker com `$env:CONSULTOR="IG Prospeccao"`. O teto vira:
+
+| Semana | Conta nova (sem histórico) | Se o opt-out ficar abaixo de 2% |
+|---|---|---|
+| 1 | **6/dia** | 25/dia |
+| 2 | 12/dia | 50/dia |
+| 3 | 18/dia | 75/dia |
+| 4+ | 25/dia | **100/dia** |
+
+Os 6 do primeiro dia não são cautela minha — é a mesma ordem de grandeza que o
+`PROMPT.md` do buscandomilhao usa (5/dia na semana 1). Conta que sobrevive à
+primeira semana ganha volume sozinha.
+
+**Aqueça a conta antes.** Antes do primeiro DM: foto, bio, alguns posts, seguir
+perfis do setor, alguns dias de uso normal. Perfil vazio que só manda DM é o
+padrão que o Instagram procura.
+
+### 2. Consiga o @ das empresas
+
+Este é o gargalo real da operação 100% Instagram:
+
+| Origem do @ | Quantas |
+|---|---|
+| Colhido do site (`colher-instagram.mjs`) | **112** |
+| Sem @ ainda | **358** |
+
+O Maps nunca devolve o @. Para as 358 restantes, use a busca do próprio
+Instagram, com a conta logada:
+
+```powershell
+node buscar-instagram.mjs --dry     # mostra o que casaria, não grava
+node buscar-instagram.mjs           # grava
+```
+
+Procura a empresa pelo nome + cidade e só aceita o perfil que compartilhe uma
+palavra **distintiva** com o nome dela. "Solar", "Energia", "Fotovoltaica" não
+contam — senão *Solar Brasil* casaria com *@solarpiracanjuba* e a DM iria pro
+perfil errado, que é pior que não mandar.
+
+Teto de 150 por rodada, 4 a 9 segundos entre buscas, e para sozinho depois de 5
+erros seguidos. Rode várias vezes ao longo dos dias — continua de onde parou.
+
 ## Instagram vs WhatsApp — o número que decide
 
 | | WhatsApp | Instagram |
