@@ -155,10 +155,25 @@ class Aba {
 }
 
 // ═══ BANCO ═══════════════════════════════════════════════════════════════════
-const ler = async q => {
-  const r = await fetch(`${CFG.supa}/${q}`, { headers: H });
-  if (!r.ok) throw new Error(`${q.split('?')[0]}: ${r.status} ${await r.text()}`);
-  return r.json();
+// Um 504 do Supabase derrubava a rodada inteira: o worker morria antes de
+// mandar a primeira mensagem por causa de um soluco de 2 segundos. Tres
+// tentativas com espera crescente resolvem o transitorio; erro que persiste
+// continua estourando, porque aí é problema de verdade.
+const ler = async (q, tentativa = 1) => {
+  try {
+    const r = await fetch(`${CFG.supa}/${q}`, { headers: H });
+    if (r.ok) return await r.json();
+    // 4xx é pedido errado — repetir não conserta. 5xx e 429 são transitórios.
+    if (r.status < 500 && r.status !== 429) {
+      throw new Error(`${q.split('?')[0]}: ${r.status} ${(await r.text()).slice(0, 200)}`);
+    }
+    if (tentativa >= 3) throw new Error(`${q.split('?')[0]}: ${r.status} depois de 3 tentativas`);
+  } catch (e) {
+    if (tentativa >= 3 || /: 4\d\d /.test(e.message)) throw e;
+  }
+  log(`  banco engasgou em ${q.split('?')[0]} — tentativa ${tentativa + 1} de 3`);
+  await dorme(1500 * tentativa);
+  return ler(q, tentativa + 1);
 };
 
 async function travas() {
@@ -243,21 +258,10 @@ async function enviarWhatsApp(aba, tel, msg) {
 }
 
 async function enviarInstagram(aba, handle, msg) {
-  await aba.ir(`https://www.instagram.com/${handle}/`);
-  const carregou = await aba.esperar(`!!document.querySelector('main')`, 25000);
-  if (!carregou) return { ok: false, motivo: 'perfil não carregou' };
-
-  // O botão muda de nome e de classe; procuro pelo TEXTO, que é estável.
-  const abriu = await aba.js(`(() => {
-    const alvo = [...document.querySelectorAll('div[role="button"],button,a')]
-      .find(b => /^(enviar mensagem|message|mensagem)$/i.test((b.innerText||'').trim()));
-    if (!alvo) return false; alvo.click(); return true;
-  })()`);
-  if (!abriu) return { ok: false, motivo: 'botão de mensagem não encontrado (perfil privado, ou layout mudou)' };
-
-  const caixa = await aba.esperar(
-    `!!document.querySelector('div[role="textbox"],textarea[placeholder]')`, 25000);
-  if (!caixa) return { ok: false, motivo: 'caixa de DM não abriu' };
+  // Mesma porta de entrada do modo responder: um lugar só pra consertar quando
+  // o Instagram mexer no layout, e o mesmo diagnóstico útil nos dois caminhos.
+  const erro = await abrirConversa(aba, handle, 'instagram');
+  if (erro) return { ok: false, motivo: erro };
   await aba.js(`(document.querySelector('div[role="textbox"],textarea[placeholder]')).focus()`);
   await dorme(700);
   await aba.digitar(msg);
@@ -288,16 +292,52 @@ async function abrirConversa(aba, alvo, canal) {
   if (canal === 'instagram') {
     await aba.ir('https://www.instagram.com/' + alvo + '/');
     if (!await aba.esperar('!!document.querySelector("main")', 25000)) return 'perfil não carregou';
-    const abriu = await aba.js('(() => {'
-      + ' const b = [...document.querySelectorAll(\'div[role="button"],button,a\')]'
-      + '   .find(x => /^(enviar mensagem|message|mensagem)$/i.test((x.innerText||"").trim()));'
-      + ' if (!b) return false; b.click(); return true; })()');
-    if (!abriu) return 'botão de mensagem não encontrado (perfil privado, ou layout mudou)';
+
+    // Perfil que nem existe: o Instagram serve a pagina de erro, nao um perfil.
+    const sumiu = await aba.js('/desculpe|sorry|not available|nao esta disponivel/i'
+      + '.test((document.querySelector("main")?.innerText || "").slice(0, 400))');
+    if (sumiu) return 'perfil não existe mais (ou foi renomeado)';
+
+    // O rotulo do botao muda com idioma, com tema e com o Instagram mudando de
+    // ideia. Duas passadas: primeiro o texto exato, depois um "contém". Se as
+    // duas falharem, DEVOLVE O QUE VIU — sem isso o erro nao ensina nada e a
+    // correcao vira adivinhacao em cima de adivinhacao.
+    const r = await aba.js(`(() => {
+      const els = [...document.querySelectorAll('div[role="button"],button,a')]
+        .map(e => ({ e, t: (e.innerText || '').trim() }))
+        .filter(x => x.t && x.t.length < 40);
+      const exato = /^(enviar mensagem|mensagem|message|send message)$/i;
+      const contem = /(mensagem|message)/i;
+      let alvo = els.find(x => exato.test(x.t)) || els.find(x => contem.test(x.t));
+      if (alvo) { alvo.e.click(); return { ok: true, usou: alvo.t }; }
+      return { ok: false, vistos: [...new Set(els.map(x => x.t))].slice(0, 14) };
+    })()`);
+
+    if (!r || !r.ok) {
+      const vistos = (r && r.vistos || []).join(' | ') || '(nenhum botão com texto)';
+      return 'botão de mensagem não encontrado. Botões visíveis: ' + vistos;
+    }
   } else {
     await aba.ir('https://web.whatsapp.com/send?phone=' + alvo);
   }
+
   const ok = await aba.esperar('!!document.querySelector(\'' + SEL_CAIXA[canal] + '\')', 45000);
-  return ok ? null : 'caixa de mensagem não abriu';
+  if (ok) return null;
+
+  // Mesma ideia na caixa: dizer o que existe na tela em vez de "nao abriu".
+  if (canal === 'instagram') {
+    const pistas = await aba.js(`(() => {
+      const t = (document.body.innerText || '').slice(0, 600);
+      return {
+        url: location.href,
+        limite: /limite|limit|tente novamente|try again|espere/i.test(t),
+        trecho: t.replace(/[ \t\n\r]+/g, ' ').slice(0, 180),
+      };
+    })()`);
+    if (pistas?.limite) return 'o Instagram pediu pra esperar — parece limite de envio. Pare por hoje.';
+    return 'caixa de DM não abriu (em ' + (pistas?.url || '?') + '). Tela dizia: "' + (pistas?.trecho || '') + '"';
+  }
+  return 'caixa de mensagem não abriu';
 }
 
 async function lerConversa(aba, alvo, canal, quantas = 12) {
@@ -359,9 +399,13 @@ async function mandarBolhas(aba, bolhas, canal) {
 // Só chama a IA se a ÚLTIMA mensagem for do lead. Chamar pra conversa onde nós
 // falamos por último seria pagar pra descobrir que não há o que responder.
 async function modoResponder() {
+  // sem_retorno entra junto de proposito. Depois que 'conversa_viva' passou a
+  // exigir recencia, quem respondeu ha um mes caiu pra sem_retorno — e essa e
+  // exatamente a pessoa cuja resposta talvez nunca tenha sido lida. Ler a
+  // conversa e barato; so chama a IA se a ultima mensagem for dela.
   const todas = await ler(
     'prospeccao_contato_estado?select=contato_id,empresa,telefone,canal,lista_id'
-    + '&canal=in.(aguardando,conversa_viva)&order=ultimo_toque_em.desc&limit=200');
+    + '&canal=in.(aguardando,conversa_viva,sem_retorno)&order=ultimo_toque_em.desc&limit=200');
   // Instagram só alcança quem tem @. Buscar o handle aqui (e não na view)
   // mantém prospeccao_contato_estado do jeito que a tela já usa.
   let esperando = todas;
