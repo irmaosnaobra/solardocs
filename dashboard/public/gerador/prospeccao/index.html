@@ -338,6 +338,22 @@ tbody tr:hover{background:#233047}
   </div>
 </div>
 
+<!-- ===== MODAL ALEGAÇÕES =====
+     Abre sozinho quando a mensagem afirma algo não provado. Não tem botão de
+     "mandar assim mesmo" de propósito: as saídas são provar (com fonte escrita,
+     que o banco exige com no mínimo 8 caracteres) ou reescrever o script. -->
+<div class="ov" id="ov-alegacoes">
+  <div class="mo" style="max-width:520px">
+    <h3>O que essa mensagem pode afirmar</h3>
+    <p class="sub">A IA e o consultor só afirmam o que está provado. O resto fica bloqueado até virar prova.</p>
+    <div id="aleg-corpo" style="max-height:52vh;overflow:auto;margin-top:4px"></div>
+    <div class="mo-acts">
+      <button class="btn" onclick="fecharModal('ov-alegacoes')">Fechar</button>
+      <button class="btn primary" onclick="fecharModal('ov-alegacoes');irAba('listas')">Editar o script</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== MODAL JOGAR NA AGENDA DO CONSULTOR =====
      Ponte entre a prospecção (lista fria) e o CRM/Agenda do gerador: grava em
      `agendamentos` com created_by prosp_* — é isso que dá a etiqueta EP Prospec /
@@ -597,7 +613,15 @@ const AUTH_KEY     = 'irmaos-na-obra-auth-v1';
 
 // Teto de toques manuais por dia/consultor. É política nossa (anti-ban da linha),
 // não medição do WhatsApp: o contador conta o que foi REGISTRADO nesta tela.
-const TETO_DIA = 200;
+//
+// Até 10/09 isso era um número fixo de 200 — que não era teto nenhum: é 10× a
+// régua que a linha IO aguenta num dia inteiro (20/dia, pós-bloqueio de 30/08).
+// Agora o teto vem da rampa de aquecimento (view prospeccao_teto_hoje): 5/dia na
+// primeira semana do consultor, +5 por semana, teto duro em 20. Quem já vem
+// tocando não recomeça do 5 — a rampa conta do primeiro toque que ele já deu.
+// TETO_FALLBACK só vale se a view não responder: nesse caso o lado seguro é o
+// teto mais apertado, nunca o mais frouxo.
+const TETO_FALLBACK = 5;
 // Quanto a tela carrega de uma vez. Se a base passar disso, os totais desta tela
 // passariam a mentir em silêncio — por isso a carga é contada e o aviso aparece.
 const LIMITE_CARGA = 5000;
@@ -629,6 +653,14 @@ const AG_MORTO = new Set(['cancelado','sem_interesse','perdido','fechou_concorre
 // ============= ESTADO =============
 let produtos = [], scripts = {}, listas = [], contatos = [], toques = [], buscas = [], respostas = [];
 let consultores = [];
+// ── v2 (10/09): as três travas que vieram do repo buscandomilhao ─────────────
+// Todas nascem de VIEW no banco, nunca de conta refeita aqui. Se a regra do
+// disjuntor ou da rampa mudar, muda num lugar só — a tela lê `estado`/`teto`
+// prontos e não tem opinião própria sobre o que é "alto demais".
+let alegacoes = [];        // prospeccao_alegacoes  — o que o script pode afirmar
+let saude = [];            // prospeccao_saude      — taxa de opt-out + disjuntor
+let tetos = [];            // prospeccao_teto_hoje  — rampa de aquecimento
+let estados = [];          // prospeccao_contato_estado — etapa × canal
 let consultorAtivo = consultorLogado();   // quem está logado no gerador já entra selecionado
 let aba = 'fila';
 let filaIds = [], filaLimite = 20, idx = 0, soMeus = true, busca = '';
@@ -809,6 +841,62 @@ function ultimoToqueEm(id){
 }
 const produtosAtivos = () => produtos.filter(p => p.ativo).sort((a,b)=>a.ordem-b.ordem);
 
+// ============= AS TRÊS TRAVAS (v2, 10/09) =============
+// Nenhuma delas decide sozinha o que é "alto demais" ou "quantos por dia": isso
+// mora nas views. Aqui só se lê o veredito e se desenha a consequência.
+
+// ── Rampa de aquecimento ────────────────────────────────────────────────────
+/** Teto do dia do consultor. Sem linha na view (consultor que nunca tocou), cai
+ *  no fallback apertado — nunca no antigo 200. */
+function tetoDe(consultor){
+  const r = tetos.find(t => t.consultor === consultor);
+  return r ? Number(r.teto) : TETO_FALLBACK;
+}
+/** Usados hoje conta o array local, não a view: o consultor acabou de registrar
+ *  um toque e a barra tem que andar na hora, sem esperar o próximo carregar(). */
+function usadosHoje(consultor){
+  return toques.filter(t => ehHoje(t.criado_em) && t.consultor === consultor).length;
+}
+const restamHoje = c => Math.max(0, tetoDe(c) - usadosHoje(c));
+
+// ── Disjuntor de opt-out ────────────────────────────────────────────────────
+/** 'ok' | 'atencao' | 'travado'. Consultor sem toque em 14 dias não aparece na
+ *  view — e quem não tocou ninguém não pode estar queimando linha: é 'ok'. */
+function saudeDe(consultor){
+  return saude.find(s => s.consultor === consultor)
+      || { consultor, estado:'ok', taxa_optout:0, optout_14d:0, contatos_14d:0 };
+}
+const filaTravada = () => saudeDe(consultorAtivo).estado === 'travado';
+
+// ── Alegações: o script só afirma o que está provado ────────────────────────
+/** As alegações NÃO verificadas que aparecem no texto. Cada uma traz uma regex
+ *  em `gatilho`; sem gatilho a alegação é só lembrete e não bloqueia nada.
+ *  Regex inválida no banco não pode derrubar a tela: cai fora silenciosamente. */
+function alegacoesBloqueadas(texto, produtoId){
+  if (!texto) return [];
+  return alegacoes.filter(a => {
+    if (a.verificada || !a.gatilho) return false;
+    if (a.produto_id && a.produto_id !== produtoId) return false;   // null = vale pra todo produto
+    try { return new RegExp(a.gatilho, 'i').test(texto); } catch { return false; }
+  });
+}
+const alegacoesOk = pid => alegacoes.filter(a => a.verificada && (!a.produto_id || a.produto_id === pid));
+
+// ── Etapa × canal (view prospeccao_contato_estado) ──────────────────────────
+const ETAPAS = [
+  ['novo','Nunca abordado','#64748B'], ['abordado','Abordado','#60A5FA'],
+  ['respondeu','Respondeu','#38BDF8'], ['interessado','Interessado','#F59E0B'],
+  ['cliente','Cliente','#22C55E'], ['encerrado','Encerrado','#475569'],
+];
+const CANAIS = [
+  ['nunca_tocado','Nunca tocado','#64748B'], ['aguardando','Aguardando resposta','#60A5FA'],
+  ['conversa_viva','Conversa viva','#22C55E'], ['sem_retorno','Sem retorno (7d+)','#F59E0B'],
+  ['encerrado','Encerrado','#475569'], ['nao_perturbar','Não perturbar','#F87171'],
+];
+function estadosDoEscopo(){
+  return soMeus ? estados.filter(e => !e.consultor || e.consultor === consultorAtivo) : estados;
+}
+
 // ── AGENDA (fichas que esta tela mandou pro consultor) ───────────────────────
 function indexarAgendados(){
   agendPorTel = new Map();
@@ -860,7 +948,7 @@ function precoLabel(p){
 
 // ============= CARGA =============
 async function carregar(){
-  const [pr, sc, li, co, to, cs, bu, ag] = await Promise.all([
+  const [pr, sc, li, co, to, cs, bu, ag, al, sa, te, es] = await Promise.all([
     supaGet('prospeccao_produtos?select=*&order=ordem.asc'),
     supaGet('prospeccao_scripts?select=*&order=produto_id.asc,ordem.asc'),
     supaGet('prospeccao_listas?select=*&order=criada_em.desc'),
@@ -872,9 +960,16 @@ async function carregar(){
     // de solar/eletroposto pra dentro de uma tela que não é dele.
     supaGet('agendamentos?select=id,vendedor_nome,quando,cliente_nome,cliente_telefone,cidade,status,created_by' +
             `&created_by=in.(${ORIGEM_EP},${ORIGEM_SOLAR})&order=quando.desc&limit=2000`).catch(()=>[]),
+    // As quatro fontes da v2. Todas com .catch: se a migration ainda não rodou
+    // no ambiente, a tela abre igual à de ontem em vez de morrer em branco.
+    supaGet('prospeccao_alegacoes?select=*').catch(()=>[]),
+    supaGet('prospeccao_saude?select=*').catch(()=>[]),
+    supaGet('prospeccao_teto_hoje?select=*').catch(()=>[]),
+    supaGet(`prospeccao_contato_estado?select=contato_id,consultor,etapa,canal,dias_desde_ultimo_toque&limit=${LIMITE_CARGA}`).catch(()=>[]),
   ]);
   produtos = pr; listas = li; contatos = co.rows; toques = to.rows; buscas = bu || [];
   agendados = ag || []; indexarAgendados();
+  alegacoes = al || []; saude = sa || []; tetos = te || []; estados = es || [];
   truncado = (co.total > co.rows.length || to.total > to.rows.length)
     ? { contatos: co.total, toques: to.total } : null;
   // aberturas ficam no rodízio da caixa de mensagem; o resto vira resposta pronta
@@ -1005,6 +1100,22 @@ function mensagemAtual(){
 async function registrar(desf){
   const c = focoAtual(), pid = alvoAtual();
   if (!c || !pid) return;
+  // As duas travas duras. Ficam AQUI e não só no botão porque o atalho de
+  // teclado 1–6 entra por este mesmo caminho — trava que só existe no HTML é
+  // trava que a tecla de atalho passa por cima.
+  //
+  // 'nao_perturbar' e 'sem_interesse' NUNCA são bloqueados: são desfechos de
+  // conversa que já aconteceu. Barrar o registro de um "não me manda mais" seria
+  // perder exatamente o dado que o disjuntor precisa pra funcionar.
+  const encerramento = ['nao_perturbar','sem_interesse'].includes(desf.id);
+  if (!encerramento && filaTravada()){
+    showToast('Disjuntor armado — a fila está travada. Veja em Resultados.');
+    return;
+  }
+  if (!encerramento && restamHoje(consultorAtivo) <= 0){
+    showToast(`Teto do dia atingido (${tetoDe(consultorAtivo)}). Amanhã a rampa continua.`);
+    return;
+  }
   if (desf.id === 'vendeu'){
     vendaPendente = { contato: c, produtoId: pid };
     const p = prodById(pid);
@@ -1575,16 +1686,80 @@ function trocarVariacao(){
   variacao++; renderTudo();
   showToast('Outra variação — evita texto repetido em massa');
 }
+/** Trava de alegação: a mensagem não sai enquanto o texto afirmar coisa que
+ *  ninguém provou. Vale pros DOIS caminhos de saída (WhatsApp e copiar) — trava
+ *  em um só é trava que o Ctrl+C contorna. */
+function bloqueioDeAlegacao(){
+  const b = alegacoesBloqueadas(mensagemAtual(), alvoAtual());
+  if (!b.length) return null;
+  showToast(`Bloqueado: "${b[0].texto}" não está provada`);
+  abrirAlegacoes();
+  return b;
+}
 function abrirWhats(){
   const c = focoAtual(); if (!c) return;
+  if (bloqueioDeAlegacao()) return;
+  if (filaTravada()){ showToast('Disjuntor armado — a fila está travada.'); return; }
+  if (restamHoje(consultorAtivo) <= 0){ showToast(`Teto do dia atingido (${tetoDe(consultorAtivo)}).`); return; }
   const tel = formatTelDigits(c.telefone);
   window.open(`https://wa.me/${tel}?text=${encodeURIComponent(mensagemAtual())}`, '_blank');
   showToast('WhatsApp aberto — registre o resultado com as teclas 1 a 6');
 }
 function copiarMsg(){
+  if (bloqueioDeAlegacao()) return;
   const m = mensagemAtual();
   if (navigator.clipboard) navigator.clipboard.writeText(m).catch(()=>{});
   showToast('Mensagem copiada');
+}
+
+// ============= ALEGAÇÕES: provar ou reescrever =============
+// O painel não é um aviso que dá pra ignorar: enquanto a alegação estiver
+// pendente, a mensagem não sai. Saídas possíveis são duas, e as duas custam
+// alguma coisa — que é o ponto: ou alguém assina embaixo com a fonte, ou o
+// script muda. "Mandar assim mesmo" não é uma delas.
+function abrirAlegacoes(){
+  const pid = alvoAtual();
+  const bloq = alegacoesBloqueadas(mensagemAtual(), pid);
+  const ok = alegacoesOk(pid);
+  document.getElementById('aleg-corpo').innerHTML = `
+    ${bloq.length ? `<div style="font-size:12.5px;color:#FCA5A5;margin-bottom:10px;line-height:1.6">
+      A mensagem afirma ${bloq.length === 1 ? 'uma coisa que ninguém provou' : `${bloq.length} coisas que ninguém provou`}.
+      Prove com a fonte ou tire do script.</div>` : ''}
+    ${bloq.map(a => `<div style="padding:11px 13px;background:rgba(248,113,113,.12);border:1px solid #B91C1C;
+        border-radius:9px;margin-bottom:9px">
+      <div style="font-size:13.5px;font-weight:600;color:#FECACA;margin-bottom:8px">${esc(a.texto)}</div>
+      <input id="fonte-${a.id}" placeholder="Onde está a prova? (tabela, arquivo, print, data)"
+        style="width:100%;padding:8px 10px;border-radius:7px;border:1px solid #7F1D1D;background:#1A0F0F;
+        color:#FEE2E2;font-size:12.5px;margin-bottom:8px">
+      <button class="btn" style="font-size:12px;padding:6px 12px" onclick="verificarAlegacao('${a.id}')">
+        Verificar com essa fonte</button>
+    </div>`).join('')}
+    ${ok.length ? `<div style="margin-top:14px">
+      <div style="font-size:11px;letter-spacing:.08em;color:var(--dim);margin-bottom:7px">PODE AFIRMAR</div>
+      ${ok.map(a => `<div style="padding:8px 11px;background:rgba(34,197,94,.09);border-left:2px solid #16A34A;
+        border-radius:0 7px 7px 0;margin-bottom:6px">
+        <div style="font-size:12.5px;color:#BBF7D0">${esc(a.texto)}</div>
+        <div style="font-size:11px;color:var(--dim);margin-top:3px">${esc(a.fonte || '')}</div>
+      </div>`).join('')}</div>` : ''}`;
+  abrirModal('ov-alegacoes');
+}
+async function verificarAlegacao(id){
+  const fonte = (document.getElementById('fonte-' + id) || {}).value || '';
+  // O mínimo de 8 caracteres é o mesmo CHECK que existe no banco. Validar aqui
+  // é só pra dar mensagem decente — quem manda é a constraint.
+  if (fonte.trim().length < 8){ showToast('Escreva onde está a prova (mínimo 8 caracteres)'); return; }
+  try {
+    await supaPatch(`prospeccao_alegacoes?id=eq.${id}`, {
+      verificada: true, fonte: fonte.trim(),
+      verificada_em: new Date().toISOString(), verificada_por: consultorAtivo,
+    });
+    const a = alegacoes.find(x => x.id === id);
+    if (a){ a.verificada = true; a.fonte = fonte.trim(); }
+    showToast('Alegação verificada — a mensagem já pode sair');
+    if (!alegacoesBloqueadas(mensagemAtual(), alvoAtual()).length) fecharModal('ov-alegacoes');
+    else abrirAlegacoes();
+    renderTudo();
+  } catch(e){ showToast('Não gravou: ' + e.message); }
 }
 function trocarConsultor(nome){ consultorAtivo = nome; filaIds = []; idx = 0; montarFila(); renderTudo(); }
 function trocarEscopo(v){ soMeus = v === 'meus'; filaIds = []; idx = 0; montarFila(); renderTudo(); }
@@ -1603,11 +1778,19 @@ function renderStrip(){
   document.getElementById('m-resp').textContent = resp;
   document.getElementById('m-vendas').textContent = vendas.length;
   document.getElementById('m-receita').textContent = brl(receita);
-  const pct = Math.min(100, 100*meus.length/TETO_DIA);
-  document.getElementById('m-teto').textContent = `${meus.length}/${TETO_DIA}`;
+  const teto = tetoDe(consultorAtivo);
+  const pct = Math.min(100, 100*meus.length/Math.max(1, teto));
+  document.getElementById('m-teto').textContent = `${meus.length}/${teto}`;
   const bar = document.getElementById('m-bar');
   bar.style.width = pct + '%';
-  bar.style.background = pct > 85 ? '#F87171' : pct > 70 ? '#FBBF24' : '#4ADE80';
+  bar.style.background = pct >= 100 ? '#F87171' : pct > 70 ? '#FBBF24' : '#4ADE80';
+  // O subtítulo explica de onde saiu o teto. Sem isso, o consultor que ontem
+  // tinha 200 e hoje tem 5 acha que a tela quebrou.
+  const r = tetos.find(t => t.consultor === consultorAtivo);
+  const sub = document.getElementById('m-teto-sub');
+  if (sub) sub.textContent = r
+    ? `RAMPA · SEMANA ${r.semana} DO CONSULTOR · TETO DURO 20/DIA`
+    : 'CONSULTOR NOVO · COMEÇA EM 5/DIA';
   const sel = document.getElementById('sel-consultor');
   if (sel.options.length !== consultores.length){
     sel.innerHTML = consultores.map(n => `<option>${esc(n)}</option>`).join('');
@@ -1645,9 +1828,39 @@ function bannerTruncado(){
     ${truncado.contatos} contatos e ${truncado.toques} toques — os totais de Listas, Carteira e
     Resultados contam só o que foi carregado. Encerre listas velhas (elas somem da carga) pra voltar a ver o número cheio.</div>`;
 }
+// ── Avisos da v2: disjuntor, teto e alegação ────────────────────────────────
+// Ficam acima de QUALQUER aba (não só da fila) porque os três significam "pare
+// de mandar mensagem" — e quem está no Histórico também precisa saber disso.
+function bannerTravas(){
+  let h = '';
+  const s = saudeDe(consultorAtivo);
+  if (s.estado === 'travado'){
+    h += `<div style="margin:12px 16px 0;padding:12px 15px;background:rgba(248,113,113,.15);
+      border:1px solid #B91C1C;border-radius:10px;font-size:12.5px;line-height:1.65;color:#FECACA">
+      <b>Disjuntor armado — fila travada.</b> ${s.optout_14d} de ${s.contatos_14d} contatos que
+      ${esc(consultorAtivo)} tocou nos últimos 14 dias pediram pra parar (${s.taxa_optout}%).
+      Acima de 8% a linha entra em risco de bloqueio.<br>
+      Antes de voltar: troque o script de abertura e recomece por uma lista nova.
+      Registrar "não perturbar" e "sem interesse" continua liberado.</div>`;
+  } else if (s.estado === 'atencao'){
+    h += `<div style="margin:12px 16px 0;padding:11px 14px;background:rgba(245,158,11,.14);
+      border:1px solid #B45309;border-radius:10px;font-size:12.5px;line-height:1.6;color:#FDE68A">
+      <b>Opt-out em ${s.taxa_optout}%</b> (${s.optout_14d} de ${s.contatos_14d} contatos em 14 dias).
+      O disjuntor desarma em 8%. Vale trocar a abertura antes de chegar lá.</div>`;
+  }
+  const restam = restamHoje(consultorAtivo);
+  if (restam <= 0 && s.estado !== 'travado'){
+    h += `<div style="margin:12px 16px 0;padding:11px 14px;background:rgba(96,165,250,.13);
+      border:1px solid #1D4ED8;border-radius:10px;font-size:12.5px;line-height:1.6;color:#BFDBFE">
+      <b>Teto do dia atingido: ${tetoDe(consultorAtivo)} toques.</b>
+      Não é a tela sendo chata — é a mesma régua que a linha IO passou a ter depois
+      do bloqueio de 30/08. Amanhã a rampa continua de onde parou.</div>`;
+  }
+  return h;
+}
 function renderConteudo(){
   const el = document.getElementById('conteudo');
-  const b = bannerTruncado();
+  const b = bannerTruncado() + bannerTravas();
   if (aba === 'fila')       el.innerHTML = b + htmlFila();
   else if (aba === 'agenda')     el.innerHTML = b + htmlAgenda();
   else if (aba === 'listas')     el.innerHTML = b + htmlListas();
@@ -1674,7 +1887,9 @@ function htmlFila(){
       <div style="font-size:17px;font-weight:700;color:var(--txt);margin-bottom:6px">Fila do dia concluída</div>
       ${meus.length} toques · ${vendas.length} vendas ·
       ${brl(vendas.reduce((s,t)=>s+Number(t.valor||0),0))} fechados.<br>
-      Ainda cabem ${Math.max(0, TETO_DIA - meus.length)} toques no teto do dia.<br><br>
+      ${restamHoje(consultorAtivo) > 0
+        ? `Ainda cabem ${restamHoje(consultorAtivo)} toques no teto de hoje (${tetoDe(consultorAtivo)}).`
+        : `Teto de hoje fechado (${tetoDe(consultorAtivo)} toques). A rampa continua amanhã.`}<br><br>
       <button class="btn primary" onclick="puxarMais()">Puxar mais 20 da lista</button></div>`;
   }
   const ativos = produtosAtivos();
@@ -1803,6 +2018,26 @@ function htmlFila(){
         <div class="st" style="margin:14px 0 8px">Mensagem<span class="spacer"></span>
           <span class="hint">variação ${((variacao)%Math.max(1,(scripts[alvo]||[]).length))+1}/${Math.max(1,(scripts[alvo]||[]).length)}</span></div>
         <div class="script">${esc(mensagemAtual())}</div>
+        ${(() => {
+          // A trava aparece ANTES do botão, com o texto exato da alegação. O
+          // consultor precisa ver o que está errado sem ter que clicar e tomar
+          // um "não" — senão a trava vira só atrito.
+          const bloq = alegacoesBloqueadas(mensagemAtual(), alvo);
+          if (!bloq.length){
+            const ok = alegacoesOk(alvo).length;
+            return ok ? `<div style="margin-top:8px;font-size:11.5px;color:#86EFAC;display:flex;
+              align-items:center;gap:6px;cursor:pointer" onclick="abrirAlegacoes()">
+              <span style="width:6px;height:6px;border-radius:50%;background:#22C55E;flex:none"></span>
+              Só afirma o que está provado · ${ok} alegaç${ok===1?'ão verificada':'ões verificadas'}</div>` : '';
+          }
+          return `<div onclick="abrirAlegacoes()" style="margin-top:9px;padding:10px 12px;cursor:pointer;
+            background:rgba(248,113,113,.13);border:1px solid #B91C1C;border-radius:9px">
+            <div style="font-size:12px;font-weight:700;color:#FCA5A5;margin-bottom:5px">
+              BLOQUEADA — ${bloq.length === 1 ? 'afirmação sem prova' : `${bloq.length} afirmações sem prova`}</div>
+            ${bloq.map(a=>`<div style="font-size:12.5px;color:#FECACA;line-height:1.5">· ${esc(a.texto)}</div>`).join('')}
+            <div style="font-size:11.5px;color:#F87171;margin-top:6px">Toque pra provar com a fonte ou reescrever o script.</div>
+          </div>`;
+        })()}
 
         <div class="acts">
           <button class="btn wa" style="flex:1" onclick="abrirWhats()">Abrir no WhatsApp</button>
@@ -2223,6 +2458,95 @@ function abrirNaFila(contatoId, produtoId){
 }
 
 // ---------- RESULTADOS ----------
+// ── ETAPA × CANAL ────────────────────────────────────────────────────────────
+// O painel que faltava. Antes, "246 toques com resultado 'enviei'" era um número
+// só e escondia três realidades diferentes: o que acabou de sair, o que morreu
+// no silêncio e o que já tinha resposta esperando. Agora são dois eixos, e o
+// número que interessa aparece sozinho: SEM RETORNO é fila de follow-up, não
+// trabalho feito.
+function htmlEtapaCanal(){
+  const es = estadosDoEscopo();
+  if (!es.length) return '';
+  const cont = (campo, k) => es.filter(e => e[campo] === k).length;
+  const total = es.length;
+  const barra = (defs, campo) => defs.map(([k,label,cor]) => {
+    const n = cont(campo, k);
+    if (!n) return '';
+    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px">
+      <div style="width:8px;height:8px;border-radius:2px;background:${cor};flex:none"></div>
+      <div style="font-size:12.5px;color:var(--txt);flex:1">${label}</div>
+      <div style="flex:2;height:6px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden">
+        <i style="display:block;height:100%;width:${(100*n/total).toFixed(1)}%;background:${cor}"></i></div>
+      <div class="mono" style="font-size:12.5px;color:var(--dim);width:52px;text-align:right">${n}</div>
+    </div>`;
+  }).join('');
+
+  const semRetorno = cont('canal','sem_retorno');
+  const respRetorno = es.filter(e => e.canal === 'sem_retorno' && e.etapa !== 'abordado' && e.etapa !== 'novo').length;
+
+  return `<div class="card" style="margin-bottom:14px">
+    <div class="ch">Etapa × canal<span class="spacer"></span>
+      <span class="mono" style="color:var(--dim);font-size:12px">${total} contatos</span></div>
+    <div style="padding:14px 16px">
+      <div style="font-size:11px;letter-spacing:.08em;color:var(--dim);margin-bottom:9px">ETAPA — ONDE ESTÁ NO FUNIL</div>
+      ${barra(ETAPAS,'etapa')}
+      <div style="font-size:11px;letter-spacing:.08em;color:var(--dim);margin:16px 0 9px">CANAL — ESTADO DA CONVERSA AGORA</div>
+      ${barra(CANAIS,'canal')}
+      ${semRetorno ? `<div style="margin-top:14px;padding:11px 13px;background:rgba(245,158,11,.12);
+        border-left:2px solid #B45309;border-radius:0 8px 8px 0;font-size:12.5px;line-height:1.6;color:#FDE68A">
+        <b>${semRetorno} contatos abordados e em silêncio há mais de 7 dias.</b>
+        ${respRetorno ? `${respRetorno} deles chegaram a responder e a conversa morreu — esses são os mais caros de perder.` : ''}
+        Isso não é trabalho feito: é fila de follow-up que ninguém estava vendo, porque
+        antes tudo isso contava como "enviei".</div>` : ''}
+    </div>
+  </div>`;
+}
+
+// ── SAÚDE DA LINHA: opt-out e rampa, por consultor ──────────────────────────
+// Um consultor por linha, com o veredito da view. Fica em Resultados e não
+// escondido numa config porque é a métrica que decide se a operação continua
+// existindo: linha bloqueada não tem funil.
+function htmlSaude(){
+  if (!saude.length && !tetos.length) return '';
+  const nomes = [...new Set([...saude.map(s=>s.consultor), ...tetos.map(t=>t.consultor)])].filter(Boolean).sort();
+  const COR = { ok:'#22C55E', atencao:'#F59E0B', travado:'#F87171' };
+  const ROT = { ok:'Saudável', atencao:'Atenção', travado:'TRAVADO' };
+  return `<div class="card" style="margin-bottom:14px">
+    <div class="ch">Saúde da linha<span class="spacer"></span>
+      <span class="mono" style="color:var(--dim);font-size:12px">janela de 14 dias</span></div>
+    <div style="padding:6px 16px 14px">
+      ${nomes.map(n => {
+        const s = saudeDe(n);
+        const t = tetos.find(x => x.consultor === n);
+        const usados = usadosHoje(n), teto = tetoDe(n);
+        return `<div style="display:flex;align-items:center;gap:12px;padding:11px 0;
+            border-bottom:1px solid rgba(255,255,255,.05)">
+          <div style="width:9px;height:9px;border-radius:50%;background:${COR[s.estado]};flex:none"></div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13.5px;font-weight:650;color:var(--txt)">${esc(n)}</div>
+            <div style="font-size:11.5px;color:var(--dim);margin-top:2px">
+              ${s.contatos_14d} contatos tocados · ${s.optout_14d} pediram pra parar
+              ${t ? ` · semana ${t.semana} da rampa` : ''}</div>
+          </div>
+          <div style="text-align:right;flex:none">
+            <div class="mono" style="font-size:14px;font-weight:800;color:${COR[s.estado]}">${s.taxa_optout}%</div>
+            <div style="font-size:10px;letter-spacing:.06em;color:var(--dim);text-transform:uppercase">${ROT[s.estado]}</div>
+          </div>
+          <div style="text-align:right;flex:none;width:64px">
+            <div class="mono" style="font-size:14px;font-weight:800;color:var(--txt)">${usados}/${teto}</div>
+            <div style="font-size:10px;letter-spacing:.06em;color:var(--dim);text-transform:uppercase">hoje</div>
+          </div>
+        </div>`;
+      }).join('')}
+      <div style="font-size:12px;color:var(--dim);margin-top:12px;line-height:1.6">
+        O denominador é <b>contato distinto</b>, não toque — três follow-ups no mesmo
+        contato não diluem uma reclamação. Trava em 8%; a média histórica desta base
+        até 10/09 era 9,9% (19 de 192).
+      </div>
+    </div>
+  </div>`;
+}
+
 function htmlResultados(){
   const vendas = toques.filter(t => t.resultado === 'vendeu');
   const ativos = produtosAtivos();
@@ -2260,6 +2584,8 @@ function htmlResultados(){
 
   const cores = ['#3B82F6','#22C55E','#F59E0B','#C026D3','#F87171'];
   return `<div class="page">
+    ${htmlEtapaCanal()}
+    ${htmlSaude()}
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:13px">
 
       <div class="mini">

@@ -254,6 +254,19 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
   const contar = contarEm(supabase);
   const contarGerador = contarEm(supabaseGerador);
 
+  /** Lê uma view inteira do gerador. Mesmo contrato do contarEm: erro vira null,
+   *  e null vira "—" na tela em vez de zero inventado. */
+  const lerGerador = async <T>(view: string, colunas: string): Promise<T[] | null> => {
+    try {
+      const { data, error } = await supabaseGerador.from(view).select(colunas);
+      if (error) { logger.error('central-agentes', `ler ${view} falhou`, error); return null; }
+      return (data ?? []) as T[];
+    } catch (err) {
+      logger.error('central-agentes', `ler ${view} explodiu`, err);
+      return null;
+    }
+  };
+
   // Tudo em paralelo: são ~12 contagens independentes e a tela recarrega sozinha
   // a cada 2 min. Em série isso custava 6s de espera pro dono olhar a tela.
   const agoraIso = new Date(agora).toISOString();
@@ -266,6 +279,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
     epReunioesFuturas, epFuturasConfirmadas, epPresencaConfirmada, epLembretes5min30d, epUltimoToque,
     solarCadastros30, solarBoasVindas30, solarUltimoToque, roteamento,
     alunosLimpapro,
+    prospCusto, prospSaude,
   ] = await Promise.all([
     // Só a 1ª DM de cada comentário (private_reply). Contar todo 'sent'
     // triplicaria o número desde o porteiro (pede → segue → link) sem um lead a
@@ -385,7 +399,31 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
     })(),
     // Universo da trilha 1x1 do LimpaPro: quem ela PODE atender (aluno ativo com conta).
     contar('limpapro_membros', (q: any) => q.eq('ativo', true)),
+    // ── Prospecção v2 (10/09) ──────────────────────────────────────────────
+    // Custo por lead e por cliente ativo: a conta que diz se a lista fria deu
+    // lucro. `prospeccao_listas.custo` existia desde 01/08 e nunca foi lido por
+    // ninguém — sem ele a prospecção é trabalho sem preço.
+    lerGerador<{ custo: number; contatos: number; clientes: number; receita: number }>(
+      'prospeccao_custo', 'custo,contatos,clientes,receita'),
+    // Disjuntor de opt-out por consultor. É o número que decide se a operação
+    // continua existindo: linha bloqueada não tem funil.
+    lerGerador<{ consultor: string; estado: string; taxa_optout: number; optout_14d: number; contatos_14d: number }>(
+      'prospeccao_saude', 'consultor,estado,taxa_optout,optout_14d,contatos_14d'),
   ]);
+
+  // ── Prospecção: custo e disjuntor ──────────────────────────────────────────
+  // Soma primeiro, divide depois: média de custo_por_lead entre listas daria
+  // peso igual a uma lista de 38 e a uma de 673 contatos.
+  const prospCustoTotal = prospCusto?.reduce((s, l) => s + Number(l.custo || 0), 0) ?? null;
+  const prospContatos   = prospCusto?.reduce((s, l) => s + Number(l.contatos || 0), 0) ?? null;
+  const prospClientes   = prospCusto?.reduce((s, l) => s + Number(l.clientes || 0), 0) ?? null;
+  const prospReceita    = prospCusto?.reduce((s, l) => s + Number(l.receita || 0), 0) ?? null;
+  // Lista sem custo lançado dá 0 — e 0 não é "de graça", é "não sabemos". Por
+  // isso custo zero devolve null: a tela escreve "—" em vez de mentir barato.
+  const cpl = (prospCustoTotal && prospContatos) ? Number((prospCustoTotal / prospContatos).toFixed(2)) : null;
+  const cpc = (prospCustoTotal && prospClientes) ? Number((prospCustoTotal / prospClientes).toFixed(2)) : null;
+  const prospTravados = prospSaude?.filter(s => s.estado === 'travado') ?? [];
+  const prospAtencao  = prospSaude?.filter(s => s.estado === 'atencao') ?? [];
 
   // ── 3. Estado das linhas físicas ───────────────────────────────────────────
   const linhaIoCaida = (saude?.downStreak ?? 0) >= 2 && !!saude?.alertadoEm;
@@ -732,7 +770,31 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       metricas: [
         { label: 'Contatos na carteira', valor: prospTotal },
         { label: 'Toques registrados', valor: prospToques },
+        { label: 'Clientes fechados', valor: prospClientes },
+        {
+          label: 'Custo por lead', valor: cpl,
+          sub: cpl === null ? 'nenhuma lista tem custo lançado — sem isso não dá pra saber se dá lucro' : 'custo das listas ÷ contatos',
+        },
+        {
+          label: 'Custo por cliente', valor: cpc,
+          sub: cpc === null
+            ? (prospClientes ? 'listas sem custo lançado' : 'nenhuma venda pela prospecção ainda')
+            : `contra R$ ${prospReceita?.toFixed(0) ?? '0'} de receita registrada`,
+        },
+        {
+          label: 'Opt-out (14d)',
+          valor: prospSaude === null ? null : (prospSaude[0]?.taxa_optout ?? 0),
+          sub: 'trava a fila em 8% · denominador é contato distinto, não toque',
+        },
       ],
+      // O alerta é o disjuntor. Fica no card e não escondido numa tela de config
+      // porque quando ele arma, a prospecção PAROU — e isso o dono precisa saber
+      // olhando a central, não descobrindo que ninguém tocou ninguém a semana toda.
+      alerta: prospTravados.length
+        ? `Disjuntor armado: ${prospTravados.map(s => `${s.consultor} (${s.taxa_optout}%)`).join(', ')} — fila travada por opt-out alto.`
+        : prospAtencao.length
+          ? `Opt-out subindo: ${prospAtencao.map(s => `${s.consultor} (${s.taxa_optout}%)`).join(', ')}. Trava em 8%.`
+          : undefined,
       toques: [{ titulo: 'nenhum envio automático', quando: '—', copy: 'A fila é 1 a 1 e quem fala é o consultor.' }],
     },
     {
