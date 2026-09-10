@@ -399,7 +399,9 @@
   .carSt.cash .v{color:var(--neon-b)}
   @media(max-width:640px){.carSt .l{font-size:11.5px}}
 
-  .tempoG{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+  /* uma coluna por configuração simulável — auto-fit em vez de número fixo,
+     pra grade não abrir buraco quando a linha de preço mudar de tamanho */
+  .tempoG{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:14px}
   @media(max-width:760px){.tempoG{grid-template-columns:repeat(2,1fr)}}
   .tp{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 14px;text-align:center;
     display:flex;flex-direction:column}
@@ -509,9 +511,14 @@
       <p class="rotulo">Renda passiva com energia</p>
       <h1>Invista em <span class="n">Eletropostos</span></h1>
       <p class="lead">O carro elétrico já chegou — e eles precisam carregar em algum lugar. Quem instalar
-        o ponto primeiro fica com o cliente e com a <b>receita de cada recarga</b>.</p>
+        o ponto primeiro fica com o cliente e com a <b>receita de cada recarga</b>. São
+        <b>cinco jeitos de entrar</b>: do chave na mão até ceder só o espaço e a gente investir 100%.</p>
 
       <div class="heroNums">
+        <!-- O valor vem PRIMEIRO. Sem ele os três percentuais ao lado flutuavam
+             sozinhos: percentual de retorno sem o número que ele multiplica lê
+             como promessa, não como conta. -->
+        <div class="hn"><span class="v" id="h-min">—</span><span class="l">Investimento a partir de</span></div>
         <div class="hn"><span class="v" id="h-pb">—</span><span class="l">Payback estimado</span></div>
         <div class="hn"><span class="v" id="h-mg">—</span><span class="l">Margem operacional</span></div>
         <div class="hn"><span class="v" id="h-roi">—</span><span class="l">ROI em 10 anos</span></div>
@@ -523,9 +530,9 @@
       </div>
 
       <div class="confianca">
-        <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Projeto com ART</span>
-        <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Homologação na concessionária</span>
-        <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Carregador CCS2 NEXUS</span>
+        <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Garantia de 2 anos no equipamento</span>
+        <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Estoque próprio no Brasil</span>
+        <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Projeto com ART e homologação</span>
         <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Obra e instalação nossas</span>
       </div>
     </div>
@@ -612,7 +619,7 @@
         <div class="nu">Modelo 04</div>
         <h3>Só o equipamento</h3>
         <span class="quem">Você investe</span>
-        <p>Carregador <b>NEXUS</b> com garantia, peça de reposição no Brasil e OCPP aberto. Para quem já
+        <p>Carregador <b>NEXUS</b> com <b>garantia de 2 anos</b>, estoque próprio no Brasil e OCPP aberto. Para quem já
           tem equipe de projeto e obra e só precisa da máquina certa.</p>
       </div>
       <div class="mod">
@@ -664,9 +671,13 @@
             <option value="60">60 kW · 2 bicos</option>
             <option value="80" selected>80 kW · 2 bicos</option>
             <option value="120">120 kW · 2 bicos</option>
-            <option value="160">160 kW · 2 bicos</option>
           </select></div>
           <div class="cfgNota" id="cfg-nota"></div>
+          <div style="color:var(--fraco);font-size:11.5px;font-weight:500;line-height:1.5;margin-top:6px">
+            A linha vai até 240 kW. As de <b style="color:#A9BACD">160 e 240 kW saem sob consulta</b> —
+            o preço delas depende da entrada de energia do ponto, e a simulação aqui usa só as
+            configurações com valor fechado.
+          </div>
         </div>
         <div class="fld">
           <label>Preço de revenda <span class="hint">(kWh)</span></label>
@@ -864,9 +875,11 @@
         análise, antes de você comprar equipamento nenhum.</div></details>
 
       <details class="q"><summary>E se o equipamento der defeito?</summary>
-        <div class="a">O carregador é <b>CCS2 homologado, de pronta entrega e com garantia</b>, e a
-        reposição de peças faz parte do pós-entrega. Suporte técnico e manutenção continuam com a gente
-        depois que a estação liga — não acaba na primeira recarga.</div></details>
+        <div class="a">O carregador é <b>CCS2 homologado, com garantia de 2 anos</b>, e a reposição de
+        peças faz parte do pós-entrega. O que faz diferença na hora que quebra é o <b>estoque próprio no
+        Brasil</b>: peça que existe no país troca em dias, não em meses de importação — e é isso que
+        separa um ponto parado uma semana de um parado um trimestre. Suporte técnico e manutenção
+        continuam com a gente depois que a estação liga.</div></details>
 
       <!-- 01/09/2026: esta resposta prometia "ajuda para achar e negociar o local". A régua de
            ponto próprio (29/08) tirou da agenda exatamente quem não tem local, e o material que
@@ -1132,19 +1145,21 @@
       <!-- RECUSADO: segue a gente antes de seguir o caminho dele -->
       <div class="ok" id="ag-nao">
         <div class="ic ic-ig"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></svg></div>
-        <h3>Hoje a reunião ainda não é pra você</h3>
-        <p id="nao-txt">—</p>
+        <h3>Recebemos o seu cadastro</h3>
+        <p id="nao-txt">.</p>
         <div class="naoCard">
-          <p>A reunião de projeto é de quem já tem o local na mão — é o endereço que faz o
-            estudo chegar pronto na conversa. <b>Isso muda.</b> Quem não tem o ponto hoje pode
-            ter em seis meses, e a gente quer estar por perto quando mudar.</p>
-          <p style="margin-top:12px">No Instagram sai a obra por dentro, ponto novo saindo do
-            chão e a conta de cada caso. <b>Seguir custa um toque</b> e é o jeito mais fácil de
-            você acompanhar sem precisar preencher nada de novo.</p>
+          <p><b>A gente entra em contato com você.</b> Seu nome, seu WhatsApp e a sua cidade já
+            ficaram com a nossa equipe, então você não precisa preencher nada de novo.</p>
+          <p style="margin-top:12px">Agora o pedido, e é sério: <b>siga a gente no Instagram.</b>
+            Esse mercado se move rápido demais para caber num e-mail. É lá que sai ponto novo
+            saindo do chão, obra por dentro e a conta real de cada caso, na hora que acontece.</p>
+          <p style="margin-top:12px">E tem um motivo bem concreto: <b>estamos adquirindo postos
+            próprios</b>, e em cada um deles vamos precisar de sócio. Quem está acompanhando fica
+            sabendo primeiro, e essas vagas não sobram. <b>Se você não seguir, não fica sabendo.</b></p>
         </div>
         <a class="btn" id="nao-ig" href="https://instagram.com/irmaosnaobra__" target="_blank" rel="noopener"
            onclick="track('nota1_instagram')" style="margin-top:20px;width:100%;justify-content:center">
-          Seguir @irmaosnaobra__ no Instagram →
+          Seguir @irmaosnaobra__ agora →
         </a>
         <div style="margin-top:14px">
           <a class="btn ghost" id="nao-seguir" href="#" style="width:100%;justify-content:center">Continuar →</a>
@@ -1521,11 +1536,14 @@ function pintarCarro(){
 // e por isso está impressa na letra miúda da seção, do lado do resultado.
 const JANELA_H = 12;
 const CONFIGS = {
-  60:  { invest:141673, bicos:2, max:20, base:10, nota:'Recarga rápida, 2 bicos.' },
-  80:  { invest:144595, bicos:2, max:30, base:10, nota:'Recarga rápida, 2 bicos.' },
-  120: { invest:203548, bicos:2, max:40, base:10, nota:'Recarga ultrarrápida, 2 bicos.' },
-  160: { invest:229436, bicos:2, max:50, base:10, nota:'Recarga ultrarrápida, 2 bicos.' },
+  60:  { invest:135000, bicos:2, max:20, base:10, nota:'Recarga rápida, 2 bicos.' },
+  80:  { invest:145000, bicos:2, max:30, base:10, nota:'Recarga rápida, 2 bicos.' },
+  120: { invest:195000, bicos:2, max:40, base:10, nota:'Recarga ultrarrápida, 2 bicos.' },
 };
+// A linha continua maior que o simulador. Estas duas saem SOB CONSULTA porque o
+// preço delas depende de entrada de energia e obra do ponto — e um valor chutado
+// aqui viraria "orçamento" na cabeça do lead.
+const SOB_CONSULTA = [160, 240];
 // ===== ROTATIVIDADE — capacidade do bico =====
 // Uma recarga de CARGA_KWH kWh dividida pela potência da máquina dá o tempo por carro.
 // Com os dois bicos ocupados a potência se reparte entre eles, então o tempo dobra — é
@@ -1602,6 +1620,12 @@ function setLocal(){
     : 'Na cidade o motorista completa o que gastou no dia — recarga mais curta, mais carros no mesmo bico.';
   montarTabelaRot();
   setConfig();
+}
+// O "a partir de" do hero é o MENOR invest do CONFIGS, derivado — nunca digitado.
+// Preço escrito à mão no HTML é o que envelhece calado quando a tabela muda.
+function pintarMinimo(){
+  const min = Math.min(...Object.values(CONFIGS).map(c => c.invest));
+  document.getElementById('h-min').textContent = moneyC(min);
 }
 function calc(){
   const p = params(), r = compute(p);
@@ -2409,7 +2433,7 @@ function mandarPraSeguir(destino, rotulo, motivo){
   const ir = document.getElementById('nao-seguir');
   ir.href = destino;
   ir.textContent = rotulo + ' →';
-  document.getElementById('nao-obs').textContent = 'Seu contato ficou com a gente. Quando o ponto estiver de pé, é só voltar aqui e marcar.';
+  document.getElementById('nao-obs').textContent = 'Assim que o seu cenário mudar, você volta aqui e marca direto. A porta continua aberta.';
   const tela = document.getElementById('ag-nao');
   tela.style.display = 'block';
   tela.scrollIntoView({behavior:'smooth', block:'start'});
@@ -2576,7 +2600,7 @@ async function agendar(){
     if (curioso) {
       track('nota1_material');
       mandarPraSeguir('/io/eletroposto/material', 'Ver o material que ensina a achar o ponto',
-        'Pelo que você respondeu, ainda faltam as duas pontas: o local e o capital.');
+        'Pelo que você respondeu, o seu projeto ainda está no começo. É o melhor momento para aprender a escolher o ponto certo.');
       return;
     }
 
@@ -2602,13 +2626,13 @@ async function agendar(){
     if (!semCapital) {
       track('nota1_ponto_certo');
       mandarPraSeguir('/ponto-certo/', 'Ver como achar e fechar o local',
-        'Você tem como investir — o que falta é o ponto, e é justo ele que decide o resto.');
+        'Você tem como investir, e é isso que a maioria não tem. Falta o ponto, e ponto é coisa que a gente acha junto.');
       return;
     }
 
     track('nota1_parceria');
     mandarPraSeguir('/io/eletroposto/parceria', 'Entrar na lista de conexão',
-      'Você tem o local encaminhado; o que falta é o capital — e isso a gente conecta.');
+      'Você tem o local encaminhado, que é a parte escassa. O capital a gente conecta, e é exatamente para isso que existe a nossa lista.');
     return;
   }
 
@@ -2826,6 +2850,7 @@ async function gravarAgendamento(){
 montarSlots();
 montarTabelaRot();     // antes do setConfig: é ele quem marca a linha da config escolhida
 montarSelectCarros();  // idem — o calc() do setConfig já pinta o cartão do veículo
+pintarMinimo();   // "a partir de" do hero = menor preço da tabela
 setFonte();       // fonte da energia antes de tudo: ela escreve o custo do kWh
 setLocal();       // régua cidade/rodovia primeiro: é ela que define o teto do slider,
                   // e o setConfig() sai de dentro dela já com o teto certo
