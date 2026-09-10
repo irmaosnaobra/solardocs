@@ -1972,8 +1972,24 @@ function pontuar(f){
   // seu ou estar sob o seu controle. Os PESOS abaixo continuam de pé porque separam
   // NOTA 2 de NOTA 3 entre os que passaram — PESO_PONTO.negociando nunca mais é somado
   // numa ficha que agenda, e sobrevive só pela conta de pontos da ficha de NOTA 1.
-  const corte = SEM_LOCAL.has(f.ponto) || SEM_CONTROLE.has(f.relacao);
-  const nota  = corte ? 1 : (pts >= 9 ? 3 : pts >= 5 ? 2 : 1);
+  //
+  // ═══ 10/09/2026 — O PONTO E O OURO ═══
+  // A regua era: ter o local E somar 5 pontos. Isso reprovava gente com o local
+  // NA MAO: dono de posto sem capital e sem ser o decisor soma 3 pts (perfil 3 +
+  // ponto 3 + invest 0 + decisor 0 = 6... ja um investidor com o ponto soma 3) e
+  // caia em NOTA 1 — ia pro /parceria em vez da agenda.
+  //
+  // O que mudou o cenario: a LP passou a oferecer CINCO MODELOS. No modelo 01
+  // quem entra com o capital somos nos e o lead entra com o espaco. Ou seja,
+  // "nao tenho dinheiro" deixou de ser defeito — virou o modelo 01. O que nao
+  // da pra comprar, contratar nem apressar e o PONTO.
+  //
+  // Entao o ponto vira a PORTA e o resto da ficha vira so a ORDEM DA FILA:
+  //   tem o ponto sob controle  ->  agenda sempre (NOTA 2, ou 3 se somar 9+)
+  //   nao tem                   ->  NOTA 1, roteado como sempre foi
+  const temOPonto = !SEM_LOCAL.has(f.ponto) && !SEM_CONTROLE.has(f.relacao);
+  const corte = !temOPonto;
+  const nota  = corte ? 1 : (pts >= 9 ? 3 : 2);
   return { pts, nota, corte };
 }
 
