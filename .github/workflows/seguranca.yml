@@ -1,0 +1,36 @@
+name: Segurança
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  segredos:
+    name: Varredura de segredos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # o histórico inteiro: segredo antigo continua sendo segredo
+
+      # gitleaks — pega o padrão E a regra nossa de "segredo escrito em documentação",
+      # que foi como o CRON_SECRET foi parar num arquivo público em 10/09/2026.
+      # Os 42 achados já rotacionados em 26/06 vivem no .gitleaksignore por fingerprint,
+      # então QUALQUER achado aqui é vazamento novo.
+      - name: gitleaks
+        run: |
+          V=8.30.1
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${V}/gitleaks_${V}_linux_x64.tar.gz" | tar -xz gitleaks
+          ./gitleaks git . -c .gitleaks.toml --redact --no-banner --exit-code 1
+
+      # trufflehog — a diferença que importa: ele VERIFICA se a credencial ainda
+      # está viva, em vez de só dizer que parece uma chave.
+      - name: trufflehog
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --results=verified,unknown

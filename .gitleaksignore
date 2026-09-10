@@ -1,0 +1,45 @@
+# Achados já tratados na rotação de 26/06/2026 (ver SECURITY-RUNBOOK.md).
+# Os valores abaixo NÃO funcionam mais. Qualquer fingerprint novo = vazamento novo.
+# Gerado em 10/09/2026 por gitleaks v8.30.1 sobre 1.946 commits.
+e0d12edc39c2c84fa2032b1c3b3a5183009401de:worker-prospeccao/worker.mjs:generic-api-key:42
+e0c67999301d7cbf67e56b4b794a7ab2d5723cc5:dashboard/public/gerador/radar/index.html:generic-api-key:169
+4abe07b5036fe614c5e165ee05048a673c1b9b7d:dashboard/public/gerador/eletroposto/metricas/index.html:generic-api-key:137
+22e76014d839872ac1e962277ca509470d5e3abd:dashboard/public/gerador/prospeccao/index.html:generic-api-key:303
+ab70055a254e417bfb9a4eaa590f0027cef717ad:dashboard/public/io/solar/index.html:generic-api-key:661
+8d9d2c9a0e1a131fa0f2d483b530bd1ac607b28d:dashboard/public/io/eletroposto/index.html:generic-api-key:408
+fec09353805a40efb28493ffe419e2f8377dc88e:dashboard/public/gerador/index.html:grafana-api-key:1861
+fec09353805a40efb28493ffe419e2f8377dc88e:dashboard/public/gerador/index.html:grafana-api-key:1869
+fec09353805a40efb28493ffe419e2f8377dc88e:dashboard/public/gerador/index.html:grafana-api-key:1877
+235d264f0a3792680d677da4c8d1bdc2680a32e7:.github/workflows/reagendar-diario.yml:curl-auth-header:17
+5eaac082b47984d01737892be38d759302f6e3ca:api/src/services/agenda/criativoCompositor.ts:generic-api-key:15
+8e8dbb2f6afe1aa82c977e2f8b25810f54b8f3db:.github/workflows/sync-leads-meta.yml:curl-auth-header:24
+cb23f37f923d55aab112936bf5bf6540df505667:.github/workflows/process-messages.yml:curl-auth-header:18
+81865cb1df8926d63e72480a8a27c5b0eeb7f14a:.github/workflows/sync-leads-meta.yml:curl-auth-header:16
+11bc5fb2170ff4e416a737359b5800699503c056:.github/workflows/promo-gerador-2026-05-27.yml:curl-auth-header:19
+11bc5fb2170ff4e416a737359b5800699503c056:.github/workflows/promo-gerador-2026-05-27.yml:curl-auth-header:28
+11bc5fb2170ff4e416a737359b5800699503c056:.github/workflows/promo-gerador-2026-05-27.yml:curl-auth-header:37
+11bc5fb2170ff4e416a737359b5800699503c056:.github/workflows/promo-gerador-2026-05-27.yml:curl-auth-header:46
+11bc5fb2170ff4e416a737359b5800699503c056:.github/workflows/promo-gerador-2026-05-27.yml:curl-auth-header:52
+0c0474708e5bb2fc947f508f8b7b2384e0e6d91d:api/src/utils/supabaseGerador.ts:generic-api-key:8
+0c0474708e5bb2fc947f508f8b7b2384e0e6d91d:dashboard/public/gerador/agenda.html:generic-api-key:437
+7236792c6dc14fa17b7d8e6c317928f3f05ea10f:dashboard/public/gerador/index.html:generic-api-key:53
+f39443453a7e4c5ccd6bb4dd41234b1610f2e475:api/src/__tests__/setup.ts:stripe-access-token:5
+308032c335bee06c008538f9599e0107c9af7828:.github/workflows/cron.yml:curl-auth-header:14
+f20e5f53a9a627c9d49216be712d85aa5a959722:api/.env.local.temp:jwt:4
+a4b2dfab4125c6ac102b7e5600a8539075426d5d:dashboard/public/gerador/index.html.may1-bak:generic-api-key:1300
+a4b2dfab4125c6ac102b7e5600a8539075426d5d:dashboard/public/gerador/index.html.may1-bak:generic-api-key:1400
+f20e5f53a9a627c9d49216be712d85aa5a959722:api/.env.vercel.local:jwt:7
+f20e5f53a9a627c9d49216be712d85aa5a959722:api/.env.vercel.local:generic-api-key:5
+596673ee6142b69be540c469bd25ee2aa90cb895:dashboard/public/gerador/proposta.html:generic-api-key:1275
+596673ee6142b69be540c469bd25ee2aa90cb895:dashboard/public/gerador/proposta.html:generic-api-key:1375
+596673ee6142b69be540c469bd25ee2aa90cb895:dashboard/public/gerador/index.html:generic-api-key:1300
+596673ee6142b69be540c469bd25ee2aa90cb895:dashboard/public/gerador/index.html:generic-api-key:1400
+dc6cc7f2772915ddd6ad7ff087a3764d86f9af1d:.claude/settings.local.json:anthropic-api-key:48
+dc6cc7f2772915ddd6ad7ff087a3764d86f9af1d:.claude/settings.local.json:stripe-access-token:58
+dc6cc7f2772915ddd6ad7ff087a3764d86f9af1d:.claude/settings.local.json:stripe-access-token:63
+dc6cc7f2772915ddd6ad7ff087a3764d86f9af1d:.claude/settings.local.json:curl-auth-header:98
+dc6cc7f2772915ddd6ad7ff087a3764d86f9af1d:.claude/settings.local.json:curl-auth-header:99
+dc6cc7f2772915ddd6ad7ff087a3764d86f9af1d:.claude/settings.local.json:curl-auth-header:101
+dc6cc7f2772915ddd6ad7ff087a3764d86f9af1d:.claude/settings.local.json:jwt:47
+b302c98c7de3ba18f98b30ff85881f2b545662af:api/test-db.js:generic-api-key:10
+b302c98c7de3ba18f98b30ff85881f2b545662af:api/test-db.js:generic-api-key:21
