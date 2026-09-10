@@ -5,7 +5,6 @@
   'use strict';
 
   const semMovimento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const zap = (msg) => 'https://wa.me/' + CONFIG.whatsapp + '?text=' + encodeURIComponent(msg);
 
   /* ------------------------------------------------------ o único WhatsApp */
   // SÓ EXISTE UMA PORTA PRO WHATSAPP NESTA PÁGINA: o botão do simulador.
@@ -124,8 +123,8 @@
 
   document.getElementById('rodape-contato').insertAdjacentHTML('beforeend',
     '<ul>' +
-      // sem linha de WhatsApp aqui: a única porta é o simulador
-      '<li>' + icones.fone + '<a href="tel:+' + CONFIG.whatsapp + '">' + CONFIG.whatsappVisivel + '<br><small>Ligar agora</small></a></li>' +
+      // Sem telefone e sem WhatsApp aqui: a unica porta e' o simulador. O
+      // numero da casa continua no schema (aquilo e' pro Google, nao e' link).
       '<li>' + icones.raio + '<a href="#simulador">Simular a minha economia<br><small>e falar com um consultor</small></a></li>' +
       '<li>' + icones.email + '<a href="mailto:' + CONFIG.email + '">' + CONFIG.email + '</a></li>' +
       '<li>' + icones.local + '<span>' + CONFIG.endereco + '</span></li>' +

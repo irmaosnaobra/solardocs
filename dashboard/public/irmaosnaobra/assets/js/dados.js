@@ -49,17 +49,14 @@ const CONFIG = {
    a faixa R$ 763–800, que o servidor manda pros sócios e o site manda pra
    conta baixa. Vale alinhar um dia; hoje não atrapalha ninguém.
 
-   Três números (Thiago, Diego, Nilce) vieram da tabela `consultores` do banco do
-   /gerador. O da Giovanna NÃO: o Thiago corrigiu à mão em 04/09/2026 para
-   5534998165040, que é a MESMA linha central usada nos botões soltos da página.
-   No banco, a Giovanna está como 5534993396255.
+   Os quatro números são os da tabela `consultores` do banco do /gerador, que é
+   por onde o resto do sistema já roteia lead pra cada um.
 
-   Isso tem duas consequências que valem saber:
-     1. o banco e o site discordam sobre o WhatsApp da Giovanna. O do site é o
-        que o Thiago mandou usar; quem for mexer no banco decide qual corrigir.
-     2. o lead de conta baixa sorteado pra Giovanna cai na linha central, a
-        mesma dos botões de hero/rodapé. Ou seja: 30% da conta baixa não cai num
-        celular pessoal, cai na linha que a automação também usa.
+   Histórico do número da Giovanna, porque ele mudou duas vezes: em 04/09/2026 o
+   Thiago mandou usar 5534998165040, que é a linha CENTRAL — aquela que a
+   automação também usa. Na prática, os 3 de cada 10 leads de conta baixa
+   sorteados pra ela não caiam em celular de gente. Avisei, e em 10/09/2026 ele
+   pediu o celular pessoal dela. Agora é 5534993396255, igual ao banco.
 
    Esta lista é uma cópia — o site não consulta banco nenhum. Trocou número em
    qualquer lugar, tem que trocar aqui também.
@@ -83,7 +80,7 @@ const TIME_CONTA_ALTA = [
 // posicoes em vez de 100 — do tamanho do de cima, e da' pra ler de uma vez.
 const TIME_CONTA_BAIXA = [
   { nome: 'Nilce', whatsapp: '5534991516846', peso: 7 },
-  { nome: 'Giovanna', whatsapp: '5534998165040', peso: 3 }
+  { nome: 'Giovanna', whatsapp: '5534993396255', peso: 3 }
 ];
 
 /* --------------------------------------------------------------------------
