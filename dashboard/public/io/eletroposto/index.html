@@ -108,22 +108,6 @@
   .hn .v{color:var(--neon-b);font-size:clamp(20px,3.4vw,28px);font-weight:900;letter-spacing:-1px;line-height:1}
   .hn .l{color:var(--mut);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-top:7px;line-height:1.25}
 
-  /* ===== investimento declarado (o filtro) ===== */
-  .invest{background:linear-gradient(90deg,rgba(125,209,23,.16),rgba(125,209,23,.04));border:1.5px solid rgba(125,209,23,.5);border-radius:20px;padding:26px 28px;display:flex;flex-wrap:wrap;align-items:center;gap:20px}
-  .invest .l{flex:1;min-width:260px}
-  .invest .h{font-size:12px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:var(--neon)}
-  /* a faixa é bem mais longa que a âncora antiga ("a partir de X"): o teto caiu de 44
-     para 38px pra caber numa linha no desktop, e os valores levam nowrap pra nunca
-     quebrarem no meio de "R$ 141.673,00" quando ela empilha no celular. */
-  .invest .v{font-size:clamp(28px,4vw,38px);font-weight:900;letter-spacing:-1.6px;margin-top:6px}
-  .invest .v .nb{white-space:nowrap}
-  .invest .d{color:var(--mut);font-size:14px;font-weight:600;margin-top:8px;line-height:1.5;max-width:520px}
-  .invest .d b{color:var(--cream);font-weight:800}
-  .invest .cond{display:flex;gap:10px;flex-wrap:wrap}
-  .invest .c{background:rgba(5,13,2,.5);border:1px solid var(--line);border-radius:12px;padding:11px 16px;text-align:center;min-width:104px}
-  .invest .c .cl{color:var(--mut);font-size:9.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase}
-  .invest .c .cv{color:var(--neon-b);font-size:22px;font-weight:900;letter-spacing:-.8px;margin-top:3px}
-
   /* ===== títulos de seção ===== */
   .sh{display:flex;align-items:center;gap:14px;margin-bottom:22px}
   .sh .tt{font-size:12px;font-weight:900;letter-spacing:2.2px;text-transform:uppercase;color:var(--neon);white-space:nowrap}
@@ -141,48 +125,6 @@
   .ben .ic svg{width:21px;height:21px;stroke:var(--neon-b);fill:none;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
   .ben .t{font-size:17px;font-weight:800;letter-spacing:-.3px}
   .ben .d{color:var(--mut);font-size:13.5px;font-weight:600;margin-top:6px;line-height:1.45}
-
-  /* ===== panorama de mercado (dados ABVE — mesmos do Estudo de Viabilidade) ===== */
-  .mk{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-  @media(max-width:760px){.mk{grid-template-columns:repeat(2,1fr)}}
-  .mkc{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 16px;text-align:center}
-  .mkc .v{color:var(--neon-b);font-size:clamp(26px,3.6vw,34px);font-weight:900;letter-spacing:-1.4px;line-height:1}
-  .mkc .l{color:var(--mut);font-size:12.5px;font-weight:700;margin-top:9px;line-height:1.35}
-  .mkFato{background:rgba(125,209,23,.1);border:1px solid rgba(125,209,23,.34);border-radius:14px;padding:15px 18px;margin-top:14px;color:var(--cream);font-size:14.5px;font-weight:600;line-height:1.5}
-  .mkFato b{color:var(--neon-b);font-weight:800}
-  .mkFonte{color:rgba(247,251,242,.4);font-size:11.5px;font-weight:600;line-height:1.6;margin-top:14px}
-
-  /* ===== faixa de foto =====
-     Ilustra o assunto da seção. Nenhuma delas é registro de obra da casa: a
-     empresa ainda não tem eletroposto entregue e documentado, e foto sem
-     legenda numa página de venda é lida como portfólio. Instalação em
-     andamento ficou fora desta página inteira por causa disso. */
-  .fotoFx{margin:26px 0 0}
-  .fotoFx img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;
-    border-radius:18px;border:1px solid var(--line);background:var(--card)}
-  .fotoFx figcaption{color:var(--mut);font-size:13px;font-weight:600;line-height:1.55;margin-top:11px;max-width:660px}
-
-  /* ===== vitrine do equipamento (foto em gradiente + texto) ===== */
-  .showcase{margin-top:34px;display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center;
-    background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden}
-  /* Este é o carregador QUE A EMPRESA VENDE — a foto real do SunMob, que já
-     estava na apresentação e não na página. O que havia aqui era um render de
-     IA de um equipamento inexistente, na seção cujo título é "equipamento que o
-     seu cliente confia". `contain` e não `cover`: o totem é um objeto vertical,
-     e cortar as laterais dele cortava a marca. */
-  .showcase .scImg{min-height:360px;background:#0d1a05 center/contain no-repeat;
-    border-right:1px solid var(--line)}
-  @media(max-width:760px){ .showcase .scImg{background-image:url('/io/eletroposto/img/fotos/produto-dc-600.webp')} }
-  @media(min-width:761px){ .showcase .scImg{background-image:url('/io/eletroposto/img/fotos/produto-dc-900.webp')} }
-  .showcase .scTxt{padding:28px 30px 28px 0}
-  .showcase h3{font-size:clamp(20px,2.6vw,27px);font-weight:900;letter-spacing:-.8px;line-height:1.15}
-  .showcase p{color:var(--mut);font-size:15px;font-weight:600;line-height:1.6;margin:12px 0 20px}
-  .showcase p b{color:var(--cream);font-weight:800}
-  @media(max-width:760px){
-    .showcase{grid-template-columns:1fr;gap:0}
-    .showcase .scImg{min-height:300px;border-right:0;border-bottom:1px solid var(--line)}
-    .showcase .scTxt{padding:22px 22px 26px}
-  }
 
   /* ===== simulador ===== */
   .simGrid{display:grid;grid-template-columns:340px 1fr;gap:18px}
@@ -328,12 +270,8 @@
   @media(max-width:640px){
     .brand .t span{font-size:10.5px}
     .hn .l{font-size:11.5px}
-    .invest .c{flex:1;min-width:96px}
-    .invest .c .cl{font-size:10.5px}
-    .invest .cond{width:100%}
     .kpi .k{font-size:11.5px}
     .eletro-bar-lbl,.bl{font-size:10.5px}
-    .mkc .l{font-size:12px}
     /* alvo de toque: os campos ficavam em ~47px e o público é mais velho — erra a
        mira num select apertado. Cresce por PADDING (min-height deixa o texto do
        select colado no topo em alguns navegadores) e o texto vai a 17px: abaixo
@@ -346,65 +284,6 @@
     .inp select{padding-top:21px;padding-bottom:21px}
     .inp.has-pre input{padding-left:40px}
   }
-
-  /* ===== obra real =====
-     Cinco fotos da equipe, em sequência. Card pequeno de propósito: o original é
-     foto de celular e ampliar só mostraria o borrão. A última (o quadro) ocupa a
-     linha inteira no celular porque é a que tem detalhe pra ler. */
-  .obraG{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:24px}
-  .obraC{background:rgba(10,13,9,.55);border:1px solid var(--line);border-radius:14px;overflow:hidden;
-    display:flex;flex-direction:column}
-  /* `height:auto` é obrigatório: os atributos width/height do <img> (que existem
-     pra reservar o espaço e não pular o layout) valem como altura fixa e fariam
-     o aspect-ratio ser ignorado — o card saía com a altura do arquivo. */
-  /* Caixa em pé (3/4), não deitada: três das cinco fotos vieram na vertical e o
-     assunto delas é vertical também — o transformador dentro do nicho, o quadro
-     aberto. Num recorte 4/3 a foto virava faixa e cortava justo o equipamento. */
-  .obraC img{width:100%;height:auto;aspect-ratio:3/4;object-fit:cover;display:block;background:#0b0e09}
-  .obraC .cap{padding:11px 12px 13px;font-size:12.5px;font-weight:700;line-height:1.42;color:var(--mut)}
-  .obraC .num{display:block;font-size:10.5px;font-weight:900;letter-spacing:1.6px;
-    color:rgba(247,251,242,.45);margin-bottom:5px}
-  /* Duas colunas no celular, NÃO uma. Empilhada, a sequência ganhava metros de
-     rolagem no meio da página — quem está lendo uma oferta não desce quatro
-     fotos inteiras pra chegar no preço. Em 2x2 elas leem como tira. */
-  @media(max-width:900px){
-    .obraG{grid-template-columns:repeat(2,1fr);gap:10px}
-    .obraC .cap{padding:9px 10px 11px;font-size:12px}
-  }
-
-  /* ===== manifesto / filtro forte (chave na mão) ===== */
-  .manifesto{background:linear-gradient(135deg,rgba(125,209,23,.18),rgba(125,209,23,.03));border:1.5px solid rgba(125,209,23,.55);border-radius:22px;padding:34px}
-  .manifesto .mk2{display:inline-flex;align-items:center;gap:9px;background:rgba(5,13,2,.45);border:1px solid rgba(125,209,23,.42);color:var(--neon-b);font-size:11.5px;font-weight:900;letter-spacing:1.8px;text-transform:uppercase;padding:8px 15px;border-radius:999px}
-  .manifesto h2{font-size:clamp(23px,4vw,40px);font-weight:900;letter-spacing:-1.5px;line-height:1.08;margin:16px 0 0}
-  .manifesto h2 .n{color:var(--neon-b)}
-  .manifesto .sub{color:rgba(247,251,242,.9);font-size:clamp(15px,1.9vw,17px);font-weight:600;line-height:1.55;max-width:720px;margin-top:14px}
-  .manifesto .sub b{color:var(--neon-b);font-weight:800}
-  .manifesto .filtro{margin-top:20px;display:flex;gap:13px;align-items:flex-start;background:rgba(5,13,2,.5);border:1px solid var(--line);border-left:3px solid var(--neon);border-radius:12px;padding:16px 18px}
-  .manifesto .filtro svg{width:22px;height:22px;stroke:var(--neon-b);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto;margin-top:1px}
-  .manifesto .filtro p{font-size:14.5px;font-weight:700;line-height:1.5;color:var(--cream)}
-  .manifesto .filtro b{color:var(--neon-b)}
-  @media(max-width:520px){.manifesto{padding:24px 18px}}
-
-  /* ===== entrega turnkey (o que você recebe) ===== */
-  .entrega{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
-  @media(max-width:760px){.entrega{grid-template-columns:1fr}}
-  .fase{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 20px}
-  .fase .fh{display:flex;align-items:center;gap:12px;margin-bottom:14px}
-  .fase .fic{position:relative;width:42px;height:42px;flex:0 0 auto;border-radius:13px;display:grid;place-items:center;
-    background:linear-gradient(145deg,rgba(155,238,56,.30),rgba(125,209,23,.06));
-    border:1px solid rgba(155,238,56,.5);
-    box-shadow:0 6px 18px rgba(125,209,23,.20), inset 0 1px 0 rgba(255,255,255,.14)}
-  .fase .fic svg{width:22px;height:22px;fill:none;stroke:var(--neon-b);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-  .fase .fn{position:absolute;top:-7px;left:-7px;width:19px;height:19px;border-radius:50%;background:var(--neon);border:2px solid #0c2103;color:#081a00;font-size:10.5px;font-weight:900;line-height:1;display:grid;place-items:center}
-  .fase .ft{font-size:16px;font-weight:800;letter-spacing:-.3px;line-height:1.15}
-  @media(max-width:760px){.fase .fic{width:38px;height:38px;border-radius:12px}.fase .fic svg{width:20px;height:20px}}
-  .fase ul{list-style:none;display:flex;flex-direction:column;gap:9px}
-  .fase li{display:flex;gap:10px;align-items:flex-start;color:var(--mut);font-size:13.5px;font-weight:600;line-height:1.4}
-  .fase li svg{width:16px;height:16px;stroke:var(--neon);fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto;margin-top:2px}
-  .fase li b{color:var(--cream);font-weight:700}
-  .entregaEnd{margin-top:20px;text-align:center;background:linear-gradient(90deg,rgba(125,209,23,.14),rgba(125,209,23,.03));border:1px solid rgba(125,209,23,.45);border-radius:16px;padding:24px 22px}
-  .entregaEnd p{font-size:clamp(16px,2.2vw,20px);font-weight:800;letter-spacing:-.4px;line-height:1.35;max-width:640px;margin:0 auto}
-  .entregaEnd .n{color:var(--neon-b)}
 
   /* ===== tempo de recarga por veículo =====
      O comprador não faz ideia de quanto tempo um carro fica plugado, e esse é o
@@ -541,90 +420,6 @@
 </div>
 
 <div class="wrap">
-  <!-- MANIFESTO / FILTRO — chave na mão (afasta integrador e curioso de equipamento avulso) -->
-  <section>
-    <div class="manifesto">
-      <span class="mk2">Chave na mão</span>
-      <h2>Nós não vendemos carregador. Entregamos o seu eletroposto <span class="n">ligado, homologado e fazendo a primeira recarga.</span></h2>
-      <p class="sub">Aqui o produto não é a caixa — é o ponto <b>rodando e faturando</b>. Do estudo do local à primeira recarga na tomada, é tudo nosso. Você entra com o ponto e o capital; a gente entrega a operação de pé.</p>
-      <div class="filtro">
-        <svg viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
-        <p><b>Não atendemos quem quer só o preço do carregador para montar por conta.</b> Se o seu plano é comprar o equipamento e se virar com projeto, obra, concessionária e software, não somos para você. Atendemos quem quer um ativo pronto, funcionando e sem dor de cabeça.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- OBRA REAL ─────────────────────────────────────────────────────────────
-       Vem logo depois do manifesto de propósito: a frase "entregamos ligado e
-       homologado" estava sem lastro nenhum na página. Todas as outras imagens
-       daqui são ilustração de mercado; estas cinco saíram do celular da equipe.
-
-       CADA LEGENDA DESCREVE O QUADRO E NADA ALÉM. Não existe eletroposto
-       entregue e documentado ainda (plugcash/CLAUDE.md), então nada aqui diz
-       cliente, cidade, prazo ou "obra concluída" — o que as fotos provam é
-       execução de infraestrutura, que é justamente a parte que o comprador tem
-       medo de tocar. Quando houver um ponto entregue, ele vira outra seção,
-       com outra promessa. -->
-  <section style="padding-top:0">
-    <div class="sh"><span class="tt">Obra</span><span class="ln"></span></div>
-    <h2>Antes do carregador, tem <span class="n">obra</span>.</h2>
-    <div class="sub">A parte demorada de um eletroposto não é pendurar o equipamento — é a infraestrutura que segura ele. Base, entrada de energia e quadro são nossos, na ordem em que acontecem.</div>
-
-    <div class="obraG">
-      <figure class="obraC">
-        <img src="/io/eletroposto/img/fotos/obra-1-furos-480.webp" width="480" height="360"
-             loading="lazy" decoding="async"
-             alt="Escavação da base com três furos abertos e eletroduto posicionado">
-        <figcaption class="cap"><span class="num">Etapa 01</span>Escavação da base, com os furos abertos e o eletroduto já posicionado.</figcaption>
-      </figure>
-      <figure class="obraC">
-        <img src="/io/eletroposto/img/fotos/obra-2-forma-480.webp" width="480" height="360"
-             loading="lazy" decoding="async"
-             alt="Forma de madeira e ferragem amarrada sobre os furos da base">
-        <figcaption class="cap"><span class="num">Etapa 02</span>Forma montada e ferragem amarrada sobre os furos.</figcaption>
-      </figure>
-      <figure class="obraC">
-        <img src="/io/eletroposto/img/fotos/obra-3-concreto-480.webp" width="480" height="360"
-             loading="lazy" decoding="async"
-             alt="Concreto lançado na forma com o eletroduto passando por dentro">
-        <figcaption class="cap"><span class="num">Etapa 03</span>Concreto lançado, com o eletroduto passando por dentro.</figcaption>
-      </figure>
-      <!-- a única com srcset: no celular ela ocupa a linha inteira, e aí 480px
-           de largura em tela 2x apareceria mole.
-           O transformador NÃO está aqui de propósito: ele virou a faixa da seção
-           "A entrega", que é onde a conversa é entrada de energia. Mesma foto em
-           duas seções faria parecer que só existe uma. -->
-      <figure class="obraC">
-        <img src="/io/eletroposto/img/fotos/obra-5-quadro-480.webp"
-             srcset="/io/eletroposto/img/fotos/obra-5-quadro-480.webp 480w,
-                     /io/eletroposto/img/fotos/obra-5-quadro-760.webp 760w"
-             sizes="(max-width:900px) 46vw, 250px" width="480" height="360"
-             loading="lazy" decoding="async"
-             alt="Quadro elétrico aberto, com barramento de cobre, fusíveis, disjuntores e placa de comando cabeados">
-        <figcaption class="cap"><span class="num">Etapa 04</span>Quadro montado e cabeado — barramento, fusíveis DC, medição e comando.</figcaption>
-      </figure>
-    </div>
-  </section>
-
-  <!-- INVESTIMENTO DECLARADO -->
-  <section style="padding-top:0">
-    <div class="invest">
-      <div class="l">
-        <div class="h">Investimento</div>
-        <!-- Os 3 valores são reescritos pelo JS a partir do CONFIGS do simulador (ver
-             pintarAncora): reajustar preço num lugar só deixaria a âncora mentindo.
-             O texto abaixo é o fallback sem JS — mantenha igual ao CONFIGS. -->
-        <div class="v">De <span class="nb" id="anc-min">R$ 141.673,00</span> a <span class="nb" id="anc-max">R$ 229.436,00</span></div>
-        <div class="d">O valor depende da potência e da infraestrutura elétrica do seu ponto. A configuração de 80 kW — a mais indicada para a maioria dos pontos — fica na faixa de <b id="anc-rec">R$ 144.595,00</b>.</div>
-      </div>
-      <div class="cond">
-        <div class="c"><div class="cl">Cartão</div><div class="cv">24x</div></div>
-        <div class="c"><div class="cl">Financiamento</div><div class="cv">72x</div></div>
-        <div class="c"><div class="cl">Carência</div><div class="cv">90 dias</div></div>
-      </div>
-    </div>
-  </section>
-
   <!-- BENEFÍCIOS -->
   <section>
     <div class="sh"><span class="tt">Por que eletroposto</span><span class="ln"></span></div>
@@ -655,110 +450,6 @@
         <div class="ic"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg></div>
         <div class="t">Energia limpa</div><div class="d">Um ativo sustentável que valoriza a marca do seu negócio.</div>
       </div>
-    </div>
-  </section>
-
-  <!-- ENTREGA TURNKEY — o que você recebe (prova de que não é só o equipamento) -->
-  <section>
-    <div class="sh"><span class="tt">A entrega</span><span class="ln"></span></div>
-    <h2>Tudo o que entra na sua <span class="n">chave na mão</span></h2>
-    <div class="sub" style="margin-bottom:26px">Comprar o carregador é só 20% do trabalho. Os outros 80% — onde a maioria trava — a gente entrega pronto. São 26 frentes, do estudo do ponto à primeira recarga.</div>
-    <!-- Era uma ilustração de medidor de parede aqui. Trocada em 08/08/2026 pela
-         foto real: quando o padrão de entrada não aguenta a carga, a saída é
-         entrada própria — e é isso que a foto mostra, feito por nós. A legenda
-         descreve o que está no quadro; não diz cliente, cidade nem prazo. -->
-    <figure class="fotoFx" style="margin:0 0 26px">
-      <img src="/io/eletroposto/img/fotos/obra-4-trafo-larga-1100.webp"
-           srcset="/io/eletroposto/img/fotos/obra-4-trafo-larga-700.webp 700w,
-                   /io/eletroposto/img/fotos/obra-4-trafo-larga-1100.webp 1100w"
-           sizes="(max-width:1120px) 100vw, 1080px"
-           width="1100" height="619" loading="lazy" decoding="async"
-           onerror="this.parentElement.remove()"
-           alt="Transformador instalado em nicho de concreto construído para ele, junto à parede de um imóvel comercial">
-      <figcaption>É aqui que a maioria dos projetos trava: o padrão de entrada do imóvel não aguenta a carga do carregador, e ninguém descobriu isso antes de comprar o equipamento. Quando é esse o caso, a saída é entrada de energia própria — transformador e nicho, como neste. A fase 2 abaixo existe por causa disso.</figcaption>
-    </figure>
-
-    <div class="entrega">
-      <div class="fase">
-        <div class="fh"><span class="fic"><span class="fn">1</span><svg viewBox="0 0 24 24"><path d="M12 21.5s7.5-6.6 7.5-11.5a7.5 7.5 0 1 0-15 0c0 4.9 7.5 11.5 7.5 11.5z"/><circle cx="12" cy="10" r="2.8"/></svg></span><span class="ft">Inteligência do ponto</span></div>
-        <ul>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Estudo de região — frota elétrica, rotas e concorrência</span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Estratégia de ponto — onde instalar dentro do local que você já tem</span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Estudo de viabilidade do seu ponto — payback, VPL e TIR</span></li>
-        </ul>
-      </div>
-
-      <div class="fase">
-        <div class="fh"><span class="fic"><span class="fn">2</span><svg viewBox="0 0 24 24"><path d="M13.5 3H6a1.5 1.5 0 0 0-1.5 1.5v15A1.5 1.5 0 0 0 6 21h12a1.5 1.5 0 0 0 1.5-1.5V9z"/><path d="M13.5 3v6h6"/><path d="M8.5 13.5h7M8.5 17h4.5"/></svg></span><span class="ft">Engenharia e regularização</span></div>
-        <ul>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Projeto elétrico com <b>ART</b> de engenheiro habilitado</span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Parecer de acesso e homologação na concessionária</span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Adequação de carga e do padrão de entrada</span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Aterramento, SPDA e dispositivos de proteção</span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Segurança contra incêndio e botão de emergência</span></li>
-        </ul>
-      </div>
-
-      <div class="fase">
-        <div class="fh"><span class="fic"><span class="fn">3</span><svg viewBox="0 0 24 24"><path d="M2 5h12v11H2z"/><path d="M14 9h3.9l4.1 3.7V16h-8z"/><circle cx="6.5" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg></span><span class="ft">Equipamento e logística</span></div>
-        <ul>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Carregador <b>CCS2</b> homologado, pronta entrega e com garantia</span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Transporte, seguro de carga e entrega no ponto</span></li>
-        </ul>
-      </div>
-
-      <div class="fase">
-        <div class="fh"><span class="fic"><span class="fn">4</span><svg viewBox="0 0 24 24"><path d="M2 18a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1z"/><path d="M10 10V5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v5"/><path d="M4 15v-3a6 6 0 0 1 6-6"/><path d="M14 6a6 6 0 0 1 6 6v3"/></svg></span><span class="ft">Obra e instalação</span></div>
-        <ul>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Base, fundação e proteção física do equipamento</span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Montagem por equipe especializada em recarga rápida</span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Comissionamento, energização e testes de carga</span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Pintura padrão e comunicação visual do ponto</span></li>
-        </ul>
-      </div>
-
-      <div class="fase">
-        <div class="fh"><span class="fic"><span class="fn">5</span><svg viewBox="0 0 24 24"><path d="M8.6 2.5h6.8a2 2 0 0 1 2 2v15a2 2 0 0 1-2 2H8.6a2 2 0 0 1-2-2v-15a2 2 0 0 1 2-2z"/><path d="M10.8 18.6h2.4"/><path d="M12.7 6.6 10.2 11h2.7l-.6 3.6 2.8-4.4h-2.7z"/></svg></span><span class="ft">Software e operação</span></div>
-        <ul>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Plataforma <b>OCPP</b> com pagamento pelo app</span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Gateway de pagamento e conciliação financeira</span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Monitoramento remoto 24h pelo celular</span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Cadastro nos apps e mapas de recarga</span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Precificação calibrada da tarifa de recarga</span></li>
-        </ul>
-      </div>
-
-      <div class="fase">
-        <div class="fh"><span class="fic"><span class="fn">6</span><svg viewBox="0 0 24 24"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg></span><span class="ft">Legal e contábil</span></div>
-        <ul>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Orientação contábil — CNAE, regime e <b>ICMS&nbsp;x&nbsp;ISS</b></span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Enquadramento como serviço de recarga (ANEEL 1.000/2021)</span></li>
-        </ul>
-      </div>
-
-      <div class="fase">
-        <div class="fh"><span class="fic"><span class="fn">7</span><svg viewBox="0 0 24 24"><path d="M3 10.5v3A1.5 1.5 0 0 0 4.5 15H7l6.5 4V5L7 9H4.5A1.5 1.5 0 0 0 3 10.5z"/><path d="M17 8.6a5 5 0 0 1 0 6.8"/><path d="M20 6a9 9 0 0 1 0 12"/></svg></span><span class="ft">Geração de demanda</span></div>
-        <ul>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Estratégia de tráfego e divulgação local</span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Sinalização e captação de clientes no ponto</span></li>
-        </ul>
-      </div>
-
-      <div class="fase">
-        <div class="fh"><span class="fic"><span class="fn">8</span><svg viewBox="0 0 24 24"><path d="M4 16v-4a8 8 0 0 1 16 0v4"/><path d="M4 14h1.5A1.5 1.5 0 0 1 7 15.5v3A1.5 1.5 0 0 1 5.5 20H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1z"/><path d="M20 14h-1.5a1.5 1.5 0 0 0-1.5 1.5v3a1.5 1.5 0 0 0 1.5 1.5H20a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1z"/></svg></span><span class="ft">Pós-entrega</span></div>
-        <ul>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Suporte técnico e manutenção contínua</span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Garantia do equipamento e reposição de peças</span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Treinamento de operação e acompanhamento inicial</span></li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="entregaEnd">
-      <p>Só consideramos entregue quando o seu eletroposto faz a <span class="n">primeira recarga.</span></p>
-    </div>
-    <div style="text-align:center;margin-top:22px">
-      <a href="#agendar" class="btn" onclick="track('cta_entrega')">Quero meu eletroposto de chave na mão →</a>
     </div>
   </section>
 
@@ -861,8 +552,8 @@
       revenda que você definiu no simulador mais R$&nbsp;1,20 de ativação, as mesmas premissas de lá.
       Tempo real varia com temperatura, estado da bateria e curva de recarga do veículo.
       Bateria e carga DC máxima são dados de fábrica de cada montadora; o ranking é o de
-      emplacamentos de 100% elétricos no 1º semestre de 2026 — os mesmos 90.626 da seção
-      <b>O mercado</b>, aqui embaixo.
+      emplacamentos de 100% elétricos no 1º semestre de 2026, quando o país registrou
+      <b>90.626 carros 100% elétricos</b> em seis meses.
     </div>
   </section>
 
@@ -916,50 +607,12 @@
     </div>
   </section>
 
-  <!-- JANELA DE MERCADO -->
-  <section>
-    <div class="sh"><span class="tt">O mercado</span><span class="ln"></span></div>
-    <h2>A frota cresce mais rápido que <span class="n">a rede de recarga</span></h2>
-    <div class="sub" style="margin-bottom:26px">Não é opinião nossa — são os números do setor. Cada ponto instalado hoje atende uma demanda que só aumenta.</div>
-    <div class="mk">
-      <div class="mkc"><div class="v">167.026</div><div class="l">carros plug-in no 1º sem. de 2026</div></div>
-      <div class="mkc"><div class="v">17,6%</div><div class="l">dos carros novos vendidos já plugam na tomada</div></div>
-      <div class="mkc"><div class="v">21.061</div><div class="l">eletropostos no país</div></div>
-      <div class="mkc"><div class="v">+42%</div><div class="l">de postos em 12 meses</div></div>
-      <div class="mkc"><div class="v">+167%</div><div class="l">crescimento da recarga rápida (DC)</div></div>
-      <div class="mkc"><div class="v">1.649</div><div class="l">municípios já atendidos</div></div>
-    </div>
-    <figure class="fotoFx">
-      <img src="/io/eletroposto/img/fotos/lp-mercado-1440.webp"
-           srcset="/io/eletroposto/img/fotos/lp-mercado-820.webp 820w,
-                   /io/eletroposto/img/fotos/lp-mercado-1440.webp 1440w"
-           sizes="(max-width:1120px) 100vw, 1080px"
-           width="1440" height="810" loading="lazy" decoding="async"
-           onerror="this.parentElement.remove()"
-           alt="Vista aérea de uma avenida comercial brasileira no fim da tarde, com trânsito e estacionamentos dos dois lados">
-      <figcaption>Uma avenida comercial brasileira no fim da tarde. Nenhum ponto de recarga à vista — é essa distância entre a frota e a rede que os números acima medem.</figcaption>
-    </figure>
-    <!-- Corrigido em 08/08/2026: dizia "BYD Song", que é híbrido plug-in e não estava no
-         trio. Em julho de 2026 os três primeiros do varejo do país inteiro foram elétricos
-         puros — Dolphin, EX2 e Dolphin Mini. O fato ficou mais forte do que a versão errada. -->
-    <div class="mkFato">Em julho de 2026, pela primeira vez na história, <b>os três carros mais vendidos no varejo do Brasil foram 100% elétricos</b> — BYD Dolphin, Geely EX2 e BYD Dolphin Mini.</div>
-    <div class="mkFonte">A frota que recarrega em ponto público (100% elétricos + híbridos plug-in) cresce em ritmo acima da infraestrutura instalada. No 1º semestre de 2026 foram 90.626 elétricos + 76.400 híbridos plug-in — quase todo o volume de 2025 em metade do tempo. O percentual é da 1ª quinzena de julho de 2026 e considera só quem pluga na tomada: híbrido comum fica de fora da conta. Fonte: ABVE (Associação Brasileira do Veículo Elétrico) e Tupi Mobilidade — dados de fev. a jul. de 2026.</div>
-
-    <div class="showcase">
-      <div class="scImg" role="img" aria-label="Carregador rápido SunMob, com tela de operação, leitor por aproximação e dois conectores"></div>
-      <div class="scTxt">
-        <h3>Equipamento que o seu cliente confia</h3>
-        <p>Conector <b>CCS2</b>, o padrão do mercado brasileiro. Display com o status da recarga, pagamento pelo app e monitoramento remoto — você acompanha tudo pelo celular, de onde estiver.</p>
-        <a href="#agendar" class="btn ghost" onclick="track('cta_showcase')">Ver a configuração ideal pro meu ponto →</a>
-      </div>
-    </div>
-  </section>
-
   <!-- DÚVIDAS ────────────────────────────────────────────────────────────────
        Antes do formulário, nunca depois: quem chega no agendamento com a dúvida
-       de pé não marca — fecha a aba. As respostas ficam dentro do que a página
-       já sustenta em outro lugar (manifesto, as 8 fases da entrega, a faixa de
-       investimento, as fotos de obra).
+       de pé não marca — fecha a aba. Depois do enxugamento de 10/09/2026 (saíram o
+       manifesto, a obra, a faixa de investimento, as 8 fases da entrega e o mercado)
+       esta seção virou o único lugar da página que responde escopo, preço e obra:
+       cada resposta tem que se sustentar sozinha, sem apontar para outra seção.
 
        Duas perguntas que existem na página institucional NÃO estão aqui de
        propósito: "preciso investir?" (a resposta lá é a locação de espaço, que
@@ -978,7 +631,7 @@
 
       <details class="q"><summary>Quem faz a obra?</summary>
         <div class="a">Nós. Base, entrada de energia, quadro, montagem e comissionamento são da nossa
-        equipe — as fotos da seção <b>Obra</b>, lá em cima, são dela. O projeto elétrico sai com
+        equipe, com equipamento e mão de obra próprios. O projeto elétrico sai com
         <b>ART de engenheiro habilitado</b>, e a responsabilidade técnica não é terceirizada.</div></details>
 
       <details class="q"><summary>Vou precisar de funcionário no ponto?</summary>
@@ -986,9 +639,10 @@
         faturamento e status <b>pelo celular</b>, de onde estiver. A operação roda sem ninguém no local.</div></details>
 
       <details class="q"><summary>Tem financiamento?</summary>
-        <div class="a">Tem. <b>Cartão em até 24x, financiamento em até 72x e carência de 90 dias</b> — a
-        faixa de investimento está declarada nesta página, antes da reunião. Na conversa a gente monta a
-        condição que fecha para o seu caso.</div></details>
+        <div class="a">Tem. <b>Cartão em até 24x, financiamento em até 72x e carência de 90 dias</b>. O
+        valor do seu ponto depende da potência e da entrada de energia do local — o simulador aqui em
+        cima mostra o valor de cada configuração, e na reunião a gente monta a condição que fecha
+        para o seu caso.</div></details>
 
       <details class="q"><summary>O software é de vocês ou de terceiro?</summary>
         <div class="a">A plataforma é <b>OCPP</b>, com pagamento pelo app, conciliação financeira,
@@ -998,8 +652,8 @@
       <details class="q"><summary>E se a concessionária travar o projeto?</summary>
         <div class="a">É o ponto onde a maioria dos projetos morre, e é nosso: <b>parecer de acesso e
         homologação na concessionária</b> são feitos por nós. Quando o padrão de entrada do imóvel não
-        aguenta a carga, a saída é entrada de energia própria — transformador e nicho, como o da foto da
-        seção <b>A entrega</b>.</div></details>
+        aguenta a carga, a saída é entrada de energia própria — transformador e nicho —, e essa obra
+        também é nossa.</div></details>
 
       <details class="q"><summary>E se o equipamento der defeito?</summary>
         <div class="a">O carregador é <b>CCS2 homologado, de pronta entrega e com garantia</b>, e a
@@ -1461,7 +1115,7 @@ const ATIVACAO  = 1.20;   // taxa por sessão, mesma do simulador e do Estudo de
 // `kwh` = bateria nominal · `dc` = potência máxima de recarga em corrente contínua
 // que o VEÍCULO aceita (não a do carregador) · `v` = unidades emplacadas no período.
 //
-// O ranking é do mesmo período que a seção "O mercado" desta página já cita, e fecha
+// O ranking é do 1o semestre de 2026 (90.626 eletricos), o mesmo periodo da nota da secao, e fecha
 // com ela: os 90.626 elétricos do 1º semestre de 2026. Ranking de ano fechado ficaria
 // desalinhado do resto da LP — e o mercado virou rápido demais para isso: o Kwid
 // E-Tech e o Seal saíram do top 10, e entraram Geely EX5, GAC Aion V e Captiva EV,
@@ -1535,14 +1189,6 @@ const CONFIGS = {
   120: { invest:203548, bicos:2, max:40, base:14, nota:'Ultrarrápido, até 40 carros/dia — para pontos de alto fluxo.' },
   160: { invest:229436, bicos:2, max:50, base:18, nota:'Topo da linha, até 50 carros/dia — para grandes operações.' },
 };
-// Faixa anunciada lá em cima = mínimo e máximo do CONFIGS, mais a recomendada.
-// Derivar em vez de repetir é o que impede a âncora de envelhecer sozinha.
-function pintarAncora(){
-  const vals = Object.values(CONFIGS).map(c => c.invest);
-  document.getElementById('anc-min').textContent = moneyC(Math.min(...vals));
-  document.getElementById('anc-max').textContent = moneyC(Math.max(...vals));
-  document.getElementById('anc-rec').textContent = moneyC(CONFIGS[80].invest);
-}
 // ===== ROTATIVIDADE — capacidade do bico =====
 // Uma recarga de CARGA_KWH kWh dividida pela potência da máquina dá o tempo por carro.
 // Com os dois bicos ocupados a potência se reparte entre eles, então o tempo dobra — é
@@ -2626,7 +2272,6 @@ montarSlots();
 montarTabelaRot();     // antes do setConfig: é ele quem marca a linha da config escolhida
 montarSelectCarros();  // idem — o calc() do setConfig já pinta o cartão do veículo
 setConfig();      // aplica a config default (80 kW) e calcula
-pintarAncora();   // faixa de investimento da seção de cima = min/max do CONFIGS
 onPerfil();       // o browser pode restaurar o perfil ao voltar pra página (bfcache)
 onPonto();        // idem pro ponto: sem isto o endereço restaurado ficaria escondido
                   // (e ele chama onRelacao, que reavalia o bloco do endereço)
