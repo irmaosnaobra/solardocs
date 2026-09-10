@@ -50,8 +50,14 @@ const CFG = {
   // sobrou da janela pelo que sobrou do teto, entao 100 mensagens em 17 horas
   // viram uma a cada ~10 min sozinhas. O que derruba linha e densidade, nao
   // total — e densidade e exatamente o que essa conta minimiza.
-  minSeg:     Number(process.env.MIN_SEG || 60),
-  maxSeg:     Number(process.env.MAX_SEG || 900),
+  // Entre uma abordagem e outra. Um humano fazendo prospecção manda de 4 em 4,
+  // de 10 em 10 minutos — não de hora em hora. O que protege a conta é o TETO
+  // do dia, não o espaço entre uma mensagem e outra.
+  minSeg:     Number(process.env.MIN_SEG || 240),   //  4 min
+  maxSeg:     Number(process.env.MAX_SEG || 900),   // 15 min
+  // De quanto em quanto tempo ela olha se alguém respondeu. LER é de graça e
+  // não tem risco nenhum — o que custa é enviar. Então ela olha o tempo todo.
+  olharSeg:   Number(process.env.OLHAR_SEG || 150), // 2min30
   horaIni:    Number(process.env.HORA_INI || 7),
   horaFim:    Number(process.env.HORA_FIM || 24),
 };
@@ -119,11 +125,21 @@ class Aba {
     });
   }
 
-  async js(expr) {
+  /** Avalia JS na página. Uma nova tentativa de propósito: a causa mais comum de
+   *  falha aqui é a página estar navegando na hora — o contexto morre no meio e
+   *  volta "Uncaught" sem dizer nada. Meio segundo depois costuma funcionar.
+   *  E o erro carrega um pedaço da expressão, senão não dá pra saber qual quebrou. */
+  async js(expr, tentativa = 1) {
     const r = await this.enviar('Runtime.evaluate', {
       expression: expr, awaitPromise: true, returnByValue: true,
     });
-    if (r.exceptionDetails) throw new Error(r.exceptionDetails.text || 'erro no JS da página');
+    if (r.exceptionDetails) {
+      if (tentativa < 2) { await dorme(600); return this.js(expr, tentativa + 1); }
+      const det = r.exceptionDetails.exception?.description
+        || r.exceptionDetails.text || 'erro no JS da página';
+      const primeira = String(det).split(/[\r\n]/)[0];
+      throw new Error(`${primeira} — em: ${expr.replace(/\s+/g, ' ').slice(0, 70)}`);
+    }
     return r.result?.value;
   }
 
@@ -152,8 +168,20 @@ class Aba {
     }
   }
 
+  /** Fecha a aba do worker — mas NUNCA a ultima do navegador. Fechar a ultima
+   *  mata o Chrome inteiro, e num turno de 16 horas isso derruba a operacao no
+   *  meio da madrugada sem ninguem pra reabrir. Se for a unica, so navega pra
+   *  longe e deixa viva. */
   async fechar() {
-    try { await fetch(`${this.cdpBase}/json/close/${this.targetId}`); } catch {}
+    try {
+      const abas = await (await fetch(`${this.cdpBase}/json/list`)).json();
+      const paginas = (abas || []).filter(t => t.type === 'page');
+      if (paginas.length <= 1) {
+        await this.enviar('Page.navigate', { url: 'https://www.instagram.com/' }).catch(() => {});
+      } else {
+        await fetch(`${this.cdpBase}/json/close/${this.targetId}`);
+      }
+    } catch {}
     try { this.ws.close(); } catch {}
   }
 }
@@ -194,6 +222,7 @@ async function travas() {
     usados: teto[0]?.usados_hoje ?? 0,
     restam: teto[0]?.restam ?? 0,
     porque: teto[0]?.porque || '',
+    respostas: teto[0]?.respostas_hoje ?? 0,
   };
 }
 
@@ -343,7 +372,7 @@ async function abrirConversa(aba, alvo, canal) {
       return {
         url: location.href,
         limite: /limite|limit|tente novamente|try again|espere/i.test(t),
-        trecho: t.replace(/[ \t\n\r]+/g, ' ').slice(0, 180),
+        trecho: t.replace(/[ \\s]+/g, ' ').slice(0, 180),
       };
     })()`);
     if (pistas?.limite) return 'o Instagram pediu pra esperar — parece limite de envio. Pare por hoje.';
@@ -363,7 +392,7 @@ async function lerConversa(aba, alvo, canal, quantas = 12) {
       + ' return l.slice(-' + quantas + ').map(el => ({'
       + '   de: el.classList.contains("message-in") ? "lead" : "nos",'
       + '   texto: (el.querySelector(".selectable-text")?.innerText || el.innerText || "")'
-      + '            .replace(/[ \t\n\r]+/g, " ").trim().slice(0, 600),'
+      + '            .replace(/[ \\s]+/g, " ").trim().slice(0, 600),'
       + ' })).filter(m => m.texto); })()'
     // Instagram: lado por geometria. Pega as linhas da thread, mede o centro de
     // cada uma contra o centro do container. Direita = nossa, esquerda = dele.
@@ -374,7 +403,7 @@ async function lerConversa(aba, alvo, canal, quantas = 12) {
       + ' if (!cont || !cont.width) return [];'
       + ' const meio = cont.left + cont.width / 2;'
       + ' return rows.slice(-' + quantas + ').map(r => {'
-      + '   const txt = (r.innerText || "").replace(/[ \t\n\r]+/g, " ").trim().slice(0, 600);'
+      + '   const txt = (r.innerText || "").replace(/[ \\s]+/g, " ").trim().slice(0, 600);'
       + '   if (!txt) return null;'
       + '   const b = r.getBoundingClientRect();'
       + '   const centro = b.left + b.width / 2;'
@@ -429,9 +458,11 @@ async function modoResponder() {
     const porId = new Map(arrobas.map(a => [a.id, a.instagram]));
     esperando = todas.filter(c => porId.has(c.contato_id))
                      .map(c => ({ ...c, instagram: porId.get(c.contato_id) }));
-    log(todas.length + ' conversas em aberto · ' + esperando.length + ' com @ de Instagram');
+    if (MODO !== 'continuo') log(todas.length + ' conversas em aberto · ' + esperando.length + ' com @ de Instagram');
   } else {
-    log(esperando.length + ' conversas em aberto pra conferir');
+    // Em modo contínuo isto roda a cada 2 min: falar toda vez viraria parede de
+  // log e esconderia o que importa. Só avisa quando há algo pra fazer.
+  if (MODO !== 'continuo') log(esperando.length + ' conversas em aberto pra conferir');
   }
   if (!esperando.length) return;
 
@@ -448,7 +479,11 @@ async function modoResponder() {
   let respondidas = 0, semNovidade = 0, falhas = 0;
   for (const c of esperando) {
     const alvo = CANAL === 'instagram' ? c.instagram : c.telefone;
-    const { msgs: hist, erro } = await lerConversa(aba, alvo, CANAL);
+    // Uma conversa que quebra nao pode derrubar a rodada inteira: sao 170 e a
+    // proxima pode ser justamente a que respondeu.
+    let hist = null, erro = null;
+    try { ({ msgs: hist, erro } = await lerConversa(aba, alvo, CANAL)); }
+    catch (e) { erro = e.message; }
     if (erro || !hist || !hist.length) {
       falhas++; log('  x ' + c.empresa + ': ' + (erro || 'conversa vazia')); continue;
     }
@@ -492,12 +527,17 @@ async function modoResponder() {
   }
 
   await aba.fechar();
-  console.log('\n─────────────────────────────────────────');
-  console.log('  ' + (DRY ? 'simuladas   ' : 'respondidas ') + respondidas);
-  console.log('  sem novidade ' + semNovidade);
-  console.log('  falhas       ' + falhas);
-  console.log('─────────────────────────────────────────');
-  console.log('\nAcompanhe no radar: https://solardoc.app/gerador/radar/\n');
+  if (MODO === 'continuo') {
+    // Em contínuo só fala quando fez alguma coisa. Silêncio = ninguém respondeu.
+    if (respondidas || falhas) log(`respondi ${respondidas}${falhas ? `, ${falhas} falha(s)` : ''}`);
+  } else {
+    console.log('\n─────────────────────────────────────────');
+    console.log('  ' + (DRY ? 'simuladas   ' : 'respondidas ') + respondidas);
+    console.log('  sem novidade ' + semNovidade);
+    console.log('  falhas       ' + falhas);
+    console.log('─────────────────────────────────────────');
+    console.log('\nAcompanhe no radar: https://solardoc.app/gerador/radar/\n');
+  }
 }
 
 // ═══ UMA ABORDAGEM ═══════════════════════════════════════════════════════════
@@ -570,11 +610,15 @@ async function umaAbordagem() {
 async function modoContinuo() {
   console.log('\n  MODO CONTÍNUO — trabalha sozinho das '
     + CFG.horaIni + 'h às ' + (CFG.horaFim === 24 ? '23h59' : CFG.horaFim + 'h') + '.');
+  console.log('  Aborda de ' + Math.round(CFG.minSeg / 60) + ' a ' + Math.round(CFG.maxSeg / 60)
+    + ' min. Confere resposta a cada ' + Math.round(CFG.olharSeg / 60) + ' min.');
   console.log('  Ctrl+C para parar. Deixe esta janela aberta.\n');
 
-  let rodada = 0;
+  let proximaAbordagem = 0;   // epoch em que pode mandar a próxima fria
+  let semAlvo = false;
+
   for (;;) {
-    rodada++;
+    const agoraMs = Date.now();
     const h = new Date().getHours();
 
     // ── fora da janela: dorme até o próximo turno ──────────────────────────
@@ -585,46 +629,53 @@ async function modoContinuo() {
       const seg = Math.max(60, Math.floor((alvo - new Date()) / 1000));
       log(`fora da janela — dormindo ${Math.round(seg / 60)} min, volto às ${CFG.horaIni}h`);
       await dorme(seg * 1000);
+      proximaAbordagem = 0; semAlvo = false;
       continue;
     }
 
-    const t = await travas();
-    if (t.estado === 'travado') {
-      log('DISJUNTOR ARMADO — opt-out alto. Parando o dia. Troque a abertura antes de voltar.');
-      return;
-    }
-
-    // ── 1. quem respondeu vem primeiro, sempre ────────────────────────────
+    // ── 1. RESPONDER vem sempre primeiro, e roda em TODA volta ────────────
+    // Ler conversa não gasta teto e não tem risco: o que arrisca é enviar frio.
+    // Por isso ela confere de 2 em 2 minutos e larga o que estiver fazendo pra
+    // responder quem escreveu. Resposta rápida é o que separa conversa de
+    // formulário — e responder não consome a cota de abordagem.
     try {
       await modoResponder();
-    } catch (e) { log('a rodada de resposta falhou: ' + e.message); }
+    } catch (e) { log('rodada de resposta falhou: ' + e.message); }
 
-    // ── 2. depois, uma abordagem — UMA por rodada ─────────────────────────
-    // Uma por vez, não em lote: é o que espalha os toques pelo dia inteiro em
-    // vez de despejar o teto numa hora só.
-    const t2 = await travas();
-    if (t2.restam <= 0) {
-      log(`teto do dia fechado (${t2.teto}). Dormindo até amanhã.`);
-      const amanha = new Date(); amanha.setDate(amanha.getDate() + 1);
-      amanha.setHours(CFG.horaIni, 0, 0, 0);
-      await dorme(Math.max(60000, amanha - new Date()));
-      continue;
+    // ── 2. ABORDAR, se já passou o intervalo e ainda tem teto ─────────────
+    if (Date.now() >= proximaAbordagem) {
+      const t = await travas();
+
+      if (t.estado === 'travado') {
+        log('DISJUNTOR ARMADO — opt-out alto. Paro de abordar; sigo só respondendo.');
+        proximaAbordagem = Date.now() + 3600_000;   // reconfere de hora em hora
+      } else if (t.restam <= 0) {
+        if (!semAlvo) {
+          log(`teto de abordagem fechado (${t.usados}/${t.teto}). Sigo respondendo o resto do dia.`);
+          semAlvo = true;
+        }
+        proximaAbordagem = Date.now() + 1800_000;
+      } else {
+        semAlvo = false;
+        let mandou = false;
+        try { mandou = await umaAbordagem(); }
+        catch (e) { log('abordagem falhou: ' + e.message); }
+
+        // Intervalo humano: 4 a 15 min, sorteado. Sem alvo, espera mais —
+        // insistir numa fila vazia só gasta consulta.
+        const faixa = CFG.maxSeg - CFG.minSeg;
+        const espera = mandou
+          ? CFG.minSeg + Math.floor(faixa * ((Date.now() % 1013) / 1013))
+          : 900;
+        proximaAbordagem = Date.now() + espera * 1000;
+        const t2 = await travas();
+        log(`${t2.usados}/${t2.teto} abordagens · ${t2.respostas} respostas hoje`
+          + ` · próxima abordagem em ${Math.round(espera / 60)} min`);
+      }
     }
 
-    try {
-      await umaAbordagem();
-    } catch (e) { log('a abordagem falhou: ' + e.message); }
-
-    // ── 3. espera até a próxima ───────────────────────────────────────────
-    const fim = new Date(); fim.setHours(CFG.horaFim, 0, 0, 0);
-    const sobramSeg = Math.max(60, Math.floor((fim - new Date()) / 1000));
-    const t3 = await travas();
-    const ideal = Math.floor(sobramSeg / Math.max(1, t3.restam));
-    // ±35%: um humano não manda de 10 em 10 minutos cravados
-    const jitter = 0.65 + 0.7 * ((Date.now() % 1013) / 1013);
-    const espera = Math.min(CFG.maxSeg, Math.max(CFG.minSeg, Math.floor(ideal * jitter)));
-    log(`rodada ${rodada} fim · ${t3.usados}/${t3.teto} hoje · próxima em ${Math.round(espera / 60)} min`);
-    await dorme(espera * 1000);
+    // ── 3. dorme pouco e volta pra conferir resposta ──────────────────────
+    await dorme(CFG.olharSeg * 1000);
   }
 }
 
