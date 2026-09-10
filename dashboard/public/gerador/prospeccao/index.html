@@ -976,7 +976,9 @@ async function carregar(){
   scripts = {}; respostas = [];
   sc.forEach(s => {
     if ((s.tipo || 'abertura') === 'abertura' && s.produto_id) {
-      (scripts[s.produto_id] = scripts[s.produto_id] || []).push(s.texto);
+      // objeto, não string: a abertura carrega o PERFIL a que serve (contexto).
+      (scripts[s.produto_id] = scripts[s.produto_id] || [])
+        .push({ texto: s.texto, contexto: s.contexto || 'padrao' });
     } else if ((s.tipo || 'abertura') !== 'abertura') {
       respostas.push(s);
     }
@@ -1077,22 +1079,59 @@ function alvoAtual(){
   const pendente = ativos.find(p => statusProduto(c.id, p.id) !== 'comprado');
   return pendente ? pendente.id : (ativos[0] ? ativos[0].id : null);
 }
+// ── CONTEXTO DA EMPRESA ──────────────────────────────────────────────────────
+// Sai do que o Maps já devolveu e está na linha do contato. Não é enriquecimento
+// novo nem chamada de IA: é ler o que já foi pago pra raspar.
+//   com_site     → tem site: já investiu em aparecer, e a proposta ainda é manual
+//   movimentada  → 20+ avaliações: volume real, logo muita proposta saindo
+//   padrao       → o resto
+const CTX_MUITA_AVALIACAO = 20;
+const ROTULO_CTX = { com_site:'tem site', movimentada:'muita avaliação', padrao:'perfil padrão' };
+function contextoDe(c){
+  if (!c) return 'padrao';
+  if (Number(c.avaliacoes || 0) >= CTX_MUITA_AVALIACAO) return 'movimentada';
+  if ((c.site || '').trim()) return 'com_site';
+  return 'padrao';
+}
+/** As aberturas que servem ESTE contato. Sem script do contexto dele, cai no
+ *  'padrao'; sem padrão cadastrado, usa tudo — a tela nunca fica sem mensagem
+ *  por causa de um contexto que ninguém escreveu ainda. */
+function variacoesPara(c, pid){
+  const todas = scripts[pid] || [];
+  if (!todas.length) return [];
+  const ctx = contextoDe(c);
+  const doCtx = todas.filter(v => v.contexto === ctx);
+  const escolhidas = doCtx.length ? doCtx
+    : (todas.filter(v => v.contexto === 'padrao').length ? todas.filter(v => v.contexto === 'padrao') : todas);
+  // As duas travas têm que cooperar: sem isto, uma empresa de perfil padrão abre
+  // na variação 1, que hoje é uma das bloqueadas — o consultor tomaria um "não"
+  // logo na primeira ficha do dia por um script que a própria casa já sabe que
+  // não passa. Bloqueada não some da lista (ela ainda dá pra ver e consertar),
+  // só vai pro fim da fila.
+  const limpa = escolhidas.filter(v => !alegacoesBloqueadas(v.texto, pid).length);
+  return limpa.length ? limpa.concat(escolhidas.filter(v => !limpa.includes(v))) : escolhidas;
+}
 function mensagemAtual(){
   const c = focoAtual(), pid = alvoAtual();
   if (!c || !pid) return '';
-  const p = prodById(pid), vars = scripts[pid] || [];
+  const p = prodById(pid), vars = variacoesPara(c, pid);
   if (!vars.length) return `(Sem script cadastrado para ${p ? p.nome : pid}. Cadastre em Listas → Produtos.)`;
   // {socio} vira o primeiro nome do dono quando a lista veio da Receita. Sem dono,
   // o vocativo inteiro some ("Oi, {socio}!" → "Oi!") em vez de virar "Oi, você!",
   // que é a cara de mensagem automática que a gente está tentando não ter.
   const primeiroNome = (c.socio || '').trim().split(/\s+/)[0] || '';
-  let txt = vars[variacao % vars.length];
+  let txt = vars[variacao % vars.length].texto;
   if (!primeiroNome) txt = txt.replaceAll(', {socio}', '').replaceAll('{socio}', 'você');
   return txt
     .replaceAll('{empresa}', c.empresa)
     .replaceAll('{cidade}', c.cidade || '')
     .replaceAll('{consultor}', consultorAtivo)
     .replaceAll('{socio}', primeiroNome ? capitalizar(primeiroNome) : 'você')
+    // {avaliacoes} e {nota} só existem em script de contexto 'movimentada', que
+    // por definição só é escolhido quando o número existe — mas o fallback fica
+    // aqui de qualquer jeito: melhor "várias avaliações" que um "0" na cara do lead.
+    .replaceAll('{avaliacoes}', String(c.avaliacoes || '') || 'várias')
+    .replaceAll('{nota}', String(c.nota || '') || '—')
     .replaceAll('{preco}', precoLabel(p));
 }
 
@@ -1681,8 +1720,8 @@ function escolherProduto(pid){
   produtoEscolhido = pid; variacao = 0; renderTudo();
 }
 function trocarVariacao(){
-  const vars = scripts[alvoAtual()] || [];
-  if (vars.length < 2){ showToast('Só há 1 variação cadastrada pra esse produto'); return; }
+  const vars = variacoesPara(focoAtual(), alvoAtual());
+  if (vars.length < 2){ showToast('Só há 1 variação escrita pra esse perfil de empresa'); return; }
   variacao++; renderTudo();
   showToast('Outra variação — evita texto repetido em massa');
 }
@@ -2024,7 +2063,7 @@ function htmlFila(){
         }).join('')}
 
         <div class="st" style="margin:14px 0 8px">Mensagem<span class="spacer"></span>
-          <span class="hint">variação ${((variacao)%Math.max(1,(scripts[alvo]||[]).length))+1}/${Math.max(1,(scripts[alvo]||[]).length)}</span></div>
+          <span class="hint">${ROTULO_CTX[contextoDe(c)]} · variação ${((variacao)%Math.max(1,variacoesPara(c,alvo).length))+1}/${Math.max(1,variacoesPara(c,alvo).length)}</span></div>
         <div class="script">${esc(mensagemAtual())}</div>
         ${(() => {
           // A trava aparece ANTES do botão, com o texto exato da alegação. O
@@ -3138,7 +3177,7 @@ function renderProdutos(){
         <div style="font-size:11px;color:var(--dim)">${esc(p.sigla)} · ${precoLabel(p)} · ${esc(p.sub||'')}</div></div>
     </div>`).join('');
   const p = produtos.find(x => x.id === prodEditando) || { id:'', nome:'', sigla:'', cor:'#3B82F6', preco:0, sub:'', ordem:(produtos.length+1), ativo:true };
-  const vars = (scripts[p.id] || []).join('\n---\n');
+  const vars = (scripts[p.id] || []).map(v => v.texto).join('\n---\n');
   document.getElementById('prod-edit').innerHTML = `
     <div class="fld"><label>Nome</label><input id="pe-nome" value="${esc(p.nome)}"></div>
     <div style="display:flex;gap:9px">
@@ -3188,7 +3227,10 @@ async function salvarProduto(){
     // num produto em 10/09. O delete agora é escopado ao que o campo edita.
     await supaDelete(`prospeccao_scripts?produto_id=eq.${id}&or=(tipo.is.null,tipo.eq.abertura)`);
     if (textos.length) await supaInsert('prospeccao_scripts',
-      textos.map((t,i)=>({ produto_id:id, ordem:i+1, texto:t, tipo:'abertura' })));
+      textos.map((t,i)=>({ produto_id:id, ordem:i+1, texto:t, tipo:'abertura',
+        // o textarea não edita contexto; mantém o da mesma posição pra não
+        // rebaixar as aberturas de perfil a 'padrao' num salvamento de preço.
+        contexto: ((scripts[id] || [])[i] || {}).contexto || 'padrao' })));
     await carregar();
     prodEditando = id; renderProdutos(); renderTudo();
     showToast('Produto salvo');
