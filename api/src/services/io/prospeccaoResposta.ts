@@ -44,11 +44,21 @@ export interface PedidoResposta {
   empresa: string;
   cidade?: string | null;
   produto_id?: string | null;
+  contato_id?: string | null;
+  canal?: string | null;
   /** Conversa inteira, mais antiga primeiro. */
   historico: Array<{ de: 'nos' | 'lead'; texto: string }>;
 }
 
-const LINK = 'https://solardoc.app/?utm_source=prospeccao&utm_medium=whatsapp&utm_campaign=resposta_ia';
+// O link carrega os 8 primeiros caracteres do id do contato em utm_content.
+// É a ÚNICA coisa que liga o toque (banco do gerador) à visita e à venda
+// (banco do solardoc-pro). Sem isso dá pra saber que alguém da prospecção
+// visitou, nunca QUEM — e o funil por lead não existe.
+const linkDe = (contatoId?: string | null, canal = 'whatsapp') => {
+  const base = 'https://solardoc.app/?utm_source=prospeccao&utm_medium=' + canal + '&utm_campaign=resposta_ia';
+  const t = contatoId ? String(contatoId).replace(/-/g, '').slice(0, 8) : '';
+  return t ? base + '&utm_content=' + t : base;
+};
 
 /** As alegações que a casa consegue provar. Sem isso a IA vende o que não temos. */
 async function claims(produtoId: string | null | undefined) {
@@ -147,6 +157,6 @@ export async function decidirResposta(p: PedidoResposta): Promise<Veredito | nul
 }
 
 /** O texto final que o worker digita, já com o link quando for a hora. */
-export function bolhasParaEnvio(v: Veredito): string[] {
-  return v.mandar_link ? [...v.bolhas, LINK] : v.bolhas;
+export function bolhasParaEnvio(v: Veredito, contatoId?: string | null, canal?: string | null): string[] {
+  return v.mandar_link ? [...v.bolhas, linkDe(contatoId, canal || 'whatsapp')] : v.bolhas;
 }

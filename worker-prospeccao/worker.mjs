@@ -402,7 +402,8 @@ async function modoResponder() {
     try {
       const r = await fetch(API + '/gerador/prospeccao/responder', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ empresa: c.empresa, produto_id: 'solardoc', historico: hist }),
+        body: JSON.stringify({ empresa: c.empresa, produto_id: 'solardoc', historico: hist,
+          contato_id: c.contato_id, canal: CANAL }),
       });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       v = await r.json();

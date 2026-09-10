@@ -13,6 +13,7 @@ import { runProspeccaoApifyTick } from '../services/io/prospeccaoApifyService';
 import { montarBusca } from '../services/io/prospeccaoBriefService';
 import { montarCentralAgentes } from '../services/io/centralAgentes';
 import { decidirResposta, bolhasParaEnvio } from '../services/io/prospeccaoResposta';
+import { montarFunil } from '../services/io/prospeccaoFunil';
 import { listarCerebros, salvarCerebro, restaurarCerebro, conversarComAgente, ehCerebroValido } from '../services/io/cerebroAgentes';
 import {
   calcularPrevia, criarCobranca, listarCobrancas, simularAntecipacao, pedirAntecipacao,
@@ -248,16 +249,29 @@ router.post('/prospeccao/montar', async (req: Request, res: Response) => {
 // que sairia sem que ninguém receba mensagem.
 router.post('/prospeccao/responder', async (req: Request, res: Response) => {
   try {
-    const { empresa, cidade, produto_id, historico } = req.body || {};
+    const { empresa, cidade, produto_id, historico, contato_id, canal } = req.body || {};
     if (!empresa || !Array.isArray(historico) || !historico.length) {
       res.status(400).json({ error: 'empresa e historico sao obrigatorios' });
       return;
     }
-    const v = await decidirResposta({ empresa, cidade, produto_id, historico });
+    const v = await decidirResposta({ empresa, cidade, produto_id, historico, contato_id, canal });
     if (!v) { res.status(503).json({ error: 'ia indisponivel' }); return; }
-    res.json({ ...v, envio: bolhasParaEnvio(v) });
+    res.json({ ...v, envio: bolhasParaEnvio(v, contato_id, canal) });
   } catch (err: any) {
     logger.error('gerador', 'prospeccao/responder falhou', err);
+    res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
+  }
+});
+
+// Prospecção: o funil ponta a ponta, atravessando os dois bancos.
+// Devolve só CONTAGEM — nenhum nome, e-mail ou telefone atravessa a fronteira.
+// A tela é pública; `sales` não pode ser.
+router.get('/prospeccao/funil', async (req: Request, res: Response) => {
+  try {
+    const dias = Math.min(365, Math.max(1, Number(req.query.dias) || 90));
+    res.json(await montarFunil(dias));
+  } catch (err: any) {
+    logger.error('gerador', 'prospeccao/funil falhou', err);
     res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
   }
 });

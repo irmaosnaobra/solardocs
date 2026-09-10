@@ -95,6 +95,26 @@ h1{font-size:16px;font-weight:750;letter-spacing:.02em}
 .nota{font-size:11.5px;color:var(--faint);line-height:1.65;margin-top:11px}
 .erro{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.35);border-radius:11px;
   padding:12px 14px;font-size:12.5px;color:#FECACA;margin-bottom:14px;line-height:1.6}
+/* ── sinal de vida ─────────────────────────────────────────────────────────── */
+.vida{display:flex;align-items:center;gap:13px;padding:14px 17px;border-radius:13px;
+  margin-bottom:16px;border:1px solid}
+.vida .ico{width:10px;height:10px;border-radius:50%;flex:none}
+.vida .txt{flex:1;font-size:13.5px;line-height:1.55}
+.vida b{font-weight:750}
+
+/* ── funil ─────────────────────────────────────────────────────────────────── */
+.deg{display:flex;align-items:center;gap:13px;padding:12px 0}
+.deg + .deg{border-top:1px solid rgba(255,255,255,.045)}
+.deg .rot{width:180px;flex:none;font-size:13px;font-weight:600;color:var(--txt)}
+.deg .rot small{display:block;font-size:10.5px;color:var(--faint);font-weight:500;margin-top:2px}
+.deg .bar{flex:1;height:26px;background:rgba(255,255,255,.035);border-radius:6px;overflow:hidden;position:relative}
+.deg .bar i{display:block;height:100%;border-radius:6px;transition:width .7s cubic-bezier(.4,0,.2,1)}
+.deg .val{width:96px;flex:none;text-align:right;font-family:var(--mono);
+  font-size:17px;font-weight:800;font-variant-numeric:tabular-nums}
+.deg .val small{display:block;font-size:10px;font-weight:600;color:var(--faint);font-family:inherit}
+.deg.zero .val{color:var(--faint)}
+@media(max-width:640px){ .deg .rot{width:118px;font-size:12px} .deg .val{width:70px;font-size:15px} }
+
 /* ── abas ──────────────────────────────────────────────────────────────────── */
 .abas{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
 .aba{background:transparent;border:1px solid var(--linha);color:var(--dim);padding:8px 16px;
@@ -147,7 +167,13 @@ h1{font-size:16px;font-weight:750;letter-spacing:.02em}
     <div class="relogio" id="relogio">--:--:--</div>
   </header>
 
+  <div id="vida"></div>
+
   <div class="abas" id="abas"></div>
+
+  <!-- FUNIL POR PRODUTO -->
+  <div id="painel-funil" hidden></div>
+
 
   <div id="avisos"></div>
 
@@ -416,6 +442,89 @@ function desenharAvisos(){
   document.getElementById('avisos').innerHTML = h;
 }
 
+// ═══ SINAL DE VIDA ══════════════════════════════════════════════════════════
+// A auditoria da base pegou isto: com o worker parado, TODA seção fica vazia e
+// a tela parece quebrada quando na verdade só ninguém rodou nada. Quatro
+// cartões marcando zero em silêncio é a pior forma de dar essa notícia.
+// Esta faixa dá a notícia primeiro, com a idade exata do último toque.
+function desenharVida() {
+  const ult = dados.ultimos[0];
+  const el = document.getElementById('vida');
+  if (!ult) {
+    el.innerHTML = `<div class="vida" style="border-color:#B45309;background:rgba(245,158,11,.09)">
+      <span class="ico" style="background:var(--ambar)"></span>
+      <span class="txt" style="color:#FDE68A"><b>Nenhum toque registrado ainda.</b>
+      A operação não começou — o painel acende quando a primeira mensagem sair.</span></div>`;
+    return;
+  }
+  const h = (Date.now() - new Date(ult.criado_em)) / 3600000;
+  const d = Math.floor(h / 24);
+  const [cor, bg, fundo, msg] =
+      h < 2  ? ['var(--verde)',    '#15803D', 'rgba(52,211,153,.08)',
+                '<b>Operando.</b> Último toque há ' + (h < 1 ? Math.round(h * 60) + ' min' : Math.round(h) + 'h') + '.']
+    : h < 26 ? ['var(--azul)',     '#1D4ED8', 'rgba(96,165,250,.08)',
+                '<b>Último toque há ' + Math.round(h) + ' horas.</b> Dentro do esperado pra quem roda uma vez por dia.']
+    :          ['var(--vermelho)', '#B91C1C', 'rgba(248,113,113,.10)',
+                '<b>Máquina parada há ' + d + ' dias.</b> Último toque em ' +
+                new Date(ult.criado_em).toLocaleDateString('pt-BR') +
+                '. Os números abaixo estão zerados por isso, não porque o funil quebrou.'];
+  el.innerHTML = `<div class="vida" style="border-color:${bg};background:${fundo}">
+    <span class="ico" style="background:${cor}"></span>
+    <span class="txt" style="color:${cor}">${msg}</span></div>`;
+}
+
+// ═══ FUNIL POR PRODUTO ══════════════════════════════════════════════════════
+// Vem do servidor (/gerador/prospeccao/funil), não do PostgREST: o funil
+// atravessa os dois bancos e o lado do solardoc-pro tem `sales`, que carrega
+// nome, e-mail e telefone de cliente. Do servidor sai só CONTAGEM.
+const API = 'https://solardocs-api.vercel.app';
+let funis = null;
+
+async function carregarFunil() {
+  try {
+    const r = await fetch(`${API}/gerador/prospeccao/funil?dias=90`);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    funis = (await r.json()).funis || [];
+  } catch (e) { funis = null; }
+}
+
+function desenharFunil() {
+  const el = document.getElementById('painel-funil');
+  if (!funis) {
+    el.innerHTML = `<div class="card"><div class="vazio">
+      Não consegui falar com o servidor do funil.<br>Os números da aba Visão geral continuam válidos.</div></div>`;
+    return;
+  }
+  const CORES = ['#22D3EE', '#38BDF8', '#60A5FA', '#818CF8', '#A78BFA', '#C084FC', '#E879F9', '#34D399'];
+  el.innerHTML = funis.map(f => {
+    // O topo do funil é a régua. Etapa que não dá pra medir não vira 0 na barra:
+    // vira "—", porque zero medido e zero desconhecido são coisas diferentes.
+    const topo = Math.max(1, ...f.etapas.map(e => Number(e.valor) || 0));
+    return `<div class="card" style="margin-bottom:13px">
+      <div class="ct">${esc(f.titulo)}</div>
+      <div style="padding:2px 0">
+        ${f.etapas.map((e, i) => {
+          const v = e.valor;
+          const nulo = v === null || v === undefined;
+          const pct = nulo ? 0 : Math.max(v > 0 ? 3 : 0, 100 * v / topo);
+          const conv = i > 0 && !nulo && f.etapas[0].valor
+            ? (100 * v / f.etapas[0].valor).toFixed(v / f.etapas[0].valor < 0.01 ? 2 : 1) + '%' : '';
+          return `<div class="deg${!v ? ' zero' : ''}">
+            <div class="rot">${esc(e.nome)}${e.de ? `<small>${esc(e.de)}</small>` : ''}</div>
+            <div class="bar"><i style="width:${pct}%;background:${CORES[i % CORES.length]}"></i></div>
+            <div class="val" style="${!nulo && v ? 'color:' + CORES[i % CORES.length] : ''}">
+              ${nulo ? '—' : v.toLocaleString('pt-BR')}
+              ${conv ? `<small>${conv}</small>` : (nulo && e.sub ? `<small>${esc(e.sub)}</small>` : '')}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+      ${f.obs ? `<div class="nota">${esc(f.obs)}</div>` : ''}
+    </div>`;
+  }).join('') + `<div class="nota" style="text-align:center">
+    Últimos 90 dias. Etapa marcada com “—” não é zero: é o que ainda não dá pra medir.</div>`;
+}
+
 // ═══ ONDE CADA CLIENTE ESTÁ ═════════════════════════════════════════════════
 // A visão agregada responde "quantos". Esta responde "quem, e o que faço com
 // ele". São perguntas diferentes e por isso são abas diferentes — empilhar as
@@ -557,15 +666,21 @@ function renderAbas() {
   const abertas = cli.agora.length + cli.esperando.length;
   const defs = [
     ['geral',    'Visão geral', null],
+    ['funil',    'Funil de vendas', null],
     ['clientes', 'Onde cada cliente está', abertas || null],
   ];
   document.getElementById('abas').innerHTML = defs.map(([k, l, n]) =>
     `<button class="aba${aba === k ? ' on' : ''}" onclick="irAba('${k}')">${l}` +
     (n ? `<span class="cnt">${n}</span>` : '') + '</button>').join('');
   document.getElementById('painel-geral').hidden    = aba !== 'geral';
+  document.getElementById('painel-funil').hidden    = aba !== 'funil';
   document.getElementById('painel-clientes').hidden = aba !== 'clientes';
 }
-function irAba(k) { aba = k; renderAbas(); if (k === 'clientes') renderClientes(); }
+function irAba(k) {
+  aba = k; renderAbas();
+  if (k === 'clientes') renderClientes();
+  if (k === 'funil')    desenharFunil();
+}
 
 // ── ciclo ──────────────────────────────────────────────────────────────────
 function relogio(){
@@ -575,8 +690,11 @@ function relogio(){
 async function ciclo(){
   try {
     await carregar();
-    await carregarClientes();
-    renderAbas(); if (aba === 'clientes' && !cli.termo) renderClientes();
+    await Promise.all([carregarClientes(), carregarFunil()]);
+    renderAbas();
+    if (aba === 'clientes' && !cli.termo) renderClientes();
+    if (aba === 'funil') desenharFunil();
+    desenharVida();
     desenharSelo(); desenharAvisos(); desenharKpis(); desenharPorHora();
     barrasDe(ETAPAS,'etapa','etapas'); barrasDe(CANAIS,'canal','canais');
     desenharDisjuntor(); desenharTetos(); desenharFeed(); desenharCusto();
