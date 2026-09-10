@@ -42,13 +42,14 @@ const CFG = {
   key:        process.env.SUPA_KEY || 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6',
   consultor:  process.env.CONSULTOR || 'Thiago',
 
-  // Ritmo. Os padrões são os do PROMPT.md do buscandomilhao — que é a referência
-  // que originou este worker. 90 a 240s entre mensagens, janela 09h–20h.
-  // Dá pra abrir por variável de ambiente; o custo de abrir está no README.
-  minSeg:     Number(process.env.MIN_SEG || 90),
-  maxSeg:     Number(process.env.MAX_SEG || 240),
-  horaIni:    Number(process.env.HORA_INI || 9),
-  horaFim:    Number(process.env.HORA_FIM || 20),
+  // Ritmo. Piso e teto de espaçamento. O intervalo REAL e calculado: o worker divide o que
+  // sobrou da janela pelo que sobrou do teto, entao 100 mensagens em 17 horas
+  // viram uma a cada ~10 min sozinhas. O que derruba linha e densidade, nao
+  // total — e densidade e exatamente o que essa conta minimiza.
+  minSeg:     Number(process.env.MIN_SEG || 60),
+  maxSeg:     Number(process.env.MAX_SEG || 900),
+  horaIni:    Number(process.env.HORA_INI || 7),
+  horaFim:    Number(process.env.HORA_FIM || 24),
 };
 
 const ARG = process.argv.slice(2);
@@ -170,6 +171,7 @@ async function travas() {
     teto:   teto[0]?.teto ?? 5,        // sem linha na rampa = consultor novo = 5
     usados: teto[0]?.usados_hoje ?? 0,
     restam: teto[0]?.restam ?? 0,
+    porque: teto[0]?.porque || '',
   };
 }
 
@@ -273,6 +275,8 @@ async function main() {
 
   const t0 = await travas();
   log(`consultor ${CFG.consultor} · teto ${t0.usados}/${t0.teto} · opt-out ${t0.taxa}% (${t0.estado})`);
+  if (t0.porque) log(`  ${t0.porque}`);
+  log(`  janela ${CFG.horaIni}h–${CFG.horaFim === 24 ? '23h59' : CFG.horaFim + 'h'}`);
   if (t0.estado === 'travado') {
     log('DISJUNTOR ARMADO — a fila está travada por opt-out alto. Nada será enviado.');
     log('Troque a abertura e recomece por uma lista nova antes de voltar.');
@@ -316,7 +320,7 @@ async function main() {
     if (!DRY && t.restam <= 0)  { log(`teto do dia atingido (${t.teto}). Parando.`); break; }
 
     const h = new Date().getHours();
-    if (h < CFG.horaIni || h >= CFG.horaFim) {
+    if (h < CFG.horaIni || (CFG.horaFim < 24 && h >= CFG.horaFim)) {
       log(`fora da janela (${CFG.horaIni}h–${CFG.horaFim}h). Parando.`); break;
     }
 
@@ -348,8 +352,18 @@ async function main() {
       if (falhas >= 5) { log('5 falhas seguidas — algo mudou na página ou a sessão caiu. Parando.'); break; }
     }
 
-    const espera = CFG.minSeg + Math.floor((CFG.maxSeg - CFG.minSeg) * ((Date.now() % 1013) / 1013));
-    log(`  aguardando ${espera}s`);
+    // ── ESPACAMENTO ADAPTATIVO ──────────────────────────────────────────
+    // Divide o tempo que sobra da janela pelo que sobra do teto. Manda cedo e
+    // o worker anda devagar; entrou tarde e ele acelera ate o piso. Ninguem
+    // precisa escolher "quantos segundos entre mensagens": a janela e o teto
+    // ja respondem isso, e a resposta e sempre a MENOR densidade possivel.
+    const fimJanela = new Date(); fimJanela.setHours(CFG.horaFim, 0, 0, 0);
+    const sobramSeg = Math.max(60, Math.floor((fimJanela - new Date()) / 1000));
+    const sobramMsg = Math.max(1, (await travas()).restam);
+    const ideal = Math.floor(sobramSeg / sobramMsg);
+    const jitter = 0.75 + 0.5 * ((Date.now() % 1013) / 1013);   // +-25%, nunca ritmo de metronomo
+    const espera = Math.min(CFG.maxSeg, Math.max(CFG.minSeg, Math.floor(ideal * jitter)));
+    log(`  aguardando ${espera}s (${sobramMsg} restantes em ${Math.floor(sobramSeg/60)} min de janela)`);
     await dorme(espera * 1000);
   }
 

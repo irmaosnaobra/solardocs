@@ -75,25 +75,61 @@ Se você registrar "não perturbar" na tela enquanto o worker roda, ele para na
 próxima mensagem. Mexer nos números aqui no arquivo não adianta — a fonte é o
 banco.
 
-### Ritmo
+### Cadência
 
-Padrão: **90 a 240 segundos** entre mensagens, janela **09h–20h**. Esses são os
-números do `PROMPT.md` do buscandomilhao, que é a referência que originou este
-worker — o autor dele escolheu 30/dia e 09h–20h depois de queimar conta.
+O teto **não é um número escolhido** — ele sobe com a saúde medida. Por consultor:
 
-Dá pra abrir:
+| Situação | Fator | Teto (semana 4+) |
+|---|---|---|
+| Menos de 30 contatos tocados em 14 dias | 25% | **25/dia** |
+| Opt-out abaixo de 2% | 100% | **100/dia** |
+| Opt-out entre 2% e 4% | 50% | 50/dia |
+| Opt-out entre 4% e 8% | 25% | 25/dia |
+| Opt-out 8% ou mais | 0 | **fila travada** |
 
-```powershell
-$env:MIN_SEG=45; $env:MAX_SEG=120; $env:HORA_INI=7; $env:HORA_FIM=23
+A base cresce 25 por semana até 100. Com os 4 consultores da casa, saudável e na
+semana 4, isso é **400 mensagens/dia** — e varre a fila de 1.141 em 3 dias.
+
+Ninguém precisa lembrar de subir: quem prova que não incomoda ganha volume
+sozinho, e quem incomoda perde sozinho.
+
+### Espaçamento — por que a janela longa é mais segura
+
+Janela padrão: **07:00 às 23:59**.
+
+O worker **não usa intervalo fixo**. Ele divide o tempo que sobra da janela pelo
+que sobra do teto:
+
+```
+espera = (segundos restantes na janela) ÷ (mensagens restantes)  ± 25%
 ```
 
-O que isso custa: quanto mais perto de "muitas mensagens em pouco tempo, o dia
-todo", mais o padrão parece robô pro WhatsApp e pro Instagram. A linha IO caiu
-três vezes em agosto exatamente assim — 98 disparos a 18/h, e a régua depois do
-bloqueio virou 4/h. O teto da rampa continua valendo mesmo com o intervalo
-aberto: pra passar de 20/dia é preciso mexer em `prospeccao_rampa`, de propósito.
+100 mensagens em 17 horas viram uma a cada ~10 minutos, sozinhas. As mesmas 100
+das 9h às 18h seriam uma a cada 5 minutos — o dobro da densidade.
 
----
+**O que derruba linha é densidade, não total.** Por isso a janela longa ajuda em
+vez de atrapalhar: ela é o denominador da conta. Mandou cedo, o worker anda
+devagar; entrou tarde, ele acelera até o piso de 60s.
+
+Piso e teto do espaçamento (`MIN_SEG=60`, `MAX_SEG=900`) existem só pra evitar
+rajada de um lado e worker dormindo do outro.
+
+### O que a sua base diz sobre horário
+
+Dos 305 toques registrados:
+
+| Hora | Toques | Positivos | Pediram pra parar |
+|---|---|---|---|
+| **10h** | 79 | **21 (27%)** | 5 (6%) |
+| 14h | 49 | 1 (2%) | 6 (12%) |
+| 15h | 72 | 4 (6%) | 3 (4%) |
+| **17h** | 13 | 0 | **4 (31%)** |
+| 21h | 11 | 0 | 0 |
+
+Amostra pequena, mas a direção é clara: **manhã converte, fim de tarde irrita.**
+De 22h em diante não há um único toque registrado — nenhuma evidência, nem boa
+nem ruim. A janela aberta é segura pela densidade; se o resultado das 22h vier
+ruim, o dado vai aparecer no radar antes de virar problema.
 
 ## O @ do Instagram
 
