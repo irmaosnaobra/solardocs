@@ -15,6 +15,10 @@
 
 # next.js
 /.next/
+# ancorado com / so pega a raiz: um `next` rodado de dentro de src/ deixou
+# 30 MB em dashboard/src/.next fora do ignore (e dentro do lint) por 34 dias.
+**/.next/
+**/out/
 /out/
 
 # production
