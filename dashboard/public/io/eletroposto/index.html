@@ -229,7 +229,46 @@
      verdes só o botão que confirma e o horário escolhido. A moldura brilhando
      em verde, os rótulos de dia, a borda dos horários e o fundo dos campos
      disputavam com o botão; com tudo verde, nada aponta pra nada. */
-  .agBox{background:rgba(16,35,58,.78);border:1.5px solid var(--line-f);border-radius:20px;padding:28px}
+  /* banda propria: sangra a largura toda e separa o agendamento do resto */
+  /* SANGRA a largura toda mesmo morando dentro do .wrap de 1240px: a margem
+     negativa devolve o que o wrap tirou de cada lado. Usa 100% do PAI (o wrap)
+     e nao 100vw de proposito, porque 100vw inclui a barra de rolagem e criaria
+     rolagem horizontal no desktop. */
+  .agFaixa{position:relative;margin-top:20px;padding:6px 0 64px;
+
+    border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+    background:
+      radial-gradient(60% 70% at 15% 0%, rgba(0,133,255,.18), transparent 62%),
+      radial-gradient(55% 65% at 88% 100%, rgba(57,255,20,.12), transparent 62%),
+      linear-gradient(180deg, rgba(8,20,34,.55), rgba(11,26,43,0))}
+  #agendar{padding-top:52px}
+  /* o titulo desta secao e MAIOR que o das outras de proposito: e a unica
+     coisa da pagina que gera receita, e estava com o peso de um FAQ */
+  #agendar h2{font-size:clamp(28px,4.4vw,44px);line-height:1.04}
+  #agendar .sub{font-size:16px;max-width:52ch}
+
+  .agGrade{display:grid;gap:18px;grid-template-columns:1fr;align-items:start;margin-top:28px}
+  @media(min-width:940px){.agGrade{grid-template-columns:.85fr 1.15fr;gap:26px}}
+
+  /* o que a pessoa GANHA preenchendo, do lado de enquanto ela preenche */
+  .agSell .selTit{font-size:19px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
+  .agSell ul{list-style:none;margin-top:18px;display:flex;flex-direction:column;gap:14px}
+  .agSell li{display:flex;gap:11px;align-items:flex-start;color:var(--mut);font-size:14.5px;
+    font-weight:500;line-height:1.55}
+  .agSell li b{display:block;color:var(--cream);font-weight:700;font-size:15px;margin-bottom:2px}
+  .agSell li svg{flex:none;width:17px;height:17px;stroke:var(--neon);fill:none;stroke-width:2.6;
+    stroke-linecap:round;stroke-linejoin:round;margin-top:3px}
+  .agSelo{margin-top:22px;display:inline-flex;align-items:center;gap:9px;border-radius:999px;
+    border:1px solid var(--line-f);background:rgba(229,231,235,.04);padding:9px 15px;
+    font-size:12.5px;font-weight:700;color:var(--cream)}
+  .agSelo i{width:7px;height:7px;border-radius:50%;background:var(--neon);flex:none;
+    box-shadow:0 0 0 4px rgba(57,255,20,.18)}
+
+  /* o cartao: maior, com anel e sombra. O anel e 1px a 18% — marca sem
+     competir com o verde chapado do botao que mora dentro dele. */
+  .agBox{background:rgba(16,35,58,.86);border:1px solid var(--line-f);border-radius:24px;padding:34px 32px;
+    box-shadow:0 0 0 1px rgba(57,255,20,.18), 0 34px 90px rgba(0,0,0,.5)}
+  @media(max-width:760px){.agBox{padding:26px 20px;border-radius:20px}}
   /* etiqueta "AGENDE" e a linha da seção: cinza aqui, sem competir com o CTA */
   #agendar .sh .tt{color:var(--mut)}
   #agendar .sh .ln{background:rgba(255,255,255,.10)}
@@ -243,7 +282,8 @@
   /* O cartão do agendamento SAI 8px de dentro do respiro do `.wrap` e afina o
      próprio padding: no celular cada pixel de largura é dedo a mais em cima do
      campo. Vale só pra ele — o resto da página mantém os 20px de respiro. */
-  @media(max-width:640px){.f2{grid-template-columns:1fr;gap:0}.f2 .fld:last-child{margin-bottom:16px}.agBox{padding:20px 10px;margin:0 -8px}}
+  @media(max-width:640px){.f2{grid-template-columns:1fr;gap:0}.f2 .fld:last-child{margin-bottom:16px}
+    .agBox{padding:22px 14px;margin:0 -6px}}
   .step{margin-bottom:18px}
   /* ===== uma pergunta de cada vez =====
      O formulário inteiro numa tela só era uma parede: dez campos, sete deles
@@ -257,7 +297,8 @@
   .passo{display:none}
   .passo.on{display:block;animation:passoEntra .22s ease}
   @keyframes passoEntra{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-  .passoBarra{height:4px;border-radius:99px;background:rgba(229,231,235,.12);overflow:hidden;margin-bottom:6px}
+  .passoBarra{height:6px;border-radius:99px;background:rgba(229,231,235,.12);overflow:hidden;margin-bottom:8px}
+  .passoBarra i{box-shadow:0 0 14px rgba(57,255,20,.55)}
   .passoBarra i{display:block;height:100%;background:var(--neon);border-radius:99px;
     width:0;transition:width .25s ease}
   .passoConta{color:var(--mut);font-size:11.5px;font-weight:700;letter-spacing:.08em;
@@ -899,10 +940,26 @@
   </section>
 
   <!-- AGENDAMENTO -->
+  </div><!-- fecha o .wrap da pagina: a faixa precisa ser filha do body pra sangrar -->
+
+  <div class="agFaixa">
+  <div class="wrap">
   <section id="agendar">
     <div class="sh"><span class="tt">Agende</span><span class="ln"></span></div>
-    <h2>Escolha o melhor <span class="n">horário</span></h2>
-    <div class="sub" style="margin-bottom:26px">30 minutos, on-line, com um especialista. Levamos o estudo de viabilidade do seu ponto pronto.</div>
+    <h2>Seu ponto vale a <span class="n">conta certa</span></h2>
+    <div class="sub">Escolha um horário e a gente leva o estudo de viabilidade do seu ponto pronto para a conversa, com os números do seu caso.</div>
+
+    <div class="agGrade">
+      <div class="agSell">
+        <div class="selTit">O que você leva da reunião</div>
+        <ul>
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><b>O estudo de viabilidade do seu ponto</b>O mesmo que você simulou aqui em cima, agora refeito com o seu endereço, a sua tarifa e o fluxo da sua via.</span></li>
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><b>Os cinco modelos comparados</b>Do chave na mão até ceder só o espaço. Lado a lado, com o número de cada um no seu caso.</span></li>
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><b>O caminho da concessionária</b>Análise de carga, aumento de padrão ou entrada própria: qual é o seu, e quanto muda no orçamento.</span></li>
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><b>30 minutos, por vídeo</b>Com um especialista, do seu celular ou computador. Sem instalar nada e sem custo.</span></li>
+        </ul>
+        <div class="agSelo"><i></i>Agenda aberta desta semana</div>
+      </div>
 
     <div class="agBox">
       <div id="ag-form">
@@ -1222,7 +1279,12 @@
            marcou o ponto errado mudou de lugar: agora é um link na própria página
            de destino, que traz de volta pro formulário. -->
     </div>
+    </div><!-- fecha .agGrade -->
   </section>
+  </div><!-- fecha .wrap -->
+  </div><!-- fecha .agFaixa -->
+
+  <div class="wrap"><!-- reabre o .wrap da pagina pro que vem depois -->
 
   <!-- Portão de presença: último passo antes de gravar. A ficha só vai pro banco
        depois do "Sim" — quem responde "Não" não chega a ocupar horário nenhum.
