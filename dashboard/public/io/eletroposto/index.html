@@ -313,6 +313,14 @@
   .ok .ic{width:70px;height:70px;border-radius:50%;background:rgba(57,255,20,.16);border:2px solid var(--neon);display:grid;place-items:center;margin:0 auto 18px}
   .ok .ic svg{width:34px;height:34px;stroke:var(--neon-b);fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
   .ok h3{font-size:clamp(24px,3.4vw,30px);font-weight:900;letter-spacing:-.8px}
+  /* a tela de recusa NAO pode ser verde igual a de sucesso: quem so bate o olho
+     leria "deu certo". O anel dela e roxo, a cor do proprio Instagram. */
+  .ok .ic.ic-ig{background:rgba(190,80,220,.14);border-color:rgba(190,80,220,.55)}
+  .ok .ic.ic-ig svg{stroke:#D06BE8}
+  .naoCard{margin:20px auto 0;max-width:520px;text-align:left;background:rgba(8,20,34,.6);
+    border:1px solid var(--line);border-radius:16px;padding:20px 22px}
+  .naoCard p{color:var(--mut);font-size:14px;font-weight:500;line-height:1.62;margin:0}
+  .naoCard p b{color:var(--cream);font-weight:700}
   .ok #ok-txt{color:var(--neon-b);font-size:clamp(15px,2vw,18px);font-weight:800;margin-top:10px;line-height:1.5}
   .okCard{margin:24px auto 0;max-width:520px;text-align:left;display:flex;flex-direction:column;gap:16px;
     background:rgba(8,20,34,.6);border:1px solid var(--line);border-radius:16px;padding:22px}
@@ -1121,6 +1129,29 @@
 
       <!-- Sem botão de "falar agora": a agenda flui pela reunião marcada. Quem cai
            no WhatsApp na hora fura a agenda e vira atendimento avulso. -->
+      <!-- RECUSADO: segue a gente antes de seguir o caminho dele -->
+      <div class="ok" id="ag-nao">
+        <div class="ic ic-ig"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></svg></div>
+        <h3>Hoje a reunião ainda não é pra você</h3>
+        <p id="nao-txt">—</p>
+        <div class="naoCard">
+          <p>A reunião de projeto é de quem já tem o local na mão — é o endereço que faz o
+            estudo chegar pronto na conversa. <b>Isso muda.</b> Quem não tem o ponto hoje pode
+            ter em seis meses, e a gente quer estar por perto quando mudar.</p>
+          <p style="margin-top:12px">No Instagram sai a obra por dentro, ponto novo saindo do
+            chão e a conta de cada caso. <b>Seguir custa um toque</b> e é o jeito mais fácil de
+            você acompanhar sem precisar preencher nada de novo.</p>
+        </div>
+        <a class="btn" id="nao-ig" href="https://instagram.com/irmaosnaobra__" target="_blank" rel="noopener"
+           onclick="track('nota1_instagram')" style="margin-top:20px;width:100%;justify-content:center">
+          Seguir @irmaosnaobra__ no Instagram →
+        </a>
+        <div style="margin-top:14px">
+          <a class="btn ghost" id="nao-seguir" href="#" style="width:100%;justify-content:center">Continuar →</a>
+        </div>
+        <p class="okObs" id="nao-obs">—</p>
+      </div>
+
       <div class="ok" id="ag-ok">
         <div class="ic"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
         <h3>Está marcado!</h3>
@@ -2363,6 +2394,26 @@ document.getElementById('ag-form').addEventListener('keydown', e => {
   if(e.key === 'Enter' && e.target.tagName === 'INPUT'){ e.preventDefault(); passoProximo(); }
 });
 
+/**
+ * Recusado. Em vez do `location.href` seco, mostra a tela de seguir e guarda o
+ * caminho dele no botao de continuar. Nada do que ja foi gravado muda: a ficha
+ * NOTA 1 e o sessionStorage sao escritos ANTES daqui.
+ *
+ * `motivo` e a frase que explica a recusa na voz da resposta que ele deu — sem
+ * ela a tela vira "nao deu" sem dizer por que, que e o jeito mais rapido de a
+ * pessoa achar que foi julgada.
+ */
+function mandarPraSeguir(destino, rotulo, motivo){
+  document.getElementById('ag-form').style.display = 'none';
+  document.getElementById('nao-txt').textContent = motivo;
+  const ir = document.getElementById('nao-seguir');
+  ir.href = destino;
+  ir.textContent = rotulo + ' →';
+  document.getElementById('nao-obs').textContent = 'Seu contato ficou com a gente. Quando o ponto estiver de pé, é só voltar aqui e marcar.';
+  const tela = document.getElementById('ag-nao');
+  tela.style.display = 'block';
+  tela.scrollIntoView({behavior:'smooth', block:'start'});
+}
 function erro(txt){
   const m = document.getElementById('ag-msg');
   m.textContent = txt; m.className = 'agMsg err';
@@ -2524,7 +2575,8 @@ async function agendar(){
 
     if (curioso) {
       track('nota1_material');
-      location.href = '/io/eletroposto/material';
+      mandarPraSeguir('/io/eletroposto/material', 'Ver o material que ensina a achar o ponto',
+        'Pelo que você respondeu, ainda faltam as duas pontas: o local e o capital.');
       return;
     }
 
@@ -2549,12 +2601,14 @@ async function agendar(){
     // endereço, vagas, fluxo e energia — dado que a LP não tem.
     if (!semCapital) {
       track('nota1_ponto_certo');
-      location.href = '/ponto-certo/';
+      mandarPraSeguir('/ponto-certo/', 'Ver como achar e fechar o local',
+        'Você tem como investir — o que falta é o ponto, e é justo ele que decide o resto.');
       return;
     }
 
     track('nota1_parceria');
-    location.href = '/io/eletroposto/parceria';
+    mandarPraSeguir('/io/eletroposto/parceria', 'Entrar na lista de conexão',
+      'Você tem o local encaminhado; o que falta é o capital — e isso a gente conecta.');
     return;
   }
 
