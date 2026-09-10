@@ -268,7 +268,10 @@
     border-radius:10px;min-height:48px;padding:0 18px;font-family:inherit;font-size:15px;
     font-weight:600;cursor:pointer;flex:0 0 auto}
   .passoVoltar:hover{border-color:var(--neon);color:var(--neon)}
-  .passoVoltar[hidden]{display:none}
+  /* o `hidden` do HTML perde pra qualquer classe que declare display — e foi
+     exatamente assim que os dois botoes apareceram juntos. Aqui ele passa a
+     ganhar sempre. */
+  [hidden]{display:none!important}
   .slots{margin-top:10px;display:flex;flex-direction:column;gap:14px}
   .agLoad{color:var(--mut);font-size:13.5px;font-weight:700;padding:14px 0}
   .dia .diaH{color:var(--fraco);font-size:12px;font-weight:900;letter-spacing:1.4px;text-transform:uppercase;margin-bottom:8px}
@@ -904,9 +907,14 @@
              quem está decidindo se preenche. Chegando no fim, ele deixa de ser
              pedágio e vira o canal por onde a reunião chega. -->
         <div class="passo" id="p-whatsapp">
-          <div class="fld"><label for="f-tel">Para onde mandamos a confirmação?</label><div class="inp"><input type="tel" id="f-tel" placeholder="(34) 99999-9999" oninput="maskTel(this)"></div></div>
+          <div class="fld"><label for="f-tel">Para onde mandamos a confirmação?</label><div class="inp"><input type="tel" id="f-tel" placeholder="(34) 99999-9999" oninput="maskTel(this);pintarPasso()"></div></div>
+          <div class="fld" id="box-tel2" style="display:none">
+            <label for="f-tel2">Confirme o número</label>
+            <div class="inp"><input type="tel" id="f-tel2" placeholder="(34) 99999-9999" oninput="maskTel(this);pintarPasso()"></div>
+          </div>
           <div style="color:var(--mut);font-size:12.5px;font-weight:500;line-height:1.6;margin-top:-6px">
             É por aqui que o consultor manda o link da chamada e o estudo do seu ponto.
+            Digitamos duas vezes porque número errado é reunião que a pessoa nunca fica sabendo que existe.
           </div>
         </div>
         <!-- Só a CIDADE desde 08/08/2026. Antes eram 6 campos (CEP, rua, número,
@@ -1108,8 +1116,7 @@
 
         <div class="passoNav">
           <button type="button" class="passoVoltar" id="passo-voltar" onclick="passoVoltar()" hidden>← Voltar</button>
-          <button type="button" class="btn" id="passo-proximo" onclick="passoProximo()">Continuar →</button>
-          <button class="btn" id="ag-btn" onclick="agendar()" hidden>Confirmar agendamento →</button>
+          <button type="button" class="btn" id="ag-btn" onclick="passoAcao()">Continuar →</button>
         </div>
         <div class="agMsg" id="ag-msg"></div>
         <div style="color:var(--fraco);font-size:11.5px;font-weight:600;text-align:center;margin-top:12px">
@@ -2251,6 +2258,12 @@ function onRelacao(){
 // no passo onde a pergunta aparece.
 // ═══════════════════════════════════════════════════════════════════════════
 const val = id => document.getElementById(id).value.trim();
+const soDigitos = id => document.getElementById(id).value.replace(/\D/g,'');
+/** Os dois campos de WhatsApp batem? É o que separa erro de digitação de lead perdido. */
+const telefoneConfere = () => {
+  const a = soDigitos('f-tel');
+  return a.length >= 10 && a === soDigitos('f-tel2');
+};
 const PASSOS = [
   { id:'p-horario', ok:() => slotSel ? null : 'Escolha um horário na lista.' },
   { id:'p-nome',    ok:() => val('f-nome').length >= 3 ? null : 'Informe seu nome completo.' },
@@ -2281,8 +2294,11 @@ const PASSOS = [
                     ok:() => val('f-invest') ? null : 'Informe como pretende investir.' },
   { id:'p-decisor', ok:() => val('f-decisor') ? null : 'Informe quem decide o investimento.' },
   { id:'p-trifasica', ok:() => val('f-trifasica') ? null : 'Informe se a entrada de energia do local é trifásica.' },
-  { id:'p-whatsapp', ok:() => document.getElementById('f-tel').value.replace(/\D/g,'').length >= 10
-                              ? null : 'Informe um WhatsApp válido com DDD.' },
+  { id:'p-whatsapp', ok:() => {
+      if(soDigitos('f-tel').length < 10) return 'Informe um WhatsApp válido com DDD.';
+      if(!telefoneConfere()) return 'Os dois números precisam ser iguais — confira a confirmação.';
+      return null;
+    } },
 ];
 let passoAtual = 0;
 
@@ -2303,14 +2319,28 @@ function pintarPasso(){
   document.getElementById('passo-conta').textContent = `Passo ${passoAtual+1} de ${vivos.length}`;
   document.getElementById('passo-barra').style.width = ((passoAtual+1) / vivos.length * 100) + '%';
   document.getElementById('passo-voltar').hidden  = passoAtual === 0;
-  document.getElementById('passo-proximo').hidden = ultimo;
-  document.getElementById('ag-btn').hidden        = !ultimo;
+  // A CONFIRMACAO DO NUMERO só aparece quando há um número pra confirmar —
+  // pedir a repetição de um campo vazio é pedir duas vezes a mesma coisa.
+  const caixa2 = document.getElementById('box-tel2');
+  if(caixa2) caixa2.style.display = (ultimo && soDigitos('f-tel').length >= 10) ? '' : 'none';
+  // UM BOTÃO SÓ. Ele vira "Confirmar agendamento" no último passo e SÓ depois
+  // que o número foi confirmado de verdade — antes disso ele ainda é
+  // "Continuar", porque ainda falta uma resposta pra dar.
+  const pronto = ultimo && telefoneConfere();
+  const btn = document.getElementById('ag-btn');
+  btn.textContent = pronto ? 'Confirmar agendamento →' : 'Continuar →';
+  btn.dataset.acao = pronto ? 'agendar' : 'proximo';
   // o aviso de erro é do passo que passou: some ao trocar de pergunta
   const m = document.getElementById('ag-msg');
   m.className = 'agMsg'; m.textContent = '';
   // foco no campo do passo, pra quem usa teclado e leitor de tela não precisar caçar
   const campo = atual.el ? null : document.querySelector('#' + atual.id + ' input, #' + atual.id + ' select');
   if(campo && window.innerWidth > 760) campo.focus({preventScroll:true});
+}
+/** O clique do botão único: no fim ele agenda, no resto ele avança. */
+function passoAcao(){
+  if(document.getElementById('ag-btn').dataset.acao === 'agendar') return agendar();
+  passoProximo();
 }
 function passoProximo(){
   const vivos = passosVivos();
