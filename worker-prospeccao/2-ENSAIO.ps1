@@ -18,7 +18,9 @@ Write-Host ''
 Write-Host '  ENSAIO — nada sera enviado' -ForegroundColor Cyan
 Write-Host '  ---------------------------------------------------------------'
 Write-Host ''
-$env:CONSULTOR = if ($env:CONSULTOR) { $env:CONSULTOR } else { 'IG Prospeccao' }
+$env:CONSULTOR = if ($env:CONSULTOR) { $env:CONSULTOR } else { 'irmaosnaobra__' }
+# Quem assina a mensagem. A conta gasta o teto; a pessoa assina o texto.
+$env:NOME      = if ($env:NOME)      { $env:NOME }      else { 'Thiago' }
 node worker.mjs --dry --canal=instagram
 
 Write-Host ''

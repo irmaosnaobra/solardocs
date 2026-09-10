@@ -41,6 +41,10 @@ const CFG = {
   supa:       'https://ancecdfqfwlaujknizof.supabase.co/rest/v1',
   key:        process.env.SUPA_KEY || 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6',
   consultor:  process.env.CONSULTOR || 'Thiago',
+  // Quem ASSINA a mensagem. Separado do consultor de propósito: o consultor é a
+  // conta que gasta o teto (pode ser um @, como "irmaosnaobra__"), e ninguém
+  // escreve "Oi! irmaosnaobra__ aqui" pra outro ser humano.
+  assinatura: process.env.NOME || process.env.CONSULTOR || 'Thiago',
 
   // Ritmo. Piso e teto de espaçamento. O intervalo REAL e calculado: o worker divide o que
   // sobrou da janela pelo que sobrou do teto, entao 100 mensagens em 17 horas
@@ -233,7 +237,7 @@ function montarMensagem(c, scripts, alegacoes, produtoId, preco) {
   return t
     .replaceAll('{empresa}', c.empresa || '')
     .replaceAll('{cidade}', c.cidade || '')
-    .replaceAll('{consultor}', CFG.consultor)
+    .replaceAll('{consultor}', CFG.assinatura)
     .replaceAll('{socio}', primeiro ? primeiro[0].toUpperCase() + primeiro.slice(1) : 'você')
     .replaceAll('{avaliacoes}', String(c.avaliacoes || '') || 'várias')
     .replaceAll('{nota}', String(c.nota || '') || '—')
@@ -497,7 +501,7 @@ async function main() {
   if (MODO === 'responder') return await modoResponder();
 
   const t0 = await travas();
-  log(`consultor ${CFG.consultor} · teto ${t0.usados}/${t0.teto} · opt-out ${t0.taxa}% (${t0.estado})`);
+  log(`conta ${CFG.consultor} · assina como "${CFG.assinatura}" · teto ${t0.usados}/${t0.teto} · opt-out ${t0.taxa}% (${t0.estado})`);
   if (t0.porque) log(`  ${t0.porque}`);
   log(`  janela ${CFG.horaIni}h–${CFG.horaFim === 24 ? '23h59' : CFG.horaFim + 'h'}`);
   if (t0.estado === 'travado') {

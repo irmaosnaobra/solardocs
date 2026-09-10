@@ -14,7 +14,9 @@ catch {
   exit 1
 }
 
-$env:CONSULTOR = if ($env:CONSULTOR) { $env:CONSULTOR } else { 'IG Prospeccao' }
+$env:CONSULTOR = if ($env:CONSULTOR) { $env:CONSULTOR } else { 'irmaosnaobra__' }
+# Quem assina a mensagem. A conta gasta o teto; a pessoa assina o texto.
+$env:NOME      = if ($env:NOME)      { $env:NOME }      else { 'Thiago' }
 $modo = if ($args -contains '--valendo') { '' } else { '--dry' }
 
 Write-Host ''
