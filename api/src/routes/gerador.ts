@@ -12,6 +12,7 @@ import { runGeradorBroadcastTick } from '../services/io/geradorAutomacaoService'
 import { runProspeccaoApifyTick } from '../services/io/prospeccaoApifyService';
 import { montarBusca } from '../services/io/prospeccaoBriefService';
 import { montarCentralAgentes } from '../services/io/centralAgentes';
+import { decidirResposta, bolhasParaEnvio } from '../services/io/prospeccaoResposta';
 import { listarCerebros, salvarCerebro, restaurarCerebro, conversarComAgente, ehCerebroValido } from '../services/io/cerebroAgentes';
 import {
   calcularPrevia, criarCobranca, listarCobrancas, simularAntecipacao, pedirAntecipacao,
@@ -241,6 +242,26 @@ router.post('/prospeccao/montar', async (req: Request, res: Response) => {
 // e o tick lê o pedido que já está no Supabase. Todas as travas de gasto
 // (kill-switch, cap por busca, cap por dia, fail-closed sem APIFY_TOKEN) vivem
 // dentro do motor — este endpoint não consegue passar por cima de nenhuma.
+// Prospecção: a CABEÇA. Recebe a conversa e devolve o que responder.
+// Não envia nada — quem digita é o worker, no Chrome do consultor. Essa
+// separação é o que faz o `--dry` do worker ser honesto: dá pra ver a resposta
+// que sairia sem que ninguém receba mensagem.
+router.post('/prospeccao/responder', async (req: Request, res: Response) => {
+  try {
+    const { empresa, cidade, produto_id, historico } = req.body || {};
+    if (!empresa || !Array.isArray(historico) || !historico.length) {
+      res.status(400).json({ error: 'empresa e historico sao obrigatorios' });
+      return;
+    }
+    const v = await decidirResposta({ empresa, cidade, produto_id, historico });
+    if (!v) { res.status(503).json({ error: 'ia indisponivel' }); return; }
+    res.json({ ...v, envio: bolhasParaEnvio(v) });
+  } catch (err: any) {
+    logger.error('gerador', 'prospeccao/responder falhou', err);
+    res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
+  }
+});
+
 router.post('/prospeccao/kick', async (_req: Request, res: Response) => {
   try {
     const result = await runProspeccaoApifyTick();
