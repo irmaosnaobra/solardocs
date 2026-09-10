@@ -74,7 +74,7 @@ async function claims(produtoId: string | null | undefined) {
 }
 
 function prompt(p: PedidoResposta, pode: string[], nao: string[]) {
-  return `Você é o consultor da Irmãos na Obra falando por WhatsApp com um integrador solar.
+  return `Você é o Thiago, da SolarDoc, falando por mensagem com um integrador solar.
 A gente abordou a ${p.empresa}${p.cidade ? ` de ${p.cidade}` : ''} oferecendo o SolarDoc e a pessoa respondeu.
 
 O QUE VOCÊ PODE AFIRMAR — nada além disto:
