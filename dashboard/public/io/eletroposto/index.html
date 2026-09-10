@@ -885,7 +885,11 @@
         <div class="passoBarra"><i id="passo-barra"></i></div>
         <div class="passoConta" id="passo-conta">—</div>
 
-        <div class="passo" id="p-horario">
+        <!-- O primeiro passo ja nasce VISIVEL no HTML. Se o script falhar em
+             carregar, o `pintarPasso()` nunca roda e um formulario com todos os
+             passos em display:none seria um cartao vazio na tela — pior que a
+             parede que este commit veio consertar. -->
+        <div class="passo on" id="p-horario">
           <div class="step">
             <label style="display:block;font-size:13px;font-weight:800;margin-bottom:8px">Escolha o melhor horário</label>
             <div class="slots" id="slots"></div>
