@@ -638,7 +638,16 @@
           <div class="inp has-pre"><span class="pre">R$</span><input type="number" id="s-revenda" value="2.35" step="0.05" oninput="calc()"></div>
         </div>
         <div class="fld">
-          <label>Custo da energia <span class="hint">(kWh)</span></label>
+          <label for="s-fonte">De onde vem a energia</label>
+          <div class="inp"><select id="s-fonte" onchange="setFonte()">
+            <option value="1.20">Concessionária — R$ 1,20/kWh</option>
+            <option value="0.70" selected>Usina alugada — R$ 0,70/kWh</option>
+            <option value="0.15">Usina solar própria — R$ 0,15/kWh</option>
+          </select></div>
+          <div class="cfgNota" id="fonte-nota"></div>
+        </div>
+        <div class="fld">
+          <label>Custo da energia <span class="hint">(kWh — dá pra ajustar)</span></label>
           <div class="inp has-pre"><span class="pre">R$</span><input type="number" id="s-custo" value="0.70" step="0.05" oninput="calc()"></div>
         </div>
       </div>
@@ -653,7 +662,10 @@
         </div>
         <div class="chart" id="chart"></div>
         <div class="simObs">
-          Mesmas premissas do nosso Estudo de Viabilidade: rampa de ocupação de 50% a 100% em 24 meses,
+          O <b style="color:rgba(247,251,242,.6)">custo do kWh é a maior alavanca do resultado</b> — mexe
+      mais no lucro do que trocar a potência do carregador. Os três valores do seletor são as três
+      realidades: tarifa de concessionária, geração alugada de terceiro e usina própria.
+      Mesmas premissas do nosso Estudo de Viabilidade: rampa de ocupação de 50% a 100% em 24 meses,
           gateway 14%, imposto 6% (Simples) e custos fixos (seguro 1% a.a. + software/4G)
           correndo desde o mês&nbsp;1. A conta assume que <b style="color:#A9BACD">o ponto é seu</b> —
           quem for alugar o local desconta o aluguel do lucro (na nossa régua, cerca de 10% do faturamento).
@@ -797,7 +809,7 @@
         faturamento e status <b>pelo celular</b>, de onde estiver. A operação roda sem ninguém no local.</div></details>
 
       <details class="q"><summary>Tem financiamento?</summary>
-        <div class="a">Tem. <b>Cartão em até 24x, financiamento em até 72x e carência de 90 dias</b>. O
+        <div class="a">Tem. <b>Cartão em até 18x, financiamento em até 72x e carência de 90 dias</b>. O
         valor do seu ponto depende da potência e da entrada de energia do local — o simulador aqui em
         cima mostra o valor de cada configuração, e na reunião a gente monta a condição que fecha
         para o seu caso.</div></details>
@@ -809,9 +821,12 @@
 
       <details class="q"><summary>E se a concessionária travar o projeto?</summary>
         <div class="a">É o ponto onde a maioria dos projetos morre, e é nosso: <b>parecer de acesso e
-        homologação na concessionária</b> são feitos por nós. Quando o padrão de entrada do imóvel não
-        aguenta a carga, a saída é entrada de energia própria — transformador e nicho —, e essa obra
-        também é nossa.</div></details>
+        homologação na concessionária</b> são feitos por nós. O primeiro passo é a <b>análise de
+        carga</b> — quanto o seu padrão de entrada já entrega e quanto o carregador vai puxar. Quando
+        falta, o caminho normal é o <b>aumento de carga do padrão existente</b>, que resolve a maior
+        parte dos casos. Só quando nem isso cobre é que a saída passa a ser <b>entrada de energia
+        própria</b> — transformador e nicho. Os três caminhos são nossos, e qual deles é o seu sai da
+        análise, antes de você comprar equipamento nenhum.</div></details>
 
       <details class="q"><summary>E se o equipamento der defeito?</summary>
         <div class="a">O carregador é <b>CCS2 homologado, de pronta entrega e com garantia</b>, e a
@@ -1406,10 +1421,10 @@ function pintarCarro(){
 // e por isso está impressa na letra miúda da seção, do lado do resultado.
 const JANELA_H = 12;
 const CONFIGS = {
-  60:  { invest:141673, bicos:2, max:20, base:8,  nota:'Recarga rápida, 2 bicos.' },
-  80:  { invest:144595, bicos:2, max:30, base:10, nota:'Recarga rápida, 2 bicos.' },
-  120: { invest:203548, bicos:2, max:40, base:14, nota:'Recarga ultrarrápida, 2 bicos.' },
-  160: { invest:229436, bicos:2, max:50, base:18, nota:'Recarga ultrarrápida, 2 bicos.' },
+  60:  { invest:141673, bicos:2, max:20, base:6, nota:'Recarga rápida, 2 bicos.' },
+  80:  { invest:144595, bicos:2, max:30, base:6, nota:'Recarga rápida, 2 bicos.' },
+  120: { invest:203548, bicos:2, max:40, base:6, nota:'Recarga ultrarrápida, 2 bicos.' },
+  160: { invest:229436, bicos:2, max:50, base:6, nota:'Recarga ultrarrápida, 2 bicos.' },
 };
 // ===== ROTATIVIDADE — capacidade do bico =====
 // Uma recarga de CARGA_KWH kWh dividida pela potência da máquina dá o tempo por carro.
@@ -1465,6 +1480,21 @@ function setConfig(){
 // Trocar cidade/rodovia muda a régua de kWh e, com ela, quantos carros cabem no dia.
 // Por isso reconstrói a tabela inteira antes de reancorar o slider: os dois leem o
 // mesmo rotativ(), e reancorar primeiro deixaria a tabela um passo atrás.
+// AS TRÊS REALIDADES DO kWh. É a maior alavanca de lucro do ponto — mexe mais no
+// resultado do que trocar a potência do carregador. Escolher a fonte escreve no
+// campo de custo, que continua editável: quem tem tarifa negociada corrige o
+// número sem perder a referência de onde ele saiu.
+const FONTES = {
+  '1.20': 'É o que você paga hoje na conta de luz. É o piso de comparação: todo o resto abaixo disso é margem que você ganha.',
+  '0.70': 'Você aluga a geração de uma usina de terceiro e recebe o desconto na fatura, sem obra e sem investimento próprio.',
+  '0.15': 'A geração é sua. É o menor custo possível de kWh — e é o que transforma o eletroposto no melhor cliente da sua própria usina.',
+};
+function setFonte(){
+  const v = document.getElementById('s-fonte').value;
+  document.getElementById('s-custo').value = v;
+  document.getElementById('fonte-nota').textContent = FONTES[v] || '';
+  calc();
+}
 function setLocal(){
   const rodovia = document.getElementById('s-local').value === 'rodovia';
   document.getElementById('local-nota').textContent = rodovia
@@ -2527,6 +2557,7 @@ async function gravarAgendamento(){
 montarSlots();
 montarTabelaRot();     // antes do setConfig: é ele quem marca a linha da config escolhida
 montarSelectCarros();  // idem — o calc() do setConfig já pinta o cartão do veículo
+setFonte();       // fonte da energia antes de tudo: ela escreve o custo do kWh
 setLocal();       // régua cidade/rodovia primeiro: é ela que define o teto do slider,
                   // e o setConfig() sai de dentro dela já com o teto certo
 onModelo();       // idem pro modelo: sem isto o "como pretende investir" volta
