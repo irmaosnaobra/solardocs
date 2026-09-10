@@ -270,31 +270,74 @@ async function enviarInstagram(aba, handle, msg) {
   return vazia ? { ok: true } : { ok: false, motivo: 'texto ficou na caixa — não saiu' };
 }
 
-// ═══ OUVIDO: ler a conversa do WhatsApp Web ══════════════════════════════════
-// .message-in / .message-out são as únicas coisas estáveis nessa página há anos.
-// Todo o resto (data-id, aria-label, classe gerada) muda sem aviso — por isso a
-// leitura se apoia só nelas e no texto selecionável.
-async function lerConversa(aba, tel, quantas = 12) {
-  await aba.ir('https://web.whatsapp.com/send?phone=' + tel);
-  const abriu = await aba.esperar('!!document.querySelector(\'footer [contenteditable="true"]\')', 45000);
-  if (!abriu) return null;
+// ═══ OUVIDO: ler a conversa ══════════════════════════════════════════════════
+// Dois canais, dois DOMs, um contrato: devolve [{de:'nos'|'lead', texto}].
+//
+// WhatsApp tem .message-in / .message-out — estáveis há anos.
+// Instagram NÃO tem marcador equivalente: a classe é gerada e muda sozinha.
+// O que não muda é o LAYOUT — mensagem nossa encosta na direita, dele na
+// esquerda. Então o lado é decidido por geometria, não por nome de classe.
+// É a única coisa que o Instagram não pode trocar sem virar outro produto.
+
+const SEL_CAIXA = {
+  whatsapp:  'footer [contenteditable="true"]',
+  instagram: 'div[role="textbox"], textarea[placeholder]',
+};
+
+async function abrirConversa(aba, alvo, canal) {
+  if (canal === 'instagram') {
+    await aba.ir('https://www.instagram.com/' + alvo + '/');
+    if (!await aba.esperar('!!document.querySelector("main")', 25000)) return 'perfil não carregou';
+    const abriu = await aba.js('(() => {'
+      + ' const b = [...document.querySelectorAll(\'div[role="button"],button,a\')]'
+      + '   .find(x => /^(enviar mensagem|message|mensagem)$/i.test((x.innerText||"").trim()));'
+      + ' if (!b) return false; b.click(); return true; })()');
+    if (!abriu) return 'botão de mensagem não encontrado (perfil privado, ou layout mudou)';
+  } else {
+    await aba.ir('https://web.whatsapp.com/send?phone=' + alvo);
+  }
+  const ok = await aba.esperar('!!document.querySelector(\'' + SEL_CAIXA[canal] + '\')', 45000);
+  return ok ? null : 'caixa de mensagem não abriu';
+}
+
+async function lerConversa(aba, alvo, canal, quantas = 12) {
+  const erro = await abrirConversa(aba, alvo, canal);
+  if (erro) return { erro };
   await dorme(1500);
-  const js = '(() => {'
-    + ' const linhas = [...document.querySelectorAll(".message-in, .message-out")];'
-    + ' return linhas.slice(-' + quantas + ').map(el => ({'
-    + '   de: el.classList.contains("message-in") ? "lead" : "nos",'
-    + '   texto: (el.querySelector(".selectable-text")?.innerText || el.innerText || "")'
-    + '            .replace(/[ \t\n\r]+/g, " ").trim().slice(0, 600),'
-    + ' })).filter(m => m.texto);'
-    + '})()';
-  return await aba.js(js);
+
+  const js = canal === 'whatsapp'
+    ? '(() => {'
+      + ' const l = [...document.querySelectorAll(".message-in, .message-out")];'
+      + ' return l.slice(-' + quantas + ').map(el => ({'
+      + '   de: el.classList.contains("message-in") ? "lead" : "nos",'
+      + '   texto: (el.querySelector(".selectable-text")?.innerText || el.innerText || "")'
+      + '            .replace(/[ \t\n\r]+/g, " ").trim().slice(0, 600),'
+      + ' })).filter(m => m.texto); })()'
+    // Instagram: lado por geometria. Pega as linhas da thread, mede o centro de
+    // cada uma contra o centro do container. Direita = nossa, esquerda = dele.
+    : '(() => {'
+      + ' const rows = [...document.querySelectorAll(\'div[role="row"]\')];'
+      + ' if (!rows.length) return [];'
+      + ' const cont = rows[0].parentElement?.getBoundingClientRect();'
+      + ' if (!cont || !cont.width) return [];'
+      + ' const meio = cont.left + cont.width / 2;'
+      + ' return rows.slice(-' + quantas + ').map(r => {'
+      + '   const txt = (r.innerText || "").replace(/[ \t\n\r]+/g, " ").trim().slice(0, 600);'
+      + '   if (!txt) return null;'
+      + '   const b = r.getBoundingClientRect();'
+      + '   const centro = b.left + b.width / 2;'
+      + '   return { de: centro > meio ? "nos" : "lead", texto: txt };'
+      + ' }).filter(Boolean); })()';
+
+  const msgs = await aba.js(js);
+  return { msgs: msgs || [] };
 }
 
 // ═══ BOCA: digitar as bolhas, uma mensagem por bolha ═════════════════════════
 // Uma bolha por Enter. Mandar tudo junto vira parede de texto — a cara de robô
 // que a casa evita em todos os outros agentes.
-async function mandarBolhas(aba, bolhas) {
-  const CX = 'document.querySelector(\'footer [contenteditable="true"]\')';
+async function mandarBolhas(aba, bolhas, canal) {
+  const CX = 'document.querySelector(\'' + SEL_CAIXA[canal] + '\')';
   for (const b of bolhas) {
     if (!await aba.esperar('!!' + CX, 20000)) return { ok: false, motivo: 'caixa sumiu no meio' };
     await aba.js(CX + '.focus()');
@@ -316,10 +359,24 @@ async function mandarBolhas(aba, bolhas) {
 // Só chama a IA se a ÚLTIMA mensagem for do lead. Chamar pra conversa onde nós
 // falamos por último seria pagar pra descobrir que não há o que responder.
 async function modoResponder() {
-  const esperando = await ler(
+  const todas = await ler(
     'prospeccao_contato_estado?select=contato_id,empresa,telefone,canal,lista_id'
-    + '&canal=in.(aguardando,conversa_viva)&order=ultimo_toque_em.desc&limit=60');
-  log(esperando.length + ' conversas em aberto pra conferir');
+    + '&canal=in.(aguardando,conversa_viva)&order=ultimo_toque_em.desc&limit=200');
+  // Instagram só alcança quem tem @. Buscar o handle aqui (e não na view)
+  // mantém prospeccao_contato_estado do jeito que a tela já usa.
+  let esperando = todas;
+  if (CANAL === 'instagram') {
+    const ids = todas.map(c => c.contato_id).join(',');
+    const arrobas = ids
+      ? await ler('prospeccao_contatos?select=id,instagram&id=in.(' + ids + ')&instagram=not.is.null&instagram=neq.')
+      : [];
+    const porId = new Map(arrobas.map(a => [a.id, a.instagram]));
+    esperando = todas.filter(c => porId.has(c.contato_id))
+                     .map(c => ({ ...c, instagram: porId.get(c.contato_id) }));
+    log(todas.length + ' conversas em aberto · ' + esperando.length + ' com @ de Instagram');
+  } else {
+    log(esperando.length + ' conversas em aberto pra conferir');
+  }
   if (!esperando.length) return;
 
   let aba = null;
@@ -327,15 +384,18 @@ async function modoResponder() {
   catch (e) {
     log('NÃO CONSEGUI FALAR COM O CHROME:', e.message);
     log('Sem Chrome não dá pra LER conversa nenhuma. Listando quem eu conferiria:');
-    esperando.slice(0, 20).forEach(c => console.log('  · ' + c.empresa + ' (' + c.telefone + ')'));
+    todas.slice(0, 20).forEach(c => console.log('  · ' + c.empresa + ' (' + c.telefone + ')'));
     return;
   }
   log(DRY ? 'Chrome conectado — vou LER e mostrar a resposta, sem mandar nada.' : 'Chrome conectado.');
 
   let respondidas = 0, semNovidade = 0, falhas = 0;
   for (const c of esperando) {
-    const hist = await lerConversa(aba, c.telefone);
-    if (!hist || !hist.length) { falhas++; log('  x ' + c.empresa + ': não consegui ler a conversa'); continue; }
+    const alvo = CANAL === 'instagram' ? c.instagram : c.telefone;
+    const { msgs: hist, erro } = await lerConversa(aba, alvo, CANAL);
+    if (erro || !hist || !hist.length) {
+      falhas++; log('  x ' + c.empresa + ': ' + (erro || 'conversa vazia')); continue;
+    }
     if (hist[hist.length - 1].de !== 'lead') { semNovidade++; continue; }
 
     let v = null;
@@ -348,7 +408,7 @@ async function modoResponder() {
       v = await r.json();
     } catch (e) { falhas++; log('  x ' + c.empresa + ': a cabeça não respondeu (' + e.message + ')'); continue; }
 
-    console.log('\n─── ' + c.empresa + ' · ' + c.telefone + ' ───');
+    console.log('\n─── ' + c.empresa + ' · ' + (CANAL === 'instagram' ? '@' + c.instagram : c.telefone) + ' ───');
     console.log('  ele: "' + hist[hist.length - 1].texto.slice(0, 110) + '"');
     console.log('  -> ' + v.intencao + ' / ' + v.resultado
       + (v.escalar ? ' · ESCALAR' : '') + (v.mandar_link ? ' · manda link' : ''));
@@ -356,7 +416,7 @@ async function modoResponder() {
 
     if (DRY) { respondidas++; continue; }
 
-    const env = await mandarBolhas(aba, v.envio);
+    const env = await mandarBolhas(aba, v.envio, CANAL);
     if (!env.ok) { falhas++; log('  x ' + env.motivo); continue; }
     respondidas++;
     await gravarToque(c.contato_id, c.lista_id, 'solardoc', v.resultado,

@@ -168,6 +168,35 @@ De 22h em diante não há um único toque registrado — nenhuma evidência, nem
 nem ruim. A janela aberta é segura pela densidade; se o resultado das 22h vier
 ruim, o dado vai aparecer no radar antes de virar problema.
 
+## Instagram vs WhatsApp — o número que decide
+
+| | WhatsApp | Instagram |
+|---|---|---|
+| Alcança | **1.141** empresas | **101** |
+| Onde está o endereço | telefone do Maps, sempre veio | @ colhido do site da empresa |
+
+O Google Maps devolve telefone e site, **nunca o @**. O handle só existe pra quem
+tem site com link do Instagram nele. Dos 470 alvos classificados:
+
+- **101** têm @ (é o teto do canal hoje)
+- 141 têm site e o site não linka Instagram
+- 155 não têm site nenhum
+- 73 tinham site fora do ar — **retentei, os 89 seguem inacessíveis**
+
+Ou seja: por Instagram você fala com **8,8%** da base. Por WhatsApp, com todos.
+Os dois modos funcionam nos dois canais (`--canal=instagram`), então dá pra rodar
+os 101 do Instagram e o resto por WhatsApp — não é escolha excludente.
+
+### Como o worker sabe quem falou, no Instagram
+
+O WhatsApp Web marca `.message-in` / `.message-out`. **O Instagram não tem
+equivalente** — a classe é gerada e muda sozinha.
+
+O que não muda é o layout: mensagem nossa encosta na direita, dele na esquerda.
+Então o lado é decidido por **geometria** — mede o centro de cada linha contra o
+centro do container. É a única coisa que o Instagram não pode trocar sem virar
+outro produto.
+
 ## O @ do Instagram
 
 **Não existe @ na base.** O Google Maps devolve telefone e site, nunca o handle.
