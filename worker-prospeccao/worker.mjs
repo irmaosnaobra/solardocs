@@ -270,6 +270,9 @@ function montarMensagem(c, scripts, alegacoes, produtoId, preco) {
          .replace(/\{socio\}[ 	]*,?[ 	]*/g, '')
          .replace(/^[ 	]*,[ 	]*/gm, '')
          .replace(/[ 	]+$/gm, '');
+    // "fala" sozinho numa linha fica pendurado — gente escreve "fala!" ou
+    // emenda na frase. Sem nome, a saudação vira uma linha completa.
+    t = t.replace(/^(fala|opa|oi|e aí|e ai|bom dia|boa tarde)$/gim, m => m + '!');
   }
   return t
     .replaceAll('{empresa}', c.empresa || '')
@@ -596,6 +599,75 @@ async function umaAbordagem() {
   }
 }
 
+// ═══ REABASTECER ═════════════════════════════════════════════════════════════
+// A fila tem 469 empresas mas só ~100 com @. Sem isto a agente seca em dias e
+// para sozinha — com 369 alvos parados na base esperando um handle.
+//
+// Procura o @ pela lupa do próprio Instagram, com a conta logada, DENTRO do
+// tempo ocioso entre uma abordagem e outra. Buscar é muito mais leve que mandar
+// DM (é leitura), mas não é de graça: por isso vai devagar, poucas por rodada.
+//
+// Só aceita perfil que compartilhe uma palavra DISTINTIVA com o nome da empresa.
+// "solar", "energia", "engenharia" e mais 20 não contam — senão "Solar Brasil"
+// casaria com @solarpiracanjuba e a DM iria pro perfil errado, que é pior que
+// não mandar.
+const GENERICAS = new Set(['solar','energia','energias','solares','fotovoltaica','fotovoltaico',
+  'renovavel','renovaveis','engenharia','ltda','me','eireli','comercio','servicos','e','de','do',
+  'da','em','the','sistemas','solucoes','tecnologia','eletrica','brasil','grupo','cia']);
+const normNome = x => String(x || '').toLowerCase().normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+const distintivas = n => normNome(n).split(' ').filter(t => t.length >= 3 && !GENERICAS.has(t));
+
+function casaPerfil(empresa, u) {
+  const alvo = distintivas(empresa);
+  if (!alvo.length) return null;
+  const txt = normNome(u.username + ' ' + (u.full_name || ''));
+  const junto = txt.replace(/ /g, '');
+  const bate = alvo.filter(t => txt.includes(t) || junto.includes(t));
+  return bate.length ? { forca: bate.length / alvo.length, palavras: bate } : null;
+}
+
+/** Uma rodada curta de busca de @. Devolve quantos achou. */
+async function reabastecer(aba, quantos = 4) {
+  const semArroba = await ler('prospeccao_contatos?select=id,empresa,cidade'
+    + '&classe=in.(integradora,misto)&or=(instagram.is.null,instagram.eq.)&limit=' + quantos);
+  if (!semArroba.length) return 0;
+
+  let achou = 0;
+  for (const c of semArroba) {
+    const termo = [c.empresa, c.cidade].filter(Boolean).join(' ');
+    let r = null;
+    try {
+      r = await aba.js(`(async () => {
+        try {
+          const q = await fetch('/web/search/topsearch/?context=blended&query='
+            + encodeURIComponent(${JSON.stringify(termo)}), { headers: { 'X-IG-App-ID': '936619743392459' } });
+          if (!q.ok) return { erro: 'HTTP ' + q.status };
+          const j = await q.json();
+          return { users: (j.users || []).slice(0, 8).map(u => ({
+            username: u.user && u.user.username, full_name: u.user && u.user.full_name })).filter(u => u.username) };
+        } catch (e) { return { erro: String(e && e.message || e) }; }
+      })()`);
+    } catch (e) { r = { erro: e.message }; }
+
+    if (r?.erro) { log(`  busca de @ reclamou (${r.erro}) — paro de procurar nesta rodada`); break; }
+
+    const cand = (r?.users || []).map(u => ({ u, m: casaPerfil(c.empresa, u) }))
+      .filter(x => x.m).sort((a, b) => b.m.forca - a.m.forca)[0];
+
+    // '' = procuramos e nao serve. Sem isso a mesma empresa seria procurada
+    // pra sempre, gastando busca toda rodada.
+    const valor = cand ? cand.u.username : '';
+    await fetch(`${CFG.supa}/prospeccao_contatos?id=eq.${c.id}`, {
+      method: 'PATCH', headers: H,
+      body: JSON.stringify({ instagram: valor, instagram_em: new Date().toISOString() }),
+    }).catch(() => {});
+    if (cand) { achou++; log(`  achei @${cand.u.username} — ${c.empresa}`); }
+    await dorme(4000 + Math.floor(5000 * ((Date.now() % 1009) / 1009)));
+  }
+  return achou;
+}
+
 // ═══ MODO CONTÍNUO ═══════════════════════════════════════════════════════════
 // Um dia inteiro de trabalho sem ninguém dar comando. Alterna abordar e
 // responder, dorme fora da janela, e acorda sozinho no dia seguinte.
@@ -686,7 +758,25 @@ async function modoContinuo() {
       }
     }
 
-    // ── 3. dorme pouco e volta pra conferir resposta ──────────────────────
+    // ── 3. REABASTECER no tempo ocioso ────────────────────────────────────
+    // Enquanto espera a próxima abordagem, procura o @ de quem ainda não tem.
+    // É o que faz a agente nunca secar: ela cuida da lista que existe E da que
+    // vai gerar. Só no Instagram, e só quando a fila alcançável está curta.
+    if (CANAL === 'instagram' && !DRY) {
+      try {
+        const comArroba = (await ler('prospeccao_fila_worker?select=id&instagram=not.is.null&instagram=neq.&limit=200')).length;
+        if (comArroba < 60) {
+          let aba = null;
+          try {
+            aba = await Aba.abrir(CFG.cdp);
+            const n = await reabastecer(aba, 4);
+            if (n) log(`reabasteci ${n} @ — fila alcançável tinha ${comArroba}`);
+          } finally { if (aba) await aba.fechar(); }
+        }
+      } catch (e) { log('reabastecimento falhou: ' + e.message); }
+    }
+
+    // ── 4. dorme pouco e volta ────────────────────────────────────────────
     await dorme(CFG.olharSeg * 1000);
   }
 }
