@@ -59,6 +59,43 @@ node worker.mjs --canal=whatsapp
 
 O `--canal=instagram` existe e funciona, mas veja a seção do @ abaixo.
 
+## 4. Responder quem respondeu
+
+```powershell
+node worker.mjs --dry --modo=responder      # lê as conversas, mostra a resposta, não manda
+node worker.mjs --modo=responder            # responde de verdade
+```
+
+Percorre quem está esperando retorno, lê a conversa direto do WhatsApp Web e,
+**só se a última mensagem for do lead**, manda pra IA decidir. Conversa onde nós
+falamos por último não custa nada — ela nem chama a IA.
+
+A IA devolve: a intenção, o desfecho pro CRM, as bolhas a mandar, se é hora do
+link e se precisa de humano. O worker digita bolha por bolha, com pausa entre
+elas, e grava o toque.
+
+### O que ela nunca faz
+
+| Situação | O que acontece |
+|---|---|
+| Pediu pra parar | resposta curta pedindo desculpa, **contato bloqueado**, sem link |
+| Pergunta que as alegações não cobrem | diz que vai confirmar e **escala pra humano** |
+| Pedem garantia de venda ou devolução | recusa prometer, escala, repete só o que é provado |
+| Link cedo demais | não manda — só quando a pessoa pede preço ou pede pra ver |
+
+O que ela pode afirmar sai de `prospeccao_alegacoes`, as mesmas da tela. O que
+está bloqueado lá entra no prompt como lista do que não pode dizer nem
+parafraseado — e o link é removido do texto por código, não por confiança.
+
+Desligar só a IA (sem derrubar os outros agentes): `PROSPECCAO_IA_OFF=true`.
+
+### Custo
+
+Uma resposta custa alguns centavos (`claude-opus-5`, effort baixo). Cem respostas
+por dia é ordem de **poucos reais/dia** — não é zero. Se o crédito da Anthropic
+acabar, a cabeça devolve 503 e o worker **pula o contato** em vez de mandar
+qualquer coisa.
+
 ---
 
 ## As três travas

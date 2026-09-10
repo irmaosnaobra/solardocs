@@ -55,6 +55,9 @@ const CFG = {
 const ARG = process.argv.slice(2);
 const DRY   = ARG.includes('--dry');
 const CANAL = (ARG.find(a => a.startsWith('--canal='))?.split('=')[1]) || 'whatsapp';
+// abordar = primeira mensagem (fila fria) · responder = quem respondeu e está esperando
+const MODO  = (ARG.find(a => a.startsWith('--modo='))?.split('=')[1]) || 'abordar';
+const API   = process.env.API_BASE || 'https://solardocs-api.vercel.app';
 
 const H = { apikey: CFG.key, Authorization: 'Bearer ' + CFG.key, 'Content-Type': 'application/json' };
 const dorme = ms => new Promise(r => setTimeout(r, ms));
@@ -267,11 +270,126 @@ async function enviarInstagram(aba, handle, msg) {
   return vazia ? { ok: true } : { ok: false, motivo: 'texto ficou na caixa — não saiu' };
 }
 
+// ═══ OUVIDO: ler a conversa do WhatsApp Web ══════════════════════════════════
+// .message-in / .message-out são as únicas coisas estáveis nessa página há anos.
+// Todo o resto (data-id, aria-label, classe gerada) muda sem aviso — por isso a
+// leitura se apoia só nelas e no texto selecionável.
+async function lerConversa(aba, tel, quantas = 12) {
+  await aba.ir('https://web.whatsapp.com/send?phone=' + tel);
+  const abriu = await aba.esperar('!!document.querySelector(\'footer [contenteditable="true"]\')', 45000);
+  if (!abriu) return null;
+  await dorme(1500);
+  const js = '(() => {'
+    + ' const linhas = [...document.querySelectorAll(".message-in, .message-out")];'
+    + ' return linhas.slice(-' + quantas + ').map(el => ({'
+    + '   de: el.classList.contains("message-in") ? "lead" : "nos",'
+    + '   texto: (el.querySelector(".selectable-text")?.innerText || el.innerText || "")'
+    + '            .replace(/[ \t\n\r]+/g, " ").trim().slice(0, 600),'
+    + ' })).filter(m => m.texto);'
+    + '})()';
+  return await aba.js(js);
+}
+
+// ═══ BOCA: digitar as bolhas, uma mensagem por bolha ═════════════════════════
+// Uma bolha por Enter. Mandar tudo junto vira parede de texto — a cara de robô
+// que a casa evita em todos os outros agentes.
+async function mandarBolhas(aba, bolhas) {
+  const CX = 'document.querySelector(\'footer [contenteditable="true"]\')';
+  for (const b of bolhas) {
+    if (!await aba.esperar('!!' + CX, 20000)) return { ok: false, motivo: 'caixa sumiu no meio' };
+    await aba.js(CX + '.focus()');
+    await dorme(400);
+    await aba.digitar(b);
+    await dorme(500);
+    await aba.enviar('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+    await aba.enviar('Input.dispatchKeyEvent', { type: 'keyUp',   key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+    await dorme(1800);
+    const vazia = await aba.js('(' + CX + '?.innerText || "").trim().length === 0');
+    if (!vazia) return { ok: false, motivo: 'bolha ficou na caixa — não saiu' };
+    // gente não manda 3 mensagens no mesmo segundo
+    await dorme(1200 + Math.floor(1800 * ((Date.now() % 991) / 991)));
+  }
+  return { ok: true };
+}
+
+// ═══ MODO RESPONDER ══════════════════════════════════════════════════════════
+// Só chama a IA se a ÚLTIMA mensagem for do lead. Chamar pra conversa onde nós
+// falamos por último seria pagar pra descobrir que não há o que responder.
+async function modoResponder() {
+  const esperando = await ler(
+    'prospeccao_contato_estado?select=contato_id,empresa,telefone,canal,lista_id'
+    + '&canal=in.(aguardando,conversa_viva)&order=ultimo_toque_em.desc&limit=60');
+  log(esperando.length + ' conversas em aberto pra conferir');
+  if (!esperando.length) return;
+
+  let aba = null;
+  try { aba = await Aba.abrir(CFG.cdp); }
+  catch (e) {
+    log('NÃO CONSEGUI FALAR COM O CHROME:', e.message);
+    log('Sem Chrome não dá pra LER conversa nenhuma. Listando quem eu conferiria:');
+    esperando.slice(0, 20).forEach(c => console.log('  · ' + c.empresa + ' (' + c.telefone + ')'));
+    return;
+  }
+  log(DRY ? 'Chrome conectado — vou LER e mostrar a resposta, sem mandar nada.' : 'Chrome conectado.');
+
+  let respondidas = 0, semNovidade = 0, falhas = 0;
+  for (const c of esperando) {
+    const hist = await lerConversa(aba, c.telefone);
+    if (!hist || !hist.length) { falhas++; log('  x ' + c.empresa + ': não consegui ler a conversa'); continue; }
+    if (hist[hist.length - 1].de !== 'lead') { semNovidade++; continue; }
+
+    let v = null;
+    try {
+      const r = await fetch(API + '/gerador/prospeccao/responder', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empresa: c.empresa, produto_id: 'solardoc', historico: hist }),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      v = await r.json();
+    } catch (e) { falhas++; log('  x ' + c.empresa + ': a cabeça não respondeu (' + e.message + ')'); continue; }
+
+    console.log('\n─── ' + c.empresa + ' · ' + c.telefone + ' ───');
+    console.log('  ele: "' + hist[hist.length - 1].texto.slice(0, 110) + '"');
+    console.log('  -> ' + v.intencao + ' / ' + v.resultado
+      + (v.escalar ? ' · ESCALAR' : '') + (v.mandar_link ? ' · manda link' : ''));
+    (v.envio || []).forEach(b => console.log('  | ' + b));
+
+    if (DRY) { respondidas++; continue; }
+
+    const env = await mandarBolhas(aba, v.envio);
+    if (!env.ok) { falhas++; log('  x ' + env.motivo); continue; }
+    respondidas++;
+    await gravarToque(c.contato_id, c.lista_id, 'solardoc', v.resultado,
+      ('IA: ' + v.intencao + (v.escalar ? ' · PRECISA DE HUMANO' : '') + ' — ' + v.motivo).slice(0, 400));
+
+    // 'nao_perturbar' bloqueia o contato, igual a tela faz. Sem isto ele
+    // voltaria pra fila fria amanhã depois de ter pedido pra parar.
+    if (v.resultado === 'nao_perturbar') {
+      await fetch(CFG.supa + '/prospeccao_contatos?id=eq.' + c.contato_id, {
+        method: 'PATCH', headers: H, body: JSON.stringify({ bloqueado: true }),
+      }).catch(() => {});
+      log('  contato bloqueado — não entra mais em fila nenhuma');
+    }
+    if (v.escalar) log('  ESCALADO: alguém precisa olhar essa conversa');
+    await dorme(8000 + Math.floor(12000 * ((Date.now() % 997) / 997)));
+  }
+
+  await aba.fechar();
+  console.log('\n─────────────────────────────────────────');
+  console.log('  ' + (DRY ? 'simuladas   ' : 'respondidas ') + respondidas);
+  console.log('  sem novidade ' + semNovidade);
+  console.log('  falhas       ' + falhas);
+  console.log('─────────────────────────────────────────');
+  console.log('\nAcompanhe no radar: https://solardoc.app/gerador/radar/\n');
+}
+
 // ═══ LOOP ════════════════════════════════════════════════════════════════════
 async function main() {
   console.log('\n╔══════════════════════════════════════════════════════════╗');
-  console.log(`║  WORKER DE PROSPECÇÃO · ${CANAL.toUpperCase().padEnd(10)} ${(DRY ? 'ENSAIO (não envia)' : 'ENVIANDO DE VERDADE').padEnd(20)}║`);
+  console.log(`║  ${(MODO === 'responder' ? 'RESPONDENDO' : 'ABORDANDO').padEnd(11)} · ${CANAL.toUpperCase().padEnd(9)} ${(DRY ? 'ENSAIO (não envia)' : 'ENVIANDO DE VERDADE').padEnd(19)}║`);
   console.log('╚══════════════════════════════════════════════════════════╝\n');
+
+  if (MODO === 'responder') return await modoResponder();
 
   const t0 = await travas();
   log(`consultor ${CFG.consultor} · teto ${t0.usados}/${t0.teto} · opt-out ${t0.taxa}% (${t0.estado})`);
