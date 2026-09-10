@@ -36,12 +36,14 @@ import {
   igEnv, getIgConfig, sendPrivateReply, sendDM, replyToComment,
   refreshLongToken, saveIgConfig, ocultarComentario,
 } from './igClient';
+import { tratarRespostaProspeccao } from '../io/prospeccaoConversaIg';
 import {
   GateEstado, GateEtapa, GateAcao, gateAtivo, gateAberto, acaoNaAbertura, acaoNaResposta,
   etapaDepois, payloadSeguir, nudgeGate, lembrete1h, L1H_ATRASO_MS, repetiriaOToque, conviteSeguir,
 } from './igGate';
 import { classificarFalha } from './igFalha';
 import { classificarHostil } from './igHostil';
+import { responderComIa, conversaAtiva } from './igIa';
 
 const IG_MAX_POR_HORA = Number(process.env.IG_MAX_POR_HORA || 180);
 const MAX_POR_TICK = 15;
@@ -335,6 +337,25 @@ export async function handleMessage(m: any, ownIgId: string): Promise<void> {
 
   // Toda mensagem recebida ABRE a janela de 24h.
   await upsertContact(senderId, null, null, true);
+
+  // ── PROSPECÇÃO tem prioridade ─────────────────────────────────────────────
+  // Quem a prospecção abordou não passa pelo porteiro de comentário: ele foi
+  // feito pra quem comentou num post e está sendo levado até o link. Aqui é o
+  // contrário — a conversa já começou e o que falta é responder o que a pessoa
+  // perguntou. Misturar os dois faria o lead frio receber "me segue pra liberar".
+  try {
+    const cfgP = await getIgConfig();
+    if (cfgP?.access_token && cfgP.ig_user_id) {
+      const tratou = await tratarRespostaProspeccao(
+        senderId, text, m?.message?.mid || null, cfgP.ig_user_id, cfgP.access_token,
+        async (para, txt) => { await sendDM(cfgP.ig_user_id!, para, { text: txt }, cfgP.access_token!); },
+      );
+      if (tratou) return;
+    }
+  } catch (err) {
+    // Falha aqui não pode engolir a mensagem: cai no fluxo normal.
+    logger.error('ig', 'prospeccao nao tratou a resposta', err);
+  }
   const tel = telefoneDe(text);
 
   // ── Porteiro aberto? Então esta resposta é o próximo toque do fluxo, seja ela
@@ -361,7 +382,25 @@ export async function handleMessage(m: any, ownIgId: string): Promise<void> {
 
   const autos = await loadAutomations();
   const a = escolher(autos, isStory ? 'story' : 'dm', text);
-  if (a) {
+
+  // ── QUEM ATENDE: a Luma ou o script? ────────────────────────────────────────
+  // Ela tenta em dois casos:
+  //   • CONVERSA VIVA — e aí ela GANHA da palavra-chave. Sem isso, a resposta
+  //     "uns 400, quero saber do solar" casaria a automação de solar e jogaria
+  //     um lead a duas respostas de entregar o WhatsApp de volta pro "me segue
+  //     que eu te mando o link". As palavras que disparam isso (solar, valor,
+  //     preço, orçamento) são exatamente as que um lead qualificando digita.
+  //   • NADA CASOU — o buraco onde o lead morria (11 das 12 conversas de DM em
+  //     7 dias sem uma linha de resposta, incluindo um "Me passa seu zap").
+  // Story fica de fora: responder story é começo de conversa, não continuação.
+  const lumaNaLinha = !isStory && await conversaAtiva(senderId);
+  const atendida = (lumaNaLinha || !a) && text.trim() ? await tentarLuma(senderId, text, !!tel) : false;
+
+  if (atendida) {
+    // O aviso de sempre continua saindo (1 por pessoa por dia), dizendo que a
+    // Luma assumiu — entrar no direct e tomar a conversa na mão continua valendo.
+    await avisarDmFria(senderId, text, true);
+  } else if (a) {
     await upsertContact(senderId, null, a.id, false);
     // DM fria também passa pelo porteiro (o link é o mesmo, a regra é a mesma).
     const acao = acaoNaAbertura(a, estado);
@@ -372,10 +411,10 @@ export async function handleMessage(m: any, ownIgId: string): Promise<void> {
     await enqueue({ tipo: 'dm', automation_id: a.id, recipient: senderId, payload, needs_window: false });
     await enqueueReminderIfAny(a, senderId);
   } else if (text.trim()) {
-    // NENHUMA palavra-chave casou — é aqui que o lead morria (11 das 12
-    // conversas de DM dos últimos 7 dias sem uma linha de resposta, incluindo
-    // um "Me passa seu zap"). O menu automático existe mas nasce DESLIGADO:
-    // a DM direta é atendimento manual por decisão do dono (05/08).
+    // Ninguém atendeu: sem automação e sem Luma (desligada, sem crédito, teto
+    // batido ou DM hostil). Cai no caminho de sempre — aviso pro dono e, se ele
+    // tiver ligado, o menu. A DM direta é atendimento manual por decisão do
+    // dono (05/08), e essa decisão continua de pé quando a IA não responde.
     await responderDmFria(senderId, text);
   }
 
@@ -397,6 +436,23 @@ export async function handleMessage(m: any, ownIgId: string): Promise<void> {
  * seriam pior que o silêncio. A trava é a própria fila — mesma automação pro
  * mesmo destinatário em 24h não repete.
  */
+/**
+ * A Luma responde (IG_IA_DM_ON). Só o envio mora aqui — a decisão de CHAMAR
+ * está no handleMessage, que é quem sabe se o script tinha algo a dizer.
+ *
+ * @returns true se a resposta foi enfileirada.
+ */
+async function tentarLuma(senderId: string, texto: string, temTelefone: boolean): Promise<boolean> {
+  return responderComIa(senderId, texto, temTelefone, async (bolhas) => {
+    for (const t of bolhas) {
+      // needs_window:false: a pessoa acabou de escrever, então a janela de 24h
+      // está aberta por definição. Inserts em sequência mantêm a ordem das
+      // bolhas (a fila drena por criado_em asc).
+      await enqueue({ tipo: 'dm', automation_id: null, recipient: senderId, payload: { text: t }, needs_window: false });
+    }
+  });
+}
+
 async function responderDmFria(senderId: string, texto: string): Promise<void> {
   // O AVISO sai sempre — é ele que faz o atendimento manual acontecer. Sem
   // isso, "responder manualmente" vira "ninguém viu": a mensagem cai numa
@@ -420,7 +476,7 @@ async function responderDmFria(senderId: string, texto: string): Promise<void> {
  * pessoa manda três bolhas seguidas e não pode virar três WhatsApps no celular
  * do dono. Desliga com IG_DM_AVISO_OFF (mas aí ninguém fica sabendo).
  */
-async function avisarDmFria(senderId: string, texto: string): Promise<void> {
+async function avisarDmFria(senderId: string, texto: string, atendidaPelaIa = false): Promise<void> {
   if ((process.env.IG_DM_AVISO_OFF || '').trim() === 'true') return;
   const chave = `ig_dm_aviso:${senderId}:${new Date().toISOString().slice(0, 10)}`;
   const { data: ja } = await supabase.from('system_state').select('key').eq('key', chave).limit(1);
@@ -434,7 +490,9 @@ async function avisarDmFria(senderId: string, texto: string): Promise<void> {
       `*MENSAGEM NO INSTAGRAM* (Irmãos na Obra)\n\n` +
       `*De:* ${c?.username ? '@' + c.username : 'sem @ (chegou por DM)'}\n` +
       `*Disse:* ${texto.slice(0, 300)}\n\n` +
-      `_O robô não reconheceu o assunto. Responder pelo direct._`,
+      (atendidaPelaIa
+        ? '_A Luma está conversando no direct e vai pedir o WhatsApp. Só entra se quiser assumir._'
+        : '_O robô não reconheceu o assunto. Responder pelo direct._'),
       'io',
     );
   } catch (err) { logger.error('ig', 'aviso do time (DM fria) falhou', err); }
