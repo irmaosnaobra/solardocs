@@ -908,13 +908,8 @@
              pedágio e vira o canal por onde a reunião chega. -->
         <div class="passo" id="p-whatsapp">
           <div class="fld"><label for="f-tel">Para onde mandamos a confirmação?</label><div class="inp"><input type="tel" id="f-tel" placeholder="(34) 99999-9999" oninput="maskTel(this);pintarPasso()"></div></div>
-          <div class="fld" id="box-tel2" style="display:none">
-            <label for="f-tel2">Confirme o número</label>
-            <div class="inp"><input type="tel" id="f-tel2" placeholder="(34) 99999-9999" oninput="maskTel(this);pintarPasso()"></div>
-          </div>
           <div style="color:var(--mut);font-size:12.5px;font-weight:500;line-height:1.6;margin-top:-6px">
             É por aqui que o consultor manda o link da chamada e o estudo do seu ponto.
-            Digitamos duas vezes porque número errado é reunião que a pessoa nunca fica sabendo que existe.
           </div>
         </div>
         <!-- Só a CIDADE desde 08/08/2026. Antes eram 6 campos (CEP, rua, número,
@@ -2259,11 +2254,8 @@ function onRelacao(){
 // ═══════════════════════════════════════════════════════════════════════════
 const val = id => document.getElementById(id).value.trim();
 const soDigitos = id => document.getElementById(id).value.replace(/\D/g,'');
-/** Os dois campos de WhatsApp batem? É o que separa erro de digitação de lead perdido. */
-const telefoneConfere = () => {
-  const a = soDigitos('f-tel');
-  return a.length >= 10 && a === soDigitos('f-tel2');
-};
+/** O WhatsApp está preenchido e com DDD? É o que libera o botão de confirmar. */
+const telefoneConfere = () => soDigitos('f-tel').length >= 10;
 const PASSOS = [
   { id:'p-horario', ok:() => slotSel ? null : 'Escolha um horário na lista.' },
   { id:'p-nome',    ok:() => val('f-nome').length >= 3 ? null : 'Informe seu nome completo.' },
@@ -2295,9 +2287,7 @@ const PASSOS = [
   { id:'p-decisor', ok:() => val('f-decisor') ? null : 'Informe quem decide o investimento.' },
   { id:'p-trifasica', ok:() => val('f-trifasica') ? null : 'Informe se a entrada de energia do local é trifásica.' },
   { id:'p-whatsapp', ok:() => {
-      if(soDigitos('f-tel').length < 10) return 'Informe um WhatsApp válido com DDD.';
-      if(!telefoneConfere()) return 'Os dois números precisam ser iguais — confira a confirmação.';
-      return null;
+      return telefoneConfere() ? null : 'Informe um WhatsApp válido com DDD.';
     } },
 ];
 let passoAtual = 0;
@@ -2319,13 +2309,9 @@ function pintarPasso(){
   document.getElementById('passo-conta').textContent = `Passo ${passoAtual+1} de ${vivos.length}`;
   document.getElementById('passo-barra').style.width = ((passoAtual+1) / vivos.length * 100) + '%';
   document.getElementById('passo-voltar').hidden  = passoAtual === 0;
-  // A CONFIRMACAO DO NUMERO só aparece quando há um número pra confirmar —
-  // pedir a repetição de um campo vazio é pedir duas vezes a mesma coisa.
-  const caixa2 = document.getElementById('box-tel2');
-  if(caixa2) caixa2.style.display = (ultimo && soDigitos('f-tel').length >= 10) ? '' : 'none';
-  // UM BOTÃO SÓ. Ele vira "Confirmar agendamento" no último passo e SÓ depois
-  // que o número foi confirmado de verdade — antes disso ele ainda é
-  // "Continuar", porque ainda falta uma resposta pra dar.
+  // UM BOTÃO SÓ. Ele vira "Confirmar agendamento" no último passo assim que o
+  // WhatsApp está válido — antes disso ele ainda é "Continuar", porque ainda
+  // falta uma resposta pra dar.
   const pronto = ultimo && telefoneConfere();
   const btn = document.getElementById('ag-btn');
   btn.textContent = pronto ? 'Confirmar agendamento →' : 'Continuar →';
