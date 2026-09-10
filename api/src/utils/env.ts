@@ -20,7 +20,12 @@
 // no dia seguinte.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { createEnv } from '@t3-oss/env-core';
+// NAO VOLTAR A IMPORTAR `@t3-oss/env-core` AQUI. Ele e ESM-only, esta API compila
+// para CommonJS (tsconfig: "module": "commonjs") e o `instrument.ts` importa este
+// arquivo no boot de TODA invocacao. Em 10/09/2026 isso derrubou a API inteira em
+// producao com ERR_REQUIRE_ESM — /health, a agenda do eletroposto e os crons, todos
+// em 500, com o build passando VERDE (o erro so aparece em runtime).
+// O zod sozinho faz o mesmo trabalho e e CommonJS.
 import { z } from 'zod';
 
 /** Descrição do que quebra quando cada uma falta — vai no aviso do boot. */
@@ -46,8 +51,7 @@ const O_QUE_QUEBRA: Record<string, string> = {
  * derruba é o `ENV_STRICT`, não o tipo. Assim o mesmo schema serve para conferir
  * sem quebrar e para exigir quando você quiser exigir.
  */
-export const env = createEnv({
-  server: {
+const ESQUEMA = z.object({
     DATABASE_URL: z.string().url().optional(),
     JWT_SECRET: z.string().min(16).optional(),
     ANTHROPIC_API_KEY: z.string().startsWith('sk-ant-').optional(),
@@ -64,24 +68,35 @@ export const env = createEnv({
     CRON_SECRET: z.string().min(16).optional(),
     SENTRY_DSN: z.string().optional(),
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  },
-  runtimeEnv: process.env,
-  emptyStringAsUndefined: true,
-  // A validação de FORMATO nunca derruba sozinha — quem derruba é o relatório
-  // abaixo, e só sob ENV_STRICT. Um `sk_` digitado errado vira aviso, não apagão.
-  //
-  // O aviso precisa DIZER QUAL variável: `String(erro)` num array de issues do zod
-  // imprime "[object Object]" e não serve para nada às 2 da manhã.
-  onValidationError: (issues) => {
-    const lista = Array.isArray(issues) ? issues : [issues];
-    for (const i of lista) {
-      const nome = (i as { path?: unknown[] })?.path?.join('.') || '(sem nome)';
-      const motivo = (i as { message?: string })?.message || String(i);
-      console.warn(`[env] formato suspeito em ${nome}: ${motivo}`);
-    }
-    return undefined as never;
-  },
 });
+
+/**
+ * Le e confere o FORMATO, campo a campo. Campo a campo de proposito: um valor
+ * suspeito nao pode contaminar os outros nem apagar o default do NODE_ENV, que
+ * e o que aconteceria validando o objeto inteiro de uma vez.
+ *
+ * A validacao de FORMATO nunca derruba sozinha — quem derruba e o relatorio de
+ * `verificarEnv`, e so sob ENV_STRICT. Um `sk_` digitado errado vira aviso, nao
+ * apagao. O aviso DIZ QUAL variavel: as 2 da manha "[object Object]" nao serve.
+ *
+ * String vazia conta como ausente (era o `emptyStringAsUndefined` de antes).
+ */
+function lerEnv(fonte: NodeJS.ProcessEnv = process.env) {
+  const saida: Record<string, unknown> = {};
+  for (const [nome, tipo] of Object.entries(ESQUEMA.shape)) {
+    const bruto = fonte[nome];
+    const valor = bruto === '' || bruto === undefined ? undefined : bruto;
+    const r = (tipo as z.ZodTypeAny).safeParse(valor);
+    if (r.success) { saida[nome] = r.data; continue; }
+    for (const i of r.error.issues) {
+      console.warn(`[env] formato suspeito em ${nome}: ${i.message}`);
+    }
+    saida[nome] = valor;   // mantem o cru: aviso, nunca apagao
+  }
+  return saida as z.infer<typeof ESQUEMA>;
+}
+
+export const env = lerEnv();
 
 /** As que, faltando, deixam o sistema de pé mentindo. */
 const CRITICAS = [
