@@ -492,6 +492,134 @@ async function modoResponder() {
   console.log('\nAcompanhe no radar: https://solardoc.app/gerador/radar/\n');
 }
 
+// ═══ UMA ABORDAGEM ═══════════════════════════════════════════════════════════
+// O modo contínuo manda UMA por rodada, não um lote. É o que espalha os toques
+// pelo dia inteiro em vez de despejar o teto numa hora só — e despejar numa
+// hora só é exatamente o padrão que derrubou a linha IO em 30/08.
+//
+// Abre e fecha a aba a cada chamada de propósito: uma aba viva por 16 horas
+// acumula estado, memória e sessão velha. Custa 2 segundos e evita a classe
+// inteira de bug de "funcionava de manhã".
+async function umaAbordagem() {
+  const [fila, scripts, alegacoes, produtos] = await Promise.all([
+    ler('prospeccao_fila_worker?select=*&limit=200'),
+    ler('prospeccao_scripts?select=*'),
+    ler('prospeccao_alegacoes?select=*'),
+    ler('prospeccao_produtos?select=*&ativo=eq.true&order=ordem.asc'),
+  ]);
+
+  const alvos = fila.filter(c => CANAL === 'instagram'
+    ? !!(c.instagram || '').trim() : !!(c.telefone || '').trim());
+  if (!alvos.length) {
+    log(CANAL === 'instagram'
+      ? 'ninguém com @ na fila — rode "node buscar-instagram.mjs" pra achar mais'
+      : 'ninguém na fila agora');
+    return false;
+  }
+
+  const c = alvos[0];
+  const pid = c.produto_da_lista || (produtos[0] && produtos[0].id);
+  const prod = produtos.find(p => p.id === pid);
+  const preco = prod ? `R$ ${Number(prod.preco).toLocaleString('pt-BR')}` : '';
+  const msg = montarMensagem(c, scripts, alegacoes, pid, preco);
+  if (!msg) { log(`PULOU ${c.empresa} — todo script de ${pid} está bloqueado pela trava`); return false; }
+
+  const destino = CANAL === 'instagram' ? '@' + c.instagram : c.telefone;
+  console.log(`\n─── ${c.empresa} · ${c.cidade || ''} · ${destino} · ${CTX(c)} ───`);
+  console.log(msg.split('\n').map(l => '  │ ' + l).join('\n'));
+  if (DRY) return true;
+
+  let aba = null;
+  try {
+    aba = await Aba.abrir(CFG.cdp);
+    const r = CANAL === 'instagram'
+      ? await enviarInstagram(aba, c.instagram, msg)
+      : await enviarWhatsApp(aba, c.telefone, msg);
+    if (r.ok) {
+      await gravarToque(c.id, null, pid, 'enviei', `worker ${CANAL}`);
+      log('  ✓ enviado');
+      return true;
+    }
+    log('  ✗ ' + r.motivo);
+    // Falha NÃO vira toque: mensagem que não saiu não pode tirar a pessoa da fila.
+    return false;
+  } finally {
+    if (aba) await aba.fechar();
+  }
+}
+
+// ═══ MODO CONTÍNUO ═══════════════════════════════════════════════════════════
+// Um dia inteiro de trabalho sem ninguém dar comando. Alterna abordar e
+// responder, dorme fora da janela, e acorda sozinho no dia seguinte.
+//
+// Por que alternar em vez de só abordar: quem respondeu vale mais que quem
+// ainda não foi falado. Deixar uma resposta esperando 6 horas porque o worker
+// está ocupado mandando mensagem fria é perder o lead mais quente do dia.
+//
+// O ritmo NÃO é fixo. Cada rodada calcula quanto falta da janela e divide pelo
+// que sobra do teto — então ele anda devagar de manhã e acelera se você ligar
+// tarde. Isso é o oposto de metrônomo, que é o que denuncia robô.
+async function modoContinuo() {
+  console.log('\n  MODO CONTÍNUO — trabalha sozinho das '
+    + CFG.horaIni + 'h às ' + (CFG.horaFim === 24 ? '23h59' : CFG.horaFim + 'h') + '.');
+  console.log('  Ctrl+C para parar. Deixe esta janela aberta.\n');
+
+  let rodada = 0;
+  for (;;) {
+    rodada++;
+    const h = new Date().getHours();
+
+    // ── fora da janela: dorme até o próximo turno ──────────────────────────
+    if (h < CFG.horaIni || (CFG.horaFim < 24 && h >= CFG.horaFim)) {
+      const alvo = new Date();
+      if (h >= CFG.horaIni) alvo.setDate(alvo.getDate() + 1);
+      alvo.setHours(CFG.horaIni, 0, 0, 0);
+      const seg = Math.max(60, Math.floor((alvo - new Date()) / 1000));
+      log(`fora da janela — dormindo ${Math.round(seg / 60)} min, volto às ${CFG.horaIni}h`);
+      await dorme(seg * 1000);
+      continue;
+    }
+
+    const t = await travas();
+    if (t.estado === 'travado') {
+      log('DISJUNTOR ARMADO — opt-out alto. Parando o dia. Troque a abertura antes de voltar.');
+      return;
+    }
+
+    // ── 1. quem respondeu vem primeiro, sempre ────────────────────────────
+    try {
+      await modoResponder();
+    } catch (e) { log('a rodada de resposta falhou: ' + e.message); }
+
+    // ── 2. depois, uma abordagem — UMA por rodada ─────────────────────────
+    // Uma por vez, não em lote: é o que espalha os toques pelo dia inteiro em
+    // vez de despejar o teto numa hora só.
+    const t2 = await travas();
+    if (t2.restam <= 0) {
+      log(`teto do dia fechado (${t2.teto}). Dormindo até amanhã.`);
+      const amanha = new Date(); amanha.setDate(amanha.getDate() + 1);
+      amanha.setHours(CFG.horaIni, 0, 0, 0);
+      await dorme(Math.max(60000, amanha - new Date()));
+      continue;
+    }
+
+    try {
+      await umaAbordagem();
+    } catch (e) { log('a abordagem falhou: ' + e.message); }
+
+    // ── 3. espera até a próxima ───────────────────────────────────────────
+    const fim = new Date(); fim.setHours(CFG.horaFim, 0, 0, 0);
+    const sobramSeg = Math.max(60, Math.floor((fim - new Date()) / 1000));
+    const t3 = await travas();
+    const ideal = Math.floor(sobramSeg / Math.max(1, t3.restam));
+    // ±35%: um humano não manda de 10 em 10 minutos cravados
+    const jitter = 0.65 + 0.7 * ((Date.now() % 1013) / 1013);
+    const espera = Math.min(CFG.maxSeg, Math.max(CFG.minSeg, Math.floor(ideal * jitter)));
+    log(`rodada ${rodada} fim · ${t3.usados}/${t3.teto} hoje · próxima em ${Math.round(espera / 60)} min`);
+    await dorme(espera * 1000);
+  }
+}
+
 // ═══ LOOP ════════════════════════════════════════════════════════════════════
 async function main() {
   console.log('\n╔══════════════════════════════════════════════════════════╗');
@@ -499,6 +627,7 @@ async function main() {
   console.log('╚══════════════════════════════════════════════════════════╝\n');
 
   if (MODO === 'responder') return await modoResponder();
+  if (MODO === 'continuo')  return await modoContinuo();
 
   const t0 = await travas();
   log(`conta ${CFG.consultor} · assina como "${CFG.assinatura}" · teto ${t0.usados}/${t0.teto} · opt-out ${t0.taxa}% (${t0.estado})`);

@@ -68,6 +68,7 @@ import { runCapiLeadQualificado } from '../services/agenda/capiLeadQualificadoSe
 import { tickOrdens } from '../services/metaOrdensService';
 import { runInventoryLowStockAlert } from '../services/inventoryAlertService';
 import { logger } from '../utils/logger';
+import { rodarAvisosProspeccao } from '../services/io/prospeccaoAviso';
 
 const router = Router();
 
@@ -919,6 +920,18 @@ router.get('/gerador-broadcast-tick', async (req: Request, res: Response) => {
 // enfileira o pedido em prospeccao_buscas; QUEM GASTA é este tick, com kill-switch
 // (PROSPECCAO_APIFY_OFF), cap de leads por busca e cap de buscas por dia.
 // Uma busca por tick: a run é assíncrona, então tick inicia, tick acompanha, tick importa.
+// Avisa no WhatsApp do dono quando alguem da prospeccao chega no checkout ou
+// compra. A agente vende sozinha — mas quando o cara esta com o cartao na mao,
+// o dono quer saber na hora, nao no relatorio de amanha.
+router.get('/prospeccao-avisos', async (req: Request, res: Response) => {
+  try {
+    res.json(await rodarAvisosProspeccao());
+  } catch (err: any) {
+    logger.error('cron', 'prospeccao-avisos falhou', err);
+    res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
+  }
+});
+
 router.get('/prospeccao-tick', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {

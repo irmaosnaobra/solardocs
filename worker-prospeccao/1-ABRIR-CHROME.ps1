@@ -7,8 +7,27 @@
 #  Rode assim (botão direito no arquivo → "Executar com PowerShell"), ou:
 #      powershell -ExecutionPolicy Bypass -File .\1-ABRIR-CHROME.ps1
 # ─────────────────────────────────────────────────────────────────────────────
+# ── nao deixe a janela sumir ─────────────────────────────────────────────────
+# Executar-com-PowerShell fecha a janela no fim, e o erro vai junto. Transcript
+# grava tudo num arquivo; o finally segura a janela ate alguem apertar Enter.
+$ErrorActionPreference = 'Continue'
+Set-Location $PSScriptRoot
+$log = Join-Path $PSScriptRoot 'ULTIMA-EXECUCAO.log'
+try { Stop-Transcript | Out-Null } catch { }
+try { Start-Transcript -Path $log -Force | Out-Null } catch { }
 
-$ErrorActionPreference = 'Stop'
+function Fim {
+  param([string]$proximo)
+  Write-Host ''
+  if ($proximo) { Write-Host "  Proximo passo:  $proximo" -ForegroundColor Cyan }
+  Write-Host "  Tudo isso ficou salvo em: ULTIMA-EXECUCAO.log" -ForegroundColor DarkGray
+  Write-Host ''
+  try { Stop-Transcript | Out-Null } catch { }
+  Write-Host '  --- Aperte Enter para fechar ---' -ForegroundColor Yellow
+  [void](Read-Host)
+}
+
+
 $porta  = 9222
 $perfil = Join-Path $env:USERPROFILE '.chrome-prospeccao'
 
@@ -23,7 +42,7 @@ try {
   Write-Host "  Ja esta aberto: $($v.Browser)" -ForegroundColor Green
   Write-Host '  Pode ir pro passo 2.' -ForegroundColor Green
   Write-Host ''
-  exit 0
+  Fim; exit 0
 } catch { }
 
 # O Chrome mora em lugares diferentes dependendo de como foi instalado.
@@ -39,7 +58,7 @@ if (-not $chrome) {
   Write-Host '  Procurados:' -ForegroundColor DarkGray
   $caminhos | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
   Write-Host ''
-  exit 1
+  Fim; exit 1
 }
 
 Write-Host "  Chrome:  $chrome" -ForegroundColor DarkGray
@@ -68,7 +87,7 @@ if (-not $ok) {
   Write-Host '  O Chrome abriu mas a porta nao respondeu.' -ForegroundColor Red
   Write-Host '  Feche TODAS as janelas do Chrome e rode este arquivo de novo.' -ForegroundColor Yellow
   Write-Host ''
-  exit 1
+  Fim; exit 1
 }
 
 Write-Host '  PRONTO.' -ForegroundColor Green
@@ -79,3 +98,5 @@ Write-Host '    So uma vez — a sessao fica salva nesse perfil.'
 Write-Host ''
 Write-Host '  Depois de logar, rode:  .\2-ENSAIO.ps1' -ForegroundColor Cyan
 Write-Host ''
+
+Fim '.\\2-ENSAIO.ps1  (depois de logar no Instagram)'
