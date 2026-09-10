@@ -245,6 +245,30 @@
      campo. Vale só pra ele — o resto da página mantém os 20px de respiro. */
   @media(max-width:640px){.f2{grid-template-columns:1fr;gap:0}.f2 .fld:last-child{margin-bottom:16px}.agBox{padding:20px 10px;margin:0 -8px}}
   .step{margin-bottom:18px}
+  /* ===== uma pergunta de cada vez =====
+     O formulário inteiro numa tela só era uma parede: dez campos, sete deles
+     "Selecione…". Quem abre no celular vê a parede antes de ver a primeira
+     pergunta e fecha. Agora cada passo é uma pergunta; a barra mostra que tem
+     fim, e o "Voltar" existe para ninguém ficar preso numa resposta errada.
+
+     TODOS os campos continuam no DOM o tempo inteiro — o passo só controla a
+     visibilidade. É o que deixa `agendar()`, a pontuação e o payload intactos:
+     eles continuam lendo os mesmos ids do mesmo jeito. */
+  .passo{display:none}
+  .passo.on{display:block;animation:passoEntra .22s ease}
+  @keyframes passoEntra{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .passoBarra{height:4px;border-radius:99px;background:rgba(229,231,235,.12);overflow:hidden;margin-bottom:6px}
+  .passoBarra i{display:block;height:100%;background:var(--neon);border-radius:99px;
+    width:0;transition:width .25s ease}
+  .passoConta{color:var(--mut);font-size:11.5px;font-weight:700;letter-spacing:.08em;
+    text-transform:uppercase;margin-bottom:18px}
+  .passoNav{display:flex;gap:10px;align-items:center;margin-top:18px}
+  .passoNav .btn{flex:1;justify-content:center}
+  .passoVoltar{background:transparent;border:1px solid var(--line-f);color:var(--cream);
+    border-radius:10px;min-height:48px;padding:0 18px;font-family:inherit;font-size:15px;
+    font-weight:600;cursor:pointer;flex:0 0 auto}
+  .passoVoltar:hover{border-color:var(--neon);color:var(--neon)}
+  .passoVoltar[hidden]{display:none}
   .slots{margin-top:10px;display:flex;flex-direction:column;gap:14px}
   .agLoad{color:var(--mut);font-size:13.5px;font-weight:700;padding:14px 0}
   .dia .diaH{color:var(--fraco);font-size:12px;font-weight:900;letter-spacing:1.4px;text-transform:uppercase;margin-bottom:8px}
@@ -858,14 +882,28 @@
 
     <div class="agBox">
       <div id="ag-form">
-        <div class="step">
-          <label style="display:block;font-size:13px;font-weight:800;margin-bottom:8px">Horários disponíveis</label>
-          <div class="slots" id="slots"></div>
+        <div class="passoBarra"><i id="passo-barra"></i></div>
+        <div class="passoConta" id="passo-conta">—</div>
+
+        <div class="passo" id="p-horario">
+          <div class="step">
+            <label style="display:block;font-size:13px;font-weight:800;margin-bottom:8px">Escolha o melhor horário</label>
+            <div class="slots" id="slots"></div>
+          </div>
         </div>
 
-        <div class="f2">
-          <div class="fld"><label for="f-nome">Seu nome</label><div class="inp"><input type="text" id="f-nome" placeholder="Nome completo"></div></div>
-          <div class="fld"><label for="f-tel">WhatsApp</label><div class="inp"><input type="tel" id="f-tel" placeholder="(34) 99999-9999" oninput="maskTel(this)"></div></div>
+        <div class="passo" id="p-nome">
+          <div class="fld"><label for="f-nome">Como podemos te chamar?</label><div class="inp"><input type="text" id="f-nome" placeholder="Nome completo"></div></div>
+        </div>
+
+        <!-- O WhatsApp é o ÚLTIMO passo de propósito: é o dado que mais trava
+             quem está decidindo se preenche. Chegando no fim, ele deixa de ser
+             pedágio e vira o canal por onde a reunião chega. -->
+        <div class="passo" id="p-whatsapp">
+          <div class="fld"><label for="f-tel">Para onde mandamos a confirmação?</label><div class="inp"><input type="tel" id="f-tel" placeholder="(34) 99999-9999" oninput="maskTel(this)"></div></div>
+          <div style="color:var(--mut);font-size:12.5px;font-weight:500;line-height:1.6;margin-top:-6px">
+            É por aqui que o consultor manda o link da chamada e o estudo do seu ponto.
+          </div>
         </div>
         <!-- Só a CIDADE desde 08/08/2026. Antes eram 6 campos (CEP, rua, número,
              bairro, complemento) com busca no ViaCEP: o formulário no celular ficava
@@ -873,6 +911,7 @@
              desiste no meio. A cidade já entrega o que o estudo de viabilidade precisa
              pra começar (concessionária e região); o endereço exato a equipe pega na
              própria reunião, que é quando alguém confere o local de verdade. -->
+        <div class="passo" id="p-cidade">
         <div class="fld">
           <label for="f-cidade">Cidade / UF <span class="hint">(onde pretende instalar — se ainda não tem o ponto, a sua)</span></label>
           <div class="inp"><input type="text" id="f-cidade" placeholder="Ex: Uberlândia-MG" autocomplete="address-level2"></div>
@@ -886,6 +925,9 @@
              página diz que não atende quem quer montar por conta, então oferecer a
              consultoria ali contradizia o filtro e canibalizava o ticket. Todo lead
              daqui em diante é tratado como chave na mão. -->
+        </div>
+
+        <div class="passo" id="p-perfil">
         <div class="fld">
           <label for="f-perfil">Seu perfil</label>
           <div class="inp"><select id="f-perfil" onchange="onPerfil()">
@@ -928,6 +970,9 @@
         <!-- Substitui o par sim/não + o condicional "como pretende obter o ponto":
              entre "já tenho" e "não tenho" existiam três estágios diferentes de venda,
              e o binário jogava todos no mesmo balde. -->
+        </div>
+
+        <div class="passo" id="p-ponto">
         <div class="fld">
           <label for="f-ponto">Como está o seu ponto hoje?</label>
           <div class="inp"><select id="f-ponto" onchange="onPonto()">
@@ -994,6 +1039,9 @@
              PONTUAÇÃO NÃO MUDOU nesta entrega de propósito: mexer em PESO_* reroteia
              lead ao vivo entre NOTA 1/2/3, e isso é decisão de corte, não de campo.
              O modelo entra na ficha que a equipe lê. -->
+        </div>
+
+        <div class="passo" id="p-modelo">
         <div class="fld">
           <label for="f-modelo">Qual modelo te interessa? <span class="hint">(dá pra mudar na reunião)</span></label>
           <div class="inp"><select id="f-modelo" onchange="onModelo()">
@@ -1007,6 +1055,9 @@
           </select></div>
         </div>
 
+        </div>
+
+        <div class="passo" id="p-invest">
         <div class="fld" id="box-invest">
           <label for="f-invest">Como pretende investir</label>
           <div class="inp"><select id="f-invest">
@@ -1020,6 +1071,9 @@
           </select></div>
         </div>
 
+        </div>
+
+        <div class="passo" id="p-decisor">
         <div class="fld">
           <label for="f-decisor">Quem decide o investimento?</label>
           <div class="inp"><select id="f-decisor">
@@ -1032,8 +1086,11 @@
 
         <!-- Não pontua: serve pro especialista chegar na reunião sabendo o tamanho do
              risco de adequação elétrica (padrão de entrada, transformador dedicado). -->
+        </div>
+
+        <div class="passo" id="p-trifasica">
         <div class="fld">
-          <label for="f-trifasica">A entrada de energia do local é trifásica? <span class="hint">(ajuda a equipe a preparar o estudo)</span></label>
+          <label for="f-trifasica">A entrada de energia do local é trifásica? <span class="hint">(não sabe? tudo bem — a equipe levanta isso)</span></label>
           <div class="inp"><select id="f-trifasica">
             <option value="">Selecione…</option>
             <option value="sim">Sim</option>
@@ -1043,7 +1100,13 @@
           </select></div>
         </div>
 
-        <button class="btn" style="width:100%;justify-content:center;margin-top:6px" id="ag-btn" onclick="agendar()">Confirmar agendamento →</button>
+        </div>
+
+        <div class="passoNav">
+          <button type="button" class="passoVoltar" id="passo-voltar" onclick="passoVoltar()" hidden>← Voltar</button>
+          <button type="button" class="btn" id="passo-proximo" onclick="passoProximo()">Continuar →</button>
+          <button class="btn" id="ag-btn" onclick="agendar()" hidden>Confirmar agendamento →</button>
+        </div>
         <div class="agMsg" id="ag-msg"></div>
         <div style="color:var(--fraco);font-size:11.5px;font-weight:600;text-align:center;margin-top:12px">
           Seus dados são usados só para esta reunião. Sem spam.
@@ -1918,6 +1981,9 @@ function onModelo(){
   const paga = !MODELO_SEM_CAPITAL.has(v);
   document.getElementById('box-invest').style.display = paga ? '' : 'none';
   if(!paga) document.getElementById('f-invest').value = '';
+  // o passo de investir entra e sai da fila com esta resposta: a barra e a
+  // contagem têm que refletir isso na hora, senão dizem "de 10" e são 9.
+  if(typeof pintarPasso === 'function' && document.getElementById('p-invest')) pintarPasso();
 }
 function onPerfil(){
   const v = document.getElementById('f-perfil').value;
@@ -2044,6 +2110,9 @@ function pick(b){
   document.querySelectorAll('.slot').forEach(s=>s.classList.remove('on'));
   b.classList.add('on'); slotSel = b.dataset.iso;
   track('slot_escolhido');
+  // escolher o horario JA e a resposta do passo 1 — pedir um "Continuar" depois
+  // seria um toque a mais pra confirmar o que a pessoa acabou de dizer
+  if(typeof passoAvancarSeHorario === 'function') passoAvancarSeHorario();
 }
 function maskTel(i){
   let v = i.value.replace(/\D/g,'').slice(0,11);
@@ -2148,6 +2217,116 @@ function onRelacao(){
   document.getElementById('box-endereco-campos').style.display = mostra ? '' : 'none';
   if(!mostra) limparEndereco();
 }
+// ═══════════════════════════════════════════════════════════════════════════
+// UMA PERGUNTA DE CADA VEZ
+//
+// A ORDEM MORA AQUI, não no HTML. Nenhum bloco do formulário foi movido de
+// lugar — mover markup deste formulário é como o funil quebra em silêncio.
+// Quem manda na sequência é este array.
+//
+// Por que esta ordem:
+//   1 HORÁRIO    escolha, zero digitação, e escolher um horário já é um
+//                compromisso: a pessoa passa a ter uma reunião de sexta 14h.
+//   2 NOME       identidade, não é dado de contato — ameaça baixa e personaliza.
+//   3 CIDADE     a pergunta mais fácil sobre o negócio dele.
+//   4 PERFIL     um toque, e é o assunto que ele gosta de falar: o que ele tem.
+//   5 PONTO      o passo mais pesado (pode abrir endereço inteiro). Fica no
+//                pico do compromisso, nunca na abertura.
+//   6 MODELO     escolher o que ele QUER, em vez de ser interrogado. É um
+//                respiro depois do endereço.
+//   7 INVESTIR   some sozinho pra quem só cede o espaço.
+//   8 DECISOR
+//   9 TRIFÁSICA  a do "não sei". Tarde, e com o rótulo dizendo que não sabe
+//                tudo bem — pergunta que parece reprovação trava o envio.
+//  10 WHATSAPP   por último. É o dado que mais trava quem ainda está decidindo;
+//                no fim ele deixa de ser pedágio e vira o canal da reunião.
+//
+// Os campos NUNCA saem do DOM: o passo só controla visibilidade. É isso que
+// mantém `agendar()`, a pontuação e o payload intactos — eles seguem lendo os
+// mesmos ids. As validações abaixo são as MESMAS do agendar(), só que cobradas
+// no passo onde a pergunta aparece.
+// ═══════════════════════════════════════════════════════════════════════════
+const val = id => document.getElementById(id).value.trim();
+const PASSOS = [
+  { id:'p-horario', ok:() => slotSel ? null : 'Escolha um horário na lista.' },
+  { id:'p-nome',    ok:() => val('f-nome').length >= 3 ? null : 'Informe seu nome completo.' },
+  { id:'p-cidade',  ok:() => val('f-cidade').length >= 2 ? null : 'Informe a cidade e o estado (UF).' },
+  { id:'p-perfil',  ok:() => {
+      const v = val('f-perfil');
+      if(!v) return 'Selecione seu perfil.';
+      if(v === 'outro' && val('f-outro').length < 3) return 'Escreva qual é o seu segmento.';
+      if(PERFIL_SEM_FLUXO.has(v) && !val('f-rota')) return 'Informe se o local fica em rota de passagem.';
+      return null;
+    } },
+  { id:'p-ponto',   ok:() => {
+      const v = val('f-ponto');
+      if(!v) return 'Informe como está o seu ponto hoje.';
+      if(v === 'definido'){
+        const rel = val('f-relacao');
+        if(!rel) return 'Informe qual é a sua relação com o local.';
+        if(!SEM_CONTROLE.has(rel)){
+          if(val('f-rua').length < 3)    return 'Informe a rua ou avenida do ponto.';
+          if(!val('f-numero'))           return 'Informe o número do endereço do ponto.';
+          if(val('f-bairro').length < 2) return 'Informe o bairro do ponto.';
+        }
+      }
+      return null;
+    } },
+  { id:'p-modelo',  ok:() => val('f-modelo') ? null : 'Escolha o modelo que te interessa.' },
+  { id:'p-invest',  quando:() => !MODELO_SEM_CAPITAL.has(val('f-modelo')),
+                    ok:() => val('f-invest') ? null : 'Informe como pretende investir.' },
+  { id:'p-decisor', ok:() => val('f-decisor') ? null : 'Informe quem decide o investimento.' },
+  { id:'p-trifasica', ok:() => val('f-trifasica') ? null : 'Informe se a entrada de energia do local é trifásica.' },
+  { id:'p-whatsapp', ok:() => document.getElementById('f-tel').value.replace(/\D/g,'').length >= 10
+                              ? null : 'Informe um WhatsApp válido com DDD.' },
+];
+let passoAtual = 0;
+
+/** Os passos que valem para as respostas de AGORA (o de investir some sozinho). */
+const passosVivos = () => PASSOS.filter(p => !p.quando || p.quando());
+
+function pintarPasso(){
+  const vivos = passosVivos();
+  // Se a resposta anterior matou o passo em que a pessoa estava, ela cai no
+  // seguinte que existe em vez de ficar olhando uma tela em branco.
+  if(passoAtual >= vivos.length) passoAtual = vivos.length - 1;
+  const atual = vivos[passoAtual];
+  PASSOS.forEach(p => {
+    const el = document.getElementById(p.id);
+    if(el) el.classList.toggle('on', p.id === atual.id);
+  });
+  const ultimo = passoAtual === vivos.length - 1;
+  document.getElementById('passo-conta').textContent = `Passo ${passoAtual+1} de ${vivos.length}`;
+  document.getElementById('passo-barra').style.width = ((passoAtual+1) / vivos.length * 100) + '%';
+  document.getElementById('passo-voltar').hidden  = passoAtual === 0;
+  document.getElementById('passo-proximo').hidden = ultimo;
+  document.getElementById('ag-btn').hidden        = !ultimo;
+  // o aviso de erro é do passo que passou: some ao trocar de pergunta
+  const m = document.getElementById('ag-msg');
+  m.className = 'agMsg'; m.textContent = '';
+  // foco no campo do passo, pra quem usa teclado e leitor de tela não precisar caçar
+  const campo = atual.el ? null : document.querySelector('#' + atual.id + ' input, #' + atual.id + ' select');
+  if(campo && window.innerWidth > 760) campo.focus({preventScroll:true});
+}
+function passoProximo(){
+  const vivos = passosVivos();
+  const problema = vivos[passoAtual].ok();
+  if(problema) return erro(problema);
+  if(passoAtual < vivos.length - 1){ passoAtual++; pintarPasso(); }
+}
+function passoVoltar(){
+  if(passoAtual > 0){ passoAtual--; pintarPasso(); }
+}
+// Escolher um horário já é a resposta do passo 1 — obrigar um "Continuar" depois
+// do clique seria um toque a mais para dizer o que a pessoa acabou de dizer.
+function passoAvancarSeHorario(){
+  if(passosVivos()[passoAtual].id === 'p-horario' && slotSel) passoProximo();
+}
+// Enter avança, que é o que o dedo espera num campo de texto sozinho na tela.
+document.getElementById('ag-form').addEventListener('keydown', e => {
+  if(e.key === 'Enter' && e.target.tagName === 'INPUT'){ e.preventDefault(); passoProximo(); }
+});
+
 function erro(txt){
   const m = document.getElementById('ag-msg');
   m.textContent = txt; m.className = 'agMsg err';
@@ -2562,6 +2741,7 @@ setLocal();       // régua cidade/rodovia primeiro: é ela que define o teto do
                   // e o setConfig() sai de dentro dela já com o teto certo
 onModelo();       // idem pro modelo: sem isto o "como pretende investir" volta
                   // visível pra quem tinha escolhido ceder o espaço
+pintarPasso();    // abre no passo 1 — sem isto todos os passos nascem escondidos
 onPerfil();       // o browser pode restaurar o perfil ao voltar pra página (bfcache)
 onPonto();        // idem pro ponto: sem isto o endereço restaurado ficaria escondido
                   // (e ele chama onRelacao, que reavalia o bloco do endereço)
