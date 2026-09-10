@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Radar da Prospecção — Irmãos na Obra</title>
+<meta name="theme-color" content="#05070D">
+<link rel="manifest" href="/gerador/manifest.webmanifest">
+<style>
+/* ─────────────────────────────────────────────────────────────────────────────
+   RADAR — sala de controle da prospecção.
+   Só LÊ. Não existe um único botão aqui que dispare mensagem: o disparo mora na
+   tela /gerador/prospeccao, com teto e disjuntor. Radar que também atira é radar
+   que alguém usa pra passar por cima da régua.
+   Tudo sai das views do banco do gerador — nenhum número é calculado aqui.
+   ───────────────────────────────────────────────────────────────────────────── */
+:root{
+  --bg:#05070D; --bg2:#0A0F1A; --card:#0D1424; --linha:rgba(120,160,255,.10);
+  --txt:#E8EEFB; --dim:#7C8DB0; --faint:#4A5772;
+  --ciano:#22D3EE; --verde:#34D399; --ambar:#FBBF24; --vermelho:#F87171; --azul:#60A5FA; --roxo:#A78BFA;
+  --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--txt); font:14px/1.5 system-ui,-apple-system,'Segoe UI',sans-serif;
+  min-height:100vh; overflow-x:hidden;
+  background-image:
+    radial-gradient(900px 500px at 15% -10%, rgba(34,211,238,.07), transparent 60%),
+    radial-gradient(800px 500px at 85% 0%, rgba(167,139,250,.06), transparent 60%);
+}
+/* grade de fundo — o "futurista" vem daqui e do brilho dos números, não de emoji */
+body::before{
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.5;
+  background-image:linear-gradient(var(--linha) 1px,transparent 1px),linear-gradient(90deg,var(--linha) 1px,transparent 1px);
+  background-size:56px 56px;
+  mask-image:radial-gradient(ellipse 100% 70% at 50% 0%,#000 30%,transparent 75%);
+}
+.wrap{position:relative;z-index:1;max-width:1500px;margin:0 auto;padding:20px 18px 60px}
+
+/* ── topo ─────────────────────────────────────────────────────────────────── */
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:20px}
+.marca{display:flex;align-items:center;gap:11px}
+.pulso{width:9px;height:9px;border-radius:50%;background:var(--ciano);box-shadow:0 0 0 0 rgba(34,211,238,.6);animation:pulso 2.4s infinite}
+@keyframes pulso{0%{box-shadow:0 0 0 0 rgba(34,211,238,.5)}70%{box-shadow:0 0 0 13px rgba(34,211,238,0)}100%{box-shadow:0 0 0 0 rgba(34,211,238,0)}}
+h1{font-size:16px;font-weight:750;letter-spacing:.02em}
+.sub{font-size:11.5px;color:var(--faint);letter-spacing:.09em;text-transform:uppercase;font-weight:650}
+.spacer{flex:1}
+.relogio{font-family:var(--mono);font-size:13px;color:var(--dim);font-variant-numeric:tabular-nums}
+.selo{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;font-size:11.5px;
+  font-weight:700;letter-spacing:.05em;text-transform:uppercase;border:1px solid}
+.selo i{width:7px;height:7px;border-radius:50%;display:block}
+
+/* ── cartões ──────────────────────────────────────────────────────────────── */
+.grid{display:grid;gap:13px}
+.g4{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+.g2{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.card{
+  background:linear-gradient(160deg,var(--card),var(--bg2));
+  border:1px solid var(--linha); border-radius:14px; padding:16px 17px; position:relative; overflow:hidden;
+}
+.card::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(34,211,238,.35),transparent)}
+.ct{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--faint);font-weight:750;margin-bottom:12px}
+.big{font-family:var(--mono);font-size:38px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.unid{font-size:12px;color:var(--dim);margin-top:6px}
+
+/* ── barras ───────────────────────────────────────────────────────────────── */
+.barras{display:flex;align-items:flex-end;gap:3px;height:130px;margin-top:4px}
+.barra{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px}
+.barra i{width:100%;border-radius:3px 3px 0 0;display:block;min-height:2px;transition:height .5s cubic-bezier(.4,0,.2,1)}
+.barra span{font-size:8.5px;color:var(--faint);font-family:var(--mono)}
+.linhaB{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.linhaB b{font-size:12.5px;font-weight:600;color:var(--txt);width:132px;flex:none;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trilho{flex:1;height:7px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden}
+.trilho i{display:block;height:100%;border-radius:4px;transition:width .6s cubic-bezier(.4,0,.2,1)}
+.linhaB u{font-family:var(--mono);font-size:12.5px;color:var(--dim);width:46px;text-align:right;
+  text-decoration:none;font-variant-numeric:tabular-nums}
+
+/* ── medidor do disjuntor ─────────────────────────────────────────────────── */
+.medidor{position:relative;height:9px;background:rgba(255,255,255,.05);border-radius:5px;margin:14px 0 7px}
+.medidor i{display:block;height:100%;border-radius:5px;transition:width .6s}
+.medidor u{position:absolute;top:-5px;width:2px;height:19px;background:var(--vermelho);opacity:.8}
+.mleg{display:flex;justify-content:space-between;font-size:10.5px;color:var(--faint);font-family:var(--mono)}
+
+/* ── feed ─────────────────────────────────────────────────────────────────── */
+.feed{max-height:330px;overflow-y:auto;margin:-4px -6px 0}
+.ev{display:flex;align-items:center;gap:10px;padding:9px 6px;border-bottom:1px solid rgba(255,255,255,.04)}
+.ev i{width:7px;height:7px;border-radius:50%;flex:none}
+.ev .q{flex:1;min-width:0;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ev .t{font-family:var(--mono);font-size:11px;color:var(--faint);flex:none}
+.vazio{text-align:center;padding:30px 16px;color:var(--faint);font-size:12.5px;line-height:1.7}
+
+.nota{font-size:11.5px;color:var(--faint);line-height:1.65;margin-top:11px}
+.erro{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.35);border-radius:11px;
+  padding:12px 14px;font-size:12.5px;color:#FECACA;margin-bottom:14px;line-height:1.6}
+@media(max-width:640px){ .big{font-size:31px} .wrap{padding:14px 12px 50px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="marca">
+      <span class="pulso"></span>
+      <div>
+        <h1>Radar da Prospecção</h1>
+        <div class="sub">Irmãos na Obra · tempo real</div>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div id="selo-disjuntor"></div>
+    <div class="relogio" id="relogio">--:--:--</div>
+  </header>
+
+  <div id="avisos"></div>
+
+  <!-- números do dia -->
+  <div class="grid g4" style="margin-bottom:13px" id="kpis"></div>
+
+  <div class="grid g2" style="margin-bottom:13px">
+    <div class="card">
+      <div class="ct">Toques por hora · hoje</div>
+      <div class="barras" id="porHora"></div>
+      <div class="nota" id="notaHora"></div>
+    </div>
+    <div class="card">
+      <div class="ct">Etapa no funil</div>
+      <div id="etapas"></div>
+      <div class="nota">Melhor ponto que cada contato já alcançou.</div>
+    </div>
+  </div>
+
+  <div class="grid g3" style="margin-bottom:13px">
+    <div class="card">
+      <div class="ct">Estado da conversa</div>
+      <div id="canais"></div>
+    </div>
+    <div class="card">
+      <div class="ct">Disjuntor de opt-out · 14 dias</div>
+      <div id="disjuntor"></div>
+    </div>
+    <div class="card">
+      <div class="ct">Teto do dia por consultor</div>
+      <div id="tetos"></div>
+    </div>
+  </div>
+
+  <div class="grid g2">
+    <div class="card">
+      <div class="ct">Últimos toques</div>
+      <div class="feed" id="feed"></div>
+    </div>
+    <div class="card">
+      <div class="ct">Carteira e custo</div>
+      <div id="custo"></div>
+    </div>
+  </div>
+
+  <div class="nota" style="text-align:center;margin-top:22px" id="rodape">carregando…</div>
+</div>
+
+<script>
+// ── conexão ────────────────────────────────────────────────────────────────
+// Mesma origem e mesma chave publishable do resto do /gerador. Esta tela é
+// SOMENTE LEITURA: não existe insert, update nem delete em lugar nenhum dela.
+const URL_SUPA = 'https://ancecdfqfwlaujknizof.supabase.co/rest/v1';
+const KEY = 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6';
+const RECARGA_MS = 20000;
+
+const H = { apikey: KEY, Authorization: 'Bearer ' + KEY };
+async function ler(q){
+  const r = await fetch(`${URL_SUPA}/${q}`, { headers: H });
+  if (!r.ok) throw new Error(`${q.split('?')[0]}: ${r.status}`);
+  return r.json();
+}
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const brl = n => 'R$ ' + Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0});
+
+// ── vocabulário (espelha as views; a tela não inventa categoria) ───────────
+const DESF = {
+  enviei:       ['Enviei',        '#60A5FA'],
+  respondeu:    ['Respondeu',     '#22D3EE'],
+  interessado:  ['Interessado',   '#FBBF24'],
+  vendeu:       ['Vendeu',        '#34D399'],
+  sem_interesse:['Sem interesse', '#7C8DB0'],
+  nao_perturbar:['Não perturbar', '#F87171'],
+};
+const ETAPAS = [['novo','Nunca abordado','#4A5772'],['abordado','Abordado','#60A5FA'],
+  ['respondeu','Respondeu','#22D3EE'],['interessado','Interessado','#FBBF24'],
+  ['cliente','Cliente','#34D399'],['encerrado','Encerrado','#3F4A63']];
+const CANAIS = [['nunca_tocado','Nunca tocado','#4A5772'],['aguardando','Aguardando resposta','#60A5FA'],
+  ['conversa_viva','Conversa viva','#34D399'],['sem_retorno','Sem retorno (7d+)','#FBBF24'],
+  ['encerrado','Encerrado','#3F4A63'],['nao_perturbar','Não perturbar','#F87171']];
+
+let dados = null;
+
+async function carregar(){
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const [toquesHoje, estados, saude, tetos, custo, ultimos] = await Promise.all([
+    ler(`prospeccao_toques?select=resultado,valor,consultor,criado_em&criado_em=gte.${hoje.toISOString()}`),
+    ler('prospeccao_contato_estado?select=etapa,canal&limit=5000'),
+    ler('prospeccao_saude?select=*'),
+    ler('prospeccao_teto_hoje?select=*'),
+    ler('prospeccao_custo?select=*'),
+    ler('prospeccao_toques?select=resultado,valor,consultor,criado_em,contato_id&order=criado_em.desc&limit=40'),
+  ]);
+  // nome da empresa dos últimos toques, numa consulta só
+  let nomes = {};
+  const ids = [...new Set(ultimos.map(t => t.contato_id))].slice(0, 40);
+  if (ids.length){
+    const cs = await ler(`prospeccao_contatos?select=id,empresa,cidade&id=in.(${ids.join(',')})`);
+    cs.forEach(c => nomes[c.id] = c);
+  }
+  dados = { toquesHoje, estados, saude, tetos, custo, ultimos, nomes };
+}
+
+// ── desenho ────────────────────────────────────────────────────────────────
+function desenharKpis(){
+  const t = dados.toquesHoje;
+  const resp = t.filter(x => ['respondeu','interessado','vendeu'].includes(x.resultado)).length;
+  const vendas = t.filter(x => x.resultado === 'vendeu');
+  const receita = vendas.reduce((s,x) => s + Number(x.valor||0), 0);
+  const cards = [
+    ['Toques hoje', t.length, 'mensagens registradas', 'var(--azul)'],
+    ['Respostas',   resp,     t.length ? Math.round(100*resp/t.length) + '% dos toques' : 'nenhum toque ainda', 'var(--ciano)'],
+    ['Vendas hoje', vendas.length, 'fechadas', 'var(--verde)'],
+    ['Receita hoje', brl(receita), 'registrada no toque', 'var(--roxo)'],
+  ];
+  document.getElementById('kpis').innerHTML = cards.map(([l,v,s,c]) =>
+    `<div class="card"><div class="ct">${l}</div>
+      <div class="big" style="color:${c}">${v}</div>
+      <div class="unid">${s}</div></div>`).join('');
+}
+
+function desenharPorHora(){
+  const balde = Array.from({length:24}, () => 0);
+  dados.toquesHoje.forEach(t => { balde[new Date(t.criado_em).getHours()]++; });
+  const teto = Math.max(1, ...balde);
+  const agora = new Date().getHours();
+  document.getElementById('porHora').innerHTML = balde.map((n,h) => {
+    const alt = Math.round(100*n/teto);
+    const cor = h === agora ? 'var(--ciano)' : n ? 'var(--azul)' : 'rgba(255,255,255,.05)';
+    return `<div class="barra" title="${h}h — ${n} toque(s)">
+      <i style="height:${Math.max(2,alt)}%;background:${cor}"></i>
+      <span>${h%3===0?String(h).padStart(2,'0'):''}</span></div>`;
+  }).join('');
+  const total = balde.reduce((a,b)=>a+b,0);
+  document.getElementById('notaHora').textContent = total
+    ? `${total} toques até agora. Pico às ${balde.indexOf(Math.max(...balde))}h.`
+    : 'Nenhum toque registrado hoje — a barra enche conforme a fila é trabalhada.';
+}
+
+function barrasDe(defs, campo, alvo){
+  const tot = dados.estados.length || 1;
+  const html = defs.map(([k,label,cor]) => {
+    const n = dados.estados.filter(e => e[campo] === k).length;
+    if (!n) return '';
+    return `<div class="linhaB"><b>${label}</b>
+      <div class="trilho"><i style="width:${(100*n/tot).toFixed(1)}%;background:${cor}"></i></div>
+      <u>${n}</u></div>`;
+  }).join('');
+  document.getElementById(alvo).innerHTML = html ||
+    '<div class="vazio">Sem contato na base ainda.</div>';
+}
+
+function desenharDisjuntor(){
+  const s = dados.saude;
+  if (!s.length){
+    document.getElementById('disjuntor').innerHTML =
+      `<div class="vazio">Nenhum toque nos últimos 14 dias.<br>O disjuntor está armado e em silêncio — ele só fala quando há o que medir.</div>`;
+    return;
+  }
+  const COR = { ok:'var(--verde)', atencao:'var(--ambar)', travado:'var(--vermelho)' };
+  document.getElementById('disjuntor').innerHTML = s.map(x => {
+    const pct = Math.min(100, 100 * Number(x.taxa_optout||0) / 12);   // escala até 12%; trava em 8%
+    return `<div style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <b style="font-size:13px;font-weight:650">${esc(x.consultor||'—')}</b>
+        <span class="big" style="font-size:22px;color:${COR[x.estado]}">${x.taxa_optout}%</span>
+      </div>
+      <div class="medidor"><i style="width:${pct}%;background:${COR[x.estado]}"></i>
+        <u style="left:66.6%"></u></div>
+      <div class="mleg"><span>${x.optout_14d} de ${x.contatos_14d} pediram pra parar</span><span>trava em 8%</span></div>
+    </div>`;
+  }).join('');
+}
+
+function desenharTetos(){
+  const t = dados.tetos;
+  if (!t.length){ document.getElementById('tetos').innerHTML = '<div class="vazio">Nenhum consultor com toque registrado.</div>'; return; }
+  document.getElementById('tetos').innerHTML = t.map(x => {
+    const pct = Math.min(100, 100 * x.usados_hoje / Math.max(1, x.teto));
+    const cor = pct >= 100 ? 'var(--vermelho)' : pct > 70 ? 'var(--ambar)' : 'var(--verde)';
+    return `<div class="linhaB" style="margin-bottom:13px">
+      <b>${esc(x.consultor)}</b>
+      <div class="trilho"><i style="width:${pct}%;background:${cor}"></i></div>
+      <u style="width:56px">${x.usados_hoje}/${x.teto}</u></div>`;
+  }).join('') + `<div class="nota">Rampa de aquecimento: 5/dia na semana 1, +5 por semana, teto duro 20 — mesma régua da linha IO depois do bloqueio de 30/08.</div>`;
+}
+
+function desenharFeed(){
+  const u = dados.ultimos;
+  if (!u.length){
+    document.getElementById('feed').innerHTML =
+      `<div class="vazio">Nenhum toque registrado ainda.<br>Cada mensagem enviada pela tela de Prospecção aparece aqui.</div>`;
+    return;
+  }
+  document.getElementById('feed').innerHTML = u.map(t => {
+    const [rot, cor] = DESF[t.resultado] || [t.resultado, 'var(--dim)'];
+    const c = dados.nomes[t.contato_id];
+    const q = new Date(t.criado_em);
+    const hoje = q.toDateString() === new Date().toDateString();
+    return `<div class="ev"><i style="background:${cor}"></i>
+      <div class="q"><b style="font-weight:600">${esc(c ? c.empresa : '—')}</b>
+        <span style="color:var(--dim)"> · ${rot}${t.valor > 0 ? ' · ' + brl(t.valor) : ''}</span></div>
+      <div class="t">${hoje ? q.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
+                            : q.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}</div>
+    </div>`;
+  }).join('');
+}
+
+function desenharCusto(){
+  const c = dados.custo;
+  const contatos = c.reduce((s,l)=>s+Number(l.contatos||0),0);
+  const clientes = c.reduce((s,l)=>s+Number(l.clientes||0),0);
+  const tocados  = c.reduce((s,l)=>s+Number(l.tocados||0),0);
+  const receita  = c.reduce((s,l)=>s+Number(l.receita||0),0);
+  const custo    = c.reduce((s,l)=>s+Number(l.custo||0),0);
+  const linhas = [
+    ['Contatos na base', contatos],
+    ['Já trabalhados', tocados],
+    ['Viraram cliente', clientes],
+    ['Receita registrada', brl(receita)],
+    ['Custo das listas', custo ? brl(custo) : '—'],
+    ['Custo por lead', custo && contatos ? brl(custo/contatos) : '—'],
+    ['Custo por cliente', custo && clientes ? brl(custo/clientes) : '—'],
+  ];
+  document.getElementById('custo').innerHTML = linhas.map(([l,v]) =>
+    `<div class="linhaB"><b style="width:auto;flex:1">${l}</b>
+      <u style="width:auto;font-size:14px;color:var(--txt);font-weight:700">${v}</u></div>`).join('')
+    + `<div class="nota">Lista sem custo lançado aparece como “—”. Zero não é “de graça”, é “não sabemos”.</div>`;
+}
+
+function desenharSelo(){
+  const pior = ['travado','atencao','ok'].find(e => dados.saude.some(s => s.estado === e)) || 'ok';
+  const M = {
+    ok:      ['Operando',       'var(--verde)'],
+    atencao: ['Atenção',        'var(--ambar)'],
+    travado: ['Fila travada',   'var(--vermelho)'],
+  };
+  const [rot, cor] = M[pior];
+  document.getElementById('selo-disjuntor').innerHTML =
+    `<span class="selo" style="border-color:${cor};color:${cor}"><i style="background:${cor}"></i>${rot}</span>`;
+}
+
+function desenharAvisos(){
+  const travados = dados.saude.filter(s => s.estado === 'travado');
+  const semRetorno = dados.estados.filter(e => e.canal === 'sem_retorno').length;
+  let h = '';
+  if (travados.length) h += `<div class="erro"><b>Disjuntor armado.</b> ${travados.map(s =>
+    `${esc(s.consultor)} está em ${s.taxa_optout}% de opt-out`).join(', ')}. A fila para até a abertura mudar.</div>`;
+  if (semRetorno) h += `<div class="erro" style="background:rgba(251,191,36,.09);border-color:rgba(251,191,36,.32);color:#FDE68A">
+    <b>${semRetorno} contatos abordados e em silêncio há mais de 7 dias.</b>
+    Isso não é trabalho feito — é fila de follow-up.</div>`;
+  document.getElementById('avisos').innerHTML = h;
+}
+
+// ── ciclo ──────────────────────────────────────────────────────────────────
+function relogio(){
+  document.getElementById('relogio').textContent =
+    new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+async function ciclo(){
+  try {
+    await carregar();
+    desenharSelo(); desenharAvisos(); desenharKpis(); desenharPorHora();
+    barrasDe(ETAPAS,'etapa','etapas'); barrasDe(CANAIS,'canal','canais');
+    desenharDisjuntor(); desenharTetos(); desenharFeed(); desenharCusto();
+    document.getElementById('rodape').textContent =
+      `atualizado ${new Date().toLocaleTimeString('pt-BR')} · recarrega a cada ${RECARGA_MS/1000}s · somente leitura`;
+  } catch(e){
+    // Falha de leitura NÃO pode virar tela zerada: número inventado é pior que
+    // número ausente. A tela mantém o último bom e diz que está velha.
+    document.getElementById('rodape').innerHTML =
+      `<span style="color:var(--vermelho)">falha ao atualizar (${esc(e.message)}) — os números acima são da última leitura boa</span>`;
+  }
+}
+relogio(); setInterval(relogio, 1000);
+ciclo(); setInterval(ciclo, RECARGA_MS);
+</script>
+</body>
+</html>
