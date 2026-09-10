@@ -16,8 +16,13 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://solardoc.app/io/eletroposto/">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="preload" as="image" href="/io/eletroposto/img/fotos/lp-hero-900.webp" media="(max-width:900px)">
-<link rel="preload" as="image" href="/io/eletroposto/img/fotos/lp-hero-1600.webp" media="(min-width:901px)">
+<!-- Um preload so, com o MESMO srcset/sizes do <img> la embaixo: assim o
+     leitor de preload escolhe exatamente o mesmo arquivo que a imagem vai usar.
+     Dois preloads por media query erravam — o desktop baixava a de 1324px e o
+     srcset depois ficava com a de 900, entao os 159 KB iam pro lixo. -->
+<link rel="preload" as="image" href="/nexus/img/capa.webp"
+      imagesrcset="/nexus/img/capa-900.webp 900w, /nexus/img/capa.webp 1324w"
+      imagesizes="(max-width:900px) 100vw, 600px">
 <link rel="prefetch" as="image" href="/nexus/img/logo.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -461,12 +466,15 @@
     </div>
 
     <figure class="cena" style="margin:0">
-      <img src="/io/eletroposto/img/fotos/lp-hero-1600.webp"
-           srcset="/io/eletroposto/img/fotos/lp-hero-900.webp 900w,
-                   /io/eletroposto/img/fotos/lp-hero-1600.webp 1600w"
+      <!-- MESMA capa do /nexus: as duas paginas da marca abrem com a mesma cena.
+           A -900 foi gerada aqui (75 KB contra 159 KB) porque esta e a imagem
+           do LCP e vai pre-carregada — no celular a de 1324px seria peso puro. -->
+      <img src="/nexus/img/capa.webp"
+           srcset="/nexus/img/capa-900.webp 900w,
+                   /nexus/img/capa.webp 1324w"
            sizes="(max-width:900px) 100vw, 600px"
-           width="1600" height="1000" fetchpriority="high" decoding="async"
-           alt="Carro elétrico carregando em eletroposto">
+           width="1324" height="827" fetchpriority="high" decoding="async"
+           alt="Eletroposto NEXUS ao entardecer: dois carros carregando sob a cobertura iluminada">
     </figure>
   </div>
 </div>
