@@ -200,6 +200,39 @@ padrão que o Instagram procura.
 
 ### 2. Consiga o @ das empresas
 
+São três scripts, do mais barato ao mais caro. Rode nessa ordem.
+
+| Script | Parte de | Custa |
+|---|---|---|
+| `colher-instagram.mjs` | empresa da base → lê o site dela | nada, sem Chrome |
+| `buscar-instagram.mjs` | empresa da base → procura na lupa do IG | 1 busca por empresa |
+| `descobrir-instagram.mjs` | **nada** → acha empresas que você nunca viu | 3 buscas por cidade |
+
+#### Descobrir empresas novas
+
+```powershell
+node descobrir-instagram.mjs --dry --uf=PA          # ensaio, um estado
+node descobrir-instagram.mjs --uf=PA --cidades=40   # grava
+node descobrir-instagram.mjs --cidades=50           # Brasil, em rodadas
+```
+
+Varre `energia solar <cidade>`, `energia fotovoltaica <cidade>` e `solar <cidade>`
+município por município — a lista de municípios vem do IBGE na hora, sem arquivo
+local (144 no Pará, 5.570 no Brasil).
+
+**O filtro é o que separa isso de uma lista de lixo.** Recusa curso, treinamento,
+distribuidora, fábrica, aquecedor solar de piscina, consórcio, portal de notícias
+e **perfil verificado** — verificado é marca grande (Canadian Solar), não
+integradora local. Testado com 6 casos, 6 corretos.
+
+Grava empresa, @, cidade e UF. **Sem telefone** — é uma empresa que existe no
+Instagram e só. Dedup por @: rodar de novo não duplica.
+
+Ritmo: 5 a 11 segundos entre buscas, para sozinho após 5 erros seguidos. Uma
+rodada de 40 cidades são 120 buscas, ~15 minutos.
+
+#### Achar o @ de quem já está na base
+
 Este é o gargalo real da operação 100% Instagram:
 
 | Origem do @ | Quantas |
@@ -207,8 +240,7 @@ Este é o gargalo real da operação 100% Instagram:
 | Colhido do site (`colher-instagram.mjs`) | **112** |
 | Sem @ ainda | **358** |
 
-O Maps nunca devolve o @. Para as 358 restantes, use a busca do próprio
-Instagram, com a conta logada:
+Para as empresas que vieram do Maps e ainda não têm @:
 
 ```powershell
 node buscar-instagram.mjs --dry     # mostra o que casaria, não grava
