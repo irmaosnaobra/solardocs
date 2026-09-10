@@ -68,7 +68,7 @@ O worker **não decide nada sozinho**. Ele relê as travas do banco a cada envio
 | Trava | Onde mora | O que faz |
 |---|---|---|
 | Quem receber | view `prospeccao_fila_worker` | já aplica bloqueado, lista ativa, não-tocado-hoje |
-| Quantos por dia | view `prospeccao_teto_hoje` | rampa: 5/dia na semana 1, +5 por semana, teto 20 |
+| Quantos por dia | view `prospeccao_teto_hoje` | teto adaptativo — sobe com a saúde, ver Cadência |
 | Quando parar | view `prospeccao_saude` | opt-out acima de 8% trava a fila inteira |
 
 Se você registrar "não perturbar" na tela enquanto o worker roda, ele para na

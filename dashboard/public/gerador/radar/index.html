@@ -293,11 +293,14 @@ function desenharTetos(){
   document.getElementById('tetos').innerHTML = t.map(x => {
     const pct = Math.min(100, 100 * x.usados_hoje / Math.max(1, x.teto));
     const cor = pct >= 100 ? 'var(--vermelho)' : pct > 70 ? 'var(--ambar)' : 'var(--verde)';
-    return `<div class="linhaB" style="margin-bottom:13px">
-      <b>${esc(x.consultor)}</b>
-      <div class="trilho"><i style="width:${pct}%;background:${cor}"></i></div>
-      <u style="width:56px">${x.usados_hoje}/${x.teto}</u></div>`;
-  }).join('') + `<div class="nota">Rampa de aquecimento: 5/dia na semana 1, +5 por semana, teto duro 20 — mesma régua da linha IO depois do bloqueio de 30/08.</div>`;
+    return `<div style="margin-bottom:14px">
+      <div class="linhaB" style="margin-bottom:4px">
+        <b>${esc(x.consultor)}</b>
+        <div class="trilho"><i style="width:${pct}%;background:${cor}"></i></div>
+        <u style="width:62px">${x.usados_hoje}/${x.teto}</u></div>
+      <div style="font-size:11px;color:var(--faint);padding-left:2px">${esc(x.porque || '')}</div>
+    </div>`;
+  }).join('') + `<div class="nota">Teto adaptativo: base 25/semana até 100, multiplicada pela saúde de opt-out dos últimos 14 dias. Quem prova que não incomoda ganha volume sozinho.</div>`;
 }
 
 function desenharFeed(){
