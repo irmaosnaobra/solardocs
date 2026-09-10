@@ -1,18 +1,21 @@
 # Config do gitleaks para o solardocs.
+#
 # Além das regras padrão, cobre o buraco que o padrão NÃO pega: segredo escrito
 # como INSTRUÇÃO dentro de documentação. Foi assim que o CRON_SECRET foi parar
-# num arquivo público (SECURITY-RUNBOOK.md, 10/09/2026).
+# num arquivo público (SECURITY-RUNBOOK.md, achado em 10/09/2026).
 
 [extend]
 useDefault = true
 
-# `gitleaks dir` varre TUDO, inclusive node_modules (858 MB e 151 falsos aqui).
-# O CI usa o modo `git` (só o rastreado), mas quem rodar na mão merece o mesmo silêncio.
+# Gate que grita à toa é gate que ninguém lê. Fixture de teste nunca foi
+# credencial, e `gitleaks dir` varre node_modules inteiro se deixarem.
 [allowlist]
 paths = [
+  '''(^|/)__tests__/''',
+  '''\.test\.ts$''',
   '''(^|/)node_modules/''',
   '''(^|/)dist/''',
-  '''(^|/).next/''',
+  '''(^|/)\.next/''',
   '''(^|/)coverage/''',
 ]
 
@@ -22,17 +25,27 @@ description = "Valor de segredo escrito em texto puro dentro de doc/markdown"
 regex = '''(?i)(valor|value|secret|token|senha|password|key)\s*[:=]\s*`?["']?([A-Za-z0-9+/_\-]{24,})["']?`?'''
 secretGroup = 2
 path = '''\.(md|txt|mdx)$'''
-[rules.allowlist]
-regexes = [
-  '''\$\{\{''',                    # ${{ secrets.X }}
-  '''process\.env''',
-  '''(?i)(xxx|exemplo|example|placeholder|seu[-_]?token|cole[-_]?aqui|<.*>)''',
-  '''(?i)sk_test_|pk_test_|rk_test_|whsec_test''',
-]
+  [rules.allowlist]
+  regexes = [
+    '''\$\{\{''',
+    '''process\.env''',
+    '''(?i)(xxx|exemplo|example|placeholder|seu[-_]?token|cole[-_]?aqui|<.*>)''',
+    '''(?i)sk_test_|pk_test_|rk_test_|whsec_test''',
+  ]
 
 [[rules]]
 id = "url-supabase-com-chave"
-description = "URL de projeto Supabase junto de chave publishable no mesmo arquivo"
+description = "Chave publishable do Supabase fora dos lugares onde ela e publica de proposito"
 regex = '''sb_publishable_[A-Za-z0-9_\-]{20,}'''
-[rules.allowlist]
-paths = ['''dashboard/public/''']   # chave de navegador: o problema ali é RLS, não a chave
+  [rules.allowlist]
+  paths = [
+    # Chave de navegador: ali ela e publica por natureza. O problema e RLS, nao a chave.
+    '''dashboard/public/''',
+    # A sonda PRECISA da chave: o ponto dela e perguntar de fora, como um estranho.
+    '''api/scripts/conferir-rls-gerador\.ts''',
+    # Scripts locais do consultor, nao rodam no servidor.
+    '''worker-prospeccao/''',
+    # O fallback documentado, ate a SUPABASE_GERADOR_SERVICE_KEY entrar na Vercel.
+    '''api/src/utils/supabaseGerador\.ts''',
+    '''api/src/services/agenda/criativoCompositor\.ts''',
+  ]
