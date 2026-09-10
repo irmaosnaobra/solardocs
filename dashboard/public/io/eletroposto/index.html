@@ -151,6 +151,26 @@
   .ben .t{font-size:16.5px;font-weight:800;letter-spacing:-.02em;line-height:1.08}
   .ben .d{color:var(--mut);font-size:13.8px;font-weight:500;margin-top:7px;line-height:1.62}
 
+  /* ===== modelos de negócio =====
+     Cinco portas de entrada, e elas mudam quem paga a conta. A ordem NÃO é
+     alfabética nem por preço: vai do que exige menos do lead (ele só cede o
+     espaço) pro que exige mais (ele conduz o projeto e a gente só orienta).
+     Quem chega sem capital para de bater na porta fechada no primeiro cartão. */
+  .mods{display:grid;gap:14px;grid-template-columns:repeat(3,1fr)}
+  @media(max-width:900px){.mods{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.mods{grid-template-columns:1fr}}
+  .mod{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;
+    display:flex;flex-direction:column}
+  .mod .nu{font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--azul)}
+  .mod h3{font-size:16.5px;margin:9px 0 0}
+  .mod .quem{display:inline-flex;align-self:flex-start;margin-top:11px;padding:5px 11px;border-radius:999px;
+    font-size:11.5px;font-weight:700;border:1px solid var(--line-f);color:var(--cream)}
+  .mod .quem.nos{border-color:rgba(57,255,20,.38);background:rgba(57,255,20,.10);color:var(--neon)}
+  .mod p{color:var(--mut);font-size:13.8px;font-weight:500;line-height:1.62;margin-top:12px}
+  .mod p b{color:var(--cream);font-weight:700}
+  .modNota{color:var(--fraco);font-size:11.5px;font-weight:500;line-height:1.6;margin-top:16px}
+  .modNota b{color:#A9BACD}
+
   /* ===== simulador ===== */
   .simGrid{display:grid;grid-template-columns:340px 1fr;gap:18px}
   @media(max-width:880px){.simGrid{grid-template-columns:1fr}}
@@ -523,11 +543,70 @@
     </div>
   </section>
 
+  <!-- MODELOS DE NEGÓCIO -->
+  <section id="modelos">
+    <div class="sh"><span class="tt">Como fazemos negócio</span><span class="ln"></span></div>
+    <h2>Cinco jeitos de ter um eletroposto <span class="n">no seu ponto</span></h2>
+    <div class="sub" style="margin-bottom:26px">Nem todo mundo entra pelo mesmo lugar. Tem quem só tenha o
+      espaço, tem quem queira ser sócio e tem quem já saiba fazer e só precise do equipamento.</div>
+
+    <div class="mods">
+      <div class="mod">
+        <div class="nu">Modelo 01</div>
+        <h3>Você cede o espaço</h3>
+        <span class="quem nos">Nós investimos 100%</span>
+        <p>Entramos com <b>todo o capital</b>, montamos e operamos o ponto. Você recebe <b>arrendamento
+          pelo espaço</b>, todo mês, sem tirar dinheiro do bolso e sem cuidar de nada.</p>
+      </div>
+      <div class="mod">
+        <div class="nu">Modelo 02</div>
+        <h3>Sociedade meio a meio</h3>
+        <span class="quem nos">50% nós, 50% você</span>
+        <p>Cada um entra com <b>metade do capital</b> e os dois são sócios na operação e no faturamento.
+          A obra, a homologação e o software continuam por nossa conta.</p>
+      </div>
+      <div class="mod">
+        <div class="nu">Modelo 03</div>
+        <h3>Chave na mão</h3>
+        <span class="quem">Você investe</span>
+        <p>O eletroposto é <b>seu do começo ao fim</b> — e o faturamento também. Projeto com ART, obra,
+          concessionária, equipamento, software e a primeira recarga são nossos. <b>É este o modelo que o
+          simulador aqui embaixo calcula.</b></p>
+      </div>
+      <div class="mod">
+        <div class="nu">Modelo 04</div>
+        <h3>Só o equipamento</h3>
+        <span class="quem">Você investe</span>
+        <p>Carregador <b>NEXUS</b> com garantia, peça de reposição no Brasil e OCPP aberto. Para quem já
+          tem equipe de projeto e obra e só precisa da máquina certa.</p>
+      </div>
+      <div class="mod">
+        <div class="nu">Modelo 05</div>
+        <h3>Consultoria completa</h3>
+        <span class="quem">Você investe</span>
+        <p>Estudo de viabilidade do seu ponto, dimensionamento, caminho na concessionária, enquadramento
+          e precificação da tarifa. Para quem quer <b>conduzir o próprio projeto</b> com quem já fez.</p>
+      </div>
+    </div>
+
+    <div class="modNota">Os modelos <b>01</b> e <b>02</b> dependem do ponto: nem todo local sustenta o
+      investimento sozinho, e por isso eles passam por análise antes de virar proposta. Os modelos
+      <b>03</b>, <b>04</b> e <b>05</b> estão disponíveis para qualquer ponto viável. Na reunião a gente
+      compara os cinco com os números do seu caso — <b>escolher o modelo é a primeira decisão</b>, e ela
+      muda todo o resto da conta.</div>
+
+    <div class="ctaFim">
+      <a href="#agendar" class="btn" onclick="track('cta_modelos')">Quero comparar os modelos no meu ponto →</a>
+    </div>
+  </section>
+
   <!-- SIMULADOR -->
   <section id="simulador">
     <div class="sh"><span class="tt">Simulador</span><span class="ln"></span></div>
     <h2>Quanto <span class="n">o seu ponto</span> devolve?</h2>
-    <div class="sub" style="margin-bottom:26px">Mesma calculadora que usamos na reunião. Mexa nos números do seu caso — o resultado muda na hora.</div>
+    <div class="sub" style="margin-bottom:26px">Mesma calculadora que usamos na reunião. Mexa nos números
+      do seu caso — o resultado muda na hora. Ela calcula o <a href="#modelos" style="color:var(--neon)">modelo
+      chave na mão</a>, em que o ponto e o equipamento são seus.</div>
 
     <div class="simGrid">
       <div class="panel">
@@ -891,7 +970,29 @@
           </div>
         </div>
 
+        <!-- MODELO DE NEGÓCIO (10/09/2026). A LP passou a oferecer cinco portas e a
+             equipe não tinha como saber por qual o lead entrou — a ficha inteira
+             assumia que ele ia pagar. O campo vai ANTES de "como pretende investir"
+             porque é ele que decide se aquela pergunta faz sentido: quem só cede o
+             espaço não vai pagar nada, e perguntar como ele pagaria é o jeito mais
+             rápido de perder um ponto bom.
+             PONTUAÇÃO NÃO MUDOU nesta entrega de propósito: mexer em PESO_* reroteia
+             lead ao vivo entre NOTA 1/2/3, e isso é decisão de corte, não de campo.
+             O modelo entra na ficha que a equipe lê. -->
         <div class="fld">
+          <label for="f-modelo">Qual modelo te interessa? <span class="hint">(dá pra mudar na reunião)</span></label>
+          <div class="inp"><select id="f-modelo" onchange="onModelo()">
+            <option value="">Selecione…</option>
+            <option value="cedo_espaco">01 — Cedo o espaço e vocês investem 100%</option>
+            <option value="meio_a_meio">02 — Sociedade meio a meio</option>
+            <option value="chave_na_mao">03 — Chave na mão, o eletroposto é meu</option>
+            <option value="equipamento">04 — Só o equipamento</option>
+            <option value="consultoria">05 — Consultoria completa</option>
+            <option value="nao_sei">Ainda não sei — quero comparar na reunião</option>
+          </select></div>
+        </div>
+
+        <div class="fld" id="box-invest">
           <label for="f-invest">Como pretende investir</label>
           <div class="inp"><select id="f-invest">
             <option value="">Selecione…</option>
@@ -1778,6 +1879,16 @@ function pontuar(f){
 }
 
 // A rota de passagem só faz sentido pra quem não traz fluxo próprio.
+// MODELOS EM QUE O LEAD NAO POE DINHEIRO. Nos dois a conta e nossa, entao a
+// pergunta "como pretende investir" some — e a validacao dela some junto, senao
+// o formulario trava num campo escondido e ninguem descobre por que.
+const MODELO_SEM_CAPITAL = new Set(['cedo_espaco']);
+function onModelo(){
+  const v = document.getElementById('f-modelo').value;
+  const paga = !MODELO_SEM_CAPITAL.has(v);
+  document.getElementById('box-invest').style.display = paga ? '' : 'none';
+  if(!paga) document.getElementById('f-invest').value = '';
+}
 function onPerfil(){
   const v = document.getElementById('f-perfil').value;
   document.getElementById('box-rota').style.display  = PERFIL_SEM_FLUXO.has(v) ? '' : 'none';
@@ -2065,7 +2176,10 @@ async function agendar(){
       if(bairro.length < 2) return erro('Informe o bairro do ponto.');
     }
   }
-  if(!invest.value)       return erro('Informe como pretende investir.');
+  const modelo = document.getElementById('f-modelo');
+  if(!modelo.value)       return erro('Escolha o modelo que te interessa.');
+  const pagaCapital = !MODELO_SEM_CAPITAL.has(modelo.value);
+  if(pagaCapital && !invest.value) return erro('Informe como pretende investir.');
   if(!decisor.value)      return erro('Informe quem decide o investimento.');
   if(!trif.value)         return erro('Informe se a entrada de energia do local é trifásica.');
 
@@ -2097,6 +2211,7 @@ async function agendar(){
           ...utmPrimeiroToque(),
           ficha: [
             `LP ELETROPOSTO — ${perfilTexto(perfil)}`,
+            `Modelo de interesse: ${txt(modelo)}`,
             // O motivo vem do que REALMENTE cortou. Nem toda NOTA 1 é falta de ponto:
             // um dono de local sem capital e sem poder de decisão soma menos de 5 e cai
             // aqui com o ponto na mão (é o arrendador que vai pra porta do ponto) —
@@ -2414,6 +2529,8 @@ montarTabelaRot();     // antes do setConfig: é ele quem marca a linha da confi
 montarSelectCarros();  // idem — o calc() do setConfig já pinta o cartão do veículo
 setLocal();       // régua cidade/rodovia primeiro: é ela que define o teto do slider,
                   // e o setConfig() sai de dentro dela já com o teto certo
+onModelo();       // idem pro modelo: sem isto o "como pretende investir" volta
+                  // visível pra quem tinha escolhido ceder o espaço
 onPerfil();       // o browser pode restaurar o perfil ao voltar pra página (bfcache)
 onPonto();        // idem pro ponto: sem isto o endereço restaurado ficaria escondido
                   // (e ele chama onRelacao, que reavalia o bloco do endereço)
