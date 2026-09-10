@@ -52,6 +52,14 @@
 !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];f.__carregaPixel=function(){if(f.__pixelIndo)return;f.__pixelIndo=!0;t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
 fbq('init', '446093469730871');
 fbq('track', 'PageView');
+
+// Atalho usado pelo simulador e pelo main.js. NAO se chama `evento` porque
+// esse nome ja' e' do /lib/telemetria.js e as duas coisas brigariam.
+// O try/catch e' obrigatorio: bloqueador de anuncio derruba o fbq, e um lead
+// nao pode se perder porque o rastreio falhou.
+window.pix = function (nome, dados, proprio) {
+  try { if (window.fbq) window.fbq(proprio ? 'trackCustom' : 'track', nome, dados || {}); } catch (_) {}
+};
 ['scroll','pointerdown','keydown','touchstart'].forEach(function(ev){
   addEventListener(ev, window.__carregaPixel, { once: true, passive: true });
 });

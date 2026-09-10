@@ -7,12 +7,6 @@
   const semMovimento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const zap = (msg) => 'https://wa.me/' + CONFIG.whatsapp + '?text=' + encodeURIComponent(msg);
 
-  // Pixel da Meta. Se o fbq não carregou (bloqueador, rede), a página segue
-  // funcionando: o clique no WhatsApp não pode depender de tracking.
-  function pixel(nome, dados) {
-    try { if (window.fbq) window.fbq('track', nome, dados || {}); } catch (_) {}
-  }
-
   /* ------------------------------------------------------ o único WhatsApp */
   // SÓ EXISTE UMA PORTA PRO WHATSAPP NESTA PÁGINA: o botão do simulador.
   // Foi decisão do Thiago em 04/09/2026 e é o que faz o resto funcionar — lead
@@ -25,11 +19,9 @@
   const btnSim = document.getElementById('btn-zap-simulador');
   if (btnSim) { btnSim.setAttribute('target', '_blank'); btnSim.setAttribute('rel', 'noopener'); }
 
-  document.addEventListener('click', function (e) {
-    const link = e.target.closest && e.target.closest('a[href*="wa.me/"]');
-    if (!link) return;
-    pixel('Contact', { origem: 'simulador' });
-  });
+  // O `Lead` nao e' disparado aqui: ele sai do simulador.js, que e' onde a
+  // ficha do lead existe (imovel, cidade, sistema, consultor). Aqui ficaria
+  // um evento sem nenhum dado dentro.
 
   // O card de serviço leva pro simulador já marcando o tipo de imóvel: a pessoa
   // clicou em "rural", não faz sentido o formulário abrir em "casa".
@@ -171,6 +163,19 @@
       botaoMenu.setAttribute('aria-expanded', 'false');
     });
   });
+
+  /* --------------------------------------------------- o simulador foi visto */
+  // Publico de remarketing: quem chegou a ver o simulador na tela, mesmo sem
+  // responder. E' o degrau entre "abriu a pagina" e "comecou a responder".
+  const secaoSim = document.getElementById('simulador');
+  if (secaoSim && 'IntersectionObserver' in window) {
+    const olho = new IntersectionObserver(function (e) {
+      if (!e[0].isIntersecting) return;
+      olho.disconnect();
+      window.pix('ViewContent', { content_name: 'simulador', content_category: 'energia solar' });
+    }, { threshold: 0.35 });
+    olho.observe(secaoSim);
+  }
 
   /* ------------------------------------------- cabeçalho e botão flutuante */
   const cabecalho = document.getElementById('cabecalho');

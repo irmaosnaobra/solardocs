@@ -79,6 +79,27 @@
      monofasica, R$ 550) e o resultado aparecia pronto — numero de ninguem.
      Agora o resultado so' existe quando as cinco tiverem resposta. */
   const contaTocada = { valor: false };
+  const marcou = { comecou: false, completou: false };
+
+  // O que vai junto de cada evento pro pixel. Nada aqui identifica a pessoa —
+  // o site nao pede nome, telefone nem e-mail. Sao as caracteristicas do
+  // pedido, que e' o que a Meta usa pra achar quem se parece com quem fecha.
+  //
+  // De proposito SEM `value`/`currency`: `value` na Meta e' quanto a conversao
+  // vale PRA EMPRESA. A economia mensal e' dinheiro do cliente, nao receita
+  // nossa — mandar ela ali inventaria um ROAS que nao existe.
+  function dadosDoLead(r) {
+    return {
+      content_category: r.tipo,
+      content_name: r.cidade || 'sem cidade',
+      ligacao: r.ligacao,
+      conta_mes: Math.round(r.conta),
+      paineis: r.paineis,
+      kwp: +r.kwpReal.toFixed(2),
+      atendimento: r.atendimento || 'nao escolheu',
+      consultor: consultorDoLead(r.conta).nome
+    };
+  }
 
   const PERGUNTAS = [
     { campo: 'tipo',        ok: function () { return !!form.querySelector('input[name="tipo"]:checked'); } },
@@ -113,6 +134,17 @@
     el.faltaVerbo.textContent = falta.length === 1 ? 'Falta' : 'Faltam';
     el.espera.hidden = falta.length === 0;
     el.pronto.hidden = falta.length > 0;
+
+    // Os dois degraus do funil, cada um uma vez so' por visita.
+    if (!marcou.comecou && falta.length < PERGUNTAS.length) {
+      marcou.comecou = true;
+      window.pix('SimulacaoIniciada', {}, true);
+    }
+    if (!marcou.completou && falta.length === 0) {
+      marcou.completou = true;
+      const r = calcular();
+      window.pix('SimulacaoCompleta', dadosDoLead(r), true);
+    }
     el.btnResultado.classList.toggle('botao--esperando', falta.length > 0);
 
     return falta;
@@ -316,6 +348,14 @@
   el.conta.addEventListener('change', function () { contaTocada.valor = true; atualizar(true); });
   el.atendimento.forEach(function (i) {
     i.addEventListener('change', function () { atualizar(false); });
+  });
+
+  // A CONVERSAO. So' existe botao pra clicar depois das cinco respondidas,
+  // entao todo Lead daqui vem com a ficha completa. E' este o evento que a
+  // campanha de leads deve otimizar na Meta.
+  el.btnZap.addEventListener('click', function () {
+    const r = calcular();
+    window.pix('Lead', dadosDoLead(r));
   });
 
   el.btnResultado.addEventListener('click', function () {
