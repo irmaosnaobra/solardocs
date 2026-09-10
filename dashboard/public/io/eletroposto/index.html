@@ -348,10 +348,14 @@
   @media(max-width:760px){.tempoG{grid-template-columns:repeat(2,1fr)}}
   .tp{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 14px;text-align:center;
     display:flex;flex-direction:column}
-  .tp.rec{border-color:rgba(57,255,20,.55);background:linear-gradient(180deg,rgba(57,255,20,.13),rgba(57,255,20,.02))}
   .tp .kw{font-size:14.5px;font-weight:800;color:var(--cream);line-height:1.2}
-  .tp .kw .rc{display:block;font-size:9.5px;font-weight:900;letter-spacing:1.2px;color:var(--azul);
-    text-transform:uppercase;margin-top:4px}
+  .tp .kw .cls{display:block;font-size:10.5px;font-weight:800;letter-spacing:.12em;color:var(--azul);
+    text-transform:uppercase;margin-top:5px}
+  /* a potência que chega no carro fica logo abaixo do minuto porque é ela que
+     explica o minuto — principalmente quando os quatro cartões dão igual */
+  .tp .ent{color:var(--cream);font-size:12px;font-weight:600;margin-top:8px}
+  .tp .ent b{color:var(--neon);font-weight:800}
+  .tp.lim .ent b{color:var(--cream)}
   .tp .mn{font-size:clamp(25px,3.6vw,33px);font-weight:900;letter-spacing:-1.5px;color:var(--neon-b);
     margin-top:13px;line-height:1;font-variant-numeric:tabular-nums}
   .tp .fx{color:var(--mut);font-size:11px;font-weight:700;margin-top:7px}
@@ -528,6 +532,14 @@
     <div class="simGrid">
       <div class="panel">
         <div class="fld">
+          <label for="s-local">Onde fica o ponto</label>
+          <div class="inp"><select id="s-local" onchange="setLocal()">
+            <option value="cidade" selected>Cidade — 20 kWh por recarga</option>
+            <option value="rodovia">Rodovia — 35 kWh por recarga</option>
+          </select></div>
+          <div class="cfgNota" id="local-nota"></div>
+        </div>
+        <div class="fld">
           <label>Carros por dia <span class="hint">(estimativa do seu ponto)</span></label>
           <input type="range" class="rng" id="s-carros" min="3" max="30" step="1" value="10" oninput="calc()">
           <div class="rngRow"><span>3</span><span id="s-carros-v" style="color:var(--neon-b)">10 carros/dia</span><span id="s-carros-max">30</span></div>
@@ -536,7 +548,7 @@
           <label>Configuração do carregador</label>
           <div class="inp"><select id="s-config" onchange="setConfig()">
             <option value="60">60 kW · 2 bicos</option>
-            <option value="80" selected>80 kW · 2 bicos — recomendado</option>
+            <option value="80" selected>80 kW · 2 bicos</option>
             <option value="120">120 kW · 2 bicos</option>
             <option value="160">160 kW · 2 bicos</option>
           </select></div>
@@ -660,10 +672,11 @@
     <div class="rotDica">Arraste a tabela para o lado para ver o resto das colunas.</div>
 
     <div class="rotObs">
-      A conta: <b>20 kWh por recarga</b>, a mesma régua que o simulador usa para faturar. Ela é de
-      propósito <b>menor do que a tabela de veículos acima</b> — o elétrico mais vendido do país leva
-      22,8 kWh numa carga de 20% a 80% — porque nem todo motorista chega com a bateria em 20%. Esses
-      20 kWh são divididos pela potência nominal do
+      A conta usa a régua que você escolheu no simulador: <b>20 kWh por recarga na cidade</b>, onde o
+      motorista completa o que gastou no dia, ou <b>35 kWh na rodovia</b>, onde ele para porque precisa
+      seguir viagem. Os 20 kWh urbanos são de propósito <b>menores do que a tabela de veículos acima</b>
+      — o elétrico mais vendido do país leva 22,8 kWh numa carga de 20% a 80% — porque nem todo
+      motorista da cidade chega com a bateria em 20%. Essa régua é dividida pela potência nominal do
       carregador, com os <b>dois bicos dividindo a potência</b> quando estão ocupados ao mesmo tempo,
       dentro de uma <b>janela de 12 horas de movimento por dia</b>. É o pior caso do equipamento: se o
       carro do seu cliente aceitar menos potência que a máquina entrega, quem manda no ritmo é ele.
@@ -1152,7 +1165,7 @@ function params(){
   const carros = +document.getElementById('s-carros').value;
   const cfg = CONFIGS[document.getElementById('s-config').value];
   return {
-    carros, carga:CARGA_KWH,
+    carros, carga:cargaKwh(),
     precoKwh:+document.getElementById('s-revenda').value || 0,
     custoKwh:+document.getElementById('s-custo').value || 0,
     // Premissas idênticas às do Estudo de Viabilidade que o consultor abre na reunião:
@@ -1199,7 +1212,15 @@ function params(){
 // Ele é DELIBERADAMENTE conservador: uma carga de 20% a 80% nos carros da lista
 // abaixo entrega de 16 a 50 kWh (o mais vendido do país, 22,8). O simulador conta
 // menos porque nem todo motorista chega com 20% de bateria.
-const CARGA_KWH = 20;
+// kWh por recarga. Deixou de ser constante em 10/09/2026: o mesmo equipamento
+// atende bateria diferente conforme onde o ponto esta.
+//   CIDADE  20 kWh — o motorista completa o que gastou no dia.
+//   RODOVIA 35 kWh — ele para porque precisa seguir viagem, e enche mais.
+// Os 20 continuam DELIBERADAMENTE conservadores contra a tabela de veiculos
+// (o mais vendido do pais leva 22,8 kWh de 20% a 80%), porque nem todo
+// motorista urbano chega com a bateria em 20%.
+const CARGAS = { cidade: 20, rodovia: 35 };
+const cargaKwh = () => CARGAS[(document.getElementById('s-local') || {}).value || 'cidade'];
 const ATIVACAO  = 1.20;   // taxa por sessão, mesma do simulador e do Estudo de Viabilidade
 
 // ===== TEMPO DE RECARGA POR VEÍCULO ==========================================
@@ -1257,17 +1278,25 @@ function pintarCarro(){
   document.getElementById('car-kwh').textContent  = numBR(entregue,1) + ' kWh';
   document.getElementById('car-cash').textContent = moneyC(entregue*revenda + ATIVACAO);
 
-  const REC = '80';   // a configuração que a página recomenda
+  // 100 kW é onde o mercado corta rápida de ultrarrápida em corrente contínua,
+  // e é a mesma linha que a nossa tabela de configurações já usava ao chamar a
+  // de 120 de "ultrarrápido". Não é classificação inventada aqui.
+  const classe = kw => +kw >= 100 ? 'Ultrarrápida' : 'Rápida';
   document.getElementById('tempo-g').innerHTML = Object.keys(CONFIGS).map(kw => {
     const lim = c.dc < +kw;
-    return `<div class="tp${kw===REC?' rec':''}${lim?' lim':''}">`
-      + `<div class="kw">${kw} kW${kw===REC?'<span class="rc">Recomendado</span>':''}</div>`
+    // A potência que de fato chega no carro é o MENOR entre o que o bico entrega
+    // e o que o veículo aceita. É ela que explica o minuto — e sem ela impressa
+    // os quatro cartões repetiam o mesmo número sem dizer por quê.
+    const entrega = Math.min(+kw, c.dc);
+    return `<div class="tp${lim?' lim':''}">`
+      + `<div class="kw">${kw} kW<span class="cls">${classe(kw)}</span></div>`
       + `<div class="mn">${Math.round(minsRecarga(c,+kw))} min</div>`
       + `<div class="fx">de 20% a 80%</div>`
+      + `<div class="ent">chegam <b>${entrega} kW</b> no carro</div>`
       // Não dizer "os outros X kW vão pro 2º bico": o segundo carro também tem teto,
       // e num 160 kW com dois Dolphin Mini sobra potência ociosa. O que é sempre
       // verdade é que, passado o limite do veículo, o tempo dele não cai mais.
-      + `<div class="av">${lim ? `Limitado a ${c.dc} kW pelo veículo — acima disso o tempo não cai`
+      + `<div class="av">${lim ? `O veículo só aceita ${c.dc} kW — o resto do bico sobra e o tempo não cai`
                                : 'O carro usa a potência inteira do bico'}</div>`
       + `</div>`;
   }).join('');
@@ -1276,10 +1305,10 @@ function pintarCarro(){
 // e por isso está impressa na letra miúda da seção, do lado do resultado.
 const JANELA_H = 12;
 const CONFIGS = {
-  60:  { invest:141673, bicos:2, max:20, base:8,  nota:'Dois bicos, até 20 carros/dia.' },
-  80:  { invest:144595, bicos:2, max:30, base:10, nota:'Recarga rápida e 2 bicos, até 30 carros/dia — é a que indicamos na maioria dos pontos.' },
-  120: { invest:203548, bicos:2, max:40, base:14, nota:'Ultrarrápido, até 40 carros/dia — para pontos de alto fluxo.' },
-  160: { invest:229436, bicos:2, max:50, base:18, nota:'Topo da linha, até 50 carros/dia — para grandes operações.' },
+  60:  { invest:141673, bicos:2, max:20, base:8,  nota:'Recarga rápida, 2 bicos.' },
+  80:  { invest:144595, bicos:2, max:30, base:10, nota:'Recarga rápida, 2 bicos.' },
+  120: { invest:203548, bicos:2, max:40, base:14, nota:'Recarga ultrarrápida, 2 bicos.' },
+  160: { invest:229436, bicos:2, max:50, base:18, nota:'Recarga ultrarrápida, 2 bicos.' },
 };
 // ===== ROTATIVIDADE — capacidade do bico =====
 // Uma recarga de CARGA_KWH kWh dividida pela potência da máquina dá o tempo por carro.
@@ -1288,10 +1317,14 @@ const CONFIGS = {
 // do `max` do CONFIGS: o teto do simulador é de propósito mais conservador que a máquina.
 function rotativ(kw){
   const c = CONFIGS[kw];
-  const min1 = CARGA_KWH / kw * 60;          // um bico ocupado: potência inteira no carro
+  const carga = cargaKwh();
+  const min1 = carga / kw * 60;              // um bico ocupado: potência inteira no carro
   const min2 = min1 * c.bicos;               // dois ocupados: cada um leva 1/bicos da potência
   const cap  = Math.floor(c.bicos * (JANELA_H * 60) / min2);
-  return { min1, min2, cap, teto:c.max };
+  // O `max` do CONFIGS foi escrito para a régua de 20 kWh. Na rodovia cada carro
+  // ocupa quase o dobro do bico e a capacidade cai — sem este teto a tabela
+  // anunciaria mais carros do que a máquina entrega no dia.
+  return { min1, min2, cap, teto: Math.min(c.max, cap) };
 }
 const minTxt = m => (Number.isInteger(m) ? m : m.toFixed(1).replace('.',',')) + ' min';
 function montarTabelaRot(){
@@ -1304,7 +1337,7 @@ function montarTabelaRot(){
 }
 function pintarRotatividade(kw){
   const r = rotativ(kw);
-  document.getElementById('r-kwh').textContent  = CARGA_KWH + ' kWh';
+  document.getElementById('r-kwh').textContent  = cargaKwh() + ' kWh';
   document.getElementById('r-t1').textContent   = minTxt(r.min1);
   document.getElementById('r-t2').textContent   = minTxt(r.min2);
   document.getElementById('r-cap').textContent  = r.cap;
@@ -1316,12 +1349,28 @@ function setConfig(){
   const kw = document.getElementById('s-config').value;
   const c  = CONFIGS[kw];
   const sl = document.getElementById('s-carros');
-  sl.max = c.max;
-  sl.value = c.base;                    // ancora no cenário realista, não no teto
-  document.getElementById('s-carros-max').textContent = c.max;
+  // TETO DO SLIDER = o menor entre o teto comercial da configuração e o que a
+  // máquina aguenta na régua escolhida. Na rodovia cada carro leva 35 kWh e ocupa
+  // quase o dobro do bico: sem este mínimo o lead simularia 30 carros/dia num
+  // equipamento que só entrega 27, e o faturamento sairia de um dia que não existe.
+  const teto = rotativ(kw).teto;
+  sl.max = teto;
+  sl.value = Math.min(c.base, teto);    // ancora no cenário realista, não no teto
+  document.getElementById('s-carros-max').textContent = teto;
   document.getElementById('cfg-nota').textContent = c.nota;
   pintarRotatividade(kw);               // a tabela de baixo segue a configuração escolhida
   calc();
+}
+// Trocar cidade/rodovia muda a régua de kWh e, com ela, quantos carros cabem no dia.
+// Por isso reconstrói a tabela inteira antes de reancorar o slider: os dois leem o
+// mesmo rotativ(), e reancorar primeiro deixaria a tabela um passo atrás.
+function setLocal(){
+  const rodovia = document.getElementById('s-local').value === 'rodovia';
+  document.getElementById('local-nota').textContent = rodovia
+    ? 'Na estrada o motorista para porque precisa seguir viagem, e enche mais: cada recarga leva mais tempo e cabem menos carros no dia.'
+    : 'Na cidade o motorista completa o que gastou no dia — recarga mais curta, mais carros no mesmo bico.';
+  montarTabelaRot();
+  setConfig();
 }
 function calc(){
   const p = params(), r = compute(p);
@@ -2363,7 +2412,8 @@ async function gravarAgendamento(){
 montarSlots();
 montarTabelaRot();     // antes do setConfig: é ele quem marca a linha da config escolhida
 montarSelectCarros();  // idem — o calc() do setConfig já pinta o cartão do veículo
-setConfig();      // aplica a config default (80 kW) e calcula
+setLocal();       // régua cidade/rodovia primeiro: é ela que define o teto do slider,
+                  // e o setConfig() sai de dentro dela já com o teto certo
 onPerfil();       // o browser pode restaurar o perfil ao voltar pra página (bfcache)
 onPonto();        // idem pro ponto: sem isto o endereço restaurado ficaria escondido
                   // (e ele chama onRelacao, que reavalia o bloco do endereço)
