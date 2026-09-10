@@ -10,8 +10,9 @@ import { detectAndActivatePromoCredits } from './promoGeradorActivation';
 import { flushAvisoFila, registrarAbandono } from './filaAlerta';
 import { encaminharMidiaAoConsultor, TipoMidia } from '../../io/encaminharMidiaConsultor';
 import { pareceRoboDeles, nossaRespostaJaDesconfiou, marcarRoboDoOutroLado, temRoboAtendendo } from './roboDoOutroLado';
+import { novoAnthropic } from "../../../utils/anthropicClient";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = novoAnthropic();
 const APP_URL = process.env.DASHBOARD_URL || 'https://solardoc.app';
 
 const MAX_HISTORY = 30;

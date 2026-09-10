@@ -5,8 +5,9 @@ import { fmtPhone, sendHuman, sendToGroup, deleteGroupMessage, sendWhatsApp, typ
 import { porBarras } from '../bolhas';
 import { logger } from '../../../utils/logger';
 import { ehFeriadoBR } from '../../../utils/feriadosBR';
+import { novoAnthropic } from "../../../utils/anthropicClient";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = novoAnthropic();
 
 const MAX_HISTORY = 40;
 

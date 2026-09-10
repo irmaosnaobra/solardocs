@@ -1,9 +1,10 @@
 import { Router, Request, Response } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 import { globalLimiter } from '../middleware/rateLimiter';
+import { novoAnthropic } from "../utils/anthropicClient";
 
 const router = Router();
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = novoAnthropic();
 
 const WHATSAPP_LINK = 'https://wa.me/5534998165040';
 

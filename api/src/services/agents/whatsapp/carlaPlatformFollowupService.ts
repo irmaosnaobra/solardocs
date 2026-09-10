@@ -27,10 +27,11 @@ import { registrarMsgProativa } from './whatsappAgentService';
 
 import { carregarCerebro } from '../../io/cerebroAgentes';
 import { DEPOIMENTOS } from '../../../utils/depoimentos';
+import { novoAnthropic } from "../../../utils/anthropicClient";
 // Espaçamento mínimo entre dois envios da Carla no MESMO ciclo (anti-ráfaga).
 const GAP_ENTRE_ENVIOS_MS = 4000;
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = novoAnthropic();
 
 const APP_URL = process.env.DASHBOARD_URL || 'https://solardoc.app';
 

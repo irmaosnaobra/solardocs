@@ -4,6 +4,7 @@ import { supabase } from '../../../utils/supabase';
 import { sendWhatsApp, sendHuman, sendImage, sendDocument, ZapiInstance } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 import { concederCursoPorAssinatura } from '../../kitIntegradorService';
+import { novoAnthropic } from "../../../utils/anthropicClient";
 import {
   lerPixSolicitado, guardarComprovantePendente, limparComprovantePendente,
 } from './pixSolicitado';
@@ -30,7 +31,7 @@ import {
 // reconciliar ele com a Stripe) e corta custo de visão em prints de suporte.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = novoAnthropic();
 
 // AUTO ligado por padrão; desliga com PIX_AUTO_LIBERAR=false (volta pro 1-clique do Thiago).
 const AUTO_LIBERAR = (process.env.PIX_AUTO_LIBERAR ?? 'true').toLowerCase() !== 'false';

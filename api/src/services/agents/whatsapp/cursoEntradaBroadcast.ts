@@ -35,7 +35,8 @@ import { registrarMsgProativa } from './whatsappAgentService';
 import { classificarFalha } from './filaAlerta';
 
 import { carregarCerebro } from '../../io/cerebroAgentes';
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+import { novoAnthropic } from "../../../utils/anthropicClient";
+const anthropic = novoAnthropic();
 
 // OPT-IN EXPLÍCITO, não kill-switch. Disparo em massa não pode começar sozinho
 // só porque um deploy subiu: quem liga é o dono, setando CAMPANHA_CURSO19_ON=true

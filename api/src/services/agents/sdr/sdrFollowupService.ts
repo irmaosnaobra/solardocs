@@ -4,8 +4,9 @@ import { sendHuman, type ZapiInstance } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 import { isLumaWorkingNow } from './sdrAgentService';
 import { detectarRecusaNaUltimaMsg } from './detectarRecusa';
+import { novoAnthropic } from "../../../utils/anthropicClient";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = novoAnthropic();
 
 // Cadência de 10 dias em 7 toques. Cron passa por TODOS os leads diariamente
 // e decide se vale enviar — respeitando intervalo mínimo desde último toque.

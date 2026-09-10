@@ -13,6 +13,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { logger } from '../../utils/logger';
+import { novoAnthropic } from "../../utils/anthropicClient";
 
 const LOG = 'prospeccao-brief';
 const MODELO = 'claude-sonnet-4-6';           // mesmo modelo do resto da casa
@@ -178,7 +179,7 @@ export async function montarBusca(brief: string): Promise<PlanoBusca> {
     throw new Error('ANTHROPIC_API_KEY não configurada no servidor — monte a busca pelos filtros');
   }
 
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const anthropic = novoAnthropic();
   const resp = await anthropic.messages.create({
     model: MODELO,
     max_tokens: 1200,

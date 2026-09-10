@@ -15,9 +15,10 @@ import { z } from 'zod';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
+import { novoAnthropic } from "../../utils/anthropicClient";
 
 const LOG = 'prospeccao-resposta';
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = novoAnthropic();
 
 // Kill-switch. Sem ele, a única forma de parar a cabeça seria tirar a chave —
 // e tirar a chave derruba os outros agentes junto.

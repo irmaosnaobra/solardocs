@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import Anthropic from '@anthropic-ai/sdk';
+import { novoAnthropic } from "../utils/anthropicClient";
 
 // ══════════════════════════════════════════════════════════════════════════
 // APRESENTAÇÃO — LEITURA DOS ANEXOS
@@ -113,7 +114,7 @@ const CAMPOS = {
 export async function extrairApresentacao(req: Request, res: Response): Promise<void> {
   try {
     const { arquivos } = bodySchema.parse(req.body);
-    const cli = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const cli = novoAnthropic();
 
     const conteudo: any[] = [];
     arquivos.forEach((a, i) => {

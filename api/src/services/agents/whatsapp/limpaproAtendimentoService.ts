@@ -39,8 +39,9 @@ import { phoneVariants, ehLeadRecuperacao } from './biaInboundService';
 import { carregarCerebro } from '../../io/cerebroAgentes';
 import { logger } from '../../../utils/logger';
 import { silenciarContato } from './silenciar';
+import { novoAnthropic } from "../../../utils/anthropicClient";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = novoAnthropic();
 const INSTANCE = 'io' as const;
 const MODEL = 'claude-sonnet-4-6';
 const MAX_HISTORY = 30;

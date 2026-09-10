@@ -3,8 +3,9 @@ import { supabase } from '../../../utils/supabase';
 import { sendHuman } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 import { detectarRecusaNaUltimaMsg } from './detectarRecusa';
+import { novoAnthropic } from "../../../utils/anthropicClient";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = novoAnthropic();
 
 // Cadência B2B SolarDoc — Carla. Ciclo de venda mais longo que B2C: integrador
 // avalia ferramenta, conversa com sócio, testa em 1 cliente. Cadência aberta:

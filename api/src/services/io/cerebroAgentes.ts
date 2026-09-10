@@ -20,8 +20,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
+import { novoAnthropic } from "../../utils/anthropicClient";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = novoAnthropic();
 
 export type CerebroId = 'bia' | 'giovanna' | 'curso19' | 'atendimento_limpapro';
 

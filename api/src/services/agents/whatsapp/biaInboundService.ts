@@ -28,8 +28,9 @@ import { tryClaimMessage } from '../sdr/sdrAgentService';
 import { carregarCerebro } from '../../io/cerebroAgentes';
 import { logger } from '../../../utils/logger';
 import { silenciarContato } from './silenciar';
+import { novoAnthropic } from "../../../utils/anthropicClient";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = novoAnthropic();
 // Recuperação sai pela MESMA linha IO (decisão Thiago). Roteamento seguro: a Bia só
 // fala com quem ELA abordou (tem sessão tipo='recuperacao'); o resto da linha é humano.
 const INSTANCE = 'io' as const;

@@ -8,8 +8,9 @@ import {
   ATENDENTE_PROMPT_KEY, PROMPT_PADRAO, numerosVivos, resolverPlaceholders,
 } from '../whatsapp/atendenteAnuncioPrompt';
 import { parseAcoesCarla, pecaDaTag, blocoDeAcoes, BOLHAS_CARLA } from './carlaAcoes';
+import { novoAnthropic } from "../../../utils/anthropicClient";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = novoAnthropic();
 
 const APP_URL = process.env.DASHBOARD_URL || 'https://solardoc.app';
 const API_URL = process.env.API_URL || 'https://api.solardoc.app';

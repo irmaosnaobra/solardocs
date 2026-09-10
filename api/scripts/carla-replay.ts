@@ -26,8 +26,9 @@ import fs from 'fs';
 import path from 'path';
 import { blocoDeAcoes, parseAcoesCarla, BOLHAS_CARLA } from '../src/services/agents/sdr/carlaAcoes';
 import { emBolhas } from '../src/services/agents/bolhas';
+import { novoAnthropic } from "../src/utils/anthropicClient";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = novoAnthropic();
 // As conversas vêm de um JSON exportado, não do banco: a chave do .env local é
 // legacy e o Supabase já as desabilitou ("Legacy API keys are disabled"). Só a
 // produção tem chave nova. Ler de arquivo também deixa o replay determinístico.

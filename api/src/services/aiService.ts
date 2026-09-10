@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 import { getPrompt } from '../prompts/documentPrompts';
+import { novoAnthropic } from "../utils/anthropicClient";
 
 interface Company {
   nome: string;
@@ -39,7 +40,7 @@ export async function generateDocumentWithAI(
   }
 
   if (process.env.ANTHROPIC_API_KEY) {
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const anthropic = novoAnthropic();
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 4000,

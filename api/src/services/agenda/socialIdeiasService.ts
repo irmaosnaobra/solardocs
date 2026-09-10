@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { rodarBateria, montaFeedback, ResultadoBateria } from './roteiroBateria';
+import { novoAnthropic } from "../../utils/anthropicClient";
 
 // IA de conteúdo da aba "Redes" do /gerador. Duas frentes que compartilham
 // o MESMO core (client Anthropic + extração de JSON):
@@ -9,7 +10,7 @@ import { rodarBateria, montaFeedback, ResultadoBateria } from './roteiroBateria'
 //   2) roteirizarTema      — pega 1 tema-isca e gera roteiro no DNA viral (estúdio)
 // Ambas dependem de créditos Anthropic (ANTHROPIC_API_KEY já no ambiente).
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = novoAnthropic();
 const MODEL = 'claude-sonnet-4-6';
 
 // ─── DNA viral decodificado de criadores reais (referência do roteirizador) ──

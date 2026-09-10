@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import Anthropic from '@anthropic-ai/sdk';
+import { novoAnthropic } from "../utils/anthropicClient";
 
 // ── Escanear Conta ─────────────────────────────────────────────────
 // Recebe uma foto/PDF da conta de luz, extrai os dados via Claude vision
@@ -215,7 +216,7 @@ export async function scanConta(req: Request, res: Response): Promise<void> {
 
   let raw: RawExtraction;
   try {
-    const anthropic = new Anthropic({ apiKey });
+    const anthropic = novoAnthropic(apiKey);
     const response = await anthropic.messages.create({
       model: VISION_MODEL,
       max_tokens: 1024,
@@ -370,7 +371,7 @@ export async function scanDocumento(req: Request, res: Response): Promise<void> 
 
   let raw: RawDoc;
   try {
-    const anthropic = new Anthropic({ apiKey });
+    const anthropic = novoAnthropic(apiKey);
     const response = await anthropic.messages.create({
       model: VISION_MODEL,
       max_tokens: 1024,

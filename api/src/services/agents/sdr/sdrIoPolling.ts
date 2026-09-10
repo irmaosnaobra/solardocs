@@ -28,8 +28,9 @@ import { EQUIPE } from '../../../routes/ioEletroposto';
 import { respostaDeCampanhaPonto, avisoDeResposta } from '../../io/pesquisaPontoRespostas';
 import { passoDoConvite } from '../../io/eletropostoConviteInvestidor';
 import { quandoPorExtenso } from '../../io/eletropostoAgenda';
+import { novoAnthropic } from "../../../utils/anthropicClient";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = novoAnthropic();
 
 const FRASE_PADRAO_ANUNCIO = 'Olá! Tenho interesse e queria mais informações, por favor.';
 

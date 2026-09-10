@@ -15,6 +15,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { Plano, Meio } from './asaasCobrancas';
 import { logger } from '../../utils/logger';
+import { novoAnthropic } from "../../utils/anthropicClient";
 
 const LOG = 'cobranca-brief';
 const MODELO = 'claude-sonnet-4-6';    // mesmo modelo do resto da casa
@@ -81,7 +82,7 @@ export async function montarPlanoCobranca(texto: string): Promise<Plano> {
     throw new Error('ANTHROPIC_API_KEY não configurada no servidor — preencha os campos na mão');
   }
 
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const anthropic = novoAnthropic();
   const resp = await anthropic.messages.create({
     model: MODELO,
     max_tokens: 900,

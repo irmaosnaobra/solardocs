@@ -13,8 +13,9 @@ import { supabase } from '../../../utils/supabase';
 import { logger } from '../../../utils/logger';
 import { sendToGroup, type ZapiInstance } from '../zapiClient';
 import { criarCardAgendamento } from './sdrAgentService';
+import { novoAnthropic } from "../../../utils/anthropicClient";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = novoAnthropic();
 
 const MAX_GROUP_HISTORY = 30;
 

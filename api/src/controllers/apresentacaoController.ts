@@ -4,6 +4,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import chromium from '@sparticuz/chromium-min';
 import puppeteer from 'puppeteer-core';
 import { PDFDocument } from 'pdf-lib';
+import { novoAnthropic } from "../utils/anthropicClient";
 
 // ══════════════════════════════════════════════════════════════════════════
 // APRESENTAÇÃO DE PROJETO — MONTAGEM AUTOMÁTICA
@@ -213,7 +214,7 @@ const ESPACOS = [
 
 // ── a IA ──────────────────────────────────────────────────────────────────
 async function pensar(body: z.infer<typeof bodySchema>, calc: ReturnType<typeof computeEletro>) {
-  const cli = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const cli = novoAnthropic();
 
   const conteudo: Anthropic.MessageParam['content'] = [];
   body.arquivos.forEach((a, i) => {

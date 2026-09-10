@@ -2,13 +2,14 @@ import Anthropic from '@anthropic-ai/sdk';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { dispararVideoProduto, temHiggsfield } from './higgsfieldService';
+import { novoAnthropic } from "../../utils/anthropicClient";
 
 // MÁQUINA 2 do Estúdio: produtos virais do TikTok Shop → roteiro AIDA pra conta
 // de afiliados (separada do solar). Fonte: SociaVault Shop Search por categoria
 // (popular-videos da SociaVault é instável — depende do TikTok Creative Center).
 // Cron 9h busca categorias, pega os mais vendidos, roteiriza, grava na fila.
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = novoAnthropic();
 const MODEL = 'claude-sonnet-4-6';
 const SOCIAVAULT = 'https://api.sociavault.com/v1/scrape';
 const SV_KEY = process.env.SOCIAVAULT_API_KEY || '';

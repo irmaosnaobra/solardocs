@@ -42,8 +42,9 @@ import { sendHuman } from '../zapiClient';
 import { dentroDoTetoHorarioLinha, dentroDaJanelaDiurna } from '../whatsapp/lineThrottle';
 import { carregarBloqueioProativo } from '../../io/ioSend';
 import { BOLHAS_CARLA } from './carlaAcoes';
+import { novoAnthropic } from "../../../utils/anthropicClient";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = novoAnthropic();
 
 export const RETOMADA_PREFIX = 'carla_retomada:';
 

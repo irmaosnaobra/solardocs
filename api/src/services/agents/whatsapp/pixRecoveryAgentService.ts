@@ -25,8 +25,9 @@ import { gerarPixCopiaECola } from '../../../utils/pixBrCode';
 import { bolhasPixCheckout, pixAutomatico } from '../../../utils/pixInfo';
 import { bolhasPix, registrarPixEnviado, guardarEmailSePendente } from './pixSolicitado';
 import { registrarMsgProativa } from './whatsappAgentService';
+import { novoAnthropic } from "../../../utils/anthropicClient";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const anthropic = novoAnthropic();
 
 // Pix sob demanda = um mês do plano completo. NÃO é o cupom: o desconto de
 // primeiro mês vive no cartão (é um `coupon` da Stripe na assinatura) e R$ 19 no

@@ -17,6 +17,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
 import { carregarSilenciados, carregarMudos } from '../agents/whatsapp/silenciar';
+import { novoAnthropic } from "../../utils/anthropicClient";
 
 export type MediaType = 'image' | 'video' | 'audio';
 
@@ -28,7 +29,7 @@ export function sleep(ms: number): Promise<void> {
 export async function humanizar(base: string, contexto: string | null): Promise<string> {
   const key = process.env.ANTHROPIC_API_KEY?.trim();
   if (!key) return base;
-  const anthropic = new Anthropic({ apiKey: key });
+  const anthropic = novoAnthropic(key);
   const ctx = (contexto || '').trim();
   const systemPrompt = [
     'Voce reformula uma mensagem-base do WhatsApp para soar como um humano brasileiro real escrevendo, nao como robo.',

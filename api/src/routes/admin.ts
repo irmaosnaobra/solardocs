@@ -18,6 +18,7 @@ import {
 } from '../services/io/nota1Funil';
 import * as pc from '../services/io/pontoCertoFunil';
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
+import { novoAnthropic } from "../utils/anthropicClient";
 import {
   ATENDENTE_PROMPT_KEY, PROMPT_PADRAO, PLACEHOLDERS, numerosVivos, resolverPlaceholders,
 } from '../services/agents/whatsapp/atendenteAnuncioPrompt';
@@ -1803,7 +1804,7 @@ router.get('/sdr-leads/:phone/insights', async (req: Request, res: Response) => 
     ).join('\n');
 
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const anthropic = novoAnthropic();
     const r = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 400,
@@ -1948,7 +1949,7 @@ router.post('/io/humanize', async (req: Request, res: Response): Promise<void> =
     const key = process.env.ANTHROPIC_API_KEY?.trim();
     if (!key) { res.status(500).json({ error: 'ANTHROPIC_API_KEY nao configurado' }); return; }
 
-    const anthropic = new Anthropic({ apiKey: key });
+    const anthropic = novoAnthropic(key);
     const ctx = (context || '').trim();
     const systemPrompt = [
       'Voce reformula uma mensagem-base do WhatsApp para soar como um humano brasileiro real escrevendo, nao como robo.',
