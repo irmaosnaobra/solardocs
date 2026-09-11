@@ -493,7 +493,8 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
       // pra `handleSdrLead`, cuja primeira linha é `if (instance === 'io') return`
       // — ou seja, caía no vazio, e 117 pessoas em 30 dias escreveram sem receber
       // resposta nenhuma. Agora a recepção atende, descobre o que a pessoa quer e
-      // chama o humano certo. Ela só age com RECEPCAO_IO_ATIVA=1.
+      // chama o humano certo. Ela só age com a chave `recepcao_io:ativa` ligada
+      // em `system_state`, e o freio de mão é RECEPCAO_IO_OFF=1.
       await handleRecepcaoIo(String(phone), finalText, body.senderName || body.pushname);
     } catch (err) {
       console.error('[webhook:io] handleRecepcaoIo falhou:', err);

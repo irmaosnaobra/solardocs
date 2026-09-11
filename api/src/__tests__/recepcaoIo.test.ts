@@ -21,6 +21,7 @@ let sessoes: Record<string, any> = {};
 let leads: any[] = [];
 let respostaIA = '';
 let chamadasIA = 0;
+let chaveLigada = true;
 
 const chaveSessao = (phone: string, tipo: string) => `${String(phone).replace(/\D/g, '')}|${tipo}`;
 
@@ -39,6 +40,9 @@ vi.mock('../utils/supabase', () => ({
       let patch: any = null;
 
       const buscarUm = () => {
+        if (tabela === 'system_state') {
+          return f.key === 'recepcao_io:ativa' ? { value: { ativa: chaveLigada } } : null;
+        }
         if (tabela === 'whatsapp_sessions') {
           return f.variantes ? acharSessao(f.variantes, f.tipo) : null;
         }
@@ -144,8 +148,9 @@ function jsonIA(resposta: string, produto: string | null = null, motivo: string 
 }
 
 async function carregar(ativa = true) {
-  vi.resetModules();
-  process.env.RECEPCAO_IO_ATIVA = ativa ? '1' : '';
+  vi.resetModules();          // zera o cache de 60s da chave entre os testes
+  chaveLigada = ativa;
+  delete process.env.RECEPCAO_IO_OFF;
   return import('../services/io/recepcaoIo');
 }
 
@@ -156,18 +161,31 @@ beforeEach(() => {
   leads = [];
   respostaIA = '';
   chamadasIA = 0;
+  chaveLigada = true;
   vereditoRobo = { nivel: 'nenhum' };
   temRobo = false;
   silenciados = [];
 });
 
 describe('recepção da linha IO', () => {
-  it('sai desligada: sem RECEPCAO_IO_ATIVA=1 não fala com ninguém', async () => {
+  it('sai desligada: sem a chave no system_state não fala com ninguém', async () => {
     const { handleRecepcaoIo } = await carregar(false);
     respostaIA = jsonIA('Oi! Como posso ajudar?');
     await handleRecepcaoIo(LEAD, 'Bom dia');
     expect(enviadasAoLead).toHaveLength(0);
     expect(chamadasIA).toBe(0);
+  });
+
+  it('RECEPCAO_IO_OFF=1 é freio de mão: cala sem nem consultar o banco', async () => {
+    const { handleRecepcaoIo } = await carregar(true);   // chave LIGADA no banco
+    process.env.RECEPCAO_IO_OFF = '1';
+    respostaIA = jsonIA('Oi!');
+
+    await handleRecepcaoIo(LEAD, 'Bom dia');
+
+    expect(enviadasAoLead).toHaveLength(0);
+    expect(chamadasIA).toBe(0);
+    delete process.env.RECEPCAO_IO_OFF;
   });
 
   it('cumprimento puro: responde, pergunta o motivo e SEGURA a conversa', async () => {

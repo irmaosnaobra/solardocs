@@ -58,14 +58,43 @@ const anthropic = novoAnthropic();
 /** Tipo da sessão que marca posse da conversa. Casa com `whatsapp_sessions.tipo`. */
 export const TIPO_SESSAO = 'recepcao_io';
 
+/** Onde mora a chave. `system_state` é o padrão da casa e dispensa migration. */
+const CHAVE_ATIVA = 'recepcao_io:ativa';
+
+// Cache curto porque isto é lido em toda mensagem que entra na linha. 60s é o
+// mesmo número do cérebro das agentes: virar a chave vale em um minuto, e não
+// custa uma consulta por mensagem.
+const CACHE_MS = 60 * 1000;
+let cacheAtiva: { valor: boolean; ate: number } | null = null;
+
 /**
- * Liga/desliga sem deploy. Sai desligada: ninguém acorda com robô novo na linha.
+ * Liga/desliga sem deploy E sem mexer na Vercel.
  *
- * Lida A CADA CHAMADA, não no topo do módulo. `const` no topo congela o valor no
- * boot da função serverless, e aí virar a chave na Vercel só passa a valer no
- * próximo deploy frio — kill-switch que depende de deploy não é kill-switch.
+ * A chave vive no banco, não em variável de ambiente, por um motivo prático: env
+ * nova na Vercel só passa a valer depois de um redeploy, e quem precisa calar um
+ * robô que está falando errado com cliente não pode depender de build. Uma linha
+ * em `system_state` vale no minuto seguinte.
+ *
+ * `RECEPCAO_IO_OFF=1` continua existindo como freio de mão: desliga na marra,
+ * sem consultar nada, pra quando o banco é justamente o problema.
+ *
+ * Falha de leitura NÃO liga por engano: sem cache válido, o padrão é desligada.
  */
-const ligada = (): boolean => (process.env.RECEPCAO_IO_ATIVA || '').trim() === '1';
+async function ligada(): Promise<boolean> {
+  if ((process.env.RECEPCAO_IO_OFF || '').trim() === '1') return false;
+  if (cacheAtiva && cacheAtiva.ate > Date.now()) return cacheAtiva.valor;
+
+  try {
+    const { data } = await supabase
+      .from('system_state').select('value').eq('key', CHAVE_ATIVA).maybeSingle();
+    const valor = ((data?.value ?? {}) as { ativa?: boolean }).ativa === true;
+    cacheAtiva = { valor, ate: Date.now() + CACHE_MS };
+    return valor;
+  } catch (err) {
+    logger.error('recepcao-io', 'leitura da chave de ativação falhou — fica desligada', err);
+    return cacheAtiva?.valor ?? false;
+  }
+}
 
 /** Teto de trocas antes de entregar pro humano na marra. Triagem não é conversa. */
 const MAX_TURNOS = 4;
@@ -384,7 +413,7 @@ export async function handleRecepcaoIo(
   texto: string,
   senderName?: string | null,
 ): Promise<void> {
-  if (!ligada()) return;
+  if (!(await ligada())) return;
 
   const phone = soDigitos(phoneBruto);
   const msg = String(texto || '').trim();
@@ -473,7 +502,7 @@ export async function handleRecepcaoIo(
  * avisar, então a execução seguinte não repete o aviso.
  */
 export async function entregarTriagensParadas(minutos = 120): Promise<{ entregues: number }> {
-  if (!ligada()) return { entregues: 0 };
+  if (!(await ligada())) return { entregues: 0 };
 
   const corte = new Date(Date.now() - minutos * 60 * 1000).toISOString();
   // O filtro de estado vai no BANCO, não em JS depois do `.limit(20)`. Sessão

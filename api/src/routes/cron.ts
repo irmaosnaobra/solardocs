@@ -369,7 +369,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       runCarlaSemCnpjFollowup(),       // Giovanna: 3 toques em 30d
       runCarlaInativoFollowup(),       // Giovanna: 5 toques em 60d
       runEletropostoAlerta10minTick(), // eletroposto: 10 min antes da reunião CONFIRMADA, alerta no WhatsApp do consultor dono (EP_ALERTA_10MIN_OFF desliga)
-      entregarTriagensParadas(),       // recepção da linha IO: triagem parada há 2h vai pro humano do jeito que está (exige RECEPCAO_IO_ATIVA=1)
+      entregarTriagensParadas(),       // recepção da linha IO: triagem parada há 2h vai pro humano do jeito que está (chave em system_state recepcao_io:ativa)
     ]);
     res.json({
       ok: true,
