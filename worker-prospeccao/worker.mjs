@@ -55,6 +55,10 @@ const CFG = {
   // do dia, não o espaço entre uma mensagem e outra.
   minSeg:     Number(process.env.MIN_SEG || 240),   //  4 min
   maxSeg:     Number(process.env.MAX_SEG || 900),   // 15 min
+  // O máximo que ela espera entre uma mensagem e outra, por mais vazio que o
+  // teto esteja. Existe pra a conta de espalhar não virar gotejamento: com 6
+  // mensagens sobrando e 20 horas pela frente, sem teto daria 3h20 de intervalo.
+  tetoEspera: Number(process.env.TETO_ESPERA || 2700),   // 45 min
   // De quanto em quanto tempo ela olha se alguém respondeu. LER é de graça e
   // não tem risco nenhum — o que custa é enviar. Então ela olha o tempo todo.
   olharSeg:   Number(process.env.OLHAR_SEG || 150), // 2min30
@@ -1186,20 +1190,46 @@ async function modoContinuo() {
           try { desfecho = await umaAbordagem(); }
           catch (e) { log('abordagem falhou: ' + e.message); }
 
-          // Três desfechos, três esperas. Antes eram dois, e por isso um perfil
-          // morto custava 15 minutos de silêncio: ela tratava "falhei com este"
-          // igual a "não tem ninguém pra falar".
-          //   enviou  intervalo humano de 4 a 15 min, sorteado
+          // Três desfechos, três esperas:
+          //   enviou  o dia inteiro dividido pelo que falta (ver abaixo)
           //   falhou  90s e vai pro PRÓXIMO da fila. Não gastou mensagem nem
           //           incomodou ninguém, então não há o que esperar. Uma sequência
           //           de @ mortos custaria horas no ritmo antigo
           //   vazio   15 min, porque insistir em fila vazia só gasta consulta
-          const faixa = CFG.maxSeg - CFG.minSeg;
-          const espera = desfecho === 'enviou'
-            ? CFG.minSeg + Math.floor(faixa * ((Date.now() % 1013) / 1013))
-            : desfecho === 'falhou' ? 90 : 900;
-          proximaAbordagem = Date.now() + espera * 1000;
+          //
+          // O ENVIO SE ESPALHA PELO DIA, não sai em rajada.
+          //
+          // Com intervalo fixo de 4 a 15 min ela gastava o teto do dia inteiro
+          // numa hora: em 11/09 foram 6 mensagens entre 11h44 e 12h56, e depois
+          // 23 horas de silêncio. Isso é o retrato do robô — gente não manda 6
+          // mensagens numa hora e some até o dia seguinte — e ainda concentra
+          // tudo num horário só, em vez de pegar quem está online de manhã E de
+          // tarde.
+          //
+          // Então o espaçamento nasce da conta: quanto falta do dia dividido
+          // pelo que falta do teto. Com 6 restando e 12 horas pela frente, dá
+          // 2 horas entre uma e outra. Com 25 restando, dá 29 minutos.
+          // O piso de MIN_SEG continua valendo: teto grande e dia curto nunca
+          // viram rajada.
           const t2 = await travas();
+          let espera;
+          if (desfecho !== 'enviou') {
+            espera = desfecho === 'falhou' ? 90 : 900;
+          } else {
+            const fim = new Date();
+            if (CFG.horaIni === 0 && CFG.horaFim === 24) fim.setTime(Date.now() + 86400_000);
+            else fim.setHours(CFG.horaFim, 0, 0, 0);
+            const sobramSeg = Math.max(60, Math.floor((fim - new Date()) / 1000));
+            const sobramMsg = Math.max(1, t2.restam);
+            const ideal = Math.floor(sobramSeg / sobramMsg);
+            // +-25% pra não sair de metrônomo, que é o outro jeito de parecer robô
+            const jitter = 0.75 + 0.5 * ((Date.now() % 1013) / 1013);
+            // TETO no espaçamento, senão a conta cai no extremo oposto: com 6
+            // mensagens e 20 horas pela frente daria 3h20 entre uma e outra, e
+            // aí qualquer queda de 4 horas queima os slots do dia inteiro.
+            // 45 min espalha as 6 por umas 4 horas: nem rajada, nem gotejamento.
+            espera = Math.min(CFG.tetoEspera, Math.max(CFG.minSeg, Math.floor(ideal * jitter)));
+          }
           log(`${t2.usados}/${t2.teto} abordagens · ${t2.respostas} respostas hoje`
             + ` · próxima abordagem em ${Math.round(espera / 60)} min`);
           ultimoErro = null;   // uma volta inteira sem tropeço limpa o histórico
