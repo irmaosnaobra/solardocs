@@ -44,10 +44,16 @@ const CFG = {
   // o custo por empresa encontrada sobe.
   popMin: Number(arg('pop', 100000)),
   porBusca: Number(arg('por-busca', 60)),
-  // Teto de gasto por rodada, em dólar. Cinto de segurança: erro de laço aqui
-  // custa dinheiro de verdade, não só tempo.
-  tetoUsd: Number(arg('teto', 5)),
+  // Teto por BUSCA, repassado ao Apify. Segura o caso de uma cidade devolver
+  // muito mais do que o esperado.
+  tetoUsd: Number(arg('teto', 1)),
+  // Teto da RODADA INTEIRA. Este é o que protege a carteira: o de cima vale por
+  // busca, e 60 buscas a 1 dólar cada seriam 60 dólares. Aqui a conta é somada e
+  // a colheita PARA quando chega no limite.
+  orcamento: Number(arg('orcamento', 10)),
 };
+
+let gastoAcumulado = 0;
 
 const TERMOS = ['energia solar', 'energia fotovoltaica'];
 const H = { apikey: CFG.key, Authorization: `Bearer ${CFG.key}`, 'Content-Type': 'application/json' };
@@ -201,14 +207,23 @@ async function main() {
     return;
   }
 
+  log(`orçamento desta rodada: US$ ${CFG.orcamento.toFixed(2)} (paro sozinho ao chegar lá)`);
   let totalNovos = 0, totalArroba = 0, totalLugares = 0;
   for (const c of alvo) {
+    if (gastoAcumulado >= CFG.orcamento) {
+      log(`parei em ${c.nome}: cheguei no orçamento de US$ ${CFG.orcamento.toFixed(2)}`);
+      break;
+    }
     let daCidade = [];
     for (const termo of TERMOS) {
       try {
         const r = await rodarBusca(c, termo);
         daCidade = daCidade.concat(r || []);
-        log(`  ${c.nome}/${c.uf} · "${termo}": ${(r || []).length} lugares`);
+        // O Apify cobra por lugar RASPADO, não por único: a conta soma o que
+        // veio de cada busca, mesmo o que depois vira duplicata.
+        gastoAcumulado += custoDe((r || []).length);
+        log(`  ${c.nome}/${c.uf} · "${termo}": ${(r || []).length} lugares`
+          + ` · gasto até aqui US$ ${gastoAcumulado.toFixed(2)}`);
       } catch (e) {
         log(`  ${c.nome}/${c.uf} · "${termo}" falhou: ${e.message}`);
         if (/FATURA/.test(e.message)) return;   // não adianta insistir
@@ -231,7 +246,7 @@ async function main() {
   console.log('');
   console.log(`  ${alvo.length} cidades · ${totalLugares} empresas vistas · ${totalNovos} novas na base`);
   console.log(`  ${totalArroba} vieram com o @ do Instagram (${totalLugares ? Math.round(100 * totalArroba / totalLugares) : 0}%)`);
-  console.log(`  custo estimado: US$ ${custoDe(totalLugares).toFixed(2)}`);
+  console.log(`  custo real da rodada: US$ ${gastoAcumulado.toFixed(2)} (o Apify cobra por lugar raspado, não por único)`);
   console.log('');
 }
 
