@@ -2,8 +2,8 @@
 name: nao-commitar-a-arvore-inteira
 enabled: true
 event: bash
-action: warn
-pattern: git\s+add\s+(-A|--all|\.)(\s|$)|git\s+commit\s+.*-a(m|\s|$)
+action: block
+pattern: (?:^|[;&|\n]\s*)git\s+add\s+(-A|--all|\.)(\s|$)|(?:^|[;&|\n]\s*)git\s+commit\s+-[a-z]*a[a-z]*(\s|$)
 ---
 
 **Stage por caminho explícito, não a árvore toda.**

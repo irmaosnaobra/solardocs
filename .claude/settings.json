@@ -1,5 +1,14 @@
 {
   "permissions": {
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git reset --hard:*)"
+    ],
+    "ask": [
+      "Bash(rm -rf:*)",
+      "Bash(psql:*)"
+    ],
     "allow": [
       "Edit(/.claude/skills/criador-gerador-proposta/**)",
       "Bash(node -e ' *)",
