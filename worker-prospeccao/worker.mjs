@@ -58,7 +58,15 @@ const CFG = {
   // De quanto em quanto tempo ela olha se alguém respondeu. LER é de graça e
   // não tem risco nenhum — o que custa é enviar. Então ela olha o tempo todo.
   olharSeg:   Number(process.env.OLHAR_SEG || 150), // 2min30
-  horaIni:    Number(process.env.HORA_INI || 7),
+  // JANELA DE 24 HORAS. Quem recebe de madrugada le e responde de manha — o
+  // computador fica ligado, entao nao ha motivo pra ela dormir.
+  //
+  // Isso NAO aumenta o volume: quem limita quantas mensagens saem por dia e o
+  // teto (prospeccao_teto_hoje), nao o relogio. Espalhar o mesmo teto em 24h em
+  // vez de 17h baixa as mensagens por hora, nao sobe.
+  //
+  // horaIni=0 e horaFim=24 desligam as duas pontas da guarda de janela.
+  horaIni:    Number(process.env.HORA_INI || 0),
   horaFim:    Number(process.env.HORA_FIM || 24),
 };
 
@@ -840,7 +848,9 @@ async function descobrir(aba) {
 // tarde. Isso é o oposto de metrônomo, que é o que denuncia robô.
 async function modoContinuo() {
   console.log('\n  MODO CONTÍNUO — trabalha sozinho das '
-    + CFG.horaIni + 'h às ' + (CFG.horaFim === 24 ? '23h59' : CFG.horaFim + 'h') + '.');
+    + (CFG.horaIni === 0 && CFG.horaFim === 24
+        ? '24 horas por dia, sem parar'
+        : CFG.horaIni + 'h às ' + (CFG.horaFim === 24 ? '23h59' : CFG.horaFim + 'h')) + '.');
   console.log('  Aborda de ' + Math.round(CFG.minSeg / 60) + ' a ' + Math.round(CFG.maxSeg / 60) + ' min.');
   if (CANAL === 'instagram') {
     console.log('  Quem RESPONDE e o webhook da Meta, no servidor — nao este worker.');
@@ -953,7 +963,8 @@ async function main() {
   const t0 = await travas();
   log(`conta ${CFG.consultor} · assina como "${CFG.assinatura}" · teto ${t0.usados}/${t0.teto} · opt-out ${t0.taxa}% (${t0.estado})`);
   if (t0.porque) log(`  ${t0.porque}`);
-  log(`  janela ${CFG.horaIni}h–${CFG.horaFim === 24 ? '23h59' : CFG.horaFim + 'h'}`);
+  log('  janela ' + (CFG.horaIni === 0 && CFG.horaFim === 24
+    ? '24h por dia' : `${CFG.horaIni}h–${CFG.horaFim === 24 ? '23h59' : CFG.horaFim + 'h'}`));
   if (t0.estado === 'travado') {
     log('DISJUNTOR ARMADO — a fila está travada por opt-out alto. Nada será enviado.');
     log('Troque a abertura e recomece por uma lista nova antes de voltar.');
@@ -1034,7 +1045,12 @@ async function main() {
     // o worker anda devagar; entrou tarde e ele acelera ate o piso. Ninguem
     // precisa escolher "quantos segundos entre mensagens": a janela e o teto
     // ja respondem isso, e a resposta e sempre a MENOR densidade possivel.
-    const fimJanela = new Date(); fimJanela.setHours(CFG.horaFim, 0, 0, 0);
+    // Com janela de 24h nao existe "fim do expediente": o horizonte e sempre as
+    // proximas 24h. Sem isto, as 23h50 ela acharia que sobram 10 minutos pra
+    // gastar o teto inteiro e despejaria tudo de uma vez.
+    const fimJanela = new Date();
+    if (CFG.horaIni === 0 && CFG.horaFim === 24) fimJanela.setTime(Date.now() + 86400_000);
+    else fimJanela.setHours(CFG.horaFim, 0, 0, 0);
     const sobramSeg = Math.max(60, Math.floor((fimJanela - new Date()) / 1000));
     const sobramMsg = Math.max(1, (await travas()).restam);
     const ideal = Math.floor(sobramSeg / sobramMsg);

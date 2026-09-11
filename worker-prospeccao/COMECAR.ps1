@@ -101,7 +101,7 @@ if ($valendo) {
 }
 Write-Host ''
 Write-Host "  Conta:  $env:CONSULTOR   (assina como $env:NOME)"
-Write-Host '  Janela: 07:00 as 23:59'
+Write-Host '  Janela: 24 horas por dia (o teto do dia e que limita, nao o relogio)'
 Write-Host '  Radar:  https://solardoc.app/gerador/radar/' -ForegroundColor Cyan
 Write-Host ''
 Write-Host '  DEIXE ESTA JANELA ABERTA. Ctrl+C para parar.' -ForegroundColor Yellow
