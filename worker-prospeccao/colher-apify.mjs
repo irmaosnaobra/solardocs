@@ -101,12 +101,20 @@ function arrobaDe(p) {
     p.instagram,
     ...(Array.isArray(p.socialMedia?.instagram) ? p.socialMedia.instagram : []),
     p.socialMedia?.instagram,
+    // O CAMPO "SITE" AS VEZES É O PRÓPRIO INSTAGRAM.
+    // Empresa sem site cadastra o perfil como site no Google Maps. O colhedor
+    // antigo tratava isso como site de verdade: baixava instagram.com, recebia
+    // o muro de login (626 KB iguais pra perfil real e pra @ inventado) e
+    // marcava a ficha como fracasso. Eram 47 empresas alcançáveis paradas na
+    // base por causa disso. Olhar aqui custa zero e é o primeiro lugar a olhar.
+    p.website,
   ].filter(x => typeof x === 'string');
   for (const c of candidatos) {
     const m = c.match(/instagram\.com\/([A-Za-z0-9._]{3,30})/i) || c.match(/^@?([A-Za-z0-9._]{3,30})$/);
     if (!m) continue;
     const u = m[1].toLowerCase();
-    if (['p', 'reel', 'reels', 'explore', 'stories', 'accounts'].includes(u)) continue;
+    // Caminho do próprio Instagram não é perfil de ninguém.
+    if (['p', 'reel', 'reels', 'explore', 'stories', 'accounts', 'direct', 'tv'].includes(u)) continue;
     return u;
   }
   return null;
