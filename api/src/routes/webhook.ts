@@ -12,7 +12,7 @@ import { handleBiaInbound, ehLeadRecuperacao, marcarTakeoverBia } from '../servi
 import { ehGatilhoSolarDoc, vendedoraJaAtende } from '../services/agents/whatsapp/whatsappAgentService';
 import { encaminharMidiaAoConsultor, MidiaLead } from '../services/io/encaminharMidiaConsultor';
 import { ehAlunoLimpapro, handleLimpaproAtendimento, marcarTakeoverLimpapro } from '../services/agents/whatsapp/limpaproAtendimentoService';
-import { handleRecepcaoIo, recepcaoJaAtende } from '../services/io/recepcaoIo';
+import { recepcaoJaAtende } from '../services/io/recepcaoIo';
 
 // Z-API webhook payloads costumam trazer messageId|zaapId|id. Pegamos o
 // primeiro disponível pra dedup atômico contra redelivery e race com polling.
@@ -489,15 +489,21 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
       }
 
       if (!finalText) return;
-      // Fim da cascata: ninguém reivindicou esta mensagem. Até 11/09/2026 ela ia
-      // pra `handleSdrLead`, cuja primeira linha é `if (instance === 'io') return`
-      // — ou seja, caía no vazio, e 117 pessoas em 30 dias escreveram sem receber
-      // resposta nenhuma. Agora a recepção atende, descobre o que a pessoa quer e
-      // chama o humano certo. Ela só age com a chave `recepcao_io:ativa` ligada
-      // em `system_state`, e o freio de mão é RECEPCAO_IO_OFF=1.
-      await handleRecepcaoIo(String(phone), finalText, body.senderName || body.pushname);
+      // Fim da cascata: ninguém reivindicou esta mensagem.
+      //
+      // Quem atende a partir daqui é a RECEPÇÃO, e ela roda no CRON
+      // (`pollRecepcaoIo`), não aqui. O motivo está medido em
+      // `services/io/recepcaoIoPoll.ts`: esta rota responde 200 e processa em
+      // background, e a invocação é cortada em ponto imprevisível — nos testes
+      // de 11/09 uma execução morreu depois de mandar as bolhas e antes de
+      // avisar o consultor, e outra morreu antes de qualquer escrita. É a mesma
+      // razão pela qual a Bia e a trilha do LimpaPro leem por poll nesta linha.
+      //
+      // Só o audit log em `webhook_debug` (lá em cima, síncrono) precisa
+      // acontecer aqui: é dele que o cron lê.
+      return;
     } catch (err) {
-      console.error('[webhook:io] handleRecepcaoIo falhou:', err);
+      console.error('[webhook:io] processamento de mídia falhou:', err);
     }
   })();
 });
