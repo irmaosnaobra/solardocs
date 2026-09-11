@@ -765,7 +765,7 @@ const gastarBusca = () => janelaBusca.push(Date.now());
 // casaria com @solarpiracanjuba e a DM iria pro perfil errado, que é pior que
 // não mandar.
 const GENERICAS = new Set(['solar','energia','energias','solares','fotovoltaica','fotovoltaico',
-  'renovavel','renovaveis','engenharia','ltda','me','eireli','comercio','servicos','servico',
+  'sol','soll','renovavel','renovaveis','engenharia','ltda','me','eireli','comercio','servicos','servico',
   'service','services','e','de','do','da','em','the','sistemas','solucoes','solucao','tecnologia',
   'eletrica','eletricas','eletrico','eletricos','quadros','brasil','grupo','cia','express',
   'automacao','residencial',
@@ -815,10 +815,19 @@ function casaPerfil(empresa, u, cidade) {
   const bate = alvo.filter(t => txt.includes(t) || junto.includes(t));
   if (!bate.length) return null;
 
-  // Empresa com nome de uma palavra so: essa palavra tem que aparecer, e ponto.
-  // Com duas ou mais, exige pelo menos duas OU uma palavra longa (6+ letras),
-  // que e especifica o bastante pra nao ser coincidencia.
-  const forte = bate.length >= 2 || alvo.length === 1 || bate.some(t => t.length >= 6);
+  // Prova exigida, em ordem de forca:
+  //   duas palavras batendo      coincidencia dupla nao acontece
+  //   uma palavra de 6+ letras   especifica o bastante sozinha
+  //   nome de UMA palavra so     mas com 5+ letras
+  //
+  // O piso de 5 letras no caso de uma palavra existe por causa de "Sol Energia
+  // Solar": tirando o generico sobra so "sol", e "sol" casa com metade do
+  // mercado. Foi assim que @ecosenergiasolar.rioverde virou essa empresa.
+  // Empresa cujo nome inteiro e generico nao tem como ser identificada, e o
+  // certo e NAO adivinhar.
+  const forte = bate.length >= 2
+    || bate.some(t => t.length >= 6)
+    || (alvo.length === 1 && bate[0].length >= 5);
   if (!forte) return null;
 
   return { forca: bate.length / alvo.length, palavras: bate };
@@ -1064,7 +1073,8 @@ async function modoContinuo() {
     + (CFG.horaIni === 0 && CFG.horaFim === 24
         ? '24 horas por dia, sem parar'
         : CFG.horaIni + 'h às ' + (CFG.horaFim === 24 ? '23h59' : CFG.horaFim + 'h')) + '.');
-  console.log('  Aborda de ' + Math.round(CFG.minSeg / 60) + ' a ' + Math.round(CFG.maxSeg / 60) + ' min.');
+  console.log('  Espalha o teto do dia ate a meia-noite, no maximo '
+    + Math.round(CFG.tetoEspera / 60) + ' min entre uma e outra.');
   if (CANAL === 'instagram') {
     console.log('  Quem RESPONDE e o webhook da Meta, no servidor — nao este worker.');
     console.log('  Aqui so sai a primeira mensagem de cada empresa.');
