@@ -607,6 +607,25 @@ async function umaAbordagem() {
   }
 }
 
+/**
+ * Põe a aba DENTRO do instagram.com antes de qualquer busca.
+ *
+ * Aba nova nasce em about:blank, e de lá um fetch('/web/search/...') não tem
+ * contra o que resolver: o Chrome devolve "Failed to parse URL" e a busca morre
+ * calada. Foi o que derrubou o reabastecimento e a varredura de cidade em
+ * 11/09, com a agente achando que tinha procurado.
+ *
+ * Não adianta usar o endereço completo: o cookie da sessão só viaja se a
+ * requisição sair de uma página do próprio instagram.com. O que resolve é
+ * ESTAR lá.
+ */
+async function garantirInstagram(aba) {
+  const onde = await aba.js('location.origin').catch(() => null);
+  if (onde === 'https://www.instagram.com') return true;
+  await aba.ir('https://www.instagram.com/');
+  return await aba.esperar("location.origin === 'https://www.instagram.com'", 20000);
+}
+
 // ═══ ORÇAMENTO DE BUSCA ══════════════════════════════════════════════════════
 // Buscar na lupa é leitura, muito mais barato que mandar DM — mas não é de
 // graça. A conta é a principal (@irmaosnaobra__), semana 1 da rampa, e uma
@@ -656,6 +675,7 @@ function casaPerfil(empresa, u) {
 async function reabastecer(aba, quantos = 4) {
   const cabem = Math.min(quantos, sobramBuscas());
   if (cabem <= 0) return 0;
+  if (!await garantirInstagram(aba)) { log('  não consegui abrir o Instagram pra procurar @'); return 0; }
   const semArroba = await ler('prospeccao_contatos?select=id,empresa,cidade'
     + '&classe=in.(integradora,misto)&or=(instagram.is.null,instagram.eq.)&limit=' + cabem);
   if (!semArroba.length) return 0;
@@ -752,6 +772,7 @@ async function municipios() {
 /** Varre UMA cidade ainda não varrida. Devolve quantas empresas novas gravou. */
 async function descobrir(aba) {
   if (sobramBuscas() < TERMOS_BUSCA.length) return 0;   // não começa cidade que não cabe
+  if (!await garantirInstagram(aba)) { log('  não consegui abrir o Instagram pra varrer cidade'); return 0; }
 
   const todas  = await municipios();
   const feitas = await ler('prospeccao_varredura?select=cidade,uf&limit=20000');
