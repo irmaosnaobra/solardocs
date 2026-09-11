@@ -15,6 +15,13 @@ try { [Console]::OutputEncoding = [Text.Encoding]::UTF8; chcp 65001 | Out-Null }
 
 $ErrorActionPreference = 'Continue'
 
+# ── tem console? ─────────────────────────────────────────────────────────────
+# Rodando como tarefa do Windows (-WindowStyle Hidden) NAO ha console, e
+# Clear-Host estoura com IOException e mata o script na primeira linha. Era o
+# que fazia a tarefa morrer e renascer de 2 em 2 minutos sem escrever nada.
+$temConsole = $true
+try { $null = [Console]::WindowWidth } catch { $temConsole = $false }
+
 # -- nao deixe o computador dormir enquanto ela trabalha ---------------------
 # Em 11/09 a maquina entrou em espera as 06:52 e so acordou as 11:36. A agente
 # nao mandou nada a manha inteira, e nao foi por falta de fila nem de teto: ela
@@ -29,8 +36,13 @@ try {
   Add-Type -Name Energia -Namespace Win32 -MemberDefinition '
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern uint SetThreadExecutionState(uint esFlags);' -ErrorAction Stop
-  [void][Win32.Energia]::SetThreadExecutionState(0x80000000 -bor 0x00000001)
-  $seguraAcordado = $true
+  # 0x80000000 -bor 0x1 em PowerShell vira Int32 COM SINAL (-2147483647) e nao
+  # converte pra UInt32: a chamada falhava sempre, calada, e o computador dormia
+  # do mesmo jeito. Foi assim que a manha de 11/09 foi perdida. O valor tem que
+  # nascer UInt32: ES_CONTINUOUS (0x80000000) + ES_SYSTEM_REQUIRED (0x1).
+  $r = [Win32.Energia]::SetThreadExecutionState([uint32]2147483649)
+  # Retorno 0 quer dizer que o Windows recusou. Zero nao e sucesso aqui.
+  $seguraAcordado = ($r -ne 0)
 } catch { $seguraAcordado = $false }
 Set-Location $PSScriptRoot
 $porta  = 9222
@@ -42,12 +54,18 @@ try { Start-Transcript -Path $log -Force -Append | Out-Null } catch { }
 function Parar([string]$msg, [string]$cor = 'Red') {
   Write-Host ''; Write-Host "  $msg" -ForegroundColor $cor; Write-Host ''
   try { Stop-Transcript | Out-Null } catch { }
-  Write-Host '  --- Aperte Enter para fechar ---' -ForegroundColor Yellow
-  [void](Read-Host); exit 1
+  # Sem console nao ha quem aperte Enter: Read-Host travaria pra sempre e a
+  # tarefa ficaria "em execucao" sem executar nada. Sai com erro e deixa o
+  # Windows religar em 2 minutos, que e o certo pra uma falha temporaria.
+  if ($temConsole) {
+    Write-Host '  --- Aperte Enter para fechar ---' -ForegroundColor Yellow
+    [void](Read-Host)
+  }
+  exit 1
 }
 function Porta { try { Invoke-RestMethod "http://127.0.0.1:$porta/json/version" -TimeoutSec 3 | Out-Null; $true } catch { $false } }
 
-Clear-Host
+if ($temConsole) { Clear-Host }
 Write-Host ''
 Write-Host '  ╔══════════════════════════════════════════════════════╗' -ForegroundColor Cyan
 Write-Host '  ║           AGENTE DE PROSPECÇÃO — SOLARDOC            ║' -ForegroundColor Cyan
@@ -176,5 +194,7 @@ while ($true) {
 Write-Host ''
 Write-Host '  A agente parou.' -ForegroundColor Yellow
 try { Stop-Transcript | Out-Null } catch { }
-Write-Host '  --- Aperte Enter para fechar ---' -ForegroundColor Yellow
-[void](Read-Host)
+if ($temConsole) {
+  Write-Host '  --- Aperte Enter para fechar ---' -ForegroundColor Yellow
+  [void](Read-Host)
+}

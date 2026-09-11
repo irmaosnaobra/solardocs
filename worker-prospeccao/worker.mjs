@@ -672,25 +672,63 @@ async function bater(campos) {
   } catch { /* pulso que falha não derruba a agente: ele é o termômetro, não o doente */ }
 }
 
-/** A sessão do Instagram ainda está de pé? Leitura barata, sem navegar. */
+/**
+ * A sessão do Instagram ainda está de pé?
+ *
+ * Fala com o Chrome no cru, sem passar pela classe Aba: a Aba abre uma aba
+ * NOVA e liga Runtime/Page, o que é caro e desnecessário pra uma pergunta. Aqui
+ * só espiamos uma aba que já existe. É o mesmo caminho do checar-sessao.mjs,
+ * que é o único jeito que já provou funcionar contra o Instagram real.
+ *
+ * Devolve logado:null quando não deu pra afirmar (sem aba do Instagram aberta,
+ * Chrome fora do ar). Null não é "deslogada": inventar um false aqui faria o
+ * vigia gritar à toa, e alarme que grita à toa é alarme que se ignora.
+ */
 async function sessaoViva() {
+  let ws = null;
   try {
     const alvos = await (await fetch(CFG.cdp + '/json/list')).json();
     const pg = (alvos || []).find(t => t.type === 'page' && String(t.url).includes('instagram'));
-    if (!pg) return { logado: null, conta: null };   // sem aba no Instagram: não dá pra afirmar nada
-    const aba = await Aba.conectar(pg.webSocketDebuggerUrl);
-    const r = await aba.js(`(function () {
-      if (document.querySelector('input[name="username"]')) return { logado: false };
-      var conta = '', l = document.querySelectorAll('a[href^="/"]');
-      for (var i = 0; i < l.length; i++) {
-        var m = (l[i].getAttribute('href') || '').match(/^\/([A-Za-z0-9._]{3,30})\/$/);
-        if (m && l[i].querySelector('img')) { conta = m[1]; break; }
-      }
-      return { logado: true, conta: conta };
-    })()`).catch(() => null);
-    try { aba.ws.close(); } catch { }
+    if (!pg?.webSocketDebuggerUrl) return { logado: null, conta: null };
+
+    ws = new WebSocket(pg.webSocketDebuggerUrl);
+    await new Promise((ok, err) => {
+      ws.onopen = ok; ws.onerror = err;
+      setTimeout(() => err(new Error('o Chrome não respondeu em 8s')), 8000);
+    });
+
+    const r = await new Promise(ok => {
+      // Casar pelo id é obrigatório: a aba fica emitindo evento do CDP o tempo
+      // todo, e pegar "a primeira mensagem que chegar" devolve um evento
+      // qualquer em vez da resposta. Foi isso que fez a conferência de sessão
+      // voltar undefined e o pulso registrar logado=null.
+      ws.onmessage = e => {
+        try {
+          const m = JSON.parse(e.data);
+          if (m?.id === 1) ok(m.result?.result?.value);
+        } catch { /* quadro que não é JSON não me interessa */ }
+      };
+      ws.send(JSON.stringify({
+        id: 1, method: 'Runtime.evaluate',
+        params: { returnByValue: true, expression: `(function () {
+          if (document.querySelector('input[name="username"]')) return { logado: false };
+          var conta = '', l = document.querySelectorAll('a[href^="/"]');
+          for (var i = 0; i < l.length; i++) {
+            var m = (l[i].getAttribute('href') || '').match(/^\/([A-Za-z0-9._]{3,30})\/$/);
+            if (m && l[i].querySelector('img')) { conta = m[1]; break; }
+          }
+          return { logado: true, conta: conta };
+        })()` },
+      }));
+      setTimeout(() => ok(undefined), 8000);
+    });
+
     return { logado: r ? !!r.logado : null, conta: (r && r.conta) || null };
-  } catch { return { logado: null, conta: null }; }
+  } catch {
+    return { logado: null, conta: null };
+  } finally {
+    try { ws && ws.close(); } catch { }
+  }
 }
 
 // ═══ ORÇAMENTO DE BUSCA ══════════════════════════════════════════════════════
