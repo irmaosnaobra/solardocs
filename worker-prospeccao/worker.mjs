@@ -571,9 +571,9 @@ async function umaAbordagem() {
     ? !!(c.instagram || '').trim() : !!(c.telefone || '').trim());
   if (!alvos.length) {
     log(CANAL === 'instagram'
-      ? 'ninguém com @ na fila — rode "node buscar-instagram.mjs" pra achar mais'
+      ? 'ninguém com @ na fila agora — vou procurar mais endereço'
       : 'ninguém na fila agora');
-    return false;
+    return 'vazio';
   }
 
   const c = alvos[0];
@@ -581,12 +581,12 @@ async function umaAbordagem() {
   const prod = produtos.find(p => p.id === pid);
   const preco = prod ? `R$ ${Number(prod.preco).toLocaleString('pt-BR')}` : '';
   const msg = montarMensagem(c, scripts, alegacoes, pid, preco);
-  if (!msg) { log(`PULOU ${c.empresa} — todo script de ${pid} está bloqueado pela trava`); return false; }
+  if (!msg) { log(`PULOU ${c.empresa} — todo script de ${pid} está bloqueado pela trava`); return 'falhou'; }
 
   const destino = CANAL === 'instagram' ? '@' + c.instagram : c.telefone;
   console.log(`\n─── ${c.empresa} · ${c.cidade || ''} · ${destino} · ${CTX(c)} ───`);
   console.log(msg.split('\n').map(l => '  │ ' + l).join('\n'));
-  if (DRY) return true;
+  if (DRY) return 'enviou';
 
   let aba = null;
   try {
@@ -597,7 +597,7 @@ async function umaAbordagem() {
     if (r.ok) {
       await gravarToque(c.id, null, pid, 'enviei', `worker ${CANAL}`);
       log('  ✓ enviado');
-      return true;
+      return 'enviou';
     }
     log('  ✗ ' + r.motivo);
 
@@ -618,7 +618,7 @@ async function umaAbordagem() {
       }).catch(() => {});
       log(`  @${c.instagram} não existe mais — apaguei o endereço, a empresa fica na base`);
     }
-    return false;
+    return 'falhou';
   } finally {
     if (aba) await aba.fechar();
   }
@@ -982,16 +982,22 @@ async function modoContinuo() {
         proximaAbordagem = Date.now() + 600_000;   // reconfere de 10 em 10 min
       } else {
         semAlvo = false;
-        let mandou = false;
-        try { mandou = await umaAbordagem(); }
+        let desfecho = 'falhou';
+        try { desfecho = await umaAbordagem(); }
         catch (e) { log('abordagem falhou: ' + e.message); }
 
-        // Intervalo humano: 4 a 15 min, sorteado. Sem alvo, espera mais —
-        // insistir numa fila vazia só gasta consulta.
+        // Três desfechos, três esperas. Antes eram dois, e por isso um perfil
+        // morto custava 15 minutos de silêncio: ela tratava "falhei com este"
+        // igual a "não tem ninguém pra falar".
+        //   enviou  intervalo humano de 4 a 15 min, sorteado
+        //   falhou  90s e vai pro PRÓXIMO da fila. Não gastou mensagem nem
+        //           incomodou ninguém, então não há o que esperar. Uma sequência
+        //           de @ mortos custaria horas no ritmo antigo
+        //   vazio   15 min, porque insistir em fila vazia só gasta consulta
         const faixa = CFG.maxSeg - CFG.minSeg;
-        const espera = mandou
+        const espera = desfecho === 'enviou'
           ? CFG.minSeg + Math.floor(faixa * ((Date.now() % 1013) / 1013))
-          : 900;
+          : desfecho === 'falhou' ? 90 : 900;
         proximaAbordagem = Date.now() + espera * 1000;
         const t2 = await travas();
         log(`${t2.usados}/${t2.teto} abordagens · ${t2.respostas} respostas hoje`
