@@ -673,19 +673,56 @@ const gastarBusca = () => janelaBusca.push(Date.now());
 // casaria com @solarpiracanjuba e a DM iria pro perfil errado, que é pior que
 // não mandar.
 const GENERICAS = new Set(['solar','energia','energias','solares','fotovoltaica','fotovoltaico',
-  'renovavel','renovaveis','engenharia','ltda','me','eireli','comercio','servicos','e','de','do',
-  'da','em','the','sistemas','solucoes','tecnologia','eletrica','brasil','grupo','cia']);
+  'renovavel','renovaveis','engenharia','ltda','me','eireli','comercio','servicos','servico',
+  'service','services','e','de','do','da','em','the','sistemas','solucoes','solucao','tecnologia',
+  'eletrica','eletricas','eletrico','brasil','grupo','cia','express','automacao','residencial',
+  'comercial','industrial','instalacao','instalacoes','projetos','projeto','consultoria',
+  'assessoria','representacoes','distribuidora','oficial','ltd','sa','mei','epp']);
 const normNome = x => String(x || '').toLowerCase().normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 const distintivas = n => normNome(n).split(' ').filter(t => t.length >= 3 && !GENERICAS.has(t));
 
-function casaPerfil(empresa, u) {
-  const alvo = distintivas(empresa);
+// Perfil que claramente e outra coisa. A academia entrou aqui por merito
+// proprio: "JE Energia Solar - Jaragua Goias" casou com
+// @academiagavioes24h_jaragua pela palavra "jaragua", que e a CIDADE.
+const OUTRO_RAMO = new RegExp(['academia','crossfit','barbearia','salao','estetica','petshop',
+  'pizzaria','lanchonete','restaurante','igreja','escola','colegio','futebol','moda','boutique',
+  'imobiliaria','advocacia','odonto','clinica','farmacia','mercado','supermercado','padaria',
+  'auto ?pecas','borracharia','hotel','pousada'].join('|'));
+
+/**
+ * Este perfil e MESMO desta empresa?
+ *
+ * Erra pra menos de proposito. Mandar oferta de sistema de proposta pra uma
+ * academia nao e so desperdicio: e a pessoa errada recebendo venda fria, que e
+ * exatamente o que gera denuncia e derruba conta.
+ *
+ * O que nao vale como prova:
+ * · palavra generica do ramo (solar, energia, engenharia, service, express...)
+ * · o nome da CIDADE — ela ja esta na consulta, entao casar por ela nao diz
+ *   nada sobre ser a empresa certa
+ * · uma palavra so, quando a empresa tem varias — "Solar Brasil" nao pode virar
+ *   @solarpiracanjuba
+ */
+function casaPerfil(empresa, u, cidade) {
+  const doLugar = new Set(distintivas(cidade || ''));
+  const alvo = distintivas(empresa).filter(t => !doLugar.has(t));
   if (!alvo.length) return null;
+
   const txt = normNome(u.username + ' ' + (u.full_name || ''));
+  if (OUTRO_RAMO.test(txt)) return null;
+
   const junto = txt.replace(/ /g, '');
   const bate = alvo.filter(t => txt.includes(t) || junto.includes(t));
-  return bate.length ? { forca: bate.length / alvo.length, palavras: bate } : null;
+  if (!bate.length) return null;
+
+  // Empresa com nome de uma palavra so: essa palavra tem que aparecer, e ponto.
+  // Com duas ou mais, exige pelo menos duas OU uma palavra longa (6+ letras),
+  // que e especifica o bastante pra nao ser coincidencia.
+  const forte = bate.length >= 2 || alvo.length === 1 || bate.some(t => t.length >= 6);
+  if (!forte) return null;
+
+  return { forca: bate.length / alvo.length, palavras: bate };
 }
 
 /** Uma rodada curta de busca de @. Devolve quantos achou. */
@@ -699,6 +736,12 @@ async function reabastecer(aba, quantos = 4) {
   const semArroba = await ler('prospeccao_contatos?select=id,empresa,cidade'
     + '&classe=in.(integradora,misto)&instagram=is.null&limit=' + cabem);
   if (!semArroba.length) return 0;
+
+  // O mesmo @ nao pode virar duas empresas. Aconteceu hoje com
+  // @ecopowerenergia, atribuido a dois contatos diferentes: a segunda empresa
+  // ficaria com o endereco da primeira e receberia mensagem que nao e dela.
+  const usados = new Set((await ler('prospeccao_contatos?select=instagram&instagram=not.is.null&limit=20000'))
+    .map(x => String(x.instagram || '').toLowerCase()).filter(Boolean));
 
   let achou = 0;
   for (const c of semArroba) {
@@ -720,8 +763,9 @@ async function reabastecer(aba, quantos = 4) {
 
     if (r?.erro) { log(`  busca de @ reclamou (${r.erro}) — paro de procurar nesta rodada`); break; }
 
-    const cand = (r?.users || []).map(u => ({ u, m: casaPerfil(c.empresa, u) }))
-      .filter(x => x.m).sort((a, b) => b.m.forca - a.m.forca)[0];
+    const cand = (r?.users || []).map(u => ({ u, m: casaPerfil(c.empresa, u, c.cidade) }))
+      .filter(x => x.m && !usados.has(String(x.u.username).toLowerCase()))
+      .sort((a, b) => b.m.forca - a.m.forca)[0];
 
     // '' = procuramos e nao serve. Sem isso a mesma empresa seria procurada
     // pra sempre, gastando busca toda rodada.
@@ -730,7 +774,8 @@ async function reabastecer(aba, quantos = 4) {
       method: 'PATCH', headers: H,
       body: JSON.stringify({ instagram: valor, instagram_em: new Date().toISOString() }),
     }).catch(() => {});
-    if (cand) { achou++; log(`  achei @${cand.u.username} — ${c.empresa}`); }
+    if (cand) { usados.add(String(cand.u.username).toLowerCase()); achou++;
+      log(`  achei @${cand.u.username} — ${c.empresa} (casou em: ${cand.m.palavras.join(', ')})`); }
     await dorme(4000 + Math.floor(5000 * ((Date.now() % 1009) / 1009)));
   }
   return achou;
