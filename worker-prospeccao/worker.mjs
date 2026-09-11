@@ -600,7 +600,24 @@ async function umaAbordagem() {
       return true;
     }
     log('  ✗ ' + r.motivo);
-    // Falha NÃO vira toque: mensagem que não saiu não pode tirar a pessoa da fila.
+
+    // Falha passageira (página não carregou, rede caiu) NÃO vira toque: quem
+    // não recebeu não pode sair da fila. Mas perfil que não existe mais é
+    // PERMANENTE, e aí a regra se vira contra ela: como a fila sempre entrega o
+    // primeiro, um @ morto no topo trava todo mundo atrás dele pra sempre.
+    // Foi o que aconteceu em 11/09: @bluesun.luz falhou às 11:53 e de novo às
+    // 12:10, e entre uma e outra ela não falou com mais ninguém.
+    //
+    // Apagar o @ (string vazia, não NULL) é o mesmo sinal que o reabastecimento
+    // já usa: "procuramos, não serve". A empresa continua na base; o que sai é
+    // o endereço errado.
+    if (CANAL === 'instagram' && /não existe mais/.test(r.motivo)) {
+      await fetch(`${CFG.supa}/prospeccao_contatos?id=eq.${c.id}`, {
+        method: 'PATCH', headers: H,
+        body: JSON.stringify({ instagram: '', instagram_em: new Date().toISOString() }),
+      }).catch(() => {});
+      log(`  @${c.instagram} não existe mais — apaguei o endereço, a empresa fica na base`);
+    }
     return false;
   } finally {
     if (aba) await aba.fechar();
@@ -676,8 +693,11 @@ async function reabastecer(aba, quantos = 4) {
   const cabem = Math.min(quantos, sobramBuscas());
   if (cabem <= 0) return 0;
   if (!await garantirInstagram(aba)) { log('  não consegui abrir o Instagram pra procurar @'); return 0; }
+  // SÓ quem nunca foi procurado. O @ vazio quer dizer "já procurei e não achei",
+  // e voltar nele toda rodada gastaria a busca do dia relendo as mesmas empresas
+  // sem chance — o comentário do vazio dizia isso, a consulta não cumpria.
   const semArroba = await ler('prospeccao_contatos?select=id,empresa,cidade'
-    + '&classe=in.(integradora,misto)&or=(instagram.is.null,instagram.eq.)&limit=' + cabem);
+    + '&classe=in.(integradora,misto)&instagram=is.null&limit=' + cabem);
   if (!semArroba.length) return 0;
 
   let achou = 0;
@@ -730,9 +750,19 @@ async function reabastecer(aba, quantos = 4) {
 // Termo diferente devolve gente diferente, e é por isso que a chave em
 // prospeccao_varredura inclui o termo.
 const TERMOS_BUSCA = [
-  'energia solar', 'energia fotovoltaica', 'solar', 'placa solar',
-  'energia solar residencial', 'painel solar', 'solar engenharia', 'fotovoltaico',
+  'energia solar', 'energia fotovoltaica', 'placa solar', 'painel solar',
+  'energia solar residencial', 'fotovoltaico', 'solar engenharia', 'usina solar',
 ];
+// Medido em 11/09 na conta logada: a busca devolve no MÁXIMO 5 perfis, e o nome
+// da cidade puxa entidade famosa. "energia solar São Paulo" trouxe São Paulo FC,
+// Paulo César e a BandNews São Paulo, sobrando 1 vaga de 5 pra empresa de solar.
+// "solar Campinas" trouxe 5 empresas em 5.
+//
+// Por isso o termo cru "solar" saiu daqui: sozinho ele é o que mais colide com
+// gente famosa. Quanto mais específico o termo, menos vaga a fama rouba.
+// Consequência: cidade gigante rende MENOS por consulta que cidade média, ao
+// contrário do que a ordem por população faz supor. A ordem continua certa
+// (mercado grande vale mais), mas o ganho por busca lá é pequeno.
 // Precisa cheirar a solar E não cheirar a nenhuma destas. Curso, distribuidora,
 // fábrica e aquecedor de piscina entram na busca e não compram SolarDoc.
 const CHEIRA_SOLAR = /(solar|fotovolt|energia)/;
