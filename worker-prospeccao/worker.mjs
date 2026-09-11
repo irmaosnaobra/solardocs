@@ -722,7 +722,17 @@ async function reabastecer(aba, quantos = 4) {
 // A lista de municípios vem do IBGE na hora; o rastro do que já foi varrido
 // fica em prospeccao_varredura, senão ela recomeçaria por Abaetetuba a cada
 // reinício e nunca sairia de lá.
-const TERMOS_BUSCA = ['energia solar', 'energia fotovoltaica'];
+// Um termo por rodada, e a cidade só está esgotada quando TODOS passaram.
+//
+// Antes eram dois termos e a cidade ia pro arquivo morto. São Paulo saiu com 10
+// perfis e nunca mais seria visitada, sendo que lá tem milhar de integradora: a
+// lupa do Instagram devolve ~10 por consulta, então uma consulta só arranha.
+// Termo diferente devolve gente diferente, e é por isso que a chave em
+// prospeccao_varredura inclui o termo.
+const TERMOS_BUSCA = [
+  'energia solar', 'energia fotovoltaica', 'solar', 'placa solar',
+  'energia solar residencial', 'painel solar', 'solar engenharia', 'fotovoltaico',
+];
 // Precisa cheirar a solar E não cheirar a nenhuma destas. Curso, distribuidora,
 // fábrica e aquecedor de piscina entram na busca e não compram SolarDoc.
 const CHEIRA_SOLAR = /(solar|fotovolt|energia)/;
@@ -771,14 +781,21 @@ async function municipios() {
 
 /** Varre UMA cidade ainda não varrida. Devolve quantas empresas novas gravou. */
 async function descobrir(aba) {
-  if (sobramBuscas() < TERMOS_BUSCA.length) return 0;   // não começa cidade que não cabe
+  if (sobramBuscas() <= 0) return 0;   // uma rodada = uma busca; sem orçamento, não começa
   if (!await garantirInstagram(aba)) { log('  não consegui abrir o Instagram pra varrer cidade'); return 0; }
 
   const todas  = await municipios();
-  const feitas = await ler('prospeccao_varredura?select=cidade,uf&limit=20000');
-  const jaFoi  = new Set(feitas.map(v => (v.cidade + '|' + v.uf).toLowerCase()));
-  const alvo   = todas.find(c => !jaFoi.has((c.nome + '|' + c.uf).toLowerCase()));
-  if (!alvo) { log('todos os 5.570 municípios já foram varridos.'); return 0; }
+  const feitas = await ler('prospeccao_varredura?select=cidade,uf,termo&limit=50000');
+  const jaFoi  = new Set(feitas.map(v => (v.cidade + '|' + v.uf + '|' + (v.termo || '')).toLowerCase()));
+
+  // Cidade grande primeiro, e dentro dela um termo por vez. Assim São Paulo é
+  // visitada 8 vezes com consultas diferentes antes de Cabixi ser visitada uma.
+  let alvo = null, termo = null;
+  for (const c of todas) {
+    const falta = TERMOS_BUSCA.find(t => !jaFoi.has((c.nome + '|' + c.uf + '|' + t).toLowerCase()));
+    if (falta) { alvo = c; termo = falta; break; }
+  }
+  if (!alvo) { log(`os ${todas.length} municípios já foram varridos com os ${TERMOS_BUSCA.length} termos.`); return 0; }
 
   // A lista de destino é a mesma da operação: contato descoberto entra na fila
   // no mesmo lugar dos outros, sem lista paralela pra ninguém esquecer dela.
@@ -794,8 +811,7 @@ async function descobrir(aba) {
     .map(c => String(c.instagram || '').toLowerCase()).filter(Boolean));
 
   let novos = 0, achados = 0, limpas = 0;
-  for (const termo of TERMOS_BUSCA) {
-    if (sobramBuscas() <= 0) break;
+  {
     const busca = `${termo} ${alvo.nome}`;
     let r = null;
     try {
@@ -814,8 +830,8 @@ async function descobrir(aba) {
     } catch (e) { r = { erro: e.message }; }
     gastarBusca();
 
-    if (r?.erro) { log(`  busca reclamou (${r.erro}) — deixo ${alvo.nome} pra próxima`); break; }
-    limpas++;
+    if (r?.erro) { log(`  busca reclamou (${r.erro}) — deixo ${alvo.nome} pra próxima`); }
+    else limpas++;
 
     for (const u of r?.users || []) {
       achados++;
@@ -849,10 +865,12 @@ async function descobrir(aba) {
 
   await fetch(`${CFG.supa}/prospeccao_varredura`, {
     method: 'POST', headers: { ...H, Prefer: 'return=minimal' },
-    body: JSON.stringify({ cidade: alvo.nome, uf: alvo.uf, termo: TERMOS_BUSCA.slice(0, limpas).join(' + '),
+    body: JSON.stringify({ cidade: alvo.nome, uf: alvo.uf, termo,
                            encontrados: achados, novos }),
   }).catch(() => {});
-  log(`varri ${alvo.nome}/${alvo.uf}: ${achados} perfis, ${novos} empresa(s) nova(s)`);
+  const resta = TERMOS_BUSCA.length - 1 - TERMOS_BUSCA.indexOf(termo);
+  log(`varri ${alvo.nome}/${alvo.uf} por "${termo}": ${achados} perfis, ${novos} nova(s)`
+    + (resta ? ` · faltam ${resta} termo(s) nesta cidade` : ' · cidade esgotada'));
   return novos;
 }
 
