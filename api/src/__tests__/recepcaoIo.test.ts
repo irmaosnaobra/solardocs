@@ -270,6 +270,33 @@ describe('recepção da linha IO', () => {
     expect(leads[0].human_takeover).toBe(true);       // isso sim a recepção marca
   });
 
+  it('avisa o humano ANTES de falar com o lead', async () => {
+    // A rota responde 200 e processa em background: a invocação pode morrer no
+    // meio, e foi o que aconteceu no teste em produção de 11/09 (a 2ª volta
+    // gravou a posse e parou antes de responder, sem erro no log). `sendHuman` é
+    // a parte lenta, então vai por último. Se algo for cortado, que seja a bolha
+    // pro lead, nunca a ficha pro consultor.
+    const ordem: string[] = [];
+    const zapi = await import('../services/agents/zapiClient');
+    const sendHumanOrig = zapi.sendHuman;
+    const sendWhatsAppOrig = zapi.sendWhatsApp;
+    (zapi as any).sendHuman = async (p: string, partes: string[]) => {
+      ordem.push('lead'); return sendHumanOrig(p, partes, 'io');
+    };
+    (zapi as any).sendWhatsApp = async (p: string, t: string) => {
+      ordem.push('consultor'); return sendWhatsAppOrig(p, t, 'io');
+    };
+
+    const { handleRecepcaoIo } = await carregar();
+    respostaIA = jsonIA('Já vou chamar alguém.', 'solar', 'Quer orçamento');
+    await handleRecepcaoIo(LEAD, 'Quero orçamento de energia solar');
+
+    (zapi as any).sendHuman = sendHumanOrig;
+    (zapi as any).sendWhatsApp = sendWhatsAppOrig;
+
+    expect(ordem).toEqual(['consultor', 'lead']);
+  });
+
   it('eletroposto vai pro Thiago E pro Diego', async () => {
     const { handleRecepcaoIo } = await carregar();
     respostaIA = jsonIA('Vou chamar quem cuida disso.', 'eletroposto', 'Quer investir num ponto de recarga');

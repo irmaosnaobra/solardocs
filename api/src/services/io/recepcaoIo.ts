@@ -325,7 +325,7 @@ async function avisarConsultor(
     '',
     `_Primeira mensagem dele:_ "${primeiraFala.slice(0, 160)}"`,
     '',
-    '_A Duda já respondeu que alguém vai falar. A conversa é sua a partir de agora._',
+    '_A Duda está avisando que alguém vai falar. A conversa é sua a partir de agora._',
   ].join('\n');
 
   const alvos = DESTINO[produto] ?? ['thiago'];
@@ -458,9 +458,6 @@ export async function handleRecepcaoIo(
     if (!decisao?.resposta) return;
 
     const nome = decisao.nome || sessao?.nome || senderName || null;
-    const partes = decisao.resposta.split('||').map(s => s.trim()).filter(Boolean);
-    await sendHuman(phone, partes.length ? partes : [decisao.resposta], 'io', { maxBolhas: 2 });
-
     const novoHistorico = [...historico, { role: 'assistant' as const, content: decisao.resposta }];
 
     // No último turno a entrega é obrigatória, com ou sem classificação. O prompt
@@ -485,6 +482,22 @@ export async function handleRecepcaoIo(
       await avisarConsultor(phone, nome, produtoFinal, decisao.motivo, String(primeira));
       logger.info('recepcao-io', `${phone} classificado como ${produtoFinal} em ${turnos} turno(s)`);
     }
+
+    // FALAR COM O LEAD É A ÚLTIMA COISA, e de propósito.
+    //
+    // Esta rota responde 200 pro Z-API antes de processar, e o resto roda em
+    // background. A invocação pode ser encerrada no meio: foi o que aconteceu no
+    // teste de 11/09, em que a 2ª volta gravou a posse e morreu antes de
+    // responder, sem deixar erro no log. `sendHuman` é justamente a parte lenta
+    // (digitação simulada mais 2 a 5s entre bolhas), então é a que mais se expõe
+    // ao corte.
+    //
+    // Com esta ordem, o que sobrevive a um corte é o que importa: o estado da
+    // conversa gravado e o consultor avisado com a ficha. O pior caso vira "o
+    // humano sabe e o lead ainda não recebeu resposta", em vez de "ninguém ficou
+    // sabendo de nada", que é exatamente o buraco que este serviço veio tapar.
+    const partes = decisao.resposta.split('||').map(s => s.trim()).filter(Boolean);
+    await sendHuman(phone, partes.length ? partes : [decisao.resposta], 'io', { maxBolhas: 2 });
   } catch (err) {
     logger.error('recepcao-io', `falhou pra ${phone}`, err);
   }
