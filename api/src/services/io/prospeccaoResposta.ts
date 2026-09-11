@@ -1,13 +1,13 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// PROSPECÇÃO — a cabeça. Lê o que o lead respondeu e decide o que fazer.
+// PROSPECÇÃO, a cabeça. Lê o que o lead respondeu e decide o que fazer.
 //
 // Mora no servidor, não no worker, por dois motivos: a chave da Anthropic já
 // está aqui (o worker fica sem segredo nenhum na máquina do consultor), e a
-// regra de o-que-pode-afirmar vive no banco — o worker não precisa conhecê-la.
+// regra de o-que-pode-afirmar vive no banco: o worker não precisa conhecê-la.
 //
 // O que ela NÃO faz: não envia. Devolve a decisão e o texto; quem digita é o
 // worker, pelo Chrome do consultor. Separar isso é o que permite o `--dry`
-// existir de verdade — dá pra ver a resposta que ela daria sem mandar nada.
+// existir de verdade: dá pra ver a resposta que ela daria sem mandar nada.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import Anthropic from '@anthropic-ai/sdk';
@@ -20,7 +20,7 @@ import { novoAnthropic } from "../../utils/anthropicClient";
 const LOG = 'prospeccao-resposta';
 const anthropic = novoAnthropic();
 
-// Kill-switch. Sem ele, a única forma de parar a cabeça seria tirar a chave —
+// Kill-switch. Sem ele, a única forma de parar a cabeça seria tirar a chave,
 // e tirar a chave derruba os outros agentes junto.
 const desligado = () => (process.env.PROSPECCAO_IA_OFF || '').trim() === 'true';
 
@@ -63,7 +63,7 @@ const Veredito = z.object({
   // O desfecho que vai pro log de toques. É o MESMO enum da tela: a cabeça não
   // inventa categoria nova, senão o funil e o disjuntor param de bater.
   resultado: z.enum(['respondeu', 'interessado', 'sem_interesse', 'nao_perturbar']),
-  // Frase por frase, nunca parede de texto — regra da casa, e aqui ela precisa
+  // Frase por frase, nunca parede de texto, que é regra da casa, e aqui ela precisa
   // estar no schema porque quem escreve é a IA, não o transporte.
   bolhas: z.array(z.string()).min(1).max(3),
   mandar_link: z.boolean(),
@@ -90,7 +90,7 @@ export interface PedidoResposta {
 // O link carrega os 8 primeiros caracteres do id do contato em utm_content.
 // É a ÚNICA coisa que liga o toque (banco do gerador) à visita e à venda
 // (banco do solardoc-pro). Sem isso dá pra saber que alguém da prospecção
-// visitou, nunca QUEM — e o funil por lead não existe.
+// visitou, nunca QUEM, e o funil por lead não existe.
 const linkDe = (contatoId?: string | null, canal = 'whatsapp') => {
   const base = 'https://solardoc.app/?utm_source=prospeccao&utm_medium=' + canal + '&utm_campaign=resposta_ia';
   const t = contatoId ? String(contatoId).replace(/-/g, '').slice(0, 8) : '';
@@ -113,18 +113,24 @@ function prompt(p: PedidoResposta, pode: string[], nao: string[]) {
   return `Você é o Thiago, da SolarDoc, falando por mensagem com um integrador solar.
 A gente abordou a ${p.empresa}${p.cidade ? ` de ${p.cidade}` : ''} oferecendo o SolarDoc e a pessoa respondeu.
 
-O QUE VOCÊ PODE AFIRMAR — nada além disto:
-${pode.map(c => `  · ${c}`).join('\n') || '  (nenhuma alegação verificada — não afirme NADA sobre o produto)'}
+O QUE VOCÊ PODE AFIRMAR (nada além disto):
+${pode.map(c => `  · ${c}`).join('\n') || '  (nenhuma alegação verificada, não afirme NADA sobre o produto)'}
 
 O QUE VOCÊ NÃO PODE AFIRMAR, nem parafraseado:
-${nao.map(c => `  · ${c}`).join('\n') || '  —'}
+${nao.map(c => `  · ${c}`).join('\n') || '  (nenhuma)'}
 
 Se a pessoa perguntar algo que você não pode responder com o que está acima,
 diga que vai confirmar e marque escalar=true. NUNCA invente número, prazo,
 garantia, desconto ou resultado. Inventar aqui custa mais caro que perder a venda.
 
 COMO ESCREVER
-· WhatsApp de gente, não de robô. Minúscula no meio da frase é normal.
+· TODA bolha começa com letra MAIÚSCULA. É a primeira coisa que a pessoa vê e
+  minúscula no começo parece rascunho. Dentro da frase, minúscula é normal:
+  "Tenho a solução pra isso, quer ver?" abre em maiúscula e segue solto.
+· PROIBIDO usar travessão, o longo ou o médio. Ninguém digita isso no celular,
+  o teclado do WhatsApp não tem, e é o sinal mais fácil de reconhecer texto de
+  máquina no Brasil. Onde ia a pausa, use vírgula, ponto ou dois-pontos.
+· WhatsApp de gente, não de robô.
 · Cada bolha é uma mensagem curta. Uma ou duas linhas. No máximo três bolhas.
 · Sem "Prezado", sem "estou à disposição", sem emoji, sem bullet point.
 · Uma pergunta por vez, e só se ela levar a conversa adiante.
@@ -172,7 +178,7 @@ QUANDO CHAMAR HUMANO (escalar=true)
 Pergunta técnica que as alegações não cobrem, negociação de preço, reclamação,
 proposta de parceria, ou qualquer coisa que você responderia chutando.
 
-RESULTADO — o desfecho que vai pro CRM:
+RESULTADO (o desfecho que vai pro CRM):
   respondeu      falou algo, sem sinal claro de interesse
   interessado    pediu preço, pediu pra ver, disse que quer
   sem_interesse  disse não, sem irritação
@@ -185,7 +191,7 @@ Responda a última mensagem dele.`;
 }
 
 export async function decidirResposta(p: PedidoResposta): Promise<Veredito | null> {
-  if (desligado()) { logger.warn(LOG, 'PROSPECCAO_IA_OFF=true — nao vou decidir nada'); return null; }
+  if (desligado()) { logger.warn(LOG, 'PROSPECCAO_IA_OFF=true, nao vou decidir nada'); return null; }
   if (!process.env.ANTHROPIC_API_KEY) { logger.error(LOG, 'sem ANTHROPIC_API_KEY'); return null; }
   if (!p.historico?.length) return null;
 
@@ -216,7 +222,7 @@ export async function decidirResposta(p: PedidoResposta): Promise<Veredito | nul
 
     return v;
   } catch (err: any) {
-    // Crédito zerado é o erro mais provável aqui — foi o que deixou a Giovanna
+    // Crédito zerado é o erro mais provável aqui: foi o que deixou a Giovanna
     // muda três vezes em agosto. Loga com nome pra aparecer no diagnóstico.
     logger.error(LOG, 'chamada da IA falhou', { erro: String(err?.message || err), empresa: p.empresa });
     return null;
