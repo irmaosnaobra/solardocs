@@ -1,0 +1,32 @@
+name: Resumo do dia (23:55 BRT)
+
+# 02:55 UTC = 23:55 em Brasilia. O Brasil nao tem mais horario de verao desde
+# 2019, entao UTC-3 vale o ano inteiro e o horario nao anda sozinho em outubro.
+#
+# 23:55 e nao 00:00 de proposito: a mensagem fecha o dia que esta acabando, e
+# meia-noite ja e o dia seguinte pro banco (as consultas cortam por data de
+# Brasilia). Mandar 00:00 faria o resumo sair sempre com o dia zerado.
+on:
+  schedule:
+    - cron: '55 2 * * *'
+  workflow_dispatch:
+    inputs:
+      seco:
+        description: 'Monta e mostra o texto SEM mandar no WhatsApp'
+        type: boolean
+        default: false
+
+jobs:
+  resumo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Monta e envia o resumo
+        run: |
+          SECO=""
+          if [ "${{ inputs.seco }}" = "true" ]; then SECO="?seco=1"; fi
+          # --fail-with-body: sem isso o curl sai 0 mesmo com 500 e o cron fica
+          # verde com a API morta. Ja aconteceu aqui num 402 da Vercel.
+          curl --fail-with-body -sS \
+            "https://api.solardoc.app/cron/resumo-do-dia$SECO" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -w "\nHTTP %{http_code}\n"

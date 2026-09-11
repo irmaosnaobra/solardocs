@@ -72,6 +72,9 @@ import { rodarAvisosProspeccao } from '../services/io/prospeccaoAviso';
 
 const router = Router();
 
+// mesmo numero que ja recebe os alertas de pagamento
+const RESUMO_DESTINO = process.env.RESUMO_DIA_WHATS || '34991360223';
+
 function verifyCronSecret(req: Request, res: Response): boolean {
   const auth   = req.headers['authorization'] ?? '';
   const secret = auth.replace('Bearer ', '').trim();
@@ -105,6 +108,32 @@ router.get('/cleanup-pro-docs', async (req: Request, res: Response) => {
 // Todo dia 17h BRT (0 20 * * * UTC) — manda pra cada consultor a lista de
 // clientes parados que precisam reagendar, com link único pro CRM filtrado.
 // ?dry=1 → não envia, só retorna o que enviaria (conferência).
+// ── RESUMO DO DIA (23:55 BRT) ────────────────────────────────────────────────
+// Uma mensagem por dia no WhatsApp do dono, com o saldo de seguidores, de onde
+// a gente empurrou gente pro perfil e o funil do eletroposto.
+//
+// `?seco=1` monta e DEVOLVE o texto sem mandar no WhatsApp — é assim que se
+// testa isto sem acordar ninguém às 3 da tarde.
+router.get('/resumo-do-dia', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const { montarResumoDoDia } = await import('../services/instagram/resumoDoDia');
+    const resumo = await montarResumoDoDia();
+
+    if (String(req.query.seco ?? '') === '1') {
+      res.json({ ok: true, enviado: false, ...resumo });
+      return;
+    }
+
+    const { sendWhatsApp } = await import('../services/agents/zapiClient');
+    await sendWhatsApp(RESUMO_DESTINO, resumo.texto, 'solardoc');
+    res.json({ ok: true, enviado: true, dia: resumo.dia });
+  } catch (err) {
+    logger.error('cron', 'resumo-do-dia falhou', err);
+    res.status(500).json({ error: 'resumo-do-dia falhou' });
+  }
+});
+
 router.get('/reagendar-diario', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {

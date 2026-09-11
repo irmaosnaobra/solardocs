@@ -1215,7 +1215,7 @@
             sabendo primeiro, e essas vagas não sobram. <b>Se você não seguir, não fica sabendo.</b></p>
         </div>
         <a class="btn" id="nao-ig" href="https://instagram.com/irmaosnaobra__" target="_blank" rel="noopener"
-           onclick="track('nota1_instagram')" style="margin-top:20px;width:100%;justify-content:center">
+           data-source="tela-recusa" onclick="track('nota1_instagram')" style="margin-top:20px;width:100%;justify-content:center">
           Seguir @irmaosnaobra__ agora →
         </a>
         <div style="margin-top:14px">
@@ -1336,7 +1336,7 @@
         <h3 class="fh4">Falar com a gente</h3>
         <div class="fcs">
           <a class="fc" href="https://wa.me/5534998165040" data-source="eletroposto-rodape" rel="noopener"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.8 2z"/></svg>(34) 99816-5040</a>
-          <a class="fc" href="https://instagram.com/irmaosnaobra__" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></svg>@irmaosnaobra__</a>
+          <a class="fc" href="https://instagram.com/irmaosnaobra__" data-source="rodape" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></svg>@irmaosnaobra__</a>
         </div>
       </div>
     </div>
@@ -2947,7 +2947,15 @@ setInterval(() => { if(!document.hidden && !slotSel) montarSlots(); }, 5*60*1000
     function send(path, body) { try { fetch(url + path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body), keepalive: true }).catch(()=>{}); } catch (_) {} }
     try { if (!sessionStorage.getItem(SENT)) { send('/_t/v', { session_id: sid, landing_url: location.href, referrer: document.referrer || null, ...utms }); sessionStorage.setItem(SENT, '1'); } } catch (_) {}
     function evt(type, data) { send('/_t/e', { session_id: sid, event_type: type, event_data: data || null }); }
-    document.addEventListener('click', (e) => { const a = e.target.closest('a[href^="https://wa.me"], a[href^="https://api.whatsapp.com"]'); if (a) evt('cta_click', { label: 'whatsapp', source: a.dataset.source || 'eletroposto' }); }, true);
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest('a[href^="https://wa.me"], a[href^="https://api.whatsapp.com"], a[href*="instagram.com"]');
+      if (!a) return;
+      // O CANAL sai do proprio href e o LUGAR do data-source. Sem o lugar o
+      // relatorio diria "3 cliques no Instagram" sem dizer 3 de onde, que e
+      // justamente o que a gente quer saber.
+      const canal = /instagram\.com/.test(a.href) ? 'instagram' : 'whatsapp';
+      evt('cta_click', { label: canal, source: a.dataset.source || 'eletroposto' });
+    }, true);
     let max = 0;
     window.addEventListener('scroll', () => { const h = document.documentElement, docH = h.scrollHeight - window.innerHeight; if (docH <= 0) return; const pct = Math.round(((window.scrollY || h.scrollTop) / docH) * 100); [25,50,75,100].forEach(m => { if (pct >= m && max < m) { max = m; evt('scroll', { depth: m }); } }); }, { passive: true });
     const start = Date.now();
