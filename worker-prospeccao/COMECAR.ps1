@@ -134,11 +134,23 @@ Write-Host ''
 # O Start-Transcript do PowerShell NAO captura a saida de um programa externo:
 # o AGENTE.log parava na linha de abertura e tudo que a agente fez sumia. Em
 # 11/09 ela morreu de madrugada e nao sobrou uma linha pra dizer por que.
-# Tee-Object joga nos dois lugares: na tela pra voce ver, e no arquivo pra eu
+# A escrita vai pros dois lugares: na tela pra voce ver, e no arquivo pra eu
 # ler depois.
 $arg = if ($valendo) { @('worker.mjs','--modo=continuo','--canal=instagram') }
        else          { @('worker.mjs','--dry','--modo=continuo','--canal=instagram') }
 $diario = Join-Path $PSScriptRoot 'agente-diario.log'
+
+# Tee-Object grava na pagina de codigo antiga e o log sai com "S?o Paulo".
+# Log que ninguem consegue ler e quase tao ruim quanto log que nao existe,
+# entao a escrita passa por aqui: tela na hora, arquivo em UTF-8.
+function Anotar {
+  param([Parameter(ValueFromPipeline=$true)] $linha)
+  process {
+    if ($null -eq $linha) { return }
+    Write-Host $linha
+    Add-Content -Path $diario -Value ([string]$linha) -Encoding UTF8
+  }
+}
 
 # -- e se cair, volta sozinha -----------------------------------------------
 # Queda de rede, Instagram fora do ar, Chrome reiniciado: qualquer um derruba o
@@ -148,11 +160,11 @@ $diario = Join-Path $PSScriptRoot 'agente-diario.log'
 $voltas = 0
 while ($true) {
   $inicio = Get-Date
-  "[$($inicio.ToString('dd/MM HH:mm:ss'))] ligando a agente (volta $voltas)" | Tee-Object -FilePath $diario -Append
-  & node @arg 2>&1 | Tee-Object -FilePath $diario -Append
+  "[$($inicio.ToString('dd/MM HH:mm:ss'))] ligando a agente (volta $voltas)" | Anotar
+  & node @arg 2>&1 | Anotar
   $fim = Get-Date
   $viva = [int]($fim - $inicio).TotalMinutes
-  "[$($fim.ToString('dd/MM HH:mm:ss'))] caiu depois de $viva min, volto em 60s" | Tee-Object -FilePath $diario -Append
+  "[$($fim.ToString('dd/MM HH:mm:ss'))] caiu depois de $viva min, volto em 60s" | Anotar
   Write-Host ''
   Write-Host "  A agente caiu depois de $viva min. Religando em 60 segundos..." -ForegroundColor Yellow
   Write-Host '  (Ctrl+C agora se voce quiser parar de vez)' -ForegroundColor DarkGray
