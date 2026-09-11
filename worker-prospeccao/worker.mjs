@@ -743,12 +743,28 @@ async function sessaoViva() {
 // "Nunca ociosa" quer dizer SEMPRE TER O QUE FAZER, não fazer o máximo de
 // requisição por minuto. Sem este teto, o loop de 2min30 dispararia ~120
 // buscas por hora, que é ritmo de robô e não de gente trabalhando.
-const BUSCAS_HORA = Number(process.env.BUSCAS_HORA || 30);
+// 12/h, e nao 30. Em 11/09 as 15h a conta ja estava devolvendo HTTP 429 no
+// perfil e 0 resultado na busca: a 30/h a gente estava raspando o teto do que o
+// Instagram entrega, e insistir num endpoint que ja respondeu 429 e o caminho
+// mais curto entre "limitado" e "bloqueado".
+//
+// Isto NAO limita o envio. O envio tem teto proprio (prospeccao_teto_hoje) e
+// passa por outro caminho. Aqui e so a lupa.
+const BUSCAS_HORA = Number(process.env.BUSCAS_HORA || 12);
 let janelaBusca = [];
+// Busca que volta vazia seguidamente nao e falta de empresa, e o Instagram
+// fechando a torneira. Cada vazia seguida cobra um minuto extra de silencio,
+// ate 30: recuar sozinho e o que evita que limite vire bloqueio.
+let vaziasSeguidas = 0;
 function sobramBuscas() {
   const corte = Date.now() - 3600_000;
   janelaBusca = janelaBusca.filter(t => t > corte);
-  return Math.max(0, BUSCAS_HORA - janelaBusca.length);
+  const sobra = Math.max(0, BUSCAS_HORA - janelaBusca.length);
+  if (!vaziasSeguidas) return sobra;
+  // Depois de N vazias seguidas, so volta a buscar se a ultima tiver N minutos.
+  const ultima = janelaBusca[janelaBusca.length - 1] || 0;
+  const descanso = Math.min(30, vaziasSeguidas) * 60_000;
+  return (Date.now() - ultima) < descanso ? 0 : sobra;
 }
 const gastarBusca = () => janelaBusca.push(Date.now());
 
@@ -869,7 +885,13 @@ async function reabastecer(aba, quantos = 4) {
     } catch (e) { r = { erro: e.message }; }
     gastarBusca();
 
-    if (r?.erro) { log(`  busca de @ reclamou (${r.erro}) — paro de procurar nesta rodada`); break; }
+    if (r?.erro) { vaziasSeguidas++; log(`  busca de @ reclamou (${r.erro}) — paro de procurar nesta rodada`); break; }
+    if (!(r?.users || []).length) {
+      vaziasSeguidas++;
+      log(`  a lupa voltou vazia (${vaziasSeguidas}ª seguida) — freio de ${Math.min(30, vaziasSeguidas)} min`);
+      break;
+    }
+    vaziasSeguidas = 0;
 
     const cand = (r?.users || []).map(u => ({ u, m: casaPerfil(c.empresa, u, c.cidade) }))
       .filter(x => x.m && !usados.has(String(x.u.username).toLowerCase()))
@@ -1013,8 +1035,17 @@ async function descobrir(aba) {
     } catch (e) { r = { erro: e.message }; }
     gastarBusca();
 
-    if (r?.erro) { log(`  busca reclamou (${r.erro}) — deixo ${alvo.nome} pra próxima`); }
-    else limpas++;
+    if (r?.erro) {
+      vaziasSeguidas++;
+      log(`  busca reclamou (${r.erro}) — deixo ${alvo.nome} pra próxima`);
+    } else {
+      limpas++;
+      const quantos = (r?.users || []).length;
+      if (quantos === 0) {
+        vaziasSeguidas++;
+        log(`  a busca voltou vazia (${vaziasSeguidas}ª seguida) — vou pisar no freio ${Math.min(30, vaziasSeguidas)} min`);
+      } else vaziasSeguidas = 0;
+    }
 
     for (const u of r?.users || []) {
       achados++;
