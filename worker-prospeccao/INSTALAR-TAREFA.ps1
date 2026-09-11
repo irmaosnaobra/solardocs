@@ -36,15 +36,20 @@ if ($Remover) {
   exit 0
 }
 
-if (-not (Admin)) {
-  Write-Host '  Preciso rodar como Administrador.' -ForegroundColor Red
-  Write-Host '  Clique com o botao direito neste arquivo e escolha' -ForegroundColor Yellow
-  Write-Host '  "Executar com o PowerShell" a partir de um PowerShell de Administrador.' -ForegroundColor Yellow
-  Write-Host ''
-  Write-Host '  --- Aperte Enter para fechar ---'
-  [void](Read-Host); exit 1
-}
 if (-not (Test-Path $script)) { Write-Host "  Nao achei $script" -ForegroundColor Red; exit 1 }
+
+# Sem Administrador ainda vale MUITO a pena instalar: o gatilho de logon e o
+# religamento automatico funcionam iguais. O que so o Administrador consegue
+# e o gatilho de BOOT, que cobre "o computador reiniciou e voce nao entrou na
+# conta ainda". Instalar o possivel agora e melhor que nao instalar nada.
+$ehAdmin = Admin
+if (-not $ehAdmin) {
+  Write-Host '  Sem privilegio de Administrador.' -ForegroundColor Yellow
+  Write-Host '  Instalo assim mesmo: liga quando voce entra na conta e religa se cair.' -ForegroundColor Yellow
+  Write-Host '  FALTA so o gatilho de BOOT (computador ligou, ninguem entrou ainda).' -ForegroundColor Yellow
+  Write-Host '  Pra ter esse tambem: PowerShell como Administrador e rode este arquivo de novo.' -ForegroundColor DarkGray
+  Write-Host ''
+}
 
 # ── a acao ───────────────────────────────────────────────────────────────────
 # -WindowStyle Hidden: ela trabalha sem janela na sua frente. O diario continua
@@ -57,10 +62,8 @@ $acao = New-ScheduledTaskAction -Execute 'powershell.exe' -WorkingDirectory $pas
 #   AtStartup  o computador foi reiniciado (queda de luz, Windows Update)
 #   AtLogOn    voce entrou na conta. E o que pega o caso mais comum, que e a
 #              maquina ligada mas a sessao reiniciada
-$gatilhos = @(
-  (New-ScheduledTaskTrigger -AtStartup),
-  (New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME)
-)
+$gatilhos = @( New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME )
+if ($ehAdmin) { $gatilhos += (New-ScheduledTaskTrigger -AtStartup) }
 
 # ── as regras ────────────────────────────────────────────────────────────────
 # RestartCount/Interval: se a tarefa INTEIRA morrer, o Windows religa. Isso e
@@ -81,7 +84,8 @@ $regras = New-ScheduledTaskSettingsSet `
 
 # -LogonType Interactive: ela PRECISA da sua sessao, porque usa o Chrome logado
 # no Instagram. Rodar como servico sem sessao nao enxergaria esse Chrome.
-$conta = New-ScheduledTaskPrincipal -UserId ("$env:USERDOMAIN\$env:USERNAME") -LogonType Interactive -RunLevel Highest
+$nivel = if ($ehAdmin) { 'Highest' } else { 'Limited' }
+$conta = New-ScheduledTaskPrincipal -UserId ("$env:USERDOMAIN\$env:USERNAME") -LogonType Interactive -RunLevel $nivel
 
 try { Unregister-ScheduledTask -TaskName $NOME -Confirm:$false -ErrorAction SilentlyContinue } catch { }
 Register-ScheduledTask -TaskName $NOME -Action $acao -Trigger $gatilhos `
@@ -91,7 +95,8 @@ Register-ScheduledTask -TaskName $NOME -Action $acao -Trigger $gatilhos `
 Write-Host "  Tarefa '$NOME' instalada." -ForegroundColor Green
 Write-Host ''
 Write-Host '  A partir de agora ela liga sozinha:'
-Write-Host '    - quando o computador liga'
+if ($ehAdmin) { Write-Host '    - quando o computador liga' }
+else          { Write-Host '    - quando o computador liga  [FALTA: precisa de Administrador]' -ForegroundColor DarkYellow }
 Write-Host '    - quando voce entra na sua conta'
 Write-Host '    - 2 minutos depois, se cair inteira'
 Write-Host ''

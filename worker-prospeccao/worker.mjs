@@ -658,11 +658,16 @@ async function garantirInstagram(aba) {
 // 2. Carrega SAÚDE, não só vida. Deslogada do Instagram ela continua rodando e
 //    continua batendo, e não manda nada. De fora isso é idêntico a um dia
 //    quieto, e é o jeito mais fácil de perder um dia inteiro sem perceber.
+// Quem sou eu nesta rodada. Serve pra UMA coisa: saber se o pulso que esta no
+// banco e meu ou de outra instancia rodando junto.
+const EU = `${process.pid}-${Date.now().toString(36)}`;
+
 async function bater(campos) {
   try {
     await fetch(`${CFG.supa}/prospeccao_pulso?id=eq.1`, {
       method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' },
-      body: JSON.stringify({ batido_em: new Date().toISOString(), consultor: CFG.consultor, ...campos }),
+      body: JSON.stringify({ batido_em: new Date().toISOString(), consultor: CFG.consultor,
+                             instancia: EU, versao: 'worker.mjs', ...campos }),
     });
   } catch { /* pulso que falha não derruba a agente: ele é o termômetro, não o doente */ }
 }
@@ -720,7 +725,8 @@ const gastarBusca = () => janelaBusca.push(Date.now());
 const GENERICAS = new Set(['solar','energia','energias','solares','fotovoltaica','fotovoltaico',
   'renovavel','renovaveis','engenharia','ltda','me','eireli','comercio','servicos','servico',
   'service','services','e','de','do','da','em','the','sistemas','solucoes','solucao','tecnologia',
-  'eletrica','eletricas','eletrico','brasil','grupo','cia','express','automacao','residencial',
+  'eletrica','eletricas','eletrico','eletricos','quadros','brasil','grupo','cia','express',
+  'automacao','residencial',
   'comercial','industrial','instalacao','instalacoes','projetos','projeto','consultoria',
   'assessoria','representacoes','distribuidora','oficial','ltd','sa','mei','epp']);
 const normNome = x => String(x || '').toLowerCase().normalize('NFD')
@@ -733,7 +739,8 @@ const distintivas = n => normNome(n).split(' ').filter(t => t.length >= 3 && !GE
 const OUTRO_RAMO = new RegExp(['academia','crossfit','barbearia','salao','estetica','petshop',
   'pizzaria','lanchonete','restaurante','igreja','escola','colegio','futebol','moda','boutique',
   'imobiliaria','advocacia','odonto','clinica','farmacia','mercado','supermercado','padaria',
-  'auto ?pecas','borracharia','hotel','pousada'].join('|'));
+  'auto ?pecas','borracharia','hotel','pousada','emporio','adega','mercearia','acougue',
+  'sorveteria','cafeteria','doceria','floricultura','otica','joalheria','papelaria'].join('|'));
 
 /**
  * Este perfil e MESMO desta empresa?
@@ -750,8 +757,13 @@ const OUTRO_RAMO = new RegExp(['academia','crossfit','barbearia','salao','esteti
  *   @solarpiracanjuba
  */
 function casaPerfil(empresa, u, cidade) {
-  const doLugar = new Set(distintivas(cidade || ''));
-  const alvo = distintivas(empresa).filter(t => !doLugar.has(t));
+  // A cidade sai do jogo por PREFIXO, não por igualdade. A ficha abrevia
+  // ("Sen. Canedo") e o nome da empresa escreve por extenso ("Senador Canedo"):
+  // comparando palavra com palavra, "senador" sobrevivia e casava com
+  // @emporioveiga.canedo, que e um emporio. Errar pra menos aqui e de proposito.
+  const doLugar = distintivas(cidade || '');
+  const daCidade = t => doLugar.some(c => t === c || t.startsWith(c) || c.startsWith(t));
+  const alvo = distintivas(empresa).filter(t => !daCidade(t));
   if (!alvo.length) return null;
 
   const txt = normNome(u.username + ' ' + (u.full_name || ''));
@@ -1018,6 +1030,43 @@ async function modoContinuo() {
     console.log('  Confere resposta a cada ' + Math.round(CFG.olharSeg / 60) + ' min.');
   }
   console.log('  Ctrl+C para parar. Deixe esta janela aberta.\n');
+
+  // DUAS AGENTES AO MESMO TEMPO É PIOR QUE NENHUMA.
+  //
+  // Elas dirigem o MESMO Chrome: uma navega pro perfil enquanto a outra digita,
+  // e as duas quebram. E disputam o mesmo teto do dia, então o dobro de
+  // mensagem sai da mesma conta na mesma hora, que é o retrato do robô.
+  //
+  // Aconteceu em 11/09 assim que a tarefa do Windows entrou: a janela manual
+  // ainda estava aberta e as duas subiram. O Windows sozinho não cobre isso
+  // (o MultipleInstances só enxerga a tarefa, não a janela que alguém abriu).
+  //
+  // A trava é o próprio pulso: se tem outra instância batendo agora, eu saio.
+  // Quem chegou primeiro continua, que é o que a pessoa quer quando clica duas
+  // vezes sem querer.
+  if (!DRY) {
+    try {
+      const p = (await ler('prospeccao_pulso?select=batido_em,instancia,ciclo&id=eq.1'))[0];
+      const idade = p?.batido_em ? (Date.now() - new Date(p.batido_em).getTime()) / 1000 : 1e9;
+      if (p?.instancia && p.instancia !== EU && idade < 180) {
+        // O relógio sozinho engana: instância que morreu deixa pulso fresco por
+        // até 3 minutos, e nesse intervalo a trava barraria a substituta legítima.
+        // Como a instância carrega o pid, dá pra PERGUNTAR se ela existe, em vez
+        // de supor. Só cai no relógio quando o pid é de outra máquina.
+        const pid = Number(String(p.instancia).split('-')[0]);
+        let viva = true;
+        try { process.kill(pid, 0); } catch (e) { viva = e.code !== 'EPERM'; }
+        if (!viva) {
+          log(`o pulso era da instância ${p.instancia}, que não existe mais. Assumo o lugar dela.`);
+        } else {
+          log(`JÁ TEM UMA AGENTE TRABALHANDO (instância ${p.instancia}, pulso de ${Math.round(idade)}s atrás).`);
+          log('Não vou subir uma segunda: as duas dirigiriam o mesmo Chrome e dobrariam o envio.');
+          log('Se a outra estiver travada, feche-a e espere 3 minutos.');
+          return;
+        }
+      }
+    } catch (e) { log('não consegui conferir se já tem outra rodando: ' + e.message); }
+  }
 
   let proximaAbordagem = 0;   // epoch em que pode mandar a próxima fria
   let semAlvo = false;
