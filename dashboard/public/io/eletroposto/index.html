@@ -266,7 +266,7 @@
 
   /* o cartao: maior, com anel e sombra. O anel e 1px a 18% — marca sem
      competir com o verde chapado do botao que mora dentro dele. */
-  .agBox{background:rgba(16,35,58,.86);border:1px solid var(--line-f);border-radius:24px;padding:34px 32px;
+  .agBox{scroll-margin-top:78px;background:rgba(16,35,58,.86);border:1px solid var(--line-f);border-radius:24px;padding:34px 32px;
     box-shadow:0 0 0 1px rgba(57,255,20,.18), 0 34px 90px rgba(0,0,0,.5)}
   @media(max-width:760px){.agBox{padding:26px 20px;border-radius:20px}}
   /* etiqueta "AGENDE" e a linha da seção: cinza aqui, sem competir com o CTA */
@@ -539,7 +539,7 @@
       <a href="#rotatividade">Rotatividade</a>
       <a href="#duvidas">Dúvidas</a>
     </nav>
-    <a href="#agendar" class="navCta" onclick="track('cta_topo')">Agende sua reunião</a>
+    <a href="#preencher" class="navCta" onclick="track('cta_topo')">Agende sua reunião</a>
   </div>
 </div>
 
@@ -567,7 +567,7 @@
 
       <div class="heroCta">
         <a href="#simulador" class="btn" onclick="track('cta_simular')">Simular meu retorno →</a>
-        <a href="#agendar" class="btn ghost" onclick="track('cta_hero_agendar')">Agendar reunião</a>
+        <a href="#preencher" class="btn ghost" onclick="track('cta_hero_agendar')">Agendar reunião</a>
       </div>
 
       <div class="confianca">
@@ -679,7 +679,7 @@
       muda todo o resto da conta.</div>
 
     <div class="ctaFim">
-      <a href="#agendar" class="btn" onclick="track('cta_modelos')">Quero comparar os modelos no meu ponto →</a>
+      <a href="#preencher" class="btn" onclick="track('cta_modelos')">Quero comparar os modelos no meu ponto →</a>
     </div>
   </section>
 
@@ -767,7 +767,7 @@
     </div>
 
     <div class="ctaFim">
-      <a href="#agendar" class="btn" onclick="track('cta_pos_sim')">Quero o estudo do meu ponto →</a>
+      <a href="#preencher" class="btn" onclick="track('cta_pos_sim')">Quero o estudo do meu ponto →</a>
     </div>
   </section>
 
@@ -961,7 +961,7 @@
         <div class="agSelo"><i></i>Agenda aberta desta semana</div>
       </div>
 
-    <div class="agBox">
+    <div class="agBox" id="preencher">
       <div id="ag-form">
         <div class="passoBarra"><i id="passo-barra"></i></div>
         <div class="passoConta" id="passo-conta">...</div>
@@ -2924,6 +2924,15 @@ onPonto();        // idem pro ponto: sem isto o endereço restaurado ficaria esc
                   // (e ele chama onRelacao, que reavalia o bloco do endereço)
 // a aba pode ficar aberta horas: ao voltar pra ela, refaz a agenda (horário que passou some)
 document.addEventListener('visibilitychange', () => { if(!document.hidden && !slotSel) montarSlots(); });
+// LINK ANTIGO CONTINUA VALENDO. '#agendar' ja saiu em mensagem, print e link de
+// fora; quem chegar por ele cai no cartao do mesmo jeito, em vez de parar no
+// titulo da secao e ter que rolar de novo.
+function irPraPreencher(){
+  const box = document.getElementById('preencher');
+  if (box) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+if (location.hash === '#agendar') setTimeout(irPraPreencher, 60);
+window.addEventListener('hashchange', () => { if (location.hash === '#agendar') irPraPreencher(); });
 // A aba tambem fica ABERTA por horas sem trocar de foco — e a vitrine anda sozinha o
 // dia inteiro: cada horario que entra na antecedencia some, e quando o ultimo de hoje
 // cai o dia inteiro sai da lista e um dia novo entra no fim. Sem isto o lead que
