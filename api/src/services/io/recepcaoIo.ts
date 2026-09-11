@@ -434,6 +434,20 @@ export async function handleRecepcaoIo(
     const silenciado = await carregarSilenciados();
     if (silenciado(phone)) return;
 
+    // HUMANO NA CONVERSA MANDA. `/webhook/io-sent` marca `human_takeover` quando
+    // a Giovanna ou a Nilce responde do celular, e era a PRIMEIRA coisa que o
+    // `handleSdrLead` checava — a recepção tinha herdado o resto da cascata e
+    // perdido justamente esta.
+    //
+    // Sem isto, a amostra real de quem escreve nesta linha vira o pior caso: as
+    // respostas da pesquisa de satisfação endereçadas à Giovanna pelo nome, obra
+    // em andamento, homologação na Cemig. Nenhuma dessas casa com Bia, LimpaPro
+    // ou vendedora, então a Duda entraria por cima de uma conversa que uma pessoa
+    // de verdade já está tendo, e ainda mandaria ficha duplicada pro Thiago.
+    const { data: leadRow } = await supabase
+      .from('sdr_leads').select('human_takeover').eq('phone', phone).maybeSingle();
+    if (leadRow?.human_takeover) return;
+
     const sessao = await lerSessao(phone);
     const lead: LeadData = sessao?.lead ?? { estado: 'triando', turnos: 0 };
 

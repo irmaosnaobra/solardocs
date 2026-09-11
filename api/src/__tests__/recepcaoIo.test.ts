@@ -188,6 +188,21 @@ describe('recepção da linha IO', () => {
     delete process.env.RECEPCAO_IO_OFF;
   });
 
+  it('humano na conversa manda: com human_takeover a Duda nao entra', async () => {
+    const { handleRecepcaoIo } = await carregar();
+    // É o caso mais comum da amostra real desta linha: cliente respondendo a
+    // Giovanna pelo nome (pesquisa de satisfação, obra, homologação). Não casa
+    // com Bia, LimpaPro nem vendedora, e sem esta trava a Duda entrava por cima.
+    leads.push({ phone: LEAD, nome: 'Cliente da Giovanna', human_takeover: true });
+    respostaIA = jsonIA('Oi! Como posso ajudar?');
+
+    await handleRecepcaoIo(LEAD, 'Boa tarde Giovanna, estou muito satisfeito');
+
+    expect(enviadasAoLead).toHaveLength(0);
+    expect(avisosInternos).toHaveLength(0);
+    expect(chamadasIA).toBe(0);
+  });
+
   it('cumprimento puro: responde, pergunta o motivo e SEGURA a conversa', async () => {
     const { handleRecepcaoIo, recepcaoJaAtende } = await carregar();
     respostaIA = jsonIA('Bom dia! Aqui é a Duda, da Irmãos na Obra.||O que você precisa hoje?');
