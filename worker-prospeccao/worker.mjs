@@ -1192,9 +1192,9 @@ async function modoContinuo() {
 
           // Três desfechos, três esperas:
           //   enviou  o dia inteiro dividido pelo que falta (ver abaixo)
-          //   falhou  90s e vai pro PRÓXIMO da fila. Não gastou mensagem nem
-          //           incomodou ninguém, então não há o que esperar. Uma sequência
-          //           de @ mortos custaria horas no ritmo antigo
+          //   falhou  vai pro PRÓXIMO na hora. Não saiu mensagem e ninguém foi
+          //           incomodado, então a vaga não pode ser perdida: o mínimo do
+          //           dia é de EMPRESAS FALADAS, não de tentativas
           //   vazio   15 min, porque insistir em fila vazia só gasta consulta
           //
           // O ENVIO SE ESPALHA PELO DIA, não sai em rajada.
@@ -1214,11 +1214,28 @@ async function modoContinuo() {
           const t2 = await travas();
           let espera;
           if (desfecho !== 'enviou') {
-            espera = desfecho === 'falhou' ? 90 : 900;
+            // "Imediatamente" com um respiro de 10 a 20s, não zero cravado.
+            // Falhar ainda significa ter ABERTO um perfil, e perfil atrás de
+            // perfil sem pausa nenhuma é exatamente a assinatura de raspador
+            // que a conta não pode ter. 15s não atrasa o dia (são segundos numa
+            // vaga que valeria 36 minutos) e apaga essa assinatura.
+            espera = desfecho === 'falhou'
+              ? 10 + Math.floor(10 * ((Date.now() % 997) / 997))
+              : 900;
           } else {
+            // O PRAZO É A MEIA-NOITE DE HOJE, não "daqui a 24 horas".
+            //
+            // Com janela de 24h a primeira versão olhava sempre 24 horas à
+            // frente, então o intervalo só crescia e a conta do dia nunca
+            // fechava: com 34 restando dava 42 min, e depois de mandar uma dava
+            // 43, e assim por diante. Nunca chegaria em 40 num dia.
+            //
+            // O teto é por DIA — o mesmo dia brasileiro que a view usa — então
+            // o prazo tem que ser o fim desse dia. Assim a conta se conserta
+            // sozinha: se ela atrasar, sobra menos tempo pro mesmo tanto de
+            // mensagem e o intervalo encurta até dar.
             const fim = new Date();
-            if (CFG.horaIni === 0 && CFG.horaFim === 24) fim.setTime(Date.now() + 86400_000);
-            else fim.setHours(CFG.horaFim, 0, 0, 0);
+            fim.setHours(24, 0, 0, 0);   // meia-noite de hoje, no relógio daqui
             const sobramSeg = Math.max(60, Math.floor((fim - new Date()) / 1000));
             const sobramMsg = Math.max(1, t2.restam);
             const ideal = Math.floor(sobramSeg / sobramMsg);
