@@ -163,7 +163,10 @@ export function montarRecado(
     ...(textos.length ? textos.slice(0, 20).map(t => `• ${t.slice(0, 900)}`) : ['• (só mídia, sem texto)']),
     ...(linhaMidia ? ['', `📎 ${linhaMidia} — chegando aqui em seguida:`, ...links] : []),
     '',
-    '_Respondeu às boas-vindas do cadastro. Nessa linha ninguém responde por robô — a bola está com você._',
+    // Genérico de propósito desde 11/09: este recado agora cobre DOIS toques (as
+    // boas-vindas do cadastro e o bom dia das 7h da Giovanna), e dizer "boas-vindas"
+    // pro segundo mandaria o consultor procurar uma mensagem que nunca existiu.
+    '_Respondeu à mensagem automática da linha. Aqui ninguém responde por robô — a bola está com você._',
   ].join('\n');
 }
 
@@ -174,7 +177,17 @@ interface Ficha {
   vendedor_nome: string | null;
   cidade: string | null;
   boas_vindas_at: string | null;
+  /** [11/09] Toque do bom dia das 7h da carteira da Giovanna (solarAgendaGiovanna).
+   *  Este módulo era o ouvido das boas-vindas só; sem isto, 15 pessoas por dia
+   *  recebiam "vou fazer seu atendimento" às 7h e quem respondesse "não quero"
+   *  não chegava a ninguém — e ainda levava a ligação às 8h15. */
+  bomdia_at: string | null;
 }
+
+/** O toque mais recente que a automação deu nesta ficha. É o piso do que conta
+ *  como RESPOSTA: mensagem anterior a ele é conversa velha, não resposta. */
+const tocadaEm = (f: Ficha): string =>
+  [String(f.boas_vindas_at || ''), String(f.bomdia_at || '')].sort().pop() || '';
 
 export type ResultadoSolarRespostas = {
   avisados: number;
@@ -223,23 +236,39 @@ export async function runSolarRespostasTick(opts: { dry?: boolean } = {}): Promi
 
   const agora = Date.now();
 
-  // 1) Fichas de solar que as boas-vindas tocaram.
-  const { data: fichas, error: eFichas } = await supabaseGerador
-    .from('agendamentos')
-    .select('id, cliente_nome, cliente_telefone, vendedor_nome, cidade, boas_vindas_at')
-    .in('created_by', SOLAR_ORIGENS)
-    .eq('status', 'agendado')
-    .not('boas_vindas_at', 'is', null)
-    .gte('boas_vindas_at', new Date(agora - FICHA_MAX_MS).toISOString())
-    .limit(300);
+  // 1) Fichas de solar que a automação tocou. São DUAS leituras porque são dois
+  // públicos diferentes, e juntá-las num filtro só erraria os dois:
+  //   a) boas-vindas do cadastro — recorte por `created_by` em SOLAR_ORIGENS;
+  //   b) bom dia das 7h da carteira da Giovanna — a ação de 11/09 pôs ali fichas
+  //      com created_by 'crm-bulk', 'Thiago', 'prosp_solar' e NULL (36 das 180),
+  //      que a lista de origens não pega. O corte dessa metade é o toque em si.
+  const [rBoasVindas, rBomDia] = await Promise.all([
+    supabaseGerador.from('agendamentos')
+      .select('id, cliente_nome, cliente_telefone, vendedor_nome, cidade, boas_vindas_at, bomdia_at')
+      .in('created_by', SOLAR_ORIGENS)
+      .eq('status', 'agendado')
+      .not('boas_vindas_at', 'is', null)
+      .gte('boas_vindas_at', new Date(agora - FICHA_MAX_MS).toISOString())
+      .limit(300),
+    supabaseGerador.from('agendamentos')
+      .select('id, cliente_nome, cliente_telefone, vendedor_nome, cidade, boas_vindas_at, bomdia_at')
+      .eq('status', 'agendado')
+      .not('bomdia_at', 'is', null)
+      .gte('bomdia_at', new Date(agora - FICHA_MAX_MS).toISOString())
+      .limit(300),
+  ]);
+  const eFichas = rBoasVindas.error || rBomDia.error;
   if (eFichas) { logger.error('solar-respostas', 'ler fichas falhou', eFichas); return { ...zero('erro_fichas'), erros: 1 }; }
-  if (!fichas?.length) return zero('ninguem_tocado');
+  const fichas = [...(rBoasVindas.data ?? []), ...(rBomDia.data ?? [])];
+  if (!fichas.length) return zero('ninguem_tocado');
 
   // Filtro refeito em JS: se o `.not()` da consulta mudar, ficha sem toque cairia
   // no piso de 3 dias e viraria alerta em cima de conversa que o humano já tinha.
+  // A mesma ficha pode vir nas duas leituras; a chave é o telefone, então a
+  // segunda sobrescreve a primeira e o `tocadaEm` resolve qual toque vale.
   const porChave = new Map<string, Ficha>();
   for (const f of fichas as Ficha[]) {
-    if (!f.boas_vindas_at) continue;
+    if (!tocadaEm(f)) continue;
     const k = telKey(f.cliente_telefone);
     if (k) porChave.set(k, f);
   }
@@ -262,7 +291,7 @@ export async function runSolarRespostasTick(opts: { dry?: boolean } = {}): Promi
   const pisoGlobal = new Date(agora - LOOKBACK_MAX_MS).toISOString();
   const corteDaFicha = new Map<number, string>();
   for (const f of porChave.values()) {
-    const corte = [String(f.boas_vindas_at), jaAvisadoAte.get(f.id) ?? '', pisoGlobal].filter(Boolean).sort().pop()!;
+    const corte = [tocadaEm(f), jaAvisadoAte.get(f.id) ?? '', pisoGlobal].filter(Boolean).sort().pop()!;
     corteDaFicha.set(f.id, corte);
   }
   const menorCorte = [...corteDaFicha.values()].sort()[0] ?? pisoGlobal;

@@ -53,6 +53,7 @@ import { runEletropostoAlerta10minTick } from '../services/io/eletropostoAlerta1
 import { runEletropostoIgConviteTick, publicoIgConvite, bolhaConviteLP } from '../services/io/eletropostoIgConvite';
 import { runSolarBoasVindasTick } from '../services/io/solarBoasVindas';
 import { runSolarRespostasTick } from '../services/io/solarRespostas';
+import { runSolarAgendaGiovannaTick } from '../services/io/solarAgendaGiovanna';
 import { runNilceParaGiovanna } from '../services/agenda/nilceParaGiovanna';
 import { processarLembretesAgenda } from '../services/agenda/lembretesAgenda';
 import { enviarReagendarDiario } from '../services/agenda/reagendarDigest';
@@ -360,6 +361,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       runEletropostoIgConviteTick(),   // eletroposto: lead que veio do Instagram não marca agenda — recebe UM convite pra LP (EP_IG_CONVITE_OFF desliga)
       runSolarBoasVindasTick(),        // solar: quem acabou de se cadastrar recebe o consultor, o contato e a pergunta do consumo (SOLAR_BOASVINDAS_OFF desliga)
       runSolarRespostasTick(),         // solar: cliente respondeu as boas-vindas → recado pro consultor dono da ficha
+      runSolarAgendaGiovannaTick(),    // solar: a carteira da Giovanna recebe bom dia às 7h e um "oi" 5 min antes da ligação (SOLAR_GIOVANNA_OFF desliga)
       // [06/08] As três cadências da linha B2B passam a drenar AQUI também, não só no
       // master de hora em hora. Motivo: com a margem de 5 min entre envios elas mandariam
       // 1 por ciclo — no master isso viraria 1/h, um quarto do que o teto (4/h) permite.
@@ -553,6 +555,21 @@ router.get('/solar-respostas', async (req: Request, res: Response) => {
     res.json({ ok: true, dry, ...(await runSolarRespostasTick({ dry })) });
   } catch (err: any) {
     logger.error('cron', 'solar-respostas falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
+// Os dois toques do dia da Giovanna (bom dia das 7h + "oi" 5 min antes).
+// ?dry=1 mostra a bolha que sairia e pra quem, sem mandar e sem carimbar nada —
+// é assim que se confere a copy contra ficha real antes de deixar sair.
+router.get('/solar-giovanna', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    // Sem `ok: true` aqui: o tick já devolve o dele, e repetir sobrescreve.
+    res.json({ dry, ...(await runSolarAgendaGiovannaTick({ dry })) });
+  } catch (err: any) {
+    logger.error('cron', 'solar-giovanna falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });
@@ -1272,6 +1289,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['eletroposto-ig-convite',      () => runEletropostoIgConviteTick()], // eletroposto: lead de Instagram não marca agenda — recebe UM convite pra LP (EP_IG_CONVITE_OFF desliga)
     ['solar-boas-vindas',           () => runSolarBoasVindasTick()],     // solar: recibo do cadastro pro cliente (SOLAR_BOASVINDAS_OFF desliga)
     ['solar-respostas',             () => runSolarRespostasTick()],      // solar: resposta do cliente vira recado pro consultor dono
+    ['solar-giovanna',              () => runSolarAgendaGiovannaTick()], // solar: bom dia das 7h e "oi" 5 min antes, só na carteira da Giovanna (SOLAR_GIOVANNA_OFF desliga)
     ['dunning',                     () => runDunning()],            // 5 dias: D0-D4 lembrete, D5 cancela+free
     ['dispute-watch',                () => runDisputeWatch()],       // contestação aberta / aviso antecipado de fraude → email pro Thiago com o dossiê. Nada escutava disputa antes disso.
     ['sync-stripe-plans',           () => syncStripePlans()],       // reconcilia users.plano com Stripe real (horário)

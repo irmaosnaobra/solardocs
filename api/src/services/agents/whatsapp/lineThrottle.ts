@@ -142,6 +142,12 @@ const BOT_SENT_PREFIXES = [
   // primeiro dia. O prefixo e 'convinv' porque 'ep_convite_sent:' logo acima ja
   // pertence a outro robo.
   'ep_convinv_sent:',
+  // [11/09] Os dois toques do dia da Giovanna (bom dia das 7h e "oi" 5 min antes),
+  // da ação que pôs 180 fichas de solar na agenda dela. Uma bolha por toque e
+  // volume limitado pela agenda, mas o bom dia sai em LEVA — 15 pessoas na mesma
+  // faixa de 15 minutos é a forma exata da rajada de 04/08. Entra na conta desde
+  // o primeiro dia, não depois da queda.
+  'solar_giovanna_sent:',
 ] as const;
 
 // Desvio da linha B2B ligado (ZAPI_SOLARDOC_VIA_IO=1)? Então Giovanna, curso de
