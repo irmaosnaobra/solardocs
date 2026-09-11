@@ -933,96 +933,110 @@ async function modoContinuo() {
   let semAlvo = false;
 
   for (;;) {
-    const agoraMs = Date.now();
-    const h = new Date().getHours();
-
-    // ── fora da janela: dorme até o próximo turno ──────────────────────────
-    if (h < CFG.horaIni || (CFG.horaFim < 24 && h >= CFG.horaFim)) {
-      const alvo = new Date();
-      if (h >= CFG.horaIni) alvo.setDate(alvo.getDate() + 1);
-      alvo.setHours(CFG.horaIni, 0, 0, 0);
-      const seg = Math.max(60, Math.floor((alvo - new Date()) / 1000));
-      log(`fora da janela — dormindo ${Math.round(seg / 60)} min, volto às ${CFG.horaIni}h`);
-      await dorme(seg * 1000);
-      proximaAbordagem = 0; semAlvo = false;
-      continue;
-    }
-
-    // ── 1. RESPONDER ──────────────────────────────────────────────────────
-    // No Instagram isto NÃO roda mais: quem responde é o webhook da Meta, que
-    // recebe a mensagem pronta no servidor e devolve pela API oficial.
+    // NENHUM TROPEÇO ENCERRA O DIA.
     //
-    // Ler pelo navegador aqui era pior que inútil — era o que travava o loop.
-    // Cada conversa custa ~8s (navegar + esperar) e são 170: mais de 20 minutos
-    // por volta, ANTES da primeira mensagem sair. A tela parecia parada porque
-    // estava moendo conversa que o webhook já cobre.
+    // Em 11/09 o Supabase engasgou por alguns segundos, a leitura do teto
+    // falhou nas 3 tentativas, o erro subiu até o topo e o processo MORREU.
+    // A janela religava e ela morria de novo em 1 minuto, três vezes seguidas.
     //
-    // No WhatsApp continua rodando: lá não existe webhook, e o navegador é o
-    // único jeito de saber que alguém respondeu.
-    if (CANAL !== 'instagram') {
-      try { await modoResponder(); }
-      catch (e) { log('rodada de resposta falhou: ' + e.message); }
-    }
+    // Agente que precisa rodar 24h não pode morrer de soluço de rede: erro de
+    // uma volta vira linha de log e a volta seguinte tenta de novo. O que
+    // continua derrubando de propósito é Ctrl+C, que é ordem de gente.
+    try {
+      const agoraMs = Date.now();
+      const h = new Date().getHours();
 
-    // ── 2. ABORDAR, se já passou o intervalo e ainda tem teto ─────────────
-    if (Date.now() >= proximaAbordagem) {
-      const t = await travas();
-
-      if (t.estado === 'travado') {
-        log('DISJUNTOR ARMADO — opt-out alto. Paro de abordar; sigo só respondendo.');
-        proximaAbordagem = Date.now() + 3600_000;   // reconfere de hora em hora
-      } else if (t.restam <= 0) {
-        // TETO FECHADO NÃO É FIM DE EXPEDIENTE. O teto limita ENVIAR, não
-        // trabalhar. Enquanto não pode mandar, ela constrói a lista de amanhã —
-        // é isso que faz nunca faltar empresa de solar pra abordar.
-        if (!semAlvo) {
-          log(`teto de envio fechado (${t.usados}/${t.teto}). Sigo construindo a lista até 23h59.`);
-          semAlvo = true;
-        }
-        proximaAbordagem = Date.now() + 600_000;   // reconfere de 10 em 10 min
-      } else {
-        semAlvo = false;
-        let desfecho = 'falhou';
-        try { desfecho = await umaAbordagem(); }
-        catch (e) { log('abordagem falhou: ' + e.message); }
-
-        // Três desfechos, três esperas. Antes eram dois, e por isso um perfil
-        // morto custava 15 minutos de silêncio: ela tratava "falhei com este"
-        // igual a "não tem ninguém pra falar".
-        //   enviou  intervalo humano de 4 a 15 min, sorteado
-        //   falhou  90s e vai pro PRÓXIMO da fila. Não gastou mensagem nem
-        //           incomodou ninguém, então não há o que esperar. Uma sequência
-        //           de @ mortos custaria horas no ritmo antigo
-        //   vazio   15 min, porque insistir em fila vazia só gasta consulta
-        const faixa = CFG.maxSeg - CFG.minSeg;
-        const espera = desfecho === 'enviou'
-          ? CFG.minSeg + Math.floor(faixa * ((Date.now() % 1013) / 1013))
-          : desfecho === 'falhou' ? 90 : 900;
-        proximaAbordagem = Date.now() + espera * 1000;
-        const t2 = await travas();
-        log(`${t2.usados}/${t2.teto} abordagens · ${t2.respostas} respostas hoje`
-          + ` · próxima abordagem em ${Math.round(espera / 60)} min`);
+      // ── fora da janela: dorme até o próximo turno ──────────────────────────
+      if (h < CFG.horaIni || (CFG.horaFim < 24 && h >= CFG.horaFim)) {
+        const alvo = new Date();
+        if (h >= CFG.horaIni) alvo.setDate(alvo.getDate() + 1);
+        alvo.setHours(CFG.horaIni, 0, 0, 0);
+        const seg = Math.max(60, Math.floor((alvo - new Date()) / 1000));
+        log(`fora da janela — dormindo ${Math.round(seg / 60)} min, volto às ${CFG.horaIni}h`);
+        await dorme(seg * 1000);
+        proximaAbordagem = 0; semAlvo = false;
+        continue;
       }
-    }
 
-    // ── 3. CONSTRUIR A LISTA — todo tempo ocioso vira lista ───────────────
-    // Roda SEMPRE, não só quando a fila está curta. Duas frentes, nessa ordem:
-    //   1) achar o @ de empresa que já está na base (mais barato, mais certeiro)
-    //   2) quando não sobra nenhuma, ir atrás de empresa que nunca vimos
-    // Assim ela nunca fica sem o que fazer entre 07h e 23h59, e nunca seca.
-    if (CANAL === 'instagram' && !DRY) {
-      let aba = null;
-      try {
-        aba = await Aba.abrir(CFG.cdp);
-        const achou = await reabastecer(aba, 5);
-        if (achou) log(`achei @ de ${achou} empresa(s) que já estavam na base`);
-        else await descobrir(aba);
-      } catch (e) { log('construção da lista falhou: ' + e.message); }
-      finally { if (aba) await aba.fechar(); }
-    }
+      // ── 1. RESPONDER ──────────────────────────────────────────────────────
+      // No Instagram isto NÃO roda mais: quem responde é o webhook da Meta, que
+      // recebe a mensagem pronta no servidor e devolve pela API oficial.
+      //
+      // Ler pelo navegador aqui era pior que inútil — era o que travava o loop.
+      // Cada conversa custa ~8s (navegar + esperar) e são 170: mais de 20 minutos
+      // por volta, ANTES da primeira mensagem sair. A tela parecia parada porque
+      // estava moendo conversa que o webhook já cobre.
+      //
+      // No WhatsApp continua rodando: lá não existe webhook, e o navegador é o
+      // único jeito de saber que alguém respondeu.
+      if (CANAL !== 'instagram') {
+        try { await modoResponder(); }
+        catch (e) { log('rodada de resposta falhou: ' + e.message); }
+      }
 
-    // ── 4. dorme pouco e volta ────────────────────────────────────────────
-    await dorme(CFG.olharSeg * 1000);
+      // ── 2. ABORDAR, se já passou o intervalo e ainda tem teto ─────────────
+      if (Date.now() >= proximaAbordagem) {
+        const t = await travas();
+
+        if (t.estado === 'travado') {
+          log('DISJUNTOR ARMADO — opt-out alto. Paro de abordar; sigo só respondendo.');
+          proximaAbordagem = Date.now() + 3600_000;   // reconfere de hora em hora
+        } else if (t.restam <= 0) {
+          // TETO FECHADO NÃO É FIM DE EXPEDIENTE. O teto limita ENVIAR, não
+          // trabalhar. Enquanto não pode mandar, ela constrói a lista de amanhã —
+          // é isso que faz nunca faltar empresa de solar pra abordar.
+          if (!semAlvo) {
+            log(`teto de envio fechado (${t.usados}/${t.teto}). Sigo construindo a lista até 23h59.`);
+            semAlvo = true;
+          }
+          proximaAbordagem = Date.now() + 600_000;   // reconfere de 10 em 10 min
+        } else {
+          semAlvo = false;
+          let desfecho = 'falhou';
+          try { desfecho = await umaAbordagem(); }
+          catch (e) { log('abordagem falhou: ' + e.message); }
+
+          // Três desfechos, três esperas. Antes eram dois, e por isso um perfil
+          // morto custava 15 minutos de silêncio: ela tratava "falhei com este"
+          // igual a "não tem ninguém pra falar".
+          //   enviou  intervalo humano de 4 a 15 min, sorteado
+          //   falhou  90s e vai pro PRÓXIMO da fila. Não gastou mensagem nem
+          //           incomodou ninguém, então não há o que esperar. Uma sequência
+          //           de @ mortos custaria horas no ritmo antigo
+          //   vazio   15 min, porque insistir em fila vazia só gasta consulta
+          const faixa = CFG.maxSeg - CFG.minSeg;
+          const espera = desfecho === 'enviou'
+            ? CFG.minSeg + Math.floor(faixa * ((Date.now() % 1013) / 1013))
+            : desfecho === 'falhou' ? 90 : 900;
+          proximaAbordagem = Date.now() + espera * 1000;
+          const t2 = await travas();
+          log(`${t2.usados}/${t2.teto} abordagens · ${t2.respostas} respostas hoje`
+            + ` · próxima abordagem em ${Math.round(espera / 60)} min`);
+        }
+      }
+
+      // ── 3. CONSTRUIR A LISTA — todo tempo ocioso vira lista ───────────────
+      // Roda SEMPRE, não só quando a fila está curta. Duas frentes, nessa ordem:
+      //   1) achar o @ de empresa que já está na base (mais barato, mais certeiro)
+      //   2) quando não sobra nenhuma, ir atrás de empresa que nunca vimos
+      // Assim ela nunca fica sem o que fazer entre 07h e 23h59, e nunca seca.
+      if (CANAL === 'instagram' && !DRY) {
+        let aba = null;
+        try {
+          aba = await Aba.abrir(CFG.cdp);
+          const achou = await reabastecer(aba, 5);
+          if (achou) log(`achei @ de ${achou} empresa(s) que já estavam na base`);
+          else await descobrir(aba);
+        } catch (e) { log('construção da lista falhou: ' + e.message); }
+        finally { if (aba) await aba.fechar(); }
+      }
+
+      // ── 4. dorme pouco e volta ────────────────────────────────────────────
+      await dorme(CFG.olharSeg * 1000);
+    } catch (e) {
+      log(`a volta tropeçou (${e.message}) — sigo na próxima`);
+      await dorme(30000);
+    }
   }
 }
 

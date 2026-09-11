@@ -26,6 +26,7 @@ import { runSdrFollowups, } from '../services/agents/sdr/sdrFollowupService';
 import { runSdrB2bFollowups } from '../services/agents/sdr/sdrB2bFollowupService';
 import { runCarlaMorningBroadcast } from '../services/agents/sdr/sdrB2bMorningHook';
 import { pollZapiMessages, retryCardsPendentes } from '../services/agents/sdr/sdrAgentService';
+import { entregarTriagensParadas } from '../services/io/recepcaoIo';
 import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendamento, revisarLeadsLuma, processarReativacao, processarNudge10min, processarNudge18h, cleanupPerdidosAntigos, cleanupMessageDedup, enviarRelatorioDiario } from '../services/agents/sdr/sdrIoPolling';
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 import { runGeradorBroadcastTick, runGeradorSequenciasConsumer } from '../services/io/geradorAutomacaoService';
@@ -323,7 +324,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // duas últimas cadências não apareciam). Os ticks sempre rodaram — quem
     // mentia era o relatório, que é justamente onde a gente vai olhar quando
     // desconfiar de um tick. Nome novo aqui exige chamada nova na MESMA posição.
-    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, limpaproAtendResult, geradorSeqResult, igDrainResult, fbComentResult, fbInboxResult, repescagemResult, conviteResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult, epReagendaResult, epCardPingResult, epIgConviteResult, solarBvResult, solarRespResult, curso19Result, carlaCnpjResult, carlaInativoResult, epAlerta10minResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, limpaproAtendResult, geradorSeqResult, igDrainResult, fbComentResult, fbInboxResult, repescagemResult, conviteResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult, epReagendaResult, epCardPingResult, epIgConviteResult, solarBvResult, solarRespResult, curso19Result, carlaCnpjResult, carlaInativoResult, epAlerta10minResult, recepcaoParadasResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),            // detecta inbound IO pra Cora processar
@@ -368,6 +369,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       runCarlaSemCnpjFollowup(),       // Giovanna: 3 toques em 30d
       runCarlaInativoFollowup(),       // Giovanna: 5 toques em 60d
       runEletropostoAlerta10minTick(), // eletroposto: 10 min antes da reunião CONFIRMADA, alerta no WhatsApp do consultor dono (EP_ALERTA_10MIN_OFF desliga)
+      entregarTriagensParadas(),       // recepção da linha IO: triagem parada há 2h vai pro humano do jeito que está (exige RECEPCAO_IO_ATIVA=1)
     ]);
     res.json({
       ok: true,
@@ -403,6 +405,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       carla_sem_cnpj: carlaCnpjResult.status === 'fulfilled' ? carlaCnpjResult.value : { error: String((carlaCnpjResult as any).reason) },
       carla_inativo:  carlaInativoResult.status === 'fulfilled' ? carlaInativoResult.value : { error: String((carlaInativoResult as any).reason) },
       ep_alerta_10min: epAlerta10minResult.status === 'fulfilled' ? epAlerta10minResult.value : { error: String((epAlerta10minResult as any).reason) },
+      recepcao_paradas: recepcaoParadasResult.status === 'fulfilled' ? recepcaoParadasResult.value : { error: String((recepcaoParadasResult as any).reason) },
       luma_io_off: 'Linha IO: polling ativo só pra Cora ouvir inbound, demais tarefas Luma desligadas',
     });
   } catch (err) {

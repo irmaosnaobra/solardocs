@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { handleIncomingWhatsApp } from '../services/agents/whatsapp/whatsappAgentService';
-import { handleSdrLead, tryClaimMessage } from '../services/agents/sdr/sdrAgentService';
+import { tryClaimMessage } from '../services/agents/sdr/sdrAgentService';
 import { handleGroupMessage } from '../services/agents/sdr/sdrGroupAgent';
 import { supabase } from '../utils/supabase';
 import { supabaseGerador } from '../utils/supabaseGerador';
@@ -12,6 +12,7 @@ import { handleBiaInbound, ehLeadRecuperacao, marcarTakeoverBia } from '../servi
 import { ehGatilhoSolarDoc, vendedoraJaAtende } from '../services/agents/whatsapp/whatsappAgentService';
 import { encaminharMidiaAoConsultor, MidiaLead } from '../services/io/encaminharMidiaConsultor';
 import { ehAlunoLimpapro, handleLimpaproAtendimento, marcarTakeoverLimpapro } from '../services/agents/whatsapp/limpaproAtendimentoService';
+import { handleRecepcaoIo, recepcaoJaAtende } from '../services/io/recepcaoIo';
 
 // Z-API webhook payloads costumam trazer messageId|zaapId|id. Pegamos o
 // primeiro disponível pra dedup atômico contra redelivery e race com polling.
@@ -418,7 +419,13 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
   // basta: a 2ª mensagem do lead ("sou integrador, faço 10 por mês") não carrega a
   // frase do anúncio, e sem a posse ela voltaria a cair na Bia ou na Luma no meio
   // do atendimento. "Entra só a vendedora" vale pra conversa inteira.
-  if (textoRecup && (ehGatilhoSolarDoc(textoRecup) || await vendedoraJaAtende(String(phone)))) return;
+  // A recepção, quando já é dona da conversa, vem ANTES desta cessão. Motivo: o
+  // lead em triagem que escreve "quero saber do SolarDoc" dispararia o gatilho e
+  // a fila responderia por cima da Duda, que é o cenário de dois robôs que esta
+  // rota já pagou uma vez. A Duda termina de triar e entrega; quem chega pelo
+  // gatilho SEM triagem aberta continua indo pra vendedora, como sempre foi.
+  const recepcaoDona = textoRecup ? await recepcaoJaAtende(String(phone)) : false;
+  if (!recepcaoDona && textoRecup && (ehGatilhoSolarDoc(textoRecup) || await vendedoraJaAtende(String(phone)))) return;
 
   if (textoRecup && await ehLeadRecuperacao(String(phone))) {
     handleBiaInbound(String(phone), textoRecup, body.senderName || body.pushname)
@@ -439,12 +446,12 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
     }
   }
 
-  // Processa em background — chama Luma direto na linha 'io'.
-  // Pra mídia: transcreve áudio (Whisper) ou baixa imagem como base64 (Anthropic vision).
+  // Processa em background. Pra mídia: transcreve áudio (Whisper). Imagem não é
+  // mais baixada como base64 aqui — a recepção é de texto, e a foto em si já foi
+  // encaminhada ao consultor lá em cima por `encaminharMidiaAoConsultor`.
   (async () => {
     try {
       let finalText = String(text || '');
-      let imageSource: { type: 'base64'; media_type: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'; data: string } | null = null;
 
       if (media) {
         if (media.type === 'audio') {
@@ -472,9 +479,8 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
             return;
           }
         } else if (media.type === 'image') {
-          imageSource = await downloadImageAsAnthropicSource(media.url, media.mime);
           if (!finalText || finalText === '[imagem]') {
-            finalText = 'O cliente enviou esta imagem.';
+            finalText = 'O cliente enviou uma foto.';
           }
         } else if (media.type === 'video' || media.type === 'document') {
           finalText = (finalText || '') +
@@ -483,13 +489,14 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
       }
 
       if (!finalText) return;
-      await handleSdrLead(
-        String(phone), finalText,
-        body.senderName || body.pushname,
-        tracking, 'io', imageSource,
-      );
+      // Fim da cascata: ninguém reivindicou esta mensagem. Até 11/09/2026 ela ia
+      // pra `handleSdrLead`, cuja primeira linha é `if (instance === 'io') return`
+      // — ou seja, caía no vazio, e 117 pessoas em 30 dias escreveram sem receber
+      // resposta nenhuma. Agora a recepção atende, descobre o que a pessoa quer e
+      // chama o humano certo. Ela só age com RECEPCAO_IO_ATIVA=1.
+      await handleRecepcaoIo(String(phone), finalText, body.senderName || body.pushname);
     } catch (err) {
-      console.error('[webhook:io] handleSdrLead falhou:', err);
+      console.error('[webhook:io] handleRecepcaoIo falhou:', err);
     }
   })();
 });
