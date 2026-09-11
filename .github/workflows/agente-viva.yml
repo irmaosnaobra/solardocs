@@ -1,0 +1,126 @@
+name: A agente de prospeccao esta trabalhando?
+
+# Por que este arquivo existe: em 11/09/2026 a agente ficou parada das 04h as
+# 11h44 e ninguem soube. O computador entrou em espera as 06:52, o processo
+# morreu de madrugada, e o Thiago so descobriu perguntando "hoje nao enviou
+# nada?".
+#
+# A metade que abre conversa TEM que morar no desktop dele: ela usa a sessao
+# logada do Instagram num Chrome de verdade, e sessao dessas rodando de IP de
+# datacenter e bloqueio na certa. Entao nao da pra tirar da maquina. O que da
+# pra fazer e saber em 20 minutos quando ela para, em vez de em 8 horas.
+#
+# Este vigia roda no GitHub, que e um lugar diferente do desktop E diferente da
+# Vercel. Issue nova = e-mail do GitHub pra quem segue o repositorio. Quando ela
+# volta, a issue se fecha sozinha e chega o e-mail avisando.
+#
+# Irmao deste arquivo: vercel-vivo.yml, que cuida da producao. Aquele responde
+# "a API esta no ar?"; este responde "a agente esta trabalhando?". Sao perguntas
+# diferentes e as duas ja foram respondidas tarde demais uma vez.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  pulso:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Perguntar se ela esta viva
+        id: pulso
+        run: |
+          RESP=$(curl -s --max-time 25 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://api.solardoc.app/cron/prospeccao-pulso" || echo '')
+
+          # Sem resposta = a API caiu. Isso NAO e problema da agente e ja tem
+          # vigia proprio (vercel-vivo.yml). Gritar aqui tambem so duplicaria o
+          # susto e ensinaria a ignorar os dois.
+          if [ -z "$RESP" ] || ! echo "$RESP" | jq -e . >/dev/null 2>&1; then
+            echo "A API nao respondeu. Quem cuida disso e o vercel-vivo.yml."
+            echo "pular=sim" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "$RESP" | jq .
+          echo "pular=nao" >> "$GITHUB_OUTPUT"
+          echo "ok=$(echo "$RESP" | jq -r '.ok')" >> "$GITHUB_OUTPUT"
+          echo "min=$(echo "$RESP" | jq -r '.minutos_sem_pulso // "nunca"')" >> "$GITHUB_OUTPUT"
+          echo "logado=$(echo "$RESP" | jq -r '.logado')" >> "$GITHUB_OUTPUT"
+          echo "conta=$(echo "$RESP" | jq -r '.conta // "?"')" >> "$GITHUB_OUTPUT"
+          echo "enviados=$(echo "$RESP" | jq -r '.enviados_hoje // 0')" >> "$GITHUB_OUTPUT"
+          echo "fazendo=$(echo "$RESP" | jq -r '.fazendo // "?"')" >> "$GITHUB_OUTPUT"
+          {
+            echo 'problemas<<FIM'
+            echo "$RESP" | jq -r '.problemas[]? | "- " + .'
+            echo 'FIM'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Abrir a issue se ela parou (uma so, sem spam)
+        if: steps.pulso.outputs.pular == 'nao' && steps.pulso.outputs.ok == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MIN: ${{ steps.pulso.outputs.min }}
+          LOGADO: ${{ steps.pulso.outputs.logado }}
+          CONTA: ${{ steps.pulso.outputs.conta }}
+          ENVIADOS: ${{ steps.pulso.outputs.enviados }}
+          FAZENDO: ${{ steps.pulso.outputs.fazendo }}
+          PROBLEMAS: ${{ steps.pulso.outputs.problemas }}
+        run: |
+          ABERTA=$(gh issue list --label agente-parada --state open --json number --jq 'length')
+          if [ "$ABERTA" != "0" ]; then
+            echo "Ja existe issue aberta. Nao abro outra."
+            exit 0
+          fi
+          gh label create agente-parada --color D93F0B --description "A agente de prospeccao parou" --force || true
+          {
+            echo "**A agente de prospeccao parou de trabalhar.**"
+            echo
+            echo "$PROBLEMAS"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| ultimo sinal de vida | ha \`$MIN\` min |"
+            echo "| logada no Instagram | \`$LOGADO\` (conta \`$CONTA\`) |"
+            echo "| enviadas hoje | \`$ENVIADOS\` |"
+            echo "| estava fazendo | $FAZENDO |"
+            echo
+            echo "### O que conferir, nesta ordem"
+            echo
+            echo "1. **O computador esta ligado e acordado?** Foi a causa em 11/09:"
+            echo "   entrou em espera as 06:52 e so voltou as 11:36."
+            echo "2. **A janela da agente esta aberta?** Se nao, a tarefa agendada"
+            echo "   \`AgenteProspeccao\` devia ter religado. Confira no Agendador de"
+            echo "   Tarefas do Windows, ou rode \`schtasks /run /tn AgenteProspeccao\`."
+            echo "3. **Ela esta deslogada do Instagram?** Se a linha acima disser"
+            echo "   \`false\`, abra o Chrome dela e entre na conta de novo. Ela"
+            echo "   continua rodando deslogada e nao manda nada."
+            echo "4. **O diario:** \`worker-prospeccao/agente-diario.log\` no"
+            echo "   computador dele, que grava tudo que ela faz linha por linha."
+            echo
+            echo "Esta issue fecha sozinha assim que ela voltar a bater o pulso."
+            echo
+            echo "_Aberta por .github/workflows/agente-viva.yml_"
+          } > corpo.md
+          gh issue create \
+            --label agente-parada \
+            --title "AGENTE PARADA: sem sinal de vida ha $MIN min" \
+            --body-file corpo.md
+
+      - name: Fechar a issue se ela voltou
+        if: steps.pulso.outputs.pular == 'nao' && steps.pulso.outputs.ok == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MIN: ${{ steps.pulso.outputs.min }}
+          ENVIADOS: ${{ steps.pulso.outputs.enviados }}
+          FAZENDO: ${{ steps.pulso.outputs.fazendo }}
+        run: |
+          for n in $(gh issue list --label agente-parada --state open --json number --jq '.[].number'); do
+            gh issue comment "$n" --body "Voltou. Ultimo pulso ha \`$MIN\` min, \`$ENVIADOS\` enviadas hoje. Agora: $FAZENDO"
+            gh issue close "$n"
+          done

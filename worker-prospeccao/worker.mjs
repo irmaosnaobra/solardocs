@@ -643,6 +643,51 @@ async function garantirInstagram(aba) {
   return await aba.esperar("location.origin === 'https://www.instagram.com'", 20000);
 }
 
+// ═══ PULSO ═══════════════════════════════════════════════════════════════════
+// "Você está viva?" perguntado de fora.
+//
+// Esta metade da agente mora no desktop, e desktop dorme, reinicia e é
+// desligado. Em 11/09 ela ficou parada das 04h às 11h44 e ninguém soube,
+// porque não havia como perguntar de fora.
+//
+// Duas regras que fazem este pulso valer alguma coisa:
+//
+// 1. Bate ANTES de trabalhar, não depois. Volta que estoura no meio tem que
+//    aparecer como DEGRADADA, com o erro junto. Pulso que só bate quando dá
+//    certo vira silêncio na hora exata em que o silêncio engana.
+// 2. Carrega SAÚDE, não só vida. Deslogada do Instagram ela continua rodando e
+//    continua batendo, e não manda nada. De fora isso é idêntico a um dia
+//    quieto, e é o jeito mais fácil de perder um dia inteiro sem perceber.
+async function bater(campos) {
+  try {
+    await fetch(`${CFG.supa}/prospeccao_pulso?id=eq.1`, {
+      method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' },
+      body: JSON.stringify({ batido_em: new Date().toISOString(), consultor: CFG.consultor, ...campos }),
+    });
+  } catch { /* pulso que falha não derruba a agente: ele é o termômetro, não o doente */ }
+}
+
+/** A sessão do Instagram ainda está de pé? Leitura barata, sem navegar. */
+async function sessaoViva() {
+  try {
+    const alvos = await (await fetch(CFG.cdp + '/json/list')).json();
+    const pg = (alvos || []).find(t => t.type === 'page' && String(t.url).includes('instagram'));
+    if (!pg) return { logado: null, conta: null };   // sem aba no Instagram: não dá pra afirmar nada
+    const aba = await Aba.conectar(pg.webSocketDebuggerUrl);
+    const r = await aba.js(`(function () {
+      if (document.querySelector('input[name="username"]')) return { logado: false };
+      var conta = '', l = document.querySelectorAll('a[href^="/"]');
+      for (var i = 0; i < l.length; i++) {
+        var m = (l[i].getAttribute('href') || '').match(/^\/([A-Za-z0-9._]{3,30})\/$/);
+        if (m && l[i].querySelector('img')) { conta = m[1]; break; }
+      }
+      return { logado: true, conta: conta };
+    })()`).catch(() => null);
+    try { aba.ws.close(); } catch { }
+    return { logado: r ? !!r.logado : null, conta: (r && r.conta) || null };
+  } catch { return { logado: null, conta: null }; }
+}
+
 // ═══ ORÇAMENTO DE BUSCA ══════════════════════════════════════════════════════
 // Buscar na lupa é leitura, muito mais barato que mandar DM — mas não é de
 // graça. A conta é a principal (@irmaosnaobra__), semana 1 da rampa, e uma
@@ -976,6 +1021,8 @@ async function modoContinuo() {
 
   let proximaAbordagem = 0;   // epoch em que pode mandar a próxima fria
   let semAlvo = false;
+  let ciclo = 0;
+  let ultimoErro = null;
 
   for (;;) {
     // NENHUM TROPEÇO ENCERRA O DIA.
@@ -990,6 +1037,17 @@ async function modoContinuo() {
     try {
       const agoraMs = Date.now();
       const h = new Date().getHours();
+      ciclo++;
+
+      // ANTES de qualquer trabalho. Se a volta estourar depois daqui, o pulso
+      // já disse que ela estava viva e o catch grava o erro por cima.
+      // A sessão é conferida na 1a volta e depois a cada 5: ler é barato, mas
+      // não é de graça, e deslogar não é coisa que acontece a cada 2 minutos.
+      const sess = (ciclo === 1 || ciclo % 5 === 0) ? await sessaoViva() : null;
+      await bater({
+        ciclo, fazendo: 'começando a volta', ultimo_erro: ultimoErro,
+        ...(sess ? { logado: sess.logado, conta: sess.conta } : {}),
+      });
 
       // ── fora da janela: dorme até o próximo turno ──────────────────────────
       if (h < CFG.horaIni || (CFG.horaFim < 24 && h >= CFG.horaFim)) {
@@ -1057,6 +1115,9 @@ async function modoContinuo() {
           const t2 = await travas();
           log(`${t2.usados}/${t2.teto} abordagens · ${t2.respostas} respostas hoje`
             + ` · próxima abordagem em ${Math.round(espera / 60)} min`);
+          ultimoErro = null;   // uma volta inteira sem tropeço limpa o histórico
+          await bater({ ciclo, enviados_hoje: t2.usados, ultimo_erro: null,
+            fazendo: `mandei ${t2.usados}/${t2.teto}, próxima em ${Math.round(espera / 60)} min` });
         }
       }
 
@@ -1079,7 +1140,9 @@ async function modoContinuo() {
       // ── 4. dorme pouco e volta ────────────────────────────────────────────
       await dorme(CFG.olharSeg * 1000);
     } catch (e) {
+      ultimoErro = `${new Date().toISOString().slice(11, 19)} ${e.message}`.slice(0, 200);
       log(`a volta tropeçou (${e.message}) — sigo na próxima`);
+      await bater({ ciclo, fazendo: 'tropecei, espero 30s e tento de novo', ultimo_erro: ultimoErro });
       await dorme(30000);
     }
   }

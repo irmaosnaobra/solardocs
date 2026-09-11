@@ -70,6 +70,7 @@ import { runCapiLeadQualificado } from '../services/agenda/capiLeadQualificadoSe
 import { tickOrdens } from '../services/metaOrdensService';
 import { runInventoryLowStockAlert } from '../services/inventoryAlertService';
 import { logger } from '../utils/logger';
+import { supabaseGerador } from '../utils/supabaseGerador';
 import { rodarAvisosProspeccao } from '../services/io/prospeccaoAviso';
 
 const router = Router();
@@ -568,6 +569,56 @@ router.get('/nilce-para-giovanna', async (req: Request, res: Response) => {
     res.json({ dry, ...(await runNilceParaGiovanna({ dry })) });
   } catch (err: any) {
     logger.error('cron', 'nilce-para-giovanna falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
+// ── A agente de prospecção está viva E trabalhando? ─────────────────────────
+// Chamado de 15 em 15 min pelo GitHub Actions, que roda FORA de tudo que pode
+// cair junto. A metade que abre conversa mora no desktop do Thiago (precisa da
+// sessão logada do Instagram num Chrome de verdade; sessão dessas de IP de
+// datacenter é bloqueio na certa), e desktop dorme, reinicia e é desligado.
+//
+// Em 11/09 ela ficou parada das 04h às 11h44 e ninguém soube. Este endereço é
+// o "você está viva?" que faltava.
+//
+// Responde SEMPRE 200 com um veredito. Quem decide se grita é o workflow: erro
+// HTTP aqui viraria alarme de "a API caiu", que já tem vigia próprio.
+router.get('/prospeccao-pulso', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const { data } = await supabaseGerador
+      .from('prospeccao_pulso').select('*').eq('id', 1).maybeSingle();
+
+    const agora = Date.now();
+    const batido = data?.batido_em ? new Date(data.batido_em).getTime() : 0;
+    const minutos = batido ? Math.round((agora - batido) / 60000) : null;
+
+    // 20 min de folga. A volta normal é de OLHAR_SEG (150s), mas uma volta com
+    // varredura de cidade chega a 3 min e uma rodada de busca de @ passa disso.
+    // Apertar demais treina o dono a ignorar o alarme, que é pior que não ter.
+    const LIMITE_MIN = 20;
+
+    const problemas: string[] = [];
+    if (minutos === null) problemas.push('ela nunca bateu o pulso');
+    else if (minutos > LIMITE_MIN) problemas.push(`sem sinal de vida há ${minutos} min`);
+    if (data?.logado === false) problemas.push('o Chrome dela está DESLOGADO do Instagram');
+    if (data?.ultimo_erro) problemas.push(`último erro: ${data.ultimo_erro}`);
+
+    res.json({
+      ok: problemas.length === 0,
+      minutos_sem_pulso: minutos,
+      limite_min: LIMITE_MIN,
+      logado: data?.logado ?? null,
+      conta: data?.conta ?? null,
+      enviados_hoje: data?.enviados_hoje ?? 0,
+      ciclo: data?.ciclo ?? 0,
+      fazendo: data?.fazendo ?? null,
+      batido_em: data?.batido_em ?? null,
+      problemas,
+    });
+  } catch (err: any) {
+    logger.error('cron', 'prospeccao-pulso falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });
