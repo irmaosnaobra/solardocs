@@ -160,6 +160,26 @@ async function jaRespondido(commentId: string): Promise<boolean> {
   return !!(data && data.length);
 }
 
+/**
+ * Este erro tem conserto na próxima varredura, ou é pra sempre?
+ *
+ * A Meta devolve 400 com esta frase quando o comentário foi apagado, quando a
+ * pessoa bloqueou, ou quando o app perdeu a permissão sobre aquele objeto.
+ * Nenhum dos três melhora esperando. Rate limit e 5xx, sim.
+ */
+function erroDefinitivo(msg: string): boolean {
+  return /does not exist|missing permissions|does not support this operation|Unsupported post request/i.test(msg);
+}
+
+/** Quantas vezes já tentamos e falhamos neste mesmo comentário. */
+async function falhasDe(commentId: string): Promise<number> {
+  const { data } = await supabase.from('ig_events')
+    .select('id').eq('tipo', 'fb_falha').eq('raw->>comentario', commentId).limit(20);
+  return data?.length ?? 0;
+}
+
+const TETO_TENTATIVAS = 3;
+
 const RE_TELEFONE = /(?:\+?55)?\s*\(?\d{2}\)?\s*9?\d{4}[-\s]?\d{4}/;
 function telefoneDe(texto: string): string | null {
   const m = (texto || '').match(RE_TELEFONE);
@@ -262,12 +282,27 @@ export async function varrerComentariosFacebook(): Promise<{ respondidos: number
         const pub = pick<string>(a.respostas_publicas || []);
         if (pub) await responderPublico(c.id, pub, token);
       } catch (err: any) {
-        // Não marca como respondido: erro aqui costuma ser janela vencida ou
-        // pessoa sem Messenger, e na próxima varredura a gente tenta de novo.
-        logger.error('fb', `resposta privada em ${c.id} falhou`, err);
+        // Erro passageiro (janela vencida, pessoa sem Messenger, 5xx) NÃO marca
+        // como respondido: na próxima varredura a gente tenta de novo.
+        //
+        // Erro DEFINITIVO marca, e é por isso que a linha vai com `ref`: o
+        // jaRespondido() procura justamente por ref, então gravar com ref=null
+        // fazia a varredura reencontrar o mesmo comentário pra sempre. Entre
+        // 04/09 e 11/09 isso virou 25.846 chamadas à Meta em cima de NOVE
+        // comentários — 2.872 tentativas em cada um, todas condenadas. Bater
+        // desse jeito na API é como se perde o acesso ao app inteiro, que é o
+        // mesmo app de onde a agente responde.
+        const msg = String(err?.message || err);
+        const definitivo = erroDefinitivo(msg);
+        const tentativas = definitivo ? TETO_TENTATIVAS : (await falhasDe(c.id)) + 1;
+        const desisto = definitivo || tentativas >= TETO_TENTATIVAS;
+
+        logger.error('fb', `resposta privada em ${c.id} falhou`
+          + (desisto ? ' — desisto deste comentário' : ` (tentativa ${tentativas})`), err);
         await supabase.from('ig_events').insert({
-          tipo: 'fb_falha', ref: null,
-          raw: { comentario: c.id, erro: String(err?.message || err).slice(0, 300) },
+          tipo: 'fb_falha',
+          ref: desisto ? c.id : null,
+          raw: { comentario: c.id, erro: msg.slice(0, 300), tentativa: tentativas, desisti: desisto },
         });
       }
 
