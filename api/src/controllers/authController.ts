@@ -483,13 +483,20 @@ export async function login(req: Request, res: Response): Promise<void> {
   try {
     const body = loginSchema.parse(req.body);
 
+    // E-mail é case-insensitive na prática. O cadastro grava em lowercase
+    // (register/webhooks já normalizam), mas o login comparava o texto digitado
+    // byte a byte: quem digitava uma maiúscula, ou tinha a conta gravada com
+    // maiúscula (contas antigas, de antes da normalização), recebia
+    // "E-mail ou senha incorretos" com a senha certa e sem saída nenhuma.
+    const emailLc = body.email.toLowerCase().trim();
+
     const { data: user } = await supabase
       .from('users')
       // is_admin + billing_status precisam vir no login: o front salva este user
       // no cookie e o Sidebar decide a Área Restrita por is_admin. Sem eles, o
       // admin loga e a Área Restrita some até o /auth/me corrigir (race no 1º paint).
       .select('id, email, nome, password_hash, plano, limite_documentos, documentos_usados, data_reset, created_at, is_admin, billing_status')
-      .eq('email', body.email)
+      .eq('email', emailLc)
       .single();
 
     if (!user) {
@@ -529,11 +536,15 @@ export async function forgotPassword(req: Request, res: Response): Promise<void>
   try {
     const { email } = req.body as { email: string };
     if (!email) { res.status(400).json({ error: 'Email obrigatório' }); return; }
+    // Mesma normalização do login: sem ela, quem digitava o e-mail com maiúscula
+    // caía na resposta genérica ("se estiver cadastrado, você receberá") e o
+    // e-mail nunca saía — travado no login E na recuperação ao mesmo tempo.
+    const emailLc = email.toLowerCase().trim();
 
     const { data: user } = await supabase
       .from('users')
       .select('id')
-      .eq('email', email)
+      .eq('email', emailLc)
       .single();
 
     // Resposta genérica para não revelar se o email existe
@@ -542,7 +553,7 @@ export async function forgotPassword(req: Request, res: Response): Promise<void>
     const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 horas (era 1h — cliente pagante travava em "link expirado")
 
-    console.log(`[ForgotPass] Gerando token para ${email}`);
+    console.log(`[ForgotPass] Gerando token para ${emailLc}`);
 
     const { error: updateErr } = await supabase
       .from('users')
@@ -557,11 +568,11 @@ export async function forgotPassword(req: Request, res: Response): Promise<void>
     const dashboardUrl = process.env.DASHBOARD_URL || 'https://solardocs-dashboard.vercel.app';
     const resetUrl = `${dashboardUrl}/auth?mode=redefinir&token=${token}`;
     
-    console.log(`[ForgotPass] Enviando e-mail para ${email} com URL: ${resetUrl}`);
+    console.log(`[ForgotPass] Enviando e-mail para ${emailLc} com URL: ${resetUrl}`);
 
     try {
-      await sendPasswordResetEmail(email, resetUrl);
-      console.log(`[ForgotPass] E-mail enviado com sucesso para ${email}`);
+      await sendPasswordResetEmail(emailLc, resetUrl);
+      console.log(`[ForgotPass] E-mail enviado com sucesso para ${emailLc}`);
     } catch (mailErr) {
       console.error('[ForgotPass] Erro fatal ao enviar e-mail:', mailErr);
       // Não rethrow para manter a resposta genérica, mas logamos o erro
