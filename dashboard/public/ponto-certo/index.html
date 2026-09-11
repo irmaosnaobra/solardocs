@@ -103,14 +103,14 @@
     display: inline-flex; align-items: center; gap: 12px;
     font-size: 23px; font-weight: 800; letter-spacing: -.022em; line-height: 1;
   }
-  .marcaLimpa img {
-    width: 42px; height: 42px; border-radius: 10px; display: block;
-    box-shadow: 0 0 0 1px rgba(57,255,20,.28), 0 6px 20px rgba(57,255,20,.14);
-  }
+  /* o logo da NEXUS e deitado, nao quadrado: altura fixa e largura livre.
+     A regra antiga era do simbolo da Irmaos na Obra, que era quadrado, e
+     espremeria a marca inteira num quadradinho de 42px. */
+  .marcaLimpa img { height: 30px; width: auto; display: block; }
+  @media (max-width: 420px) { .marcaLimpa img { height: 25px; } }
   @media (max-width: 520px) {
     .topo.limpo .wrap { padding-top: 15px; padding-bottom: 15px; }
     .marcaLimpa { font-size: 19px; gap: 10px; }
-    .marcaLimpa img { width: 34px; height: 34px; border-radius: 9px; }
   }
 
   /* Faixa de acolhimento: só existe para quem chegou aqui recusado pela régua
@@ -814,7 +814,7 @@
 
 <div class="topo limpo">
   <div class="wrap">
-    <span class="marcaLimpa"><img src="/ponto-certo/img/logo-io.webp" alt="" width="42" height="42">Irmãos na Obra</span>
+    <a class="marcaLimpa" href="/nexus"><img src="/nexus/img/logo.webp" alt="NEXUS ELETROPOSTOS" width="1842" height="450"></a>
   </div>
 </div>
 
@@ -1248,7 +1248,7 @@
 
 <footer>
   <div class="wrap">
-    <p>Irmãos na Obra · eletroposto de recarga chave na mão</p>
+    <p>NEXUS ELETROPOSTOS · eletroposto de recarga chave na mão</p>
     <p class="rodapeLinks"><a href="/privacidade/">Privacidade</a></p>
   </div>
 </footer>
