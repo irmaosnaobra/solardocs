@@ -46,7 +46,10 @@ import { sendWhatsApp, sendImage, sendDocument, sendAudio, sendVideo } from '../
 import { EQUIPE } from '../../routes/ioSolar';
 import { SOLAR_ORIGENS, desligado as boasVindasDesligado } from './solarBoasVindas';
 
-const INSTANCE_ID_IO = (process.env.ZAPI_INSTANCE_ID_IO || '3F26F6ECE67D72BB7FCA6244BF24326C').trim();
+/** Exportado desde 11/09: o `solarAgendaGiovanna` precisa ler o MESMO inbox pra
+ *  saber quem respondeu o bom dia. Duas cópias deste id divergem no dia em que a
+ *  instância mudar, e aí um dos dois lê a caixa errada em silêncio. */
+export const INSTANCE_ID_IO = (process.env.ZAPI_INSTANCE_ID_IO || '3F26F6ECE67D72BB7FCA6244BF24326C').trim();
 
 export const SOLAR_RESPOSTA_PREFIX = 'solar_resposta:';
 

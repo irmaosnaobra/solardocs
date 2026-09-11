@@ -48,9 +48,31 @@ vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), war
 vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
   dentroDoTetoHorarioLinha: vi.fn(async () => tetoLivre),
 }));
+// Inbox da linha (MAIN). É daqui que sai "esta pessoa respondeu o bom dia".
+let inbox: Array<{ telefone: string; momment: string }> = [];
+let inboxQuebrado = false;
 vi.mock('../utils/supabase', () => ({
-  supabase: { from: () => ({ upsert: async (r: any) => { carimbos.push(String(r.key)); return { error: null }; } }) },
+  supabase: {
+    from: (tabela: string) => {
+      if (tabela === 'wa_mensagens') {
+        const q: any = {
+          _piso: '',
+          select() { return q; },
+          eq() { return q; },
+          gte(_c: string, v: any) { q._piso = String(v); return q; },
+          limit() {
+            if (inboxQuebrado) return Promise.resolve({ data: null, error: { message: 'boom' } });
+            return Promise.resolve({ data: inbox.filter(m => m.momment >= q._piso), error: null });
+          },
+        };
+        return q;
+      }
+      return { upsert: async (r: any) => { carimbos.push(String(r.key)); return { error: null }; } };
+    },
+  },
 }));
+// O módulo importa o id da instância daqui; o resto do solarRespostas não entra no teste.
+vi.mock('../services/io/solarRespostas', () => ({ INSTANCE_ID_IO: 'INSTANCIA_IO' }));
 vi.mock('../services/agents/zapiClient', () => ({
   sendHuman: vi.fn(async (phone: string, bolhas: string[], _i: string, opts?: any) => {
     enviadas.push({ phone, bolhas, maxBolhas: opts?.maxBolhas });
@@ -83,6 +105,7 @@ const agoraBRT = (hhmm: string) => vi.setSystemTime(new Date(brt('2026-09-14', h
 beforeEach(() => {
   vi.useFakeTimers();
   fichas = []; enviadas.length = 0; updates.length = 0; carimbos.length = 0;
+  inbox = []; inboxQuebrado = false;
   tetoLivre = true;
   delete process.env.SOLAR_GIOVANNA_OFF;
 });
@@ -175,6 +198,79 @@ describe('toque de 5 minutos antes', () => {
     agoraBRT('09:30');
     const r = await runSolarAgendaGiovannaTick();
     expect(r.cinco_min).toBe(0);
+  });
+});
+
+// Ordem do Thiago (11/09): o toque de 5 min vai APENAS pra quem não respondeu o
+// das 7h. Quem respondeu está em conversa e a Giovanna já foi avisada — o "Oi,
+// como vai?" ali seria o robô falando por cima de gente, com a mesma frase que a
+// pessoa acabou de responder.
+describe('quem respondeu o bom dia não leva o toque de 5 min', () => {
+  const comBomDia = (over: any = {}) => ficha({
+    quando: brt('2026-09-14', '10:15'), bomdia_at: brt('2026-09-14', '07:02'), ...over,
+  });
+
+  it('respondeu depois do bom dia: fica de fora', async () => {
+    fichas = [comBomDia()];
+    inbox = [{ telefone: '5534998112208', momment: brt('2026-09-14', '07:20') }];
+    agoraBRT('10:10');
+    const r = await runSolarAgendaGiovannaTick();
+    expect(r.cinco_min).toBe(0);
+    expect(r.ja_responderam).toBe(1);
+    expect(enviadas).toHaveLength(0);
+    // Não carimba: ele simplesmente não recebe este toque, hoje nem depois.
+    expect(updates).toHaveLength(0);
+  });
+
+  it('ficou calado: recebe normalmente', async () => {
+    fichas = [comBomDia()];
+    inbox = [];
+    agoraBRT('10:10');
+    const r = await runSolarAgendaGiovannaTick();
+    expect(r.cinco_min).toBe(1);
+    expect(r.ja_responderam).toBe(0);
+    expect(enviadas[0].bolhas).toEqual([BOLHA_CINCO_MIN]);
+  });
+
+  it('conversa ANTERIOR ao bom dia não conta como resposta', async () => {
+    fichas = [comBomDia()];
+    inbox = [{ telefone: '5534998112208', momment: brt('2026-09-13', '15:00') }];
+    agoraBRT('10:10');
+    const r = await runSolarAgendaGiovannaTick();
+    expect(r.cinco_min).toBe(1);
+  });
+
+  it('casa o telefone pelo fim do número, não byte a byte', async () => {
+    fichas = [comBomDia({ cliente_telefone: '(34) 99811-2208' })];
+    inbox = [{ telefone: '553499811 2208', momment: brt('2026-09-14', '07:20') }];
+    agoraBRT('10:10');
+    const r = await runSolarAgendaGiovannaTick();
+    expect(r.ja_responderam).toBe(1);
+  });
+
+  it('quem nunca recebeu o bom dia continua recebendo o de 5 min', async () => {
+    fichas = [ficha({ quando: brt('2026-09-14', '10:15'), bomdia_at: null })];
+    agoraBRT('10:10');
+    const r = await runSolarAgendaGiovannaTick();
+    expect(r.cinco_min).toBe(1);
+  });
+
+  it('inbox ilegível cala o toque em vez de arriscar falar por cima', async () => {
+    fichas = [comBomDia()];
+    inboxQuebrado = true;
+    agoraBRT('10:10');
+    const r = await runSolarAgendaGiovannaTick();
+    expect(r.cinco_min).toBe(0);
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('fora da janela dos 5 min nem encosta no inbox', async () => {
+    fichas = [comBomDia()];
+    inboxQuebrado = true;   // se lesse, o tick ficaria cego e o bom dia sumiria junto
+    agoraBRT('07:30');
+    const r = await runSolarAgendaGiovannaTick();
+    expect(r.bom_dia).toBe(0);   // já tem bomdia_at
+    expect(r.erros).toBe(0);
   });
 });
 

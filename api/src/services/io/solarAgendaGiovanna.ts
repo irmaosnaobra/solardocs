@@ -50,6 +50,12 @@
 //     atendido: quem teve desfecho não recebe "vou fazer seu atendimento").
 //   • Não manda o bom dia a menos de 30 min da ligação — aí quem fala é o toque
 //     de 5 minutos, e os dois juntos viram spam.
+//   • Não manda o toque de 5 min pra quem RESPONDEU o bom dia (ordem do Thiago,
+//     11/09). Quem respondeu já está em conversa e a Giovanna já foi avisada pelo
+//     `solarRespostas`; "Oi, como vai?" ali é o robô falando por cima de gente —
+//     e ainda por cima é a mesma frase que a pessoa acabou de responder. O sinal
+//     sai do inbox da própria linha (`wa_mensagens`), lido na hora do envio: não
+//     dá pra decidir isso com o retrato do começo do dia.
 //
 // Kill-switch: SOLAR_GIOVANNA_OFF=1 (mata os dois toques sem deploy).
 // ─────────────────────────────────────────────────────────────────────────────
@@ -60,6 +66,7 @@ import { logger } from '../../utils/logger';
 import { sendHuman } from '../agents/zapiClient';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
+import { INSTANCE_ID_IO } from './solarRespostas';
 
 /** De quem é a carteira. Corte por NOME, igual ao `ehSocio` do agendaFechada:
  *  quando a regra é sobre uma pessoa, o corte é o nome dela. */
@@ -77,7 +84,8 @@ export const SOLAR_GIOVANNA_PREFIX = 'solar_giovanna_sent:';
 export const BOLHA_BOM_DIA =
   'Oi, como vai?\nSou a Giovanna da energia solar, vou fazer seu atendimento e trazer a melhor solução.';
 
-/** Toque de 5 minutos antes.
+/** Toque de 5 minutos antes. SÓ vai pra quem não respondeu o bom dia (ordem do
+ *  Thiago, 11/09/2026) — ver `quemFalouDepoisDoBomDia`.
  *
  *  ATENÇÃO: veio assim, e é igual à primeira linha do bom dia que a mesma pessoa
  *  recebeu às 7h da manhã. Está aqui numa constante própria justamente pra trocar
@@ -120,6 +128,55 @@ function horaBrasilia(now: Date = new Date()): number {
   return new Date(now.getTime() - 3 * 60 * 60 * 1000).getUTCHours();
 }
 
+/** Chave de telefone igual à do CRM e à do solarRespostas: tira o 55, DDD +
+ *  últimos 8 (ignora o 9º dígito, que varia entre as fontes). */
+function telKey(raw: string | null | undefined): string | null {
+  const d = String(raw || '').replace(/\D/g, '').replace(/^55/, '');
+  if (d.length < 10) return null;
+  return d.slice(0, 2) + d.slice(-8);
+}
+
+/**
+ * Quem falou com a linha e QUANDO (a mensagem mais recente de cada telefone),
+ * a partir do bom dia mais antigo do dia.
+ *
+ * É isto que decide quem NÃO recebe o toque de 5 minutos: quem respondeu o bom
+ * dia já está em conversa, e a Giovanna já foi avisada pelo `solarRespostas`.
+ * Mandar "Oi, como vai?" por cima é o robô falando em cima de gente — e é a
+ * mesma frase que a pessoa acabou de responder.
+ *
+ * Devolve `null` quando a leitura falha, e o chamador trata isso como CEGUEIRA:
+ * nenhum toque de 5 min sai nesta rodada. É a mesma escolha do `manhaCega` do
+ * eletropostoAgenda — na dúvida entre calar e falar por cima, cala. A janela do
+ * toque tem ~6 ticks, então um erro passageiro não custa a mensagem.
+ */
+async function quemFalouDepoisDoBomDia(comBomDia: Ficha[]): Promise<Map<string, string> | null> {
+  if (!comBomDia.length) return new Map();
+  const piso = comBomDia.map(f => String(f.bomdia_at)).sort()[0];
+  const { data, error } = await supabase
+    .from('wa_mensagens')
+    .select('telefone, momment')
+    .eq('from_me', false)
+    .eq('is_group', false)
+    .eq('instancia', INSTANCE_ID_IO)
+    .gte('momment', piso)
+    .limit(1000);
+  if (error) {
+    logger.error('solar-giovanna', 'ler o inbox da linha falhou — nenhum toque de 5 min nesta rodada', error);
+    return null;
+  }
+  const ultima = new Map<string, string>();
+  for (const m of data ?? []) {
+    const k = telKey((m as { telefone?: string }).telefone);
+    if (!k) continue;
+    const quando = String((m as { momment?: unknown }).momment ?? '');
+    if (!quando) continue;
+    const atual = ultima.get(k);
+    if (!atual || quando > atual) ultima.set(k, quando);
+  }
+  return ultima;
+}
+
 type Ficha = {
   id: number;
   cliente_nome: string | null;
@@ -140,6 +197,8 @@ export type ResultadoSolarGiovanna = {
   candidatos: number;
   bom_dia: number;
   cinco_min: number;
+  /** Não receberam o toque de 5 min porque responderam o bom dia. */
+  ja_responderam: number;
   segurados_pelo_teto: number;
   erros: number;
   previa?: ToquePrevisto[];
@@ -147,7 +206,7 @@ export type ResultadoSolarGiovanna = {
 
 const zero = (motivo?: string): ResultadoSolarGiovanna => ({
   ok: true, ...(motivo ? { motivo } : {}),
-  candidatos: 0, bom_dia: 0, cinco_min: 0, segurados_pelo_teto: 0, erros: 0,
+  candidatos: 0, bom_dia: 0, cinco_min: 0, ja_responderam: 0, segurados_pelo_teto: 0, erros: 0,
 });
 
 /**
@@ -189,8 +248,21 @@ export async function runSolarAgendaGiovannaTick(
   const hora = horaBrasilia();
   const naJanelaDaManha = hora >= MANHA.de && hora < MANHA.ate;
 
+  // Quem está na janela dos 5 minutos AGORA e já levou o bom dia. Só por causa
+  // deles é que vale ler o inbox — numa rodada sem ninguém nessa faixa (que é a
+  // maioria delas) o módulo não encosta na tabela de mensagens.
+  const naJanelaDos5 = (f: Ficha) => {
+    if (f.lembrete_5min_at || !f.quando) return false;
+    const m = (new Date(f.quando).getTime() - agora) / 60_000;
+    return m <= MIN_5MIN.ate && m >= MIN_5MIN.de;
+  };
+  const precisamDoInbox = fichas.filter(f => naJanelaDos5(f) && !!f.bomdia_at);
+  const falou = precisamDoInbox.length ? await quemFalouDepoisDoBomDia(precisamDoInbox) : new Map<string, string>();
+  /** Leitura do inbox falhou: nesta rodada ninguém recebe o toque de 5 min. */
+  const cegoParaRespostas = falou === null;
+
   const previa: ToquePrevisto[] = [];
-  let bomDia = 0, cincoMin = 0, segurados = 0, erros = 0, toques = 0;
+  let bomDia = 0, cincoMin = 0, jaResponderam = 0, segurados = 0, erros = 0, toques = 0;
 
   /** Manda a bolha, carimba o teto da linha e grava a flag na ficha. */
   const entregar = async (f: Ficha, toque: ToquePrevisto['toque'], tel: string, bolha: string, campo: string) => {
@@ -220,6 +292,17 @@ export async function runSolarAgendaGiovannaTick(
     // horas de janela e pode esperar o próximo tick; este, não.
     if (!f.lembrete_5min_at && minutos <= MIN_5MIN.ate && minutos >= MIN_5MIN.de) {
       if (cincoMin >= CINCO_POR_TICK) continue;
+      // Só pra quem NÃO respondeu o bom dia (ordem do Thiago, 11/09). Quem
+      // respondeu está em conversa, a Giovanna já foi avisada, e a frase seria a
+      // mesma que a pessoa acabou de responder. Não carimba nada: se o lead
+      // falou, ele simplesmente não recebe este toque, hoje nem depois.
+      if (cegoParaRespostas) continue;
+      const k = telKey(f.cliente_telefone);
+      const ultimaDele = k ? falou!.get(k) : undefined;
+      if (f.bomdia_at && ultimaDele && ultimaDele > String(f.bomdia_at)) {
+        jaResponderam++;
+        continue;
+      }
       if (!dry && !(await dentroDoTetoHorarioLinha({ transacional: true, pisoHora: TETO_HORA, pisoDia: TETO_DIA }))) {
         segurados++;
         continue;
@@ -254,6 +337,9 @@ export async function runSolarAgendaGiovannaTick(
   if (segurados) {
     logger.info('solar-giovanna', `${segurados} toque(s) segurados pelo teto da linha — esperam o próximo tick`);
   }
+  if (jaResponderam) {
+    logger.info('solar-giovanna', `${jaResponderam} não levaram o toque de 5 min: responderam o bom dia`);
+  }
   if (bomDia || cincoMin) {
     logger.info('solar-giovanna', `${bomDia} bom dia e ${cincoMin} toque(s) de 5 min`);
   }
@@ -263,6 +349,7 @@ export async function runSolarAgendaGiovannaTick(
     candidatos: fichas.length,
     bom_dia: bomDia,
     cinco_min: cincoMin,
+    ja_responderam: jaResponderam,
     segurados_pelo_teto: segurados,
     erros,
     ...(dry ? { previa } : {}),
