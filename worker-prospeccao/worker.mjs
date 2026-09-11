@@ -599,6 +599,23 @@ async function umaAbordagem() {
   }
 }
 
+// ═══ ORÇAMENTO DE BUSCA ══════════════════════════════════════════════════════
+// Buscar na lupa é leitura, muito mais barato que mandar DM — mas não é de
+// graça. A conta é a principal (@irmaosnaobra__), semana 1 da rampa, e uma
+// rajada de busca derruba um perfil do mesmo jeito que uma rajada de mensagem.
+//
+// "Nunca ociosa" quer dizer SEMPRE TER O QUE FAZER, não fazer o máximo de
+// requisição por minuto. Sem este teto, o loop de 2min30 dispararia ~120
+// buscas por hora, que é ritmo de robô e não de gente trabalhando.
+const BUSCAS_HORA = Number(process.env.BUSCAS_HORA || 30);
+let janelaBusca = [];
+function sobramBuscas() {
+  const corte = Date.now() - 3600_000;
+  janelaBusca = janelaBusca.filter(t => t > corte);
+  return Math.max(0, BUSCAS_HORA - janelaBusca.length);
+}
+const gastarBusca = () => janelaBusca.push(Date.now());
+
 // ═══ REABASTECER ═════════════════════════════════════════════════════════════
 // A fila tem 469 empresas mas só ~100 com @. Sem isto a agente seca em dias e
 // para sozinha — com 369 alvos parados na base esperando um handle.
@@ -629,8 +646,10 @@ function casaPerfil(empresa, u) {
 
 /** Uma rodada curta de busca de @. Devolve quantos achou. */
 async function reabastecer(aba, quantos = 4) {
+  const cabem = Math.min(quantos, sobramBuscas());
+  if (cabem <= 0) return 0;
   const semArroba = await ler('prospeccao_contatos?select=id,empresa,cidade'
-    + '&classe=in.(integradora,misto)&or=(instagram.is.null,instagram.eq.)&limit=' + quantos);
+    + '&classe=in.(integradora,misto)&or=(instagram.is.null,instagram.eq.)&limit=' + cabem);
   if (!semArroba.length) return 0;
 
   let achou = 0;
@@ -649,6 +668,7 @@ async function reabastecer(aba, quantos = 4) {
         } catch (e) { return { erro: String(e && e.message || e) }; }
       })()`);
     } catch (e) { r = { erro: e.message }; }
+    gastarBusca();
 
     if (r?.erro) { log(`  busca de @ reclamou (${r.erro}) — paro de procurar nesta rodada`); break; }
 
@@ -666,6 +686,145 @@ async function reabastecer(aba, quantos = 4) {
     await dorme(4000 + Math.floor(5000 * ((Date.now() % 1009) / 1009)));
   }
   return achou;
+}
+
+// ═══ DESCOBRIR ═══════════════════════════════════════════════════════════════
+// Quando não sobra empresa sem @ pra procurar, ela vai atrás de empresa que a
+// gente NUNCA viu — varrendo "energia solar <cidade>" município por município.
+// A lista de municípios vem do IBGE na hora; o rastro do que já foi varrido
+// fica em prospeccao_varredura, senão ela recomeçaria por Abaetetuba a cada
+// reinício e nunca sairia de lá.
+const TERMOS_BUSCA = ['energia solar', 'energia fotovoltaica'];
+// Precisa cheirar a solar E não cheirar a nenhuma destas. Curso, distribuidora,
+// fábrica e aquecedor de piscina entram na busca e não compram SolarDoc.
+const CHEIRA_SOLAR = /(solar|fotovolt|energia)/;
+const NAO_SERVE = new RegExp(['curso','treinamento','aula','professor','mentoria','ensino',
+  'distribuidora','atacado','importadora','fabrica','fabricante','industria','consorcio',
+  'financiamento','credito','seguro','imobiliaria','aquecedor','aquecimento','boiler',
+  'piscina','oficial','noticias','portal','revista','blog'].join('|'));
+
+let CIDADES = null;   // cache por execução: 5.571 municípios não mudam no turno
+
+/**
+ * Os municípios do Brasil, DO MAIOR PRO MENOR.
+ *
+ * A ordem importa mais que parece. A listagem crua do IBGE vem em ordem de
+ * código, que começa em Rondônia — ela varreria Alta Floresta D'Oeste, Cabixi e
+ * Cerejeiras por semanas antes de chegar em São Paulo. Empresa de solar mora
+ * onde mora gente: ordenando por população ela começa em São Paulo, Rio,
+ * Brasília e Salvador e desce a cauda, então o melhor lead aparece no primeiro
+ * dia e não no centésimo.
+ */
+async function municipios() {
+  if (CIDADES) return CIDADES;
+  try {
+    const r = await fetch('https://servicodados.ibge.gov.br/api/v3/agregados/6579'
+      + '/periodos/2021/variaveis/9324?localidades=N6[all]');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const series = (await r.json())[0].resultados[0].series;
+    CIDADES = series.map(x => {
+      const [nome, uf] = String(x.localidade.nome).split(' - ');
+      return { nome, uf, pop: Number(Object.values(x.serie)[0]) || 0 };
+    }).filter(c => c.nome && c.uf).sort((a, b) => b.pop - a.pop);
+    return CIDADES;
+  } catch (e) {
+    // Sem população ela ainda trabalha — só na ordem burra do IBGE. Ordem ruim
+    // é muito melhor que parar, que é o que ela nunca pode fazer.
+    log('não consegui a população do IBGE (' + e.message + ') — vou na ordem crua');
+    const r = await fetch('https://servicodados.ibge.gov.br/api/v1/localidades/municipios');
+    if (!r.ok) throw new Error('IBGE respondeu ' + r.status);
+    CIDADES = (await r.json()).map(m => ({
+      nome: m.nome, pop: 0,
+      uf: m.microrregiao?.mesorregiao?.UF?.sigla || m['regiao-imediata']?.['regiao-intermediaria']?.UF?.sigla,
+    })).filter(c => c.uf);
+    return CIDADES;
+  }
+}
+
+/** Varre UMA cidade ainda não varrida. Devolve quantas empresas novas gravou. */
+async function descobrir(aba) {
+  if (sobramBuscas() < TERMOS_BUSCA.length) return 0;   // não começa cidade que não cabe
+
+  const todas  = await municipios();
+  const feitas = await ler('prospeccao_varredura?select=cidade,uf&limit=20000');
+  const jaFoi  = new Set(feitas.map(v => (v.cidade + '|' + v.uf).toLowerCase()));
+  const alvo   = todas.find(c => !jaFoi.has((c.nome + '|' + c.uf).toLowerCase()));
+  if (!alvo) { log('todos os 5.570 municípios já foram varridos.'); return 0; }
+
+  // A lista de destino é a mesma da operação: contato descoberto entra na fila
+  // no mesmo lugar dos outros, sem lista paralela pra ninguém esquecer dela.
+  const listas = await ler('prospeccao_listas?select=id,nome&status=eq.ativa&produto_id=eq.solardoc&limit=1');
+  const listaId = listas[0]?.id;
+  if (!listaId) { log('nenhuma lista ativa pra receber os descobertos'); return 0; }
+
+  // Quem já está na base não volta como novidade. O índice único é sobre
+  // lower(instagram), e o PostgREST não sabe resolver expressão em on_conflict
+  // ("column \"lower\" does not exist", 400) — então a comparação é feita aqui,
+  // e o índice fica só como última linha de defesa contra corrida.
+  const conhecidos = new Set((await ler('prospeccao_contatos?select=instagram&instagram=not.is.null&limit=20000'))
+    .map(c => String(c.instagram || '').toLowerCase()).filter(Boolean));
+
+  let novos = 0, achados = 0, limpas = 0;
+  for (const termo of TERMOS_BUSCA) {
+    if (sobramBuscas() <= 0) break;
+    const busca = `${termo} ${alvo.nome}`;
+    let r = null;
+    try {
+      r = await aba.js(`(async () => {
+        try {
+          const q = await fetch('/web/search/topsearch/?context=blended&query='
+            + encodeURIComponent(${JSON.stringify(busca)}),
+            { headers: { 'X-IG-App-ID': '936619743392459' } });
+          if (!q.ok) return { erro: 'HTTP ' + q.status };
+          const j = await q.json();
+          return { users: (j.users || []).map(u => ({
+            username: u.user && u.user.username, full_name: u.user && u.user.full_name,
+            verificado: !!(u.user && u.user.is_verified) })).filter(u => u.username) };
+        } catch (e) { return { erro: String(e && e.message || e) }; }
+      })()`);
+    } catch (e) { r = { erro: e.message }; }
+    gastarBusca();
+
+    if (r?.erro) { log(`  busca reclamou (${r.erro}) — deixo ${alvo.nome} pra próxima`); break; }
+    limpas++;
+
+    for (const u of r?.users || []) {
+      achados++;
+      const arroba = String(u.username).toLowerCase();
+      if (arroba.length < 4 || u.verificado || conhecidos.has(arroba)) continue;
+      const txt = normNome(u.username + ' ' + (u.full_name || ''));
+      if (!CHEIRA_SOLAR.test(txt) || NAO_SERVE.test(txt)) continue;
+
+      const res = await fetch(`${CFG.supa}/prospeccao_contatos`, {
+        method: 'POST', headers: { ...H, Prefer: 'return=representation' },
+        body: JSON.stringify([{
+          lista_id: listaId,
+          empresa: String(u.full_name || u.username).slice(0, 120),
+          cidade: alvo.nome, uf: alvo.uf,
+          instagram: u.username, instagram_em: new Date().toISOString(),
+          classe: 'integradora',
+          classe_motivo: `descoberta na busca do Instagram por "${busca}"`,
+        }]),
+      }).catch(() => null);
+      conhecidos.add(arroba);
+      if (res?.ok) { novos++; log(`  nova: @${u.username} — ${u.full_name || ''} (${alvo.nome}/${alvo.uf})`); }
+      else if (res && res.status !== 409) log(`  não gravei @${u.username}: HTTP ${res.status}`);
+    }
+    await dorme(4000 + Math.floor(6000 * ((Date.now() % 1009) / 1009)));
+  }
+
+  // SÓ risca a cidade da lista se a busca REALMENTE rodou. Marcar como varrida
+  // depois de um 429 queimaria o município pra sempre — e o propósito desta
+  // tabela é justamente não perder o lugar, não perder a cidade.
+  if (!limpas) { log(`  ${alvo.nome}/${alvo.uf} não foi varrida (busca falhou) — tento de novo depois`); return 0; }
+
+  await fetch(`${CFG.supa}/prospeccao_varredura`, {
+    method: 'POST', headers: { ...H, Prefer: 'return=minimal' },
+    body: JSON.stringify({ cidade: alvo.nome, uf: alvo.uf, termo: TERMOS_BUSCA.slice(0, limpas).join(' + '),
+                           encontrados: achados, novos }),
+  }).catch(() => {});
+  log(`varri ${alvo.nome}/${alvo.uf}: ${achados} perfis, ${novos} empresa(s) nova(s)`);
+  return novos;
 }
 
 // ═══ MODO CONTÍNUO ═══════════════════════════════════════════════════════════
@@ -734,11 +893,14 @@ async function modoContinuo() {
         log('DISJUNTOR ARMADO — opt-out alto. Paro de abordar; sigo só respondendo.');
         proximaAbordagem = Date.now() + 3600_000;   // reconfere de hora em hora
       } else if (t.restam <= 0) {
+        // TETO FECHADO NÃO É FIM DE EXPEDIENTE. O teto limita ENVIAR, não
+        // trabalhar. Enquanto não pode mandar, ela constrói a lista de amanhã —
+        // é isso que faz nunca faltar empresa de solar pra abordar.
         if (!semAlvo) {
-          log(`teto de abordagem fechado (${t.usados}/${t.teto}). Sigo respondendo o resto do dia.`);
+          log(`teto de envio fechado (${t.usados}/${t.teto}). Sigo construindo a lista até 23h59.`);
           semAlvo = true;
         }
-        proximaAbordagem = Date.now() + 1800_000;
+        proximaAbordagem = Date.now() + 600_000;   // reconfere de 10 em 10 min
       } else {
         semAlvo = false;
         let mandou = false;
@@ -758,22 +920,20 @@ async function modoContinuo() {
       }
     }
 
-    // ── 3. REABASTECER no tempo ocioso ────────────────────────────────────
-    // Enquanto espera a próxima abordagem, procura o @ de quem ainda não tem.
-    // É o que faz a agente nunca secar: ela cuida da lista que existe E da que
-    // vai gerar. Só no Instagram, e só quando a fila alcançável está curta.
+    // ── 3. CONSTRUIR A LISTA — todo tempo ocioso vira lista ───────────────
+    // Roda SEMPRE, não só quando a fila está curta. Duas frentes, nessa ordem:
+    //   1) achar o @ de empresa que já está na base (mais barato, mais certeiro)
+    //   2) quando não sobra nenhuma, ir atrás de empresa que nunca vimos
+    // Assim ela nunca fica sem o que fazer entre 07h e 23h59, e nunca seca.
     if (CANAL === 'instagram' && !DRY) {
+      let aba = null;
       try {
-        const comArroba = (await ler('prospeccao_fila_worker?select=id&instagram=not.is.null&instagram=neq.&limit=200')).length;
-        if (comArroba < 60) {
-          let aba = null;
-          try {
-            aba = await Aba.abrir(CFG.cdp);
-            const n = await reabastecer(aba, 4);
-            if (n) log(`reabasteci ${n} @ — fila alcançável tinha ${comArroba}`);
-          } finally { if (aba) await aba.fechar(); }
-        }
-      } catch (e) { log('reabastecimento falhou: ' + e.message); }
+        aba = await Aba.abrir(CFG.cdp);
+        const achou = await reabastecer(aba, 5);
+        if (achou) log(`achei @ de ${achou} empresa(s) que já estavam na base`);
+        else await descobrir(aba);
+      } catch (e) { log('construção da lista falhou: ' + e.message); }
+      finally { if (aba) await aba.fechar(); }
     }
 
     // ── 4. dorme pouco e volta ────────────────────────────────────────────
