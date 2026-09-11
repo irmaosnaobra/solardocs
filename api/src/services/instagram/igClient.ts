@@ -135,11 +135,24 @@ export async function getMedia(igUserId: string, token: string): Promise<any[]> 
 
 // ── Envio de mensagens ───────────────────────────────────────────────────────
 type QuickReply = { title: string; payload?: string };
-type MsgPayload = { text?: string; button?: { url: string; title: string }; quick_replies?: QuickReply[] };
+type MsgPayload = { text?: string; image?: { url: string };
+  button?: { url: string; title: string }; quick_replies?: QuickReply[] };
 
 /** Monta o corpo `message` da Meta. Exportada pra teste — é aqui que o card
  *  errado (template do Messenger) derrubava o envio. */
 export function buildMessage(p: MsgPayload): any {
+  // IMAGEM. É o que transforma "te envio o material" em material entregue —
+  // sem isto a agente promete prova e manda link, que não é a mesma coisa.
+  //
+  // A URL tem que ser pública e a Meta busca o arquivo ELA MESMA, do servidor
+  // dela. Por isso não adianta o arquivo abrir aqui: se a Meta não alcançar,
+  // volta erro genérico. JPG ou PNG; webp não é garantido.
+  //
+  // Imagem vai SOZINHA no envio: a Meta ignora `text` quando há attachment, e
+  // legenda junto some calada. Quem manda texto+imagem manda duas mensagens.
+  if (p.image) {
+    return { attachment: { type: 'image', payload: { url: p.image.url, is_reusable: true } } };
+  }
   if (p.button) {
     // Card com botão que ABRE LINK. Tem que ser o template `generic`: o
     // `button` é do Messenger e o Instagram devolve erro genérico nele — foi o

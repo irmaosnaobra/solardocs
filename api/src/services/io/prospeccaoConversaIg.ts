@@ -17,7 +17,8 @@
 
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
-import { decidirResposta, bolhasParaEnvio } from './prospeccaoResposta';
+import { decidirResposta, planoDeEnvio, MATERIAL } from './prospeccaoResposta';
+import { sendDM } from '../instagram/igClient';
 
 const LOG = 'prospeccao-ig';
 const GRAPH = 'https://graph.instagram.com/v25.0';
@@ -100,16 +101,28 @@ export async function tratarRespostaProspeccao(
   });
   if (!v) { logger.error(LOG, `IA não respondeu sobre ${c.empresa} — fica pro humano`); return true; }
 
-  const bolhas = bolhasParaEnvio(v, c.id, 'instagram');
-  for (const b of bolhas) {
+  // FALA, PROVA, LINK — nesta ordem, sempre. A primeira mensagem prometeu
+  // material; aqui a promessa é paga. A imagem vai por sendDM direto porque o
+  // `enviar` que o webhook passa só sabe texto, e trocar a assinatura dele
+  // mexeria em todo o fluxo de comentário→DM por causa da prospecção.
+  const plano = planoDeEnvio(v, c.id, 'instagram');
+  for (const passo of plano) {
     try {
-      await enviar(igsid, b);
-      await guardar(c.id, 'nos', b, null);
-      // Gente não manda três mensagens no mesmo segundo.
-      await new Promise(r => setTimeout(r, 1500));
+      if (passo.tipo === 'texto') {
+        await enviar(igsid, passo.texto);
+        await guardar(c.id, 'nos', passo.texto, null);
+      } else {
+        await sendDM(igUserId, igsid, { image: { url: passo.url } }, token);
+        await guardar(c.id, 'nos', `[imagem] ${MATERIAL[passo.chave].nome}`, null);
+      }
+      // Gente não manda três mensagens no mesmo segundo. Imagem demora mais
+      // porque a Meta busca o arquivo antes de entregar.
+      await new Promise(r => setTimeout(r, passo.tipo === 'imagem' ? 2600 : 1500));
     } catch (err) {
-      logger.error(LOG, `envio pra ${c.empresa} falhou`, err);
-      break;
+      // Uma imagem que não sobe NÃO pode engolir o link que vem depois: a
+      // pessoa pediu pra ver e ficaria sem nada. Só texto que falha interrompe.
+      logger.error(LOG, `envio pra ${c.empresa} falhou (${passo.tipo})`, err);
+      if (passo.tipo === 'texto') break;
     }
   }
 
@@ -119,7 +132,9 @@ export async function tratarRespostaProspeccao(
     contato_id: c.id, lista_id: c.lista_id, produto_id: 'solardoc',
     consultor: process.env.PROSPECCAO_CONSULTOR || 'irmaosnaobra__',
     resultado: v.resultado, valor: 0,
-    obs: `IA(ig): ${v.intencao}${v.escalar ? ' · PRECISA DE HUMANO' : ''} — ${v.motivo}`.slice(0, 400),
+    obs: `IA(ig): ${v.intencao}${v.escalar ? ' · PRECISA DE HUMANO' : ''}`
+      + `${v.material?.length ? ' · material: ' + v.material.join(',') : ''}`
+      + `: ${v.motivo}`.slice(0, 400),
   });
 
   if (v.resultado === 'nao_perturbar') {
@@ -128,6 +143,7 @@ export async function tratarRespostaProspeccao(
   }
   if (v.escalar) logger.warn(LOG, `ESCALADO: ${c.empresa} — ${v.motivo}`);
 
-  logger.info(LOG, `respondi ${c.empresa}: ${v.intencao} / ${v.resultado}`);
+  logger.info(LOG, `respondi ${c.empresa}: ${v.intencao} / ${v.resultado}`
+    + `${v.material?.length ? ` · mandei ${v.material.length} imagem(ns)` : ''}`);
   return true;
 }

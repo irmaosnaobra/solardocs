@@ -24,6 +24,37 @@ const anthropic = novoAnthropic();
 // e tirar a chave derruba os outros agentes junto.
 const desligado = () => (process.env.PROSPECCAO_IA_OFF || '').trim() === 'true';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// O MATERIAL, a prova.
+//
+// O padrão da casa é: PERGUNTA, depois PROVA, depois o LINK na hora certa.
+// A prova é documento de verdade gerado pelo próprio SolarDoc, pela mesmíssima
+// função que roda quando o assinante clica em "Gerar". Não é maquete.
+//
+// Por que imagem e não só link: link pede um clique e uma decisão. A imagem
+// chega aberta na conversa e responde "vocês são bons mesmo?" antes da pessoa
+// precisar querer saber.
+//
+// NÃO entram aqui a Precificação nem o Inventário: desde 17/08 são exclusivos
+// do plano anual. Usar como prova do plano mensal é vender o que o cliente não
+// vai receber, e ele descobre no cadeado.
+// ─────────────────────────────────────────────────────────────────────────────
+const RAIZ_MATERIAL = process.env.MATERIAL_BASE || 'https://solardoc.app/dm';
+
+export const MATERIAL = {
+  proposta:   { arquivo: 'proposta.jpg',   nome: 'a proposta comercial que sai pro cliente' },
+  banco:      { arquivo: 'banco.jpg',      nome: 'a proposta no formato que a financeira pede' },
+  contrato:   { arquivo: 'contrato.jpg',   nome: 'o contrato de compra e venda' },
+  procuracao: { arquivo: 'procuracao.jpg', nome: 'a procuração pra concessionária' },
+  recibo:     { arquivo: 'recibo.jpg',     nome: 'o recibo que calcula o que já foi pago' },
+  servico:    { arquivo: 'servico.jpg',    nome: 'o contrato com o instalador terceirizado' },
+  vistoria:   { arquivo: 'vistoria.jpg',   nome: 'o checklist que vai pra obra' },
+  vendedor:   { arquivo: 'vendedor.jpg',   nome: 'o contrato de representação do vendedor' },
+} as const;
+export type ChaveMaterial = keyof typeof MATERIAL;
+const CHAVES = Object.keys(MATERIAL) as [ChaveMaterial, ...ChaveMaterial[]];
+export const urlMaterial = (k: ChaveMaterial) => `${RAIZ_MATERIAL}/${MATERIAL[k].arquivo}`;
+
 const Veredito = z.object({
   intencao: z.enum([
     'interessado', 'pediu_info', 'pediu_preco', 'quer_link', 'nao_e_decisor',
@@ -36,6 +67,11 @@ const Veredito = z.object({
   // estar no schema porque quem escreve é a IA, não o transporte.
   bolhas: z.array(z.string()).min(1).max(3),
   mandar_link: z.boolean(),
+  // A PROVA. Escolhida pelo que a pessoa perguntou, nunca fixa: quem perguntou
+  // de financiamento recebe a proposta pro banco, quem perguntou do "depois do
+  // sim" recebe o contrato. Material genérico prova menos que material que
+  // responde a dúvida que ela acabou de escrever.
+  material: z.array(z.enum(CHAVES)).max(3),
   escalar: z.boolean(),
   motivo: z.string(),
 });
@@ -94,11 +130,38 @@ COMO ESCREVER
 · Uma pergunta por vez, e só se ela levar a conversa adiante.
 · Não repita o que já foi dito na conversa.
 
+O MATERIAL (a prova)
+A primeira mensagem que ela recebeu PROMETEU material: "te envio as imagens".
+Se ela respondeu qualquer coisa que não seja "não quero", CUMPRA a promessa.
+
+Em "material" liste de 1 a 3 documentos, escolhidos pelo que ELA perguntou:
+  proposta    a proposta comercial que sai pro cliente
+  banco       a proposta no formato que a financeira pede
+  contrato    o contrato de compra e venda
+  procuracao  a procuração pra concessionária
+  recibo      o recibo que calcula o que já foi pago
+  servico     o contrato com o instalador terceirizado
+  vistoria    o checklist que vai pra obra
+  vendedor    o contrato de representação do vendedor
+
+Regras do material:
+· Falou de financiamento ou de banco? mande banco. Falou de contrato ou do
+  "depois do sim"? mande contrato. Falou de homologação? mande procuracao.
+· proposta entra quase sempre, porque é o documento que ela mais usa.
+· Dois documentos já provam. Três é o teto, e só quando ela perguntou de várias
+  coisas. Mandar oito é despejo, não é prova.
+· Se ela pediu pra parar, ou claramente não quer nada, material=[] (lista vazia).
+· NÃO descreva o documento em detalhe na bolha: a imagem chega junto e fala
+  sozinha. Uma linha curta apresentando basta ("olha como sai a proposta").
+
 O LINK
 Só mande o link quando a pessoa demonstrar que quer ver (pediu preço, pediu pra
 ver, disse que tem interesse). Se ela ainda está perguntando o que é, responda
 primeiro. Link cedo demais encerra a conversa. Quando mandar_link=true, NÃO
-escreva o link nas bolhas — o sistema anexa sozinho.
+escreva o link nas bolhas, o sistema anexa sozinho.
+
+A ORDEM que sai na conversa é sempre: suas bolhas, depois as imagens, depois o
+link. Escreva as bolhas sabendo disso: elas ANUNCIAM o que vem, não resumem.
 
 QUANDO PARAR
 Qualquer sinal de "não me manda mais", "sai daqui", "para", ou irritação clara:
@@ -145,8 +208,11 @@ export async function decidirResposta(p: PedidoResposta): Promise<Veredito | nul
     // escrever, some daqui. Link duplicado numa bolha é cara de automação.
     v.bolhas = v.bolhas.map(b => b.replace(/https?:\/\/\S+/g, '').trim()).filter(Boolean);
     if (!v.bolhas.length) v.bolhas = ['beleza'];
-    // Pedido de parada nunca vem acompanhado de link, diga a IA o que disser.
-    if (v.resultado === 'nao_perturbar') v.mandar_link = false;
+    // Pedido de parada nunca vem com link nem com material, diga a IA o que
+    // disser. Insistir com prova depois de "para" é o que bloqueia conta.
+    if (v.resultado === 'nao_perturbar') { v.mandar_link = false; v.material = []; }
+    // Repetido não prova duas vezes, e três é o teto mesmo que ela escolha mais.
+    v.material = [...new Set(v.material || [])].slice(0, 3);
 
     return v;
   } catch (err: any) {
@@ -160,4 +226,22 @@ export async function decidirResposta(p: PedidoResposta): Promise<Veredito | nul
 /** O texto final que o worker digita, já com o link quando for a hora. */
 export function bolhasParaEnvio(v: Veredito, contatoId?: string | null, canal?: string | null): string[] {
   return v.mandar_link ? [...v.bolhas, linkDe(contatoId, canal || 'whatsapp')] : v.bolhas;
+}
+
+export type PassoEnvio =
+  | { tipo: 'texto'; texto: string }
+  | { tipo: 'imagem'; url: string; chave: ChaveMaterial };
+
+/**
+ * A conversa inteira em ordem: fala, prova, link.
+ *
+ * É uma LISTA e não uma string porque imagem não cabe em texto, e porque a
+ * ordem É a mensagem: prova antes do link faz a pessoa clicar já convencida;
+ * link antes da prova faz ela decidir sem ter visto nada.
+ */
+export function planoDeEnvio(v: Veredito, contatoId?: string | null, canal?: string | null): PassoEnvio[] {
+  const passos: PassoEnvio[] = v.bolhas.map(t => ({ tipo: 'texto' as const, texto: t }));
+  for (const k of v.material || []) passos.push({ tipo: 'imagem', url: urlMaterial(k), chave: k });
+  if (v.mandar_link) passos.push({ tipo: 'texto', texto: linkDe(contatoId, canal || 'whatsapp') });
+  return passos;
 }

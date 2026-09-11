@@ -1,6 +1,6 @@
 // Gera os DOCUMENTOS DE VERDADE pra galeria da LP.
-// Chama generateFromTemplate — a mesmíssima função que o app usa quando o
-// cliente clica em "Gerar" — com uma empresa e um cliente de demonstração.
+// Chama generateFromTemplate, a mesmíssima função que o app usa quando o
+// cliente clica em "Gerar", com uma empresa e um cliente de demonstração.
 // Não é maquete: é o mesmo HTML que sai no PDF do assinante.
 import fs from 'fs';
 import path from 'path';
@@ -12,7 +12,7 @@ fs.mkdirSync(OUT, { recursive: true });
 const empresa: any = {
   nome: 'Sol Mineira Energia LTDA',
   cnpj: '12.345.678/0001-90',
-  endereco: 'Av. Rondon Pacheco, 1200 — Sala 8',
+  endereco: 'Av. Rondon Pacheco, 1200, Sala 8',
   cidade: 'Uberlândia',
   uf: 'MG',
   cep: '38400-000',
@@ -31,7 +31,7 @@ const cliente: any = {
   nacionalidade: 'brasileiro',
   estado_civil: 'casado',
   profissao: 'comerciante',
-  endereco: 'Rua das Acácias, 245 — Bairro Santa Mônica',
+  endereco: 'Rua das Acácias, 245, Bairro Santa Mônica',
   cep: '38408-100',
   bairro: 'Santa Mônica',
   cidade: 'Uberlândia',
@@ -52,7 +52,7 @@ const camposProposta = {
   vendedor_email: 'ricardo@solmineira.com.br',
 };
 
-// nomes conferidos nos próprios templates (f.*) — campo errado sai como
+// nomes conferidos nos próprios templates (f.*), campo errado sai como
 // linha em branco no contrato, e branco em página de venda parece rascunho
 const camposContrato = {
   potencia_kwp: 8.25,
@@ -60,7 +60,7 @@ const camposContrato = {
   quantidade_inversores: 1, marca_inversor: 'Growatt 8kW', tipo_inversor: 'Trifásico 380V',
   valor_total: 38900,
   condicoes_pagamento: 'Entrada de R$ 10.000,00 no PIX + 18x de R$ 1.605,55 no cartão',
-  endereco_instalacao: 'Rua das Acácias, 245 — Santa Mônica, Uberlândia/MG',
+  endereco_instalacao: 'Rua das Acácias, 245, Santa Mônica, Uberlândia/MG',
   prazo_projeto_dias: 5, prazo_aprovacao_dias: 30, prazo_instalacao_dias: 10,
   garantia_modulos_anos: 25, garantia_inversor_anos: 10,
   foro_cidade: 'Uberlândia',
@@ -72,8 +72,8 @@ const camposProcuracao = {
 
 const camposRecibo = {
   numero: '0042', valor_contrato: 38900, data_contrato: '2026-08-05',
-  descricao_servico: 'Fornecimento e instalação de sistema fotovoltaico de 8,25 kWp — 15 módulos Trina Vertex 550W e inversor Growatt 8kW',
-  endereco_instalacao: 'Rua das Acácias, 245 — Santa Mônica, Uberlândia/MG',
+  descricao_servico: 'Fornecimento e instalação de sistema fotovoltaico de 8,25 kWp, 15 módulos Trina Vertex 550W e inversor Growatt 8kW',
+  endereco_instalacao: 'Rua das Acácias, 245, Santa Mônica, Uberlândia/MG',
   banco: 'Banco do Brasil', agencia: '1234-5', conta: '98765-4',
   chave_pix: 'contato@solmineira.com.br', foro_cidade: 'Uberlândia',
   pagamentos: [
@@ -84,28 +84,28 @@ const camposRecibo = {
 
 const camposBanco = {
   banco: 'BV Financeira', agencia: '1234-5', conta: '98765-4',
-  descricao_sistema: 'Sistema fotovoltaico on-grid de 8,25 kWp — 15 módulos Trina Vertex 550W, inversor Growatt 8kW trifásico 380V, estrutura para telhado cerâmico, projeto e homologação inclusos',
+  descricao_sistema: 'Sistema fotovoltaico on-grid de 8,25 kWp, 15 módulos Trina Vertex 550W, inversor Growatt 8kW trifásico 380V, estrutura para telhado cerâmico, projeto e homologação inclusos',
   valor_equipamentos: 27300, valor_mao_de_obra: 11600, valor_total: 38900,
   validade_dias: 7,
 };
 
 const camposVistoria = {
   modo: 'completo', data_visita: '2026-08-05', tecnico_nome: 'Ricardo Alves',
-  endereco_visita: 'Rua das Acácias, 245 — Santa Mônica, Uberlândia/MG',
+  endereco_visita: 'Rua das Acácias, 245, Santa Mônica, Uberlândia/MG',
   consumo_kwh: 780,
   telhado_tipo: 'Cerâmico', telhado_area: 60, telhado_orientacao: 'Norte',
   telhado_estrutura_ok: true, telhado_sem_sombra: true,
   padrao_tipo: 'Trifásico 380V', padrao_disjuntor: '63A',
   padrao_estado_ok: true, padrao_espaco_inversor: true,
   dim_potencia: 8.25, dim_distancia: 12,
-  observacoes: 'Telhado em bom estado, sem sombreamento no período de maior geração. Padrão de entrada compatível — não precisa de troca.',
+  observacoes: 'Telhado em bom estado, sem sombreamento no período de maior geração. Padrão de entrada compatível, não precisa de troca.',
   conclusao: 'Imóvel apto para instalação de 8,25 kWp com 15 módulos.',
 };
 
 const camposPrestacao = {
   cliente_final_nome: 'João Batista Moreira',
   cliente_final_telefone: '(34) 98888-7777',
-  cliente_final_endereco_instalacao: 'Rua das Acácias, 245 — Santa Mônica, Uberlândia/MG',
+  cliente_final_endereco_instalacao: 'Rua das Acácias, 245, Santa Mônica, Uberlândia/MG',
   cliente_final_padrao: 'Trifásico 380V', cliente_final_tipo_telhado: 'Cerâmico',
   qtd_modulos: 15, modelo_modulo: 'Trina Vertex 550W',
   qtd_inversores: 1, modelo_inversor: 'Growatt 8kW',
