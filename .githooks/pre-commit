@@ -1,0 +1,30 @@
+#!/bin/sh
+# Pre-commit de segredo. Roda o gitleaks so no que esta STAGED, com a MESMA
+# config do CI (.gitleaks.toml), e recusa o commit se achar segredo.
+#
+# POR QUE: o gitleaks do CI so grita DEPOIS do push. Num repo publico o segredo
+# ja vazou no instante em que sobe. Este hook barra antes do commit existir.
+# Foi assim que CRON_SECRET, MCP_TOKEN e JWT_SECRET foram parar no repo publico.
+#
+# Fail-open de proposito quando o binario nao existe: numa maquina sem gitleaks
+# o hook AVISA e deixa passar, em vez de travar todo commit. Na maquina do dono
+# o binario esta em ~/.local/bin, entao ali protege de verdade.
+#
+# Para ativar num clone novo: git config core.hooksPath .githooks
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "[pre-commit] gitleaks nao encontrado no PATH — pulando varredura de segredo."
+  echo "[pre-commit] instale o gitleaks para proteger commits (veja CLAUDE.md)."
+  exit 0
+fi
+
+gitleaks git --staged --pre-commit -c .gitleaks.toml --redact --no-banner --exit-code 1
+code=$?
+if [ "$code" -ne 0 ]; then
+  echo ""
+  echo "[pre-commit] COMMIT BLOQUEADO: o gitleaks achou segredo no que voce staged."
+  echo "[pre-commit] tire o valor do arquivo (ou rotacione e ponha no .env)."
+  echo "[pre-commit] emergencia real: git commit --no-verify (pense duas vezes num repo publico)."
+  exit 1
+fi
+exit 0
