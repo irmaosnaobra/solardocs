@@ -72,6 +72,8 @@ import { tickOrdens } from '../services/metaOrdensService';
 import { runInventoryLowStockAlert } from '../services/inventoryAlertService';
 import { logger } from '../utils/logger';
 import { supabaseGerador } from '../utils/supabaseGerador';
+import { sendWhatsApp } from '../services/agents/zapiClient';
+import { supabase } from '../utils/supabase';
 import { rodarAvisosProspeccao } from '../services/io/prospeccaoAviso';
 
 const router = Router();
@@ -621,6 +623,49 @@ router.get('/prospeccao-pulso', async (req: Request, res: Response) => {
     else if (minutos > LIMITE_MIN) problemas.push(`sem sinal de vida há ${minutos} min`);
     if (data?.logado === false) problemas.push('o Chrome dela está DESLOGADO do Instagram');
     if (data?.ultimo_erro) problemas.push(`último erro: ${data.ultimo_erro}`);
+
+    // O AVISO VAI PRO WHATSAPP, NÃO PRA UMA ISSUE.
+    //
+    // O vigia do GitHub abria issue, que vira e-mail. Só que o dono não vive no
+    // e-mail nem no GitHub: ele vive no WhatsApp. Entre 11 e 13/09 a agente
+    // ficou dois dias parada e ele descobriu PERGUNTANDO, que é exatamente o
+    // que um alarme existe pra evitar.
+    //
+    // Avisa UMA vez por incidente. A chave carrega o dia e o motivo: parou de
+    // novo amanhã, avisa de novo; continua parada, fica quieto. Alarme que
+    // repete de 15 em 15 minutos é alarme que se silencia.
+    if (problemas.length) {
+      const motivo = data?.logado === false ? 'deslogada'
+        : (minutos === null || minutos > LIMITE_MIN) ? 'sem-pulso' : 'com-erro';
+      const chave = `prospeccao_parada:${new Date().toISOString().slice(0, 10)}:${motivo}`;
+      const { error: jaAvisou } = await supabase.from('system_state')
+        .insert({ key: chave, value: { avisado_em: new Date().toISOString(), problemas } });
+
+      if (!jaAvisou) {
+        const NOTIFY = (process.env.IO_INDICACOES_NOTIFY || '34991360223').trim();
+        const linhas = [
+          'A AGENTE DE PROSPECCAO PAROU.',
+          '',
+          ...problemas.map(p => '. ' + p),
+          '',
+          `Enviadas hoje: ${data?.enviados_hoje ?? 0}`,
+          `Estava: ${data?.fazendo || '?'}`,
+          '',
+          'O que conferir:',
+          '1. O computador esta ligado e acordado?',
+          '2. A janela da agente esta aberta?',
+          '3. O Chrome dela esta logado no Instagram?',
+          '',
+          'O diario fica em worker-prospeccao/agente-diario.log',
+        ];
+        try {
+          await sendWhatsApp(NOTIFY, linhas.join('\n'), 'io');
+          logger.warn('cron', 'avisei no WhatsApp que a agente parou', { problemas });
+        } catch (err) {
+          logger.error('cron', 'NAO consegui avisar no WhatsApp', err);
+        }
+      }
+    }
 
     res.json({
       ok: problemas.length === 0,

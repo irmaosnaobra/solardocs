@@ -14,6 +14,17 @@ name: A agente de prospeccao esta trabalhando?
 # Vercel. Issue nova = e-mail do GitHub pra quem segue o repositorio. Quando ela
 # volta, a issue se fecha sozinha e chega o e-mail avisando.
 #
+# CORRIGIDO EM 13/09/2026: este vigia rodava a cada 15 min e FALHAVA TODAS as
+# vezes com "fatal: not a git repository". Ele media certo (chegou a ver 1709
+# minutos sem sinal de vida) e morria na hora de abrir a issue, porque o `gh`
+# nao sabia em qual repositorio escrever sem um checkout. Duas semanas de
+# alarme mudo. GH_REPO resolve sem precisar baixar o repo so pra isso.
+#
+# E o aviso de verdade agora sai no WHATSAPP, direto da API (/cron/prospeccao-
+# pulso). O dono nao vive no GitHub nem no e-mail: ele vive no WhatsApp, e
+# descobriu uma parada de dois dias PERGUNTANDO. Esta issue virou o registro,
+# nao o alarme.
+#
 # Irmao deste arquivo: vercel-vivo.yml, que cuida da producao. Aquele responde
 # "a API esta no ar?"; este responde "a agente esta trabalhando?". Sao perguntas
 # diferentes e as duas ja foram respondidas tarde demais uma vez.
@@ -65,6 +76,7 @@ jobs:
         if: steps.pulso.outputs.pular == 'nao' && steps.pulso.outputs.ok == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           MIN: ${{ steps.pulso.outputs.min }}
           LOGADO: ${{ steps.pulso.outputs.logado }}
           CONTA: ${{ steps.pulso.outputs.conta }}
@@ -116,6 +128,7 @@ jobs:
         if: steps.pulso.outputs.pular == 'nao' && steps.pulso.outputs.ok == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           MIN: ${{ steps.pulso.outputs.min }}
           ENVIADOS: ${{ steps.pulso.outputs.enviados }}
           FAZENDO: ${{ steps.pulso.outputs.fazendo }}
