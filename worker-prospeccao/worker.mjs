@@ -694,6 +694,10 @@ const EU = `${process.pid}-${Date.now().toString(36)}`;
 let caixaNaoAbriu = 0;
 let bloqueadaParaNovas = false;
 
+// Quantas voltas seguidas o Chrome nao respondeu. Ver o comentario em
+// chromeVivo(): num notebook apertado ele MORRE, e ela precisa perceber.
+let chromeMudo = 0;
+
 async function bater(campos) {
   try {
     await fetch(`${CFG.supa}/prospeccao_pulso?id=eq.1`, {
@@ -702,6 +706,27 @@ async function bater(campos) {
                              instancia: EU, versao: 'worker.mjs', ...campos }),
     });
   } catch { /* pulso que falha não derruba a agente: ele é o termômetro, não o doente */ }
+}
+
+/**
+ * O Chrome dela ainda existe?
+ *
+ * Em 13/09 o Windows matou o Chrome por falta de memoria (0,49 GB livres de
+ * 15,7 GB, com outro projeto processando video na mesma maquina). A agente
+ * continuou viva, batendo o pulso e girando o laco por DOIS DIAS sem conseguir
+ * falar com ninguem, porque nada no codigo perguntava "o navegador ainda esta
+ * ai?".
+ *
+ * Ela nao consegue subir o Chrome sozinha: quem faz isso e o COMECAR.ps1, que
+ * confere a porta antes de ligar. Entao o certo e SAIR. O laco do COMECAR
+ * religa em 60s, passa pelo passo 1, ve a porta muda e sobe o navegador de
+ * novo. Morrer de proposito e mais util que insistir viva.
+ */
+async function chromeVivo() {
+  try {
+    const r = await fetch(CFG.cdp + '/json/version', { signal: AbortSignal.timeout(8000) });
+    return r.ok;
+  } catch { return false; }
 }
 
 /**
@@ -1232,6 +1257,22 @@ async function modoContinuo() {
       // já disse que ela estava viva e o catch grava o erro por cima.
       // A sessão é conferida na 1a volta e depois a cada 5: ler é barato, mas
       // não é de graça, e deslogar não é coisa que acontece a cada 2 minutos.
+      // O navegador ainda está de pé? Sem ele ela não fala com ninguém, e
+      // continuar girando só esconde o problema.
+      if (!await chromeVivo()) {
+        chromeMudo++;
+        log(`o Chrome não respondeu (${chromeMudo}ª volta seguida).`);
+        await bater({ ciclo, fazendo: 'o Chrome não responde', ultimo_erro: `Chrome mudo há ${chromeMudo} voltas` });
+        if (chromeMudo >= 3) {
+          log('O CHROME MORREU. Vou sair pra janela subir ele de novo.');
+          log('Numa máquina apertada isso é o Windows matando o navegador por falta de memória.');
+          process.exit(1);   // o laço do COMECAR.ps1 religa em 60s e passa pelo passo que sobe o Chrome
+        }
+        await dorme(20000);
+        continue;
+      }
+      chromeMudo = 0;
+
       // Varre as abas esquecidas antes de tudo: memória sobrando é o que decide
       // se o Chrome dela sobrevive ao dia.
       if (ciclo % 3 === 0) await fecharAbasSobrando();
