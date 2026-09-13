@@ -667,6 +667,35 @@ router.get('/prospeccao-pulso', async (req: Request, res: Response) => {
       }
     }
 
+    // A BOA NOTICIA TAMBEM PRECISA CHEGAR.
+    //
+    // O alarme so avisava desgraca. Mas o dono tambem esta esperando UMA noticia
+    // boa: "o Instagram destravou, ela voltou a abordar". Sem isso ele acorda e
+    // pergunta, que e exatamente o que a gente esta tentando acabar.
+    //
+    // Quem escreve este sinal e a sonda que roda no computador dele as 07h
+    // (testar-bloqueio.mjs): ela poe 'DESTRAVOU' no campo `fazendo` do pulso.
+    // Aqui a gente so repassa, uma vez, e limpa a marca.
+    if (String(data?.fazendo || '').startsWith('DESTRAVOU')) {
+      const chave = `prospeccao_destravou:${new Date().toISOString().slice(0, 10)}`;
+      const { error: jaAvisou } = await supabase.from('system_state')
+        .insert({ key: chave, value: { avisado_em: new Date().toISOString() } });
+      if (!jaAvisou) {
+        const NOTIFY = (process.env.IO_INDICACOES_NOTIFY || '34991360223').trim();
+        const linhas = [
+          'BOA: O INSTAGRAM DESTRAVOU.',
+          '',
+          'A caixa de mensagem voltou a abrir em perfil novo.',
+          'A agente ja voltou a abordar, comecando devagar (5 por dia) pra nao',
+          'levar bloqueio de novo.',
+          '',
+          'Nao precisa fazer nada.',
+        ];
+        try { await sendWhatsApp(NOTIFY, linhas.join(String.fromCharCode(10)), 'io'); }
+        catch (err) { logger.error('cron', 'nao consegui avisar do destrave', err); }
+      }
+    }
+
     res.json({
       ok: problemas.length === 0,
       minutos_sem_pulso: minutos,
