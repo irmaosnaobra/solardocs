@@ -65,8 +65,26 @@ $workers = @(Get-CimInstance Win32_Process -Filter "Name='node.exe'" |
              Where-Object { $_.CommandLine -like '*worker.mjs*' })
 
 if ($workers.Count -eq 0) {
-  Anotar 'a agente nao estava rodando. Ligando pela tarefa.'
-  schtasks /run /tn AgenteProspeccao 2>$null | Out-Null
+  # SOBE DIRETO, sem pedir pro Agendador.
+  #
+  # Chamar `schtasks /run` parecia mais limpo, mas o Agendador recusa a chamada
+  # em varias situacoes (0x800710E0) e nao explica qual: instancia anterior
+  # ainda "rodando", condicao de gatilho, politica. Em 13/09 ele recusou tres
+  # vezes seguidas e a agente ficou no chao enquanto o vigia achava que tinha
+  # resolvido.
+  #
+  # Subir direto tira o intermediario. O .vbs existe porque powershell.exe
+  # -WindowStyle Hidden ainda pisca o console antes de esconder.
+  $temJanela = @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" |
+                 Where-Object { $_.CommandLine -like '*COMECAR.ps1*' -and $_.CommandLine -notlike '*Where-Object*' })
+  if ($temJanela.Count -gt 0) {
+    Anotar "a agente nao roda, mas a janela existe (PID $($temJanela[0].ProcessId)). Ela religa sozinha em 60s."
+  } else {
+    Anotar 'a agente nao estava rodando e nao havia janela. Subindo direto.'
+    $vbs = Join-Path $pasta 'agente-silenciosa.vbs'
+    if (Test-Path $vbs) { Start-Process 'wscript.exe' -ArgumentList @('//nologo', "`"$vbs`"") -WindowStyle Hidden }
+    else { Anotar 'NAO ACHEI agente-silenciosa.vbs' }
+  }
 }
 
 # ── 3. tem mais de uma? ──────────────────────────────────────────────────────
