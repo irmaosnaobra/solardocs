@@ -599,6 +599,7 @@ async function umaAbordagem() {
       ? await enviarInstagram(aba, c.instagram, msg)
       : await enviarWhatsApp(aba, c.telefone, msg);
     if (r.ok) {
+      caixaNaoAbriu = 0;   // uma que sai limpa zera a suspeita
       await gravarToque(c.id, null, pid, 'enviei', `worker ${CANAL}`);
       log('  ✓ enviado');
       return 'enviou';
@@ -615,6 +616,28 @@ async function umaAbordagem() {
     // Apagar o @ (string vazia, não NULL) é o mesmo sinal que o reabastecimento
     // já usa: "procuramos, não serve". A empresa continua na base; o que sai é
     // o endereço errado.
+    // RESTRIÇÃO A CONVERSA NOVA: o sintoma é este e não outro.
+    //
+    // Em 13/09 a conta levou um bloqueio brando. O perfil abre, o botão
+    // "Message" está lá, o clique funciona, e o compositor simplesmente NÃO
+    // abre. A prova de que é restrição e não bug: no mesmo minuto o compositor
+    // ABRIU num contato com quem ela já tinha conversado.
+    //
+    // Insistir num bloqueio brando é o que o torna duro. Três seguidas e ela
+    // para sozinha, avisa no pulso, e espera alguém conferir.
+    if (CANAL === 'instagram' && /caixa de DM não abriu/.test(r.motivo)) {
+      caixaNaoAbriu++;
+      if (caixaNaoAbriu >= 3 && !bloqueadaParaNovas) {
+        log('');
+        log('O INSTAGRAM PAROU DE DEIXAR ABRIR CONVERSA NOVA.');
+        log(`${caixaNaoAbriu} perfis seguidos: o botão existe, o clique funciona, o compositor não abre.`);
+        log('Insistir nisso transforma bloqueio brando em bloqueio duro. PAREI de abordar.');
+        log('Responder quem já respondeu continua normal: aquilo vai pela API da Meta.');
+        await bater({ fazendo: 'PARADA: Instagram bloqueou conversa nova',
+                      ultimo_erro: `compositor não abre em ${caixaNaoAbriu} perfis seguidos` });
+        bloqueadaParaNovas = true;
+      }
+    }
     if (CANAL === 'instagram' && /não existe mais/.test(r.motivo)) {
       await fetch(`${CFG.supa}/prospeccao_contatos?id=eq.${c.id}`, {
         method: 'PATCH', headers: H,
@@ -665,6 +688,11 @@ async function garantirInstagram(aba) {
 // Quem sou eu nesta rodada. Serve pra UMA coisa: saber se o pulso que esta no
 // banco e meu ou de outra instancia rodando junto.
 const EU = `${process.pid}-${Date.now().toString(36)}`;
+
+// Quantos perfis seguidos recusaram abrir o compositor. Ver o comentario longo
+// em umaAbordagem(): e assim que a restricao de conversa nova se manifesta.
+let caixaNaoAbriu = 0;
+let bloqueadaParaNovas = false;
 
 async function bater(campos) {
   try {
@@ -1216,7 +1244,13 @@ async function modoContinuo() {
         if (t.estado === 'travado') {
           log('DISJUNTOR ARMADO — opt-out alto. Paro de abordar; sigo só respondendo.');
           proximaAbordagem = Date.now() + 3600_000;   // reconfere de hora em hora
-        } else if (t.restam <= 0) {
+        } else if (bloqueadaParaNovas) {
+        if (!semAlvo) {
+          log('sigo parada de abordar: o Instagram ainda não deixa abrir conversa nova.');
+          semAlvo = true;
+        }
+        proximaAbordagem = Date.now() + 3600_000;   // reconfere de hora em hora
+      } else if (t.restam <= 0) {
           // TETO FECHADO NÃO É FIM DE EXPEDIENTE. O teto limita ENVIAR, não
           // trabalhar. Enquanto não pode mandar, ela constrói a lista de amanhã —
           // é isso que faz nunca faltar empresa de solar pra abordar.
