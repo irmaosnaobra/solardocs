@@ -84,9 +84,26 @@ if (Porta) {
   ) | Where-Object { Test-Path $_ } | Select-Object -First 1
   if (-not $chrome) { Parar 'Nao achei o chrome.exe. Me avise que eu procuro junto.' }
 
+  # O Chrome dela e um robo, nao a sua navegacao: nao precisa de GPU, nem de
+  # traducao, nem de sincronizacao, nem de processo separado por site. Num
+  # notebook de 16 GB que ja vive com 1 GB livre, cada coisa dessas e o que
+  # decide se ele sobrevive ao dia. Em 13/09 o Windows matou este Chrome por
+  # falta de memoria e a agente passou dois dias parada sem saber.
+  #
+  # --site-per-process desligado e o que mais pesa: sem ele o Chrome para de
+  # criar um processo por origem. O risco de seguranca disso e o vazamento entre
+  # sites, e aqui so existe UM site aberto, o Instagram.
   Start-Process $chrome -ArgumentList @(
     "--remote-debugging-port=$porta", '--remote-debugging-address=127.0.0.1',
-    "--user-data-dir=`"$perfil`"", 'https://www.instagram.com/'
+    "--user-data-dir=`"$perfil`"",
+    '--disable-features=site-per-process,Translate,OptimizationHints,MediaRouter',
+    '--disable-gpu', '--disable-extensions', '--disable-sync',
+    '--disable-background-networking', '--disable-component-update',
+    '--no-default-browser-check', '--no-first-run',
+    # Teto de memoria do JavaScript por aba. O Instagram nao precisa de mais, e
+    # com teto o Chrome recolhe lixo em vez de crescer sem parar.
+    '--js-flags=--max-old-space-size=512',
+    'https://www.instagram.com/'
   )
   foreach ($i in 1..40) { Start-Sleep -Milliseconds 700; if (Porta) { break } }
   if (-not (Porta)) { Parar 'O Chrome abriu mas a porta nao respondeu. Feche TODAS as janelas do Chrome e clique aqui de novo.' }

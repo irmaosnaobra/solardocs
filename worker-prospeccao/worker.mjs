@@ -705,6 +705,35 @@ async function bater(campos) {
 }
 
 /**
+ * Fecha aba sobrando no Chrome dela.
+ *
+ * Cada rodada abre uma aba e fecha no `finally`. Só que fechar depende do
+ * Chrome responder, e quando ele está engasgado a chamada falha calada: a aba
+ * fica. Em 11/09 havia 6 abas do Instagram abertas, e cada uma custa entre 80 e
+ * 150 MB. Num notebook de 16 GB que já vive com 1 GB livre, isso é o que vira
+ * "o Windows matou o Chrome" dois dias depois.
+ *
+ * Caçar a causa exata custa mais que varrer toda volta. Varrer é barato e
+ * funciona mesmo quando a causa muda.
+ */
+async function fecharAbasSobrando(limite = 2) {
+  try {
+    const alvos = await (await fetch(CFG.cdp + '/json/list')).json();
+    const paginas = (alvos || []).filter(t => t.type === 'page');
+    if (paginas.length <= limite) return 0;
+    // Mantém as primeiras e fecha o resto: a que o worker está usando agora
+    // está entre as que ficam, e o Chrome nunca fica sem nenhuma.
+    let fechadas = 0;
+    for (const t of paginas.slice(limite)) {
+      const r = await fetch(`${CFG.cdp}/json/close/${t.id}`).catch(() => null);
+      if (r?.ok) fechadas++;
+    }
+    if (fechadas) log(`faxina: fechei ${fechadas} aba(s) esquecida(s) no Chrome`);
+    return fechadas;
+  } catch { return 0; }
+}
+
+/**
  * A sessão do Instagram ainda está de pé?
  *
  * Fala com o Chrome no cru, sem passar pela classe Aba: a Aba abre uma aba
@@ -1203,6 +1232,9 @@ async function modoContinuo() {
       // já disse que ela estava viva e o catch grava o erro por cima.
       // A sessão é conferida na 1a volta e depois a cada 5: ler é barato, mas
       // não é de graça, e deslogar não é coisa que acontece a cada 2 minutos.
+      // Varre as abas esquecidas antes de tudo: memória sobrando é o que decide
+      // se o Chrome dela sobrevive ao dia.
+      if (ciclo % 3 === 0) await fecharAbasSobrando();
       const sess = (ciclo === 1 || ciclo % 5 === 0) ? await sessaoViva() : null;
       await bater({
         ciclo, fazendo: 'começando a volta', ultimo_erro: ultimoErro,
