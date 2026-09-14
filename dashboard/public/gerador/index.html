@@ -1050,6 +1050,15 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .orcview-wpp,.orcview-pdf{flex:1 1 200px;text-align:center;padding:14px 18px;border-radius:12px;font-size:15px;font-weight:800;font-family:inherit;cursor:pointer;border:none;text-decoration:none}
 .orcview-wpp{background:linear-gradient(135deg,#1ebd5b,#25D366);color:#fff}
 .orcview-pdf{background:#1E3A8A;color:#fff}
+/* Link de eletroposto vencido: a tela usa o laranja de "atenção" e o azul do solar
+   (style.css). Com a classe ep (mostrarExpirado) ela segue a NEXUS: cabeçalho
+   azul-escuro com brilho azul, título e fio em #0B1A2B. O cartão do WhatsApp fica verde. */
+#expiradoSection.ep .prop-header{background:linear-gradient(135deg,#0B1A2B 0%,#16304C 100%);box-shadow:0 12px 32px rgba(11,26,43,.28),0 2px 6px rgba(11,26,43,.14)}
+#expiradoSection.ep .prop-header::before{background:radial-gradient(circle,rgba(0,133,255,.22) 0%,transparent 65%)}
+#expiradoSection.ep .card h2{color:#0B1A2B;border-bottom-color:#0B1A2B}
+/* cartão de reserva (sem consultor): o azul do solar vem inline, por isso o !important */
+#expiradoSection.ep #exp-cta-fallback{background:linear-gradient(135deg,#EEF2F6 0%,#E5E7EB 100%)!important;border-color:#0B1A2B!important}
+#expiradoSection.ep #exp-cta-fallback>div{color:#0B1A2B!important}
 @media print{ #orcViewSection .orcview-acoes{display:none!important} }
 
 /* No papel: os dois documentos fecham em UMA folha A4 (o encaixe fica no
@@ -6291,6 +6300,9 @@ function mostrarExpirado(d) {
   document.getElementById('exp-nome').textContent = d.nome || '';
 
   const ehEp = d.produto === 'eletroposto';
+  // A classe ep troca o laranja de "atenção" e o azul do solar pela paleta NEXUS
+  // (regras #expiradoSection.ep no <style>). O solar segue sem ela.
+  exp.classList.toggle('ep', ehEp);
   const oQue = ehEp ? 'Meu orçamento de eletroposto' : 'Minha proposta de energia solar';
   // Eletroposto vencido assina NEXUS: o selo redondo em base64 do markup é o do
   // solar. O cabeçalho desta tela é escuro (laranja), então vai o logo de letras
