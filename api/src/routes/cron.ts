@@ -606,120 +606,152 @@ router.get('/nilce-para-giovanna', async (req: Request, res: Response) => {
 router.get('/prospeccao-pulso', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
-    const { data } = await supabaseGerador
-      .from('prospeccao_pulso').select('*').eq('id', 1).maybeSingle();
+    // UM PULSO POR AGENTE. Desde 14/09 são duas identidades: a do Instagram
+    // (id 1) e a do WhatsApp (id 2). Cada uma é conferida sozinha, e só as
+    // `ativo`: a do WhatsApp nasce inativa e vira ativa quando alguém lê o QR do
+    // chip. Sem isso ela gritaria "parou" antes de ter começado.
+    const { data: linhas } = await supabaseGerador
+      .from('prospeccao_pulso').select('*').order('id');
 
     const agora = Date.now();
-    const batido = data?.batido_em ? new Date(data.batido_em).getTime() : 0;
-    const minutos = batido ? Math.round((agora - batido) / 60000) : null;
 
     // 20 min de folga. A volta normal é de OLHAR_SEG (150s), mas uma volta com
     // varredura de cidade chega a 3 min e uma rodada de busca de @ passa disso.
     // Apertar demais treina o dono a ignorar o alarme, que é pior que não ter.
     const LIMITE_MIN = 20;
 
-    // PARADA é pulso velho ou conta deslogada. Só isso dispara "A AGENTE PAROU".
-    //
-    // `ultimo_erro` sozinho NÃO é parada, é contexto. Em 14/09 às 07:39 chegou um
-    // "A AGENTE PAROU" no WhatsApp por causa de um "fetch failed" das 20:36 da
-    // noite anterior: a agente já estava de pé de novo e o erro era história.
-    // Alarme que grita por coisa que já passou é alarme que o dono aprende a
-    // ignorar, e aí o de verdade passa batido.
-    const parada: string[] = [];
-    if (minutos === null) parada.push('ela nunca bateu o pulso');
-    else if (minutos > LIMITE_MIN) parada.push(`sem sinal de vida há ${minutos} min`);
-    if (data?.logado === false) parada.push('o Chrome dela está DESLOGADO do Instagram');
-    const problemas: string[] = [...parada];
-    if (data?.ultimo_erro) problemas.push(`último erro: ${data.ultimo_erro}`);
-
     // O dia da chave é o dia do BRASIL. Com toISOString() ele virava às 21h e o
     // mesmo incidente avisava duas vezes: 13/09 às 19:09 e de novo às 21:12.
     const hojeBr = new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);
+    const NOTIFY = (process.env.IO_INDICACOES_NOTIFY || '34991360223').trim();
 
-    // O AVISO VAI PRO WHATSAPP, NÃO PRA UMA ISSUE.
-    //
-    // O vigia do GitHub abria issue, que vira e-mail. Só que o dono não vive no
-    // e-mail nem no GitHub: ele vive no WhatsApp. Entre 11 e 13/09 a agente
-    // ficou dois dias parada e ele descobriu PERGUNTANDO, que é exatamente o
-    // que um alarme existe pra evitar.
-    //
-    // Avisa UMA vez por incidente. A chave carrega o dia e o motivo: parou de
-    // novo amanhã, avisa de novo; continua parada, fica quieto. Alarme que
-    // repete de 15 em 15 minutos é alarme que se silencia.
-    if (parada.length) {
-      const motivo = data?.logado === false ? 'deslogada' : 'sem-pulso';
-      const chave = `prospeccao_parada:${hojeBr}:${motivo}`;
-      const { error: jaAvisou } = await supabase.from('system_state')
-        .insert({ key: chave, value: { avisado_em: new Date().toISOString(), problemas } });
+    const canais: any[] = [];
+    for (const data of ((linhas || []) as any[]).filter(l => l.ativo !== false)) {
+      const canal: string = data.canal || (data.id === 1 ? 'instagram' : 'whatsapp');
+      const nome = canal === 'whatsapp' ? 'WhatsApp' : 'Instagram';
+      const batido = data.batido_em ? new Date(data.batido_em).getTime() : 0;
+      const minutos = batido ? Math.round((agora - batido) / 60000) : null;
 
-      if (!jaAvisou) {
-        const NOTIFY = (process.env.IO_INDICACOES_NOTIFY || '34991360223').trim();
-        const linhas = [
-          'A AGENTE DE PROSPECCAO PAROU.',
-          '',
-          ...problemas.map(p => '. ' + p),
-          '',
-          `Enviadas hoje: ${data?.enviados_hoje ?? 0}`,
-          `Estava: ${data?.fazendo || '?'}`,
-          '',
-          'O que conferir:',
-          '1. O computador esta ligado e acordado?',
-          '2. A janela da agente esta aberta?',
-          '3. O Chrome dela esta logado no Instagram?',
-          '',
-          'O diario fica em worker-prospeccao/agente-diario.log',
-        ];
-        try {
-          await sendWhatsApp(NOTIFY, linhas.join('\n'), 'io');
-          logger.warn('cron', 'avisei no WhatsApp que a agente parou', { problemas });
-        } catch (err) {
-          logger.error('cron', 'NAO consegui avisar no WhatsApp', err);
+      // PARADA é pulso velho ou conta deslogada. Só isso dispara "PAROU".
+      //
+      // `ultimo_erro` sozinho NÃO é parada, é contexto. Em 14/09 às 07:39 chegou
+      // um "A AGENTE PAROU" no WhatsApp por causa de um "fetch failed" das 20:36
+      // da noite anterior: a agente já estava de pé de novo e o erro era
+      // história. Alarme que grita por coisa que já passou é alarme que o dono
+      // aprende a ignorar, e aí o de verdade passa batido.
+      const parada: string[] = [];
+      if (minutos === null) parada.push('ela nunca bateu o pulso');
+      else if (minutos > LIMITE_MIN) parada.push(`sem sinal de vida há ${minutos} min`);
+      if (data.logado === false) parada.push(`a conta do ${nome} está DESLOGADA`);
+      const problemas: string[] = [...parada];
+      if (data.ultimo_erro) problemas.push(`último erro: ${data.ultimo_erro}`);
+
+      // O AVISO VAI PRO WHATSAPP, NÃO PRA UMA ISSUE.
+      //
+      // O vigia do GitHub abria issue, que vira e-mail. Só que o dono não vive no
+      // e-mail nem no GitHub: ele vive no WhatsApp. Entre 11 e 13/09 a agente
+      // ficou dois dias parada e ele descobriu PERGUNTANDO, que é exatamente o
+      // que um alarme existe pra evitar.
+      //
+      // Avisa UMA vez por incidente. A chave carrega o dia, o canal e o motivo:
+      // parou de novo amanhã, avisa de novo; continua parada, fica quieto.
+      if (parada.length) {
+        const motivo = data.logado === false ? 'deslogada' : 'sem-pulso';
+        // A do Instagram segue sem o canal no meio da chave: mudar o formato
+        // reavisaria hoje um incidente que já foi avisado.
+        const chave = canal === 'instagram'
+          ? `prospeccao_parada:${hojeBr}:${motivo}`
+          : `prospeccao_parada:${hojeBr}:${canal}:${motivo}`;
+        const { error: jaAvisou } = await supabase.from('system_state')
+          .insert({ key: chave, value: { avisado_em: new Date().toISOString(), canal, problemas } });
+
+        if (!jaAvisou) {
+          const conferir = canal === 'whatsapp'
+            ? [
+              '1. O computador esta ligado e acordado?',
+              '2. O Chrome da agente esta aberto?',
+              '3. O WhatsApp dela esta logado? Se nao, abra o LIGAR-WHATSAPP e leia o QR com o celular do chip.',
+              '4. Se o celular do chip disser que o numero foi banido, e hora do proximo chip.',
+            ]
+            : [
+              '1. O computador esta ligado e acordado?',
+              '2. A janela da agente esta aberta?',
+              '3. O Chrome dela esta logado no Instagram?',
+            ];
+          const texto = [
+            `A AGENTE DE PROSPECCAO DO ${nome.toUpperCase()} PAROU.`,
+            '',
+            ...problemas.map(p => '. ' + p),
+            '',
+            `Enviadas hoje: ${data.enviados_hoje ?? 0}`,
+            `Estava: ${data.fazendo || '?'}`,
+            '',
+            'O que conferir:',
+            ...conferir,
+            '',
+            `O diario fica em worker-prospeccao/${canal === 'whatsapp' ? 'agente-whatsapp.log' : 'agente-diario.log'}`,
+          ];
+          try {
+            await sendWhatsApp(NOTIFY, texto.join('\n'), 'io');
+            logger.warn('cron', 'avisei no WhatsApp que a agente parou', { canal, problemas });
+          } catch (err) {
+            logger.error('cron', 'NAO consegui avisar no WhatsApp', err);
+          }
         }
       }
-    }
 
-    // A BOA NOTICIA TAMBEM PRECISA CHEGAR.
-    //
-    // O alarme so avisava desgraca. Mas o dono tambem esta esperando UMA noticia
-    // boa: "o Instagram destravou, ela voltou a abordar". Sem isso ele acorda e
-    // pergunta, que e exatamente o que a gente esta tentando acabar.
-    //
-    // Quem escreve este sinal e a sonda que roda no computador dele as 07h
-    // (testar-bloqueio.mjs): ela poe 'DESTRAVOU' no campo `fazendo` do pulso.
-    // Aqui a gente so repassa, uma vez, e limpa a marca.
-    if (String(data?.fazendo || '').startsWith('DESTRAVOU')) {
-      const chave = `prospeccao_destravou:${hojeBr}`;
-      const { error: jaAvisou } = await supabase.from('system_state')
-        .insert({ key: chave, value: { avisado_em: new Date().toISOString() } });
-      if (!jaAvisou) {
-        const NOTIFY = (process.env.IO_INDICACOES_NOTIFY || '34991360223').trim();
-        const linhas = [
-          'BOA: O INSTAGRAM DESTRAVOU.',
-          '',
-          'A caixa de mensagem voltou a abrir em perfil novo.',
-          'A agente ja voltou a abordar, comecando devagar (5 por dia) pra nao',
-          'levar bloqueio de novo.',
-          '',
-          'Nao precisa fazer nada.',
-        ];
-        try { await sendWhatsApp(NOTIFY, linhas.join(String.fromCharCode(10)), 'io'); }
-        catch (err) { logger.error('cron', 'nao consegui avisar do destrave', err); }
+      // A BOA NOTICIA TAMBEM PRECISA CHEGAR.
+      //
+      // O alarme so avisava desgraca. Mas o dono tambem esta esperando UMA
+      // noticia boa: "o Instagram destravou, ela voltou a abordar". Sem isso ele
+      // acorda e pergunta, que e exatamente o que a gente esta tentando acabar.
+      //
+      // Quem escreve este sinal e a sonda que roda no computador dele as 07h e
+      // as 18h (testar-bloqueio.mjs): ela poe 'DESTRAVOU' no campo `fazendo`.
+      if (canal === 'instagram' && String(data.fazendo || '').startsWith('DESTRAVOU')) {
+        const chave = `prospeccao_destravou:${hojeBr}`;
+        const { error: jaAvisou } = await supabase.from('system_state')
+          .insert({ key: chave, value: { avisado_em: new Date().toISOString() } });
+        if (!jaAvisou) {
+          const texto = [
+            'BOA: O INSTAGRAM DESTRAVOU.',
+            '',
+            'A caixa de mensagem voltou a abrir em perfil novo.',
+            'A agente ja voltou a abordar, comecando devagar (5 por dia) pra nao',
+            'levar bloqueio de novo.',
+            '',
+            'Nao precisa fazer nada.',
+          ];
+          try { await sendWhatsApp(NOTIFY, texto.join('\n'), 'io'); }
+          catch (err) { logger.error('cron', 'nao consegui avisar do destrave', err); }
+        }
       }
+
+      canais.push({
+        canal, ok: parada.length === 0, minutos_sem_pulso: minutos,
+        logado: data.logado ?? null, conta: data.conta ?? null,
+        enviados_hoje: data.enviados_hoje ?? 0, ciclo: data.ciclo ?? 0,
+        fazendo: data.fazendo ?? null, batido_em: data.batido_em ?? null, problemas,
+      });
     }
 
+    // Os campos soltos continuam sendo os da agente do Instagram: é o que o
+    // vigia do GitHub (agente-viva.yml) lê desde o começo.
+    const ig = canais.find(c => c.canal === 'instagram') || {};
     res.json({
-      // ok = não está PARADA. Erro velho aparece em `problemas` mas não derruba o
-      // ok, senão o vigia do GitHub abriria issue por coisa que já passou.
-      ok: parada.length === 0,
-      minutos_sem_pulso: minutos,
+      // ok = nenhuma agente ATIVA está parada. Erro velho aparece em `problemas`
+      // mas não derruba o ok, senão o vigia abriria issue por coisa que já passou.
+      ok: canais.every(c => c.ok),
+      minutos_sem_pulso: ig.minutos_sem_pulso ?? null,
       limite_min: LIMITE_MIN,
-      logado: data?.logado ?? null,
-      conta: data?.conta ?? null,
-      enviados_hoje: data?.enviados_hoje ?? 0,
-      ciclo: data?.ciclo ?? 0,
-      fazendo: data?.fazendo ?? null,
-      batido_em: data?.batido_em ?? null,
-      problemas,
+      logado: ig.logado ?? null,
+      conta: ig.conta ?? null,
+      enviados_hoje: ig.enviados_hoje ?? 0,
+      ciclo: ig.ciclo ?? 0,
+      fazendo: ig.fazendo ?? null,
+      batido_em: ig.batido_em ?? null,
+      problemas: canais.flatMap(c => (c.problemas as string[]).map(p => (canais.length > 1 ? `[${c.canal}] ${p}` : p))),
+      canais,
     });
   } catch (err: any) {
     logger.error('cron', 'prospeccao-pulso falhou', err);

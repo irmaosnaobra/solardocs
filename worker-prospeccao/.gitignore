@@ -1,2 +1,4 @@
 colheita.log
 *.log
+# Marca local de "o QR do WhatsApp da prospeccao ja foi lido NESTA maquina".
+whatsapp-ligado.flag

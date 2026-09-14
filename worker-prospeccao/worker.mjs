@@ -35,6 +35,9 @@
    o worker relê a cada envio.
    ───────────────────────────────────────────────────────────────────────────── */
 
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 // ═══ CONFIGURAÇÃO ════════════════════════════════════════════════════════════
 const CFG = {
   cdp:        process.env.CHROME_CDP || 'http://127.0.0.1:9222',
@@ -77,6 +80,11 @@ const CFG = {
 const ARG = process.argv.slice(2);
 const DRY   = ARG.includes('--dry');
 const CANAL = (ARG.find(a => a.startsWith('--canal='))?.split('=')[1]) || 'whatsapp';
+// UM CANAL, UMA IDENTIDADE. Instagram e WhatsApp rodam como duas agentes
+// separadas, cada uma com seu pulso, seu teto e sua fila. Foi o que o bloqueio
+// de 11/09 ensinou: 40 por dia não sai de uma conta forçando, sai de várias
+// contas mandando pouco. E uma cair não pode levar a outra junto.
+const PULSO_ID = CANAL === 'instagram' ? 1 : 2;
 // abordar = primeira mensagem (fila fria) · responder = quem respondeu e está esperando
 const MODO  = (ARG.find(a => a.startsWith('--modo='))?.split('=')[1]) || 'abordar';
 const API   = process.env.API_BASE || 'https://solardocs-api.vercel.app';
@@ -298,19 +306,18 @@ function montarMensagem(c, scripts, alegacoes, produtoId, preco) {
 
 // ═══ ENVIO ═══════════════════════════════════════════════════════════════════
 async function enviarWhatsApp(aba, tel, msg) {
-  await aba.ir(`https://web.whatsapp.com/send?phone=${tel}&text=${encodeURIComponent(msg)}`);
-  const pronto = await aba.esperar(
-    `!!document.querySelector('footer [contenteditable="true"]')`, 45000);
-  if (!pronto) return { ok: false, motivo: 'caixa de mensagem não abriu (número sem WhatsApp, ou sessão caiu)' };
-  await aba.js(`document.querySelector('footer [contenteditable="true"]').focus()`);
-  await dorme(900);
-  await aba.enviar('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
-  await aba.enviar('Input.dispatchKeyEvent', { type: 'keyUp',   key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
-  await dorme(2200);
-  // Prova de entrega: a caixa esvaziou. Sem isso, "enviei" seria só otimismo.
-  const vazia = await aba.js(
-    `(document.querySelector('footer [contenteditable="true"]')?.innerText || '').trim().length === 0`);
-  return vazia ? { ok: true } : { ok: false, motivo: 'texto ficou na caixa — não saiu' };
+  const erro = await abrirConversa(aba, tel, 'whatsapp');
+  if (erro) return { ok: false, motivo: erro };
+  // FRASE POR FRASE. A versão antiga punha a mensagem inteira no &text= do link
+  // e apertava Enter uma vez: saía UM balão com todas as linhas grudadas, que no
+  // WhatsApp é a cara de disparo. Cada linha do script vira um balão, com a
+  // mesma pausa de gente que a resposta já usa.
+  const bolhas = String(msg).split(/\n+/).map(s => s.trim()).filter(Boolean);
+  const r = await mandarBolhas(aba, bolhas, 'whatsapp');
+  // Conversa aberta na tela marca como lida o que chega. Fechar é o que deixa a
+  // resposta aparecer como "não lida" pra responderZap() achar.
+  await fecharConversaZap(aba);
+  return r;
 }
 
 async function enviarInstagram(aba, handle, msg) {
@@ -344,6 +351,24 @@ const SEL_CAIXA = {
   instagram: 'div[role="textbox"], textarea[placeholder]',
 };
 
+// O que o WhatsApp Web está mostrando agora, numa leitura só. Os seletores vêm
+// em lista porque o WhatsApp troca rótulo por idioma e por versão.
+//
+// Quando outra aba da mesma sessão tomou a frente, ele mostra "Usar aqui". Aí
+// clica e segue: a aba da agente é a que tem que valer.
+const ESTADO_ZAP = `(() => {
+  if (document.querySelector('footer [contenteditable="true"]')) return 'caixa';
+  if (document.querySelector('canvas[aria-label*="QR" i], canvas[aria-label*="scan" i], div[data-ref]')) return 'qr';
+  const aviso = [...document.querySelectorAll('[role="dialog"], [data-animate-modal-popup]')]
+    .map(d => d.innerText || '').join(' ');
+  if (/inv[aá]lid|n[aã]o est[aá] no whatsapp|isn.t on whatsapp|not on whatsapp/i.test(aviso)) return 'sem_whatsapp';
+  const usarAqui = [...document.querySelectorAll('button, div[role="button"]')]
+    .find(b => /^(usar aqui|use here)$/i.test((b.innerText || '').trim()));
+  if (usarAqui) { usarAqui.click(); return null; }
+  if (document.querySelector('#pane-side, [aria-label="Chat list"], [aria-label="Lista de conversas"]')) return 'lista';
+  return null;
+})()`;
+
 async function abrirConversa(aba, alvo, canal) {
   if (canal === 'instagram') {
     await aba.ir('https://www.instagram.com/' + alvo + '/');
@@ -375,6 +400,18 @@ async function abrirConversa(aba, alvo, canal) {
     }
   } else {
     await aba.ir('https://web.whatsapp.com/send?phone=' + alvo);
+    // Três finais possíveis, e só esperar a caixa confundia os três: número sem
+    // WhatsApp, sessão caída e página lenta viravam o mesmo "não abriu" depois
+    // de 45 segundos. Cada um pede uma coisa diferente, então cada um é dito.
+    const fim = Date.now() + 60000;
+    while (Date.now() < fim) {
+      const r = await aba.js(ESTADO_ZAP).catch(() => null);
+      if (r === 'caixa') return null;
+      if (r === 'qr') return 'WhatsApp deslogado: alguém precisa ler o QR de novo';
+      if (r === 'sem_whatsapp') return 'número sem WhatsApp';
+      await dorme(1000);
+    }
+    return 'caixa de mensagem não abriu (a página não terminou de carregar)';
   }
 
   const ok = await aba.esperar('!!document.querySelector(\'' + SEL_CAIXA[canal] + '\')', 45000);
@@ -449,6 +486,271 @@ async function mandarBolhas(aba, bolhas, canal) {
     await dorme(1200 + Math.floor(1800 * ((Date.now() % 991) / 991)));
   }
   return { ok: true };
+}
+
+// ═══ WHATSAPP: UMA ABA FIXA, DO JEITO QUE GENTE USA ══════════════════════════
+// No Instagram cada ação abre e fecha a própria aba. No WhatsApp isso seria
+// recarregar o aplicativo inteiro a cada conversa: 15 a 30 segundos, centenas
+// de MB indo e voltando, e uma sessão "nascendo" dezenas de vezes por dia.
+// Ninguém usa WhatsApp Web assim. Aqui fica UMA aba aberta, e quem respondeu é
+// achado na lista, pelo contador de não lidas, sem recarregar nada.
+//
+// Uma aba só também por outro motivo: o WhatsApp Web não aceita duas abas da
+// mesma sessão. A segunda mostra "Usar aqui" e derruba a primeira.
+let abaZap = null;
+
+async function zap() {
+  if (abaZap) {
+    try { await abaZap.js('1'); return abaZap; }
+    catch { try { abaZap.ws.close(); } catch { } abaZap = null; }
+  }
+  const aba = await Aba.abrir(CFG.cdp);
+  await aba.ir('https://web.whatsapp.com/');
+  abaZap = aba;
+  return aba;
+}
+
+async function fecharConversaZap(aba) {
+  for (const type of ['keyDown', 'keyUp']) {
+    await aba.enviar('Input.dispatchKeyEvent',
+      { type, key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }).catch(() => {});
+  }
+  await dorme(600);
+}
+
+// O telefone como o WhatsApp mostra e como a base guarda nem sempre batem: conta
+// antiga aparece sem o 9 na frente. DDD + últimos 8 dígitos casa os dois.
+const chaveTel = t => {
+  const d = String(t || '').replace(/\D/g, '');
+  return d.length >= 12 ? d.slice(2, 4) + d.slice(-8) : d;
+};
+
+/** { logado: true | false | null, conta }. null é "não deu pra afirmar", não "deslogado". */
+async function sessaoZap() {
+  try {
+    const aba = await zap();
+    const fim = Date.now() + 90000;   // a primeira carga sincroniza as conversas e demora
+    while (Date.now() < fim) {
+      const r = await aba.js(ESTADO_ZAP).catch(() => null);
+      if (r === 'lista' || r === 'caixa') {
+        const wid = await aba.js("(() => { try { return localStorage.getItem('last-wid-md')"
+          + " || localStorage.getItem('last-wid'); } catch (e) { return null; } })()").catch(() => null);
+        return { logado: true, conta: (String(wid || '').match(/\d{10,15}/) || [])[0] || null };
+      }
+      if (r === 'qr') return { logado: false, conta: null };
+      await dorme(1500);
+    }
+  } catch { /* Chrome engasgado: quem cuida disso é o chromeVivo() */ }
+  return { logado: null, conta: null };
+}
+
+// A PROVA NO WHATSAPP.
+//
+// No Instagram as imagens saem pela API da Meta. Aqui não existe API, então sai
+// como gente manda: clipe, escolhe o arquivo, envia. Os arquivos são os MESMOS
+// que o Instagram manda (dashboard/public/dm), lidos do disco, então as duas
+// agentes mostram a mesma prova.
+//
+// A confirmação é um balão nosso a mais na conversa, não o botão sumir: o
+// editor de imagem muda de cara a cada versão do WhatsApp, e "tem uma mensagem
+// minha a mais" não muda nunca. Se não der, manda o link da imagem, que é pior
+// mas não quebra a promessa que a conversa acabou de fazer.
+const PASTA_MATERIAL = fileURLToPath(new URL('../dashboard/public/dm/', import.meta.url));
+
+async function mandarImagemZap(aba, chave) {
+  const arquivo = PASTA_MATERIAL + chave + '.jpg';
+  const antes = await aba.js('document.querySelectorAll(".message-out").length').catch(() => 0);
+  try {
+    if (!existsSync(arquivo)) throw new Error('arquivo não existe: ' + arquivo);
+    const abriu = await aba.js(`(() => {
+      const el = document.querySelector('footer [data-icon="plus-rounded"], footer [data-icon="plus"],'
+        + ' footer [data-icon="attach-menu-plus"], footer [data-icon="clip"], footer [aria-label="Anexar"],'
+        + ' footer [title="Anexar"], footer [aria-label="Attach"], footer [title="Attach"]');
+      if (!el) return false;
+      (el.closest('button,[role="button"]') || el).click();
+      return true;
+    })()`);
+    if (!abriu) throw new Error('não achei o clipe');
+    await dorme(1500);
+    const doc = await aba.enviar('DOM.getDocument', { depth: 1 });
+    // "Fotos e vídeos" aceita imagem E vídeo. Só imagem pode ser o de figurinha.
+    let campo = await aba.enviar('DOM.querySelector',
+      { nodeId: doc.root.nodeId, selector: 'input[type="file"][accept*="image"][accept*="video"]' });
+    if (!campo?.nodeId) campo = await aba.enviar('DOM.querySelector',
+      { nodeId: doc.root.nodeId, selector: 'input[type="file"][accept*="image"]' });
+    if (!campo?.nodeId) throw new Error('não achei o campo de arquivo');
+    await aba.enviar('DOM.setFileInputFiles', { nodeId: campo.nodeId, files: [arquivo] });
+    await dorme(2500);
+    const clicou = await aba.js(`(() => {
+      const el = document.querySelector('[data-icon="send"], [data-icon="wds-ic-send-filled"],'
+        + ' [aria-label="Enviar"], [aria-label="Send"]');
+      if (!el) return false;
+      (el.closest('button,[role="button"]') || el).click();
+      return true;
+    })()`);
+    if (!clicou) throw new Error('o editor de imagem não mostrou o botão de enviar');
+    if (!await aba.esperar(`document.querySelectorAll(".message-out").length > ${antes}`, 25000, 800)) {
+      throw new Error('a imagem não apareceu na conversa');
+    }
+    return true;
+  } catch (e) {
+    log('  imagem ' + chave + ' não foi como arquivo (' + e.message + '). Mando o link dela.');
+    await fecharConversaZap(aba);   // o Escape fecha o menu ou o editor que ficou aberto
+    const r = await mandarBolhas(aba, ['https://solardoc.app/dm/' + chave + '.jpg'], 'whatsapp');
+    return r.ok;
+  }
+}
+
+// QUEM RESPONDEU NO WHATSAPP.
+//
+// O caminho antigo abria conversa por conversa, recarregando o WhatsApp a cada
+// uma, pra ver se a última mensagem era do lead. Com 40 conversas em aberto isso
+// é meia hora por volta ANTES da primeira abordagem sair: foi exatamente o que
+// travava o Instagram até a resposta ir pro webhook.
+//
+// Aqui é o que uma pessoa faz: olha a lista, vê o contador de não lidas, abre só
+// essas. E só as que ESTA agente começou.
+const LER_MSGS_ZAP = '(() => {'
+  + ' const l = [...document.querySelectorAll(".message-in, .message-out")];'
+  + ' return l.slice(-12).map(el => ({'
+  + '   de: el.classList.contains("message-in") ? "lead" : "nos",'
+  + '   texto: (el.querySelector(".selectable-text")?.innerText || el.innerText || "")'
+  + '            .replace(/\\s+/g, " ").trim().slice(0, 600),'
+  + ' })).filter(m => m.texto); })()';
+
+// Abrir a conversa marca como lida. Se a cabeça falhar DEPOIS de abrir, a
+// pessoa some da lista de não lidas e a resposta dela se perderia calada. Quem
+// cai aqui é conferido de novo na volta seguinte, pelo endereço direto.
+const retentarZap = new Set();
+
+async function abrirLinhaZap(aba, chave) {
+  const pos = await aba.js(`(() => {
+    const lista = document.querySelector('#pane-side, [aria-label="Chat list"], [aria-label="Lista de conversas"]');
+    if (!lista) return null;
+    for (const l of lista.querySelectorAll('[role="listitem"], [role="row"]')) {
+      const d = (l.querySelector('span[title]')?.getAttribute('title') || '').replace(/\\D/g, '');
+      const k = d.length >= 12 ? d.slice(2, 4) + d.slice(-8) : d;
+      if (k !== ${JSON.stringify(chave)}) continue;
+      l.scrollIntoView({ block: 'center' });
+      const b = l.getBoundingClientRect();
+      return { x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2) };
+    }
+    return null;
+  })()`);
+  if (!pos) return false;
+  // Clique de mouse de verdade: a lista do WhatsApp reage a mousedown, e um
+  // .click() de JavaScript nem sempre abre a conversa.
+  for (const type of ['mousePressed', 'mouseReleased']) {
+    await aba.enviar('Input.dispatchMouseEvent', { type, x: pos.x, y: pos.y, button: 'left', clickCount: 1 });
+  }
+  return await aba.esperar('!!document.querySelector(\'footer [contenteditable="true"]\')', 15000);
+}
+
+async function responderZap() {
+  const aba = await zap();
+  const naoLidas = await aba.js(`(() => {
+    const lista = document.querySelector('#pane-side, [aria-label="Chat list"], [aria-label="Lista de conversas"]');
+    if (!lista) return null;
+    const vistas = new Set();
+    for (const l of lista.querySelectorAll('[role="listitem"], [role="row"]')) {
+      if (!l.querySelector('[aria-label*="unread" i], [aria-label*="não lida" i], [aria-label*="nao lida" i]')) continue;
+      const d = (l.querySelector('span[title]')?.getAttribute('title') || '').replace(/\\D/g, '');
+      if (d.length >= 12) vistas.add(d.slice(2, 4) + d.slice(-8));
+    }
+    return [...vistas];
+  })()`).catch(() => null);
+  if (naoLidas === null) return;                       // lista não carregou: a sessão é conferida no começo da volta
+  if (!naoLidas.length && !retentarZap.size) return;   // ninguém respondeu: nem consulta o banco
+
+  // Só conversa que ESTA agente começou. Número que escreveu por outro motivo
+  // não é assunto dela, e responder com IA a quem não foi abordado é pior que
+  // não responder.
+  const meus = await ler('prospeccao_toques?select=contato_id&consultor=eq.'
+    + encodeURIComponent(CFG.consultor) + '&order=criado_em.desc&limit=300');
+  const ids = [...new Set(meus.map(t => t.contato_id))];
+  if (!ids.length) return;
+  const fichas = await ler('prospeccao_contato_estado?select=contato_id,empresa,telefone,lista_id'
+    + '&contato_id=in.(' + ids.join(',') + ')');
+  const porChave = new Map(fichas.map(f => [chaveTel(f.telefone), f]));
+
+  const aVer = [...new Set([...naoLidas, ...retentarZap])].filter(k => porChave.has(k));
+  for (const k of aVer) {
+    const c = porChave.get(k);
+    let hist = null;
+    try {
+      if (naoLidas.includes(k)) {
+        if (!await abrirLinhaZap(aba, k)) throw new Error('não consegui abrir a conversa pela lista');
+        await dorme(1500);
+        hist = (await aba.js(LER_MSGS_ZAP)) || [];
+      } else {
+        const r = await lerConversa(aba, String(c.telefone || '').replace(/\D/g, ''), 'whatsapp');
+        if (r.erro) throw new Error(r.erro);
+        hist = r.msgs;
+      }
+    } catch (e) {
+      log('  x ' + c.empresa + ': ' + e.message);
+      retentarZap.add(k);
+      continue;
+    }
+    if (!hist.length || hist[hist.length - 1].de !== 'lead') {
+      retentarZap.delete(k);
+      await fecharConversaZap(aba);
+      continue;
+    }
+
+    let v = null;
+    try {
+      const r = await fetch(API + '/gerador/prospeccao/responder', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empresa: c.empresa, produto_id: 'solardoc', historico: hist,
+          contato_id: c.contato_id, canal: 'whatsapp' }),
+      });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      v = await r.json();
+    } catch (e) {
+      log('  x ' + c.empresa + ': a cabeça não respondeu (' + e.message + '). Confiro de novo na próxima volta.');
+      retentarZap.add(k);
+      await fecharConversaZap(aba);
+      continue;
+    }
+
+    const material = v.material || [];
+    console.log('\n─── ' + c.empresa + ' · WhatsApp ───');
+    console.log('  ele: "' + hist[hist.length - 1].texto.slice(0, 110) + '"');
+    console.log('  -> ' + v.intencao + ' / ' + v.resultado + (v.escalar ? ' · ESCALAR' : '')
+      + (material.length ? ' · material: ' + material.join(',') : '') + (v.mandar_link ? ' · manda link' : ''));
+    (v.bolhas || []).forEach(b => console.log('  | ' + b));
+    if (DRY) { retentarZap.delete(k); await fecharConversaZap(aba); continue; }
+
+    // A MESMA ORDEM DO INSTAGRAM (planoDeEnvio): fala, prova, link. Prova antes
+    // do link faz a pessoa clicar já convencida.
+    const link = v.mandar_link ? ((v.envio || [])[(v.bolhas || []).length] || null) : null;
+    let env = await mandarBolhas(aba, v.bolhas || [], 'whatsapp');
+    if (env.ok) for (const m of material) await mandarImagemZap(aba, m);
+    if (env.ok && link) env = await mandarBolhas(aba, [link], 'whatsapp');
+    await fecharConversaZap(aba);
+    if (!env.ok) {
+      // Na volta seguinte ela relê: se algum balão nosso saiu, a última mensagem
+      // é nossa e ela não repete. Se nada saiu, tenta de novo.
+      log('  x ' + c.empresa + ': ' + env.motivo);
+      retentarZap.add(k);
+      continue;
+    }
+    retentarZap.delete(k);
+
+    await gravarToque(c.contato_id, c.lista_id, 'solardoc', v.resultado,
+      ('IA(zap): ' + v.intencao + (material.length ? ' · material: ' + material.join(',') : '')
+        + (v.escalar ? ' · PRECISA DE HUMANO' : '') + ': ' + v.motivo).slice(0, 400));
+
+    if (v.resultado === 'nao_perturbar') {
+      await fetch(CFG.supa + '/prospeccao_contatos?id=eq.' + c.contato_id, {
+        method: 'PATCH', headers: H, body: JSON.stringify({ bloqueado: true }),
+      }).catch(() => {});
+      log('  contato bloqueado: não entra mais em fila nenhuma');
+    }
+    if (v.escalar) log('  ESCALADO: alguém precisa olhar essa conversa');
+    await dorme(8000 + Math.floor(12000 * ((Date.now() % 997) / 997)));
+  }
 }
 
 // ═══ MODO RESPONDER ══════════════════════════════════════════════════════════
@@ -555,6 +857,21 @@ async function modoResponder() {
   }
 }
 
+// ═══ QUEM CADA CANAL ABORDA ══════════════════════════════════════════════════
+// UMA EMPRESA, UM CANAL. O Instagram fica com quem tem @. O WhatsApp fica com
+// quem o Instagram não alcança: sem @, nunca tocada por ninguém, com celular (o
+// fixo do Google Maps não tem WhatsApp) e sem a marca de número sem WhatsApp.
+// Assim ninguém recebe a mesma abordagem duas vezes, uma de cada lado, que é o
+// jeito mais rápido de virar denúncia nas duas contas.
+const CELULAR = /^55[1-9][0-9]9[0-9]{8}$/;
+function alvoDoCanal(c) {
+  if (CANAL === 'instagram') return !!(c.instagram || '').trim();
+  return c.canal === 'nunca_tocado'
+    && !(c.instagram || '').trim()
+    && !c.whatsapp_invalido_em
+    && CELULAR.test(String(c.telefone || '').replace(/\D/g, ''));
+}
+
 // ═══ UMA ABORDAGEM ═══════════════════════════════════════════════════════════
 // O modo contínuo manda UMA por rodada, não um lote. É o que espalha os toques
 // pelo dia inteiro em vez de despejar o teto numa hora só — e despejar numa
@@ -564,15 +881,20 @@ async function modoResponder() {
 // acumula estado, memória e sessão velha. Custa 2 segundos e evita a classe
 // inteira de bug de "funcionava de manhã".
 async function umaAbordagem() {
+  // O WhatsApp filtra no banco: a view entrega 200 por vez, e sem o filtro os
+  // 200 primeiros podem ser todos de @ ou de fixo, e ela acharia a fila vazia.
+  const qFila = CANAL === 'whatsapp'
+    ? 'prospeccao_fila_worker?select=*&canal=eq.nunca_tocado&or=(instagram.is.null,instagram.eq.)'
+      + '&whatsapp_invalido_em=is.null&telefone=like.55__9*&limit=200'
+    : 'prospeccao_fila_worker?select=*&limit=200';
   const [fila, scripts, alegacoes, produtos] = await Promise.all([
-    ler('prospeccao_fila_worker?select=*&limit=200'),
+    ler(qFila),
     ler('prospeccao_scripts?select=*'),
     ler('prospeccao_alegacoes?select=*'),
     ler('prospeccao_produtos?select=*&ativo=eq.true&order=ordem.asc'),
   ]);
 
-  const alvos = fila.filter(c => CANAL === 'instagram'
-    ? !!(c.instagram || '').trim() : !!(c.telefone || '').trim());
+  const alvos = fila.filter(alvoDoCanal);
   if (!alvos.length) {
     log(CANAL === 'instagram'
       ? 'ninguém com @ na fila agora — vou procurar mais endereço'
@@ -594,7 +916,7 @@ async function umaAbordagem() {
 
   let aba = null;
   try {
-    aba = await Aba.abrir(CFG.cdp);
+    aba = CANAL === 'whatsapp' ? await zap() : await Aba.abrir(CFG.cdp);
     const r = CANAL === 'instagram'
       ? await enviarInstagram(aba, c.instagram, msg)
       : await enviarWhatsApp(aba, c.telefone, msg);
@@ -645,9 +967,23 @@ async function umaAbordagem() {
       }).catch(() => {});
       log(`  @${c.instagram} não existe mais — apaguei o endereço, a empresa fica na base`);
     }
+    // WHATSAPP: número sem WhatsApp é permanente, igual o @ morto do Instagram.
+    // Sem a marca, o mesmo número voltaria pro topo da fila toda volta.
+    if (CANAL === 'whatsapp' && /sem WhatsApp/.test(r.motivo)) {
+      await fetch(`${CFG.supa}/prospeccao_contatos?id=eq.${c.id}`, {
+        method: 'PATCH', headers: H,
+        body: JSON.stringify({ whatsapp_invalido_em: new Date().toISOString() }),
+      }).catch(() => {});
+      log('  esse número não tem WhatsApp. Marquei; a empresa fica na base.');
+    }
+    if (CANAL === 'whatsapp' && /deslogado/.test(r.motivo)) {
+      zapLogado = false;
+      await bater({ logado: false, fazendo: 'PARADA: o WhatsApp deslogou, precisa ler o QR' });
+    }
     return 'falhou';
   } finally {
-    if (aba) await aba.fechar();
+    // A aba fixa do WhatsApp fica. Fechar e reabrir é recarregar o aplicativo.
+    if (aba && aba !== abaZap) await aba.fechar();
   }
 }
 
@@ -693,6 +1029,8 @@ const EU = `${process.pid}-${Date.now().toString(36)}`;
 // em umaAbordagem(): e assim que a restricao de conversa nova se manifesta.
 let caixaNaoAbriu = 0;
 let bloqueadaParaNovas = false;
+// Sessão do WhatsApp na última conferência: true, false ou null (não deu pra afirmar).
+let zapLogado = null;
 
 // Quantas voltas seguidas o Chrome nao respondeu. Ver o comentario em
 // chromeVivo(): num notebook apertado ele MORRE, e ela precisa perceber.
@@ -700,7 +1038,7 @@ let chromeMudo = 0;
 
 async function bater(campos) {
   try {
-    await fetch(`${CFG.supa}/prospeccao_pulso?id=eq.1`, {
+    await fetch(`${CFG.supa}/prospeccao_pulso?id=eq.${PULSO_ID}`, {
       method: 'PATCH', headers: { ...H, Prefer: 'return=minimal' },
       body: JSON.stringify({ batido_em: new Date().toISOString(), consultor: CFG.consultor,
                              instancia: EU, versao: 'worker.mjs', ...campos }),
@@ -744,7 +1082,12 @@ async function chromeVivo() {
 async function fecharAbasSobrando(limite = 2) {
   try {
     const alvos = await (await fetch(CFG.cdp + '/json/list')).json();
-    const paginas = (alvos || []).filter(t => t.type === 'page');
+    // Só mexe no que é DESTE canal. Com duas agentes no mesmo Chrome, a faxina
+    // de uma fecharia a aba em que a outra está digitando. E a aba fixa do
+    // WhatsApp nunca entra na conta.
+    const meu = CANAL === 'instagram' ? /instagram\.com|^about:blank/ : /whatsapp\.com/;
+    const paginas = (alvos || []).filter(t => t.type === 'page'
+      && meu.test(String(t.url || '')) && t.id !== abaZap?.targetId);
     if (paginas.length <= limite) return 0;
     // Mantém as primeiras e fecha o resto: a que o worker está usando agora
     // está entre as que ficam, e o Chrome nunca fica sem nenhuma.
@@ -1211,7 +1554,7 @@ async function modoContinuo() {
   // vezes sem querer.
   if (!DRY) {
     try {
-      const p = (await ler('prospeccao_pulso?select=batido_em,instancia,ciclo&id=eq.1'))[0];
+      const p = (await ler('prospeccao_pulso?select=batido_em,instancia,ciclo&id=eq.' + PULSO_ID))[0];
       const idade = p?.batido_em ? (Date.now() - new Date(p.batido_em).getTime()) / 1000 : 1e9;
       if (p?.instancia && p.instancia !== EU && idade < 180) {
         // O relógio sozinho engana: instância que morreu deixa pulso fresco por
@@ -1275,12 +1618,37 @@ async function modoContinuo() {
 
       // Varre as abas esquecidas antes de tudo: memória sobrando é o que decide
       // se o Chrome dela sobrevive ao dia.
-      if (ciclo % 3 === 0) await fecharAbasSobrando();
-      const sess = (ciclo === 1 || ciclo % 5 === 0) ? await sessaoViva() : null;
+      if (ciclo % 3 === 0) await fecharAbasSobrando(CANAL === 'instagram' ? 2 : 0);
+      const sess = CANAL === 'instagram' && (ciclo === 1 || ciclo % 5 === 0) ? await sessaoViva() : null;
       await bater({
         ciclo, fazendo: 'começando a volta', ultimo_erro: ultimoErro,
         ...(sess ? { logado: sess.logado, conta: sess.conta } : {}),
       });
+
+      // ── 0. WHATSAPP: sem sessão, nada adiante funciona ─────────────────────
+      // Confere na 1a volta, a cada 20 (uns 50 min) e sempre que a última
+      // conferência não confirmou. Deslogada ela NÃO tenta mandar: cada
+      // tentativa viraria falha, falha vai pro próximo em 15s, e a fila inteira
+      // seria queimada em meia hora sem nenhuma mensagem sair.
+      if (CANAL === 'whatsapp') {
+        if (zapLogado !== true || ciclo % 20 === 0) {
+          const s = await sessaoZap();
+          zapLogado = s.logado;
+          if (s.logado === true) {
+            await bater({ ciclo, logado: true, conta: s.conta, ativo: true, fazendo: 'WhatsApp logado, trabalhando' });
+          } else if (s.logado === false) {
+            log('o WhatsApp está DESLOGADO. Espero alguém ler o QR (LIGAR-WHATSAPP.cmd).');
+            await bater({ ciclo, logado: false, fazendo: 'PARADA: o WhatsApp está deslogado, precisa ler o QR' });
+          } else {
+            log('o WhatsApp Web não terminou de carregar. Tento de novo em 2 min.');
+            await bater({ ciclo, fazendo: 'o WhatsApp Web não carregou' });
+          }
+        }
+        if (zapLogado !== true) {
+          await dorme((zapLogado === false ? 300 : 120) * 1000);
+          continue;
+        }
+      }
 
       // ── fora da janela: dorme até o próximo turno ──────────────────────────
       if (h < CFG.horaIni || (CFG.horaFim < 24 && h >= CFG.horaFim)) {
@@ -1305,8 +1673,8 @@ async function modoContinuo() {
       //
       // No WhatsApp continua rodando: lá não existe webhook, e o navegador é o
       // único jeito de saber que alguém respondeu.
-      if (CANAL !== 'instagram') {
-        try { await modoResponder(); }
+      if (CANAL === 'whatsapp') {
+        try { await responderZap(); }
         catch (e) { log('rodada de resposta falhou: ' + e.message); }
       }
 
@@ -1464,7 +1832,7 @@ async function main() {
   ]);
 
   // Só quem tem o endereço do canal escolhido.
-  const alvos = fila.filter(c => CANAL === 'instagram' ? !!(c.instagram || '').trim() : !!(c.telefone || '').trim());
+  const alvos = fila.filter(alvoDoCanal);
   log(`fila: ${fila.length} elegíveis · ${alvos.length} com ${CANAL === 'instagram' ? '@' : 'telefone'}`);
   if (CANAL === 'instagram' && alvos.length < fila.length) {
     log(`  (${fila.length - alvos.length} sem @ — rode "node colher-instagram.mjs" pra colher)`);

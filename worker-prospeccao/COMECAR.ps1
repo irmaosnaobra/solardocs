@@ -15,6 +15,12 @@ try { [Console]::OutputEncoding = [Text.Encoding]::UTF8; chcp 65001 | Out-Null }
 
 $ErrorActionPreference = 'Continue'
 
+# -- qual agente esta janela sobe ---------------------------------------------
+# Sem nada, a do Instagram (a de sempre). Com --whatsapp, a segunda identidade,
+# que fala pelo chip proprio da prospeccao. As duas rodam juntas, cada uma na
+# sua janela, com seu teto e seu diario: uma cair nao derruba a outra.
+$canal = if ($args -contains '--whatsapp') { 'whatsapp' } else { 'instagram' }
+
 # ── tem console? ─────────────────────────────────────────────────────────────
 # Rodando como tarefa do Windows (-WindowStyle Hidden) NAO ha console, e
 # Clear-Host estoura com IOException e mata o script na primeira linha. Era o
@@ -47,7 +53,7 @@ try {
 Set-Location $PSScriptRoot
 $porta  = 9222
 $perfil = Join-Path $env:USERPROFILE '.chrome-prospeccao'
-$log    = Join-Path $PSScriptRoot 'AGENTE.log'
+$log    = Join-Path $PSScriptRoot $(if ($canal -eq 'whatsapp') { 'AGENTE-whatsapp.log' } else { 'AGENTE.log' })
 try { Stop-Transcript | Out-Null } catch { }
 try { Start-Transcript -Path $log -Force -Append | Out-Null } catch { }
 
@@ -102,6 +108,11 @@ if (Porta) {
     '--no-default-browser-check', '--no-first-run',
     # Teto de memoria do JavaScript por aba. O Instagram nao precisa de mais, e
     # com teto o Chrome recolhe lixo em vez de crescer sem parar.
+    # Aba em segundo plano nao pode cochilar: com as duas agentes no mesmo
+    # Chrome, sempre uma delas esta numa aba escondida, e o Chrome segura o
+    # relogio de aba escondida em uma vez por minuto.
+    '--disable-background-timer-throttling', '--disable-renderer-backgrounding',
+    '--disable-backgrounding-occluded-windows',
     '--js-flags=--max-old-space-size=512',
     'https://www.instagram.com/'
   )
@@ -112,26 +123,30 @@ if (Porta) {
 
 # ── 2. sessão do Instagram ───────────────────────────────────────────────────
 Write-Host ''
-Write-Host '  [2/3] Conferindo a conta do Instagram...' -ForegroundColor Yellow
-$logado = $false
-foreach ($i in 1..60) {
-  $r = (node checar-sessao.mjs 2>$null) -join ''
-  if ($r -match 'LOGADO:(\S+)') {
-    Write-Host "        Logado como @$($Matches[1])" -ForegroundColor Green
-    $logado = $true; break
+if ($canal -eq 'instagram') {
+  Write-Host '  [2/3] Conferindo a conta do Instagram...' -ForegroundColor Yellow
+  $logado = $false
+  foreach ($i in 1..60) {
+    $r = (node checar-sessao.mjs 2>$null) -join ''
+    if ($r -match 'LOGADO:(\S+)') {
+      Write-Host "        Logado como @$($Matches[1])" -ForegroundColor Green
+      $logado = $true; break
+    }
+    if ($i -eq 1) {
+      Write-Host ''
+      Write-Host '        >>> ENTRE NA CONTA DO INSTAGRAM NA JANELA DO CHROME <<<' -ForegroundColor Yellow
+      Write-Host '        (eu espero aqui — assim que voce logar, comeco sozinho)' -ForegroundColor DarkGray
+      Write-Host ''
+    }
+    Start-Sleep -Seconds 5
   }
-  if ($i -eq 1) {
-    Write-Host ''
-    Write-Host '        >>> ENTRE NA CONTA DO INSTAGRAM NA JANELA DO CHROME <<<' -ForegroundColor Yellow
-    Write-Host '        (eu espero aqui — assim que voce logar, comeco sozinho)' -ForegroundColor DarkGray
-    Write-Host ''
-  }
-  Start-Sleep -Seconds 5
+  if (-not $logado) { Parar 'Nao consegui confirmar o login em 5 minutos. Logue no Instagram e clique aqui de novo.' 'Yellow' }
+} else {
+  Write-Host '  [2/3] WhatsApp: a propria agente confere a sessao e espera o QR se precisar.' -ForegroundColor Yellow
 }
-if (-not $logado) { Parar 'Nao consegui confirmar o login em 5 minutos. Logue no Instagram e clique aqui de novo.' 'Yellow' }
 
 # ── 3. liga a agente ─────────────────────────────────────────────────────────
-$env:CONSULTOR = if ($env:CONSULTOR) { $env:CONSULTOR } else { 'irmaosnaobra__' }
+$env:CONSULTOR = if ($env:CONSULTOR) { $env:CONSULTOR } elseif ($canal -eq 'whatsapp') { 'whatsapp_prospeccao' } else { 'irmaosnaobra__' }
 $env:NOME      = if ($env:NOME)      { $env:NOME }      else { 'Thiago' }
 
 # Sem --valendo ela so ENSAIA. Proposital: um clique acidental nao dispara
@@ -171,9 +186,9 @@ Write-Host ''
 # 11/09 ela morreu de madrugada e nao sobrou uma linha pra dizer por que.
 # A escrita vai pros dois lugares: na tela pra voce ver, e no arquivo pra eu
 # ler depois.
-$arg = if ($valendo) { @('worker.mjs','--modo=continuo','--canal=instagram') }
-       else          { @('worker.mjs','--dry','--modo=continuo','--canal=instagram') }
-$diario = Join-Path $PSScriptRoot 'agente-diario.log'
+$arg = if ($valendo) { @('worker.mjs','--modo=continuo',"--canal=$canal") }
+       else          { @('worker.mjs','--dry','--modo=continuo',"--canal=$canal") }
+$diario = Join-Path $PSScriptRoot $(if ($canal -eq 'whatsapp') { 'agente-whatsapp.log' } else { 'agente-diario.log' })
 
 # Tee-Object grava na pagina de codigo antiga e o log sai com "S?o Paulo".
 # Log que ninguem consegue ler e quase tao ruim quanto log que nao existe,

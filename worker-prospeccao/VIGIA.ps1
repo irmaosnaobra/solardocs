@@ -54,50 +54,66 @@ if (-not $chromeVivo) {
       '--disable-gpu', '--disable-extensions', '--disable-sync',
       '--disable-background-networking', '--disable-component-update',
       '--no-default-browser-check', '--no-first-run',
+      '--disable-background-timer-throttling', '--disable-renderer-backgrounding',
+      '--disable-backgrounding-occluded-windows',
       'https://www.instagram.com/')
     Start-Sleep -Seconds 12
     Anotar 'Chrome subido.'
   } else { Anotar 'NAO ACHEI o chrome.exe.' }
 }
 
-# ── 2. o worker esta rodando? ────────────────────────────────────────────────
-$workers = @(Get-CimInstance Win32_Process -Filter "Name='node.exe'" |
-             Where-Object { $_.CommandLine -like '*worker.mjs*' })
+# ── 2 e 3. cada agente de pe, e so uma de cada ───────────────────────────────
+# Sao duas identidades: a do Instagram (sempre) e a do WhatsApp (so depois que
+# alguem leu o QR e o LIGAR-WHATSAPP deixou a marca whatsapp-ligado.flag).
+# Cada uma e conferida e deduplicada SEPARADA: contar as duas juntas mataria a
+# segunda achando que era duplicata da primeira.
+#
+# SOBE DIRETO, sem pedir pro Agendador. Chamar `schtasks /run` parecia mais
+# limpo, mas o Agendador recusa a chamada em varias situacoes (0x800710E0) e nao
+# explica qual. Em 13/09 ele recusou tres vezes seguidas e a agente ficou no
+# chao enquanto o vigia achava que tinha resolvido. O .vbs existe porque
+# powershell.exe -WindowStyle Hidden ainda pisca o console antes de esconder.
+#
+# Duas agentes do MESMO canal dirigem a mesma conta ao mesmo tempo e disputam o
+# mesmo teto. O worker ja tem trava propria, mas ela depende do pulso: se duas
+# subirem no mesmo segundo, as duas passam. Aqui o corte e bruto e sempre
+# funciona: fica a mais VELHA, que e a que ja estava trabalhando.
+function Garantir([string]$canal, [string]$vbsNome) {
+  $meus = @(Get-CimInstance Win32_Process -Filter "Name='node.exe'" |
+    Where-Object { $_.CommandLine -like '*worker.mjs*' } |
+    Where-Object {
+      if ($canal -eq 'whatsapp') { $_.CommandLine -like '*--canal=whatsapp*' }
+      else { $_.CommandLine -notlike '*--canal=whatsapp*' }
+    })
 
-if ($workers.Count -eq 0) {
-  # SOBE DIRETO, sem pedir pro Agendador.
-  #
-  # Chamar `schtasks /run` parecia mais limpo, mas o Agendador recusa a chamada
-  # em varias situacoes (0x800710E0) e nao explica qual: instancia anterior
-  # ainda "rodando", condicao de gatilho, politica. Em 13/09 ele recusou tres
-  # vezes seguidas e a agente ficou no chao enquanto o vigia achava que tinha
-  # resolvido.
-  #
-  # Subir direto tira o intermediario. O .vbs existe porque powershell.exe
-  # -WindowStyle Hidden ainda pisca o console antes de esconder.
-  $temJanela = @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" |
-                 Where-Object { $_.CommandLine -like '*COMECAR.ps1*' -and $_.CommandLine -notlike '*Where-Object*' })
-  if ($temJanela.Count -gt 0) {
-    Anotar "a agente nao roda, mas a janela existe (PID $($temJanela[0].ProcessId)). Ela religa sozinha em 60s."
-  } else {
-    Anotar 'a agente nao estava rodando e nao havia janela. Subindo direto.'
-    $vbs = Join-Path $pasta 'agente-silenciosa.vbs'
-    if (Test-Path $vbs) { Start-Process 'wscript.exe' -ArgumentList @('//nologo', "`"$vbs`"") -WindowStyle Hidden }
-    else { Anotar 'NAO ACHEI agente-silenciosa.vbs' }
+  if ($meus.Count -eq 0) {
+    $janelas = @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" |
+      Where-Object { $_.CommandLine -like '*COMECAR.ps1*' -and $_.CommandLine -notlike '*Where-Object*' } |
+      Where-Object {
+        if ($canal -eq 'whatsapp') { $_.CommandLine -like '*--whatsapp*' }
+        else { $_.CommandLine -notlike '*--whatsapp*' }
+      })
+    if ($janelas.Count -gt 0) {
+      Anotar "[$canal] a agente nao roda, mas a janela existe (PID $($janelas[0].ProcessId)). Ela religa sozinha em 60s."
+    } else {
+      Anotar "[$canal] a agente nao estava rodando e nao havia janela. Subindo direto."
+      $vbs = Join-Path $pasta $vbsNome
+      if (Test-Path $vbs) { Start-Process 'wscript.exe' -ArgumentList @('//nologo', "`"$vbs`"") -WindowStyle Hidden }
+      else { Anotar "NAO ACHEI $vbsNome" }
+    }
+  }
+  elseif ($meus.Count -gt 1) {
+    Anotar "[$canal] havia $($meus.Count) agentes ao mesmo tempo. Deixando so a mais antiga."
+    $meus | Sort-Object CreationDate | Select-Object -Skip 1 | ForEach-Object {
+      Anotar "  matando a duplicata PID $($_.ProcessId)"
+      Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+    }
   }
 }
 
-# ── 3. tem mais de uma? ──────────────────────────────────────────────────────
-# Duas agentes dirigem o MESMO Chrome (uma navega enquanto a outra digita) e
-# disputam o mesmo teto. O worker ja tem trava propria, mas ela depende do
-# pulso: se duas subirem no mesmo segundo, as duas passam. Aqui o corte e
-# bruto e sempre funciona: fica a mais VELHA, que e a que ja estava trabalhando.
-elseif ($workers.Count -gt 1) {
-  Anotar "havia $($workers.Count) agentes ao mesmo tempo. Deixando so a mais antiga."
-  $workers | Sort-Object CreationDate | Select-Object -Skip 1 | ForEach-Object {
-    Anotar "  matando a duplicata PID $($_.ProcessId)"
-    Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
-  }
+Garantir 'instagram' 'agente-silenciosa.vbs'
+if (Test-Path (Join-Path $pasta 'whatsapp-ligado.flag')) {
+  Garantir 'whatsapp' 'agente-whatsapp-silenciosa.vbs'
 }
 
 # ── 4. o diario nao pode crescer pra sempre ──────────────────────────────────

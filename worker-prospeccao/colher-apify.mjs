@@ -164,6 +164,9 @@ async function gravar(lugares, cidade, listaId, conhecidos) {
       uf: p.state || cidade.uf,
       telefone: (p.phoneUnformatted || '').replace(/\D/g, '') || null,
       site: p.website || null,
+      // O Maps já devolve o e-mail junto do Instagram: o scrapeContacts é pago
+      // de qualquer jeito. Antes ele era jogado fora e 0 de 2.192 fichas tinham.
+      email: (Array.isArray(p.emails) && p.emails.find(Boolean)) || null,
       nota: p.totalScore ?? null,
       avaliacoes: p.reviewsCount ?? null,
       classe: 'integradora',
