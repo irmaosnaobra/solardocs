@@ -9,6 +9,8 @@ let consultores: any[] = [];
 let erroDoUpdate: any = null;   // simula o supabase-js devolvendo { error } sem lançar
 const enviadas: Array<{ phone: string; bolhas: string[] }> = [];
 const updates: Array<{ id: number; campo: string }> = [];
+// system_state fora dos carimbos da linha (o estado do alarme de perdidos).
+const estado = new Map<string, any>();
 
 vi.mock('../utils/supabaseGerador', () => ({
   supabaseGerador: {
@@ -16,9 +18,15 @@ vi.mock('../utils/supabaseGerador', () => ({
       const q: any = {
         _filtros: {} as Record<string, any>,
         _update: null as any,
-        select() { return q; },
+        _condicao: [] as Array<[string, any]>,
+        // update(...).eq().is().select() é a RESERVA da ficha: como no banco, só
+        // devolve a linha se a condição ainda valia na hora de gravar.
+        select() { return q._update ? q._gravar(true) : q; },
         in(col: string, vals: any[]) { q._filtros[col] = vals; return q; },
-        is(col: string, v: any) { q._filtros[`is_${col}`] = v; return q; },
+        is(col: string, v: any) {
+          if (q._update) { q._condicao.push([col, v]); return q; }
+          q._filtros[`is_${col}`] = v; return q;
+        },
         // O filtro de status virou "não está nesta lista" (era `= agendado`, e
         // era ele que descartava 71 de 99 fichas). `lt` é do contarPerdidos.
         not(col: string, _op: string, lista: string) {
@@ -27,18 +35,49 @@ vi.mock('../utils/supabaseGerador', () => ({
         },
         lt(col: string, v: any) { q._filtros[`lt_${col}`] = v; return q; },
         eq(col: string, v: any) {
-          if (q._update) {
-            updates.push({ id: v, campo: Object.keys(q._update)[0] });
-            return Promise.resolve({ error: erroDoUpdate });
-          }
+          if (q._update) { q._condicao.push([col, v]); return q; }
           q._filtros[col] = v; return q;
         },
+        neq(col: string, v: any) { q._filtros[`neq_${col}`] = v; return q; },
         gte(col: string, v: any) { q._filtros[`gte_${col}`] = v; return q; },
         order() { return q; },
         update(patch: any) { q._update = patch; return q; },
+        // update sem select (devolver a ficha pra fila) é aguardado direto.
+        then(ok: any, falha: any) {
+          return (q._update ? q._gravar(false) : Promise.resolve({ data: null, error: null })).then(ok, falha);
+        },
+        _gravar(comSelect: boolean) {
+          const patch = q._update; const condicao: Array<[string, any]> = q._condicao;
+          q._update = null; q._condicao = [];
+          const id = condicao.find(([c]) => c === 'id')?.[1];
+          updates.push({ id, campo: Object.keys(patch)[0] });
+          if (erroDoUpdate) return Promise.resolve({ data: null, error: erroDoUpdate });
+          const f = fichas.find((x) => x.id === id);
+          const vale = !!f && condicao.every(([c, v]) => f[c] === v);
+          if (vale) Object.assign(f, patch);
+          return Promise.resolve({ data: comSelect ? (vale ? [{ id }] : []) : null, error: null });
+        },
         limit() {
           if (tabela === 'consultores') return Promise.resolve({ data: consultores, error: null });
           const origens: string[] = q._filtros['created_by'] ?? [];
+          // Mesmo telefone já atendido por outra ficha (telefoneJaRecebeu).
+          if (q._filtros['telefone_norm'] !== undefined) {
+            return Promise.resolve({
+              data: fichas.filter(f => origens.includes(f.created_by)
+                && f.telefone_norm === q._filtros['telefone_norm'] && f.id !== q._filtros['neq_id']
+                && f.boas_vindas_at !== null && String(f.boas_vindas_at) >= q._filtros['gte_boas_vindas_at']),
+              error: null,
+            });
+          }
+          // Reservas com mais de 15 minutos (conferirReservasSemEnvio).
+          if (q._filtros['lt_boas_vindas_at'] !== undefined) {
+            return Promise.resolve({
+              data: fichas.filter(f => origens.includes(f.created_by) && f.boas_vindas_at !== null
+                && String(f.boas_vindas_at) >= q._filtros['gte_boas_vindas_at']
+                && String(f.boas_vindas_at) < q._filtros['lt_boas_vindas_at']),
+              error: null,
+            });
+          }
           const barrados: string[] = q._filtros['not_status'] ?? [];
           const piso = q._filtros['gte_created_at'];
           const teto = q._filtros['lt_created_at'];
@@ -64,7 +103,27 @@ vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
   dentroDoTetoHorarioLinha: vi.fn(async () => tetoLivre),
 }));
 vi.mock('../utils/supabase', () => ({
-  supabase: { from: () => ({ upsert: async (r: any) => { carimbos.push(String(r.key)); return { error: null }; } }) },
+  supabase: {
+    from: () => {
+      const q: any = {
+        _chave: '',
+        select() { return q; },
+        eq(_col: string, v: any) { q._chave = String(v); return q; },
+        // select('key').in('key', [...]): quais marcadores existem (varredura de reservas).
+        in: async (_col: string, chaves: string[]) => ({
+          data: chaves.filter((k) => carimbos.includes(k) || estado.has(k)).map((key) => ({ key })),
+          error: null,
+        }),
+        maybeSingle: async () => ({ data: estado.has(q._chave) ? { value: estado.get(q._chave) } : null, error: null }),
+        upsert: async (r: any) => {
+          if (String(r.key).startsWith('solar_boasvindas_sent:')) carimbos.push(String(r.key));
+          else estado.set(String(r.key), r.value);
+          return { error: null };
+        },
+      };
+      return q;
+    },
+  },
 }));
 vi.mock('../services/agents/zapiClient', () => ({
   sendHuman: vi.fn(async (phone: string, bolhas: string[]) => { enviadas.push({ phone, bolhas }); }),
@@ -85,7 +144,7 @@ function ficha(over: Partial<any> = {}) {
 const envOriginal = { ...process.env };
 beforeEach(() => {
   enviadas.length = 0; updates.length = 0; erroDoUpdate = null;
-  carimbos.length = 0; tetoLivre = true;
+  carimbos.length = 0; tetoLivre = true; estado.clear();
   fichas = [ficha()];
   consultores = [{ nome: 'Nilce', whatsapp: '5534991516846' }, { nome: 'Diego', whatsapp: '5534991360172' }];
   delete process.env.SOLAR_BOASVINDAS_OFF;   // no ar por padrão desde a aprovação de 04/08
@@ -166,6 +225,22 @@ describe('o backlog não vira rajada', () => {
     expect((await tick()).perdidos).toBe(0);
   });
 
+  // Até 14/09/2026 a mesma linha "12 cadastro(s)..." ia pro error_logs a cada ~2
+  // minutos sobre um conjunto parado: 682 por dia. Alarme que repete ninguém lê.
+  it('o alarme de perdidos grita uma vez por lista, não a cada rodada', async () => {
+    const { logger } = await import('../utils/logger');
+    vi.mocked(logger.error).mockClear();
+    fichas = [ficha({ created_at: minutosAtras(60 * 30) })];
+    await tick(); await tick(); await tick();
+    const gritos = vi.mocked(logger.error).mock.calls.filter(([, msg]) => String(msg).includes('passaram da janela'));
+    expect(gritos).toHaveLength(1);
+
+    // A lista mudou: grita de novo.
+    fichas.push(ficha({ id: 2, created_at: minutosAtras(60 * 28), cliente_telefone: '5534991110002' }));
+    await tick();
+    expect(vi.mocked(logger.error).mock.calls.filter(([, msg]) => String(msg).includes('passaram da janela'))).toHaveLength(2);
+  });
+
   it('ficha anterior ao dia em que o agente existiu nunca recebe', async () => {
     vi.setSystemTime(new Date('2026-08-04T00:20:00.000Z'));   // piso ainda manda
     fichas = [ficha({ created_at: '2026-08-03T23:50:00.000Z' })];
@@ -183,9 +258,10 @@ describe('o backlog não vira rajada', () => {
     expect((await tick()).enviadas).toBe(0);
   });
 
-  // Quem disse não, e quem já viu proposta, não recebe recibo de cadastro.
-  it('cancelado, sem_interesse e fez_orcamento não recebem', async () => {
-    for (const status of ['cancelado', 'sem_interesse', 'fez_orcamento']) {
+  // Quem disse não, quem já viu proposta e quem já fechou (com a gente ou com outro)
+  // não recebe recibo de cadastro.
+  it('cancelado, sem_interesse, fez_orcamento, perdido, fechou e fechou_concorrente não recebem', async () => {
+    for (const status of ['cancelado', 'sem_interesse', 'fez_orcamento', 'perdido', 'fechou', 'fechou_concorrente']) {
       fichas = [ficha({ status })];
       expect((await tick()).enviadas).toBe(0);
     }
@@ -213,20 +289,81 @@ describe('o backlog não vira rajada', () => {
     expect((await tick()).enviadas).toBe(1);
   });
 
-  // O supabase-js NÃO lança quando a escrita falha: devolve { error }. Sem
-  // conferir isso, a ficha ficava sem flag, dentro da janela de 1h, e recebia as
-  // 6 bolhas de novo a cada 5 min — a rajada exata que as travas existem pra evitar.
-  it('flag que não grava é erro alto, com retry, e a pessoa NÃO recebe de novo', async () => {
+  // O supabase-js NÃO lança quando a escrita falha: devolve { error }. A flag agora
+  // é gravada ANTES do envio (reserva): se ela não se confirma, a mensagem não sai.
+  // Mandar sem flag é o que vira rajada a cada rodada, na linha que já foi bloqueada.
+  it('reserva que não grava é erro alto e a mensagem NÃO sai', async () => {
     erroDoUpdate = { message: 'timeout' };
     const r = await tick();
-    expect(r).toMatchObject({ enviadas: 1, erros: 1 });
-    expect(updates).toHaveLength(2);            // tentou gravar duas vezes
-
-    // Mesmo processo, próxima rodada: o banco continua dizendo que ninguém foi
-    // tocado, e mesmo assim a mensagem não sai de novo.
-    enviadas.length = 0;
-    await tick();
+    expect(r).toMatchObject({ enviadas: 0, erros: 1 });
     expect(enviadas).toHaveLength(0);
+  });
+
+  // 8 fichas levaram as 5 bolhas duas vezes entre 15/08 e 14/09/2026: o tick roda
+  // em mais de um caminho, e duas rodadas sobrepostas liam a mesma ficha vazia.
+  it('duas rodadas ao mesmo tempo mandam UMA vez só', async () => {
+    const [a, b] = await Promise.all([tick(), tick()]);
+    expect(a.enviadas + b.enviadas).toBe(1);
+    expect(enviadas).toHaveLength(1);
+  });
+
+  it('envio que falha devolve a ficha pra fila e a próxima rodada tenta de novo', async () => {
+    const { sendHuman } = await import('../services/agents/zapiClient');
+    vi.mocked(sendHuman).mockRejectedValueOnce(new Error('zapi fora'));
+    expect(await tick()).toMatchObject({ enviadas: 0, erros: 1 });
+    expect(fichas[0].boas_vindas_at).toBeNull();
+
+    expect((await tick()).enviadas).toBe(1);
+    expect(fichas[0].boas_vindas_at).not.toBeNull();
+  });
+
+  // Um telefone levou 5 boas-vindas completas entre 25/08 e 14/09/2026: o intake cria
+  // ficha nova pro mesmo número e a reserva é por ficha.
+  it('mesmo telefone que já recebeu por outra ficha: marca sem mandar de novo', async () => {
+    fichas = [
+      ficha({ id: 1, telefone_norm: '3491110001', created_at: minutosAtras(60 * 24 * 3), boas_vindas_at: minutosAtras(60 * 24 * 3) }),
+      ficha({ id: 2, telefone_norm: '3491110001' }),
+    ];
+    const r = await tick();
+    expect(r.enviadas).toBe(0);
+    expect(enviadas).toHaveLength(0);
+    expect(fichas[1].boas_vindas_at).not.toBeNull();
+    expect(estado.has('solar_bv_dedup:2')).toBe(true);
+    expect(carimbos).toHaveLength(0);   // nada saiu, nada conta no teto da linha
+  });
+
+  it('duas fichas do mesmo telefone na mesma rodada: só uma recebe', async () => {
+    fichas = [
+      ficha({ id: 1, telefone_norm: '3491110001', created_at: minutosAtras(3) }),
+      ficha({ id: 2, telefone_norm: '3491110001', created_at: minutosAtras(2) }),
+    ];
+    const r = await tick();
+    expect(r.enviadas).toBe(1);
+    expect(enviadas).toHaveLength(1);
+    expect(fichas.every((f) => f.boas_vindas_at !== null)).toBe(true);
+  });
+
+  // A flag é gravada antes do envio. Reserva com mais de 15 minutos sem carimbo de
+  // envio é envio que não se confirmou (função morta no meio, 504 na reserva): some
+  // de todo painel como "atendida", então tem que virar alarme.
+  it('reserva antiga sem prova de envio vira alarme, uma vez por lista', async () => {
+    const { logger } = await import('../utils/logger');
+    vi.mocked(logger.error).mockClear();
+    fichas = [
+      ficha({ id: 7, created_at: minutosAtras(60), boas_vindas_at: minutosAtras(30) }),
+      ficha({ id: 8, created_at: minutosAtras(60), boas_vindas_at: minutosAtras(30), cliente_telefone: '5534991110008' }),
+    ];
+    carimbos.push('solar_boasvindas_sent:8');   // a 8 saiu de verdade
+    await tick(); await tick();
+    const alarmes = vi.mocked(logger.error).mock.calls.filter(([, msg]) => String(msg).includes('sem envio confirmado'));
+    expect(alarmes).toHaveLength(1);
+    expect(alarmes[0][2]).toEqual({ ids: [7] });
+  });
+
+  it('o dry não grava estado de alarme nenhum', async () => {
+    fichas = [ficha({ created_at: minutosAtras(60 * 30) })];
+    await tick({ dry: true });
+    expect(estado.size).toBe(0);
   });
 });
 

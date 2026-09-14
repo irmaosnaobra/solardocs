@@ -1,21 +1,16 @@
 -- ════════════════════════════════════════════════════════════
--- Sistema de código sequencial pra Proposta Solar
--- Formato: YYYYUUUUNNNN  (ex: 202600010001)
---   YYYY = ano
---   UUUU = numero sequencial do user na plataforma (4 digits)
---   NNNN = numero da proposta desse user no ano (4 digits)
+-- NÃO RODAR. Esta migração nunca foi aplicada e foi aposentada em 14/09/2026.
+--
+-- Ela criava users.numero_seq e documents.codigo para um código de 12 dígitos
+-- (YYYY + número do integrador + número da proposta). As colunas nunca existiram
+-- no banco, o código engolia o erro e o "número do integrador" saía 0001 para
+-- todo mundo: 202600010001 ficou impresso em 94 propostas de 90 empresas.
+--
+-- Hoje o número impresso na proposta é o codigo_curto (YYYYNNNN), o mesmo do
+-- link público /p/<slug>.<codigo_curto>. Ele é único por integrador pelo índice
+-- idx_documents_user_codigo_curto_unique, que já existe no banco.
+--
+-- NÃO criar documents.codigo com UNIQUE: os códigos de 12 dígitos já impressos
+-- se repetem entre clientes e dentro do mesmo cliente, e não se renumera
+-- proposta já enviada.
 -- ════════════════════════════════════════════════════════════
-
--- 1. Coluna numero_seq em users (atribuída no 1ª proposta gerada se faltar)
-ALTER TABLE users ADD COLUMN IF NOT EXISTS numero_seq INTEGER UNIQUE;
-
--- 2. Coluna codigo em documents (12 dígitos, opcional pra docs antigos)
-ALTER TABLE documents ADD COLUMN IF NOT EXISTS codigo TEXT;
-
--- 3. Index pra lookup rápido por código no /p/:id
-CREATE INDEX IF NOT EXISTS idx_documents_codigo ON documents(codigo) WHERE codigo IS NOT NULL;
-
--- 4. Index pra contar propostas do user no ano
-CREATE INDEX IF NOT EXISTS idx_documents_user_tipo_year
-  ON documents(user_id, tipo, created_at)
-  WHERE tipo = 'propostaSolar';

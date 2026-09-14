@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { supabase } from '../utils/supabase';
+import { BancoIndisponivel, lerDoBanco, responder503 } from '../utils/dbTransitorio';
 import { sendMetaEvent } from '../utils/metaPixel';
 
 const companySchema = z.object({
@@ -57,14 +58,20 @@ const companySchema = z.object({
 
 export async function getCompany(req: Request, res: Response): Promise<void> {
   try {
-    const { data } = await supabase
+    // O layout decide o muro de CNPJ com esta resposta. Engolir o error fazia um
+    // 504 virar { company: null } com 200, e quem tem CNPJ caía na tela de
+    // cadastrar empresa durante a instabilidade. limit(1) mantém a regra de
+    // devolver uma company só, sem o maybeSingle quebrar se um dia houver duas.
+    const data = await lerDoBanco(() => supabase
       .from('company')
       .select('*')
       .eq('user_id', req.userId)
-      .single();
+      .limit(1)
+      .maybeSingle());
 
     res.json({ company: data || null });
   } catch (err) {
+    if (err instanceof BancoIndisponivel) { responder503(res, 'company', err.causa); return; }
     console.error('GetCompany error:', err);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }

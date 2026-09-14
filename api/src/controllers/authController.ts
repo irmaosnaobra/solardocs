@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { z } from 'zod';
 import Stripe from 'stripe';
 import { supabase } from '../utils/supabase';
+import { BancoIndisponivel, falhaDoBanco, lerDoBanco, responder503 } from '../utils/dbTransitorio';
 import { signToken } from '../utils/jwt';
 import { sendMetaEvent } from '../utils/metaPixel';
 import { sendPasswordResetEmail } from '../utils/mailer';
@@ -490,14 +491,17 @@ export async function login(req: Request, res: Response): Promise<void> {
     // "E-mail ou senha incorretos" com a senha certa e sem saída nenhuma.
     const emailLc = body.email.toLowerCase().trim();
 
-    const { data: user } = await supabase
+    // Falha de banco NÃO é "e-mail não cadastrado". Antes o error era ignorado e,
+    // num 504 do gateway, quem tinha a senha certa lia "E-mail ou senha
+    // incorretos" e ia trocar a senha à toa (14/09/2026). Agora vira 503.
+    const user = await lerDoBanco(() => supabase
       .from('users')
       // is_admin + billing_status precisam vir no login: o front salva este user
       // no cookie e o Sidebar decide a Área Restrita por is_admin. Sem eles, o
       // admin loga e a Área Restrita some até o /auth/me corrigir (race no 1º paint).
       .select('id, email, nome, password_hash, plano, limite_documentos, documentos_usados, data_reset, created_at, is_admin, billing_status')
       .eq('email', emailLc)
-      .single();
+      .maybeSingle());
 
     if (!user) {
       res.status(401).json({ error: 'Credenciais inválidas' });
@@ -523,6 +527,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     const token = signToken(user.id);
     res.json({ token, user: userWithoutPassword });
   } catch (err: unknown) {
+    if (err instanceof BancoIndisponivel) { responder503(res, 'login', err.causa); return; }
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: err.issues[0].message });
       return;
@@ -541,11 +546,14 @@ export async function forgotPassword(req: Request, res: Response): Promise<void>
     // e-mail nunca saía — travado no login E na recuperação ao mesmo tempo.
     const emailLc = email.toLowerCase().trim();
 
-    const { data: user } = await supabase
+    // Falha de banco não é "e-mail não cadastrado": antes caía na resposta genérica
+    // e o e-mail nunca saía. Agora vira 503, igual pra quem existe e pra quem não
+    // existe, então continua sem revelar se o e-mail está cadastrado.
+    const user = await lerDoBanco(() => supabase
       .from('users')
       .select('id')
       .eq('email', emailLc)
-      .single();
+      .maybeSingle());
 
     // Resposta genérica para não revelar se o email existe
     if (!user) { res.json({ message: 'Se o email estiver cadastrado, você receberá as instruções.' }); return; }
@@ -562,7 +570,10 @@ export async function forgotPassword(req: Request, res: Response): Promise<void>
 
     if (updateErr) {
       console.error('[ForgotPass] Erro ao atualizar token no banco:', updateErr);
-      throw updateErr;
+      // Sempre 503, seja qual for o erro. Um 500 aqui só aconteceria pra e-mail
+      // CADASTRADO (o não cadastrado já saiu com 200 acima), e a tela passaria a
+      // mostrar a diferença. A resposta depende do estado do banco, não do cadastro.
+      throw new BancoIndisponivel(updateErr);
     }
 
     const dashboardUrl = process.env.DASHBOARD_URL || 'https://solardocs-dashboard.vercel.app';
@@ -580,6 +591,7 @@ export async function forgotPassword(req: Request, res: Response): Promise<void>
 
     res.json({ message: 'Se o email estiver cadastrado, você receberá as instruções.' });
   } catch (err) {
+    if (err instanceof BancoIndisponivel) { responder503(res, 'forgot-password', err.causa); return; }
     console.error('ForgotPassword error:', err);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
@@ -591,25 +603,36 @@ export async function resetPassword(req: Request, res: Response): Promise<void> 
     if (!token || !password) { res.status(400).json({ error: 'Token e senha são obrigatórios' }); return; }
     if (password.length < 6) { res.status(400).json({ error: 'Senha deve ter pelo menos 6 caracteres' }); return; }
 
-    const { data: user } = await supabase
+    // Falha de banco não é "link inválido": antes a pessoa com o link certo lia
+    // "Link inválido ou expirado" e pedia outro, que mata o anterior.
+    const user = await lerDoBanco(() => supabase
       .from('users')
       .select('id, reset_token_expires')
       .eq('reset_token', token)
-      .single();
+      .maybeSingle());
 
-    if (!user) { res.status(400).json({ error: 'Link inválido ou expirado' }); return; }
+    // Token que não existe mais quase sempre é link JÁ USADO (a senha nova tira o
+    // token): em 14/09/2026 um cliente reabriu o link 20 minutos depois de trocar a
+    // senha. A mensagem aponta a saída certa em vez de mandar pedir outro link.
+    if (!user) {
+      res.status(400).json({ error: 'Esse link já foi usado ou não vale mais. Se você já criou a senha nova, é só entrar com ela. Se não, peça outro link.' });
+      return;
+    }
     if (new Date(user.reset_token_expires) < new Date()) {
       res.status(400).json({ error: 'Link expirado. Solicite um novo.' }); return;
     }
 
     const password_hash = await bcrypt.hash(password, 12);
-    await supabase
+    // O error era ignorado: respondia "Senha redefinida com sucesso!" sem gravar.
+    const { error: updErr, status: updStatus } = await supabase
       .from('users')
       .update({ password_hash, reset_token: null, reset_token_expires: null })
       .eq('id', user.id);
+    if (updErr) throw falhaDoBanco(updErr, updStatus);
 
     res.json({ message: 'Senha redefinida com sucesso!' });
   } catch (err) {
+    if (err instanceof BancoIndisponivel) { responder503(res, 'reset-password', err.causa); return; }
     console.error('ResetPassword error:', err);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
@@ -622,11 +645,11 @@ export async function changePassword(req: Request, res: Response): Promise<void>
     if (!currentPassword || !newPassword) { res.status(400).json({ error: 'Senha atual e nova são obrigatórias' }); return; }
     if (newPassword.length < 6) { res.status(400).json({ error: 'A nova senha deve ter pelo menos 6 caracteres' }); return; }
 
-    const { data: user } = await supabase
+    const user = await lerDoBanco(() => supabase
       .from('users')
       .select('id, password_hash')
       .eq('id', req.userId)
-      .single();
+      .maybeSingle());
 
     if (!user) { res.status(404).json({ error: 'Usuário não encontrado' }); return; }
 
@@ -634,10 +657,13 @@ export async function changePassword(req: Request, res: Response): Promise<void>
     if (!ok) { res.status(400).json({ error: 'Senha atual incorreta' }); return; }
 
     const password_hash = await bcrypt.hash(newPassword, 12);
-    await supabase.from('users').update({ password_hash }).eq('id', user.id);
+    // Mesmo defeito do reset: o error era ignorado e respondia sucesso sem gravar.
+    const { error: updErr, status: updStatus } = await supabase.from('users').update({ password_hash }).eq('id', user.id);
+    if (updErr) throw falhaDoBanco(updErr, updStatus);
 
     res.json({ message: 'Senha alterada com sucesso!' });
   } catch (err) {
+    if (err instanceof BancoIndisponivel) { responder503(res, 'change-password', err.causa); return; }
     console.error('ChangePassword error:', err);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
@@ -707,14 +733,19 @@ export async function updateProfile(req: Request, res: Response): Promise<void> 
 
 export async function getMe(req: Request, res: Response): Promise<void> {
   try {
-    const { data: user, error } = await supabase
+    // É a chamada que monta o painel. Antes QUALQUER erro de banco virava 404 e o
+    // layout mandava pro login com o cookie ainda lá: o proxy devolvia pro painel e a
+    // pessoa ficava em laço com a senha certa (visto ao vivo em 14/09/2026). Agora
+    // falha de banco é 503, e conta que não existe mais é 401, que faz o front
+    // apagar o cookie.
+    const user = await lerDoBanco(() => supabase
       .from('users')
       .select('id, email, nome, plano, limite_documentos, documentos_usados, data_reset, created_at, is_admin, billing_status, past_due_since, app_instalado_em')
       .eq('id', req.userId)
-      .single();
+      .maybeSingle());
 
-    if (error || !user) {
-      res.status(404).json({ error: 'Usuário não encontrado' });
+    if (!user) {
+      res.status(401).json({ error: 'Usuário não encontrado' });
       return;
     }
 
@@ -759,6 +790,7 @@ export async function getMe(req: Request, res: Response): Promise<void> {
       },
     });
   } catch (err) {
+    if (err instanceof BancoIndisponivel) { responder503(res, 'auth/me', err.causa); return; }
     console.error('GetMe error:', err);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }

@@ -2785,7 +2785,7 @@ ${comCapa ? `
   <div class="topbar">
     ${logoHtml}
     <div class="meta">
-      ${codigoProposta ? `Proposta <strong style="font-family: monospace; color: var(--c-text);">${pEsc(codigoProposta)}</strong>` : `Proposta nº ${Date.now().toString().slice(-6)}`}<br/>
+      ${codigoProposta ? `Proposta <strong style="font-family: monospace; color: var(--c-text);">${pEsc(codigoProposta)}</strong><br/>` : ''}
       ${today}<br/>
       <span class="validade">${pEsc(validade.longo)}</span>
     </div>

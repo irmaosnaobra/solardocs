@@ -150,30 +150,35 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
 
     await checkLimit(req.userId);
 
-    // Pra propostaSolar, gera o código ANTES do template pra injetar no HTML
-    // (assim o cabeçalho do PDF mostra "Proposta 202600010001")
+    // Número da proposta: o MESMO do link público (codigo_curto, YYYYNNNN por
+    // integrador e ano), reservado ANTES do template pra sair impresso no cabeçalho.
+    // Até 14/09/2026 o cabeçalho imprimia um código de 12 dígitos montado sobre
+    // users.numero_seq, coluna que nunca foi criada. O erro era engolido e o
+    // "número do integrador" saía 0001 pra todo mundo: 202600010001 estava impresso
+    // em 94 propostas de 90 empresas diferentes. O codigo_curto é único por
+    // integrador (índice no banco) e é o que abre o link, então um número só serve.
     let codigo: string | null = null;
     let codigoCurto: string | null = null;
     let empresaSlug: string | null = null;
     if ((body.tipo === 'propostaSolar' || body.tipo === 'propostaOffGrid') && req.userId) {
-      // O código legacy de 12 dígitos conta SÓ propostaSolar. Emiti-lo pra
-      // off-grid entregaria o mesmo número pra duas propostas diferentes — e o
-      // template off-grid nem imprime esse campo. Ele fica com o codigo_curto,
-      // que é MAX+1 sobre TODOS os tipos e por isso não colide.
-      if (body.tipo === 'propostaSolar') {
-        try {
-          codigo = await generateCodigoProposta(req.userId);
-          body.fields = { ...body.fields, codigo };
-        } catch (err) {
-          logger.error('documents', 'falha gerando codigo proposta — segue sem codigo', err);
-        }
-      }
       try {
         const slugAndCurto = await ensureEmpresaSlugAndCodigoCurto(req.userId, company.id);
         empresaSlug = slugAndCurto.slug;
         codigoCurto = slugAndCurto.codigoCurto;
       } catch (err) {
-        logger.error('documents', 'falha gerando slug/codigo_curto — segue só com codigo legacy', err);
+        logger.error('documents', 'falha gerando slug/codigo_curto, proposta sai sem número', err);
+      }
+      // O template off-grid não imprime número; só a propostaSolar leva o campo.
+      if (body.tipo === 'propostaSolar') {
+        if (codigoCurto) {
+          codigo = codigoCurto;
+          body.fields = { ...body.fields, codigo };
+        } else {
+          // O prefill por cliente devolve o dados_json da proposta anterior, com o
+          // número dela. Sem número novo o campo sai: sem número é melhor que com
+          // o número de outra proposta.
+          delete body.fields.codigo;
+        }
       }
     }
 
@@ -227,11 +232,30 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
     };
     if (codigoCurto) insertPayload.codigo_curto = codigoCurto;
 
-    // Retry em colisao de codigo_curto: se 2 propostas geram simultaneamente, ambas leem o
-    // mesmo MAX e tentam o mesmo número. Unique parcial (user_id, codigo_curto) WHERE NOT NULL
-    // bloqueia a 2ª — aí incrementa o sufixo em +1 e tenta de novo até achar livre.
+    // Retry em colisao de codigo_curto. O número vem do contador do banco
+    // (reservar_codigo_curto), então colisão só acontece com uma instância antiga que
+    // ainda grave por MAX+1 durante o deploy. A unique parcial (user_id, codigo_curto)
+    // WHERE NOT NULL bloqueia a 2ª, e o laço reserva o próximo número no contador.
     let saved: { id: string } | null = null;
     let insertErr: { code?: string; message?: string } | null = null;
+
+    // O número impresso no cabeçalho é o próprio codigo_curto. Se ele muda no retry
+    // (ou sai na blindagem), o HTML é refeito: senão a proposta sairia impressa com
+    // o número que colidiu, que é o de OUTRA proposta do mesmo integrador.
+    let conteudoMudou = false;
+    const reimprimirNumero = (novo: string | null) => {
+      if (body.tipo !== 'propostaSolar' || !codigo) return;
+      codigo = novo;
+      if (novo) body.fields = { ...body.fields, codigo: novo };
+      else delete body.fields.codigo;
+      insertPayload.dados_json = body.fields;
+      if (body.useTemplate) {
+        content = generateFromTemplate(body.tipo, company, entity as unknown as Client, body.fields, body.modeloNumero, tmplOut);
+        insertPayload.content = content;
+        conteudoMudou = true;
+      }
+    };
+
     for (let attempt = 1; attempt <= 12; attempt++) {
       const result = await supabase.from('documents').insert(insertPayload).select('id').single();
       if (!result.error) {
@@ -244,11 +268,18 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
         && result.error.code === '23505'
         && /codigo_curto/i.test(result.error.message || '');
       if (!isCodigoRace) break;
-      // Incrementa o sufixo em +1 (determinístico) em vez de recalcular pelo mesmo
-      // caminho — recalcular devolveria o MESMO codigo_curto e o retry nunca convergiria.
-      const cc = String(insertPayload.codigo_curto);
-      codigoCurto = `${cc.slice(0, 4)}${String(Number(cc.slice(-4)) + 1).padStart(4, '0')}`;
+      // Com o contador, colisão só vem de uma instância antiga (MAX+1) durante o
+      // deploy. Reserva o PRÓXIMO número no contador, que já passou desse; somar 1
+      // aqui criaria um número que o contador ainda vai emitir. Se a reserva falhar,
+      // sai do laço e a blindagem abaixo salva sem número.
+      try {
+        codigoCurto = await nextCodigoCurto(req.userId, new Date().getFullYear());
+      } catch (err) {
+        logger.error('documents', 'colisao em codigo_curto e a nova reserva falhou', err);
+        break;
+      }
       insertPayload.codigo_curto = codigoCurto;
+      reimprimirNumero(codigoCurto);
       logger.warn('documents', `colisao em codigo_curto, retry ${attempt} com ${codigoCurto}`);
     }
 
@@ -262,12 +293,34 @@ export async function generateDocument(req: Request, res: Response): Promise<voi
       logger.error('documents', 'codigo_curto insistiu em colidir — salvando sem numero (blindagem)', insertErr);
       delete insertPayload.codigo_curto;
       codigoCurto = null;
+      // Sem número salvo, sem número impresso: o último tentado pertence a outra proposta.
+      reimprimirNumero(null);
       const fallback = await supabase.from('documents').insert(insertPayload).select('id').single();
       if (!fallback.error) {
         saved = fallback.data;
         insertErr = null;
       } else {
         insertErr = fallback.error;
+      }
+    }
+
+    // O HTML do Storage subiu antes do insert, com o número da primeira tentativa.
+    // Se o número mudou, sobe de novo por cima: o /p/ e o PDF leem o arquivo.
+    if (saved && conteudoMudou && arquivo_url) {
+      const { error: reenvioErr } = await supabase.storage
+        .from('documentos')
+        .upload(arquivo_url, Buffer.from(content, 'utf-8'), {
+          contentType: 'text/html; charset=utf-8',
+          upsert: true,
+        });
+      if (reenvioErr) {
+        // Sem o reenvio, o arquivo guardado mostra o número que colidiu, e o /p/ e o PDF
+        // leem o arquivo ANTES do content. Solta o arquivo: os leitores caem no content,
+        // que já tem o número certo (mesma saída do regenerate).
+        logger.error('documents', 'reenvio do HTML com o número novo falhou, doc passa a servir o content', reenvioErr);
+        const { error: soltarErr } = await supabase.from('documents').update({ arquivo_url: null }).eq('id', saved.id);
+        if (soltarErr) logger.error('documents', 'soltar arquivo_url do doc com número trocado falhou', soltarErr);
+        else await supabase.storage.from('documentos').remove([arquivo_url]).catch(() => undefined);
       }
     }
 
@@ -365,7 +418,12 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
     // Reeditar não renumera: o cabeçalho e o link precisam bater com o que já foi enviado.
     const dadosAntigos = (doc.dados_json ?? {}) as Record<string, unknown>;
     const fields: Record<string, unknown> = { ...body.fields };
-    if (dadosAntigos.codigo && !fields.codigo) fields.codigo = dadosAntigos.codigo;
+    // O número impresso é o SALVO, nunca o que vem do formulário. O estado do front
+    // carrega o número de outra proposta (prefill por cliente, doc aberto do
+    // histórico, rascunho), e com `!fields.codigo` reeditar imprimia esse número no
+    // cabeçalho de um doc cujo link tem outro número.
+    delete fields.codigo;
+    if (dadosAntigos.codigo) fields.codigo = dadosAntigos.codigo;
 
     // Corrigir uma proposta de dias atrás não pode renovar o prazo dela sozinho: o
     // cabeçalho e a validade ficam ancorados no dia da emissão (o cliente já viu
@@ -453,49 +511,6 @@ export async function regenerateDocument(req: Request, res: Response): Promise<v
   }
 }
 
-// Atribui numero_seq ao user se ainda não tem (lazy, no 1º código gerado)
-async function ensureUserNumeroSeq(userId: string): Promise<number> {
-  const { data: u } = await supabase
-    .from('users')
-    .select('numero_seq')
-    .eq('id', userId)
-    .single();
-  if (u?.numero_seq && Number(u.numero_seq) > 0) return Number(u.numero_seq);
-
-  // Pega o maior numero_seq atual e incrementa. Pra ambiente single-tenant
-  // (1 deploy, 1 banco) é seguro. Em multi-tenant com escala, usar SEQUENCE.
-  const { data: max } = await supabase
-    .from('users')
-    .select('numero_seq')
-    .not('numero_seq', 'is', null)
-    .order('numero_seq', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const next = (Number(max?.numero_seq) || 0) + 1;
-  await supabase.from('users').update({ numero_seq: next }).eq('id', userId);
-  return next;
-}
-
-// Gera código YYYYUUUUNNNN
-async function generateCodigoProposta(userId: string): Promise<string> {
-  const numeroSeq = await ensureUserNumeroSeq(userId);
-  const ano = new Date().getFullYear();
-  const inicioAno = `${ano}-01-01`;
-
-  // Conta propostaSolar do user no ano corrente
-  const { count } = await supabase
-    .from('documents')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('tipo', 'propostaSolar')
-    .gte('created_at', inicioAno);
-
-  const propostaNum = (count || 0) + 1;
-  const pad4 = (n: number) => String(n).padStart(4, '0');
-  return `${ano}${pad4(numeroSeq)}${pad4(propostaNum)}`;
-}
-
 // Deriva slug do nome da empresa: lowercase + sem acentos + alnum.
 // Ex: "Irmãos na Obra" → "irmaosnaobra"
 function slugifyEmpresa(nome: string): string {
@@ -512,7 +527,7 @@ function slugifyEmpresa(nome: string): string {
 async function ensureEmpresaSlugAndCodigoCurto(
   userId: string,
   companyId: string,
-): Promise<{ slug: string; codigoCurto: string }> {
+): Promise<{ slug: string; codigoCurto: string | null }> {
   const { data: comp } = await supabase
     .from('company')
     .select('id, nome, slug')
@@ -540,32 +555,35 @@ async function ensureEmpresaSlugAndCodigoCurto(
 
   const ano = new Date().getFullYear();
 
-  // Sequência derivada de MAX(sufixo)+1, NÃO de COUNT+1.
-  // COUNT+1 desincroniza pra sempre se qualquer proposta for apagada (ex: cleanup
-  // cron de docs PRO >30d): o count encolhe mas os codigo_curto já usados não voltam,
-  // então "próximo" cai numa faixa já ocupada e colide no unique (user_id, codigo_curto)
-  // — era exatamente o "Falha ao salvar documento". MAX+1 sempre aponta pra um livre.
-  const codigoCurto = await nextCodigoCurto(userId, ano);
+  // Número reservado no contador do banco (ver nextCodigoCurto). Antes foi COUNT+1,
+  // que colidia depois que o cleanup dos docs PRO apagava propostas, e depois MAX+1,
+  // que voltava a um número já emitido quando o cleanup apagava a linha do maior.
+  // Falhar a numeração não leva o slug junto: sem número o link cai no UUID, mas o
+  // slug da empresa continua valendo.
+  let codigoCurto: string | null = null;
+  try {
+    codigoCurto = await nextCodigoCurto(userId, ano);
+  } catch (err) {
+    logger.error('documents', 'numeração da proposta falhou, proposta sai sem número', err);
+  }
   return { slug, codigoCurto };
 }
 
-// Próximo codigo_curto livre do user no ano: MAX(sufixo)+1.
-// codigo_curto é text de largura fixa (YYYY + 4 dígitos), então order desc lexical
-// == numérico pro mesmo prefixo de ano. Ano novo (0 linhas) → seq 1.
+// Próximo codigo_curto do user no ano, RESERVADO no banco (função reservar_codigo_curto,
+// ver MIGRATION_reservar_codigo_curto.sql).
+// Era MAX(sufixo)+1 sobre as linhas que ainda existem, e a limpeza diária dos docs PRO
+// apaga as mais velhas: quando some a linha do maior número, a sequência volta a um
+// número já impresso e mandado a outro cliente, e o link antigo /p/slug.numero passa a
+// abrir a proposta nova. O contador fica numa tabela própria e nunca volta; no primeiro
+// uso ele parte do maior número que ainda existe.
 async function nextCodigoCurto(userId: string, ano: number): Promise<string> {
-  const prefixo = String(ano);
-  const { data: maxRow } = await supabase
-    .from('documents')
-    .select('codigo_curto')
-    .eq('user_id', userId)
-    .like('codigo_curto', `${prefixo}%`)
-    .order('codigo_curto', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const atual = maxRow?.codigo_curto ? Number(String(maxRow.codigo_curto).slice(-4)) : 0;
-  const seq = (Number.isFinite(atual) ? atual : 0) + 1;
-  return `${prefixo}${String(seq).padStart(4, '0')}`;
+  const { data, error } = await supabase.rpc('reservar_codigo_curto', { p_user_id: userId, p_ano: ano });
+  // Falha NÃO é "começa do 1": em 12/09/2026 um 504 no MAX fez a numeração recomeçar
+  // em 0001 pra quem estava no 0018. Sem número reservado, a proposta sai sem número.
+  if (error || typeof data !== 'string' || !/^\d{8}$/.test(data)) {
+    throw new Error(`reservar_codigo_curto falhou: ${error?.message ?? String(data)}`);
+  }
+  return data;
 }
 
 // GET /documents/:id/edit — devolve um doc salvo no formato que o formulário
@@ -815,7 +833,9 @@ const CLIENTE_ONLY = new Set<string>([
 ]);
 // emitido_em pertence ao doc reemitido, nunca ao próximo: prefill que o arrastasse
 // faria a proposta nova nascer com a data da anterior.
-const STRIP_ALWAYS = new Set<string>(['foto_telhado_b64', 'foto_logo_b64', 'emitido_em']);
+// `codigo` sai sempre: é o número impresso de OUTRA proposta. No prefill por cliente
+// ele entrava no formulário e podia acabar impresso de novo.
+const STRIP_ALWAYS = new Set<string>(['foto_telhado_b64', 'foto_logo_b64', 'emitido_em', 'codigo']);
 
 function limpaDados(d: Record<string, unknown>, soKit: boolean): Record<string, unknown> {
   const out: Record<string, unknown> = {};

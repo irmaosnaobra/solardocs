@@ -124,11 +124,15 @@ export const SOLAR_ENTREGA_AMPLA_INICIO = '2026-08-13T22:00:00.000Z';
  *   · cancelado / sem_interesse — a pessoa disse não. Recibo aqui é insistência.
  *   · fez_orcamento — já recebeu proposta. "Antes de te chamar, a gente monta o
  *     estudo" viraria mentira na cara de quem já viu o estudo.
+ *   · perdido / fechou / fechou_concorrente: a conversa já terminou, pra um lado ou
+ *     pro outro. "Este é o seu pré-atendimento" pra quem já fechou, com a gente ou
+ *     com outro, é mensagem fora de hora. Entraram em 14/09/2026, quando a ficha
+ *     995, marcada como perdido, voltou a contar no alarme de perdidos.
  * O resto (agendado, em_atendimento, nao_atendeu) RECEBE: são justamente os casos
  * em que a conversa ainda não aconteceu — e `nao_atendeu` é literalmente quem o
  * consultor tentou ligar e não alcançou.
  */
-const STATUS_QUE_NAO_RECEBEM = ['cancelado', 'sem_interesse', 'fez_orcamento'];
+const STATUS_QUE_NAO_RECEBEM = ['cancelado', 'sem_interesse', 'fez_orcamento', 'perdido', 'fechou', 'fechou_concorrente'];
 
 /** Bolha maior que o padrão (160) de propósito: sem isso as frases longas se
  *  quebram no meio, viram 8+ mensagens seguidas, e o teto de 5 do `emBolhas`
@@ -145,21 +149,88 @@ export const desligado = () => (process.env.SOLAR_BOASVINDAS_OFF || '').trim() =
 const jaTocadas = new Set<number>();
 
 /**
- * Grava a flag e CONFERE o resultado. O supabase-js não lança em falha de
- * escrita — devolve `{ error }`. Engolir esse error é o que transformaria uma
- * falha de rede em rajada: a ficha continuaria sem flag, continuaria dentro da
- * janela de 1 hora, e receberia as 6 bolhas de novo a cada 5 min — até 12 vezes,
- * na mesma linha que foi bloqueada em 01–03/ago.
+ * Reserva a ficha gravando boas_vindas_at SÓ se ainda estiver vazia, e diz se foi
+ * esta chamada que gravou. É a escrita condicional que impede duas rodadas
+ * simultâneas de mandar as mesmas bolhas pra mesma pessoa. O supabase-js não lança
+ * em falha de escrita, devolve `{ error }`, então o error é conferido: reserva que
+ * não se confirma não envia.
  */
-async function marcarTocada(id: number): Promise<void> {
+async function reservarFicha(id: number, em: string): Promise<boolean> {
+  const { data, error } = await supabaseGerador
+    .from('agendamentos')
+    .update({ boas_vindas_at: em })
+    .eq('id', id)
+    .is('boas_vindas_at', null)
+    .select('id');
+  if (error) throw new Error(`reservar boas_vindas_at falhou: ${error.message ?? error}`);
+  return (data?.length ?? 0) > 0;
+}
+
+/** Envio falhou: tira a reserva, mas só a DESTA rodada (confere o carimbo dela).
+ *  Uma retentativa: sem ela, um soluço do banco na devolução deixava a ficha marcada
+ *  como recebida sem ninguém ter recebido nada. */
+async function devolverFicha(id: number, reservadaEm: string): Promise<void> {
   for (let tentativa = 1; tentativa <= 2; tentativa++) {
     const { error } = await supabaseGerador
       .from('agendamentos')
-      .update({ boas_vindas_at: new Date().toISOString() })
-      .eq('id', id);
+      .update({ boas_vindas_at: null })
+      .eq('id', id)
+      .eq('boas_vindas_at', reservadaEm);
     if (!error) return;
-    if (tentativa === 2) throw new Error(`gravar boas_vindas_at falhou: ${error.message ?? error}`);
+    if (tentativa === 2) {
+      // A pessoa NÃO recebeu e a ficha ficou marcada. A varredura de reservas sem
+      // envio (conferirReservasSemEnvio) é quem acusa na rodada seguinte.
+      logger.error('solar-boas-vindas', 'ENVIO FALHOU E A FICHA FICOU MARCADA, desmarcar na mão',
+        { id, erro: error.message ?? String(error) });
+    }
   }
+}
+
+/** Marcador de "não mandei porque este telefone já recebeu". Fica fora dos prefixos
+ *  do teto da linha (nada saiu) e é o que a varredura usa pra não confundir com
+ *  envio interrompido. */
+export const SOLAR_BV_DEDUP_PREFIX = 'solar_bv_dedup:';
+/** Mesma pessoa que já recebeu nestes dias não recebe de novo por ficha nova. */
+const DEDUP_TELEFONE_DIAS = 30;
+
+/**
+ * Este telefone já recebeu as boas-vindas por OUTRA ficha de solar nos últimos 30
+ * dias? A reserva é por ficha, e o intake cria ficha nova pro mesmo número: um
+ * telefone levou 5 boas-vindas completas entre 25/08 e 14/09/2026, e outro levou 3
+ * em 16 minutos. telefone_norm já é DDD + 8 últimos dígitos (a mesma chave do
+ * solarRespostas), então o 55 na frente ou o nono dígito não escondem a repetição.
+ */
+async function telefoneJaRecebeu(ficha: Ficha): Promise<boolean> {
+  if (!ficha.telefone_norm) return false;
+  const desde = new Date(Date.now() - DEDUP_TELEFONE_DIAS * 86_400_000).toISOString();
+  const { data, error } = await supabaseGerador
+    .from('agendamentos').select('id')
+    .in('created_by', SOLAR_ORIGENS)
+    .eq('telefone_norm', ficha.telefone_norm)
+    .neq('id', ficha.id)
+    .gte('boas_vindas_at', desde)
+    .limit(1);
+  if (error) throw new Error(`conferir telefone já atendido falhou: ${error.message ?? error}`);
+  return (data?.length ?? 0) > 0;
+}
+
+/** Fecha a ficha repetida SEM mandar nada: flag condicional e marcador próprio. */
+async function marcarSemEnviar(id: number): Promise<void> {
+  const em = new Date().toISOString();
+  const { error } = await supabaseGerador
+    .from('agendamentos')
+    .update({ boas_vindas_at: em })
+    .eq('id', id)
+    .is('boas_vindas_at', null)
+    .select('id');
+  if (error) {
+    logger.error('solar-boas-vindas', 'marcar ficha de telefone repetido falhou', { id, erro: error.message ?? String(error) });
+    return;
+  }
+  const { error: erroMarcador } = await supabase.from('system_state')
+    .upsert({ key: `${SOLAR_BV_DEDUP_PREFIX}${id}`, value: { em }, updated_at: em }, { onConflict: 'key' });
+  if (erroMarcador) logger.warn('solar-boas-vindas', 'marcador de telefone repetido falhou', { id, erro: erroMarcador.message });
+  logger.info('solar-boas-vindas', 'telefone já recebeu as boas-vindas por outra ficha, não repete', { id });
 }
 
 function primeiroNome(nome: string | null | undefined): string {
@@ -227,6 +298,8 @@ interface Ficha {
   vendedor_nome: string | null;
   cliente_nome: string | null;
   cliente_telefone: string | null;
+  /** DDD + 8 últimos dígitos, a chave pra achar a mesma pessoa em outra ficha. */
+  telefone_norm: string | null;
   created_at: string;
   created_by: string | null;
   status: string | null;
@@ -288,7 +361,7 @@ export async function runSolarBoasVindasTick(opts: { dry?: boolean } = {}): Prom
 
   const { data, error } = await supabaseGerador
     .from('agendamentos')
-    .select('id, vendedor_nome, cliente_nome, cliente_telefone, created_at, created_by, status, boas_vindas_at')
+    .select('id, vendedor_nome, cliente_nome, cliente_telefone, telefone_norm, created_at, created_by, status, boas_vindas_at')
     .in('created_by', SOLAR_ORIGENS)
     .not('status', 'in', `(${STATUS_QUE_NAO_RECEBEM.join(',')})`)
     .is('boas_vindas_at', null)
@@ -305,13 +378,17 @@ export async function runSolarBoasVindasTick(opts: { dry?: boolean } = {}): Prom
   // exatamente a rodada sem candidato: sair antes de contar faria o agente relatar
   // "nada a fazer" no momento em que mais gente ficou no escuro. Foi esse tipo de
   // silêncio que deixou 87 pessoas passarem em branco por 30 dias.
-  const perdidos = await contarPerdidos(piso);
+  const perdidos = await contarPerdidos(piso, !!opts.dry);
+  if (!opts.dry) await conferirReservasSemEnvio(janela);
   if (!data?.length) return { ...zero('nenhum_cadastro_novo'), perdidos };
 
   const telPorConsultor = await carregarConsultores();
 
   let enviadas = 0, erros = 0, candidatos = 0;
   const previa: PreviaBoasVindas[] = [];
+  // Telefones já tratados NESTA rodada: o intake às vezes cria 2 ou 3 fichas do mesmo
+  // número em minutos, e elas chegam juntas no mesmo lote.
+  const telefonesDaRodada = new Set<string>();
 
   for (const ficha of data as Ficha[]) {
     const tel = String(ficha.cliente_telefone || '').replace(/\D/g, '');
@@ -334,6 +411,20 @@ export async function runSolarBoasVindasTick(opts: { dry?: boolean } = {}): Prom
     // aqui custa 6 mensagens; estourar o teto é barato e sai caro.
     if (!opts.dry && !(await dentroDoTetoHorarioLinha({ transacional: true })  /* boas-vindas de quem acabou de se cadastrar */)) {
       logger.info('solar-boas-vindas', 'teto da linha estourado — fica pro próximo tick', { esperando: candidatos - enviadas });
+      // Deixa RASTRO, uma vez por hora. O logger.info só vai pro console da Vercel,
+      // que não guarda histórico: de 01 a 05/09/2026 as boas-vindas pararam 4 dias e
+      // esperas de 11 a 16 horas se repetiram depois, sem nenhuma linha no error_logs
+      // dizendo o porquê. Com isto, espera longa por teto fechado fica medível.
+      const esperando = (data as Ficha[]).filter((f) => !f.boas_vindas_at && !jaTocadas.has(f.id));
+      if (await mudou(AVISO_TETO_KEY, new Date(agora).toISOString().slice(0, 13))) {
+        const maisAntiga = esperando.reduce(
+          (m, f) => (String(f.created_at) < m ? String(f.created_at) : m), new Date(agora).toISOString());
+        logger.warn('solar-boas-vindas', 'teto da linha segurou as boas-vindas', {
+          esperando: esperando.length,
+          ids: esperando.map((f) => f.id),
+          horas_da_mais_antiga: Math.round((agora - Date.parse(maisAntiga)) / 360_000) / 10,
+        });
+      }
       break;
     }
 
@@ -352,38 +443,72 @@ export async function runSolarBoasVindasTick(opts: { dry?: boolean } = {}): Prom
       continue;
     }
 
+    // MESMA PESSOA, FICHA NOVA: marca sem mandar (ver telefoneJaRecebeu).
+    const chaveTel = ficha.telefone_norm || tel;
+    let repetido = telefonesDaRodada.has(chaveTel);
+    if (!repetido) {
+      try {
+        repetido = await telefoneJaRecebeu(ficha);
+      } catch (e) {
+        // Sem conseguir conferir, não manda: repetir as bolhas pra mesma pessoa custa
+        // mais que esperar a próxima rodada.
+        logger.error('solar-boas-vindas', 'conferir telefone já atendido falhou, não envia nesta rodada', { id: ficha.id, erro: String(e) });
+        erros++;
+        continue;
+      }
+    }
+    if (repetido) {
+      candidatos--;
+      await marcarSemEnviar(ficha.id);
+      continue;
+    }
+
+    // RESERVA antes de enviar. O tick roda no /process-messages e no /master, e o
+    // /process-messages tem mais de um chamador. Com a flag gravada só DEPOIS do
+    // envio, duas rodadas sobrepostas liam a mesma ficha vazia e as duas mandavam:
+    // 8 fichas levaram as 5 bolhas duas vezes entre 15/08 e 14/09/2026. Agora a flag
+    // só grava se ainda estiver vazia, e só manda a rodada que conseguiu gravar.
+    const reservadaEm = new Date().toISOString();
+    let ganhou = false;
+    try {
+      ganhou = await reservarFicha(ficha.id, reservadaEm);
+    } catch (e) {
+      // Sem conseguir reservar, não manda. A resposta pode ter se perdido com o UPDATE
+      // já aplicado (504 do gateway): devolve pelo carimbo desta rodada, que só apaga
+      // se foi mesmo esta rodada que gravou.
+      await devolverFicha(ficha.id, reservadaEm);
+      logger.error('solar-boas-vindas', 'reservar a ficha falhou, não envia nesta rodada', { id: ficha.id, erro: String(e) });
+      erros++;
+      continue;
+    }
+    if (!ganhou) continue;   // outra rodada já pegou esta ficha
+    jaTocadas.add(ficha.id);
+    if (jaTocadas.size > 500) jaTocadas.clear();
+
     try {
       await sendHuman(tel, bolhas, 'io', { max: BOLHA_MAX, maxBolhas: BOLHA_TETO });
     } catch (e) {
-      // Envio falhou: a ficha fica sem flag de propósito, o próximo tick tenta
-      // de novo enquanto ela estiver dentro da janela. Falha vira retry, não buraco.
+      // Envio falhou: a ficha volta pra fila e o próximo tick tenta de novo enquanto
+      // ela estiver dentro da janela. Falha vira retry, não buraco, como antes.
+      jaTocadas.delete(ficha.id);
+      await devolverFicha(ficha.id, reservadaEm);
       logger.error('solar-boas-vindas', 'falha ao enviar as boas-vindas', { id: ficha.id, erro: String(e) });
       erros++;
       continue;
     }
-
-    // A mensagem JÁ saiu daqui pra baixo — a partir deste ponto o risco deixa de
-    // ser "o cliente não recebeu" e passa a ser "o cliente recebe de novo".
-    jaTocadas.add(ficha.id);
-    if (jaTocadas.size > 500) jaTocadas.clear();
     enviadas++;
+    // Só depois do envio: se ele falhasse, a outra ficha do mesmo número não pode
+    // ser fechada sem ninguém ter recebido nada.
+    telefonesDaRodada.add(chaveTel);
 
-    // Carimbo pro teto da linha. Vai ANTES da flag da ficha e sem try/catch de
-    // parada: se este marcador falhar, o agente segue — mas o teto passa a
-    // subestimar a hora, então o erro é logado alto.
+    // Carimbo pro teto da linha, e prova de envio pra varredura de reservas. O
+    // supabase-js não rejeita em falha de escrita, devolve { error }: sem conferir o
+    // error, a falha nunca aparecia no log.
     const nowIso = new Date().toISOString();
-    await supabase.from('system_state')
-      .upsert({ key: `${SOLAR_BV_PREFIX}${ficha.id}`, value: { em: nowIso }, updated_at: nowIso }, { onConflict: 'key' })
-      .then(undefined, (e: unknown) =>
-        logger.error('solar-boas-vindas', 'carimbo do teto da linha falhou', { id: ficha.id, erro: String(e) }));
-    try {
-      await marcarTocada(ficha.id);
-    } catch (e) {
-      // Grave: entregue mas não marcado. Só a rede em memória segura a repetição,
-      // e ela morre com o processo. Alto e claro no log pra alguém marcar na mão.
-      logger.error('solar-boas-vindas', 'ENTREGUE MAS NÃO MARCADO — risco de repetir',
-        { id: ficha.id, erro: String(e) });
-      erros++;
+    const { error: erroCarimbo } = await supabase.from('system_state')
+      .upsert({ key: `${SOLAR_BV_PREFIX}${ficha.id}`, value: { em: nowIso }, updated_at: nowIso }, { onConflict: 'key' });
+    if (erroCarimbo) {
+      logger.error('solar-boas-vindas', 'carimbo do teto da linha falhou', { id: ficha.id, erro: erroCarimbo.message });
     }
   }
 
@@ -406,12 +531,12 @@ export async function runSolarBoasVindasTick(opts: { dry?: boolean } = {}): Prom
  *
  * Existe porque foi assim que 87 pessoas passaram em branco por 30 dias: nada no
  * log dizia "não entreguei", só "entreguei 1". Silêncio parecia sucesso. Agora
- * cada rodada devolve o número, e ele aparece na Central das Agentes.
+ * cada rodada devolve o número na resposta do cron.
  *
  * Conta só a partir do piso de "daqui pra frente": o backlog de julho não é
  * perda deste agente, é decisão do dono.
  */
-async function contarPerdidos(pisoDaJanela: string): Promise<number> {
+async function contarPerdidos(pisoDaJanela: string, dry = false): Promise<number> {
   try {
     const { data, error } = await supabaseGerador
       .from('agendamentos').select('id')
@@ -422,14 +547,88 @@ async function contarPerdidos(pisoDaJanela: string): Promise<number> {
       .lt('created_at', pisoDaJanela)
       .limit(200);
     if (error) throw error;
-    const n = (data ?? []).length;
-    if (n > 0) {
+    const ids = (data ?? []).map((f: { id: number }) => Number(f.id)).sort((a: number, b: number) => a - b);
+    // O alarme grita quando a LISTA muda, não a cada rodada. Antes a mesma linha
+    // "12 cadastro(s)..." ia pro error_logs a cada ~2 minutos (682 por dia) sobre um
+    // conjunto parado desde 11/09/2026: alarme que repete o tempo todo ninguém lê.
+    // No dry só conta: gravar o estado aqui faria a próxima rodada real achar a lista
+    // "já avisada" e engolir o alarme.
+    if (!dry && await mudou(ALARME_PERDIDOS_KEY, ids.join(',')) && ids.length > 0) {
       logger.error('solar-boas-vindas',
-        `${n} cadastro(s) passaram da janela de ${JANELA_MS / 3600_000}h SEM receber as boas-vindas`);
+        `${ids.length} cadastro(s) passaram da janela de ${JANELA_MS / 3600_000}h SEM receber as boas-vindas`, { ids });
     }
-    return n;
+    return ids.length;
   } catch (err) {
     logger.error('solar-boas-vindas', 'contar perdidos falhou', err);
     return 0;
   }
+}
+
+const ALARME_PERDIDOS_KEY = 'solar_bv_alarme_perdidos';
+const ALARME_RESERVA_KEY = 'solar_bv_alarme_reserva';
+const AVISO_TETO_KEY = 'solar_bv_aviso_teto';
+/** Reserva mais velha que isto sem carimbo de envio já não é envio em andamento. */
+const RESERVA_SEM_ENVIO_MS = 15 * 60_000;
+
+/**
+ * Ficha marcada como recebida SEM envio confirmado.
+ *
+ * A flag é gravada ANTES do envio (a reserva). Se a função morre no meio do
+ * sendHuman (limite de 300 s da Vercel, Z-API pendurada) ou se a resposta da reserva
+ * se perde num 504, a ficha fica marcada, ninguém recebeu nada, e todo painel conta
+ * como atendida. O carimbo solar_boasvindas_sent só é gravado DEPOIS do envio (em
+ * 14/09/2026 ele casava com 90 de 90 fichas), então reserva com mais de 15 minutos sem
+ * carimbo, e sem o marcador de telefone repetido, é envio que não se confirmou.
+ *
+ * Não desmarca sozinho: se o envio saiu e só o carimbo falhou, desmarcar mandaria as
+ * bolhas de novo. Avisa, uma vez por lista, com os ids.
+ */
+async function conferirReservasSemEnvio(desde: string): Promise<void> {
+  try {
+    const ate = new Date(Date.now() - RESERVA_SEM_ENVIO_MS).toISOString();
+    const { data, error } = await supabaseGerador
+      .from('agendamentos').select('id')
+      .in('created_by', SOLAR_ORIGENS)
+      .gte('boas_vindas_at', desde)
+      .lt('boas_vindas_at', ate)
+      .limit(100);
+    if (error) throw error;
+    const ids = (data ?? []).map((f: { id: number }) => Number(f.id));
+
+    let semEnvio: number[] = [];
+    if (ids.length > 0) {
+      const chaves = ids.flatMap((id: number) => [`${SOLAR_BV_PREFIX}${id}`, `${SOLAR_BV_DEDUP_PREFIX}${id}`]);
+      const { data: marcas, error: erroMarcas } = await supabase
+        .from('system_state').select('key').in('key', chaves);
+      if (erroMarcas) throw erroMarcas;
+      const existentes = new Set((marcas ?? []).map((m: { key: string }) => String(m.key)));
+      semEnvio = ids
+        .filter((id: number) => !existentes.has(`${SOLAR_BV_PREFIX}${id}`) && !existentes.has(`${SOLAR_BV_DEDUP_PREFIX}${id}`))
+        .sort((a: number, b: number) => a - b);
+    }
+
+    if (await mudou(ALARME_RESERVA_KEY, semEnvio.join(',')) && semEnvio.length > 0) {
+      logger.error('solar-boas-vindas',
+        `${semEnvio.length} ficha(s) marcadas como recebidas sem envio confirmado`, { ids: semEnvio });
+    }
+  } catch (err) {
+    logger.error('solar-boas-vindas', 'conferir reservas sem envio falhou', err);
+  }
+}
+
+/**
+ * Guarda `assinatura` em system_state[chave] e diz se ela MUDOU desde a última vez.
+ * É o que deixa um aviso sair uma vez por mudança em vez de uma vez por rodada.
+ * Falha ao ler o estado conta como mudança: na dúvida, o aviso sai.
+ */
+async function mudou(chave: string, assinatura: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('system_state').select('value').eq('key', chave).maybeSingle();
+  const anterior = error ? null : String((data?.value as { assinatura?: string } | null)?.assinatura ?? '');
+  if (anterior === assinatura) return false;
+  const agora = new Date().toISOString();
+  const { error: erroGravar } = await supabase.from('system_state')
+    .upsert({ key: chave, value: { assinatura, em: agora }, updated_at: agora }, { onConflict: 'key' });
+  if (erroGravar) logger.warn('solar-boas-vindas', 'gravar estado do aviso falhou', { chave, erro: erroGravar.message });
+  return true;
 }

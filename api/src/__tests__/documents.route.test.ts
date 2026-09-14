@@ -4,6 +4,8 @@ import request from 'supertest';
 const CLIENT_UUID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 const DOC_UUID    = 'b1ffc99a-9c0b-4ef8-bb6d-6bb9bd380a22';
 const mockSingle  = vi.fn();
+// Reserva do número da proposta (rpc reservar_codigo_curto).
+const mockRpc     = vi.fn();
 // Spies compartilhados do Storage: o regenerate PRECISA trocar o arquivo, porque
 // /p/:id e o PDF leem o arquivo_url antes do content.
 const mockUpload  = vi.fn().mockResolvedValue({ error: null });
@@ -26,6 +28,8 @@ vi.mock('../utils/supabase', () => ({
       not:    vi.fn().mockReturnThis(),
       lte:    vi.fn().mockReturnThis(),
     })),
+    // Função (e não mockRpc direto): o factory roda antes da const ser inicializada.
+    rpc: (...args: unknown[]) => mockRpc(...args),
     storage: { from: vi.fn(() => ({ upload: mockUpload, remove: mockRemove })) },
   },
 }));
@@ -117,6 +121,56 @@ describe('POST /documents/generate', () => {
 
     expect(res.status).toBe(401);
   });
+
+  // Proposta solar: company → users(free-check) → client → checkLimit(users) →
+  // company(slug) → [rpc reservar_codigo_curto] → incrementUsed → users(isVip) → insert.
+  function mockGeracaoProposta() {
+    mockSingle
+      .mockResolvedValueOnce({ data: { id: 'comp-1', nome: 'Empresa', cnpj: '00.000.000/0001-00' } })
+      .mockResolvedValueOnce({ data: { plano: 'pro', is_admin: false } })
+      .mockResolvedValueOnce({ data: { id: CLIENT_UUID, nome: 'Cliente' } })
+      .mockResolvedValueOnce({ data: { plano: 'pro', documentos_usados: 5, limite_documentos: 90 } })
+      .mockResolvedValueOnce({ data: { id: 'comp-1', nome: 'Empresa', slug: 'empresa' } })
+      .mockResolvedValueOnce({ data: { documentos_usados: 5 } })
+      .mockResolvedValueOnce({ data: { plano: 'pro', is_admin: false } })
+      .mockResolvedValueOnce({ data: { id: 'doc-1' }, error: null });
+  }
+
+  // Até 14/09/2026 o número impresso era 2026 + 0001 + NNNN pra TODO integrador
+  // (users.numero_seq nunca existiu): 202600010001 estava em 94 propostas de 90
+  // empresas. O número impresso agora é o do link, reservado no contador do banco.
+  it('proposta solar imprime o mesmo número do link, reservado no contador', async () => {
+    mockGeracaoProposta();
+    mockRpc.mockResolvedValueOnce({ data: '20260036', error: null });
+
+    const res = await request(app)
+      .post('/documents/generate')
+      .set('Authorization', AUTH)
+      .send({ tipo: 'propostaSolar', cliente_id: CLIENT_UUID, fields: {}, useTemplate: true, modeloNumero: 2 });
+
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith('reservar_codigo_curto', { p_user_id: 'user-123', p_ano: new Date().getFullYear() });
+    const fields = vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, unknown>;
+    expect(fields.codigo).toBe('20260036');
+    expect(res.body).toMatchObject({ codigo: '20260036', codigo_curto: '20260036', empresa_slug: 'empresa' });
+  });
+
+  // Reserva que falha NÃO recomeça do 0001 (foi o que um 504 fez em 12/09/2026), e o
+  // número que veio do prefill (de outra proposta) não pode sair impresso.
+  it('sem número reservado, a proposta sai sem número, nem o do prefill', async () => {
+    mockGeracaoProposta();
+    mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'upstream timeout' } });
+
+    const res = await request(app)
+      .post('/documents/generate')
+      .set('Authorization', AUTH)
+      .send({ tipo: 'propostaSolar', cliente_id: CLIENT_UUID, fields: { codigo: '202600010002' }, useTemplate: true, modeloNumero: 2 });
+
+    expect(res.status).toBe(200);
+    const fields = vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, unknown>;
+    expect(fields.codigo).toBeUndefined();
+    expect(res.body).toMatchObject({ codigo: null, codigo_curto: null });
+  });
 });
 
 // ─── POST /documents/:id/regenerate ──────────────────────────────────
@@ -194,6 +248,20 @@ describe('POST /documents/:id/regenerate', () => {
     expect(res.status).toBe(200);
     expect(mockUpload).toHaveBeenCalledTimes(1);
     expect(mockRemove).toHaveBeenCalledWith(['user-123/antigo.html']);
+  });
+
+  // O formulário carrega o número de OUTRA proposta (prefill por cliente, doc aberto
+  // do histórico, rascunho). Reeditar imprime o número salvo deste doc, não o do form.
+  it('reeditar imprime o número salvo, não o que veio no formulário', async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: docAvulso })
+      .mockResolvedValueOnce(empresa)
+      .mockResolvedValueOnce({ data: { plano: 'free', is_admin: false } });
+
+    await post(DOC_UUID, { fields: { investimento: '22.000,00', codigo: '20260010' } });
+
+    const fields = vi.mocked(generateFromTemplate).mock.calls[0][3] as Record<string, unknown>;
+    expect(fields.codigo).toBe('202600010035');
   });
 
   it('retorna 404 pra doc de outro usuario', async () => {

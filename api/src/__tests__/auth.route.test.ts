@@ -22,6 +22,9 @@ vi.mock('../utils/supabase', () => ({
       // eq de topo usado pela cadeia SELECT.
       update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: null, error: null }) }),
       single: mockSingle,
+      // Login, recuperação e /auth/me leem com maybeSingle (erro de banco não pode
+      // virar "não achei"). Mesma fila de respostas do single.
+      maybeSingle: mockSingle,
     })),
   },
 }));
@@ -229,5 +232,80 @@ describe('POST /auth/login', () => {
       .send({});
 
     expect(res.status).toBe(400);
+  });
+
+  // 14/09/2026: um 504 do gateway na leitura do usuário virava 401 "Credenciais
+  // inválidas", e a pessoa com a senha certa ia trocar a senha à toa.
+  it('banco fora do ar responde 503 com aviso de instabilidade, não 401', async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: null, error: { code: '', message: 'upstream timeout' }, status: 504 })
+      .mockResolvedValueOnce({ data: null, error: { code: '', message: 'upstream timeout' }, status: 504 });
+
+    const res = await request(app)
+      .post('/auth/login')
+      .send({ email: 'cliente@a.com', password: 'senha-certa' });
+
+    expect(res.status).toBe(503);
+    expect(res.body.error).toMatch(/instabilidade/i);
+  });
+
+  it('um soluço só do banco é absorvido pela retentativa', async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: null, error: { code: '', message: 'upstream timeout' }, status: 504 })
+      .mockResolvedValueOnce({ data: null, error: null, status: 200 });
+
+    const res = await request(app)
+      .post('/auth/login')
+      .send({ email: 'desconhecido@a.com', password: 'qualquer' });
+
+    // Chegou a resposta de verdade do banco (e-mail não existe): 401, não 503.
+    expect(res.status).toBe(401);
+  });
+});
+
+// ─── POST /auth/forgot-password ──────────────────────────────────────
+describe('POST /auth/forgot-password', () => {
+  it('banco fora do ar responde 503 em vez de fingir que mandou o e-mail', async () => {
+    mockSingle
+      .mockResolvedValueOnce({ data: null, error: { code: '57014', message: 'statement timeout' }, status: 500 })
+      .mockResolvedValueOnce({ data: null, error: { code: '57014', message: 'statement timeout' }, status: 500 });
+
+    const res = await request(app).post('/auth/forgot-password').send({ email: 'cliente@a.com' });
+
+    expect(res.status).toBe(503);
+  });
+
+  it('e-mail que não existe continua com a resposta genérica', async () => {
+    mockSingle.mockResolvedValueOnce({ data: null, error: null, status: 200 });
+
+    const res = await request(app).post('/auth/forgot-password').send({ email: 'ninguem@a.com' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toMatch(/se o email estiver cadastrado/i);
+  });
+});
+
+// ─── GET /auth/me ────────────────────────────────────────────────────
+describe('GET /auth/me', () => {
+  // O layout do painel tratava qualquer erro como sessão morta e, com o cookie
+  // ainda lá, o proxy devolvia a pessoa pro painel: laço até o banco voltar.
+  it('banco fora do ar responde 503, não 404', async () => {
+    const { signToken } = await import('../utils/jwt');
+    mockSingle
+      .mockResolvedValueOnce({ data: null, error: { code: '', message: 'upstream timeout' }, status: 504 })
+      .mockResolvedValueOnce({ data: null, error: { code: '', message: 'upstream timeout' }, status: 504 });
+
+    const res = await request(app).get('/auth/me').set('Authorization', `Bearer ${signToken('uid-1')}`);
+
+    expect(res.status).toBe(503);
+  });
+
+  it('conta que não existe mais responde 401, pro front apagar o cookie', async () => {
+    const { signToken } = await import('../utils/jwt');
+    mockSingle.mockResolvedValueOnce({ data: null, error: null, status: 200 });
+
+    const res = await request(app).get('/auth/me').set('Authorization', `Bearer ${signToken('uid-sumiu')}`);
+
+    expect(res.status).toBe(401);
   });
 });
