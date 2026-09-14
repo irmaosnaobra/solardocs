@@ -1420,6 +1420,11 @@ async function modoContinuo() {
       }
 
       // ── 4. dorme pouco e volta ────────────────────────────────────────────
+      // Chegou aqui sem cair no catch = volta limpa, então o erro é história.
+      // Antes só limpava depois de ENVIAR, e com o teto em 0 isso nunca
+      // acontece: um "fetch failed" das 20:36 ficou grudado no pulso a noite
+      // inteira e virou "A AGENTE PAROU" no WhatsApp às 07:39.
+      ultimoErro = null;
       await dorme(CFG.olharSeg * 1000);
     } catch (e) {
       ultimoErro = `${new Date().toISOString().slice(11, 19)} ${e.message}`.slice(0, 200);

@@ -618,11 +618,23 @@ router.get('/prospeccao-pulso', async (req: Request, res: Response) => {
     // Apertar demais treina o dono a ignorar o alarme, que é pior que não ter.
     const LIMITE_MIN = 20;
 
-    const problemas: string[] = [];
-    if (minutos === null) problemas.push('ela nunca bateu o pulso');
-    else if (minutos > LIMITE_MIN) problemas.push(`sem sinal de vida há ${minutos} min`);
-    if (data?.logado === false) problemas.push('o Chrome dela está DESLOGADO do Instagram');
+    // PARADA é pulso velho ou conta deslogada. Só isso dispara "A AGENTE PAROU".
+    //
+    // `ultimo_erro` sozinho NÃO é parada, é contexto. Em 14/09 às 07:39 chegou um
+    // "A AGENTE PAROU" no WhatsApp por causa de um "fetch failed" das 20:36 da
+    // noite anterior: a agente já estava de pé de novo e o erro era história.
+    // Alarme que grita por coisa que já passou é alarme que o dono aprende a
+    // ignorar, e aí o de verdade passa batido.
+    const parada: string[] = [];
+    if (minutos === null) parada.push('ela nunca bateu o pulso');
+    else if (minutos > LIMITE_MIN) parada.push(`sem sinal de vida há ${minutos} min`);
+    if (data?.logado === false) parada.push('o Chrome dela está DESLOGADO do Instagram');
+    const problemas: string[] = [...parada];
     if (data?.ultimo_erro) problemas.push(`último erro: ${data.ultimo_erro}`);
+
+    // O dia da chave é o dia do BRASIL. Com toISOString() ele virava às 21h e o
+    // mesmo incidente avisava duas vezes: 13/09 às 19:09 e de novo às 21:12.
+    const hojeBr = new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);
 
     // O AVISO VAI PRO WHATSAPP, NÃO PRA UMA ISSUE.
     //
@@ -634,10 +646,9 @@ router.get('/prospeccao-pulso', async (req: Request, res: Response) => {
     // Avisa UMA vez por incidente. A chave carrega o dia e o motivo: parou de
     // novo amanhã, avisa de novo; continua parada, fica quieto. Alarme que
     // repete de 15 em 15 minutos é alarme que se silencia.
-    if (problemas.length) {
-      const motivo = data?.logado === false ? 'deslogada'
-        : (minutos === null || minutos > LIMITE_MIN) ? 'sem-pulso' : 'com-erro';
-      const chave = `prospeccao_parada:${new Date().toISOString().slice(0, 10)}:${motivo}`;
+    if (parada.length) {
+      const motivo = data?.logado === false ? 'deslogada' : 'sem-pulso';
+      const chave = `prospeccao_parada:${hojeBr}:${motivo}`;
       const { error: jaAvisou } = await supabase.from('system_state')
         .insert({ key: chave, value: { avisado_em: new Date().toISOString(), problemas } });
 
@@ -677,7 +688,7 @@ router.get('/prospeccao-pulso', async (req: Request, res: Response) => {
     // (testar-bloqueio.mjs): ela poe 'DESTRAVOU' no campo `fazendo` do pulso.
     // Aqui a gente so repassa, uma vez, e limpa a marca.
     if (String(data?.fazendo || '').startsWith('DESTRAVOU')) {
-      const chave = `prospeccao_destravou:${new Date().toISOString().slice(0, 10)}`;
+      const chave = `prospeccao_destravou:${hojeBr}`;
       const { error: jaAvisou } = await supabase.from('system_state')
         .insert({ key: chave, value: { avisado_em: new Date().toISOString() } });
       if (!jaAvisou) {
@@ -697,7 +708,9 @@ router.get('/prospeccao-pulso', async (req: Request, res: Response) => {
     }
 
     res.json({
-      ok: problemas.length === 0,
+      // ok = não está PARADA. Erro velho aparece em `problemas` mas não derruba o
+      // ok, senão o vigia do GitHub abriria issue por coisa que já passou.
+      ok: parada.length === 0,
       minutos_sem_pulso: minutos,
       limite_min: LIMITE_MIN,
       logado: data?.logado ?? null,
