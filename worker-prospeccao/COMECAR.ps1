@@ -69,7 +69,7 @@ function Parar([string]$msg, [string]$cor = 'Red') {
   }
   exit 1
 }
-function Porta { try { Invoke-RestMethod "http://127.0.0.1:$porta/json/version" -TimeoutSec 3 | Out-Null; $true } catch { $false } }
+function Porta { try { Invoke-RestMethod "http://127.0.0.1:$porta/json/version" -TimeoutSec 8 | Out-Null; $true } catch { $false } }
 
 if ($temConsole) { Clear-Host }
 Write-Host ''
@@ -79,6 +79,15 @@ Write-Host '  ╚═════════════════════
 Write-Host ''
 
 # ── 1. Chrome ────────────────────────────────────────────────────────────────
+# Chrome LENTO nao e Chrome MORTO. Com a maquina sem memoria ele demora pra
+# responder, e abrir outro por cima so empilha janela na frente de quem usa o
+# computador. Se o processo dele existe, espera ate 90s antes de concluir.
+$navegadorExiste = @(Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" |
+  Where-Object { $_.CommandLine -like '*chrome-prospeccao*' -and $_.CommandLine -notlike '*--type=*' }).Count -gt 0
+if ($navegadorExiste -and -not (Porta)) {
+  Write-Host '  [1/3] O Chrome da agente existe mas esta lento. Espero ate 90s...' -ForegroundColor Yellow
+  foreach ($i in 1..30) { Start-Sleep -Seconds 3; if (Porta) { break } }
+}
 if (Porta) {
   Write-Host '  [1/3] Chrome da agente ja esta aberto.' -ForegroundColor Green
 } else {
@@ -99,13 +108,16 @@ if (Porta) {
   # --site-per-process desligado e o que mais pesa: sem ele o Chrome para de
   # criar um processo por origem. O risco de seguranca disso e o vazamento entre
   # sites, e aqui so existe UM site aberto, o Instagram.
-  Start-Process $chrome -ArgumentList @(
+  # MINIMIZADO. Ela e um robo: janela aberta na frente so atrapalha quem usa o
+  # computador. Testado em 14/09: aberto assim e com as abas em segundo plano,
+  # ele trabalha o dia inteiro sem sair do minimizado.
+  Start-Process $chrome -WindowStyle Minimized -ArgumentList @(
     "--remote-debugging-port=$porta", '--remote-debugging-address=127.0.0.1',
     "--user-data-dir=`"$perfil`"",
     '--disable-features=site-per-process,Translate,OptimizationHints,MediaRouter',
     '--disable-gpu', '--disable-extensions', '--disable-sync',
     '--disable-background-networking', '--disable-component-update',
-    '--no-default-browser-check', '--no-first-run',
+    '--no-default-browser-check', '--no-first-run', '--start-minimized',
     # Teto de memoria do JavaScript por aba. O Instagram nao precisa de mais, e
     # com teto o Chrome recolhe lixo em vez de crescer sem parar.
     # Aba em segundo plano nao pode cochilar: com as duas agentes no mesmo

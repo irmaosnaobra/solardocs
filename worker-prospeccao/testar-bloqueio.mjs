@@ -35,9 +35,28 @@ const ler = async q => {
   return r.json();
 };
 
+/** Aba nova SEM tirar o Chrome do minimizado. O /json/new joga a janela na
+ *  frente de quem esta usando o computador; o createTarget com background nao. */
+async function abaEmSegundoPlano() {
+  const v = await (await fetch(`${CFG.cdp}/json/version`)).json();
+  const br = new WebSocket(v.webSocketDebuggerUrl);
+  await new Promise((ok, erro) => { br.addEventListener('open', ok); br.addEventListener('error', erro); });
+  const targetId = await new Promise(ok => {
+    br.addEventListener('message', ev => {
+      try { const m = JSON.parse(ev.data); if (m.id === 1) ok(m.result?.targetId); } catch { }
+    });
+    br.send(JSON.stringify({ id: 1, method: 'Target.createTarget', params: { url: 'about:blank', background: true } }));
+    setTimeout(() => ok(null), 15000);
+  });
+  try { br.close(); } catch { }
+  const alvo = (await (await fetch(`${CFG.cdp}/json/list`)).json()).find(t => t.id === targetId);
+  if (!alvo) throw new Error('nao consegui abrir aba em segundo plano');
+  return alvo;
+}
+
 /** Abre um perfil que NUNCA foi contactado e ve se o compositor abre. */
 async function compositorAbre(handle) {
-  const alvo = await (await fetch(`${CFG.cdp}/json/new?about:blank`, { method: 'PUT' })).json();
+  const alvo = await abaEmSegundoPlano();
   const ws = new WebSocket(alvo.webSocketDebuggerUrl);
   let id = 0; const pend = new Map();
   ws.addEventListener('message', ev => {

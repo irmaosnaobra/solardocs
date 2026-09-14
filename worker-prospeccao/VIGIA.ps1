@@ -31,34 +31,69 @@ function Anotar($msg) {
 }
 
 # ── 1. o Chrome dela esta de pe? ─────────────────────────────────────────────
+# LENTO NAO E MORTO. Ate 14/09 este passo matava o Chrome se a porta nao
+# respondesse em 5 segundos e abria outro. Com a maquina a 0,3 GB livres o
+# Chrome demora mais que isso, entao o vigia matava um Chrome VIVO, abria outro,
+# o novo tambem demorava, e assim foram 12 reaberturas no dia, cada uma jogando
+# uma janela do Instagram na frente de quem usava o computador.
+#
+# Agora: sem processo do Chrome dela, sobe (minimizado). Com processo e porta
+# muda, conta uma falta e nao mexe. So fecha depois de 3 faltas seguidas (uns 6
+# minutos travado) e nunca um Chrome aberto ha menos de 10 minutos.
+$faltasArq = Join-Path $pasta 'vigia-chrome-faltas.txt'
 $chromeVivo = $false
-try { Invoke-RestMethod "http://127.0.0.1:$porta/json/version" -TimeoutSec 5 | Out-Null; $chromeVivo = $true } catch { }
+try { Invoke-RestMethod "http://127.0.0.1:$porta/json/version" -TimeoutSec 15 | Out-Null; $chromeVivo = $true } catch { }
 
-if (-not $chromeVivo) {
-  Anotar 'o Chrome dela nao respondeu. Subindo.'
-  # Mata resto de processo do perfil dela antes: Chrome meio morto segura a
-  # porta e o novo nao sobe.
-  Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" |
-    Where-Object { $_.CommandLine -like '*chrome-prospeccao*' } |
-    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
-  Start-Sleep -Seconds 3
+$navegador = @(Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" |
+  Where-Object { $_.CommandLine -like '*chrome-prospeccao*' -and $_.CommandLine -notlike '*--type=*' })
 
+$subir = $false
+if ($chromeVivo) {
+  if (Test-Path $faltasArq) { Remove-Item $faltasArq -Force -ErrorAction SilentlyContinue }
+}
+elseif ($navegador.Count -eq 0) {
+  Anotar 'o Chrome dela nao esta aberto. Subindo minimizado.'
+  $subir = $true
+}
+else {
+  $faltas = 1
+  try { $faltas = [int](Get-Content $faltasArq -ErrorAction Stop | Select-Object -First 1) + 1 } catch { }
+  $idadeMin = [int]((Get-Date) - $navegador[0].CreationDate).TotalMinutes
+  if ($faltas -ge 3 -and $idadeMin -ge 10) {
+    Anotar "o Chrome dela existe mas nao responde ha $faltas rodadas. Travado: fechando e subindo de novo."
+    Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" |
+      Where-Object { $_.CommandLine -like '*chrome-prospeccao*' } |
+      ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    Start-Sleep -Seconds 3
+    Remove-Item $faltasArq -Force -ErrorAction SilentlyContinue
+    $subir = $true
+  }
+  else {
+    Set-Content -Path $faltasArq -Value $faltas
+    Anotar "o Chrome dela esta lento (falta $faltas de 3, aberto ha $idadeMin min). Nao mexo."
+  }
+}
+
+if ($subir) {
   $chrome = @("${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
               "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
               "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe") |
             Where-Object { Test-Path $_ } | Select-Object -First 1
   if ($chrome) {
-    Start-Process $chrome -ArgumentList @(
+    # Minimizado e com os mesmos cortes de memoria do COMECAR.ps1.
+    Start-Process $chrome -WindowStyle Minimized -ArgumentList @(
       "--remote-debugging-port=$porta", '--remote-debugging-address=127.0.0.1',
       "--user-data-dir=`"$perfil`"",
+      '--disable-features=site-per-process,Translate,OptimizationHints,MediaRouter',
       '--disable-gpu', '--disable-extensions', '--disable-sync',
       '--disable-background-networking', '--disable-component-update',
-      '--no-default-browser-check', '--no-first-run',
+      '--no-default-browser-check', '--no-first-run', '--start-minimized',
       '--disable-background-timer-throttling', '--disable-renderer-backgrounding',
       '--disable-backgrounding-occluded-windows',
+      '--js-flags=--max-old-space-size=512',
       'https://www.instagram.com/')
     Start-Sleep -Seconds 12
-    Anotar 'Chrome subido.'
+    Anotar 'Chrome subido (minimizado).'
   } else { Anotar 'NAO ACHEI o chrome.exe.' }
 }
 

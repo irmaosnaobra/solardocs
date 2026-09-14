@@ -105,7 +105,12 @@ class Aba {
     if (!v.webSocketDebuggerUrl) throw new Error('Chrome sem porta de debug aberta');
     // Abre uma aba PRÓPRIA do worker. Nunca adota aba sua: o Chrome continua seu.
     const br = await Aba.conectar(v.webSocketDebuggerUrl);
-    const { targetId } = await br.enviar('Target.createTarget', { url: 'about:blank' });
+    // background: true é o que impede a janela de pular na frente. Sem ele, cada
+    // aba nova tirava o Chrome da agente do minimizado e roubava a tela de quem
+    // usava o computador, a cada 2 ou 3 minutos ("o Instagram fica abrindo toda
+    // hora", 14/09). Testado num Chrome descartável: com background a janela
+    // continua minimizada; sem, ela volta pra frente.
+    const { targetId } = await br.enviar('Target.createTarget', { url: 'about:blank', background: true });
     br.fechar();
     const alvos = await (await fetch(`${cdpBase}/json/list`)).json();
     const alvo = alvos.find(t => t.id === targetId);
