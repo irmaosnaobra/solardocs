@@ -405,11 +405,40 @@ export async function runSolarBoasVindasTick(opts: { dry?: boolean } = {}): Prom
     candidatos++;
     if (enviadas >= MAX_POR_TICK) continue;   // conta o que sobrou pro log de corte
 
+    // MESMA PESSOA, FICHA NOVA: marca sem mandar (ver telefoneJaRecebeu). Vem ANTES do
+    // teto da linha: fechar ficha repetida não manda nada, então não gasta a linha e
+    // não pode ficar presa esperando ela abrir (a 1053 esperou 7 horas assim em 14/09).
+    const chaveTel = ficha.telefone_norm || tel;
+    if (!opts.dry) {
+      let repetido = telefonesDaRodada.has(chaveTel);
+      if (!repetido) {
+        try {
+          repetido = await telefoneJaRecebeu(ficha);
+        } catch (e) {
+          // Sem conseguir conferir, não manda: repetir as bolhas pra mesma pessoa custa
+          // mais que esperar a próxima rodada.
+          logger.error('solar-boas-vindas', 'conferir telefone já atendido falhou, não envia nesta rodada', { id: ficha.id, erro: String(e) });
+          erros++;
+          continue;
+        }
+      }
+      if (repetido) {
+        candidatos--;
+        await marcarSemEnviar(ficha.id);
+        continue;
+      }
+    }
+
     // Teto anti-ban da linha, compartilhado com a Bia, o followup e o resto.
     // Este agente ficava FORA dele ("é transacional") — mesma decisão que, no
     // agente do eletroposto, bloqueou o 5040 pela 2ª vez em 04/08. Uma pessoa
     // aqui custa 6 mensagens; estourar o teto é barato e sai caro.
-    if (!opts.dry && !(await dentroDoTetoHorarioLinha({ transacional: true })  /* boas-vindas de quem acabou de se cadastrar */)) {
+    // PISO DO DIA de 200, o mesmo da agenda do eletroposto e da Giovanna, que também
+    // são transacionais. Sem ele, em 14/09/2026 a agenda do eletroposto sozinha somou
+    // 65 envios em 24h, o teto do dia vivia cheio e as boas-vindas não saíam: 1 envio
+    // em 24h e lead novo esperando 6 horas. O teto por HORA continua valendo, e é ele
+    // que segura rajada; o volume daqui é o de cadastros (3 em 30 horas).
+    if (!opts.dry && !(await dentroDoTetoHorarioLinha({ transacional: true, pisoDia: 200 })  /* boas-vindas de quem acabou de se cadastrar */)) {
       logger.info('solar-boas-vindas', 'teto da linha estourado — fica pro próximo tick', { esperando: candidatos - enviadas });
       // Deixa RASTRO, uma vez por hora. O logger.info só vai pro console da Vercel,
       // que não guarda histórico: de 01 a 05/09/2026 as boas-vindas pararam 4 dias e
@@ -440,26 +469,6 @@ export async function runSolarBoasVindasTick(opts: { dry?: boolean } = {}): Prom
         bolhas,
       });
       enviadas++;
-      continue;
-    }
-
-    // MESMA PESSOA, FICHA NOVA: marca sem mandar (ver telefoneJaRecebeu).
-    const chaveTel = ficha.telefone_norm || tel;
-    let repetido = telefonesDaRodada.has(chaveTel);
-    if (!repetido) {
-      try {
-        repetido = await telefoneJaRecebeu(ficha);
-      } catch (e) {
-        // Sem conseguir conferir, não manda: repetir as bolhas pra mesma pessoa custa
-        // mais que esperar a próxima rodada.
-        logger.error('solar-boas-vindas', 'conferir telefone já atendido falhou, não envia nesta rodada', { id: ficha.id, erro: String(e) });
-        erros++;
-        continue;
-      }
-    }
-    if (repetido) {
-      candidatos--;
-      await marcarSemEnviar(ficha.id);
       continue;
     }
 

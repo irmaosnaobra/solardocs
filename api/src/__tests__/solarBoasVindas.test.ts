@@ -387,6 +387,28 @@ describe('teto anti-ban da linha', () => {
     expect((await tick({ dry: true })).enviadas).toBe(1);
     expect(carimbos).toHaveLength(0);
   });
+
+  // 14/09/2026: a agenda do eletroposto (piso 200) somou 65 envios em 24h e as
+  // boas-vindas, sem piso, ficaram paradas o dia inteiro atrás do teto do dia.
+  it('passa pelo teto com o mesmo piso do dia dos outros transacionais', async () => {
+    const { dentroDoTetoHorarioLinha } = await import('../services/agents/whatsapp/lineThrottle');
+    vi.mocked(dentroDoTetoHorarioLinha).mockClear();
+    await tick();
+    expect(dentroDoTetoHorarioLinha).toHaveBeenCalledWith({ transacional: true, pisoDia: 200 });
+  });
+
+  // Fechar ficha de telefone repetido não manda nada: não pode esperar a linha abrir.
+  it('telefone repetido é fechado mesmo com a linha cheia', async () => {
+    tetoLivre = false;
+    fichas = [
+      ficha({ id: 1, telefone_norm: '3491110001', created_at: minutosAtras(60 * 24 * 3), boas_vindas_at: minutosAtras(60 * 24 * 3) }),
+      ficha({ id: 2, telefone_norm: '3491110001' }),
+    ];
+    expect((await tick()).enviadas).toBe(0);
+    expect(enviadas).toHaveLength(0);
+    expect(fichas[1].boas_vindas_at).not.toBeNull();
+    expect(estado.has('solar_bv_dedup:2')).toBe(true);
+  });
 });
 
 describe('o switch', () => {
