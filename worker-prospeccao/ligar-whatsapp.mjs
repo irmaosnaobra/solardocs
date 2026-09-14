@@ -15,6 +15,7 @@
    derrubar um número, então ela nunca sai de um número que faz outra coisa.
    Os números estão como hash porque este repositório é público.
    ───────────────────────────────────────────────────────────────────────────── */
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { writeFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -23,9 +24,11 @@ const CDP   = process.env.CHROME_CDP || 'http://127.0.0.1:9222';
 const SUPA  = 'https://ancecdfqfwlaujknizof.supabase.co/rest/v1';
 const KEY   = process.env.SUPA_KEY || 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6';
 const MARCA = fileURLToPath(new URL('./whatsapp-ligado.flag', import.meta.url));
-// Enquanto existe, o minimizar-chrome.mjs deixa a janela na frente: o QR precisa
-// ficar visível. Some ao fechar a aba (e vence sozinha em 15 min).
+// Enquanto existem, o vigia não esconde o Chrome: o QR precisa ficar na tela.
+// Somem ao fechar a aba (e vencem sozinhas, 15 e 30 min).
 const MARCA_QR = fileURLToPath(new URL('./qr-aberto.flag', import.meta.url));
+const MARCA_VISIVEL = fileURLToPath(new URL('./chrome-visivel.flag', import.meta.url));
+const ABRIR = fileURLToPath(new URL('./abrir-chrome-agente.ps1', import.meta.url));
 const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' };
 
 // sha256 do número sem o 55 (DDD + número).
@@ -38,13 +41,22 @@ const dorme = ms => new Promise(r => setTimeout(r, ms));
 const diga = (...a) => console.log('  ' + a.join(' '));
 
 async function main() {
-  try { await (await fetch(CDP + '/json/version')).json(); }
-  catch {
-    diga('O Chrome da agente não está aberto. Espere 2 minutos (o vigia sobe ele) e rode de novo.');
+  // O Chrome da agente mora numa área de trabalho escondida, onde ninguém vê o
+  // QR. Pra ler, ele reabre NA TELA. Quando a aba fecha, as marcas somem e o
+  // vigia devolve o Chrome pro escondido.
+  writeFileSync(MARCA_QR, new Date().toISOString());
+  diga('Trazendo o Chrome da agente pra tela...');
+  spawnSync('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ABRIR, '-Mostrar'], { stdio: 'ignore' });
+  let pronto = false;
+  for (let i = 0; i < 60 && !pronto; i++) {
+    try { await (await fetch(CDP + '/json/version')).json(); pronto = true; }
+    catch { await dorme(1000); }
+  }
+  if (!pronto) {
+    rmSync(MARCA_QR, { force: true });
+    diga('O Chrome da agente não abriu. Rode de novo em 2 minutos.');
     process.exit(1);
   }
-
-  writeFileSync(MARCA_QR, new Date().toISOString());
   const alvo = await (await fetch(CDP + '/json/new?https://web.whatsapp.com/', { method: 'PUT' })).json();
   const ws = new WebSocket(alvo.webSocketDebuggerUrl);
   let id = 0; const pend = new Map();
@@ -60,6 +72,7 @@ async function main() {
     { expression: e, returnByValue: true, awaitPromise: true })).result?.result?.value;
   const fechar = async () => {
     rmSync(MARCA_QR, { force: true });
+    rmSync(MARCA_VISIVEL, { force: true });
     try { await fetch(`${CDP}/json/close/${alvo.id}`); } catch { }
     try { ws.close(); } catch { }
   };

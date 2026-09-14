@@ -37,7 +37,7 @@ function Anotar($msg) {
 # o novo tambem demorava, e assim foram 12 reaberturas no dia, cada uma jogando
 # uma janela do Instagram na frente de quem usava o computador.
 #
-# Agora: sem processo do Chrome dela, sobe (minimizado). Com processo e porta
+# Agora: sem processo do Chrome dela, sobe (escondido). Com processo e porta
 # muda, conta uma falta e nao mexe. So fecha depois de 3 faltas seguidas (uns 6
 # minutos travado) e nunca um Chrome aberto ha menos de 10 minutos.
 $faltasArq = Join-Path $pasta 'vigia-chrome-faltas.txt'
@@ -52,7 +52,7 @@ if ($chromeVivo) {
   if (Test-Path $faltasArq) { Remove-Item $faltasArq -Force -ErrorAction SilentlyContinue }
 }
 elseif ($navegador.Count -eq 0) {
-  Anotar 'o Chrome dela nao esta aberto. Subindo minimizado.'
+  Anotar 'o Chrome dela nao esta aberto. Subindo escondido.'
   $subir = $true
 }
 else {
@@ -74,37 +74,58 @@ else {
   }
 }
 
-# Mesmo aberto do jeito certo o Chrome volta pra tela: o perfil reabre no tamanho
-# da ultima janela, e um clique sem querer na barra de tarefas tambem traz. A
-# cada rodada, se estiver na tela, minimiza. Quieto quando ja esta minimizado.
-if ($chromeVivo) {
-  $saida = (& node (Join-Path $pasta 'minimizar-chrome.mjs') 2>&1) -join ' '
-  if ($saida) { Anotar $saida }
+# ── 1b. escondido, e nao na tela de quem usa o computador ────────────────────
+# O Chrome dela mora numa area de trabalho escondida do Windows (ver
+# abrir-chrome-agente.ps1). Minimizar nao bastou: em 14/09 a janela aparecia a
+# cada reabertura, o dono fechava (o perfil registrou saida NORMAL, nenhum
+# travamento), o vigia reabria e o ciclo recomecava.
+#
+# Se ele estiver na SUA tela e porque alguem pediu pra ver (MOSTRAR-CHROME,
+# LIGAR-WHATSAPP) ou porque subiu pelo caminho velho. Vencida a marca, volta
+# pro escondido sozinho.
+$marcaVisivel = Join-Path $pasta 'chrome-visivel.flag'
+$marcaQr      = Join-Path $pasta 'qr-aberto.flag'
+function Recente([string]$arq, [int]$min) {
+  (Test-Path $arq) -and (((Get-Date) - (Get-Item $arq).LastWriteTime).TotalMinutes -lt $min)
+}
+if ($chromeVivo -and -not (Recente $marcaVisivel 30) -and -not (Recente $marcaQr 15)) {
+  if (-not ('TelaDoVigia' -as [type])) {
+    Add-Type @"
+using System; using System.Runtime.InteropServices;
+public class TelaDoVigia {
+  public delegate bool EnumProc(IntPtr h, IntPtr l);
+  [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc cb, IntPtr l);
+  [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+}
+"@
+  }
+  # EnumWindows so enxerga a area de trabalho de quem pergunta, que e a da tela.
+  # Chrome escondido nao aparece aqui nem que queira.
+  $pidsAgente = @(Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" |
+    Where-Object { $_.CommandLine -like '*chrome-prospeccao*' } | ForEach-Object { [uint32]$_.ProcessId })
+  $naTela = New-Object System.Collections.ArrayList
+  [TelaDoVigia]::EnumWindows({ param($h, $l)
+    if ([TelaDoVigia]::IsWindowVisible($h)) {
+      $p = [uint32]0
+      [void][TelaDoVigia]::GetWindowThreadProcessId($h, [ref]$p)
+      if ($pidsAgente -contains $p) { [void]$naTela.Add($h) }
+    }
+    $true }, [IntPtr]::Zero) | Out-Null
+  if ($naTela.Count -gt 0) {
+    Anotar "o Chrome dela esta na SUA tela ($($naTela.Count) janela). Passando pra area de trabalho escondida."
+    Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" |
+      Where-Object { $_.CommandLine -like '*chrome-prospeccao*' } |
+      ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    Start-Sleep -Seconds 3
+    Remove-Item $marcaVisivel -Force -ErrorAction SilentlyContinue
+    $subir = $true
+  }
 }
 
 if ($subir) {
-  $chrome = @("${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
-              "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
-              "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe") |
-            Where-Object { Test-Path $_ } | Select-Object -First 1
-  if ($chrome) {
-    # Minimizado e com os mesmos cortes de memoria do COMECAR.ps1.
-    Start-Process $chrome -WindowStyle Minimized -ArgumentList @(
-      "--remote-debugging-port=$porta", '--remote-debugging-address=127.0.0.1',
-      "--user-data-dir=`"$perfil`"",
-      '--disable-features=site-per-process,Translate,OptimizationHints,MediaRouter',
-      '--disable-gpu', '--disable-extensions', '--disable-sync',
-      '--disable-background-networking', '--disable-component-update',
-      '--no-default-browser-check', '--no-first-run', '--start-minimized',
-      '--disable-background-timer-throttling', '--disable-renderer-backgrounding',
-      '--disable-backgrounding-occluded-windows',
-      '--js-flags=--max-old-space-size=512',
-      'https://www.instagram.com/')
-    # O perfil guarda o tamanho da ultima janela e reabre nele, por cima do
-    # --start-minimized. Minimiza assim que a porta responder.
-    $saida = (& node (Join-Path $pasta 'minimizar-chrome.mjs') '--esperar=40' 2>&1) -join ' '
-    Anotar "Chrome subido. $saida"
-  } else { Anotar 'NAO ACHEI o chrome.exe.' }
+  $saida = (& (Join-Path $pasta 'abrir-chrome-agente.ps1') 2>&1) -join ' '
+  Anotar $saida
 }
 
 # ── 2 e 3. cada agente de pe, e so uma de cada ───────────────────────────────

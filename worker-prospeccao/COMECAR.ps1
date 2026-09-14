@@ -92,47 +92,14 @@ if (Porta) {
   Write-Host '  [1/3] Chrome da agente ja esta aberto.' -ForegroundColor Green
 } else {
   Write-Host '  [1/3] Abrindo o Chrome da agente...' -ForegroundColor Yellow
-  $chrome = @(
-    "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
-    "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
-    "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe"
-  ) | Where-Object { Test-Path $_ } | Select-Object -First 1
-  if (-not $chrome) { Parar 'Nao achei o chrome.exe. Me avise que eu procuro junto.' }
-
-  # O Chrome dela e um robo, nao a sua navegacao: nao precisa de GPU, nem de
-  # traducao, nem de sincronizacao, nem de processo separado por site. Num
-  # notebook de 16 GB que ja vive com 1 GB livre, cada coisa dessas e o que
-  # decide se ele sobrevive ao dia. Em 13/09 o Windows matou este Chrome por
-  # falta de memoria e a agente passou dois dias parada sem saber.
-  #
-  # --site-per-process desligado e o que mais pesa: sem ele o Chrome para de
-  # criar um processo por origem. O risco de seguranca disso e o vazamento entre
-  # sites, e aqui so existe UM site aberto, o Instagram.
-  # MINIMIZADO. Ela e um robo: janela aberta na frente so atrapalha quem usa o
-  # computador. Testado em 14/09: aberto assim e com as abas em segundo plano,
-  # ele trabalha o dia inteiro sem sair do minimizado.
-  Start-Process $chrome -WindowStyle Minimized -ArgumentList @(
-    "--remote-debugging-port=$porta", '--remote-debugging-address=127.0.0.1',
-    "--user-data-dir=`"$perfil`"",
-    '--disable-features=site-per-process,Translate,OptimizationHints,MediaRouter',
-    '--disable-gpu', '--disable-extensions', '--disable-sync',
-    '--disable-background-networking', '--disable-component-update',
-    '--no-default-browser-check', '--no-first-run', '--start-minimized',
-    # Teto de memoria do JavaScript por aba. O Instagram nao precisa de mais, e
-    # com teto o Chrome recolhe lixo em vez de crescer sem parar.
-    # Aba em segundo plano nao pode cochilar: com as duas agentes no mesmo
-    # Chrome, sempre uma delas esta numa aba escondida, e o Chrome segura o
-    # relogio de aba escondida em uma vez por minuto.
-    '--disable-background-timer-throttling', '--disable-renderer-backgrounding',
-    '--disable-backgrounding-occluded-windows',
-    '--js-flags=--max-old-space-size=512',
-    'https://www.instagram.com/'
-  )
+  # Numa area de trabalho escondida do Windows: ela e um robo, e janela de robo
+  # na frente de quem usa o computador e defeito (14/09, "o Instagram fica
+  # abrindo toda hora"). Os cortes de memoria moram no abrir-chrome-agente.ps1.
+  $saida = (& (Join-Path $PSScriptRoot 'abrir-chrome-agente.ps1') 2>&1) -join ' '
+  Write-Host "        $saida" -ForegroundColor DarkGray
   foreach ($i in 1..40) { Start-Sleep -Milliseconds 700; if (Porta) { break } }
   if (-not (Porta)) { Parar 'O Chrome abriu mas a porta nao respondeu. Feche TODAS as janelas do Chrome e clique aqui de novo.' }
   Write-Host '        Chrome aberto.' -ForegroundColor Green
-  # O perfil reabre no tamanho da ultima janela, por cima do --start-minimized.
-  & node (Join-Path $PSScriptRoot 'minimizar-chrome.mjs') '--esperar=20' | Out-Null
 }
 
 # ── 2. sessão do Instagram ───────────────────────────────────────────────────
@@ -148,7 +115,7 @@ if ($canal -eq 'instagram') {
     }
     if ($i -eq 1) {
       Write-Host ''
-      Write-Host '        >>> ENTRE NA CONTA DO INSTAGRAM NA JANELA DO CHROME <<<' -ForegroundColor Yellow
+      Write-Host '        >>> DESLOGADA: abra o MOSTRAR-CHROME e entre na conta do Instagram <<<' -ForegroundColor Yellow
       Write-Host '        (eu espero aqui — assim que voce logar, comeco sozinho)' -ForegroundColor DarkGray
       Write-Host ''
     }

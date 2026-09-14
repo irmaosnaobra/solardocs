@@ -4,4 +4,5 @@ colheita.log
 whatsapp-ligado.flag
 # Marcas de estado local: QR do WhatsApp na tela e faltas seguidas do Chrome.
 qr-aberto.flag
+chrome-visivel.flag
 vigia-chrome-faltas.txt
