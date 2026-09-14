@@ -126,7 +126,10 @@ async function main() {
   await fechar();
   diga('');
   diga(`PRONTO. WhatsApp final ${numero.slice(-4)} ligado à prospecção.`);
-  diga('Ele começa em 5 empresas por dia e sobe sozinho enquanto ninguém reclamar.');
+  // O teto fica TRAVADO em 5 (prospeccao_rampa.teto_manual). A rampa automática
+  // da view pularia pra 25 e 50 por dia em duas semanas, que é o ritmo que já
+  // derrubou o Instagram e a linha IO. Subir é na mão, olhando as respostas.
+  diga('Ele manda para 5 empresas por dia. Subir (até 10) é decisão tomada olhando as respostas.');
   process.exit(0);
 }
 
