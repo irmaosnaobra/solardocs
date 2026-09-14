@@ -21,13 +21,18 @@ export default function EsqueciSenhaForm() {
     }
     setLoading(true);
     try {
-      // Backend SEMPRE retorna sucesso (mesmo se email não existir) — anti-enumeration.
+      // O backend responde igual exista ou não o e-mail (anti-enumeração). Por isso
+      // erro aqui é servidor ou rede falhando, e aí a pessoa NÃO pode ir pra tela de
+      // "enviamos o link": ficaria esperando um e-mail que não saiu.
       await api.post('/auth/forgot-password', { email });
-    } catch {
-      // Falha de rede silenciosa — segue pro email-sent (não vazar nada).
+      router.push(`/auth?mode=email-sent&e=${encodeURIComponent(email)}`);
+    } catch (err) {
+      const e = err as { response?: { data?: { error?: string } } };
+      setError(e.response
+        ? (e.response.data?.error || 'Não deu certo agora. Tenta de novo em instantes.')
+        : 'Não conseguimos conectar. Tenta de novo em instantes.');
     } finally {
       setLoading(false);
-      router.push(`/auth?mode=email-sent&e=${encodeURIComponent(email)}`);
     }
   }
 

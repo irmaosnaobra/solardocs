@@ -754,12 +754,12 @@ export default function PropostaSolarPage() {
   }
 
   // Identificador público preferencial:
-  //  1. slug.codigo_curto (irmaosnaobra.20260001) — novo padrão, mais bonito
-  //  2. codigo de 12-dig (YYYYUUUUNNNN) — legacy
-  //  3. UUID — fallback
+  //  1. slug.codigo_curto (irmaosnaobra.20260001), o padrão
+  //  2. UUID, quando a proposta saiu sem número
+  // O código de 12 dígitos (YYYYUUUUNNNN) não abre nada: /p/<12 dígitos> dava 404.
   const publicId = (generated?.empresa_slug && generated?.codigo_curto)
     ? `${generated.empresa_slug}.${generated.codigo_curto}`
-    : (generated?.codigo || generated?.doc_id);
+    : generated?.doc_id;
 
   function handleCopyLink() {
     if (!publicId) return;

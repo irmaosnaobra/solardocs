@@ -66,7 +66,11 @@ function RedefinirSenhaContent() {
       }
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
-      setError(e.response?.data?.error || 'Esse link expirou ou já foi usado. Solicita um novo abaixo.');
+      // Sem resposta é rede, não link vencido. Dizer "expirou" aqui mandava a pessoa
+      // pedir outro link à toa, e o link novo mata o anterior.
+      setError(e.response
+        ? (e.response.data?.error || 'Esse link expirou ou já foi usado. Solicita um novo abaixo.')
+        : 'Não conseguimos conectar. Tenta de novo em instantes.');
     } finally {
       setLoading(false);
     }

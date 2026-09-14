@@ -280,37 +280,79 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [companyNome, setCompanyNome] = useState<string | null>(null);
 
+  // Rede ou servidor fora do ar NÃO é sessão inválida. Antes, qualquer erro no
+  // /auth/me mandava pro login SEM apagar o cookie, e o proxy.ts devolve quem tem
+  // cookie pro painel: laço de ida e volta enquanto o banco falhasse (visto ao vivo
+  // em 14/09/2026). Agora sessão inválida (401) vai pro login pelo interceptor do
+  // api.ts, e falha de servidor mostra aviso com "Tentar de novo".
+  const [erroCarga, setErroCarga] = useState(false);
+  // Aviso visível já na primeira falha: sem ele a pessoa olhava um spinner mudo por
+  // dezenas de segundos durante uma instabilidade e recarregava a página.
+  const [tentandoDeNovo, setTentandoDeNovo] = useState(false);
+
   // forceHasCompany: admin navega livre mesmo sem CNPJ; não rebaixar hasCompany
   // por causa da resposta da empresa (mas ainda pegamos logo e nome pra UI).
   const fetchCompany = useCallback((forceHasCompany = false) => {
-    api.get('/company').then(({ data }) => {
+    // Timeout: um gateway pendurado segurava o spinner até o limite da função.
+    api.get('/company', { timeout: 12000 }).then(({ data }) => {
       setHasCompany(forceHasCompany || !!data.company?.cnpj);
       setCompanyLogo(data.company?.logo_base64 || null);
       setCompanyNome(data.company?.nome || null);
-    }).catch(() => {}).finally(() => setCompanyLoaded(true));
+      setCompanyLoaded(true);
+    }).catch((err) => {
+      const status = (err as { response?: { status?: number } }).response?.status;
+      // Sem resposta ou 5xx: o muro de CNPJ não pode ser decidido com dado que não
+      // chegou, senão quem tem CNPJ cai na tela de cadastrar empresa.
+      // 429 (limite de requisições) e 408 também são passageiros.
+      if (!status || status >= 500 || status === 429 || status === 408) { setErroCarga(true); return; }
+      setCompanyLoaded(true);
+    });
   }, []);
+
+  // Estado só muda depois de um await: o efeito da montagem chama isto, e setState
+  // síncrono dentro de efeito renderiza em cascata. Quem zera o erro é o botão.
+  const carregarSessao = useCallback(async () => {
+    // Duas tentativas no front: a API já repete a leitura uma vez por dentro.
+    for (let tentativa = 0; tentativa < 2; tentativa++) {
+      try {
+        // Timeout: um gateway pendurado segurava o spinner até o limite da função.
+        const { data } = await api.get('/auth/me', { timeout: 12000 });
+        setUser(data.user);
+        // Admin sempre navega livre (não precisa de CNPJ), mas ainda buscamos a
+        // empresa pra ter o nome dela na saudação (senão companyNome fica null e
+        // a saudação cairia no prefixo do email).
+        fetchCompany(!!data.user?.is_admin);
+        return;
+      } catch (err) {
+        const status = (err as { response?: { status?: number } }).response?.status;
+        // Só 401 encerra a sessão, e quem faz isso é o interceptor do api.ts. 404 (API
+        // antiga durante o deploy), 429 (limite de requisições) e 5xx são passageiros:
+        // apagar o cookie aqui deslogava gente com sessão válida.
+        if (status === 401) return;
+        setTentandoDeNovo(true);
+        if (tentativa === 0) await new Promise((ok) => setTimeout(ok, 2000));
+      }
+    }
+    setTentandoDeNovo(false);
+    setErroCarga(true);
+  }, [fetchCompany, setUser]);
 
   useEffect(() => {
     if (!isAuthenticated()) {
       router.push('/auth?mode=login');
       return;
     }
-    api.get('/auth/me').then(({ data }) => {
-      setUser(data.user);
-      // Admin sempre navega livre (não precisa de CNPJ), mas ainda buscamos a
-      // empresa pra ter o nome dela na saudação (senão companyNome fica null e
-      // a saudação cairia no prefixo do email). Re-força hasCompany=true depois.
-      if (data.user?.is_admin) {
-        fetchCompany(true); // força hasCompany=true, mas pega nome/logo da empresa
-        return;
-      }
-      fetchCompany();
-    }).catch(() => router.push('/auth?mode=login'));
+    // Fora do corpo síncrono do efeito: carregarSessao mexe em estado, e chamar direto
+    // daqui renderiza em cascata. O clearTimeout evita a chamada dupla do StrictMode.
+    const inicio = setTimeout(() => { void carregarSessao(); }, 0);
 
     const handler = () => fetchCompany();
     window.addEventListener('company-saved', handler);
-    return () => window.removeEventListener('company-saved', handler);
-  }, [router, fetchCompany, setUser]);
+    return () => {
+      clearTimeout(inicio);
+      window.removeEventListener('company-saved', handler);
+    };
+  }, [router, fetchCompany, carregarSessao]);
 
   useEffect(() => {
     const handler = () => setShowUpgrade(true);
@@ -318,13 +360,63 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('limit-reached', handler);
   }, [setShowUpgrade]);
 
+  if (erroCarga && (!user || !companyLoaded)) {
+    return (
+      <div role="alert" style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 12,
+        minHeight: '100vh',
+        padding: '0 24px',
+        textAlign: 'center',
+        background: 'var(--color-bg)',
+      }}>
+        <p style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--color-text)' }}>
+          O SolarDoc não respondeu agora.
+        </p>
+        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: 'var(--color-text-muted)', maxWidth: 340 }}>
+          Sua conta está normal. É uma instabilidade momentânea, tente de novo em instantes.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setErroCarga(false);
+            if (user) fetchCompany(!!user.is_admin);
+            else carregarSessao();
+          }}
+          style={{
+            marginTop: 8,
+            minHeight: 44,
+            padding: '0 24px',
+            border: 'none',
+            borderRadius: 10,
+            background: 'var(--color-primary)',
+            color: '#0f172a',
+            fontSize: 15,
+            fontWeight: 700,
+            fontFamily: 'inherit',
+            cursor: 'pointer',
+          }}
+        >
+          Tentar de novo
+        </button>
+      </div>
+    );
+  }
+
   if (!user || !companyLoaded) {
     return (
       <div style={{
         display: 'flex',
+        flexDirection: 'column',
+        gap: 14,
         alignItems: 'center',
         justifyContent: 'center',
         height: '100vh',
+        padding: '0 24px',
+        textAlign: 'center',
         background: 'var(--color-bg)',
       }}>
         <div style={{
@@ -335,6 +427,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           borderRadius: '50%',
           animation: 'sd-spin 0.8s linear infinite',
         }} />
+        {tentandoDeNovo && (
+          <p role="status" style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: 'var(--color-text-muted)', maxWidth: 320 }}>
+            O SolarDoc está demorando pra responder. Tentando de novo...
+          </p>
+        )}
         <style>{`@keyframes sd-spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );

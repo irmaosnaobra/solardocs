@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -43,8 +43,28 @@ const PLATAFORMA = '/documentos?tipo=proposta';
 export default function InicioPage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
+  const [falhou, setFalhou] = useState(false);
   const [empresa, setEmpresa] = useState('');
   const [logo, setLogo] = useState<string | null>(null);
+
+  // Só vale pra quem tem empresa cadastrada; sem CNPJ → finalizar cadastro.
+  // Falha de servidor ou de rede NÃO é "sem CNPJ": antes qualquer erro mandava pra
+  // /empresa, e quem tem empresa caía na tela de cadastrar durante uma instabilidade.
+  // Só mexe em estado dentro do retorno da chamada: o efeito da montagem chama isto, e
+  // setState síncrono dentro de efeito renderiza em cascata.
+  const carregar = useCallback(() => {
+    api.get('/company', { timeout: 12000 }).then(({ data }) => {
+      const c = data?.company;
+      if (!c?.cnpj) { router.replace('/empresa'); return; }
+      setEmpresa(c.nome_fantasia || c.nome || 'Minha Empresa');
+      setLogo(c.logo_base64 || null);
+      setReady(true);
+    }).catch((err) => {
+      // 401: o interceptor do api.ts já apagou a sessão e mandou pro login.
+      if ((err as { response?: { status?: number } }).response?.status === 401) return;
+      setFalhou(true);
+    });
+  }, [router]);
 
   useEffect(() => {
     // No PC, nada muda: cai direto na plataforma (o atalho é só de celular).
@@ -53,15 +73,31 @@ export default function InicioPage() {
       return;
     }
     if (!isAuthenticated()) { router.replace('/auth?mode=login'); return; }
-    // Só vale pra quem tem empresa cadastrada; sem CNPJ → finalizar cadastro.
-    api.get('/company').then(({ data }) => {
-      const c = data?.company;
-      if (!c?.cnpj) { router.replace('/empresa'); return; }
-      setEmpresa(c.nome_fantasia || c.nome || 'Minha Empresa');
-      setLogo(c.logo_base64 || null);
-      setReady(true);
-    }).catch(() => { router.replace('/empresa'); });
-  }, [router]);
+    carregar();
+  }, [router, carregar]);
+
+  if (falhou) {
+    return (
+      <div role="alert" style={{
+        minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center',
+        justifyContent: 'center', gap: 12, padding: '0 24px', textAlign: 'center', background: 'var(--color-bg)',
+      }}>
+        <p style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--color-text)' }}>
+          O SolarDoc não respondeu agora.
+        </p>
+        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5, color: 'var(--color-text-muted)', maxWidth: 340 }}>
+          Sua conta está normal. É uma instabilidade momentânea, tente de novo em instantes.
+        </p>
+        <button type="button" onClick={() => { setFalhou(false); carregar(); }} style={{
+          marginTop: 8, minHeight: 44, padding: '0 24px', border: 'none', borderRadius: 10,
+          background: 'var(--color-primary)', color: '#0f172a', fontSize: 15, fontWeight: 700,
+          fontFamily: 'inherit', cursor: 'pointer',
+        }}>
+          Tentar de novo
+        </button>
+      </div>
+    );
+  }
 
   if (!ready) {
     return <div className="ini-loading"><div className="ini-spin" /></div>;

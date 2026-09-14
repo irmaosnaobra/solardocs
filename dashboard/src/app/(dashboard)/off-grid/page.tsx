@@ -437,7 +437,7 @@ export default function OffGridPage() {
   const linkPublico = doc
     ? (doc.empresa_slug && doc.codigo_curto
         ? `${typeof window !== 'undefined' ? window.location.origin : ''}/p/${doc.empresa_slug}.${doc.codigo_curto}`
-        : `${typeof window !== 'undefined' ? window.location.origin : ''}/p/${doc.codigo || doc.doc_id}`)
+        : `${typeof window !== 'undefined' ? window.location.origin : ''}/p/${doc.doc_id}`)
     : '';
 
   function copiarLink() {
