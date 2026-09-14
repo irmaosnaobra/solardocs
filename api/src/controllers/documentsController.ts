@@ -847,38 +847,104 @@ function limpaDados(d: Record<string, unknown>, soKit: boolean): Record<string, 
   return out;
 }
 
+/** Nome comparável: sem acento, sem diferença de maiúscula, com espaço único.
+ *  "PAROQUIA DE SÃO JOSÉ" e "paroquia de sao jose" são o mesmo cliente. */
+function nomeComparavel(nome: string | null | undefined): string {
+  return String(nome || '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+// Mesma lista do formulário (TIPOS_TELHADO em PropostaSolarForm.tsx). Telhado do
+// cadastro fora dela ("Fibromadeira") não entra: a proposta não tem essa opção.
+const TIPOS_TELHADO_PROPOSTA = ['Cerâmico', 'Fibrocimento', 'Metálico', 'Cimento', 'Laje', 'Solo', 'Carport'];
+
+interface ClienteCadastro {
+  nome: string | null;
+  cidade: string | null;
+  uf: string | null;
+  endereco: string | null;
+  tipo_telhado: string | null;
+}
+
+/** Cliente do cadastro (tabela clients) no formato dos campos da proposta. */
+function camposDoCadastro(c: ClienteCadastro): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  let cidade = String(c.cidade || '').trim();
+  let uf = String(c.uf || '').trim().toUpperCase();
+  // O cadastro às vezes grava a UF de novo no fim da cidade ("CAMPINA GRANDE/PB").
+  const comUf = cidade.match(/^(.*?)\s*[/-]\s*([A-Za-z]{2})$/);
+  if (comUf) {
+    cidade = comUf[1].trim();
+    if (!uf) uf = comUf[2].toUpperCase();
+  }
+  if (cidade) out.cidade = cidade;
+  if (uf) out.uf = uf;
+  const endereco = String(c.endereco || '').trim();
+  if (endereco) out.endereco = endereco;
+  const telhado = TIPOS_TELHADO_PROPOSTA.find((t) => nomeComparavel(t) === nomeComparavel(c.tipo_telhado));
+  if (telhado) out.tipo_telhado = telhado;
+  return out;
+}
+
 export async function propostaPrefill(req: Request, res: Response): Promise<void> {
   const nome = String(req.query.cliente_nome || '').trim();
-  const { data, error } = await supabase
-    .from('documents')
-    .select('cliente_nome, dados_json, created_at')
-    .eq('user_id', req.userId)
-    .eq('tipo', 'propostaSolar')
-    .order('created_at', { ascending: false })
-    .limit(50);
-  if (error) {
-    logger.error('documents', 'prefill falhou', error);
+  // Duas fontes: as propostas já emitidas (tudo da última) e o CADASTRO de clientes.
+  // Até 14/09/2026 só a primeira existia: cliente cadastrado que ainda não tinha
+  // proposta nem aparecia no seletor, e escolher o nome não carregava nada. Eram 92
+  // de 174 clientes cadastrados em 30 dias, em 29 contas.
+  const [historico, cadastro] = await Promise.all([
+    supabase
+      .from('documents')
+      .select('cliente_nome, dados_json, created_at')
+      .eq('user_id', req.userId)
+      .eq('tipo', 'propostaSolar')
+      .order('created_at', { ascending: false })
+      .limit(50),
+    supabase
+      .from('clients')
+      .select('nome, cidade, uf, endereco, tipo_telhado, created_at')
+      .eq('user_id', req.userId)
+      .order('created_at', { ascending: false })
+      .limit(200),
+  ]);
+  if (historico.error) {
+    logger.error('documents', 'prefill falhou', historico.error);
     res.status(500).json({ error: 'Não consegui carregar o histórico.' });
     return;
   }
-  const docs = (data ?? []) as { cliente_nome: string | null; dados_json: Record<string, unknown> | null; created_at: string }[];
+  // Cadastro que falha não derruba o histórico: segue só com as propostas.
+  if (cadastro.error) logger.error('documents', 'prefill: ler o cadastro de clientes falhou', cadastro.error);
+
+  const docs = (historico.data ?? []) as { cliente_nome: string | null; dados_json: Record<string, unknown> | null; created_at: string }[];
+  const clientesCadastro = (cadastro.error ? [] : (cadastro.data ?? [])) as ClienteCadastro[];
 
   const kit = docs.length && docs[0].dados_json ? limpaDados(docs[0].dados_json, true) : {};
 
+  // Primeiro quem tem proposta (recarrega tudo), depois quem só está no cadastro.
   const vistos = new Set<string>();
   const clientes: string[] = [];
-  for (const d of docs) {
-    const n = (d.cliente_nome || '').trim();
-    if (n && !vistos.has(n.toLowerCase())) { vistos.add(n.toLowerCase()); clientes.push(n); }
+  for (const n of [...docs.map((d) => d.cliente_nome), ...clientesCadastro.map((c) => c.nome)]) {
+    const limpo = String(n || '').trim();
+    const chave = nomeComparavel(limpo);
+    if (limpo && !vistos.has(chave)) { vistos.add(chave); clientes.push(limpo); }
   }
 
   let cliente: Record<string, unknown> | null = null;
   if (nome) {
-    const hit = docs.find((d) => (d.cliente_nome || '').trim().toLowerCase() === nome.toLowerCase());
-    if (hit?.dados_json) cliente = limpaDados(hit.dados_json, false);
+    const chave = nomeComparavel(nome);
+    const hit = docs.find((d) => nomeComparavel(d.cliente_nome) === chave);
+    if (hit?.dados_json) {
+      cliente = limpaDados(hit.dados_json, false);
+    } else {
+      // Sem proposta anterior: vem do cadastro. Objeto vazio (e não null) quando o
+      // cadastro só tem o nome, pra tela saber que o cliente existe.
+      const doCadastro = clientesCadastro.find((c) => nomeComparavel(c.nome) === chave);
+      if (doCadastro) cliente = camposDoCadastro(doCadastro);
+    }
   }
 
-  res.json({ kit, clientes: clientes.slice(0, 50), cliente });
+  res.json({ kit, clientes: clientes.slice(0, 250), cliente });
 }
 
 export async function cleanupProDocuments(): Promise<void> {

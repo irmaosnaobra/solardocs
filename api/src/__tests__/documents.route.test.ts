@@ -337,3 +337,65 @@ describe('GET /documents/list', () => {
     expect(res.status).toBe(401);
   });
 });
+
+// ─── GET /documents/proposta-prefill ─────────────────────────────────
+describe('GET /documents/proposta-prefill', () => {
+  // Uma cadeia de consulta que termina em limit() com o resultado dado.
+  function cadeia(resultado: unknown) {
+    const q: Record<string, unknown> = {};
+    q.select = vi.fn(() => q);
+    q.eq = vi.fn(() => q);
+    q.order = vi.fn(() => q);
+    q.limit = vi.fn().mockResolvedValue(resultado);
+    return q;
+  }
+  async function mockFontes(propostas: unknown[], cadastro: unknown[]) {
+    const { supabase } = await import('../utils/supabase');
+    vi.mocked(supabase.from)
+      .mockImplementationOnce(() => cadeia({ data: propostas, error: null }) as never)
+      .mockImplementationOnce(() => cadeia({ data: cadastro, error: null }) as never);
+  }
+
+  // Até 14/09/2026 só as propostas emitidas entravam: cliente cadastrado sem proposta
+  // nem aparecia no seletor, e escolher o nome não carregava nada (92 de 174 clientes
+  // cadastrados em 30 dias).
+  it('cliente só do cadastro aparece na lista e carrega cidade, UF, endereço e telhado, sem ligar pra acento', async () => {
+    await mockFontes([], [{
+      nome: 'PAROQUIA DE SÃO JOSÉ', cidade: 'CAMPINA GRANDE/PB', uf: 'PB',
+      endereco: 'RUA CAMPOS SALES, 615', tipo_telhado: 'fibrocimento',
+    }]);
+
+    const res = await request(app)
+      .get('/documents/proposta-prefill')
+      .query({ cliente_nome: 'paroquia de sao jose' })
+      .set('Authorization', AUTH);
+
+    expect(res.status).toBe(200);
+    expect(res.body.clientes).toContain('PAROQUIA DE SÃO JOSÉ');
+    expect(res.body.cliente).toEqual({
+      cidade: 'CAMPINA GRANDE', uf: 'PB', endereco: 'RUA CAMPOS SALES, 615', tipo_telhado: 'Fibrocimento',
+    });
+  });
+
+  it('telhado que a proposta não tem fica de fora', async () => {
+    await mockFontes([], [{ nome: 'Jeziel', cidade: 'Campina Grande', uf: 'PB', endereco: null, tipo_telhado: 'Fibromadeira' }]);
+
+    const res = await request(app).get('/documents/proposta-prefill').query({ cliente_nome: 'Jeziel' }).set('Authorization', AUTH);
+
+    expect(res.body.cliente).toEqual({ cidade: 'Campina Grande', uf: 'PB' });
+  });
+
+  it('cliente com proposta continua trazendo tudo da última proposta, sem o número dela', async () => {
+    await mockFontes(
+      [{ cliente_nome: 'João da Silva', created_at: '2026-09-10T12:00:00Z', dados_json: { consumo_kwh: '500', cidade: 'Uberlândia', uf: 'MG', codigo: '20260010' } }],
+      [{ nome: 'JOAO DA SILVA', cidade: 'Outra', uf: 'SP', endereco: null, tipo_telhado: null }],
+    );
+
+    const res = await request(app).get('/documents/proposta-prefill').query({ cliente_nome: 'joão da silva' }).set('Authorization', AUTH);
+
+    expect(res.status).toBe(200);
+    expect(res.body.clientes).toEqual(['João da Silva']);
+    expect(res.body.cliente).toMatchObject({ consumo_kwh: '500', cidade: 'Uberlândia', uf: 'MG' });
+    expect(res.body.cliente.codigo).toBeUndefined();
+  });
+});
