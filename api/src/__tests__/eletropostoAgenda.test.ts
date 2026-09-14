@@ -418,7 +418,7 @@ describe('o que ele fala', () => {
     const { bolhasConfirmacao } = await mod();
     // O pior caso mora na 1ª bolha e é o mais longo que a régua consegue montar:
     // nome grande + o fallback "nosso consultor" + "segunda-feira" (o dia de nome
-    // mais comprido). Ela fecha em 156 de 160 — margem curta de propósito, e é
+    // mais comprido). Ela fecha em 145 de 160 — margem curta de propósito, e é
     // exatamente por isso que este teste existe.
     for (const partes of [
       bolhasConfirmacao('Irineu', '2026-08-05T18:30:00.000Z', 'Diego', '5534991360172'),
@@ -444,7 +444,7 @@ describe('o que ele fala', () => {
   // viu. Sem remetente é o cenário do "não solicitei nenhum serviço".
   it('a confirmação se apresenta pela marca', async () => {
     const { bolhasConfirmacao } = await mod();
-    expect(bolhasConfirmacao('Irineu', '2026-08-05T18:30:00.000Z', 'Diego')[0]).toContain('Irmãos na Obra');
+    expect(bolhasConfirmacao('Irineu', '2026-08-05T18:30:00.000Z', 'Diego')[0]).toContain('NEXUS Eletropostos');
   });
 
   // Sem número cadastrado não dá pra mandar salvar contato nenhum — a frase

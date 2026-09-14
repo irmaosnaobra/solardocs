@@ -377,8 +377,8 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
     const primeiroNome = String(body.senderName || body.pushname || '').trim().split(/\s+/)[0];
     const bolhas = [
       primeiroNome
-        ? `Oi ${primeiroNome}! Aqui é da Irmãos na Obra. Vi que você pediu pra entrar no grupo do Eletroposto.`
-        : 'Oi! Aqui é da Irmãos na Obra. Vi que você pediu pra entrar no grupo do Eletroposto.',
+        ? `Oi ${primeiroNome}! Aqui é da NEXUS Eletropostos. Vi que você pediu pra entrar no grupo do Eletroposto.`
+        : 'Oi! Aqui é da NEXUS Eletropostos. Vi que você pediu pra entrar no grupo do Eletroposto.',
       `Entrada gratuita, é só entrar por aqui:\n${link}`,
       'Lá dentro a gente publica o faturamento real de cada ponto que instala, como avaliar um local antes de fechar e o caminho do financiamento com 90 dias de carência.',
       'Se você já tem um local em vista, me conta qual é que eu te ajudo a avaliar.',

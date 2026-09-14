@@ -113,7 +113,7 @@ function desculpaDemora(iso?: string | null): string {
 export function bolhasConvite(nome: string): string[] {
   const p = primeiroNome(nome);
   return [
-    `Oi ${p}! Aqui é da Irmãos na Obra — você acabou de fazer a simulação do eletroposto no nosso site.`,
+    `Oi ${p}! Aqui é da NEXUS Eletropostos — você acabou de fazer a simulação do eletroposto no nosso site.`,
     'Pelo que você respondeu, o próximo passo ainda não é o orçamento: é definir o local. É ele que decide a entrada de energia, o fluxo e, no fim, o seu retorno.',
     `Por isso já te levo pro grupo que a gente abriu pra quem está nessa fase. Entrada gratuita:\n${GRUPO_LINK}`,
     'Lá a gente publica o faturamento real de cada ponto que instala, como avaliar um local antes de fechar e o caminho do financiamento com 90 dias de carência. Quem tem local e quem tem capital também se encontram por lá.',
@@ -137,7 +137,7 @@ export function bolhasConvite(nome: string): string[] {
 export function bolhaConviteDaPagina(nome: string): string[] {
   const p = primeiroNome(nome);
   return [
-    `Oi ${p}! Aqui é da Irmãos na Obra. Guardo o link do grupo aqui pra você não perder:\n${GRUPO_LINK}\n\nÉ lá que quem tem o ponto e quem tem o capital se encontram. Quando seu local estiver encaminhado, me chama que eu levo o estudo do seu caso.`,
+    `Oi ${p}! Aqui é da NEXUS Eletropostos. Guardo o link do grupo aqui pra você não perder:\n${GRUPO_LINK}\n\nÉ lá que quem tem o ponto e quem tem o capital se encontram. Quando seu local estiver encaminhado, me chama que eu levo o estudo do seu caso.`,
   ];
 }
 
@@ -153,7 +153,7 @@ export function bolhasConviteParaFicha(nome: string, criadoEm?: string | null): 
 function bolhasConviteAtrasado(nome: string, quando?: string | null): string[] {
   const p = primeiroNome(nome);
   return [
-    `Oi ${p}! Aqui é da Irmãos na Obra — você fez a simulação do eletroposto no nosso site ${dataCurta(quando)}.`,
+    `Oi ${p}! Aqui é da NEXUS Eletropostos — você fez a simulação do eletroposto no nosso site ${dataCurta(quando)}.`,
     desculpaDemora(quando),
     'Pelo que você respondeu, o próximo passo ainda não é o orçamento: é definir o local. É ele que decide a entrada de energia, o fluxo e, no fim, o seu retorno.',
     `Por isso te levo pro grupo que a gente abriu pra quem está nessa fase. Entrada gratuita:\n${GRUPO_LINK}`,
@@ -166,7 +166,7 @@ function bolhasConsultor(nome: string, dono?: string | null, quando?: string | n
   const p = primeiroNome(nome);
   const quem = dono ? `O ${dono}` : 'A gente';
   return [
-    `Oi ${p}! Aqui é da Irmãos na Obra — você fez a simulação do eletroposto no nosso site ${dataCurta(quando)}.`,
+    `Oi ${p}! Aqui é da NEXUS Eletropostos — você fez a simulação do eletroposto no nosso site ${dataCurta(quando)}.`,
     desculpaDemora(quando),
     `${quem} é quem cuida do seu caso: leva o estudo do seu ponto, o faturamento real dos carregadores que a gente já tem instalados e o financiamento com 90 dias de carência.`,
     'Ainda faz sentido pra você? Me diz um horário bom que eu já passo pra ele.',

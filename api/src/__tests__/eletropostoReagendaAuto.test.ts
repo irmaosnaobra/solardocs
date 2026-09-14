@@ -204,7 +204,7 @@ describe('o reagendamento em si', () => {
   it('a mensagem cita o horário perdido e o novo, e carimba o teto da linha', async () => {
     await tick();
     expect(enviadas).toHaveLength(1);
-    expect(enviadas[0].bolhas[0]).toContain('Irmãos na Obra');
+    expect(enviadas[0].bolhas[0]).toContain('NEXUS Eletropostos');
     expect(enviadas[0].bolhas[0]).toContain(horasAtras(2));   // o que ele perdeu
     expect(enviadas[0].bolhas[1]).toContain(SEXTA_13H);       // o que ele ganhou
     expect(state.has('ep_agenda_sent:3:reagendado')).toBe(true);

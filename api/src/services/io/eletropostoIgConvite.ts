@@ -102,7 +102,7 @@ function primeiroNome(nome: string | null | undefined): string {
 export function bolhaConviteLP(nome: string | null | undefined): string[] {
   const p = primeiroNome(nome);
   return [
-    'Oi ' + p + '! Aqui é da Irmãos na Obra, sobre o eletroposto que você viu no Instagram. '
+    'Oi ' + p + '! Aqui é da NEXUS Eletropostos, sobre o eletroposto que você viu no Instagram. '
     + 'Antes de marcar a conversa eu preciso de 2 minutos seus: nesta página você diz onde seria o ponto '
     + 'e como pretende investir, e ela já te devolve a simulação de faturamento do seu caso.\n\n'
     + linkDaLP() + '\n\n'

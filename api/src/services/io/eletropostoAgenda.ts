@@ -360,7 +360,10 @@ export function bolhasConfirmacao(
     // A marca fica na PRIMEIRA frase de propósito: esta é a estreia da linha IO
     // na conversa, de um número que o lead nunca viu. Foi mensagem sem remetente
     // que fez um lead de solar responder "não solicitei nenhum serviço".
-    `Oi${comNome(n)}! Aqui é da *Irmãos na Obra* — sua reunião de eletroposto com o *${quem}* está confirmada: *${quandoPorExtenso(quandoIso)}* (Brasília).`,
+    // Sem "de eletroposto" desde a troca pra NEXUS Eletropostos: a marca já diz o
+    // produto, e os caracteres a mais faziam o reagrupamento em 3 bolhas colar o
+    // pedido de SIM num parágrafo de 260 (teste 'o pedido de SIM sobrevive').
+    `Oi${comNome(n)}! Aqui é da *NEXUS Eletropostos* — sua reunião com o *${quem}* está confirmada: *${quandoPorExtenso(quandoIso)}* (Brasília).`,
     // "salva o contato" só existe quando há número pra salvar: sem ele a frase
     // mandava o lead guardar um contato que a mensagem não mostra.
     `É por vídeo. O link chega ${deOnde(quem, tel)}${tel ? ' — salva o contato' : ''}. Não precisa instalar nada.`,

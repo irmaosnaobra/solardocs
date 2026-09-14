@@ -216,7 +216,7 @@ export function bolhasReagendado(
   return [
     // A marca na primeira frase: pra quem sumiu, esta pode ser a primeira
     // mensagem que ele de fato lê, de um número que ele nunca respondeu.
-    `Oi${comNome(nome)}! Aqui é da *Irmãos na Obra*. Você não conseguiu entrar na apresentação do eletroposto de ${perdida} — sem problema, acontece.`,
+    `Oi${comNome(nome)}! Aqui é da *NEXUS Eletropostos*. Você não conseguiu entrar na apresentação do eletroposto de ${perdida} — sem problema, acontece.`,
     // O horário novo é AFIRMAÇÃO, não pergunta. Quem está em silêncio não escolhe
     // de uma lista; ele confirma ou desmarca algo que já está de pé.
     `Já separei outro pra você: *${nova}* (Brasília), com o *${quem}*. É por vídeo e o link chega no WhatsApp dele${tel ? `, o *${tel}*` : ''}.`,

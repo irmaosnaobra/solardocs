@@ -67,11 +67,11 @@ export function bolhasGrupoFrio(status: string, nome: string | null | undefined)
   const p = primeiroNome(nome);
   const abertura = status === 'sem_interesse'
     ? [
-      `Oi ${p}! Aqui é da Irmãos na Obra — a gente conversou sobre o eletroposto e você me disse que agora não era o momento.`,
+      `Oi ${p}! Aqui é da NEXUS Eletropostos — a gente conversou sobre o eletroposto e você me disse que agora não era o momento.`,
       'Tudo certo, sem insistir. Só não quero que você perca o assunto de vista enquanto o momento não chega.',
     ]
     : [
-      `Oi ${p}! Aqui é da Irmãos na Obra — tentei falar com você sobre o eletroposto e não consegui.`,
+      `Oi ${p}! Aqui é da NEXUS Eletropostos — tentei falar com você sobre o eletroposto e não consegui.`,
       'Sem problema. Em vez de ficar te ligando, prefiro te deixar perto do assunto do jeito mais leve.',
     ];
 
