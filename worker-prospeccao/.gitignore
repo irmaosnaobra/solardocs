@@ -2,3 +2,6 @@ colheita.log
 *.log
 # Marca local de "o QR do WhatsApp da prospeccao ja foi lido NESTA maquina".
 whatsapp-ligado.flag
+# Marcas de estado local: QR do WhatsApp na tela e faltas seguidas do Chrome.
+qr-aberto.flag
+vigia-chrome-faltas.txt

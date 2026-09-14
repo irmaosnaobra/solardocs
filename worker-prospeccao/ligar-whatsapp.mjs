@@ -23,6 +23,9 @@ const CDP   = process.env.CHROME_CDP || 'http://127.0.0.1:9222';
 const SUPA  = 'https://ancecdfqfwlaujknizof.supabase.co/rest/v1';
 const KEY   = process.env.SUPA_KEY || 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6';
 const MARCA = fileURLToPath(new URL('./whatsapp-ligado.flag', import.meta.url));
+// Enquanto existe, o minimizar-chrome.mjs deixa a janela na frente: o QR precisa
+// ficar visível. Some ao fechar a aba (e vence sozinha em 15 min).
+const MARCA_QR = fileURLToPath(new URL('./qr-aberto.flag', import.meta.url));
 const H = { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' };
 
 // sha256 do número sem o 55 (DDD + número).
@@ -41,6 +44,7 @@ async function main() {
     process.exit(1);
   }
 
+  writeFileSync(MARCA_QR, new Date().toISOString());
   const alvo = await (await fetch(CDP + '/json/new?https://web.whatsapp.com/', { method: 'PUT' })).json();
   const ws = new WebSocket(alvo.webSocketDebuggerUrl);
   let id = 0; const pend = new Map();
@@ -55,6 +59,7 @@ async function main() {
   const js = async e => (await cmd('Runtime.evaluate',
     { expression: e, returnByValue: true, awaitPromise: true })).result?.result?.value;
   const fechar = async () => {
+    rmSync(MARCA_QR, { force: true });
     try { await fetch(`${CDP}/json/close/${alvo.id}`); } catch { }
     try { ws.close(); } catch { }
   };

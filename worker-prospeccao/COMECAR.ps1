@@ -131,6 +131,8 @@ if (Porta) {
   foreach ($i in 1..40) { Start-Sleep -Milliseconds 700; if (Porta) { break } }
   if (-not (Porta)) { Parar 'O Chrome abriu mas a porta nao respondeu. Feche TODAS as janelas do Chrome e clique aqui de novo.' }
   Write-Host '        Chrome aberto.' -ForegroundColor Green
+  # O perfil reabre no tamanho da ultima janela, por cima do --start-minimized.
+  & node (Join-Path $PSScriptRoot 'minimizar-chrome.mjs') '--esperar=20' | Out-Null
 }
 
 # ── 2. sessão do Instagram ───────────────────────────────────────────────────

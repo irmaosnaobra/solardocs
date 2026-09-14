@@ -74,6 +74,14 @@ else {
   }
 }
 
+# Mesmo aberto do jeito certo o Chrome volta pra tela: o perfil reabre no tamanho
+# da ultima janela, e um clique sem querer na barra de tarefas tambem traz. A
+# cada rodada, se estiver na tela, minimiza. Quieto quando ja esta minimizado.
+if ($chromeVivo) {
+  $saida = (& node (Join-Path $pasta 'minimizar-chrome.mjs') 2>&1) -join ' '
+  if ($saida) { Anotar $saida }
+}
+
 if ($subir) {
   $chrome = @("${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
               "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
@@ -92,8 +100,10 @@ if ($subir) {
       '--disable-backgrounding-occluded-windows',
       '--js-flags=--max-old-space-size=512',
       'https://www.instagram.com/')
-    Start-Sleep -Seconds 12
-    Anotar 'Chrome subido (minimizado).'
+    # O perfil guarda o tamanho da ultima janela e reabre nele, por cima do
+    # --start-minimized. Minimiza assim que a porta responder.
+    $saida = (& node (Join-Path $pasta 'minimizar-chrome.mjs') '--esperar=40' 2>&1) -join ' '
+    Anotar "Chrome subido. $saida"
   } else { Anotar 'NAO ACHEI o chrome.exe.' }
 }
 
