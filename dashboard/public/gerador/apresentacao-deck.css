@@ -13,8 +13,8 @@
    ══════════════════════════════════════════════════════════════════════ */
 :root{
   /* --veu é o RGB do véu que cobre as fotos. Ele muda por vertical: azul-marinho no
-     solar, verde-escuro no eletroposto. É o que faz a cor "predominar" na página
-     inteira, e não só nos detalhes. */
+     solar, o marinho da NEXUS (#0B1A2B) no eletroposto, com o verde #39FF14 nos
+     destaques. É o que faz a cor "predominar" na página inteira, e não só nos detalhes. */
   --veu:4,7,13;
   --bg:#05070D;
   --bg2:#0A1020;
@@ -30,9 +30,13 @@ html,body{background:#000;font-family:'Poppins',system-ui,sans-serif;-webkit-fon
   background:var(--bg);color:var(--ink);page-break-after:always;break-after:page}
 .slide:last-child{page-break-after:auto;break-after:auto}
 .slide.sol{--acc:#FFC400;--acc-deep:#123A8C;--bg:#08152B;--veu:8,24,54}
-.slide.ele{--acc:#7CE500;--acc-deep:#1B3D14;--bg:#061407;--veu:5,20,10}
+.slide.ele{--acc:#39FF14;--acc-deep:#0B1A2B;--bg:#0B1A2B;--veu:11,26,43}
 .slide.sol{background:#08152B}
-.slide.ele{background:#061407}
+.slide.ele{background:#0B1A2B}
+/* a página clara do equipamento: o verde NEXUS sobre fundo claro não se lê (1,36:1),
+   então ali o destaque (a bolinha dos bullets) vira a tinta escura. O verde só entra
+   como bloco atrás do número, com texto #0B1A2B por cima. */
+.slide.ele.claro{--acc:#0B1A2B}
 
 /* ---------- camadas ---------- */
 .bg{position:absolute;inset:0;background-size:cover;background-position:center;z-index:0;
@@ -56,10 +60,14 @@ html,body{background:#000;font-family:'Poppins',system-ui,sans-serif;-webkit-fon
 .lockup{display:flex;align-items:center;gap:16px}
 .lockup img{width:64px;height:64px;border-radius:50%;object-fit:cover;
   box-shadow:0 0 0 2px rgba(255,255,255,.35),0 8px 26px rgba(0,0,0,.65)}
+/* o logo NEXUS é deitado (4,14 por 1) e já traz o nome: altura fixa, largura
+   automática, sem recorte redondo, sem cover e sem a moldura do selo */
+.lockup img.deitado{width:auto;height:46px;border-radius:0;object-fit:contain;box-shadow:none}
 .lockup .n1{font-size:22px;font-weight:700;letter-spacing:.16em;line-height:1.15}
 .lockup .n2{font-size:13px;font-weight:500;letter-spacing:.32em;color:var(--acc)}
-/* duas logos lado a lado. NAO usar a classe .duo: ela ja e o grafico de barras */
-.lockup.duplo img + img{margin-left:-18px}
+/* duas marcas lado a lado, separadas por um fio, sem sobrepor.
+   NAO usar a classe .duo: ela ja e o grafico de barras */
+.lockup.duplo .fio{width:2px;height:52px;background:rgba(255,255,255,.28);margin:0 10px}
 .lockup.duplo .n2{color:#fff}
 .brand-tr{position:absolute;top:56px;right:96px;z-index:5}
 .brand-tl{position:absolute;top:56px;left:96px;z-index:5}
@@ -197,11 +205,11 @@ ul.bullets.tight li::before{top:13px;width:9px;height:9px}
    puxar para um lado: fica neutra, com a barra em degradê das duas cores, e cada
    item colorido pela vertical a que pertence (.c-sol / .c-ele). */
 .slide.amb{--acc:#FFFFFF;--acc-deep:#1A2333;--bg:#0A0E16;background:#0A0E16;--veu:6,12,24}
-.slide.amb .bar{background:linear-gradient(180deg,#FFC400 0%,#7CE500 55%,rgba(255,255,255,.12) 100%)}
+.slide.amb .bar{background:linear-gradient(180deg,#FFC400 0%,#39FF14 55%,rgba(255,255,255,.12) 100%)}
 .slide.amb .parte-num{color:#fff;opacity:.22}
 .slide.amb .mark{background:#fff;color:#0A1020}
 .c-sol{color:#FFC400}
-.c-ele{color:#7CE500}
+.c-ele{color:#39FF14}
 .ficha td.c-sol,.ficha td.c-ele{font-weight:700}
 
 /* ---------- balanço de energia ----------
@@ -218,7 +226,7 @@ ul.bullets.tight li::before{top:13px;width:9px;height:9px}
 .bal .b{height:100%;display:flex;align-items:center;padding:0 18px;font-weight:700;
   font-size:18px;white-space:nowrap;min-width:0}
 .bal .b.cinza{background:rgba(255,255,255,.26);color:#fff}
-.bal .b.ele{background:#7CE500;color:#08240a}
+.bal .b.ele{background:#39FF14;color:#0B1A2B}
 .bal .b.sol{background:#FFC400;color:#1a1200}
 .bal .val{text-align:right;font-size:26px;font-weight:800;white-space:nowrap}
 .bal .val small{font-size:16px;font-weight:600;color:var(--muted);margin-left:5px}
@@ -270,7 +278,7 @@ body.movel .somar{gap:12px}
    e a página inteira se lê de longe só pela cor. */
 .quem{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.14em;
   padding:4px 10px;border-radius:6px;margin-top:auto;align-self:flex-start}
-.quem-nos{background:#7CE500;color:#0A1020}
+.quem-nos{background:#39FF14;color:#0B1A2B}
 .quem-seu{background:#FFC400;color:#0A1020}
 .quem-dist{background:rgba(255,255,255,.26);color:#fff}
 /* no retrato a faixa vira bloco e as etapas caem em duas colunas: em coluna única
@@ -330,9 +338,9 @@ body.movel .cronograma p.nota{font-size:19px !important;line-height:1.42}
 .somar .p .r{font-size:14px;letter-spacing:.22em;font-weight:700;color:rgba(255,255,255,.72);margin-bottom:12px}
 .somar .p .v{font-size:42px;font-weight:800;line-height:1}
 .somar .p .d{font-size:17px;color:var(--muted);margin-top:12px;line-height:1.42;font-weight:400}
-.somar .op{display:flex;align-items:center;font-size:44px;font-weight:300;color:#7CE500}
-.somar .p.tot{border-color:#7CE500;background:rgba(10,22,8,.82)}
-.somar .p.tot .v{color:#7CE500;font-size:56px}
+.somar .op{display:flex;align-items:center;font-size:44px;font-weight:300;color:#39FF14}
+.somar .p.tot{border-color:#39FF14;background:rgba(11,26,43,.82)}
+.somar .p.tot .v{color:#39FF14;font-size:56px}
 
 /* ══════════════════════════════════════════════════════════════════════
    MODO CELULAR — body.movel · 1080x1920

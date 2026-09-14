@@ -30,16 +30,17 @@ const esc = (s: string) =>
   String(s == null ? '' : s).replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] || c);
 
-type Preview = { titulo: string; descricao: string; imagem: string; tema: string };
+type Preview = { titulo: string; descricao: string; imagem: string; tema: string; siteName: string };
 
 function previewDoProduto(tipo: string, cliente: string): Preview {
   const paraQuem = cliente ? ` — proposta para ${cliente}` : '';
   if (tipo === 'eletroposto') {
     return {
-      titulo: 'ELETROPOSTO - IRMÃOS NA OBRA',
+      titulo: 'Orçamento de Eletroposto · NEXUS Eletropostos',
       descricao: `Orçamento do seu eletroposto${paraQuem}. Equipamento, projeto, instalação e homologação — chave na mão.`,
-      imagem: `${SITE}/gerador/logo-eletroposto.png`,
-      tema: '#2F6B10',
+      imagem: `${SITE}/gerador/nexus-og.png`,
+      tema: '#0B1A2B',
+      siteName: 'NEXUS Eletropostos',
     };
   }
   return {
@@ -47,6 +48,7 @@ function previewDoProduto(tipo: string, cliente: string): Preview {
     descricao: `Orçamento do seu sistema de energia solar${paraQuem}. Economia, retorno e composição do sistema.`,
     imagem: `${SITE}/gerador/logo.png`,
     tema: '#1E3A8A',
+    siteName: 'Irmãos na Obra',
   };
 }
 
@@ -60,7 +62,7 @@ function paginaDeRedirect(codigo: string, p: Preview): string {
 <meta name="description" content="${esc(p.descricao)}"/>
 <meta name="theme-color" content="${p.tema}"/>
 <meta property="og:type" content="website"/>
-<meta property="og:site_name" content="Irmãos na Obra"/>
+<meta property="og:site_name" content="${esc(p.siteName)}"/>
 <meta property="og:title" content="${esc(p.titulo)}"/>
 <meta property="og:description" content="${esc(p.descricao)}"/>
 <meta property="og:image" content="${esc(p.imagem)}"/>

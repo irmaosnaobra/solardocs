@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="robots" content="noindex">
-<title>Apresentação de projeto — Irmãos na Obra</title>
+<title>Apresentação de projeto</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,700;1,800&display=swap" rel="stylesheet">
@@ -60,20 +60,35 @@ const css  = (n, c = 2) => (Number(n) || 0).toFixed(c);
 /** potência: "120 kWp" e não "120,0 kWp"; mas "87,5" continua com a casa. */
 const kwp  = n => { const v = Number(n) || 0; return Number.isInteger(v) ? String(v) : v.toFixed(1).replace('.', ','); };
 const mil  = n => { const v = Math.round(Number(n) || 0); return Math.abs(v) >= 1000 ? (v / 1000).toFixed(0) + ' mil' : String(v); };
+/** nome do carregador impresso: "DC 80 kW" vira "NEXUS DC80 · 80 kW". Idempotente
+ *  (aplicar de novo devolve o mesmo texto). Só formata o que se IMPRIME: o valor
+ *  gravado continua "DC 80 kW", que é o que o histórico e as regex casam. Só rotula
+ *  a forma da lista ("DC 80 kW", "80 kW") ou o que já vem rotulado: texto livre
+ *  ("7,4 kW AC", "DC 80 kW CCS2 duplo") passa cru, como o apxMontar manda. Mesma
+ *  regra do nomeCarregador() do controller. */
+const carregador = s => {
+  const t = String(s == null ? '' : s).trim();
+  const m = t.match(/^(?:NEXUS\s+DC\d+\s*·\s*)?(?:DC\s*)?(\d+)\s*k\s*w$/i);
+  return m ? `NEXUS DC${m[1]} · ${m[1]} kW` : t;
+};
 
 // ── blocos reaproveitados ──────────────────────────────────────────────────
-function marca(tipo, D) {
+// Cada página assina pela vertical dela: usina é Irmãos na Obra (selo redondo e
+// nome), eletroposto é NEXUS Eletropostos (logo deitado, que já traz o nome). A
+// página que fala das duas mostra as duas marcas lado a lado, separadas por um
+// fio, sem texto nenhum ligando uma à outra. Num deck de uma metade só, a página
+// neutra assina só pela metade que existe.
+function marca(tipo, D, claro) {
   const L = D.logos || {};
-  if (tipo === 'sol')  return lock([L.solar], 'ENERGIA SOLAR');
-  if (tipo === 'ele')  return lock([L.eletroposto], 'MOBILIDADE ELÉTRICA');
-  return lock([L.solar, L.eletroposto], 'SOLAR &middot; MOBILIDADE ELÉTRICA', true);
-}
-function lock(srcs, sub, duplo) {
-  const imgs = srcs.filter(Boolean).map(s => `<img src="${esc(s)}" alt="">`).join('\n    ');
-  if (!imgs) return '';
-  return `  <div class="brand-tr lockup${duplo ? ' duplo' : ''}">
-    ${imgs}
-    <div><div class="n1">IRMÃOS NA OBRA</div><div class="n2">${sub}</div></div>
+  if (tipo === 'amb' && !(D.temSolar && D.temPosto)) tipo = D.temPosto ? 'ele' : D.temSolar ? 'sol' : 'amb';
+  const sol = L.solar ? `<img src="${esc(L.solar)}" alt="">
+    <div><div class="n1">IRMÃOS NA OBRA</div><div class="n2">ENERGIA SOLAR</div></div>` : '';
+  const srcEle = claro ? (L.eletropostoPapel || L.eletroposto) : L.eletroposto;
+  const ele = srcEle ? `<img class="deitado" src="${esc(srcEle)}" alt="NEXUS Eletropostos">` : '';
+  const blocos = (tipo === 'sol' ? [sol] : tipo === 'ele' ? [ele] : [sol, ele]).filter(Boolean);
+  if (!blocos.length) return '';
+  return `  <div class="brand-tr lockup${blocos.length > 1 ? ' duplo' : ''}">
+    ${blocos.join('\n    <span class="fio"></span>\n    ')}
   </div>\n`;
 }
 const fundo = (src, cls) => src ? `  <div class="bg${cls ? ' ' + cls : ''}" style="background-image:url('${esc(src)}')"></div>\n` : '';
@@ -128,7 +143,7 @@ ${fundo(F.capa || F.terreno)}${veu('left')}
           : D.temSolar
           ? `Uma <b class="c-sol">usina solar de ${kwp(S.kwp)} kWp</b> sobre o telhado que já é seu,
              gerando ${num(S.geracao)} kWh por mês de energia própria.`
-          : `Um <b class="c-ele">eletroposto de recarga rápida ${esc(P.potenciaTxt)}</b> no pátio que
+          : `Um <b class="c-ele">eletroposto de recarga rápida ${esc(carregador(P.potenciaTxt))}</b> no pátio que
              já é seu, vendendo energia para quem passa na porta.`}
       </div>
       <div style="margin-top:44px"><span class="selo">${esc(D.validade)}</span></div>
@@ -162,10 +177,10 @@ ${fundo(F.tese, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
         <div style="font-size:60px;font-weight:800;line-height:1;color:#FFC400">${num(S.geracao)} <span style="font-size:26px;color:var(--muted);font-weight:600">kWh/mês</span></div>
         <p class="lead" style="font-size:22px;margin-top:18px">${kwp(S.kwp)} kWp de módulos sobre o telhado existente. Energia própria, gerada no mesmo endereço onde ela é consumida.</p>
       </div>`)}
-      <div class="glass" style="flex:1;border-color:#7CE500">
-        <div class="eyebrow" style="margin-bottom:14px;color:#7CE500">O QUE VENDE</div>
-        <div style="font-size:60px;font-weight:800;line-height:1;color:#7CE500">${brl2(P.preco)} <span style="font-size:26px;color:var(--muted);font-weight:600">por kWh</span></div>
-        <p class="lead" style="font-size:22px;margin-top:18px">Um carregador ${esc(P.potenciaTxt)} revende parte dessa energia para o motorista que precisa carregar, mais a taxa de ativação.</p>
+      <div class="glass" style="flex:1;border-color:#39FF14">
+        <div class="eyebrow" style="margin-bottom:14px;color:#39FF14">O QUE VENDE</div>
+        <div style="font-size:60px;font-weight:800;line-height:1;color:#39FF14">${brl2(P.preco)} <span style="font-size:26px;color:var(--muted);font-weight:600">por kWh</span></div>
+        <p class="lead" style="font-size:22px;margin-top:18px">Um carregador ${esc(carregador(P.potenciaTxt))} revende parte dessa energia para o motorista que precisa carregar, mais a taxa de ativação.</p>
       </div>
     </div>
     <div class="glass tint" style="margin-top:30px;border-color:var(--acc);padding:28px 42px">
@@ -216,7 +231,7 @@ ${fundo(F.balanco, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
             <div style="font-size:24px;font-weight:700">O carregador vende</div>
             <div style="font-size:19px;color:var(--muted);margin-top:5px">${esc(B.carrosTxt)}${B.precoTxt ? ` &mdash; é a parte que sai a <b style="color:#fff">${esc(B.precoTxt)} o kWh</b> para o motorista` : ''}</div>
           </div>
-          <div style="text-align:right;white-space:nowrap"><span style="font-size:34px;font-weight:800;color:#7CE500">${num(B.aoPosto)}</span><span style="font-size:17px;color:var(--muted);margin-left:5px">kWh</span></div>
+          <div style="text-align:right;white-space:nowrap"><span style="font-size:34px;font-weight:800;color:#39FF14">${num(B.aoPosto)}</span><span style="font-size:17px;color:var(--muted);margin-left:5px">kWh</span></div>
         </div>
         ${se(!B.soPosto, `<div class="glass plain" style="padding:22px 26px;display:flex;align-items:center;gap:20px">
           <div style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;flex-shrink:0">2</div>
@@ -372,6 +387,13 @@ ${rodape('O PONTO E A ENTRADA', N())}</section>`);
 
 
   // ── 11 · A ESTAÇÃO ───────────────────────────────────────────────────────
+  // potenciaNum é só o pedaço "80 kW" do texto: rotular ele chamaria de DC um
+  // "22 kW AC". Rotula o texto inteiro; se ele for livre, fica o número de sempre.
+  const potNome = (() => {
+    const bruto = String(P.potenciaTxt || '').trim();
+    const r = carregador(bruto);
+    return /^NEXUS DC\d+ · \d+ kW$/.test(r) ? r : (P.potenciaNum || bruto);
+  })();
   if (D.temPosto) p.push(`<section class="slide ele denso">
 ${fundo(F.estacao, 'dof')}${veu('dark')}${barra()}${marca('ele', D)}
   <div class="wrap">
@@ -379,7 +401,7 @@ ${fundo(F.estacao, 'dof')}${veu('dark')}${barra()}${marca('ele', D)}
     <h2 class="title">A estação de recarga</h2>
     <div class="rule"></div>
     ${kpis([
-      { lbl: 'CARREGADORES', val: num(P.carregadores), un: 'un', sub: `corrente contínua, ${esc(P.potenciaNum)}` },
+      { lbl: 'CARREGADORES', val: num(P.carregadores), un: 'un', sub: `corrente contínua, ${esc(potNome)}` },
       { lbl: 'BICOS',        val: num(P.bicos), un: 'saídas', sub: 'dois carros ao mesmo tempo' },
       { lbl: 'SESSÕES',      val: num(P.sessoes), un: '/mês', sub: `${num(P.carros)} carros por dia, 30 dias` },
     ])}
@@ -393,7 +415,7 @@ ${fundo(F.estacao, 'dof')}${veu('dark')}${barra()}${marca('ele', D)}
         ['Padrão de entrada', esc(P.padraoEntrada || '—'), 'c-ele'],
       ])}</div>
       <div class="glass" style="width:620px;padding:30px 36px">
-        <p class="lead" style="font-size:22px">Um carregador ${esc(P.potenciaNum)} enche a bateria da maioria dos elétricos em torno de <b>30 minutos</b> — o tempo de um café, e o que faz o motorista parar aqui em vez da tomada lenta do shopping.</p>
+        <p class="lead" style="font-size:22px">Um carregador ${esc(potNome)} enche a bateria da maioria dos elétricos em torno de <b>30 minutos</b> — o tempo de um café, e o que faz o motorista parar aqui em vez da tomada lenta do shopping.</p>
         ${P.padraoArgumento ? `<p class="lead" style="font-size:22px;margin-top:16px">${rich(P.padraoArgumento)}</p>` : ''}
       </div>
     </div>
@@ -401,16 +423,19 @@ ${fundo(F.estacao, 'dof')}${veu('dark')}${barra()}${marca('ele', D)}
 ${rodape('O POSTO', N())}</section>`);
 
   // ── 12 · O EQUIPAMENTO (fundo claro) ─────────────────────────────────────
-  const eq = (T.equipamento || []).map(b => `<li style="color:#1B2A20">${rich(b)}</li>`).join('\n          ');
-  if (D.temPosto && tem(F.produto)) p.push(`<section class="slide ele claro" style="background:#F2F4F1;color:#0B1410">
-${marca('ele', D)}
+  const eq = (T.equipamento || []).map(b => `<li style="color:#16304C">${rich(b)}</li>`).join('\n          ');
+  // o nome sai pelo mesmo carregador() do resto do deck; inline-block para o bloco
+  // verde não cobrir a perna do "g" da linha de cima
+  const eqNome = carregador(P.potenciaTxt || P.potenciaNum) || 'NEXUS';
+  if (D.temPosto && tem(F.produto)) p.push(`<section class="slide ele claro" style="background:#EEF2F6;color:#0B1A2B">
+${marca('ele', D, true)}
   <div class="wrap" style="padding:74px 100px">
     <div data-row style="display:flex;gap:60px;height:100%;align-items:center">
       <div style="flex:1">
-        <div class="eyebrow" style="color:#3E8A00">O EQUIPAMENTO</div>
-        <h2 class="title" style="font-size:56px;color:#0B1410">Carregador<br>${esc(P.potenciaPrefixo || 'DC de')} <span style="background:#7CE500;padding:0 16px">${esc(P.potenciaNum)}</span></h2>
-        <div style="width:110px;height:5px;background:#0B1410;border-radius:3px;margin:28px 0 30px"></div>
-        <ul class="bullets tight" style="color:#0B1410;font-weight:400">
+        <div class="eyebrow">O EQUIPAMENTO</div>
+        <h2 class="title" style="font-size:56px;color:#0B1A2B">Carregador<br><span style="background:#39FF14;color:#0B1A2B;padding:0 16px;display:inline-block;margin-top:10px">${esc(eqNome)}</span></h2>
+        <div style="width:110px;height:5px;background:#0B1A2B;border-radius:3px;margin:28px 0 30px"></div>
+        <ul class="bullets tight" style="color:#0B1A2B;font-weight:400">
           ${eq}
         </ul>
       </div>
@@ -419,8 +444,8 @@ ${marca('ele', D)}
       </div>
     </div>
   </div>
-  <div class="foot" style="color:rgba(11,20,16,.62)">O POSTO</div>
-  <div class="pg" style="color:rgba(11,20,16,.62)">${String(N()).padStart(2, '0')}</div>
+  <div class="foot" style="color:rgba(11,26,43,.62)">O POSTO</div>
+  <div class="pg" style="color:rgba(11,26,43,.62)">${String(N()).padStart(2, '0')}</div>
 </section>`);
 
   // ── 13 · DE ONDE VEM CADA REAL ───────────────────────────────────────────
@@ -480,7 +505,7 @@ ${barra()}${marca('amb', D)}
       <div class="op">+</div>
       <div class="p">
         <div class="r">O POSTO</div>
-        <div class="v" style="color:#7CE500">${brl(C.lucroPosto)}</div>
+        <div class="v" style="color:#39FF14">${brl(C.lucroPosto)}</div>
         <div class="d">Lucro líquido da revenda de ${num(P.kwhMes)} kWh, já descontados energia, gateway, imposto, seguro e assinatura.</div>
       </div>
       ${se(tem(C.ajusteRede), `<div class="op">&minus;</div>
@@ -649,7 +674,7 @@ ${fundo(F.investimento, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
     ${ficha([
       [`Usina solar ${kwp(S.kwp)} kWp${tem(S.modulos) ? ` — ${num(S.modulos)} módulos` : ''}${tem(S.inversores) ? `, ${esc(S.inversores)}` : ''}`,
         tem(S.invest) ? brl2(S.invest) : '', 'c-sol'],
-      [`Eletroposto ${esc(P.potenciaTxt)}${tem(P.carregadores) ? ` — ${num(P.carregadores)} carregador, ${num(P.bicos)} bicos` : ''}`,
+      [`Eletroposto ${esc(carregador(P.potenciaTxt))}${tem(P.carregadores) ? ` — ${num(P.carregadores)} carregador, ${num(P.bicos)} bicos` : ''}`,
         tem(P.invest) ? brl2(P.invest) : '', 'c-ele'],
       [`Entrada de energia${D.entrada && tem(D.entrada.kva) ? ` — transformador ${num(D.entrada.kva)} kVA` : ''}`,
         D.entrada && tem(D.entrada.invest) ? brl2(D.entrada.invest) : ''],
@@ -661,8 +686,8 @@ ${fundo(F.investimento, 'dof')}${veu('dark')}${barra()}${marca('amb', D)}
           <div style="font-size:76px;font-weight:800;line-height:1">${brl(C.investTotal)}<span style="font-size:30px;color:var(--muted);font-weight:600">,00</span></div>
         </div>
         <div style="flex:1;border-left:3px solid rgba(255,255,255,.22);padding-left:44px">
-          <div style="font-size:16px;letter-spacing:.26em;font-weight:700;color:#7CE500;margin-bottom:12px">E DEVOLVE POR MÊS</div>
-          <div style="font-size:60px;font-weight:800;line-height:1;color:#7CE500">${brl(C.ganhoMes)}</div>
+          <div style="font-size:16px;letter-spacing:.26em;font-weight:700;color:#39FF14;margin-bottom:12px">E DEVOLVE POR MÊS</div>
+          <div style="font-size:60px;font-weight:800;line-height:1;color:#39FF14">${brl(C.ganhoMes)}</div>
           <div style="font-size:21px;color:var(--muted);font-weight:600;margin-top:10px">o conjunto se paga em <b style="color:#fff">${esc(C.paybackTxt)}</b></div>
         </div>
       </div>
@@ -760,11 +785,20 @@ ${fundo(F.fecho || F.capa, '')}${veu('left')}${barra()}
         <div style="font-size:38px;font-weight:800;margin-top:8px;line-height:1.1">${esc(D.vendedor)}</div>
         <div style="font-size:27px;font-weight:600;color:#FFC400">${esc(D.contato)}</div>
       </div>`)}
-      <div>
+      ${D.temSolar && D.temPosto ? `<div>
+        <div style="font-size:14px;letter-spacing:.30em;color:rgba(255,255,255,.55);font-weight:600">EMPRESAS</div>
+        <div style="margin-top:8px">
+          <div style="font-size:24px;font-weight:800;line-height:1.25">Irmãos na Obra <span style="font-weight:500;color:var(--muted)">&middot; Energia Solar</span></div>
+          <div style="font-size:24px;font-weight:800;line-height:1.25;margin-top:4px">NEXUS Eletropostos <span style="font-weight:500;color:var(--muted)">&middot; Eletroposto</span></div>
+        </div>
+      </div>` : D.temPosto ? `<div>
+        <div style="font-size:14px;letter-spacing:.30em;color:rgba(255,255,255,.55);font-weight:600">EMPRESA</div>
+        <div style="font-size:28px;font-weight:800;margin-top:8px;line-height:1.1">NEXUS Eletropostos</div>
+      </div>` : `<div>
         <div style="font-size:14px;letter-spacing:.30em;color:rgba(255,255,255,.55);font-weight:600">EMPRESA</div>
         <div style="font-size:28px;font-weight:800;margin-top:8px;line-height:1.1">Irmãos na Obra</div>
-        <div style="font-size:20px;font-weight:500;color:var(--muted)">Energia Solar &middot; Mobilidade Elétrica</div>
-      </div>
+        <div style="font-size:20px;font-weight:500;color:var(--muted)">Energia Solar</div>
+      </div>`}
     </div>
   </div>
 ${rodape('PROPOSTA COMERCIAL &middot; ' + esc(D.data), N())}</section>`);

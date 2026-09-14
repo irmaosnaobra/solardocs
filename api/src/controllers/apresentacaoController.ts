@@ -213,7 +213,8 @@ const ESPACOS = [
 ];
 
 // ── a IA ──────────────────────────────────────────────────────────────────
-async function pensar(body: z.infer<typeof bodySchema>, calc: ReturnType<typeof computeEletro>) {
+async function pensar(body: z.infer<typeof bodySchema>, calc: ReturnType<typeof computeEletro>,
+                      metades: { temSolar: boolean; temPosto: boolean }) {
   const cli = novoAnthropic();
 
   const conteudo: Anthropic.MessageParam['content'] = [];
@@ -240,21 +241,37 @@ async function pensar(body: z.infer<typeof bodySchema>, calc: ReturnType<typeof 
     body.equipamento.length && 'equipamento',
     body.escopo.length && 'escopo',
   ].filter(Boolean) as string[];
+  // Cada metade tem a sua marca: a usina é da Irmãos na Obra, o eletroposto é da
+  // NEXUS Eletropostos. A IA só ouve falar da marca da metade que existe, para um
+  // deck só de posto não sair assinado pela Irmãos na Obra (e vice-versa).
+  const carregador = nomeCarregador(body.eletro.potenciaTxt);
+  const projeto = [
+    metades.temSolar && `uma usina solar de ${body.solar.kwp} kWp (${body.solar.modulos} módulos), da Irmãos na Obra`,
+    metades.temPosto && `um eletroposto${carregador ? ` com carregador ${carregador}` : ''} e ${body.eletro.bicos} bicos, ` +
+      `da NEXUS Eletropostos, dimensionado para ${body.eletro.carros} recargas por dia`,
+  ].filter(Boolean).join(', mais ');
+  const regraMarca = metades.temSolar && metades.temPosto
+    ? '• A usina solar é da Irmãos na Obra e o eletroposto é da NEXUS Eletropostos. Ao falar do\n' +
+      '  eletroposto, do carregador ou da recarga, use NEXUS Eletropostos; ao falar da usina, use\n' +
+      '  Irmãos na Obra. Nunca escreva que uma empresa é marca, parte, sócia ou parceira da outra,\n' +
+      '  nem apresente as duas como uma empresa só.'
+    : metades.temPosto
+    ? '• O eletroposto é da NEXUS Eletropostos. Ao nomear a empresa, use NEXUS Eletropostos.'
+    : '• A usina solar é da Irmãos na Obra. Ao nomear a empresa, use Irmãos na Obra.';
   conteudo.push({ type: 'text', text: `
 ${jaTem.length ? `O consultor JÁ ESCREVEU estes campos e você NÃO deve reescrevê-los — devolva-os vazios: ${jaTem.join(', ')}.\n` : ''}
-Monte o conteúdo de texto de uma apresentação comercial da Irmãos na Obra para o cliente
-${body.cliente}, em ${body.cidade}. O projeto é uma usina solar de ${body.solar.kwp} kWp
-(${body.solar.modulos} módulos) mais um eletroposto ${body.eletro.potenciaTxt} com
-${body.eletro.bicos} bicos, dimensionado para ${body.eletro.carros} recargas por dia.
+Monte o conteúdo de texto de uma apresentação comercial para o cliente
+${body.cliente}, em ${body.cidade}. O projeto é ${projeto}.
 
 REGRAS, todas obrigatórias:
+${regraMarca}
 • NÃO escreva NENHUM valor em reais, percentual financeiro, payback, TIR ou VPL. Esses
   números já foram calculados e serão inseridos pelo sistema. Se você escrever um, ele
   estará errado.
 • Nada de ressalva, alerta, aviso de risco ou linguagem negativa. É uma proposta de venda,
   e tudo já passou por crivo técnico. Onde faltar informação, escreva de forma afirmativa
   o que existe, sem apontar o que falta.
-• Não cite nome de fornecedor nem marca de equipamento.
+• Não cite fornecedor nem fabricante de equipamento. Se citar o carregador, a marca é NEXUS.
 • Foto que não seja do terreno deste cliente precisa de legenda dizendo que é de obra
   anterior da equipe.
 • Português do Brasil, tom direto, frases curtas. Use **negrito** no que importa.
@@ -282,7 +299,7 @@ ${ESPACOS.map(e => `  ${e.id} — ${e.o}`).join('\n')}
           terrenoHoje: { type: 'string', description: 'Leitura do local em 2-3 frases, terminando na frase que abre a ferida: o terreno já está lá e não produz nada.' },
           pontoCards: { type: 'array', items: { type: 'string' }, description: 'Exatamente 3 itens curtos: por que ESTE endereço serve para um eletroposto. Cada um começa com **rótulo.**' },
           pontoFecho: { type: 'string', description: 'Uma frase de fechamento sobre o movimento do local.' },
-          equipamento: { type: 'array', items: { type: 'string' }, description: '5 bullets sobre o carregador, sem marca.' },
+          equipamento: { type: 'array', items: { type: 'string' }, description: '5 bullets sobre o carregador. Sem fornecedor nem fabricante; se nomear o carregador, a marca é NEXUS.' },
           escopo: { type: 'array', items: { type: 'string' }, description: '6 bullets do que está incluído no chave na mão.' },
           fotos: {
             type: 'array',
@@ -463,7 +480,7 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
 
     etapa = 'ia';
     const ia = body.fotos.length || body.arquivos.length
-      ? await pensar(body, calc)
+      ? await pensar(body, calc, { temSolar, temPosto })
       : { terrenoHoje: '', pontoCards: [], pontoFecho: '', equipamento: [], escopo: [], fotos: [] };
 
     etapa = 'montar-deck';
@@ -516,7 +533,10 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
       cidadeCurta: (body.cidade || '').split(/[·,-]/)[0].trim(),
       data: new Date().toLocaleDateString('pt-BR'), validade: body.validade,
       vendedor: body.vendedor, contato: body.contato,
-      logos: { solar: '/gerador/logo.png', eletroposto: '/gerador/logo-eletroposto.png' },
+      // Caminhos absolutos: o Puppeteer abre o deck em GERADOR_BASE_URL (solardoc.app/gerador)
+      // e eles resolvem contra essa origem, em dashboard/public/gerador/. O logo NEXUS de
+      // letra branca é para o fundo escuro; a página clara do equipamento usa o de papel.
+      logos: { solar: '/gerador/logo.png', eletroposto: '/gerador/nexus-logo-tela.png', eletropostoPapel: '/gerador/nexus-logo-papel.png' },
       temSolar, temPosto,
       solar: {
         modulos: S.modulos, wpModulo: S.wpModulo, kwp: S.kwp || +(S.modulos * S.wpModulo / 1000).toFixed(2),
@@ -530,7 +550,7 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
       posto: {
         carregadores: E.carregadores, bicos: E.bicos, potenciaTxt: E.potenciaTxt,
         potenciaNum: (E.potenciaTxt.match(/[\d.,]+\s*kW/i) || [''])[0],
-        potenciaPrefixo: 'DC de', carros: E.carros, carga: E.carga, sessoes: calc.sessoes,
+        potenciaPrefixo: 'DC', carros: E.carros, carga: E.carga, sessoes: calc.sessoes,
         kwhMes: calc.kwhMes, preco: E.precoKwh, ativacao: E.ativacao, ativacaoMes: calc.ativacaoMes,
         custoKwh: E.custoKwh, invest: E.invest, fatMes: calc.fatMes, custosMes: calc.custosMes,
         lucroMes: calc.lucroMes, margemPct: Math.round(calc.margem * 100),
@@ -763,6 +783,19 @@ function notaCronograma(etapas: Etapa[]) {
 }
 
 // ── auxiliares de texto ───────────────────────────────────────────────────
+/**
+ * Nome do carregador como o cliente lê: "DC 80 kW" vira "NEXUS DC80 · 80 kW".
+ * Idempotente (aplicar de novo devolve o mesmo texto). Só formata o que se imprime:
+ * o valor gravado continua "DC 80 kW", que é o que o histórico e as regex casam.
+ * Só rotula a forma da lista ("DC 80 kW", "80 kW") ou o que já vem rotulado. Texto
+ * livre ("7,4 kW AC", "DC 80 kW CCS2 duplo") passa cru, como o apxMontar do Gerador
+ * manda. Mesma regra do carregador() no apresentacao-deck.html.
+ */
+function nomeCarregador(txt: string) {
+  const t = String(txt || '').trim();
+  const m = t.match(/^(?:NEXUS\s+DC\d+\s*·\s*)?(?:DC\s*)?(\d+)\s*k\s*w$/i);
+  return m ? `NEXUS DC${m[1]} · ${m[1]} kW` : t;
+}
 /** R$ com centavos só quando existem: "R$ 2,35" mas "R$ 300". */
 function brlTxt(v: number) {
   return 'R$ ' + (Number.isInteger(v) ? v.toLocaleString('pt-BR')

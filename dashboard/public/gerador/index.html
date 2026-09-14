@@ -539,15 +539,17 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-pagefoot{margin-top:18px;padding-top:8px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:9px;color:#8a94a3}
 /* Marca do rodapé: a logo em TODA folha, discreta. Documento de obra e' separado,
    grampeado e fotocopiado — folha solta sem marca nenhuma nao diz de quem e'.
-   4,6mm e opacidade .6 para acompanhar o texto do rodape, nao competir com ele. */
+   4,6mm para acompanhar o texto do rodape, nao competir com ele. No eletroposto
+   e' so' o X da NEXUS (o logo inteiro nao se le' nessa altura); opacidade .85
+   porque o X ja' e' fino e a .6 de antes o apagava. */
 .ep-pagefoot .ep-foot-esq{display:flex;align-items:center;gap:6px;min-width:0}
-.ep-foot-logo{height:4.6mm;width:auto;opacity:.6;flex:0 0 auto}
+.ep-foot-logo{height:4.6mm;width:auto;opacity:.85;flex:0 0 auto}
+/* Orçamento SOLAR (IO_FOOT_LOGO): mantém a .6 de antes; o .85 é só pro X fino da NEXUS. */
+.ep-foot-logo.io{opacity:.6}
 /* Topo dos dois documentos financeiros: mesma marca do contrato, sem a caixa de
    proposta — aqui o titulo ja' e' o bloco de baixo. */
 .ep-bco-topo,.ep-bnk-topo{display:flex;align-items:center;gap:11px;margin-bottom:11px}
-.ep-bco-topo .ep-brand-img,.ep-bnk-topo .ep-brand-img{height:13mm}
-.ep-bco-topo .ep-brand-tx,.ep-bnk-topo .ep-brand-tx{font-size:15px;font-weight:800;color:#0B2545;line-height:1.05}
-.ep-bco-topo .ep-brand-tx span,.ep-bnk-topo .ep-brand-tx span{display:block;font-size:7.6px;font-weight:700;letter-spacing:2px;color:#7b8496;margin-top:3px;text-transform:uppercase}
+.ep-bco-topo .ep-brand-img,.ep-bnk-topo .ep-brand-img{height:8mm}
 /* ── Proposta bancária: o sexto documento ────────────────────────────────────
    Mesma folha .ep-page dos outros cinco. Tabela densa de propósito — analista de
    crédito lê número, não respiro. */
@@ -614,53 +616,50 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-bnk-assin .a span{display:block}
 /* boxes filhos diretos da página mantêm altura natural (o flex:1 do .ep-box é só pro par lado-a-lado do .ep-cols) */
 .ep-page>.ep-box,.ep-page>.ep-avoid-break{flex:0 0 auto}
-/* logo oficial no topo da página 1 (badge circular Irmãos na Obra) */
+/* logo oficial no topo da página 1: NEXUS deitado (4,14:1), que já traz o nome
+   escrito — por isso não tem mais texto ao lado. Altura fixa, largura livre:
+   11mm dão ~45mm de largura, e a coluna do .ep-topo tem ~80mm. */
 .ep-brand{display:flex;align-items:center;gap:13px;margin-bottom:12px}
-.ep-brand-img{height:21mm;width:auto}
-/* nome da casa NUNCA quebra: com a margem de 22mm a coluna encolheu e o
-   cabecalho saiu "Irmaos na / Obra" em duas linhas — marca partida no topo do
-   contrato e a primeira coisa que o cliente ve. */
-.ep-brand-tx{font-size:21px;font-weight:900;color:#2f6b10;line-height:1.03;letter-spacing:-.4px;white-space:nowrap}
-.ep-brand-tx span{white-space:nowrap}
-.ep-brand-tx span{display:block;font-size:9.5px;font-weight:800;letter-spacing:2.4px;text-transform:uppercase;color:#8a94a3;margin-top:5px}
-.ep-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px solid #2f6b10;padding-bottom:10px;margin-bottom:6px}
-.ep-title{font-size:19px;font-weight:800;color:#2f6b10}
+.ep-brand-img{height:11mm;width:auto}
+.ep-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px solid #0B1A2B;padding-bottom:10px;margin-bottom:6px}
+.ep-title{font-size:19px;font-weight:800;color:#0B1A2B}
 .ep-date{font-size:11px;color:#666;text-align:right;line-height:1.5;white-space:nowrap}
 .ep-meta{display:flex;justify-content:space-between;gap:14px;font-size:12px;color:#444;margin-bottom:16px;padding:8px 0;border-bottom:1px solid #e5e7eb}
 .ep-meta b{color:#1a1a1a}
-.ep-exec{border:1px solid #d3dce6;border-left:4px solid #2f6b10;border-radius:6px;background:#f6f8fb;padding:13px 16px;font-size:12.5px;color:#2a3947;line-height:1.65;margin-bottom:18px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.ep-exec b{color:#2f6b10}
+.ep-exec{border:1px solid #d3dce6;border-left:4px solid #0B1A2B;border-radius:6px;background:#f6f8fb;padding:13px 16px;font-size:12.5px;color:#2a3947;line-height:1.65;margin-bottom:18px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-exec b{color:#0B1A2B}
 .ep-cols{display:flex;gap:18px;margin-bottom:4px}
 .ep-box{flex:1;border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;margin-bottom:14px}
-.ep-box h3{font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;color:#2f6b10;margin:0 0 8px;font-weight:800}
+.ep-box h3{font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;color:#0B1A2B;margin:0 0 8px;font-weight:800}
 .ep-kv{width:100%;border-collapse:collapse;font-size:12.5px}
 .ep-kv td{padding:6px 0;border-bottom:1px solid #f1f1f1;color:#333}
 .ep-kv td:last-child{text-align:right;font-weight:700;color:#1a1a1a;font-variant-numeric:tabular-nums}
-.ep-kv tr:nth-child(even) td{background:#f3f6ee;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.ep-kv tr.hl td{color:#2f6b10;font-weight:800;background:#eaf3dc}
+.ep-kv tr:nth-child(even) td{background:#f6f8fb;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-kv tr.hl td{color:#0B1A2B;font-weight:800;background:#EEF2F6}
 .ep-fluxo td{border-bottom:1px solid #f6f6f6}
 .ep-sub{font-size:13px;color:#555;margin-top:3px;font-weight:600}
-/* barra de seção — cheia, verde vivo com texto escuro (papel das barras amarelas do modelo) */
-.ep-section{background:#7DD117;color:#14300c;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;padding:7px 12px;border-radius:3px;margin:16px 0 11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+/* barra de seção — cheia, verde NEXUS com texto escuro (papel das barras amarelas do modelo).
+   O verde #39FF14 só entra como FUNDO de bloco: como texto sobre branco ele não se lê (1,36:1). */
+.ep-section{background:#39FF14;color:#0B1A2B;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;padding:7px 12px;border-radius:3px;margin:16px 0 11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .ep-mkt{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
 .ep-mkt-item{border:1px solid #e5e7eb;border-radius:8px;padding:11px 12px;text-align:center;background:#fafafa;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.ep-mkt-item .v{font-size:18px;font-weight:800;color:#2f6b10}
+.ep-mkt-item .v{font-size:18px;font-weight:800;color:#0B1A2B}
 .ep-mkt-item .k{font-size:10.5px;color:#555;line-height:1.3;margin-top:3px}
 .ep-mkt-note{font-size:10.5px;color:#666;line-height:1.5;margin-bottom:6px}
 .ep-chart{margin:2px 0 12px}
 .ep-kv .num{text-align:right;font-variant-numeric:tabular-nums}
 /* KPI cards — sóbrios; verde reservado a resultado positivo, vermelho a negativo */
-.ep-kpi-title{font-size:11px;font-weight:800;color:#2f6b10;text-transform:uppercase;letter-spacing:.5px;margin:10px 0 7px}
+.ep-kpi-title{font-size:11px;font-weight:800;color:#0B1A2B;text-transform:uppercase;letter-spacing:.5px;margin:10px 0 7px}
 .ep-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:6px}
 .ep-kpis.c5{grid-template-columns:repeat(5,1fr)}
 .ep-kpi{border:1px solid #d3dce6;border-radius:9px;padding:12px 10px;text-align:center;background:#f8fafc;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .ep-kpi .k{font-size:9.5px;color:#5b6b7c;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
-.ep-kpi .v{font-size:16px;font-weight:800;color:#2f6b10;margin-top:5px;font-variant-numeric:tabular-nums}
+.ep-kpi .v{font-size:16px;font-weight:800;color:#0B1A2B;margin-top:5px;font-variant-numeric:tabular-nums}
 .ep-kpi .v.pos{color:#15803d}
 .ep-kpi .v.neg{color:#b91c1c}
 .ep-cmp th{font-size:11px;color:#555;text-transform:uppercase;letter-spacing:.3px;padding:6px 0;border-bottom:2px solid #d3dce6;text-align:right}
 .ep-cmp th:first-child{text-align:left}
-.ep-cmp th.atual{color:#2f6b10}
+.ep-cmp th.atual{color:#0060C7}
 .ep-cmp td:first-child{color:#333;font-weight:400}
 .ep-cmp td.num{font-weight:700}
 /* premissas numeradas, riscos e próximos passos */
@@ -672,7 +671,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-riscos td:first-child{font-weight:700;color:#1a1a1a;width:34%}
 .ep-passos{margin:0;padding-left:20px;font-size:12px;color:#333;line-height:1.7}
 .ep-sign{display:flex;justify-content:space-between;align-items:flex-end;margin-top:18px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:12px;color:#333}
-.ep-sign .who b{display:block;font-size:13px;color:#2f6b10}
+.ep-sign .who b{display:block;font-size:13px;color:#0B1A2B}
 .ep-avoid-break{page-break-inside:avoid;break-inside:avoid}
 .ep-foot{margin-top:14px;font-size:9.5px;color:#999;text-align:center;line-height:1.5;border-top:1px solid #eee;padding-top:10px}
 /* ===== Orçamento — formulário na tela (UI dark, reaproveita .card/.eletro-inp) ===== */
@@ -774,46 +773,47 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 /* ===== Orçamento — documento de impressão (modela a proposta comercial) ===== */
 .ep-topo{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:stretch;margin-bottom:8px}
 .ep-emit{font-size:10.5px;color:#555;line-height:1.55;text-align:right}
-.ep-emit b{color:#2f6b10;font-size:12.5px}
-.ep-cliente-box{display:flex;gap:20px;flex-wrap:wrap;font-size:11.5px;color:#333;line-height:1.65;border:1px solid #e5e7eb;border-left:4px solid #2f6b10;border-radius:6px;background:#f6f8fb;padding:12px 15px;margin-bottom:6px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-emit b{color:#0B1A2B;font-size:12.5px}
+.ep-cliente-box{display:flex;gap:20px;flex-wrap:wrap;font-size:11.5px;color:#333;line-height:1.65;border:1px solid #e5e7eb;border-left:4px solid #0B1A2B;border-radius:6px;background:#f6f8fb;padding:12px 15px;margin-bottom:6px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .ep-cliente-box .col{flex:1;min-width:210px}
 .ep-cliente-box b{color:#1a1a1a}
-.ep-cliente-box .nm{font-size:13px;color:#2f6b10;font-weight:800}
+.ep-cliente-box .nm{font-size:13px;color:#0B1A2B;font-weight:800}
 .ep-itens{width:100%;border-collapse:collapse;font-size:11.5px;margin-bottom:2px}
-.ep-itens thead th{background:#2f6b10;color:#fff;font-size:10px;text-transform:uppercase;letter-spacing:.3px;padding:8px 8px;text-align:left;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-itens thead th{background:#0B1A2B;color:#fff;font-size:10px;text-transform:uppercase;letter-spacing:.3px;padding:8px 8px;text-align:left;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .ep-itens thead th.num{text-align:right}
 .ep-itens tbody td{padding:8px 8px;border-bottom:1px solid #eee;color:#333;vertical-align:top;line-height:1.4}
 .ep-itens tbody td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-.ep-itens tbody tr:nth-child(even) td{background:#f7f9f5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-itens tbody tr:nth-child(even) td{background:#f6f8fb;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .ep-totais{margin:12px 0 4px auto;width:290px;border-collapse:collapse;font-size:12px}
 .ep-totais td{padding:5px 8px;color:#444}
 .ep-totais td:last-child{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:#1a1a1a}
-.ep-totais tr.tot td{border-top:2px solid #2f6b10;font-size:15.5px;color:#2f6b10;font-weight:800;padding-top:9px}
+.ep-totais tr.tot td{border-top:2px solid #0B1A2B;font-size:15.5px;color:#0B1A2B;font-weight:800;padding-top:9px}
 .ep-venc{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:4px}
-.ep-venc th{background:#f0f4ec;color:#2f6b10;font-size:10px;text-transform:uppercase;letter-spacing:.3px;padding:6px 9px;text-align:left;border-bottom:1px solid #dfe7d6;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-venc th{background:#EEF2F6;color:#0B1A2B;font-size:10px;text-transform:uppercase;letter-spacing:.3px;padding:6px 9px;text-align:left;border-bottom:1px solid #d3dce6;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .ep-venc th.num{text-align:right}
 .ep-venc td{padding:6px 9px;border-bottom:1px solid #f1f1f1;color:#333}
 .ep-venc td.num{text-align:right;font-variant-numeric:tabular-nums}
 .ep-obs{font-size:10px;color:#666;line-height:1.6;margin-top:14px;white-space:pre-line;border-top:1px solid #eee;padding-top:10px}
 /* caixa de proposta no topo direito (modelo "PROPOSTA COMERCIAL / Data") */
 /* ficha do cliente no topo (mesma linguagem da proposta solar — bloco colorido + selo de validade) */
-.ep-propbox{background:#2f6b10;color:#fff;border-radius:6px;padding:16px 20px;display:flex;flex-direction:column;gap:8px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-propbox{background:#0B1A2B;color:#fff;border-radius:6px;padding:16px 20px;display:flex;flex-direction:column;gap:8px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .ep-propbox .t{font-size:12.5px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;opacity:.86;margin-bottom:2px}
 .ep-propbox .rowf{display:flex;justify-content:space-between;gap:12px;font-size:12px;border-bottom:1px solid rgba(255,255,255,.16);padding-bottom:7px}
 .ep-propbox .rowf span:first-child{opacity:.7;font-weight:600}
 .ep-propbox .rowf .v{font-weight:700;text-align:right}
-.ep-valid{align-self:flex-start;background:#7DD117;color:#14300c;font-size:10.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;padding:4px 11px;border-radius:999px;margin-top:2px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-/* rótulo + rodapé escuro (vendedor | empresa) */
-.ep-forma-label{font-size:11px;font-weight:800;color:#2f6b10;text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px}
+.ep-valid{align-self:flex-start;background:#39FF14;color:#0B1A2B;font-size:10.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;padding:4px 11px;border-radius:999px;margin-top:2px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+/* rótulo + rodapé escuro (vendedor | empresa). Sobre a caixa escura o verde
+   NEXUS pode ser texto (12,9:1); fora dela, não. */
+.ep-forma-label{font-size:11px;font-weight:800;color:#0B1A2B;text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px}
 .ep-footer-block{display:flex;border-radius:7px;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.ep-fb-col{flex:1;background:#14300c;color:#e8f2df;padding:15px 18px;font-size:11px;line-height:1.5}
-.ep-fb-col.vend{background:#1d4212;position:relative}
-.ep-fb-col .t{font-size:11px;font-weight:800;color:#9BEE38;text-transform:uppercase;letter-spacing:.8px;margin-bottom:9px}
+.ep-fb-col{flex:1;background:#0B1A2B;color:#E5E7EB;padding:15px 18px;font-size:11px;line-height:1.5}
+.ep-fb-col.vend{background:#16304C;position:relative}
+.ep-fb-col .t{font-size:11px;font-weight:800;color:#39FF14;text-transform:uppercase;letter-spacing:.8px;margin-bottom:9px}
 .ep-fb-row{display:flex;gap:8px;margin-top:4px}
-.ep-fb-row .k{color:#9db892;min-width:66px;flex:none}
+.ep-fb-row .k{color:#8CA0B8;min-width:66px;flex:none}
 .ep-fb-row .v{color:#fff;font-weight:600}
-.ep-fb-ic{position:absolute;top:15px;right:16px;width:30px;height:30px;border-radius:50%;background:#7DD117;display:flex;align-items:center;justify-content:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.ep-fb-ic svg{width:16px;height:16px;stroke:#14300c;fill:none;stroke-width:2.2}
+.ep-fb-ic{position:absolute;top:15px;right:16px;width:30px;height:30px;border-radius:50%;background:#39FF14;display:flex;align-items:center;justify-content:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-fb-ic svg{width:16px;height:16px;stroke:#0B1A2B;fill:none;stroke-width:2.2}
 /* ===== RECIBO DE SINAL (documento) ===== */
 /* O valor recebido é a primeira coisa que se lê: quem confere um recibo procura
    o número e o extenso, nessa ordem. O resto do papel existe pra sustentar ele. */
@@ -833,7 +833,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-estudo .ep-mkt-note{margin-bottom:4px}
 .ep-rec .ep-kv td{padding:5px 0}
 .ep-rec .ep-forma-label{margin:11px 0 6px}
-.ep-rec-hero{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;background:#2f6b10;color:#fff;border-radius:8px;padding:14px 18px;margin:10px 0 12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-rec-hero{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;background:#0B1A2B;color:#fff;border-radius:8px;padding:14px 18px;margin:10px 0 12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .ep-rec-hero .k{font-size:10.5px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;opacity:.8}
 .ep-rec-hero .v{font-size:28px;font-weight:900;letter-spacing:-1px;line-height:1.05;margin-top:4px;font-variant-numeric:tabular-nums}
 .ep-rec-hero .ext{font-size:11px;font-style:italic;opacity:.9;margin-top:5px}
@@ -843,7 +843,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-rec-corpo b{color:#1a1a1a}
 .ep-rec-clau{font-family:var(--serif);margin:0;padding-left:18px;font-size:11.5px;color:#22303d;line-height:1.55;text-align:justify}
 .ep-rec-clau li{margin-bottom:5px}
-.ep-rec-clau li b{color:#2f6b10}
+.ep-rec-clau li b{color:#0B1A2B}
 /* Linha em branco pra preencher à mão (CPF que ninguém levantou, por exemplo).
    Melhor um espaço honesto no papel do que um número chutado. */
 .ep-rec-vazio{display:inline-block;min-width:150px;border-bottom:1px solid #98a3b3}
@@ -881,13 +881,10 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-ctr-topo{display:flex;align-items:center;justify-content:space-between;gap:16px;
   border-bottom:1px solid #d6dbe2;padding-bottom:9px;margin-bottom:4px}
 .ep-ctr-logo{height:26px;width:auto;opacity:.9}
-/* O contrato e a procuracao tinham SO' a imagem do logo, sem o nome da casa —
-   os outros quatro documentos abrem com logo + "Irmãos na Obra". Agora os seis
-   abrem igual; o texto senta ao lado do logo, entao custa quase nada de altura. */
+/* Os seis documentos abrem com o mesmo logo NEXUS, que ja' traz o nome escrito.
+   Aqui ele e' menor (9mm): contrato e procuracao sao instrumento, nao vitrine. */
 .ep-ctr-topo .ep-brand{margin-bottom:0}
-.ep-ctr-topo .ep-brand-img{height:15mm}
-.ep-ctr-topo .ep-brand-tx{font-size:16px}
-.ep-ctr-topo .ep-brand-tx span{font-size:8px;letter-spacing:2px;margin-top:3px}
+.ep-ctr-topo .ep-brand-img{height:9mm}
 .ep-ctr-ident{font-size:10px;color:#6b7684;letter-spacing:.3px;text-align:right;white-space:nowrap}
 .ep-ctr-ident b{color:#1a1a1a;font-weight:700}
 /* Ao contrário do recibo, aqui NÃO se encolhe pra caber: contrato pagina. */
@@ -895,14 +892,14 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-ctr-sub{text-align:center;font-size:10.5px;color:#8a94a3;margin-bottom:14px}
 .ep-ctr-p{font-family:var(--serif);font-size:12.5px;color:#22303d;line-height:1.62;text-align:justify;margin:0 0 10px;hyphens:none}
 .ep-ctr-p b{color:#1a1a1a}
-.ep-ctr-cl{font-size:11px;color:#2f6b10;font-weight:800;text-transform:uppercase;letter-spacing:.6px;margin:15px 0 7px}
+.ep-ctr-cl{font-size:11px;color:#0B1A2B;font-weight:800;text-transform:uppercase;letter-spacing:.6px;margin:15px 0 7px}
 .ep-ctr-li{font-family:var(--serif);font-size:12.5px;color:#22303d;line-height:1.62;margin:0 0 7px;padding-left:26px;text-indent:-26px;text-align:justify;hyphens:none}
 .ep-ctr-li b{color:#1a1a1a}
 /* align-items:flex-start porque agora "Não incluído" tem UM item: esticado até
    a altura do outro, o quadro vira um retângulo vazio de meia página. */
 .ep-ctr-esc{display:flex;gap:14px;margin:8px 0 4px;align-items:flex-start}
 .ep-ctr-esc>div{flex:1;border:1px solid #e5e7eb;border-radius:7px;padding:9px 12px}
-.ep-ctr-esc h4{margin:0 0 6px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#2f6b10}
+.ep-ctr-esc h4{margin:0 0 6px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#0B1A2B}
 .ep-ctr-esc.fora h4{color:#8a94a3}
 .ep-ctr-esc ul{margin:0;padding-left:16px;font-size:11.5px;color:#333;line-height:1.6;font-family:var(--serif)}
 /* Fecho do contrato. A régua aqui é MILÍMETRO, não pixel: quem assina precisa
@@ -937,10 +934,10 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .orc-fin-aviso p{font-size:13.5px;color:#E5E7EB;line-height:1.5;font-weight:600}
 .orc-fin-aviso b{color:#fff}
 /* financiamento — destaque no PDF */
-.ep-fin-destaque{display:flex;gap:12px;align-items:flex-start;background:#f0f7ea;border:1.5px solid #2f6b10;border-left:5px solid #2f6b10;border-radius:8px;padding:14px 16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.ep-fin-destaque .ep-fin-ic{flex:none;color:#2f6b10;font-size:22px;font-weight:800;line-height:1}
+.ep-fin-destaque{display:flex;gap:12px;align-items:flex-start;background:#EEF2F6;border:1.5px solid #0B1A2B;border-left:5px solid #0B1A2B;border-radius:8px;padding:14px 16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.ep-fin-destaque .ep-fin-ic{flex:none;color:#0B1A2B;font-size:22px;font-weight:800;line-height:1}
 .ep-fin-destaque div{font-size:12px;color:#333;line-height:1.6}
-.ep-fin-destaque b{color:#2f6b10}
+.ep-fin-destaque b{color:#0B1A2B}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    ORÇAMENTO "1 PÁGINA" — clone do propostaSolar1Pagina do SolarDoc Pro.
@@ -962,7 +959,10 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
   -webkit-print-color-adjust:exact;print-color-adjust:exact;
 }
 .orc1.solar{ --c1:#1E3A8A; --c2:#1D4ED8; --c3:#EFF6FF; --accent:#F5C518; --accent-text:#1E3A8A; }
-.orc1.ep{    --c1:#2F6B10; --c2:#3E8A16; --c3:#F0F7EA; --accent:#7DD117; --accent-text:#14300C; }
+/* NEXUS no papel: o verde (#39FF14) só é FUNDO de bloco com texto #0B1A2B por cima
+   (.band, .valid, .heroR). Conferido: nenhuma regra .orc1 usa --accent ou --c2 como
+   texto, borda fina ou ícone sobre branco; --c1 (#0B1A2B) é o que vira texto. */
+.orc1.ep{    --c1:#0B1A2B; --c2:#16304C; --c3:#EEF2F6; --accent:#39FF14; --accent-text:#0B1A2B; }
 .orc1 *{box-sizing:border-box;margin:0;padding:0}
 .orc1 .num{font-variant-numeric:tabular-nums}
 /* Cabeçalho */
@@ -971,6 +971,10 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .orc1 .brand img{width:110px;height:110px;object-fit:contain;flex-shrink:0}
 .orc1 .brand .mk{font-size:27px;font-weight:900;letter-spacing:-.6px;color:var(--c1);line-height:1.02}
 .orc1 .brand .mk small{display:block;font-size:9.5px;font-weight:700;letter-spacing:3px;color:var(--muted);margin-top:6px}
+/* Eletroposto: o logo NEXUS é deitado (4,14:1) e já traz o nome escrito, então
+   altura fixa, largura livre e nada de texto ao lado. O alt continua sendo a marca. */
+.orc1.ep .brand img{width:auto;height:11mm;border-radius:0}
+.orc1.ep .brand .mk{display:none}
 .orc1 .ficha{background:var(--c1);color:#fff;padding:20px 24px;display:flex;flex-direction:column;gap:8px}
 .orc1 .ficha .t{font-size:12px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;opacity:.85}
 .orc1 .ficha .rowf{display:flex;justify-content:space-between;gap:12px;font-size:12px;border-bottom:1px solid rgba(255,255,255,.16);padding-bottom:6px}
@@ -993,6 +997,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .orc1 .r .lab{color:#39404C;font-weight:600}
 .orc1 .r .val{font-weight:800}
 .orc1 .r .inc{color:#127A3E;font-weight:800;font-size:10.5px;letter-spacing:.4px;text-transform:uppercase}
+.orc1.ep .r .inc{color:#0B1A2B}
 .orc1 .mkq{display:inline-block;font-style:normal;font-size:10px;font-weight:800;letter-spacing:.3px;color:var(--c1);background:var(--c3);padding:1px 7px;border-radius:6px;margin-left:8px;vertical-align:middle}
 /* Financeiro */
 .orc1 .fin{padding:13px 26px 6px}
@@ -2933,7 +2938,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Sua empresa (emitente)</div>
         <div class="eletro-field"><label>Nome / marca</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-nome" placeholder="Irmãos na Obra — Mobilidade Elétrica" oninput="orcEmitSalvar()"></div></div>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-nome" placeholder="NEXUS Eletropostos" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>Endereço</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-end" placeholder="Rua, nº, bairro" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>Cidade / UF</label>
@@ -2941,7 +2946,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="eletro-field"><label>Telefone</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-tel" placeholder="(34) 99816-5040" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>E-mail</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-email" placeholder="contato@irmaosnaobra.com.br" oninput="orcEmitSalvar()"></div></div>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-email" placeholder="e-mail da empresa" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>Razão social <span style="opacity:.6;font-weight:600">(só no contrato)</span></label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-razao" placeholder="AIOROS LTDA" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>Nome fantasia <span style="opacity:.6;font-weight:600">(só no contrato)</span></label>
@@ -2958,7 +2963,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-conta" placeholder="Ex: Sicoob 756 · ag 4264 · cc 168882" oninput="orcEmitSalvar()"></div></div>
         <div class="orc-note">Aparecem <b>só no recibo</b>, e só se preenchidos. Hoje o recibo anuncia o saldo a pagar e não diz para onde mandar — o cliente termina de ler pronto para pagar e precisa procurar o consultor.</div>
         <div class="orc-note">Empresa não assina sozinha. O contrato já <b>exige</b> o representante legal do cliente — a exigência vale para os dois lados, e a proposta de banco diz "assinada pelo seu representante legal" sobre uma linha que hoje não nomeia ninguém.</div>
-        <div class="orc-note">O <b>orçamento</b> continua saindo com a marca e sem CNPJ, como você pediu. Estes dois só aparecem no <b>contrato</b>, porque quem assina contrato é a <b>pessoa jurídica</b> — "Irmãos na Obra" é marca, não é parte. Preencha uma vez: fica salvo.</div>
+        <div class="orc-note">O <b>orçamento</b> continua saindo com a marca e sem CNPJ, como você pediu. Estes dois só aparecem no <b>contrato</b>, porque quem assina contrato é a <b>pessoa jurídica</b> — "NEXUS" é marca, não é parte. Preencha uma vez: fica salvo.</div>
       </div>
 
       <!-- DADOS DA PROPOSTA -->
@@ -6160,11 +6165,24 @@ let orcViewPayload = null;
 //   dados.produto=ep  → eletroposto não tem proposta longa, é sempre o orçamento
 // Lê de `dados` e não da coluna `tipo` porque o get_proposta_pub (caminho do
 // cliente) devolve só o jsonb — assim os dois caminhos decidem igual.
+// Link do cliente de eletroposto: a aba e a barra do navegador do WhatsApp diziam
+// "Gerador de Proposta Solar" e pintavam o azul do solar em cima da folha NEXUS.
+// Só troca na tela aberta pelo link; o <title> estático segue o do app.
+function epAbaNexus() {
+  document.title = 'Orçamento · NEXUS Eletropostos';
+  const tc = document.querySelector('meta[name="theme-color"]');
+  if (tc) tc.setAttribute('content', '#0B1A2B');
+  // o "Baixar em PDF" é azul do solar (#1E3A8A) na regra .orcview-pdf; no link de
+  // eletroposto ele segue a folha NEXUS. O botão do WhatsApp fica verde do WhatsApp.
+  document.querySelectorAll('.orcview-pdf').forEach(b => { b.style.background = '#0B1A2B'; });
+}
+
 function orcViewTalvez(d, querOrc) {
   if (!d) return false;
   const ehEp = d.produto === 'eletroposto';
   if (!ehEp && !querOrc) return false;
   if (ehEp) {
+    epAbaNexus();
     orcViewRender(orcEpDocHTML(d), (d.vendedor && d.vendedor.contato) || (d.empresa && d.empresa.contato));
   } else {
     orcViewRender(orcSolarDocHTML(d), d.consultorWhats || whatsDoConsultor(d.consultor));
@@ -6274,6 +6292,21 @@ function mostrarExpirado(d) {
 
   const ehEp = d.produto === 'eletroposto';
   const oQue = ehEp ? 'Meu orçamento de eletroposto' : 'Minha proposta de energia solar';
+  // Eletroposto vencido assina NEXUS: o selo redondo em base64 do markup é o do
+  // solar. O cabeçalho desta tela é escuro (laranja), então vai o logo de letras
+  // brancas. Deitado (4,14:1): altura fixa e width auto; o wrap põe o logo em
+  // cima do título no celular em vez de espremer o h1.
+  if (ehEp) {
+    const logoEl = exp.querySelector('.logo-img');
+    if (logoEl) {
+      logoEl.src = '/gerador/nexus-logo-tela.png';
+      logoEl.alt = 'NEXUS Eletropostos';
+      logoEl.style.height = '40px';
+      logoEl.style.width = 'auto';
+      if (logoEl.parentElement) logoEl.parentElement.style.flexWrap = 'wrap';
+    }
+    epAbaNexus();
+  }
 
   // Prazo e vencimento, direto do que o get_proposta_pub calculou.
   // Prazo de data cravada fala a data por extenso ("venceu sexta, 07/08, às 18h");
@@ -6323,7 +6356,7 @@ function mostrarExpirado(d) {
     const msg = `${quem}${nomeCli} ${oQue} expirou — pode me enviar um atualizado?`;
     const link = `https://wa.me/${numero}?text=${encodeURIComponent(msg)}`;
 
-    document.getElementById('exp-consultor-nome').textContent = d.consultor || 'Irmãos na Obra';
+    document.getElementById('exp-consultor-nome').textContent = d.consultor || (ehEp ? 'NEXUS Eletropostos' : 'Irmãos na Obra');
     const telEl = document.getElementById('exp-consultor-tel');
     if (telEl) telEl.textContent = expTelBonito(numero);
     const cta = document.getElementById('exp-consultor-cta');
@@ -7224,7 +7257,8 @@ function navEletroposto() {
   eletroSubaba('simulador');   // sempre reabre no Simulador
   eletroCalc();
   new Image().src = '/gerador/eletroposto-arte.png';   // aquece o cache da marca d'água (path ABSOLUTO: a página abre como /gerador sem barra)
-  new Image().src = '/gerador/logo-eletroposto.png';            // aquece a logo do cabeçalho do PDF
+  new Image().src = '/gerador/nexus-logo-papel.png';            // aquece a logo do cabeçalho do PDF
+  new Image().src = '/gerador/nexus-x.png';                     // e a marca do rodapé de cada folha
 }
 
 // Sub-abas dentro do Eletroposto: Simulador | Histórico | Pesquisa | Mercado | Postos | Mapa
@@ -7649,7 +7683,11 @@ async function apxMontar() {
       ocupIni: n('apx-ocup') / 100, mesesRampa: n('apx-rampa') || 1,
       taxaDesc: n('apx-taxadesc') / 100,
       carregadores: n('apx-carregadores') || 1, bicos: n('apx-bicos') || 2,
-      potenciaTxt: v('apx-potencia'), padraoEntrada: v('apx-padrao'),
+      // Nome do carregador no deck: "DC 80 kW" sai "NEXUS DC80 · 80 kW". Só rotula o que
+      // é potência da lista (campo é texto livre: um "7,4 kW AC" digitado passa cru).
+      // O campo da tela não muda; o servidor ainda acha o "80 kW" pela regex dele.
+      potenciaTxt: epEquipNormalizar(v('apx-potencia')) ? epEquipRotulo(v('apx-potencia')) : v('apx-potencia'),
+      padraoEntrada: v('apx-padrao'),
       transformador: v('apx-trafo'), tempoRecarga: v('apx-tempo'),
     },
     solar: {
@@ -8608,7 +8646,7 @@ function eletroResumoTexto() {
   if (t.cidade) linhas.push(`Local: ${t.cidade}`);
   linhas.push(
     '',
-    `Operação em regime: ${Math.round(r.carros)} carros/dia · ${Math.round(r.plugs)} bico(s)${t.equip ? ' · ' + t.equip : ''}`,
+    `Operação em regime: ${Math.round(r.carros)} carros/dia · ${Math.round(r.plugs)} bico(s)${t.equip ? ' · ' + epEquipRotulo(t.equip) : ''}`,
     `Rampa: ocupação de ${Math.round(r.ocupIni * 100)}% a 100% em ${r.mesesRampa} meses`,
     '',
     `- Investimento total: ${elMoney(r.investTotal)}`,
@@ -8633,7 +8671,9 @@ function eletroApresentacao() {
   eletroUltimoSalvar();      // e guarda o estado local: daqui saem todas as outras abas
   const t = eletroTextos();
   const qs = new URLSearchParams({
-    cliente: t.cliente, cidade: t.cidade, equip: t.equip, autor: t.autor, contato: t.contato,
+    // equip vai rotulado ("NEXUS DC80 · 80 kW"): a apresentação imprime o texto e acha
+    // a potência pela mesma regex de kW, que casa o "80 kW" do fim do rótulo.
+    cliente: t.cliente, cidade: t.cidade, equip: epEquipRotulo(t.equip), autor: t.autor, contato: t.contato,
     carros: elNum('el-carros'), carga: elNum('el-carga'), custokwh: elNum('el-custokwh'),
     precokwh: elNum('el-precokwh'), ativ: elNum('el-ativacao'), invest: elMilhar('el-invest'),
     plugs: elNum('el-plugs'), assin: elNum('el-assinatura'), fixos: elNum('el-fixos'),
@@ -8882,8 +8922,10 @@ function eletroHistDeck(id) {
   const row = eletroHistRow(id);
   if (!row) return;
   const i = row.inputs || {}, t = row.textos || {};
+  // Histórico de antes de 06/08/2026 gravou a potência como texto livre ("AC 22 kW",
+  // "7,4 kW WEG"): só vira nome NEXUS o que é potência da lista; o resto vai cru.
   const qs = new URLSearchParams({
-    cliente: t.cliente || '', cidade: t.cidade || '', equip: t.equip || '', autor: t.autor || '', contato: t.contato || '',
+    cliente: t.cliente || '', cidade: t.cidade || '', equip: epEquipNormalizar(t.equip) ? epEquipRotulo(t.equip) : (t.equip || ''), autor: t.autor || '', contato: t.contato || '',
     carros: i.carros, carga: i.carga, custokwh: i.custokwh, precokwh: i.precokwh, ativ: i.ativacao,
     invest: i.invest, plugs: i.plugs, assin: i.assinatura, fixos: i.fixos, gateway: i.gateway,
     arrend: i.arrend, manut: i.manut, imposto: i.imposto, ocup: i.ocup, rampa: i.rampa, taxadesc: i.taxadesc,
@@ -8927,7 +8969,7 @@ function eletroFluxoSVG(fluxo) {
     const x = padX + gap * i + (gap - bw) / 2;
     const h = Math.abs(v) * scale;
     const y = v >= 0 ? zeroY - h : zeroY;
-    const cor = v < 0 ? '#dc2626' : '#2f6b10';
+    const cor = v < 0 ? '#dc2626' : '#0B1A2B';
     bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${cor}" rx="2"></rect>`;
     bars += `<text x="${(x + bw / 2).toFixed(1)}" y="${rotulosY}" font-size="9" fill="#777" text-anchor="middle">${i + 1}</text>`;
   });
@@ -8974,7 +9016,7 @@ function eletroImprimir() {
   const vplFrase = r.vpl > 0
     ? `O <b>VPL positivo de ${money(r.vpl)}</b> indica que o projeto cria valor acima do custo de oportunidade do capital.`
     : `O VPL de ${money(r.vpl)} à taxa adotada indica que, nestas premissas, o projeto não supera o custo de oportunidade do capital — recomenda-se revisar demanda, preço ou investimento.`;
-  const execHTML = `Este estudo avalia a implantação de um eletroposto${t.cidade ? ` em <b>${t.cidade}</b>` : ''}${t.cliente ? ` para <b>${t.cliente}</b>` : ''}, com investimento total de <b>${money(r.investTotal)}</b>${t.equip ? ` (${t.equip})` : ''}. No cenário-base — <b>${Math.round(r.carros)} carros/dia em regime</b>, atingidos após rampa de ocupação de ${r.mesesRampa} meses — o projeto gera <b>${money(r.lucroMes)}/mês</b> de lucro em regime pleno, com <b>payback em ${pb}</b> e ${tirFrase}. ${vplFrase} A análise de sensibilidade, as premissas e os riscos mapeados constam nas seções seguintes.`;
+  const execHTML = `Este estudo avalia a implantação de um eletroposto${t.cidade ? ` em <b>${t.cidade}</b>` : ''}${t.cliente ? ` para <b>${t.cliente}</b>` : ''}, com investimento total de <b>${money(r.investTotal)}</b>${t.equip ? ` (${epEquipRotulo(t.equip)})` : ''}. No cenário-base — <b>${Math.round(r.carros)} carros/dia em regime</b>, atingidos após rampa de ocupação de ${r.mesesRampa} meses — o projeto gera <b>${money(r.lucroMes)}/mês</b> de lucro em regime pleno, com <b>payback em ${pb}</b> e ${tirFrase}. ${vplFrase} A análise de sensibilidade, as premissas e os riscos mapeados constam nas seções seguintes.`;
 
   // rodapé de cada folha A4 (paginação explícita — 4 páginas)
   const pageFoot = n => `<div class="ep-pagefoot"><span class="ep-foot-esq">${EP_FOOT_LOGO}<span>Estudo de Viabilidade — Eletroposto${t.cliente ? ' · ' + t.cliente : ''}</span></span><span>Página ${n} de 4</span></div>`;
@@ -9009,7 +9051,8 @@ function eletroImprimir() {
           <table class="ep-kv">
             <tr><td>Carros por dia (regime pleno)</td><td class="num">${Math.round(r.carros)}</td></tr>
             <tr><td>Bicos de carregamento</td><td class="num">${Math.round(r.plugs)}</td></tr>
-            ${t.equip ? `<tr><td>Equipamento</td><td class="num">${t.equip}</td></tr>` : ''}
+            ${/* Uma célula só, com o valor à direita: em duas colunas o "NEXUS DC160 · 160 kW" alargava a coluna de valores, quebrava os rótulos das outras linhas e a folha 1 passava de uma página (5 folhas com "Página n de 4"). Em colspan ele não mexe na largura das colunas. */ ''}
+            ${t.equip ? `<tr><td colspan="2" style="text-align:left;font-weight:400;color:#333">Equipamento<span style="float:right;font-weight:700;color:#1a1a1a;white-space:nowrap">${epEquipRotulo(t.equip)}</span></td></tr>` : ''}
             <tr><td>Média de carga por carro</td><td class="num">${r.carga} kWh</td></tr>
             <tr><td>Custo do kWh</td><td class="num">${elMoney2(r.custoKwh)}</td></tr>
             <tr><td>Preço kWh revenda</td><td class="num">${elMoney2(r.precoKwh)}</td></tr>
@@ -9220,11 +9263,36 @@ function epEquipNormalizar(txt) {
   const rot = 'DC ' + Math.round(parseFloat(m[1])) + ' kW';
   return epEquipOpcoes().includes(rot) ? rot : '';
 }
+// NOME DO CARREGADOR no que o cliente lê: "DC 80 kW" → "NEXUS DC80 · 80 kW".
+// Só o TEXTO impresso. O value do select, o que fica gravado (histórico, snap,
+// payload) e o que epEquipNormalizar / epDeckPorTexto leem continuam "DC 80 kW".
+// Idempotente: o próprio rótulo casa e devolve o mesmo texto.
+// Só a forma da lista ("DC 80 kW", "Carregador DC 80 kW", "80 kW") é rotulada. Texto
+// livre ("22 kW AC", "7,4 kW", "12 kWp", "DC 80 kW CCS2 duplo") passa cru: arredondar
+// decimal ou chamar AC de DC seria mentir no documento. Mesma regra do carregador()
+// do apresentacao-deck.html e do nomeCarregador() da API.
+function epEquipRotulo(txt) {
+  const s = String(txt == null ? '' : txt);
+  const m = s.trim().match(/^(?:carregador\s+)?(?:NEXUS\s+DC\d+\s*·\s*)?(?:DC\s*)?(\d+)\s*k\s*w$/i);
+  return m ? 'NEXUS DC' + m[1] + ' · ' + m[1] + ' kW' : s;
+}
+// Mesma troca dentro de uma linha de texto livre ("Carregador DC 80 kW WEG" →
+// "Carregador NEXUS DC80 · 80 kW WEG"), sem apagar o resto. Só em linha de
+// CARREGADOR ("SISTEMA FOTOVOLTAICO 12,00 kWp" também casaria a regex de kW), e
+// nunca em linha de corrente alternada ou potência quebrada: "Carregador 7,4 kW AC"
+// passa cru.
+function epEquipNaLinha(txt) {
+  const s = String(txt == null ? '' : txt);
+  if (!/carregador/i.test(s) || /\bAC\b/i.test(s) || /\d[.,]\d+\s*k\s*w/i.test(s)) return s;
+  return s.replace(/(?:NEXUS\s+DC\d+\s*·\s*)?(?:DC\s*)?(\d+)\s*k\s*w(?![a-z])/i,
+    (_, n) => epEquipRotulo(n + ' kW'));
+}
 function eletroEquipRender() {
   const sel = document.getElementById('el-equip');
   if (!sel || sel.options.length) return;   // monta uma vez só
+  // value = "DC 80 kW" (é o que grava e o que a regex lê); texto = nome NEXUS.
   sel.innerHTML = epEquipOpcoes()
-    .map(r => `<option value="${r}"${r === EP_EQUIP_PADRAO ? ' selected' : ''}>${r}</option>`).join('');
+    .map(r => `<option value="${r}"${r === EP_EQUIP_PADRAO ? ' selected' : ''}>${epEquipRotulo(r)}</option>`).join('');
 }
 // Escrever a potência de fora (reabrir do histórico, restaurar orçamento salvo).
 // Potência antiga que não existe mais na lista NÃO troca o campo — melhor manter
@@ -9311,7 +9379,7 @@ function orcKitEquipSync() {
   const el = document.getElementById('orc-kit-eq');
   if (!el) return;
   const eq = orcVal('el-equip').trim();
-  el.textContent = eq || 'definir no Simulador';
+  el.textContent = eq ? epEquipRotulo(eq) : 'definir no Simulador';
   el.classList.toggle('vazio', !eq);
 }
 
@@ -9575,7 +9643,8 @@ function orcEmitCarregar() {
   // Razão social e CNPJ saem do Cartão CNPJ da empresa (dado público, o mesmo que
   // vai em toda nota fiscal). Ficam de default pra nenhum contrato sair sem a
   // qualificação da parte só porque ninguém preencheu o cadastro neste aparelho.
-  const def = { nome: 'Irmãos na Obra — Mobilidade Elétrica', end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'contato@irmaosnaobra.com.br',
+  // Marca do eletroposto é NEXUS (09/2026) e o e-mail de contato saiu dos documentos.
+  const def = { nome: 'NEXUS Eletropostos', end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: '',
                 cnpj: '63.636.043/0001-88', razao: 'AIOROS LTDA', fantasia: 'AIOROS GROUP LTDA', socio: '', socioCpf: '', pix: '', conta: '' };
   orcEmitCampos().forEach(k => {
     const el = document.getElementById('orc-emit-' + k);
@@ -9835,7 +9904,7 @@ function orc1HTML(d) {
       </div>
     </div>
   </div>
-  ${epPageFootHTML(d.titulo || 'Proposta Comercial', d.cliente || d.nome || '')}
+  ${epPageFootHTML(d.titulo || 'Proposta Comercial', d.cliente || d.nome || '', null, null, d.tema === 'ep' ? '' : IO_FOOT_LOGO)}
 </div>`;
 }
 
@@ -9880,13 +9949,26 @@ function orc1Imprimir(html, nomeArq, opts) {
 // Empresa (emitente) — localStorage salvo no Orçamento OU defaults da marca.
 const RAZAO_ERRADAS = ['aioros holding ltda', 'aioros group ltda'];
 const RAZAO_CERTA = 'AIOROS LTDA';
-/** Conserta a razao social salva neste aparelho. Roda uma vez por leitura e e'
- *  barata: comparacao de string. Fantasia fica como o dono escreveu. */
+const EP_MARCA = 'NEXUS Eletropostos';
+// "Irmãos na Obra", "IRMAOS NA OBRA — Mobilidade Elétrica"...: com ou sem acento,
+// qualquer caixa. É o nome que a marca do eletroposto tinha antes da NEXUS.
+const epMarcaAntiga = s => /irmaos\s+na\s+obra/i.test(String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, ''));
+/** Conserta o cadastro da empresa salvo neste aparelho. Roda uma vez por leitura
+ *  e e' barata: comparacao de string. Fantasia fica como o dono escreveu.
+ *  09/2026: a marca virou NEXUS e o e-mail antigo saiu dos documentos — aparelho
+ *  que ja' tinha salvo o nome velho ou o e-mail velho e' migrado aqui, e so'
+ *  grava de volta se algo mudou. */
 function epEmitCorrigir(o) {
-  if (o && typeof o.razao === 'string' && RAZAO_ERRADAS.includes(o.razao.trim().toLowerCase())) {
-    o.razao = RAZAO_CERTA;
-    try { localStorage.setItem(ORC_EMIT_KEY, JSON.stringify(o)); } catch (e) {}
+  if (!o || typeof o !== 'object') return o;
+  let mudou = false;
+  if (typeof o.razao === 'string' && RAZAO_ERRADAS.includes(o.razao.trim().toLowerCase())) {
+    o.razao = RAZAO_CERTA; mudou = true;
   }
+  if (typeof o.nome === 'string' && epMarcaAntiga(o.nome)) { o.nome = EP_MARCA; mudou = true; }
+  if (typeof o.email === 'string' && o.email.replace(/\s+/g, '').toLowerCase() === 'contato@irmaosnaobra.com.br') {
+    o.email = ''; mudou = true;
+  }
+  if (mudou) { try { localStorage.setItem(ORC_EMIT_KEY, JSON.stringify(o)); } catch (e) {} }
   return o;
 }
 function epEmitGet() {
@@ -9897,7 +9979,7 @@ function epEmitGet() {
   // estao vazios no cadastro: ficam vazios aqui tambem e viram lacuna no papel
   // — registro profissional inventado num documento que vai ao balcao da
   // concessionaria e' problema de outra ordem.
-  const def = { nome: 'Irmãos na Obra — Mobilidade Elétrica', end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'contato@irmaosnaobra.com.br',
+  const def = { nome: 'NEXUS Eletropostos', end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: '',
                 cnpj: '63.636.043/0001-88', razao: 'AIOROS LTDA', fantasia: 'AIOROS GROUP LTDA',
                 socio: '', socioCpf: '', pix: '', conta: '',
                 engNome: 'Guilherme Dornelas Ferreira', engNac: 'brasileiro', engEc: 'solteiro',
@@ -9914,15 +9996,19 @@ function epEmitGet() {
 // A logo em toda folha de todo documento — pedido do Thiago (19/08). Discreta:
 // acompanha o texto do rodape em vez de competir com ele. Vale para o que e'
 // impresso E para o que e' baixado, que aqui e' o mesmo arquivo.
-const EP_FOOT_LOGO = '<img class="ep-foot-logo" src="/gerador/logo-eletroposto.png" alt="">';
+// Eletroposto: so' o X da NEXUS (o logo inteiro nao se le' a 4,6mm).
+const EP_FOOT_LOGO = '<img class="ep-foot-logo" src="/gerador/nexus-x.png" alt="">';
+// O orcamento SOLAR usa o mesmo rodape (orc1HTML): ali a marca continua a da casa.
+const IO_FOOT_LOGO = '<img class="ep-foot-logo io" src="/gerador/logo.png" alt="">';
 // Bloco de marca enxuto, para documentos cujo titulo ja' e' o proprio conteudo.
-const EP_TOPO_MARCA = cls => `<div class="${cls}"><img class="ep-brand-img" src="/gerador/logo-eletroposto.png" alt="Irmãos na Obra"><div class="ep-brand-tx">Irmãos na Obra<span>Mobilidade Elétrica</span></div></div>`;
+// O logo NEXUS ja' traz o nome escrito: nao leva texto ao lado.
+const EP_TOPO_MARCA = cls => `<div class="${cls}"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletropostos"></div>`;
 
 function epTopoHTML(titulo, dataStr, rows, rodapeVal) {
   const rowsHTML = (rows || []).filter(r => r && r[1])
     .map(r => `<div class="rowf"><span>${r[0]}</span><span class="v">${r[1]}</span></div>`).join('');
   return `<div class="ep-topo">
-      <div class="ep-brand"><img class="ep-brand-img" src="/gerador/logo-eletroposto.png" alt="Irmãos na Obra"><div class="ep-brand-tx">Irmãos na Obra<span>Mobilidade Elétrica</span></div></div>
+      <div class="ep-brand"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletropostos"></div>
       <div class="ep-propbox">
         <div class="t">${titulo}</div>
         <div class="rowf"><span>Data</span><span class="v">${dataStr}</span></div>
@@ -9936,22 +10022,30 @@ function epTopoHTML(titulo, dataStr, rows, rodapeVal) {
 // PAGINADO, e "Documento de uma via" quando e' folha unica. Antes so' os
 // paginados tinham rodape; recibo e os dois orcamentos nao tinham nenhum, e o
 // papel chegava no cliente sem dizer o que era.
-function epPageFootHTML(doc, cliente, n, total) {
-  const esq = EP_FOOT_LOGO + '<span>' + orcEsc(doc) + (cliente ? ' · ' + orcEsc(cliente) : '') + '</span>';
+// `logo` (opcional) troca a marca da esquerda: o orçamento solar passa a da casa.
+function epPageFootHTML(doc, cliente, n, total, logo) {
+  const esq = (logo || EP_FOOT_LOGO) + '<span>' + orcEsc(doc) + (cliente ? ' · ' + orcEsc(cliente) : '') + '</span>';
   const dir = (n && total) ? `Página ${n} de ${total}` : 'Documento de uma via';
   return `<div class="ep-pagefoot"><span class="ep-foot-esq">${esq}</span><span>${dir}</span></div>`;
 }
 // Rodapé escuro: Vendedor | Empresa (mesmo bloco nos dois documentos).
-function epFooterBlockHTML(vend) {
+// modo (09/2026): o padrão é a VITRINE (Estudo de Viabilidade e documento de
+// venda) e mostra só a marca, a cidade e o telefone — NEXUS não tem CNPJ.
+// 'juridico' (recibo) mostra quem recebe de verdade: razão social, CNPJ e endereço.
+// E-mail só sai se estiver preenchido no cadastro.
+function epFooterBlockHTML(vend, modo) {
   vend = vend || {};
   const emp = epEmitGet();
   const row = (k, v) => v ? `<div class="ep-fb-row"><span class="k">${k}</span><span class="v">${orcEsc(v)}</span></div>` : '';
   const endEmp = [emp.end, emp.cidade].filter(Boolean).join(' · ');
+  const empRows = modo === 'juridico'
+    ? `${row('Nome', emp.razao || emp.nome)}${row('CNPJ', emp.cnpj)}${row('Endereço', endEmp)}${row('Contato', emp.tel)}${row('E-mail', emp.email)}`
+    : `${row('Nome', emp.nome)}${row('Cidade', emp.cidade)}${row('Contato', emp.tel)}${row('E-mail', emp.email)}`;
   const fone = `<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.8 2z"/></svg>`;
   return `<div class="ep-forma-label">Contato</div>
     <div class="ep-footer-block ep-avoid-break">
       <div class="ep-fb-col vend"><div class="ep-fb-ic">${fone}</div><div class="t">Vendedor</div>${row('Nome', vend.nome)}${row('E-mail', vend.email)}${row('Contato', vend.contato)}</div>
-      <div class="ep-fb-col"><div class="t">Empresa</div>${row('Nome', emp.razao || emp.nome)}${row('CNPJ', emp.cnpj)}${row('Endereço', endEmp)}${row('Contato', emp.tel)}${row('E-mail', emp.email)}</div>
+      <div class="ep-fb-col"><div class="t">Empresa</div>${empRows}</div>
     </div>`;
 }
 
@@ -10009,11 +10103,16 @@ function orcEpPayload() {
 // Payload → HTML do documento. Não toca no DOM: serve pra impressão e pro viewer.
 function orcEpDocHTML(d) {
   const dEmis = d.dataEmissao ? new Date(d.dataEmissao) : new Date();
+  // O link público remonta daqui com o payload GRAVADO. Orçamento enviado antes da
+  // NEXUS guardou "Irmãos na Obra" na empresa (ou nem tem empresa): na tela sai a
+  // marca nova, e o registro no banco fica como está. O spread preserva o contato.
+  const empGrav = d.empresa || {};
+  const empresa = { ...empGrav, nome: (!empGrav.nome || epMarcaAntiga(empGrav.nome)) ? EP_MARCA : empGrav.nome };
   return orc1HTML({
     tema: 'ep',
-    logo: '/gerador/logo-eletroposto.png',
-    marca: 'Irmãos na Obra',
-    sub: 'MOBILIDADE ELÉTRICA',
+    logo: '/gerador/nexus-logo-papel.png',
+    marca: 'NEXUS Eletropostos',
+    sub: '',
     titulo: (d.titulo || 'Proposta Comercial') + (d.num ? ' Nº ' + d.num : ''),
     data: dEmis.toLocaleDateString('pt-BR'),
     fichaRows: [
@@ -10024,14 +10123,14 @@ function orcEpDocHTML(d) {
     validade: validadeTexto(d, dEmis, 2),
     detTitulo: 'Detalhamento do Projeto',
     tiles: d.tiles || [],
-    linhas: d.linhas || [],
+    linhas: orc1EpLinhasRotulo(d.linhas),
     compTitulo: 'Composição do Sistema',
     compHTML: orc1EpMateriais({ itens: d.itens || [] }),
     heroL: d.fin.heroL, heroR: d.fin.heroR, fin: d.fin.fin,
     obs: d.obs,
     pagHTML: orc1PagChips({ total: d.total, ...(d.pag || {}) }),
     vendedor: d.vendedor,
-    empresa: d.empresa,
+    empresa,
   });
 }
 
@@ -10087,7 +10186,8 @@ function orc1EpEmpresa() {
   // Só o nome vai pro documento. Endereço, telefone e e-mail da empresa
   // continuam no cadastro do pane (servem pro estudo de viabilidade), mas não
   // saem mais no orçamento — o contato do cliente é o vendedor.
-  return { nome: e.nome || ORC1_EMPRESA.nome };
+  // Fallback é a marca do eletroposto; o ORC1_EMPRESA ("Irmãos na Obra") é do solar.
+  return { nome: e.nome || EP_MARCA };
 }
 
 // Os três números do topo. Sem simulação preenchida, cai pra quantidade de
@@ -10124,12 +10224,16 @@ function orc1EpLinhas() {
   if (!L.length) L.push(['Escopo', 'Chave na mão — equipamento, projeto, instalação e homologação']);
   return L;
 }
+// Nome NEXUS do carregador na linha "Equipamento", só na hora de montar o papel:
+// o payload guarda "Carregador DC 80 kW" (inclusive o de link já enviado) e fica assim.
+const orc1EpLinhasRotulo = L => (L || []).map(l => (l && l[0] === 'Equipamento') ? [l[0], epEquipNaLinha(l[1])] : l);
 
 // Composição = os itens marcados no kit, cada um como "INCLUÍDO" — igualzinho ao
 // solar. Preço de item NÃO sai no documento: o cliente vê um preço final só.
+// A variante (potência) sai com o nome NEXUS; a gravada continua "DC 80 kW".
 function orc1EpMateriais(r) {
   const linhas = r.itens.map(i =>
-    o1LinhaInc(i.desc, i.variante || '', i.qtd > 1 ? `Incluído · ${i.qtd} un` : 'Incluído')
+    o1LinhaInc(i.desc, i.variante ? epEquipRotulo(i.variante) : '', i.qtd > 1 ? `Incluído · ${i.qtd} un` : 'Incluído')
   ).join('');
   return `<div class="rows">${linhas}</div>`;
 }
@@ -10215,7 +10319,7 @@ function epWhatsTextoOrcamento(total) {
   const emp = epEmitGet();
   const L = ['*Orçamento — Eletroposto*'];
   if (t.cliente) L.push(`Cliente: ${t.cliente}`);
-  if (t.equip) L.push(`Equipamento: Carregador ${t.equip}`);
+  if (t.equip) L.push(`Equipamento: Carregador ${epEquipRotulo(t.equip)}`);
   // As formas seguem o que está marcado no card de pagamento — o mesmo que sai no
   // PDF. Antes eram 12x/21x fixos aqui, então o WhatsApp contradizia o documento.
   const pg = orcPgLer(total);
@@ -10323,7 +10427,7 @@ function eletroTelaA4() {
   // fora da foto: os botões de ação e as bolinhas de ajuda (só servem no clique)
   clone.querySelectorAll('.eletro-acoes,.el-tip').forEach(el => el.remove());
 
-  const cab = [t.cliente, t.cidade, t.equip].filter(Boolean).join(' · ');
+  const cab = [t.cliente, t.cidade, epEquipRotulo(t.equip)].filter(Boolean).join(' · ');
   const page = document.createElement('div');
   page.className = 'simshot';
   const head = document.createElement('div');
@@ -10376,16 +10480,16 @@ function epBasicoImprimir() {
 
   const html = orc1HTML({
     tema: 'ep',
-    logo: '/gerador/logo-eletroposto.png',
-    marca: 'Irmãos na Obra',
-    sub: 'MOBILIDADE ELÉTRICA',
+    logo: '/gerador/nexus-logo-papel.png',
+    marca: 'NEXUS Eletropostos',
+    sub: '',
     titulo: 'Orçamento — Eletroposto',
     data: hoje.toLocaleDateString('pt-BR'),
     fichaRows: [['Cliente', t.cliente], ['Local', t.cidade]],
     validade: validadeTexto(val, hoje, 2),
     detTitulo: 'Detalhamento do Projeto',
     tiles: orc1EpTiles(),
-    linhas: orc1EpLinhas({ cidade: t.cidade }),
+    linhas: orc1EpLinhasRotulo(orc1EpLinhas({ cidade: t.cidade })),
     compTitulo: 'Composição do Sistema',
     compHTML: orc1EpMateriais(itensBasico),
     ...orc1EpFinanceiro(total),
@@ -10656,7 +10760,7 @@ function recHTML(d) {
         a importância de <b>${money(d.sinal)}</b> (${e(recExtenso(d.sinal))}), ${av
           ? `em pagamento da <b>${e(d.fim)}</b>.`
           : `a título de <b>sinal e princípio de pagamento</b>, correspondente a ${pct} do valor total do projeto
-        de <b>${money(d.base)}</b>, destinada à ${e(d.fim)}${d.equip ? `, referente ao eletroposto ${e(d.equip)}` : ''}.`}
+        de <b>${money(d.base)}</b>, destinada à ${e(d.fim)}${d.equip ? `, referente ao eletroposto ${e(epEquipRotulo(d.equip))}` : ''}.`}
       </div>
 
       ${av ? '' : `<div class="ep-section">Como este valor entra na conta</div>
@@ -10686,11 +10790,11 @@ function recHTML(d) {
 
       <div class="ep-rec-local">${local ? e(local) + '.' : ''}</div>
       <div class="ep-rec-assin${av ? ' uma' : ''}">
-        <div class="a"><b>${e(emp.razao || emp.nome || 'Irmãos na Obra')}</b>${emp.cnpj ? `<span>CNPJ ${e(emp.cnpj)}</span>` : ''}Recebedor</div>
+        <div class="a"><b>${e(emp.razao || emp.nome || 'AIOROS LTDA')}</b>${emp.cnpj ? `<span>CNPJ ${e(emp.cnpj)}</span>` : ''}Recebedor</div>
         ${av ? '' : `<div class="a"><b>${d.cliente ? e(d.cliente) : '&nbsp;'}</b>${d.doc ? `<span>CPF/CNPJ ${e(d.doc)}</span>` : ''}Contratante</div>`}
       </div>
 
-      ${epFooterBlockHTML(d.vendedor)}
+      ${epFooterBlockHTML(d.vendedor, 'juridico')}
       ${epPageFootHTML(titulo, d.cliente)}
     </div>
   </div>`;
@@ -11228,7 +11332,9 @@ function ctrDados() {
   const emp = epEmitGet();
   const total = recBase(), sinal = ctrSinalPago();
   const dISO = orcVal('ctr-data') || orcHojeISO();
-  const kit = orcLerItens().itens.map(i => i.desc + (i.variante ? ' ' + i.variante : ''));
+  // Escopo impresso: a potência sai com o nome NEXUS. `marcados` (abaixo) casa
+  // pela descrição pura, então o rótulo não interfere no "Não incluído".
+  const kit = orcLerItens().itens.map(i => i.desc + (i.variante ? ' ' + epEquipRotulo(i.variante) : ''));
   const marcados = new Set(orcLerItens().itens.map(i => i.desc));
   return {
     // Numero do contrato. NAO herda mais do recibo: dois instrumentos diferentes
@@ -11337,7 +11443,7 @@ function ctrHTML(d) {
   const html = `<div class="ep-doc">
     <div class="ep-page">
       <div class="ep-ctr-topo">
-        <div class="ep-brand"><img class="ep-brand-img" src="/gerador/logo-eletroposto.png" alt="Irmãos na Obra"><div class="ep-brand-tx">Irmãos na Obra<span>Mobilidade Elétrica</span></div></div>
+        <div class="ep-brand"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletropostos"></div>
         <div class="ep-ctr-ident">${d.num ? 'Contrato nº <b>' + e(d.num) + '</b> · ' : ''}${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}</div>
       </div>
 
@@ -11349,7 +11455,7 @@ function ctrHTML(d) {
       <p class="ep-ctr-p">As partes acima têm entre si justo e contratado o presente instrumento, que se regerá pelas cláusulas seguintes.</p>
 
       ${cl(1, 'Do objeto')}
-      ${li('1.1', `Fornecimento e instalação de estação de recarga de veículos elétricos composta por <b>${d.qtd} carregador(es) ${e(d.equip || 'de corrente contínua')}</b>, com ${d.plugs} ponto(s) de carregamento, a ser implantada em <b>${vazio(d.local)}</b>.`)}
+      ${li('1.1', `Fornecimento e instalação de estação de recarga de veículos elétricos composta por <b>${d.qtd} carregador(es) ${e(d.equip ? epEquipRotulo(d.equip) : 'de corrente contínua')}</b>, com ${d.plugs} ponto(s) de carregamento, a ser implantada em <b>${vazio(d.local)}</b>.`)}
       ${li('1.2', `O escopo compreende o projeto de engenharia, o fornecimento dos equipamentos, a instalação e a homologação junto à concessionária de energia${temOperacao ? `, além ${entregaCrase}, na forma da Cláusula ${numOper}ª` : ''}, conforme a Cláusula 2ª.`)}
 
       ${cl(2, 'Do escopo')}
@@ -11594,7 +11700,7 @@ function procHTML(d) {
   return `<div class="ep-doc">
     <div class="ep-page ep-proc">
       <div class="ep-ctr-topo">
-        <div class="ep-brand"><img class="ep-brand-img" src="/gerador/logo-eletroposto.png" alt="Irmãos na Obra"><div class="ep-brand-tx">Irmãos na Obra<span>Mobilidade Elétrica</span></div></div>
+        <div class="ep-brand"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletropostos"></div>
         <div class="ep-ctr-ident">${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}</div>
       </div>
 
@@ -11942,14 +12048,14 @@ function bcoHTML(d) {
 
   <div class="ep-page">
     ${EP_TOPO_MARCA('ep-bco-topo')}
-    ${h('Proposta de financiamento', 'Eletroposto de recarga rápida' + (d.equip ? ' — ' + d.equip : ''),
+    ${h('Proposta de financiamento', 'Eletroposto de recarga rápida' + (d.equip ? ' — ' + epEquipRotulo(d.equip) : ''),
       'Dossiê de crédito para implantação de estação de recarga de veículos elétricos, com projeção operacional, capacidade de pagamento e análise de sensibilidade. Todos os números derivam de um único modelo, declarado e auditável.')}
     <table class="ep-bco-t" style="margin-top:16px">
       ${tr('Proponente', e(d.razao) || '—')}
       ${tr('CNPJ', e(d.cnpj) || '—')}
       ${tr('Local do investimento', e(d.cidade) || '—')}
       ${tr('Endereço do ponto', e(d.endereco) || '—')}
-      ${tr('Finalidade', 'Implantação de eletroposto' + (d.equip ? ' — ' + e(d.equip) : ''))}
+      ${tr('Finalidade', 'Implantação de eletroposto' + (d.equip ? ' — ' + e(epEquipRotulo(d.equip)) : ''))}
     </table>
     <div class="ep-bco-kpis">
       <div class="ep-bco-kpi"><span class="k">Valor solicitado</span><span class="v">${m0(d.financiado)}</span><span class="s">${p0(1 - d.entradaPct)} de ${m0(r.investTotal)} · entrada própria de ${m0(d.entrada)}</span></div>
@@ -11966,7 +12072,7 @@ function bcoHTML(d) {
     <div class="ep-bco-sec">Quadro de usos e fontes</div>
     <table class="ep-bco-t2">
       <tr><th>Usos — para onde vai o recurso</th><th class="n">Valor</th><th>Fontes — de onde vem</th><th class="n">Valor</th></tr>
-      <tr><td>Estação de recarga${d.equip ? ' ' + e(d.equip) : ''}, chave na mão</td><td class="n">${money(r.investTotal)}</td><td>Recurso próprio do proponente</td><td class="n">${money(d.entrada)}</td></tr>
+      <tr><td>Estação de recarga${d.equip ? ' ' + e(epEquipRotulo(d.equip)) : ''}, chave na mão</td><td class="n">${money(r.investTotal)}</td><td>Recurso próprio do proponente</td><td class="n">${money(d.entrada)}</td></tr>
       <tr><td class="ep-bco-src">equipamento, projeto de engenharia, padrão de entrada, transformador,<br>cabeamento, obra civil, cobertura e comissionamento</td><td class="n"></td><td>Financiamento pleiteado</td><td class="n">${money(d.financiado)}</td></tr>
       <tr class="tot"><td>Total dos usos</td><td class="n">${money(r.investTotal)}</td><td>Total das fontes</td><td class="n">${money(r.investTotal)}</td></tr>
     </table>
@@ -12027,7 +12133,7 @@ function bcoHTML(d) {
         </table></div>
       <div><div class="ep-bco-sec">Executor da obra</div>
         <table class="ep-bco-t">
-          ${tr('Empresa', e(d.exec.razao || 'Irmãos na Obra'))}
+          ${tr('Empresa', e(d.exec.razao || 'AIOROS LTDA'))}
           ${tr('CNPJ', e(d.exec.cnpj || '—'))}
           ${tr('Responsabilidade técnica', d.exec.engNome ? e(d.exec.engNome) + (d.exec.engCrea ? ' — ' + e(d.exec.engCrea) : '') : 'Engenheiro do quadro, com ART')}
           ${tr('Regime', 'Chave na mão')}
@@ -12308,7 +12414,7 @@ function bcoHTML(d) {
     </div>
     <div class="ep-bco-assin">
       <div class="a"><b>${e(d.razao) || '&nbsp;'}</b><span>${d.cnpj ? 'CNPJ ' + e(d.cnpj) + ' · ' : ''}proponente</span></div>
-      <div class="a"><b>${e(d.exec.razao || 'Irmãos na Obra')}</b><span>${d.exec.engNome ? e(d.exec.engNome) + (d.exec.engCrea ? ' · ' + e(d.exec.engCrea) : '') : 'executora da obra'}</span></div>
+      <div class="a"><b>${e(d.exec.razao || 'AIOROS LTDA')}</b><span>${d.exec.engNome ? e(d.exec.engNome) + (d.exec.engCrea ? ' · ' + e(d.exec.engCrea) : '') : 'executora da obra'}</span></div>
     </div>
     <p class="ep-bco-src" style="text-align:center;margin-top:10px">${e(d.cidade || '')}${d.cidade ? ', ' : ''}${e(dataTxt)}</p>
     ${foot(11)}
@@ -12536,7 +12642,8 @@ function bnkObjetoSugerido(itens) {
     if (m) kwp += (i.qtd || 1) * parseInt(m[1], 10) / 1000;
   });
   const fv = 'SISTEMA FOTOVOLTAICO' + (kwp > 0 ? ' ' + kwp.toFixed(2).replace('.', ',') + ' kWp' : '');
-  const ep = ((orcVal('el-equip') || '').trim().toUpperCase() + ' — ELETROPOSTO DE RECARGA DE VEÍCULOS ELÉTRICOS').replace(/^ — /, '');
+  // Cabeçalho impresso: a potência sai com o nome NEXUS (o value do el-equip não muda).
+  const ep = (epEquipRotulo((orcVal('el-equip') || '').trim()).toUpperCase() + ' — ELETROPOSTO DE RECARGA DE VEÍCULOS ELÉTRICOS').replace(/^ — /, '');
   if (temFV && temEP) return 'ELETROPOSTO DE RECARGA DE VEÍCULOS ELÉTRICOS + ' + fv;
   if (temFV) return fv;
   return ep;
@@ -12902,7 +13009,9 @@ function bnkHTML(d) {
   // pra atender um banco so' e' o contrario do que o formulario espera.
   const temCod = d.itens.some(i => i.cod);
   const linhasItens = d.itens.length
-    ? d.itens.map(i => `<tr><td class="q">${i.qtd > 1 ? i.qtd : 1}</td><td>${e(String(i.desc || '').toUpperCase())}</td>${temCod ? `<td class="cod">${i.cod ? e(i.cod) : '—'}</td>` : ''}</tr>`).join('')
+    // Linha de carregador sai com o nome NEXUS só no papel: a descrição da lista é a
+    // chave do código Finame guardado (bnkCodChave) e não pode mudar.
+    ? d.itens.map(i => `<tr><td class="q">${i.qtd > 1 ? i.qtd : 1}</td><td>${e(epEquipNaLinha(i.desc).toUpperCase())}</td>${temCod ? `<td class="cod">${i.cod ? e(i.cod) : '—'}</td>` : ''}</tr>`).join('')
     : `<tr><td class="q">—</td><td${temCod ? ' colspan="2"' : ''}>Nenhum item na composição</td></tr>`;
 
   return `<div class="ep-doc ep-bnk">
@@ -12955,7 +13064,7 @@ function bnkHTML(d) {
     <p class="ep-bnk-p">Prezado(s) Senhor(s), atendendo solicitação de V.Sa., fornecemos características e preço público à vista do produto abaixo.</p>
 
     <table class="ep-bnk-t${d.itens.length > 9 ? ' compacta' : ''}">
-      <tr><th colspan="${temCod ? 3 : 2}">${e((d.objeto || ((d.equip || 'ESTAÇÃO DE RECARGA') + ' — ELETROPOSTO DE RECARGA DE VEÍCULOS ELÉTRICOS')).toUpperCase())}</th></tr>
+      <tr><th colspan="${temCod ? 3 : 2}">${e((d.objeto || ((d.equip ? epEquipRotulo(d.equip) : 'ESTAÇÃO DE RECARGA') + ' — ELETROPOSTO DE RECARGA DE VEÍCULOS ELÉTRICOS')).toUpperCase())}</th></tr>
       <tr><td class="q">QTD.</td><td>EQUIPAMENTOS</td>${temCod ? '<td class="cod">CÓDIGO</td>' : ''}</tr>
       ${linhasItens}
     </table>
