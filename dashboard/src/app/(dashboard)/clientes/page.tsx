@@ -211,6 +211,10 @@ export default function ClientesPage() {
                   <td>{fmtDate(client.created_at)}</td>
                   <td>
                     <div className={styles.actions}>
+                      {/* Abre a proposta já com os dados deste cliente. */}
+                      <Link href={`/documentos?tipo=proposta&cliente=${encodeURIComponent(client.nome)}`} className={styles.generateBtn}>
+                        Proposta
+                      </Link>
                       <button className={styles.editBtn} onClick={() => { setEditingClient(client); setShowModal(true); }}>
                         Editar
                       </button>
@@ -245,6 +249,9 @@ export default function ClientesPage() {
               )}
               {client.concessionaria && <p className={styles.cardDetail}>{client.concessionaria}</p>}
               <div className={styles.cardActions}>
+                <Link href={`/documentos?tipo=proposta&cliente=${encodeURIComponent(client.nome)}`} className={styles.generateBtn}>
+                  Proposta
+                </Link>
                 <Link href="/documentos?tipo=proposta-bancaria" className={styles.generateBtn}>
                   Banco
                 </Link>

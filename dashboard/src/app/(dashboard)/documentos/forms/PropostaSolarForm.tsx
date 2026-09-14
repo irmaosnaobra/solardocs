@@ -461,7 +461,10 @@ export default function PropostaSolarPage() {
     }).finally(() => setCarregandoDoc(false));
   }, [docParam]);
 
-  // Carrega a última proposta de um cliente (histórico por cliente) e preenche tudo.
+  // Carrega um cliente e preenche o que houver: tudo da última proposta dele ou, se ele
+  // ainda não tem proposta, os dados do cadastro de Clientes (cidade, UF, endereço,
+  // telhado). Antes só a primeira fonte existia, e cliente recém-cadastrado não
+  // carregava nada, em silêncio.
   const [carregandoCliente, setCarregandoCliente] = useState(false);
   async function carregarCliente(nome: string) {
     if (!nome.trim()) return;
@@ -469,18 +472,39 @@ export default function PropostaSolarPage() {
     try {
       const { data } = await api.get('/documents/proposta-prefill', { params: { cliente_nome: nome } });
       const c = data?.cliente;
-      if (c && Object.keys(c).length) {
-        setFields(f => ({ ...f, ...c }));
+      if (c) {
+        if (Object.keys(c).length) setFields(f => ({ ...f, ...c }));
         // Veio a quantidade da última proposta dele: é dado real, não sugestão.
         if (c.qtd_modulos) qtdModulosManual.current = true;
         // A metragem do telhado dele não muda de uma proposta pra outra.
         if (c.area_m2) areaManual.current = true;
+        // O nome entra mesmo quando o cadastro não tem mais nada além dele.
         setClienteNome(nome);
         const cid = String(c.cidade || '').trim(), uf = String(c.uf || '').trim();
         if (cid || uf) setCidadeUf([cid, uf].filter(Boolean).join(' - '));
+      } else {
+        setError('Não achei os dados desse cliente. Confira o nome na tela de Clientes.');
       }
-    } catch { /* ignora */ } finally { setCarregandoCliente(false); }
+    } catch {
+      setError('Não consegui carregar os dados do cliente agora. Tenta de novo em instantes.');
+    } finally { setCarregandoCliente(false); }
   }
+
+  // Veio da tela de Clientes (?cliente=Nome): carrega sozinho, uma vez só.
+  const clienteParam = searchParams.get('cliente');
+  const clienteCarregado = useRef(false);
+  useEffect(() => {
+    if (!clienteParam || docParam) return;
+    // Fora do corpo síncrono do efeito (carregarCliente mexe em estado na hora). A
+    // trava fica dentro do timeout: no StrictMode o efeito roda duas vezes e a
+    // limpeza cancela a primeira.
+    const t = setTimeout(() => {
+      if (clienteCarregado.current) return;
+      clienteCarregado.current = true;
+      void carregarCliente(clienteParam);
+    }, 0);
+    return () => clearTimeout(t);
+  }, [clienteParam, docParam]);
 
   // kWp deriva de qtd_modulos × potencia_modulo (verdade técnica: 10×620W = 6,2 kWp)
   const kwpCalc = (() => {
@@ -1054,10 +1078,11 @@ export default function PropostaSolarPage() {
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Cliente</h2>
 
-          {/* Histórico por cliente: recarrega tudo que foi usado na última proposta dele */}
+          {/* Clientes com proposta (recarrega tudo da última) e clientes só do cadastro
+              (traz cidade, UF, endereço e telhado). */}
           {clientesHist.length > 0 && (
             <div style={{ marginBottom: 14 }}>
-              <label className={styles.label}>Cliente com histórico<InfoHint>Traz de volta tudo da última proposta desse cliente: consumo, kWp, tarifa, marcas…</InfoHint></label>
+              <label className={styles.label}>Cliente cadastrado<InfoHint>Cliente que já teve proposta volta com tudo da última: consumo, kWp, tarifa e marcas. Cliente só do cadastro traz cidade, UF, endereço e telhado.</InfoHint></label>
               <select
                 className="input-field"
                 value=""
