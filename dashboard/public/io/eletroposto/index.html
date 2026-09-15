@@ -22,8 +22,8 @@
      Dois preloads por media query erravam — o desktop baixava a de 1324px e o
      srcset depois ficava com a de 900, entao os 159 KB iam pro lixo. -->
 <link rel="preload" as="image" href="/nexus/img/capa.webp"
-      imagesrcset="/nexus/img/capa-900.webp 900w, /nexus/img/capa.webp 1324w"
-      imagesizes="(max-width:900px) 100vw, 600px">
+      imagesrcset="/nexus/img/capa-900.webp 900w, /nexus/img/capa-1000.webp 1000w, /nexus/img/capa.webp 1324w"
+      imagesizes="(max-width:899px) calc(100vw - 74px), 600px">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -570,11 +570,20 @@
     <figure class="cena" style="margin:0">
       <!-- MESMA capa do /nexus: as duas paginas da marca abrem com a mesma cena.
            A -900 foi gerada aqui (75 KB contra 159 KB) porque esta e a imagem
-           do LCP e vai pre-carregada — no celular a de 1324px seria peso puro. -->
+           do LCP e vai pre-carregada — no celular a de 1324px seria peso puro.
+           O sizes e a largura REAL da foto no cartao (100vw - 74px: 12px de
+           cada lado no .wrap, 24px de padding e 1px de borda). No iPhone (DPR 3)
+           isso pede 948px e o navegador pega a primeira opcao que cobre: sem a
+           -1000 era a de 1324px (159 KB), porque a de 900 fica 48px curta. Com a
+           foto na primeira tela ela e o LCP; medido a 4G com CPU 4x, a -1000
+           (78 KB, q82) levou o LCP de ~3,5s para ~1,6s (15/09/2026). O
+           imagesrcset/imagesizes do preload no <head> tem que ser IGUAL a este,
+           senao a foto baixa duas vezes. -->
       <img src="/nexus/img/capa.webp"
            srcset="/nexus/img/capa-900.webp 900w,
+                   /nexus/img/capa-1000.webp 1000w,
                    /nexus/img/capa.webp 1324w"
-           sizes="(max-width:900px) 100vw, 600px"
+           sizes="(max-width:899px) calc(100vw - 74px), 600px"
            width="1324" height="827" fetchpriority="high" decoding="async"
            alt="Eletroposto NEXUS ao entardecer: dois carros carregando sob a cobertura iluminada">
     </figure>
@@ -1100,8 +1109,11 @@
                local era de terceiro com quem ela nunca falou. Os quatro primeiros
                rótulos são os MESMOS de /io/eletroposto/parceria (porta do ponto) de
                propósito — dois formulários, uma régua só. Quem responde "ainda não é
-               meu" não marca reunião: vira NOTA 1 e vai pro cadastro de parceria. -->
-          <div class="fld">
+               meu" não marca reunião: vira NOTA 1 e vai pro cadastro de parceria.
+               15/09/2026: quem responde "em negociação com o proprietário" também abre
+               este bloco, mas sem esta pergunta (a resposta dele já diz de quem é o
+               local): vê só o endereço, que é o que faz a reunião dele valer. -->
+          <div class="fld" id="box-relacao">
             <label for="f-relacao">O local é seu?</label>
             <div class="inp"><select id="f-relacao" onchange="onRelacao()">
               <option value="">Selecione…</option>
@@ -1245,10 +1257,10 @@
         <div class="ic"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
         <h3>Está marcado!</h3>
         <p id="ok-txt">...</p>
-        <!-- O parágrafo de "seu ponto ainda está em negociação" saiu em 29/08: com o
-             corte do 'negociando', ninguém que chega nesta tela está negociando local.
-             Ele existia pra avisar o lead de que a reunião seria de validação, não de
-             orçamento — e essa reunião não é mais vendida aqui. -->
+        <!-- O parágrafo de "seu ponto ainda está em negociação" saiu em 29/08, quando o
+             'negociando' foi cortado da agenda. Em 15/09 o 'negociando' voltou, agora COM
+             endereço, e a reunião dele é de estudo do local como a de quem tem o ponto:
+             os cartões abaixo valem para os dois, então o parágrafo não voltou. -->
 
         <div class="okCard">
           <div class="okRow">
@@ -2054,12 +2066,12 @@ const PESO_ROTA    = { rodovia:2, comercial:1, naosei:0 };
 //   em_vista    olhou uma esquina e nunca falou com o dono (corte de 14/08)
 //   negociando  conversa aberta com o proprietário, mas o ponto ainda não é dele
 //
-// 'negociando' entrou no corte agora. Ele valia 2 pts e passava porque "existe conversa
-// com o dono" — só que conversa não é ponto: o consultor chegava na reunião pra estudar
-// um local que o lead ainda pode não conseguir, e o estudo de viabilidade (concessionária,
-// entrada de energia, fluxo da via) não tem endereço definitivo pra morder. O lugar dele
-// agora é o cadastro de parceria, que é onde a equipe trabalha quem ainda vai fechar o local.
-const SEM_LOCAL = new Set(['sem_ideia', 'em_vista', 'negociando']);
+// 'negociando' entrou no corte em 29/08 e SAIU em 15/09/2026 (ordem do Thiago): com os
+// modelos da NEXUS (100% nosso, 50/50, chave na mão) quem já está negociando um local
+// tem negócio pra fechar, e o motivo do corte era a falta de endereço pro estudo. O
+// endereço agora é cobrado dele também (onPonto), então o motivo deixou de existir.
+// Em 17 dias de corte foram 16 leads 'negociando' fora da agenda, contra 45 reuniões.
+const SEM_LOCAL = new Set(['sem_ideia', 'em_vista']);
 // A OUTRA METADE DO MESMO CORTE. "Já tenho o ponto definido" é auto-declarado e é a
 // resposta que destrava a agenda — então é a que o lead aprende a marcar. Quem diz ter o
 // ponto responde em seguida QUAL é a relação dele com o imóvel, e só passa quem controla
@@ -2121,10 +2133,27 @@ function pontuar(f){
   // Entao o ponto vira a PORTA e o resto da ficha vira so a ORDEM DA FILA:
   //   tem o ponto sob controle  ->  agenda sempre (NOTA 2, ou 3 se somar 9+)
   //   nao tem                   ->  NOTA 1, roteado como sempre foi
-  const temOPonto = !SEM_LOCAL.has(f.ponto) && !SEM_CONTROLE.has(f.relacao);
-  const corte = !temOPonto;
-  const nota  = corte ? 1 : (pts >= 9 ? 3 : 2);
-  return { pts, nota, corte };
+  //
+  // ═══ 15/09/2026 — A NOTA SAI DO PONTO ═══
+  // Ordem do Thiago: todo ponto próprio chega à reunião e é nota 11, quem já está
+  // negociando um local é nota 9, e o negócio da NEXUS é 100% nosso, 50/50 e chave
+  // na mão. Nesses três modelos dinheiro e decisor não barram ninguém (no 01 quem
+  // investe somos nós), então a soma deixou de ordenar quem tem local. O número
+  // passa a dizer só a situação do ponto:
+  //   ponto próprio (definido + sob controle)  ->  11/11, NOTA 3
+  //   local em negociação com o proprietário    ->   9/11, NOTA 3
+  //   o resto                                   ->  NOTA 1, com a soma antiga
+  // A soma antiga segue na ficha de NOTA 1 (listas do /gerador, ordem do PlugCash)
+  // com teto de 8: 9 e 11 ficam reservados pra quem tem local, senão "NOTA 1 ·
+  // 11/11" conviveria com "11 = ponto próprio". Isso também resolve o modelo 01, que
+  // escondia a pergunta de investir e nunca passava de 8.
+  // Efeito sabido: NOTA 2 some das reuniões novas (toda reunião nasce quente) e o
+  // reagendamento automático do vermelho passa a valer pra todas.
+  if (f.ponto === 'definido' && f.relacao && !SEM_CONTROLE.has(f.relacao))
+    return { pts: 11, nota: 3, corte: false };
+  if (f.ponto === 'negociando')
+    return { pts: 9, nota: 3, corte: false };
+  return { pts: Math.min(pts, 8), nota: 1, corte: true };
 }
 
 // A rota de passagem só faz sentido pra quem não traz fluxo próprio.
@@ -2352,15 +2381,22 @@ function limparEndereco(){
   cepStatus(CEP_HINT, false);
 }
 function onPonto(){
-  const definido = document.getElementById('f-ponto').value === 'definido';
-  document.getElementById('box-endereco').style.display = definido ? '' : 'none';
+  const v = document.getElementById('f-ponto').value;
+  const definido = v === 'definido';
+  // 15/09: 'negociando' também agenda e por isso também abre o endereço, mas sem a
+  // pergunta "o local é seu?": a resposta dele já disse que ainda não é.
+  const comLocal = definido || v === 'negociando';
+  document.getElementById('box-endereco').style.display = comLocal ? '' : 'none';
+  document.getElementById('box-relacao').style.display  = definido ? '' : 'none';
   if(!definido){
     // A relação com o imóvel morre junto: ela é a segunda metade da resposta "tenho o
     // ponto", e guardá-la depois de trocar a primeira faria a ficha dizer que o lead é
     // proprietário de um local que ele acabou de dizer que não tem.
     document.getElementById('f-relacao').value = '';
-    limparEndereco();
   }
+  // Trocar entre "definido" e "negociando" é o MESMO local mudando de situação, então
+  // o endereço fica. Some só quando a resposta nova diz que não há local nenhum.
+  if(!comLocal) limparEndereco();
   onRelacao();
 }
 // Quem respondeu que o ponto ainda não é dele já saiu da agenda — cobrar rua, número e
@@ -2368,10 +2404,15 @@ function onPonto(){
 // mesmo motivo do onPonto: endereço de um ponto que a pessoa diz não ter viajaria na
 // ficha e mandaria o consultor pro lugar errado.
 function onRelacao(){
+  const ponto = document.getElementById('f-ponto').value;
   const rel = document.getElementById('f-relacao').value;
-  const mostra = !!rel && !SEM_CONTROLE.has(rel);
+  const semControle = ponto === 'definido' && SEM_CONTROLE.has(rel);
+  // Quem negocia vê o endereço direto. Quem tem o ponto vê depois de dizer que o local
+  // está sob controle dele; enquanto a relação está em branco o bloco só se esconde,
+  // e só se limpa quando a resposta é "ainda não é meu".
+  const mostra = ponto === 'negociando' || (ponto === 'definido' && !!rel && !semControle);
   document.getElementById('box-endereco-campos').style.display = mostra ? '' : 'none';
-  if(!mostra) limparEndereco();
+  if(semControle) limparEndereco();
 }
 // ═══════════════════════════════════════════════════════════════════════════
 // UMA PERGUNTA DE CADA VEZ
@@ -2420,14 +2461,13 @@ const PASSOS = [
   { id:'p-ponto',   ok:() => {
       const v = val('f-ponto');
       if(!v) return 'Informe como está o seu ponto hoje.';
-      if(v === 'definido'){
-        const rel = val('f-relacao');
-        if(!rel) return 'Informe qual é a sua relação com o local.';
-        if(!SEM_CONTROLE.has(rel)){
-          if(val('f-rua').length < 3)    return 'Informe a rua ou avenida do ponto.';
-          if(!val('f-numero'))           return 'Informe o número do endereço do ponto.';
-          if(val('f-bairro').length < 2) return 'Informe o bairro do ponto.';
-        }
+      if(v === 'definido' && !val('f-relacao')) return 'Informe qual é a sua relação com o local.';
+      // Endereço de todo mundo que vai pra agenda: ponto sob controle OU local em
+      // negociação (15/09). A mesma regra do agendar(), cobrada aqui no passo.
+      if(v === 'negociando' || (v === 'definido' && !SEM_CONTROLE.has(val('f-relacao')))){
+        if(val('f-rua').length < 3)    return 'Informe a rua ou avenida do ponto.';
+        if(!val('f-numero'))           return 'Informe o número do endereço do ponto.';
+        if(val('f-bairro').length < 2) return 'Informe o bairro do ponto.';
       }
       return null;
     } },
@@ -2567,18 +2607,20 @@ async function agendar(){
   // ponto próprio ou intenção, que é a régua inteira desde 29/08. O endereço vem depois
   // e só de quem controla o local: rua, número e bairro obrigatórios; CEP e
   // complemento, não. Pra quem não tem o ponto o bloco nem existe na tela.
-  if(ponto.value === 'definido'){
-    if(!relacao.value)    return erro('Informe qual é a sua relação com o local.');
-    if(!SEM_CONTROLE.has(relacao.value)){
-      if(rua.length < 3)    return erro('Informe a rua ou avenida do ponto.');
-      if(!numero)           return erro('Informe o número do endereço do ponto.');
-      if(bairro.length < 2) return erro('Informe o bairro do ponto.');
-    }
+  if(ponto.value === 'definido' && !relacao.value) return erro('Informe qual é a sua relação com o local.');
+  // 15/09: quem negocia o local também vai pra agenda, então também deixa o endereço.
+  if(ponto.value === 'negociando' || (ponto.value === 'definido' && !SEM_CONTROLE.has(relacao.value))){
+    if(rua.length < 3)    return erro('Informe a rua ou avenida do ponto.');
+    if(!numero)           return erro('Informe o número do endereço do ponto.');
+    if(bairro.length < 2) return erro('Informe o bairro do ponto.');
   }
   const modelo = document.getElementById('f-modelo');
   if(!modelo.value)       return erro('Escolha o modelo que te interessa.');
   const pagaCapital = !MODELO_SEM_CAPITAL.has(modelo.value);
   if(pagaCapital && !invest.value) return erro('Informe como pretende investir.');
+  // Quem escolheu o modelo 01 nem viu a pergunta de investir, e o select vazio
+  // imprimia "Selecione…" nas duas fichas que a equipe lê.
+  const investTexto = pagaCapital ? txt(invest) : 'Não se aplica · modelo 01, a NEXUS investe 100%';
   if(!decisor.value)      return erro('Informe quem decide o investimento.');
   if(!trif.value)         return erro('Informe se a entrada de energia do local é trifásica.');
 
@@ -2604,25 +2646,23 @@ async function agendar(){
           // 'Já tenho o ponto definido%' e continua gravando 'definido'. Quem separa em
           // coluna é ponto_relacao, que só existe depois da migration.
           ponto: txt(ponto) + (SEM_CONTROLE.has(relacao.value) ? ' (mas o local ainda não é meu)' : ''),
-          invest: txt(invest),
+          invest: investTexto,
           decisor: txt(decisor), rota: PERFIL_SEM_FLUXO.has(perfil.value) ? txt(rota) : '',
           trifasica: txt(trif), pts: q.pts,
           ...utmPrimeiroToque(),
           ficha: [
             `LP ELETROPOSTO · ${perfilTexto(perfil)}`,
             `Modelo de interesse: ${txt(modelo)}`,
-            // O motivo vem do que REALMENTE cortou. Nem toda NOTA 1 é falta de ponto:
-            // um dono de local sem capital e sem poder de decisão soma menos de 5 e cai
-            // aqui com o ponto na mão (é o arrendador que vai pra porta do ponto) —
-            // escrever "sem ponto próprio" na ficha dele mandaria a equipe procurar o
-            // que ele já tem.
-            `NOTA 1 · ${q.pts}/11 pts (${q.corte ? 'sem ponto próprio' : 'pontuação baixa'})`,
+            // Desde 10/09 o ponto é a porta da agenda, então toda NOTA 1 é falta de
+            // ponto próprio (o "pontuação baixa" de antes não acontece mais), e desde
+            // 15/09 os pontos daqui param em 8.
+            `NOTA 1 · ${q.pts}/11 pts (sem ponto próprio)`,
             `Ponto: ${txt(ponto)}`,
             // Só existe pra quem disse ter o ponto: é a resposta que o cortou, e sem
             // ela a lista de arrendamento não sabe separar quem tem o local de quem
             // só escolheu um. Mesmo rótulo do agendamento e do banco.
             ...(ponto.value === 'definido' && relacao.value ? [`Local é seu: ${txt(relacao)}`] : []),
-            `Como pretende investir: ${txt(invest)}`,
+            `Como pretende investir: ${investTexto}`,
             `Decisor: ${txt(decisor)}`,
             `Entrada trifásica: ${txt(trif)}`,
           ].join('\n'),
@@ -2647,7 +2687,9 @@ async function agendar(){
     // lados só enche a lista de quem ninguém vai conseguir conectar. O que sobra
     // pra ele é o material, que é exatamente o produto de quem ainda vai
     // aprender a achar o ponto.
-    const semCapital = invest.value === 'naosei';
+    // Modelo 01 também é "sem capital": quem só cede o espaço não ia ouvir "você tem
+    // como investir" do /ponto-certo, que é o que a linha de baixo mandava antes.
+    const semCapital = invest.value === 'naosei' || !pagaCapital;
     const semLocal   = ponto.value === 'sem_ideia';       // "em vista" NÃO é sem local
     const curioso    = semCapital && semLocal;
 
@@ -2667,7 +2709,7 @@ async function agendar(){
       sessionStorage.setItem('ep_lead', JSON.stringify({
         nome, telefone: telE164,
         telefone_visivel: document.getElementById('f-tel').value.trim(),
-        cidade, invest: txt(invest),
+        cidade, invest: investTexto,
         // O curioso não recebe sugestão: ele nem vai pra página das portas, mas
         // ela é alcançável pelo link do rodapé do material — e sugerir "tenho o
         // ponto" a quem acabou de dizer que não tem ideia de onde instalar seria
@@ -2734,21 +2776,24 @@ async function agendar(){
     // agenda antes de montar ficha (o `return` lá em cima).
     `NOTA ${q.nota} · ${q.pts}/11 pts`,
     pontoParaInvestidor ? 'PONTO DISPONIVEL PARA INVESTIDOR' : '',
-    // "Endereço:" volta em 14/08, e SÓ pra quem tem o ponto definido — é o único que
-    // preencheu o bloco. Para os outros a linha não existe (em vez de existir vazia): o
-    // alerta da equipe só imprime o que a ficha traz, e "Endereço: —" seria ruído em
-    // toda reunião de quem ainda está negociando o local.
-    pontoDefinido
+    // "Endereço:" volta em 14/08 pra quem tem o ponto definido e, desde 15/09, também
+    // pra quem está negociando o local: são os dois que preenchem o bloco. Para os
+    // outros a linha não existe (em vez de existir vazia): o alerta da equipe só
+    // imprime o que a ficha traz, e "Endereço: —" seria ruído.
+    (pontoDefinido || ponto.value === 'negociando')
       ? `Endereço: ${[`${rua}, ${numero}`, bairro, cidade, cep ? `CEP ${cep}` : '',
                       compl ? `ref.: ${compl}` : ''].filter(Boolean).join(' · ')}`
       : '',
     `Ponto: ${txt(ponto)}`,
-    // Desde 29/08 TODA reunião tem esta linha (quem agenda tem o ponto definido e sob
-    // controle) — ela diz ao consultor com quem ele vai falar de contrato: dono,
-    // inquilino ou quem só representa o proprietário são três conversas diferentes.
-    `Local é seu: ${txt(relacao)}`,
+    // Desde 29/08 TODA reunião tem esta linha. Ela diz ao consultor com quem ele vai
+    // falar de contrato: dono, inquilino, quem só representa o proprietário e, desde
+    // 15/09, quem ainda negocia o local são conversas diferentes.
+    `Local é seu: ${pontoDefinido ? txt(relacao) : 'Em negociação com o proprietário'}`,
+    // Com a nota vindo só do ponto (15/09), é o modelo que diz qual conversa é: 100%
+    // nosso, 50/50 ou chave na mão. O card do WhatsApp imprime como "Modelo:".
+    `Modelo de interesse: ${txt(modelo)}`,
     PERFIL_SEM_FLUXO.has(perfil.value) ? `Rota de passagem: ${txt(rota)}` : '',
-    `Como pretende investir: ${txt(invest)}`,
+    `Como pretende investir: ${investTexto}`,
     `Decisor: ${txt(decisor)}`,
     `Entrada trifásica: ${txt(trif)}`,
     `Simulou ${kw} kW com ${p.carros} carros/dia`,
@@ -2880,8 +2925,9 @@ async function gravarAgendamento(){
       cliente_telefone: tel,
       cidade:           cidade || null,
       status:           'agendado',
-      // Vem da pontuação, não de um campo só: quente = NOTA 3 (9-11 pts, tem onde,
-      // tem com quê e decide sozinho), morno = NOTA 2 (5-8, falta uma das pernas).
+      // Vem da nota: quente = NOTA 3, morno = NOTA 2. Desde 15/09 toda reunião da LP
+      // nasce NOTA 3 (11 ponto próprio, 9 local em negociação), então nasce quente;
+      // morno sobra pra ficha antiga e pra quem o consultor rebaixar no CRM.
       // 'frio' não aparece aqui porque NOTA 1 nem chega a gravar ficha — vai pro grupo.
       temperatura,
       observacao:       obs,
