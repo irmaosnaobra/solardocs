@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Os dois toques do dia da Giovanna. Os riscos aqui são concretos e cada um já
-// custou caro em outro agente desta mesma linha: falar com quem não é dela, falar
-// com ficha de eletroposto (o lead #584 respondeu "não solicitei nenhum serviço de
-// energia solar"), repetir o toque, mandar duas bolhas numa leva de 15 pessoas
-// (foi 37 mensagens numa hora que bloquearam a linha em 04/08) e furar o teto.
+// Os dois toques do dia da Giovanna e da Nilce. Os riscos aqui são concretos e
+// cada um já custou caro em outro agente desta mesma linha: falar com quem não é
+// delas, falar com ficha de eletroposto (o lead #584 respondeu "não solicitei
+// nenhum serviço de energia solar"), repetir o toque, mandar duas bolhas numa
+// leva de 15 pessoas (foi 37 mensagens numa hora que bloquearam a linha em 04/08),
+// furar o teto e, desde 15/09, apresentar a pessoa errada no bom dia.
 
 let fichas: any[] = [];
 const enviadas: Array<{ phone: string; bolhas: string[]; maxBolhas?: number }> = [];
@@ -26,16 +27,17 @@ vi.mock('../utils/supabaseGerador', () => ({
           }
           q._filtros[col] = v; return q;
         },
+        in(col: string, v: any[]) { q._filtros[`in_${col}`] = v; return q; },
         gte(col: string, v: any) { q._filtros[`gte_${col}`] = v; return q; },
         order() { return q; },
         update(patch: any) { q._update = patch; return q; },
         limit() {
-          const dona = q._filtros['vendedor_nome'];
+          const donas: string[] = q._filtros['in_vendedor_nome'] ?? [];
           const status = q._filtros['status'];
           const piso = q._filtros['gte_quando'];
           return Promise.resolve({
             data: fichas.filter(f =>
-              f.vendedor_nome === dona && f.status === status && String(f.quando) >= piso),
+              donas.includes(f.vendedor_nome) && f.status === status && String(f.quando) >= piso),
             error: null,
           });
         },
@@ -81,6 +83,7 @@ vi.mock('../services/agents/zapiClient', () => ({
 
 import {
   runSolarAgendaGiovannaTick, BOLHA_BOM_DIA, BOLHA_CINCO_MIN, SOLAR_GIOVANNA_PREFIX,
+  DONAS, bolhaBomDia,
 } from '../services/io/solarAgendaGiovanna';
 
 /** ISO real de um horário de Brasília. -03:00 fixo: o Brasil não tem horário de verão. */
@@ -176,6 +179,51 @@ describe('bom dia das 7h', () => {
   });
 });
 
+// Ordem do Thiago (15/09): a Nilce, "a partir de hoje 15/09 pra frente, nas
+// mesmas regras da giovanna". O risco novo é o nome: a bolha diz quem vai ligar.
+describe('a carteira da Nilce segue as mesmas regras', () => {
+  it('as duas donas são exatamente Giovanna e Nilce', () => {
+    expect([...DONAS].sort()).toEqual(['Giovanna', 'Nilce']);
+  });
+
+  it('cliente da Nilce recebe o bom dia com o nome DELA', async () => {
+    fichas = [ficha({ vendedor_nome: 'Nilce' })];
+    agoraBRT('07:00');
+    const r = await runSolarAgendaGiovannaTick();
+    expect(r.bom_dia).toBe(1);
+    expect(enviadas[0].bolhas).toEqual([bolhaBomDia('Nilce')]);
+    expect(enviadas[0].bolhas[0]).toContain('Sou a Nilce da energia solar');
+    expect(enviadas[0].bolhas[0]).not.toContain('Giovanna');
+  });
+
+  it('na mesma rodada, cada cliente ouve o nome de quem vai ligar pra ele', async () => {
+    fichas = [
+      ficha({ id: 1, vendedor_nome: 'Giovanna', cliente_telefone: '5534990000001', quando: brt('2026-09-14', '08:45') }),
+      ficha({ id: 2, vendedor_nome: 'Nilce', cliente_telefone: '5534990000002', quando: brt('2026-09-14', '09:15') }),
+    ];
+    agoraBRT('07:00');
+    const r = await runSolarAgendaGiovannaTick({ dry: true });
+    expect(r.previa!.map(p => [p.id, p.dona, p.bolha])).toEqual([
+      [1, 'Giovanna', bolhaBomDia('Giovanna')],
+      [2, 'Nilce', bolhaBomDia('Nilce')],
+    ]);
+  });
+
+  it('cliente da Nilce que respondeu o bom dia também não leva o toque de 5 min', async () => {
+    fichas = [ficha({ vendedor_nome: 'Nilce', quando: brt('2026-09-14', '10:15'), bomdia_at: brt('2026-09-14', '07:02') })];
+    inbox = [{ telefone: '5534998112208', momment: brt('2026-09-14', '07:20') }];
+    agoraBRT('10:10');
+    const r = await runSolarAgendaGiovannaTick();
+    expect(r.ja_responderam).toBe(1);
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('o copy da Giovanna continua byte a byte o de 11/09', () => {
+    expect(BOLHA_BOM_DIA).toBe(
+      'Oi, como vai?\nSou a Giovanna da energia solar, vou fazer seu atendimento e trazer a melhor solução.');
+  });
+});
+
 describe('toque de 5 minutos antes', () => {
   it('sai na janela e carimba o lembrete', async () => {
     fichas = [ficha({ quando: brt('2026-09-14', '10:15') })];
@@ -202,8 +250,8 @@ describe('toque de 5 minutos antes', () => {
 });
 
 // Ordem do Thiago (11/09): o toque de 5 min vai APENAS pra quem não respondeu o
-// das 7h. Quem respondeu está em conversa e a Giovanna já foi avisada — o "Oi,
-// como vai?" ali seria o robô falando por cima de gente, com a mesma frase que a
+// das 7h. Quem respondeu está em conversa e a dona já foi avisada — o "Oi, como
+// vai?" ali seria o robô falando por cima de gente, com a mesma frase que a
 // pessoa acabou de responder.
 describe('quem respondeu o bom dia não leva o toque de 5 min', () => {
   const comBomDia = (over: any = {}) => ficha({
@@ -276,15 +324,15 @@ describe('quem respondeu o bom dia não leva o toque de 5 min', () => {
 
 describe('de quem este robô NÃO fala', () => {
   it('ficha de eletroposto não recebe copy de energia solar', async () => {
-    fichas = [ficha({ created_by: 'lp_eletroposto' })];
+    fichas = [ficha({ created_by: 'lp_eletroposto' }), ficha({ id: 2, vendedor_nome: 'Nilce', created_by: 'lp_eletroposto' })];
     agoraBRT('07:00');
     const r = await runSolarAgendaGiovannaTick();
     expect(r.candidatos).toBe(0);
     expect(enviadas).toHaveLength(0);
   });
 
-  it('carteira de outro consultor não é assunto deste robô', async () => {
-    fichas = [ficha({ vendedor_nome: 'Nilce' }), ficha({ id: 2, vendedor_nome: 'Thiago' })];
+  it('carteira de quem não é dona não é assunto deste robô', async () => {
+    fichas = [ficha({ vendedor_nome: 'Thiago' }), ficha({ id: 2, vendedor_nome: 'Diego' })];
     agoraBRT('07:00');
     const r = await runSolarAgendaGiovannaTick();
     expect(r.candidatos).toBe(0);

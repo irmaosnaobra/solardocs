@@ -561,7 +561,8 @@ router.get('/solar-respostas', async (req: Request, res: Response) => {
   }
 });
 
-// Os dois toques do dia da Giovanna (bom dia das 7h + "oi" 5 min antes).
+// Os dois toques do dia da Giovanna e, desde 15/09, da Nilce (bom dia das 7h +
+// "oi" 5 min antes, com o nome de quem vai ligar).
 // ?dry=1 mostra a bolha que sairia e pra quem, sem mandar e sem carimbar nada —
 // é assim que se confere a copy contra ficha real antes de deixar sair.
 router.get('/solar-giovanna', async (req: Request, res: Response) => {
@@ -577,7 +578,9 @@ router.get('/solar-giovanna', async (req: Request, res: Response) => {
 });
 
 // ── 19h: o que a Nilce não atendeu passa pra Giovanna ────────────────────────
-// Roda 1×/dia às 19h BRT (0 22 * * * UTC) via GitHub Actions. NÃO entra no
+// SEM AGENDAMENTO DESDE 15/09/2026: a carteira da Nilce passou a seguir a regra
+// da Giovanna (sai por venda ou perdido, nunca por robô). O workflow ficou só
+// com disparo manual. Rodava 1×/dia às 19h BRT (0 22 * * * UTC). NÃO entra no
 // /cron/master: rodar de hora em hora esvaziaria a agenda da Nilce o dia inteiro.
 // ?dry=1 lista o que seria passado, de quando pra quando, sem gravar nada — e
 // ignora o kill-switch de propósito, que é como se confere antes de ligar.
@@ -1408,7 +1411,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['eletroposto-ig-convite',      () => runEletropostoIgConviteTick()], // eletroposto: lead de Instagram não marca agenda — recebe UM convite pra LP (EP_IG_CONVITE_OFF desliga)
     ['solar-boas-vindas',           () => runSolarBoasVindasTick()],     // solar: recibo do cadastro pro cliente (SOLAR_BOASVINDAS_OFF desliga)
     ['solar-respostas',             () => runSolarRespostasTick()],      // solar: resposta do cliente vira recado pro consultor dono
-    ['solar-giovanna',              () => runSolarAgendaGiovannaTick()], // solar: bom dia das 7h e "oi" 5 min antes, só na carteira da Giovanna (SOLAR_GIOVANNA_OFF desliga)
+    ['solar-giovanna',              () => runSolarAgendaGiovannaTick()], // solar: bom dia das 7h e "oi" 5 min antes, só na carteira da Giovanna e da Nilce (SOLAR_GIOVANNA_OFF desliga)
     ['dunning',                     () => runDunning()],            // 5 dias: D0-D4 lembrete, D5 cancela+free
     ['dispute-watch',                () => runDisputeWatch()],       // contestação aberta / aviso antecipado de fraude → email pro Thiago com o dossiê. Nada escutava disputa antes disso.
     ['sync-stripe-plans',           () => syncStripePlans()],       // reconcilia users.plano com Stripe real (horário)

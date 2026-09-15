@@ -1,10 +1,23 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// OS DOIS TOQUES DO DIA DA GIOVANNA — bom dia às 7h e "oi" 5 minutos antes.
+// OS DOIS TOQUES DO DIA DA GIOVANNA E DA NILCE — bom dia às 7h e "oi" 5 minutos
+// antes da ligação.
 //
 // Ordem do Thiago (11/09/2026), no mesmo dia em que 180 fichas de solar do
-// Thiago, do Diego e da Nilce viraram agenda dela (15 ligações por dia útil, de
-// 14/09 a 29/09): "todos esses clientes do dia irão receber um bom dia às 07:00"
-// e um segundo toque 5 minutos antes do horário marcado.
+// Thiago, do Diego e da Nilce viraram agenda da Giovanna (15 ligações por dia
+// útil, de 14/09 a 29/09): "todos esses clientes do dia irão receber um bom dia
+// às 07:00" e um segundo toque 5 minutos antes do horário marcado.
+//
+// ── 15/09/2026: A NILCE ENTROU NAS MESMAS REGRAS ─────────────────────────────
+// Ordem do Thiago: "nilce essa semana a partir de hoje 15/09 pra frente, nas
+// mesmas regras da giovanna". No mesmo dia, 52 das 105 fichas da ação marcadas
+// de 21 a 29/09 passaram pra ela, no mesmo dia e horário. O corte continua por
+// NOME, agora uma lista (`DONAS`), e o bom dia se apresenta com o nome de QUEM
+// VAI LIGAR: cliente da Nilce que lê "Sou a Giovanna" às 7h e atende a Nilce às
+// 8h15 recebe uma promessa furada logo no primeiro contato.
+//
+// O volume da linha quase não muda com isso. A divisão não cria ligação nova,
+// só troca o dono de metade delas; o que entra de verdade é a agenda que a Nilce
+// já tinha dos leads novos, uns 2 ou 3 por dia.
 //
 // ── POR QUE UM MÓDULO NOVO, E NÃO O lembretesAgenda ──────────────────────────
 // O `lembretesAgenda.ts` já tem quatro réguas escritas em cima de energia solar,
@@ -12,7 +25,7 @@
 // todos"). Religar aquele switch acorda a régua pra TODA a agenda, e a mesma
 // agenda atende eletroposto: foi assim que o lead #584 respondeu "não solicitei
 // nenhum serviço de energia solar". Este módulo é o contrário disso — o corte é
-// por NOME (`DONA`) e por produto, e nada fora da carteira dela recebe nada.
+// por NOME (`DONAS`) e por produto, e nada fora da carteira delas recebe nada.
 //
 // ── UMA BOLHA POR TOQUE, E ISSO É UMA DECISÃO DE SEGURANÇA ───────────────────
 // O Thiago escreveu o bom dia em duas linhas, e a régua do eletroposto manda até
@@ -29,7 +42,8 @@
 // cada envio carimba `solar_giovanna_sent:` no system_state do MAIN, prefixo que
 // está em `BOT_SENT_PREFIXES`. Sem esse carimbo o módulo gastaria a linha sem
 // aparecer na conta, que é como quase todo agente desta lista entrou nela: depois
-// de uma queda.
+// de uma queda. O prefixo manteve o nome antigo de propósito: trocar exigiria
+// mexer no lineThrottle junto, e um lado sem o outro é exatamente esse buraco.
 //
 // O piso por hora é 18 porque o volume é LIMITADO PELA AGENDA (1 toque por
 // reunião do dia, e o dia tem 15). Ele é maior que o piso do bom dia do
@@ -45,19 +59,19 @@
 //
 // ── O QUE ELE NÃO FAZ ───────────────────────────────────────────────────────
 //   • Não fala com ficha de eletroposto (corte por `ehOrigemEletroposto`).
-//   • Não fala com ficha de outro consultor.
+//   • Não fala com ficha de quem não está em `DONAS`.
 //   • Não fala com quem não está `agendado` (cancelado, sem interesse, não
 //     atendido: quem teve desfecho não recebe "vou fazer seu atendimento").
 //   • Não manda o bom dia a menos de 30 min da ligação — aí quem fala é o toque
 //     de 5 minutos, e os dois juntos viram spam.
 //   • Não manda o toque de 5 min pra quem RESPONDEU o bom dia (ordem do Thiago,
-//     11/09). Quem respondeu já está em conversa e a Giovanna já foi avisada pelo
-//     `solarRespostas`; "Oi, como vai?" ali é o robô falando por cima de gente —
-//     e ainda por cima é a mesma frase que a pessoa acabou de responder. O sinal
-//     sai do inbox da própria linha (`wa_mensagens`), lido na hora do envio: não
-//     dá pra decidir isso com o retrato do começo do dia.
+//     11/09). Quem respondeu já está em conversa e a dona da ficha já foi avisada
+//     pelo `solarRespostas`; "Oi, como vai?" ali é o robô falando por cima de
+//     gente — e ainda por cima é a mesma frase que a pessoa acabou de responder.
+//     O sinal sai do inbox da própria linha (`wa_mensagens`), lido na hora do
+//     envio: não dá pra decidir isso com o retrato do começo do dia.
 //
-// Kill-switch: SOLAR_GIOVANNA_OFF=1 (mata os dois toques sem deploy).
+// Kill-switch: SOLAR_GIOVANNA_OFF=1 (mata os dois toques das duas, sem deploy).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase } from '../../utils/supabase';
@@ -68,9 +82,10 @@ import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 import { INSTANCE_ID_IO } from './solarRespostas';
 
-/** De quem é a carteira. Corte por NOME, igual ao `ehSocio` do agendaFechada:
- *  quando a regra é sobre uma pessoa, o corte é o nome dela. */
-const DONA = 'Giovanna';
+/** De quem são as carteiras. Corte por NOME, igual ao `ehSocio` do agendaFechada:
+ *  quando a regra é sobre uma pessoa, o corte é o nome dela. A Nilce entrou em
+ *  15/09/2026. */
+export const DONAS = ['Giovanna', 'Nilce'];
 
 const TZ = 'America/Sao_Paulo';
 const INSTANCE = 'io' as const;
@@ -80,9 +95,13 @@ const INSTANCE = 'io' as const;
 export const SOLAR_GIOVANNA_PREFIX = 'solar_giovanna_sent:';
 
 // ── A COPY, como o Thiago escreveu ───────────────────────────────────────────
-/** Bom dia das 7h. Uma bolha, duas linhas (ver o cabeçalho). */
-export const BOLHA_BOM_DIA =
-  'Oi, como vai?\nSou a Giovanna da energia solar, vou fazer seu atendimento e trazer a melhor solução.';
+/** Bom dia das 7h, com o nome de quem vai ligar. Uma bolha, duas linhas (ver o
+ *  cabeçalho). */
+export const bolhaBomDia = (dona: string): string =>
+  `Oi, como vai?\nSou a ${dona} da energia solar, vou fazer seu atendimento e trazer a melhor solução.`;
+
+/** O texto exato de 11/09, na carteira da Giovanna. */
+export const BOLHA_BOM_DIA = bolhaBomDia('Giovanna');
 
 /** Toque de 5 minutos antes. SÓ vai pra quem não respondeu o bom dia (ordem do
  *  Thiago, 11/09/2026) — ver `quemFalouDepoisDoBomDia`.
@@ -95,7 +114,7 @@ export const BOLHA_CINCO_MIN = 'Oi, como vai?';
 // ── Janelas ──────────────────────────────────────────────────────────────────
 /** O bom dia sai a partir das 7h. Janela e não horário cravado: o tick atrasa, e
  *  o teto da linha pode segurar alguém pro tick seguinte. Fecha às 9h porque a
- *  primeira ligação do dia é 08:15 — depois disso o aviso vira atraso. */
+ *  primeira ligação do dia é 08:00 ou 08:15 — depois disso o aviso vira atraso. */
 const MANHA = { de: 7, ate: 9 };
 /** Nunca a menos disto da ligação: aí quem fala é o toque de 5 minutos. */
 const MANHA_ANTECEDENCIA_MIN = 30;
@@ -141,7 +160,7 @@ function telKey(raw: string | null | undefined): string | null {
  * a partir do bom dia mais antigo do dia.
  *
  * É isto que decide quem NÃO recebe o toque de 5 minutos: quem respondeu o bom
- * dia já está em conversa, e a Giovanna já foi avisada pelo `solarRespostas`.
+ * dia já está em conversa, e a dona da ficha já foi avisada pelo `solarRespostas`.
  * Mandar "Oi, como vai?" por cima é o robô falando em cima de gente — e é a
  * mesma frase que a pessoa acabou de responder.
  *
@@ -189,7 +208,9 @@ type Ficha = {
   lembrete_5min_at: string | null;
 };
 
-export type ToquePrevisto = { id: number; cliente: string; toque: 'bom_dia' | '5min'; quando: string; bolha: string };
+export type ToquePrevisto = {
+  id: number; cliente: string; dona: string; toque: 'bom_dia' | '5min'; quando: string; bolha: string;
+};
 
 export type ResultadoSolarGiovanna = {
   ok: true;
@@ -222,13 +243,13 @@ export async function runSolarAgendaGiovannaTick(
   const agora = Date.now();
   const hojeBRT = diaBRT(agora);
 
-  // Só a agenda DELA, só o que ainda está de pé, e só de hoje pra frente (o
+  // Só a agenda DELAS, só o que ainda está de pé, e só de hoje pra frente (o
   // recorte de -15 min existe pro toque de 5 min sobreviver a um tick atrasado).
   // O fim do dia sai do próprio filtro em JS: um `lte` em ISO erraria a virada.
   const { data, error } = await supabaseGerador
     .from('agendamentos')
     .select('id, cliente_nome, cliente_telefone, vendedor_nome, quando, status, created_by, bomdia_at, lembrete_5min_at')
-    .eq('vendedor_nome', DONA)
+    .in('vendedor_nome', DONAS)
     .eq('status', 'agendado')
     .gte('quando', new Date(agora - 15 * 60 * 1000).toISOString())
     .order('quando', { ascending: true })
@@ -239,9 +260,12 @@ export async function runSolarAgendaGiovannaTick(
     return { ...zero('erro_leitura'), erros: 1 };
   }
 
-  // Só reunião de HOJE, e nunca ficha de eletroposto (ela não atende essa linha).
+  // Só reunião de HOJE, nunca ficha de eletroposto (elas não atendem essa linha),
+  // e o corte por dona refeito aqui: é o nome dela que vai dentro da bolha, então
+  // uma ficha de outra pessoa que escapasse da consulta sairia assinada errado.
   const fichas = ((data ?? []) as Ficha[]).filter(f =>
-    !!f.quando && diaBRT(f.quando) === hojeBRT && !ehOrigemEletroposto(f.created_by));
+    !!f.quando && diaBRT(f.quando) === hojeBRT && !ehOrigemEletroposto(f.created_by)
+    && DONAS.includes(String(f.vendedor_nome)));
 
   if (!fichas.length) return { ...zero('nada_hoje'), ...(dry ? { previa: [] } : {}) };
 
@@ -267,7 +291,10 @@ export async function runSolarAgendaGiovannaTick(
   /** Manda a bolha, carimba o teto da linha e grava a flag na ficha. */
   const entregar = async (f: Ficha, toque: ToquePrevisto['toque'], tel: string, bolha: string, campo: string) => {
     if (dry) {
-      previa.push({ id: f.id, cliente: String(f.cliente_nome || '—'), toque, quando: String(f.quando), bolha });
+      previa.push({
+        id: f.id, cliente: String(f.cliente_nome || '—'), dona: String(f.vendedor_nome),
+        toque, quando: String(f.quando), bolha,
+      });
       return;
     }
     await sendHuman(tel, [bolha], INSTANCE, { maxBolhas: 1 });
@@ -293,9 +320,9 @@ export async function runSolarAgendaGiovannaTick(
     if (!f.lembrete_5min_at && minutos <= MIN_5MIN.ate && minutos >= MIN_5MIN.de) {
       if (cincoMin >= CINCO_POR_TICK) continue;
       // Só pra quem NÃO respondeu o bom dia (ordem do Thiago, 11/09). Quem
-      // respondeu está em conversa, a Giovanna já foi avisada, e a frase seria a
-      // mesma que a pessoa acabou de responder. Não carimba nada: se o lead
-      // falou, ele simplesmente não recebe este toque, hoje nem depois.
+      // respondeu está em conversa, a dona da ficha já foi avisada, e a frase
+      // seria a mesma que a pessoa acabou de responder. Não carimba nada: se o
+      // lead falou, ele simplesmente não recebe este toque, hoje nem depois.
       if (cegoParaRespostas) continue;
       const k = telKey(f.cliente_telefone);
       const ultimaDele = k ? falou!.get(k) : undefined;
@@ -325,7 +352,7 @@ export async function runSolarAgendaGiovannaTick(
         continue;
       }
       try {
-        await entregar(f, 'bom_dia', tel, BOLHA_BOM_DIA, 'bomdia_at');
+        await entregar(f, 'bom_dia', tel, bolhaBomDia(String(f.vendedor_nome)), 'bomdia_at');
         bomDia++; toques++;
       } catch (e) {
         logger.error('solar-giovanna', 'falha no bom dia', { id: f.id, erro: String(e) });

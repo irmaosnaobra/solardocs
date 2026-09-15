@@ -21,9 +21,6 @@ const CRM_BASE_URL = 'https://solardoc.app/gerador';
 const STATUS_PERDIDO = new Set(['cancelado', 'sem_interesse']);
 const STATUS_REAGENDAR = new Set(['nao_atendeu', 'sem_orcamento']);
 
-/** Quem tem robô remarcando a agenda não recebe a lista de "reagende na mão". */
-const SEM_DIGEST = 'Nilce';
-
 type Agendamento = {
   id: number;
   vendedor_nome: string;
@@ -179,11 +176,12 @@ export async function enviarReagendarDiario(opts?: { dry?: boolean }): Promise<{
 
   for (const [consultor, clientes] of porConsultor) {
     if (!clientes.length) continue;
-    // A Nilce saiu do digest em 17/08: uma hora depois desta mensagem a varredura
-    // das 18h remarca as fichas dela sozinha (nilceVarredura18h). Mandar a lista
-    // às 17h seria pedir um trabalho que se desfaz sozinho às 18h — e, se ela
-    // reagendasse nessa hora, ela e o robô moveriam a mesma ficha.
-    if (consultor === SEM_DIGEST) continue;
+    // A Nilce ficou fora deste digest de 17/08 a 15/09/2026, porque um robô
+    // tirava dela à noite as fichas paradas: pedir que ela reagendasse às 17h era
+    // pedir um trabalho que o robô desfazia depois. Em 15/09 a carteira dela
+    // passou a seguir a regra da Giovanna (cliente sai por venda ou perdido,
+    // nunca por robô), a passagem das 19h parou, e o que ela deixar parado só
+    // tem este caminho. Por isso voltou a receber a lista, igual à Giovanna.
     total += clientes.length;
     preview[consultor] = clientes;
     if (dry) continue;
