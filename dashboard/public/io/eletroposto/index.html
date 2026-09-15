@@ -287,22 +287,19 @@
   #agendar h2{font-size:clamp(28px,4.4vw,44px);line-height:1.04}
   #agendar .sub{font-size:16px;max-width:52ch}
 
-  .agGrade{display:grid;gap:18px;grid-template-columns:1fr;align-items:start;margin-top:28px}
-  @media(min-width:940px){.agGrade{grid-template-columns:.85fr 1.15fr;gap:26px}}
-
-  /* o que a pessoa GANHA preenchendo, do lado de enquanto ela preenche */
-  .agSell .selTit{font-size:19px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
-  .agSell ul{list-style:none;margin-top:18px;display:flex;flex-direction:column;gap:14px}
-  .agSell li{display:flex;gap:11px;align-items:flex-start;color:var(--mut);font-size:14.5px;
-    font-weight:500;line-height:1.55}
-  .agSell li b{display:block;color:var(--cream);font-weight:700;font-size:15px;margin-bottom:2px}
-  .agSell li svg{flex:none;width:17px;height:17px;stroke:var(--neon);fill:none;stroke-width:2.6;
-    stroke-linecap:round;stroke-linejoin:round;margin-top:3px}
-  .agSelo{margin-top:22px;display:inline-flex;align-items:center;gap:9px;border-radius:999px;
-    border:1px solid var(--line-f);background:rgba(229,231,235,.04);padding:9px 15px;
-    font-size:12.5px;font-weight:700;color:var(--cream)}
-  .agSelo i{width:7px;height:7px;border-radius:50%;background:var(--neon);flex:none;
-    box-shadow:0 0 0 4px rgba(57,255,20,.18)}
+  /* UM QUADRO SO (15/09/2026). A coluna "O que voce leva da reuniao" (quatro itens
+     com paragrafo) disputava o olho com o formulario, e o Thiago pediu o
+     agendamento o mais limpo possivel, num quadro grande. O que ela dizia virou
+     tres selos curtos em cima do quadro; titulo, selos e quadro vao centralizados. */
+  .agGrade{max-width:780px;margin:24px auto 0}
+  #agendar > .sh{justify-content:center}
+  #agendar > h2,#agendar > .sub{text-align:center;margin-inline:auto}
+  .agChips{list-style:none;display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-bottom:22px}
+  .agChips li{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border-radius:999px;
+    border:1px solid var(--line-f);background:rgba(229,231,235,.04);font-size:14.5px;font-weight:700;color:var(--cream)}
+  .agChips svg{flex:none;width:16px;height:16px;stroke:var(--neon);fill:none;stroke-width:2.6;
+    stroke-linecap:round;stroke-linejoin:round}
+  @media(max-width:520px){.agChips{gap:8px}.agChips li{font-size:13.5px;padding:8px 12px}}
 
   /* o cartao: maior, com anel e sombra. O anel e 1px a 18% — marca sem
      competir com o verde chapado do botao que mora dentro dele. */
@@ -369,6 +366,53 @@
   .agMsg{margin-top:14px;padding:13px 16px;border-radius:11px;font-size:13.5px;font-weight:700;display:none}
   .agMsg.err{background:rgba(244,63,94,.14);border:1px solid rgba(244,63,94,.45);color:#fda4af;display:block}
   .agMsg.info{background:rgba(57,255,20,.12);border:1px solid rgba(57,255,20,.4);color:var(--neon-b);display:block}
+
+  /* ===== o quadro grande (15/09/2026) =====
+     A pergunta e a maior coisa do cartao, maior que qualquer rotulo da pagina: e ela
+     que a pessoa tem que ver para responder. Barra mais grossa e "Passo X de Y" legivel,
+     porque o avanco e o que puxa para a proxima pergunta. Tudo com .agBox na frente
+     para ganhar da regra de celular la de baixo (.fld label, .inp input), que e mais
+     antiga e vale para o simulador tambem. */
+  .agBox{padding:40px 44px}
+  .agBox .passoBarra{height:10px;margin-bottom:12px}
+  .agBox .passoConta{color:var(--cream);font-size:14px;font-weight:800;letter-spacing:.06em;margin-bottom:24px}
+  .agBox .pergunta,.agBox .passo > .fld:first-child > label{display:block;color:#fff;font-size:clamp(22px,3.2vw,28px);
+    font-weight:800;letter-spacing:-.02em;line-height:1.18;margin-bottom:18px}
+  .agBox .fld{margin-bottom:22px}
+  .agBox .fld label{font-size:16px;font-weight:700}
+  .agBox .inp input{font-size:19px;padding:18px 16px;border-radius:12px}
+  .agBox .dia .diaH{color:var(--cream);font-size:13.5px}
+  .agBox .diaS{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px}
+  .agBox .slot{min-height:58px;font-size:18px;border-radius:12px}
+  #agendar #ag-btn{min-height:60px;font-size:18px;font-weight:800}
+  .agBox .passoVoltar{min-height:60px;font-size:16px}
+  .agBox .agMsg{font-size:15px}
+  @media(max-width:640px){
+    .agBox{padding:26px 16px}
+    .agBox .passo > .fld:first-child > label,.agBox .pergunta{font-size:23px}
+    .agBox .inp input{font-size:18px;padding:18px 14px}
+    .agBox .diaS{grid-template-columns:repeat(3,1fr)}
+  }
+
+  /* RESPOSTA E TOQUE, NAO LISTA. Cada select do formulario vira uma pilha de botoes
+     (montarOpcoes no script). O select continua no DOM com o mesmo id e o mesmo
+     onchange: o botao so escreve o valor nele e dispara o change, entao a pontuacao,
+     a ficha e a NOTA 1 leem o formulario exatamente como antes. */
+  .opcs{display:grid;gap:10px;grid-template-columns:1fr}
+  .opcs.duas{grid-template-columns:1fr 1fr}
+  .opc{display:flex;align-items:center;gap:12px;width:100%;min-height:60px;padding:14px 16px;text-align:left;
+    background:#081422;border:1.5px solid var(--line-f);border-radius:12px;color:var(--cream);
+    font-family:inherit;font-size:17px;font-weight:700;line-height:1.3;cursor:pointer;transition:border-color .15s,background .15s}
+  .opc::before{content:"";flex:none;width:20px;height:20px;border-radius:50%;border:2px solid var(--line-f)}
+  .opc:hover{border-color:var(--neon);background:var(--card-alto)}
+  .opc.on{border-color:var(--neon);background:rgba(57,255,20,.12);color:#fff}
+  .opc.on::before{border-color:var(--neon);background:var(--neon);box-shadow:inset 0 0 0 4px #0B1A2B}
+  @media(max-width:640px){
+    .opc{font-size:16px;min-height:58px;padding:12px 14px}
+    .opcs.duas{gap:8px}
+    .opcs.duas .opc{font-size:14.5px;gap:9px;padding:10px 11px}
+    .opcs.duas .opc::before{width:16px;height:16px}
+  }
 
   /* ===== portão de presença ===== */
   /* z-index acima do .nav (50), que é sticky e passaria por cima do overlay */
@@ -1016,16 +1060,11 @@
     <div class="sub">Escolha um horário e a gente leva o estudo de viabilidade do seu ponto pronto para a conversa, com os números do seu caso.</div>
 
     <div class="agGrade">
-      <div class="agSell">
-        <div class="selTit">O que você leva da reunião</div>
-        <ul>
-          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><b>O estudo de viabilidade do seu ponto</b>O mesmo que você simulou aqui em cima, agora refeito com o seu endereço, a sua tarifa e o fluxo da sua via.</span></li>
-          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><b>Os cinco modelos comparados</b>Do chave na mão até ceder só o espaço. Lado a lado, com o número de cada um no seu caso.</span></li>
-          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><b>O caminho da concessionária</b>Análise de carga, aumento de padrão ou entrada própria: qual é o seu, e quanto muda no orçamento.</span></li>
-          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><b>30 minutos, por vídeo</b>Com um especialista, do seu celular ou computador. Sem instalar nada e sem custo.</span></li>
-        </ul>
-        <div class="agSelo"><i></i>Agenda aberta desta semana</div>
-      </div>
+      <ul class="agChips">
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>30 minutos por vídeo</li>
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Sem custo</li>
+        <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Estudo do seu ponto pronto</li>
+      </ul>
 
     <div class="agBox" id="preencher">
       <div id="ag-form">
@@ -1038,7 +1077,7 @@
              parede que este commit veio consertar. -->
         <div class="passo on" id="p-horario">
           <div class="step">
-            <label style="display:block;font-size:13px;font-weight:800;margin-bottom:8px">Escolha o melhor horário</label>
+            <div class="pergunta">Escolha o melhor horário</div>
             <div class="slots" id="slots"></div>
           </div>
         </div>
@@ -1061,7 +1100,7 @@
              própria reunião, que é quando alguém confere o local de verdade. -->
         <div class="passo" id="p-cidade">
         <div class="fld">
-          <label for="f-cidade">Cidade / UF</label>
+          <label for="f-cidade">Qual é a sua cidade?</label>
           <div class="inp"><input type="text" id="f-cidade" placeholder="Ex: Uberlândia-MG" autocomplete="address-level2"></div>
         </div>
 
@@ -1077,7 +1116,7 @@
 
         <div class="passo" id="p-perfil">
         <div class="fld">
-          <label for="f-perfil">Seu perfil</label>
+          <label for="f-perfil">Qual é o seu perfil?</label>
           <div class="inp"><select id="f-perfil" onchange="onPerfil()">
             <option value="">Selecione…</option>
             <option value="posto">Dono de posto de combustível</option>
@@ -1210,7 +1249,7 @@
 
         <div class="passo" id="p-invest">
         <div class="fld" id="box-invest">
-          <label for="f-invest">Como pretende investir</label>
+          <label for="f-invest">Como pretende investir?</label>
           <div class="inp"><select id="f-invest">
             <option value="">Selecione…</option>
             <option value="proprio">Recurso próprio</option>
@@ -2531,8 +2570,12 @@ function pintarPasso(){
   // o aviso de erro é do passo que passou: some ao trocar de pergunta
   const m = document.getElementById('ag-msg');
   m.className = 'agMsg'; m.textContent = '';
-  // foco no campo do passo, pra quem usa teclado e leitor de tela não precisar caçar
-  const campo = atual.el ? null : document.querySelector('#' + atual.id + ' input, #' + atual.id + ' select');
+  // foco no campo do passo, pra quem usa teclado e leitor de tela não precisar caçar.
+  // O select que virou botões (montarOpcoes) está escondido e não recebe foco: ele
+  // vai para o botão marcado, ou para o primeiro da pilha.
+  let campo = atual.el ? null : document.querySelector('#' + atual.id + ' input, #' + atual.id + ' select');
+  const pilha = campo && campo.tagName === 'SELECT' && campo.closest('.inp').hidden ? campo.closest('.inp').nextElementSibling : null;
+  if(pilha && pilha.classList.contains('opcs')) campo = pilha.querySelector('.opc.on') || pilha.querySelector('.opc');
   if(campo && window.innerWidth > 760) campo.focus({preventScroll:true});
 }
 /** O clique do botão único: no fim ele agenda, no resto ele avança. */
@@ -2553,6 +2596,76 @@ function passoVoltar(){
 // do clique seria um toque a mais para dizer o que a pessoa acabou de dizer.
 function passoAvancarSeHorario(){
   if(passosVivos()[passoAtual].id === 'p-horario' && slotSel) passoProximo();
+}
+// ═══════════════════════════════════════════════════════════════════════════
+// RESPOSTA É TOQUE, NÃO LISTA (15/09/2026)
+//
+// Cada select do formulário vira uma pilha de botões grandes: no celular o select
+// abre a lista do sistema, pequena e longe do dedo, e era a pergunta que a pessoa
+// tinha que caçar. O SELECT CONTINUA NO DOM, com o mesmo id e o mesmo onchange: o
+// botão só escreve o valor nele e dispara 'change'. Pontuação, ficha, NOTA 1 e
+// agendar() leem o formulário exatamente como antes, e sem script a página cai no
+// select de sempre.
+//
+// Resposta que fecha o passo avança sozinha (o mesmo que o horário já fazia). Quando
+// ela abre outra pergunta no mesmo passo (investidor abre a rota, ponto definido
+// abre "o local é seu?" e o endereço), o ok() do passo ainda reclama e a tela fica.
+// ═══════════════════════════════════════════════════════════════════════════
+const SELECTS_EM_BOTAO = ['f-perfil','f-rota','f-ponto','f-relacao','f-modelo','f-invest','f-decisor','f-trifasica'];
+function montarOpcoes(){
+  SELECTS_EM_BOTAO.forEach(id => {
+    const sel = document.getElementById(id);
+    if(!sel || sel.dataset.botoes) return;
+    sel.dataset.botoes = '1';
+    const opcoes = [...sel.options].filter(o => o.value);
+    const pilha = document.createElement('div');
+    // perfil tem 10 respostas curtas: em duas colunas cabe na tela do celular
+    pilha.className = 'opcs' + (opcoes.length > 6 ? ' duas' : '');
+    pilha.setAttribute('role', 'radiogroup');
+    const rotulo = document.querySelector(`label[for="${id}"]`);
+    if(rotulo){ rotulo.id = rotulo.id || 'rot-' + id; pilha.setAttribute('aria-labelledby', rotulo.id); }
+    opcoes.forEach(o => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'opc'; b.dataset.valor = o.value;
+      b.setAttribute('role', 'radio');
+      b.textContent = o.text;
+      b.addEventListener('click', () => escolherOpcao(sel, o.value));
+      pilha.appendChild(b);
+    });
+    const caixa = sel.closest('.inp');
+    caixa.hidden = true;
+    caixa.after(pilha);
+  });
+  pintarOpcoes();
+}
+/** Os botões repetem o valor dos selects, inclusive o que um onchange limpou. */
+function pintarOpcoes(){
+  SELECTS_EM_BOTAO.forEach(id => {
+    const sel = document.getElementById(id);
+    const pilha = sel && sel.closest('.inp').nextElementSibling;
+    if(!pilha || !pilha.classList.contains('opcs')) return;
+    pilha.querySelectorAll('.opc').forEach(b => {
+      const on = b.dataset.valor === sel.value;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+  });
+}
+let avancoOpcao = null;
+function escolherOpcao(sel, valor){
+  sel.value = valor;
+  sel.dispatchEvent(new Event('change', { bubbles: true }));   // roda o onchange do HTML
+  pintarOpcoes();
+  const m = document.getElementById('ag-msg');
+  if(m.classList.contains('err')){ m.className = 'agMsg'; m.textContent = ''; }
+  // 220 ms para o verde da escolha aparecer antes da troca de pergunta
+  clearTimeout(avancoOpcao);
+  const passo = sel.closest('.passo');
+  avancoOpcao = setTimeout(() => {
+    const atual = passosVivos()[passoAtual];
+    if(!atual || !passo || atual.id !== passo.id || atual.ok()) return;
+    passoProximo();
+  }, 220);
 }
 // Enter avança, que é o que o dedo espera num campo de texto sozinho na tela.
 document.getElementById('ag-form').addEventListener('keydown', e => {
@@ -3004,10 +3117,12 @@ setLocal();       // régua cidade/rodovia primeiro: é ela que define o teto do
                   // e o setConfig() sai de dentro dela já com o teto certo
 onModelo();       // idem pro modelo: sem isto o "como pretende investir" volta
                   // visível pra quem tinha escolhido ceder o espaço
+montarOpcoes();   // os selects viram botões ANTES do primeiro pintarPasso, que foca neles
 pintarPasso();    // abre no passo 1; sem isto todos os passos nascem escondidos
 onPerfil();       // o browser pode restaurar o perfil ao voltar pra página (bfcache)
 onPonto();        // idem pro ponto: sem isto o endereço restaurado ficaria escondido
                   // (e ele chama onRelacao, que reavalia o bloco do endereço)
+pintarOpcoes();   // e os botões mostram o que o navegador restaurou (e o que o onPonto limpou)
 // a aba pode ficar aberta horas: ao voltar pra ela, refaz a agenda (horário que passou some)
 document.addEventListener('visibilitychange', () => { if(!document.hidden && !slotSel) montarSlots(); });
 // LINK ANTIGO CONTINUA VALENDO. '#agendar' ja saiu em mensagem, print e link de
