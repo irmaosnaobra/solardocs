@@ -7,16 +7,10 @@
 <meta name="robots" content="noindex">
 <title>SolarDoc Pro — Demonstração</title>
 
-<!-- Panda Video: preloads para acelerar o player -->
-<link rel="preload" href="https://player-vz-380ec774-9b3.tv.pandavideo.com.br/embed/css/plyr.css" as="style">
-<link rel="preload" href="https://player-vz-380ec774-9b3.tv.pandavideo.com.br/embed/css/styles.css" as="style">
-<link rel="preload" href="https://player-vz-380ec774-9b3.tv.pandavideo.com.br/embed/css/pb.css" as="style">
-<link rel="preload" href="https://config.tv.pandavideo.com.br/vz-380ec774-9b3/bff5383a-0111-45f5-8ab9-46468dd31afe.json" as="fetch">
-<link rel="preload" href="https://config.tv.pandavideo.com.br/vz-380ec774-9b3/config.json" as="fetch">
-<link rel="dns-prefetch" href="https://b-vz-380ec774-9b3.tv.pandavideo.com.br">
-<link rel="preload" href="https://b-vz-380ec774-9b3.tv.pandavideo.com.br/bff5383a-0111-45f5-8ab9-46468dd31afe/playlist.m3u8" as="fetch">
-<link rel="prerender" href="https://player-vz-380ec774-9b3.tv.pandavideo.com.br/embed/?v=bff5383a-0111-45f5-8ab9-46468dd31afe">
-<link rel="dns-prefetch" href="https://player-vz-380ec774-9b3.tv.pandavideo.com.br">
+<!-- Vídeo no Cloudinary (conta v755hoio), não no Panda. Em 15/09/2026 o player
+     do Panda estava entregando "Video playback not allowed" pra todo mundo que
+     abria esta página, e o vídeo real não saía mais de lá. -->
+<link rel="preconnect" href="https://res.cloudinary.com" crossorigin>
 
 <style>
   *, *::before, *::after { box-sizing: border-box; }
@@ -61,12 +55,56 @@
       0 0 0 1px rgba(245,158,11,0.18);
   }
 
-  .player iframe {
+  .player video {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
+    object-fit: contain;
+    background: #000;
+  }
+
+  /* Botão grande de play por cima da capa. O play nativo do iPhone é um
+     triângulo pequeno no canto; aqui o toque é o quadro inteiro. Some no
+     primeiro play e daí em diante valem os controles nativos. */
+  .play {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
     border: 0;
+    padding: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.55) 100%);
+    color: #fff;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    font: inherit;
+  }
+  .play[hidden] { display: none; }
+  .play-icon {
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(180deg, #F5A623 0%, #E8910F 100%);
+    box-shadow: 0 12px 34px -8px rgba(245,158,11,0.7), inset 0 1px 0 rgba(255,255,255,0.35);
+    transition: transform .15s ease;
+  }
+  .play-icon svg { width: 34px; height: 34px; margin-left: 5px; fill: #1a1205; }
+  .play:active .play-icon { transform: scale(.94); }
+  .play-label {
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.2px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
   }
 
   @media (min-width: 760px) {
@@ -118,18 +156,32 @@
 <main class="stage">
   <div class="player-col">
     <div class="player">
-      <iframe
-        src="https://player-vz-380ec774-9b3.tv.pandavideo.com.br/embed/?v=bff5383a-0111-45f5-8ab9-46468dd31afe"
-        allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
-        allowfullscreen="true"
-        fetchpriority="high"></iframe>
+      <!-- preload="metadata": a página existe só pra este vídeo, então vale
+           buscar o cabeçalho (duração, primeiro quadro) já na chegada. O mp4
+           tem faststart, é pouco byte. O vídeo inteiro só desce no play. -->
+      <video
+        id="vsl"
+        src="https://res.cloudinary.com/v755hoio/video/upload/v1789501262/solardoc/vsl-apresentacao.mp4"
+        poster="https://res.cloudinary.com/v755hoio/image/upload/f_auto,q_auto/v1789501266/solardoc/vsl-apresentacao-capa.jpg"
+        preload="metadata"
+        controls
+        playsinline
+        webkit-playsinline
+        controlslist="nodownload noplaybackrate"
+        disablepictureinpicture></video>
+      <!-- Nasce escondido e com o vídeo em controles nativos: se o JS não
+           rodar, a pessoa ainda assiste. O script liga o botão grande. -->
+      <button class="play" id="play" type="button" aria-label="Assistir a demonstração" hidden>
+        <span class="play-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.14v13.72a1 1 0 0 0 1.52.85l10.6-6.86a1 1 0 0 0 0-1.7L9.52 4.29A1 1 0 0 0 8 5.14z"/></svg></span>
+        <span class="play-label">Assistir a demonstração · 7 min</span>
+      </button>
     </div>
-    <div id="e46431f6-a66a-41c6-90e6-c9413c6d3d9b"></div>
 
     <!-- CTA próprio: navegação same-tab (funciona em iPhone/WhatsApp).
-         Não usamos o botão nativo do Panda porque o setParentWindowUrl falha
-         em Safari/in-app browser. Destino = LP (home), onde o lead escolhe o plano. -->
-    <a class="cta" id="cta" href="/">
+         Destino = seção de planos da LP (#planos), onde a pessoa escolhe
+         mensal ou anual e já cai no checkout. Não é /assinar: aquela tela só
+         tem o mensal e é a do link com cupom. -->
+    <a class="cta" id="cta" href="/#planos">
       Quero começar agora <span class="arrow">→</span>
     </a>
   </div>
@@ -147,13 +199,13 @@
       }
       const qs = new URLSearchParams(location.search);
 
-      // Repassa UTMs/parâmetros da VSL pro CTA, sem perder mode/plano
+      // Repassa UTMs/parâmetros da VSL pro CTA, sem perder mode/plano nem o #planos
       try {
         const cta = document.getElementById('cta');
         if (cta && [...qs.keys()].length) {
           const url = new URL(cta.getAttribute('href'), location.origin);
           qs.forEach((v, k) => { if (!url.searchParams.has(k)) url.searchParams.set(k, v); });
-          cta.setAttribute('href', url.pathname + url.search);
+          cta.setAttribute('href', url.pathname + url.search + url.hash);
         }
       } catch {}
 
@@ -177,50 +229,91 @@
 </script>
 
 <script>
-  document.addEventListener('readystatechange', () => {
-    if (document.readyState !== 'complete') return;
-    const hlsLink = 'https://b-vz-380ec774-9b3.tv.pandavideo.com.br/bff5383a-0111-45f5-8ab9-46468dd31afe/playlist.m3u8';
-    const pullzone = hlsLink.split('b-')[1].split('.')[0];
-    const id = hlsLink.split('.com.br/')[1].split('/')[0];
-    if (!document.querySelector('script[src^="https://player.pandavideo.com.br/api.v2.js"]')) {
-      const s = document.createElement('script');
-      s.src = 'https://player.pandavideo.com.br/api.v2.js';
-      s.async = true;
-      document.head.appendChild(s);
-    }
-    window.pandascripttag = window.pandascripttag || [];
-    window.pandascripttag.push(function () {
-      const p = new PandaPlayer('iframe[src*="' + pullzone + '"][src*="' + id + '"]', {
-        onReady() {
-          p.setParentWindowUrl();
-        }
-      });
-    });
-  });
-
-  // ===== Revela o CTA aos 02:40 pela timeline do player =====
-  // Não usamos o botão nativo do Panda (loadButtonInTime): ele não navega em
-  // Safari/in-app browser mesmo com setParentWindowUrl. E não dependemos da
-  // API onEvent do SDK (formato incerto): escutamos direto o postMessage do
-  // player — padrão provado em produção na LP. O iframe posta
-  // { message: 'panda_timeupdate', currentTime } independente de configuração.
+  // ===== Player nativo: play, CTA aos 02:40 e ida pra oferta no fim =====
+  // REVEAL_AT é o segundo em que o botão aparece. Ajustado pra este vídeo em
+  // 30d94fb2 (era 04:30). Pra mudar, é só este número.
   (function () {
-    const REVEAL_AT = 160; // 02:40 em segundos
+    const REVEAL_AT = 160;      // 02:40
+    const IR_NO_FIM_MS = 1200;  // pausa curta pra pessoa ver pra onde vai
+
+    const video = document.getElementById('vsl');
+    const play = document.getElementById('play');
     const cta = document.getElementById('cta');
-    if (!cta) return;
-    let revealed = false;
-    function onMessage(ev) {
-      const data = ev && ev.data;
-      if (!data || typeof data !== 'object') return;
-      if (data.message !== 'panda_timeupdate') return;
-      if (typeof data.currentTime !== 'number') return;
-      if (data.currentTime >= REVEAL_AT && !revealed) {
-        revealed = true;
-        cta.classList.add('is-visible');
-        window.removeEventListener('message', onMessage);
-      }
+    if (!video || !cta) return;
+
+    function sid() {
+      try { return localStorage.getItem('solardoc_session_id'); } catch { return null; }
     }
-    window.addEventListener('message', onMessage);
+
+    // Mesmo endpoint e mesmo formato da LP (lp_events). `lp` separa esta
+    // página do vídeo do eletroposto na mesma tabela. keepalive porque o
+    // clique no CTA sai da página logo em seguida.
+    function evento(tipo, dados) {
+      const s = sid();
+      if (!s) return;
+      try {
+        fetch('/_api/_t/e', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: s, event_type: tipo, event_data: Object.assign({ lp: 'apresentacao' }, dados) }),
+          keepalive: true,
+        }).catch(() => {});
+      } catch {}
+    }
+
+    const marcos = {};
+    function marco(acao) {
+      if (marcos[acao]) return;
+      marcos[acao] = true;
+      evento('vsl', { acao: acao });
+    }
+
+    let revelado = false;
+    function revelar() {
+      if (revelado) return;
+      revelado = true;
+      cta.classList.add('is-visible');
+    }
+
+    // Play com som, no toque. Sem autoplay: ele só funciona mudo, e esta
+    // demonstração é falada.
+    if (play) {
+      video.controls = false;
+      play.hidden = false;
+      play.addEventListener('click', function () {
+        video.controls = true;
+        const p = video.play();
+        if (p && p.catch) p.catch(function () { play.hidden = false; });
+      });
+    }
+
+    video.addEventListener('play', function () {
+      if (play) play.hidden = true;
+      video.controls = true;
+      marco('play');
+    });
+
+    video.addEventListener('timeupdate', function () {
+      const t = video.currentTime;
+      if (t >= REVEAL_AT) revelar();
+      if (video.duration && t >= video.duration / 2) marco('metade');
+    });
+
+    // Vídeo que não carrega não pode virar beco sem saída: botão aparece na hora.
+    video.addEventListener('error', revelar);
+
+    cta.addEventListener('click', function () {
+      evento('vsl_cta', { origem: 'botao', segundo: Math.round(video.currentTime || 0) });
+    });
+
+    // Terminou o vídeo → vai sozinho pra oferta, com as UTMs que o CTA já leva.
+    video.addEventListener('ended', function () {
+      marco('fim');
+      revelar();
+      cta.firstChild.textContent = 'Indo para a oferta… ';
+      evento('vsl_cta', { origem: 'fim', segundo: Math.round(video.duration || 0) });
+      setTimeout(function () { location.href = cta.getAttribute('href'); }, IR_NO_FIM_MS);
+    });
   })();
 </script>
 
