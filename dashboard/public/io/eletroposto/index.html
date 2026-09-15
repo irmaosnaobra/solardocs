@@ -166,6 +166,20 @@
   .ben .t{font-size:16.5px;font-weight:800;letter-spacing:-.02em;line-height:1.08}
   .ben .d{color:var(--mut);font-size:13.8px;font-weight:500;margin-top:7px;line-height:1.62}
 
+  /* ===== estoque: fotos reais do lote (15/09/2026) =====
+     As duas fotos sao da fabrica, entao a legenda diz so o que esta no quadro
+     (embalado, pronto para embarque, na linha de montagem) e nunca que e estoque
+     no Brasil. No desktop a foto larga dita a altura da linha e a segunda cobre
+     a coluna com a img absoluta: duas 4:3 em colunas de larguras diferentes
+     ficariam de alturas diferentes. No celular as duas empilham em 4:3. */
+  .estoqueG{display:grid;gap:14px;grid-template-columns:1fr}
+  @media(min-width:820px){.estoqueG{grid-template-columns:1.35fr 1fr}
+    .estoqueG .foto:not(.larga) img{position:absolute;inset:0;aspect-ratio:auto}}
+  .foto{margin:0;position:relative;overflow:hidden;border-radius:16px;background:#0E1B2A;border:1px solid var(--line)}
+  .foto img{display:block;width:100%;height:100%;aspect-ratio:4/3;object-fit:cover}
+  .foto figcaption{position:absolute;left:0;right:0;bottom:0;padding:36px 18px 16px;color:#fff;font-size:16px;
+    font-weight:800;letter-spacing:-.01em;line-height:1.2;background:linear-gradient(180deg,rgba(5,13,24,0),rgba(5,13,24,.88))}
+
   /* ===== modelos de negócio =====
      Cinco portas de entrada, e elas mudam quem paga a conta. A ordem NÃO é
      alfabética nem por preço: vai do que exige menos do lead (ele só cede o
@@ -637,6 +651,38 @@
         <div class="ic"><svg viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></svg></div>
         <div class="t">Energia limpa</div><div class="d">Um ativo sustentável que valoriza a marca do seu negócio.</div>
       </div>
+    </div>
+  </section>
+
+  <!-- ESTOQUE (15/09/2026) — fotos do lote que o Thiago mandou. Fica depois do "por que
+       eletroposto" e antes dos modelos de propósito: o lead já quer o ponto e ainda não
+       viu preço, e é aqui que ele precisa ver que a máquina existe. Legenda de uma linha
+       em 16px, sem texto miúdo (pedido do mesmo dia). A foto da linha branca é um corte
+       4:3 abaixo das faixas da fábrica. Originais: Desktop/WhatsApp Image 2026-09-14
+       at 11.34.52 (linha) e 11.34.53 (fila). -->
+  <section id="estoque">
+    <div class="sh"><span class="tt">Equipamento</span><span class="ln"></span></div>
+    <h2>O carregador que sai do <span class="n">nosso estoque</span></h2>
+    <div class="estoqueG">
+      <figure class="foto larga">
+        <img src="/nexus/img/estoque-fila-1200.webp"
+             srcset="/nexus/img/estoque-fila-800.webp 800w, /nexus/img/estoque-fila-1200.webp 1200w"
+             sizes="(max-width:819px) calc(100vw - 24px), 700px"
+             width="1200" height="900" loading="lazy" decoding="async"
+             alt="Fila de carregadores NEXUS embalados sobre paletes, prontos para embarque">
+        <figcaption>Lote embalado, pronto para embarque</figcaption>
+      </figure>
+      <figure class="foto">
+        <img src="/nexus/img/estoque-linha-1200.webp"
+             srcset="/nexus/img/estoque-linha-800.webp 800w, /nexus/img/estoque-linha-1200.webp 1200w"
+             sizes="(max-width:819px) calc(100vw - 24px), 520px"
+             width="1200" height="900" loading="lazy" decoding="async"
+             alt="Carregadores NEXUS brancos na linha de montagem, com os cabos ainda embalados">
+        <figcaption>Na linha de montagem</figcaption>
+      </figure>
+    </div>
+    <div class="ctaFim">
+      <a href="#preencher" class="btn" onclick="track('cta_estoque')">Quero um desse no meu ponto →</a>
     </div>
   </section>
 
