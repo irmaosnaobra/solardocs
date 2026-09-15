@@ -47,6 +47,10 @@
     var agendou = false;
     try{ agendou = Date.now() - Number(localStorage.getItem('ep_agendado') || 0) < 30*864e5; }catch(e){}
     if(QUIZ_PRIMEIRO && !secao && !pagina && !agendou) html.classList.add('quiz');
+    // quem marcou (agora ou nos ultimos 30 dias) ve o convite do Instagram nas saidas
+    // ate clicar em algum link do Instagram (ver "SIGA A GENTE" no script)
+    if(agendou) html.classList.add('seguir');
+    try{ if(localStorage.getItem('ep_seguiu')) html.classList.add('seguiu'); }catch(e){}
   }catch(e){}
   document.addEventListener('DOMContentLoaded', function(){
     if(!window.__quizPronto) html.classList.remove('quiz');
@@ -679,6 +683,31 @@
   html.agendado .ctaFim,html.agendado .navCta,html.agendado .heroCta .btn.ghost,html.agendado .barraAg,
   html.agendado #agendar > .sh,html.agendado #agendar > h2,html.agendado .agChips{display:none!important}
   .okMais{margin-top:22px;width:100%;max-width:520px}
+
+  /* ===== siga a gente depois de marcar (15/09/2026) =====
+     Tudo aqui so aparece com html.seguir (marcou) e some com html.seguiu (clicou num
+     link do Instagram). O roxo e o do Instagram, o mesmo da tela do NOTA 1; o botao
+     continua verde porque verde e onde se clica. */
+  #ag-ok{scroll-margin-top:80px}
+  .okSeguir{margin:22px auto 0;max-width:520px;padding:20px 22px;border-radius:16px;text-align:left;
+    border:1px solid rgba(190,80,220,.55);background:rgba(190,80,220,.10)}
+  .okSeguir p{color:var(--cream);font-size:16px;font-weight:600;line-height:1.5;margin:0 0 14px}
+  .okSeguir p b{color:#fff;font-weight:800}
+  .okSeguir .btn{width:100%;justify-content:center}
+  .okSeguir .btn,.barraSeguir .btn{text-align:center;line-height:1.25}
+  .barraSeguir{display:none;position:fixed;left:0;right:0;bottom:0;z-index:60;align-items:center;justify-content:center;gap:16px;
+    padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(8,20,34,.95);backdrop-filter:blur(10px);
+    border-top:1px solid rgba(190,80,220,.45)}
+  .barraSeguir span{font-size:16px;font-weight:800;color:var(--cream)}
+  .barraSeguir .btn{min-height:52px;font-size:16px;font-weight:800}
+  html.seguir:not(.seguiu) .barraSeguir{display:flex}
+  /* so enquanto a barra de seguir ocupa o lugar: quem ja seguiu volta a ter a de agendar */
+  html.seguir:not(.seguiu) .barraAg{display:none!important}
+  html.seguir:not(.seguiu) footer{padding-bottom:100px}
+  @media(max-width:760px){.barraSeguir span{display:none}.barraSeguir .btn{width:100%}}
+  .cf .ic.ic-ig{background:rgba(190,80,220,.14);border-color:rgba(190,80,220,.55)}
+  .cf .ic.ic-ig svg{stroke:#D06BE8}
+  #seguir-bg .cf p{font-size:16px;color:var(--cream)}
 </style>
 </head>
 <body>
@@ -1377,6 +1406,14 @@
         <div class="ic"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
         <h3>Está marcado!</h3>
         <p id="ok-txt">...</p>
+        <!-- SIGA A GENTE (15/09/2026): primeira coisa depois do horario marcado. Quem fecha
+             a aba sem fazer mais nada ja passou por este botao. O clique em qualquer link
+             do Instagram marca "seguiu" pela captura de clique do script. -->
+        <div class="okSeguir">
+          <p><b>Enquanto a reunião não chega, siga a gente.</b> Obra por dentro e ponto novo saindo do chão, na hora que acontece.</p>
+          <a class="btn" href="https://instagram.com/irmaosnaobra__" target="_blank" rel="noopener"
+             data-source="agendado-cartao">Seguir @irmaosnaobra__ →</a>
+        </div>
         <!-- O parágrafo de "seu ponto ainda está em negociação" saiu em 29/08, quando o
              'negociando' foi cortado da agenda. Em 15/09 o 'negociando' voltou, agora COM
              endereço, e a reunião dele é de estudo do local como a de quem tem o ponto:
@@ -1456,6 +1493,29 @@
     </div>
   </div>
 
+</div>
+
+<!-- CONVITE DE SAIDA (15/09/2026). Pedido do Thiago: quem agendou tem o link para seguir
+     a gente nas saidas. Abre no voltar (uma vez por visita), ao levar o mouse para fora
+     da janela, ao clicar num link que sai da pagina e ao voltar para a aba (abrirSeguir). -->
+<div class="cfBg" id="seguir-bg" onclick="if(event.target===this) fecharSeguir()">
+  <div class="cf" role="dialog" aria-modal="true" aria-labelledby="seguir-tit">
+    <div class="ic ic-ig"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></svg></div>
+    <h3 id="seguir-tit">Antes de sair, siga a gente no Instagram</h3>
+    <p>É lá que sai <b>ponto novo saindo do chão</b> e a conta real de cada caso. Quem acompanha fica sabendo primeiro dos postos que vão precisar de sócio.</p>
+    <div class="cfBtns">
+      <a class="btn" id="seguir-ig" href="https://instagram.com/irmaosnaobra__" target="_blank" rel="noopener"
+         data-source="agendado-janela">Seguir @irmaosnaobra__ →</a>
+      <button type="button" class="btn ghost" id="seguir-nao" onclick="fecharSeguir()">Agora não</button>
+    </div>
+  </div>
+</div>
+
+<!-- BARRA DE SEGUIR (15/09/2026): fixa embaixo para quem marcou, ate clicar em Seguir. -->
+<div class="barraSeguir" id="barra-seguir">
+  <span>Siga a gente no Instagram</span>
+  <a class="btn" href="https://instagram.com/irmaosnaobra__" target="_blank" rel="noopener"
+     data-source="agendado-barra">Seguir @irmaosnaobra__ →</a>
 </div>
 
 <!-- BARRA DE AGENDAR NO CELULAR (15/09/2026). Nasce escondida e quem decide e o
@@ -3143,7 +3203,9 @@ async function gravarAgendamento(){
     document.getElementById('ag-form').style.display = 'none';
     document.getElementById('ag-ok').style.display = 'block';
     paginaDepoisDeAgendar();   // antes do scroll: a confirmação sobe para o topo da página
-    document.getElementById('ag-ok').scrollIntoView({behavior:'smooth', block:'center'});
+    // 'start' com o scroll-margin-top do #ag-ok: com o cartão de seguir a confirmação
+    // ficou mais alta, e o 'center' deixava o "Está marcado!" atrás do menu fixo.
+    document.getElementById('ag-ok').scrollIntoView({behavior:'smooth', block:'start'});
   }catch(e){
     console.error(e);
     // 'dia fechado' é o servidor recusando um horário que esta aba ainda mostra:
@@ -3192,6 +3254,11 @@ function paginaDepoisDeAgendar(){
   const html = document.documentElement;
   html.classList.remove('quiz');
   html.classList.add('agendado');
+  html.classList.add('seguir');   // convite do Instagram nas saídas
+  // Arma o voltar só com ativação viva: depois dos awaits da gravação ela pode ter
+  // expirado, e o WebKit (iPhone) pula entrada criada sem gesto. Sem ela, o próximo
+  // clique arma (captura de clique no script).
+  if(!navigator.userActivation || navigator.userActivation.isActive) armarVoltar();
 }
 // O formulário montou: o <head> não precisa mais abrir a página por segurança.
 window.__quizPronto = true;
@@ -3200,6 +3267,126 @@ if(document.documentElement.classList.contains('quiz')){
   // API da agenda pendurada também é tela morta: 12 s sem nenhum horário, abre a página.
   setTimeout(() => { if(!document.querySelector('#slots .slot')) soltarQuiz('sem_horario'); }, 12000);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SIGA A GENTE (15/09/2026)
+//
+// Pedido do Thiago: quem agendou tem o link do Instagram em toda saída. Vale com
+// html.seguir (marcou nesta visita ou nos últimos 30 dias) e some para sempre no
+// primeiro clique em QUALQUER link do Instagram da página (html.seguiu,
+// localStorage ep_seguiu).
+//   NA TELA   o cartão no topo da confirmação e a barra fixa embaixo.
+//   NA SAÍDA  a janela #seguir-bg no VOLTAR, ao levar o mouse para fora da janela,
+//             ao clicar num link que sai da página e ao voltar para a aba.
+//   FECHAR A ABA não tem saída própria: nenhum navegador deixa a página mostrar nada
+//   seu ali, só o aviso genérico dele. Quem fecha já passou pelo cartão e pela barra.
+//
+// O VOLTAR MOSTRA A JANELA UMA VEZ POR VISITA e o voltar seguinte sai. Não é descuido:
+// o padrão de Spam da Meta, que vale para a página de destino dos anúncios, cita
+// "trapping, where irrelevant pop-ups appear when a person attempts to leave the
+// landing page". Voltar, janela, "Agora não", voltar, janela sem fim é essa tática ao
+// pé da letra, numa página que recebe tráfego pago. Para desligar só a parte do voltar
+// (cartão, barra, mouse, aba e links continuam): SEGUIR_NO_VOLTAR = false.
+// ═══════════════════════════════════════════════════════════════════════════
+const SEGUIR_NO_VOLTAR = true;
+let seguirDestino = null, seguirFechouEm = 0, seguirAncoraEm = 0, seguirVoltarUsado = false;
+let seguirUrl = location.href;   // a URL de antes de cada popstate (ver o listener)
+// EVENTOS: LP_seguir_clique_<origem> é o clique em Seguir (cartao, barra, janela, rodape,
+// tela-recusa) e LP_seguir_janela_<motivo> é a janela abrindo (voltar, topo, link,
+// voltou_aba), contada UMA vez por motivo na sessão. Prefixos diferentes de propósito:
+// um filtro "começa com LP_seguir_janela" não pode somar aberturas com cliques, e quem
+// deixa a aba aberta o dia todo não pode virar dezenas de "viu o convite".
+const seguirContou = {};
+function seguirAtivo(){
+  const h = document.documentElement.classList;
+  return h.contains('seguir') && !h.contains('seguiu');
+}
+/** Clicou num link do Instagram. `silencioso` = não agendou ainda: só lembra, sem evento. */
+function marcarSeguiu(origem, silencioso){
+  const html = document.documentElement;
+  if(html.classList.contains('seguiu')) return;   // uma vez só, venha de onde vier
+  try{ localStorage.setItem('ep_seguiu', String(Date.now())); }catch(e){}
+  html.classList.add('seguiu');
+  if(!silencioso) track('seguir_clique_' + origem);
+  const bg = document.getElementById('seguir-bg');
+  if(bg.classList.contains('on')){ bg.classList.remove('on'); document.body.style.overflow = ''; }
+  // Seguiu pela janela que segurou um link: o Instagram abre na aba nova e esta aba vai
+  // para onde a pessoa ia. Sem isto, quem obedeceu o convite perdia o clique. Os 300 ms
+  // deixam a aba nova nascer antes de esta aba navegar.
+  if(seguirDestino){ const d = seguirDestino; seguirDestino = null; setTimeout(() => { location.href = d; }, 300); }
+}
+function abrirSeguir(motivo, destino){
+  const bg = document.getElementById('seguir-bg');
+  if(!seguirAtivo() || bg.classList.contains('on') || document.getElementById('cf-bg').classList.contains('on')) return false;
+  // mouse e troca de aba esperam 20 s depois de fechar; voltar e link não esperam,
+  // porque ali a pessoa está saindo de fato
+  if((motivo === 'topo' || motivo === 'voltou_aba') && Date.now() - seguirFechouEm < 20000) return false;
+  seguirDestino = destino || null;
+  document.getElementById('seguir-nao').textContent = destino ? 'Continuar sem seguir' : 'Agora não';
+  bg.classList.add('on');
+  document.body.style.overflow = 'hidden';
+  document.getElementById('seguir-ig').focus({ preventScroll: true });
+  track('seguir_janela_' + motivo);
+  return true;
+}
+function fecharSeguir(){
+  document.getElementById('seguir-bg').classList.remove('on');
+  document.body.style.overflow = '';
+  seguirFechouEm = Date.now();
+  if(seguirDestino){ const d = seguirDestino; seguirDestino = null; location.href = d; }
+}
+// VOLTAR: uma entrada a mais no histórico, com a MESMA URL. O voltar consome ela, a
+// página fica, e o popstate abre o convite. Só nasce dentro de um clique (captura de
+// clique abaixo): entrada criada sem gesto o Chrome e o WebKit pulam no voltar.
+function armarVoltar(){
+  if(!SEGUIR_NO_VOLTAR || !seguirAtivo() || seguirVoltarUsado) return;
+  try{ if(!(history.state && history.state.epSeguir)) history.pushState({ epSeguir: 1 }, '', location.href); }catch(e){}
+}
+// O Chrome dispara popstate TAMBÉM em âncora da própria página (#inicio, menu, CTAs,
+// logo). Por isso só conta como "voltar para sair" o popstate em que a URL NÃO mudou (a
+// saída da entrada extra para a de baixo, que têm a mesma URL), sem clique em âncora
+// agora há pouco, e que não aterrissa na própria entrada extra (avançar).
+window.addEventListener('popstate', () => {
+  const antes = seguirUrl;
+  seguirUrl = location.href;
+  if(location.href !== antes || Date.now() - seguirAncoraEm < 600) return;
+  if(history.state && history.state.epSeguir) return;
+  if(!seguirVoltarUsado && abrirSeguir('voltar')){ seguirVoltarUsado = true; return; }
+  // O portão de presença estava aberto: o voltar gastou a entrada sem mostrar nada.
+  if(document.getElementById('cf-bg').classList.contains('on')){ armarVoltar(); return; }
+  // Já viu a janela, já seguiu ou a janela já estava aberta: o voltar segue o caminho
+  // dele, senão o toque parece engolido.
+  history.back();
+});
+window.addEventListener('hashchange', () => { seguirUrl = location.href; });
+document.documentElement.addEventListener('mouseleave', e => { if(e.clientY <= 0) abrirSeguir('topo'); });
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') abrirSeguir('voltou_aba'); });
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape' && document.getElementById('seguir-bg').classList.contains('on')) fecharSeguir();
+});
+// CAPTURA DE CLIQUE:
+//   Instagram          qualquer um (cartão, barra, janela, rodapé, tela do NOTA 1) marca "seguiu";
+//   todo o resto       arma o voltar (é o gesto que o navegador exige);
+//   âncora da página   anota a hora, para o popstate dela não abrir a janela;
+//   link que sai       segura o clique e mostra o convite, com "Continuar sem seguir".
+//                      Não segura: Ctrl/Cmd/Shift/botão do meio (nova aba), WhatsApp,
+//                      telefone, e-mail, nova aba e a tela do NOTA 1 (o fluxo dele é outro).
+document.addEventListener('click', e => {
+  const a = e.target.closest && e.target.closest('a[href]');
+  if(a && /instagram\.com/.test(a.href)){
+    marcarSeguiu((a.dataset.source || 'link').replace(/^agendado-/, ''), !seguirAtivo());
+    return;
+  }
+  armarVoltar();
+  if(!a) return;
+  const href = a.getAttribute('href') || '';
+  if(href.startsWith('#')){ seguirAncoraEm = Date.now(); return; }
+  if(!seguirAtivo() || e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+  if(a.target === '_blank' || a.closest('#seguir-bg') || a.closest('#ag-nao')) return;
+  if(/^(https?:\/\/(wa\.me|api\.whatsapp\.com)|tel:|mailto:)/i.test(a.href)) return;
+  if(a.origin === location.origin && a.pathname === location.pathname && a.search === location.search){ seguirAncoraEm = Date.now(); return; }
+  if(abrirSeguir('link', a.href)) e.preventDefault();
+}, true);
 // a aba pode ficar aberta horas: ao voltar pra ela, refaz a agenda (horário que passou some)
 document.addEventListener('visibilitychange', () => { if(!document.hidden && !slotSel) montarSlots(); });
 // LINK ANTIGO CONTINUA VALENDO. '#agendar' ja saiu em mensagem, print e link de
