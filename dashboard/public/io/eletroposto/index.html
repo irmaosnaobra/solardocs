@@ -2028,22 +2028,25 @@ function pontuar(f){
   //   nao tem                   ->  NOTA 1, roteado como sempre foi
   //
   // ═══ 15/09/2026 — A NOTA SAI DO PONTO ═══
-  // Ordem do Thiago: todo ponto próprio chega à reunião e é nota 11, quem já está
-  // negociando um local é nota 9, e o negócio da NEXUS é 100% nosso, 50/50 e chave
-  // na mão. Nesses três modelos dinheiro e decisor não barram ninguém (no 01 quem
-  // investe somos nós), então a soma deixou de ordenar quem tem local. O número
-  // passa a dizer só a situação do ponto:
-  //   ponto próprio (definido + sob controle)  ->  11/11, NOTA 3
-  //   local em negociação com o proprietário    ->   9/11, NOTA 3
-  //   o resto                                   ->  NOTA 1, com a soma antiga
+  // Ordem do Thiago: todo ponto sob controle chega à reunião, quem já está negociando
+  // um local também, e o negócio da NEXUS é 100% nosso, 50/50 e chave na mão. Nesses
+  // três modelos dinheiro e decisor não barram ninguém (no 01 quem investe somos nós),
+  // então a soma deixou de ordenar quem tem local. O número passa a dizer só a
+  // situação do ponto (ajuste do mesmo dia: o dono vale mais que quem só controla):
+  //   dono do local                                   ->  11/11, NOTA 3
+  //   administra, representa o dono ou é inquilino    ->  10/11, NOTA 3
+  //   local em negociação com o proprietário          ->   9/11, NOTA 3
+  //   o resto (sem local)                             ->  NOTA 1, segue o funil
   // A soma antiga segue na ficha de NOTA 1 (listas do /gerador, ordem do PlugCash)
-  // com teto de 8: 9 e 11 ficam reservados pra quem tem local, senão "NOTA 1 ·
-  // 11/11" conviveria com "11 = ponto próprio". Isso também resolve o modelo 01, que
+  // com teto de 8: de 9 a 11 fica reservado pra quem tem local, senão "NOTA 1 ·
+  // 11/11" conviveria com "11 = dono". Isso também resolve o modelo 01, que
   // escondia a pergunta de investir e nunca passava de 8.
   // Efeito sabido: NOTA 2 some das reuniões novas (toda reunião nasce quente) e o
   // reagendamento automático do vermelho passa a valer pra todas.
-  if (f.ponto === 'definido' && f.relacao && !SEM_CONTROLE.has(f.relacao))
+  if (f.ponto === 'definido' && f.relacao === 'proprietario')
     return { pts: 11, nota: 3, corte: false };
+  if (f.ponto === 'definido' && f.relacao && !SEM_CONTROLE.has(f.relacao))
+    return { pts: 10, nota: 3, corte: false };
   if (f.ponto === 'negociando')
     return { pts: 9, nota: 3, corte: false };
   return { pts: Math.min(pts, 8), nota: 1, corte: true };
@@ -2820,7 +2823,7 @@ async function gravarAgendamento(){
       cidade:           cidade || null,
       status:           'agendado',
       // Vem da nota: quente = NOTA 3, morno = NOTA 2. Desde 15/09 toda reunião da LP
-      // nasce NOTA 3 (11 ponto próprio, 9 local em negociação), então nasce quente;
+      // nasce NOTA 3 (11 ponto próprio, 10 quem só controla, 9 local em negociação), então nasce quente;
       // morno sobra pra ficha antiga e pra quem o consultor rebaixar no CRM.
       // 'frio' não aparece aqui porque NOTA 1 nem chega a gravar ficha — vai pro grupo.
       temperatura,

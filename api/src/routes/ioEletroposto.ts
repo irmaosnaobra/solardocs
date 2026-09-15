@@ -102,8 +102,9 @@ export function montarMensagem(a: any): string {
     ...(tem('Local é seu:') ? [`*Local é seu:* ${linha('Local é seu:')}`] : []),
     `*Perfil:* ${perfil}`,
     // "Modelo de interesse:" entrou na ficha da REUNIÃO em 15/09 (antes só a de NOTA 1
-    // tinha). Desde então a nota vem só do ponto (11/11 ponto próprio, 9/11 local em
-    // negociação) e é o modelo que diz qual conversa é: 100% nosso, 50/50 ou chave na
+    // tinha). Desde então a nota vem só do ponto (11/11 dono, 10/11 quem administra,
+    // representa ou aluga, 9/11 local em negociação) e é o modelo que diz qual conversa
+    // é: 100% nosso, 50/50 ou chave na
     // mão. Condicional pelas fichas anteriores.
     ...(tem('Modelo de interesse:') ? [`*Modelo:* ${linha('Modelo de interesse:')}`] : []),
     ...(tem('Rota de passagem:') ? [`*Rota de passagem:* ${linha('Rota de passagem:')}`] : []),

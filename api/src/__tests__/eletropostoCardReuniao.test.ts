@@ -3,8 +3,9 @@ import { montarMensagem } from '../routes/ioEletroposto';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // O card que o Thiago e o Diego recebem quando a LP do eletroposto marca reunião.
-// Desde 15/09/2026 a nota vem só do ponto (11/11 ponto próprio, 9/11 local em
-// negociação) e é a linha do modelo que diz qual conversa é. A ficha é texto
+// Desde 15/09/2026 a nota vem só do ponto (11/11 dono, 10/11 quem administra,
+// representa ou aluga, 9/11 local em negociação) e é a linha do modelo que diz qual
+// conversa é. A ficha é texto
 // escrito pela LP: cada rótulo aqui é o mesmo string de `obs` no index.html.
 // ─────────────────────────────────────────────────────────────────────────────
 
