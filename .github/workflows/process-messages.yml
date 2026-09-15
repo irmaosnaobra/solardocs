@@ -30,3 +30,10 @@ jobs:
           curl -X GET "https://api.solardoc.app/cron/prospeccao-tick" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             --max-time 120 -sS -w "\nHTTP %{http_code}\n"
+      # Estudo do local do eletroposto: acha o terreno, monta o estudo antes da
+      # reuniao e avisa o dono. Este passo e o UNICO chamador do tick.
+      - name: Tick do estudo do local (Eletroposto)
+        run: |
+          curl -X GET "https://api.solardoc.app/cron/eletroposto-estudo" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --max-time 120 -sS -w "\nHTTP %{http_code}\n"
