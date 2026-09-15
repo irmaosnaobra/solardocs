@@ -310,8 +310,7 @@
   #agendar{padding-top:52px}
   /* o titulo desta secao e MAIOR que o das outras de proposito: e a unica
      coisa da pagina que gera receita, e estava com o peso de um FAQ */
-  #agendar h2{font-size:clamp(28px,4.4vw,44px);line-height:1.04}
-  #agendar .sub{font-size:16px;max-width:52ch}
+  #agendar h2{font-size:clamp(28px,4.6vw,56px);line-height:1.04}
 
   /* UM QUADRO SO (15/09/2026). A coluna "O que voce leva da reuniao" (quatro itens
      com paragrafo) disputava o olho com o formulario, e o Thiago pediu o
@@ -319,7 +318,7 @@
      tres selos curtos em cima do quadro; titulo, selos e quadro vao centralizados. */
   .agGrade{max-width:780px;margin:24px auto 0}
   #agendar > .sh{justify-content:center}
-  #agendar > h2,#agendar > .sub{text-align:center;margin-inline:auto}
+  #agendar > h2{text-align:center;margin-inline:auto}
   .agChips{list-style:none;display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-bottom:22px}
   .agChips li{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border-radius:999px;
     border:1px solid var(--line-f);background:rgba(229,231,235,.04);font-size:14.5px;font-weight:700;color:var(--cream)}
@@ -678,7 +677,7 @@
   html.agendado .nav{order:-2}
   html.agendado .agFaixa{order:-1;margin-top:0;border-top:0}
   html.agendado .ctaFim,html.agendado .navCta,html.agendado .heroCta .btn.ghost,html.agendado .barraAg,
-  html.agendado #agendar > .sub,html.agendado .agChips{display:none!important}
+  html.agendado #agendar > .sh,html.agendado #agendar > h2,html.agendado .agChips{display:none!important}
   .okMais{margin-top:22px;width:100%;max-width:520px}
 </style>
 </head>
@@ -1100,8 +1099,12 @@
   <div class="wrap">
   <section id="agendar">
     <div class="sh"><span class="tt"><span class="soQuiz">Invista em eletropostos</span><span class="soPagina">Agende</span></span><span class="ln"></span></div>
-    <h2>Seu ponto vale a <span class="n">conta certa</span></h2>
-    <div class="sub">Escolha um horário e a gente leva o estudo de viabilidade do seu ponto pronto para a conversa, com os números do seu caso.</div>
+    <!-- HEADLINE SOZINHA (15/09/2026). Pedido do Thiago: "uma headline muito forte, sem
+         subheadline". Saiu de um painel de copy (5 angulos, 3 juizes): "seu ponto" separa
+         quem tem o local, "pode render" continua o "pode virar renda" do anuncio sem
+         prometer numero e vale para os 5 modelos (arrendamento tambem rende). 33
+         caracteres: 2 linhas a 360px. Nao recolocar a frase de apoio embaixo. -->
+    <h2>Veja quanto seu ponto <span class="n">pode render</span></h2>
 
     <div class="agGrade">
       <ul class="agChips">
