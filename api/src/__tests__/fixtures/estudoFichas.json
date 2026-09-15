@@ -1,0 +1,65 @@
+{
+  "_leia": "Observacoes no formato real da LP /io/eletroposto, ANONIMIZADAS: rua, numero, bairro e referencia trocados, estrutura e rotulos preservados. Nenhum nome ou telefone.",
+  "fichas": [
+    {
+      "caso": "ponto medio, inquilino, modelo 01 (15/09)",
+      "observacao": "LP ELETROPOSTO · Investidor\nNOTA 3 · 10/11 pts\nEndereço: Praça das Acácias, 208 · Centro · Araguari-MG · CEP 38440-000 · ref.: Casa\nPonto: Já tenho o ponto definido\nLocal é seu: Sou inquilino\nModelo de interesse: 01 · Cedo o espaço e vocês investem 100%\nRota de passagem: Não sei estimar o movimento\nComo pretende investir: Não se aplica · modelo 01, a NEXUS investe 100%\nDecisor: Eu decido\nEntrada trifásica: Não\nSimulou 80 kW com 10 carros/dia\nInvestimento estimado: R$ 145.000,00\n→ payback 2,3 anos · lucro R$ 6.933/mês",
+      "ficha": { "perfil": "investidor", "nota": 3, "pts": 10, "ponto": "definido", "relacao": "inquilino", "modelo": "cedo_espaco", "rota": "naosei", "invest": null, "valor": null, "vagas": null, "decisor": "eu", "trifasica": "nao", "kw": 80, "carros": 10, "para_investidor": false },
+      "endereco": { "rua": "Praça das Acácias", "numero": "208", "bairro": "Centro", "cidade": "Araguari-MG", "cep": "38440-000", "compl": "Casa" }
+    },
+    {
+      "caso": "travessao antigo, ponto para investidor (16/08)",
+      "observacao": "LP ELETROPOSTO — Investidor\nNOTA 2 · 6/11 pts\nPONTO DISPONIVEL PARA INVESTIDOR\nEndereço: Rua das Palmeiras, 131 — Jardim Exemplo — São Paulo-SP — CEP 05000-000 — ref.: Galeria\nPonto: Já tenho o ponto definido\nRota de passagem: Fica em área comercial movimentada\nComo pretende investir: Ainda não sei como vou pagar\nDecisor: Eu decido\nEntrada trifásica: Sim\nSimulou 80 kW com 10 carros/dia\nInvestimento estimado: R$ 144.595,00\n→ payback 2,3 anos · lucro R$ 6.933/mês",
+      "ficha": { "perfil": "investidor", "nota": 2, "pts": 6, "ponto": "definido", "relacao": null, "modelo": null, "rota": "comercial", "invest": "naosei", "valor": null, "vagas": null, "decisor": "eu", "trifasica": "sim", "kw": 80, "carros": 10, "para_investidor": true },
+      "endereco": { "rua": "Rua das Palmeiras", "numero": "131", "bairro": "Jardim Exemplo", "cidade": "São Paulo-SP", "cep": "05000-000", "compl": "Galeria" }
+    },
+    {
+      "caso": "negociando, com vagas e valor (formato de 15/09 a noite)",
+      "observacao": "LP ELETROPOSTO · Mercado / supermercado\nNOTA 3 · 9/11 pts\nEndereço: Avenida dos Ipês, 1500 · Vila Nova · Uberlândia-MG · CEP 38400-000\nPonto: Tenho um local em negociação com o proprietário\nLocal é seu: Estou negociando com o proprietário\nVagas disponíveis: 3 a 5\nModelo de interesse: 03 · Chave na mão, o eletroposto é meu\nComo pretende investir: Financiamento · ainda não consultei o banco\nQuanto pretende investir: R$ 140 mil\nDecisor: Eu e meu sócio/cônjuge · participa da reunião\nEntrada trifásica: Não sei\nSimulou 120 kW com 14 carros/dia\nInvestimento estimado: R$ 195.000,00\n→ payback 2,5 anos · lucro R$ 9.500/mês",
+      "ficha": { "perfil": "mercado", "nota": 3, "pts": 9, "ponto": "negociando", "relacao": null, "modelo": "chave_na_mao", "rota": null, "invest": "fin_banco", "valor": "140", "vagas": "3_5", "decisor": "socio", "trifasica": "naosei", "kw": 120, "carros": 14, "para_investidor": false },
+      "endereco": { "rua": "Avenida dos Ipês", "numero": "1500", "bairro": "Vila Nova", "cidade": "Uberlândia-MG", "cep": "38400-000", "compl": "" }
+    },
+    {
+      "caso": "sem Endereço (ficha antiga, local em vista)",
+      "observacao": "LP ELETROPOSTO — Academia\nNOTA 2 · 7/11 pts\nPonto: Tenho um local em vista, mas ainda não conversei\nComo pretende investir: Recurso próprio\nDecisor: Eu decido\nEntrada trifásica: Sim\nSimulou 60 kW com 8 carros/dia\nInvestimento estimado: R$ 135.000,00\n→ payback 3,1 anos · lucro R$ 5.200/mês",
+      "ficha": { "perfil": "academia", "nota": 2, "pts": 7, "ponto": "em_vista", "relacao": null, "modelo": null, "rota": null, "invest": "proprio", "valor": null, "vagas": null, "decisor": "eu", "trifasica": "sim", "kw": 60, "carros": 8, "para_investidor": false },
+      "endereco": null
+    },
+    {
+      "caso": "quadra de Brasília, CEP sem referência",
+      "observacao": "LP ELETROPOSTO — Investidor\nNOTA 3 · 9/11 pts\nEndereço: Quadra QE 20 Conjunto C, 12 — Guará II — Brasília-DF — CEP 71000-000\nPonto: Já tenho o ponto definido\nRota de passagem: Fica em área comercial movimentada\nComo pretende investir: Recurso próprio\nDecisor: Eu decido\nEntrada trifásica: Não sei\nSimulou 80 kW com 10 carros/dia\nInvestimento estimado: R$ 144.595,00\n→ payback 2,3 anos · lucro R$ 6.933/mês",
+      "ficha": { "perfil": "investidor", "nota": 3, "pts": 9, "ponto": "definido", "relacao": null, "modelo": null, "rota": "comercial", "invest": "proprio", "valor": null, "vagas": null, "decisor": "eu", "trifasica": "naosei", "kw": 80, "carros": 10, "para_investidor": false },
+      "endereco": { "rua": "Quadra QE 20 Conjunto C", "numero": "12", "bairro": "Guará II", "cidade": "Brasília-DF", "cep": "71000-000", "compl": "" }
+    },
+    {
+      "caso": "endereço de mentira (Bbbb e Nnnn, número 000)",
+      "observacao": "LP ELETROPOSTO · Outro: Outro\nNOTA 3 · 9/11 pts\nEndereço: Vila velha, 000 · Bbbb · Vila Velha · CEP 29000-00 · ref.: Nnnn\nPonto: Já tenho o ponto definido\nLocal é seu: Sou inquilino\nRota de passagem: Fica em área comercial movimentada\nComo pretende investir: Recurso próprio\nDecisor: Eu decido\nEntrada trifásica: Não\nSimulou 80 kW com 10 carros/dia\nInvestimento estimado: R$ 145.000,00\n→ payback 2,3 anos · lucro R$ 6.933/mês",
+      "ficha": { "perfil": "outro", "nota": 3, "pts": 9, "ponto": "definido", "relacao": "inquilino", "modelo": null, "rota": "comercial", "invest": "proprio", "valor": null, "vagas": null, "decisor": "eu", "trifasica": "nao", "kw": 80, "carros": 10, "para_investidor": false },
+      "endereco": { "rua": "Vila velha", "numero": "000", "bairro": "Bbbb", "cidade": "Vila Velha", "cep": "29000-00", "compl": "Nnnn" }
+    },
+    {
+      "caso": "endereço do lead, não do ponto",
+      "observacao": "LP ELETROPOSTO · Restaurante / lanchonete\nNOTA 3 · 10/11 pts\nEndereço: Rua Sete de Setembro, 77 · Centro · Goiânia-GO · ref.: ponto ainda não definido, este é o meu endereço\nPonto: Já tenho o ponto definido\nLocal é seu: Administro o local\nVagas disponíveis: 1 a 2\nModelo de interesse: 02 · Sociedade meio a meio\nComo pretende investir: Recurso próprio + cartão ou financiamento\nQuanto pretende investir: R$ 70 mil\nDecisor: Preciso aprovar com terceiros\nEntrada trifásica: Sim\nSimulou 80 kW com 10 carros/dia\nInvestimento estimado: R$ 145.000,00\n→ payback 2,3 anos · lucro R$ 6.933/mês",
+      "ficha": { "perfil": "restaurante", "nota": 3, "pts": 10, "ponto": "definido", "relacao": "administro", "modelo": "meio_a_meio", "rota": null, "invest": "proprio_credito", "valor": "70", "vagas": "1_2", "decisor": "terceiros", "trifasica": "sim", "kw": 80, "carros": 10, "para_investidor": false },
+      "endereco": { "rua": "Rua Sete de Setembro", "numero": "77", "bairro": "Centro", "cidade": "Goiânia-GO", "cep": "", "compl": "ponto ainda não definido, este é o meu endereço" }
+    },
+    {
+      "caso": "dono de posto proprietário, vagas e valor",
+      "observacao": "LP ELETROPOSTO · Dono de posto de combustível\nNOTA 3 · 11/11 pts\nEndereço: Avenida Brasil, 3200 · Distrito Industrial · Uberaba-MG · CEP 38000-000 · ref.: ao lado da conveniência\nPonto: Já tenho o ponto definido\nLocal é seu: Sou o proprietário\nVagas disponíveis: 6 a 10\nModelo de interesse: Ainda não sei · quero comparar na reunião\nComo pretende investir: Recurso próprio\nQuanto pretende investir: Mais de R$ 500 mil\nDecisor: Eu decido\nEntrada trifásica: Sim\nSimulou 120 kW com 20 carros/dia\nInvestimento estimado: R$ 195.000,00\n→ payback 1,6 anos · lucro R$ 14.000/mês",
+      "ficha": { "perfil": "posto", "nota": 3, "pts": 11, "ponto": "definido", "relacao": "proprietario", "modelo": "nao_sei", "rota": null, "invest": "proprio", "valor": "500_mais", "vagas": "6_10", "decisor": "eu", "trifasica": "sim", "kw": 120, "carros": 20, "para_investidor": false },
+      "endereco": { "rua": "Avenida Brasil", "numero": "3200", "bairro": "Distrito Industrial", "cidade": "Uberaba-MG", "cep": "38000-000", "compl": "ao lado da conveniência" }
+    },
+    {
+      "caso": "beira de rodovia, número dentro da rua",
+      "observacao": "LP ELETROPOSTO · Investidor\nNOTA 2 · 6/11 pts\nPONTO DISPONIVEL PARA INVESTIDOR\nEndereço: Rodovia MG 184  km 12, 12 · Sítio Boa Vista · Alterosa-MG · CEP 37145-000\nPonto: Já tenho o ponto definido\nLocal é seu: Sou o proprietário\nRota de passagem: Sim, fica em rodovia ou corredor de tráfego\nComo pretende investir: Ainda não sei como vou pagar\nDecisor: Eu decido\nEntrada trifásica: Sim\nSimulou 80 kW com 10 carros/dia\nInvestimento estimado: R$ 145.000,00\n→ payback 2,3 anos · lucro R$ 6.933/mês",
+      "ficha": { "perfil": "investidor", "nota": 2, "pts": 6, "ponto": "definido", "relacao": "proprietario", "modelo": null, "rota": "rodovia", "invest": "naosei", "valor": null, "vagas": null, "decisor": "eu", "trifasica": "sim", "kw": 80, "carros": 10, "para_investidor": true },
+      "endereco": { "rua": "Rodovia MG 184 km 12", "numero": "12", "bairro": "Sítio Boa Vista", "cidade": "Alterosa-MG", "cep": "37145-000", "compl": "" }
+    },
+    {
+      "caso": "outro com segmento digitado, lote no nome da rua",
+      "observacao": "LP ELETROPOSTO — Outro: Ponto novo\nNOTA 3 · 9/11 pts\nEndereço: Qe 20 conjunto C lote 3e4, 3 — Guara 2 — Brasilia — CEP 71000-000 — ref.: Lote de esquina\nPonto: Já tenho o ponto definido\nLocal é seu: Sou o proprietário\nRota de passagem: Fica em área comercial movimentada\nComo pretende investir: Recurso próprio\nDecisor: Eu decido\nEntrada trifásica: Não sei\nSimulou 80 kW com 10 carros/dia\nInvestimento estimado: R$ 144.595,00\n→ payback 2,3 anos · lucro R$ 6.933/mês",
+      "ficha": { "perfil": "outro", "nota": 3, "pts": 9, "ponto": "definido", "relacao": "proprietario", "modelo": null, "rota": "comercial", "invest": "proprio", "valor": null, "vagas": null, "decisor": "eu", "trifasica": "naosei", "kw": 80, "carros": 10, "para_investidor": false },
+      "endereco": { "rua": "Qe 20 conjunto C lote 3e4", "numero": "3", "bairro": "Guara 2", "cidade": "Brasilia", "cep": "71000-000", "compl": "Lote de esquina" }
+    }
+  ]
+}
