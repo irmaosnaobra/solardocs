@@ -189,13 +189,22 @@
   @media(max-width:900px){.mods{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:560px){.mods{grid-template-columns:1fr}}
   .mod{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;
-    display:flex;flex-direction:column}
+    display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto auto 1fr;column-gap:14px;align-content:start}
+  .mod > *{grid-column:1}
+  /* Imagem pequena no canto de cada modelo (15/09/2026, pedido do Thiago). Ela ocupa a
+     coluna da direita nas tres primeiras linhas (numero, titulo e selo) e o paragrafo
+     volta a ter a largura toda do cartao. E ilustracao, nao prova de servico
+     ([[eletroposto-fotos-pipeline]]): alt vazio e sem legenda. So a do modelo 04 e foto
+     real (o carregador NEXUS). */
+  .mod .modImg{grid-column:2;grid-row:1 / span 3;align-self:start;width:132px;height:auto;aspect-ratio:3/2;
+    object-fit:cover;border-radius:10px;border:1px solid var(--line);background:#0E1B2A}
+  @media(max-width:560px){.mod .modImg{width:112px}}
   .mod .nu{font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--azul)}
   .mod h3{font-size:16.5px;margin:9px 0 0}
-  .mod .quem{display:inline-flex;align-self:flex-start;margin-top:11px;padding:5px 11px;border-radius:999px;
+  .mod .quem{display:inline-flex;align-self:start;justify-self:start;margin-top:11px;padding:5px 11px;border-radius:999px;
     font-size:11.5px;font-weight:700;border:1px solid var(--line-f);color:var(--cream)}
   .mod .quem.nos{border-color:rgba(57,255,20,.38);background:rgba(57,255,20,.10);color:var(--neon)}
-  .mod p{color:var(--mut);font-size:13.8px;font-weight:500;line-height:1.62;margin-top:12px}
+  .mod p{grid-column:1 / -1;color:var(--mut);font-size:13.8px;font-weight:500;line-height:1.62;margin-top:12px}
   .mod p b{color:var(--cream);font-weight:700}
 
   /* ===== simulador ===== */
@@ -694,6 +703,7 @@
     <div class="mods">
       <div class="mod">
         <div class="nu">Modelo 01</div>
+        <img class="modImg" src="/io/eletroposto/img/fotos/modelo-01-espaco.webp" width="480" height="320" alt="" loading="lazy" decoding="async">
         <h3>Você cede o espaço</h3>
         <span class="quem nos">Nós investimos 100%</span>
         <p>Entramos com <b>todo o capital</b>, montamos e operamos o ponto. Você recebe <b>arrendamento
@@ -701,6 +711,7 @@
       </div>
       <div class="mod">
         <div class="nu">Modelo 02</div>
+        <img class="modImg" src="/io/eletroposto/img/fotos/modelo-02-socios.webp" width="480" height="320" alt="" loading="lazy" decoding="async">
         <h3>Sociedade meio a meio</h3>
         <span class="quem nos">50% nós, 50% você</span>
         <p>Cada um entra com <b>metade do capital</b> e os dois são sócios na operação e no faturamento.
@@ -708,6 +719,7 @@
       </div>
       <div class="mod">
         <div class="nu">Modelo 03</div>
+        <img class="modImg" src="/io/eletroposto/img/fotos/modelo-03-chave.webp" width="480" height="320" alt="" loading="lazy" decoding="async">
         <h3>Chave na mão</h3>
         <span class="quem">Você investe</span>
         <p>O eletroposto é <b>seu do começo ao fim</b>, e o faturamento também. Projeto com ART, obra,
@@ -716,6 +728,7 @@
       </div>
       <div class="mod">
         <div class="nu">Modelo 04</div>
+        <img class="modImg" src="/io/eletroposto/img/fotos/modelo-04-equipamento.webp" width="480" height="320" alt="" loading="lazy" decoding="async">
         <h3>Só o equipamento</h3>
         <span class="quem">Você investe</span>
         <p>Carregador <b>NEXUS</b> com <b>garantia de 2 anos</b>, estoque próprio no Brasil e OCPP aberto. Para quem já
@@ -723,6 +736,7 @@
       </div>
       <div class="mod">
         <div class="nu">Modelo 05</div>
+        <img class="modImg" src="/io/eletroposto/img/fotos/modelo-05-consultoria.webp" width="480" height="320" alt="" loading="lazy" decoding="async">
         <h3>Consultoria completa</h3>
         <span class="quem">Você investe</span>
         <p>Estudo de viabilidade do seu ponto, dimensionamento, caminho na concessionária, enquadramento
