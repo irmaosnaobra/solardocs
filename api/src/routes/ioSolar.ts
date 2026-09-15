@@ -3,6 +3,7 @@ import { supabaseGerador } from '../utils/supabaseGerador';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { logger } from '../utils/logger';
 import { agendaFechadaNoIso, ehSocio, MOTIVO_FECHADA } from '../services/agenda/agendaFechada';
+import { proximoDaContaBaixa } from '../services/agenda/filaContaBaixa';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alerta de lead novo da LP de Energia Solar (/io/solar) no WhatsApp da equipe.
@@ -141,12 +142,12 @@ router.post('/alerta', async (req: Request, res: Response): Promise<void> => {
 const DONOS_SOLAR = ['Nilce', 'Thiago', 'Diego'];
 /** Conta alta: quem recebe o lead acima de 700 kWh, alternado. */
 const DONOS_ALTA = ['Thiago', 'Diego'];
-/** Conta baixa: 3 Nilce : 1 Giovanna, a proporção que o Thiago pediu. */
+/** Conta baixa: quem é do time. De QUEM É A VEZ não mora aqui: desde 15/09/2026 a
+ *  página pergunta ao `proximoDaContaBaixa()` (services/agenda/filaContaBaixa.ts),
+ *  a mesma pergunta que o Meta e o ManyChat fazem. Eram duas filas copiadas, e
+ *  mudar a proporção numa só dava dois rodízios discordando. A regra de agora:
+ *  tudo da Nilce até domingo 20/09, e 3 Nilce : 1 Giovanna a partir de 21/09. */
 const TIME_BAIXA = ['Nilce', 'Giovanna'];
-const FILA_BAIXA = ['Nilce', 'Nilce', 'Nilce', 'Giovanna'];
-/** Piso de data do rodízio da conta baixa: é ele que faz o "começa amanhã"
- *  valer sozinho. Sem o piso, o resto da divisão sairia do histórico inteiro. */
-const BAIXA_INICIO = '2026-08-18T00:00:00-03:00';
 
 const soDigitosSolar = (s: unknown) => String(s ?? '').replace(/\D/g, '');
 
@@ -162,7 +163,7 @@ router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
   const ate = String(req.query.ate || '').slice(0, 30);
   if (!de || !ate) { res.status(400).json({ error: 'de/ate obrigatorios' }); return; }
   try {
-    const [ocupadosQ, altaQ, baixaQ] = await Promise.all([
+    const [ocupadosQ, altaQ, proximoBaixa] = await Promise.all([
       supabaseGerador.from('agendamentos')
         .select('quando, vendedor_nome, created_by')
         .gte('quando', de).lte('quando', ate)
@@ -172,12 +173,10 @@ router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
       supabaseGerador.from('agendamentos')
         .select('id', { count: 'exact', head: true })
         .eq('created_by', 'lp_solar').in('vendedor_nome', DONOS_ALTA),
-      // Conta TODAS as fichas das duas, não só as da LP: o lead entra por três
-      // portas (LP, formulário do Meta e DM), e três contadores separados dariam
-      // três rodízios independentes.
-      supabaseGerador.from('agendamentos')
-        .select('id', { count: 'exact', head: true })
-        .in('vendedor_nome', TIME_BAIXA).gte('created_at', BAIXA_INICIO),
+      // A vez da conta baixa sai do mesmo lugar que a do Meta e a do ManyChat: o
+      // lead entra por três portas, e três rodízios separados discordariam. Este
+      // não lança; se o banco falhar, ele mesmo responde 'Nilce'.
+      proximoDaContaBaixa(),
     ]);
 
     const ocupados = ((ocupadosQ.data || []) as Array<Record<string, unknown>>)
@@ -194,12 +193,13 @@ router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
     res.json({
       ocupados,
       proximoAlta: DONOS_ALTA[(altaQ.count || 0) % DONOS_ALTA.length],
-      proximoBaixa: FILA_BAIXA[(baixaQ.count || 0) % FILA_BAIXA.length],
+      proximoBaixa,
     });
   } catch (err) {
     logger.error('io-solar-agenda', 'falha lendo a agenda', err);
     // `null` diz "não consegui ler" — diferente de "não tem nada marcado".
-    res.json({ ocupados: null, proximoAlta: DONOS_ALTA[0], proximoBaixa: FILA_BAIXA[0] });
+    // 'Nilce' é a mesma reserva do proximoDaContaBaixa quando o banco falha.
+    res.json({ ocupados: null, proximoAlta: DONOS_ALTA[0], proximoBaixa: 'Nilce' });
   }
 });
 
