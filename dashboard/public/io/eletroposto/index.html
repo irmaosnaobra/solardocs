@@ -92,7 +92,18 @@
   .hero{padding:20px 0 0}
   .hero .cartao{display:grid;gap:22px;padding:24px;grid-template-columns:1fr;align-items:center;
     position:relative;overflow:hidden}
-  @media(min-width:900px){.hero .cartao{grid-template-columns:1fr 1.02fr;gap:36px;padding:34px}}
+  /* O texto do hero vem em DOIS blocos com a foto no meio (15/09/2026). No
+     celular a coluna unica empilha rotulo e titulo, foto, e so entao o lead:
+     antes a foto caia depois dos numeros e dos botoes, a 800px do topo, fora
+     da primeira tela. No desktop as areas devolvem a foto para a direita, e
+     as linhas 1fr das pontas centralizam o texto contra ela como era com um
+     bloco so (se o texto for mais alto que a foto, elas ficam com zero). */
+  @media(max-width:899.98px){.heroBaixo .lead{margin-top:0}}
+  @media(min-width:900px){.hero .cartao{grid-template-columns:1fr 1.02fr;column-gap:36px;row-gap:0;padding:34px;
+      grid-template-rows:1fr auto auto 1fr;grid-template-areas:". cena" "topo cena" "baixo cena" ". cena"}
+    .heroTopo{grid-area:topo}
+    .heroBaixo{grid-area:baixo}
+    .hero .cena{grid-area:cena}}
   .hero .cartao::before{content:"";position:absolute;inset:0;pointer-events:none;
     background:radial-gradient(70% 90% at 12% 0%, rgba(0,133,255,.16), transparent 60%),
                radial-gradient(60% 80% at 90% 100%, rgba(57,255,20,.10), transparent 60%)}
@@ -545,12 +556,30 @@
 
 <!-- HERO — cartao de duas colunas da NEXUS. A foto deixou de ser fundo
      mascarado atras do texto: agora ela e uma <img> na coluna da direita,
-     que e o que o /nexus faz e o que sobrevive a qualquer viewport. -->
+     que e o que o /nexus faz e o que sobrevive a qualquer viewport.
+     A <figure> fica ENTRE .heroTopo e .heroBaixo de proposito: no celular a
+     ordem do HTML e a ordem da tela (titulo, foto, lead). Juntar os dois
+     blocos de novo manda a foto para o fim do cartao no celular. -->
 <div class="wrap hero" id="inicio">
   <div class="cartao">
-    <div>
+    <div class="heroTopo">
       <p class="rotulo">Renda passiva com energia</p>
       <h1>Invista em <span class="n">Eletropostos</span></h1>
+    </div>
+
+    <figure class="cena" style="margin:0">
+      <!-- MESMA capa do /nexus: as duas paginas da marca abrem com a mesma cena.
+           A -900 foi gerada aqui (75 KB contra 159 KB) porque esta e a imagem
+           do LCP e vai pre-carregada — no celular a de 1324px seria peso puro. -->
+      <img src="/nexus/img/capa.webp"
+           srcset="/nexus/img/capa-900.webp 900w,
+                   /nexus/img/capa.webp 1324w"
+           sizes="(max-width:900px) 100vw, 600px"
+           width="1324" height="827" fetchpriority="high" decoding="async"
+           alt="Eletroposto NEXUS ao entardecer: dois carros carregando sob a cobertura iluminada">
+    </figure>
+
+    <div class="heroBaixo">
       <p class="lead">O carro elétrico já chegou, e eles precisam carregar em algum lugar. Quem instalar
         o ponto primeiro fica com o cliente e com a <b>receita de cada recarga</b>. São
         <b>cinco jeitos de entrar</b>: do chave na mão até ceder só o espaço e a gente investir 100%.</p>
@@ -577,18 +606,6 @@
         <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Obra e instalação nossas</span>
       </div>
     </div>
-
-    <figure class="cena" style="margin:0">
-      <!-- MESMA capa do /nexus: as duas paginas da marca abrem com a mesma cena.
-           A -900 foi gerada aqui (75 KB contra 159 KB) porque esta e a imagem
-           do LCP e vai pre-carregada — no celular a de 1324px seria peso puro. -->
-      <img src="/nexus/img/capa.webp"
-           srcset="/nexus/img/capa-900.webp 900w,
-                   /nexus/img/capa.webp 1324w"
-           sizes="(max-width:900px) 100vw, 600px"
-           width="1324" height="827" fetchpriority="high" decoding="async"
-           alt="Eletroposto NEXUS ao entardecer: dois carros carregando sob a cobertura iluminada">
-    </figure>
   </div>
 </div>
 
