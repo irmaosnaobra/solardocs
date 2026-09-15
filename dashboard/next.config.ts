@@ -24,6 +24,10 @@ const nextConfig: NextConfig = {
       { source: '/register', destination: '/auth?mode=register', permanent: false },
       { source: '/esqueci-senha', destination: '/auth?mode=esqueci', permanent: false },
       { source: '/redefinir-senha', destination: '/auth?mode=redefinir', permanent: false },
+      // Link da bio do Instagram (@irmaosnaobra__). O endereço curto é o que vai no
+      // perfil, e a página continua morando em /io/links. Temporário de propósito:
+      // se a bio um dia apontar pra outra página, troca aqui sem cache de 308.
+      { source: '/links', destination: '/io/links', permanent: false },
       // /planos foi removida como página, mas vários CTAs de upgrade (banner,
       // minha-conta, historico, layout) E os emails de conversão já enviados
       // ainda apontam pra ela → 404. A seção de planos vive na home (#planos).
