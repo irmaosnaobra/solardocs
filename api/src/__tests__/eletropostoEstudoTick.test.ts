@@ -219,12 +219,40 @@ describe('fontes que falham', () => {
     expect(h.s.enviados[0].texto).toContain(`wa.me/${TEL_LEAD}?text=`);
   });
 
-  it('sem chave do Google: parcial, e o motivo fica na fonte', async () => {
+  it('Google recusa a chave: a linha espera sem gastar tentativa, e sai sozinha quando o Google volta', async () => {
+    const googleOk = h.s.f.buscarLocal;
+    h.s.f.buscarLocal = vi.fn(async () => ({ ...falha('erro:403'), http: 403, motivo: 'PERMISSION_DENIED · BILLING_DISABLED' }));
+    h.s.reunioes = [reuniao(501), reuniao(502)];
+
+    const a = await tick();
+    expect(a.motivo).toBe('google_fora');
+    expect(a.google).toEqual({ status: 'erro:403', motivo: 'PERMISSION_DENIED · BILLING_DISABLED' });
+    expect(h.s.f.buscarLocal).toHaveBeenCalledTimes(1);   // não tenta a segunda linha
+    expect(h.s.f.buscarProximos).not.toHaveBeenCalled();
+    expect(h.s.estudos.map(e => [e.status, e.tentativas, e.locked_until])).toEqual([['pendente', 0, null], ['pendente', 0, null]]);
+
+    for (let i = 0; i < 4; i++) await tick();
+    expect(h.s.estudos.every(e => e.tentativas === 0 && e.status === 'pendente')).toBe(true);
+    expect(h.s.enviados).toHaveLength(0);
+
+    h.s.f.buscarLocal = googleOk;
+    const b = await tick();
+    expect(b.prontos).toBe(2);
+  });
+
+  it('sem chave do Google também espera', async () => {
     h.s.f.buscarLocal = vi.fn(async () => falha('sem_chave'));
     h.s.reunioes = [reuniao(501)];
-    await tick();
-    expect(h.s.estudos[0].status).toBe('parcial');
-    expect(h.s.estudos[0].fontes.searchText).toBe('sem_chave');
+    expect((await tick()).motivo).toBe('google_fora');
+    expect(h.s.estudos[0]).toMatchObject({ status: 'pendente', tentativas: 0 });
+  });
+
+  it('ensaio com o Google fora devolve o motivo, sem dado pessoal', async () => {
+    h.s.f.buscarLocal = vi.fn(async () => ({ ...falha('erro:403'), motivo: 'PERMISSION_DENIED' }));
+    h.s.reunioes = [reuniao(501)];
+    const r = await tick({ dry: true, id: 501 });
+    expect(r).toMatchObject({ motivo: 'google_fora', google: { status: 'erro:403', motivo: 'PERMISSION_DENIED' } });
+    expect(JSON.stringify(r)).not.toContain('Maria');
   });
 
   it('IA fora: o texto padrão entra e o estudo continua pronto', async () => {
@@ -287,6 +315,13 @@ describe('interruptores', () => {
     h.s.reunioes = [reuniao(501)];
     expect((await tick()).motivo).toBe('desligado');
     expect(h.s.estudos).toHaveLength(0);
+  });
+
+  it('a sonda responde mesmo com o estudo desligado', async () => {
+    process.env.EP_ESTUDO_OFF = '1';
+    const r = await tick({ sonda: true });
+    expect(r.motivo).toBe('sonda');
+    expect(r.sonda).toMatchObject({ banco: 'ok' });
   });
 
   it('sem o segredo do banco não faz nada', async () => {

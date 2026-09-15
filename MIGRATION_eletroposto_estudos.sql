@@ -186,6 +186,8 @@ begin
   end if;
   update public.eletroposto_estudos set
     status = case when p_patch ? 'status' then p_patch->>'status' else status end,
+    -- (15/09, 2ª migration) devolve a tentativa quando o Google recusa a chave
+    tentativas = case when p_patch ? 'tentativas' then greatest(0, least(3, (p_patch->>'tentativas')::smallint)) else tentativas end,
     locked_until = case when p_patch ? 'locked_until' then (p_patch->>'locked_until')::timestamptz else locked_until end,
     municipio_ibge = case when p_patch ? 'municipio_ibge' then (p_patch->>'municipio_ibge')::integer else municipio_ibge end,
     confianca = case when p_patch ? 'confianca' then p_patch->>'confianca' else confianca end,

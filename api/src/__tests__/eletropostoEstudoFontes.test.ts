@@ -88,6 +88,27 @@ describe('Google Maps', () => {
     expect(JSON.stringify(r)).not.toContain(CHAVE);
   });
 
+  it('o motivo do Google chega limpo: sem a chave, sem nada com cara de chave e sem URL', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(403, { error: {
+      code: 403, status: 'PERMISSION_DENIED',
+      message: `Requests from this API key ${CHAVE} are blocked. AIzaSyA1234567890abcdefghijABCDEFGHIJ12 see https://console.cloud.google.com/apis/api`,
+      details: [{ '@type': 'type.googleapis.com/google.rpc.ErrorInfo', reason: 'API_KEY_SERVICE_BLOCKED' }],
+    } })));
+    const r = await buscarLocal('x');
+    expect(r.motivo).toContain('PERMISSION_DENIED · API_KEY_SERVICE_BLOCKED');
+    expect(r.motivo).not.toContain(CHAVE);
+    expect(r.motivo).not.toContain('AIza');
+    expect(r.motivo).not.toContain('http');
+    expect((r.motivo || '').length).toBeLessThanOrEqual(200);
+  });
+
+  it('Street View REQUEST_DENIED traz o error_message limpo', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json(200, { status: 'REQUEST_DENIED', error_message: 'This API project is not authorized to use this API.' })));
+    const r = await streetViewMeta({ lat: 0, lng: 0 });
+    expect(r.status).toBe('erro:REQUEST_DENIED');
+    expect(r.motivo).toBe('REQUEST_DENIED · This API project is not authorized to use this API.');
+  });
+
   it('searchText sem resultado: zero_resultados, ok', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => json(200, {})));
     const r = await buscarLocal('x');

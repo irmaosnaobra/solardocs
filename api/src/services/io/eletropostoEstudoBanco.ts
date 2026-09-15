@@ -51,7 +51,7 @@ export interface ReuniaoDoEstudo {
 }
 
 export type PatchEstudo = Partial<Pick<LinhaEstudoBanco,
-  'status' | 'locked_until' | 'municipio_ibge' | 'confianca' | 'pre_nota' | 'indice' | 'situacao'
+  'status' | 'tentativas' | 'locked_until' | 'municipio_ibge' | 'confianca' | 'pre_nota' | 'indice' | 'situacao'
   | 'dados' | 'fontes' | 'custo_usd' | 'erro' | 'pronto_em' | 'coords_apagadas_em'>>;
 
 export type ModoLista = 'fila' | 'aviso' | 'historico' | 'limpeza' | 'por_agendamentos' | 'ibge';

@@ -36,6 +36,8 @@ export interface Resultado<T> {
   http: number | null;
   ms: number;
   custo_usd: number;
+  /** O motivo que o Google deu para recusar (ex.: BILLING_DISABLED), já sem chave nem URL. */
+  motivo?: string;
 }
 
 export const CUSTO_USD = {
@@ -84,6 +86,42 @@ async function lerJson<T>(res: Response): Promise<T | null> {
 
 const descartar = async (res: Response | null) => { await res?.arrayBuffer().catch(() => undefined); };
 
+/** Tira do texto qualquer coisa que pareça chave ou URL. O motivo vai para log público. */
+export function limparMotivo(texto: string): string {
+  let t = String(texto || '');
+  const chave = chaveGoogle();
+  if (chave) t = t.split(chave).join('[chave]');
+  return t
+    .replace(/AIza[0-9A-Za-z_-]{20,}/g, '[chave]')
+    .replace(/https?:\/\/\S+/g, '[url]')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 200);
+}
+
+/**
+ * Por que o Google recusou. Places (New) responde { error: { status, details: [{ reason }] } };
+ * os serviços web antigos respondem { status, error_message } ou texto puro.
+ */
+async function motivoDoErro(res: Response | null): Promise<string | undefined> {
+  if (!res) return undefined;
+  try {
+    const bruto = (await res.text()).slice(0, 4000);
+    try {
+      const j = JSON.parse(bruto) as {
+        error?: { status?: string; message?: string; details?: Array<{ reason?: string }> };
+        status?: string; error_message?: string;
+      };
+      const razao = j.error?.details?.find(d => d.reason)?.reason;
+      const partes = [j.error?.status, razao, j.error?.message, j.status, j.error_message].filter(Boolean);
+      if (partes.length) return limparMotivo(partes.join(' · '));
+    } catch { /* não é JSON */ }
+    return limparMotivo(bruto) || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 // ── Google Maps ────────────────────────────────────────────────────────────
 
 // Sem rating, telefone ou site: são SKUs mais caros e o estudo não usa.
@@ -107,7 +145,9 @@ export async function buscarLocal(texto: string, vies?: Coord | null): Promise<R
   const r = await pedir('https://places.googleapis.com/v1/places:searchText',
     { method: 'POST', headers: headersPlaces(chave, MASCARA_LOCAL), body: JSON.stringify(corpo) }, 8000, true);
   const custo = r.http === 200 ? CUSTO_USD.searchText : 0;
-  if (!r.res || !r.res.ok) { await descartar(r.res); return resultado<LugarGoogle[]>(null, r.status, r.http, t0, custo); }
+  if (!r.res || !r.res.ok) {
+    return { ...resultado<LugarGoogle[]>(null, r.status, r.http, t0, custo), motivo: await motivoDoErro(r.res) };
+  }
 
   const lugares = (await lerJson<{ places?: LugarGoogle[] }>(r.res))?.places ?? [];
   return resultado(lugares, lugares.length ? 'ok' : 'zero_resultados', r.http, t0, custo);
@@ -129,7 +169,9 @@ export async function buscarProximos(centro: Coord, tipos: string[], raioM: numb
   const r = await pedir('https://places.googleapis.com/v1/places:searchNearby',
     { method: 'POST', headers: headersPlaces(chave, MASCARA_PROXIMOS), body: JSON.stringify(corpo) }, 8000, true);
   const custo = r.http === 200 ? CUSTO_USD.nearby : 0;
-  if (!r.res || !r.res.ok) { await descartar(r.res); return resultado<LugarGoogle[]>(null, r.status, r.http, t0, custo); }
+  if (!r.res || !r.res.ok) {
+    return { ...resultado<LugarGoogle[]>(null, r.status, r.http, t0, custo), motivo: await motivoDoErro(r.res) };
+  }
 
   const lugares = (await lerJson<{ places?: LugarGoogle[] }>(r.res))?.places ?? [];
   return resultado(lugares, lugares.length ? 'ok' : 'zero_resultados', r.http, t0, custo);
@@ -153,7 +195,9 @@ export async function streetViewMeta(centro: Coord): Promise<Resultado<PanoramaR
     return resultado({ pano_id: j.pano_id, data: j.date ?? null, lat: j.location?.lat ?? null, lng: j.location?.lng ?? null }, 'ok', r.http, t0);
   }
   if (j?.status === 'ZERO_RESULTS' || j?.status === 'NOT_FOUND') return resultado<PanoramaRua>(null, 'zero_resultados', r.http, t0);
-  return resultado<PanoramaRua>(null, `erro:${j?.status || 'metadata'}`, r.http, t0);
+  const falhou = resultado<PanoramaRua>(null, `erro:${j?.status || 'metadata'}`, r.http, t0);
+  const motivo = limparMotivo([j?.status, (j as { error_message?: string } | null)?.error_message].filter(Boolean).join(' · '));
+  return motivo ? { ...falhou, motivo } : falhou;
 }
 
 /** Uma imagem de 64 px prova que o Static Maps responde para esta chave. */
@@ -166,8 +210,10 @@ export async function provarStaticMap(centro: Coord): Promise<Resultado<boolean>
     + `&zoom=19&size=64x64&maptype=satellite&key=${encodeURIComponent(chave)}`;
   const r = await pedir(url, { method: 'GET' }, 5000, false);
   const tipo = r.res?.headers.get('content-type') || '';
+  if (!r.res || !r.res.ok) {
+    return { ...resultado<boolean>(null, r.status, r.http, t0), motivo: await motivoDoErro(r.res) };
+  }
   await descartar(r.res);
-  if (!r.res || !r.res.ok) return resultado<boolean>(null, r.status, r.http, t0);
   if (!tipo.startsWith('image/')) return resultado<boolean>(null, 'erro:nao_imagem', r.http, t0, CUSTO_USD.staticmap);
   return resultado(true, 'ok', r.http, t0, CUSTO_USD.staticmap);
 }
@@ -398,7 +444,7 @@ export async function escreverTextos(fatos: FatosIA): Promise<{
 
 // ── Sonda ──────────────────────────────────────────────────────────────────
 
-export interface LinhaSonda { api: string; http: number | null; status: StatusFonte; ms: number }
+export interface LinhaSonda { api: string; http: number | null; status: StatusFonte; ms: number; motivo?: string }
 
 /**
  * Uma chamada de cada fonte num endereço público (Praça Tubal Vilela, Uberlândia),
@@ -414,7 +460,8 @@ export async function sondarFontes(): Promise<Record<string, LinhaSonda>> {
     ibgePopulacao(3170206),
     ibgePibPerCapita(3170206),
   ]);
-  const linha = (api: string, r: Resultado<unknown>): LinhaSonda => ({ api, http: r.http, status: r.status, ms: r.ms });
+  const linha = (api: string, r: Resultado<unknown>): LinhaSonda =>
+    ({ api, http: r.http, status: r.status, ms: r.ms, ...(r.motivo ? { motivo: r.motivo } : {}) });
   return {
     searchText: linha('places:searchText', texto),
     nearby: linha('places:searchNearby', nearby),

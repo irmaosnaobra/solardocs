@@ -112,6 +112,19 @@ export interface EstudoMontado {
   municipio_ibge: number | null;
 }
 
+/**
+ * O Google recusou a chave (sem chave, 401 ou 403). A culpa não é da ficha: a linha
+ * volta para a fila sem gastar tentativa, e o estudo sai sozinho no primeiro tick
+ * depois que a chave voltar a funcionar. Sem redeploy.
+ */
+export class GoogleFora extends Error {
+  constructor(public status: string, public motivo?: string) {
+    super(`google_fora ${status}`);
+  }
+}
+
+const googleRecusou = (s: string) => s === 'sem_chave' || s === 'erro:401' || s === 'erro:403';
+
 const pulado = <T>(): Promise<fontes.Resultado<T>> =>
   Promise.resolve({ ok: false, dado: null, status: 'pulado', http: null, ms: 0, custo_usd: 0 });
 
@@ -161,6 +174,7 @@ export async function montarEstudo(r: Reuniao): Promise<EstudoMontado> {
     mun ? banco.listar('ibge', { ids: [mun.ibge], limite: 1 }).catch(() => []) : Promise.resolve([]),
     fontes.historicoDoEndereco({ endereco, telefone: r.cliente_telefone, excluirId: r.id }),
   ]);
+  if (googleRecusou(local.status)) throw new GoogleFora(local.status, local.motivo);
   st.searchText = local.status;
   st.historico = hist.status;
 
@@ -372,6 +386,7 @@ export interface ResultadoTick {
   rede: number;
   backfill: number;
   motivo?: string;
+  google?: { status: string; motivo?: string };
   falhas?: string[];
   ids?: number[];
   previa?: Record<string, unknown>;
@@ -408,7 +423,7 @@ function previaSemDadoPessoal(e: EstudoMontado): Record<string, unknown> {
   };
 }
 
-async function processarLinha(f: banco.LinhaEstudoBanco, reu: Reuniao, r: ResultadoTick): Promise<void> {
+async function processarLinha(f: banco.LinhaEstudoBanco, reu: Reuniao, r: ResultadoTick): Promise<'ok' | 'erro' | 'google_fora'> {
   try {
     const e = await montarEstudo(reu);
     await banco.salvar(f.id, {
@@ -420,12 +435,22 @@ async function processarLinha(f: banco.LinhaEstudoBanco, reu: Reuniao, r: Result
     if (e.status === 'pronto') r.prontos++;
     else if (e.status === 'parcial') r.parciais++;
     else r.sem_endereco++;
+    return 'ok';
   } catch (err) {
+    if (err instanceof GoogleFora) {
+      // Devolve a tentativa que o claim gastou: esperar o Google não conta como falha.
+      await banco.salvar(f.id, { status: 'pendente', locked_until: null, tentativas: f.tentativas }).catch(() => undefined);
+      r.motivo = 'google_fora';
+      r.google = { status: err.status, ...(err.motivo ? { motivo: err.motivo } : {}) };
+      logger.warn('ep-estudo', 'Google recusou a chave, estudo espera na fila', r.google);
+      return 'google_fora';
+    }
     const msg = String((err as Error)?.message || err).slice(0, 300);
     logger.error('ep-estudo', 'estudo falhou', { id: f.id, erro: msg });
     const ultima = f.tentativas + 1 >= MAX_TENTATIVAS;
     await banco.salvar(f.id, { status: ultima ? 'erro' : 'pendente', locked_until: null, erro: msg }).catch(() => undefined);
     r.erros++;
+    return 'erro';
   }
 }
 
@@ -441,16 +466,15 @@ async function fase(nome: string, r: ResultadoTick, fn: () => Promise<void>): Pr
 export async function runEletropostoEstudoTick(opts: {
   dry?: boolean; id?: number; sonda?: boolean; backfill?: boolean; agora?: number;
 } = {}): Promise<ResultadoTick> {
-  if (estudoDesligado()) return zero('desligado');
-  if (!banco.bancoConfigurado()) return zero('sem_segredo');
-
   const agora = opts.agora ?? Date.now();
-  const inicio = Date.now();
 
+  // A sonda responde mesmo com o estudo desligado: é ela que diz se já dá para ligar.
   if (opts.sonda) {
-    let bancoStatus = 'ok';
-    try { await banco.contarProntosDesde(new Date(agora).toISOString()); }
-    catch (e) { bancoStatus = `erro: ${String((e as Error)?.message || e).slice(0, 120)}`; }
+    let bancoStatus = banco.bancoConfigurado() ? 'ok' : 'sem_segredo';
+    if (bancoStatus === 'ok') {
+      try { await banco.contarProntosDesde(new Date(agora).toISOString()); }
+      catch (e) { bancoStatus = `erro: ${String((e as Error)?.message || e).slice(0, 120)}`; }
+    }
     return {
       ...zero('sonda'),
       sonda: {
@@ -462,11 +486,21 @@ export async function runEletropostoEstudoTick(opts: {
     };
   }
 
+  if (estudoDesligado()) return zero('desligado');
+  if (!banco.bancoConfigurado()) return zero('sem_segredo');
+
+  const inicio = Date.now();
+
   // Ensaio de uma ficha real: gasta Google e IA, não grava nada.
   if (opts.id && opts.dry) {
     const reu = (await carregarReunioes([opts.id])).get(opts.id);
     if (!reu) return zero('ficha_nao_encontrada');
-    return { ...zero('dry'), previa: previaSemDadoPessoal(await montarEstudo(reu)) };
+    try {
+      return { ...zero('dry'), previa: previaSemDadoPessoal(await montarEstudo(reu)) };
+    } catch (e) {
+      if (e instanceof GoogleFora) return { ...zero('google_fora'), google: { status: e.status, motivo: e.motivo } };
+      throw e;
+    }
   }
 
   const r = zero();
@@ -537,7 +571,8 @@ export async function runEletropostoEstudoTick(opts: {
       if (opts.dry) { comecados++; r.processados++; continue; }
       if (!(await banco.pegar(f.id, f.tentativas, LEASE_SEG))) continue;   // outro tick pegou
       comecados++;
-      await processarLinha(f, reu, r);
+      // Google fora vale para todas: não adianta tentar a próxima linha agora.
+      if ((await processarLinha(f, reu, r)) === 'google_fora') break;
     }
   });
 
