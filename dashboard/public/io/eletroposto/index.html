@@ -28,8 +28,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <!-- QUIZ PRIMEIRO (15/09/2026). Pedido do Thiago: quem cai no link ve so o agendamento
-     e a pagina inteira aparece depois que marca. Os curiosos NOTA 1 seguem o fluxo de
-     sempre (material, ponto-certo, parceria), nada muda para eles.
+     e a pagina inteira aparece depois que marca. Quem cai em NOTA 1 ve a tela de seguir
+     o Instagram e o "Continuar" leva para /io/eletroposto/parceria.
      A classe vai no <html> AQUI, antes da primeira pintura: posta pelo script do fim do
      body, a pagina inteira piscaria na tela antes de sumir.
      A pagina inteira abre direto com ?pagina=1, com link para uma secao (#simulador,
@@ -1461,12 +1461,10 @@
         <a class="btn ghost okMais" href="#inicio" onclick="track('agendado_conhecer')">Enquanto isso, conheça o nosso trabalho ↓</a>
       </div>
 
-      <!-- O NOTA 1 não vê tela nenhuma aqui: desde 07/08/2026 ele é redirecionado
-           para /io/eletroposto/material, a página de venda do produto de entrada.
-           O bloco do grupo de WhatsApp que ficava aqui foi removido — conteúdo de
-           graça na mesma tela mataria a oferta paga. A saída de emergência de quem
-           marcou o ponto errado mudou de lugar: agora é um link na própria página
-           de destino, que traz de volta pro formulário. -->
+      <!-- O NOTA 1 vê a tela #ag-nao acima: o Instagram primeiro e o "Continuar" para
+           /io/eletroposto/parceria, a página das portas, com o curso a um link dali
+           (15/09/2026). Até então o curioso ia para /io/eletroposto/material, que é
+           página da PlugCash. -->
     </div>
     </div><!-- fecha .agGrade -->
   </section>
@@ -2916,25 +2914,25 @@ async function agendar(){
       }).catch(()=>{});
     } catch(_){}
 
-    // ── PRA ONDE VAI O NOTA 1 (régua de 17/08/2026) ──
+    // ── PRA ONDE VAI O NOTA 1 (15/09/2026, ordem do Thiago) ──
     //
-    // Duas saídas, e o que decide é o CRUZAMENTO das duas respostas — a de
-    // dinheiro e a de local. É a mesma régua que separa as abas Arrendamento e
-    // Investidores no /gerador; mudar um lado sem o outro faz a pessoa cair numa
-    // página que promete uma coisa e numa lista que espera outra.
+    // UM destino só. Todo NOTA 1 passa pela tela de seguir o Instagram e o
+    // "Continuar" leva para /io/eletroposto/parceria: cadastro de investidor, de
+    // quem tem o ponto e de integrador, e o curso (/ponto-certo) a um link dali,
+    // na porta do capital e na caixa de quem não é nenhuma das três.
     //
-    //   tem capital  (qualquer coisa que não "não sei")  → PARCERIA, lado capital
-    //   sem capital + tem/viu um local                   → PARCERIA, lado ponto
-    //   sem capital + sem local nenhum                   → MATERIAL
+    // Até aqui eram três saídas. O curioso (sem capital e sem local) ia para
+    // /io/eletroposto/material, que é página da PlugCash, e quem tinha o capital
+    // ia direto para o /ponto-certo. Esse atalho de 01/09 existia porque o link
+    // do curso ficava atrás do envio do formulário do capital; no mesmo dia a
+    // porta do capital ganhou o link ANTES do formulário, então passar pela
+    // página das portas não esconde mais a oferta de ninguém.
     //
-    // A terceira linha é ordem do Thiago: sem recurso e sem local próprio é
-    // descarte, é curioso. Ele não entra em lista nenhuma no /gerador, e por isso
-    // também não vê as duas portas — oferecer cadastro a quem não tem os dois
-    // lados só enche a lista de quem ninguém vai conseguir conectar. O que sobra
-    // pra ele é o material, que é exatamente o produto de quem ainda vai
-    // aprender a achar o ponto.
-    // Modelo 01 também é "sem capital": quem só cede o espaço não ia ouvir "você tem
-    // como investir" do /ponto-certo, que é o que a linha de baixo mandava antes.
+    // O cruzamento abaixo não decide mais a página, só a frase da tela, o evento
+    // e a porta sugerida (`ep_lead.lado`). Continua sendo a régua das abas
+    // Arrendamento e Investidores do /gerador: a ficha do curioso segue fora das
+    // listas até ele se cadastrar numa porta.
+    // Modelo 01 também é "sem capital": quem só cede o espaço não é investidor.
     const semCapital = invest.value === 'naosei' || !pagaCapital;
     const semLocal   = ponto.value === 'sem_ideia';       // "em vista" NÃO é sem local
     const curioso    = semCapital && semLocal;
@@ -2956,43 +2954,31 @@ async function agendar(){
         nome, telefone: telE164,
         telefone_visivel: document.getElementById('f-tel').value.trim(),
         cidade, invest: investTexto,
-        // O curioso não recebe sugestão: ele nem vai pra página das portas, mas
-        // ela é alcançável pelo link do rodapé do material — e sugerir "tenho o
-        // ponto" a quem acabou de dizer que não tem ideia de onde instalar seria
-        // pedir um endereço que ele não tem.
+        // O curioso não recebe sugestão: desde 15/09 ele cai na página das portas
+        // como todo NOTA 1, e sugerir "tenho o ponto" a quem acabou de dizer que
+        // não tem ideia de onde instalar seria pedir um endereço que ele não tem.
+        // Sem porta sugerida, a saída dele é a caixa de baixo, que leva ao curso.
         lado: curioso ? '' : (semCapital ? 'ponto' : 'capital'),
       }));
     } catch(_){}
 
+    // Os três casos vão para a MESMA página. Os eventos continuam separados para
+    // o Pixel saber quem chegou por qual motivo: `nota1_parceria` segue sendo o
+    // lado do ponto, como sempre foi, e `nota1_material` e `nota1_ponto_certo`
+    // param de contar em 15/09.
     if (curioso) {
-      track('nota1_material');
-      mandarPraSeguir('/io/eletroposto/material', 'Ver o material que ensina a achar o ponto',
+      track('nota1_parceria_curioso');
+      mandarPraSeguir('/io/eletroposto/parceria', 'Ver os caminhos para começar',
         'Pelo que você respondeu, o seu projeto ainda está no começo. É o melhor momento para aprender a escolher o ponto certo.');
       return;
     }
 
-    // QUEM TEM O DINHEIRO VAI DIRETO PRO MATERIAL (01/09/2026).
-    //
-    // Antes ele passava pela página das portas e só via o material DEPOIS de
-    // preencher o formulário do capital. Esse formulário pede nome, WhatsApp,
-    // cidade, quanto pretende investir e quando pretende começar — e os quatro
-    // primeiros acabaram de ser digitados aqui. Ou seja: a gente cobrava um
-    // segundo cadastro para descobrir UM campo, o prazo.
-    //
-    // O preço disso foi medido: em 30 dias, 126 pessoas com recurso declarado
-    // foram mandadas pras portas e 34 preencheram. 92 fecharam a aba, e como o
-    // único link para o material está atrás do envio bem-sucedido, nenhuma
-    // delas viu a oferta que resolve exatamente o que a levou a ser recusada.
-    //
-    // Não se perde lead: a ficha NOTA 1 já foi gravada acima, e a aba
-    // Investidores do /gerador lê as duas tabelas — parceria E nota1. O prazo
-    // passa a ser pergunta de conversa, não pedágio de tela.
-    //
-    // A porta do PONTO continua exigindo cadastro, e com razão: lá se pergunta
-    // endereço, vagas, fluxo e energia — dado que a LP não tem.
+    // A ficha NOTA 1 já foi gravada acima e a aba Investidores do /gerador lê as
+    // duas tabelas (parceria E nota1): quem tem o capital e não se cadastra na
+    // porta continua na lista da equipe.
     if (!semCapital) {
-      track('nota1_ponto_certo');
-      mandarPraSeguir('/ponto-certo/', 'Ver como achar e fechar o local',
+      track('nota1_parceria_capital');
+      mandarPraSeguir('/io/eletroposto/parceria', 'Cadastrar como investidor',
         'Você tem como investir, e é isso que a maioria não tem. Falta o ponto, e ponto é coisa que a gente acha junto.');
       return;
     }
