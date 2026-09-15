@@ -10,6 +10,8 @@ import { agendaFechadaNoIso, MOTIVO_FECHADA } from '../services/agenda/agendaFec
 // vice-versa. Falha aqui nunca segura o aviso — devolve bloco vazio.
 import { blocoParesSeguro, pool, TETO_KM } from '../services/io/eletropostoPares';
 import { distanciaKm } from '../services/io/geoCidade';
+// Estudo do local: o card já sai com a pré-nota e o link da página.
+import { extraDoCard, garantirEstudo } from '../services/io/eletropostoEstudoGarantir';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alerta de lead novo da LP do Eletroposto (/io/eletroposto) no WhatsApp da equipe.
@@ -41,7 +43,7 @@ const jaAvisado = new Set<number>();
 
 const soDigitos = (s: string) => (s || '').replace(/\D/g, '');
 
-export function montarMensagem(a: any): string {
+export function montarMensagem(a: any, extra: { estudoUrl?: string; preNota?: number } = {}): string {
   const quando = a.quando
     ? new Date(a.quando).toLocaleString('pt-BR', {
         timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit',
@@ -95,6 +97,10 @@ export function montarMensagem(a: any): string {
     // condicional: fixa, ela viraria "Endereço: —" em toda reunião de quem ainda está
     // negociando o local — ruído no lugar de informação.
     ...(tem('Endereço:') ? [`*Endereço:* ${linha('Endereço:')}`] : []),
+    // Estudo do local (15/09): pré-nota calculada da ficha e o link da página que o
+    // tick completa em até 15 min. Sem `extra`, o card fica igual ao de antes.
+    ...(extra.preNota != null ? [`*Pré-nota do local:* ${extra.preNota} de 100`] : []),
+    ...(extra.estudoUrl ? [`*Estudo do local:* ${extra.estudoUrl} (fica pronto em até 15 min)`] : []),
     // "Local é seu:" entrou em 29/08 com a régua de ponto próprio. Toda reunião nova
     // traz a linha (só agenda quem tem o local sob controle), e ela muda a conversa de
     // contrato: dono, inquilino e quem apenas representa o proprietário são três
@@ -145,7 +151,13 @@ router.post('/alerta', async (req: Request, res: Response): Promise<void> => {
     if (idade > JANELA_MS) { res.status(410).json({ error: 'fora da janela' }); return; }
 
     jaAvisado.add(id);   // marca ANTES de enviar: falha de envio não vira loop de retry
-    const msg = montarMensagem(data);
+    // A linha do estudo nasce aqui para o card já sair com o link. Dois segundos no
+    // máximo: estudo lento não pode segurar o aviso da reunião nova.
+    const estudo = await Promise.race([
+      garantirEstudo(data),
+      new Promise<null>(resolve => setTimeout(() => resolve(null), 2000)),
+    ]).catch(() => null);
+    const msg = montarMensagem(data, extraDoCard(data.observacao, estudo?.token));
 
     // Manda pra equipe toda. Um envio que falha não pode impedir o outro.
     const envios = await Promise.allSettled(

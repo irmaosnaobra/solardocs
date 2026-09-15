@@ -39,6 +39,7 @@ import instagramRoutes from './routes/instagram';
 import ioLinksRoutes from './routes/ioLinks';
 import ioIndicacoesRoutes from './routes/ioIndicacoes';
 import ioEletropostoRoutes from './routes/ioEletroposto';
+import eletropostoEstudoPublicoRoutes from './routes/eletropostoEstudoPublico';
 import ioSolarRoutes from './routes/ioSolar';
 import plugcashRoutes from './routes/plugcash';
 import { globalLimiter, aiLimiter } from './middleware/rateLimiter';
@@ -132,6 +133,8 @@ app.use('/gerador', geradorRoutes);
 app.use('/instagram', instagramRoutes);
 app.use('/io-links', ioLinksRoutes);
 app.use('/io-indicacoes', ioIndicacoesRoutes);
+// Estudo do local: antes do router do eletroposto, que não conhece /estudo.
+app.use('/io/eletroposto/estudo', eletropostoEstudoPublicoRoutes);
 app.use('/io/eletroposto', ioEletropostoRoutes);
 app.use('/io/solar', ioSolarRoutes);
 // PlugCash — app de conteudo do eletroposto. Publico (catalogo/pagina de venda),

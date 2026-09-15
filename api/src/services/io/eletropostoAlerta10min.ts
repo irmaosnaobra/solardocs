@@ -55,6 +55,8 @@ import { logger } from '../../utils/logger';
 import { sendWhatsApp } from '../agents/zapiClient';
 import { EQUIPE } from '../../routes/ioEletroposto';
 import { carregarConsultores, horaCurta, telefoneBonito } from './eletropostoAgenda';
+import { tokensDasReunioes } from './eletropostoEstudoGarantir';
+import { urlDoEstudo } from './eletropostoEstudoPuro';
 
 /** Carimbo do que já foi avisado: `ep_alerta_10min:<id>` → { quando, em }. */
 export const EP_ALERTA_10MIN_PREFIX = 'ep_alerta_10min:';
@@ -97,6 +99,7 @@ function telDoDono(nome: string, cadastro: Map<string, string>): string | null {
 export function montarAlerta10min(
   f: { cliente_nome: string | null; cliente_telefone: string | null; quando: string },
   faltamMin: number,
+  estudoUrl?: string,
 ): string {
   const cliente = (f.cliente_nome || '').trim() || 'o lead';
   const tel = telefoneBonito(f.cliente_telefone);
@@ -105,6 +108,7 @@ export function montarAlerta10min(
     '',
     `⏰ *${horaCurta(f.quando)}* — ${cliente} CONFIRMOU presença. Ele vai estar lá.`,
     tel ? `📱 ${tel}` : '',
+    estudoUrl ? `Estudo do local: ${estudoUrl}` : '',
     '',
     '⚠️ *VOCÊ é quem manda o link.* O robô avisou o lead que ele vem — não mandou.',
     '🔥 Não perde essa.',
@@ -173,12 +177,15 @@ export async function runEletropostoAlerta10minTick(
   }
 
   const telPorConsultor = await carregarConsultores();
+  // Link do estudo do local, quando a reunião tem. Falha na leitura: alerta sai igual.
+  const tokens = await tokensDasReunioes(pendentes.map(f => Number(f.id)));
   let enviados = 0;
   let erros = 0;
 
   for (const f of pendentes) {
     const dono = String(f.vendedor_nome);
-    const texto = montarAlerta10min(f as never, faltamMinDe(f));
+    const token = tokens.get(Number(f.id));
+    const texto = montarAlerta10min(f as never, faltamMinDe(f), token ? urlDoEstudo(token) : undefined);
 
     // O dono primeiro. Sem telefone dele, cai pra equipe inteira: este é o aviso
     // que não pode sumir, então "não sei pra quem" vira "manda pra todos".

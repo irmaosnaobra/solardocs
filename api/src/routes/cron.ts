@@ -50,6 +50,7 @@ import { runEletropostoRespostasTick } from '../services/io/eletropostoRespostas
 import { runEletropostoReagendaAutoTick } from '../services/io/eletropostoReagendaAuto';
 import { runEletropostoCardPingTick } from '../services/io/eletropostoCardPing';
 import { runEletropostoAlerta10minTick } from '../services/io/eletropostoAlerta10min';
+import { runEletropostoEstudoTick } from '../services/io/eletropostoEstudo';
 import { runEletropostoIgConviteTick, publicoIgConvite, bolhaConviteLP } from '../services/io/eletropostoIgConvite';
 import { runSolarBoasVindasTick } from '../services/io/solarBoasVindas';
 import { runSolarRespostasTick } from '../services/io/solarRespostas';
@@ -811,6 +812,35 @@ router.get('/eletroposto-card-ping', async (req: Request, res: Response) => {
     res.json({ ok: true, dry, ...(await runEletropostoCardPingTick({ dry })) });
   } catch (err: any) {
     logger.error('cron', 'eletroposto-card-ping falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
+// ── Estudo do local (eletroposto) ────────────────────────────────────────────
+// Um chamador só: o passo próprio do process-messages.yml, a cada 5 min. Não entra
+// no /process-messages nem no /master (dois chamadores = dois ticks disputando fila).
+//   ?sonda=1           testa banco e fontes (Google, IBGE), sem gravar
+//   ?dry=1             decide sem gravar nem avisar
+//   ?dry=1&id=N        ensaia uma ficha real: gasta Google e IA, não grava, sem dado pessoal
+//   ?backfill=1        cria o estudo das reuniões que já estavam na agenda, sem aviso
+//   ?id=N              processa uma ficha agora, fora do teto
+router.get('/eletroposto-estudo', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    const id = Number(req.query.id);
+    res.json({
+      ok: true,
+      dry,
+      ...(await runEletropostoEstudoTick({
+        dry,
+        sonda: req.query.sonda === '1',
+        backfill: req.query.backfill === '1',
+        ...(Number.isInteger(id) && id > 0 ? { id } : {}),
+      })),
+    });
+  } catch (err: any) {
+    logger.error('cron', 'eletroposto-estudo falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });

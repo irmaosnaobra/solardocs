@@ -21,6 +21,9 @@ let falharEnvio = false;
 let fichas: any[] = [];
 const carimbos = new Map<string, any>();
 
+// Estudo do local (15/09): o alerta leva o link quando a reunião tem estudo.
+let tokensEstudo = new Map<number, string>();
+
 vi.mock('../utils/supabaseGerador', () => ({
   supabaseGerador: {
     from: () => {
@@ -89,6 +92,11 @@ vi.mock('../services/io/eletropostoAgenda', async (original) => {
   };
 });
 
+// tokensDasReunioes nunca lança (falha vira mapa vazio): o mock repete o contrato.
+vi.mock('../services/io/eletropostoEstudoGarantir', () => ({
+  tokensDasReunioes: () => Promise.resolve(tokensEstudo),
+}));
+
 import { runEletropostoAlerta10minTick } from '../services/io/eletropostoAlerta10min';
 
 const AGORA = new Date('2026-09-08T17:00:00-03:00').getTime();
@@ -111,6 +119,7 @@ beforeEach(() => {
   enviados.length = 0;
   carimbos.clear();
   falharEnvio = false;
+  tokensEstudo = new Map();
   delete process.env.EP_ALERTA_10MIN_OFF;
 });
 
@@ -202,5 +211,22 @@ describe('alerta de 10 minutos', () => {
     expect(r.previa?.[0].faltam_min).toBe(10);
     expect(enviados).toHaveLength(0);
     expect(carimbos.size).toBe(0);
+  });
+});
+
+describe('alerta de 10 minutos com o estudo do local', () => {
+  it('reunião com estudo: a linha do link entra logo depois do telefone', async () => {
+    fichas = [ficha()];
+    tokensEstudo = new Map([[1, 'b'.repeat(64)]]);
+    await runEletropostoAlerta10minTick({ agora: AGORA });
+    const linhas = enviados[0].texto.split('\n');
+    const i = linhas.findIndex(l => l.startsWith('📱'));
+    expect(linhas[i + 1]).toBe(`Estudo do local: https://solardoc.app/_api/io/eletroposto/estudo/${'b'.repeat(64)}`);
+  });
+
+  it('sem estudo (ou leitura falhou): a mensagem sai igual à de sempre', async () => {
+    fichas = [ficha()];
+    await runEletropostoAlerta10minTick({ agora: AGORA });
+    expect(enviados[0].texto).not.toContain('Estudo do local');
   });
 });

@@ -1,0 +1,51 @@
+name: Estudo do local (sonda, ensaio e backfill)
+
+# Só manual. Testa o estudo do local do eletroposto em produção sem esperar o
+# tick de 5 min do process-messages.yml.
+#
+#   sonda     banco e fontes (Google Maps, IBGE) respondem? Não grava nada.
+#   dry       decide sem gravar; com id, ensaia uma ficha real (gasta Google e IA)
+#   backfill  cria o estudo das reuniões que já estavam na agenda, sem aviso
+#   tick      uma rodada normal; com id, processa só essa ficha
+#
+# O log deste workflow é PÚBLICO (repo público). As respostas da rota não trazem
+# nome, telefone, endereço nem coordenada: só status, notas e contagens.
+on:
+  workflow_dispatch:
+    inputs:
+      modo:
+        description: 'sonda, dry, backfill ou tick'
+        required: true
+        default: sonda
+        type: choice
+        options: [sonda, dry, backfill, tick]
+      id:
+        description: 'id da reunião (opcional)'
+        required: false
+        default: ''
+
+jobs:
+  estudo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamar o estudo do local
+        env:
+          MODO: ${{ inputs.modo }}
+          ID: ${{ inputs.id }}
+        run: |
+          case "$MODO" in
+            sonda) Q="sonda=1" ;;
+            dry) Q="dry=1" ;;
+            backfill) Q="backfill=1" ;;
+            *) Q="" ;;
+          esac
+          if [ -n "$ID" ]; then
+            case "$ID" in
+              *[!0-9]*) echo "id precisa ser numero"; exit 1 ;;
+            esac
+            Q="${Q:+$Q&}id=$ID"
+          fi
+          curl --fail-with-body -sS --max-time 120 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://api.solardoc.app/cron/eletroposto-estudo?$Q"
+          echo

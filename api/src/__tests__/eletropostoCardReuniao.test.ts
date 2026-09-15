@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { montarMensagem } from '../routes/ioEletroposto';
+import { extraDoCard } from '../services/io/eletropostoEstudoGarantir';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // O card que o Thiago e o Diego recebem quando a LP do eletroposto marca reunião.
@@ -15,17 +16,19 @@ const ficha = (linhas: string[], extra: Record<string, unknown> = {}) => ({
   observacao: linhas.join('\n'), ...extra,
 });
 
+const PONTO_PROPRIO = [
+  'LP ELETROPOSTO · Dono de posto de combustível',
+  'NOTA 3 · 11/11 pts',
+  'Endereço: Av. Brasil, 100 · Centro · Uberlândia-MG',
+  'Ponto: Já tenho o ponto definido',
+  'Local é seu: Sou o proprietário',
+  'Modelo de interesse: 02 · Sociedade meio a meio',
+  'Como pretende investir: Recurso próprio',
+];
+
 describe('montarMensagem — card da reunião de eletroposto', () => {
   it('ponto próprio: prioridade com 11/11 e a linha do modelo', () => {
-    const msg = montarMensagem(ficha([
-      'LP ELETROPOSTO · Dono de posto de combustível',
-      'NOTA 3 · 11/11 pts',
-      'Endereço: Av. Brasil, 100 · Centro · Uberlândia-MG',
-      'Ponto: Já tenho o ponto definido',
-      'Local é seu: Sou o proprietário',
-      'Modelo de interesse: 02 · Sociedade meio a meio',
-      'Como pretende investir: Recurso próprio',
-    ]));
+    const msg = montarMensagem(ficha(PONTO_PROPRIO));
     expect(msg).toContain('*NOTA 3 — PRIORIDADE*  (11/11 pts)');
     expect(msg).toContain('*Modelo:* 02 · Sociedade meio a meio');
     // o prefixo da LP usa ponto médio: o card não pode repetir "LP ELETROPOSTO" no perfil
@@ -75,5 +78,50 @@ describe('montarMensagem — card da reunião de eletroposto', () => {
     const semNada = montarMensagem(ficha(['LP ELETROPOSTO · Investidor', 'NOTA 3 · 9/11 pts']));
     expect(semNada).not.toContain('*Vagas:*');
     expect(semNada).not.toContain('*Quanto pretende investir:*');
+  });
+});
+
+describe('card com o estudo do local (15/09)', () => {
+  const URL = `https://solardoc.app/_api/io/eletroposto/estudo/${'a'.repeat(64)}`;
+
+  it('pré-nota e link logo depois do endereço', () => {
+    const f = ficha(PONTO_PROPRIO);
+    const msg = montarMensagem(f, extraDoCard(f.observacao, 'a'.repeat(64)));
+    const linhas = msg.split('\n');
+    const i = linhas.findIndex(l => l.startsWith('*Endereço:*'));
+    expect(linhas[i + 1]).toBe('*Pré-nota do local:* 100 de 100');
+    expect(linhas[i + 2]).toBe(`*Estudo do local:* ${URL} (fica pronto em até 15 min)`);
+  });
+
+  it('sem estudo criado: só a pré-nota', () => {
+    const f = ficha(PONTO_PROPRIO);
+    const msg = montarMensagem(f, extraDoCard(f.observacao, null));
+    expect(msg).toContain('*Pré-nota do local:* 100 de 100');
+    expect(msg).not.toContain('*Estudo do local:*');
+  });
+
+  it('ficha sem endereço não ganha linha nenhuma', () => {
+    const f = ficha(['LP ELETROPOSTO · Investidor', 'NOTA 3 · 9/11 pts']);
+    expect(extraDoCard(f.observacao, 'a'.repeat(64))).toEqual({});
+    expect(montarMensagem(f, extraDoCard(f.observacao, 'a'.repeat(64)))).toBe(montarMensagem(f));
+  });
+
+  it('sem extra, o card é o de antes, nos três formatos', () => {
+    for (const f of [
+      ficha(PONTO_PROPRIO),
+      ficha(['LP ELETROPOSTO · Investidor', 'NOTA 3 · 9/11 pts', 'Endereço: Rua X, 5 · Bairro · Uberlândia-MG']),
+      ficha(['LP ELETROPOSTO — Outro', 'Simulou 80 kW com 10 carros/dia'], { temperatura: 'morno' }),
+    ]) {
+      const msg = montarMensagem(f);
+      expect(msg).not.toContain('Pré-nota');
+      expect(msg).not.toContain('Estudo do local');
+      expect(montarMensagem(f, {})).toBe(msg);
+    }
+  });
+
+  it('a pré-nota nunca tem barra: o selo procura /11 no card', () => {
+    const f = ficha(PONTO_PROPRIO);
+    const linha = montarMensagem(f, extraDoCard(f.observacao)).split('\n').find(l => l.startsWith('*Pré-nota'));
+    expect(linha).not.toContain('/');
   });
 });

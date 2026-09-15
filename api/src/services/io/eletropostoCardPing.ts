@@ -42,6 +42,7 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendWhatsApp } from '../agents/zapiClient';
 import { EQUIPE, montarMensagem } from '../../routes/ioEletroposto';
+import { extraDoCard, tokensDasReunioes } from './eletropostoEstudoGarantir';
 import { carregarConsultores, quandoPorExtenso } from './eletropostoAgenda';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 
@@ -159,6 +160,8 @@ export async function runEletropostoCardPingTick(opts: { dry?: boolean } = {}): 
   if (!trocaram.length) return { reenviados: 0, novos: novas.length, erros: 0, motivo: 'ninguem_trocou' };
 
   const cadastro = await carregarConsultores();
+  // O card reenviado leva o link do estudo do local, quando a reunião tem um.
+  const tokens = opts.dry ? new Map<number, string>() : await tokensDasReunioes(trocaram.map(f => Number(f.id)));
   const previa: NonNullable<ResultadoCardPing['previa']> = [];
   let reenviados = 0, erros = 0;
 
@@ -182,7 +185,7 @@ export async function runEletropostoCardPingTick(opts: { dry?: boolean } = {}): 
     try {
       await sendWhatsApp(
         tel,
-        `${cabecalhoDoReenvio(de, para, f.quando ?? null, !!f.confirmacao_at)}${montarMensagem(f)}`,
+        `${cabecalhoDoReenvio(de, para, f.quando ?? null, !!f.confirmacao_at)}${montarMensagem(f, extraDoCard(f.observacao, tokens.get(Number(f.id))))}`,
         'io');
       await carimbar(f.id, para);
       reenviados++;

@@ -25,3 +25,22 @@ export const indicacaoLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Página pública do estudo do local (link com token de 64 hex). Segura quem tenta
+// adivinhar token e página aberta em loop; o consultor abre poucas vezes.
+export const estudoPaginaLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 60,
+  message: { error: 'Muitas aberturas do estudo em pouco tempo. Tente de novo em alguns minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Rua e satélite do estudo passam por proxy, e cada imagem é paga no Google.
+export const estudoImgLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hora
+  max: 120,
+  message: { error: 'Muitas imagens em pouco tempo.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
