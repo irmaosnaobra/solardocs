@@ -130,8 +130,14 @@
   .btn.ghost{background:transparent;color:#fff;border:1px solid var(--line-f);font-weight:600;box-shadow:none}
   .btn.ghost:hover{border-color:var(--neon);color:var(--neon);filter:none;box-shadow:none}
   /* CTA de meio de pagina continua maior que o do menu: e o alvo do dedo */
-  .ctaFim{text-align:center;margin-top:26px}
-  .ctaFim .btn,.heroCta .btn{font-size:16px;padding:0 26px;min-height:52px}
+  .ctaFim{text-align:center;margin-top:30px}
+  .heroCta .btn{font-size:16px;padding:0 26px;min-height:52px}
+  /* 15/09/2026: o botao do fim de cada secao cresceu. Ele leva para a unica coisa
+     da pagina que gera receita e tinha o mesmo peso do botao do hero. No celular
+     ocupa a largura toda e quebra em duas linhas sem estourar o cartao. */
+  .ctaFim .btn{font-size:17.5px;font-weight:800;padding:12px 34px;min-height:62px;border-radius:12px;
+    line-height:1.25;text-align:center;box-shadow:0 12px 32px rgba(57,255,20,.22)}
+  @media(max-width:560px){.ctaFim .btn{width:100%;padding:12px 18px;font-size:17px}}
 
   .heroCta{display:flex;gap:10px;margin-top:24px;flex-wrap:wrap}
   @media(max-width:560px){.heroCta{flex-direction:column;align-items:stretch}
@@ -142,7 +148,7 @@
     stroke-linecap:round;stroke-linejoin:round}
 
   /* ===== títulos de seção ===== */
-  .sh{display:flex;align-items:center;gap:14px;margin-bottom:9px}
+  .sh{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px;margin-bottom:9px}
   .sh .tt{font-size:12px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--mut);white-space:nowrap}
   .sh .ln{display:none}
   h2{font-size:clamp(23px,3.1vw,32px);font-weight:800;letter-spacing:-.02em;line-height:1.08;margin-bottom:9px}
@@ -488,6 +494,10 @@
      potência a mais não encurta nada. O número perde o verde justamente para isso
      ficar óbvio sem ninguém precisar ler a legenda. */
   .tp.lim .mn{color:var(--cream)}
+  /* ...e a etiqueta diz quem mandou, sem frase. Com o Dolphin Mini (40 kW) os tres
+     cartoes davam 36 min e nada na tela dizia por que a potencia maior nao ajudava. */
+  .tp .limTag{align-self:center;margin-top:10px;padding:4px 10px;border-radius:999px;border:1px solid var(--line-f);
+    color:var(--cream);font-size:11.5px;font-weight:800;white-space:nowrap}
 
   /* ===== rotatividade (de onde sai o teto de carros/dia) =====
      Ideia emprestada da tabela "quanto tempo para carregar" do concorrente, mas
@@ -523,6 +533,14 @@
   .rotTab tr.on td:first-child{box-shadow:inset 3px 0 0 var(--neon)}
   .rotTab td .teto{color:var(--azul);font-weight:900}
   .rotTab tr.on td .teto{color:var(--cream)}
+  /* 15/09/2026: a linha escolhe a configuracao (ver escolherLinhaRot). A bolinha na
+     frente e o sinal de "toque aqui" que uma tabela comum nao tem. */
+  .rotTab tbody tr{cursor:pointer}
+  .rotTab tbody tr:hover td{background:rgba(229,231,235,.05)}
+  .rotTab tbody tr.on:hover td{background:rgba(57,255,20,.12)}
+  .rotTab tbody td:first-child::before{content:"";display:inline-block;width:14px;height:14px;border-radius:50%;
+    border:2px solid var(--line-f);margin-right:10px;vertical-align:-2px}
+  .rotTab tbody tr.on td:first-child::before{border-color:var(--neon);background:var(--neon);box-shadow:inset 0 0 0 3px #10233A}
   /* o corte da tabela já sugere que ela anda, mas o público daqui é mais velho e a
      dica escrita custa uma linha. Some no desktop, onde não há rolagem nenhuma. */
   .rotDica{display:none}
@@ -546,6 +564,34 @@
   .q[open]{border-color:rgba(57,255,20,.5)}
   .q .a{padding:0 19px 17px;color:var(--mut);font-size:14px;font-weight:600;line-height:1.55}
   .q .a b{color:var(--cream);font-weight:800}
+
+  /* ===== o que se mexe (15/09/2026) =====
+     Pedido do Thiago: simulador, tempo de recarga e rotatividade tem que parecer o
+     que sao, quadros que respondem ao dedo. Tres sinais e nenhum deles e frase: a
+     etiqueta "Interativo" com o ponto pulsando, a moldura acesa no quadro onde se
+     mexe e o pulso no controle. O pulso para no primeiro toque da secao (.mexeu,
+     posta pelo script): aviso que nunca some vira ruido. */
+  .sh .vivo{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:6px 12px;
+    border:1px solid rgba(57,255,20,.45);background:rgba(57,255,20,.10);color:var(--neon);
+    font-size:12.5px;font-weight:800;letter-spacing:.02em;white-space:nowrap}
+  .sh .vivo i{width:8px;height:8px;border-radius:50%;background:var(--neon);flex:none;animation:vivoPulso 1.6s ease-out infinite}
+  @keyframes vivoPulso{0%{box-shadow:0 0 0 0 rgba(57,255,20,.6)}100%{box-shadow:0 0 0 10px rgba(57,255,20,0)}}
+  .mexe{border-color:rgba(57,255,20,.42)!important;
+    box-shadow:0 0 0 1px rgba(57,255,20,.14),0 0 38px rgba(57,255,20,.10),0 22px 60px rgba(0,0,0,.35)}
+  section:not(.mexeu) .mexe{animation:mexeBrilho 2.4s ease-in-out infinite}
+  @keyframes mexeBrilho{50%{box-shadow:0 0 0 1px rgba(57,255,20,.32),0 0 56px rgba(57,255,20,.22),0 22px 60px rgba(0,0,0,.35)}}
+  section:not(.mexeu) .rng::-webkit-slider-thumb{animation:vivoPulso 1.6s ease-out infinite}
+  .mexe .inp select,.mexe .inp input{border-color:rgba(57,255,20,.30)}
+  @media (prefers-reduced-motion:reduce){.sh .vivo i,section .mexe,section .rng::-webkit-slider-thumb{animation:none!important}}
+
+  /* ===== barra de agendar no celular (15/09/2026) =====
+     Some no desktop, onde o botao do menu ja esta sempre na tela. O rodape ganha
+     respiro do tamanho dela, senao a ultima linha fica atras do botao. */
+  .barraAg{position:fixed;left:0;right:0;bottom:0;z-index:60;padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+    background:rgba(8,20,34,.94);backdrop-filter:blur(10px);border-top:1px solid var(--line)}
+  .barraAg .btn{width:100%;min-height:54px;font-size:16.5px;font-weight:800}
+  @media(min-width:761px){.barraAg{display:none!important}}
+  @media(max-width:760px){footer{padding-bottom:100px}}
 </style>
 </head>
 <body>
@@ -751,11 +797,11 @@
 
   <!-- SIMULADOR -->
   <section id="simulador">
-    <div class="sh"><span class="tt">Simulador</span><span class="ln"></span></div>
+    <div class="sh"><span class="tt">Simulador</span><span class="vivo"><i></i>Interativo · mexa nos números</span><span class="ln"></span></div>
     <h2>Quanto <span class="n">o seu ponto</span> devolve?</h2>
 
     <div class="simGrid">
-      <div class="panel">
+      <div class="panel mexe">
         <div class="fld">
           <label for="s-local">Onde fica o ponto</label>
           <div class="inp"><select id="s-local" onchange="setLocal()">
@@ -821,10 +867,10 @@
        revenda que o próprio lead acabou de mexer no simulador: o número muda com
        ele, senão viraria mais um valor solto na tela. -->
   <section id="recarga">
-    <div class="sh"><span class="tt">Tempo de recarga</span><span class="ln"></span></div>
+    <div class="sh"><span class="tt">Tempo de recarga</span><span class="vivo"><i></i>Interativo · troque o carro</span><span class="ln"></span></div>
     <h2>Quanto tempo o carro do seu cliente <span class="n">fica no bico</span></h2>
 
-    <div class="carBox">
+    <div class="carBox mexe">
       <label for="s-carro">Selecione o veículo</label>
       <div class="inp"><select id="s-carro" onchange="pintarCarro()"></select></div>
       <div class="carStats">
@@ -837,6 +883,9 @@
 
     <div class="tempoG" id="tempo-g"></div>
 
+    <div class="ctaFim">
+      <a href="#preencher" class="btn" onclick="track('cta_recarga')">Quero a potência certa para o meu ponto →</a>
+    </div>
   </section>
 
   <!-- ROTATIVIDADE ───────────────────────────────────────────────────────────
@@ -849,7 +898,7 @@
        recarga) usado no compute(). Nenhum é digitado no HTML: se a linha de
        equipamento mudar, esta seção muda junto. -->
   <section id="rotatividade">
-    <div class="sh"><span class="tt">Rotatividade</span><span class="ln"></span></div>
+    <div class="sh"><span class="tt">Rotatividade</span><span class="vivo"><i></i>Interativo · toque numa linha</span><span class="ln"></span></div>
     <h2>De onde sai o teto de <span class="n">carros por dia</span></h2>
 
     <div class="rotG">
@@ -860,7 +909,7 @@
       <div class="rotC hl"><div class="v" id="r-teto">...</div><div class="l">teto usado no<br>simulador</div></div>
     </div>
 
-    <div class="rotWrap">
+    <div class="rotWrap mexe">
       <table class="rotTab">
         <thead><tr>
           <th>Configuração</th>
@@ -871,6 +920,10 @@
         </tr></thead>
         <tbody id="rot-tbody"></tbody>
       </table>
+    </div>
+
+    <div class="ctaFim">
+      <a href="#preencher" class="btn" onclick="track('cta_rotatividade')">Quero saber quantos carros cabem no meu ponto →</a>
     </div>
   </section>
 
@@ -945,6 +998,10 @@
       <details class="q"><summary>Vocês atendem fora de Minas?</summary>
         <div class="a">Sim. A base fica no <b>Triângulo Mineiro</b> e atendemos projetos em todo o
         Brasil. A reunião é por vídeo, e a visita técnica ao ponto é agendada depois dela.</div></details>
+    </div>
+
+    <div class="ctaFim">
+      <a href="#preencher" class="btn" onclick="track('cta_duvidas')">Tirar as minhas dúvidas na reunião →</a>
     </div>
   </section>
 
@@ -1312,6 +1369,13 @@
 
 </div>
 
+<!-- BARRA DE AGENDAR NO CELULAR (15/09/2026). Nasce escondida e quem decide e o
+     script: aparece quando os botoes do hero saem da tela e some quando o cartao do
+     agendamento entra. Sem script ela nunca aparece, que e o lado seguro. -->
+<div class="barraAg" id="barra-ag" hidden>
+  <a href="#preencher" class="btn" onclick="track('cta_barra')">Agendar minha reunião →</a>
+</div>
+
 <footer>
   <div class="wrap">
     <div class="colunas">
@@ -1580,11 +1644,13 @@ function pintarCarro(){
   const classe = kw => +kw >= 100 ? 'Ultrarrápida' : 'Rápida';
   document.getElementById('tempo-g').innerHTML = Object.keys(CONFIGS).map(kw => {
     // Cartão sem legenda desde 15/09/2026: só potência, classe e minutos. Quando o
-    // carro aceita menos que o bico, o número perde o verde (.tp.lim) e isso basta.
+    // carro aceita menos que o bico, o número perde o verde (.tp.lim) e ganha a
+    // etiqueta "Limite do carro": sem ela, três cartões iguais pareciam defeito.
     const lim = c.dc < +kw;
     return `<div class="tp${lim?' lim':''}">`
       + `<div class="kw">${kw} kW<span class="cls">${classe(kw)}</span></div>`
       + `<div class="mn">${Math.round(minsRecarga(c,+kw))} min</div>`
+      + (lim ? `<div class="limTag">Limite do carro</div>` : '')
       + `</div>`;
   }).join('');
 }
@@ -1619,7 +1685,7 @@ const minTxt = m => (Number.isInteger(m) ? m : m.toFixed(1).replace('.',',')) + 
 function montarTabelaRot(){
   document.getElementById('rot-tbody').innerHTML = Object.keys(CONFIGS).map(kw => {
     const r = rotativ(kw);
-    return `<tr data-kw="${kw}"><td>${kw} kW · ${CONFIGS[kw].bicos} bicos</td>`
+    return `<tr data-kw="${kw}" tabindex="0"><td>${kw} kW · ${CONFIGS[kw].bicos} bicos</td>`
          + `<td>${minTxt(r.min1)}</td><td>${minTxt(r.min2)}</td>`
          + `<td>${r.cap} carros</td><td><span class="teto">${r.teto} carros</span></td></tr>`;
   }).join('');
@@ -2959,6 +3025,67 @@ window.addEventListener('hashchange', () => { if (location.hash === '#agendar') 
 // deixou a pagina aberta continua vendo uma grade que ja envelheceu.
 // Nunca remonta com horario escolhido: apagaria a escolha dele no meio do formulario.
 setInterval(() => { if(!document.hidden && !slotSel) montarSlots(); }, 5*60*1000);
+
+// ===== O QUE SE MEXE (15/09/2026) =====
+// O primeiro toque num controle de uma das três seções interativas apaga o pulso
+// dela (.mexeu) e manda UM evento por seção. É a medida de quem usou o simulador, a
+// recarga ou a rotatividade, em vez de só passar rolando por eles.
+['simulador','recarga','rotatividade'].forEach(id => {
+  const sec = document.getElementById(id);
+  if(!sec) return;
+  const marca = e => {
+    if(sec.classList.contains('mexeu') || !e.target.closest('input,select,tr[data-kw]')) return;
+    sec.classList.add('mexeu');
+    track('mexeu_' + id);
+  };
+  ['input','change','pointerdown'].forEach(ev => sec.addEventListener(ev, marca));
+});
+// A LINHA DA ROTATIVIDADE ESCOLHE A CONFIGURAÇÃO. Ela escreve no mesmo seletor do
+// simulador e chama o mesmo setConfig(), então slider, números e linha acesa andam
+// juntos: não existe um segundo estado para sair do passo.
+function escolherLinhaRot(tr){
+  const sel = document.getElementById('s-config');
+  if(!tr || sel.value === tr.dataset.kw) return;
+  sel.value = tr.dataset.kw;
+  setConfig();
+}
+const rotBody = document.getElementById('rot-tbody');
+rotBody.addEventListener('click', e => escolherLinhaRot(e.target.closest('tr[data-kw]')));
+rotBody.addEventListener('keydown', e => {
+  if(e.key !== 'Enter' && e.key !== ' ') return;
+  const tr = e.target.closest('tr[data-kw]');
+  if(!tr) return;
+  e.preventDefault();
+  escolherLinhaRot(tr);
+});
+// ===== BARRA DE AGENDAR NO CELULAR =====
+// Aparece depois que a pessoa ROLA ALÉM dos botões do hero e some quando o cartão do
+// agendamento entra: é atalho para quem está lendo, nunca um segundo botão por cima
+// do formulário. "Além" e não "fora da tela": num celular de 700px os botões do hero
+// nascem abaixo da dobra, e a barra abriria a página tapando a foto. Depois de
+// marcado ou recusado (o #ag-form some) ela não volta.
+// Lê a posição na rolagem (uma vez por quadro) em vez de IntersectionObserver: um
+// link do menu salta do topo direto para o simulador, os botões do hero vão de
+// "abaixo da tela" para "acima da tela" sem nunca cruzar a tela, e o observer não
+// dispara nada. Foi assim que a barra ficou sumida no primeiro teste.
+(() => {
+  const barra = document.getElementById('barra-ag');
+  const hero  = document.querySelector('#inicio .heroCta');
+  const caixa = document.getElementById('preencher');
+  if(!barra || !hero || !caixa) return;
+  let pedido = false;
+  const pinta = () => {
+    pedido = false;
+    const fechou = document.getElementById('ag-form').style.display === 'none';
+    const passouHero = hero.getBoundingClientRect().bottom < 0;
+    const r = caixa.getBoundingClientRect();
+    const caixaNaTela = r.top < innerHeight && r.bottom > 0;
+    barra.hidden = !passouHero || caixaNaTela || fechou;
+  };
+  window.addEventListener('scroll', () => { if(!pedido){ pedido = true; requestAnimationFrame(pinta); } }, {passive:true});
+  window.addEventListener('resize', pinta);
+  pinta();
+})();
 </script>
   <!-- Tracking page_visits (mesmo beacon do /io) — visita + scroll + tempo → aba LP em /admin/hubs -->
   <script>
