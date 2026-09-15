@@ -58,4 +58,22 @@ describe('montarMensagem — card da reunião de eletroposto', () => {
     expect(msg).toContain('*NOTA 2');
     expect(msg).toContain('*Perfil:* Outro');
   });
+
+  it('vagas e valor (15/09): entram no card quando a ficha traz, e só então', () => {
+    const msg = montarMensagem(ficha([
+      'LP ELETROPOSTO · Estacionamento',
+      'NOTA 3 · 11/11 pts',
+      'Ponto: Já tenho o ponto definido',
+      'Local é seu: Sou o proprietário',
+      'Vagas disponíveis: 6 a 10',
+      'Modelo de interesse: 03 · Chave na mão, o eletroposto é meu',
+      'Como pretende investir: Recurso próprio',
+      'Quanto pretende investir: R$ 280 mil',
+    ]));
+    expect(msg).toContain('*Vagas:* 6 a 10');
+    expect(msg).toContain('*Quanto pretende investir:* R$ 280 mil');
+    const semNada = montarMensagem(ficha(['LP ELETROPOSTO · Investidor', 'NOTA 3 · 9/11 pts']));
+    expect(semNada).not.toContain('*Vagas:*');
+    expect(semNada).not.toContain('*Quanto pretende investir:*');
+  });
 });

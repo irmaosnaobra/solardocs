@@ -100,6 +100,9 @@ export function montarMensagem(a: any): string {
     // contrato: dono, inquilino e quem apenas representa o proprietário são três
     // negociações diferentes. Condicional pelas fichas anteriores a essa data.
     ...(tem('Local é seu:') ? [`*Local é seu:* ${linha('Local é seu:')}`] : []),
+    // Vagas e valor entraram no quiz em 15/09 (as duas perguntas do concorrente que o
+    // Thiago aprovou). Condicionais: só existem para quem tem local e para quem paga.
+    ...(tem('Vagas disponíveis:') ? [`*Vagas:* ${linha('Vagas disponíveis:')}`] : []),
     `*Perfil:* ${perfil}`,
     // "Modelo de interesse:" entrou na ficha da REUNIÃO em 15/09 (antes só a de NOTA 1
     // tinha). Desde então a nota vem só do ponto (11/11 dono, 10/11 quem administra,
@@ -111,6 +114,7 @@ export function montarMensagem(a: any): string {
     ``,
     `*Ponto:* ${linha('Ponto:')}`,
     `*Como pretende investir:* ${linha('Como pretende investir:')}`,
+    ...(tem('Quanto pretende investir:') ? [`*Quanto pretende investir:* ${linha('Quanto pretende investir:')}`] : []),
     `*Decisor:* ${linha('Decisor:')}`,
     `*Entrada trifásica:* ${linha('Entrada trifásica:')}`,
     ``,
@@ -856,6 +860,11 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
     // produção sem tocar o WhatsApp do Thiago e do Diego. Fica ANTES da decisão
     // por lado pra o modo teste valer em qualquer lado, hoje e nos que vierem.
     if (b.teste === true) return;
+    // CADASTRO AUTOMÁTICO (15/09/2026): o quiz da LP grava o investidor recusado sem
+    // formulário e manda a pessoa direto para o /ponto-certo. Grava e carimba a ficha
+    // como qualquer cadastro, mas NÃO avisa a equipe: ser recusado não é notícia
+    // (regra de 18/08). O aviso continua saindo para quem se cadastra na página.
+    if (b.automatico === true) return;
 
     // Gravação que falhou não vira aviso de cadastro — viraria mensagem sobre
     // uma linha que não existe, e a equipe procuraria alguém que não está lá.
