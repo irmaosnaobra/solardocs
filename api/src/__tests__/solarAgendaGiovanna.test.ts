@@ -161,6 +161,30 @@ describe('bom dia das 7h', () => {
     expect(r.bom_dia).toBe(0);
   });
 
+  // 15/09: 32 ligações num dia não cabem entre 7 e 9h a 18 por hora. A janela
+  // cresceu em horas, não em ritmo: aumentar o teto é a rajada de 04/08.
+  it('ligação da tarde ainda recebe o bom dia às 10h', async () => {
+    fichas = [ficha({ quando: brt('2026-09-14', '16:45') })];
+    agoraBRT('10:00');
+    const r = await runSolarAgendaGiovannaTick();
+    expect(r.bom_dia).toBe(1);
+  });
+
+  it('o bom dia deixa 4 vagas por hora pro toque de 5 min, que tem hora marcada', async () => {
+    const { dentroDoTetoHorarioLinha } = await import('../services/agents/whatsapp/lineThrottle');
+    vi.mocked(dentroDoTetoHorarioLinha).mockClear();
+    fichas = [
+      ficha({ id: 1, cliente_telefone: '5534990000001', quando: brt('2026-09-14', '10:15') }),
+      ficha({ id: 2, cliente_telefone: '5534990000002', quando: brt('2026-09-14', '13:15') }),
+    ];
+    agoraBRT('10:10');
+    const r = await runSolarAgendaGiovannaTick();
+    expect(r.cinco_min).toBe(1);
+    expect(r.bom_dia).toBe(1);
+    const pisos = vi.mocked(dentroDoTetoHorarioLinha).mock.calls.map(c => c[0]?.pisoHora);
+    expect(pisos).toEqual([18, 14]);
+  });
+
   it('drena no máximo 2 por tick — a leva de 15 sai em ~16 min, não de uma vez', async () => {
     fichas = [1, 2, 3, 4, 5].map(id => ficha({ id, quando: brt('2026-09-14', '10:15') }));
     agoraBRT('07:00');

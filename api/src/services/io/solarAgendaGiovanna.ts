@@ -56,6 +56,9 @@
 // A drenagem é de 2 por tick. Com o tick de 2 min do /cron/process-messages, os
 // 15 saem entre 07:00 e ~07:16, um por minuto. Não é rajada, e é isso que importa:
 // o que derruba a linha é bloqueio e denúncia, e denúncia vem de rajada.
+// Desde 15/09 (duas carteiras, 30 a 32 por dia) o que cresceu foi a JANELA, até
+// as 11h, e não o ritmo; e o bom dia para em 14 na hora corrida pra sobrar vaga
+// pro toque de 5 min.
 //
 // ── O QUE ELE NÃO FAZ ───────────────────────────────────────────────────────
 //   • Não fala com ficha de eletroposto (corte por `ehOrigemEletroposto`).
@@ -113,9 +116,13 @@ export const BOLHA_CINCO_MIN = 'Oi, como vai?';
 
 // ── Janelas ──────────────────────────────────────────────────────────────────
 /** O bom dia sai a partir das 7h. Janela e não horário cravado: o tick atrasa, e
- *  o teto da linha pode segurar alguém pro tick seguinte. Fecha às 9h porque a
- *  primeira ligação do dia é 08:00 ou 08:15 — depois disso o aviso vira atraso. */
-const MANHA = { de: 7, ate: 9 };
+ *  o teto da linha pode segurar alguém pro tick seguinte. Vai até as 11h desde
+ *  15/09/2026: com a Nilce as duas carteiras somam 30 a 32 ligações por dia, e a
+ *  18 por hora, num contador que o eletroposto também gasta, a janela de 7 às 9h
+ *  só cabia umas 27. Quem ficava de fora eram as ligações da tarde. A fila é por
+ *  horário da ligação, então quem liga cedo continua recebendo primeiro, e a copy
+ *  não fala de hora, então às 10h ela ainda faz sentido. */
+const MANHA = { de: 7, ate: 11 };
 /** Nunca a menos disto da ligação: aí quem fala é o toque de 5 minutos. */
 const MANHA_ANTECEDENCIA_MIN = 30;
 const MANHA_POR_TICK = 2;
@@ -129,6 +136,13 @@ const CINCO_POR_TICK = 2;
 /** Piso do teto da linha. Volume limitado pela agenda (1 toque por reunião). */
 const TETO_HORA = Number(process.env.SOLAR_GIOVANNA_TETO_HORA || 18);
 const TETO_DIA = Number(process.env.SOLAR_GIOVANNA_TETO_DIA || 200);
+/** Vagas por hora que o bom dia NÃO usa, guardadas pro toque de 5 min. Com a
+ *  janela até as 11h a leva da manhã enche a hora corrida por mais tempo, e o
+ *  "oi" das 08:45 já ficava segurado assim (simulado em 15/09). O toque tem hora
+ *  marcada; o bom dia espera o tick seguinte. 4 = duas ligações por meia hora
+ *  vezes duas donas. */
+const RESERVA_CINCO_MIN_HORA = 4;
+const TETO_HORA_BOM_DIA = Math.max(1, TETO_HORA - RESERVA_CINCO_MIN_HORA);
 
 /** Freio de rajada do tick inteiro, somando os dois toques. */
 const MAX_TOQUES_POR_TICK = 4;
@@ -347,7 +361,7 @@ export async function runSolarAgendaGiovannaTick(
     // ── Bom dia das 7h ────────────────────────────────────────────────────────
     if (naJanelaDaManha && !f.bomdia_at && minutos >= MANHA_ANTECEDENCIA_MIN) {
       if (bomDia >= MANHA_POR_TICK) continue;
-      if (!dry && !(await dentroDoTetoHorarioLinha({ transacional: true, pisoHora: TETO_HORA, pisoDia: TETO_DIA }))) {
+      if (!dry && !(await dentroDoTetoHorarioLinha({ transacional: true, pisoHora: TETO_HORA_BOM_DIA, pisoDia: TETO_DIA }))) {
         segurados++;
         continue;
       }
