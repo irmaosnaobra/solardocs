@@ -5,6 +5,7 @@ import chromium from '@sparticuz/chromium-min';
 import puppeteer from 'puppeteer-core';
 import { PDFDocument } from 'pdf-lib';
 import { novoAnthropic } from "../utils/anthropicClient";
+import { computeEletro, type ParamsEletro } from '../utils/computeEletro';
 
 // ══════════════════════════════════════════════════════════════════════════
 // APRESENTAÇÃO DE PROJETO — MONTAGEM AUTOMÁTICA
@@ -39,72 +40,11 @@ const CHROMIUM_URL =
 const DECK_URL =
   (process.env.GERADOR_BASE_URL || 'https://solardoc.app/gerador') + '/apresentacao-deck.html';
 
-// ── motor de cálculo: cópia fiel do computeEletro() do Simulador ───────────
-// Não "melhorar" nada aqui. Se divergir do /gerador, o deck e o orçamento que o
-// cliente tem na mão passam a contar histórias diferentes — e aí a apresentação
-// inteira perde a validade.
-export interface ParamsEletro {
-  carros: number; carga: number; custoKwh: number; precoKwh: number; ativacao: number;
-  invest: number; gateway: number; arrend: number; manut: number; imposto: number;
-  assinat: number; fixos: number; ocupIni: number; mesesRampa: number; taxaDesc: number;
-}
-
-export function computeEletro(p: ParamsEletro) {
-  const DIAS = 30, ANOS = 10;
-  const kwhMes = p.carros * p.carga * DIAS;
-  const sessoes = p.carros * DIAS;
-  const fatMes = kwhMes * p.precoKwh + sessoes * p.ativacao;
-
-  const custoEnergia = kwhMes * p.custoKwh;
-  const taxasPct = p.gateway + p.arrend + p.manut + p.imposto;
-  const seguroMes = p.invest * 0.01 / 12;
-  const fixosMes = p.assinat + seguroMes + (p.fixos || 0);
-  const margemVarMes = fatMes - custoEnergia - fatMes * taxasPct;
-  const lucroMes = margemVarMes - fixosMes;
-  const custosMes = fatMes - lucroMes;
-  const margem = fatMes > 0 ? lucroMes / fatMes : 0;
-
-  const ocupIni = Math.min(1, Math.max(0, p.ocupIni == null ? 1 : p.ocupIni));
-  const mRampa = Math.max(1, Math.round(p.mesesRampa == null ? 1 : p.mesesRampa));
-  const occ = (m: number) => (mRampa <= 1 || m >= mRampa) ? 1 : ocupIni + (1 - ocupIni) * (m - 1) / (mRampa - 1);
-
-  const fluxoAnual: number[] = [];
-  for (let a = 0; a < ANOS; a++) {
-    let luc = 0;
-    for (let m = 1; m <= 12; m++) luc += margemVarMes * occ(a * 12 + m) - fixosMes;
-    fluxoAnual.push(luc);
-  }
-  const lucroAno1 = fluxoAnual[0];
-
-  const fluxo: number[] = [];
-  let acc = -p.invest, payback: number | null = null;
-  fluxoAnual.forEach((f, i) => {
-    const antes = acc; acc += f; fluxo.push(acc);
-    if (payback === null && acc >= 0 && f > 0) payback = i + (0 - antes) / f;
-  });
-  const acumulado10 = fluxo[ANOS - 1];
-
-  const tx = Math.max(0, p.taxaDesc || 0);
-  let vpl = -p.invest;
-  fluxoAnual.forEach((f, i) => { vpl += f / Math.pow(1 + tx, i + 1); });
-
-  let tir: number | null = null;
-  if (p.invest > 0 && fluxoAnual.some(f => f > 0)) {
-    const npv = (r: number) => fluxoAnual.reduce((v, f, i) => v + f / Math.pow(1 + r, i + 1), -p.invest);
-    if (npv(0) > 0) {
-      let lo = 0, hi = 10;
-      for (let i = 0; i < 80; i++) { const mid = (lo + hi) / 2; if (npv(mid) > 0) lo = mid; else hi = mid; }
-      tir = (lo + hi) / 2;
-    }
-  }
-  return {
-    kwhMes, sessoes, fatMes, custosMes, lucroMes, margem,
-    fatAno: fatMes * 12, lucroAno: lucroMes * 12, lucroAno1,
-    fluxo, acumulado10, payback, vpl, tir, seguroMes, fixosMes,
-    ativacaoMes: sessoes * p.ativacao, custoEnergiaMes: custoEnergia,
-    gatewayMes: fatMes * p.gateway, impostoMes: fatMes * p.imposto, manutMes: fatMes * p.manut,
-  };
-}
+// ── motor de cálculo: mora em utils/computeEletro desde 15/09/2026 ─────────
+// Saiu daqui para o estudo do local usar a mesma conta sem carregar o navegador.
+// O reexport mantém funcionando quem importava daqui.
+export { computeEletro };
+export type { ParamsEletro };
 
 // ── entrada ───────────────────────────────────────────────────────────────
 const fotoSchema = z.object({
