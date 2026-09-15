@@ -149,6 +149,10 @@
   h2 .n{color:var(--neon)}
   h3{font-weight:800;letter-spacing:-.02em;line-height:1.08}
   .sub{color:var(--mut);font-size:14.5px;font-weight:500;line-height:1.62;max-width:58ch}
+  /* O subtitulo explicativo saiu de quase toda secao em 15/09/2026 (o Thiago
+     pediu a pagina mais direta, sem letra miuda). Sem ele o conteudo colava no
+     titulo: esta margem ocupa o lugar dos 26px que o .sub dava. */
+  section > h2 + :not(.sub){margin-top:18px}
 
   /* ===== benefícios ===== */
   /* 6 cartoes: no auto-fit da NEXUS (4 por linha) sobrava 4+2. Em 3 colunas
@@ -179,8 +183,6 @@
   .mod .quem.nos{border-color:rgba(57,255,20,.38);background:rgba(57,255,20,.10);color:var(--neon)}
   .mod p{color:var(--mut);font-size:13.8px;font-weight:500;line-height:1.62;margin-top:12px}
   .mod p b{color:var(--cream);font-weight:700}
-  .modNota{color:var(--fraco);font-size:11.5px;font-weight:500;line-height:1.6;margin-top:16px}
-  .modNota b{color:#A9BACD}
 
   /* ===== simulador ===== */
   .simGrid{display:grid;grid-template-columns:340px 1fr;gap:18px}
@@ -212,7 +214,6 @@
   .rng::-moz-range-thumb{width:28px;height:28px;border-radius:50%;background:var(--neon);
     border:3px solid #0B1A2B;box-shadow:0 2px 10px rgba(57,255,20,.45)}
   .rngRow{display:flex;justify-content:space-between;color:var(--mut);font-size:11.5px;font-weight:700;margin-top:5px}
-  .cfgNota{color:var(--azul);font-size:12px;font-weight:700;margin-top:8px;line-height:1.4}
 
   .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
   .kpi{background:#0E1B2A;border:1px solid var(--line);border-radius:14px;padding:18px 16px;text-align:center}
@@ -222,7 +223,6 @@
   .kpi .k{color:var(--mut);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px}
   .kpi .v{font-size:clamp(22px,3.2vw,30px);font-weight:900;letter-spacing:-1.2px;margin-top:7px;color:var(--neon-b);font-variant-numeric:tabular-nums}
   .kpi .v.w{color:var(--cream)}
-  .simObs{color:var(--fraco);font-size:11.5px;font-weight:600;margin-top:14px;line-height:1.5}
 
   /* fluxo */
   .chart{margin-top:16px;display:flex;align-items:stretch;gap:5px;height:150px}
@@ -440,7 +440,6 @@
   .carBox{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px}
   .carBox > label{display:block;font-size:13px;font-weight:800;margin-bottom:8px}
   @media(max-width:640px){.carBox{padding:18px 15px}.carBox > label{font-size:14.5px}}
-  .carRank{color:var(--azul);font-size:12.5px;font-weight:800;margin-top:11px;line-height:1.4}
   .carStats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}
   @media(max-width:760px){.carStats{grid-template-columns:repeat(2,1fr)}}
   .carSt{background:#081422;border:1px solid var(--line);border-radius:12px;padding:14px 12px;text-align:center}
@@ -460,21 +459,12 @@
   .tp .kw{font-size:14.5px;font-weight:800;color:var(--cream);line-height:1.2}
   .tp .kw .cls{display:block;font-size:10.5px;font-weight:800;letter-spacing:.12em;color:var(--azul);
     text-transform:uppercase;margin-top:5px}
-  /* a potência que chega no carro fica logo abaixo do minuto porque é ela que
-     explica o minuto — principalmente quando os quatro cartões dão igual */
-  .tp .ent{color:var(--cream);font-size:12px;font-weight:600;margin-top:8px}
-  .tp .ent b{color:var(--neon);font-weight:800}
-  .tp.lim .ent b{color:var(--cream)}
   .tp .mn{font-size:clamp(25px,3.6vw,33px);font-weight:900;letter-spacing:-1.5px;color:var(--neon-b);
     margin-top:13px;line-height:1;font-variant-numeric:tabular-nums}
-  .tp .fx{color:var(--mut);font-size:11px;font-weight:700;margin-top:7px}
   /* quando o carro aceita menos que a máquina entrega, quem manda é ele — e aí a
      potência a mais não encurta nada. O número perde o verde justamente para isso
      ficar óbvio sem ninguém precisar ler a legenda. */
   .tp.lim .mn{color:var(--cream)}
-  .tp .av{color:var(--fraco);font-size:10.5px;font-weight:700;margin-top:auto;padding-top:9px;line-height:1.3}
-  .tempoNota{color:var(--fraco);font-size:11.5px;font-weight:600;margin-top:14px;line-height:1.5}
-  .tempoNota b{color:#A9BACD}
 
   /* ===== rotatividade (de onde sai o teto de carros/dia) =====
      Ideia emprestada da tabela "quanto tempo para carregar" do concorrente, mas
@@ -515,8 +505,6 @@
   .rotDica{display:none}
   @media(max-width:760px){.rotDica{display:block;color:var(--fraco);font-size:12px;
     font-weight:700;margin-top:9px}}
-  .rotObs{color:var(--fraco);font-size:11.5px;font-weight:600;margin-top:14px;line-height:1.5}
-  .rotObs b{color:#A9BACD}
 
   /* ===== dúvidas (accordion) =====
      Fica ANTES do agendamento: cada uma destas é uma objeção que hoje só é
@@ -656,8 +644,6 @@
   <section id="modelos">
     <div class="sh"><span class="tt">Como fazemos negócio</span><span class="ln"></span></div>
     <h2>Cinco jeitos de ter um eletroposto <span class="n">no seu ponto</span></h2>
-    <div class="sub" style="margin-bottom:26px">Nem todo mundo entra pelo mesmo lugar. Tem quem só tenha o
-      espaço, tem quem queira ser sócio e tem quem já saiba fazer e só precise do equipamento.</div>
 
     <div class="mods">
       <div class="mod">
@@ -698,12 +684,6 @@
       </div>
     </div>
 
-    <div class="modNota">Os modelos <b>01</b> e <b>02</b> dependem do ponto: nem todo local sustenta o
-      investimento sozinho, e por isso eles passam por análise antes de virar proposta. Os modelos
-      <b>03</b>, <b>04</b> e <b>05</b> estão disponíveis para qualquer ponto viável. Na reunião a gente
-      compara os cinco com os números do seu caso. <b>Escolher o modelo é a primeira decisão</b>, e ela
-      muda todo o resto da conta.</div>
-
     <div class="ctaFim">
       <a href="#preencher" class="btn" onclick="track('cta_modelos')">Quero comparar os modelos no meu ponto →</a>
     </div>
@@ -713,9 +693,6 @@
   <section id="simulador">
     <div class="sh"><span class="tt">Simulador</span><span class="ln"></span></div>
     <h2>Quanto <span class="n">o seu ponto</span> devolve?</h2>
-    <div class="sub" style="margin-bottom:26px">Mesma calculadora que usamos na reunião. Mexa nos números
-      do seu caso e o resultado muda na hora. Ela calcula o <a href="#modelos" style="color:var(--neon)">modelo
-      chave na mão</a>, em que o ponto e o equipamento são seus.</div>
 
     <div class="simGrid">
       <div class="panel">
@@ -725,10 +702,9 @@
             <option value="cidade" selected>Cidade · 20 kWh por recarga</option>
             <option value="rodovia">Rodovia · 35 kWh por recarga</option>
           </select></div>
-          <div class="cfgNota" id="local-nota"></div>
         </div>
         <div class="fld">
-          <label>Carros por dia <span class="hint">(estimativa do seu ponto)</span></label>
+          <label>Carros por dia</label>
           <input type="range" class="rng" id="s-carros" min="3" max="30" step="1" value="10" oninput="calc()">
           <div class="rngRow"><span>3</span><span id="s-carros-v" style="color:var(--neon-b)">10 carros/dia</span><span id="s-carros-max">30</span></div>
         </div>
@@ -739,15 +715,9 @@
             <option value="80" selected>80 kW · 2 bicos</option>
             <option value="120">120 kW · 2 bicos</option>
           </select></div>
-          <div class="cfgNota" id="cfg-nota"></div>
-          <div style="color:var(--fraco);font-size:11.5px;font-weight:500;line-height:1.5;margin-top:6px">
-            A linha vai até 240 kW. As de <b style="color:#A9BACD">160 e 240 kW saem sob consulta</b>,
-            porque o preço delas depende da entrada de energia do ponto, e a simulação aqui usa só as
-            configurações com valor fechado.
-          </div>
         </div>
         <div class="fld">
-          <label>Preço de revenda <span class="hint">(kWh)</span></label>
+          <label>Preço de revenda do kWh</label>
           <div class="inp has-pre"><span class="pre">R$</span><input type="number" id="s-revenda" value="2.35" step="0.05" oninput="calc()"></div>
         </div>
         <div class="fld">
@@ -757,10 +727,9 @@
             <option value="0.70" selected>Usina alugada · R$ 0,70/kWh</option>
             <option value="0.15">Usina solar própria · R$ 0,15/kWh</option>
           </select></div>
-          <div class="cfgNota" id="fonte-nota"></div>
         </div>
         <div class="fld">
-          <label>Custo da energia <span class="hint">(kWh, dá pra ajustar)</span></label>
+          <label>Custo do kWh</label>
           <div class="inp has-pre"><span class="pre">R$</span><input type="number" id="s-custo" value="0.70" step="0.05" oninput="calc()"></div>
         </div>
       </div>
@@ -774,21 +743,6 @@
           <div class="kpi"><div class="k">ROI em 10 anos</div><div class="v" id="k-roi">...</div></div>
         </div>
         <div class="chart" id="chart"></div>
-        <div class="simObs">
-          O <b style="color:rgba(247,251,242,.6)">custo do kWh é a maior alavanca do resultado</b>: mexe
-      mais no lucro do que trocar a potência do carregador. Os três valores do seletor são as três
-      realidades: tarifa de concessionária, geração alugada de terceiro e usina própria.
-      Mesmas premissas do nosso Estudo de Viabilidade: rampa de ocupação de 50% a 100% em 24 meses,
-          gateway 14%, imposto 6% (Simples) e custos fixos (seguro 1% a.a. + software/4G)
-          correndo desde o mês&nbsp;1. A conta assume que <b style="color:#A9BACD">o ponto é seu</b>.
-          Quem for alugar o local desconta o aluguel do lucro (na nossa régua, cerca de 10% do faturamento).
-          <b style="color:#A9BACD">Os números podem variar para cima ou para baixo
-          conforme as características do ponto comercial</b>: fluxo de veículos, tarifa de energia e localização.
-          Valores estimados, não constituem garantia de resultado. Na reunião entregamos o estudo completo,
-          com VPL, TIR, sensibilidade e análise de riscos do seu ponto.
-          <b style="color:#A9BACD">Valor de referência para equipamento e instalação padrão.
-          Adequação do padrão de entrada e eventual transformador dedicado são orçados após a visita técnica.</b>
-        </div>
       </div>
     </div>
 
@@ -809,12 +763,10 @@
   <section id="recarga">
     <div class="sh"><span class="tt">Tempo de recarga</span><span class="ln"></span></div>
     <h2>Quanto tempo o carro do seu cliente <span class="n">fica no bico</span></h2>
-    <div class="sub" style="margin-bottom:24px">Escolha um dos dez elétricos mais vendidos do Brasil em 2026 e veja a recarga de 20% a 80% em cada configuração que a gente instala, e quanto essa parada deixa no seu caixa.</div>
 
     <div class="carBox">
       <label for="s-carro">Selecione o veículo</label>
       <div class="inp"><select id="s-carro" onchange="pintarCarro()"></select></div>
-      <div class="carRank" id="car-rank">...</div>
       <div class="carStats">
         <div class="carSt"><div class="l">Bateria</div><div class="v" id="car-bat">...</div></div>
         <div class="carSt"><div class="l">Carga DC máx.</div><div class="v" id="car-dc">...</div></div>
@@ -825,18 +777,6 @@
 
     <div class="tempoG" id="tempo-g"></div>
 
-    <div class="tempoNota">
-      Recarga de <b>20% a 80%</b> é a faixa útil da recarga rápida: acima de 80% a bateria desacelera
-      sozinha e ninguém espera. Conta feita sobre a bateria do veículo com <b>fator de eficiência de
-      95%</b>, respeitando a <b>potência máxima que o próprio carro aceita</b>. Por isso um carregador
-      maior nem sempre carrega mais rápido: quando o carro é o gargalo, a potência a mais não encurta
-      nada, mas atende <b>outro carro no segundo bico</b> ao mesmo tempo. O valor no caixa usa o preço de
-      revenda que você definiu no simulador mais R$&nbsp;1,20 de ativação, as mesmas premissas de lá.
-      Tempo real varia com temperatura, estado da bateria e curva de recarga do veículo.
-      Bateria e carga DC máxima são dados de fábrica de cada montadora; o ranking é o de
-      emplacamentos de 100% elétricos no 1º semestre de 2026, quando o país registrou
-      <b>90.626 carros 100% elétricos</b> em seis meses.
-    </div>
   </section>
 
   <!-- ROTATIVIDADE ───────────────────────────────────────────────────────────
@@ -851,10 +791,9 @@
   <section id="rotatividade">
     <div class="sh"><span class="tt">Rotatividade</span><span class="ln"></span></div>
     <h2>De onde sai o teto de <span class="n">carros por dia</span></h2>
-    <div class="sub" style="margin-bottom:26px">O limite do slider ali em cima não é chute nosso. É o tempo que cada carro ocupa o bico, e o teto que usamos na simulação fica sempre abaixo do que a máquina aguenta.</div>
 
     <div class="rotG">
-      <div class="rotC"><div class="v w" id="r-kwh">...</div><div class="l">kWh por recarga<br>(a régua do simulador)</div></div>
+      <div class="rotC"><div class="v w" id="r-kwh">...</div><div class="l">kWh por<br>recarga</div></div>
       <div class="rotC"><div class="v" id="r-t1">...</div><div class="l">por carro com<br>um bico ocupado</div></div>
       <div class="rotC"><div class="v" id="r-t2">...</div><div class="l">por carro com os<br>dois bicos ocupados</div></div>
       <div class="rotC"><div class="v w" id="r-cap">...</div><div class="l">carros/dia que o<br>equipamento aguenta</div></div>
@@ -873,21 +812,6 @@
         <tbody id="rot-tbody"></tbody>
       </table>
     </div>
-    <div class="rotDica">Arraste a tabela para o lado para ver o resto das colunas.</div>
-
-    <div class="rotObs">
-      A conta usa a régua que você escolheu no simulador: <b>20 kWh por recarga na cidade</b>, onde o
-      motorista completa o que gastou no dia, ou <b>35 kWh na rodovia</b>, onde ele para porque precisa
-      seguir viagem. Os 20 kWh urbanos são de propósito <b>menores do que a tabela de veículos acima</b>
-      (o elétrico mais vendido do país leva 22,8 kWh numa carga de 20% a 80%), porque nem todo
-      motorista da cidade chega com a bateria em 20%. Essa régua é dividida pela potência nominal do
-      carregador, com os <b>dois bicos dividindo a potência</b> quando estão ocupados ao mesmo tempo,
-      dentro de uma <b>janela de 12 horas de movimento por dia</b>. É o pior caso do equipamento: se o
-      carro do seu cliente aceitar menos potência que a máquina entrega, quem manda no ritmo é ele.
-      Capacidade não é previsão de movimento. <b>Quem estima quantos carros param no seu ponto é você,
-      no slider</b>. O teto de cada configuração fica abaixo da capacidade justamente para a simulação
-      não prometer um dia perfeito.
-    </div>
   </section>
 
   <!-- DÚVIDAS ────────────────────────────────────────────────────────────────
@@ -904,7 +828,6 @@
   <section id="duvidas">
     <div class="sh"><span class="tt">Antes de marcar</span><span class="ln"></span></div>
     <h2>As perguntas que <span class="n">todo mundo faz</span></h2>
-    <div class="sub" style="margin-bottom:26px">Se a sua não estiver aqui, ela cabe na reunião, é para isso que ela existe.</div>
 
     <div class="faqG">
       <details class="q"><summary>Isso é franquia?</summary>
@@ -1012,9 +935,6 @@
              pedágio e vira o canal por onde a reunião chega. -->
         <div class="passo" id="p-whatsapp">
           <div class="fld"><label for="f-tel">Para onde mandamos a confirmação?</label><div class="inp"><input type="tel" id="f-tel" placeholder="(34) 99999-9999" oninput="maskTel(this);pintarPasso()"></div></div>
-          <div style="color:var(--mut);font-size:12.5px;font-weight:500;line-height:1.6;margin-top:-6px">
-            É por aqui que o consultor manda o link da chamada e o estudo do seu ponto.
-          </div>
         </div>
         <!-- Só a CIDADE desde 08/08/2026. Antes eram 6 campos (CEP, rua, número,
              bairro, complemento) com busca no ViaCEP: o formulário no celular ficava
@@ -1024,7 +944,7 @@
              própria reunião, que é quando alguém confere o local de verdade. -->
         <div class="passo" id="p-cidade">
         <div class="fld">
-          <label for="f-cidade">Cidade / UF <span class="hint">(onde pretende instalar, ou a sua se ainda não tem o ponto)</span></label>
+          <label for="f-cidade">Cidade / UF</label>
           <div class="inp"><input type="text" id="f-cidade" placeholder="Ex: Uberlândia-MG" autocomplete="address-level2"></div>
         </div>
 
@@ -1130,17 +1050,17 @@
                cadastro, não o estudo de viabilidade. -->
           <div id="box-endereco-campos">
             <div class="fld" style="margin-bottom:0">
-              <label>Endereço do ponto <span class="hint">(a equipe leva o estudo do seu local pronto na reunião)</span></label>
+              <label>Endereço do ponto</label>
             </div>
             <div class="f2">
-              <div class="fld"><label for="f-cep">CEP <span class="hint" id="cep-st">(opcional, completa o endereço)</span></label><div class="inp"><input type="text" id="f-cep" placeholder="00000-000" inputmode="numeric" autocomplete="postal-code" oninput="maskCep(this)"></div></div>
+              <div class="fld"><label for="f-cep">CEP <span class="hint" id="cep-st"></span></label><div class="inp"><input type="text" id="f-cep" placeholder="00000-000" inputmode="numeric" autocomplete="postal-code" oninput="maskCep(this)"></div></div>
               <div class="fld"><label for="f-rua">Rua / Avenida</label><div class="inp"><input type="text" id="f-rua" placeholder="Ex: Av. João Naves de Ávila"></div></div>
             </div>
             <div class="f2">
               <div class="fld"><label for="f-numero">Número</label><div class="inp"><input type="text" id="f-numero" placeholder="Ex: 1200" inputmode="numeric"></div></div>
               <div class="fld"><label for="f-bairro">Bairro</label><div class="inp"><input type="text" id="f-bairro" placeholder="Ex: Santa Mônica"></div></div>
             </div>
-            <div class="fld"><label for="f-compl">Complemento / referência <span class="hint">(opcional)</span></label><div class="inp"><input type="text" id="f-compl" placeholder="Posto, galpão, esquina de referência"></div></div>
+            <div class="fld"><label for="f-compl">Complemento / referência</label><div class="inp"><input type="text" id="f-compl" placeholder="Posto, galpão, esquina de referência"></div></div>
           </div>
         </div>
 
@@ -1157,7 +1077,7 @@
 
         <div class="passo" id="p-modelo">
         <div class="fld">
-          <label for="f-modelo">Qual modelo te interessa? <span class="hint">(dá pra mudar na reunião)</span></label>
+          <label for="f-modelo">Qual modelo te interessa?</label>
           <div class="inp"><select id="f-modelo" onchange="onModelo()">
             <option value="">Selecione…</option>
             <option value="cedo_espaco">01 · Cedo o espaço e vocês investem 100%</option>
@@ -1204,7 +1124,7 @@
 
         <div class="passo" id="p-trifasica">
         <div class="fld">
-          <label for="f-trifasica">A entrada de energia do local é trifásica? <span class="hint">(não sabe? tudo bem, a equipe levanta isso)</span></label>
+          <label for="f-trifasica">A entrada de energia do local é trifásica?</label>
           <div class="inp"><select id="f-trifasica">
             <option value="">Selecione…</option>
             <option value="sim">Sim</option>
@@ -1221,9 +1141,6 @@
           <button type="button" class="btn" id="ag-btn" onclick="passoAcao()">Continuar →</button>
         </div>
         <div class="agMsg" id="ag-msg"></div>
-        <div style="color:var(--fraco);font-size:11.5px;font-weight:600;text-align:center;margin-top:12px">
-          Seus dados são usados só para esta reunião. Sem spam.
-        </div>
       </div>
 
       <!-- Sem botão de "falar agora": a agenda flui pela reunião marcada. Quem cai
@@ -1371,10 +1288,9 @@
     </div>
     <div class="base">
       <span>NEXUS ELETROPOSTOS, carregadores e eletropostos de chave na mão.</span>
-      <span>Suporte NEXUS pelo mesmo canal do comercial.</span>
     </div>
     <div class="fLegal">
-      Os valores apresentados no simulador são estimativas de referência, calculadas a partir dos parâmetros informados por você, e não constituem promessa ou garantia de rendimento. O resultado real varia conforme fluxo de veículos, tarifa de energia, localização e condições de operação. © NEXUS ELETROPOSTOS.
+      Simulador com valores estimados, sem garantia de resultado. Padrão de entrada e transformador são orçados na visita técnica. © NEXUS ELETROPOSTOS.
     </div>
   </div>
 </footer>
@@ -1593,8 +1509,6 @@ function pintarCarro(){
   const entregue = c.kwh * SOC_JANELA;
   // preço de revenda vem do simulador: o lead mexeu lá, o caixa daqui acompanha
   const revenda = +document.getElementById('s-revenda').value || 0;
-  document.getElementById('car-rank').textContent =
-    `${i+1}º elétrico mais vendido do Brasil no 1º semestre de 2026, com ${numBR(c.v)} emplacamentos`;
   document.getElementById('car-bat').textContent  = numBR(c.kwh, c.kwh%1?1:0) + ' kWh';
   document.getElementById('car-dc').textContent   = c.dc + ' kW';
   document.getElementById('car-kwh').textContent  = numBR(entregue,1) + ' kWh';
@@ -1605,31 +1519,21 @@ function pintarCarro(){
   // de 120 de "ultrarrápido". Não é classificação inventada aqui.
   const classe = kw => +kw >= 100 ? 'Ultrarrápida' : 'Rápida';
   document.getElementById('tempo-g').innerHTML = Object.keys(CONFIGS).map(kw => {
+    // Cartão sem legenda desde 15/09/2026: só potência, classe e minutos. Quando o
+    // carro aceita menos que o bico, o número perde o verde (.tp.lim) e isso basta.
     const lim = c.dc < +kw;
-    // A potência que de fato chega no carro é o MENOR entre o que o bico entrega
-    // e o que o veículo aceita. É ela que explica o minuto — e sem ela impressa
-    // os quatro cartões repetiam o mesmo número sem dizer por quê.
-    const entrega = Math.min(+kw, c.dc);
     return `<div class="tp${lim?' lim':''}">`
       + `<div class="kw">${kw} kW<span class="cls">${classe(kw)}</span></div>`
       + `<div class="mn">${Math.round(minsRecarga(c,+kw))} min</div>`
-      + `<div class="fx">de 20% a 80%</div>`
-      + `<div class="ent">chegam <b>${entrega} kW</b> no carro</div>`
-      // Não dizer "os outros X kW vão pro 2º bico": o segundo carro também tem teto,
-      // e num 160 kW com dois Dolphin Mini sobra potência ociosa. O que é sempre
-      // verdade é que, passado o limite do veículo, o tempo dele não cai mais.
-      + `<div class="av">${lim ? `O veículo só aceita ${c.dc} kW, então o resto do bico sobra e o tempo não cai`
-                               : 'O carro usa a potência inteira do bico'}</div>`
       + `</div>`;
   }).join('');
 }
-// Janela de movimento considerada na capacidade do equipamento. É premissa, não medição —
-// e por isso está impressa na letra miúda da seção, do lado do resultado.
+// Janela de movimento considerada na capacidade do equipamento. É premissa, não medição.
 const JANELA_H = 12;
 const CONFIGS = {
-  60:  { invest:135000, bicos:2, max:20, base:10, nota:'Recarga rápida, 2 bicos.' },
-  80:  { invest:145000, bicos:2, max:30, base:10, nota:'Recarga rápida, 2 bicos.' },
-  120: { invest:195000, bicos:2, max:40, base:10, nota:'Recarga ultrarrápida, 2 bicos.' },
+  60:  { invest:135000, bicos:2, max:20, base:10 },
+  80:  { invest:145000, bicos:2, max:30, base:10 },
+  120: { invest:195000, bicos:2, max:40, base:10 },
 };
 // A linha continua maior que o simulador. Estas duas saem SOB CONSULTA porque o
 // preço delas depende de entrada de energia e obra do ponto — e um valor chutado
@@ -1682,7 +1586,6 @@ function setConfig(){
   sl.max = teto;
   sl.value = Math.min(c.base, teto);    // ancora no cenário realista, não no teto
   document.getElementById('s-carros-max').textContent = teto;
-  document.getElementById('cfg-nota').textContent = c.nota;
   pintarRotatividade(kw);               // a tabela de baixo segue a configuração escolhida
   calc();
 }
@@ -1693,22 +1596,12 @@ function setConfig(){
 // resultado do que trocar a potência do carregador. Escolher a fonte escreve no
 // campo de custo, que continua editável: quem tem tarifa negociada corrige o
 // número sem perder a referência de onde ele saiu.
-const FONTES = {
-  '1.20': 'É o que você paga hoje na conta de luz. É o piso de comparação: todo o resto abaixo disso é margem que você ganha.',
-  '0.70': 'Você aluga a geração de uma usina de terceiro e recebe o desconto na fatura, sem obra e sem investimento próprio.',
-  '0.15': 'A geração é sua. É o menor custo possível de kWh, e é o que transforma o eletroposto no melhor cliente da sua própria usina.',
-};
 function setFonte(){
   const v = document.getElementById('s-fonte').value;
   document.getElementById('s-custo').value = v;
-  document.getElementById('fonte-nota').textContent = FONTES[v] || '';
   calc();
 }
 function setLocal(){
-  const rodovia = document.getElementById('s-local').value === 'rodovia';
-  document.getElementById('local-nota').textContent = rodovia
-    ? 'Na estrada o motorista para porque precisa seguir viagem, e enche mais: cada recarga leva mais tempo e cabem menos carros no dia.'
-    : 'Na cidade o motorista completa o que gastou no dia: recarga mais curta, mais carros no mesmo bico.';
   montarTabelaRot();
   setConfig();
 }
