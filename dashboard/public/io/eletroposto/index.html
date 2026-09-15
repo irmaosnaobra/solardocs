@@ -27,6 +27,32 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<!-- QUIZ PRIMEIRO (15/09/2026). Pedido do Thiago: quem cai no link ve so o agendamento
+     e a pagina inteira aparece depois que marca. Os curiosos NOTA 1 seguem o fluxo de
+     sempre (material, ponto-certo, parceria), nada muda para eles.
+     A classe vai no <html> AQUI, antes da primeira pintura: posta pelo script do fim do
+     body, a pagina inteira piscaria na tela antes de sumir.
+     A pagina inteira abre direto com ?pagina=1, com link para uma secao (#simulador,
+     #modelos...) e para quem ja marcou neste aparelho nos ultimos 30 dias.
+     NUNCA PRENDE NINGUEM NUMA TELA MORTA: se o script principal quebrar antes de montar
+     o formulario, o DOMContentLoaded tira a classe; sem horario na agenda, o
+     soltarQuiz() tira. Desligar tudo: QUIZ_PRIMEIRO = false. -->
+<script>
+(function(){
+  var QUIZ_PRIMEIRO = true;
+  var html = document.documentElement;
+  try{
+    var secao  = /^#(inicio|estoque|modelos|simulador|recarga|rotatividade|duvidas)$/.test(location.hash);
+    var pagina = new URLSearchParams(location.search).get('pagina') === '1';
+    var agendou = false;
+    try{ agendou = Date.now() - Number(localStorage.getItem('ep_agendado') || 0) < 30*864e5; }catch(e){}
+    if(QUIZ_PRIMEIRO && !secao && !pagina && !agendou) html.classList.add('quiz');
+  }catch(e){}
+  document.addEventListener('DOMContentLoaded', function(){
+    if(!window.__quizPronto) html.classList.remove('quiz');
+  });
+})();
+</script>
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   /* ===== paleta NEXUS ELETROPOSTOS =====
@@ -636,6 +662,24 @@
   .barraAg .btn{width:100%;min-height:54px;font-size:16.5px;font-weight:800}
   @media(min-width:761px){.barraAg{display:none!important}}
   @media(max-width:760px){footer{padding-bottom:100px}}
+
+  /* ===== quiz primeiro e pagina depois de marcar (15/09/2026) =====
+     html.quiz: so o logo e o agendamento. html.agendado: a pagina inteira, com a
+     confirmacao no topo (order, sem mover markup) e sem os botoes de agendar, que
+     depois de marcado nao tem mais o que fazer. Esconde com display:none!important
+     porque [hidden] e .passo ja dependem de display neste arquivo. */
+  html.quiz .hero,html.quiz .corpo,html.quiz footer,html.quiz .nav nav,html.quiz .navCta,html.quiz .barraAg{display:none!important}
+  html.quiz .agFaixa{margin-top:0;border-top:0;min-height:calc(100vh - 67px)}
+  html.quiz #agendar{padding-top:30px}
+  .soQuiz{display:none}
+  html.quiz .soQuiz{display:inline}
+  html.quiz .soPagina{display:none}
+  html.agendado body{display:flex;flex-direction:column}
+  html.agendado .nav{order:-2}
+  html.agendado .agFaixa{order:-1;margin-top:0;border-top:0}
+  html.agendado .ctaFim,html.agendado .navCta,html.agendado .heroCta .btn.ghost,html.agendado .barraAg,
+  html.agendado #agendar > .sub,html.agendado .agChips{display:none!important}
+  .okMais{margin-top:22px;width:100%;max-width:520px}
 </style>
 </head>
 <body>
@@ -719,7 +763,7 @@
   </div>
 </div>
 
-<div class="wrap">
+<div class="wrap corpo">
   <!-- BENEFÍCIOS -->
   <section>
     <div class="sh"><span class="tt">Por que eletroposto</span><span class="ln"></span></div>
@@ -1055,7 +1099,7 @@
   <div class="agFaixa">
   <div class="wrap">
   <section id="agendar">
-    <div class="sh"><span class="tt">Agende</span><span class="ln"></span></div>
+    <div class="sh"><span class="tt"><span class="soQuiz">Invista em eletropostos</span><span class="soPagina">Agende</span></span><span class="ln"></span></div>
     <h2>Seu ponto vale a <span class="n">conta certa</span></h2>
     <div class="sub">Escolha um horário e a gente leva o estudo de viabilidade do seu ponto pronto para a conversa, com os números do seu caso.</div>
 
@@ -1372,6 +1416,9 @@
         </div>
 
         <p class="okObs">Obrigado pela confiança. A gente se vê <span id="ok-dia">na reunião</span>!</p>
+        <!-- Depois de marcar a pagina inteira aparece logo abaixo (html.agendado): este
+             botao e o convite para descer e conhecer o trabalho ate a reuniao. -->
+        <a class="btn ghost okMais" href="#inicio" onclick="track('agendado_conhecer')">Enquanto isso, conheça o nosso trabalho ↓</a>
       </div>
 
       <!-- O NOTA 1 não vê tela nenhuma aqui: desde 07/08/2026 ele é redirecionado
@@ -2339,6 +2386,7 @@ async function montarSlots(){
   const dias = proximosDias();
   if(!dias.length){
     el.innerHTML = '<div class="agLoad">Sem horários nos próximos dias. Fale com a gente no WhatsApp que a gente encaixa.</div>';
+    soltarQuiz('sem_horario');   // sem horário o quiz é tela morta: abre a página
     return;
   }
   el.innerHTML = dias.map(ymd=>{
@@ -3091,6 +3139,7 @@ async function gravarAgendamento(){
 
     document.getElementById('ag-form').style.display = 'none';
     document.getElementById('ag-ok').style.display = 'block';
+    paginaDepoisDeAgendar();   // antes do scroll: a confirmação sobe para o topo da página
     document.getElementById('ag-ok').scrollIntoView({behavior:'smooth', block:'center'});
   }catch(e){
     console.error(e);
@@ -3123,6 +3172,31 @@ onPerfil();       // o browser pode restaurar o perfil ao voltar pra página (bf
 onPonto();        // idem pro ponto: sem isto o endereço restaurado ficaria escondido
                   // (e ele chama onRelacao, que reavalia o bloco do endereço)
 pintarOpcoes();   // e os botões mostram o que o navegador restaurou (e o que o onPonto limpou)
+
+// ===== QUIZ PRIMEIRO (15/09/2026) =====
+// A classe html.quiz nasce no <head> (ver o comentário de lá). Daqui saem as duas
+// portas de saída dela: a de erro (soltarQuiz) e a de sucesso (paginaDepoisDeAgendar).
+function soltarQuiz(motivo){
+  const html = document.documentElement;
+  if(!html.classList.contains('quiz')) return;
+  html.classList.remove('quiz');
+  track('quiz_solto_' + motivo);
+}
+// Marcou: a página inteira aparece com a confirmação no topo, e o aparelho fica
+// lembrado por 30 dias para não cair no quiz de novo ao voltar pelo link.
+function paginaDepoisDeAgendar(){
+  try{ localStorage.setItem('ep_agendado', String(Date.now())); }catch(e){}
+  const html = document.documentElement;
+  html.classList.remove('quiz');
+  html.classList.add('agendado');
+}
+// O formulário montou: o <head> não precisa mais abrir a página por segurança.
+window.__quizPronto = true;
+if(document.documentElement.classList.contains('quiz')){
+  track('quiz_aberto');
+  // API da agenda pendurada também é tela morta: 12 s sem nenhum horário, abre a página.
+  setTimeout(() => { if(!document.querySelector('#slots .slot')) soltarQuiz('sem_horario'); }, 12000);
+}
 // a aba pode ficar aberta horas: ao voltar pra ela, refaz a agenda (horário que passou some)
 document.addEventListener('visibilitychange', () => { if(!document.hidden && !slotSel) montarSlots(); });
 // LINK ANTIGO CONTINUA VALENDO. '#agendar' ja saiu em mensagem, print e link de
