@@ -54,7 +54,9 @@ export function montarMensagem(a: any): string {
   // LP escreve em `obs` (dashboard/public/io/eletroposto/index.html) — renomear um lado
   // sem o outro faz a linha virar "—" em silêncio.
   const obs: string[] = String(a.observacao || '').split('\n').filter(Boolean);
-  const perfil = (obs[0] || '').replace('LP ELETROPOSTO — ', '') || '—';
+  // A LP trocou o travessão pelo ponto médio ("LP ELETROPOSTO · Posto"); casar só o
+  // travessão deixava o prefixo inteiro na linha do perfil do card.
+  const perfil = (obs[0] || '').replace(/^LP ELETROPOSTO\s*[—·]\s*/, '') || '—';
   const linha = (rot: string) => obs.find(l => l.startsWith(rot))?.replace(rot, '').trim() || '—';
   const tem = (rot: string) => obs.some(l => l.startsWith(rot));
 
@@ -99,6 +101,11 @@ export function montarMensagem(a: any): string {
     // negociações diferentes. Condicional pelas fichas anteriores a essa data.
     ...(tem('Local é seu:') ? [`*Local é seu:* ${linha('Local é seu:')}`] : []),
     `*Perfil:* ${perfil}`,
+    // "Modelo de interesse:" entrou na ficha da REUNIÃO em 15/09 (antes só a de NOTA 1
+    // tinha). Desde então a nota vem só do ponto (11/11 ponto próprio, 9/11 local em
+    // negociação) e é o modelo que diz qual conversa é: 100% nosso, 50/50 ou chave na
+    // mão. Condicional pelas fichas anteriores.
+    ...(tem('Modelo de interesse:') ? [`*Modelo:* ${linha('Modelo de interesse:')}`] : []),
     ...(tem('Rota de passagem:') ? [`*Rota de passagem:* ${linha('Rota de passagem:')}`] : []),
     ``,
     `*Ponto:* ${linha('Ponto:')}`,

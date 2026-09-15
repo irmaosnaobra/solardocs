@@ -2788,7 +2788,8 @@ async function agendar(){
     // Desde 29/08 TODA reunião tem esta linha. Ela diz ao consultor com quem ele vai
     // falar de contrato: dono, inquilino, quem só representa o proprietário e, desde
     // 15/09, quem ainda negocia o local são conversas diferentes.
-    `Local é seu: ${pontoDefinido ? txt(relacao) : 'Em negociação com o proprietário'}`,
+    // Mesma frase da 5ª opção da porta do ponto em /parceria: dois formulários, uma régua.
+    `Local é seu: ${pontoDefinido ? txt(relacao) : 'Estou negociando com o proprietário'}`,
     // Com a nota vindo só do ponto (15/09), é o modelo que diz qual conversa é: 100%
     // nosso, 50/50 ou chave na mão. O card do WhatsApp imprime como "Modelo:".
     `Modelo de interesse: ${txt(modelo)}`,
