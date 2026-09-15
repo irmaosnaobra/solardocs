@@ -28,8 +28,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <!-- QUIZ PRIMEIRO (15/09/2026). Pedido do Thiago: quem cai no link ve so o agendamento
-     e a pagina inteira aparece depois que marca. Quem cai em NOTA 1 ve a tela de seguir
-     o Instagram e o "Continuar" leva para /io/eletroposto/parceria.
+     e a pagina inteira aparece depois que marca. Quem cai em NOTA 1 vai direto para o curso
+     /ponto-certo, com o cadastro feito sozinho (15/09 a noite).
      A classe vai no <html> AQUI, antes da primeira pintura: posta pelo script do fim do
      body, a pagina inteira piscaria na tela antes de sumir.
      A pagina inteira abre direto com ?pagina=1, com link para uma secao (#simulador,
@@ -1307,6 +1307,23 @@
              O modelo entra na ficha que a equipe lê. -->
         </div>
 
+        <!-- VAGAS (15/09/2026). Pergunta que veio do formulário de um concorrente, aprovada
+             pelo Thiago. Só para quem tem um local em mente (definido, em negociação ou em
+             vista): diz ao consultor quantos carregadores cabem e separa o terreno sem onde
+             parar carro. NÃO pontua: mexer em PESO_* reroteia lead ao vivo. -->
+        <div class="passo" id="p-vagas">
+        <div class="fld">
+          <label for="f-vagas">Quantas vagas estão disponíveis para a instalação?</label>
+          <div class="inp"><select id="f-vagas">
+            <option value="">Selecione…</option>
+            <option value="1_2">1 a 2</option>
+            <option value="3_5">3 a 5</option>
+            <option value="6_10">6 a 10</option>
+            <option value="10_mais">Mais de 10</option>
+          </select></div>
+        </div>
+        </div>
+
         <div class="passo" id="p-modelo">
         <div class="fld">
           <label for="f-modelo">Qual modelo te interessa?</label>
@@ -1337,6 +1354,23 @@
           </select></div>
         </div>
 
+        </div>
+
+        <!-- QUANTO (15/09/2026). A LP perguntava COMO a pessoa paga e nunca QUANTO. As faixas
+             são as do Thiago. Some junto com "como pretende investir" para o modelo 01 (a
+             NEXUS investe 100%). Não pontua. -->
+        <div class="passo" id="p-valor">
+        <div class="fld">
+          <label for="f-valor">Qual valor você pretende investir?</label>
+          <div class="inp"><select id="f-valor">
+            <option value="">Selecione…</option>
+            <option value="70">R$ 70 mil</option>
+            <option value="140">R$ 140 mil</option>
+            <option value="280">R$ 280 mil</option>
+            <option value="500">R$ 500 mil</option>
+            <option value="500_mais">Mais de R$ 500 mil</option>
+          </select></div>
+        </div>
         </div>
 
         <div class="passo" id="p-decisor">
@@ -1377,7 +1411,9 @@
 
       <!-- Sem botão de "falar agora": a agenda flui pela reunião marcada. Quem cai
            no WhatsApp na hora fura a agenda e vira atendimento avulso. -->
-      <!-- RECUSADO: segue a gente antes de seguir o caminho dele -->
+      <!-- RECUSADO: fora de uso desde 15/09/2026 a noite. O NOTA 1 vai direto para o curso
+           /ponto-certo (irProCurso) e o convite de seguir mora nas saidas de la. A tela
+           fica no HTML para voltar atras sem refaze-la. -->
       <div class="ok" id="ag-nao">
         <div class="ic ic-ig"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></svg></div>
         <h3>Recebemos o seu cadastro</h3>
@@ -1461,10 +1497,9 @@
         <a class="btn ghost okMais" href="#inicio" onclick="track('agendado_conhecer')">Enquanto isso, conheça o nosso trabalho ↓</a>
       </div>
 
-      <!-- O NOTA 1 vê a tela #ag-nao acima: o Instagram primeiro e o "Continuar" para
-           /io/eletroposto/parceria, a página das portas, com o curso a um link dali
-           (15/09/2026). Até então o curioso ia para /io/eletroposto/material, que é
-           página da PlugCash. -->
+      <!-- O NOTA 1 não vê tela aqui desde 15/09/2026 à noite: vai direto para o curso
+           /ponto-certo, com o cadastro feito sozinho (irProCurso). Antes, no mesmo dia,
+           via a tela #ag-nao e seguia para /io/eletroposto/parceria. -->
     </div>
     </div><!-- fecha .agGrade -->
   </section>
@@ -1495,8 +1530,10 @@
 
 <!-- CONVITE DE SAIDA (15/09/2026). Pedido do Thiago: quem agendou tem o link para seguir
      a gente nas saidas. Abre no voltar (uma vez por visita), ao levar o mouse para fora
-     da janela, ao clicar num link que sai da pagina e ao voltar para a aba (abrirSeguir). -->
-<div class="cfBg" id="seguir-bg" onclick="if(event.target===this) fecharSeguir()">
+     da janela, ao clicar num link que sai da pagina e ao voltar para a aba (abrirSeguir).
+     Desde 15/09 a noite nao fecha clicando fora nem com Esc: sai escolhendo seguir ou nao.
+     Abre tambem para quem foi recusado, mandado para /ponto-certo e voltou para ca. -->
+<div class="cfBg" id="seguir-bg">
   <div class="cf" role="dialog" aria-modal="true" aria-labelledby="seguir-tit">
     <div class="ic ic-ig"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></svg></div>
     <h3 id="seguir-tit">Antes de sair, siga a gente no Instagram</h3>
@@ -2246,6 +2283,8 @@ const SEM_LOCAL = new Set(['sem_ideia', 'em_vista']);
 // chave do lugar fecha negócio, com ou sem escritura no nome. "Ainda não é meu" é
 // intenção, e intenção não ocupa horário de especialista.
 const SEM_CONTROLE = new Set(['nao_e_meu']);
+// Quem responde quantas vagas tem (15/09): quem tem um local em mente. "Sem ideia" não.
+const PONTO_COM_VAGAS = new Set(['definido', 'negociando', 'em_vista']);
 // Perfis sem fluxo próprio: são estes que abrem a pergunta da rota de passagem.
 const PERFIL_SEM_FLUXO = new Set(['investidor', 'outro']);
 
@@ -2334,7 +2373,7 @@ function onModelo(){
   const v = document.getElementById('f-modelo').value;
   const paga = !MODELO_SEM_CAPITAL.has(v);
   document.getElementById('box-invest').style.display = paga ? '' : 'none';
-  if(!paga) document.getElementById('f-invest').value = '';
+  if(!paga){ document.getElementById('f-invest').value = ''; document.getElementById('f-valor').value = ''; }
   // o passo de investir entra e sai da fila com esta resposta: a barra e a
   // contagem têm que refletir isso na hora, senão dizem "de 10" e são 9.
   if(typeof pintarPasso === 'function' && document.getElementById('p-invest')) pintarPasso();
@@ -2567,7 +2606,12 @@ function onPonto(){
   // Trocar entre "definido" e "negociando" é o MESMO local mudando de situação, então
   // o endereço fica. Some só quando a resposta nova diz que não há local nenhum.
   if(!comLocal) limparEndereco();
+  // Vagas só existem para quem tem um local em mente (15/09). "Sem ideia" limpa a
+  // resposta: senão ela viajaria na ficha de um local que a pessoa diz não ter.
+  if(!PONTO_COM_VAGAS.has(v)) document.getElementById('f-vagas').value = '';
   onRelacao();
+  // o passo das vagas entra e sai da fila com esta resposta, como o de investir
+  if(typeof pintarPasso === 'function' && document.getElementById('p-vagas')) pintarPasso();
 }
 // Quem respondeu que o ponto ainda não é dele já saiu da agenda — cobrar rua, número e
 // bairro dele é atrito por nada. O bloco some e o que estava digitado some junto, pelo
@@ -2599,9 +2643,11 @@ function onRelacao(){
 //   4 PERFIL     um toque, e é o assunto que ele gosta de falar: o que ele tem.
 //   5 PONTO      o passo mais pesado (pode abrir endereço inteiro). Fica no
 //                pico do compromisso, nunca na abertura.
+//   5b VAGAS     só para quem tem um local em mente (15/09).
 //   6 MODELO     escolher o que ele QUER, em vez de ser interrogado. É um
 //                respiro depois do endereço.
 //   7 INVESTIR   some sozinho pra quem só cede o espaço.
+//   7b QUANTO    as faixas do Thiago (15/09); some junto com o de investir.
 //   8 DECISOR
 //   9 TRIFÁSICA  a do "não sei". Tarde, e com o rótulo dizendo que não sabe
 //                tudo bem — pergunta que parece reprovação trava o envio.
@@ -2641,9 +2687,13 @@ const PASSOS = [
       }
       return null;
     } },
+  { id:'p-vagas',   quando:() => PONTO_COM_VAGAS.has(val('f-ponto')),
+                    ok:() => val('f-vagas') ? null : 'Informe quantas vagas estão disponíveis.' },
   { id:'p-modelo',  ok:() => val('f-modelo') ? null : 'Escolha o modelo que te interessa.' },
   { id:'p-invest',  quando:() => !MODELO_SEM_CAPITAL.has(val('f-modelo')),
                     ok:() => val('f-invest') ? null : 'Informe como pretende investir.' },
+  { id:'p-valor',   quando:() => !MODELO_SEM_CAPITAL.has(val('f-modelo')),
+                    ok:() => val('f-valor') ? null : 'Informe quanto pretende investir.' },
   { id:'p-decisor', ok:() => val('f-decisor') ? null : 'Informe quem decide o investimento.' },
   { id:'p-trifasica', ok:() => val('f-trifasica') ? null : 'Informe se a entrada de energia do local é trifásica.' },
   { id:'p-whatsapp', ok:() => {
@@ -2720,7 +2770,7 @@ function passoAvancarSeHorario(){
 // ela abre outra pergunta no mesmo passo (investidor abre a rota, ponto definido
 // abre "o local é seu?" e o endereço), o ok() do passo ainda reclama e a tela fica.
 // ═══════════════════════════════════════════════════════════════════════════
-const SELECTS_EM_BOTAO = ['f-perfil','f-rota','f-ponto','f-relacao','f-modelo','f-invest','f-decisor','f-trifasica'];
+const SELECTS_EM_BOTAO = ['f-perfil','f-rota','f-ponto','f-relacao','f-vagas','f-modelo','f-invest','f-valor','f-decisor','f-trifasica'];
 function montarOpcoes(){
   SELECTS_EM_BOTAO.forEach(id => {
     const sel = document.getElementById(id);
@@ -2782,24 +2832,23 @@ document.getElementById('ag-form').addEventListener('keydown', e => {
 });
 
 /**
- * Recusado. Em vez do `location.href` seco, mostra a tela de seguir e guarda o
- * caminho dele no botao de continuar. Nada do que ja foi gravado muda: a ficha
- * NOTA 1 e o sessionStorage sao escritos ANTES daqui.
+ * Não agendou: vai DIRETO para o curso /ponto-certo (15/09/2026 à noite). A ficha
+ * NOTA 1, o cadastro automático e o sessionStorage (ep_lead, ep_desq) saem ANTES
+ * daqui; a faixa de acolhimento de lá lê os dois.
  *
- * `motivo` e a frase que explica a recusa na voz da resposta que ele deu — sem
- * ela a tela vira "nao deu" sem dizer por que, que e o jeito mais rapido de a
- * pessoa achar que foi julgada.
+ * `ep_curso` marca a aba: se a pessoa voltar do curso para cá, a janela de seguir o
+ * Instagram abre uma vez (pageshow). `ep_recusado` fica 30 dias no aparelho e é o
+ * que liga o convite de seguir nas saídas do /ponto-certo quando ela volta lá.
+ * A tela #ag-nao continua no HTML, fora de uso, para voltar atrás sem refazê-la.
  */
-function mandarPraSeguir(destino, rotulo, motivo){
-  document.getElementById('ag-form').style.display = 'none';
-  document.getElementById('nao-txt').textContent = motivo;
-  const ir = document.getElementById('nao-seguir');
-  ir.href = destino;
-  ir.textContent = rotulo + ' →';
-  document.getElementById('nao-obs').textContent = 'Assim que o seu cenário mudar, você volta aqui e marca direto. A porta continua aberta.';
-  const tela = document.getElementById('ag-nao');
-  tela.style.display = 'block';
-  tela.scrollIntoView({behavior:'smooth', block:'start'});
+function irProCurso(evento){
+  track(evento);
+  try{ sessionStorage.setItem('ep_curso', String(Date.now())); }catch(e){}
+  try{ localStorage.setItem('ep_recusado', String(Date.now())); }catch(e){}
+  const btn = document.getElementById('ag-btn');
+  btn.disabled = true; btn.textContent = 'Um instante…';
+  // 250 ms para o Pixel e a ficha saírem antes de a aba trocar de página
+  setTimeout(() => { location.href = '/ponto-certo'; }, 250);
 }
 function erro(txt){
   const m = document.getElementById('ag-msg');
@@ -2858,10 +2907,14 @@ async function agendar(){
     if(!numero)           return erro('Informe o número do endereço do ponto.');
     if(bairro.length < 2) return erro('Informe o bairro do ponto.');
   }
+  const vagas = document.getElementById('f-vagas');
+  if(PONTO_COM_VAGAS.has(ponto.value) && !vagas.value) return erro('Informe quantas vagas estão disponíveis.');
   const modelo = document.getElementById('f-modelo');
   if(!modelo.value)       return erro('Escolha o modelo que te interessa.');
   const pagaCapital = !MODELO_SEM_CAPITAL.has(modelo.value);
   if(pagaCapital && !invest.value) return erro('Informe como pretende investir.');
+  const valor = document.getElementById('f-valor');
+  if(pagaCapital && !valor.value) return erro('Informe quanto pretende investir.');
   // Quem escolheu o modelo 01 nem viu a pergunta de investir, e o select vazio
   // imprimia "Selecione…" nas duas fichas que a equipe lê.
   const investTexto = pagaCapital ? txt(invest) : 'Não se aplica · modelo 01, a NEXUS investe 100%';
@@ -2906,7 +2959,9 @@ async function agendar(){
             // ela a lista de arrendamento não sabe separar quem tem o local de quem
             // só escolheu um. Mesmo rótulo do agendamento e do banco.
             ...(ponto.value === 'definido' && relacao.value ? [`Local é seu: ${txt(relacao)}`] : []),
+            ...(PONTO_COM_VAGAS.has(ponto.value) ? [`Vagas disponíveis: ${txt(vagas)}`] : []),
             `Como pretende investir: ${investTexto}`,
+            ...(pagaCapital ? [`Quanto pretende investir: ${txt(valor)}`] : []),
             `Decisor: ${txt(decisor)}`,
             `Entrada trifásica: ${txt(trif)}`,
           ].join('\n'),
@@ -2914,24 +2969,26 @@ async function agendar(){
       }).catch(()=>{});
     } catch(_){}
 
-    // ── PRA ONDE VAI O NOTA 1 (15/09/2026, ordem do Thiago) ──
+    // ── PRA ONDE VAI O NOTA 1 (15/09/2026 à noite, ordem do Thiago) ──
     //
-    // UM destino só. Todo NOTA 1 passa pela tela de seguir o Instagram e o
-    // "Continuar" leva para /io/eletroposto/parceria: cadastro de investidor, de
-    // quem tem o ponto e de integrador, e o curso (/ponto-certo) a um link dali,
-    // na porta do capital e na caixa de quem não é nenhuma das três.
+    // DIRETO PARA O CURSO, com o cadastro feito sozinho: "com o preenchimento já cai
+    // em nosso cadastro de parceiro ou investidor automático e cai direto nesse link
+    // para comprar". Não há mais tela de recusa nem página das portas no caminho: a
+    // pessoa vai para /ponto-certo, e o convite de seguir o Instagram mora nas saídas
+    // de lá (e na volta para cá, ver o pageshow perto do fim do script).
     //
-    // Até aqui eram três saídas. O curioso (sem capital e sem local) ia para
-    // /io/eletroposto/material, que é página da PlugCash, e quem tinha o capital
-    // ia direto para o /ponto-certo. Esse atalho de 01/09 existia porque o link
-    // do curso ficava atrás do envio do formulário do capital; no mesmo dia a
-    // porta do capital ganhou o link ANTES do formulário, então passar pela
-    // página das portas não esconde mais a oferta de ninguém.
-    //
-    // O cruzamento abaixo não decide mais a página, só a frase da tela, o evento
-    // e a porta sugerida (`ep_lead.lado`). Continua sendo a régua das abas
-    // Arrendamento e Investidores do /gerador: a ficha do curioso segue fora das
-    // listas até ele se cadastrar numa porta.
+    // O CADASTRO AUTOMÁTICO:
+    //   · a ficha NOTA 1 acima já entra nas abas Arrendamento e Investidores do
+    //     /gerador, que leem eletroposto_nota1. Eram 74 fichas em 14 dias contra 2
+    //     cadastros feitos à mão na página das portas: o segundo formulário era onde
+    //     a lista se perdia.
+    //   · quem TEM o capital vira também linha de INVESTIDOR em eletroposto_parceria,
+    //     com o valor que respondeu no quiz. `automatico: true` grava sem o aviso no
+    //     WhatsApp da equipe: ser recusado não é notícia (regra de 18/08).
+    //   · o lado do PONTO não vira linha de parceria: aquela porta guarda endereço,
+    //     vagas, movimento e padrão de entrada, e linha pela metade na lista mais
+    //     escassa é pior que a ficha, que já está na aba Arrendamento.
+    //   · o curioso (sem capital e sem local) continua fora das duas listas (17/08).
     // Modelo 01 também é "sem capital": quem só cede o espaço não é investidor.
     const semCapital = invest.value === 'naosei' || !pagaCapital;
     const semLocal   = ponto.value === 'sem_ideia';       // "em vista" NÃO é sem local
@@ -2948,44 +3005,37 @@ async function agendar(){
         nome: nome,
       }));
       // `ep_lead` faz a próxima tela já saber quem é a pessoa, pra ela não
-      // repetir nada que o formulário perguntou. `lado` é SUGESTÃO, não trava:
-      // as duas portas continuam abertas e quem se enganou muda de porta.
+      // repetir nada que o formulário perguntou. `lado` diz em que lista ela já está.
       sessionStorage.setItem('ep_lead', JSON.stringify({
         nome, telefone: telE164,
         telefone_visivel: document.getElementById('f-tel').value.trim(),
         cidade, invest: investTexto,
-        // O curioso não recebe sugestão: desde 15/09 ele cai na página das portas
-        // como todo NOTA 1, e sugerir "tenho o ponto" a quem acabou de dizer que
-        // não tem ideia de onde instalar seria pedir um endereço que ele não tem.
-        // Sem porta sugerida, a saída dele é a caixa de baixo, que leva ao curso.
+        // O curioso não recebe lado: a faixa de acolhimento do /ponto-certo usa o
+        // lado para dizer em que lista a pessoa já está, e ele não está em nenhuma.
         lado: curioso ? '' : (semCapital ? 'ponto' : 'capital'),
       }));
     } catch(_){}
 
-    // Os três casos vão para a MESMA página. Os eventos continuam separados para
-    // o Pixel saber quem chegou por qual motivo: `nota1_parceria` segue sendo o
-    // lado do ponto, como sempre foi, e `nota1_material` e `nota1_ponto_certo`
-    // param de contar em 15/09.
-    if (curioso) {
-      track('nota1_parceria_curioso');
-      mandarPraSeguir('/io/eletroposto/parceria', 'Ver os caminhos para começar',
-        'Pelo que você respondeu, o seu projeto ainda está no começo. É o melhor momento para aprender a escolher o ponto certo.');
-      return;
-    }
-
-    // A ficha NOTA 1 já foi gravada acima e a aba Investidores do /gerador lê as
-    // duas tabelas (parceria E nota1): quem tem o capital e não se cadastra na
-    // porta continua na lista da equipe.
+    // O cadastro de INVESTIDOR, sem formulário. keepalive porque a aba troca de página
+    // logo em seguida. Chave sem valor não apaga nada no banco (a rota tira do objeto),
+    // então quem já tinha se cadastrado à mão não perde o que preencheu.
     if (!semCapital) {
-      track('nota1_parceria_capital');
-      mandarPraSeguir('/io/eletroposto/parceria', 'Cadastrar como investidor',
-        'Você tem como investir, e é isso que a maioria não tem. Falta o ponto, e ponto é coisa que a gente acha junto.');
-      return;
+      try {
+        fetch('/_api/io/eletroposto/parceria', {
+          method:'POST', headers:{'Content-Type':'application/json'}, keepalive:true,
+          body: JSON.stringify({
+            lado: 'capital', nome, telefone: telE164, cidade,
+            capital_faixa: txt(valor), capital_origem: investTexto,
+            origem: 'lp_nota1', automatico: true,
+            ...utmPrimeiroToque(),
+          }),
+        }).catch(()=>{});
+      } catch(_){}
     }
 
-    track('nota1_parceria');
-    mandarPraSeguir('/io/eletroposto/parceria', 'Entrar na lista de conexão',
-      'Você tem o local encaminhado, que é a parte escassa. O capital a gente conecta, e é exatamente para isso que existe a nossa lista.');
+    // Eventos separados por caminho, para o Pixel saber quem chegou ao curso por qual
+    // motivo. Os nota1_parceria_* da tarde de 15/09 param de contar.
+    irProCurso(curioso ? 'nota1_curso_curioso' : (semCapital ? 'nota1_curso_ponto' : 'nota1_curso_capital'));
     return;
   }
 
@@ -3022,11 +3072,14 @@ async function agendar(){
     // 15/09, quem ainda negocia o local são conversas diferentes.
     // Mesma frase da 5ª opção da porta do ponto em /parceria: dois formulários, uma régua.
     `Local é seu: ${pontoDefinido ? txt(relacao) : 'Estou negociando com o proprietário'}`,
+    // Vagas (15/09): só de quem tem um local em mente, e todo mundo que agenda tem.
+    PONTO_COM_VAGAS.has(ponto.value) ? `Vagas disponíveis: ${txt(vagas)}` : '',
     // Com a nota vindo só do ponto (15/09), é o modelo que diz qual conversa é: 100%
     // nosso, 50/50 ou chave na mão. O card do WhatsApp imprime como "Modelo:".
     `Modelo de interesse: ${txt(modelo)}`,
     PERFIL_SEM_FLUXO.has(perfil.value) ? `Rota de passagem: ${txt(rota)}` : '',
     `Como pretende investir: ${investTexto}`,
+    pagaCapital ? `Quanto pretende investir: ${txt(valor)}` : '',
     `Decisor: ${txt(decisor)}`,
     `Entrada trifásica: ${txt(trif)}`,
     `Simulou ${kw} kW com ${p.carros} carros/dia`,
@@ -3347,8 +3400,24 @@ window.addEventListener('popstate', () => {
 window.addEventListener('hashchange', () => { seguirUrl = location.href; });
 document.documentElement.addEventListener('mouseleave', e => { if(e.clientY <= 0) abrirSeguir('topo'); });
 document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') abrirSeguir('voltou_aba'); });
-document.addEventListener('keydown', e => {
-  if(e.key === 'Escape' && document.getElementById('seguir-bg').classList.contains('on')) fecharSeguir();
+// SEM ESC E SEM CLIQUE FORA (15/09/2026 à noite): "fica sem opção até seguir ou não".
+// A janela sai pelos dois botões. O voltar continua mostrando ela uma vez por visita.
+//
+// VOLTOU DO CURSO: quem foi recusado, mandado para /ponto-certo e voltou para cá (o
+// voltar do navegador) vê a janela uma vez nesta aba. Lá o voltar só é segurado depois
+// de um toque na página, porque entrada de histórico sem gesto o navegador pula; aqui
+// é o que pega quem voltou sem tocar em nada.
+window.addEventListener('pageshow', () => {
+  let foi = null, ja = null;
+  try{ foi = sessionStorage.getItem('ep_curso'); ja = sessionStorage.getItem('ep_curso_convite'); }catch(e){}
+  if(!foi) return;
+  // a página pode voltar do cache do navegador com o botão ainda em "Um instante…"
+  const btn = document.getElementById('ag-btn');
+  if(btn.textContent === 'Um instante…'){ btn.disabled = false; pintarPasso(); }
+  if(ja || document.documentElement.classList.contains('seguiu')) return;
+  try{ sessionStorage.setItem('ep_curso_convite', '1'); }catch(e){}
+  document.documentElement.classList.add('seguir');
+  abrirSeguir('voltou_do_curso');
 });
 // CAPTURA DE CLIQUE:
 //   Instagram          qualquer um (cartão, barra, janela, rodapé, tela do NOTA 1) marca "seguiu";

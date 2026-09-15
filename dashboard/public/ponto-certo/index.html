@@ -6,10 +6,13 @@
 <meta name="robots" content="index, follow">
 <title>O Ponto Certo · achar, negociar e fechar o local do seu eletroposto</title>
 <meta name="description" content="Você tem o capital e não tem o lugar. Este material é a régua que a gente usa pra escolher um ponto, chegar no dono do imóvel sem levantar a lebre e fechar um contrato longo antes de gastar o primeiro real. Sete aulas e doze instrumentos, R$ 177.">
-<link rel="icon" type="image/svg+xml" href="/ponto-certo/img/favicon.svg">
-<link rel="icon" type="image/png" sizes="32x32" href="/ponto-certo/img/favicon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/ponto-certo/img/favicon-16.png">
-<link rel="apple-touch-icon" href="/ponto-certo/img/apple-touch-icon.png">
+<!-- Favicon da NEXUS (15/09/2026), o mesmo do /nexus e do /io/eletroposto. O raio verde
+     de 01/09 era da marca antiga e ficou no disco em /ponto-certo/img. -->
+<link rel="icon" href="/nexus/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/nexus/img/icone-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/nexus/img/icone-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/nexus/img/icone-180.png">
+<meta name="theme-color" content="#0B1A2B">
 <meta property="og:title" content="O Ponto Certo · a régua para achar o local do seu eletroposto">
 <meta property="og:description" content="Você tem o capital e não tem o lugar. Este material é a régua que a gente usa pra escolher um ponto, chegar no dono do imóvel sem levantar a lebre e fechar um contrato longo antes de gastar o primeiro real. Sete aulas e doze instrumentos, R$ 177.">
 <meta property="og:image" content="https://solardoc.app/nexus/img/capa.webp">
@@ -808,6 +811,25 @@
 
   .heroFoto img{display:block;width:100%;height:auto;border-radius:18px;border:1px solid var(--line);box-shadow:0 30px 60px -30px rgba(0,0,0,.9)}
   @media (max-width:900px){.heroFoto{margin-top:26px}}
+
+  /* ===== Convite de seguir o Instagram (15/09/2026) =====
+     Acima do topo (40) e da barra de compra (50). Classe e nao [hidden]: regra com
+     display ganha do atributo hidden e a janela nasceria aberta. */
+  .segBg{position:fixed;inset:0;z-index:300;display:none;align-items:center;justify-content:center;
+    padding:20px;background:rgba(5,12,20,.88);backdrop-filter:blur(6px)}
+  .segBg.on{display:flex}
+  .segCaixa{width:100%;max-width:440px;background:var(--surface);border:1px solid var(--line2);
+    border-radius:20px;padding:30px 24px 22px;text-align:center;box-shadow:0 30px 70px -20px rgba(0,0,0,.9)}
+  .segIc{width:64px;height:64px;margin:0 auto 16px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:rgba(214,41,118,.16);border:1px solid rgba(214,41,118,.5)}
+  .segIc svg{width:30px;height:30px;fill:none;stroke:#F06AAE;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .segCaixa h3{font-size:22px;font-weight:800;color:#fff;margin-bottom:10px}
+  .segCaixa p{font-size:15.5px;line-height:1.55;margin-bottom:20px}
+  .segCaixa .cta{display:flex;width:100%;justify-content:center;text-align:center}
+  .segNao{margin-top:10px;width:100%;min-height:48px;background:none;border:1px solid var(--line2);border-radius:12px;
+    color:var(--muted);font:inherit;font-size:15px;font-weight:600;cursor:pointer}
+  .segNao:hover,.segNao:focus-visible{color:var(--text);border-color:var(--text)}
+  @media (max-width:420px){.segCaixa{padding:26px 18px 18px}.segCaixa h3{font-size:20px}}
 </style>
 </head>
 <body>
@@ -818,7 +840,9 @@
   </div>
 </div>
 
-<div class="acolhe" id="acolhe" hidden><div class="wrap"><p class="acolheTx" id="acolheTx"></p><a class="acolheLnk" href="/io/eletroposto/parceria">Prefiro entrar na fila e esperar a equipe achar um ponto pra mim →</a></div></div>
+<!-- Sem o link "prefiro entrar na fila" desde 15/09/2026: o cadastro de quem vem da LP
+     passou a ser automático, então a faixa diz em que lista a pessoa já está. -->
+<div class="acolhe" id="acolhe" hidden><div class="wrap"><p class="acolheTx" id="acolheTx"></p></div></div>
 
 <header class="hero">
   <div class="wrap heroGrid">
@@ -1257,6 +1281,20 @@
   <a href="https://pay.kiwify.com.br/BtebJFP" class="cta" data-cta="barra">Quero o material por R$ 177 →</a>
 </div>
 
+<!-- CONVITE DE SEGUIR (15/09/2026). Pedido do Thiago: quem foi recusado no quiz do
+     eletroposto e mandado para cá, ao tentar sair, vê o convite de seguir o Instagram e
+     só sai dele escolhendo: seguir ou não. Sem X, sem clique fora, sem Esc. Quem chega
+     por anúncio ou link não vê nada. A lógica está no fim do script. -->
+<div class="segBg" id="seg-bg">
+  <div class="segCaixa" role="dialog" aria-modal="true" aria-labelledby="seg-tit">
+    <div class="segIc"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></svg></div>
+    <h3 id="seg-tit">Antes de sair, siga a gente no Instagram</h3>
+    <p>É lá que sai <strong>ponto novo saindo do chão</strong> e a conta real de cada caso. Quem acompanha fica sabendo primeiro dos postos que vão precisar de sócio.</p>
+    <a class="cta" id="seg-ig" href="https://instagram.com/irmaosnaobra__" target="_blank" rel="noopener">Seguir @irmaosnaobra__ →</a>
+    <button type="button" class="segNao" id="seg-nao">Não, obrigado</button>
+  </div>
+</div>
+
 
 <script>
 /* MEDIÇÃO DA PÁGINA — três sinais, nada além disso.
@@ -1306,8 +1344,14 @@
       var el = document.getElementById('acolhe');
       var tx = document.getElementById('acolheTx');
       if (el && tx) {
+        // O lado vem da LP (15/09): o cadastro dela é automático, então a faixa diz em
+        // que lista a pessoa já está. O curioso não está em nenhuma e não ouve isso.
+        var lado = lead && lead.lado;
+        var lista = lado === 'capital' ? ' Seu cadastro já está na nossa lista de investidores.'
+                  : lado === 'ponto' ? ' O seu local já está na nossa lista de parceiros.' : '';
         tx.innerHTML = nome.replace(/[<>&]/g, '') + ', a reunião não sai agora por um motivo só: '
-          + '<strong>você ainda não tem o local</strong>. É exatamente disso que este material trata.';
+          + '<strong>' + (lado === 'ponto' ? 'o local ainda não está fechado' : 'você ainda não tem o local') + '</strong>.'
+          + lista + ' É exatamente disso que este material trata.';
         el.hidden = false;
       }
     }
@@ -1347,6 +1391,99 @@
     var a = e.target && e.target.closest && e.target.closest('a[href*="kiwify"]');
     if (a) sinal('pc_lp_checkout');
   }, true);
+
+  /* CONVITE DE SEGUIR NA SAÍDA (15/09/2026, ordem do Thiago).
+   *
+   * Vale só para quem o quiz do eletroposto recusou e mandou para cá: `ep_lead` nesta
+   * aba, ou `ep_recusado` gravado nos últimos 30 dias. E só enquanto a pessoa não
+   * clicou em nenhum link do Instagram (`ep_seguiu`, a mesma chave da LP: mesma origem,
+   * então quem já seguiu por lá não é chamado de novo). Quem chega por anúncio, link
+   * direto ou busca não vê janela nenhuma.
+   *
+   *   VOLTAR  uma entrada a mais no histórico, criada no primeiro toque na página
+   *           (entrada criada sem gesto o Chrome e o Safari pulam). Segura UMA vez por
+   *           visita: a regra de Spam da Meta chama de "trapping" a janela que volta
+   *           sem fim. Quem volta sem tocar em nada cai na LP, e a LP abre a janela.
+   *   MOUSE   saindo pelo topo da janela, no computador.
+   *   LINK    que sai da página. O checkout da Kiwify NUNCA é segurado: é a compra.
+   *   ABA     ao voltar para ela, com 20 s de espera depois de fechar a janela.
+   *
+   * A janela não fecha clicando fora nem com Esc: sai escolhendo seguir ou não.
+   * Fechar a aba não tem como interceptar em navegador nenhum. */
+  (function(){
+    var recusado = false, seguiu = false;
+    try {
+      var l = JSON.parse(sessionStorage.getItem('ep_lead') || 'null');
+      var r = Number(localStorage.getItem('ep_recusado') || 0);
+      recusado = !!(l && l.nome) || (r > 0 && Date.now() - r < 30 * 86400000);
+      seguiu = !!localStorage.getItem('ep_seguiu');
+    } catch (e) {}
+    var bg = document.getElementById('seg-bg');
+    if (!recusado || seguiu || !bg) return;
+
+    var destino = null, fechouEm = 0, voltarUsado = false, ancoraEm = 0, url = location.href;
+
+    function abrir(motivo, dest){
+      if (seguiu || bg.classList.contains('on')) return false;
+      if ((motivo === 'topo' || motivo === 'voltou_aba') && Date.now() - fechouEm < 20000) return false;
+      destino = dest || null;
+      document.getElementById('seg-nao').textContent = dest ? 'Não, obrigado, continuar' : 'Não, obrigado';
+      bg.classList.add('on');
+      document.body.style.overflow = 'hidden';
+      try { document.getElementById('seg-ig').focus({ preventScroll: true }); } catch (e) {}
+      sinal('pc_seguir_janela');
+      return true;
+    }
+    function fechar(){
+      bg.classList.remove('on');
+      document.body.style.overflow = '';
+      fechouEm = Date.now();
+      if (destino) { var d = destino; destino = null; location.href = d; }
+    }
+    function marcarSeguiu(){
+      if (seguiu) return;
+      seguiu = true;
+      try { localStorage.setItem('ep_seguiu', String(Date.now())); } catch (e) {}
+      sinal('pc_seguir_clique');
+      bg.classList.remove('on');
+      document.body.style.overflow = '';
+      // seguiu pela janela que segurou um link: o Instagram abre na aba nova e esta vai
+      // para onde a pessoa ia; os 300 ms deixam a aba nova nascer antes
+      if (destino) { var d = destino; destino = null; setTimeout(function(){ location.href = d; }, 300); }
+    }
+    function armar(){
+      if (seguiu || voltarUsado) return;
+      try { if (!(history.state && history.state.pcSeguir)) history.pushState({ pcSeguir: 1 }, '', location.href); } catch (e) {}
+    }
+
+    document.getElementById('seg-nao').addEventListener('click', fechar);
+    // O popstate também dispara em âncora da própria página: só conta como "voltar para
+    // sair" quando a URL não mudou e não houve clique em âncora agora há pouco.
+    window.addEventListener('popstate', function(){
+      var antes = url;
+      url = location.href;
+      if (location.href !== antes || Date.now() - ancoraEm < 600) return;
+      if (history.state && history.state.pcSeguir) return;
+      if (!voltarUsado && abrir('voltar')) { voltarUsado = true; return; }
+      history.back();
+    });
+    window.addEventListener('hashchange', function(){ url = location.href; });
+    document.documentElement.addEventListener('mouseleave', function(e){ if (e.clientY <= 0) abrir('topo'); });
+    document.addEventListener('visibilitychange', function(){ if (document.visibilityState === 'visible') abrir('voltou_aba'); });
+    document.addEventListener('click', function(e){
+      var a = e.target && e.target.closest && e.target.closest('a[href]');
+      if (a && /instagram\.com/.test(a.href)) { marcarSeguiu(); return; }
+      armar();
+      if (!a || seguiu) return;
+      var href = a.getAttribute('href') || '';
+      if (href.charAt(0) === '#') { ancoraEm = Date.now(); return; }
+      if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+      if (a.target === '_blank' || a.closest('#seg-bg') || /kiwify/i.test(a.href)) return;
+      if (/^(https?:\/\/(wa\.me|api\.whatsapp\.com)|tel:|mailto:)/i.test(a.href)) return;
+      if (a.origin === location.origin && a.pathname === location.pathname && a.search === location.search) { ancoraEm = Date.now(); return; }
+      if (abrir('link', a.href)) e.preventDefault();
+    }, true);
+  })();
 })();
 </script>
 
