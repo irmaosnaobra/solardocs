@@ -1,0 +1,90 @@
+-- Instagram: todo comentario em post de eletroposto cai no quiz, com BOTAO.
+-- (16/09/2026)  Projeto: gerador-propostas (ancecdfqfwlaujknizof)
+-- APLICADO E CONFERIDO POR SONDA. Este arquivo e o registro do que rodou.
+--
+-- O PROBLEMA, medido nos comentarios reais dos ultimos 60 dias:
+-- post que NAO esta fixado numa automacao depende de palavra-chave, e em post
+-- organico a regua e a dura (SINAIS_FORTES). Rodando a decisao real contra 8
+-- comentarios tipicos, num post nao fixado:
+--     "Eu"              -> nada        "Show"            -> nada
+--     "Bifasico 220v ?" -> nada        "top demais"      -> nada
+--     "me manda info"   -> nada        "2 vagas aqui"    -> nada
+--     "quero"           -> MENU (sem link, pede pra responder SOLAR/ELETROPOSTO)
+-- 7 de 8 nao recebem nada. Com o post fixado: 8 de 8 vao pro quiz.
+--
+-- Casos perdidos de verdade que estao no log: "Eu", "Eu bora bora",
+-- "Bifasico 220v ?" -- gente levantando a mao sem usar palavra-chave.
+--
+-- POR QUE FIXAR RESOLVE: em escolher() (igEngine) midia fixada vale 1.000.000 de
+-- score e ganha de tudo. Mas a palavra-chave CONTINUA sendo exigida mesmo com a
+-- midia fixada -- por isso a automacao precisa de match_tipo 'qualquer'.
+
+-- ── 1. Automacao nova, so pros posts ORGANICOS de eletroposto ───────────────
+-- Linha separada de proposito: a do anuncio pago nao pode compartilhar copy com
+-- a organica, senao mexer numa mexe na campanha que esta rodando.
+-- Inserida com ativo=false, conferida, e so entao ligada.
+--
+-- insert into ig_automations
+--   (nome, ativo, gatilhos, palavras_chave, match_tipo, respostas_publicas,
+--    dm_boas_vindas, botao_rotulo, link_url, lembrete_horas, prioridade, midias,
+--    fallback, produto, gate_off)
+-- values (
+--   'Post organico Eletroposto - vagas viram renda', true,
+--   '{"comment": true, "story": false, "dm": false}'::jsonb, '{}', 'qualquer',
+--   array['Te chamei no direct (olha tambem em Solicitacoes ou na aba Geral)',
+--         'Manda ver no direct (se nao achar, confere em Solicitacoes ou na aba Geral)'],
+--   'Suas vagas podem virar renda com carregador de carro eletrico' || chr(10) ||
+--   'Responde 3 perguntas rapidas e veja quanto seu ponto rende.',
+--   'Ver quanto rende',
+--   'https://solardoc.app/io/eletroposto?src=ig&utm_source=instagram&utm_medium=dm&utm_campaign=eletroposto&utm_content=post-organico',
+--   20, 5, array['17880542829525087','17957603091234852'], false, 'eletroposto', true
+-- );
+-- id gerado: e8e93fee-2773-4b78-9444-6a607a4f1c69
+--
+-- As duas midias:
+--   17880542829525087  "Pra quem tem interesse, que tenho local entra em contato
+--                       no direct! #eletroposto #carroeletrico #investimento"
+--   17957603091234852  "2 vagas de estacionamento pode te entregar um faturamento
+--                       muito alto, marque sua reuniao e entenda!"
+--                       (sem comentario nenhum no log, entao a leitura e pela
+--                        legenda: vaga de estacionamento virando renda e a oferta
+--                        do eletroposto. Se aparecer comentario fora do assunto,
+--                        e so tirar o id do array.)
+
+-- ── 2. O link solto vira CARD COM BOTAO nas duas automacoes que ja existiam ──
+-- Pedido do Thiago: "trocar o link grande que eles recebem por um botao, que
+-- clica e cai no quiz".
+--
+-- O card so monta com dm_boas_vindas ATE 160 caracteres, 1a linha virando titulo
+-- (teto 80) e o resto subtitulo (teto 80). A copy abaixo mede 113 no total,
+-- 62 + 50 -- conferido com buildMessage, nao estimado.
+--
+-- update ig_automations set
+--   dm_boas_vindas = 'Eletroposto: renda recorrente com carregador de carro eletrico'
+--                 || chr(10) || 'Veja as vagas na sua regiao e agende sua conversa.',
+--   botao_rotulo   = 'Ver as vagas'
+-- where produto = 'eletroposto' and ativo = true
+--   and id <> 'e8e93fee-2773-4b78-9444-6a607a4f1c69';
+
+-- ── O CARD FUNCIONA, e a duvida antiga ficou para tras ──────────────────────
+-- Havia registro de que template/botao dava OAuthException code 1 no Instagram.
+-- Medido na fila: 7 private_reply COM botao sairam 'sent' entre 06/08 e 23/08
+-- (Bike Konnan, rotulo "Falar no WhatsApp"). O unico 'failed' e de 25/07, antes
+-- de o igFalha separar 'incerto' de falha real. O caminho e o template generic.
+-- E se a Meta recusar o card, a drenagem reenvia o texto com o link colado no
+-- fim -- ninguem fica sem o destino por causa do formato.
+
+-- SONDA (arquivo no repo nao prova que rodou):
+-- select nome, ativo, prioridade, match_tipo, midias, botao_rotulo,
+--        length(dm_boas_vindas) tam
+--   from ig_automations where produto = 'eletroposto' order by prioridade;
+
+-- VOLTAR ATRAS:
+-- update ig_automations set ativo = false where id = 'e8e93fee-2773-4b78-9444-6a607a4f1c69';
+-- update ig_automations set botao_rotulo = null,
+--   dm_boas_vindas = 'Show! O Eletroposto e uma oportunidade de investimento em carregadores de carro eletrico, com retorno recorrente. Veja como funciona aqui:'
+--  where produto = 'eletroposto' and id <> 'e8e93fee-2773-4b78-9444-6a607a4f1c69';
+
+-- FALTA (nao e deste arquivo): todo post novo de eletroposto precisa do id
+-- adicionado no array `midias`. Da pra automatizar lendo a legenda dos posts
+-- recentes, mas isso e codigo novo e ninguem pediu ainda.
