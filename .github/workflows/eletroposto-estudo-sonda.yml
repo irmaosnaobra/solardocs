@@ -7,6 +7,8 @@ name: Estudo do local (sonda, ensaio e backfill)
 #   dry       decide sem gravar; com id, ensaia uma ficha real (gasta Google e IA)
 #   backfill  cria o estudo das reuniões que já estavam na agenda, sem aviso
 #   tick      uma rodada normal; com id, processa só essa ficha
+#   top-dry   monta o top 20 do dia e devolve a prévia, sem mandar WhatsApp
+#   top       manda o top 20 agora para o Thiago e o Diego (o cron manda ao meio-dia)
 #
 # O log deste workflow é PÚBLICO (repo público). As respostas da rota não trazem
 # nome, telefone, endereço nem coordenada: só status, notas e contagens.
@@ -14,11 +16,11 @@ on:
   workflow_dispatch:
     inputs:
       modo:
-        description: 'sonda, dry, backfill ou tick'
+        description: 'sonda, dry, backfill, tick, top-dry ou top'
         required: true
         default: sonda
         type: choice
-        options: [sonda, dry, backfill, tick]
+        options: [sonda, dry, backfill, tick, top-dry, top]
       id:
         description: 'id da reunião (opcional)'
         required: false
@@ -33,10 +35,13 @@ jobs:
           MODO: ${{ inputs.modo }}
           ID: ${{ inputs.id }}
         run: |
+          ROTA="eletroposto-estudo"
           case "$MODO" in
             sonda) Q="sonda=1" ;;
             dry) Q="dry=1" ;;
             backfill) Q="backfill=1" ;;
+            top-dry) ROTA="eletroposto-top-pontos"; Q="dry=1" ;;
+            top) ROTA="eletroposto-top-pontos"; Q="" ;;
             *) Q="" ;;
           esac
           if [ -n "$ID" ]; then
@@ -47,5 +52,5 @@ jobs:
           fi
           curl --fail-with-body -sS --max-time 120 \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            "https://api.solardoc.app/cron/eletroposto-estudo?$Q"
+            "https://api.solardoc.app/cron/$ROTA?$Q"
           echo
