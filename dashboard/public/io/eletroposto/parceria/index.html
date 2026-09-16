@@ -826,6 +826,16 @@ fetch(API + '/io/eletroposto/parceria/placar').then(function(r){ return r.json()
   document.getElementById('placar').hidden = false;
 }).catch(function(){});
 
+/* ── a porta pode vir escolhida do quiz (?lado=capital|integrador|ponto) ──
+   Desde 16/09/2026 a primeira pergunta da LP é "o que você é?". Quem responde
+   Investidor ou Integrador já disse tudo o que este cardápio perguntaria de novo,
+   então a página abre direto no formulário certo. Sem o parâmetro, nada muda. */
+(function(){
+  var lado = (new URLSearchParams(location.search).get('lado') || '').trim();
+  if (['capital','ponto','integrador'].indexOf(lado) < 0) return;
+  setTimeout(function(){ try { abrirPorta(lado); ev('parceria_porta_do_quiz_' + lado); } catch(_){} }, 120);
+})();
+
 /* ── contexto de quem veio do formulário ── */
 (function(){
   if (!veioDaLP) { ev('parceria_view_direto'); return; }

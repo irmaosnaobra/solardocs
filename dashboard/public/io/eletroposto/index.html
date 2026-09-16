@@ -1151,7 +1151,25 @@
              carregar, o `pintarPasso()` nunca roda e um formulario com todos os
              passos em display:none seria um cartao vazio na tela — pior que a
              parede que este commit veio consertar. -->
-        <div class="passo on" id="p-horario">
+        <!-- A PORTA (16/09/2026). Ordem do Thiago: três linhas no começo, e cada uma
+             leva a pessoa para onde ela resolve. Medido em 45 dias: o investidor é 36%
+             da agenda (76 reuniões) e converte 13%, contra 32% dos outros perfis, com
+             20 faltas. Nem o investidor COM ponto definido salva (6 orçamentos em 47).
+             Então investidor e integrador vão para o cadastro, e a agenda fica para
+             quem tem ponto. Voltar atrás é trocar as opções desta lista. -->
+        <div class="passo on" id="p-porta">
+        <div class="fld">
+          <label for="f-porta">Para começar, o que você é?</label>
+          <div class="inp"><select id="f-porta" onchange="onPorta()">
+            <option value="">Selecione…</option>
+            <option value="investidor">Investidor · tenho capital, quero um ponto</option>
+            <option value="comercio">Dono de comércio · tenho um ponto</option>
+            <option value="integrador">Integrador de energia solar</option>
+          </select></div>
+        </div>
+        </div>
+
+        <div class="passo" id="p-horario">
           <div class="step">
             <div class="pergunta">Escolha o melhor horário</div>
             <div class="slots" id="slots"></div>
@@ -1203,7 +1221,9 @@
             <option value="hotel">Hotel / pousada</option>
             <option value="estacionamento">Estacionamento</option>
             <option value="condominio">Condomínio</option>
-            <option value="investidor">Investidor</option>
+            <!-- "Investidor" saiu daqui em 16/09/2026: virou a primeira porta do quiz,
+                 e quem clica nela vai para o cadastro em vez da agenda. O valor segue
+                 aceito pelo resto do código, então ficha antiga continua sendo lida. -->
             <option value="outro">Outro · digitar o meu</option>
           </select></div>
         </div>
@@ -2654,18 +2674,22 @@ const val = id => document.getElementById(id).value.trim();
 const soDigitos = id => document.getElementById(id).value.replace(/\D/g,'');
 /** O WhatsApp está preenchido e com DDD? É o que libera o botão de confirmar. */
 const telefoneConfere = () => soDigitos('f-tel').length >= 10;
+/** Só quem tem ponto segue para a agenda. Investidor e integrador vão para o cadastro. */
+const soComercio = () => val('f-porta') === 'comercio';
+
 const PASSOS = [
-  { id:'p-horario', ok:() => slotSel ? null : 'Escolha um horário na lista.' },
-  { id:'p-nome',    ok:() => val('f-nome').length >= 3 ? null : 'Informe seu nome completo.' },
-  { id:'p-cidade',  ok:() => val('f-cidade').length >= 2 ? null : 'Informe a cidade e o estado (UF).' },
-  { id:'p-perfil',  ok:() => {
+  { id:'p-porta',   ok:() => val('f-porta') ? null : 'Escolha uma das três opções.' },
+  { id:'p-horario', quando: soComercio, ok:() => slotSel ? null : 'Escolha um horário na lista.' },
+  { id:'p-nome',    quando: soComercio, ok:() => val('f-nome').length >= 3 ? null : 'Informe seu nome completo.' },
+  { id:'p-cidade',  quando: soComercio, ok:() => val('f-cidade').length >= 2 ? null : 'Informe a cidade e o estado (UF).' },
+  { id:'p-perfil',  quando: soComercio, ok:() => {
       const v = val('f-perfil');
       if(!v) return 'Selecione seu perfil.';
       if(v === 'outro' && val('f-outro').length < 3) return 'Escreva qual é o seu segmento.';
       if(PERFIL_SEM_FLUXO.has(v) && !val('f-rota')) return 'Informe se o local fica em rota de passagem.';
       return null;
     } },
-  { id:'p-ponto',   ok:() => {
+  { id:'p-ponto',   quando: soComercio, ok:() => {
       const v = val('f-ponto');
       if(!v) return 'Informe como está o seu ponto hoje.';
       if(v === 'definido' && !val('f-relacao')) return 'Informe qual é a sua relação com o local.';
@@ -2678,15 +2702,15 @@ const PASSOS = [
       }
       return null;
     } },
-  { id:'p-vagas',   quando:() => PONTO_COM_VAGAS.has(val('f-ponto')),
+  { id:'p-vagas',   quando:() => soComercio() && PONTO_COM_VAGAS.has(val('f-ponto')),
                     ok:() => val('f-vagas') ? null : 'Informe quantas vagas estão disponíveis.' },
-  { id:'p-modelo',  ok:() => val('f-modelo') ? null : 'Escolha o modelo que te interessa.' },
-  { id:'p-invest',  quando:() => !MODELO_SEM_CAPITAL.has(val('f-modelo')),
+  { id:'p-modelo',  quando: soComercio, ok:() => val('f-modelo') ? null : 'Escolha o modelo que te interessa.' },
+  { id:'p-invest',  quando:() => soComercio() && !MODELO_SEM_CAPITAL.has(val('f-modelo')),
                     ok:() => val('f-invest') ? null : 'Informe como pretende investir.' },
-  { id:'p-valor',   quando:() => !MODELO_SEM_CAPITAL.has(val('f-modelo')),
+  { id:'p-valor',   quando:() => soComercio() && !MODELO_SEM_CAPITAL.has(val('f-modelo')),
                     ok:() => val('f-valor') ? null : 'Informe quanto pretende investir.' },
-  { id:'p-decisor', ok:() => val('f-decisor') ? null : 'Informe quem decide o investimento.' },
-  { id:'p-whatsapp', ok:() => {
+  { id:'p-decisor', quando: soComercio, ok:() => val('f-decisor') ? null : 'Informe quem decide o investimento.' },
+  { id:'p-whatsapp', quando: soComercio, ok:() => {
       return telefoneConfere() ? null : 'Informe um WhatsApp válido com DDD.';
     } },
 ];
@@ -2714,8 +2738,10 @@ function pintarPasso(){
   // falta uma resposta pra dar.
   const pronto = ultimo && telefoneConfere();
   const btn = document.getElementById('ag-btn');
-  btn.textContent = pronto ? 'Confirmar agendamento →' : 'Continuar →';
-  btn.dataset.acao = pronto ? 'agendar' : 'proximo';
+  // Investidor e integrador não agendam: a mesma tecla leva ao cadastro deles.
+  const paraCadastro = val('f-porta') === 'investidor' || val('f-porta') === 'integrador';
+  btn.textContent = paraCadastro ? 'Ir para o cadastro →' : (pronto ? 'Confirmar agendamento →' : 'Continuar →');
+  btn.dataset.acao = paraCadastro ? 'cadastro' : (pronto ? 'agendar' : 'proximo');
   // o aviso de erro é do passo que passou: some ao trocar de pergunta
   const m = document.getElementById('ag-msg');
   m.className = 'agMsg'; m.textContent = '';
@@ -2727,10 +2753,38 @@ function pintarPasso(){
   if(pilha && pilha.classList.contains('opcs')) campo = pilha.querySelector('.opc.on') || pilha.querySelector('.opc');
   if(campo && window.innerWidth > 760) campo.focus({preventScroll:true});
 }
-/** O clique do botão único: no fim ele agenda, no resto ele avança. */
+/** O clique do botão único: agenda, leva ao cadastro ou avança um passo. */
 function passoAcao(){
-  if(document.getElementById('ag-btn').dataset.acao === 'agendar') return agendar();
+  const acao = document.getElementById('ag-btn').dataset.acao;
+  if(acao === 'agendar')  return agendar();
+  if(acao === 'cadastro') return irParaCadastro();
   passoProximo();
+}
+
+/** A porta mudou: a lista de passos vivos muda junto, então repinta. */
+function onPorta(){
+  const p = val('f-porta');
+  if(p) track('porta_' + p);
+  passoAtual = 0;
+  if(typeof pintarPasso === 'function') pintarPasso();
+}
+
+/**
+ * Investidor e integrador vão para /io/eletroposto/parceria, que já é o cadastro
+ * da casa: grava na mesma tabela, avisa a equipe no WhatsApp com os dados e mostra
+ * o curso para quem tem capital. As UTMs da visita seguem junto na query, senão a
+ * origem do lead se perde na troca de página.
+ */
+function irParaCadastro(){
+  const porta = val('f-porta');
+  if(!porta) return erro('Escolha uma das três opções.');
+  track('porta_cadastro_' + porta);
+  const q = new URLSearchParams(location.search);
+  q.set('lado', porta === 'integrador' ? 'integrador' : 'capital');
+  q.set('de', 'quiz');
+  const btn = document.getElementById('ag-btn');
+  btn.disabled = true; btn.textContent = 'Um instante…';
+  setTimeout(() => { location.href = '/io/eletroposto/parceria/?' + q.toString(); }, 200);
 }
 function passoProximo(){
   const vivos = passosVivos();
@@ -2767,7 +2821,7 @@ function mostrarContinuar(){
 // de 220 ms, e no celular a pergunta trocava debaixo do dedo. Agora o único jeito de
 // mudar de passo é o botão, e a escolha só marca, pinta e traz o botão para a vista.
 // ═══════════════════════════════════════════════════════════════════════════
-const SELECTS_EM_BOTAO = ['f-perfil','f-rota','f-ponto','f-relacao','f-vagas','f-modelo','f-invest','f-valor','f-decisor'];
+const SELECTS_EM_BOTAO = ['f-porta','f-perfil','f-rota','f-ponto','f-relacao','f-vagas','f-modelo','f-invest','f-valor','f-decisor'];
 function montarOpcoes(){
   SELECTS_EM_BOTAO.forEach(id => {
     const sel = document.getElementById(id);
