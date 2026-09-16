@@ -141,6 +141,34 @@ describe('as mensagens da equipe', () => {
     expect(m).not.toContain('undefined');
   });
 
+  // O banco guarda o CNPJ só com dígitos. Quem lê o aviso copia esse número pra
+  // consultar a empresa, e 14 dígitos seguidos ninguém confere de olho.
+  it('integrador: CNPJ sai com máscara, e empresa aparece', () => {
+    const m = montarAvisoIntegrador({
+      id: 11, nome: 'Marcos Vieira', telefone: '5534991110002', cidade: 'Uberaba-MG',
+      empresa: 'Solar Vieira', cnpj: '12345678000190',
+    });
+    expect(m).toContain('*Empresa:* Solar Vieira');
+    expect(m).toContain('*CNPJ:* 12.345.678/0001-90');
+  });
+
+  // Número torto sai como veio: melhor a equipe estranhar e perguntar do que
+  // receber um CNPJ bem formatado que não existe.
+  it('integrador: CNPJ fora de 14 dígitos não é maquiado', () => {
+    const m = montarAvisoIntegrador({
+      id: 12, nome: 'Marcos Vieira', telefone: '5534991110003', cnpj: '1234',
+    });
+    expect(m).toContain('*CNPJ:* 1234');
+  });
+
+  // Sem empresa e sem CNPJ, as duas linhas somem. Linha vazia em aviso de
+  // WhatsApp é ruído que a equipe aprende a pular, e aí pula o que importa.
+  it('integrador sem empresa não ganha linha vazia', () => {
+    const m = montarAvisoIntegrador({ id: 13, nome: 'X Y', telefone: '5534991110004' });
+    expect(m).not.toContain('*Empresa:*');
+    expect(m).not.toContain('*CNPJ:*');
+  });
+
   it('integrador sem nada preenchido não vaza undefined nem null', () => {
     const m = montarAvisoIntegrador({ id: 10, nome: 'X', telefone: '5534991110001' });
     expect(m).toContain('*Cidade:* —');

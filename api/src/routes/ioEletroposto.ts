@@ -743,6 +743,17 @@ export function montarAvisoCapital(reg: Record<string, unknown>, dica: string[])
  * quem procura ponto é investidor, e oferecer um ponto a quem só quer instalar
  * faria o consultor abrir a conversa errada.
  */
+// O CNPJ é gravado só com dígitos (é assim que se compara e se deduplica), mas
+// quem lê o aviso vai copiar esse número pra consultar a empresa. 14 dígitos
+// seguidos ninguém confere de olho, então a máscara é posta na hora de mostrar.
+// Qualquer coisa que não tenha 14 dígitos sai como veio: é melhor a equipe ver
+// um número torto e perguntar do que ver um número bonito e errado.
+export function cnpjNaTela(bruto: unknown): string {
+  const d = String(bruto ?? '').replace(/\D/g, '');
+  if (d.length !== 14) return String(bruto ?? '');
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+}
+
 export function montarAvisoIntegrador(reg: Record<string, unknown>): string {
   return [
     '🔧 *INTEGRADOR — cadastro novo*',
@@ -751,7 +762,7 @@ export function montarAvisoIntegrador(reg: Record<string, unknown>): string {
     `*WhatsApp:* wa.me/${String(reg.telefone || '')}`,
     `*Cidade:* ${v(reg, 'cidade')}`,
     ...(reg.empresa ? [`*Empresa:* ${v(reg, 'empresa')}`] : []),
-    ...(reg.cnpj ? [`*CNPJ:* ${v(reg, 'cnpj')}`] : []),
+    ...(reg.cnpj ? [`*CNPJ:* ${cnpjNaTela(reg.cnpj)}`] : []),
     `*O que faz hoje:* ${v(reg, 'integrador_atuacao')}`,
     `*Como quer trabalhar:* ${v(reg, 'integrador_interesse')}`,
     `*Já instalou carregador:* ${v(reg, 'integrador_experiencia')}`,
