@@ -698,8 +698,8 @@ export interface FatosIA {
   modelo_de_interesse: string | null;
   bairro: string;
   cidade: string;
-  entorno: { raio_m: number; total: number; vinte_ou_mais: boolean; por_tipo: Record<string, number>; mais_proximos: Array<{ tipo: string; dist_m: number }> } | null;
-  recarga_5km: { total: number; vinte_ou_mais: boolean; mais_perto_m: number | null } | null;
+  entorno: { raio_m: number; raio_km: number; total: number; vinte_ou_mais: boolean; por_tipo: Record<string, number>; mais_proximos: Array<{ tipo: string; dist_m: number }> } | null;
+  recarga_5km: { raio_km: number; total: number; vinte_ou_mais: boolean; mais_perto_m: number | null; mais_perto_km: number | null } | null;
   municipio: { populacao_2026: number | null; pib_per_capita_2023: number | null; frota: number | null; plugin: number | null; plugin_por_mil: number | null; uf_por_mil: number | null; brasil_por_mil: number | null } | null;
   pre_nota: number | null;
   indice: number | null;
@@ -721,12 +721,21 @@ export function montarFatosIA(d: DadosEstudo): FatosIA {
     cidade: d.municipio ? `${d.municipio.nome}-${d.municipio.uf}` : (d.endereco_digitado?.cidade || ''),
     entorno: d.entorno ? {
       raio_m: d.entorno.raio_m,
+      // A mesma distância em km: a IA escreve "1 km", e sem este campo o número 1
+      // não existiria nos fatos e o texto inteiro seria reprovado.
+      raio_km: Math.round(d.entorno.raio_m / 100) / 10,
       total: d.entorno.n,
       vinte_ou_mais: d.entorno.cheio,
       por_tipo: Object.fromEntries(Object.entries(d.entorno.por_tipo).map(([k, v]) => [rotuloTipo(k), v])),
       mais_proximos: d.entorno.lista.slice(0, 5).map(i => ({ tipo: i.rotulo, dist_m: i.dist_m })),
     } : null,
-    recarga_5km: d.recarga ? { total: d.recarga.n, vinte_ou_mais: d.recarga.cheio, mais_perto_m: d.recarga.mais_perto_m } : null,
+    recarga_5km: d.recarga ? {
+      raio_km: Math.round(d.recarga.raio_m / 100) / 10,
+      total: d.recarga.n,
+      vinte_ou_mais: d.recarga.cheio,
+      mais_perto_m: d.recarga.mais_perto_m,
+      mais_perto_km: d.recarga.mais_perto_m != null ? Math.round(d.recarga.mais_perto_m / 100) / 10 : null,
+    } : null,
     municipio: d.municipio ? {
       populacao_2026: d.municipio.pop_2026, pib_per_capita_2023: d.municipio.pib_pc_2023,
       frota: d.municipio.frota, plugin: d.municipio.plugin, plugin_por_mil: d.municipio.por_mil,
@@ -743,7 +752,10 @@ export function montarFatosIA(d: DadosEstudo): FatosIA {
 
 export const PROIBIDO_IA = /R\$|%|\breais\b|payback|\bTIR\b|\bVPL\b|\bROI\b|lucro|faturamento|garantid|curioso|sem perfil|cancel|desmarc/i;
 const TRAVESSAO = /[–—]/;
-const MAX = { resumo: 600, leitura_do_entorno: 600, pergunta: 200, cuidado: 240, porque_modelo: 400 };
+// Tetos de tamanho. Medido em 15/09 com o modelo de verdade: ele escreve 640 a 660
+// na leitura do entorno e 500 a 580 no porquê do modelo. Reprovar por isso jogava
+// fora texto bom e devolvia o texto padrão, então o teto acompanha o que ele escreve.
+const MAX = { resumo: 700, leitura_do_entorno: 800, pergunta: 200, cuidado: 240, porque_modelo: 600 };
 
 /** Todo número que aparece nos fatos, normalizado ("3.017" e "7,4" viram 3017 e 7.4). */
 function numerosDe(texto: string): Set<string> {
@@ -760,11 +772,29 @@ function normalizarNumero(t: string): string {
   return Number.isFinite(n) ? String(n) : s;
 }
 
+/**
+ * Todo número do texto tem que existir nos fatos. A exceção é o arredondamento com
+ * palavra: "250 mil veículos" quando o JSON traz 250000. Sem isso, a frase mais
+ * natural do texto era reprovada e o consultor recebia o texto padrão (medido em
+ * 15/09: 1 em cada 3 estudos perdia o resumo por causa disso).
+ */
+const NUMERO_COM_ESCALA = /(\d+(?:[.,]\d+)*)\s*(mil|milh(?:ão|ões|oes))?/gi;
+
+function numeroConhecido(bruto: string, escala: string | undefined, numeros: Set<string>): boolean {
+  const base = Number(normalizarNumero(bruto));
+  const candidatos = [normalizarNumero(bruto)];
+  if (Number.isFinite(base) && escala) {
+    const fator = /^mil$/i.test(escala) ? 1000 : 1e6;
+    candidatos.push(String(base * fator));
+  }
+  return candidatos.some(c => numeros.has(c));
+}
+
 function textoPassa(t: unknown, max: number, numeros: Set<string>): t is string {
   if (typeof t !== 'string' || !t.trim() || t.length > max) return false;
   if (PROIBIDO_IA.test(t) || TRAVESSAO.test(t)) return false;
-  for (const m of t.match(/\d+(?:[.,]\d+)*/g) || []) {
-    if (!numeros.has(normalizarNumero(m))) return false;
+  for (const m of t.matchAll(NUMERO_COM_ESCALA)) {
+    if (!numeroConhecido(m[1], m[2], numeros)) return false;
   }
   return true;
 }

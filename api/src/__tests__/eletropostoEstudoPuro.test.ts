@@ -293,6 +293,23 @@ describe('IA: validação e texto de reserva', () => {
     expect(v.leitura_do_entorno).toBe(bom.leitura_do_entorno);
   });
 
+  it('arredondar com a palavra mil vale; inventar o número não', () => {
+    const passa = validarTextoIA({ ...bom, resumo: 'O município tem frota de 250 mil veículos.' }, {
+      ...fatos, municipio: { ...fatos.municipio!, frota: 250000 },
+    });
+    expect(passa.reprovados).not.toContain('resumo');
+
+    const falha = validarTextoIA({ ...bom, resumo: 'O município tem frota de 300 mil veículos.' }, {
+      ...fatos, municipio: { ...fatos.municipio!, frota: 250000 },
+    });
+    expect(falha.reprovados).toContain('resumo');
+  });
+
+  it('distância em km passa porque os fatos trazem o campo em km', () => {
+    const v = validarTextoIA({ ...bom, leitura_do_entorno: 'No raio de 1 km são 14 estabelecimentos.' }, fatos);
+    expect(v.reprovados).not.toContain('leitura_do_entorno');
+  });
+
   it('pergunta ruim sai da lista; com menos de 3, entra a lista de reserva', () => {
     const v = validarTextoIA({ ...bom, perguntas: ['Qual o lucro esperado?', 'Quem decide?', 'Tem vaga?'] }, fatos);
     expect(v.perguntas).toEqual(textosDeModelo(fatos).perguntas);

@@ -384,7 +384,7 @@ export async function historicoDoEndereco(o: {
 
 export const MODELO_IA = 'claude-sonnet-4-6';
 
-const FERRAMENTA = {
+export const FERRAMENTA_ESTUDO = {
   name: 'escrever_estudo',
   description: 'Escreve o texto do estudo do local a partir dos fatos medidos.',
   input_schema: {
@@ -402,12 +402,15 @@ const FERRAMENTA = {
   },
 };
 
-const SISTEMA = [
+export const SISTEMA_ESTUDO = [
   'Você escreve o texto de um estudo interno para o consultor da NEXUS Eletropostos, que vai conversar com o dono de um possível ponto de recarga de carro elétrico.',
   'Use só os fatos do JSON. Escreva em português do Brasil, frases curtas, cada frase começando com letra maiúscula.',
   'Proibido escrever: valor em reais, porcentagem, payback, TIR, VPL, ROI, lucro, faturamento ou quantidade de recargas por dia; qualquer número que não esteja no JSON; nome de lugar ou carregador que não esteja no JSON; fluxo ou volume de carros; promessa de aprovação, financiamento ou prazo; juízo sobre a pessoa; recomendação de cancelar, desmarcar ou priorizar outra reunião; travessão.',
   'A pré-nota, o índice e a situação já vêm prontos e não podem ser contraditos.',
   'As perguntas servem para abrir a reunião e se ligam aos sinais. Os cuidados são o que o consultor precisa confirmar.',
+  'Tamanho: resumo até 600 caracteres, leitura do entorno até 600, cada pergunta até 200, cada cuidado até 240, porque_modelo até 400. Passar do tamanho faz o texto ser descartado.',
+  'Distância pode ser escrita em km quando o JSON traz o campo em km (raio_km, mais_perto_km). Fora desses, use o número como está no JSON.',
+  'Arredondar só com a palavra mil ou milhões sobre um número do JSON, por exemplo 250 mil para 250000. Qualquer outro número novo faz o texto ser descartado.',
   'Modelos NEXUS: 01 o dono cede o espaço e a NEXUS investe 100%; 02 sociedade meio a meio; 03 chave na mão, o eletroposto é do cliente; 04 só o equipamento; 05 consultoria completa.',
 ].join('\n');
 
@@ -423,9 +426,9 @@ export async function escreverTextos(fatos: FatosIA): Promise<{
     const r = await novoAnthropic().messages.create({
       model: MODELO_IA,
       max_tokens: 1500,
-      system: SISTEMA,
+      system: SISTEMA_ESTUDO,
       messages: [{ role: 'user', content: `Fatos do local, em JSON:\n${JSON.stringify(fatos)}` }],
-      tools: [FERRAMENTA],
+      tools: [FERRAMENTA_ESTUDO],
       tool_choice: { type: 'tool', name: 'escrever_estudo' },
     }, { timeout: 30000 });
     const uso = r.content.find(c => c.type === 'tool_use');
