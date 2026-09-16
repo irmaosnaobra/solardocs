@@ -34,7 +34,7 @@
 --   array['Te chamei no direct (olha tambem em Solicitacoes ou na aba Geral)',
 --         'Manda ver no direct (se nao achar, confere em Solicitacoes ou na aba Geral)'],
 --   'Suas vagas podem virar renda com carregador de carro eletrico' || chr(10) ||
---   'Responde 3 perguntas rapidas e veja quanto seu ponto rende.',
+--   'Comece pelo seu perfil e veja quanto seu ponto pode render.',
 --   'Ver quanto rende',
 --   'https://solardoc.app/io/eletroposto?src=ig&utm_source=instagram&utm_medium=dm&utm_campaign=eletroposto&utm_content=post-organico',
 --   20, 5, array['17880542829525087','17957603091234852'], false, 'eletroposto', true
@@ -61,7 +61,7 @@
 --
 -- update ig_automations set
 --   dm_boas_vindas = 'Eletroposto: renda recorrente com carregador de carro eletrico'
---                 || chr(10) || 'Veja as vagas na sua regiao e agende sua conversa.',
+--                 || chr(10) || 'Comece pelo seu perfil e veja o que serve pro seu caso.',
 --   botao_rotulo   = 'Ver as vagas'
 -- where produto = 'eletroposto' and ativo = true
 --   and id <> 'e8e93fee-2773-4b78-9444-6a607a4f1c69';
@@ -88,3 +88,24 @@
 -- FALTA (nao e deste arquivo): todo post novo de eletroposto precisa do id
 -- adicionado no array `midias`. Da pra automatizar lendo a legenda dos posts
 -- recentes, mas isso e codigo novo e ninguem pediu ainda.
+
+-- ── AJUSTE 16/09/2026, 01h: a copy prometia o quiz de ANTES ────────────────
+-- O quiz ganhou o passo p-porta ("Para comecar, o que voce e?") em 9d9ca1b8,
+-- 40 minutos antes desta copy ser escrita. Investidor e Integrador deixaram de
+-- agendar e passaram a cair no cadastro de /io/eletroposto/parceria.
+-- Duas promessas ficaram falsas na hora:
+--   "agende sua conversa"      -> so vale pra Dono de comercio;
+--   "Responde 3 perguntas"     -> o caminho completo tem 11 passos.
+-- Copy nova nao promete agenda nem contagem, e leva pra primeira pergunta real.
+--
+-- update ig_automations set
+--   dm_boas_vindas = 'Eletroposto: renda recorrente com carregador de carro eletrico'
+--                 || chr(10) || 'Comece pelo seu perfil e veja o que serve pro seu caso.'
+--  where produto='eletroposto' and ativo=true and id <> 'e8e93fee-2773-4b78-9444-6a607a4f1c69';
+-- update ig_automations set
+--   dm_boas_vindas = 'Suas vagas podem virar renda com carregador de carro eletrico'
+--                 || chr(10) || 'Comece pelo seu perfil e veja quanto seu ponto pode render.'
+--  where id = 'e8e93fee-2773-4b78-9444-6a607a4f1c69';
+--
+-- LICAO: a copy da DM cita o que a LP faz. Mexeu no quiz, confira as tres linhas
+-- de ig_automations com produto='eletroposto' -- elas nao sabem que a LP mudou.
