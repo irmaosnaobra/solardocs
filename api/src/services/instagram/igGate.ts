@@ -40,6 +40,8 @@ export interface GateAuto {
   gate_seguir_botao?: string | null;
   lembrete_1h_texto?: string | null;
   lembrete_1h_off?: boolean | null;
+  lembrete_1h_link?: string | null;
+  lembrete_1h_botao?: string | null;
 }
 
 /** Estado guardado em ig_contacts (projeto MAIN). */
@@ -173,7 +175,14 @@ export interface Lembrete1h {
   to: string;                 // ig_user_id (a fila do private_reply guarda o comment_id)
   text: string;
   gate_nudge?: string;        // usado se a pessoa ainda não passou pelo porteiro
+  button?: { url: string; title: string };   // segundo destino (ex.: a comunidade)
 }
+
+// Card do lembrete: o Instagram monta o template generic com a 1ª linha como
+// título e o resto como subtítulo, 80 caracteres cada. Copy mais longa que isso
+// seria CORTADA no meio sem avisar — então ela cai no texto puro com o link
+// embutido, o mesmo critério do CARD_MAX da primeira DM (igEngine).
+const L1H_CARD_MAX = 160;
 
 /** null = automação com o lembrete de 1h desligado. */
 export function lembrete1h(a: GateAuto, to: string): Lembrete1h | null {
@@ -185,6 +194,22 @@ export function lembrete1h(a: GateAuto, to: string): Lembrete1h | null {
   // mão no painel manda: se o dono escreveu o texto, é o texto dele que sai.
   const padrao = `${base}\n\n${conviteSeguir()}`;
   const item: Lembrete1h = { to, text: txt(a.lembrete_1h_texto, padrao) };
+
+  // SEGUNDO DESTINO (15/09/2026, pedido do Thiago): a primeira DM leva pro
+  // agendamento e este lembrete leva pra OUTRO lugar, a comunidade. Sem isto o
+  // lembrete só sabia repetir o `link_url` da própria automação, e repetir o
+  // mesmo link uma hora depois não move quem já decidiu não clicar.
+  // Só vale com copy própria: no texto padrão ("conseguiu abrir o link?") um
+  // botão pra outro destino contradiz a frase.
+  const l1hLink = (a.lembrete_1h_link || '').trim();
+  const l1hBotao = (a.lembrete_1h_botao || '').trim();
+  const copyPropria = !!(a.lembrete_1h_texto && a.lembrete_1h_texto.trim());
+  if (l1hLink && l1hBotao && copyPropria) {
+    if (item.text.length <= L1H_CARD_MAX) item.button = { url: l1hLink, title: l1hBotao };
+    // Copy longa não cabe no card: o link vai no corpo, clicável do mesmo jeito.
+    else item.text = `${item.text}\n\n${l1hLink}`;
+  }
+
   if (gateAtivo(a)) item.gate_nudge = NUDGE;
   return item;
 }

@@ -61,6 +61,8 @@ interface Automation {
   gate_off?: boolean | null;
   gate_seguir_texto?: string | null; gate_seguir_botao?: string | null;
   lembrete_1h_texto?: string | null; lembrete_1h_off?: boolean | null;
+  // Segundo destino do lembrete de 1h (ex.: a comunidade). Ver igGate.lembrete1h.
+  lembrete_1h_link?: string | null; lembrete_1h_botao?: string | null;
 }
 
 type Gatilho = 'comment' | 'story' | 'dm';
@@ -596,13 +598,22 @@ async function depositarLead(igUserId: string, telefone: string, a: Automation |
  * misturar com o lembrete longo da automação — e é ele que dá o dedup: quem
  * comenta três vezes no mesmo anúncio recebe UM lembrete, não três.
  */
-async function agendarLembrete1h(automationId: string | null, l1h: { to: string; text: string; gate_nudge?: string }): Promise<void> {
+async function agendarLembrete1h(
+  automationId: string | null,
+  l1h: { to: string; text: string; gate_nudge?: string; button?: { url: string; title: string } },
+): Promise<void> {
   const { data: pendente } = await supabase.from('ig_queue').select('id')
     .eq('tipo', 'followup_1h').eq('recipient', l1h.to).eq('status', 'pending').limit(1);
   if (pendente && pendente.length) return;
   await enqueue({
     tipo: 'followup_1h', automation_id: automationId, recipient: l1h.to,
-    payload: { text: l1h.text, ...(l1h.gate_nudge ? { gate_nudge: l1h.gate_nudge } : {}) },
+    payload: {
+      text: l1h.text,
+      ...(l1h.gate_nudge ? { gate_nudge: l1h.gate_nudge } : {}),
+      // A drenagem ja sabe mandar card com botao (sendDM -> montarMensagem) e ja
+      // tem a rede: card recusado cai pra texto com o link colado no fim.
+      ...(l1h.button ? { button: l1h.button } : {}),
+    },
     needs_window: true, enviar_apos: new Date(Date.now() + L1H_ATRASO_MS).toISOString(),
   });
 }
