@@ -226,6 +226,8 @@ export async function montarEstudo(r: Reuniao): Promise<EstudoMontado> {
     ibge: mun.ibge,
     nome: mun.nome,
     uf: mun.uf,
+    lat: mun.lat,
+    lng: mun.lng,
     pop_2026: reaproveita ? (anterior?.pop_2026 ?? null) : (pop.dado?.valor ?? null),
     pib_pc_2023: reaproveita ? (anterior?.pib_pc_2023 ?? null) : (pib.dado?.valor ?? null),
     frota: frota?.frota ?? null,

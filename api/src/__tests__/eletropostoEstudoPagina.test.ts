@@ -114,6 +114,31 @@ const OPTS = { agoraMs: AGORA, imagensLigadas: true };
 const render = (l: LinhaEstudo = linha(), r: ReuniaoEstudo = reuniao(), o = OPTS) => renderEstudo(l, r, o);
 const textoVisivel = (html: string) => html.replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ');
 
+describe('botões de carregador (não dependem da Places API)', () => {
+  it('com o Google recusando, a seção de recarga ainda oferece Google Maps, PlugShare e a busca na cidade', () => {
+    const d = dadosCompletos();
+    d.recarga = null;
+    d.local = null;
+    d.google_negado = true;
+    if (d.municipio) { d.municipio.lat = -19.7483; d.municipio.lng = -47.9319; }
+    const html = render(linha({ status: 'parcial', dados: d, fontes: { searchText: 'erro:403', nearby_recarga: 'pulado' } }));
+
+    expect(html).toContain('Carregadores no Google Maps');
+    expect(html).toContain('Ver no PlugShare');
+    expect(html).toContain('Carregadores na cidade');
+    // PlugShare centrado no município, já que o ponto não foi encontrado.
+    expect(html).toContain('https://www.plugshare.com/?latitude=-19.74830&amp;longitude=-47.93190&amp;zoom=13');
+    expect(html).toContain('google.com/maps/search/?api=1&amp;query=carregador');
+  });
+
+  it('com o ponto achado, o PlugShare abre na coordenada do ponto', () => {
+    const html = render();
+    const d = dadosCompletos();
+    expect(html).toContain(`https://www.plugshare.com/?latitude=${(d.local!.lat as number).toFixed(5)}`);
+    expect(html).toContain('Ver no PlugShare');
+  });
+});
+
 function parcialSemEntorno(): string {
   const d = dadosCompletos();
   d.entorno = null;

@@ -712,10 +712,51 @@ function secaoEntorno(l: LinhaEstudo, d: DadosEstudo, parcial: boolean): string 
   return secao('entorno', `Entorno em ${distancia(raio)}`, corpo);
 }
 
+/**
+ * Dois caminhos para ver carregador sem depender da Places API: a busca do Google
+ * Maps pelo endereço, que abre no app do consultor, e o PlugShare, que é comunidade
+ * e mostra carregador que não está cadastrado no Google.
+ */
+function botoesDeCarregadores(d: DadosEstudo, arquivado = false): string {
+  const e = d.endereco_digitado;
+  const m = d.municipio;
+  const cidade = m?.nome ? `${m.nome}${m.uf ? `-${m.uf}` : ''}` : (e?.cidade || '');
+  const alvo = [e?.rua, e?.numero, e?.bairro, cidade].filter(Boolean).join(', ');
+  const lista: Array<[string, string, boolean?]> = [];
+
+  if (alvo) {
+    lista.push([
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`carregador de carro elétrico perto de ${alvo}`)}`,
+      'Carregadores no Google Maps', true,
+    ]);
+  }
+  // Estudo arquivado perdeu as coordenadas de propósito: o link vai sem ponto.
+  const lat = arquivado ? null : (temNumero(d.local?.lat) ? d.local?.lat : (temNumero(m?.lat) ? m?.lat : null));
+  const lng = arquivado ? null : (temNumero(d.local?.lng) ? d.local?.lng : (temNumero(m?.lng) ? m?.lng : null));
+  lista.push([
+    lat != null && lng != null
+      ? `https://www.plugshare.com/?latitude=${lat.toFixed(5)}&longitude=${lng.toFixed(5)}&zoom=13`
+      : 'https://www.plugshare.com/',
+    'Ver no PlugShare',
+  ]);
+  if (cidade) {
+    lista.push([
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`carregador de carro elétrico ${cidade}`)}`,
+      'Carregadores na cidade',
+    ]);
+  }
+  return botoes(lista);
+}
+
 function secaoRecarga(l: LinhaEstudo, d: DadosEstudo, parcial: boolean): string {
   const rc = d.recarga;
   if (!rc) {
-    return parcial ? secao('recarga', 'Recarga em 5 km', aviso(`Carregadores não consultados agora${motivo(l.fontes, ['recarga'])}.`)) : '';
+    return parcial
+      ? secao('recarga', 'Recarga em 5 km',
+          aviso(`Carregadores não consultados agora${motivo(l.fontes, ['recarga'])}.`)
+          + botoesDeCarregadores(d, !!l.coords_apagadas_em)
+          + '<p class="pequeno">O PlugShare é mantido pela comunidade e mostra carregador que não está cadastrado no Google.</p>')
+      : '';
   }
   const raio = temNumero(rc.raio_m) && rc.raio_m > 0 ? rc.raio_m : 5000;
   const n = temNumero(rc.n) ? rc.n : (rc.lista || []).length;
@@ -729,7 +770,8 @@ function secaoRecarga(l: LinhaEstudo, d: DadosEstudo, parcial: boolean): string 
     const lista = (rc.lista || []).slice(0, 10);
     if (lista.length) corpo += `<ul class="lugares">${lista.map(itemLugar).join('')}</ul>`;
   }
-  corpo += '<p class="pequeno">Dados do Google Maps. Carregador que não está cadastrado no Google não aparece aqui.</p>';
+  corpo += botoesDeCarregadores(d, !!l.coords_apagadas_em);
+  corpo += '<p class="pequeno">Dados do Google Maps. O PlugShare é mantido pela comunidade e costuma ter carregador que não está no Google.</p>';
   return secao('recarga', `Recarga em ${distancia(raio)}`, corpo);
 }
 

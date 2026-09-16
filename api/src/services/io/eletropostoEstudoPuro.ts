@@ -629,6 +629,9 @@ export interface MunicipioEstudo {
   ibge: number;
   nome: string;
   uf: string;
+  /** Centro do município. Serve para abrir mapa de carregador quando o Google recusa. */
+  lat?: number | null;
+  lng?: number | null;
   pop_2026: number | null;
   pib_pc_2023: number | null;
   frota: number | null;
