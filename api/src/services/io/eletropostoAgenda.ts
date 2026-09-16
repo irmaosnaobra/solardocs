@@ -364,19 +364,12 @@ export function bolhasConfirmacao(
     // produto, e os caracteres a mais faziam o reagrupamento em 3 bolhas colar o
     // pedido de SIM num parágrafo de 260 (teste 'o pedido de SIM sobrevive').
     `Oi${comNome(n)}! Aqui é da *NEXUS Eletropostos* — sua reunião com o *${quem}* está confirmada: *${quandoPorExtenso(quandoIso)}* (Brasília).`,
-    // "salva o contato" só existe quando há número pra salvar: sem ele a frase
-    // mandava o lead guardar um contato que a mensagem não mostra.
-    `É por vídeo. O link chega ${deOnde(quem, tel)}${tel ? ' — salva o contato' : ''}. Não precisa instalar nada.`,
+    `É por vídeo. O link chega ${deOnde(quem, tel)}`,
     // O pedido de antecedência anda COLADO no motivo: "avisa antes" sozinho é
     // regra de empresa, e o lead ignora. Com "a procura está alta e o horário
     // fica bloqueado" vira favor a alguém — é o mesmo argumento do portão de
     // presença da LP, que já derruba quem não vai antes de gravar a ficha.
     'Me responde *SIM* que eu travo o horário. Se precisar desmarcar, me avisa antes que eu remarco — a procura está alta e o horário fica bloqueado.',
-    // O pedido de material é o que transforma a primeira reunião: sem isso o
-    // consultor descobre na call que não tem ponto, não tem conta de luz e não
-    // sabe o consumo — e a hora vira entrevista em vez de proposta.
-    'E já me manda o que tiver do ponto: onde é, foto ou localização, conta de luz, e o que já pesquisou ou orçou. Texto, foto ou áudio.',
-    `Se ele atrasar uns minutos no dia, me espera aí — ${PODE_ATRASAR}.`,
   ];
 }
 
@@ -397,11 +390,12 @@ export function bolhasManha(
     // saía repetido em mensagens seguidas ("com o Diego" / "do Diego") — que é
     // exatamente o jeito que um robô escreve e uma pessoa não.
     `Bom dia${comNome(n)}! Hoje é o dia: sua reunião de eletroposto é *${horaCurta(quandoIso)}*, com o *${quem}* — o link chega no WhatsApp dele${tel ? `, *${tel}*` : ''}.`,
-    // Ordem do Thiago (30/08/2026): o pedido da manhã é UM só, e é o endereço.
-    // A ficha já traz o endereço digitado no formulário, mas é ele escrito no
-    // WhatsApp que o consultor abre no mapa antes de entrar na chamada — e quem
-    // responde aqui prova, de quebra, que o ponto existe e que a pessoa está viva.
-    'Me envia o endereço de onde será sua estação de recarga',
+    // O PEDIDO DE ENDEREÇO SAIU EM 16/09/2026, a mando do Thiago.
+    // Ele tinha entrado em 30/08 porque o consultor chegava na chamada sem saber
+    // onde era o ponto. Desde 15/09 isso deixou de ser verdade: toda reunião
+    // marcada gera o estudo do local sozinha, com endereço, mapa e entorno, e o
+    // link vai no card da equipe. Pedir de novo é fazer o lead trabalhar por uma
+    // informação que o sistema já tem na mão.
     'E se não der mais, me fala agora que eu remarco — a procura está alta e o horário fica bloqueado.',
   ];
 }

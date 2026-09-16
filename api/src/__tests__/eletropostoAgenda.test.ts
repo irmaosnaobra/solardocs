@@ -474,11 +474,14 @@ describe('o que ele fala', () => {
 
   // Pedido do dono: a reunião de antes estica quando vai pra fechamento. Sem o
   // aviso, o lead que espera 10 minutos acha que furaram com ele.
-  it('os três toques avisam que pode atrasar um pouco', async () => {
-    const { bolhasConfirmacao, bolhas1h, bolhas5min } = await mod();
+  //
+  // A CONFIRMAÇÃO SAIU DESTA LISTA em 16/09/2026, quando o Thiago enxugou a
+  // mensagem de marcação. O aviso de atraso continua nos dois toques do DIA, que
+  // é quando ele importa: quem está esperando agora é que acha que furaram.
+  it('os toques do dia avisam que pode atrasar um pouco', async () => {
+    const { bolhas1h, bolhas5min } = await mod();
     const q = '2026-08-05T18:30:00.000Z';
     for (const b of [
-      bolhasConfirmacao('Irineu', q, 'Diego'),
       bolhas1h('Irineu', q, 'Diego'),
       bolhas5min('Irineu', q, 'Diego'),
     ]) {
@@ -486,14 +489,34 @@ describe('o que ele fala', () => {
     }
   });
 
-  // Pedido do dono: a primeira reunião rende muito mais se o lead já mandar o
-  // que tem. Sem isso o consultor gasta a hora perguntando onde é o ponto.
-  it('a confirmação pede o material do eletroposto', async () => {
+  // A MENSAGEM DE MARCAÇÃO FOI ENXUGADA (16/09/2026, texto escrito pelo Thiago).
+  // Ficaram três bolhas: quem somos e quando é, de onde vem o link, e o pedido de
+  // SIM. Saíram o pedido de material do ponto e o aviso de atraso. O material
+  // deixou de ser pedido porque o estudo do local passou a chegar pronto no card
+  // do consultor, com endereço e entorno, antes da reunião.
+  it('a confirmação tem três bolhas e não pede material', async () => {
     const { bolhasConfirmacao } = await mod();
-    const txt = bolhasConfirmacao('Irineu', '2026-08-05T18:30:00.000Z', 'Diego').join(' ');
-    for (const pedaco of ['onde é', 'conta de luz', 'pesquisou', 'áudio']) {
-      expect(txt).toContain(pedaco);
+    const b = bolhasConfirmacao('Irineu', '2026-08-05T18:30:00.000Z', 'Diego', '5534991360172');
+    expect(b).toHaveLength(3);
+    const txt = b.join(' ');
+    expect(txt).toContain('NEXUS Eletropostos');
+    expect(txt).toContain('É por vídeo');
+    expect(txt).toContain('*SIM*');
+    for (const cortado of ['conta de luz', 'pesquisou', 'áudio', 'Não precisa instalar']) {
+      expect(txt).not.toContain(cortado);
     }
+  });
+
+  // O bom dia ficou com duas bolhas: lembrar da hora e abrir a porta do remarcar
+  // enquanto ainda dá pra encaixar outra pessoa no horário.
+  it('o bom dia tem duas bolhas e não pede o endereço', async () => {
+    const { bolhasManha } = await mod();
+    const b = bolhasManha('Irineu', '2026-08-05T18:30:00.000Z', 'Diego', '5534991360172');
+    expect(b).toHaveLength(2);
+    const txt = b.join(' ');
+    expect(txt).toContain('Bom dia');
+    expect(txt).toContain('remarco');
+    expect(txt).not.toContain('endereço');
   });
 
   // Bug real, visto em produção em 04/08: a reunião das 14:00 virou "14h0" na
