@@ -113,6 +113,89 @@ export function generateFromTemplate(
 // ════════════════════════════════════════════════════════════
 // CONTRATO SOLAR — MODELO 1  (profissional, claro, comercial)
 // ════════════════════════════════════════════════════════════
+// BASE DOS DOCUMENTOS DESENHADOS
+// ════════════════════════════════════════════════════════════
+//
+// Proposta de banco, procuração e contrato compartilham a mesma estrutura de
+// folha: timbre, réguas, título, cartão de dados, seções, assinaturas e rodapé.
+// A função recebe o PREFIXO porque cada documento usa o seu (.pb, .pr, .ct) —
+// dois documentos podem estar na mesma tela (preview + histórico) e um não pode
+// herdar o CSS do outro.
+//
+// A paleta entra por fora, em custom properties: a proposta de banco e a
+// procuração usam a marca (navy + dourado); o contrato usa a sóbria, porque é
+// papel que o cliente assina e vai pro jurídico dele.
+const DOC_TOKENS_MARCA =
+  '--nv:#0B2545; --nv2:#2C4A73; --gd:#C9A227; --ln:#D8DEE7; --sf:#55606E; --wa:#F5F7FA;';
+const DOC_TOKENS_SOBRIO =
+  '--nv:#1F1F1F; --nv2:#3A3A3A; --gd:#C4C4C4; --ln:#CFCFCF; --sf:#5A5A5A; --wa:#FAFAFA;';
+
+function docBaseCss(r: string, tokens: string): string {
+  return `
+.${r} * { box-sizing: border-box; }
+.${r} { ${tokens}
+  font-family: Georgia,'Times New Roman',Times,serif; color:#1B1B1B; }
+.${r} .folha { width:100%; min-height:258mm; display:flex; flex-direction:column; position:relative; }
+.${r} .folha + .folha { break-before:page; page-break-before:always; }
+.${r} .wm { position:absolute; inset:0; z-index:0; display:flex; align-items:center; justify-content:center; opacity:.028; pointer-events:none; }
+.${r} .wm img { width:78mm; }
+.${r} .folha > *:not(.wm) { position:relative; z-index:1; }
+.${r} .head { display:flex; align-items:center; gap:11px; }
+.${r} .head img.lg { height:13mm; width:auto; flex-shrink:0; }
+.${r} .who { display:flex; flex-direction:column; gap:1.5px; flex:1; }
+.${r} .who .nm { font-family:Arial,Helvetica,sans-serif; font-size:12.5pt; font-weight:700; color:var(--nv); letter-spacing:.02em; line-height:1.15; }
+.${r} .who .dt { font-family:Arial,Helvetica,sans-serif; font-size:7.6pt; color:var(--sf); line-height:1.45; }
+.${r} .ref { text-align:right; font-family:Arial,Helvetica,sans-serif; font-size:7.4pt; color:var(--sf); line-height:1.5; white-space:nowrap; }
+.${r} .ref b { display:block; color:var(--nv); font-size:8pt; letter-spacing:.06em; }
+.${r} .rl { height:2px; background:var(--nv); margin:7px 0 0; }
+.${r} .rg { height:1.5px; background:var(--gd); width:26mm; margin-bottom:3.5mm; }
+.${r} h1 { font-family:Arial,Helvetica,sans-serif; font-size:13.5pt; font-weight:700; color:var(--nv); letter-spacing:.10em; text-align:center; text-transform:uppercase; margin:0 0 3px; }
+.${r} .sub { font-family:Arial,Helvetica,sans-serif; font-size:8.2pt; color:var(--sf); text-align:center; letter-spacing:.05em; text-transform:uppercase; margin:0 0 3mm; }
+.${r} .card { border:1px solid var(--ln); border-left:3px solid var(--nv); background:var(--wa); padding:3mm 4.5mm; margin-bottom:3.5mm; }
+.${r} .cap { font-family:Arial,Helvetica,sans-serif; font-size:7.4pt; font-weight:700; letter-spacing:.12em; color:var(--nv2); text-transform:uppercase; margin-bottom:2.5mm; }
+.${r} .kv { display:grid; grid-template-columns:1fr 1fr; gap:2mm 7mm; }
+.${r} .kv > div { display:flex; flex-direction:column; gap:1px; }
+.${r} .kv .k { font-family:Arial,Helvetica,sans-serif; font-size:6.9pt; font-weight:700; letter-spacing:.09em; color:var(--sf); text-transform:uppercase; }
+.${r} .kv .v { font-family:Arial,Helvetica,sans-serif; font-size:9.3pt; color:#12253F; font-weight:600; line-height:1.3; }
+.${r} .kv .v.bl { border-bottom:1px solid #B9C2CE; min-height:12px; }
+.${r} .s2 { grid-column:1 / -1; }
+.${r} h2 { font-family:Arial,Helvetica,sans-serif; font-size:8.6pt; font-weight:700; color:var(--nv); letter-spacing:.10em; text-transform:uppercase; margin:0 0 2.5mm; padding-bottom:1.6mm; border-bottom:1px solid var(--ln); }
+.${r} h2 i { color:var(--gd); font-style:normal; margin-right:5px; }
+.${r} .sec { margin-bottom:5.5mm; }
+.${r} p { margin:0 0 2.4mm; font-size:10pt; line-height:1.62; text-align:justify; }
+.${r} .sec p:last-child { margin-bottom:0; }
+.${r} ul { margin:0; padding:0; list-style:none; }
+.${r} ul li { font-size:9.7pt; line-height:1.5; padding-left:6mm; position:relative; margin-bottom:1.6mm; }
+.${r} ul li:before { content:''; position:absolute; left:1.6mm; top:5.5px; width:4px; height:4px; background:var(--gd); border-radius:50%; }
+.${r} .local { font-family:Arial,Helvetica,sans-serif; font-size:8.6pt; color:#12253F; text-align:right; margin:0 0 3mm; }
+/* O espaço de punho é o padding-top do .sig: fica ANTES da régua e é igual dos
+   dois lados, então as duas réguas saem na mesma altura mesmo com legendas de
+   tamanhos diferentes. O margin-top:auto é o que cede quando o corpo cresce. */
+.${r} .sigs { margin-top:auto; padding-top:0; display:grid; grid-template-columns:1fr 1fr; gap:12mm; align-items:start; break-inside:avoid; page-break-inside:avoid; }
+.${r} .sigs.uma { grid-template-columns:1fr; justify-items:center; }
+.${r} .sigs.uma .sig { width:78mm; }
+.${r} .sig { text-align:center; padding-top:8mm; }
+.${r} .sig .ln { border-top:1px solid #5A6572; margin-bottom:2mm; }
+.${r} .sig .nm { font-family:Arial,Helvetica,sans-serif; font-size:8.4pt; font-weight:700; color:#12253F; line-height:1.35; text-transform:uppercase; letter-spacing:.02em; }
+.${r} .sig .rl2 { font-family:Arial,Helvetica,sans-serif; font-size:7.2pt; color:var(--sf); margin-top:1mm; line-height:1.4; }
+.${r} .foot { margin-top:4mm; padding-top:2mm; border-top:1px solid var(--ln); display:flex; justify-content:space-between; align-items:center; font-family:Arial,Helvetica,sans-serif; font-size:7.1pt; color:#9AA4B0; }
+.${r} .foot .br { color:var(--nv2); letter-spacing:.04em; }
+`;
+}
+
+// Timbre da empresa, igual nos três documentos. Devolve as duas linhas de
+// detalhe já montadas — quem chama decide se imprime as duas ou nenhuma.
+function docMarca(company: Company): { nome: string; linha1: string; linha2: string; fantasia: string } {
+  const fantasia = (company as { nome_fantasia?: string }).nome_fantasia || '';
+  const tel = (company as { telefone?: string }).telefone || '';
+  const linha1 = [fantasia && fantasia !== company.nome ? fantasia : '', `CNPJ: ${company.cnpj}`]
+    .filter(Boolean).join('  |  ');
+  const end = enderecoCompleto(company.endereco, undefined, company.cidade, company.uf);
+  const linha2 = [end !== '___' ? end : '', tel].filter(Boolean).join('  |  Tel. ');
+  return { nome: (company.nome || '').toUpperCase(), linha1, linha2, fantasia };
+}
+
+// ════════════════════════════════════════════════════════════
 function contratoSolarM1(
   company: Company,
   client: Client,
@@ -360,6 +443,75 @@ CPF/CNPJ: ${client.cpf_cnpj || '___'}
 // ════════════════════════════════════════════════════════════
 // CONTRATO SOLAR — MODELO 2  (formato clássico, direto)
 // ════════════════════════════════════════════════════════════
+// CONTRATO SOLAR — MODELO 2  (o único em uso; ver nota abaixo)
+// ════════════════════════════════════════════════════════════
+//
+// Sóbrio de propósito, e diferente da proposta de banco: é papel que o cliente
+// assina e que costuma parar no jurídico dele. Logo pequeno, só na folha 1,
+// régua fina cinza, sem faixa preenchida e sem dourado. Preto no branco.
+//
+// Ao contrário da proposta de banco e da procuração, este documento NÃO tem
+// folhas de altura fixa: o corpo varia com a quantidade de módulos, a presença
+// de bateria, o tamanho dos endereços e das condições de pagamento. Ele FLUI, e
+// quem não deixa cláusula rachar no meio é o break-inside:avoid de cada uma.
+//
+// O cabeçalho corrido e o "página X de Y" NÃO moram aqui: o Chrome só os
+// desenha pela opção displayHeaderFooter do Puppeteer, na margem da folha. O
+// texto do cabeçalho viaja no atributo data-run-header da raiz, e o
+// pdfController repassa — assim o template decide o que aparece, sem o
+// controller precisar consultar a empresa no banco.
+//
+// O TEXTO DAS CLÁUSULAS É O DE ANTES, palavra por palavra. Só o continente
+// mudou. Existe teste comparando as sentenças com as do modelo antigo.
+
+const CT_CSS = docBaseCss('ct', DOC_TOKENS_SOBRIO) + `
+.ct { font-size:10pt; }
+.ct .wm { display:none; }
+.ct .folha { min-height:0; display:block; }
+.ct .head img.lg { height:10mm; }
+.ct .who .nm { font-size:11pt; letter-spacing:.01em; }
+.ct .rl { height:1px; background:#8A8A8A; margin:6px 0 0; }
+.ct .rg { display:none; }
+.ct h1 { font-size:12.5pt; letter-spacing:.06em; margin:6mm 0 2px; }
+.ct .sub { font-size:7.8pt; margin-bottom:5mm; }
+/* Cartões sem preenchimento e sem barra colorida: é contrato, não folheto. */
+.ct .card { background:#fff; border:1px solid var(--ln); border-left:1px solid var(--ln); padding:3mm 4mm; margin-bottom:3.5mm; }
+.ct .cap { color:#6A6A6A; font-size:7pt; letter-spacing:.14em; margin-bottom:2mm; }
+.ct .partes { display:grid; grid-template-columns:1fr 1fr; gap:0; border:1px solid var(--ln); margin-bottom:3.5mm; }
+.ct .parte { padding:3mm 4mm; }
+.ct .parte + .parte { border-left:1px solid var(--ln); }
+.ct .parte .cap { margin-bottom:1.4mm; }
+.ct .parte .q { font-size:9pt; line-height:1.48; text-align:left; }
+.ct .parte .q b { font-size:9.6pt; }
+.ct table.res { width:100%; border-collapse:collapse; margin-bottom:4mm; }
+.ct table.res td { border:1px solid var(--ln); padding:1.8mm 3mm; font-size:9pt; vertical-align:top; }
+.ct table.res td.k { width:34mm; color:#5A5A5A; font-family:Arial,Helvetica,sans-serif; font-size:7.2pt; letter-spacing:.08em; text-transform:uppercase; background:#FAFAFA; }
+.ct .intro { margin-bottom:5mm; }
+/* Cláusula inteira não racha entre folhas — e o título nunca fica órfão. */
+.ct .cl { break-inside:avoid; page-break-inside:avoid; margin-bottom:4.4mm; }
+.ct .cl h2 { font-size:8.8pt; letter-spacing:.08em; color:#1F1F1F; border-bottom:1px solid #C4C4C4; margin-bottom:2.2mm; padding-bottom:1.4mm; }
+.ct .cl h2 i { color:#6A6A6A; }
+.ct .cl p { font-size:9.6pt; line-height:1.55; margin-bottom:2mm; }
+.ct .cl p:last-child { margin-bottom:0; }
+.ct .cl ul li { font-size:9.6pt; line-height:1.5; padding-left:5mm; margin-bottom:1.4mm; }
+.ct .cl ul li:before { background:#8A8A8A; width:3px; height:3px; top:5px; left:1.2mm; }
+.ct .cl .nt { font-size:8.8pt; color:#4A4A4A; border-left:2px solid #C4C4C4; padding-left:3mm; margin-top:2.4mm; }
+.ct .cl .rot { font-weight:700; }
+/* A folha de assinatura começa em página nova: ninguém assina rodapé de texto. */
+.ct .fecho { break-before:page; page-break-before:always; padding-top:4mm; }
+.ct .fecho .sigs { margin-top:14mm; }
+.ct .sig { padding-top:12mm; }
+.ct .sig .ln { border-top:1px solid #4A4A4A; }
+.ct .sig .nm { color:#1F1F1F; }
+.ct .test { margin-top:12mm; display:grid; grid-template-columns:1fr 1fr; gap:12mm; }
+.ct .test .sig { padding-top:10mm; }
+.ct .test .nm { font-size:7.6pt; font-weight:400; text-transform:none; color:#5A5A5A; }
+/* Só na tela: some na impressão e, portanto, no PDF. */
+.ct .so-tela { margin-top:8mm; border:1px dashed #C4C4C4; background:#FAFAFA; padding:3mm 4mm;
+  font-family:Arial,Helvetica,sans-serif; font-size:8pt; color:#5A5A5A; line-height:1.5; }
+@media print { .ct .so-tela { display:none !important; } }
+`;
+
 function contratoSolarM2(
   company: Company,
   client: Client,
@@ -369,144 +521,322 @@ function contratoSolarM2(
   const foro = company.cidade || str(f.foro_cidade) || str(client.cidade) || '___';
   const cidade = foro;
   const endInst = str(f.endereco_instalacao) !== '___' ? str(f.endereco_instalacao) : (client.endereco || '___');
-  const bat = parseBateria(f); // opcional — só entra no contrato se a marca vier preenchida
-  const geracaoMes = parseBRL(f.geracao_media_kwh); // ver a nota no modelo 1
+  const bat = parseBateria(f);
+  const geracaoMes = parseBRL(f.geracao_media_kwh);
 
   const isPJClient = (client as { tipo?: string }).tipo === 'PJ';
   const endInstCompleto = enderecoCompleto(endInst, client.bairro, client.cidade, client.uf);
   const enderecoCompletoClient = enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf);
   const companyLocalizacao = [company.cidade, company.uf].filter(Boolean).join(' ');
-  const clienteIdent = isPJClient
-    ? `${client.nome}, CNPJ nº ${client.cpf_cnpj || '___'}, sediada em ${enderecoCompletoClient || '___'}`
-    : `${client.nome}, CPF nº ${client.cpf_cnpj || '___'}, residente na ${enderecoCompletoClient || '___'}`;
-
-  return `CONTRATO DE SERVIÇOS DE INSTALAÇÃO DE USINA FOTOVOLTAICA
-
-Entre as partes: ${company.nome}, inscrita no CNPJ sob o nº ${company.cnpj}, ${companyLocalizacao}, doravante denominada CONTRATADA,
-
-e ${clienteIdent}, doravante denominado CLIENTE, tem-se ajustado o presente CONTRATO, conforme os seguintes termos e condições:
-
-
-1. OBJETO
-
-A CONTRATADA se compromete a instalar uma usina fotovoltaica com capacidade operacional de ${str(f.potencia_kwp)} kWp${geracaoMes > 0 ? `, com geração estimada de ~${pNum(geracaoMes)} kWh/mês em média anual` : ''}, fornecendo materiais, equipamentos e executando o comissionamento.${geracaoMes > 0 ? `
-
-A geração informada é uma ESTIMATIVA baseada na irradiação solar histórica da região e na potência instalada. A produção real varia conforme clima, sombreamento, temperatura, sujidade dos módulos e disponibilidade da rede, não constituindo garantia de geração mínima.` : ''}
-
-Os componentes principais incluem ${str(f.quantidade_modulos)} módulos de ${str(f.marca_modulos)}, ${str(f.quantidade_inversores)} inversor ${str(f.tipo_inversor)} ${str(f.marca_inversor)}${bat.tem ? `, sistema de armazenamento com ${bat.qtd > 1 ? `${bat.qtd} baterias` : 'bateria'} ${bat.marca}${bat.specParts.length ? ' (' + bat.specParts.join(' · ') + ')' : ''}` : ''}, cabos e conectores. Todas as especificações técnicas seguirão as normas e resoluções aplicáveis da Agência Nacional de Energia Elétrica (ANEEL).
-
-Local de instalação: ${endInstCompleto}
-
-Fica no escopo do CLIENTE deixar a área em condições para implantação da usina, como por exemplo limpeza e terraplanagem quando se fizer necessário.
-
-
-2. PRAZOS E EXECUÇÃO
-
-A CONTRATADA deverá:
-- Submeter o projeto técnico em até ${str(f.prazo_projeto_dias)} (${numExtenso(f.prazo_projeto_dias)}) dias após o cumprimento das obrigações pelo CLIENTE.
-- Aguardar aprovação de órgãos reguladores, o que deverá ocorrer em até ${str(f.prazo_aprovacao_dias)} (${numExtenso(f.prazo_aprovacao_dias)}) dias, salvo pendências atribuídas ao CLIENTE ou terceiros.
-- Realizar a instalação completa em até ${str(f.prazo_instalacao_dias)} (${numExtenso(f.prazo_instalacao_dias)}) dias úteis após a aprovação, podendo haver extensão de prazo devido a fatores externos, como condições climáticas adversas ou exigências das concessionárias locais de energia.
-
-Nota: Os prazos serão suspensos em caso de atrasos por responsabilidade do CLIENTE, dos fabricantes ou de órgãos reguladores. Em situações de força maior, os prazos serão reajustados de acordo com novo cronograma acordado entre as partes.
-
-
-3. VALOR E CONDIÇÕES DE PAGAMENTO
-
-O valor total dos serviços é de R$ ${curr(str(f.valor_total))} (${extenso(f.valor_total)}), sendo o pagamento realizado da seguinte forma:
-
-${str(f.condicoes_pagamento)}
-
-
-4. GARANTIAS E MANUTENÇÃO
-
-Equipamentos: As garantias dos equipamentos são exclusivamente do fabricante, cobrindo ${str(f.garantia_modulos_anos)} (${numExtenso(f.garantia_modulos_anos)}) anos para módulos fotovoltaicos, ${str(f.garantia_inversor_anos)} (${numExtenso(f.garantia_inversor_anos)}) anos para o inversor, ${bat.tem && bat.garantia > 0 ? `${bat.garantia} (${numExtenso(bat.garantia)}) ${bat.garantia === 1 ? 'ano' : 'anos'} para a bateria, ` : ''}e prazos específicos para demais componentes conforme manual do fabricante.
-
-Instalação: A garantia de instalação é de ${garantiaInstalacaoExtenso(f)}, válida somente para defeitos de instalação devidamente constatados por laudo técnico.
-
-Exclusões de Garantia: A garantia não se aplica em casos de mau uso, intervenções de terceiros sem autorização da CONTRATADA, ou danos causados por eventos de força maior, como tempestades e sobrecargas da rede de energia.
-
-Fica acordado entre as partes que, caso ocorram quebras de telhas durante a execução do serviço, será realizada a reposição das mesmas. A responsabilidade pela substituição será definida de comum acordo entre as partes, considerando a fragilidade e as condições do material.
-
-
-5. OBRIGAÇÕES DO CLIENTE
-
-O CLIENTE compromete-se a:
-- Disponibilizar toda a documentação necessária para a elaboração do projeto técnico e fornecer acesso adequado ao local de instalação, incluindo rede elétrica e pontos de aterramento conforme normas vigentes.
-- Monitorar a integridade do local de instalação e reportar eventuais falhas à CONTRATADA. Modificações no imóvel que prejudiquem a operação do sistema fotovoltaico são de responsabilidade do CLIENTE.
-
-
-6. RESCISÃO CONTRATUAL
-
-Este contrato poderá ser rescindido a qualquer momento, desde que uma das partes comunique a outra com antecedência mínima de 30 dias, assumindo a parte responsável os custos e penalidades decorrentes. Em caso de rescisão por descumprimento, será cobrada multa de 10% sobre o valor total do contrato.
-
-
-7. DISPOSIÇÕES GERAIS
-
-Confidencialidade: As partes concordam em manter a confidencialidade sobre as informações trocadas durante a execução do presente contrato.
-Cessão de Direitos: Nenhuma das partes poderá transferir seus direitos e obrigações sob este contrato sem o consentimento por escrito da outra parte.
-Alterações: Qualquer alteração neste contrato deverá ser formalizada por meio de termo aditivo assinado por ambas as partes.
-
-
-8. DESEMPENHO E GERAÇÃO DE ENERGIA
-
-O desempenho estimado da usina é baseado em condições climáticas e operacionais normais.
-A geração de energia pode variar até 10% devido a condições climáticas e características do local.
-A CONTRATADA não se responsabiliza por perdas de geração de energia decorrentes de fatores externos ou mudanças estruturais no local de instalação, tais como sombras adicionais.
-
-
-9. MANUTENÇÃO PREVENTIVA E CORRETIVA
-
-Após o período de garantia, a CONTRATADA poderá oferecer um serviço de manutenção preventiva e corretiva, mediante a contratação específica entre as partes. Esse serviço incluirá verificação de funcionamento, limpeza dos módulos e ajustes técnicos, caso necessários.
-
-
-10. VISTORIA TÉCNICA E DOCUMENTAÇÃO DE CONFORMIDADE
-
-Ao término da instalação, será realizada uma vistoria técnica para avaliar a conformidade do sistema com os padrões de segurança e regulamentações vigentes. A CONTRATADA emitirá um laudo técnico documentando as condições de instalação, que deverá ser assinado por ambas as partes.
-
-
-11. TRANSFERÊNCIA DE CONTRATO E USINA
-
-O CLIENTE poderá transferir este contrato para terceiros, mediante autorização expressa da CONTRATADA e desde que o novo titular cumpra com as obrigações contratuais aqui previstas.
-
-
-12. RESPONSABILIDADES AMBIENTAIS E SUSTENTABILIDADE
-
-As partes reconhecem a natureza sustentável deste contrato e comprometem-se a atuar de forma a minimizar impactos ambientais durante e após a instalação. O CLIENTE concorda em manter a área de instalação livre de obstruções e a CONTRATADA assegura que todos os materiais e equipamentos usados estão de acordo com as normas ambientais.
-
-
-13. MULTA POR INTERRUPÇÃO NÃO AUTORIZADA
-
-Caso o CLIENTE ou terceiros não autorizados interfiram no sistema sem a aprovação da CONTRATADA, estará sujeito a multa de 5% do valor total do contrato, além da perda das garantias aplicáveis.
-
-
-14. FORO
-
-As partes elegem o Foro da Comarca de ${foro} para dirimir eventuais controvérsias decorrentes deste contrato, renunciando a qualquer outro foro.
-
-Por estarem de pleno acordo com os termos deste contrato, as partes assinam o presente documento.
-
-${cidade}, ${today}.
-
-
-
-
-
-
-________________________________
-EMPRESA CONTRATADA:
-${company.nome}
-CNPJ: ${company.cnpj}
-
-
-
-
-
-
-________________________________
-CLIENTE CONTRATANTE:
-${client.nome.toUpperCase()}
-CPF/CNPJ: ${client.cpf_cnpj || '___'}
+  const m = docMarca(company);
+
+  const e = escHtml;
+  const cl = (n: number, titulo: string, corpo: string) =>
+    `<div class="cl"><h2><i>${n}.</i>${e(titulo)}</h2>${corpo}</div>`;
+
+  const componentes =
+    `Os componentes principais incluem ${str(f.quantidade_modulos)} módulos de ${str(f.marca_modulos)}, ` +
+    `${str(f.quantidade_inversores)} inversor ${str(f.tipo_inversor)} ${str(f.marca_inversor)}` +
+    (bat.tem
+      ? `, sistema de armazenamento com ${bat.qtd > 1 ? `${bat.qtd} baterias` : 'bateria'} ${bat.marca}` +
+        (bat.specParts.length ? ' (' + bat.specParts.join(' · ') + ')' : '')
+      : '') +
+    `, cabos e conectores. Todas as especificações técnicas seguirão as normas e resoluções aplicáveis da Agência Nacional de Energia Elétrica (ANEEL).`;
+
+  const garantiaEquip =
+    `Equipamentos: As garantias dos equipamentos são exclusivamente do fabricante, cobrindo ` +
+    `${str(f.garantia_modulos_anos)} (${numExtenso(f.garantia_modulos_anos)}) anos para módulos fotovoltaicos, ` +
+    `${str(f.garantia_inversor_anos)} (${numExtenso(f.garantia_inversor_anos)}) anos para o inversor, ` +
+    (bat.tem && bat.garantia > 0
+      ? `${bat.garantia} (${numExtenso(bat.garantia)}) ${bat.garantia === 1 ? 'ano' : 'anos'} para a bateria, `
+      : '') +
+    `e prazos específicos para demais componentes conforme manual do fabricante.`;
+
+  // Cabeçalho que corre nas folhas 2 em diante (o pdfController o desenha na
+  // margem). Vai em atributo pra não depender de o controller conhecer a empresa.
+  const runHeader = [m.nome, company.cnpj ? `CNPJ ${company.cnpj}` : '', 'Contrato de instalação de usina fotovoltaica']
+    .filter(Boolean).join('  ·  ');
+
+  const linhaRes = (k: string, v: string) =>
+    `<tr><td class="k">${e(k)}</td><td>${e(v)}</td></tr>`;
+  const valorTotal = str(f.valor_total) !== '___' ? `R$ ${curr(str(f.valor_total))} (${extenso(f.valor_total)})` : '';
+
+  return `[[HTML]]<style>${CT_CSS}</style><div class="ct" data-run-header="${e(runHeader)}">
+<div class="folha">
+  <div class="head"><img class="lg" src="{{LOGO}}" alt="">
+    <div class="who"><span class="nm">${e(m.nome)}</span>
+      ${m.linha1 ? `<span class="dt">${e(m.linha1)}</span>` : ''}
+      ${m.linha2 ? `<span class="dt">${e(m.linha2)}</span>` : ''}</div>
+  </div><div class="rl"></div>
+
+  <h1>Contrato de Serviços de Instalação de Usina Fotovoltaica</h1>
+  <p class="sub">Instrumento particular · ${e(today)}</p>
+
+  <div class="partes">
+    <div class="parte"><div class="cap">Contratada</div>
+      <p class="q"><b>${e(company.nome)}</b><br>inscrita no CNPJ sob o nº ${e(company.cnpj)}${companyLocalizacao ? `, ${e(companyLocalizacao)}` : ''}</p></div>
+    <div class="parte"><div class="cap">${isPJClient ? 'Cliente (PJ)' : 'Cliente'}</div>
+      <p class="q"><b>${e(client.nome)}</b><br>${isPJClient
+        ? `CNPJ nº ${e(client.cpf_cnpj || '___')}, sediada em ${e(enderecoCompletoClient || '___')}`
+        : `CPF nº ${e(client.cpf_cnpj || '___')}, residente na ${e(enderecoCompletoClient || '___')}`}</p></div>
+  </div>
+
+  <table class="res"><tbody>
+    ${linhaRes('Potência instalada', `${str(f.potencia_kwp)} kWp`)}
+    ${geracaoMes > 0 ? linhaRes('Geração estimada', `~${pNum(geracaoMes)} kWh/mês em média anual`) : ''}
+    ${linhaRes('Local de instalação', endInstCompleto)}
+    ${valorTotal ? linhaRes('Valor total', valorTotal) : ''}
+    ${linhaRes('Foro eleito', foro)}
+  </tbody></table>
+
+  <p class="intro">Entre as partes: ${e(company.nome)}, inscrita no CNPJ sob o nº ${e(company.cnpj)}, ${e(companyLocalizacao)}, doravante denominada CONTRATADA, e ${isPJClient
+    ? `${e(client.nome)}, CNPJ nº ${e(client.cpf_cnpj || '___')}, sediada em ${e(enderecoCompletoClient || '___')}`
+    : `${e(client.nome)}, CPF nº ${e(client.cpf_cnpj || '___')}, residente na ${e(enderecoCompletoClient || '___')}`}, doravante denominado CLIENTE, tem-se ajustado o presente CONTRATO, conforme os seguintes termos e condições:</p>
+
+  ${cl(1, 'Objeto', `
+    <p>A CONTRATADA se compromete a instalar uma usina fotovoltaica com capacidade operacional de ${e(str(f.potencia_kwp))} kWp${geracaoMes > 0 ? `, com geração estimada de ~${e(pNum(geracaoMes))} kWh/mês em média anual` : ''}, fornecendo materiais, equipamentos e executando o comissionamento.</p>
+    ${geracaoMes > 0 ? `<p class="nt">A geração informada é uma ESTIMATIVA baseada na irradiação solar histórica da região e na potência instalada. A produção real varia conforme clima, sombreamento, temperatura, sujidade dos módulos e disponibilidade da rede, não constituindo garantia de geração mínima.</p>` : ''}
+    <p>${e(componentes)}</p>
+    <p><span class="rot">Local de instalação:</span> ${e(endInstCompleto)}</p>
+    <p>Fica no escopo do CLIENTE deixar a área em condições para implantação da usina, como por exemplo limpeza e terraplanagem quando se fizer necessário.</p>`)}
+
+  ${cl(2, 'Prazos e execução', `
+    <p>A CONTRATADA deverá:</p>
+    <ul>
+      <li>Submeter o projeto técnico em até ${e(str(f.prazo_projeto_dias))} (${e(numExtenso(f.prazo_projeto_dias))}) dias após o cumprimento das obrigações pelo CLIENTE.</li>
+      <li>Aguardar aprovação de órgãos reguladores, o que deverá ocorrer em até ${e(str(f.prazo_aprovacao_dias))} (${e(numExtenso(f.prazo_aprovacao_dias))}) dias, salvo pendências atribuídas ao CLIENTE ou terceiros.</li>
+      <li>Realizar a instalação completa em até ${e(str(f.prazo_instalacao_dias))} (${e(numExtenso(f.prazo_instalacao_dias))}) dias úteis após a aprovação, podendo haver extensão de prazo devido a fatores externos, como condições climáticas adversas ou exigências das concessionárias locais de energia.</li>
+    </ul>
+    <p class="nt">Nota: Os prazos serão suspensos em caso de atrasos por responsabilidade do CLIENTE, dos fabricantes ou de órgãos reguladores. Em situações de força maior, os prazos serão reajustados de acordo com novo cronograma acordado entre as partes.</p>`)}
+
+  ${cl(3, 'Valor e condições de pagamento', `
+    <p>O valor total dos serviços é de R$ ${e(curr(str(f.valor_total)))} (${e(extenso(f.valor_total))}), sendo o pagamento realizado da seguinte forma:</p>
+    <p>${e(str(f.condicoes_pagamento))}</p>`)}
+
+  ${cl(4, 'Garantias e manutenção', `
+    <p>${e(garantiaEquip)}</p>
+    <p><span class="rot">Instalação:</span> A garantia de instalação é de ${e(garantiaInstalacaoExtenso(f))}, válida somente para defeitos de instalação devidamente constatados por laudo técnico.</p>
+    <p><span class="rot">Exclusões de Garantia:</span> A garantia não se aplica em casos de mau uso, intervenções de terceiros sem autorização da CONTRATADA, ou danos causados por eventos de força maior, como tempestades e sobrecargas da rede de energia.</p>
+    <p>Fica acordado entre as partes que, caso ocorram quebras de telhas durante a execução do serviço, será realizada a reposição das mesmas. A responsabilidade pela substituição será definida de comum acordo entre as partes, considerando a fragilidade e as condições do material.</p>`)}
+
+  ${cl(5, 'Obrigações do cliente', `
+    <p>O CLIENTE compromete-se a:</p>
+    <ul>
+      <li>Disponibilizar toda a documentação necessária para a elaboração do projeto técnico e fornecer acesso adequado ao local de instalação, incluindo rede elétrica e pontos de aterramento conforme normas vigentes.</li>
+      <li>Monitorar a integridade do local de instalação e reportar eventuais falhas à CONTRATADA. Modificações no imóvel que prejudiquem a operação do sistema fotovoltaico são de responsabilidade do CLIENTE.</li>
+    </ul>`)}
+
+  ${cl(6, 'Rescisão contratual', `
+    <p>Este contrato poderá ser rescindido a qualquer momento, desde que uma das partes comunique a outra com antecedência mínima de 30 dias, assumindo a parte responsável os custos e penalidades decorrentes. Em caso de rescisão por descumprimento, será cobrada multa de 10% sobre o valor total do contrato.</p>`)}
+
+  ${cl(7, 'Disposições gerais', `
+    <p><span class="rot">Confidencialidade:</span> As partes concordam em manter a confidencialidade sobre as informações trocadas durante a execução do presente contrato.</p>
+    <p><span class="rot">Cessão de Direitos:</span> Nenhuma das partes poderá transferir seus direitos e obrigações sob este contrato sem o consentimento por escrito da outra parte.</p>
+    <p><span class="rot">Alterações:</span> Qualquer alteração neste contrato deverá ser formalizada por meio de termo aditivo assinado por ambas as partes.</p>`)}
+
+  ${cl(8, 'Desempenho e geração de energia', `
+    <p>O desempenho estimado da usina é baseado em condições climáticas e operacionais normais.</p>
+    <p>A geração de energia pode variar até 10% devido a condições climáticas e características do local.</p>
+    <p>A CONTRATADA não se responsabiliza por perdas de geração de energia decorrentes de fatores externos ou mudanças estruturais no local de instalação, tais como sombras adicionais.</p>`)}
+
+  ${cl(9, 'Manutenção preventiva e corretiva', `
+    <p>Após o período de garantia, a CONTRATADA poderá oferecer um serviço de manutenção preventiva e corretiva, mediante a contratação específica entre as partes. Esse serviço incluirá verificação de funcionamento, limpeza dos módulos e ajustes técnicos, caso necessários.</p>`)}
+
+  ${cl(10, 'Vistoria técnica e documentação de conformidade', `
+    <p>Ao término da instalação, será realizada uma vistoria técnica para avaliar a conformidade do sistema com os padrões de segurança e regulamentações vigentes. A CONTRATADA emitirá um laudo técnico documentando as condições de instalação, que deverá ser assinado por ambas as partes.</p>`)}
+
+  ${cl(11, 'Transferência de contrato e usina', `
+    <p>O CLIENTE poderá transferir este contrato para terceiros, mediante autorização expressa da CONTRATADA e desde que o novo titular cumpra com as obrigações contratuais aqui previstas.</p>`)}
+
+  ${cl(12, 'Responsabilidades ambientais e sustentabilidade', `
+    <p>As partes reconhecem a natureza sustentável deste contrato e comprometem-se a atuar de forma a minimizar impactos ambientais durante e após a instalação. O CLIENTE concorda em manter a área de instalação livre de obstruções e a CONTRATADA assegura que todos os materiais e equipamentos usados estão de acordo com as normas ambientais.</p>`)}
+
+  ${cl(13, 'Multa por interrupção não autorizada', `
+    <p>Caso o CLIENTE ou terceiros não autorizados interfiram no sistema sem a aprovação da CONTRATADA, estará sujeito a multa de 5% do valor total do contrato, além da perda das garantias aplicáveis.</p>`)}
+
+  ${cl(14, 'Foro', `
+    <p>As partes elegem o Foro da Comarca de ${e(foro)} para dirimir eventuais controvérsias decorrentes deste contrato, renunciando a qualquer outro foro.</p>`)}
+
+  <div class="fecho">
+    <p>Por estarem de pleno acordo com os termos deste contrato, as partes assinam o presente documento.</p>
+    <p class="local">${e(cidade)}, ${e(today)}.</p>
+
+    <div class="sigs">
+      <div class="sig"><div class="ln"></div>
+        <div class="nm">${e(company.nome)}</div>
+        <div class="rl2">Empresa contratada<br>CNPJ: ${e(company.cnpj)}</div></div>
+      <div class="sig"><div class="ln"></div>
+        <div class="nm">${e(client.nome.toUpperCase())}</div>
+        <div class="rl2">Cliente contratante<br>CPF/CNPJ: ${e(client.cpf_cnpj || '___')}</div></div>
+    </div>
+
+    <div class="test">
+      <div class="sig"><div class="ln"></div><div class="nm">Testemunha 1 — nome e CPF</div></div>
+      <div class="sig"><div class="ln"></div><div class="nm">Testemunha 2 — nome e CPF</div></div>
+    </div>
+
+    <div class="so-tela">Esta prévia mostra o contrato em folha corrida. No PDF ele sai paginado,
+    com <b>${e(runHeader)}</b> no alto de cada folha e a numeração <b>página X de Y</b> no rodapé —
+    é ela que denuncia uma folha faltando num contrato assinado. Cada cláusula é mantida inteira
+    numa folha só, e as assinaturas começam em página nova.</div>
+  </div>
+</div>
+</div>`;
+}
+
+
+// ════════════════════════════════════════════════════════════
+// PROCURAÇÃO — os três modelos, desenhados
+// ════════════════════════════════════════════════════════════
+//
+// Uma folha só nos três. Segue a paleta da proposta de banco de propósito: as
+// duas viajam no mesmo envelope, pro gerente do banco e pro cartório.
+//
+// O TEXTO JURÍDICO É O DE ANTES, palavra por palavra. O que mudou foi o
+// continente: outorgante virou cartão, outorgados viraram blocos, os poderes
+// ganharam seção. Frase de poder alterada é procuração recusada no balcão —
+// existe teste comparando as sentenças com as do modelo antigo.
+
+const PROC_CSS = docBaseCss('pr', DOC_TOKENS_MARCA) + `
+.pr .outs { display:flex; flex-direction:column; gap:2.4mm; margin-bottom:3.5mm; }
+.pr .out { border:1px solid var(--ln); border-left:3px solid var(--nv2); background:#fff; padding:2.4mm 4mm; }
+.pr .out .ot { font-family:Arial,Helvetica,sans-serif; font-size:6.9pt; font-weight:700; letter-spacing:.09em; color:var(--nv2); text-transform:uppercase; margin-bottom:1mm; }
+.pr .out .oq { font-size:9.2pt; line-height:1.5; text-align:justify; }
+.pr ol { margin:0; padding:0; list-style:none; counter-reset:pod; }
+.pr ol li { font-size:9.6pt; line-height:1.52; padding-left:8mm; position:relative; margin-bottom:1.8mm; text-align:justify; }
+.pr ol li:before { counter-increment:pod; content:counter(pod,lower-alpha) ')'; position:absolute; left:1.5mm; top:0; font-family:Arial,Helvetica,sans-serif; font-size:8.6pt; font-weight:700; color:var(--nv2); }
+.pr .nota { font-family:Arial,Helvetica,sans-serif; font-size:7.8pt; color:var(--sf); line-height:1.5; border-left:2px solid var(--gd); padding-left:3mm; margin:0 0 3.5mm; }
+.pr .out .lst { margin:0; padding:0; list-style:none; counter-reset:prc; }
+.pr .out .lst li { font-size:9.2pt; line-height:1.48; text-align:justify; padding-left:6mm; position:relative; margin-bottom:1.6mm; }
+.pr .out .lst li:last-child { margin-bottom:0; }
+.pr .out .lst li:before { counter-increment:prc; content:counter(prc) '.'; position:absolute; left:0.5mm; font-family:Arial,Helvetica,sans-serif; font-size:8.4pt; font-weight:700; color:var(--nv2); }
+/* Densidade: d2 e d3 apertam o MESMO conteudo, nunca cortam. O nivel sai do
+   tamanho do texto (ver procDensidade) — medido, nao chutado. */
+.pr.d2 p, .pr.d2 .out .oq, .pr.d2 .out .lst li { font-size:9.0pt; line-height:1.46; }
+.pr.d2 ol li { font-size:9.0pt; line-height:1.42; margin-bottom:1.2mm; }
+.pr.d2 .card { padding:2.4mm 4mm; margin-bottom:2.6mm; }
+.pr.d2 .cap { margin-bottom:1.8mm; }
+.pr.d2 .kv { gap:1.5mm 7mm; }
+.pr.d2 .out { padding:1.9mm 3.4mm; }
+.pr.d2 .outs { gap:1.8mm; margin-bottom:2.6mm; }
+.pr.d2 .sec { margin-bottom:4mm; }
+.pr.d2 .nota { font-size:7.4pt; line-height:1.42; margin-bottom:2.6mm; }
+.pr.d2 h1 { font-size:12.5pt; }
+.pr.d2 .sub { margin-bottom:2.2mm; }
+.pr.d2 .rg { margin-bottom:2.6mm; }
+.pr.d2 .sig { padding-top:6mm; }
+.pr.d2 .local { margin-bottom:2mm; }
+.pr.d3 p, .pr.d3 .out .oq, .pr.d3 .out .lst li { font-size:8.4pt; line-height:1.38; }
+.pr.d3 ol li { font-size:8.4pt; line-height:1.34; margin-bottom:0.9mm; }
+.pr.d3 .card { padding:1.9mm 3.4mm; margin-bottom:2mm; }
+.pr.d3 .cap { margin-bottom:1.3mm; font-size:7pt; }
+.pr.d3 .kv { gap:1.2mm 6mm; }
+.pr.d3 .kv .v { font-size:8.8pt; }
+.pr.d3 .out { padding:1.5mm 3mm; }
+.pr.d3 .outs { gap:1.4mm; margin-bottom:2mm; }
+.pr.d3 .out .lst li { margin-bottom:1.1mm; }
+.pr.d3 .sec { margin-bottom:3mm; }
+.pr.d3 h2 { margin-bottom:1.8mm; padding-bottom:1.2mm; }
+.pr.d3 .nota { font-size:7pt; line-height:1.36; margin-bottom:2mm; }
+.pr.d3 h1 { font-size:11.5pt; }
+.pr.d3 .sub { margin-bottom:1.6mm; font-size:7.6pt; }
+.pr.d3 .rg { margin-bottom:2mm; }
+.pr.d3 .head img.lg { height:11mm; }
+.pr.d3 .sig { padding-top:5mm; }
+.pr.d3 .local { margin-bottom:1.6mm; }
 `;
+
+// Qualificação de engenheiro e técnico: a mesma montagem de sempre, campo a
+// campo, na mesma ordem. M1 e M2 dividem esta; o M3 tem a dele porque a ordem
+// dos campos lá é outra (é a que a ANEEL lê).
+function procQualifica(company: Company): { eng: string; tec: string } {
+  let eng = '';
+  if (company.engenheiro_nome) {
+    let q = company.engenheiro_nome.toUpperCase();
+    if (company.engenheiro_profissao) q += `, ${company.engenheiro_profissao}`;
+    if (company.engenheiro_nacionalidade) q += `, ${company.engenheiro_nacionalidade}`;
+    if (company.engenheiro_estado_civil) q += `, ${company.engenheiro_estado_civil}`;
+    if (company.engenheiro_crea) q += `, inscrito(a) no ${company.engenheiro_crea}`;
+    if (company.engenheiro_cpf) q += `, CPF nº ${company.engenheiro_cpf}`;
+    if (company.engenheiro_rg) q += `, RG nº ${company.engenheiro_rg}`;
+    if (company.engenheiro_endereco) q += `, residente e domiciliado(a) na ${company.engenheiro_endereco}`;
+    eng = q;
+  }
+  let tec = '';
+  if (company.tecnico_nome) {
+    let q = company.tecnico_nome.toUpperCase();
+    if (company.tecnico_nacionalidade) q += `, ${company.tecnico_nacionalidade}`;
+    if (company.tecnico_estado_civil) q += `, ${company.tecnico_estado_civil}`;
+    if (company.tecnico_crt_cft) q += `, ${company.tecnico_crt_cft}`;
+    if (company.tecnico_cpf) q += `, CPF nº ${company.tecnico_cpf}`;
+    if (company.tecnico_rg) q += `, RG nº ${company.tecnico_rg}`;
+    if (company.tecnico_endereco) q += `, residente e domiciliado(a) na ${company.tecnico_endereco}`;
+    tec = q;
+  }
+  return { eng, tec };
+}
+
+// Blocos de outorgado. Sem nenhum cadastrado sai o bloco em branco, pra folha
+// dizer o que falta em vez de esconder: procuração sem outorgado não serve.
+function procOutorgados(lista: Array<{ rotulo: string; texto: string }>): string {
+  if (!lista.length) {
+    return `<div class="outs"><div class="out"><div class="ot">Outorgado</div>
+      <div class="oq" style="min-height:11px;border-bottom:1px solid #B9C2CE"></div></div></div>`;
+  }
+  // 3 ou mais: uma ficha so', com lista numerada dentro. Quatro cartoes
+  // separados custavam 84mm no modelo ANEEL — a borda e o padding de cada um
+  // pesavam mais que a qualificacao em si.
+  if (lista.length >= 3) {
+    return `<div class="outs"><div class="out"><div class="ot">Procuradores</div>
+      <ol class="lst">${lista.map(o => `<li>${escHtml(o.texto)}</li>`).join('')}</ol></div></div>`;
+  }
+  return `<div class="outs">${lista.map(o =>
+    `<div class="out"><div class="ot">${escHtml(o.rotulo)}</div><div class="oq">${escHtml(o.texto)}</div></div>`
+  ).join('')}</div>`;
+}
+
+// Nivel de densidade pelo TAMANHO do texto que vai no papel. Limiares medidos
+// nos tres modelos com a empresa cheia (engenheiro + 3 tecnicos, enderecos
+// longos): abaixo de 1500 caracteres sobra folga, acima de 2600 so' apertando
+// tudo cabe em uma folha. Mexeu no corpo? meca de novo.
+function procDensidade(corpo: string): string {
+  const n = corpo.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().length;
+  return n > 2600 ? ' d3' : n > 1500 ? ' d2' : '';
+}
+
+// Scaffold das três: timbre, título, corpo, local/data, assinatura e rodapé.
+function procFolha(
+  company: Company,
+  client: Client,
+  o: { titulo: string; sub: string; ref: string; corpo: string; cidade: string; hoje: string; legenda: string }
+): string {
+  const m = docMarca(company);
+  const hojeCurto = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  return `[[HTML]]<style>${PROC_CSS}</style><div class="pr${procDensidade(o.corpo)}">
+<div class="folha">
+  <div class="wm"><img src="{{LOGO}}" alt=""></div>
+  <div class="head"><img class="lg" src="{{LOGO}}" alt="">
+    <div class="who"><span class="nm">${escHtml(m.nome)}</span>
+      ${m.linha1 ? `<span class="dt">${escHtml(m.linha1)}</span>` : ''}
+      ${m.linha2 ? `<span class="dt">${escHtml(m.linha2)}</span>` : ''}</div>
+    <div class="ref"><b>${escHtml(o.ref)}</b>Emissão: ${escHtml(hojeCurto)}</div>
+  </div><div class="rl"></div><div class="rg"></div>
+
+  <h1>${escHtml(o.titulo)}</h1>
+  <p class="sub">${escHtml(o.sub)}</p>
+
+  ${o.corpo}
+
+  <p class="local">${escHtml(o.cidade)}, ${escHtml(o.hoje)}</p>
+  <div class="sigs uma">
+    <div class="sig"><div class="ln"></div>
+      <div class="nm">${escHtml(client.nome)}</div>
+      <div class="rl2">${escHtml(o.legenda)}</div></div>
+  </div>
+  <div class="foot"><span>Procuração · ${escHtml(client.nome)}</span>
+    <span class="br">gerado por ${escHtml(m.fantasia || company.nome || 'sua empresa')} · solardoc</span></div>
+</div>
+</div>`;
 }
 
 // ════════════════════════════════════════════════════════════
@@ -518,80 +848,55 @@ function procuracaoM1(
   f: Record<string, unknown>
 ): string {
   const today = dateBR();
-  const cidade = str(f.foro_cidade || (client as any).cidade || company.cidade || '___');
+  const cidade = str(f.foro_cidade || client.cidade || company.cidade || '___');
   const concessionaria = str(f.concessionaria);
   const uc = str(f.uc);
+  const { eng, tec } = procQualifica(company);
+  const plural = !!eng && !!tec;
 
-  // Qualificação do engenheiro
-  let engQualif = '';
-  if (company.engenheiro_nome) {
-    let q = company.engenheiro_nome.toUpperCase();
-    if (company.engenheiro_profissao) q += `, ${company.engenheiro_profissao}`;
-    if (company.engenheiro_nacionalidade) q += `, ${company.engenheiro_nacionalidade}`;
-    if (company.engenheiro_estado_civil) q += `, ${company.engenheiro_estado_civil}`;
-    if (company.engenheiro_crea) q += `, inscrito(a) no ${company.engenheiro_crea}`;
-    if (company.engenheiro_cpf) q += `, CPF nº ${company.engenheiro_cpf}`;
-    if (company.engenheiro_rg) q += `, RG nº ${company.engenheiro_rg}`;
-    if (company.engenheiro_endereco) q += `, residente e domiciliado(a) na ${company.engenheiro_endereco}`;
-    engQualif = q;
-  }
-
-  // Qualificação do técnico
-  let tecQualif = '';
-  if (company.tecnico_nome) {
-    let q = company.tecnico_nome.toUpperCase();
-    if (company.tecnico_nacionalidade) q += `, ${company.tecnico_nacionalidade}`;
-    if (company.tecnico_estado_civil) q += `, ${company.tecnico_estado_civil}`;
-    if ((company as any).tecnico_crt_cft) q += `, ${(company as any).tecnico_crt_cft}`;
-    if (company.tecnico_cpf) q += `, CPF nº ${company.tecnico_cpf}`;
-    if (company.tecnico_rg) q += `, RG nº ${company.tecnico_rg}`;
-    if (company.tecnico_endereco) q += `, residente e domiciliado(a) na ${company.tecnico_endereco}`;
-    tecQualif = q;
-  }
-
-  const temEng = !!engQualif;
-  const temTec = !!tecQualif;
-  const plural = temEng && temTec;
-
-  let outorgadosBloco = '';
+  const lista: Array<{ rotulo: string; texto: string }> = [];
   if (plural) {
-    outorgadosBloco = `1º OUTORGADO: ${engQualif};\n\n2º OUTORGADO: ${tecQualif};`;
-  } else if (temEng) {
-    outorgadosBloco = `OUTORGADO: ${engQualif};`;
-  } else if (temTec) {
-    outorgadosBloco = `OUTORGADO: ${tecQualif};`;
-  } else {
-    outorgadosBloco = 'OUTORGADO: ___';
+    lista.push({ rotulo: '1º Outorgado', texto: eng });
+    lista.push({ rotulo: '2º Outorgado', texto: tec });
+  } else if (eng) {
+    lista.push({ rotulo: 'Outorgado', texto: eng });
+  } else if (tec) {
+    lista.push({ rotulo: 'Outorgado', texto: tec });
   }
 
   const verboProcurador = plural ? 'seus bastantes procuradores' : 'seu(ua) bastante procurador(a)';
   const verboOutorgados = plural ? 'os outorgados representem' : 'o(a) outorgado(a) represente';
+  const vazio = (v: string) => (v && v !== '___' ? v : '');
+  const campo = (k: string, v: string, span = false) =>
+    `<div${span ? ' class="s2"' : ''}><span class="k">${escHtml(k)}</span>` +
+    `<span class="v${v ? '' : ' bl'}">${v ? escHtml(v) : ''}</span></div>`;
 
-  return `PROCURAÇÃO
+  const corpo = `
+  <p>Pelo presente instrumento particular de procuração,</p>
 
-Pelo presente instrumento particular de procuração,
+  <div class="card" style="margin-top:3mm"><div class="cap">Outorgante</div><div class="kv">
+    ${campo('Nome', client.nome, true)}
+    ${campo('CPF / CNPJ', vazio(client.cpf_cnpj || ''))}
+    ${campo('CEP', vazio(client.cep || ''))}
+    ${campo('Endereço', vazio(enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf)), true)}
+    ${campo('Unidade Consumidora (UC)', vazio(uc))}
+    ${campo('Concessionária', vazio(concessionaria))}
+  </div></div>
 
-OUTORGANTE: ${client.nome}
-CPF/CNPJ: ${client.cpf_cnpj || '___'}
-Endereço: ${enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf)}${client.cep ? `\nCEP: ${client.cep}` : ''}
-Unidade Consumidora (UC): ${uc}
-Concessionária: ${concessionaria}
+  <p>nomeia e constitui como ${escHtml(verboProcurador)}:</p>
 
-nomeia e constitui como ${verboProcurador}:
+  ${procOutorgados(lista)}
 
-${outorgadosBloco}
+  <div class="sec"><h2><i>§</i>Poderes conferidos</h2>
+    <p>conferindo-lhe(s) amplos poderes para que ${escHtml(verboOutorgados)} perante a concessionária ${escHtml(concessionaria)}, em todos os assuntos relativos à UC nº ${escHtml(uc)}, incluindo: apresentação e protocolo de projetos técnicos, análise de carga, troca de titularidade, atualização cadastral, assinatura de contratos de conexão e quaisquer outros atos necessários à homologação e operação do sistema fotovoltaico.</p>
+  </div>`;
 
-conferindo-lhe(s) amplos poderes para que ${verboOutorgados} perante a concessionária ${concessionaria}, em todos os assuntos relativos à UC nº ${uc}, incluindo: apresentação e protocolo de projetos técnicos, análise de carga, troca de titularidade, atualização cadastral, assinatura de contratos de conexão e quaisquer outros atos necessários à homologação e operação do sistema fotovoltaico.
-
-${cidade}, ${today}
-
-
-
-
-________________________________
-${client.nome}
-OUTORGANTE
-`;
+  return procFolha(company, client, {
+    titulo: 'Procuração',
+    sub: 'Representação junto à concessionária de energia elétrica',
+    ref: 'PROCURAÇÃO',
+    corpo, cidade, hoje: today, legenda: 'Outorgante',
+  });
 }
 
 // ════════════════════════════════════════════════════════════
@@ -603,91 +908,59 @@ function procuracaoM2(
   f: Record<string, unknown>
 ): string {
   const today = dateBR();
-  const cidade = str(f.foro_cidade || (client as any).cidade || company.cidade || '___');
+  const cidade = str(f.foro_cidade || client.cidade || company.cidade || '___');
   const concessionaria = str(f.concessionaria);
   const uc = str(f.uc);
+  const { eng, tec } = procQualifica(company);
+  const plural = !!eng && !!tec;
 
-  // Qualificação do engenheiro
-  let engQualif = '';
-  if (company.engenheiro_nome) {
-    let q = company.engenheiro_nome.toUpperCase();
-    if (company.engenheiro_profissao) q += `, ${company.engenheiro_profissao}`;
-    if (company.engenheiro_nacionalidade) q += `, ${company.engenheiro_nacionalidade}`;
-    if (company.engenheiro_estado_civil) q += `, ${company.engenheiro_estado_civil}`;
-    if (company.engenheiro_crea) q += `, inscrito(a) no ${company.engenheiro_crea}`;
-    if (company.engenheiro_cpf) q += `, CPF nº ${company.engenheiro_cpf}`;
-    if (company.engenheiro_rg) q += `, RG nº ${company.engenheiro_rg}`;
-    if (company.engenheiro_endereco) q += `, residente e domiciliado(a) na ${company.engenheiro_endereco}`;
-    engQualif = q;
-  }
-
-  // Qualificação do técnico
-  let tecQualif = '';
-  if (company.tecnico_nome) {
-    let q = company.tecnico_nome.toUpperCase();
-    if (company.tecnico_nacionalidade) q += `, ${company.tecnico_nacionalidade}`;
-    if (company.tecnico_estado_civil) q += `, ${company.tecnico_estado_civil}`;
-    if ((company as any).tecnico_crt_cft) q += `, ${(company as any).tecnico_crt_cft}`;
-    if (company.tecnico_cpf) q += `, CPF nº ${company.tecnico_cpf}`;
-    if (company.tecnico_rg) q += `, RG nº ${company.tecnico_rg}`;
-    if (company.tecnico_endereco) q += `, residente e domiciliado(a) na ${company.tecnico_endereco}`;
-    tecQualif = q;
-  }
-
-  const temEng = !!engQualif;
-  const temTec = !!tecQualif;
-  const plural = temEng && temTec;
-
-  let outorgadosBloco = '';
+  const lista: Array<{ rotulo: string; texto: string }> = [];
   if (plural) {
-    outorgadosBloco = `1º OUTORGADO: ${engQualif};\n\n2º OUTORGADO: ${tecQualif};`;
-  } else if (temEng) {
-    outorgadosBloco = `OUTORGADO: ${engQualif};`;
-  } else if (temTec) {
-    outorgadosBloco = `OUTORGADO: ${tecQualif};`;
-  } else {
-    outorgadosBloco = 'OUTORGADO: ___';
+    lista.push({ rotulo: '1º Outorgado', texto: eng });
+    lista.push({ rotulo: '2º Outorgado', texto: tec });
+  } else if (eng) {
+    lista.push({ rotulo: 'Outorgado', texto: eng });
+  } else if (tec) {
+    lista.push({ rotulo: 'Outorgado', texto: tec });
   }
 
   const tituloProcurador = plural ? 'seus legítimos procuradores' : 'seu(ua) legítimo(a) procurador(a)';
   const pronomeOutorgados = plural ? 'lhes' : 'lhe';
   const verboCriterio = plural ? 'dos procuradores' : 'do(a) procurador(a)';
+  const endCli = enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf);
 
-  return `INSTRUMENTO PARTICULAR DE PROCURAÇÃO
+  const corpo = `
+  <p>SAIBAM todos quantos este instrumento virem que, na data abaixo indicada,</p>
 
-SAIBAM todos quantos este instrumento virem que, na data abaixo indicada,
+  <div class="card" style="margin-top:3mm"><div class="cap">Outorgante</div>
+    <p style="margin:0;font-size:9.4pt">${escHtml(client.nome)}, inscrito(a) no CPF/CNPJ sob o nº ${escHtml(client.cpf_cnpj || '___')}, residente e domiciliado(a) à ${escHtml(endCli)}${client.cep ? `, CEP ${escHtml(client.cep)}` : ''}, doravante denominado(a) simplesmente OUTORGANTE,</p>
+  </div>
 
-OUTORGANTE: ${client.nome}, inscrito(a) no CPF/CNPJ sob o nº ${client.cpf_cnpj || '___'}, residente e domiciliado(a) à ${enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf)}${client.cep ? `, CEP ${client.cep}` : ''}, doravante denominado(a) simplesmente OUTORGANTE,
+  <p>pelo presente instrumento particular e na melhor forma de direito, nomeia e constitui como ${escHtml(tituloProcurador)}:</p>
 
-pelo presente instrumento particular e na melhor forma de direito, nomeia e constitui como ${tituloProcurador}:
+  ${procOutorgados(lista)}
 
-${outorgadosBloco}
+  <div class="sec"><h2><i>§</i>Poderes especiais conferidos</h2>
+    <p style="margin-bottom:2.6mm">conferindo-${escHtml(pronomeOutorgados)} os seguintes poderes especiais:</p>
+    <ol>
+      <li>Representar o(a) OUTORGANTE junto à concessionária de energia elétrica ${escHtml(concessionaria)}, em todos os assuntos relacionados à Unidade Consumidora de nº ${escHtml(uc)};</li>
+      <li>Assinar e protocolar requerimentos, projetos técnicos, formulários, contratos de conexão e todos os documentos necessários ao processo de homologação e conexão do sistema fotovoltaico;</li>
+      <li>Solicitar análise de carga, troca de titularidade, atualização cadastral e quaisquer serviços técnicos junto à ${escHtml(concessionaria)};</li>
+      <li>Receber notificações, intimações e quaisquer comunicados em nome do(a) OUTORGANTE;</li>
+      <li>Substabelecer este mandato, no todo ou em parte, com ou sem reserva de iguais poderes, a critério ${escHtml(verboCriterio)}.</li>
+    </ol>
+  </div>
 
-conferindo-${pronomeOutorgados} os seguintes poderes especiais:
+  <p class="nota">Esta procuração terá validade de 1 (um) ano a contar da data de sua assinatura, salvo revogação expressa anterior.<br>
+  O(A) OUTORGANTE declara que as informações constantes neste instrumento são verdadeiras e assume integral responsabilidade pelo seu conteúdo.</p>`;
 
-   a) Representar o(a) OUTORGANTE junto à concessionária de energia elétrica ${concessionaria}, em todos os assuntos relacionados à Unidade Consumidora de nº ${uc};
-
-   b) Assinar e protocolar requerimentos, projetos técnicos, formulários, contratos de conexão e todos os documentos necessários ao processo de homologação e conexão do sistema fotovoltaico;
-
-   c) Solicitar análise de carga, troca de titularidade, atualização cadastral e quaisquer serviços técnicos junto à ${concessionaria};
-
-   d) Receber notificações, intimações e quaisquer comunicados em nome do(a) OUTORGANTE;
-
-   e) Substabelecer este mandato, no todo ou em parte, com ou sem reserva de iguais poderes, a critério ${verboCriterio}.
-
-Esta procuração terá validade de 1 (um) ano a contar da data de sua assinatura, salvo revogação expressa anterior.
-
-O(A) OUTORGANTE declara que as informações constantes neste instrumento são verdadeiras e assume integral responsabilidade pelo seu conteúdo.
-
-${cidade}, ${today}
-
-
-
-
-________________________________
-${client.nome}
-OUTORGANTE — CPF/CNPJ: ${client.cpf_cnpj || '___'}
-`;
+  return procFolha(company, client, {
+    titulo: 'Instrumento Particular de Procuração',
+    sub: 'Poderes especiais para representação junto à concessionária',
+    ref: 'INSTRUMENTO PARTICULAR',
+    corpo, cidade, hoje: today,
+    legenda: `Outorgante — CPF/CNPJ: ${client.cpf_cnpj || '___'}`,
+  });
 }
 
 // ════════════════════════════════════════════════════════════
@@ -700,11 +973,8 @@ function procuracaoM3(
   f: Record<string, unknown>
 ): string {
   const today = dateBR();
-  const cidade = str(f.foro_cidade || (client as any).cidade || company.cidade || '___');
+  const cidade = str(f.foro_cidade || client.cidade || company.cidade || '___');
   const concessionaria = str(f.concessionaria);
-
-  // Qualificação de cada procurador cadastrado: 1 engenheiro + até 3 técnicos.
-  // Itera nos campos sufixados (tecnico, tecnico2, tecnico3).
   const c = company as unknown as Record<string, string | undefined>;
 
   function qualificaEngenheiro(): string {
@@ -724,12 +994,12 @@ function procuracaoM3(
     const nome = c[`${prefix}_nome`];
     if (!nome) return '';
     let q = nome.toUpperCase();
-    const nac    = c[`${prefix}_nacionalidade`];
-    const ec     = c[`${prefix}_estado_civil`];
-    const crt    = c[`${prefix}_crt_cft`];
-    const rg     = c[`${prefix}_rg`];
-    const cpf    = c[`${prefix}_cpf`];
-    const end    = c[`${prefix}_endereco`];
+    const nac = c[`${prefix}_nacionalidade`];
+    const ec  = c[`${prefix}_estado_civil`];
+    const crt = c[`${prefix}_crt_cft`];
+    const rg  = c[`${prefix}_rg`];
+    const cpf = c[`${prefix}_cpf`];
+    const end = c[`${prefix}_endereco`];
     if (nac) q += `, ${nac}`;
     if (ec)  q += `, ${ec}`;
     if (crt) q += `, ${crt}`;
@@ -739,19 +1009,14 @@ function procuracaoM3(
     return q + '.';
   }
 
-  const procuradores: string[] = [
+  const procuradores = [
     qualificaEngenheiro(),
     qualificaTecnico('tecnico'),
     qualificaTecnico('tecnico2'),
     qualificaTecnico('tecnico3'),
   ].filter(Boolean);
 
-  const procuradoresBloco = procuradores.length
-    ? procuradores.join('\n\n')
-    : '___';
-
-  // OUTORGADA: empresa + sócio administrador (quando cadastrados).
-  const socioAdm = (company as any).socio_adm as string | undefined;
+  const socioAdm = company.socio_adm;
   const empresaEndereco = enderecoCompleto(company.endereco, undefined, company.cidade, company.uf);
   const outorgadaLinha =
     `OUTORGADO(A): ${company.nome.toUpperCase()}, inscrita no CNPJ nº ${company.cnpj}` +
@@ -761,32 +1026,38 @@ function procuracaoM3(
 
   const enderecoCliente = enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf);
 
-  return `PROCURAÇÃO
+  const lista = procuradores.map((t, i) => ({
+    rotulo: procuradores.length > 1 ? `Procurador ${i + 1}` : 'Procurador',
+    texto: t,
+  }));
 
-OUTORGANTE: ${client.nome.toUpperCase()}, CPF nº ${client.cpf_cnpj || '___'}, residente no ${enderecoCliente || '___'} (endereço idêntico à conta de energia).
+  const corpo = `
+  <div class="card" style="margin-top:1mm"><div class="cap">Outorgante</div>
+    <p style="margin:0;font-size:9.4pt">${escHtml(client.nome.toUpperCase())}, CPF nº ${escHtml(client.cpf_cnpj || '___')}, residente no ${escHtml(enderecoCliente || '___')} (endereço idêntico à conta de energia).</p>
+  </div>
 
-${outorgadaLinha}
+  <div class="card"><div class="cap">Outorgada</div>
+    <p style="margin:0;font-size:9.4pt">${escHtml(outorgadaLinha)}</p>
+  </div>
 
-${procuradoresBloco}
+  ${procOutorgados(lista)}
 
-Por intermédio do presente instrumento particular de procuração, o OUTORGANTE infra-assinado nomeia e constitui seu Procurador o OUTORGADO supramencionado conferindo-lhes poderes para representá-lo com a finalidade exclusiva de providenciar ou autorizar qualquer requerimento junto à prestadora de serviço de energia, ${concessionaria || '(NOME DA CONCESSIONÁRIA DE DISTRIBUIÇÃO LOCAL)'}, e a Agência Nacional de Energia Elétrica (ANEEL), com as devidas finalidades: Troca de titularidade, solicitação de conexão, formulário de solicitação de acesso, emissão de TRT, formulário de rateio, aumento de carga, nova ligação, troca de medidor, mudança de padrão, ou seja, homologação geral do sistema de geração de energia solar fotovoltaica.
+  <div class="sec"><h2><i>§</i>Finalidade e poderes</h2>
+    <p>Por intermédio do presente instrumento particular de procuração, o OUTORGANTE infra-assinado nomeia e constitui seu Procurador o OUTORGADO supramencionado conferindo-lhes poderes para representá-lo com a finalidade exclusiva de providenciar ou autorizar qualquer requerimento junto à prestadora de serviço de energia, ${escHtml(concessionaria || '(NOME DA CONCESSIONÁRIA DE DISTRIBUIÇÃO LOCAL)')}, e a Agência Nacional de Energia Elétrica (ANEEL), com as devidas finalidades: Troca de titularidade, solicitação de conexão, formulário de solicitação de acesso, emissão de TRT, formulário de rateio, aumento de carga, nova ligação, troca de medidor, mudança de padrão, ou seja, homologação geral do sistema de geração de energia solar fotovoltaica.</p>
+  </div>
 
-Insta esclarecer que o presente instrumento não permite o substabelecimento a terceiros.
+  <p class="nota">Insta esclarecer que o presente instrumento não permite o substabelecimento a terceiros.<br>
+  Por oportuno, ressalta-se ainda que os efeitos deste, cessa a partir do término das atividades delimitadas neste documento.<br>
+  Tudo isto, com fulcro nos artigos 653 e 654 do Código Civil de 2002.</p>`;
 
-Por oportuno, ressalta-se ainda que os efeitos deste, cessa a partir do término das atividades delimitadas neste documento.
-
-Tudo isto, com fulcro nos artigos 653 e 654 do Código Civil de 2002.
-
-${cidade}, ${today}.
-
-
-
-
-________________________________
-${client.nome}
-(nome completo do cliente)
-`;
+  return procFolha(company, client, {
+    titulo: 'Procuração',
+    sub: 'Representação junto à concessionária e à ANEEL',
+    ref: 'PROCURAÇÃO ANEEL',
+    corpo, cidade, hoje: today + '.', legenda: '(nome completo do cliente)',
+  });
 }
+
 
 // ════════════════════════════════════════════════════════════
 // RECIBO DE PAGAMENTO — MODELO 1
@@ -931,42 +1202,8 @@ const PB_ITENS_NORMAL = 8;
 const PB_ITENS_COMPACTA = 11;
 export const PB_ITENS_MAX = 13;
 
-const PB_CSS = `
-.pb * { box-sizing: border-box; }
-.pb { --nv:#0B2545; --nv2:#2C4A73; --gd:#C9A227; --ln:#D8DEE7; --sf:#55606E; --wa:#F5F7FA;
-  font-family: Georgia,'Times New Roman',Times,serif; color:#1B1B1B; }
-.pb .folha { width:100%; min-height:258mm; display:flex; flex-direction:column; position:relative; }
-.pb .folha + .folha { break-before:page; page-break-before:always; }
-.pb .wm { position:absolute; inset:0; z-index:0; display:flex; align-items:center; justify-content:center; opacity:.028; pointer-events:none; }
-.pb .wm img { width:78mm; }
-.pb .folha > *:not(.wm) { position:relative; z-index:1; }
-.pb .head { display:flex; align-items:center; gap:11px; }
-.pb .head img.lg { height:13mm; width:auto; flex-shrink:0; }
-.pb .who { display:flex; flex-direction:column; gap:1.5px; flex:1; }
-.pb .who .nm { font-family:Arial,Helvetica,sans-serif; font-size:12.5pt; font-weight:700; color:var(--nv); letter-spacing:.02em; line-height:1.15; }
-.pb .who .dt { font-family:Arial,Helvetica,sans-serif; font-size:7.6pt; color:var(--sf); line-height:1.45; }
-.pb .ref { text-align:right; font-family:Arial,Helvetica,sans-serif; font-size:7.4pt; color:var(--sf); line-height:1.5; white-space:nowrap; }
-.pb .ref b { display:block; color:var(--nv); font-size:8pt; letter-spacing:.06em; }
-.pb .rl { height:2px; background:var(--nv); margin:7px 0 0; }
-.pb .rg { height:1.5px; background:var(--gd); width:26mm; margin-bottom:3.5mm; }
-.pb h1 { font-family:Arial,Helvetica,sans-serif; font-size:13.5pt; font-weight:700; color:var(--nv); letter-spacing:.10em; text-align:center; text-transform:uppercase; margin:0 0 3px; }
-.pb .sub { font-family:Arial,Helvetica,sans-serif; font-size:8.2pt; color:var(--sf); text-align:center; letter-spacing:.05em; text-transform:uppercase; margin:0 0 3mm; }
-.pb .card { border:1px solid var(--ln); border-left:3px solid var(--nv); background:var(--wa); padding:3mm 4.5mm; margin-bottom:3.5mm; }
-.pb .cap { font-family:Arial,Helvetica,sans-serif; font-size:7.4pt; font-weight:700; letter-spacing:.12em; color:var(--nv2); text-transform:uppercase; margin-bottom:2.5mm; }
-.pb .kv { display:grid; grid-template-columns:1fr 1fr; gap:2mm 7mm; }
-.pb .kv > div { display:flex; flex-direction:column; gap:1px; }
-.pb .kv .k { font-family:Arial,Helvetica,sans-serif; font-size:6.9pt; font-weight:700; letter-spacing:.09em; color:var(--sf); text-transform:uppercase; }
-.pb .kv .v { font-family:Arial,Helvetica,sans-serif; font-size:9.3pt; color:#12253F; font-weight:600; line-height:1.3; }
-.pb .kv .v.bl { border-bottom:1px solid #B9C2CE; min-height:12px; }
-.pb .s2 { grid-column:1 / -1; }
-.pb h2 { font-family:Arial,Helvetica,sans-serif; font-size:8.6pt; font-weight:700; color:var(--nv); letter-spacing:.10em; text-transform:uppercase; margin:0 0 2.5mm; padding-bottom:1.6mm; border-bottom:1px solid var(--ln); }
-.pb h2 i { color:var(--gd); font-style:normal; margin-right:5px; }
-.pb .sec { margin-bottom:5.5mm; }
-.pb p { margin:0 0 2.4mm; font-size:10pt; line-height:1.62; text-align:justify; }
-.pb .sec p:last-child { margin-bottom:0; }
-.pb ul { margin:0; padding:0; list-style:none; }
-.pb ul li { font-size:9.7pt; line-height:1.5; padding-left:6mm; position:relative; margin-bottom:1.6mm; }
-.pb ul li:before { content:''; position:absolute; left:1.6mm; top:5.5px; width:4px; height:4px; background:var(--gd); border-radius:50%; }
+
+const PB_CSS = docBaseCss('pb', DOC_TOKENS_MARCA) + `
 .pb .band { background:var(--nv); color:#fff; padding:2.2mm 4.5mm; margin-bottom:2.8mm; display:flex; align-items:baseline; justify-content:space-between; gap:6mm; }
 .pb .band .t { font-family:Arial,Helvetica,sans-serif; font-size:6.9pt; letter-spacing:.14em; text-transform:uppercase; color:#9FB6D4; }
 .pb .band .n { font-family:Arial,Helvetica,sans-serif; font-size:11.5pt; font-weight:700; }
@@ -998,17 +1235,6 @@ const PB_CSS = `
 .pb .row.mid .r { font-size:11pt; font-weight:700; color:#12253F; }
 .pb .row.nota { padding-top:1.8mm; }
 .pb .row.nota .l { font-size:7.6pt; font-style:italic; color:#6B7684; }
-.pb .local { font-family:Arial,Helvetica,sans-serif; font-size:8.6pt; color:#12253F; text-align:right; margin:0 0 3mm; }
-/* O espaço de punho é o padding-top do .sig: fica ANTES da régua e é igual dos
-   dois lados, então as duas réguas saem na mesma altura mesmo com legendas de
-   tamanhos diferentes. O margin-top:auto é o que cede quando a lista cresce. */
-.pb .sigs { margin-top:auto; padding-top:0; display:grid; grid-template-columns:1fr 1fr; gap:12mm; align-items:start; break-inside:avoid; page-break-inside:avoid; }
-.pb .sig { text-align:center; padding-top:8mm; }
-.pb .sig .ln { border-top:1px solid #5A6572; margin-bottom:2mm; }
-.pb .sig .nm { font-family:Arial,Helvetica,sans-serif; font-size:8.4pt; font-weight:700; color:#12253F; line-height:1.35; text-transform:uppercase; letter-spacing:.02em; }
-.pb .sig .rl2 { font-family:Arial,Helvetica,sans-serif; font-size:7.2pt; color:var(--sf); margin-top:1mm; line-height:1.4; }
-.pb .foot { margin-top:4mm; padding-top:2mm; border-top:1px solid var(--ln); display:flex; justify-content:space-between; align-items:center; font-family:Arial,Helvetica,sans-serif; font-size:7.1pt; color:#9AA4B0; }
-.pb .foot .br { color:var(--nv2); letter-spacing:.04em; }
 `;
 
 function propostaBancoM1(

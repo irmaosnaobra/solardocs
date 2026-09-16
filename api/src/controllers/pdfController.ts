@@ -116,12 +116,39 @@ export async function generatePdf(req: Request, res: Response): Promise<void> {
       ? { top: '1.5cm', bottom: '1.5cm', left: '1.5cm', right: '1.5cm' }
       : { top: '2cm', bottom: '2.5cm', left: '2cm', right: '2cm' };
 
+    // ATENÇÃO: enquanto o HTML guardado trouxer @page com margem declarada — e o
+    // buildHtml() do DocumentPreview traz, `@page{margin:1.5cm 1.5cm 2cm 1.5cm}`
+    // — o Chrome IGNORA este `margin` e usa o do @page. Medido por sonda: a
+    // caixa útil dá 262mm com qualquer valor acima. Mexer nestes números não
+    // muda nada sozinho; quem manda é o @page. Os documentos desenhados
+    // (proposta de banco, procuração, contrato) são dimensionados em cima dos
+    // 262mm — trocar o @page re-pagina os três.
+
+    // Cabeçalho corrido + "página X de Y": só para quem pede, e o texto vem do
+    // próprio HTML. Contrato tem 4 folhas e é assinado — sem a numeração,
+    // ninguém percebe uma folha faltando no meio.
+    const runHeader = /data-run-header="([^"]*)"/.exec(htmlContent)?.[1] ?? '';
+    const cabecalho = runHeader
+      ? {
+          displayHeaderFooter: true,
+          headerTemplate:
+            `<div style="width:100%;padding:0 1.5cm;font-family:Arial,Helvetica,sans-serif;` +
+            `font-size:7pt;color:#8A8A8A;border-bottom:0.5px solid #D8D8D8;padding-bottom:3px;">` +
+            `${runHeader}</div>`,
+          footerTemplate:
+            `<div style="width:100%;padding:0 1.5cm;font-family:Arial,Helvetica,sans-serif;` +
+            `font-size:7pt;color:#8A8A8A;text-align:right;">` +
+            `página <span class="pageNumber"></span> de <span class="totalPages"></span></div>`,
+        }
+      : {};
+
     stage = 'render-pdf';
     const pdf = await page.pdf({
       format: 'A4',
       printBackground: true,
       margin,
       preferCSSPageSize: false,
+      ...cabecalho,
     });
 
     const clienteSlug = stripDiacritics(doc.cliente_nome ?? 'documento')
