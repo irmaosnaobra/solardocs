@@ -656,6 +656,20 @@
                 <input id="i-cidade" type="text" placeholder="Uberlândia, MG">
               </div>
             </div>
+            <!-- Cadastro de EMPRESA (16/09/2026): o integrador é canal, não é
+                 consumidor. Sem o nome da empresa a aba Cadastros vira lista de
+                 pessoas soltas. O CNPJ é opcional de propósito: quem ainda não tem
+                 também instala, e exigir número trava o cadastro de quem serve. -->
+            <div class="fRow">
+              <div class="fld">
+                <label for="i-empresa">Empresa</label>
+                <input id="i-empresa" type="text" placeholder="Nome da sua empresa">
+              </div>
+              <div class="fld">
+                <label for="i-cnpj">CNPJ (opcional)</label>
+                <input id="i-cnpj" type="text" inputmode="numeric" placeholder="00.000.000/0001-00">
+              </div>
+            </div>
             <div class="fRow">
               <div class="fld">
                 <label for="i-atuacao">O que você faz hoje</label>
@@ -941,6 +955,9 @@ function enviar(e, lado){
     if (!val('i-interesse')) return erro(lado, 'Informe como você quer trabalhar com eletroposto.');
     if (!val('i-exp'))       return erro(lado, 'Informe se já instalou carregador. "Nunca instalei" é uma resposta válida e está na lista.');
     if (!val('i-equipe'))    return erro(lado, 'Informe como é a sua equipe hoje.');
+    if (val('i-empresa').length < 2) return erro(lado, 'Informe o nome da sua empresa.');
+    corpo.empresa                = val('i-empresa');
+    corpo.cnpj                   = val('i-cnpj');
     corpo.integrador_atuacao     = val('i-atuacao');
     corpo.integrador_interesse   = val('i-interesse');
     corpo.integrador_experiencia = val('i-exp');

@@ -750,6 +750,8 @@ export function montarAvisoIntegrador(reg: Record<string, unknown>): string {
     `*Nome:* ${v(reg, 'nome')}`,
     `*WhatsApp:* wa.me/${String(reg.telefone || '')}`,
     `*Cidade:* ${v(reg, 'cidade')}`,
+    ...(reg.empresa ? [`*Empresa:* ${v(reg, 'empresa')}`] : []),
+    ...(reg.cnpj ? [`*CNPJ:* ${v(reg, 'cnpj')}`] : []),
     `*O que faz hoje:* ${v(reg, 'integrador_atuacao')}`,
     `*Como quer trabalhar:* ${v(reg, 'integrador_interesse')}`,
     `*Já instalou carregador:* ${v(reg, 'integrador_experiencia')}`,
@@ -799,6 +801,13 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
     padrao_consumo:   txt(b.padrao_consumo, 60),
     padrao_foto:      txt(b.padrao_foto, 60),
     // lado INTEGRADOR
+    // Empresa e CNPJ entraram em 16/09/2026: o integrador é canal, não consumidor,
+    // e sem o nome da empresa a lista do Gerador vira uma lista de pessoas soltas.
+    // Vão como null quando vêm vazios, porque o upsert por (lado, telefone) só
+    // sobrescreve o que a requisição manda: cadastro repetido sem CNPJ não apaga o
+    // CNPJ que a pessoa já tinha dado.
+    empresa:        txt(b.empresa, 120),
+    cnpj:           (txt(b.cnpj, 20) || '').replace(/\D/g, '') || null,
     integrador_atuacao:     txt(b.integrador_atuacao, 120),
     integrador_interesse:   txt(b.integrador_interesse, 160),
     integrador_experiencia: txt(b.integrador_experiencia, 80),
