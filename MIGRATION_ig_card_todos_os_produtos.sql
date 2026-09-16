@@ -1,0 +1,84 @@
+-- Instagram: o card com botao passa a valer para TODOS os produtos. (16/09/2026)
+-- Projeto: gerador-propostas (ancecdfqfwlaujknizof)
+-- APLICADO E PROVADO com loadAutomations() + buildMessage() reais: 10 cards,
+-- nenhum cortado. Este arquivo e o registro do que rodou, com o voltar-atras.
+--
+-- O QUE O CARD EXIGE, e onde ele quebra em silencio:
+--   botao_rotulo preenchido  E  dm_boas_vindas ate 160 caracteres.
+--   1a linha vira TITULO (teto 80), o resto vira SUBTITULO (teto 80).
+--   Copy de uma linha so, sem chr(10), vira titulo cortado em 80 SEM subtitulo.
+--   Acima de 160 nao vira card: volta pro texto com o link no fim.
+--
+-- ESTADO ANTES, medido linha a linha:
+--   bike      324 caracteres, quebra em 88  -> TINHA botao e nao virava card
+--   kit       310, UMA linha so             -> sem botao
+--   limpapro  160, UMA linha so             -> sem botao. ARMADILHA: 160 passa
+--                                              no teto, entao bastaria preencher
+--                                              o botao pra cortar o titulo em 80
+--                                              no meio da palavra, sem subtitulo.
+--   solar     134, UMA linha so             -> sem botao
+--
+-- NAO MEXIDOS DE PROPOSITO:
+--   Indicacao e Boas-vindas (novo seguidor) nao sao produto: um e funil de
+--   indicacao, o outro e saudacao.
+--   Menu e Interesse geral (rede de seguranca) tem link_url NULO de proposito:
+--   servem os tres produtos ao mesmo tempo e sao a unica coisa que pega
+--   comentario em midia nao fixada.
+
+-- BIKE: copy de 324 nao cabia; o botao ja existia e nao aparecia.
+-- Cortado: as 22 unidades no Brasil e o "escolha o modelo e a forma de
+-- pagamento", que a propria loja mostra na primeira tela.
+-- update ig_automations set dm_boas_vindas =
+--   'A loja esta no ar: 46 modelos de bike e scooter eletrica' || chr(10) ||
+--   'Preco na tela e frete pelo seu CEP antes de voce decidir.'
+--  where produto = 'bike' and ativo = true;
+
+-- KIT: ganhou botao. Cortado o detalhamento (pos-venda, acesso na hora,
+-- conteudo dentro da plataforma), que a propria pagina do kit ja lista.
+-- update ig_automations set botao_rotulo = 'Ver o kit', dm_boas_vindas =
+--   'Kit de Fechamento: pare de perder venda na hora do orcamento' || chr(10) ||
+--   'Roteiro de visita, resposta pra cada objecao e preco com margem. R$ 27.'
+--  where produto = 'kit' and ativo = true;
+
+-- LIMPAPRO: ganhou botao E a quebra de linha que faltava.
+-- update ig_automations set botao_rotulo = 'Ver a formacao', dm_boas_vindas =
+--   'Limpa Solar Pro: trabalhe com limpeza de painel solar' || chr(10) ||
+--   'Do equipamento a precificacao do servico, o passo a passo.'
+--  where produto = 'limpapro' and ativo = true;
+
+-- SOLAR: as duas linhas que levam pro /simular (anuncio e palavra-chave).
+-- update ig_automations set botao_rotulo = 'Fazer a simulacao', dm_boas_vindas =
+--   'Veja quanto voce economiza com energia solar' || chr(10) ||
+--   'Leva 30 segundos e um especialista te chama com o numero.'
+--  where ativo = true and nome in (as duas linhas de solar que levam ao /simular);
+
+-- SONDA:
+-- select produto, nome, botao_rotulo, length(dm_boas_vindas) total,
+--        position(chr(10) in dm_boas_vindas)-1 l1
+--   from ig_automations where ativo = true and link_url is not null
+--  order by produto, prioridade;
+-- Esperado: 10 linhas com botao, nenhuma com l1 = -1 nem total acima de 160.
+
+-- VOLTAR ATRAS: a copy exata de antes esta no historico do git e comeca assim.
+-- BIKE      'Boa! Agora a gente tem a loja no ar, com os 46 modelos de bicicleta
+--            e scooter eletrica.' + paragrafo de preco/frete/22 unidades +
+--            paragrafo 'Toque no botao, escolha o modelo e a forma de pagamento.'
+-- KIT       botao_rotulo = null + 'Boa! O Kit de Fechamento do Integrador e o
+--            passo a passo pra parar de perder venda na hora do orcamento: ...'
+-- LIMPAPRO  botao_rotulo = null + 'Boa! Essa e a formacao Limpa Solar Pro: o
+--            passo a passo pra trabalhar com limpeza de painel solar, ...'
+-- SOLAR     botao_rotulo = null + 'Boa! Pra montar sua simulacao de economia com
+--            energia solar, e so preencher aqui rapidinho (leva 30s) ...'
+
+-- O QUE ESTE ARQUIVO NAO FAZ, e por que:
+-- 1. SOLARDOC nao tem automacao nenhuma. O anuncio 17948440398039503 levou 16
+--    comentarios com 11 sem resposta, e eram leads de verdade. MAS a campanha
+--    esta parada desde 23/08: e prejuizo passado, nao vazamento aberto. E as
+--    perguntas nao sao de link (tem CRM?, tem para iOS?, qual o valor), sao
+--    conversa. O destino e decisao do dono: pagina de planos ou a Carla do igIa.
+-- 2. Midias 17901203607517606 e 17996514230816761: 5 comentarios em 90 dias e
+--    produto nao identificavel pelo texto. Fixar no produto errado com match
+--    qualquer nao tem palavra-chave pra segurar o engano. Ficam de fora.
+-- 3. Anuncio de BIKE 17886968325656119 (11 comentarios, todos "Bike") nao foi
+--    fixado: parado desde 23/08. Fixar quando a campanha voltar.
+-- 4. Todo post novo continua precisando do id no array midias, um a um.
