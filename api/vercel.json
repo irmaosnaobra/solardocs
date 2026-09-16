@@ -11,6 +11,7 @@
   ],
   "crons": [
     { "path": "/cron/master", "schedule": "30 11 * * *" },
-    { "path": "/cron/eletroposto-estudo", "schedule": "*/5 * * * *" }
+    { "path": "/cron/eletroposto-estudo", "schedule": "*/5 * * * *" },
+    { "path": "/cron/eletroposto-top-pontos", "schedule": "0 15 * * *" }
   ]
 }

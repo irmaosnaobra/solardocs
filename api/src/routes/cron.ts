@@ -51,6 +51,7 @@ import { runEletropostoReagendaAutoTick } from '../services/io/eletropostoReagen
 import { runEletropostoCardPingTick } from '../services/io/eletropostoCardPing';
 import { runEletropostoAlerta10minTick } from '../services/io/eletropostoAlerta10min';
 import { runEletropostoEstudoTick } from '../services/io/eletropostoEstudo';
+import { runEletropostoTopPontosTick } from '../services/io/eletropostoTopPontos';
 import { runEletropostoIgConviteTick, publicoIgConvite, bolhaConviteLP } from '../services/io/eletropostoIgConvite';
 import { runSolarBoasVindasTick } from '../services/io/solarBoasVindas';
 import { runSolarRespostasTick } from '../services/io/solarRespostas';
@@ -841,6 +842,28 @@ router.get('/eletroposto-estudo', async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     logger.error('cron', 'eletroposto-estudo falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
+// ── Top 20 pontos do dia (eletroposto) ──────────────────────────────────────
+// Meio-dia de Brasília, pelo cron da Vercel. Ranqueia TODO ponto com endereço
+// (reunião, parceria e NOTA 1) e manda a lista para o Thiago e o Diego.
+//   ?dry=1  monta e devolve a prévia sem enviar e sem carimbar o dia
+// A prévia sai sem nome, sem telefone e sem endereço: esta rota pode ser chamada
+// de um workflow, e log de workflow neste repo é público.
+router.get('/eletroposto-top-pontos', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    const r = await runEletropostoTopPontosTick({ dry });
+    if (r.texto) {
+      logger.info('ep-top', 'prévia do top montada', { linhas: r.texto.split('\n').length, total: r.total });
+      delete r.texto;
+    }
+    res.json({ ok: true, dry, ...r });
+  } catch (err: any) {
+    logger.error('cron', 'eletroposto-top-pontos falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });
