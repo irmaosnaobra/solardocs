@@ -1169,6 +1169,30 @@
         </div>
         </div>
 
+        <!-- ══ O INVESTIDOR PODE TER PONTO (16/09/2026) ═════════════════════════
+             Ordem do Thiago: "quando ele marca investidor, pode acontecer dele ter
+             ponto e se tornar o dono do comércio que agenda a reunião".
+
+             Até aqui, marcar Investidor tirava a pessoa da página no primeiro toque,
+             sem ninguém perguntar se ela tinha um local. Quem tinha capital E local
+             saía pela porta do curso, e o lado escasso do negócio ia junto.
+
+             A pergunta é sobre CONTROLE, não sobre vontade. Quem controla um local é,
+             na prática, o dono do comércio: ele segue o quiz inteiro e agenda. Quem só
+             tem um lugar em vista não controla nada ainda, e é exatamente isso que o
+             material ensina a resolver — esse vai para o cadastro e para o curso. -->
+        <div class="passo" id="p-cap-local">
+        <div class="fld">
+          <label for="f-cap-local">E o local, você já tem?</label>
+          <div class="inp"><select id="f-cap-local" onchange="onCapLocal()">
+            <option value="">Selecione…</option>
+            <option value="meu">Tenho um local que é meu ou que eu administro</option>
+            <option value="em_vista">Tenho um lugar em vista, mas ainda não é meu</option>
+            <option value="nao">Não tenho local, é o que eu preciso achar</option>
+          </select></div>
+        </div>
+        </div>
+
         <div class="passo" id="p-horario">
           <div class="step">
             <div class="pergunta">Escolha o melhor horário</div>
@@ -2797,12 +2821,27 @@ const telefoneConfere = () => soDigitos('f-tel').length >= 10;
 const soComercio = () => val('f-porta') === 'comercio';
 /** O integrador tem quiz próprio e termina cadastrado aqui mesmo (16/09/2026). */
 const soIntegrador = () => val('f-porta') === 'integrador';
+const soInvestidor = () => val('f-porta') === 'investidor';
+/**
+ * O INVESTIDOR QUE CONTROLA UM LOCAL É, NA PRÁTICA, O DONO DO COMÉRCIO (16/09/2026).
+ * Ordem do Thiago: "pode acontecer dele ter ponto e se tornar o dono do comércio
+ * que agenda a reunião". A régua é CONTROLE, não vontade: quem só tem um lugar em
+ * vista não controla nada, e é isso que o material do /ponto-certo ensina a virar.
+ */
+const investidorComLocal = () => soInvestidor() && val('f-cap-local') === 'meu';
+/** Quem vai para a agenda: dono de comércio e o investidor que já tem o local. */
+const vaiParaAgenda = () => soComercio() || investidorComLocal();
 /** Nome, cidade e WhatsApp são os três passos que as duas trilhas dividem. */
-const quizAqui = () => soComercio() || soIntegrador();
+const quizAqui = () => vaiParaAgenda() || soIntegrador();
 
 const PASSOS = [
   { id:'p-porta',   ok:() => val('f-porta') ? null : 'Escolha uma das três opções.' },
-  { id:'p-horario', quando: soComercio, ok:() => slotSel ? null : 'Escolha um horário na lista.' },
+  // Pergunta de roteamento, só para quem marcou Investidor. Ela é a segunda tela
+  // dele: decidir cedo evita fazer alguém escolher horário para depois descobrir
+  // que ele não vai agendar.
+  { id:'p-cap-local', quando: soInvestidor,
+                      ok:() => val('f-cap-local') ? null : 'Escolha uma das opções.' },
+  { id:'p-horario', quando: vaiParaAgenda, ok:() => slotSel ? null : 'Escolha um horário na lista.' },
   { id:'p-nome',    quando: quizAqui, ok:() => val('f-nome').length >= 3 ? null : 'Informe seu nome completo.' },
   { id:'p-cidade',  quando: quizAqui, ok:() => val('f-cidade').length >= 2 ? null : 'Informe a cidade e o estado (UF).' },
   // ── Trilha do integrador. Vem depois de nome e cidade e antes do WhatsApp, pela
@@ -2819,14 +2858,14 @@ const PASSOS = [
                        ok:() => val('f-i-interesse') ? null : 'Informe como quer trabalhar com eletroposto.' },
   { id:'p-i-equipe',   quando: soIntegrador,
                        ok:() => val('f-i-equipe') ? null : 'Informe como é a sua equipe hoje.' },
-  { id:'p-perfil',  quando: soComercio, ok:() => {
+  { id:'p-perfil',  quando: vaiParaAgenda, ok:() => {
       const v = val('f-perfil');
       if(!v) return 'Selecione seu perfil.';
       if(v === 'outro' && val('f-outro').length < 3) return 'Escreva qual é o seu segmento.';
       if(PERFIL_SEM_FLUXO.has(v) && !val('f-rota')) return 'Informe se o local fica em rota de passagem.';
       return null;
     } },
-  { id:'p-ponto',   quando: soComercio, ok:() => {
+  { id:'p-ponto',   quando: vaiParaAgenda, ok:() => {
       const v = val('f-ponto');
       if(!v) return 'Informe como está o seu ponto hoje.';
       if(v === 'definido' && !val('f-relacao')) return 'Informe qual é a sua relação com o local.';
@@ -2839,14 +2878,14 @@ const PASSOS = [
       }
       return null;
     } },
-  { id:'p-vagas',   quando:() => soComercio() && PONTO_COM_VAGAS.has(val('f-ponto')),
+  { id:'p-vagas',   quando:() => vaiParaAgenda() && PONTO_COM_VAGAS.has(val('f-ponto')),
                     ok:() => val('f-vagas') ? null : 'Informe quantas vagas estão disponíveis.' },
-  { id:'p-modelo',  quando: soComercio, ok:() => val('f-modelo') ? null : 'Escolha o modelo que te interessa.' },
-  { id:'p-invest',  quando:() => soComercio() && !MODELO_SEM_CAPITAL.has(val('f-modelo')),
+  { id:'p-modelo',  quando: vaiParaAgenda, ok:() => val('f-modelo') ? null : 'Escolha o modelo que te interessa.' },
+  { id:'p-invest',  quando:() => vaiParaAgenda() && !MODELO_SEM_CAPITAL.has(val('f-modelo')),
                     ok:() => val('f-invest') ? null : 'Informe como pretende investir.' },
-  { id:'p-valor',   quando:() => soComercio() && !MODELO_SEM_CAPITAL.has(val('f-modelo')),
+  { id:'p-valor',   quando:() => vaiParaAgenda() && !MODELO_SEM_CAPITAL.has(val('f-modelo')),
                     ok:() => val('f-valor') ? null : 'Informe quanto pretende investir.' },
-  { id:'p-decisor', quando: soComercio, ok:() => val('f-decisor') ? null : 'Informe quem decide o investimento.' },
+  { id:'p-decisor', quando: vaiParaAgenda, ok:() => val('f-decisor') ? null : 'Informe quem decide o investimento.' },
   { id:'p-whatsapp', quando: quizAqui, ok:() => {
       return telefoneConfere() ? null : 'Informe um WhatsApp válido com DDD.';
     } },
@@ -2879,7 +2918,10 @@ function pintarPasso(){
   // isso o botão dele dizia "Ir para o cadastro" em TODOS os passos: com
   // `paraCadastro` verdadeiro, ele nunca chegava no `pronto` do último passo.
   // Agora o integrador tem trilha própria e termina no botão de concluir.
-  const paraCadastro = val('f-porta') === 'investidor';
+  // O investidor só vira "ir para o cadastro" DEPOIS de responder sobre o local, e
+  // só se a resposta não for "é meu". Antes de responder ele segue no Continuar,
+  // senão o botão pularia por cima da própria pergunta que decide o caminho dele.
+  const paraCadastro = soInvestidor() && !!val('f-cap-local') && !investidorComLocal();
   const fecha = pronto && soIntegrador() ? 'integrador' : (pronto ? 'agendar' : 'proximo');
   btn.textContent = paraCadastro ? 'Ir para o cadastro →'
                   : fecha === 'integrador' ? 'Concluir meu cadastro →'
@@ -2911,6 +2953,17 @@ function onPorta(){
   const p = val('f-porta');
   if(p) track('porta_' + p);
   passoAtual = 0;
+  if(typeof pintarPasso === 'function') pintarPasso();
+}
+
+/**
+ * A resposta sobre o local muda a lista inteira de passos vivos do investidor:
+ * "é meu" abre a trilha da agenda, o resto fecha e manda para o cadastro. Sem
+ * repintar aqui, o botão continuaria com o rótulo da resposta anterior.
+ */
+function onCapLocal(){
+  const v = val('f-cap-local');
+  if(v) track('cap_local_' + v);
   if(typeof pintarPasso === 'function') pintarPasso();
 }
 
@@ -2966,7 +3019,7 @@ function mostrarContinuar(){
 // de 220 ms, e no celular a pergunta trocava debaixo do dedo. Agora o único jeito de
 // mudar de passo é o botão, e a escolha só marca, pinta e traz o botão para a vista.
 // ═══════════════════════════════════════════════════════════════════════════
-const SELECTS_EM_BOTAO = ['f-porta','f-perfil','f-rota','f-ponto','f-relacao','f-vagas','f-modelo','f-invest','f-valor','f-decisor',
+const SELECTS_EM_BOTAO = ['f-porta','f-cap-local','f-perfil','f-rota','f-ponto','f-relacao','f-vagas','f-modelo','f-invest','f-valor','f-decisor',
                           // Trilha do integrador. Select que não entra nesta lista
                           // continua sendo a lista do sistema no celular, que é
                           // exatamente o que o bloco acima diz que foi consertado.
@@ -3300,6 +3353,10 @@ async function agendar(){
     // agenda antes de montar ficha (o `return` lá em cima).
     `NOTA ${q.nota} · ${q.pts}/11 pts`,
     pontoParaInvestidor ? 'PONTO DISPONIVEL PARA INVESTIDOR' : '',
+    // Veio pela porta do INVESTIDOR e disse que o local e dele (16/09/2026). E um
+    // coorte novo na agenda, e sem esta linha ele se mistura com o dono de comercio
+    // e ninguem consegue medir se valeu a pena traze-lo de volta para a reuniao.
+    investidorComLocal() ? 'INVESTIDOR COM LOCAL PROPRIO' : '',
     // "Endereço:" volta em 14/08 pra quem tem o ponto definido e, desde 15/09, também
     // pra quem está negociando o local: são os dois que preenchem o bloco. Para os
     // outros a linha não existe (em vez de existir vazia): o alerta da equipe só
