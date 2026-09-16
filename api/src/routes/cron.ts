@@ -521,7 +521,22 @@ router.get('/eletroposto-ig-convite', async (req: Request, res: Response) => {
 
 // ── Agente de agendamento do eletroposto (confirmação + bom dia + 1h + 5min) ─
 // ?dry=1 devolve exatamente quem receberia e o texto de cada bolha, sem enviar.
-// O tick normal roda no /process-messages a cada 5 min.
+//
+// ESTA ROTA VIROU O CAMINHO PRINCIPAL EM 16/09/2026, pelo cron da Vercel
+// (`api/vercel.json`, `*/5 * * * *`). Ela também continua sendo chamada dentro do
+// /process-messages, que é o caminho do GitHub Actions — e era o único até aqui.
+//
+// O PROBLEMA QUE ISSO CONSERTA: o `*/5` do GitHub não é de 5 em 5 minutos. Medido
+// em 16/09 às 05h11 UTC, as últimas rodadas do `process-messages.yml` saíram às
+// 01:40, 23:40, 21:35, 18:24, 14:27, 09:37, 04:44 e 00:01 — de 2 a 5 horas de
+// intervalo, com 3h31 de silêncio na hora da medição. Nesse relógio a confirmação
+// "você vai mesmo participar" chegava horas depois de a pessoa marcar, o lembrete
+// de 1 hora podia cair DEPOIS da reunião e o de 5 minutos não existia na prática.
+//
+// Rodar de 5 em 5 minutos não aumenta o volume de WhatsApp: o teto anti-ban mora
+// DENTRO do tick (CONFIRMA_TETO_HORA, MANHA_TETO_HORA, MANHA_TETO_DIA) e os
+// carimbos por ficha (confirmacao_at, lembrete_1h_at, lembrete_5min_at) impedem
+// mandar duas vezes, inclusive se o GitHub e a Vercel rodarem juntos.
 router.get('/eletroposto-agenda', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
