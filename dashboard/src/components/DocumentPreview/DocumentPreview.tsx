@@ -51,9 +51,24 @@ type Block =
   | { type: 'listItem'; text: string }
   | { type: 'signatureLine'; text: string }
   | { type: 'body'; text: string }
+  | { type: 'html'; text: string }
   | { type: 'empty' };
 
+// A proposta de banco M1 e' o unico template que chega PRONTO em HTML: ela
+// desenha a folha inteira (timbre, tabela, caixas de valor, assinaturas e
+// rodape) porque nenhum bloco de texto da conta desse layout. O sentinela e'
+// tudo-ou-nada — sem intercalar HTML com texto — pra que o parser continue
+// trivial pros outros sete tipos. O {{LOGO}} sai trocado pelo base64 da
+// empresa em RenderBlock, e nao viaja na coluna `content`.
+const HTML_DOC = '[[HTML]]';
+export function isHtmlDoc(raw: string): boolean {
+  return raw.trimStart().startsWith(HTML_DOC);
+}
+
 function parseContent(raw: string): Block[] {
+  if (isHtmlDoc(raw)) {
+    return [{ type: 'html', text: raw.trimStart().slice(HTML_DOC.length) }];
+  }
   const lines = raw.split('\n');
   const blocks: Block[] = [];
   let titleFound = false;
@@ -92,6 +107,9 @@ function RenderBlock({ block, idx }: { block: Block; idx: number }) {
     case 'listItem': return <p className={styles.listItem}>{block.text}</p>;
     case 'signatureLine': return <p className={styles.signatureLine}>{block.text}</p>;
     case 'body': return <p className={styles.bodyText}>{block.text}</p>;
+    // Vem do nosso proprio templateService, com todo campo passado por
+    // escHtml() na origem — nao ha' entrada de terceiro chegando crua aqui.
+    case 'html': return <div dangerouslySetInnerHTML={{ __html: block.text }} />;
     case 'empty': return <div className={styles.spacer} key={idx} />;
     default: return null;
   }
@@ -155,7 +173,15 @@ export default function DocumentPreview({
     warmPdf(docId);
   }, [docId, saved, warmPdf]);
 
-  const blocks = parseContent(displayContent);
+  const htmlDoc = isHtmlDoc(displayContent);
+  // O template emite {{LOGO}}; o base64 entra so' aqui. Sem logo cadastrada as
+  // <img> saem do HTML (src vazio desenharia o icone de imagem quebrada).
+  const comLogo = htmlDoc
+    ? (company?.logo_base64
+        ? displayContent.split('{{LOGO}}').join(company.logo_base64)
+        : displayContent.replace(/<img[^>]*\{\{LOGO\}\}[^>]*>/g, ''))
+    : displayContent;
+  const blocks = parseContent(comLogo);
   const docAccent = accentFromBrand(company?.cor_marca);
   const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'America/Sao_Paulo' });
 
@@ -219,12 +245,19 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
   }
 
   function handleConfirmEdit() {
-    setDisplayContent(editedContent);
+    // Documento HTML sem o sentinela cai no parser de TEXTO e o HTML cru sai
+    // impresso como paragrafo justificado. Editar a mao e' legitimo; perder o
+    // prefixo por descuido nao pode destruir o documento.
+    const texto = htmlDoc && !isHtmlDoc(editedContent)
+      ? '[[HTML]]' + editedContent
+      : editedContent;
+    setEditedContent(texto);
+    setDisplayContent(texto);
     setEditMode(false);
     setSaved(false);
     if (docId) {
       uploadedRef.current = false;
-      setTimeout(() => uploadHtml(docId, editedContent), 100);
+      setTimeout(() => uploadHtml(docId, texto), 100);
     }
   }
 
@@ -385,16 +418,29 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
         </div>
       ) : (
         <div className={styles.pageWrapper} ref={docRef}>
-          <div className={styles.page} style={{ ['--doc-accent' as string]: docAccent }}>
+          <div
+            className={styles.page}
+            // O documento HTML controla a propria caixa (180 x 258mm por folha,
+            // dentro da util de 262mm que o @page abaixo define).
+            // Inline, e nao classe: o buildHtml serializa o outerHTML deste
+            // elemento, entao o atributo `style` viaja junto pro HTML arquivado
+            // e de la' pro PDF. Via classe, dependeria de o CSS module resolver
+            // nos dois lugares — e `.undefined` no CSS embutido falha calado.
+            style={{
+              ['--doc-accent' as string]: docAccent,
+              ...(htmlDoc ? { padding: 0, minHeight: 0, display: 'block' } : {}),
+            }}
+          >
 
             {/* Marca d'água sutil da logo — toque de marca discreto no fundo */}
-            {company?.logo_base64 && (
+            {!htmlDoc && company?.logo_base64 && (
               <div className={styles.docWatermark} aria-hidden="true">
                 <img src={company.logo_base64} alt="" />
               </div>
             )}
 
-            {/* Company header */}
+            {/* Company header — o documento HTML desenha o proprio timbre */}
+            {!htmlDoc && <>
             <header className={styles.companyHeader}>
               {company?.logo_base64 && (
                 <img
@@ -415,6 +461,7 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
             </header>
 
             <div className={styles.headerDivider} />
+            </>}
 
             {/* Document body */}
             <div className={styles.docBody}>
@@ -446,7 +493,8 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
               })()}
             </div>
 
-            {/* Footer */}
+            {/* Footer — o documento HTML tem rodape proprio por folha */}
+            {!htmlDoc && <>
             <footer className={styles.footer}>
               <span>Emitido em {today} · {company?.nome || ''}</span>
               <span>Pág. 1</span>
@@ -456,6 +504,7 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
             <div className={styles.brandFoot} aria-hidden="true">
               gerado por {company?.nome_fantasia || company?.nome || 'sua empresa'} · solardoc
             </div>
+            </>}
           </div>
         </div>
       )}

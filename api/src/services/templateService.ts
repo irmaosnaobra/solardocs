@@ -15,6 +15,8 @@ function qrSvg(text: string): string {
 interface Company {
   nome: string;
   cnpj: string;
+  nome_fantasia?: string;
+  telefone?: string;
   endereco?: string;
   cidade?: string;
   uf?: string;
@@ -876,106 +878,321 @@ ${rodapeBanco}`;
 }
 
 // ════════════════════════════════════════════════════════════
-// PROPOSTA DE BANCO — MODELO 1  (formato Documento2.pdf)
+// PROPOSTA DE BANCO — MODELO 1  (padrão da casa, desenhado em HTML)
 // ════════════════════════════════════════════════════════════
+//
+// Este é o ÚNICO template que devolve HTML em vez de texto: o conteúdo começa
+// com o sentinela [[HTML]] e o DocumentPreview o injeta inteiro, sem o timbre e
+// o rodapé que ele desenha nos outros sete tipos (senão sai cabeçalho em
+// dobro — era o que acontecia com o modelo antigo, que reimprimia razão social,
+// CNPJ e endereço logo abaixo do timbre).
+//
+// A folha é 180 × 258mm. A caixa útil do PDF é 180 × 262mm e quem a define é o
+// `@page { margin: 1.5cm 1.5cm 2cm 1.5cm }` que o buildHtml() do DocumentPreview
+// embute (297 − 15 − 20 = 262) — NÃO a opção `margin` que o pdfController passa
+// pro page.pdf(), que o Chrome ignora quando há @page com margem declarada.
+// Os 258 deixam 4mm de folga pra variação de métrica de fonte.
+// Desenhar 210×297 aqui faz cada folha lógica virar duas: é o mesmo bug que
+// transformou a off-grid de 3 páginas em 6. Medido por busca binária no caminho
+// real (template compilado → shell do buildHtml → opções do pdfController).
+//
+// O logo NÃO viaja no conteúdo: sai como o token {{LOGO}} e o DocumentPreview
+// troca pelo base64 da empresa na hora de renderizar. Gravar ~150 KB de base64
+// na coluna `content` de cada documento é o que se evita aqui.
+
+// Escape de HTML. Os outros templates emitem texto puro e não precisam disso;
+// este precisa, e não só por XSS: um "<" no nome do cliente ou na descrição de
+// um item corrompe o PDF calado, porque o pdfController re-renderiza o HTML
+// guardado no Puppeteer.
+function escHtml(v: unknown): string {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Dinheiro em CENTAVOS inteiros: equipamento + mão de obra tem que fechar com o
+// total na conta do gerente, e 0.82 + 0.18 em float não fecha.
+function centavos(v: unknown): number {
+  return Math.round(parseBRL(v) * 100);
+}
+function moneyCent(c: number): string {
+  return 'R$ ' + (c / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Limiares MEDIDOS na folha 2, varrendo de 1 a 17 itens pelo caminho REAL
+// (template compilado → shell do buildHtml, com o @page dele → opções do
+// pdfController) e contando /Count no PDF. A tabela encolhe em três níveis
+// antes de empurrar a proposta pra uma terceira folha:
+//   até 8 itens  normal   ·  9 a 11  compacta   ·  12 e 13  super
+// A partir de 14 estoura, e o formulário avisa. Medir pelo preview (ou com
+// preferCSSPageSize:true) dá números OTIMISTAS e erra por uma folha inteira —
+// mexeu na folha 2, meça de novo pelo caminho real.
+const PB_ITENS_NORMAL = 8;
+const PB_ITENS_COMPACTA = 11;
+export const PB_ITENS_MAX = 13;
+
+const PB_CSS = `
+.pb * { box-sizing: border-box; }
+.pb { --nv:#0B2545; --nv2:#2C4A73; --gd:#C9A227; --ln:#D8DEE7; --sf:#55606E; --wa:#F5F7FA;
+  font-family: Georgia,'Times New Roman',Times,serif; color:#1B1B1B; }
+.pb .folha { width:100%; min-height:258mm; display:flex; flex-direction:column; position:relative; }
+.pb .folha + .folha { break-before:page; page-break-before:always; }
+.pb .wm { position:absolute; inset:0; z-index:0; display:flex; align-items:center; justify-content:center; opacity:.028; pointer-events:none; }
+.pb .wm img { width:78mm; }
+.pb .folha > *:not(.wm) { position:relative; z-index:1; }
+.pb .head { display:flex; align-items:center; gap:11px; }
+.pb .head img.lg { height:13mm; width:auto; flex-shrink:0; }
+.pb .who { display:flex; flex-direction:column; gap:1.5px; flex:1; }
+.pb .who .nm { font-family:Arial,Helvetica,sans-serif; font-size:12.5pt; font-weight:700; color:var(--nv); letter-spacing:.02em; line-height:1.15; }
+.pb .who .dt { font-family:Arial,Helvetica,sans-serif; font-size:7.6pt; color:var(--sf); line-height:1.45; }
+.pb .ref { text-align:right; font-family:Arial,Helvetica,sans-serif; font-size:7.4pt; color:var(--sf); line-height:1.5; white-space:nowrap; }
+.pb .ref b { display:block; color:var(--nv); font-size:8pt; letter-spacing:.06em; }
+.pb .rl { height:2px; background:var(--nv); margin:7px 0 0; }
+.pb .rg { height:1.5px; background:var(--gd); width:26mm; margin-bottom:3.5mm; }
+.pb h1 { font-family:Arial,Helvetica,sans-serif; font-size:13.5pt; font-weight:700; color:var(--nv); letter-spacing:.10em; text-align:center; text-transform:uppercase; margin:0 0 3px; }
+.pb .sub { font-family:Arial,Helvetica,sans-serif; font-size:8.2pt; color:var(--sf); text-align:center; letter-spacing:.05em; text-transform:uppercase; margin:0 0 3mm; }
+.pb .card { border:1px solid var(--ln); border-left:3px solid var(--nv); background:var(--wa); padding:3mm 4.5mm; margin-bottom:3.5mm; }
+.pb .cap { font-family:Arial,Helvetica,sans-serif; font-size:7.4pt; font-weight:700; letter-spacing:.12em; color:var(--nv2); text-transform:uppercase; margin-bottom:2.5mm; }
+.pb .kv { display:grid; grid-template-columns:1fr 1fr; gap:2mm 7mm; }
+.pb .kv > div { display:flex; flex-direction:column; gap:1px; }
+.pb .kv .k { font-family:Arial,Helvetica,sans-serif; font-size:6.9pt; font-weight:700; letter-spacing:.09em; color:var(--sf); text-transform:uppercase; }
+.pb .kv .v { font-family:Arial,Helvetica,sans-serif; font-size:9.3pt; color:#12253F; font-weight:600; line-height:1.3; }
+.pb .kv .v.bl { border-bottom:1px solid #B9C2CE; min-height:12px; }
+.pb .s2 { grid-column:1 / -1; }
+.pb h2 { font-family:Arial,Helvetica,sans-serif; font-size:8.6pt; font-weight:700; color:var(--nv); letter-spacing:.10em; text-transform:uppercase; margin:0 0 2.5mm; padding-bottom:1.6mm; border-bottom:1px solid var(--ln); }
+.pb h2 i { color:var(--gd); font-style:normal; margin-right:5px; }
+.pb .sec { margin-bottom:5.5mm; }
+.pb p { margin:0 0 2.4mm; font-size:10pt; line-height:1.62; text-align:justify; }
+.pb .sec p:last-child { margin-bottom:0; }
+.pb ul { margin:0; padding:0; list-style:none; }
+.pb ul li { font-size:9.7pt; line-height:1.5; padding-left:6mm; position:relative; margin-bottom:1.6mm; }
+.pb ul li:before { content:''; position:absolute; left:1.6mm; top:5.5px; width:4px; height:4px; background:var(--gd); border-radius:50%; }
+.pb .band { background:var(--nv); color:#fff; padding:2.2mm 4.5mm; margin-bottom:2.8mm; display:flex; align-items:baseline; justify-content:space-between; gap:6mm; }
+.pb .band .t { font-family:Arial,Helvetica,sans-serif; font-size:6.9pt; letter-spacing:.14em; text-transform:uppercase; color:#9FB6D4; }
+.pb .band .n { font-family:Arial,Helvetica,sans-serif; font-size:11.5pt; font-weight:700; }
+.pb .band .c { display:flex; flex-direction:column; gap:0.4mm; }
+.pb .band .c.r { text-align:right; }
+.pb table { width:100%; border-collapse:collapse; margin-bottom:2.2mm; }
+.pb thead th { font-family:Arial,Helvetica,sans-serif; font-size:7.2pt; font-weight:700; letter-spacing:.11em; text-transform:uppercase; color:#fff; background:var(--nv2); padding:2.1mm 4mm; text-align:left; }
+.pb thead th.q { width:16mm; text-align:center; }
+.pb tbody td { font-family:Arial,Helvetica,sans-serif; font-size:9.2pt; color:#1B2B40; padding:1.5mm 4mm; border-bottom:1px solid var(--ln); }
+.pb tbody td.q { text-align:center; font-weight:700; color:var(--nv); background:var(--wa); width:16mm; }
+.pb tbody tr:last-child td { border-bottom:1px solid #B9C2CE; }
+.pb table.compacta thead th { padding:1.6mm 4mm; }
+.pb table.compacta tbody td { padding:0.7mm 4mm; font-size:8.4pt; }
+.pb table.super thead th { padding:1.3mm 4mm; }
+.pb table.super tbody td { padding:0.25mm 3mm; font-size:7.8pt; }
+.pb .fis { font-family:Arial,Helvetica,sans-serif; font-size:7.2pt; color:var(--sf); line-height:1.4; margin-bottom:2.5mm; }
+.pb .cols { display:grid; grid-template-columns:1fr 1fr; gap:4.5mm; margin-bottom:0; }
+.pb .box { border:1px solid var(--ln); }
+.pb .box .cap { font-family:Arial,Helvetica,sans-serif; font-size:7.2pt; font-weight:700; letter-spacing:.11em; text-transform:uppercase; color:#fff; background:var(--nv2); padding:2.2mm 4mm; margin:0; }
+.pb .box .rows { padding:1mm 4mm 1.5mm; }
+.pb .row { display:flex; justify-content:space-between; align-items:baseline; gap:4mm; padding:1.2mm 0; border-bottom:1px dotted #C9D2DD; font-family:Arial,Helvetica,sans-serif; }
+.pb .row:last-child { border-bottom:none; }
+.pb .row .l { font-size:8.5pt; color:var(--sf); }
+.pb .row .r { font-size:9.8pt; font-weight:600; color:#12253F; white-space:nowrap; }
+.pb .row.big { padding:2mm 0; }
+.pb .row.big .l { font-size:8.6pt; font-weight:700; color:var(--nv); letter-spacing:.04em; text-transform:uppercase; }
+.pb .row.big .r { font-size:13.5pt; font-weight:700; color:var(--nv); }
+.pb .row.mid .l { font-size:8.6pt; font-weight:700; color:var(--nv2); letter-spacing:.04em; text-transform:uppercase; }
+.pb .row.mid .r { font-size:11pt; font-weight:700; color:#12253F; }
+.pb .row.nota { padding-top:1.8mm; }
+.pb .row.nota .l { font-size:7.6pt; font-style:italic; color:#6B7684; }
+.pb .local { font-family:Arial,Helvetica,sans-serif; font-size:8.6pt; color:#12253F; text-align:right; margin:0 0 3mm; }
+/* O espaço de punho é o padding-top do .sig: fica ANTES da régua e é igual dos
+   dois lados, então as duas réguas saem na mesma altura mesmo com legendas de
+   tamanhos diferentes. O margin-top:auto é o que cede quando a lista cresce. */
+.pb .sigs { margin-top:auto; padding-top:0; display:grid; grid-template-columns:1fr 1fr; gap:12mm; align-items:start; break-inside:avoid; page-break-inside:avoid; }
+.pb .sig { text-align:center; padding-top:8mm; }
+.pb .sig .ln { border-top:1px solid #5A6572; margin-bottom:2mm; }
+.pb .sig .nm { font-family:Arial,Helvetica,sans-serif; font-size:8.4pt; font-weight:700; color:#12253F; line-height:1.35; text-transform:uppercase; letter-spacing:.02em; }
+.pb .sig .rl2 { font-family:Arial,Helvetica,sans-serif; font-size:7.2pt; color:var(--sf); margin-top:1mm; line-height:1.4; }
+.pb .foot { margin-top:4mm; padding-top:2mm; border-top:1px solid var(--ln); display:flex; justify-content:space-between; align-items:center; font-family:Arial,Helvetica,sans-serif; font-size:7.1pt; color:#9AA4B0; }
+.pb .foot .br { color:var(--nv2); letter-spacing:.04em; }
+`;
+
 function propostaBancoM1(
   company: Company,
   client: Client,
   f: Record<string, unknown>
 ): string {
-  const today = dateBR();
-  const banco = str(f.banco);
-  const agencia = str(f.agencia);
-  const conta = str(f.conta);
-  const valorTotal = parseBRL(f.valor_total);
-  const valorEq = parseBRL(f.valor_equipamentos) || valorTotal * 0.82;
-  const valorMo = parseBRL(f.valor_mao_de_obra) || valorTotal * 0.18;
+  const vazio = (v: string) => (v && v !== '___' ? v : '');
+  const campo = (k: string, v: string, span = false) =>
+    `<div${span ? ' class="s2"' : ''}><span class="k">${escHtml(k)}</span>` +
+    `<span class="v${v ? '' : ' bl'}">${v ? escHtml(v) : ''}</span></div>`;
+
+  const banco = vazio(str(f.banco));
+  const agencia = vazio(str(f.agencia));
+  const conta = vazio(str(f.conta));
+  // CPF do formulário ganha do cadastro: a folha 1 exige CPF e há venda em que o
+  // documento do comprador chega depois do cadastro do cliente.
+  const doc = vazio(str(f.cpf_cnpj)) || vazio(client.cpf_cnpj || '');
+  const cliente = (client.nome || '').toUpperCase();
+  const endereco = vazio(enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf));
+  const cep = vazio(client.cep || '');
+
+  // Valores em centavos. O 82/18 continua sendo o padrão quando o consultor não
+  // digita o split — é a regra que o modelo antigo já usava.
+  const totalC = centavos(f.valor_total);
+  const eqC = centavos(f.valor_equipamentos) || Math.round(totalC * 0.82);
+  const moC = centavos(f.valor_mao_de_obra) || (totalC - eqC);
+  const entradaC = centavos(f.valor_entrada);
+  const saldoC = totalC - entradaC;
+
+  const itens = Array.isArray(f.lista_equipamentos)
+    ? (f.lista_equipamentos as Array<{ item?: string; quantidade?: number }>)
+        .filter(i => str(i?.item) !== '___' && String(i?.item || '').trim() !== '')
+    : [];
+  const nItens = itens.length;
+  const modo = nItens > PB_ITENS_COMPACTA ? ' super'
+    : nItens > PB_ITENS_NORMAL ? ' compacta' : '';
+  const linhas = nItens
+    ? itens.map(i => `<tr><td class="q">${escHtml(i.quantidade || 1)}</td><td>${escHtml(i.item)}</td></tr>`).join('')
+    : '<tr><td class="q">—</td><td>Nenhum item informado</td></tr>';
+
   const validadeDias = str(f.validade_dias || '30');
-  const descSistema = str(f.descricao_sistema);
-  const clienteEndereco = enderecoCompleto(client.endereco, client.bairro, client.cidade, client.uf);
-  const clienteCep = client.cep || '___';
-  const equipamentos = equipamentosTexto(f);
+  const validade = `${validadeDias} (${numExtenso(validadeDias)}) dias`;
+  const prazo = vazio(str(f.prazo_entrega)) ||
+    (str(f.prazo_instalacao_dias) !== '___' ? `${str(f.prazo_instalacao_dias)} dias` : '');
+  const origem = vazio(str(f.origem_mercadoria));
+  const potencia = vazio(str(f.potencia_kwp));
+  const geracao = vazio(str(f.geracao_kwh));
+  const descSistema = vazio(str(f.descricao_sistema));
+  const notaEntrada = vazio(str(f.nota_entrada)) || 'Entrada paga pelo comprador com recursos próprios';
 
-  return `${company.nome.toUpperCase()}
-CNPJ: ${company.cnpj}${company.endereco ? `\n${enderecoCompleto(company.endereco, undefined, company.cidade, company.uf)}` : ''}
+  const empresaNome = (company.nome || '').toUpperCase();
+  const fantasia = (company as { nome_fantasia?: string }).nome_fantasia;
+  const tel = (company as { telefone?: string }).telefone;
+  const linha1 = [fantasia && fantasia !== company.nome ? fantasia : '', `CNPJ: ${company.cnpj}`]
+    .filter(Boolean).join('  |  ');
+  const linha2 = [enderecoCompleto(company.endereco, undefined, company.cidade, company.uf), tel]
+    .filter(x => x && x !== '___').join('  |  Tel. ');
+  const cidadeEmpresa = [company.cidade, company.uf].filter(Boolean).join('/') || '___';
 
-PROPOSTA DE BANCO
+  const hoje = new Date();
+  const emissaoCurta = hoje.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const emissaoExtenso = dateBR();
 
-CLIENTE: ${client.nome.toUpperCase()}
-BANCO: ${banco}
-AGÊNCIA: ${agencia}
-CONTA CORRENTE: ${conta}
+  const rodapeEsq = [banco && `Banco ${banco}`, agencia && `Ag. ${agencia}`, conta && `C/C ${conta}`]
+    .filter(Boolean).join(' · ') || 'Proposta de banco';
 
-Encaminhamos a V.Sa. os documentos necessários para formalização da operação de crédito para aquisição de sistema fotovoltaico.
+  const topo = (folha: number) => `<div class="wm"><img src="{{LOGO}}" alt=""></div>
+    <div class="head"><img class="lg" src="{{LOGO}}" alt="">
+      <div class="who"><span class="nm">${escHtml(empresaNome)}</span>
+      ${linha1 ? `<span class="dt">${escHtml(linha1)}</span>` : ''}
+      ${linha2 ? `<span class="dt">${escHtml(linha2)}</span>` : ''}</div>
+      <div class="ref"><b>FOLHA ${folha} DE 2</b>Emissão: ${escHtml(emissaoCurta)}<br>Validade: ${escHtml(validade)}${prazo ? '<br>Entrega: ' + escHtml(prazo) : ''}</div>
+    </div><div class="rl"></div><div class="rg"></div>`;
 
-PARA APROVAÇÃO DO FATURAMENTO ORÇAMENTO COM OS SEGUINTES DADOS:
+  const assina = () => `<div class="sigs">
+    <div class="sig"><div class="ln"></div><div class="nm">${escHtml(cliente)}</div>
+      <div class="rl2">${doc ? 'CPF/CNPJ: ' + escHtml(doc) + '<br>' : ''}Comprador(a)</div></div>
+    <div class="sig"><div class="ln"></div><div class="nm">${escHtml(empresaNome)}</div>
+      <div class="rl2">CNPJ: ${escHtml(company.cnpj)}<br>Representante legal</div></div>
+  </div>`;
 
-• Nome do comprador, CPF, endereço;
-• Descrição completa do equipamento (quantidade, marca, modelo, ano, etc.);
-• Prazo de entrega;
+  const rodape = (dir: string) =>
+    `<div class="foot"><span>${escHtml(rodapeEsq)}</span><span class="br">${escHtml(dir)}</span></div>`;
 
-Autorizamos o acesso aos registros contábeis da mesma, assinada abaixo pelo seu representante legal.
+  // Faixa do sistema: duas colunas quando há potência e geração; uma linha só
+  // quando o consultor preencheu apenas a descrição livre.
+  const band = (potencia || geracao)
+    ? `<div class="band">
+        <div class="c"><span class="t">Potência do sistema</span><span class="n">${escHtml(potencia || '—')}</span></div>
+        <div class="c r"><span class="t">Geração estimada</span><span class="n">${escHtml(geracao || '—')}</span></div>
+      </div>`
+    : descSistema
+    ? `<div class="band"><div class="c"><span class="t">Sistema</span><span class="n">${escHtml(descSistema)}</span></div></div>`
+    : '';
 
-Declaramos, ainda, a esse Agente Financeiro, que temos plena ciência das regras emanadas pela Agência Especial de Financiamento Industrial, no tocante a formalização das vendas dos nossos produtos, através daquela modalidade, principalmente no que tange a elaboração e apresentação de orçamentos, notas fiscais, faturas, bem como aquelas relativas à efetiva entrega do(s) bem(ns).
+  // A caixa de pagamento só existe quando há entrada — sem isso toda proposta à
+  // vista imprimia uma "Condição de pagamento" vazia.
+  const boxPreco = `<div class="box"><div class="cap">Composição do preço</div><div class="rows">
+      <div class="row big"><span class="l">Valor total</span><span class="r">${moneyCent(totalC)}</span></div>
+      <div class="row"><span class="l">Valor equipamento</span><span class="r">${moneyCent(eqC)}</span></div>
+      <div class="row"><span class="l">Valor mão de obra</span><span class="r">${moneyCent(moC)}</span></div>
+    </div></div>`;
+  const boxPgto = entradaC > 0
+    ? `<div class="box"><div class="cap">Condição de pagamento</div><div class="rows">
+        <div class="row big"><span class="l">Entrada</span><span class="r">${moneyCent(entradaC)}</span></div>
+        <div class="row mid"><span class="l">Saldo a financiar</span><span class="r">${moneyCent(saldoC)}</span></div>
+        <div class="row nota"><span class="l">${escHtml(notaEntrada)}</span><span class="r"></span></div>
+      </div></div>`
+    : '<div></div>';
 
+  return `[[HTML]]<style>${PB_CSS}</style><div class="pb">
 
+<div class="folha">
+  ${topo(1)}
+  <h1>Proposta de Banco</h1>
+  <p class="sub">Formalização de operação de crédito — sistema fotovoltaico</p>
 
+  <div class="card"><div class="cap">Dados da operação</div><div class="kv">
+    ${campo('Cliente', cliente, true)}
+    ${campo('CPF / CNPJ', doc)}
+    ${campo('Banco', banco)}
+    ${campo('Agência', agencia)}
+    ${campo('Conta corrente', conta)}
+  </div></div>
 
+  <div class="sec"><h2><i>1.</i>Objeto</h2>
+    <p>Encaminhamos a V.Sa. os documentos necessários para formalização da operação de crédito
+    destinada à aquisição de sistema fotovoltaico, conforme características e preço público à
+    vista discriminados na folha 2 desta proposta.</p></div>
 
+  <div class="sec"><h2><i>2.</i>Dados para aprovação do faturamento</h2>
+    <p>Para aprovação do faturamento, orçamento com os seguintes dados:</p>
+    <ul>
+      <li>Nome do comprador, CPF e endereço;</li>
+      <li>Descrição completa do equipamento (quantidade, marca, modelo, ano, etc.);</li>
+      <li>Prazo de entrega.</li>
+    </ul></div>
 
-________________________________
-${client.nome.toUpperCase()}
-${client.cpf_cnpj || '___'}
+  <div class="sec"><h2><i>3.</i>Declarações</h2>
+    <p>Autorizamos o acesso aos registros contábeis da mesma, assinada abaixo pelo seu
+    representante legal.</p>
+    <p>Declaramos, ainda, a esse Agente Financeiro, que temos plena ciência das regras emanadas
+    pela Agência Especial de Financiamento Industrial, no tocante à formalização das vendas dos
+    nossos produtos, através daquela modalidade, principalmente no que tange à elaboração e
+    apresentação de orçamentos, notas fiscais, faturas, bem como aquelas relativas à efetiva
+    entrega do(s) bem(ns).</p></div>
 
+  <p class="local">${escHtml(cidadeEmpresa)}, ${escHtml(emissaoExtenso)}.</p>
+  ${assina()}
+  ${rodape('Folha 1 de 2')}
+</div>
 
+<div class="folha">
+  ${topo(2)}
+  <h1>Características e Preço</h1>
+  <p class="sub">Preço público à vista do produto</p>
 
+  <div class="card"><div class="cap">Identificação do comprador</div><div class="kv">
+    ${campo('Nome', cliente, true)}
+    ${campo('CPF / CNPJ', doc)}
+    ${campo('CEP', cep)}
+    ${campo('Endereço de correspondência', endereco, true)}
+  </div></div>
 
+  <p style="margin-bottom:3.5mm">Prezado(s) Senhor(s), atendendo solicitação de V.Sa., fornecemos
+  as características e o preço público à vista do produto abaixo.</p>
 
+  ${band}
 
-________________________________
-${company.nome.toUpperCase()}
+  <table class="${modo.trim()}">
+    <thead><tr><th class="q">Qtd.</th><th>Equipamentos e serviços</th></tr></thead>
+    <tbody>${linhas}</tbody>
+  </table>
 
-[[PAGEBREAK]]
+  ${origem ? `<p class="fis">${escHtml(origem)}</p>` : ''}
 
-CNPJ: ${company.cnpj}
+  <div class="cols">${boxPreco}${boxPgto}</div>
 
-NOME: ${client.nome.toUpperCase()}
-CPF/CNPJ: ${client.cpf_cnpj || '___'}
-END. CORRESP: ${clienteEndereco}${clienteCep !== '___' ? `   CEP: ${clienteCep}` : ''}
+  ${assina()}
+  ${rodape('gerado por ' + (fantasia || company.nome || 'sua empresa') + ' · solardoc')}
+</div>
 
-Prezado(s) Senhor(s), atendendo solicitação de V.Sa., fornecemos características e preço público à vista do produto abaixo.
-
-${descSistema}
-
-QTD.   EQUIPAMENTOS
-${equipamentos}
-
-NACIONAL, MERCADORIA OU BEM COM CONTEÚDO DE IMPORTAÇÃO SUPERIOR A 40% E INFERIOR OU IGUAL A 70%
-
-VALOR TOTAL: R$ ${fmtBRL(valorTotal)}
-VALOR EQUIPAMENTO: R$ ${fmtBRL(valorEq)}
-VALOR MÃO DE OBRA: R$ ${fmtBRL(valorMo)}
-DATA DE EMISSÃO: ${today}
-VALIDADE DA PROPOSTA: ${validadeDias} (${numExtenso(validadeDias)}) dias
-
-
-
-
-
-
-________________________________
-${client.nome.toUpperCase()}
-${client.cpf_cnpj || '___'}
-
-
-
-
-
-
-________________________________
-${company.nome.toUpperCase()}
-${company.cnpj}
-`;
+</div>`;
 }
 
 // ════════════════════════════════════════════════════════════
