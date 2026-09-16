@@ -806,7 +806,11 @@ function secaoMercado(l: LinhaEstudo, d: DadosEstudo, parcial: boolean): string 
     links.push([`https://cidades.ibge.gov.br/brasil/${encodeURIComponent(m.uf.toLowerCase())}/${encodeURIComponent(slugIbge(m.nome))}/panorama`, 'IBGE Cidades']);
   }
   links.push(['https://www.gov.br/transportes/pt-br/assuntos/transito/conteudo-Senatran/frota-de-veiculos-2026', 'Frota no SENATRAN']);
+  // Censo oficial da rede de recarga (ABVE com a Tupi): tem filtro por município e
+  // separa lento de rápido, coisa que o Google não dá.
+  links.push(['https://abve.org.br/bi-eletropostos/', 'Eletropostos no Brasil (ABVE)']);
   corpo += botoes(links);
+  corpo += '<p class="pequeno">O painel da ABVE é o censo da rede de recarga, com filtro por município e separação entre recarga lenta e rápida.</p>';
   return secao('mercado', 'Mercado do município', corpo);
 }
 
