@@ -1292,7 +1292,9 @@
               <div class="fld"><label for="f-numero">Número</label><div class="inp"><input type="text" id="f-numero" placeholder="Ex: 1200" inputmode="numeric"></div></div>
               <div class="fld"><label for="f-bairro">Bairro</label><div class="inp"><input type="text" id="f-bairro" placeholder="Ex: Santa Mônica"></div></div>
             </div>
-            <div class="fld"><label for="f-compl">Complemento / referência</label><div class="inp"><input type="text" id="f-compl" placeholder="Posto, galpão, esquina de referência"></div></div>
+            <!-- Complemento saiu em 16/09/2026: campo opcional que só trazia ruído
+                 para o estudo ("Casa", "Lote de esquina") e uma vez trouxe a confissão
+                 de que o endereço nem era do ponto. Rua, número e bairro continuam. -->
           </div>
         </div>
 
@@ -1332,8 +1334,10 @@
             <option value="cedo_espaco">01 · Cedo o espaço e vocês investem 100%</option>
             <option value="meio_a_meio">02 · Sociedade meio a meio</option>
             <option value="chave_na_mao">03 · Chave na mão, o eletroposto é meu</option>
-            <option value="equipamento">04 · Só o equipamento</option>
-            <option value="consultoria">05 · Consultoria completa</option>
+            <!-- 04 (só o equipamento) e 05 (consultoria) saíram da lista em 16/09/2026:
+                 seis respostas numa tela de celular, e essas duas são conversa de
+                 reunião, não de formulário. Os valores seguem aceitos pelo resto do
+                 código, então ficha antiga com eles continua sendo lida. -->
             <option value="nao_sei">Ainda não sei · quero comparar na reunião</option>
           </select></div>
         </div>
@@ -1384,22 +1388,10 @@
           </select></div>
         </div>
 
-        <!-- Não pontua: serve pro especialista chegar na reunião sabendo o tamanho do
-             risco de adequação elétrica (padrão de entrada, transformador dedicado). -->
-        </div>
-
-        <div class="passo" id="p-trifasica">
-        <div class="fld">
-          <label for="f-trifasica">A entrada de energia do local é trifásica?</label>
-          <div class="inp"><select id="f-trifasica">
-            <option value="">Selecione…</option>
-            <option value="sim">Sim</option>
-            <option value="nao">Não</option>
-            <option value="naosei">Não sei</option>
-            <option value="sem_local">Ainda não tenho local</option>
-          </select></div>
-        </div>
-
+        <!-- A entrada trifásica saiu do quiz em 16/09/2026. Medido em 45 dias: 63%
+             respondiam "Sim" e quem respondia "Não sei" convertia MAIS (36% contra
+             23%). A resposta não separava nada, não mudava a régua nem a proposta, e
+             o padrão de entrada é conferido na visita de qualquer jeito. -->
         </div>
 
         <div class="passoNav">
@@ -2577,7 +2569,7 @@ function maskCep(i){
 // viajaria na ficha e mandaria o consultor pro lugar errado.
 function limparEndereco(){
   cepSeq++;                                         // invalida busca de CEP em voo
-  ['f-cep','f-rua','f-numero','f-bairro','f-compl'].forEach(id => {
+  ['f-cep','f-rua','f-numero','f-bairro'].forEach(id => {
     document.getElementById(id).value = '';
   });
   // A cidade fica na tela, então ela volta a ser a do lead — o CEP do ponto não pode
@@ -2694,7 +2686,6 @@ const PASSOS = [
   { id:'p-valor',   quando:() => !MODELO_SEM_CAPITAL.has(val('f-modelo')),
                     ok:() => val('f-valor') ? null : 'Informe quanto pretende investir.' },
   { id:'p-decisor', ok:() => val('f-decisor') ? null : 'Informe quem decide o investimento.' },
-  { id:'p-trifasica', ok:() => val('f-trifasica') ? null : 'Informe se a entrada de energia do local é trifásica.' },
   { id:'p-whatsapp', ok:() => {
       return telefoneConfere() ? null : 'Informe um WhatsApp válido com DDD.';
     } },
@@ -2776,7 +2767,7 @@ function mostrarContinuar(){
 // de 220 ms, e no celular a pergunta trocava debaixo do dedo. Agora o único jeito de
 // mudar de passo é o botão, e a escolha só marca, pinta e traz o botão para a vista.
 // ═══════════════════════════════════════════════════════════════════════════
-const SELECTS_EM_BOTAO = ['f-perfil','f-rota','f-ponto','f-relacao','f-vagas','f-modelo','f-invest','f-valor','f-decisor','f-trifasica'];
+const SELECTS_EM_BOTAO = ['f-perfil','f-rota','f-ponto','f-relacao','f-vagas','f-modelo','f-invest','f-valor','f-decisor'];
 function montarOpcoes(){
   SELECTS_EM_BOTAO.forEach(id => {
     const sel = document.getElementById(id);
@@ -2871,7 +2862,6 @@ async function agendar(){
   const rua     = document.getElementById('f-rua').value.trim();
   const numero  = document.getElementById('f-numero').value.trim();
   const bairro  = document.getElementById('f-bairro').value.trim();
-  const compl   = document.getElementById('f-compl').value.trim();
   const btn     = document.getElementById('ag-btn');
 
   const perfil  = document.getElementById('f-perfil');
@@ -2880,7 +2870,6 @@ async function agendar(){
   const relacao = document.getElementById('f-relacao');
   const invest  = document.getElementById('f-invest');
   const decisor = document.getElementById('f-decisor');
-  const trif    = document.getElementById('f-trifasica');
   const txt     = el => (el.selectedOptions[0] || {}).text || 'não informado';
 
   // A qualificação é validada ANTES do horário de propósito: quem cai em NOTA 1 não
@@ -2917,7 +2906,6 @@ async function agendar(){
   // imprimia "Selecione…" nas duas fichas que a equipe lê.
   const investTexto = pagaCapital ? txt(invest) : 'Não se aplica · modelo 01, a NEXUS investe 100%';
   if(!decisor.value)      return erro('Informe quem decide o investimento.');
-  if(!trif.value)         return erro('Informe se a entrada de energia do local é trifásica.');
 
   const q = pontuar({ perfil:perfil.value, rota:rota.value, ponto:ponto.value,
                       relacao:relacao.value, invest:invest.value, decisor:decisor.value });
@@ -2943,7 +2931,7 @@ async function agendar(){
           ponto: txt(ponto) + (SEM_CONTROLE.has(relacao.value) ? ' (mas o local ainda não é meu)' : ''),
           invest: investTexto,
           decisor: txt(decisor), rota: PERFIL_SEM_FLUXO.has(perfil.value) ? txt(rota) : '',
-          trifasica: txt(trif), pts: q.pts,
+          pts: q.pts,
           ...utmPrimeiroToque(),
           ficha: [
             `LP ELETROPOSTO · ${perfilTexto(perfil)}`,
@@ -2961,7 +2949,6 @@ async function agendar(){
             `Como pretende investir: ${investTexto}`,
             ...(pagaCapital ? [`Quanto pretende investir: ${txt(valor)}`] : []),
             `Decisor: ${txt(decisor)}`,
-            `Entrada trifásica: ${txt(trif)}`,
           ].join('\n'),
         }),
       }).catch(()=>{});
@@ -3062,7 +3049,7 @@ async function agendar(){
     // imprime o que a ficha traz, e "Endereço: —" seria ruído.
     (pontoDefinido || ponto.value === 'negociando')
       ? `Endereço: ${[`${rua}, ${numero}`, bairro, cidade, cep ? `CEP ${cep}` : '',
-                      compl ? `ref.: ${compl}` : ''].filter(Boolean).join(' · ')}`
+                      ].filter(Boolean).join(' · ')}`
       : '',
     `Ponto: ${txt(ponto)}`,
     // Desde 29/08 TODA reunião tem esta linha. Ela diz ao consultor com quem ele vai
@@ -3079,7 +3066,6 @@ async function agendar(){
     `Como pretende investir: ${investTexto}`,
     pagaCapital ? `Quanto pretende investir: ${txt(valor)}` : '',
     `Decisor: ${txt(decisor)}`,
-    `Entrada trifásica: ${txt(trif)}`,
     `Simulou ${kw} kW com ${p.carros} carros/dia`,
     `Investimento estimado: ${moneyC(p.invest)}`,
     `→ payback ${r.payback ? r.payback.toFixed(1).replace('.',',')+' anos' : 'não calculado'} · lucro ${money(r.lucroMes)}/mês`,

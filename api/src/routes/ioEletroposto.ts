@@ -122,7 +122,9 @@ export function montarMensagem(a: any, extra: { estudoUrl?: string; preNota?: nu
     `*Como pretende investir:* ${linha('Como pretende investir:')}`,
     ...(tem('Quanto pretende investir:') ? [`*Quanto pretende investir:* ${linha('Quanto pretende investir:')}`] : []),
     `*Decisor:* ${linha('Decisor:')}`,
-    `*Entrada trifásica:* ${linha('Entrada trifásica:')}`,
+    // A pergunta saiu do quiz em 16/09/2026 (medida: não separava nada). Condicional
+    // para a ficha antiga continuar mostrando a resposta que ela trouxe.
+    ...(tem('Entrada trifásica:') ? [`*Entrada trifásica:* ${linha('Entrada trifásica:')}`] : []),
     ``,
     `*Simulou:* ${linha('Simulou')}`,
     `*Investimento estimado:* ${linha('Investimento estimado:')}`,

@@ -81,6 +81,30 @@ describe('montarMensagem — card da reunião de eletroposto', () => {
   });
 });
 
+describe('ficha sem a trifásica (quiz de 16/09)', () => {
+  it('a linha some do card quando a ficha não traz, e fica quando traz', () => {
+    const nova = montarMensagem(ficha([
+      'LP ELETROPOSTO · Dono de posto de combustível',
+      'NOTA 3 · 11/11 pts',
+      'Ponto: Já tenho o ponto definido',
+      'Local é seu: Sou o proprietário',
+      'Como pretende investir: Recurso próprio',
+      'Decisor: Eu decido',
+    ]));
+    expect(nova).not.toContain('Entrada trifásica');
+    expect(nova).toContain('*Decisor:* Eu decido');
+
+    const antiga = montarMensagem(ficha([
+      'LP ELETROPOSTO · Dono de posto de combustível',
+      'NOTA 3 · 11/11 pts',
+      'Ponto: Já tenho o ponto definido',
+      'Decisor: Eu decido',
+      'Entrada trifásica: Sim',
+    ]));
+    expect(antiga).toContain('*Entrada trifásica:* Sim');
+  });
+});
+
 describe('card com o estudo do local (15/09)', () => {
   const URL = `https://solardoc.app/_api/io/eletroposto/estudo/${'a'.repeat(64)}`;
 
