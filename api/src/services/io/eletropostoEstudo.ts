@@ -113,17 +113,15 @@ export interface EstudoMontado {
 }
 
 /**
- * O Google recusou a chave (sem chave, 401 ou 403). A culpa não é da ficha: a linha
- * volta para a fila sem gastar tentativa, e o estudo sai sozinho no primeiro tick
- * depois que a chave voltar a funcionar. Sem redeploy.
+ * O Google recusou a chave (sem chave, 401 ou 403). O estudo NÃO fica preso por isso:
+ * sai com o que não depende do Google (ficha, mercado do município, conta, sinais e
+ * roteiro) e fica marcado como `google_negado`. Quando a chave volta, o tick refaz e o
+ * estudo ganha mapa, entorno e carregadores. Sem redeploy e sem ninguém pedir.
  */
-export class GoogleFora extends Error {
-  constructor(public status: string, public motivo?: string) {
-    super(`google_fora ${status}`);
-  }
-}
-
 const googleRecusou = (s: string) => s === 'sem_chave' || s === 'erro:401' || s === 'erro:403';
+
+/** Endereço público, só para saber se o Google voltou a responder. */
+const ENDERECO_SONDA = 'Praça Tubal Vilela, Centro, Uberlândia - MG, Brasil';
 
 const pulado = <T>(): Promise<fontes.Resultado<T>> =>
   Promise.resolve({ ok: false, dado: null, status: 'pulado', http: null, ms: 0, custo_usd: 0 });
@@ -174,7 +172,10 @@ export async function montarEstudo(r: Reuniao): Promise<EstudoMontado> {
     mun ? banco.listar('ibge', { ids: [mun.ibge], limite: 1 }).catch(() => []) : Promise.resolve([]),
     fontes.historicoDoEndereco({ endereco, telefone: r.cliente_telefone, excluirId: r.id }),
   ]);
-  if (googleRecusou(local.status)) throw new GoogleFora(local.status, local.motivo);
+  const googleNegado = googleRecusou(local.status);
+  if (googleNegado) {
+    logger.warn('ep-estudo', 'Google recusou a chave, o estudo sai sem o terreno', { status: local.status, motivo: local.motivo });
+  }
   st.searchText = local.status;
   st.historico = hist.status;
 
@@ -275,6 +276,7 @@ export async function montarEstudo(r: Reuniao): Promise<EstudoMontado> {
     situacao: sit,
     historico,
     portao,
+    ...(googleNegado ? { google_negado: true } : {}),
   };
 
   const textos = await fontes.escreverTextos(montarFatosIA(dados));
@@ -319,6 +321,7 @@ export function montarAvisoPronto(est: banco.LinhaEstudoBanco, reu: Reuniao): st
     [d.pre_nota ? `Pré-nota ${d.pre_nota.valor} de 100` : '', mercado].filter(Boolean).join(' · '),
     `Endereço: ${d.confianca ? CONFIANCA_TXT[d.confianca] : 'não conferido agora'}`,
     `Situação: ${rotuloSituacao(d.situacao || 'confirmar')}`,
+    ...(d.google_negado ? ['Sem mapa, entorno e carregadores nesta versão: o Google recusou a chave. O estudo se completa sozinho quando ela voltar.'] : []),
     ...(atencao ? [`Atenção: ${atencao.texto}`] : []),
     urlDoEstudo(est.token),
   ];
@@ -385,6 +388,8 @@ export interface ResultadoTick {
   limpos: number;
   rede: number;
   backfill: number;
+  /** Estudos que saíram sem o Google e foram refeitos depois que a chave voltou. */
+  refeitos: number;
   motivo?: string;
   google?: { status: string; motivo?: string };
   falhas?: string[];
@@ -395,7 +400,7 @@ export interface ResultadoTick {
 
 const zero = (motivo?: string): ResultadoTick => ({
   processados: 0, prontos: 0, parciais: 0, sem_endereco: 0, descartados: 0, erros: 0,
-  avisos: 0, historicos: 0, limpos: 0, rede: 0, backfill: 0, ...(motivo ? { motivo } : {}),
+  avisos: 0, historicos: 0, limpos: 0, rede: 0, backfill: 0, refeitos: 0, ...(motivo ? { motivo } : {}),
 });
 
 /**
@@ -423,7 +428,7 @@ function previaSemDadoPessoal(e: EstudoMontado): Record<string, unknown> {
   };
 }
 
-async function processarLinha(f: banco.LinhaEstudoBanco, reu: Reuniao, r: ResultadoTick): Promise<'ok' | 'erro' | 'google_fora'> {
+async function processarLinha(f: banco.LinhaEstudoBanco, reu: Reuniao, r: ResultadoTick): Promise<'ok' | 'erro'> {
   try {
     const e = await montarEstudo(reu);
     await banco.salvar(f.id, {
@@ -437,14 +442,6 @@ async function processarLinha(f: banco.LinhaEstudoBanco, reu: Reuniao, r: Result
     else r.sem_endereco++;
     return 'ok';
   } catch (err) {
-    if (err instanceof GoogleFora) {
-      // Devolve a tentativa que o claim gastou: esperar o Google não conta como falha.
-      await banco.salvar(f.id, { status: 'pendente', locked_until: null, tentativas: f.tentativas }).catch(() => undefined);
-      r.motivo = 'google_fora';
-      r.google = { status: err.status, ...(err.motivo ? { motivo: err.motivo } : {}) };
-      logger.warn('ep-estudo', 'Google recusou a chave, estudo espera na fila', r.google);
-      return 'google_fora';
-    }
     const msg = String((err as Error)?.message || err).slice(0, 300);
     logger.error('ep-estudo', 'estudo falhou', { id: f.id, erro: msg });
     const ultima = f.tentativas + 1 >= MAX_TENTATIVAS;
@@ -495,12 +492,7 @@ export async function runEletropostoEstudoTick(opts: {
   if (opts.id && opts.dry) {
     const reu = (await carregarReunioes([opts.id])).get(opts.id);
     if (!reu) return zero('ficha_nao_encontrada');
-    try {
-      return { ...zero('dry'), previa: previaSemDadoPessoal(await montarEstudo(reu)) };
-    } catch (e) {
-      if (e instanceof GoogleFora) return { ...zero('google_fora'), google: { status: e.status, motivo: e.motivo } };
-      throw e;
-    }
+    return { ...zero('dry'), previa: previaSemDadoPessoal(await montarEstudo(reu)) };
   }
 
   const r = zero();
@@ -571,10 +563,34 @@ export async function runEletropostoEstudoTick(opts: {
       if (opts.dry) { comecados++; r.processados++; continue; }
       if (!(await banco.pegar(f.id, f.tentativas, LEASE_SEG))) continue;   // outro tick pegou
       comecados++;
-      // Google fora vale para todas: não adianta tentar a próxima linha agora.
-      if ((await processarLinha(f, reu, r)) === 'google_fora') break;
+      await processarLinha(f, reu, r);
     }
   });
+
+  // Estudo que saiu sem o Google volta a ser feito quando a chave responder. A sonda
+  // é um endereço público e só custa quando o Google funciona: enquanto recusa, é grátis.
+  if (!opts.dry) {
+    await fase('refazer', r, async () => {
+      const semGoogle = await banco.listar('refazer', { limite: 5 });
+      if (!semGoogle.length) return;
+      if (Date.now() - inicio > TICK_MAX_MS - MIN_RESTANTE_MS) return;
+      const sonda = await fontes.buscarLocal(ENDERECO_SONDA);
+      if (!sonda.ok) { r.motivo = r.motivo || 'google_ainda_fora'; return; }
+
+      const reunioes = await carregarReunioes(semGoogle.map(x => Number(x.agendamento_id)));
+      for (const est of semGoogle) {
+        if (r.refeitos >= POR_TICK) break;
+        if (Date.now() - inicio > TICK_MAX_MS - MIN_RESTANTE_MS) break;
+        const reu = reunioes.get(Number(est.agendamento_id));
+        const quandoMs = reu?.quando ? Date.parse(reu.quando) : NaN;
+        if (!reu || reu.status !== 'agendado' || !(quandoMs > agora)) continue;
+        await banco.salvar(est.id, { status: 'pendente', tentativas: 0, locked_until: null });
+        if (!(await banco.pegar(est.id, 0, LEASE_SEG))) continue;
+        await processarLinha({ ...est, tentativas: 0 }, reu, r);
+        r.refeitos++;
+      }
+    });
+  }
 
   if (opts.dry) return { ...r, motivo: r.motivo || 'dry' };
 

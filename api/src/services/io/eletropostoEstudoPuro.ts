@@ -672,6 +672,8 @@ export interface DadosEstudo {
   situacao?: Situacao;
   historico?: ItemHistorico[];
   portao?: { cortaria: boolean; regra: string | null };
+  /** O Google recusou a chave: o estudo saiu sem mapa, entorno e carregadores. */
+  google_negado?: boolean;
   ia?: TextosIA & { origem: 'ia' | 'modelo'; reprovados?: string[] };
 }
 

@@ -57,6 +57,8 @@ const h = vi.hoisted(() => {
         aviso: e => ['pronto', 'parcial'].includes(e.status) && !e.aviso_enviado_em,
         historico: e => ['pronto', 'parcial'].includes(e.status) && !e.historico_em,
         limpeza: e => !!e.pronto_em && e.pronto_em < iso(s.agora - 30 * 86400_000) && !e.coords_apagadas_em,
+        refazer: e => e.status === 'parcial' && !!e.dados?.google_negado
+          && !!e.pronto_em && e.pronto_em < iso(s.agora - 600_000),
         por_agendamentos: e => (o.ids || []).includes(e.agendamento_id),
         ibge: () => false,
       };
@@ -219,40 +221,71 @@ describe('fontes que falham', () => {
     expect(h.s.enviados[0].texto).toContain(`wa.me/${TEL_LEAD}?text=`);
   });
 
-  it('Google recusa a chave: a linha espera sem gastar tentativa, e sai sozinha quando o Google volta', async () => {
-    const googleOk = h.s.f.buscarLocal;
+  it('Google recusando a chave: o estudo sai sem o terreno, marcado, e o dono é avisado do que faltou', async () => {
     h.s.f.buscarLocal = vi.fn(async () => ({ ...falha('erro:403'), http: 403, motivo: 'PERMISSION_DENIED · BILLING_DISABLED' }));
-    h.s.reunioes = [reuniao(501), reuniao(502)];
+    h.s.reunioes = [reuniao(501)];
 
-    const a = await tick();
-    expect(a.motivo).toBe('google_fora');
-    expect(a.google).toEqual({ status: 'erro:403', motivo: 'PERMISSION_DENIED · BILLING_DISABLED' });
-    expect(h.s.f.buscarLocal).toHaveBeenCalledTimes(1);   // não tenta a segunda linha
+    const r = await tick();
+    expect(r).toMatchObject({ processados: 1, parciais: 1, prontos: 0, avisos: 1 });
+
+    const est = h.s.estudos[0];
+    expect(est.status).toBe('parcial');
+    expect(est.dados.google_negado).toBe(true);
+    expect(est.dados.local).toBeNull();
+    expect(est.dados.entorno).toBeNull();
+    expect(est.dados.recarga).toBeNull();
+    // O que não depende do Google continua no estudo.
+    expect(est.dados.municipio).toMatchObject({ nome: 'Uberaba', plugin: 900 });
+    expect(est.dados.conta.invest).toBeGreaterThan(0);
+    expect(est.pre_nota).toBe(100);
+    expect(est.indice).not.toBeNull();
+    expect(est.dados.ia.perguntas.length).toBeGreaterThanOrEqual(3);
     expect(h.s.f.buscarProximos).not.toHaveBeenCalled();
-    expect(h.s.estudos.map(e => [e.status, e.tentativas, e.locked_until])).toEqual([['pendente', 0, null], ['pendente', 0, null]]);
-
-    for (let i = 0; i < 4; i++) await tick();
-    expect(h.s.estudos.every(e => e.tentativas === 0 && e.status === 'pendente')).toBe(true);
-    expect(h.s.enviados).toHaveLength(0);
-
-    h.s.f.buscarLocal = googleOk;
-    const b = await tick();
-    expect(b.prontos).toBe(2);
+    expect(h.s.enviados[0].texto).toContain('Sem mapa, entorno e carregadores nesta versão');
   });
 
-  it('sem chave do Google também espera', async () => {
+  it('quando a chave volta, o estudo parcial é refeito e ganha mapa e entorno', async () => {
+    const googleOk = h.s.f.buscarLocal;
+    h.s.f.buscarLocal = vi.fn(async () => falha('erro:403'));
+    h.s.reunioes = [reuniao(501)];
+    await tick();
+    expect(h.s.estudos[0].status).toBe('parcial');
+
+    // Ainda recusando 11 minutos depois: não refaz, não gasta e não repete aviso.
+    h.s.agora = AGORA + 11 * 60_000;
+    const espera = await tick({ agora: h.s.agora });
+    expect(espera.refeitos).toBe(0);
+    expect(espera.motivo).toBe('google_ainda_fora');
+    expect(h.s.estudos[0].status).toBe('parcial');
+    expect(h.s.enviados).toHaveLength(1);
+
+    // Chave liberada: o mesmo estudo volta para a fila e sai completo.
+    h.s.f.buscarLocal = googleOk;
+    const feito = await tick({ agora: h.s.agora });
+    expect(feito.refeitos).toBe(1);
+    const est = h.s.estudos[0];
+    expect(est.status).toBe('pronto');
+    expect(est.dados.google_negado).toBeUndefined();
+    expect(est.dados.local.lat).toBeCloseTo(CENTRO.latitude, 5);
+    expect(est.dados.entorno.n).toBe(6);
+    expect(h.s.enviados).toHaveLength(1);   // não avisa de novo
+  });
+
+  it('sem chave do Google: mesmo caminho, estudo parcial marcado', async () => {
     h.s.f.buscarLocal = vi.fn(async () => falha('sem_chave'));
     h.s.reunioes = [reuniao(501)];
-    expect((await tick()).motivo).toBe('google_fora');
-    expect(h.s.estudos[0]).toMatchObject({ status: 'pendente', tentativas: 0 });
+    await tick();
+    expect(h.s.estudos[0]).toMatchObject({ status: 'parcial' });
+    expect(h.s.estudos[0].dados.google_negado).toBe(true);
   });
 
-  it('ensaio com o Google fora devolve o motivo, sem dado pessoal', async () => {
+  it('ensaio com o Google fora mostra o parcial, sem dado pessoal', async () => {
     h.s.f.buscarLocal = vi.fn(async () => ({ ...falha('erro:403'), motivo: 'PERMISSION_DENIED' }));
     h.s.reunioes = [reuniao(501)];
     const r = await tick({ dry: true, id: 501 });
-    expect(r).toMatchObject({ motivo: 'google_fora', google: { status: 'erro:403', motivo: 'PERMISSION_DENIED' } });
+    expect(r.previa).toMatchObject({ status: 'parcial', confianca: null, pre_nota: 100 });
     expect(JSON.stringify(r)).not.toContain('Maria');
+    expect(h.s.estudos).toHaveLength(0);
   });
 
   it('IA fora: o texto padrão entra e o estudo continua pronto', async () => {

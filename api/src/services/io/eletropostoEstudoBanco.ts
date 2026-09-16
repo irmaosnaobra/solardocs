@@ -54,7 +54,7 @@ export type PatchEstudo = Partial<Pick<LinhaEstudoBanco,
   'status' | 'tentativas' | 'locked_until' | 'municipio_ibge' | 'confianca' | 'pre_nota' | 'indice' | 'situacao'
   | 'dados' | 'fontes' | 'custo_usd' | 'erro' | 'pronto_em' | 'coords_apagadas_em'>>;
 
-export type ModoLista = 'fila' | 'aviso' | 'historico' | 'limpeza' | 'por_agendamentos' | 'ibge';
+export type ModoLista = 'fila' | 'aviso' | 'historico' | 'limpeza' | 'refazer' | 'por_agendamentos' | 'ibge';
 
 const segredo = (): string => (process.env.EP_ESTUDO_DB_SEGREDO || '').trim();
 
