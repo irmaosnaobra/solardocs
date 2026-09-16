@@ -2504,9 +2504,8 @@ function pick(b){
   document.querySelectorAll('.slot').forEach(s=>s.classList.remove('on'));
   b.classList.add('on'); slotSel = b.dataset.iso;
   track('slot_escolhido');
-  // escolher o horario JA e a resposta do passo 1 — pedir um "Continuar" depois
-  // seria um toque a mais pra confirmar o que a pessoa acabou de dizer
-  if(typeof passoAvancarSeHorario === 'function') passoAvancarSeHorario();
+  // Escolher NAO avanca: quem decide seguir e o "Continuar" (ordem do Thiago, 16/09).
+  if(typeof mostrarContinuar === 'function') mostrarContinuar();
 }
 function maskTel(i){
   let v = i.value.replace(/\D/g,'').slice(0,11);
@@ -2751,10 +2750,16 @@ function passoProximo(){
 function passoVoltar(){
   if(passoAtual > 0){ passoAtual--; pintarPasso(); }
 }
-// Escolher um horário já é a resposta do passo 1 — obrigar um "Continuar" depois
-// do clique seria um toque a mais para dizer o que a pessoa acabou de dizer.
-function passoAvancarSeHorario(){
-  if(passosVivos()[passoAtual].id === 'p-horario' && slotSel) passoProximo();
+/**
+ * Depois de escolher, o Continuar tem que estar à vista. No celular a pilha de
+ * opções (o perfil tem 10) empurra o botão para baixo da dobra, e quem escolheu
+ * fica olhando para a resposta marcada sem saber o que fazer.
+ */
+function mostrarContinuar(){
+  const btn = document.getElementById('ag-btn');
+  if(!btn) return;
+  const r = btn.getBoundingClientRect();
+  if(r.bottom > window.innerHeight - 8) btn.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 // ═══════════════════════════════════════════════════════════════════════════
 // RESPOSTA É TOQUE, NÃO LISTA (15/09/2026)
@@ -2766,9 +2771,10 @@ function passoAvancarSeHorario(){
 // agendar() leem o formulário exatamente como antes, e sem script a página cai no
 // select de sempre.
 //
-// Resposta que fecha o passo avança sozinha (o mesmo que o horário já fazia). Quando
-// ela abre outra pergunta no mesmo passo (investidor abre a rota, ponto definido
-// abre "o local é seu?" e o endereço), o ok() do passo ainda reclama e a tela fica.
+// ESCOLHER NÃO AVANÇA (16/09/2026). Ordem do Thiago: "a pessoa escolhe e aperta
+// continuar para seguir". Antes, a resposta que fechava o passo pulava sozinha depois
+// de 220 ms, e no celular a pergunta trocava debaixo do dedo. Agora o único jeito de
+// mudar de passo é o botão, e a escolha só marca, pinta e traz o botão para a vista.
 // ═══════════════════════════════════════════════════════════════════════════
 const SELECTS_EM_BOTAO = ['f-perfil','f-rota','f-ponto','f-relacao','f-vagas','f-modelo','f-invest','f-valor','f-decisor','f-trifasica'];
 function montarOpcoes(){
@@ -2810,21 +2816,13 @@ function pintarOpcoes(){
     });
   });
 }
-let avancoOpcao = null;
 function escolherOpcao(sel, valor){
   sel.value = valor;
   sel.dispatchEvent(new Event('change', { bubbles: true }));   // roda o onchange do HTML
   pintarOpcoes();
   const m = document.getElementById('ag-msg');
   if(m.classList.contains('err')){ m.className = 'agMsg'; m.textContent = ''; }
-  // 220 ms para o verde da escolha aparecer antes da troca de pergunta
-  clearTimeout(avancoOpcao);
-  const passo = sel.closest('.passo');
-  avancoOpcao = setTimeout(() => {
-    const atual = passosVivos()[passoAtual];
-    if(!atual || !passo || atual.id !== passo.id || atual.ok()) return;
-    passoProximo();
-  }, 220);
+  mostrarContinuar();
 }
 // Enter avança, que é o que o dedo espera num campo de texto sozinho na tela.
 document.getElementById('ag-form').addEventListener('keydown', e => {
