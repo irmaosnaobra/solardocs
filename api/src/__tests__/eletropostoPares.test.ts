@@ -141,6 +141,38 @@ describe('as mensagens da equipe', () => {
     expect(m).not.toContain('undefined');
   });
 
+  // Ordem do Thiago (16/09/2026): "cria uma msg com emojis para diferenciar".
+  // Os três avisos caem na MESMA conversa do WhatsApp, um atrás do outro. Se dois
+  // começarem parecidos, quem está no celular lê o cabeçalho errado e trata
+  // investidor como ponto. A primeira linha é o que separa, então ela é travada.
+  it('os três avisos se distinguem na primeira linha', () => {
+    const base = { id: 1, nome: 'Fulano de Tal', telefone: '5534991110000', cidade: 'Uberaba-MG' };
+    const topo = (m: string) => m.split('\n')[0];
+    const ponto = topo(montarAvisoPonto(base, []));
+    const capital = topo(montarAvisoCapital(base, []));
+    const integrador = topo(montarAvisoIntegrador(base));
+
+    expect(ponto).toContain('PONTO NOVO');
+    expect(capital).toContain('INVESTIDOR NOVO');
+    expect(integrador).toContain('PARCEIRO INTEGRADOR NOVO');
+    expect(new Set([ponto, capital, integrador]).size).toBe(3);
+
+    // E cada um traz emoji no cabeçalho: é o que o olho pega antes de ler.
+    const temEmoji = (s: string) => /\p{Extended_Pictographic}/u.test(s);
+    expect(temEmoji(ponto)).toBe(true);
+    expect(temEmoji(capital)).toBe(true);
+    expect(temEmoji(integrador)).toBe(true);
+  });
+
+  // A segunda linha diz em uma frase o que aquilo é, pra quem abre o WhatsApp
+  // no meio de outra coisa não precisar decifrar o cabeçalho.
+  it('cada aviso explica em uma linha o que chegou', () => {
+    const base = { id: 2, nome: 'Fulano de Tal', telefone: '5534991110000' };
+    expect(montarAvisoCapital(base, []).split('\n')[1]).toContain('falta o ponto');
+    expect(montarAvisoIntegrador(base).split('\n')[1]).toContain('canal');
+    expect(montarAvisoPonto(base, []).split('\n')[1]).toContain('procura');
+  });
+
   // O banco guarda o CNPJ só com dígitos. Quem lê o aviso copia esse número pra
   // consultar a empresa, e 14 dígitos seguidos ninguém confere de olho.
   it('integrador: CNPJ sai com máscara, e empresa aparece', () => {

@@ -688,28 +688,32 @@ const v = (r: Record<string, unknown>, k: string) => String(r[k] ?? '').trim() |
  */
 export function montarAvisoPonto(reg: Record<string, unknown>, dica: string[]): string {
   return [
-    '📍 *ARRENDAMENTO — cadastro novo*',
+    // "ARRENDAMENTO" fica no cabeçalho porque é o nome da aba no Gerador: a
+    // equipe lê a palavra aqui e sabe em qual lista procurar. "PONTO NOVO" entra
+    // ao lado porque é o que faz largar o que está fazendo.
+    '📍🏆 *ARRENDAMENTO — PONTO NOVO*',
+    '_Tem o local. É este que a gente procura._',
     '',
-    `*Nome:* ${v(reg, 'nome')}`,
-    `*WhatsApp:* wa.me/${String(reg.telefone || '')}`,
-    `*Cidade:* ${v(reg, 'cidade')}`,
-    `*Relação com o imóvel:* ${v(reg, 'ponto_relacao')}`,
-    `*Tipo de local:* ${v(reg, 'ponto_tipo')}`,
-    `*Endereço:* ${v(reg, 'ponto_endereco')}`,
-    `*Vagas:* ${v(reg, 'ponto_vagas')}`,
-    `*Movimento:* ${v(reg, 'ponto_fluxo')}`,
+    `👤 *Nome:* ${v(reg, 'nome')}`,
+    `📱 *WhatsApp:* wa.me/${String(reg.telefone || '')}`,
+    `📍 *Cidade:* ${v(reg, 'cidade')}`,
+    `🔑 *Relação com o imóvel:* ${v(reg, 'ponto_relacao')}`,
+    `🏪 *Tipo de local:* ${v(reg, 'ponto_tipo')}`,
+    `🗺️ *Endereço:* ${v(reg, 'ponto_endereco')}`,
+    `🅿️ *Vagas:* ${v(reg, 'ponto_vagas')}`,
+    `🚗 *Movimento:* ${v(reg, 'ponto_fluxo')}`,
     '',
     // O padrão vem em bloco próprio: é por ele que o consultor decide se abre o
     // caso ou se pede a foto antes de gastar uma hora.
     '⚡ *PADRÃO DE ENTRADA*',
-    `*Ligação:* ${v(reg, 'padrao_ligacao')}`,
-    `*Disjuntor:* ${v(reg, 'padrao_disjuntor')}`,
-    `*Consumo:* ${v(reg, 'padrao_consumo')}`,
-    `*Manda foto?* ${v(reg, 'padrao_foto')}`,
+    `🔌 *Ligação:* ${v(reg, 'padrao_ligacao')}`,
+    `🎚️ *Disjuntor:* ${v(reg, 'padrao_disjuntor')}`,
+    `📊 *Consumo:* ${v(reg, 'padrao_consumo')}`,
+    `📷 *Manda foto?* ${v(reg, 'padrao_foto')}`,
     ...(padraoFraco(reg)
       ? ['', '⚠️ *O padrão declarado provavelmente não aguenta* — peça a foto do padrão e da conta antes de marcar qualquer coisa. Aumento de carga na concessionária custa dinheiro e meses.']
       : []),
-    ...(reg.obs ? ['', `_${String(reg.obs)}_`] : []),
+    ...(reg.obs ? ['', `💬 _${String(reg.obs)}_`] : []),
     ...dica,
     '',
     '_Lista completa: solardoc.app/gerador → Eletroposto → Cadastros._',
@@ -723,15 +727,16 @@ export function montarAvisoPonto(reg: Record<string, unknown>, dica: string[]): 
  */
 export function montarAvisoCapital(reg: Record<string, unknown>, dica: string[]): string {
   return [
-    '💰 *INVESTIDOR — cadastro novo*',
+    '💰💰 *INVESTIDOR NOVO*',
+    '_Tem o dinheiro, falta o ponto._',
     '',
-    `*Nome:* ${v(reg, 'nome')}`,
-    `*WhatsApp:* wa.me/${String(reg.telefone || '')}`,
-    `*Cidade:* ${v(reg, 'cidade')}`,
-    `*Quanto:* ${v(reg, 'capital_faixa')}`,
-    `*Com quê:* ${v(reg, 'capital_origem')}`,
-    `*Prazo:* ${v(reg, 'prazo')}`,
-    ...(reg.obs ? ['', `_${String(reg.obs)}_`] : []),
+    `👤 *Nome:* ${v(reg, 'nome')}`,
+    `📱 *WhatsApp:* wa.me/${String(reg.telefone || '')}`,
+    `📍 *Cidade:* ${v(reg, 'cidade')}`,
+    `💵 *Quanto:* ${v(reg, 'capital_faixa')}`,
+    `🏦 *Com quê:* ${v(reg, 'capital_origem')}`,
+    `📅 *Prazo:* ${v(reg, 'prazo')}`,
+    ...(reg.obs ? ['', `💬 _${String(reg.obs)}_`] : []),
     ...dica,
     '',
     '_Lista completa: solardoc.app/gerador → Eletroposto → Cadastros._',
@@ -756,18 +761,19 @@ export function cnpjNaTela(bruto: unknown): string {
 
 export function montarAvisoIntegrador(reg: Record<string, unknown>): string {
   return [
-    '🔧 *INTEGRADOR — cadastro novo*',
+    '🔧🤝 *PARCEIRO INTEGRADOR NOVO*',
+    '_Instala ou vende. Não é cliente, é canal._',
     '',
-    `*Nome:* ${v(reg, 'nome')}`,
-    `*WhatsApp:* wa.me/${String(reg.telefone || '')}`,
-    `*Cidade:* ${v(reg, 'cidade')}`,
-    ...(reg.empresa ? [`*Empresa:* ${v(reg, 'empresa')}`] : []),
-    ...(reg.cnpj ? [`*CNPJ:* ${cnpjNaTela(reg.cnpj)}`] : []),
-    `*O que faz hoje:* ${v(reg, 'integrador_atuacao')}`,
-    `*Como quer trabalhar:* ${v(reg, 'integrador_interesse')}`,
-    `*Já instalou carregador:* ${v(reg, 'integrador_experiencia')}`,
-    `*Equipe:* ${v(reg, 'integrador_equipe')}`,
-    ...(reg.obs ? ['', `_${String(reg.obs)}_`] : []),
+    `👤 *Nome:* ${v(reg, 'nome')}`,
+    `📱 *WhatsApp:* wa.me/${String(reg.telefone || '')}`,
+    `📍 *Cidade:* ${v(reg, 'cidade')}`,
+    ...(reg.empresa ? [`🏢 *Empresa:* ${v(reg, 'empresa')}`] : []),
+    ...(reg.cnpj ? [`🧾 *CNPJ:* ${cnpjNaTela(reg.cnpj)}`] : []),
+    `🛠️ *Faz hoje:* ${v(reg, 'integrador_atuacao')}`,
+    `🤝 *Quer:* ${v(reg, 'integrador_interesse')}`,
+    `⚡ *Já instalou:* ${v(reg, 'integrador_experiencia')}`,
+    `👷 *Equipe:* ${v(reg, 'integrador_equipe')}`,
+    ...(reg.obs ? ['', `💬 _${String(reg.obs)}_`] : []),
     '',
     '_Lista completa: solardoc.app/gerador → Eletroposto → Cadastros._',
   ].join('\n');
