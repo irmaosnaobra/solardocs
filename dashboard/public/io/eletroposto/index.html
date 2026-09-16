@@ -1208,6 +1208,85 @@
              daqui em diante é tratado como chave na mão. -->
         </div>
 
+        <!-- ══ QUIZ DO INTEGRADOR (16/09/2026) ═══════════════════════════════════
+             Ordem do Thiago: "a partir do momento que responde isso ele cai em
+             outro quiz cadastrando ele como integrador parceiro". Antes, quem
+             marcava Integrador era mandado para /io/eletroposto/parceria: página
+             nova, carregamento novo e um formulário com nove campos de uma vez.
+             Agora ele segue no mesmo quiz, uma pergunta por tela, e termina
+             cadastrado sem trocar de página.
+
+             AS PERGUNTAS E AS OPÇÕES SÃO AS MESMAS da porta do integrador em
+             /parceria, palavra por palavra. Os dois caminhos gravam nas mesmas
+             colunas (empresa, cnpj, integrador_atuacao, integrador_interesse,
+             integrador_experiencia, integrador_equipe) e a lista do Gerador não
+             pode ter dois vocabulários para a mesma coluna. Mexeu aqui, mexe lá. -->
+        <div class="passo" id="p-i-empresa">
+          <div class="fld">
+            <label for="f-i-empresa">Qual é a sua empresa?</label>
+            <div class="inp"><input type="text" id="f-i-empresa" placeholder="Nome da sua empresa"></div>
+          </div>
+          <div class="fld">
+            <label for="f-i-cnpj">CNPJ (opcional)</label>
+            <div class="inp"><input type="text" id="f-i-cnpj" inputmode="numeric" placeholder="00.000.000/0001-00"></div>
+          </div>
+        </div>
+
+        <div class="passo" id="p-i-atuacao">
+          <div class="fld">
+            <label for="f-i-atuacao">O que você faz hoje?</label>
+            <div class="inp"><select id="f-i-atuacao">
+              <option value="">Selecione…</option>
+              <option>Integrador solar (projeto e instalação)</option>
+              <option>Eletricista / instalador</option>
+              <option>Engenheiro eletricista</option>
+              <option>Empresa de instalação ou construtora</option>
+              <option>Vendedor ou representante técnico</option>
+              <option>Ainda não atuo na área</option>
+            </select></div>
+          </div>
+        </div>
+
+        <div class="passo" id="p-i-exp">
+          <div class="fld">
+            <label for="f-i-exp">Já instalou carregador?</label>
+            <div class="inp"><select id="f-i-exp">
+              <option value="">Selecione…</option>
+              <option>Nunca instalei</option>
+              <option>1 a 3 instalados</option>
+              <option>Mais de 3 instalados</option>
+              <option>Sou certificado por fabricante</option>
+            </select></div>
+          </div>
+        </div>
+
+        <div class="passo" id="p-i-interesse">
+          <div class="fld">
+            <label for="f-i-interesse">Como quer trabalhar com eletroposto?</label>
+            <div class="inp"><select id="f-i-interesse">
+              <option value="">Selecione…</option>
+              <option>Vender pro meu cliente e vocês executam</option>
+              <option>Executar a obra na minha região</option>
+              <option>As duas coisas: vender e executar</option>
+              <option>Comprar o equipamento e fazer por conta</option>
+              <option>Ainda não sei, quero entender</option>
+            </select></div>
+          </div>
+        </div>
+
+        <div class="passo" id="p-i-equipe">
+          <div class="fld">
+            <label for="f-i-equipe">Como é a sua equipe hoje?</label>
+            <div class="inp"><select id="f-i-equipe">
+              <option value="">Selecione…</option>
+              <option>Tenho equipe própria</option>
+              <option>Terceirizo a instalação</option>
+              <option>Trabalho sozinho</option>
+              <option>Só vendo, não instalo</option>
+            </select></div>
+          </div>
+        </div>
+
         <div class="passo" id="p-perfil">
         <div class="fld">
           <label for="f-perfil">Qual é o seu perfil?</label>
@@ -1507,6 +1586,46 @@
         <!-- Depois de marcar a pagina inteira aparece logo abaixo (html.agendado): este
              botao e o convite para descer e conhecer o trabalho ate a reuniao. -->
         <a class="btn ghost okMais" href="#inicio" onclick="track('agendado_conhecer')">Enquanto isso, conheça o nosso trabalho ↓</a>
+      </div>
+
+      <!-- Fim do quiz do integrador (16/09/2026). Ele não agenda: a reunião é para
+           quem tem ponto. O que ele recebe é a confirmação de que está na lista de
+           parceiros e o convite de seguir, que aqui é o único canal até a equipe
+           chamar — sem ele, o integrador cadastrado some da nossa vista até o
+           WhatsApp sair. -->
+      <div class="ok" id="ag-ok-int">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <h3>Você está na lista de parceiros</h3>
+        <p id="ok-int-txt">...</p>
+        <div class="okSeguir">
+          <p><b>Enquanto a gente não te chama, siga a gente.</b> Obra por dentro, equipamento chegando e ponto novo saindo do chão, na hora que acontece.</p>
+          <a class="btn" href="https://instagram.com/irmaosnaobra__" target="_blank" rel="noopener"
+             data-source="integrador-cartao">Seguir @irmaosnaobra__ →</a>
+        </div>
+        <div class="okCard">
+          <div class="okRow">
+            <div class="okIc"><svg viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01"/><path d="M21 12a9 9 0 0 1-9 9 8.9 8.9 0 0 1-4.3-1.1L3 21l1.1-4.7A8.9 8.9 0 0 1 3 12a9 9 0 1 1 18 0z"/></svg></div>
+            <div class="okTx">
+              <b>A equipe recebeu o seu perfil agora.</b>
+              Ele já chegou no WhatsApp de quem cuida da rede de parceiros, com a sua empresa, a sua região e o que você instala hoje.
+            </div>
+          </div>
+          <div class="okRow">
+            <div class="okIc"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></div>
+            <div class="okTx">
+              <b>A gente chama quando for viável para os dois.</b>
+              Parceria de eletroposto anda por região: entra quem cobre uma praça onde existe obra para entregar. Não é ordem de chegada, e por isso não damos prazo que não podemos cumprir.
+            </div>
+          </div>
+          <div class="okRow">
+            <div class="okIc"><svg viewBox="0 0 24 24"><path d="m23 7-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div>
+            <div class="okTx">
+              <b>Tem cliente com ponto agora?</b>
+              Manda ele preencher este mesmo quiz pela porta "Dono de comércio". A reunião dele sai na hora, e a obra volta para você.
+            </div>
+          </div>
+        </div>
+        <p class="okObs">Obrigado. Quem instala é metade dessa conta.</p>
       </div>
 
       <!-- O NOTA 1 não vê tela aqui desde 15/09/2026 à noite: vai direto para o curso
@@ -2674,14 +2793,32 @@ const val = id => document.getElementById(id).value.trim();
 const soDigitos = id => document.getElementById(id).value.replace(/\D/g,'');
 /** O WhatsApp está preenchido e com DDD? É o que libera o botão de confirmar. */
 const telefoneConfere = () => soDigitos('f-tel').length >= 10;
-/** Só quem tem ponto segue para a agenda. Investidor e integrador vão para o cadastro. */
+/** Só quem tem ponto segue para a agenda. Investidor e integrador não agendam. */
 const soComercio = () => val('f-porta') === 'comercio';
+/** O integrador tem quiz próprio e termina cadastrado aqui mesmo (16/09/2026). */
+const soIntegrador = () => val('f-porta') === 'integrador';
+/** Nome, cidade e WhatsApp são os três passos que as duas trilhas dividem. */
+const quizAqui = () => soComercio() || soIntegrador();
 
 const PASSOS = [
   { id:'p-porta',   ok:() => val('f-porta') ? null : 'Escolha uma das três opções.' },
   { id:'p-horario', quando: soComercio, ok:() => slotSel ? null : 'Escolha um horário na lista.' },
-  { id:'p-nome',    quando: soComercio, ok:() => val('f-nome').length >= 3 ? null : 'Informe seu nome completo.' },
-  { id:'p-cidade',  quando: soComercio, ok:() => val('f-cidade').length >= 2 ? null : 'Informe a cidade e o estado (UF).' },
+  { id:'p-nome',    quando: quizAqui, ok:() => val('f-nome').length >= 3 ? null : 'Informe seu nome completo.' },
+  { id:'p-cidade',  quando: quizAqui, ok:() => val('f-cidade').length >= 2 ? null : 'Informe a cidade e o estado (UF).' },
+  // ── Trilha do integrador. Vem depois de nome e cidade e antes do WhatsApp, pela
+  //    mesma razão do resto do quiz: o telefone é o que mais trava, fica por último.
+  { id:'p-i-empresa',  quando: soIntegrador,
+                       ok:() => val('f-i-empresa').length >= 2 ? null : 'Informe o nome da sua empresa.' },
+  { id:'p-i-atuacao',  quando: soIntegrador,
+                       ok:() => val('f-i-atuacao') ? null : 'Informe o que você faz hoje.' },
+  { id:'p-i-exp',      quando: soIntegrador,
+                       // "Nunca instalei" é resposta válida e está na lista. Em branco não é:
+                       // em branco a equipe não sabe se ele nunca instalou ou se passou batido.
+                       ok:() => val('f-i-exp') ? null : 'Informe se já instalou carregador. "Nunca instalei" está na lista.' },
+  { id:'p-i-interesse',quando: soIntegrador,
+                       ok:() => val('f-i-interesse') ? null : 'Informe como quer trabalhar com eletroposto.' },
+  { id:'p-i-equipe',   quando: soIntegrador,
+                       ok:() => val('f-i-equipe') ? null : 'Informe como é a sua equipe hoje.' },
   { id:'p-perfil',  quando: soComercio, ok:() => {
       const v = val('f-perfil');
       if(!v) return 'Selecione seu perfil.';
@@ -2710,7 +2847,7 @@ const PASSOS = [
   { id:'p-valor',   quando:() => soComercio() && !MODELO_SEM_CAPITAL.has(val('f-modelo')),
                     ok:() => val('f-valor') ? null : 'Informe quanto pretende investir.' },
   { id:'p-decisor', quando: soComercio, ok:() => val('f-decisor') ? null : 'Informe quem decide o investimento.' },
-  { id:'p-whatsapp', quando: soComercio, ok:() => {
+  { id:'p-whatsapp', quando: quizAqui, ok:() => {
       return telefoneConfere() ? null : 'Informe um WhatsApp válido com DDD.';
     } },
 ];
@@ -2738,10 +2875,17 @@ function pintarPasso(){
   // falta uma resposta pra dar.
   const pronto = ultimo && telefoneConfere();
   const btn = document.getElementById('ag-btn');
-  // Investidor e integrador não agendam: a mesma tecla leva ao cadastro deles.
-  const paraCadastro = val('f-porta') === 'investidor' || val('f-porta') === 'integrador';
-  btn.textContent = paraCadastro ? 'Ir para o cadastro →' : (pronto ? 'Confirmar agendamento →' : 'Continuar →');
-  btn.dataset.acao = paraCadastro ? 'cadastro' : (pronto ? 'agendar' : 'proximo');
+  // SÓ O INVESTIDOR SAI DAQUI (16/09/2026). Antes o integrador saía junto, e por
+  // isso o botão dele dizia "Ir para o cadastro" em TODOS os passos: com
+  // `paraCadastro` verdadeiro, ele nunca chegava no `pronto` do último passo.
+  // Agora o integrador tem trilha própria e termina no botão de concluir.
+  const paraCadastro = val('f-porta') === 'investidor';
+  const fecha = pronto && soIntegrador() ? 'integrador' : (pronto ? 'agendar' : 'proximo');
+  btn.textContent = paraCadastro ? 'Ir para o cadastro →'
+                  : fecha === 'integrador' ? 'Concluir meu cadastro →'
+                  : fecha === 'agendar'    ? 'Confirmar agendamento →'
+                  :                          'Continuar →';
+  btn.dataset.acao = paraCadastro ? 'cadastro' : fecha;
   // o aviso de erro é do passo que passou: some ao trocar de pergunta
   const m = document.getElementById('ag-msg');
   m.className = 'agMsg'; m.textContent = '';
@@ -2756,8 +2900,9 @@ function pintarPasso(){
 /** O clique do botão único: agenda, leva ao cadastro ou avança um passo. */
 function passoAcao(){
   const acao = document.getElementById('ag-btn').dataset.acao;
-  if(acao === 'agendar')  return agendar();
-  if(acao === 'cadastro') return irParaCadastro();
+  if(acao === 'agendar')    return agendar();
+  if(acao === 'integrador') return cadastrarIntegrador();
+  if(acao === 'cadastro')   return irParaCadastro();
   passoProximo();
 }
 
@@ -2770,17 +2915,17 @@ function onPorta(){
 }
 
 /**
- * Investidor e integrador vão para /io/eletroposto/parceria, que já é o cadastro
- * da casa: grava na mesma tabela, avisa a equipe no WhatsApp com os dados e mostra
- * o curso para quem tem capital. As UTMs da visita seguem junto na query, senão a
- * origem do lead se perde na troca de página.
+ * O INVESTIDOR vai para /io/eletroposto/parceria, que já é o cadastro da casa:
+ * grava na mesma tabela, avisa a equipe no WhatsApp e leva ao curso depois de
+ * enviar. As UTMs da visita seguem na query, senão a origem se perde na troca de
+ * página. O integrador saiu daqui em 16/09/2026: ele tem trilha no próprio quiz.
  */
 function irParaCadastro(){
   const porta = val('f-porta');
   if(!porta) return erro('Escolha uma das três opções.');
   track('porta_cadastro_' + porta);
   const q = new URLSearchParams(location.search);
-  q.set('lado', porta === 'integrador' ? 'integrador' : 'capital');
+  q.set('lado', 'capital');
   q.set('de', 'quiz');
   const btn = document.getElementById('ag-btn');
   btn.disabled = true; btn.textContent = 'Um instante…';
@@ -2821,7 +2966,11 @@ function mostrarContinuar(){
 // de 220 ms, e no celular a pergunta trocava debaixo do dedo. Agora o único jeito de
 // mudar de passo é o botão, e a escolha só marca, pinta e traz o botão para a vista.
 // ═══════════════════════════════════════════════════════════════════════════
-const SELECTS_EM_BOTAO = ['f-porta','f-perfil','f-rota','f-ponto','f-relacao','f-vagas','f-modelo','f-invest','f-valor','f-decisor'];
+const SELECTS_EM_BOTAO = ['f-porta','f-perfil','f-rota','f-ponto','f-relacao','f-vagas','f-modelo','f-invest','f-valor','f-decisor',
+                          // Trilha do integrador. Select que não entra nesta lista
+                          // continua sendo a lista do sistema no celular, que é
+                          // exatamente o que o bloco acima diz que foi consertado.
+                          'f-i-atuacao','f-i-exp','f-i-interesse','f-i-equipe'];
 function montarOpcoes(){
   SELECTS_EM_BOTAO.forEach(id => {
     const sel = document.getElementById(id);
@@ -2900,17 +3049,71 @@ function erro(txt){
   m.scrollIntoView({behavior:'smooth', block:'center'});
 }
 
+/**
+ * O telefone do jeito que o banco espera.
+ *
+ * QUEM DIGITA O PAIS JA TRAZ O 55 (29/08/2026). O campo aceita "+55 61 98408-8520",
+ * e o '55' + telRaw de antes gerava 15 digitos que o banco cortava em 13: o numero
+ * virava inexistente e a pessoa nao recebia NADA — nem confirmacao, nem lembrete.
+ * Foram 8 fichas assim desde julho, quase todas viraram "nao atendeu" ou perdido
+ * (o Vladimir chegou a faltar numa reuniao que ele nunca soube que existia).
+ * DDD 55 (Santa Maria, Uruguaiana) nao cai aqui: numero do RS sem o pais tem 11
+ * digitos, e a regra so age a partir de 12.
+ *
+ * Virou função em 16/09/2026, quando o quiz do integrador passou a gravar por
+ * conta própria: duas cópias desta regra é como o 55 duplicado volta.
+ */
+function telParaBanco(){
+  const bruto = document.getElementById('f-tel').value.replace(/\D/g,'');
+  return (bruto.length >= 12 && bruto.slice(0,2) === '55') ? bruto : '55' + bruto;
+}
+
+/**
+ * O INTEGRADOR TERMINA AQUI, sem trocar de página (16/09/2026).
+ *
+ * Grava na mesma rota e na mesma tabela de /io/eletroposto/parceria, com lado
+ * 'integrador': ele aparece na mesma lista do Gerador e dispara o mesmo aviso no
+ * WhatsApp da equipe, com empresa e CNPJ. `automatico` fica de fora de propósito —
+ * é o aviso que faz o cadastro existir para a equipe.
+ *
+ * O botão só volta a funcionar se der erro. Em caso de sucesso a tela troca, e
+ * reabilitar o botão de uma tela que sumiu só serviria para gravar duas vezes.
+ */
+async function cadastrarIntegrador(){
+  const btn = document.getElementById('ag-btn');
+  const rotulo = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Enviando…';
+  try {
+    const r = await fetch('/_api/io/eletroposto/parceria', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        lado: 'integrador',
+        nome: val('f-nome'), telefone: telParaBanco(), cidade: val('f-cidade'),
+        empresa: val('f-i-empresa'), cnpj: val('f-i-cnpj'),
+        integrador_atuacao:     val('f-i-atuacao'),
+        integrador_experiencia: val('f-i-exp'),
+        integrador_interesse:   val('f-i-interesse'),
+        integrador_equipe:      val('f-i-equipe'),
+        ...utmPrimeiroToque(),
+      }),
+    });
+    if(!r.ok) throw new Error('http ' + r.status);
+    track('integrador_cadastrado');
+    document.getElementById('ok-int-txt').textContent =
+      `Pronto, ${val('f-nome').split(/\s+/)[0]}. Seu perfil de integrador chegou na equipe.`;
+    document.getElementById('ag-form').style.display = 'none';
+    document.getElementById('ag-ok-int').style.display = 'block';
+    document.getElementById('ag-ok-int').scrollIntoView({behavior:'smooth', block:'start'});
+  } catch(e){
+    console.error(e);
+    btn.disabled = false; btn.textContent = rotulo;
+    erro('Não consegui salvar seu cadastro agora — pode ser a sua conexão. Tente de novo em alguns segundos; se insistir, chame a gente no WhatsApp (34) 99816-5040.');
+  }
+}
+
 async function agendar(){
   const nome    = document.getElementById('f-nome').value.trim();
-  const telRaw  = document.getElementById('f-tel').value.replace(/\D/g,'');
-  // QUEM DIGITA O PAIS JA TRAZ O 55 (29/08/2026). O campo aceita "+55 61 98408-8520",
-  // e o '55' + telRaw de antes gerava 15 digitos que o banco cortava em 13: o numero
-  // virava inexistente e a pessoa nao recebia NADA — nem confirmacao, nem lembrete.
-  // Foram 8 fichas assim desde julho, quase todas viraram "nao atendeu" ou perdido
-  // (o Vladimir chegou a faltar numa reuniao que ele nunca soube que existia).
-  // DDD 55 (Santa Maria, Uruguaiana) nao cai aqui: numero do RS sem o pais tem 11
-  // digitos, e a regra so age a partir de 12.
-  const telE164 = (telRaw.length >= 12 && telRaw.slice(0,2) === '55') ? telRaw : '55' + telRaw;
+  const telE164 = telParaBanco();
   const cidade  = document.getElementById('f-cidade').value.trim();
   const cep     = document.getElementById('f-cep').value.trim();
   const rua     = document.getElementById('f-rua').value.trim();
@@ -2929,7 +3132,7 @@ async function agendar(){
   // A qualificação é validada ANTES do horário de propósito: quem cai em NOTA 1 não
   // vai agendar, então não faz sentido cobrar dele a escolha de um slot primeiro.
   if(nome.length < 3)     return erro('Informe seu nome completo.');
-  if(telRaw.length < 10)  return erro('Informe um WhatsApp válido com DDD.');
+  if(!telefoneConfere())  return erro('Informe um WhatsApp válido com DDD.');
   if(cidade.length < 2)   return erro('Informe a cidade e o estado (UF).');
   if(!perfil.value)       return erro('Selecione seu perfil.');
   if(perfil.value === 'outro' && document.getElementById('f-outro').value.trim().length < 3)
