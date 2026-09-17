@@ -60,6 +60,42 @@ const LOOKBACK_MAX_MS = 3 * 24 * 3600_000;
 const FICHA_MAX_MS = 7 * 24 * 3600_000;
 const MAX_AVISOS_POR_TICK = 5;
 
+/**
+ * Status em que a resposta do cliente NÃO vira recado — e só eles.
+ *
+ * [16/09/2026] Até aqui as duas leituras de ficha filtravam `status='agendado'`.
+ * As boas-vindas, porém, saem para ficha em VÁRIOS status, e o momento em que a
+ * ficha deixa de ser 'agendado' é justamente quando o consultor mexeu nela, ou
+ * seja, quando a conversa está viva. Medido no banco no dia da troca:
+ *
+ *   143 fichas de solar receberam a mensagem que pede o consumo e a foto da conta
+ *        32 ainda em 'agendado'      → 22,4%, o único que o leitor enxergava
+ *       140 fora de negócio encerrado → 97,9%, o que passa a enxergar
+ *   Nos últimos 7 dias o portão velho cobria 1 de 12 toques. 8%.
+ *
+ * É lista de BLOQUEIO e não de permissão de propósito: o bug que se conserta
+ * aqui foi um status ficar silenciosamente de fora, e lista de permissão repete
+ * esse bug no dia em que alguém criar um status novo. Volume não é risco: são
+ * ~12 fichas tocadas por semana, e o recado vai para número interno.
+ *
+ * `fechou` e `fechou_concorrente` ficam de fora porque o desfecho já aconteceu;
+ * nos 90 dias medidos isso era 3 fichas das 143.
+ *
+ * POR QUE ESTA LISTA É MENOR QUE A DO MÓDULO IRMÃO. O `solarBoasVindas` bloqueia
+ * seis (`STATUS_QUE_NAO_RECEBEM`: cancelado, sem_interesse, fez_orcamento,
+ * perdido, fechou, fechou_concorrente) e está certo, porque lá a pergunta é
+ * "posso FALAR com essa pessoa?" — recibo de cadastro pra quem já disse não é
+ * insistência. Aqui a pergunta é outra: "a pessoa FALOU, eu entrego?". Quem está
+ * em `sem_interesse` e escreve "mudei de ideia, quero" é o recado mais valioso
+ * que existe, e bloquear isso recriaria exatamente o furo que esta lista conserta.
+ * Leitor tem que ser mais permissivo que emissor, nunca o contrário.
+ *
+ * E a segunda leitura (a do `bomdia_at`) atende a carteira da Giovanna e da
+ * Nilce, cujas fichas o módulo de boas-vindas nunca tocou — copiar a lista dele
+ * cortaria gente que nem passou por lá.
+ */
+const STATUS_ENCERRADOS = ['fechou', 'fechou_concorrente'] as const;
+
 const desligado = () => (process.env.SOLAR_RESPOSTAS_OFF || '').trim() === '1';
 
 /** Mesma chave do CRM e do blastRespostas: DDD + últimos 8 (ignora 9º dígito e DDI). */
@@ -179,6 +215,9 @@ interface Ficha {
   cliente_telefone: string | null;
   vendedor_nome: string | null;
   cidade: string | null;
+  /** [16/09] Passou a ser lido junto porque o corte deixou de ser
+   *  `status='agendado'` e virou a lista de bloqueio STATUS_ENCERRADOS. */
+  status: string | null;
   boas_vindas_at: string | null;
   /** [11/09] Toque do bom dia das 7h da carteira da Giovanna (solarAgendaGiovanna).
    *  Este módulo era o ouvido das boas-vindas só; sem isto, 15 pessoas por dia
@@ -247,15 +286,15 @@ export async function runSolarRespostasTick(opts: { dry?: boolean } = {}): Promi
   //      que a lista de origens não pega. O corte dessa metade é o toque em si.
   const [rBoasVindas, rBomDia] = await Promise.all([
     supabaseGerador.from('agendamentos')
-      .select('id, cliente_nome, cliente_telefone, vendedor_nome, cidade, boas_vindas_at, bomdia_at')
+      .select('id, cliente_nome, cliente_telefone, vendedor_nome, cidade, status, boas_vindas_at, bomdia_at')
       .in('created_by', SOLAR_ORIGENS)
-      .eq('status', 'agendado')
+      .not('status', 'in', `(${STATUS_ENCERRADOS.join(',')})`)
       .not('boas_vindas_at', 'is', null)
       .gte('boas_vindas_at', new Date(agora - FICHA_MAX_MS).toISOString())
       .limit(300),
     supabaseGerador.from('agendamentos')
-      .select('id, cliente_nome, cliente_telefone, vendedor_nome, cidade, boas_vindas_at, bomdia_at')
-      .eq('status', 'agendado')
+      .select('id, cliente_nome, cliente_telefone, vendedor_nome, cidade, status, boas_vindas_at, bomdia_at')
+      .not('status', 'in', `(${STATUS_ENCERRADOS.join(',')})`)
       .not('bomdia_at', 'is', null)
       .gte('bomdia_at', new Date(agora - FICHA_MAX_MS).toISOString())
       .limit(300),

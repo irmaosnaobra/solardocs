@@ -9,6 +9,23 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600;1,800&display=swap" rel="stylesheet">
+
+<!-- Meta Pixel -->
+<!-- [16/09/2026] Esta página recebe TODO o tráfego pago e orgânico de solar (as
+     três automações de Instagram apontam pra cá) e estava sem pixel: zero
+     ocorrência de fbq. Resultado medido: 0 de 408 cards com utm_source em 90
+     dias, e a queda de 56% no volume semanal sem nenhum instrumento que
+     dissesse se caiu entrega, criativo ou orçamento.
+     Mesmo ID do /io e do /io/solar de propósito: é o mesmo negócio, e pixel
+     separado divide o aprendizado do Meta em duas bases menores. -->
+<script>
+  !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', '446093469730871');
+  fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=446093469730871&ev=PageView&noscript=1"/></noscript>
+<!-- /Meta Pixel -->
+
 <style>
   :root{
     --navy:#0F2A52; --navy-2:#1A3A6B; --gold:#C28A2C; --gold-soft:#E6B860; --gold-dark:#a8761f;
@@ -151,10 +168,42 @@
 
 <script>
   var f=document.getElementById('f'), go=document.getElementById('go'), err=document.getElementById('err');
+
+  // ── UTM ────────────────────────────────────────────────────────────────────
+  // Guarda em sessionStorage porque o Meta manda o parâmetro só no PRIMEIRO
+  // clique: se a pessoa recarrega a página ou volta do WhatsApp, a querystring
+  // já não tem mais nada e o lead entraria sem origem, que é o estado de hoje
+  // (0 de 408 cards com utm_source em 90 dias).
+  var UTMS=['utm_source','utm_medium','utm_campaign','utm_content','utm_term'];
+  var utm=(function(){
+    var out={}, q=new URLSearchParams(location.search), achou=false;
+    UTMS.forEach(function(k){ var v=q.get(k); if(v){ out[k]=String(v).slice(0,120); achou=true; } });
+    // fbclid sozinho já diz "veio de anúncio do Meta", mesmo sem utm montada.
+    var fbclid=q.get('fbclid');
+    if(!achou && fbclid){ out.utm_source='facebook'; out.utm_medium='paid'; achou=true; }
+    try{
+      if(achou) sessionStorage.setItem('io_utm', JSON.stringify(out));
+      else { var salvo=sessionStorage.getItem('io_utm'); if(salvo) out=JSON.parse(salvo); }
+    }catch(_){ /* navegador sem storage: segue com o que veio na URL */ }
+    return out;
+  })();
+
   f.addEventListener('submit', async function(e){
     e.preventDefault();
     err.textContent='';
     var data=Object.fromEntries(new FormData(f).entries());
+    UTMS.forEach(function(k){ if(utm[k]) data[k]=utm[k]; });
+    // De onde veio a ficha. Hoje a página entra no banco como 'manychat', igual
+    // ao lead de DM, e por isso não dá pra separar quem veio daqui.
+    data.origem='lp_solar';
+    data.pagina='/simular';
+    // ATENÇÃO, ESTADO PARCIAL [16/09/2026]: o servidor AINDA IGNORA estes campos.
+    // O `POST /gerador/form-solar` repassa só nome/whatsapp/cidade/valor_conta/
+    // tipo_telhado/faixa_horario pro ingestManychatLead, e é lá dentro que o
+    // created_by é fixado em 'manychat' e as colunas utm_* ficam nulas.
+    // Enquanto a outra metade não subir, `utm_source` segue 0 de 408 no banco e
+    // quem confere origem pelo CRM continua sem enxergar esta página.
+    // O Pixel acima, esse sim, já funciona sozinho.
     if(!data.nome || !data.whatsapp){ err.textContent='Preencha nome e WhatsApp.'; return; }
     if(String(data.whatsapp).replace(/\D/g,'').length < 10){ err.textContent='Confira o número do WhatsApp (com DDD).'; return; }
     if(!data.valor_conta){ err.textContent='Escolha a faixa da sua conta de luz.'; return; }
@@ -162,6 +211,9 @@
     try{
       var r=await fetch('/_api/gerador/form-solar', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
       if(!r.ok){ throw new Error('falha'); }
+      // Só DEPOIS do 200: evento de qualidade disparado no submit, antes de saber
+      // se gravou, ensina o Meta a otimizar por clique em botão em vez de lead.
+      try{ if(window.fbq) fbq('track','Lead',{content_name:'simular_solar',content_category:String(data.valor_conta||'')}); }catch(_){ }
       document.body.classList.add('enviado');
       window.scrollTo({top:0,behavior:'smooth'});
     }catch(ex){
