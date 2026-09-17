@@ -36,6 +36,15 @@ router.post('/webhook', async (req: Request, res: Response): Promise<void> => {
   let body: any;
   try { body = JSON.parse(raw.toString('utf8')); } catch { res.sendStatus(400); return; }
 
+  // Só evento do Instagram entra aqui. A Página do Facebook usa o MESMO app, e
+  // quando ela passa a ter o app inscrito (subscribed_apps) ela começa a mandar
+  // `entry.messaging` com PSID de Messenger neste mesmo endereço. Sem esta
+  // linha, esse PSID entrava no motor do Instagram e ia responder em
+  // /{ig-user}/messages com um id que não é do Instagram: resposta na conta
+  // errada, ou enxurrada de falha no app de onde a Carla também fala.
+  // O Facebook é atendido por varredura (fbComentarios/fbMensagens), não aqui.
+  if (body.object && body.object !== 'instagram') { res.sendStatus(200); return; }
+
   // Responde já; mas enfileira ANTES de encerrar (serverless congela após a resposta).
   try {
     const cfg = await getIgConfig();
