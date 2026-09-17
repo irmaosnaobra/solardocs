@@ -29,6 +29,8 @@ const JANELA_H = 24;
 const INSISTENCIA_MIN = 3;               // 3 documentos iguais…
 const INSISTENCIA_JANELA_MS = 30 * 60 * 1000;  // …em menos de 30 minutos
 const REALERTA_MS = 12 * 60 * 60 * 1000; // não repete o mesmo aviso antes disso
+const CEGA_KEY = 'sonda_documentos_cega';
+const CEGUEIRA_REALERTA_MS = 6 * 60 * 60 * 1000;
 
 interface Estado {
   alertadoEm?: string | null;
@@ -51,7 +53,7 @@ function esc(s: string): string {
 // é em JS de propósito: são poucas centenas de linhas por dia e não vale um RPC
 // no banco só pra isso.
 async function acharInsistencia(desde: string): Promise<Achado[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('documents')
     .select('user_id, tipo, cliente_nome, created_at')
     .gte('created_at', desde)
@@ -60,6 +62,10 @@ async function acharInsistencia(desde: string): Promise<Achado[]> {
     // documentos/dia (pico de 76 em 30 dias). Se um dia passar disso, o que fica
     // de fora e' o mais antigo da janela — a sonda nao emudece.
     .limit(3000);
+
+  // Consulta que falha NÃO pode virar "nada encontrado": era assim que a sonda
+  // ficava cega e calada — e sonda calada todo mundo lê como "está tudo bem".
+  if (error) throw new Error(`consulta de documentos falhou: ${error.message}`);
 
   const grupos = new Map<string, { user_id: string; tipo: string; cliente: string; datas: number[] }>();
   for (const d of (data ?? []) as Array<Record<string, string>>) {
@@ -94,7 +100,7 @@ async function acharInsistencia(desde: string): Promise<Achado[]> {
 }
 
 async function acharEventos(desde: string): Promise<Achado[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('feature_events')
     .select('user_id, event_type, event_data, created_at')
     .eq('feature', 'documento')
@@ -102,6 +108,8 @@ async function acharEventos(desde: string): Promise<Achado[]> {
     .gte('created_at', desde)
     .order('created_at', { ascending: false })
     .limit(500);
+
+  if (error) throw new Error(`consulta de eventos falhou: ${error.message}`);
 
   return ((data ?? []) as Array<Record<string, any>>)
     .filter(e => !!e.user_id)
@@ -116,6 +124,31 @@ async function acharEventos(desde: string): Promise<Achado[]> {
     }));
 }
 
+// A sonda perdeu a visão (chave trocada, banco fora, coluna renomeada). Avisa
+// UMA vez a cada 6h e deixa o erro subir: no /master ele vira tarefa rejeitada.
+async function avisarCegueira(err: unknown): Promise<void> {
+  const motivo = err instanceof Error ? err.message : String(err);
+  logger.error('sonda-documentos', 'a sonda não está enxergando', err);
+  try {
+    const { data } = await supabase.from('system_state').select('value').eq('key', CEGA_KEY).maybeSingle();
+    const ultimo = (data?.value as Estado)?.alertadoEm;
+    if (ultimo && Date.now() - new Date(ultimo).getTime() < CEGUEIRA_REALERTA_MS) return;
+
+    await sendOpsAlert(
+      'Sonda de documentos cega',
+      `<p>A sonda que avisa quando um assinante está apanhando no documento <b>não conseguiu ler o banco</b>.</p>
+       <p style="background:#fef2f2;border-left:3px solid #ef4444;padding:10px 14px"><code>${esc(motivo)}</code></p>
+       <p>Enquanto isso, silêncio dela não quer dizer que está tudo bem.</p>`,
+    );
+    await supabase.from('system_state').upsert(
+      { key: CEGA_KEY, value: { alertadoEm: new Date().toISOString() }, updated_at: new Date().toISOString() },
+      { onConflict: 'key' },
+    );
+  } catch (e2) {
+    logger.error('sonda-documentos', 'nem o aviso de cegueira saiu', e2);
+  }
+}
+
 export async function runSondaDocumentos(opts?: { seco?: boolean }): Promise<{
   achados: Achado[];
   alertou: boolean;
@@ -123,7 +156,14 @@ export async function runSondaDocumentos(opts?: { seco?: boolean }): Promise<{
 }> {
   const desde = new Date(Date.now() - JANELA_H * 3600_000).toISOString();
 
-  const [insistencia, eventos] = await Promise.all([acharInsistencia(desde), acharEventos(desde)]);
+  let insistencia: Achado[];
+  let eventos: Achado[];
+  try {
+    [insistencia, eventos] = await Promise.all([acharInsistencia(desde), acharEventos(desde)]);
+  } catch (err) {
+    await avisarCegueira(err);
+    throw err;   // no /master vira tarefa rejeitada, não sucesso silencioso
+  }
   const achados = [...insistencia, ...eventos];
 
   if (achados.length === 0) return { achados: [], alertou: false, motivoDoSilencio: 'nada encontrado' };
