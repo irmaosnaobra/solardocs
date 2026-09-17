@@ -172,7 +172,15 @@ describe('ranking', () => {
 });
 
 describe('mensagem', () => {
-  it('traz cabeçalho, a régua, as posições e nenhum telefone', async () => {
+  // O TELEFONE ENTROU EM 17/09/2026, a pedido do Thiago: "enviar com o whatsapp e
+  // de quem é". Antes a lista obrigava a caçar o contato em outra tela, e por isso
+  // era leitura em vez de ação.
+  //
+  // ISTO SÓ É SEGURO PORQUE A ROTA CORTA O TEXTO. `/cron/eletroposto-top-pontos`
+  // apaga `r.texto` antes de responder, e o log de workflow neste repositório é
+  // público. O teste "a rota não devolve o texto" logo abaixo é o que segura isso:
+  // se alguém remover aquele `delete`, telefone de cliente vaza em log público.
+  it('traz cabeçalho, régua, posições, o WhatsApp e de quem é', async () => {
     h.reunioes = [reuniao()];
     h.parceria = [parceria()];
     h.estudos = [{ agendamento_id: 1, indice: 8.6, token: 'b'.repeat(64) }];
@@ -184,9 +192,36 @@ describe('mensagem', () => {
     expect(texto).toContain('*1.');
     expect(texto).toContain(`https://solardoc.app/_api/io/eletroposto/estudo/${'b'.repeat(64)}`);
     expect(texto).toContain('Valter');
-    expect(texto).not.toContain('988887777');
-    expect(texto).not.toContain('Salvador Silva');
+    expect(texto).toContain('wa.me/');
+    expect(texto).toContain('988887777');
     expect(texto).not.toMatch(/[–—]/);
+  });
+
+  // Quem veio de parceria ou de NOTA 1 não tem consultor com o card na mão. Dizer
+  // "sem dono" é o que transforma a linha em tarefa: é ponto que ninguém trabalha.
+  it('diz de quem é cada ponto, e quando não é de ninguém', async () => {
+    h.reunioes = [reuniao()];
+    h.parceria = [parceria()];
+    const texto = textoTopPontos(await montarTopPontos(), AGORA);
+    expect(texto).toContain('sem dono');
+  });
+
+  // A GUARDA DO LOG PÚBLICO. A rota /cron/eletroposto-top-pontos é chamada por um
+  // workflow cujo log qualquer um lê, e desde 17/09 o texto carrega nome e wa.me
+  // do cliente. Se este teste cair, telefone de cliente está indo para log aberto.
+  it('a resposta da rota não leva o texto, que agora tem nome e telefone', async () => {
+    const { respostaPublicaDoTop } = await import('../services/io/eletropostoTopPontos');
+    const r = respostaPublicaDoTop({
+      enviados: 0, erros: 0, total: 2, motivo: 'dry',
+      texto: 'Valter · wa.me/5571988887777',
+      previa: [{ pos: 1, nota: 87, fonte: 'reuniao', cidade: 'Salvador-BA', perfil: 'Estacionamento' }],
+    });
+    expect(r.texto).toBeUndefined();
+    expect(JSON.stringify(r)).not.toContain('988887777');
+    expect(JSON.stringify(r)).not.toContain('Valter');
+    // e o que é seguro continua vindo, senão a prévia deixa de servir
+    expect(r.total).toBe(2);
+    expect(r.previa).toHaveLength(1);
   });
 
   it('link só nos dez primeiros, para a mensagem não estourar', async () => {

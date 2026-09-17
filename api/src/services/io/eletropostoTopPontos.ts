@@ -49,6 +49,9 @@ const COM_LINK = 10;
 
 const desligado = (): boolean => (process.env.EP_TOP_OFF || '').trim() === '1';
 
+/** Telefone como o `wa.me/` quer: só dígitos, com o país na frente. */
+const soDigitos = (v: unknown): string => String(v ?? '').replace(/\D/g, '');
+
 export type FontePonto = 'reuniao' | 'parceria' | 'nota1';
 
 export interface PontoRanqueado {
@@ -65,6 +68,13 @@ export interface PontoRanqueado {
    *  é o da pessoa, não o do ponto, e ela vai para o fim da lista. */
   tem_ponto: boolean;
   detalhe: string;
+  /** Só dígitos. Vira `wa.me/` na mensagem: ler o top e ter que caçar o telefone
+   *  em outra tela é o que fazia a lista virar leitura em vez de ação. */
+  telefone: string;
+  /** O consultor com o card na mão. Só existe na fonte `reuniao` — ponto que veio
+   *  de parceria ou de NOTA 1 não tem dono, e a mensagem diz isso com todas as
+   *  letras: é justamente o ponto que ninguém está trabalhando. */
+  dono?: string | null;
   estudo_url?: string;
   quando?: string | null;
   chave: string;
@@ -140,7 +150,7 @@ type Linha = Record<string, unknown>;
 
 async function lerReunioes(): Promise<Linha[]> {
   const { data, error } = await supabaseGerador.from('agendamentos')
-    .select('id, cliente_nome, cliente_telefone, cidade, observacao, quando, status, created_at, created_by')
+    .select('id, cliente_nome, cliente_telefone, cidade, observacao, quando, status, created_at, created_by, vendedor_nome')
     .eq('created_by', 'lp_eletroposto')
     .ilike('observacao', '%Endereço:%')
     .order('created_at', { ascending: false })
@@ -226,6 +236,8 @@ export async function montarTopPontos(quantos = QUANTOS): Promise<{ lista: Ponto
         ? `Reunião ${dataCurtaBRT(String(r.quando))}`
         : `Ficha de reunião de ${dataCurtaBRT(String(r.created_at))}`,
       ...(est?.token ? { estudo_url: urlDoEstudo(est.token) } : {}),
+      telefone: soDigitos(r.cliente_telefone),
+      dono: String(r.vendedor_nome || '').trim() || null,
       quando: (r.quando as string) || null,
       chave: chaveDoPonto(`${end.rua}, ${end.numero} · ${end.bairro}`, cidade, r.cliente_telefone),
     });
@@ -246,6 +258,7 @@ export async function montarTopPontos(quantos = QUANTOS): Promise<{ lista: Ponto
       endereco: String(n.endereco || '').slice(0, 80),
       pre_nota: pre, indice, nota: notaFinal(pre, indice), tem_ponto: temPontoDeVerdade(ficha),
       detalhe: `NOTA 1 de ${dataCurtaBRT(String(n.created_at))}${temPontoDeVerdade(ficha) ? '' : ' · sem ponto definido, o endereço é o do cliente'}`,
+      telefone: soDigitos(n.telefone),
       chave: chaveDoPonto(String(n.endereco || ''), cidade, n.telefone),
     });
   }
@@ -268,6 +281,7 @@ export async function montarTopPontos(quantos = QUANTOS): Promise<{ lista: Ponto
       endereco: String(p.ponto_endereco || '').slice(0, 80),
       pre_nota: pre, indice, nota: notaFinal(pre, indice), tem_ponto: temPontoDeVerdade(ficha),
       detalhe: `Ponto oferecido em ${dataCurtaBRT(String(p.created_at))}${extras ? ` · ${extras}` : ''}`,
+      telefone: soDigitos(p.telefone),
       chave: chaveDoPonto(String(p.ponto_endereco || ''), cidade, p.telefone),
     });
   }
@@ -303,9 +317,19 @@ export function textoTopPontos(
     const cabeca = `*${i + 1}. ${p.nota}* · ${p.perfil} · ${p.cidade || 'sem cidade'}`;
     // O detalhe já conta de onde vem: "Reunião 16/09", "Ponto oferecido em 12/09",
     // "NOTA 1 de 10/09". Repetir a fonte só encheria a linha.
-    const corpo = [p.nome, p.detalhe].filter(Boolean).join(' · ');
+    //
+    // DE QUEM É (17/09/2026, ordem do Thiago). A lista mistura as três fontes, e
+    // sem isto quem lê o top não sabe se pode agir: pode ser card do Diego, e dois
+    // consultores ligando pra mesma pessoa é pior do que ninguém ligar. "Sem dono"
+    // não é falta de dado, é a informação mais acionável da linha — é ponto que
+    // ninguém está trabalhando.
+    const deQuem = p.fonte === 'reuniao' ? (p.dono ? `com ${p.dono}` : 'sem consultor') : 'sem dono';
+    const corpo = [p.nome, p.detalhe, deQuem].filter(Boolean).join(' · ');
     linhas.push(cabeca);
     linhas.push(`   ${corpo}`);
+    // O WhatsApp em linha própria porque o `wa.me` vira botão clicável no app, e
+    // grudado no texto ele deixa de ser link em parte dos aparelhos.
+    if (p.telefone) linhas.push(`   wa.me/${p.telefone}`);
     if (p.estudo_url && i < COM_LINK) linhas.push(`   ${p.estudo_url}`);
   });
 
@@ -323,6 +347,22 @@ export interface ResultadoTop {
   motivo?: string;
   previa?: Array<{ pos: number; nota: number; fonte: FontePonto; cidade: string; perfil: string }>;
   texto?: string;
+}
+
+/**
+ * A resposta que pode sair da rota, sem dado de gente.
+ *
+ * O texto do top passou a levar nome e `wa.me/` do cliente em 17/09/2026, e a
+ * rota `/cron/eletroposto-top-pontos` é chamada por um workflow cujo log é
+ * PÚBLICO neste repositório. Então o texto nunca vai na resposta HTTP: ele existe
+ * para virar mensagem no WhatsApp da equipe, e só.
+ *
+ * Virou função em vez de um `delete` solto na rota porque um `delete` não tem
+ * teste. Esta tem.
+ */
+export function respostaPublicaDoTop(r: ResultadoTop): ResultadoTop {
+  const { texto: _texto, ...resto } = r;
+  return resto;
 }
 
 const diaBRT = (agoraMs: number): string =>

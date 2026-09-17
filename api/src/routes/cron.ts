@@ -51,7 +51,7 @@ import { runEletropostoReagendaAutoTick } from '../services/io/eletropostoReagen
 import { runEletropostoCardPingTick } from '../services/io/eletropostoCardPing';
 import { runEletropostoAlerta10minTick } from '../services/io/eletropostoAlerta10min';
 import { runEletropostoEstudoTick } from '../services/io/eletropostoEstudo';
-import { runEletropostoTopPontosTick } from '../services/io/eletropostoTopPontos';
+import { runEletropostoTopPontosTick, respostaPublicaDoTop } from '../services/io/eletropostoTopPontos';
 import { runEletropostoIgConviteTick, publicoIgConvite, bolhaConviteLP } from '../services/io/eletropostoIgConvite';
 import { runSolarBoasVindasTick } from '../services/io/solarBoasVindas';
 import { runSolarRespostasTick } from '../services/io/solarRespostas';
@@ -872,11 +872,10 @@ router.get('/eletroposto-top-pontos', async (req: Request, res: Response) => {
   try {
     const dry = req.query.dry === '1' || req.query.dry === 'true';
     const r = await runEletropostoTopPontosTick({ dry });
-    if (r.texto) {
-      logger.info('ep-top', 'prévia do top montada', { linhas: r.texto.split('\n').length, total: r.total });
-      delete r.texto;
-    }
-    res.json({ ok: true, dry, ...r });
+    if (r.texto) logger.info('ep-top', 'prévia do top montada', { linhas: r.texto.split('\n').length, total: r.total });
+    // O texto leva nome e wa.me do cliente desde 17/09. `respostaPublicaDoTop` é
+    // quem tira, e tem teste — o `delete` solto que morava aqui não tinha.
+    res.json({ ok: true, dry, ...respostaPublicaDoTop(r) });
   } catch (err: any) {
     logger.error('cron', 'eletroposto-top-pontos falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
