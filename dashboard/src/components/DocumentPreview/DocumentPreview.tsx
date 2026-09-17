@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Download, Pencil, Save, Check, X, FilePlus, Trash2 } from 'lucide-react';
 import styles from './DocumentPreview.module.css';
 import api from '@/services/api';
@@ -220,6 +220,18 @@ export default function DocumentPreview({
   // Documento desenhado nao passa pelo parser de texto: ele ja' e' a folha.
   const folha = htmlDoc ? splitHtmlDoc(comLogo) : { estilo: '', corpo: '' };
   const blocks = htmlDoc ? [] : parseContent(comLogo);
+
+  // MEDIDO NO NAVEGADOR: o React troca o innerHTML sempre que a IDENTIDADE do
+  // objeto {__html} muda, e um objeto literal nasce novo a cada render. Sem
+  // memorizar, qualquer re-render durante a revisao (mudar de clausula, o
+  // /company chegar) reescrevia a folha e levava junto o que a pessoa tinha
+  // acabado de digitar. Enquanto a revisao esta' aberta a folha e' do usuario:
+  // a string fica congelada e o objeto, estavel.
+  const folhaAberta = useRef(folha.corpo);
+  if (!editMode) folhaAberta.current = folha.corpo;
+  const corpoCongelado = folhaAberta.current;
+  const htmlEstilo = useMemo(() => ({ __html: folha.estilo }), [folha.estilo]);
+  const htmlCorpo = useMemo(() => ({ __html: corpoCongelado }), [corpoCongelado]);
 
   // O contenteditable entra pelo REF, nunca por prop do React: o buildHtml
   // serializa o outerHTML desta folha pro arquivo e pro PDF, e um
@@ -595,12 +607,14 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
             <div className={styles.docBody}>
               {htmlDoc ? (<>
                 {/* O CSS do documento fica FORA da area editavel. */}
-                <div dangerouslySetInnerHTML={{ __html: folha.estilo }} />
+                <div dangerouslySetInnerHTML={htmlEstilo} />
+                {/* A chave nova (confirmar/cancelar) remonta a folha a partir do
+                    content; no meio da revisao nada aqui toca no DOM. */}
                 <div
                   key={revisao}
                   ref={htmlEditRef}
                   className={editMode ? styles.folhaEditavel : undefined}
-                  dangerouslySetInnerHTML={{ __html: folha.corpo }}
+                  dangerouslySetInnerHTML={htmlCorpo}
                 />
               </>) : (() => {
                 // Agrupa CADA cluster contíguo de assinatura (régua + nome/cpf que
