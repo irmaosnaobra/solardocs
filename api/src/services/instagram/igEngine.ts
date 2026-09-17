@@ -63,6 +63,9 @@ interface Automation {
   lembrete_1h_texto?: string | null; lembrete_1h_off?: boolean | null;
   // Segundo destino do lembrete de 1h (ex.: a comunidade). Ver igGate.lembrete1h.
   lembrete_1h_link?: string | null; lembrete_1h_botao?: string | null;
+  // Automação que serve MAIS DE UM produto (Menu, rede de segurança): em vez de
+  // um `link_url`, uma lista de até 3 destinos. Ver welcomePayload.
+  botoes?: { url: string; titulo: string }[] | null;
 }
 
 type Gatilho = 'comment' | 'story' | 'dm';
@@ -227,6 +230,16 @@ const CARD_MAX = 160;
 
 function welcomePayload(a: Automation): any {
   const text = a.dm_boas_vindas || 'Oi! Aqui está o que você pediu:';
+
+  // MENU DE BOTÕES. O Menu e a rede de segurança não têm UM destino, têm três:
+  // pegam quem demonstrou interesse sem dizer de qual produto. Até aqui pediam
+  // pra pessoa DIGITAR "SOLAR", "ELETROPOSTO" ou "BIKE", que é um toque a mais,
+  // e quem não responde nunca chega a lugar nenhum. Com os botões ela escolhe e
+  // vai direto. A Meta aceita até 3 num card.
+  const lista = (a.botoes || []).filter(b => b && b.url && b.titulo);
+  if (lista.length && text.length <= CARD_MAX) {
+    return { text, buttons: lista.slice(0, 3).map(b => ({ url: b.url, title: b.titulo })) };
+  }
   // Automação com rótulo de botão preenchido no painel entrega um CARD: a
   // pessoa toca e vai direto pro link, sem copiar URL. É o caso da bike, onde
   // a negociação é na hora e cada toque a menos conta.
@@ -686,11 +699,16 @@ export async function drainIgQueue(): Promise<{ enviados: number; pulados: numbe
           // NÃO reenvia: o 500/code 1 da Meta já entregou mensagem antes, e o
           // reenvio é que colocou a mesma DM duas vezes no celular do lead.
           incerto = msg;
-        } else if (payload?.button?.url) {
+        } else if (payload?.button?.url || payload?.buttons?.length) {
           // Card recusado de vez (falha real, então nada saiu — não duplica).
           // A pessoa não pode ficar sem o link só porque o card não passou.
+          // Com vários destinos vão todos, um por linha e com o rótulo na frente:
+          // uma pilha de URLs sem dizer qual é qual não ajuda ninguém.
+          const urls: string[] = payload.buttons?.length
+            ? payload.buttons.map((b: any) => `${b.title}: ${b.url}`)
+            : [payload.button.url];
           logger.error('ig', 'card com botão recusado, reenviando texto com o link', err);
-          resp = await enviar({ text: (payload.text || '') + '\n\n' + payload.button.url });
+          resp = await enviar({ text: (payload.text || '') + '\n\n' + urls.join('\n') });
         } else {
           throw err;
         }

@@ -135,8 +135,9 @@ export async function getMedia(igUserId: string, token: string): Promise<any[]> 
 
 // ── Envio de mensagens ───────────────────────────────────────────────────────
 type QuickReply = { title: string; payload?: string };
+type Botao = { url: string; title: string };
 type MsgPayload = { text?: string; image?: { url: string };
-  button?: { url: string; title: string }; quick_replies?: QuickReply[] };
+  button?: Botao; buttons?: Botao[]; quick_replies?: QuickReply[] };
 
 /** Monta o corpo `message` da Meta. Exportada pra teste — é aqui que o card
  *  errado (template do Messenger) derrubava o envio. */
@@ -153,7 +154,12 @@ export function buildMessage(p: MsgPayload): any {
   if (p.image) {
     return { attachment: { type: 'image', payload: { url: p.image.url, is_reusable: true } } };
   }
-  if (p.button) {
+  // `buttons` (lista) atende a automação que serve MAIS DE UM produto: o Menu
+  // não tem um destino, tem três. `button` (singular) continua valendo e vira
+  // uma lista de um, então nenhuma automação precisou mudar por causa disto.
+  const botoes: Botao[] = (p.buttons?.length ? p.buttons : (p.button ? [p.button] : []))
+    .filter(b => b && b.url && b.title).slice(0, 3);
+  if (botoes.length) {
     // Card com botão que ABRE LINK. Tem que ser o template `generic`: o
     // `button` é do Messenger e o Instagram devolve erro genérico nele — foi o
     // que fez a gente achar, em julho, que "template não funciona aqui".
@@ -167,9 +173,12 @@ export function buildMessage(p: MsgPayload): any {
           elements: [{
             title: (titulo || '').slice(0, 80),
             ...(resto.length ? { subtitle: resto.join(' ').slice(0, 80) } : {}),
-            // Tocar no card inteiro abre o mesmo link do botão.
-            default_action: { type: 'web_url', url: p.button.url },
-            buttons: [{ type: 'web_url', url: p.button.url, title: p.button.title.slice(0, 20) }],
+            // Tocar no card inteiro abre o link do PRIMEIRO botão. Com vários
+            // destinos isso seria um chute, então só vale quando o botão é um só:
+            // card de três produtos aberto no toque levaria a pessoa ao produto
+            // errado sem ela ter escolhido nada.
+            ...(botoes.length === 1 ? { default_action: { type: 'web_url', url: botoes[0].url } } : {}),
+            buttons: botoes.map(b => ({ type: 'web_url', url: b.url, title: b.title.slice(0, 20) })),
           }],
         },
       },
