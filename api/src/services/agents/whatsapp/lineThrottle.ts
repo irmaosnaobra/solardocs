@@ -148,6 +148,12 @@ const BOT_SENT_PREFIXES = [
   // faixa de 15 minutos é a forma exata da rajada de 04/08. Entra na conta desde
   // o primeiro dia, não depois da queda.
   'solar_giovanna_sent:',
+  // [17/09] Menu de Avisos: a pauta que a equipe manda pra base de parceria do
+  // eletroposto (arrendamento, investidores, parceiros). Entra na conta desde o
+  // primeiro dia, e não depois de uma queda, que é como quase todos os de cima
+  // entraram nesta lista. Vale mais pelo ESPAÇAMENTO que pelo teto: é isto que
+  // impede um "bom dia" da Giovanna de sair 10 segundos depois de um aviso.
+  'aviso_sent:',
 ] as const;
 
 // Desvio da linha B2B ligado (ZAPI_SOLARDOC_VIA_IO=1)? Então Giovanna, curso de

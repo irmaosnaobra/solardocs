@@ -9,6 +9,7 @@ import { gerarProdutosVirais, redispararVideoProduto } from '../services/agenda/
 import { processarWebhook, reconciliarStatusProduto, animarProduto } from '../services/agenda/higgsfieldService';
 import { ingestManychatLead } from '../services/agenda/manychatLeadService';
 import { runGeradorBroadcastTick } from '../services/io/geradorAutomacaoService';
+import { runAvisosTick } from '../services/io/avisosTickService';
 import { runProspeccaoApifyTick } from '../services/io/prospeccaoApifyService';
 import { montarBusca } from '../services/io/prospeccaoBriefService';
 import { montarCentralAgentes } from '../services/io/centralAgentes';
@@ -79,6 +80,20 @@ router.post('/automacao/kick', async (_req: Request, res: Response) => {
     res.json({ ok: true, ...result });
   } catch (err: any) {
     logger.error('gerador', 'automacao/kick falhou', err);
+    res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
+  }
+});
+
+// Menu de Avisos: mesmo "kick" opcional, pro primeiro contato da pauta sair na
+// hora em vez de esperar o cron de 5 min. Um tick = UM envio, e ele passa por
+// todas as travas do motor (janela diurna, espaçamento e teto da linha,
+// supressão, piso de dias, kill-switch AVISOS_OFF). No pior caso faz o que o
+// cron faria daqui a pouco, então não precisa de auth própria.
+router.post('/avisos/kick', async (_req: Request, res: Response) => {
+  try {
+    res.json({ ok: true, ...(await runAvisosTick()) });
+  } catch (err: any) {
+    logger.error('gerador', 'avisos/kick falhou', err);
     res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
   }
 });

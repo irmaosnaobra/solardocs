@@ -441,6 +441,48 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
   .cadtab .cad-end{max-width:200px}
 }
 
+/* ===== Menu de Avisos: a pauta que vai pra base de parceria ===== */
+.avi-publicos{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.avi-pub{background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.28);border-radius:11px;color:#94A3B8;
+  font-family:inherit;font-size:14px;font-weight:800;padding:11px 15px;cursor:pointer;min-height:46px;
+  display:flex;align-items:center;gap:9px}
+.avi-pub .avi-cnt{font-size:12px;font-weight:800;background:rgba(148,163,184,.22);color:#CBD5E1;
+  border-radius:999px;padding:2px 8px;min-width:22px;text-align:center}
+.avi-pub.on{border-color:#7DD117;color:#F8FAFC;background:rgba(125,209,23,.12)}
+.avi-pub.on .avi-cnt{background:#7DD117;color:#0B1220}
+#avi-pub-capital.on{border-color:#60A5FA;background:rgba(96,165,250,.12)}
+#avi-pub-capital.on .avi-cnt{background:#60A5FA}
+#avi-pub-integrador.on{border-color:#38BDF8;background:rgba(56,189,248,.12)}
+#avi-pub-integrador.on .avi-cnt{background:#38BDF8}
+.avi-inp,.avi-ta{width:100%;background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.28);border-radius:10px;
+  color:#E5E7EB;font-family:inherit;font-size:14.5px;padding:11px 13px;outline:none;box-sizing:border-box}
+.avi-ta{min-height:150px;line-height:1.55;resize:vertical}
+.avi-inp:focus,.avi-ta:focus{border-color:#3B82F6}
+.avi-lbl{display:block;font-size:12px;font-weight:800;color:#94A3B8;text-transform:uppercase;letter-spacing:.4px;margin:14px 0 6px}
+.avi-dica{font-size:12.5px;color:#94A3B8;line-height:1.55;margin-top:6px}
+.avi-dica b{color:#CBD5E1}
+/* O custo do envio dito ANTES do botão: quantos recebem, em quantos dias, e por quê */
+.avi-conta{background:rgba(96,165,250,.10);border:1px solid rgba(96,165,250,.30);border-radius:11px;
+  padding:12px 14px;font-size:13.5px;color:#BFDBFE;line-height:1.6}
+.avi-conta b{color:#fff}
+.avi-previa{white-space:pre-wrap;background:#0B1424;border:1px solid rgba(148,163,184,.20);border-radius:12px;
+  padding:14px 16px;font-size:14px;line-height:1.55;color:#E5E7EB;margin-top:10px;max-height:320px;overflow:auto}
+.avi-acoes{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px}
+.avi-status{font-size:13px;color:#94A3B8;font-weight:600}
+.avi-badge{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;border-radius:999px;padding:3px 9px;white-space:nowrap}
+.avi-badge.rodando{background:rgba(125,209,23,.16);color:#9BEE38}
+.avi-badge.pausado{background:rgba(250,204,21,.16);color:#FACC15}
+.avi-badge.concluido{background:rgba(148,163,184,.18);color:#CBD5E1}
+.avi-barra{height:6px;border-radius:999px;background:rgba(148,163,184,.20);overflow:hidden;margin-top:6px;min-width:120px}
+.avi-barra i{display:block;height:100%;background:linear-gradient(90deg,#5da80d,#9BEE38)}
+.avitab th,.avitab td{text-align:left;vertical-align:top;white-space:normal}
+.avitab td.nome{font-weight:700;color:#F8FAFC}
+.avitab .cad-sub{display:block;font-size:11.5px;color:#94A3B8;font-weight:600;margin-top:2px}
+@media(max-width:720px){
+  .avi-publicos{flex-direction:column}
+  .avi-pub{justify-content:space-between}
+}
+
 .eletro-cmp-scroll{overflow-x:auto}
 .eletro-cmp{width:100%;border-collapse:collapse;font-size:13px}
 .eletro-cmp th,.eletro-cmp td{padding:9px 12px;text-align:right;border-bottom:1px solid rgba(255,255,255,.08);white-space:nowrap}
@@ -2747,6 +2789,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
            Histórico pra fora da tela de novo. Abre no Recibo. -->
       <button type="button" id="eletro-grp-fechamento" class="eletro-subtab" onclick="eletroGrupo('fechamento')">Fechamento</button>
       <button type="button" id="eletro-tab-cadastros" class="eletro-subtab" onclick="eletroSubaba('cadastros')">Cadastros</button>
+      <!-- AVISOS (17/09/2026): mora colado em Cadastros porque fala com exatamente
+           a mesma base (eletroposto_parceria) e é o que se faz DEPOIS de olhar a
+           lista: escrever a pauta da semana e mandar pros três grupos. -->
+      <button type="button" id="eletro-tab-avisos" class="eletro-subtab" onclick="eletroSubaba('avisos')">Avisos</button>
       <button type="button" id="eletro-tab-historico" class="eletro-subtab" onclick="eletroSubaba('historico')">Histórico</button>
       <button type="button" id="eletro-grp-mercado" class="eletro-subtab" onclick="eletroGrupo('mercado')">Mercado</button>
     </div>
@@ -3799,6 +3845,96 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="cad-painel" id="cad-painel-pares" hidden></div>
       </div>
     </div><!-- /eletro-pane-cadastros -->
+
+
+    <!-- ===== PANE: AVISOS (a pauta que vai pra base de parceria) =====
+         O que esta tela resolve: hoje, pra falar com os 81 cadastros de
+         arrendamento, investidor e parceiro, alguém abre o WhatsApp e manda um a
+         um. Ninguém faz isso duas vezes, então a base fica muda e esfria.
+
+         O que ela NÃO é: um disparo em massa. A linha 34998165040 é a da
+         empresa, é a mesma da Bia, da Giovanna e dos lembretes de agenda, e já
+         foi bloqueada 3 vezes por leva de mensagem. Então aqui a pauta entra
+         numa fila e sai de uma em uma, dentro da janela do dia, com espaço entre
+         uma e outra. Uma pauta pra base inteira leva dias, e a tela diz isso
+         antes de você clicar.
+
+         Quem escolhe o destinatário é o servidor, não esta página: daqui sai só
+         o texto e quais grupos recebem. É o que impede a chave que está no fonte
+         desta página de virar canhão apontado pra nossa lista. -->
+    <div id="eletro-pane-avisos" style="display:none;">
+      <div class="pesquisa-info">
+        Escreva a pauta uma vez, escolha os grupos e a mensagem vai saindo sozinha,
+        de uma em uma, pra quem se cadastrou em <b>solardoc.app/io/eletroposto/parceria</b>.
+        A lista se atualiza sozinha: quem se cadastrar depois de você enviar entra no
+        mesmo aviso. Quem estiver marcado como <b>sem interesse</b> na aba Cadastros
+        fica de fora, e ninguém recebe duas pautas no mesmo dia.
+      </div>
+
+      <div class="card">
+        <div class="eletro-sec-title">1. Quem recebe</div>
+        <div class="avi-publicos">
+          <button type="button" class="avi-pub on" id="avi-pub-ponto" onclick="aviTogglePublico('ponto')">Arrendamento <span class="avi-cnt" id="avi-cnt-ponto">—</span></button>
+          <button type="button" class="avi-pub on" id="avi-pub-capital" onclick="aviTogglePublico('capital')">Investidores <span class="avi-cnt" id="avi-cnt-capital">—</span></button>
+          <button type="button" class="avi-pub on" id="avi-pub-integrador" onclick="aviTogglePublico('integrador')">Parceiros <span class="avi-cnt" id="avi-cnt-integrador">—</span></button>
+        </div>
+        <div class="avi-conta" id="avi-conta">Carregando a base…</div>
+      </div>
+
+      <div class="card">
+        <div class="eletro-sec-title">2. A pauta</div>
+        <label class="avi-lbl" for="avi-titulo">Título (aparece em negrito, é o que se lê na notificação)</label>
+        <input class="avi-inp" id="avi-titulo" maxlength="90" placeholder="Ex: Ponto novo liberado em Uberlândia" oninput="aviPrevia()">
+        <label class="avi-lbl" for="avi-corpo">Mensagem</label>
+        <textarea class="avi-ta" id="avi-corpo" maxlength="3000" placeholder="Ex: Oi {nome}, abriu uma vaga de investimento num posto em {cidade}. São 2 carregadores, retorno estimado em 30 meses. Quer que eu te mande o estudo?" oninput="aviPrevia()"></textarea>
+        <div class="avi-dica">
+          <b>{nome}</b> vira o primeiro nome de quem recebe e <b>{cidade}</b> vira a cidade do cadastro.
+          Quem não preencheu o campo recebe a frase sem ele, sem sobrar vírgula solta.
+        </div>
+
+        <label class="avi-lbl">Anexo (opcional)</label>
+        <div class="avi-acoes" style="margin-top:0">
+          <select class="cad-filtro" id="avi-mtype-0" onchange="aviMidiaLinha()">
+            <option value="">Só texto</option>
+            <option value="image">+ Imagem</option>
+            <option value="video">+ Vídeo</option>
+            <option value="audio">Áudio (vai sozinho, sem texto)</option>
+          </select>
+          <span class="avi-acoes" id="avi-murlrow-0" style="display:none;margin-top:0;flex:1;min-width:200px">
+            <input class="avi-inp" id="avi-murl-0" placeholder="URL pública ou faça upload" style="flex:1;min-width:160px;width:auto">
+            <label class="ehist-btn" style="cursor:pointer">Upload<input type="file" style="display:none" onchange="autoUpload(this,'avi',0)"></label>
+          </span>
+        </div>
+
+        <label class="avi-lbl">Como vai chegar</label>
+        <div class="avi-previa" id="avi-previa">A mensagem aparece aqui do jeito que o cliente vai ver.</div>
+
+        <div class="avi-acoes">
+          <button type="button" class="eletro-btn primario" id="avi-btn" onclick="aviEnviar()">Colocar na fila</button>
+          <span class="avi-status" id="avi-msg"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="eletro-sec-title">3. Avisos que já foram <button type="button" class="ehist-btn" style="float:right" onclick="aviCarregar(true)">↻ Atualizar</button></div>
+        <div class="eletro-cmp-scroll"><table class="eletro-cmp avitab" id="avi-tabela">
+          <tbody><tr><td style="color:#94A3B8;padding:18px">Carregando…</td></tr></tbody>
+        </table></div>
+      </div>
+
+      <!-- A lista, com o botão do WhatsApp em cada linha. Enquanto a fila anda
+           devagar (e ela anda devagar de propósito), é aqui que se fala com UM
+           agora, na mão, sem pedir licença pra fila. -->
+      <div class="card">
+        <div class="eletro-sec-title">A lista, sempre atualizada</div>
+        <div class="cad-acoes" style="margin-bottom:12px">
+          <input type="search" class="cad-busca" id="avi-busca" placeholder="Buscar nome, cidade ou telefone" oninput="aviRenderLista()">
+        </div>
+        <div class="eletro-cmp-scroll"><table class="eletro-cmp avitab" id="avi-lista">
+          <tbody><tr><td style="color:#94A3B8;padding:18px">Carregando…</td></tr></tbody>
+        </table></div>
+      </div>
+    </div><!-- /eletro-pane-avisos -->
 
 
     <!-- ===== PANE: HISTÓRICO (orçamentos de eletroposto salvos) ===== -->
@@ -7793,7 +7929,7 @@ async function apxMontar() {
 }
 
 function eletroSubaba(qual) {
-  const abas = ['simulador', 'orcamento', 'recibo', 'contrato', 'procuracao', 'banco', 'finame', 'apresentacao', 'cadastros', 'historico', 'pesquisa', 'mercado', 'postos', 'mapa'];
+  const abas = ['simulador', 'orcamento', 'recibo', 'contrato', 'procuracao', 'banco', 'finame', 'apresentacao', 'cadastros', 'avisos', 'historico', 'pesquisa', 'mercado', 'postos', 'mapa'];
   // A cada abertura: monta a lista de potências (uma vez) e tenta completar o
   // vendedor. Fica aqui, e não só no load, porque o cadastro de consultores
   // carrega assíncrono — na primeira abertura o telefone ainda pode não existir.
@@ -7803,6 +7939,10 @@ function eletroSubaba(qual) {
   // Cadastros lê a nuvem: só busca quando a aba abre, e reusa o que já tem em
   // memória nas reaberturas seguintes (o ↻ da própria tela força a releitura).
   if (qual === 'cadastros') cadCarregar();
+  // Avisos lê a mesma base da nuvem, mais as pautas já enviadas. Releitura a
+  // cada abertura (e não só na primeira): a fila anda sozinha no servidor, e
+  // tela de progresso com número velho é tela que mente.
+  if (qual === 'avisos') aviCarregar(true);
   // Recibo e Contrato vivem dos campos do Orçamento (valor, CPF/endereço,
   // empresa). Abrir um deles como PRIMEIRA aba, sem nunca passar no Orçamento,
   // deixava valor, data e cláusula em branco — orcInit é quem preenche tudo isso.
@@ -8384,6 +8524,289 @@ async function cadStatus(tabela, id, sel) {
     alert('Não consegui salvar o status: ' + (e.message || e));
   } finally {
     sel.disabled = false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MENU DE AVISOS — a pauta da base de parceria do eletroposto
+//
+// A tela grava DUAS coisas em `avisos`: o texto e quais grupos recebem. Só isso.
+// A lista de telefones é montada no servidor (cron/avisos-tick), a cada envio,
+// lendo `eletroposto_parceria` com a service key. Não é firula de arquitetura:
+// a chave que esta página usa está no fonte dela, e página pública que escolhe
+// destinatário é lista de contatos de graça pra quem quiser.
+//
+// O que a tela mostra que nenhuma outra mostra: o CUSTO. Quantas pessoas, quantos
+// dias até a última receber, e por que não sai tudo hoje. A linha é a da empresa
+// e já foi bloqueada 3 vezes por leva de mensagem; a fila lenta é a feature.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const AVI_LADOS = { ponto: 'Arrendamento', capital: 'Investidores', integrador: 'Parceiros' };
+// Espelha AVISOS_TETO_DIA no servidor. Se lá for afrouxado por env var, este
+// número fica conservador (a conta na tela promete mais dias que o real) — que é
+// o lado certo de errar numa estimativa.
+const AVI_POR_DIA = 20;
+
+let aviPublicos = { ponto: true, capital: true, integrador: true };
+let aviDados = null;      // { contatos, avisos, ultimoPorFone }
+let aviEnviando = false;
+
+function aviConsultor() {
+  try { return (JSON.parse(localStorage.getItem(AUTH_KEY) || '{}').consultor) || ''; } catch (e) { return ''; }
+}
+/** Mesma chave de identidade de telefone do servidor: DDD + 8 últimos dígitos.
+ *  Sem ela, o mesmo contato com e sem o nono dígito vira duas pessoas. */
+function aviChave(tel) {
+  const d = String(tel || '').replace(/\D/g, '');
+  if (d.length < 10 || d.length > 13) return '';
+  const semDdi = d.startsWith('55') && d.length >= 12 ? d.slice(2) : d;
+  return semDdi.length < 10 ? '' : semDdi.slice(0, 2) + semDdi.slice(-8);
+}
+
+async function aviCarregar(forcar) {
+  if (aviDados && !forcar) { aviRender(); return; }
+  try {
+    const [contatos, avisos, envios] = await Promise.all([
+      supaGet('eletroposto_parceria?select=id,nome,telefone,cidade,lado,status,created_at&order=created_at.desc&limit=2000'),
+      supaGet('avisos?select=*&order=criado_em.desc&limit=30'),
+      // Só os que chegaram: erro de Z-API não vira "já recebeu" na tela, pelo
+      // mesmo motivo que não vira no servidor.
+      supaGet('aviso_envios?select=phone,enviado_em,aviso_id&status=eq.ok&order=enviado_em.desc&limit=3000'),
+    ]);
+    const ultimoPorFone = {};
+    (envios || []).forEach(e => {
+      const k = aviChave(e.phone);
+      if (k && !ultimoPorFone[k]) ultimoPorFone[k] = e.enviado_em;   // a lista já vem do mais novo
+    });
+    aviDados = { contatos: contatos || [], avisos: avisos || [], ultimoPorFone };
+    aviRender();
+  } catch (e) {
+    document.getElementById('avi-conta').textContent = 'Não consegui ler a base: ' + (e.message || e);
+  }
+}
+
+/** Quem está elegível HOJE, pelo que a tela consegue saber. O servidor ainda
+ *  aplica opt-out e o piso de dias entre avisos, então este número é um teto. */
+function aviElegiveis(lados) {
+  const vistos = {};
+  return (aviDados ? aviDados.contatos : []).filter(c => {
+    if (!lados[c.lado]) return false;
+    if (String(c.status || '') === 'sem_interesse') return false;
+    const k = aviChave(c.telefone);
+    if (!k || vistos[k]) return false;
+    vistos[k] = 1;
+    return true;
+  });
+}
+
+function aviTogglePublico(lado) {
+  aviPublicos[lado] = !aviPublicos[lado];
+  aviRender();
+}
+
+function aviRender() {
+  if (!aviDados) return;
+  Object.keys(AVI_LADOS).forEach(l => {
+    const n = aviElegiveis({ [l]: true }).length;
+    const cnt = document.getElementById('avi-cnt-' + l);
+    if (cnt) cnt.textContent = n;
+    const bt = document.getElementById('avi-pub-' + l);
+    if (bt) bt.classList.toggle('on', !!aviPublicos[l]);
+  });
+  aviConta();
+  aviPrevia();
+  aviRenderTabela();
+  aviRenderLista();
+}
+
+/** O custo do envio, em português, antes do botão. */
+function aviConta() {
+  const alvo = aviElegiveis(aviPublicos).length;
+  const el = document.getElementById('avi-conta');
+  if (!el) return;
+  if (alvo === 0) {
+    el.innerHTML = '<b>Nenhum contato nos grupos escolhidos.</b> Marque pelo menos um grupo que tenha gente cadastrada.';
+    return;
+  }
+  const dias = Math.ceil(alvo / AVI_POR_DIA);
+  const fora = (aviDados.contatos || []).filter(c => aviPublicos[c.lado] && String(c.status || '') === 'sem_interesse').length;
+  el.innerHTML = '<b>' + alvo + ' ' + (alvo === 1 ? 'pessoa recebe' : 'pessoas recebem') + '</b> esta pauta, '
+    + 'no ritmo de até ' + AVI_POR_DIA + ' por dia, entre 9h e 20h. '
+    + 'A última recebe em <b>' + (dias === 1 ? 'menos de um dia' : 'cerca de ' + dias + ' dias') + '</b>. '
+    + 'É devagar de propósito: é a mesma linha da Bia, da Giovanna e dos lembretes de agenda, e leva de mensagem é o que derruba número. '
+    + 'Pra falar com alguém agora, use o botão do WhatsApp na lista aqui embaixo.'
+    + (fora ? '<br>' + fora + ' contato(s) de fora por estarem marcados como sem interesse.' : '');
+}
+
+function aviMidiaLinha() {
+  const tipo = (document.getElementById('avi-mtype-0') || {}).value || '';
+  const row = document.getElementById('avi-murlrow-0');
+  if (row) row.style.display = tipo ? 'flex' : 'none';
+  aviPrevia();
+}
+
+/** A mesma montagem do servidor (montarTextoAviso). Se as duas divergirem, o que
+ *  a pessoa aprova aqui não é o que o cliente lê — então elas andam juntas. */
+function aviTexto(titulo, corpo, contato) {
+  const nome = String((contato && contato.nome) || '').trim().split(/\s+/)[0] || '';
+  const cidade = String((contato && contato.cidade) || '').trim();
+  const c = String(corpo || '')
+    .replace(/\{nome\}/gi, nome)
+    .replace(/\{cidade\}/gi, cidade)
+    .replace(/[ \t]+([,.!?])/g, '$1')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+  const t = String(titulo || '').trim();
+  return (t ? '*' + t + '*\n\n' : '') + c
+    + '\n\n_Você recebe isso porque se cadastrou como parceiro do eletroposto na Irmãos na Obra. Se não quiser mais, é só responder aqui que a gente tira da lista._';
+}
+
+function aviPrevia() {
+  const el = document.getElementById('avi-previa');
+  if (!el) return;
+  const corpo = (document.getElementById('avi-corpo') || {}).value || '';
+  const titulo = (document.getElementById('avi-titulo') || {}).value || '';
+  if (!corpo.trim()) { el.textContent = 'A mensagem aparece aqui do jeito que o cliente vai ver.'; return; }
+  // Prévia com gente de verdade da fila: é assim que se vê {nome} torto antes
+  // de 60 pessoas receberem "Oi ,".
+  const exemplo = aviElegiveis(aviPublicos)[0] || { nome: 'Maria Silva', cidade: 'Uberlândia' };
+  const tipo = (document.getElementById('avi-mtype-0') || {}).value || '';
+  const texto = aviTexto(titulo, corpo, exemplo);
+  el.textContent = (tipo === 'audio'
+    ? '[áudio: a mensagem escrita NÃO vai junto, o WhatsApp não aceita legenda em áudio]\n\n'
+    : (tipo ? '[' + tipo + ' em anexo, com o texto de legenda]\n\n' : '')) + texto;
+}
+
+async function aviEnviar() {
+  if (aviEnviando) return;
+  const corpo = ((document.getElementById('avi-corpo') || {}).value || '').trim();
+  const titulo = ((document.getElementById('avi-titulo') || {}).value || '').trim();
+  const tipo = (document.getElementById('avi-mtype-0') || {}).value || '';
+  const url = ((document.getElementById('avi-murl-0') || {}).value || '').trim();
+  const lados = Object.keys(AVI_LADOS).filter(l => aviPublicos[l]);
+  const msg = document.getElementById('avi-msg');
+
+  if (!lados.length) { alert('Escolha pelo menos um grupo.'); return; }
+  if (!corpo && tipo !== 'audio') { alert('Escreva a mensagem.'); return; }
+  if (tipo && !url) { alert('Você escolheu um anexo mas não colocou a URL (ou fez o upload).'); return; }
+  const alvo = aviElegiveis(aviPublicos).length;
+  if (!alvo) { alert('Não há ninguém pra receber nos grupos escolhidos.'); return; }
+
+  const dias = Math.ceil(alvo / AVI_POR_DIA);
+  const nomes = lados.map(l => AVI_LADOS[l]).join(', ');
+  if (!confirm('Mandar esta pauta pra ' + alvo + ' contato(s) de ' + nomes + '?\n\n'
+    + 'Sai de um em um, entre 9h e 20h. A última pessoa recebe em cerca de '
+    + dias + ' dia(s). Dá pra pausar a qualquer momento aqui na tela.')) return;
+
+  aviEnviando = true;
+  const btn = document.getElementById('avi-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Colocando na fila…'; }
+  if (msg) msg.textContent = '';
+  try {
+    await supaInsert('avisos', {
+      titulo: titulo || null,
+      corpo: corpo,
+      publicos: lados,
+      midia_url: tipo && url ? url : null,
+      midia_tipo: tipo || null,
+      criado_por: aviConsultor() || null,
+      status: 'rodando',
+      alvo: alvo,
+    });
+    // Kick opcional: o primeiro contato sai agora em vez de esperar o cron de 5
+    // min. Falhar aqui não é erro — o cron pega do mesmo jeito.
+    fetch('/_api/gerador/avisos/kick', { method: 'POST' }).catch(() => {});
+    document.getElementById('avi-corpo').value = '';
+    document.getElementById('avi-titulo').value = '';
+    document.getElementById('avi-mtype-0').value = '';
+    document.getElementById('avi-murl-0').value = '';
+    aviMidiaLinha();
+    if (msg) msg.textContent = 'Na fila. O primeiro envio sai em instantes.';
+    await aviCarregar(true);
+  } catch (e) {
+    alert('Não consegui colocar na fila: ' + (e.message || e));
+  } finally {
+    aviEnviando = false;
+    if (btn) { btn.disabled = false; btn.textContent = 'Colocar na fila'; }
+  }
+}
+
+async function aviMudarStatus(id, status) {
+  try {
+    await supaPatch('avisos?id=eq.' + id, { status: status });
+    if (status === 'rodando') fetch('/_api/gerador/avisos/kick', { method: 'POST' }).catch(() => {});
+    await aviCarregar(true);
+  } catch (e) { alert('Não consegui mudar o aviso: ' + (e.message || e)); }
+}
+
+function aviRenderTabela() {
+  const tb = document.querySelector('#avi-tabela tbody');
+  if (!tb) return;
+  const linhas = (aviDados.avisos || []).map(a => {
+    const total = Math.max(Number(a.alvo || 0), Number(a.sucesso || 0) + Number(a.falha || 0));
+    const feitos = Number(a.sucesso || 0);
+    const pct = total ? Math.min(100, (feitos / total) * 100) : 0;
+    const st = String(a.status || '');
+    const badge = '<span class="avi-badge ' + (st === 'concluido' ? 'concluido' : st === 'pausado' ? 'pausado' : 'rodando') + '">'
+      + (st === 'concluido' ? 'concluído' : st) + '</span>';
+    const grupos = (a.publicos || []).map(l => AVI_LADOS[l] || l).join(', ');
+    const acao = st === 'rodando'
+      ? '<button type="button" class="ehist-btn" onclick="aviMudarStatus(\'' + a.id + '\',\'pausado\')">Pausar</button>'
+      : st === 'pausado'
+        ? '<button type="button" class="ehist-btn" onclick="aviMudarStatus(\'' + a.id + '\',\'rodando\')">Retomar</button>'
+        : '';
+    return '<tr>'
+      + '<td class="nome">' + escapeHtml(a.titulo || (a.corpo || '').slice(0, 42) + '…')
+        + '<span class="cad-sub">' + escapeHtml(grupos) + ' · ' + new Date(a.criado_em).toLocaleDateString('pt-BR')
+        + (a.criado_por ? ' · ' + escapeHtml(a.criado_por) : '') + '</span></td>'
+      + '<td>' + badge + '</td>'
+      + '<td>' + feitos + ' de ' + (total || '—')
+        + (Number(a.falha || 0) ? '<span class="cad-sub">' + a.falha + ' falha(s)</span>' : '')
+        + '<div class="avi-barra"><i style="width:' + pct + '%"></i></div></td>'
+      + '<td>' + acao + '</td>'
+      + '</tr>';
+  }).join('');
+  tb.innerHTML = linhas
+    || '<tr><td style="color:#94A3B8;padding:18px">Nenhuma pauta enviada ainda. A primeira você escreve aqui em cima.</td></tr>';
+}
+
+function aviRenderLista() {
+  const tb = document.querySelector('#avi-lista tbody');
+  if (!tb) return;
+  const busca = ((document.getElementById('avi-busca') || {}).value || '').trim().toLowerCase();
+  const contatos = aviElegiveis({ ponto: true, capital: true, integrador: true }).filter(c => {
+    if (!busca) return true;
+    return (String(c.nome || '') + ' ' + String(c.cidade || '') + ' ' + String(c.telefone || '')).toLowerCase().includes(busca);
+  });
+  const linhas = contatos.map(c => {
+    const ultimo = aviDados.ultimoPorFone[aviChave(c.telefone)];
+    return '<tr>'
+      + '<td class="nome">' + escapeHtml(c.nome || 'sem nome')
+        + '<span class="cad-sub">' + escapeHtml(c.cidade || 'cidade não informada') + '</span></td>'
+      + '<td>' + (AVI_LADOS[c.lado] || c.lado) + '</td>'
+      + '<td>' + (ultimo ? new Date(ultimo).toLocaleDateString('pt-BR') : '<span class="cad-sub" style="margin:0">nunca</span>') + '</td>'
+      + '<td><a class="cad-wa" target="_blank" rel="noopener" href="https://wa.me/' + encodeURIComponent(String(c.telefone || '').replace(/\D/g, '')) + '">WhatsApp</a></td>'
+      + '<td><button type="button" class="ehist-btn" onclick="aviSemInteresse(' + c.id + ',this)">Tirar dos avisos</button></td>'
+      + '</tr>';
+  }).join('');
+  tb.innerHTML = '<tr><th>Quem</th><th>Grupo</th><th>Último aviso</th><th></th><th></th></tr>'
+    + (linhas || '<tr><td style="color:#94A3B8;padding:18px">Ninguém na lista com esse filtro.</td></tr>');
+}
+
+/** Tirar dos avisos é a MESMA marcação `sem_interesse` da aba Cadastros, de
+ *  propósito: duas listas de descadastro é uma que fica desatualizada. */
+async function aviSemInteresse(id, botao) {
+  if (!confirm('Tirar esta pessoa dos avisos? Ela some da fila e fica marcada como sem interesse na aba Cadastros.')) return;
+  botao.disabled = true;
+  try {
+    await supaPatch('eletroposto_parceria?id=eq.' + id, { status: 'sem_interesse' });
+    const alvo = (aviDados.contatos || []).find(c => c.id === id);
+    if (alvo) alvo.status = 'sem_interesse';
+    cadDados = null;      // a aba Cadastros relê na próxima abertura
+    aviRender();
+  } catch (e) {
+    botao.disabled = false;
+    alert('Não consegui marcar: ' + (e.message || e));
   }
 }
 

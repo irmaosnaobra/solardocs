@@ -31,6 +31,7 @@ import { pollRecepcaoIo } from '../services/io/recepcaoIoPoll';
 import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendamento, revisarLeadsLuma, processarReativacao, processarNudge10min, processarNudge18h, cleanupPerdidosAntigos, cleanupMessageDedup, enviarRelatorioDiario } from '../services/agents/sdr/sdrIoPolling';
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 import { runGeradorBroadcastTick, runGeradorSequenciasConsumer } from '../services/io/geradorAutomacaoService';
+import { runAvisosTick } from '../services/io/avisosTickService';
 import { runProspeccaoApifyTick } from '../services/io/prospeccaoApifyService';
 import { runSequenciaStopOnReply } from '../services/io/sequenciaStopOnReply';
 import { runBlastRespostas } from '../services/io/blastRespostas';
@@ -1218,6 +1219,22 @@ router.get('/gerador-broadcast-tick', async (req: Request, res: Response) => {
     res.json({ ok: true, ...result });
   } catch (err) {
     logger.error('cron', 'gerador-broadcast-tick falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// Menu de Avisos (/gerador → Eletroposto → Avisos): manda a pauta da vez pra base
+// de parceria, UM contato por tick. Não é blast: o tick faz um envio e volta,
+// respeitando janela diurna, espaçamento e teto da linha 34998165040 — 81
+// cadastros levam dias de propósito. Gated por CRON_SECRET + kill-switch AVISOS_OFF.
+router.get('/avisos-tick', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    // ?dry=1 anda o caminho inteiro e para antes de enviar. É como se confere um
+    // canal que fala com cliente sem gastar uma mensagem com ele.
+    res.json({ ok: true, ...(await runAvisosTick({ dry: req.query.dry === '1' })) });
+  } catch (err) {
+    logger.error('cron', 'avisos-tick falhou', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });
