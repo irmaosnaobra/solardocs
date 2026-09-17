@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 interface Msg { telefone: string; from_me: boolean; texto: string | null; momment: string; chat_name?: string | null; is_group?: boolean; instancia?: string }
 
-const db: { wa: Msg[]; sessoes: any[]; leads: any[]; state: Array<{ key: string; updated_at: string }> } = {
+const db: { wa: Msg[]; sessoes: any[]; leads: any[]; state: Array<{ key: string; updated_at: string; value?: string }> } = {
   wa: [], sessoes: [], leads: [], state: [],
 };
 
@@ -27,8 +27,15 @@ function builder(tabela: string) {
     gte(col: string, val: any) { q._filtros.push((r: any) => String(r[col]) >= String(val)); return q; },
     order() { return q; },
     limit() { return q; },
+    maybeSingle() {
+      const linhas = q._linhas();
+      return Promise.resolve({ data: linhas[0] ?? null, error: null });
+    },
     upsert(linha: any) {
-      db.state = db.state.filter(r => r.key !== linha.key).concat({ key: linha.key, updated_at: linha.updated_at });
+      // Guarda a linha INTEIRA: a represa da varredura lê `value`, e um mock que
+      // só guarda a chave faria o teste passar por engano (o serviço tem
+      // try/catch e devolveria "pode varrer" pra qualquer defeito de leitura).
+      db.state = db.state.filter(r => r.key !== linha.key).concat({ ...linha });
       return Promise.resolve({ error: null });
     },
     _linhas() {
@@ -229,5 +236,29 @@ describe('dentroDoExpediente', () => {
 
     expect(r.motivo).toBe('cobraria_agora');
     expect(enviados).toHaveLength(0);
+  });
+});
+
+describe('represa da varredura', () => {
+  it('chamada de minuto em minuto não varre de minuto em minuto', async () => {
+    db.wa = [msg('5534999990013', false, Date.now() - 6 * 3600_000)];
+
+    const primeira = await runSentinelaVacuo();
+    const segunda = await runSentinelaVacuo();
+
+    expect(primeira.cobrancas).toBe(1);
+    expect(segunda.motivo).toBe('varrido_agora_pouco');
+  });
+
+  it('passados os 20 minutos, varre de novo', async () => {
+    db.wa = [msg('5534999990014', false, Date.now() - 6 * 3600_000)];
+    await runSentinelaVacuo();
+
+    vi.setSystemTime(new Date(Date.now() + 21 * 60_000));
+    const depois = await runSentinelaVacuo();
+
+    // Varreu (não é 'varrido_agora_pouco'); a pessoa já foi cobrada no nível 1,
+    // então o resultado certo é "todas já cobradas", não uma segunda cobrança.
+    expect(depois.motivo).toBe('todas_ja_cobradas');
   });
 });

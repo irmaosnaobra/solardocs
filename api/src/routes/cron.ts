@@ -1201,8 +1201,25 @@ router.get('/promo-gerador-v2-blast', async (req: Request, res: Response) => {
 router.get('/io-broadcast-tick', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
+    // ── OS AVISOS E A SENTINELA PEGAM CARONA AQUI ────────────────────────────
+    // Porque esta rota é o ÚNICO ping de 1 minuto que existe de verdade: quem
+    // chama é o Cloudflare Worker (`crons = ["* * * * *"]`).
+    //
+    // O agendamento do GitHub Actions MENTE. O workflow diz `*/5 * * * *`, mas
+    // as execuções reais de 17/09 foram 10:26, 15:11, 19:02 e 22:05 UTC — de 3
+    // em 3 horas. O mesmo vale pro cron mestre "de hora em hora" (07:16, 13:06,
+    // 17:57, 21:14). Com essa cadência, uma pauta de 66 investidores levaria
+    // semanas em vez dos ~4 dias que a tela promete, e a sentinela cobraria uma
+    // conversa parada meio dia depois do combinado.
+    //
+    // Os dois vêm ANTES do disparo de propósito: são curtos e saem cedo (janela,
+    // espaçamento, teto, represa de 20 min da sentinela), enquanto o disparo em
+    // massa pode levar 4 minutos de uma função que tem 300s. Cada um tem lock
+    // próprio, então não atropelam o outro.
+    const avisos = await runAvisosTick();
+    const vacuo = await runSentinelaVacuo();
     const result = await runIoBroadcastTick();
-    res.json({ ok: true, ...result });
+    res.json({ ok: true, ...result, avisos, vacuo });
   } catch (err) {
     logger.error('cron', 'io-broadcast-tick falhou', err);
     res.status(500).json({ error: 'Cron failed' });

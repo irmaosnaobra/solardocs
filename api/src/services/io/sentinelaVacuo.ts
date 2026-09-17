@@ -213,6 +213,37 @@ export function montarResumo(dono: string, itens: ConversaParada[]): string {
   ].join('\n');
 }
 
+/**
+ * Represa da varredura. A sentinela é chamada de minuto em minuto (é o único
+ * ping confiável que existe — ver o comentário no /cron/io-broadcast-tick), mas
+ * ela lê 7 dias de conversa: rodar isso 1.440 vezes por dia seria pagar caro por
+ * uma resposta que muda de 20 em 20 minutos.
+ *
+ * O marcador fica no banco e não em memória porque função serverless morre e
+ * renasce, e duas instâncias não compartilham variável.
+ */
+const CHAVE_VARREDURA = 'vacuo_ultima_varredura';
+const MINUTOS_ENTRE_VARREDURAS = (): number => Number(process.env.VACUO_MINUTOS || 20);
+
+async function varreuAgoraPouco(): Promise<boolean> {
+  try {
+    const { data } = await supabase
+      .from('system_state').select('value').eq('key', CHAVE_VARREDURA).maybeSingle();
+    const t = data?.value ? Date.parse(String(data.value)) : NaN;
+    if (!Number.isFinite(t)) return false;
+    return Date.now() - t < MINUTOS_ENTRE_VARREDURAS() * 60_000;
+  } catch {
+    return false;                       // fail-open: na dúvida, varre
+  }
+}
+
+async function marcarVarredura(): Promise<void> {
+  const agora = new Date().toISOString();
+  await supabase.from('system_state').upsert(
+    { key: CHAVE_VARREDURA, value: agora, updated_at: agora }, { onConflict: 'key' },
+  );
+}
+
 export interface VacuoResult {
   paradas: number;
   cobrancas: number;
@@ -231,6 +262,11 @@ export async function runSentinelaVacuo(opts: { dry?: boolean } = {}): Promise<V
   if (!dry && !dentroDoExpediente()) {
     return { paradas: 0, cobrancas: 0, avisados: [], motivo: 'fora_do_expediente' };
   }
+  // Represa: a chamada é de minuto em minuto, a varredura é de 20 em 20.
+  if (!dry && await varreuAgoraPouco()) {
+    return { paradas: 0, cobrancas: 0, avisados: [], motivo: 'varrido_agora_pouco' };
+  }
+  if (!dry) await marcarVarredura();
 
   const agora = new Date();
   const desde = new Date(Date.now() - 7 * 86400_000).toISOString();

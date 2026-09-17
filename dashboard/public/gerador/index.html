@@ -3941,7 +3941,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       </div>
 
       <div class="card">
-        <div class="eletro-sec-title">2. A pauta</div>
+        <div class="eletro-sec-title">A pauta</div>
         <label class="avi-lbl" for="avi-titulo">Título (aparece em negrito, é o que se lê na notificação)</label>
         <input class="avi-inp" id="avi-titulo" maxlength="90" placeholder="Ex: Ponto novo liberado em Uberlândia" oninput="aviPrevia()">
         <label class="avi-lbl" for="avi-corpo">Mensagem</label>
@@ -3965,8 +3965,13 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           </span>
         </div>
 
-        <label class="avi-lbl">Como vai chegar</label>
-        <div class="avi-previa" id="avi-previa">A mensagem aparece aqui do jeito que o cliente vai ver.</div>
+        <!-- A prévia é um balão de WhatsApp de verdade, com o negrito e o itálico
+             já aplicados. Texto cru com asterisco não mostra o que a pessoa vai
+             ler, e é lendo o balão que se percebe a frase torta. -->
+        <label class="avi-lbl">Como vai chegar no celular dela</label>
+        <div class="avi-fone">
+          <div id="avi-previa" class="avi-balao-vazio">Escreva a mensagem acima e ela aparece aqui, do jeito exato que o cliente vai ver.</div>
+        </div>
 
         <div class="avi-acoes">
           <button type="button" class="eletro-btn primario" id="avi-btn" onclick="aviEnviar()">Colocar na fila</button>
@@ -3975,10 +3980,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       </div>
 
       <div class="card">
-        <div class="eletro-sec-title">3. Avisos que já foram <button type="button" class="ehist-btn" style="float:right" onclick="aviCarregar(true)">↻ Atualizar</button></div>
-        <!-- Por que a fila não anda, em português. Fila que para calada parece
-             quebrada, e a resposta quase sempre é uma das travas da linha. -->
-        <div class="avi-dica" id="avi-fila-status" style="margin:0 0 12px">Conferindo a fila…</div>
+        <div class="eletro-sec-title">Pautas anteriores <button type="button" class="ehist-btn" style="float:right" onclick="aviCarregar(true)">↻ Atualizar</button></div>
         <div class="eletro-cmp-scroll"><table class="eletro-cmp avitab" id="avi-tabela">
           <tbody><tr><td style="color:#94A3B8;padding:18px">Carregando…</td></tr></tbody>
         </table></div>
@@ -8673,14 +8675,16 @@ const AVI_MOTIVO = {
 async function aviStatusFila() {
   const el = document.getElementById('avi-fila-status');
   if (!el) return;
+  const andando = ['passaria_agora'];
   try {
     const r = await fetch('/_api/gerador/avisos/kick?dry=1', { method: 'POST' });
     const j = await r.json();
     const base = AVI_MOTIVO[j.motivo] || ('Estado da fila: ' + (j.motivo || 'desconhecido') + '.');
-    el.innerHTML = '<b>Fila:</b> ' + base
-      + (j.restantes ? ' Faltam <b>' + j.restantes + '</b> pessoa(s) na pauta atual.' : '');
+    el.classList.toggle('parada', andando.indexOf(j.motivo) < 0);
+    el.innerHTML = '<span class="avi-ping"></span><span>' + base + '</span>';
   } catch (e) {
-    el.textContent = 'Não consegui falar com o servidor pra saber como está a fila.';
+    el.classList.add('parada');
+    el.innerHTML = '<span class="avi-ping"></span><span>Não consegui falar com o servidor pra saber como está a fila.</span>';
   }
 }
 
@@ -8714,8 +8718,60 @@ function aviRender() {
   });
   aviConta();
   aviPrevia();
+  aviRenderAndamento();
   aviRenderTabela();
   aviRenderLista();
+}
+
+/** Quanto tempo falta pra pauta terminar, em português de gente. */
+function aviPrazo(faltam) {
+  if (faltam <= 0) return 'acaba hoje';
+  const dias = Math.ceil(faltam / AVI_POR_DIA);
+  return dias <= 1 ? 'acaba hoje' : 'cerca de ' + dias + ' dias';
+}
+
+/**
+ * O card da pauta que está na rua. Só aparece quando existe uma, e aí ele é o
+ * topo da tela: a pergunta de quem abre esta aba com pauta rodando é "chegou em
+ * quantos?", não "como escrevo outra".
+ */
+function aviRenderAndamento() {
+  const el = document.getElementById('avi-andamento');
+  if (!el) return;
+  const a = (aviDados.avisos || []).find(x => x.status === 'rodando' || x.status === 'pausado');
+  if (!a) { el.hidden = true; el.innerHTML = ''; return; }
+
+  const alvo = Math.max(Number(a.alvo || 0), Number(a.sucesso || 0) + Number(a.falha || 0));
+  const feitos = Number(a.sucesso || 0);
+  const faltam = Math.max(0, alvo - feitos);
+  const pct = alvo ? Math.min(100, (feitos / alvo) * 100) : 0;
+  const pausado = a.status === 'pausado';
+  const grupos = (a.publicos || []).map(l => AVI_LADOS[l] || l).join(', ');
+
+  el.hidden = false;
+  el.innerHTML =
+    '<div class="avi-andamento">'
+    + '<div class="avi-and-topo"><div>'
+      + '<div class="avi-and-tit">' + escapeHtml(a.titulo || (a.corpo || '').slice(0, 60)) + '</div>'
+      + '<div class="avi-and-sub">' + escapeHtml(grupos) + ' · começou '
+        + new Date(a.iniciado_em || a.criado_em).toLocaleDateString('pt-BR')
+        + (a.criado_por ? ' · ' + escapeHtml(a.criado_por) : '') + '</div>'
+    + '</div>'
+    + '<div style="display:flex;gap:8px;align-items:center">'
+      + '<span class="avi-badge ' + (pausado ? 'pausado' : 'rodando') + '">' + (pausado ? 'pausada' : 'entregando') + '</span>'
+      + (pausado
+          ? '<button type="button" class="ehist-btn" onclick="aviMudarStatus(\'' + a.id + '\',\'rodando\')">Retomar</button>'
+          : '<button type="button" class="ehist-btn" onclick="aviMudarStatus(\'' + a.id + '\',\'pausado\')">Pausar</button>')
+    + '</div></div>'
+    + '<div class="avi-prog"><i style="width:' + pct + '%"></i></div>'
+    + '<div class="avi-and-nums">'
+      + '<div class="avi-num verde"><b>' + feitos + '</b><span>entregues</span></div>'
+      + '<div class="avi-num"><b>' + faltam + '</b><span>faltam</span></div>'
+      + '<div class="avi-num"><b>' + aviPrazo(faltam).replace('cerca de ', '~').replace(' dias', 'd').replace('acaba hoje', 'hoje') + '</b><span>previsão</span></div>'
+      + (Number(a.falha || 0) ? '<div class="avi-num"><b>' + a.falha + '</b><span>falharam</span></div>' : '')
+    + '</div>'
+    + '<div class="avi-fila" id="avi-fila-status"><span class="avi-ping"></span><span>Conferindo a fila…</span></div>'
+    + '</div>';
 }
 
 /** O custo do envio, em português, antes do botão. */
@@ -8765,20 +8821,38 @@ function aviTexto(titulo, corpo, contato) {
     + '\n\n_Você recebe isso porque se cadastrou como parceiro do eletroposto na Irmãos na Obra. Se não quiser mais, é só responder aqui que a gente tira da lista._';
 }
 
+/** O `*negrito*` e o `_itálico_` do WhatsApp viram negrito e itálico de verdade
+ *  na prévia. Escapa ANTES de marcar, senão texto do cliente com `<` some. */
+function aviBalaoHtml(texto) {
+  return escapeHtml(texto)
+    .replace(/\*([^*\n]+)\*/g, '<span class="avi-b">$1</span>')
+    .replace(/_([^_\n]+)_/g, '<span class="avi-i">$1</span>')
+    .replace(/\n/g, '<br>');
+}
+
 function aviPrevia() {
   const el = document.getElementById('avi-previa');
   if (!el) return;
   const corpo = (document.getElementById('avi-corpo') || {}).value || '';
   const titulo = (document.getElementById('avi-titulo') || {}).value || '';
-  if (!corpo.trim()) { el.textContent = 'A mensagem aparece aqui do jeito que o cliente vai ver.'; return; }
+  const tipo = (document.getElementById('avi-mtype-0') || {}).value || '';
+  if (!corpo.trim() && tipo !== 'audio') {
+    el.className = 'avi-balao-vazio';
+    el.textContent = 'Escreva a mensagem acima e ela aparece aqui, do jeito exato que o cliente vai ver.';
+    return;
+  }
   // Prévia com gente de verdade da fila: é assim que se vê {nome} torto antes
   // de 60 pessoas receberem "Oi ,".
   const exemplo = aviElegiveis(aviPublicos)[0] || { nome: 'Maria Silva', cidade: 'Uberlândia' };
-  const tipo = (document.getElementById('avi-mtype-0') || {}).value || '';
-  const texto = aviTexto(titulo, corpo, exemplo);
-  el.textContent = (tipo === 'audio'
-    ? '[áudio: a mensagem escrita NÃO vai junto, o WhatsApp não aceita legenda em áudio]\n\n'
-    : (tipo ? '[' + tipo + ' em anexo, com o texto de legenda]\n\n' : '')) + texto;
+  const anexo = tipo === 'audio'
+    ? '<div class="avi-anexo">🎤 áudio (vai sozinho, sem o texto)</div>'
+    : tipo === 'image' ? '<div class="avi-anexo">🖼️ imagem, com o texto de legenda</div>'
+    : tipo === 'video' ? '<div class="avi-anexo">🎬 vídeo, com o texto de legenda</div>' : '';
+  const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  el.className = '';
+  el.innerHTML = anexo + (tipo === 'audio' ? '' :
+    '<div class="avi-balao">' + aviBalaoHtml(aviTexto(titulo, corpo, exemplo))
+    + '<span class="avi-balao-hora">' + hora + ' ✓✓</span></div>');
 }
 
 async function aviEnviar() {
@@ -8846,7 +8920,9 @@ async function aviMudarStatus(id, status) {
 function aviRenderTabela() {
   const tb = document.querySelector('#avi-tabela tbody');
   if (!tb) return;
-  const linhas = (aviDados.avisos || []).map(a => {
+  // A pauta em andamento já tem o card do topo; repetir aqui faria a tela dizer
+  // a mesma coisa duas vezes e o histórico parecer maior do que é.
+  const linhas = (aviDados.avisos || []).filter(a => a.status !== 'rodando' && a.status !== 'pausado').map(a => {
     const total = Math.max(Number(a.alvo || 0), Number(a.sucesso || 0) + Number(a.falha || 0));
     const feitos = Number(a.sucesso || 0);
     const pct = total ? Math.min(100, (feitos / total) * 100) : 0;
@@ -8871,7 +8947,8 @@ function aviRenderTabela() {
       + '</tr>';
   }).join('');
   tb.innerHTML = linhas
-    || '<tr><td style="color:#94A3B8;padding:18px">Nenhuma pauta enviada ainda. A primeira você escreve aqui em cima.</td></tr>';
+    || '<tr><td colspan="4"><div class="avi-vazio"><b>Nenhuma pauta concluída ainda.</b>'
+       + 'Quando uma pauta termina de percorrer a lista, ela vem parar aqui com o número de entregues.</div></td></tr>';
 }
 
 function aviRenderLista() {
@@ -8894,7 +8971,8 @@ function aviRenderLista() {
       + '</tr>';
   }).join('');
   tb.innerHTML = '<tr><th>Quem</th><th>Grupo</th><th>Último aviso</th><th></th><th></th></tr>'
-    + (linhas || '<tr><td style="color:#94A3B8;padding:18px">Ninguém na lista com esse filtro.</td></tr>');
+    + (linhas || '<tr><td colspan="5"><div class="avi-vazio"><b>Ninguém com esse filtro.</b>'
+       + 'Apague a busca pra ver a lista inteira.</div></td></tr>');
 }
 
 /** Tirar dos avisos é a MESMA marcação `sem_interesse` da aba Cadastros, de
