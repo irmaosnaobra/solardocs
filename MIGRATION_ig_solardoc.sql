@@ -1,0 +1,55 @@
+-- SolarDoc ganha automacao no Instagram. (17/09/2026)
+-- Projeto: gerador-propostas (ancecdfqfwlaujknizof). APLICADO E SONDADO.
+--
+-- Era o unico produto da casa sem automacao nenhuma. O anuncio 17948440398039503
+-- levou 16 comentarios e 11 ficaram SEM RESPOSTA, e eram leads de verdade:
+--   "Tenho interesse"  "Tem o contato"  "Ola gostaria de saber o valor"
+--   "Me chama no direct. Obrigado!"  "Tem CRM tambem?"  "Nao tem para IOS ?"
+-- A campanha esta parada desde 23/08, entao isto e a rede pronta pra quando ela
+-- voltar, nao um vazamento se fechando agora.
+--
+-- DUAS LINHAS, como no eletroposto, e pelo mesmo motivo: midia fixada NAO
+-- dispensa palavra-chave (escolher() confere as duas coisas), entao a linha do
+-- anuncio precisa de match_tipo qualquer.
+--   5b0da549  prioridade 5,  match qualquer,  midias [17948440398039503]
+--   015afe13  prioridade 35, match contem,   sem midia
+--
+-- PRIORIDADE 35, entre eletroposto (30) e solar (40): "solardoc" precisa ganhar
+-- de "solar", e a palavra "solar" NAO entra na lista, senao roubaria o lead de
+-- energia solar, que e outro produto e outro funil.
+--
+-- COPY: lidera com a PROPOSTA e com a planilha que ela mata, nao com o catalogo
+-- de 8 documentos. Medido em 19/08: a proposta e 78% do uso e 42% dos clientes
+-- nunca geraram outro documento. O preco vai no card porque "gostaria de saber o
+-- valor" foi o que as pessoas perguntaram. R$ 67 e o mensal real -- nunca
+-- escrever "R$ 47/mes", que e o anual dividido e ja fez gente desistir no checkout.
+--
+--   'Proposta solar pronta na hora, sem planilha' (43)
+--   'O gerador de proposta dos integradores. R$ 67 por mes.' (54)
+--   botao 'Ver os planos' -> solardoc.app
+--
+-- DE QUEBRA, UM FURO QUE ESTE COMMIT FECHOU ANTES DE ABRIR:
+-- a linha fixada do reel da BIKE estava com match_tipo contem, entao a fixacao
+-- nao segurava comentario fora da lista de palavras. Com "crm", "software" e
+-- "plataforma" entrando na lista do SolarDoc, um "plataforma" no reel da bike
+-- passaria a cair no SolarDoc. Provado antes de ligar, e corrigido:
+--   update ig_automations set match_tipo = 'qualquer', palavras_chave = '{}'
+--    where nome like '%Reel Bike Konnan%';
+-- Agora "plataforma", "crm", "Boke" e "Show" no reel da bike caem na bike.
+--
+-- SONDA:
+-- select nome, ativo, prioridade, match_tipo, midias, produto
+--   from ig_automations where produto = 'solardoc';
+-- Esperado: 2 linhas ativas, prioridades 5 e 35.
+--
+-- VOLTAR ATRAS:
+-- update ig_automations set ativo = false where produto = 'solardoc';
+-- update ig_automations set match_tipo = 'contem', palavras_chave = array[
+--   'quero','eu quero','tenho interesse','interesse','quanto custa','quanto fica',
+--   'preco','valor','orcamento','informacoes','como funciona','quero saber',
+--   'saber mais','me chama','disponivel','bike','bicicleta','konnan']
+--  where nome like '%Reel Bike Konnan%';
+--
+-- O QUE CONTINUA EM ABERTO: as perguntas daquele anuncio ("tem CRM?", "tem para
+-- iOS?") sao conversa, e um card com link responde so a do preco. A Carla do
+-- igIa existe e pode assumir esse comentario. Decisao do dono.
