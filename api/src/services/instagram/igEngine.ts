@@ -66,6 +66,9 @@ interface Automation {
   // Automação que serve MAIS DE UM produto (Menu, rede de segurança): em vez de
   // um `link_url`, uma lista de até 3 destinos. Ver welcomePayload.
   botoes?: { url: string; titulo: string }[] | null;
+  // Mais de três destinos não cabem num cartão: viram carrossel, um cartão por
+  // grupo. É o que faz o menu cobrir os seis produtos separados por público.
+  cartoes?: { titulo: string; subtitulo?: string; botoes: { url: string; titulo: string }[] }[] | null;
 }
 
 type Gatilho = 'comment' | 'story' | 'dm';
@@ -236,6 +239,22 @@ function welcomePayload(a: Automation): any {
   // pra pessoa DIGITAR "SOLAR", "ELETROPOSTO" ou "BIKE", que é um toque a mais,
   // e quem não responde nunca chega a lugar nenhum. Com os botões ela escolhe e
   // vai direto. A Meta aceita até 3 num card.
+  // Mais de três destinos: carrossel, um cartão por grupo. O `text` da automação
+  // não é usado aqui — cada cartão traz o próprio título, senão o primeiro ficaria
+  // com dois cabeçalhos e os outros sem nenhum.
+  const cartoes = (a.cartoes || [])
+    .map(c => ({ ...c, botoes: (c.botoes || []).filter(b => b && b.url && b.titulo) }))
+    .filter(c => c && c.titulo && c.botoes.length);
+  if (cartoes.length) {
+    return {
+      cards: cartoes.map(c => ({
+        title: c.titulo,
+        ...(c.subtitulo ? { subtitle: c.subtitulo } : {}),
+        buttons: c.botoes.slice(0, 3).map(b => ({ url: b.url, title: b.titulo })),
+      })),
+    };
+  }
+
   const lista = (a.botoes || []).filter(b => b && b.url && b.titulo);
   if (lista.length && text.length <= CARD_MAX) {
     return { text, buttons: lista.slice(0, 3).map(b => ({ url: b.url, title: b.titulo })) };
@@ -699,16 +718,19 @@ export async function drainIgQueue(): Promise<{ enviados: number; pulados: numbe
           // NÃO reenvia: o 500/code 1 da Meta já entregou mensagem antes, e o
           // reenvio é que colocou a mesma DM duas vezes no celular do lead.
           incerto = msg;
-        } else if (payload?.button?.url || payload?.buttons?.length) {
+        } else if (payload?.button?.url || payload?.buttons?.length || payload?.cards?.length) {
           // Card recusado de vez (falha real, então nada saiu — não duplica).
           // A pessoa não pode ficar sem o link só porque o card não passou.
           // Com vários destinos vão todos, um por linha e com o rótulo na frente:
           // uma pilha de URLs sem dizer qual é qual não ajuda ninguém.
-          const urls: string[] = payload.buttons?.length
-            ? payload.buttons.map((b: any) => `${b.title}: ${b.url}`)
-            : [payload.button.url];
+          const urls: string[] = payload.cards?.length
+            ? payload.cards.flatMap((c: any) => (c.buttons || []).map((b: any) => `${b.title}: ${b.url}`))
+            : payload.buttons?.length
+              ? payload.buttons.map((b: any) => `${b.title}: ${b.url}`)
+              : [payload.button.url];
           logger.error('ig', 'card com botão recusado, reenviando texto com o link', err);
-          resp = await enviar({ text: (payload.text || '') + '\n\n' + urls.join('\n') });
+          const cabeca = payload.text || 'Escolha por onde quer começar:';
+          resp = await enviar({ text: cabeca + '\n\n' + urls.join('\n') });
         } else {
           throw err;
         }

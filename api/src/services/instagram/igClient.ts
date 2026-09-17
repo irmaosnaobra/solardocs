@@ -136,8 +136,10 @@ export async function getMedia(igUserId: string, token: string): Promise<any[]> 
 // ── Envio de mensagens ───────────────────────────────────────────────────────
 type QuickReply = { title: string; payload?: string };
 type Botao = { url: string; title: string };
+/** Um cartão do carrossel: título, subtítulo e até 3 botões próprios. */
+type Cartao = { title: string; subtitle?: string; buttons: Botao[] };
 type MsgPayload = { text?: string; image?: { url: string };
-  button?: Botao; buttons?: Botao[]; quick_replies?: QuickReply[] };
+  button?: Botao; buttons?: Botao[]; cards?: Cartao[]; quick_replies?: QuickReply[] };
 
 /** Monta o corpo `message` da Meta. Exportada pra teste — é aqui que o card
  *  errado (template do Messenger) derrubava o envio. */
@@ -154,6 +156,26 @@ export function buildMessage(p: MsgPayload): any {
   if (p.image) {
     return { attachment: { type: 'image', payload: { url: p.image.url, is_reusable: true } } };
   }
+  // CARROSSEL. Três botões é o teto de UM cartão, não da mensagem: o generic
+  // aceita vários cartões lado a lado, cada um com os seus. É o que deixa o menu
+  // cobrir os seis produtos em vez de três, separados por público.
+  if (p.cards?.length) {
+    const elementos = p.cards
+      .map(c => ({ ...c, buttons: (c.buttons || []).filter(b => b && b.url && b.title).slice(0, 3) }))
+      .filter(c => c.title && c.buttons.length)
+      .slice(0, 10)                                   // teto da Meta por mensagem
+      .map(c => ({
+        title: c.title.slice(0, 80),
+        ...(c.subtitle ? { subtitle: c.subtitle.slice(0, 80) } : {}),
+        // Sem `default_action` de propósito, igual ao card de vários botões:
+        // tocar no cartão escolheria um produto pela pessoa.
+        buttons: c.buttons.map(b => ({ type: 'web_url', url: b.url, title: b.title.slice(0, 20) })),
+      }));
+    if (elementos.length) {
+      return { attachment: { type: 'template', payload: { template_type: 'generic', elements: elementos } } };
+    }
+  }
+
   // `buttons` (lista) atende a automação que serve MAIS DE UM produto: o Menu
   // não tem um destino, tem três. `button` (singular) continua valendo e vira
   // uma lista de um, então nenhuma automação precisou mudar por causa disto.
