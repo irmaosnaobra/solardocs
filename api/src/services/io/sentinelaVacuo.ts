@@ -283,7 +283,6 @@ export async function runSentinelaVacuo(opts: { dry?: boolean } = {}): Promise<V
   const silenciado = await carregarSilenciados();
 
   // 4. Contexto: produto da triagem e ficha do CRM, pra saber quem cobrar.
-  const chaves = esperando.map(e => e.tel);
   const [sessoesQ, leadsQ] = await Promise.all([
     supabase.from('whatsapp_sessions').select('phone, lead_data').eq('tipo', 'recepcao_io').limit(2000),
     supabase.from('sdr_leads').select('phone, nome, tipo, lead_origem').eq('instance', 'io').limit(2000),
@@ -299,7 +298,6 @@ export async function runSentinelaVacuo(opts: { dry?: boolean } = {}): Promise<V
     const k = chaveContato(String(l.phone || ''));
     if (k) leads.set(k, { tipo: l.tipo ?? null, lead_origem: l.lead_origem ?? null, nome: l.nome ?? null });
   }
-  void chaves;
 
   // 5. Nível de cobrança de cada um, pulando o que já foi cobrado.
   const marcadores = await supabase
