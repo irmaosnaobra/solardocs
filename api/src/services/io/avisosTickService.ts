@@ -174,6 +174,37 @@ async function contarEnvios(desdeIso: string): Promise<number> {
   return count ?? 0;
 }
 
+/**
+ * Os OUTROS dois motores de blast desta mesma linha (o de /admin/disparos e o da
+ * Central de Automação) não carimbam `system_state`: eles registram só nas
+ * tabelas de envio deles. Ou seja, o espaçamento da linha — que lê marcador — é
+ * CEGO pra eles. E eles mandam até 10 mensagens por tick.
+ *
+ * O lock de linha impede dois ticks ao mesmo tempo, mas é solto no fim de cada
+ * tick: sem esta checagem, um aviso poderia sair 1 segundo depois da décima
+ * mensagem de um disparo, que é exatamente a forma da rajada que derruba número.
+ *
+ * Hoje as duas tabelas estão zeradas (nenhuma campanha rodou ainda). Isto aqui é
+ * o que faz continuar valendo no dia em que voltarem a ser usadas.
+ *
+ * Fail-open, igual ao espaçamento da casa: erro de leitura não pode calar o
+ * canal pra sempre — quem segura o volume é o teto próprio, que é lido antes.
+ */
+async function blastMandouAgoraPouco(): Promise<boolean> {
+  const desde = new Date(Date.now() - ESPACO_BLAST_MS).toISOString();
+  const [ger, io] = await Promise.all([
+    supabaseGerador.from('gerador_broadcast_envios').select('id').gte('enviado_em', desde).limit(1),
+    supabase.from('io_broadcast_envios').select('id').gte('enviado_em', desde).limit(1),
+  ]);
+  if (ger.error) logger.error('avisos', 'não consegui olhar os envios do disparo do Gerador', ger.error);
+  if (io.error) logger.error('avisos', 'não consegui olhar os envios do disparo do admin', io.error);
+  return (ger.data?.length ?? 0) > 0 || (io.data?.length ?? 0) > 0;
+}
+
+/** Mesma base do espaçamento da linha (10 min), sem o jitter: aqui é só "alguém
+ *  acabou de blastar?", não a régua irregular que disfarça padrão de robô. */
+const ESPACO_BLAST_MS = 10 * 60 * 1000;
+
 export type AvisoTickResult = {
   enviados: number;
   aviso_id?: string;
@@ -235,6 +266,9 @@ async function tickInterno(dry: boolean): Promise<AvisoTickResult> {
   // Espaçamento: nada sai a menos de 10–15 min do último envio de QUALQUER robô.
   // É o que impede o aviso de colar num toque da Giovanna.
   if (!(await respeitaEspacamentoLinha())) return { enviados: 0, motivo: 'espacamento_linha' };
+  // E o espaçamento contra os dois motores de blast, que não aparecem no
+  // marcador (o porquê está na função).
+  if (await blastMandouAgoraPouco()) return { enviados: 0, motivo: 'blast_em_andamento' };
 
   // ── O aviso da vez ───────────────────────────────────────────────────────
   const { data: candidatos, error: errBusca } = await supabaseGerador

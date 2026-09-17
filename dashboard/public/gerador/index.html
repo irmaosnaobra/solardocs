@@ -8667,13 +8667,17 @@ function aviConta() {
   }
   const dias = Math.ceil(alvo / AVI_POR_DIA);
   const fora = (aviDados.contatos || []).filter(c => aviPublicos[c.lado] && String(c.status || '') === 'sem_interesse').length;
+  const naFila = (aviDados.avisos || []).filter(a => String(a.status || '') === 'rodando').length;
   el.innerHTML = '<b>' + alvo + ' ' + (alvo === 1 ? 'pessoa recebe' : 'pessoas recebem') + '</b> esta pauta, '
     + 'no ritmo de até ' + AVI_POR_DIA + ' por dia, entre 9h e 20h. '
     + 'Com a linha livre, a última recebe em <b>' + (dias === 1 ? 'menos de um dia' : 'cerca de ' + dias + ' dias') + '</b>, '
     + 'e leva mais tempo nos dias em que a agenda e os outros robôs usam bastante a linha. '
     + 'É devagar de propósito: é a mesma linha da Bia, da Giovanna e dos lembretes de agenda, e leva de mensagem é o que derruba número. '
     + 'Pra falar com alguém agora, use o botão do WhatsApp na lista aqui embaixo.'
-    + (fora ? '<br>' + fora + ' contato(s) de fora por estarem marcados como sem interesse.' : '');
+    + (fora ? '<br>' + fora + ' contato(s) de fora por estarem marcados como sem interesse.' : '')
+    // Duas pautas na fila dividem o MESMO teto do dia. Sem esta linha, a conta
+    // acima promete um prazo que só vale quando a fila está vazia.
+    + (naFila ? '<br>Já tem ' + naFila + ' pauta(s) andando. Elas dividem o mesmo teto do dia, então cada uma demora mais que a conta acima.' : '');
 }
 
 function aviMidiaLinha() {

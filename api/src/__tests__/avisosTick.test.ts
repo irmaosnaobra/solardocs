@@ -62,13 +62,28 @@ function fakeFrom(tabela: string) {
 }
 
 const upsertSpy = vi.fn(async () => ({ error: null }));
+// Banco MAIN: guarda o marcador da linha (upsert) e os envios do disparo do
+// /admin, que o tick consulta pra não sair logo depois de um blast.
+const dbMain: { io_broadcast_envios: Array<{ id: number; enviado_em: string }> } = { io_broadcast_envios: [] };
 vi.mock('../utils/supabase', () => ({
   supabase: {
-    from: () => ({
+    from: (tabela: string) => ({
       upsert: (...args: any[]) => {
         const p: any = upsertSpy(...(args as []));
         // O serviço encadeia .then(cb) no upsert pra logar erro de marcador.
         return { then: (res: any, rej: any) => p.then(res, rej) };
+      },
+      select: () => {
+        const q: any = {
+          _filtros: [] as Array<(r: any) => boolean>,
+          gte(col: string, val: any) { q._filtros.push((r: any) => String(r[col]) >= String(val)); return q; },
+          limit() { return q; },
+          then(res: any, rej: any) {
+            const linhas = ((dbMain as any)[tabela] || []).filter((r: any) => q._filtros.every((f: any) => f(r)));
+            return Promise.resolve({ data: linhas, error: null }).then(res, rej);
+          },
+        };
+        return q;
       },
     }),
   },
@@ -118,6 +133,7 @@ const contato = (tel: string, over: Partial<LinhaParceria> = {}): LinhaParceria 
 
 beforeEach(() => {
   db.avisos = []; db.aviso_envios = []; db.eletroposto_parceria = [];
+  dbMain.io_broadcast_envios = [];
   silenciados.clear();
   gates.janela = true; gates.espaco = true;
   enviarZapiIO.mockClear(); upsertSpy.mockClear();
@@ -264,6 +280,30 @@ describe('runAvisosTick — os freios', () => {
 
     expect(enviarZapiIO).not.toHaveBeenCalled();
     expect(r.motivo).toBe('fora_da_janela');
+  });
+
+  it('disparo em andamento segura o aviso, mesmo sem marcador na linha', async () => {
+    // Os motores de blast não carimbam system_state: se o tick olhasse só o
+    // marcador, um aviso sairia 1 segundo depois da décima mensagem de uma
+    // campanha, que é a forma exata da rajada que derruba número.
+    dbMain.io_broadcast_envios = [{ id: 1, enviado_em: new Date(Date.now() - 60_000).toISOString() }];
+    db.avisos = [avisoBase()];
+    db.eletroposto_parceria = [contato('5511960284351')];
+
+    const r = await runAvisosTick();
+
+    expect(enviarZapiIO).not.toHaveBeenCalled();
+    expect(r.motivo).toBe('blast_em_andamento');
+  });
+
+  it('disparo de ontem não segura nada', async () => {
+    dbMain.io_broadcast_envios = [{ id: 1, enviado_em: new Date(Date.now() - 26 * 3600_000).toISOString() }];
+    db.avisos = [avisoBase()];
+    db.eletroposto_parceria = [contato('5511960284351')];
+
+    await runAvisosTick();
+
+    expect(enviarZapiIO).toHaveBeenCalledTimes(1);
   });
 
   it('espaçamento da linha (outro robô acabou de mandar) segura o aviso', async () => {
