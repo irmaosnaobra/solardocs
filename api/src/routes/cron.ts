@@ -1205,12 +1205,16 @@ router.get('/io-broadcast-tick', async (req: Request, res: Response) => {
     // Porque esta rota é o ÚNICO ping de 1 minuto que existe de verdade: quem
     // chama é o Cloudflare Worker (`crons = ["* * * * *"]`).
     //
-    // O agendamento do GitHub Actions MENTE. O workflow diz `*/5 * * * *`, mas
-    // as execuções reais de 17/09 foram 10:26, 15:11, 19:02 e 22:05 UTC — de 3
-    // em 3 horas. O mesmo vale pro cron mestre "de hora em hora" (07:16, 13:06,
-    // 17:57, 21:14). Com essa cadência, uma pauta de 66 investidores levaria
-    // semanas em vez dos ~4 dias que a tela promete, e a sentinela cobraria uma
-    // conversa parada meio dia depois do combinado.
+    // O agendamento do GitHub Actions MENTE, e a prova precisa ser grande pra
+    // não parecer azar de amostra: as 30 execuções mais recentes do
+    // `process-messages.yml` cobrem de 13/09 06:16 a 17/09 22:05 UTC. São 4 dias
+    // e meio, uma a cada ~3h50. Se o `*/5 * * * *` do arquivo valesse, essas
+    // mesmas 30 execuções caberiam em 2h30. O cron mestre "de hora em hora" vai
+    // pelo mesmo caminho (17/09: 07:16, 13:06, 17:57, 21:14 UTC).
+    //
+    // Com essa cadência, uma pauta de 66 investidores levaria semanas em vez dos
+    // ~4 dias que a tela promete, e a sentinela cobraria uma conversa parada meio
+    // dia depois do combinado.
     //
     // Os dois vêm ANTES do disparo de propósito: são curtos e saem cedo (janela,
     // espaçamento, teto, represa de 20 min da sentinela), enquanto o disparo em
