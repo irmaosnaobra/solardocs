@@ -376,7 +376,12 @@ describe('recepção da linha IO', () => {
 });
 
 describe('triagem abandonada', () => {
-  it('parada há mais de 2h vai pro humano, e só uma vez', async () => {
+  // Ordem do Thiago (17/09/2026): o aviso da triagem abandonada parou. Quem
+  // escreveu e sumiu não toca mais o celular de ninguém. O que NÃO pode parar é
+  // o registro: a sessão fecha e a pessoa vai para a lista de quem atende. Este
+  // teste existe pra separar as duas coisas — se um dia alguém "limpar" a função
+  // inteira, a pessoa some do sistema e ninguém percebe.
+  it('parada há mais de 2h é entregue e registrada, mas NÃO avisa', async () => {
     const { handleRecepcaoIo, entregarTriagensParadas } = await carregar();
 
     respostaIA = jsonIA('Bom dia! O que você precisa?');
@@ -388,15 +393,38 @@ describe('triagem abandonada', () => {
     sessoes[k].updated_at = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
 
     const r1 = await entregarTriagensParadas();
-    expect(r1.entregues).toBe(1);
-    expect(avisosInternos).toHaveLength(1);
-    expect(avisosInternos[0].texto).toContain('parou de responder');
+    expect(r1.entregues).toBe(1);          // fechou e registrou
+    expect(avisosInternos).toHaveLength(0); // e não buzinou
 
-    // Segunda varredura não pode repetir a ficha pro consultor.
+    // Segunda varredura continua não repetindo a entrega.
     sessoes[k].updated_at = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
     const r2 = await entregarTriagensParadas();
     expect(r2.entregues).toBe(0);
-    expect(avisosInternos).toHaveLength(1);
+    expect(avisosInternos).toHaveLength(0);
+  });
+
+  // O caminho de volta é variável de ambiente, não deploy. Foi constante escrita
+  // no arquivo que deixou os lembretes da agenda de solar mudos por 50 dias sem
+  // ninguém notar, e este teste é o que prova que a chave religa de verdade.
+  it('RECEPCAO_IO_AVISO_PARADA=1 traz o aviso de volta', async () => {
+    const antes = process.env.RECEPCAO_IO_AVISO_PARADA;
+    process.env.RECEPCAO_IO_AVISO_PARADA = '1';
+    try {
+      const { handleRecepcaoIo, entregarTriagensParadas } = await carregar();
+      respostaIA = jsonIA('Bom dia! O que você precisa?');
+      await handleRecepcaoIo(LEAD, 'Boa tarde');
+
+      const k = chaveSessao(LEAD, 'recepcao_io');
+      sessoes[k].updated_at = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+
+      const r = await entregarTriagensParadas();
+      expect(r.entregues).toBe(1);
+      expect(avisosInternos).toHaveLength(1);
+      expect(avisosInternos[0].texto).toContain('parou de responder');
+    } finally {
+      if (antes === undefined) delete process.env.RECEPCAO_IO_AVISO_PARADA;
+      else process.env.RECEPCAO_IO_AVISO_PARADA = antes;
+    }
   });
 
   it('não mexe em conversa que ainda está fresca', async () => {

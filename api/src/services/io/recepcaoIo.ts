@@ -570,7 +570,23 @@ export async function entregarTriagensParadas(minutos = 120): Promise<{ entregue
         ...lead, estado: 'entregue', produto, motivo, entregue_em: new Date().toISOString(),
       });
       await registrarLead(phone, s.nome || null, produto, motivo, String(primeira));
-      await avisarConsultor(phone, s.nome || null, produto, motivo, String(primeira));
+      // TRIAGEM PARADA NÃO TOCA MAIS O CELULAR (17/09/2026, ordem do Thiago).
+      //
+      // Quem escreveu "bom dia" e sumiu no meio da triagem não é notícia: é gente
+      // que talvez nem queira falar. O aviso dela chegava com "Não identificado" e
+      // sem nada para agir, no mesmo formato do lead triado de verdade, e por isso
+      // gastava a atenção que o aviso bom precisa.
+      //
+      // NADA SE PERDE. As duas linhas acima continuam: a sessão fecha e o lead vai
+      // para `sdr_leads` com a tag do produto, a última mensagem e human_takeover,
+      // então ele está na lista de quem atende, só não buzina.
+      //
+      // Para voltar atrás: `RECEPCAO_IO_AVISO_PARADA=1` na Vercel, sem deploy. É
+      // env de propósito, e não constante no arquivo — foi constante hardcoded que
+      // deixou os lembretes da agenda de solar mudos desde 28/07 sem ninguém ver.
+      if ((process.env.RECEPCAO_IO_AVISO_PARADA || '').trim() === '1') {
+        await avisarConsultor(phone, s.nome || null, produto, motivo, String(primeira));
+      }
       entregues++;
     } catch (err) {
       logger.error('recepcao-io', `entrega da triagem parada de ${phone} falhou`, err);
