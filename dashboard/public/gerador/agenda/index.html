@@ -227,7 +227,8 @@
   .slot.status-arrendamento .hora-exata,
   .slot.status-carregador .hora-exata,
   .slot.status-meio_a_meio .hora-exata,
-  .slot.status-chave_na_mao .hora-exata { background: rgba(31,41,55,.16); color: #1f2937; }
+  .slot.status-chave_na_mao .hora-exata,
+  .slot.status-perdido .hora-exata { background: rgba(31,41,55,.16); color: #1f2937; }
   .slot.ocupado .cidade {
     font-size: 10px;
     opacity: .8;
@@ -293,7 +294,7 @@
   .slot.status-carregador        { background: #CBAE86; color: #1f2937; }
   .slot.status-meio_a_meio       { background: #F2DE8B; color: #1f2937; }
   .slot.status-chave_na_mao      { background: #D9A93A; color: #1f2937; }
-  .slot.status-perdido           { background: #4b5563; color: #fff; }
+  .slot.status-perdido           { background: #f87171; color: #1f2937; }
   /* As mesmas cores dentro do quadro dividido: a metade é que recebe o status,
      não o slot. Sem isto as duas ficariam azuis, mentindo o status de uma delas. */
   .slot.dividido .meia.status-agendado          { background: #0d2d5e; color: #fff; }
@@ -310,7 +311,7 @@
   .slot.dividido .meia.status-carregador        { background: #CBAE86; color: #1f2937; }
   .slot.dividido .meia.status-meio_a_meio       { background: #F2DE8B; color: #1f2937; }
   .slot.dividido .meia.status-chave_na_mao      { background: #D9A93A; color: #1f2937; }
-  .slot.dividido .meia.status-perdido           { background: #4b5563; color: #fff; }
+  .slot.dividido .meia.status-perdido           { background: #f87171; color: #1f2937; }
   /* ── SILÊNCIO DO LEAD (ordem do Thiago, 19/08/2026) ──────────────────────────
      "O lead do horário que não responder a primeira msg fica em amarelo."
 
@@ -377,12 +378,14 @@
   .slot.status-arrendamento .ok-btn,
   .slot.status-carregador .ok-btn,
   .slot.status-meio_a_meio .ok-btn,
-  .slot.status-chave_na_mao .ok-btn { background: rgba(31,41,55,.14); color: #1f2937; }
+  .slot.status-chave_na_mao .ok-btn,
+  .slot.status-perdido .ok-btn { background: rgba(31,41,55,.14); color: #1f2937; }
   .slot.status-fez_orcamento .ok-btn:hover,
   .slot.status-arrendamento .ok-btn:hover,
   .slot.status-carregador .ok-btn:hover,
   .slot.status-meio_a_meio .ok-btn:hover,
-  .slot.status-chave_na_mao .ok-btn:hover { background: rgba(31,41,55,.28); color: #1f2937; }
+  .slot.status-chave_na_mao .ok-btn:hover,
+  .slot.status-perdido .ok-btn:hover { background: rgba(31,41,55,.28); color: #1f2937; }
   /* No quadro dividido não cabe frase: vira só o ✓ */
   .slot.dividido .ok-btn { font-size: 9px; padding: 2px 4px; margin-top: 3px; }
 
@@ -775,7 +778,7 @@
   .btn-status.bg-cr { background: #CBAE86; color: #1f2937; }
   .btn-status.bg-mm { background: #F2DE8B; color: #1f2937; }
   .btn-status.bg-ch { background: #D9A93A; color: #1f2937; }
-  .btn-status.bg-pe { background: #4b5563; }
+  .btn-status.bg-pe { background: #f87171; color: #1f2937; }
   .btn-status.bg-pa { background: #0ea5e9; }
   .prop-atual { font-size: 12px; color: #0369a1; margin-top: 8px; line-height: 1.4; }
   html[data-theme="dark"] .prop-atual { color: #7DD3FC; }
@@ -947,7 +950,7 @@
   html[data-theme="dark"] .slot.status-carregador        { background: #CBAE86; color: #1f2937; }
   html[data-theme="dark"] .slot.status-meio_a_meio       { background: #F2DE8B; color: #1f2937; }
   html[data-theme="dark"] .slot.status-chave_na_mao      { background: #D9A93A; color: #1f2937; }
-  html[data-theme="dark"] .slot.status-perdido           { background: #4b5563; color: #fff; }
+  html[data-theme="dark"] .slot.status-perdido           { background: #f87171; color: #1f2937; }
   html[data-theme="dark"] .slot.bloqueado {
     background: repeating-linear-gradient(45deg, #6b7280, #6b7280 6px, #525c6a 6px, #525c6a 12px);
     color: #fff;
