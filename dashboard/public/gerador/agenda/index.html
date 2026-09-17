@@ -225,7 +225,9 @@
      claro. Ele carrega a hora real da reuniao, entao nao pode sumir. */
   .slot.status-fez_orcamento .hora-exata,
   .slot.status-arrendamento .hora-exata,
-  .slot.status-carregador .hora-exata { background: rgba(31,41,55,.16); color: #1f2937; }
+  .slot.status-carregador .hora-exata,
+  .slot.status-meio_a_meio .hora-exata,
+  .slot.status-chave_na_mao .hora-exata { background: rgba(31,41,55,.16); color: #1f2937; }
   .slot.ocupado .cidade {
     font-size: 10px;
     opacity: .8;
@@ -281,14 +283,16 @@
   .slot.status-em_atendimento    { background: #7c3aed; color: #fff; }
   .slot.status-proposta_apresentada { background: #0ea5e9; color: #fff; }
   .slot.status-fechou_concorrente{ background: #374151; color: #fff; }
-  /* OS QUATRO MODELOS DO ELETROPOSTO — uma escala de BEGE, do claro ao escuro,
-     na ordem em que o dono fala deles: arrendamento, carregador, 50/50 e chave
-     na mao. O texto acompanha o degrau (bege claro pede texto escuro). Modelo
-     novo nao inventa cor: pega o proximo degrau da escala. */
+  /* OS QUATRO MODELOS DO ELETROPOSTO — uma escala quente, na ordem em que o dono
+     fala deles: bege (arrendamento), bege mais escuro (carregador), amarelo claro
+     (50/50) e amarelo medio (chave na mao). Os quatro sao CLAROS, entao todos
+     levam texto escuro — e todos precisam das regras de fundo claro la embaixo
+     (ok-btn e hora-exata), senao o branco translucido some no card. Modelo novo
+     nao inventa cor: pega o proximo degrau da escala. */
   .slot.status-arrendamento      { background: #EADBC0; color: #1f2937; }
   .slot.status-carregador        { background: #CBAE86; color: #1f2937; }
-  .slot.status-meio_a_meio       { background: #8B6B45; color: #fff; }
-  .slot.status-chave_na_mao      { background: #5B4126; color: #fff; }
+  .slot.status-meio_a_meio       { background: #F2DE8B; color: #1f2937; }
+  .slot.status-chave_na_mao      { background: #D9A93A; color: #1f2937; }
   .slot.status-perdido           { background: #4b5563; color: #fff; }
   /* As mesmas cores dentro do quadro dividido: a metade é que recebe o status,
      não o slot. Sem isto as duas ficariam azuis, mentindo o status de uma delas. */
@@ -304,8 +308,8 @@
   .slot.dividido .meia.status-fechou_concorrente{ background: #374151; color: #fff; }
   .slot.dividido .meia.status-arrendamento      { background: #EADBC0; color: #1f2937; }
   .slot.dividido .meia.status-carregador        { background: #CBAE86; color: #1f2937; }
-  .slot.dividido .meia.status-meio_a_meio       { background: #8B6B45; color: #fff; }
-  .slot.dividido .meia.status-chave_na_mao      { background: #5B4126; color: #fff; }
+  .slot.dividido .meia.status-meio_a_meio       { background: #F2DE8B; color: #1f2937; }
+  .slot.dividido .meia.status-chave_na_mao      { background: #D9A93A; color: #1f2937; }
   .slot.dividido .meia.status-perdido           { background: #4b5563; color: #fff; }
   /* ── SILÊNCIO DO LEAD (ordem do Thiago, 19/08/2026) ──────────────────────────
      "O lead do horário que não responder a primeira msg fica em amarelo."
@@ -371,10 +375,14 @@
      e carregador), que sao claros de proposito. */
   .slot.status-fez_orcamento .ok-btn,
   .slot.status-arrendamento .ok-btn,
-  .slot.status-carregador .ok-btn { background: rgba(31,41,55,.14); color: #1f2937; }
+  .slot.status-carregador .ok-btn,
+  .slot.status-meio_a_meio .ok-btn,
+  .slot.status-chave_na_mao .ok-btn { background: rgba(31,41,55,.14); color: #1f2937; }
   .slot.status-fez_orcamento .ok-btn:hover,
   .slot.status-arrendamento .ok-btn:hover,
-  .slot.status-carregador .ok-btn:hover { background: rgba(31,41,55,.28); color: #1f2937; }
+  .slot.status-carregador .ok-btn:hover,
+  .slot.status-meio_a_meio .ok-btn:hover,
+  .slot.status-chave_na_mao .ok-btn:hover { background: rgba(31,41,55,.28); color: #1f2937; }
   /* No quadro dividido não cabe frase: vira só o ✓ */
   .slot.dividido .ok-btn { font-size: 9px; padding: 2px 4px; margin-top: 3px; }
 
@@ -765,8 +773,8 @@
   .btn-status.bg-em { background: #7c3aed; }
   .btn-status.bg-ar { background: #EADBC0; color: #1f2937; }
   .btn-status.bg-cr { background: #CBAE86; color: #1f2937; }
-  .btn-status.bg-mm { background: #8B6B45; color: #fff; }
-  .btn-status.bg-ch { background: #5B4126; color: #fff; }
+  .btn-status.bg-mm { background: #F2DE8B; color: #1f2937; }
+  .btn-status.bg-ch { background: #D9A93A; color: #1f2937; }
   .btn-status.bg-pe { background: #4b5563; }
   .btn-status.bg-pa { background: #0ea5e9; }
   .prop-atual { font-size: 12px; color: #0369a1; margin-top: 8px; line-height: 1.4; }
@@ -937,8 +945,8 @@
   html[data-theme="dark"] .slot.status-fechou_concorrente{ background: #374151; color: #fff; }
   html[data-theme="dark"] .slot.status-arrendamento      { background: #EADBC0; color: #1f2937; }
   html[data-theme="dark"] .slot.status-carregador        { background: #CBAE86; color: #1f2937; }
-  html[data-theme="dark"] .slot.status-meio_a_meio       { background: #8B6B45; color: #fff; }
-  html[data-theme="dark"] .slot.status-chave_na_mao      { background: #5B4126; color: #fff; }
+  html[data-theme="dark"] .slot.status-meio_a_meio       { background: #F2DE8B; color: #1f2937; }
+  html[data-theme="dark"] .slot.status-chave_na_mao      { background: #D9A93A; color: #1f2937; }
   html[data-theme="dark"] .slot.status-perdido           { background: #4b5563; color: #fff; }
   html[data-theme="dark"] .slot.bloqueado {
     background: repeating-linear-gradient(45deg, #6b7280, #6b7280 6px, #525c6a 6px, #525c6a 12px);
