@@ -3917,6 +3917,9 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
       <div class="card">
         <div class="eletro-sec-title">3. Avisos que já foram <button type="button" class="ehist-btn" style="float:right" onclick="aviCarregar(true)">↻ Atualizar</button></div>
+        <!-- Por que a fila não anda, em português. Fila que para calada parece
+             quebrada, e a resposta quase sempre é uma das travas da linha. -->
+        <div class="avi-dica" id="avi-fila-status" style="margin:0 0 12px">Conferindo a fila…</div>
         <div class="eletro-cmp-scroll"><table class="eletro-cmp avitab" id="avi-tabela">
           <tbody><tr><td style="color:#94A3B8;padding:18px">Carregando…</td></tr></tbody>
         </table></div>
@@ -8580,8 +8583,42 @@ async function aviCarregar(forcar) {
     });
     aviDados = { contatos: contatos || [], avisos: avisos || [], ultimoPorFone };
     aviRender();
+    aviStatusFila();
   } catch (e) {
     document.getElementById('avi-conta').textContent = 'Não consegui ler a base: ' + (e.message || e);
+  }
+}
+
+// Por que a fila está parada, dito em português. O servidor responde em código
+// (`motivo`) e quem traduz é aqui: a pessoa que abre esta tela não tem que saber
+// o que é "espacamento_linha" pra entender que a fila está esperando a vez.
+const AVI_MOTIVO = {
+  desligado: 'Os avisos estão desligados no servidor. Nenhuma pauta anda enquanto isso.',
+  fora_da_janela: 'Fora do horário de envio. A fila anda de 9h às 20h, e não sai nada no domingo.',
+  linha_ocupada_outro_motor: 'A linha está ocupada com outro disparo agora. Volta a andar em minutos.',
+  teto_hora_avisos: 'Teto desta hora atingido. Volta a andar na próxima hora.',
+  teto_dia_avisos: 'Teto do dia atingido. A fila continua amanhã de manhã.',
+  espacamento_linha: 'Outro robô da linha mandou mensagem faz pouco. A fila espera de 10 a 15 minutos entre uma mensagem e outra, que é o que evita bloqueio.',
+  nada_rodando: 'Nenhuma pauta na fila. Escreva uma aqui em cima.',
+  passaria_agora: 'Fila andando. O próximo envio sai no próximo tique, de 5 em 5 minutos.',
+  aguardando_piso_de_dias: 'Todo mundo que falta já recebeu outra pauta faz pouco tempo. A fila retoma quando passar o intervalo mínimo.',
+  todos_receberam: 'Todo mundo já recebeu a pauta atual.',
+  sem_publico: 'A pauta da vez ficou sem grupo. Refaça escolhendo pelo menos um.',
+};
+
+/** Pergunta ao servidor por que a fila está parada. É o tick em modo seco: anda
+ *  o caminho inteiro e para ANTES de enviar, então consultar não gasta mensagem. */
+async function aviStatusFila() {
+  const el = document.getElementById('avi-fila-status');
+  if (!el) return;
+  try {
+    const r = await fetch('/_api/gerador/avisos/kick?dry=1', { method: 'POST' });
+    const j = await r.json();
+    const base = AVI_MOTIVO[j.motivo] || ('Estado da fila: ' + (j.motivo || 'desconhecido') + '.');
+    el.innerHTML = '<b>Fila:</b> ' + base
+      + (j.restantes ? ' Faltam <b>' + j.restantes + '</b> pessoa(s) na pauta atual.' : '');
+  } catch (e) {
+    el.textContent = 'Não consegui falar com o servidor pra saber como está a fila.';
   }
 }
 
@@ -8632,7 +8669,8 @@ function aviConta() {
   const fora = (aviDados.contatos || []).filter(c => aviPublicos[c.lado] && String(c.status || '') === 'sem_interesse').length;
   el.innerHTML = '<b>' + alvo + ' ' + (alvo === 1 ? 'pessoa recebe' : 'pessoas recebem') + '</b> esta pauta, '
     + 'no ritmo de até ' + AVI_POR_DIA + ' por dia, entre 9h e 20h. '
-    + 'A última recebe em <b>' + (dias === 1 ? 'menos de um dia' : 'cerca de ' + dias + ' dias') + '</b>. '
+    + 'Com a linha livre, a última recebe em <b>' + (dias === 1 ? 'menos de um dia' : 'cerca de ' + dias + ' dias') + '</b>, '
+    + 'e leva mais tempo nos dias em que a agenda e os outros robôs usam bastante a linha. '
     + 'É devagar de propósito: é a mesma linha da Bia, da Giovanna e dos lembretes de agenda, e leva de mensagem é o que derruba número. '
     + 'Pra falar com alguém agora, use o botão do WhatsApp na lista aqui embaixo.'
     + (fora ? '<br>' + fora + ' contato(s) de fora por estarem marcados como sem interesse.' : '');

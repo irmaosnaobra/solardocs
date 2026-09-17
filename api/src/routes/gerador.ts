@@ -89,9 +89,12 @@ router.post('/automacao/kick', async (_req: Request, res: Response) => {
 // todas as travas do motor (janela diurna, espaçamento e teto da linha,
 // supressão, piso de dias, kill-switch AVISOS_OFF). No pior caso faz o que o
 // cron faria daqui a pouco, então não precisa de auth própria.
-router.post('/avisos/kick', async (_req: Request, res: Response) => {
+router.post('/avisos/kick', async (req: Request, res: Response) => {
   try {
-    res.json({ ok: true, ...(await runAvisosTick()) });
+    // ?dry=1 é o que a tela usa pra dizer POR QUE a fila não anda (fora da
+    // janela, outro robô acabou de mandar, teto do dia). Anda o caminho inteiro
+    // e para antes de enviar, então serve de status sem gastar mensagem.
+    res.json({ ok: true, ...(await runAvisosTick({ dry: req.query.dry === '1' })) });
   } catch (err: any) {
     logger.error('gerador', 'avisos/kick falhou', err);
     res.status(500).json({ error: 'falha', detail: String(err?.message || err) });

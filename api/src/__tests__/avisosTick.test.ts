@@ -94,10 +94,12 @@ vi.mock('../services/agents/whatsapp/silenciar', async (importOriginal) => {
   };
 });
 
-const gates = { janela: true, teto: true, espaco: true };
+// O teto COMPARTILHADO da linha não entra aqui de propósito (vive estourado
+// pelos agentes com piso próprio; a medição está no serviço). O que vale pro
+// aviso é a janela, o espaçamento da linha e o teto próprio dele.
+const gates = { janela: true, espaco: true };
 vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
   dentroDaJanelaDiurna: () => gates.janela,
-  dentroDoTetoHorarioLinha: async () => gates.teto,
   respeitaEspacamentoLinha: async () => gates.espaco,
 }));
 
@@ -117,7 +119,7 @@ const contato = (tel: string, over: Partial<LinhaParceria> = {}): LinhaParceria 
 beforeEach(() => {
   db.avisos = []; db.aviso_envios = []; db.eletroposto_parceria = [];
   silenciados.clear();
-  gates.janela = true; gates.teto = true; gates.espaco = true;
+  gates.janela = true; gates.espaco = true;
   enviarZapiIO.mockClear(); upsertSpy.mockClear();
   delete process.env.AVISOS_OFF;
   delete process.env.AVISOS_TETO_DIA;

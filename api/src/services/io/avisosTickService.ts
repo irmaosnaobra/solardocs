@@ -27,8 +27,8 @@
 //   • UM envio por tick (o tick roda de 5 em 5 min) — não existe laço de rajada;
 //   • espaçamento da LINHA (10–15 min desde o último envio de QUALQUER robô);
 //   • janela diurna 9h–20h, sem domingo, a mesma de todo mundo;
-//   • teto anti-ban da linha (o compartilhado) + teto próprio, menor, por hora e
-//     por dia, pro aviso não comer sozinho o orçamento dos outros robôs;
+//   • teto próprio por hora e por dia (o compartilhado não serve aqui: veja a
+//     medição no comentário lá embaixo, ele vive estourado e travaria tudo);
 //   • marcador `aviso_sent:` em system_state — está registrado em
 //     BOT_SENT_PREFIXES, então o aviso ENTRA na conta dos outros robôs e eles
 //     recuam. Sem isso um "bom dia" da Giovanna sairia 10s depois de um aviso.
@@ -44,7 +44,7 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { MediaType, enviarZapiIO, adquirirLockBlast, liberarLockBlast } from './ioSend';
 import { carregarSilenciados, chaveContato } from '../agents/whatsapp/silenciar';
-import { dentroDaJanelaDiurna, dentroDoTetoHorarioLinha, respeitaEspacamentoLinha } from '../agents/whatsapp/lineThrottle';
+import { dentroDaJanelaDiurna, respeitaEspacamentoLinha } from '../agents/whatsapp/lineThrottle';
 
 /** Os três lados que a tela chama de Arrendamento, Investidores e Parceiros. */
 export const LADOS_AVISO = ['ponto', 'capital', 'integrador'] as const;
@@ -217,11 +217,23 @@ async function tickInterno(dry: boolean): Promise<AvisoTickResult> {
   const noDia = await contarEnvios(inicioDoDiaBr());
   if (noDia >= tetoDia()) return { enviados: 0, motivo: 'teto_dia_avisos' };
 
-  // Teto da LINHA (somando todos os robôs). O aviso é frio pra essa conta: não
-  // encosta na reserva que existe pra quem está esperando resposta.
-  if (!(await dentroDoTetoHorarioLinha())) return { enviados: 0, motivo: 'teto_linha' };
-  // Espaçamento da linha: nada sai a menos de 10–15 min do último envio de
-  // QUALQUER robô. É o que impede o aviso de colar num toque da Giovanna.
+  // ── POR QUE O TETO COMPARTILHADO DA LINHA NÃO É CONSULTADO AQUI ──────────
+  // Medido em 17/09/2026, antes de escrever esta linha: a linha produziu 120
+  // marcadores em 24h (68 do agendamento do eletroposto, 50 dos toques do dia da
+  // Giovanna, o resto pingado). O teto frio compartilhado é 30/dia. Ou seja: ele
+  // vive estourado pelos agentes que têm piso próprio, e qualquer chamador novo
+  // que o consultasse ficaria bloqueado PARA SEMPRE — o aviso nunca sairia, e o
+  // jeito de descobrir isso seria alguém perguntar por que a pauta não chegou.
+  //
+  // Então o aviso segue o regime dos outros dois motores de blast desta mesma
+  // linha (admin e Central de Automação): operador-iniciado, com teto PRÓPRIO,
+  // menor, conferido logo acima. O que o mantém preso à realidade da linha é o
+  // espaçamento abaixo, que é o freio que de fato evita ban — e o marcador
+  // `aviso_sent:` em BOT_SENT_PREFIXES, que faz os OUTROS robôs recuarem depois
+  // de um aviso.
+  //
+  // Espaçamento: nada sai a menos de 10–15 min do último envio de QUALQUER robô.
+  // É o que impede o aviso de colar num toque da Giovanna.
   if (!(await respeitaEspacamentoLinha())) return { enviados: 0, motivo: 'espacamento_linha' };
 
   // ── O aviso da vez ───────────────────────────────────────────────────────
