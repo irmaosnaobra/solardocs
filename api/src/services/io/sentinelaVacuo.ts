@@ -97,6 +97,22 @@ const JANELA_FIM_H    = Number(process.env.VACUO_FIM_H || 20);
 /** Kill-switch. VACUO_OFF=1 cala a sentinela sem deploy. */
 const desligada = (): boolean => (process.env.VACUO_OFF || '').trim() === '1';
 
+/**
+ * Dá pra cobrar AGORA? O cron mestre roda de hora em hora, 24 horas por dia, e
+ * "profissional" não combina com resumo de cobrança chegando 3h da manhã no
+ * celular da Giovanna. A espera continua sendo medida o tempo todo; o que espera
+ * o expediente é o RECADO.
+ *
+ * O modo seco ignora esta janela de propósito: conferir o que ela faria é uma
+ * pergunta, não um envio.
+ */
+export function dentroDoExpediente(agora: Date = new Date()): boolean {
+  const b = brt(agora);
+  if (b.getUTCDay() === 0) return false;                       // domingo ninguém cobra ninguém
+  const h = b.getUTCHours();
+  return h >= JANELA_INICIO_H && h < JANELA_FIM_H;
+}
+
 /** Instante em horário de Brasília, como Date em UTC deslocado (o servidor roda em UTC). */
 const brt = (d: Date): Date => new Date(d.getTime() - 3 * 60 * 60 * 1000);
 
@@ -212,6 +228,9 @@ export interface VacuoResult {
 export async function runSentinelaVacuo(opts: { dry?: boolean } = {}): Promise<VacuoResult> {
   const dry = !!opts.dry;
   if (desligada()) return { paradas: 0, cobrancas: 0, avisados: [], motivo: 'desligada' };
+  if (!dry && !dentroDoExpediente()) {
+    return { paradas: 0, cobrancas: 0, avisados: [], motivo: 'fora_do_expediente' };
+  }
 
   const agora = new Date();
   const desde = new Date(Date.now() - 7 * 86400_000).toISOString();

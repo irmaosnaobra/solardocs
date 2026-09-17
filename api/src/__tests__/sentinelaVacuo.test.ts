@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // A sentinela cobra GENTE, não cliente. O erro caro aqui não é mandar mensagem
@@ -57,7 +57,7 @@ vi.mock('../services/agents/whatsapp/silenciar', async (importOriginal) => {
   return { ...real, carregarSilenciados: vi.fn(async () => (p: string) => silenciados.has(real.chaveContato(p) || '')) };
 });
 
-import { runSentinelaVacuo, horasUteisEntre, montarResumo } from '../services/io/sentinelaVacuo';
+import { runSentinelaVacuo, horasUteisEntre, montarResumo, dentroDoExpediente } from '../services/io/sentinelaVacuo';
 
 const INST = '3F26F6ECE67D72BB7FCA6244BF24326C';
 const msg = (tel: string, from_me: boolean, quandoMs: number, texto = 'oi, queria um orçamento'): Msg => ({
@@ -70,7 +70,13 @@ beforeEach(() => {
   enviados.length = 0; silenciados.clear();
   process.env.ZAPI_INSTANCE_ID_IO = INST;
   delete process.env.VACUO_OFF;
+  // Relógio preso numa quarta-feira às 14h de Brasília. Sem isto o teste passaria
+  // de dia e falharia de madrugada — a sentinela só cobra em expediente, e teste
+  // que depende da hora da máquina é teste que vermelha sozinho às 3 da manhã.
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.setSystemTime(new Date('2026-09-16T17:00:00Z'));
 });
+afterEach(() => { vi.useRealTimers(); });
 
 describe('horasUteisEntre', () => {
   it('não conta a madrugada: 19h50 até 9h do dia seguinte é pouco mais de 10 minutos', () => {
@@ -189,5 +195,39 @@ describe('montarResumo', () => {
     expect(txt).toContain('4h');
     expect(txt).toContain('wa.me/5534999990010');
     expect(txt).toContain('queria saber o preço');
+  });
+});
+
+describe('dentroDoExpediente', () => {
+  it('quarta às 14h de Brasília: pode cobrar', () => {
+    expect(dentroDoExpediente(new Date('2026-09-16T17:00:00Z'))).toBe(true);
+  });
+
+  it('3h da manhã: não cobra ninguém', () => {
+    expect(dentroDoExpediente(new Date('2026-09-16T06:00:00Z'))).toBe(false);
+  });
+
+  it('domingo não cobra nem no meio da tarde', () => {
+    expect(dentroDoExpediente(new Date('2026-09-13T17:00:00Z'))).toBe(false);
+  });
+
+  it('o cron das 3h não manda recado: devolve fora_do_expediente', async () => {
+    vi.setSystemTime(new Date('2026-09-16T06:00:00Z'));
+    db.wa = [msg('5534999990011', false, Date.parse('2026-09-15T17:00:00Z'))];
+
+    const r = await runSentinelaVacuo();
+
+    expect(r.motivo).toBe('fora_do_expediente');
+    expect(enviados).toHaveLength(0);
+  });
+
+  it('o modo seco responde a qualquer hora — perguntar não é enviar', async () => {
+    vi.setSystemTime(new Date('2026-09-16T06:00:00Z'));
+    db.wa = [msg('5534999990012', false, Date.parse('2026-09-15T17:00:00Z'))];
+
+    const r = await runSentinelaVacuo({ dry: true });
+
+    expect(r.motivo).toBe('cobraria_agora');
+    expect(enviados).toHaveLength(0);
   });
 });
