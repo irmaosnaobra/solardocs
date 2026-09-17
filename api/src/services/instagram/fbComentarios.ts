@@ -12,8 +12,12 @@
 //   • descoberta por VARREDURA, não por webhook — o app do Instagram tem
 //     webhook próprio, e ligar webhook de Página exigiria mexer no painel da
 //     Meta. A varredura roda no cron que já existe (5 em 5 minutos).
-//   • envio pelo /{comment-id}/private_replies com token de PÁGINA.
-//   • sem porteiro: no Facebook não existe "me segue" — o link vai direto.
+//   • envio pelo /{page-id}/messages com recipient.comment_id, token de PÁGINA.
+//     (era /{comment-id}/private_replies até 17/09/2026, quando ficou provado
+//     que aquele endpoint devolve 400 subcode 33 SEMPRE nesta Página — foi o
+//     que manteve o robô mudo desde 05/08, com 209.637 falhas e zero entrega.)
+//   • sem porteiro: no Facebook não existe "me segue" — o destino vai direto,
+//     e desde 17/09 vai como CARTÃO DE BOTÃO, igual ao Instagram.
 //
 // A Meta só aceita UMA resposta privada por comentário, e só até 7 dias depois
 // dele. O dedup por `ig_events.ref` é o que garante a regra do "uma".
@@ -23,7 +27,8 @@
 
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
-import { loadAutomations, decidirComentario, depositarOuAvisar, tratarHostil } from './igEngine';
+import { loadAutomations, decidirComentario, depositarOuAvisar, tratarHostil, welcomePayload } from './igEngine';
+import { buildMessage } from './igClient';
 import { classificarHostil } from './igHostil';
 
 const GRAPH = 'https://graph.facebook.com/v21.0';
@@ -168,7 +173,9 @@ async function jaRespondido(commentId: string): Promise<boolean> {
  * Nenhum dos três melhora esperando. Rate limit e 5xx, sim.
  */
 function erroDefinitivo(msg: string): boolean {
-  return /does not exist|missing permissions|does not support this operation|Unsupported post request/i.test(msg);
+  // 10900 = "Activity already replied to": a Meta só aceita UMA resposta por
+  // comentário. Tentar de novo nunca vai dar certo.
+  return /does not exist|missing permissions|does not support this operation|Unsupported post request|10900|already replied/i.test(msg);
 }
 
 /** Quantas vezes já tentamos e falhamos neste mesmo comentário. */
@@ -188,13 +195,38 @@ function telefoneDe(texto: string): string | null {
   return d.length >= 10 ? d : null;
 }
 
-async function responderPrivado(commentId: string, texto: string, token: string): Promise<any> {
-  const r = await fetch(`${GRAPH}/${commentId}/private_replies`, {
+/**
+ * Resposta privada a um comentário. MEDIDO em 17/09/2026:
+ *
+ *   POST /{comment-id}/private_replies  -> 400, code 100, subcode 33, sempre,
+ *        em post de anúncio E em post normal do feed, com o token de Página
+ *        certo (tem `pages_messaging`, task MESSAGING, e o GET no mesmo
+ *        comentário responde 200). Esse endpoint está morto pra esta Página.
+ *   POST /{page-id}/messages  com recipient.comment_id  -> 200 + message_id.
+ *
+ * Foi por isso que o robô do Facebook nunca entregou UMA mensagem: 209.637
+ * linhas de `fb_falha` e zero `fb_private_reply` desde 05/08. O motivo não era
+ * roteamento nem palavra-chave, era o transporte.
+ *
+ * Este caminho aceita `attachment`, então a mensagem do Facebook passa a sair
+ * com os mesmos CARTÕES DE BOTÃO do Instagram em vez de link cru — foi assim
+ * que o menu de seis produtos chegou no primeiro lead recuperado.
+ *
+ * Continua valendo UMA por comentário: a segunda volta code 10900 ("Activity
+ * already replied to"), e o PSID sozinho volta 551 porque a janela não abre.
+ */
+async function responderPrivado(commentId: string, msg: any, token: string): Promise<any> {
+  const r = await fetch(`${GRAPH}/${PAGE_ID}/messages`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: texto, access_token: token }),
+    body: JSON.stringify({
+      recipient: { comment_id: commentId },
+      message: msg,
+      messaging_type: 'RESPONSE',
+      access_token: token,
+    }),
   });
   const t = await r.text();
-  if (!r.ok) throw new Error(`private_replies ${r.status}: ${t.slice(0, 200)}`);
+  if (!r.ok) throw new Error(`messages ${r.status}: ${t.slice(0, 200)}`);
   try { return JSON.parse(t); } catch { return {}; }
 }
 
@@ -217,6 +249,13 @@ async function responderPublico(commentId: string, texto: string, token: string)
 }
 
 const pick = <T,>(arr: T[]): T | null => (arr && arr.length ? arr[Math.floor(Math.random() * arr.length)] : null);
+
+/** Aviso público de que a mensagem saiu. No Facebook a DM cai em Solicitações. */
+const PUBLICAS_FB = [
+  'Prontinho, te mandei tudo no privado. Confere agora sua caixa de mensagens (se não achar, olha em Solicitações).',
+  'Respondido no privado. Confere agora sua caixa de mensagens, e se não achar, olha na aba Solicitações.',
+  'Te chamei no privado agora. Confere sua caixa de mensagens (pode ter caído em Solicitações).',
+];
 
 /** Varredura completa. Chamada pelo cron; devolve o que fez pro painel/log. */
 export async function varrerComentariosFacebook(): Promise<{ respondidos: number; vistos: number; posts_pulados?: number; reason?: string }> {
@@ -267,20 +306,29 @@ export async function varrerComentariosFacebook(): Promise<{ respondidos: number
       const a = doDestino || decidirComentario(autos, { texto: c.message, mediaId: post.id, ehAnuncio: post.ehAnuncio });
       if (!a) continue;
 
+      // Mesma mensagem do Instagram: cartão com BOTÃO, carrossel quando a
+      // automação tem vários destinos. O /{page}/messages aceita attachment, e
+      // é o que troca o link cru por "toque no que você procura".
+      //
       // Sem porteiro: no Facebook não existe "me segue" que valha o toque a
-      // mais, então o link vai junto da primeira mensagem.
-      const texto = (a.dm_boas_vindas || 'Oi! Aqui está o que você pediu:')
-        + (a.link_url ? '\n\n' + a.link_url : '');
+      // mais, então o destino vai junto da primeira mensagem.
+      const msg = buildMessage(welcomePayload(a));
 
       try {
-        const resp = await responderPrivado(c.id, texto, token);
+        const resp = await responderPrivado(c.id, msg, token);
         await supabase.from('ig_events').insert({
           tipo: 'fb_private_reply', ref: c.id,
           raw: { post: post.id, ehAnuncio: post.ehAnuncio, de: c.fromName, texto: c.message, automacao: a.id, resposta: resp },
         });
         respondidos++;
-        const pub = pick<string>(a.respostas_publicas || []);
-        if (pub) await responderPublico(c.id, pub, token);
+        // A resposta pública é o que FAZ a pessoa achar a DM: no Facebook ela
+        // cai em Solicitações e não toca o celular de ninguém. Vai em TODO
+        // comentário respondido (decisão do dono, 17/09) — sem ela, a mensagem
+        // sai e ninguém abre.
+        //
+        // Texto próprio do Facebook: as respostas cadastradas na automação
+        // falam "direct", que é palavra do Instagram.
+        await responderPublico(c.id, pick<string>(PUBLICAS_FB)!, token);
       } catch (err: any) {
         // Erro passageiro (janela vencida, pessoa sem Messenger, 5xx) NÃO marca
         // como respondido: na próxima varredura a gente tenta de novo.

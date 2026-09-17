@@ -80,14 +80,10 @@ const pick = <T,>(arr: T[]): T | null => (arr && arr.length ? arr[Math.floor(Mat
 const ACENTOS = new RegExp('[' + String.fromCharCode(0x300) + '-' + String.fromCharCode(0x36f) + ']', 'g');
 const norm = (s: string): string => (s || '').toLowerCase().normalize('NFD').replace(ACENTOS, '').trim();
 
-// Sinais de que a pessoa quer atendimento (alimentam a rede de segurança).
-// Em ANÚNCIO a lista é larga: o clique já foi pago, não dá pra deixar passar.
-const SINAIS_INTERESSE = [
-  'interess', 'quanto', 'preco', 'valor', 'orcament', 'informac', 'info',
-  'como funciona', 'quero', 'gostaria', 'manda', 'whats', 'zap', 'contato', 'saber mais',
-  'desconto', 'a vista', 'financia', 'parcel', 'custa', 'disponi', 'me chama', 'simula',
-  'tem como', 'instala', 'consegue', 'aceita',
-];
+// Em ANÚNCIO não existe mais lista: todo comentário cai na rede de segurança.
+// A lista larga que ficava aqui (SINAIS_INTERESSE) deixava passar justamente o
+// lead mais quente — "Aqui tem o ponto. Aluguel. E como faço para ter
+// viabilidade?" não casa com nenhuma das palavras dela.
 // Em post ORGÂNICO a régua é mais dura — ali passa piada, elogio e conversa de
 // amigo, e "quanto tempo demorou isso?" não é pedido de orçamento. Só entra
 // quem pede preço, contato ou diz que quer. (05/08: as regras da Meta, que
@@ -160,12 +156,22 @@ export function decidirComentario(
 ): Automation | null {
   const direto = escolher(autos, 'comment', c.texto, c.mediaId, c.adId);
   if (direto) return direto;
+  const rede = (): Automation | null => autos.find(x => x.fallback && x.gatilhos?.comment) || null;
+
+  // ANÚNCIO: todo comentário cai na rede, sem exigir palavra de interesse. O
+  // clique foi pago e a pessoa está falando embaixo da oferta. A lista de
+  // sinais deixava passar exatamente o lead mais quente: "Aqui tem o ponto.
+  // Aluguel. E como faço para ter viabilidade?" não casa com nenhuma palavra
+  // dela, e ficava sem resposta nenhuma. Quem cai aqui recebe o MENU de
+  // produtos, não copy de um produto só — é a rede que pergunta qual é o caso.
+  if (c.ehAnuncio) return rede();
+
+  // ORGÂNICO continua na régua apertada. Reel viral carrega piada e discussão
+  // ("Acaba com a amazônia kkkk", briga sobre política), e DM de venda embaixo
+  // disso é o pior uso desta máquina. Post orgânico que precisa de 100% se
+  // resolve FIXANDO a automação na mídia, caminho já provado duas vezes.
   const t = norm(c.texto);
-  const temTel = !!telefoneDe(c.texto);
-  const temSinal = (c.ehAnuncio ? SINAIS_INTERESSE : SINAIS_FORTES).some(k => t.includes(k));
-  if (temTel || temSinal) {
-    return autos.find(x => x.fallback && x.gatilhos?.comment) || null;
-  }
+  if (telefoneDe(c.texto) || SINAIS_FORTES.some(k => t.includes(k))) return rede();
   return null;
 }
 
@@ -231,7 +237,7 @@ async function claimGate(igUserId: string, de: GateEtapa, acao: GateAcao): Promi
 // que isso vira texto puro em vez de sair cortada no meio da frase.
 const CARD_MAX = 160;
 
-function welcomePayload(a: Automation): any {
+export function welcomePayload(a: Automation): any {
   const text = a.dm_boas_vindas || 'Oi! Aqui está o que você pediu:';
 
   // MENU DE BOTÕES. O Menu e a rede de segurança não têm UM destino, têm três:

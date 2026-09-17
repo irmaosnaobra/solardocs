@@ -101,12 +101,22 @@ describe('roteamento de comentário do Instagram', () => {
     expect(organico('34 99977-0149')?.id).toBe('fallback');
   });
 
-  it('piada e post orgânico não recebem DM', () => {
-    expect(emAnuncio('Eu escolho Neymar  3 vezes')).toBeNull();
+  it('piada em post orgânico não recebe DM', () => {
     expect(organico('😂')).toBeNull();
     expect(organico('Padrinho mentiroso não dá, xau Marçal.')).toBeNull();
-    // sem sinal de interesse, anúncio também não vira DM
-    expect(emAnuncio('kkkkk')).toBeNull();
+    expect(organico('Eu escolho Neymar  3 vezes')).toBeNull();
+  });
+
+  it('em ANÚNCIO não existe mais régua: piada também recebe', () => {
+    // Mudou em 17/09/2026, a pedido do dono, depois do print de um anúncio com
+    // sete comentários e nenhuma resposta. A régua que ficava aqui barrava o
+    // lead mais quente do print ("Aqui tem o ponto. Aluguel. E como faço para
+    // ter viabilidade?"), porque ele não casa com nenhuma palavra de interesse.
+    // O clique do anúncio foi pago; separar piada de pedido custava mais lead
+    // do que economizava mensagem. Quem cai aqui recebe o MENU, não copy de
+    // venda de um produto só.
+    expect(emAnuncio('Eu escolho Neymar  3 vezes')?.id).toBe('fallback');
+    expect(emAnuncio('kkkkk')?.id).toBe('fallback');
   });
 
   it('post orgânico com pedido claro entra na rede de segurança', () => {
