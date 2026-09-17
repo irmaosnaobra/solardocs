@@ -1182,6 +1182,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-col-vendido .crm-col-head{box-shadow:inset 0 3px 0 #34D399}
 .crm-col-perdido .crm-col-head{box-shadow:inset 0 3px 0 #F87171}
 .crm-col-arrendamento .crm-col-head{box-shadow:inset 0 3px 0 #B08968}
+.crm-col-meio_a_meio .crm-col-head{box-shadow:inset 0 3px 0 #F472B6}
 /* card de cliente */
 .crm-card{background:#1c2c47;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:11px 12px;display:flex;flex-direction:column;gap:7px}
 .crm-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:6px}
@@ -1222,6 +1223,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-status-selo.selo-pe{background:rgba(71,85,105,.28);color:#CBD5E1}
 .crm-status-selo.selo-pa{background:rgba(14,165,233,.2);color:#7DD3FC}
 .crm-status-selo.selo-ar{background:rgba(111,78,55,.35);color:#D7B49E}
+.crm-status-selo.selo-mm{background:rgba(190,24,93,.3);color:#F9A8D4}
 /* presenca confirmada: esmeralda, o mesmo par de cores do card da agenda */
 .crm-status-selo.selo-ok{background:rgba(52,211,153,.2);color:#6EE7B7}
 /* Silêncio do lead: o mesmo âmbar do card amarelo da agenda. */
@@ -1293,6 +1295,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-btn-status.bg-fe{background:#16a34a}
 .crm-btn-status.bg-em{background:#7c3aed}
 .crm-btn-status.bg-ar{background:#6F4E37}
+.crm-btn-status.bg-mm{background:#be185d}
 .crm-btn-status.bg-pe{background:#475569}
 .crm-btn-status.bg-pa{background:#0ea5e9}
 .crm-det-prop-atual{font-size:12px;color:#7DD3FC;margin-top:8px;min-height:1px}
@@ -4609,6 +4612,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
              continua nos mapas de rótulo logo abaixo: 10 fichas antigas ainda o
              carregam, e sem rótulo elas apareceriam sem selo. -->
         <button type="button" class="crm-btn-status bg-ar" data-status="arrendamento"       onclick="crmAtualizarStatus('arrendamento')" style="grid-column:span 2">🤝 ARRENDAMENTO</button>
+        <button type="button" class="crm-btn-status bg-mm" data-status="meio_a_meio"       onclick="crmAtualizarStatus('meio_a_meio')" style="grid-column:span 2">👥 50/50</button>
         <button type="button" class="crm-btn-status bg-pe" data-status="perdido"          onclick="crmAtualizarStatus('perdido')" style="grid-column:span 2">❌ Perdido</button>
         <button type="button" class="crm-btn-status bg-fe" data-status="fechou"           onclick="crmAtualizarStatus('fechou')" style="grid-column:span 2">✅ Fechou</button>
       </div>
@@ -14600,14 +14604,16 @@ const CRM_ETAPAS = {
   morno:       { lbl: 'Morno',             ic: '🌤️' },
   quente:      { lbl: 'Quente',            ic: '🔥' },
   arrendamento:{ lbl: 'Arrendamento',      ic: '🤝' },
+  meio_a_meio: { lbl: '50/50',             ic: '👥' },
   vendido:     { lbl: 'Vendido',           ic: '✅' },
   perdido:     { lbl: 'Perdido',           ic: '❌' }
 };
 // Status de agendamento que contam como "perdido" (sem interesse = perdido)
 // Inclui os status manuais 'perdido' e 'fechou_concorrente' (marcados na Agenda).
-// 'arrendamento' fica FORA de propósito: quem aceita que a gente invista 100% no
-// ponto dele é negócio vivo, não perda. Ele tem COLUNA PRÓPRIA no quadro
-// (CRM_KANBAN_ORDEM), entre Quente e Vendido, e selo marrom no card.
+// 'arrendamento' e 'meio_a_meio' ficam FORA de propósito: quem aceita que a gente
+// invista 100% no ponto dele, ou entra com metade, é negócio VIVO, não perda. Os
+// dois têm COLUNA PRÓPRIA no quadro do eletroposto (CRM_ETAPAS_EP), entre Quente e
+// Vendido, e selo próprio no card (marrom e rosa).
 const CRM_STATUS_PERDIDO = new Set(['cancelado', 'sem_interesse', 'perdido', 'fechou_concorrente']);
 
 let crmClientes = [];          // lista unificada já processada
@@ -15066,6 +15072,7 @@ async function crmAtualizarStatus(novoStatus) {
       fez_orcamento:    '💰 Marcado como Fez orçamento',
       proposta_apresentada: '📑 Marcado como Proposta apresentada',
       arrendamento:     '🤝 Marcado como ARRENDAMENTO — nós investimos 100%',
+      meio_a_meio:      '👥 Marcado como 50/50 — sociedade meio a meio',
       fechou_concorrente:'🏢 Marcado como Fechou concorrente',
       perdido:          '❌ Marcado como Perdido',
       fechou:           '✅ Marcado como Fechou',
@@ -15744,6 +15751,9 @@ function crmDerivar(c) {
     // Perdido por um "sem interesse" de semanas atrás. E vem antes da temperatura,
     // senão o lead quente marcado como arrendamento ficava escondido em Quente.
     etapa = 'arrendamento';
+  } else if (statusAg === 'meio_a_meio') {
+    // Mesma regra do arrendamento: modelo escolhido, lead vivo, status mais recente.
+    etapa = 'meio_a_meio';
   } else if (temPerdido || c.perdidoManual) {
     // Venda sempre ganha; fora isso, Perdido (de agendamento OU manual) vence.
     etapa = 'perdido';
@@ -15835,7 +15845,17 @@ function crmFiltrados() {
 }
 
 // Ordem das colunas do kanban (funil). Perdido por último.
-const CRM_KANBAN_ORDEM = ['agendado', 'reagendar', 'em_atendimento', 'whatsapp', 'frio', 'morno', 'quente', 'arrendamento', 'vendido', 'perdido'];
+const CRM_KANBAN_ORDEM = ['agendado', 'reagendar', 'em_atendimento', 'whatsapp', 'frio', 'morno', 'quente', 'arrendamento', 'meio_a_meio', 'vendido', 'perdido'];
+// Colunas que só existem no quadro do ELETROPOSTO: são os modelos de negócio da
+// NEXUS que o lead escolhe na LP (01 "cedo o espaço e vocês investem 100%" vira
+// Arrendamento; 02 "sociedade meio a meio" vira 50/50). No Solar elas nasceriam
+// vazias pra sempre, e coluna vazia só aumenta a rolagem do quadro.
+const CRM_ETAPAS_EP = ['arrendamento', 'meio_a_meio'];
+function crmOrdemDoQuadro(produto) {
+  return produto === 'eletroposto'
+    ? CRM_KANBAN_ORDEM.slice()
+    : CRM_KANBAN_ORDEM.filter(k => !CRM_ETAPAS_EP.includes(k));
+}
 
 function renderCRM() {
   const board = document.getElementById('crm-kanban');
@@ -15883,6 +15903,7 @@ function renderCRM() {
     fez_orcamento:    { lbl: '💰 Fez orçamento', cls: 'fo' },
     proposta_apresentada:{ lbl: '📑 Proposta apresentada', cls: 'pa' },
     arrendamento:     { lbl: '🤝 ARRENDAMENTO', cls: 'ar' },
+    meio_a_meio:      { lbl: '👥 50/50', cls: 'mm' },
     fechou_concorrente:{ lbl: '🏢 Fechou concorrente', cls: 'pe' },
     perdido:          { lbl: '❌ Perdido', cls: 'pe' },
     fechou:           { lbl: '✅ Fechou', cls: 'fe' },
@@ -15951,8 +15972,16 @@ function renderCRM() {
     </div>`;
   };
 
-  board.innerHTML = CRM_KANBAN_ORDEM.map(etKey => {
-    const et = CRM_ETAPAS[etKey];
+  // Rede de segurança: etapa que TEM card mas ficou de fora da ordem do quadro
+  // entra no fim. Sem isto, marcar um lead de solar com um modelo de eletroposto
+  // (o botão está no mesmo modal) sumiria com o card, e some sem avisar.
+  const ordemQuadro = crmOrdemDoQuadro(crmFiltroProduto);
+  Object.keys(porEtapa).forEach(k => {
+    if (porEtapa[k].length && !ordemQuadro.includes(k)) ordemQuadro.push(k);
+  });
+
+  board.innerHTML = ordemQuadro.map(etKey => {
+    const et = CRM_ETAPAS[etKey] || { lbl: etKey, ic: '•' };
     const cards = porEtapa[etKey] || [];
     const corpo = cards.length
       ? cards.map(card).join('')
