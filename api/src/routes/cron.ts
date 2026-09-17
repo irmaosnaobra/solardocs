@@ -32,6 +32,7 @@ import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendame
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 import { runGeradorBroadcastTick, runGeradorSequenciasConsumer } from '../services/io/geradorAutomacaoService';
 import { runAvisosTick } from '../services/io/avisosTickService';
+import { runSentinelaVacuo } from '../services/io/sentinelaVacuo';
 import { runProspeccaoApifyTick } from '../services/io/prospeccaoApifyService';
 import { runSequenciaStopOnReply } from '../services/io/sequenciaStopOnReply';
 import { runBlastRespostas } from '../services/io/blastRespostas';
@@ -1239,6 +1240,19 @@ router.get('/avisos-tick', async (req: Request, res: Response) => {
   }
 });
 
+// Sentinela do vácuo: acha quem escreveu pra linha e ficou sem resposta e cobra
+// o dono do produto, num resumo só. Não manda nada pra cliente. ?dry=1 mostra
+// quem seria cobrado, sem avisar ninguém. Kill-switch: VACUO_OFF=1.
+router.get('/sentinela-vacuo', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    res.json({ ok: true, ...(await runSentinelaVacuo({ dry: req.query.dry === '1' })) });
+  } catch (err) {
+    logger.error('cron', 'sentinela-vacuo falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
 // Prospecção: motor das buscas de lead na Apify. A tela /gerador/prospeccao só
 // enfileira o pedido em prospeccao_buscas; QUEM GASTA é este tick, com kill-switch
 // (PROSPECCAO_APIFY_OFF), cap de leads por busca e cap de buscas por dia.
@@ -1482,6 +1496,10 @@ router.get('/master', async (req: Request, res: Response) => {
     // Broadcast matinal disparando de madrugada, sem espaçamento, é denúncia certa.
     // Religar exige antes passar pelo sendHuman/lineThrottle, como a Bia e a Giovanna.
     // ['carla-morning-broadcast',      () => runCarlaMorningBroadcast()],    // [BLOQUEIA A LINHA] broadcast matinal sem throttle
+    // Sentinela do vácuo: quem escreveu pra linha e ficou sem resposta vira UM
+    // resumo pro dono do produto. Não fala com cliente nenhum — cobra a gente.
+    // De hora em hora basta: a régua dela é de 3h úteis. Prévia: ?dry=1.
+    ['sentinela-vacuo',             () => runSentinelaVacuo()],
     ['sdr-followup',                () => runSdrFollowups()],
     ['sdr-b2b-followup',             () => runSdrB2bFollowups()],
     ['sync-social-windsor',         () => syncSocialWindsor()],      // métricas IG+TikTok → aba Redes do gerador

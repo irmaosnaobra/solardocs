@@ -166,9 +166,55 @@ function prefixosDaLinha(): string[] {
   return solardocViaIo() ? [...BOT_SENT_PREFIXES, 'carla_sent:'] : [...BOT_SENT_PREFIXES];
 }
 
+// ─── AGENDA × FRIO: dois tráfegos, duas contas ───────────────────────────────
+// Estes quatro são envios que a pessoa ESTÁ ESPERANDO: confirmou reunião,
+// preencheu ficha, tem compromisso hoje. Eles já passam por cima do teto com
+// `transacional: true` e `piso*` — decisão antiga, e certa: quem levantou a mão
+// não pode ficar sem resposta por causa de orçamento de robô.
+//
+// O QUE ESTAVA ERRADO (medido em 17/09/2026, `system_state`, 14 dias):
+//
+//   dia     total  agenda  frio
+//   17/09    116     115     1
+//   16/09    122     122     0
+//   15/09     89      89     0
+//   14/09     83      83     0
+//   13/09     32      11    21
+//   12/09     30      10    20
+//
+// A correlação é perfeita: TODO dia em que a agenda passou de ~30 envios, os
+// robôs de follow-up mandaram ZERO. Eles não estavam quebrados — estavam sem
+// orçamento, porque o contador do teto frio somava também os envios da agenda.
+// Nos quatro últimos dias (83 a 122 envios/dia de agenda) nenhum follow-up saiu:
+// nem a retomada da Carla, nem a Bia, nem a semente, nem a repescagem.
+//
+// Então a conta do FRIO passa a contar só o frio. A da transacional continua
+// contando a linha inteira, que é o que ela sempre fez. O que impede rajada
+// continua sendo o ESPAÇAMENTO lá embaixo, que segue olhando TODO envio da
+// linha, agenda inclusive — um follow-up nunca sai colado num lembrete.
+const PREFIXOS_AGENDA = [
+  'ep_agenda_sent:',        // agendamento do eletroposto
+  'ep_remarcar_sent:',      // remarcação do eletroposto
+  'solar_boasvindas_sent:', // ficha de solar recém-preenchida
+  'solar_giovanna_sent:',   // os dois toques do dia da reunião
+] as const;
+
+/** Só os prefixos de envio FRIO (o que não é agenda nem transacional). */
+function prefixosFrios(): string[] {
+  return prefixosDaLinha().filter(p => !(PREFIXOS_AGENDA as readonly string[]).includes(p));
+}
+
 /**
- * Há folga no teto anti-ban da linha na última hora? Conta os envios de TODOS os bots.
- * `true` = pode enviar; `false` = estourou, segura pro próximo tick.
+ * Há folga no teto anti-ban da linha? `true` = pode enviar.
+ *
+ * Quem chama SEM `transacional` é envio frio (follow-up, retomada, semente): a
+ * conta dele é só do frio, 6/h e 30/dia, porque senão um dia cheio de agenda
+ * cala todos os follow-ups da casa — foi o que aconteceu de 14 a 17/09/2026
+ * (tabela em PREFIXOS_AGENDA).
+ *
+ * Quem chama com `transacional: true` é envio que a pessoa está esperando: a
+ * conta dele continua sendo a LINHA INTEIRA, agenda inclusive, porque é ele
+ * quem pode passar por cima com `piso*` e precisa enxergar o todo pra decidir.
  */
 export async function dentroDoTetoHorarioLinha(
   opts: { transacional?: boolean; pisoHora?: number; pisoDia?: number } = {},
@@ -187,7 +233,9 @@ export async function dentroDoTetoHorarioLinha(
   // que derrubou a linha em agosto; o piso o eleva, não o remove.
   const tetoHora = Math.max(tetos.hora, opts.pisoHora ?? 0);
   const tetoDia = Math.max(tetoDiaBase, opts.pisoDia ?? 0);
-  const orFilter = prefixosDaLinha().map(p => `key.like.${p}%`).join(',');
+  // Frio conta só frio; transacional conta a linha inteira (ver PREFIXOS_AGENDA).
+  const orFilter = (opts.transacional ? prefixosDaLinha() : prefixosFrios())
+    .map(p => `key.like.${p}%`).join(',');
 
   const contar = async (janelaMs: number, teto: number): Promise<number> => {
     const desde = new Date(Date.now() - janelaMs).toISOString();
