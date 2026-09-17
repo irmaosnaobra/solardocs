@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Download, Pencil, Save, Check, X, FilePlus } from 'lucide-react';
+import { Download, Pencil, Save, Check, X, FilePlus, Trash2 } from 'lucide-react';
 import styles from './DocumentPreview.module.css';
 import api from '@/services/api';
 import { prewarmPdf, sharePrewarmedPdf, type PdfAsset } from '@/services/downloadPdf';
@@ -51,24 +51,55 @@ type Block =
   | { type: 'listItem'; text: string }
   | { type: 'signatureLine'; text: string }
   | { type: 'body'; text: string }
-  | { type: 'html'; text: string }
   | { type: 'empty' };
 
-// A proposta de banco M1 e' o unico template que chega PRONTO em HTML: ela
-// desenha a folha inteira (timbre, tabela, caixas de valor, assinaturas e
-// rodape) porque nenhum bloco de texto da conta desse layout. O sentinela e'
-// tudo-ou-nada — sem intercalar HTML com texto — pra que o parser continue
-// trivial pros outros sete tipos. O {{LOGO}} sai trocado pelo base64 da
-// empresa em RenderBlock, e nao viaja na coluna `content`.
+// Os documentos desenhados — contrato, procuracao e proposta de banco — chegam
+// PRONTOS em HTML: desenham a folha inteira (timbre, tabelas, cartoes, clausulas,
+// assinaturas e rodape) porque nenhum bloco de texto da conta desse layout. O
+// sentinela e' tudo-ou-nada — sem intercalar HTML com texto — pra que o parser
+// continue trivial pros outros tipos. O {{LOGO}} sai trocado pelo base64 da
+// empresa so' na hora de desenhar, e nao viaja na coluna `content`.
 const HTML_DOC = '[[HTML]]';
+const FIM_ESTILO = '</style>';
 export function isHtmlDoc(raw: string): boolean {
   return raw.trimStart().startsWith(HTML_DOC);
 }
 
+// Todo documento desenhado sai como [[HTML]] + UM <style> + a folha. Separar os
+// dois e' o que deixa abrir a FOLHA pra edicao com o CSS fora do alcance: quem
+// revisa mexe na clausula, nunca na regra de estilo. Documento futuro que nao
+// comece com <style> cai no ramo de cima e fica editavel inteiro — editor pior,
+// nunca documento perdido.
+function splitHtmlDoc(raw: string): { estilo: string; corpo: string } {
+  const folha = raw.trimStart().slice(HTML_DOC.length);
+  const fim = folha.trimStart().startsWith('<style>') ? folha.indexOf(FIM_ESTILO) : -1;
+  if (fim < 0) return { estilo: '', corpo: folha };
+  const corte = fim + FIM_ESTILO.length;
+  return { estilo: folha.slice(0, corte), corpo: folha.slice(corte) };
+}
+
+// Tirar uma clausula sem renumerar deixa o contrato pulando de 9 pra 11 — foi
+// exatamente isso que um assinante teve que consertar a mao, no HTML cru. So'
+// mexe em numero puro ("10."), nunca no titulo que alguem escreveu. Documento
+// desenhado sem clausula numerada (procuracao, proposta de banco) nao tem `.cl`
+// e passa batido.
+function renumeraClausulas(raiz: HTMLElement) {
+  let n = 0;
+  raiz.querySelectorAll('.cl > h2 > i').forEach(i => {
+    if (/^\d+\.$/.test(i.textContent?.trim() || '')) i.textContent = `${++n}.`;
+  });
+}
+
+// A clausula onde o cursor esta', pra barra de revisao saber o que oferecer.
+function clausulaDoCursor(raiz: HTMLElement): HTMLElement | null {
+  const no = document.getSelection()?.anchorNode;
+  if (!no) return null;
+  const base = no.nodeType === Node.ELEMENT_NODE ? (no as Element) : no.parentElement;
+  const cl = base?.closest('.cl');
+  return cl && raiz.contains(cl) ? (cl as HTMLElement) : null;
+}
+
 function parseContent(raw: string): Block[] {
-  if (isHtmlDoc(raw)) {
-    return [{ type: 'html', text: raw.trimStart().slice(HTML_DOC.length) }];
-  }
   const lines = raw.split('\n');
   const blocks: Block[] = [];
   let titleFound = false;
@@ -107,9 +138,6 @@ function RenderBlock({ block, idx }: { block: Block; idx: number }) {
     case 'listItem': return <p className={styles.listItem}>{block.text}</p>;
     case 'signatureLine': return <p className={styles.signatureLine}>{block.text}</p>;
     case 'body': return <p className={styles.bodyText}>{block.text}</p>;
-    // Vem do nosso proprio templateService, com todo campo passado por
-    // escHtml() na origem — nao ha' entrada de terceiro chegando crua aqui.
-    case 'html': return <div dangerouslySetInnerHTML={{ __html: block.text }} />;
     case 'empty': return <div className={styles.spacer} key={idx} />;
     default: return null;
   }
@@ -134,7 +162,15 @@ export default function DocumentPreview({
   const [editMode, setEditMode] = useState(false);
   const [editedContent, setEditedContent] = useState(content);
   const [displayContent, setDisplayContent] = useState(content);
+  // Cada confirmacao/cancelamento troca a chave da folha desenhada: e' o unico
+  // jeito de o React redesenhar um dangerouslySetInnerHTML que o usuario editou
+  // por baixo dele.
+  const [revisao, setRevisao] = useState(0);
+  // Rotulo da clausula onde o cursor esta'. So' aparece durante a revisao, e so'
+  // no contrato — e' o unico documento desenhado com clausulas numeradas.
+  const [clausulaFoco, setClausulaFoco] = useState('');
   const docRef = useRef<HTMLDivElement>(null);
+  const htmlEditRef = useRef<HTMLDivElement>(null);
   const uploadedRef = useRef(false);
 
   // PDF pré-aquecido pro compartilhamento nativo do iOS. Precisa estar PRONTO
@@ -181,7 +217,42 @@ export default function DocumentPreview({
         ? displayContent.split('{{LOGO}}').join(company.logo_base64)
         : displayContent.replace(/<img[^>]*\{\{LOGO\}\}[^>]*>/g, ''))
     : displayContent;
-  const blocks = parseContent(comLogo);
+  // Documento desenhado nao passa pelo parser de texto: ele ja' e' a folha.
+  const folha = htmlDoc ? splitHtmlDoc(comLogo) : { estilo: '', corpo: '' };
+  const blocks = htmlDoc ? [] : parseContent(comLogo);
+
+  // O contenteditable entra pelo REF, nunca por prop do React: o buildHtml
+  // serializa o outerHTML desta folha pro arquivo e pro PDF, e um
+  // contenteditable="false" gravado ali e' lixo que viaja pro cliente.
+  useEffect(() => {
+    const el = htmlEditRef.current;
+    if (!el) return;
+    if (!editMode || !htmlDoc) { el.removeAttribute('contenteditable'); return; }
+    el.setAttribute('contenteditable', 'true');
+    // Colar de Word, PDF ou navegador traz estilo de fora junto e desmancha a
+    // folha. Entra so' o texto, no estilo da clausula onde o cursor esta'.
+    const aoColar = (ev: ClipboardEvent) => {
+      const txt = ev.clipboardData?.getData('text/plain');
+      if (!txt) return;
+      ev.preventDefault();
+      document.execCommand('insertText', false, txt);
+    };
+    // Acompanha o cursor pra oferecer "remover clausula" no lugar certo.
+    const aoMover = () => {
+      const cl = clausulaDoCursor(el);
+      const h2 = cl?.querySelector('h2');
+      const num = h2?.querySelector('i')?.textContent?.trim() || '';
+      const nome = (h2?.textContent || '').slice(num.length).trim();
+      setClausulaFoco(cl && num ? `${num} ${nome}` : '');
+    };
+    document.addEventListener('selectionchange', aoMover);
+    el.addEventListener('paste', aoColar);
+    return () => {
+      document.removeEventListener('selectionchange', aoMover);
+      el.removeEventListener('paste', aoColar);
+    };
+  }, [editMode, htmlDoc, revisao]);
+
   const docAccent = accentFromBrand(company?.cor_marca);
   const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'America/Sao_Paulo' });
 
@@ -223,7 +294,11 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
   .${s.sectionHeader} { page-break-after: avoid !important; break-after: avoid !important; page-break-inside: avoid !important; break-inside: avoid !important; }
   .${s.bodyText}, .${s.listItem}, .${s.signatureLine} { page-break-inside: avoid; break-inside: avoid; }
 }`.trim();
-    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>${clienteNome}</title><style>${css}</style></head><body>${pageEl.outerHTML}</body></html>`;
+    // Cinto e suspensorio: o efeito ja' tira o atributo ao sair da edicao, mas
+    // um contenteditable gravado no arquivo deixaria o documento editavel no
+    // navegador de quem recebe.
+    const folhaHtml = pageEl.outerHTML.replaceAll(' contenteditable="true"', '');
+    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"/><title>${clienteNome}</title><style>${css}</style></head><body>${folhaHtml}</body></html>`;
   }
 
   async function uploadHtml(id: string, currentContent: string): Promise<boolean> {
@@ -244,16 +319,48 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
     }
   }
 
+  // O texto do documento desenhado depois da revisao, lido da PROPRIA folha. O
+  // estilo volta na frente e o base64 da logo volta a ser {{LOGO}}: gravar o
+  // base64 na coluna `content` incharia a linha e congelaria a logo de hoje.
+  // Empresa sem logo cadastrada: o <img> ja' saiu da folha antes de desenhar
+  // (src vazio desenha icone quebrado), entao ele nao volta pro content — quem
+  // cadastrar a logo depois precisa gerar o documento de novo.
+  // Apagar clausula inteira no teclado (selecionar tudo e deletar) o navegador
+  // faz mal: parte o bloco vizinho em dois e deixa casca vazia. Aqui a clausula
+  // sai limpa e o contrato se renumera na hora.
+  function removerClausula() {
+    const el = htmlEditRef.current;
+    if (!el) return;
+    const alvo = clausulaDoCursor(el);
+    if (!alvo) return;
+    alvo.remove();
+    renumeraClausulas(el);
+    setClausulaFoco('');
+  }
+
+  function textoDaFolha(): string | null {
+    const el = htmlEditRef.current;
+    if (!el) return null;
+    // Casca de clausula esvaziada na mao some, e o que sobrou se renumera.
+    el.querySelectorAll('.cl').forEach(c => { if (!c.textContent?.trim()) c.remove(); });
+    renumeraClausulas(el);
+    let corpo = el.innerHTML;
+    if (company?.logo_base64) corpo = corpo.split(company.logo_base64).join('{{LOGO}}');
+    // Folha apagada inteira (ctrl+A e delete) nao vira documento vazio.
+    if (!corpo.replace(/<[^>]*>/g, '').trim()) return null;
+    return HTML_DOC + folha.estilo + corpo;
+  }
+
   function handleConfirmEdit() {
-    // Documento HTML sem o sentinela cai no parser de TEXTO e o HTML cru sai
-    // impresso como paragrafo justificado. Editar a mao e' legitimo; perder o
-    // prefixo por descuido nao pode destruir o documento.
-    const texto = htmlDoc && !isHtmlDoc(editedContent)
-      ? '[[HTML]]' + editedContent
-      : editedContent;
+    // Desenhado: a revisao acontece na folha, e o que se ve e' o que se grava.
+    // Texto puro: segue no textarea, com o sentinela preservado — documento HTML
+    // sem ele cairia no parser de TEXTO e sairia impresso como paragrafo.
+    const texto = htmlDoc ? textoDaFolha() : editedContent;
+    if (texto === null) { handleCancelEdit(); return; }
     setEditedContent(texto);
     setDisplayContent(texto);
     setEditMode(false);
+    setRevisao(r => r + 1);
     setSaved(false);
     if (docId) {
       uploadedRef.current = false;
@@ -264,6 +371,9 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
   function handleCancelEdit() {
     setEditedContent(displayContent);
     setEditMode(false);
+    // A folha desenhada foi editada no DOM, sem o React saber. Chave nova = folha
+    // redesenhada a partir do content salvo.
+    setRevisao(r => r + 1);
   }
 
 
@@ -387,14 +497,32 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
           gap: 10,
         }}>
           <span>
-            <strong>Revisão antes da impressão.</strong> Edite o texto abaixo se necessário.
+            <strong>Revisão antes da impressão.</strong>{' '}
+            {htmlDoc
+              ? 'Clique direto no documento e escreva. O desenho, os números e a formatação continuam no lugar.'
+              : 'Edite o texto abaixo se necessário.'}{' '}
             Clique em <strong>Confirmar Edição</strong> para aplicar e depois imprima normalmente.
           </span>
+          {clausulaFoco && (
+            <button
+              type="button"
+              onClick={removerClausula}
+              title="Tira a cláusula inteira do contrato e renumera as seguintes"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0,
+                padding: '6px 12px', borderRadius: 8, cursor: 'pointer',
+                border: '1px solid rgba(239, 68, 68, 0.5)', background: 'transparent',
+                color: '#ef4444', fontSize: 12, fontWeight: 600,
+              }}
+            >
+              <Trash2 size={14} /> Remover cláusula {clausulaFoco.slice(0, 28)}{clausulaFoco.length > 28 ? '…' : ''}
+            </button>
+          )}
         </div>
       )}
 
       {/* ── Document / Edit area ─────────────────────── */}
-      {editMode ? (
+      {editMode && !htmlDoc ? (
         <div style={{ background: 'var(--surface, #0f172a)', borderRadius: 12, padding: 24 }}>
           <textarea
             value={editedContent}
@@ -465,7 +593,16 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
 
             {/* Document body */}
             <div className={styles.docBody}>
-              {(() => {
+              {htmlDoc ? (<>
+                {/* O CSS do documento fica FORA da area editavel. */}
+                <div dangerouslySetInnerHTML={{ __html: folha.estilo }} />
+                <div
+                  key={revisao}
+                  ref={htmlEditRef}
+                  className={editMode ? styles.folhaEditavel : undefined}
+                  dangerouslySetInnerHTML={{ __html: folha.corpo }}
+                />
+              </>) : (() => {
                 // Agrupa CADA cluster contíguo de assinatura (régua + nome/cpf que
                 // vêm logo abaixo) num signatureBlock próprio, com page-break-inside:
                 // avoid — assim cada assinatura não racha entre páginas, sem engolir

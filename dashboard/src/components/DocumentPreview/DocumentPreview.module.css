@@ -243,3 +243,15 @@
 .docWatermark { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 0; pointer-events: none; opacity: 0.06; }
 .docWatermark img { width: 62%; max-width: 360px; object-fit: contain; }
 .brandFoot { margin-top: 14px; padding-top: 8px; border-top: 1px solid var(--doc-accent, #ccc); font-family: Arial, sans-serif; font-size: 8pt; color: #9a9a9a; text-align: center; letter-spacing: 0.02em; }
+
+/* Folha desenhada em modo revisao: a moldura so diz onde da pra escrever.
+   O documento continua identico ao que sai no PDF. */
+.folhaEditavel {
+  outline: 2px dashed #f59e0b;
+  outline-offset: 8px;
+  caret-color: #16a34a;
+}
+
+.folhaEditavel:focus {
+  outline-color: #16a34a;
+}
