@@ -34,6 +34,21 @@ async function launchWithRetry(opts: Parameters<typeof puppeteer.launch>[0]) {
   throw lastErr;
 }
 
+// Registro de falha de download. Fail-silent de propósito: o cliente já está
+// sem o PDF, não pode levar um segundo erro por causa do registro.
+async function registrarFalhaPdf(userId: string | undefined, docId: string, stage: string, detalhe?: string): Promise<void> {
+  try {
+    await supabase.from('feature_events').insert({
+      user_id: userId ?? null,
+      feature: 'documento',
+      event_type: 'pdf_falhou',
+      event_data: { doc_id: docId, stage, detalhe: detalhe?.slice(0, 300) ?? null },
+    });
+  } catch {
+    /* registro é registro, não pode derrubar a resposta */
+  }
+}
+
 export async function generatePdf(req: Request, res: Response): Promise<void> {
   let browser;
   let stage = 'init';
@@ -72,6 +87,20 @@ export async function generatePdf(req: Request, res: Response): Promise<void> {
     }
     if (!htmlContent) {
       res.status(400).json({ error: 'Arquivo não disponível — gere o documento novamente' });
+      return;
+    }
+
+    // O fallback pro `content` só serve pra documento que JÁ é página completa
+    // (proposta solar e off-grid nascem com <!DOCTYPE>). Documento DESENHADO
+    // guarda a folha crua, com o sentinela [[HTML]] na frente: sem o embrulho
+    // que o dashboard monta (DOCTYPE + @page dos 262mm), o PDF sairia com
+    // "[[HTML]]" impresso no alto e as folhas fora de medida. Melhor recusar com
+    // recado do que entregar contrato torto pro cliente do assinante.
+    if (htmlContent.trimStart().startsWith('[[HTML]]')) {
+      await registrarFalhaPdf(req.userId, String(id), 'arquivo-nao-arquivado');
+      res.status(400).json({
+        error: 'Este documento ainda não terminou de ser arquivado. Abra ele e clique em Salvar, ou gere de novo.',
+      });
       return;
     }
 
@@ -162,6 +191,10 @@ export async function generatePdf(req: Request, res: Response): Promise<void> {
   } catch (err) {
     const e = err as Error;
     console.error(`[pdf] FAILED at stage="${stage}" — ${e?.name}: ${e?.message}\n${e?.stack}`);
+    // Falha de PDF era só console.error: sumia no log e ninguém ficava sabendo
+    // que o cliente não conseguiu baixar o contrato. Registrada, ela é
+    // consultável — é a sonda de documentos que a lê e avisa.
+    await registrarFalhaPdf(req.userId, String(req.params.id), stage, e?.message);
     res.status(500).json({ error: 'Erro ao gerar PDF', stage, message: e?.message });
   } finally {
     if (browser) await browser.close();

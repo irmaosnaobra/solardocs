@@ -35,6 +35,7 @@ import { runProspeccaoApifyTick } from '../services/io/prospeccaoApifyService';
 import { runSequenciaStopOnReply } from '../services/io/sequenciaStopOnReply';
 import { runBlastRespostas } from '../services/io/blastRespostas';
 import { runZapiHealthCheck } from '../services/io/zapiHealthMonitor';
+import { runSondaDocumentos } from '../services/documentos/sondaDocumentos';
 import { runAlertaLeadQuenteSemProposta } from '../services/agenda/leadQuenteSemPropostaService';
 import { runGrupoEletropostoDiario } from '../services/io/grupoEletropostoDiario';
 import { drainIgQueue, refreshIgToken } from '../services/instagram/igEngine';
@@ -1066,6 +1067,19 @@ router.get('/linha-saude', async (req: Request, res: Response) => {
 // `?seco=1` NÃO envia e NÃO grava: devolve a fila de quem receberia e qual toque.
 // A prévia funciona MESMO com a cadência desligada — é ela que serve pra decidir
 // se liga. O envio de verdade exige CONFIANCA_ENABLED=true no Vercel.
+// Prévia sem enviar e-mail: GET /cron/sonda-documentos?seco=1
+router.get('/sonda-documentos', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const seco = req.query.seco === '1' || req.query.seco === 'true';
+    const result = await runSondaDocumentos({ seco });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    logger.error('cron', 'sonda-documentos falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
 router.get('/confianca', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
@@ -1490,6 +1504,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['capi-leads',                  () => runCapiLeads()],         // loop: fechamento (planilha) → lead → Meta (conversão de leads, otimiza perfil)
     ['capi-lead-qualificado',       () => runCapiLeadQualificado()], // solar >700 kWh que orçou → Meta aprende o perfil do cliente bom (CAPI_QUALIFICADO_OFF desliga)
     ['zapi-health',                 () => runZapiHealthCheck()],   // monitor: linha IO caída → 1 email pro Thiago (2 checagens seguidas). Toda a mensageria depende dela.
+    ['sonda-documentos',            () => runSondaDocumentos()],   // monitor: assinante apanhando no documento (3× o mesmo doc em 30min, PDF que falhou, revisão barrada). Só avisa — não mexe em documento de ninguém.
     ['alerta-lead-quente',          () => runAlertaLeadQuenteSemProposta()], // DARK (ALERTA_LEAD_QUENTE_ENABLED): lead quente sem proposta +48h → avisa o consultor dono 1×
     // ['grupo-eletroposto-diario',    () => runGrupoEletropostoDiario()], // [PAUTA-GRUPO-OFF 08/08] Thiago mandou cancelar: nem a publicação no grupo nem o aviso de fila vazia pra equipe. No-op também dentro do módulo. Não religar.
     ['entrada-io-digest',           () => runEntradaIoDigest()],       // 12h e 18h: quem escreveu no 5040 hoje (ninguém responde por robô nessa linha)

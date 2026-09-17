@@ -179,6 +179,12 @@ export default function DocumentPreview({
   const [pdfAsset, setPdfAsset] = useState<PdfAsset | null>(null);
   const [pdfState, setPdfState] = useState<'idle' | 'warming' | 'ready' | 'error'>('idle');
   const [shareMsg, setShareMsg] = useState('');
+  // Recado de quando o servidor RECUSA a revisão (a trava de saúde da api, em
+  // saudeDocumento.ts). Sem isto o cliente saía achando que salvou.
+  const [avisoSalvar, setAvisoSalvar] = useState('');
+  // A última versão que o servidor aceitou de verdade. É pra ela que o botão de
+  // desfazer volta — o documento arquivado é exatamente esta.
+  const ultimoSalvo = useRef(content);
 
   useEffect(() => {
     api.get('/company').then(({ data }) => {
@@ -323,8 +329,20 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
         content: currentContent,
       });
       setSaved(true);
+      setAvisoSalvar('');
+      ultimoSalvo.current = currentContent;
       return true;
-    } catch {
+    } catch (err) {
+      // 422 = o servidor recusou pra NÃO gravar um documento quebrado por cima
+      // do documento bom. O arquivado continua sendo a versão anterior, e é isso
+      // que a pessoa precisa ler — antes era um "false" mudo.
+      const e = err as { response?: { status?: number; data?: { error?: string; problemas?: string[] } } };
+      const d = e.response?.data;
+      setAvisoSalvar(
+        e.response?.status === 422
+          ? `Não salvei esta revisão: ${(d?.problemas ?? []).join('; ') || 'ela quebraria o documento'}. O documento arquivado continua a versão anterior.`
+          : d?.error || 'Não consegui salvar agora. Tente de novo em instantes.',
+      );
       return false;
     } finally {
       setSaving(false);
@@ -487,6 +505,26 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-hei
             </>
           )}
         </div>
+        {avisoSalvar && (
+          <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 13, color: '#ef4444', fontWeight: 600 }}>
+            <span>{avisoSalvar}</span>
+            {ultimoSalvo.current !== displayContent && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setDisplayContent(ultimoSalvo.current);
+                  setEditedContent(ultimoSalvo.current);
+                  setRevisao(r => r + 1);
+                  setAvisoSalvar('');
+                }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              >
+                <X size={15} /> Voltar pra última versão salva
+              </button>
+            )}
+          </div>
+        )}
         {shareMsg && (
           <div style={{ width: '100%', fontSize: 13, color: shareMsg.includes('Sessão') || shareMsg.includes('Não foi') ? '#ef4444' : '#f59e0b', fontWeight: 600 }}>
             {shareMsg}

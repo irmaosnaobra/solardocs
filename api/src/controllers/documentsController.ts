@@ -7,6 +7,7 @@ import { generateFromTemplate, propostaDiasValidade, type Client } from '../serv
 import { checkLimit, incrementUsed } from '../services/planService';
 import { acessoOffGrid } from '../services/offgrid/acesso';
 import { injectPrint } from '../utils/printHtml';
+import { examinarRevisao, ehDesenhado } from '../services/documentos/saudeDocumento';
 import { logger } from '../utils/logger';
 
 const generateSchema = z.object({
@@ -679,6 +680,13 @@ export async function saveDocument(req: Request, res: Response): Promise<void> {
   }
 }
 
+// Este endpoint é por onde TODA revisão passa: a que o dashboard arquiva
+// sozinho depois de gerar, e a que a pessoa faz no botão Editar. Desde que
+// contrato, procuração e proposta de banco viraram documentos desenhados, ele
+// deixou de receber texto e passou a receber a folha inteira — e por aqui uma
+// revisão infeliz sobrescrevia o documento bom. Ver saudeDocumento.ts: conserta
+// o que tem conserto óbvio, recusa o que destruiria a folha, e nunca grava pela
+// metade.
 export async function updateDocumentFile(req: Request, res: Response): Promise<void> {
   try {
     const { id } = req.params;
@@ -688,35 +696,79 @@ export async function updateDocumentFile(req: Request, res: Response): Promise<v
     // Verify ownership
     const { data: doc } = await supabase
       .from('documents')
-      .select('id, user_id, arquivo_url')
+      .select('id, user_id, arquivo_url, content, tipo')
       .eq('id', id)
       .eq('user_id', req.userId)
       .single();
 
     if (!doc) { res.status(404).json({ error: 'Documento não encontrado' }); return; }
 
-    const updates: Record<string, unknown> = {};
-    if (newContent) updates.content = newContent;
+    // A logo em base64 é o que permite desfazer a troca do {{LOGO}}: ela entra
+    // na folha só pra desenhar na tela e não pode ficar gravada na coluna.
+    const { data: empresa } = await supabase
+      .from('company').select('logo_base64').eq('user_id', req.userId).maybeSingle();
 
-    if (htmlContent) {
-      // Remove old file if exists
-      if (doc.arquivo_url) {
-        await supabase.storage.from('documentos').remove([doc.arquivo_url]);
-      }
+    const exame = examinarRevisao({
+      content: newContent,
+      html: htmlContent,
+      eraDesenhado: ehDesenhado(String(doc.content || '')),
+      logoBase64: empresa?.logo_base64 ?? null,
+    });
+
+    if (exame.problemas.length > 0) {
+      // Nada é escrito: o documento que está salvo continua inteiro, e o
+      // dashboard mostra o motivo pra pessoa corrigir ou desfazer.
+      logger.error('documents', `revisão recusada no doc ${id}: ${exame.problemas.join(' | ')}`);
+      // Registro fail-silent: é por ele que a sonda descobre que alguém está
+      // tentando editar e não está conseguindo (ver sondaDocumentos.ts).
+      try {
+        await supabase.from('feature_events').insert({
+          user_id: req.userId,
+          feature: 'documento',
+          event_type: 'revisao_recusada',
+          event_data: { doc_id: id, tipo: doc.tipo, problemas: exame.problemas },
+        });
+      } catch { /* aviso não pode derrubar a resposta */ }
+      res.status(422).json({
+        error: 'A revisão não foi salva porque quebraria o documento',
+        problemas: exame.problemas,
+      });
+      return;
+    }
+    if (exame.reparos.length > 0) {
+      logger.info('documents', `revisão do doc ${id} salva com reparo: ${exame.reparos.join(' | ')}`);
+    }
+
+    const updates: Record<string, unknown> = {};
+    if (exame.content) updates.content = exame.content;
+
+    if (exame.html) {
+      // SOBE O NOVO ANTES DE APAGAR O VELHO. Na ordem inversa — como era até
+      // 17/09/2026 — um upload que falhasse deixava a linha apontando pra um
+      // arquivo já removido: o /p/:id e o PDF respondiam "documento não
+      // disponível" pra um documento que existe e está pago.
       const fileName = `${req.userId}/${id}-${Date.now()}.html`;
       const { error: uploadError } = await supabase.storage
         .from('documentos')
-        .upload(fileName, Buffer.from(htmlContent, 'utf-8'), { contentType: 'text/html; charset=utf-8', upsert: false });
-      if (!uploadError) updates.arquivo_url = fileName;
+        .upload(fileName, Buffer.from(exame.html, 'utf-8'), { contentType: 'text/html; charset=utf-8', upsert: false });
+
+      if (uploadError) {
+        // Sem gravar nada: coluna e arquivo têm que contar a MESMA versão.
+        logger.error('documents', `upload do arquivo do doc ${id} falhou`, uploadError);
+        res.status(503).json({ error: 'Não consegui arquivar o documento agora. Tente de novo em instantes.' });
+        return;
+      }
+      updates.arquivo_url = fileName;
+      if (doc.arquivo_url) await supabase.storage.from('documentos').remove([doc.arquivo_url]);
     }
 
     if (Object.keys(updates).length > 0) {
-      await supabase.from('documents').update(updates).eq('id', id);
+      await supabase.from('documents').update(updates).eq('id', id).eq('user_id', req.userId);
     }
 
-    res.json({ ok: true });
+    res.json({ ok: true, reparos: exame.reparos });
   } catch (err) {
-    console.error('updateDocumentFile error:', err);
+    logger.error('documents', 'updateDocumentFile falhou', err);
     res.status(500).json({ error: 'Erro ao atualizar documento' });
   }
 }
