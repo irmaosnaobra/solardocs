@@ -1501,7 +1501,18 @@ router.get('/master', async (req: Request, res: Response) => {
     // De hora em hora basta: a régua dela é de 3h úteis. Prévia: ?dry=1.
     ['sentinela-vacuo',             () => runSentinelaVacuo()],
     ['sdr-followup',                () => runSdrFollowups()],
-    ['sdr-b2b-followup',             () => runSdrB2bFollowups()],
+    // FICA DESLIGADO (17/09/2026). Rodava de hora em hora e mandava ZERO desde
+    // sempre, por dois defeitos achados em 25/08 e ainda de pé:
+    //   1. a consulta exige `aguardando_resposta = true`, e o `upsertCrmLead`
+    //      grava `false` em TODA mensagem (sdrB2bAgentService.ts) — a fila nasce
+    //      vazia. Conferido no banco hoje: 45 leads b2b, ZERO com a flag.
+    //   2. envia por `sendHuman(..., 'solardoc')`, uma linha que o lead do
+    //      anúncio nunca viu — ele conversa pela IO.
+    // Quem cobre esse mesmo público HOJE é a `carla-retomada` logo acima, que já
+    // sai pela linha certa e carimba o teto. O que faltava a ela era orçamento,
+    // e isso foi corrigido junto (ver PREFIXOS_AGENDA em lineThrottle).
+    // Religar exige corrigir os dois defeitos, não tirar o comentário.
+    // ['sdr-b2b-followup',             () => runSdrB2bFollowups()],   // [B2B-FOLLOWUP-MORTO] fila sempre vazia + linha errada
     ['sync-social-windsor',         () => syncSocialWindsor()],      // métricas IG+TikTok → aba Redes do gerador
     ['produtos-virais',             () => gerarProdutosVirais()],    // 3 produtos top TikTok Shop → roteiro AIDA → fila canal 'produtos'
     ['insights-prewarm',             () => getInsights(true)],
