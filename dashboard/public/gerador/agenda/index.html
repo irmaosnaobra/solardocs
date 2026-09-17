@@ -278,6 +278,7 @@
   .slot.status-fechou_concorrente{ background: #92400e; color: #fff; }
   .slot.status-arrendamento      { background: #6F4E37; color: #fff; }
   .slot.status-meio_a_meio       { background: #be185d; color: #fff; }
+  .slot.status-carregador        { background: #4338ca; color: #fff; }
   .slot.status-perdido           { background: #475569; color: #fff; }
   /* As mesmas cores dentro do quadro dividido: a metade é que recebe o status,
      não o slot. Sem isto as duas ficariam azuis, mentindo o status de uma delas. */
@@ -293,6 +294,7 @@
   .slot.dividido .meia.status-fechou_concorrente{ background: #92400e; color: #fff; }
   .slot.dividido .meia.status-arrendamento      { background: #6F4E37; color: #fff; }
   .slot.dividido .meia.status-meio_a_meio       { background: #be185d; color: #fff; }
+  .slot.dividido .meia.status-carregador        { background: #4338ca; color: #fff; }
   .slot.dividido .meia.status-perdido           { background: #475569; color: #fff; }
   /* ── SILÊNCIO DO LEAD (ordem do Thiago, 19/08/2026) ──────────────────────────
      "O lead do horário que não responder a primeira msg fica em amarelo."
@@ -745,6 +747,7 @@
   .btn-status.bg-em { background: #7c3aed; }
   .btn-status.bg-ar { background: #6F4E37; }
   .btn-status.bg-mm { background: #be185d; }
+  .btn-status.bg-cr { background: #4338ca; }
   .btn-status.bg-pe { background: #475569; }
   .btn-status.bg-pa { background: #0ea5e9; }
   .prop-atual { font-size: 12px; color: #0369a1; margin-top: 8px; line-height: 1.4; }
@@ -915,6 +918,7 @@
   html[data-theme="dark"] .slot.status-fechou_concorrente{ background: #92400e; color: #fff; }
   html[data-theme="dark"] .slot.status-arrendamento      { background: #6F4E37; color: #fff; }
   html[data-theme="dark"] .slot.status-meio_a_meio       { background: #be185d; color: #fff; }
+  html[data-theme="dark"] .slot.status-carregador        { background: #4338ca; color: #fff; }
   html[data-theme="dark"] .slot.status-perdido           { background: #475569; color: #fff; }
   html[data-theme="dark"] .slot.bloqueado {
     background: repeating-linear-gradient(45deg, #6b7280, #6b7280 6px, #525c6a 6px, #525c6a 12px);
@@ -1182,7 +1186,8 @@
            continua nos mapas de rótulo logo abaixo: 10 fichas antigas ainda o
            carregam, e sem rótulo elas apareceriam sem selo. -->
       <button type="button" class="btn-status bg-ar" data-status="arrendamento"       onclick="atualizarStatus('arrendamento')" style="grid-column: span 2;">🤝 ARRENDAMENTO</button>
-      <button type="button" class="btn-status bg-mm" data-status="meio_a_meio"       onclick="atualizarStatus('meio_a_meio')" style="grid-column: span 2;">👥 50/50</button>
+      <button type="button" class="btn-status bg-mm" data-status="meio_a_meio"       onclick="atualizarStatus('meio_a_meio')">👥 50/50</button>
+      <button type="button" class="btn-status bg-cr" data-status="carregador"        onclick="atualizarStatus('carregador')">🔌 Carregador</button>
       <button type="button" class="btn-status bg-pe" data-status="perdido"           onclick="atualizarStatus('perdido')" style="grid-column: span 2;">❌ Perdido</button>
       <button type="button" class="btn-status bg-fe" data-status="fechou"            onclick="atualizarStatus('fechou')" style="grid-column: span 2;">✅ Fechou</button>
     </div>
@@ -2097,6 +2102,7 @@ async function atualizarStatus(novoStatus) {
       proposta_apresentada: '📑 Marcado como Proposta apresentada',
       arrendamento:      '🤝 Marcado como ARRENDAMENTO — nós investimos 100%',
       meio_a_meio:       '👥 Marcado como 50/50 — sociedade meio a meio',
+      carregador:        '🔌 Marcado como Carregador — leva só o equipamento',
       fechou_concorrente:'🏢 Marcado como Fechou concorrente',
       perdido:           '❌ Marcado como Perdido',
       fechou:            '✅ Marcado como Fechou',
