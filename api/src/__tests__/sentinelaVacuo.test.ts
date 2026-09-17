@@ -10,8 +10,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 interface Msg { telefone: string; from_me: boolean; texto: string | null; momment: string; chat_name?: string | null; is_group?: boolean; instancia?: string }
 
-const db: { wa: Msg[]; sessoes: any[]; leads: any[]; state: Array<{ key: string; updated_at: string; value?: string }> } = {
-  wa: [], sessoes: [], leads: [], state: [],
+const db: {
+  wa: Msg[]; sessoes: any[]; leads: any[];
+  state: Array<{ key: string; updated_at: string; value?: string }>;
+  erroNoState: boolean;
+} = {
+  wa: [], sessoes: [], leads: [], state: [], erroNoState: false,
 };
 
 function builder(tabela: string) {
@@ -45,7 +49,14 @@ function builder(tabela: string) {
         : db.state;
       return fonte.filter((r: any) => q._filtros.every((f: any) => f(r)));
     },
-    then(res: any, rej: any) { return Promise.resolve({ data: q._linhas(), error: null }).then(res, rej); },
+    then(res: any, rej: any) {
+      // Consulta que quebra devolve data NULA e um error preenchido. É assim que
+      // o supabase-js responde, e é o formato que pega quem esquece o `error`.
+      if (tabela === 'system_state' && db.erroNoState) {
+        return Promise.resolve({ data: null, error: { message: 'connection reset' } }).then(res, rej);
+      }
+      return Promise.resolve({ data: q._linhas(), error: null }).then(res, rej);
+    },
   };
   return q;
 }
@@ -73,7 +84,7 @@ const msg = (tel: string, from_me: boolean, quandoMs: number, texto = 'oi, queri
 });
 
 beforeEach(() => {
-  db.wa = []; db.sessoes = []; db.leads = []; db.state = [];
+  db.wa = []; db.sessoes = []; db.leads = []; db.state = []; db.erroNoState = false;
   enviados.length = 0; silenciados.clear();
   process.env.ZAPI_INSTANCE_ID_IO = INST;
   delete process.env.VACUO_OFF;
@@ -236,6 +247,33 @@ describe('dentroDoExpediente', () => {
 
     expect(r.motivo).toBe('cobraria_agora');
     expect(enviados).toHaveLength(0);
+  });
+});
+
+describe('leitura dos marcadores', () => {
+  it('consulta quebrada NÃO vira "ninguém foi cobrado ainda"', async () => {
+    // O perigo não é falhar: é a falha parecer sucesso. Marcador que não foi
+    // lido faz toda conversa parada parecer nova, e a equipe recebe a mesma
+    // lista de novo a cada varredura.
+    db.wa = [msg('5534999990015', false, Date.now() - 6 * 3600_000)];
+    db.erroNoState = true;
+
+    const r = await runSentinelaVacuo();
+
+    expect(r.motivo).toBe('erro_marcadores');
+    expect(r.cobrancas).toBe(0);
+    expect(enviados).toHaveLength(0);
+  });
+
+  it('sem erro, a conversa já cobrada continua sendo pulada', async () => {
+    db.wa = [msg('5534999990016', false, Date.now() - 6 * 3600_000)];
+
+    await runSentinelaVacuo();
+    vi.setSystemTime(new Date(Date.now() + 21 * 60_000));
+    const segunda = await runSentinelaVacuo();
+
+    expect(enviados).toHaveLength(1);
+    expect(segunda.motivo).toBe('todas_ja_cobradas');
   });
 });
 

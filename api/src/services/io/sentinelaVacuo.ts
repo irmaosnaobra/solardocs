@@ -254,7 +254,8 @@ export interface VacuoResult {
 }
 
 /**
- * Uma varredura. Roda de hora em hora; `dry` mostra o que faria sem mandar nada.
+ * Uma varredura. É chamada de minuto em minuto pelo /cron/io-broadcast-tick e
+ * represada em 20 minutos aqui dentro; `dry` mostra o que faria sem mandar nada.
  */
 export async function runSentinelaVacuo(opts: { dry?: boolean } = {}): Promise<VacuoResult> {
   const dry = !!opts.dry;
@@ -336,10 +337,32 @@ export async function runSentinelaVacuo(opts: { dry?: boolean } = {}): Promise<V
   }
 
   // 5. Nível de cobrança de cada um, pulando o que já foi cobrado.
+  //
+  // ESTA LEITURA É A ÚNICA COISA QUE IMPEDE COBRAR A MESMA CONVERSA DE NOVO, e
+  // por isso ela não pode falhar em silêncio. Sem olhar o `error`, uma consulta
+  // que quebra devolve `data` nulo, o conjunto nasce vazio e TODA conversa
+  // parada volta a parecer nunca cobrada: a mesma lista de 70 nomes cairia no
+  // celular da equipe de 20 em 20 minutos, pela linha que menos pode levar
+  // rajada. Fail-closed: na dúvida não cobra ninguém e tenta na próxima.
+  //
+  // É o mesmo defeito da sonda cega de documentos (`25604d2e`): `const { data }`
+  // sem `error` faz consulta quebrada parecer dia tranquilo.
   const marcadores = await supabase
     .from('system_state').select('key').like('key', 'vacuo_avisado:%')
     .gte('updated_at', desde).limit(5000);
-  const jaCobrado = new Set<string>(((marcadores.data || []) as Array<{ key: string }>).map(r => r.key));
+  if (marcadores.error) {
+    logger.error('sentinela-vacuo', 'falha lendo os marcadores de cobranca', marcadores.error);
+    return { paradas: esperando.length, cobrancas: 0, avisados: [], motivo: 'erro_marcadores' };
+  }
+  const linhasMarcador = (marcadores.data || []) as Array<{ key: string }>;
+  // Truncar aqui tem o mesmo efeito de não ler: o que ficou de fora do limite
+  // parece nunca cobrado. Hoje sobram ~3 marcadores por conversa parada em 7
+  // dias (algumas centenas), mas se um dia encostar no teto é melhor ver no log
+  // do que descobrir pelo celular da equipe.
+  if (linhasMarcador.length >= 5000) {
+    logger.warn('sentinela-vacuo', 'marcadores no teto de 5000: a lista pode estar truncada');
+  }
+  const jaCobrado = new Set<string>(linhasMarcador.map(r => r.key));
 
   const porDono = new Map<string, ConversaParada[]>();
   const paradas: ConversaParada[] = [];
@@ -383,6 +406,25 @@ export async function runSentinelaVacuo(opts: { dry?: boolean } = {}): Promise<V
   // 6. Um resumo por dono. Marca ANTES de mandar: falha de envio que não marcou
   //    faria a próxima rodada cobrar tudo de novo, e o robô que repete é o robô
   //    que a equipe silencia.
+  //
+  // POR QUE ESTE ENVIO NÃO PASSA PELO REGIME ANTI-BAN DA LINHA (teto frio e
+  // espaçamento de 10 a 15 min). Não é esquecimento, é medida:
+  //
+  //  - O destinatário é o celular da PRÓPRIA EQUIPE (no máximo 3 por varredura,
+  //    conversa de mão dupla que existe todo dia). O que queima linha é toque
+  //    frio em desconhecido, que bloqueia e denuncia — não recado pra dentro.
+  //  - Exigir o espaçamento calaria a sentinela quase sempre: a linha produziu
+  //    120 envios em 24h, ou seja um a cada ~5 min dentro da janela, e a regra
+  //    pede 10 a 15 min de silêncio. Seria o mesmo buraco em que o aviso caiu
+  //    (`57305d0c`): a trava certa pro robô errado, e ninguém descobre porque o
+  //    sintoma é silêncio.
+  //  - Também não carimba marcador em BOT_SENT_PREFIXES DE PROPÓSITO: se
+  //    carimbasse, um recado interno empurraria pra frente a mensagem de um
+  //    cliente. A prioridade é o contrário disso.
+  //
+  // O que segura o volume aqui é o marcador por conversa e por nível logo acima
+  // (cada uma cobrada uma vez em cada nível) e a represa de 20 minutos lá em
+  // cima — não o teto da linha.
   let cobrancas = 0;
   const avisados: string[] = [];
   for (const [dono, itens] of porDono) {
