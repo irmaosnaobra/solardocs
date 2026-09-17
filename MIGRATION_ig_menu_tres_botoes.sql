@@ -1,0 +1,41 @@
+-- Menu e rede de seguranca: tres botoes em vez de "digite SOLAR". (17/09/2026)
+-- Projeto: gerador-propostas (ancecdfqfwlaujknizof). APLICADO E SONDADO.
+-- Fecha o pedido "criar botao em todos": 14 de 14 automacoes viram card.
+--
+-- Eram as duas unicas sem link_url, e por um motivo: nao tem UM destino, tem
+-- tres. Pegam quem disse que tem interesse sem dizer de qual produto.
+-- Precisou de codigo (commit fbb09cc2): buildMessage montava 1 botao apesar de
+-- o proprio comentario dizer que a Meta aceita 3. Coluna `botoes` jsonb.
+--
+-- POR QUE A COPY MANTEM O "ou responde SOLAR, ELETROPOSTO ou BIKE":
+-- o botao leva a pessoa pro site e a conversa na DM nunca abre. Quem DIGITA a
+-- palavra abre a janela de 24h da Meta, cai no roteamento por palavra-chave e
+-- pode virar lead no CRM. Trocar um pelo outro ganharia cliques e perderia
+-- conversas, entao os dois caminhos ficam na mesma mensagem.
+--
+-- update ig_automations set
+--   dm_boas_vindas = 'Qual deles e o seu caso?' || chr(10) ||
+--                    'Toque num botao, ou responde SOLAR, ELETROPOSTO ou BIKE.',
+--   botoes = '[{"url":"...simular...","titulo":"Energia solar"},
+--              {"url":"...io/eletroposto...","titulo":"Eletroposto"},
+--              {"url":"...bike...","titulo":"Bike eletrica"}]'::jsonb
+--  where ativo = true and (nome like '%Menu%' or fallback = true);
+--
+-- Copy de 81 caracteres: 24 de titulo, 56 de subtitulo, dentro dos 80+80.
+-- Cada url leva utm_content=menu, pra separar quem veio daqui de quem veio do
+-- comentario direto.
+--
+-- SONDA:
+-- select nome, length(dm_boas_vindas) tam, jsonb_array_length(botoes) qtd
+--   from ig_automations where botoes is not null;
+-- Esperado: 2 linhas, tam 81, qtd 3.
+--
+-- VOLTAR ATRAS (a copy antiga pedia so pra digitar):
+-- update ig_automations set botoes = null, dm_boas_vindas =
+--   'Oi! Vi seu comentario e vim te responder por aqui.' || chr(10) || chr(10) ||
+--   'Pra eu te mandar a informacao certa, e so responder com UMA palavra:' || ...
+--   (texto integral no historico do git)
+--  where nome like '%Menu%' or fallback = true;
+--
+-- ESTADO FINAL, provado com loadAutomations() + buildMessage() do codigo no ar:
+--   14 automacoes ativas, 14 cards, nenhum cortado, nenhuma sem botao.
