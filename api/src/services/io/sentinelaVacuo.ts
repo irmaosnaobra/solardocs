@@ -352,7 +352,10 @@ export async function runSentinelaVacuo(opts: { dry?: boolean } = {}): Promise<V
     .gte('updated_at', desde).limit(5000);
   if (marcadores.error) {
     logger.error('sentinela-vacuo', 'falha lendo os marcadores de cobranca', marcadores.error);
-    return { paradas: esperando.length, cobrancas: 0, avisados: [], motivo: 'erro_marcadores' };
+    // `paradas` é quanta conversa ESTE tick pegou pra cobrar. Aqui não pegou
+    // nenhuma, então é 0 — devolver o tamanho da fila daria a mesma cara de
+    // `todas_ja_cobradas`, que é o oposto do que aconteceu.
+    return { paradas: 0, cobrancas: 0, avisados: [], motivo: 'erro_marcadores' };
   }
   const linhasMarcador = (marcadores.data || []) as Array<{ key: string }>;
   // Truncar aqui tem o mesmo efeito de não ler: o que ficou de fora do limite
