@@ -360,7 +360,14 @@ export async function varrerComentariosFacebook(): Promise<{ respondidos: number
           produto: a.produto || (String(a.link_url || '').includes('/io/eletroposto') ? 'eletroposto' : 'solar'),
           nome: c.fromName || 'Lead Facebook',
           whatsapp: tel,
-          contact_id: 'fb_' + (c.fromId || c.id),
+          // A Meta NÃO devolve `from` em comentário de usuário comum (só quando
+          // o autor é a própria Página). Cair no id do COMENTÁRIO aqui era
+          // fabricar uma chave nova a cada comentário: o CRM monta o leadId com
+          // `contact_id` na frente do telefone, então a mesma pessoa comentando
+          // duas vezes viraria dois cards, e quem já está no CRM viraria um
+          // terceiro. Sem `from`, o telefone é a única chave que identifica
+          // gente de verdade — e é o que o CRM usa quando `contact_id` vem vazio.
+          contact_id: c.fromId ? 'fb_' + c.fromId : '',
           origem: 'comentário no Facebook',
         });
       }
