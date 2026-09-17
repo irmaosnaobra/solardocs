@@ -1139,6 +1139,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-col-quente .crm-col-head{box-shadow:inset 0 3px 0 #FB923C}
 .crm-col-vendido .crm-col-head{box-shadow:inset 0 3px 0 #34D399}
 .crm-col-perdido .crm-col-head{box-shadow:inset 0 3px 0 #F87171}
+.crm-col-arrendamento .crm-col-head{box-shadow:inset 0 3px 0 #B08968}
 /* card de cliente */
 .crm-card{background:#1c2c47;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:11px 12px;display:flex;flex-direction:column;gap:7px}
 .crm-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:6px}
@@ -1178,6 +1179,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-status-selo.selo-em{background:rgba(124,58,237,.2);color:#C4B5FD}
 .crm-status-selo.selo-pe{background:rgba(71,85,105,.28);color:#CBD5E1}
 .crm-status-selo.selo-pa{background:rgba(14,165,233,.2);color:#7DD3FC}
+.crm-status-selo.selo-ar{background:rgba(111,78,55,.35);color:#D7B49E}
 /* presenca confirmada: esmeralda, o mesmo par de cores do card da agenda */
 .crm-status-selo.selo-ok{background:rgba(52,211,153,.2);color:#6EE7B7}
 /* Silêncio do lead: o mesmo âmbar do card amarelo da agenda. */
@@ -1248,7 +1250,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-btn-status.bg-fo{background:#eab308;color:#1f2937}
 .crm-btn-status.bg-fe{background:#16a34a}
 .crm-btn-status.bg-em{background:#7c3aed}
-.crm-btn-status.bg-fc{background:#92400e}
+.crm-btn-status.bg-ar{background:#6F4E37}
 .crm-btn-status.bg-pe{background:#475569}
 .crm-btn-status.bg-pa{background:#0ea5e9}
 .crm-det-prop-atual{font-size:12px;color:#7DD3FC;margin-top:8px;min-height:1px}
@@ -2956,11 +2958,11 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-tel" placeholder="(34) 99816-5040" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>E-mail</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-email" placeholder="e-mail da empresa" oninput="orcEmitSalvar()"></div></div>
-        <div class="eletro-field"><label>Razão social <span style="opacity:.6;font-weight:600">(só no contrato)</span></label>
+        <div class="eletro-field"><label>Razão social <span style="opacity:.6;font-weight:600">(documentos jurídicos)</span></label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-razao" placeholder="AIOROS LTDA" oninput="orcEmitSalvar()"></div></div>
-        <div class="eletro-field"><label>Nome fantasia <span style="opacity:.6;font-weight:600">(só no contrato)</span></label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-fantasia" placeholder="AIOROS GROUP LTDA" oninput="orcEmitSalvar()"></div></div>
-        <div class="eletro-field"><label>CNPJ <span style="opacity:.6;font-weight:600">(só no contrato)</span></label>
+        <div class="eletro-field"><label>Nome fantasia <span style="opacity:.6;font-weight:600">(documentos jurídicos)</span></label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-fantasia" placeholder="opcional" oninput="orcEmitSalvar()"></div></div>
+        <div class="eletro-field"><label>CNPJ <span style="opacity:.6;font-weight:600">(documentos jurídicos)</span></label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-cnpj" placeholder="00.000.000/0000-00" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>Sócio administrador — nome</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-socio" placeholder="quem assina pela empresa" oninput="orcEmitSalvar()"></div></div>
@@ -2972,7 +2974,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-conta" placeholder="Ex: Sicoob 756 · ag 4264 · cc 168882" oninput="orcEmitSalvar()"></div></div>
         <div class="orc-note">Aparecem <b>só no recibo</b>, e só se preenchidos. Hoje o recibo anuncia o saldo a pagar e não diz para onde mandar — o cliente termina de ler pronto para pagar e precisa procurar o consultor.</div>
         <div class="orc-note">Empresa não assina sozinha. O contrato já <b>exige</b> o representante legal do cliente — a exigência vale para os dois lados, e a proposta de banco diz "assinada pelo seu representante legal" sobre uma linha que hoje não nomeia ninguém.</div>
-        <div class="orc-note">O <b>orçamento</b> continua saindo com a marca e sem CNPJ, como você pediu. Estes dois só aparecem no <b>contrato</b>, porque quem assina contrato é a <b>pessoa jurídica</b> — "NEXUS" é marca, não é parte. Preencha uma vez: fica salvo.</div>
+        <div class="orc-note">O <b>orçamento</b> e o Estudo continuam saindo só com a marca, sem CNPJ. Contrato, procuração, recibo e os papéis do banco saem em nome da <b>NEXUS Eletropostos</b>, com a razão social e o CNPJ da <b>AIOROS LTDA</b> ao lado. A NEXUS ainda não tem CNPJ próprio, e banco, Pix e Receita conferem o nome contra o número. Preencha uma vez: fica salvo.</div>
       </div>
 
       <!-- DADOS DA PROPOSTA -->
@@ -3427,7 +3429,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
          Finame financia o EQUIPAMENTO, não a obra — é por isso que o valor sai
          partido em duas linhas, e é por isso que o split não tem default. -->
     <div id="eletro-pane-finame" style="display:none;">
-    <div class="pesquisa-info">Duas folhas que a <b>AIOROS</b> assina e o cliente leva ao banco dele para <b>liberar o crédito</b>. Cliente, endereço e composição descem do <b>Orçamento</b>; o que se preenche aqui é o que só o banco pede.</div>
+    <div class="pesquisa-info">Duas folhas em nome da <b>NEXUS</b>, assinadas pela razão social <b>AIOROS LTDA</b> com o CNPJ ao lado (o banco confere o nome contra o número), que o cliente leva ao banco dele para <b>liberar o crédito</b>. Cliente, endereço e composição descem do <b>Orçamento</b>; o que se preenche aqui é o que só o banco pede.</div>
     <div class="orc-wrap">
 
       <div class="ep-pasta-host"></div>
@@ -4458,8 +4460,17 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <button type="button" class="crm-btn-status bg-na" data-status="nao_atendeu"      onclick="crmAtualizarStatus('nao_atendeu')">❌ Não atendeu</button>
         <button type="button" class="crm-btn-status bg-em" data-status="em_atendimento"   onclick="crmAtualizarStatus('em_atendimento')" style="grid-column:span 2">🕐 Em atendimento (segura o lead)</button>
         <button type="button" class="crm-btn-status bg-si" data-status="sem_interesse"    onclick="crmAtualizarStatus('sem_interesse')" style="grid-column:span 2">🙅 Sem interesse</button>
-        <button type="button" class="crm-btn-status bg-fc" data-status="fechou_concorrente" onclick="crmAtualizarStatus('fechou_concorrente')">🏢 Fechou concorrente</button>
-        <button type="button" class="crm-btn-status bg-pe" data-status="perdido"          onclick="crmAtualizarStatus('perdido')">❌ Perdido</button>
+        <!-- ARRENDAMENTO (17/09/2026) — tomou o lugar do botão "Fechou concorrente".
+             É quem NÃO quer comprar mas deixa a gente instalar no ponto dele: nós
+             investimos 100% e arrendamos o espaço. Status PRÓPRIO (`arrendamento`),
+             não apelido do antigo, porque `fechou_concorrente` é lido como PERDIDO em
+             todo lado (CRM_STATUS_PERDIDO no /gerador, AG_MORTO na prospecção,
+             STATUS_ENCERRADOS e STATUS_QUE_NAO_RECEBEM na api) e arrendamento é lead
+             VIVO. Por isso ele fica fora dessas listas de propósito. O status velho
+             continua nos mapas de rótulo logo abaixo: 10 fichas antigas ainda o
+             carregam, e sem rótulo elas apareceriam sem selo. -->
+        <button type="button" class="crm-btn-status bg-ar" data-status="arrendamento"       onclick="crmAtualizarStatus('arrendamento')" style="grid-column:span 2">🤝 ARRENDAMENTO</button>
+        <button type="button" class="crm-btn-status bg-pe" data-status="perdido"          onclick="crmAtualizarStatus('perdido')" style="grid-column:span 2">❌ Perdido</button>
         <button type="button" class="crm-btn-status bg-fe" data-status="fechou"           onclick="crmAtualizarStatus('fechou')" style="grid-column:span 2">✅ Fechou</button>
       </div>
 
@@ -9657,7 +9668,7 @@ function orcEmitCarregar() {
   // qualificação da parte só porque ninguém preencheu o cadastro neste aparelho.
   // Marca do eletroposto é NEXUS (09/2026) e o e-mail de contato saiu dos documentos.
   const def = { nome: 'NEXUS Eletropostos', end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: '',
-                cnpj: '63.636.043/0001-88', razao: 'AIOROS LTDA', fantasia: 'AIOROS GROUP LTDA', socio: '', socioCpf: '', pix: '', conta: '' };
+                cnpj: '63.636.043/0001-88', razao: 'AIOROS LTDA', fantasia: '', socio: '', socioCpf: '', pix: '', conta: '' };
   orcEmitCampos().forEach(k => {
     const el = document.getElementById('orc-emit-' + k);
     if (el) el.value = (o[k] != null && o[k] !== '') ? o[k] : (def[k] || '');
@@ -9965,8 +9976,49 @@ const EP_MARCA = 'NEXUS Eletropostos';
 // "Irmãos na Obra", "IRMAOS NA OBRA — Mobilidade Elétrica"...: com ou sem acento,
 // qualquer caixa. É o nome que a marca do eletroposto tinha antes da NEXUS.
 const epMarcaAntiga = s => /irmaos\s+na\s+obra/i.test(String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, ''));
+// ── TRANSIÇÃO NEXUS / AIOROS (decisão do dono, 15/09/2026) ──
+// A marca é NEXUS Eletropostos, mas a NEXUS ainda não tem CNPJ: quem existe
+// juridicamente é a AIOROS LTDA. Documento jurídico (contrato, procuração, recibo,
+// análise de crédito, proposta de banco) sai em nome da NEXUS, e tudo que é CNPJ
+// continua da AIOROS, com a razão social SEMPRE colada ao número. Banco, Receita e
+// o app do Pix conferem o nome contra o CNPJ: a marca sozinha ao lado do número é
+// identificação que não bate e trava financiamento. Nunca sai a fantasia do cartão
+// ("AIOROS GROUP LTDA") nem o nome da empresa futura, que ainda não tem CNPJ.
+// Vitrine (orçamento, Estudo, deck, link) continua só com a marca.
+// Um helper só, usado por todos os documentos jurídicos, pra regra não divergir.
+const epFantasiaAntiga = s => String(s || '').replace(/\s+/g, '').toLowerCase() === 'aiorosgroupltda';
+const epNomeNorm = s => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+/** Nome da parte em destaque: a marca do cadastro, ou a NEXUS se vazio ou antigo. */
+function epParteMarca(emp) {
+  const n = String((emp && emp.nome) || '').trim();
+  return (!n || epMarcaAntiga(n)) ? EP_MARCA : n;
+}
+/** Fantasia só entra preenchida e diferente da razão e da marca. */
+function epParteFantasia(emp) {
+  const f = String((emp && emp.fantasia) || '').trim();
+  if (!f || epFantasiaAntiga(f)) return '';
+  const fn = epNomeNorm(f);
+  return (fn === epNomeNorm(emp.razao) || fn === epNomeNorm(epParteMarca(emp))) ? '' : f;
+}
+/** Qualificação da parte: "<b>NEXUS Eletropostos</b>, marca de AIOROS LTDA, inscrita
+ *  no CNPJ sob o nº ...". `vazio` é o do documento que chama: razão ou CNPJ em branco
+ *  vira a lacuna dele, e nunca cai na marca. A fantasia vem depois do CNPJ para a
+ *  razão social não se separar do número. */
+function epParteQualif(emp, vazio) {
+  const fant = epParteFantasia(emp);
+  return `<b>${orcEsc(epParteMarca(emp))}</b>, marca de ${vazio(String(emp.razao || '').trim())}` +
+    `, inscrita no CNPJ sob o nº ${vazio(String(emp.cnpj || '').trim())}${fant ? ', nome fantasia ' + orcEsc(fant) : ''}`;
+}
+/** Linha de identificação sob a marca: "AIOROS LTDA · CNPJ 63.636.043/0001-88" (texto puro).
+ *  CNPJ nunca sai sozinho: sem razão no cadastro, vai a razão certa junto. */
+function epParteRazaoCnpj(emp) {
+  const c = String((emp && emp.cnpj) || '').trim();
+  const r = String((emp && emp.razao) || '').trim() || (c ? RAZAO_CERTA : '');
+  return [r, c ? 'CNPJ ' + c : ''].filter(Boolean).join(' · ');
+}
 /** Conserta o cadastro da empresa salvo neste aparelho. Roda uma vez por leitura
- *  e e' barata: comparacao de string. Fantasia fica como o dono escreveu.
+ *  e e' barata: comparacao de string. Fantasia fica como o dono escreveu, menos a
+ *  do cartao CNPJ ("AIOROS GROUP LTDA"), que sai (transicao NEXUS / AIOROS acima).
  *  09/2026: a marca virou NEXUS e o e-mail antigo saiu dos documentos — aparelho
  *  que ja' tinha salvo o nome velho ou o e-mail velho e' migrado aqui, e so'
  *  grava de volta se algo mudou. */
@@ -9977,6 +10029,7 @@ function epEmitCorrigir(o) {
     o.razao = RAZAO_CERTA; mudou = true;
   }
   if (typeof o.nome === 'string' && epMarcaAntiga(o.nome)) { o.nome = EP_MARCA; mudou = true; }
+  if (typeof o.fantasia === 'string' && epFantasiaAntiga(o.fantasia)) { o.fantasia = ''; mudou = true; }
   if (typeof o.email === 'string' && o.email.replace(/\s+/g, '').toLowerCase() === 'contato@irmaosnaobra.com.br') {
     o.email = ''; mudou = true;
   }
@@ -9992,7 +10045,7 @@ function epEmitGet() {
   // — registro profissional inventado num documento que vai ao balcao da
   // concessionaria e' problema de outra ordem.
   const def = { nome: 'NEXUS Eletropostos', end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: '',
-                cnpj: '63.636.043/0001-88', razao: 'AIOROS LTDA', fantasia: 'AIOROS GROUP LTDA',
+                cnpj: '63.636.043/0001-88', razao: 'AIOROS LTDA', fantasia: '',
                 socio: '', socioCpf: '', pix: '', conta: '',
                 engNome: 'Guilherme Dornelas Ferreira', engNac: 'brasileiro', engEc: 'solteiro',
                 engProf: 'Engenheiro Eletricista', engRg: '', engCpf: '048.959.171-00',
@@ -10042,8 +10095,10 @@ function epPageFootHTML(doc, cliente, n, total, logo) {
 }
 // Rodapé escuro: Vendedor | Empresa (mesmo bloco nos dois documentos).
 // modo (09/2026): o padrão é a VITRINE (Estudo de Viabilidade e documento de
-// venda) e mostra só a marca, a cidade e o telefone — NEXUS não tem CNPJ.
-// 'juridico' (recibo) mostra quem recebe de verdade: razão social, CNPJ e endereço.
+// venda) e mostra só a marca, a cidade e o telefone, sem CNPJ nem razão social.
+// 'juridico' (recibo) segue a transição NEXUS / AIOROS (15/09/2026): a NEXUS ainda
+// não tem CNPJ, então o Nome é a marca e, logo abaixo, vêm a razão social AIOROS LTDA
+// e o CNPJ dela, que é quem recebe de verdade, mais endereço e contato.
 // E-mail só sai se estiver preenchido no cadastro.
 function epFooterBlockHTML(vend, modo) {
   vend = vend || {};
@@ -10051,7 +10106,7 @@ function epFooterBlockHTML(vend, modo) {
   const row = (k, v) => v ? `<div class="ep-fb-row"><span class="k">${k}</span><span class="v">${orcEsc(v)}</span></div>` : '';
   const endEmp = [emp.end, emp.cidade].filter(Boolean).join(' · ');
   const empRows = modo === 'juridico'
-    ? `${row('Nome', emp.razao || emp.nome)}${row('CNPJ', emp.cnpj)}${row('Endereço', endEmp)}${row('Contato', emp.tel)}${row('E-mail', emp.email)}`
+    ? `${row('Nome', epParteMarca(emp))}${row('Razão social', emp.razao || (emp.cnpj ? RAZAO_CERTA : ''))}${row('CNPJ', emp.cnpj)}${row('Endereço', endEmp)}${row('Contato', emp.tel)}${row('E-mail', emp.email)}`
     : `${row('Nome', emp.nome)}${row('Cidade', emp.cidade)}${row('Contato', emp.tel)}${row('E-mail', emp.email)}`;
   const fone = `<svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.8 2z"/></svg>`;
   return `<div class="ep-forma-label">Contato</div>
@@ -10802,7 +10857,7 @@ function recHTML(d) {
 
       <div class="ep-rec-local">${local ? e(local) + '.' : ''}</div>
       <div class="ep-rec-assin${av ? ' uma' : ''}">
-        <div class="a"><b>${e(emp.razao || emp.nome || 'AIOROS LTDA')}</b>${emp.cnpj ? `<span>CNPJ ${e(emp.cnpj)}</span>` : ''}Recebedor</div>
+        <div class="a"><b>${e(epParteMarca(emp))}</b><span>${e(epParteRazaoCnpj(emp) || 'AIOROS LTDA')}</span>Recebedor</div>
         ${av ? '' : `<div class="a"><b>${d.cliente ? e(d.cliente) : '&nbsp;'}</b>${d.doc ? `<span>CPF/CNPJ ${e(d.doc)}</span>` : ''}Contratante</div>`}
       </div>
 
@@ -11297,7 +11352,7 @@ function ctrBanner() {
   if (!emp.razao) falta.push('razão social da sua empresa (Orçamento → Sua empresa)');
   el.innerHTML = falta.length
     ? `Falta pra qualificar as partes: <b>${orcEsc(falta.join(' · '))}</b>. Sem isso o contrato sai com linha em branco no lugar.`
-    : `<b>${orcEsc(orcVal('ctr-contratante') || orcVal('el-cliente'))}</b> e <b>${orcEsc(emp.razao || emp.nome)}</b> — partes qualificadas.`;
+    : `<b>${orcEsc(orcVal('ctr-contratante') || orcVal('el-cliente'))}</b> e <b>${orcEsc(epParteMarca(emp))}</b> (${orcEsc(epParteRazaoCnpj(emp))}) — partes qualificadas.`;
 }
 
 function ctrResumo() {
@@ -11462,7 +11517,7 @@ function ctrHTML(d) {
       <div class="ep-ctr-tit">Contrato de Fornecimento e Instalação<br>de Estação de Recarga de Veículos Elétricos</div>
       <div class="ep-ctr-sub">Fornecimento e instalação${temOperacao ? ', ' + entregaOperacao : ''}</div>
 
-      <p class="ep-ctr-p"><b>CONTRATADA:</b> ${vazio(d.empresa.razao || d.empresa.nome)}${d.empresa.fantasia ? `, nome fantasia ${e(d.empresa.fantasia)}` : ''}, inscrita no CNPJ sob o nº ${vazio(d.empresa.cnpj)}${endEmp ? ', com sede em ' + e(endEmp) : ''}${d.empresa.tel ? ', telefone ' + e(d.empresa.tel) : ''}${d.empresa.email ? ', e-mail ' + e(d.empresa.email) : ''}.</p>
+      <p class="ep-ctr-p"><b>CONTRATADA:</b> ${epParteQualif(d.empresa, vazio)}${endEmp ? ', com sede em ' + e(endEmp) : ''}${d.empresa.tel ? ', telefone ' + e(d.empresa.tel) : ''}${d.empresa.email ? ', e-mail ' + e(d.empresa.email) : ''}.</p>
       <p class="ep-ctr-p"><b>CONTRATANTE:</b> ${vazio(d.contratante)}, inscrito(a) no CPF/CNPJ sob o nº ${vazio(d.contratanteDoc)}${endCli ? ', com endereço em ' + e(endCli) : ''}${d.tel ? ', telefone ' + e(d.tel) : ''}${d.email ? ', e-mail ' + e(d.email) : ''}${d.rep ? `, neste ato representado(a) por <b>${e(d.rep)}</b>${d.repDoc ? ', CPF nº ' + e(d.repDoc) : ''}` : ''}.</p>
       <p class="ep-ctr-p">As partes acima têm entre si justo e contratado o presente instrumento, que se regerá pelas cláusulas seguintes.</p>
 
@@ -14079,11 +14134,15 @@ const CRM_ETAPAS = {
   frio:        { lbl: 'Frio',              ic: '❄️' },
   morno:       { lbl: 'Morno',             ic: '🌤️' },
   quente:      { lbl: 'Quente',            ic: '🔥' },
+  arrendamento:{ lbl: 'Arrendamento',      ic: '🤝' },
   vendido:     { lbl: 'Vendido',           ic: '✅' },
   perdido:     { lbl: 'Perdido',           ic: '❌' }
 };
 // Status de agendamento que contam como "perdido" (sem interesse = perdido)
 // Inclui os status manuais 'perdido' e 'fechou_concorrente' (marcados na Agenda).
+// 'arrendamento' fica FORA de propósito: quem aceita que a gente invista 100% no
+// ponto dele é negócio vivo, não perda. Ele tem COLUNA PRÓPRIA no quadro
+// (CRM_KANBAN_ORDEM), entre Quente e Vendido, e selo marrom no card.
 const CRM_STATUS_PERDIDO = new Set(['cancelado', 'sem_interesse', 'perdido', 'fechou_concorrente']);
 
 let crmClientes = [];          // lista unificada já processada
@@ -14541,6 +14600,7 @@ async function crmAtualizarStatus(novoStatus) {
       sem_orcamento:    '📋 Marcado como Sem orçamento',
       fez_orcamento:    '💰 Marcado como Fez orçamento',
       proposta_apresentada: '📑 Marcado como Proposta apresentada',
+      arrendamento:     '🤝 Marcado como ARRENDAMENTO — nós investimos 100%',
       fechou_concorrente:'🏢 Marcado como Fechou concorrente',
       perdido:          '❌ Marcado como Perdido',
       fechou:           '✅ Marcado como Fechou',
@@ -15213,6 +15273,12 @@ function crmDerivar(c) {
   let etapa;
   if (vendida) {
     etapa = 'vendido';
+  } else if (statusAg === 'arrendamento') {
+    // O status MAIS RECENTE manda (igual em_atendimento). Vem antes de Perdido de
+    // propósito: quem foi marcado hoje como arrendamento não pode ser puxado pra
+    // Perdido por um "sem interesse" de semanas atrás. E vem antes da temperatura,
+    // senão o lead quente marcado como arrendamento ficava escondido em Quente.
+    etapa = 'arrendamento';
   } else if (temPerdido || c.perdidoManual) {
     // Venda sempre ganha; fora isso, Perdido (de agendamento OU manual) vence.
     etapa = 'perdido';
@@ -15304,7 +15370,7 @@ function crmFiltrados() {
 }
 
 // Ordem das colunas do kanban (funil). Perdido por último.
-const CRM_KANBAN_ORDEM = ['agendado', 'reagendar', 'em_atendimento', 'whatsapp', 'frio', 'morno', 'quente', 'vendido', 'perdido'];
+const CRM_KANBAN_ORDEM = ['agendado', 'reagendar', 'em_atendimento', 'whatsapp', 'frio', 'morno', 'quente', 'arrendamento', 'vendido', 'perdido'];
 
 function renderCRM() {
   const board = document.getElementById('crm-kanban');
@@ -15321,8 +15387,12 @@ function renderCRM() {
     const fechados = new Set(['vendido', 'perdido']);
     const ativos = baseKpi.filter(c => !fechados.has(c.etapa)).length;
     const vendidos = cont('vendido');
+    // No arrendamento QUEM investe é a casa: o valor da proposta dele não é
+    // dinheiro a receber e inflaria o Pipeline. Fora da conta. Em "Em aberto" ele
+    // continua, porque trabalho aberto ele é.
+    const semReceita = new Set([...fechados, 'arrendamento']);
     const pipeline = baseKpi
-      .filter(c => !fechados.has(c.etapa))
+      .filter(c => !semReceita.has(c.etapa))
       .reduce((s, c) => s + Number(c.valor || 0), 0);
     const kpi = (lbl, val, cls) => `<div class="crm-kpi ${cls || ''}"><div class="crm-kpi-val">${val}</div><div class="crm-kpi-lbl">${lbl}</div></div>`;
     kpiBox.innerHTML =
@@ -15347,6 +15417,7 @@ function renderCRM() {
     sem_orcamento:    { lbl: 'Sem orçamento', cls: 'so' },
     fez_orcamento:    { lbl: '💰 Fez orçamento', cls: 'fo' },
     proposta_apresentada:{ lbl: '📑 Proposta apresentada', cls: 'pa' },
+    arrendamento:     { lbl: '🤝 ARRENDAMENTO', cls: 'ar' },
     fechou_concorrente:{ lbl: '🏢 Fechou concorrente', cls: 'pe' },
     perdido:          { lbl: '❌ Perdido', cls: 'pe' },
     fechou:           { lbl: '✅ Fechou', cls: 'fe' },
