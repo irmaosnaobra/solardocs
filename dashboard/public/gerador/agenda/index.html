@@ -310,16 +310,14 @@
   .slot.status-em_atendimento    { background: #DFE7F0; color: #1f2937; }
   .slot.status-proposta_apresentada { background: #B3C7DC; color: #1f2937; }
   .slot.status-fechou_concorrente{ background: #374151; color: #fff; }
-  /* OS QUATRO MODELOS DO ELETROPOSTO — uma escala quente, na ordem em que o dono
-     fala deles: bege (arrendamento), bege mais escuro (carregador), amarelo claro
-     (50/50) e amarelo medio (chave na mao). Os quatro sao CLAROS, entao todos
-     levam texto escuro — e todos precisam das regras de fundo claro la embaixo
-     (ok-btn e hora-exata), senao o branco translucido some no card. Modelo novo
-     nao inventa cor: pega o proximo degrau da escala. */
+  /* OS QUATRO MODELOS DO ELETROPOSTO — UM bege so. A cor diz "isso aqui e um
+     modelo de eletroposto"; QUAL deles e a etiqueta do card que fala
+     (ARRENDAMENTO, CARREGADOR, 50/50, CHAVE NA MAO). Modelo novo entra no mesmo
+     bege e ganha a sua etiqueta, sem inventar tom. */
   .slot.status-arrendamento      { background: #EADBC0; color: #1f2937; }
-  .slot.status-carregador        { background: #CBAE86; color: #1f2937; }
-  .slot.status-meio_a_meio       { background: #F2DE8B; color: #1f2937; }
-  .slot.status-chave_na_mao      { background: #D9A93A; color: #1f2937; }
+  .slot.status-carregador        { background: #EADBC0; color: #1f2937; }
+  .slot.status-meio_a_meio       { background: #EADBC0; color: #1f2937; }
+  .slot.status-chave_na_mao      { background: #EADBC0; color: #1f2937; }
   .slot.status-perdido           { background: #dc2626; color: #fff; }
   /* As mesmas cores dentro do quadro dividido: a metade é que recebe o status,
      não o slot. Sem isto as duas ficariam azuis, mentindo o status de uma delas. */
@@ -334,9 +332,9 @@
   .slot.dividido .meia.status-proposta_apresentada { background: #B3C7DC; color: #1f2937; }
   .slot.dividido .meia.status-fechou_concorrente{ background: #374151; color: #fff; }
   .slot.dividido .meia.status-arrendamento      { background: #EADBC0; color: #1f2937; }
-  .slot.dividido .meia.status-carregador        { background: #CBAE86; color: #1f2937; }
-  .slot.dividido .meia.status-meio_a_meio       { background: #F2DE8B; color: #1f2937; }
-  .slot.dividido .meia.status-chave_na_mao      { background: #D9A93A; color: #1f2937; }
+  .slot.dividido .meia.status-carregador        { background: #EADBC0; color: #1f2937; }
+  .slot.dividido .meia.status-meio_a_meio       { background: #EADBC0; color: #1f2937; }
+  .slot.dividido .meia.status-chave_na_mao      { background: #EADBC0; color: #1f2937; }
   .slot.dividido .meia.status-perdido           { background: #dc2626; color: #fff; }
   /* ── SILÊNCIO DO LEAD (ordem do Thiago, 19/08/2026) ──────────────────────────
      "O lead do horário que não responder a primeira msg fica em amarelo."
@@ -754,10 +752,7 @@
   .sw-pe     { background: #dc2626; }
   /* Os quatro modelos do eletroposto: claros, entao a borda do swatch precisa
      aparecer, igual ao do fez_orcamento. */
-  .sw-ar     { background: #EADBC0; border-color: #d1d5db; }
-  .sw-cr     { background: #CBAE86; border-color: #d1d5db; }
-  .sw-mm     { background: #F2DE8B; border-color: #d1d5db; }
-  .sw-ch     { background: #D9A93A; border-color: #d1d5db; }
+  .sw-mod    { background: #EADBC0; border-color: #d1d5db; }
 
   /* Botões de status no modal de detalhes */
   .status-atual-pill {
@@ -808,9 +803,9 @@
   .btn-status.bg-fe { background: #15803d; color: #fff; }
   .btn-status.bg-em { background: #DFE7F0; color: #1f2937; }
   .btn-status.bg-ar { background: #EADBC0; color: #1f2937; }
-  .btn-status.bg-cr { background: #CBAE86; color: #1f2937; }
-  .btn-status.bg-mm { background: #F2DE8B; color: #1f2937; }
-  .btn-status.bg-ch { background: #D9A93A; color: #1f2937; }
+  .btn-status.bg-cr { background: #EADBC0; color: #1f2937; }
+  .btn-status.bg-mm { background: #EADBC0; color: #1f2937; }
+  .btn-status.bg-ch { background: #EADBC0; color: #1f2937; }
   .btn-status.bg-pe { background: #dc2626; color: #fff; }
   .btn-status.bg-pa { background: #B3C7DC; color: #1f2937; }
   .prop-atual { font-size: 12px; color: #0369a1; margin-top: 8px; line-height: 1.4; }
@@ -980,9 +975,9 @@
   html[data-theme="dark"] .slot.status-proposta_apresentada { background: #B3C7DC; color: #1f2937; }
   html[data-theme="dark"] .slot.status-fechou_concorrente{ background: #374151; color: #fff; }
   html[data-theme="dark"] .slot.status-arrendamento      { background: #EADBC0; color: #1f2937; }
-  html[data-theme="dark"] .slot.status-carregador        { background: #CBAE86; color: #1f2937; }
-  html[data-theme="dark"] .slot.status-meio_a_meio       { background: #F2DE8B; color: #1f2937; }
-  html[data-theme="dark"] .slot.status-chave_na_mao      { background: #D9A93A; color: #1f2937; }
+  html[data-theme="dark"] .slot.status-carregador        { background: #EADBC0; color: #1f2937; }
+  html[data-theme="dark"] .slot.status-meio_a_meio       { background: #EADBC0; color: #1f2937; }
+  html[data-theme="dark"] .slot.status-chave_na_mao      { background: #EADBC0; color: #1f2937; }
   html[data-theme="dark"] .slot.status-perdido           { background: #dc2626; color: #fff; }
   html[data-theme="dark"] .slot.bloqueado {
     background: repeating-linear-gradient(45deg, #6b7280, #6b7280 6px, #525c6a 6px, #525c6a 12px);
@@ -1084,10 +1079,7 @@
     <div class="item"><div class="sw sw-pa"></div> Proposta apresentada</div>
     <div class="item"><div class="sw sw-fe"></div> Fechou</div>
     <div class="item"><div class="sw sw-pe"></div> Perdido</div>
-    <div class="item"><div class="sw sw-ar"></div> Arrendamento</div>
-    <div class="item"><div class="sw sw-cr"></div> Carregador</div>
-    <div class="item"><div class="sw sw-mm"></div> 50/50</div>
-    <div class="item"><div class="sw sw-ch"></div> Chave na mão</div>
+    <div class="item"><div class="sw sw-mod"></div> Modelo do eletroposto (a etiqueta no card diz qual)</div>
     <div class="item"><div class="sw" style="background:repeating-linear-gradient(45deg,#6b7280,#6b7280 4px,#525c6a 4px,#525c6a 8px)"></div> Bloqueado</div>
     <div class="item" style="margin-left:8px;padding-left:12px;border-left:1px solid #d1d5db">❄️ <div class="sw sw-tf"></div> Frio</div>
     <div class="item">🌤️ <div class="sw sw-tm"></div> Morno</div>
