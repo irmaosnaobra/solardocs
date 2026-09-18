@@ -225,20 +225,24 @@
      card e CLARO. Entao o chip da hora nasce escuro-sobre-claro, e a excecao e a
      lista curta dos cards escuros (os tres la embaixo). */
   .slot .hora-exata { background: rgba(31,41,55,.16); color: #1f2937; }
-  .slot.status-agendado .hora-exata,
-  .slot.status-nao_atendeu .hora-exata,
-  .slot.status-sem_interesse .hora-exata,
-  .slot.status-perdido .hora-exata,
-  .slot.status-sem_orcamento .hora-exata,
-  .slot.status-fechou .hora-exata,
-  .slot.status-fechou_concorrente .hora-exata { background: rgba(255,255,255,.22); color: #fff; }
-  .slot.status-agendado .tag-pill:not([class*=" tag-"]),
-  .slot.status-nao_atendeu .tag-pill:not([class*=" tag-"]),
-  .slot.status-sem_interesse .tag-pill:not([class*=" tag-"]),
-  .slot.status-perdido .tag-pill:not([class*=" tag-"]),
-  .slot.status-sem_orcamento .tag-pill:not([class*=" tag-"]),
-  .slot.status-fechou .tag-pill:not([class*=" tag-"]),
-  .slot.status-fechou_concorrente .tag-pill:not([class*=" tag-"]) { background: rgba(255,255,255,.22); color: #fff; }
+  .ocupado.status-agendado .hora-exata,
+  .ocupado.status-nao_atendeu .hora-exata,
+  .ocupado.status-sem_interesse .hora-exata,
+  .ocupado.status-perdido .hora-exata,
+  .ocupado.status-sem_orcamento .hora-exata,
+  .ocupado.status-fechou .hora-exata,
+  .ocupado.status-fechou_concorrente .hora-exata { background: rgba(255,255,255,.92); color: #111827; }
+  .ocupado.status-agendado .tag-pill:not([class*=" tag-"]),
+  .ocupado.status-nao_atendeu .tag-pill:not([class*=" tag-"]),
+  .ocupado.status-sem_interesse .tag-pill:not([class*=" tag-"]),
+  .ocupado.status-perdido .tag-pill:not([class*=" tag-"]),
+  .ocupado.status-sem_orcamento .tag-pill:not([class*=" tag-"]),
+  .ocupado.status-fechou .tag-pill:not([class*=" tag-"]),
+  .ocupado.status-fechou_concorrente .tag-pill:not([class*=" tag-"]) { background: rgba(255,255,255,.92); color: #111827; }
+  /* "NAO CONFIRMOU" e card CLARO (#FCA5A5) mas carrega 'status-agendado' junto,
+     entao precisa desfazer o tratamento de card escuro — e vem DEPOIS dele. */
+  .ocupado.sem-resposta .hora-exata,
+  .ocupado.sem-resposta .tag-pill:not([class*=" tag-"]) { background: rgba(31,41,55,.16); color: #1f2937; }
   .slot.ocupado .cidade {
     font-size: 10px;
     opacity: .8;
@@ -363,8 +367,6 @@
   .slot.dividido .meia.sem-resposta { background: #FCA5A5; color: #1f2937; }
   .slot.sem-resposta .tel,
   .slot.sem-resposta .cidade { color: #1f2937; opacity: .85; }
-  .slot.sem-resposta .ok-btn { background: rgba(31,41,55,.16); color: #1f2937; }
-  .slot.sem-resposta .ok-btn:hover { background: rgba(31,41,55,.28); }
 
   .slot.passado { opacity: .55; cursor: not-allowed; }
 
@@ -399,25 +401,30 @@
     transition: background .12s;
   }
   .slot .ok-btn:hover { background: rgba(31,41,55,.28); color: #1f2937; }
-  .slot.confirmado .ok-btn { background: #34d399; color: #052e1f; }
-  .slot.confirmado .ok-btn:hover { background: #6ee7b7; }
-  /* FUNDO ESCURO — agora a EXCECAO. Depois que "ruim = quente, segue = neutro
-     claro" virou a regra, sobraram tres cards escuros na grade, e so neles o
-     botao volta a ser branco translucido. */
-  .slot.status-agendado .ok-btn,
-  .slot.status-nao_atendeu .ok-btn,
-  .slot.status-sem_interesse .ok-btn,
-  .slot.status-perdido .ok-btn,
-  .slot.status-sem_orcamento .ok-btn,
-  .slot.status-fechou .ok-btn,
-  .slot.status-fechou_concorrente .ok-btn { background: rgba(255,255,255,.15); color: rgba(255,255,255,.85); }
-  .slot.status-agendado .ok-btn:hover,
-  .slot.status-nao_atendeu .ok-btn:hover,
-  .slot.status-sem_interesse .ok-btn:hover,
-  .slot.status-perdido .ok-btn:hover,
-  .slot.status-sem_orcamento .ok-btn:hover,
-  .slot.status-fechou .ok-btn:hover,
-  .slot.status-fechou_concorrente .ok-btn:hover { background: rgba(255,255,255,.32); color: #fff; }
+  /* CARD ESCURO — a excecao. Pilula clara SOLIDA, nao translucida: sobre vermelho
+     e laranja saturado o branco a 15% dava 3.2:1. E o seletor prende em 'ocupado',
+     nao em 'slot', pra alcancar tambem a metade do quadro dividido. */
+  .ocupado.status-agendado .ok-btn,
+  .ocupado.status-nao_atendeu .ok-btn,
+  .ocupado.status-sem_interesse .ok-btn,
+  .ocupado.status-perdido .ok-btn,
+  .ocupado.status-sem_orcamento .ok-btn,
+  .ocupado.status-fechou .ok-btn,
+  .ocupado.status-fechou_concorrente .ok-btn { background: rgba(255,255,255,.92); color: #111827; }
+  .ocupado.status-agendado .ok-btn:hover,
+  .ocupado.status-nao_atendeu .ok-btn:hover,
+  .ocupado.status-sem_interesse .ok-btn:hover,
+  .ocupado.status-perdido .ok-btn:hover,
+  .ocupado.status-sem_orcamento .ok-btn:hover,
+  .ocupado.status-fechou .ok-btn:hover,
+  .ocupado.status-fechou_concorrente .ok-btn:hover { background: #fff; color: #111827; }
+  /* "NAO CONFIRMOU": card claro que carrega 'status-agendado'. Desfaz, e vem depois. */
+  .ocupado.sem-resposta .ok-btn { background: rgba(31,41,55,.14); color: #1f2937; }
+  .ocupado.sem-resposta .ok-btn:hover { background: rgba(31,41,55,.28); color: #1f2937; }
+  /* CONFIRMADO tem botao proprio, e por ultimo: antes ele empatava em
+     especificidade com a lista dos escuros e perdia por vir antes — regra morta. */
+  .ocupado.confirmado .ok-btn { background: #34d399; color: #052e1f; }
+  .ocupado.confirmado .ok-btn:hover { background: #6ee7b7; color: #052e1f; }
   /* No quadro dividido não cabe frase: vira só o ✓ */
   .slot.dividido .ok-btn { font-size: 9px; padding: 2px 4px; margin-top: 3px; }
 
@@ -749,6 +756,7 @@
   .sw-livre  { background: #fff; }
   .sw-fora   { background: #fafafa; }
   .sw-ag     { background: #0d2d5e; }
+  .sw-ok     { background: #047857; }
   .sw-sr     { background: #FCA5A5; }
   .sw-na     { background: #dc2626; }
   .sw-wp     { background: #D0DCE9; border-color: #d1d5db; }
@@ -802,6 +810,15 @@
     outline-offset: -5px;
     box-shadow: 0 0 0 2px #0d2d5e;
   }
+  /* Botao CLARO: o contorno branco de dentro sumia nele. */
+  .btn-status.bg-wp.is-atual,
+  .btn-status.bg-fo.is-atual,
+  .btn-status.bg-em.is-atual,
+  .btn-status.bg-pa.is-atual,
+  .btn-status.bg-ar.is-atual,
+  .btn-status.bg-cr.is-atual,
+  .btn-status.bg-mm.is-atual,
+  .btn-status.bg-ch.is-atual { outline-color: rgba(17,24,39,.75); }
   .btn-status.bg-ag { background: #0d2d5e; color: #fff; }
   .btn-status.bg-na { background: #dc2626; color: #fff; }
   .btn-status.bg-wp { background: #D0DCE9; color: #1f2937; }
@@ -1078,6 +1095,7 @@
     <div class="item"><div class="sw sw-livre"></div> Livre</div>
     <div class="item"><div class="sw sw-fora"></div> Após 18h</div>
     <div class="item"><div class="sw sw-ag"></div> Agendada</div>
+    <div class="item"><div class="sw sw-ok"></div> Reunião confirmada</div>
     <div class="item"><div class="sw sw-sr"></div> Não confirmou</div>
     <div class="item"><div class="sw sw-na"></div> Não atendeu</div>
     <div class="item"><div class="sw sw-wp"></div> Falando WhatsApp</div>
