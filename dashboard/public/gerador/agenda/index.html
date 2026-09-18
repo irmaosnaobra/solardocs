@@ -266,19 +266,12 @@
     font-weight: 800;
     letter-spacing: .2px;
     vertical-align: middle;
-    background: #1f2937;
+    /* PRETO em TODO card, claro ou escuro (ordem do dono). Antes ela clareava no
+       card escuro; agora e uma pilula so, igual na grade inteira. */
+    background: #000;
     color: #fff;
-    box-shadow: 0 1px 3px rgba(0,0,0,.25);
+    box-shadow: 0 1px 3px rgba(0,0,0,.35);
   }
-  /* Card ESCURO: a pilula escura sumiria nele, entao ela clareia. */
-  .slot.status-agendado .tag-modelo,
-  .slot.status-nao_atendeu .tag-modelo,
-  .slot.status-sem_interesse .tag-modelo,
-  .slot.status-perdido .tag-modelo,
-  .slot.status-sem_orcamento .tag-modelo,
-  .slot.status-fechou .tag-modelo,
-  .slot.status-fechou_concorrente .tag-modelo,
-  .slot.confirmado .tag-modelo { background: rgba(255,255,255,.92); color: #111827; box-shadow: none; }
   .tag-pill {
     display: inline-block;
     padding: 0 5px;
