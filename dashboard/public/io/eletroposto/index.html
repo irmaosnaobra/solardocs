@@ -2578,9 +2578,18 @@ const MODELO_SEM_CAPITAL = new Set(['cedo_espaco']);
 // cedendo o espaço ele tem reunião. Modelo 03 (chave na mão, o eletroposto é meu) e
 // "ainda não sei" também seguem para a agenda de todo mundo — nesses o dinheiro é dele,
 // e aí a relação com o imóvel é assunto da conversa, não do formulário.
-const MODELO_DINHEIRO_NOSSO = new Set(['cedo_espaco', 'meio_a_meio']);
-function paraArrendamento(pontoV, relacaoV, modeloV){
+// AJUSTE DO MESMO DIA: o meio a meio VOLTOU para a agenda, e com ele a régua ficou
+// mais simples de explicar — quem DECLARA QUANTO PÕE está comprando, e comprador tem
+// reunião. No 02 e no 03 a pergunta "quanto pretende investir" existe e é obrigatória.
+// No 01 ela nem aparece (MODELO_SEM_CAPITAL), porque quem investe somos nós: é só aí
+// que a pessoa não põe um centavo, e é só aí que ela está de fato oferecendo o imóvel.
+const MODELO_DINHEIRO_NOSSO = new Set(['cedo_espaco']);
+function paraArrendamento(pontoV, relacaoV, modeloV, valorV){
   if(!MODELO_DINHEIRO_NOSSO.has(modeloV)) return false;
+  // Trava de segurança, e regra em si: declarou valor, é comprador, vai para a agenda.
+  // Hoje o 01 esconde e limpa esse campo, então isto nunca dispara — mas no dia em que
+  // a lista de modelos mudar, a régua continua sendo "quem põe dinheiro tem reunião".
+  if(valorV) return false;
   return !(pontoV === 'definido' && relacaoV === 'proprietario');
 }
 function onModelo(){
@@ -3398,7 +3407,7 @@ async function agendar(){
   // respondeu, o aviso de ARRENDAMENTO cai no WhatsApp da equipe com o bloco de
   // investidores mais perto, e o ponto entra no top 20 do dia. O que ele não faz é
   // ocupar uma hora de especialista para falar de um imóvel que não é dele.
-  if(paraArrendamento(ponto.value, relacao.value, modelo.value)){
+  if(paraArrendamento(ponto.value, relacao.value, modelo.value, valor.value)){
     const btnA = document.getElementById('ag-btn');
     const rotuloA = btnA.textContent;
     btnA.disabled = true; btnA.textContent = 'Enviando…';
