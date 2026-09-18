@@ -246,14 +246,17 @@
      quatro cards sao CLAROS — pilula branca sumiria neles. */
   .tag-modelo {
     display: inline-block;
-    padding: 0 5px;
+    /* Apertado de proposito: medido na coluna de 180px (a mais estreita da
+       grade), "ARRENDAMENTO" + "eletroposto" lado a lado passavam 5px. */
+    padding: 1px 5px;
     border-radius: 999px;
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 800;
-    letter-spacing: .3px;
+    letter-spacing: .2px;
     vertical-align: middle;
-    background: rgba(31,41,55,.16);
-    color: #1f2937;
+    background: #1f2937;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,.25);
   }
   .tag-pill {
     display: inline-block;
@@ -1564,14 +1567,15 @@ const SEM_RESPOSTA_APOS_MS = 2 * 60 * 60 * 1000;
  *  Nome inteiro nao cabe: o slot tem altura fixa e a linha do rodape ja leva
  *  cidade e origem. Status que nao e modelo devolve vazio. */
 const ETIQUETA_MODELO = {
-  arrendamento: 'ARREND',
-  carregador:   'CARREG',
-  meio_a_meio:  '50/50',
-  chave_na_mao: 'CHAVE',
+  arrendamento: ['ARRENDAMENTO', 'ARREND'],
+  carregador:   ['CARREGADOR',   'CARREG'],
+  meio_a_meio:  ['50/50',        '50/50'],
+  chave_na_mao: ['CHAVE NA MÃO', 'CHAVE'],
 };
-function pillModelo(status) {
+/** @param curto metade do slot dividido: metade da largura, nome inteiro nao cabe. */
+function pillModelo(status, curto) {
   const t = ETIQUETA_MODELO[status];
-  return t ? `<span class="tag-modelo">${t}</span>` : '';
+  return t ? `<span class="tag-modelo">${curto ? t[1] : t[0]}</span>` : '';
 }
 
 function semRespostaDoLead(ag) {
@@ -1688,7 +1692,7 @@ function renderGrid() {
             return `<div class="meia ocupado status-${escapeHtml(a.status || 'agendado')}${okA ? ' confirmado' : ''}${semRespostaDoLead(a) ? ' sem-resposta' : ''}"
               data-id="${a.id}" onclick="abrirDetalhes(${a.id})" title="${escapeHtml(a.cliente_nome || '')}">
               <div class="nome">${horaDoSlot(a, iniSlot)}${escapeHtml(a.cliente_nome)}</div>
-              ${(pillModelo(a.status) || etq) ? `<div class="cidade">${pillModelo(a.status) || `<span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>`}</div>` : ''}
+              ${(pillModelo(a.status, true) || etq) ? `<div class="cidade">${pillModelo(a.status, true)}${etq ? ` <span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>` : ''}</div>` : ''}
               ${btnConfirmada(a, true)}
             </div>`;
           }).join('') + `</div>`;
@@ -1702,21 +1706,21 @@ function renderGrid() {
           // (overflow hidden) e uma 4ª linha seria cortada.
           const etq = etqDeLead(ag.created_by, ag.src);
           const etqCls = (typeof etiquetaCor === 'function' ? etiquetaCor(etq) : '');
-          // No card de MODELO a etiqueta do modelo TOMA O LUGAR da de origem: o
-          // modelo so existe no eletroposto, entao a origem ali era redundante, e
-          // com as duas a cidade era cortada na sorte.
+          // No card de MODELO as DUAS etiquetas ficam lado a lado (modelo + origem)
+          // e a cidade sobe pra linha do telefone. Medido na coluna de 180px, que e
+          // a mais estreita da grade: com a cidade junto, o rodape cortava.
           const mod = pillModelo(ag.status);
-          const rodape = [
-            mod,
-            ag.cidade ? `📍 ${escapeHtml(ag.cidade)}` : '',
-            (!mod && etq) ? `<span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>` : '',
-          ].filter(Boolean).join(' ');
+          const cidTxt = ag.cidade ? `📍 ${escapeHtml(ag.cidade)}` : '';
+          const etqPill = etq ? `<span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>` : '';
+          const rodape = mod
+            ? [mod, etqPill].filter(Boolean).join(' ')
+            : [cidTxt, etqPill].filter(Boolean).join(' ');
           const okCls = ag.presenca_confirmada_at ? ' confirmado' : '';
           const srCls = semRespostaDoLead(ag) ? ' sem-resposta' : '';
           html += `<div class="slot ocupado ${stCls}${tempCls}${okCls}${srCls}" data-id="${ag.id}" onclick="abrirDetalhes(${ag.id})">
             ${tempLabel ? `<div class="temp-mark">${tempLabel}</div>` : ''}
             <div class="nome">${horaDoSlot(ag, iniSlot)}${escapeHtml(ag.cliente_nome)}</div>
-            <div class="tel">${escapeHtml(formatTelBR(ag.cliente_telefone))}</div>
+            <div class="tel">${escapeHtml(formatTelBR(ag.cliente_telefone))}${mod && cidTxt ? ' · ' + cidTxt : ''}</div>
             ${rodape ? `<div class="cidade">${rodape}</div>` : ''}
             ${btnConfirmada(ag, false)}
           </div>`;
