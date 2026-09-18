@@ -1202,8 +1202,24 @@ router.get('/io-broadcast-tick', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
     // ── OS AVISOS E A SENTINELA PEGAM CARONA AQUI ────────────────────────────
-    // Porque esta rota é o ÚNICO ping de 1 minuto que existe de verdade: quem
-    // chama é o Cloudflare Worker (`crons = ["* * * * *"]`).
+    // Quem chama é o CRON DA VERCEL (`api/vercel.json`), de 5 em 5 minutos.
+    //
+    // NÃO é o Cloudflare Worker, como esta linha dizia até 18/09/2026. O Worker
+    // tem `crons = ["* * * * *"]` e de fato dispara, mas leva o CRON_SECRET fixo
+    // no código (`cloudflare-worker/webhook.js`), que foi rotacionado: a API
+    // responde 401 e o `.catch(() => {})` de lá engole. 401 não é exceção, é
+    // resposta — o catch nem chega a rodar, e o Worker "roda verde" sem nunca
+    // ter entregue nada. Medido: com aquele segredo, /cron/sentinela-vacuo
+    // devolve Unauthorized; com o segredo vigente, 200.
+    //
+    // O CUSTO DE TER ACREDITADO NISSO: os avisos foram pendurados aqui em 17/09
+    // e na manhã seguinte a pauta seguia em 1 de 66, com ZERO marcador da
+    // sentinela no banco (nem o `vacuo_ultima_varredura`, que é a primeira coisa
+    // que ela grava). Ler o fonte do pinger não prova que ele chega: a prova é
+    // o efeito no banco.
+    //
+    // O cron da Vercel é o que se mostrou vivo: `/cron/eletroposto-agenda` e
+    // `/cron/eletroposto-estudo` rodam em `*/5` e carimbam o dia inteiro.
     //
     // O agendamento do GitHub Actions MENTE, e a prova precisa ser grande pra
     // não parecer azar de amostra: as 30 execuções mais recentes do
