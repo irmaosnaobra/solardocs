@@ -502,6 +502,13 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .avi-resp u{font-size:11px;color:#94A3B8;text-decoration:none;white-space:nowrap;align-self:center}
 .avi-resp i{grid-column:1/-1;font-size:13px;color:#CBD5E1;font-style:normal;line-height:1.45}
 .avi-resp-vazio{font-size:13px;color:#94A3B8;line-height:1.55;margin-top:12px}
+/* As pautas que esperam a vez. Amarelo de aviso, nao vermelho de erro: nao tem
+   nada quebrado, so tem fila. */
+.avi-espera{margin-top:10px;background:rgba(234,179,8,.10);border:1px solid rgba(234,179,8,.30);
+  border-radius:10px;padding:11px 13px;font-size:13px;color:#FDE68A;line-height:1.55}
+.avi-espera b{color:#FEF3C7}
+.avi-espera-item{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin-top:8px;color:#E2E8F0;font-size:13px}
 .avi-prog{height:10px;border-radius:999px;background:rgba(15,23,42,.6);overflow:hidden;margin:14px 0 10px}
 .avi-prog i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#5da80d,#9BEE38);transition:width .4s ease}
 .avi-fila{display:flex;align-items:flex-start;gap:9px;font-size:13px;color:#CBD5E1;line-height:1.55;
@@ -8751,7 +8758,21 @@ function aviPrazo(faltam) {
 function aviRenderAndamento() {
   const el = document.getElementById('avi-andamento');
   if (!el) return;
-  const a = (aviDados.avisos || []).find(x => x.status === 'rodando' || x.status === 'pausado');
+  // A PAUTA QUE A TELA MOSTRA TEM QUE SER A QUE O MOTOR MANDA, e isso custou uma
+  // tarde (18/09/2026). A lista chega ordenada do mais NOVO pro mais velho e o
+  // `find` pegava o primeiro, ou seja, a pauta recém-criada. Só que o servidor
+  // manda a MAIS ANTIGA que está rodando (`order criado_em ascending` no tick).
+  //
+  // Com duas pautas no ar, o resultado é o pior possível: quem escreve uma nova vê
+  // o card zerar e nunca andar, porque o motor continua na anterior. A leitura
+  // óbvia é "bugou, sumiu tudo" — foi exatamente essa a reclamação, e o Thiago
+  // reescreveu a mensagem duas vezes achando que não tinha salvo. Ficaram três
+  // pautas rodando pro mesmo público.
+  const rodando = (aviDados.avisos || []).filter(x => x.status === 'rodando')
+    .sort((x, y) => String(x.criado_em).localeCompare(String(y.criado_em)));
+  const pausadas = (aviDados.avisos || []).filter(x => x.status === 'pausado');
+  const a = rodando[0] || pausadas[0];
+  const naFila = rodando.slice(1);
   if (!a) { el.hidden = true; el.innerHTML = ''; return; }
 
   const alvo = Math.max(Number(a.alvo || 0), Number(a.sucesso || 0) + Number(a.falha || 0));
@@ -8785,6 +8806,19 @@ function aviRenderAndamento() {
       + (Number(a.falha || 0) ? '<div class="avi-num"><b>' + a.falha + '</b><span>falharam</span></div>' : '')
     + '</div>'
     + '<div class="avi-fila" id="avi-fila-status"><span class="avi-ping"></span><span>Conferindo a fila…</span></div>'
+    // As outras pautas rodando não podem ficar invisíveis: elas existem, vão sair
+    // depois desta, e enquanto isso dividem o mesmo teto do dia. Dizer isso aqui
+    // é o que impede a pessoa de escrever a mesma coisa de novo achando que
+    // sumiu — e dá o botão pra desistir da que sobrou.
+    + (naFila.length
+        ? '<div class="avi-espera"><b>' + naFila.length + ' pauta(s) esperando a vez.</b> '
+          + 'Elas só começam quando esta terminar, porque sai uma de cada vez pela mesma linha.'
+          + naFila.map(p => '<span class="avi-espera-item">'
+              + escapeHtml(p.titulo || (p.corpo || '').slice(0, 40))
+              + ' <button type="button" class="ehist-btn" onclick="aviCancelar(\'' + p.id + '\')">Descartar</button>'
+              + '</span>').join('')
+          + '</div>'
+        : '')
     + '<div id="avi-respostas"></div>'
     + '</div>';
   aviRespostas(a.id);
@@ -8929,9 +8963,20 @@ async function aviEnviar() {
 
   const dias = Math.ceil(alvo / AVI_POR_DIA);
   const nomes = lados.map(l => AVI_LADOS[l]).join(', ');
+  // SAI UMA DE CADA VEZ, E ISSO PRECISA SER DITO ANTES, NÃO DEPOIS. O servidor
+  // manda a pauta mais antiga que está rodando; a nova entra na fila atrás dela.
+  // Sem este aviso a pessoa escreve, vê o card em 0 e escreve de novo — foi o que
+  // aconteceu em 18/09/2026, e sobraram três pautas rodando pro mesmo público.
+  const jaRodando = (aviDados.avisos || []).filter(x => x.status === 'rodando');
+  const espera = jaRodando.length
+    ? '\n\nATENÇÃO: já tem ' + jaRodando.length + ' pauta rodando ('
+      + (jaRodando[0].titulo || 'sem título') + ', ' + Number(jaRodando[0].sucesso || 0)
+      + ' de ' + Number(jaRodando[0].alvo || 0) + ' entregues).\n'
+      + 'Sai UMA de cada vez pela mesma linha, então esta só começa quando aquela terminar.'
+    : '';
   if (!confirm('Mandar esta pauta pra ' + alvo + ' contato(s) de ' + nomes + '?\n\n'
     + 'Sai de um em um, entre 9h e 20h. A última pessoa recebe em cerca de '
-    + dias + ' dia(s). Dá pra pausar a qualquer momento aqui na tela.')) return;
+    + dias + ' dia(s). Dá pra pausar a qualquer momento aqui na tela.' + espera)) return;
 
   aviEnviando = true;
   const btn = document.getElementById('avi-btn');
@@ -8964,6 +9009,21 @@ async function aviEnviar() {
     aviEnviando = false;
     if (btn) { btn.disabled = false; btn.textContent = 'Colocar na fila'; }
   }
+}
+
+// Desistir de uma pauta que ainda não saiu. Vira "concluído" em vez de sumir:
+// o histórico é o que conta a verdade do que foi escrito e do que foi enviado, e
+// apagar linha de histórico é como o número de entregues deixa de fechar.
+async function aviCancelar(id) {
+  const p = (aviDados.avisos || []).find(x => x.id === id);
+  const jaSaiu = Number((p && p.sucesso) || 0);
+  if (!confirm('Descartar esta pauta?\n\n'
+    + (jaSaiu ? jaSaiu + ' pessoa(s) já receberam e isso não volta atrás. ' : 'Ninguém recebeu ainda. ')
+    + 'Ela sai da fila e o texto fica guardado no histórico.')) return;
+  try {
+    await supaPatch('avisos?id=eq.' + id, { status: 'concluido', finalizado_em: new Date().toISOString() });
+    await aviCarregar(true);
+  } catch (e) { alert('Não consegui descartar: ' + (e.message || e)); }
 }
 
 async function aviMudarStatus(id, status) {
