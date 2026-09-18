@@ -334,7 +334,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // duas últimas cadências não apareciam). Os ticks sempre rodaram — quem
     // mentia era o relatório, que é justamente onde a gente vai olhar quando
     // desconfiar de um tick. Nome novo aqui exige chamada nova na MESMA posição.
-    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, limpaproAtendResult, geradorSeqResult, igDrainResult, fbComentResult, fbInboxResult, repescagemResult, conviteResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult, epReagendaResult, epCardPingResult, epIgConviteResult, solarBvResult, solarRespResult, curso19Result, carlaCnpjResult, carlaInativoResult, epAlerta10minResult, recepcaoParadasResult, recepcaoPollResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, limpaproAtendResult, geradorSeqResult, igDrainResult, fbComentResult, fbInboxResult, repescagemResult, conviteResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult, epReagendaResult, epCardPingResult, epIgConviteResult, solarBvResult, solarRespResult, curso19Result, carlaCnpjResult, carlaInativoResult, epAlerta10minResult, recepcaoParadasResult, recepcaoPollResult, avisosResult, vacuoResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),            // detecta inbound IO pra Cora processar
@@ -382,6 +382,21 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       runEletropostoAlerta10minTick(), // eletroposto: 10 min antes da reunião CONFIRMADA, alerta no WhatsApp do consultor dono (EP_ALERTA_10MIN_OFF desliga)
       entregarTriagensParadas(),       // recepção da linha IO: triagem parada há 2h vai pro humano do jeito que está (chave em system_state recepcao_io:ativa)
       pollRecepcaoIo(),                // recepção da linha IO: atende quem escreveu e não é de mais ninguém (o webhook não aguenta, ver recepcaoIoPoll.ts)
+      // [18/09] OS AVISOS E A SENTINELA MORAM AQUI PORQUE ESTA É A ÚNICA ROTA
+      // COM PINGER VIVO. Quem chama /process-messages é o pg_cron do projeto
+      // Supabase do gerador (ancecdfqfwlaujknizof, jobid 2, `*/2 * * * *`), e é
+      // ele que sustenta a linha o dia inteiro: os carimbos de hoje caem todos
+      // em minuto PAR (13:08, 13:12, 13:16, 13:22, 13:26...), que é a assinatura
+      // dele. Os outros três caminhos que este repositório acredita ter NÃO
+      // entregam: o Worker da Cloudflare leva CRON_SECRET rotacionado e toma 401
+      // calado, o GitHub Actions promete */5 e roda a cada ~3h50, e o cron da
+      // Vercel ficou 5 janelas sem disparar depois de um deploy READY.
+      //
+      // Rodar de 2 em 2 minutos não manda mais mensagem: os dois são idempotentes
+      // e travados por dentro (janela diurna, espaçamento de linha, teto próprio,
+      // represa de 20 min da sentinela). O que muda é a pauta deixar de arrastar.
+      runAvisosTick(),                 // avisos: a pauta escrita na tela vai pra base de parceria, 1 por tick (AVISOS_OFF desliga)
+      runSentinelaVacuo(),             // sentinela: quem escreveu e ficou sem resposta vira cobrança no dono (VACUO_OFF desliga)
     ]);
     res.json({
       ok: true,
@@ -419,6 +434,8 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       ep_alerta_10min: epAlerta10minResult.status === 'fulfilled' ? epAlerta10minResult.value : { error: String((epAlerta10minResult as any).reason) },
       recepcao_paradas: recepcaoParadasResult.status === 'fulfilled' ? recepcaoParadasResult.value : { error: String((recepcaoParadasResult as any).reason) },
       recepcao_poll:  recepcaoPollResult.status === 'fulfilled' ? recepcaoPollResult.value : { error: String((recepcaoPollResult as any).reason) },
+      avisos:         avisosResult.status === 'fulfilled' ? avisosResult.value : { error: String((avisosResult as any).reason) },
+      vacuo:          vacuoResult.status === 'fulfilled' ? vacuoResult.value : { error: String((vacuoResult as any).reason) },
       luma_io_off: 'Linha IO: polling ativo só pra Cora ouvir inbound, demais tarefas Luma desligadas',
     });
   } catch (err) {
