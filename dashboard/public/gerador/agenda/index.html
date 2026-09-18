@@ -225,9 +225,18 @@
      card e CLARO. Entao o chip da hora nasce escuro-sobre-claro, e a excecao e a
      lista curta dos cards escuros (os tres la embaixo). */
   .slot .hora-exata { background: rgba(31,41,55,.16); color: #1f2937; }
-  .slot.status-nao_atendeu .hora-exata,
+  .slot.status-agendado .hora-exata,
+  .slot.status-sem_interesse .hora-exata,
+  .slot.status-perdido .hora-exata,
+  .slot.status-sem_orcamento .hora-exata,
   .slot.status-fechou .hora-exata,
   .slot.status-fechou_concorrente .hora-exata { background: rgba(255,255,255,.22); color: #fff; }
+  .slot.status-agendado .tag-pill:not([class*=" tag-"]),
+  .slot.status-sem_interesse .tag-pill:not([class*=" tag-"]),
+  .slot.status-perdido .tag-pill:not([class*=" tag-"]),
+  .slot.status-sem_orcamento .tag-pill:not([class*=" tag-"]),
+  .slot.status-fechou .tag-pill:not([class*=" tag-"]),
+  .slot.status-fechou_concorrente .tag-pill:not([class*=" tag-"]) { background: rgba(255,255,255,.22); color: #fff; }
   .slot.ocupado .cidade {
     font-size: 10px;
     opacity: .8;
@@ -291,11 +300,11 @@
   .detalhe-box .tag-pill.tag-solar-prospec { background: #FF5E3A; color: #2A0C00; }
 
   /* Status coloridos */
-  .slot.status-agendado          { background: #EEF2F7; color: #1f2937; }
-  .slot.status-nao_atendeu       { background: #dc2626; color: #fff; }
+  .slot.status-agendado          { background: #0d2d5e; color: #fff; }
+  .slot.status-nao_atendeu       { background: #F97316; color: #1f2937; }
   .slot.status-falando_whatsapp  { background: #D0DCE9; color: #1f2937; }
-  .slot.status-sem_interesse     { background: #f87171; color: #1f2937; }
-  .slot.status-sem_orcamento     { background: #F97316; color: #1f2937; }
+  .slot.status-sem_interesse     { background: #dc2626; color: #fff; }
+  .slot.status-sem_orcamento     { background: #C2410C; color: #fff; }
   .slot.status-fez_orcamento     { background: #C2D2E2; color: #1f2937; }
   .slot.status-fechou            { background: #15803d; color: #fff; }
   .slot.status-em_atendimento    { background: #DFE7F0; color: #1f2937; }
@@ -311,14 +320,14 @@
   .slot.status-carregador        { background: #CBAE86; color: #1f2937; }
   .slot.status-meio_a_meio       { background: #F2DE8B; color: #1f2937; }
   .slot.status-chave_na_mao      { background: #D9A93A; color: #1f2937; }
-  .slot.status-perdido           { background: #f06565; color: #1f2937; }
+  .slot.status-perdido           { background: #dc2626; color: #fff; }
   /* As mesmas cores dentro do quadro dividido: a metade é que recebe o status,
      não o slot. Sem isto as duas ficariam azuis, mentindo o status de uma delas. */
-  .slot.dividido .meia.status-agendado          { background: #EEF2F7; color: #1f2937; }
-  .slot.dividido .meia.status-nao_atendeu       { background: #dc2626; color: #fff; }
+  .slot.dividido .meia.status-agendado          { background: #0d2d5e; color: #fff; }
+  .slot.dividido .meia.status-nao_atendeu       { background: #F97316; color: #1f2937; }
   .slot.dividido .meia.status-falando_whatsapp  { background: #D0DCE9; color: #1f2937; }
-  .slot.dividido .meia.status-sem_interesse     { background: #f87171; color: #1f2937; }
-  .slot.dividido .meia.status-sem_orcamento     { background: #F97316; color: #1f2937; }
+  .slot.dividido .meia.status-sem_interesse     { background: #dc2626; color: #fff; }
+  .slot.dividido .meia.status-sem_orcamento     { background: #C2410C; color: #fff; }
   .slot.dividido .meia.status-fez_orcamento     { background: #C2D2E2; color: #1f2937; }
   .slot.dividido .meia.status-fechou            { background: #15803d; color: #fff; }
   .slot.dividido .meia.status-em_atendimento    { background: #DFE7F0; color: #1f2937; }
@@ -328,7 +337,7 @@
   .slot.dividido .meia.status-carregador        { background: #CBAE86; color: #1f2937; }
   .slot.dividido .meia.status-meio_a_meio       { background: #F2DE8B; color: #1f2937; }
   .slot.dividido .meia.status-chave_na_mao      { background: #D9A93A; color: #1f2937; }
-  .slot.dividido .meia.status-perdido           { background: #f06565; color: #1f2937; }
+  .slot.dividido .meia.status-perdido           { background: #dc2626; color: #fff; }
   /* ── SILÊNCIO DO LEAD (ordem do Thiago, 19/08/2026) ──────────────────────────
      "O lead do horário que não responder a primeira msg fica em amarelo."
 
@@ -391,10 +400,16 @@
   /* FUNDO ESCURO — agora a EXCECAO. Depois que "ruim = quente, segue = neutro
      claro" virou a regra, sobraram tres cards escuros na grade, e so neles o
      botao volta a ser branco translucido. */
-  .slot.status-nao_atendeu .ok-btn,
+  .slot.status-agendado .ok-btn,
+  .slot.status-sem_interesse .ok-btn,
+  .slot.status-perdido .ok-btn,
+  .slot.status-sem_orcamento .ok-btn,
   .slot.status-fechou .ok-btn,
   .slot.status-fechou_concorrente .ok-btn { background: rgba(255,255,255,.15); color: rgba(255,255,255,.85); }
-  .slot.status-nao_atendeu .ok-btn:hover,
+  .slot.status-agendado .ok-btn:hover,
+  .slot.status-sem_interesse .ok-btn:hover,
+  .slot.status-perdido .ok-btn:hover,
+  .slot.status-sem_orcamento .ok-btn:hover,
   .slot.status-fechou .ok-btn:hover,
   .slot.status-fechou_concorrente .ok-btn:hover { background: rgba(255,255,255,.32); color: #fff; }
   /* No quadro dividido não cabe frase: vira só o ✓ */
@@ -727,16 +742,16 @@
   .legenda .sw { width: 14px; height: 14px; border-radius: 3px; border: 1px solid #e5e7eb; }
   .sw-livre  { background: #fff; }
   .sw-fora   { background: #fafafa; }
-  .sw-ag     { background: #EEF2F7; border-color: #d1d5db; }
+  .sw-ag     { background: #0d2d5e; }
   .sw-sr     { background: #FDBA74; }
-  .sw-na     { background: #dc2626; }
+  .sw-na     { background: #F97316; }
   .sw-wp     { background: #D0DCE9; border-color: #d1d5db; }
-  .sw-si     { background: #f87171; }
-  .sw-so     { background: #F97316; }
+  .sw-si     { background: #dc2626; }
+  .sw-so     { background: #C2410C; }
   .sw-fo     { background: #C2D2E2; border-color: #d1d5db; }
   .sw-pa     { background: #B3C7DC; border-color: #d1d5db; }
   .sw-fe     { background: #15803d; }
-  .sw-pe     { background: #f06565; }
+  .sw-pe     { background: #dc2626; }
   /* Os quatro modelos do eletroposto: claros, entao a borda do swatch precisa
      aparecer, igual ao do fez_orcamento. */
   .sw-ar     { background: #EADBC0; border-color: #d1d5db; }
@@ -784,11 +799,11 @@
     outline-offset: -5px;
     box-shadow: 0 0 0 2px #0d2d5e;
   }
-  .btn-status.bg-ag { background: #EEF2F7; color: #1f2937; }
-  .btn-status.bg-na { background: #dc2626; color: #fff; }
+  .btn-status.bg-ag { background: #0d2d5e; color: #fff; }
+  .btn-status.bg-na { background: #F97316; color: #1f2937; }
   .btn-status.bg-wp { background: #D0DCE9; color: #1f2937; }
-  .btn-status.bg-si { background: #f87171; color: #1f2937; }
-  .btn-status.bg-so { background: #F97316; color: #1f2937; }
+  .btn-status.bg-si { background: #dc2626; color: #fff; }
+  .btn-status.bg-so { background: #C2410C; color: #fff; }
   .btn-status.bg-fo { background: #C2D2E2; color: #1f2937; }
   .btn-status.bg-fe { background: #15803d; color: #fff; }
   .btn-status.bg-em { background: #DFE7F0; color: #1f2937; }
@@ -796,7 +811,7 @@
   .btn-status.bg-cr { background: #CBAE86; color: #1f2937; }
   .btn-status.bg-mm { background: #F2DE8B; color: #1f2937; }
   .btn-status.bg-ch { background: #D9A93A; color: #1f2937; }
-  .btn-status.bg-pe { background: #f06565; color: #1f2937; }
+  .btn-status.bg-pe { background: #dc2626; color: #fff; }
   .btn-status.bg-pa { background: #B3C7DC; color: #1f2937; }
   .prop-atual { font-size: 12px; color: #0369a1; margin-top: 8px; line-height: 1.4; }
   html[data-theme="dark"] .prop-atual { color: #7DD3FC; }
@@ -948,17 +963,17 @@
   html[data-theme="dark"] .slot.fora-prioridade:hover { background: #243046; }
   /* Cards de status mantêm o padrão de cores do light (especificidade ≥ dark .slot) */
   html[data-theme="dark"] .slot.ocupado                  { background: #0d2d5e; color: #fff; }
-  html[data-theme="dark"] .slot.status-agendado          { background: #EEF2F7; color: #1f2937; }
+  html[data-theme="dark"] .slot.status-agendado          { background: #0d2d5e; color: #fff; }
   /* Precisa existir no dark também: a regra de tema tem seletor mais específico que
      `.slot.status-agendado.confirmado` e apagaria o esmeralda no tema escuro. */
   html[data-theme="dark"] .slot.status-agendado.confirmado,
   html[data-theme="dark"] .slot.dividido .meia.status-agendado.confirmado { background: #047857; color: #fff; }
-  html[data-theme="dark"] .slot.status-nao_atendeu       { background: #dc2626; color: #fff; }
+  html[data-theme="dark"] .slot.status-nao_atendeu       { background: #F97316; color: #1f2937; }
   html[data-theme="dark"] .slot.sem-resposta,
   html[data-theme="dark"] .slot.dividido .meia.sem-resposta { background: #FDBA74; color: #1f2937; }
   html[data-theme="dark"] .slot.status-falando_whatsapp  { background: #D0DCE9; color: #1f2937; }
-  html[data-theme="dark"] .slot.status-sem_interesse     { background: #f87171; color: #1f2937; }
-  html[data-theme="dark"] .slot.status-sem_orcamento     { background: #F97316; color: #1f2937; }
+  html[data-theme="dark"] .slot.status-sem_interesse     { background: #dc2626; color: #fff; }
+  html[data-theme="dark"] .slot.status-sem_orcamento     { background: #C2410C; color: #fff; }
   html[data-theme="dark"] .slot.status-fez_orcamento     { background: #C2D2E2; color: #1f2937; }
   html[data-theme="dark"] .slot.status-fechou            { background: #15803d; color: #fff; }
   html[data-theme="dark"] .slot.status-em_atendimento    { background: #DFE7F0; color: #1f2937; }
@@ -968,7 +983,7 @@
   html[data-theme="dark"] .slot.status-carregador        { background: #CBAE86; color: #1f2937; }
   html[data-theme="dark"] .slot.status-meio_a_meio       { background: #F2DE8B; color: #1f2937; }
   html[data-theme="dark"] .slot.status-chave_na_mao      { background: #D9A93A; color: #1f2937; }
-  html[data-theme="dark"] .slot.status-perdido           { background: #f06565; color: #1f2937; }
+  html[data-theme="dark"] .slot.status-perdido           { background: #dc2626; color: #fff; }
   html[data-theme="dark"] .slot.bloqueado {
     background: repeating-linear-gradient(45deg, #6b7280, #6b7280 6px, #525c6a 6px, #525c6a 12px);
     color: #fff;
