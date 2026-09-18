@@ -252,13 +252,15 @@
      quatro tons da mesma familia (bege -> amarelo) e de longe eles se parecem.
      A pilula diz qual e sem abrir o card. Fundo escuro translucido porque os
      quatro cards sao CLAROS — pilula branca sumiria neles. */
+  /* ETIQUETA DE STATUS — vale pra TODO card, nao so pros modelos. Tres status
+     dividem o mesmo vermelho e quatro dividem o mesmo bege: a cor diz a familia,
+     e e esta pilula que diz exatamente qual. Tamanho medido na coluna de 180px,
+     a mais estreita da grade: a 10px o "EM ATENDIMENTO" passava 6px. */
   .tag-modelo {
     display: inline-block;
-    /* Apertado de proposito: medido na coluna de 180px (a mais estreita da
-       grade), "ARRENDAMENTO" + "eletroposto" lado a lado passavam 5px. */
     padding: 1px 5px;
     border-radius: 999px;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 800;
     letter-spacing: .2px;
     vertical-align: middle;
@@ -266,6 +268,15 @@
     color: #fff;
     box-shadow: 0 1px 3px rgba(0,0,0,.25);
   }
+  /* Card ESCURO: a pilula escura sumiria nele, entao ela clareia. */
+  .slot.status-agendado .tag-modelo,
+  .slot.status-nao_atendeu .tag-modelo,
+  .slot.status-sem_interesse .tag-modelo,
+  .slot.status-perdido .tag-modelo,
+  .slot.status-sem_orcamento .tag-modelo,
+  .slot.status-fechou .tag-modelo,
+  .slot.status-fechou_concorrente .tag-modelo,
+  .slot.confirmado .tag-modelo { background: rgba(255,255,255,.92); color: #111827; box-shadow: none; }
   .tag-pill {
     display: inline-block;
     padding: 0 5px;
@@ -301,7 +312,7 @@
 
   /* Status coloridos */
   .slot.status-agendado          { background: #0d2d5e; color: #fff; }
-  .slot.status-nao_atendeu       { background: #F97316; color: #1f2937; }
+  .slot.status-nao_atendeu       { background: #dc2626; color: #fff; }
   .slot.status-falando_whatsapp  { background: #D0DCE9; color: #1f2937; }
   .slot.status-sem_interesse     { background: #dc2626; color: #fff; }
   .slot.status-sem_orcamento     { background: #C2410C; color: #fff; }
@@ -322,7 +333,7 @@
   /* As mesmas cores dentro do quadro dividido: a metade é que recebe o status,
      não o slot. Sem isto as duas ficariam azuis, mentindo o status de uma delas. */
   .slot.dividido .meia.status-agendado          { background: #0d2d5e; color: #fff; }
-  .slot.dividido .meia.status-nao_atendeu       { background: #F97316; color: #1f2937; }
+  .slot.dividido .meia.status-nao_atendeu       { background: #dc2626; color: #fff; }
   .slot.dividido .meia.status-falando_whatsapp  { background: #D0DCE9; color: #1f2937; }
   .slot.dividido .meia.status-sem_interesse     { background: #dc2626; color: #fff; }
   .slot.dividido .meia.status-sem_orcamento     { background: #C2410C; color: #fff; }
@@ -742,7 +753,7 @@
   .sw-fora   { background: #fafafa; }
   .sw-ag     { background: #0d2d5e; }
   .sw-sr     { background: #FDBA74; }
-  .sw-na     { background: #F97316; }
+  .sw-na     { background: #dc2626; }
   .sw-wp     { background: #D0DCE9; border-color: #d1d5db; }
   .sw-si     { background: #dc2626; }
   .sw-so     { background: #C2410C; }
@@ -795,7 +806,7 @@
     box-shadow: 0 0 0 2px #0d2d5e;
   }
   .btn-status.bg-ag { background: #0d2d5e; color: #fff; }
-  .btn-status.bg-na { background: #F97316; color: #1f2937; }
+  .btn-status.bg-na { background: #dc2626; color: #fff; }
   .btn-status.bg-wp { background: #D0DCE9; color: #1f2937; }
   .btn-status.bg-si { background: #dc2626; color: #fff; }
   .btn-status.bg-so { background: #C2410C; color: #fff; }
@@ -963,7 +974,7 @@
      `.slot.status-agendado.confirmado` e apagaria o esmeralda no tema escuro. */
   html[data-theme="dark"] .slot.status-agendado.confirmado,
   html[data-theme="dark"] .slot.dividido .meia.status-agendado.confirmado { background: #047857; color: #fff; }
-  html[data-theme="dark"] .slot.status-nao_atendeu       { background: #F97316; color: #1f2937; }
+  html[data-theme="dark"] .slot.status-nao_atendeu       { background: #dc2626; color: #fff; }
   html[data-theme="dark"] .slot.sem-resposta,
   html[data-theme="dark"] .slot.dividido .meia.sem-resposta { background: #FDBA74; color: #1f2937; }
   html[data-theme="dark"] .slot.status-falando_whatsapp  { background: #D0DCE9; color: #1f2937; }
@@ -1566,15 +1577,35 @@ const SEM_RESPOSTA_APOS_MS = 2 * 60 * 60 * 1000;
 /** Etiqueta curta do modelo de negocio do eletroposto, pro card da grade.
  *  Nome inteiro nao cabe: o slot tem altura fixa e a linha do rodape ja leva
  *  cidade e origem. Status que nao e modelo devolve vazio. */
-const ETIQUETA_MODELO = {
-  arrendamento: ['ARRENDAMENTO', 'ARREND'],
-  carregador:   ['CARREGADOR',   'CARREG'],
-  meio_a_meio:  ['50/50',        '50/50'],
-  chave_na_mao: ['CHAVE NA MÃO', 'CHAVE'],
+const ETIQUETA_STATUS = {
+  agendado:             ['AGENDADO',       'AGEND'],
+  nao_atendeu:          ['NÃO ATENDEU',    'N/ATEND'],
+  falando_whatsapp:     ['WHATSAPP',       'WPP'],
+  em_atendimento:       ['EM ATENDIMENTO', 'ATEND'],
+  sem_orcamento:        ['SEM ORÇAMENTO',  'S/ORÇAM'],
+  fez_orcamento:        ['FEZ ORÇAMENTO',  'ORÇOU'],
+  proposta_apresentada: ['PROPOSTA',       'PROP'],
+  sem_interesse:        ['SEM INTERESSE',  'S/INTER'],
+  perdido:              ['PERDIDO',        'PERD'],
+  fechou_concorrente:   ['CONCORRENTE',    'CONCOR'],
+  fechou:               ['FECHOU',         'FECHOU'],
+  arrendamento:         ['ARRENDAMENTO',   'ARREND'],
+  carregador:           ['CARREGADOR',     'CARREG'],
+  meio_a_meio:          ['50/50',          '50/50'],
+  chave_na_mao:         ['CHAVE NA MÃO',   'CHAVE'],
 };
-/** @param curto metade do slot dividido: metade da largura, nome inteiro nao cabe. */
-function pillModelo(status, curto) {
-  const t = ETIQUETA_MODELO[status];
+/** Etiqueta de status do card. Depois que tres status passaram a dividir o mesmo
+ *  vermelho e quatro o mesmo bege, a cor sozinha nao diz mais qual e — quem diz
+ *  e esta pilula, e por isso ela vale pra TODO card.
+ *  Dois estados que nao sao status ganham rotulo proprio, porque e o que o card
+ *  esta mostrando: presenca confirmada e lead que nao respondeu.
+ *  @param curto metade do slot dividido: metade da largura, nome inteiro nao cabe. */
+function pillStatus(ag, curto) {
+  if (!ag) return '';
+  let t;
+  if (semRespostaDoLead(ag)) t = ['SEM RESPOSTA', 'S/RESP'];
+  else if (ag.presenca_confirmada_at && (ag.status || 'agendado') === 'agendado') t = ['CONFIRMADO', 'CONFIRM'];
+  else t = ETIQUETA_STATUS[ag.status || 'agendado'];
   return t ? `<span class="tag-modelo">${curto ? t[1] : t[0]}</span>` : '';
 }
 
@@ -1692,7 +1723,7 @@ function renderGrid() {
             return `<div class="meia ocupado status-${escapeHtml(a.status || 'agendado')}${okA ? ' confirmado' : ''}${semRespostaDoLead(a) ? ' sem-resposta' : ''}"
               data-id="${a.id}" onclick="abrirDetalhes(${a.id})" title="${escapeHtml(a.cliente_nome || '')}">
               <div class="nome">${horaDoSlot(a, iniSlot)}${escapeHtml(a.cliente_nome)}</div>
-              ${(pillModelo(a.status, true) || etq) ? `<div class="cidade">${pillModelo(a.status, true)}${etq ? ` <span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>` : ''}</div>` : ''}
+              ${(pillStatus(a, true) || etq) ? `<div class="cidade">${pillStatus(a, true)}${etq ? ` <span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>` : ''}</div>` : ''}
               ${btnConfirmada(a, true)}
             </div>`;
           }).join('') + `</div>`;
@@ -1706,21 +1737,19 @@ function renderGrid() {
           // (overflow hidden) e uma 4ª linha seria cortada.
           const etq = etqDeLead(ag.created_by, ag.src);
           const etqCls = (typeof etiquetaCor === 'function' ? etiquetaCor(etq) : '');
-          // No card de MODELO as DUAS etiquetas ficam lado a lado (modelo + origem)
-          // e a cidade sobe pra linha do telefone. Medido na coluna de 180px, que e
-          // a mais estreita da grade: com a cidade junto, o rodape cortava.
-          const mod = pillModelo(ag.status);
+          // TODO card leva as duas etiquetas lado a lado (status + origem), e a
+          // cidade sobe pra linha do telefone. Medido na coluna de 180px, que e a
+          // mais estreita da grade: com a cidade junto, o rodape cortava.
+          const mod = pillStatus(ag);
           const cidTxt = ag.cidade ? `📍 ${escapeHtml(ag.cidade)}` : '';
           const etqPill = etq ? `<span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>` : '';
-          const rodape = mod
-            ? [mod, etqPill].filter(Boolean).join(' ')
-            : [cidTxt, etqPill].filter(Boolean).join(' ');
+          const rodape = [mod, etqPill].filter(Boolean).join(' ');
           const okCls = ag.presenca_confirmada_at ? ' confirmado' : '';
           const srCls = semRespostaDoLead(ag) ? ' sem-resposta' : '';
           html += `<div class="slot ocupado ${stCls}${tempCls}${okCls}${srCls}" data-id="${ag.id}" onclick="abrirDetalhes(${ag.id})">
             ${tempLabel ? `<div class="temp-mark">${tempLabel}</div>` : ''}
             <div class="nome">${horaDoSlot(ag, iniSlot)}${escapeHtml(ag.cliente_nome)}</div>
-            <div class="tel">${escapeHtml(formatTelBR(ag.cliente_telefone))}${mod && cidTxt ? ' · ' + cidTxt : ''}</div>
+            <div class="tel">${escapeHtml(formatTelBR(ag.cliente_telefone))}${cidTxt ? ' · ' + cidTxt : ''}</div>
             ${rodape ? `<div class="cidade">${rodape}</div>` : ''}
             ${btnConfirmada(ag, false)}
           </div>`;
