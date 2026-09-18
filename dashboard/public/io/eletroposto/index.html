@@ -1612,6 +1612,44 @@
         <a class="btn ghost okMais" href="#inicio" onclick="track('agendado_conhecer')">Enquanto isso, conheça o nosso trabalho ↓</a>
       </div>
 
+      <!-- Fim de quem ofereceu um local que não é dele (18/09/2026). Ele não agenda:
+           o que ele tem é um PONTO, e ponto entra na lista que a equipe cruza com os
+           investidores. A tela diz isso sem rodeio e sem prometer prazo. -->
+      <div class="ok" id="ag-ok-arrend">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <h3>Seu local entrou na lista de pontos</h3>
+        <p id="ok-arrend-txt">...</p>
+        <div class="okSeguir">
+          <p><b>Enquanto a gente cruza, siga a gente.</b> Ponto novo saindo do chão e obra por dentro, na hora que acontece.</p>
+          <a class="btn" href="https://instagram.com/irmaosnaobra__" target="_blank" rel="noopener"
+             data-source="arrendamento-cartao">Seguir @irmaosnaobra__ →</a>
+        </div>
+        <div class="okCard">
+          <div class="okRow">
+            <div class="okIc"><svg viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01"/><path d="M21 12a9 9 0 0 1-9 9 8.9 8.9 0 0 1-4.3-1.1L3 21l1.1-4.7A8.9 8.9 0 0 1 3 12a9 9 0 1 1 18 0z"/></svg></div>
+            <div class="okTx">
+              <b>A equipe recebeu o seu local agora.</b>
+              Endereço, tipo de local e vagas já chegaram no WhatsApp de quem cuida dos pontos, junto com quem tem capital perto de você.
+            </div>
+          </div>
+          <div class="okRow">
+            <div class="okIc"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6M23 11h-6"/></svg></div>
+            <div class="okTx">
+              <b>Por que não marcamos reunião agora.</b>
+              Você quer que o investimento seja nosso, e o imóvel ainda não é seu. Então o passo certo não é falar de projeto: é achar o investidor que entra com o dinheiro nesse endereço. É isso que a gente faz com a lista.
+            </div>
+          </div>
+          <div class="okRow">
+            <div class="okIc"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+            <div class="okTx">
+              <b>Fechou o imóvel no seu nome? Volta aqui.</b>
+              Com o local sob o seu controle, a conversa passa a ser de projeto e a reunião sai na hora.
+            </div>
+          </div>
+        </div>
+        <p class="okObs">Ponto é o que falta neste mercado. Obrigado por trazer o seu.</p>
+      </div>
+
       <!-- Fim do quiz do integrador (16/09/2026). Ele não agenda: a reunião é para
            quem tem ponto. O que ele recebe é a confirmação de que está na lista de
            parceiros e o convite de seguir, que aqui é o único canal até a equipe
@@ -2524,6 +2562,27 @@ function pontuar(f){
 // pergunta "como pretende investir" some — e a validacao dela some junto, senao
 // o formulario trava num campo escondido e ninguem descobre por que.
 const MODELO_SEM_CAPITAL = new Set(['cedo_espaco']);
+
+// ══ QUEM NÃO É DONO E QUER O NOSSO DINHEIRO É ARRENDAMENTO, NÃO REUNIÃO ══════
+// Ordem do Thiago (18/09/2026): "além do proprietário, todos os outros, se colocar
+// que quer que investimos 100% ou 50%, será enviado ao arrendamento, porque ele tá
+// querendo investidor em um lugar que nem dele é".
+//
+// É a leitura certa do que essa pessoa está oferecendo. Quem administra, representa,
+// aluga ou ainda está negociando o imóvel NÃO está comprando um eletroposto: está
+// oferecendo um local para outra pessoa instalar. Isso não é reunião de projeto, é
+// ponto entrando na lista mais escassa da operação — hoje são 4 pontos para 62
+// investidores cadastrados.
+//
+// O PROPRIETÁRIO fica de fora da regra de propósito: ele assina sozinho, então mesmo
+// cedendo o espaço ele tem reunião. Modelo 03 (chave na mão, o eletroposto é meu) e
+// "ainda não sei" também seguem para a agenda de todo mundo — nesses o dinheiro é dele,
+// e aí a relação com o imóvel é assunto da conversa, não do formulário.
+const MODELO_DINHEIRO_NOSSO = new Set(['cedo_espaco', 'meio_a_meio']);
+function paraArrendamento(pontoV, relacaoV, modeloV){
+  if(!MODELO_DINHEIRO_NOSSO.has(modeloV)) return false;
+  return !(pontoV === 'definido' && relacaoV === 'proprietario');
+}
 function onModelo(){
   const v = document.getElementById('f-modelo').value;
   const paga = !MODELO_SEM_CAPITAL.has(v);
@@ -3331,6 +3390,49 @@ async function agendar(){
     // Eventos separados por caminho, para o Pixel saber quem chegou ao curso por qual
     // motivo. Os nota1_parceria_* da tarde de 15/09 param de contar.
     irProCurso(curioso ? 'nota1_curso_curioso' : (semCapital ? 'nota1_curso_ponto' : 'nota1_curso_capital'));
+    return;
+  }
+
+  // ══ ARRENDAMENTO EM VEZ DE REUNIÃO (18/09/2026) ═══════════════════════════
+  // Ele não perde nada: a ficha vira cadastro do lado PONTO com tudo que ele já
+  // respondeu, o aviso de ARRENDAMENTO cai no WhatsApp da equipe com o bloco de
+  // investidores mais perto, e o ponto entra no top 20 do dia. O que ele não faz é
+  // ocupar uma hora de especialista para falar de um imóvel que não é dele.
+  if(paraArrendamento(ponto.value, relacao.value, modelo.value)){
+    const btnA = document.getElementById('ag-btn');
+    const rotuloA = btnA.textContent;
+    btnA.disabled = true; btnA.textContent = 'Enviando…';
+    const enderecoPonto = [`${rua}, ${numero}`, bairro, cidade, cep ? `CEP ${cep}` : '']
+      .filter(Boolean).join(' · ');
+    try {
+      const r = await fetch('/_api/io/eletroposto/parceria', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          lado: 'ponto',
+          nome, telefone: telE164, cidade,
+          // Mesmo vocabulário da porta do ponto em /parceria: as duas entradas
+          // gravam na mesma coluna, e a aba Arrendamento não pode ter dois idiomas.
+          ponto_relacao: ponto.value === 'definido' ? txt(relacao) : 'Estou negociando com o proprietário',
+          ponto_tipo: perfilTexto(perfil),
+          ponto_endereco: enderecoPonto,
+          ponto_vagas: txt(vagas),
+          ...(PERFIL_SEM_FLUXO.has(perfil.value) ? { ponto_fluxo: txt(rota) } : {}),
+          obs: `Veio do quiz da LP. Pediu o modelo: ${txt(modelo)}.`,
+          ...utmPrimeiroToque(),
+        }),
+      });
+      if(!r.ok) throw new Error('http ' + r.status);
+      track('arrendamento_do_quiz');
+      document.getElementById('ok-arrend-txt').textContent =
+        `Pronto, ${String(nome).split(/\s+/)[0]}. O seu local entrou na nossa lista de pontos.`;
+      document.getElementById('ag-form').style.display = 'none';
+      document.getElementById('ag-ok-arrend').style.display = 'block';
+      document.getElementById('ag-ok-arrend').scrollIntoView({behavior:'smooth', block:'start'});
+    } catch(e){
+      console.error(e);
+      btnA.disabled = false; btnA.textContent = rotuloA;
+      erro('Não consegui salvar agora — pode ser a sua conexão. Tente de novo em alguns segundos; se insistir, chame a gente no WhatsApp (34) 99816-5040.');
+    }
     return;
   }
 
