@@ -240,6 +240,21 @@
   /* Etiqueta de origem no card: verde fluorescente = eletroposto, laranja
      fluorescente = solar. Pill sólida porque o fundo do slot muda com o status
      (azul, vermelho, roxo…) — texto colorido sumiria em alguns deles. */
+  /* ETIQUETA DO MODELO no card do eletroposto. A cor sozinha nao resolve: sao
+     quatro tons da mesma familia (bege -> amarelo) e de longe eles se parecem.
+     A pilula diz qual e sem abrir o card. Fundo escuro translucido porque os
+     quatro cards sao CLAROS — pilula branca sumiria neles. */
+  .tag-modelo {
+    display: inline-block;
+    padding: 0 5px;
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .3px;
+    vertical-align: middle;
+    background: rgba(31,41,55,.16);
+    color: #1f2937;
+  }
   .tag-pill {
     display: inline-block;
     padding: 0 5px;
@@ -720,11 +735,18 @@
   .sw-sr     { background: #f59e0b; }
   .sw-na     { background: #dc2626; }
   .sw-wp     { background: #14b8a6; }
-  .sw-si     { background: #64748b; }
+  .sw-si     { background: #6b7280; }
   .sw-so     { background: #ea580c; }
   .sw-fo     { background: #fef3c7; border-color: #d1d5db; }
   .sw-pa     { background: #0ea5e9; }
   .sw-fe     { background: #16a34a; }
+  .sw-pe     { background: #FCA5A5; border-color: #d1d5db; }
+  /* Os quatro modelos do eletroposto: claros, entao a borda do swatch precisa
+     aparecer, igual ao do fez_orcamento. */
+  .sw-ar     { background: #EADBC0; border-color: #d1d5db; }
+  .sw-cr     { background: #CBAE86; border-color: #d1d5db; }
+  .sw-mm     { background: #F2DE8B; border-color: #d1d5db; }
+  .sw-ch     { background: #D9A93A; border-color: #d1d5db; }
 
   /* Botões de status no modal de detalhes */
   .status-atual-pill {
@@ -1050,6 +1072,11 @@
     <div class="item"><div class="sw sw-fo"></div> Fez orçamento</div>
     <div class="item"><div class="sw sw-pa"></div> Proposta apresentada</div>
     <div class="item"><div class="sw sw-fe"></div> Fechou</div>
+    <div class="item"><div class="sw sw-pe"></div> Perdido</div>
+    <div class="item"><div class="sw sw-ar"></div> Arrendamento</div>
+    <div class="item"><div class="sw sw-cr"></div> Carregador</div>
+    <div class="item"><div class="sw sw-mm"></div> 50/50</div>
+    <div class="item"><div class="sw sw-ch"></div> Chave na mão</div>
     <div class="item"><div class="sw" style="background:repeating-linear-gradient(45deg,#6b7280,#6b7280 4px,#525c6a 4px,#525c6a 8px)"></div> Bloqueado</div>
     <div class="item" style="margin-left:8px;padding-left:12px;border-left:1px solid #d1d5db">❄️ <div class="sw sw-tf"></div> Frio</div>
     <div class="item">🌤️ <div class="sw sw-tm"></div> Morno</div>
@@ -1533,6 +1560,20 @@ function horaDoSlot(ag, iniSlot) {
 // solar os avisos ao cliente estão desligados desde 28/07 — pintar de amarelo
 // quem nunca foi perguntado seria acusar o lead de um silêncio nosso.
 const SEM_RESPOSTA_APOS_MS = 2 * 60 * 60 * 1000;
+/** Etiqueta curta do modelo de negocio do eletroposto, pro card da grade.
+ *  Nome inteiro nao cabe: o slot tem altura fixa e a linha do rodape ja leva
+ *  cidade e origem. Status que nao e modelo devolve vazio. */
+const ETIQUETA_MODELO = {
+  arrendamento: 'ARREND',
+  carregador:   'CARREG',
+  meio_a_meio:  '50/50',
+  chave_na_mao: 'CHAVE',
+};
+function pillModelo(status) {
+  const t = ETIQUETA_MODELO[status];
+  return t ? `<span class="tag-modelo">${t}</span>` : '';
+}
+
 function semRespostaDoLead(ag) {
   if (!ag || ag.status !== 'agendado') return false;              // vermelho, fechou, etc. têm cor própria
   if (!String(ag.created_by || '').toLowerCase().includes('eletroposto')) return false;
@@ -1647,7 +1688,7 @@ function renderGrid() {
             return `<div class="meia ocupado status-${escapeHtml(a.status || 'agendado')}${okA ? ' confirmado' : ''}${semRespostaDoLead(a) ? ' sem-resposta' : ''}"
               data-id="${a.id}" onclick="abrirDetalhes(${a.id})" title="${escapeHtml(a.cliente_nome || '')}">
               <div class="nome">${horaDoSlot(a, iniSlot)}${escapeHtml(a.cliente_nome)}</div>
-              ${etq ? `<div class="cidade"><span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span></div>` : ''}
+              ${(pillModelo(a.status) || etq) ? `<div class="cidade">${pillModelo(a.status) || `<span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>`}</div>` : ''}
               ${btnConfirmada(a, true)}
             </div>`;
           }).join('') + `</div>`;
@@ -1661,9 +1702,14 @@ function renderGrid() {
           // (overflow hidden) e uma 4ª linha seria cortada.
           const etq = etqDeLead(ag.created_by, ag.src);
           const etqCls = (typeof etiquetaCor === 'function' ? etiquetaCor(etq) : '');
+          // No card de MODELO a etiqueta do modelo TOMA O LUGAR da de origem: o
+          // modelo so existe no eletroposto, entao a origem ali era redundante, e
+          // com as duas a cidade era cortada na sorte.
+          const mod = pillModelo(ag.status);
           const rodape = [
+            mod,
             ag.cidade ? `📍 ${escapeHtml(ag.cidade)}` : '',
-            etq ? `<span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>` : '',
+            (!mod && etq) ? `<span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>` : '',
           ].filter(Boolean).join(' ');
           const okCls = ag.presenca_confirmada_at ? ' confirmado' : '';
           const srCls = semRespostaDoLead(ag) ? ' sem-resposta' : '';
