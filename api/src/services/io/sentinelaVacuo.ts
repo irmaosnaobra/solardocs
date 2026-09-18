@@ -434,10 +434,24 @@ export async function runSentinelaVacuo(opts: { dry?: boolean } = {}): Promise<V
     const alvo = CONSULTOR[dono]?.phone;
     if (!alvo) continue;
     const agoraIso = new Date().toISOString();
-    await Promise.all(itens.map(i => supabase.from('system_state').upsert(
-      { key: chaveAviso(i.telefone, i.nivel), value: agoraIso, updated_at: agoraIso },
-      { onConflict: 'key' },
-    )));
+    // CARIMBA TODOS OS NÍVEIS ATÉ O DELE, não só o dele. O seletor lá em cima pega
+    // o nível mais ALTO que a conversa alcançou e ainda não foi cobrado. Se só o 3
+    // fosse carimbado, a varredura seguinte acharia o 2 livre e cobraria A MESMA
+    // conversa de novo, e vinte minutos depois o 1.
+    //
+    // Não é hipótese: aconteceu em 18/09/2026, no primeiro dia em que ela rodou.
+    // As mesmas 19 conversas foram cobradas às 13:40, 14:00 e 14:22 — três recados
+    // idênticos pro Thiago e pro Diego em 42 minutos. Toda conversa que já nasce
+    // velha (e no primeiro dia eram todas) dispara os três níveis em rajada, que é
+    // o oposto de uma régua que sobe com o tempo.
+    //
+    // Cobrou no 3 significa que o 1 e o 2 não têm mais o que dizer.
+    const niveisACarimbar = (n: number): number[] => NIVEIS.filter(x => x.n <= n).map(x => x.n);
+    await Promise.all(itens.flatMap(i => niveisACarimbar(i.nivel).map(n =>
+      supabase.from('system_state').upsert(
+        { key: chaveAviso(i.telefone, n), value: agoraIso, updated_at: agoraIso },
+        { onConflict: 'key' },
+      ))));
     try {
       await sendWhatsApp(alvo, montarResumo(dono, itens), 'io');
       cobrancas += itens.length;

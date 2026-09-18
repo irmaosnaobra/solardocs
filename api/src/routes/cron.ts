@@ -388,9 +388,15 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       // ele que sustenta a linha o dia inteiro: os carimbos de hoje caem todos
       // em minuto PAR (13:08, 13:12, 13:16, 13:22, 13:26...), que é a assinatura
       // dele. Os outros três caminhos que este repositório acredita ter NÃO
-      // entregam: o Worker da Cloudflare leva CRON_SECRET rotacionado e toma 401
-      // calado, o GitHub Actions promete */5 e roda a cada ~3h50, e o cron da
-      // Vercel ficou 5 janelas sem disparar depois de um deploy READY.
+      // entregam do mesmo jeito: o Worker da Cloudflare leva CRON_SECRET rotacionado
+      // e toma 401 calado, e o GitHub Actions promete */5 e roda a cada ~3h50.
+      //
+      // CORREÇÃO DO QUE EU ESCREVI AQUI HORAS ANTES: eu disse que o cron da Vercel
+      // "ficou 5 janelas sem disparar". Ele disparou. Quem mentiu foi a minha sonda:
+      // eu media pelo modo seco virar `todas_ja_cobradas`, e ele continua dizendo
+      // `cobraria_agora` enquanto sobrar QUALQUER nível não cobrado. Os carimbos
+      // provaram depois: varreduras às 13:40 e 14:00, que é a cara do */5 com a
+      // represa de 20 min no meio. Sonda que só olha o fim não vê o começo.
       //
       // Rodar de 2 em 2 minutos não manda mais mensagem: os dois são idempotentes
       // e travados por dentro (janela diurna, espaçamento de linha, teto próprio,

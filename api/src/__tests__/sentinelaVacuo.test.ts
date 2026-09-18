@@ -250,6 +250,47 @@ describe('dentroDoExpediente', () => {
   });
 });
 
+describe('conversa velha não vira três recados seguidos', () => {
+  it('cobrada no nível 3, não volta no 2 nem no 1 nas varreduras seguintes', async () => {
+    // 60 horas úteis: ela já nasce no nível mais alto. O erro que este teste
+    // tranca é o de 18/09/2026, quando as mesmas 19 conversas viraram recado às
+    // 13:40, 14:00 e 14:22 porque só o nível cobrado era carimbado.
+    db.wa = [msg('5534999990020', false, Date.parse('2026-09-10T13:00:00Z'))];
+
+    const primeira = await runSentinelaVacuo();
+    expect(primeira.cobrancas).toBe(1);
+    expect(enviados).toHaveLength(1);
+
+    vi.setSystemTime(new Date(Date.now() + 21 * 60_000));
+    const segunda = await runSentinelaVacuo();
+    vi.setSystemTime(new Date(Date.now() + 21 * 60_000));
+    const terceira = await runSentinelaVacuo();
+
+    expect(segunda.motivo).toBe('todas_ja_cobradas');
+    expect(terceira.motivo).toBe('todas_ja_cobradas');
+    expect(enviados).toHaveLength(1);              // um recado, não três
+  });
+
+  it('cobrada no nível 1, ainda pode subir pro 2 quando a espera crescer', async () => {
+    // O carimbo retroativo não pode matar a régua: quem foi cobrado no 1 tem que
+    // voltar quando de fato passar das 8 horas úteis.
+    db.wa = [msg('5534999990021', false, Date.now() - 4 * 3600_000)];
+
+    const primeira = await runSentinelaVacuo();
+    expect(primeira.cobrancas).toBe(1);
+
+    // Passa a cruzar o nível 2. A data é absoluta de propósito: "9 horas atrás"
+    // no relógio cai de madrugada e vira 5 horas ÚTEIS, que não cruzam nada.
+    // Terça 16h BRT até quarta 14h21 = 4h de terça + 5h de quarta ≈ 9h úteis.
+    db.wa = [msg('5534999990021', false, Date.parse('2026-09-15T19:00:00Z'))];
+    vi.setSystemTime(new Date(Date.now() + 21 * 60_000));
+    const segunda = await runSentinelaVacuo();
+
+    expect(segunda.cobrancas).toBe(1);
+    expect(enviados).toHaveLength(2);
+  });
+});
+
 describe('leitura dos marcadores', () => {
   it('consulta quebrada NÃO vira "ninguém foi cobrado ainda"', async () => {
     // O perigo não é falhar: é a falha parecer sucesso. Marcador que não foi
