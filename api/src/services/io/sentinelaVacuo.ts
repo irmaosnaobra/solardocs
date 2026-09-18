@@ -274,17 +274,41 @@ export async function runSentinelaVacuo(opts: { dry?: boolean } = {}): Promise<V
 
   // 1. A conversa crua dos últimos 7 dias. Direto de wa_mensagens: é o que de
   //    fato saiu e entrou na linha, e não o que algum robô ACHA que respondeu.
+  //
+  // A ORDEM É DECRESCENTE, E ISSO É A CORREÇÃO DE UM BURACO QUE ESCONDEU GENTE.
+  // Até 18/09/2026 esta consulta pedia `ascending: true` com `limit(20000)`. A
+  // resposta vem TRUNCADA bem antes disso, e truncada em ordem crescente
+  // significa ficar só com a fatia mais VELHA da semana. Medido no dia: 5.487
+  // mensagens na janela, e a sentinela enxergava até 17/09 às 17h — tudo que
+  // chegou depois era invisível pra ela, todo dia, pra sempre.
+  //
+  // O caso que denunciou: o Cleber ofereceu um ponto comercial às 21:32 de 17/09
+  // e ficou fora da conta. O robô cobrava as conversas mais velhas da semana e
+  // era cego pras de hoje, que são justamente as que dá pra salvar.
+  //
+  // Decrescente inverte quem se perde no corte: perde-se o mais antigo, que é o
+  // que já foi cobrado. E como aqui só interessa a ÚLTIMA fala de cada lado, ler
+  // do mais novo pro mais velho e ficar com a PRIMEIRA ocorrência é a leitura
+  // natural, não um truque.
+  // Teto em env pra o teste conseguir provocar o corte com 4 mensagens em vez de
+  // 20 mil. Sem isso o defeito acima não é testável, e defeito não testável é
+  // defeito que volta.
+  const LIMITE_MSGS = Number(process.env.VACUO_MAX_MSGS || 20000);
   const { data: msgs, error } = await supabase
     .from('wa_mensagens')
     .select('telefone, from_me, texto, momment, chat_name, sender_name')
     .eq('instancia', INSTANCIA_IO())
     .eq('is_group', false)
     .gte('momment', desde)
-    .order('momment', { ascending: true })
-    .limit(20000);
+    .order('momment', { ascending: false })
+    .limit(LIMITE_MSGS);
   if (error) {
     logger.error('sentinela-vacuo', 'falha lendo as conversas', error);
     return { paradas: 0, cobrancas: 0, avisados: [], motivo: 'erro_leitura' };
+  }
+  // Corte silencioso foi o que criou o buraco acima. Agora ele aparece no log.
+  if ((msgs?.length || 0) >= LIMITE_MSGS) {
+    logger.warn('sentinela-vacuo', `leitura no teto (${msgs?.length}): conversa antiga pode ter ficado de fora`);
   }
 
   interface Estado { tel: string; nome: string | null; deles: string | null; nossa: string | null; texto: string | null }
@@ -295,9 +319,11 @@ export async function runSentinelaVacuo(opts: { dry?: boolean } = {}): Promise<V
     if (!k || NUMEROS_DA_CASA.has(k)) continue;
     const at = String(m.momment || '');
     const e = porTel.get(k) || { tel, nome: null, deles: null, nossa: null, texto: null };
+    // Vem do mais novo pro mais velho: a PRIMEIRA que aparece de cada lado é a
+    // última que aconteceu. Sobrescrever aqui seria voltar no tempo.
     if (m.from_me) {
-      e.nossa = at;
-    } else {
+      if (!e.nossa) e.nossa = at;
+    } else if (!e.deles) {
       e.deles = at;
       e.texto = (m.texto as string) ?? null;
       e.nome = (m.chat_name as string) || (m.sender_name as string) || e.nome;

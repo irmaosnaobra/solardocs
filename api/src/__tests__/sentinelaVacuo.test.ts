@@ -21,6 +21,8 @@ const db: {
 function builder(tabela: string) {
   const q: any = {
     _filtros: [] as Array<(r: any) => boolean>,
+    _ordem: null as null | { col: string; asc: boolean },
+    _teto: 0,
     select() { return q; },
     eq(col: string, val: any) { q._filtros.push((r: any) => r[col] === val); return q; },
     like(col: string, padrao: string) {
@@ -29,8 +31,15 @@ function builder(tabela: string) {
       return q;
     },
     gte(col: string, val: any) { q._filtros.push((r: any) => String(r[col]) >= String(val)); return q; },
-    order() { return q; },
-    limit() { return q; },
+    // O mock ORDENA de verdade. Enquanto ele devolvia a ordem de inserção, o
+    // teste não conseguia enxergar a diferença entre ler do mais novo pro mais
+    // velho e o contrário — que foi exatamente o defeito de 18/09/2026.
+    order(col: string, opts?: { ascending?: boolean }) {
+      q._ordem = { col, asc: opts?.ascending !== false };
+      return q;
+    },
+    // O corte é real: é ele, e não a ordem sozinha, que escondia as conversas.
+    limit(n: number) { q._teto = n; return q; },
     maybeSingle() {
       const linhas = q._linhas();
       return Promise.resolve({ data: linhas[0] ?? null, error: null });
@@ -47,7 +56,16 @@ function builder(tabela: string) {
         : tabela === 'whatsapp_sessions' ? db.sessoes
         : tabela === 'sdr_leads' ? db.leads
         : db.state;
-      return fonte.filter((r: any) => q._filtros.every((f: any) => f(r)));
+      const linhas = fonte.filter((r: any) => q._filtros.every((f: any) => f(r)));
+      let saida = linhas;
+      if (q._ordem) {
+        const { col, asc } = q._ordem;
+        saida = [...linhas].sort((a: any, b: any) => {
+          const x = String(a[col] ?? ''); const y = String(b[col] ?? '');
+          return (x < y ? -1 : x > y ? 1 : 0) * (asc ? 1 : -1);
+        });
+      }
+      return q._teto ? saida.slice(0, q._teto) : saida;
     },
     then(res: any, rej: any) {
       // Consulta que quebra devolve data NULA e um error preenchido. É assim que
@@ -88,6 +106,7 @@ beforeEach(() => {
   enviados.length = 0; silenciados.clear();
   process.env.ZAPI_INSTANCE_ID_IO = INST;
   delete process.env.VACUO_OFF;
+  delete process.env.VACUO_MAX_MSGS;
   // Relógio preso numa quarta-feira às 14h de Brasília. Sem isto o teste passaria
   // de dia e falharia de madrugada — a sentinela só cobra em expediente, e teste
   // que depende da hora da máquina é teste que vermelha sozinho às 3 da manhã.
@@ -247,6 +266,61 @@ describe('dentroDoExpediente', () => {
 
     expect(r.motivo).toBe('cobraria_agora');
     expect(enviados).toHaveLength(0);
+  });
+});
+
+describe('a conversa mais recente não pode ficar de fora', () => {
+  it('a leitura é do mais novo pro mais velho, e vale a ÚLTIMA fala de cada lado', async () => {
+    // Em 18/09/2026 a consulta era crescente e a resposta vinha truncada: a
+    // sentinela só via a fatia mais VELHA da semana e era cega pra quem escreveu
+    // hoje. Aqui a conversa tem uma resposta nossa ANTIGA e uma fala dela
+    // RECENTE: lendo do fim pro começo, ela continua esperando.
+    const ontem = Date.parse('2026-09-15T13:00:00Z');
+    const seis = Date.now() - 6 * 3600_000;
+    db.wa = [
+      msg('5534999990040', false, ontem, 'oi, tudo bem?'),
+      msg('5534999990040', true, ontem + 60_000, 'respondi ontem'),
+      msg('5534999990040', false, seis, 'e o orçamento?'),
+    ];
+
+    const r = await runSentinelaVacuo();
+
+    expect(r.cobrancas).toBe(1);
+    expect(enviados[0].texto).toContain('e o orçamento?');
+  });
+
+  it('com a leitura truncada, quem escreveu HOJE continua sendo visto', async () => {
+    // Este é o teste que prova o defeito de 18/09/2026. Com o teto em 3 e quatro
+    // mensagens na janela, ler do mais VELHO pro mais novo devolve só as três
+    // antigas e some com a conversa de hoje. Era exatamente isso que acontecia em
+    // produção: 5.487 mensagens na semana e a sentinela enxergando até 17/09 17h.
+    process.env.VACUO_MAX_MSGS = '3';
+    const antigo = Date.parse('2026-09-15T13:00:00Z');
+    db.wa = [
+      msg('5534999990060', false, antigo, 'primeira de uma conversa velha'),
+      msg('5534999990060', false, antigo + 1000, 'segunda'),
+      msg('5534999990060', false, antigo + 2000, 'terceira'),
+      msg('5534999990061', false, Date.now() - 6 * 3600_000, 'tenho um ponto comercial'),
+    ];
+
+    const r = await runSentinelaVacuo();
+
+    const textos = enviados.map(e => e.texto).join('\n');
+    expect(textos).toContain('tenho um ponto comercial');
+    expect(r.cobrancas).toBeGreaterThanOrEqual(1);
+  });
+
+  it('a nossa resposta MAIS NOVA encerra, mesmo com fala antiga dela no meio', async () => {
+    const ontem = Date.parse('2026-09-15T13:00:00Z');
+    db.wa = [
+      msg('5534999990041', false, ontem, 'oi'),
+      msg('5534999990041', false, Date.now() - 7 * 3600_000, 'e o orçamento?'),
+      msg('5534999990041', true, Date.now() - 6 * 3600_000, 'segue o orçamento'),
+    ];
+
+    const r = await runSentinelaVacuo();
+
+    expect(r.cobrancas).toBe(0);
   });
 });
 
