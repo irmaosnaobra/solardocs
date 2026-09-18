@@ -502,19 +502,34 @@ export function casarRespostas(envios: EnvioDaPauta[], falas: FalaRecebida[]): R
     // resposta dela responde à primeira vez que falamos, não à última.
     if (!atual || e.enviado_em < atual) enviadoEm.set(k, e.enviado_em);
   }
-  const porPessoa = new Map<string, RespostaDaPauta>();
+  // QUANDO ela reagiu e O QUE ela disse são duas perguntas diferentes, e juntar
+  // as duas numa mensagem só dá resposta errada nas duas.
+  //
+  // Provado com o primeiro caso real: o Wellington respondeu "Bom dia" às 15:17 e
+  // "Fale sobre essa oportunidade" às 15:17 também. Guardar a primeira mostrava
+  // "Bom dia", que não diz nada; guardar a última mostraria "ok", que diz menos
+  // ainda. Então o horário é o da PRIMEIRA (foi quando ele reagiu) e o texto é o
+  // MAIOR da rajada em que ele reagiu (foi o que ele veio dizer).
+  const RAJADA_MS = 2 * 60 * 60 * 1000;
+  const porPessoa = new Map<string, RespostaDaPauta & { _t0: number }>();
   for (const f of falas) {
     const k = chaveContato(f.telefone) || f.telefone;
     const envio = enviadoEm.get(k);
     if (!envio || f.momment <= envio) continue;
+    const t = Date.parse(f.momment);
     const ja = porPessoa.get(k);
-    // A PRIMEIRA reação é a que conta como "respondeu"; o resto é a conversa
-    // seguindo. Guardar a última faria o texto virar "ok" e esconder o "quero".
-    if (!ja || f.momment < ja.quando) {
-      porPessoa.set(k, { phone: f.telefone, nome: f.chat_name || null, quando: f.momment, texto: f.texto ?? null });
+    if (!ja) {
+      porPessoa.set(k, { phone: f.telefone, nome: f.chat_name || null, quando: f.momment, texto: f.texto ?? null, _t0: t });
+      continue;
     }
+    if (f.momment < ja.quando) { ja.quando = f.momment; ja._t0 = t; }
+    ja.nome = ja.nome || f.chat_name || null;
+    const dentroDaRajada = Math.abs(t - ja._t0) <= RAJADA_MS;
+    if (dentroDaRajada && (f.texto || '').length > (ja.texto || '').length) ja.texto = f.texto ?? null;
   }
-  return [...porPessoa.values()].sort((a, b) => (a.quando < b.quando ? 1 : -1));
+  return [...porPessoa.values()]
+    .map(({ _t0, ...r }) => r)
+    .sort((a, b) => (a.quando < b.quando ? 1 : -1));
 }
 
 /** Quem respondeu a uma pauta, lendo os dois bancos (envios no gerador, conversa na linha). */

@@ -45,6 +45,33 @@ describe('casarRespostas', () => {
     expect(r.map(x => x.phone)).toEqual(['5511989437206']);
   });
 
+  it('"Bom dia" não pode ser o que a tela mostra quando veio "quero saber" logo atrás', () => {
+    // Caso real do Wellington, 18/09/2026: ele mandou o cumprimento e o assunto
+    // no mesmo minuto. O horário é o da primeira (foi quando reagiu), o texto é
+    // o da que diz alguma coisa.
+    const r = casarRespostas(
+      [envio('5511989437206', '2026-09-18T14:58:00Z')],
+      [
+        fala('5511989437206', '2026-09-18T15:17:31Z', 'Bom dia'),
+        fala('5511989437206', '2026-09-18T15:17:45Z', 'Fale sobre essa oportunidade'),
+      ],
+    );
+    expect(r).toHaveLength(1);
+    expect(r[0].quando).toBe('2026-09-18T15:17:31Z');       // reagiu aqui
+    expect(r[0].texto).toBe('Fale sobre essa oportunidade'); // disse isto
+  });
+
+  it('mensagem de dias depois não rouba o texto da reação', () => {
+    const r = casarRespostas(
+      [envio('5511989437206', '2026-09-18T14:58:00Z')],
+      [
+        fala('5511989437206', '2026-09-18T15:17:00Z', 'quero saber mais sobre o ponto'),
+        fala('5511989437206', '2026-09-21T10:00:00Z', 'desculpa a demora, estava viajando e agora consigo falar'),
+      ],
+    );
+    expect(r[0].texto).toBe('quero saber mais sobre o ponto');
+  });
+
   it('cinco mensagens da mesma pessoa contam como UMA resposta, e vale a primeira', () => {
     const r = casarRespostas(
       [envio('5511989437206', '2026-09-18T14:58:00Z')],
