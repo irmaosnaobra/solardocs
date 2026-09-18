@@ -107,3 +107,40 @@ describe('casarRespostas', () => {
     expect(casarRespostas([], [fala('5511989437206', '2026-09-18T15:17:00Z', 'oi')])).toHaveLength(0);
   });
 });
+
+describe('eco da pauta', () => {
+  const CORPO = 'Temos um ponto em uma cidade do Estado do Goiás, excelente ponto e liberado para investidor, se você tem real interesse é só me retornar a msg';
+
+  it('quem cola a pauta de volta CONTA como resposta, mas o texto não vira a nossa própria mensagem', () => {
+    // Caso real do Wellington: às 15:24 ele mandou a nossa mensagem de volta pra
+    // mostrar o que tinha recebido. Ler isso na tela é ler a si mesmo.
+    const r = casarRespostas(
+      [envio('5511989437206', '2026-09-18T14:58:00Z')],
+      [
+        fala('5511989437206', '2026-09-18T15:17:31Z', 'Bom dia'),
+        fala('5511989437206', '2026-09-18T15:19:18Z', 'Estou interessado em montar um eletroposto'),
+        fala('5511989437206', '2026-09-18T15:24:40Z', '*OPORTUNIDADE*\n\n' + CORPO),
+      ],
+      CORPO,
+    );
+    expect(r).toHaveLength(1);
+    expect(r[0].texto).toBe('Estou interessado em montar um eletroposto');
+  });
+
+  it('se ela SÓ devolveu a pauta, continua contando como resposta', () => {
+    const r = casarRespostas(
+      [envio('5511989437206', '2026-09-18T14:58:00Z')],
+      [fala('5511989437206', '2026-09-18T15:24:40Z', '*OPORTUNIDADE*\n\n' + CORPO)],
+      CORPO,
+    );
+    expect(r).toHaveLength(1);
+  });
+
+  it('sem o corpo da pauta na mão, nada é tratado como eco', () => {
+    const r = casarRespostas(
+      [envio('5511989437206', '2026-09-18T14:58:00Z')],
+      [fala('5511989437206', '2026-09-18T15:24:40Z', 'uma frase qualquer bem comprida pra ganhar do resto')],
+    );
+    expect(r[0].texto).toContain('uma frase qualquer');
+  });
+});

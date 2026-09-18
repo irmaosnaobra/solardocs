@@ -493,7 +493,22 @@ export interface RespostaDaPauta { phone: string; nome: string | null; quando: s
  * que decide um número que a equipe vai ler, então tem que dar pra testar sem
  * banco.
  */
-export function casarRespostas(envios: EnvioDaPauta[], falas: FalaRecebida[]): RespostaDaPauta[] {
+/** Normaliza pra comparar texto sem se importar com marcação e espaço. */
+const achatar = (s: string | null | undefined): string =>
+  String(s ?? '').toLowerCase().replace(/[*_~`]/g, '').replace(/\s+/g, ' ').trim();
+
+export function casarRespostas(
+  envios: EnvioDaPauta[],
+  falas: FalaRecebida[],
+  corpoDaPauta?: string | null,
+): RespostaDaPauta[] {
+  // ECO DA PAUTA. O Wellington colou a nossa própria mensagem de volta pra
+  // mostrar o que tinha recebido — mensagem dele de verdade, e por isso conta
+  // como resposta. Mas como TEXTO na tela é a pior escolha possível: a gente
+  // leria a nossa própria pauta achando que é o que ele disse. Foi exatamente o
+  // que apareceu no primeiro teste contra a produção.
+  const trecho = achatar(corpoDaPauta).slice(0, 60);
+  const ehEco = (t: string | null): boolean => trecho.length >= 20 && achatar(t).includes(trecho);
   const enviadoEm = new Map<string, string>();
   for (const e of envios) {
     const k = chaveContato(e.phone) || e.phone;
@@ -525,7 +540,9 @@ export function casarRespostas(envios: EnvioDaPauta[], falas: FalaRecebida[]): R
     if (f.momment < ja.quando) { ja.quando = f.momment; ja._t0 = t; }
     ja.nome = ja.nome || f.chat_name || null;
     const dentroDaRajada = Math.abs(t - ja._t0) <= RAJADA_MS;
-    if (dentroDaRajada && (f.texto || '').length > (ja.texto || '').length) ja.texto = f.texto ?? null;
+    const melhor = dentroDaRajada && !ehEco(f.texto ?? null)
+      && (ehEco(ja.texto) || (f.texto || '').length > (ja.texto || '').length);
+    if (melhor) ja.texto = f.texto ?? null;
   }
   return [...porPessoa.values()]
     .map(({ _t0, ...r }) => r)
@@ -534,8 +551,11 @@ export function casarRespostas(envios: EnvioDaPauta[], falas: FalaRecebida[]): R
 
 /** Quem respondeu a uma pauta, lendo os dois bancos (envios no gerador, conversa na linha). */
 export async function respostasDaPauta(avisoId: string): Promise<{ entregues: number; respostas: RespostaDaPauta[] }> {
-  const { data: envios, error: errEnvios } = await supabaseGerador
-    .from('aviso_envios').select('phone, enviado_em').eq('aviso_id', avisoId).eq('status', 'ok').limit(5000);
+  const [{ data: envios, error: errEnvios }, { data: pauta }] = await Promise.all([
+    supabaseGerador.from('aviso_envios').select('phone, enviado_em').eq('aviso_id', avisoId).eq('status', 'ok').limit(5000),
+    // O corpo entra na conta pra reconhecer quem cola a pauta de volta.
+    supabaseGerador.from('avisos').select('corpo').eq('id', avisoId).maybeSingle(),
+  ]);
   if (errEnvios) throw new Error(`ler envios da pauta falhou: ${errEnvios.message}`);
   const lista = (envios || []) as EnvioDaPauta[];
   if (lista.length === 0) return { entregues: 0, respostas: [] };
@@ -552,5 +572,8 @@ export async function respostasDaPauta(avisoId: string): Promise<{ entregues: nu
     .limit(5000);
   if (errFalas) throw new Error(`ler respostas falhou: ${errFalas.message}`);
 
-  return { entregues: lista.length, respostas: casarRespostas(lista, (falas || []) as FalaRecebida[]) };
+  return {
+    entregues: lista.length,
+    respostas: casarRespostas(lista, (falas || []) as FalaRecebida[], (pauta as any)?.corpo ?? null),
+  };
 }
