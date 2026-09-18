@@ -4658,7 +4658,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="crm-det-status">
         <button type="button" class="crm-btn-status bg-ag" data-status="agendado"         onclick="crmAtualizarStatus('agendado')">📞 Agendada</button>
         <button type="button" class="crm-btn-status bg-na" data-status="nao_atendeu"      onclick="crmAtualizarStatus('nao_atendeu')">❌ Não atendeu</button>
-        <button type="button" class="crm-btn-status bg-em" data-status="em_atendimento"   onclick="crmAtualizarStatus('em_atendimento')" style="grid-column:span 2">🕐 Em atendimento (segura o lead)</button>
+        <button type="button" class="crm-btn-status bg-em" data-status="em_atendimento"   onclick="crmAtualizarStatus('em_atendimento')" style="grid-column:span 2">🕐 NEGOCIANDO (segura o lead)</button>
         <button type="button" class="crm-btn-status bg-si" data-status="sem_interesse"    onclick="crmAtualizarStatus('sem_interesse')" style="grid-column:span 2">🙅 Sem interesse</button>
         <!-- ARRENDAMENTO (17/09/2026) — tomou o lugar do botão "Fechou concorrente".
              É quem NÃO quer comprar mas deixa a gente instalar no ponto dele: nós
@@ -14734,7 +14734,7 @@ function voltarDosLeads() {
 const CRM_ETAPAS = {
   agendado:    { lbl: 'Agendado',          ic: '📅' },
   reagendar:   { lbl: 'Reagendar',         ic: '🔄' },
-  em_atendimento: { lbl: 'Em atendimento', ic: '🕐' },
+  em_atendimento: { lbl: 'Negociando', ic: '🕐' },
   whatsapp:    { lbl: 'Falando WhatsApp',  ic: '💬' },
   frio:        { lbl: 'Frio',              ic: '❄️' },
   morno:       { lbl: 'Morno',             ic: '🌤️' },
@@ -15203,7 +15203,7 @@ async function crmAtualizarStatus(novoStatus) {
     const labels = {
       agendado:         '📞 Marcado como Agendada',
       nao_atendeu:      '❌ Marcado como Não atendeu',
-      em_atendimento:   '🕐 Em atendimento — lead segurado com você',
+      em_atendimento:   '🕐 NEGOCIANDO — lead segurado com você',
       falando_whatsapp: '💬 Marcado como Falando no WhatsApp',
       sem_interesse:    '🙅 Marcado como Sem interesse',
       sem_orcamento:    '📋 Marcado como Sem orçamento',
@@ -16040,7 +16040,7 @@ function renderCRM() {
   // "agendado" não vira selo (é o estado neutro/coluna padrão).
   const STATUS_SELO = {
     nao_atendeu:      { lbl: 'Não atendeu',  cls: 'na' },
-    em_atendimento:   { lbl: '🕐 Em atendimento', cls: 'em' },
+    em_atendimento:   { lbl: '🕐 Negociando', cls: 'em' },
     falando_whatsapp: { lbl: 'No WhatsApp',  cls: 'wp' },
     sem_interesse:    { lbl: 'Sem interesse', cls: 'si' },
     sem_orcamento:    { lbl: 'Sem orçamento', cls: 'so' },

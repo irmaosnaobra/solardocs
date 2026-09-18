@@ -226,12 +226,14 @@
      lista curta dos cards escuros (os tres la embaixo). */
   .slot .hora-exata { background: rgba(31,41,55,.16); color: #1f2937; }
   .slot.status-agendado .hora-exata,
+  .slot.status-nao_atendeu .hora-exata,
   .slot.status-sem_interesse .hora-exata,
   .slot.status-perdido .hora-exata,
   .slot.status-sem_orcamento .hora-exata,
   .slot.status-fechou .hora-exata,
   .slot.status-fechou_concorrente .hora-exata { background: rgba(255,255,255,.22); color: #fff; }
   .slot.status-agendado .tag-pill:not([class*=" tag-"]),
+  .slot.status-nao_atendeu .tag-pill:not([class*=" tag-"]),
   .slot.status-sem_interesse .tag-pill:not([class*=" tag-"]),
   .slot.status-perdido .tag-pill:not([class*=" tag-"]),
   .slot.status-sem_orcamento .tag-pill:not([class*=" tag-"]),
@@ -365,7 +367,7 @@
      Âmbar cheio, texto escuro: o #fef3c7 de `fez_orcamento` é quase branco e some
      ao lado do azul; este precisa saltar numa grade cheia de cards azuis. */
   .slot.sem-resposta,
-  .slot.dividido .meia.sem-resposta { background: #FDBA74; color: #1f2937; }
+  .slot.dividido .meia.sem-resposta { background: #FCA5A5; color: #1f2937; }
   .slot.sem-resposta .tel,
   .slot.sem-resposta .cidade { color: #1f2937; opacity: .85; }
   .slot.sem-resposta .ok-btn { background: rgba(31,41,55,.16); color: #1f2937; }
@@ -410,12 +412,14 @@
      claro" virou a regra, sobraram tres cards escuros na grade, e so neles o
      botao volta a ser branco translucido. */
   .slot.status-agendado .ok-btn,
+  .slot.status-nao_atendeu .ok-btn,
   .slot.status-sem_interesse .ok-btn,
   .slot.status-perdido .ok-btn,
   .slot.status-sem_orcamento .ok-btn,
   .slot.status-fechou .ok-btn,
   .slot.status-fechou_concorrente .ok-btn { background: rgba(255,255,255,.15); color: rgba(255,255,255,.85); }
   .slot.status-agendado .ok-btn:hover,
+  .slot.status-nao_atendeu .ok-btn:hover,
   .slot.status-sem_interesse .ok-btn:hover,
   .slot.status-perdido .ok-btn:hover,
   .slot.status-sem_orcamento .ok-btn:hover,
@@ -752,7 +756,7 @@
   .sw-livre  { background: #fff; }
   .sw-fora   { background: #fafafa; }
   .sw-ag     { background: #0d2d5e; }
-  .sw-sr     { background: #FDBA74; }
+  .sw-sr     { background: #FCA5A5; }
   .sw-na     { background: #dc2626; }
   .sw-wp     { background: #D0DCE9; border-color: #d1d5db; }
   .sw-si     { background: #dc2626; }
@@ -976,7 +980,7 @@
   html[data-theme="dark"] .slot.dividido .meia.status-agendado.confirmado { background: #047857; color: #fff; }
   html[data-theme="dark"] .slot.status-nao_atendeu       { background: #dc2626; color: #fff; }
   html[data-theme="dark"] .slot.sem-resposta,
-  html[data-theme="dark"] .slot.dividido .meia.sem-resposta { background: #FDBA74; color: #1f2937; }
+  html[data-theme="dark"] .slot.dividido .meia.sem-resposta { background: #FCA5A5; color: #1f2937; }
   html[data-theme="dark"] .slot.status-falando_whatsapp  { background: #D0DCE9; color: #1f2937; }
   html[data-theme="dark"] .slot.status-sem_interesse     { background: #dc2626; color: #fff; }
   html[data-theme="dark"] .slot.status-sem_orcamento     { background: #C2410C; color: #fff; }
@@ -1081,7 +1085,7 @@
     <div class="item"><div class="sw sw-livre"></div> Livre</div>
     <div class="item"><div class="sw sw-fora"></div> Após 18h</div>
     <div class="item"><div class="sw sw-ag"></div> Agendada</div>
-    <div class="item"><div class="sw sw-sr"></div> Não respondeu</div>
+    <div class="item"><div class="sw sw-sr"></div> Não confirmou</div>
     <div class="item"><div class="sw sw-na"></div> Não atendeu</div>
     <div class="item"><div class="sw sw-wp"></div> Falando WhatsApp</div>
     <div class="item"><div class="sw sw-si"></div> Sem interesse</div>
@@ -1246,7 +1250,7 @@
     <div class="status-grid">
       <button type="button" class="btn-status bg-ag" data-status="agendado"          onclick="atualizarStatus('agendado')">📞 Agendada</button>
       <button type="button" class="btn-status bg-na" data-status="nao_atendeu"       onclick="atualizarStatus('nao_atendeu')">❌ Não atendeu</button>
-      <button type="button" class="btn-status bg-em" data-status="em_atendimento"    onclick="atualizarStatus('em_atendimento')" style="grid-column: span 2;">🕐 Em atendimento (segura o lead)</button>
+      <button type="button" class="btn-status bg-em" data-status="em_atendimento"    onclick="atualizarStatus('em_atendimento')" style="grid-column: span 2;">🕐 NEGOCIANDO (segura o lead)</button>
       <button type="button" class="btn-status bg-si" data-status="sem_interesse"     onclick="atualizarStatus('sem_interesse')" style="grid-column: span 2;">🙅 Sem interesse</button>
       <!-- ARRENDAMENTO (17/09/2026) — tomou o lugar do botão "Fechou concorrente".
            É quem NÃO quer comprar mas deixa a gente instalar no ponto dele: nós
@@ -1581,7 +1585,7 @@ const ETIQUETA_STATUS = {
   agendado:             ['AGENDADO',       'AGEND'],
   nao_atendeu:          ['NÃO ATENDEU',    'N/ATEND'],
   falando_whatsapp:     ['WHATSAPP',       'WPP'],
-  em_atendimento:       ['EM ATENDIMENTO', 'ATEND'],
+  em_atendimento:       ['NEGOCIANDO',     'NEGOC'],
   sem_orcamento:        ['SEM ORÇAMENTO',  'S/ORÇAM'],
   fez_orcamento:        ['FEZ ORÇAMENTO',  'ORÇOU'],
   proposta_apresentada: ['PROPOSTA',       'PROP'],
@@ -1603,7 +1607,7 @@ const ETIQUETA_STATUS = {
 function pillStatus(ag, curto) {
   if (!ag) return '';
   let t;
-  if (semRespostaDoLead(ag)) t = ['SEM RESPOSTA', 'S/RESP'];
+  if (semRespostaDoLead(ag)) t = ['NÃO CONFIRMOU', 'N/CONF'];
   else if (ag.presenca_confirmada_at && (ag.status || 'agendado') === 'agendado') t = ['CONFIRMADO', 'CONFIRM'];
   else t = ETIQUETA_STATUS[ag.status || 'agendado'];
   return t ? `<span class="tag-modelo">${curto ? t[1] : t[0]}</span>` : '';
@@ -2205,7 +2209,7 @@ async function atualizarStatus(novoStatus) {
     const labels = {
       agendado:          '📞 Marcado como Agendada',
       nao_atendeu:       '❌ Marcado como Não atendeu',
-      em_atendimento:    '🕐 Em atendimento — lead segurado com você',
+      em_atendimento:    '🕐 NEGOCIANDO — lead segurado com você',
       falando_whatsapp:  '💬 Marcado como Falando no WhatsApp',
       sem_interesse:     '🙅 Marcado como Sem interesse',
       sem_orcamento:     '📋 Marcado como Sem orçamento',
