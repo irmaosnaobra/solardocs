@@ -468,3 +468,74 @@ async function tickInterno(dry: boolean): Promise<AvisoTickResult> {
     return { enviados: 0, aviso_id: aviso.id, motivo: 'erro_fatal' };
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QUEM RESPONDEU A PAUTA
+//
+// A tela mostrava entregues, faltam e previsão. Nenhum dos três é o número que
+// importa numa pauta de oportunidade: o que importa é QUEM MORDEU. Medido em
+// 18/09/2026, com a pauta "OPORTUNIDADE" em 13 de 73 entregues, exatamente 1
+// pessoa tinha respondido — e esse 1 não aparecia em lugar nenhum. Ele só foi
+// descoberto porque alguém perguntou.
+//
+// Vale como resposta só o que chegou DEPOIS do envio pra aquela pessoa. Mensagem
+// anterior é conversa velha, e contar conversa velha como resposta inflaria o
+// número justamente no caso em que a pauta foi pra alguém que já falava com a
+// gente — que é o erro mais fácil de cometer aqui e o mais caro de acreditar.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface EnvioDaPauta { phone: string; enviado_em: string }
+export interface FalaRecebida { telefone: string; momment: string; texto: string | null; chat_name?: string | null }
+export interface RespostaDaPauta { phone: string; nome: string | null; quando: string; texto: string | null }
+
+/**
+ * Casa envios com as falas que chegaram depois. Pura de propósito: é a regra
+ * que decide um número que a equipe vai ler, então tem que dar pra testar sem
+ * banco.
+ */
+export function casarRespostas(envios: EnvioDaPauta[], falas: FalaRecebida[]): RespostaDaPauta[] {
+  const enviadoEm = new Map<string, string>();
+  for (const e of envios) {
+    const k = chaveContato(e.phone) || e.phone;
+    const atual = enviadoEm.get(k);
+    // Se a mesma pessoa recebeu mais de uma vez, vale o envio MAIS ANTIGO: a
+    // resposta dela responde à primeira vez que falamos, não à última.
+    if (!atual || e.enviado_em < atual) enviadoEm.set(k, e.enviado_em);
+  }
+  const porPessoa = new Map<string, RespostaDaPauta>();
+  for (const f of falas) {
+    const k = chaveContato(f.telefone) || f.telefone;
+    const envio = enviadoEm.get(k);
+    if (!envio || f.momment <= envio) continue;
+    const ja = porPessoa.get(k);
+    // A PRIMEIRA reação é a que conta como "respondeu"; o resto é a conversa
+    // seguindo. Guardar a última faria o texto virar "ok" e esconder o "quero".
+    if (!ja || f.momment < ja.quando) {
+      porPessoa.set(k, { phone: f.telefone, nome: f.chat_name || null, quando: f.momment, texto: f.texto ?? null });
+    }
+  }
+  return [...porPessoa.values()].sort((a, b) => (a.quando < b.quando ? 1 : -1));
+}
+
+/** Quem respondeu a uma pauta, lendo os dois bancos (envios no gerador, conversa na linha). */
+export async function respostasDaPauta(avisoId: string): Promise<{ entregues: number; respostas: RespostaDaPauta[] }> {
+  const { data: envios, error: errEnvios } = await supabaseGerador
+    .from('aviso_envios').select('phone, enviado_em').eq('aviso_id', avisoId).eq('status', 'ok').limit(5000);
+  if (errEnvios) throw new Error(`ler envios da pauta falhou: ${errEnvios.message}`);
+  const lista = (envios || []) as EnvioDaPauta[];
+  if (lista.length === 0) return { entregues: 0, respostas: [] };
+
+  const maisAntigo = lista.reduce((min, e) => (e.enviado_em < min ? e.enviado_em : min), lista[0].enviado_em);
+  const fones = [...new Set(lista.map(e => e.phone))];
+  const { data: falas, error: errFalas } = await supabase
+    .from('wa_mensagens')
+    .select('telefone, momment, texto, chat_name')
+    .eq('from_me', false)
+    .in('telefone', fones)
+    .gte('momment', maisAntigo)
+    .order('momment', { ascending: false })
+    .limit(5000);
+  if (errFalas) throw new Error(`ler respostas falhou: ${errFalas.message}`);
+
+  return { entregues: lista.length, respostas: casarRespostas(lista, (falas || []) as FalaRecebida[]) };
+}

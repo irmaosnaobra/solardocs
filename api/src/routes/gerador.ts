@@ -9,7 +9,7 @@ import { gerarProdutosVirais, redispararVideoProduto } from '../services/agenda/
 import { processarWebhook, reconciliarStatusProduto, animarProduto } from '../services/agenda/higgsfieldService';
 import { ingestManychatLead } from '../services/agenda/manychatLeadService';
 import { runGeradorBroadcastTick } from '../services/io/geradorAutomacaoService';
-import { runAvisosTick } from '../services/io/avisosTickService';
+import { runAvisosTick, respostasDaPauta } from '../services/io/avisosTickService';
 import { runProspeccaoApifyTick } from '../services/io/prospeccaoApifyService';
 import { montarBusca } from '../services/io/prospeccaoBriefService';
 import { montarCentralAgentes } from '../services/io/centralAgentes';
@@ -97,6 +97,23 @@ router.post('/avisos/kick', async (req: Request, res: Response) => {
     res.json({ ok: true, ...(await runAvisosTick({ dry: req.query.dry === '1' })) });
   } catch (err: any) {
     logger.error('gerador', 'avisos/kick falhou', err);
+    res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
+  }
+});
+
+// QUEM RESPONDEU A PAUTA. A tela não consegue responder isso sozinha: os envios
+// ficam no banco do gerador e a conversa fica no banco da linha, e o navegador
+// só alcança o primeiro. Então a junção é aqui.
+//
+// É o número que faltava. Entregues, faltam e previsão dizem se a fila anda;
+// nenhum deles diz se a oportunidade encontrou alguém.
+router.get('/avisos/respostas', async (req: Request, res: Response) => {
+  const avisoId = String(req.query.aviso_id || '').trim();
+  if (!/^[0-9a-f-]{36}$/i.test(avisoId)) { res.status(400).json({ error: 'aviso_id invalido' }); return; }
+  try {
+    res.json({ ok: true, ...(await respostasDaPauta(avisoId)) });
+  } catch (err: any) {
+    logger.error('gerador', 'avisos/respostas falhou', err);
     res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
   }
 });
