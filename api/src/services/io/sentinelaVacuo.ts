@@ -305,36 +305,64 @@ export async function runSentinelaVacuo(opts: { dry?: boolean } = {}): Promise<V
     porTel.set(k, e);
   }
 
-  // 2. Quem está esperando: a última palavra é dela, e já passou o tempo útil.
-  const esperando: Array<Estado & { horas: number }> = [];
-  for (const e of porTel.values()) {
-    if (!e.deles) continue;
-    if (e.nossa && e.nossa >= e.deles) continue;              // já respondemos depois
-    const horas = horasUteisEntre(new Date(e.deles), agora);
-    if (horas >= NIVEIS[0].horas) esperando.push({ ...e, horas });
-  }
-  if (esperando.length === 0) return { paradas: 0, cobrancas: 0, avisados: [], motivo: 'ninguem_esperando' };
-
-  // 3. Quem pediu pra não ser incomodado não vira cobrança (a pessoa pode ter
-  //    escrito "para de mandar" — responder isso com um robô é o oposto).
-  const silenciado = await carregarSilenciados();
-
-  // 4. Contexto: produto da triagem e ficha do CRM, pra saber quem cobrar.
+  // 2. Contexto ANTES do filtro: produto da triagem, ficha do CRM e — o que
+  //    importa aqui — a HORA DA ENTREGA da recepção. Ver o porquê logo abaixo.
   const [sessoesQ, leadsQ] = await Promise.all([
     supabase.from('whatsapp_sessions').select('phone, lead_data').eq('tipo', 'recepcao_io').limit(2000),
     supabase.from('sdr_leads').select('phone, nome, tipo, lead_origem').eq('instance', 'io').limit(2000),
   ]);
   const sessoes = new Map<string, string>();
+  const entregues = new Map<string, string>();
   for (const s of (sessoesQ.data || []) as Array<Record<string, any>>) {
     const k = chaveContato(String(s.phone || ''));
+    if (!k) continue;
     const p = String(s.lead_data?.produto || '');
-    if (k && p) sessoes.set(k, p);
+    if (p) sessoes.set(k, p);
+    const entregueEm = String(s.lead_data?.entregue_em || '');
+    if (String(s.lead_data?.estado || '') === 'entregue' && entregueEm) entregues.set(k, entregueEm);
   }
   const leads = new Map<string, { tipo: string | null; lead_origem: string | null; nome: string | null }>();
   for (const l of (leadsQ.data || []) as Array<Record<string, any>>) {
     const k = chaveContato(String(l.phone || ''));
     if (k) leads.set(k, { tipo: l.tipo ?? null, lead_origem: l.lead_origem ?? null, nome: l.nome ?? null });
   }
+
+  // 3. Quem está esperando: a última palavra é dela, e já passou o tempo útil.
+  //
+  // A BOLHA DE ENTREGA DA DUDA NÃO VALE COMO RESPOSTA. Quando a recepção
+  // classifica e passa pro humano, ela manda "Deixa eu chamar a pessoa certa pra
+  // te atender. Já já alguém responde!". Isso é `from_me`, então a regra crua
+  // ("nossa mais nova que a dela") lia a conversa como ATENDIDA — bem no segundo
+  // em que a espera começa.
+  //
+  // Medido no caso do Cléber Arantes (17/09/2026): ele mandou o endereço do ponto
+  // às 21:32:23 e a bolha de entrega saiu às 21:32:23, no MESMO segundo. Ninguém
+  // respondeu no dia seguinte inteiro e a sentinela não cobrou ninguém, porque
+  // achava que já tinha sido respondido. Ou seja: ela era cega justamente no caso
+  // que existe pra pegar, que é a recepção entregar e o humano não vir.
+  //
+  // A regra: se a sessão está `entregue` e a nossa última mensagem caiu dentro da
+  // janela da entrega, ela é a despedida do robô, não a chegada de gente.
+  const FOLGA_ENTREGA_MS = 120_000;
+  const ehBolhaDeEntrega = (k: string, nossa: string): boolean => {
+    const entregueEm = entregues.get(k);
+    if (!entregueEm) return false;
+    const d = Date.parse(nossa) - Date.parse(entregueEm);
+    return Number.isFinite(d) && d >= -FOLGA_ENTREGA_MS && d <= FOLGA_ENTREGA_MS;
+  };
+  const esperando: Array<Estado & { horas: number }> = [];
+  for (const [k, e] of porTel) {
+    if (!e.deles) continue;
+    const nossaVale = e.nossa && !ehBolhaDeEntrega(k, e.nossa) ? e.nossa : null;
+    if (nossaVale && nossaVale >= e.deles) continue;           // gente respondeu depois
+    const horas = horasUteisEntre(new Date(e.deles), agora);
+    if (horas >= NIVEIS[0].horas) esperando.push({ ...e, horas });
+  }
+  if (esperando.length === 0) return { paradas: 0, cobrancas: 0, avisados: [], motivo: 'ninguem_esperando' };
+
+  // 4. Quem pediu pra não ser incomodado não vira cobrança (a pessoa pode ter
+  //    escrito "para de mandar" — responder isso com um robô é o oposto).
+  const silenciado = await carregarSilenciados();
 
   // 5. Nível de cobrança de cada um, pulando o que já foi cobrado.
   //

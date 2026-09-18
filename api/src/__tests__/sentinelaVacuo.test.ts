@@ -250,6 +250,47 @@ describe('dentroDoExpediente', () => {
   });
 });
 
+describe('a bolha de entrega da recepção não conta como resposta', () => {
+  it('entregou e ninguém veio: continua sendo cobrança', async () => {
+    // O caso do Cléber (17/09/2026): ele mandou o endereço do ponto e a bolha
+    // "já já alguém responde" saiu no MESMO segundo. A regra crua lia isso como
+    // atendido, e o lead mais quente do dia ficou invisível.
+    const seis = Date.now() - 6 * 3600_000;
+    db.wa = [msg('5534999990030', false, seis, 'Tenho excelente ponto comercial')];
+    db.wa.push(msg('5534999990030', true, seis, 'Deixa eu chamar a pessoa certa pra te atender.'));
+    db.sessoes = [{
+      phone: '5534999990030', tipo: 'recepcao_io',
+      lead_data: { produto: 'eletroposto', estado: 'entregue', entregue_em: new Date(seis).toISOString() },
+    }];
+
+    const r = await runSentinelaVacuo();
+
+    // Uma conversa parada, e ela é de eletroposto: o recado vai pro Thiago E pro
+    // Diego, que são os dois donos do produto. Por isso dois envios pra uma parada.
+    expect(r.paradas).toBe(1);
+    expect(r.avisados.sort()).toEqual(['diego', 'thiago']);
+    expect(enviados).toHaveLength(2);
+  });
+
+  it('gente respondeu DEPOIS da entrega: aí sim está atendido', async () => {
+    const seis = Date.now() - 6 * 3600_000;
+    db.wa = [
+      msg('5534999990031', false, seis, 'Tenho excelente ponto comercial'),
+      msg('5534999990031', true, seis, 'Deixa eu chamar a pessoa certa pra te atender.'),
+      msg('5534999990031', true, seis + 30 * 60_000, 'Oi! Aqui é o Thiago, vamos conversar'),
+    ];
+    db.sessoes = [{
+      phone: '5534999990031', tipo: 'recepcao_io',
+      lead_data: { produto: 'eletroposto', estado: 'entregue', entregue_em: new Date(seis).toISOString() },
+    }];
+
+    const r = await runSentinelaVacuo();
+
+    expect(r.cobrancas).toBe(0);
+    expect(enviados).toHaveLength(0);
+  });
+});
+
 describe('conversa velha não vira três recados seguidos', () => {
   it('cobrada no nível 3, não volta no 2 nem no 1 nas varreduras seguintes', async () => {
     // 60 horas úteis: ela já nasce no nível mais alto. O erro que este teste
