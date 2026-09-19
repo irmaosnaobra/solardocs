@@ -1,0 +1,34 @@
+name: Placar do 5040 (Giovanna) - de 2 em 2 horas
+
+# Manda pro celular da Giovanna quantas conversas da linha 34998165040 estão
+# esperando resposta. Segunda a sexta, de 2 em 2 horas dentro da janela 08-17.
+#
+# 11,13,15,17,19 UTC = 08,10,12,14,16 em Brasília (UTC-3, sem horário de verão
+# desde 2019). As 17h fecham a janela e não ganham disparo próprio: 16->17
+# quebraria o "de 2 em 2" no último passo.
+#
+# O `1-5` é avaliado em UTC. Nestas horas (11h-19h UTC) o dia UTC e o dia de
+# Brasília são o MESMO — a data brasileira só vira às 03:00 UTC — então segunda
+# a sexta em UTC é segunda a sexta aqui. Em horário noturno isso não valeria.
+#
+# O serviço confere a janela de novo do lado de dentro (dia, hora, feriado) e
+# carimba o slot em system_state ANTES de enviar, então Actions atrasado ou
+# disparo manual repetido não manda o placar duas vezes.
+#
+# Conferir sem acordar ninguém:  /cron/placar-giovanna?seco=1
+# Mandar agora, fora da hora:    /cron/placar-giovanna?forcar=1
+# Desligar sem deploy:           PLACAR_OFF=1 no Vercel
+on:
+  schedule:
+    - cron: '0 11,13,15,17,19 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  placar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placar da caixa de entrada do 5040
+        run: |
+          curl -X GET "https://api.solardoc.app/cron/placar-giovanna" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --max-time 120 -sS -w "\nHTTP %{http_code}\n"

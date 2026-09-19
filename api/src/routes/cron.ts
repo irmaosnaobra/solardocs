@@ -33,6 +33,7 @@ import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 import { runGeradorBroadcastTick, runGeradorSequenciasConsumer } from '../services/io/geradorAutomacaoService';
 import { runAvisosTick } from '../services/io/avisosTickService';
 import { runSentinelaVacuo } from '../services/io/sentinelaVacuo';
+import { runPlacarGiovanna } from '../services/io/placarGiovanna';
 import { runProspeccaoApifyTick } from '../services/io/prospeccaoApifyService';
 import { runSequenciaStopOnReply } from '../services/io/sequenciaStopOnReply';
 import { runBlastRespostas } from '../services/io/blastRespostas';
@@ -1309,6 +1310,26 @@ router.get('/sentinela-vacuo', async (req: Request, res: Response) => {
     res.json({ ok: true, ...(await runSentinelaVacuo({ dry: req.query.dry === '1' })) });
   } catch (err) {
     logger.error('cron', 'sentinela-vacuo falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
+// Placar do 5040: de 2 em 2 horas (08,10,12,14,16 BRT, seg a sex) manda pro
+// celular da Giovanna QUANTAS conversas da linha estão esperando resposta, com o
+// delta contra o tick anterior. Não manda nome nem link — isso é da sentinela.
+// ?seco=1 mede e devolve o texto sem enviar. ?forcar=1 ignora a janela de hora.
+// Kill-switch: PLACAR_OFF=1. Quem agenda é .github/workflows/placar-giovanna.yml,
+// e é o ÚNICO chamador de propósito: no /cron/master ele rodaria 24x por dia e
+// faria a janela de horário virar a única coisa segurando o envio.
+router.get('/placar-giovanna', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    res.json({ ok: true, ...(await runPlacarGiovanna({
+      seco: req.query.seco === '1',
+      forcar: req.query.forcar === '1',
+    })) });
+  } catch (err) {
+    logger.error('cron', 'placar-giovanna falhou', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });
