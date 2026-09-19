@@ -13,7 +13,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 // comentário do serviço.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { noHorario, montarPlacar, horasDoPlacar, desligado, type Placar } from '../services/io/placarGiovanna';
+import { noHorario, slotDe, montarPlacar, horasDoPlacar, desligado, type Placar } from '../services/io/placarGiovanna';
 
 /** Um instante de Brasília, escrito como UTC (BRT = UTC-3, sem horário de verão). */
 const brt = (iso: string): Date => new Date(`${iso}-03:00`);
@@ -32,16 +32,28 @@ describe('placar do 5040 — a janela', () => {
     for (const h of [8, 10, 12, 14, 16]) {
       const r = noHorario(brt(`2026-09-21T${String(h).padStart(2, '0')}:00:00`));  // segunda
       expect(r.ok, `${h}h deveria disparar`).toBe(true);
-      expect(r.hora).toBe(h);
+      expect(r.slot).toBe(h);
     }
   });
 
-  it('não toca nas horas de fora, inclusive as 17 e as 9', () => {
-    for (const h of [7, 9, 11, 13, 15, 17, 18, 21, 3]) {
+  it('não toca nas horas de fora da janela', () => {
+    for (const h of [6, 7, 18, 19, 21, 3]) {
       const r = noHorario(brt(`2026-09-21T${String(h).padStart(2, '0')}:30:00`));
       expect(r.ok, `${h}h não deveria disparar`).toBe(false);
       expect(r.motivo).toBe('fora_da_hora');
     }
+  });
+
+  // O Actions promete :00 e entrega quando dá — o process-messages.yml deste
+  // repo mede atraso de horas. Sem folga, o placar das 08h some sem erro nenhum.
+  it('tick atrasado entrega o placar do slot anterior, não some', () => {
+    expect(slotDe(brt('2026-09-21T08:00:00'))).toBe(8);
+    expect(slotDe(brt('2026-09-21T09:40:00'))).toBe(8);    // atrasou 1h40: ainda é o das 8
+    expect(slotDe(brt('2026-09-21T17:05:00'))).toBe(16);   // atrasou depois da janela
+    expect(slotDe(brt('2026-09-21T18:30:00'))).toBeNull(); // atrasou demais: perdeu
+    const r = noHorario(brt('2026-09-21T09:40:00'));
+    expect(r.ok).toBe(true);
+    expect(r.slot).toBe(8);
   });
 
   // O pedido é "de segunda a sexta". Sábado com fila cheia é o caso que mais
@@ -63,7 +75,8 @@ describe('placar do 5040 — a janela', () => {
   it('a lista de horas sai da env', () => {
     process.env.PLACAR_HORAS = '9,15';
     expect(horasDoPlacar()).toEqual([9, 15]);
-    expect(noHorario(brt('2026-09-22T09:00:00')).ok).toBe(true);
+    expect(noHorario(brt('2026-09-22T09:00:00')).slot).toBe(9);
+    expect(noHorario(brt('2026-09-22T16:00:00')).slot).toBe(15);   // folga do atraso
     expect(noHorario(brt('2026-09-22T08:00:00')).ok).toBe(false);
   });
 

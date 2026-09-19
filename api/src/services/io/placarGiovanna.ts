@@ -87,8 +87,11 @@ export const horasDoPlacar = (): number[] =>
 export const desligado = (): boolean => (process.env.PLACAR_OFF || '').trim() === '1';
 
 /** Quantos dias de conversa entram na conta. A fila que interessa é a da semana;
- *  quem escreveu há 10 dias e não voltou não está esperando, desistiu. */
-const DIAS_JANELA = Number(process.env.PLACAR_DIAS || 7);
+ *  quem escreveu há 10 dias e não voltou não está esperando, desistiu.
+ *
+ *  Nome com `JANELA` no meio de propósito: `PLACAR_DIAS` do lado de `PLACAR_HORAS`
+ *  convidava a escrever dia da semana aqui, que é outra coisa. */
+const DIAS_JANELA = Number(process.env.PLACAR_JANELA_DIAS || 7);
 
 /** Agora em horário de Brasília, como Date lido pelos getters locais. */
 export function agoraBrt(base: Date = new Date()): Date {
@@ -99,24 +102,44 @@ const ymd = (b: Date): string =>
   `${b.getFullYear()}-${String(b.getMonth() + 1).padStart(2, '0')}-${String(b.getDate()).padStart(2, '0')}`;
 
 /**
+ * A que disparo este tick pertence — e o ponto é a FOLGA DE UMA HORA.
+ *
+ * O GitHub Actions promete :00 e entrega quando dá. Não é teoria: o comentário
+ * do `process-messages.yml` deste mesmo repo mede o agendamento de 5 em 5 minutos
+ * rodando de 2 a 5 horas em 5. Com hora exata, um disparo pras 11h UTC que começa
+ * às 12h05 cai em `fora_da_hora` e o placar das 08h simplesmente não chega —
+ * HTTP 200, nenhum erro, nada no celular dela.
+ *
+ * A folga é de graça porque quem impede o envio dobrado é o carimbo do slot, não
+ * o relógio: tick atrasado entrega o placar das 08h, carimbado como 08h.
+ */
+export function slotDe(agora: Date = new Date()): number | null {
+  const h = agoraBrt(agora).getHours();
+  const horas = horasDoPlacar();
+  if (horas.includes(h)) return h;
+  if (horas.includes(h - 1)) return h - 1;                  // tick atrasado, mesmo slot
+  return null;
+}
+
+/**
  * Dá pra mandar o placar AGORA?
  *
- * Segunda a sexta, numa das horas da lista, fora de feriado. O feriado é
- * acréscimo meu e não estava no pedido: em dia que ninguém trabalha o número não
- * muda, e um placar parado chegando no feriado é o tipo de recado que ensina a
- * ignorar o robô. Mesma decisão que a passagem das 19h da Nilce já toma.
+ * Segunda a sexta, dentro de um slot (com a folga acima), fora de feriado. O
+ * feriado é acréscimo meu e não estava no pedido: em dia que ninguém trabalha o
+ * número não muda, e um placar parado chegando no feriado é o tipo de recado que
+ * ensina a ignorar o robô. Mesma decisão que a passagem das 19h da Nilce já toma.
  *
  * Pura e exportada de propósito: é a regra que decide se o celular dela toca, e
  * regra assim é o que o teste prende.
  */
-export function noHorario(agora: Date = new Date()): { ok: boolean; motivo?: string; hora: number } {
+export function noHorario(agora: Date = new Date()): { ok: boolean; motivo?: string; slot: number | null } {
   const b = agoraBrt(agora);
-  const hora = b.getHours();
   const dia = b.getDay();                                   // 0 = domingo, 6 = sábado
-  if (dia === 0 || dia === 6) return { ok: false, motivo: 'fim_de_semana', hora };
-  if (ehFeriadoBR(ymd(b))) return { ok: false, motivo: 'feriado', hora };
-  if (!horasDoPlacar().includes(hora)) return { ok: false, motivo: 'fora_da_hora', hora };
-  return { ok: true, hora };
+  if (dia === 0 || dia === 6) return { ok: false, motivo: 'fim_de_semana', slot: null };
+  if (ehFeriadoBR(ymd(b))) return { ok: false, motivo: 'feriado', slot: null };
+  const slot = slotDe(agora);
+  if (slot === null) return { ok: false, motivo: 'fora_da_hora', slot: null };
+  return { ok: true, slot };
 }
 
 export interface Placar {
@@ -196,27 +219,47 @@ export async function medirPlacar(hora: number): Promise<Placar | null> {
   const agora = new Date();
   const desde = new Date(Date.now() - DIAS_JANELA * 86400_000).toISOString();
 
-  // ORDEM DECRESCENTE, e isso não é detalhe: a resposta vem truncada bem antes
-  // do limite pedido, e truncada em ordem crescente significa ficar só com a
-  // fatia mais VELHA da semana — o buraco que escondeu gente da sentinela até
-  // 18/09. Lendo do mais novo pro mais velho, o que se perde no corte é o
-  // antigo, e como aqui só interessa a última fala de cada lado, a primeira
-  // ocorrência de cada um já é a resposta.
-  const LIMITE = Number(process.env.PLACAR_MAX_MSGS || 20000);
-  const { data: msgs, error } = await supabase
-    .from('wa_mensagens')
-    .select('telefone, from_me, momment')
-    .eq('instancia', INSTANCIA_IO())
-    .eq('is_group', false)
-    .gte('momment', desde)
-    .order('momment', { ascending: false })
-    .limit(LIMITE);
-  if (error) {
-    logger.error('placar-5040', 'falha lendo as conversas', error);
-    return null;
-  }
-  if ((msgs?.length || 0) >= LIMITE) {
-    logger.warn('placar-5040', `leitura no teto (${msgs?.length}): conversa antiga pode ter ficado de fora`);
+  // LÊ PAGINADO, e é a correção do defeito que quase entrou aqui inteiro.
+  //
+  // A tentação é um `.limit(20000)` só. Não funciona: o PostgREST tem teto
+  // próprio de linhas por resposta e devolve a fatia calada, sem erro. Pedir
+  // 20 mil e receber mil parece leitura completa — e o guarda `length >= limite`
+  // nunca dispara, porque o corte não é o que a gente pediu.
+  //
+  // A conta de 19/09/2026: a linha faz ~5.500 mensagens por semana. Com teto de
+  // mil e ordem decrescente, o placar enxergaria pouco mais de UM dia e contaria
+  // ~22 conversas onde existem 100 — e 78 das 100 esperam há mais de 24h, ou
+  // seja, some justo o que mais importa. Número baixo, nenhum erro, e o placar
+  // dizendo que está tudo bem.
+  //
+  // É o mesmo buraco que escondeu gente da sentinela até 18/09, só que lá a
+  // ordem crescente fazia perder o RECENTE. Paginando, não se perde nenhum.
+  const PAGINA = Number(process.env.PLACAR_PAGINA || 1000);
+  const TETO_PAGINAS = Number(process.env.PLACAR_MAX_PAGINAS || 40);   // 40 mil msgs: 7x a semana cheia
+  const msgs: Array<Record<string, unknown>> = [];
+  for (let pagina = 0; pagina < TETO_PAGINAS; pagina++) {
+    const de = pagina * PAGINA;
+    const { data, error } = await supabase
+      .from('wa_mensagens')
+      .select('telefone, from_me, momment')
+      .eq('instancia', INSTANCIA_IO())
+      .eq('is_group', false)
+      .gte('momment', desde)
+      .order('momment', { ascending: false })
+      .range(de, de + PAGINA - 1);
+    if (error) {
+      logger.error('placar-5040', 'falha lendo as conversas', error);
+      return null;
+    }
+    const lote = (data || []) as Array<Record<string, unknown>>;
+    msgs.push(...lote);
+    if (lote.length < PAGINA) break;                        // última página
+    if (pagina === TETO_PAGINAS - 1) {
+      // Chegar aqui é ou a linha ter explodido de volume, ou a janela ter sido
+      // aumentada sem pensar. Nos dois casos o número sai baixo, então tem que
+      // aparecer no log em vez de virar um placar otimista.
+      logger.warn('placar-5040', `teto de ${TETO_PAGINAS} páginas atingido: a semana pode ter ficado incompleta`);
+    }
   }
 
   // Quem entregou, e quando — pra não contar a bolha da recepção como resposta.
@@ -289,6 +332,9 @@ export async function medirPlacar(hora: number): Promise<Placar | null> {
 
   return {
     conversas, mensagens, hoje, mais24h,
+    // Limitado pela janela de leitura: quem espera há três semanas aparece como
+    // "há 7 dias", porque é só até ali que a consulta olha. Tudo bem pro que o
+    // placar faz (dar tamanho da fila) e mentiria se virasse régua de prazo.
     maisAntigaH: Math.round(maisAntiga * 10) / 10,
     hora, anterior, horaAnterior,
   };
@@ -308,14 +354,20 @@ export async function runPlacarGiovanna(
   if (!seco && !opts.forcar && !janela.ok) return { enviado: false, motivo: janela.motivo };
 
   const b = agoraBrt();
-  const hora = janela.hora;
+  // Forçado fora de hora não tem slot: carimba a hora corrente, pra dois
+  // disparos manuais seguidos não virarem duas mensagens no celular dela.
+  const hora = janela.slot ?? b.getHours();
   const chave = chaveSlot(b, hora);
 
-  // CARIMBA ANTES DE MEDIR. O Actions repete e atrasa, e o cron mestre bate de
-  // hora em hora: dois chamadores no mesmo slot mandariam o mesmo placar duas
-  // vezes. Carimbar depois do envio deixaria a janela aberta justamente enquanto
-  // a leitura dos 7 dias roda, que é a parte demorada.
-  if (!seco && !opts.forcar) {
+  // CARIMBA ANTES DE MEDIR, E O `forcar` NÃO PULA ISTO. O Actions repete e
+  // atrasa, e o disparo manual é um botão que dá pra apertar duas vezes: dois
+  // chamadores no mesmo slot mandariam o mesmo placar duas vezes. Carimbar
+  // depois do envio deixaria a janela aberta justamente enquanto a leitura dos 7
+  // dias roda, que é a parte demorada.
+  //
+  // Só o `seco` passa por cima, e passa porque não manda nada — conferir o
+  // número é uma pergunta, e pergunta não pode gastar o disparo do dia.
+  if (!seco) {
     const { data: ja } = await supabase
       .from('system_state').select('key').eq('key', chave).maybeSingle();
     if (ja) return { enviado: false, motivo: 'ja_enviado_neste_slot' };

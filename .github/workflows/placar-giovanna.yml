@@ -15,20 +15,38 @@ name: Placar do 5040 (Giovanna) - de 2 em 2 horas
 # carimba o slot em system_state ANTES de enviar, então Actions atrasado ou
 # disparo manual repetido não manda o placar duas vezes.
 #
-# Conferir sem acordar ninguém:  /cron/placar-giovanna?seco=1
-# Mandar agora, fora da hora:    /cron/placar-giovanna?forcar=1
-# Desligar sem deploy:           PLACAR_OFF=1 no Vercel
+# O disparo manual tem modo, pra dar pra conferir o numero SEM acordar ninguem —
+# e o secret continua sendo do GitHub, ninguem precisa manusear.
+#   seco    mede e devolve o texto, nao envia
+#   forcar  manda agora, fora da hora (segue carimbando o slot, nao repete)
+#   normal  igual ao agendado: so sai dentro da janela
+# Desligar sem deploy: PLACAR_OFF=1 no Vercel.
 on:
   schedule:
     - cron: '0 11,13,15,17,19 * * 1-5'
   workflow_dispatch:
+    inputs:
+      modo:
+        description: 'Como rodar agora'
+        type: choice
+        required: true
+        default: seco
+        options: [seco, forcar, normal]
 
 jobs:
   placar:
     runs-on: ubuntu-latest
     steps:
       - name: Placar da caixa de entrada do 5040
+        env:
+          # No agendado nao existe input: cai em string vazia e vira o modo normal.
+          MODO: ${{ github.event.inputs.modo }}
         run: |
-          curl -X GET "https://api.solardoc.app/cron/placar-giovanna" \
+          case "$MODO" in
+            seco)   Q='?seco=1' ;;
+            forcar) Q='?forcar=1' ;;
+            *)      Q='' ;;
+          esac
+          curl -X GET "https://api.solardoc.app/cron/placar-giovanna$Q" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             --max-time 120 -sS -w "\nHTTP %{http_code}\n"
