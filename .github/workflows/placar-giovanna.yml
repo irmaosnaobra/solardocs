@@ -11,9 +11,13 @@ name: Placar do 5040 (Giovanna) - de 2 em 2 horas
 # Brasília são o MESMO — a data brasileira só vira às 03:00 UTC — então segunda
 # a sexta em UTC é segunda a sexta aqui. Em horário noturno isso não valeria.
 #
-# O serviço confere a janela de novo do lado de dentro (dia, hora, feriado) e
-# carimba o slot em system_state ANTES de enviar, então Actions atrasado ou
-# disparo manual repetido não manda o placar duas vezes.
+# ESTE WORKFLOW É A RESERVA, NÃO O GATILHO PRINCIPAL (desde 21/09/2026). No
+# primeiro dia útil ele disparou 2 dos 5 horários (13h43 e 17h43); 08h, 10h e
+# 14h nunca rodaram. Quem dispara agora é o /process-messages, batido de 2 em 2
+# minutos pelo pg_cron. Este aqui fica pra, se o pg_cron morrer, ainda sair algum.
+#
+# Os dois juntos não mandam em dobro: o serviço grava o slot em system_state por
+# INSERT antes de enviar, e o banco deixa passar um chamador só.
 #
 # O disparo manual tem modo, pra dar pra conferir o numero SEM acordar ninguem —
 # e o secret continua sendo do GitHub, ninguem precisa manusear.

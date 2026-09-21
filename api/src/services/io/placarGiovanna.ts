@@ -45,10 +45,21 @@
 //
 // ── O que segura o volume ───────────────────────────────────────────────────
 //
-// Marcador `placar_5040:<dia>:<hora>` no `system_state`, carimbado ANTES do
-// envio. O GitHub Actions atrasa e repete, e o cron mestre roda de hora em hora:
-// sem o carimbo, o mesmo placar sairia duas vezes no mesmo slot. É o bug
+// Marcador `placar_5040:<dia>:<hora>` no `system_state`, gravado por INSERT
+// antes do envio — o banco deixa um chamador só passar por slot. É o bug
 // `bd6f994` (dois chamadores lendo a mesma fila no minuto :00) em outra roupa.
+//
+// ── Quem chama, e por que são dois (21/09/2026) ─────────────────────────────
+//
+// No primeiro dia útil o workflow do GitHub era o único chamador, e dos cinco
+// horários agendados ele disparou DOIS (13h43 e 17h43 de Brasília). O 08h, o
+// 10h e o 14h simplesmente não existiram — nem erro, nem log, nada. É o mesmo
+// Actions que o `process-messages.yml` mede rodando de horas em horas.
+//
+// Então o chamador principal passou a ser o /process-messages, que o pg_cron do
+// projeto do gerador bate de 2 em 2 minutos (o comentário de 18/09 no cron.ts
+// tem a medida). O workflow ficou de reserva: se o pg_cron morrer, ainda sai
+// algum placar. Os dois juntos são seguros por causa do INSERT acima.
 //
 // O envio NÃO passa pelo teto anti-ban da linha, pela mesma medida já escrita na
 // sentinela: o destinatário é o celular da própria equipe, conversa aberta há
@@ -234,11 +245,22 @@ export async function medirPlacar(hora: number): Promise<Placar | null> {
   //
   // É o mesmo buraco que escondeu gente da sentinela até 18/09, só que lá a
   // ordem crescente fazia perder o RECENTE. Paginando, não se perde nenhum.
+  // O PONTO FINO, E ELE JÁ ME PEGOU UMA VEZ: avançar pelo que VOLTOU, não pelo
+  // que foi pedido. A primeira versão pedia páginas de mil e parava quando o
+  // lote vinha menor que mil — só que o servidor tem teto PRÓPRIO, menor que
+  // isso, então o primeiro lote já vinha "curto" e a leitura parava na hora.
+  //
+  // Medido em produção em 19/09/2026 pelo `?seco=1`: o placar disse 17 conversas
+  // onde o banco tinha 107, porque leu algumas centenas das 5.746 mensagens da
+  // semana. Nenhum erro, nenhum aviso — só um número baixo e tranquilizador, que
+  // é a pior forma de errar num painel de cobrança.
+  //
+  // Andando pelo tamanho do lote, o teto do servidor deixa de importar: seja 500,
+  // mil ou dez mil, a leitura vai até acabar.
   const PAGINA = Number(process.env.PLACAR_PAGINA || 1000);
-  const TETO_PAGINAS = Number(process.env.PLACAR_MAX_PAGINAS || 40);   // 40 mil msgs: 7x a semana cheia
+  const TETO_MSGS = Number(process.env.PLACAR_MAX_MSGS || 40000);      // 7x a semana cheia
   const msgs: Array<Record<string, unknown>> = [];
-  for (let pagina = 0; pagina < TETO_PAGINAS; pagina++) {
-    const de = pagina * PAGINA;
+  for (let de = 0; de < TETO_MSGS; ) {
     const { data, error } = await supabase
       .from('wa_mensagens')
       .select('telefone, from_me, momment')
@@ -252,19 +274,28 @@ export async function medirPlacar(hora: number): Promise<Placar | null> {
       return null;
     }
     const lote = (data || []) as Array<Record<string, unknown>>;
+    if (lote.length === 0) break;                           // acabou de verdade
     msgs.push(...lote);
-    if (lote.length < PAGINA) break;                        // última página
-    if (pagina === TETO_PAGINAS - 1) {
-      // Chegar aqui é ou a linha ter explodido de volume, ou a janela ter sido
-      // aumentada sem pensar. Nos dois casos o número sai baixo, então tem que
-      // aparecer no log em vez de virar um placar otimista.
-      logger.warn('placar-5040', `teto de ${TETO_PAGINAS} páginas atingido: a semana pode ter ficado incompleta`);
+    de += lote.length;                                      // o que voltou, não o que pedi
+    if (de >= TETO_MSGS) {
+      // Ou a linha explodiu de volume, ou a janela cresceu sem pensar. Nos dois
+      // casos o número sai baixo, então tem que aparecer no log em vez de virar
+      // um placar otimista.
+      logger.warn('placar-5040', `teto de ${TETO_MSGS} mensagens atingido: a semana pode ter ficado incompleta`);
     }
   }
+  logger.info('placar-5040', `leu ${msgs.length} mensagem(ns) na janela de ${DIAS_JANELA} dias`);
 
   // Quem entregou, e quando — pra não contar a bolha da recepção como resposta.
+  // Cabe numa página só hoje (183 sessões em 19/09/2026), mas o mesmo teto de
+  // servidor vale aqui: se um dia encostar, a bolha deixa de ser reconhecida em
+  // parte das conversas e o placar volta a sair baixo — sem erro nenhum.
+  const LIMITE_SESSOES = Number(process.env.PLACAR_MAX_SESSOES || 2000);
   const { data: sessoes } = await supabase
-    .from('whatsapp_sessions').select('phone, lead_data').eq('tipo', 'recepcao_io').limit(2000);
+    .from('whatsapp_sessions').select('phone, lead_data').eq('tipo', 'recepcao_io').limit(LIMITE_SESSOES);
+  if ((sessoes?.length || 0) >= LIMITE_SESSOES) {
+    logger.warn('placar-5040', `sessões da recepção no teto (${sessoes?.length}): a bolha de entrega pode escapar`);
+  }
   const entregues = new Map<string, number>();
   for (const s of (sessoes || []) as Array<Record<string, any>>) {
     const k = chaveContato(String(s.phone || ''));
@@ -367,14 +398,36 @@ export async function runPlacarGiovanna(
   //
   // Só o `seco` passa por cima, e passa porque não manda nada — conferir o
   // número é uma pergunta, e pergunta não pode gastar o disparo do dia.
+  //
+  // O CARIMBO É UM INSERT, NÃO UM UPSERT, e é isso que o torna uma trava.
+  // Desde 21/09/2026 o placar tem dois chamadores: o /process-messages (pg_cron
+  // de 2 em 2 minutos) e o workflow do GitHub, que ficou de reserva. "Ler, ver
+  // que não tem, gravar" deixa uma fresta: os dois leem vazio no mesmo segundo e
+  // os dois mandam. Com INSERT, o banco escolhe um só — o segundo toma violação
+  // de chave única (23505) e sai calado.
+  //
+  // A leitura antes do insert não é a trava, é economia: dentro da janela o
+  // pg_cron bate 30 vezes por slot, e 29 delas param aqui sem tentar gravar.
+  //
+  // FALHA FECHADA. Se o insert quebrar por outro motivo, o placar NÃO sai. Com
+  // um chamador de 2 em 2 minutos, mandar sem ter carimbado é mandar de novo no
+  // tick seguinte, e no outro: 30 placares por hora no celular dela. Perder um
+  // placar é muito mais barato que isso.
   if (!seco) {
     const { data: ja } = await supabase
       .from('system_state').select('key').eq('key', chave).maybeSingle();
     if (ja) return { enviado: false, motivo: 'ja_enviado_neste_slot' };
     const agoraIso = new Date().toISOString();
-    await supabase.from('system_state').upsert(
-      { key: chave, value: { em: agoraIso }, updated_at: agoraIso }, { onConflict: 'key' },
+    const { error: erroCarimbo } = await supabase.from('system_state').insert(
+      { key: chave, value: { em: agoraIso }, updated_at: agoraIso },
     );
+    if (erroCarimbo) {
+      if ((erroCarimbo as { code?: string }).code === '23505') {
+        return { enviado: false, motivo: 'ja_enviado_neste_slot' };
+      }
+      logger.error('placar-5040', 'falha carimbando o slot; placar segurado', erroCarimbo);
+      return { enviado: false, motivo: 'erro_carimbo' };
+    }
   }
 
   const placar = await medirPlacar(hora);

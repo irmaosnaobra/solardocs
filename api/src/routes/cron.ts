@@ -328,6 +328,15 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // abaixo, senão a pessoa que acabou de pedir "pare" recebe o próximo slot.
     const blastRespResult = await runBlastRespostas().catch((e) => ({ error: String(e) }));
 
+    // Placar do 5040 (Giovanna). FORA da lista posicional abaixo de propósito:
+    // aquela lista casa nome e chamada por posição, e mexer nela por causa de um
+    // tick que quase sempre sai em microssegundos (fora da janela nem toca no
+    // banco) é arriscar rotular errado as outras 30 respostas. Começa aqui, em
+    // paralelo com o resto, e é esperado lá embaixo.
+    // Mora nesta rota porque é a que tem pinger vivo — o workflow próprio disparou
+    // 2 dos 5 horários no primeiro dia. Idempotente por INSERT do slot.
+    const placarP = runPlacarGiovanna().catch((e) => ({ enviado: false, motivo: 'erro', erro: String(e) }));
+
     // ── A ORDEM DESTA LISTA É O CONTRATO ─────────────────────────────────────
     // Os nomes à esquerda casam por POSIÇÃO com as chamadas abaixo. Até 19/08 a
     // lista tinha 25 nomes pra 27 chamadas: tudo a partir do 11º vinha rotulado
@@ -443,6 +452,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       recepcao_poll:  recepcaoPollResult.status === 'fulfilled' ? recepcaoPollResult.value : { error: String((recepcaoPollResult as any).reason) },
       avisos:         avisosResult.status === 'fulfilled' ? avisosResult.value : { error: String((avisosResult as any).reason) },
       vacuo:          vacuoResult.status === 'fulfilled' ? vacuoResult.value : { error: String((vacuoResult as any).reason) },
+      placar:         await placarP,
       luma_io_off: 'Linha IO: polling ativo só pra Cora ouvir inbound, demais tarefas Luma desligadas',
     });
   } catch (err) {
@@ -1318,9 +1328,10 @@ router.get('/sentinela-vacuo', async (req: Request, res: Response) => {
 // celular da Giovanna QUANTAS conversas da linha estão esperando resposta, com o
 // delta contra o tick anterior. Não manda nome nem link — isso é da sentinela.
 // ?seco=1 mede e devolve o texto sem enviar. ?forcar=1 ignora a janela de hora.
-// Kill-switch: PLACAR_OFF=1. Quem agenda é .github/workflows/placar-giovanna.yml,
-// e é o ÚNICO chamador de propósito: no /cron/master ele rodaria 24x por dia e
-// faria a janela de horário virar a única coisa segurando o envio.
+// Kill-switch: PLACAR_OFF=1. Quem dispara de verdade é o /process-messages (pg_cron
+// de 2 em 2 min); esta rota fica pro workflow de reserva e pro disparo manual. Não
+// entra no /cron/master: um terceiro chamador não compra nada, o INSERT do slot já
+// segura os dois que existem.
 router.get('/placar-giovanna', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
