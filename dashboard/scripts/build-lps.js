@@ -1227,7 +1227,7 @@ ${d.favicon ? `<link rel="icon" type="image/svg+xml" href="/${d.pasta}/img/favic
 <meta property="og:title" content="${esc(d.ogTitulo)}">
 <meta property="og:description" content="${esc(d.descricao)}">
 <meta property="og:image" content="https://solardoc.app/capas/${d.pasta === 'calculadora' ? 'calculadora-solar' : d.pasta === 'dimensionamento' ? 'dimensionamento-off-grid' : 'inventario-empresarial'}@2x.png">
-<link rel="canonical" href="https://solardoc.app/${d.pasta}/">
+<link rel="canonical" href="https://solardoc.app/${d.pasta}">
 <style>${CSS}
   /* ── GALERIA DE FOTOS (opcional, só nas páginas que trazem o campo fotos) ──────
      Uma foto grande e as demais em grade. No celular vira coluna: o que

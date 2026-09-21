@@ -3,8 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NEXUS ELETROPOSTOS — Carregadores de 80 a 240 kW para o seu ponto</title>
-<meta name="description" content="Montamos o seu eletroposto: carregadores DC de 80 a 240 kW e wallbox AC, peça de reposição no Brasil, OCPP aberto e preço publicado. DC a partir de R$ 69.990.">
+<!-- O title e a description falam como o cliente busca ("carregador para carro
+     elétrico", "wallbox", "eletroposto"), não como a gente chama a linha. A
+     marca vai no fim do title: é o termo que ninguém digita antes de conhecer. -->
+<title>Carregador para carro elétrico e wallbox | NEXUS ELETROPOSTOS</title>
+<meta name="description" content="Carregador para carro elétrico DC de 80 a 240 kW e wallbox AC de 7,3 a 22 kW. Peça no Brasil, OCPP aberto, preço publicado e o eletroposto montado por nós.">
 <link rel="canonical" href="https://solardoc.app/nexus">
 <meta property="og:type" content="website">
 <meta property="og:title" content="NEXUS ELETROPOSTOS — Energia que move o amanhã">
@@ -20,6 +23,126 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap">
+<!-- Dados estruturados: o que o Google lê sem precisar interpretar o layout.
+     Preço e texto aqui TÊM que bater com o que aparece na página; dado que só
+     existe no schema é motivo de ação manual. Mudou preço ou pergunta lá
+     embaixo, muda aqui junto. O DC160 e o DC240 ficam de fora de propósito:
+     são "sob consulta", e produto sem preço no schema dá erro no Search Console.
+     Sem sameAs nem endereço: a NEXUS assina sozinha (ver cnpj-fora-da-vitrine). -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://solardoc.app/nexus#empresa",
+      "name": "NEXUS ELETROPOSTOS",
+      "alternateName": "NEXUS",
+      "slogan": "Energia que move o amanhã",
+      "url": "https://solardoc.app/nexus",
+      "logo": "https://solardoc.app/nexus/img/icone-512.png",
+      "image": "https://solardoc.app/nexus/img/capa.webp",
+      "description": "Carregadores para carro elétrico, DC de 80 a 240 kW e wallbox AC de 7,3 a 22 kW, com peça de reposição no Brasil, OCPP 1.6J aberto e instalação do eletroposto completo.",
+      "areaServed": { "@type": "Country", "name": "Brasil" },
+      "knowsAbout": ["eletroposto", "carregador para carro elétrico", "carregador rápido DC", "wallbox", "estação de recarga", "OCPP"],
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "telephone": "+55-34-99816-5040",
+        "contactType": "sales",
+        "availableLanguage": "Portuguese"
+      }
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://solardoc.app/nexus#pagina",
+      "url": "https://solardoc.app/nexus",
+      "name": "Carregador para carro elétrico e wallbox | NEXUS ELETROPOSTOS",
+      "inLanguage": "pt-BR",
+      "primaryImageOfPage": "https://solardoc.app/nexus/img/capa.webp",
+      "about": { "@id": "https://solardoc.app/nexus#empresa" },
+      "publisher": { "@id": "https://solardoc.app/nexus#empresa" },
+      "mainEntity": { "@id": "https://solardoc.app/nexus#linha" }
+    },
+    {
+      "@type": "ItemList",
+      "@id": "https://solardoc.app/nexus#linha",
+      "name": "Linha de carregadores NEXUS",
+      "itemListElement": [
+        {
+          "@type": "ListItem", "position": 1,
+          "item": {
+            "@type": "Product", "name": "NEXUS DC80", "sku": "NEXUS-DC80",
+            "description": "Carregador rápido DC de 80 kW, dois plugues CCS2, dois carros ao mesmo tempo, OCPP 1.6J.",
+            "image": "https://solardoc.app/nexus/img/p-dc.webp",
+            "category": "Carregador para veículo elétrico",
+            "brand": { "@type": "Brand", "name": "NEXUS" },
+            "offers": { "@type": "Offer", "price": "69990.00", "priceCurrency": "BRL", "availability": "https://schema.org/InStock", "itemCondition": "https://schema.org/NewCondition", "url": "https://solardoc.app/nexus#produtos", "seller": { "@id": "https://solardoc.app/nexus#empresa" } }
+          }
+        },
+        {
+          "@type": "ListItem", "position": 2,
+          "item": {
+            "@type": "Product", "name": "NEXUS DC120", "sku": "NEXUS-DC120",
+            "description": "Carregador rápido DC de 120 kW, dois plugues CCS2, divide a potência entre as vagas, OCPP 1.6J.",
+            "image": "https://solardoc.app/nexus/img/p-dc.webp",
+            "category": "Carregador para veículo elétrico",
+            "brand": { "@type": "Brand", "name": "NEXUS" },
+            "offers": { "@type": "Offer", "price": "89990.00", "priceCurrency": "BRL", "availability": "https://schema.org/InStock", "itemCondition": "https://schema.org/NewCondition", "url": "https://solardoc.app/nexus#produtos", "seller": { "@id": "https://solardoc.app/nexus#empresa" } }
+          }
+        },
+        {
+          "@type": "ListItem", "position": 3,
+          "item": {
+            "@type": "Product", "name": "Wallbox NEXUS AC7", "sku": "NEXUS-AC7",
+            "description": "Wallbox AC de 7,3 kW, conector Tipo 2, monofásico, de parede ou pedestal.",
+            "image": "https://solardoc.app/nexus/img/p-ac7.webp",
+            "category": "Carregador para veículo elétrico",
+            "brand": { "@type": "Brand", "name": "NEXUS" },
+            "offers": { "@type": "Offer", "price": "2499.00", "priceCurrency": "BRL", "availability": "https://schema.org/BackOrder", "itemCondition": "https://schema.org/NewCondition", "url": "https://solardoc.app/nexus#produtos", "seller": { "@id": "https://solardoc.app/nexus#empresa" } }
+          }
+        },
+        {
+          "@type": "ListItem", "position": 4,
+          "item": {
+            "@type": "Product", "name": "Wallbox NEXUS AC11", "sku": "NEXUS-AC11",
+            "description": "Wallbox AC de 11 kW, conector Tipo 2, trifásico, branco ou preto.",
+            "image": "https://solardoc.app/nexus/img/p-ac11.webp",
+            "category": "Carregador para veículo elétrico",
+            "brand": { "@type": "Brand", "name": "NEXUS" },
+            "offers": { "@type": "Offer", "price": "5999.00", "priceCurrency": "BRL", "availability": "https://schema.org/BackOrder", "itemCondition": "https://schema.org/NewCondition", "url": "https://solardoc.app/nexus#produtos", "seller": { "@id": "https://solardoc.app/nexus#empresa" } }
+          }
+        },
+        {
+          "@type": "ListItem", "position": 5,
+          "item": {
+            "@type": "Product", "name": "Wallbox NEXUS AC22", "sku": "NEXUS-AC22",
+            "description": "Wallbox AC de 22 kW, conector Tipo 2, trifásico, com leitor de aproximação.",
+            "image": "https://solardoc.app/nexus/img/p-ac22.webp",
+            "category": "Carregador para veículo elétrico",
+            "brand": { "@type": "Brand", "name": "NEXUS" },
+            "offers": { "@type": "Offer", "price": "6999.00", "priceCurrency": "BRL", "availability": "https://schema.org/BackOrder", "itemCondition": "https://schema.org/NewCondition", "url": "https://solardoc.app/nexus#produtos", "seller": { "@id": "https://solardoc.app/nexus#empresa" } }
+          }
+        }
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://solardoc.app/nexus#duvidas",
+      "mainEntity": [
+        { "@type": "Question", "name": "Qual modelo cabe no meu ponto?", "acceptedAnswer": { "@type": "Answer", "text": "De duas informações: se a entrada é trifásica e qual o disjuntor geral. Manda as duas no WhatsApp que a gente responde qual modelo cabe, sem precisar de visita." } },
+        { "@type": "Question", "name": "Quanto custa um ponto completo de 80 kW?", "acceptedAnswer": { "@type": "Answer", "text": "Costuma fechar na faixa de R$ 140 mil. Entram o equipamento (R$ 69.990), projeto elétrico, parecer de acesso, obra civil, cabeamento, proteção e comissionamento. Não entram aluguel do terreno, impostos da sua operação nem eventual reforço de entrada pedido pela concessionária." } },
+        { "@type": "Question", "name": "Vocês operam a rede? Eu viro franqueado?", "acceptedAnswer": { "@type": "Answer", "text": "Não e não. ELETROPOSTOS no nome é o que a gente monta, não uma rede que a gente opera. Você compra o equipamento, a gente instala, e o ponto é seu: sem bandeira na fachada, sem exclusividade, sem royalty e sem divisão do kWh." } },
+        { "@type": "Question", "name": "O preço da tabela inclui instalação?", "acceptedAnswer": { "@type": "Answer", "text": "Não, o valor é do equipamento. A obra é orçada por endereço, porque depende da distância até o quadro, do tipo de piso e do que a concessionária exigir no parecer." } },
+        { "@type": "Question", "name": "E quando quebrar?", "acceptedAnswer": { "@type": "Answer", "text": "Peça no Brasil e equipamento no nosso estoque: a estação não espera contêiner para voltar a faturar." } },
+        { "@type": "Question", "name": "Como o dinheiro entra?", "acceptedAnswer": { "@type": "Answer", "text": "O motorista paga no app, por Pix ou cartão. Você define a tarifa por kWh e recebe também pela taxa de ociosidade de quem fica parado depois de carregar." } },
+        { "@type": "Question", "name": "Fico preso à plataforma de vocês?", "acceptedAnswer": { "@type": "Answer", "text": "Não. O equipamento fala OCPP 1.6J, padrão de mercado: trocou de plataforma, o carregador vai junto." } },
+        { "@type": "Question", "name": "Dá para financiar?", "acceptedAnswer": { "@type": "Answer", "text": "A gente monta o dossiê de crédito do projeto — investimento, geração de caixa e prazo — no formato que o banco pede. A aprovação é do banco, mas o material vai pronto." } },
+        { "@type": "Question", "name": "Serve para qualquer carro elétrico?", "acceptedAnswer": { "@type": "Answer", "text": "Os DC usam CCS2 e os wallbox usam Tipo 2, que são os dois padrões dos elétricos e híbridos plug-in vendidos no Brasil. Carro com outro padrão de fábrica precisa do adaptador do próprio fabricante." } }
+      ]
+    }
+  ]
+}
+</script>
 <style>
 /* ── Paleta oficial NEXUS ELETROPOSTOS ────────────────────────────────────
    Verde Energia #39FF14 · Azul Tecnologia #0085FF

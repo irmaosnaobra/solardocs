@@ -1,83 +1,103 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   sitemap.xml — solardoc.app
-  Só páginas públicas que responderam 200 na conferência de 03/08/2026.
-  Sem barra no fim: /rota/ responde 308 e /rota responde 200.
-  Ao criar página pública nova, acrescente aqui.
+
+  Regras, conferidas no ar em 21/09/2026:
+  - Só o endereço FINAL de cada página, sem barra no fim. /rota/ responde 308
+    para /rota, e URL que redireciona não entra: o Google lê isso como "o
+    sitemap aponta pra um lugar e a página diz que mora em outro".
+  - Nada com noindex (por isso a /kilova saiu: ela aponta canonical pra /nexus).
+  - Nada de outro host. limpapro.solardoc.app é outro site para o Google.
+  - lastmod é a data do último commit que mexeu na página. Data inventada faz
+    o Google parar de confiar no campo inteiro.
+
+  Ao criar página pública nova, acrescente aqui E no PUBLIC_PATHS do
+  src/proxy.ts. Sem o proxy, o Google recebe a tela de login.
 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <!-- SolarDoc: o app para integradores -->
   <url>
     <loc>https://solardoc.app/</loc>
+    <lastmod>2026-09-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://solardoc.app/eletroposto</loc>
-    <lastmod>2026-08-03</lastmod>
+    <loc>https://solardoc.app/kit</loc>
+    <lastmod>2026-08-04</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://solardoc.app/kilova</loc>
-    <lastmod>2026-09-01</lastmod>
+    <loc>https://solardoc.app/dimensionamento</loc>
+    <lastmod>2026-09-21</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
+    <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://solardoc.app/io/eletroposto</loc>
+    <loc>https://solardoc.app/calculadora</loc>
+    <lastmod>2026-09-21</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://solardoc.app/inventario-empresarial</loc>
+    <lastmod>2026-09-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Irmãos na Obra: energia solar no Triângulo Mineiro -->
+  <url>
+    <loc>https://solardoc.app/irmaosnaobra</loc>
+    <lastmod>2026-09-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
   </url>
   <url>
     <loc>https://solardoc.app/io/solar</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://solardoc.app/simular</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://solardoc.app/kit</loc>
+    <lastmod>2026-09-21</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://solardoc.app/simular</loc>
+    <lastmod>2026-09-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://solardoc.app/eletroposto</loc>
+    <lastmod>2026-08-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- NEXUS ELETROPOSTOS: carregador e eletroposto -->
+  <url>
+    <loc>https://solardoc.app/nexus</loc>
+    <lastmod>2026-09-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://solardoc.app/io/eletroposto</loc>
+    <lastmod>2026-09-18</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://solardoc.app/ponto-certo</loc>
+    <lastmod>2026-09-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <url>
     <loc>https://solardoc.app/privacidade</loc>
+    <lastmod>2026-08-04</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.2</priority>
-  </url>
-  <!-- Paginas de venda de cada ferramenta/curso. Publicas de proposito: cada
-       uma vende sozinha pra trafego frio e desemboca dentro da plataforma. -->
-  <url>
-    <loc>https://solardoc.app/lp/dimensionamento-off-grid</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://solardoc.app/lp/kit-fecha-vendas</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://solardoc.app/lp/limpapro</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://solardoc.app/lp/precificacao-profissional</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://solardoc.app/lp/inventario-empresa</loc>
-    <lastmod>2026-08-14</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
   </url>
 </urlset>
