@@ -784,6 +784,19 @@
     margin-top: 6px;
   }
   .status-atual-pill .dot { width: 8px; height: 8px; border-radius: 50%; }
+  /* POSSE DO LOCAL (21/09) — ARRENDAMENTO pergunta de quem e o local antes de gravar.
+     Um toque virou dois de proposito: sem a pergunta, todo card marcado caia na aba
+     Arrendamento como "dono? nao perguntado". As cores sao as do selo da aba. */
+  .posse-box{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(234,219,192,.14);border:1px solid rgba(234,219,192,.5)}
+  .posse-box[hidden]{display:none}
+  .posse-tit{font-size:12px;font-weight:800;margin-bottom:8px}
+  .posse-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+  .posse-btn{padding:10px 6px;border-radius:8px;border:0;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer;line-height:1.15}
+  .posse-btn.pro{background:#39FF14;color:#06210A}
+  .posse-btn.inq{background:#FF3131;color:#200000}
+  .posse-btn.rep{background:#FFE500;color:#221E00}
+  .posse-btn:hover{filter:brightness(1.08)}
+  .posse-nota{font-size:11px;margin-top:8px;opacity:.75;line-height:1.35}
   .status-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1278,6 +1291,17 @@
       <button type="button" class="btn-status bg-ch" data-status="chave_na_mao"      onclick="atualizarStatus('chave_na_mao')" style="grid-column: span 2;">🔑 Chave na mão</button>
       <button type="button" class="btn-status bg-pe" data-status="perdido"           onclick="atualizarStatus('perdido')" style="grid-column: span 2;">❌ Perdido</button>
       <button type="button" class="btn-status bg-fe" data-status="fechou"            onclick="atualizarStatus('fechou')" style="grid-column: span 2;">✅ Fechou</button>
+    </div>
+
+    <!-- POSSE DO LOCAL: abre ao apertar ARRENDAMENTO. So o segundo toque grava. -->
+    <div id="d-posse" class="posse-box" hidden>
+      <div class="posse-tit">Arrendamento: de quem é o local?</div>
+      <div class="posse-grid">
+        <button type="button" class="posse-btn pro" onclick="atualizarStatus('arrendamento',{ponto_relacao:'Sou o proprietário'})">PRÓPRIO</button>
+        <button type="button" class="posse-btn inq" onclick="atualizarStatus('arrendamento',{ponto_relacao:'Sou inquilino'})">ALUGADO</button>
+        <button type="button" class="posse-btn rep" onclick="atualizarStatus('arrendamento',{ponto_relacao:'Represento o proprietário'})">REPRESENTA O DONO</button>
+      </div>
+      <div class="posse-nota">Se o local ainda não é dele, ele não pode ceder (contrato, cl. 16.1): não é arrendamento.</div>
     </div>
 
     <!-- Eletroposto: quem REALMENTE apresentou a proposta. Só aparece em card de
@@ -2032,6 +2056,8 @@ function abrirDetalhes(id) {
   const ag = agendamentosCache.find(a => a.id === id);
   if (!ag) return;
   detalheAtual = ag;
+  const posse = document.getElementById('d-posse');
+  if (posse) posse.hidden = true;
   const dt = new Date(ag.quando);
   document.getElementById('modal-det-sub').textContent =
     `${ag.vendedor_nome} · ${diaSemanaLabel(dt)} ${fmtData(dt)} · ${pad(dt.getHours())}h${pad(dt.getMinutes())}`;
@@ -2211,11 +2237,19 @@ function marcarTemperaturaAtualNosBotoes(temp) {
 function fecharModalDet() {
   document.getElementById('modal-det').classList.remove('show');
 }
-async function atualizarStatus(novoStatus) {
+async function atualizarStatus(novoStatus, extra) {
   if (!detalheAtual) return;
-  if (detalheAtual.status === novoStatus) { fecharModalDet(); return; }
+  // ARRENDAMENTO pergunta de quem e o local ANTES de gravar: o primeiro toque so
+  // abre os tres botoes, e e o segundo que grava status + posse juntos. Apertar de
+  // novo num card que ja e arrendamento reabre, pra corrigir a posse.
+  if (novoStatus === 'arrendamento' && !extra) {
+    const box = document.getElementById('d-posse');
+    if (box) box.hidden = !box.hidden;
+    return;
+  }
+  if (detalheAtual.status === novoStatus && !extra) { fecharModalDet(); return; }
   try {
-    await supaPatch(`agendamentos?id=eq.${detalheAtual.id}`, { status: novoStatus });
+    await supaPatch(`agendamentos?id=eq.${detalheAtual.id}`, { status: novoStatus, ...(extra || {}) });
     fecharModalDet();
     const labels = {
       agendado:          '📞 Marcado como Agendada',
@@ -2234,7 +2268,8 @@ async function atualizarStatus(novoStatus) {
       perdido:           '❌ Marcado como Perdido',
       fechou:            '✅ Marcado como Fechou',
     };
-    showToast(labels[novoStatus] || 'Status atualizado');
+    showToast((labels[novoStatus] || 'Status atualizado')
+      + (extra && extra.ponto_relacao ? ' · ' + extra.ponto_relacao : ''));
     await renderTudo();
   } catch (e) {
     document.getElementById('d-erro').textContent = 'Erro ao atualizar status.';
