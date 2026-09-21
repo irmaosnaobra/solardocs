@@ -1,0 +1,152 @@
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+// PRA ONDE CADA PESSOA VAI: Arrendamento, Investidores ou Curioso.
+//
+// A regra do dono (21/09/2026) mora em DOIS lugares: destinoDe() no servidor, que
+// monta os pares e o Match, e cadDestino() na aba Cadastros do /gerador. Este teste
+// cobre a tabela de destino linha a linha e depois LÊ o JavaScript da aba e roda os
+// dois lado a lado. Se alguém mexer num só, ele aponta a resposta em que discordaram.
+import { destinoDe, podeCeder, valorEmMil, valorOk } from '../services/io/eletropostoPares';
+
+const GERADOR = join(__dirname, '../../../dashboard/public/gerador/index.html');
+
+function regraDaTela() {
+  const html = readFileSync(GERADOR, 'utf8');
+  const de = 'function cadPodeCeder(', ate = 'const CAD_STATUS = {';
+  const i = html.indexOf(de), j = html.indexOf(ate);
+  // Marcador que sumiu = tela refatorada. Melhor um teste quebrado do que um que
+  // passa sem comparar nada.
+  if (i < 0 || j < 0 || j <= i) throw new Error(`marcador sumiu do /gerador: "${de}" … "${ate}"`);
+  return new Function(html.slice(i, j) + '\nreturn { cadPodeCeder, cadValorEmMil, cadDestino };')() as {
+    cadPodeCeder: (t: unknown) => boolean;
+    cadValorEmMil: (t: unknown) => number | null;
+    cadDestino: (origem: string, r: Record<string, unknown>) => string;
+  };
+}
+
+// Todas as respostas que existem hoje nos formulários (cadastro e LP), mais o que
+// chega escrito à mão no WhatsApp.
+const RELACOES = [
+  'Sou o proprietário', 'Administro o local', 'Represento o proprietário', 'Sou inquilino',
+  'Estou negociando com o proprietário', 'Ainda não é meu · pretendo alugar ou comprar',
+  'Ainda não é meu — pretendo alugar ou comprar', 'Tenho um local em vista, mas ainda não conversei',
+  'Tenho um local em negociação com o proprietário', 'Não tenho ideia de onde instalar', '', null,
+];
+const VALORES = [
+  'R$ 70 mil', 'R$ 140 mil', 'R$ 280 mil', 'R$ 500 mil', 'Mais de R$ 500 mil', 'Menos de R$ 70 mil',
+  'Até R$ 50 mil', 'R$ 50 mil a R$ 100 mil', 'R$ 100 mil a R$ 200 mil', 'Acima de R$ 200 mil',
+  'Depende do ponto', 'uns 100k', 'R$ 70.000', 'R$ 70.000,00', '1,5 milhão', '2 milhões', 'uns 60 mil',
+  'entre 80 e 120 mil', '150000', 'abaixo de 100 mil', 'não sei ainda', '', null,
+];
+
+describe('podeCeder: quem assina o arrendamento (contrato, Cl. 16.1)', () => {
+  it('dono, inquilino, administrador e representante podem', () => {
+    for (const t of ['Sou o proprietário', 'Sou inquilino', 'Administro o local', 'Represento o proprietário']) {
+      expect(podeCeder(t), t).toBe(true);
+    }
+  });
+  it('quem negocia, ainda não é dono, só tem em vista ou não respondeu, não pode', () => {
+    for (const t of ['Estou negociando com o proprietário', 'Ainda não é meu · pretendo alugar ou comprar',
+      'Tenho um local em vista, mas ainda não conversei', 'Tenho um local em negociação com o proprietário',
+      'Não tenho ideia de onde instalar', '', null, undefined]) {
+      expect(podeCeder(t), String(t)).toBe(false);
+    }
+  });
+});
+
+describe('valorEmMil: o valor em mil reais, venha de onde vier', () => {
+  it.each([
+    ['R$ 70 mil', 70], ['R$ 140 mil', 140], ['Mais de R$ 500 mil', 500],
+    ['R$ 50 mil a R$ 100 mil', 100],      // faixa: vale o teto
+    ['R$ 100 mil a R$ 200 mil', 200], ['Até R$ 50 mil', 50], ['Acima de R$ 200 mil', 200],
+    ['uns 100k', 100], ['R$ 70.000', 70], ['R$ 70.000,00', 70], ['150000', 150],
+    ['1,5 milhão', 1500], ['2 milhões', 2000], ['entre 80 e 120 mil', 120],
+  ])('%s = %s mil', (texto, mil) => {
+    expect(valorEmMil(texto)).toBe(mil);
+  });
+  it('"menos de" e "abaixo de" ficam logo abaixo do número', () => {
+    expect(valorOk('Menos de R$ 70 mil')).toBe(false);
+    expect(valorEmMil('abaixo de 100 mil')!).toBeLessThan(100);
+  });
+  it('sem número é "não disse", e não zero', () => {
+    for (const t of ['Depende do ponto', 'não sei ainda', '', null, undefined]) {
+      expect(valorEmMil(t), String(t)).toBeNull();
+      expect(valorOk(t), String(t)).toBeNull();
+    }
+  });
+});
+
+describe('a tabela de destino, linha a linha', () => {
+  const ficha = (local: string | null, valor: string | null) =>
+    [local && `Local é seu: ${local}`, valor && `Quanto pretende investir: ${valor}`].filter(Boolean).join('\n');
+
+  it('1. pode ceder: ARRENDAMENTO, qualquer que seja o valor', () => {
+    expect(destinoDe('parceria', { lado: 'ponto', ponto_relacao: 'Sou inquilino' })).toBe('ponto');
+    expect(destinoDe('parceria', { lado: 'ponto', ponto_relacao: 'Sou o proprietário', capital_faixa: 'Até R$ 50 mil' })).toBe('ponto');
+    expect(destinoDe('nota1', { ficha: ficha('Sou o proprietário', null) })).toBe('ponto');
+  });
+  it('2. não pode e declarou R$ 70 mil ou mais: INVESTIDORES', () => {
+    expect(destinoDe('parceria', { lado: 'capital', capital_faixa: 'R$ 70 mil' })).toBe('capital');
+    expect(destinoDe('nota1', { ficha: ficha('Ainda não é meu · pretendo alugar ou comprar', 'R$ 140 mil') })).toBe('capital');
+  });
+  it('3. a faixa "R$ 50 a 100 mil" do cadastro alcança os 70: INVESTIDORES', () => {
+    expect(destinoDe('parceria', { lado: 'capital', capital_faixa: 'R$ 50 mil a R$ 100 mil' })).toBe('capital');
+  });
+  it('4. declarou abaixo de 70: CURIOSO', () => {
+    expect(destinoDe('parceria', { lado: 'capital', capital_faixa: 'Até R$ 50 mil' })).toBe('curioso');
+  });
+  it('5, 6 e 7. não disse o valor, seja como for que pague ou onde esteja o local: CURIOSO', () => {
+    expect(destinoDe('parceria', { lado: 'capital', capital_faixa: 'Depende do ponto' })).toBe('curioso');
+    expect(destinoDe('parceria', { lado: 'capital', capital_faixa: null })).toBe('curioso');
+    expect(destinoDe('nota1', { capital_faixa: 'proprio', ficha: 'Como pretende investir: Recurso próprio' })).toBe('curioso');
+    expect(destinoDe('nota1', { ficha: ficha('Ainda não é meu · pretendo alugar ou comprar', null) })).toBe('curioso');
+    expect(destinoDe('nota1', { ficha: '' })).toBe('curioso');
+  });
+  it('cadastro de PONTO que ainda negocia o local: sai do Arrendamento pelo valor', () => {
+    expect(destinoDe('parceria', { lado: 'ponto', ponto_relacao: 'Estou negociando com o proprietário',
+      capital_faixa: 'R$ 100 mil a R$ 200 mil' })).toBe('capital');
+    expect(destinoDe('parceria', { lado: 'ponto', ponto_relacao: 'Estou negociando com o proprietário' })).toBe('curioso');
+  });
+  it('o valor gravado pelo consultor ganha do texto da ficha: quem respondeu sobe', () => {
+    expect(destinoDe('nota1', { ficha: ficha('Ainda não é meu', null), valor_investir: 'R$ 280 mil' })).toBe('capital');
+    expect(destinoDe('nota1', { ficha: ficha(null, 'R$ 140 mil'), valor_investir: 'Menos de R$ 70 mil' })).toBe('curioso');
+  });
+  it('marcado ARRENDAMENTO na agenda: sempre Arrendamento', () => {
+    expect(destinoDe('agenda', {})).toBe('ponto');
+  });
+});
+
+describe('a tela e o servidor usam a MESMA regra', () => {
+  const tela = regraDaTela();
+
+  it('podeCeder concorda em todas as respostas dos formulários', () => {
+    for (const r of RELACOES) expect(tela.cadPodeCeder(r), String(r)).toBe(podeCeder(r));
+  });
+
+  it('valorEmMil concorda em todos os valores', () => {
+    for (const v of VALORES) expect(tela.cadValorEmMil(v), String(v)).toBe(valorEmMil(v));
+  });
+
+  it('o destino concorda em toda combinação de posse × valor, nas três origens', () => {
+    const divergencias: string[] = [];
+    for (const rel of RELACOES) for (const val of VALORES) {
+      const casos: Array<['parceria' | 'nota1' | 'agenda', Record<string, unknown>]> = [
+        ['parceria', { lado: 'ponto', ponto_relacao: rel, capital_faixa: val }],
+        ['parceria', { lado: 'capital', ponto_relacao: rel, capital_faixa: val }],
+        ['nota1', { ficha: [rel && `Local é seu: ${rel}`, val && `Quanto pretende investir: ${val}`].filter(Boolean).join('\n'),
+          valor_investir: val }],
+        ['nota1', { ficha: rel ? `Local é seu: ${rel}` : '', valor_investir: val }],
+        // o valor só no texto da ficha (a LP escreveu, ninguém gravou ainda)
+        ['nota1', { ficha: val ? `Quanto pretende investir: ${val}` : '', valor_investir: null }],
+        ['agenda', { ponto_relacao: rel }],
+      ];
+      for (const [origem, r] of casos) {
+        const a = destinoDe(origem, r), b = tela.cadDestino(origem, r);
+        if (a !== b) divergencias.push(`${origem} ${JSON.stringify(r)}: servidor ${a}, tela ${b}`);
+      }
+    }
+    expect(divergencias.join('\n')).toBe('');
+  });
+});

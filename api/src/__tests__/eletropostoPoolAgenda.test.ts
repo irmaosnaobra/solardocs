@@ -6,13 +6,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 let tabelas: Record<string, Record<string, unknown>[]> = {};
 vi.mock('../utils/supabaseGerador', () => {
   const resposta = (tabela: string) => {
-    const filtros: Array<[string, unknown]> = [];
+    const filtros: Array<[string, (x: unknown) => boolean]> = [];
     const q: any = {
       select: () => q,
-      eq: (col: string, v: unknown) => { filtros.push([col, v]); return q; },
+      eq: (col: string, v: unknown) => { filtros.push([col, (x: unknown) => x === v]); return q; },
+      in: (col: string, vs: unknown[]) => { filtros.push([col, (x: unknown) => vs.includes(x)]); return q; },
+      order: () => q,
       limit: () => q,
       then: (ok: any) => Promise.resolve({
-        data: (tabelas[tabela] || []).filter(l => filtros.every(([c, v]) => l[c] === v)),
+        data: (tabelas[tabela] || []).filter(l => filtros.every(([c, ok]) => ok(l[c]))),
         error: null,
       }).then(ok),
     };
@@ -27,11 +29,24 @@ describe('pool do PONTO — arrendamento marcado na agenda (21/09)', () => {
   beforeEach(() => {
     tabelas = {
       eletroposto_parceria: [
-        { id: 1, lado: 'ponto', nome: 'Cadastrado', telefone: '5534999990001', cidade: 'Uberlândia-MG' },
+        { id: 1, lado: 'ponto', nome: 'Cadastrado', telefone: '5534999990001', cidade: 'Uberlândia-MG',
+          ponto_relacao: 'Sou o proprietário' },
+        // cadastrou como PONTO, mas ainda negocia o local e tem dinheiro: e investidor
+        { id: 2, lado: 'ponto', nome: 'Negocia', telefone: '5534999990005', cidade: 'Uberlândia-MG',
+          ponto_relacao: 'Estou negociando com o proprietário', capital_faixa: 'R$ 100 mil a R$ 200 mil' },
+        // investidor que nunca disse o valor: curioso, fora dos dois pools
+        { id: 3, lado: 'capital', nome: 'Sem valor', telefone: '5534999990006', cidade: 'Uberlândia-MG',
+          capital_faixa: 'Depende do ponto' },
       ],
       eletroposto_nota1: [
         { id: 7, nome: 'Da ficha', telefone: '5534999990002', cidade: 'Uberlândia-MG',
-          capital_faixa: 'naosei', tem_ponto: 'definido' },
+          ficha: 'Tem ponto: Já tenho o ponto definido\nLocal é seu: Sou o proprietário' },
+        // tem o local em vista e disse o valor: investidor
+        { id: 8, nome: 'Em vista', telefone: '5534999990007', cidade: 'Uberlândia-MG',
+          ficha: 'Local é seu: Ainda não é meu\nQuanto pretende investir: R$ 140 mil' },
+        // em vista e nao disse o valor: curioso
+        { id: 9, nome: 'Curioso', telefone: '5534999990008', cidade: 'Uberlândia-MG',
+          ficha: 'Local é seu: Ainda não é meu' },
       ],
       agendamentos: [
         { id: 1128, status: 'arrendamento', cliente_nome: 'Só na agenda',
@@ -77,5 +92,22 @@ describe('pool do PONTO — arrendamento marcado na agenda (21/09)', () => {
     const pontos = await pool('ponto');
     expect(pontos.map(p => p.tab).sort()).toEqual(['agenda', 'nota1', 'parceria']);
     expect(pontos.every(p => typeof p.lat === 'number')).toBe(true);
+  });
+
+  it('quem ainda negocia o local e declarou dinheiro sai do ponto e vira investidor', async () => {
+    const pontos = await pool('ponto');
+    const capital = await pool('capital', new Set(pontos.map(p => p.telefone)));
+    expect(pontos.some(p => p.telefone === '5534999990005')).toBe(false);
+    expect(capital.find(c => c.telefone === '5534999990005')?.tab).toBe('parceria');
+    expect(capital.find(c => c.telefone === '5534999990007')?.tab).toBe('nota1');
+  });
+
+  it('quem nao disse o valor (curioso) nao entra em pool nenhum', async () => {
+    const pontos = await pool('ponto');
+    const capital = await pool('capital', new Set(pontos.map(p => p.telefone)));
+    for (const tel of ['5534999990006', '5534999990008']) {
+      expect(pontos.some(p => p.telefone === tel)).toBe(false);
+      expect(capital.some(c => c.telefone === tel)).toBe(false);
+    }
   });
 });

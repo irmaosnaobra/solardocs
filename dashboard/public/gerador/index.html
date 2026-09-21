@@ -395,10 +395,11 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 #cad-aba-capital.ativa .cad-cnt{background:#60A5FA}
 #cad-aba-integrador.ativa .cad-cnt{background:#38BDF8}
 .cad-acoes{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.cad-fora{background:rgba(148,163,184,.08);border:1px dashed rgba(148,163,184,.28);border-radius:10px;
-  padding:11px 14px;margin-bottom:12px;font-size:12.5px;color:#94A3B8;line-height:1.55}
-.cad-fora b{color:#CBD5E1}
-.cad-fora[hidden]{display:none}
+/* CURIOSO (21/09): quem ainda nao disse quanto investe. Ambar, de "falta uma resposta". */
+#cad-aba-curioso.ativa .cad-cnt{background:#FBBF24}
+.cad-motivo{display:block;font-size:12px;font-weight:700;color:#FBBF24}
+.cad-motivo.abaixo{color:#FDBA74}
+.cad-valor-sel{max-width:170px}
 .cad-busca,.cad-filtro{background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.28);border-radius:9px;
   color:#E5E7EB;font-family:inherit;font-size:13.5px;padding:9px 11px;min-height:40px;outline:none}
 .cad-busca{min-width:230px}
@@ -3925,18 +3926,20 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
     <div id="eletro-pane-cadastros" style="display:none;">
       <div class="pesquisa-info">
-        De um lado quem tem o local e quer arrendar, do outro quem tem o capital e procura ponto.
-        Entra quem se cadastrou em <b>solardoc.app/io/eletroposto/parceria</b> e também as fichas
-        antigas de NOTA 1, separadas pelo que a pessoa respondeu na LP: <b>declarou como paga</b>
-        cai em Investidores; <b>não sabe como pagar mas tem ou viu um local</b> cai em Arrendamento.
-        Quem não tem nem local nem capital não entra em lista nenhuma — não há conexão a fazer hoje.
-        O status é seu: marque conforme for falando, senão a lista vira uma pilha sem ordem.
+        Duas respostas decidem onde cada pessoa cai. <b>Arrendamento</b>: quem pode ceder o local
+        (dono, inquilino, administrador ou representante) e quem foi marcado ARRENDAMENTO na agenda.
+        <b>Investidores</b>: quem não pode ceder um local e disse que investe R$ 70 mil ou mais.
+        <b>Curioso</b>: quem ainda não disse quanto investe, ou disse menos de R$ 70 mil. Quando a
+        pessoa responde um valor de R$ 70 mil ou mais, ela passa para Investidores sozinha.
+        Entram os cadastros de <b>solardoc.app/io/eletroposto/parceria</b>, as fichas da LP e os
+        arrendamentos da agenda. O status é seu: marque conforme for falando.
       </div>
 
       <div class="cad-topo">
         <div class="cad-abas">
           <button type="button" class="cad-aba ativa" id="cad-aba-ponto" onclick="cadAba('ponto')">Arrendamento <span class="cad-cnt" id="cad-cnt-ponto">—</span></button>
           <button type="button" class="cad-aba" id="cad-aba-capital" onclick="cadAba('capital')">Investidores <span class="cad-cnt" id="cad-cnt-capital">—</span></button>
+          <button type="button" class="cad-aba" id="cad-aba-curioso" onclick="cadAba('curioso')">Curioso <span class="cad-cnt" id="cad-cnt-curioso">—</span></button>
           <button type="button" class="cad-aba" id="cad-aba-integrador" onclick="cadAba('integrador')">Integradores <span class="cad-cnt" id="cad-cnt-integrador">—</span></button>
           <button type="button" class="cad-aba" id="cad-aba-match" onclick="cadAba('match')">Match <span class="cad-cnt" id="cad-cnt-match">—</span></button>
         </div>
@@ -3952,11 +3955,6 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <button type="button" class="ehist-btn" onclick="cadCarregar(true)">↻ Atualizar</button>
         </div>
       </div>
-
-      <!-- Quem a régua deixou de fora, dito em voz alta. Lista que esconde o que
-           descartou parece completa e não é — e no dia em que alguém perguntar
-           "cadê o fulano que preencheu?", a resposta tem que estar na tela. -->
-      <div class="cad-fora" id="cad-fora" hidden></div>
 
       <div class="card">
         <div class="eletro-sec-title" id="cad-titulo">Arrendamento — quem tem o local</div>
@@ -8150,52 +8148,74 @@ function eletroSubaba(qual) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// CADASTROS — Arrendamento e Investidores
+// CADASTROS — Arrendamento, Investidores e Curioso
 //
-// Duas listas, duas origens de dado, e a diferença entre elas importa:
+// Tres origens de dado, e a etiqueta de origem fica na tela de proposito:
+//   cadastro   eletroposto_parceria: se cadastrou na pagina de parceria
+//   da ficha   eletroposto_nota1: preencheu a LP e ninguem falou com ele desde entao
+//   da agenda  agendamentos com status ARRENDAMENTO: o consultor ja conversou
 //
-//   ARRENDAMENTO  eletroposto_parceria (lado='ponto') — quem tem o local e
-//                 topa arrendar. É o lado ESCASSO: sem ele os investidores da
-//                 outra aba não têm o que receber.
-//
-//   INVESTIDORES  eletroposto_parceria (lado='capital')  → se cadastrou na página
-//                 + eletroposto_nota1 com capital declarado → preencheu a LP,
-//                   foi recusado por não ter local e NINGUÉM falou com ele desde
-//                   então. São ~38 pessoas, e é o estoque inicial da lista.
-//
-// A etiqueta de origem fica na tela de propósito: "da ficha" é gente que nunca
-// foi tocada, e tratar isso como se fosse cadastro voluntário faz o consultor
-// abrir a conversa do jeito errado.
-//
-// Status grava na tabela DE ONDE A LINHA VEIO — por isso cada linha carrega
-// `tab`. Escrever tudo em eletroposto_parceria criaria cadastro fantasma pra
-// quem nunca se cadastrou.
+// Status grava na tabela DE ONDE A LINHA VEIO: por isso cada linha carrega `tab`.
+// Escrever tudo em eletroposto_parceria criaria cadastro fantasma pra quem nunca
+// se cadastrou.
 // ═══════════════════════════════════════════════════════════════════════════
-// ── De que lado cada FICHA de nota 1 cai ────────────────────────────────────
-// As fichas não vêm rotuladas: quem preencheu a LP respondeu "como pretende
-// investir" e "como está o seu ponto", e é o cruzamento dos dois que diz o lado.
+// ── PRA ONDE CADA PESSOA VAI (regra do dono, 21/09/2026) ────────────────────
+// Duas respostas decidem, e so elas:
+//   PODE CEDER o local                    -> ARRENDAMENTO
+//   nao pode, declarou R$ 70 mil ou mais  -> INVESTIDORES
+//   nao pode, disse menos ou NAO DISSE    -> CURIOSO (a equipe pergunta o valor;
+//                                            quem responde 70 ou mais sobe sozinho)
+// "Pode ceder" e o contrato (Cl. 16.1): proprietario, inquilino com anuencia do
+// dono, administrador ou representante com poderes. Quem negocia o local ou "ainda
+// nao e dono" nao assina. A agenda marcada ARRENDAMENTO e sempre Arrendamento: o
+// consultor perguntou de quem e o local ao marcar.
 //
-//   declarou COMO PAGA  → investidor, não importa o ponto (44 fichas)
-//   não sabe como pagar + TEM ou VIU um local → arrendamento (6 fichas)
-//   não sabe como pagar + nem local           → nenhum dos dois (7 fichas)
-//
-// `fin_banco` ("financiamento — ainda não consultei o banco") entra como
-// investidor: é intenção fraca de capital, mas é intenção de capital. Ficava de
-// fora e sumia da tela inteira — 5 pessoas invisíveis.
-//
-// As 7 do terceiro grupo NÃO aparecem em aba nenhuma de propósito: sem local e
-// sem dinheiro não há conexão pra fazer hoje, e enfiá-las numa das listas só faz
-// o consultor gastar ligação. O público delas é a página de material.
-const CAD_CAPITAL_FICHA = ['proprio', 'proprio_credito', 'fin_aprovado', 'fin_cnpj', 'fin_banco'];
-// 29/08/2026: 'negociando' entrou na lista junto com a régua de PONTO PRÓPRIO da LP.
-// Ele nunca tinha produzido ficha de NOTA 1 — passava e ia marcar reunião. Agora não
-// marca mais e a LP manda essa pessoa pra porta do ponto em /io/eletroposto/parceria:
-// sem ele aqui, a página convidaria pro cadastro e a aba Arrendamento não listaria
-// ninguém. As duas réguas são a MESMA, e mudar um lado sem o outro faz o lead cair numa
-// página que promete uma coisa e numa lista que espera outra.
-// 'definido' também continua aqui porque a régua nova gera NOTA 1 com ponto definido:
-// é quem disse ter o local e, na pergunta seguinte, que ele ainda não é dele.
-const CAD_PONTO_FICHA = ['definido', 'negociando', 'em_vista'];
+// ESTA REGRA E GEMEA de destinoDe() em api/src/services/io/eletropostoPares.ts,
+// que monta os pares e o Match. Mudar uma sem a outra faz a aba listar alguem que
+// o Match nao oferece, ou o contrario.
+function cadPodeCeder(relacao) {
+  const t = String(relacao || '').toLowerCase();
+  if (!t || /ainda n[aã]o [eé] meu|negoci|em vista|n[aã]o conversei/.test(t)) return false;
+  return /propriet|inquilin|represent|administr/.test(t);
+}
+/** O valor declarado em MIL reais, ou null quando a pessoa nao disse. Numa faixa
+ *  vale o teto ("R$ 50 mil a R$ 100 mil" alcanca os 70). */
+function cadValorEmMil(texto) {
+  const t = String(texto || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  if (!t || /depende/.test(t)) return null;
+  const nums = [];
+  const re = /(\d{1,3}(?:[.\s]\d{3})+|\d+(?:[.,]\d+)?)\s*(milh[aãoõ]es|milh[aã]o|mi\b|mil|k\b)?/g;
+  let m;
+  while ((m = re.exec(t))) {
+    const bruto = m[1], unid = m[2] || '';
+    let n = (/[.\s]\d{3}$/.test(bruto) && !/,/.test(bruto))
+      ? Number(bruto.replace(/[.\s]/g, '')) : Number(bruto.replace(',', '.'));
+    if (!isFinite(n)) continue;
+    if (/milh|^mi$/.test(unid)) n = n * 1000;
+    else if (unid !== 'mil' && unid !== 'k' && n >= 1000) n = n / 1000;
+    nums.push(n);
+  }
+  if (!nums.length) return null;
+  const teto = Math.max.apply(null, nums);
+  return /menos de|abaixo de/.test(t) ? teto - 0.01 : teto;
+}
+function cadValorOk(texto) {
+  const v = cadValorEmMil(texto);
+  return v === null ? null : v >= 70;
+}
+/** 'ponto' | 'capital' | 'curioso', pra uma linha de cadastro, ficha ou agenda. */
+function cadDestino(origem, r) {
+  if (origem === 'agenda') return 'ponto';
+  if (origem === 'parceria') {
+    if (r.lado === 'ponto' && cadPodeCeder(r.ponto_relacao)) return 'ponto';
+    return cadValorOk(r.capital_faixa) ? 'capital' : 'curioso';
+  }
+  const m = String(r.ficha || '').match(/Local (?:é|e) seu:\s*([^\n]+)/i);
+  if (m && cadPodeCeder(m[1])) return 'ponto';
+  // o valor gravado pelo consultor ganha do que a pessoa escreveu na LP
+  const v = r.valor_investir || (String(r.ficha || '').match(/Quanto pretende investir:\s*([^\n]+)/i) || [])[1];
+  return cadValorOk(v) ? 'capital' : 'curioso';
+}
 const CAD_STATUS = { novo: 'Novo', falando: 'Falando', conectado: 'Conectado', sem_interesse: 'Sem interesse' };
 let cadLado = 'ponto';
 let cadDados = null;   // null = nunca carregou
@@ -8213,13 +8233,14 @@ let CAD_MATCH_KM = 200;
 
 function cadAba(lado) {
   cadLado = lado;
-  ['ponto', 'capital', 'integrador', 'match'].forEach(l => {
+  ['ponto', 'capital', 'curioso', 'integrador', 'match'].forEach(l => {
     const b = document.getElementById('cad-aba-' + l);
     if (b) b.classList.toggle('ativa', l === lado);
   });
   const TITULO = {
     ponto: 'Arrendamento — quem tem o local',
-    capital: 'Investidores — quem tem o capital',
+    capital: 'Investidores: R$ 70 mil ou mais, sem local pra ceder',
+    curioso: 'Curioso: ainda não disse quanto investe',
     integrador: 'Integradores — quem instala e quer vender eletroposto',
     match: 'Match — duplas a até ' + CAD_MATCH_KM + ' km uma da outra',
   };
@@ -8258,7 +8279,7 @@ async function cadCarregar(forcar) {
       // `ficha` entrou (21/09) so pra tirar dela o "Quanto pretende investir": a LP
       // passou a perguntar o valor em 15/09 e ele nao tem coluna propria. Sao ~60 KB.
       supaGet('eletroposto_nota1?select=id,created_at,nome,telefone,cidade,perfil,ponto,invest,'
-              + 'endereco,capital_faixa,tem_ponto,pts,status,nota_interna,ficha'
+              + 'endereco,capital_faixa,tem_ponto,pts,status,nota_interna,ficha,valor_investir'
               + '&order=created_at.desc&limit=500'),
       // A distância é calculada no servidor (a tabela dos 5.570 municípios são
       // 408 KB e a régua tem que ser a MESMA do aviso no WhatsApp). Se falhar, a
@@ -8277,87 +8298,66 @@ async function cadCarregar(forcar) {
     cadMatches = pares && pares.matches ? pares.matches : null;
     if (pares && pares.teto_km) CAD_MATCH_KM = pares.teto_km;
     cadConexoes = conexoes || [];
-    // Quem já se cadastrou na página não aparece duas vezes: o cadastro é mais
-    // recente e mais completo que a ficha de onde ele saiu.
-    // O Set nasce com os cadastros e VAI CRESCENDO com as fichas já aceitas: sem
-    // isso, duas fichas do mesmo telefone (a pessoa preencheu a LP duas vezes)
-    // viram duas linhas da mesma pessoa na lista — e a de baixo mostra "—" na
-    // coluna de par, porque o cálculo do servidor dedupa e ela não existe lá.
-    const jaTem = new Set([...(capital || []), ...(pontos || [])].map(c => String(c.telefone)));
-    const livres = (fichas || []).filter(f => {
-      const tel = String(f.telefone || '');
-      if (!tel || jaTem.has(tel)) return false;
-      jaTem.add(tel);
-      return true;
-    });
-
-    // A ficha de arrendamento não tem os campos do cadastro (ninguém perguntou
-    // vagas nem trifásica a ela). Os que existem são reaproveitados no mesmo
-    // formato pra tabela não precisar saber de duas formas de linha:
-    //   perfil    → que tipo de local é ("Dono de posto de combustível")
-    //   ponto     → a resposta da LP, que aqui vale como situação do local
-    //   endereco  → só existe pra quem respondeu "já tenho o ponto definido"
-    const daFichaPonto = f => ({ ...f, tab: 'eletroposto_nota1', deFicha: true,
-      // ponto_relacao existe na ficha desde 29/08 (a LP passou a perguntar "o local é
-      // seu?" a quem diz ter o ponto) — mas só sai do banco depois da migration que
-      // cria a coluna; até lá é undefined e a coluna mostra "—", como sempre mostrou.
-      ponto_tipo: f.perfil, ponto_fluxo: f.ponto, ponto_endereco: f.endereco,
-      ponto_relacao: f.ponto_relacao || null });
-
-    // A agenda so ACRESCENTA quem ainda nao esta na lista por outro caminho: o
-    // cadastro e a ficha tem campos que a agenda nao tem (local, endereco,
-    // situacao), entao se a pessoa existe nos dois, a linha rica ganha.
+    // Cada linha das tres origens ganha o seu destino pela regra (cadDestino), e
+    // cada TELEFONE aparece uma vez so, no melhor destino que tiver:
+    // Arrendamento > Investidores > Curioso. Dentro do mesmo destino ganha a linha
+    // mais rica: cadastro > ficha > agenda, a mais nova primeiro. E a mesma ordem
+    // em que o servidor monta os pares; qualquer outra deixaria a coluna "perto"
+    // procurando uma linha que a tela nao mostra.
     const soDig = t => String(t || '').replace(/\D/g, '');
-    const jaDig = new Set([...jaTem].map(soDig));
-    const daAgenda = (agendaArr || []).filter(a => {
-      const d = soDig(a.cliente_telefone);
-      if (!d || jaDig.has(d)) return false;
-      jaDig.add(d);
-      return true;
-    }).map(a => ({
+    const porData = (a, b) => String(b.created_at).localeCompare(String(a.created_at));
+    const cadastros = [...(pontos || []), ...(capital || [])].sort(porData).map(r => ({
+      ...r, tab: 'eletroposto_parceria', deFicha: false, valor_investir: r.capital_faixa || null }));
+    // A ficha nao tem os campos do cadastro. Os que existem sao reaproveitados no
+    // mesmo formato: perfil = tipo de local, ponto = a resposta da LP sobre o local,
+    // endereco = so pra quem disse ter o ponto definido. `capital_faixa` da ficha e
+    // um slug interno (proprio, fin_cnpj), nunca valor: o valor vem do campo gravado
+    // pelo consultor ou da resposta "Quanto pretende investir" (LP, desde 15/09).
+    const daFicha = (fichas || []).map(f => ({ ...f, tab: 'eletroposto_nota1', deFicha: true,
+      ponto_tipo: f.perfil, ponto_fluxo: f.ponto, ponto_endereco: f.endereco,
+      capital_faixa: null, capital_origem: f.invest,
+      valor_investir: f.valor_investir || cadValorDaFicha(f.ficha) }));
+    const daAgenda = (agendaArr || []).map(a => ({
       id: a.id, created_at: a.created_at, nome: a.cliente_nome,
       telefone: a.cliente_telefone, cidade: a.cidade,
       tab: 'agendamentos', deFicha: false, deAgenda: true,
-      // a posse que o consultor marcou ao apertar ARRENDAMENTO (21/09); null nos
-      // cards marcados antes disso, que continuam "dono? nao perguntado"
+      // a posse que o consultor marcou ao apertar ARRENDAMENTO (21/09)
       ponto_relacao: a.ponto_relacao || null,
       // A agenda nao perguntou local nem endereco: a coluna "Situacao" diz de onde
       // veio a certeza, pra quem liga saber que o modelo JA foi conversado.
       ponto_fluxo: 'Marcado ARRENDAMENTO na agenda',
       status: 'novo',
     }));
+    const todas = [].concat(
+      cadastros.map(r => ({ ...r, destino: cadDestino('parceria', r) })),
+      daFicha.map(r => ({ ...r, destino: cadDestino('nota1', r) })),
+      daAgenda.map(r => ({ ...r, destino: 'ponto' })));
+    const PESO = { ponto: 0, capital: 1, curioso: 2 };
+    const melhor = new Map();
+    todas.forEach(r => {
+      const d = soDig(r.telefone);
+      if (d && (!melhor.has(d) || PESO[r.destino] < PESO[melhor.get(d)])) melhor.set(d, r.destino);
+    });
+    const listas = { ponto: [], capital: [], curioso: [] };
+    const vistos = new Set();
+    todas.forEach(r => {
+      const d = soDig(r.telefone);
+      if (d) {
+        if (vistos.has(d) || melhor.get(d) !== r.destino) return;
+        vistos.add(d);
+      }
+      listas[r.destino].push(r);
+    });
 
     cadDados = {
-      // O integrador NÃO entra no `jaTem` lá em cima: uma pessoa pode instalar
-      // E ter capital, e apagá-la da lista de investidores por causa disso
-      // esconderia um investidor de verdade.
+      // O integrador fica fora do dedupe: uma pessoa pode instalar E ter capital,
+      // e apaga-la de Investidores por causa disso esconderia um investidor.
       integrador: (integradores || []).map(r => ({ ...r, tab: 'eletroposto_parceria', deFicha: false })),
-      ponto: (pontos || []).map(r => ({ ...r, tab: 'eletroposto_parceria', deFicha: false }))
-        .concat(livres.filter(f => f.capital_faixa === 'naosei'
-                               && CAD_PONTO_FICHA.indexOf(f.tem_ponto) >= 0).map(daFichaPonto))
-        .concat(daAgenda),
-      capital: (capital || []).map(r => ({ ...r, tab: 'eletroposto_parceria', deFicha: false,
-                                          valor_investir: r.capital_faixa || null }))
-        // `capital_faixa` volta a NULL na linha de ficha: na tabela ele é a
-        // coluna "Quanto", e a ficha guarda ali um slug interno (`proprio`,
-        // `fin_cnpj`) que não é faixa de dinheiro nenhuma — a LP nunca perguntou
-        // quanto. O que a pessoa respondeu ("Recurso próprio") já vai em "Com
-        // quê". Sem isto a tela publica o vocabulário do banco.
-        .concat(livres.filter(f => CAD_CAPITAL_FICHA.indexOf(f.capital_faixa) >= 0)
-          .map(f => ({ ...f, tab: 'eletroposto_nota1', deFicha: true, ficha: undefined,
-                       capital_faixa: null, capital_origem: f.invest,
-                       valor_investir: cadValorDaFicha(f.ficha) }))),
+      ponto: listas.ponto, capital: listas.capital, curioso: listas.curioso,
     };
-    // Reordena as duas: origens misturadas ficam em ordem de chegada, e não com
-    // os cadastros todos em cima e as fichas todas embaixo.
-    ['ponto', 'capital', 'integrador'].forEach(l =>
-      cadDados[l].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))));
-
-    // Sem recurso E sem local: descarte, é curioso (regra do Thiago, 17/08).
-    // Não entra em lista nenhuma — mas a conta aparece na tela, senão a lista
-    // parece completa e a pessoa que preencheu some sem deixar rastro.
-    cadDados.fora = livres.filter(f => f.capital_faixa === 'naosei'
-                                    && CAD_PONTO_FICHA.indexOf(f.tem_ponto) < 0).length;
+    // Origens misturadas ficam em ordem de chegada, e nao os cadastros todos em
+    // cima e as fichas todas embaixo.
+    ['ponto', 'capital', 'curioso', 'integrador'].forEach(l => cadDados[l].sort(porData));
   } catch (e) {
     tb.innerHTML = '<tr><td style="color:#fca5a5;padding:18px">Não consegui ler os cadastros: ' + escapeHtml(String(e.message || e)) + '</td></tr>';
     return;
@@ -8371,25 +8371,13 @@ function cadRender() {
   const filtro = document.getElementById('cad-filtro').value;
   document.getElementById('cad-cnt-ponto').textContent = cadDados.ponto.length;
   document.getElementById('cad-cnt-capital').textContent = cadDados.capital.length;
+  document.getElementById('cad-cnt-curioso').textContent = cadDados.curioso.length;
   document.getElementById('cad-cnt-integrador').textContent = cadDados.integrador.length;
   // Contagem de match: "—" quando não deu pra calcular, nunca 0 — a mesma regra
   // da coluna. Zero é "medi e não achei"; travessão é "não sei medir".
   document.getElementById('cad-cnt-match').textContent = cadMatches ? cadMatches.length : '—';
 
   if (cadLado === 'match') { cadRenderMatch(busca); return; }
-
-  const fora = document.getElementById('cad-fora');
-  // O aviso das fichas descartadas fala do funil da LP (recurso × local) e não
-  // diz nada sobre integrador — na aba dele vira ruído.
-  if (cadDados.fora > 0 && cadLado !== 'integrador') {
-    fora.innerHTML = '<b>' + cadDados.fora + ' ficha' + (cadDados.fora > 1 ? 's' : '') + ' fora das duas listas.</b> '
-      + 'Responderam que não sabem como pagar <b>e</b> que não têm ideia de onde instalar — sem recurso e sem local '
-      + 'não há conexão a fazer, é curioso. Desde 17/08 essa pessoa nem chega na página de cadastro: '
-      + 'ela cai direto em <b>/io/eletroposto/material</b>.';
-    fora.hidden = false;
-  } else {
-    fora.hidden = true;
-  }
 
   let linhas = cadDados[cadLado];
   if (filtro) linhas = linhas.filter(r => (r.status || 'novo') === filtro);
@@ -8403,10 +8391,12 @@ function cadRender() {
     const semNinguem = !cadDados[cadLado].length;
     // O colspan acompanha o cabeçalho de cada lado — fixo, ele encolhe a
     // mensagem em silêncio quando uma coluna entra (não dá erro no console).
-    const nCols = cadLado === 'ponto' ? 8 : 7;   // integrador e capital têm 7
+    const nCols = (cadLado === 'ponto' || cadLado === 'curioso') ? 8 : 7;   // integrador e capital têm 7
     tb.innerHTML = '<tr><td colspan="' + nCols + '" style="color:#94A3B8;padding:20px;line-height:1.6">' + (semNinguem
       ? (cadLado === 'ponto'
         ? '<b>Nenhum ponto cadastrado ainda.</b><br>Enquanto esta lista estiver vazia, os investidores da outra aba não têm o que receber — divulgar solardoc.app/io/eletroposto/parceria é o que destrava.'
+        : cadLado === 'curioso'
+        ? '<b>Ninguém aqui.</b><br>Todo mundo que não pode ceder um local já disse quanto investe.'
         : cadLado === 'integrador'
         ? '<b>Nenhum integrador cadastrado ainda.</b><br>A porta existe na página de parceria, mas a LP do eletroposto foi escrita pra AFASTAR integrador — ela só enche com link próprio.'
         : '<b>Ninguém com capital declarado ainda.</b>')
@@ -8419,6 +8409,8 @@ function cadRender() {
   const colPar = cadLado === 'ponto' ? '<th>Investidores perto</th>' : '<th>Pontos perto</th>';
   const cab = cadLado === 'ponto'
     ? '<tr><th>Quem</th><th>Local</th><th>Cidade</th><th>Endereço</th><th>Padrão de entrada</th><th>Situação</th>' + colPar + '<th>Status</th></tr>'
+    : cadLado === 'curioso'
+    ? '<tr><th>Quem</th><th>Cidade</th><th>O local</th><th>Quanto investe</th><th>Com quê</th><th>Origem</th><th>Registrar valor</th><th>Status</th></tr>'
     : cadLado === 'integrador'
     ? '<tr><th>Quem</th><th>Cidade</th><th>O que faz</th><th>Como quer trabalhar</th><th>Experiência</th><th>Equipe</th><th>Status</th></tr>'
     : '<tr><th>Quem</th><th>Cidade</th><th>Quanto</th><th>Com quê</th><th>Origem</th>' + colPar + '<th>Status</th></tr>';
@@ -8432,7 +8424,7 @@ function cadRender() {
     const ehPonto = cadLado === 'ponto';
     const nome = '<td class="nome">' + escapeHtml(r.nome || '—')
       + '<span class="cad-sub">' + quando
-        + (!ehPonto && r.ponto_relacao ? ' · ' + escapeHtml(r.ponto_relacao) : '') + '</span>'
+        + (!ehPonto && cadLado !== 'curioso' && r.ponto_relacao ? ' · ' + escapeHtml(r.ponto_relacao) : '') + '</span>'
       + (ehPonto ? cadRelacaoBadge(r) : '')
       + '<div style="margin-top:6px">' + wa + '</div></td>';
     const st = r.deAgenda
@@ -8462,6 +8454,22 @@ function cadRender() {
         + '<td>' + escapeHtml(r.ponto_fluxo || '—') + '</td>' + cadParesCel(r) + st + '</tr>'
         + (cadParesAberto === cadRef(r) ? '<tr class="cad-par-tr"><td colspan="8">' + cadParesHTML(r) + '</td></tr>' : '');
     }
+    if (cadLado === 'curioso') {
+      // Declarou abaixo de 70 ou nao declarou: duas conversas diferentes, e a
+      // celula diz qual das duas e.
+      const motivo = r.valor_investir
+        ? '<span class="cad-motivo abaixo">' + escapeHtml(r.valor_investir) + '</span>'
+          + (/menos|abaixo/i.test(r.valor_investir) ? '' : '<span class="cad-sub">abaixo de R$ 70 mil</span>')
+        : '<span class="cad-motivo">não disse</span>';
+      const local = r.ponto_relacao || cadRelacaoDaFicha(r) || r.ponto_fluxo || '—';
+      return '<tr>' + nome
+        + '<td>' + escapeHtml(r.cidade || '—') + '</td>'
+        + '<td>' + escapeHtml(local) + '</td>'
+        + '<td>' + motivo + '</td>'
+        + '<td>' + escapeHtml(r.capital_origem || '—') + '</td>'
+        + '<td>' + org + '</td>'
+        + '<td>' + cadValorSelect(r) + '</td>' + st + '</tr>';
+    }
     if (cadLado === 'integrador') {
       return '<tr>' + nome
         + '<td>' + escapeHtml(r.cidade || '—') + '</td>'
@@ -8473,7 +8481,7 @@ function cadRender() {
     }
     return '<tr>' + nome
       + '<td>' + escapeHtml(r.cidade || '—') + '</td>'
-      + '<td>' + escapeHtml(r.capital_faixa || '—') + '</td>'
+      + '<td>' + escapeHtml(r.valor_investir || '—') + '</td>'
       + '<td>' + escapeHtml(r.capital_origem || '—') + (r.prazo ? '<span class="cad-sub">' + escapeHtml(r.prazo) + '</span>' : '') + '</td>'
       + '<td>' + org + '</td>' + cadParesCel(r) + st + '</tr>'
       + (cadParesAberto === cadRef(r) ? '<tr class="cad-par-tr"><td colspan="7">' + cadParesHTML(r) + '</td></tr>' : '');
@@ -8564,7 +8572,7 @@ function cadRenderMatch(busca) {
           + '<div style="margin-top:6px">' + wa(telP) + '</div></td>'
         + '<td class="nome">' + escapeHtml(d.c.nome || '—')
           + '<span class="cad-sub">' + escapeHtml(d.c.cidade || '—')
-          + (d.c.capital_faixa ? ' · ' + escapeHtml(d.c.capital_faixa) : '') + '</span>'
+          + (d.c.valor_investir ? ' · ' + escapeHtml(d.c.valor_investir) : '') + '</span>'
           + '<div style="margin-top:6px">' + wa(telC) + '</div></td>'
         + '<td>' + escapeHtml(padrao)
           + (fraco ? '<span class="cad-alerta">padrão não deve aguentar</span>' : '')
@@ -8756,6 +8764,44 @@ function cadPadraoCel(r) {
     + (fraco ? '<span class="cad-alerta">não deve aguentar · peça a foto</span>' : '')
     + (naoSabe && /Sim/i.test(foto) ? '<span class="cad-sub">não sabe, mas manda foto</span>' : '')
     + '</td>';
+}
+
+// ── REGISTRAR VALOR (Curioso) ───────────────────────────────────────────────
+// O consultor perguntou e a pessoa respondeu. Grava onde a linha mora (a ficha em
+// `valor_investir`, o cadastro em `capital_faixa`) e reclassifica na hora pela
+// mesma regra: 70 mil ou mais sobe pra Investidores. As opcoes sao as da LP.
+const CAD_VALORES = ['R$ 70 mil', 'R$ 140 mil', 'R$ 280 mil', 'R$ 500 mil', 'Mais de R$ 500 mil', 'Menos de R$ 70 mil'];
+function cadValorSelect(r) {
+  if (!CAD_GRAVAVEL.has(r.tab)) return '—';
+  return '<select class="cad-st cad-valor-sel" onchange="cadRegistrarValor(\'' + r.tab + '\',' + r.id + ',this)">'
+    + '<option value="">Respondeu quanto?</option>'
+    + CAD_VALORES.map(v => '<option' + (r.valor_investir === v ? ' selected' : '') + '>' + v + '</option>').join('')
+    + '</select>';
+}
+async function cadRegistrarValor(tabela, id, sel) {
+  if (!CAD_GRAVAVEL.has(tabela) || !sel.value) return;
+  const valor = sel.value;
+  const r = (cadDados.curioso || []).find(x => x.id === id && x.tab === tabela);
+  if (!r) return;
+  sel.disabled = true;
+  try {
+    const campo = tabela === 'eletroposto_nota1' ? 'valor_investir' : 'capital_faixa';
+    await supaPatch(tabela + '?id=eq.' + id, { [campo]: valor });
+    r.valor_investir = valor;
+    if (campo === 'capital_faixa') r.capital_faixa = valor;
+    r.destino = cadDestino(tabela === 'eletroposto_nota1' ? 'nota1' : 'parceria', r);
+    if (r.destino === 'capital') {
+      cadDados.curioso = cadDados.curioso.filter(x => x !== r);
+      cadDados.capital.unshift(r);
+      showToast((r.nome || 'Lead') + ' foi para Investidores. Os pares aparecem ao atualizar, em até 5 minutos.');
+    } else {
+      showToast('Valor salvo. Continua em Curioso: abaixo de R$ 70 mil.');
+    }
+    cadRender();
+  } catch (e) {
+    sel.disabled = false; sel.value = '';
+    alert('Não consegui salvar o valor: ' + (e.message || e));
+  }
 }
 
 async function cadStatus(tabela, id, sel) {

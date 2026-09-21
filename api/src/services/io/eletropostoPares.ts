@@ -21,26 +21,6 @@ import { logger } from '../../utils/logger';
 import { resolverCidade, distanciaKm } from './geoCidade';
 
 /**
- * Quem declarou COMO paga, na ficha de NOTA 1.
- *
- * Os cinco slugs concordam com `CAD_CAPITAL_FICHA` da aba Cadastros do /gerador
- * — é a lista que o consultor tem na tela. `fin_banco` ("financiamento, ainda
- * não consultei o banco") entra: é intenção fraca de capital, mas é intenção de
- * capital, e sem ele cinco pessoas somem da tela inteira.
- *
- * ATENÇÃO: o placar público (`/parceria/placar`) e o `/admin/eletroposto-parceria`
- * ainda usam quatro slugs. Alinhar os três mexe no número que a página mostra
- * como prova social — é decisão do dono, não refactor.
- */
-export const CAPITAL_DECLARADO = ['proprio', 'proprio_credito', 'fin_aprovado', 'fin_cnpj', 'fin_banco'];
-/** Ficha sem capital mas COM local: é o arrendador que a régua encontrou. */
-// 29/08/2026: 'negociando' entrou junto com a régua de PONTO PRÓPRIO da LP — ele saiu
-// da agenda e virou ficha de NOTA 1, e a aba Arrendamento (CAD_PONTO_FICHA no /gerador)
-// já o lista. Sem ele aqui a mesma pessoa aparece na lista e some do Match e da coluna
-// "perto": a régua do pool tem que ser a mesma da aba, como o TETO_KM é um número só.
-const PONTO_NA_FICHA = ['definido', 'negociando', 'em_vista'];
-
-/**
  * Acima disso não é par, é outro mercado.
  *
  * 200 km é o número do Thiago (18/08). É UM número só, e ele vale nos três
@@ -78,8 +58,96 @@ export interface Candidato {
 
 const soDigitos = (s: unknown) => String(s ?? '').replace(/\D/g, '');
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PRA ONDE CADA PESSOA VAI (regra do dono, 21/09/2026)
+//
+// Duas respostas decidem, e so elas:
+//   1. O local e seu?      -> pode ceder (dono, inquilino, representante) ou nao
+//   2. Quanto investe?     -> R$ 70 mil ou mais / abaixo / nao disse
+// e o resultado:
+//   PODE CEDER                         -> ARRENDAMENTO (ponto)
+//   nao pode, declarou >= R$ 70 mil    -> INVESTIDORES (capital)
+//   nao pode, abaixo ou NAO DISSE      -> CURIOSO (a equipe liga e pergunta; quem
+//                                         responde um valor volta pra Investidores)
+//
+// "Pode ceder" e o contrato de arrendamento (Cl. 16.1): proprietario, inquilino
+// com anuencia do dono, administrador ou representante com poderes. Quem
+// "negocia com o proprietario" ou "ainda nao e dono" nao assina.
+//
+// 70 mil e o menor ingresso da LP (70/140/280/500/mais de 500). A faixa do
+// cadastro "R$ 50 a 100 mil" conta: ela alcanca os 70 (decisao do dono).
+//
+// ESTA REGRA TEM GEMEA em cadDestino() no /gerador (aba Cadastros). Mudar uma sem
+// a outra faz a aba listar alguem que o Match nao oferece, ou o contrario.
+// ─────────────────────────────────────────────────────────────────────────────
+export type Destino = 'ponto' | 'capital' | 'curioso';
+
+/** Tem poder de ceder o local? A ordem importa: "negociando com o PROPRIETARIO"
+ *  e "ainda nao e meu" contem palavras de dono sem ser dono. */
+export function podeCeder(relacao: unknown): boolean {
+  const t = String(relacao ?? '').toLowerCase();
+  if (!t || /ainda n[aã]o [eé] meu|negoci|em vista|n[aã]o conversei/.test(t)) return false;
+  return /propriet|inquilin|represent|administr/.test(t);
+}
+
 /**
- * Carrega um lado inteiro, das duas origens, já com coordenada quando dá.
+ * O valor declarado, em MIL reais, ou null quando a pessoa nao disse. Le os tres
+ * jeitos que o valor chega: opcao da LP ("R$ 140 mil"), faixa do cadastro
+ * ("R$ 50 mil a R$ 100 mil", "Ate R$ 50 mil") e resposta livre no WhatsApp
+ * ("uns 100k", "R$ 70.000", "1,5 milhao"). Numa faixa vale o TETO — quem diz
+ * "ate 100 mil" topa 70. "Menos de" fica logo abaixo do numero.
+ */
+export function valorEmMil(texto: unknown): number | null {
+  const t = String(texto ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
+  if (!t || /depende/.test(t)) return null;
+  const nums: number[] = [];
+  const re = /(\d{1,3}(?:[.\s]\d{3})+|\d+(?:[.,]\d+)?)\s*(milh[aãoõ]es|milh[aã]o|mi\b|mil|k\b)?/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(t))) {
+    const bruto = m[1];
+    const unid = m[2] || '';
+    let n: number;
+    if (/[.\s]\d{3}$/.test(bruto) && !/,/.test(bruto)) n = Number(bruto.replace(/[.\s]/g, ''));
+    else n = Number(bruto.replace(',', '.'));
+    if (!isFinite(n)) continue;
+    if (/milh|^mi$/.test(unid)) n = n * 1000;          // milhao -> mil
+    else if (unid === 'mil' || unid === 'k') { /* ja esta em mil */ }
+    else if (n >= 1000) n = n / 1000;                   // "70000" -> 70
+    nums.push(n);
+  }
+  if (!nums.length) return null;
+  const teto = Math.max(...nums);
+  return /menos de|abaixo de/.test(t) ? teto - 0.01 : teto;
+}
+
+/** Declarou R$ 70 mil ou mais? true / false (declarou abaixo) / null (nao disse). */
+export function valorOk(texto: unknown): boolean | null {
+  const v = valorEmMil(texto);
+  return v === null ? null : v >= 70;
+}
+
+/** O "Local e seu:" e o "Quanto pretende investir:" moram no TEXTO da ficha. */
+const campoDaFicha = (ficha: unknown, rotulo: RegExp): string | null => {
+  const m = String(ficha ?? '').match(rotulo);
+  return m ? m[1].trim() : null;
+};
+
+/** Pra onde a linha vai, nas quatro origens. */
+export function destinoDe(origem: 'parceria' | 'nota1' | 'agenda', r: Record<string, unknown>): Destino {
+  // O consultor marcou ARRENDAMENTO no card e disse de quem e o local.
+  if (origem === 'agenda') return 'ponto';
+  if (origem === 'parceria') {
+    if (r.lado === 'ponto' && podeCeder(r.ponto_relacao)) return 'ponto';
+    return valorOk(r.capital_faixa) ? 'capital' : 'curioso';
+  }
+  // ficha da LP: o valor registrado pelo consultor ganha do texto da ficha
+  if (podeCeder(campoDaFicha(r.ficha, /Local (?:é|e) seu:\s*([^\n]+)/i))) return 'ponto';
+  const valor = r.valor_investir || campoDaFicha(r.ficha, /Quanto pretende investir:\s*([^\n]+)/i);
+  return valorOk(valor) ? 'capital' : 'curioso';
+}
+
+/**
+ * Carrega um lado inteiro, das três origens, já com coordenada quando dá.
  *
  * `jaNoOutroLado` existe por um motivo específico: uma pessoa PODE estar nos dois
  * lados (tem o terreno E o dinheiro — o cadastro permite, a chave é lado+telefone).
@@ -88,18 +156,24 @@ const soDigitos = (s: unknown) => String(s ?? '').replace(/\D/g, '');
  * constrangedor. O lado do PONTO ganha a disputa: é o ativo escasso.
  */
 export async function pool(lado: Lado, jaNoOutroLado?: Set<string>): Promise<Candidato[]> {
+  // As tres origens inteiras: quem decide o lado e destinoDe(), nao o filtro do
+  // banco. Um cadastro de "ponto" que ainda negocia o local, e declarou dinheiro,
+  // e INVESTIDOR — so a regra enxerga isso. A ORDEM (mais novo primeiro) e a da aba
+  // Cadastros: quando o mesmo telefone tem duas linhas no mesmo destino, as duas
+  // telas escolhem a mesma, e a coluna "perto" acha a linha que a tela mostra.
   const [cadastros, fichas, agenda] = await Promise.all([
     supabaseGerador.from('eletroposto_parceria')
-      .select('id, nome, telefone, cidade').eq('lado', lado).limit(500),
+      .select('id, nome, telefone, cidade, lado, ponto_relacao, capital_faixa')
+      .in('lado', ['ponto', 'capital']).order('created_at', { ascending: false }).limit(1000),
     supabaseGerador.from('eletroposto_nota1')
-      .select('id, nome, telefone, cidade, capital_faixa, tem_ponto').limit(500),
-    // ARRENDAMENTO MARCADO NA AGENDA (21/09). So entra no lado do PONTO: quem
-    // aceita que a casa invista 100% e, por definicao, quem tem o local. Em 21/09
-    // eram 9 leads assim e NENHUM estava no pool — a aba os mostrava sem par e o
-    // Match nunca os oferecia. A regua daqui e a da aba tem que ser a mesma.
+      .select('id, nome, telefone, cidade, ficha, valor_investir')
+      .order('created_at', { ascending: false }).limit(1000),
+    // ARRENDAMENTO MARCADO NA AGENDA (21/09): sempre ponto — o consultor ja
+    // perguntou de quem e o local ao marcar.
     lado === 'ponto'
       ? supabaseGerador.from('agendamentos')
-          .select('id, cliente_nome, cliente_telefone, cidade').eq('status', 'arrendamento').limit(500)
+          .select('id, cliente_nome, cliente_telefone, cidade').eq('status', 'arrendamento')
+          .order('created_at', { ascending: false }).limit(500)
       : Promise.resolve({ data: [] as Record<string, unknown>[] }),
   ]);
 
@@ -110,23 +184,18 @@ export async function pool(lado: Lado, jaNoOutroLado?: Set<string>): Promise<Can
   for (const c of (cadastros.data || []) as Record<string, unknown>[]) {
     const tel = soDigitos(c.telefone);
     if (!tel || vistos.has(tel)) continue;
+    if (destinoDe('parceria', c) !== lado) continue;
     vistos.add(tel);
     linhas.push({ nome: String(c.nome || '—'), telefone: tel, cidade: (c.cidade as string) || null,
                   daFicha: false, tab: 'parceria', id: Number(c.id) });
   }
 
-  // A ficha de NOTA 1 não se declarou de lado nenhum — quem a separa é o
-  // cruzamento das duas respostas, a mesma régua da aba Cadastros. Cadastro
-  // ganha da ficha: quem já se cadastrou não aparece duas vezes.
+  // A ficha de NOTA 1 nao se declarou de lado nenhum: quem a separa e
+  // destinoDe(), a mesma regra da aba Cadastros. Cadastro ganha da ficha.
   for (const f of (fichas.data || []) as Record<string, unknown>[]) {
     const tel = soDigitos(f.telefone);
     if (!tel || vistos.has(tel)) continue;
-    const cap = String(f.capital_faixa || '');
-    const pto = String(f.tem_ponto || '');
-    const serve = lado === 'capital'
-      ? CAPITAL_DECLARADO.includes(cap)
-      : cap === 'naosei' && PONTO_NA_FICHA.includes(pto);
-    if (!serve) continue;
+    if (destinoDe('nota1', f) !== lado) continue;
     vistos.add(tel);
     linhas.push({ nome: String(f.nome || '—'), telefone: tel, cidade: (f.cidade as string) || null,
                   daFicha: true, tab: 'nota1', id: Number(f.id) });
