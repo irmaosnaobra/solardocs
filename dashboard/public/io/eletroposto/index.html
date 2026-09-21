@@ -216,6 +216,25 @@
   .foto figcaption{position:absolute;left:0;right:0;bottom:0;padding:36px 18px 16px;color:#fff;font-size:16px;
     font-weight:800;letter-spacing:-.01em;line-height:1.2;background:linear-gradient(180deg,rgba(5,13,24,0),rgba(5,13,24,.88))}
 
+  /* quatro vistas do gabinete DC (arte final), acima das fotos de estoque. Fundo
+     branco porque o render é recortado em branco; legenda no escuro da página.
+     As imagens são as mesmas da /nexus (scripts/trocar-carregador.js). */
+  .vistasG{display:grid;gap:14px;grid-template-columns:repeat(4,1fr);margin-bottom:14px}
+  .vista{margin:0;overflow:hidden;border-radius:16px;background:var(--card-alto);border:1px solid var(--line)}
+  .vista .fundo{background:#fff}
+  .vista img{display:block;width:100%;height:auto;aspect-ratio:1/1;object-fit:contain;padding:6px}
+  .vista figcaption{padding:10px 14px;font-size:14px;font-weight:700;color:var(--cream)}
+  @media(max-width:760px){
+    .vistasG{grid-template-columns:repeat(2,1fr);gap:10px}
+    .vista figcaption{padding:8px 11px;font-size:12.5px}
+  }
+  /* A mesma faixa logo abaixo do quiz, SÓ no modo quiz: quem cai no link vê só o
+     agendamento, e o #estoque fica escondido junto com o resto da página. Fora do
+     quiz ela some, senão a página inteira mostraria as fotos duas vezes. */
+  .vistasQuiz{display:none}
+  html.quiz .vistasQuiz{display:block;padding:40px 0 48px}
+  .vistasQuiz h2{margin-bottom:6px}
+
   /* ===== modelos de negócio =====
      Cinco portas de entrada, e elas mudam quem paga a conta. A ordem NÃO é
      alfabética nem por preço: vai do que exige menos do lead (ele só cede o
@@ -836,6 +855,13 @@
   <section id="estoque">
     <div class="sh"><span class="tt">Equipamento</span><span class="ln"></span></div>
     <h2>O carregador que sai do <span class="n">nosso estoque</span></h2>
+    <div class="sub" style="margin-bottom:20px">O gabinete DC da NEXUS, dos quatro lados. Logo abaixo, as unidades que já estão no nosso estoque.</div>
+    <div class="vistasG">
+      <figure class="vista"><div class="fundo"><img src="/nexus/img/p-dc.webp" width="1200" height="1200" loading="lazy" decoding="async" alt="Carregador NEXUS DC de frente, azul-marinho com faixas verdes, tela e a faixa CHARGING STATION, com um cabo CCS2 de cada lado"></div><figcaption>Frente</figcaption></figure>
+      <figure class="vista"><div class="fundo"><img src="/nexus/img/dc-perspectiva.webp" width="800" height="800" loading="lazy" decoding="async" alt="Carregador NEXUS DC em perspectiva, com a frente azul-marinho e a lateral com a grade de ventilação"></div><figcaption>Frente em perspectiva</figcaption></figure>
+      <figure class="vista"><div class="fundo"><img src="/nexus/img/dc-lateral.webp" width="800" height="800" loading="lazy" decoding="async" alt="Carregador NEXUS DC visto pela porta de serviço em perspectiva, com a grade de ventilação na lateral"></div><figcaption>Porta de serviço</figcaption></figure>
+      <figure class="vista"><div class="fundo"><img src="/nexus/img/dc-traseira.webp" width="800" height="800" loading="lazy" decoding="async" alt="Traseira do carregador NEXUS DC: porta de serviço com puxador e o logo da marca"></div><figcaption>Traseira</figcaption></figure>
+    </div>
     <div class="estoqueG">
       <figure class="foto larga">
         <img src="/nexus/img/estoque-fila-1200.webp"
@@ -1808,6 +1834,20 @@
   </div><!-- fecha .agFaixa -->
 
   <div class="wrap"><!-- reabre o .wrap da pagina pro que vem depois -->
+
+  <!-- Fotos do carregador na tela do quiz (21/09/2026). Fica abaixo do cartão, fora
+       da faixa do agendamento: a pergunta continua sendo a primeira coisa da tela. -->
+  <div class="vistasQuiz">
+    <div class="sh"><span class="tt">Equipamento</span><span class="ln"></span></div>
+    <h2>O carregador que vai <span class="n">no seu ponto</span></h2>
+    <div class="sub" style="margin-bottom:20px">NEXUS DC, com peça de reposição no Brasil e OCPP aberto. Os quatro lados do gabinete:</div>
+    <div class="vistasG">
+      <figure class="vista"><div class="fundo"><img src="/nexus/img/p-dc.webp" width="1200" height="1200" loading="lazy" decoding="async" alt="Carregador NEXUS DC de frente, azul-marinho com faixas verdes, tela e a faixa CHARGING STATION, com um cabo CCS2 de cada lado"></div><figcaption>Frente</figcaption></figure>
+      <figure class="vista"><div class="fundo"><img src="/nexus/img/dc-perspectiva.webp" width="800" height="800" loading="lazy" decoding="async" alt="Carregador NEXUS DC em perspectiva, com a frente azul-marinho e a lateral com a grade de ventilação"></div><figcaption>Frente em perspectiva</figcaption></figure>
+      <figure class="vista"><div class="fundo"><img src="/nexus/img/dc-lateral.webp" width="800" height="800" loading="lazy" decoding="async" alt="Carregador NEXUS DC visto pela porta de serviço em perspectiva, com a grade de ventilação na lateral"></div><figcaption>Porta de serviço</figcaption></figure>
+      <figure class="vista"><div class="fundo"><img src="/nexus/img/dc-traseira.webp" width="800" height="800" loading="lazy" decoding="async" alt="Traseira do carregador NEXUS DC: porta de serviço com puxador e o logo da marca"></div><figcaption>Traseira</figcaption></figure>
+    </div>
+  </div>
 
   <!-- Portão de presença: último passo antes de gravar. A ficha só vai pro banco
        depois do "Sim" — quem responde "Não" não chega a ocupar horário nenhum.
