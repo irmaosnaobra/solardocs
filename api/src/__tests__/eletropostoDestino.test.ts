@@ -8,7 +8,7 @@ import { join } from 'node:path';
 // monta os pares e o Match, e cadDestino() na aba Cadastros do /gerador. Este teste
 // cobre a tabela de destino linha a linha e depois LÊ o JavaScript da aba e roda os
 // dois lado a lado. Se alguém mexer num só, ele aponta a resposta em que discordaram.
-import { destinoDe, podeCeder, valorEmMil, valorOk } from '../services/io/eletropostoPares';
+import { destinoDe, podeCeder, valorEmMil, valorOk, agruparPorDestino, type LinhaOrigem } from '../services/io/eletropostoPares';
 
 const GERADOR = join(__dirname, '../../../dashboard/public/gerador/index.html');
 
@@ -148,5 +148,67 @@ describe('a tela e o servidor usam a MESMA regra', () => {
       }
     }
     expect(divergencias.join('\n')).toBe('');
+  });
+});
+
+// ── o AGRUPAMENTO por telefone também é gêmeo ───────────────────────────────
+// É ele que decide quem está no Curioso: a aba mostra uma lista e a pauta do
+// Curioso manda pra outra se os dois divergirem. Recorta o agrupamento de
+// cadCarregar() e roda com as mesmas linhas que o servidor recebe.
+function agrupamentoDaTela() {
+  const html = readFileSync(GERADOR, 'utf8');
+  const fatia = (de: string, ate: string) => {
+    const i = html.indexOf(de), j = html.indexOf(ate, i);
+    if (i < 0 || j < 0) throw new Error(`marcador sumiu do /gerador: "${de}"`);
+    return html.slice(i, j);
+  };
+  const fonte = fatia('function cadPodeCeder(', 'const CAD_STATUS = {')
+    + fatia('function cadValorDaFicha(', '/** A lista de quem esta perto')
+    + fatia('    // Cada linha das tres origens ganha o seu destino', '    cadDados = {')
+    + '\nreturn listas;';
+  return new Function('pontos', 'capital', 'fichas', 'agendaArr', fonte) as
+    (p: any[], c: any[], f: any[], a: any[]) => Record<string, Array<{ tab: string; id: number }>>;
+}
+
+describe('a lista de cada aba é a mesma na tela e no servidor', () => {
+  const T = { A: '5534999990001', B: '5534999990002', C: '5534999990003', D: '5534999990004', E: '5534999990005' };
+  const pontos = [
+    { id: 1, lado: 'ponto', telefone: T.A, ponto_relacao: 'Sou o proprietário', created_at: '2026-09-10' },
+    { id: 4, lado: 'ponto', telefone: T.D, ponto_relacao: 'Estou negociando com o proprietário',
+      capital_faixa: 'R$ 50 mil a R$ 100 mil', created_at: '2026-09-14' },
+  ];
+  const capital = [
+    { id: 2, lado: 'capital', telefone: T.A, capital_faixa: 'R$ 140 mil', created_at: '2026-09-12' },
+    { id: 3, lado: 'capital', telefone: T.B, capital_faixa: 'Até R$ 50 mil', created_at: '2026-09-11' },
+    { id: 5, lado: 'capital', telefone: null, capital_faixa: null, created_at: '2026-09-09' },
+  ];
+  // fichas e agenda chegam do mais novo pro mais velho, como a API devolve
+  const fichas = [
+    { id: 13, telefone: T.E, ficha: '', valor_investir: 'R$ 70 mil', created_at: '2026-09-20' },
+    { id: 12, telefone: T.D, ficha: 'Local é seu: Sou inquilino', created_at: '2026-09-19' },
+    { id: 11, telefone: T.C, ficha: 'Local é seu: Ainda não é meu', created_at: '2026-09-18' },
+    { id: 10, telefone: T.B, ficha: 'Quanto pretende investir: R$ 280 mil', created_at: '2026-09-17' },
+    { id: 9, telefone: T.C, ficha: '', created_at: '2026-09-16' },
+  ];
+  const agenda = [{ id: 900, cliente_telefone: T.C, created_at: '2026-09-21' }];
+
+  it('Arrendamento, Investidores e Curioso batem linha a linha', () => {
+    const tela = agrupamentoDaTela()(pontos, capital, fichas, agenda);
+    const porData = (a: any, b: any) => String(b.created_at).localeCompare(String(a.created_at));
+    const linhas: LinhaOrigem[] = [
+      ...[...pontos, ...capital].sort(porData).map(r => ({ origem: 'parceria' as const, r })),
+      ...fichas.map(r => ({ origem: 'nota1' as const, r })),
+      ...agenda.map(r => ({ origem: 'agenda' as const, r })),
+    ];
+    const servidor = agruparPorDestino(linhas);
+    const ORIGEM: Record<string, string> = { eletroposto_parceria: 'parceria', eletroposto_nota1: 'nota1', agendamentos: 'agenda' };
+    for (const d of ['ponto', 'capital', 'curioso'] as const) {
+      expect(tela[d].map(r => ORIGEM[r.tab] + ':' + r.id), d)
+        .toEqual(servidor[d].map(l => l.origem + ':' + l.r.id));
+    }
+    // e o resultado é o que a regra do dono manda
+    expect(servidor.ponto.map(l => l.origem + ':' + l.r.id).sort()).toEqual(['agenda:900', 'nota1:12', 'parceria:1']);
+    expect(servidor.capital.map(l => l.origem + ':' + l.r.id).sort()).toEqual(['nota1:10', 'nota1:13']);
+    expect(servidor.curioso.map(l => l.origem + ':' + l.r.id)).toEqual(['parceria:5']);
   });
 });

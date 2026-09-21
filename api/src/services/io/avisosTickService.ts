@@ -6,6 +6,12 @@
 //   ponto      → ARRENDAMENTO (quem tem o local)
 //   capital    → INVESTIDORES (quem tem o dinheiro)
 //   integrador → PARCEIROS    (quem instala)
+// e, desde 21/09/2026, um quarto grupo que NÃO é lado de tabela nenhuma:
+//   curioso    → CURIOSO      (quem ainda não disse quanto investe)
+// O Curioso é derivado pela regra de destino (curiosos(), em eletropostoPares), e
+// junta cadastro e ficha da LP. A CHECK do banco nem aceita 'curioso' como lado:
+// pedir `.in('lado', ['curioso'])` devolveria zero linhas, e a pauta "concluiria"
+// sem mandar nada. Por isso a audiência é montada em audienciaDoAviso().
 //
 // ── A decisão que desenha este arquivo ──────────────────────────────────────
 // A TELA NÃO ESCOLHE DESTINATÁRIO. Ela grava só o texto e quais grupos recebem.
@@ -45,10 +51,14 @@ import { logger } from '../../utils/logger';
 import { MediaType, enviarZapiIO, adquirirLockBlast, liberarLockBlast } from './ioSend';
 import { carregarSilenciados, chaveContato } from '../agents/whatsapp/silenciar';
 import { dentroDaJanelaDiurna, respeitaEspacamentoLinha } from '../agents/whatsapp/lineThrottle';
+import { curiosos } from './eletropostoPares';
+import { lerRespostasCuriosoSeguro } from './curiosoRespostas';
 
-/** Os três lados que a tela chama de Arrendamento, Investidores e Parceiros. */
-export const LADOS_AVISO = ['ponto', 'capital', 'integrador'] as const;
+/** Os grupos que a tela chama de Arrendamento, Investidores, Parceiros e Curioso. */
+export const LADOS_AVISO = ['ponto', 'capital', 'integrador', 'curioso'] as const;
 export type LadoAviso = (typeof LADOS_AVISO)[number];
+/** Os que são a coluna `lado` de eletroposto_parceria. O Curioso não é. */
+const LADOS_DO_CADASTRO = ['ponto', 'capital', 'integrador'];
 
 const LOCK_DURATION_MS = 5 * 60 * 1000;
 
@@ -98,6 +108,9 @@ export interface ContatoParceria {
   cidade: string | null;
   lado: string;
   status?: string | null;
+  /** 'parceria:45' ou 'nota1:123': a linha de onde a pessoa veio. Vai pro envio,
+   *  e é onde a leitura da resposta do Curioso grava o valor. */
+  ref?: string;
 }
 
 /**
@@ -108,11 +121,19 @@ export interface ContatoParceria {
  * `{cidade}` são substituídos pelo que a pessoa preencheu no cadastro, e somem
  * quando o campo está vazio (melhor uma frase mais curta que um "Oi ," torto).
  *
- * O rodapé NÃO promete palavra mágica. Não existe hoje um robô que leia "SAIR"
- * vindo de um contato de parceria, e prometer um descadastro que ninguém
- * processa é exatamente o que vira denúncia. O que existe é gente lendo a caixa
- * da linha e a marcação `sem_interesse` na aba Cadastros, que este tick respeita.
+ * O rodapé NÃO promete palavra mágica. Nos grupos do cadastro, quem processa o
+ * "me tira" é gente lendo a caixa da linha e a marcação `sem_interesse` na aba
+ * Cadastros, que este tick respeita. No Curioso a resposta é lida sozinha
+ * (curiosoRespostas) e o pedido pra sair já vira `sem_interesse`.
+ *
+ * O rodapé muda com o grupo porque ele AFIRMA uma coisa sobre a pessoa. 177 dos
+ * 209 curiosos de 21/09 nunca se cadastraram como parceiro: só preencheram a
+ * ficha da LP. Dizer "se cadastrou" pra eles numa mensagem fria é afirmar algo
+ * falso, e é isso que vira denúncia numa linha que já foi bloqueada 3 vezes.
  */
+export const RODAPE_CADASTRO = '_Você recebe isso porque se cadastrou como parceiro do eletroposto na Irmãos na Obra. Se não quiser mais, é só responder aqui que a gente tira da lista._';
+export const RODAPE_CURIOSO = '_Você recebe isso porque pediu informações sobre eletroposto na Irmãos na Obra. Se não quiser mais, é só responder aqui que a gente tira da lista._';
+
 export function montarTextoAviso(aviso: Pick<AvisoRow, 'titulo' | 'corpo'>, contato: Partial<ContatoParceria>): string {
   const primeiroNome = String(contato.nome || '').trim().split(/\s+/)[0] || '';
   const cidade = String(contato.cidade || '').trim();
@@ -129,7 +150,7 @@ export function montarTextoAviso(aviso: Pick<AvisoRow, 'titulo' | 'corpo'>, cont
     titulo ? '' : '',
     corpo,
     '',
-    '_Você recebe isso porque se cadastrou como parceiro do eletroposto na Irmãos na Obra. Se não quiser mais, é só responder aqui que a gente tira da lista._',
+    contato.lado === 'curioso' ? RODAPE_CURIOSO : RODAPE_CADASTRO,
   ].filter((l, i, arr) => !(l === '' && arr[i - 1] === '')).join('\n').trim();
 }
 
@@ -144,6 +165,46 @@ export function telefoneValido(raw: unknown): string | null {
   const d = String(raw ?? '').replace(/\D/g, '');
   if (d.length < 12 || d.length > 13 || !d.startsWith('55')) return null;
   return d;
+}
+
+/**
+ * A audiência de uma pauta, lida AGORA: é isso que mantém a lista sempre atualizada.
+ *
+ * Cadastro primeiro, Curioso depois, e cada telefone uma vez (DDD + 8 últimos
+ * dígitos, a mesma chave do resto da casa: a Z-API alterna o nono dígito e sem
+ * isso a mesma pessoa recebe duas vezes). Quem a equipe marcou sem_interesse sai.
+ *
+ * Erro de leitura SOBE: audiência vazia por falha faria a pauta concluir sem ter
+ * mandado nada, com cara de sucesso.
+ */
+export async function audienciaDoAviso(publicos: string[]): Promise<ContatoParceria[]> {
+  const brutos: ContatoParceria[] = [];
+  const doCadastro = publicos.filter(l => LADOS_DO_CADASTRO.includes(l));
+  if (doCadastro.length) {
+    const { data, error } = await supabaseGerador
+      .from('eletroposto_parceria')
+      .select('id, telefone, nome, cidade, lado, status')
+      .in('lado', doCadastro)
+      .order('created_at', { ascending: false })
+      .limit(2000);
+    if (error) throw new Error(`base de parceria: ${error.message}`);
+    for (const r of (data || []) as Array<ContatoParceria & { id: number }>) brutos.push({ ...r, ref: `parceria:${r.id}` });
+  }
+  if (publicos.includes('curioso')) {
+    for (const c of await curiosos()) {
+      brutos.push({ telefone: c.telefone, nome: c.nome, cidade: c.cidade, lado: 'curioso', status: c.status, ref: c.ref });
+    }
+  }
+  const porChave = new Map<string, ContatoParceria>();
+  for (const r of brutos) {
+    if (String(r.status || '') === 'sem_interesse') continue;   // a equipe já marcou que não quer
+    const tel = telefoneValido(r.telefone);
+    if (!tel) continue;
+    const k = chaveContato(tel);
+    if (!k || porChave.has(k)) continue;
+    porChave.set(k, { ...r, telefone: tel });
+  }
+  return [...porChave.values()];
 }
 
 const tipoMidia = (t: unknown): MediaType | null =>
@@ -224,6 +285,11 @@ export type AvisoTickResult = {
  * sem gastar uma mensagem com ele: `/cron/avisos-tick?dry=1`.
  */
 export async function runAvisosTick(opts: { dry?: boolean } = {}): Promise<AvisoTickResult> {
+  // A RESPOSTA DO CURIOSO é lida ANTES de todas as travas: ela não manda mensagem
+  // (só grava o valor e muda a pessoa de aba), então não depende de janela, teto
+  // nem de linha livre. Quem responde às 22h sobe pra Investidores às 22h05. No
+  // `dry` não roda: é a tela consultando a fila, e consulta não escreve.
+  if (!opts.dry) await lerRespostasCuriosoSeguro();
   if (desligado()) return { enviados: 0, motivo: 'desligado' };
   if (!dentroDaJanelaDiurna()) return { enviados: 0, motivo: 'fora_da_janela' };
 
@@ -302,29 +368,13 @@ async function tickInterno(dry: boolean): Promise<AvisoTickResult> {
 
   try {
     // ── A audiência, lida AGORA (é isso que mantém a lista sempre atualizada) ──
-    const { data: brutos, error: errLista } = await supabaseGerador
-      .from('eletroposto_parceria')
-      .select('telefone, nome, cidade, lado, status')
-      .in('lado', publicos)
-      .order('created_at', { ascending: false })
-      .limit(2000);
-    if (errLista) {
-      logger.error('avisos', 'erro lendo a base de parceria', errLista);
+    let contatos: ContatoParceria[];
+    try {
+      contatos = await audienciaDoAviso(publicos);
+    } catch (errLista) {
+      logger.error('avisos', 'erro lendo a audiência', errLista);
       return { enviados: 0, aviso_id: aviso.id, motivo: 'erro_lista' };
     }
-
-    // Dedupe por DDD + 8 últimos dígitos (a mesma chave do resto da casa: a
-    // Z-API alterna o nono dígito e sem isso a mesma pessoa recebe duas vezes).
-    const porChave = new Map<string, ContatoParceria>();
-    for (const r of (brutos || []) as ContatoParceria[]) {
-      if (String(r.status || '') === 'sem_interesse') continue;   // a equipe já marcou que não quer
-      const tel = telefoneValido(r.telefone);
-      if (!tel) continue;
-      const k = chaveContato(tel);
-      if (!k || porChave.has(k)) continue;
-      porChave.set(k, { ...r, telefone: tel });
-    }
-    const contatos = [...porChave.values()];
 
     // ── Quem já foi, quem pediu pra parar, quem levou aviso faz pouco tempo ──
     const { data: jaRows, error: errJa } = await supabaseGerador
@@ -423,6 +473,7 @@ async function tickInterno(dry: boolean): Promise<AvisoTickResult> {
       aviso_id: aviso.id,
       phone: alvoDaVez.telefone,
       lado: alvoDaVez.lado,
+      origem_ref: alvoDaVez.ref ?? null,
       status: ok ? 'ok' : 'erro',
       erro,
       zaap_id: zaapId,

@@ -505,6 +505,20 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 #avi-pub-capital.on .avi-cnt{background:#60A5FA}
 #avi-pub-integrador.on{border-color:#38BDF8;background:rgba(56,189,248,.12)}
 #avi-pub-integrador.on .avi-cnt{background:#38BDF8}
+#avi-pub-curioso.on{border-color:#FBBF24;background:rgba(251,191,36,.12)}
+#avi-pub-curioso.on .avi-cnt{background:#FBBF24}
+/* o valor que a leitura automatica tirou da resposta do Curioso */
+.avi-resp em{grid-column:1/-1;font-style:normal;font-size:12px;font-weight:800;color:#86EFAC}
+.avi-resp em.sair{color:#94A3B8}
+/* a chamada do Curioso: perguntar o valor a todos pela fila de Avisos */
+.cad-curioso-acao{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;
+  background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.35);border-radius:11px;
+  padding:12px 14px;margin-bottom:12px;font-size:13px;color:#CBD5E1;line-height:1.5}
+.cad-curioso-acao[hidden]{display:none}
+.cad-curioso-acao b{color:#FBBF24}
+.cad-curioso-acao button{background:#FBBF24;color:#1F1600;border:0;border-radius:9px;font-family:inherit;
+  font-size:13px;font-weight:900;padding:10px 14px;cursor:pointer;min-height:40px;white-space:nowrap}
+.cad-curioso-acao button:hover{filter:brightness(1.07)}
 .avi-inp,.avi-ta{width:100%;background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.28);border-radius:10px;
   color:#E5E7EB;font-family:inherit;font-size:14.5px;padding:11px 13px;outline:none;box-sizing:border-box}
 .avi-ta{min-height:150px;line-height:1.55;resize:vertical}
@@ -3956,6 +3970,9 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         </div>
       </div>
 
+      <!-- So aparece na aba Curioso: pergunta o valor a todos pela fila de Avisos. -->
+      <div class="cad-curioso-acao" id="cad-curioso-acao" hidden></div>
+
       <div class="card">
         <div class="eletro-sec-title" id="cad-titulo">Arrendamento — quem tem o local</div>
         <div class="eletro-cmp-scroll"><table class="eletro-cmp cadtab" id="cad-tabela">
@@ -3988,6 +4005,9 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="pesquisa-info">
         Escreva a pauta uma vez, escolha os grupos e a mensagem vai saindo sozinha,
         de uma em uma, pra quem se cadastrou em <b>solardoc.app/io/eletroposto/parceria</b>.
+        O grupo <b>Curioso</b> é o da aba Cadastros: quem ainda não disse quanto investe,
+        do cadastro e das fichas da LP. Quando um curioso responde R$ 70 mil ou mais,
+        ele passa sozinho para Investidores.
         A lista se atualiza sozinha: quem se cadastrar depois de você enviar entra no
         mesmo aviso. Quem estiver marcado como <b>sem interesse</b> na aba Cadastros
         fica de fora, e ninguém recebe duas pautas no mesmo dia.
@@ -4004,6 +4024,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <button type="button" class="avi-pub on" id="avi-pub-ponto" onclick="aviTogglePublico('ponto')">Arrendamento <span class="avi-cnt" id="avi-cnt-ponto">—</span></button>
           <button type="button" class="avi-pub on" id="avi-pub-capital" onclick="aviTogglePublico('capital')">Investidores <span class="avi-cnt" id="avi-cnt-capital">—</span></button>
           <button type="button" class="avi-pub on" id="avi-pub-integrador" onclick="aviTogglePublico('integrador')">Parceiros <span class="avi-cnt" id="avi-cnt-integrador">—</span></button>
+          <button type="button" class="avi-pub" id="avi-pub-curioso" onclick="aviTogglePublico('curioso')">Curioso <span class="avi-cnt" id="avi-cnt-curioso">—</span></button>
         </div>
         <div class="avi-conta" id="avi-conta">Carregando a base…</div>
       </div>
@@ -8270,8 +8291,11 @@ async function cadCarregar(forcar) {
     const API_PARES = (location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api')
       + '/io/eletroposto/parceria/pares';
     const [pontos, capital, integradores, fichas, pares, conexoes, agendaArr] = await Promise.all([
-      supaGet('eletroposto_parceria?lado=eq.ponto&order=created_at.desc&limit=500&select=*'),
-      supaGet('eletroposto_parceria?lado=eq.capital&order=created_at.desc&limit=500&select=*'),
+      // 1000 e o teto de linhas da API, e o mesmo numero que o servidor usa nos
+      // pares e na lista do Curioso: com tetos diferentes, as duas contas divergem
+      // em silencio no dia em que a base passar do menor.
+      supaGet('eletroposto_parceria?lado=eq.ponto&order=created_at.desc&limit=1000&select=*'),
+      supaGet('eletroposto_parceria?lado=eq.capital&order=created_at.desc&limit=1000&select=*'),
       // INTEGRADORES (21/08): mesma tabela, terceiro lado. Leitura separada de
       // propósito — ele não entra no dedupe das fichas nem no cálculo de pares,
       // porque não tem contraparte pra casar.
@@ -8280,7 +8304,7 @@ async function cadCarregar(forcar) {
       // passou a perguntar o valor em 15/09 e ele nao tem coluna propria. Sao ~60 KB.
       supaGet('eletroposto_nota1?select=id,created_at,nome,telefone,cidade,perfil,ponto,invest,'
               + 'endereco,capital_faixa,tem_ponto,pts,status,nota_interna,ficha,valor_investir'
-              + '&order=created_at.desc&limit=500'),
+              + '&order=created_at.desc&limit=1000'),
       // A distância é calculada no servidor (a tabela dos 5.570 municípios são
       // 408 KB e a régua tem que ser a MESMA do aviso no WhatsApp). Se falhar, a
       // lista carrega do mesmo jeito — perder a coluna de par é chato, perder a
@@ -8292,7 +8316,7 @@ async function cadCarregar(forcar) {
       // assim, e NENHUM estava em lista nenhuma — nem cadastro, nem ficha. Se a
       // leitura falhar a aba carrega igual, so sem eles.
       supaGet('agendamentos?status=eq.arrendamento&select=id,created_at,cliente_nome,'
-              + 'cliente_telefone,cidade,ponto_relacao&order=created_at.desc&limit=500').catch(() => []),
+              + 'cliente_telefone,cidade,ponto_relacao&order=created_at.desc&limit=1000').catch(() => []),
     ]);
     cadPares = pares && pares.pares ? pares.pares : null;
     cadMatches = pares && pares.matches ? pares.matches : null;
@@ -8377,6 +8401,7 @@ function cadRender() {
   // da coluna. Zero é "medi e não achei"; travessão é "não sei medir".
   document.getElementById('cad-cnt-match').textContent = cadMatches ? cadMatches.length : '—';
 
+  cadRenderChamadaCurioso();
   if (cadLado === 'match') { cadRenderMatch(busca); return; }
 
   let linhas = cadDados[cadLado];
@@ -8766,6 +8791,39 @@ function cadPadraoCel(r) {
     + '</td>';
 }
 
+// ── PERGUNTAR O VALOR A TODOS (Curioso) ─────────────────────────────────────
+// Nao manda nada daqui: abre o menu de Avisos com o grupo Curioso marcado e a
+// pergunta escrita, e quem aperta "Colocar na fila" (com a conta do prazo na
+// frente) e a pessoa. A resposta volta sozinha: o servidor le o WhatsApp e quem
+// disser R$ 70 mil ou mais vai pra Investidores (api/.../curiosoRespostas.ts).
+const CAD_PERGUNTA_VALOR = 'Oi {nome}, tudo bem?\n'
+  + 'Aqui é da Irmãos na Obra.\n'
+  + 'Você pediu informações sobre investir em eletroposto com a gente.\n'
+  + 'Estamos separando as oportunidades e quero te mostrar as que combinam com você.\n'
+  + 'Quanto você pensa em investir?\n'
+  + 'Pode responder só com o valor. Por exemplo: 70 mil, 140 mil ou 280 mil.';
+function cadRenderChamadaCurioso() {
+  const el = document.getElementById('cad-curioso-acao');
+  if (!el) return;
+  const alvo = cadLado === 'curioso'
+    ? (cadDados.curioso || []).filter(r => String(r.status || '') !== 'sem_interesse').length : 0;
+  if (!alvo) { el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+  el.innerHTML = '<div><b>Pergunte o valor a todos de uma vez.</b> A pergunta sai pela fila de Avisos, '
+    + 'de uma em uma, e quem responder R$ 70 mil ou mais vai sozinho para Investidores.</div>'
+    + '<button type="button" onclick="cadPerguntarValor()">Perguntar a ' + alvo + ' pelo WhatsApp</button>';
+}
+function cadPerguntarValor() {
+  aviPublicos = { ponto: false, capital: false, integrador: false, curioso: true };
+  const corpo = document.getElementById('avi-corpo');
+  if (corpo && !corpo.value.trim()) corpo.value = CAD_PERGUNTA_VALOR;
+  eletroSubaba('avisos');
+  setTimeout(() => {
+    const el = document.getElementById('avi-corpo');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 350);
+}
+
 // ── REGISTRAR VALOR (Curioso) ───────────────────────────────────────────────
 // O consultor perguntou e a pessoa respondeu. Grava onde a linha mora (a ficha em
 // `valor_investir`, o cadastro em `capital_faixa`) e reclassifica na hora pela
@@ -8839,13 +8897,15 @@ async function cadStatus(tabela, id, sel) {
 // e já foi bloqueada 3 vezes por leva de mensagem; a fila lenta é a feature.
 // ═══════════════════════════════════════════════════════════════════════════
 
-const AVI_LADOS = { ponto: 'Arrendamento', capital: 'Investidores', integrador: 'Parceiros' };
+const AVI_LADOS = { ponto: 'Arrendamento', capital: 'Investidores', integrador: 'Parceiros', curioso: 'Curioso' };
 // Espelha AVISOS_TETO_DIA no servidor. Se lá for afrouxado por env var, este
 // número fica conservador (a conta na tela promete mais dias que o real) — que é
 // o lado certo de errar numa estimativa.
 const AVI_POR_DIA = 20;
 
-let aviPublicos = { ponto: true, capital: true, integrador: true };
+// O Curioso nasce DESMARCADO: e uma pergunta pra 200 pessoas frias, e entrar
+// nela sem querer (junto de uma pauta de oportunidade) seria o pior acidente.
+let aviPublicos = { ponto: true, capital: true, integrador: true, curioso: false };
 let aviDados = null;      // { contatos, avisos, ultimoPorFone }
 let aviEnviando = false;
 
@@ -8863,6 +8923,9 @@ function aviChave(tel) {
 
 async function aviCarregar(forcar) {
   if (aviDados && !forcar) { aviRender(); return; }
+  // O grupo Curioso sai da classificacao da aba Cadastros (a regra gemea da do
+  // servidor): sem ela carregada, a conta do grupo nao existe.
+  if (!cadDados) await cadCarregar();
   try {
     const [contatos, avisos, envios] = await Promise.all([
       supaGet('eletroposto_parceria?select=id,nome,telefone,cidade,lado,status,created_at&order=created_at.desc&limit=2000'),
@@ -8923,8 +8986,11 @@ async function aviStatusFila() {
  *  aplica opt-out e o piso de dias entre avisos, então este número é um teto. */
 function aviElegiveis(lados) {
   const vistos = {};
-  return (aviDados ? aviDados.contatos : []).filter(c => {
-    if (!lados[c.lado]) return false;
+  // Cadastro primeiro, Curioso depois: a mesma ordem da audiencia no servidor,
+  // entao quem esta nos dois conta uma vez, no grupo do cadastro.
+  const curiosos = lados.curioso && cadDados
+    ? (cadDados.curioso || []).map(r => ({ ...r, lado: 'curioso' })) : [];
+  return (aviDados ? aviDados.contatos : []).filter(c => lados[c.lado]).concat(curiosos).filter(c => {
     if (String(c.status || '') === 'sem_interesse') return false;
     const k = aviChave(c.telefone);
     if (!k || vistos[k]) return false;
@@ -8943,7 +9009,8 @@ function aviRender() {
   Object.keys(AVI_LADOS).forEach(l => {
     const n = aviElegiveis({ [l]: true }).length;
     const cnt = document.getElementById('avi-cnt-' + l);
-    if (cnt) cnt.textContent = n;
+    // Curioso sem a aba Cadastros carregada e "nao sei", nao zero.
+    if (cnt) cnt.textContent = (l === 'curioso' && !cadDados) ? '—' : n;
     const bt = document.getElementById('avi-pub-' + l);
     if (bt) bt.classList.toggle('on', !!aviPublicos[l]);
   });
@@ -9052,6 +9119,17 @@ async function aviRespostas(avisoId) {
     const j = await r.json();
     if (!j || !j.ok) throw new Error((j && j.detail) || 'falhou');
     const lista = j.respostas || [];
+    // Na pauta do Curioso, o que a leitura automatica decidiu de cada resposta.
+    // Extra: se falhar, a lista sai sem a etiqueta.
+    const decidido = {};
+    const pauta = (aviDados.avisos || []).find(x => x.id === avisoId);
+    if (pauta && (pauta.publicos || []).indexOf('curioso') >= 0) {
+      try {
+        const ds = await supaGet('aviso_envios?aviso_id=eq.' + avisoId
+          + '&resposta_valor=not.is.null&select=phone,resposta_valor&limit=1000');
+        (ds || []).forEach(d => { const k = aviChave(d.phone); if (k) decidido[k] = d.resposta_valor; });
+      } catch (e) { /* sem etiqueta */ }
+    }
     num.innerHTML = '<b>' + lista.length + '</b><span>responderam</span>';
     if (!lista.length) {
       // Zero resposta não é erro nem é nada: é informação, e com pauta recém
@@ -9065,6 +9143,11 @@ async function aviRespostas(avisoId) {
           '<a class="avi-resp" href="https://wa.me/' + String(p.phone).replace(/\D/g, '') + '" target="_blank" rel="noopener">'
           + '<b>' + escapeHtml(p.nome || 'Sem nome') + '</b>'
           + '<i>' + escapeHtml(String(p.texto || '(mídia)').slice(0, 90)) + '</i>'
+          + (decidido[aviChave(p.phone)]
+              ? (decidido[aviChave(p.phone)] === 'sem interesse'
+                  ? '<em class="sair">pediu pra sair da lista</em>'
+                  : '<em>' + escapeHtml(decidido[aviChave(p.phone)]) + ' · foi para Investidores</em>')
+              : '')
           + '<u>' + new Date(p.quando).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + '</u>'
           + '</a>').join('')
       + (lista.length > 12 ? '<div class="avi-resp-vazio">e mais ' + (lista.length - 12) + '</div>' : '');
@@ -9119,8 +9202,12 @@ function aviTexto(titulo, corpo, contato) {
     .replace(/[ \t]{2,}/g, ' ')
     .trim();
   const t = String(titulo || '').trim();
-  return (t ? '*' + t + '*\n\n' : '') + c
-    + '\n\n_Você recebe isso porque se cadastrou como parceiro do eletroposto na Irmãos na Obra. Se não quiser mais, é só responder aqui que a gente tira da lista._';
+  // O rodape muda com o grupo, igual ao servidor (RODAPE_CURIOSO): quem veio da
+  // ficha da LP nunca "se cadastrou como parceiro", e a mensagem nao pode afirmar isso.
+  const rodape = contato && contato.lado === 'curioso'
+    ? '_Você recebe isso porque pediu informações sobre eletroposto na Irmãos na Obra. Se não quiser mais, é só responder aqui que a gente tira da lista._'
+    : '_Você recebe isso porque se cadastrou como parceiro do eletroposto na Irmãos na Obra. Se não quiser mais, é só responder aqui que a gente tira da lista._';
+  return (t ? '*' + t + '*\n\n' : '') + c + '\n\n' + rodape;
 }
 
 /** O `*negrito*` e o `_itálico_` do WhatsApp viram negrito e itálico de verdade
@@ -9179,11 +9266,18 @@ async function aviEnviar() {
   // Sem este aviso a pessoa escreve, vê o card em 0 e escreve de novo — foi o que
   // aconteceu em 18/09/2026, e sobraram três pautas rodando pro mesmo público.
   const jaRodando = (aviDados.avisos || []).filter(x => x.status === 'rodando');
+  // O prazo conta a fila da FRENTE: com outra pauta andando, "a ultima recebe em
+  // N dias" sozinho seria mentira. Dia de envio e de segunda a sabado.
+  const faltamAntes = jaRodando.reduce((soma, x) => soma + Math.max(0, Number(x.alvo || 0) - Number(x.sucesso || 0)), 0);
+  const diasAntes = Math.ceil(faltamAntes / AVI_POR_DIA);
   const espera = jaRodando.length
     ? '\n\nATENÇÃO: já tem ' + jaRodando.length + ' pauta rodando ('
       + (jaRodando[0].titulo || 'sem título') + ', ' + Number(jaRodando[0].sucesso || 0)
       + ' de ' + Number(jaRodando[0].alvo || 0) + ' entregues).\n'
-      + 'Sai UMA de cada vez pela mesma linha, então esta só começa quando aquela terminar.'
+      + 'Sai UMA de cada vez pela mesma linha, então esta só começa quando aquela terminar: '
+      + 'faltam ' + faltamAntes + ' envios dela, cerca de ' + diasAntes + ' dia(s) de envio. '
+      + 'Contando a espera, a última pessoa desta recebe em cerca de ' + (diasAntes + dias) + ' dia(s) de envio.\n'
+      + 'Pra esta sair antes, pause a outra aqui na tela.'
     : '';
   if (!confirm('Mandar esta pauta pra ' + alvo + ' contato(s) de ' + nomes + '?\n\n'
     + 'Sai de um em um, entre 9h e 20h. A última pessoa recebe em cerca de '

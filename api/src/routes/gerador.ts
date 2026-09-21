@@ -9,7 +9,7 @@ import { gerarProdutosVirais, redispararVideoProduto } from '../services/agenda/
 import { processarWebhook, reconciliarStatusProduto, animarProduto } from '../services/agenda/higgsfieldService';
 import { ingestManychatLead } from '../services/agenda/manychatLeadService';
 import { runGeradorBroadcastTick } from '../services/io/geradorAutomacaoService';
-import { runAvisosTick, respostasDaPauta } from '../services/io/avisosTickService';
+import { runAvisosTick, respostasDaPauta, audienciaDoAviso, LADOS_AVISO } from '../services/io/avisosTickService';
 import { runProspeccaoApifyTick } from '../services/io/prospeccaoApifyService';
 import { montarBusca } from '../services/io/prospeccaoBriefService';
 import { montarCentralAgentes } from '../services/io/centralAgentes';
@@ -97,6 +97,24 @@ router.post('/avisos/kick', async (req: Request, res: Response) => {
     res.json({ ok: true, ...(await runAvisosTick({ dry: req.query.dry === '1' })) });
   } catch (err: any) {
     logger.error('gerador', 'avisos/kick falhou', err);
+    res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
+  }
+});
+
+// QUANTOS RECEBERIAM, pela conta do SERVIDOR. A tela conta com a regra gêmea
+// dela; este número é o que o motor de fato vai usar (telefone válido, sem
+// sem_interesse, cada pessoa uma vez), e é como se confere que as duas batem sem
+// criar pauta nenhuma. Devolve só números: nenhum nome, nenhum telefone.
+router.get('/avisos/audiencia', async (req: Request, res: Response) => {
+  const pedidos = String(req.query.publicos || '').split(',').map(p => p.trim())
+    .filter(p => (LADOS_AVISO as readonly string[]).includes(p));
+  if (!pedidos.length) { res.status(400).json({ error: 'publicos invalido' }); return; }
+  try {
+    const por_publico: Record<string, number> = {};
+    for (const p of pedidos) por_publico[p] = (await audienciaDoAviso([p])).length;
+    res.json({ ok: true, total: (await audienciaDoAviso(pedidos)).length, por_publico });
+  } catch (err: any) {
+    logger.error('gerador', 'avisos/audiencia falhou', err);
     res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
   }
 });

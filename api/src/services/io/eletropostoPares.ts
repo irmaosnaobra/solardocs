@@ -100,6 +100,15 @@ export function podeCeder(relacao: unknown): boolean {
 export function valorEmMil(texto: unknown): number | null {
   const t = String(texto ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
   if (!t || /depende/.test(t)) return null;
+  const nums = numerosEmMil(t);
+  if (!nums.length) return null;
+  const teto = Math.max(...nums);
+  return /menos de|abaixo de/.test(t) ? teto - 0.01 : teto;
+}
+
+/** Todos os numeros do texto, em MIL reais ("70.000" = 70, "1,5 milhao" = 1500). */
+export function numerosEmMil(texto: unknown): number[] {
+  const t = String(texto ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
   const nums: number[] = [];
   const re = /(\d{1,3}(?:[.\s]\d{3})+|\d+(?:[.,]\d+)?)\s*(milh[aãoõ]es|milh[aã]o|mi\b|mil|k\b)?/g;
   let m: RegExpExecArray | null;
@@ -115,9 +124,7 @@ export function valorEmMil(texto: unknown): number | null {
     else if (n >= 1000) n = n / 1000;                   // "70000" -> 70
     nums.push(n);
   }
-  if (!nums.length) return null;
-  const teto = Math.max(...nums);
-  return /menos de|abaixo de/.test(t) ? teto - 0.01 : teto;
+  return nums;
 }
 
 /** Declarou R$ 70 mil ou mais? true / false (declarou abaixo) / null (nao disse). */
@@ -144,6 +151,87 @@ export function destinoDe(origem: 'parceria' | 'nota1' | 'agenda', r: Record<str
   if (podeCeder(campoDaFicha(r.ficha, /Local (?:é|e) seu:\s*([^\n]+)/i))) return 'ponto';
   const valor = r.valor_investir || campoDaFicha(r.ficha, /Quanto pretende investir:\s*([^\n]+)/i);
   return valorOk(valor) ? 'capital' : 'curioso';
+}
+
+/** Uma linha de qualquer das tres origens, com os campos crus da tabela. */
+export interface LinhaOrigem { origem: 'parceria' | 'nota1' | 'agenda'; r: Record<string, unknown> }
+
+/**
+ * Cada TELEFONE no seu melhor destino: Arrendamento > Investidores > Curioso.
+ * Dentro do destino ganha a primeira linha da lista, que chega na ordem da aba:
+ * cadastro > ficha > agenda, a mais nova primeiro. Linha sem telefone fica no
+ * proprio destino, sem dedupe.
+ *
+ * GEMEO do agrupamento em cadCarregar() no /gerador: o teste eletropostoDestino
+ * roda os dois lado a lado. E ele que garante que a aba Curioso e a lista que
+ * recebe a pergunta do valor sao as mesmas pessoas.
+ */
+export function agruparPorDestino(linhas: LinhaOrigem[]): Record<Destino, LinhaOrigem[]> {
+  const PESO: Record<Destino, number> = { ponto: 0, capital: 1, curioso: 2 };
+  const tel = (l: LinhaOrigem) => soDigitos(l.origem === 'agenda' ? l.r.cliente_telefone : l.r.telefone);
+  const comDestino = linhas.map(l => ({ l, d: destinoDe(l.origem, l.r) }));
+  const melhor = new Map<string, Destino>();
+  for (const { l, d } of comDestino) {
+    const t = tel(l);
+    if (t && (!melhor.has(t) || PESO[d] < PESO[melhor.get(t)!])) melhor.set(t, d);
+  }
+  const saida: Record<Destino, LinhaOrigem[]> = { ponto: [], capital: [], curioso: [] };
+  const vistos = new Set<string>();
+  for (const { l, d } of comDestino) {
+    const t = tel(l);
+    if (t) {
+      if (vistos.has(t) || melhor.get(t) !== d) continue;
+      vistos.add(t);
+    }
+    saida[d].push(l);
+  }
+  return saida;
+}
+
+export interface ContatoCurioso {
+  telefone: string;
+  nome: string | null;
+  cidade: string | null;
+  status: string | null;
+  /** 'nota1:123' ou 'parceria:45': a linha onde a resposta do valor vai ser gravada. */
+  ref: string;
+}
+
+/**
+ * Quem esta no CURIOSO agora: a mesma leitura e o mesmo agrupamento da aba.
+ *
+ * Erro de leitura SOBE, nunca vira lista vazia. Lista vazia faria o motor de
+ * Avisos concluir a pauta como "todos receberam" sem ter mandado nada, que e a
+ * pior falha possivel ali: parece sucesso.
+ */
+export async function curiosos(): Promise<ContatoCurioso[]> {
+  // 1000 e o teto de linhas da API do Supabase; a aba le com o mesmo numero.
+  const [cad, fic, ag] = await Promise.all([
+    supabaseGerador.from('eletroposto_parceria')
+      .select('id, nome, telefone, cidade, lado, ponto_relacao, capital_faixa, status, created_at')
+      .in('lado', ['ponto', 'capital']).order('created_at', { ascending: false }).limit(1000),
+    supabaseGerador.from('eletroposto_nota1')
+      .select('id, nome, telefone, cidade, ficha, valor_investir, status, created_at')
+      .order('created_at', { ascending: false }).limit(1000),
+    supabaseGerador.from('agendamentos')
+      .select('id, cliente_telefone, created_at').eq('status', 'arrendamento')
+      .order('created_at', { ascending: false }).limit(1000),
+  ]);
+  if (cad.error) throw new Error(`curiosos: leitura dos cadastros falhou: ${cad.error.message}`);
+  if (fic.error) throw new Error(`curiosos: leitura das fichas falhou: ${fic.error.message}`);
+  if (ag.error) throw new Error(`curiosos: leitura da agenda falhou: ${ag.error.message}`);
+  const linhas: LinhaOrigem[] = [
+    ...((cad.data || []) as Record<string, unknown>[]).map(r => ({ origem: 'parceria' as const, r })),
+    ...((fic.data || []) as Record<string, unknown>[]).map(r => ({ origem: 'nota1' as const, r })),
+    ...((ag.data || []) as Record<string, unknown>[]).map(r => ({ origem: 'agenda' as const, r })),
+  ];
+  return agruparPorDestino(linhas).curioso.map(({ origem, r }) => ({
+    telefone: soDigitos(r.telefone),
+    nome: (r.nome as string) || null,
+    cidade: (r.cidade as string) || null,
+    status: (r.status as string) || null,
+    ref: `${origem}:${r.id}`,
+  }));
 }
 
 /**

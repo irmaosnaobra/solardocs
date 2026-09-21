@@ -21,9 +21,12 @@ interface LinhaParceria {
   status: string | null; created_at: string;
 }
 
-const db: { avisos: LinhaAviso[]; aviso_envios: LinhaEnvio[]; eletroposto_parceria: LinhaParceria[] } = {
-  avisos: [], aviso_envios: [], eletroposto_parceria: [],
+const db: { avisos: LinhaAviso[]; aviso_envios: LinhaEnvio[]; eletroposto_parceria: LinhaParceria[];
+            eletroposto_nota1: any[]; agendamentos: any[] } = {
+  avisos: [], aviso_envios: [], eletroposto_parceria: [], eletroposto_nota1: [], agendamentos: [],
 };
+/** Tabelas que respondem com ERRO nesta rodada: é como se prova o fail-closed. */
+const falhar = new Set<string>();
 
 /** Builder mínimo do PostgREST: só o que o serviço realmente encadeia. */
 function fakeFrom(tabela: string) {
@@ -53,6 +56,7 @@ function fakeFrom(tabela: string) {
       };
     },
     _resolver() {
+      if (falhar.has(tabela)) return Promise.resolve({ data: null, error: { message: 'caiu' }, count: null });
       const linhas = ((db as any)[tabela] || []).filter((r: any) => q._filtros.every((f: any) => f(r)));
       return Promise.resolve({ data: q._contando ? null : linhas, error: null, count: linhas.length });
     },
@@ -132,7 +136,8 @@ const contato = (tel: string, over: Partial<LinhaParceria> = {}): LinhaParceria 
 });
 
 beforeEach(() => {
-  db.avisos = []; db.aviso_envios = []; db.eletroposto_parceria = [];
+  db.avisos = []; db.aviso_envios = []; db.eletroposto_parceria = []; db.eletroposto_nota1 = []; db.agendamentos = [];
+  falhar.clear();
   dbMain.io_broadcast_envios = [];
   silenciados.clear();
   gates.janela = true; gates.espaco = true;
@@ -160,6 +165,12 @@ describe('montarTextoAviso', () => {
   it('carrega sempre a linha de por que a pessoa está recebendo', () => {
     const t = montarTextoAviso({ titulo: null, corpo: 'Pauta.' }, {});
     expect(t).toContain('se cadastrou como parceiro do eletroposto');
+  });
+
+  it('o Curioso NÃO ouve que se cadastrou: a maioria só preencheu a ficha da LP', () => {
+    const t = montarTextoAviso({ titulo: null, corpo: 'Quanto pensa em investir?' }, { lado: 'curioso' });
+    expect(t).toContain('pediu informações sobre eletroposto');
+    expect(t).not.toContain('se cadastrou');
   });
 });
 
@@ -352,5 +363,53 @@ describe('runAvisosTick — os freios', () => {
 
     expect(enviarZapiIO).toHaveBeenCalledTimes(1);
     expect((enviarZapiIO.mock.calls[0] as any[])[0]).toBe('5564984216277');
+  });
+});
+
+describe('o grupo CURIOSO (21/09/2026)', () => {
+  const curiosoBase = () => {
+    db.eletroposto_parceria = [
+      // disse 140 mil: é investidor, não recebe a pergunta
+      { ...contato('5511900000001', { lado: 'capital' }), id: 1, capital_faixa: 'R$ 140 mil' } as any,
+      // "depende do ponto": curioso
+      { ...contato('5511900000002', { lado: 'capital' }), id: 2, capital_faixa: 'Depende do ponto' } as any,
+    ];
+    db.eletroposto_nota1 = [
+      { id: 7, telefone: '5511900000003', nome: 'Ficha Lp', cidade: 'Goiânia', ficha: '', valor_investir: null,
+        status: 'novo', created_at: '2026-09-12T12:00:00Z' },
+    ];
+    db.avisos = [avisoBase({ publicos: ['curioso'], corpo: 'Oi {nome}, quanto pensa em investir?' })];
+  };
+
+  it('manda pra quem não disse o valor, de cadastro e de ficha, com o rodapé do Curioso', async () => {
+    curiosoBase();
+    const r = await runAvisosTick();
+    expect(r.enviados).toBe(1);
+    expect(enviarZapiIO).toHaveBeenCalledTimes(1);
+    const texto = String((enviarZapiIO.mock.calls[0] as any[])[1]);
+    expect(texto).toContain('pediu informações sobre eletroposto');
+    const envio = db.aviso_envios[0] as any;
+    expect(envio.lado).toBe('curioso');
+    expect(['parceria:2', 'nota1:7']).toContain(envio.origem_ref);
+    // o investidor de 140 mil não está na audiência
+    expect(db.avisos[0].alvo).toBe(2);
+  });
+
+  it('a pauta anda até os dois e só então conclui', async () => {
+    curiosoBase();
+    await runAvisosTick();
+    await runAvisosTick();
+    const fones = db.aviso_envios.map(e => e.phone).sort();
+    expect(fones).toEqual(['5511900000002', '5511900000003']);
+    expect(db.avisos[0].status).toBe('concluido');
+  });
+
+  it('ERRO lendo as fichas não conclui a pauta: sem lista não sai nada, e ela continua na fila', async () => {
+    curiosoBase();
+    falhar.add('eletroposto_nota1');
+    const r = await runAvisosTick();
+    expect(r.motivo).toBe('erro_lista');
+    expect(enviarZapiIO).not.toHaveBeenCalled();
+    expect(db.avisos[0].status).toBe('rodando');
   });
 });
