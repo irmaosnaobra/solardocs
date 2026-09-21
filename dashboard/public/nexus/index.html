@@ -73,7 +73,7 @@
           "item": {
             "@type": "Product", "name": "NEXUS DC80", "sku": "NEXUS-DC80",
             "description": "Carregador rápido DC de 80 kW, dois plugues CCS2, dois carros ao mesmo tempo, OCPP 1.6J.",
-            "image": "https://solardoc.app/nexus/img/p-dc.webp",
+            "image": ["https://solardoc.app/nexus/img/p-dc.webp", "https://solardoc.app/nexus/img/dc-perspectiva.webp", "https://solardoc.app/nexus/img/dc-lateral.webp", "https://solardoc.app/nexus/img/dc-traseira.webp"],
             "category": "Carregador para veículo elétrico",
             "brand": { "@type": "Brand", "name": "NEXUS" },
             "offers": { "@type": "Offer", "price": "69990.00", "priceCurrency": "BRL", "availability": "https://schema.org/InStock", "itemCondition": "https://schema.org/NewCondition", "url": "https://solardoc.app/nexus#produtos", "seller": { "@id": "https://solardoc.app/nexus#empresa" } }
@@ -84,7 +84,7 @@
           "item": {
             "@type": "Product", "name": "NEXUS DC120", "sku": "NEXUS-DC120",
             "description": "Carregador rápido DC de 120 kW, dois plugues CCS2, divide a potência entre as vagas, OCPP 1.6J.",
-            "image": "https://solardoc.app/nexus/img/p-dc.webp",
+            "image": ["https://solardoc.app/nexus/img/p-dc.webp", "https://solardoc.app/nexus/img/dc-perspectiva.webp", "https://solardoc.app/nexus/img/dc-lateral.webp", "https://solardoc.app/nexus/img/dc-traseira.webp"],
             "category": "Carregador para veículo elétrico",
             "brand": { "@type": "Brand", "name": "NEXUS" },
             "offers": { "@type": "Offer", "price": "89990.00", "priceCurrency": "BRL", "availability": "https://schema.org/InStock", "itemCondition": "https://schema.org/NewCondition", "url": "https://solardoc.app/nexus#produtos", "seller": { "@id": "https://solardoc.app/nexus#empresa" } }
@@ -278,6 +278,18 @@ section{padding:56px 0 0;scroll-margin-top:78px}
   padding:4px 10px;font-size:11px;font-weight:600}
 .selo.destaque{background:var(--verde-fundo);color:var(--verde);border:1px solid var(--verde-linha)}
 .nota{margin-top:14px;font-size:12.5px;color:var(--fraco)}
+
+/* quatro vistas do gabinete DC: fundo branco como o dos cards, legenda no escuro */
+.vistas-titulo{margin:26px 0 12px}
+.vistas{display:grid;gap:14px;grid-template-columns:repeat(4,1fr)}
+.vistas figure{margin:0;background:var(--cartao);border:1px solid var(--linha);border-radius:16px;overflow:hidden}
+.vistas figure > div{background:#fff}
+.vistas img{width:100%;height:auto;aspect-ratio:1/1;object-fit:contain;padding:6px}
+.vistas figcaption{padding:10px 14px;font-size:13px;font-weight:600;color:var(--texto)}
+@media(max-width:700px){
+  .vistas{grid-template-columns:repeat(2,1fr);gap:10px}
+  .vistas figcaption{padding:8px 11px;font-size:12px}
+}
 
 /* ── faixa de posicionamento ─────────────────────────────────────────── */
 .posic{margin-top:16px;background:
@@ -645,6 +657,17 @@ footer .base{border-top:1px solid var(--linha);padding-top:20px;display:flex;gap
       </div>
     </article>
 
+  </div>
+
+  <!-- A arte final do gabinete DC em quatro vistas. A frente reaproveita o
+       p-dc.webp dos cards, que o navegador já baixou. Gerado por
+       scripts/trocar-carregador.js a partir das quatro vistas originais. -->
+  <p class="rotulo vistas-titulo">O gabinete da linha DC, dos quatro lados</p>
+  <div class="vistas">
+    <figure><div><img src="/nexus/img/p-dc.webp" width="1200" height="1200" alt="Gabinete NEXUS DC de frente, azul-marinho com faixas verdes, tela e a faixa CHARGING STATION, com um cabo CCS2 de cada lado" loading="lazy"></div><figcaption>Frente</figcaption></figure>
+    <figure><div><img src="/nexus/img/dc-perspectiva.webp" width="800" height="800" alt="Gabinete NEXUS DC em perspectiva, com a frente azul-marinho e a lateral com a grade de ventilação" loading="lazy"></div><figcaption>Frente em perspectiva</figcaption></figure>
+    <figure><div><img src="/nexus/img/dc-lateral.webp" width="800" height="800" alt="Gabinete NEXUS DC visto pela porta de serviço em perspectiva, com a grade de ventilação na lateral" loading="lazy"></div><figcaption>Porta de serviço</figcaption></figure>
+    <figure><div><img src="/nexus/img/dc-traseira.webp" width="800" height="800" alt="Traseira do gabinete NEXUS DC: porta de serviço com puxador e o logo da marca" loading="lazy"></div><figcaption>Traseira</figcaption></figure>
   </div>
 
   <div class="cabeca" style="margin-top:38px">
