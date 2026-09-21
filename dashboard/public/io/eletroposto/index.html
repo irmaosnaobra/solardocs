@@ -486,6 +486,8 @@
   .okTx b{display:block;color:var(--cream);font-weight:800;font-size:15px;margin-bottom:3px}
   .ok .okObs{color:var(--fraco);font-size:14px;font-weight:700;margin-top:22px}
   .ok .okObs #ok-dia{color:var(--neon-b)}
+  /* o link do material nas telas de fim do investidor e do curioso (21/09/2026) */
+  .ok .okObs a{color:var(--neon-b);font-weight:800;text-decoration:underline}
 
   /* ===== convite do grupo (NOTA 1) =====
      Não é tela de recusa: é a etapa ANTERIOR. Herda o bloco .ok (mesma moldura da
@@ -1179,8 +1181,12 @@
 
              A pergunta é sobre CONTROLE, não sobre vontade. Quem controla um local é,
              na prática, o dono do comércio: ele segue o quiz inteiro e agenda. Quem só
-             tem um lugar em vista não controla nada ainda, e é exatamente isso que o
-             material ensina a resolver — esse vai para o cadastro e para o curso. -->
+             tem um lugar em vista não controla nada ainda.
+
+             ATUALIZAÇÃO 21/09/2026: esse investidor sem local NÃO sai mais da página.
+             Ele ia para /io/eletroposto/parceria sem nada gravado, e quem desistia lá
+             sumia sem rastro. Agora ele responde o valor, nome, cidade e WhatsApp aqui
+             mesmo e termina numa tela desta página (ver OS QUATRO CAMINHOS DO QUIZ). -->
         <div class="passo" id="p-cap-local">
         <div class="fld">
           <label for="f-cap-local">E o local, você já tem?</label>
@@ -1189,6 +1195,31 @@
             <option value="meu">Tenho um local que é meu ou que eu administro</option>
             <option value="em_vista">Tenho um lugar em vista, mas ainda não é meu</option>
             <option value="nao">Não tenho local, é o que eu preciso achar</option>
+          </select></div>
+        </div>
+        </div>
+
+        <!-- ══ QUANTO O INVESTIDOR SEM LOCAL PÕE (21/09/2026) ═════════════════════
+             É a pergunta que separa INVESTIDOR de CURIOSO, com o piso do dono: de
+             R$ 50 mil pra cima é investidor. "Menos de R$ 50 mil" e "Ainda não sei"
+             existem de propósito: sem elas, ninguém que responde o quiz conseguia cair
+             no Curioso. Os rótulos são os MESMOS do "Registrar valor" do /gerador
+             (CAD_VALORES) e a regra do servidor lê exatamente estes textos: "Até R$ 50
+             mil" não serve, porque numa faixa vale o teto e ele passaria como 50. -->
+        <div class="passo" id="p-inv-valor">
+        <div class="fld">
+          <label for="f-inv-valor">Quanto você pensa em investir?</label>
+          <div class="inp"><select id="f-inv-valor">
+            <option value="">Selecione…</option>
+            <option value="50">R$ 50 mil</option>
+            <option value="70">R$ 70 mil</option>
+            <option value="100">R$ 100 mil</option>
+            <option value="140">R$ 140 mil</option>
+            <option value="280">R$ 280 mil</option>
+            <option value="500">R$ 500 mil</option>
+            <option value="500_mais">Mais de R$ 500 mil</option>
+            <option value="menos_50">Menos de R$ 50 mil</option>
+            <option value="naosei">Ainda não sei</option>
           </select></div>
         </div>
         </div>
@@ -1688,6 +1719,83 @@
           </div>
         </div>
         <p class="okObs">Obrigado. Quem instala é metade dessa conta.</p>
+      </div>
+
+      <!-- Fim do INVESTIDOR sem local (21/09/2026). Antes ele saía para
+           /io/eletroposto/parceria; agora termina aqui, cadastrado na lista de
+           investidores, com o aviso já no WhatsApp da equipe. -->
+      <div class="ok" id="ag-ok-inv">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <h3>Você está na lista de investidores</h3>
+        <p id="ok-inv-txt">...</p>
+        <div class="okSeguir">
+          <p><b>Enquanto a gente cruza, siga a gente.</b> Ponto novo saindo do chão e obra por dentro, na hora que acontece.</p>
+          <a class="btn" href="https://instagram.com/irmaosnaobra__" target="_blank" rel="noopener"
+             data-source="investidor-cartao">Seguir @irmaosnaobra__ →</a>
+        </div>
+        <div class="okCard">
+          <div class="okRow">
+            <div class="okIc"><svg viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01"/><path d="M21 12a9 9 0 0 1-9 9 8.9 8.9 0 0 1-4.3-1.1L3 21l1.1-4.7A8.9 8.9 0 0 1 3 12a9 9 0 1 1 18 0z"/></svg></div>
+            <div class="okTx">
+              <b>A equipe recebeu o seu cadastro agora.</b>
+              O valor e a sua cidade já chegaram no WhatsApp de quem cuida dos pontos, junto com os pontos que estão perto de você.
+            </div>
+          </div>
+          <div class="okRow">
+            <div class="okIc"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></div>
+            <div class="okTx">
+              <b>A gente chama quando aparecer um ponto que combina.</b>
+              Ponto é o que falta neste mercado. Entra na conversa quem está perto de um local pronto para arrendar, e por isso não damos prazo que não podemos cumprir.
+            </div>
+          </div>
+          <div class="okRow">
+            <div class="okIc"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+            <div class="okTx">
+              <b>Achou um local no caminho? Volta aqui.</b>
+              Com o local sob o seu controle, a conversa passa a ser de projeto e a reunião sai na hora.
+            </div>
+          </div>
+        </div>
+        <p class="okObs">Quer aprender a achar e avaliar um ponto? <a href="/ponto-certo" data-source="investidor-material">Conheça o material Ponto Certo</a>.</p>
+      </div>
+
+      <!-- Fim do CURIOSO (21/09/2026): quem ainda não sabe quanto põe (ou põe menos
+           de R$ 50 mil), e quem está negociando um local que ainda não é dele e quer
+           que a gente invista tudo. Nenhum dos dois é arrendamento nem investidor
+           ainda. A ficha fica gravada e a equipe fala com ele pela lista do Curioso. -->
+      <div class="ok" id="ag-ok-cur">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <h3>Recebemos o seu contato</h3>
+        <p id="ok-cur-txt">...</p>
+        <div class="okSeguir">
+          <p><b>Enquanto isso, siga a gente.</b> Ponto novo saindo do chão e obra por dentro, na hora que acontece.</p>
+          <a class="btn" href="https://instagram.com/irmaosnaobra__" target="_blank" rel="noopener"
+             data-source="curioso-cartao">Seguir @irmaosnaobra__ →</a>
+        </div>
+        <div class="okCard">
+          <div class="okRow">
+            <div class="okIc"><svg viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01"/><path d="M21 12a9 9 0 0 1-9 9 8.9 8.9 0 0 1-4.3-1.1L3 21l1.1-4.7A8.9 8.9 0 0 1 3 12a9 9 0 1 1 18 0z"/></svg></div>
+            <div class="okTx">
+              <b>A gente fala com você pelo WhatsApp.</b>
+              Quando aparecer uma oportunidade que combina com o que você respondeu, a equipe te chama por lá.
+            </div>
+          </div>
+          <div class="okRow" id="ok-cur-local" hidden>
+            <div class="okIc"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+            <div class="okTx">
+              <b>Fechou o imóvel no seu nome? Volta aqui.</b>
+              Só o dono, o inquilino ou quem administra o local pode assinar o arrendamento. Com o local sob o seu controle, ele entra na lista de pontos e a reunião sai na hora.
+            </div>
+          </div>
+          <div class="okRow">
+            <div class="okIc"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></div>
+            <div class="okTx">
+              <b>Quer entender antes de investir?</b>
+              O material Ponto Certo mostra como achar e avaliar um ponto de eletroposto, do zero.
+            </div>
+          </div>
+        </div>
+        <p class="okObs"><a href="/ponto-certo" data-source="curioso-material">Conheça o material Ponto Certo</a>. Obrigado pelo interesse.</p>
       </div>
 
       <!-- O NOTA 1 não vê tela aqui desde 15/09/2026 à noite: vai direto para o curso
@@ -2584,13 +2692,23 @@ const MODELO_SEM_CAPITAL = new Set(['cedo_espaco']);
 // No 01 ela nem aparece (MODELO_SEM_CAPITAL), porque quem investe somos nós: é só aí
 // que a pessoa não põe um centavo, e é só aí que ela está de fato oferecendo o imóvel.
 const MODELO_DINHEIRO_NOSSO = new Set(['cedo_espaco']);
+// AJUSTE DE 21/09/2026: arrendamento é só de quem PODE CEDER o local (contrato, Cl.
+// 16.1): inquilino, quem administra e quem representa o dono. Quem ainda está
+// NEGOCIANDO o imóvel não assina, e via "Seu local entrou na lista de pontos" para
+// depois aparecer no Curioso da aba. Agora ele vai direto pro Curioso
+// (paraCuriosoDoComercio), com a tela que diz o que falta.
+const RELACAO_QUE_CEDE = new Set(['administro', 'represento', 'inquilino']);
 function paraArrendamento(pontoV, relacaoV, modeloV, valorV){
   if(!MODELO_DINHEIRO_NOSSO.has(modeloV)) return false;
   // Trava de segurança, e regra em si: declarou valor, é comprador, vai para a agenda.
   // Hoje o 01 esconde e limpa esse campo, então isto nunca dispara — mas no dia em que
   // a lista de modelos mudar, a régua continua sendo "quem põe dinheiro tem reunião".
   if(valorV) return false;
-  return !(pontoV === 'definido' && relacaoV === 'proprietario');
+  return pontoV === 'definido' && RELACAO_QUE_CEDE.has(relacaoV);
+}
+/** Negociando um local que não é dele e querendo que a gente invista tudo: Curioso. */
+function paraCuriosoDoComercio(pontoV, modeloV, valorV){
+  return MODELO_DINHEIRO_NOSSO.has(modeloV) && !valorV && pontoV === 'negociando';
 }
 function onModelo(){
   const v = document.getElementById('f-modelo').value;
@@ -2897,10 +3015,12 @@ const soInvestidor = () => val('f-porta') === 'investidor';
  * vista não controla nada, e é isso que o material do /ponto-certo ensina a virar.
  */
 const investidorComLocal = () => soInvestidor() && val('f-cap-local') === 'meu';
+/** O investidor SEM local (lugar em vista ou nenhum): fica no quiz desde 21/09/2026. */
+const investidorSemLocal = () => soInvestidor() && !!val('f-cap-local') && !investidorComLocal();
 /** Quem vai para a agenda: dono de comércio e o investidor que já tem o local. */
 const vaiParaAgenda = () => soComercio() || investidorComLocal();
-/** Nome, cidade e WhatsApp são os três passos que as duas trilhas dividem. */
-const quizAqui = () => vaiParaAgenda() || soIntegrador();
+/** Nome, cidade e WhatsApp são os passos que as três trilhas dividem. */
+const quizAqui = () => vaiParaAgenda() || soIntegrador() || investidorSemLocal();
 
 const PASSOS = [
   { id:'p-porta',   ok:() => val('f-porta') ? null : 'Escolha uma das três opções.' },
@@ -2909,6 +3029,10 @@ const PASSOS = [
   // que ele não vai agendar.
   { id:'p-cap-local', quando: soInvestidor,
                       ok:() => val('f-cap-local') ? null : 'Escolha uma das opções.' },
+  // ── Trilha do investidor sem local (21/09/2026): o valor vem logo depois do
+  //    local, antes de nome e cidade. É ele que decide Investidor ou Curioso.
+  { id:'p-inv-valor', quando: investidorSemLocal,
+                      ok:() => val('f-inv-valor') ? null : 'Escolha quanto você pensa em investir.' },
   { id:'p-horario', quando: vaiParaAgenda, ok:() => slotSel ? null : 'Escolha um horário na lista.' },
   { id:'p-nome',    quando: quizAqui, ok:() => val('f-nome').length >= 3 ? null : 'Informe seu nome completo.' },
   { id:'p-cidade',  quando: quizAqui, ok:() => val('f-cidade').length >= 2 ? null : 'Informe a cidade e o estado (UF).' },
@@ -2982,20 +3106,17 @@ function pintarPasso(){
   // falta uma resposta pra dar.
   const pronto = ultimo && telefoneConfere();
   const btn = document.getElementById('ag-btn');
-  // SÓ O INVESTIDOR SAI DAQUI (16/09/2026). Antes o integrador saía junto, e por
-  // isso o botão dele dizia "Ir para o cadastro" em TODOS os passos: com
-  // `paraCadastro` verdadeiro, ele nunca chegava no `pronto` do último passo.
-  // Agora o integrador tem trilha própria e termina no botão de concluir.
-  // O investidor só vira "ir para o cadastro" DEPOIS de responder sobre o local, e
-  // só se a resposta não for "é meu". Antes de responder ele segue no Continuar,
-  // senão o botão pularia por cima da própria pergunta que decide o caminho dele.
-  const paraCadastro = soInvestidor() && !!val('f-cap-local') && !investidorComLocal();
-  const fecha = pronto && soIntegrador() ? 'integrador' : (pronto ? 'agendar' : 'proximo');
-  btn.textContent = paraCadastro ? 'Ir para o cadastro →'
-                  : fecha === 'integrador' ? 'Concluir meu cadastro →'
+  // NINGUÉM MAIS SAI DAQUI (21/09/2026). O investidor sem local ia para o cadastro
+  // em /io/eletroposto/parceria no botão "Ir para o cadastro"; agora ele termina o
+  // quiz aqui, como o integrador, no botão de concluir do último passo.
+  const fecha = !pronto ? 'proximo'
+              : soIntegrador()       ? 'integrador'
+              : investidorSemLocal() ? 'investidor'
+              :                        'agendar';
+  btn.textContent = fecha === 'integrador' || fecha === 'investidor' ? 'Concluir meu cadastro →'
                   : fecha === 'agendar'    ? 'Confirmar agendamento →'
                   :                          'Continuar →';
-  btn.dataset.acao = paraCadastro ? 'cadastro' : fecha;
+  btn.dataset.acao = fecha;
   // o aviso de erro é do passo que passou: some ao trocar de pergunta
   const m = document.getElementById('ag-msg');
   m.className = 'agMsg'; m.textContent = '';
@@ -3007,12 +3128,12 @@ function pintarPasso(){
   if(pilha && pilha.classList.contains('opcs')) campo = pilha.querySelector('.opc.on') || pilha.querySelector('.opc');
   if(campo && window.innerWidth > 760) campo.focus({preventScroll:true});
 }
-/** O clique do botão único: agenda, leva ao cadastro ou avança um passo. */
+/** O clique do botão único: agenda, cadastra aqui mesmo ou avança um passo. */
 function passoAcao(){
   const acao = document.getElementById('ag-btn').dataset.acao;
   if(acao === 'agendar')    return agendar();
   if(acao === 'integrador') return cadastrarIntegrador();
-  if(acao === 'cadastro')   return irParaCadastro();
+  if(acao === 'investidor') return cadastrarInvestidor();
   passoProximo();
 }
 
@@ -3026,8 +3147,9 @@ function onPorta(){
 
 /**
  * A resposta sobre o local muda a lista inteira de passos vivos do investidor:
- * "é meu" abre a trilha da agenda, o resto fecha e manda para o cadastro. Sem
- * repintar aqui, o botão continuaria com o rótulo da resposta anterior.
+ * "é meu" abre a trilha da agenda, o resto abre a trilha do investidor sem local
+ * (valor, nome, cidade, WhatsApp). Sem repintar aqui, a contagem de passos e o
+ * botão continuariam com a resposta anterior.
  */
 function onCapLocal(){
   const v = val('f-cap-local');
@@ -3035,22 +3157,158 @@ function onCapLocal(){
   if(typeof pintarPasso === 'function') pintarPasso();
 }
 
+// ══ OS QUATRO CAMINHOS DO QUIZ (21/09/2026) ══════════════════════════════════
+// Ordem do Thiago: tudo fica aqui, e cada pessoa termina numa das listas da aba
+// Cadastros do /gerador. O que decide a lista é a regra do servidor
+// (destinoDe em api/src/services/io/eletropostoPares.ts), e ESTE bloco só monta o
+// que é gravado:
+//   ARRENDAMENTO  pode ceder o local (proprietário, inquilino, administrador,
+//                 representante): cadastro lado 'ponto' (corpoDoArrendamento).
+//                 O proprietário vai para a reunião, e depois o consultor marca
+//                 ARRENDAMENTO no card da agenda.
+//   INVESTIDOR    não pode ceder e põe R$ 50 mil ou mais: cadastro lado 'capital'
+//                 com o valor (corpoDoInvestidor). Sem `automatico`: a equipe
+//                 recebe o aviso INVESTIDOR NOVO com os pontos perto, como recebia
+//                 quando ele se cadastrava na outra página.
+//   CURIOSO       não disse quanto põe, põe menos de R$ 50 mil, ou está negociando
+//                 um local que não é dele e quer que a gente invista tudo: só a
+//                 FICHA (nota1). Não entra como investidor: receberia as pautas de
+//                 Investidores com o rodapé "se cadastrou como parceiro", que é falso.
+//   PARCEIRO      o integrador, que já terminava aqui (cadastrarIntegrador).
+// O teste api/src/__tests__/eletropostoQuizDestino.test.ts LÊ este bloco e passa
+// cada combinação de respostas pela regra do servidor: se alguém mudar um rótulo e
+// a pessoa cair na lista errada, ele aponta a resposta.
+
+/** Valores do investidor que ficam no CURIOSO: abaixo do piso ou "não sei". */
+const VALOR_CURIOSO = new Set(['menos_50', 'naosei']);
+
+/** O que o investidor sem local grava. Pura (o teste roda sem página). */
+function corpoDoInvestidor(r){
+  if(VALOR_CURIOSO.has(r.valorCodigo)) return { rota: 'nota1', corpo: corpoDoCurioso({
+    nome: r.nome, telefone: r.telefone, cidade: r.cidade,
+    perfil: 'Investidor', ponto: r.local,
+    linhas: [`Ponto: ${r.local}`, `Quanto pretende investir: ${r.valor}`],
+  }) };
+  return { rota: 'parceria', corpo: {
+    lado: 'capital', nome: r.nome, telefone: r.telefone, cidade: r.cidade,
+    capital_faixa: r.valor,
+    obs: `Veio do quiz da LP. Local: ${r.local}.`,
+  } };
+}
+
+/** O arrendamento que sai do quiz: a relação com o local é o rótulo exato da
+ *  pergunta "O local é seu?", que é o que a regra reconhece. Pura. */
+function corpoDoArrendamento(r){
+  return {
+    lado: 'ponto', nome: r.nome, telefone: r.telefone, cidade: r.cidade,
+    ponto_relacao: r.relacao, ponto_tipo: r.perfil, ponto_endereco: r.endereco,
+    ponto_vagas: r.vagas,
+    ...(r.fluxo ? { ponto_fluxo: r.fluxo } : {}),
+    obs: `Veio do quiz da LP. Pediu o modelo: ${r.modelo}.`,
+  };
+}
+
+/** A ficha do curioso: sem "Local é seu" que possa ceder e sem valor do piso pra
+ *  cima, a regra põe no Curioso. Pura. */
+function corpoDoCurioso(r){
+  return {
+    nome: r.nome, telefone: r.telefone, cidade: r.cidade,
+    perfil: r.perfil, ponto: r.ponto,
+    ...(r.endereco ? { endereco: r.endereco } : {}),
+    ...(r.invest ? { invest: r.invest } : {}),
+    ...(r.decisor ? { decisor: r.decisor } : {}),
+    pts: r.pts || 0,
+    ficha: [`LP ELETROPOSTO · ${r.perfil}`, ...r.linhas].join('\n'),
+  };
+}
+// ══ FIM DOS QUATRO CAMINHOS ═══════════════════════════════════════════════════
+
+/** O texto da opção marcada num select. */
+const textoDe = id => (document.getElementById(id).selectedOptions[0] || {}).text || '';
+
+/** Troca o quiz pela tela de fim, do mesmo jeito das outras (integrador, arrendamento). */
+function mostrarFim(idTela){
+  document.getElementById('ag-form').style.display = 'none';
+  const tela = document.getElementById(idTela);
+  tela.style.display = 'block';
+  tela.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
 /**
- * O INVESTIDOR vai para /io/eletroposto/parceria, que já é o cadastro da casa:
- * grava na mesma tabela, avisa a equipe no WhatsApp e leva ao curso depois de
- * enviar. As UTMs da visita seguem na query, senão a origem se perde na troca de
- * página. O integrador saiu daqui em 16/09/2026: ele tem trilha no próprio quiz.
+ * Grava a FICHA do curioso e mostra a tela dele. A rota /nota1 responde ok mesmo
+ * quando o banco falha (é o jeito da NOTA 1 seguir pro curso); aqui a pessoa fica na
+ * página, então só vale como gravado se voltar o id da ficha.
  */
-function irParaCadastro(){
-  const porta = val('f-porta');
-  if(!porta) return erro('Escolha uma das três opções.');
-  track('porta_cadastro_' + porta);
-  const q = new URLSearchParams(location.search);
-  q.set('lado', 'capital');
-  q.set('de', 'quiz');
+async function gravarCurioso(corpo, evento, textoFim, mostraLocal){
   const btn = document.getElementById('ag-btn');
-  btn.disabled = true; btn.textContent = 'Um instante…';
-  setTimeout(() => { location.href = '/io/eletroposto/parceria/?' + q.toString(); }, 200);
+  const rotulo = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Enviando…';
+  try {
+    const r = await fetch('/_api/io/eletroposto/nota1', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ ...corpo, ...utmPrimeiroToque() }),
+    });
+    const j = await r.json().catch(() => null);
+    if(!r.ok || !j || !j.id) throw new Error('ficha nao gravada');
+    track(evento);
+    try {
+      sessionStorage.setItem('ep_lead', JSON.stringify({
+        nome: corpo.nome, telefone: corpo.telefone,
+        telefone_visivel: document.getElementById('f-tel').value.trim(),
+        cidade: corpo.cidade, lado: '',
+      }));
+    } catch(_){}
+    document.getElementById('ok-cur-txt').textContent = textoFim;
+    document.getElementById('ok-cur-local').hidden = !mostraLocal;
+    mostrarFim('ag-ok-cur');
+  } catch(e){
+    console.error(e);
+    btn.disabled = false; btn.textContent = rotulo;
+    erro('Não consegui salvar agora, pode ser a sua conexão. Tente de novo em alguns segundos; se insistir, chame a gente no WhatsApp (34) 99816-5040.');
+  }
+}
+
+/**
+ * O INVESTIDOR SEM LOCAL TERMINA AQUI (21/09/2026), sem trocar de página.
+ * Do piso pra cima: cadastro de investidor, com o aviso da equipe. Abaixo do piso
+ * ou "ainda não sei": a ficha do curioso.
+ */
+async function cadastrarInvestidor(){
+  const nome = val('f-nome');
+  const primeiro = nome.split(/\s+/)[0];
+  const r = corpoDoInvestidor({
+    nome, telefone: telParaBanco(), cidade: val('f-cidade'),
+    local: textoDe('f-cap-local'), valor: textoDe('f-inv-valor'), valorCodigo: val('f-inv-valor'),
+  });
+  if(r.rota === 'nota1'){
+    return gravarCurioso(r.corpo, 'curioso_do_quiz',
+      `Pronto, ${primeiro}. A equipe vai te mandar as oportunidades de eletroposto pelo WhatsApp.`, false);
+  }
+  const btn = document.getElementById('ag-btn');
+  const rotulo = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Enviando…';
+  try {
+    const resp = await fetch('/_api/io/eletroposto/parceria', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ ...r.corpo, ...utmPrimeiroToque() }),
+    });
+    if(!resp.ok) throw new Error('http ' + resp.status);
+    track('investidor_do_quiz');
+    try {
+      sessionStorage.setItem('ep_lead', JSON.stringify({
+        nome, telefone: r.corpo.telefone,
+        telefone_visivel: document.getElementById('f-tel').value.trim(),
+        cidade: r.corpo.cidade, lado: 'capital',
+      }));
+    } catch(_){}
+    document.getElementById('ok-inv-txt').textContent =
+      `Pronto, ${primeiro}. O seu cadastro de investidor chegou na equipe.`;
+    mostrarFim('ag-ok-inv');
+  } catch(e){
+    console.error(e);
+    btn.disabled = false; btn.textContent = rotulo;
+    erro('Não consegui salvar seu cadastro agora, pode ser a sua conexão. Tente de novo em alguns segundos; se insistir, chame a gente no WhatsApp (34) 99816-5040.');
+  }
 }
 function passoProximo(){
   const vivos = passosVivos();
@@ -3087,7 +3345,7 @@ function mostrarContinuar(){
 // de 220 ms, e no celular a pergunta trocava debaixo do dedo. Agora o único jeito de
 // mudar de passo é o botão, e a escolha só marca, pinta e traz o botão para a vista.
 // ═══════════════════════════════════════════════════════════════════════════
-const SELECTS_EM_BOTAO = ['f-porta','f-cap-local','f-perfil','f-rota','f-ponto','f-relacao','f-vagas','f-modelo','f-invest','f-valor','f-decisor',
+const SELECTS_EM_BOTAO = ['f-porta','f-cap-local','f-inv-valor','f-perfil','f-rota','f-ponto','f-relacao','f-vagas','f-modelo','f-invest','f-valor','f-decisor',
                           // Trilha do integrador. Select que não entra nesta lista
                           // continua sendo a lista do sistema no celular, que é
                           // exatamente o que o bloco acima diz que foi consertado.
@@ -3407,6 +3665,28 @@ async function agendar(){
   // respondeu, o aviso de ARRENDAMENTO cai no WhatsApp da equipe com o bloco de
   // investidores mais perto, e o ponto entra no top 20 do dia. O que ele não faz é
   // ocupar uma hora de especialista para falar de um imóvel que não é dele.
+  // ══ NEGOCIANDO E SEM PÔR NADA: CURIOSO (21/09/2026) ═══════════════════════
+  // Ele não pode ceder o local (ainda não é dele) e não põe dinheiro: não é
+  // arrendamento nem investidor. A ficha grava tudo que ele respondeu, inclusive o
+  // endereço que está negociando, e a tela diz o que falta para virar ponto.
+  if(paraCuriosoDoComercio(ponto.value, modelo.value, valor.value)){
+    const enderecoN = [`${rua}, ${numero}`, bairro, cidade, cep ? `CEP ${cep}` : '']
+      .filter(Boolean).join(' · ');
+    return gravarCurioso(corpoDoCurioso({
+      nome, telefone: telE164, cidade,
+      perfil: perfilTexto(perfil), ponto: txt(ponto), endereco: enderecoN,
+      invest: investTexto, decisor: txt(decisor), pts: q.pts,
+      linhas: [
+        `Modelo de interesse: ${txt(modelo)}`,
+        `Ponto: ${txt(ponto)}`,
+        `Endereço em negociação: ${enderecoN}`,
+        ...(PONTO_COM_VAGAS.has(ponto.value) ? [`Vagas disponíveis: ${txt(vagas)}`] : []),
+        `Decisor: ${txt(decisor)}`,
+      ],
+    }), 'curioso_negociando',
+      `Pronto, ${String(nome).split(/\s+/)[0]}. Anotamos o local que você está negociando.`, true);
+  }
+
   if(paraArrendamento(ponto.value, relacao.value, modelo.value, valor.value)){
     const btnA = document.getElementById('ag-btn');
     const rotuloA = btnA.textContent;
@@ -3416,17 +3696,15 @@ async function agendar(){
     try {
       const r = await fetch('/_api/io/eletroposto/parceria', {
         method:'POST', headers:{'Content-Type':'application/json'},
+        // Mesmo vocabulário da porta do ponto em /parceria: as duas entradas
+        // gravam na mesma coluna, e a aba Arrendamento não pode ter dois idiomas.
         body: JSON.stringify({
-          lado: 'ponto',
-          nome, telefone: telE164, cidade,
-          // Mesmo vocabulário da porta do ponto em /parceria: as duas entradas
-          // gravam na mesma coluna, e a aba Arrendamento não pode ter dois idiomas.
-          ponto_relacao: ponto.value === 'definido' ? txt(relacao) : 'Estou negociando com o proprietário',
-          ponto_tipo: perfilTexto(perfil),
-          ponto_endereco: enderecoPonto,
-          ponto_vagas: txt(vagas),
-          ...(PERFIL_SEM_FLUXO.has(perfil.value) ? { ponto_fluxo: txt(rota) } : {}),
-          obs: `Veio do quiz da LP. Pediu o modelo: ${txt(modelo)}.`,
+          ...corpoDoArrendamento({
+            nome, telefone: telE164, cidade,
+            relacao: txt(relacao), perfil: perfilTexto(perfil), endereco: enderecoPonto,
+            vagas: txt(vagas), fluxo: PERFIL_SEM_FLUXO.has(perfil.value) ? txt(rota) : '',
+            modelo: txt(modelo),
+          }),
           ...utmPrimeiroToque(),
         }),
       });

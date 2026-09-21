@@ -3954,7 +3954,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <button type="button" class="cad-aba ativa" id="cad-aba-ponto" onclick="cadAba('ponto')">Arrendamento <span class="cad-cnt" id="cad-cnt-ponto">—</span></button>
           <button type="button" class="cad-aba" id="cad-aba-capital" onclick="cadAba('capital')">Investidores <span class="cad-cnt" id="cad-cnt-capital">—</span></button>
           <button type="button" class="cad-aba" id="cad-aba-curioso" onclick="cadAba('curioso')">Curioso <span class="cad-cnt" id="cad-cnt-curioso">—</span></button>
-          <button type="button" class="cad-aba" id="cad-aba-integrador" onclick="cadAba('integrador')">Integradores <span class="cad-cnt" id="cad-cnt-integrador">—</span></button>
+          <button type="button" class="cad-aba" id="cad-aba-integrador" onclick="cadAba('integrador')">Parceiros <span class="cad-cnt" id="cad-cnt-integrador">—</span></button>
           <button type="button" class="cad-aba" id="cad-aba-match" onclick="cadAba('match')">Match <span class="cad-cnt" id="cad-cnt-match">—</span></button>
         </div>
         <div class="cad-acoes">
@@ -8269,7 +8269,7 @@ function cadAba(lado) {
     ponto: 'Arrendamento — quem tem o local',
     capital: 'Investidores: R$ ' + CAD_PISO_MIL + ' mil ou mais, sem local pra ceder',
     curioso: 'Curioso: não disse quanto investe, ou disse menos de R$ ' + CAD_PISO_MIL + ' mil',
-    integrador: 'Integradores — quem instala e quer vender eletroposto',
+    integrador: 'Parceiros: integradores que instalam e querem vender eletroposto',
     match: 'Match — duplas a até ' + CAD_MATCH_KM + ' km uma da outra',
   };
   document.getElementById('cad-titulo').textContent = TITULO[lado];
@@ -8430,7 +8430,7 @@ function cadRender() {
         : cadLado === 'curioso'
         ? '<b>Ninguém aqui.</b><br>Todo mundo que não pode ceder um local já disse quanto investe.'
         : cadLado === 'integrador'
-        ? '<b>Nenhum integrador cadastrado ainda.</b><br>A porta existe na página de parceria, mas a LP do eletroposto foi escrita pra AFASTAR integrador — ela só enche com link próprio.'
+        ? '<b>Nenhum parceiro cadastrado ainda.</b><br>O integrador se cadastra pelo quiz da LP (porta Integrador) ou pela página de parceria.'
         : '<b>Ninguém com capital declarado ainda.</b>')
       : 'Nada com esse filtro.') + '</td></tr>';
     return;
@@ -8517,7 +8517,9 @@ function cadRender() {
     return '<tr>' + nome
       + '<td>' + escapeHtml(r.cidade || '—') + '</td>'
       + '<td>' + escapeHtml(r.valor_investir || '—') + '</td>'
-      + '<td>' + escapeHtml(r.capital_origem || '—') + (r.prazo ? '<span class="cad-sub">' + escapeHtml(r.prazo) + '</span>' : '') + '</td>'
+      + '<td>' + escapeHtml(r.capital_origem || '—') + (r.prazo ? '<span class="cad-sub">' + escapeHtml(r.prazo) + '</span>' : '')
+        // o investidor do quiz (21/09) traz aqui o local que tinha em vista
+        + (r.obs ? '<span class="cad-sub">' + escapeHtml(r.obs) + '</span>' : '') + '</td>'
       + '<td>' + org + '</td>' + cadParesCel(r) + st + '</tr>'
       + (cadParesAberto === cadRef(r) ? '<tr class="cad-par-tr"><td colspan="7">' + cadParesHTML(r) + '</td></tr>' : '');
   }).join('');
