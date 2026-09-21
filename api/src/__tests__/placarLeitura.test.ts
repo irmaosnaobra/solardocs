@@ -3,16 +3,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // ─────────────────────────────────────────────────────────────────────────────
 // A LEITURA PAGINADA DO PLACAR.
 //
-// Este arquivo existe por causa de um defeito que chegou a PRODUÇÃO em
-// 19/09/2026: o placar disse 17 conversas onde o banco tinha 107. A leitura
-// pedia páginas de mil e parava quando o lote vinha menor que mil — só que o
-// servidor tem teto próprio, MENOR que isso, então o primeiro lote já vinha
-// "curto" e a varredura parava na primeira página. Nenhum erro, nenhum aviso,
-// só um número baixo e tranquilizador.
+// O servidor tem teto próprio de linhas por resposta, e ele pode ser menor que
+// a página pedida. Uma leitura que para quando o lote vem "menor que o pedido"
+// encerra logo na primeira página, sem erro nenhum. Por isso a leitura anda
+// pelo tamanho do lote que VOLTOU e só para quando o banco devolve vazio.
 //
 // O mock aqui devolve páginas de 500 pra um pedido de 1000, que é exatamente a
-// forma do defeito. Se alguém voltar a andar pelo tamanho PEDIDO em vez do
+// forma desse defeito. Se alguém voltar a andar pelo tamanho PEDIDO em vez do
 // tamanho que VOLTOU, este teste cai.
+//
+// (Em 19/09 este cabeçalho dizia que foi esse corte que fez o placar mostrar 17
+// conversas onde havia 107. Não foi: a causa era o filtro da contagem, que está
+// preso em placarConta.test.ts. Este teste continua valendo pelo que ele prova.)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TETO_DO_SERVIDOR = 500;

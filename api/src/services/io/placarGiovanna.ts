@@ -162,6 +162,11 @@ export interface Placar {
   hora: number;             // hora BRT deste placar
   anterior: number | null;  // quantas conversas no tick anterior (null no 1º do dia)
   horaAnterior: number | null;
+  /** Diagnóstico, não vai no texto: quantas mensagens a leitura trouxe da janela.
+   *  É o número do meio. Sem ele, um placar baixo não diz se a conta está errada
+   *  ou se a leitura veio pela metade — e foi confundir as duas coisas que fez
+   *  um conserto de paginação subir sem mexer no número (21/09/2026). */
+  lidas?: number;
 }
 
 /** Espera legível: 3h vira "3h", 50h vira "2 dias". */
@@ -230,33 +235,22 @@ export async function medirPlacar(hora: number): Promise<Placar | null> {
   const agora = new Date();
   const desde = new Date(Date.now() - DIAS_JANELA * 86400_000).toISOString();
 
-  // LÊ PAGINADO, e é a correção do defeito que quase entrou aqui inteiro.
+  // LÊ PAGINADO, AVANÇANDO PELO QUE VOLTOU.
   //
-  // A tentação é um `.limit(20000)` só. Não funciona: o PostgREST tem teto
-  // próprio de linhas por resposta e devolve a fatia calada, sem erro. Pedir
-  // 20 mil e receber mil parece leitura completa — e o guarda `length >= limite`
-  // nunca dispara, porque o corte não é o que a gente pediu.
+  // Um `.limit(20000)` só não lê 20 mil: o PostgREST tem teto próprio de linhas
+  // por resposta e devolve a fatia calada, sem erro. Por isso a leitura vai de
+  // página em página, e anda pelo tamanho do lote que VOLTOU, não pelo que foi
+  // pedido — se o teto do servidor for menor que a página, parar no "lote curto"
+  // encerraria a leitura logo na primeira. Assim o teto deixa de importar: seja
+  // 500, mil ou dez mil, a leitura vai até o banco devolver vazio.
   //
-  // A conta de 19/09/2026: a linha faz ~5.500 mensagens por semana. Com teto de
-  // mil e ordem decrescente, o placar enxergaria pouco mais de UM dia e contaria
-  // ~22 conversas onde existem 100 — e 78 das 100 esperam há mais de 24h, ou
-  // seja, some justo o que mais importa. Número baixo, nenhum erro, e o placar
-  // dizendo que está tudo bem.
-  //
-  // É o mesmo buraco que escondeu gente da sentinela até 18/09, só que lá a
-  // ordem crescente fazia perder o RECENTE. Paginando, não se perde nenhum.
-  // O PONTO FINO, E ELE JÁ ME PEGOU UMA VEZ: avançar pelo que VOLTOU, não pelo
-  // que foi pedido. A primeira versão pedia páginas de mil e parava quando o
-  // lote vinha menor que mil — só que o servidor tem teto PRÓPRIO, menor que
-  // isso, então o primeiro lote já vinha "curto" e a leitura parava na hora.
-  //
-  // Medido em produção em 19/09/2026 pelo `?seco=1`: o placar disse 17 conversas
-  // onde o banco tinha 107, porque leu algumas centenas das 5.746 mensagens da
-  // semana. Nenhum erro, nenhum aviso — só um número baixo e tranquilizador, que
-  // é a pior forma de errar num painel de cobrança.
-  //
-  // Andando pelo tamanho do lote, o teto do servidor deixa de importar: seja 500,
-  // mil ou dez mil, a leitura vai até acabar.
+  // CORREÇÃO DE HISTÓRIA, pra quem vier depois: em 19/09 eu escrevi aqui que era
+  // este corte que fazia o placar dizer 17 conversas onde havia 107. Não era. O
+  // conserto da paginação subiu e o número seguiu igual (21 antes, 21 depois).
+  // A causa era o filtro da contagem, mais abaixo (ver `achouNossaUltima`). A
+  // paginação fica porque o teto do servidor existe de verdade; só não era ele.
+  // Conferir uma hipótese é ver o número MUDAR depois do conserto, não ver o
+  // conserto subir.
   const PAGINA = Number(process.env.PLACAR_PAGINA || 1000);
   const TETO_MSGS = Number(process.env.PLACAR_MAX_MSGS || 40000);      // 7x a semana cheia
   const msgs: Array<Record<string, unknown>> = [];
@@ -307,21 +301,31 @@ export async function medirPlacar(hora: number): Promise<Placar | null> {
   }
   const FOLGA_ENTREGA_MS = 120_000;
 
-  interface Estado { pendentes: number; ultimaDeles: number | null; respondido: boolean }
+  // `achouNossaUltima` quer dizer "cheguei na nossa última resposta andando pra
+  // trás: daqui pra baixo é passado". NÃO quer dizer "a conversa foi atendida".
+  // Quem escreveu DEPOIS dessa resposta está esperando do mesmo jeito.
+  //
+  // Até 21/09/2026 este campo se chamava `respondido`, e o filtro lá embaixo leu
+  // o nome ao pé da letra: jogava fora toda conversa em que a gente já tinha
+  // respondido alguma vez na semana, mesmo com o cliente tendo escrito de novo
+  // depois. Sobrava só quem nunca recebeu resposta nenhuma. Os placares daquele
+  // dia disseram 21 conversas onde havia ~107. O nome novo é pra ninguém
+  // tropeçar no mesmo lugar.
+  interface Estado { pendentes: number; ultimaDeles: number | null; achouNossaUltima: boolean }
   const porTel = new Map<string, Estado>();
   for (const m of (msgs || []) as Array<Record<string, unknown>>) {
     const k = chaveContato(String(m.telefone || ''));
     if (!k) continue;
     const t = Date.parse(String(m.momment || ''));
     if (!Number.isFinite(t)) continue;
-    const e = porTel.get(k) || { pendentes: 0, ultimaDeles: null, respondido: false };
-    if (e.respondido) continue;                   // já achei nossa resposta mais nova: o resto é passado
+    const e = porTel.get(k) || { pendentes: 0, ultimaDeles: null, achouNossaUltima: false };
+    if (e.achouNossaUltima) continue;             // já achei nossa resposta mais nova: o resto é passado
     if (m.from_me) {
       // A despedida da recepção não é gente chegando. Se a nossa mensagem caiu
       // na janela da entrega, ela não fecha a conversa — segue contando.
       const entregueEm = entregues.get(k);
       const ehBolhaDeEntrega = entregueEm !== undefined && Math.abs(t - entregueEm) <= FOLGA_ENTREGA_MS;
-      if (!ehBolhaDeEntrega) e.respondido = true;
+      if (!ehBolhaDeEntrega) e.achouNossaUltima = true;
     } else {
       e.pendentes += 1;
       if (e.ultimaDeles === null) e.ultimaDeles = t;
@@ -340,7 +344,9 @@ export async function medirPlacar(hora: number): Promise<Placar | null> {
   let conversas = 0, mensagens = 0, hoje = 0, mais24h = 0, maisAntiga = 0;
   for (const [k, e] of porTel) {
     if (DA_CASA.has(k)) continue;
-    if (e.respondido || e.pendentes === 0 || e.ultimaDeles === null) continue;
+    // Esperando = mensagem DELES depois da nossa última. Achar ou não a nossa
+    // última não entra aqui: ela só marca onde parar de contar.
+    if (e.pendentes === 0 || e.ultimaDeles === null) continue;
     conversas += 1;
     mensagens += e.pendentes;
     const horas = (agora.getTime() - e.ultimaDeles) / 3_600_000;
@@ -368,6 +374,7 @@ export async function medirPlacar(hora: number): Promise<Placar | null> {
     // placar faz (dar tamanho da fila) e mentiria se virasse régua de prazo.
     maisAntigaH: Math.round(maisAntiga * 10) / 10,
     hora, anterior, horaAnterior,
+    lidas: msgs.length,
   };
 }
 
