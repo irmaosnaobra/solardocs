@@ -3942,9 +3942,9 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="pesquisa-info">
         Duas respostas decidem onde cada pessoa cai. <b>Arrendamento</b>: quem pode ceder o local
         (dono, inquilino, administrador ou representante) e quem foi marcado ARRENDAMENTO na agenda.
-        <b>Investidores</b>: quem não pode ceder um local e disse que investe R$ 70 mil ou mais.
-        <b>Curioso</b>: quem ainda não disse quanto investe, ou disse menos de R$ 70 mil. Quando a
-        pessoa responde um valor de R$ 70 mil ou mais, ela passa para Investidores sozinha.
+        <b>Investidores</b>: quem não pode ceder um local e disse que investe R$ 50 mil ou mais.
+        <b>Curioso</b>: quem ainda não disse quanto investe, ou disse menos de R$ 50 mil. Quando a
+        pessoa responde um valor de R$ 50 mil ou mais, ela passa para Investidores sozinha.
         Entram os cadastros de <b>solardoc.app/io/eletroposto/parceria</b>, as fichas da LP e os
         arrendamentos da agenda. O status é seu: marque conforme for falando.
       </div>
@@ -4006,7 +4006,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         Escreva a pauta uma vez, escolha os grupos e a mensagem vai saindo sozinha,
         de uma em uma, pra quem se cadastrou em <b>solardoc.app/io/eletroposto/parceria</b>.
         O grupo <b>Curioso</b> é o da aba Cadastros: quem ainda não disse quanto investe,
-        do cadastro e das fichas da LP. Quando um curioso responde R$ 70 mil ou mais,
+        do cadastro e das fichas da LP. Quando um curioso responde R$ 50 mil ou mais,
         ele passa sozinho para Investidores.
         A lista se atualiza sozinha: quem se cadastrar depois de você enviar entra no
         mesmo aviso. Quem estiver marcado como <b>sem interesse</b> na aba Cadastros
@@ -8183,9 +8183,11 @@ function eletroSubaba(qual) {
 // ── PRA ONDE CADA PESSOA VAI (regra do dono, 21/09/2026) ────────────────────
 // Duas respostas decidem, e so elas:
 //   PODE CEDER o local                    -> ARRENDAMENTO
-//   nao pode, declarou R$ 70 mil ou mais  -> INVESTIDORES
+//   nao pode, declarou R$ 50 mil ou mais  -> INVESTIDORES
 //   nao pode, disse menos ou NAO DISSE    -> CURIOSO (a equipe pergunta o valor;
-//                                            quem responde 70 ou mais sobe sozinho)
+//                                            quem responde 50 ou mais sobe sozinho)
+// O piso e UM numero, CAD_PISO_MIL, gemeo de PISO_INVESTIDOR_MIL no servidor. Era 70
+// (o menor ingresso da LP) e desceu pra 50 em 21/09 ("de 50 mil pra cima", o dono).
 // "Pode ceder" e o contrato (Cl. 16.1): proprietario, inquilino com anuencia do
 // dono, administrador ou representante com poderes. Quem negocia o local ou "ainda
 // nao e dono" nao assina. A agenda marcada ARRENDAMENTO e sempre Arrendamento: o
@@ -8200,7 +8202,7 @@ function cadPodeCeder(relacao) {
   return /propriet|inquilin|represent|administr/.test(t);
 }
 /** O valor declarado em MIL reais, ou null quando a pessoa nao disse. Numa faixa
- *  vale o teto ("R$ 50 mil a R$ 100 mil" alcanca os 70). */
+ *  vale o teto ("R$ 50 mil a R$ 100 mil" alcanca o piso, CAD_PISO_MIL). */
 function cadValorEmMil(texto) {
   const t = String(texto || '').toLowerCase().replace(/\s+/g, ' ').trim();
   if (!t || /depende/.test(t)) return null;
@@ -8220,9 +8222,14 @@ function cadValorEmMil(texto) {
   const teto = Math.max.apply(null, nums);
   return /menos de|abaixo de/.test(t) ? teto - 0.01 : teto;
 }
+const CAD_PISO_MIL = 50;
+// "Menos de X" e um TETO: com X acima do piso ele nao prova nada ("Menos de R$ 70
+// mil", a opcao antiga do Registrar valor, pode ser 10 mil), entao e "nao disse".
 function cadValorOk(texto) {
   const v = cadValorEmMil(texto);
-  return v === null ? null : v >= 70;
+  if (v === null) return null;
+  if (/menos de|abaixo de/.test(String(texto).toLowerCase()) && v >= CAD_PISO_MIL) return null;
+  return v >= CAD_PISO_MIL;
 }
 /** 'ponto' | 'capital' | 'curioso', pra uma linha de cadastro, ficha ou agenda. */
 function cadDestino(origem, r) {
@@ -8260,8 +8267,8 @@ function cadAba(lado) {
   });
   const TITULO = {
     ponto: 'Arrendamento — quem tem o local',
-    capital: 'Investidores: R$ 70 mil ou mais, sem local pra ceder',
-    curioso: 'Curioso: ainda não disse quanto investe',
+    capital: 'Investidores: R$ ' + CAD_PISO_MIL + ' mil ou mais, sem local pra ceder',
+    curioso: 'Curioso: não disse quanto investe, ou disse menos de R$ ' + CAD_PISO_MIL + ' mil',
     integrador: 'Integradores — quem instala e quer vender eletroposto',
     match: 'Match — duplas a até ' + CAD_MATCH_KM + ' km uma da outra',
   };
@@ -8480,12 +8487,15 @@ function cadRender() {
         + (cadParesAberto === cadRef(r) ? '<tr class="cad-par-tr"><td colspan="8">' + cadParesHTML(r) + '</td></tr>' : '');
     }
     if (cadLado === 'curioso') {
-      // Declarou abaixo de 70 ou nao declarou: duas conversas diferentes, e a
+      // Declarou abaixo do piso ou nao declarou: duas conversas diferentes, e a
       // celula diz qual das duas e.
-      const motivo = r.valor_investir
+      // "Depende do ponto" tem texto mas nao tem numero: e "nao disse", nao "abaixo".
+      const disse = cadValorOk(r.valor_investir) === false;
+      const motivo = disse
         ? '<span class="cad-motivo abaixo">' + escapeHtml(r.valor_investir) + '</span>'
-          + (/menos|abaixo/i.test(r.valor_investir) ? '' : '<span class="cad-sub">abaixo de R$ 70 mil</span>')
-        : '<span class="cad-motivo">não disse</span>';
+          + (/menos|abaixo/i.test(r.valor_investir) ? '' : '<span class="cad-sub">abaixo de R$ ' + CAD_PISO_MIL + ' mil</span>')
+        : '<span class="cad-motivo">não disse</span>'
+          + (r.valor_investir ? '<span class="cad-sub">' + escapeHtml(r.valor_investir) + '</span>' : '');
       const local = r.ponto_relacao || cadRelacaoDaFicha(r) || r.ponto_fluxo || '—';
       return '<tr>' + nome
         + '<td>' + escapeHtml(r.cidade || '—') + '</td>'
@@ -8795,13 +8805,13 @@ function cadPadraoCel(r) {
 // Nao manda nada daqui: abre o menu de Avisos com o grupo Curioso marcado e a
 // pergunta escrita, e quem aperta "Colocar na fila" (com a conta do prazo na
 // frente) e a pessoa. A resposta volta sozinha: o servidor le o WhatsApp e quem
-// disser R$ 70 mil ou mais vai pra Investidores (api/.../curiosoRespostas.ts).
+// disser R$ 50 mil ou mais vai pra Investidores (api/.../curiosoRespostas.ts).
 const CAD_PERGUNTA_VALOR = 'Oi {nome}, tudo bem?\n'
   + 'Aqui é da Irmãos na Obra.\n'
   + 'Você pediu informações sobre investir em eletroposto com a gente.\n'
   + 'Estamos separando as oportunidades e quero te mostrar as que combinam com você.\n'
   + 'Quanto você pensa em investir?\n'
-  + 'Pode responder só com o valor. Por exemplo: 70 mil, 140 mil ou 280 mil.';
+  + 'Pode responder só com o valor. Por exemplo: 50 mil, 100 mil ou 200 mil.';
 function cadRenderChamadaCurioso() {
   const el = document.getElementById('cad-curioso-acao');
   if (!el) return;
@@ -8810,7 +8820,7 @@ function cadRenderChamadaCurioso() {
   if (!alvo) { el.hidden = true; el.innerHTML = ''; return; }
   el.hidden = false;
   el.innerHTML = '<div><b>Pergunte o valor a todos de uma vez.</b> A pergunta sai pela fila de Avisos, '
-    + 'de uma em uma, e quem responder R$ 70 mil ou mais vai sozinho para Investidores.</div>'
+    + 'de uma em uma, e quem responder R$ ' + CAD_PISO_MIL + ' mil ou mais vai sozinho para Investidores.</div>'
     + '<button type="button" onclick="cadPerguntarValor()">Perguntar a ' + alvo + ' pelo WhatsApp</button>';
 }
 function cadPerguntarValor() {
@@ -8827,8 +8837,10 @@ function cadPerguntarValor() {
 // ── REGISTRAR VALOR (Curioso) ───────────────────────────────────────────────
 // O consultor perguntou e a pessoa respondeu. Grava onde a linha mora (a ficha em
 // `valor_investir`, o cadastro em `capital_faixa`) e reclassifica na hora pela
-// mesma regra: 70 mil ou mais sobe pra Investidores. As opcoes sao as da LP.
-const CAD_VALORES = ['R$ 70 mil', 'R$ 140 mil', 'R$ 280 mil', 'R$ 500 mil', 'Mais de R$ 500 mil', 'Menos de R$ 70 mil'];
+// mesma regra: do piso pra cima sobe pra Investidores. As opcoes sao as da LP mais
+// o piso (50) e o 100; "Menos de R$ 50 mil" fica no Curioso.
+const CAD_VALORES = ['R$ 50 mil', 'R$ 70 mil', 'R$ 100 mil', 'R$ 140 mil', 'R$ 280 mil', 'R$ 500 mil',
+  'Mais de R$ 500 mil', 'Menos de R$ 50 mil'];
 function cadValorSelect(r) {
   if (!CAD_GRAVAVEL.has(r.tab)) return '—';
   return '<select class="cad-st cad-valor-sel" onchange="cadRegistrarValor(\'' + r.tab + '\',' + r.id + ',this)">'
@@ -8853,7 +8865,7 @@ async function cadRegistrarValor(tabela, id, sel) {
       cadDados.capital.unshift(r);
       showToast((r.nome || 'Lead') + ' foi para Investidores. Os pares aparecem ao atualizar, em até 5 minutos.');
     } else {
-      showToast('Valor salvo. Continua em Curioso: abaixo de R$ 70 mil.');
+      showToast('Valor salvo. Continua em Curioso: abaixo de R$ ' + CAD_PISO_MIL + ' mil.');
     }
     cadRender();
   } catch (e) {
@@ -9146,7 +9158,10 @@ async function aviRespostas(avisoId) {
           + (decidido[aviChave(p.phone)]
               ? (decidido[aviChave(p.phone)] === 'sem interesse'
                   ? '<em class="sair">pediu pra sair da lista</em>'
-                  : '<em>' + escapeHtml(decidido[aviChave(p.phone)]) + ' · foi para Investidores</em>')
+                  // 'lido sem mudança: R$ X' = a pessoa já tinha saído do Curioso antes
+                  : String(decidido[aviChave(p.phone)]).startsWith('R$')
+                    ? '<em>' + escapeHtml(decidido[aviChave(p.phone)]) + ' · foi para Investidores</em>'
+                    : '<em class="sair">' + escapeHtml(decidido[aviChave(p.phone)]) + '</em>')
               : '')
           + '<u>' + new Date(p.quando).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + '</u>'
           + '</a>').join('')

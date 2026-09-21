@@ -8,7 +8,7 @@ import { join } from 'node:path';
 // monta os pares e o Match, e cadDestino() na aba Cadastros do /gerador. Este teste
 // cobre a tabela de destino linha a linha e depois LÊ o JavaScript da aba e roda os
 // dois lado a lado. Se alguém mexer num só, ele aponta a resposta em que discordaram.
-import { destinoDe, podeCeder, valorEmMil, valorOk, agruparPorDestino, type LinhaOrigem } from '../services/io/eletropostoPares';
+import { destinoDe, podeCeder, valorEmMil, valorOk, agruparPorDestino, PISO_INVESTIDOR_MIL, type LinhaOrigem } from '../services/io/eletropostoPares';
 
 const GERADOR = join(__dirname, '../../../dashboard/public/gerador/index.html');
 
@@ -19,10 +19,11 @@ function regraDaTela() {
   // Marcador que sumiu = tela refatorada. Melhor um teste quebrado do que um que
   // passa sem comparar nada.
   if (i < 0 || j < 0 || j <= i) throw new Error(`marcador sumiu do /gerador: "${de}" … "${ate}"`);
-  return new Function(html.slice(i, j) + '\nreturn { cadPodeCeder, cadValorEmMil, cadDestino };')() as {
+  return new Function(html.slice(i, j) + '\nreturn { cadPodeCeder, cadValorEmMil, cadDestino, CAD_PISO_MIL };')() as {
     cadPodeCeder: (t: unknown) => boolean;
     cadValorEmMil: (t: unknown) => number | null;
     cadDestino: (origem: string, r: Record<string, unknown>) => string;
+    CAD_PISO_MIL: number;
   };
 }
 
@@ -39,6 +40,8 @@ const VALORES = [
   'Até R$ 50 mil', 'R$ 50 mil a R$ 100 mil', 'R$ 100 mil a R$ 200 mil', 'Acima de R$ 200 mil',
   'Depende do ponto', 'uns 100k', 'R$ 70.000', 'R$ 70.000,00', '1,5 milhão', '2 milhões', 'uns 60 mil',
   'entre 80 e 120 mil', '150000', 'abaixo de 100 mil', 'não sei ainda', '', null,
+  // a fronteira do piso (R$ 50 mil desde 21/09)
+  'R$ 50 mil', 'uns 49 mil', 'Menos de R$ 50 mil', 'R$ 49.999', 'R$ 50.000',
 ];
 
 describe('podeCeder: quem assina o arrendamento (contrato, Cl. 16.1)', () => {
@@ -67,7 +70,7 @@ describe('valorEmMil: o valor em mil reais, venha de onde vier', () => {
     expect(valorEmMil(texto)).toBe(mil);
   });
   it('"menos de" e "abaixo de" ficam logo abaixo do número', () => {
-    expect(valorOk('Menos de R$ 70 mil')).toBe(false);
+    expect(valorOk('Menos de R$ 50 mil')).toBe(false);
     expect(valorEmMil('abaixo de 100 mil')!).toBeLessThan(100);
   });
   it('sem número é "não disse", e não zero', () => {
@@ -87,15 +90,29 @@ describe('a tabela de destino, linha a linha', () => {
     expect(destinoDe('parceria', { lado: 'ponto', ponto_relacao: 'Sou o proprietário', capital_faixa: 'Até R$ 50 mil' })).toBe('ponto');
     expect(destinoDe('nota1', { ficha: ficha('Sou o proprietário', null) })).toBe('ponto');
   });
-  it('2. não pode e declarou R$ 70 mil ou mais: INVESTIDORES', () => {
+  it('o piso é R$ 50 mil ("de 50 mil pra cima", 21/09)', () => {
+    expect(PISO_INVESTIDOR_MIL).toBe(50);
+    expect(valorOk('R$ 50 mil')).toBe(true);
+    expect(valorOk('uns 49 mil')).toBe(false);
+  });
+  it('2. não pode e declarou R$ 50 mil ou mais: INVESTIDORES', () => {
     expect(destinoDe('parceria', { lado: 'capital', capital_faixa: 'R$ 70 mil' })).toBe('capital');
+    expect(destinoDe('nota1', { ficha: '', valor_investir: 'R$ 50 mil' })).toBe('capital');
     expect(destinoDe('nota1', { ficha: ficha('Ainda não é meu · pretendo alugar ou comprar', 'R$ 140 mil') })).toBe('capital');
   });
-  it('3. a faixa "R$ 50 a 100 mil" do cadastro alcança os 70: INVESTIDORES', () => {
+  it('3. as faixas "R$ 50 a 100 mil" e "Até R$ 50 mil" do cadastro alcançam o piso: INVESTIDORES', () => {
     expect(destinoDe('parceria', { lado: 'capital', capital_faixa: 'R$ 50 mil a R$ 100 mil' })).toBe('capital');
+    expect(destinoDe('parceria', { lado: 'capital', capital_faixa: 'Até R$ 50 mil' })).toBe('capital');
   });
-  it('4. declarou abaixo de 70: CURIOSO', () => {
-    expect(destinoDe('parceria', { lado: 'capital', capital_faixa: 'Até R$ 50 mil' })).toBe('curioso');
+  it('"Menos de X" com X acima do piso é teto, não valor: "não disse" (a opção antiga "Menos de R$ 70 mil")', () => {
+    expect(valorOk('Menos de R$ 70 mil')).toBeNull();
+    expect(valorOk('abaixo de 100 mil')).toBeNull();
+    expect(destinoDe('parceria', { lado: 'capital', capital_faixa: 'Menos de R$ 70 mil' })).toBe('curioso');
+    expect(destinoDe('nota1', { ficha: '', valor_investir: 'Menos de R$ 70 mil' })).toBe('curioso');
+  });
+  it('4. declarou abaixo de 50: CURIOSO', () => {
+    expect(destinoDe('parceria', { lado: 'capital', capital_faixa: 'uns 30 mil' })).toBe('curioso');
+    expect(destinoDe('nota1', { ficha: '', valor_investir: 'Menos de R$ 50 mil' })).toBe('curioso');
   });
   it('5, 6 e 7. não disse o valor, seja como for que pague ou onde esteja o local: CURIOSO', () => {
     expect(destinoDe('parceria', { lado: 'capital', capital_faixa: 'Depende do ponto' })).toBe('curioso');
@@ -111,7 +128,7 @@ describe('a tabela de destino, linha a linha', () => {
   });
   it('o valor gravado pelo consultor ganha do texto da ficha: quem respondeu sobe', () => {
     expect(destinoDe('nota1', { ficha: ficha('Ainda não é meu', null), valor_investir: 'R$ 280 mil' })).toBe('capital');
-    expect(destinoDe('nota1', { ficha: ficha(null, 'R$ 140 mil'), valor_investir: 'Menos de R$ 70 mil' })).toBe('curioso');
+    expect(destinoDe('nota1', { ficha: ficha(null, 'R$ 140 mil'), valor_investir: 'Menos de R$ 50 mil' })).toBe('curioso');
   });
   it('marcado ARRENDAMENTO na agenda: sempre Arrendamento', () => {
     expect(destinoDe('agenda', {})).toBe('ponto');
@@ -120,6 +137,10 @@ describe('a tabela de destino, linha a linha', () => {
 
 describe('a tela e o servidor usam a MESMA regra', () => {
   const tela = regraDaTela();
+
+  it('o piso é o mesmo número nos dois lados', () => {
+    expect(tela.CAD_PISO_MIL).toBe(PISO_INVESTIDOR_MIL);
+  });
 
   it('podeCeder concorda em todas as respostas dos formulários', () => {
     for (const r of RELACOES) expect(tela.cadPodeCeder(r), String(r)).toBe(podeCeder(r));
@@ -208,7 +229,7 @@ describe('a lista de cada aba é a mesma na tela e no servidor', () => {
     }
     // e o resultado é o que a regra do dono manda
     expect(servidor.ponto.map(l => l.origem + ':' + l.r.id).sort()).toEqual(['agenda:900', 'nota1:12', 'parceria:1']);
-    expect(servidor.capital.map(l => l.origem + ':' + l.r.id).sort()).toEqual(['nota1:10', 'nota1:13']);
+    expect(servidor.capital.map(l => l.origem + ':' + l.r.id).sort()).toEqual(['nota1:13', 'parceria:3']);
     expect(servidor.curioso.map(l => l.origem + ':' + l.r.id)).toEqual(['parceria:5']);
   });
 });

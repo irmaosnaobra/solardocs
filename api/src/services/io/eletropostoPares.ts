@@ -63,10 +63,10 @@ const soDigitos = (s: unknown) => String(s ?? '').replace(/\D/g, '');
 //
 // Duas respostas decidem, e so elas:
 //   1. O local e seu?      -> pode ceder (dono, inquilino, representante) ou nao
-//   2. Quanto investe?     -> R$ 70 mil ou mais / abaixo / nao disse
+//   2. Quanto investe?     -> R$ 50 mil ou mais / abaixo / nao disse
 // e o resultado:
 //   PODE CEDER                         -> ARRENDAMENTO (ponto)
-//   nao pode, declarou >= R$ 70 mil    -> INVESTIDORES (capital)
+//   nao pode, declarou >= R$ 50 mil    -> INVESTIDORES (capital)
 //   nao pode, abaixo ou NAO DISSE      -> CURIOSO (a equipe liga e pergunta; quem
 //                                         responde um valor volta pra Investidores)
 //
@@ -74,8 +74,11 @@ const soDigitos = (s: unknown) => String(s ?? '').replace(/\D/g, '');
 // com anuencia do dono, administrador ou representante com poderes. Quem
 // "negocia com o proprietario" ou "ainda nao e dono" nao assina.
 //
-// 70 mil e o menor ingresso da LP (70/140/280/500/mais de 500). A faixa do
-// cadastro "R$ 50 a 100 mil" conta: ela alcanca os 70 (decisao do dono).
+// O PISO E R$ 50 MIL ("de 50 mil pra cima", o dono, 21/09/2026). Comecou em 70,
+// o menor ingresso da LP, e desceu quando a conta mostrou 26 cadastros com "Ate
+// R$ 50 mil" parados no Curioso. Numa faixa vale o TETO, entao "Ate R$ 50 mil"
+// alcanca o piso e "R$ 50 a 100 mil" tambem. O numero e UM so: PISO_INVESTIDOR_MIL
+// aqui e CAD_PISO_MIL no /gerador, e o teste gemeo prova que os dois concordam.
 //
 // ESTA REGRA TEM GEMEA em cadDestino() no /gerador (aba Cadastros). Mudar uma sem
 // a outra faz a aba listar alguem que o Match nao oferece, ou o contrario.
@@ -94,8 +97,8 @@ export function podeCeder(relacao: unknown): boolean {
  * O valor declarado, em MIL reais, ou null quando a pessoa nao disse. Le os tres
  * jeitos que o valor chega: opcao da LP ("R$ 140 mil"), faixa do cadastro
  * ("R$ 50 mil a R$ 100 mil", "Ate R$ 50 mil") e resposta livre no WhatsApp
- * ("uns 100k", "R$ 70.000", "1,5 milhao"). Numa faixa vale o TETO — quem diz
- * "ate 100 mil" topa 70. "Menos de" fica logo abaixo do numero.
+ * ("uns 100k", "R$ 70.000", "1,5 milhao"). Numa faixa vale o TETO: quem diz
+ * "ate 100 mil" topa o piso. "Menos de" fica logo abaixo do numero.
  */
 export function valorEmMil(texto: unknown): number | null {
   const t = String(texto ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -127,10 +130,17 @@ export function numerosEmMil(texto: unknown): number[] {
   return nums;
 }
 
-/** Declarou R$ 70 mil ou mais? true / false (declarou abaixo) / null (nao disse). */
+/** O piso de Investidores, em mil reais. Gemeo de CAD_PISO_MIL no /gerador. */
+export const PISO_INVESTIDOR_MIL = 50;
+
+/** Declarou o piso ou mais? true / false (declarou abaixo) / null (nao disse).
+ *  "Menos de X" e um TETO: com X acima do piso ele nao prova nada ("Menos de R$ 70
+ *  mil", a opcao antiga do Registrar valor, pode ser 10 mil), entao e "nao disse". */
 export function valorOk(texto: unknown): boolean | null {
   const v = valorEmMil(texto);
-  return v === null ? null : v >= 70;
+  if (v === null) return null;
+  if (/menos de|abaixo de/.test(String(texto).toLowerCase()) && v >= PISO_INVESTIDOR_MIL) return null;
+  return v >= PISO_INVESTIDOR_MIL;
 }
 
 /** O "Local e seu:" e o "Quanto pretende investir:" moram no TEXTO da ficha. */

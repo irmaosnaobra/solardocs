@@ -127,7 +127,7 @@ export interface ContatoParceria {
  * (curiosoRespostas) e o pedido pra sair já vira `sem_interesse`.
  *
  * O rodapé muda com o grupo porque ele AFIRMA uma coisa sobre a pessoa. 177 dos
- * 209 curiosos de 21/09 nunca se cadastraram como parceiro: só preencheram a
+ * 183 curiosos de 21/09 (piso de R$ 50 mil) nunca se cadastraram como parceiro: só preencheram a
  * ficha da LP. Dizer "se cadastrou" pra eles numa mensagem fria é afirmar algo
  * falso, e é isso que vira denúncia numa linha que já foi bloqueada 3 vezes.
  */
