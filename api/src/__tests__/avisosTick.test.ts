@@ -40,6 +40,7 @@ function fakeFrom(tabela: string) {
     eq(col: string, val: any) { q._filtros.push((r: any) => r[col] === val); return q; },
     gte(col: string, val: any) { q._filtros.push((r: any) => String(r[col]) >= String(val)); return q; },
     in(col: string, vals: any[]) { q._filtros.push((r: any) => vals.includes(r[col])); return q; },
+    contains(col: string, vals: any[]) { q._filtros.push((r: any) => vals.every(v => (r[col] || []).includes(v))); return q; },
     or() { return q; },
     order() { return q; },
     limit() { return q; },
