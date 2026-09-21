@@ -414,6 +414,13 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .cad-org{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;border-radius:999px;padding:3px 8px;white-space:nowrap}
 .cad-org.cad{background:rgba(125,209,23,.16);color:#9BEE38}
 .cad-org.ficha{background:rgba(148,163,184,.18);color:#94A3B8}
+/* marcado ARRENDAMENTO pelo consultor na agenda: nao se cadastrou nem passou pela
+   regua da LP — foi a conversa que decidiu. Bege, o mesmo do card na agenda. */
+.cad-org.agenda{background:rgba(234,219,192,.18);color:#EADBC0}
+/* Status que mora na AGENDA. Nao e um seletor de proposito: gravar aqui trocaria o
+   status do agendamento e tiraria a pessoa do proprio Arrendamento. */
+.cad-st-agenda{display:inline-block;font-size:12px;font-weight:700;color:#EADBC0;
+  border:1px dashed rgba(234,219,192,.4);border-radius:8px;padding:7px 9px;white-space:nowrap;cursor:help}
 /* padrão que não deve aguentar: é o aviso que evita marcar reunião pra um ponto
    que já nasce com obra de aumento de carga na concessionária */
 .cad-alerta{display:block;margin-top:4px;font-size:11px;font-weight:800;color:#FCA5A5;line-height:1.35}
@@ -8188,7 +8195,7 @@ async function cadCarregar(forcar) {
     // lugar só em vez de espalhada em dois querystrings.
     const API_PARES = (location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api')
       + '/io/eletroposto/parceria/pares';
-    const [pontos, capital, integradores, fichas, pares, conexoes] = await Promise.all([
+    const [pontos, capital, integradores, fichas, pares, conexoes, agendaArr] = await Promise.all([
       supaGet('eletroposto_parceria?lado=eq.ponto&order=created_at.desc&limit=500&select=*'),
       supaGet('eletroposto_parceria?lado=eq.capital&order=created_at.desc&limit=500&select=*'),
       // INTEGRADORES (21/08): mesma tabela, terceiro lado. Leitura separada de
@@ -8204,6 +8211,12 @@ async function cadCarregar(forcar) {
       // lista é a tela inteira.
       fetch(API_PARES).then(r => r.json()).catch(() => null),
       supaGet('eletroposto_match?select=*&order=criado_em.desc&limit=500').catch(() => []),
+      // ARRENDAMENTO MARCADO NA AGENDA (21/09): o consultor aperta ARRENDAMENTO no
+      // card e a pessoa tem que cair aqui. Antes nao caia: em 21/09 eram 9 leads
+      // assim, e NENHUM estava em lista nenhuma — nem cadastro, nem ficha. Se a
+      // leitura falhar a aba carrega igual, so sem eles.
+      supaGet('agendamentos?status=eq.arrendamento&select=id,created_at,cliente_nome,'
+              + 'cliente_telefone,cidade&order=created_at.desc&limit=500').catch(() => []),
     ]);
     cadPares = pares && pares.pares ? pares.pares : null;
     cadMatches = pares && pares.matches ? pares.matches : null;
@@ -8236,6 +8249,26 @@ async function cadCarregar(forcar) {
       ponto_tipo: f.perfil, ponto_fluxo: f.ponto, ponto_endereco: f.endereco,
       ponto_relacao: f.ponto_relacao || null });
 
+    // A agenda so ACRESCENTA quem ainda nao esta na lista por outro caminho: o
+    // cadastro e a ficha tem campos que a agenda nao tem (local, endereco,
+    // situacao), entao se a pessoa existe nos dois, a linha rica ganha.
+    const soDig = t => String(t || '').replace(/\D/g, '');
+    const jaDig = new Set([...jaTem].map(soDig));
+    const daAgenda = (agendaArr || []).filter(a => {
+      const d = soDig(a.cliente_telefone);
+      if (!d || jaDig.has(d)) return false;
+      jaDig.add(d);
+      return true;
+    }).map(a => ({
+      id: a.id, created_at: a.created_at, nome: a.cliente_nome,
+      telefone: a.cliente_telefone, cidade: a.cidade,
+      tab: 'agendamentos', deFicha: false, deAgenda: true,
+      // A agenda nao perguntou local nem endereco: a coluna "Situacao" diz de onde
+      // veio a certeza, pra quem liga saber que o modelo JA foi conversado.
+      ponto_fluxo: 'Marcado ARRENDAMENTO na agenda',
+      status: 'novo',
+    }));
+
     cadDados = {
       // O integrador NÃO entra no `jaTem` lá em cima: uma pessoa pode instalar
       // E ter capital, e apagá-la da lista de investidores por causa disso
@@ -8243,7 +8276,8 @@ async function cadCarregar(forcar) {
       integrador: (integradores || []).map(r => ({ ...r, tab: 'eletroposto_parceria', deFicha: false })),
       ponto: (pontos || []).map(r => ({ ...r, tab: 'eletroposto_parceria', deFicha: false }))
         .concat(livres.filter(f => f.capital_faixa === 'naosei'
-                               && CAD_PONTO_FICHA.indexOf(f.tem_ponto) >= 0).map(daFichaPonto)),
+                               && CAD_PONTO_FICHA.indexOf(f.tem_ponto) >= 0).map(daFichaPonto))
+        .concat(daAgenda),
       capital: (capital || []).map(r => ({ ...r, tab: 'eletroposto_parceria', deFicha: false }))
         // `capital_faixa` volta a NULL na linha de ficha: na tabela ele é a
         // coluna "Quanto", e a ficha guarda ali um slug interno (`proprio`,
@@ -8336,7 +8370,10 @@ function cadRender() {
     const nome = '<td class="nome">' + escapeHtml(r.nome || '—')
       + '<span class="cad-sub">' + quando + (r.ponto_relacao ? ' · ' + escapeHtml(r.ponto_relacao) : '') + '</span>'
       + '<div style="margin-top:6px">' + wa + '</div></td>';
-    const st = '<td><select class="cad-st" data-st="' + (r.status || 'novo') + '" '
+    const st = r.deAgenda
+      ? '<td><span class="cad-st-agenda" title="O status desta pessoa mora na agenda. Trocar aqui '
+        + 'mudaria o agendamento e tiraria ela do Arrendamento.">na agenda</span></td>'
+      : '<td><select class="cad-st" data-st="' + (r.status || 'novo') + '" '
       + 'onchange="cadStatus(\'' + r.tab + '\',' + r.id + ',this)">'
       + Object.keys(CAD_STATUS).map(k => '<option value="' + k + '"' + ((r.status || 'novo') === k ? ' selected' : '') + '>'
         + CAD_STATUS[k] + '</option>').join('') + '</select></td>';
@@ -8345,11 +8382,12 @@ function cadRender() {
     // ficha" no Arrendamento é gente que NUNCA disse que quer arrendar — foi a
     // régua que juntou "tenho um local" com "não sei como pagar". Quem liga
     // precisa saber que essa conversa começa perguntando, não confirmando.
-    const org = '<span class="cad-org ' + (r.deFicha ? 'ficha' : 'cad') + '">'
+    const org = r.deAgenda ? '<span class="cad-org agenda">da agenda</span>'
+      : '<span class="cad-org ' + (r.deFicha ? 'ficha' : 'cad') + '">'
       + (r.deFicha ? 'da ficha' : 'cadastro') + '</span>';
 
     if (cadLado === 'ponto') {
-      const detalhe = r.deFicha ? org : escapeHtml(r.ponto_vagas || '—');
+      const detalhe = (r.deFicha || r.deAgenda) ? org : escapeHtml(r.ponto_vagas || '—');
       return '<tr>' + nome
         + '<td>' + escapeHtml(r.ponto_tipo || '—') + '<span class="cad-sub">' + detalhe + '</span></td>'
         + '<td>' + escapeHtml(r.cidade || '—') + '</td>'
@@ -8390,11 +8428,13 @@ function cadRender() {
 // corrigida depois, e o histórico tem que dizer o que a equipe viu quando
 // decidiu apresentar.
 // ═══════════════════════════════════════════════════════════════════════════
-const cadRef = r => (r.tab === 'eletroposto_parceria' ? 'parceria:' : 'nota1:') + r.id;
+// De onde cada linha veio. A chave curta e a mesma que o servidor usa nos pares
+// (`tab` em eletropostoPares.ts) — um nome so nos dois lados.
+const CAD_ORIGEM = { eletroposto_parceria: 'parceria', eletroposto_nota1: 'nota1', agendamentos: 'agenda' };
+const cadRef = r => CAD_ORIGEM[r.tab] + ':' + r.id;
 const cadAcha = (lista, ref) => {
   const [tab, id] = String(ref).split(':');
-  return lista.find(r => r.id === Number(id)
-    && r.tab === (tab === 'parceria' ? 'eletroposto_parceria' : 'eletroposto_nota1'));
+  return lista.find(r => r.id === Number(id) && r.tab === tabelaDe(tab));
 };
 const cadConectado = (refP, refC) => {
   const [pt, pi] = refP.split(':'), [ct, ci] = refC.split(':');
@@ -8492,12 +8532,13 @@ async function cadConectar(refP, refC, km, btn) {
     cadConexoes.push(nova);
     // Marca os DOIS lados como conectados na lista. Marcar um só deixaria a
     // outra aba dizendo "novo" sobre alguém que já foi apresentado.
-    await Promise.all([
-      supaPatch(tabelaDe(pTab) + '?id=eq.' + pId, { status: 'conectado' }).catch(() => {}),
-      supaPatch(tabelaDe(cTab) + '?id=eq.' + cId, { status: 'conectado' }).catch(() => {}),
-    ]);
+    // So as origens gravaveis: na linha da agenda, "conectado" apagaria o
+    // "arrendamento" do agendamento. A conexao em si ja ficou em eletroposto_match.
+    await Promise.all([[pTab, pId], [cTab, cId]]
+      .filter(([t]) => CAD_GRAVAVEL.has(tabelaDe(t)))
+      .map(([t, id]) => supaPatch(tabelaDe(t) + '?id=eq.' + id, { status: 'conectado' }).catch(() => {})));
     ['ponto', 'capital'].forEach(l => (cadDados[l] || []).forEach(x => {
-      if (cadRef(x) === refP || cadRef(x) === refC) x.status = 'conectado';
+      if ((cadRef(x) === refP || cadRef(x) === refC) && CAD_GRAVAVEL.has(x.tab)) x.status = 'conectado';
     }));
     cadRender();
   } catch (e) {
@@ -8505,7 +8546,12 @@ async function cadConectar(refP, refC, km, btn) {
     alert('Não consegui gravar a conexão: ' + (e.message || e));
   }
 }
-const tabelaDe = t => (t === 'parceria' ? 'eletroposto_parceria' : 'eletroposto_nota1');
+// Origem desconhecida devolve null, e quem grava confere: o padrao antigo caia em
+// eletroposto_nota1 e escrevia na ficha errada em silencio.
+const tabelaDe = t => Object.keys(CAD_ORIGEM).find(k => CAD_ORIGEM[k] === t) || null;
+// Onde a aba pode gravar status. A agenda fica de fora de proposito: o status dela
+// e o proprio "arrendamento", e trocar por "conectado" tiraria a pessoa da lista.
+const CAD_GRAVAVEL = new Set(['eletroposto_parceria', 'eletroposto_nota1']);
 // Quem apresentou. Reusa o consultor do login (crmConsultorLogado) em vez de
 // inventar uma variável global — a primeira versão lia `window.CONSULTOR_NOME`,
 // que não existe em lugar nenhum do app: gravava `null` sempre, e o histórico
@@ -8519,7 +8565,7 @@ const cadQuemSou = () => { try { return crmConsultorLogado() || null; } catch (e
 //   0       medi e não achei ninguém
 //   —       NÃO consegui medir (cidade que não resolve, ou o cálculo caiu)
 function cadParesCel(r) {
-  const ref = r.tab === 'eletroposto_parceria' ? 'parceria:' + r.id : 'nota1:' + r.id;
+  const ref = cadRef(r);
   if (!cadPares) return '<td title="não consegui calcular as distâncias agora">—</td>';
   const lista = cadPares[ref];
   if (!lista) return '<td title="não consegui localizar esta cidade no mapa">—</td>';
@@ -8597,6 +8643,9 @@ function cadPadraoCel(r) {
 }
 
 async function cadStatus(tabela, id, sel) {
+  // A linha da agenda nem desenha seletor; isto so garante que ninguem escreva
+  // la por outro caminho.
+  if (!CAD_GRAVAVEL.has(tabela)) return;
   const valor = sel.value;
   const antes = sel.getAttribute('data-st');
   sel.setAttribute('data-st', valor);

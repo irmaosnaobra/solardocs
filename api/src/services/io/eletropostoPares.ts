@@ -70,7 +70,9 @@ export interface Candidato {
   lng?: number;
   /** De onde a linha veio, pra equipe saber se a pessoa se cadastrou ou não. */
   daFicha: boolean;
-  tab: 'parceria' | 'nota1';
+  /** 'agenda' = o consultor marcou ARRENDAMENTO no card. O mesmo nome curto que a
+   *  aba Cadastros do /gerador usa (CAD_ORIGEM), porque os pares chegam por ele. */
+  tab: 'parceria' | 'nota1' | 'agenda';
   id: number;
 }
 
@@ -86,11 +88,19 @@ const soDigitos = (s: unknown) => String(s ?? '').replace(/\D/g, '');
  * constrangedor. O lado do PONTO ganha a disputa: é o ativo escasso.
  */
 export async function pool(lado: Lado, jaNoOutroLado?: Set<string>): Promise<Candidato[]> {
-  const [cadastros, fichas] = await Promise.all([
+  const [cadastros, fichas, agenda] = await Promise.all([
     supabaseGerador.from('eletroposto_parceria')
       .select('id, nome, telefone, cidade').eq('lado', lado).limit(500),
     supabaseGerador.from('eletroposto_nota1')
       .select('id, nome, telefone, cidade, capital_faixa, tem_ponto').limit(500),
+    // ARRENDAMENTO MARCADO NA AGENDA (21/09). So entra no lado do PONTO: quem
+    // aceita que a casa invista 100% e, por definicao, quem tem o local. Em 21/09
+    // eram 9 leads assim e NENHUM estava no pool — a aba os mostrava sem par e o
+    // Match nunca os oferecia. A regua daqui e a da aba tem que ser a mesma.
+    lado === 'ponto'
+      ? supabaseGerador.from('agendamentos')
+          .select('id, cliente_nome, cliente_telefone, cidade').eq('status', 'arrendamento').limit(500)
+      : Promise.resolve({ data: [] as Record<string, unknown>[] }),
   ]);
 
   const linhas: Candidato[] = [];
@@ -120,6 +130,16 @@ export async function pool(lado: Lado, jaNoOutroLado?: Set<string>): Promise<Can
     vistos.add(tel);
     linhas.push({ nome: String(f.nome || '—'), telefone: tel, cidade: (f.cidade as string) || null,
                   daFicha: true, tab: 'nota1', id: Number(f.id) });
+  }
+
+  // A agenda vem por ULTIMO no mesmo `vistos`: cadastro > ficha > agenda. Quem ja
+  // esta no pool por outro caminho nao entra de novo (e a linha rica ganha).
+  for (const a of (agenda.data || []) as Record<string, unknown>[]) {
+    const tel = soDigitos(a.cliente_telefone);
+    if (!tel || vistos.has(tel)) continue;
+    vistos.add(tel);
+    linhas.push({ nome: String(a.cliente_nome || '—'), telefone: tel, cidade: (a.cidade as string) || null,
+                  daFicha: false, tab: 'agenda', id: Number(a.id) });
   }
 
   for (const l of linhas) {
@@ -196,7 +216,8 @@ export function blocoPares(s: Sugestao, alvo: Lado): string[] {
 
   if (s.status === 'ok') {
     return ['', titulo, ...s.perto.map(c =>
-      `• ${c.nome} — ${ondeEstá(c)} — wa.me/${c.telefone}${c.daFicha ? ' _(da ficha, nunca falamos)_' : ''}`)];
+      `• ${c.nome} — ${ondeEstá(c)} — wa.me/${c.telefone}${c.daFicha ? ' _(da ficha, nunca falamos)_'
+        : c.tab === 'agenda' ? ' _(marcado ARRENDAMENTO na agenda)_' : ''}`)];
   }
   if (s.status === 'longe' && s.maisProximo) {
     return ['', `_O ${nada} mais perto é ${s.maisProximo.nome}, em ${ondeEstá(s.maisProximo)}. `
