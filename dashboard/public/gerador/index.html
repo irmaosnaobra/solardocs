@@ -429,6 +429,24 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
   color:#93C5FD;font-family:inherit;font-size:15px;font-weight:800;padding:7px 11px;cursor:pointer;
   min-height:40px;min-width:52px;display:flex;flex-direction:column;align-items:center;gap:1px;line-height:1.1}
 .cad-par:hover{background:rgba(96,165,250,.22)}
+.cad-par.aberto{background:rgba(96,165,250,.28);border-color:#60A5FA}
+.cad-par .cad-par-ver{font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;opacity:.85}
+/* A LISTA ABRE EMBAIXO DO PROPRIO CARD (21/09). Antes o painel morava depois da
+   tabela inteira: quem clicava no 15o card via abrir la no fim e achava que nao
+   tinha acontecido nada. */
+.cad-par-tr > td{background:rgba(15,23,42,.55);padding:12px 16px 14px!important;border-top:0}
+.cad-par-item{display:grid;grid-template-columns:minmax(150px,1.3fr) minmax(120px,1fr) minmax(150px,1.2fr) auto auto;
+  align-items:center;gap:6px 14px;padding:10px 0;border-bottom:1px solid rgba(148,163,184,.12);font-size:13.5px}
+.cad-par-item:last-child{border-bottom:0}
+.cad-par-item .onde{color:#94A3B8;font-weight:600;font-size:12.5px}
+/* O VALOR e o destaque: e a pergunta que o dono do ponto faz primeiro. */
+.cad-par-valor{font-weight:800;color:#86EFAC;font-size:14px}
+.cad-par-valor.sem{color:#94A3B8;font-weight:600;font-size:12.5px;font-style:italic}
+.cad-par-como{display:block;color:#94A3B8;font-weight:600;font-size:11.5px;margin-top:2px}
+@media (max-width:760px){
+  .cad-par-item{grid-template-columns:1fr auto;gap:4px 10px}
+  .cad-par-item > :nth-child(2),.cad-par-item > :nth-child(3){grid-column:1 / -1}
+}
 .cad-painel{margin-top:14px;border-top:1px solid rgba(148,163,184,.20);padding-top:12px}
 .cad-painel[hidden]{display:none}
 .cad-par-topo{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;font-size:13.5px}
@@ -8202,8 +8220,10 @@ async function cadCarregar(forcar) {
       // propósito — ele não entra no dedupe das fichas nem no cálculo de pares,
       // porque não tem contraparte pra casar.
       supaGet('eletroposto_parceria?lado=eq.integrador&order=created_at.desc&limit=500&select=*'),
+      // `ficha` entrou (21/09) so pra tirar dela o "Quanto pretende investir": a LP
+      // passou a perguntar o valor em 15/09 e ele nao tem coluna propria. Sao ~60 KB.
       supaGet('eletroposto_nota1?select=id,created_at,nome,telefone,cidade,perfil,ponto,invest,'
-              + 'endereco,capital_faixa,tem_ponto,pts,status,nota_interna'
+              + 'endereco,capital_faixa,tem_ponto,pts,status,nota_interna,ficha'
               + '&order=created_at.desc&limit=500'),
       // A distância é calculada no servidor (a tabela dos 5.570 municípios são
       // 408 KB e a régua tem que ser a MESMA do aviso no WhatsApp). Se falhar, a
@@ -8278,15 +8298,17 @@ async function cadCarregar(forcar) {
         .concat(livres.filter(f => f.capital_faixa === 'naosei'
                                && CAD_PONTO_FICHA.indexOf(f.tem_ponto) >= 0).map(daFichaPonto))
         .concat(daAgenda),
-      capital: (capital || []).map(r => ({ ...r, tab: 'eletroposto_parceria', deFicha: false }))
+      capital: (capital || []).map(r => ({ ...r, tab: 'eletroposto_parceria', deFicha: false,
+                                          valor_investir: r.capital_faixa || null }))
         // `capital_faixa` volta a NULL na linha de ficha: na tabela ele é a
         // coluna "Quanto", e a ficha guarda ali um slug interno (`proprio`,
         // `fin_cnpj`) que não é faixa de dinheiro nenhuma — a LP nunca perguntou
         // quanto. O que a pessoa respondeu ("Recurso próprio") já vai em "Com
         // quê". Sem isto a tela publica o vocabulário do banco.
         .concat(livres.filter(f => CAD_CAPITAL_FICHA.indexOf(f.capital_faixa) >= 0)
-          .map(f => ({ ...f, tab: 'eletroposto_nota1', deFicha: true,
-                       capital_faixa: null, capital_origem: f.invest }))),
+          .map(f => ({ ...f, tab: 'eletroposto_nota1', deFicha: true, ficha: undefined,
+                       capital_faixa: null, capital_origem: f.invest,
+                       valor_investir: cadValorDaFicha(f.ficha) }))),
     };
     // Reordena as duas: origens misturadas ficam em ordem de chegada, e não com
     // os cadastros todos em cima e as fichas todas embaixo.
@@ -8394,7 +8416,8 @@ function cadRender() {
         + '<td class="cad-end">' + escapeHtml(r.ponto_endereco || '—')
           + (r.obs ? '<span class="cad-sub">' + escapeHtml(r.obs) + '</span>' : '') + '</td>'
         + cadPadraoCel(r)
-        + '<td>' + escapeHtml(r.ponto_fluxo || '—') + '</td>' + cadParesCel(r) + st + '</tr>';
+        + '<td>' + escapeHtml(r.ponto_fluxo || '—') + '</td>' + cadParesCel(r) + st + '</tr>'
+        + (cadParesAberto === cadRef(r) ? '<tr class="cad-par-tr"><td colspan="8">' + cadParesHTML(r) + '</td></tr>' : '');
     }
     if (cadLado === 'integrador') {
       return '<tr>' + nome
@@ -8409,7 +8432,8 @@ function cadRender() {
       + '<td>' + escapeHtml(r.cidade || '—') + '</td>'
       + '<td>' + escapeHtml(r.capital_faixa || '—') + '</td>'
       + '<td>' + escapeHtml(r.capital_origem || '—') + (r.prazo ? '<span class="cad-sub">' + escapeHtml(r.prazo) + '</span>' : '') + '</td>'
-      + '<td>' + org + '</td>' + cadParesCel(r) + st + '</tr>';
+      + '<td>' + org + '</td>' + cadParesCel(r) + st + '</tr>'
+      + (cadParesAberto === cadRef(r) ? '<tr class="cad-par-tr"><td colspan="7">' + cadParesHTML(r) + '</td></tr>' : '');
   }).join('');
 
   cadPainelPares();
@@ -8571,48 +8595,66 @@ function cadParesCel(r) {
   if (!lista) return '<td title="não consegui localizar esta cidade no mapa">—</td>';
   if (!lista.length) return '<td>0</td>';
   const maisPerto = lista[0].km === 0 ? 'mesma cidade' : lista[0].km + ' km';
-  return '<td><button type="button" class="cad-par" onclick="cadAbrirPares(\'' + ref + '\')">'
-    + lista.length + '<span class="cad-sub" style="margin:0">' + maisPerto + '</span></button></td>';
+  const aberto = cadParesAberto === ref;
+  return '<td><button type="button" class="cad-par' + (aberto ? ' aberto' : '') + '" aria-expanded="' + aberto + '" '
+    + 'onclick="cadAbrirPares(\'' + ref + '\')">'
+    + lista.length + '<span class="cad-sub" style="margin:0">' + maisPerto + '</span>'
+    + '<span class="cad-par-ver">' + (aberto ? 'fechar' : 'ver') + '</span></button></td>';
 }
 
 // O painel fica FORA da tabela de propósito: cadRender remonta o tbody inteiro a
 // cada tecla da busca, e linha expandida perderia o estado a cada letra digitada.
 function cadAbrirPares(ref) {
   cadParesAberto = cadParesAberto === ref ? null : ref;
-  cadPainelPares();
+  cadRender();
+}
+/** O valor que o investidor da FICHA disse que quer por. So existe desde 15/09,
+ *  quando a LP passou a perguntar; antes disso a ficha so diz COMO paga. */
+function cadValorDaFicha(texto) {
+  const m = String(texto || '').match(/Quanto pretende investir:\s*([^\n]+)/i);
+  return m ? m[1].trim() : null;
+}
+/** A lista de quem esta perto, pra entrar embaixo do proprio card. */
+function cadParesHTML(eu) {
+  const ref = cadRef(eu);
+  const pares = cadPares && cadPares[ref];
+  if (!pares) return '';
+  const ehPonto = cadLado === 'ponto';
+  const outro = ehPonto ? cadDados.capital : cadDados.ponto;
+  const itens = pares.map(p => {
+    const alvo = cadAcha(outro, p.ref);
+    if (!alvo) return '';
+    const tel = String(alvo.telefone || '').replace(/\D/g, '');
+    const onde = escapeHtml(alvo.cidade || '—') + ' · ' + (p.km === 0 ? 'mesma cidade' : p.km + ' km');
+    const org = alvo.deAgenda ? '<span class="cad-org agenda">da agenda</span>'
+      : alvo.deFicha ? '<span class="cad-org ficha">da ficha</span>' : '<span class="cad-org cad">cadastro</span>';
+    // So o lado do investidor tem valor. Sem valor, a celula DIZ que nao tem —
+    // em branco pareceria defeito, e "R$ 0" seria mentira.
+    const valor = !ehPonto ? '<span></span>'
+      : alvo.valor_investir
+        ? '<span class="cad-par-valor">' + escapeHtml(alvo.valor_investir)
+          + (alvo.capital_origem ? '<span class="cad-par-como">' + escapeHtml(alvo.capital_origem) + '</span>' : '') + '</span>'
+        : '<span class="cad-par-valor sem">valor não informado'
+          + (alvo.capital_origem ? '<span class="cad-par-como">' + escapeHtml(alvo.capital_origem) + '</span>' : '') + '</span>';
+    return '<div class="cad-par-item">'
+      + '<b>' + escapeHtml(alvo.nome || '—') + '</b>'
+      + '<span class="onde">' + onde + '</span>'
+      + valor + org
+      + (tel ? '<a class="cad-wa" href="https://wa.me/' + tel + '" target="_blank" rel="noopener">WhatsApp</a>' : '<span></span>')
+      + '</div>';
+  }).filter(Boolean).join('');
+  return '<div class="cad-par-topo"><b>'
+    + (ehPonto ? 'Investidores a até ' : 'Pontos a até ') + CAD_MATCH_KM + ' km de ' + escapeHtml(eu.nome || '—') + '</b>'
+    + '<button type="button" class="ehist-btn" onclick="cadAbrirPares(null)">fechar</button></div>'
+    + (itens || '<div class="cad-sub" style="margin:0">Os pares saíram da lista com o filtro atual.</div>');
 }
 
 function cadPainelPares() {
+  // A lista de pares agora abre DENTRO da tabela, embaixo do proprio card
+  // (cadParesHTML). O painel de baixo fica escondido: dois lugares mostrando a
+  // mesma coisa, um deles longe de onde a pessoa clicou.
   const el = document.getElementById('cad-painel-pares');
-  if (!el) return;
-  if (!cadParesAberto || !cadPares || !cadPares[cadParesAberto]) { el.hidden = true; return; }
-
-  // O outro lado é onde os pares moram: quem está na aba do ponto casa com
-  // investidor, e vice-versa.
-  const outro = cadLado === 'ponto' ? cadDados.capital : cadDados.ponto;
-  const eu = (cadDados[cadLado] || []).find(r =>
-    (r.tab === 'eletroposto_parceria' ? 'parceria:' : 'nota1:') + r.id === cadParesAberto);
-
-  const linhas = cadPares[cadParesAberto].map(p => {
-    const [tab, id] = p.ref.split(':');
-    const alvo = outro.find(o => o.id === Number(id)
-      && o.tab === (tab === 'parceria' ? 'eletroposto_parceria' : 'eletroposto_nota1'));
-    if (!alvo) return '';
-    const tel = String(alvo.telefone || '').replace(/\D/g, '');
-    return '<div class="cad-par-linha">'
-      + '<b>' + escapeHtml(alvo.nome || '—') + '</b>'
-      + '<span>' + escapeHtml(alvo.cidade || '—') + ' · ' + (p.km === 0 ? 'mesma cidade' : p.km + ' km') + '</span>'
-      + (alvo.deFicha ? '<span class="cad-org ficha">da ficha</span>' : '<span class="cad-org cad">cadastro</span>')
-      + (tel ? '<a class="cad-wa" href="https://wa.me/' + tel + '" target="_blank" rel="noopener">WhatsApp</a>' : '')
-      + '</div>';
-  }).filter(Boolean).join('');
-
-  el.innerHTML = '<div class="cad-par-topo"><b>'
-    + (cadLado === 'ponto' ? 'Investidores perto de ' : 'Pontos perto de ')
-    + escapeHtml((eu && eu.nome) || '—') + '</b>'
-    + '<button type="button" class="ehist-btn" onclick="cadAbrirPares(null)">fechar</button></div>'
-    + (linhas || '<div class="cad-sub" style="margin:0">Os pares saíram da lista com o filtro atual.</div>');
-  el.hidden = false;
+  if (el) el.hidden = true;
 }
 
 // ── A célula do padrão de entrada ───────────────────────────────────────────
