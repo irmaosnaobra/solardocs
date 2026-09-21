@@ -417,6 +417,15 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 /* marcado ARRENDAMENTO pelo consultor na agenda: nao se cadastrou nem passou pela
    regua da LP — foi a conversa que decidiu. Bege, o mesmo do card na agenda. */
 .cad-org.agenda{background:rgba(234,219,192,.18);color:#EADBC0}
+/* DONO DO LOCAL (21/09) — o destaque que decide a conversa: o proprietario assina
+   sozinho, o inquilino precisa do dono do imovel. Fluorescente SO nas duas
+   respostas certas; o resto fica discreto em vez de rotulado errado. */
+.cad-rel{display:inline-block;margin-top:6px;font-size:10.5px;font-weight:800;letter-spacing:.5px;
+  border-radius:999px;padding:3px 9px;white-space:nowrap;cursor:help}
+.cad-rel.pro{background:#39FF14;color:#06210A;box-shadow:0 0 8px rgba(57,255,20,.55)}
+.cad-rel.inq{background:#FF3131;color:#200000;box-shadow:0 0 8px rgba(255,49,49,.6)}
+.cad-rel.nao{background:transparent;color:#94A3B8;border:1px dashed rgba(148,163,184,.4);font-weight:700;letter-spacing:0}
+.cad-rel-nd{display:block;margin-top:5px;font-size:10.5px;color:#64748B;font-weight:600}
 /* Status que mora na AGENDA. Nao e um seletor de proposito: gravar aqui trocaria o
    status do agendamento e tiraria a pessoa do proprio Arrendamento. */
 .cad-st-agenda{display:inline-block;font-size:12px;font-weight:700;color:#EADBC0;
@@ -8389,8 +8398,13 @@ function cadRender() {
     const tel = String(r.telefone || '').replace(/\D/g, '');
     const quando = r.created_at ? new Date(r.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '—';
     const wa = tel ? '<a class="cad-wa" href="https://wa.me/' + tel + '" target="_blank" rel="noopener">WhatsApp</a>' : '';
+    // No Arrendamento a posse do local vira SELO (proprio / inquilino); nas outras
+    // abas continua o texto miudo de antes, onde ele raramente existe.
+    const ehPonto = cadLado === 'ponto';
     const nome = '<td class="nome">' + escapeHtml(r.nome || '—')
-      + '<span class="cad-sub">' + quando + (r.ponto_relacao ? ' · ' + escapeHtml(r.ponto_relacao) : '') + '</span>'
+      + '<span class="cad-sub">' + quando
+        + (!ehPonto && r.ponto_relacao ? ' · ' + escapeHtml(r.ponto_relacao) : '') + '</span>'
+      + (ehPonto ? cadRelacaoBadge(r) : '')
       + '<div style="margin-top:6px">' + wa + '</div></td>';
     const st = r.deAgenda
       ? '<td><span class="cad-st-agenda" title="O status desta pessoa mora na agenda. Trocar aqui '
@@ -8607,6 +8621,31 @@ function cadParesCel(r) {
 function cadAbrirPares(ref) {
   cadParesAberto = cadParesAberto === ref ? null : ref;
   cadRender();
+}
+/** A resposta "o local e seu?" da FICHA. A pergunta so existe desde 29/08, e vem
+ *  no texto; quem nao respondeu ainda diz, pela situacao, que NAO e o dono
+ *  ("tenho um local em vista", "em negociacao com o proprietario"). */
+function cadRelacaoDaFicha(r) {
+  if (!r.deFicha) return null;
+  const m = String(r.ficha || '').match(/Local (?:é|e) seu:\s*([^\n]+)/i);
+  if (m) return m[1].trim();
+  if (r.tem_ponto === 'em_vista' || r.tem_ponto === 'negociando') return r.ponto || null;
+  if (/ainda n[aã]o [eé] meu/i.test(r.ponto || '')) return r.ponto;
+  return null;
+}
+/** Selo de DONO DO LOCAL embaixo do nome. So duas respostas sao CERTAS e so elas
+ *  ganham cor forte. "Negociando" e "em vista" nao sao inquilino: rotular assim
+ *  seria mentir, entao ficam num selo discreto. Sem resposta, a linha diz isso. */
+function cadRelacaoBadge(r) {
+  const txt = r.ponto_relacao || cadRelacaoDaFicha(r) || '';
+  const t = String(txt).toLowerCase();
+  let k = null, rot = '';
+  // a ordem importa: "negociando com o PROPRIETARIO" nao e proprietario
+  if (/ainda n[aã]o [eé] meu|negoci|em vista|n[aã]o conversei/.test(t)) { k = 'nao'; rot = 'não é dono ainda'; }
+  else if (/inquilin/.test(t)) { k = 'inq'; rot = 'INQUILINO'; }
+  else if (/propriet[aá]rio|sou o dono|[eé] meu/.test(t)) { k = 'pro'; rot = 'PRÓPRIO'; }
+  if (!k) return '<span class="cad-rel-nd">dono? não perguntado</span>';
+  return '<span class="cad-rel ' + k + '" title="' + escapeHtml(txt) + '">' + rot + '</span>';
 }
 /** O valor que o investidor da FICHA disse que quer por. So existe desde 15/09,
  *  quando a LP passou a perguntar; antes disso a ficha so diz COMO paga. */
