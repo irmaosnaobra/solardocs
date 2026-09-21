@@ -424,6 +424,9 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
   border-radius:999px;padding:3px 9px;white-space:nowrap;cursor:help}
 .cad-rel.pro{background:#39FF14;color:#06210A;box-shadow:0 0 8px rgba(57,255,20,.55)}
 .cad-rel.inq{background:#FF3131;color:#200000;box-shadow:0 0 8px rgba(255,49,49,.6)}
+/* Representante ou administrador: PODE assinar (contrato, Cl. 16.1), com poderes
+   documentados. Nao e o dono, entao nao e verde; nao e inquilino, entao nao e vermelho. */
+.cad-rel.rep{background:#FFE500;color:#221E00;box-shadow:0 0 8px rgba(255,229,0,.5)}
 .cad-rel.nao{background:transparent;color:#94A3B8;border:1px dashed rgba(148,163,184,.4);font-weight:700;letter-spacing:0}
 .cad-rel-nd{display:block;margin-top:5px;font-size:10.5px;color:#64748B;font-weight:600}
 /* Status que mora na AGENDA. Nao e um seletor de proposito: gravar aqui trocaria o
@@ -8640,8 +8643,14 @@ function cadRelacaoBadge(r) {
   const txt = r.ponto_relacao || cadRelacaoDaFicha(r) || '';
   const t = String(txt).toLowerCase();
   let k = null, rot = '';
-  // a ordem importa: "negociando com o PROPRIETARIO" nao e proprietario
+  // A ORDEM IMPORTA, e dois textos contem "proprietario" sem ser dono:
+  //   "Estou NEGOCIANDO com o proprietario" -> nao pode assinar ainda
+  //   "REPRESENTO o proprietario"           -> pode assinar, com procuracao
+  // Quem pode ceder o local, pelo contrato (Cl. 16.1): proprietario, inquilino
+  // (com anuencia escrita do dono) e administrador ou representante (com poderes
+  // documentados). Quem "ainda nao e dono" nao assina: e indicacao.
   if (/ainda n[aã]o [eé] meu|negoci|em vista|n[aã]o conversei/.test(t)) { k = 'nao'; rot = 'não é dono ainda'; }
+  else if (/represent|administr/.test(t)) { k = 'rep'; rot = 'REPRESENTANTE'; }
   else if (/inquilin/.test(t)) { k = 'inq'; rot = 'INQUILINO'; }
   else if (/propriet[aá]rio|sou o dono|[eé] meu/.test(t)) { k = 'pro'; rot = 'PRÓPRIO'; }
   if (!k) return '<span class="cad-rel-nd">dono? não perguntado</span>';
