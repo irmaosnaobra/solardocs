@@ -2836,8 +2836,19 @@ function perfilTexto(sel){
 // e dia vazio segura sozinho até as 17h30.
 //
 // A busca varre 21 dias, então feriado emendado não deixa a tela vazia.
-const ABRE_PROXIMO_COM = 2;   // sobrou isto ou menos hoje? o próximo dia entra junto
-const TETO_VITRINE = 2;       // nunca mais de dois dias na tela
+//
+// 22/09/2026 — A VITRINE ABRIU. Ordem do dono no mesmo dia em que a régua do SIM
+// devolveu 18 horários presos em quem marcou e sumiu: "libera a agenda conforme
+// está agora". O que a régua devolve não adianta ficar escondido: com a vitrine
+// de um dia, os 24 horários livres da semana apareciam como 3, e quem entrava
+// querendo comprar via uma tela quase vazia e saía.
+//
+// Então o gatilho deixou de ser a lotação de hoje: agora entram TODOS os dias
+// úteis com horário livre até o teto. Isso inverte de propósito a régua de
+// 14/08 acima, e o custo dela continua valendo (dia ao lado de dia espalha).
+// Voltar é de uma linha: ABRE_PROXIMO_COM = 2 e TETO_VITRINE = 2.
+const ABRE_PROXIMO_COM = 99;  // sempre abre o próximo: a agenda vai inteira pra tela
+const TETO_VITRINE = 4;       // até quatro dias, que é a semana útil que a grade alcança
 function proximosDias(){
   const base = new Date(`${partesBR().ymd}T12:00:00-03:00`);
   const abertos = [];

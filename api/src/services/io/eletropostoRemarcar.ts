@@ -182,6 +182,31 @@ export function bolhasSlotTomado(nome: string, ofertas: string[], quem: string):
   ];
 }
 
+// ── COPY DO RETORNO (quem perdeu o horário na régua do SIM) ─────────────────
+// A diferença pro `bolhasSlotTomado` é o passado que cada um carrega. Ali o
+// horário foi vendido enquanto a pessoa estava voltando; aqui ela sumiu, foi
+// avisada de que ia perder, perdeu, e o robô está chamando DE NOVO. A primeira
+// bolha diz isso sem cobrança nenhuma: acusar quem a gente quer de volta é o
+// jeito mais rápido de não ter ninguém de volta.
+
+export function bolhasRetorno1(nome: string, ofertas: string[], quem: string): string[] {
+  return [
+    `Oi${comNome(nome)}! Seu horário acabou ficando pra outra pessoa porque eu não tive retorno, mas dá pra te encaixar de novo.`,
+    `Estes são os próximos horários do *${quem}*:\n\n${ofertas.map(linhaDaOpcao).join('\n')}`,
+    'Me responde só o número que eu travo pra você.',
+  ];
+}
+
+/** A última. Depois desta o robô não chama mais: quem quiser voltar volta pela
+ *  equipe, que já tem a ficha dele na aba Curioso. */
+export function bolhasRetorno2(nome: string, ofertas: string[], quem: string): string[] {
+  return [
+    `${nome ? nome + ', e' : 'E'}u prometo que é a última vez que eu te chamo.`,
+    `Se ainda quiser ver quanto o seu ponto geraria com um eletroposto, é só escolher um horário com o *${quem}*:\n\n${ofertas.map(linhaDaOpcao).join('\n')}`,
+    'Responde o número, ou me diz o melhor dia que eu encaixo.',
+  ];
+}
+
 /** Sem vaga nenhuma nas próximas 3 semanas: não inventa horário, chama gente. */
 export function bolhasSemVaga(nome: string, quem: string): string[] {
   return [
