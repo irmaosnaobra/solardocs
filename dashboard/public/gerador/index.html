@@ -8425,7 +8425,18 @@ async function cadCarregar(forcar) {
       // reunião de qualquer status, não só arrendamento. Janela de 120 dias e
       // teto de 1000 (o da API) — as mais NOVAS primeiro, que são as que a
       // coluna mostra. Se falhar, a lista carrega sem a coluna.
+      // O FILTRO POR ELETROPOSTO NAO E ENFEITE (22/09/2026): sao 1.092 reunioes
+      // de todos os produtos nesta janela de 120 dias contra um teto de 1.000 na
+      // API. Ou seja, o corte JA ESTA ACONTECENDO, e ele cai nas mais antigas.
+      // Como a leitura vem em ordem decrescente, o efeito hoje e' pequeno, mas
+      // cresce sozinho: daqui a um mes seriam ~500 reunioes fora do mapa, e a
+      // coluna mostraria travessao pra gente que TEM reuniao. Travessao quer
+      // dizer "nao tem", entao isso seria a tela mentindo em silencio.
+      // Filtrando por eletroposto sao ~400 linhas, com folga de anos, e e' o
+      // assunto desta tela. Reuniao de solar da mesma pessoa deixa de aparecer
+      // aqui de proposito: esta aba e' a base do eletroposto.
       supaGet('agendamentos?select=id,quando,cliente_telefone,status,vendedor_nome,created_by,src'
+              + '&created_by=ilike.*eletroposto*'
               + '&quando=gte.' + new Date(Date.now() - 120 * 86400000).toISOString()
               + '&order=quando.desc&limit=1000').catch(() => []),
     ]);
