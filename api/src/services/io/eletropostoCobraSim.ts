@@ -551,16 +551,32 @@ export async function runEletropostoCobraSimTick(opts: { dry?: boolean } = {}): 
       segurados++;
       continue;
     }
+    // CLAIM ANTES DE ENVIAR, e é `insert` e não `upsert` de propósito: a chave é
+    // primary key, então quem perde a corrida leva 23505 e desiste. Sem isso,
+    // dois ticks simultâneos (o cron do GitHub e o da Vercel chamam o mesmo
+    // /cron/process-messages) leem a mesma fila e mandam a MESMA mensagem duas
+    // vezes. Aconteceu de verdade às 14h56 de 22/09/2026, na primeira drenagem:
+    // o Andre recebeu o aviso de liberação em dobro, com 2 segundos de intervalo.
+    // Carimbo gravado e envio que falha vira carimbo apagado logo abaixo, então a
+    // mensagem volta pra fila no tick seguinte em vez de sumir.
+    const nowIso = new Date().toISOString();
+    const sufixo = item.passo === 'liberar' ? 'liberou' : item.passo;
+    const chave = `${EP_COBRA_PREFIX}${item.id}:${sufixo}`;
+    const { error: eClaim } = await supabase.from('system_state')
+      .insert({ key: chave, value: { claim: nowIso }, updated_at: nowIso });
+    if (eClaim) {
+      logger.info('ep-cobra-sim', 'outro tick já pegou esta mensagem', { chave });
+      continue;
+    }
     try {
       await sendFrio(item.tel, [item.mensagem], 'io');
-      const nowIso = new Date().toISOString();
-      const sufixo = item.passo === 'liberar' ? 'liberou' : item.passo;
       await supabase.from('system_state').upsert(
-        { key: `${EP_COBRA_PREFIX}${item.id}:${sufixo}`, value: { em: nowIso }, updated_at: nowIso },
+        { key: chave, value: { em: new Date().toISOString() }, updated_at: new Date().toISOString() },
         { onConflict: 'key' },
       );
       if (item.passo === 'c1') cobranca1++; else if (item.passo === 'c2') cobranca2++; else avisos++;
     } catch (e) {
+      await supabase.from('system_state').delete().eq('key', chave).then(undefined, () => {});
       logger.error('ep-cobra-sim', 'falha ao enviar cobrança', { id: item.id, passo: item.passo, erro: String(e) });
       erros++;
     }

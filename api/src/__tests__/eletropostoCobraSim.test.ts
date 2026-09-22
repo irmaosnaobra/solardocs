@@ -15,6 +15,7 @@ const updates: Array<{ id: number; patch: any }> = [];
 const inseridas: any[] = [];
 const carimbos: string[] = [];
 let tetoLivre = true;
+let falharEnvio = false;
 
 vi.mock('../utils/supabaseGerador', () => ({
   supabaseGerador: {
@@ -70,21 +71,31 @@ vi.mock('../utils/supabase', () => ({
         limit() {
           return Promise.resolve({ data: estado.filter(e => e.key.startsWith(q._like || '')), error: null });
         },
-        upsert(linha: any) {
-          carimbos.push(linha.key);
+        insert(linha: any) {
+          // A chave é primary key de verdade: o claim de quem chega depois falha.
+          if (estado.some(e => e.key === linha.key)) return Promise.resolve({ error: { code: '23505' } });
           estado.push(linha);
-          return Object.assign(Promise.resolve({ error: null }), { then: undefined as any });
+          return Promise.resolve({ error: null });
         },
+        delete() { return { eq: (_c: string, v: string) => { estado = estado.filter(e => e.key !== v); return Promise.resolve({ error: null }); } }; },
       };
       // `upsert(...).then(undefined, cb)` é o padrão da casa: devolve promise de verdade.
-      q.upsert = (linha: any) => { carimbos.push(linha.key); estado.push(linha); return Promise.resolve({ error: null }); };
+      q.upsert = (linha: any) => {
+        carimbos.push(linha.key);
+        const i = estado.findIndex(e => e.key === linha.key);
+        if (i >= 0) estado[i] = linha; else estado.push(linha);
+        return Promise.resolve({ error: null });
+      };
       return q;
     },
   },
 }));
 
 vi.mock('../services/agents/zapiClient', () => ({
-  sendFrio: async (phone: string, bolhas: string[]) => { enviadas.push({ phone, bolhas }); },
+  sendFrio: async (phone: string, bolhas: string[]) => {
+    if (falharEnvio) throw new Error('z-api fora');
+    enviadas.push({ phone, bolhas });
+  },
 }));
 
 vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
@@ -122,7 +133,7 @@ beforeEach(() => {
   vi.setSystemTime(AGORA);
   fichas = []; estado = []; nota1 = [];
   enviadas.length = 0; updates.length = 0; inseridas.length = 0; carimbos.length = 0;
-  tetoLivre = true;
+  tetoLivre = true; falharEnvio = false;
   delete process.env.EP_COBRA_SIM_OFF;
 });
 afterEach(() => { vi.useRealTimers(); });
@@ -303,6 +314,30 @@ describe('o tick', () => {
     const r2 = await runEletropostoCobraSimTick();
     expect(r2.avisos).toBe(1);
     expect(enviadas[0].bolhas[0]).toContain('liberei');
+  });
+
+  it('mensagem ja reivindicada por outro tick nao sai de novo', async () => {
+    // Dois ticks simultaneos (cron do GitHub e da Vercel) leem a mesma fila. O
+    // claim e' `insert` numa primary key: o segundo leva 23505 e desiste. Sem
+    // isso o Andre recebeu o aviso duas vezes em 22/09/2026.
+    fichas = [ficha({ confirmacao_at: minAtras(4000) })];
+    estado = [{ key: `${EP_COBRA_PREFIX}1:liberou`, value: { claim: 'agora' } }];
+    const r = await runEletropostoCobraSimTick();
+    expect(r.liberados).toBe(1);
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('envio que falha devolve a mensagem pra fila', async () => {
+    fichas = [ficha({ confirmacao_at: minAtras(4000) })];
+    falharEnvio = true;
+    const r1 = await runEletropostoCobraSimTick();
+    expect(r1.erros).toBe(1);
+    expect(estado.some(e => e.key === `${EP_COBRA_PREFIX}1:liberou`)).toBe(false);
+
+    fichas = [];
+    falharEnvio = false;
+    const r2 = await runEletropostoCobraSimTick();
+    expect(r2.avisos).toBe(1);
   });
 
   it('kill-switch para tudo', async () => {
