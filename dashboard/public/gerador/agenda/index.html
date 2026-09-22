@@ -2450,7 +2450,9 @@ async function processarDeepLinkAgenda() {
     if (ag) {
       if (ag.vendedor_nome && VENDEDORES.includes(ag.vendedor_nome)) vendedorAtivo = ag.vendedor_nome;
       abrirDetalhes(id);
-      setTimeout(() => { if (typeof abrirReagendar === 'function') abrirReagendar(); }, 120);
+      // ?ver=1 é só olhar (veio da coluna Agenda dos Cadastros). Sem ele o link
+      // continua sendo o do card "Reagendar", que abre a remarcação direto.
+      if (!q.get('ver')) setTimeout(() => { if (typeof abrirReagendar === 'function') abrirReagendar(); }, 120);
     } else {
       showToast('Agendamento não encontrado (pode ter sido alterado).');
     }

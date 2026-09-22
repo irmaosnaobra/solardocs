@@ -447,6 +447,15 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
    status do agendamento e tiraria a pessoa do proprio Arrendamento. */
 .cad-st-agenda{display:inline-block;font-size:12px;font-weight:700;color:#EADBC0;
   border:1px dashed rgba(234,219,192,.4);border-radius:8px;padding:7px 9px;white-space:nowrap;cursor:help}
+/* COLUNA AGENDA (22/09/2026). As duas pilulas sao as MESMAS do card da agenda:
+   status (preta) e etiqueta de origem (colorida por etiquetaCor, em etiqueta.js).
+   Repetir a cor aqui e de proposito — quem olha a lista reconhece o card sem abrir. */
+.cad-ag{white-space:nowrap}
+.cad-ag-link{display:inline-block;text-decoration:none;color:inherit}
+.cad-ag-link:hover .cad-ag-st{filter:brightness(1.25)}
+.cad-ag-st{display:inline-block;background:#000;color:#fff;border-radius:999px;padding:1px 7px;
+  font-size:10px;font-weight:800;letter-spacing:.2px;vertical-align:middle}
+.cad-ag-nao{color:#64748B}
 /* padrão que não deve aguentar: é o aviso que evita marcar reunião pra um ponto
    que já nasce com obra de aumento de carga na concessionária */
 .cad-alerta{display:block;margin-top:4px;font-size:11px;font-weight:800;color:#FCA5A5;line-height:1.35}
@@ -3965,6 +3974,11 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <option value="falando">Falando</option>
             <option value="conectado">Conectado</option>
             <option value="sem_interesse">Sem interesse</option>
+          </select>
+          <!-- Filtro de vendedor: quem tem reunião com aquele consultor. A lista de
+               nomes sai dos próprios agendamentos lidos, sem nome fixo no código. -->
+          <select class="cad-filtro" id="cad-vend" onchange="cadRender()">
+            <option value="">Todos os vendedores</option>
           </select>
           <button type="button" class="ehist-btn" onclick="cadCarregar(true)">↻ Atualizar</button>
         </div>
@@ -8270,6 +8284,53 @@ function cadDestino(origem, r) {
   return cadValorOk(v) ? 'capital' : 'curioso';
 }
 const CAD_STATUS = { novo: 'Novo', falando: 'Falando', conectado: 'Conectado', sem_interesse: 'Sem interesse' };
+
+// ── COLUNA AGENDA (22/09/2026) ───────────────────────────────────────────────
+// Ordem do dono: ver na lista quem já tem reunião, com a MESMA etiqueta do card
+// da agenda, e poder filtrar por vendedor. O casamento é por telefone (8 últimos
+// dígitos, a mesma chave do resto da casa: o 55 e o 9 extra aparecem e somem).
+// Rótulos iguais aos de ETIQUETA_STATUS em /gerador/agenda: dois nomes para o
+// mesmo status fariam a mesma pessoa parecer duas coisas em duas telas.
+const CAD_AG_STATUS = {
+  agendado: 'AGENDADO', nao_atendeu: 'NÃO ATENDEU', falando_whatsapp: 'WHATSAPP',
+  em_atendimento: 'NEGOCIANDO', sem_orcamento: 'SEM ORÇAMENTO', fez_orcamento: 'FEZ ORÇAMENTO',
+  proposta_apresentada: 'PROPOSTA', sem_interesse: 'SEM INTERESSE', perdido: 'PERDIDO',
+  fechou_concorrente: 'CONCORRENTE', fechou: 'FECHOU', arrendamento: 'ARRENDAMENTO',
+  carregador: 'CARREGADOR', meio_a_meio: '50/50', chave_na_mao: 'CHAVE NA MÃO',
+  cancelado: 'CANCELADO', reagendar: 'REAGENDAR',
+};
+let cadAgendas = new Map();   // 8 últimos dígitos -> a reunião mais recente da pessoa
+const cadTel8 = t => String(t || '').replace(/\D/g, '').slice(-8);
+function cadAgendaDe(r) {
+  const k = cadTel8(r.telefone);
+  return k ? (cadAgendas.get(k) || null) : null;
+}
+/** A célula da coluna Agenda. Sem reunião é travessão, não vazio: vazio se lê
+ *  como "a coluna quebrou". O link abre o card na agenda, em modo de leitura. */
+function cadAgendaCel(r) {
+  const a = cadAgendaDe(r);
+  if (!a) return '<td class="cad-ag"><span class="cad-ag-nao">—</span></td>';
+  const etq = etqDeLead(a.created_by, a.src);
+  const cor = etq && typeof etiquetaCor === 'function' ? etiquetaCor(etq) : '';
+  const st = CAD_AG_STATUS[a.status || 'agendado'] || String(a.status || '').toUpperCase();
+  const quando = a.quando
+    ? new Date(a.quando).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    : '';
+  return '<td class="cad-ag">'
+    + '<a class="cad-ag-link" href="/gerador/agenda?ag=' + a.id + '&ver=1" target="_blank" rel="noopener"'
+    + ' title="Abrir esta reunião na agenda">'
+    + '<span class="cad-ag-st">' + escapeHtml(st) + '</span>'
+    + (etq ? ' <span class="crm-card-tag' + (cor ? ' tag-' + cor : '') + '">' + escapeHtml(etq) + '</span>' : '')
+    + '<span class="cad-sub">' + escapeHtml(a.vendedor_nome || 'sem vendedor')
+    + (quando ? ' · ' + quando : '') + '</span>'
+    + '</a></td>';
+}
+/** Os vendedores que aparecem nas reuniões desta lista, para o filtro. */
+function cadVendedores() {
+  const s = new Set();
+  cadAgendas.forEach(a => { if (a.vendedor_nome) s.add(a.vendedor_nome); });
+  return Array.from(s).sort();
+}
 let cadLado = 'ponto';
 let cadDados = null;   // null = nunca carregou
 // Pareamento por proximidade, calculado no servidor (/_api/io/eletroposto/parceria/pares).
@@ -8322,7 +8383,7 @@ async function cadCarregar(forcar) {
     // lugar só em vez de espalhada em dois querystrings.
     const API_PARES = (location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api')
       + '/io/eletroposto/parceria/pares';
-    const [pontos, capital, integradores, fichas, pares, conexoes, agendaArr] = await Promise.all([
+    const [pontos, capital, integradores, fichas, pares, conexoes, agendaArr, agendaTodas] = await Promise.all([
       // 1000 e o teto de linhas da API, e o mesmo numero que o servidor usa nos
       // pares e na lista do Curioso: com tetos diferentes, as duas contas divergem
       // em silencio no dia em que a base passar do menor.
@@ -8349,7 +8410,21 @@ async function cadCarregar(forcar) {
       // leitura falhar a aba carrega igual, so sem eles.
       supaGet('agendamentos?status=eq.arrendamento&select=id,created_at,cliente_nome,'
               + 'cliente_telefone,cidade,ponto_relacao&order=created_at.desc&limit=1000').catch(() => []),
+      // TODA reunião recente, pra coluna Agenda: a pessoa da lista pode ter
+      // reunião de qualquer status, não só arrendamento. Janela de 120 dias e
+      // teto de 1000 (o da API) — as mais NOVAS primeiro, que são as que a
+      // coluna mostra. Se falhar, a lista carrega sem a coluna.
+      supaGet('agendamentos?select=id,quando,cliente_telefone,status,vendedor_nome,created_by,src'
+              + '&quando=gte.' + new Date(Date.now() - 120 * 86400000).toISOString()
+              + '&order=quando.desc&limit=1000').catch(() => []),
     ]);
+    // Uma pessoa pode ter várias reuniões; fica a mais recente (a leitura já vem
+    // em ordem decrescente, então a primeira de cada telefone é a que vale).
+    cadAgendas = new Map();
+    (agendaTodas || []).forEach(a => {
+      const k = cadTel8(a.cliente_telefone);
+      if (k && !cadAgendas.has(k)) cadAgendas.set(k, a);
+    });
     cadPares = pares && pares.pares ? pares.pares : null;
     cadMatches = pares && pares.matches ? pares.matches : null;
     if (pares && pares.teto_km) CAD_MATCH_KM = pares.teto_km;
@@ -8425,6 +8500,20 @@ function cadRender() {
   if (!cadDados) return;
   const busca = (document.getElementById('cad-busca').value || '').trim().toLowerCase();
   const filtro = document.getElementById('cad-filtro').value;
+  // O seletor de vendedor é remontado a cada render (a lista de nomes vem dos
+  // dados), preservando o que estiver escolhido.
+  const selVend = document.getElementById('cad-vend');
+  const vend = selVend ? selVend.value : '';
+  if (selVend) {
+    const nomes = cadVendedores();
+    const html = '<option value="">Todos os vendedores</option>'
+      + nomes.map(n => '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>').join('');
+    if (selVend.dataset.nomes !== nomes.join('|')) {
+      selVend.innerHTML = html;
+      selVend.dataset.nomes = nomes.join('|');
+    }
+    selVend.value = nomes.includes(vend) ? vend : '';
+  }
   document.getElementById('cad-cnt-ponto').textContent = cadDados.ponto.length;
   document.getElementById('cad-cnt-capital').textContent = cadDados.capital.length;
   document.getElementById('cad-cnt-curioso').textContent = cadDados.curioso.length;
@@ -8438,6 +8527,10 @@ function cadRender() {
 
   let linhas = cadDados[cadLado];
   if (filtro) linhas = linhas.filter(r => (r.status || 'novo') === filtro);
+  // Filtrar por vendedor deixa de fora quem não tem reunião nenhuma — é o que
+  // "as pessoas do Diego" quer dizer.
+  const vendEscolhido = selVend ? selVend.value : '';
+  if (vendEscolhido) linhas = linhas.filter(r => { const a = cadAgendaDe(r); return a && a.vendedor_nome === vendEscolhido; });
   if (busca) linhas = linhas.filter(r =>
     [r.nome, r.cidade, r.telefone, r.ponto_endereco].filter(Boolean).join(' ').toLowerCase().includes(busca));
 
@@ -8448,7 +8541,7 @@ function cadRender() {
     const semNinguem = !cadDados[cadLado].length;
     // O colspan acompanha o cabeçalho de cada lado — fixo, ele encolhe a
     // mensagem em silêncio quando uma coluna entra (não dá erro no console).
-    const nCols = (cadLado === 'ponto' || cadLado === 'curioso') ? 8 : 7;   // integrador e capital têm 7
+    const nCols = (cadLado === 'ponto' || cadLado === 'curioso') ? 9 : 8;   // + a coluna Agenda
     tb.innerHTML = '<tr><td colspan="' + nCols + '" style="color:#94A3B8;padding:20px;line-height:1.6">' + (semNinguem
       ? (cadLado === 'ponto'
         ? '<b>Nenhum ponto cadastrado ainda.</b><br>Enquanto esta lista estiver vazia, os investidores da outra aba não têm o que receber — divulgar solardoc.app/io/eletroposto/parceria é o que destrava.'
@@ -8465,12 +8558,12 @@ function cadRender() {
   // coluna que mostra sempre "—" convida a equipe a procurar defeito onde não há.
   const colPar = cadLado === 'ponto' ? '<th>Investidores perto</th>' : '<th>Pontos perto</th>';
   const cab = cadLado === 'ponto'
-    ? '<tr><th>Quem</th><th>Local</th><th>Cidade</th><th>Endereço</th><th>Padrão de entrada</th><th>Situação</th>' + colPar + '<th>Status</th></tr>'
+    ? '<tr><th>Quem</th><th>Local</th><th>Cidade</th><th>Endereço</th><th>Padrão de entrada</th><th>Situação</th>' + colPar + '<th>Agenda</th><th>Status</th></tr>'
     : cadLado === 'curioso'
-    ? '<tr><th>Quem</th><th>Cidade</th><th>O local</th><th>Quanto investe</th><th>Com quê</th><th>Origem</th><th>Registrar valor</th><th>Status</th></tr>'
+    ? '<tr><th>Quem</th><th>Cidade</th><th>O local</th><th>Quanto investe</th><th>Com quê</th><th>Origem</th><th>Registrar valor</th><th>Agenda</th><th>Status</th></tr>'
     : cadLado === 'integrador'
-    ? '<tr><th>Quem</th><th>Cidade</th><th>O que faz</th><th>Como quer trabalhar</th><th>Experiência</th><th>Equipe</th><th>Status</th></tr>'
-    : '<tr><th>Quem</th><th>Cidade</th><th>Quanto</th><th>Com quê</th><th>Origem</th>' + colPar + '<th>Status</th></tr>';
+    ? '<tr><th>Quem</th><th>Cidade</th><th>O que faz</th><th>Como quer trabalhar</th><th>Experiência</th><th>Equipe</th><th>Agenda</th><th>Status</th></tr>'
+    : '<tr><th>Quem</th><th>Cidade</th><th>Quanto</th><th>Com quê</th><th>Origem</th>' + colPar + '<th>Agenda</th><th>Status</th></tr>';
 
   tb.innerHTML = cab + linhas.map(r => {
     const tel = String(r.telefone || '').replace(/\D/g, '');
@@ -8508,8 +8601,8 @@ function cadRender() {
         + '<td class="cad-end">' + escapeHtml(r.ponto_endereco || '—')
           + (r.obs ? '<span class="cad-sub">' + escapeHtml(r.obs) + '</span>' : '') + '</td>'
         + cadPadraoCel(r)
-        + '<td>' + escapeHtml(r.ponto_fluxo || '—') + '</td>' + cadParesCel(r) + st + '</tr>'
-        + (cadParesAberto === cadRef(r) ? '<tr class="cad-par-tr"><td colspan="8">' + cadParesHTML(r) + '</td></tr>' : '');
+        + '<td>' + escapeHtml(r.ponto_fluxo || '—') + '</td>' + cadParesCel(r) + cadAgendaCel(r) + st + '</tr>'
+        + (cadParesAberto === cadRef(r) ? '<tr class="cad-par-tr"><td colspan="9">' + cadParesHTML(r) + '</td></tr>' : '');
     }
     if (cadLado === 'curioso') {
       // Declarou abaixo do piso ou nao declarou: duas conversas diferentes, e a
@@ -8528,7 +8621,7 @@ function cadRender() {
         + '<td>' + motivo + '</td>'
         + '<td>' + escapeHtml(r.capital_origem || '—') + '</td>'
         + '<td>' + org + '</td>'
-        + '<td>' + cadValorSelect(r) + '</td>' + st + '</tr>';
+        + '<td>' + cadValorSelect(r) + '</td>' + cadAgendaCel(r) + st + '</tr>';
     }
     if (cadLado === 'integrador') {
       return '<tr>' + nome
@@ -8537,7 +8630,7 @@ function cadRender() {
         + '<td>' + escapeHtml(r.integrador_interesse || '—')
           + (r.obs ? '<span class="cad-sub">' + escapeHtml(r.obs) + '</span>' : '') + '</td>'
         + '<td>' + escapeHtml(r.integrador_experiencia || '—') + '</td>'
-        + '<td>' + escapeHtml(r.integrador_equipe || '—') + '</td>' + st + '</tr>';
+        + '<td>' + escapeHtml(r.integrador_equipe || '—') + '</td>' + cadAgendaCel(r) + st + '</tr>';
     }
     return '<tr>' + nome
       + '<td>' + escapeHtml(r.cidade || '—') + '</td>'
@@ -8545,8 +8638,8 @@ function cadRender() {
       + '<td>' + escapeHtml(r.capital_origem || '—') + (r.prazo ? '<span class="cad-sub">' + escapeHtml(r.prazo) + '</span>' : '')
         // o investidor do quiz (21/09) traz aqui o local que tinha em vista
         + (r.obs ? '<span class="cad-sub">' + escapeHtml(r.obs) + '</span>' : '') + '</td>'
-      + '<td>' + org + '</td>' + cadParesCel(r) + st + '</tr>'
-      + (cadParesAberto === cadRef(r) ? '<tr class="cad-par-tr"><td colspan="7">' + cadParesHTML(r) + '</td></tr>' : '');
+      + '<td>' + org + '</td>' + cadParesCel(r) + cadAgendaCel(r) + st + '</tr>'
+      + (cadParesAberto === cadRef(r) ? '<tr class="cad-par-tr"><td colspan="8">' + cadParesHTML(r) + '</td></tr>' : '');
   }).join('');
 
   cadPainelPares();
