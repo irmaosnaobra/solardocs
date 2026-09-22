@@ -56,9 +56,11 @@
 //     confirmação?" três dias depois é robô falando sozinho.
 //   • Ninguém é liberado a menos de MIN_ANTES_DA_REUNIAO_MIN da reunião: dali em
 //     diante quem manda são o toque de 1h e o não atendido automático.
-//   • Ninguém perde o horário sem ter recebido o ultimato, com uma exceção
-//     escrita: passadas LIBERAR_SEM_ULTIMATO_H horas de silêncio, o horário vale
-//     mais que o aviso (é o caso do represado, que perdeu a janela das cobranças).
+//   • Ninguém perde o horário sem ter recebido o ultimato E sem a hora prometida
+//     nele ter chegado (a conta é do ENVIO do ultimato, não da confirmação: a
+//     fila é lenta e um ultimato atrasado anunciaria hora já passada). A exceção
+//     está escrita: passadas LIBERAR_SEM_ULTIMATO_H horas de silêncio, o horário
+//     vale mais que o aviso, e é o caso do represado.
 //
 // Kill-switch: EP_COBRA_SIM_OFF=1. Prévia sem enviar e sem gravar:
 // GET /cron/eletroposto-cobra-sim?dry=1
@@ -99,6 +101,13 @@ const ATRASO_MAX_MIN = 120;
  *  de 6 horas já é resposta, e é o caso das fichas represadas, que entraram
  *  nesta régua com a confirmação de ontem ou de três dias atrás. */
 const LIBERAR_SEM_ULTIMATO_H = Number(process.env.EP_COBRA_SEM_ULTIMATO_H || 6);
+/** A GRAÇA DEPOIS DO ULTIMATO, e é ela que faz a promessa ser verdade. O
+ *  ultimato diz "libero às HH:MM", e essa hora é contada do ENVIO dele, não da
+ *  confirmação. Sem isso, um ultimato que saísse atrasado (a fila é lenta de
+ *  propósito) anunciaria uma hora JÁ PASSADA e a liberação viria minutos depois:
+ *  o pior dos dois mundos, prazo mentiroso e zero chance de responder. */
+const GRACA_APOS_ULTIMATO_MIN = Number(process.env.EP_COBRA_GRACA_MIN || 60);
+
 /** Perto da reunião esta régua sai de cena: liberar 20 minutos antes não revende
  *  horário nenhum (a LP para de vender 30 min antes) e atropelaria o toque de 1h,
  *  que é quem fala com essa pessoa. */
@@ -114,9 +123,13 @@ const MSG_POR_TICK = Number(process.env.EP_COBRA_MSG_POR_TICK || 2);
 
 /** Piso do teto da linha pra esta régua. O volume é limitado pela agenda (uma
  *  ficha gera no máximo 3 cobranças na vida), então ela merece piso como a
- *  confirmação e o bom dia. 12/h recua quando a agenda está no pico: o dia cheio
- *  da linha bate 18 envios numa hora, e aí quem fala é o agente de agenda. */
-const COBRA_TETO_HORA = Number(process.env.EP_COBRA_TETO_HORA || 12);
+ *  confirmação e o bom dia.
+ *
+ *  20/h e não 12/h: 12 era o número de antes de medir, e a linha TRABALHA em 20
+ *  envios por hora (158 num dia, medido em 22/09/2026). Com piso de 12 a cobrança
+ *  ficaria barrada quase o dia inteiro, e a escada que o dono aprovou viraria só
+ *  a liberação no fim: horário perdido sem ninguém ter sido cobrado. */
+const COBRA_TETO_HORA = Number(process.env.EP_COBRA_TETO_HORA || 20);
 const COBRA_TETO_DIA = Number(process.env.EP_COBRA_TETO_DIA || 200);
 
 /** O AVISO DE LIBERAÇÃO tem piso MAIOR que a cobrança, e a diferença foi medida
@@ -207,23 +220,35 @@ export type PassoCobranca = 'c1' | 'c2' | 'liberar' | 'esperar';
  * três dias atrás. Do lado oposto, uma ficha que acabou de estourar as 2h com a
  * cobrança 1 ainda não enviada recebe o ULTIMATO e não as duas coladas: dois
  * degraus no mesmo tick seriam duas mensagens em minutos.
+ *
+ * O RELÓGIO DA LIBERAÇÃO É O ENVIO DO ULTIMATO, não a confirmação. A fila é
+ * lenta de propósito e o ultimato pode sair atrasado; contando da confirmação, a
+ * pessoa receberia "libero às 15h" às 15h20 e perderia o horário no tick
+ * seguinte. Agora ela sempre tem GRACA_APOS_ULTIMATO_MIN depois do aviso.
+ *
+ * E o ultimato NÃO VENCE (só a cobrança 1 vence): enquanto ele não sair, ele é o
+ * degrau que vale, porque a alternativa é tirar o horário de alguém que nunca foi
+ * avisado de que ia perder.
  */
 export function passoDevido(e: {
   minDesdeConfirmacao: number;
   minAteReuniao: number;
   c1Enviada: boolean;
-  c2Enviada: boolean;
+  /** Há quantos minutos o ultimato saiu, ou null se ainda não saiu. */
+  c2EnviadaHaMin: number | null;
 }): PassoCobranca {
   // Perto da reunião mandam os avisos que já existem (1h e 5min), e é a régua do
   // lembrete de 1h + 15 min que decide ausência.
   if (e.minAteReuniao <= MIN_ANTES_DA_REUNIAO_MIN) return 'esperar';
 
-  const podeLiberar = e.c2Enviada || e.minDesdeConfirmacao >= LIBERAR_SEM_ULTIMATO_H * 60;
-  if (e.minDesdeConfirmacao >= PASSO_LIBERA_MIN && podeLiberar) return 'liberar';
+  const ultimatoVenceu = e.c2EnviadaHaMin !== null && e.c2EnviadaHaMin >= GRACA_APOS_ULTIMATO_MIN;
+  const silencioLongo = e.minDesdeConfirmacao >= LIBERAR_SEM_ULTIMATO_H * 60;
+  if (e.minDesdeConfirmacao >= PASSO_LIBERA_MIN && (ultimatoVenceu || silencioLongo)) return 'liberar';
 
-  const dentro = (de: number) => e.minDesdeConfirmacao >= de && e.minDesdeConfirmacao < de + ATRASO_MAX_MIN;
-  if (!e.c2Enviada && dentro(PASSO_C2_MIN)) return 'c2';
-  if (!e.c1Enviada && dentro(PASSO_C1_MIN)) return 'c1';
+  if (e.c2EnviadaHaMin === null && e.minDesdeConfirmacao >= PASSO_C2_MIN) return 'c2';
+  const dentroDoC1 = e.minDesdeConfirmacao >= PASSO_C1_MIN
+    && e.minDesdeConfirmacao < PASSO_C1_MIN + ATRASO_MAX_MIN;
+  if (!e.c1Enviada && dentroDoC1) return 'c1';
   return 'esperar';
 }
 
@@ -441,12 +466,21 @@ export async function runEletropostoCobraSimTick(opts: { dry?: boolean } = {}): 
   // liberado mas ainda não avisado.
   const [falaram, cobrancas, liberados] = await Promise.all([
     supabase.from('system_state').select('key, updated_at').like('key', `${EP_RESPOSTA_PREFIX}%`).limit(1000),
-    supabase.from('system_state').select('key').like('key', `${EP_COBRA_PREFIX}%`).limit(2000),
+    supabase.from('system_state').select('key, updated_at').like('key', `${EP_COBRA_PREFIX}%`).limit(2000),
     supabase.from('system_state').select('key, value, updated_at').like('key', `${EP_LIBERADO_PREFIX}%`).limit(1000),
   ]);
   const respondeuEm = new Map<number, string>((falaram.data ?? []).map(m =>
     [Number(String(m.key).slice(EP_RESPOSTA_PREFIX.length)), String(m.updated_at ?? '')]));
-  const jaCobrado = new Set((cobrancas.data ?? []).map(m => String(m.key).slice(EP_COBRA_PREFIX.length)));
+  // Guarda QUANDO cada degrau saiu, não só que saiu: é o carimbo do ultimato que
+  // dá o relógio da liberação (ver passoDevido).
+  const cobradoEm = new Map<string, string>((cobrancas.data ?? []).map(m =>
+    [String(m.key).slice(EP_COBRA_PREFIX.length), String(m.updated_at ?? '')]));
+  const jaCobrado = new Set(cobradoEm.keys());
+  const idadeEmMin = (iso: string | undefined): number | null => {
+    if (!iso) return null;
+    const t = Date.parse(iso);
+    return Number.isFinite(t) ? (agora - t) / 60_000 : 0;
+  };
 
   // O marcador `ep_resposta:` NUNCA é apagado e a ficha pode ter recomeçado o
   // ciclo (o reagenda-auto devolve pra agenda quem sumiu). Então ele só vale a
@@ -476,7 +510,7 @@ export async function runEletropostoCobraSimTick(opts: { dry?: boolean } = {}): 
       minDesdeConfirmacao,
       minAteReuniao,
       c1Enviada: jaCobrado.has(`${f.id}:c1`),
-      c2Enviada: jaCobrado.has(`${f.id}:c2`),
+      c2EnviadaHaMin: jaCobrado.has(`${f.id}:c2`) ? (idadeEmMin(cobradoEm.get(`${f.id}:c2`)) ?? 0) : null,
     });
     if (passo === 'esperar') continue;
 
@@ -500,7 +534,13 @@ export async function runEletropostoCobraSimTick(opts: { dry?: boolean } = {}): 
     }
 
     // Cobrança: entra na fila de mensagens desta rodada.
-    const corteEm = new Date(new Date(f.confirmacao_at!).getTime() + PASSO_LIBERA_MIN * 60_000);
+    // A hora do corte que vai ESCRITA no ultimato. Nunca no passado: vale o mais
+    // tarde entre o degrau da escada e a graça contada de agora, que é o instante
+    // em que esta mensagem sai.
+    const corteEm = new Date(Math.max(
+      new Date(f.confirmacao_at!).getTime() + PASSO_LIBERA_MIN * 60_000,
+      agora + GRACA_APOS_ULTIMATO_MIN * 60_000,
+    ));
     const mensagem = passo === 'c1'
       ? bolhaCobranca1(f.cliente_nome, f.quando!, f.vendedor_nome)
       : bolhaCobranca2(f.cliente_nome, f.quando!, corteEm);

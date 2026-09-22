@@ -139,7 +139,7 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); });
 
 describe('passoDevido — a escada', () => {
-  const base = { minAteReuniao: 3000, c1Enviada: false, c2Enviada: false };
+  const base = { minAteReuniao: 3000, c1Enviada: false, c2EnviadaHaMin: null as number | null };
 
   it('antes de 1h não cobra nada', () => {
     expect(passoDevido({ ...base, minDesdeConfirmacao: 45 })).toBe('esperar');
@@ -153,12 +153,27 @@ describe('passoDevido — a escada', () => {
     expect(passoDevido({ ...base, minDesdeConfirmacao: 121, c1Enviada: true })).toBe('c2');
   });
 
-  it('3h depois do ultimato, libera o horário', () => {
-    expect(passoDevido({ ...base, minDesdeConfirmacao: 181, c1Enviada: true, c2Enviada: true })).toBe('liberar');
+  it('3h depois, com o ultimato já vencido, libera o horário', () => {
+    expect(passoDevido({ ...base, minDesdeConfirmacao: 181, c1Enviada: true, c2EnviadaHaMin: 60 })).toBe('liberar');
+  });
+
+  it('ultimato recém-enviado segura a liberação: a hora prometida tem que valer', () => {
+    // Ultimato saiu há 10 min dizendo "libero às HH:MM". Liberar agora seria
+    // quebrar a própria promessa no mesmo minuto em que ela foi feita.
+    expect(passoDevido({ ...base, minDesdeConfirmacao: 200, c1Enviada: true, c2EnviadaHaMin: 10 })).toBe('esperar');
+    expect(passoDevido({ ...base, minDesdeConfirmacao: 260, c1Enviada: true, c2EnviadaHaMin: 61 })).toBe('liberar');
   });
 
   it('não libera sem o ultimato antes das 6h de silêncio', () => {
     expect(passoDevido({ ...base, minDesdeConfirmacao: 200, c1Enviada: true })).toBe('c2');
+  });
+
+  it('o ultimato NÃO vence: enquanto não sair, é ele que vale', () => {
+    // Era o buraco das 4h às 6h: os dois degraus fechados, a liberação ainda
+    // bloqueada, e a ficha ficava parada até perder o horário sem nunca ter
+    // recebido o aviso de que ia perder.
+    expect(passoDevido({ ...base, minDesdeConfirmacao: 250, c1Enviada: true })).toBe('c2');
+    expect(passoDevido({ ...base, minDesdeConfirmacao: 300 })).toBe('c2');
   });
 
   it('passadas 6h de silêncio, libera mesmo sem o ultimato (o caso do represado)', () => {
@@ -166,13 +181,14 @@ describe('passoDevido — a escada', () => {
   });
 
   it('ficha represada NÃO recebe a cobrança de 1h atrasada', () => {
-    // 5h de silêncio: o degrau de 1h e o de 2h já venceram. Como ainda não deu 6h
-    // e o ultimato não saiu, o que vale é o ultimato, nunca o "conseguiu ver?".
-    expect(passoDevido({ ...base, minDesdeConfirmacao: 300 })).toBe('esperar');
+    // 5h de silêncio: o "conseguiu ver a confirmação?" venceu e não sai mais.
+    // O que vale é o ultimato, e depois dele a liberação.
+    expect(passoDevido({ ...base, minDesdeConfirmacao: 300 })).not.toBe('c1');
+    expect(passoDevido({ ...base, minDesdeConfirmacao: 4000 })).toBe('liberar');
   });
 
   it('perto da reunião a régua sai de cena (quem fala é o toque de 1h)', () => {
-    expect(passoDevido({ ...base, minDesdeConfirmacao: 500, minAteReuniao: 40 })).toBe('esperar');
+    expect(passoDevido({ ...base, minDesdeConfirmacao: 500, minAteReuniao: 40, c2EnviadaHaMin: 200 })).toBe('esperar');
   });
 });
 
@@ -235,7 +251,10 @@ describe('a ficha que nasce no Curioso', () => {
 describe('o tick', () => {
   it('libera a ficha muda de 3h, cria a ficha no Curioso e só então avisa', async () => {
     fichas = [ficha({ confirmacao_at: minAtras(200) })];
-    estado = [{ key: `${EP_COBRA_PREFIX}1:c1` }, { key: `${EP_COBRA_PREFIX}1:c2` }];
+    estado = [
+      { key: `${EP_COBRA_PREFIX}1:c1`, updated_at: minAtras(140) },
+      { key: `${EP_COBRA_PREFIX}1:c2`, updated_at: minAtras(80) },
+    ];
 
     const r = await runEletropostoCobraSimTick();
 
@@ -287,6 +306,21 @@ describe('o tick', () => {
     expect(enviadas).toHaveLength(2);
     // O ultimato vai na frente: é ele que evita a liberação.
     expect(enviadas[0].bolhas[0]).toContain('libero pra próxima');
+  });
+
+  it('o ultimato nunca promete uma hora que já passou', async () => {
+    // Ficha com 4h de silêncio e o ultimato ainda não enviado: contando da
+    // confirmação, o corte seria 1h ATRÁS. A hora escrita tem que ser daqui pra
+    // frente, senão a mensagem nasce mentindo.
+    fichas = [ficha({ confirmacao_at: minAtras(240) })];
+    await runEletropostoCobraSimTick();
+    expect(enviadas).toHaveLength(1);
+    const m = enviadas[0].bolhas[0];
+    const hora = m.match(/até as \*(\d{2})h(\d{2})\*/);
+    expect(hora).not.toBeNull();
+    const prometida = Number(hora![1]) * 60 + Number(hora![2]);
+    const agoraBRT = 14 * 60; // AGORA = 14h de Brasília
+    expect(prometida).toBeGreaterThan(agoraBRT);
   });
 
   it('a fila segura o excesso: 18 fichas paradas não viram 18 mensagens', async () => {
