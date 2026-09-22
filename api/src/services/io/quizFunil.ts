@@ -17,8 +17,14 @@
 // lista contra o HTML.
 // ───────────────────────────────────────────────────────────────────────────
 
-/** O dia em que a página começou a gravar. Antes disso não há o que ler. */
+/** O dia em que a página começou a gravar as perguntas. Antes disso o quiz não conta. */
 export const MEDINDO_DESDE = '2026-09-22';
+/**
+ * O começo da campanha do eletroposto na Meta ("Eletroposto - ABO — 21/07/26").
+ * É onde começa o "Desde o início" do painel: visita, reunião, cadastro e gasto
+ * por conjunto existem desde lá; só "onde mais para no quiz" começa em 22/09.
+ */
+export const CAMPANHA_DESDE = '2026-07-21';
 
 /** O texto de cada pergunta, como a pessoa vê. */
 export const PERGUNTAS: Record<string, string> = {
@@ -338,7 +344,9 @@ export interface LinhaConjunto {
   parceiros: number;
   fichas: number;
   custo_reuniao: number | null;
-  custo_cadastro: number | null;
+  /** gasto ÷ (reuniões + investidores + pontos). A mesma pessoa pode contar em
+   *  mais de uma coluna (ponto que também teve reunião), então não é "por pessoa". */
+  custo_resultado: number | null;
   negocio: number;
   arrendamento: number;
   perdidas: number;
@@ -363,7 +371,7 @@ export function montarConjuntos(
         id, nome: m?.nome || (id === SEM_CONJUNTO ? 'Sem conjunto (orgânico ou link direto)' : id),
         status: m?.status || '', gasto: m ? m.gasto : (id === SEM_CONJUNTO ? 0 : null),
         visitas: 0, abriram_quiz: 0, reunioes: 0, investidores: 0, pontos: 0, parceiros: 0, fichas: 0,
-        custo_reuniao: null, custo_cadastro: null, negocio: 0, arrendamento: 0, perdidas: 0, pior: null,
+        custo_reuniao: null, custo_resultado: null, negocio: 0, arrendamento: 0, perdidas: 0, pior: null,
       };
       linhas.set(id, l);
     }
@@ -394,7 +402,7 @@ export function montarConjuntos(
     .map((l) => ({
       ...l,
       custo_reuniao: div(l.gasto, l.reunioes),
-      custo_cadastro: div(l.gasto, l.reunioes + l.investidores + l.pontos),
+      custo_resultado: div(l.gasto, l.reunioes + l.investidores + l.pontos),
     }))
     .sort((a, b) => (b.gasto || 0) - (a.gasto || 0) || b.visitas - a.visitas);
 }
@@ -406,7 +414,7 @@ export function inicioDoPeriodo(periodo: string, agora: number = Date.now()): st
   if (periodo === 'hoje') return hojeSP.toISOString();
   if (periodo === 'ontem') return new Date(hojeSP.getTime() - 86400_000).toISOString();
   if (periodo === '30dias') return new Date(agora - 30 * 86400_000).toISOString();
-  if (periodo === 'maximo') return `${MEDINDO_DESDE}T00:00:00-03:00`;
+  if (periodo === 'maximo') return `${CAMPANHA_DESDE}T00:00:00-03:00`;
   return new Date(agora - 7 * 86400_000).toISOString();
 }
 

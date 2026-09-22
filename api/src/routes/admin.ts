@@ -915,10 +915,12 @@ router.get('/eletroposto/quiz-funil', async (req: Request, res: Response): Promi
         if (ate) q = q.lt('created_at', ate);
         return q.order('created_at', { ascending: true }).range(de, fim);
       }),
-      // Sem filtro no banco: a regra (observação da LP OU colunas de ponto) é
-      // aplicada aqui embaixo, em código, em vez de um or() com ilike na URL.
+      // Toda reunião do eletroposto leva "LP ELETROPOSTO" na observação (381 de
+      // 381 desde 21/07/2026), então o banco já corta por ela, com o ilike do
+      // próprio cliente e não um or() montado na URL. A regra completa da casa
+      // (observação OU colunas de ponto) segue aplicada em código logo abaixo.
       doGerador<{ utm_term: string | null; status: string | null; observacao: string | null; tem_ponto: string | null; ponto_relacao: string | null }>(
-        'agendamentos', 'utm_term, status, observacao, tem_ponto, ponto_relacao', (q) => q),
+        'agendamentos', 'utm_term, status, observacao, tem_ponto, ponto_relacao', (q) => q.ilike('observacao', '%LP ELETROPOSTO%')),
       doGerador<{ utm_term: string | null; lado: string | null }>('eletroposto_parceria', 'utm_term, lado', (q) => q),
       doGerador<{ utm_term: string | null }>('eletroposto_nota1', 'utm_term', (q) => q.eq('origem', 'lp_eletroposto')),
     ]);

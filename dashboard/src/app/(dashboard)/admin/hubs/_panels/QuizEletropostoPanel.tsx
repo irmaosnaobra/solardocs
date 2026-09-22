@@ -14,7 +14,7 @@
 //
 // A conta mora em api/src/services/io/quizFunil.ts, com teste.
 // ───────────────────────────────────────────────────────────────────────────
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, ResponsiveContainer, LabelList,
 } from 'recharts';
@@ -27,7 +27,7 @@ interface Campanha { campanha: string; visitas: number; abriram: number; termina
 interface LinhaConjunto {
   id: string; nome: string; status: string; gasto: number | null; visitas: number; abriram_quiz: number;
   reunioes: number; investidores: number; pontos: number; parceiros: number; fichas: number;
-  custo_reuniao: number | null; custo_cadastro: number | null; negocio: number; arrendamento: number; perdidas: number;
+  custo_reuniao: number | null; custo_resultado: number | null; negocio: number; arrendamento: number; perdidas: number;
   pior: { passo: string; pergunta: string; pararam: number } | null;
 }
 interface Funil {
@@ -38,7 +38,7 @@ interface Funil {
 
 const PERIODOS = [
   { k: 'hoje', label: 'Hoje' }, { k: 'ontem', label: 'Ontem' }, { k: '7dias', label: '7 dias' },
-  { k: '30dias', label: '30 dias' }, { k: 'maximo', label: 'Desde o início' },
+  { k: '30dias', label: '30 dias' }, { k: 'maximo', label: 'Desde 21/07' },
 ];
 const DESTINOS: [string, string][] = [
   ['reuniao', 'Reunião marcada'], ['arrendamento', 'Arrendamento'], ['investidor', 'Investidores'],
@@ -125,6 +125,17 @@ function CaminhoCard({ c }: { c: Caminho }) {
   );
 }
 
+// Tela estreita (celular): o eixo de nomes encolhe, senão as barras somem. Lido
+// com useSyncExternalStore para não pintar diferente do servidor na primeira vez.
+const ESTREITO = '(max-width: 640px)';
+function useEstreito(): boolean {
+  return useSyncExternalStore(
+    (avisar) => { const m = window.matchMedia(ESTREITO); m.addEventListener('change', avisar); return () => m.removeEventListener('change', avisar); },
+    () => window.matchMedia(ESTREITO).matches,
+    () => false,
+  );
+}
+
 // ── POR CONJUNTO ─────────────────────────────────────────────────────────────
 // O número que decide verba é o custo por reunião, então ele é o gráfico. O
 // resto (cadastros, o que a reunião virou, onde para no quiz) fica na tabela.
@@ -132,9 +143,13 @@ function CaminhoCard({ c }: { c: Caminho }) {
 // desde julho); "onde mais para" só existe a partir de 22/09.
 function ConjuntosCard({ f, conjunto, escolher }: { f: Funil; conjunto: string; escolher: (id: string) => void }) {
   const linhas = f.por_conjunto;
+  const estreito = useEstreito();
+  // O nome inteiro fica na dica e na tabela; no eixo, o começo basta (os
+  // conjuntos são numerados: "5 posto araguari…").
+  const corte = estreito ? 18 : 30;
   const grafico = linhas
     .filter((l) => l.custo_reuniao !== null)
-    .map((l) => ({ nome: l.nome.length > 30 ? `${l.nome.slice(0, 29)}…` : l.nome, completo: l.nome, custo: l.custo_reuniao as number, reunioes: l.reunioes, gasto: l.gasto }))
+    .map((l) => ({ nome: l.nome.length > corte ? `${l.nome.slice(0, corte - 1)}…` : l.nome, completo: l.nome, custo: l.custo_reuniao as number, reunioes: l.reunioes, gasto: l.gasto }))
     .sort((a, b) => a.custo - b.custo);
   const confiaveis = linhas.filter((l) => l.custo_reuniao !== null && l.reunioes >= 3);
   const melhor = confiaveis.length > 1 ? [...confiaveis].sort((a, b) => (a.custo_reuniao as number) - (b.custo_reuniao as number))[0] : null;
@@ -153,7 +168,12 @@ function ConjuntosCard({ f, conjunto, escolher }: { f: Funil; conjunto: string; 
           <BarChart data={grafico} layout="vertical" margin={{ top: 4, right: 64, left: 4, bottom: 0 }} barSize={16}>
             <CartesianGrid stroke="var(--color-border)" strokeDasharray="3 3" horizontal={false} />
             <XAxis type="number" tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }} tickFormatter={(v: number) => `R$ ${v}`} />
-            <YAxis type="category" dataKey="nome" width={190} tick={{ fontSize: 12, fill: 'var(--color-text)' }} interval={0} />
+            {/* Rótulo desenhado à mão: o padrão do recharts quebra nome longo em
+                duas linhas e encavala no vizinho. Aqui ele fica numa linha só. */}
+            <YAxis type="category" dataKey="nome" width={estreito ? 118 : 200} interval={0}
+              tick={(t) => (
+                <text x={t.x} y={t.y} dy={4} textAnchor="end" fontSize={estreito ? 11 : 12} fill="var(--color-text)">{String(t.payload?.value ?? '')}</text>
+              )} />
             <Tooltip cursor={{ fill: 'var(--color-border)', opacity: 0.35 }} content={({ active, payload }) => {
               if (!active || !payload?.length) return null;
               const d = payload[0].payload as (typeof grafico)[number];
@@ -177,7 +197,7 @@ function ConjuntosCard({ f, conjunto, escolher }: { f: Funil; conjunto: string; 
           <thead>
             <tr>
               <th>Conjunto</th><th>Gasto</th><th>Visitas</th><th>Reuniões</th><th>Custo por reunião</th>
-              <th>Investidores</th><th>Custo por cadastro</th><th>Reuniões que já aconteceram</th><th>Onde mais para no quiz</th><th></th>
+              <th>Investidores</th><th>Custo por resultado</th><th>Reuniões que já aconteceram</th><th>Onde mais para no quiz</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -192,7 +212,7 @@ function ConjuntosCard({ f, conjunto, escolher }: { f: Funil; conjunto: string; 
                 <td>{l.reunioes}</td>
                 <td style={melhor && melhor.id === l.id ? { fontWeight: 700 } : undefined}>{reais(l.custo_reuniao)}</td>
                 <td>{l.investidores}</td>
-                <td>{reais(l.custo_cadastro)}</td>
+                <td>{reais(l.custo_resultado)}</td>
                 <td className={styles.mutedCell}>
                   {l.negocio + l.arrendamento + l.perdidas === 0 ? '—'
                     : `${l.negocio} negócio · ${l.arrendamento} arrend. · ${l.perdidas} perdidas`}
@@ -211,8 +231,10 @@ function ConjuntosCard({ f, conjunto, escolher }: { f: Funil; conjunto: string; 
         </table>
       </div>
       <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: '8px 0 0' }}>
-        Gasto é o do período na Meta. Custo por cadastro = gasto ÷ (reuniões + investidores + pontos). Negócio = orçamento, proposta,
-        chave na mão, meio a meio ou carregador; perdida = sem interesse, não atendeu, cancelou ou fechou com outro.
+        Gasto é o do período na Meta. O conjunto é o do primeiro clique da pessoa (a UTM da primeira visita).
+        Custo por resultado = gasto ÷ (reuniões + investidores + pontos); a mesma pessoa pode contar em mais de uma coluna.
+        Negócio = orçamento, proposta, chave na mão, meio a meio ou carregador; perdida = sem interesse, não atendeu, cancelou ou
+        fechou com outro. A coluna “onde mais para no quiz” só existe a partir de 22/09.
       </p>
     </div>
   );
@@ -257,7 +279,7 @@ export default function QuizEletropostoPanel() {
 
       <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: '10px 0 0', maxWidth: 760 }}>
         Quem abre o link de /io/eletroposto vê só o quiz. Aqui aparece, pergunta por pergunta, quantos chegaram e quantos pararam ali.
-        {f && <> Medindo desde {dataBR(f.medindo_desde)}: antes disso a página não contava.</>}
+        {f && <> As perguntas são contadas desde {dataBR(f.medindo_desde)}: antes disso a página não contava.</>}
       </p>
 
       {erro && <div className={styles.card} style={{ marginTop: 12 }}>Não consegui ler o funil: {erro}</div>}

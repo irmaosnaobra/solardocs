@@ -145,6 +145,8 @@ describe('miúdos', () => {
     expect(inicioDoPeriodo('ontem', agora)).toBe('2026-09-20T03:00:00.000Z');
     expect(fimDoPeriodo('ontem', agora)).toBe('2026-09-21T03:00:00.000Z');
     expect(fimDoPeriodo('7dias', agora)).toBeNull();
+    // "desde o início" é desde a campanha: o resultado por conjunto vale para trás
+    expect(inicioDoPeriodo('maximo', agora)).toBe('2026-07-21T00:00:00-03:00');
   });
 });
 
@@ -214,7 +216,7 @@ describe('por conjunto', () => {
     const l111 = linhas.find((l) => l.id === '111')!;
     expect(l111).toMatchObject({
       nome: '5 posto araguari', gasto: 300, visitas: 3, reunioes: 4, investidores: 2,
-      negocio: 1, arrendamento: 1, perdidas: 1, custo_reuniao: 75, custo_cadastro: 50,
+      negocio: 1, arrendamento: 1, perdidas: 1, custo_reuniao: 75, custo_resultado: 50,
     });
     // conjunto sem nome na Meta: aparece pelo número, sem gasto (travessão, não zero)
     expect(linhas.find((l) => l.id === '222')).toMatchObject({ nome: '222', gasto: null, parceiros: 1, custo_reuniao: null });
