@@ -45,6 +45,7 @@ import {
   quandoPorExtenso, carregarConsultores, EP_NAO_ATENDEU_PREFIX, EP_RESPOSTA_PREFIX,
 } from './eletropostoAgenda';
 import { passoDeRemarcacao, linhaDoAviso, ofertarPorConta, bolhasSlotTomado } from './eletropostoRemarcar';
+import { EP_LIBERADO_PREFIX } from './eletropostoCobraSim';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 
 const INSTANCE_ID_IO = (process.env.ZAPI_INSTANCE_ID_IO || '3F26F6ECE67D72BB7FCA6244BF24326C').trim();
@@ -215,7 +216,13 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
     // ficar só em `agendado` abriria o pior buraco possível: a pessoa escreve
     // "confirmo, estou indo" 20 minutos antes e NINGUÉM vê — nem o recado pro
     // Thiago sai, nem a presença sobe, nem o robô de remarcação roda.
-    .in('status', ['agendado', 'nao_atendeu'])
+    // `cancelado` entra desde 22/09/2026 por causa da RÉGUA DO SIM: quem marca e
+    // não confirma perde o horário com status `cancelado` (ver eletropostoCobraSim,
+    // que explica por que não é `nao_atendeu`). A mensagem de liberação convida a
+    // pessoa a responder, e resposta que ninguém lê é a pior versão desse convite.
+    // Só passa o cancelamento DO ROBÔ: o filtro por carimbo está logo abaixo, e é
+    // ele que impede este agente de acordar conversa de reunião cancelada por gente.
+    .in('status', ['agendado', 'nao_atendeu', 'cancelado'])
     .gte('quando', new Date(agora - PASSADO_MAX_MS).toISOString())
     .or('confirmacao_at.not.is.null,lembrete_1h_at.not.is.null,lembrete_5min_at.not.is.null')
     .limit(300);
@@ -225,8 +232,16 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
   // Sem toque não entra, e o filtro é REFEITO aqui de propósito: se o `.or()` da
   // consulta mudar (ou o cliente devolver a mais), uma ficha sem toque cairia no
   // piso de 3 dias e viraria alerta em cima de conversa que o humano já tinha.
+  // Quem a régua do SIM liberou: é o único `cancelado` que este agente enxerga,
+  // e é o carimbo que autoriza devolver o horário se a pessoa aparecer.
+  const { data: liberadas } = await supabase
+    .from('system_state').select('key').like('key', `${EP_LIBERADO_PREFIX}%`).limit(1000);
+  const liberadasPeloRobo = new Set(
+    (liberadas ?? []).map(m => Number(String(m.key).slice(EP_LIBERADO_PREFIX.length))).filter(Number.isInteger));
+
   const porChave = new Map<string, Ficha>();
   for (const f of fichas as Ficha[]) {
+    if (f.status === 'cancelado' && !liberadasPeloRobo.has(f.id)) continue;
     // Produto por FAMÍLIA, não por lista fixa — tem que cobrir exatamente quem o
     // agente de agenda toca (eletropostoAgenda usa o mesmo teste). Se os dois
     // discordarem, o lead recebe a confirmação, responde "SIM" e ninguém é avisado.
@@ -352,6 +367,9 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
     /** O horário dele já é de outra pessoa: em vez de brigar pelo slot, o robô
      *  põe horários novos na mesa (ver logo abaixo). */
     let slotFoiTomado = false;
+    /** A marca do robô (vermelho ou horário liberado) foi desfeita nesta rodada:
+     *  a pessoa apareceu e o horário dela ainda estava de pé. */
+    let voltouPelaMarca = false;
 
     // A VOLTA DO NÃO ATENDIDO AUTOMÁTICO. O robô da agenda marca ausente por
     // silêncio; quem confirma depois disso desfaz a marca — a previsão dele
@@ -360,12 +378,17 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
     // Só desfaz o que o ROBÔ marcou (o carimbo `ep_nao_atendeu_auto:<id>` é a
     // prova). "Não atendeu" escrito por gente é registro de quem estava lá e
     // ficou esperando — nenhum robô apaga isso por causa de um "ok".
-    if (marcarPresenca && ficha.status === 'nao_atendeu') {
+    // A régua do SIM libera com `cancelado` e carimbo próprio; a régua do vermelho
+    // marca `nao_atendeu`. Os dois voltam pelo mesmo caminho, e nos dois é o
+    // CARIMBO que separa a marca do robô da decisão de uma pessoa.
+    const marcaDoRobo = ficha.status === 'nao_atendeu' ? EP_NAO_ATENDEU_PREFIX
+      : ficha.status === 'cancelado' ? EP_LIBERADO_PREFIX : null;
+    if (marcarPresenca && marcaDoRobo) {
       const { data: carimbo } = await supabase
-        .from('system_state').select('key').eq('key', `${EP_NAO_ATENDEU_PREFIX}${id}`).maybeSingle();
+        .from('system_state').select('key').eq('key', `${marcaDoRobo}${id}`).maybeSingle();
       if (carimbo) {
         const { error: eVolta } = await supabaseGerador.from('agendamentos')
-          .update({ status: 'agendado' }).eq('id', id).eq('status', 'nao_atendeu');
+          .update({ status: 'agendado' }).eq('id', id).eq('status', ficha.status);
         // 23505 = o quadro daquele consultor naquele horário já é de outra
         // pessoa. Desde 19/08 o vermelho LIBERA o horário na vitrine da LP, e
         // quem sumiu pode voltar depois de o slot ter sido vendido: a ficha não
@@ -377,11 +400,12 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
         } else if (eVolta) {
           logger.error('ep-respostas', 'desfazer não atendido falhou', { id, erro: String(eVolta) });
         } else {
+          voltouPelaMarca = true;
           // O carimbo sai junto: ele existe pra dizer "esta marca é do robô", e a
           // marca deixou de existir. Deixá-lo travaria a remarcação de amanhã.
-          await supabase.from('system_state').delete().eq('key', `${EP_NAO_ATENDEU_PREFIX}${id}`)
+          await supabase.from('system_state').delete().eq('key', `${marcaDoRobo}${id}`)
             .then(undefined, () => {});
-          logger.info('ep-respostas', `ficha ${id} voltou pra agendado: confirmou depois do não atendido automático`);
+          logger.info('ep-respostas', `ficha ${id} voltou pra agendado depois da marca do robô (${marcaDoRobo})`);
         }
       }
     }
@@ -417,7 +441,15 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
     // do cabeçalho tem que ser o NOVO — a ficha em memória ainda tem o velho.
     const aviso = montarAviso(
       novoQuando ? { ...ficha, quando: novoQuando } : ficha, lista, !!novoQuando);
-    const avisoFinal = posRemarcacao ? `${aviso}\n\n${posRemarcacao}` : aviso;
+    // Quem perdeu o horário na régua do SIM e voltou a falar tem que chegar
+    // ETIQUETADO: sem esta linha o recado parece o de um lead comum, e o Thiago
+    // abriria o CRM pra descobrir sozinho por que o card está cancelado.
+    const notaRegua = ficha.status !== 'cancelado' ? null
+      : voltouPelaMarca
+        ? '🔓 Ele tinha perdido o horário por silêncio (régua do SIM) e confirmou agora. Devolvi o mesmo horário.'
+        : slotFoiTomado ? null
+          : '🔓 Ele perdeu o horário por silêncio (régua do SIM) e apareceu agora. O horário dele já voltou pra vitrine.';
+    const avisoFinal = [aviso, notaRegua, posRemarcacao].filter(Boolean).join('\n\n');
 
     try {
       const envios = await Promise.allSettled(Object.values(EQUIPE).map(num => sendWhatsApp(num, avisoFinal, 'io')));

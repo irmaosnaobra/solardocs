@@ -154,6 +154,11 @@ const BOT_SENT_PREFIXES = [
   // entraram nesta lista. Vale mais pelo ESPAÇAMENTO que pelo teto: é isto que
   // impede um "bom dia" da Giovanna de sair 10 segundos depois de um aviso.
   'aviso_sent:',
+  // [22/09] Régua do SIM: as duas cobranças e o aviso de liberação de quem marcou
+  // reunião de eletroposto e não confirmou (eletropostoCobraSim). É tráfego de
+  // agenda, então entra também em PREFIXOS_AGENDA logo abaixo: a conta do frio
+  // não pode somá-lo, senão um dia de agenda cheia cala os follow-ups da casa.
+  'ep_cobra_sim:',
 ] as const;
 
 // Desvio da linha B2B ligado (ZAPI_SOLARDOC_VIA_IO=1)? Então Giovanna, curso de
@@ -197,6 +202,7 @@ const PREFIXOS_AGENDA = [
   'ep_remarcar_sent:',      // remarcação do eletroposto
   'solar_boasvindas_sent:', // ficha de solar recém-preenchida
   'solar_giovanna_sent:',   // os dois toques do dia da reunião
+  'ep_cobra_sim:',          // régua do SIM: cobrança e aviso de horário liberado
 ] as const;
 
 /** Só os prefixos de envio FRIO (o que não é agenda nem transacional). */
