@@ -128,6 +128,8 @@ const PREFIXOS = [
   'gerador_followup:', 'gerador_seq:', 'carla_sent:', 'curso19:', 'ig_sent',
   'ep_remarcar_sent:',       // remarcação automática do eletroposto (oferta + confirmação)
   'ep_reagenda_auto:',       // card vermelho vencido que o robô devolveu pro dia seguinte
+  'ep_cobra_sim:',           // régua do SIM: as duas cobranças e o aviso do horário liberado
+  'ep_liberado_sim:',        // régua do SIM: horário que voltou pra vitrine por silêncio
   'ep_repescagem_sent:', 'ep_repescagem_pending:', 'ep_repescagem_resposta:',
   'ep_resposta:',
   'solar_resposta:',
@@ -182,6 +184,13 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
   // em que rodada ela está), não 1 por envio. "Fichas devolvidas pra agenda" é a
   // leitura certa — a mesma pessoa pode aparecer nas três rodadas.
   const epReagendado = resumo(chaves, 'ep_reagenda_auto:');
+  // Régua do SIM. O número que decide é o de HORÁRIOS DEVOLVIDOS (1 chave por
+  // ficha liberada), não o de mensagens: é ele que diz quanta agenda estava
+  // presa em quem não responde. As cobranças entram separadas porque a conta
+  // que interessa é quantas delas EVITARAM uma liberação.
+  const epLiberado = resumo(chaves, 'ep_liberado_sim:');
+  const epCobranca1 = resumo(chaves.filter(k => k.key.endsWith(':c1')), 'ep_cobra_sim:');
+  const epCobranca2 = resumo(chaves.filter(k => k.key.endsWith(':c2')), 'ep_cobra_sim:');
   const solarResp = resumo(chaves, 'solar_resposta:');
   const atendLimpa = resumo(chaves, 'limpapro_atendimento:');
   // Escalada é o número que importa nesta trilha: é quanto ela NÃO resolveu sozinha.
@@ -665,6 +674,14 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
           label: 'Confirmaram presença', valor: epPresencaConfirmada,
           sub: 'disse que vem, em mensagem. Pediu pra remarcar depois? Sai da conta.',
         },
+        {
+          label: 'Horários devolvidos', valor: epLiberado.total,
+          sub: `${epLiberado.h24} nas últimas 24h · quem marcou e não respondeu nenhuma cobrança perde o horário, que volta pra vitrine na hora, e a ficha vai pro Curioso. Kill-switch EP_COBRA_SIM_OFF`,
+        },
+        {
+          label: 'Cobranças do SIM', valor: epCobranca1.total + epCobranca2.total,
+          sub: `${epCobranca1.total} primeira(s) · ${epCobranca2.total} ultimato(s) · cobrança que traz resposta é horário que NÃO precisou ser devolvido`,
+        },
         { label: 'Chamados de 5 min (30d)', valor: epLembretes5min30d },
       ],
       toques: [
@@ -675,6 +692,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         { titulo: '🚨 10 min antes — PRO CONSULTOR', quando: 'entre 13 e 8 min antes, SÓ de reunião confirmada', copy: 'Único toque desta régua que NÃO vai pro lead: cai no WhatsApp do consultor dono da reunião (não nos dois). Só dispara pra quem confirmou presença de verdade — foi assim que ele nasceu, em 03/09, sem repetir o ping de 1 hora que o Thiago mandou desligar em 25/07 por barulho. Uma vez por reunião; remarcou, alerta de novo. Kill-switch EP_ALERTA_10MIN_OFF.' },
         { titulo: '↩ resposta do lead', quando: 'até 5 min depois de ele escrever', copy: 'Não é mensagem pro lead: é o recado que vai pro Thiago e pro Diego com o que a pessoa escreveu, a hora da reunião e de quem ela é. Kill-switch EP_RESPOSTAS_OFF.' },
         { titulo: '🔄 remarca sozinho', quando: 'quando o lead diz que não vai dar', copy: 'Oferece os 3 próximos horários livres DO MESMO consultor, espera a pessoa escolher o número e troca na hora — liberando o horário antigo pra agenda. Nunca cancela, nunca muda de consultor e nunca move sem escolha explícita. Quem pede pra CANCELAR (e não remarcar) continua indo pro humano. Kill-switch EP_REMARCAR_OFF.' },
+        { titulo: '🔓 régua do SIM: cobra, e na terceira libera o horário', quando: '+1h, +2h e +3h depois da confirmação, das 8h às 20h', copy: 'Quem marcou e não respondeu nada leva duas cobranças (a segunda diz a hora exata em que o horário vai embora) e, na terceira, perde o horário: a ficha vira cancelado, o horário volta pra vitrine da LP na mesma hora e a pessoa entra no Curioso pra equipe trabalhar. A mensagem de liberação convida ela a voltar, e quem responde recupera o mesmo horário se ainda estiver livre. Quem escreve qualquer coisa sai da régua na hora. Kill-switch EP_COBRA_SIM_OFF.' },
         { titulo: '♻️ card vermelho QUENTE volta pro dia seguinte', quando: '45 min depois do horário que ele perdeu', copy: 'Só lead QUENTE (nota 3: tem onde, tem com quê e decide sozinho) — morno e frio ficam vermelhos e viram trabalho de gente. Quem entra não recebe lista pra escolher: o robô MARCA. A ficha sai limpa, volta pro próximo dia útil no mesmo horário (ou no primeiro livre do dia) com o mesmo consultor, e a régua de avisos recomeça do zero — bom dia, 1 hora e 5 minutos. Duas vezes; na segunda a mensagem diz que é a última. Kill-switch EP_REAGENDA_AUTO_OFF.' },
       ],
       alerta: (epReunioesFuturas ?? 0) > 0 && (epFuturasConfirmadas ?? 0) < (epReunioesFuturas ?? 0)
