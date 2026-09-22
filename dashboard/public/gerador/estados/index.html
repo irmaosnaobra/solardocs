@@ -8,21 +8,24 @@
 <link rel="manifest" href="/gerador/manifest.webmanifest">
 <style>
 /* ─────────────────────────────────────────────────────────────────────────────
-   MELHORES LUGARES POR ESTADO — onde plantar eletroposto e pra onde mandar anúncio.
+   MELHORES LUGARES — onde plantar eletroposto e pra onde mandar anúncio.
    SOMENTE LEITURA. Nada aqui dispara mensagem nem grava no banco.
 
-   O dado é a frota plug-in do SENATRAN por município (mensal, não diária) cruzada
-   com a distância até o polo de recarga mais próximo. Polo aqui são os 60 municípios
-   de maior frota plug-in do país, que é onde o carregador se concentra: é PROXY de
-   oferta, não contagem de carregador. Quando entrar contagem de verdade (ABVE ou
-   PlugShare licenciado), a conta vira frota dividida por carregador.
+   Dois meses do SENATRAN por dentro: julho/2026 manda na lista, junho/2026 dá
+   a seta. A seta compara posição no ranking nacional e SÓ entre cidades que
+   estavam na régua nos dois meses. Sem esse cuidado, as 18 cidades que cruzaram
+   100 plug-in em julho empurrariam 299 cidades para baixo e a tela diria que
+   quase todo mundo piorou, sem ninguém ter piorado.
+
+   A distância até o polo é PROXY de oferta, não contagem de carregador: polo
+   são os 60 municípios de maior frota plug-in do país.
    ───────────────────────────────────────────────────────────────────────────── */
 :root{
   color-scheme:dark;
   --bg:#07090F; --sup:#0C1017; --sup2:#11161F; --linha:rgba(140,170,225,.11);
   --txt:#EEF2F9; --dim:#8FA0BC; --faint:#5A6982;
   --s1:#6B5325; --s2:#A2762A; --s3:#D19A33; --s4:#F0B449; --s5:#FFD37A;  /* rampa sequencial */
-  --bom:#0ca30c; --atencao:#fab219; --serio:#ec835a; --critico:#d03b3b;  /* status: reservadas */
+  --bom:#3FB950; --atencao:#fab219; --serio:#ec835a; --critico:#d03b3b;  /* status: reservadas */
   --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
   --r:14px;
 }
@@ -64,20 +67,26 @@ h1{font-size:17px;font-weight:700;letter-spacing:-.02em}
 .card::after{content:'';position:absolute;top:0;left:18px;right:18px;height:1px;
   background:linear-gradient(90deg,transparent,rgba(240,180,73,.4),transparent)}
 .ct{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);
-  font-weight:750;margin-bottom:15px;display:flex;align-items:center;gap:9px}
-.big{font-family:var(--mono);font-size:34px;font-weight:750;line-height:.95;
+  font-weight:750;margin-bottom:15px}
+.big{font-family:var(--mono);font-size:32px;font-weight:750;line-height:.95;
   font-variant-numeric:tabular-nums;letter-spacing:-.035em}
 .unid{font-size:12.5px;color:var(--dim);margin-top:8px;line-height:1.45}
 
-.painel{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:14px;align-items:start}
+.painel{display:grid;grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr);gap:14px;align-items:start}
 .bloco{background:linear-gradient(163deg,var(--sup2),var(--sup));border:1px solid var(--linha);
   border-radius:var(--r);overflow:hidden}
-.bloco-hd{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:16px 18px;
+.bloco-hd{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:15px 18px;
   border-bottom:1px solid var(--linha)}
 .bloco-hd h2{font-size:14px;font-weight:700;letter-spacing:-.01em}
 .bloco-hd .nota-hd{font-family:var(--mono);font-size:11.5px;color:var(--faint);margin-left:auto}
 
-.uf{display:grid;grid-template-columns:24px 1fr 116px 58px;gap:11px;align-items:center;
+.bt{background:transparent;border:1px solid var(--linha);color:var(--dim);padding:7px 14px;
+  border-radius:10px;font:600 12.5px/1 inherit;cursor:pointer;transition:.15s}
+.bt:hover{color:var(--txt);border-color:rgba(240,180,73,.45)}
+.bt.on{background:rgba(240,180,73,.14);border-color:var(--s4);color:var(--s5)}
+.bt:focus-visible{outline:2px solid var(--s4);outline-offset:2px}
+
+.uf{display:grid;grid-template-columns:24px 1fr 96px 44px 54px;gap:10px;align-items:center;
   padding:10px 18px;cursor:pointer;background:transparent;border:0;width:100%;text-align:left;
   font:inherit;color:inherit;transition:background .13s}
 .uf + .uf{border-top:1px solid rgba(255,255,255,.045)}
@@ -92,22 +101,26 @@ h1{font-size:17px;font-weight:700;letter-spacing:-.02em}
 .uf .val{font-family:var(--mono);font-size:14px;font-weight:700;text-align:right;
   font-variant-numeric:tabular-nums}
 
-.cid{display:grid;grid-template-columns:24px 1fr auto;gap:11px;align-items:center;padding:10px 18px}
+.cid{display:grid;grid-template-columns:26px 1fr 62px 46px;gap:10px;align-items:center;padding:10px 18px}
 .cid + .cid{border-top:1px solid rgba(255,255,255,.045)}
+.cid .pos{font-family:var(--mono);font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums}
 .cid .nm{display:block;font-size:13.5px;font-weight:600}
 .cid .det{display:block;font-size:11px;color:var(--faint);margin-top:2px;font-variant-numeric:tabular-nums}
-.cid .val{font-family:var(--mono);font-size:13.5px;font-weight:700;font-variant-numeric:tabular-nums;
-  display:flex;align-items:center;gap:8px;justify-content:flex-end}
-.chip{width:9px;height:9px;border-radius:3px;flex:none}
+.cid .num{font-family:var(--mono);font-size:13.5px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+.mov{font-family:var(--mono);font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums;
+  display:inline-flex;align-items:center;gap:3px;justify-content:flex-end}
+.mov.sobe{color:var(--bom)} .mov.desce{color:var(--serio)} .mov.igual{color:var(--faint)}
+.mov.novo{color:var(--s5);font-weight:750;font-size:10.5px;letter-spacing:.06em}
 .rolagem{max-height:560px;overflow-y:auto}
 
-.copia{padding:14px 18px 18px}
-.copia pre{font-family:var(--mono);font-size:12px;line-height:1.7;color:var(--dim);
-  white-space:pre;overflow-x:auto;margin-top:10px}
-.bt{background:transparent;border:1px solid var(--linha);color:var(--dim);padding:8px 15px;
-  border-radius:10px;font:600 12.5px/1 inherit;cursor:pointer;transition:.15s}
-.bt:hover{color:var(--txt);border-color:rgba(240,180,73,.45)}
-.bt:focus-visible{outline:2px solid var(--s4);outline-offset:2px}
+.copia{padding:15px 18px 18px;border-top:1px solid var(--linha)}
+.copia-hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.copia-hd h3{font-size:13px;font-weight:700}
+.copia-como{font-size:12px;color:var(--faint);line-height:1.6;margin-bottom:10px}
+.copia-como b{color:var(--dim);font-weight:600}
+.copia pre{font-family:var(--mono);font-size:12px;line-height:1.75;color:var(--dim);
+  white-space:pre;overflow:auto;max-height:190px;background:rgba(0,0,0,.25);
+  border:1px solid var(--linha);border-radius:10px;padding:11px 13px}
 
 footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--linha);
   color:var(--faint);font-size:12px;line-height:1.7}
@@ -121,7 +134,7 @@ footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--linha);
     <div class="marca">
       <span class="pulso" aria-hidden="true"></span>
       <div>
-        <h1>Melhores lugares por estado</h1>
+        <h1>Melhores lugares</h1>
         <div class="sub">Eletroposto · onde tem carro e não tem tomada</div>
       </div>
     </div>
@@ -132,10 +145,10 @@ footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--linha);
   <div class="vida">
     <i aria-hidden="true"></i>
     <div>
-      Frota plug-in do <b>SENATRAN/RENAVAM</b>, referência <b id="ref">julho/2026</b>, cruzada com a distância
-      até o polo de recarga mais próximo. A base é <b>mensal</b>, não diária. A distância até o polo é
-      <b>proxy de oferta</b>, não contagem de carregador: os 60 municípios de maior frota plug-in do país
-      valem como polo. Quando entrar contagem de verdade, a conta vira frota dividida por carregador.
+      Frota plug-in do <b>SENATRAN/RENAVAM</b>, base de <b id="ref">julho/2026</b>, e a seta é a
+      comparação com <b id="refant">junho/2026</b>. A base do SENATRAN é <b>mensal</b>: a seta se mexe
+      quando sai planilha nova, não todo dia. A distância até o polo é <b>proxy de oferta</b>, não
+      contagem de carregador, e polo são os 60 municípios de maior frota plug-in do país.
     </div>
   </div>
 
@@ -152,12 +165,20 @@ footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--linha);
 
     <section class="bloco">
       <div class="bloco-hd">
-        <h2 id="tituloCidades">Melhores lugares</h2>
+        <h2 id="tituloCidades">Top 50 do Brasil</h2>
+        <button type="button" class="bt on" id="btBrasil">Top 50 do Brasil</button>
         <span class="nota-hd" id="contaCidades"></span>
       </div>
       <div class="rolagem" id="cidades"></div>
+
       <div class="copia">
-        <button type="button" class="bt" id="copiar">Copiar os dez primeiros pro Meta</button>
+        <div class="copia-hd">
+          <h3>Lista pronta pro Meta</h3>
+          <button type="button" class="bt on" id="fmtCidades">Cidades</button>
+          <button type="button" class="bt" id="fmtCoord">Coordenadas</button>
+          <button type="button" class="bt" id="copiar" style="margin-left:auto">Copiar</button>
+        </div>
+        <div class="copia-como" id="comoUsar"></div>
         <pre id="publico"></pre>
       </div>
     </section>
@@ -168,41 +189,54 @@ footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--linha);
     dessa frota está a 80 km ou mais do polo mais próximo. Nota da cidade: demanda vezes distância,
     a mesma régua do estudo do local. Só entra cidade com 100 ou mais plug-in emplacados: abaixo disso,
     vilarejo com quatro carros elétricos lidera o estado e ninguém vai instalar nada lá.<br>
+    A seta é a posição no ranking nacional contra o mês anterior, comparada só entre as cidades que
+    estavam na régua nos dois meses. Quem cruzou os 100 plug-in agora aparece como <b>novo</b>.<br>
     Fonte da frota: SENATRAN/RENAVAM, frota por UF, município e combustível. Plug-in soma elétrico,
     elétrico de fonte externa, elétrico de fonte interna e híbrido plug-in. Coordenada e código por
     município: IBGE. Emplacamento não é onde o carro roda: locadora e leasing distorcem cidade pequena.
   </footer>
 </div>
 
-<script id="dados" type="application/json">{"ref":"julho/2026","piso":100,"taxa_br":3.1,"brasil":{"frota":135374097,"plugin":515912},"estados":[{"uf":"DF","nome":"Distrito Federal","nota":7.38,"plug":35134,"frota":2295890,"por_mil":15.3,"longe":0.0,"mun":1,"acima":1,"c":[["Brasília",-15.776,-47.795,35134,15.3,0,1.5]]},{"uf":"SP","nome":"São Paulo","nota":7.17,"plug":117356,"frota":35973347,"por_mil":3.3,"longe":6.4,"mun":645,"acima":98,"c":[["Bauru",-22.239,-49.112,1120,3.5,145,4.37],["Presidente Prudente",-21.964,-51.354,579,2.9,170,4.36],["Marília",-22.187,-49.959,472,2.4,168,3.98],["Presidente Epitácio",-21.883,-52.199,117,3.3,171,3.81],["Araçatuba",-21.141,-50.623,433,2.2,137,3.29],["Assis",-22.577,-50.437,179,1.9,121,2.56],["Araraquara",-21.756,-48.172,667,3.1,70,2.42],["Botucatu",-22.839,-48.549,380,3.0,79,2.42],["Franca",-20.589,-47.348,583,1.8,85,2.33],["São João da Boa Vista",-21.967,-46.795,164,1.9,106,2.33],["Fernandópolis",-20.281,-50.267,138,1.9,110,2.32],["Ubatuba",-23.398,-45.001,156,2.1,100,2.27],["Caraguatatuba",-23.62,-45.496,300,3.2,71,2.26],["São Carlos",-21.885,-47.906,503,2.3,75,2.24],["Birigui",-21.263,-50.353,139,1.2,116,2.16],["Limeira",-22.592,-47.362,970,3.7,46,2.09],["Barretos",-20.52,-48.616,227,1.9,83,2.06],["Bragança Paulista",-22.938,-46.564,578,3.6,46,1.96],["Jaú",-22.302,-48.538,179,1.5,89,1.95],["Americana",-22.724,-47.291,943,4.4,31,1.87],["Itapetininga",-23.635,-48.108,225,1.8,71,1.83],["Atibaia",-23.128,-46.572,661,4.4,32,1.81],["Itu",-23.297,-47.278,783,5.2,22,1.72],["Votuporanga",-20.452,-50.003,148,1.4,76,1.71],["Mogi Guaçu",-22.234,-47.011,183,1.3,74,1.69],["Vinhedo",-23.061,-46.974,548,7.5,17,1.69],["Catanduva",-21.13,-48.955,235,1.9,57,1.64],["Araras",-22.342,-47.329,193,1.6,63,1.62],["Guaratinguetá",-22.813,-45.234,119,1.4,75,1.62],["Mogi Mirim",-22.438,-47.0,209,2.4,51,1.62],["Valinhos",-22.981,-46.975,912,7.5,12,1.61],["Santos",-23.864,-46.282,1133,3.8,22,1.58],["Leme",-22.175,-47.341,109,1.2,76,1.56],["São Sebastião",-23.745,-45.619,104,2.0,62,1.54],["Itupeva",-23.146,-47.07,371,6.5,13,1.53],["Taubaté",-23.086,-45.51,487,1.9,41,1.53],["Cotia",-23.682,-46.945,767,4.0,20,1.5],["São Caetano do Sul",-23.627,-46.566,1156,7.5,7,1.49],["Paulínia",-22.745,-47.139,454,4.5,19,1.47],["Araçoiaba da Serra",-23.545,-47.658,142,4.8,24,1.46]]},{"uf":"RS","nome":"Rio Grande do Sul","nota":6.89,"plug":28257,"frota":8644077,"por_mil":3.3,"longe":29.4,"mun":497,"acima":40,"c":[["Santa Maria",-29.776,-53.825,942,4.9,260,7.59],["Santiago",-29.101,-54.749,215,5.5,360,7.01],["Passo Fundo",-28.262,-52.444,1143,6.9,164,6.07],["Pelotas",-31.561,-52.313,1065,4.2,197,5.9],["Ijuí",-28.29,-53.922,191,2.6,294,5.07],["Erechim",-27.634,-52.246,336,3.4,199,4.93],["Rio Grande",-32.209,-52.393,275,1.9,263,4.86],["Santa Rosa",-27.843,-54.525,159,2.3,330,4.75],["Torres",-29.329,-49.807,254,8.8,123,4.33],["Carazinho",-28.278,-52.865,115,2.2,198,3.69],["Xangri-lá",-29.811,-50.067,123,8.0,96,3.39],["Capão da Canoa",-29.696,-49.994,233,5.0,103,3.34],["Santa Cruz do Sul",-29.639,-52.432,266,2.4,133,3.09],["Osório",-29.914,-50.262,238,5.8,79,3.04],["Lajeado",-29.45,-52.027,328,3.7,99,2.99],["Tramandaí",-30.037,-50.234,150,3.9,86,2.54],["Gramado",-29.392,-50.887,250,7.0,38,2.13],["Gravataí",-29.891,-50.956,1012,5.1,20,1.69],["Canela",-29.343,-50.767,152,4.0,40,1.66],["Eldorado do Sul",-30.081,-51.479,136,5.2,31,1.66],["Bento Gonçalves",-29.106,-51.535,264,2.5,48,1.64],["Canoas",-29.917,-51.178,1116,4.5,20,1.62],["Ivoti",-29.589,-51.161,145,7.5,19,1.56],["Farroupilha",-29.196,-51.379,210,3.4,35,1.52],["Porto Alegre",-30.097,-51.158,7772,8.1,0,1.48],["Montenegro",-29.711,-51.506,147,2.7,44,1.47],["Viamão",-30.201,-50.867,463,2.9,30,1.47],["Cachoeirinha",-29.919,-51.097,398,4.0,21,1.42],["Estância Velha",-29.649,-51.183,212,5.3,15,1.39],["Guaíba",-30.164,-51.442,219,3.4,28,1.39],["Caxias do Sul",-29.076,-51.045,2466,6.4,0,1.36],["Dois Irmãos",-29.599,-51.089,132,5.5,15,1.36],["Novo Hamburgo",-29.734,-51.056,1222,6.3,0,1.29],["Flores da Cunha",-29.027,-51.241,128,4.2,20,1.27],["Esteio",-29.849,-51.166,210,3.9,17,1.23],["São Leopoldo",-29.742,-51.139,616,4.0,8,1.2],["Sapiranga",-29.624,-50.999,218,3.6,13,1.13],["Campo Bom",-29.666,-51.047,217,4.3,8,1.1],["Alvorada",-30.006,-51.018,223,2.0,17,1.0],["Sapucaia do Sul",-29.823,-51.13,239,2.4,12,0.97]]},{"uf":"PE","nome":"Pernambuco","nota":6.75,"plug":18350,"frota":4049911,"por_mil":4.5,"longe":13.3,"mun":185,"acima":17,"c":[["Fernando de Noronha",-3.861,-32.428,144,71.5,377,7.24],["Caruaru",-8.187,-36.016,1008,4.3,112,3.83],["Garanhuns",-8.935,-36.502,256,3.4,112,3.08],["Cabo de Santo Agostinho",-8.276,-35.097,449,6.2,18,1.66],["Carpina",-7.826,-35.31,137,3.3,47,1.65],["Paulista",-7.912,-34.928,816,5.9,14,1.62],["Gravatá",-8.216,-35.547,103,2.2,60,1.56],["Recife",-8.042,-34.939,8817,11.1,0,1.49],["Camaragibe",-7.983,-34.999,397,6.4,9,1.44],["Olinda",-8.002,-34.871,855,5.3,9,1.39],["Ipojuca",-8.46,-35.099,105,3.1,37,1.38],["Jaboatão dos Guararapes",-8.143,-35.003,1623,6.3,0,1.32],["Petrolina",-9.053,-40.584,1493,7.1,0,1.31],["Abreu e Lima",-7.864,-35.003,149,4.1,21,1.3],["São Lourenço da Mata",-8.015,-35.109,160,4.5,18,1.3],["Igarassu",-7.795,-34.97,113,2.8,28,1.19],["Vitória de Santo Antão",-8.163,-35.314,123,1.6,34,1.11]]},{"uf":"SC","nome":"Santa Catarina","nota":6.65,"plug":23896,"frota":6818282,"por_mil":3.5,"longe":17.9,"mun":295,"acima":38,"c":[["Chapecó",-27.113,-52.665,852,3.5,240,6.37],["Joaçaba",-27.139,-51.586,135,4.6,222,5.55],["Videira",-26.986,-51.129,152,2.7,201,4.17],["Criciúma",-28.745,-49.36,610,3.1,146,3.97],["Concórdia",-27.242,-52.029,122,1.4,226,3.69],["Caçador",-26.761,-51.106,100,1.5,199,3.27],["Lages",-28.006,-50.348,273,1.9,137,3.0],["Araranguá",-28.946,-49.457,101,1.4,155,2.63],["Tubarão",-28.479,-49.042,272,2.4,106,2.62],["Rio do Sul",-27.186,-49.622,237,3.6,62,2.11],["Jaraguá do Sul",-26.434,-49.154,903,6.0,27,2.0],["Itapoá",-26.092,-48.656,149,6.4,36,1.97],["Imbituba",-28.212,-48.698,109,2.3,69,1.73],["Balneário Piçarras",-26.762,-48.739,174,7.6,24,1.7],["Barra Velha",-26.65,-48.733,143,4.1,36,1.6],["Bombinhas",-27.161,-48.53,154,6.3,19,1.57],["Palhoça",-27.766,-48.661,790,4.5,20,1.56],["Itapema",-27.1,-48.638,794,11.4,10,1.54],["Porto Belo",-27.164,-48.599,171,6.8,17,1.53],["Araquari",-26.442,-48.778,151,4.6,28,1.51],["Florianópolis",-27.611,-48.493,4719,10.7,0,1.43],["Brusque",-27.13,-48.904,464,3.4,23,1.4],["Balneário Camboriú",-27.011,-48.627,1642,13.6,0,1.32],["São José",-27.59,-48.658,1380,6.2,0,1.3],["São Francisco do Sul",-26.29,-48.644,122,2.9,32,1.29],["Biguaçu",-27.434,-48.706,259,3.8,18,1.28],["Penha",-26.807,-48.666,114,4.1,21,1.25],["Blumenau",-26.873,-49.105,1661,5.2,0,1.22],["Itajaí",-26.976,-48.747,1252,5.2,0,1.19],["Camboriú",-27.064,-48.712,340,3.8,10,1.15],["Navegantes",-26.827,-48.721,229,3.2,17,1.15],["Tijucas",-27.248,-48.7,123,2.5,27,1.15],["Timbó",-26.813,-49.265,143,3.6,17,1.15],["Guaramirim",-26.473,-48.941,107,2.6,24,1.09],["São Bento do Sul",-26.299,-49.328,105,1.4,37,1.08],["Joinville",-26.258,-48.963,1810,3.4,0,1.06],["Indaial",-26.997,-49.224,160,2.5,18,1.03],["Gaspar",-26.92,-48.95,153,2.5,16,1.0]]},{"uf":"PR","nome":"Paraná","nota":6.57,"plug":31030,"frota":9955512,"por_mil":3.1,"longe":13.0,"mun":399,"acima":28,"c":[["Guarapuava",-25.354,-51.553,348,2.4,187,4.17],["Foz do Iguaçu",-25.435,-54.458,754,3.2,116,3.44],["Pato Branco",-26.149,-52.666,207,2.6,141,3.25],["Umuarama",-23.704,-53.415,174,1.6,150,2.89],["Ponta Grossa",-25.139,-50.056,789,2.9,87,2.76],["Francisco Beltrão",-26.066,-53.132,132,1.5,115,2.25],["Campo Mourão",-24.127,-52.365,130,1.4,90,1.85],["Cianorte",-23.737,-52.597,152,2.0,74,1.81],["Paranavaí",-22.875,-52.554,117,1.4,84,1.73],["Pinhais",-25.425,-49.154,890,8.4,15,1.7],["Toledo",-24.698,-53.785,276,2.0,57,1.69],["Campo Largo",-25.267,-49.612,301,2.9,42,1.62],["Curitiba",-25.496,-49.284,14240,6.7,0,1.5],["Paranaguá",-25.562,-48.49,151,1.6,58,1.49],["Arapongas",-23.445,-51.446,264,2.4,36,1.39],["Cambé",-23.205,-51.294,207,2.4,36,1.37],["Colombo",-25.31,-49.181,498,2.8,23,1.34],["São José dos Pinhais",-25.647,-49.062,1887,6.8,0,1.34],["Rolândia",-23.279,-51.414,120,2.1,39,1.26],["Maringá",-23.405,-51.972,1891,4.8,0,1.2],["Apucarana",-23.576,-51.423,175,1.7,35,1.19],["Araucária",-25.635,-49.463,265,2.4,24,1.18],["Londrina",-23.475,-51.099,2071,4.3,0,1.16],["Fazenda Rio Grande",-25.683,-49.303,219,2.6,21,1.14],["Almirante Tamandaré",-25.307,-49.341,197,2.5,22,1.13],["Cascavel",-25.055,-53.383,1204,3.9,0,1.06],["Piraquara",-25.47,-49.06,151,2.3,20,1.02],["Sarandi",-23.476,-51.864,132,1.6,13,0.82]]},{"uf":"RJ","nome":"Rio de Janeiro","nota":6.57,"plug":26401,"frota":8449199,"por_mil":3.1,"longe":17.2,"mun":92,"acima":31,"c":[["Resende",-22.442,-44.535,524,5.6,121,4.29],["Rio das Ostras",-22.475,-41.941,451,5.5,124,4.26],["Macaé",-22.282,-41.97,630,4.3,131,4.14],["Campos dos Goytacazes",-21.649,-41.434,423,1.6,174,3.66],["Itaperuna",-21.215,-41.89,148,2.6,170,3.59],["Cabo Frio",-22.738,-42.076,450,3.3,101,2.99],["Armação dos Búzios",-22.776,-41.959,108,3.6,112,2.84],["Araruama",-22.746,-42.289,371,4.4,80,2.79],["Angra dos Reis",-23.03,-44.367,286,3.5,92,2.75],["Volta Redonda",-22.523,-44.081,584,3.5,77,2.62],["São Pedro da Aldeia",-22.781,-42.139,171,3.4,94,2.59],["Nova Friburgo",-22.308,-42.467,255,1.8,90,2.16],["Petrópolis",-22.386,-43.175,601,3.0,60,2.16],["Barra Mansa",-22.485,-44.174,185,2.0,87,2.08],["Teresópolis",-22.299,-42.875,270,2.3,71,1.99],["Três Rios",-22.121,-43.107,150,3.4,51,1.76],["Maricá",-22.909,-42.824,508,4.9,23,1.63],["Saquarema",-22.871,-42.525,137,2.6,54,1.62],["Rio Bonito",-22.738,-42.594,119,2.1,50,1.43],["Duque de Caxias",-22.643,-43.306,595,1.6,36,1.4],["Niterói",-22.916,-43.045,1879,6.1,0,1.32],["Rio de Janeiro",-22.923,-43.473,14050,4.2,0,1.3],["Nova Iguaçu",-22.695,-43.519,595,1.7,26,1.25],["Itaguaí",-22.878,-43.803,124,1.9,34,1.16],["Magé",-22.606,-43.117,128,1.3,35,1.07],["Belford Roxo",-22.731,-43.377,185,1.2,23,0.96],["Itaboraí",-22.756,-42.88,143,1.2,25,0.94],["São João de Meriti",-22.785,-43.37,245,1.3,19,0.94],["São Gonçalo",-22.822,-42.995,516,1.3,12,0.93],["Mesquita",-22.803,-43.444,109,1.7,14,0.82],["Nilópolis",-22.816,-43.43,102,1.5,13,0.77]]},{"uf":"RN","nome":"Rio Grande do Norte","nota":6.55,"plug":8355,"frota":1772696,"por_mil":4.7,"longe":20.6,"mun":167,"acima":4,"c":[["Mossoró",-5.186,-37.347,1099,4.9,202,6.42],["Natal",-5.802,-35.223,4223,8.7,0,1.42],["Parnamirim",-5.916,-35.209,1798,12.1,0,1.33],["São Gonçalo do Amarante",-5.775,-35.362,120,2.9,16,1.0]]},{"uf":"AP","nome":"Amapá","nota":6.39,"plug":852,"frota":293783,"por_mil":2.9,"longe":100.0,"mun":16,"acima":2,"c":[["Macapá",0.571,-50.688,731,3.2,321,6.36],["Santana",0.175,-51.339,115,2.8,358,4.84]]},{"uf":"AL","nome":"Alagoas","nota":6.37,"plug":5912,"frota":1290570,"por_mil":4.6,"longe":22.4,"mun":102,"acima":3,"c":[["Arapiraca",-9.754,-36.649,957,6.0,108,4.28],["Marechal Deodoro",-9.719,-35.912,331,15.4,32,2.0],["Maceió",-9.541,-35.687,3930,8.7,0,1.41]]},{"uf":"BA","nome":"Bahia","nota":6.34,"plug":16925,"frota":5906191,"por_mil":2.9,"longe":21.2,"mun":417,"acima":13,"c":[["Vitória da Conquista",-15.073,-40.849,1202,5.8,352,8.28],["Itabuna",-14.863,-39.31,402,4.0,238,6.17],["Luís Eduardo Magalhães",-12.198,-46.027,153,1.7,318,4.34],["Barreiras",-12.016,-45.501,170,1.5,349,4.31],["Ilhéus",-14.765,-39.273,122,2.0,226,4.06],["Porto Seguro",-16.637,-39.264,112,1.4,404,3.98],["Camaçari",-12.667,-38.203,721,5.5,25,1.84],["Santo Antônio de Jesus",-13.017,-39.22,131,1.8,79,1.81],["Alagoinhas",-12.108,-38.43,133,1.8,69,1.65],["Salvador",-12.874,-38.501,8079,7.0,0,1.48],["Lauro de Freitas",-12.862,-38.327,1761,16.2,0,1.33],["Feira de Santana",-12.196,-39.054,1681,4.3,0,1.14],["Simões Filho",-12.764,-38.398,140,2.6,13,0.95]]},{"uf":"MG","nome":"Minas Gerais","nota":6.23,"plug":27828,"frota":14834984,"por_mil":1.9,"longe":18.8,"mun":853,"acima":19,"c":[["Montes Claros",-16.616,-43.939,453,1.6,367,5.03],["Governador Valadares",-18.794,-41.94,401,2.3,227,4.94],["Varginha",-21.564,-45.401,248,2.5,175,3.87],["Ipatinga",-19.442,-42.604,416,2.4,152,3.62],["Poços de Caldas",-21.821,-46.545,349,2.6,130,3.25],["Araxá",-19.634,-46.988,154,1.8,160,3.07],["Pouso Alegre",-22.262,-45.941,411,3.6,90,2.82],["Unaí",-16.387,-46.832,157,2.4,123,2.73],["Divinópolis",-20.112,-44.938,274,1.6,104,2.34],["João Monlevade",-19.84,-43.156,140,2.4,85,2.08],["Uberaba",-19.61,-47.97,396,1.5,79,2.02],["Itabira",-19.604,-43.3,124,1.6,78,1.72],["Nova Lima",-20.075,-43.892,484,8.2,19,1.72],["Belo Horizonte",-19.917,-43.962,15101,5.2,0,1.4],["Sete Lagoas",-19.446,-44.294,118,0.7,63,1.29],["Uberlândia",-19.003,-48.363,3017,5.3,0,1.29],["Juiz de Fora",-21.765,-43.42,1223,3.8,0,1.06],["Betim",-19.946,-44.193,305,1.2,24,1.04],["Contagem",-19.888,-44.085,620,1.6,13,1.01]]},{"uf":"RR","nome":"Roraima","nota":6.16,"plug":748,"frota":314445,"por_mil":2.4,"longe":100.0,"mun":15,"acima":1,"c":[["Boa Vista",3.01,-60.643,730,2.7,626,6.01]]},{"uf":"ES","nome":"Espírito Santo","nota":6.13,"plug":9166,"frota":2749245,"por_mil":3.3,"longe":19.3,"mun":78,"acima":10,"c":[["Cachoeiro de Itapemirim",-20.78,-41.195,456,3.1,93,2.78],["Linhares",-19.341,-40.107,361,3.1,91,2.66],["São Mateus",-18.797,-40.06,107,1.3,151,2.58],["Colatina",-19.473,-40.629,219,2.4,81,2.14],["Guarapari",-20.613,-40.535,448,4.3,26,1.61],["Aracruz",-19.782,-40.131,140,2.2,43,1.37],["Vitória",-20.282,-40.288,2035,9.0,0,1.34],["Cariacica",-20.307,-40.462,1497,6.6,0,1.31],["Vila Velha",-20.428,-40.379,1627,5.5,0,1.25],["Serra",-20.137,-40.304,1243,4.2,0,1.1]]},{"uf":"AM","nome":"Amazonas","nota":6.1,"plug":6543,"frota":1328112,"por_mil":4.9,"longe":1.0,"mun":62,"acima":1,"c":[["Manaus",-2.586,-59.999,6447,6.2,0,1.45]]},{"uf":"PB","nome":"Paraíba","nota":6.09,"plug":6395,"frota":1863800,"por_mil":3.4,"longe":24.6,"mun":223,"acima":6,"c":[["Patos",-7.027,-37.348,121,1.8,267,4.24],["Campina Grande",-7.269,-35.914,995,4.1,115,3.83],["Cabedelo",-7.045,-34.853,475,13.0,12,1.53],["João Pessoa",-7.15,-34.882,3870,7.5,0,1.41],["Bayeux",-7.13,-34.923,128,3.0,5,0.85],["Santa Rita",-7.098,-35.008,105,1.8,15,0.84]]},{"uf":"AC","nome":"Acre","nota":6.0,"plug":755,"frota":401028,"por_mil":1.9,"longe":100.0,"mun":22,"acima":1,"c":[["Rio Branco",-9.995,-68.423,691,2.9,442,6.09]]},{"uf":"MT","nome":"Mato Grosso","nota":5.96,"plug":6410,"frota":3050722,"por_mil":2.1,"longe":39.1,"mun":141,"acima":7,"c":[["Sinop",-11.742,-55.452,614,3.2,452,6.24],["Sorriso",-12.694,-55.601,271,2.4,346,5.19],["Tangará da Serra",-14.488,-58.029,132,1.4,288,4.08],["Rondonópolis",-16.584,-54.591,534,2.2,149,3.61],["Primavera do Leste",-15.14,-54.237,134,1.5,175,3.11],["Várzea Grande",-15.559,-56.247,671,2.9,62,2.2],["Cuiabá",-15.802,-55.721,3209,5.9,0,1.35]]},{"uf":"CE","nome":"Ceará","nota":5.87,"plug":10747,"frota":4216786,"por_mil":2.5,"longe":14.6,"mun":184,"acima":8,"c":[["Juazeiro do Norte",-7.179,-39.28,367,2.3,253,5.29],["Sobral",-3.858,-40.282,255,2.1,196,4.03],["Crato",-7.288,-39.47,100,1.4,231,3.66],["Eusébio",-3.869,-38.459,946,21.3,11,1.58],["Aquiraz",-3.949,-38.38,188,5.4,23,1.56],["Caucaia",-3.772,-38.793,374,2.7,30,1.41],["Fortaleza",-3.792,-38.52,7087,5.2,0,1.36],["Maracanaú",-3.885,-38.615,245,2.4,15,1.02]]},{"uf":"GO","nome":"Goiás","nota":5.69,"plug":10359,"frota":5277691,"por_mil":2.0,"longe":15.6,"mun":246,"acima":8,"c":[["Rio Verde",-17.718,-51.044,517,2.5,224,5.18],["Jataí",-17.907,-51.731,103,1.0,298,3.66],["Itumbiara",-18.376,-49.469,179,1.7,136,2.72],["Anápolis",-16.306,-48.972,826,2.4,48,1.85],["Goiânia",-16.643,-49.261,6132,4.2,0,1.26],["Aparecida de Goiânia",-16.812,-49.262,905,2.2,19,1.25],["Senador Canedo",-16.709,-49.103,304,3.3,18,1.23],["Trindade",-16.651,-49.538,214,2.2,29,1.22]]},{"uf":"MA","nome":"Maranhão","nota":5.48,"plug":5099,"frota":2482755,"por_mil":2.1,"longe":21.8,"mun":217,"acima":4,"c":[["Imperatriz",-5.392,-47.616,563,2.7,468,5.84],["Paço do Lumiar",-2.505,-44.124,253,5.5,23,1.63],["São José de Ribamar",-2.582,-44.122,385,5.2,19,1.55],["São Luís",-2.636,-44.286,3190,6.0,0,1.36]]},{"uf":"MS","nome":"Mato Grosso do Sul","nota":5.46,"plug":3645,"frota":2076144,"por_mil":1.8,"longe":34.5,"mun":79,"acima":3,"c":[["Dourados",-22.162,-54.864,639,3.1,156,4.22],["Três Lagoas",-20.404,-52.175,142,1.2,224,3.64],["Campo Grande",-20.876,-54.264,2365,3.2,0,1.06]]},{"uf":"RO","nome":"Rondônia","nota":5.41,"plug":3409,"frota":1330672,"por_mil":2.6,"longe":20.7,"mun":52,"acima":4,"c":[["Cacoal",-11.303,-61.398,157,1.7,428,4.39],["Ji-Paraná",-10.429,-61.813,118,1.0,338,3.73],["Ariquemes",-9.979,-63.019,111,1.1,198,3.13],["Porto Velho",-8.988,-64.524,2705,7.6,0,1.37]]},{"uf":"PA","nome":"Pará","nota":5.37,"plug":4541,"frota":3154648,"por_mil":1.4,"longe":29.4,"mun":144,"acima":7,"c":[["Santarém",-2.669,-55.195,361,2.3,534,5.32],["Parauapebas",-6.199,-50.467,273,1.6,514,4.7],["Altamira",-6.317,-53.643,123,1.4,746,4.05],["Marabá",-5.525,-50.062,163,0.9,505,3.91],["Castanhal",-1.261,-47.837,176,1.4,70,1.65],["Belém",-1.273,-48.463,2374,3.9,0,1.13],["Ananindeua",-1.336,-48.386,457,2.1,11,1.0]]},{"uf":"PI","nome":"Piauí","nota":5.21,"plug":3522,"frota":1683861,"por_mil":2.1,"longe":17.5,"mun":224,"acima":2,"c":[["Parnaíba",-2.939,-41.759,342,2.9,275,5.65],["Teresina",-5.186,-42.785,2854,4.5,0,1.2]]},{"uf":"SE","nome":"Sergipe","nota":5.1,"plug":3186,"frota":1107982,"por_mil":2.9,"longe":2.2,"mun":75,"acima":4,"c":[["Barra dos Coqueiros",-10.849,-36.946,267,16.6,25,1.8],["Aracaju",-11.012,-37.104,2396,6.3,0,1.36],["Itabaiana",-10.699,-37.425,104,1.2,49,1.21],["Nossa Senhora do Socorro",-10.873,-37.173,103,1.4,17,0.81]]},{"uf":"TO","nome":"Tocantins","nota":4.85,"plug":1749,"frota":1000887,"por_mil":1.7,"longe":22.8,"mun":139,"acima":2,"c":[["Araguaína",-7.252,-48.655,282,1.7,332,4.75],["Palmas",-10.192,-48.108,1311,4.8,0,1.16]]}]}</script>
+<script id="dados" type="application/json">{"ref":"julho/2026","ref_ant":"junho/2026","piso":100,"taxa_br":3.1,"brasil":{"plug":416570,"plug_ant":385765,"na_regua":362,"na_regua_ant":344,"novos_na_regua":18},"nomes_uf":{"AC":"Acre","AL":"Alagoas","AP":"Amapá","AM":"Amazonas","BA":"Bahia","CE":"Ceará","DF":"Distrito Federal","ES":"Espírito Santo","GO":"Goiás","MA":"Maranhão","MT":"Mato Grosso","MS":"Mato Grosso do Sul","MG":"Minas Gerais","PA":"Pará","PB":"Paraíba","PR":"Paraná","PE":"Pernambuco","PI":"Piauí","RJ":"Rio de Janeiro","RN":"Rio Grande do Norte","RS":"Rio Grande do Sul","RO":"Rondônia","RR":"Roraima","SC":"Santa Catarina","SP":"São Paulo","SE":"Sergipe","TO":"Tocantins"},"top50":[["Vitória da Conquista","BA",-15.0733,-40.8485,1202,5.8,352,8.28,1,0,168],["Santa Maria","RS",-29.776,-53.8252,942,4.9,260,7.59,2,0,58],["Fernando de Noronha","PE",-3.8615,-32.4278,144,71.5,377,7.24,3,0,0],["Santiago","RS",-29.1013,-54.7495,215,5.5,360,7.01,4,0,13],["Mossoró","RN",-5.1858,-37.3471,1099,4.9,202,6.42,5,2,132],["Chapecó","SC",-27.1132,-52.6649,852,3.5,240,6.37,6,-1,47],["Macapá","AP",0.5714,-50.6881,731,3.2,321,6.36,7,1,78],["Sinop","MT",-11.7425,-55.4515,614,3.2,452,6.24,8,-2,38],["Itabuna","BA",-14.8631,-39.31,402,4.0,238,6.17,9,1,45],["Rio Branco","AC",-9.9953,-68.423,691,2.9,442,6.09,10,1,65],["Passo Fundo","RS",-28.2625,-52.4436,1143,6.9,164,6.07,11,-2,81],["Boa Vista","RR",3.0095,-60.6432,730,2.7,626,6.01,12,1,84],["Pelotas","RS",-31.5611,-52.3128,1065,4.2,197,5.9,13,-1,73],["Imperatriz","MA",-5.3916,-47.6158,563,2.7,468,5.84,14,0,51],["Parnaíba","PI",-2.9395,-41.7593,342,2.9,275,5.65,15,1,31],["Joaçaba","SC",-27.1394,-51.5863,135,4.6,222,5.55,16,-1,3],["Santarém","PA",-2.669,-55.1953,361,2.3,534,5.32,17,0,32],["Juazeiro do Norte","CE",-7.1791,-39.2801,367,2.3,253,5.29,18,1,37],["Sorriso","MT",-12.6944,-55.6009,271,2.4,346,5.19,19,-1,13],["Rio Verde","GO",-17.7182,-51.0435,517,2.5,224,5.18,20,0,44],["Ijuí","RS",-28.2895,-53.9221,191,2.6,294,5.07,21,0,18],["Montes Claros","MG",-16.6163,-43.9394,453,1.7,367,5.03,22,0,42],["Governador Valadares","MG",-18.7944,-41.9397,401,2.3,227,4.94,23,1,44],["Erechim","RS",-27.6335,-52.2465,336,3.4,199,4.93,24,-1,28],["Rio Grande","RS",-32.2088,-52.3928,275,1.9,263,4.86,25,0,22],["Santana","AP",0.1754,-51.3392,115,2.8,358,4.84,26,null,16],["Araguaína","TO",-7.2517,-48.6552,282,1.7,332,4.75,27,1,32],["Santa Rosa","RS",-27.8427,-54.5252,159,2.3,330,4.75,28,-1,12],["Parauapebas","PA",-6.1988,-50.4674,273,1.6,514,4.7,29,0,35],["Cacoal","RO",-11.3033,-61.3982,157,1.7,428,4.39,30,3,14],["Bauru","SP",-22.2394,-49.1125,1120,3.5,145,4.37,31,0,63],["Presidente Prudente","SP",-21.9636,-51.3539,579,2.9,170,4.36,32,0,38],["Luís Eduardo Magalhães","BA",-12.1977,-46.0267,153,1.7,318,4.34,33,4,16],["Torres","RS",-29.3295,-49.8072,254,8.8,123,4.33,34,0,19],["Barreiras","BA",-12.0156,-45.5008,170,1.5,349,4.31,35,3,18],["Resende","RJ",-22.4416,-44.5346,524,5.6,121,4.29,36,-6,13],["Arapiraca","AL",-9.7537,-36.6486,957,6.0,108,4.28,37,-1,79],["Rio das Ostras","RJ",-22.4752,-41.9406,451,5.5,124,4.26,38,-3,27],["Patos","PB",-7.0266,-37.3476,121,1.8,267,4.24,39,4,19],["Dourados","MS",-22.1615,-54.8642,639,3.1,156,4.22,40,-1,45],["Guarapuava","PR",-25.3543,-51.5525,348,2.4,187,4.17,41,-1,25],["Videira","SC",-26.9857,-51.1288,152,2.7,201,4.17,42,2,20],["Macaé","RJ",-22.282,-41.97,630,4.3,131,4.14,43,-2,42],["Tangará da Serra","MT",-14.488,-58.0287,132,1.4,288,4.08,44,-2,4],["Ilhéus","BA",-14.7652,-39.2734,122,2.0,226,4.06,45,5,18],["Altamira","PA",-6.3175,-53.6431,123,1.4,746,4.05,46,5,21],["Sobral","CE",-3.8579,-40.2821,255,2.1,196,4.03,47,-1,20],["Porto Seguro","BA",-16.6373,-39.264,112,1.4,404,3.98,48,-1,8],["Marília","SP",-22.1867,-49.9591,472,2.4,168,3.98,49,-1,36],["Criciúma","SC",-28.7446,-49.3601,610,3.1,146,3.97,50,-5,24]],"estados":[{"uf":"DF","nome":"Distrito Federal","nota":7.38,"mov":0,"plug":35134,"novos":2137,"por_mil":15.3,"longe":0.0,"acima":1,"c":[["Brasília","DF",-15.7759,-47.7951,35134,15.3,0,1.5,187,-3,2137]]},{"uf":"SP","nome":"São Paulo","nota":7.16,"mov":0,"plug":117356,"novos":6964,"por_mil":3.3,"longe":6.3,"acima":98,"c":[["Bauru","SP",-22.2394,-49.1125,1120,3.5,145,4.37,31,0,63],["Presidente Prudente","SP",-21.9636,-51.3539,579,2.9,170,4.36,32,0,38],["Marília","SP",-22.1867,-49.9591,472,2.4,168,3.98,49,-1,36],["Presidente Epitácio","SP",-21.8832,-52.1987,117,3.3,171,3.81,55,-6,1],["Araçatuba","SP",-21.1411,-50.6233,433,2.2,137,3.29,69,0,35],["Assis","SP",-22.5768,-50.4373,179,1.9,121,2.56,97,0,13],["Botucatu","SP",-22.8387,-48.5493,380,3.0,79,2.42,99,0,27],["Araraquara","SP",-21.7555,-48.1719,667,3.1,70,2.42,100,0,61],["Franca","SP",-20.5893,-47.3483,583,1.8,85,2.33,102,1,52],["São João da Boa Vista","SP",-21.9672,-46.7948,164,1.9,106,2.33,103,-1,11],["Fernandópolis","SP",-20.2807,-50.267,138,1.9,110,2.32,104,-3,5],["Ubatuba","SP",-23.3982,-45.0005,156,2.1,100,2.27,105,0,7],["Caraguatatuba","SP",-23.6196,-45.4965,300,3.2,71,2.26,106,1,18],["São Carlos","SP",-21.8846,-47.9059,503,2.3,75,2.24,108,0,38],["Birigui","SP",-21.2629,-50.353,139,1.2,116,2.16,111,3,14],["Limeira","SP",-22.5917,-47.3618,970,3.7,46,2.09,116,-1,58],["Barretos","SP",-20.5204,-48.6159,227,1.9,83,2.06,119,-1,14],["Bragança Paulista","SP",-22.9381,-46.5637,578,3.6,46,1.96,125,1,47],["Jaú","SP",-22.3021,-48.5375,179,1.5,89,1.95,126,-1,12],["Americana","SP",-22.7242,-47.2912,943,4.4,31,1.87,127,0,73],["Itapetininga","SP",-23.6349,-48.1075,225,1.8,71,1.83,131,-1,14],["Atibaia","SP",-23.1278,-46.5718,661,4.4,32,1.81,134,-3,41],["Itu","SP",-23.2973,-47.2776,783,5.2,22,1.72,140,-3,23],["Votuporanga","SP",-20.452,-50.0033,148,1.4,76,1.71,142,6,18],["Vinhedo","SP",-23.0608,-46.9741,548,7.5,17,1.69,147,-2,34],["Mogi Guaçu","SP",-22.2341,-47.0108,183,1.3,74,1.69,148,-2,11],["Catanduva","SP",-21.1298,-48.9553,235,1.9,57,1.64,156,-3,15],["Araras","SP",-22.3416,-47.3292,193,1.6,63,1.62,161,-10,4],["Mogi Mirim","SP",-22.4378,-46.9997,209,2.4,51,1.62,163,-5,14],["Guaratinguetá","SP",-22.8134,-45.2342,119,1.4,75,1.62,164,3,11],["Valinhos","SP",-22.9806,-46.9754,912,7.5,12,1.61,166,-7,66],["Santos","SP",-23.8645,-46.282,1133,3.8,22,1.58,170,-6,51],["Leme","SP",-22.1752,-47.3409,109,1.2,76,1.56,174,null,15],["São Sebastião","SP",-23.745,-45.6193,104,2.0,62,1.54,178,null,10],["Taubaté","SP",-23.0863,-45.5096,487,2.0,41,1.53,181,-2,29],["Itupeva","SP",-23.146,-47.0696,371,6.5,13,1.53,183,-2,14],["Cotia","SP",-23.682,-46.9446,767,4.0,20,1.5,186,1,55],["São Caetano do Sul","SP",-23.6273,-46.5657,1156,7.5,7,1.49,190,-2,73],["Paulínia","SP",-22.7453,-47.1391,454,4.5,19,1.47,196,-5,26],["Araçoiaba da Serra","SP",-23.5447,-47.658,142,4.8,24,1.46,197,-4,8]]},{"uf":"RS","nome":"Rio Grande do Sul","nota":6.89,"mov":0,"plug":28257,"novos":2356,"por_mil":3.3,"longe":29.3,"acima":40,"c":[["Santa Maria","RS",-29.776,-53.8252,942,4.9,260,7.59,2,0,58],["Santiago","RS",-29.1013,-54.7495,215,5.5,360,7.01,4,0,13],["Passo Fundo","RS",-28.2625,-52.4436,1143,6.9,164,6.07,11,-2,81],["Pelotas","RS",-31.5611,-52.3128,1065,4.2,197,5.9,13,-1,73],["Ijuí","RS",-28.2895,-53.9221,191,2.6,294,5.07,21,0,18],["Erechim","RS",-27.6335,-52.2465,336,3.4,199,4.93,24,-1,28],["Rio Grande","RS",-32.2088,-52.3928,275,1.9,263,4.86,25,0,22],["Santa Rosa","RS",-27.8427,-54.5252,159,2.3,330,4.75,28,-1,12],["Torres","RS",-29.3295,-49.8072,254,8.8,123,4.33,34,0,19],["Carazinho","RS",-28.2777,-52.8649,115,2.2,198,3.69,57,1,10],["Xangri-lá","RS",-29.8109,-50.0667,123,8.0,96,3.39,67,0,10],["Capão da Canoa","RS",-29.6963,-49.9943,233,5.0,103,3.34,68,-2,10],["Santa Cruz do Sul","RS",-29.6391,-52.4319,266,2.4,133,3.09,75,0,22],["Osório","RS",-29.9143,-50.2616,238,5.8,79,3.04,78,-2,16],["Lajeado","RS",-29.4497,-52.0268,328,3.7,99,2.99,81,-1,39],["Tramandaí","RS",-30.0367,-50.234,150,3.9,86,2.54,98,0,20],["Gramado","RS",-29.3918,-50.8869,250,7.0,38,2.13,114,-1,23],["Gravataí","RS",-29.8907,-50.9564,1012,5.1,20,1.69,146,-2,73],["Canela","RS",-29.3433,-50.7673,152,4.0,40,1.66,150,6,16],["Eldorado do Sul","RS",-30.0815,-51.479,136,5.2,31,1.66,151,-1,11],["Bento Gonçalves","RS",-29.1061,-51.5351,264,2.6,48,1.64,155,-3,19],["Canoas","RS",-29.9169,-51.1778,1116,4.5,20,1.62,160,2,100],["Ivoti","RS",-29.5887,-51.1608,145,7.5,19,1.56,176,-1,8],["Farroupilha","RS",-29.1964,-51.3787,210,3.4,35,1.52,184,2,18],["Porto Alegre","RS",-30.0974,-51.1576,7772,8.1,0,1.48,193,-1,607],["Montenegro","RS",-29.7107,-51.5063,147,2.7,44,1.47,194,1,11],["Viamão","RS",-30.2011,-50.8666,463,2.8,30,1.47,195,3,47],["Cachoeirinha","RS",-29.9186,-51.0966,398,4.0,21,1.42,203,-4,22],["Guaíba","RS",-30.1636,-51.442,219,3.4,28,1.39,215,13,28],["Estância Velha","RS",-29.6493,-51.1827,212,5.3,15,1.39,216,22,29],["Caxias do Sul","RS",-29.0765,-51.0454,2466,6.4,0,1.36,225,0,242],["Dois Irmãos","RS",-29.599,-51.0894,132,5.5,15,1.36,229,23,18],["Novo Hamburgo","RS",-29.734,-51.0556,1222,6.3,0,1.29,256,3,123],["Flores da Cunha","RS",-29.0271,-51.2409,128,4.2,20,1.27,260,11,14],["Esteio","RS",-29.8492,-51.1664,210,3.9,17,1.23,274,-6,9],["São Leopoldo","RS",-29.7417,-51.139,616,4.0,8,1.2,282,1,51],["Sapiranga","RS",-29.624,-50.9987,218,3.6,13,1.13,301,-4,14],["Campo Bom","RS",-29.6655,-51.047,217,4.3,8,1.1,303,7,21],["Alvorada","RS",-30.0063,-51.0179,223,2.1,17,1.0,330,4,37],["Sapucaia do Sul","RS",-29.8233,-51.1303,239,2.4,12,0.97,333,-1,24]]},{"uf":"PE","nome":"Pernambuco","nota":6.75,"mov":0,"plug":18350,"novos":1688,"por_mil":4.5,"longe":13.3,"acima":17,"c":[["Fernando de Noronha","PE",-3.8615,-32.4278,144,71.5,377,7.24,3,0,0],["Caruaru","PE",-8.1867,-36.0161,1008,4.3,112,3.83,53,0,100],["Garanhuns","PE",-8.9349,-36.5018,256,3.4,112,3.08,76,9,56],["Cabo de Santo Agostinho","PE",-8.2758,-35.0967,449,6.1,18,1.66,149,-2,27],["Carpina","PE",-7.8257,-35.3102,137,3.3,47,1.65,154,6,15],["Paulista","PE",-7.9123,-34.9278,816,5.9,14,1.62,162,4,78],["Gravatá","PE",-8.2157,-35.5475,103,2.2,60,1.56,173,null,7],["Recife","PE",-8.0421,-34.9386,8817,11.1,0,1.49,191,-2,723],["Camaragibe","PE",-7.983,-34.9994,397,6.4,9,1.44,199,1,38],["Olinda","PE",-8.0018,-34.871,855,5.3,9,1.39,213,8,94],["Ipojuca","PE",-8.4596,-35.0994,105,3.1,37,1.38,218,null,16],["Jaboatão dos Guararapes","PE",-8.1434,-35.0029,1623,6.3,0,1.32,244,2,154],["Petrolina","PE",-9.0532,-40.5839,1493,7.1,0,1.31,247,-2,143],["São Lourenço da Mata","PE",-8.0152,-35.1092,160,4.5,18,1.3,250,11,20],["Abreu e Lima","PE",-7.8639,-35.0031,149,4.1,21,1.3,253,3,14],["Igarassu","PE",-7.7954,-34.9703,113,2.8,28,1.19,284,5,11],["Vitória de Santo Antão","PE",-8.1633,-35.3136,123,1.6,34,1.11,302,6,14]]},{"uf":"SC","nome":"Santa Catarina","nota":6.65,"mov":0,"plug":23896,"novos":1408,"por_mil":3.5,"longe":17.9,"acima":38,"c":[["Chapecó","SC",-27.1132,-52.6649,852,3.5,240,6.37,6,-1,47],["Joaçaba","SC",-27.1394,-51.5863,135,4.6,222,5.55,16,-1,3],["Videira","SC",-26.9857,-51.1288,152,2.7,201,4.17,42,2,20],["Criciúma","SC",-28.7446,-49.3601,610,3.1,146,3.97,50,-5,24],["Concórdia","SC",-27.2419,-52.0292,122,1.4,226,3.69,58,-2,9],["Caçador","SC",-26.7607,-51.1059,100,1.5,199,3.27,70,null,7],["Lages","SC",-28.0059,-50.3477,273,1.9,137,3.0,79,0,20],["Araranguá","SC",-28.9463,-49.4567,101,1.4,155,2.63,92,null,4],["Tubarão","SC",-28.4785,-49.042,272,2.3,106,2.62,93,1,30],["Rio do Sul","SC",-27.1857,-49.6223,237,3.6,62,2.11,115,1,18],["Jaraguá do Sul","SC",-26.4342,-49.154,903,6.0,27,2.0,122,-1,68],["Itapoá","SC",-26.0921,-48.6557,149,6.4,36,1.97,124,0,3],["Imbituba","SC",-28.212,-48.698,109,2.3,69,1.73,137,3,8],["Balneário Piçarras","SC",-26.7616,-48.7395,174,7.6,24,1.7,144,-3,6],["Barra Velha","SC",-26.6502,-48.7332,143,4.1,36,1.6,168,-13,6],["Bombinhas","SC",-27.161,-48.5301,154,6.3,19,1.57,171,0,4],["Palhoça","SC",-27.7657,-48.6609,790,4.5,20,1.56,175,-1,57],["Itapema","SC",-27.0998,-48.6378,794,11.4,10,1.54,179,-1,16],["Porto Belo","SC",-27.1642,-48.5991,171,6.8,17,1.53,180,2,10],["Araquari","SC",-26.4423,-48.7784,151,4.6,28,1.51,185,9,18],["Florianópolis","SC",-27.6112,-48.4935,4719,10.7,0,1.43,201,1,292],["Brusque","SC",-27.1297,-48.9042,464,3.4,23,1.4,210,3,39],["Balneário Camboriú","SC",-27.0106,-48.6268,1642,13.6,0,1.32,243,-3,54],["São José","SC",-27.5899,-48.6578,1380,6.2,0,1.3,251,0,107],["São Francisco do Sul","SC",-26.2899,-48.6439,122,2.9,32,1.29,257,-8,6],["Biguaçu","SC",-27.4338,-48.7057,259,3.8,18,1.28,259,-1,20],["Penha","SC",-26.8066,-48.6658,114,4.1,21,1.25,269,-6,6],["Blumenau","SC",-26.8728,-49.1052,1661,5.2,0,1.22,276,-2,102],["Itajaí","SC",-26.9762,-48.7471,1252,5.2,0,1.19,283,-5,51],["Camboriú","SC",-27.0639,-48.7118,340,3.8,10,1.15,293,2,31],["Navegantes","SC",-26.8268,-48.7206,229,3.2,17,1.15,294,-1,14],["Tijucas","SC",-27.2481,-48.6996,123,2.5,27,1.15,295,-1,7],["Timbó","SC",-26.8134,-49.2652,143,3.6,17,1.15,296,-5,6],["Guaramirim","SC",-26.4734,-48.9414,107,2.6,24,1.09,307,null,9],["São Bento do Sul","SC",-26.2985,-49.3281,105,1.4,37,1.08,310,-7,2],["Joinville","SC",-26.2578,-48.9631,1810,3.4,0,1.06,314,0,121],["Indaial","SC",-26.9969,-49.2244,160,2.4,18,1.03,322,-1,9],["Gaspar","SC",-26.92,-48.9504,153,2.5,16,1.0,329,-4,8]]},{"uf":"PR","nome":"Paraná","nota":6.57,"mov":0,"plug":31030,"novos":2069,"por_mil":3.1,"longe":13.0,"acima":28,"c":[["Guarapuava","PR",-25.3543,-51.5525,348,2.4,187,4.17,41,-1,25],["Foz do Iguaçu","PR",-25.4352,-54.4577,754,3.2,116,3.44,66,2,85],["Pato Branco","PR",-26.1495,-52.6662,207,2.6,141,3.25,72,-1,13],["Umuarama","PR",-23.7043,-53.4152,174,1.6,150,2.89,82,0,16],["Ponta Grossa","PR",-25.1392,-50.0565,789,2.9,87,2.76,87,0,71],["Francisco Beltrão","PR",-26.0658,-53.1321,132,1.5,115,2.25,107,-1,6],["Campo Mourão","PR",-24.1266,-52.3655,130,1.4,90,1.85,128,1,9],["Cianorte","PR",-23.7368,-52.5975,152,2.0,74,1.81,133,0,12],["Paranavaí","PR",-22.8747,-52.5536,117,1.4,84,1.73,138,0,6],["Pinhais","PR",-25.4249,-49.1536,890,8.4,15,1.7,143,-1,46],["Toledo","PR",-24.6975,-53.7845,276,2.0,57,1.69,145,4,26],["Campo Largo","PR",-25.2674,-49.6119,301,2.9,42,1.62,165,0,27],["Curitiba","PR",-25.4963,-49.2844,14240,6.7,0,1.5,188,-3,803],["Paranaguá","PR",-25.5618,-48.4905,151,1.6,58,1.49,189,7,16],["Arapongas","PR",-23.4451,-51.446,264,2.4,36,1.39,212,-7,11],["Cambé","PR",-23.2046,-51.2941,207,2.4,36,1.37,223,-3,14],["São José dos Pinhais","PR",-25.6467,-49.0616,1887,6.8,0,1.34,235,-3,153],["Colombo","PR",-25.3104,-49.1811,498,2.8,23,1.34,236,6,43],["Rolândia","PR",-23.2786,-51.4141,120,2.1,39,1.26,264,-3,6],["Maringá","PR",-23.4053,-51.9716,1891,4.9,0,1.2,281,0,124],["Apucarana","PR",-23.5757,-51.4228,175,1.7,35,1.19,285,2,16],["Araucária","PR",-25.6348,-49.4627,265,2.3,24,1.18,286,2,22],["Londrina","PR",-23.4753,-51.0987,2071,4.3,0,1.16,290,2,133],["Fazenda Rio Grande","PR",-25.6831,-49.3027,219,2.6,21,1.14,297,-1,17],["Almirante Tamandaré","PR",-25.3073,-49.3409,197,2.5,22,1.13,300,0,16],["Cascavel","PR",-25.0554,-53.3834,1204,3.8,0,1.06,316,-3,78],["Piraquara","PR",-25.4699,-49.0596,151,2.3,20,1.02,323,4,16],["Sarandi","PR",-23.4757,-51.8642,132,1.6,13,0.82,352,0,7]]},{"uf":"RN","nome":"Rio Grande do Norte","nota":6.55,"mov":1,"plug":8355,"novos":906,"por_mil":4.7,"longe":20.6,"acima":4,"c":[["Mossoró","RN",-5.1858,-37.3471,1099,4.9,202,6.42,5,2,132],["Natal","RN",-5.8019,-35.2227,4223,8.7,0,1.42,204,0,405],["Parnamirim","RN",-5.9158,-35.2086,1798,12.1,0,1.33,238,0,204],["São Gonçalo do Amarante","RN",-5.7746,-35.3616,120,2.9,16,1.0,328,3,18]]},{"uf":"RJ","nome":"Rio de Janeiro","nota":6.54,"mov":-1,"plug":26401,"novos":1790,"por_mil":3.1,"longe":15.8,"acima":31,"c":[["Resende","RJ",-22.4416,-44.5346,524,5.6,121,4.29,36,-6,13],["Rio das Ostras","RJ",-22.4752,-41.9406,451,5.5,124,4.26,38,-3,27],["Macaé","RJ",-22.282,-41.97,630,4.3,131,4.14,43,-2,42],["Campos dos Goytacazes","RJ",-21.6491,-41.4342,423,1.6,174,3.66,61,-2,26],["Itaperuna","RJ",-21.2154,-41.8902,148,2.7,170,3.59,65,0,19],["Cabo Frio","RJ",-22.7377,-42.0759,450,3.3,101,2.99,80,-2,25],["Armação dos Búzios","RJ",-22.7762,-41.9588,108,3.6,112,2.84,83,-2,5],["Araruama","RJ",-22.7461,-42.2893,371,4.4,80,2.79,85,-1,16],["Angra dos Reis","RJ",-23.0303,-44.3666,286,3.5,92,2.75,88,1,27],["Volta Redonda","RJ",-22.5235,-44.0808,584,3.5,77,2.62,94,1,69],["São Pedro da Aldeia","RJ",-22.7809,-42.1394,171,3.4,94,2.59,95,1,16],["Petrópolis","RJ",-22.3861,-43.1754,601,3.0,60,2.16,110,-1,43],["Nova Friburgo","RJ",-22.3079,-42.4665,255,1.8,90,2.16,112,-1,21],["Barra Mansa","RJ",-22.4854,-44.1739,185,2.0,87,2.08,117,0,13],["Teresópolis","RJ",-22.2994,-42.8752,270,2.3,71,1.99,123,-1,18],["Três Rios","RJ",-22.1207,-43.1069,150,3.4,51,1.76,136,0,7],["Maricá","RJ",-22.9088,-42.824,508,4.9,23,1.63,157,12,64],["Saquarema","RJ",-22.8708,-42.5245,137,2.6,54,1.62,159,9,14],["Rio Bonito","RJ",-22.7375,-42.5945,119,2.1,50,1.43,200,-3,3],["Duque de Caxias","RJ",-22.6427,-43.3055,595,1.6,36,1.4,209,2,43],["Niterói","RJ",-22.9164,-43.0455,1879,6.1,0,1.32,245,-1,140],["Rio de Janeiro","RJ",-22.9227,-43.4731,14050,4.1,0,1.3,254,-7,864],["Nova Iguaçu","RJ",-22.695,-43.5194,595,1.7,26,1.25,267,3,45],["Itaguaí","RJ",-22.8783,-43.8028,124,1.9,34,1.16,292,6,14],["Magé","RJ",-22.6061,-43.1173,128,1.3,35,1.07,312,5,12],["Belford Roxo","RJ",-22.7313,-43.377,185,1.2,23,0.96,334,-1,12],["São João de Meriti","RJ",-22.7848,-43.37,245,1.3,19,0.94,338,2,22],["Itaboraí","RJ",-22.7556,-42.8801,143,1.3,25,0.94,339,0,10],["São Gonçalo","RJ",-22.822,-42.9947,516,1.3,12,0.93,342,0,39],["Mesquita","RJ",-22.8032,-43.4444,109,1.7,14,0.82,353,null,13],["Nilópolis","RJ",-22.816,-43.4299,102,1.5,13,0.77,360,null,10]]},{"uf":"AP","nome":"Amapá","nota":6.39,"mov":0,"plug":852,"novos":95,"por_mil":2.9,"longe":100.0,"acima":2,"c":[["Macapá","AP",0.5714,-50.6881,731,3.2,321,6.36,7,1,78],["Santana","AP",0.1754,-51.3392,115,2.8,358,4.84,26,null,16]]},{"uf":"AL","nome":"Alagoas","nota":6.37,"mov":1,"plug":5912,"novos":562,"por_mil":4.6,"longe":22.4,"acima":3,"c":[["Arapiraca","AL",-9.7537,-36.6486,957,6.0,108,4.28,37,-1,79],["Marechal Deodoro","AL",-9.7187,-35.9117,331,15.4,32,2.0,121,-1,26],["Maceió","AL",-9.5411,-35.6865,3930,8.7,0,1.41,205,2,381]]},{"uf":"BA","nome":"Bahia","nota":6.34,"mov":-1,"plug":16925,"novos":1662,"por_mil":2.9,"longe":21.2,"acima":13,"c":[["Vitória da Conquista","BA",-15.0733,-40.8485,1202,5.8,352,8.28,1,0,168],["Itabuna","BA",-14.8631,-39.31,402,4.0,238,6.17,9,1,45],["Luís Eduardo Magalhães","BA",-12.1977,-46.0267,153,1.7,318,4.34,33,4,16],["Barreiras","BA",-12.0156,-45.5008,170,1.5,349,4.31,35,3,18],["Ilhéus","BA",-14.7652,-39.2734,122,2.0,226,4.06,45,5,18],["Porto Seguro","BA",-16.6373,-39.264,112,1.4,404,3.98,48,-1,8],["Camaçari","BA",-12.6669,-38.203,721,5.5,25,1.84,130,2,70],["Santo Antônio de Jesus","BA",-13.0174,-39.2198,131,1.8,79,1.81,132,2,11],["Alagoinhas","BA",-12.1081,-38.4299,133,1.8,69,1.65,152,2,13],["Salvador","BA",-12.8744,-38.5014,8079,7.0,0,1.48,192,-2,650],["Lauro de Freitas","BA",-12.8616,-38.3271,1761,16.2,0,1.33,239,-2,166],["Feira de Santana","BA",-12.1958,-39.0541,1681,4.3,0,1.14,298,3,182],["Simões Filho","BA",-12.7638,-38.3982,140,2.6,13,0.95,335,8,19]]},{"uf":"MG","nome":"Minas Gerais","nota":6.23,"mov":0,"plug":27828,"novos":2042,"por_mil":1.9,"longe":18.8,"acima":19,"c":[["Montes Claros","MG",-16.6163,-43.9394,453,1.7,367,5.03,22,0,42],["Governador Valadares","MG",-18.7944,-41.9397,401,2.3,227,4.94,23,1,44],["Varginha","MG",-21.5636,-45.401,248,2.5,175,3.87,52,2,28],["Ipatinga","MG",-19.4417,-42.6042,416,2.4,152,3.62,63,1,58],["Poços de Caldas","MG",-21.8214,-46.5447,349,2.6,130,3.25,71,1,33],["Araxá","MG",-19.6343,-46.9879,154,1.8,160,3.07,77,0,12],["Pouso Alegre","MG",-22.2625,-45.9405,411,3.6,90,2.82,84,-1,25],["Unaí","MG",-16.3865,-46.8323,157,2.4,123,2.73,89,-3,0],["Divinópolis","MG",-20.1123,-44.9375,274,1.6,104,2.34,101,3,29],["João Monlevade","MG",-19.8395,-43.1562,140,2.4,85,2.08,118,5,22],["Uberaba","MG",-19.6098,-47.9702,396,1.5,79,2.02,120,-1,33],["Nova Lima","MG",-20.075,-43.892,484,8.2,19,1.72,139,0,23],["Itabira","MG",-19.6041,-43.3002,124,1.6,78,1.72,141,2,12],["Belo Horizonte","MG",-19.9169,-43.9625,15101,5.2,0,1.4,211,-5,982],["Sete Lagoas","MG",-19.446,-44.294,118,0.7,63,1.29,255,null,26],["Uberlândia","MG",-19.0033,-48.3633,3017,5.3,0,1.29,258,-4,243],["Juiz de Fora","MG",-21.7647,-43.4205,1223,3.8,0,1.06,315,0,83],["Betim","MG",-19.9462,-44.1927,305,1.2,24,1.04,320,4,32],["Contagem","MG",-19.8878,-44.0853,620,1.6,13,1.01,327,-1,45]]},{"uf":"RR","nome":"Roraima","nota":6.16,"mov":1,"plug":748,"novos":85,"por_mil":2.4,"longe":100.0,"acima":1,"c":[["Boa Vista","RR",3.0095,-60.6432,730,2.7,626,6.01,12,1,84]]},{"uf":"ES","nome":"Espírito Santo","nota":6.13,"mov":-1,"plug":9166,"novos":644,"por_mil":3.3,"longe":19.3,"acima":10,"c":[["Cachoeiro de Itapemirim","ES",-20.7797,-41.1947,456,3.1,93,2.78,86,2,49],["Linhares","ES",-19.341,-40.1071,361,3.1,91,2.66,91,-1,32],["São Mateus","ES",-18.7965,-40.0605,107,1.3,151,2.58,96,-3,3],["Colatina","ES",-19.4728,-40.6286,219,2.4,81,2.14,113,-1,17],["Guarapari","ES",-20.6127,-40.5354,448,4.3,26,1.61,167,-6,34],["Aracruz","ES",-19.7818,-40.1306,140,2.2,43,1.37,221,0,11],["Vitória","ES",-20.2822,-40.2883,2035,9.0,0,1.34,233,-6,136],["Cariacica","ES",-20.3073,-40.4617,1497,6.6,0,1.31,246,-3,30],["Vila Velha","ES",-20.4277,-40.3793,1627,5.5,0,1.25,266,1,121],["Serra","ES",-20.1374,-40.3039,1243,4.2,0,1.1,304,5,128]]},{"uf":"AM","nome":"Amazonas","nota":6.1,"mov":1,"plug":6543,"novos":693,"por_mil":4.9,"longe":1.0,"acima":1,"c":[["Manaus","AM",-2.5858,-59.999,6447,6.2,0,1.45,198,5,686]]},{"uf":"PB","nome":"Paraíba","nota":6.08,"mov":1,"plug":6395,"novos":816,"por_mil":3.4,"longe":24.5,"acima":6,"c":[["Patos","PB",-7.0266,-37.3476,121,1.8,267,4.24,39,4,19],["Campina Grande","PB",-7.269,-35.9141,995,4.1,115,3.83,54,1,112],["Cabedelo","PB",-7.0453,-34.8529,475,13.0,12,1.53,182,1,54],["João Pessoa","PB",-7.1502,-34.8819,3870,7.5,0,1.41,207,2,510],["Bayeux","PB",-7.1303,-34.9227,128,3.0,5,0.85,349,0,12],["Santa Rita","PB",-7.0977,-35.0084,105,1.8,15,0.84,350,null,15]]},{"uf":"AC","nome":"Acre","nota":6.0,"mov":-2,"plug":755,"novos":73,"por_mil":1.9,"longe":100.0,"acima":1,"c":[["Rio Branco","AC",-9.9953,-68.423,691,2.9,442,6.09,10,1,65]]},{"uf":"MT","nome":"Mato Grosso","nota":5.95,"mov":0,"plug":6410,"novos":502,"por_mil":2.1,"longe":38.7,"acima":7,"c":[["Sinop","MT",-11.7425,-55.4515,614,3.2,452,6.24,8,-2,38],["Sorriso","MT",-12.6944,-55.6009,271,2.4,346,5.19,19,-1,13],["Tangará da Serra","MT",-14.488,-58.0287,132,1.4,288,4.08,44,-2,4],["Rondonópolis","MT",-16.5844,-54.5913,534,2.2,149,3.61,64,-1,40],["Primavera do Leste","MT",-15.1398,-54.2371,134,1.5,175,3.11,74,0,6],["Várzea Grande","MT",-15.5587,-56.2474,671,2.9,62,2.2,109,1,77],["Cuiabá","MT",-15.8016,-55.7214,3209,5.9,0,1.35,230,-2,260]]},{"uf":"CE","nome":"Ceará","nota":5.87,"mov":0,"plug":10747,"novos":1125,"por_mil":2.5,"longe":14.4,"acima":8,"c":[["Juazeiro do Norte","CE",-7.1791,-39.2801,367,2.3,253,5.29,18,1,37],["Sobral","CE",-3.8579,-40.2821,255,2.1,196,4.03,47,-1,20],["Crato","CE",-7.2876,-39.47,100,1.4,231,3.66,59,null,8],["Eusébio","CE",-3.8691,-38.4591,946,21.3,11,1.58,169,1,82],["Aquiraz","CE",-3.9488,-38.3796,188,5.4,23,1.56,172,2,17],["Caucaia","CE",-3.7717,-38.7934,374,2.7,30,1.41,206,11,45],["Fortaleza","CE",-3.7923,-38.5199,7087,5.2,0,1.36,224,7,756],["Maracanaú","CE",-3.8849,-38.6152,245,2.4,15,1.02,325,4,39]]},{"uf":"GO","nome":"Goiás","nota":5.69,"mov":0,"plug":10359,"novos":874,"por_mil":2.0,"longe":15.6,"acima":8,"c":[["Rio Verde","GO",-17.7182,-51.0435,517,2.5,224,5.18,20,0,44],["Jataí","GO",-17.9065,-51.7315,103,1.0,298,3.66,60,null,11],["Itumbiara","GO",-18.3759,-49.4686,179,1.7,136,2.72,90,1,25],["Anápolis","GO",-16.306,-48.9725,826,2.4,48,1.85,129,-1,48],["Goiânia","GO",-16.6429,-49.2613,6132,4.2,0,1.26,265,1,495],["Aparecida de Goiânia","GO",-16.8119,-49.2619,905,2.2,19,1.25,268,5,85],["Senador Canedo","GO",-16.7088,-49.103,304,3.3,18,1.23,273,5,33],["Trindade","GO",-16.651,-49.5376,214,2.2,29,1.22,275,4,22]]},{"uf":"MA","nome":"Maranhão","nota":5.48,"mov":1,"plug":5099,"novos":414,"por_mil":2.1,"longe":21.8,"acima":4,"c":[["Imperatriz","MA",-5.3916,-47.6158,563,2.7,468,5.84,14,0,51],["Paço do Lumiar","MA",-2.5046,-44.1239,253,5.5,23,1.63,158,-1,21],["São José de Ribamar","MA",-2.5816,-44.1223,385,5.2,19,1.55,177,2,36],["São Luís","MA",-2.6365,-44.2859,3190,6.0,0,1.36,228,-5,237]]},{"uf":"MS","nome":"Mato Grosso do Sul","nota":5.46,"mov":-1,"plug":3645,"novos":291,"por_mil":1.8,"longe":34.5,"acima":3,"c":[["Dourados","MS",-22.1615,-54.8642,639,3.1,156,4.22,40,-1,45],["Três Lagoas","MS",-20.4045,-52.175,142,1.2,224,3.64,62,0,9],["Campo Grande","MS",-20.8761,-54.2635,2365,3.2,0,1.06,313,5,216]]},{"uf":"RO","nome":"Rondônia","nota":5.41,"mov":0,"plug":3409,"novos":321,"por_mil":2.6,"longe":20.7,"acima":4,"c":[["Cacoal","RO",-11.3033,-61.3982,157,1.7,428,4.39,30,3,14],["Ji-Paraná","RO",-10.4292,-61.8128,118,1.0,338,3.73,56,3,14],["Ariquemes","RO",-9.9795,-63.0193,111,1.1,198,3.13,73,null,12],["Porto Velho","RO",-8.9882,-64.5244,2705,7.6,0,1.37,222,-3,246]]},{"uf":"PA","nome":"Pará","nota":5.37,"mov":0,"plug":4541,"novos":425,"por_mil":1.4,"longe":29.4,"acima":7,"c":[["Santarém","PA",-2.669,-55.1953,361,2.3,534,5.32,17,0,32],["Parauapebas","PA",-6.1988,-50.4674,273,1.6,514,4.7,29,0,35],["Altamira","PA",-6.3175,-53.6431,123,1.4,746,4.05,46,5,21],["Marabá","PA",-5.5249,-50.0623,163,0.9,505,3.91,51,1,16],["Castanhal","PA",-1.261,-47.8372,176,1.4,70,1.65,153,10,24],["Belém","PA",-1.273,-48.4631,2374,3.9,0,1.13,299,0,193],["Ananindeua","PA",-1.3361,-48.3856,457,2.1,11,1.0,331,-3,47]]},{"uf":"PI","nome":"Piauí","nota":5.21,"mov":0,"plug":3522,"novos":374,"por_mil":2.1,"longe":17.5,"acima":2,"c":[["Parnaíba","PI",-2.9395,-41.7593,342,2.9,275,5.65,15,1,31],["Teresina","PI",-5.1864,-42.7848,2854,4.5,0,1.2,279,5,303]]},{"uf":"SE","nome":"Sergipe","nota":5.1,"mov":0,"plug":3186,"novos":364,"por_mil":2.9,"longe":2.2,"acima":4,"c":[["Barra dos Coqueiros","SE",-10.8492,-36.9462,267,16.6,25,1.8,135,0,34],["Aracaju","SE",-11.0123,-37.1038,2396,6.3,0,1.36,227,6,260],["Itabaiana","SE",-10.6989,-37.4255,104,1.2,49,1.21,278,null,17],["Nossa Senhora do Socorro","SE",-10.8734,-37.1732,103,1.4,17,0.81,355,null,9]]},{"uf":"TO","nome":"Tocantins","nota":4.85,"mov":0,"plug":1749,"novos":125,"por_mil":1.7,"longe":22.8,"acima":2,"c":[["Araguaína","TO",-7.2517,-48.6552,282,1.7,332,4.75,27,1,32],["Palmas","TO",-10.1918,-48.1078,1311,4.8,0,1.16,291,-1,79]]}]}</script>
 <script>
 (function(){
   "use strict";
   var D = JSON.parse(document.getElementById('dados').textContent);
   var RAMPA = ['#6B5325','#A2762A','#D19A33','#F0B449','#FFD37A'];
-  // Abre já com o melhor estado que tem lista de verdade: estado de uma cidade só
-  // (DF, RR, AC) é campeão de mercado e painel vazio, e painel vazio não mostra nada.
-  var escolhido = (D.estados.filter(function(e){ return e.acima >= 5; })[0] || D.estados[0]).uf;
+  // cidade: [nome, uf, lat, lng, plug, por_mil, km_polo, nota, pos_nacional, mov, novos]
+  var NOME=0, UF=1, LAT=2, LNG=3, PLUG=4, PORMIL=5, KM=6, NOTA=7, POS=8, MOV=9, NOVOS=10;
+
+  var escolhido = null;            // null = Brasil inteiro
+  var formato = 'cidades';
 
   function nf(v){ return Math.round(v).toLocaleString('pt-BR'); }
   function dec(v, n){ return Number(v).toLocaleString('pt-BR', {minimumFractionDigits:n, maximumFractionDigits:n}); }
   function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function cor(t){ return RAMPA[Math.max(0, Math.min(RAMPA.length-1, Math.floor(t*RAMPA.length)))]; }
-  function raioSugerido(plug){ return plug >= 500 ? 25 : (plug >= 150 ? 40 : 60); }
 
   document.getElementById('ref').textContent = D.ref;
+  document.getElementById('refant').textContent = D.ref_ant;
 
   // Dentro da aba Estados do Gerador a página roda em iframe, e aí o "Voltar ao
   // Gerador" navegaria o próprio quadro, deixando o app dentro do app.
   try { if (window.self !== window.top) document.getElementById('voltar').hidden = true; }
   catch (err) { document.getElementById('voltar').hidden = true; }
 
+  /** A seta: sobe, desce, igual ou novo na régua. Nunca cor sozinha, sempre com número. */
+  function seta(mov){
+    if (mov === null || mov === undefined) return '<span class="mov novo">NOVO</span>';
+    if (mov > 0) return '<span class="mov sobe">▲ ' + mov + '</span>';
+    if (mov < 0) return '<span class="mov desce">▼ ' + (-mov) + '</span>';
+    return '<span class="mov igual">=</span>';
+  }
+
   (function resumo(){
+    var b = D.brasil;
     var itens = [
-      ['Frota do país', nf(D.brasil.plugin), 'Veículos plug-in emplacados, julho/2026'],
+      ['Frota do país', nf(b.plug), nf(b.plug - b.plug_ant) + ' carros plug-in a mais que em ' + D.ref_ant],
       ['Adoção média', dec(D.taxa_br,1), 'Plug-in por mil veículos no Brasil'],
       ['Estado do topo', D.estados[0].uf + ' <span style="font-size:15px;color:var(--dim)">' + dec(D.estados[0].nota,2) + '</span>', D.estados[0].nome + ', maior nota de mercado'],
-      ['Cidades na régua', nf(D.estados.reduce(function(s,e){ return s + e.acima; }, 0)), 'Com ' + D.piso + ' ou mais plug-in, o piso da lista']
+      ['Cidades na régua', nf(b.na_regua), b.novos_na_regua + ' cruzaram os ' + D.piso + ' plug-in neste mês']
     ];
     document.getElementById('resumo').innerHTML = itens.map(function(x){
       return '<div class="card"><div class="ct">' + x[0] + '</div>'
@@ -210,69 +244,95 @@ footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--linha);
     }).join('');
   })();
 
+  var caixaEstados = document.getElementById('estados');
   (function listaEstados(){
     var maior = D.estados[0].nota;
-    var caixa = document.getElementById('estados');
     D.estados.forEach(function(e, i){
       var b = document.createElement('button');
       b.className = 'uf'; b.type = 'button';
-      b.setAttribute('aria-current', String(e.uf === escolhido));
       var t = e.nota / maior;
       b.innerHTML = '<span class="pos">' + (i+1) + '</span>'
         + '<span><span class="nm">' + esc(e.nome) + '</span>'
-        + '<span class="det">' + nf(e.plug) + ' plug-in · ' + dec(e.por_mil,1) + ' por mil · '
-        + dec(e.longe,0) + '% longe do polo · ' + e.acima + (e.acima === 1 ? ' cidade' : ' cidades') + '</span></span>'
+        + '<span class="det">' + nf(e.plug) + ' plug-in · ' + (e.novos >= 0 ? '+' : '') + nf(e.novos)
+        + ' no mês · ' + dec(e.por_mil,1) + ' por mil · ' + e.acima + (e.acima === 1 ? ' cidade' : ' cidades') + '</span></span>'
         + '<span class="barra"><i style="width:' + Math.round(t*100) + '%;background:' + cor(t) + '"></i></span>'
+        + seta(e.mov)
         + '<span class="val">' + dec(e.nota,2) + '</span>';
-      b.addEventListener('click', function(){
-        escolhido = e.uf;
-        Array.prototype.forEach.call(caixa.children, function(o, j){
-          o.setAttribute('aria-current', String(D.estados[j].uf === escolhido));
-        });
-        pintarCidades();
-      });
-      caixa.appendChild(b);
+      b.addEventListener('click', function(){ escolhido = e.uf; pintar(); });
+      caixaEstados.appendChild(b);
     });
   })();
 
-  function estadoAtual(){
-    for (var i=0;i<D.estados.length;i++) if (D.estados[i].uf === escolhido) return D.estados[i];
-    return D.estados[0];
+  document.getElementById('btBrasil').addEventListener('click', function(){ escolhido = null; pintar(); });
+
+  function listaAtual(){
+    if (!escolhido) return { titulo: 'Top 50 do Brasil', c: D.top50, total: D.brasil.na_regua };
+    for (var i=0;i<D.estados.length;i++){
+      if (D.estados[i].uf === escolhido){
+        return { titulo: 'Melhores lugares em ' + D.estados[i].nome, c: D.estados[i].c, total: D.estados[i].acima };
+      }
+    }
+    return { titulo: 'Top 50 do Brasil', c: D.top50, total: D.brasil.na_regua };
   }
 
-  function pintarCidades(){
-    var e = estadoAtual();
-    var lista = e.c;
-    document.getElementById('tituloCidades').textContent = 'Melhores lugares em ' + e.nome;
-    document.getElementById('contaCidades').textContent = (lista.length
-      ? (lista.length === e.acima ? (e.acima === 1 ? '1 cidade' : e.acima + ' cidades')
-                                  : lista.length + ' de ' + e.acima + ' cidades')
-      : 'nenhuma cidade acima do piso') + ' · carência 0 a 10';
-    var maior = lista.length ? lista[0][6] : 1;
-    document.getElementById('cidades').innerHTML = lista.map(function(c, i){
-      var t = c[6] / maior;
-      return '<div class="cid"><span class="pos" style="font-family:var(--mono);font-size:12px;color:var(--faint)">' + (i+1) + '</span>'
-        + '<span><span class="nm">' + esc(c[0]) + '</span>'
-        + '<span class="det">' + nf(c[3]) + ' plug-in · ' + dec(c[4],1) + ' por mil · ' + nf(c[5]) + ' km do polo</span></span>'
-        + '<span class="val"><span class="chip" style="background:' + cor(t) + '"></span>' + dec(c[6],2) + '</span></div>';
-    }).join('') || '<div class="cid"><span></span><span class="det">Nenhuma cidade deste estado tem ' + D.piso + ' ou mais plug-in emplacados.</span><span></span></div>';
+  /** Meta aceita "Cidade, Estado, País" uma por linha, ou a coordenada crua. */
+  function linhasMeta(lista){
+    if (formato === 'coordenadas'){
+      return lista.map(function(c){ return c[LAT].toFixed(4) + ', ' + c[LNG].toFixed(4); });
+    }
+    return lista.map(function(c){ return c[NOME] + ', ' + D.nomes_uf[c[UF]] + ', Brazil'; });
+  }
 
-    var txt = lista.slice(0,10).map(function(c, i){
-      return (i+1) + '. ' + c[0] + '/' + e.uf + '   ' + c[1].toFixed(4) + ', ' + c[2].toFixed(4)
-        + '   raio ' + raioSugerido(c[3]) + ' km   ' + nf(c[3]) + ' plug-in';
+  function pintar(){
+    var at = listaAtual();
+    document.getElementById('tituloCidades').textContent = at.titulo;
+    document.getElementById('btBrasil').classList.toggle('on', !escolhido);
+    Array.prototype.forEach.call(caixaEstados.children, function(o, j){
+      o.setAttribute('aria-current', String(D.estados[j].uf === escolhido));
     });
-    document.getElementById('publico').textContent = txt.length ? txt.join('\n') : 'Sem cidade acima do piso neste estado.';
+    document.getElementById('contaCidades').textContent = escolhido
+      ? (at.c.length === at.total ? at.total + (at.total === 1 ? ' cidade' : ' cidades') : at.c.length + ' de ' + at.total + ' cidades')
+      : (at.total + ' cidades na régua');
+
+    var maior = at.c.length ? at.c[0][NOTA] : 1;
+    document.getElementById('cidades').innerHTML = at.c.map(function(c, i){
+      var t = c[NOTA] / maior;
+      return '<div class="cid"><span class="pos">' + (escolhido ? c[POS] : (i+1)) + '</span>'
+        + '<span><span class="nm">' + esc(c[NOME]) + (escolhido ? '' : '<span style="color:var(--faint);font-weight:400">/' + c[UF] + '</span>') + '</span>'
+        + '<span class="det">' + nf(c[PLUG]) + ' plug-in · ' + (c[NOVOS] >= 0 ? '+' : '') + nf(c[NOVOS]) + ' no mês · '
+        + nf(c[KM]) + ' km do polo</span></span>'
+        + seta(c[MOV])
+        + '<span class="num" style="color:' + cor(t) + '">' + dec(c[NOTA],2) + '</span></div>';
+    }).join('') || '<div class="cid"><span></span><span class="det">Nenhuma cidade deste estado tem ' + D.piso + ' ou mais plug-in emplacados.</span><span></span><span></span></div>';
+
+    var linhas = linhasMeta(at.c);
+    document.getElementById('publico').textContent = linhas.join('\n') || 'Sem cidade acima do piso neste recorte.';
+    document.getElementById('comoUsar').innerHTML = formato === 'coordenadas'
+      ? 'No gerenciador: <b>Adicionar localizações em massa</b>, tipo de localização <b>Coordenadas</b>, e escolha o raio padrão. '
+        + linhas.length + (linhas.length === 1 ? ' coordenada' : ' coordenadas') + ' na lista.'
+      : 'No gerenciador: <b>Adicionar localizações em massa</b>, tipo de localização <b>Cidades</b>, raio padrão <b>40 km</b>. '
+        + 'Uma cidade por linha, no formato que ele casa sozinho. ' + linhas.length
+        + (linhas.length === 1 ? ' cidade' : ' cidades') + ' na lista. Linha que não casar fica marcada lá para ajuste.';
   }
+
+  function trocaFormato(qual){
+    formato = qual;
+    document.getElementById('fmtCidades').classList.toggle('on', qual === 'cidades');
+    document.getElementById('fmtCoord').classList.toggle('on', qual === 'coordenadas');
+    pintar();
+  }
+  document.getElementById('fmtCidades').addEventListener('click', function(){ trocaFormato('cidades'); });
+  document.getElementById('fmtCoord').addEventListener('click', function(){ trocaFormato('coordenadas'); });
 
   document.getElementById('copiar').addEventListener('click', function(){
     var btn = this, alvo = document.getElementById('publico');
-    function avisar(m){ btn.textContent = m; setTimeout(function(){ btn.textContent = 'Copiar os dez primeiros pro Meta'; }, 1800); }
+    function avisar(m){ btn.textContent = m; setTimeout(function(){ btn.textContent = 'Copiar'; }, 1800); }
     function selecionar(){
       var faixa = document.createRange();
       faixa.selectNodeContents(alvo);
       var sel = window.getSelection();
       sel.removeAllRanges(); sel.addRange(faixa);
-      avisar('Selecionado, use ctrl+C');
+      avisar('Selecionado, ctrl+C');
     }
     try {
       if (navigator.clipboard && navigator.clipboard.writeText){
@@ -283,7 +343,7 @@ footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--linha);
     selecionar();
   });
 
-  pintarCidades();
+  pintar();
 
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/gerador/sw.js', {scope:'/gerador/'}).catch(function(){});
 })();
