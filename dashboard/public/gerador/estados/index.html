@@ -126,7 +126,7 @@ footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--linha);
       </div>
     </div>
     <div class="spacer"></div>
-    <a class="voltar" href="/gerador/">Voltar ao Gerador</a>
+    <a class="voltar" id="voltar" href="/gerador/">Voltar ao Gerador</a>
   </header>
 
   <div class="vida">
@@ -191,6 +191,11 @@ footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--linha);
   function raioSugerido(plug){ return plug >= 500 ? 25 : (plug >= 150 ? 40 : 60); }
 
   document.getElementById('ref').textContent = D.ref;
+
+  // Dentro da aba Estados do Gerador a página roda em iframe, e aí o "Voltar ao
+  // Gerador" navegaria o próprio quadro, deixando o app dentro do app.
+  try { if (window.self !== window.top) document.getElementById('voltar').hidden = true; }
+  catch (err) { document.getElementById('voltar').hidden = true; }
 
   (function resumo(){
     var itens = [

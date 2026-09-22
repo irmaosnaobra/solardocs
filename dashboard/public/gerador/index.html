@@ -2959,6 +2959,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     </div>
     <div class="eletro-subnav2" id="eletro-subnav2-mercado">
       <button type="button" id="eletro-tab-mercado" class="eletro-subtab2" onclick="eletroSubaba('mercado')">Frota</button>
+      <button type="button" id="eletro-tab-estados" class="eletro-subtab2" onclick="eletroSubaba('estados')">Estados</button>
       <button type="button" id="eletro-tab-postos" class="eletro-subtab2" onclick="eletroSubaba('postos')">Postos</button>
       <button type="button" id="eletro-tab-pesquisa" class="eletro-subtab2" onclick="eletroSubaba('pesquisa')">Pesquisa</button>
       <button type="button" id="eletro-tab-mapa" class="eletro-subtab2" onclick="eletroSubaba('mapa')">Mapa</button>
@@ -4130,6 +4131,16 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="pesquisa-info">Dados de mercado de frotas elétricas (ABVE). Use os filtros dentro do relatório para explorar.</div>
       <div class="pesquisa-frame-wrap">
         <iframe id="eletro-frame-mercado" title="Mercado" data-src="https://app.powerbi.com/view?r=eyJrIjoiNWFkMjcwZjAtZThhOC00NmMxLTljZjUtNTgwM2E5MTgxODM2IiwidCI6IjQwNmMyNTc1LWM5ZDQtNGQ0NC1hNWI2LWJiNThiYzg2MDMzZSJ9" allowfullscreen loading="lazy"></iframe>
+      </div>
+    </div>
+
+    <!-- ===== PANE: ESTADOS (tela nossa, /gerador/estados) =====
+         Mesma origem, então o iframe carrega sem CSP no meio. O lazy-load é o
+         mesmo dos painéis do Power BI: só ganha src na primeira abertura. -->
+    <div id="eletro-pane-estados" style="display:none;">
+      <div class="pesquisa-info">Os 27 estados do melhor para o pior e, dentro de cada um, as cidades onde tem carro elétrico e não tem carregador perto. Frota do SENATRAN de julho/2026. A distância até o polo é proxy de oferta, não contagem de carregador.</div>
+      <div class="pesquisa-frame-wrap">
+        <iframe id="eletro-frame-estados" title="Melhores lugares por estado" data-src="/gerador/estados" loading="lazy"></iframe>
       </div>
     </div>
 
@@ -7633,7 +7644,7 @@ function navEletroposto() {
 // pior porta possível.
 const EP_GRUPOS = {
   fechamento: ['recibo', 'contrato', 'procuracao', 'banco', 'finame', 'apresentacao'],
-  mercado:    ['mercado', 'postos', 'pesquisa', 'mapa'],
+  mercado:    ['mercado', 'estados', 'postos', 'pesquisa', 'mapa'],
 };
 
 // Clicar num grupo JÁ aberto não faz nada: as pílulas já estão à vista, e toque
@@ -8134,7 +8145,7 @@ async function apxMontar() {
 }
 
 function eletroSubaba(qual) {
-  const abas = ['simulador', 'orcamento', 'recibo', 'contrato', 'procuracao', 'banco', 'finame', 'apresentacao', 'cadastros', 'avisos', 'historico', 'pesquisa', 'mercado', 'postos', 'mapa'];
+  const abas = ['simulador', 'orcamento', 'recibo', 'contrato', 'procuracao', 'banco', 'finame', 'apresentacao', 'cadastros', 'avisos', 'historico', 'pesquisa', 'mercado', 'estados', 'postos', 'mapa'];
   // A cada abertura: monta a lista de potências (uma vez) e tenta completar o
   // vendedor. Fica aqui, e não só no load, porque o cadastro de consultores
   // carrega assíncrono — na primeira abertura o telefone ainda pode não existir.
@@ -8201,7 +8212,7 @@ function eletroSubaba(qual) {
   }
 
   // lazy-load dos iframes Power BI: só seta o src na 1ª abertura (Mapa é um card, não iframe)
-  if (qual === 'pesquisa' || qual === 'mercado' || qual === 'postos') {
+  if (qual === 'pesquisa' || qual === 'mercado' || qual === 'postos' || qual === 'estados') {
     const frame = document.getElementById('eletro-frame-' + qual);
     if (frame && !frame.src && frame.dataset.src) frame.src = frame.dataset.src;
   }
