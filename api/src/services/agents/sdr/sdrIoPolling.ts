@@ -21,11 +21,11 @@ import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
 import { logger } from '../../../utils/logger';
 import { ehFeriadoBR } from '../../../utils/feriadosBR';
-import { handleSdrLead, tryClaimMessage, hasRecentWebhookClaim, isLumaWorkingNow } from './sdrAgentService';
+import { handleSdrLead, tryClaimMessage, hasRecentWebhookClaim, isLumaWorkingNow, temInboundRecebido } from './sdrAgentService';
 import { sendToGroup, sendWhatsApp, type ZapiInstance } from '../zapiClient';
 import { respostaPendenteRepescagem, marcarRespostaAvisada } from '../../io/eletropostoRepescagem';
 import { EQUIPE } from '../../../routes/ioEletroposto';
-import { respostaDeCampanhaPonto, avisoDeResposta } from '../../io/pesquisaPontoRespostas';
+import { respostaDeCampanhaPonto, avisoDeResposta, pareceMensagemDoLead } from '../../io/pesquisaPontoRespostas';
 import { passoDoConvite } from '../../io/eletropostoConviteInvestidor';
 import { quandoPorExtenso } from '../../io/eletropostoAgenda';
 import { novoAnthropic } from "../../../utils/anthropicClient";
@@ -106,6 +106,27 @@ export async function pollZapiMessagesIO(): Promise<{ processed: number; skipped
       continue;
     }
 
+    // ── A CONVERSA MEXEU NÃO QUER DIZER QUE O LEAD ESCREVEU (22/09/2026) ──────
+    //
+    // O /chats da Z-API muda `lastMessageTime` a cada mensagem da conversa, e a
+    // nossa também é mensagem da conversa. Em 22/09 a régua do SIM liberou 18
+    // horários às 14h50 e avisou cada pessoa; minutos depois a equipe recebeu
+    // "RESPONDEU A PESQUISA DO PONTO — Respondeu (sem texto legível)" de gente que
+    // não tinha escrito nada. Eram os nossos próprios envios voltando como
+    // resposta, e o Andre gerou três avisos sozinho.
+    //
+    // A prova de que foi o LEAD: texto na última mensagem (o /chats não devolve
+    // texto do que a gente manda), ou um claim `recep:` da recepção, que só existe
+    // para mensagem RECEBIDA. Sem uma das duas, este chat não vira aviso, não vira
+    // lead novo e não acorda a Luma — ele é só o eco do que mandamos.
+    //
+    // Efeito conhecido: com o webhook da recepção fora do ar, uma resposta só de
+    // áudio/figurinha deixa de ser vista aqui (a de texto continua).
+    if (!pareceMensagemDoLead(chat.lastMessage ?? null, await temInboundRecebido(phone))) {
+      skipped++;
+      continue;
+    }
+
     // RESPOSTA DA REPESCAGEM — não é lead novo do anúncio: é gente respondendo uma
     // mensagem NOSSA (apagão de 01–03/ago). Ninguém atende automático nesta linha,
     // então o que salva a resposta é o dono saber na hora. Um aviso por pessoa.
@@ -171,7 +192,9 @@ export async function pollZapiMessagesIO(): Promise<{ processed: number; skipped
     // esse é do agente de agendamento.
     try {
       const camp = await respostaDeCampanhaPonto(phone);
-      if (camp) {
+      // Um aviso por pessoa por dia: quem escreve três vezes seguidas não vira três
+      // avisos iguais na equipe (o claim do dia é o mesmo).
+      if (camp && await tryClaimMessage(`campanha:${phone}:${new Date().toISOString().slice(0, 10)}`, phone, 'poll')) {
         const aviso = avisoDeResposta(camp, chat.lastMessage ?? null);
         await Promise.allSettled(Object.values(EQUIPE).map(num => sendWhatsApp(num, aviso, 'io')));
         logger.info('sdr-io-poll', `resposta de campanha avisada: ${camp.nome} (${phone})`);

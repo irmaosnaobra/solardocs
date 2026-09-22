@@ -615,6 +615,24 @@ export async function hasRecentWebhookClaim(phone: string, secondsAgo = 90): Pro
   return !!data;
 }
 
+// MENSAGEM RECEBIDA DE VERDADE (22/09/2026).
+//
+// A recepção da linha (recepcaoIo) grava um claim `recep:<id>` para CADA mensagem
+// que CHEGA. O polling grava `poll:<phone>:<hora>` por MOVIMENTO na conversa — e
+// movimento inclui o que NÓS mandamos. Quem quer saber "o lead falou?" pergunta
+// pelos claims da recepção, não pelos do polling.
+export async function temInboundRecebido(phone: string, minutos = 15): Promise<boolean> {
+  const cutoff = new Date(Date.now() - minutos * 60 * 1000).toISOString();
+  const { data } = await supabase
+    .from('sdr_message_dedup')
+    .select('message_id')
+    .eq('phone', phone)
+    .like('message_id', 'recep:%')
+    .gte('processed_at', cutoff)
+    .limit(1);
+  return !!(data && data.length);
+}
+
 // ─── Horário de funcionamento da Luma ─────────────────────────────
 //
 // Luma trabalha fora do horário comercial (humanos cuidam 8h-17h dia útil):

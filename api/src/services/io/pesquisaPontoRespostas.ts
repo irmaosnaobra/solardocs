@@ -47,7 +47,7 @@ export async function respostaDeCampanhaPonto(phone: string): Promise<RespostaDe
   try {
     const [ag, ficha] = await Promise.all([
       supabaseGerador.from('agendamentos')
-        .select('cliente_nome, cliente_telefone, quando, status, tem_ponto, created_by')
+        .select('cliente_nome, cliente_telefone, quando, status, tem_ponto, created_by, vendedor_nome')
         .eq('telefone_norm', alvo).order('quando', { ascending: false }).limit(5),
       supabaseGerador.from('eletroposto_nota1')
         .select('nome, telefone, tem_ponto, capital_faixa')
@@ -69,11 +69,18 @@ export async function respostaDeCampanhaPonto(phone: string): Promise<RespostaDe
             timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
           })
         : 'sem horário';
+      // O que decide o que dizer pra ele é o que ACONTECEU com a última reunião:
+      // "cancelado" quase sempre é a régua do SIM (não confirmou e perdeu o
+      // horário), e essa pessoa quer remarcar, não responder pesquisa.
+      const dono = r.vendedor_nome ? ` com ${r.vendedor_nome}` : '';
+      const desfecho = r.status === 'cancelado'
+        ? ' — CANCELADA (não confirmou e perdeu o horário)'
+        : r.status && r.status !== 'agendado' ? ` — ${String(r.status).replace(/_/g, ' ')}` : '';
       return {
         telefone: String(r.cliente_telefone || phone),
         nome: String(r.cliente_nome || 'sem nome'),
         origem: 'reuniao',
-        contexto: `Já teve reunião de eletroposto (última: ${quando}). Ponto: ${r.tem_ponto || '—'}.`,
+        contexto: `Última reunião: ${quando}${dono}${desfecho}. Ponto: ${r.tem_ponto || '—'}.`,
       };
     }
 
@@ -96,12 +103,24 @@ export async function respostaDeCampanhaPonto(phone: string): Promise<RespostaDe
   }
 }
 
+/**
+ * O LEAD ESCREVEU, OU FOI SÓ A NOSSA MENSAGEM? (22/09/2026)
+ *
+ * O /chats da Z-API não devolve o texto do que NÓS mandamos, então "sem texto" é
+ * o estado normal do eco do nosso próprio envio. Texto na última mensagem, ou um
+ * recebimento registrado pela recepção, são as duas provas de que foi ele.
+ * Pura: quem lê o banco é o chamador.
+ */
+export function pareceMensagemDoLead(texto: string | null | undefined, inboundRecebido: boolean): boolean {
+  return String(texto || '').trim().length > 0 || inboundRecebido;
+}
+
 /** O aviso que a equipe recebe. Curto: quem, o que ele escreveu e o que a base sabe dele. */
 export function avisoDeResposta(r: RespostaDeCampanha, texto: string | null): string {
   return [
-    '*RESPONDEU A PESQUISA DO PONTO*',
+    '*ESCREVEU NA LINHA — JÁ ESTÁ NA BASE*',
     `${r.nome} — wa.me/${String(r.telefone).replace(/\D/g, '')}`,
-    texto ? `Disse: "${texto.slice(0, 220)}"` : 'Respondeu (sem texto legível).',
+    texto ? `Disse: "${texto.slice(0, 220)}"` : 'Mandou áudio, foto ou figurinha (sem texto).',
     r.contexto,
     'Robô não responde nesta conversa — a pesquisa é atendida por gente.',
   ].join('\n');
