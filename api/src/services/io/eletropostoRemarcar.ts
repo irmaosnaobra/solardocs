@@ -232,6 +232,35 @@ export function bolhasNaoAtendido(nome: string, ofertas: string[], quem: string)
   ];
 }
 
+/**
+ * 2º toque do não atendido, no dia seguinte.
+ *
+ * O dono, 22/09/2026: *"ele é um cliente que confirmou, mas no momento que fez a
+ * ligação para ele, ele não atendeu... se ele chegou na agenda, ele é
+ * importante. Então temos que inventar de tudo."* Por isso a insistência aqui é
+ * explicada, não disfarçada: a pessoa ouve o motivo de a gente estar voltando.
+ */
+export function bolhasNaoAtendido2(nome: string, ofertas: string[], quem: string): string[] {
+  return [
+    `Oi${comNome(nome)}! Voltei aqui porque eu não gosto de deixar assunto pela metade.`,
+    `Você reservou um horário com o *${quem}* e a gente não conseguiu se falar. `
+    + 'Se foi corria do dia, tudo bem, é só escolher outro:',
+    ofertas.map(linhaDaOpcao).join('\n'),
+    'Responde o número e eu travo. Se preferir outro dia, me diz qual que eu procuro.',
+  ];
+}
+
+/** 3º e último. Quem não escolhe horário três vezes não quer horário: daqui ele
+ *  sai da escada e vira lista pra equipe trabalhar (aba Curioso). */
+export function bolhasNaoAtendido3(nome: string, ofertas: string[], quem: string): string[] {
+  return [
+    `${nome ? nome + ', e' : 'E'}sta é a última vez que eu te chamo, prometo.`,
+    `O *${quem}* continua com a agenda aberta pro seu ponto. Se ainda fizer sentido, escolhe um:`,
+    ofertas.map(linhaDaOpcao).join('\n'),
+    'Se não for agora, sem problema: eu paro por aqui e fico à disposição quando você quiser retomar.',
+  ];
+}
+
 /** Sem vaga nenhuma nas próximas 3 semanas: não inventa horário, chama gente. */
 export function bolhasSemVaga(nome: string, quem: string): string[] {
   return [

@@ -65,6 +65,8 @@ vi.mock('../services/io/eletropostoRemarcar', () => ({
     return resultadoOferta;
   },
   bolhasNaoAtendido: function bolhasNaoAtendido() { return []; },
+  bolhasNaoAtendido2: function bolhasNaoAtendido2() { return []; },
+  bolhasNaoAtendido3: function bolhasNaoAtendido3() { return []; },
 }));
 
 vi.mock('../utils/logger', () => ({ logger: { info: () => {}, warn: () => {}, error: () => {} } }));
@@ -100,7 +102,7 @@ describe('follow-up do não atendido', () => {
     const r = await runEletropostoNaoAtendidoFupTick();
     expect(r.ofertas).toBe(1);
     expect(ofertados[0]).toMatchObject({ id: 1, copy: 'bolhasNaoAtendido' });
-    expect(estado.some(e => e.key === `${EP_FUP_NAOATENDIDO_PREFIX}1`)).toBe(true);
+    expect(estado.some(e => e.key === `${EP_FUP_NAOATENDIDO_PREFIX}1:r1`)).toBe(true);
   });
 
   it('NÃO chama quem o ROBÔ marcou de ausente', async () => {
@@ -124,7 +126,7 @@ describe('follow-up do não atendido', () => {
     expect((await runEletropostoNaoAtendidoFupTick()).ofertas).toBe(1);
   });
 
-  it('uma vez por ficha, pra sempre', async () => {
+  it('o mesmo degrau não sai duas vezes', async () => {
     fichas = [ficha()];
     await runEletropostoNaoAtendidoFupTick();
     ofertados.length = 0;
@@ -132,12 +134,50 @@ describe('follow-up do não atendido', () => {
     expect(ofertados).toHaveLength(0);
   });
 
+  it('o 2º toque sai 20h depois do 1º, e não antes', async () => {
+    fichas = [ficha()];
+    estado = [{ key: `${EP_FUP_NAOATENDIDO_PREFIX}1:r1`, updated_at: horasAtras(5) }];
+    expect((await runEletropostoNaoAtendidoFupTick()).ofertas).toBe(0);
+
+    estado = [{ key: `${EP_FUP_NAOATENDIDO_PREFIX}1:r1`, updated_at: horasAtras(21) }];
+    vi.setSystemTime(new Date('2026-09-23T13:00:00.000Z')); // 10h BRT, janela diurna
+    const r = await runEletropostoNaoAtendidoFupTick();
+    expect(r.ofertas).toBe(1);
+    expect(ofertados[ofertados.length - 1].copy).toBe('bolhasNaoAtendido2');
+  });
+
+  it('depois dos três toques e mais um dia, a ficha cai na lista', async () => {
+    fichas = [ficha()];
+    estado = [
+      { key: `${EP_FUP_NAOATENDIDO_PREFIX}1:r1`, updated_at: horasAtras(95) },
+      { key: `${EP_FUP_NAOATENDIDO_PREFIX}1:r2` },
+      { key: `${EP_FUP_NAOATENDIDO_PREFIX}1:r3` },
+    ];
+    const r = await runEletropostoNaoAtendidoFupTick();
+    expect(r.viraram_lista).toBe(1);
+    expect(fichasCriadas).toHaveLength(1);
+    // Fim da linha: nenhuma mensagem sai junto.
+    expect(ofertados).toHaveLength(0);
+  });
+
+  it('antes das 92h a ficha NÃO cai na lista: ele ainda pode voltar', async () => {
+    fichas = [ficha()];
+    estado = [
+      { key: `${EP_FUP_NAOATENDIDO_PREFIX}1:r1`, updated_at: horasAtras(70) },
+      { key: `${EP_FUP_NAOATENDIDO_PREFIX}1:r2` },
+      { key: `${EP_FUP_NAOATENDIDO_PREFIX}1:r3` },
+    ];
+    const r = await runEletropostoNaoAtendidoFupTick();
+    expect(r.viraram_lista).toBe(0);
+    expect(fichasCriadas).toHaveLength(0);
+  });
+
   it('oferta que não saiu não queima a ficha', async () => {
     fichas = [ficha()];
     resultadoOferta = { acao: 'sem_vaga' };
     const r1 = await runEletropostoNaoAtendidoFupTick();
     expect(r1.sem_vaga).toBe(1);
-    expect(estado.some(e => e.key === `${EP_FUP_NAOATENDIDO_PREFIX}1`)).toBe(false);
+    expect(estado.some(e => e.key === `${EP_FUP_NAOATENDIDO_PREFIX}1:r1`)).toBe(false);
 
     resultadoOferta = { acao: 'ofertou', ofertas: ['a'] };
     expect((await runEletropostoNaoAtendidoFupTick()).ofertas).toBe(1);
@@ -149,8 +189,19 @@ describe('follow-up do não atendido', () => {
     expect(r.ofertas).toBe(2);
   });
 
-  it('antes das 19h não sai nada', async () => {
+  it('o 1º toque não sai antes das 19h, mesmo com o tick rodando', async () => {
+    // Às 17h o tick RODA (é a janela dos toques 2 e 3, que caem de dia), mas o
+    // primeiro toque tem hora marcada: o dia precisa ter acabado e os cards
+    // precisam estar marcados.
     vi.setSystemTime(new Date('2026-09-22T20:00:00.000Z')); // 17h BRT
+    fichas = [ficha()];
+    const r = await runEletropostoNaoAtendidoFupTick();
+    expect(r.ofertas).toBe(0);
+    expect(ofertados).toHaveLength(0);
+  });
+
+  it('de madrugada não roda nada', async () => {
+    vi.setSystemTime(new Date('2026-09-23T06:00:00.000Z')); // 3h BRT
     fichas = [ficha()];
     expect((await runEletropostoNaoAtendidoFupTick()).motivo).toBe('fora_da_janela');
   });
@@ -175,19 +226,12 @@ describe('follow-up do não atendido', () => {
     expect((await runEletropostoNaoAtendidoFupTick()).motivo).toBe('desligado');
   });
 
-  it('quem não compareceu entra na lista de Cadastros, e ANTES da mensagem', async () => {
-    // Medido em 22/09/2026: dos 30 não atendidos dos últimos 30 dias, TRINTA não
-    // estavam em lista nenhuma. Existiam só como card vermelho na agenda, então
-    // passada a chamada de volta ninguém mais tinha por onde pegar essa pessoa.
+  it('o 1º toque NÃO cria ficha na lista: ela é o fim da linha', async () => {
+    // "Se ele não continuar, não reagendar, não aceitar, ele cai para curioso"
+    // (22/09/2026). Criar a ficha no primeiro toque sujaria a lista com gente
+    // que está voltando pra agenda.
     fichas = [ficha()];
     await runEletropostoNaoAtendidoFupTick();
-    expect(fichasCriadas).toEqual([{ id: 1, motivo: 'não compareceu à reunião marcada' }]);
-  });
-
-  it('a ficha da lista não depende de a oferta ter saído', async () => {
-    fichas = [ficha()];
-    resultadoOferta = { acao: 'sem_vaga' };
-    await runEletropostoNaoAtendidoFupTick();
-    expect(fichasCriadas).toHaveLength(1);
+    expect(fichasCriadas).toHaveLength(0);
   });
 });
