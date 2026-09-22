@@ -51,6 +51,14 @@ vi.mock('../utils/supabase', () => ({
   },
 }));
 
+const fichasCriadas: Array<{ id: number; motivo?: string }> = [];
+vi.mock('../services/io/eletropostoCobraSim', () => ({
+  criarFichaCurioso: async (f: any, _dry: boolean, motivo?: string) => {
+    fichasCriadas.push({ id: f.id, motivo });
+    return 'criada';
+  },
+}));
+
 vi.mock('../services/io/eletropostoRemarcar', () => ({
   ofertarPorConta: async (ficha: any, copy: any) => {
     ofertados.push({ id: ficha.id, copy: copy.name });
@@ -80,7 +88,7 @@ function ficha(over: Record<string, any> = {}) {
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(AGORA);
-  fichas = []; estado = []; ofertados.length = 0;
+  fichas = []; estado = []; ofertados.length = 0; fichasCriadas.length = 0;
   resultadoOferta = { acao: 'ofertou', ofertas: ['a', 'b', 'c'] };
   delete process.env.EP_FUP_NAOATENDIDO_OFF;
 });
@@ -165,5 +173,21 @@ describe('follow-up do não atendido', () => {
     process.env.EP_FUP_NAOATENDIDO_OFF = '1';
     fichas = [ficha()];
     expect((await runEletropostoNaoAtendidoFupTick()).motivo).toBe('desligado');
+  });
+
+  it('quem não compareceu entra na lista de Cadastros, e ANTES da mensagem', async () => {
+    // Medido em 22/09/2026: dos 30 não atendidos dos últimos 30 dias, TRINTA não
+    // estavam em lista nenhuma. Existiam só como card vermelho na agenda, então
+    // passada a chamada de volta ninguém mais tinha por onde pegar essa pessoa.
+    fichas = [ficha()];
+    await runEletropostoNaoAtendidoFupTick();
+    expect(fichasCriadas).toEqual([{ id: 1, motivo: 'não compareceu à reunião marcada' }]);
+  });
+
+  it('a ficha da lista não depende de a oferta ter saído', async () => {
+    fichas = [ficha()];
+    resultadoOferta = { acao: 'sem_vaga' };
+    await runEletropostoNaoAtendidoFupTick();
+    expect(fichasCriadas).toHaveLength(1);
   });
 });

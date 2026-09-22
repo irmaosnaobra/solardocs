@@ -44,6 +44,7 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { ofertarPorConta, bolhasNaoAtendido } from './eletropostoRemarcar';
 import { EP_NAO_ATENDEU_PREFIX, EP_RESPOSTA_PREFIX } from './eletropostoAgenda';
+import { criarFichaCurioso, type FichaDaAgenda } from './eletropostoCobraSim';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 
 /** Carimbo de follow-up enviado: `ep_fup_naoatendido:<id>`. Um por ficha, pra
@@ -66,16 +67,10 @@ function horaBrasilia(now = new Date()): number {
   return Number(now.toLocaleString('en-US', { timeZone: BRT_TZ, hour12: false, hour: '2-digit' }));
 }
 
-interface Ficha {
-  id: number;
-  cliente_nome: string | null;
-  cliente_telefone: string | null;
-  vendedor_nome: string | null;
-  quando: string | null;
-  created_by: string | null;
-  status: string | null;
-  lead_resposta_at: string | null;
-}
+/** Os mesmos campos que a régua do SIM usa pra montar a ficha da lista: quem não
+ *  compareceu vira entrada no Curioso pelo MESMO caminho, com a mesma regra de
+ *  destino. Uma implementação só de "vira ficha", em `eletropostoCobraSim`. */
+type Ficha = FichaDaAgenda & { lead_resposta_at: string | null };
 
 export type ResultadoFupNaoAtendido = {
   ofertas: number;
@@ -104,7 +99,9 @@ export async function runEletropostoNaoAtendidoFupTick(
 
   const { data, error } = await supabaseGerador
     .from('agendamentos')
-    .select('id, cliente_nome, cliente_telefone, vendedor_nome, quando, created_by, status, lead_resposta_at')
+    .select('id, cliente_nome, cliente_telefone, vendedor_nome, quando, created_by, status, lead_resposta_at, '
+      + 'historico, lembrete_1h_at, cidade, observacao, ponto_relacao, capital_faixa, tem_ponto, perfil_slug, '
+      + 'decisor_tipo, rota_tipo, utm_source, utm_medium, utm_campaign, utm_content, utm_term')
     .eq('status', 'nao_atendeu')
     .gte('quando', new Date(agora - JANELA_DIAS * 24 * 3600_000).toISOString())
     .lte('quando', new Date(agora).toISOString())
@@ -157,6 +154,15 @@ export async function runEletropostoNaoAtendidoFupTick(
     const { error: eClaim } = await supabase.from('system_state')
       .insert({ key: chave, value: { claim: nowIso }, updated_at: nowIso });
     if (eClaim) continue;
+
+    // A LISTA VEM ANTES DA MENSAGEM. Medido em 22/09/2026: dos 30 não atendidos
+    // dos últimos 30 dias, TRINTA não estavam em lista nenhuma. Não tinham ficha
+    // no Curioso, não tinham cadastro de parceria: existiam só como card vermelho
+    // na agenda. Ou seja, passada a chamada de volta, ninguém mais tinha por onde
+    // pegar essa pessoa. Agora ela entra na aba de Cadastros pelo MESMO caminho
+    // de quem a régua do SIM libera, com a mesma regra de destino (quem disse que
+    // tem o local cai no Arrendamento, o resto no Curioso).
+    await criarFichaCurioso(f, false, 'não compareceu à reunião marcada');
 
     try {
       const r = await ofertarPorConta(

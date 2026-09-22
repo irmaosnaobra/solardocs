@@ -273,7 +273,7 @@ export function passoDevido(e: {
 
 // ── A FICHA NO CURIOSO ───────────────────────────────────────────────────────
 
-interface Ficha {
+export interface FichaDaAgenda {
   id: number;
   cliente_nome: string | null;
   cliente_telefone: string | null;
@@ -321,9 +321,9 @@ const ROTULO_PAGAMENTO: Record<string, string> = {
  * isso como valor faria a regra ler um número que ninguém disse. Sem valor, o
  * destino é Curioso, e é justamente pra perguntar o valor que o Curioso existe.
  */
-export function fichaDoCurioso(f: Ficha): string {
+export function fichaDoCurioso(f: FichaDaAgenda, motivo = 'marcou reunião de eletroposto e nunca respondeu'): string {
   const linhas = [
-    'Veio da AGENDA: marcou reunião de eletroposto e nunca respondeu.',
+    `Veio da AGENDA: ${motivo}.`,
     f.quando ? `Reunião que ele perdeu: ${quandoPorExtenso(f.quando)}${f.vendedor_nome ? ` (${f.vendedor_nome})` : ''}` : '',
     `Local é seu: ${String(f.ponto_relacao || '').trim() || 'não respondeu'}`,
     f.tem_ponto ? `Ponto: ${f.tem_ponto}` : '',
@@ -351,7 +351,9 @@ function ult8(raw: string | null | undefined): string {
  * robô convidar pra uma reunião justamente quem acabou de perder a dele por
  * silêncio. O dado não se perde: vai no texto da ficha e em `invest`.
  */
-async function criarFichaCurioso(f: Ficha, dry: boolean): Promise<'criada' | 'ja_existia' | 'erro'> {
+export async function criarFichaCurioso(
+  f: FichaDaAgenda, dry: boolean, motivo?: string,
+): Promise<'criada' | 'ja_existia' | 'erro'> {
   const tel = String(f.cliente_telefone || '').replace(/\D/g, '');
   const chave = ult8(tel);
   if (!chave) return 'erro';
@@ -366,13 +368,13 @@ async function criarFichaCurioso(f: Ficha, dry: boolean): Promise<'criada' | 'ja
       cidade: f.cidade,
       origem: 'agenda_sem_resposta',
       status: 'novo',
-      ficha: fichaDoCurioso(f),
+      ficha: fichaDoCurioso(f, motivo),
       tem_ponto: f.tem_ponto,
       perfil_slug: f.perfil_slug,
       decisor_tipo: f.decisor_tipo,
       rota_tipo: f.rota_tipo,
       invest: f.capital_faixa ? (ROTULO_PAGAMENTO[f.capital_faixa] || f.capital_faixa) : null,
-      nota_interna: 'Liberado pela régua do SIM: marcou reunião e não respondeu.',
+      nota_interna: `Veio da agenda: ${motivo ?? 'liberado pela régua do SIM, marcou reunião e não respondeu'}.`,
       utm_source: f.utm_source, utm_medium: f.utm_medium, utm_campaign: f.utm_campaign,
       utm_content: f.utm_content, utm_term: f.utm_term,
     });
@@ -395,7 +397,7 @@ async function criarFichaCurioso(f: Ficha, dry: boolean): Promise<'criada' | 'ja
  * liberado de verdade é a mesma falha de mandar e-mail antes de resolver a conta
  * do cliente, só que com a agenda.
  */
-async function liberar(f: Ficha, dry: boolean): Promise<boolean> {
+async function liberar(f: FichaDaAgenda, dry: boolean): Promise<boolean> {
   if (dry) return true;
   const carimbo = new Date().toLocaleString('pt-BR', {
     timeZone: BRT_TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
@@ -474,7 +476,7 @@ export async function runEletropostoCobraSimTick(opts: { dry?: boolean } = {}): 
     return { ...zero('erro_leitura'), erros: 1 };
   }
 
-  const fichas = ((data ?? []) as unknown as Ficha[])
+  const fichas = ((data ?? []) as unknown as FichaDaAgenda[])
     .filter(f => ehOrigemEletroposto(f.created_by))
     // Dia em que a empresa não atende: ninguém é cobrado por não confirmar uma
     // reunião que nós é que não vamos fazer.
@@ -506,7 +508,7 @@ export async function runEletropostoCobraSimTick(opts: { dry?: boolean } = {}): 
   // ciclo (o reagenda-auto devolve pra agenda quem sumiu). Então ele só vale a
   // partir da confirmação que está na ficha AGORA, igual às duas réguas de
   // vermelho do eletropostoAgenda.
-  const falouNesteCiclo = (f: Ficha): boolean => {
+  const falouNesteCiclo = (f: FichaDaAgenda): boolean => {
     const em = respondeuEm.get(f.id);
     if (!em) return false;
     return !f.confirmacao_at || em >= f.confirmacao_at;
