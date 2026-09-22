@@ -939,3 +939,97 @@ describe('corte das 13h', () => {
     expect(carimbos).not.toContain('ep_nao_atendeu_auto:7');
   });
 });
+
+// ── LEMBRETE DIÁRIO DA VÉSPERA (22/09/2026) ─────────────────────────────────
+// "Agendou na segunda pra quarta, recebe um pequeno lembrete na terça; agendou
+// na segunda pra quinta, recebe na terça e na quarta."
+//
+// Os riscos aqui são dois, e opostos: repetir (a mesma pessoa recebendo o mesmo
+// lembrete duas vezes no dia, ou todo dia durante três semanas) e falar sozinho
+// (lembrar diariamente quem nunca respondeu). AGORA no teste é terça, 04/08, 13h
+// BRT, que cai dentro da janela de 9h às 14h.
+describe('lembrete diário da véspera', () => {
+  /** Confirmada, marcada num dia anterior e viva (confirmou presença). */
+  const daVespera = (over: Partial<any> = {}) => fichaConfirmada({
+    created_at: '2026-08-01T12:00:00.000Z',
+    presenca_confirmada_at: '2026-08-01T13:00:00.000Z',
+    ...over,
+  });
+
+  it('reunião daqui a 2 dias: um lembrete, com a data por extenso', async () => {
+    fichas = [daVespera({ quando: '2026-08-06T17:00:00.000Z' })];
+    const r = await tick();
+    expect(r.lembretes_diarios).toBe(1);
+    expect(enviadas).toHaveLength(1);
+    expect(enviadas[0].bolhas).toHaveLength(1);
+    expect(enviadas[0].bolhas[0]).toContain('quinta-feira, 06/08');
+    expect(enviadas[0].bolhas[0]).toContain('Diego');
+  });
+
+  it('reunião amanhã: a mensagem diz "amanhã", não a data', async () => {
+    fichas = [daVespera({ quando: '2026-08-05T17:00:00.000Z' })];
+    await tick();
+    expect(enviadas[0].bolhas[0]).toContain('amanhã, às 14h00');
+    expect(enviadas[0].bolhas[0]).not.toContain('05/08');
+  });
+
+  it('carimba POR DIA e não repete no mesmo dia', async () => {
+    fichas = [daVespera({ quando: '2026-08-06T17:00:00.000Z' })];
+    await tick();
+    expect(carimbos).toContain('ep_agenda_sent:1:d2026-08-04');
+    enviadas.length = 0;
+    const r = await tick();
+    expect(r.lembretes_diarios).toBe(0);
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('reunião daqui a 5 dias ainda NÃO recebe: só nos 3 dias antes', async () => {
+    // Sem esse corte, quem marca com três semanas de antecedência receberia 22
+    // lembretes iguais, e 11 leads assim respondiam por 34% do volume em 30 dias.
+    fichas = [daVespera({ quando: '2026-08-09T17:00:00.000Z' })];
+    const r = await tick();
+    expect(r.lembretes_diarios).toBe(0);
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('quem marcou HOJE não recebe lembrete hoje', async () => {
+    // Ele acabou de receber a confirmação: lembrete horas depois é robô repetindo.
+    fichas = [daVespera({ created_at: '2026-08-04T11:00:00.000Z', quando: '2026-08-06T17:00:00.000Z' })];
+    const r = await tick();
+    expect(r.lembretes_diarios).toBe(0);
+  });
+
+  it('quem nunca deu sinal de vida não recebe', async () => {
+    // Esse é assunto da régua do SIM, que devolve o horário dele em 3 horas.
+    fichas = [daVespera({ presenca_confirmada_at: null, lead_resposta_at: null, quando: '2026-08-06T17:00:00.000Z' })];
+    const r = await tick();
+    expect(r.lembretes_diarios).toBe(0);
+  });
+
+  it('quem só escreveu, sem confirmar presença, recebe', async () => {
+    fichas = [daVespera({
+      presenca_confirmada_at: null, lead_resposta_at: '2026-08-02T10:00:00.000Z',
+      quando: '2026-08-06T17:00:00.000Z',
+    })];
+    expect((await tick()).lembretes_diarios).toBe(1);
+  });
+
+  it('reunião de HOJE não entra: quem fala com ela é o bom dia', async () => {
+    fichas = [daVespera({ quando: '2026-08-04T20:00:00.000Z' })];
+    expect((await tick()).lembretes_diarios).toBe(0);
+  });
+
+  it('teto da linha estourado segura o lembrete', async () => {
+    fichas = [daVespera({ quando: '2026-08-06T17:00:00.000Z' })];
+    tetoLivre = false;
+    const r = await tick();
+    expect(r.lembretes_diarios).toBe(0);
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('kill-switch próprio desliga só ele', async () => {
+    process.env.EP_DIARIO_OFF = '1';
+    fichas = [daVespera({ quando: '2026-08-06T17:00:00.000Z' })];
+    expect((await tick()).lembretes_diarios).toBe(0);
+  });
+});

@@ -163,6 +163,38 @@ const MANHA_ANTECEDENCIA_MIN = 60;
  *  então quem não couber espera o próximo tick em vez de furar. */
 const MANHA_POR_TICK = 3;
 
+// ── LEMBRETE DIÁRIO DA VÉSPERA (ordem do Thiago, 22/09/2026) ────────────────
+// "Quem agendou na segunda pra quarta recebe um pequeno lembrete na terça, e
+// assim por diante; se marcou na segunda pra quinta, recebe na terça e na
+// quarta."
+//
+// O buraco que ele fecha: entre a confirmação e a manhã da reunião existiam DIAS
+// de silêncio. A reunião mediana é marcada com ~69h de antecedência, então o
+// normal é o lead combinar numa segunda e só ouvir falar da gente na quarta de
+// manhã. Nesse vão ele esquece, marca outra coisa por cima, ou esfria.
+//
+// UM POR DIA, e só nos DIARIO_DIAS_ANTES dias anteriores à reunião. O teto de
+// dias não é economia de mensagem, é o desenho: medido em 30 dias, sem ele os
+// 11 leads que marcam com 10 a 23 dias de antecedência sozinhos gerariam 136
+// mensagens (34% do total), e um deles receberia 22 lembretes iguais. Com o
+// corte em 3, quem marca com três semanas recebe a confirmação, some do radar, e
+// volta a ouvir falar da gente na semana da reunião, que é como uma pessoa faria.
+// Volume medido com o corte: ~8 mensagens por dia contra ~13 sem ele.
+//
+// QUEM ENTRA: quem deu sinal de vida (confirmou presença OU escreveu alguma
+// coisa). Quem não deu nenhum sinal não chega aqui: a régua do SIM
+// (eletropostoCobraSim) devolve o horário dele em 3 horas. Lembrar diariamente
+// de uma reunião que ninguém confirmou seria falar sozinho por dias.
+//
+// E NUNCA no dia em que a pessoa marcou: quem combina hoje pra depois de amanhã
+// acabou de receber a confirmação, e um lembrete horas depois é robô repetindo.
+const DIARIO = { de: 9, ate: 14 };
+const DIARIO_DIAS_ANTES = Number(process.env.EP_DIARIO_DIAS_ANTES || 3);
+const DIARIO_POR_TICK = Number(process.env.EP_DIARIO_POR_TICK || 3);
+const DIARIO_TETO_HORA = Number(process.env.EP_DIARIO_TETO_HORA || 10);
+const DIARIO_TETO_DIA = Number(process.env.EP_DIARIO_TETO_DIA || 200);
+const diarioDesligado = () => (process.env.EP_DIARIO_OFF || '').trim() === '1';
+
 // ── NÃO ATENDIDO AUTOMÁTICO (ordem do Thiago, 14/08/2026) ───────────────────
 // "Se a pessoa não confirma nenhuma das vezes, coloca em NÃO ATENDIDO
 // automaticamente — ele passou por muita mensagem; se nem a de 1 hora antes,
@@ -400,6 +432,25 @@ export function bolhasManha(
   ];
 }
 
+// ── 2.5. O LEMBRETE DIÁRIO (nos dias ENTRE o agendamento e a reunião) ───────
+// Uma bolha só, e é a regra mais importante desta mensagem: ela vai aparecer
+// dois ou três dias seguidos, e o que é curto num dia é insuportável em três.
+// Não repete nada que a confirmação já disse (vídeo, link, material) porque o
+// trabalho dela é um só: manter a data viva na cabeça da pessoa e deixar a porta
+// do remarcar aberta enquanto ainda dá pra revender o horário.
+export function bolhaDiario(
+  nome: string | null | undefined, quandoIso: string, vendedor: string | null | undefined,
+  ehAmanha: boolean,
+): string {
+  const n = primeiroNome(nome);
+  const quem = String(vendedor || '').trim() || 'nosso consultor';
+  // "amanhã, às 14h00" no lugar da data por extenso: é assim que a pessoa pensa
+  // na véspera, e ler "quarta-feira, 24/09" na terça exige que ela faça a conta.
+  const quando = ehAmanha ? `*amanhã, às ${horaCurta(quandoIso)}*` : `*${quandoPorExtenso(quandoIso)}*`;
+  return `Oi${comNome(n)}! Lembrete rápido: sua reunião com o *${quem}* é ${quando}. `
+    + 'Se precisar mudar, me avisa que eu remarco.';
+}
+
 // ── 3. 1 HORA ANTES ─────────────────────────────────────────────────────────
 export function bolhas1h(
   nome: string | null | undefined, quandoIso: string, vendedor: string | null | undefined,
@@ -451,11 +502,13 @@ interface Ficha {
   historico: string | null;
 }
 
-export type ToquePrevisto = { id: number; cliente: string; toque: '5min' | '1h' | 'manha' | 'confirmacao'; quando: string; bolhas: string[] };
+export type ToquePrevisto = { id: number; cliente: string; toque: '5min' | '1h' | 'manha' | 'confirmacao' | 'diario'; quando: string; bolhas: string[] };
 
 export type ResultadoAgendaEp = {
   confirmacoes: number;
   lembretes_manha: number;
+  /** Lembretes dos dias ENTRE o agendamento e a reunião (um por dia, até 3). */
+  lembretes_diarios: number;
   lembretes_1h: number;
   lembretes_5min: number;
   /** Fichas que viraram NÃO ATENDIDO sozinhas nesta rodada. */
@@ -492,6 +545,32 @@ async function jaRecebeuManha(ids: number[]): Promise<Map<number, string> | null
     return new Map((data ?? []).map(r => [Number(String(r.key).split(':')[1]), String(r.updated_at ?? '')]));
   } catch (err) {
     logger.error('ep-agenda', 'ler carimbo do bom dia falhou — ninguém recebe nesta rodada', err);
+    return null;
+  }
+}
+
+/**
+ * Quem, desta lista, já recebeu o lembrete DE HOJE.
+ *
+ * Chave por DIA (`ep_agenda_sent:<id>:d2026-09-23`), não um contador: o lembrete
+ * é "um por dia" e a data no nome é o que torna isso verdade mesmo se o tick
+ * rodar dez vezes, se o GitHub e a Vercel dispararem juntos, ou se a ficha for
+ * remarcada no meio do caminho.
+ *
+ * Leitura falhou? Devolve `null` e ninguém recebe nesta rodada: mandar o mesmo
+ * lembrete duas vezes no mesmo dia é pior que não mandar, porque quem já está
+ * dizendo sim passa a receber robô repetindo.
+ */
+async function jaRecebeuCarimboDoDia(ids: number[], hoje: string): Promise<Set<number> | null> {
+  if (!ids.length) return new Set();
+  try {
+    const { data, error } = await supabase
+      .from('system_state').select('key')
+      .in('key', ids.map(id => `${EP_AGENDA_PREFIX}${id}:d${hoje}`));
+    if (error) throw error;
+    return new Set((data ?? []).map(r => Number(String(r.key).split(':')[1])));
+  } catch (err) {
+    logger.error('ep-agenda', 'ler carimbo do lembrete diário falhou — ninguém recebe nesta rodada', err);
     return null;
   }
 }
@@ -534,7 +613,7 @@ export async function carregarConsultores(): Promise<Map<string, string>> {
 }
 
 const zero = (motivo?: string): ResultadoAgendaEp =>
-  ({ confirmacoes: 0, lembretes_manha: 0, lembretes_1h: 0, lembretes_5min: 0, nao_atendeu: 0, vermelho_13h: 0, erros: 0, ...(motivo ? { motivo } : {}) });
+  ({ confirmacoes: 0, lembretes_manha: 0, lembretes_diarios: 0, lembretes_1h: 0, lembretes_5min: 0, nao_atendeu: 0, vermelho_13h: 0, erros: 0, ...(motivo ? { motivo } : {}) });
 
 /**
  * Quem passou por todos os toques e não confirmou nada vira NÃO ATENDIDO.
@@ -806,7 +885,7 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
   const naoAtendeu = await marcarNaoAtendeuAutomatico(fichas, agora, opts.dry === true, marcadores);
 
   const foraDeHorario = foraDaJanela();
-  let confirmacoes = 0, lManha = 0, l1h = 0, l5min = 0, erros = 0, backlog = 0, toques = 0;
+  let confirmacoes = 0, lManha = 0, lDiario = 0, l1h = 0, l5min = 0, erros = 0, backlog = 0, toques = 0;
   /** Quem qualificou pro bom dia e ficou de fora pelo teto da linha. Contado e
    *  logado porque, sem isso, "a manhã inteira barrada no teto" e "ninguém tinha
    *  reunião hoje" são o MESMO silêncio no log — e o primeiro é um bom dia que
@@ -818,6 +897,10 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
    *  para descobrir qual dos dois era. Confirmação segurada é a falha mais cara
    *  do módulo — o lead fica sem saber com quem, nem a que horas. */
   let confirmaSegurados = 0;
+  /** O mesmo, pro lembrete diário. Ele é o último da fila e o primeiro a ser
+   *  segurado num dia cheio: sem contador, isso viraria "ninguém tinha reunião
+   *  perto" no log, que é uma frase falsa. */
+  let diarioSegurados = 0;
   const previa: ToquePrevisto[] = [];
 
   // ── Quem entra no bom dia de hoje ──────────────────────────────────────────
@@ -843,6 +926,30 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
   // varredura do system_state inteiro.
   const candidatosManha = naJanelaDaManha ? fichas.filter(ehDaManha) : [];
   const manhaFeita = await jaRecebeuManha(candidatosManha.map(f => f.id));
+
+  // ── Quem entra no LEMBRETE DIÁRIO de hoje ─────────────────────────────────
+  // A reunião é de um dia FUTURO, está dentro dos últimos DIARIO_DIAS_ANTES dias
+  // antes dela, a pessoa marcou num dia anterior a hoje (quem marcou hoje acabou
+  // de receber a confirmação) e já deu sinal de vida. O controle de "um por dia"
+  // é o carimbo `ep_agenda_sent:<id>:d<AAAA-MM-DD>`, que segue o mesmo caminho do
+  // bom dia: nenhuma coluna nova em `agendamentos`, nenhuma migração pra quebrar
+  // o select entre o deploy e o banco.
+  const naJanelaDoDiario = horaAgora >= DIARIO.de && horaAgora < DIARIO.ate;
+  const diasAte = (iso: string): number => {
+    const dia = (d: string) => new Date(`${d}T12:00:00-03:00`).getTime();
+    return Math.round((dia(diaBRT(iso)) - dia(hojeBRT)) / 86_400_000);
+  };
+  const ehDoDiario = (f: Ficha): boolean => {
+    if (!naJanelaDoDiario || diarioDesligado() || !f.quando) return false;
+    const faltam = diasAte(f.quando);
+    if (faltam < 1 || faltam > DIARIO_DIAS_ANTES) return false;
+    if (diaBRT(f.created_at) >= hojeBRT) return false;
+    return !!f.presenca_confirmada_at || !!f.lead_resposta_at;
+  };
+  const candidatosDiario = fichas.filter(ehDoDiario);
+  const diarioFeito = candidatosDiario.length
+    ? await jaRecebeuCarimboDoDia(candidatosDiario.map(f => f.id), hojeBRT)
+    : new Set<number>();
   /** Leitura do carimbo falhou: ninguém recebe bom dia nesta rodada (ver `jaRecebeuManha`). */
   const manhaCega = manhaFeita === null;
 
@@ -851,7 +958,13 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
   // `campo` null = toque que não tem coluna de flag em `agendamentos` (o bom dia,
   // que se controla pelo carimbo do system_state). O envio e o carimbo do teto
   // acontecem igual; só o UPDATE é pulado.
-  const entregar = async (ag: Ficha, toque: ToquePrevisto['toque'], tel: string, bolhas: string[], campo: string | string[] | null) => {
+  const entregar = async (
+    ag: Ficha, toque: ToquePrevisto['toque'], tel: string, bolhas: string[],
+    campo: string | string[] | null,
+    // O lembrete diário carimba POR DIA (`:d2026-09-23`) em vez de por toque: é
+    // o que faz "um por dia" valer sem coluna nova e sem contador.
+    sufixoCarimbo?: string,
+  ) => {
     if (opts.dry) {
       previa.push({ id: ag.id, cliente: String(ag.cliente_nome || '—'), toque, quando: String(ag.quando), bolhas });
       return;
@@ -871,7 +984,7 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
     // mesma hora — 37 mensagens numa linha cujo teto é 12. A linha bloqueou.
     const agoraIso = new Date().toISOString();
     await supabase.from('system_state')
-      .upsert({ key: `${EP_AGENDA_PREFIX}${ag.id}:${toque}`, value: { em: agoraIso }, updated_at: agoraIso }, { onConflict: 'key' })
+      .upsert({ key: `${EP_AGENDA_PREFIX}${ag.id}:${sufixoCarimbo ?? toque}`, value: { em: agoraIso }, updated_at: agoraIso }, { onConflict: 'key' })
       .then(undefined, (e: unknown) => logger.error('ep-agenda', 'carimbo do teto da linha falhou', { id: ag.id, erro: String(e) }));
     // Pode carimbar MAIS DE UMA flag no mesmo envio: a confirmação de uma reunião
     // que já está dentro da janela de 1h também mata o toque de 1h (ver abaixo).
@@ -997,10 +1110,37 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
       }
       continue;
     }
+
+    // ── Lembrete diário, nos dias ENTRE o agendamento e a reunião ───────────
+    // O ÚLTIMO da fila, de propósito: é o toque menos urgente de todos (a
+    // reunião é amanhã ou depois) e a janela dele tem 5 horas. Qualquer outra
+    // mensagem da agenda passa na frente dele no mesmo tick.
+    if (diarioFeito && !ausente && lDiario < DIARIO_POR_TICK
+      && !diarioFeito.has(ag.id) && ehDoDiario(ag)) {
+      // Mesmo tratamento do bom dia: sai em LOTE (todo mundo cuja reunião está
+      // perto, na mesma faixa de horário), então fica atrás do teto da linha,
+      // como transacional com piso — é mensagem sobre a reunião que a própria
+      // pessoa marcou, e o volume é limitado pela agenda.
+      if (!opts.dry && !(await dentroDoTetoHorarioLinha({
+        transacional: true, pisoHora: DIARIO_TETO_HORA, pisoDia: DIARIO_TETO_DIA,
+      }))) {
+        diarioSegurados++;
+        continue;
+      }
+      try {
+        const bolha = bolhaDiario(ag.cliente_nome, ag.quando, ag.vendedor_nome, diasAte(ag.quando) === 1);
+        await entregar(ag, 'diario', tel, [bolha], null, `d${hojeBRT}`);
+        lDiario++; toques++;
+      } catch (e) {
+        logger.error('ep-agenda', 'falha no lembrete diário', { id: ag.id, erro: String(e) });
+        erros++;
+      }
+      continue;
+    }
   }
 
   if (toques > 0 && !opts.dry) {
-    logger.info('ep-agenda', `${toques} toque(s)`, { confirmacoes, lManha, l1h, l5min, erros });
+    logger.info('ep-agenda', `${toques} toque(s)`, { confirmacoes, lManha, lDiario, l1h, l5min, erros });
   }
   // Fora do `if` de propósito: uma rodada que só segurou bom dia não tem toque
   // nenhum, e é justamente ela que precisa aparecer.
@@ -1019,8 +1159,13 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
       enviadas: confirmacoes, pisoHora: CONFIRMA_TETO_HORA, pisoDia: CONFIRMA_TETO_DIA,
     });
   }
+  if (diarioSegurados > 0 && !opts.dry) {
+    logger.info('ep-agenda', `${diarioSegurados} lembrete(s) diário(s) segurado(s) pelo teto da linha`, {
+      candidatos: candidatosDiario.length, enviados: lDiario,
+    });
+  }
   return {
-    confirmacoes, lembretes_manha: lManha, lembretes_1h: l1h, lembretes_5min: l5min,
+    confirmacoes, lembretes_manha: lManha, lembretes_diarios: lDiario, lembretes_1h: l1h, lembretes_5min: l5min,
     // O total soma as duas réguas (é ele que a Central das Agentes mostra); o
     // corte das 13h aparece também sozinho, porque é o que libera horário.
     nao_atendeu: naoAtendeu + vermelho13h, vermelho_13h: vermelho13h, erros,
