@@ -119,6 +119,15 @@ const MSG_POR_TICK = Number(process.env.EP_COBRA_MSG_POR_TICK || 2);
 const COBRA_TETO_HORA = Number(process.env.EP_COBRA_TETO_HORA || 12);
 const COBRA_TETO_DIA = Number(process.env.EP_COBRA_TETO_DIA || 200);
 
+/** O AVISO DE LIBERAÇÃO tem piso MAIOR que a cobrança, e a diferença foi medida
+ *  na primeira rodada real (22/09/2026): com piso único de 12/h, os 18 avisos
+ *  ficaram todos presos, porque a linha estava em 20 envios na hora e 158 no dia.
+ *  Cobrança presa é só uma cobrança que não saiu; aviso preso é gente que perdeu
+ *  o horário e não ficou sabendo, que é exatamente o contrário da ordem do dono
+ *  ("sempre dê a oportunidade de a pessoa chamar novamente"). 24/h é o dobro do
+ *  ritmo de pico medido na linha e continua recuando nas horas mais cheias. */
+const AVISO_TETO_HORA = Number(process.env.EP_COBRA_AVISO_TETO_HORA || 24);
+
 const JANELA_INICIO_H = 8;
 const JANELA_FIM_H = 20;
 
@@ -451,12 +460,12 @@ export async function runEletropostoCobraSimTick(opts: { dry?: boolean } = {}): 
 
   let cobranca1 = 0, cobranca2 = 0, nLiberados = 0, avisos = 0, erros = 0, segurados = 0;
   const previa: PreviaCobranca[] = [];
-  const paraAvisar: Array<{ id: number; passo: PassoCobranca; tel: string; mensagem: string }> = [];
+  const paraAvisar: Array<{ id: number; passo: PassoCobranca; tel: string; mensagem: string; quando: string }> = [];
   /** Liberados NESTA rodada. Entram na fila de mensagens junto com os que já
    *  estavam esperando: o certo é a pessoa saber no mesmo minuto em que o
    *  horário dela some, e quando a fila não dá conta o carimbo garante a volta
    *  no tick seguinte. */
-  const avisosDaRodada: Array<{ id: number; passo: PassoCobranca; tel: string; mensagem: string }> = [];
+  const avisosDaRodada: Array<{ id: number; passo: PassoCobranca; tel: string; mensagem: string; quando: string }> = [];
 
   // ── 1) Liberar (sem mensagem, em lote) e separar quem será cobrado ─────────
   for (const f of fichas) {
@@ -482,7 +491,7 @@ export async function runEletropostoCobraSimTick(opts: { dry?: boolean } = {}): 
       const ok = await liberar(f, false);
       if (ok) {
         nLiberados++;
-        avisosDaRodada.push({ id: f.id, passo: 'liberar', tel, mensagem: bolhaLiberou(f.cliente_nome, f.quando!) });
+        avisosDaRodada.push({ id: f.id, passo: 'liberar', tel, mensagem: bolhaLiberou(f.cliente_nome, f.quando!), quando: String(f.quando) });
         logger.info('ep-cobra-sim', `ficha ${f.id} liberou o horário por silêncio`, { minutos: Math.round(minDesdeConfirmacao) });
       } else {
         erros++;
@@ -495,14 +504,14 @@ export async function runEletropostoCobraSimTick(opts: { dry?: boolean } = {}): 
     const mensagem = passo === 'c1'
       ? bolhaCobranca1(f.cliente_nome, f.quando!, f.vendedor_nome)
       : bolhaCobranca2(f.cliente_nome, f.quando!, corteEm);
-    paraAvisar.push({ id: f.id, passo, tel, mensagem });
+    paraAvisar.push({ id: f.id, passo, tel, mensagem, quando: String(f.quando) });
   }
 
   // ── 2) A fila de mensagens ────────────────────────────────────────────────
   // Ordem: ultimato, aviso de liberação, cobrança 1. O ultimato vem primeiro
   // porque é ele que EVITA a liberação; o aviso vem antes da cobrança 1 porque
   // quem já perdeu o horário precisa saber disso pra ter chance de voltar.
-  const pendentesAviso: Array<{ id: number; passo: PassoCobranca; tel: string; mensagem: string }> = [];
+  const pendentesAviso: Array<{ id: number; passo: PassoCobranca; tel: string; mensagem: string; quando: string }> = [];
   for (const m of liberados.data ?? []) {
     const id = Number(String(m.key).slice(EP_LIBERADO_PREFIX.length));
     if (!Number.isInteger(id) || jaCobrado.has(`${id}:liberou`)) continue;
@@ -511,16 +520,20 @@ export async function runEletropostoCobraSimTick(opts: { dry?: boolean } = {}): 
     if (!tel || !v.quando) continue;
     const em = Date.parse(String(v.em || m.updated_at || ''));
     if (Number.isFinite(em) && agora - em > AVISO_VALIDADE_MS) continue;
-    pendentesAviso.push({ id, passo: 'liberar', tel, mensagem: bolhaLiberou(v.nome ?? null, String(v.quando)) });
+    pendentesAviso.push({ id, passo: 'liberar', tel, mensagem: bolhaLiberou(v.nome ?? null, String(v.quando)), quando: String(v.quando) });
   }
 
-  // Aviso que já estava esperando vem antes do que acabou de ser liberado: quem
-  // ficou pra trás numa rodada apertada não pode ficar pra trás em todas.
+  // Aviso que já estava esperando vem antes do que acabou de ser liberado (quem
+  // ficou pra trás numa rodada apertada não pode ficar pra trás em todas), e
+  // dentro dos dois manda a URGÊNCIA: quem perdeu o horário de HOJE precisa saber
+  // hoje, quem perdeu o de sexta pode saber daqui a duas horas. Numa fila que
+  // drena devagar, a ordem é o que separa um aviso útil de um aviso tarde demais.
+  const porReuniao = (a: { quando: string }, b: { quando: string }) => a.quando.localeCompare(b.quando);
   const fila = [
-    ...paraAvisar.filter(p => p.passo === 'c2'),
-    ...pendentesAviso,
-    ...avisosDaRodada,
-    ...paraAvisar.filter(p => p.passo === 'c1'),
+    ...paraAvisar.filter(p => p.passo === 'c2').sort(porReuniao),
+    ...pendentesAviso.sort(porReuniao),
+    ...avisosDaRodada.sort(porReuniao),
+    ...paraAvisar.filter(p => p.passo === 'c1').sort(porReuniao),
   ];
 
   for (const item of fila) {
@@ -533,7 +546,8 @@ export async function runEletropostoCobraSimTick(opts: { dry?: boolean } = {}): 
     // Transacional COM piso: é mensagem sobre a reunião que a própria pessoa
     // marcou, e o volume é limitado pela agenda. O piso eleva o teto, não o
     // remove: numa hora em que a linha já falou muito, esta régua recua.
-    if (!(await dentroDoTetoHorarioLinha({ transacional: true, pisoHora: COBRA_TETO_HORA, pisoDia: COBRA_TETO_DIA }))) {
+    const pisoHora = item.passo === 'liberar' ? AVISO_TETO_HORA : COBRA_TETO_HORA;
+    if (!(await dentroDoTetoHorarioLinha({ transacional: true, pisoHora, pisoDia: COBRA_TETO_DIA }))) {
       segurados++;
       continue;
     }
