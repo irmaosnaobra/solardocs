@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  montarFunil, CAMINHOS, PERGUNTAS, CURTAS, DESTINOS, ehVisitaDaLp, inicioDoPeriodo, fimDoPeriodo,
+  montarFunil, montarConjuntos, CAMINHOS, PERGUNTAS, CURTAS, DESTINOS, ehVisitaDaLp, inicioDoPeriodo, fimDoPeriodo, SEM_CONJUNTO,
   type EventoQuiz,
 } from '../services/io/quizFunil';
 
@@ -145,5 +145,90 @@ describe('miúdos', () => {
     expect(inicioDoPeriodo('ontem', agora)).toBe('2026-09-20T03:00:00.000Z');
     expect(fimDoPeriodo('ontem', agora)).toBe('2026-09-21T03:00:00.000Z');
     expect(fimDoPeriodo('7dias', agora)).toBeNull();
+  });
+});
+
+// ── por conjunto de anúncios ────────────────────────────────────────────────
+describe('por conjunto', () => {
+  let k = 0;
+  const e = (sid: string, tipo: string, dados: Record<string, unknown>): EventoQuiz => ({
+    session_id: sid, event_type: tipo,
+    event_data: { lp: 'eletroposto', pl: 1, seq: ++k, ...dados },
+    created_at: '2026-09-22T12:00:00Z',
+  });
+  const eventos: EventoQuiz[] = [
+    e('a1', 'quiz_passo', { passo: 'p-porta', caminho: 'comercio' }),
+    e('a1', 'quiz_passo', { passo: 'p-horario', caminho: 'comercio' }),
+    e('a2', 'quiz_passo', { passo: 'p-porta', caminho: 'comercio' }),
+    e('a2', 'quiz_fim', { destino: 'reuniao', caminho: 'comercio' }),
+    e('b1', 'quiz_passo', { passo: 'p-porta', caminho: 'inicio' }),
+    e('s1', 'quiz_passo', { passo: 'p-porta', caminho: 'inicio' }),
+  ];
+  const url = 'https://solardoc.app/io/eletroposto';
+  const visitas = [
+    { session_id: 'a1', landing_url: url, utm_term: '111' },
+    { session_id: 'a2', landing_url: url, utm_term: '111' },
+    { session_id: 'a3', landing_url: url, utm_term: '111' },
+    { session_id: 'b1', landing_url: url, utm_term: '222' },
+    // a mesma sessão com uma linha sem UTM e outra com: vale a que tem
+    { session_id: 'b1', landing_url: url, utm_term: null },
+    { session_id: 's1', landing_url: url, utm_term: null },
+  ];
+
+  it('resume o quiz por conjunto e aponta onde mais para', () => {
+    const f = montarFunil(eventos, visitas);
+    const c111 = f.conjuntos.find((c) => c.id === '111')!;
+    expect(c111).toMatchObject({ visitas: 3, abriram: 2, terminaram: 1 });
+    expect(c111.pior).toMatchObject({ passo: 'p-horario', pararam: 1 });
+    expect(f.conjuntos.find((c) => c.id === '222')).toMatchObject({ visitas: 1, abriram: 1 });
+    expect(f.conjuntos.find((c) => c.id === SEM_CONJUNTO)).toMatchObject({ visitas: 1 });
+    expect(f.conjunto).toBeNull();
+  });
+
+  it('com filtro, o funil de cima fica só com o conjunto; o resumo continua com todos', () => {
+    const f = montarFunil(eventos, visitas, { conjunto: '111' });
+    expect(f.conjunto).toBe('111');
+    expect(f.visitas).toBe(3);
+    expect(f.abriram).toBe(2);
+    expect(f.terminaram).toBe(1);
+    expect(f.caminhos.find((c) => c.id === 'inicio')!.sessoes).toBe(0);
+    expect(f.conjuntos.length).toBe(3);
+  });
+
+  it('junta resultado, gasto e nome, e calcula o custo por reunião', () => {
+    const f = montarFunil(eventos, visitas);
+    const meta = new Map([
+      ['111', { id: '111', nome: '5 posto araguari', status: 'ACTIVE', gasto: 300 }],
+      ['333', { id: '333', nome: 'gastou e não trouxe nada', status: 'ACTIVE', gasto: 90 }],
+    ]);
+    const linhas = montarConjuntos(f.conjuntos, [
+      { conjunto: '111', tipo: 'reuniao', status: 'fez_orcamento' },
+      { conjunto: '111', tipo: 'reuniao', status: 'sem_interesse' },
+      { conjunto: '111', tipo: 'reuniao', status: 'arrendamento' },
+      { conjunto: '111', tipo: 'reuniao', status: 'agendado' },
+      { conjunto: '111', tipo: 'investidor' },
+      { conjunto: '111', tipo: 'investidor' },
+      { conjunto: '222', tipo: 'parceiro' },
+      { conjunto: null, tipo: 'ficha' },
+    ], meta);
+    const l111 = linhas.find((l) => l.id === '111')!;
+    expect(l111).toMatchObject({
+      nome: '5 posto araguari', gasto: 300, visitas: 3, reunioes: 4, investidores: 2,
+      negocio: 1, arrendamento: 1, perdidas: 1, custo_reuniao: 75, custo_cadastro: 50,
+    });
+    // conjunto sem nome na Meta: aparece pelo número, sem gasto (travessão, não zero)
+    expect(linhas.find((l) => l.id === '222')).toMatchObject({ nome: '222', gasto: null, parceiros: 1, custo_reuniao: null });
+    // sem conjunto: fica com o rótulo próprio e gasto zero
+    expect(linhas.find((l) => l.id === SEM_CONJUNTO)).toMatchObject({ fichas: 1, gasto: 0 });
+    // quem gastou sem trazer nada aparece, e aparece em cima (ordem por gasto)
+    expect(linhas[0].id).toBe('111');
+    expect(linhas.find((l) => l.id === '333')).toMatchObject({ gasto: 90, reunioes: 0, custo_reuniao: null });
+  });
+
+  it('Meta fora do ar: gasto null não vira custo zero', () => {
+    const f = montarFunil(eventos, visitas);
+    const meta = new Map([['111', { id: '111', nome: 'x', status: '', gasto: null }]]);
+    const l = montarConjuntos(f.conjuntos, [{ conjunto: '111', tipo: 'reuniao', status: 'agendado' }], meta).find((x) => x.id === '111')!;
+    expect(l.custo_reuniao).toBeNull();
   });
 });

@@ -18,6 +18,7 @@ import {
 } from '../services/io/nota1Funil';
 import * as pc from '../services/io/pontoCertoFunil';
 import * as qf from '../services/io/quizFunil';
+import { buscarConjuntosMeta } from '../services/io/metaConjuntos';
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 import { novoAnthropic } from "../utils/anthropicClient";
 import {
@@ -885,9 +886,19 @@ async function lerTudo<T>(consulta: (de: number, ate: number) => PromiseLike<{ d
 router.get('/eletroposto/quiz-funil', async (req: Request, res: Response): Promise<void> => {
   try {
     const periodo = String(req.query.period || '7dias');
+    const conjunto = String(req.query.conjunto || '').trim() || null;
     const desde = qf.inicioDoPeriodo(periodo);
     const ate = qf.fimDoPeriodo(periodo);
-    const [eventos, visitas] = await Promise.all([
+    // Reunião, cadastro e ficha moram no banco do gerador, cada um com o
+    // utm_term (= conjunto) que a LP gravou. Reunião do eletroposto é a que a
+    // LP marcou (observação ou colunas de ponto), igual ao resto da casa.
+    const doGerador = <T,>(tabela: string, campos: string, ajuste: (q: any) => any) =>
+      lerTudo<T>((de, fim) => {
+        let q = ajuste(supabaseGerador.from(tabela).select(campos).gte('created_at', desde));
+        if (ate) q = q.lt('created_at', ate);
+        return q.order('created_at', { ascending: true }).range(de, fim);
+      });
+    const [eventos, visitas, reunioes, cadastros, fichas] = await Promise.all([
       lerTudo<qf.EventoQuiz>((de, fim) => {
         let q = supabase.from('lp_events')
           .select('session_id, event_type, event_data, created_at')
@@ -898,14 +909,40 @@ router.get('/eletroposto/quiz-funil', async (req: Request, res: Response): Promi
       }),
       lerTudo<qf.VisitaQuiz>((de, fim) => {
         let q = supabase.from('page_visits')
-          .select('session_id, landing_url, utm_campaign')
+          .select('session_id, landing_url, utm_campaign, utm_term')
           .ilike('landing_url', '%/io/eletroposto%')
           .gte('created_at', desde);
         if (ate) q = q.lt('created_at', ate);
         return q.order('created_at', { ascending: true }).range(de, fim);
       }),
+      // Sem filtro no banco: a regra (observação da LP OU colunas de ponto) é
+      // aplicada aqui embaixo, em código, em vez de um or() com ilike na URL.
+      doGerador<{ utm_term: string | null; status: string | null; observacao: string | null; tem_ponto: string | null; ponto_relacao: string | null }>(
+        'agendamentos', 'utm_term, status, observacao, tem_ponto, ponto_relacao', (q) => q),
+      doGerador<{ utm_term: string | null; lado: string | null }>('eletroposto_parceria', 'utm_term, lado', (q) => q),
+      doGerador<{ utm_term: string | null }>('eletroposto_nota1', 'utm_term', (q) => q.eq('origem', 'lp_eletroposto')),
     ]);
-    res.json({ periodo, desde, ate, ...qf.montarFunil(eventos, visitas) });
+
+    const funil = qf.montarFunil(eventos, visitas, { conjunto });
+    const LADO: Record<string, qf.ResultadoLead['tipo']> = { capital: 'investidor', ponto: 'ponto', integrador: 'parceiro' };
+    const resultados: qf.ResultadoLead[] = [
+      ...reunioes
+        .filter((r) => /LP ELETROPOSTO/i.test(r.observacao || '') || r.tem_ponto != null || r.ponto_relacao != null)
+        .map((r) => ({ conjunto: r.utm_term, tipo: 'reuniao' as const, status: r.status })),
+      ...cadastros.filter((c) => LADO[c.lado || '']).map((c) => ({ conjunto: c.utm_term, tipo: LADO[c.lado || ''] })),
+      ...fichas.map((f) => ({ conjunto: f.utm_term, tipo: 'ficha' as const })),
+    ];
+
+    // Dias do intervalo no fuso de São Paulo, para o gasto da Meta bater com o resto.
+    const diaSP = (ms: number) => new Date(ms - 3 * 3600_000).toISOString().slice(0, 10);
+    const ids = [...new Set([...funil.conjuntos.map((c) => c.id), ...resultados.map((r) => String(r.conjunto || ''))])];
+    const meta = await buscarConjuntosMeta(ids, diaSP(Date.parse(desde)), diaSP(ate ? Date.parse(ate) - 1 : Date.now()));
+
+    res.json({
+      periodo, desde, ate, ...funil,
+      por_conjunto: qf.montarConjuntos(funil.conjuntos, resultados, meta.conjuntos),
+      meta_ok: meta.ok, meta_motivo: meta.motivo || null,
+    });
   } catch (err) {
     res.status(500).json({ error: String((err as Error)?.message || err) });
   }

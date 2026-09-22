@@ -94,6 +94,9 @@ export interface VisitaQuiz {
   session_id: string | null;
   landing_url: string | null;
   utm_campaign?: string | null;
+  /** Nos anúncios do eletroposto o utm_term é o ID do CONJUNTO ({{adset.id}}) e o
+   *  utm_content é o do anúncio. Conferido na Meta em 22/09/2026. */
+  utm_term?: string | null;
 }
 
 export interface PassoDoFunil {
@@ -121,7 +124,21 @@ export interface FunilQuiz {
   destinos: Record<string, number>;
   caminhos: CaminhoDoFunil[];
   campanhas: { campanha: string; visitas: number; abriram: number; terminaram: number; reunioes: number }[];
+  /** O mesmo funil, resumido por conjunto de anúncios (sem o filtro de conjunto). */
+  conjuntos: QuizDoConjunto[];
+  /** Quando o funil de cima foi filtrado por um conjunto, qual. */
+  conjunto: string | null;
 }
+export interface QuizDoConjunto {
+  id: string;
+  visitas: number;
+  abriram: number;
+  terminaram: number;
+  pior: { passo: string; pergunta: string; pararam: number } | null;
+}
+
+/** Visita sem utm_term: orgânico, link direto ou anúncio sem o parâmetro. */
+export const SEM_CONJUNTO = '(sem)';
 
 /** A visita é da LP (quiz ou página inteira), não das páginas-filhas. */
 export function ehVisitaDaLp(url: string | null): boolean {
@@ -149,8 +166,12 @@ function ordemDe(e: EventoQuiz): number[] {
 }
 const depois = (a: number[], b: number[]) => a[0] > b[0] || (a[0] === b[0] && a[1] >= b[1]);
 
-/** A conta inteira. Pura: recebe o que o banco devolveu e não lê nada. */
-export function montarFunil(eventos: EventoQuiz[], visitas: VisitaQuiz[]): FunilQuiz {
+/**
+ * A conta inteira. Pura: recebe o que o banco devolveu e não lê nada.
+ * Com `conjunto`, o funil de cima (ponta, caminhos, campanhas) fica só com as
+ * sessões daquele conjunto; o resumo `conjuntos` continua com todos.
+ */
+export function montarFunil(eventos: EventoQuiz[], visitas: VisitaQuiz[], opcoes: { conjunto?: string | null } = {}): FunilQuiz {
   const sessoes = new Map<string, Sessao>();
   const pegar = (id: string): Sessao => {
     let s = sessoes.get(id);
@@ -188,9 +209,24 @@ export function montarFunil(eventos: EventoQuiz[], visitas: VisitaQuiz[]): Funil
     }
   }
 
+  // A visita de cada sessão: campanha e conjunto (a primeira linha que tiver
+  // UTM ganha de uma sem). Sem visita medida a sessão fica fora do recorte por
+  // conjunto, mas continua no funil quando não há filtro.
+  const campanhaDa = new Map<string, string>();
+  const conjuntoDa = new Map<string, string>();
+  for (const v of visitas) {
+    if (!v.session_id || !ehVisitaDaLp(v.landing_url)) continue;
+    const id = v.session_id;
+    if (!campanhaDa.has(id) || (!campanhaDa.get(id) && v.utm_campaign)) campanhaDa.set(id, v.utm_campaign || '');
+    const conj = txt(v.utm_term).trim();
+    if (!conjuntoDa.has(id) || (conjuntoDa.get(id) === SEM_CONJUNTO && conj)) conjuntoDa.set(id, conj || SEM_CONJUNTO);
+  }
+
   // Só conta como "abriu" quem viu alguma pergunta. Sessão que só mandou erro
   // ou fim (página velha em cache, por exemplo) não entra no funil.
-  const noQuiz = [...sessoes.entries()].filter(([, s]) => s.passos.size > 0);
+  const filtro = opcoes.conjunto || null;
+  const noRecorte = (id: string) => !filtro || conjuntoDa.get(id) === filtro;
+  const noQuiz = [...sessoes.entries()].filter(([id, s]) => s.passos.size > 0 && noRecorte(id));
 
   const destinos: Record<string, number> = {};
   for (const [, s] of noQuiz) if (s.fim) destinos[s.fim] = (destinos[s.fim] || 0) + 1;
@@ -220,16 +256,9 @@ export function montarFunil(eventos: EventoQuiz[], visitas: VisitaQuiz[]): Funil
     };
   });
 
-  // Campanha: a da visita (a primeira que tiver UTM). Sem visita medida a
-  // sessão não aparece aqui, mas continua no funil de cima.
-  const campanhaDa = new Map<string, string>();
-  const visitasDaLp = visitas.filter((v) => v.session_id && ehVisitaDaLp(v.landing_url));
-  for (const v of visitasDaLp) {
-    const id = v.session_id as string;
-    if (!campanhaDa.has(id) || (!campanhaDa.get(id) && v.utm_campaign)) campanhaDa.set(id, v.utm_campaign || '');
-  }
   const porCampanha = new Map<string, { visitas: number; abriram: number; terminaram: number; reunioes: number }>();
   for (const [id, camp] of campanhaDa) {
+    if (!noRecorte(id)) continue;
     const k = camp || '(sem campanha)';
     const linha = porCampanha.get(k) || { visitas: 0, abriram: 0, terminaram: 0, reunioes: 0 };
     linha.visitas++;
@@ -242,9 +271,30 @@ export function montarFunil(eventos: EventoQuiz[], visitas: VisitaQuiz[]): Funil
     porCampanha.set(k, linha);
   }
 
+  // Resumo por conjunto, sempre com todos: é a tabela que escolhe o filtro.
+  const porConjunto = new Map<string, { visitas: number; abriram: number; terminaram: number; parados: Map<string, number> }>();
+  for (const [id, conj] of conjuntoDa) {
+    const l = porConjunto.get(conj) || { visitas: 0, abriram: 0, terminaram: 0, parados: new Map<string, number>() };
+    l.visitas++;
+    const s = sessoes.get(id);
+    if (s && s.passos.size > 0) {
+      l.abriram++;
+      if (s.fim) l.terminaram++;
+      else if (s.ultimoPasso) l.parados.set(s.ultimoPasso, (l.parados.get(s.ultimoPasso) || 0) + 1);
+    }
+    porConjunto.set(conj, l);
+  }
+  const conjuntos: QuizDoConjunto[] = [...porConjunto.entries()].map(([id, l]) => {
+    const topo = [...l.parados.entries()].sort((a, b) => b[1] - a[1])[0];
+    return {
+      id, visitas: l.visitas, abriram: l.abriram, terminaram: l.terminaram,
+      pior: topo ? { passo: topo[0], pergunta: PERGUNTAS[topo[0]] || topo[0], pararam: topo[1] } : null,
+    };
+  }).sort((a, b) => b.visitas - a.visitas);
+
   return {
     medindo_desde: MEDINDO_DESDE,
-    visitas: campanhaDa.size,
+    visitas: [...campanhaDa.keys()].filter(noRecorte).length,
     abriram: noQuiz.length,
     escolheram_porta: noQuiz.filter(([, s]) => s.caminho !== 'inicio').length,
     terminaram: noQuiz.filter(([, s]) => s.fim).length,
@@ -254,7 +304,99 @@ export function montarFunil(eventos: EventoQuiz[], visitas: VisitaQuiz[]): Funil
       .map(([campanha, l]) => ({ campanha, ...l }))
       .sort((a, b) => b.visitas - a.visitas)
       .slice(0, 12),
+    conjuntos,
+    conjunto: filtro,
   };
+}
+
+// ── POR CONJUNTO DE ANÚNCIOS ─────────────────────────────────────────────────
+// A pergunta que decide verba: qual conjunto traz reunião, e reunião que vira
+// negócio. O utm_term é gravado em tudo desde julho (visita, reunião, ficha e
+// cadastro), então este bloco NÃO depende da medição do quiz: resultado e gasto
+// valem para qualquer período. Só a coluna "onde mais para" começa em 22/09.
+
+/** Como o status da reunião, depois que ela aconteceu, se lê aqui. */
+export const STATUS_NEGOCIO = ['fez_orcamento', 'proposta_apresentada', 'chave_na_mao', 'meio_a_meio', 'carregador'];
+export const STATUS_PERDIDA = ['sem_interesse', 'nao_atendeu', 'cancelado', 'perdido', 'fechou_concorrente'];
+
+export interface ResultadoLead {
+  conjunto: string | null;
+  tipo: 'reuniao' | 'investidor' | 'ponto' | 'parceiro' | 'ficha';
+  status?: string | null;
+}
+export interface MetaConjunto { id: string; nome: string; status: string; gasto: number | null }
+export interface LinhaConjunto {
+  id: string;
+  nome: string;
+  status: string;
+  gasto: number | null;
+  visitas: number;
+  abriram_quiz: number;
+  reunioes: number;
+  investidores: number;
+  pontos: number;
+  parceiros: number;
+  fichas: number;
+  custo_reuniao: number | null;
+  custo_cadastro: number | null;
+  negocio: number;
+  arrendamento: number;
+  perdidas: number;
+  pior: QuizDoConjunto['pior'];
+}
+
+/**
+ * Junta as três fontes por conjunto. Gasto `null` quer dizer "a Meta não
+ * respondeu" e vira travessão na tela; zero é zero de verdade.
+ */
+export function montarConjuntos(
+  quiz: QuizDoConjunto[],
+  resultados: ResultadoLead[],
+  meta: Map<string, MetaConjunto>,
+): LinhaConjunto[] {
+  const linhas = new Map<string, LinhaConjunto>();
+  const pegar = (id: string): LinhaConjunto => {
+    let l = linhas.get(id);
+    if (!l) {
+      const m = meta.get(id);
+      l = {
+        id, nome: m?.nome || (id === SEM_CONJUNTO ? 'Sem conjunto (orgânico ou link direto)' : id),
+        status: m?.status || '', gasto: m ? m.gasto : (id === SEM_CONJUNTO ? 0 : null),
+        visitas: 0, abriram_quiz: 0, reunioes: 0, investidores: 0, pontos: 0, parceiros: 0, fichas: 0,
+        custo_reuniao: null, custo_cadastro: null, negocio: 0, arrendamento: 0, perdidas: 0, pior: null,
+      };
+      linhas.set(id, l);
+    }
+    return l;
+  };
+  for (const q of quiz) {
+    const l = pegar(q.id);
+    l.visitas = q.visitas; l.abriram_quiz = q.abriram; l.pior = q.pior;
+  }
+  for (const r of resultados) {
+    const l = pegar(txt(r.conjunto).trim() || SEM_CONJUNTO);
+    if (r.tipo === 'reuniao') {
+      l.reunioes++;
+      const st = txt(r.status);
+      if (STATUS_NEGOCIO.includes(st)) l.negocio++;
+      else if (st === 'arrendamento') l.arrendamento++;
+      else if (STATUS_PERDIDA.includes(st)) l.perdidas++;
+    } else if (r.tipo === 'investidor') l.investidores++;
+    else if (r.tipo === 'ponto') l.pontos++;
+    else if (r.tipo === 'parceiro') l.parceiros++;
+    else l.fichas++;
+  }
+  // conjunto que gastou e não trouxe nada também aparece: é o que mais importa ver
+  for (const m of meta.values()) if ((m.gasto || 0) > 0) pegar(m.id);
+
+  const div = (g: number | null, n: number) => (g !== null && n > 0 ? Math.round((g / n) * 100) / 100 : null);
+  return [...linhas.values()]
+    .map((l) => ({
+      ...l,
+      custo_reuniao: div(l.gasto, l.reunioes),
+      custo_cadastro: div(l.gasto, l.reunioes + l.investidores + l.pontos),
+    }))
+    .sort((a, b) => (b.gasto || 0) - (a.gasto || 0) || b.visitas - a.visitas);
 }
 
 /** Começo do período, no fuso de São Paulo quando o período é de calendário. */
