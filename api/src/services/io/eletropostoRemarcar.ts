@@ -270,7 +270,14 @@ export function bolhasSemVaga(nome: string, quem: string): string[] {
 }
 
 // ── ESTADO ──────────────────────────────────────────────────────────────────
-type Oferta = { ofertas: string[]; em: string; rodada: number };
+type Oferta = {
+  ofertas: string[]; em: string; rodada: number;
+  /** A reunião que estava na ficha QUANDO a oferta saiu. É a prova de que a
+   *  escolha do lead ainda fala da mesma reunião: se alguém mexeu no horário
+   *  nesse meio-tempo, mover por causa de um "2" seria desfazer o trabalho de
+   *  quem mexeu. Ofertas antigas não têm o campo e seguem valendo como antes. */
+  de?: string | null;
+};
 
 async function lerOferta(id: number): Promise<Oferta | null> {
   try {
@@ -361,7 +368,8 @@ export type ResultadoRemarcar =
   | { acao: 'ambiguo' }
   | { acao: 'remarcou'; de: string; para: string }
   | { acao: 'sem_vaga' }
-  | { acao: 'desistiu' };
+  | { acao: 'desistiu' }
+  | { acao: 'mudou_no_meio'; escolheu: string; agora: string };
 
 /**
  * Um passo da conversa de remarcação pra UMA ficha. Chamado pelo tick de
@@ -406,6 +414,24 @@ export async function passoDeRemarcacao(
     if (i !== null) {
       const novo = pendente!.ofertas[i]!;
       const antigo = ficha.quando;
+      // A REUNIÃO MUDOU DEPOIS DA OFERTA? Então quem mexeu foi outra pessoa (o
+      // botão Reagendar do CRM é mudo, o reagendamento automático também move) e
+      // a escolha do lead fala de um horário que já não existe. Mover aqui seria
+      // desfazer, em silêncio, o que o consultor acabou de combinar.
+      //
+      // Caso real de 22/09/2026, 19h: o consultor remarcou a Ludimila na mão no
+      // MESMO minuto em que o robô do não atendido pôs três horários na mesa dela.
+      // A equipe recebe o recado e decide; o robô não escolhe entre os dois.
+      if (pendente!.de && antigo && pendente!.de !== antigo) {
+        logger.info('ep-remarcar', 'a reunião mudou depois da oferta — não movo por cima de quem mexeu', {
+          id: ficha.id, ofertaDe: pendente!.de, agora: antigo,
+        });
+        if (!opts.dry) {
+          await supabase.from('system_state').delete().eq('key', `${EP_REMARCAR_PREFIX}${ficha.id}`)
+            .then(undefined, () => {});
+        }
+        return { acao: 'mudou_no_meio', escolheu: novo, agora: antigo };
+      }
       // Entre oferecer e responder passam minutos ou horas — tempo de sobra pra
       // outra pessoa marcar aquele slot na LP. Confere ANTES de gravar.
       if (!opts.dry && !(await aindaLivre(novo, quem, antigo))) {
@@ -454,7 +480,7 @@ async function ofertar(
   // Grava só o que foi realmente pra rua: oferta que o teto segurou não pode virar
   // rodada gasta nem lista "na mesa" que o lead nunca viu.
   if (!entregou) return { acao: 'nada' };
-  if (!opts.dry) await gravarOferta(ficha.id, { ofertas: vagas, em: new Date().toISOString(), rodada });
+  if (!opts.dry) await gravarOferta(ficha.id, { ofertas: vagas, em: new Date().toISOString(), rodada, de: ficha.quando });
   return { acao: 'ofertou', ofertas: vagas };
 }
 
@@ -522,6 +548,9 @@ export function linhaDoAviso(r: ResultadoRemarcar): string | null {
       return '⚠️ Pediu pra remarcar e NÃO HÁ horário livre na agenda dele — precisa de encaixe manual.';
     case 'desistiu':
       return '⚠️ Terceiro pedido de remarcar sem escolher horário — o robô parou de oferecer.';
+    case 'mudou_no_meio':
+      return `⚠️ Ele escolheu *${quandoPorExtenso(r.escolheu)}* de uma lista que o robô mandou ANTES de a reunião dele mudar `
+        + `(agora está ${quandoPorExtenso(r.agora)}). Não movi nada: confirme com ele qual dos dois vale.`;
     default:
       return null;
   }

@@ -345,3 +345,29 @@ describe('a conversa de ponta a ponta', () => {
     expect(linhaDoAviso({ acao: 'nada' })).toBe(null);
   });
 });
+
+// ── A REUNIÃO MUDOU DEPOIS DA OFERTA (22/09/2026) ───────────────────────────
+// Caso real: o consultor remarcou a ficha na mão (o botão Reagendar do CRM é
+// mudo) no MESMO minuto em que o robô do não atendido pôs três horários na mesa
+// da pessoa. Se ela responder "2", mover seria desfazer em silêncio o que o
+// consultor acabou de combinar.
+describe('oferta que nasceu de outra reunião', () => {
+  it('não move por cima de quem mexeu na ficha, e avisa a equipe', async () => {
+    const { passoDeRemarcacao, linhaDoAviso } = await mod();
+    const antes = '2026-09-21T21:00:00.000Z';
+    const agora = '2026-09-22T22:00:00.000Z';
+    state.set('ep_remarcar:77', {
+      value: {
+        ofertas: ['2026-09-24T16:00:00.000Z', '2026-09-24T17:00:00.000Z'],
+        em: new Date().toISOString(), rodada: 1, de: antes,
+      },
+    });
+    const r = await passoDeRemarcacao(
+      { id: 77, cliente_nome: 'Ludimila', cliente_telefone: '5534999887766', quando: agora, vendedor_nome: 'Thiago' },
+      ['1'], null,
+    );
+    expect(r.acao).toBe('mudou_no_meio');
+    expect(updates.find(u => u.id === 77)).toBeUndefined();
+    expect(linhaDoAviso(r)).toContain('Não movi nada');
+  });
+});
