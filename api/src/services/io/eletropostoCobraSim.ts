@@ -144,10 +144,17 @@ const AVISO_TETO_HORA = Number(process.env.EP_COBRA_AVISO_TETO_HORA || 24);
 const JANELA_INICIO_H = 8;
 const JANELA_FIM_H = 20;
 
-/** Aviso de liberação velho não sai: se a fila não deu conta em um dia, mandar
- *  "liberei seu horário" depois disso é falar de uma reunião que a pessoa já
- *  esqueceu. O carimbo fica (ele ainda autoriza a volta), só o aviso morre. */
-const AVISO_VALIDADE_MS = 24 * 3600_000;
+/** Até quando o aviso de liberação ainda vale a pena.
+ *
+ *  48h e não 24h, e o motivo foi medido em 22/09/2026: na tarde da estreia a
+ *  linha estava em 25 envios por hora, 17 deles da própria agenda (confirmação,
+ *  bom dia, 1h e 5 min das reuniões do dia). A régua recuou, como tem que
+ *  recuar, e a fila de avisos parou em 5 de 18. Com validade de 24h, os 13 que
+ *  sobraram seriam DESCARTADOS antes de a linha esvaziar, e essas pessoas
+ *  perderiam o horário sem nunca saber, que é o único desfecho inaceitável aqui.
+ *  Com 48h eles saem na manhã seguinte, quando a linha está parada, e o convite
+ *  pra voltar continua de pé. O horário, esse, já voltou pra vitrine no ato. */
+const AVISO_VALIDADE_MS = 48 * 3600_000;
 
 const desligado = () => (process.env.EP_COBRA_SIM_OFF || '').trim() === '1';
 
