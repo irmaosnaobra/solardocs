@@ -218,10 +218,15 @@ def main():
 
     def cidade(k):
         r = eJ[k]
+        ant = base_ant.get(k, [0, 0])[1]
+        # Ritmo: o quanto a frota cresceu no mes, em %. E a unica coisa aqui que
+        # olha pra frente. Base menor que 30 carros nao gera ritmo: 2 carros num
+        # vilarejo viram 100% e enganam a lista inteira.
+        ritmo = round((r['p'] - ant) / ant * 100, 1) if ant >= 30 else None
         return [r['n'], r['uf'], round(r['lat'], 4), round(r['lng'], 4), r['p'],
                 round(1000 * r['p'] / max(r['f'], 1), 1), round(r['d']), round(r['nota'], 2),
                 pos_nac[k], (posN[k] - posJ[k]) if k in comuns else None,
-                r['p'] - base_ant.get(k, [0, 0])[1]]
+                r['p'] - ant, ritmo]
 
     EJ, EN = por_estado(J, taxaJ), por_estado(N, taxaJ)
     ordem_est = sorted(EJ, key=lambda u: -EJ[u]['nota'])
@@ -236,6 +241,7 @@ def main():
             'uf': uf, 'nome': NOME_UF[uf], 'nota': round(e['nota'], 2),
             'mov': pos_est_ant.get(uf, pos_est[uf]) - pos_est[uf],
             'plug': e['plug'], 'novos': e['plug'] - (EN[uf]['plug'] if uf in EN else 0),
+            'ritmo': round((e['plug'] - EN[uf]['plug']) / EN[uf]['plug'] * 100, 1) if uf in EN and EN[uf]['plug'] else None,
             'por_mil': round(e['por_mil'], 1), 'longe': round(e['longe'], 1),
             'acima': len(e['cid']), 'c': [cidade(k) for k in cids[:40]],
         })
@@ -251,6 +257,11 @@ def main():
         },
         'nomes_uf': NOME_UF,
         'top50': [cidade(k) for k in ordem[:50]],
+        # A segunda lente: para onde a curva esta indo, nao onde o estoque esta hoje.
+        # Ordenada pelo ritmo do mes, com piso de 100 carros de base para o % significar algo.
+        'top50_ritmo': [cidade(k) for k in sorted(
+            [k for k in eJ if base_ant.get(k, [0, 0])[1] >= 100],
+            key=lambda k: -((eJ[k]['p'] - base_ant[k][1]) / base_ant[k][1]))[:50]],
         'estados': estados,
     }
 
