@@ -4337,7 +4337,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <label for="tbl-km">Distância (km) — recalcula o acréscimo</label>
           <input type="number" id="tbl-km" min="0" step="1" placeholder="0" oninput="renderTabelaAtiva()">
         </div>
-        <div class="tbl-km-dica">≥ 250 km: +R$ 500 · ≥ 350 km: +R$ 750 (sobre o investimento)</div>
+        <div class="tbl-km-dica">≥ 250 km: +R$ 500 · ≥ 350 km: +R$ 1.000 (sobre o investimento)</div>
       </div>
       <div class="tbl-abas" id="tbl-abas"></div>
       <div class="historico-tabela-wrap">
@@ -5279,8 +5279,22 @@ async function geocodeCidade(cidade, uf) {
   return km;
 }
 
+// ≥350 km era +R$750 ate' 22/09/2026 e virou +R$1.000: com os precos terminando em 497/997
+// (FINAL997, ver tabelas.js), 750 deixava o total em ...747/...247. 500 e 1.000 preservam o final.
 function acrescimoPorKm(km) {
   if (!km || km <= 0) return 0;
+  if (km >= 350) return 1000;
+  if (km >= 250) return 500;
+  return 0;
+}
+
+// Quanto de distancia JA' esta' dentro do precoOrcamento de uma proposta salva. Nao da' pra
+// recalcular pela regra de hoje: proposta de antes de 22/09 levou 750, e descontar 1.000 dela
+// derrubaria o preco base em R$250 ao editar. Vale o acrescDist gravado; proposta legada que
+// nao gravou usa a regra da epoca.
+function acrescimoGravado(d) {
+  if (d && typeof d.acrescDist === 'number') return d.acrescDist;
+  const km = (d && d.distanciaKm) || 0;
   if (km >= 350) return 750;
   if (km >= 250) return 500;
   return 0;
@@ -5706,7 +5720,7 @@ function recalcInvestPreview() {
 function reidratarInvestLista(d) {
   const input = document.getElementById('f-invest');
   if (!input) return;
-  const acresc = acrescimoPorKm(d.distanciaKm || 0);
+  const acresc = acrescimoGravado(d);
   const base = d.precoOrcamento ? (d.precoOrcamento - acresc) : ((d.item && d.item.pOrc) || 0);
   if (base > 0) {
     input.value = base;
@@ -5882,11 +5896,11 @@ async function gerar() {
 
   // Preços
   // Acréscimo automático por distância de Uberlândia/MG:
-  //   >= 350 km → +R$ 750,00
+  //   >= 350 km → +R$ 1.000,00 (era 750 ate' 22/09/2026)
   //   >= 250 km → +R$ 500,00
   const acrescDist = acrescimoPorKm(distanciaKm);
   // O gerador NUNCA arredonda: usa o preço EXATO da tabela (coluna Venda / valor do
-  // investimento). A distância (500/750, múltiplos de 100) ainda soma por cima.
+  // investimento). A distância (500/1.000) ainda soma por cima e preserva o final 497/997.
   const precoOrcamento = item.pOrc + acrescDist;
   // À vista = valor do investimento (sem desconto). Pago no ato do contrato.
   const precoVista = precoOrcamento;
@@ -17132,7 +17146,7 @@ async function editarProposta(codigo) {
       document.getElementById('f-man-ger').value = m.geracao || (d.item && d.item.g) || '';
       // Valor do investimento = pOrc salvo. Fallbacks cobrem propostas legadas (investIn novo,
       // precoVistaIn antigo). Distância já está embutida no precoOrcamento, então tira ela.
-      const investSalvoMan = m.investIn || (d.precoOrcamento ? d.precoOrcamento - acrescimoPorKm(d.distanciaKm || 0) : 0) || m.precoVistaIn || (d.item && d.item.pOrc) || '';
+      const investSalvoMan = m.investIn || (d.precoOrcamento ? d.precoOrcamento - acrescimoGravado(d) : 0) || m.precoVistaIn || (d.item && d.item.pOrc) || '';
       document.getElementById('f-man-pvista').value = investSalvoMan;
       document.getElementById('f-man-gar').value = m.garInvIn || d.garInv || '10';
     } else if (d.modoEntrada === 'kwh' && d.consumoKwh) {
