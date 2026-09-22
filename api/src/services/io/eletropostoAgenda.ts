@@ -441,14 +441,19 @@ export function bolhasManha(
 export function bolhaDiario(
   nome: string | null | undefined, quandoIso: string, vendedor: string | null | undefined,
   ehAmanha: boolean,
+  /** Ele ainda não confirmou presença: a mesma bolha pede o SIM, porque quem
+   *  confirma some 4x menos (6% de ausência contra 25% de quem só respondeu). */
+  faltaConfirmar = false,
 ): string {
   const n = primeiroNome(nome);
   const quem = String(vendedor || '').trim() || 'nosso consultor';
   // "amanhã, às 14h00" no lugar da data por extenso: é assim que a pessoa pensa
   // na véspera, e ler "quarta-feira, 24/09" na terça exige que ela faça a conta.
   const quando = ehAmanha ? `*amanhã, às ${horaCurta(quandoIso)}*` : `*${quandoPorExtenso(quandoIso)}*`;
-  return `Oi${comNome(n)}! Lembrete rápido: sua reunião com o *${quem}* é ${quando}. `
-    + 'Se precisar mudar, me avisa que eu remarco.';
+  const fecho = faltaConfirmar
+    ? 'Me responde *SIM* que eu confirmo, ou me fala se precisar mudar que eu remarco.'
+    : 'Se precisar mudar, me avisa que eu remarco.';
+  return `Oi${comNome(n)}! Lembrete rápido: sua reunião com o *${quem}* é ${quando}. ${fecho}`;
 }
 
 // ── 3. 1 HORA ANTES ─────────────────────────────────────────────────────────
@@ -694,6 +699,34 @@ function falouNesteCiclo(f: Ficha, respondeuEm: Map<number, string>): boolean {
   return !f.confirmacao_at || em >= f.confirmacao_at;
 }
 
+/**
+ * A pessoa falou HOJE?
+ *
+ * Esta é a régua do CORTE DAS 13H, e ela é diferente do `falouNesteCiclo` de
+ * propósito, por um buraco medido em 22/09/2026 nas reuniões dos últimos 30 dias:
+ *
+ *   confirmou SIM : 77 reuniões,  5 não atenderam ( 6%), 41 andaram na venda
+ *   só respondeu  : 48 reuniões, 12 não atenderam (25%), 17 andaram na venda
+ *   ficou mudo    : 35 reuniões, 14 não atenderam (40%),  ZERO andaram na venda
+ *
+ * O grupo do meio é o problema. `lead_resposta_at` guarda a ÚLTIMA vez que o lead
+ * escreveu, e o `falouNesteCiclo` aceita qualquer data: quem perguntou "qual o
+ * link?" três dias atrás e sumiu ficava imune às duas réguas de vermelho para
+ * sempre. O horário dele só morria com ele, e em 1 de cada 4 vezes ele não
+ * aparecia. O mudo perde o horário em 3 horas (régua do SIM) e este não perdia
+ * nunca, sendo que a diferença entre os dois é uma frase de três dias atrás.
+ *
+ * Agora vale a ordem de 19/08 ao pé da letra: "recebeu o segundo contato às 8h e
+ * não deu sinal até as 13h". SINAL É DE HOJE. Quem confirmou presença continua
+ * fora disto (é outro campo, e é o grupo de 6%), e quem aparecer falando depois
+ * volta pra agenda pelo `eletropostoRespostas`, como sempre.
+ */
+function falouHoje(f: Ficha, respondeuEm: Map<number, string>, hoje: string): boolean {
+  if (f.lead_resposta_at && diaBRT(f.lead_resposta_at) === hoje) return true;
+  const em = respondeuEm.get(f.id);
+  return !!em && diaBRT(em) === hoje;
+}
+
 /** Escreve a marca: status, linha no histórico e carimbo de "foi o robô".
  *  Devolve `false` se o update não pegou (falha ou corrida com gente). */
 async function escreverNaoAtendeu(f: Ficha, motivo: string): Promise<boolean> {
@@ -796,15 +829,15 @@ async function marcarVermelhoDoCorte(
 
   const alvos = candidatos
     .filter(f => bomDiaSaiuHoje(recebeuBomDia, f.id, hoje)
-      && !falouNesteCiclo(f, marcadores.respondeuEm) && !marcadores.jaMarcado.has(f.id))
+      && !falouHoje(f, marcadores.respondeuEm, hoje) && !marcadores.jaMarcado.has(f.id))
     .slice(0, NAO_ATENDEU_POR_TICK);
   if (!alvos.length) return 0;
   if (dry) return alvos.length;
 
   let n = 0;
   for (const f of alvos) {
-    const ok = await escreverNaoAtendeu(f, `Sem resposta até as ${CORTE_VERMELHO_H}h: recebeu a confirmação `
-      + 'e o bom dia do dia e não respondeu nenhuma das duas. O horário voltou pra agenda.');
+    const ok = await escreverNaoAtendeu(f, `Sem sinal HOJE até as ${CORTE_VERMELHO_H}h: recebeu o bom dia do dia `
+      + 'e não respondeu nem confirmou presença. O horário voltou pra agenda.');
     if (ok) n++;
   }
   if (n) logger.info('ep-agenda', `${n} ficha(s) viraram VERMELHO no corte das ${CORTE_VERMELHO_H}h — horário liberado`);
@@ -1128,7 +1161,9 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
         continue;
       }
       try {
-        const bolha = bolhaDiario(ag.cliente_nome, ag.quando, ag.vendedor_nome, diasAte(ag.quando) === 1);
+        const bolha = bolhaDiario(
+          ag.cliente_nome, ag.quando, ag.vendedor_nome,
+          diasAte(ag.quando) === 1, !ag.presenca_confirmada_at);
         await entregar(ag, 'diario', tel, [bolha], null, `d${hojeBRT}`);
         lDiario++; toques++;
       } catch (e) {

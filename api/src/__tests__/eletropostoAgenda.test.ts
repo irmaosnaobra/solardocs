@@ -1033,3 +1033,57 @@ describe('lembrete diário da véspera', () => {
     expect((await tick()).lembretes_diarios).toBe(0);
   });
 });
+
+// ── O BURACO DO "FALOU UMA VEZ, IMUNE PRA SEMPRE" (22/09/2026) ──────────────
+// Medido nas reuniões dos últimos 30 dias: quem CONFIRMOU some em 6% das vezes;
+// quem só respondeu alguma coisa some em 25% e NUNCA perdia o horário, porque
+// `lead_resposta_at` aceitava qualquer data. Uma frase de três dias atrás valia
+// como sinal de vida no dia da reunião.
+describe('corte das 13h: sinal tem que ser de HOJE', () => {
+  const daTarde = (over: Partial<any> = {}) => fichaConfirmada({
+    quando: '2026-08-04T21:00:00.000Z', // hoje, 18h BRT (ainda por acontecer)
+    created_at: '2026-08-01T12:00:00.000Z',
+    ...over,
+  });
+
+  it('quem respondeu DIAS ATRÁS e está mudo hoje perde o horário às 13h', async () => {
+    fichas = [daTarde({ lead_resposta_at: '2026-08-01T14:00:00.000Z' })];
+    carimbos.push('ep_agenda_sent:1:manha');
+    const r = await tick();
+    expect(r.vermelho_13h).toBe(1);
+    expect(updates[0].campo).toContain('status');
+  });
+
+  it('quem falou HOJE continua intocado', async () => {
+    fichas = [daTarde({ lead_resposta_at: '2026-08-04T11:00:00.000Z' })];
+    carimbos.push('ep_agenda_sent:1:manha');
+    const r = await tick();
+    expect(r.vermelho_13h).toBe(0);
+  });
+
+  it('quem CONFIRMOU presença não entra, mesmo calado hoje', async () => {
+    fichas = [daTarde({ presenca_confirmada_at: '2026-08-01T15:00:00.000Z' })];
+    carimbos.push('ep_agenda_sent:1:manha');
+    expect((await tick()).vermelho_13h).toBe(0);
+  });
+});
+
+describe('lembrete diário pede o SIM de quem não confirmou', () => {
+  it('quem só respondeu recebe o pedido de SIM junto', async () => {
+    fichas = [fichaConfirmada({
+      created_at: '2026-08-01T12:00:00.000Z', quando: '2026-08-06T17:00:00.000Z',
+      presenca_confirmada_at: null, lead_resposta_at: '2026-08-02T10:00:00.000Z',
+    })];
+    await tick();
+    expect(enviadas[0].bolhas[0]).toContain('*SIM*');
+  });
+
+  it('quem já confirmou não é cobrado de novo', async () => {
+    fichas = [fichaConfirmada({
+      created_at: '2026-08-01T12:00:00.000Z', quando: '2026-08-06T17:00:00.000Z',
+      presenca_confirmada_at: '2026-08-01T13:00:00.000Z',
+    })];
+    await tick();
+    expect(enviadas[0].bolhas[0]).not.toContain('SIM');
+  });
+});
