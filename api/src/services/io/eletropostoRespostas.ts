@@ -104,6 +104,31 @@ const RE_CONFIRMA_EXPLICITA = /\b(confirmo|confirmado|confirmada|confirmando|est
 /** Emoji sozinho também é resposta — e "👍" pra "responde SIM" é sim. */
 const RE_SO_EMOJI_POSITIVO = /^[\s👍✅🙏😊🤝👌❤️😀]+$/;
 
+/**
+ * "Quero esse horário" dito com outras palavras.
+ *
+ * Existe por um caso REAL do primeiro dia da régua do SIM (22/09/2026): o Vitor
+ * perdeu o horário às 15h32, respondeu *"Trava o horário"* às 15h38, e nada
+ * aconteceu. `confirmouMesmo` é apertado de propósito (a mensagem inteira tem que
+ * ser uma afirmativa) e "Trava o horário" não é afirmativa, é pedido. Resultado:
+ * a pessoa fez exatamente o que a mensagem pediu e o robô ficou mudo, enquanto a
+ * recepção da linha respondia "sou a Duda, o que você precisa?".
+ *
+ * Só vale pra quem PERDEU o horário (o robô marcou vermelho ou liberou): é um
+ * pedido de volta, não uma confirmação de presença, e por isso não sobe
+ * `presenca_confirmada_at` sozinho. Pedido de remarcar continua ganhando de tudo.
+ */
+// As bordas \b não são decoração: sem elas "entrava" casa com "trava", e
+// uma frase como "quando eu entrava no site" viraria pedido de horário.
+const RE_QUER_DE_VOLTA = /\b(trava|travar|travo|segura|segurar|mant[eé]m|manter|quero\s+(?:o\s+)?(?:meu\s+)?hor[áa]rio|quero\s+(?:a\s+)?(?:minha\s+)?reuni[ãa]o|pode\s+(?:marcar|agendar|manter)|continua\s+valendo|ainda\s+quero|tenho\s+interesse)\b/i;
+
+export function querODeVolta(textos: string[]): boolean {
+  const limpos = textos.map(t => t.trim()).filter(Boolean);
+  if (!limpos.length) return false;
+  if (limpos.some(t => RE_REMARCAR.test(t))) return false;
+  return limpos.some(t => RE_QUER_DE_VOLTA.test(t));
+}
+
 /** Confirmou de verdade? Pedido de remarcar sempre ganha: "ok, mas preciso
  *  remarcar" é o contrário de presença, por mais que comece com "ok". */
 export function confirmouMesmo(textos: string[]): boolean {
@@ -383,7 +408,10 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
     // CARIMBO que separa a marca do robô da decisão de uma pessoa.
     const marcaDoRobo = ficha.status === 'nao_atendeu' ? EP_NAO_ATENDEU_PREFIX
       : ficha.status === 'cancelado' ? EP_LIBERADO_PREFIX : null;
-    if (marcarPresenca && marcaDoRobo) {
+    // "Trava o horário" vale tanto quanto "SIM" pra quem PERDEU o horário: os
+    // dois querem a mesma coisa, e foi a mensagem do robô que pediu a resposta.
+    const pediuDeVolta = querODeVolta(textosDaVez);
+    if ((marcarPresenca || pediuDeVolta) && marcaDoRobo) {
       const { data: carimbo } = await supabase
         .from('system_state').select('key').eq('key', `${marcaDoRobo}${id}`).maybeSingle();
       if (carimbo) {
@@ -401,6 +429,14 @@ export async function runEletropostoRespostasTick(opts: { dry?: boolean } = {}):
           logger.error('ep-respostas', 'desfazer não atendido falhou', { id, erro: String(eVolta) });
         } else {
           voltouPelaMarca = true;
+          // Ele pediu o horário de volta e o horário voltou: isso É presença
+          // confirmada, e sem esta linha o card continuaria amarelo e as réguas
+          // de vermelho voltariam a mirar nele amanhã.
+          if (!marcarPresenca) {
+            await supabaseGerador.from('agendamentos')
+              .update({ presenca_confirmada_at: nowIso }).eq('id', id)
+              .then(undefined, () => {});
+          }
           // O carimbo sai junto: ele existe pra dizer "esta marca é do robô", e a
           // marca deixou de existir. Deixá-lo travaria a remarcação de amanhã.
           await supabase.from('system_state').delete().eq('key', `${marcaDoRobo}${id}`)

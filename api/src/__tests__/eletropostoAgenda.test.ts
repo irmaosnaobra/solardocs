@@ -24,12 +24,25 @@ vi.mock('../utils/supabaseGerador', () => ({
           // Junta as chaves: um envio pode carimbar MAIS DE UMA flag (a confirmação
           // de reunião marcada dentro da janela de 1h mata o toque de 1h junto).
           if (q._update) {
-            updates.push({ id: v, campo: Object.keys(q._update).join('+') });
-            // O NÃO ATENDIDO automático encadeia um segundo `.eq('status', …)`
-            // como guarda de corrida com gente: o update tem que continuar
-            // encadeável depois do id.
+            const patch = q._update;
+            const alvo = fichas.find((f: any) => f.id === Number(v));
+            updates.push({ id: v, campo: Object.keys(patch).join('+') });
             return Object.assign(Promise.resolve({ error: null }), {
+              // O NÃO ATENDIDO automático encadeia um segundo `.eq('status', …)`
+              // como guarda de corrida com gente: o update tem que continuar
+              // encadeável depois do id.
               eq: () => Promise.resolve({ error: null }),
+              // A RESERVA DO TOQUE (22/09/2026): `update ... .is(campo, null)
+              // .select()`. O mock guarda o estado NA FICHA, então a segunda
+              // reserva do mesmo toque volta vazia, igual ao banco — é isso que
+              // deixa o teste de "não manda duas vezes" poder falhar de verdade.
+              is: (campoNulo: string, _nulo: any) => ({
+                select: async () => {
+                  if (alvo && alvo[campoNulo] != null) return { data: [], error: null };
+                  if (alvo) Object.assign(alvo, patch);
+                  return { data: [{ id: Number(v) }], error: null };
+                },
+              }),
             });
           }
           q._filtros[col] = v; return q;
@@ -88,6 +101,19 @@ vi.mock('../utils/supabase', () => ({
   supabase: {
     from: () => ({
       upsert: async (r: any) => { carimbos.push(String(r.key)); return { error: null }; },
+      // A RESERVA dos toques SEM coluna (bom dia, lembrete diário): a chave é
+      // primary key de verdade, então o segundo tick leva 23505 e desiste.
+      insert: async (r: any) => (carimbos.includes(String(r.key))
+        ? { error: { code: '23505' } }
+        : (carimbos.push(String(r.key)), { error: null })),
+      // Desfaz a reserva quando o envio falha.
+      delete: () => ({
+        eq: async (_c: string, v: string) => {
+          const i = carimbos.indexOf(String(v));
+          if (i >= 0) carimbos.splice(i, 1);
+          return { error: null };
+        },
+      }),
       select: () => ({
         in: async (_col: string, chaves: string[]) => (leituraCarimboFalha
           ? { data: null, error: new Error('banco fora') }
@@ -1085,5 +1111,28 @@ describe('lembrete diário pede o SIM de quem não confirmou', () => {
     })];
     await tick();
     expect(enviadas[0].bolhas[0]).not.toContain('SIM');
+  });
+});
+
+// ── DOIS TICKS AO MESMO TEMPO (22/09/2026) ──────────────────────────────────
+// Medido em produção: 513 mensagens duplicadas em 7 dias, 98 pessoas. O cron do
+// GitHub e o da Vercel chamam o MESMO /cron/process-messages e o Actions atrasa,
+// então a sobreposição é rotina. A flag era gravada DEPOIS do envio, e os dois
+// ticks liam a mesma ficha sem flag.
+describe('reserva do toque: dois ticks não mandam duas vezes', () => {
+  it('toque com coluna (1 hora antes) sai UMA vez com dois ticks juntos', async () => {
+    fichas = [fichaConfirmada({ quando: emMinutos(60) })];
+    await Promise.all([tick(), tick()]);
+    expect(enviadas).toHaveLength(1);
+  });
+
+  it('toque sem coluna (bom dia) também sai UMA vez', async () => {
+    vi.setSystemTime(new Date('2026-08-04T13:00:00.000Z')); // 10h BRT, janela da manhã
+    fichas = [fichaConfirmada({
+      quando: '2026-08-04T20:00:00.000Z', created_at: '2026-08-01T12:00:00.000Z',
+    })];
+    await Promise.all([tick(), tick()]);
+    expect(enviadas).toHaveLength(1);
+    vi.setSystemTime(AGORA);
   });
 });

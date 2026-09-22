@@ -46,6 +46,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase } from '../../utils/supabase';
+import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendHuman, sendWhatsApp } from '../agents/zapiClient';
 import { novoAnthropic } from '../../utils/anthropicClient';
@@ -408,6 +409,40 @@ async function registrarLead(
  * no-op pra esta instância. Nunca joga: quem chama está no fim do webhook e uma
  * exceção aqui não pode derrubar o resto do processamento.
  */
+/** Últimos 8 dígitos: a Z-API entrega o inbound às vezes sem o 9º dígito. */
+function ult8Tel(raw: string): string {
+  return String(raw || '').replace(/\D/g, '').slice(-8);
+}
+
+/**
+ * Esta pessoa tem (ou teve, faz pouco) reunião de eletroposto com a gente?
+ *
+ * Janela curta dos dois lados: 10 dias pra trás pega quem acabou de perder ou
+ * fazer a reunião e voltou a escrever; 60 pra frente pega quem tem reunião
+ * marcada. Fora disso é gente antiga, e aí a triagem é o certo mesmo.
+ *
+ * Erro de leitura devolve `false` de propósito: perder a triagem é pior que
+ * deixar a Duda falar com um lead da agenda.
+ */
+async function temAgendaDeEletroposto(phone: string): Promise<boolean> {
+  const chave = ult8Tel(phone);
+  if (chave.length < 8) return false;
+  try {
+    const desde = new Date(Date.now() - 10 * 24 * 3600_000).toISOString();
+    const ate = new Date(Date.now() + 60 * 24 * 3600_000).toISOString();
+    const { data, error } = await supabaseGerador
+      .from('agendamentos').select('id, cliente_telefone, created_by')
+      .like('cliente_telefone', `%${chave}`)
+      .gte('quando', desde).lte('quando', ate)
+      .limit(5);
+    if (error) throw error;
+    return (data ?? []).some(f => String(f.created_by || '').toLowerCase().includes('eletroposto'));
+  } catch (err) {
+    logger.error('recepcao-io', 'checar agenda de eletroposto falhou', err);
+    return false;
+  }
+}
+
 export async function handleRecepcaoIo(
   phoneBruto: string,
   texto: string,
@@ -447,6 +482,25 @@ export async function handleRecepcaoIo(
     const { data: leadRow } = await supabase
       .from('sdr_leads').select('human_takeover').eq('phone', phone).maybeSingle();
     if (leadRow?.human_takeover) return;
+
+    // QUEM TEM REUNIÃO DE ELETROPOSTO CONOSCO NÃO É "ALGUÉM QUE CHEGOU AGORA".
+    //
+    // Caso real de 22/09/2026: o Vitor perdeu o horário na régua do SIM, recebeu
+    // "liberei o seu horário, me responde que eu procuro outro", respondeu
+    // *"Trava o horário"* seis minutos depois, e a Duda respondeu "Oi! Sou a
+    // Duda, da Irmãos na Obra. Me conta, o que você precisa?". A pessoa fez
+    // exatamente o que a nossa mensagem pediu e recebeu de volta uma
+    // apresentação, como se nunca tivesse falado com a gente.
+    //
+    // A triagem existe pra quem chega sozinho, sem história. Quem tem ficha de
+    // agenda de eletroposto dos últimos dias tem história, e quem responde por
+    // ele é o agente da agenda (eletropostoRespostas + eletropostoRemarcar), que
+    // sabe remarcar, devolver horário e avisar o consultor. Dois robôs na mesma
+    // conversa é o erro que esta linha já pagou em 25/08.
+    if (await temAgendaDeEletroposto(phone)) {
+      logger.info('recepcao-io', 'lead tem reunião de eletroposto — a agenda responde por ele', { phone });
+      return;
+    }
 
     const sessao = await lerSessao(phone);
     const lead: LeadData = sessao?.lead ?? { estado: 'triando', turnos: 0 };

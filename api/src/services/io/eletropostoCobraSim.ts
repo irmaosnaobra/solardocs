@@ -110,8 +110,14 @@ const GRACA_APOS_ULTIMATO_MIN = Number(process.env.EP_COBRA_GRACA_MIN || 60);
 
 /** Perto da reunião esta régua sai de cena: liberar 20 minutos antes não revende
  *  horário nenhum (a LP para de vender 30 min antes) e atropelaria o toque de 1h,
- *  que é quem fala com essa pessoa. */
-const MIN_ANTES_DA_REUNIAO_MIN = 60;
+ *  que é quem fala com essa pessoa.
+ *
+ *  90 e não 60, e a diferença apareceu no primeiro dia: o toque de 1h sai de 45 a
+ *  75 minutos antes, e com a folga em 60 o Andre recebeu "falta 1 hora pra sua
+ *  reunião" às 14h45 e "liberei o seu horário" às 14h56. Onze minutos entre uma
+ *  coisa e o contrário dela. Com 90 as duas janelas deixam de se encostar, e
+ *  quem já recebeu o toque de 1h fica fora daqui de qualquer jeito (abaixo). */
+const MIN_ANTES_DA_REUNIAO_MIN = Number(process.env.EP_COBRA_MIN_ANTES_MIN || 90);
 
 /** Liberar não manda mensagem: é UPDATE, carimbo e ficha nova. Pode ir em lote,
  *  e é o que tira a agenda do sufoco no primeiro tick. */
@@ -243,10 +249,16 @@ export function passoDevido(e: {
   c1Enviada: boolean;
   /** Há quantos minutos o ultimato saiu, ou null se ainda não saiu. */
   c2EnviadaHaMin: number | null;
+  /** O toque de "falta 1 hora" já saiu pra ele? Então a reunião dele está
+   *  acontecendo hoje, daqui a pouco, e quem manda nela é a régua de lá. */
+  lembrete1hEnviado?: boolean;
 }): PassoCobranca {
   // Perto da reunião mandam os avisos que já existem (1h e 5min), e é a régua do
   // lembrete de 1h + 15 min que decide ausência.
   if (e.minAteReuniao <= MIN_ANTES_DA_REUNIAO_MIN) return 'esperar';
+  // Cinto de segurança do mesmo problema: se o toque de 1h já saiu, a reunião é
+  // agora e liberar o horário seria desdizer a mensagem anterior.
+  if (e.lembrete1hEnviado) return 'esperar';
 
   const ultimatoVenceu = e.c2EnviadaHaMin !== null && e.c2EnviadaHaMin >= GRACA_APOS_ULTIMATO_MIN;
   const silencioLongo = e.minDesdeConfirmacao >= LIBERAR_SEM_ULTIMATO_H * 60;
@@ -271,6 +283,7 @@ interface Ficha {
   status: string | null;
   confirmacao_at: string | null;
   historico: string | null;
+  lembrete_1h_at: string | null;
   cidade: string | null;
   observacao: string | null;
   ponto_relacao: string | null;
@@ -446,7 +459,7 @@ export async function runEletropostoCobraSimTick(opts: { dry?: boolean } = {}): 
   const { data, error } = await supabaseGerador
     .from('agendamentos')
     .select('id, cliente_nome, cliente_telefone, vendedor_nome, quando, created_by, status, confirmacao_at, '
-      + 'historico, cidade, observacao, ponto_relacao, capital_faixa, tem_ponto, perfil_slug, decisor_tipo, '
+      + 'historico, lembrete_1h_at, cidade, observacao, ponto_relacao, capital_faixa, tem_ponto, perfil_slug, decisor_tipo, '
       + 'rota_tipo, utm_source, utm_medium, utm_campaign, utm_content, utm_term')
     .eq('status', 'agendado')
     .not('confirmacao_at', 'is', null)
@@ -518,6 +531,7 @@ export async function runEletropostoCobraSimTick(opts: { dry?: boolean } = {}): 
       minAteReuniao,
       c1Enviada: jaCobrado.has(`${f.id}:c1`),
       c2EnviadaHaMin: jaCobrado.has(`${f.id}:c2`) ? (idadeEmMin(cobradoEm.get(`${f.id}:c2`)) ?? 0) : null,
+      lembrete1hEnviado: !!f.lembrete_1h_at,
     });
     if (passo === 'esperar') continue;
 

@@ -1002,6 +1002,55 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
       previa.push({ id: ag.id, cliente: String(ag.cliente_nome || '—'), toque, quando: String(ag.quando), bolhas });
       return;
     }
+    // ── CLAIM ANTES DE FALAR ─────────────────────────────────────────────
+    // A flag era gravada DEPOIS do envio, e isso significa que dois ticks que
+    // rodam juntos leem a mesma ficha sem flag e mandam o mesmo toque duas
+    // vezes. Não é hipótese: medido em 22/09/2026, 513 mensagens duplicadas em
+    // 7 dias, 98 pessoas. O Waldir recebeu "falta 1 hora pra sua reunião" duas
+    // vezes com 24 segundos de intervalo, e o Andre com 14. Numa linha que já
+    // foi bloqueada 3 vezes, é o dobro do volume e o jeito mais rápido de a
+    // pessoa perceber que está falando com robô.
+    //
+    // O cron do GitHub e o da Vercel chamam o MESMO /cron/process-messages, e o
+    // Actions atrasa: a sobreposição é rotina, não exceção.
+    //
+    // Agora a flag é a reserva: `update ... where <campo> is null` devolve linha
+    // pra UM tick só (o banco resolve a corrida), e quem voltar de mãos vazias
+    // desiste. Toque sem coluna (bom dia, lembrete diário) usa o carimbo do
+    // system_state como reserva, que é primary key e falha igual.
+    //
+    // Envio que falha DESFAZ a reserva, senão a mensagem some em silêncio, que
+    // é o erro oposto e pior: ninguém recebe e ninguém fica sabendo.
+    const agoraIso = new Date().toISOString();
+    const chaveCarimbo = `${EP_AGENDA_PREFIX}${ag.id}:${sufixoCarimbo ?? toque}`;
+    const campos = campo === null ? [] : (Array.isArray(campo) ? campo : [campo]);
+    if (campos.length) {
+      const { data: reservou, error: eReserva } = await supabaseGerador.from('agendamentos')
+        .update(Object.fromEntries(campos.map(c => [c, agoraIso])))
+        .eq('id', ag.id).is(campos[0], null).select('id');
+      if (eReserva || !(reservou?.length)) {
+        logger.info('ep-agenda', 'outro tick já pegou este toque', { id: ag.id, toque });
+        return;
+      }
+    } else {
+      const { error: eCarimbo } = await supabase.from('system_state')
+        .insert({ key: chaveCarimbo, value: { claim: agoraIso }, updated_at: agoraIso });
+      if (eCarimbo) {
+        logger.info('ep-agenda', 'outro tick já pegou este toque', { id: ag.id, toque });
+        return;
+      }
+    }
+
+    const desfazerReserva = async () => {
+      if (campos.length) {
+        await supabaseGerador.from('agendamentos')
+          .update(Object.fromEntries(campos.map(c => [c, null]))).eq('id', ag.id)
+          .then(undefined, () => {});
+      } else {
+        await supabase.from('system_state').delete().eq('key', chaveCarimbo).then(undefined, () => {});
+      }
+    };
+
     // Teto de 3, não o padrão de 2 da casa. Este agente é o MAIOR emissor da
     // linha: media 5,22 bolhas por toque, contra 3,78 do resto (medido em 30 dias
     // em 31/08/2026). Baixar para 2 corta 62%, mas afunda o pedido de *SIM* num
@@ -1011,20 +1060,20 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
     //
     // A exceção se defende também pelo risco: isto é transacional, vai pra quem
     // marcou a reunião. O contador ele enche; denúncia, não.
-    await sendHuman(tel, bolhas, 'io', { maxBolhas: 3 });
+    try {
+      await sendHuman(tel, bolhas, 'io', { maxBolhas: 3 });
+    } catch (e) {
+      await desfazerReserva();
+      throw e;
+    }
     // Carimbo pro teto anti-ban da linha (lineThrottle: `ep_agenda_sent:`). Este
     // agente vivia FORA do teto, e em 04/08 a fila de atraso soltou 8 pessoas na
-    // mesma hora — 37 mensagens numa linha cujo teto é 12. A linha bloqueou.
-    const agoraIso = new Date().toISOString();
+    // mesma hora — 37 mensagens, teto de 12. A linha bloqueou. Nos toques com
+    // coluna ele vem depois do envio (a reserva já foi a flag); nos sem coluna
+    // ele JÁ existe desde a reserva, e o upsert só troca o valor pra "enviado".
     await supabase.from('system_state')
-      .upsert({ key: `${EP_AGENDA_PREFIX}${ag.id}:${sufixoCarimbo ?? toque}`, value: { em: agoraIso }, updated_at: agoraIso }, { onConflict: 'key' })
+      .upsert({ key: chaveCarimbo, value: { em: new Date().toISOString() }, updated_at: new Date().toISOString() }, { onConflict: 'key' })
       .then(undefined, (e: unknown) => logger.error('ep-agenda', 'carimbo do teto da linha falhou', { id: ag.id, erro: String(e) }));
-    // Pode carimbar MAIS DE UMA flag no mesmo envio: a confirmação de uma reunião
-    // que já está dentro da janela de 1h também mata o toque de 1h (ver abaixo).
-    if (campo === null) return;
-    const campos = Array.isArray(campo) ? campo : [campo];
-    await supabaseGerador.from('agendamentos')
-      .update(Object.fromEntries(campos.map(c => [c, agoraIso]))).eq('id', ag.id);
   };
 
   for (const ag of fichas) {

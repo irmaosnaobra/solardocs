@@ -371,3 +371,34 @@ describe('remarcação automática, pela ponta do tick', () => {
     expect(state.has('ep_remarcar:1')).toBe(true);                   // a oferta continua de pé
   });
 });
+
+// ── "TRAVA O HORÁRIO" (22/09/2026) ──────────────────────────────────────────
+// Caso real do primeiro dia da régua do SIM: o Vitor perdeu o horário às 15h32,
+// respondeu "Trava o horário" às 15h38, e nada aconteceu, porque `confirmouMesmo`
+// exige que a mensagem INTEIRA seja uma afirmativa. Ele fez o que a mensagem
+// pediu e o robô ficou mudo.
+describe('querODeVolta', () => {
+  it('entende o pedido de segurar o horário', async () => {
+    const { querODeVolta } = await import('../services/io/eletropostoRespostas');
+    expect(querODeVolta(['Trava o horário'])).toBe(true);
+    expect(querODeVolta(['pode manter'])).toBe(true);
+    expect(querODeVolta(['ainda quero sim'])).toBe(true);
+    expect(querODeVolta(['segura pra mim'])).toBe(true);
+  });
+
+  it('não confunde palavra dentro de outra palavra', async () => {
+    const { querODeVolta } = await import('../services/io/eletropostoRespostas');
+    expect(querODeVolta(['quando eu entrava no site dava erro'])).toBe(false);
+  });
+
+  it('pedido de remarcar ganha: quem quer outro dia não está pedindo esse de volta', async () => {
+    const { querODeVolta } = await import('../services/io/eletropostoRespostas');
+    expect(querODeVolta(['pode manter, mas preciso remarcar'])).toBe(false);
+  });
+
+  it('conversa comum não vira pedido de horário', async () => {
+    const { querODeVolta } = await import('../services/io/eletropostoRespostas');
+    expect(querODeVolta(['Boa tarde'])).toBe(false);
+    expect(querODeVolta(['Pra mim fica muito difícil fazer reunião.'])).toBe(false);
+  });
+});
