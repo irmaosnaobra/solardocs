@@ -27,6 +27,8 @@ import GeradorFunilPanel from './_panels/GeradorFunilPanel';
 import GeradorLeadsPanel from './_panels/GeradorLeadsPanel';
 // Fase 5 (resíduos) — LP de Solar/Eletroposto (page_visits via beacon novo)
 import IoLpPanel from './_panels/IoLpPanel';
+// Quiz: quem cai no link do eletroposto vê só o quiz. Em que pergunta desiste?
+import QuizEletropostoPanel from './_panels/QuizEletropostoPanel';
 // Kit de Fechamento (isca R$27 → plataforma) — funil da isca até virar assinante
 import KitPanel from './_panels/KitPanel';
 // Banco de comentários do curso — o que vira depoimento na LP sai daqui
@@ -109,6 +111,7 @@ export const PRODUCTS: Product[] = [
       { key: 'funil',     label: 'Funil',            status: 'pronto',    Comp: () => <GeradorFunilPanel produto="eletroposto" /> },
       { key: 'membros',   label: 'Leads',            status: 'pronto',    Comp: () => <GeradorLeadsPanel produto="eletroposto" /> },
       { key: 'lp',        label: 'Página de Venda',   status: 'pronto',   Comp: () => <IoLpPanel match="/io/eletroposto" /> },
+      { key: 'quiz',      label: 'Quiz',              status: 'pronto',   Comp: QuizEletropostoPanel },
       // Fica no hub do ELETROPOSTO porque é daqui que o lead sai (a LP recusa),
       // mesmo com a oferta e os eventos morando no banco do SolarDoc.
       { key: 'nota1',     label: 'Nota 1 / Material', status: 'pronto',   Comp: Nota1Panel },

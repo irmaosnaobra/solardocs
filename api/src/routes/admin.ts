@@ -17,6 +17,7 @@ import {
   NOTA1_MATERIAL_DESDE, NOTA1_MATERIAL_ATE, NOTA1_TIPOS, inicioDaJanela, linhasDoFunil, somaColuna,
 } from '../services/io/nota1Funil';
 import * as pc from '../services/io/pontoCertoFunil';
+import * as qf from '../services/io/quizFunil';
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 import { novoAnthropic } from "../utils/anthropicClient";
 import {
@@ -865,6 +866,51 @@ router.get('/kit-funil', async (_req: Request, res: Response): Promise<void> => 
 // por link direto, anúncio do curso ou aba nova. Sem essa divisão o painel
 // somaria as 21 visitas do lançamento do curso (08/08) como se fossem recusados.
 //
+// ── Funil do QUIZ da LP do eletroposto (22/09/2026) ─────────────────────────────
+// Em que pergunta a pessoa desiste. A página grava quiz_passo / quiz_erro /
+// quiz_fim em lp_events, na sessão da visita; a conta mora em
+// services/io/quizFunil.ts, com teste. Aqui só se lê banco e se devolve JSON.
+// Lê em páginas de 1000: o PostgREST corta ali sem avisar, e o funil de uma
+// semana passa disso.
+async function lerTudo<T>(consulta: (de: number, ate: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
+  const tudo: T[] = [];
+  for (let de = 0; de < 100_000; de += 1000) {
+    const { data, error } = await consulta(de, de + 999);
+    if (error) throw error;
+    tudo.push(...(data ?? []));
+    if (!data || data.length < 1000) break;
+  }
+  return tudo;
+}
+router.get('/eletroposto/quiz-funil', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const periodo = String(req.query.period || '7dias');
+    const desde = qf.inicioDoPeriodo(periodo);
+    const ate = qf.fimDoPeriodo(periodo);
+    const [eventos, visitas] = await Promise.all([
+      lerTudo<qf.EventoQuiz>((de, fim) => {
+        let q = supabase.from('lp_events')
+          .select('session_id, event_type, event_data, created_at')
+          .in('event_type', ['quiz_passo', 'quiz_erro', 'quiz_fim'])
+          .gte('created_at', desde);
+        if (ate) q = q.lt('created_at', ate);
+        return q.order('created_at', { ascending: true }).range(de, fim);
+      }),
+      lerTudo<qf.VisitaQuiz>((de, fim) => {
+        let q = supabase.from('page_visits')
+          .select('session_id, landing_url, utm_campaign')
+          .ilike('landing_url', '%/io/eletroposto%')
+          .gte('created_at', desde);
+        if (ate) q = q.lt('created_at', ate);
+        return q.order('created_at', { ascending: true }).range(de, fim);
+      }),
+    ]);
+    res.json({ periodo, desde, ate, ...qf.montarFunil(eventos, visitas) });
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
 // A CONTA em si mora em services/io/nota1Funil.ts, com teste — aqui só se lê
 // banco e se devolve JSON.
 router.get('/nota1-funil', async (req: Request, res: Response): Promise<void> => {

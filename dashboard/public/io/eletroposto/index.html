@@ -1953,7 +1953,37 @@ t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
 document,'script','https://connect.facebook.net/en_US/fbevents.js');
 fbq('init', '26788759654130722');   // conjunto de dados "Eletroposto"
 fbq('track', 'PageView');
-function track(tag){ try{ fbq('trackCustom','LP_'+tag); }catch(e){} }
+// FUNIL DO QUIZ NO NOSSO BANCO (22/09/2026). Até aqui o track() falava só com o
+// Pixel da Meta, e nenhuma consulta nossa via em que pergunta a pessoa parava.
+// Agora tudo que vai pro Pixel vai também pra lp_events (banco do SolarDoc), na
+// MESMA sessão da visita, que já carrega a campanha. O painel é /admin/hubs →
+// Eletroposto → Quiz. Antes de o beacon do fim da página subir, o evento espera
+// numa fila; o beacon esvazia a fila quando nasce.
+function lpFunil(tipo, dados){
+  var d = dados || {};
+  d.lp = 'eletroposto';
+  d.modo = document.documentElement.classList.contains('quiz') ? 'quiz' : 'pagina';
+  // A ordem de chegada no banco não é a ordem do clique (os envios correm em
+  // paralelo): o painel ordena por carregamento da página (pl) e, dentro dele,
+  // por este número, não pelo created_at. A sessão sobrevive ao recarregar a aba.
+  d.pl = window.__lpPl || (window.__lpPl = Date.now());
+  d.seq = (window.__lpSeq = (window.__lpSeq || 0) + 1);
+  if (window.lpEvt) window.lpEvt(tipo, d); else (window.__lpFila = window.__lpFila || []).push([tipo, d]);
+}
+// Os eventos que ENCERRAM um caminho do quiz, e o destino de cada um. A reunião
+// não passa por aqui: ela é o Schedule do Pixel, e grava o fim no gravarAgendamento().
+var FIM_DO_QUIZ = {
+  arrendamento_do_quiz: 'arrendamento', investidor_do_quiz: 'investidor',
+  integrador_cadastrado: 'parceiro', curioso_do_quiz: 'curioso', curioso_negociando: 'curioso'
+};
+function track(tag){
+  try{ fbq('trackCustom','LP_'+tag); }catch(e){}
+  try{
+    lpFunil('ep_evento', { tag: tag });
+    var destino = FIM_DO_QUIZ[tag] || (/^nota1_curso_/.test(tag) ? 'curso' : '');
+    if (destino && window.quizFim) window.quizFim(destino, tag);
+  }catch(e){}
+}
 </script>
 <noscript><img height="1" width="1" style="display:none"
 src="https://www.facebook.com/tr?id=26788759654130722&ev=PageView&noscript=1"
@@ -3127,6 +3157,51 @@ let passoAtual = 0;
 /** Os passos que valem para as respostas de AGORA (o de investir some sozinho). */
 const passosVivos = () => PASSOS.filter(p => !p.quando || p.quando());
 
+// ── O QUE O PAINEL DO QUIZ LÊ (22/09/2026) ────────────────────────────────────
+// Três eventos, todos em lp_events via lpFunil(), e todos com o CAMINHO da pessoa
+// naquele instante. O caminho decide qual lista de perguntas o painel desenha:
+//   quiz_passo  a primeira vez que cada pergunta aparece (uma por pergunta)
+//   quiz_erro   o aviso que travou o Continuar (uma vez por pergunta e texto)
+//   quiz_fim    onde a pessoa terminou: reuniao, arrendamento, investidor,
+//               curioso, parceiro ou curso
+// "Parou em X" o painel tira sozinho: é a última pergunta vista de quem não tem fim.
+// A conta mora em api/src/services/io/quizFunil.ts, com os mesmos ids dos PASSOS.
+function caminhoAtual(){
+  const p = val('f-porta');
+  if(!p) return 'inicio';
+  if(p === 'integrador') return 'integrador';
+  if(p === 'investidor'){
+    if(!val('f-cap-local')) return 'investidor';
+    return investidorComLocal() ? 'investidor_local' : 'investidor_sem_local';
+  }
+  return 'comercio';
+}
+const quizVisto = new Set();
+function quizPasso(id, n, de){
+  // Na página inteira o formulário nasce pintado lá embaixo sem ninguém olhar:
+  // a primeira pergunta só conta quando a pessoa escolhe uma porta.
+  if(id === 'p-porta' && !val('f-porta') && !document.documentElement.classList.contains('quiz')) return;
+  const chave = id + '|' + caminhoAtual();
+  if(quizVisto.has(chave)) return;
+  quizVisto.add(chave);
+  lpFunil('quiz_passo', { passo: id, n, de, caminho: caminhoAtual() });
+}
+const quizErros = new Set();
+function quizErro(msg){
+  const vivos = passosVivos();
+  const id = (vivos[passoAtual] || {}).id || '';
+  const chave = id + '|' + msg;
+  if(quizErros.has(chave)) return;
+  quizErros.add(chave);
+  lpFunil('quiz_erro', { passo: id, msg: String(msg).slice(0, 140), caminho: caminhoAtual() });
+}
+let quizTerminou = false;
+window.quizFim = function(destino, tag){
+  if(quizTerminou) return;
+  quizTerminou = true;
+  lpFunil('quiz_fim', { destino, tag: tag || null, caminho: caminhoAtual() });
+};
+
 function pintarPasso(){
   const vivos = passosVivos();
   // Se a resposta anterior matou o passo em que a pessoa estava, ela cai no
@@ -3138,6 +3213,7 @@ function pintarPasso(){
     if(el) el.classList.toggle('on', p.id === atual.id);
   });
   const ultimo = passoAtual === vivos.length - 1;
+  quizPasso(atual.id, passoAtual + 1, vivos.length);
   document.getElementById('passo-conta').textContent = `Passo ${passoAtual+1} de ${vivos.length}`;
   document.getElementById('passo-barra').style.width = ((passoAtual+1) / vivos.length * 100) + '%';
   document.getElementById('passo-voltar').hidden  = passoAtual === 0;
@@ -3462,6 +3538,7 @@ function irProCurso(evento){
   setTimeout(() => { location.href = '/ponto-certo'; }, 250);
 }
 function erro(txt){
+  try{ quizErro(txt); }catch(_){}
   const m = document.getElementById('ag-msg');
   m.textContent = txt; m.className = 'agMsg err';
   // com o endereço o form ficou longo: sem isto o aviso nasce fora da tela
@@ -3955,6 +4032,7 @@ async function gravarAgendamento(){
 
     // Evento de conversão — é ESTE que a campanha otimiza
     try{ fbq('track','Schedule',{content_name:'Reuniao Eletroposto', content_category:perfil}); }catch(e){}
+    try{ window.quizFim('reuniao', 'schedule'); }catch(e){}
 
     const rot = rotuloSlot(slotSel);   // mesma formatação que o portão mostrou
     document.getElementById('ok-txt').textContent = `${rot.completo}, horário de Brasília`;
@@ -4264,6 +4342,9 @@ rotBody.addEventListener('keydown', e => {
     function send(path, body) { try { fetch(url + path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body), keepalive: true }).catch(()=>{}); } catch (_) {} }
     try { if (!sessionStorage.getItem(SENT)) { send('/_t/v', { session_id: sid, landing_url: location.href, referrer: document.referrer || null, ...utms }); sessionStorage.setItem(SENT, '1'); } } catch (_) {}
     function evt(type, data) { send('/_t/e', { session_id: sid, event_type: type, event_data: data || null }); }
+    // o lpFunil() do quiz escreve por aqui (ver FUNIL DO QUIZ NO NOSSO BANCO)
+    window.lpEvt = evt;
+    try { (window.__lpFila || []).splice(0).forEach(function (x) { evt(x[0], x[1]); }); } catch (_) {}
     document.addEventListener('click', (e) => {
       const a = e.target.closest('a[href^="https://wa.me"], a[href^="https://api.whatsapp.com"], a[href*="instagram.com"]');
       if (!a) return;
