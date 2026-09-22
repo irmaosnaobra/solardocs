@@ -173,15 +173,17 @@ const initialFields = {
   taxa_cartao_20: '17,57',
   taxa_cartao_21: '18,17',
   pag_fin: true,
-  // Financiamento: 36x/48x/60x/84x. Default marcados: 36x e 48x.
+  // Financiamento: 36x/48x/60x/72x/84x. Default marcados: 36x e 48x.
   // Taxa mensal editável (default 2,2% a.m. — Price com 120 dias de carência).
   pag_fin_36: true,
   pag_fin_48: true,
   pag_fin_60: false,
+  pag_fin_72: false,
   pag_fin_84: false,
   taxa_fin_36: '2,20',
   taxa_fin_48: '2,20',
   taxa_fin_60: '2,20',
+  taxa_fin_72: '2,20',
   taxa_fin_84: '2,20',
   pag_entrada: false,
   entrada_valor: '',
@@ -1454,7 +1456,7 @@ export default function PropostaSolarPage() {
               })}
             </PagGrupo>
 
-            {/* FINANCIAMENTO — 36x/48x/60x/84x, cada uma com taxa mensal editável */}
+            {/* FINANCIAMENTO — 36x/48x/60x/72x/84x, cada uma com taxa mensal editável */}
             <PagGrupo
               checked={fields.pag_fin}
               onToggle={(v) => setField('pag_fin', v)}
@@ -1464,7 +1466,7 @@ export default function PropostaSolarPage() {
               <div style={{ fontSize: 11, color: 'var(--color-text-muted)', padding: '2px 6px 8px', lineHeight: 1.4 }}>
                 <strong>Obs:</strong> taxa mensal padrão 2,2% a.m. — adeque a sua realidade no campo de taxa ao lado de cada parcela.
               </div>
-              {[36, 48, 60, 84].map((n) => {
+              {[36, 48, 60, 72, 84].map((n) => {
                 const ativoKey = `pag_fin_${n}` as keyof typeof fields;
                 const taxaKey = `taxa_fin_${n}` as keyof typeof fields;
                 const taxaPct = parseTaxa(String(fields[taxaKey] || ''));

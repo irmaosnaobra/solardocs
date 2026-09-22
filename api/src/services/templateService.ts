@@ -2381,7 +2381,7 @@ function propostaSolar1Pagina(company: Company, client: Client, f: Record<string
   const finTaxa = (n: number) => { const v = parseFloat(String(f[`taxa_fin_${n}`] || '').replace(',', '.')); return v > 0 ? v : 2.20; };
   const cartaoTaxa = (n: number) => { const v = parseFloat(String(f[`taxa_cartao_${n}`] || '').replace(',', '.')); return v > 0 ? v : (TAXA_CARTAO_DEF[n] ?? 0); };
   let parcelaLabel = '';
-  const finAtivos = [36, 48, 60, 84].filter((n) => f[`pag_fin_${n}`] === true);
+  const finAtivos = [36, 48, 60, 72, 84].filter((n) => f[`pag_fin_${n}`] === true);
   const cartaoAtivos = Array.from({ length: 21 }, (_, i) => i + 1).filter((n) => f[`pag_cartao_${n}`] === true);
   if (investimento > 0 && f.pag_fin !== false && finAtivos.length) {
     const n = Math.max(...finAtivos);
@@ -2627,7 +2627,7 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
     return Math.ceil((investimento * (1 + taxaCartao(n) / 100)) / n);
   }
   // Financiamento Price com 120 dias (4 meses) de carência.
-  // Taxa mensal editável por proposta (default 2,2% a.m.). Prazos: 36/48/60/84.
+  // Taxa mensal editável por proposta (default 2,2% a.m.). Prazos: 36/48/60/72/84.
   const FIN_CARENCIA_MESES = 4;
   const FIN_RATE_DEFAULT = 2.20; // % a.m.
   function taxaFin(n: number): number {
@@ -2670,8 +2670,8 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
   for (let n = 1; n <= 21; n++) {
     cartaoAtivo[n] = f[`pag_cartao_${n}` as keyof typeof f] === true;
   }
-  // Financiamento: 36/48/60/84. Form é a fonte de verdade — só lê o que veio.
-  const FIN_PRAZOS = [36, 48, 60, 84] as const;
+  // Financiamento: 36/48/60/72/84. Form é a fonte de verdade — só lê o que veio.
+  const FIN_PRAZOS = [36, 48, 60, 72, 84] as const;
   const finAtivo: Record<number, boolean> = {};
   for (const n of FIN_PRAZOS) {
     finAtivo[n] = f[`pag_fin_${n}` as keyof typeof f] === true;
@@ -2948,7 +2948,7 @@ function propostaSolarM1(company: Company, client: Client, f: Record<string, unk
     }
   }
 
-  // Financiamento bancário — 36x / 48x / 60x / 84x. Taxa mensal por parcela
+  // Financiamento bancário — 36x / 48x / 60x / 72x / 84x. Taxa mensal por parcela
   // (form ou default 2,2% a.m.), Price com 120 dias de carência.
   if (pagOpts.fin && investimento > 0) {
     for (const n of FIN_PRAZOS) {
