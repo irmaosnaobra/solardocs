@@ -53,6 +53,7 @@ import { runEletropostoAgendaTick } from '../services/io/eletropostoAgenda';
 import { runEletropostoRespostasTick } from '../services/io/eletropostoRespostas';
 import { runEletropostoCobraSimTick } from '../services/io/eletropostoCobraSim';
 import { runEletropostoRetornoTick } from '../services/io/eletropostoRetorno';
+import { runEletropostoNaoAtendidoFupTick } from '../services/io/eletropostoNaoAtendidoFup';
 import { runEletropostoReagendaAutoTick } from '../services/io/eletropostoReagendaAuto';
 import { runEletropostoCardPingTick } from '../services/io/eletropostoCardPing';
 import { runEletropostoAlerta10minTick } from '../services/io/eletropostoAlerta10min';
@@ -377,6 +378,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       runEletropostoRespostasTick(),   // eletroposto: lead respondeu a automação → recado pro Thiago e pro Diego
       runEletropostoCobraSimTick(),    // eletroposto: régua do SIM — cobra quem não confirmou, libera o horário na 3ª e manda a ficha pro Curioso (EP_COBRA_SIM_OFF desliga)
       runEletropostoRetornoTick(),     // eletroposto: quem perdeu o horário na régua do SIM é chamado de volta com horário na mesa, 2 vezes (EP_RETORNO_OFF desliga)
+      runEletropostoNaoAtendidoFupTick(), // eletroposto: das 19h, quem o consultor marcou NÃO ATENDIDO recebe a oportunidade e 3 horários pra remarcar (EP_FUP_NAOATENDIDO_OFF desliga)
       runEletropostoReagendaAutoTick(), // eletroposto: card vermelho QUENTE com o horário vencido volta pro próximo dia útil e recomeça os avisos, até 2× (EP_REAGENDA_AUTO_OFF desliga)
       runEletropostoCardPingTick(),    // eletroposto: card que trocou de dono no repasse de 12h chega de novo no WhatsApp de quem está com ele (EP_CARD_PING_OFF desliga)
       runEletropostoIgConviteTick(),   // eletroposto: lead que veio do Instagram não marca agenda — recebe UM convite pra LP (EP_IG_CONVITE_OFF desliga)
@@ -608,6 +610,22 @@ router.get('/eletroposto-cobra-sim', async (req: Request, res: Response) => {
 // Quem perdeu o horário na régua do SIM recebe, em D+1 e D+3, os próximos
 // horários do mesmo consultor e volta respondendo um número. ?dry=1 mostra quem
 // seria chamado, sem enviar e sem gravar rodada.
+// ── Não atendido: o consultor esperou e a pessoa não veio (das 19h) ──────────
+// Mostra o que ela está deixando na mesa, diz que o consultor a chamou e põe 3
+// horários pra ela escolher um número. Só as fichas marcadas por GENTE: as que o
+// robô marcou não tiveram consultor esperando. ?dry=1 mostra a lista a qualquer
+// hora, sem enviar.
+router.get('/eletroposto-nao-atendido', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    res.json({ ok: true, dry, ...(await runEletropostoNaoAtendidoFupTick({ dry })) });
+  } catch (err: any) {
+    logger.error('cron', 'eletroposto-nao-atendido falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
 router.get('/eletroposto-retorno', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
@@ -1660,6 +1678,7 @@ router.get('/master', async (req: Request, res: Response) => {
     ['eletroposto-respostas',       () => runEletropostoRespostasTick()], // eletroposto: quem respondeu a automação vira recado pra equipe
     ['eletroposto-cobra-sim',       () => runEletropostoCobraSimTick()], // eletroposto: régua do SIM, cobra o SIM e libera o horário de quem não responde (EP_COBRA_SIM_OFF desliga)
     ['eletroposto-retorno',         () => runEletropostoRetornoTick()], // eletroposto: follow-up de retorno de quem perdeu o horário, com horário na mesa (EP_RETORNO_OFF desliga)
+    ['eletroposto-nao-atendido',    () => runEletropostoNaoAtendidoFupTick()], // eletroposto: 19h, quem nao apareceu recebe a oportunidade e horarios pra remarcar (EP_FUP_NAOATENDIDO_OFF desliga)
     ['eletroposto-reagenda-auto',   () => runEletropostoReagendaAutoTick()], // eletroposto: vermelho QUENTE vencido volta pro próximo dia útil sozinho (até 2×)
     ['eletroposto-card-ping',       () => runEletropostoCardPingTick()],  // eletroposto: reenvia o card pro consultor quando o repasse de 12h troca o dono
     ['eletroposto-alerta-10min',    () => runEletropostoAlerta10minTick()], // eletroposto: 10 min antes da reunião CONFIRMADA, alerta no WhatsApp do dono (EP_ALERTA_10MIN_OFF desliga)

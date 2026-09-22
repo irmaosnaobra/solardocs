@@ -207,6 +207,31 @@ export function bolhasRetorno2(nome: string, ofertas: string[], quem: string): s
   ];
 }
 
+// ── COPY DO NÃO ATENDIDO (o consultor esperou e a pessoa não veio) ──────────
+// Ordem do dono, 22/09/2026: "quando eu colocar não atendido, quero que a pessoa
+// receba um followup mostrando a oportunidade que ela está deixando, manda que o
+// consultor enviou mensagem e não foi atendido, mostra que estamos prontos para
+// reagendar e dá opções da agenda".
+//
+// Três coisas, nessa ordem, e nenhuma a mais:
+//   1. O QUE ACONTECEU, sem acusar. "Te chamei e não consegui falar com você" é
+//      fato; "você furou comigo" é cobrança, e cobrança não traz ninguém de volta.
+//   2. O QUE ELA ESTÁ DEIXANDO NA MESA. Aqui é o estudo do ponto DELA, com
+//      número, que é o que a reunião entrega de verdade. Nada de promessa de
+//      faturamento: o que a casa promete é o estudo, e prometer o resto é o jeito
+//      mais rápido de perder a reunião seguinte.
+//   3. A PORTA ABERTA com horário na mão e um número pra responder.
+export function bolhasNaoAtendido(nome: string, ofertas: string[], quem: string): string[] {
+  return [
+    `Oi${comNome(nome)}! O *${quem}* te chamou no horário da reunião e não conseguiu falar com você.`,
+    'Fica pra próxima, sem problema. Só não quero que você perca isso de vista: '
+    + 'na reunião ele abre o estudo do SEU ponto, com o que o local comporta, '
+    + 'o investimento e o prazo de retorno. É meia hora, e você sai com número na mão.',
+    `Se quiser remarcar, é só escolher:\n\n${ofertas.map(linhaDaOpcao).join('\n')}`,
+    'Me responde só o número que eu já travo pra você.',
+  ];
+}
+
 /** Sem vaga nenhuma nas próximas 3 semanas: não inventa horário, chama gente. */
 export function bolhasSemVaga(nome: string, quem: string): string[] {
   return [
