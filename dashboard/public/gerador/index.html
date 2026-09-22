@@ -7467,6 +7467,17 @@ function voltarDoTabelas() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+// Nome curto de cada aba da tela Tabelas, do jeito que o Thiago pediu em 22/09/2026. So' a
+// aba: o titulo da tabela aberta segue com PROMO e placa, que e' onde o vendedor ve que o 3K
+// so' aceita cartao e a' vista. Kit novo sem nome aqui cai no formato longo.
+const NOME_ABA_TABELA = {
+  'MICRODEYE-TCL600W':    'Micro Deye 2,25K',
+  'SAJ-3K-PROMO':         'SAJ 3K',
+  'SAJ-6K-TCL':           'SAJ 6K',
+  'SAJ-7.3K-TCL':         'SAJ 7,3K',
+  'SOLAX-1.875K-ERA620W': 'SOLAX 1,875K',
+};
+
 function renderAbasTabelas() {
   const wrap = document.getElementById('tbl-abas');
   if (!wrap) return;
@@ -7475,7 +7486,7 @@ function renderAbasTabelas() {
     const ativo = equipConfig[linha] !== false;
     const sel = linha === tblAbaAtiva ? ' ativo-aba' : '';
     const onoff = ativo ? 'on' : 'off desativado';
-    const nome = `${t.inv}${linha.endsWith('-PROMO') ? ' PROMO' : ''} + ${t.mod}`;
+    const nome = NOME_ABA_TABELA[linha] || `${t.inv}${linha.endsWith('-PROMO') ? ' PROMO' : ''} + ${t.mod}`;
     return `<button type="button" class="tbl-aba${sel} ${onoff}" data-linha="${linha}">
       <span onclick="selecionarAba('${linha}')">${nome}</span>
       <span class="tbl-toggle" title="${ativo ? 'Ativo no gerador — clique p/ desativar' : 'Desativado — clique p/ ativar'}" onclick="toggleEquip('${linha}', event)">${ativo ? '✓' : '✕'}</span>
