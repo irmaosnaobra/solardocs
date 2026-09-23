@@ -298,8 +298,29 @@
   .tag-pill.tag-solar-trafego { background: #FF9100; color: #2A1200; box-shadow: 0 0 6px rgba(255,145,0,.55); }
   .tag-pill.tag-solar-organic { background: #FFD000; color: #2A2200; box-shadow: 0 0 6px rgba(255,208,0,.55); }
   .tag-pill.tag-solar-prospec { background: #FF5E3A; color: #2A0C00; box-shadow: 0 0 6px rgba(255,94,58,.55); }
+  /* APRESENTAÇÃO (23/09/2026). Etiqueta própria, INDEPENDENTE do status: o card
+     pode estar em qualquer cor e ainda dizer se a apresentação foi feita. Cores
+     cheias com texto branco porque ela pousa em card claro (bege, azul) e escuro
+     (vermelho, verde) — pilula clara sumiria na metade deles. */
+  .tag-pill.tag-apres-ok  { background: #15803D; color: #fff; box-shadow: 0 0 6px rgba(21,128,61,.5) }
+  .tag-pill.tag-apres-nao { background: #B91C1C; color: #fff; box-shadow: 0 0 6px rgba(185,28,28,.5) }
+  /* Com a etiqueta de apresentação são TRÊS pílulas numa linha que já enchia a
+     coluna de 180px (a mais estreita da grade) com duas. A linha é nowrap com
+     ellipsis, então sem apertar a terceira sumia no corte. */
+  .slot.ocupado .cidade.apertado .tag-pill { font-size: 8px; padding: 0 4px; letter-spacing: 0 }
   /* No modal (fundo claro) a pill neutra precisa de contraste próprio */
   .detalhe-box .tag-pill { font-size: 11px; padding: 1px 8px; background: #e5e7eb; color: #374151; }
+  /* Os dois botões da apresentação, no detalhe: mesma cor da etiqueta que eles põem. */
+  .apres-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
+  .apres-btn {
+    padding: 11px 8px; border-radius: 9px; border: 2px solid transparent; cursor: pointer;
+    font-family: inherit; font-size: 12.5px; font-weight: 800; line-height: 1.15; color: #fff;
+  }
+  .apres-btn.ok  { background: #15803D }
+  .apres-btn.nao { background: #B91C1C }
+  .apres-btn:hover { filter: brightness(1.08) }
+  /* Marcado: contorno claro, igual ao is-atual dos outros botões do detalhe. */
+  .apres-btn.is-atual { border-color: #fff; box-shadow: 0 0 0 2px rgba(255,255,255,.25) }
   .detalhe-box .tag-pill.tag-ep,
   .detalhe-box .tag-pill.tag-ep-trafego    { background: #39FF14; color: #06210A; }
   .detalhe-box .tag-pill.tag-ep-organic    { background: #00E5A0; color: #00241A; }
@@ -1304,6 +1325,19 @@
       <div class="posse-nota">Se o local ainda não é dele, ele não pode ceder (contrato, cl. 16.1): não é arrendamento.</div>
     </div>
 
+    <!-- APRESENTAÇÃO (23/09/2026): etiqueta verde ou vermelha no card. Vale pra
+         todo card, solar inclusive, e não mexe no status: é a resposta de outra
+         pergunta. Clicar no botão já marcado desmarca, e o card volta a não
+         mostrar nada — não marcado é diferente de "não concluída". -->
+    <div id="d-apres-wrap">
+      <div class="status-label">🖥️ Apresentação</div>
+      <div class="apres-grid">
+        <button type="button" class="apres-btn ok"  id="d-apres-ok"  onclick="marcarApresentacao('concluida')">APRES CONCLUÍDA</button>
+        <button type="button" class="apres-btn nao" id="d-apres-nao" onclick="marcarApresentacao('nao_concluida')">APRES NÃO CONCLUÍDA</button>
+      </div>
+      <div class="prop-atual" id="d-apres-atual"></div>
+    </div>
+
     <!-- Eletroposto: quem REALMENTE apresentou a proposta. Só aparece em card de
          eletroposto (o lead circula entre Thiago e Diego a cada 12h sem ação). -->
     <div id="d-prop-wrap" style="display:none">
@@ -1633,6 +1667,19 @@ const ETIQUETA_STATUS = {
   meio_a_meio:          ['50/50',          '50/50'],
   chave_na_mao:         ['CHAVE NA MÃO',   'CHAVE'],
 };
+/** APRESENTAÇÃO: etiqueta verde/vermelha que o consultor marca no card (23/09/2026).
+ *  Não é status: convive com qualquer um deles, porque a pergunta que ela responde
+ *  ("a apresentação foi feita?") é outra. Card sem marcação não mostra nada — só
+ *  aparece quando alguém decidiu, senão toda reunião nasceria "não concluída". */
+const ETIQUETA_APRES = {
+  concluida:     ['APRES CONCLUÍDA',     'APRES OK',  'tag-apres-ok'],
+  nao_concluida: ['APRES NÃO CONCLUÍDA', 'APRES NÃO', 'tag-apres-nao'],
+};
+function pillApres(ag, curto) {
+  const t = ag && ETIQUETA_APRES[ag.apresentacao];
+  return t ? `<span class="tag-pill ${t[2]}">${curto ? t[1] : t[0]}</span>` : '';
+}
+
 /** Etiqueta de status do card. Depois que tres status passaram a dividir o mesmo
  *  vermelho e quatro o mesmo bege, a cor sozinha nao diz mais qual e — quem diz
  *  e esta pilula, e por isso ela vale pra TODO card.
@@ -1762,7 +1809,7 @@ function renderGrid() {
             return `<div class="meia ocupado status-${escapeHtml(a.status || 'agendado')}${okA ? ' confirmado' : ''}${semRespostaDoLead(a) ? ' sem-resposta' : ''}"
               data-id="${a.id}" onclick="abrirDetalhes(${a.id})" title="${escapeHtml(a.cliente_nome || '')}">
               <div class="nome">${horaDoSlot(a, iniSlot)}${escapeHtml(a.cliente_nome)}</div>
-              ${(pillStatus(a, true) || etq) ? `<div class="cidade">${pillStatus(a, true)}${etq ? ` <span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>` : ''}</div>` : ''}
+              ${(pillStatus(a, true) || pillApres(a, true) || etq) ? `<div class="cidade">${pillStatus(a, true)}${pillApres(a, true) ? ' ' + pillApres(a, true) : ''}${etq ? ` <span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>` : ''}</div>` : ''}
               ${btnConfirmada(a, true)}
             </div>`;
           }).join('') + `</div>`;
@@ -1779,17 +1826,23 @@ function renderGrid() {
           // TODO card leva as duas etiquetas lado a lado (status + origem), e a
           // cidade sobe pra linha do telefone. Medido na coluna de 180px, que e a
           // mais estreita da grade: com a cidade junto, o rodape cortava.
-          const mod = pillStatus(ag);
+          // A etiqueta da apresentação entra na forma curta: o nome inteiro
+          // ("APRES NÃO CONCLUÍDA") estoura a linha e some no corte. Inteiro ele
+          // aparece no detalhe, que é onde se marca. E com ela na linha o status
+          // também encolhe (ORÇOU, NEGOC…): três pílulas inteiras não cabem na
+          // coluna de 180px, e a linha é nowrap — a última sumiria.
+          const apres = pillApres(ag, true);
+          const mod = pillStatus(ag, !!apres);
           const cidTxt = ag.cidade ? `📍 ${escapeHtml(ag.cidade)}` : '';
           const etqPill = etq ? `<span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>` : '';
-          const rodape = [mod, etqPill].filter(Boolean).join(' ');
+          const rodape = [mod, apres, etqPill].filter(Boolean).join(' ');
           const okCls = ag.presenca_confirmada_at ? ' confirmado' : '';
           const srCls = semRespostaDoLead(ag) ? ' sem-resposta' : '';
           html += `<div class="slot ocupado ${stCls}${tempCls}${okCls}${srCls}" data-id="${ag.id}" onclick="abrirDetalhes(${ag.id})">
             ${tempLabel ? `<div class="temp-mark">${tempLabel}</div>` : ''}
             <div class="nome">${horaDoSlot(ag, iniSlot)}${escapeHtml(ag.cliente_nome)}</div>
             <div class="tel">${escapeHtml(formatTelBR(ag.cliente_telefone))}${cidTxt ? ' · ' + cidTxt : ''}</div>
-            ${rodape ? `<div class="cidade">${rodape}</div>` : ''}
+            ${rodape ? `<div class="cidade${apres ? ' apertado' : ''}">${rodape}</div>` : ''}
             ${btnConfirmada(ag, false)}
           </div>`;
         } else if (bloq) {
@@ -2088,8 +2141,64 @@ function abrirDetalhes(id) {
   marcarStatusAtualNosBotoes(ag.status || 'agendado');
   marcarTemperaturaAtualNosBotoes(ag.temperatura || null);
   renderPropostaEP(ag);
+  renderApresentacao(ag);
   fecharReagendar();
   document.getElementById('modal-det').classList.add('show');
+}
+
+// ===== APRESENTAÇÃO · A ETIQUETA VERDE OU VERMELHA DO CARD ===================
+// Ordem do dono (23/09/2026): dá pra bater o olho na grade e ver onde a
+// apresentação já foi feita. Fica numa coluna própria (`apresentacao`), e não no
+// status, por dois motivos: o status já carrega o desfecho do negócio (arrendamento,
+// 50/50, perdido), e a apresentação acontece POR DENTRO de vários desses desfechos.
+// Card sem marcação não mostra etiqueta nenhuma: "ninguém marcou" não é "não fez".
+function renderApresentacao(ag) {
+  const wrap = document.getElementById('d-apres-wrap');
+  if (!wrap || !ag) return;
+  const v = ag.apresentacao || '';
+  document.getElementById('d-apres-ok').classList.toggle('is-atual', v === 'concluida');
+  document.getElementById('d-apres-nao').classList.toggle('is-atual', v === 'nao_concluida');
+  let quando = '';
+  if (ag.apresentacao_em) {
+    const d = new Date(ag.apresentacao_em);
+    if (!isNaN(d.getTime())) quando = ` em ${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}h${pad(d.getMinutes())}`;
+  }
+  const quem = ag.apresentacao_por ? ` por ${ag.apresentacao_por}` : '';
+  document.getElementById('d-apres-atual').textContent = v
+    ? `${v === 'concluida' ? 'Apresentação concluída' : 'Apresentação não concluída'}${quem}${quando} — clique no mesmo botão pra desmarcar.`
+    : 'Marque quando a apresentação for feita. A etiqueta aparece no card, na grade.';
+}
+
+async function marcarApresentacao(valor) {
+  if (!detalheAtual) return;
+  const ag = detalheAtual;
+  // Toggle igual ao da proposta: clicar no que já está marcado desmarca, e o card
+  // volta a não mostrar etiqueta nenhuma.
+  const desmarcar = (ag.apresentacao || '') === valor;
+  const agora = new Date();
+  const autor = consultorLogado() || '—';
+  const ts = `${pad(agora.getDate())}/${pad(agora.getMonth()+1)} ${pad(agora.getHours())}h${pad(agora.getMinutes())}`;
+  const rotulo = valor === 'concluida' ? 'concluída' : 'não concluída';
+  const entrada = desmarcar
+    ? `[${ts} · ${autor}] 🖥️ Etiqueta de apresentação removida.`
+    : `[${ts} · ${autor}] 🖥️ Apresentação ${rotulo}.`;
+  const historico = ag.historico ? `${entrada}\n\n${ag.historico}` : entrada;
+  const patch = desmarcar
+    ? { apresentacao: null, apresentacao_em: null, apresentacao_por: null, historico }
+    : { apresentacao: valor, apresentacao_em: agora.toISOString(), apresentacao_por: autor, historico };
+  try {
+    await supaPatch(`agendamentos?id=eq.${ag.id}`, patch);
+    Object.assign(ag, patch);
+    const idx = agendamentosCache.findIndex(a => a.id === ag.id);
+    if (idx >= 0) Object.assign(agendamentosCache[idx], patch);
+    document.getElementById('d-hist').textContent = historico;
+    renderApresentacao(ag);
+    showToast(desmarcar ? '🖥️ Etiqueta de apresentação removida' : `🖥️ Apresentação ${rotulo}`);
+    renderGrid();
+  } catch (e) {
+    document.getElementById('d-erro').textContent = 'Erro ao marcar a apresentação.';
+    console.error(e);
+  }
 }
 
 // ===== ELETROPOSTO · PROPOSTA APRESENTADA ===================================
