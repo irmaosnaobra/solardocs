@@ -230,14 +230,12 @@
   .ocupado.status-sem_interesse .hora-exata,
   .ocupado.status-perdido .hora-exata,
   .ocupado.status-sem_orcamento .hora-exata,
-  .ocupado.status-fechou .hora-exata,
   .ocupado.status-fechou_concorrente .hora-exata { background: rgba(255,255,255,.92); color: #111827; }
   .ocupado.status-agendado .tag-pill:not([class*=" tag-"]),
   .ocupado.status-nao_atendeu .tag-pill:not([class*=" tag-"]),
   .ocupado.status-sem_interesse .tag-pill:not([class*=" tag-"]),
   .ocupado.status-perdido .tag-pill:not([class*=" tag-"]),
   .ocupado.status-sem_orcamento .tag-pill:not([class*=" tag-"]),
-  .ocupado.status-fechou .tag-pill:not([class*=" tag-"]),
   .ocupado.status-fechou_concorrente .tag-pill:not([class*=" tag-"]) { background: rgba(255,255,255,.92); color: #111827; }
   /* "NAO CONFIRMOU" e card CLARO (#FCA5A5) mas carrega 'status-agendado' junto,
      entao precisa desfazer o tratamento de card escuro — e vem DEPOIS dele. */
@@ -304,6 +302,15 @@
      (vermelho, verde) — pilula clara sumiria na metade deles. */
   .tag-pill.tag-apres-ok  { background: #15803D; color: #fff; box-shadow: 0 0 6px rgba(21,128,61,.5) }
   .tag-pill.tag-apres-nao { background: #B91C1C; color: #fff; box-shadow: 0 0 6px rgba(185,28,28,.5) }
+  /* No QUADRO DIVIDIDO (dois clientes no mesmo horário) a metade tem 90px: lá
+     nem a pílula curta cabe, ela empilhava uma terceira linha e espremia o botão
+     de confirmar. Vira um ponto colado no status, e a legenda explica. */
+  .apres-ponto {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    margin-left: 3px; vertical-align: middle; box-shadow: 0 0 0 1.5px rgba(255,255,255,.8);
+  }
+  .apres-ponto.ok  { background: #15803D }
+  .apres-ponto.nao { background: #B91C1C }
   /* Com a etiqueta de apresentação são TRÊS pílulas numa linha que já enchia a
      coluna de 180px (a mais estreita da grade) com duas. A linha é nowrap com
      ellipsis, então sem apertar a terceira sumia no corte. */
@@ -337,7 +344,13 @@
   .slot.status-sem_interesse     { background: #dc2626; color: #fff; }
   .slot.status-sem_orcamento     { background: #C2410C; color: #fff; }
   .slot.status-fez_orcamento     { background: #C2D2E2; color: #1f2937; }
-  .slot.status-fechou            { background: #15803d; color: #fff; }
+  /* VENDIDO (23/09/2026, era "Fechou"): cor própria, dourada, e de propósito
+     diferente de tudo que já está na grade. O verde antigo se confundia com o
+     verde-esmeralda de "reunião confirmada", que aparece ANTES da reunião; a
+     venda é o fim da linha e tem que saltar de longe. Contorno claro e brilho
+     porque é o único card que ganha destaque na semana inteira. */
+  .slot.status-fechou            { background: linear-gradient(135deg, #FDE047 0%, #F59E0B 100%); color: #3B2A00;
+                                   box-shadow: inset 0 0 0 2px #FFFBEB, 0 0 12px rgba(245,158,11,.6); }
   .slot.status-em_atendimento    { background: #DFE7F0; color: #1f2937; }
   .slot.status-proposta_apresentada { background: #B3C7DC; color: #1f2937; }
   .slot.status-fechou_concorrente{ background: #374151; color: #fff; }
@@ -358,7 +371,8 @@
   .slot.dividido .meia.status-sem_interesse     { background: #dc2626; color: #fff; }
   .slot.dividido .meia.status-sem_orcamento     { background: #C2410C; color: #fff; }
   .slot.dividido .meia.status-fez_orcamento     { background: #C2D2E2; color: #1f2937; }
-  .slot.dividido .meia.status-fechou            { background: #15803d; color: #fff; }
+  .slot.dividido .meia.status-fechou            { background: linear-gradient(135deg, #FDE047 0%, #F59E0B 100%); color: #3B2A00;
+                                                  box-shadow: inset 0 0 0 2px #FFFBEB; }
   .slot.dividido .meia.status-em_atendimento    { background: #DFE7F0; color: #1f2937; }
   .slot.dividido .meia.status-proposta_apresentada { background: #B3C7DC; color: #1f2937; }
   .slot.dividido .meia.status-fechou_concorrente{ background: #374151; color: #fff; }
@@ -430,14 +444,12 @@
   .ocupado.status-sem_interesse .ok-btn,
   .ocupado.status-perdido .ok-btn,
   .ocupado.status-sem_orcamento .ok-btn,
-  .ocupado.status-fechou .ok-btn,
   .ocupado.status-fechou_concorrente .ok-btn { background: rgba(255,255,255,.92); color: #111827; }
   .ocupado.status-agendado .ok-btn:hover,
   .ocupado.status-nao_atendeu .ok-btn:hover,
   .ocupado.status-sem_interesse .ok-btn:hover,
   .ocupado.status-perdido .ok-btn:hover,
   .ocupado.status-sem_orcamento .ok-btn:hover,
-  .ocupado.status-fechou .ok-btn:hover,
   .ocupado.status-fechou_concorrente .ok-btn:hover { background: #fff; color: #111827; }
   /* "NAO CONFIRMOU": card claro que carrega 'status-agendado'. Desfaz, e vem depois. */
   .ocupado.sem-resposta .ok-btn { background: rgba(31,41,55,.14); color: #1f2937; }
@@ -785,7 +797,7 @@
   .sw-so     { background: #C2410C; }
   .sw-fo     { background: #C2D2E2; border-color: #d1d5db; }
   .sw-pa     { background: #B3C7DC; border-color: #d1d5db; }
-  .sw-fe     { background: #15803d; }
+  .sw-fe     { background: linear-gradient(135deg, #FDE047 0%, #F59E0B 100%); }
   .sw-pe     { background: #dc2626; }
   /* Os quatro modelos do eletroposto: claros, entao a borda do swatch precisa
      aparecer, igual ao do fez_orcamento. */
@@ -859,7 +871,7 @@
   .btn-status.bg-si { background: #dc2626; color: #fff; }
   .btn-status.bg-so { background: #C2410C; color: #fff; }
   .btn-status.bg-fo { background: #C2D2E2; color: #1f2937; }
-  .btn-status.bg-fe { background: #15803d; color: #fff; }
+  .btn-status.bg-fe { background: linear-gradient(135deg, #FDE047 0%, #F59E0B 100%); color: #3B2A00; }
   .btn-status.bg-em { background: #DFE7F0; color: #1f2937; }
   .btn-status.bg-ar { background: #EADBC0; color: #1f2937; }
   .btn-status.bg-cr { background: #EADBC0; color: #1f2937; }
@@ -1029,7 +1041,8 @@
   html[data-theme="dark"] .slot.status-sem_interesse     { background: #dc2626; color: #fff; }
   html[data-theme="dark"] .slot.status-sem_orcamento     { background: #C2410C; color: #fff; }
   html[data-theme="dark"] .slot.status-fez_orcamento     { background: #C2D2E2; color: #1f2937; }
-  html[data-theme="dark"] .slot.status-fechou            { background: #15803d; color: #fff; }
+  html[data-theme="dark"] .slot.status-fechou            { background: linear-gradient(135deg, #FDE047 0%, #F59E0B 100%); color: #3B2A00;
+                                                           box-shadow: inset 0 0 0 2px #FFFBEB, 0 0 12px rgba(245,158,11,.6); }
   html[data-theme="dark"] .slot.status-em_atendimento    { background: #DFE7F0; color: #1f2937; }
   html[data-theme="dark"] .slot.status-proposta_apresentada { background: #B3C7DC; color: #1f2937; }
   html[data-theme="dark"] .slot.status-fechou_concorrente{ background: #374151; color: #fff; }
@@ -1137,8 +1150,8 @@
     <div class="item"><div class="sw sw-so"></div> Sem orçamento</div>
     <div class="item"><div class="sw sw-fo"></div> Fez orçamento</div>
     <div class="item"><div class="sw sw-pa"></div> Proposta apresentada</div>
-    <div class="item"><div class="sw sw-fe"></div> Fechou</div>
-    <div class="item"><div class="sw sw-pe"></div> Perdido</div>
+    <div class="item"><div class="sw sw-fe"></div> Vendido</div>
+    <div class="item"><span class="apres-ponto ok"></span><span class="apres-ponto nao"></span> Apresentação concluída / não concluída (no quadro dividido)</div>
     <div class="item"><div class="sw sw-mod"></div> Modelo do eletroposto (a etiqueta no card diz qual)</div>
     <div class="item"><div class="sw" style="background:repeating-linear-gradient(45deg,#6b7280,#6b7280 4px,#525c6a 4px,#525c6a 8px)"></div> Bloqueado</div>
     <div class="item" style="margin-left:8px;padding-left:12px;border-left:1px solid #d1d5db">❄️ <div class="sw sw-tf"></div> Frio</div>
@@ -1310,8 +1323,11 @@
       <button type="button" class="btn-status bg-cr" data-status="carregador"        onclick="atualizarStatus('carregador')" style="grid-column: span 2;">🔌 Carregador</button>
       <button type="button" class="btn-status bg-mm" data-status="meio_a_meio"       onclick="atualizarStatus('meio_a_meio')" style="grid-column: span 2;">👥 50/50</button>
       <button type="button" class="btn-status bg-ch" data-status="chave_na_mao"      onclick="atualizarStatus('chave_na_mao')" style="grid-column: span 2;">🔑 Chave na mão</button>
-      <button type="button" class="btn-status bg-pe" data-status="perdido"           onclick="atualizarStatus('perdido')" style="grid-column: span 2;">❌ Perdido</button>
-      <button type="button" class="btn-status bg-fe" data-status="fechou"            onclick="atualizarStatus('fechou')" style="grid-column: span 2;">✅ Fechou</button>
+      <!-- PERDIDO saiu do grid em 23/09/2026 (ordem do dono). Quem perde o lead
+           marca "Sem interesse". O status velho continua VIVO nos mapas de rótulo
+           e nas cores: fichas antigas o carregam e apareceriam sem selo, e a api
+           ainda o lê (STATUS_ENCERRADOS, CRM_STATUS_PERDIDO). Só o botão sumiu. -->
+      <button type="button" class="btn-status bg-fe" data-status="fechou"            onclick="atualizarStatus('fechou')" style="grid-column: span 2;">🏆 Vendido</button>
     </div>
 
     <!-- POSSE DO LOCAL: abre ao apertar ARRENDAMENTO. So o segundo toque grava. -->
@@ -1661,7 +1677,7 @@ const ETIQUETA_STATUS = {
   sem_interesse:        ['SEM INTERESSE',  'S/INTER'],
   perdido:              ['PERDIDO',        'PERD'],
   fechou_concorrente:   ['CONCORRENTE',    'CONCOR'],
-  fechou:               ['FECHOU',         'FECHOU'],
+  fechou:               ['VENDIDO',        'VENDIDO'],
   arrendamento:         ['ARRENDAMENTO',   'ARREND'],
   carregador:           ['CARREGADOR',     'CARREG'],
   meio_a_meio:          ['50/50',          '50/50'],
@@ -1678,6 +1694,13 @@ const ETIQUETA_APRES = {
 function pillApres(ag, curto) {
   const t = ag && ETIQUETA_APRES[ag.apresentacao];
   return t ? `<span class="tag-pill ${t[2]}">${curto ? t[1] : t[0]}</span>` : '';
+}
+/** A mesma informação em 8px, pro quadro dividido, onde não cabe pílula. */
+function pontoApres(ag) {
+  const v = ag && ag.apresentacao;
+  if (v !== 'concluida' && v !== 'nao_concluida') return '';
+  const ok = v === 'concluida';
+  return `<span class="apres-ponto ${ok ? 'ok' : 'nao'}" title="Apresentação ${ok ? 'concluída' : 'NÃO concluída'}"></span>`;
 }
 
 /** Etiqueta de status do card. Depois que tres status passaram a dividir o mesmo
@@ -1809,7 +1832,7 @@ function renderGrid() {
             return `<div class="meia ocupado status-${escapeHtml(a.status || 'agendado')}${okA ? ' confirmado' : ''}${semRespostaDoLead(a) ? ' sem-resposta' : ''}"
               data-id="${a.id}" onclick="abrirDetalhes(${a.id})" title="${escapeHtml(a.cliente_nome || '')}">
               <div class="nome">${horaDoSlot(a, iniSlot)}${escapeHtml(a.cliente_nome)}</div>
-              ${(pillStatus(a, true) || pillApres(a, true) || etq) ? `<div class="cidade">${pillStatus(a, true)}${pillApres(a, true) ? ' ' + pillApres(a, true) : ''}${etq ? ` <span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>` : ''}</div>` : ''}
+              ${(pillStatus(a, true) || pontoApres(a) || etq) ? `<div class="cidade">${pillStatus(a, true)}${pontoApres(a)}${etq ? ` <span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>` : ''}</div>` : ''}
               ${btnConfirmada(a, true)}
             </div>`;
           }).join('') + `</div>`;
@@ -2375,7 +2398,7 @@ async function atualizarStatus(novoStatus, extra) {
       chave_na_mao:      '🔑 Marcado como Chave na mão — o eletroposto é dele',
       fechou_concorrente:'🏢 Marcado como Fechou concorrente',
       perdido:           '❌ Marcado como Perdido',
-      fechou:            '✅ Marcado como Fechou',
+      fechou:            '🏆 Marcado como VENDIDO',
     };
     showToast((labels[novoStatus] || 'Status atualizado')
       + (extra && extra.ponto_relacao ? ' · ' + extra.ponto_relacao : ''));

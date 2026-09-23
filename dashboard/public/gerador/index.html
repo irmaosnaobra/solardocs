@@ -1357,7 +1357,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-status-selo.selo-si{background:rgba(220,38,38,.24);color:#FCA5A5}
 .crm-status-selo.selo-so{background:rgba(194,65,12,.3);color:#FDBA74}
 .crm-status-selo.selo-fo{background:rgba(194,210,226,.16);color:#C2D2E2}
-.crm-status-selo.selo-fe{background:rgba(21,128,61,.28);color:#86EFAC}
+.crm-status-selo.selo-fe{background:rgba(245,158,11,.3);color:#FDE68A}
 .crm-status-selo.selo-em{background:rgba(223,231,240,.16);color:#DFE7F0}
 .crm-status-selo.selo-pe{background:rgba(220,38,38,.24);color:#FCA5A5}
 .crm-status-selo.selo-pa{background:rgba(179,199,220,.16);color:#B3C7DC}
@@ -1435,7 +1435,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-btn-status.bg-si{background:#dc2626;color:#fff}
 .crm-btn-status.bg-so{background:#C2410C;color:#fff}
 .crm-btn-status.bg-fo{background:#C2D2E2;color:#1f2937}
-.crm-btn-status.bg-fe{background:#15803d;color:#fff}
+.crm-btn-status.bg-fe{background:linear-gradient(135deg,#FDE047 0%,#F59E0B 100%);color:#3B2A00}
 .crm-btn-status.bg-em{background:#DFE7F0;color:#1f2937}
 .crm-btn-status.bg-ar{background:#EADBC0;color:#1f2937}
 .crm-btn-status.bg-cr{background:#EADBC0;color:#1f2937}
@@ -4787,8 +4787,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <button type="button" class="crm-btn-status bg-cr" data-status="carregador"        onclick="crmAtualizarStatus('carregador')" style="grid-column:span 2">🔌 Carregador</button>
         <button type="button" class="crm-btn-status bg-mm" data-status="meio_a_meio"       onclick="crmAtualizarStatus('meio_a_meio')" style="grid-column:span 2">👥 50/50</button>
         <button type="button" class="crm-btn-status bg-ch" data-status="chave_na_mao"      onclick="crmAtualizarStatus('chave_na_mao')" style="grid-column:span 2">🔑 Chave na mão</button>
-        <button type="button" class="crm-btn-status bg-pe" data-status="perdido"          onclick="crmAtualizarStatus('perdido')" style="grid-column:span 2">❌ Perdido</button>
-        <button type="button" class="crm-btn-status bg-fe" data-status="fechou"           onclick="crmAtualizarStatus('fechou')" style="grid-column:span 2">✅ Fechou</button>
+        <button type="button" class="crm-btn-status bg-fe" data-status="fechou"           onclick="crmAtualizarStatus('fechou')" style="grid-column:span 2">🏆 Vendido</button>
       </div>
       <!-- POSSE DO LOCAL: abre ao apertar ARRENDAMENTO. So o segundo toque grava. -->
       <div id="crm-det-posse" class="posse-box" hidden>
@@ -8306,7 +8305,7 @@ const CAD_AG_STATUS = {
   agendado: 'AGENDADO', nao_atendeu: 'NÃO ATENDEU', falando_whatsapp: 'WHATSAPP',
   em_atendimento: 'NEGOCIANDO', sem_orcamento: 'SEM ORÇAMENTO', fez_orcamento: 'FEZ ORÇAMENTO',
   proposta_apresentada: 'PROPOSTA', sem_interesse: 'SEM INTERESSE', perdido: 'PERDIDO',
-  fechou_concorrente: 'CONCORRENTE', fechou: 'FECHOU', arrendamento: 'ARRENDAMENTO',
+  fechou_concorrente: 'CONCORRENTE', fechou: 'VENDIDO', arrendamento: 'ARRENDAMENTO',
   carregador: 'CARREGADOR', meio_a_meio: '50/50', chave_na_mao: 'CHAVE NA MÃO',
   cancelado: 'CANCELADO', reagendar: 'REAGENDAR',
 };
@@ -15804,7 +15803,7 @@ async function crmAtualizarStatus(novoStatus, extra) {
       chave_na_mao:     '🔑 Marcado como Chave na mão — o eletroposto é dele',
       fechou_concorrente:'🏢 Marcado como Fechou concorrente',
       perdido:          '❌ Marcado como Perdido',
-      fechou:           '✅ Marcado como Fechou',
+      fechou:           '🏆 Marcado como VENDIDO',
     };
     showToast((labels[novoStatus] || 'Status atualizado')
       + (extra && extra.ponto_relacao ? ' · ' + extra.ponto_relacao : ''));
@@ -16642,7 +16641,7 @@ function renderCRM() {
     chave_na_mao:     { lbl: '🔑 Chave na mão', cls: 'ch' },
     fechou_concorrente:{ lbl: '🏢 Fechou concorrente', cls: 'pe' },
     perdido:          { lbl: '❌ Perdido', cls: 'pe' },
-    fechou:           { lbl: '✅ Fechou', cls: 'fe' },
+    fechou:           { lbl: '🏆 VENDIDO', cls: 'fe' },
   };
   const statusBadge = (s) => {
     const def = STATUS_SELO[s];
