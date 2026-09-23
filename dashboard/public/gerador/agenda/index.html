@@ -282,7 +282,9 @@
      o amarelo é claríssimo (contraste ~15:1). */
   .tag-modelo.tag-arrend {
     background: #EAFF00; color: #1A2000;
-    box-shadow: 0 0 7px rgba(234,255,0,.75);
+    /* Anel escuro + brilho: sem o anel ela encosta no #C6FF00 da etiqueta EP
+       Prospecção, que pousa na MESMA linha, e as duas viram uma mancha só. */
+    box-shadow: 0 0 0 1.5px rgba(0,0,0,.55), 0 0 7px rgba(234,255,0,.7);
   }
   .tag-pill {
     display: inline-block;
@@ -324,7 +326,8 @@
   /* Com a etiqueta de apresentação são TRÊS pílulas numa linha que já enchia a
      coluna de 180px (a mais estreita da grade) com duas. A linha é nowrap com
      ellipsis, então sem apertar a terceira sumia no corte. */
-  .slot.ocupado .cidade.apertado .tag-pill { font-size: 8px; padding: 0 4px; letter-spacing: 0 }
+  .slot.ocupado .cidade.apertado .tag-pill,
+  .slot.ocupado .cidade.apertado .tag-modelo { font-size: 8px; padding: 0 4px; letter-spacing: 0 }
   /* No modal (fundo claro) a pill neutra precisa de contraste próprio */
   .detalhe-box .tag-pill { font-size: 11px; padding: 1px 8px; background: #e5e7eb; color: #374151; }
   /* Os dois botões da apresentação, no detalhe: mesma cor da etiqueta que eles põem. */
@@ -364,10 +367,11 @@
   .slot.status-em_atendimento    { background: #DFE7F0; color: #1f2937; }
   .slot.status-proposta_apresentada { background: #B3C7DC; color: #1f2937; }
   .slot.status-fechou_concorrente{ background: #374151; color: #fff; }
-  /* OS QUATRO MODELOS DO ELETROPOSTO — UM bege so. A cor diz "isso aqui e um
-     modelo de eletroposto"; QUAL deles e a etiqueta do card que fala
-     (ARRENDAMENTO, CARREGADOR, 50/50, CHAVE NA MAO). Modelo novo entra no mesmo
-     bege e ganha a sua etiqueta, sem inventar tom. */
+  /* OS MODELOS DO ELETROPOSTO — UM bege so. A cor diz "isso aqui e um modelo de
+     eletroposto"; QUAL deles e a etiqueta do card que fala (CARREGADOR, 50/50,
+     CHAVE NA MAO). Modelo novo entra no mesmo bege e ganha a sua etiqueta, sem
+     inventar tom. O ARRENDAMENTO saiu deste grupo em 23/09/2026: virou card
+     vermelho com etiqueta amarela, porque ele vai pra outra negociacao. */
   /* ARRENDAMENTO saiu do bege (23/09/2026, ordem do dono): o card fica VERMELHO,
      igual ao "sem interesse", porque esse lead sai do funil normal do eletroposto
      e entra num grupo de negociação diferente. Vermelho aqui NÃO quer dizer
@@ -837,8 +841,9 @@
   .status-atual-pill .dot { width: 8px; height: 8px; border-radius: 50%; }
   /* POSSE DO LOCAL (21/09) — ARRENDAMENTO pergunta de quem e o local antes de gravar.
      Um toque virou dois de proposito: sem a pergunta, todo card marcado caia na aba
-     Arrendamento como "dono? nao perguntado". As cores sao as do selo da aba. */
-  .posse-box{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(234,219,192,.14);border:1px solid rgba(234,219,192,.5)}
+     Arrendamento como "dono? nao perguntado". A tinta segue a cor do ARRENDAMENTO,
+     que em 23/09/2026 deixou de ser bege e virou o amarelo fluorescente. */
+  .posse-box{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(234,255,0,.1);border:1px solid rgba(234,255,0,.45)}
   .posse-box[hidden]{display:none}
   .posse-tit{font-size:12px;font-weight:800;margin-bottom:8px}
   .posse-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
@@ -880,6 +885,7 @@
   .btn-status.bg-em.is-atual,
   .btn-status.bg-pa.is-atual,
   .btn-status.bg-ar.is-atual,
+  .btn-status.bg-fe.is-atual,
   .btn-status.bg-cr.is-atual,
   .btn-status.bg-mm.is-atual,
   .btn-status.bg-ch.is-atual { outline-color: rgba(17,24,39,.75); }
@@ -1171,7 +1177,7 @@
     <div class="item"><div class="sw sw-fe"></div> Vendido</div>
     <div class="item"><span class="apres-ponto ok"></span><span class="apres-ponto nao"></span> Apresentação concluída / não concluída (no quadro dividido)</div>
     <div class="item"><div class="sw sw-si"></div><span class="tag-modelo tag-arrend">ARRENDAMENTO</span> Arrendamento (card vermelho, etiqueta amarela: é outro grupo de negociação, não é perdido)</div>
-    <div class="item"><div class="sw sw-mod"></div> Modelo do eletroposto (a etiqueta no card diz qual)</div>
+    <div class="item"><div class="sw sw-mod"></div> Carregador, 50/50 e chave na mão (a etiqueta no card diz qual)</div>
     <div class="item"><div class="sw" style="background:repeating-linear-gradient(45deg,#6b7280,#6b7280 4px,#525c6a 4px,#525c6a 8px)"></div> Bloqueado</div>
     <div class="item" style="margin-left:8px;padding-left:12px;border-left:1px solid #d1d5db">❄️ <div class="sw sw-tf"></div> Frio</div>
     <div class="item">🌤️ <div class="sw sw-tm"></div> Morno</div>
@@ -1736,7 +1742,7 @@ function pillStatus(ag, curto) {
   // este não é um lead perdido, e sim um que foi pro grupo de arrendamento.
   // Ela também não encolhe: "ARREND" no card vermelho não se lê, e esta etiqueta
   // é a identidade do card. Quem for cortado na linha é o que vem depois dela.
-  const arrend = ag.status === 'arrendamento' && !semRespostaDoLead(ag);
+  const arrend = ag.status === 'arrendamento';   // 'não confirmou' só existe em card agendado
   const cls = arrend ? ' tag-arrend' : '';
   if (arrend) curto = false;
   if (semRespostaDoLead(ag)) t = ['NÃO CONFIRMOU', 'N/CONF'];
@@ -2327,15 +2333,19 @@ async function marcarPropostaEP(quem) {
 async function gerarOrcamentoDoDetalhe(produto) {
   if (!detalheAtual) return;
   const ag = detalheAtual;
-  // Gerar orçamento marca DUAS coisas (best-effort, independentes):
+  // Gerar orçamento marca (best-effort, independentes):
   //  - temperatura=frio → joga o card na coluna Frio do CRM e tira do followup
-  //  - status=fez_orcamento → pinta o card de amarelo claro na agenda (#fef3c7) + selo no CRM
+  //  - status=fez_orcamento → SÓ NO SOLAR. No eletroposto essa etiqueta não existe
+  //    mais (ordem do dono, 23/09/2026): depois do orçamento o desfecho é um dos
+  //    modelos, e quem diz qual é o CONSULTOR, apertando o botão (Arrendamento,
+  //    Carregador, 50/50, Chave na mão). Marcar "fez orçamento" sozinho fazia o
+  //    card parar num meio-termo que não é desfecho de nada e escondia a escolha.
   // Guard 'fechou': nunca rebaixa um lead já ganho de volta pra amarelo.
   // Patch montado à parte do gate de temperatura: um card que já era frio
   // (reclique) ainda precisa receber o status pra virar amarelo.
   const patch = {};
   if (ag.temperatura !== 'frio') patch.temperatura = 'frio';
-  if (ag.status !== 'fez_orcamento' && ag.status !== 'fechou') patch.status = 'fez_orcamento';
+  if (produto !== 'eletroposto' && ag.status !== 'fez_orcamento' && ag.status !== 'fechou') patch.status = 'fez_orcamento';
   if (Object.keys(patch).length) {
     try {
       await supaPatch(`agendamentos?id=eq.${ag.id}`, patch);

@@ -416,15 +416,17 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .cad-org.cad{background:rgba(125,209,23,.16);color:#9BEE38}
 .cad-org.ficha{background:rgba(148,163,184,.18);color:#94A3B8}
 /* marcado ARRENDAMENTO pelo consultor na agenda: nao se cadastrou nem passou pela
-   regua da LP — foi a conversa que decidiu. Bege, o mesmo do card na agenda. */
+   regua da LP — foi a conversa que decidiu. Bege aqui diz DE ONDE a linha veio; o
+   status ARRENDAMENTO em si virou vermelho+amarelo na agenda em 23/09/2026. */
 .cad-org.agenda{background:rgba(234,219,192,.18);color:#EADBC0}
 /* DONO DO LOCAL (21/09) — o destaque que decide a conversa: o proprietario assina
    sozinho, o inquilino precisa do dono do imovel. Fluorescente SO nas duas
    respostas certas; o resto fica discreto em vez de rotulado errado. */
 /* POSSE DO LOCAL (21/09) — ARRENDAMENTO pergunta de quem e o local antes de gravar.
    Um toque virou dois de proposito: sem a pergunta, todo card marcado caia na aba
-   Arrendamento como "dono? nao perguntado". As cores sao as do selo da aba. */
-.posse-box{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(234,219,192,.14);border:1px solid rgba(234,219,192,.5)}
+   Arrendamento como "dono? nao perguntado". A tinta segue a cor do ARRENDAMENTO,
+   que em 23/09/2026 deixou de ser bege e virou amarelo fluorescente. */
+.posse-box{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(234,255,0,.1);border:1px solid rgba(234,255,0,.45)}
 .posse-box[hidden]{display:none}
 .posse-tit{font-size:12px;font-weight:800;margin-bottom:8px}
 .posse-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
@@ -1429,7 +1431,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-btn-status:active{transform:scale(.97)}
 .crm-btn-status.is-atual{outline:3px solid rgba(255,255,255,.9);outline-offset:-5px;box-shadow:0 0 0 2px #1E293B}
 /* Botao CLARO: o contorno branco de dentro sumia nele. */
-.crm-btn-status.bg-wp.is-atual,.crm-btn-status.bg-fo.is-atual,.crm-btn-status.bg-em.is-atual,.crm-btn-status.bg-pa.is-atual,.crm-btn-status.bg-ar.is-atual,.crm-btn-status.bg-cr.is-atual,.crm-btn-status.bg-mm.is-atual,.crm-btn-status.bg-ch.is-atual{outline-color:rgba(17,24,39,.75)}
+.crm-btn-status.bg-fe.is-atual,.crm-btn-status.bg-wp.is-atual,.crm-btn-status.bg-fo.is-atual,.crm-btn-status.bg-em.is-atual,.crm-btn-status.bg-pa.is-atual,.crm-btn-status.bg-ar.is-atual,.crm-btn-status.bg-cr.is-atual,.crm-btn-status.bg-mm.is-atual,.crm-btn-status.bg-ch.is-atual{outline-color:rgba(17,24,39,.75)}
 .crm-btn-status.bg-ag{background:#0d2d5e;color:#fff}
 .crm-btn-status.bg-na{background:#dc2626;color:#fff}
 .crm-btn-status.bg-wp{background:#D0DCE9;color:#1f2937}
