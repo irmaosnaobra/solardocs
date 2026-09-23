@@ -234,4 +234,21 @@ describe('follow-up do não atendido', () => {
     await runEletropostoNaoAtendidoFupTick();
     expect(fichasCriadas).toHaveLength(0);
   });
+
+  it('QUENTE fica com o reagendamento automático enquanto ele tiver volta', async () => {
+    // Os dois na mesma pessoa seriam o robô pedindo pra ela escolher um horário
+    // hoje e marcando outro por conta própria amanhã.
+    fichas = [ficha({ temperatura: 'quente' })];
+    const r = await runEletropostoNaoAtendidoFupTick();
+    expect(r.ofertas).toBe(0);
+    expect(r.com_o_reagenda_auto).toBe(1);
+    expect(ofertados).toHaveLength(0);
+  });
+
+  it('QUENTE que já gastou as duas voltas entra na escada', async () => {
+    fichas = [ficha({ temperatura: 'quente' })];
+    estado = [{ key: 'ep_reagenda_auto:1', value: { n: 2 } }];
+    const r = await runEletropostoNaoAtendidoFupTick();
+    expect(r.ofertas).toBe(1);
+  });
 });

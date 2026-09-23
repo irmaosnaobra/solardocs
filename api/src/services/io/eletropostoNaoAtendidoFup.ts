@@ -64,6 +64,7 @@ import {
 } from './eletropostoRemarcar';
 import { EP_NAO_ATENDEU_PREFIX, EP_RESPOSTA_PREFIX } from './eletropostoAgenda';
 import { criarFichaCurioso, type FichaDaAgenda } from './eletropostoCobraSim';
+import { ehQuente, MAX_REAGENDAMENTOS } from './eletropostoReagendaAuto';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 
 /** Carimbo de follow-up enviado: `ep_fup_naoatendido:<id>`. Um por ficha, pra
@@ -98,7 +99,7 @@ function horaBrasilia(now = new Date()): number {
 /** Os mesmos campos que a régua do SIM usa pra montar a ficha da lista: quem não
  *  compareceu vira entrada no Curioso pelo MESMO caminho, com a mesma regra de
  *  destino. Uma implementação só de "vira ficha", em `eletropostoCobraSim`. */
-type Ficha = FichaDaAgenda & { lead_resposta_at: string | null };
+type Ficha = FichaDaAgenda & { lead_resposta_at: string | null; temperatura: string | null };
 
 export type PassoNaoAtendido = 'r1' | 'r2' | 'r3' | 'lista' | null;
 
@@ -128,6 +129,8 @@ export type ResultadoFupNaoAtendido = {
   viraram_lista: number;
   /** Fichas que o ROBÔ marcou de ausente e por isso ficam de fora. */
   marcadas_pelo_robo: number;
+  /** Quentes que ainda são do reagendamento automático. */
+  com_o_reagenda_auto: number;
   sem_vaga: number;
   erros: number;
   motivo?: string;
@@ -135,7 +138,7 @@ export type ResultadoFupNaoAtendido = {
 };
 
 const zero = (motivo?: string): ResultadoFupNaoAtendido =>
-  ({ ofertas: 0, viraram_lista: 0, marcadas_pelo_robo: 0, sem_vaga: 0, erros: 0, ...(motivo ? { motivo } : {}) });
+  ({ ofertas: 0, viraram_lista: 0, marcadas_pelo_robo: 0, com_o_reagenda_auto: 0, sem_vaga: 0, erros: 0, ...(motivo ? { motivo } : {}) });
 
 export async function runEletropostoNaoAtendidoFupTick(
   opts: { dry?: boolean } = {},
@@ -157,7 +160,7 @@ export async function runEletropostoNaoAtendidoFupTick(
     .from('agendamentos')
     .select('id, cliente_nome, cliente_telefone, vendedor_nome, quando, created_by, status, lead_resposta_at, '
       + 'historico, lembrete_1h_at, cidade, observacao, ponto_relacao, capital_faixa, tem_ponto, perfil_slug, '
-      + 'decisor_tipo, rota_tipo, utm_source, utm_medium, utm_campaign, utm_content, utm_term')
+      + 'decisor_tipo, rota_tipo, temperatura, utm_source, utm_medium, utm_campaign, utm_content, utm_term')
     .eq('status', 'nao_atendeu')
     .gte('quando', new Date(agora - JANELA_DIAS * 24 * 3600_000).toISOString())
     .lte('quando', new Date(agora).toISOString())
@@ -173,11 +176,16 @@ export async function runEletropostoNaoAtendidoFupTick(
     .filter(f => !!f.cliente_telefone && !!f.vendedor_nome && !!f.quando);
   if (!fichas.length) return zero('ninguem_nao_atendido');
 
-  const [doRobo, jaFeito, falaram] = await Promise.all([
+  const [doRobo, jaFeito, falaram, reagendas] = await Promise.all([
     supabase.from('system_state').select('key').like('key', `${EP_NAO_ATENDEU_PREFIX}%`).limit(1000),
     supabase.from('system_state').select('key, updated_at').like('key', `${EP_FUP_NAOATENDIDO_PREFIX}%`).limit(2000),
     supabase.from('system_state').select('key, updated_at').like('key', `${EP_RESPOSTA_PREFIX}%`).limit(1000),
+    supabase.from('system_state').select('key, value').like('key', 'ep_reagenda_auto:%').limit(1000),
   ]);
+  // Quantas voltas o reagendamento automático já deu nesta ficha. Ele só trabalha
+  // lead QUENTE (nota 3) e tem direito a duas.
+  const voltasDoQuente = new Map<number, number>((reagendas.data ?? []).map(m =>
+    [Number(String(m.key).slice('ep_reagenda_auto:'.length)), Number((m.value as { n?: number })?.n ?? 0)]));
   const marcadaPeloRobo = new Set((doRobo.data ?? [])
     .map(m => Number(String(m.key).slice(EP_NAO_ATENDEU_PREFIX.length))));
   // `ep_fup_naoatendido:<id>:<passo>`: uma chave por degrau, porque a reserva
@@ -194,7 +202,7 @@ export async function runEletropostoNaoAtendidoFupTick(
   const respondeuEm = new Map<number, string>((falaram.data ?? []).map(m =>
     [Number(String(m.key).slice(EP_RESPOSTA_PREFIX.length)), String(m.updated_at ?? '')]));
 
-  let ofertas = 0, viraramLista = 0, semVaga = 0, erros = 0, doRoboN = 0;
+  let ofertas = 0, viraramLista = 0, semVaga = 0, erros = 0, doRoboN = 0, doQuenteN = 0;
   const previa: NonNullable<ResultadoFupNaoAtendido['previa']> = [];
 
   const COPY = { r1: bolhasNaoAtendido, r2: bolhasNaoAtendido2, r3: bolhasNaoAtendido3 };
@@ -202,6 +210,15 @@ export async function runEletropostoNaoAtendidoFupTick(
   for (const f of fichas) {
     if (ofertas + semVaga >= POR_TICK) break;
     if (marcadaPeloRobo.has(f.id)) { doRoboN++; continue; }
+    // QUENTE É DO OUTRO ROBÔ ENQUANTO ELE TIVER VOLTA. O `eletropostoReagendaAuto`
+    // pega o vermelho quente 45 min depois do horário perdido e MARCA um horário
+    // novo (não oferece lista), até 2 vezes. Os dois agindo na mesma pessoa
+    // seriam o robô pedindo pra ela escolher um horário hoje e marcando outro por
+    // conta própria amanhã. Ela entra aqui quando aquele acabar as voltas dele.
+    if (ehQuente(f.temperatura) && (voltasDoQuente.get(f.id) ?? 0) < MAX_REAGENDAMENTOS) {
+      doQuenteN++;
+      continue;
+    }
     // Escreveu DEPOIS da hora da reunião: já tem conversa em pé, e quem responde
     // é gente (o eletropostoRespostas levou o recado pra equipe).
     const falouDepois = (f.lead_resposta_at && f.lead_resposta_at > String(f.quando))
@@ -291,7 +308,8 @@ export async function runEletropostoNaoAtendidoFupTick(
     });
   }
   return {
-    ofertas, viraram_lista: viraramLista, marcadas_pelo_robo: doRoboN, sem_vaga: semVaga, erros,
+    ofertas, viraram_lista: viraramLista, marcadas_pelo_robo: doRoboN,
+    com_o_reagenda_auto: doQuenteN, sem_vaga: semVaga, erros,
     ...(dry ? { motivo: 'dry', previa } : {}),
   };
 }
