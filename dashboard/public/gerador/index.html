@@ -453,6 +453,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .cad-ag{white-space:nowrap}
 .cad-ag-link{display:inline-block;text-decoration:none;color:inherit}
 .cad-ag-link:hover .cad-ag-st{filter:brightness(1.25)}
+.cad-ag-st.ar{background:#EAFF00;color:#1A2000;box-shadow:0 0 7px rgba(234,255,0,.6)}
 .cad-ag-st{display:inline-block;background:#000;color:#fff;border-radius:999px;padding:1px 7px;
   font-size:10px;font-weight:800;letter-spacing:.2px;vertical-align:middle}
 .cad-ag-nao{color:#64748B}
@@ -1318,7 +1319,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-col-perdido .crm-col-head{box-shadow:inset 0 3px 0 #dc2626}
 /* Faixa do topo: a mesma escala de bege dos quatro modelos. O degrau 4 sobe um
    tom aqui pra nao sumir no cabecalho escuro do quadro. */
-.crm-col-arrendamento .crm-col-head{box-shadow:inset 0 3px 0 #EADBC0}
+.crm-col-arrendamento .crm-col-head{box-shadow:inset 0 3px 0 #EAFF00}
 .crm-col-carregador .crm-col-head{box-shadow:inset 0 3px 0 #EADBC0}
 .crm-col-meio_a_meio .crm-col-head{box-shadow:inset 0 3px 0 #EADBC0}
 .crm-col-chave_na_mao .crm-col-head{box-shadow:inset 0 3px 0 #EADBC0}
@@ -1361,7 +1362,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-status-selo.selo-em{background:rgba(223,231,240,.16);color:#DFE7F0}
 .crm-status-selo.selo-pe{background:rgba(220,38,38,.24);color:#FCA5A5}
 .crm-status-selo.selo-pa{background:rgba(179,199,220,.16);color:#B3C7DC}
-.crm-status-selo.selo-ar{background:rgba(234,219,192,.22);color:#EADBC0}
+.crm-status-selo.selo-ar{background:rgba(234,255,0,.22);color:#EAFF00}
 .crm-status-selo.selo-cr{background:rgba(234,219,192,.22);color:#EADBC0}
 .crm-status-selo.selo-mm{background:rgba(234,219,192,.22);color:#EADBC0}
 .crm-status-selo.selo-ch{background:rgba(234,219,192,.22);color:#EADBC0}
@@ -1437,7 +1438,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-btn-status.bg-fo{background:#C2D2E2;color:#1f2937}
 .crm-btn-status.bg-fe{background:linear-gradient(135deg,#FDE047 0%,#F59E0B 100%);color:#3B2A00}
 .crm-btn-status.bg-em{background:#DFE7F0;color:#1f2937}
-.crm-btn-status.bg-ar{background:#EADBC0;color:#1f2937}
+.crm-btn-status.bg-ar{background:#EAFF00;color:#1A2000}
 .crm-btn-status.bg-cr{background:#EADBC0;color:#1f2937}
 .crm-btn-status.bg-mm{background:#EADBC0;color:#1f2937}
 .crm-btn-status.bg-ch{background:#EADBC0;color:#1f2937}
@@ -8329,7 +8330,7 @@ function cadAgendaCel(r) {
   return '<td class="cad-ag">'
     + '<a class="cad-ag-link" href="/gerador/agenda?ag=' + a.id + '&ver=1" target="_blank" rel="noopener"'
     + ' title="Abrir esta reunião na agenda">'
-    + '<span class="cad-ag-st">' + escapeHtml(st) + '</span>'
+    + '<span class="cad-ag-st' + (a.status === 'arrendamento' ? ' ar' : '') + '">' + escapeHtml(st) + '</span>'
     + (etq ? ' <span class="crm-card-tag' + (cor ? ' tag-' + cor : '') + '">' + escapeHtml(etq) + '</span>' : '')
     + '<span class="cad-sub">' + escapeHtml(a.vendedor_nome || 'sem vendedor')
     + (quando ? ' · ' + quando : '') + '</span>'

@@ -228,12 +228,14 @@
   .ocupado.status-agendado .hora-exata,
   .ocupado.status-nao_atendeu .hora-exata,
   .ocupado.status-sem_interesse .hora-exata,
+  .ocupado.status-arrendamento .hora-exata,
   .ocupado.status-perdido .hora-exata,
   .ocupado.status-sem_orcamento .hora-exata,
   .ocupado.status-fechou_concorrente .hora-exata { background: rgba(255,255,255,.92); color: #111827; }
   .ocupado.status-agendado .tag-pill:not([class*=" tag-"]),
   .ocupado.status-nao_atendeu .tag-pill:not([class*=" tag-"]),
   .ocupado.status-sem_interesse .tag-pill:not([class*=" tag-"]),
+  .ocupado.status-arrendamento .tag-pill:not([class*=" tag-"]),
   .ocupado.status-perdido .tag-pill:not([class*=" tag-"]),
   .ocupado.status-sem_orcamento .tag-pill:not([class*=" tag-"]),
   .ocupado.status-fechou_concorrente .tag-pill:not([class*=" tag-"]) { background: rgba(255,255,255,.92); color: #111827; }
@@ -273,6 +275,14 @@
     background: #000;
     color: #fff;
     box-shadow: 0 1px 3px rgba(0,0,0,.35);
+  }
+  /* ARRENDAMENTO é a exceção ao preto (23/09/2026): amarelo fluorescente sobre o
+     card vermelho. Sem ela, o card ficaria igual ao de "sem interesse" e o lead
+     que está em negociação de ponto pareceria perdido. Texto quase preto porque
+     o amarelo é claríssimo (contraste ~15:1). */
+  .tag-modelo.tag-arrend {
+    background: #EAFF00; color: #1A2000;
+    box-shadow: 0 0 7px rgba(234,255,0,.75);
   }
   .tag-pill {
     display: inline-block;
@@ -358,7 +368,13 @@
      modelo de eletroposto"; QUAL deles e a etiqueta do card que fala
      (ARRENDAMENTO, CARREGADOR, 50/50, CHAVE NA MAO). Modelo novo entra no mesmo
      bege e ganha a sua etiqueta, sem inventar tom. */
-  .slot.status-arrendamento      { background: #EADBC0; color: #1f2937; }
+  /* ARRENDAMENTO saiu do bege (23/09/2026, ordem do dono): o card fica VERMELHO,
+     igual ao "sem interesse", porque esse lead sai do funil normal do eletroposto
+     e entra num grupo de negociação diferente. Vermelho aqui NÃO quer dizer
+     perdido: a api segue tratando arrendamento como lead VIVO (ele fica fora de
+     STATUS_ENCERRADOS e de CRM_STATUS_PERDIDO de propósito). Quem diz isso na
+     tela é a etiqueta amarelo fluorescente, que nenhum outro status tem. */
+  .slot.status-arrendamento      { background: #dc2626; color: #fff; }
   .slot.status-carregador        { background: #EADBC0; color: #1f2937; }
   .slot.status-meio_a_meio       { background: #EADBC0; color: #1f2937; }
   .slot.status-chave_na_mao      { background: #EADBC0; color: #1f2937; }
@@ -376,7 +392,7 @@
   .slot.dividido .meia.status-em_atendimento    { background: #DFE7F0; color: #1f2937; }
   .slot.dividido .meia.status-proposta_apresentada { background: #B3C7DC; color: #1f2937; }
   .slot.dividido .meia.status-fechou_concorrente{ background: #374151; color: #fff; }
-  .slot.dividido .meia.status-arrendamento      { background: #EADBC0; color: #1f2937; }
+  .slot.dividido .meia.status-arrendamento      { background: #dc2626; color: #fff; }
   .slot.dividido .meia.status-carregador        { background: #EADBC0; color: #1f2937; }
   .slot.dividido .meia.status-meio_a_meio       { background: #EADBC0; color: #1f2937; }
   .slot.dividido .meia.status-chave_na_mao      { background: #EADBC0; color: #1f2937; }
@@ -442,12 +458,14 @@
   .ocupado.status-agendado .ok-btn,
   .ocupado.status-nao_atendeu .ok-btn,
   .ocupado.status-sem_interesse .ok-btn,
+  .ocupado.status-arrendamento .ok-btn,
   .ocupado.status-perdido .ok-btn,
   .ocupado.status-sem_orcamento .ok-btn,
   .ocupado.status-fechou_concorrente .ok-btn { background: rgba(255,255,255,.92); color: #111827; }
   .ocupado.status-agendado .ok-btn:hover,
   .ocupado.status-nao_atendeu .ok-btn:hover,
   .ocupado.status-sem_interesse .ok-btn:hover,
+  .ocupado.status-arrendamento .ok-btn:hover,
   .ocupado.status-perdido .ok-btn:hover,
   .ocupado.status-sem_orcamento .ok-btn:hover,
   .ocupado.status-fechou_concorrente .ok-btn:hover { background: #fff; color: #111827; }
@@ -873,7 +891,7 @@
   .btn-status.bg-fo { background: #C2D2E2; color: #1f2937; }
   .btn-status.bg-fe { background: linear-gradient(135deg, #FDE047 0%, #F59E0B 100%); color: #3B2A00; }
   .btn-status.bg-em { background: #DFE7F0; color: #1f2937; }
-  .btn-status.bg-ar { background: #EADBC0; color: #1f2937; }
+  .btn-status.bg-ar { background: #EAFF00; color: #1A2000; }
   .btn-status.bg-cr { background: #EADBC0; color: #1f2937; }
   .btn-status.bg-mm { background: #EADBC0; color: #1f2937; }
   .btn-status.bg-ch { background: #EADBC0; color: #1f2937; }
@@ -1046,7 +1064,7 @@
   html[data-theme="dark"] .slot.status-em_atendimento    { background: #DFE7F0; color: #1f2937; }
   html[data-theme="dark"] .slot.status-proposta_apresentada { background: #B3C7DC; color: #1f2937; }
   html[data-theme="dark"] .slot.status-fechou_concorrente{ background: #374151; color: #fff; }
-  html[data-theme="dark"] .slot.status-arrendamento      { background: #EADBC0; color: #1f2937; }
+  html[data-theme="dark"] .slot.status-arrendamento      { background: #dc2626; color: #fff; }
   html[data-theme="dark"] .slot.status-carregador        { background: #EADBC0; color: #1f2937; }
   html[data-theme="dark"] .slot.status-meio_a_meio       { background: #EADBC0; color: #1f2937; }
   html[data-theme="dark"] .slot.status-chave_na_mao      { background: #EADBC0; color: #1f2937; }
@@ -1152,6 +1170,7 @@
     <div class="item"><div class="sw sw-pa"></div> Proposta apresentada</div>
     <div class="item"><div class="sw sw-fe"></div> Vendido</div>
     <div class="item"><span class="apres-ponto ok"></span><span class="apres-ponto nao"></span> Apresentação concluída / não concluída (no quadro dividido)</div>
+    <div class="item"><div class="sw sw-si"></div><span class="tag-modelo tag-arrend">ARRENDAMENTO</span> Arrendamento (card vermelho, etiqueta amarela: é outro grupo de negociação, não é perdido)</div>
     <div class="item"><div class="sw sw-mod"></div> Modelo do eletroposto (a etiqueta no card diz qual)</div>
     <div class="item"><div class="sw" style="background:repeating-linear-gradient(45deg,#6b7280,#6b7280 4px,#525c6a 4px,#525c6a 8px)"></div> Bloqueado</div>
     <div class="item" style="margin-left:8px;padding-left:12px;border-left:1px solid #d1d5db">❄️ <div class="sw sw-tf"></div> Frio</div>
@@ -1712,10 +1731,18 @@ function pontoApres(ag) {
 function pillStatus(ag, curto) {
   if (!ag) return '';
   let t;
+  // ARRENDAMENTO é o único status com etiqueta colorida (amarelo fluorescente):
+  // o card dele é vermelho igual ao "sem interesse" e é a etiqueta que diz que
+  // este não é um lead perdido, e sim um que foi pro grupo de arrendamento.
+  // Ela também não encolhe: "ARREND" no card vermelho não se lê, e esta etiqueta
+  // é a identidade do card. Quem for cortado na linha é o que vem depois dela.
+  const arrend = ag.status === 'arrendamento' && !semRespostaDoLead(ag);
+  const cls = arrend ? ' tag-arrend' : '';
+  if (arrend) curto = false;
   if (semRespostaDoLead(ag)) t = ['NÃO CONFIRMOU', 'N/CONF'];
   else if (ag.presenca_confirmada_at && (ag.status || 'agendado') === 'agendado') t = ['CONFIRMADO', 'CONFIRM'];
   else t = ETIQUETA_STATUS[ag.status || 'agendado'];
-  return t ? `<span class="tag-modelo">${curto ? t[1] : t[0]}</span>` : '';
+  return t ? `<span class="tag-modelo${cls}">${curto ? t[1] : t[0]}</span>` : '';
 }
 
 function semRespostaDoLead(ag) {
