@@ -237,13 +237,15 @@ def main():
     for uf in ordem_est:
         e = EJ[uf]
         cids = sorted([r['ibge'] for r in e['cid']], key=lambda k: pos_nac[k])
+        # sem corte em 40: o indice e barato e a tela precisa do estado inteiro
+        # para o raio e para a lista de tráfego não mentirem por omissão
         estados.append({
             'uf': uf, 'nome': NOME_UF[uf], 'nota': round(e['nota'], 2),
             'mov': pos_est_ant.get(uf, pos_est[uf]) - pos_est[uf],
             'plug': e['plug'], 'novos': e['plug'] - (EN[uf]['plug'] if uf in EN else 0),
             'ritmo': round((e['plug'] - EN[uf]['plug']) / EN[uf]['plug'] * 100, 1) if uf in EN and EN[uf]['plug'] else None,
             'por_mil': round(e['por_mil'], 1), 'longe': round(e['longe'], 1),
-            'acima': len(e['cid']), 'c': [cidade(k) for k in cids[:40]],
+            'acima': len(e['cid']), 'c': [ordem.index(k) for k in cids],
         })
 
     pack = {
@@ -256,12 +258,15 @@ def main():
             'novos_na_regua': len(set(eJ) - set(eN)),
         },
         'nomes_uf': NOME_UF,
-        'top50': [cidade(k) for k in ordem[:50]],
+        # TODAS as cidades da regua, na ordem de carencia. O resto do arquivo aponta
+        # para ca por indice, entao nada se repete e a tela consegue responder
+        # "quem esta a X km daqui" sem pedir mais dado nenhum.
+        'todas': [cidade(k) for k in ordem],
         # A segunda lente: para onde a curva esta indo, nao onde o estoque esta hoje.
-        # Ordenada pelo ritmo do mes, com piso de 100 carros de base para o % significar algo.
-        'top50_ritmo': [cidade(k) for k in sorted(
+        # So indice, com piso de 100 carros de base para o % significar algo.
+        'ordem_ritmo': [ordem.index(k) for k in sorted(
             [k for k in eJ if base_ant.get(k, [0, 0])[1] >= 100],
-            key=lambda k: -((eJ[k]['p'] - base_ant[k][1]) / base_ant[k][1]))[:50]],
+            key=lambda k: -((eJ[k]['p'] - base_ant[k][1]) / base_ant[k][1]))],
         'estados': estados,
     }
 
