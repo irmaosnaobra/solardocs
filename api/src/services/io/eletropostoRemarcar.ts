@@ -45,6 +45,24 @@ import { proximasVagas, aindaLivre, diaBRT } from './eletropostoVagas';
 
 /** Marcador de envio efetivado — entra no teto anti-ban da linha (lineThrottle). */
 export const EP_REMARCAR_SENT = 'ep_remarcar_sent:';
+
+/**
+ * O MESMO envio, quando ele é CAMPANHA e não conversa.
+ *
+ * Medido em 23/09/2026, na primeira manhã com as réguas novas: a linha bateu
+ * **34 carimbos e 82 mensagens em 2 horas** (41 pessoas), contra as 37 numa hora
+ * que a bloquearam em agosto. O maior gasto eram as ofertas de retorno, e o
+ * motivo é sutil: elas carimbavam `ep_remarcar_sent:`, que está em
+ * PREFIXOS_AGENDA, ou seja, classificado como TRANSACIONAL. O gate frio dessas
+ * campanhas conta só prefixos frios — então elas passavam pelo teto sem nunca
+ * aparecer na conta dele. Furavam o próprio limite, em silêncio.
+ *
+ * Com prefixo próprio (fora de PREFIXOS_AGENDA), a oferta fria volta a pesar no
+ * orçamento de 6/h e 30/dia, que é onde ela sempre devia ter estado. A oferta
+ * REATIVA (o lead pediu pra remarcar agora) continua transacional: é resposta a
+ * uma mensagem dele, e segurar isso seria deixar o lead falando sozinho.
+ */
+export const EP_OFERTA_FRIA_SENT = 'ep_oferta_fria:';
 /** Oferta em aberto: `ep_remarcar:<id>` → { ofertas, em, rodada }. */
 export const EP_REMARCAR_PREFIX = 'ep_remarcar:';
 
@@ -301,11 +319,12 @@ async function gravarOferta(id: number, o: Oferta): Promise<void> {
     { key: `${EP_REMARCAR_PREFIX}${id}`, value: o, updated_at: agoraIso }, { onConflict: 'key' });
 }
 
-/** Carimbo de envio pro teto anti-ban da linha (o mesmo padrão dos outros agentes). */
-async function carimbar(id: number, etapa: string): Promise<void> {
+/** Carimbo de envio pro teto anti-ban da linha (o mesmo padrão dos outros agentes).
+ *  `frio` troca o prefixo pro que pesa no orçamento de campanha. */
+async function carimbar(id: number, etapa: string, frio = false): Promise<void> {
   const agoraIso = new Date().toISOString();
   await supabase.from('system_state').upsert(
-    { key: `${EP_REMARCAR_SENT}${id}:${etapa}`, value: { em: agoraIso }, updated_at: agoraIso },
+    { key: `${frio ? EP_OFERTA_FRIA_SENT : EP_REMARCAR_SENT}${id}:${etapa}`, value: { em: agoraIso }, updated_at: agoraIso },
     { onConflict: 'key' },
   ).then(undefined, (e: unknown) => logger.error('ep-remarcar', 'carimbo falhou', { id, erro: String(e) }));
 }
@@ -519,14 +538,21 @@ export async function ofertarPorConta(
   const primeiro = bruto.length >= 2 && bruto.length <= 20 && bruto.toLowerCase() !== 'lead' ? bruto : '';
   const tel = String(ficha.cliente_telefone).replace(/\D/g, '');
 
+  // Campanha (retorno, não atendido) é tráfego FRIO: carimbo próprio, pra pesar
+  // no orçamento certo, e no máximo 2 bolhas. A régua da casa é "1 toque, 1
+  // mensagem" desde o bloqueio de agosto; aqui são 2 porque a lista de horários
+  // precisa de uma bolha só pra ela (lista quebrada em várias mensagens faz o
+  // lead responder "2" olhando pra opção errada). A oferta REATIVA, que é
+  // resposta a um pedido do lead, continua conversando com as bolhas todas.
+  const ehCampanha = opts.transacional !== true;
   const falar = async (bolhas: string[], etapa: string): Promise<boolean> => {
     if (opts.dry) return true;
     if (!(await dentroDoTetoHorarioLinha({ transacional: opts.transacional === true }))) {
       logger.info('ep-remarcar', 'teto da linha estourado — oferta ativa espera o próximo tick', { id: ficha.id });
       return false;
     }
-    await sendHuman(tel, bolhas, 'io');
-    await carimbar(ficha.id, etapa);
+    await sendHuman(tel, bolhas, 'io', ehCampanha ? { maxBolhas: 2 } : undefined);
+    await carimbar(ficha.id, etapa, ehCampanha);
     return true;
   };
 

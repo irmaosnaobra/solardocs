@@ -159,6 +159,13 @@ const BOT_SENT_PREFIXES = [
   // agenda, então entra também em PREFIXOS_AGENDA logo abaixo: a conta do frio
   // não pode somá-lo, senão um dia de agenda cheia cala os follow-ups da casa.
   'ep_cobra_sim:',
+  // [23/09] Oferta de horário que é CAMPANHA (chamada de volta de quem perdeu o
+  // horário e de quem não compareceu). Fica de fora de PREFIXOS_AGENDA de
+  // propósito: ela tem que pesar no orçamento FRIO. Carimbando como agenda, ela
+  // passava pelo gate sem ser contada por ele, e foi assim que a linha chegou a
+  // 82 mensagens em 2 horas na manhã de 23/09 — perto das 37 numa hora que a
+  // bloquearam em agosto.
+  'ep_oferta_fria:',
 ] as const;
 
 // Desvio da linha B2B ligado (ZAPI_SOLARDOC_VIA_IO=1)? Então Giovanna, curso de
