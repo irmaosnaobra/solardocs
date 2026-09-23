@@ -53,6 +53,7 @@ import { novoAnthropic } from '../../utils/anthropicClient';
 import { variantesBR } from '../agents/whatsapp/whatsappAgentService';
 import { pareceRoboDeles, temRoboAtendendo, marcarRoboDoOutroLado } from '../agents/whatsapp/roboDoOutroLado';
 import { carregarSilenciados } from '../agents/whatsapp/silenciar';
+import { podeFalarComLead, registrarBloqueio } from '../agents/whatsapp/pausaHumana';
 
 const anthropic = novoAnthropic();
 
@@ -564,6 +565,20 @@ export async function handleRecepcaoIo(
     // conversa gravado e o consultor avisado com a ficha. O pior caso vira "o
     // humano sabe e o lead ainda não recebeu resposta", em vez de "ninguém ficou
     // sabendo de nada", que é exatamente o buraco que este serviço veio tapar.
+    // Se a equipe já está dentro desta conversa, a Duda não fala. Ela é a que
+    // mais atropela: responde a TODO inbound, inclusive o que o cliente mandou
+    // no meio de uma conversa que a Giovanna já estava tendo.
+    //
+    // A trava fica só no envio, DEPOIS do gravarSessao e do avisarConsultor lá
+    // em cima. É de propósito: o consultor continua recebendo a ficha e o estado
+    // continua gravado. O que some é só a mensagem em cima do humano.
+    const decisaoPausa = await podeFalarComLead(phone);
+    if (!decisaoPausa.pode) {
+      await registrarBloqueio(phone, 'recepcao-io');
+      logger.info('recepcao-io', `${phone} tem humano na conversa — Duda não responde`);
+      return;
+    }
+
     const partes = decisao.resposta.split('||').map(s => s.trim()).filter(Boolean);
     await sendHuman(phone, partes.length ? partes : [decisao.resposta], 'io', { maxBolhas: 2 });
   } catch (err) {

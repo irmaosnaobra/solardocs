@@ -1583,6 +1583,14 @@ router.patch('/sdr-leads/:phone/takeover', async (req: Request, res: Response) =
     if (takeover) update.human_takeover_at = new Date().toISOString();
     else update.human_takeover_at = null;
     await supabase.from('sdr_leads').update(update).eq('phone', phone);
+
+    // O mesmo botão passa a valer pros robôs da linha IO, que não leem
+    // `human_takeover` (quem lia era a Luma, desligada). Sem isto, "devolver pro
+    // robô" no CRM não devolvia nada.
+    const { pausarContato, liberarPausa } = await import('../services/agents/whatsapp/pausaHumana');
+    if (takeover) await pausarContato(String(phone), new Date().toISOString(), { origem: 'crm' });
+    else await liberarPausa(String(phone), 'crm', 'devolvido pelo CRM');
+
     res.json({ ok: true });
   } catch { res.status(500).json({ error: 'Erro ao atualizar takeover' }); }
 });
@@ -1815,6 +1823,13 @@ router.post('/sdr-leads/:phone/send-message', async (req: Request, res: Response
     const instance = (lead?.instance === 'io' ? 'io' : 'solardoc') as 'io' | 'solardoc';
     const { sendWhatsApp } = await import('../services/agents/zapiClient');
     await sendWhatsApp(phone, message.trim(), instance);
+
+    // Humano digitou pelo CRM: cala os robôs desta conversa. Vale pra linha IO
+    // inteira, não só pra Luma (ver pausaHumana.ts).
+    {
+      const { pausarContato } = await import('../services/agents/whatsapp/pausaHumana');
+      await pausarContato(phone, new Date().toISOString(), { origem: 'crm' });
+    }
 
     // Marca takeover (humano enviou mensagem, Luma pausa)
     await supabase.from('sdr_leads').update({

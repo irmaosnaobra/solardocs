@@ -55,6 +55,7 @@ import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendHuman } from '../agents/zapiClient';
+import { podeFalarComLead, registrarBloqueio } from '../agents/whatsapp/pausaHumana';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { telefoneBonito } from './eletropostoAgenda';
 
@@ -493,6 +494,16 @@ export async function runSolarBoasVindasTick(opts: { dry?: boolean } = {}): Prom
     if (!ganhou) continue;   // outra rodada já pegou esta ficha
     jaTocadas.add(ficha.id);
     if (jaTocadas.size > 500) jaTocadas.clear();
+
+    // Humano já dentro da conversa: devolve a ficha e tenta no próximo tick.
+    // Mesmo caminho de uma falha de envio, de propósito — boas-vindas atrasada
+    // ainda serve; boas-vindas por cima da Giovanna é o que faz o cliente sumir.
+    if (!(await podeFalarComLead(tel)).pode) {
+      await registrarBloqueio(tel, 'solar-boas-vindas');
+      jaTocadas.delete(ficha.id);
+      await devolverFicha(ficha.id, reservadaEm);
+      continue;
+    }
 
     try {
       await sendHuman(tel, bolhas, 'io', { max: BOLHA_MAX, maxBolhas: BOLHA_TETO });

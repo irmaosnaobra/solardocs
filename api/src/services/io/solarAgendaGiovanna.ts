@@ -81,6 +81,7 @@ import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendHuman } from '../agents/zapiClient';
+import { podeFalarComLead, registrarBloqueio } from '../agents/whatsapp/pausaHumana';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 import { INSTANCE_ID_IO } from './solarRespostas';
@@ -311,6 +312,15 @@ export async function runSolarAgendaGiovannaTick(
       });
       return;
     }
+    // Conversa com humano dentro não recebe bom dia nem "oi" de robô. A carteira
+    // daqui é justamente a da Giovanna e da Nilce: se elas já estão falando com a
+    // pessoa, este toque é o atropelo clássico.
+    if (!(await podeFalarComLead(tel)).pode) {
+      await registrarBloqueio(tel, 'solar-giovanna');
+      segurados++;
+      return;
+    }
+
     await sendHuman(tel, [bolha], INSTANCE, { maxBolhas: 1 });
     const agoraIso = new Date().toISOString();
     await supabase.from('system_state')

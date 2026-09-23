@@ -17,6 +17,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
 import { carregarSilenciados, carregarMudos } from '../agents/whatsapp/silenciar';
+import { carregarPausas } from '../agents/whatsapp/pausaHumana';
 import { novoAnthropic } from "../../utils/anthropicClient";
 
 export type MediaType = 'image' | 'video' | 'audio';
@@ -136,11 +137,22 @@ export async function carregarSupressao(): Promise<(phone: string) => boolean> {
  * só é como um dia alguém desliga a errada.
  */
 export async function carregarBloqueioProativo(): Promise<(phone: string) => boolean> {
-  const [pediuParar, estaMudo] = await Promise.all([
+  const [pediuParar, estaMudo, pausa] = await Promise.all([
     carregarSilenciados(),
     carregarMudos(),
+    carregarPausas(),
   ]);
-  return (phone: string): boolean => pediuParar(phone) || estaMudo(phone);
+  // O terceiro motivo, desde 23/09/2026: TEM GENTE DENTRO DA CONVERSA.
+  //
+  // Filtra aqui, na ESCOLHA do alvo, e não no envio. Os dois motores que usam
+  // este portão mandam um contato por vez; barrar lá embaixo gravaria "erro" e
+  // o mesmo alvo voltaria a ser sorteado no tick seguinte, travando a fila
+  // inteira atrás de uma conversa que está simplesmente ocupada.
+  //
+  // Medido: 31 de 104 conversas com humano recebiam mensagem de robô por cima,
+  // 165 mensagens em 3 dias. É o que faz o cliente estressar e sumir.
+  return (phone: string): boolean =>
+    pediuParar(phone) || estaMudo(phone) || !pausa(phone).pode;
 }
 
 // ── Lock de linha compartilhado entre os motores de blast ────────────────────

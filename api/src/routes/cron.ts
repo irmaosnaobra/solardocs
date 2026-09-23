@@ -36,6 +36,7 @@ import { runSentinelaVacuo } from '../services/io/sentinelaVacuo';
 import { runPlacarGiovanna } from '../services/io/placarGiovanna';
 import { runProspeccaoApifyTick } from '../services/io/prospeccaoApifyService';
 import { runSequenciaStopOnReply } from '../services/io/sequenciaStopOnReply';
+import { rodarPausaHumanaTick } from '../services/agents/whatsapp/pausaHumanaTick';
 import { runBlastRespostas } from '../services/io/blastRespostas';
 import { runZapiHealthCheck } from '../services/io/zapiHealthMonitor';
 import { runSondaDocumentos } from '../services/documentos/sondaDocumentos';
@@ -320,6 +321,14 @@ router.get('/inactive-engagement', async (req: Request, res: Response) => {
 router.get('/process-messages', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
+    // Trava de segurança (pausa humana): marca as conversas em que alguém da
+    // equipe digitou pelo celular, ANTES de qualquer envio deste tick. Primeira
+    // da fila de propósito — todo gate abaixo lê o que ela acabou de gravar, e
+    // rodar depois deixaria o robô falar por cima do humano por mais um ciclo.
+    // Medido em 23/09: 31 de 104 conversas com humano levavam mensagem do robô
+    // em cima (165 mensagens em 3 dias). PAUSA_HUMANA_OFF=1 desliga.
+    const pausaHumanaResult = await rodarPausaHumanaTick().catch((e) => ({ error: String(e) }));
+
     // Trava de segurança (stop-on-reply): PARA as sequências de quem respondeu ANTES
     // de rodar o drip deste tick — evita mandar o próximo passo por cima da resposta
     // do cliente. Awaited de propósito (roda antes do runGeradorSequenciasConsumer).
@@ -422,6 +431,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     ]);
     res.json({
       ok: true,
+      pausa_humana: pausaHumanaResult,
       stop_on_reply: stopReplyResult,
       blast_respostas: blastRespResult,
       queue:      queueResult.status === 'fulfilled' ? queueResult.value : { error: String((queueResult as any).reason) },

@@ -38,6 +38,7 @@ import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendFrio, sendHuman, sendWhatsApp } from '../agents/zapiClient';
+import { podeFalarComLead, registrarBloqueio } from '../agents/whatsapp/pausaHumana';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { quandoPorExtenso } from './eletropostoAgenda';
 import { proximasVagas, aindaLivre } from './eletropostoVagas';
@@ -524,6 +525,10 @@ export async function passoDoConvite(telefone: string, textos: string[]): Promis
           },
           { onConflict: 'key' },
         );
+        if (!(await podeFalarComLead(tel)).pode) {
+          await registrarBloqueio(tel, 'ep-convite-reoferta');
+          return { acao: 'nada' };
+        }
         await sendHuman(tel, bolhaReoferta(novas), 'io');
         logger.info('ep-convite', `positivo sem horario, lista reposta (${tel})`);
         return { acao: 'reofertou' };
@@ -546,6 +551,10 @@ export async function passoDoConvite(telefone: string, textos: string[]): Promis
         },
         { onConflict: 'key' },
       );
+      if (!(await podeFalarComLead(tel)).pode) {
+        await registrarBloqueio(tel, 'ep-convite-slot-tomado');
+        return { acao: 'nada' };
+      }
       await sendHuman(tel, bolhaSlotTomado(novas), 'io');
     }
     return { acao: 'slot_tomado' };

@@ -37,6 +37,7 @@ import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendHuman } from '../agents/zapiClient';
+import { podeFalarComLead, registrarBloqueio } from '../agents/whatsapp/pausaHumana';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import {
   quandoPorExtenso, horaCurta, telefoneBonito, EP_AGENDA_PREFIX, EP_NAO_ATENDEU_PREFIX,
@@ -547,6 +548,15 @@ export async function ofertarPorConta(
   const ehCampanha = opts.transacional !== true;
   const falar = async (bolhas: string[], etapa: string): Promise<boolean> => {
     if (opts.dry) return true;
+    // Humano dentro da conversa: espera, igual ao teto da linha. Vale só pro
+    // ramo ATIVO (o robô abrindo assunto); a remarcação que RESPONDE quem
+    // acabou de escrever passa como transacional, senão o lead fica falando
+    // sozinho sobre a reunião dele.
+    if (opts.transacional !== true && !(await podeFalarComLead(tel)).pode) {
+      await registrarBloqueio(tel, 'ep-remarcar');
+      logger.info('ep-remarcar', 'humano na conversa — oferta ativa não sai', { id: ficha.id });
+      return false;
+    }
     if (!(await dentroDoTetoHorarioLinha({ transacional: opts.transacional === true }))) {
       logger.info('ep-remarcar', 'teto da linha estourado — oferta ativa espera o próximo tick', { id: ficha.id });
       return false;

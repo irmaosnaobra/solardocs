@@ -135,6 +135,16 @@ vi.mock('../services/agents/whatsapp/silenciar', () => ({
   carregarSilenciados: () => Promise.resolve(
     (phone: string) => silenciados.includes(String(phone).replace(/\D/g, '')),
   ),
+  // A recepção passou a consultar a pausa humana, e a pausa usa esta chave. Sem
+  // o export aqui o módulo lançava e a Duda emudecia — que é justamente o que a
+  // pausa não pode causar.
+  chaveContato: (phone: string) => {
+    const d = String(phone ?? '').replace(/\D/g, '');
+    if (d.length < 10 || d.length > 13) return null;
+    const semDdi = d.startsWith('55') && d.length >= 12 ? d.slice(2) : d;
+    if (semDdi.length < 10) return null;
+    return semDdi.slice(0, 2) + semDdi.slice(-8);
+  },
 }));
 
 vi.mock('../utils/logger', () => ({

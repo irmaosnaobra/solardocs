@@ -10,6 +10,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
+import { pausarContato, liberarPausa } from '../whatsapp/pausaHumana';
 import { logger } from '../../../utils/logger';
 import { sendToGroup, type ZapiInstance } from '../zapiClient';
 import { criarCardAgendamento } from './sdrAgentService';
@@ -186,9 +187,14 @@ async function execBuscarLead(query: string): Promise<string> {
 
 async function execAssumirTakeover(leadPhone: string): Promise<string> {
   const phone = normPhone(leadPhone);
+  // Mesma razão do execLiberarTakeover: a pausa entra ANTES da checagem do CRM,
+  // porque quase todo contato da linha IO não tem linha em `sdr_leads` e o
+  // comando precisa calar os robôs pra ele do mesmo jeito.
+  await pausarContato(phone, new Date().toISOString(), { origem: 'grupo' });
+
   const { data: lead } = await supabase
     .from('sdr_leads').select('nome').eq('phone', phone).maybeSingle();
-  if (!lead) return `Lead ${phone} não encontrado no CRM.`;
+  if (!lead) return `OK. ${phone} está em atendimento humano — os robôs não falam mais com ele. (Não está no CRM.)`;
   await supabase.from('sdr_leads').update({
     human_takeover: true,
     human_takeover_at: new Date().toISOString(),
@@ -200,9 +206,19 @@ async function execAssumirTakeover(leadPhone: string): Promise<string> {
 
 async function execLiberarTakeover(leadPhone: string): Promise<string> {
   const phone = normPhone(leadPhone);
+  // A pausa sai ANTES da checagem do CRM, e isso não é ordem à toa: a maioria
+  // dos contatos da linha IO (eletroposto_nota1, agendamentos, fichas de solar)
+  // NÃO tem linha em `sdr_leads`. Soltar depois do early-return faria o
+  // "liberar" do grupo não funcionar justamente pra quem mais aparece aqui.
+  const soltou = await liberarPausa(phone, 'grupo', 'liberado no grupo');
+
   const { data: lead } = await supabase
     .from('sdr_leads').select('nome').eq('phone', phone).maybeSingle();
-  if (!lead) return `Lead ${phone} não encontrado no CRM.`;
+  if (!lead) {
+    return soltou
+      ? `Liberado. ${phone} volta a receber automação (não está no CRM, mas a pausa saiu).`
+      : `Lead ${phone} não encontrado no CRM e não havia pausa ativa.`;
+  }
   await supabase.from('sdr_leads').update({
     human_takeover: false,
     human_takeover_at: null,

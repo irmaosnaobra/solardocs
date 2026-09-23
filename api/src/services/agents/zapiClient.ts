@@ -263,7 +263,25 @@ export async function sendFrio(
   phone: string,
   parts: string[],
   instance: ZapiInstance = 'io',
+  opts?: { transacional?: boolean },
 ): Promise<void> {
+  // ── PAUSA HUMANA ──────────────────────────────────────────────────────────
+  // A trava mora DENTRO do sendFrio, e não em cada chamador, porque esta função
+  // é lead-only por construção: toque que a pessoa não pediu. Conferido um a um
+  // em 23/09/2026 — os 11 pontos de chamada mandam pra telefone de lead, nenhum
+  // pra consultor. É o oposto do `sendHuman`/`sendWhatsApp`, que servem os dois
+  // lados e por isso são travados no chamador (ver pausaHumana.ts).
+  //
+  // Toque frio é justamente o pior atropelo: a pessoa está conversando com a
+  // Giovanna e recebe um "oi, tudo bem?" de robô no meio.
+  if (!opts?.transacional) {
+    const { podeFalarComLead, registrarBloqueio } = await import('./whatsapp/pausaHumana');
+    const d = await podeFalarComLead(phone);
+    if (!d.pode) {
+      await registrarBloqueio(phone, 'sendFrio');
+      return;
+    }
+  }
   await sendHuman(phone, parts, instance, { maxBolhas: 1, max: 900 });
 }
 

@@ -50,6 +50,7 @@ import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { MediaType, enviarZapiIO, adquirirLockBlast, liberarLockBlast } from './ioSend';
 import { carregarSilenciados, chaveContato } from '../agents/whatsapp/silenciar';
+import { carregarPausas } from '../agents/whatsapp/pausaHumana';
 import { dentroDaJanelaDiurna, respeitaEspacamentoLinha } from '../agents/whatsapp/lineThrottle';
 import { curiosos } from './eletropostoPares';
 import { lerRespostasCuriosoSeguro } from './curiosoRespostas';
@@ -394,6 +395,13 @@ async function tickInterno(dry: boolean): Promise<AvisoTickResult> {
 
     const silenciado = await carregarSilenciados();
 
+    // Conversa com humano dentro NÃO recebe aviso: o cliente está falando com a
+    // Giovanna e o robô entraria por cima. Trata como "esperando a vez", igual ao
+    // piso de dias — não sai do `alvo` e não conclui a pauta, porque a pausa
+    // acaba (24h de silêncio, ou o humano libera) e a pessoa volta pra fila.
+    const pausa = await carregarPausas();
+    const emPausa = (tel: string): boolean => !pausa(tel).pode;
+
     const corteIso = new Date(Date.now() - diasEntreAvisos() * 86400_000).toISOString();
     const recentes = new Set<string>();
     if (diasEntreAvisos() > 0) {
@@ -414,6 +422,7 @@ async function tickInterno(dry: boolean): Promise<AvisoTickResult> {
       if (entregues.has(k)) return false;
       if ((tentativas.get(k) || 0) >= MAX_TENTATIVAS) return false;
       if (silenciado(c.telefone)) return false;
+      if (emPausa(c.telefone)) return false;
       if (recentes.has(k)) return false;
       return true;
     });
@@ -428,7 +437,7 @@ async function tickInterno(dry: boolean): Promise<AvisoTickResult> {
       const soEsperando = contatos.some(c => {
         const k = chaveContato(c.telefone) || c.telefone;
         return !entregues.has(k) && (tentativas.get(k) || 0) < MAX_TENTATIVAS
-          && !silenciado(c.telefone) && recentes.has(k);
+          && !silenciado(c.telefone) && (recentes.has(k) || emPausa(c.telefone));
       });
       if (soEsperando) {
         if (!dry) await supabaseGerador.from('avisos').update({ alvo, tick_lock_until: null }).eq('id', aviso.id);
