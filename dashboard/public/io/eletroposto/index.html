@@ -3217,7 +3217,7 @@ const PASSOS = [
                       ok:() => val('f-inv-valor') ? null : 'Escolha quanto você pensa em investir.' },
   { id:'p-horario', quando: vaiParaAgenda, ok:() => slotSel ? null : 'Escolha um horário na lista.' },
   { id:'p-nome',    quando: quizAqui, ok:() => val('f-nome').length >= 2 ? null : 'Escreva o seu nome.' },
-  { id:'p-cidade',  quando: quizAqui, ok:() => val('f-cidade').length >= 2 ? null : 'Informe a cidade e o estado (UF).' },
+  { id:'p-cidade',  quando: quizAqui, ok:() => val('f-cidade').length >= 2 ? null : 'Escreva a sua cidade.' },
   // ── Trilha do integrador. Vem depois de nome e cidade e antes do WhatsApp, pela
   //    mesma razão do resto do quiz: o telefone é o que mais trava, fica por último.
   { id:'p-i-empresa',  quando: soIntegrador,
@@ -3249,21 +3249,23 @@ const PASSOS = [
   { id:'p-perfil',  quando: trilhaComercio, ok:() => {
       const v = val('f-perfil');
       if(!v) return 'Selecione seu perfil.';
-      if(v === 'outro' && val('f-outro').length < 3) return 'Escreva qual é o seu segmento.';
-      if(PERFIL_SEM_FLUXO.has(v) && !val('f-rota')) return 'Informe se o local fica em rota de passagem.';
+      // "Outro" e a rota de passagem também deixaram de barrar: são um campo
+      // digitado e uma pergunta extra, e nenhum dos dois decide agenda nem nota.
+      // Quem não escrever o segmento entra como "Outro", que é o que ele é.
       return null;
     } },
   { id:'p-ponto',   quando: trilhaComercio, ok:() => {
       const v = val('f-ponto');
       if(!v) return 'Informe como está o seu ponto hoje.';
       if(v === 'definido' && !val('f-relacao')) return 'Informe qual é a sua relação com o local.';
-      // Endereço de todo mundo que vai pra agenda: ponto sob controle OU local em
-      // negociação (15/09). A mesma regra do agendar(), cobrada aqui no passo.
-      if(v === 'negociando' || (v === 'definido' && !SEM_CONTROLE.has(val('f-relacao')))){
-        if(val('f-rua').length < 3)    return 'Informe a rua ou avenida do ponto.';
-        if(!val('f-numero'))           return 'Informe o número do endereço do ponto.';
-        if(val('f-bairro').length < 2) return 'Informe o bairro do ponto.';
-      }
+      // O ENDEREÇO É PEDIDO, NÃO EXIGIDO (24/09/2026, ordem do Thiago: "não pode
+      // nada barrar, isso diminui a quantidade de gente que chega").
+      //
+      // Eram TRÊS campos digitados no meio do caminho, no celular, e barravam quem
+      // não lembra o número na hora. O estudo do local continua saindo sem eles: sem
+      // endereço ele cai no município, que é de onde vêm frota, população e PIB.
+      // O endereço exato a equipe pega na conversa, que é uma pessoa perguntando
+      // para outra, e não um formulário recusando.
       return null;
     } },
   { id:'p-vagas',   quando:() => trilhaComercio() && PONTO_COM_VAGAS.has(val('f-ponto')),
@@ -3794,40 +3796,33 @@ async function agendar(){
   }
 
 
-  // A qualificação é validada ANTES do horário de propósito: quem cai em NOTA 1 não
-  // vai agendar, então não faz sentido cobrar dele a escolha de um slot primeiro.
+  // ══ O ENVIO NÃO BARRA MAIS NADA ALÉM DO QUE A REUNIÃO PRECISA ═════════════
+  // Ordem do Thiago (24/09/2026): "não pode nada barrar, isso diminui a quantidade
+  // de gente que chega".
+  //
+  // Aqui moravam DEZESSEIS recusas, e todas rodavam DEPOIS de a pessoa responder o
+  // quiz inteiro e escolher horário. Era a pior barreira do funil: quem chegava até
+  // aqui já tinha decidido, e levava um "volta e preenche" na última tecla.
+  //
+  // Os passos já cobram o que precisa ser cobrado, um de cada vez, na hora da
+  // pergunta — que é onde corrigir custa um toque. Repetir a cobrança no fim só
+  // criava um segundo lugar para as duas listas divergirem, e quem paga por essa
+  // divergência é o lead.
+  //
+  // Sobram as TRÊS coisas sem as quais a reunião não existe: um nome para chamar,
+  // um WhatsApp para mandar o link, e um horário. O resto entra na ficha como veio,
+  // inclusive vazio — ficha incompleta é melhor que lead nenhum, e o que faltar a
+  // equipe pergunta na conversa.
   if(nome.length < 2)     return erro('Escreva o seu nome.');
   if(!telefoneConfere())  return erro('Informe um WhatsApp válido com DDD.');
-  if(cidade.length < 2)   return erro('Informe a cidade e o estado (UF).');
-  if(!perfil.value)       return erro('Selecione seu perfil.');
-  if(perfil.value === 'outro' && document.getElementById('f-outro').value.trim().length < 3)
-                          return erro('Escreva qual é o seu segmento.');
-  if(PERFIL_SEM_FLUXO.has(perfil.value) && !rota.value)
-                          return erro('Informe se o local fica em rota de passagem.');
-  if(!ponto.value)        return erro('Informe como está o seu ponto hoje.');
-  // Quem diz ter o ponto responde de quem é o local — sem isso não dá pra saber se é
-  // ponto próprio ou intenção, que é a régua inteira desde 29/08. O endereço vem depois
-  // e só de quem controla o local: rua, número e bairro obrigatórios; CEP e
-  // complemento, não. Pra quem não tem o ponto o bloco nem existe na tela.
-  if(ponto.value === 'definido' && !relacao.value) return erro('Informe qual é a sua relação com o local.');
-  // 15/09: quem negocia o local também vai pra agenda, então também deixa o endereço.
-  if(ponto.value === 'negociando' || (ponto.value === 'definido' && !SEM_CONTROLE.has(relacao.value))){
-    if(rua.length < 3)    return erro('Informe a rua ou avenida do ponto.');
-    if(!numero)           return erro('Informe o número do endereço do ponto.');
-    if(bairro.length < 2) return erro('Informe o bairro do ponto.');
-  }
   const vagas = document.getElementById('f-vagas');
-  if(PONTO_COM_VAGAS.has(ponto.value) && !vagas.value) return erro('Informe quantas vagas estão disponíveis.');
   const modelo = document.getElementById('f-modelo');
-  if(!modelo.value)       return erro('Escolha o modelo que te interessa.');
   const pagaCapital = !MODELO_SEM_CAPITAL.has(modelo.value);
-  if(pagaCapital && !invest.value) return erro('Informe como pretende investir.');
   const valor = document.getElementById('f-valor');
-  if(pagaCapital && !valor.value) return erro('Informe quanto pretende investir.');
   // Quem escolheu o modelo 01 nem viu a pergunta de investir, e o select vazio
   // imprimia "Selecione…" nas duas fichas que a equipe lê.
   const investTexto = pagaCapital ? txt(invest) : 'Não se aplica · modelo 01, a NEXUS investe 100%';
-  if(!decisor.value)      return erro('Informe quem decide o investimento.');
+
 
   const q = pontuar({ perfil:perfil.value, rota:rota.value, ponto:ponto.value,
                       relacao:relacao.value, invest:invest.value, decisor:decisor.value });
@@ -4037,8 +4032,14 @@ async function agendar(){
     // outros a linha não existe (em vez de existir vazia): o alerta da equipe só
     // imprime o que a ficha traz, e "Endereço: —" seria ruído.
     (pontoDefinido || ponto.value === 'negociando')
-      ? `Endereço: ${[`${rua}, ${numero}`, bairro, cidade, cep ? `CEP ${cep}` : '',
-                      ].filter(Boolean).join(' · ')}`
+      // Com o endereço opcional (24/09), a linha se monta com o que EXISTIR: sem
+      // isso ela sairia "Endereço: , · · Uberlândia" na ficha que a equipe lê.
+      // Rua sem número vira só a rua; nada preenchido, a linha não existe.
+      ? (() => {
+          const ruaNum = [rua, numero].filter(Boolean).join(', ');
+          const partes = [ruaNum, bairro, cidade, cep ? `CEP ${cep}` : ''].filter(Boolean);
+          return partes.length ? `Endereço: ${partes.join(' · ')}` : '';
+        })()
       : '',
     `Ponto: ${txt(ponto)}`,
     // Desde 29/08 TODA reunião tem esta linha. Ela diz ao consultor com quem ele vai
@@ -4051,7 +4052,9 @@ async function agendar(){
     // Com a nota vindo só do ponto (15/09), é o modelo que diz qual conversa é: 100%
     // nosso, 50/50 ou chave na mão. O card do WhatsApp imprime como "Modelo:".
     `Modelo de interesse: ${txt(modelo)}`,
-    PERFIL_SEM_FLUXO.has(perfil.value) ? `Rota de passagem: ${txt(rota)}` : '',
+    // Só quando respondida: com a pergunta opcional (24/09) o select vazio
+    // imprimia "Rota de passagem: Selecione…" na ficha que a equipe lê.
+    PERFIL_SEM_FLUXO.has(perfil.value) && rota.value ? `Rota de passagem: ${txt(rota)}` : '',
     `Como pretende investir: ${investTexto}`,
     pagaCapital ? `Quanto pretende investir: ${txt(valor)}` : '',
     `Decisor: ${txt(decisor)}`,
