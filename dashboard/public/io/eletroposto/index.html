@@ -1438,10 +1438,17 @@
         <div class="passo" id="p-car-instala">
           <div class="fld">
             <label for="f-car-instala">Quem instala?</label>
+            <!-- Cinco respostas e não três (24/09/2026). A pergunta não separa só
+                 "vocês ou eu": separa QUEM FAZ A OBRA de QUEM ASSINA O PROJETO, e
+                 essas duas coisas se vendem separadas. Quem já tem eletricista
+                 ainda precisa de projeto e ART, e eletroposto montado sem ART é
+                 problema de quem vendeu o equipamento. -->
             <div class="inp"><select id="f-car-instala">
               <option value="">Selecione…</option>
-              <option value="chave">Quero com instalação, chave na mão</option>
-              <option value="so_equipamento">Só o equipamento, eu instalo</option>
+              <option value="voces_montam">Quero que vocês montem</option>
+              <option value="obra_minha_projeto_voces">Tenho responsável pela obra, mas quero o projeto e a ART com vocês</option>
+              <option value="obra_e_projeto_meus">Tenho responsável pela obra e o projeto</option>
+              <option value="eu_monto">Eu mesmo monto</option>
               <option value="nao_sei">Ainda não sei</option>
             </select></div>
           </div>
@@ -3786,7 +3793,12 @@ async function agendar(){
       `Software e app: ${q('f-car-software')}`,
       `Instalação: ${q('f-car-instala')}`,
       `Prazo: ${q('f-car-prazo')}`,
-    ].join('\n');
+      // Marcadores, e não texto para o card adivinhar: renomear um rótulo aqui não
+      // pode apagar o destaque lá. É o mesmo padrão do PONTO DISPONIVEL PARA
+      // INVESTIDOR, que já vive na ficha desde agosto.
+      val('f-car-instala') === 'voces_montam' ? 'COM OBRA' : '',
+      val('f-car-instala') === 'obra_minha_projeto_voces' ? 'PROJETO E ART' : '',
+    ].filter(Boolean).join('\n');
     pendente = { nome, tel: telE164, cidade, perfil: 'Compra de carregador',
                  obs: obsCar, temperatura: 'quente', origem: 'lp_eletroposto_carregador' };
     document.getElementById('ag-msg').className = 'agMsg';

@@ -97,14 +97,18 @@ export function montarMensagem(a: any, extra: { estudoUrl?: string; preNota?: nu
     const potencia = linha('Potência:');
     const unidades = linha('Unidades:');
     const instalacao = linha('Instalação:');
-    // "Chave na mão" aqui não é o mesmo negócio do resto do card: ele quer o
-    // equipamento E a obra, que é outro preço, outra equipe e outro contrato. Sem
-    // destaque, essa linha se perde no meio das outras cinco.
-    const comObra = /chave na m/i.test(instalacao);
+    // Os destaques vêm de MARCADOR na ficha, não de casar texto: a resposta pode
+    // ser reescrita amanhã e o destaque tem que sobreviver. Os dois são vendas
+    // diferentes — obra é equipe e contrato nossos; projeto e ART é o que falta
+    // para quem já tem eletricista, e eletroposto montado sem ART é problema de
+    // quem vendeu o equipamento.
+    const comObra = tem('COM OBRA');
+    const comProjeto = tem('PROJETO E ART');
     return [
-      `🔌🛒 *COMPRA DE CARREGADOR*`,
+      `⛽ *COMPRA DE CARREGADOR*`,
       `⚡ *${potencia}${unidades !== '—' ? ` · ${unidades}` : ''}*`,
       ...(comObra ? [`🏗️ *COM OBRA* — quer o equipamento e a instalação.`] : []),
+      ...(comProjeto ? [`📐 *PROJETO E ART* — a obra é dele, o projeto é nosso.`] : []),
       ``,
       `*Quando:* ${quando}`,
       `*Com:* ${a.vendedor_nome || '—'}`,

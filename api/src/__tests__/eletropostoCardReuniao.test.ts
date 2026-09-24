@@ -197,9 +197,22 @@ describe('card de compra de carregador', () => {
   });
 
   it('grita quando ele quer a obra junto', () => {
-    const comObra = FICHA_COMPRA.replace('Só o equipamento, eu instalo', 'Quero com instalação, chave na mão');
+    const comObra = FICHA_COMPRA + '\nCOM OBRA';
     expect(compra(comObra)).toContain('COM OBRA');
     expect(compra(FICHA_COMPRA)).not.toContain('COM OBRA');
+  });
+
+  // A segunda venda escondida na pergunta da obra: quem ja tem eletricista ainda
+  // precisa de projeto e ART, e o consultor tem que chegar sabendo.
+  it('grita quando a obra e dele e o projeto e nosso', () => {
+    const comProjeto = FICHA_COMPRA + '\nPROJETO E ART';
+    expect(compra(comProjeto)).toContain('PROJETO E ART');
+    expect(compra(comProjeto)).not.toContain('COM OBRA');
+    expect(compra(FICHA_COMPRA)).not.toContain('PROJETO E ART');
+  });
+
+  it('o cabecalho leva o simbolo de posto', () => {
+    expect(compra(FICHA_COMPRA).split('\n')[0]).toContain('\u26fd');
   });
 
   it('a ficha do ponto continua com o card de sempre', () => {
