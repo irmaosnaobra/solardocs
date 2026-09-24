@@ -1176,6 +1176,20 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .orc1 .r .inc{color:#127A3E;font-weight:800;font-size:10.5px;letter-spacing:.4px;text-transform:uppercase}
 .orc1.ep .r .inc{color:#0B1A2B}
 .orc1 .mkq{display:inline-block;font-style:normal;font-size:10px;font-weight:800;letter-spacing:.3px;color:var(--c1);background:var(--c3);padding:1px 7px;border-radius:6px;margin-left:8px;vertical-align:middle}
+/* Tabela de itens da VENDA DE EQUIPAMENTO. O orçamento chave-na-mão não tem preço
+   por item (regra da casa); a venda de equipamento tem, porque é o que o comprador
+   confere contra a nota fiscal: descrição, NCM, unidade, quantidade e valor. */
+.orc1 .itens{width:100%;border-collapse:collapse;border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:11.5px}
+.orc1 .itens th{background:var(--c1);color:#fff;font-size:9.5px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;padding:7px 10px;text-align:left}
+.orc1 .itens th.n,.orc1 .itens td.n{text-align:right}
+.orc1 .itens td{padding:8px 10px;border-top:1px solid var(--line);color:#39404C;vertical-align:top}
+.orc1 .itens tbody tr:nth-child(even){background:var(--row)}
+.orc1 .itens td b{color:var(--c1);font-weight:800}
+.orc1 .itens td .sub{display:block;font-size:10px;color:var(--muted);font-weight:600;margin-top:2px;line-height:1.35}
+.orc1 .itens tr.tot td{background:var(--c1);color:#fff;font-weight:800;border-top:none;font-size:12.5px}
+.orc1 .itens tr.somas td{font-weight:700;color:var(--c1);background:var(--c3)}
+.orc1 .itens tr.opc td{opacity:.82}
+.orc1 .itens tr.tot i{font-style:normal;font-weight:600;opacity:.75;font-size:10.5px}
 /* Financeiro */
 .orc1 .fin{padding:13px 26px 6px}
 .orc1 .hero{display:grid;grid-template-columns:1.25fr 1fr;gap:12px;margin-bottom:11px}
@@ -2935,6 +2949,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div class="eletro-subnav">
       <button type="button" id="eletro-tab-simulador" class="eletro-subtab ativa" onclick="eletroSubaba('simulador')">Simulador</button>
       <button type="button" id="eletro-tab-orcamento" class="eletro-subtab" onclick="eletroSubaba('orcamento')">Orçamento</button>
+      <button type="button" id="eletro-tab-equipamento" class="eletro-subtab" onclick="eletroSubaba('equipamento')">Venda de equipamento</button>
       <!-- Os quatro papéis do pós-venda. Viraram grupo quando o dossiê de crédito
            entrou: cinco documentos em fila na régua 1 empurrava Cadastros e
            Histórico pra fora da tela de novo. Abre no Recibo. -->
@@ -3297,6 +3312,101 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       </div>
     </div>
     </div><!-- /eletro-pane-orcamento -->
+
+    <div id="eletro-pane-equipamento" style="display:none;">
+    <div class="pesquisa-info">Venda de <b>carregador avulso</b>, no padrão brasileiro de orçamento de equipamento: item com NCM, unidade, quantidade e valor unitário, frete CIF/FOB, prazo de entrega e garantia. Não passa pelo Simulador — quem compra equipamento já tem o projeto. Para obra chave na mão, use a aba <b>Orçamento</b>.</div>
+    <div class="orc-wrap">
+
+      <!-- DOCUMENTO -->
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Documento</div>
+        <div class="eletro-field"><label>Nº do orçamento</label>
+          <div class="eletro-inp"><input type="text" id="eq-num" placeholder="0803"></div></div>
+        <div class="eletro-field"><label>Data de emissão</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="date" id="eq-data"></div></div>
+        <div class="eletro-field"><label>Validade</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="eq-validade-modo" onchange="equipValidadeUi()">
+            <option value="sexta">Até sexta-feira, 18h</option>
+            <option value="dias">Prazo em dias</option>
+          </select></div></div>
+        <div class="eletro-field" id="eq-validade-dias-wrap" style="display:none;"><label>Prazo (dias)</label>
+          <div class="eletro-inp"><input type="number" id="eq-validade" inputmode="numeric" value="7" min="1" max="365" oninput="equipValidadeUi()"></div></div>
+        <div class="orc-note" id="eq-validade-hint"></div>
+      </div>
+
+      <!-- COMPRADOR -->
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Comprador</div>
+        <div class="eletro-field"><label>Nome / razão social</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-cli-nome" placeholder="quem compra" autocomplete="off"></div></div>
+        <div class="eletro-field"><label>CNPJ / CPF</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-cli-doc" placeholder="00.000.000/0000-00" autocomplete="off"></div></div>
+        <div class="eletro-field"><label>Inscrição Estadual</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-cli-ie" placeholder="ISENTO, se for o caso" autocomplete="off"></div></div>
+        <div class="eletro-field"><label>Endereço</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-cli-end" placeholder="Rua, nº, bairro" autocomplete="off"></div></div>
+        <div class="eletro-field"><label>Cidade / UF</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-cli-cidade" placeholder="Uberlândia/MG" oninput="equipEntregaEspelho()" autocomplete="off"></div></div>
+        <div class="eletro-field"><label>Telefone</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-cli-tel" placeholder="(00) 00000-0000" autocomplete="off"></div></div>
+        <div class="orc-note">A <b>UF do comprador</b> decide o DIFAL. Operação interestadual com comprador contribuinte muda o preço — confira antes de mandar.</div>
+      </div>
+
+      <!-- FORNECIMENTO -->
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Fornecimento</div>
+        <div class="eletro-field"><label>Condição de frete</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="eq-frete-tipo" onchange="equipCalc()">
+            <option value="CIF">CIF — entrega no endereço do comprador</option>
+            <option value="FOB">FOB — por conta do comprador</option>
+          </select></div></div>
+        <div class="eletro-field"><label>Frete cobrado à parte</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="eq-frete" inputmode="decimal" value="0" step="0.01" min="0" oninput="equipCalc()"></div></div>
+        <div class="orc-note">Deixe <b>zero</b> quando o frete já está dentro do preço do item — é o caso mais comum, e aí o documento não imprime linha de frete.</div>
+        <div class="eletro-field" style="margin-top:14px"><label>Local de entrega</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-entrega" placeholder="espelha a cidade do comprador" oninput="this.dataset.tocado='1'"></div></div>
+        <div class="eletro-field"><label>Prazo de entrega</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-prazo" placeholder="ex: 25 dias após a confirmação do pedido"></div></div>
+        <div class="eletro-field"><label>Garantia</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-garantia" placeholder="ex: 24 meses"></div></div>
+        <div class="orc-note">Prazo e garantia saem <b>em branco de propósito</b>: equipamento importado tem prazo por lote e garantia por fornecedor. Preencha com o que vale para ESTE pedido.</div>
+      </div>
+
+      <!-- ITENS -->
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Itens</div>
+        <div class="orc-note" style="margin-top:-2px;margin-bottom:12px">Aqui o preço é <b>por item</b> — ao contrário do orçamento chave na mão. É o que o comprador confere contra a nota fiscal. Item marcado como <b>opcional</b> aparece com preço mas <b>não soma</b> no total.</div>
+        <div id="eq-itens"></div>
+        <button type="button" class="eletro-btn" style="margin-top:10px" onclick="equipItemAdd()">+ Adicionar item</button>
+        <div class="orc-tot" style="margin-top:14px">
+          <div class="orc-tot-row"><span>Subtotal dos equipamentos</span><span class="v" id="eq-t-sub">R$ 0,00</span></div>
+          <div class="orc-tot-row"><span>Frete</span><span class="v" id="eq-t-frete">R$ 0,00</span></div>
+          <div class="orc-tot-row big"><span>Total do fornecimento</span><span class="v" id="eq-t-total">R$ 0,00</span></div>
+          <div class="orc-tot-row" id="eq-t-opc-row" style="display:none"><span>Opcionais (fora do total)</span><span class="v" id="eq-t-opc">R$ 0,00</span></div>
+        </div>
+      </div>
+
+      <!-- CONDIÇÕES DE PAGAMENTO -->
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Condições de pagamento</div>
+        <div class="orc-note" style="margin-top:-2px;margin-bottom:12px">Escreva a condição <b>como foi negociada</b>. Duas condições de prazo podem ter totais diferentes — aqui cada uma sai com o total dela, sem a casa recalcular juros por cima.</div>
+        <div id="eq-cond"></div>
+        <button type="button" class="eletro-btn" style="margin-top:10px" onclick="equipCondAdd()">+ Adicionar condição</button>
+      </div>
+
+      <!-- OBSERVAÇÕES -->
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Observações</div>
+        <textarea id="eq-obs" rows="5" style="width:100%;box-sizing:border-box;padding:11px 12px;background:#0f1a2e;border:1px solid rgba(255,255,255,.14);border-radius:9px;color:#fff;font-size:13.5px;font-family:inherit;font-weight:500;line-height:1.5;outline:none;resize:vertical"></textarea>
+        <div class="orc-note">Texto padrão editável, com a cláusula de DIFAL da casa. Aparece no rodapé do orçamento.</div>
+      </div>
+
+      <div class="eletro-acoes">
+        <button type="button" class="eletro-btn primary" onclick="orcEquipImprimir()">Gerar orçamento PDF</button>
+        <button type="button" class="eletro-btn primary" onclick="orcEquipLink()">Gerar link do orçamento</button>
+      </div>
+    </div>
+    </div><!-- /eletro-pane-equipamento -->
 
     <!-- ===== PANE: RECIBO (sinal do projeto elétrico) =====
          Aba própria, mas os dados do pagador continuam MORANDO no Orçamento
@@ -6543,8 +6653,15 @@ function epAbaNexus() {
 function orcViewTalvez(d, querOrc) {
   if (!d) return false;
   const ehEp = d.produto === 'eletroposto';
-  if (!ehEp && !querOrc) return false;
-  if (ehEp) {
+  // Venda de equipamento tem linha própria e SEMPRE abre no documento dela. Sem
+  // este ramo ela cairia no else e o cliente receberia a folha do solar, calada —
+  // o despacho aqui é por `dados.produto`, então produto novo precisa de ramo novo.
+  const ehEquip = d.produto === 'equipamento';
+  if (!ehEp && !ehEquip && !querOrc) return false;
+  if (ehEquip) {
+    epAbaNexus();
+    orcViewRender(orcEquipDocHTML(d), (d.vendedor && d.vendedor.contato) || (d.empresa && d.empresa.contato));
+  } else if (ehEp) {
     epAbaNexus();
     orcViewRender(orcEpDocHTML(d), (d.vendedor && d.vendedor.contato) || (d.empresa && d.empresa.contato));
   } else {
@@ -6653,7 +6770,10 @@ function mostrarExpirado(d) {
 
   document.getElementById('exp-nome').textContent = d.nome || '';
 
-  const ehEp = d.produto === 'eletroposto';
+  // Venda de equipamento é da MESMA família do eletroposto aqui: assina NEXUS e
+  // fala em orçamento. Sem o segundo termo, um link de equipamento vencido abria
+  // com a paleta do solar e dizia "Minha proposta de energia solar".
+  const ehEp = d.produto === 'eletroposto' || d.produto === 'equipamento';
   // A classe ep troca o laranja de "atenção" e o azul do solar pela paleta NEXUS
   // (regras #expiradoSection.ep no <style>). O solar segue sem ela.
   exp.classList.toggle('ep', ehEp);
@@ -8147,7 +8267,7 @@ async function apxMontar() {
 }
 
 function eletroSubaba(qual) {
-  const abas = ['simulador', 'orcamento', 'recibo', 'contrato', 'procuracao', 'banco', 'finame', 'apresentacao', 'cadastros', 'avisos', 'historico', 'pesquisa', 'mercado', 'estados', 'postos', 'mapa'];
+  const abas = ['simulador', 'orcamento', 'equipamento', 'recibo', 'contrato', 'procuracao', 'banco', 'finame', 'apresentacao', 'cadastros', 'avisos', 'historico', 'pesquisa', 'mercado', 'estados', 'postos', 'mapa'];
   // A cada abertura: monta a lista de potências (uma vez) e tenta completar o
   // vendedor. Fica aqui, e não só no load, porque o cadastro de consultores
   // carrega assíncrono — na primeira abertura o telefone ainda pode não existir.
@@ -8168,6 +8288,9 @@ function eletroSubaba(qual) {
   // Depois do orcInit, nunca antes: a pasta só preenche campo vazio, e é o
   // orcInit que decide quais campos nascem preenchidos.
   if (qual === 'orcamento' || qual === 'recibo' || qual === 'contrato' || qual === 'procuracao' || qual === 'banco' || qual === 'finame' || qual === 'apresentacao') epPastaAuto();
+  // Venda de equipamento NÃO chama orcInit: ela não depende do Simulador nem do
+  // kit chave-na-mão. Tem cliente, itens e preço próprios.
+  if (qual === 'equipamento') equipInit();
   if (qual === 'recibo') recBanner();
   if (qual === 'contrato') ctrInit();
   if (qual === 'procuracao') procInit();
@@ -11086,14 +11209,14 @@ function orc1HTML(d) {
   <div class="band"><div class="tab">${o1Esc(d.compTitulo || 'Composição do Sistema')}</div><div class="bar"></div></div>
   <div class="sec">${d.compHTML || ''}</div>
 
-  <div class="band"><div class="tab">Análise Financeira</div><div class="bar"></div></div>
+  ${d.heroL ? `<div class="band"><div class="tab">${o1Esc(d.finTitulo || 'Análise Financeira')}</div><div class="bar"></div></div>
   <div class="fin">
     <div class="hero">
       <div class="heroL"><div class="k">${o1Esc(d.heroL.k)}</div><div class="v num">${o1Esc(d.heroL.v)}</div>${d.heroL.s ? `<div class="s">${o1Esc(d.heroL.s)}</div>` : ''}</div>
       <div class="heroR"><div class="k">${o1Esc(d.heroR.k)}</div><div class="v num">${o1Esc(d.heroR.v)}</div>${d.heroR.s ? `<div class="s num">${o1Esc(d.heroR.s)}</div>` : ''}</div>
     </div>
     <div class="finGrid">${(d.fin || []).map(fc).join('')}</div>
-  </div>
+  </div>` : ''}
   ${d.obs ? `<div class="obs">${o1Esc(d.obs)}</div>` : ''}
 
   <div class="foot">
@@ -11392,6 +11515,393 @@ const orcEpArquivo = d => {
     .replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
   return ['Orcamento', limpa(d.nome) || 'Cliente', d.num ? 'N' + limpa(d.num) : ''].filter(Boolean).join('_');
 };
+
+// ═══════ VENDA DE EQUIPAMENTO — padrão brasileiro de orçamento de equipamento ═══════
+// Documento diferente do orçamento chave-na-mão. Lá o cliente compra um PROJETO
+// (valor único vindo do Simulador, item sem preço, análise de retorno). Aqui ele
+// compra uma MÁQUINA: o que o comprador confere contra a nota fiscal é descrição,
+// NCM, unidade, quantidade e valor unitário — por isso a tabela tem preço por item,
+// que no chave-na-mão é proibido.
+// Sem Simulador e sem bloco de retorno: quem compra equipamento já tem o projeto.
+const ORC_EQ_OBS_PADRAO = 'Fornecimento de equipamento. Não inclui projeto elétrico, '
+  + 'obra civil, instalação, cabeamento, comissionamento nem homologação na concessionária — '
+  + 'esses itens são orçados por endereço. Valores válidos durante o prazo deste orçamento. '
+  + 'Eventual DIFAL em operações interestaduais, quando aplicável, é de responsabilidade do comprador.';
+
+// Tabela de itens. Dinheiro em centavos inteiros no payload: o comprador soma a
+// coluna e confere contra o total, e float não fecha a conta.
+// Centavos exatos de um campo do payload. Vem de `d.cent` quando existe; link
+// gerado antes desse campo cai no arredondamento do valor em reais.
+function orcEquipCent(d, campo) {
+  const c = d && d.cent;
+  if (c && c[campo] != null) return Math.round(Number(c[campo]) || 0);
+  return Math.round((Number(d && d[campo]) || 0) * 100);
+}
+
+function orc1EquipTabela(d) {
+  const cent = v => Math.round(Number(v) || 0);
+  const brl = c => o1BRL(c / 100);
+  const campo = k => orcEquipCent(d, k);
+  const itens = d.itens || [];
+  // Item OPCIONAL entra na tabela com preço mas NÃO soma no total. Foi oferecido,
+  // ainda não foi pedido — somar inflaria o fornecimento e o comprador rejeitaria
+  // o documento inteiro por causa de uma linha que ele nunca aceitou.
+  const linhas = itens.map((i, n) => {
+    const qtd = Math.max(1, Math.round(Number(i.qtd) || 1));
+    return `<tr${i.opcional ? ' class="opc"' : ''}>
+      <td class="n">${n + 1}</td>
+      <td><b>${o1Esc(i.desc)}</b>${i.opcional ? '<em class="mkq">Opcional</em>' : ''}${i.detalhe ? `<span class="sub">${o1Esc(i.detalhe)}</span>` : ''}</td>
+      <td>${o1Esc(i.ncm || '—')}</td>
+      <td class="n">${o1Esc(i.un || 'un')}</td>
+      <td class="n">${qtd}</td>
+      <td class="n">${brl(cent(i.unit))}</td>
+      <td class="n">${brl(cent(i.unit) * qtd)}</td>
+    </tr>`;
+  }).join('');
+  const temOpc = itens.some(i => i.opcional);
+
+  // Linhas de soma só aparecem quando existem: orçamento sem frete nem desconto
+  // não imprime "Frete R$ 0,00" — o cliente lê zero como cobrança esquecida.
+  const somas = [];
+  const temAjuste = campo('frete') > 0 || cent(d.desconto) > 0;
+  if (temAjuste) somas.push(['Subtotal dos equipamentos', brl(campo('subtotal'))]);
+  // No FOB o frete e' do comprador; se mesmo assim o consultor cobrou um valor,
+  // a linha nao pode dizer "por conta do comprador" ao lado de um numero que
+  // ESTA somado no total. Diz so 'Frete'.
+  if (campo('frete') > 0) somas.push([d.freteTipo === 'FOB' ? 'Frete' : 'Frete (CIF, até o destino)', brl(campo('frete'))]);
+  if (cent(d.desconto) > 0) somas.push(['Desconto comercial', '− ' + brl(cent(d.desconto))]);
+  const somasHTML = somas.map(x => `<tr class="somas"><td colspan="6">${o1Esc(x[0])}</td><td class="n">${o1Esc(x[1])}</td></tr>`).join('');
+
+  return `<table class="itens">
+    <thead><tr>
+      <th class="n">#</th><th>Descrição</th><th>NCM</th>
+      <th class="n">Un</th><th class="n">Qtd</th><th class="n">V. unitário</th><th class="n">V. total</th>
+    </tr></thead>
+    <tbody>${linhas}${somasHTML}
+      <tr class="tot"><td colspan="6">Total do fornecimento${temOpc ? ' <i>(não inclui os itens opcionais)</i>' : ''}</td><td class="n">${brl(campo('total'))}</td></tr>
+    </tbody>
+  </table>`;
+}
+
+// "25 dias após a confirmação do pedido" → "25 dias". Pega o número com a
+// unidade quando existe; senão corta. Nunca inventa prazo: campo vazio sai "—".
+function orc1EquipPrazoCurto(txt) {
+  const t = String(txt || '').replace(/\s+/g, ' ').trim();
+  if (!t) return '—';
+  if (t.length <= 16) return t;
+  const m = t.match(/^\d+\s*[^\s,.;]+/);
+  return m ? m[0] : t.slice(0, 15).trim() + '…';
+}
+
+// Payload → HTML. Mesmo desenho de 1 página do orçamento, sem o bloco financeiro
+// (o orc1HTML pula a faixa quando não recebe heroL).
+function orcEquipDocHTML(d) {
+  const dEmis = d.dataEmissao ? new Date(d.dataEmissao) : new Date();
+  const empGrav = d.empresa || {};
+  const empresa = { ...empGrav, nome: (!empGrav.nome || epMarcaAntiga(empGrav.nome)) ? EP_MARCA : empGrav.nome };
+  const qtdTotal = (d.itens || []).filter(i => !i.opcional).reduce((a, i) => a + Math.max(1, Math.round(Number(i.qtd) || 1)), 0);
+
+  // Bloco fiscal: é o que faz este papel ser um orçamento de equipamento e não uma
+  // carta de preço. Linha vazia some — campo não preenchido não vira "—" no papel.
+  const linhas = [
+    ['Fornecedor', d.emitente && d.emitente.razao],
+    ['CNPJ do fornecedor', d.emitente && d.emitente.cnpj],
+    ['Inscrição Estadual', d.emitente && d.emitente.ie],
+    ['Condição de frete', d.freteTipo === 'FOB' ? 'FOB — por conta do comprador' : 'CIF — entrega no endereço do comprador'],
+    ['Local de entrega', d.entregaLocal],
+    ['Prazo de entrega', d.prazoEntrega],
+    ['Garantia', d.garantia],
+  ].filter(l => l[1]);
+
+  return orc1HTML({
+    tema: 'ep',
+    logo: '/gerador/nexus-logo-papel.png',
+    marca: 'NEXUS Eletropostos',
+    sub: '',
+    titulo: (d.titulo || 'Orçamento de Venda') + (d.num ? ' Nº ' + d.num : ''),
+    data: dEmis.toLocaleDateString('pt-BR'),
+    fichaRows: [
+      ['Comprador', d.nome],
+      ['CNPJ/CPF', d.doc],
+      ['Inscrição Estadual', d.ie],
+      ['Endereço', [d.endereco, d.cidade].filter(Boolean).join(' — ')],
+    ],
+    validade: validadeTexto(d, dEmis, 2),
+    detTitulo: 'Dados do Fornecimento',
+    tiles: [
+      { k: 'Equipamentos', v: String(qtdTotal), u: 'un' },
+      { k: 'Frete', v: d.freteTipo === 'FOB' ? 'FOB' : 'CIF', u: d.freteTipo === 'FOB' ? 'comprador' : 'incluso' },
+      // O tile é número grande: prazo por extenso ("25 dias após a confirmação do
+      // pedido") vira três linhas e estica a faixa inteira. Aqui entra a forma
+      // curta; o texto como foi escrito continua na linha "Prazo de entrega".
+      { k: 'Entrega', v: orc1EquipPrazoCurto(d.prazoEntrega), u: '' },
+    ],
+    linhas,
+    compTitulo: 'Equipamentos',
+    compHTML: orc1EquipTabela(d),
+    obs: d.obs || ORC_EQ_OBS_PADRAO,
+    // Duas condições de prazo têm TOTAIS diferentes (a de 18x custa mais que a de
+    // 10x). O orc1PagChips deriva tudo de um total só com juros da casa, o que não
+    // serve aqui: quando o consultor digita as condições, elas saem como foram
+    // negociadas, cada uma com o seu total. Sem condições digitadas, cai no padrão.
+    pagHTML: (d.condicoes && d.condicoes.length)
+      ? `<div class="pags">${d.condicoes.map(cd =>
+          `<div class="pag"><b>${o1Esc(cd.titulo)}</b><span>${o1Esc(cd.detalhe)}</span></div>`).join('')}</div>`
+      : orc1PagChips({ total: orcEquipCent(d, 'total') / 100, ...(d.pag || {}) }),
+    vendedor: d.vendedor,
+    empresa,
+  });
+}
+
+// ═══════ VENDA DE EQUIPAMENTO — tela ═══════
+// Aba própria porque o orçamento chave-na-mão é acoplado ao Simulador de
+// propósito (regra da casa: o que dá pra definir na planilha fica lá). Venda de
+// equipamento não tem Simulador, não tem payback e tem preço POR ITEM — forçar
+// os dois no mesmo formulário quebraria a regra dos dois lados.
+const EQ_OBS_PADRAO_TELA = ORC_EQ_OBS_PADRAO;
+
+function eqVal(id) { const e = document.getElementById(id); return e ? String(e.value || '').trim() : ''; }
+function eqNum(id) { const e = document.getElementById(id); return e ? (Number(e.value) || 0) : 0; }
+// Dinheiro sempre em centavos inteiros: o comprador soma a coluna da tabela e
+// confere contra o total, e float não fecha a conta (0,82 + 0,18 não dá 1,00).
+const eqCent = reais => Math.round((Number(reais) || 0) * 100);
+
+function equipInit() {
+  if (document.getElementById('eq-itens').dataset.pronto) { equipCalc(); return; }
+  document.getElementById('eq-itens').dataset.pronto = '1';
+  const hoje = document.getElementById('eq-data');
+  if (hoje && !hoje.value) hoje.value = (typeof orcHojeISO === 'function') ? orcHojeISO() : new Date().toISOString().slice(0, 10);
+  const obs = document.getElementById('eq-obs');
+  if (obs && !obs.value) obs.value = EQ_OBS_PADRAO_TELA;
+  // Nasce com uma linha de item e as duas condições vazias: formulário em branco
+  // não ensina o formato, e o consultor acaba escrevendo tudo na observação.
+  equipItemAdd();
+  equipCondAdd();
+  equipValidadeUi();
+  equipCalc();
+}
+
+function equipValidadeUi() {
+  const modo = eqVal('eq-validade-modo');
+  const wrap = document.getElementById('eq-validade-dias-wrap');
+  if (wrap) wrap.style.display = (modo === 'dias') ? '' : 'none';
+  const hint = document.getElementById('eq-validade-hint');
+  if (!hint) return;
+  if (modo === 'dias') {
+    const n = Math.max(1, Math.round(eqNum('eq-validade') || 7));
+    hint.textContent = 'O orçamento vence ' + n + (n === 1 ? ' dia' : ' dias') + ' depois da emissão.';
+  } else if (typeof proximaSexta18 === 'function') {
+    try { hint.textContent = 'Vence na sexta, ' + new Date(proximaSexta18()).toLocaleDateString('pt-BR') + ', às 18h.'; }
+    catch (e) { hint.textContent = ''; }
+  } else { hint.textContent = ''; }
+}
+
+// Local de entrega espelha a cidade do comprador enquanto ninguém digitou por
+// cima — mesma regra do resto do app: autopreenche campo VAZIO, nunca por cima.
+function equipEntregaEspelho() {
+  const alvo = document.getElementById('eq-entrega');
+  if (!alvo || alvo.dataset.tocado) return;
+  alvo.value = eqVal('eq-cli-cidade');
+}
+
+function equipItemAdd() {
+  const host = document.getElementById('eq-itens');
+  const i = host.children.length;
+  const d = document.createElement('div');
+  d.className = 'card';
+  d.style.cssText = 'margin-top:10px;padding:14px';
+  d.innerHTML =
+    '<div class="eletro-field"><label>Descrição</label>' +
+      '<div class="eletro-inp eletro-inp-wide"><input type="text" class="eq-i-desc" placeholder="Carregador NEXUS DC80 · 80 kW"></div></div>' +
+    '<div class="eletro-field"><label>Detalhe técnico</label>' +
+      '<div class="eletro-inp eletro-inp-wide"><input type="text" class="eq-i-det" placeholder="Corrente contínua · 2 conectores CCS2 · OCPP 1.6J"></div></div>' +
+    '<div class="eletro-field"><label>NCM</label>' +
+      '<div class="eletro-inp eletro-inp-wide"><input type="text" class="eq-i-ncm" placeholder="classificação fiscal do produto"></div></div>' +
+    '<div class="eletro-field"><label>Unidade</label>' +
+      '<div class="eletro-inp"><input type="text" class="eq-i-un" value="un"></div></div>' +
+    '<div class="eletro-field"><label>Quantidade</label>' +
+      '<div class="eletro-inp"><input type="number" class="eq-i-qtd" value="1" min="1" step="1" oninput="equipCalc()"></div></div>' +
+    '<div class="eletro-field"><label>Valor unitário</label>' +
+      '<div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" class="eq-i-unit" step="0.01" min="0" placeholder="0" oninput="equipCalc()"></div></div>' +
+    '<label class="orc-pg-forma" style="margin-top:10px"><input type="checkbox" class="eq-i-opc" onchange="equipCalc()"> Item opcional — aparece com preço, mas não soma no total</label>' +
+    '<button type="button" class="eletro-btn" style="margin-top:10px" onclick="this.parentNode.remove();equipCalc()">Remover item</button>';
+  host.appendChild(d);
+  equipCalc();
+}
+
+function equipCondAdd() {
+  const host = document.getElementById('eq-cond');
+  const d = document.createElement('div');
+  d.className = 'card';
+  d.style.cssText = 'margin-top:10px;padding:14px';
+  d.innerHTML =
+    '<div class="eletro-field"><label>Título</label>' +
+      '<div class="eletro-inp eletro-inp-wide"><input type="text" class="eq-c-tit" placeholder="10 parcelas"></div></div>' +
+    '<div class="eletro-field"><label>Como sai no documento</label>' +
+      '<div class="eletro-inp eletro-inp-wide"><input type="text" class="eq-c-det" placeholder="10x de R$ 6.549,00 — total R$ 65.490,00"></div></div>' +
+    '<button type="button" class="eletro-btn" style="margin-top:10px" onclick="this.parentNode.remove()">Remover condição</button>';
+  host.appendChild(d);
+}
+
+// Lê os itens da tela. Linha sem descrição E sem valor é descartada — o
+// formulário nasce com uma linha vazia e ela não pode virar item fantasma.
+function equipLerItens() {
+  return [...document.querySelectorAll('#eq-itens > .card')].map(c => {
+    const g = s => { const e = c.querySelector(s); return e ? String(e.value || '').trim() : ''; };
+    const unit = eqCent(c.querySelector('.eq-i-unit') ? c.querySelector('.eq-i-unit').value : 0);
+    const opc = c.querySelector('.eq-i-opc');
+    return {
+      desc: g('.eq-i-desc'), detalhe: g('.eq-i-det'), ncm: g('.eq-i-ncm'),
+      un: g('.eq-i-un') || 'un',
+      qtd: Math.max(1, Math.round(Number(g('.eq-i-qtd')) || 1)),
+      unit,
+      opcional: !!(opc && opc.checked),
+    };
+  }).filter(i => i.desc || i.unit > 0);
+}
+
+function equipLerCondicoes() {
+  return [...document.querySelectorAll('#eq-cond > .card')].map(c => {
+    const g = s => { const e = c.querySelector(s); return e ? String(e.value || '').trim() : ''; };
+    return { titulo: g('.eq-c-tit'), detalhe: g('.eq-c-det') };
+  }).filter(x => x.titulo || x.detalhe);
+}
+
+function equipTotais() {
+  const itens = equipLerItens();
+  const soma = f => itens.filter(f).reduce((a, i) => a + i.unit * i.qtd, 0);
+  const subtotal = soma(i => !i.opcional);
+  const opcionais = soma(i => i.opcional);
+  const frete = eqCent(eqNum('eq-frete'));
+  return { itens, subtotal, opcionais, frete, total: subtotal + frete };
+}
+
+function equipCalc() {
+  const t = equipTotais();
+  const brl = c => (typeof o1BRL === 'function') ? o1BRL(c / 100)
+    : 'R$ ' + (c / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  set('eq-t-sub', brl(t.subtotal));
+  set('eq-t-frete', brl(t.frete));
+  set('eq-t-total', brl(t.total));
+  set('eq-t-opc', brl(t.opcionais));
+  const row = document.getElementById('eq-t-opc-row');
+  if (row) row.style.display = t.opcionais > 0 ? '' : 'none';
+}
+
+function orcEquipPayload() {
+  const t = equipTotais();
+  if (!t.itens.length) return null;
+  const vendNome = (typeof crmConsultorLogado === 'function' ? crmConsultorLogado() : '') || '';
+  const vendTel = (typeof whatsDoConsultor === 'function' ? whatsDoConsultor(vendNome) : '') || '';
+  const emit = (typeof epEmitGet === 'function') ? (epEmitGet() || {}) : {};
+  const dEmisISO = eqVal('eq-data') || ((typeof orcHojeISO === 'function') ? orcHojeISO() : new Date().toISOString().slice(0, 10));
+  const telCli = eqVal('eq-cli-tel');
+
+  return {
+    produto: 'equipamento',
+    titulo: 'Orçamento de Venda',
+    num: eqVal('eq-num'),
+    dataEmissao: new Date(dEmisISO + 'T00:00:00').toISOString(),
+    ...lerValidade('eq-validade-modo', 'eq-validade'),
+    // comprador
+    nome: eqVal('eq-cli-nome'),
+    doc: eqVal('eq-cli-doc'),
+    ie: eqVal('eq-cli-ie'),
+    endereco: eqVal('eq-cli-end'),
+    cidade: eqVal('eq-cli-cidade'),
+    telefone: telCli,
+    telefoneDigitos: telCli.replace(/\D/g, ''),
+    consultor: vendNome,
+    // fornecedor: razão social e CNPJ do cadastro "Sua empresa". Documento que
+    // fala em nota fiscal precisa dizer quem emite — banco e Receita conferem
+    // o nome contra o número.
+    emitente: { razao: emit.razao || '', cnpj: emit.cnpj || '', ie: emit.ie || '' },
+    freteTipo: eqVal('eq-frete-tipo') || 'CIF',
+    entregaLocal: eqVal('eq-entrega') || eqVal('eq-cli-cidade'),
+    prazoEntrega: eqVal('eq-prazo'),
+    garantia: eqVal('eq-garantia'),
+    itens: t.itens,
+    // total/subtotal/frete vao em REAIS. A linha grava tipo='eletroposto', e todo
+    // consumidor de linha de eletroposto (coluna Valor do Historico, CSV exportado,
+    // card do cliente e pipeline do CRM) le `dados.total` como reais — gravar
+    // centavos aqui faria um orcamento de R$ 65.490 aparecer como R$ 6.549.000 e
+    // dominar qualquer soma do funil.
+    subtotal: t.subtotal / 100, frete: t.frete / 100, desconto: 0, total: t.total / 100,
+    // Os centavos exatos moram aqui, e so o documento desta aba le. E' o que garante
+    // que a coluna da tabela some exatamente o total impresso no rodape.
+    cent: { total: t.total, subtotal: t.subtotal, frete: t.frete, opcionais: t.opcionais },
+    condicoes: equipLerCondicoes(),
+    obs: eqVal('eq-obs') || ORC_EQ_OBS_PADRAO,
+    vendedor: { nome: vendNome, contato: vendTel },
+    empresa: (typeof orc1EpEmpresa === 'function') ? orc1EpEmpresa() : { nome: EP_MARCA },
+  };
+}
+
+const orcEquipArquivo = d => {
+  const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
+  return ['Orcamento', 'Equipamento', limpa(d.nome) || 'Cliente', d.num ? 'N' + limpa(d.num) : ''].filter(Boolean).join('_');
+};
+
+function equipCritica(d) {
+  if (!d) return 'Adicione ao menos um item com descrição ou valor.';
+  if (!(d.total > 0)) return 'Sem valor. Preencha o valor unitário de ao menos um item que não seja opcional.';
+  return '';
+}
+
+function orcEquipImprimir() {
+  const d = orcEquipPayload();
+  const erro = equipCritica(d);
+  if (erro) { alert(erro); return; }
+  orc1Imprimir(orcEquipDocHTML(d), orcEquipArquivo(d), { umaPagina: true, piso: 0.74 });
+}
+
+function _orcamentoEquipRowFromDados(d) {
+  const cidade = (d.cidade || '').trim();
+  const partes = cidade.split(/[,\/]/).map(s => s.trim()).filter(Boolean);
+  return {
+    // A coluna `tipo` tem CHECK em produção: aceita só 'solar' e 'eletroposto'
+    // (propostas_tipo_check, conferido em 24/09/2026). Gravar 'equipamento' aqui
+    // faria o INSERT estourar e o consultor veria só "erro ao gerar o link".
+    // Quem distingue o documento é `dados.produto`, que é como a casa já decide:
+    // o get_proposta_pub devolve só o jsonb, então a coluna não serve pro caminho
+    // do cliente de qualquer jeito. De quebra, a linha continua sendo vista como
+    // da família eletroposto no Histórico, em vez de sumir das listas.
+    tipo: 'eletroposto',
+    dados: d,
+    consultor_nome: d.consultor || null,
+    cliente_nome: d.nome || null,
+    cliente_cidade: partes[0] || null,
+    cliente_uf: partes[1] || null,
+    validade_dias: Number(d.validadeDias) || null,
+    expira_em: d.expiraEmISO || null,
+  };
+}
+
+async function salvarOrcamentoEquipSupabase(d) {
+  const arr = await supaInsert('propostas', _orcamentoEquipRowFromDados(d));
+  return arr[0].codigo;
+}
+
+async function orcEquipLink() {
+  const d = orcEquipPayload();
+  const erro = equipCritica(d);
+  if (erro) { alert(erro); return; }
+  if (!d.nome) { alert('Informe o comprador antes de gerar o link.'); return; }
+  showToast('⏳ Gerando link...');
+  try {
+    const codigo = await salvarOrcamentoEquipSupabase(d);
+    const link = orcLinkPublico(codigo);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try { await navigator.clipboard.writeText(link); showToast('🔗 Link ' + codigo + ' copiado!'); return; } catch (e) {}
+    }
+    fallbackCopy(link);
+  } catch (e) {
+    console.error(e);
+    showToast('❌ Erro ao gerar o link');
+  }
+}
 
 function orcImprimir() {
   const d = orcEpPayload();
