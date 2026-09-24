@@ -2231,6 +2231,97 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
    o CSS da casa ja tentava ter e perdia por ordem de fonte. */
 #eletroSection .eletro-grid .eletro-inp-wide input[type="text"]{text-align:left}
 
+
+/* ===========================================================================
+   FORMULARIO DO ELETROPOSTO — rotulo em cima, campo embaixo (24/09/2026)
+   ---------------------------------------------------------------------------
+   O padrao antigo (.eletro-field com label em flex:1 e input de 132/190px)
+   nasceu no SIMULADOR, que e' planilha: rotulo a esquerda, numero a direita,
+   rotulos longos, nenhum vao. Ali ele esta CERTO e continua como esta.
+
+   O erro foi reusa-lo nos campos de TEXTO das abas de documento. Medido em
+   24/09, a 1395px: vao medio de 479px entre o fim do rotulo e o campo, e
+   55 campos cortando o proprio conteudo nas 8 abas — nome do cliente,
+   endereco e dados bancarios ilegiveis depois de digitados.
+
+   O CSS ja TENTAVA alinhar texto a esquerda (.eletro-inp-wide input
+   {text-align:left}) e perdia por ordem de fonte para .eletro-inp input
+   {text-align:right}. O comentario logo abaixo chegou a registrar o efeito
+   ("na pratica todos sao a direita") tratando o defeito como intencao.
+
+   Aqui o card das abas de documento vira grade (3 colunas no desktop, 2 no
+   celular), o rotulo sobe como etiqueta e o campo ocupa a celula. Texto a
+   esquerda, numero continua a direita colado no R$ / % / kWh. Resultado
+   medido: 55 campos cortados -> 0, e a altura CAIU (orcamento 3362 -> 2919px,
+   equipamento 2480 -> 2127px), porque empilhar se paga com coluna.
+
+   Escopo: `#eletroSection .orc-wrap` (as 7 abas de documento) mais quatro
+   campos nomeados do Simulador. O resto do Simulador nao e' tocado.
+   =========================================================================== */
+/* ===========================================================================
+   CONTROLE SOLTO DENTRO DO .eletro-field (24/09/2026)
+   ---------------------------------------------------------------------------
+   A aba Procuracao tem 26 <input> e <select> pendurados DIRETO no
+   `.eletro-field`, sem o embrulho `.eletro-inp` que todas as outras abas usam.
+   Como o desenho escuro da casa mora em `.eletro-inp input`, esses 26 nunca
+   foram alcancados: sempre sairam BRANCOS, de navegador, com letra preta, no
+   meio de um card escuro. E' defeito antigo, de antes da grade.
+
+   A grade piorou o sintoma sem criar a causa: esticou cada um de 177px para
+   329px, entao a mancha branca dobrou de tamanho. Aqui os 26 passam a ser o
+   mesmo campo que todos os outros — mesma cor, mesma borda, mesmo foco, mesma
+   seta de select.
+
+   Checkbox e radio ficam de fora: eles nao sao caixa de texto e o desenho
+   nativo deles e' o certo.
+   =========================================================================== */
+#eletroSection .orc-wrap .eletro-field > input:not([type="checkbox"]):not([type="radio"]),
+#eletroSection .orc-wrap .eletro-field > select,
+#eletroSection .orc-wrap .eletro-field > textarea{
+  width:100%;
+  box-sizing:border-box;
+  padding:8px 11px;
+  background:#0f1a2e;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:9px;
+  color:#fff;
+  font-size:13.5px;
+  font-family:inherit;
+  font-weight:700;
+  text-align:left;          /* sao nome, CPF, endereco, concessionaria: texto */
+  outline:none;
+  transition:border-color .2s;
+}
+#eletroSection .orc-wrap .eletro-field > input:not([type="checkbox"]):not([type="radio"]):focus,
+#eletroSection .orc-wrap .eletro-field > select:focus,
+#eletroSection .orc-wrap .eletro-field > textarea:focus{border-color:#3B82F6}
+
+/* o select solto ganha a MESMA seta propria dos outros: a nativa some junto
+   com appearance:none, e sem isto ele fica sem indicacao de que abre */
+#eletroSection .orc-wrap .eletro-field > select{
+  padding:8px 30px 8px 11px;
+  cursor:pointer;
+  -webkit-appearance:none;
+  appearance:none;
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 9px center;
+  background-size:14px;
+}
+/* data solta: o icone nativo do calendario e' escuro e some no fundo escuro */
+#eletroSection .orc-wrap .eletro-field > input[type="date"]::-webkit-calendar-picker-indicator{
+  filter:invert(1) opacity(.65);
+  cursor:pointer;
+}
+
+/* No celular o campo sobe pra 16px: abaixo disso o iOS da zoom sozinho ao focar. */
+@media(max-width:640px){
+  #eletroSection .orc-wrap .eletro-field > input:not([type="checkbox"]):not([type="radio"]),
+  #eletroSection .orc-wrap .eletro-field > select,
+  #eletroSection .orc-wrap .eletro-field > textarea{font-size:16px;padding:9px 11px}
+  #eletroSection .orc-wrap .eletro-field > select{padding:9px 30px 9px 11px}
+}
+
 </style>
 <script>
 (function(){
