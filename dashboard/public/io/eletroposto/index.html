@@ -1193,6 +1193,7 @@
             <option value="investidor">Investidor · tenho capital, quero um ponto</option>
             <option value="comercio">Dono de comércio · tenho um ponto</option>
             <option value="integrador">Integrador de energia solar</option>
+            <option value="carregador">Quero comprar carregador · já sei o que quero instalar</option>
           </select></div>
         </div>
         </div>
@@ -1364,6 +1365,97 @@
               <option>Terceirizo a instalação</option>
               <option>Trabalho sozinho</option>
               <option>Só vendo, não instalo</option>
+            </select></div>
+          </div>
+        </div>
+
+        <!-- ══ QUIZ DE QUEM COMPRA CARREGADOR (24/09/2026) ═══════════════════════
+             Ordem do Thiago: quarta porta, e essa turma CAI NA AGENDA com etiqueta
+             própria. É o público do antigo "modelo 04 · só o equipamento", que saiu
+             da lista de modelos em 16/09 porque é conversa de reunião e não de
+             formulário — agora ele tem entrada própria em vez de sumir.
+
+             A potência começa em 80 kW porque a linha DC da NEXUS começa lá. Efeito
+             de lado que vale registrar: não existe venda pequena nesta porta, então
+             ela não repete o problema que o investidor criou na agenda (36% dos
+             horários para 13% de conversão). Todo lead aqui é conversa de seis
+             dígitos. -->
+        <div class="passo" id="p-car-potencia">
+          <div class="fld">
+            <label for="f-car-potencia">Qual potência você precisa?</label>
+            <div class="inp"><select id="f-car-potencia">
+              <option value="">Selecione…</option>
+              <option value="80">80 kW</option>
+              <option value="120">120 kW</option>
+              <option value="outra">Outra potência · quero avaliar na reunião</option>
+            </select></div>
+          </div>
+        </div>
+
+        <div class="passo" id="p-car-qtd">
+          <div class="fld">
+            <label for="f-car-qtd">Quantas unidades?</label>
+            <div class="inp"><select id="f-car-qtd">
+              <option value="">Selecione…</option>
+              <option value="1">1 unidade</option>
+              <option value="2_5">2 a 5 unidades</option>
+              <option value="6_10">6 a 10 unidades</option>
+              <option value="mais_10">Mais de 10 unidades</option>
+            </select></div>
+          </div>
+        </div>
+
+        <div class="passo" id="p-car-uso">
+          <div class="fld">
+            <label for="f-car-uso">Para onde vai?</label>
+            <div class="inp"><select id="f-car-uso">
+              <option value="">Selecione…</option>
+              <option value="meu_negocio">Meu negócio</option>
+              <option value="condominio">Condomínio</option>
+              <option value="frota">Frota</option>
+              <option value="revenda">Revenda</option>
+              <option value="uso_proprio">Uso próprio</option>
+            </select></div>
+          </div>
+        </div>
+
+        <!-- A pergunta do software fica DEPOIS de potência, quantidade e uso: quem
+             chega aqui já disse o tamanho do negócio, e aí "já tenho" é uma resposta
+             informada em vez de um chute. "Já tenho" é resposta de quem opera outros
+             pontos, e é ela que separa comprador de equipamento de comprador de
+             operação. -->
+        <div class="passo" id="p-car-software">
+          <div class="fld">
+            <label for="f-car-software">Vai precisar do software e do app?</label>
+            <div class="inp"><select id="f-car-software">
+              <option value="">Selecione…</option>
+              <option value="sim">Sim, quero o software e o app</option>
+              <option value="ja_tenho">Não, já tenho</option>
+            </select></div>
+          </div>
+        </div>
+
+        <div class="passo" id="p-car-instala">
+          <div class="fld">
+            <label for="f-car-instala">Quem instala?</label>
+            <div class="inp"><select id="f-car-instala">
+              <option value="">Selecione…</option>
+              <option value="chave">Quero com instalação, chave na mão</option>
+              <option value="so_equipamento">Só o equipamento, eu instalo</option>
+              <option value="nao_sei">Ainda não sei</option>
+            </select></div>
+          </div>
+        </div>
+
+        <div class="passo" id="p-car-prazo">
+          <div class="fld">
+            <label for="f-car-prazo">Para quando?</label>
+            <div class="inp"><select id="f-car-prazo">
+              <option value="">Selecione…</option>
+              <option value="agora">O quanto antes</option>
+              <option value="30">Nos próximos 30 dias</option>
+              <option value="90">Nos próximos 3 meses</option>
+              <option value="pesquisando">Estou pesquisando</option>
             </select></div>
           </div>
         </div>
@@ -3098,13 +3190,22 @@ const soInvestidor = () => val('f-porta') === 'investidor';
 const investidorComLocal = () => soInvestidor() && val('f-cap-local') === 'meu';
 /** O investidor SEM local (lugar em vista ou nenhum): fica no quiz desde 21/09/2026. */
 const investidorSemLocal = () => soInvestidor() && !!val('f-cap-local') && !investidorComLocal();
-/** Quem vai para a agenda: dono de comércio e o investidor que já tem o local. */
-const vaiParaAgenda = () => soComercio() || investidorComLocal();
-/** Nome, cidade e WhatsApp são os passos que as três trilhas dividem. */
+/** Quarta porta (24/09/2026): quem já sabe o carregador que quer comprar. */
+const soCarregador = () => val('f-porta') === 'carregador';
+/**
+ * A TRILHA DO PONTO — perfil, ponto, relação, vagas, modelo, investir, decisor.
+ * É de quem vai instalar no próprio local. Quem compra carregador NÃO passa por
+ * ela: perguntar "qual o seu modelo de negócio" a quem já escolheu o equipamento
+ * é obrigar o comprador a responder o formulário do vendedor.
+ */
+const trilhaComercio = () => soComercio() || investidorComLocal();
+/** Quem TERMINA marcando reunião. É o que decide o botão do último passo. */
+const vaiParaAgenda = () => trilhaComercio() || soCarregador();
+/** Nome, cidade e WhatsApp são os passos que todas as trilhas dividem. */
 const quizAqui = () => vaiParaAgenda() || soIntegrador() || investidorSemLocal();
 
 const PASSOS = [
-  { id:'p-porta',   ok:() => val('f-porta') ? null : 'Escolha uma das três opções.' },
+  { id:'p-porta',   ok:() => val('f-porta') ? null : 'Escolha uma das opções.' },
   // Pergunta de roteamento, só para quem marcou Investidor. Ela é a segunda tela
   // dele: decidir cedo evita fazer alguém escolher horário para depois descobrir
   // que ele não vai agendar.
@@ -3131,14 +3232,28 @@ const PASSOS = [
                        ok:() => val('f-i-interesse') ? null : 'Informe como quer trabalhar com eletroposto.' },
   { id:'p-i-equipe',   quando: soIntegrador,
                        ok:() => val('f-i-equipe') ? null : 'Informe como é a sua equipe hoje.' },
-  { id:'p-perfil',  quando: vaiParaAgenda, ok:() => {
+  // ── Trilha de quem compra carregador. Seis perguntas, nenhuma corta ninguém:
+  //    todas vão para a ficha, e quem responde cai na agenda com etiqueta própria.
+  { id:'p-car-potencia', quando: soCarregador,
+                         ok:() => val('f-car-potencia') ? null : 'Escolha a potência.' },
+  { id:'p-car-qtd',      quando: soCarregador,
+                         ok:() => val('f-car-qtd') ? null : 'Informe quantas unidades.' },
+  { id:'p-car-uso',      quando: soCarregador,
+                         ok:() => val('f-car-uso') ? null : 'Informe para onde vai.' },
+  { id:'p-car-software', quando: soCarregador,
+                         ok:() => val('f-car-software') ? null : 'Informe se vai precisar do software e do app.' },
+  { id:'p-car-instala',  quando: soCarregador,
+                         ok:() => val('f-car-instala') ? null : 'Informe quem instala.' },
+  { id:'p-car-prazo',    quando: soCarregador,
+                         ok:() => val('f-car-prazo') ? null : 'Informe para quando você precisa.' },
+  { id:'p-perfil',  quando: trilhaComercio, ok:() => {
       const v = val('f-perfil');
       if(!v) return 'Selecione seu perfil.';
       if(v === 'outro' && val('f-outro').length < 3) return 'Escreva qual é o seu segmento.';
       if(PERFIL_SEM_FLUXO.has(v) && !val('f-rota')) return 'Informe se o local fica em rota de passagem.';
       return null;
     } },
-  { id:'p-ponto',   quando: vaiParaAgenda, ok:() => {
+  { id:'p-ponto',   quando: trilhaComercio, ok:() => {
       const v = val('f-ponto');
       if(!v) return 'Informe como está o seu ponto hoje.';
       if(v === 'definido' && !val('f-relacao')) return 'Informe qual é a sua relação com o local.';
@@ -3151,14 +3266,14 @@ const PASSOS = [
       }
       return null;
     } },
-  { id:'p-vagas',   quando:() => vaiParaAgenda() && PONTO_COM_VAGAS.has(val('f-ponto')),
+  { id:'p-vagas',   quando:() => trilhaComercio() && PONTO_COM_VAGAS.has(val('f-ponto')),
                     ok:() => val('f-vagas') ? null : 'Informe quantas vagas estão disponíveis.' },
-  { id:'p-modelo',  quando: vaiParaAgenda, ok:() => val('f-modelo') ? null : 'Escolha o modelo que te interessa.' },
-  { id:'p-invest',  quando:() => vaiParaAgenda() && !MODELO_SEM_CAPITAL.has(val('f-modelo')),
+  { id:'p-modelo',  quando: trilhaComercio, ok:() => val('f-modelo') ? null : 'Escolha o modelo que te interessa.' },
+  { id:'p-invest',  quando:() => trilhaComercio() && !MODELO_SEM_CAPITAL.has(val('f-modelo')),
                     ok:() => val('f-invest') ? null : 'Informe como pretende investir.' },
-  { id:'p-valor',   quando:() => vaiParaAgenda() && !MODELO_SEM_CAPITAL.has(val('f-modelo')),
+  { id:'p-valor',   quando:() => trilhaComercio() && !MODELO_SEM_CAPITAL.has(val('f-modelo')),
                     ok:() => val('f-valor') ? null : 'Informe quanto pretende investir.' },
-  { id:'p-decisor', quando: vaiParaAgenda, ok:() => val('f-decisor') ? null : 'Informe quem decide o investimento.' },
+  { id:'p-decisor', quando: trilhaComercio, ok:() => val('f-decisor') ? null : 'Informe quem decide o investimento.' },
   { id:'p-whatsapp', quando: quizAqui, ok:() => {
       return telefoneConfere() ? null : 'Informe um WhatsApp válido com DDD.';
     } },
@@ -3476,7 +3591,8 @@ const SELECTS_EM_BOTAO = ['f-porta','f-cap-local','f-inv-valor','f-perfil','f-ro
                           // Trilha do integrador. Select que não entra nesta lista
                           // continua sendo a lista do sistema no celular, que é
                           // exatamente o que o bloco acima diz que foi consertado.
-                          'f-i-atuacao','f-i-exp','f-i-interesse','f-i-equipe'];
+                          'f-i-atuacao','f-i-exp','f-i-interesse','f-i-equipe',
+                          'f-car-potencia','f-car-qtd','f-car-uso','f-car-software','f-car-instala','f-car-prazo'];
 function montarOpcoes(){
   SELECTS_EM_BOTAO.forEach(id => {
     const sel = document.getElementById(id);
@@ -3635,6 +3751,48 @@ async function agendar(){
   const invest  = document.getElementById('f-invest');
   const decisor = document.getElementById('f-decisor');
   const txt     = el => (el.selectedOptions[0] || {}).text || 'não informado';
+
+  // ══ QUEM COMPRA CARREGADOR FECHA AQUI (24/09/2026) ════════════════════════
+  // Ordem do Thiago: quarta porta, cai na agenda, com etiqueta própria.
+  //
+  // Ele sai ANTES de toda a validação do ponto (perfil, relação, vagas, modelo,
+  // investir, decisor) porque não respondeu nenhuma delas — e `pontuar()` sem
+  // ponto devolve NOTA 1, que mandaria o comprador de seis dígitos para a página
+  // de quem não tem local. É o desvio mais cedo da função de propósito.
+  //
+  // A ETIQUETA: `created_by` leva 'lp_eletroposto_carregador'. As duas coisas que
+  // isso garante, sem mexer em mais nada:
+  //   · contém "eletroposto", então `ehOrigemEletroposto` continua verdadeiro e ele
+  //     recebe confirmação, bom dia, lembretes e entra no repasse como qualquer
+  //     reunião do produto;
+  //   · é um slug DESCONHECIDO do mapa de origem, e a derivação é dinâmica — então
+  //     a etiqueta CARREGADOR aparece sozinha no painel, que é a regra do dono
+  //     ("público novo gera etiqueta nova e o dashboard atualiza sozinho").
+  if(soCarregador()){
+    if(nome.split(/\s+/).length < 2 || nome.length < 5) return erro('Escreva seu nome completo.');
+    if(!telefoneConfere())  return erro('Informe um WhatsApp válido com DDD.');
+    if(cidade.length < 2)   return erro('Informe a cidade e o estado (UF).');
+    const q = id => (document.getElementById(id).selectedOptions[0] || {}).text || '—';
+    if(!slotSel) return erro('Escolha um horário na lista acima para confirmar.');
+    // Mesmo formato de rótulo das outras fichas: cada linha daqui vira uma linha da
+    // mensagem no WhatsApp da equipe (api/src/routes/ioEletroposto.ts).
+    const obsCar = [
+      'LP ELETROPOSTO · COMPRA DE CARREGADOR',
+      'VENDA DE EQUIPAMENTO',
+      `Potência: ${q('f-car-potencia')}`,
+      `Unidades: ${q('f-car-qtd')}`,
+      `Para onde vai: ${q('f-car-uso')}`,
+      `Software e app: ${q('f-car-software')}`,
+      `Instalação: ${q('f-car-instala')}`,
+      `Prazo: ${q('f-car-prazo')}`,
+    ].join('\n');
+    pendente = { nome, tel: telE164, cidade, perfil: 'Compra de carregador',
+                 obs: obsCar, temperatura: 'quente', origem: 'lp_eletroposto_carregador' };
+    document.getElementById('ag-msg').className = 'agMsg';
+    abrirConfirma();
+    return;
+  }
+
 
   // A qualificação é validada ANTES do horário de propósito: quem cai em NOTA 1 não
   // vai agendar, então não faz sentido cobrar dele a escolha de um slot primeiro.
@@ -3906,7 +4064,7 @@ async function agendar(){
   // A temperatura do CRM agora vem da nota (era da forma de pagamento, que mudou de
   // valores — mantê-la no `forma` faria todo lead virar morno em silêncio).
   pendente = { nome, tel, cidade, perfil:perfilTexto(perfil), obs,
-               temperatura: q.nota === 3 ? 'quente' : 'morno' };
+               temperatura: q.nota === 3 ? 'quente' : 'morno', origem: 'lp_eletroposto' };
   document.getElementById('ag-msg').className = 'agMsg';   // limpa aviso de tentativa anterior
   abrirConfirma();
 }
@@ -3963,7 +4121,7 @@ document.addEventListener('keydown', e => {
 
 async function gravarAgendamento(){
   if(!pendente || !slotSel) return;
-  const { nome, tel, cidade, perfil, obs, temperatura } = pendente;
+  const { nome, tel, cidade, perfil, obs, temperatura, origem } = pendente;
   const btn = document.getElementById('ag-btn');
   btn.disabled = true; btn.textContent = 'Agendando…';
 
@@ -4032,7 +4190,10 @@ async function gravarAgendamento(){
       // 'frio' não aparece aqui porque NOTA 1 nem chega a gravar ficha — vai pro grupo.
       temperatura,
       observacao:       obs,
-      created_by:       'lp_eletroposto',
+      // A etiqueta vem da ficha: 'lp_eletroposto' nas trilhas do ponto e
+      // 'lp_eletroposto_carregador' em quem compra equipamento. As duas contêm a
+      // palavra eletroposto, então as duas seguem no fluxo do produto.
+      created_by:       origem || 'lp_eletroposto',
       src:              leadSrc(),   // ?src=ig (automação do IG) → EP Organic; sem src = EP Tráfego
       // As colunas de qualificação (nota, tem_ponto, capital_faixa, motivo_descarte…)
       // NÃO vão aqui: o trigger trg_eletroposto_estruturar as deriva da observação.
