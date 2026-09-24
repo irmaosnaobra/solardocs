@@ -3296,6 +3296,7 @@ function caminhoAtual(){
   const p = val('f-porta');
   if(!p) return 'inicio';
   if(p === 'integrador') return 'integrador';
+  if(p === 'carregador') return 'carregador';
   if(p === 'investidor'){
     if(!val('f-cap-local')) return 'investidor';
     return investidorComLocal() ? 'investidor_local' : 'investidor_sem_local';

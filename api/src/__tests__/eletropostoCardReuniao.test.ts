@@ -149,3 +149,62 @@ describe('card com o estudo do local (15/09)', () => {
     expect(linha).not.toContain('/');
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// O CARD DE QUEM COMPRA CARREGADOR (24/09/2026)
+//
+// A quarta porta do quiz não responde nenhuma pergunta do ponto. O primeiro card
+// que saiu em produção provou o estrago: seis traços seguidos (Ponto, Como
+// pretende investir, Decisor, Simulou, Investimento, Resultado) e NENHUMA das
+// seis respostas que o lead deu. Estes testes travam os dois lados.
+// ═══════════════════════════════════════════════════════════════════════════
+describe('card de compra de carregador', () => {
+  const FICHA_COMPRA = [
+    'LP ELETROPOSTO · COMPRA DE CARREGADOR',
+    'VENDA DE EQUIPAMENTO',
+    'Potência: 120 kW',
+    'Unidades: 2 a 5 unidades',
+    'Para onde vai: Meu negócio',
+    'Software e app: Sim, quero o software e o app',
+    'Instalação: Só o equipamento, eu instalo',
+    'Prazo: O quanto antes',
+  ].join('\n');
+
+  const compra = (obs: string) => montarMensagem({
+    quando: '2026-09-24T20:30:00.000Z', vendedor_nome: 'Diego',
+    cliente_nome: 'Roberto Silva', cliente_telefone: '5534991360223',
+    cidade: 'Araguari', temperatura: 'quente', observacao: obs,
+  });
+
+  it('mostra as seis respostas e nenhum traço de pergunta que ele não viu', () => {
+    const t = compra(FICHA_COMPRA);
+    expect(t).toContain('COMPRA DE CARREGADOR');
+    expect(t).toContain('120 kW');
+    expect(t).toContain('2 a 5 unidades');
+    expect(t).toContain('Meu negócio');
+    expect(t).toContain('Sim, quero o software e o app');
+    expect(t).toContain('O quanto antes');
+    // o que ele nunca respondeu não pode aparecer, nem como traço
+    for (const fora of ['*Ponto:*', '*Como pretende investir:*', '*Decisor:*', '*Simulou', '*Resultado:*']) {
+      expect(t).not.toContain(fora);
+    }
+  });
+
+  it('não inventa NOTA: a escala mede o ponto, e este lead não tem ponto', () => {
+    const t = compra(FICHA_COMPRA);
+    expect(t).not.toContain('NOTA 3');
+    expect(t).not.toContain('PRIORIDADE');
+  });
+
+  it('grita quando ele quer a obra junto', () => {
+    const comObra = FICHA_COMPRA.replace('Só o equipamento, eu instalo', 'Quero com instalação, chave na mão');
+    expect(compra(comObra)).toContain('COM OBRA');
+    expect(compra(FICHA_COMPRA)).not.toContain('COM OBRA');
+  });
+
+  it('a ficha do ponto continua com o card de sempre', () => {
+    const t = montarMensagem(ficha(PONTO_PROPRIO));
+    expect(t).toContain('NOVA REUNIÃO');
+    expect(t).not.toContain('COMPRA DE CARREGADOR');
+  });
+});

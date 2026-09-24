@@ -81,6 +81,47 @@ export function montarMensagem(a: any, extra: { estudoUrl?: string; preNota?: nu
   // Tem onde instalar e não tem como pagar: o par que fecha com quem tem o contrário.
   const paraInvestidor = tem('PONTO DISPONIVEL PARA INVESTIDOR');
 
+  // ══ CARD PRÓPRIO DE QUEM COMPRA CARREGADOR (24/09/2026) ═══════════════════
+  // A quarta porta do quiz não responde NENHUMA pergunta do ponto, e o card de
+  // reunião é montado em cima delas. O primeiro card que saiu em produção trouxe
+  // seis traços seguidos — Ponto, Como pretende investir, Decisor, Simulou,
+  // Investimento, Resultado — e NENHUMA das seis respostas que ele deu. Ou seja:
+  // o consultor recebia um card que falava de tudo que o lead não disse e calava
+  // sobre tudo que ele disse.
+  //
+  // A NOTA também não aparece aqui de propósito. A escala 1-3 mede a situação do
+  // PONTO, e este lead não tem ponto: mostrar "NOTA 3 — PRIORIDADE" seria dar a
+  // ele um selo que não foi calculado. O que prioriza um comprador é outra coisa,
+  // e está no cabeçalho: a potência e quantas unidades.
+  if (tem('VENDA DE EQUIPAMENTO')) {
+    const potencia = linha('Potência:');
+    const unidades = linha('Unidades:');
+    const instalacao = linha('Instalação:');
+    // "Chave na mão" aqui não é o mesmo negócio do resto do card: ele quer o
+    // equipamento E a obra, que é outro preço, outra equipe e outro contrato. Sem
+    // destaque, essa linha se perde no meio das outras cinco.
+    const comObra = /chave na m/i.test(instalacao);
+    return [
+      `🔌🛒 *COMPRA DE CARREGADOR*`,
+      `⚡ *${potencia}${unidades !== '—' ? ` · ${unidades}` : ''}*`,
+      ...(comObra ? [`🏗️ *COM OBRA* — quer o equipamento e a instalação.`] : []),
+      ``,
+      `*Quando:* ${quando}`,
+      `*Com:* ${a.vendedor_nome || '—'}`,
+      ``,
+      `👤 *Cliente:* ${a.cliente_nome || '—'}`,
+      `📱 *WhatsApp:* wa.me/${soDigitos(a.cliente_telefone)}`,
+      `📍 *Cidade:* ${a.cidade || '—'}`,
+      ``,
+      `🏢 *Para onde vai:* ${linha('Para onde vai:')}`,
+      `💻 *Software e app:* ${linha('Software e app:')}`,
+      `🔧 *Instalação:* ${instalacao}`,
+      `📅 *Prazo:* ${linha('Prazo:')}`,
+      ``,
+      `_Veja no CRM: solardoc.app/gerador_`,
+    ].join('\n');
+  }
+
   return [
     `*NOVA REUNIÃO — ELETROPOSTO*`,
     `${selo}`,
