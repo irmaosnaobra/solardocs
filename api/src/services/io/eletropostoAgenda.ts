@@ -60,7 +60,13 @@
 import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
-import { sendHuman } from '../agents/zapiClient';
+import { sendHuman, sendWhatsApp } from '../agents/zapiClient';
+import { chaveContato } from '../agents/whatsapp/silenciar';
+import { EQUIPE } from '../../routes/ioEletroposto';
+
+/** Instancia Z-API da linha IO. Mesmo default do solarRespostas: um literal aqui
+ *  evita import cruzado entre dois modulos de agenda so por causa de uma const. */
+const INSTANCE_ID_IO = (process.env.ZAPI_INSTANCE_ID_IO || '3F26F6ECE67D72BB7FCA6244BF24326C').trim();
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 import { agendaFechadaNoIso } from '../agenda/agendaFechada';
@@ -518,6 +524,8 @@ export type ResultadoAgendaEp = {
   lembretes_5min: number;
   /** Fichas que viraram NÃO ATENDIDO sozinhas nesta rodada. */
   nao_atendeu: number;
+  /** Fichas em que o cliente AVISOU que não vem, e por isso nenhum toque saiu. */
+  avisou_que_nao_vem: number;
   /** Destas, as que caíram pelo CORTE DAS 13H (silêncio depois do 2º contato).
    *  Contadas à parte porque são as que LIBERAM horário na vitrine — a outra
    *  régua marca perto da reunião, quando já não há o que revender. */
@@ -618,7 +626,7 @@ export async function carregarConsultores(): Promise<Map<string, string>> {
 }
 
 const zero = (motivo?: string): ResultadoAgendaEp =>
-  ({ confirmacoes: 0, lembretes_manha: 0, lembretes_diarios: 0, lembretes_1h: 0, lembretes_5min: 0, nao_atendeu: 0, vermelho_13h: 0, erros: 0, ...(motivo ? { motivo } : {}) });
+  ({ confirmacoes: 0, lembretes_manha: 0, lembretes_diarios: 0, lembretes_1h: 0, lembretes_5min: 0, nao_atendeu: 0, avisou_que_nao_vem: 0, vermelho_13h: 0, erros: 0, ...(motivo ? { motivo } : {}) });
 
 /**
  * Quem passou por todos os toques e não confirmou nada vira NÃO ATENDIDO.
@@ -849,6 +857,148 @@ async function marcarVermelhoDoCorte(
  * Um toque por lead por rodada, do mais urgente pro menos: 5min > 1h > confirmação.
  * `dry` roda a decisão inteira e devolve o que SAIRIA, sem enviar e sem marcar flag.
  */
+// ─────────────────────────────────────────────────────────────────────────────
+// ELE AVISOU QUE NÃO VEM — e a régua precisa ficar sabendo.
+//
+// O caso real, medido em 14 dias: 8 de cada 10 pessoas que desmarcaram levaram
+// "é agora! o Diego já está te esperando" DEPOIS de terem avisado, quase sempre
+// entre meia e uma hora depois. Não houve remarcação nenhuma no meio — o aviso
+// simplesmente não era lido por este módulo.
+//
+// Por que passava batido: a régua só entendia a palavra "SIM". Qualquer outra
+// frase não desarmava nada, e o `status = 'nao_atendeu'` só é marcado DEPOIS da
+// hora da reunião, quando o estrago já foi feito. O cliente foi educado, avisou
+// com antecedência, e a resposta foi uma carteirada de "você faltou".
+//
+// ── Por que regex e não IA ──
+// Foi medido em 30 dias de conversa real desta linha: pega 38 avisos e nenhum
+// falso positivo grave. Um classificador aqui seria um modelo decidindo CALAR
+// um lembrete, e lembrete calado por engano faz a pessoa perder a reunião. A
+// regra desta casa vale igual aqui: modelo pode manter o silêncio, nunca criar.
+//
+// As duas exclusões não são enfeite. "Não consigo ouvir o áudio" e "não consegui
+// abrir o link" são de quem está TENTANDO entrar, e calar o lembrete deles é o
+// oposto do que se quer. "Cancelar o cadastro" e "não consigo ajudar com isso"
+// (o robô do outro lado) também saem.
+// ─────────────────────────────────────────────────────────────────────────────
+const AVISOU_QUE_NAO_VEM =
+  /(\bremarc|\bcancel\w*\b.{0,25}(reuni|hor[áa]rio|apresenta|chamada)|^\s*cancela\w*\b|n[ãa]o (vou|irei|poderei|vou poder|vou conseguir|consigo) .{0,20}(particip|comparec|reuni|apresenta)|(hoje|agora|amanh[ãa]) .{0,12}n[ãa]o (consigo|vou|d[áa]|posso)|n[ãa]o (consigo|vou conseguir|posso) (hoje|agora|amanh[ãa])|n[ãa]o vou conseguir\b|\b[ie]mprevisto|vamos deixar pra|outro (dia|hor[áa]rio)|n[ãa]o vou poder\b)/i;
+
+/** Quem está TENTANDO entrar, não desmarcando. */
+const FALA_DE_ACESSO = /(ouvir|[áa]udio|som|c[âa]mera|abrir o link|acessar o link)/i;
+const NAO_E_A_REUNIAO = /(cancelar o (cadastro|plano|contrato|email)|n[ãa]o consigo ajudar)/i;
+
+export function ehAvisoDeQueNaoVem(texto: string): boolean {
+  const t = String(texto || '').trim();
+  if (!t) return false;
+  if (FALA_DE_ACESSO.test(t) || NAO_E_A_REUNIAO.test(t)) return false;
+  return AVISOU_QUE_NAO_VEM.test(t);
+}
+
+/**
+ * Lê o inbound da linha e devolve, por ficha, o aviso de que o cliente não vem.
+ *
+ * Duas bases diferentes: a ficha mora no `supabaseGerador` e a mensagem no
+ * `supabase` principal, então não dá join — casa por DDD + 8 últimos em JS, o
+ * mesmo caminho que o eletropostoRespostas já faz.
+ *
+ * Só conta o que o cliente disse DEPOIS de a ficha existir: frase de uma
+ * reunião velha não pode calar o lembrete da nova.
+ *
+ * Fail-open: leitura falhou, ninguém é marcado, e os toques saem como saíam.
+ * Calar a agenda inteira porque o banco piscou é pior que o bug que isto conserta.
+ */
+async function quemAvisouQueNaoVem(
+  fichas: Ficha[],
+): Promise<Map<number, { texto: string; quando: string }>> {
+  const achados = new Map<number, { texto: string; quando: string }>();
+  const comTelefone = fichas.filter(f => f.cliente_telefone && f.quando);
+  if (!comTelefone.length) return achados;
+
+  const porChave = new Map<string, Ficha[]>();
+  let piso = Date.now();
+  for (const f of comTelefone) {
+    const k = chaveContato(String(f.cliente_telefone));
+    if (!k) continue;
+    porChave.set(k, [...(porChave.get(k) ?? []), f]);
+    piso = Math.min(piso, new Date(f.created_at).getTime());
+  }
+  if (!porChave.size) return achados;
+
+  try {
+    const { data, error } = await supabase
+      .from('wa_mensagens')
+      .select('telefone, texto, momment')
+      .eq('from_me', false)
+      .eq('is_group', false)
+      .eq('instancia', INSTANCE_ID_IO)
+      .gte('momment', new Date(piso).toISOString())
+      .order('momment', { ascending: true })
+      .limit(2000);
+    if (error) throw error;
+
+    for (const m of (data ?? []) as Array<{ telefone: string; texto: string | null; momment: string }>) {
+      if (!ehAvisoDeQueNaoVem(m.texto ?? '')) continue;
+      const k = chaveContato(m.telefone);
+      if (!k) continue;
+      for (const f of porChave.get(k) ?? []) {
+        // Depois de a ficha nascer e antes da hora da reunião: é sobre ESTA reunião.
+        if (m.momment <= f.created_at) continue;
+        if (f.quando && m.momment > f.quando) continue;
+        achados.set(f.id, { texto: String(m.texto ?? '').slice(0, 160), quando: m.momment });
+      }
+    }
+  } catch (err) {
+    logger.error('ep-agenda', 'leitura dos avisos de "não vou" falhou — os toques saem normalmente', err);
+  }
+  return achados;
+}
+
+/**
+ * Passa a bola pro humano quando o cliente avisa que não vem.
+ *
+ * Calar o robô resolve metade do problema. A outra metade é o Diego sentado
+ * esperando alguém que avisou com uma hora de antecedência — e essa parte só
+ * se resolve com gente sabendo. Por isso o robô para de falar com o cliente E
+ * fala com o dono da ficha, na mesma rodada.
+ *
+ * Uma vez por ficha: o carimbo em `system_state` é o que impede a agenda de
+ * cobrar o mesmo consultor a cada 5 minutos até a hora da reunião.
+ */
+async function avisarConsultorQueNaoVem(
+  ag: Ficha,
+  aviso: { texto: string; quando: string },
+  telDoConsultor: string | null,
+): Promise<void> {
+  const marca = `ep_agenda_naovem:${ag.id}`;
+  const { data: ja } = await supabase
+    .from('system_state').select('key').eq('key', marca).limit(1);
+  if (ja && ja.length) return;
+
+  const quandoBRT = new Date(ag.quando!).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const texto = [
+    '🟠 *DESMARCOU — eletroposto*',
+    '',
+    `*Cliente:* ${ag.cliente_nome || 'sem nome'}`,
+    `*Reunião:* ${quandoBRT}${ag.vendedor_nome ? ` (${ag.vendedor_nome})` : ''}`,
+    `*WhatsApp:* wa.me/${String(ag.cliente_telefone || '').replace(/\D/g, '')}`,
+    '',
+    `*Ele escreveu:* "${aviso.texto}"`,
+    '',
+    '_Os lembretes automáticos foram cortados pra esta reunião. Remarcar ou cancelar é com você._',
+  ].join('\n');
+
+  const destinos = new Set<string>(Object.values(EQUIPE));
+  if (telDoConsultor) destinos.add(telDoConsultor.replace(/\D/g, ''));
+  await Promise.allSettled([...destinos].filter(Boolean).map(n => sendWhatsApp(n, texto, 'io')));
+
+  await supabase.from('system_state').upsert(
+    { key: marca, value: { em: new Date().toISOString(), texto: aviso.texto }, updated_at: new Date().toISOString() },
+    { onConflict: 'key' },
+  );
+  logger.info('ep-agenda', `${ag.id} desmarcou — toques cortados e consultor avisado`);
+}
+
 export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Promise<ResultadoAgendaEp> {
   if (desligado()) return zero('desligado');
 
@@ -902,6 +1052,10 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
   // seguinte. Falhou a leitura? A frase do telefone some e o resto do aviso sai.
   const telPorConsultor = await carregarConsultores();
 
+  // Quem avisou que não vem. Lido ANTES dos toques porque é justamente o que
+  // impede o "é agora" de cair em cima de quem já desmarcou.
+  const desmarcaram = await quemAvisouQueNaoVem(fichas);
+
   // ── AS DUAS RÉGUAS DE "ELE NÃO VEM" ───────────────────────────────────────
   // Rodam ANTES dos toques e num laço próprio: não mandam mensagem, então não
   // gastam o teto de toques da rodada nem passam pelo teto anti-ban da linha.
@@ -919,6 +1073,7 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
 
   const foraDeHorario = foraDaJanela();
   let confirmacoes = 0, lManha = 0, lDiario = 0, l1h = 0, l5min = 0, erros = 0, backlog = 0, toques = 0;
+  let naoVem = 0;
   /** Quem qualificou pro bom dia e ficou de fora pelo teto da linha. Contado e
    *  logado porque, sem isso, "a manhã inteira barrada no teto" e "ninguém tinha
    *  reunião hoje" são o MESMO silêncio no log — e o primeiro é um bom dia que
@@ -1087,6 +1242,29 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
      *  ainda vale. Confirmar, dar bom dia ou avisar "falta 1 hora" pra quem já
      *  foi dado como ausente é o robô discordando de si mesmo por escrito. */
     const ausente = ag.status === 'nao_atendeu';
+
+    // ── ELE AVISOU QUE NÃO VEM ────────────────────────────────────────────
+    // Nenhum dos quatro toques sai. Vale inclusive pro de 5 min, que é
+    // justamente o "é agora!" — 8 dos 10 casos medidos eram ele e o de 1 hora.
+    //
+    // Reparar que isto fica FORA do `ausente`: ausente é quem não apareceu,
+    // descoberto depois da hora. Aqui é quem avisou ANTES, que é o oposto em
+    // tudo que importa. Tratar os dois igual é o que produziu a carteirada de
+    // "você não conseguiu entrar" em cima de quem tinha avisado com horas de
+    // antecedência.
+    //
+    // A reunião NÃO é cancelada aqui de propósito: quem cancela é gente. O robô
+    // só para de falar e passa a bola, porque um falso positivo que cancela
+    // agenda é muito pior que um falso positivo que cala um lembrete.
+    const avisou = desmarcaram.get(ag.id);
+    if (avisou) {
+      naoVem++;
+      if (!opts.dry) {
+        await avisarConsultorQueNaoVem(ag, avisou, telDoConsultor).catch(e =>
+          logger.error('ep-agenda', 'aviso de desmarcação ao consultor falhou', { id: ag.id, erro: String(e) }));
+      }
+      continue;
+    }
     /** Marcada agora há pouco: a confirmação dela sai NESTE tick, sem fila nem janela. */
     const fresca = agora - new Date(ag.created_at).getTime() <= FRESCA_MS;
 
@@ -1224,7 +1402,7 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
   }
 
   if (toques > 0 && !opts.dry) {
-    logger.info('ep-agenda', `${toques} toque(s)`, { confirmacoes, lManha, lDiario, l1h, l5min, erros });
+    logger.info('ep-agenda', `${toques} toque(s)`, { confirmacoes, lManha, lDiario, l1h, l5min, naoVem, erros });
   }
   // Fora do `if` de propósito: uma rodada que só segurou bom dia não tem toque
   // nenhum, e é justamente ela que precisa aparecer.
@@ -1253,6 +1431,7 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
     // O total soma as duas réguas (é ele que a Central das Agentes mostra); o
     // corte das 13h aparece também sozinho, porque é o que libera horário.
     nao_atendeu: naoAtendeu + vermelho13h, vermelho_13h: vermelho13h, erros,
+    avisou_que_nao_vem: naoVem,
     ...(opts.dry ? { motivo: 'dry', previa } : {}),
   };
 }

@@ -36,7 +36,7 @@ import { tryClaimMessage } from '../agents/sdr/sdrAgentService';
 import { ehLeadRecuperacao } from '../agents/whatsapp/biaInboundService';
 import { ehAlunoLimpapro } from '../agents/whatsapp/limpaproAtendimentoService';
 import { ehGatilhoSolarDoc, vendedoraJaAtende } from '../agents/whatsapp/whatsappAgentService';
-import { handleRecepcaoIo, recepcaoJaAtende } from './recepcaoIo';
+import { handleRecepcaoIo, recepcaoJaAtende, temReuniaoAtiva } from './recepcaoIo';
 
 /** Instância Z-API da linha Irmãos na Obra. Mesmo valor que o poll da Bia usa. */
 const INSTANCE_ID_IO = '3F26F6ECE67D72BB7FCA6244BF24326C';
@@ -97,6 +97,15 @@ export async function pollRecepcaoIo(): Promise<{ atendidos: number; pulados: nu
         if (ehGatilhoSolarDoc(texto) || await vendedoraJaAtende(phone)) { pulados++; continue; }
         if (await ehLeadRecuperacao(phone)) { pulados++; continue; }
         if (await ehAlunoLimpapro(phone)) { pulados++; continue; }
+        // Já tem reunião marcada: a régua da agenda é dona desta conversa.
+        // Sem isto, o cliente responde o 'SIM' que a régua pediu e recebe uma
+        // apresentação do zero, como se fosse o primeiro contato. Era o caso
+        // de 70% de quem respondia (199 de 286 em 14 dias).
+        // O `.catch(() => false)` nao e' paranoia: a guarda e' uma chamada a OUTRA
+        // base (a do Gerador), e se ela estourar aqui o erro sobe pro catch la de
+        // baixo e a mensagem inteira vira 'erro' em vez de ser atendida. Guarda que
+        // derruba o atendimento e' pior que a guarda nao existir.
+        if (await temReuniaoAtiva(phone).catch(() => false)) { pulados++; continue; }
       }
 
       // Dedup com namespace próprio. O `whk:` do webhook é outro espaço de

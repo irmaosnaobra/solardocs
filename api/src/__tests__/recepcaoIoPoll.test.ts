@@ -52,12 +52,20 @@ vi.mock('../services/agents/whatsapp/whatsappAgentService', () => ({
   ehGatilhoSolarDoc: (t: string) => /solardoc/i.test(t),
   vendedoraJaAtende: (p: string) => Promise.resolve(vendedoraDona.includes(p)),
 }));
+/** Telefones que ja tem reuniao marcada: a Duda nao fala com esses. */
+const comReuniao: string[] = [];
+
 vi.mock('../services/io/recepcaoIo', () => ({
   handleRecepcaoIo: (phone: string, texto: string) => {
     atendidos.push({ phone, texto });
     return Promise.resolve();
   },
   recepcaoJaAtende: (p: string) => Promise.resolve(donoRecepcao.includes(p)),
+  // A recepcao passou a checar se ja existe reuniao marcada antes de se
+  // apresentar. Sem este export no mock a funcao vem `undefined`, a chamada
+  // estoura e o poll conta erro em vez de atender, que foi o que derrubou
+  // estes quatro testes quando a guarda entrou.
+  temReuniaoAtiva: (p: string) => Promise.resolve(comReuniao.includes(p)),
 }));
 
 const INSTANCIA = '3F26F6ECE67D72BB7FCA6244BF24326C';
@@ -84,9 +92,43 @@ beforeEach(() => {
   leadsBia = [];
   alunosLimpapro = [];
   vendedoraDona = [];
+  comReuniao.length = 0;
 });
 
 describe('poll da recepção', () => {
+  // Quem já tem reunião marcada NÃO é da recepção: a régua da agenda é dona
+  // dessa conversa. Sem esta guarda, o cliente respondia o "SIM" que a régua
+  // acabou de pedir e recebia "Oi! Sou a Duda, como posso te ajudar hoje?",
+  // como se fosse o primeiro contato. Medido em 14 dias: 199 dos 286 clientes
+  // que responderam algo nosso (70%), e em 99 deles a fala era só "Sim".
+  it('não se apresenta pra quem já tem reunião marcada', async () => {
+    const { pollRecepcaoIo } = await import('../services/io/recepcaoIoPoll');
+    comReuniao.push(LEAD);
+    eventos = [evento({ text: { message: 'Sim' } })];
+
+    const r = await pollRecepcaoIo();
+
+    expect(atendidos).toHaveLength(0);
+    expect(r.atendidos).toBe(0);
+    expect(r.pulados).toBe(1);
+  });
+
+  // A guarda fala com OUTRA base (a do Gerador). Se ela cair, o certo é atender
+  // assim mesmo: trocar "a Duda se reapresenta" por "a Duda não atende ninguém"
+  // seria trocar um incômodo por um apagão.
+  it('guarda quebrada não derruba o atendimento', async () => {
+    const mod = await import('../services/io/recepcaoIo');
+    const espiao = vi.spyOn(mod, 'temReuniaoAtiva').mockRejectedValue(new Error('base fora'));
+    const { pollRecepcaoIo } = await import('../services/io/recepcaoIoPoll');
+    eventos = [evento()];
+
+    const r = await pollRecepcaoIo();
+
+    expect(r.atendidos).toBe(1);
+    expect(atendidos[0]).toEqual({ phone: LEAD, texto: 'Bom dia' });
+    espiao.mockRestore();
+  });
+
   it('atende quem escreveu e não é de mais ninguém', async () => {
     const { pollRecepcaoIo } = await import('../services/io/recepcaoIoPoll');
     eventos = [evento()];

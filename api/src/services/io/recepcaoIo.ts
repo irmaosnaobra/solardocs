@@ -98,6 +98,55 @@ async function ligada(): Promise<boolean> {
   }
 }
 
+/**
+ * Esta conversa JÁ tem assunto: existe reunião marcada com essa pessoa.
+ *
+ * Medido em 14 dias: 199 dos 286 clientes que responderam alguma coisa nossa
+ * (70%) levaram "Oi! Sou a Duda, como posso te ajudar hoje?" em menos de 5
+ * minutos, e em 99 desses o cliente tinha escrito só "Sim" — obedecendo ao
+ * "me responde SIM que eu travo o horário" que a régua da agenda acabou de
+ * pedir. Um leitor mediu que 29% das conversas que morrem morrem logo depois
+ * dessa reapresentação.
+ *
+ * A causa é que são dois robôs no mesmo número sem estado compartilhado: a
+ * régua pede o SIM, a Duda pega o SIM e não sabe que existe reunião.
+ *
+ * Ficar calada aqui é seguro, e não é o mesmo que abandonar: quem responde numa
+ * conversa com reunião marcada já vira recado pro consultor no
+ * eletropostoRespostas. O que some é a apresentação do zero por cima da resposta.
+ *
+ * Fail-OPEN com log, igual ao carregarSilenciados e ao carregarPausas. A
+ * primeira versão disto era fail-closed ("na dúvida, cala"), e o teste do poll
+ * mostrou o raio do estrago: a leitura falha, `temReuniaoAtiva` devolve true
+ * pra TODO mundo e a recepção inteira emudece. Trocar o bug de se reapresentar
+ * (chato) pelo bug de não atender ninguém (caro) é um mau negócio, e é
+ * exatamente o modo de falha que a recepção veio tapar: 117 de 171 pessoas sem
+ * resposta nenhuma.
+ */
+export async function temReuniaoAtiva(phone: string): Promise<boolean> {
+  const tel = soDigitos(phone);
+  const cauda = tel.slice(-8);
+  if (cauda.length < 8) return false;
+  try {
+    const { data, error } = await supabaseGerador
+      .from('agendamentos')
+      .select('id, quando, status')
+      .like('cliente_telefone', `%${cauda}`)
+      .gte('quando', new Date(Date.now() - 2 * 3600_000).toISOString())
+      .limit(10);
+    if (error) throw error;
+    // Filtro em JS, não no PostgREST: a sintaxe do `not.in` exige aspas dentro
+    // de parênteses e erra calada quando o valor tem underline. Conferido na
+    // base em 23/09: os status mortos são estes quatro, e 'cancelada' com A
+    // não existe (era o que a versão anterior desta linha procurava).
+    const MORTOS = new Set(['cancelado', 'sem_interesse', 'fechou_concorrente', 'fechou']);
+    return (data ?? []).some(r => !MORTOS.has(String((r as { status?: string }).status ?? '')));
+  } catch (err) {
+    logger.error('recepcao-io', `não deu pra checar reunião de ${tel} — a Duda atende assim mesmo`, err);
+    return false;
+  }
+}
+
 /** Teto de trocas antes de entregar pro humano na marra. Triagem não é conversa. */
 const MAX_TURNOS = 4;
 
