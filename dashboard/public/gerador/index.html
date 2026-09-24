@@ -2009,6 +2009,228 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 .apx-relatorio{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px}
 .apx-relatorio td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.08)}
 .apx-relatorio .fora{opacity:.6}
+
+/* ===========================================================================
+   FORMULARIO DO ELETROPOSTO — rotulo em cima, campo embaixo (24/09/2026)
+   ---------------------------------------------------------------------------
+   O padrao antigo (.eletro-field com label em flex:1 e input de 132/190px)
+   nasceu no SIMULADOR, que e' planilha: rotulo a esquerda, numero a direita,
+   rotulos longos, nenhum vao. Ali ele esta CERTO e continua como esta.
+
+   O erro foi reusa-lo nos campos de TEXTO das abas de documento. Medido em
+   24/09, a 1395px: vao medio de 479px entre o fim do rotulo e o campo, e
+   55 campos cortando o proprio conteudo nas 8 abas — nome do cliente,
+   endereco e dados bancarios ilegiveis depois de digitados.
+
+   O CSS ja TENTAVA alinhar texto a esquerda (.eletro-inp-wide input
+   {text-align:left}) e perdia por ordem de fonte para .eletro-inp input
+   {text-align:right}. O comentario logo abaixo chegou a registrar o efeito
+   ("na pratica todos sao a direita") tratando o defeito como intencao.
+
+   Aqui o card das abas de documento vira grade (3 colunas no desktop, 2 no
+   celular), o rotulo sobe como etiqueta e o campo ocupa a celula. Texto a
+   esquerda, numero continua a direita colado no R$ / % / kWh. Resultado
+   medido: 55 campos cortados -> 0, e a altura CAIU (orcamento 3362 -> 2919px,
+   equipamento 2480 -> 2127px), porque empilhar se paga com coluna.
+
+   Escopo: `#eletroSection .orc-wrap` (as 7 abas de documento) mais quatro
+   campos nomeados do Simulador. O resto do Simulador nao e' tocado.
+   =========================================================================== */
+/* ===========================================================================
+   /gerador — Eletroposto: formulario EMPILHADO (rotulo em cima, campo embaixo)
+   CSS injetado DEPOIS do <style> da pagina. Nao exige tocar em nenhum dos
+   164 campos.
+
+   ESCOPO: so `#eletroSection .orc-wrap`, que e' o envelope das 7 abas de
+   documento (orcamento, equipamento, recibo, contrato, procuracao, banco,
+   finame). O SIMULADOR vive em `.eletro-grid`, nunca em `.orc-wrap`: ele nao
+   e' tocado por uma linha sequer daqui e continua sendo a planilha que e'.
+
+   A conta da altura: empilhar custa uma linha de rotulo por campo. Ela e' paga
+   com coluna — o card vira grade de ate 3 colunas no desktop e 2 no celular.
+   =========================================================================== */
+
+/* 1. O envelope. 780px cabiam 1 coluna; agora cabem 3 sem passar do #eletroSection. */
+#eletroSection .orc-wrap{max-width:1060px}
+
+/* 2. O card vira grade. Tudo que NAO e' campo (titulo, nota, lista de itens,
+      totais, banner, botao, textarea) atravessa a largura inteira. */
+#eletroSection .orc-wrap .card{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(268px,1fr));
+  gap:12px 18px;
+  align-items:end;          /* campos da mesma linha alinham pela BASE do input,
+                               entao rotulo de 2 linhas nao desalinha a fileira */
+}
+#eletroSection .orc-wrap .card > *:not(.eletro-field){grid-column:1/-1}
+/* ...mas botao solto nao estica pela grade inteira: `.eletro-btn` e'
+   inline-flex e no card antigo (display:block) nascia do tamanho do texto */
+#eletroSection .orc-wrap .card > button,
+#eletroSection .orc-wrap .card > .eletro-btn{justify-self:start}
+
+/* o bloco de condicao de pagamento (a vista / entrada+cartao / financiamento)
+   e' um filho solto do card: ganha a mesma grade por dentro. */
+#eletroSection .orc-wrap .orc-pg-cond{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(268px,1fr));
+  gap:12px 18px;
+  align-items:end;
+}
+#eletroSection .orc-wrap .orc-pg-cond > *:not(.eletro-field){grid-column:1/-1}
+
+/* 3. O campo empilha. `display` SEM !important de proposito: os campos
+      condicionais (`#orc-validade-dias`, `#eq-validade-dias-wrap`,
+      `#orc-pg-entrada`, `#orc-pg-fin`) nascem com `display:none` inline e
+      precisam continuar escondidos. O JS que os abre usa `display = ''`,
+      entao quando abrem caem nesta regra. */
+#eletroSection .orc-wrap .eletro-field{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  gap:0;
+  min-width:0;
+  margin:0 !important;      /* mata os margin-top:12/14/16px inline; o ritmo
+                               agora e' o `gap` da grade */
+}
+
+/* 4. O rotulo sobe e vira etiqueta: menor, caixa alta, cinza. E' o mesmo
+      desenho que a pagina ja usa em `.bnk-obj label`. O valor passa a ser o
+      que salta aos olhos, nao o rotulo. */
+#eletroSection .orc-wrap .eletro-field > label{
+  flex:none;
+  display:block;
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.4px;
+  text-transform:uppercase;
+  color:#94A3B8;
+  line-height:1.3;
+  margin:0 0 5px;
+  white-space:normal;
+}
+#eletroSection .orc-wrap .eletro-field > label span{text-transform:none;letter-spacing:0}
+
+/* 5. O campo ocupa a celula. Especificidade com #id para vencer as tres regras
+      de largura fixa que existem hoje (132px, 190px e as 120/170px de dentro
+      do `.orc-pg-cond`). */
+#eletroSection .orc-wrap .eletro-field .eletro-inp{
+  width:auto;
+  max-width:none;
+  flex-shrink:1;
+  min-width:0;
+}
+/* campo curto (numero, data, %, R$, select de uma palavra) nao precisa de
+   330px: fica em 168px. Sem :has() — a classe esta no proprio elemento. */
+#eletroSection .orc-wrap .eletro-field .eletro-inp:not(.eletro-inp-wide){max-width:168px}
+
+/* 6. Texto a esquerda, numero a direita.
+      - campo de TEXTO (.eletro-inp-wide): esquerda, como manda o alfabeto.
+      - campo de NUMERO: continua a direita, colado no R$ / % / kWh, que e'
+        como se confere dinheiro. */
+#eletroSection .orc-wrap .eletro-inp input,
+#eletroSection .orc-wrap .eletro-inp select{
+  text-align:left;
+  font-size:13.5px;
+  padding:8px 11px;
+}
+#eletroSection .orc-wrap .eletro-inp select{padding:8px 30px 8px 11px}
+#eletroSection .orc-wrap .eletro-inp:not(.eletro-inp-wide) input{
+  text-align:right;
+  font-variant-numeric:tabular-nums;
+}
+/* o "R$" e o "x"/"%" sao absolutos: devolvo o respiro deles, que o `padding`
+   de cima tinha zerado. */
+#eletroSection .orc-wrap .eletro-inp.has-pre input{padding-left:30px}
+#eletroSection .orc-wrap .eletro-inp.has-suf input{padding-right:44px;text-align:right}
+/* campo travado (borda tracejada) continua travado e continua a direita */
+#eletroSection .orc-wrap .eletro-inp-lock input{text-align:right}
+
+/* 7. Celular (o /gerador e' PWA de telefone). Duas colunas fixas: campo de
+      texto atravessa as duas, numero/data ocupa meia. E' o que impede a aba
+      de orcamento de virar rolagem infinita no aparelho do Thiago. */
+@media(max-width:640px){
+  /* o card aperta: no telefone cada pixel de moldura e' uma linha de formulario
+     que deixou de caber na tela */
+  #eletroSection .orc-wrap .card{padding:14px 12px;margin-bottom:12px}
+  #eletroSection .orc-wrap .card,
+  #eletroSection .orc-wrap .orc-pg-cond{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-auto-flow:dense;     /* campo curto volta e tapa o buraco que um campo
+                                 de texto largo deixou na linha de cima */
+    gap:8px 10px;
+  }
+  #eletroSection .orc-wrap .eletro-field:has(.eletro-inp-wide){grid-column:1/-1}
+  #eletroSection .orc-wrap .eletro-field .eletro-inp:not(.eletro-inp-wide){max-width:none}
+  #eletroSection .orc-wrap .eletro-field > label{font-size:10px;line-height:1.15;margin-bottom:3px}
+  /* 16px: abaixo disso o iOS da zoom sozinho ao focar. Com 9px de padding o
+     campo fica 2px MAIS ALTO que hoje (alvo de toque), nao mais baixo. */
+  #eletroSection .orc-wrap .eletro-inp input,
+  #eletroSection .orc-wrap .eletro-inp select{font-size:16px;padding:9px 11px}
+  #eletroSection .orc-wrap .eletro-inp select{padding:9px 30px 9px 11px}
+  #eletroSection .orc-wrap .eletro-inp.has-pre input{padding-left:30px}
+  #eletroSection .orc-wrap .eletro-inp.has-suf input{padding-right:44px}
+}
+/* navegador sem :has() cai numa coluna so — apertado, nunca quebrado */
+@supports not (selector(:has(*))){
+  @media(max-width:640px){
+    #eletroSection .orc-wrap .card,
+    #eletroSection .orc-wrap .orc-pg-cond{grid-template-columns:1fr}
+  }
+}
+/* ===========================================================================
+   Complemento: os dois cantos que a grade nao alcanca.
+   =========================================================================== */
+
+/* 1. Texto longo por natureza atravessa a linha inteira.
+      `rec-fim` e `rec-gatilho` nascem com uma frase juridica de ~80 caracteres
+      ("elaboracao do projeto eletrico e sua homologacao junto a concessionaria
+      de energia"). Em UMA coluna de 330px ela nao cabe em layout nenhum — o
+      lugar dela e' a largura toda do card. */
+#eletroSection .orc-wrap .eletro-field:has(#rec-fim),
+#eletroSection .orc-wrap .eletro-field:has(#rec-gatilho){grid-column:1/-1}
+
+/* ===========================================================================
+   2. SIMULADOR. Ele NAO vira grade: as linhas de numero sao planilha, e
+      planilha se le com o rotulo a esquerda e o valor a direita, um debaixo do
+      outro, pra comparar a coluna inteira de cima a baixo. Isso fica como esta.
+
+      O que muda sao SO os quatro campos de TEXTO do card PROJETO, nomeados um
+      a um de proposito: sao eles que hoje mostram "adson Ferreira de Oliveira"
+      porque o nome nao cabe em 190px e o texto esta colado na direita. Nome se
+      le da esquerda; e empilhando, cabe inteiro.
+   =========================================================================== */
+#eletroSection .eletro-grid .eletro-field:has(> .eletro-inp > #el-cliente),
+#eletroSection .eletro-grid .eletro-field:has(> .eletro-inp > #el-cidade),
+#eletroSection .eletro-grid .eletro-field:has(> .eletro-inp > #el-autor),
+#eletroSection .eletro-grid .eletro-field:has(> .eletro-inp > #el-contato){
+  display:block;
+}
+#eletroSection .eletro-grid .eletro-field:has(> .eletro-inp > #el-cliente) > label,
+#eletroSection .eletro-grid .eletro-field:has(> .eletro-inp > #el-cidade) > label,
+#eletroSection .eletro-grid .eletro-field:has(> .eletro-inp > #el-autor) > label,
+#eletroSection .eletro-grid .eletro-field:has(> .eletro-inp > #el-contato) > label{
+  display:block;
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.4px;
+  text-transform:uppercase;
+  color:#94A3B8;
+  line-height:1.3;
+  margin:0 0 5px;
+}
+#eletroSection .eletro-grid .eletro-field:has(> .eletro-inp > #el-cliente) > .eletro-inp,
+#eletroSection .eletro-grid .eletro-field:has(> .eletro-inp > #el-cidade) > .eletro-inp,
+#eletroSection .eletro-grid .eletro-field:has(> .eletro-inp > #el-autor) > .eletro-inp,
+#eletroSection .eletro-grid .eletro-field:has(> .eletro-inp > #el-contato) > .eletro-inp{
+  width:auto;
+  max-width:none;
+}
+
+/* Navegador sem :has(): os quatro seguem na linha, mas pelo menos o texto passa
+   a ler da esquerda, entao aparece o COMECO do nome e nao o fim. E' a regra que
+   o CSS da casa ja tentava ter e perdia por ordem de fonte. */
+#eletroSection .eletro-grid .eletro-inp-wide input[type="text"]{text-align:left}
+
 </style>
 <script>
 (function(){
