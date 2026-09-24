@@ -394,20 +394,16 @@ export function bolhasConfirmacao(
   const n = primeiroNome(nome);
   const quem = String(vendedor || '').trim() || 'nosso consultor';
   const tel = telefoneBonito(telVendedor);
+  // O TEXTO É O QUE O DONO ESCREVEU EM 16/09 (sem o pedido de material: desde
+  // 15/09 toda reunião gera o estudo do local sozinha). O que mudou em 23/09 foi
+  // só o FORMATO: de 3 bolhas para UMA mensagem completa, por ordem dele, e
+  // porque em 23/09 a linha bateu 82 mensagens em 2 horas contra as 37 numa hora
+  // que a bloquearam em agosto.
   return [
-    // A marca fica na PRIMEIRA frase de propósito: esta é a estreia da linha IO
-    // na conversa, de um número que o lead nunca viu. Foi mensagem sem remetente
-    // que fez um lead de solar responder "não solicitei nenhum serviço".
-    // Sem "de eletroposto" desde a troca pra NEXUS Eletropostos: a marca já diz o
-    // produto, e os caracteres a mais faziam o reagrupamento em 3 bolhas colar o
-    // pedido de SIM num parágrafo de 260 (teste 'o pedido de SIM sobrevive').
-    `Oi${comNome(n)}! Aqui é da *NEXUS Eletropostos* — sua reunião com o *${quem}* está confirmada: *${quandoPorExtenso(quandoIso)}* (Brasília).`,
-    `É por vídeo. O link chega ${deOnde(quem, tel)}`,
-    // O pedido de antecedência anda COLADO no motivo: "avisa antes" sozinho é
-    // regra de empresa, e o lead ignora. Com "a procura está alta e o horário
-    // fica bloqueado" vira favor a alguém — é o mesmo argumento do portão de
-    // presença da LP, que já derruba quem não vai antes de gravar a ficha.
-    'Me responde *SIM* que eu travo o horário. Se precisar desmarcar, me avisa antes que eu remarco — a procura está alta e o horário fica bloqueado.',
+    `Oi${comNome(n)}! Aqui é da *NEXUS Eletropostos*. Sua reunião com o *${quem}* está confirmada: `
+    + `*${quandoPorExtenso(quandoIso)}* (Brasília). É por vídeo e o link chega ${deOnde(quem, tel)}.\n\n`
+    + 'Responde *SIM* que eu travo o horário. Se precisar desmarcar, me avisa antes que eu remarco: '
+    + 'a procura está alta e o horário fica bloqueado.',
   ];
 }
 
@@ -423,18 +419,11 @@ export function bolhasManha(
   const n = primeiroNome(nome);
   const quem = String(vendedor || '').trim() || 'nosso consultor';
   const tel = telefoneBonito(telVendedor);
+  // Mesmo conteúdo de 16/09 (sem o pedido de endereço), numa mensagem só.
   return [
-    // Hora, consultor e origem do link numa bolha só. Em duas, o nome do consultor
-    // saía repetido em mensagens seguidas ("com o Diego" / "do Diego") — que é
-    // exatamente o jeito que um robô escreve e uma pessoa não.
-    `Bom dia${comNome(n)}! Hoje é o dia: sua reunião de eletroposto é *${horaCurta(quandoIso)}*, com o *${quem}* — o link chega no WhatsApp dele${tel ? `, *${tel}*` : ''}.`,
-    // O PEDIDO DE ENDEREÇO SAIU EM 16/09/2026, a mando do Thiago.
-    // Ele tinha entrado em 30/08 porque o consultor chegava na chamada sem saber
-    // onde era o ponto. Desde 15/09 isso deixou de ser verdade: toda reunião
-    // marcada gera o estudo do local sozinha, com endereço, mapa e entorno, e o
-    // link vai no card da equipe. Pedir de novo é fazer o lead trabalhar por uma
-    // informação que o sistema já tem na mão.
-    'E se não der mais, me fala agora que eu remarco — a procura está alta e o horário fica bloqueado.',
+    `Bom dia${comNome(n)}! Hoje é o dia: sua reunião de eletroposto é *${horaCurta(quandoIso)}*, `
+    + `com o *${quem}*, e o link chega no WhatsApp dele${tel ? `, *${tel}*` : ''}. `
+    + 'Se não der mais, me fala agora que eu remarco: a procura está alta e o horário fica bloqueado.',
   ];
 }
 
@@ -471,11 +460,10 @@ export function bolhas1h(
   const quem = String(vendedor || '').trim() || 'nosso consultor';
   const tel = telefoneBonito(telVendedor);
   return [
-    `Oi${comNome(n)}! Falta *1 hora* pra sua reunião com o *${quem}*, às ${horaCurta(quandoIso)}.`,
-    `O link da chamada chega ${deOnde(quem, tel)} — fica de olho lá.`,
-    'Separa um canto com internet, que é por vídeo.',
-    `Se ele atrasar uns minutos, segura aí: ${PODE_ATRASAR}.`,
-    'Se aconteceu um imprevisto, me avisa que eu remarco. Se está de pé, responde *SIM*.',
+    `Oi${comNome(n)}! Falta *1 hora*: sua reunião com o *${quem}* é às *${horaCurta(quandoIso)}*, por vídeo. `
+    + `O link cai ${deOnde(quem, tel)}, fica de olho lá e separa um canto com internet.\n\n`
+    + `Se ele atrasar uns minutos, segura aí: ${PODE_ATRASAR}. Se está de pé, responde *SIM*. `
+    + 'Se aconteceu um imprevisto, me avisa que eu remarco.',
   ];
 }
 
@@ -488,9 +476,9 @@ export function bolhas5min(
   const quem = String(vendedor || '').trim() || 'nosso consultor';
   const tel = telefoneBonito(telVendedor);
   return [
-    `${n ? n + ', é' : 'É'} agora! Sua reunião começa às ${horaCurta(quandoIso)}.`,
-    `O *${quem}* já está te esperando${tel ? ` — o WhatsApp dele é *${tel}*` : ''}. O link cai lá a qualquer momento, é só clicar e entrar.`,
-    `Se demorar uns minutos, não desiste: ${PODE_ATRASAR}.`,
+    `${n ? n + ', é' : 'É'} agora! Sua reunião começa às *${horaCurta(quandoIso)}* e o *${quem}* já está te esperando. `
+    + `O link cai no WhatsApp dele${tel ? `, *${tel}*` : ''} a qualquer momento: é só clicar e entrar. `
+    + `Se demorar uns minutos, não desiste: ${PODE_ATRASAR}.`,
   ];
 }
 
@@ -1216,7 +1204,11 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
     // A exceção se defende também pelo risco: isto é transacional, vai pra quem
     // marcou a reunião. O contador ele enche; denúncia, não.
     try {
-      await sendHuman(tel, bolhas, 'io', { maxBolhas: 3 });
+      // UMA bolha, e `max` alto pra não fatiar o texto antes de juntar: cada toque
+    // agora é uma mensagem completa, escrita pra ser uma só (ordem do dono,
+    // 23/09/2026). O teto de bolhas sozinho já juntaria, mas fatiar e remendar
+    // perde as quebras de linha que separam as ideias do texto.
+    await sendHuman(tel, bolhas, 'io', { maxBolhas: 1, max: 1200 });
     } catch (e) {
       await desfazerReserva();
       throw e;

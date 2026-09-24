@@ -520,10 +520,12 @@ describe('o que ele fala', () => {
   // SIM. Saíram o pedido de material do ponto e o aviso de atraso. O material
   // deixou de ser pedido porque o estudo do local passou a chegar pronto no card
   // do consultor, com endereço e entorno, antes da reunião.
-  it('a confirmação tem três bolhas e não pede material', async () => {
+  it('a confirmação é UMA mensagem e não pede material', async () => {
+    // 23/09/2026, ordem do dono: "se der para enviar 1 pode ser, mas que seja uma
+    // msg completa". O conteúdo continua o que ele escreveu em 16/09.
     const { bolhasConfirmacao } = await mod();
     const b = bolhasConfirmacao('Irineu', '2026-08-05T18:30:00.000Z', 'Diego', '5534991360172');
-    expect(b).toHaveLength(3);
+    expect(b).toHaveLength(1);
     const txt = b.join(' ');
     expect(txt).toContain('NEXUS Eletropostos');
     expect(txt).toContain('É por vídeo');
@@ -535,10 +537,10 @@ describe('o que ele fala', () => {
 
   // O bom dia ficou com duas bolhas: lembrar da hora e abrir a porta do remarcar
   // enquanto ainda dá pra encaixar outra pessoa no horário.
-  it('o bom dia tem duas bolhas e não pede o endereço', async () => {
+  it('o bom dia é UMA mensagem e não pede o endereço', async () => {
     const { bolhasManha } = await mod();
     const b = bolhasManha('Irineu', '2026-08-05T18:30:00.000Z', 'Diego', '5534991360172');
-    expect(b).toHaveLength(2);
+    expect(b).toHaveLength(1);
     const txt = b.join(' ');
     expect(txt).toContain('Bom dia');
     expect(txt).toContain('remarco');

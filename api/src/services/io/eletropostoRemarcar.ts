@@ -158,26 +158,24 @@ const linhaDaOpcao = (iso: string, i: number) => `${i + 1}) ${quandoPorExtenso(i
 
 export function bolhasOferta(nome: string, ofertas: string[], quem: string): string[] {
   return [
-    `Sem problema${comNome(nome)}, a gente remarca.`,
-    // As opções numa bolha só, uma por linha: lista quebrada em várias mensagens
-    // vira rolagem, e o lead responde "2" olhando pra opção errada.
-    `Estes são os próximos horários do *${quem}*:\n\n${ofertas.map(linhaDaOpcao).join('\n')}`,
-    'Me responde só o número que eu já troco pra você. Se nenhum servir, me fala o dia que fica melhor.',
+    `Sem problema${comNome(nome)}, a gente remarca. Estes são os próximos horários do *${quem}*:\n\n`
+    + `${ofertas.map(linhaDaOpcao).join('\n')}\n\n`
+    + 'Me responde só o número que eu já troco pra você. Se nenhum servir, me fala o dia que fica melhor.',
   ];
 }
 
 export function bolhasAmbiguo(ofertas: string[]): string[] {
   return [
-    `Tenho mais de um horário nesse dia — me diz o número pra eu não trocar pro errado:\n\n${ofertas.map(linhaDaOpcao).join('\n')}`,
+    `Tenho mais de um horário nesse dia, me diz o número pra eu não trocar pro errado:\n\n${ofertas.map(linhaDaOpcao).join('\n')}`,
   ];
 }
 
 export function bolhasRemarcado(nome: string, novoIso: string, antigoIso: string, quem: string, tel: string): string[] {
   const t = telefoneBonito(tel);
   return [
-    `Pronto${comNome(nome)}! Sua reunião agora é *${quandoPorExtenso(novoIso)}*, com o *${quem}*.`,
-    `Já liberei o horário de ${quandoPorExtenso(antigoIso).replace('-feira', '')} pra outra pessoa.`,
-    `O link continua chegando no WhatsApp dele${t ? `, o *${t}*` : ''} — e eu te lembro no dia.`,
+    `Pronto${comNome(nome)}! Sua reunião agora é *${quandoPorExtenso(novoIso)}*, com o *${quem}*. `
+    + `Já liberei o horário de ${quandoPorExtenso(antigoIso).replace('-feira', '')} pra outra pessoa. `
+    + `O link continua chegando no WhatsApp dele${t ? `, o *${t}*` : ''}, e eu te lembro no dia.`,
   ];
 }
 
@@ -195,9 +193,10 @@ export function bolhasRemarcado(nome: string, novoIso: string, antigoIso: string
  *  o vermelho devolve o quadro pra vitrine — e quem some perde a vez. */
 export function bolhasSlotTomado(nome: string, ofertas: string[], quem: string): string[] {
   return [
-    `Oi${comNome(nome)}! Como não tinha recebido resposta sua, o seu horário acabou ficando com outra pessoa.`,
-    `Mas dá pra encaixar você aqui, com o *${quem}*:\n\n${ofertas.map(linhaDaOpcao).join('\n')}`,
-    'Me responde o número que eu já travo pra você.',
+    `Oi${comNome(nome)}! Como não tinha recebido resposta sua, o seu horário acabou ficando com outra pessoa. `
+    + `Mas dá pra encaixar você aqui, com o *${quem}*:\n\n`
+    + `${ofertas.map(linhaDaOpcao).join('\n')}\n\n`
+    + 'Me responde o número que eu já travo pra você.',
   ];
 }
 
@@ -210,9 +209,10 @@ export function bolhasSlotTomado(nome: string, ofertas: string[], quem: string):
 
 export function bolhasRetorno1(nome: string, ofertas: string[], quem: string): string[] {
   return [
-    `Oi${comNome(nome)}! Seu horário acabou ficando pra outra pessoa porque eu não tive retorno, mas dá pra te encaixar de novo.`,
-    `Estes são os próximos horários do *${quem}*:\n\n${ofertas.map(linhaDaOpcao).join('\n')}`,
-    'Me responde só o número que eu travo pra você.',
+    `Oi${comNome(nome)}! Seu horário acabou ficando pra outra pessoa porque eu não tive retorno, `
+    + `mas dá pra te encaixar de novo. Próximos horários do *${quem}*:\n\n`
+    + `${ofertas.map(linhaDaOpcao).join('\n')}\n\n`
+    + 'Me responde só o número que eu travo pra você.',
   ];
 }
 
@@ -220,9 +220,10 @@ export function bolhasRetorno1(nome: string, ofertas: string[], quem: string): s
  *  equipe, que já tem a ficha dele na aba Curioso. */
 export function bolhasRetorno2(nome: string, ofertas: string[], quem: string): string[] {
   return [
-    `${nome ? nome + ', e' : 'E'}u prometo que é a última vez que eu te chamo.`,
-    `Se ainda quiser ver quanto o seu ponto geraria com um eletroposto, é só escolher um horário com o *${quem}*:\n\n${ofertas.map(linhaDaOpcao).join('\n')}`,
-    'Responde o número, ou me diz o melhor dia que eu encaixo.',
+    `${nome ? nome + ', e' : 'E'}u prometo que é a última vez que eu te chamo. `
+    + `Se ainda quiser ver quanto o seu ponto geraria com um eletroposto, é só escolher um horário com o *${quem}*:\n\n`
+    + `${ofertas.map(linhaDaOpcao).join('\n')}\n\n`
+    + 'Responde o número, ou me diz o melhor dia que eu encaixo.',
   ];
 }
 
@@ -242,12 +243,11 @@ export function bolhasRetorno2(nome: string, ofertas: string[], quem: string): s
 //   3. A PORTA ABERTA com horário na mão e um número pra responder.
 export function bolhasNaoAtendido(nome: string, ofertas: string[], quem: string): string[] {
   return [
-    `Oi${comNome(nome)}! O *${quem}* te chamou no horário da reunião e não conseguiu falar com você.`,
-    'Fica pra próxima, sem problema. Só não quero que você perca isso de vista: '
-    + 'na reunião ele abre o estudo do SEU ponto, com o que o local comporta, '
-    + 'o investimento e o prazo de retorno. É meia hora, e você sai com número na mão.',
-    `Se quiser remarcar, é só escolher:\n\n${ofertas.map(linhaDaOpcao).join('\n')}`,
-    'Me responde só o número que eu já travo pra você.',
+    `Oi${comNome(nome)}! O *${quem}* te chamou no horário da reunião e não conseguiu falar com você. `
+    + 'Na reunião ele abre o estudo do SEU ponto: o que o local comporta, o investimento e o retorno, '
+    + `em meia hora. Dá pra remarcar agora:\n\n`
+    + `${ofertas.map(linhaDaOpcao).join('\n')}\n\n`
+    + 'Me responde só o número que eu já travo pra você.',
   ];
 }
 
@@ -261,11 +261,11 @@ export function bolhasNaoAtendido(nome: string, ofertas: string[], quem: string)
  */
 export function bolhasNaoAtendido2(nome: string, ofertas: string[], quem: string): string[] {
   return [
-    `Oi${comNome(nome)}! Voltei aqui porque eu não gosto de deixar assunto pela metade.`,
-    `Você reservou um horário com o *${quem}* e a gente não conseguiu se falar. `
-    + 'Se foi corria do dia, tudo bem, é só escolher outro:',
-    ofertas.map(linhaDaOpcao).join('\n'),
-    'Responde o número e eu travo. Se preferir outro dia, me diz qual que eu procuro.',
+    `${nome ? nome + ', v' : 'V'}oltei porque não gosto de deixar assunto pela metade. `
+    + `Você reservou um horário com o *${quem}* e a gente não conseguiu se falar. `
+    + `Se foi corrido, é só escolher outro:\n\n`
+    + `${ofertas.map(linhaDaOpcao).join('\n')}\n\n`
+    + 'Responde o número, ou me diz o melhor dia que eu encaixo.',
   ];
 }
 
@@ -273,18 +273,18 @@ export function bolhasNaoAtendido2(nome: string, ofertas: string[], quem: string
  *  sai da escada e vira lista pra equipe trabalhar (aba Curioso). */
 export function bolhasNaoAtendido3(nome: string, ofertas: string[], quem: string): string[] {
   return [
-    `${nome ? nome + ', e' : 'E'}sta é a última vez que eu te chamo, prometo.`,
-    `O *${quem}* continua com a agenda aberta pro seu ponto. Se ainda fizer sentido, escolhe um:`,
-    ofertas.map(linhaDaOpcao).join('\n'),
-    'Se não for agora, sem problema: eu paro por aqui e fico à disposição quando você quiser retomar.',
+    `${nome ? nome + ', e' : 'E'}sta é a última vez que eu te chamo. `
+    + `Se ainda fizer sentido, o *${quem}* tem estes horários:\n\n`
+    + `${ofertas.map(linhaDaOpcao).join('\n')}\n\n`
+    + 'Se não for agora, sem problema: fico à disposição quando você quiser retomar.',
   ];
 }
 
 /** Sem vaga nenhuma nas próximas 3 semanas: não inventa horário, chama gente. */
 export function bolhasSemVaga(nome: string, quem: string): string[] {
   return [
-    `${nome ? nome + ', a' : 'A'} agenda do *${quem}* está sem horário livre por enquanto.`,
-    'Já avisei ele aqui — ele te chama pra encaixar o melhor dia. Me desculpa a demora.',
+    `${nome ? nome + ', a' : 'A'} agenda do *${quem}* está sem horário livre por enquanto. `
+    + 'Já avisei ele aqui, e ele te chama pra encaixar o melhor dia. Me desculpa a demora.',
   ];
 }
 
@@ -561,7 +561,10 @@ export async function ofertarPorConta(
       logger.info('ep-remarcar', 'teto da linha estourado — oferta ativa espera o próximo tick', { id: ficha.id });
       return false;
     }
-    await sendHuman(tel, bolhas, 'io', ehCampanha ? { maxBolhas: 2 } : undefined);
+    // Uma mensagem, sempre, campanha ou conversa: as copies acima já são texto
+    // único, e `max` alto impede que o fatiador quebre a lista de horários (lista
+    // partida em duas bolhas faz o lead responder "2" olhando pra opção errada).
+    await sendHuman(tel, bolhas, 'io', { maxBolhas: 1, max: 1200 });
     await carimbar(ficha.id, etapa, ehCampanha);
     return true;
   };
