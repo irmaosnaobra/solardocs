@@ -74,26 +74,21 @@ const STATUS_VENDA = 'fechou';
 export const META_CONVERSAO = 3;
 
 /**
- * Quando o corte de roteamento QUE VALE HOJE passou a valer em produção.
+ * Quando a regra dos 700 kWh passou a valer DE VERDADE em produção — as duas
+ * metades (cron do Meta e DM do Instagram) já no ar.
  *
  * A auditoria de roteamento conta a partir daqui, não dos 30 dias cheios. Sem
- * este piso ela acusava 45 de 103 no primeiro minuto: ficha roteada pela regra
- * ANTERIOR não é violação de regra nenhuma. O alerta gritaria por um mês e
- * depois apagaria porque as fichas velhas saíram da janela, não porque o
- * roteamento melhorou. É o mesmo erro que a cobertura das boas-vindas cometeu
- * (ver SOLAR_ENTREGA_AMPLA_INICIO); aqui ele foi pego no ar, conferindo o card
- * contra o banco de produção em vez de confiar no teste.
- *
- * POR ISSO ELE ANDA JUNTO COM O CORTE: em 23/09/2026 o corte subiu de 762 pra
- * 1.200 kWh, e toda ficha entre os dois valores que estava (corretamente) com o
- * Thiago ou o Diego viraria "pequeno gastando manhã de dono" da noite pro dia.
- * Mexeu no KWH_CORTE_TIME ou nas listas de time? Mexa nesta data no mesmo
- * commit. O valor anterior era 2026-08-14T14:30:00.000Z.
+ * este piso ela acusava 45 de 103 no primeiro minuto: ficha roteada pelo rodízio
+ * dos três, ANTES de a regra existir, não é violação de regra nenhuma. O alerta
+ * gritaria 45 por um mês e depois apagaria porque as fichas velhas saíram da
+ * janela — não porque o roteamento melhorou. É o mesmo erro que a cobertura das
+ * boas-vindas cometeu (ver SOLAR_ENTREGA_AMPLA_INICIO); aqui ele foi pego no ar,
+ * conferindo o card contra o banco de produção em vez de confiar no teste.
  *
  * A CONVERSÃO não usa este piso: ela é métrica de negócio, e 30 dias de venda
  * continuam sendo 30 dias de venda.
  */
-export const ROTEAMENTO_REGRA_INICIO = '2026-09-23T00:00:00.000Z';
+export const ROTEAMENTO_REGRA_INICIO = '2026-08-14T14:30:00.000Z';
 
 /**
  * O consumo que o lead respondeu, lido da observação da ficha, na unidade certa.
@@ -387,7 +382,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         if (error) throw error;
         const fichas = data ?? [];
         const foraDaRegra = fichas.filter(f => {
-          // Ficha anterior à regra foi roteada pelo corte antigo e não violou
+          // Ficha anterior à regra foi roteada pelo rodízio dos três e não violou
           // nada — ver ROTEAMENTO_REGRA_INICIO.
           if (String(f.created_at) < ROTEAMENTO_REGRA_INICIO) return false;
           const kwh = consumoDaObservacao(f.observacao as string | null);
@@ -740,7 +735,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       // esta é a tela onde se olha o que os automatismos estão fazendo.
       id: 'roteamento_solar',
       nome: 'Roteamento do solar — conta alta × conta baixa',
-      papel: `Lead de solar acima de ${KWH_CORTE_TIME} kWh/mês entra no rodízio da conta alta, metade fica com a Nilce, um quarto com o Thiago e um quarto com o Diego (ordem do Thiago, 23/09/2026). Abaixo disso, e quando o lead não responde o consumo, é TODO da Nilce: a Giovanna saiu do rodízio de lead novo e só atende a carteira que já é dela. A agenda do Thiago e do Diego é disputada com o eletroposto (desde 14/08 a LP vende também 10h e 11h, em cima da manhã do solar), então cada horário que sai é caro, conta pequena não pode consumir um deles. Vale nas três entradas: formulário do Meta (responde em kWh), DM do Instagram e a LP (respondem em reais).`,
+      papel: `Lead de solar acima de ${KWH_CORTE_TIME} kWh/mês alterna entre ${TIME_CONTA_ALTA.join(' e ')}; abaixo disso, e quando o lead não responde o consumo, vai pra fila da conta baixa — ${TIME_CONTA_BAIXA.join(' e ')}, em rodízio de 3 pra 1 (desde 18/08 a Giovanna pega 1 a cada 4, pra treinar). A agenda do Thiago e do Diego é disputada com o eletroposto (desde 14/08 a LP vende também 10h e 11h, em cima da manhã do solar), então cada horário que sai é caro — conta pequena não pode consumir um deles. Vale nas duas entradas: formulário do Meta (responde em kWh) e DM do Instagram (responde em reais).`,
       canal: 'painel', linha: null,
       estado: 'ativo',
       ultima_atividade: null,
@@ -759,7 +754,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         },
       ],
       toques: [
-        { titulo: 'na entrada da ficha', quando: 'no momento em que o lead vira ficha', copy: `Lê o consumo respondido, converte pra kWh/mês (faixa vale pelo MEIO, não pelo teto) e escolhe o dono. Cliente que já tem consultor fica com ele, antes de qualquer regra de tamanho. Sem resposta de consumo cai na fila da conta baixa (hoje só a Nilce): a regra é exceção, quem não prova que é grande não gasta manhã de dono.` },
+        { titulo: 'na entrada da ficha', quando: 'no momento em que o lead vira ficha', copy: `Lê o consumo respondido, converte pra kWh/mês (faixa vale pelo MEIO, não pelo teto) e escolhe o dono. Cliente que já tem consultor fica com ele, antes de qualquer regra de tamanho. Sem resposta de consumo cai na fila da conta baixa (${TIME_CONTA_BAIXA.join('/')}): a regra é exceção, quem não prova que é grande não gasta manhã de dono.` },
       ],
       alerta: (() => {
         const partes: string[] = [];

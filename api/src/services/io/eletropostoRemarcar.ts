@@ -83,7 +83,18 @@ const desligado = () => (process.env.EP_REMARCAR_OFF || '').trim() === '1';
 // cancelar" como remarcação faz o robô responder com uma lista de horários pra
 // quem acabou de dizer que não quer mais. Quem cancela vai pro humano.
 const RE_CANCELAR = /\b(cancelar|cancela|cancele|cancelado|desmarcar|desmarca|desisti|desistir|n[ãa]o (tenho|quero) (mais )?interesse|n[ãa]o quero mais)\b/i;
-const RE_REAGENDAR = /\b(remarcar|remarca|remarque|reagendar|reagenda|adiar|adia|transferir|passar pra|passar para|mudar (o )?hor[áa]rio|trocar (o )?hor[áa]rio|outro dia|outro hor[áa]rio|outra data|n[ãa]o vou (poder|conseguir)|n[ãa]o consigo|n[ãa]o poderei|n[ãa]o vai dar|n[ãa]o d[áa]|tem como (ser )?(outro|mais tarde)|nesse hor[áa]rio n[ãa]o)\b/i;
+// Ampliado em 24/09/2026 com três famílias que faltavam, todas medidas em 30 dias
+// de conversa real desta linha (ver `ehAvisoDeQueNaoVem`, no eletropostoAgenda):
+//   · "vamos deixar pra amanhã" / "deixa pra próxima" / "fica pra semana que vem"
+//   · "tive um imprevisto" (e o typo "emprevisto", que apareceu duas vezes)
+//   · "não vou poder participar" / "não irei conseguir participar"
+// A primeira era o buraco mais caro: a ficha 1218 escreveu exatamente "Vamos
+// deixar pra amanhã", nenhum padrão cobria, e em vez da lista de horários ela
+// levou "é agora! o Diego já está te esperando" uma hora depois.
+//
+// O veto do RE_CANCELAR continua mandando: quem diz "cancela, não tenho mais
+// interesse" NÃO recebe três horários. Ampliar aqui não pode vazar pra lá.
+const RE_REAGENDAR = /\b(remarcar|remarca|remarque|reagendar|reagenda|adiar|adia|transferir|passar pra|passar para|mudar (o )?hor[áa]rio|trocar (o )?hor[áa]rio|outro dia|outro hor[áa]rio|outra data|n[ãa]o vou (poder|conseguir)|n[ãa]o consigo|n[ãa]o poderei|n[ãa]o vai dar|n[ãa]o d[áa]|tem como (ser )?(outro|mais tarde)|nesse hor[áa]rio n[ãa]o|deixa(r)? pra (amanh\w*|depois|pr[óo]xim\w*|outr\w*|semana\w*|mais na frente|segunda\w*|ter[çc]a\w*|quarta\w*|quinta\w*|sexta\w*)|[ie]mprevisto|n[ãa]o (vou|irei) .{0,12}(participar|comparecer)|(hoje|amanh[ãa]|agora) .{0,12}n[ãa]o (consigo|vou|d[áa]|posso)|n[ãa]o (consigo|vou conseguir|posso) (hoje|amanh[ãa]|agora))\b/i;
 
 /** Pediu pra REMARCAR (e não pra cancelar)? É este o gatilho da oferta. */
 export function querRemarcar(textos: string[]): boolean {

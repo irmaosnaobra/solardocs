@@ -4,7 +4,7 @@ import { sendWhatsApp } from '../agents/zapiClient';
 import {
   montarObservacaoSolar, organizarFicha, medirTemperatura,
   consumoDaFicha, consumoTipico,
-  TIME_CONTA_ALTA, FILA_CONTA_ALTA, KWH_CORTE_TIME,
+  TIME_CONTA_ALTA, KWH_CORTE_TIME,
 } from './leadSolarFicha';
 import { proximoDaContaBaixa } from './filaContaBaixa';
 
@@ -19,22 +19,18 @@ const TEL_CONSULTOR: Record<string, string> = {
 // Puxa leads dos formulários (Lead Ads) da página "Irmãos na Obra" no Meta,
 // roteia por tamanho de conta e cria um card na agenda pra cada lead.
 //
-// 23/09/2026: a Nilce recebe TODOS. Lead acima de 1.200 kWh/mês entra no rodízio
-// da conta alta, que é 50% dela, 25% do Thiago e 25% do Diego; abaixo do corte
-// vai TODO pra ela, sem passar pelo rodízio (a regra e o porquê vivem em
-// leadSolarFicha → KWH_CORTE_TIME e FILA_CONTA_ALTA). Lead pequeno não gira o
-// contador, ele nem chega na fila.
+// 12/08/2026: acabou o rodízio dos três. Lead acima de 700 kWh/mês alterna entre
+// Thiago e Diego; abaixo disso vai TODO pra Nilce (a regra e o porquê vivem em
+// leadSolarFicha → KWH_CORTE_TIME). Lead pequeno não gira o contador: ele nem
+// passa pela fila do Thiago/Diego.
 
 const GRAPH = 'https://graph.facebook.com/v21.0';
 const PAGE_ID = process.env.META_LEADS_PAGE_ID || '704395102766155';
 const SU_TOKEN = process.env.META_SYSTEM_USER_TOKEN || '';
 
-// Rodízio da conta alta. A Nilce ESTÁ aqui: desde 23/09/2026 ela leva metade dos
-// leads acima do corte, além de todos os de baixo.
-// A FILA, nao o time: a Nilce esta' nos dois times, entao a lista de membros tem
-// 3 nomes e sortear por ela daria 1/3 pra cada um. A fila tem 4 posicoes e e'
-// ela que carrega a proporcao 50/25/25.
-export const CONSULTORES_RODIZIO = FILA_CONTA_ALTA;
+// Rodízio da conta alta (Thiago↔Diego). A Nilce não está aqui de propósito: ela
+// leva todo lead abaixo do corte, sem alternar com ninguém.
+export const CONSULTORES_RODIZIO = TIME_CONTA_ALTA;
 const HORA_INI = 8;   // agenda abre 08:00
 const HORA_FIM = 20;  // fecha 20:00
 
@@ -534,16 +530,15 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
           if (dono) {
             consultor = dono;
           } else if (kwh > KWH_CORTE_TIME) {
-            // Conta alta: rodízio SEMPRE em ordem (Thiago→Nilce→Diego→Nilce), sem
-            // pular ninguém. O consultor da vez é fixo; se bloqueado/ocupado no
-            // horário pedido, agenda ele em OUTRO horário livre dele (não passa
-            // pro próximo), senão a proporção 50/25/25 viraria "quem estava
-            // livre", que é outra regra.
-            consultor = FILA_CONTA_ALTA[rodizioIdx % FILA_CONTA_ALTA.length];
+            // Conta alta: rodízio SEMPRE em ordem (Thiago→Diego), sem pular
+            // ninguém. O consultor da vez é fixo; se bloqueado/ocupado no horário
+            // pedido, agenda ele em OUTRO horário livre dele (não passa pro próximo).
+            consultor = TIME_CONTA_ALTA[rodizioIdx % TIME_CONTA_ALTA.length];
             rodizioIdx++;
           } else {
             // Abaixo do corte (ou sem resposta de consumo): é da fila da conta
-            // baixa, hoje só a Nilce, e não consome uma vez da fila de cima.
+            // baixa — 3 Nilce, 1 Giovanna — e não consome uma vez da fila do
+            // Thiago/Diego.
             consultor = await proximoDaContaBaixa();
           }
           const base = dataBaseDaFaixa(faixa);

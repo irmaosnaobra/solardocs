@@ -1,18 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// A auditoria de roteamento na Central. Ela existe porque a regra do corte ficou
-// 2 dias parada no disco sem ninguém perceber, 6 leads no consultor errado e 4
-// manhãs de dono gastas com conta pequena. Regra que ninguém confere é regra que
-// some no próximo deploy.
-//
-// A REGRA AUDITADA É A DE 23/09/2026: acima de 1.200 kWh/mês o lead é do time da
-// conta alta (Thiago, Diego e a Nilce, que leva metade deles); abaixo do corte é
-// do time da conta baixa (Nilce e a carteira antiga da Giovanna).
-//
-// As datas aqui embaixo NÃO são decoração: a auditoria só olha ficha criada
-// depois do ROTEAMENTO_REGRA_INICIO, e esse piso anda junto com o corte. Mexeu
-// no corte? Este arquivo tem que andar junto, senão ele passa a testar uma
-// janela vazia e fica verde sem auditar nada.
+// A auditoria de roteamento na Central. Ela existe porque a regra dos 700 kWh
+// ficou 2 dias parada no disco sem ninguém perceber — 6 leads no consultor errado
+// e 4 manhãs de dono gastas com conta pequena. Regra que ninguém confere é regra
+// que some no próximo deploy.
 
 let fichas: any[] = [];
 
@@ -60,10 +51,10 @@ const obs = (consumo: string) => `[Lead Instagram]\nConsumo: ${consumo}\nImóvel
 const ficha = (over: Partial<any> = {}) => ({
   id: 1, cliente_nome: 'Fulano', vendedor_nome: 'Nilce', status: 'agendado',
   // Depois de ROTEAMENTO_REGRA_INICIO: ficha anterior à regra não é auditada.
-  observacao: obs('- 500'), created_at: '2026-09-23T12:00:00.000Z', ...over,
+  observacao: obs('- 500'), created_at: '2026-08-14T18:00:00.000Z', ...over,
 });
 
-beforeEach(() => { fichas = []; vi.useFakeTimers(); vi.setSystemTime(new Date('2026-09-23T15:00:00.000Z')); });
+beforeEach(() => { fichas = []; vi.useFakeTimers(); vi.setSystemTime(new Date('2026-08-14T15:00:00.000Z')); });
 afterEach(() => { vi.useRealTimers(); vi.resetModules(); });
 
 async function card() {
@@ -81,30 +72,9 @@ describe('quem está com o consultor errado', () => {
     expect(c.alerta).toContain('#774 Gerson → Thiago');
   });
 
-  // A Nilce NÃO serve mais de exemplo aqui: desde 10/09 ela está no time da conta
-  // alta e desde 23/09 leva metade dos leads grandes. Quem sobra fora do time é a
-  // Giovanna, que só atende a carteira antiga e não recebe lead novo.
   it('conta grande fora do time também é acusada', async () => {
-    fichas = [ficha({ id: 773, cliente_nome: 'Alceu', vendedor_nome: 'Giovanna', observacao: obs('1200 a 1600') })];
+    fichas = [ficha({ id: 773, cliente_nome: 'Alceu', vendedor_nome: 'Nilce', observacao: obs('900 a 1200') })];
     expect(metrica(await card(), 'Fora da regra').valor).toBe(1);
-  });
-
-  // O contrário disso, e é a metade da regra nova: lead grande COM a Nilce está
-  // certo. Antes de 23/09 esta mesma ficha seria acusada.
-  it('lead grande com a Nilce está certo, ela leva metade deles', async () => {
-    fichas = [ficha({ id: 775, vendedor_nome: 'Nilce', observacao: obs('1200 a 1600') })];
-    const c = await card();
-    expect(metrica(c, 'Fora da regra').valor).toBe(0);
-    expect(c.alerta).toBeUndefined();
-  });
-
-  // A faixa que mudou de lado no corte de 23/09: 800 kWh era dos sócios, virou
-  // conta baixa. É o caso que um corte esquecido em 762 deixaria passar.
-  it('lead de 800 kWh com um sócio é acusado: o corte agora é 1.200', async () => {
-    fichas = [ficha({ id: 776, cliente_nome: 'Moacir', vendedor_nome: 'Diego', observacao: obs('700 a 900') })];
-    const c = await card();
-    expect(metrica(c, 'Fora da regra').valor).toBe(1);
-    expect(c.alerta).toContain('#776 Moacir → Diego');
   });
 
   it('ficha certa não acusa ninguém', async () => {
@@ -122,7 +92,7 @@ describe('quem está com o consultor errado', () => {
   // um mês e depois apagaria porque as fichas velhas saíram da janela, não porque
   // o roteamento melhorou. Pego no ar, conferindo o card contra o banco.
   it('ficha anterior à entrada da regra não é auditada', async () => {
-    fichas = [ficha({ vendedor_nome: 'Thiago', observacao: obs('- 500'), created_at: '2026-09-22T10:00:00.000Z' })];
+    fichas = [ficha({ vendedor_nome: 'Thiago', observacao: obs('- 500'), created_at: '2026-08-10T10:00:00.000Z' })];
     const c = await card();
     expect(metrica(c, 'Fora da regra').valor).toBe(0);
     expect(c.alerta).toBeUndefined();
@@ -147,18 +117,14 @@ describe('quem está com o consultor errado', () => {
   // "700 a 900" virava 365 — lead grande, com o consultor certo, acusado de
   // conta pequena. Achado ao consultar o banco, não pelo teste.
   it('observação de linha única não deixa o resto do texto entrar na conta', async () => {
-    // Lido certo: meio de 1.200 a 1.600 = 1.400 → conta alta.
-    // Lido errado (sem cortar no "·"): o "30" de "30 dias" entra e o meio vira
-    // (1200+30)/2 = 615 → conta baixa, e as duas acusações abaixo TROCAM de lado.
-    const linhaUnica = 'Consumo: 1200 a 1600 · Telhado: Cimento · Padrão: Bi · Urgencia: 30 dias';
+    const linhaUnica = 'Consumo: 700 a 900 · Telhado: Cimento · Padrão: Bi · Urgencia: 30 dias';
     fichas = [
-      ficha({ id: 1, vendedor_nome: 'Diego', observacao: linhaUnica }),      // grande com o time: certo
-      ficha({ id: 2, vendedor_nome: 'Giovanna', observacao: linhaUnica }),   // grande fora do time: errado
+      ficha({ id: 1, vendedor_nome: 'Diego', observacao: linhaUnica }),   // grande com o time: certo
+      ficha({ id: 2, vendedor_nome: 'Nilce', observacao: linhaUnica }),   // grande com a Nilce: errado
     ];
     const c = await card();
     expect(metrica(c, 'Fora da regra').valor).toBe(1);
     expect(c.alerta).toContain('#2');
-    expect(c.alerta).not.toContain('#1');   // quem seria acusado se o "·" vazasse
   });
 });
 

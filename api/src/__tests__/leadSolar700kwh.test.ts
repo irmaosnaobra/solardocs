@@ -1,20 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Regra do Thiago (23/09/2026): a NILCE RECEBE TODOS. Acima de 1.200 kWh/mês o
-// lead entra no rodízio da conta alta, que é 50% dela, 25% do Thiago e 25% do
-// Diego; abaixo do corte é todo dela, sem passar pelo rodízio.
-//
-// É uma regra de DINHEIRO e de agenda (a manhã dos sócios é o recurso escasso, 
-// a tarde deles é do eletroposto), e ela quebra em silêncio: ninguém "vê" um
-// lead de R$ 300 que foi parar no sócio. Por isso está travada aqui, com as
-// faixas REAIS dos formulários no ar:
+// Regra do Thiago (12/08/2026): lead SOLAR só vai pro Thiago ou pro Diego acima
+// de 700 kWh/mês; abaixo disso pula pra Nilce. É uma regra de DINHEIRO e de
+// agenda (a manhã dos dois é o recurso escasso — a tarde deles é do eletroposto),
+// e ela quebra em silêncio: ninguém "vê" um lead de R$ 300 que foi parar no
+// sócio. Por isso está travada aqui, com as faixas REAIS dos formulários no ar:
 //   • Meta Lead Ads pergunta em kWh   → "500 a 700", "700 a 900", "+ 1200"
 //   • DM/ManyChat e /simular em REAIS → "R$ 400 a R$ 800", "Mais de R$ 1.500"
-//
-// O corte já foi 700 kWh (12/08) e R$ 800 / 762 kWh (10/09). Os casos abaixo são
-// os MESMOS das duas versões anteriores, com o resultado recalculado no corte
-// novo, faixa que era dos sócios e agora não é mais está marcada, porque é
-// exatamente aí que uma regressão apareceria.
 
 type Row = Record<string, any>;
 const db: Record<string, Row[]> = {
@@ -69,10 +61,7 @@ function query(table: string) {
 vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: { from: (t: string) => query(t) } }));
 vi.mock('../services/agents/zapiClient', () => ({ sendWhatsApp: vi.fn().mockResolvedValue({}) }));
 
-import {
-  consumoTipico, ehContaAlta, consumoDaFicha, FieldItem,
-  KWH_CORTE_TIME, CONTA_CORTE_REAIS, FILA_CONTA_ALTA,
-} from '../services/agenda/leadSolarFicha';
+import { consumoTipico, ehContaAlta, consumoDaFicha, FieldItem } from '../services/agenda/leadSolarFicha';
 import { ingestManychatLead } from '../services/agenda/manychatLeadService';
 
 // DDD 34 = área de atendimento (não depende da tabela de cidades).
@@ -95,52 +84,42 @@ beforeEach(() => {
 
 describe('consumo típico da faixa respondida', () => {
   // Faixa fechada = MEIO da faixa. É o único critério que acerta nas duas
-  // unidades: pelo teto "1.000 a 1.500" viraria conta alta e pelo piso também
-  // viraria conta baixa, dependendo de quem responde em quê.
+  // unidades: pelo teto "R$ 400 a R$ 800" viraria conta alta (≈762 kWh) e pelo
+  // piso "700 a 900" viraria conta baixa.
   const casos: Array<[string, 'kwh' | 'reais', boolean]> = [
-    ['- 500',               'kwh',   false],
-    ['500 a 700',           'kwh',   false],  // meio 600
-    ['700 a 900',           'kwh',   false],  // meio 800, ERA dos sócios até 22/09
-    ['900 a 1200',          'kwh',   false],  // meio 1050, ERA dos sócios até 22/09
-    ['1200 a 1500',         'kwh',   true],   // meio 1350
-    ['+ 1200',              'kwh',   true],   // piso alto → 1201
-    ['acima de 1000 kWh',   'kwh',   false],  // 1001, ERA dos sócios até 22/09
-    ['acima de 2000 kWh',   'kwh',   true],
-    ['1500',                'kwh',   true],   // resposta exata
-    ['1200',                'kwh',   false],  // o corte é ACIMA de 1.200
-    ['',                    'kwh',   false],  // não respondeu → Nilce
-    ['- 300,00',            'kwh',   false],  // respostas com centavos existem no form
-    ['R$ 1.800,00',         'reais', true],   // ",00" não pode virar faixa "1800 a 0"
-    ['300 ~ 600',           'kwh',   false],  // outro form usa ~ no lugar de "a"
-    ['600 ~1000',           'kwh',   false],  // meio 800, ERA dos sócios até 22/09
-    ['1300 ~1900',          'kwh',   true],
-    ['mais_de_r$1.100',     'kwh',   false],  // form que pergunta em R$ com nome de kWh
-    ['Até R$ 200',          'reais', false],
-    ['R$ 200 a R$ 400',     'reais', false],
-    ['R$ 400 a R$ 800',     'reais', false],  // meio R$ 600 ≈ 571 kWh
-    ['R$ 800 a R$ 1.500',   'reais', false],  // meio R$ 1.150 ≈ 1095 kWh, ERA dos sócios
-    ['R$ 1.500 a R$ 2.000', 'reais', true],   // meio R$ 1.750 ≈ 1667 kWh
-    ['Mais de R$ 1.500',    'reais', true],   // piso alto ≈ 1429 kWh
-    ['',                    'reais', false],
+    ['- 500',              'kwh',   false],
+    ['500 a 700',          'kwh',   false],   // meio 600 → Nilce
+    ['700 a 900',          'kwh',   true],    // meio 800 → sócios
+    ['+ 1200',             'kwh',   true],
+    ['acima de 1000 kWh',  'kwh',   true],
+    ['800',                'kwh',   true],    // resposta exata
+    ['700',                'kwh',   false],   // o corte é ACIMA de 700
+    ['',                   'kwh',   false],   // não respondeu → Nilce
+    ['- 300,00',           'kwh',   false],   // respostas com centavos existem no form
+    ['R$ 900,00',          'reais', true],    // ",00" não pode virar faixa "900 a 0"
+    ['300 ~ 600',          'kwh',   false],   // outro form usa ~ no lugar de "a"
+    ['600 ~1000',          'kwh',   true],
+    ['mais_de_r$1.100',    'kwh',   true],    // form que pergunta em R$ com nome de kWh
+    ['Até R$ 200',         'reais', false],
+    ['R$ 200 a R$ 400',    'reais', false],
+    ['R$ 400 a R$ 800',    'reais', false],   // meio R$ 600 ≈ 571 kWh → Nilce
+    ['R$ 800 a R$ 1.500',  'reais', true],    // meio R$ 1.150 ≈ 1095 kWh → sócios
+    ['Mais de R$ 1.500',   'reais', true],
+    ['',                   'reais', false],
   ];
   it.each(casos)('%s (%s) → conta alta = %s', (valor, unidade, esperado) => {
     expect(ehContaAlta(valor, unidade)).toBe(esperado);
   });
 
-  it('reais viram kWh pela tarifa (R$ 1.260 = o corte de 1.200 kWh)', () => {
-    expect(Math.round(consumoTipico(String(CONTA_CORTE_REAIS), 'reais'))).toBe(KWH_CORTE_TIME);
-    expect(consumoTipico('1260', 'kwh')).toBe(1260);   // mesma string, outra unidade
-  });
-
-  it('o corte é 1.200 kWh, e os reais são derivados dele', () => {
-    expect(KWH_CORTE_TIME).toBe(1200);
-    expect(CONTA_CORTE_REAIS).toBe(1260);
+  it('reais viram kWh pela tarifa (R$ 735 ≈ o corte de 700 kWh)', () => {
+    expect(Math.round(consumoTipico('735', 'reais'))).toBe(700);
+    expect(consumoTipico('735', 'kwh')).toBe(735);   // mesma string, outra unidade
   });
 });
 
 describe('lead do Meta Lead Ads: a ficha que chega de verdade', () => {
   // O cron do Meta é onde mora o volume. Ele não lê a string solta: lê o campo
-  // "Consumo" DEPOIS que a ficha é organizada, e um dos formulários no ar tem
+  // "Consumo" DEPOIS que a ficha é organizada — e um dos formulários no ar tem
   // um campo "Aumentar Consumo" (resposta "Sim"/"Não") que, se vazasse pro slot
   // errado, roteava todo mundo pela palavra errada.
   const fichaMeta = (consumo: string, nomeDoCampo = 'Consumo'): FieldItem[] => [
@@ -154,10 +133,9 @@ describe('lead do Meta Lead Ads: a ficha que chega de verdade', () => {
 
   it.each([
     ['- 500', false], ['500 a 700', false], ['300 ~ 600', false], ['- 300,00', false],
-    ['700 a 900', false], ['900 a 1200', false], ['600 ~1000', false],
-    ['+ 1200', true], ['1200 a 1600', true], ['acima de 2000', true],
+    ['700 a 900', true], ['900 a 1200', true], ['+ 1200', true], ['600 ~1000', true],
   ] as Array<[string, boolean]>)('resposta "%s" → conta alta = %s', (resp, esperado) => {
-    expect(kwhDoLead(fichaMeta(resp)) > KWH_CORTE_TIME).toBe(esperado);
+    expect(kwhDoLead(fichaMeta(resp)) > 700).toBe(esperado);
   });
 
   it('"Aumentar Consumo: Sim" não é lido como consumo', () => {
@@ -170,15 +148,12 @@ describe('lead do Meta Lead Ads: a ficha que chega de verdade', () => {
   });
 
   it('formulário com nome comprido de campo também é lido', () => {
-    const fields = fichaMeta('1200 a 1600', 'qual_seu_consumo_médio_de_energia_(conta_de_luz)?');
-    expect(kwhDoLead(fields)).toBe(1400);
+    const fields = fichaMeta('700 a 900', 'qual_seu_consumo_médio_de_energia_(conta_de_luz)?');
+    expect(kwhDoLead(fields)).toBe(800);
   });
 });
 
 describe('lead de DM/formulário: quem recebe o card', () => {
-  /** Uma faixa de conta alta, escrita como o lead escreve. ≈1.667 kWh. */
-  const ALTA = 'R$ 1.500 a R$ 2.000';
-
   it('conta baixa vai pra Nilce e NÃO gasta a vez do rodízio', async () => {
     expect((await leadSolar('R$ 200 a R$ 400')).consultor).toBe('Nilce');
     expect((await leadSolar('R$ 400 a R$ 800')).consultor).toBe('Nilce');
@@ -187,66 +162,32 @@ describe('lead de DM/formulário: quem recebe o card', () => {
     expect(db.agendamentos.map(a => a.vendedor_nome)).toEqual(['Nilce', 'Nilce']);
   });
 
-  it('a faixa que ERA dos sócios (R$ 800 a R$ 1.500) agora é da Nilce', async () => {
-    expect((await leadSolar('R$ 800 a R$ 1.500')).consultor).toBe('Nilce');
-    expect(db.leads_meta_state[0].rodizio_idx).toBe(0);   // nem chegou no rodízio
-  });
-
   it('sem faixa respondida também é da Nilce (não gasta manhã de sócio no escuro)', async () => {
     expect((await leadSolar('')).consultor).toBe('Nilce');
   });
 
-  it('conta alta gira Thiago → Nilce → Diego → Nilce, e repete', async () => {
-    const donos: string[] = [];
-    for (let i = 0; i < 8; i++) donos.push((await leadSolar(ALTA)).consultor as string);
-    expect(donos).toEqual([
-      'Thiago', 'Nilce', 'Diego', 'Nilce',
-      'Thiago', 'Nilce', 'Diego', 'Nilce',
-    ]);
-    expect(db.leads_meta_state[0].rodizio_idx).toBe(8);
-  });
-
-  it('a proporção dos grandes é 50% Nilce, 25% Thiago, 25% Diego', async () => {
-    const donos: string[] = [];
-    for (let i = 0; i < 12; i++) donos.push((await leadSolar(ALTA)).consultor as string);
-    const conta = (n: string) => donos.filter(d => d === n).length;
-    expect(conta('Nilce')).toBe(6);
-    expect(conta('Thiago')).toBe(3);
-    expect(conta('Diego')).toBe(3);
-  });
-
-  it('a Nilce nunca sai em bloco: dois grandes seguidos não são os dois dela', () => {
-    for (let i = 0; i < FILA_CONTA_ALTA.length; i++) {
-      const par = [FILA_CONTA_ALTA[i], FILA_CONTA_ALTA[(i + 1) % FILA_CONTA_ALTA.length]];
-      expect(par.filter(n => n === 'Nilce')).not.toHaveLength(2);
-    }
-  });
-
-  it('lead pequeno no meio não desalinha o rodízio dos grandes', async () => {
-    expect((await leadSolar(ALTA)).consultor).toBe('Thiago');
-    await leadSolar('Até R$ 200');            // Nilce, não gira nada
-    await leadSolar('R$ 400 a R$ 800');       // Nilce, não gira nada
-    expect((await leadSolar(ALTA)).consultor).toBe('Nilce');
-    expect((await leadSolar(ALTA)).consultor).toBe('Diego');
+  it('conta alta alterna Thiago → Diego → Thiago', async () => {
+    expect((await leadSolar('R$ 800 a R$ 1.500')).consultor).toBe('Thiago');
+    expect((await leadSolar('Mais de R$ 1.500')).consultor).toBe('Diego');
+    expect((await leadSolar('R$ 800 a R$ 1.500')).consultor).toBe('Thiago');
     expect(db.leads_meta_state[0].rodizio_idx).toBe(3);
   });
 
+  it('lead pequeno no meio não desalinha o rodízio dos sócios', async () => {
+    expect((await leadSolar('Mais de R$ 1.500')).consultor).toBe('Thiago');
+    await leadSolar('Até R$ 200');            // Nilce, não gira nada
+    await leadSolar('R$ 400 a R$ 800');       // Nilce, não gira nada
+    expect((await leadSolar('Mais de R$ 1.500')).consultor).toBe('Diego');
+  });
+
   it('1 telefone = 1 consultor continua mandando mais que o tamanho da conta', async () => {
-    const { tel } = await leadSolar(ALTA);                        // vira card do Thiago
+    const { tel } = await leadSolar('Mais de R$ 1.500');          // vira card do Thiago
     db.leads_meta = [];                                           // ManyChat manda de novo (lead_id repete)
     const volta = await ingestManychatLead({
       produto: 'solar', nome: 'Cliente Teste', whatsapp: tel,
       cidade: 'Uberlândia-MG', valor_conta: 'Até R$ 200', contact_id: 'outro' + tel,
     });
     expect(volta.consultor).toBe('Thiago');   // conta caiu, mas o cliente é dele
-  });
-
-  it('a Giovanna não recebe lead novo, de nenhum tamanho', async () => {
-    const donos: string[] = [];
-    for (const faixa of ['Até R$ 200', 'R$ 400 a R$ 800', 'R$ 800 a R$ 1.500', ALTA, ALTA, ALTA, ALTA, '']) {
-      donos.push((await leadSolar(faixa)).consultor as string);
-    }
-    expect(donos).not.toContain('Giovanna');
   });
 
   it('dry-run mostra o roteamento de verdade, sem gravar', async () => {

@@ -366,11 +366,15 @@ export function telefoneBonito(raw: string | null | undefined): string {
   return `(${ddd}) ${resto.slice(0, resto.length - 4)}-${resto.slice(-4)}`;
 }
 
-// O "de onde vem o link" ficou INLINE nos quatro toques (23/09/2026): com uma
-// mensagem só, o `deOnde` repetia o nome do consultor duas vezes na mesma frase
-// ("sua reunião com o *Diego* ... o link chega pelo WhatsApp do *Diego*"), que é
-// jeito de robô escrever. Agora cada texto diz "no WhatsApp dele" e o nome
-// aparece uma vez. Quem manda o link continua sendo gente, não este chat.
+/**
+ * "pelo WhatsApp do *Diego*, o *(34) 99136-0172*" — e sem número cadastrado,
+ * "pelo WhatsApp do *Diego*", nunca "(  ) -" nem "o **".
+ *
+ * Quem manda o link da chamada é o CONSULTOR, do número dele — não este chat.
+ * A copy antiga dizia "o link cai aqui neste chat" nos três toques e mandava o
+ * lead vigiar a janela errada.
+ */
+const deOnde = (quem: string, tel: string) => `pelo WhatsApp do *${quem}*${tel ? `, o *${tel}*` : ''}`;
 
 // O aviso de atraso é pedido do dono: a reunião anterior estica quando vai pra
 // fechamento, e sem essa linha o lead que espera 10 minutos acha que furaram.
@@ -397,7 +401,7 @@ export function bolhasConfirmacao(
   // que a bloquearam em agosto.
   return [
     `Oi${comNome(n)}! Aqui é da *NEXUS Eletropostos*. Sua reunião com o *${quem}* está confirmada: `
-    + `*${quandoPorExtenso(quandoIso)}* (Brasília). É por vídeo e o link chega no WhatsApp dele${tel ? `, o *${tel}*` : ''}.\n\n`
+    + `*${quandoPorExtenso(quandoIso)}* (Brasília). É por vídeo e o link chega ${deOnde(quem, tel)}.\n\n`
     + 'Responde *SIM* que eu travo o horário. Se precisar desmarcar, me avisa antes que eu remarco: '
     + 'a procura está alta e o horário fica bloqueado.',
   ];
@@ -457,7 +461,7 @@ export function bolhas1h(
   const tel = telefoneBonito(telVendedor);
   return [
     `Oi${comNome(n)}! Falta *1 hora*: sua reunião com o *${quem}* é às *${horaCurta(quandoIso)}*, por vídeo. `
-    + `O link cai no WhatsApp dele${tel ? `, o *${tel}*` : ''}: fica de olho lá e separa um canto com internet.\n\n`
+    + `O link cai ${deOnde(quem, tel)}, fica de olho lá e separa um canto com internet.\n\n`
     + `Se ele atrasar uns minutos, segura aí: ${PODE_ATRASAR}. Se está de pé, responde *SIM*. `
     + 'Se aconteceu um imprevisto, me avisa que eu remarco.',
   ];
@@ -899,13 +903,15 @@ async function quemAvisouQueNaoVem(
   const comTelefone = fichas.filter(f => f.cliente_telefone && f.quando);
   if (!comTelefone.length) return achados;
 
+
   const porChave = new Map<string, Ficha[]>();
   let piso = Date.now();
   for (const f of comTelefone) {
     const k = chaveContato(String(f.cliente_telefone));
     if (!k) continue;
     porChave.set(k, [...(porChave.get(k) ?? []), f]);
-    piso = Math.min(piso, new Date(f.created_at).getTime());
+    const desta = [f.created_at, f.confirmacao_at].filter(Boolean).sort().pop()!;
+    piso = Math.min(piso, new Date(desta).getTime());
   }
   if (!porChave.size) return achados;
 
@@ -926,8 +932,18 @@ async function quemAvisouQueNaoVem(
       const k = chaveContato(m.telefone);
       if (!k) continue;
       for (const f of porChave.get(k) ?? []) {
-        // Depois de a ficha nascer e antes da hora da reunião: é sobre ESTA reunião.
-        if (m.momment <= f.created_at) continue;
+        // ── A RECLAMAÇÃO TEM QUE SER SOBRE A REUNIÃO QUE ESTÁ DE PÉ ─────────
+        // O piso é a CONFIRMAÇÃO, não o nascimento da ficha, e a diferença é a
+        // que faltou na primeira versão disto: quando o robô remarca, ele
+        // recarimba `confirmacao_at` e zera os lembretes. Usando `created_at`,
+        // um "vamos deixar pra amanhã" dito sobre o horário VELHO continuava
+        // calando os quatro toques do horário NOVO — o que o cliente pediu.
+        //
+        // Aconteceu de verdade: a ficha 1218 reclamou 16:26, foi remarcada
+        // 20:20 (confirmação recarimbada) e ficaria muda pra reunião do dia
+        // seguinte, que era exatamente a que ele tinha aceitado.
+        const piso = [f.created_at, f.confirmacao_at].filter(Boolean).sort().pop()!;
+        if (m.momment <= piso) continue;
         if (f.quando && m.momment > f.quando) continue;
         achados.set(f.id, { texto: String(m.texto ?? '').slice(0, 160), quando: m.momment });
       }
@@ -977,7 +993,11 @@ async function avisarConsultorQueNaoVem(
   await Promise.allSettled([...destinos].filter(Boolean).map(n => sendWhatsApp(n, texto, 'io')));
 
   await supabase.from('system_state').upsert(
-    { key: marca, value: { em: new Date().toISOString(), texto: aviso.texto }, updated_at: new Date().toISOString() },
+    {
+      key: marca,
+      value: { em: new Date().toISOString(), texto: aviso.texto, quando: ag.quando },
+      updated_at: new Date().toISOString(),
+    },
     { onConflict: 'key' },
   );
   logger.info('ep-agenda', `${ag.id} desmarcou — toques cortados e consultor avisado`);

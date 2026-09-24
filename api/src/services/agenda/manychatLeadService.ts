@@ -41,7 +41,7 @@ import {
 } from './leadsMetaService';
 import {
   montarObservacaoSolar, organizarFicha, FieldItem,
-  consumoTipico, TIME_CONTA_ALTA, FILA_CONTA_ALTA, KWH_CORTE_TIME,
+  consumoTipico, TIME_CONTA_ALTA, KWH_CORTE_TIME,
 } from './leadSolarFicha';
 // Quem GRAVA a ficha de Instagram e quem MANDA o convite têm que concordar na
 // mesma palavra de origem — por isso ela vem de lá, não é literal daqui.
@@ -107,17 +107,15 @@ function tempEletroposto(capital: string): 'quente' | 'morno' | 'frio' {
   return 'morno';                                  // até 150 mil
 }
 
-// Roteamento por tamanho de conta (regra do Thiago, 23/09/2026: acima de 1.200
-// kWh/mês entra no rodízio da conta alta, 50% Nilce, 25% Thiago, 25% Diego;
-// abaixo é tudo da Nilce). Aqui o lead responde em REAIS ("R$ 800 a R$ 1.500"),
-// então a unidade vai explícita: o corte é em kWh/mês e quem converte é o
-// consumoTipico.
+// Roteamento por tamanho de conta (regra do Thiago, 12/08/2026). Aqui o lead
+// responde em REAIS ("R$ 800 a R$ 1.500"), então a unidade vai explícita: o corte
+// é em kWh/mês e quem converte é o consumoTipico.
 function ehContaAltaReais(valorConta: string): boolean {
   return consumoTipico(valorConta || '', 'reais') > KWH_CORTE_TIME;
 }
 async function consultorDoLeadSolar(valorConta: string, rodizioIdx: number): Promise<string> {
   return ehContaAltaReais(valorConta)
-    ? FILA_CONTA_ALTA[rodizioIdx % FILA_CONTA_ALTA.length]
+    ? TIME_CONTA_ALTA[rodizioIdx % TIME_CONTA_ALTA.length]
     : proximoDaContaBaixa();
 }
 
@@ -288,18 +286,18 @@ async function ingestSolar(p: ManychatLeadPayload, nome: string, whatsapp: strin
     if (dono) {
       consultor = dono;
     } else if (!ehContaAltaReais(p.valor_conta || '')) {
-      // Abaixo de 1.200 kWh/mês (ou sem faixa respondida): é da fila da conta
-      // baixa, hoje só a Nilce, e não gasta uma vez da fila de cima.
+      // Abaixo de 700 kWh/mês (ou sem faixa respondida): é da fila da conta baixa
+      // (3 Nilce, 1 Giovanna) e não gasta uma vez da fila do Thiago/Diego.
       consultor = await proximoDaContaBaixa();
     } else {
-      // Conta alta: rodízio Thiago→Nilce→Diego→Nilce compartilhando o contador
-      // com o cron do Meta (leads_meta_state), um lead é um lead, os três
-      // recebem na mesma proporção venha de qual porta vier. Read-modify-write
-      // não-atômico (mesmo risco/volume do cron).
+      // Conta alta: rodízio Thiago↔Diego compartilhando o contador com o cron do
+      // Meta (leads_meta_state) — um lead é um lead, os dois recebem em rodízio
+      // justo venha da onde vier. Read-modify-write não-atômico (mesmo
+      // risco/volume do cron).
       const { data: stateRows } = await supabaseGerador
         .from('leads_meta_state').select('rodizio_idx').eq('id', 1).limit(1);
       const idx = (stateRows && stateRows[0]?.rodizio_idx) || 0;
-      consultor = FILA_CONTA_ALTA[idx % FILA_CONTA_ALTA.length];
+      consultor = TIME_CONTA_ALTA[idx % TIME_CONTA_ALTA.length];
       await supabaseGerador.from('leads_meta_state')
         .update({ rodizio_idx: idx + 1, updated_at: new Date().toISOString() }).eq('id', 1);
     }
