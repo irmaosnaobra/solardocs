@@ -2387,6 +2387,52 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   #eletroSection .orc-wrap .eletro-field .el-tip::before{display:none}
 }
 
+
+/* ===========================================================================
+   FORMULARIO DO ELETROPOSTO — rotulo em cima, campo embaixo (24/09/2026)
+   ---------------------------------------------------------------------------
+   O padrao antigo (.eletro-field com label em flex:1 e input de 132/190px)
+   nasceu no SIMULADOR, que e' planilha: rotulo a esquerda, numero a direita,
+   rotulos longos, nenhum vao. Ali ele esta CERTO e continua como esta.
+
+   O erro foi reusa-lo nos campos de TEXTO das abas de documento. Medido em
+   24/09, a 1395px: vao medio de 479px entre o fim do rotulo e o campo, e
+   55 campos cortando o proprio conteudo nas 8 abas — nome do cliente,
+   endereco e dados bancarios ilegiveis depois de digitados.
+
+   O CSS ja TENTAVA alinhar texto a esquerda (.eletro-inp-wide input
+   {text-align:left}) e perdia por ordem de fonte para .eletro-inp input
+   {text-align:right}. O comentario logo abaixo chegou a registrar o efeito
+   ("na pratica todos sao a direita") tratando o defeito como intencao.
+
+   Aqui o card das abas de documento vira grade (3 colunas no desktop, 2 no
+   celular), o rotulo sobe como etiqueta e o campo ocupa a celula. Texto a
+   esquerda, numero continua a direita colado no R$ / % / kWh. Resultado
+   medido: 55 campos cortados -> 0, e a altura CAIU (orcamento 3362 -> 2919px,
+   equipamento 2480 -> 2127px), porque empilhar se paga com coluna.
+
+   Escopo: `#eletroSection .orc-wrap` (as 7 abas de documento) mais quatro
+   campos nomeados do Simulador. O resto do Simulador nao e' tocado.
+   =========================================================================== */
+/* ===========================================================================
+   TELA MUITO ESTREITA: UMA COLUNA (24/09/2026)
+   ---------------------------------------------------------------------------
+   A grade do celular e' de 2 colunas. Isso vale a partir de ~360px, onde cada
+   celula fica com ~170px. Abaixo disso a celula cai para ~140px — mais ESTREITA
+   que os 190px do campo antigo — e o texto volta a cortar: medido a 320px,
+   76 campos cortados viraram 79, enquanto a 360px cairam de 73 para 34.
+
+   Abaixo de 360px a grade passa a ter uma coluna so'. Ai o campo ocupa ~290px,
+   bem mais que os 190px de antes, e o corte cai junto.
+
+   360px e' o Android pequeno; 320px e' iPhone SE de primeira geracao. Os dois
+   existem no bolso de quem vende em obra.
+   =========================================================================== */
+@media(max-width:359px){
+  #eletroSection .orc-wrap .card,
+  #eletroSection .orc-wrap .orc-pg-cond{grid-template-columns:1fr}
+}
+
 </style>
 <script>
 (function(){
