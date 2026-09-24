@@ -2433,6 +2433,59 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   #eletroSection .orc-wrap .orc-pg-cond{grid-template-columns:1fr}
 }
 
+
+/* ===========================================================================
+   FORMULARIO DO ELETROPOSTO — rotulo em cima, campo embaixo (24/09/2026)
+   ---------------------------------------------------------------------------
+   O padrao antigo (.eletro-field com label em flex:1 e input de 132/190px)
+   nasceu no SIMULADOR, que e' planilha: rotulo a esquerda, numero a direita,
+   rotulos longos, nenhum vao. Ali ele esta CERTO e continua como esta.
+
+   O erro foi reusa-lo nos campos de TEXTO das abas de documento. Medido em
+   24/09, a 1395px: vao medio de 479px entre o fim do rotulo e o campo, e
+   55 campos cortando o proprio conteudo nas 8 abas — nome do cliente,
+   endereco e dados bancarios ilegiveis depois de digitados.
+
+   O CSS ja TENTAVA alinhar texto a esquerda (.eletro-inp-wide input
+   {text-align:left}) e perdia por ordem de fonte para .eletro-inp input
+   {text-align:right}. O comentario logo abaixo chegou a registrar o efeito
+   ("na pratica todos sao a direita") tratando o defeito como intencao.
+
+   Aqui o card das abas de documento vira grade (3 colunas no desktop, 2 no
+   celular), o rotulo sobe como etiqueta e o campo ocupa a celula. Texto a
+   esquerda, numero continua a direita colado no R$ / % / kWh. Resultado
+   medido: 55 campos cortados -> 0, e a altura CAIU (orcamento 3362 -> 2919px,
+   equipamento 2480 -> 2127px), porque empilhar se paga com coluna.
+
+   Escopo: `#eletroSection .orc-wrap` (as 7 abas de documento) mais quatro
+   campos nomeados do Simulador. O resto do Simulador nao e' tocado.
+   =========================================================================== */
+/* ===========================================================================
+   ROTULO DO CAMPO: MAIOR E SEM CAIXA ALTA (24/09/2026)
+   ---------------------------------------------------------------------------
+   Quando o campo empilhou, o rotulo virou etiqueta de 10,5px em CAIXA ALTA
+   (10px no celular). Dois juizes independentes apontaram a mesma coisa, e
+   renderizando lado a lado da pra ver: caixa alta apaga as hastes e os
+   descendentes, que sao justamente as pistas de forma que deixam a palavra ser
+   reconhecida de relance. "ENDERECO" a 10px no telefone, em obra, obriga a
+   apertar o olho — e o /gerador e' PWA de celular usado em campo.
+
+   Agora: 11,5px, caixa normal, cinza um pouco mais claro (#A8B6C9), e 11,5px
+   TAMBEM no celular, onde antes era 10px. A hierarquia nao se perde: o valor
+   continua branco e em peso 700, o rotulo e' menor e mais apagado, e o titulo
+   do card segue em caixa alta com o ponto azul.
+   =========================================================================== */
+#eletroSection .orc-wrap .eletro-field > label{
+  font-size:11.5px;
+  text-transform:none;
+  letter-spacing:0;
+  font-weight:700;
+  color:#A8B6C9;
+}
+@media(max-width:640px){
+  #eletroSection .orc-wrap .eletro-field > label{font-size:11.5px;line-height:1.25;margin-bottom:4px}
+}
+
 </style>
 <script>
 (function(){
