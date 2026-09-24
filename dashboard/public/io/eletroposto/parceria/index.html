@@ -381,7 +381,7 @@
           <form class="pForm" id="form-capital" onsubmit="enviar(event,'capital')">
             <div class="erro" id="erro-capital"></div>
             <div class="fld">
-              <label for="c-nome">Seu nome completo</label>
+              <label for="c-nome">Seu nome</label>
               <input id="c-nome" type="text" autocomplete="name" placeholder="Nome e sobrenome">
             </div>
             <div class="fRow">
@@ -448,7 +448,7 @@
           <form class="pForm" id="form-ponto" onsubmit="enviar(event,'ponto')">
             <div class="erro" id="erro-ponto"></div>
             <div class="fld">
-              <label for="p-nome">Seu nome completo</label>
+              <label for="p-nome">Seu nome</label>
               <input id="p-nome" type="text" autocomplete="name" placeholder="Nome e sobrenome">
             </div>
             <div class="fRow">
@@ -643,7 +643,7 @@
           <form class="pForm" id="form-integrador" onsubmit="enviar(event,'integrador')">
             <div class="erro" id="erro-integrador"></div>
             <div class="fld">
-              <label for="i-nome">Seu nome completo</label>
+              <label for="i-nome">Seu nome</label>
               <input id="i-nome" type="text" autocomplete="name" placeholder="Nome e sobrenome">
             </div>
             <div class="fRow">
@@ -934,7 +934,10 @@ function enviar(e, lado){
   var telRaw = val(pre + '-tel').replace(/\D/g,'');
   var cidade = val(pre + '-cidade');
 
-  if (nome.split(/\s+/).length < 2 || nome.length < 5) return erro(lado, 'Escreva seu nome completo — é por ele que a equipe te chama.');
+  // SÓ O NOME (24/09/2026, ordem do Thiago): "as pessoas estão tendo que voltar".
+  // Exigir sobrenome barrava o cadastro na ÚLTIMA tecla, depois de tudo preenchido.
+  // Nome de uma palavra é o que a pessoa usa pra ser chamada, e é o que basta.
+  if (nome.length < 2) return erro(lado, 'Escreva o seu nome.');
   if (telRaw.length < 10 || telRaw.length > 11)        return erro(lado, 'Informe um WhatsApp válido com DDD.');
   if (cidade.length < 2)                               return erro(lado, 'Informe a cidade e o estado.');
 

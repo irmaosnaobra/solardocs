@@ -1259,7 +1259,7 @@
         </div>
 
         <div class="passo" id="p-nome">
-          <div class="fld"><label for="f-nome">Como podemos te chamar?</label><div class="inp"><input type="text" id="f-nome" placeholder="Nome completo"></div></div>
+          <div class="fld"><label for="f-nome">Como podemos te chamar?</label><div class="inp"><input type="text" id="f-nome" placeholder="Seu nome"></div></div>
         </div>
 
         <!-- O WhatsApp é o ÚLTIMO passo de propósito: é o dado que mais trava
@@ -3216,7 +3216,7 @@ const PASSOS = [
   { id:'p-inv-valor', quando: investidorSemLocal,
                       ok:() => val('f-inv-valor') ? null : 'Escolha quanto você pensa em investir.' },
   { id:'p-horario', quando: vaiParaAgenda, ok:() => slotSel ? null : 'Escolha um horário na lista.' },
-  { id:'p-nome',    quando: quizAqui, ok:() => val('f-nome').length >= 3 ? null : 'Informe seu nome completo.' },
+  { id:'p-nome',    quando: quizAqui, ok:() => val('f-nome').length >= 2 ? null : 'Escreva o seu nome.' },
   { id:'p-cidade',  quando: quizAqui, ok:() => val('f-cidade').length >= 2 ? null : 'Informe a cidade e o estado (UF).' },
   // ── Trilha do integrador. Vem depois de nome e cidade e antes do WhatsApp, pela
   //    mesma razão do resto do quiz: o telefone é o que mais trava, fica por último.
@@ -3769,7 +3769,7 @@ async function agendar(){
   //     a etiqueta CARREGADOR aparece sozinha no painel, que é a regra do dono
   //     ("público novo gera etiqueta nova e o dashboard atualiza sozinho").
   if(soCarregador()){
-    if(nome.split(/\s+/).length < 2 || nome.length < 5) return erro('Escreva seu nome completo.');
+    if(nome.length < 2) return erro('Escreva o seu nome.');
     if(!telefoneConfere())  return erro('Informe um WhatsApp válido com DDD.');
     if(cidade.length < 2)   return erro('Informe a cidade e o estado (UF).');
     const q = id => (document.getElementById(id).selectedOptions[0] || {}).text || '—';
@@ -3796,7 +3796,7 @@ async function agendar(){
 
   // A qualificação é validada ANTES do horário de propósito: quem cai em NOTA 1 não
   // vai agendar, então não faz sentido cobrar dele a escolha de um slot primeiro.
-  if(nome.length < 3)     return erro('Informe seu nome completo.');
+  if(nome.length < 2)     return erro('Escreva o seu nome.');
   if(!telefoneConfere())  return erro('Informe um WhatsApp válido com DDD.');
   if(cidade.length < 2)   return erro('Informe a cidade e o estado (UF).');
   if(!perfil.value)       return erro('Selecione seu perfil.');
