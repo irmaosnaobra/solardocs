@@ -211,8 +211,13 @@ describe('card de compra de carregador', () => {
     expect(compra(FICHA_COMPRA)).not.toContain('PROJETO E ART');
   });
 
-  it('o cabecalho leva o simbolo de posto', () => {
-    expect(compra(FICHA_COMPRA).split('\n')[0]).toContain('\u26fd');
+  // O simbolo de posto e o UNICO emoji do card, e so na primeira linha. Um emoji
+  // por linha vira enfeite: quando tudo tem simbolo, nenhum simbolo chama. Sem
+  // este teste um deles volta numa linha de rotulo no proximo ajuste, calado.
+  it('o simbolo de posto abre o card e e o unico emoji', () => {
+    const linhas = compra(FICHA_COMPRA + '\nCOM OBRA').split('\n');
+    expect(linhas[0]).toContain('\u26fd');
+    for (const l of linhas.slice(1)) expect(l).not.toMatch(/\p{Extended_Pictographic}/u);
   });
 
   it('a ficha do ponto continua com o card de sempre', () => {

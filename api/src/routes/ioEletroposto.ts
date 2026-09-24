@@ -104,23 +104,26 @@ export function montarMensagem(a: any, extra: { estudoUrl?: string; preNota?: nu
     // quem vendeu o equipamento.
     const comObra = tem('COM OBRA');
     const comProjeto = tem('PROJETO E ART');
+    // O ⛽ é o ÚNICO emoji do card, e mora só na primeira linha. Um emoji por
+    // linha vira enfeite: quando tudo tem símbolo, nenhum símbolo chama. O que
+    // separa as linhas aqui é o negrito do rótulo, que o WhatsApp já desenha.
     return [
       `⛽ *COMPRA DE CARREGADOR*`,
-      `⚡ *${potencia}${unidades !== '—' ? ` · ${unidades}` : ''}*`,
-      ...(comObra ? [`🏗️ *COM OBRA* — quer o equipamento e a instalação.`] : []),
-      ...(comProjeto ? [`📐 *PROJETO E ART* — a obra é dele, o projeto é nosso.`] : []),
+      `*${potencia}${unidades !== '—' ? ` · ${unidades}` : ''}*`,
+      ...(comObra ? [`*COM OBRA* — quer o equipamento e a instalação.`] : []),
+      ...(comProjeto ? [`*PROJETO E ART* — a obra é dele, o projeto é nosso.`] : []),
       ``,
       `*Quando:* ${quando}`,
       `*Com:* ${a.vendedor_nome || '—'}`,
       ``,
-      `👤 *Cliente:* ${a.cliente_nome || '—'}`,
-      `📱 *WhatsApp:* wa.me/${soDigitos(a.cliente_telefone)}`,
-      `📍 *Cidade:* ${a.cidade || '—'}`,
+      `*Cliente:* ${a.cliente_nome || '—'}`,
+      `*WhatsApp:* wa.me/${soDigitos(a.cliente_telefone)}`,
+      `*Cidade:* ${a.cidade || '—'}`,
       ``,
-      `🏢 *Para onde vai:* ${linha('Para onde vai:')}`,
-      `💻 *Software e app:* ${linha('Software e app:')}`,
-      `🔧 *Instalação:* ${instalacao}`,
-      `📅 *Prazo:* ${linha('Prazo:')}`,
+      `*Para onde vai:* ${linha('Para onde vai:')}`,
+      `*Software e app:* ${linha('Software e app:')}`,
+      `*Instalação:* ${instalacao}`,
+      `*Prazo:* ${linha('Prazo:')}`,
       ``,
       `_Veja no CRM: solardoc.app/gerador_`,
     ].join('\n');
@@ -736,29 +739,34 @@ export function montarAvisoPonto(reg: Record<string, unknown>, dica: string[]): 
     // "ARRENDAMENTO" fica no cabeçalho porque é o nome da aba no Gerador: a
     // equipe lê a palavra aqui e sabe em qual lista procurar. "PONTO NOVO" entra
     // ao lado porque é o que faz largar o que está fazendo.
+    // REGRA DOS AVISOS (24/09/2026): emoji SÓ na primeira linha. O cabeçalho é o
+    // único lugar onde o símbolo trabalha — é por ele que se distingue ponto de
+    // investidor de integrador na rolagem do grupo. Um emoji por linha anula esse
+    // trabalho: quando tudo tem símbolo, nenhum símbolo chama. O que separa as
+    // linhas aqui é o negrito do rótulo, que o WhatsApp já desenha sozinho.
     '📍🏆 *ARRENDAMENTO — PONTO NOVO*',
     '_Tem o local. É este que a gente procura._',
     '',
-    `👤 *Nome:* ${v(reg, 'nome')}`,
-    `📱 *WhatsApp:* wa.me/${String(reg.telefone || '')}`,
-    `📍 *Cidade:* ${v(reg, 'cidade')}`,
-    `🔑 *Relação com o imóvel:* ${v(reg, 'ponto_relacao')}`,
-    `🏪 *Tipo de local:* ${v(reg, 'ponto_tipo')}`,
-    `🗺️ *Endereço:* ${v(reg, 'ponto_endereco')}`,
-    `🅿️ *Vagas:* ${v(reg, 'ponto_vagas')}`,
-    `🚗 *Movimento:* ${v(reg, 'ponto_fluxo')}`,
+    `*Nome:* ${v(reg, 'nome')}`,
+    `*WhatsApp:* wa.me/${String(reg.telefone || '')}`,
+    `*Cidade:* ${v(reg, 'cidade')}`,
+    `*Relação com o imóvel:* ${v(reg, 'ponto_relacao')}`,
+    `*Tipo de local:* ${v(reg, 'ponto_tipo')}`,
+    `*Endereço:* ${v(reg, 'ponto_endereco')}`,
+    `*Vagas:* ${v(reg, 'ponto_vagas')}`,
+    `*Movimento:* ${v(reg, 'ponto_fluxo')}`,
     '',
     // O padrão vem em bloco próprio: é por ele que o consultor decide se abre o
     // caso ou se pede a foto antes de gastar uma hora.
-    '⚡ *PADRÃO DE ENTRADA*',
-    `🔌 *Ligação:* ${v(reg, 'padrao_ligacao')}`,
-    `🎚️ *Disjuntor:* ${v(reg, 'padrao_disjuntor')}`,
-    `📊 *Consumo:* ${v(reg, 'padrao_consumo')}`,
-    `📷 *Manda foto?* ${v(reg, 'padrao_foto')}`,
+    '*PADRÃO DE ENTRADA*',
+    `*Ligação:* ${v(reg, 'padrao_ligacao')}`,
+    `*Disjuntor:* ${v(reg, 'padrao_disjuntor')}`,
+    `*Consumo:* ${v(reg, 'padrao_consumo')}`,
+    `*Manda foto?* ${v(reg, 'padrao_foto')}`,
     ...(padraoFraco(reg)
-      ? ['', '⚠️ *O padrão declarado provavelmente não aguenta* — peça a foto do padrão e da conta antes de marcar qualquer coisa. Aumento de carga na concessionária custa dinheiro e meses.']
+      ? ['', '*ATENÇÃO — o padrão declarado provavelmente não aguenta.* Peça a foto do padrão e da conta antes de marcar qualquer coisa. Aumento de carga na concessionária custa dinheiro e meses.']
       : []),
-    ...(reg.obs ? ['', `💬 _${String(reg.obs)}_`] : []),
+    ...(reg.obs ? ['', `_${String(reg.obs)}_`] : []),
     ...dica,
     '',
     '_Lista completa: solardoc.app/gerador → Eletroposto → Cadastros._',
@@ -772,16 +780,17 @@ export function montarAvisoPonto(reg: Record<string, unknown>, dica: string[]): 
  */
 export function montarAvisoCapital(reg: Record<string, unknown>, dica: string[]): string {
   return [
+    // Emoji só na primeira linha — a regra está explicada em montarAvisoPonto.
     '💰💰 *INVESTIDOR NOVO*',
     '_Tem o dinheiro, falta o ponto._',
     '',
-    `👤 *Nome:* ${v(reg, 'nome')}`,
-    `📱 *WhatsApp:* wa.me/${String(reg.telefone || '')}`,
-    `📍 *Cidade:* ${v(reg, 'cidade')}`,
-    `💵 *Quanto:* ${v(reg, 'capital_faixa')}`,
-    `🏦 *Com quê:* ${v(reg, 'capital_origem')}`,
-    `📅 *Prazo:* ${v(reg, 'prazo')}`,
-    ...(reg.obs ? ['', `💬 _${String(reg.obs)}_`] : []),
+    `*Nome:* ${v(reg, 'nome')}`,
+    `*WhatsApp:* wa.me/${String(reg.telefone || '')}`,
+    `*Cidade:* ${v(reg, 'cidade')}`,
+    `*Quanto:* ${v(reg, 'capital_faixa')}`,
+    `*Com quê:* ${v(reg, 'capital_origem')}`,
+    `*Prazo:* ${v(reg, 'prazo')}`,
+    ...(reg.obs ? ['', `_${String(reg.obs)}_`] : []),
     ...dica,
     '',
     '_Lista completa: solardoc.app/gerador → Eletroposto → Cadastros._',
@@ -806,19 +815,20 @@ export function cnpjNaTela(bruto: unknown): string {
 
 export function montarAvisoIntegrador(reg: Record<string, unknown>): string {
   return [
+    // Emoji só na primeira linha — a regra está explicada em montarAvisoPonto.
     '🔧🤝 *PARCEIRO INTEGRADOR NOVO*',
     '_Instala ou vende. Não é cliente, é canal._',
     '',
-    `👤 *Nome:* ${v(reg, 'nome')}`,
-    `📱 *WhatsApp:* wa.me/${String(reg.telefone || '')}`,
-    `📍 *Cidade:* ${v(reg, 'cidade')}`,
-    ...(reg.empresa ? [`🏢 *Empresa:* ${v(reg, 'empresa')}`] : []),
-    ...(reg.cnpj ? [`🧾 *CNPJ:* ${cnpjNaTela(reg.cnpj)}`] : []),
-    `🛠️ *Faz hoje:* ${v(reg, 'integrador_atuacao')}`,
-    `🤝 *Quer:* ${v(reg, 'integrador_interesse')}`,
-    `⚡ *Já instalou:* ${v(reg, 'integrador_experiencia')}`,
-    `👷 *Equipe:* ${v(reg, 'integrador_equipe')}`,
-    ...(reg.obs ? ['', `💬 _${String(reg.obs)}_`] : []),
+    `*Nome:* ${v(reg, 'nome')}`,
+    `*WhatsApp:* wa.me/${String(reg.telefone || '')}`,
+    `*Cidade:* ${v(reg, 'cidade')}`,
+    ...(reg.empresa ? [`*Empresa:* ${v(reg, 'empresa')}`] : []),
+    ...(reg.cnpj ? [`*CNPJ:* ${cnpjNaTela(reg.cnpj)}`] : []),
+    `*Faz hoje:* ${v(reg, 'integrador_atuacao')}`,
+    `*Quer:* ${v(reg, 'integrador_interesse')}`,
+    `*Já instalou:* ${v(reg, 'integrador_experiencia')}`,
+    `*Equipe:* ${v(reg, 'integrador_equipe')}`,
+    ...(reg.obs ? ['', `_${String(reg.obs)}_`] : []),
     '',
     '_Lista completa: solardoc.app/gerador → Eletroposto → Cadastros._',
   ].join('\n');

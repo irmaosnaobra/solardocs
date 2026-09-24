@@ -86,7 +86,10 @@ describe('as mensagens da equipe', () => {
     const m = montarAvisoPonto({ ...ponto, padrao_ligacao: 'Monofásico (2 fios na entrada)',
                                  padrao_disjuntor: 'Até 40 A' }, []);
     expect(m).toContain('provavelmente não aguenta');
-    expect(m).toContain('peça a foto');
+    // Sem o ⚠️ na frente (emoji só na primeira linha), o alarme passou a ser a
+    // palavra. Casar o pedido em si, e não a caixa da primeira letra: o que não
+    // pode sumir é a instrução de pedir a foto ANTES de marcar.
+    expect(m).toContain('a foto do padrão e da conta');
   });
 
   it('padrão "Não sei" NÃO é tratado como fraco', () => {
@@ -162,6 +165,24 @@ describe('as mensagens da equipe', () => {
     expect(temEmoji(ponto)).toBe(true);
     expect(temEmoji(capital)).toBe(true);
     expect(temEmoji(integrador)).toBe(true);
+  });
+
+  // Ordem do Thiago (24/09/2026): "emoji so na primeira linha". O cabeçalho só
+  // separa os três avisos enquanto for o ÚNICO lugar com símbolo na mensagem —
+  // emoji em linha de rótulo rouba exatamente o trabalho que o teste acima trava.
+  // Vale para o corpo inteiro, inclusive o bloco de pares, que é colado dentro.
+  it('nenhum emoji fora da primeira linha dos três avisos', () => {
+    const base = {
+      id: 1, nome: 'Fulano de Tal', telefone: '5534991110000', cidade: 'Uberaba-MG',
+      ponto_endereco: 'Av. João Naves, 1200', padrao_ligacao: 'Monofásico (2 fios na entrada)',
+      padrao_disjuntor: '40 A', empresa: 'Solar Vieira', cnpj: '12345678000190',
+      obs: 'recado do lead',
+    };
+    const pares = blocoPares(perto(2), 'capital');
+    const msgs = [montarAvisoPonto(base, pares), montarAvisoCapital(base, pares), montarAvisoIntegrador(base)];
+    for (const m of msgs) {
+      for (const l of m.split('\n').slice(1)) expect(l).not.toMatch(/\p{Extended_Pictographic}/u);
+    }
   });
 
   // A segunda linha diz em uma frase o que aquilo é, pra quem abre o WhatsApp

@@ -378,7 +378,10 @@ function ondeEstá(c: Candidato): string {
  * seria gastar o dobro pra dizer menos.
  */
 export function blocoPares(s: Sugestao, alvo: Lado): string[] {
-  const titulo = alvo === 'capital' ? '🤝 *INVESTIDORES MAIS PERTO*' : '📍 *PONTOS MAIS PERTO*';
+  // Sem emoji: este bloco entra DENTRO do aviso, e lá o emoji é só da primeira
+  // linha (a regra está em montarAvisoPonto). Um símbolo aqui viraria o segundo
+  // da mensagem e roubaria o cabeçalho, que é o que separa ponto de investidor.
+  const titulo = alvo === 'capital' ? '*INVESTIDORES MAIS PERTO*' : '*PONTOS MAIS PERTO*';
   const nada = alvo === 'capital' ? 'investidor' : 'ponto';
 
   if (s.status === 'ok') {
