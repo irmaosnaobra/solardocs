@@ -366,15 +366,11 @@ export function telefoneBonito(raw: string | null | undefined): string {
   return `(${ddd}) ${resto.slice(0, resto.length - 4)}-${resto.slice(-4)}`;
 }
 
-/**
- * "pelo WhatsApp do *Diego*, o *(34) 99136-0172*" — e sem número cadastrado,
- * "pelo WhatsApp do *Diego*", nunca "(  ) -" nem "o **".
- *
- * Quem manda o link da chamada é o CONSULTOR, do número dele — não este chat.
- * A copy antiga dizia "o link cai aqui neste chat" nos três toques e mandava o
- * lead vigiar a janela errada.
- */
-const deOnde = (quem: string, tel: string) => `pelo WhatsApp do *${quem}*${tel ? `, o *${tel}*` : ''}`;
+// O "de onde vem o link" ficou INLINE nos quatro toques (23/09/2026): com uma
+// mensagem só, o `deOnde` repetia o nome do consultor duas vezes na mesma frase
+// ("sua reunião com o *Diego* ... o link chega pelo WhatsApp do *Diego*"), que é
+// jeito de robô escrever. Agora cada texto diz "no WhatsApp dele" e o nome
+// aparece uma vez. Quem manda o link continua sendo gente, não este chat.
 
 // O aviso de atraso é pedido do dono: a reunião anterior estica quando vai pra
 // fechamento, e sem essa linha o lead que espera 10 minutos acha que furaram.
@@ -401,7 +397,7 @@ export function bolhasConfirmacao(
   // que a bloquearam em agosto.
   return [
     `Oi${comNome(n)}! Aqui é da *NEXUS Eletropostos*. Sua reunião com o *${quem}* está confirmada: `
-    + `*${quandoPorExtenso(quandoIso)}* (Brasília). É por vídeo e o link chega ${deOnde(quem, tel)}.\n\n`
+    + `*${quandoPorExtenso(quandoIso)}* (Brasília). É por vídeo e o link chega no WhatsApp dele${tel ? `, o *${tel}*` : ''}.\n\n`
     + 'Responde *SIM* que eu travo o horário. Se precisar desmarcar, me avisa antes que eu remarco: '
     + 'a procura está alta e o horário fica bloqueado.',
   ];
@@ -461,7 +457,7 @@ export function bolhas1h(
   const tel = telefoneBonito(telVendedor);
   return [
     `Oi${comNome(n)}! Falta *1 hora*: sua reunião com o *${quem}* é às *${horaCurta(quandoIso)}*, por vídeo. `
-    + `O link cai ${deOnde(quem, tel)}, fica de olho lá e separa um canto com internet.\n\n`
+    + `O link cai no WhatsApp dele${tel ? `, o *${tel}*` : ''}: fica de olho lá e separa um canto com internet.\n\n`
     + `Se ele atrasar uns minutos, segura aí: ${PODE_ATRASAR}. Se está de pé, responde *SIM*. `
     + 'Se aconteceu um imprevisto, me avisa que eu remarco.',
   ];
