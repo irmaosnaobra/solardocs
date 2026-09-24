@@ -821,7 +821,11 @@ function medirTemperatura(conta, urgencia, pagamento, decisor, posse){
 // 08:00 apaga o 08:30 daquele sócio (as duas só cabem no mesmo dia se forem de
 // pessoas diferentes), e um 13:30 de vistoria come o 14:00 de eletroposto dele —
 // a LP do eletroposto enxerga isso, ela lê a duração da ficha pelo created_by.
-const KWH_CORTE_TIME = 700;   // mesmo corte do backend (leadSolarFicha.ts)
+// 23/09/2026: 1.200 kWh. Espelha o KWH_CORTE_TIME do backend
+// (api/src/services/agenda/leadSolarFicha.ts) - mexeu la, mexa aqui. Esta copia
+// ja ficou dias em 700 enquanto o backend estava em 762: a pagina mostrava a
+// grade do socio pra quem o servidor ia mandar pra Nilce.
+const KWH_CORTE_TIME = 1200;
 const DUR_VISTORIA_MS = 60 * 60 * 1000;   // sócios: a hora que a agenda encaixada reserva
 const DUR_PADRAO_MS   = 30 * 60 * 1000;   // apresentação de eletroposto / card de lead
 const DUR_LIGACAO_MS  = 15 * 60 * 1000;   // Nilce: o primeiro contato é ligação, 15 min
@@ -888,9 +892,11 @@ const SOCIOS = ['Thiago', 'Diego'];
 // entrou pra treinar, 1 a cada 4. TIME_BAIXA é pra PERGUNTAR ("esse dono é do
 // perfil de conta baixa?"), FILA_BAIXA é pra SORTEAR, e é o tamanho dela que
 // define a proporção. Espelha leadSolarFicha.ts no backend.
+// 23/09/2026: a Giovanna saiu do rodizio de lead novo - "a Nilce recebe todos".
+// Ela FICA no TIME_BAIXA porque ainda tem carteira: cliente dela que voltar pela
+// pagina e reconhecido pelo telefone e continua com ela.
 const TIME_BAIXA = ['Nilce', 'Giovanna'];
-const FILA_BAIXA = ['Nilce', 'Nilce', 'Nilce', 'Giovanna'];
-const BAIXA_INICIO = '2026-08-18T00:00:00-03:00';
+const FILA_BAIXA = ['Nilce'];
 const GRADE_SOCIOS = ['08:00','08:30','09:00','09:30','10:30','11:30',
                       '13:30','14:30','15:30','16:30','17:30','18:30'];
 // Nilce, 17/08 (ordem do Thiago): 08:00–11:00 e 13:00–16:00, de 30 em 30. Ela não
@@ -965,23 +971,25 @@ function livresEm(iso, nomes){
   return nomes.filter(n => !compromissos.some(c =>
     c.dono === n && c.ts < t + durSolarDe(n) && t < c.ts + c.dur));
 }
-// Rodízio da CONTA ALTA (Thiago↔Diego). Lead abaixo do corte vai direto pra
-// Nilce, sem passar por aqui. O contador é quantas fichas da LP já foram pra
-// esses dois — não é rodízio exato, é "o próximo da vez"; quem já tem dono nem
-// chega a chamar isto.
-const DONOS_CONTA_ALTA = ['Thiago', 'Diego'];
-// Os dois rodízios chegam junto com a agenda — eram duas leituras do banco só
-// pra contar ficha, e a API devolve o próximo nome pronto.
-let rodizioAlta  = DONOS_CONTA_ALTA[0];
+// Rodízio da CONTA ALTA. Desde 23/09/2026 a Nilce está nele: dos leads acima de
+// 1.200 kWh ela leva metade, o Thiago um quarto e o Diego um quarto. É o TAMANHO
+// da fila que carrega a proporção, e a ordem é a ordem do rodízio, igualzinho ao
+// FILA_CONTA_ALTA do backend, que é quem manda de verdade.
+//
+// TIME_ pergunta ("esse dono é do perfil de conta alta?"), FILA_ sorteia. Usar a
+// fila pra perguntar contaria a Nilce duas vezes; usar o time pra sortear daria
+// 1/3 pra cada um em vez de 50/25/25.
+const TIME_ALTA = ['Thiago', 'Diego', 'Nilce'];
+const FILA_ALTA = ['Thiago', 'Nilce', 'Diego', 'Nilce'];
+// Os dois rodízios chegam junto com a agenda: a API devolve o próximo nome
+// pronto, contado no MESMO lugar que o formulário do Meta e a DM giram. Três
+// contadores separados dariam três rodízios independentes, e a proporção real
+// dependeria do mix do dia.
+let rodizioAlta  = FILA_ALTA[0];
 let rodizioBaixa = FILA_BAIXA[0];
 function proximoDono(){
-  return DONOS_CONTA_ALTA.includes(rodizioAlta) ? rodizioAlta : DONOS_CONTA_ALTA[0];
+  return TIME_ALTA.includes(rodizioAlta) ? rodizioAlta : FILA_ALTA[0];
 }
-// Rodízio da CONTA BAIXA (3 Nilce : 1 Giovanna). Conta TODAS as fichas das duas,
-// não só as da LP: o lead entra por três portas (LP, formulário do Meta e DM), e
-// três contadores separados dariam três rodízios independentes — a proporção real
-// dependeria do mix do dia. O piso de data é o que faz o "começa amanhã" valer
-// sozinho: sem ele o resto da divisão sairia do histórico inteiro da Nilce.
 function proximoDonoBaixa(){
   return TIME_BAIXA.includes(rodizioBaixa) ? rodizioBaixa : FILA_BAIXA[0];
 }
@@ -1014,27 +1022,41 @@ function proximosDias(){
   }
   return dias;
 }
-// ESTE lead é dos sócios (grade encaixada) ou da Nilce (grade de hora em hora)?
-// Dois caminhos:
-//   • já tem dono, e o dono é o Thiago ou o Diego (1 telefone = 1 consultor);
-//   • é lead novo de conta alta (> 700 kWh) — vai cair no Thiago ou no Diego.
-// Dono manda mais que o consumo: cliente que já é da Nilce continua com ela e vê a
-// grade dela, mesmo com conta grande. Mostra só o que a gente aceita em vez de
-// deixar escolher e recusar depois — quem reservou um horário do próprio dia pra
-// atender não pode ser realocado por baixo do pano.
 const contaAltaAtual = () => computeSolar().consumoKwh > KWH_CORTE_TIME;
-const ehLeadDosSocios = () => donoLead ? SOCIOS.includes(donoLead) : contaAltaAtual();
-/** Quem pode receber ESTE lead: o dono dele, se já tiver; senão o par da vez. */
-const atendentesDoLead = () => donoLead ? [donoLead] : (contaAltaAtual() ? SOCIOS : TIME_BAIXA);
+
+/**
+ * QUEM vai atender este lead. Uma pessoa, nunca um par, e é esta função que
+ * manda em tudo daqui pra baixo: a grade desenhada, a ocupação consultada e o
+ * nome gravado.
+ *
+ * Era um PAR até 22/09, e virou obrigatório passar a UM em 23/09: a Nilce entrou
+ * no rodízio da conta alta, e o que ela marca é LIGAÇÃO de 15 min na grade dela,
+ * enquanto o sócio marca VISTORIA de 1 hora na grade encaixada. Decidir a grade
+ * pelo CONSUMO passou a estar errado, um lead de 1.500 kWh cuja vez é da Nilce
+ * veria os horários de vistoria do sócio e seria gravado com ela, num horário que
+ * a agenda dela não tem. A grade tem que sair de QUEM atende, não do tamanho.
+ *
+ * Ordem de prioridade: dono do telefone (1 telefone = 1 consultor) vem antes de
+ * qualquer regra de tamanho, cliente que já é da Nilce continua com ela e vê a
+ * grade dela, mesmo com conta grande.
+ */
+const donoDaVez = () => donoLead || (contaAltaAtual() ? proximoDono() : proximoDonoBaixa());
+const ehLeadDosSocios = () => SOCIOS.includes(donoDaVez());
+/** Quem pode receber ESTE lead. Hoje é sempre um só: ver donoDaVez. */
+const atendentesDoLead = () => [donoDaVez()];
 
 // Chamado pelo simulador (calc) a cada mudança de conta/extras: só redesenha a
-// grade quando o lead CRUZA o corte, senão o slider repintaria a lista sem parar.
-let ultimaContaAlta = null;
+// grade quando a GRADE muda, senão o slider repintaria a lista sem parar.
+// Repare que o gatilho não é mais "cruzou o corte": com a Nilce nos dois lados,
+// cruzar o corte pode cair nela de novo e não mudar grade nenhuma.
+let ultimaGrade = null;
 function avaliarTurnoPeloConsumo(consumoKwh){
-  const alta = consumoKwh > KWH_CORTE_TIME;
-  if(alta === ultimaContaAlta) return;
-  const primeira = ultimaContaAlta === null;   // no load a grade já nasce certa
-  ultimaContaAlta = alta;
+  const socios = donoLead ? SOCIOS.includes(donoLead)
+               : consumoKwh > KWH_CORTE_TIME ? SOCIOS.includes(proximoDono())
+               : false;
+  if(socios === ultimaGrade) return;
+  const primeira = ultimaGrade === null;   // no load a grade já nasce certa
+  ultimaGrade = socios;
   if(!primeira && !donoLead) montarSlots();    // quem tem dono não muda de turno por consumo
 }
 function livresDoDia(ymd){
@@ -1221,24 +1243,31 @@ async function agendar(){
   ].join('\n');
 
   // Rede de segurança: a grade certa já é redesenhada quando o telefone fica
-  // completo (checarDono) e quando a conta cruza os 700 kWh (simulador). Isto aqui
-  // só pega o caso da consulta ter falhado antes — em vez de gravar a vistoria num
-  // horário que não é da agenda daquele consultor (14:00 é apresentação de
-  // eletroposto), devolve o lead pra grade dele.
+  // completo (checarDono) e quando a grade muda no simulador. Isto aqui só pega o
+  // caso da consulta ter falhado antes, em vez de gravar a vistoria num horário
+  // que não é da agenda daquele consultor (14:00 é apresentação de eletroposto),
+  // devolve o lead pra grade dele.
+  //
+  // A pergunta é sempre "de QUEM é a grade", nunca "a conta é grande": conta
+  // grande cuja vez é da Nilce usa a grade de ligação dela.
   const donoAtual = await donoDoTelefone(tel);
-  const dosSocios = donoAtual ? SOCIOS.includes(donoAtual) : r.consumoKwh > KWH_CORTE_TIME;
+  const donoFinal = donoAtual || (r.consumoKwh > KWH_CORTE_TIME ? proximoDono() : proximoDonoBaixa());
+  const dosSocios = SOCIOS.includes(donoFinal);
   if(!(dosSocios ? GRADE_SOCIOS : GRADE_NILCE).includes(partesBR(new Date(slotSel)).hhmm)){
     donoLead = donoAtual; slotSel = null;
     await montarSlots();
     return erro(donoAtual
       ? `${donoAtual} já é o seu consultor, e esse horário não é da agenda dele. Escolha um dos horários ali em cima.`
-      : 'Pelo tamanho da sua conta quem vai na sua casa é um dos sócios, e a agenda deles é outra. Escolha um dos horários ali em cima.');
+      : dosSocios
+        ? 'Pelo tamanho da sua conta quem vai na sua casa é um dos sócios, e a agenda deles é outra. Escolha um dos horários ali em cima.'
+        : 'Esse horário não está mais na agenda de quem vai te atender. Escolha um dos horários ali em cima.');
   }
 
   // Ficha pronta, mas NÃO gravada: quem grava é o "Sim" do portão de presença.
-  // contaAlta viaja junto: é o que decide o consultor na hora de gravar.
+  // O DONO viaja resolvido: decidir de novo na hora de gravar já deu ficha com o
+  // consultor de um turno no horário de outro.
   pendente = { nome, tel, cidade, temperatura: medirTemperatura(r.conta, urgencia, pagamento, decisor, posse),
-               obs, donoAtual, contaAlta: r.consumoKwh > KWH_CORTE_TIME };
+               obs, donoFinal };
   document.getElementById('ag-msg').className = 'agMsg';   // limpa aviso de tentativa anterior
   abrirConfirma();
 }
@@ -1295,13 +1324,13 @@ document.addEventListener('keydown', e => {
 
 async function gravarAgendamento(){
   if(!pendente || !slotSel) return;
-  const { nome, tel, cidade, temperatura, obs, donoAtual, contaAlta } = pendente;
+  const { nome, tel, cidade, temperatura, obs, donoFinal } = pendente;
   const btn = document.getElementById('ag-btn');
   btn.disabled = true; btn.textContent = 'Agendando…';
 
   try{
     await carregarOcupados(partesBR().ymd, partesBR(new Date(Date.now()+12*86400000)).ymd);
-    const candidatos = donoAtual ? [donoAtual] : (contaAlta ? SOCIOS : TIME_BAIXA);
+    const candidatos = [donoFinal];
     const livres = livresEm(slotSel, candidatos);
     const passou = new Date(slotSel).getTime() < Date.now();
     if(!livres.length || passou){
@@ -1314,13 +1343,13 @@ async function gravarAgendamento(){
       return erro(passou ? 'Esse horário já passou. Escolha outro acima — a agenda foi atualizada.'
                          : 'Esse horário acabou de ser preenchido. Escolha o próximo disponível acima.');
     }
-    // Quem atende: dono de quem já é cliente (veio pronto na ficha) manda; lead
-    // novo vai pro rodízio Thiago↔Diego só se a conta passar de 700 kWh, senão é
-    // da Nilce. O rodízio só vale entre quem ainda CABE no horário: se o da vez
-    // está numa apresentação de eletroposto ali, quem vai é o outro.
-    const daVez = candidatos.length === 1 ? candidatos[0]
-                : contaAlta ? proximoDono() : proximoDonoBaixa();
-    const dono = livres.includes(daVez) ? daVez : livres[0];
+    // Quem atende já veio resolvido do `pendente` (donoDaVez): dono do telefone,
+    // senão o da vez no rodízio do tamanho da conta. O `livresEm` acima revalidou
+    // que ele cabe no horário; se não couber mais, o lead já voltou pra grade
+    // antes de chegar aqui. Trocar o dono neste ponto mudaria a duração do
+    // compromisso (ligação de 15 min x vistoria de 1 hora) num horário que foi
+    // escolhido pela régua do primeiro.
+    const dono = livres[0];
     const novo = await agendarNaApi({
       vendedor_nome:    dono,
       quando:           slotSel,
