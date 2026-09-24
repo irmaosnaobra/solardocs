@@ -68,12 +68,20 @@ export default function VisaoGeralPanel({ produto }: { produto: string }) {
         fu,
       ]).then(([g, f]) => {
         const st = (k: string) => g?.por_status?.[k] ?? 0;
+        // "Vendidos" lia a chave `vendido`, que a tabela NUNCA gravou: a venda é
+        // `fechou` (o botão VENDIDO da agenda). Por isso este número era zero
+        // desde sempre, nos dois produtos. No eletroposto a venda também sai
+        // pelos três modelos fechados; ARRENDAMENTO fica de fora de propósito,
+        // porque ali o ponto é arrendado e quem investe é a casa.
+        const vendidos = produto === 'eletroposto'
+          ? st('fechou') + st('carregador') + st('meio_a_meio') + st('chave_na_mao')
+          : st('fechou');
         setTiles([
           { label: 'Total de leads', value: fmtN(g?.total ?? 0), color: 'var(--color-primary)' },
           { label: 'Quentes 🔥', value: fmtN(g?.com_temperatura ?? 0), color: '#C87A1E' },
           { label: 'Agendados', value: fmtN(st('agendado')) },
           { label: 'Não atendeu', value: fmtN(st('nao_atendeu')) },
-          { label: 'Vendidos', value: fmtN(st('vendido')) },
+          { label: 'Vendidos', value: fmtN(vendidos) },
           { label: 'Agente em conversa', value: fmtN(f?.summary?.em_conversa ?? 0), sub: `${f?.summary?.total ?? 0} sessões`, color: '#2C9C67' },
         ]);
       }).finally(() => setLoading(false));

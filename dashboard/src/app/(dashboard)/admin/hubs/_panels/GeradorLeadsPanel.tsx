@@ -10,8 +10,16 @@ import styles from '../../admin.module.css';
 import type { HubGerador } from './hubGerador.types';
 
 const STATUS_LABEL: Record<string, string> = {
-  novo: 'Novo', nao_atendeu: 'Não atendeu', agendado: 'Agendado', falando_whatsapp: 'Falando WhatsApp',
-  fez_orcamento: 'Fez orçamento', vendido: 'Vendido', cancelado: 'Cancelado', sem_interesse: 'Sem interesse', reativacao: 'Reativação',
+  // Os rótulos são os MESMOS da agenda (ETIQUETA_STATUS em /gerador/agenda): dois
+  // nomes pro mesmo status fariam a mesma reunião parecer duas coisas em duas
+  // telas. Os antigos `novo`, `vendido` e `reativacao` saíram porque a tabela
+  // nunca gravou nenhum deles, enquanto os status reais do card apareciam crus.
+  agendado: 'Agendado', nao_atendeu: 'Não atendeu', falando_whatsapp: 'Falando no WhatsApp',
+  em_atendimento: 'Negociando', sem_orcamento: 'Sem orçamento', fez_orcamento: 'Fez orçamento',
+  proposta_apresentada: 'Proposta apresentada', sem_interesse: 'Sem interesse',
+  arrendamento: 'Arrendamento', carregador: 'Carregador', meio_a_meio: '50/50',
+  chave_na_mao: 'Chave na mão', fechou: 'Vendido', fechou_concorrente: 'Concorrente',
+  cancelado: 'Cancelado',
 };
 const fmtWhen = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—');
 
