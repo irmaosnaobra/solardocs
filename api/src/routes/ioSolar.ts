@@ -4,6 +4,7 @@ import { sendWhatsApp } from '../services/agents/zapiClient';
 import { logger } from '../utils/logger';
 import { agendaFechadaNoIso, ehSocio, MOTIVO_FECHADA } from '../services/agenda/agendaFechada';
 import { proximoDaContaBaixa } from '../services/agenda/filaContaBaixa';
+import { FILA_CONTA_ALTA } from '../services/agenda/leadSolarFicha';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alerta de lead novo da LP de Energia Solar (/io/solar) no WhatsApp da equipe.
@@ -136,17 +137,17 @@ router.post('/alerta', async (req: Request, res: Response): Promise<void> => {
 // mundo cujos 8 últimos dígitos batessem com o número digitado.
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** Quem aparece na agenda desta LP. Nilce e Giovanna atendem conta baixa; os
- *  sócios, conta alta. Giovanna entrou no rodízio em 18/08 e ainda não tem
- *  grade própria — por isso ela não entra na leitura de ocupação. */
+/** Quem aparece na agenda desta LP, de quem a página precisa ler a ocupação.
+ *  Desde 23/09/2026 a Nilce está nos DOIS lados do corte, então os três nomes
+ *  aqui cobrem o funil inteiro. A Giovanna não entra: ela não recebe mais lead
+ *  novo e nunca teve grade própria nesta página. */
 const DONOS_SOLAR = ['Nilce', 'Thiago', 'Diego'];
-/** Conta alta: quem recebe o lead acima de 700 kWh, alternado. */
-const DONOS_ALTA = ['Thiago', 'Diego'];
-/** Conta baixa: quem é do time. De QUEM É A VEZ não mora aqui: desde 15/09/2026 a
- *  página pergunta ao `proximoDaContaBaixa()` (services/agenda/filaContaBaixa.ts),
- *  a mesma pergunta que o Meta e o ManyChat fazem. Eram duas filas copiadas, e
- *  mudar a proporção numa só dava dois rodízios discordando. A regra de agora:
- *  tudo da Nilce até domingo 20/09, e 3 Nilce : 1 Giovanna a partir de 21/09. */
+/** Conta baixa: quem PODE atender. De QUEM É A VEZ não mora aqui: desde
+ *  15/09/2026 a página pergunta ao `proximoDaContaBaixa()`
+ *  (services/agenda/filaContaBaixa.ts), a mesma pergunta que o Meta e o ManyChat
+ *  fazem. Eram duas filas copiadas, e mudar a proporção numa só dava dois
+ *  rodízios discordando. Hoje a resposta é sempre 'Nilce'; a Giovanna fica na
+ *  lista porque ainda tem ficha e a página precisa aceitá-la como dono válido. */
 const TIME_BAIXA = ['Nilce', 'Giovanna'];
 
 const soDigitosSolar = (s: unknown) => String(s ?? '').replace(/\D/g, '');
@@ -170,9 +171,22 @@ router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
         .in('vendedor_nome', DONOS_SOLAR)
         .not('status', 'in', '(cancelado,sem_interesse)')
         .limit(500),
-      supabaseGerador.from('agendamentos')
-        .select('id', { count: 'exact', head: true })
-        .eq('created_by', 'lp_solar').in('vendedor_nome', DONOS_ALTA),
+      // A vez da conta alta agora sai do MESMO contador que o cron do Meta e o
+      // ManyChat giram (`leads_meta_state.rodizio_idx`), e não mais de uma
+      // contagem própria de fichas `lp_solar`. Duas razões, e a segunda é a que
+      // obriga: (1) três portas com contadores separados dão três rodízios
+      // discordando, o mesmo furo que a conta baixa já tinha fechado em 15/09;
+      // (2) desde 23/09 a Nilce está na fila de cima, e contar ficha por dono
+      // não distingue uma ficha grande dela de uma pequena, o contador próprio
+      // passaria a ser girado pelo lead pequeno e a proporção 50/25/25 viraria
+      // uma função do volume da conta baixa.
+      //
+      // LEITURA PURA, de propósito: quem incrementa são as duas portas com
+      // volume. Esta página tem 1 agendamento na história inteira (jul/2026);
+      // gravar daqui pediria refazer o consumo no servidor pra saber se a ficha
+      // é alta, e não paga o risco.
+      supabaseGerador.from('leads_meta_state')
+        .select('rodizio_idx').eq('id', 1).limit(1),
       // A vez da conta baixa sai do mesmo lugar que a do Meta e a do ManyChat: o
       // lead entra por três portas, e três rodízios separados discordariam. Este
       // não lança; se o banco falhar, ele mesmo responde 'Nilce'.
@@ -190,16 +204,17 @@ router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
       }));
 
     res.set('Cache-Control', 'no-store');
+    const idxAlta = Number(altaQ.data?.[0]?.rodizio_idx ?? 0) || 0;
     res.json({
       ocupados,
-      proximoAlta: DONOS_ALTA[(altaQ.count || 0) % DONOS_ALTA.length],
+      proximoAlta: FILA_CONTA_ALTA[idxAlta % FILA_CONTA_ALTA.length],
       proximoBaixa,
     });
   } catch (err) {
     logger.error('io-solar-agenda', 'falha lendo a agenda', err);
     // `null` diz "não consegui ler" — diferente de "não tem nada marcado".
     // 'Nilce' é a mesma reserva do proximoDaContaBaixa quando o banco falha.
-    res.json({ ocupados: null, proximoAlta: DONOS_ALTA[0], proximoBaixa: 'Nilce' });
+    res.json({ ocupados: null, proximoAlta: FILA_CONTA_ALTA[0], proximoBaixa: 'Nilce' });
   }
 });
 

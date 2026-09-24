@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// O META APRENDE O PERFIL DO CLIENTE BOM — conta acima de 700 kWh que orçou.
+// O META APRENDE O PERFIL DO CLIENTE BOM, conta acima de 762 kWh que orçou.
 //
 // Pedido do dono (14/08/2026). Hoje o único sinal que volta pro Meta é o
 // `capiLeadsService`: contrato FECHADO, lido de uma planilha. O sinal é certo e é
@@ -9,11 +9,12 @@
 //
 // Este loop manda o sinal do MEIO do funil, que é o que existe em volume:
 //
-//     conta acima de 700 kWh/mês  +  o consultor chegou a fazer orçamento
+//     conta acima de 762 kWh/mês  +  o consultor chegou a fazer orçamento
 //
-// É a definição de lead bom que o dono usa pra dividir a agenda (a mesma
-// KWH_CORTE_TIME do roteamento), agora dita pro Meta. Volume medido em 90 dias:
-// ~13 eventos, contra 5 de contrato fechado.
+// Era a mesma régua que dividia a agenda, e em 23/09/2026 deixou de ser: o corte
+// do roteamento subiu pra 1.200 kWh e este ficou onde estava, de propósito, ver
+// KWH_LEAD_BOM logo abaixo. Volume medido em 90 dias neste corte: ~13 eventos,
+// contra 5 de contrato fechado.
 //
 // ── O que ele NÃO faz ──
 //   • Não substitui o `Converted` do contrato fechado. São dois estágios do mesmo
@@ -34,7 +35,26 @@
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendCrmLeadEvent } from '../../utils/metaPixel';
-import { consumoTipico, KWH_CORTE_TIME } from './leadSolarFicha';
+import { consumoTipico } from './leadSolarFicha';
+
+/**
+ * O corte do LEAD BOM, em kWh/mês. 762 kWh = os R$ 800 de conta que o corte de
+ * roteamento usava até 22/09/2026.
+ *
+ * ── POR QUE ELE NÃO SEGUE MAIS O `KWH_CORTE_TIME` ──
+ * Eram a mesma constante, e fazia sentido enquanto as duas perguntas tinham a
+ * mesma resposta. Não têm mais, e são perguntas diferentes:
+ *   • `KWH_CORTE_TIME` (1.200 desde 23/09) responde QUEM ATENDE, é uma régua de
+ *     agenda, e o que ela protege é a manhã dos sócios.
+ *   • este responde O QUE O META DEVE PERSEGUIR, é uma régua de aprendizado, e
+ *     o que ela protege é o volume do sinal.
+ * Subir este pra 1.200 junto derrubaria uma amostra que já é pequena: ~13
+ * eventos em 90 dias no corte de 762. O algoritmo aprende por repetição, e
+ * ensinar pouco é o mesmo que não ensinar, que é exatamente o problema que este
+ * loop nasceu pra resolver. Se o Meta vier a ter volume de sobra, subir aqui é
+ * uma linha.
+ */
+export const KWH_LEAD_BOM = 762;
 
 /** Estágio do CRM na especificação do Meta. "Sales Opportunity" é o degrau entre
  *  o lead cru e o `Converted` — exatamente onde este sinal mora. */
@@ -74,7 +94,7 @@ export function consumoDaFichaSolar(observacao: string | null): number | null {
 export function ehLeadBom(observacao: string | null, status: string | null): boolean {
   if (!STATUS_QUE_ORCARAM.includes(String(status || ''))) return false;
   const kwh = consumoDaFichaSolar(observacao);
-  return kwh !== null && kwh > KWH_CORTE_TIME;
+  return kwh !== null && kwh > KWH_LEAD_BOM;
 }
 
 export type ResultadoCapiQualificado = {
@@ -155,7 +175,7 @@ export async function runCapiLeadQualificado(
     if (r.ok) {
       await supabaseGerador.from('capi_conversoes_enviadas').insert({
         lead_id: c.leadId, cliente_nome: null, telefone_core8: null,
-        valor: null, origem: `solar>${KWH_CORTE_TIME}kWh`, event_name: EVENTO,
+        valor: null, origem: `solar>${KWH_LEAD_BOM}kWh`, event_name: EVENTO,
         meta_status: r.status, meta_received: r.received ?? null,
       }).then(({ error: e }) => {
         if (e && !/duplicate|unique/i.test(e.message)) {
