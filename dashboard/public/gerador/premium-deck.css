@@ -1,0 +1,495 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   ORÇAMENTO PREMIUM — NEXUS ELETROPOSTOS · FOLHA DE ESTILO
+   1920x1080 em paisagem. Uma página, uma ideia.
+
+   POR QUE ESTE ARQUIVO EXISTE, EM VEZ DE EU MEXER NO apresentacao-deck.css
+   Aquele é o deck da aba Fechamento: 20 páginas, fotos que o vendedor sobe,
+   IA escolhendo legenda, e duas verticais (usina dourada + eletroposto verde).
+   Este aqui é outro documento: sai do Simulador sozinho, sem upload, só
+   eletroposto, no máximo 14 páginas. Misturar os dois faria cada mudança de um
+   ter que ser conferida no outro.
+
+   A RÉGUA É O MANUAL DA MARCA, não o gosto de quem escreveu:
+     Azul Escuro Confiança  #0B1A2B   fundo
+     Verde Energia          #39FF14   destaque, só no que é número ou ação
+     Azul Tecnologia        #0085FF   apoio, nunca compete com o verde
+     Cinza Equilíbrio       #E5E7EB   texto
+     tipografia             MONTSERRAT
+     tagline                ENERGIA QUE MOVE O AMANHÃ
+
+   O deck antigo usava Poppins. Não era decisão, era herança do deck que
+   serviu de molde. Todas as medidas daqui foram escritas JÁ em Montserrat,
+   que é mais estreita: reaproveitar os px de lá deixaria título folgado.
+
+   VERDE SOBRE CLARO NÃO SE LÊ. #39FF14 sobre branco dá 1,36:1 de contraste.
+   Em página clara (.claro) o destaque vira a tinta escura e o verde só entra
+   como bloco atrás de texto escuro. Isto não é preferência, é legibilidade.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root{
+  --fundo:#0B1A2B;
+  --fundo-2:#081422;
+  --cartao:#10233A;
+  --cartao-alto:#16304C;
+  --linha:rgba(229,231,235,.11);
+  --linha-forte:rgba(229,231,235,.22);
+  --texto:#E5E7EB;
+  --suave:#8CA0B8;
+  --fraco:#6C819A;
+  --verde:#39FF14;
+  --verde-fundo:rgba(57,255,20,.12);
+  --verde-linha:rgba(57,255,20,.38);
+  --azul:#0085FF;
+  --azul-fundo:rgba(0,133,255,.14);
+  /* o RGB do véu que cobre as fotos, para o fundo predominar na página toda */
+  --veu:11,26,43;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{background:#000;font-family:'Montserrat',system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+
+/* ── a folha ─────────────────────────────────────────────────────────────── */
+.slide{position:relative;width:1920px;height:1080px;overflow:hidden;
+  background:var(--fundo);color:var(--texto);
+  page-break-after:always;break-after:page}
+.slide:last-child{page-break-after:auto;break-after:auto}
+/* página clara: usada só onde a foto do produto pede fundo branco */
+.slide.claro{background:#F4F6F8;color:#0B1A2B;--texto:#0B1A2B;--suave:#51637A;
+  --fraco:#7287A0;--linha:rgba(11,26,43,.12);--linha-forte:rgba(11,26,43,.24);
+  --cartao:#FFFFFF;--cartao-alto:#FFFFFF}
+
+/* ── camadas de imagem ───────────────────────────────────────────────────── */
+.bg{position:absolute;inset:0;background-size:cover;background-position:center;
+  z-index:0;filter:brightness(.62) saturate(.95)}
+.bg.suave{filter:brightness(.72) saturate(1)}
+.veu{position:absolute;inset:0;z-index:1}
+.veu.esq{background:linear-gradient(90deg,rgba(var(--veu),.97) 0%,rgba(var(--veu),.92) 40%,rgba(var(--veu),.55) 74%,rgba(var(--veu),.72) 100%)}
+.veu.dir{background:linear-gradient(270deg,rgba(var(--veu),.97) 0%,rgba(var(--veu),.90) 44%,rgba(var(--veu),.52) 100%)}
+.veu.baixo{background:linear-gradient(180deg,rgba(var(--veu),.38) 0%,rgba(var(--veu),.55) 50%,rgba(var(--veu),.97) 100%)}
+.veu.cheio{background:linear-gradient(180deg,rgba(var(--veu),.88) 0%,rgba(var(--veu),.80) 45%,rgba(var(--veu),.95) 100%)}
+
+/* a faixa verde da lateral é a citação direta do produto: o carregador tem
+   exatamente essa faixa nas duas bordas */
+.faixa{position:absolute;left:0;top:0;bottom:0;width:18px;z-index:2;
+  background:linear-gradient(180deg,var(--verde) 0%,var(--verde) 52%,var(--azul) 100%)}
+
+.wrap{position:relative;z-index:3;width:100%;height:100%;
+  padding:76px 104px;display:flex;flex-direction:column;justify-content:center}
+.wrap.topo{justify-content:flex-start}
+
+/* ── marca ───────────────────────────────────────────────────────────────── */
+.marca{position:absolute;top:54px;right:104px;z-index:4;display:flex;
+  align-items:center;gap:14px}
+.marca img{height:44px;width:auto;display:block}
+.marca .fio{width:1px;height:34px;background:var(--linha-forte)}
+.marca .selo{height:40px;width:auto;border-radius:50%}
+
+/* ── tipografia ──────────────────────────────────────────────────────────── */
+.sobre{font-size:17px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--verde);margin-bottom:20px}
+.sobre.azul{color:var(--azul)}
+.titulo{font-size:82px;font-weight:800;line-height:1.02;letter-spacing:-.025em;
+  color:#FFFFFF;max-width:1180px}
+.slide.claro .titulo{color:#0B1A2B}
+.titulo.menor{font-size:64px}
+.titulo .g{color:var(--verde)}
+.titulo .a{color:var(--azul)}
+.regua{width:96px;height:5px;background:var(--verde);margin:30px 0 26px;border-radius:3px}
+.entrada{font-size:27px;line-height:1.5;color:var(--texto);max-width:1080px;font-weight:400}
+.entrada b{font-weight:700;color:#FFFFFF}
+.slide.claro .entrada b{color:#0B1A2B}
+.nota{font-size:17px;line-height:1.45;color:var(--fraco);max-width:1020px;margin-top:22px}
+
+/* ── cartão, o padrão de superfície do site ──────────────────────────────── */
+.cartao{background:var(--cartao);border:1px solid var(--linha);border-radius:18px;
+  padding:34px 38px}
+.cartao.alto{background:var(--cartao-alto)}
+.cartao.verde{border-color:var(--verde-linha);background:var(--verde-fundo)}
+.cartao.azul{border-color:rgba(0,133,255,.34);background:var(--azul-fundo)}
+
+/* ── números ─────────────────────────────────────────────────────────────── */
+.kpis{display:flex;gap:26px;margin-top:38px;flex-wrap:wrap}
+.kpi{flex:1 1 0;min-width:250px;background:var(--cartao);
+  border:1px solid var(--linha);border-radius:18px;padding:30px 32px}
+.kpi.destaque{border-color:var(--verde-linha);background:var(--verde-fundo)}
+.kpi .rot{font-size:15px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--suave);margin-bottom:14px}
+.kpi .num{font-size:60px;font-weight:800;line-height:1;color:#FFFFFF;
+  letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.slide.claro .kpi .num{color:#0B1A2B}
+.kpi.destaque .num{color:var(--verde)}
+.slide.claro .kpi.destaque .num{color:#0B1A2B}
+.kpi .num small{font-size:26px;font-weight:700;margin-left:8px;color:var(--suave)}
+.kpi .sub{font-size:16px;color:var(--fraco);margin-top:12px;line-height:1.35}
+
+/* ── lista ───────────────────────────────────────────────────────────────── */
+ul.lista{list-style:none;margin-top:30px}
+ul.lista li{position:relative;padding-left:40px;font-size:24px;line-height:1.45;
+  color:var(--texto);margin-bottom:20px;max-width:980px}
+ul.lista li::before{content:'';position:absolute;left:0;top:11px;width:14px;height:14px;
+  border-radius:4px;background:var(--verde)}
+.slide.claro ul.lista li::before{background:#0B1A2B}
+ul.lista li b{font-weight:700;color:#FFFFFF}
+.slide.claro ul.lista li b{color:#0B1A2B}
+ul.lista.apertada li{font-size:21px;margin-bottom:14px}
+
+/* ── tabela de cenários ──────────────────────────────────────────────────── */
+table.cen{width:100%;border-collapse:collapse;margin-top:34px;font-variant-numeric:tabular-nums}
+table.cen th,table.cen td{padding:18px 22px;text-align:right;font-size:23px}
+table.cen th:first-child,table.cen td:first-child{text-align:left}
+table.cen thead th{font-size:15px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--suave);border-bottom:1px solid var(--linha-forte)}
+table.cen thead th.base{color:var(--azul)}
+table.cen thead th small{display:block;font-size:13px;font-weight:600;
+  letter-spacing:.08em;color:var(--fraco);margin-top:5px}
+table.cen tbody td{border-bottom:1px solid var(--linha);color:var(--texto);font-weight:600}
+table.cen tbody td:first-child{color:var(--suave);font-weight:500;font-size:21px}
+table.cen tbody tr:last-child td{border-bottom:0}
+table.cen td.forte{color:var(--verde);font-weight:800}
+table.cen col.base,table.cen td.base{background:rgba(0,133,255,.07)}
+
+/* ── gráfico de barras do acumulado ──────────────────────────────────────── */
+.grafico{display:flex;align-items:flex-end;gap:18px;height:330px;margin-top:40px}
+.barra{flex:1 1 0;display:flex;flex-direction:column;justify-content:flex-end;
+  align-items:center;height:100%}
+.barra .valor{font-size:17px;font-weight:700;color:var(--suave);margin-bottom:10px;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.barra .haste{width:100%;border-radius:8px 8px 0 0;
+  background:linear-gradient(180deg,var(--verde) 0%,rgba(57,255,20,.35) 100%)}
+.barra.baixa .haste{background:linear-gradient(180deg,#F05252 0%,rgba(240,82,82,.3) 100%)}
+.barra.baixa .valor{color:#F05252}
+.barra .ano{font-size:15px;font-weight:700;color:var(--fraco);margin-top:12px;
+  letter-spacing:.06em}
+.zero{height:1px;background:var(--linha-forte);margin-top:-1px}
+
+/* ── produto: a foto em fundo claro, recortada ───────────────────────────── */
+.produto{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;
+  height:100%}
+.produto img{width:100%;height:auto;max-height:800px;object-fit:contain;
+  filter:drop-shadow(0 30px 60px rgba(11,26,43,.28))}
+.produto.esq{grid-template-columns:1fr 1.05fr}
+
+/* ── tira de imagens ─────────────────────────────────────────────────────── */
+.tira{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:38px}
+.tira .quadro{position:relative;border-radius:16px;overflow:hidden;height:340px;
+  border:1px solid var(--linha)}
+.tira .quadro img{width:100%;height:100%;object-fit:cover;display:block}
+.tira .quadro .cap{position:absolute;left:0;right:0;bottom:0;padding:18px 20px;
+  font-size:16px;font-weight:600;color:#FFFFFF;
+  background:linear-gradient(180deg,rgba(11,26,43,0) 0%,rgba(11,26,43,.92) 100%)}
+
+/* ── os quatro pilares da marca ──────────────────────────────────────────── */
+.pilares{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;margin-top:40px}
+.pilar{background:var(--cartao);border:1px solid var(--linha);border-radius:18px;
+  padding:30px 28px}
+.pilar .ic{width:46px;height:46px;border-radius:12px;background:var(--verde-fundo);
+  border:1px solid var(--verde-linha);display:flex;align-items:center;
+  justify-content:center;margin-bottom:20px}
+.pilar .ic svg{width:24px;height:24px;stroke:var(--verde);fill:none;stroke-width:2}
+.pilar .t{font-size:21px;font-weight:700;color:#FFFFFF;margin-bottom:10px;line-height:1.25}
+.pilar .d{font-size:16px;color:var(--fraco);line-height:1.45}
+
+/* ── passos do cronograma ────────────────────────────────────────────────── */
+.passos{display:flex;gap:0;margin-top:44px;align-items:stretch}
+.passo{flex:1 1 0;padding:0 26px;position:relative}
+.passo+.passo{border-left:1px solid var(--linha)}
+.passo .n{width:44px;height:44px;border-radius:50%;border:2px solid var(--verde);
+  color:var(--verde);display:flex;align-items:center;justify-content:center;
+  font-size:19px;font-weight:800;margin-bottom:20px}
+.passo.deles .n{border-color:var(--azul);color:var(--azul)}
+.passo .t{font-size:20px;font-weight:700;color:#FFFFFF;line-height:1.25;margin-bottom:10px}
+.passo .d{font-size:16px;color:var(--fraco);line-height:1.4}
+.passo .quem{font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--verde);margin-top:14px}
+.passo.deles .quem{color:var(--azul)}
+
+/* ── investimento: o número único ────────────────────────────────────────── */
+.preco{display:flex;align-items:baseline;gap:20px;margin-top:20px}
+.preco .v{font-size:110px;font-weight:800;color:var(--verde);line-height:1;
+  letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.preco .u{font-size:26px;font-weight:600;color:var(--suave)}
+.inclui{display:grid;grid-template-columns:repeat(2,1fr);gap:16px 48px;margin-top:38px}
+.inclui div{position:relative;padding-left:38px;font-size:22px;line-height:1.4;
+  color:var(--texto)}
+.inclui div::before{content:'';position:absolute;left:0;top:7px;width:20px;height:20px;
+  border-radius:50%;background:var(--verde-fundo);border:1px solid var(--verde-linha)}
+.inclui div::after{content:'';position:absolute;left:6px;top:13px;width:8px;height:4px;
+  border-left:2px solid var(--verde);border-bottom:2px solid var(--verde);
+  transform:rotate(-45deg)}
+
+/* ── rodapé ──────────────────────────────────────────────────────────────── */
+.rodape{position:absolute;left:104px;right:104px;bottom:44px;z-index:4;
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:15px;color:var(--fraco);letter-spacing:.04em}
+.rodape .tag{font-weight:700;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--suave);font-size:13px}
+.pg{font-variant-numeric:tabular-nums;font-weight:700}
+
+/* ── capa ────────────────────────────────────────────────────────────────── */
+.capa .titulo{font-size:96px}
+.capa .quem{margin-top:44px;font-size:30px;color:#FFFFFF;font-weight:700}
+.capa .onde{font-size:22px;color:var(--suave);margin-top:8px;font-weight:500}
+.capa .tagline{position:absolute;left:104px;bottom:132px;z-index:4;font-size:15px;
+  font-weight:700;letter-spacing:.3em;text-transform:uppercase;color:var(--suave)}
+.capa .tagline b{color:var(--verde);font-weight:700}
+
+/* ── fecho ───────────────────────────────────────────────────────────────── */
+.fecho .contato{display:flex;gap:56px;margin-top:46px;align-items:center}
+.fecho .contato .bloco .r{font-size:14px;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--suave);margin-bottom:8px}
+.fecho .contato .bloco .v{font-size:30px;font-weight:700;color:#FFFFFF}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MODO CELULAR — 1080x1920, para o link que o cliente abre no telefone.
+   Não é a mesma página escalada: a fileira de KPIs vira coluna e a tabela de
+   cenários perde a coluna otimista, senão o texto fica ilegível no aperto.
+   ══════════════════════════════════════════════════════════════════════════ */
+body.movel .slide{width:1080px;height:1920px}
+body.movel .wrap{padding:96px 72px}
+body.movel .titulo{font-size:74px}
+body.movel .capa .titulo{font-size:80px}
+body.movel .entrada{font-size:30px}
+body.movel .kpis{flex-direction:column;gap:20px}
+body.movel .kpi{min-width:0}
+body.movel .kpi .num{font-size:64px}
+body.movel .produto{grid-template-columns:1fr;gap:40px}
+body.movel .pilares{grid-template-columns:repeat(2,1fr)}
+body.movel .inclui{grid-template-columns:1fr}
+body.movel .passos{flex-direction:column;gap:28px}
+body.movel .passo+.passo{border-left:0;border-top:1px solid var(--linha);padding-top:28px}
+body.movel .tira{grid-template-columns:1fr}
+body.movel .tira .quadro{height:420px}
+body.movel table.cen th.otim,body.movel table.cen td.otim{display:none}
+body.movel .grafico{height:420px}
+body.movel .rodape{left:72px;right:72px;bottom:56px}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   OS BLOCOS DE CADA PÁGINA
+   A parte de cima é o sistema (cor, tipo, superfície). Daqui para baixo é o
+   que cada página precisa, na mesma ordem do deck, para achar rápido.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 01 · capa ───────────────────────────────────────────────────────────── */
+/* VITRINE: render de fundo branco NUNCA flutua sobre o navy, senão vira um
+   retângulo branco quebrado no meio da página. Ele mora dentro de um painel
+   claro que sangra na borda direita. */
+.vitrine{position:absolute;right:0;top:0;bottom:0;width:620px;z-index:2;
+  background:linear-gradient(160deg,#FFFFFF 0%,#EEF2F6 100%);
+  border-radius:52px 0 0 52px;display:flex;align-items:center;
+  justify-content:center;padding:70px 50px;overflow:hidden}
+.vitrine img{width:100%;height:auto;max-height:860px;object-fit:contain;
+  filter:drop-shadow(0 34px 60px rgba(11,26,43,.26))}
+.vitrine.larga{width:900px;padding:60px}
+.vitrine.larga img{max-height:760px}
+.capa .wrap{padding-right:700px}
+.capa-num{font-size:196px;font-weight:900;line-height:.92;color:var(--verde);
+  letter-spacing:-.045em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.capa-un{font-size:56px;font-weight:700;color:#FFFFFF;margin-left:22px;
+  letter-spacing:-.01em}
+.selos{display:flex;flex-wrap:wrap;gap:14px;margin-top:40px;max-width:820px}
+.selos span{font-size:20px;color:var(--texto);background:rgba(229,231,235,.07);
+  border:1px solid var(--linha);border-radius:999px;padding:12px 22px}
+.selos span b{color:var(--verde);font-weight:700}
+.tagline{position:absolute;left:104px;bottom:120px;z-index:4;font-size:15px;
+  font-weight:700;letter-spacing:.3em;text-transform:uppercase;color:var(--suave)}
+.tagline b{color:var(--verde);font-weight:800}
+
+/* ── 02 · a conta aberta ─────────────────────────────────────────────────── */
+.partido{display:grid;grid-template-columns:1fr 1px 1fr;gap:56px;margin-top:40px;
+  flex:1;align-items:start}
+.partido::before{content:'';grid-column:2;width:1px;height:100%;
+  background:var(--azul);opacity:.45}
+.lado{min-width:0}
+.conta{margin-top:24px}
+.cl{display:flex;align-items:baseline;gap:16px}
+.cl .v{font-size:44px;font-weight:800;color:#FFFFFF;line-height:1.15;
+  font-variant-numeric:tabular-nums}
+.cl .r{font-size:21px;color:var(--suave)}
+.op{font-size:25px;font-weight:800;color:var(--azul);margin:2px 0 2px 6px;line-height:1}
+.total{margin-top:26px;text-align:center}
+.total .rot{font-size:15px;font-weight:700;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--suave);margin-bottom:10px}
+.total .big{font-size:76px;font-weight:900;color:var(--verde);line-height:1;
+  letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.total .sub{font-size:22px;color:var(--suave);margin-top:10px}
+.chips{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:24px}
+.chip{background:var(--cartao);border:1px solid var(--linha);border-radius:14px;
+  padding:20px 22px}
+.chip .r{font-size:17px;color:var(--suave);margin-bottom:8px;line-height:1.25}
+.chip .v{font-size:31px;font-weight:800;color:#FFFFFF;line-height:1;
+  font-variant-numeric:tabular-nums}
+.fecho-linha{text-align:center;font-size:26px;color:var(--suave);margin-top:32px}
+.fecho-linha.verde{color:var(--verde);font-size:32px;font-weight:700;margin-top:44px}
+
+/* ── 03 · todo custo na mesa ─────────────────────────────────────────────── */
+.custos{display:grid;grid-template-columns:1fr 1fr;gap:26px 72px;margin-top:44px}
+.custo .linha{display:flex;justify-content:space-between;align-items:baseline;gap:20px}
+.custo .linha .r{font-size:24px;color:var(--texto)}
+.custo .linha .v{font-size:36px;font-weight:800;color:#FFFFFF;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.custo .trilho{height:8px;border-radius:4px;background:rgba(229,231,235,.08);
+  margin-top:10px;overflow:hidden}
+.custo .trilho i{display:block;height:100%;background:var(--azul);border-radius:4px}
+.custo .n{font-size:17px;color:var(--fraco);margin-top:8px}
+/* A faixa verde cheia aparece DUAS vezes no deck inteiro: aqui e no valor.
+   Verde sobre claro não se lê, então a tinta é o navy. */
+.faixa-verde{position:absolute;left:0;right:0;bottom:0;z-index:4;
+  background:var(--verde);color:#0B1A2B;font-size:34px;font-weight:800;
+  letter-spacing:-.01em;padding:30px 104px;text-align:center}
+.slide:has(.faixa-verde) .rodape{bottom:132px}
+
+/* ── 04 · o payback ──────────────────────────────────────────────────────── */
+.mega{font-size:206px;font-weight:900;color:var(--verde);line-height:.9;
+  letter-spacing:-.05em;font-variant-numeric:tabular-nums}
+.mega-un{font-size:64px;font-weight:700;color:#FFFFFF;margin-left:20px}
+.regua-anos{position:relative;width:1300px;height:8px;border-radius:4px;
+  background:rgba(0,133,255,.28);margin:56px 0 0}
+.regua-anos .preenche{position:absolute;top:0;bottom:0;right:0;
+  background:rgba(57,255,20,.18);border-radius:4px}
+.regua-anos .pino{position:absolute;top:-10px;width:5px;height:28px;
+  background:var(--verde);border-radius:3px;transform:translateX(-50%)}
+.regua-anos .anos{position:absolute;left:0;right:0;top:24px;display:flex;
+  justify-content:space-between;font-size:16px;color:var(--fraco)}
+.selos-fin{display:flex;gap:56px;margin-top:84px;justify-content:center;
+  width:1300px}
+.selo-fin{flex:1 1 0;text-align:center}
+.selo-fin .v{font-size:50px;font-weight:800;color:#FFFFFF;line-height:1;
+  font-variant-numeric:tabular-nums}
+.selo-fin .v small{font-size:23px;font-weight:600;color:var(--suave)}
+.selo-fin .d{font-size:19px;color:var(--suave);margin-top:14px;line-height:1.4}
+
+/* ── 05 · a rampa · 08 · o patrimônio ────────────────────────────────────── */
+.meio{display:grid;grid-template-columns:1fr 1fr;gap:72px;align-items:center;
+  flex:1;margin-top:32px}
+.num-grande{font-size:100px;font-weight:900;color:var(--verde);line-height:1;
+  letter-spacing:-.035em;margin-top:36px;font-variant-numeric:tabular-nums}
+.num-medio{font-size:50px;font-weight:800;color:#FFFFFF;line-height:1;
+  margin-top:24px;font-variant-numeric:tabular-nums}
+.num-rot{font-size:20px;color:var(--suave);margin-top:10px;max-width:460px;line-height:1.35}
+.rampa{position:relative;display:flex;align-items:flex-end;gap:7px;height:420px}
+.rampa .mes{flex:1 1 0;background:linear-gradient(180deg,var(--azul) 0%,rgba(0,133,255,.35) 100%);
+  border-radius:5px 5px 0 0;min-height:6px}
+.rampa .mes.marco{background:linear-gradient(180deg,var(--verde) 0%,rgba(57,255,20,.35) 100%)}
+.rampa .patamar{position:absolute;left:0;right:0;top:0;height:0;
+  border-top:2px dashed var(--verde-linha)}
+.rampa .patamar span{position:absolute;right:0;top:-26px;font-size:15px;
+  color:var(--verde);font-weight:700;letter-spacing:.06em}
+
+/* ── 06 · o respiro ──────────────────────────────────────────────────────── */
+.foto .wrap{padding-right:780px}
+.ilustrativa{position:absolute;right:104px;bottom:46px;z-index:4;font-size:16px;
+  color:var(--fraco);opacity:.75}
+
+/* ── 07 · os cenários ────────────────────────────────────────────────────── */
+.cenarios{display:flex;flex-direction:column;gap:20px;margin-top:38px}
+.cen-card{display:grid;grid-template-columns:340px 1fr;gap:40px;align-items:center;
+  background:var(--cartao);border:1px solid var(--linha);border-radius:18px;
+  padding:26px 34px;min-height:148px}
+.cen-card.este{border:3px solid var(--verde);background:var(--cartao-alto)}
+.cen-n{font-size:17px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--suave)}
+.cen-card.este .cen-n{color:var(--verde)}
+.cen-c{font-size:38px;font-weight:800;color:#FFFFFF;line-height:1.1;margin-top:8px}
+.cen-selo{display:inline-block;margin-top:12px;font-size:14px;font-weight:700;
+  letter-spacing:.1em;text-transform:uppercase;color:#0B1A2B;background:var(--verde);
+  border-radius:999px;padding:6px 14px}
+.cen-vals{display:grid;grid-template-columns:repeat(5,1fr);gap:22px}
+.cen-vals > div{display:flex;flex-direction:column;gap:8px}
+.cen-vals .r{font-size:15px;color:var(--fraco);letter-spacing:.04em}
+.cen-vals .v{font-size:26px;font-weight:700;color:#FFFFFF;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.cen-vals .v.forte{color:var(--verde);font-weight:800}
+
+/* ── 09 · o equipamento ──────────────────────────────────────────────────── */
+.modelo{font-size:52px;font-weight:800;color:var(--verde);line-height:1.1;
+  letter-spacing:-.02em}
+.ficha-tec{margin-top:50px;display:flex;flex-direction:column;gap:30px}
+.ficha-tec > div{display:flex;align-items:baseline;gap:18px}
+.ficha-tec .v{font-size:62px;font-weight:900;color:#FFFFFF;line-height:1;
+  font-variant-numeric:tabular-nums;min-width:88px}
+.ficha-tec .r{font-size:24px;color:var(--suave)}
+.tira-fabrica{position:absolute;left:0;right:0;bottom:0;height:200px;z-index:3;
+  overflow:hidden}
+.tira-fabrica .bgf{position:absolute;inset:0;background-size:cover;
+  background-position:center 38%;filter:brightness(.45) saturate(.9)}
+.tira-fabrica .cont{position:relative;z-index:2;height:100%;padding:0 104px;
+  display:flex;align-items:center;justify-content:space-between;gap:40px}
+.tira-fabrica .leg{font-size:20px;color:var(--texto)}
+.chips2{display:flex;gap:14px}
+.chips2 b{font-size:17px;font-weight:700;color:var(--verde);
+  border:1px solid var(--verde-linha);background:rgba(11,26,43,.55);
+  border-radius:999px;padding:11px 20px;white-space:nowrap}
+.slide:has(.tira-fabrica) .rodape{bottom:228px}
+
+/* ── 10 · os três medos ──────────────────────────────────────────────────── */
+.medos{display:grid;grid-template-columns:repeat(3,1fr);gap:80px;margin-top:60px;
+  flex:1;align-content:center}
+.fala{font-size:31px;line-height:1.3;color:var(--texto);font-style:italic}
+.reg{width:100%;height:6px;background:var(--verde);border-radius:3px;margin:28px 0}
+.resp{font-size:26px;line-height:1.4;font-weight:700;color:#FFFFFF}
+
+/* ── 11 · dentro e fora do valor ─────────────────────────────────────────── */
+.duas{display:grid;grid-template-columns:1fr 1fr;gap:80px;margin-top:42px;flex:1}
+ul.lista.azul li::before{background:var(--azul)}
+
+/* ── 12 · as etapas ──────────────────────────────────────────────────────── */
+.trilho-etapas{display:flex;gap:16px;margin-top:54px;align-items:stretch}
+.et{flex:1 1 0;background:var(--cartao);border:1px solid var(--linha);
+  border-radius:16px;padding:24px 20px;display:flex;flex-direction:column}
+.et .n{width:42px;height:42px;border-radius:50%;border:2px solid var(--linha-forte);
+  color:var(--suave);display:flex;align-items:center;justify-content:center;
+  font-size:18px;font-weight:800;margin-bottom:18px}
+.et .t{font-size:19px;font-weight:700;color:#FFFFFF;line-height:1.25;flex:1}
+.et .quem{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--suave);margin-top:16px}
+.et .marco{font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  margin-top:8px;opacity:.85}
+.et.nos{border-color:var(--verde-linha)}
+.et.nos .n{border-color:var(--verde);color:var(--verde)}
+.et.nos .quem{color:var(--verde)}
+.et.dist{border-color:rgba(0,133,255,.4)}
+.et.dist .n{border-color:var(--azul);color:var(--azul)}
+.et.dist .quem{color:var(--azul)}
+.et.zero{background:var(--verde);border-color:var(--verde)}
+.et.zero .n{border-color:#0B1A2B;color:#0B1A2B}
+.et.zero .t,.et.zero .quem,.et.zero .marco{color:#0B1A2B}
+
+/* ── 13 · o fecho ────────────────────────────────────────────────────────── */
+.fecho .wrap{padding-bottom:430px}
+.logo-grande{height:76px;width:auto;align-self:flex-start}
+.tagline-fecho{font-size:16px;font-weight:700;letter-spacing:.3em;
+  text-transform:uppercase;color:var(--suave);margin-top:20px}
+.tagline-fecho b{color:var(--verde);font-weight:800}
+.tres{display:flex;gap:80px;margin-top:44px}
+.tres > div{display:flex;flex-direction:column;gap:10px}
+.tres .v{font-size:52px;font-weight:900;color:var(--verde);line-height:1;
+  font-variant-numeric:tabular-nums}
+.tres .r{font-size:20px;color:var(--suave)}
+.validade-fecho{font-size:19px;color:var(--fraco);margin-top:32px}
+.faixa-foto{position:absolute;left:0;right:0;bottom:0;height:360px;z-index:1;
+  overflow:hidden}
+.faixa-foto .bgf{position:absolute;inset:0;background-size:cover;
+  background-position:center 60%;filter:brightness(.4)}
+.faixa-foto::after{content:'';position:absolute;inset:0;
+  background:linear-gradient(180deg,#0B1A2B 0%,rgba(11,26,43,.45) 40%,rgba(11,26,43,.75) 100%)}
+
+/* ── celular: o que muda nos blocos acima ────────────────────────────────── */
+body.movel .vitrine{position:relative;width:100%;border-radius:32px;height:520px;padding:40px}
+body.movel .capa .wrap,body.movel .foto .wrap{padding-right:72px}
+body.movel .capa-num{font-size:116px}
+body.movel .capa-un{font-size:38px}
+body.movel .partido{grid-template-columns:1fr;gap:46px}
+body.movel .partido::before{display:none}
+body.movel .custos{grid-template-columns:1fr}
+body.movel .meio{grid-template-columns:1fr;gap:44px}
+body.movel .mega{font-size:148px}
+body.movel .regua-anos,body.movel .selos-fin{width:100%}
+body.movel .selos-fin{flex-direction:column;gap:34px;margin-top:50px}
+body.movel .cen-card{grid-template-columns:1fr;gap:22px}
+body.movel .cen-vals{grid-template-columns:repeat(2,1fr)}
+body.movel .medos{grid-template-columns:1fr;gap:44px}
+body.movel .duas{grid-template-columns:1fr;gap:44px}
+body.movel .trilho-etapas{flex-direction:column}
+body.movel .tres{flex-direction:column;gap:32px}
+body.movel .faixa-verde{font-size:26px;padding:26px 72px}

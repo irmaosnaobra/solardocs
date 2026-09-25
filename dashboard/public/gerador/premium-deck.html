@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<title>Orçamento Premium — NEXUS Eletropostos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/gerador/premium-deck.css">
+</head>
+<body>
+<div id="deck"></div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   ORÇAMENTO PREMIUM — MOTOR
+   ──────────────────────────────────────────────────────────────────────────
+   Esta página não tem conteúdo próprio: monta as 13 páginas a partir de um
+   objeto só, o window.__PREMIUM. Quem injeta é o servidor (Puppeteer, via
+   evaluateOnNewDocument) ou ?d=<base64 do JSON> para prévia no navegador.
+
+   AS REGRAS QUE ESTE ARQUIVO CARREGA, e nenhuma é gosto:
+
+   1. NENHUM número é calculado aqui. Todos chegam prontos no __PREMIUM,
+      vindos do computeEletro() — a mesma função do Simulador. Este arquivo
+      formata, não calcula. Dois clientes com os mesmos dados têm que receber
+      exatamente o mesmo documento.
+
+   2. NENHUM número é escrito à mão no texto. Nem "4 carros", nem "8 carros",
+      nem "20 kWh". A sensibilidade do Simulador roda round(carros×0,6),
+      carros e round(carros×1,4) com a MESMA carga digitada, então com 10
+      carros os cenários são 6/10/14. Título com número fixo mente na hora em
+      que alguém mexe no campo.
+
+   3. A FAIXA VERDE CHEIA aparece DUAS vezes no deck inteiro: no fecho da
+      página de custos e no valor da página 11. Uma terceira tira o peso das
+      duas. Verde #39FF14 sobre claro dá 1,36:1 de contraste e não se lê:
+      onde ele é fundo, a tinta é #0B1A2B.
+
+   4. PÁGINA SEM DADO SOME, não fica vazia. E se o payback vier nulo (o
+      projeto não se paga em 10 anos), a montagem ABORTA com erro em vez de
+      imprimir travessão na capa.
+
+   5. Nada de "já entregamos", nada de contagem de obras, nada de data de
+      concessionária. Foto de ambiente leva "imagem ilustrativa do projeto".
+
+   A ORDEM É FIXA. É ela que faz o documento sair 10/10 toda vez, em vez de
+   10/10 uma vez. Ela foi decidida por um painel de três: o consultor que
+   apresenta, o cliente cético e um editor. Abre pelo dinheiro porque é a
+   ordem em que o cliente pensa: se dá dinheiro, em quanto tempo volta, e se
+   vai dar dor de cabeça.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+// ── entrada ────────────────────────────────────────────────────────────────
+function carregar() {
+  if (window.__PREMIUM) return window.__PREMIUM;
+  const q = new URLSearchParams(location.search).get('d');
+  if (q) { try { return JSON.parse(decodeURIComponent(escape(atob(q)))); } catch (e) { console.error('__PREMIUM inválido', e); } }
+  return null;
+}
+
+// ── formatadores ───────────────────────────────────────────────────────────
+const brl   = n => 'R$ ' + Math.round(Number(n) || 0).toLocaleString('pt-BR');
+const num   = n => Math.round(Number(n) || 0).toLocaleString('pt-BR');
+/** vírgula: é TEXTO. Nunca use em style="" — o CSS descarta a regra inteira. */
+const dec   = (n, c = 1) => (Number(n) || 0).toFixed(c).replace('.', ',');
+/** ponto: é CSS. Existe só para número que entra em style="". */
+const css   = (n, c = 2) => (Number(n) || 0).toFixed(c);
+const pct   = n => dec(n, 1) + '%';
+const esc   = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+/** o ÚNICO markup permitido no texto do consultor é **negrito**. */
+const rich  = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+const tem   = v => v !== null && v !== undefined && String(v).trim() !== '' && String(v).trim() !== '—'
+                && !(typeof v === 'number' && !isFinite(v));
+/** plural resolvido na geração: imprimir "máquina(s)" é confissão de preguiça. */
+const plural = (n, um, muitos) => (Math.round(Number(n) || 0) === 1 ? um : muitos);
+
+const ART = '/nexus/img/';
+const LOGO = '/gerador/nexus-logo-tela.png';
+const SELO = '/gerador/logo.png';
+
+const marca = () => `<div class="marca"><img src="${LOGO}" alt="NEXUS Eletropostos"></div>`;
+
+const rodape = (D, n, total) => `<div class="rodape">
+  <span class="tag">Orçamento nº ${esc(D.numero)} · ${esc(D.cliente)}</span>
+  <span class="pg">${n} / ${total}</span>
+</div>`;
+
+// ══════════════════════════════════════════════════════════════════════════
+// AS 13 PÁGINAS
+// ══════════════════════════════════════════════════════════════════════════
+function montar(D) {
+  const E = D.ent || {}, R = D.res || {}, CEN = D.cen || [];
+
+  // Regra 4: capa sem payback é capa mentindo. Aborta antes de imprimir.
+  if (!tem(R.payback) || !(Number(R.payback) > 0)) {
+    throw new Error('payback ausente: o projeto não se paga em 10 anos e o documento não pode ser emitido');
+  }
+
+  const pgs = [];
+  const add = (n, html) => pgs.push({ n, html });
+
+  // ── 01 · A CAPA É O NÚMERO ───────────────────────────────────────────────
+  // Não é capa de apresentação, é o lucro. O consultor entrega o celular sem
+  // abrir a boca e o cliente já sabe do que se trata.
+  add(1, `<section class="slide capa">
+  <div class="faixa"></div>
+  <div class="vitrine"><img src="${ART}dc-3q-dir.webp" alt="Carregador NEXUS"></div>
+  <div class="wrap">
+    <div class="sobre">Orçamento NEXUS nº ${esc(D.numero)} · ${esc(D.cliente)} · ${esc(D.cidade)}</div>
+    <div class="capa-num">${brl(R.lucroMes)}<span class="capa-un">por mês</span></div>
+    <div class="regua"></div>
+    <div class="entrada" style="max-width:820px">O equipamento se compra, a obra se contrata. <b>O ponto não.</b></div>
+    <div class="selos">
+      <span>investimento de volta em <b>${dec(R.payback)} anos</b></span>
+      <span>chave na mão</span>
+      <span>garantia de 24 meses</span>
+    </div>
+  </div>
+  <div class="tagline">Energia que <b>move</b> o amanhã</div>
+  <div class="rodape"><span class="tag">Válido até ${esc(D.validade)}</span><span class="pg">1</span></div>
+</section>`);
+
+  // ── 02 · A CONTA ABERTA ──────────────────────────────────────────────────
+  // A única objeção que existe depois do valor é "de onde você tirou isso".
+  // O seguro NÃO entra aqui: no Simulador ele é derivado do investimento
+  // (1% a.a. ÷ 12), não é campo que o cliente possa mexer.
+  const chips = [
+    ['Custo do kWh comprado', 'R$ ' + dec(E.custoKwh, 2)],
+    ['Gateway de pagamento', pct(E.gateway)],
+    ['Arrendamento do ponto', pct(E.arrend)],
+    ['Manutenção', pct(E.manut)],
+    ['Assinatura mensal', brl(E.assinatura)],
+    ['Imposto', pct(E.imposto)],
+    ['Custos fixos', brl(E.fixos)],
+    ['Ocupação inicial', pct(E.ocupIni) + ' por ' + Math.round(E.rampa) + ' ' + plural(E.rampa, 'mês', 'meses')],
+  ].filter(c => tem(c[1]));
+
+  add(2, `<section class="slide">
+  <div class="faixa"></div>${marca()}
+  <div class="wrap topo" style="padding-top:104px">
+    <div class="titulo menor">De onde sai esse número<span class="g"> — e você muda qualquer um agora</span></div>
+    <div class="partido">
+      <div class="lado">
+        <div class="sobre">O que você vende</div>
+        <div class="conta">
+          <div class="cl"><span class="v">${num(E.carros)}</span><span class="r">carros por dia</span></div>
+          <div class="op">×</div>
+          <div class="cl"><span class="v">${dec(E.carga, 0)}</span><span class="r">kWh por carga</span></div>
+          <div class="op">×</div>
+          <div class="cl"><span class="v">R$ ${dec(E.precoKwh, 2)}</span><span class="r">o kWh</span></div>
+          <div class="op">+</div>
+          <div class="cl"><span class="v">R$ ${dec(E.ativacao, 2)}</span><span class="r">de ativação por sessão</span></div>
+          <div class="op">×</div>
+          <div class="cl"><span class="v">30</span><span class="r">dias</span></div>
+        </div>
+        <div class="cartao verde total">
+          <div class="rot">Faturamento</div>
+          <div class="big">${brl(R.fatMes)}</div>
+          <div class="sub">${brl(R.fatAno)} por ano</div>
+        </div>
+      </div>
+      <div class="lado">
+        <div class="sobre azul">O que você paga</div>
+        <div class="chips">
+          ${chips.map(c => `<div class="chip"><div class="r">${esc(c[0])}</div><div class="v">${esc(c[1])}</div></div>`).join('')}
+        </div>
+      </div>
+    </div>
+    <div class="fecho-linha">mude qualquer um destes e a conta muda na sua frente, agora</div>
+  </div>
+  ${rodape(D, 2, D.total)}
+</section>`);
+
+  // ── 03 · TODO CUSTO NA MESA ──────────────────────────────────────────────
+  // É esta página que compra a credibilidade das outras. Nenhuma linha some.
+  const maior = Math.max(...(R.custos || []).map(c => Number(c.val) || 0), 1);
+  add(3, `<section class="slide">
+  <div class="faixa"></div>${marca()}
+  <div class="wrap topo" style="padding-top:104px">
+    <div class="titulo menor">O que já foi descontado<span class="g"> antes de você ver esse número</span></div>
+    <div class="custos">
+      ${(R.custos || []).map(c => `<div class="custo">
+        <div class="linha"><span class="r">${esc(c.rot)}</span><span class="v">${brl(c.val)}</span></div>
+        <div class="trilho"><i style="width:${css(100 * (Number(c.val) || 0) / maior)}%"></i></div>
+        ${c.nota ? `<div class="n">${esc(c.nota)}</div>` : ''}
+      </div>`).join('')}
+    </div>
+  </div>
+  <div class="faixa-verde">Sobram ${brl(R.lucroMes)} por mês · margem de ${pct(R.margem)}</div>
+  ${rodape(D, 3, D.total)}
+</section>`);
+
+  // ── 04 · O PAYBACK, COM OS DOIS NÚMEROS DE ENGENHEIRO TRADUZIDOS ─────────
+  // TIR e VPL sozinhos não vendem: o consultor precisa conseguir dizer em voz
+  // alta o que eles querem dizer.
+  const selosFin = [
+    tem(R.tir) ? `<div class="selo-fin"><div class="v">${pct(R.tir)} <small>ao ano</small></div><div class="d">TIR — é o juro que o projeto paga</div></div>` : '',
+    tem(R.vpl) ? `<div class="selo-fin"><div class="v">${brl(R.vpl)}</div><div class="d">VPL a ${pct(E.taxaDesc)} a.a. — é o que ele vale hoje, já descontado o dinheiro parado</div></div>` : '',
+  ].filter(Boolean).join('');
+
+  const posPay = Math.min(100, Math.max(0, 100 * Number(R.payback) / 10));
+  add(4, `<section class="slide">
+  <div class="faixa"></div>${marca()}
+  <div class="wrap" style="align-items:center;text-align:center">
+    <div class="entrada" style="margin-bottom:18px">você coloca <b>${brl(E.invest)}</b> uma vez</div>
+    <div class="mega">${dec(R.payback)}<span class="mega-un">anos</span></div>
+    <div class="titulo menor" style="margin-top:8px">e o dinheiro volta</div>
+    <div class="regua-anos">
+      <div class="preenche" style="left:${css(posPay)}%"></div>
+      <div class="pino" style="left:${css(posPay)}%"></div>
+      <div class="anos"><span>ano 0</span><span>ano 10</span></div>
+    </div>
+    <div class="selos-fin">${selosFin}</div>
+  </div>
+  ${rodape(D, 4, D.total)}
+</section>`);
+
+  // ── 05 · A MÁ NOTÍCIA ANTES DO PREÇO, DE PROPÓSITO ──────────────────────
+  // Colunas = max(12, rampa). A rampa é campo livre; travar em 12 corta o
+  // gráfico quando alguém digita 24.
+  const nCol = Math.max(12, Math.round(Number(E.rampa) || 1));
+  const rampa = Math.max(1, Math.round(Number(E.rampa) || 1));
+  const oc0 = Math.min(1, Math.max(0, (Number(E.ocupIni) || 100) / 100));
+  const alturas = Array.from({ length: nCol }, (_, i) => {
+    const m = i + 1;
+    return rampa <= 1 || m >= rampa ? 1 : oc0 + (1 - oc0) * (m - 1) / (rampa - 1);
+  });
+  add(5, `<section class="slide">
+  <div class="faixa"></div>${marca()}
+  <div class="wrap">
+    <div class="meio">
+      <div>
+        <div class="titulo menor">O primeiro ano<span class="g"> entra mais devagar</span></div>
+        <div class="entrada" style="margin-top:22px">ninguém abre um posto lotado, e esta conta não finge que sim</div>
+        <div class="num-grande">${brl(R.lucroAno1)}</div>
+        <div class="num-rot">lucro do ano 1</div>
+        <div class="num-medio">${brl(R.lucroAno)}</div>
+        <div class="num-rot">a partir do ano cheio</div>
+      </div>
+      <div class="rampa">
+        <div class="patamar"><span>ano cheio</span></div>
+        ${alturas.map((a, i) => `<div class="mes${i + 1 === rampa ? ' marco' : ''}" style="height:${css(a * 100)}%"></div>`).join('')}
+      </div>
+    </div>
+    <div class="nota">enche no mês ${rampa}, saindo de ${pct(E.ocupIni)} de ocupação</div>
+  </div>
+  ${rodape(D, 5, D.total)}
+</section>`);
+
+  // ── 06 · O RESPIRO ───────────────────────────────────────────────────────
+  // No meio do bloco de dinheiro, para quebrar a sequência de telas só de
+  // número. Sem número, sem nome de cliente, sem contagem de obras.
+  add(6, `<section class="slide foto">
+  <div class="bg suave" style="background-image:url('${ART}posto-noite.webp')"></div>
+  <div class="veu esq"></div>
+  <div class="faixa"></div>${marca()}
+  <div class="wrap" style="justify-content:flex-end;padding-bottom:150px">
+    <div class="titulo">Assim fica<span class="g"> o seu ponto</span></div>
+    <div class="entrada" style="margin-top:20px">cobertura, sinalização e a máquina ligada — é este o resultado da obra</div>
+  </div>
+  <div class="ilustrativa">imagem ilustrativa do projeto</div>
+  ${rodape(D, 6, D.total)}
+</section>`);
+
+  // ── 07 · O PISO PRIMEIRO ─────────────────────────────────────────────────
+  // Cartões empilhados, não grade de 3 colunas: é a única página que
+  // quebraria no celular. Cenário que empata com o projeto não é impresso
+  // duas vezes.
+  const cenVivos = CEN.filter((c, i, a) => a.findIndex(x => x.carros === c.carros) === i);
+  add(7, `<section class="slide">
+  <div class="faixa"></div>${marca()}
+  <div class="wrap topo" style="padding-top:104px">
+    <div class="titulo menor">E se vierem<span class="g"> ${num(cenVivos[0] && cenVivos[0].carros)} carros por dia?</span></div>
+    <div class="cenarios">
+      ${cenVivos.map(c => `<div class="cen-card${c.projeto ? ' este' : ''}">
+        <div class="cen-id">
+          <div class="cen-n">${esc(c.nome)}</div>
+          <div class="cen-c">${num(c.carros)} carros por dia</div>
+          ${c.projeto ? '<div class="cen-selo">a proposta está aqui</div>' : ''}
+        </div>
+        <div class="cen-vals">
+          <div><span class="r">Faturamento/mês</span><span class="v">${brl(c.fatMes)}</span></div>
+          <div><span class="r">Lucro/mês</span><span class="v forte">${brl(c.lucroMes)}</span></div>
+          <div><span class="r">Payback</span><span class="v">${tem(c.payback) ? dec(c.payback) + ' anos' : 'não paga'}</span></div>
+          <div><span class="r">TIR</span><span class="v">${tem(c.tir) ? pct(c.tir) : '—'}</span></div>
+          <div><span class="r">Patrimônio 10 anos</span><span class="v forte">${brl(c.patrimonio)}</span></div>
+        </div>
+      </div>`).join('')}
+    </div>
+    <div class="nota">os três cenários usam a mesma carga de ${dec(E.carga, 0)} kWh e o mesmo preço de kWh deste projeto</div>
+  </div>
+  ${rodape(D, 7, D.total)}
+</section>`);
+
+  // ── 08 · O PATRIMÔNIO ────────────────────────────────────────────────────
+  // No Simulador, patrimônio em 10 anos e fluxo acumulado do ano 10 são a
+  // MESMA variável. Imprimir como dois resultados diferentes é mentira.
+  const fluxo = (R.fluxo || []).slice(0, 10);
+  const pico = Math.max(...fluxo.map(Math.abs), 1);
+  add(8, `<section class="slide">
+  <div class="faixa"></div>${marca()}
+  <div class="wrap topo" style="padding-top:104px">
+    <div class="titulo menor">Em 10 anos,<span class="g"> ${brl(R.patrimonio10)}</span></div>
+    <div class="meio">
+      <div class="grafico">
+        ${fluxo.map((v, i) => `<div class="barra${v < 0 ? ' baixa' : ''}">
+          <div class="valor">${v < 0 ? '−' : ''}${brl(Math.abs(v)).replace('R$ ', '')}</div>
+          <div class="haste" style="height:${css(100 * Math.abs(v) / pico)}%"></div>
+          <div class="ano">${i + 1}</div>
+        </div>`).join('')}
+      </div>
+      <div>
+        <div class="num-grande">${brl(R.patrimonio10)}</div>
+        <div class="num-rot">acumulado em 10 anos, já descontado o que você investiu</div>
+        <div class="num-medio" style="margin-top:32px">${brl(R.lucroAno)}</div>
+        <div class="num-rot">por ano, a partir do ano cheio</div>
+      </div>
+    </div>
+  </div>
+  ${rodape(D, 8, D.total)}
+</section>`);
+
+  // ── 09 · O EQUIPAMENTO ───────────────────────────────────────────────────
+  // BICOS É FICHA TÉCNICA. O computeEletro fatura por carros/dia e ignora
+  // plugs nas fórmulas: bico não pode aparecer em conta nenhuma.
+  add(9, `<section class="slide">
+  <div class="faixa"></div>${marca()}
+  <div class="vitrine larga"><img src="${ART}dc-frente-larga.webp" alt="Carregador NEXUS"></div>
+  <div class="wrap" style="padding-right:960px">
+    <div class="modelo">${esc(D.modelo)}</div>
+    <div class="ficha-tec">
+      <div><span class="v">${num(D.quantidade)}</span><span class="r">${plural(D.quantidade, 'máquina', 'máquinas')}</span></div>
+      <div><span class="v">${num(D.bicos)}</span><span class="r">${plural(D.bicos, 'bico', 'bicos')}</span></div>
+      ${Number(D.bicos) === 2 ? '<div><span class="v">2</span><span class="r">carros ao mesmo tempo por máquina</span></div>' : ''}
+    </div>
+  </div>
+  <div class="tira-fabrica">
+    <div class="bgf" style="background-image:url('${ART}fabrica-linha.webp')"></div>
+    <div class="cont">
+      <span class="leg">linha de produção NEXUS — equipamento de linha, não protótipo</span>
+      <span class="chips2"><b>entrega em 25 dias</b><b>garantia de 24 meses</b></span>
+    </div>
+  </div>
+  ${rodape(D, 9, D.total)}
+</section>`);
+
+  // ── 10 · OS TRÊS MEDOS, COM DONO ─────────────────────────────────────────
+  // Proibida a frase "nada depende de você": a própria página a desmente três
+  // linhas acima, na coluna da concessionária.
+  const MEDOS = [
+    ['vai virar um canteiro de obra no meu terreno', 'A obra é nossa. Equipe própria, infraestrutura elétrica e civil inclusas.'],
+    ['a concessionária vai travar tudo', 'Nós fazemos o projeto e protocolamos a homologação. O calendário da análise é dela, e está dito no cronograma.'],
+    ['vou ficar com uma máquina parada', '24 meses de garantia. Manutenção e seguro já estão dentro da conta que você viu.'],
+  ];
+  add(10, `<section class="slide">
+  <div class="faixa"></div>${marca()}
+  <div class="wrap topo" style="padding-top:104px">
+    <div class="titulo menor">Nenhum dos três riscos<span class="g"> é seu</span></div>
+    <div class="medos">
+      ${MEDOS.map(m => `<div class="medo">
+        <div class="fala">“${esc(m[0])}”</div>
+        <div class="reg"></div>
+        <div class="resp">${esc(m[1])}</div>
+      </div>`).join('')}
+    </div>
+    <div class="fecho-linha verde">os três têm dono, e nenhum deles é você</div>
+  </div>
+  ${rodape(D, 10, D.total)}
+</section>`);
+
+  // ── 11 · O VALOR, COM A COLUNA HONESTA DO LADO ──────────────────────────
+  // Preço por item é PROIBIDO: valor do projeto é um número só. E a coluna
+  // "por sua conta" existe porque omitir o padrão de entrada é o aditivo que
+  // quebra a confiança depois de assinado.
+  const DENTRO = ['Carregador ' + D.modelo, 'Projeto de engenharia', 'Homologação na concessionária',
+    'Infraestrutura elétrica', 'Infraestrutura civil', 'Mão de obra e instalação', 'Garantia de 24 meses'];
+  const FORA = ['O espaço', 'A ligação de energia no nome de quem vai operar', 'A energia consumida'];
+  add(11, `<section class="slide">
+  <div class="faixa"></div>${marca()}
+  <div class="wrap topo" style="padding-top:104px">
+    <div class="titulo menor">O que está dentro do valor<span class="g"> — e o que não está</span></div>
+    <div class="duas">
+      <div>
+        <div class="sobre">Dentro do valor</div>
+        <ul class="lista">${DENTRO.map(i => `<li>${esc(i)}</li>`).join('')}</ul>
+      </div>
+      <div>
+        <div class="sobre azul">Por sua conta</div>
+        <ul class="lista azul">${FORA.map(i => `<li>${esc(i)}</li>`).join('')}</ul>
+        <div class="cartao azul" style="margin-top:22px">Padrão de entrada e transformador, se o seu padrão não aguentar a carga. Orçados depois da medição.</div>
+      </div>
+    </div>
+  </div>
+  <div class="faixa-verde">${brl(E.invest)} · valor total do projeto, chave na mão</div>
+  ${rodape(D, 11, D.total)}
+</section>`);
+
+  // ── 12 · A ETAPA 1 É A ASSINATURA ───────────────────────────────────────
+  // NENHUMA data, nenhum prazo em dias, e em lugar nenhum as palavras visita
+  // técnica ou medição antes da assinatura: pré-requisito impresso vira
+  // desculpa para adiar.
+  const ETAPAS = [
+    ['Assinatura do contrato', 'marco zero', 'zero'],
+    ['Projeto executivo e ART', '', 'nos'],
+    ['Protocolo de homologação', '', 'nos'],
+    ['Análise e parecer de acesso', '', 'dist'],
+    ['Obra civil e elétrica', '', 'nos'],
+    ['Equipamento no local e instalação', '', 'nos'],
+    ['Vistoria e ligação', '', 'dist'],
+  ];
+  const nNos = ETAPAS.filter(e => e[2] === 'nos').length;
+  const nDist = ETAPAS.filter(e => e[2] === 'dist').length;
+  add(12, `<section class="slide">
+  <div class="faixa"></div>${marca()}
+  <div class="wrap topo" style="padding-top:104px">
+    <div class="titulo menor">A etapa 1<span class="g"> é a assinatura</span></div>
+    <div class="trilho-etapas">
+      ${ETAPAS.map((e, i) => `<div class="et ${e[2]}">
+        <div class="n">${i + 1}</div>
+        <div class="t">${esc(e[0])}</div>
+        ${e[1] ? `<div class="marco">${esc(e[1])}</div>` : ''}
+        <div class="quem">${e[2] === 'dist' ? 'concessionária' : e[2] === 'zero' ? 'você' : 'nosso'}</div>
+      </div>`).join('')}
+    </div>
+    <div class="nota">das ${ETAPAS.length} etapas, ${nNos} são nossas e ${nDist} dependem da concessionária, que é quem define o calendário do parecer de acesso. A data da ligação a gente crava assim que ele sai.</div>
+  </div>
+  ${rodape(D, 12, D.total)}
+</section>`);
+
+  // ── 13 · O FECHO ─────────────────────────────────────────────────────────
+  // NENHUM número novo. Os três são repetidos das páginas 1, 4 e 11. É a
+  // página que fica parada na tela enquanto se conversa.
+  add(13, `<section class="slide fecho">
+  <div class="faixa"></div>
+  <div class="wrap" style="justify-content:center">
+    <img class="logo-grande" src="${LOGO}" alt="NEXUS Eletropostos">
+    <div class="tagline-fecho">Energia que <b>move</b> o amanhã</div>
+    <div class="titulo" style="margin-top:44px">O que falta<span class="g"> é a sua assinatura</span></div>
+    <div class="regua"></div>
+    <div class="tres">
+      <div><span class="v">${brl(R.lucroMes)}</span><span class="r">por mês</span></div>
+      <div><span class="v">${dec(R.payback)} anos</span><span class="r">para o dinheiro voltar</span></div>
+      <div><span class="v">${brl(E.invest)}</span><span class="r">o projeto, chave na mão</span></div>
+    </div>
+    <div class="contato">
+      <div class="bloco"><div class="r">Seu consultor</div><div class="v">${esc(D.vendedor)}</div></div>
+      <div class="bloco"><div class="r">WhatsApp</div><div class="v">${esc(D.contato)}</div></div>
+      <div class="bloco"><div class="r">Proposta</div><div class="v">nº ${esc(D.numero)}</div></div>
+    </div>
+    <div class="validade-fecho">válida até ${esc(D.validade)}</div>
+  </div>
+  <div class="faixa-foto"><div class="bgf" style="background-image:url('${ART}posto-noite.webp')"></div></div>
+  <div class="ilustrativa">imagem ilustrativa do projeto</div>
+</section>`);
+
+  // ── o recorte ────────────────────────────────────────────────────────────
+  // O RESUMO é subconjunto, nunca um deck diferente: mesma página, mesmo
+  // número, mesma conta. Escolhidas pelo painel: o número, a conta que o
+  // produz, o payback, o piso, o preço e o fecho.
+  const RESUMO = [1, 2, 4, 7, 11, 13];
+  const sai = D.versao === 'resumo' ? pgs.filter(p => RESUMO.includes(p.n)) : pgs;
+  return sai.map(p => p.html).join('\n');
+}
+
+// ── render ─────────────────────────────────────────────────────────────────
+(function () {
+  const D = carregar();
+  const alvo = document.getElementById('deck');
+  if (!D) { alvo.innerHTML = '<p style="color:#8CA0B8;font:16px Montserrat;padding:40px">Sem dados. Abra pelo Gerador.</p>'; return; }
+  if (D.movel) document.body.classList.add('movel');
+  // total de páginas do RECORTE, não do deck inteiro: rodapé dizendo 7/13 num
+  // documento de 6 folhas faz o cliente procurar o que não recebeu.
+  D.total = D.versao === 'resumo' ? 6 : 13;
+  try {
+    alvo.innerHTML = montar(D);
+  } catch (e) {
+    alvo.innerHTML = '<p style="color:#F05252;font:16px Montserrat;padding:40px">' + esc(e.message) + '</p>';
+    window.__PREMIUM_ERRO = e.message;
+  }
+})();
+</script>
+</body>
+</html>
