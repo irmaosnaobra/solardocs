@@ -539,10 +539,35 @@ body.movel .faixa-verde{font-size:26px;padding:26px 72px}
    1920x1080 dentro de um A4 em pé e cada página sai cortada, com uma faixa
    branca embaixo.
    ══════════════════════════════════════════════════════════════════════════ */
-@page{size:1920px 1080px landscape;margin:0}
+/* ══════════════════════════════════════════════════════════════════════════
+   A FOLHA É A4, DEITADA. Ordem do Thiago (25/09/2026), depois de o preview sair
+   em retrato e cortado.
+
+   POR QUE `A4 landscape` E NÃO `1920px 1080px`
+   A gramática do @page aceita OU duas medidas OU um nome de folha mais a
+   orientação — nunca os dois. `size:1920px 1080px landscape` é inválido e o
+   navegador descarta a regra INTEIRA, caindo no A4 em pé: foi o que cortou o
+   slide ao meio. E mesmo escrito certo, folha de 1920px tem meio metro de
+   largura: vira PDF que nenhuma impressora aceita e que o cliente não consegue
+   imprimir no escritório dele.
+
+   COMO O SLIDE DE 16:9 CABE NUMA FOLHA DE 1,414
+   A4 deitada tem 1122×793 px (297×210 mm a 96 dpi). O deck é desenhado em
+   1920 de largura, então o `zoom` de 0,5846 leva a largura exata para 1122 —
+   e `zoom` é o único que reduz a CAIXA DE LAYOUT junto, ao contrário do
+   `transform:scale`, que encolhe o desenho e deixa o papel sobrando embaixo.
+   A altura do slide vira 1358 na impressão (793 ÷ 0,5846) para a folha ser
+   preenchida de ponta a ponta, sem tarja branca. O conteúdo é centrado pelo
+   `.wrap`, então ele só respira mais; o que é ancorado embaixo (rodapé, faixa
+   verde, tira da fábrica) continua embaixo, porque é ancorado na folha.
+   ══════════════════════════════════════════════════════════════════════════ */
+@page{size:A4 landscape;margin:0}
 
 @media print{
-  html,body{background:#0B1A2B;padding:0;margin:0;width:1920px}
+  html,body{background:#0B1A2B;padding:0;margin:0;width:auto}
+  /* 1920 × 0,5846 = 1122 px = 297 mm. `zoom` encolhe a caixa de layout junto;
+     `transform:scale` não, e por isso sobraria papel em branco embaixo. */
+  .slide{zoom:.5846;height:1358px}
   /* a barra é ferramenta do consultor, não faz parte do documento */
   .acoes{display:none !important}
   #deck{display:block;gap:0;transform:none}
