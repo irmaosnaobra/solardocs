@@ -11033,9 +11033,32 @@ function eletroFluxoSVG(fluxo) {
 }
 
 // ===== PDF: estudo de viabilidade técnico-econômica (container light dedicado), via window.print() =====
+// ===== PDF: estudo de viabilidade técnico-econômica (container light dedicado), via window.print() =====
+// 25/09/2026 — o dono pediu o documento "mais apertado e mais bem acabado". O que
+// mudou (medido no banco de provas, folha por folha, com a marca d'agua fora da
+// conta — ela e' absoluta e inflava a medida antiga):
+//
+//   1. A FOLHA 1 VAZAVA. Ela fechava em 1.110px (293,7mm) contra os 255mm de
+//      piso do .ep-page: com a margem padrao do Chrome (~10mm de cada lado, area
+//      util de 277mm) ela ia pra uma 5a folha com o rodape jurando "de 4". Com
+//      nome de cliente longo e VPL negativo dava 1.145px (303mm) — vazava sempre.
+//      Agora fecha em 964px (255mm) nos dois casos.
+//   2. O BRANCO NO PE'. Folha 2 tinha 197px de vazio e a folha 4, 141px. O
+//      documento nao encolheu de pagina (medido: 2.604px de conteudo contra
+//      2.517px de espaco em 3 folhas — falta ~87px, e sem folga nenhuma pra
+//      numero que quebra em duas linhas). Entao o branco que sobrava virou
+//      RESPIRO nos blocos das folhas 2 a 4, em vez de buraco no pe'.
+//   3. O rodape passou a CONTAR as folhas (como o contrato ja' faz), em vez de
+//      "de 4" cravado. Documento com folha a mais nunca mais mente na contagem.
+//
+// Regra do aperto: nada de fonte menor e nada de texto a menos — o cliente le'
+// esse papel. Tudo abaixo e' MARGEM, PADDING e ARRANJO, e mora num <style> preso
+// ao .ep-estudo: .ep-page, .ep-box e .ep-kv sao os mesmos do contrato, do recibo,
+// da procuracao, da proposta bancaria e da analise de credito — mexer neles no
+// CSS global derruba os outros cinco documentos.
 function eletroImprimir() {
-  eletroSalvarHistorico();   // registra o orçamento no histórico (fire-and-forget)
-  eletroUltimoSalvar();      // e guarda o estado local: daqui saem todas as outras abas
+  eletroSalvarHistorico();
+  eletroUltimoSalvar();
   const p = eletroParams();
   const r = computeEletro(p);
   const t = eletroTextos();
@@ -11045,12 +11068,10 @@ function eletroImprimir() {
   const pb = elAnos1(r.payback);
   const txPct = (r.taxaDesc * 100).toFixed(2).replace('.', ',') + '% a.a.';
   const hoje = new Date();
-  const validade = new Date(hoje.getTime() + 7 * 24 * 3600 * 1000);
 
   const linhasFluxo = r.fluxo.map((v, i) =>
     `<tr><td>Ano ${i + 1}${i === 0 ? ' (rampa de ocupação)' : ''}</td><td class="num" style="color:${v < 0 ? '#b91c1c' : '#15803d'}">${money(v)}</td></tr>`).join('');
 
-  // Análise de sensibilidade: Conservador / Base / Otimista (todos com rampa)
   const cen = eletroCenariosSens(p);
   const cmpHead = cen.map(c => `<th class="num${c.rot === 'Base' ? ' atual' : ''}">${c.rot}<br><span style="font-weight:400;font-size:9.5px;text-transform:none">${c.carros} carros/dia (${c.nota})</span></th>`).join('');
   const cmpRow = (lbl, fn) => `<tr><td>${lbl}</td>${cen.map(c => `<td class="num">${fn(c.r)}</td>`).join('')}</tr>`;
@@ -11063,7 +11084,6 @@ function eletroImprimir() {
     cmpRow('Patrimônio em 10 anos', x => money(x.acumulado10)),
   ].join('');
 
-  // Sumário executivo — prosa gerada dos números, sem promessa vazia
   const tirFrase = r.tir == null
     ? `payback nominal não alcançado dentro do horizonte de 10 anos`
     : (r.tir > r.taxaDesc
@@ -11074,11 +11094,36 @@ function eletroImprimir() {
     : `O VPL de ${money(r.vpl)} à taxa adotada indica que, nestas premissas, o projeto não supera o custo de oportunidade do capital — recomenda-se revisar demanda, preço ou investimento.`;
   const execHTML = `Este estudo avalia a implantação de um eletroposto${t.cidade ? ` em <b>${t.cidade}</b>` : ''}${t.cliente ? ` para <b>${t.cliente}</b>` : ''}, com investimento total de <b>${money(r.investTotal)}</b>${t.equip ? ` (${epEquipRotulo(t.equip)})` : ''}. No cenário-base — <b>${Math.round(r.carros)} carros/dia em regime</b>, atingidos após rampa de ocupação de ${r.mesesRampa} meses — o projeto gera <b>${money(r.lucroMes)}/mês</b> de lucro em regime pleno, com <b>payback em ${pb}</b> e ${tirFrase}. ${vplFrase} A análise de sensibilidade, as premissas e os riscos mapeados constam nas seções seguintes.`;
 
-  // rodapé de cada folha A4 (paginação explícita — 4 páginas)
-  const pageFoot = n => `<div class="ep-pagefoot"><span class="ep-foot-esq">${EP_FOOT_LOGO}<span>Estudo de Viabilidade — Eletroposto${t.cliente ? ' · ' + t.cliente : ''}</span></span><span>Página ${n} de 4</span></div>`;
+  // Folha 1 aperta MARGEM (ela vazava). Folhas 2-4 ganham RESPIRO (elas sobravam).
+  // Tudo preso ao .ep-estudo: as classes sao compartilhadas com os outros cinco documentos.
+  const CSS = `<style>
+  .ep-estudo .ep-page{padding:12mm 18mm}
+  .ep-estudo .ep-topo{margin-bottom:2px}
+  .ep-estudo .ep-propbox{padding:9px 15px;gap:4px}
+  .ep-estudo .ep-propbox .rowf{padding-bottom:3px}
+  .ep-estudo .ep-exec{padding:9px 14px}
+  .ep-estudo .ep-mkt{grid-template-columns:repeat(6,1fr);gap:7px}
+  .ep-estudo .ep-mkt-item{padding:7px 6px}
+  .ep-estudo .ep-cols{gap:16px}
+  .ep-estudo .ep-cols .ep-box{padding:10px 13px}
+  .ep-estudo .ep-cols .ep-kv td{padding:3px 0}
+  .ep-estudo .ep-kpi{padding:26px 10px;display:flex;flex-direction:column;justify-content:space-between}
+  .ep-estudo .ep-kpi .v{margin-top:8px}
+  .ep-estudo .ep-kpi-title{margin:18px 0 11px}
+  .ep-estudo .ep-prem{line-height:1.65}
+  .ep-estudo .ep-prem li{margin-bottom:11px}
+  .ep-estudo .ep-page>.ep-box{padding:14px 16px}
+  .ep-estudo .ep-riscos th{padding:7px 8px 7px 0}
+  .ep-estudo .ep-riscos td{padding:11px 8px 11px 0}
+  .ep-estudo .ep-passos li{margin-bottom:8px}
+  .ep-estudo .ep-forma-label{margin:18px 0 9px}
+  .ep-estudo .ep-fb-col{padding:22px 18px}
+  .ep-estudo .ep-foot{margin-top:16px;padding-top:11px}
+  </style>`;
 
-  host.innerHTML = `
+  let html = `
     <div class="ep-doc ep-estudo">
+      ${CSS}
       <div class="ep-page">
       <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
       ${epTopoHTML('Estudo de Viabilidade — Eletroposto', hoje.toLocaleDateString('pt-BR'),
@@ -11107,7 +11152,6 @@ function eletroImprimir() {
           <table class="ep-kv">
             <tr><td>Carros por dia (regime pleno)</td><td class="num">${Math.round(r.carros)}</td></tr>
             <tr><td>Bicos de carregamento</td><td class="num">${Math.round(r.plugs)}</td></tr>
-            ${/* Uma célula só, com o valor à direita: em duas colunas o "NEXUS DC160 · 160 kW" alargava a coluna de valores, quebrava os rótulos das outras linhas e a folha 1 passava de uma página (5 folhas com "Página n de 4"). Em colspan ele não mexe na largura das colunas. */ ''}
             ${t.equip ? `<tr><td colspan="2" style="text-align:left;font-weight:400;color:#333">Equipamento<span style="float:right;font-weight:700;color:#1a1a1a;white-space:nowrap">${epEquipRotulo(t.equip)}</span></td></tr>` : ''}
             <tr><td>Média de carga por carro</td><td class="num">${r.carga} kWh</td></tr>
             <tr><td>Custo do kWh</td><td class="num">${elMoney2(r.custoKwh)}</td></tr>
@@ -11129,8 +11173,8 @@ function eletroImprimir() {
           </table>
         </div>
       </div>
-      ${pageFoot(1)}
-      </div><!-- /página 1 -->
+      __FOOT1__
+      </div>
 
       <div class="ep-page">
       <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
@@ -11171,8 +11215,8 @@ function eletroImprimir() {
           <li>A projeção financeira parte de premissas informadas pelo responsável comercial e não constitui garantia de resultado; os dados de mercado têm fonte citada.</li>
         </ol>
       </div>
-      ${pageFoot(2)}
-      </div><!-- /página 2 -->
+      __FOOT2__
+      </div>
 
       <div class="ep-page">
       <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
@@ -11189,8 +11233,8 @@ function eletroImprimir() {
           <tbody>${cmpBody}</tbody>
         </table>
       </div>
-      ${pageFoot(3)}
-      </div><!-- /página 3 -->
+      __FOOT3__
+      </div>
 
       <div class="ep-page">
       <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
@@ -11219,9 +11263,16 @@ function eletroImprimir() {
 
       ${epFooterBlockHTML({ nome: t.autor, contato: t.contato })}
       <div class="ep-foot">Dados de mercado: ${m.fonte} · Projeção financeira: elaborada a partir das premissas declaradas na seção "Premissas e metodologia" — valores estimados, não constituem garantia de resultado.</div>
-      ${pageFoot(4)}
-      </div><!-- /página 4 -->
+      __FOOT4__
+      </div>
     </div>`;
+
+  // O rodape CONTA as folhas em vez de jurar "de 4": marcador por folha, trocado
+  // depois que o HTML esta montado. Mesma ideia do contrato.
+  const TOT = (html.match(/__FOOT\d+__/g) || []).length || 1;
+  html = html.replace(/__FOOT(\d+)__/g, (_, n) =>
+    `<div class="ep-pagefoot"><span class="ep-foot-esq">${EP_FOOT_LOGO}<span>Estudo de Viabilidade — Eletroposto${t.cliente ? ' · ' + t.cliente : ''}</span></span><span>Página ${n} de ${TOT}</span></div>`);
+  host.innerHTML = html;
 
   // Nome do arquivo no "Salvar como PDF" = título do documento na hora do print.
   // Padrão: NomeCliente_Eletroposto_Cidade (sem acentos/espaços/símbolos).
@@ -11229,7 +11280,6 @@ function eletroImprimir() {
     .normalize('NFD').replace(/[̀-ͯ]/g, '')   // remove acentos (compatibilidade de arquivo)
     .replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
   const nomeArq = [limpa(t.cliente) || 'Estudo', 'Eletroposto', limpa(t.cidade)].filter(Boolean).join('_');
-  // epPrint espera a marca d'água carregar antes de abrir a impressão (evita 1º print sem a arte)
   epPrint(host, nomeArq);
 }
 
@@ -12932,80 +12982,251 @@ function epPrint(host, nomeArq) {
 // ===== FOTO DO SIMULADOR: a tela como ela está, inteira, em UMA folha A4 =====
 // Complementa o Estudo de Viabilidade (documento formatado). Aqui é o retrato da
 // reunião: os mesmos campos, KPIs e gráfico que o cliente viu na tela.
-function eletroTelaA4() {
-  const pane = document.getElementById('eletro-pane-simulador');
-  const host = document.getElementById('eletro-print');
-  if (!pane || !host) return;
+// ═══════════════════════════════════════════════════════════════════════════
+// PLANILHA DO SIMULADOR — abordagem RESUMO EXECUTIVO PRIMEIRO
+//
+// O TITULO NAO DIZ "SIMULADOR". Simulador e o nome da ABA do nosso app; o
+// cliente que recebe o papel nao sabe o que e' e nao precisa saber. No papel
+// ele le "Resumo do Investimento", que e' o que o documento e'. O botao na tela
+// continua "Simulador em PDF", porque ali quem le e' o consultor.
+//
+// Hoje o eletroTelaA4 CLONA o pane do Simulador e imprime: é uma foto da tela,
+// com fundo escuro de app, caixas de input, campo vazio virando linha vazia e a
+// nota interna do consultor ("vale para os 5 documentos…") vazando pro papel do
+// cliente. Aqui o papel vira DOCUMENTO, no mesmo padrão dos outros cinco (logo
+// NEXUS de papel, tinta #0B1A2B, faixa verde com letra escura, rodapé escuro de
+// vendedor/empresa, rodapé de página) — e a ORDEM é invertida: primeiro o que o
+// cliente decide (investimento, lucro/mês, payback, TIR) com uma frase em
+// português explicando, depois o resultado, e só no fim o que foi digitado,
+// como memória de cálculo.
+//
+// O CÁLCULO NÃO É MEXIDO: tudo sai de computeEletro(eletroParams()).
+// ═══════════════════════════════════════════════════════════════════════════
 
-  const t = eletroTextos();
-  const clone = pane.cloneNode(true);
-
-  // cloneNode copia o ATRIBUTO value, não o que foi digitado (isso é propriedade).
-  // Sem esta cópia, a foto sairia com os valores de fábrica — e o "Seguro | Ano",
-  // escrito só por .value, sairia vazio. Casa por índice: a árvore é a mesma.
-  const orig = pane.querySelectorAll('input,select,textarea');
-  const copia = clone.querySelectorAll('input,select,textarea');
-  orig.forEach((o, i) => {
-    const c = copia[i];
-    if (!c) return;
-    if (o.type === 'checkbox' || o.type === 'radio') {
-      c.checked = o.checked;
-      if (o.checked) c.setAttribute('checked', ''); else c.removeAttribute('checked');
-      return;
-    }
-    if (o.tagName === 'SELECT') {
-      // selectedIndex -1 = nenhuma opção casa com o valor (acontece se alguém
-      // escrever no select um valor fora da lista). Sem este guard, NENHUMA
-      // option recebia `selected` e o clone imprimia a PRIMEIRA — a foto A4 saía
-      // com uma potência que o consultor não escolheu. Melhor sair em branco.
-      const idx = o.selectedIndex;
-      Array.from(c.options).forEach((op, j) => {
-        const sel = idx >= 0 && j === idx;
-        op.selected = sel;
-        if (sel) op.setAttribute('selected', ''); else op.removeAttribute('selected');
-      });
-      if (idx < 0) c.selectedIndex = -1;
-      return;
-    }
-    c.setAttribute('value', o.value);
-    c.value = o.value;
+// Fluxo de caixa com RÓTULO DE VALOR em cada barra. O eletroFluxoSVG da casa
+// desenha só o número do ano; a tela do Simulador mostra o acumulado em cima de
+// cada barra, e é esse número que o cliente lê — tirar os 10 valores seria
+// perder dado. Só desenha: não calcula nada.
+//
+// A escala aqui divide pela AMPLITUDE (maior positivo + maior negativo), não
+// pelo maior valor absoluto. Com |máx| o zero encosta no topo do plot quando o
+// pico positivo manda, e não sobra altura nenhuma pras barras negativas: os
+// anos de payback saíam CORTADOS, como quadradinhos no eixo.
+function plFluxoSVG(fluxo) {
+  const W = 720, H = 168, padX = 18, padTop = 16, axis = 30;
+  const n = fluxo.length;
+  const gap = (W - padX * 2) / n;
+  const bw = gap * 0.54;
+  const maxPos = Math.max(0, ...fluxo);
+  const maxNeg = Math.max(0, ...fluxo.map(v => -v));
+  const amp = Math.max(1, maxPos + maxNeg);
+  const plot = H - padTop - axis;
+  const scale = plot / amp;
+  const zeroY = padTop + maxPos * scale;
+  let out = '';
+  fluxo.forEach((v, i) => {
+    const x = padX + gap * i + (gap - bw) / 2;
+    const h = Math.abs(v) * scale;
+    const y = v >= 0 ? zeroY - h : zeroY;
+    const neg = v < 0;
+    out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${neg ? '#B91C1C' : '#0B1A2B'}" rx="2"></rect>`;
+    // rótulo do valor: acima da barra positiva, abaixo da negativa — nunca em
+    // cima da linha do zero, que é onde ele ficaria ilegível nos primeiros anos.
+    const ly = neg ? y + h + 9.5 : y - 4.5;
+    out += `<text x="${(x + bw / 2).toFixed(1)}" y="${ly.toFixed(1)}" font-size="9.5" font-weight="700" fill="${neg ? '#B91C1C' : '#0B1A2B'}" text-anchor="middle">${elMoneyK(v)}</text>`;
+    out += `<text x="${(x + bw / 2).toFixed(1)}" y="${H - 5}" font-size="9" fill="#6B7684" text-anchor="middle">Ano ${i + 1}</text>`;
   });
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:100%;display:block">`
+    + `<line x1="${padX}" y1="${zeroY.toFixed(1)}" x2="${W - padX}" y2="${zeroY.toFixed(1)}" stroke="#C7D0DC" stroke-width="1"></line>${out}</svg>`;
+}
 
-  // id duplicado no documento faz o getElementById do simulador VIVO cair no clone.
-  clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
-  clone.removeAttribute('id');
-  // fora da foto: os botões de ação e as bolinhas de ajuda (só servem no clique)
-  clone.querySelectorAll('.eletro-acoes,.el-tip').forEach(el => el.remove());
+function eletroTelaA4() {
+  const host = document.getElementById('eletro-print');
+  if (!host) return;
 
-  const cab = [t.cliente, t.cidade, epEquipRotulo(t.equip)].filter(Boolean).join(' · ');
-  const page = document.createElement('div');
-  page.className = 'simshot';
-  const head = document.createElement('div');
-  head.className = 'simshot-head';
-  const b = document.createElement('b'); b.textContent = 'Simulador — Eletroposto';
-  const sp = document.createElement('span');
-  sp.textContent = (cab ? cab + ' · ' : '') + new Date().toLocaleDateString('pt-BR');
-  head.append(b, sp);
-  const clip = document.createElement('div'); clip.className = 'simshot-clip';
-  const escala = document.createElement('div'); escala.className = 'simshot-scale';
-  escala.appendChild(clone);
-  clip.appendChild(escala);
-  page.append(head, clip);
-  host.innerHTML = '';
-  host.appendChild(page);
+  const p = eletroParams();
+  const r = computeEletro(p);
+  const t = eletroTextos();
+  const hoje = new Date();
+  const money = elMoney;
+  const txPct = (r.taxaDesc * 100).toFixed(2).replace('.', ',') + '% a.a.';
+  const pb = elAnos1(r.payback);
+  const esc = typeof orcEsc === 'function' ? orcEsc : (s => String(s == null ? '' : s));
 
-  // Mede fora da tela e acha a escala que faz TUDO caber na folha. A largura do
-  // bloco é fixa (1180px = o max-width do #eletroSection), então só a altura varia.
-  host.style.cssText = 'display:block;position:fixed;left:-20000px;top:0;z-index:-1';
-  const cx = clip.getBoundingClientRect();
-  const alvo = escala.getBoundingClientRect();
-  const k = Math.min(cx.width / Math.max(1, alvo.width), cx.height / Math.max(1, alvo.height)) * 0.985;
-  escala.style.transform = `scale(${k})`;
-  const sobra = cx.width - alvo.width * k;
-  if (sobra > 1) escala.style.left = (sobra / 2).toFixed(1) + 'px';   // centraliza na folha
-  host.style.cssText = '';
+  // ── REGRA 3: campo de formulário VAZIO não vira linha vazia no papel ──
+  // Vazio ("") some. ZERO DIGITADO fica: "Arrendamento do ponto 0%" é informação
+  // (o terreno é do próprio cliente), não lacuna. Por isso a checagem é no
+  // .value do campo e não no número — "" e "0" viram o mesmo 0 depois do parse,
+  // e só o campo cru distingue os dois. É esse detalhe que hoje imprime
+  // "Taxa de ativação R$" em branco na foto da tela, e "R$ 0,00" no Estudo.
+  const cru = id => (document.getElementById(id)?.value || '').trim();
+  const seTem = (id, valor) => cru(id) === '' ? '' : valor;
+  const kv = rows => rows.filter(x => x && x[1] !== '' && x[1] != null)
+    .map(x => `<tr${x[2] ? ' class="hl"' : ''}><td>${x[0]}</td><td class="num">${x[1]}</td></tr>`).join('');
 
-  epPrint(host, `Simulador Eletroposto${t.cliente ? ' - ' + t.cliente : ''}`);
+  // ── A FRASE: gerada dos números, com as mesmas ramificações do Estudo. ──
+  // Frase fixa vira mentira no dia em que alguém digita um investimento ruim.
+  const verdito = r.tir == null
+    ? `<b>Atenção:</b> nestas premissas o investimento <b>não se paga dentro dos 10 anos</b> projetados. Vale revisar a demanda de carros por dia, o preço de revenda do kWh ou o valor do projeto antes de seguir.`
+    : (r.vpl > 0
+      ? `Em português: são <b>${money(r.investTotal)}</b> de investimento e o posto devolve <b>${money(r.lucroMes)} por mês</b> quando estiver em regime. O capital volta em <b>${pb}</b>, e daí em diante o que entra é retorno — <b>${elPct1(r.tir)} ao ano</b>, acima da taxa de referência de ${txPct} usada como comparação. Ao fim de 10 anos o projeto acumula <b>${money(r.acumulado10)}</b> além do que foi investido.`
+      : `Em português: são <b>${money(r.investTotal)}</b> de investimento e o posto devolve <b>${money(r.lucroMes)} por mês</b> em regime, com o capital de volta em <b>${pb}</b> (<b>${elPct1(r.tir)} ao ano</b>). Nestas premissas o resultado fica <b>abaixo</b> da taxa de referência de ${txPct}: o projeto se paga, mas rende menos que o custo de oportunidade adotado.`);
+
+  // ── Hero: os QUATRO números que decidem a compra. Nem um a mais. ──
+  // VPL, ROI e payback descontado são de segunda leitura e vão na tira abaixo.
+  const hero = [
+    ['Investimento total', money(r.investTotal), 'o que sai do bolso'],
+    ['Lucro por mês', money(r.lucroMes), 'em regime pleno'],
+    ['Retorno do capital', pb, 'payback simples'],
+    ['Rentabilidade', r.tir == null ? '—' : elPct1(r.tir), r.tir == null ? 'não alcançada em 10 anos' : 'ao ano (TIR)'],
+  ].map(h => `<div class="pl-hero"><div class="k">${h[0]}</div><div class="v">${h[1]}</div><div class="s">${h[2]}</div></div>`).join('');
+
+  // Tira de uma linha em vez de três cartões: os mesmos três indicadores, 50px
+  // a menos de folha — que é o que separa este documento de uma folha e meia.
+  const tira = [
+    ['VPL @ ' + txPct, money(r.vpl), r.vpl > 0 ? 'pos' : 'neg'],
+    ['ROI em 10 anos', Math.round(r.roi10 * 100) + '%', ''],
+    ['Payback descontado', elAnos1(r.paybackDesc), ''],
+  ].map(c => `<span class="pl-ti"><i>${c[0]}</i><b class="${c[2]}">${c[1]}</b></span>`).join('');
+
+  const html = `
+<div class="ep-doc pl-rx">
+  <style>
+    /* Escopo próprio: aperta o padrão .ep-* o bastante pra caber em UMA folha,
+       sem tocar no Estudo nem nos outros cinco documentos. */
+    .pl-rx .ep-page{min-height:0;padding:9mm 14mm}
+    .pl-rx .ep-topo{grid-template-columns:minmax(0,.62fr) minmax(0,1fr);gap:14px;margin-bottom:0}
+    .pl-rx .ep-propbox{padding:9px 13px;gap:3px;border-radius:5px}
+    .pl-rx .ep-propbox .t{font-size:11px;letter-spacing:1px;margin-bottom:0}
+    .pl-rx .ep-propbox .rowf{font-size:9.8px;padding-bottom:3px}
+    .pl-rx .ep-valid{font-size:9px;padding:3px 9px;margin-top:1px}
+    .pl-rx .ep-brand-img{height:16mm}
+    .pl-rx .ep-brand{margin-bottom:0;align-items:center}
+    .pl-rx .ep-section{margin:6px 0 4px;padding:4px 10px;font-size:10.4px;letter-spacing:.5px}
+    .pl-rx .pl-heros{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+    .pl-rx .pl-hero{border:1px solid #D3DCE6;border-top:3px solid #0B1A2B;border-radius:8px;
+      padding:6px 9px 7px;background:#F8FAFC;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .pl-rx .pl-hero .k{font-size:8.2px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#5B6B7C}
+    .pl-rx .pl-hero .v{font-size:19.5px;font-weight:800;color:#0B1A2B;line-height:1.08;margin-top:2px;
+      font-variant-numeric:tabular-nums;letter-spacing:-.7px;white-space:nowrap}
+    .pl-rx .pl-hero .s{font-size:8.4px;color:#7B8496;margin-top:1px}
+    .pl-rx .ep-exec{font-size:9.9px;line-height:1.42;padding:7px 10px;margin:5px 0 0;border-radius:5px}
+    .pl-rx .ep-cols{gap:11px;margin-bottom:0}
+    .pl-rx .ep-box{padding:6px 9px;margin-bottom:0;border-radius:7px}
+    .pl-rx .ep-box h3{font-size:9.4px;margin-bottom:3px;letter-spacing:.4px}
+    .pl-rx .ep-kv{font-size:10px}
+    .pl-rx .ep-kv td{padding:1.9px 0;border-bottom:1px solid #F1F1F1}
+    .pl-rx .ep-kv td.num{padding-right:3px}
+    .pl-rx .ep-kv tr:last-child td{border-bottom:none}
+    /* tira de indicadores secundários — uma linha, três valores */
+    .pl-rx .pl-tira{display:flex;gap:8px;margin-top:6px}
+    .pl-rx .pl-ti{flex:1;display:flex;justify-content:space-between;align-items:baseline;gap:6px;
+      border:1px solid #D3DCE6;border-radius:7px;padding:4px 10px;background:#F8FAFC;
+      -webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .pl-rx .pl-ti i{font-style:normal;font-size:8.6px;font-weight:700;letter-spacing:.4px;
+      text-transform:uppercase;color:#5B6B7C}
+    .pl-rx .pl-ti b{font-size:12.5px;font-weight:800;color:#0B1A2B;font-variant-numeric:tabular-nums}
+    .pl-rx .pl-ti b.pos{color:#15803D}
+    .pl-rx .pl-ti b.neg{color:#B91C1C}
+    .pl-rx .pl-chart{border:1px solid #E5E7EB;border-radius:7px;padding:5px 9px 1px;margin-top:6px}
+    .pl-rx .pl-chart .cap{font-size:9.4px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;
+      color:#0B1A2B;margin-bottom:1px}
+    .pl-rx .pl-chart .cap span{float:right;font-weight:600;text-transform:none;letter-spacing:0;color:#6B7684}
+    .pl-rx .ep-forma-label{margin:7px 0 4px;font-size:9.4px}
+    .pl-rx .ep-fb-col{padding:8px 11px;font-size:9.4px;line-height:1.4}
+    .pl-rx .ep-fb-col .t{font-size:9.4px;margin-bottom:5px}
+    .pl-rx .ep-fb-row{margin-top:2px}
+    .pl-rx .ep-fb-row .k{min-width:52px}
+    .pl-rx .ep-fb-ic{width:22px;height:22px;top:9px;right:11px}
+    .pl-rx .ep-fb-ic svg{width:12px;height:12px}
+    .pl-rx .pl-nota{font-size:7.6px;color:#8A94A3;line-height:1.4;margin-top:6px}
+    .pl-rx .ep-pagefoot{margin-top:6px;padding-top:5px}
+  </style>
+
+  <div class="ep-page">
+    ${epTopoHTML('Resumo do Investimento', hoje.toLocaleDateString('pt-BR'),
+      [['Cliente', t.cliente ? esc(t.cliente) : ''],
+       ['Local', t.cidade ? esc(t.cidade) : ''],
+       ['Equipamento', t.equip ? esc(epEquipRotulo(t.equip)) : ''],
+       ['Elaborado por', t.autor ? esc(t.autor) : '']],
+      'Cenário-base · projeção de 10 anos')}
+
+    <div class="ep-section">O que este projeto entrega</div>
+    <div class="pl-heros">${hero}</div>
+    <div class="ep-exec">${verdito}</div>
+
+    <div class="ep-section">Resultado da operação</div>
+    <div class="ep-cols">
+      <div class="ep-box">
+        <h3>Por mês · regime pleno</h3>
+        <table class="ep-kv">${kv([
+          ['Faturamento', money(r.fatMes)],
+          ['Custos + imposto', money(r.custosMes)],
+          ['Lucro', money(r.lucroMes), true],
+          ['Margem', (r.margem * 100).toFixed(2).replace('.', ',') + '%'],
+          ['Energia entregue', Math.round(r.kwhMes).toLocaleString('pt-BR') + ' kWh'],
+        ])}</table>
+      </div>
+      <div class="ep-box">
+        <h3>Por ano</h3>
+        <table class="ep-kv">${kv([
+          ['Faturamento (pleno)', money(r.fatAno)],
+          ['Custos + impostos (pleno)', money(r.custosAno)],
+          ['Lucro (pleno)', money(r.lucroAno), true],
+          ['Lucro do ano 1 (com rampa)', money(r.lucroAno1)],
+          ['Patrimônio em 10 anos', money(r.acumulado10)],
+        ])}</table>
+      </div>
+    </div>
+    <div class="pl-tira">${tira}</div>
+
+    <div class="pl-chart">
+      <div class="cap">Fluxo de caixa acumulado<span>começa no valor investido e vira para cima no payback</span></div>
+      ${plFluxoSVG(r.fluxo)}
+    </div>
+
+    <div class="ep-section">Memória de cálculo · premissas informadas</div>
+    <div class="ep-cols">
+      <div class="ep-box">
+        <h3>Operação e investimento</h3>
+        <table class="ep-kv">${kv([
+          ['Carros por dia (regime pleno)', Math.round(r.carros)],
+          ['Média de carga por carro', r.carga + ' kWh'],
+          ['Custo do kWh', elMoney2(r.custoKwh)],
+          ['Preço do kWh na revenda', elMoney2(r.precoKwh)],
+          ['Taxa de ativação por sessão', seTem('el-ativacao', elMoney2(r.ativacao))],
+          ['Quantidade de carregadores', seTem('el-qtd', cru('el-qtd'))],
+          ['Bicos de carregamento', Math.round(r.plugs)],
+          ['Ocupação inicial até a plena', Math.round(r.ocupIni * 100) + '% → 100% em ' + r.mesesRampa + ' meses'],
+          ['Investimento total', money(r.investTotal), true],
+        ])}</table>
+      </div>
+      <div class="ep-box">
+        <h3>Custos, taxas e modelagem</h3>
+        <table class="ep-kv">${kv([
+          ['Gateway de pagamento', seTem('el-gateway', (r.gateway * 100).toLocaleString('pt-BR') + '%')],
+          ['Software NEXUS', seTem('el-software', (r.software * 100).toLocaleString('pt-BR') + '%')],
+          ['Arrendamento do ponto', seTem('el-arrend', (r.arrend * 100).toLocaleString('pt-BR') + '%')],
+          ['Manutenção', seTem('el-manut', (r.manut * 100).toLocaleString('pt-BR') + '%')],
+          ['Imposto (Simples Nacional)', seTem('el-imposto', (r.imposto * 100).toLocaleString('pt-BR') + '%')],
+          ['Assinatura mensal', seTem('el-assinatura', money(r.assinat))],
+          ['Seguro (1% a.a. do investimento)', money(r.seguroMes * 12) + ' / ano'],
+          ['Outros custos fixos', seTem('el-fixos', money(r.fixos) + ' / mês')],
+          ['Taxa de desconto (VPL)', txPct],
+        ])}</table>
+      </div>
+    </div>
+
+    ${epFooterBlockHTML({ nome: t.autor, contato: t.contato })}
+
+    <div class="pl-nota">Faturamento = (carros/dia × 30) × [ carga × preço de revenda + taxa de ativação ]. Seguro/mês = investimento × 0,01 ÷ 12. O ano 1 aplica a rampa de ocupação; os custos fixos correm desde o mês 1. VPL e TIR sobre o fluxo anual de 10 anos, à taxa de desconto informada. Projeção a partir das premissas acima; não constitui garantia de resultado.</div>
+
+    ${epPageFootHTML('Resumo do Investimento', t.cliente || '', null, null)}
+  </div>
+</div>`;
+
+  host.innerHTML = html;
+  epPrint(host, `Resumo do Investimento${t.cliente ? ' - ' + t.cliente : ''}`);
 }
 
 function epBasicoImprimir() {
