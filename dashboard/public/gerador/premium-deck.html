@@ -53,11 +53,62 @@
    ══════════════════════════════════════════════════════════════════════════ */
 
 // ── entrada ────────────────────────────────────────────────────────────────
-function carregar() {
-  if (window.__PREMIUM) return window.__PREMIUM;
-  const q = new URLSearchParams(location.search).get('d');
-  if (q) { try { return JSON.parse(decodeURIComponent(escape(atob(q)))); } catch (e) { console.error('__PREMIUM inválido', e); } }
-  return null;
+// TRÊS caminhos, e a ordem importa:
+//   window.__PREMIUM   o servidor injetou (Puppeteer, evaluateOnNewDocument)
+//   ?p=CODIGO          o cliente abriu o LINK: busca no banco pelo código
+//   ?d=<base64>        prévia direta, sem gravar nada
+const SUPABASE_URL = 'https://ancecdfqfwlaujknizof.supabase.co';
+// Chave PUBLICÁVEL (anon). É a mesma que o /gerador já serve ao cliente há
+// meses. A de serviço mora só no servidor, em variável de ambiente, e nunca
+// chega a uma página que o cliente abre.
+const SUPABASE_KEY = 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6';
+
+/** A linha da proposta, pelo código.
+ *
+ *  Usa a RPC get_proposta_pub, NÃO um select na tabela. Os dois funcionam hoje,
+ *  e é justamente por isso que a escolha importa: a `propostas` ainda tem
+ *  `public_select` aberta pro anon, e o MIGRATION_fechar_leitura_publica.sql
+ *  (escrito, não rodado) revoga isso. No dia em que rodar, o select direto passa
+ *  a devolver [] com HTTP 200 — o deck mostraria "sem dados" e ninguém veria
+ *  erro nenhum. A RPC é SECURITY DEFINER e sobrevive, porque o grant é na
+ *  função e não na tabela.
+ *
+ *  Devolve {estado, dados}: 'ok' | 'nao_encontrada' | 'expirada' | 'erro'.
+ */
+async function buscarPorCodigo(codigo) {
+  try {
+    const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/get_proposta_pub', {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, Authorization: 'Bearer ' + SUPABASE_KEY,
+                 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_codigo: String(codigo) }),
+    });
+    if (!r.ok) return { estado: 'erro' };
+    const linhas = await r.json();
+    // Código que não existe volta ARRAY VAZIO com 200, não erro.
+    if (!Array.isArray(linhas) || !linhas.length) return { estado: 'nao_encontrada' };
+    const l = linhas[0];
+    // Expirada volta um toco de 7 chaves, sem número comercial nenhum: entregar
+    // isso ao montar() bate na trava do payback e deixa a tela branca.
+    if (l.expirou) return { estado: 'expirada', dados: l.dados || {} };
+    return { estado: 'ok', dados: Object.assign({}, l.dados, { codigo: l.codigo }) };
+  } catch (e) {
+    console.error('busca por código falhou', e);
+    return { estado: 'erro' };
+  }
+}
+
+async function carregar() {
+  if (window.__PREMIUM) return { estado: 'ok', dados: window.__PREMIUM };
+  const q = new URLSearchParams(location.search);
+  const cod = q.get('p');
+  if (cod) return await buscarPorCodigo(cod);
+  const d = q.get('d');
+  if (d) {
+    try { return { estado: 'ok', dados: JSON.parse(decodeURIComponent(escape(atob(d)))) }; }
+    catch (e) { console.error('__PREMIUM inválido', e); }
+  }
+  return { estado: 'sem_dados' };
 }
 
 // ── formatadores ───────────────────────────────────────────────────────────
@@ -119,7 +170,7 @@ function montar(D) {
     </div>
   </div>
   <div class="tagline">Energia que <b>move</b> o amanhã</div>
-  <div class="rodape"><span class="tag">Válido até ${esc(D.validade)}</span><span class="pg">1</span></div>
+  <div class="rodape"><span class="tag">${esc(D.validade)}</span><span class="pg">1</span></div>
 </section>`);
 
   // ── 02 · A CONTA ABERTA ──────────────────────────────────────────────────
@@ -449,7 +500,7 @@ function montar(D) {
       <div class="bloco"><div class="r">WhatsApp</div><div class="v">${esc(D.contato)}</div></div>
       <div class="bloco"><div class="r">Proposta</div><div class="v">nº ${esc(D.numero)}</div></div>
     </div>
-    <div class="validade-fecho">válida até ${esc(D.validade)}</div>
+    <div class="validade-fecho">${esc(D.validade)}</div>
   </div>
   <div class="faixa-foto"><div class="bgf" style="background-image:url('${ART}posto-noite.webp')"></div></div>
   <div class="ilustrativa">imagem ilustrativa do projeto</div>
@@ -464,19 +515,81 @@ function montar(D) {
   return sai.map(p => p.html).join('\n');
 }
 
+// ── a barra de ações ───────────────────────────────────────────────────────
+// O Thiago pediu que o Completo saia "normal como o Básico, com opção de copiar
+// link e baixar pdf". O Básico faz as duas assim: PDF por impressão do
+// navegador (sem rede) e link gravando a linha em `propostas`. Aqui é igual.
+// A barra some na impressão — ela é ferramenta do consultor, não é o documento.
+// NOME PRÓPRIO, e não é preciosismo: `.barra` JÁ é a coluna do gráfico do
+// patrimônio (página 8). Reusar o nome fez o CSS de barra fixa cair nas dez
+// colunas do gráfico e o querySelector pegar a primeira coluna no lugar da
+// barra. É a mesma pegadinha que o deck antigo teve com `.duo`.
+const ico = d => '<svg viewBox="0 0 24 24">' + d + '</svg>';
+const IC_PDF  = ico('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>');
+const IC_LINK = ico('<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>');
+const IC_OK   = ico('<polyline points="20 6 9 17 4 12"/>');
+
+function barra(D) {
+  const b = document.createElement('div');
+  b.className = 'acoes';
+  const temLink = !!D.codigo;
+  b.innerHTML =
+    '<button type="button" class="on" id="bx-pdf">' + IC_PDF + 'Baixar PDF</button>'
+    + (temLink ? '<div class="sep"></div><button type="button" id="bx-link">' + IC_LINK + 'Copiar link</button>' : '')
+    + (temLink ? '' : '<div class="aviso">Gere pelo botão Orçamento Completo para ter link.</div>');
+  document.body.appendChild(b);
+
+  document.getElementById('bx-pdf').onclick = () => window.print();
+
+  if (temLink) {
+    const bt = document.getElementById('bx-link');
+    bt.onclick = async () => {
+      const url = location.origin + '/orc/' + encodeURIComponent(D.codigo);
+      const ok = () => { bt.innerHTML = IC_OK + 'Link copiado'; setTimeout(() => { bt.innerHTML = IC_LINK + 'Copiar link'; }, 2200); };
+      try { await navigator.clipboard.writeText(url); ok(); return; } catch (e) {}
+      // Clipboard API cai fora de https e em alguns webviews. O prompt é feio,
+      // mas é o que deixa o consultor copiar na mão em vez de perder o link.
+      window.prompt('Copie o link do orçamento:', url);
+    };
+  }
+}
+
+const aviso = (cor, titulo, texto) =>
+  '<div style="color:' + cor + ';font-family:Montserrat,sans-serif;padding:60px;max-width:760px">'
+  + '<div style="font-size:30px;font-weight:800;margin-bottom:14px">' + esc(titulo) + '</div>'
+  + '<div style="font-size:19px;line-height:1.5;color:#8CA0B8">' + esc(texto) + '</div></div>';
+
 // ── render ─────────────────────────────────────────────────────────────────
-(function () {
-  const D = carregar();
+(async function () {
   const alvo = document.getElementById('deck');
-  if (!D) { alvo.innerHTML = '<p style="color:#8CA0B8;font:16px Montserrat;padding:40px">Sem dados. Abra pelo Gerador.</p>'; return; }
+  const { estado, dados } = await carregar();
+
+  if (estado === 'nao_encontrada') {
+    alvo.innerHTML = aviso('#E5E7EB', 'Orçamento não encontrado',
+      'Confira o link com quem enviou. Orçamentos ficam disponíveis por tempo limitado.'); return;
+  }
+  if (estado === 'expirada') {
+    alvo.innerHTML = aviso('#E5E7EB', 'Este orçamento venceu',
+      'Fale com ' + ((dados && dados.consultor) || 'o seu consultor') + ' para receber uma proposta atualizada.'); return;
+  }
+  if (estado === 'erro') {
+    alvo.innerHTML = aviso('#F05252', 'Não consegui abrir agora',
+      'Tente de novo em instantes. Se continuar, chame o seu consultor.'); return;
+  }
+  if (estado !== 'ok' || !dados) {
+    alvo.innerHTML = aviso('#E5E7EB', 'Sem dados', 'Abra pelo Gerador.'); return;
+  }
+
+  const D = dados;
   if (D.movel) document.body.classList.add('movel');
   // total de páginas do RECORTE, não do deck inteiro: rodapé dizendo 7/13 num
   // documento de 6 folhas faz o cliente procurar o que não recebeu.
   D.total = D.versao === 'resumo' ? 6 : 13;
   try {
     alvo.innerHTML = montar(D);
+    barra(D);
   } catch (e) {
-    alvo.innerHTML = '<p style="color:#F05252;font:16px Montserrat;padding:40px">' + esc(e.message) + '</p>';
+    alvo.innerHTML = aviso('#F05252', 'Não dá para emitir este orçamento', e.message);
     window.__PREMIUM_ERRO = e.message;
   }
 })();

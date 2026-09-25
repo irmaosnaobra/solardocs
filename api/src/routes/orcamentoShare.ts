@@ -32,8 +32,17 @@ const esc = (s: string) =>
 
 type Preview = { titulo: string; descricao: string; imagem: string; tema: string; siteName: string };
 
-function previewDoProduto(tipo: string, cliente: string): Preview {
+function previewDoProduto(tipo: string, cliente: string, completo = false): Preview {
   const paraQuem = cliente ? ` — proposta para ${cliente}` : '';
+  if (completo) {
+    return {
+      titulo: 'Seu eletroposto, em números · NEXUS Eletropostos',
+      descricao: `Quanto o seu ponto passa a render${paraQuem}, em quanto tempo o investimento volta e o que está incluído no valor.`,
+      imagem: `${SITE}/gerador/nexus-og.png`,
+      tema: '#0B1A2B',
+      siteName: 'NEXUS Eletropostos',
+    };
+  }
   if (tipo === 'eletroposto') {
     return {
       titulo: 'Orçamento de Eletroposto · NEXUS Eletropostos',
@@ -52,8 +61,13 @@ function previewDoProduto(tipo: string, cliente: string): Preview {
   };
 }
 
-function paginaDeRedirect(codigo: string, p: Preview): string {
-  const destino = `${BASE}?p=${encodeURIComponent(codigo)}&v=orc`;
+function paginaDeRedirect(codigo: string, p: Preview, completo = false): string {
+  // O ORÇAMENTO COMPLETO é outro documento e mora em outra página. O app do
+  // /gerador só sabe montar o orçamento de 1 página; mandar a apresentação pra
+  // lá faz o cliente abrir um documento vazio, sem erro nenhum na tela.
+  const destino = completo
+    ? `${SITE}/gerador/premium-deck.html?p=${encodeURIComponent(codigo)}`
+    : `${BASE}?p=${encodeURIComponent(codigo)}&v=orc`;
   return `<!DOCTYPE html>
 <html lang="pt-BR"><head>
 <meta charset="UTF-8"/>
@@ -93,7 +107,7 @@ router.get('/:codigo', async (req: Request, res: Response): Promise<void> => {
   try {
     const { data } = await supabaseGerador
       .from('propostas')
-      .select('tipo, cliente_nome')
+      .select('tipo, cliente_nome, dados')
       .eq('codigo', codigo)
       .maybeSingle();
 
@@ -102,11 +116,16 @@ router.get('/:codigo', async (req: Request, res: Response): Promise<void> => {
     // e a de "não encontrada", e não é aqui que a gente duplica essa decisão.
     const tipo = String((data as { tipo?: string } | null)?.tipo || 'solar');
     const cliente = String((data as { cliente_nome?: string } | null)?.cliente_nome || '');
+    // O marcador mora DENTRO do jsonb porque a coluna `tipo` tem CHECK travado
+    // em ('solar','eletroposto') e a apresentação não é um terceiro produto: é
+    // outro DOCUMENTO do mesmo produto.
+    const dados = (data as { dados?: Record<string, unknown> } | null)?.dados || {};
+    const completo = String(dados.doc || '') === 'completo';
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     // Curto de propósito: o consultor pode reeditar e reenviar o mesmo código.
     res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=60');
-    res.send(paginaDeRedirect(codigo, previewDoProduto(tipo, cliente)));
+    res.send(paginaDeRedirect(codigo, previewDoProduto(tipo, cliente, completo), completo));
   } catch (err) {
     console.error('[orcamento-share] erro:', err);
     // Falha de banco não pode impedir o cliente de abrir o orçamento: manda pro

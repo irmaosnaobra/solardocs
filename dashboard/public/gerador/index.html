@@ -10527,6 +10527,10 @@ function epCompletoPayload(versao) {
   }));
 
   return {
+    // `produto` e `doc` não são enfeite: é por eles que o GET /orc/:codigo sabe
+    // mandar este link pro deck em vez de mandar pro app do orçamento de 1
+    // página. Tirar um dos dois faz o link do cliente abrir o documento errado.
+    produto: 'eletroposto', doc: 'completo',
     versao: versao || 'completa',
     numero: (document.getElementById('orc-num')?.value || '').trim() || epNumeroProposta(),
     cliente: t.cliente || 'Cliente', cidade: t.cidade || '',
@@ -10561,6 +10565,22 @@ function epNumeroProposta() {
        + String(d.getMinutes()).padStart(2, '0');
 }
 
+/** A linha de `propostas` da apresentação. Mesmo molde do
+ *  _orcamentoEpRowFromDados, com os nomes do payload do deck: ele chama de
+ *  `cliente` e `vendedor` o que o outro chama de `nome` e `consultor`. */
+function _completoRowFromDados(d) {
+  const partes = String(d.cidade || '').split(',').map(x => x.trim()).filter(Boolean);
+  return {
+    tipo: 'eletroposto',
+    dados: d,
+    consultor_nome: d.vendedor || null,
+    cliente_nome: d.cliente || null,
+    cliente_cidade: partes[0] || null,
+    cliente_uf: partes[1] || null,
+    // colunas de solar ficam nulas — o `dados` carrega o documento inteiro
+  };
+}
+
 function epCompletoApresentacao(versao) {
   const p = eletroParams();
   if (!(p.invest > 0)) {
@@ -10578,9 +10598,41 @@ function epCompletoApresentacao(versao) {
   eletroSalvarHistorico();   // registra no histórico (fire-and-forget)
   eletroUltimoSalvar();      // guarda o estado local: daqui saem as outras abas
   const d = epCompletoPayload(versao);
+
+  // A ABA ABRE PRIMEIRO, e isso é de propósito: navegador bloqueia popup que
+  // nasce depois de um await, então abrir só no fim do INSERT faria o documento
+  // não aparecer em metade dos casos, sem erro nenhum na tela.
+  const aba = window.open('', '_blank', 'noopener');
+
   // base64 em UTF-8: o btoa cru quebra no primeiro acento do nome do cliente.
-  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(d))));
-  window.open('/gerador/premium-deck.html?d=' + b64, '_blank', 'noopener');
+  const b64 = () => btoa(unescape(encodeURIComponent(JSON.stringify(d))));
+  const irPara = u => { if (aba) aba.location = u; else window.open(u, '_blank', 'noopener'); };
+
+  // Sem cliente não dá pra gravar linha que preste (o link do cliente mostraria
+  // "—" no lugar do nome), então nesse caso abre a prévia sem link e diz por quê.
+  if (!d.cliente || d.cliente === 'Cliente') {
+    irPara('/gerador/premium-deck.html?d=' + b64());
+    showToast('📄 Prévia aberta. Informe o cliente no Simulador para gerar o link.');
+    return;
+  }
+
+  showToast('⏳ Gerando o orçamento…');
+  supaInsert('propostas', _completoRowFromDados(d))
+    .then(arr => {
+      const codigo = arr && arr[0] && arr[0].codigo;
+      if (!codigo) throw new Error('sem código');
+      epHistOrcSave({ id: epId(), tipo: 'Completo', cliente: d.cliente, valor: d.ent.invest,
+                      codigo, data: new Date().toLocaleDateString('pt-BR') });
+      irPara('/gerador/premium-deck.html?p=' + encodeURIComponent(codigo));
+      showToast('✅ Orçamento ' + codigo + ' pronto');
+    })
+    .catch(e => {
+      console.error(e);
+      // Banco fora não pode impedir o consultor de mostrar a proposta: abre a
+      // prévia pelo payload e avisa que aquela não tem link.
+      irPara('/gerador/premium-deck.html?d=' + b64());
+      showToast('⚠️ Abri sem link (o banco não respondeu)');
+    });
 }
 /** O recorte de 6 páginas, para mandar no WhatsApp sem pedir tempo do cliente. */
 function epCompletoResumo() { epCompletoApresentacao('resumo'); }
