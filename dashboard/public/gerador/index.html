@@ -3653,6 +3653,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-fantasia" placeholder="opcional" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>CNPJ <span style="opacity:.6;font-weight:600">(documentos jurídicos)</span></label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-cnpj" placeholder="00.000.000/0000-00" oninput="orcEmitSalvar()"></div></div>
+        <div class="eletro-field"><label>Inscrição Estadual <span style="opacity:.6;font-weight:600">(venda de equipamento)</span></label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-ie" placeholder="ISENTO, se for o caso" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>Sócio administrador — nome</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-socio" placeholder="quem assina pela empresa" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>Sócio administrador — CPF</label>
@@ -3792,6 +3794,31 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div id="eletro-pane-equipamento" style="display:none;">
     <div class="pesquisa-info">Venda de <b>carregador avulso</b>, no padrão brasileiro de orçamento de equipamento: item com NCM, unidade, quantidade e valor unitário, frete CIF/FOB, prazo de entrega e garantia. Não passa pelo Simulador — quem compra equipamento já tem o projeto. Para obra chave na mão, use a aba <b>Orçamento</b>.</div>
     <div class="orc-wrap">
+
+      <!-- FORNECEDOR (a sua empresa) — MESMO cadastro da aba Orçamento.
+           Os ids sao eq-emit-* e nao orc-emit-* porque id duplicado no
+           documento quebra getElementById: quem chamasse orcVal('orc-emit-cnpj')
+           pegaria o primeiro do DOM, que poderia ser o desta aba. O que os dois
+           compartilham e' o ARMAZENAMENTO (orc_emit_v1), nao os campos. -->
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Fornecedor (sua empresa)</div>
+        <div class="orc-note" style="margin-top:-2px;margin-bottom:12px">É o <b>mesmo cadastro</b> da aba Orçamento — editar aqui muda lá, e o contrário também. Fica salvo no navegador. A razão social e o CNPJ saem impressos no orçamento porque é este documento que fala em nota fiscal: quem emite precisa estar escrito.</div>
+        <div class="eletro-field"><label>Nome / marca</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-nome" placeholder="NEXUS Eletropostos" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
+        <div class="eletro-field"><label>Razão social</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-razao" placeholder="quem emite a nota" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
+        <div class="eletro-field"><label>CNPJ</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-cnpj" placeholder="00.000.000/0000-00" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
+        <div class="eletro-field"><label>Inscrição Estadual</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-ie" placeholder="ISENTO, se for o caso" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
+        <div class="eletro-field"><label>Endereço</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-end" placeholder="Rua, nº, bairro" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
+        <div class="eletro-field"><label>Cidade / UF</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-cidade" placeholder="Uberlândia/MG" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
+        <div class="eletro-field"><label>Telefone</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-tel" placeholder="(00) 00000-0000" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
+        <div class="orc-note"><b>Inscrição Estadual</b> só aparece no papel se estiver preenchida. Em venda de equipamento ela conta: comprador contribuinte em outro estado muda a conta do ICMS. Escreva <b>ISENTO</b> quando for o caso — é diferente de deixar em branco.</div>
+      </div>
 
       <!-- DOCUMENTO -->
       <div class="card">
@@ -10709,7 +10736,11 @@ function eletroUltimoCampos() {
     document.querySelectorAll(`#eletro-pane-${pane} input[id], #eletro-pane-${pane} select[id], #eletro-pane-${pane} textarea[id]`)
       .forEach(el => { if (el.type !== 'button' && el.type !== 'submit' && el.type !== 'file') ids.push(el.id); });
   });
-  return [...new Set(ids)];
+  // O cadastro da EMPRESA e dos PROCURADORES (orc-emit-*, eq-emit-*) nao e'
+  // dado de projeto: e' configuracao do consultor, preenchida uma vez e
+  // guardada em `orc_emit_v1`. Sem este filtro, o "Comecar novo" apaga o
+  // cadastro inteiro enquanto o dialogo promete que ele continua salvo.
+  return [...new Set(ids)].filter(id => !/^(orc|eq)-emit-/.test(id));
 }
 
 function eletroUltimoSalvar() {
@@ -11606,7 +11637,7 @@ function orcPgToggle() {
 // localStorage do emitente, porque sao dados da EMPRESA e nao do cliente —
 // preenche uma vez e vale pra toda procuracao.
 function orcEmitCampos() {
-  return ['nome', 'end', 'cidade', 'tel', 'email', 'cnpj', 'razao', 'fantasia', 'socio', 'socioCpf', 'pix', 'conta',
+  return ['nome', 'end', 'cidade', 'tel', 'email', 'cnpj', 'ie', 'razao', 'fantasia', 'socio', 'socioCpf', 'pix', 'conta',
           'engNome', 'engNac', 'engEc', 'engProf', 'engRg', 'engCpf', 'engCrea', 'engEnd',
           'tecNome', 'tecNac', 'tecEc', 'tecCrt', 'tecRg', 'tecCpf', 'tecEnd'];
 }
@@ -12002,6 +12033,7 @@ function epEmitGet() {
   // concessionaria e' problema de outra ordem.
   const def = { nome: 'NEXUS Eletropostos', end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: '',
                 cnpj: '63.636.043/0001-88', razao: 'AIOROS LTDA', fantasia: '',
+                ie: '',
                 socio: '', socioCpf: '', pix: '', conta: '',
                 engNome: 'Guilherme Dornelas Ferreira', engNac: 'brasileiro', engEc: 'solteiro',
                 engProf: 'Engenheiro Eletricista', engRg: '', engCpf: '048.959.171-00',
@@ -12250,10 +12282,19 @@ function orcEquipDocHTML(d) {
 
   // Bloco fiscal: é o que faz este papel ser um orçamento de equipamento e não uma
   // carta de preço. Linha vazia some — campo não preenchido não vira "—" no papel.
+  // 'do fornecedor' no rotulo porque o COMPRADOR tambem tem inscricao estadual,
+  // no cabecalho do papel: duas linhas com o mesmo nome fazem o contador
+  // conferir a do lado errado.
+  const emitF = d.emitente || {};
+  const cnpjIe = [emitF.cnpj, emitF.ie ? 'IE ' + emitF.ie : ''].filter(Boolean).join('  ·  ');
   const linhas = [
-    ['Fornecedor', d.emitente && d.emitente.razao],
-    ['CNPJ do fornecedor', d.emitente && d.emitente.cnpj],
-    ['Inscrição Estadual', d.emitente && d.emitente.ie],
+    ['Fornecedor', emitF.razao],
+    // CNPJ e inscricao estadual saem JUNTOS, como saem em nota fiscal. Nao e'
+    // so estetica: este orcamento promete UMA folha A4 e o orc1Imprimir e'
+    // tudo-ou-nada — encolhe ate 74% e desiste. Cada linha aqui custa 32px de
+    // uma folha util de 1100px, e empurra o penhasco pra menos itens. Medido:
+    // com a IE em linha separada, um orcamento de 5 itens virava 2 folhas.
+    [emitF.ie ? 'CNPJ e Inscrição Estadual' : 'CNPJ do fornecedor', cnpjIe],
     ['Condição de frete', d.freteTipo === 'FOB' ? 'FOB — por conta do comprador' : 'CIF — entrega no endereço do comprador'],
     ['Local de entrega', d.entregaLocal],
     ['Prazo de entrega', d.prazoEntrega],
@@ -12314,6 +12355,9 @@ function eqNum(id) { const e = document.getElementById(id); return e ? (Number(e
 const eqCent = reais => Math.round((Number(reais) || 0) * 100);
 
 function equipInit() {
+  // Antes do return antecipado: a aba Orcamento pode ter mudado a empresa
+  // desde a ultima vez que esta abriu, e o cadastro e' o mesmo.
+  equipEmitCarregar();
   if (document.getElementById('eq-itens').dataset.pronto) { equipCalc(); return; }
   document.getElementById('eq-itens').dataset.pronto = '1';
   const hoje = document.getElementById('eq-data');
@@ -12548,6 +12592,56 @@ async function orcEquipLink() {
     console.error(e);
     showToast('❌ Erro ao gerar o link');
   }
+}
+
+
+// ═══════ FORNECEDOR na aba Venda de equipamento ═══════
+// Os campos sao `eq-emit-*` e os da aba Orcamento sao `orc-emit-*`, mas os dois
+// gravam no MESMO `orc_emit_v1`. Dois conjuntos de id, um armazenamento so':
+// id duplicado no documento quebra getElementById, e cadastro duplicado cria
+// duas verdades — o erro que a casa ja pagou uma vez com preco em duas fontes.
+const EQ_EMIT_CAMPOS = ['nome', 'razao', 'cnpj', 'ie', 'end', 'cidade', 'tel'];
+
+// Carrega do armazenamento pros campos desta aba. Roda em TODA abertura da aba
+// (nao so' na primeira): quem editou a empresa na aba Orcamento tem que ver o
+// valor novo aqui, e vice-versa.
+function equipEmitCarregar() {
+  const o = (typeof epEmitGet === 'function') ? (epEmitGet() || {}) : {};
+  // Mesmos defaults da aba Orcamento, pra nenhum documento sair sem a
+  // qualificacao de quem emite so' porque ninguem preencheu o cadastro neste
+  // aparelho. `ie` NAO tem default: inventar inscricao estadual em papel que
+  // fala de ICMS e' problema de outra ordem.
+  const def = { nome: 'NEXUS Eletropostos', razao: 'AIOROS LTDA', cnpj: '63.636.043/0001-88',
+                ie: '', end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica',
+                cidade: 'Uberlândia/MG', tel: '(34) 99816-5040' };
+  EQ_EMIT_CAMPOS.forEach(k => {
+    const el = document.getElementById('eq-emit-' + k);
+    if (!el) return;
+    el.value = (o[k] != null && o[k] !== '') ? o[k] : (def[k] || '');
+  });
+}
+
+// Grava o que esta nos campos desta aba por CIMA do que ja existe, campo a
+// campo. Nao pode reconstruir o objeto do zero como o orcEmitSalvar faz: esta
+// aba mostra 7 dos 28 campos, e um `{}` novo apagaria socio, Pix, conta,
+// engenheiro e tecnico — que so' existem na aba Orcamento.
+function equipEmitSalvar() {
+  let o = {};
+  try { o = JSON.parse(localStorage.getItem(ORC_EMIT_KEY) || '{}') || {}; } catch (e) { o = {}; }
+  EQ_EMIT_CAMPOS.forEach(k => {
+    const el = document.getElementById('eq-emit-' + k);
+    if (el) o[k] = String(el.value || '').trim();
+  });
+  try { localStorage.setItem(ORC_EMIT_KEY, JSON.stringify(o)); } catch (e) {}
+  // Espelha nos campos da aba Orcamento QUANDO ELES EXISTEM no DOM. Sem isto a
+  // outra aba continuaria mostrando o valor velho (o orcEmitCarregar dela roda
+  // uma vez so', preso no `orcIniciado`) e o proximo salvamento de la' gravaria
+  // o velho por cima do novo, calado.
+  EQ_EMIT_CAMPOS.forEach(k => {
+    const alvo = document.getElementById('orc-emit-' + k);
+    const el = document.getElementById('eq-emit-' + k);
+    if (alvo && el) alvo.value = el.value;
+  });
 }
 
 function orcImprimir() {
