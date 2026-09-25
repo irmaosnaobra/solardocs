@@ -10653,11 +10653,32 @@ function epCompletoApresentacao(versao) {
   // A ABA ABRE PRIMEIRO, e isso é de propósito: navegador bloqueia popup que
   // nasce depois de um await, então abrir só no fim do INSERT faria o documento
   // não aparecer em metade dos casos, sem erro nenhum na tela.
-  const aba = window.open('', '_blank', 'noopener');
+  // SEM `noopener` AQUI, e é obrigatório: window.open com 'noopener' devolve
+  // NULL por especificação. Com ele eu perdia a referência da aba e ela ficava
+  // parada em about:blank para sempre — foi exatamente o que aconteceu na
+  // primeira versão, e a tela em branco não dá pista nenhuma de por quê.
+  // A proteção que o noopener daria é refeita na linha seguinte, zerando o
+  // opener na aba já aberta, que é o mesmo efeito sem perder o handle.
+  const aba = window.open('', '_blank');
+  if (aba) { try { aba.opener = null; } catch (e) {} }
+  // Enquanto o INSERT não volta, a aba mostra um aviso em vez de página branca.
+  if (aba) {
+    try {
+      aba.document.write('<!doctype html><meta charset="utf-8">'
+        + '<title>Gerando o orçamento…</title>'
+        + '<style>body{margin:0;height:100vh;display:flex;align-items:center;'
+        + 'justify-content:center;background:#0B1A2B;color:#8CA0B8;'
+        + 'font:600 17px Montserrat,system-ui,sans-serif}</style>'
+        + '<body>Gerando o seu orçamento…');
+      aba.document.close();
+    } catch (e) {}
+  }
 
   // base64 em UTF-8: o btoa cru quebra no primeiro acento do nome do cliente.
   const b64 = () => btoa(unescape(encodeURIComponent(JSON.stringify(d))));
-  const irPara = u => { if (aba) aba.location = u; else window.open(u, '_blank', 'noopener'); };
+  // Se a aba não abriu (bloqueador), navega a PRÓPRIA janela: melhor trocar de
+  // tela do que o consultor clicar e não acontecer nada na frente do cliente.
+  const irPara = u => { if (aba) aba.location.href = u; else window.location.href = u; };
 
   // Sem cliente não dá pra gravar linha que preste (o link do cliente mostraria
   // "—" no lugar do nome), então nesse caso abre a prévia sem link e diz por quê.
