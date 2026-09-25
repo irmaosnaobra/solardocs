@@ -23,6 +23,8 @@ export interface ParamsEletro {
   carros: number; carga: number; custoKwh: number; precoKwh: number; ativacao: number;
   invest: number; gateway: number; arrend: number; manut: number; imposto: number;
   assinat: number; fixos: number; ocupIni: number; mesesRampa: number; taxaDesc: number;
+  /** Software NEXUS, % do faturamento. Opcional: documento antigo não tem. */
+  software?: number;
 }
 
 export function computeEletro(p: ParamsEletro) {
@@ -32,7 +34,19 @@ export function computeEletro(p: ParamsEletro) {
   const fatMes = kwhMes * p.precoKwh + sessoes * p.ativacao;
 
   const custoEnergia = kwhMes * p.custoKwh;
-  const taxasPct = p.gateway + p.arrend + p.manut + p.imposto;
+  // SOFTWARE NEXUS: % do faturamento, igual ao gateway. Entrou em 25/09/2026 por
+  // ordem do Thiago, com 10% de padrão no Gerador.
+  //
+  // O `|| 0` NÃO é defensividade à toa, é compatibilidade: todo orçamento já
+  // salvo e todo link já enviado têm um `dados` SEM esta chave. Sem o fallback,
+  // `undefined` contamina a soma, `taxasPct` vira NaN e o documento que o
+  // cliente tem na mão reabre com todos os números em branco.
+  //
+  // E a LP /io/eletroposto NÃO recebe este custo: o `gateway` dela é 14%
+  // (PREMISSAS_LP), contra 3,5% do Gerador. Catorze por cento é alto demais para
+  // gateway de pagamento sozinho — aquele número já carrega a plataforma. Somar
+  // 10% por cima seria cobrar a mesma coisa duas vezes na conta que o lead vê.
+  const taxasPct = p.gateway + p.arrend + p.manut + p.imposto + (p.software || 0);
   const seguroMes = p.invest * 0.01 / 12;
   const fixosMes = p.assinat + seguroMes + (p.fixos || 0);
   const margemVarMes = fatMes - custoEnergia - fatMes * taxasPct;

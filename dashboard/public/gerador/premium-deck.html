@@ -180,6 +180,7 @@ function montar(D) {
   const chips = [
     ['Custo do kWh comprado', 'R$ ' + dec(E.custoKwh, 2)],
     ['Gateway de pagamento', pct(E.gateway)],
+    ['Software NEXUS', pct(E.software)],
     ['Arrendamento do ponto', pct(E.arrend)],
     ['Manutenção', pct(E.manut)],
     ['Assinatura mensal', brl(E.assinatura)],
@@ -425,8 +426,12 @@ function montar(D) {
   // Preço por item é PROIBIDO: valor do projeto é um número só. E a coluna
   // "por sua conta" existe porque omitir o padrão de entrada é o aditivo que
   // quebra a confiança depois de assinado.
-  const DENTRO = ['Carregador ' + D.modelo, 'Projeto de engenharia', 'Homologação na concessionária',
-    'Infraestrutura elétrica', 'Infraestrutura civil', 'Mão de obra e instalação', 'Garantia de 24 meses'];
+  // A lista do que está incluído. `D.inclui` permite ao consultor acrescentar ou
+  // tirar linha antes de enviar; sem ele, vale a lista fechada da casa.
+  const DENTRO = Array.isArray(D.inclui) && D.inclui.length ? D.inclui : [
+    'Carregador ' + D.modelo, 'App Usuários NEXUS', 'Projeto de engenharia',
+    'Homologação na concessionária', 'Infraestrutura elétrica', 'Infraestrutura civil',
+    'Mão de obra e instalação', 'Garantia de 24 meses'];
   const FORA = ['O espaço', 'A ligação de energia no nome de quem vai operar', 'A energia consumida'];
   add(11, `<section class="slide">
   <div class="faixa"></div>${marca()}

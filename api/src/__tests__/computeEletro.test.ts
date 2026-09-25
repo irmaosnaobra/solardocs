@@ -29,6 +29,48 @@ describe('computeEletro: teste de ouro contra a conferência da LP', () => {
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SOFTWARE NEXUS — % do faturamento, entrou em 25/09/2026.
+// Três coisas que este bloco trava, e cada uma já seria um jeito de o número
+// sair errado sem ninguém ver.
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Software NEXUS', () => {
+  const base = { ...PREMISSAS_LP, carga: CARGAS_EP.cidade, carros: 10, invest: 160000 };
+
+  it('sem a chave, o resultado é idêntico ao de antes — documento antigo não muda', () => {
+    const semChave = computeEletro(base);
+    const comZero = computeEletro({ ...base, software: 0 });
+    expect(semChave.lucroMes).toBe(comZero.lucroMes);
+    expect(semChave.payback).toBe(comZero.payback);
+    // e continua batendo com a conferência da LP
+    expect(Math.abs(semChave.lucroMes - 6920)).toBeLessThanOrEqual(1);
+  });
+
+  it('10% tira exatamente 10% do faturamento do lucro, nem um real a mais', () => {
+    const sem = computeEletro(base);
+    const com = computeEletro({ ...base, software: 0.10 });
+    expect(Math.abs((sem.lucroMes - com.lucroMes) - sem.fatMes * 0.10)).toBeLessThan(0.01);
+  });
+
+  it('undefined não contamina a conta (era NaN em todo o documento)', () => {
+    const r = computeEletro({ ...base, software: undefined });
+    expect(Number.isFinite(r.lucroMes)).toBe(true);
+    expect(Number.isFinite(r.margem)).toBe(true);
+    expect(Number.isFinite(Number(r.payback))).toBe(true);
+  });
+
+  it('entra no custo, não no faturamento: fatMes não se mexe', () => {
+    expect(computeEletro({ ...base, software: 0.10 }).fatMes)
+      .toBe(computeEletro(base).fatMes);
+  });
+
+  it('alonga o payback em vez de encurtar — sinal trocado seria invisível na tela', () => {
+    const sem = computeEletro(base);
+    const com = computeEletro({ ...base, software: 0.10 });
+    expect(Number(com.payback)).toBeGreaterThan(Number(sem.payback));
+  });
+});
+
 describe('tetoFisico: cópia do rotativ() da LP', () => {
   it('80 kW na cidade fica no teto do simulador (30); na rodovia a máquina limita (27)', () => {
     expect(tetoFisico(80, 20)).toBe(30);

@@ -3527,6 +3527,15 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
                  ainda abre em 14% — as duas contas precisam abrir iguais, então mexer
                  numa exige mexer na outra e refazer a conferência que está lá. -->
             <div class="eletro-inp has-suf"><input type="number" id="el-gateway" inputmode="decimal" value="12" oninput="eletroCalc()"><span class="suf">%</span></div></div>
+          <div class="eletro-field"><label>Software NEXUS<span class="el-tip" tabindex="0" data-tip="Percentual do faturamento pela plataforma NEXUS: app de usuários, gestão do ponto, relatórios e suporte. Como é percentual, só pesa quando o posto fatura.">?</span></label>
+            <!-- 10% desde 25/09/2026, ordem do Thiago. ATENÇÃO ao somar com o gateway:
+                 com 12% + 10% as taxas vão a 22% do faturamento. Os dois aparecem
+                 SEPARADOS no orçamento (chip na página 2, linha em R$ na página 3),
+                 de propósito: se a conta ficar pesada, quem decide o que baixar é
+                 quem vende, olhando o número, e não a fórmula escondendo a soma.
+                 A LP /io/eletroposto NÃO tem este campo — o gateway de 14% dela já
+                 carrega a plataforma, e somar de novo seria cobrar duas vezes. -->
+            <div class="eletro-inp has-suf"><input type="number" id="el-software" inputmode="decimal" value="10" oninput="eletroCalc()"><span class="suf">%</span></div></div>
           <div class="eletro-field"><label>Arrendamento do ponto<span class="el-tip" tabindex="0" data-tip="Percentual do faturamento pago ao dono do local (posto, mercado, shopping) pela cessão do espaço. Como é percentual, ele só ganha quando você fatura.">?</span></label>
             <!-- Abre em 0: o caso comum é o cliente instalar no espaço DELE, e cobrar
                  arrendamento de quem paga a si mesmo afunda margem e payback. Local de
@@ -10239,7 +10248,19 @@ function computeEletro(p) {
 
   // Custos: separa VARIÁVEIS (escalam com a ocupação) de FIXOS (existem com o posto vazio).
   const custoEnergia = kwhMes * p.custoKwh;                     // variável (pleno)
-  const taxasPct     = p.gateway + p.arrend + p.manut + p.imposto; // % do faturamento → variáveis
+  // SOFTWARE NEXUS: % do faturamento, igual ao gateway. Entrou em 25/09/2026 por
+  // ordem do Thiago, com 10% de padrão no Gerador.
+  //
+  // O `|| 0` NÃO é defensividade à toa, é compatibilidade: todo orçamento já
+  // salvo e todo link já enviado têm um `dados` SEM esta chave. Sem o fallback,
+  // `undefined` contamina a soma, `taxasPct` vira NaN e o documento que o
+  // cliente tem na mão reabre com todos os números em branco.
+  //
+  // E a LP /io/eletroposto NÃO recebe este custo: o `gateway` dela é 14%
+  // (PREMISSAS_LP), contra 3,5% do Gerador. Catorze por cento é alto demais para
+  // gateway de pagamento sozinho — aquele número já carrega a plataforma. Somar
+  // 10% por cima seria cobrar a mesma coisa duas vezes na conta que o lead vê.
+  const taxasPct     = p.gateway + p.arrend + p.manut + p.imposto + (p.software || 0);
   const seguroMes    = p.invest * 0.01 / 12;                    // 1% a.a. do investimento ÷ 12 (fixo)
   const fixosMes     = p.assinat + seguroMes + (p.fixos || 0);  // assinatura + seguro + CPMS/4G/demanda
   const margemVarMes = fatMes - custoEnergia - fatMes * taxasPct;  // contribuição variável plena
@@ -10308,6 +10329,7 @@ function eletroParams() {
     invest: elMilhar('el-invest'), assinat: elNum('el-assinatura'), fixos: elNum('el-fixos'),
     gateway: elNum('el-gateway') / 100, arrend: elNum('el-arrend') / 100,
     manut: elNum('el-manut') / 100, imposto: elNum('el-imposto') / 100,
+    software: elNum('el-software') / 100,
     ocupIni: elNum('el-ocup') / 100, mesesRampa: elNum('el-rampa'),
     taxaDesc: EL_TAXA_DESC / 100,
   };
@@ -10532,6 +10554,7 @@ function epCompletoPayload(versao) {
     { rot: 'Imposto',              val: r.fatMes * p.imposto,  nota: elPctRot(p.imposto) + ' do faturamento' },
     { rot: 'Arrendamento do ponto',val: r.fatMes * p.arrend,   nota: elPctRot(p.arrend) + ' do faturamento do ponto' },
     { rot: 'Gateway de pagamento', val: r.fatMes * p.gateway,  nota: elPctRot(p.gateway) + ' do faturamento' },
+    { rot: 'Software NEXUS',       val: r.fatMes * (p.software || 0), nota: elPctRot(p.software || 0) + ' do faturamento' },
     { rot: 'Manutenção',           val: r.fatMes * p.manut,    nota: elPctRot(p.manut) + ' do faturamento' },
     { rot: 'Assinatura mensal',    val: p.assinat },
     { rot: 'Seguro',               val: r.seguroMes, nota: 'calculado em 1% do investimento ao ano' },
@@ -10570,6 +10593,7 @@ function epCompletoPayload(versao) {
       carros: p.carros, carga: p.carga, precoKwh: p.precoKwh, custoKwh: p.custoKwh,
       ativacao: p.ativacao, invest: p.invest, assinatura: p.assinat, fixos: p.fixos,
       gateway: p.gateway * 100, arrend: p.arrend * 100, manut: p.manut * 100,
+      software: (p.software || 0) * 100,
       imposto: p.imposto * 100, ocupIni: p.ocupIni * 100, rampa: p.mesesRampa,
       taxaDesc: p.taxaDesc * 100,
     },

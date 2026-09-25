@@ -2153,7 +2153,11 @@ function compute(p){
   const sessoes = p.carros * DIAS;
   const fatMes  = kwhMes * p.precoKwh + sessoes * p.ativacao;
   const custoEnergia = kwhMes * p.custoKwh;
-  const taxasPct = p.gateway + p.arrend + p.manut + p.imposto;
+  // Mesma fórmula das outras duas cópias. A LP NÃO passa `software`: o gateway
+  // dela já é 14% e carrega a plataforma. O termo fica aqui só para as três
+  // cópias serem lidas como iguais — quem compara linha a linha não pode achar
+  // que uma delas esqueceu.
+  const taxasPct = p.gateway + p.arrend + p.manut + p.imposto + (p.software || 0);
   const seguroMes = p.invest * 0.01 / 12;
   const fixosMes  = p.assinat + seguroMes + p.fixos;
   const margemVar = fatMes - custoEnergia - fatMes * taxasPct;
