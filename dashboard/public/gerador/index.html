@@ -538,9 +538,6 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .pn-aba{background:rgba(148,163,184,.10);border:1px solid rgba(148,163,184,.20);color:#94A3B8;
   font-family:inherit;font-size:13.5px;font-weight:700;padding:9px 14px;border-radius:999px;cursor:pointer;min-height:40px}
 .pn-aba.on{background:#fff;border-color:#fff;color:#0B1220}
-.pn-cnt{font-size:12px;font-weight:700;color:#CBD5E1;background:rgba(148,163,184,.28);
-  border-radius:999px;padding:1px 7px;min-width:20px;text-align:center;display:inline-block}
-.pn-aba.on .pn-cnt{background:#7DD117;color:#0B1220}
 .pn-resumo{margin-left:auto;font-size:12.5px;color:#94A3B8}
 .pn-resumo b{color:#E5E7EB}
 
@@ -4771,11 +4768,11 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         </div>
 
         <div class="pn-abas">
-          <button type="button" class="pn-aba on" id="pn-aba-fila" onclick="pnAbaTopo('fila')">Na mesa <span class="pn-cnt" id="pn-cnt-fila">—</span></button>
-          <button type="button" class="pn-aba" id="pn-aba-minha" onclick="pnAbaTopo('minha')">Meus <span class="pn-cnt" id="pn-cnt-minha">—</span></button>
-          <button type="button" class="pn-aba" id="pn-aba-hoje" onclick="pnAbaTopo('hoje')">Minha fila de hoje <span class="pn-cnt" id="pn-cnt-hoje">—</span></button>
-          <button type="button" class="pn-aba" id="pn-aba-casa" onclick="pnAbaTopo('casa')">Casa do lead <span class="pn-cnt" id="pn-cnt-casa">—</span></button>
-          <button type="button" class="pn-aba" id="pn-aba-tudo" onclick="pnAbaTopo('tudo')">Tudo <span class="pn-cnt" id="pn-cnt-tudo">—</span></button>
+          <button type="button" class="pn-aba on" id="pn-aba-fila" onclick="pnAbaTopo('fila')">Na mesa</button>
+          <button type="button" class="pn-aba" id="pn-aba-minha" onclick="pnAbaTopo('minha')">Meus</button>
+          <button type="button" class="pn-aba" id="pn-aba-hoje" onclick="pnAbaTopo('hoje')">Minha fila de hoje</button>
+          <button type="button" class="pn-aba" id="pn-aba-casa" onclick="pnAbaTopo('casa')">Casa do lead</button>
+          <button type="button" class="pn-aba" id="pn-aba-tudo" onclick="pnAbaTopo('tudo')">Tudo</button>
           <span class="pn-resumo" id="pn-resumo"></span>
         </div>
 
@@ -10260,44 +10257,29 @@ function pnMontarSelects() {
 const pnDias = iso => iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : null;
 const pnHoje = () => new Date().toISOString().slice(0, 10);
 
-/** Os 14 seletores lidos de uma vez. Uma rodada de desenho lê isto UMA vez e
- *  passa adiante: o funil e os botões de cima reusam a mesma leitura. */
-function pnFiltrosAtuais() {
-  return {
-    busca: (pnVal('pn-busca') || '').trim().toLowerCase(),
+function pnFiltrar() {
+  const busca = (pnVal('pn-busca') || '').trim().toLowerCase();
+  const f = {
     estagio: pnVal('pn-f-estagio'), resp: pnVal('pn-f-resp'), rel: pnVal('pn-f-rel'),
     nota: pnVal('pn-f-nota'), estudo: pnVal('pn-f-estudo'), end: pnVal('pn-f-end'),
     cidade: pnVal('pn-f-cidade'), uf: pnVal('pn-f-uf'), vend: pnVal('pn-f-vend'),
     status: pnVal('pn-f-status'), perfil: pnVal('pn-f-perfil'),
     contato: pnVal('pn-f-contato'), agenda: pnVal('pn-f-agenda'),
   };
-}
-/**
- * A lista que a tela mostra. Três usos, e por isso os parâmetros:
- *   pnFiltrar()                      -> o que aparece agora
- *   pnFiltrar({ aba: 'hoje' })       -> o número que cada botão de cima carrega
- *   pnFiltrar({ semEstagio: true })  -> o funil, que conta sem o próprio degrau
- *                                       (senão clicar num degrau zera os outros)
- */
-function pnFiltrar(o) {
-  o = o || {};
-  const f = o.f || pnFiltrosAtuais();
-  const busca = f.busca;
-  const aba = o.aba || pnAba;
   const eu = pnEu();
   let saida = pnDados.filter(l => {
     const n = pnNegDe(l), est = pnEstagioDe(l), nota = pnNota(l);
-    if (aba === 'fila' && (l.casaDoLead || ['fechado', 'fora', 'gelou'].includes(est))) return false;
-    if (aba === 'minha' && (pnRespDe(l) !== eu)) return false;
-    if (aba === 'hoje') {
+    if (pnAba === 'fila' && (l.casaDoLead || ['fechado', 'fora', 'gelou'].includes(est))) return false;
+    if (pnAba === 'minha' && (pnRespDe(l) !== eu)) return false;
+    if (pnAba === 'hoje') {
       const venceu = n && n.proximo_em && n.proximo_em <= pnHoje();
       const nunca = !n || !n.contato_em;
       if (pnRespDe(l) !== eu || !(venceu || nunca)) return false;
       if (['fechado', 'fora'].includes(est)) return false;
     }
-    if (aba === 'casa' && !l.casaDoLead) return false;
-    if (aba !== 'casa' && aba !== 'tudo' && l.casaDoLead) return false;
-    if (!o.semEstagio && f.estagio && est !== f.estagio) return false;
+    if (pnAba === 'casa' && !l.casaDoLead) return false;
+    if (pnAba !== 'casa' && pnAba !== 'tudo' && l.casaDoLead) return false;
+    if (f.estagio && est !== f.estagio) return false;
     if (f.resp === '__meus' && pnRespDe(l) !== eu) return false;
     if (f.resp === '__livre' && pnRespDe(l)) return false;
     if (f.resp && !['__meus', '__livre'].includes(f.resp) && pnRespDe(l) !== f.resp) return false;
@@ -10380,26 +10362,16 @@ const pnData = iso => { if (!iso) return ''; const d = new Date(iso); return isN
 
 function pnRender() {
   if (!pnDados) return;
-  const f = pnFiltrosAtuais();
-  const lista = pnFiltrar({ f: f });
+  const lista = pnFiltrar();
   const eu = pnEu();
 
-  // Cada botão de cima carrega o próprio número, como as abas antigas. O número
-  // é o da aba JÁ com os filtros de baixo aplicados: se não fosse, "Meus 40"
-  // acenderia do lado de uma tela com 3 linhas e o número viraria enfeite.
-  ['fila', 'minha', 'hoje', 'casa', 'tudo'].forEach(a => {
-    const el = document.getElementById('pn-cnt-' + a);
-    if (el) el.textContent = pnFiltrar({ f: f, aba: a }).length;
-  });
-
-  // O funil conta DENTRO do que está filtrado, menos o próprio degrau — senão
-  // clicar num degrau zeraria todos os outros e ninguém sabe pra onde voltar.
-  const base = pnFiltrar({ f: f, semEstagio: true });
+  // funil: conta em cima da MESMA lista filtrada, menos o próprio estágio, pra
+  // clicar no degrau não zerar o painel inteiro.
   const cont = {};
-  base.forEach(l => { const e = pnEstagioDe(l); cont[e] = (cont[e] || 0) + 1; });
+  pnDados.forEach(l => { const e = pnEstagioDe(l); cont[e] = (cont[e] || 0) + 1; });
   const funil = document.getElementById('pn-funil');
   if (funil) funil.innerHTML = PN_ESTAGIOS.map(e =>
-    '<button type="button" class="pn-deg' + (f.estagio === e.id ? ' on' : '') + '" title="' + pnEsc(e.dica) + '"'
+    '<button type="button" class="pn-deg' + (pnVal('pn-f-estagio') === e.id ? ' on' : '') + '" title="' + pnEsc(e.dica) + '"'
     + ' onclick="pnDegrau(\'' + e.id + '\')" style="--c:' + e.cor + '">'
     + '<i></i><b>' + (cont[e.id] || 0) + '</b><span>' + pnEsc(e.rot) + '</span></button>').join('');
 
@@ -11707,19 +11679,58 @@ function epCompletoRevisar() {
   if (m) m.classList.add('show');
 }
 
+// Numero escrito como se escreve no Brasil, pronto pra um <input type="number">.
+// O teclado pt-BR abre com virgula, entao "0,80" e' o PRIMEIRO decimal que o
+// consultor digita — e um type=number recusa a string inteira e fica VAZIO.
+//   "0,80"      -> "0.80"
+//   "350,00"    -> "350.00"
+//   "1.500,00"  -> "1500.00"   (virgula manda: o ponto e' milhar)
+//   "1.500"     -> "1500"      (tres digitos depois do ponto = milhar)
+//   "1.5"       -> "1.5"       (decimal de verdade, fica como esta)
+function epNumBR(txt) {
+  let v = String(txt == null ? '' : txt).trim();
+  if (!v) return '';
+  v = v.replace(/[^\d.,-]/g, '');
+  if (v.indexOf(',') >= 0) return v.replace(/\./g, '').replace(',', '.');
+  if (/^-?\d{1,3}(\.\d{3})+$/.test(v)) return v.replace(/\./g, '');
+  return v;
+}
+
 // Escreve de volta no Simulador e dispara `input`, que é o que faz a tela
 // recalcular. Sem o evento, o computeEletro leria o valor velho e o documento
 // sairia com um número que o consultor não vê em lugar nenhum.
 function epCompletoAplicar() {
+  const recusados = [];
   Object.entries(CMP_CAMPOS).forEach(([de, para]) => {
     const a = document.getElementById(de), b = document.getElementById(para);
     if (!a || !b) return;
-    if (b.value === a.value) return;
-    b.value = a.value;
+    // Cinco pares sao ponte text -> number (preco, custo, ativacao, assinatura,
+    // custos fixos). Sem converter, a virgula apaga o campo de origem.
+    const v = (b.tagName === 'INPUT' && b.type === 'number') ? epNumBR(a.value) : a.value;
+    if (b.value === v) return;
+    const antes = b.value;
+    b.value = v;
+    // TRAVA: campo de origem que RECUSOU o valor fica vazio e some do calculo,
+    // sem erro nenhum. Melhor devolver o valor antigo e dizer em voz alta do que
+    // emitir um documento com custo zero.
+    // Compara com o que o CONSULTOR digitou, nao com o convertido: "abc" vira
+    // '' na conversao, e comparar com '' faria a trava nunca disparar justo no
+    // caso que ela existe pra pegar.
+    if (b.value === '' && String(a.value).trim() !== '') {
+      b.value = antes;
+      a.value = antes;
+      const rot = (a.closest('.field') && a.closest('.field').querySelector('label'));
+      recusados.push(rot ? rot.textContent.trim() : para);
+      return;
+    }
     b.dispatchEvent(new Event('input', { bubbles: true }));
     b.dispatchEvent(new Event('change', { bubbles: true }));
   });
   try { if (typeof eletroCalc === 'function') eletroCalc(); } catch (e) {}
+  if (recusados.length && typeof showToast === 'function') {
+    showToast('⚠️ Não entendi o número em: ' + recusados.join(', '));
+  }
+  return recusados;
 }
 
 // Prévia dos quatro números que decidem, ao vivo dentro do modal: mexer no
