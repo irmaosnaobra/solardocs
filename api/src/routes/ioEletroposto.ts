@@ -611,25 +611,49 @@ export function contarPlacar(
   return { capital: investidores.size, ponto: locais.size };
 }
 
+/**
+ * Lê uma tabela inteira em páginas.
+ *
+ * O PostgREST corta a resposta em 1000 linhas e IGNORA um `.limit()` maior:
+ * o teto é do servidor. Em 26/09 isso saiu ao ar e o placar publicou 41 locais
+ * em vez de 49, porque `agendamentos` tem 1170 linhas e só 8 dos 16 locais
+ * caíam nas primeiras 1000. Não deu erro nenhum, só um número menor.
+ */
+export async function paginado<T>(
+  pagina: (de: number, ate: number) => PromiseLike<{ data: T[] | null; error: unknown }>,
+): Promise<T[]> {
+  const TAM = 1000;
+  const tudo: T[] = [];
+  for (let de = 0; ; de += TAM) {
+    const { data, error } = await pagina(de, de + TAM - 1);
+    if (error) throw error;
+    const lote = data || [];
+    tudo.push(...lote);
+    // Página incompleta significa fim da tabela. Sem essa saída, uma tabela com
+    // múltiplo exato de 1000 pediria uma página a mais, o que é barato e certo.
+    if (lote.length < TAM) return tudo;
+  }
+}
+
 router.get('/parceria/placar', async (_req: Request, res: Response): Promise<void> => {
   try {
-    // `limit` alto e explícito: o PostgREST corta em 1000 calado, e um teto
-    // silencioso aqui congelaria o placar sem ninguém perceber.
-    const TETO = 20000;
+    // Quem PODE ser filtrado no servidor é filtrado lá: `agendamentos` tem mais
+    // de mil linhas e só algumas dezenas interessam. Trazer a tabela toda para
+    // descartar 99% dela é o que estourava o teto de linhas.
     const [capCad, fichas, pontoCad, agenda] = await Promise.all([
-      supabaseGerador.from('eletroposto_parceria').select('telefone').eq('lado', 'capital').limit(TETO),
-      supabaseGerador.from('eletroposto_nota1').select('telefone, endereco').limit(TETO),
-      supabaseGerador.from('eletroposto_parceria').select('telefone, ponto_endereco').eq('lado', 'ponto').limit(TETO),
-      supabaseGerador.from('agendamentos').select('cliente_telefone, ponto_relacao').limit(TETO),
+      paginado<{ telefone?: string }>((de, ate) => supabaseGerador
+        .from('eletroposto_parceria').select('telefone').eq('lado', 'capital').range(de, ate)),
+      paginado<{ telefone?: string; endereco?: string }>((de, ate) => supabaseGerador
+        .from('eletroposto_nota1').select('telefone, endereco').range(de, ate)),
+      paginado<{ telefone?: string; ponto_endereco?: string }>((de, ate) => supabaseGerador
+        .from('eletroposto_parceria').select('telefone, ponto_endereco').eq('lado', 'ponto')
+        .not('ponto_endereco', 'is', null).neq('ponto_endereco', '').range(de, ate)),
+      paginado<{ cliente_telefone?: string; ponto_relacao?: string }>((de, ate) => supabaseGerador
+        .from('agendamentos').select('cliente_telefone, ponto_relacao')
+        .not('ponto_relacao', 'is', null).neq('ponto_relacao', '').range(de, ate)),
     ]);
-    for (const r of [capCad, fichas, pontoCad, agenda]) if (r.error) throw r.error;
 
-    const placar = contarPlacar(
-      (capCad.data || []) as LinhaFone[],
-      (fichas.data || []) as LinhaFicha[],
-      (pontoCad.data || []) as LinhaPonto[],
-      (agenda.data || []) as LinhaAgenda[],
-    );
+    const placar = contarPlacar(capCad, fichas, pontoCad, agenda);
 
     res.set('Cache-Control', 'public, max-age=300');
     // Contagem que DEU CERTO devolve o número, zero inclusive. Null significa só

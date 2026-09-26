@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { contarPlacar } from '../routes/ioEletroposto';
+import { contarPlacar, paginado } from '../routes/ioEletroposto';
 
 /**
  * O placar da /nexus aparece como prova social. Errar para mais é promessa
@@ -91,5 +91,51 @@ describe('placar da parceria: conta pessoa, não linha', () => {
 
   it('base vazia devolve zero, não quebra', () => {
     expect(contarPlacar([], [], [], [])).toEqual({ capital: 0, ponto: 0 });
+  });
+});
+
+/**
+ * O defeito de 26/09 não foi na contagem, foi na LEITURA: o PostgREST cortou
+ * em 1000 linhas e o placar publicou 41 locais em vez de 49, sem erro nenhum.
+ * Estes testes existem para esse corte não voltar.
+ */
+describe('leitura paginada: o teto de 1000 linhas do servidor', () => {
+  const tabela = (n: number) => Array.from({ length: n }, (_, i) => ({ i }));
+  /** Imita o PostgREST: respeita o range pedido, mas nunca devolve mais de 1000. */
+  const servidor = (linhas: { i: number }[]) => {
+    const chamadas: Array<[number, number]> = [];
+    const pagina = async (de: number, ate: number) => {
+      chamadas.push([de, ate]);
+      return { data: linhas.slice(de, Math.min(ate + 1, de + 1000)), error: null };
+    };
+    return { pagina, chamadas };
+  };
+
+  it('tabela menor que uma página vem numa chamada só', async () => {
+    const { pagina, chamadas } = servidor(tabela(326));
+    expect((await paginado(pagina)).length).toBe(326);
+    expect(chamadas.length).toBe(1);
+  });
+
+  it('tabela de 1170 linhas vem INTEIRA, que é o caso que quebrou', async () => {
+    const { pagina, chamadas } = servidor(tabela(1170));
+    const tudo = await paginado(pagina);
+    expect(tudo.length).toBe(1170);
+    expect(chamadas.length).toBe(2);
+  });
+
+  it('múltiplo exato de 1000 não perde a última página', async () => {
+    const { pagina } = servidor(tabela(2000));
+    expect((await paginado(pagina)).length).toBe(2000);
+  });
+
+  it('tabela vazia devolve lista vazia', async () => {
+    const { pagina } = servidor(tabela(0));
+    expect(await paginado(pagina)).toEqual([]);
+  });
+
+  it('erro do banco sobe, não vira contagem menor em silêncio', async () => {
+    await expect(paginado(async () => ({ data: null, error: new Error('pane') })))
+      .rejects.toThrow('pane');
   });
 });
