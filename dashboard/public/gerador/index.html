@@ -3557,7 +3557,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div class="eletro-subnav">
       <button type="button" id="eletro-tab-simulador" class="eletro-subtab ativa" onclick="eletroSubaba('simulador')">Simulador</button>
       <button type="button" id="eletro-tab-orcamento" class="eletro-subtab" onclick="eletroSubaba('orcamento')">Orçamento</button>
-      <button type="button" id="eletro-tab-equipamento" class="eletro-subtab" onclick="eletroSubaba('equipamento')">Venda de equipamento</button>
+      <button type="button" id="eletro-tab-equipamento" class="eletro-subtab" onclick="eletroSubaba('equipamento')">Orçamento Carregador</button>
       <!-- Os quatro papéis do pós-venda. Viraram grupo quando o dossiê de crédito
            entrou: cinco documentos em fila na régua 1 empurrava Cadastros e
            Histórico pra fora da tela de novo. Abre no Recibo. -->
@@ -11662,6 +11662,409 @@ function eletroWhatsApp() {
 // 1,4) com a MESMA carga digitada — por isso nenhum título do deck pode trazer
 // "4 carros" escrito à mão: com 10 carros/dia os cenários são 6/10/14.
 // ═══════════════════════════════════════════════════════════════════════════
+// A condicao de pagamento do Completo.
+//
+// O card de pagamento da aba Orcamento nasce com so' "A vista" marcado. O
+// Basico, que sai do Simulador e nao tem card, sempre imprimiu a condicao
+// PADRAO DA CASA cravada no codigo (a vista + 18x com 22,5% + financiamento).
+// Os dois discordavam: com o card no estado em que ele nasce, o Orcamento da
+// aba imprimia uma linha e o Basico imprimia tres.
+//
+// Aqui a regra e' explicita: enquanto ninguem MEXE no card, vale a condicao
+// padrao da casa — que e' o que o consultor esta acostumado a ver sair. No
+// instante em que ele marca ou desmarca qualquer forma, o documento obedece o
+// card e so' o card. Mudar isso caladamente tiraria cartao e financiamento do
+// papel de quem nunca abre a aba Orcamento.
+function epPagDoOrcamento(total) {
+  const on = id => !!document.getElementById(id)?.checked;
+  const mexeu = !on('orc-pg-ck-avista') || on('orc-pg-ck-entrada') || on('orc-pg-ck-fin');
+  if (mexeu) return orcPgLer(total);
+  return { vista: true, vistaValor: null, cartaoNs: [],
+           entrada: { valor: 0, parcelas: ORC_ENTRADA_PARC, juros: ORC_ENTRADA_JUROS },
+           fin: true };
+}
+
+
+// CSS do Orçamento Completo em pé. TUDO preso a `.ep-completo`: as classes
+// .ep-page, .ep-box, .ep-kv, .ep-cols e .ep-kpis são compartilhadas com os
+// outros cinco documentos, e regra solta aqui reapareceria no Estudo.
+const EP_A4_CSS = `<style>
+.ep-completo .ep-page{padding:13mm 18mm}
+.ep-completo .ep-topo{margin-bottom:10px}
+
+/* o número, do tamanho que ele merece na folha 1 */
+.ep-completo .ep-hero{background:linear-gradient(135deg,#0B1220,#12253d);color:#fff;border-radius:10px;padding:18px 22px;margin:12px 0 14px}
+.ep-completo .ep-hero-num{font-size:44px;font-weight:800;line-height:1;letter-spacing:-.5px}
+.ep-completo .ep-hero-num .un{font-size:15px;font-weight:600;opacity:.72;margin-left:9px;letter-spacing:0}
+.ep-completo .ep-hero-sub{margin-top:9px;font-size:12px;opacity:.9}
+.ep-completo .ep-hero-sub b{color:#4ade80}
+.ep-completo .ep-hero-selos{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.ep-completo .ep-hero-selos span{font-size:9.5px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:3px 9px}
+.ep-completo .ep-hero-selos b{color:#4ade80}
+
+.ep-completo .ep-kpi .v.peq{font-size:13px;line-height:1.25}
+
+/* as partes: fornecedor e cliente lado a lado */
+.ep-completo .ep-partes{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.ep-completo .ep-parte{border:1px solid #e4e8f0;border-radius:8px;padding:11px 13px;background:#fbfcfe}
+.ep-completo .ep-parte .t{font-size:9.5px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:#5C6470;margin-bottom:7px}
+.ep-completo .ep-parte .ep-fb-row{display:flex;justify-content:space-between;gap:12px;padding:2.5px 0;font-size:10.5px;border:0}
+.ep-completo .ep-parte .ep-fb-row .k{color:#5C6470;white-space:nowrap}
+.ep-completo .ep-parte .ep-fb-row .v{color:#161A22;font-weight:600;text-align:right}
+.ep-completo .ep-consultor{margin-top:10px;font-size:10.5px;color:#444}
+
+/* a conta aberta */
+.ep-completo .ep-conta{display:flex;flex-wrap:wrap;align-items:flex-end;gap:6px 9px;margin:4px 0 10px}
+.ep-completo .ep-conta .cl{display:flex;flex-direction:column;min-width:52px}
+.ep-completo .ep-conta .cl .v{font-size:15px;font-weight:800;color:#161A22;line-height:1.1}
+.ep-completo .ep-conta .cl .r{font-size:8.5px;color:#5C6470;line-height:1.2}
+.ep-completo .ep-conta .op{font-size:13px;font-weight:700;color:#9AA3B2;padding-bottom:9px}
+.ep-completo .ep-conta-total{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;background:#ecfdf5;border:1px solid #bbf7d0;border-radius:7px;padding:8px 12px}
+.ep-completo .ep-conta-total .r{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:#15803d}
+.ep-completo .ep-conta-total .v{font-size:19px;font-weight:800;color:#15803d}
+.ep-completo .ep-conta-total .n{font-size:9.5px;color:#5C6470}
+
+/* as premissas em chip */
+.ep-completo .ep-chips{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ep-completo .ep-chip,.ep-completo .ep-chips .chip{border:1px solid #e4e8f0;border-radius:6px;padding:5px 8px;background:#fff}
+.ep-completo .ep-chips .chip .r{font-size:8.5px;color:#5C6470;line-height:1.2}
+.ep-completo .ep-chips .chip .v{font-size:11.5px;font-weight:700;color:#161A22}
+
+/* todo custo na mesa, com a barra que conta a história sozinha */
+.ep-completo .ep-custos{display:grid;grid-template-columns:1fr 1fr;gap:7px 20px;margin-top:4px}
+.ep-completo .ep-custo,.ep-completo .ep-custos .custo{padding:1px 0}
+.ep-completo .ep-custos .linha{display:flex;justify-content:space-between;gap:10px;font-size:10.5px}
+.ep-completo .ep-custos .linha .r{color:#333}
+.ep-completo .ep-custos .linha .v{font-weight:700;color:#161A22;white-space:nowrap}
+.ep-completo .ep-custos .trilho{height:4px;background:#eef1f6;border-radius:3px;margin:2.5px 0 1px;overflow:hidden}
+.ep-completo .ep-custos .trilho i{display:block;height:100%;background:linear-gradient(90deg,#1d4ed8,#3b82f6);border-radius:3px}
+.ep-completo .ep-custos .n{font-size:8.5px;color:#7a8290}
+
+.ep-completo .ep-faixa-verde{margin-top:11px;background:#15803d;color:#fff;border-radius:7px;padding:9px 14px;font-size:12.5px;font-weight:700;text-align:center}
+
+/* TIR e VPL */
+.ep-completo .ep-selos-fin{display:grid;gap:7px;margin-bottom:9px}
+.ep-completo .ep-selo-fin{border:1px solid #e4e8f0;border-left:3px solid #1d4ed8;border-radius:6px;padding:6px 10px}
+.ep-completo .ep-selo-fin .k{font-size:8.5px;font-weight:800;letter-spacing:.8px;color:#1d4ed8}
+.ep-completo .ep-selo-fin .v{font-size:15px;font-weight:800;color:#161A22;line-height:1.15}
+.ep-completo .ep-selo-fin .d{font-size:8.5px;color:#5C6470;line-height:1.25}
+
+.ep-completo .ep-p{font-size:10.5px;color:#333;line-height:1.5;margin:4px 0 8px}
+.ep-completo .ep-p.aviso{color:#1d4ed8;font-size:9.5px;margin-top:8px}
+
+/* listas do escopo */
+.ep-completo .ep-lista{margin:2px 0 0;padding-left:0;list-style:none}
+.ep-completo .ep-lista li{position:relative;padding-left:16px;font-size:10.5px;line-height:1.55;color:#333}
+.ep-completo .ep-lista li::before{position:absolute;left:0;top:0;font-weight:800}
+.ep-completo .ep-lista.dentro li::before{content:'✓';color:#15803d}
+.ep-completo .ep-lista.fora li::before{content:'—';color:#1d4ed8}
+
+/* os três medos e o cronograma: tabelas, não cartões */
+.ep-completo .ep-riscos td{font-size:10.5px;padding:6px 9px;vertical-align:top}
+.ep-completo .ep-riscos td.risco{width:38%;font-style:italic;color:#5C6470}
+.ep-completo .ep-passos td{font-size:10.5px;padding:5px 9px}
+.ep-completo .ep-passos td.n{width:22px;font-weight:800;color:#1d4ed8;text-align:center}
+.ep-completo .ep-passos td.quem{width:30%;text-align:right;font-size:9.5px;color:#15803d;font-weight:700}
+.ep-completo .ep-passos td.quem.dist{color:#b45309}
+
+/* a condição de pagamento, com os mesmos chips do Básico e do Orçamento */
+/* orc1PagChips traz o PROPRIO involucro .pags, e a regra de flex da casa e
+   \`.orc1 .pags\` — que nao alcanca aqui fora. Sem isto os tres chips empilham
+   um embaixo do outro e a folha fica com um bloco torto no meio. */
+.ep-completo .ep-pags{margin:4px 0 10px}
+.ep-completo .ep-pags .pags{display:flex;flex-wrap:wrap;gap:8px;margin:0}
+.ep-completo .ep-pags .pag{border:1px solid #e4e8f0;border-radius:7px;padding:7px 12px;background:#fbfcfe;flex:1 1 190px;max-width:100%}
+.ep-completo .ep-pags .pag b{display:block;font-size:9px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;color:#5C6470}
+.ep-completo .ep-pags .pag span{font-size:13px;font-weight:800;color:#161A22}
+
+.ep-completo .ep-valid-fim{margin-top:10px;text-align:center;font-size:10px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:#5C6470}
+</style>`;
+
+// ═══════════ O ORÇAMENTO COMPLETO EM PÉ (A4) ═══════════
+//
+// Pedido do dono (26/09/2026): "quando eu preencher o orçamento com todas as
+// informações possíveis, já tenho o orçamento completo pronto com tudo que for
+// possível, cada envolvido — e o pdf tem que ser na vertical e melhor
+// distribuído".
+//
+// O QUE ERA: o PDF saía DEITADO. `epDeckImprimir` abria o premium-deck.html
+// num iframe de 1920×1080 e mandava imprimir — 13 páginas 16:9. Isso é ótimo no
+// celular do cliente, que é onde o LINK abre, e ruim no papel: ninguém arquiva,
+// imprime nem anexa a e-mail uma proposta deitada.
+//
+// O QUE É AGORA: o LINK continua sendo o deck de 13 páginas (é o que o cliente
+// abre no celular, e ali 16:9 é o formato certo). O PDF passa a ser este
+// documento, A4 em pé, QUATRO folhas cheias:
+//
+//   folha 1  o número, e as partes: fornecedor, cliente e consultor
+//   folha 2  de onde sai o número: a conta aberta, todo custo na mesa, o retorno
+//   folha 3  os cenários, o equipamento, o que está dentro do valor e os riscos
+//   folha 4  o cronograma, a condição de pagamento e o fecho
+//
+// A CONTA DE QUATRO, e não de cinco: em cinco folhas o conteúdo enchia só a
+// metade de cada uma — medido, sobravam 465px de 1123 na folha 2. Documento
+// pela metade parece rascunho.
+//
+// Sai do mesmo `epCompletoPayload` que alimenta o deck e o link: um dado só,
+// três destinos. O que muda é a diagramação, nunca o número.
+
+/** Linha de ficha que some quando o campo está vazio. */
+function epA4Row(rot, val) {
+  const v = String(val == null ? '' : val).trim();
+  return v ? `<div class="ep-fb-row"><span class="k">${orcEsc(rot)}</span><span class="v">${orcEsc(v)}</span></div>` : '';
+}
+
+/** Caixa de uma parte (fornecedor / cliente). Caixa sem nenhuma linha não sai. */
+function epA4Parte(titulo, rows) {
+  const corpo = rows.map(r => epA4Row(r[0], r[1])).join('');
+  return corpo ? `<div class="ep-parte"><div class="t">${orcEsc(titulo)}</div>${corpo}</div>` : '';
+}
+
+function epCompletoA4(d) {
+  const host = document.getElementById('eletro-print');
+  if (!host) return;
+
+  const E = d.ent || {}, R = d.res || {}, CEN = d.cen || [];
+  const P = d.partes || {};
+  const emit = P.emit || {}, cli = P.cli || {}, vend = P.vend || {};
+  const brl = v => elMoney(Number(v) || 0);
+  const pct1 = v => (Number(v) || 0).toFixed(1).replace('.', ',').replace(',0', '') + '%';
+  const dec1 = v => (Number(v) || 0).toFixed(1).replace('.', ',');
+  const tem = v => v != null && v !== '' && !(typeof v === 'number' && isNaN(v));
+
+  const TOTAL = 4;
+  const foot = n => epPageFootHTML('Orçamento Completo', d.cliente || '', n, TOTAL);
+  const marca = '<img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">';
+
+  // ── as partes ───────────────────────────────────────────────────────────
+  // O deck nunca carregou isto: ele nomeia o cliente e o consultor e para aí.
+  // Num orçamento que vira contrato, quem vende e quem compra têm que estar
+  // escritos com documento e endereço, senão o papel não serve de nada depois.
+  const endEmit = [emit.end, emit.cidade].filter(Boolean).join(' · ');
+  const endCli = [cli.end, cli.cep ? 'CEP ' + cli.cep : '', cli.cidade].filter(Boolean).join(' · ');
+  const partes = [
+    epA4Parte('Fornecedor', [
+      ['Nome', emit.nome], ['Razão social', emit.razao], ['CNPJ', emit.cnpj],
+      ['Inscrição Estadual', emit.ie], ['Endereço', endEmit],
+      ['Telefone', emit.tel], ['E-mail', emit.email],
+    ]),
+    epA4Parte('Cliente', [
+      ['Nome', cli.nome], ['CNPJ / CPF', cli.doc], ['Inscrição Estadual', cli.ie],
+      ['Endereço', endCli], ['Telefone', cli.tel], ['E-mail', cli.email],
+    ]),
+  ].filter(Boolean).join('');
+
+  const selos = [
+    tem(R.payback) ? `investimento de volta em <b>${dec1(R.payback)} anos</b>` : '',
+    'chave na mão', 'garantia de 24 meses', 'entrega em 25 dias',
+  ].filter(Boolean).map(s => `<span>${s}</span>`).join('');
+
+  // Resumo em uma frase, gerado dos números. Frase fixa vira mentira no dia em
+  // que alguém digita um investimento ruim — as ramificações são as do Estudo.
+  const resumo = `Este orçamento cobre a implantação de um eletroposto${d.cidade ? ` em <b>${orcEsc(d.cidade)}</b>` : ''}${d.cliente ? ` para <b>${orcEsc(d.cliente)}</b>` : ''}, com investimento total de <b>${brl(E.invest)}</b> em regime chave na mão. Em regime pleno — <b>${Math.round(Number(E.carros) || 0)} carros por dia</b>, atingidos depois da rampa de ${Math.round(Number(E.rampa) || 1)} meses — o ponto gera <b>${brl(R.lucroMes)} por mês</b>, com o capital de volta em <b>${tem(R.payback) ? dec1(R.payback) + ' anos' : '—'}</b>${tem(R.tir) ? ` e <b>TIR de ${pct1(R.tir)} ao ano</b>` : ''}. As premissas, os custos abertos, os cenários e o cronograma estão nas folhas seguintes.`;
+
+  // ── folha 1 · o número, e quem são as partes ────────────────────────────
+  const f1 = `<div class="ep-page">${marca}
+    ${epTopoHTML('Orçamento Completo — Eletroposto', d.data,
+      [['Nº da proposta', d.numero ? orcEsc(d.numero) : ''],
+       ['Cliente', d.cliente ? orcEsc(d.cliente) : ''],
+       ['Local', d.cidade ? orcEsc(d.cidade) : '']],
+      d.validade)}
+
+    <div class="ep-hero ep-avoid-break">
+      <div class="ep-hero-num">${brl(R.lucroMes)}<span class="un">por mês</span></div>
+      <div class="ep-hero-sub">O equipamento se compra, a obra se contrata. <b>O ponto não.</b></div>
+      <div class="ep-hero-selos">${selos}</div>
+    </div>
+
+    <div class="ep-kpis ep-avoid-break">
+      <div class="ep-kpi"><div class="k">Investimento</div><div class="v">${brl(E.invest)}</div></div>
+      <div class="ep-kpi"><div class="k">Retorno</div><div class="v pos">${tem(R.payback) ? dec1(R.payback) + ' anos' : '—'}</div></div>
+      <div class="ep-kpi"><div class="k">Faturamento/mês</div><div class="v">${brl(R.fatMes)}</div></div>
+      <div class="ep-kpi"><div class="k">Patrimônio em 10 anos</div><div class="v pos">${brl(R.patrimonio10)}</div></div>
+    </div>
+
+    <div class="ep-section">Resumo</div>
+    <div class="ep-exec">${resumo}</div>
+
+    <div class="ep-section">As partes</div>
+    <div class="ep-partes ep-avoid-break">${partes}</div>
+    ${vend.nome || vend.contato ? `<div class="ep-consultor">Consultor responsável: <b>${orcEsc(vend.nome || '')}</b>${vend.contato ? ' · ' + orcEsc(vend.contato) : ''}</div>` : ''}
+    ${foot(1)}
+  </div>`;
+
+  // ── folha 2 · de onde sai o número, e o retorno ─────────────────────────
+  const conta = [
+    [String(Math.round(Number(E.carros) || 0)), 'carros por dia'],
+    ['×', ''], [String(Math.round(Number(E.carga) || 0)), 'kWh por carga'],
+    ['×', ''], ['R$ ' + (Number(E.precoKwh) || 0).toFixed(2).replace('.', ','), 'o kWh'],
+    ['+', ''], ['R$ ' + (Number(E.ativacao) || 0).toFixed(2).replace('.', ','), 'de ativação'],
+    ['×', ''], ['30', 'dias'],
+  ].map(c => c[1]
+    ? `<div class="cl"><span class="v">${c[0]}</span><span class="r">${c[1]}</span></div>`
+    : `<div class="op">${c[0]}</div>`).join('');
+
+  // As mesmas premissas que a página 2 do deck mostra em chip. Campo vazio não
+  // vira chip vazio — é a mesma regra do Simulador em PDF e do Estudo.
+  const chips = [
+    ['Custo do kWh comprado', tem(E.custoKwh) ? 'R$ ' + Number(E.custoKwh).toFixed(2).replace('.', ',') : ''],
+    ['Gateway de pagamento', tem(E.gateway) ? pct1(E.gateway) : ''],
+    ['Software NEXUS', tem(E.software) ? pct1(E.software) : ''],
+    ['Arrendamento do ponto', tem(E.arrend) ? pct1(E.arrend) : ''],
+    ['Manutenção', tem(E.manut) ? pct1(E.manut) : ''],
+    ['Assinatura mensal', Number(E.assinatura) > 0 ? brl(E.assinatura) : ''],
+    ['Imposto (Simples)', tem(E.imposto) ? pct1(E.imposto) : ''],
+    ['Custos fixos', Number(E.fixos) > 0 ? brl(E.fixos) : ''],
+    ['Ocupação inicial', tem(E.ocupIni) ? pct1(E.ocupIni) + ' por ' + Math.round(Number(E.rampa) || 1) + ' meses' : ''],
+  ].filter(c => c[1] !== '')
+   .map(c => `<div class="chip"><div class="r">${c[0]}</div><div class="v">${c[1]}</div></div>`).join('');
+
+  const maior = Math.max(...(R.custos || []).map(c => Number(c.val) || 0), 1);
+  const custos = (R.custos || []).map(c => `<div class="custo">
+      <div class="linha"><span class="r">${orcEsc(c.rot)}</span><span class="v">${brl(c.val)}</span></div>
+      <div class="trilho"><i style="width:${(100 * (Number(c.val) || 0) / maior).toFixed(1)}%"></i></div>
+      ${c.nota ? `<div class="n">${orcEsc(c.nota)}</div>` : ''}
+    </div>`).join('');
+
+  const finSelos = [
+    tem(R.tir) ? ['TIR', pct1(R.tir) + ' a.a.', 'é o juro que o projeto paga'] : null,
+    tem(R.vpl) ? ['VPL', brl(R.vpl), 'o que ele vale hoje, descontado a ' + pct1(E.taxaDesc) + ' a.a.'] : null,
+  ].filter(Boolean).map(s => `<div class="ep-selo-fin"><div class="k">${s[0]}</div><div class="v">${s[1]}</div><div class="d">${s[2]}</div></div>`).join('');
+
+  const f2 = `<div class="ep-page">${marca}
+    <div class="ep-section">De onde sai esse número</div>
+    <div class="ep-cols ep-avoid-break">
+      <div class="ep-box">
+        <h3>O que você vende</h3>
+        <div class="ep-conta">${conta}</div>
+        <div class="ep-conta-total">
+          <span class="r">Faturamento</span>
+          <span class="v">${brl(R.fatMes)}</span>
+          <span class="n">${brl(R.fatAno)} por ano</span>
+        </div>
+      </div>
+      <div class="ep-box">
+        <h3>O que você paga</h3>
+        <div class="ep-chips">${chips}</div>
+      </div>
+    </div>
+
+    <div class="ep-section">O que já foi descontado antes de você ver esse número</div>
+    <div class="ep-custos">${custos}</div>
+    <div class="ep-faixa-verde">Sobram ${brl(R.lucroMes)} por mês · margem de ${pct1(R.margem)}</div>
+
+    <div class="ep-section">O dinheiro volta em ${tem(R.payback) ? dec1(R.payback) + ' anos' : '—'}</div>
+    <div class="ep-cols ep-avoid-break">
+      <div class="ep-box">
+        <h3>O retorno</h3>
+        <div class="ep-selos-fin">${finSelos}</div>
+      </div>
+      <div class="ep-box">
+        <h3>O primeiro ano entra mais devagar</h3>
+        <p class="ep-p">Ninguém abre um posto lotado, e esta conta não finge que sim. A ocupação sai de ${tem(E.ocupIni) ? pct1(E.ocupIni) : '—'} e chega cheia no mês ${Math.round(Number(E.rampa) || 1)}.</p>
+        <table class="ep-kv">
+          <tr><td>Lucro do ano 1 (com rampa)</td><td class="num">${brl(R.lucroAno1)}</td></tr>
+          <tr class="hl"><td>A partir do ano cheio</td><td class="num">${brl(R.lucroAno)}</td></tr>
+        </table>
+      </div>
+    </div>
+    ${foot(2)}
+  </div>`;
+
+  // ── folha 3 · cenários, equipamento, escopo e riscos ────────────────────
+  const cenVivos = CEN.filter((c, i, a) => a.findIndex(x => x.carros === c.carros) === i);
+  const cenHead = cenVivos.map(c => `<th class="num${c.projeto ? ' atual' : ''}">${orcEsc(c.nome)}<br><span class="sub">${Math.round(c.carros)} carros/dia</span></th>`).join('');
+  const cenRow = (rot, fn) => `<tr><td>${rot}</td>${cenVivos.map(c => `<td class="num">${fn(c)}</td>`).join('')}</tr>`;
+
+  // A lista do que está dentro é a MESMA do deck (D.inclui quando o consultor
+  // mexeu, senão a lista fechada da casa). Duas listas diferentes pro mesmo
+  // valor é como nasce aditivo depois de assinado.
+  const DENTRO = (Array.isArray(d.inclui) && d.inclui.length) ? d.inclui : [
+    'Carregador ' + (d.modelo || 'NEXUS'), 'App Usuários NEXUS', 'Projeto de engenharia',
+    'Homologação na concessionária', 'Infraestrutura elétrica', 'Infraestrutura civil',
+    'Mão de obra e instalação', 'Garantia de 24 meses'];
+  const FORA = (Array.isArray(d.excluiPor) && d.excluiPor.length) ? d.excluiPor
+    : ['O espaço', 'A ligação de energia no nome de quem vai operar', 'A energia consumida'];
+
+  const MEDOS = [
+    ['“vai virar um canteiro de obra no meu terreno”', 'A obra é nossa. Equipe própria, infraestrutura elétrica e civil inclusas.'],
+    ['“a concessionária vai travar tudo”', 'Nós fazemos o projeto e protocolamos a homologação. O calendário da análise é dela, e está dito no cronograma.'],
+    ['“vou ficar com uma máquina parada”', '24 meses de garantia. Manutenção e seguro já estão dentro da conta que você viu.'],
+  ];
+
+  const f3 = `<div class="ep-page">${marca}
+    <div class="ep-section">E se vierem menos carros?</div>
+    <table class="ep-cmp ep-avoid-break">
+      <thead><tr><th></th>${cenHead}</tr></thead>
+      <tbody>
+        ${cenRow('Faturamento/mês', c => brl(c.fatMes))}
+        ${cenRow('Lucro/mês', c => brl(c.lucroMes))}
+        ${cenRow('Payback', c => tem(c.payback) ? dec1(c.payback) + ' anos' : 'não paga')}
+        ${cenRow('TIR', c => tem(c.tir) ? pct1(c.tir) + ' a.a.' : '—')}
+        ${cenRow('Patrimônio em 10 anos', c => brl(c.patrimonio))}
+      </tbody>
+    </table>
+
+    <div class="ep-section">O equipamento</div>
+    <div class="ep-kpis ep-avoid-break">
+      <div class="ep-kpi"><div class="k">Modelo</div><div class="v peq">${orcEsc(d.modelo || 'Carregador NEXUS')}</div></div>
+      <div class="ep-kpi"><div class="k">Máquinas</div><div class="v">${Math.round(Number(d.quantidade) || 1)}</div></div>
+      <div class="ep-kpi"><div class="k">Bicos</div><div class="v">${Math.round(Number(d.bicos) || 0)}</div></div>
+      <div class="ep-kpi"><div class="k">Entrega</div><div class="v peq">25 dias</div></div>
+    </div>
+
+    <div class="ep-section">O que está dentro do valor — e o que não está</div>
+    <div class="ep-cols ep-avoid-break">
+      <div class="ep-box">
+        <h3>Dentro do valor</h3>
+        <ul class="ep-lista dentro">${DENTRO.map(i => `<li>${orcEsc(i)}</li>`).join('')}</ul>
+      </div>
+      <div class="ep-box">
+        <h3>Por sua conta</h3>
+        <ul class="ep-lista fora">${FORA.map(i => `<li>${orcEsc(i)}</li>`).join('')}</ul>
+        <p class="ep-p aviso">Padrão de entrada e transformador, se o seu padrão não aguentar a carga. Orçados depois da medição.</p>
+      </div>
+    </div>
+    <div class="ep-faixa-verde">${brl(E.invest)} · valor total do projeto, chave na mão</div>
+
+    <div class="ep-section">Nenhum dos três riscos é seu</div>
+    <table class="ep-riscos ep-avoid-break">
+      <tbody>${MEDOS.map(m => `<tr><td class="risco">${orcEsc(m[0])}</td><td>${orcEsc(m[1])}</td></tr>`).join('')}</tbody>
+    </table>
+    ${foot(3)}
+  </div>`;
+
+  // ── folha 4 · cronograma, pagamento e fecho ─────────────────────────────
+  const ETAPAS = [
+    ['Assinatura do contrato', 'você'], ['Projeto executivo e ART', 'nosso'],
+    ['Protocolo de homologação', 'nosso'], ['Análise e parecer de acesso', 'concessionária'],
+    ['Obra civil e elétrica', 'nosso'], ['Equipamento no local e instalação', 'nosso'],
+    ['Vistoria e ligação', 'concessionária'],
+  ];
+  const nNos = ETAPAS.filter(e => e[1] === 'nosso').length;
+  const nDist = ETAPAS.filter(e => e[1] === 'concessionária').length;
+
+  const f4 = `<div class="ep-page">${marca}
+    <div class="ep-section">A etapa 1 é a assinatura</div>
+    <table class="ep-passos ep-avoid-break">
+      <tbody>${ETAPAS.map((e, i) => `<tr><td class="n">${i + 1}</td><td>${orcEsc(e[0])}</td><td class="quem ${e[1] === 'concessionária' ? 'dist' : ''}">${e[1]}</td></tr>`).join('')}</tbody>
+    </table>
+    <p class="ep-p">Das ${ETAPAS.length} etapas, ${nNos} são nossas e ${nDist} dependem da concessionária, que é quem define o calendário do parecer de acesso. A data da ligação a gente crava assim que ele sai.</p>
+
+    <div class="ep-section">Condição de pagamento</div>
+    <div class="ep-pags ep-avoid-break">${orc1PagChips({ total: Number(E.invest) || 0, ...(d.pag || {}) })}</div>
+
+    <div class="ep-obs">${orcEsc(d.obs || (typeof ORC_OBS_PADRAO === 'string' ? ORC_OBS_PADRAO : ''))}</div>
+
+    ${epFooterBlockHTML({ nome: vend.nome, contato: vend.contato })}
+    <div class="ep-valid-fim">${orcEsc(d.validade || '')}</div>
+    ${foot(4)}
+  </div>`;
+
+  host.innerHTML = `<div class="ep-doc ep-completo">${EP_A4_CSS}${f1}${f2}${f3}${f4}</div>`;
+  epPrint(host, epNomeArq('Orcamento', d.cliente));
+}
+
 function epCompletoPayload(versao) {
   const p = eletroParams();
   const r = computeEletro(p);
@@ -11699,6 +12102,21 @@ function epCompletoPayload(versao) {
     vpl: c.r.vpl, patrimonio: c.r.acumulado10,
   }));
 
+  // AS PARTES. O deck nomeia o cliente e o consultor e para ai'. Num orcamento
+  // que vira contrato, quem vende e quem compra tem que estar escritos com
+  // documento e endereco — senao o papel nao serve de nada depois da assinatura.
+  // Campo em branco nao vira linha em branco: quem monta o documento filtra.
+  const cruOrc = id => (document.getElementById(id)?.value || '').trim();
+  const emitOrc = epEmitGet();
+  const partes = {
+    emit: { nome: emitOrc.nome, razao: emitOrc.razao, cnpj: emitOrc.cnpj, ie: emitOrc.ie,
+            end: emitOrc.end, cidade: emitOrc.cidade, tel: emitOrc.tel, email: emitOrc.email },
+    cli: { nome: t.cliente || '', cidade: t.cidade || '',
+           doc: cruOrc('orc-cli-doc'), ie: cruOrc('orc-cli-ie'), end: cruOrc('orc-cli-end'),
+           cep: cruOrc('orc-cli-cep'), tel: cruOrc('orc-cli-tel'), email: cruOrc('orc-cli-email') },
+    vend: { nome: t.autor || '', contato: t.contato || '' },
+  };
+
   return {
     // `produto` e `doc` não são enfeite: é por eles que o GET /orc/:codigo sabe
     // mandar este link pro deck em vez de mandar pro app do orçamento de 1
@@ -11710,6 +12128,14 @@ function epCompletoPayload(versao) {
     data: hoje.toLocaleDateString('pt-BR'),
     validade: validadeTexto(val, hoje, 2),
     vendedor: t.autor || '', contato: t.contato || '',
+    partes,
+    // A condicao de pagamento que o consultor montou na aba Orcamento. Antes o
+    // Completo nao tinha onde ler isso e o papel saia sem forma de pagamento.
+    // DADO, nao HTML: este objeto e' gravado inteiro no `dados` jsonb do link do
+    // cliente. Guardar markup ali incha a linha e congela a diagramacao de hoje
+    // dentro de um registro que vai ser lido daqui a meses.
+    pag: epPagDoOrcamento(p.invest),
+    obs: ORC_OBS_PADRAO,
     modelo: epEquipRotulo(t.equip) || 'Carregador NEXUS',
     quantidade: orcEpQtdCarregadores(), bicos: p.plugs,
     ent: {
@@ -11972,6 +12398,11 @@ function epCompletoPrevia() {
 // Imprime o deck SEM trocar de tela: mesma pagina do link do cliente, dentro de
 // um iframe escondido. O nome do arquivo entra no title do iframe, que e' o que
 // o navegador grava no PDF.
+// ORFA desde 26/09/2026: o botao "Gerar PDF" do Orcamento Completo passou a
+// emitir o epCompletoA4 (quatro folhas A4 em pe'). Esta funcao e' a unica que
+// sabe imprimir o deck de 13 paginas 16:9, e fica de pe' pro dia em que alguem
+// pedir a versao deitada de volta (projetor, tela cheia). O LINK do cliente nao
+// passa por aqui: ele abre o premium-deck.html direto.
 function epDeckImprimir(d, nomeArq) {
   const velho = document.getElementById('cmp-iframe');
   if (velho) velho.remove();
@@ -12014,7 +12445,10 @@ function epCompletoGerar(modo) {
   if (modo === 'pdf') {
     epCompletoFechar();
     showToast('⏳ Montando o orçamento…');
-    epDeckImprimir(d, nome);
+    // A4 EM PE', nao o deck deitado. O deck continua sendo o LINK: e' o que o
+    // cliente abre no celular, e la' 16:9 e' o formato certo. No papel ele era
+    // impossivel de arquivar, imprimir ou anexar.
+    epCompletoA4(d);
     return;
   }
 
