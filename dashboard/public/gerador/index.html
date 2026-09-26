@@ -531,6 +531,100 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .cad-curioso-acao button{background:#FBBF24;color:#1F1600;border:0;border-radius:9px;font-family:inherit;
   font-size:13px;font-weight:900;padding:10px 14px;cursor:pointer;min-height:40px;white-space:nowrap}
 .cad-curioso-acao button:hover{filter:brightness(1.07)}
+/* PONTOS — prospecção dos locais (26/09/2026). Vive dentro do pane de Cadastros.
+   Cartão e não tabela: cada linha tem quatro controles que se escreve com o
+   polegar, e é do celular que se liga. */
+.pn-abas{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0 12px}
+.pn-aba{background:rgba(148,163,184,.10);border:1px solid rgba(148,163,184,.20);color:#94A3B8;
+  font-family:inherit;font-size:13.5px;font-weight:700;padding:9px 14px;border-radius:999px;cursor:pointer;min-height:40px}
+.pn-aba.on{background:#fff;border-color:#fff;color:#0B1220}
+.pn-resumo{margin-left:auto;font-size:12.5px;color:#94A3B8}
+.pn-resumo b{color:#E5E7EB}
+
+.pn-funil{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.pn-deg{background:rgba(15,23,42,.55);border:1px solid rgba(148,163,184,.20);border-radius:10px;
+  color:#CBD5E1;font-family:inherit;font-size:12.5px;padding:7px 11px;cursor:pointer;
+  display:flex;align-items:center;gap:7px;min-height:38px}
+.pn-deg i{width:8px;height:8px;border-radius:50%;background:var(--c);display:block}
+.pn-deg b{color:#fff;font-size:13.5px;font-variant-numeric:tabular-nums}
+.pn-deg.on{border-color:var(--c);background:rgba(255,255,255,.07)}
+.pn-deg:hover{border-color:var(--c)}
+
+.pn-filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+.pn-filtros .cad-busca{min-width:240px;flex:1 1 240px}
+
+.pn-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
+.pn-card{background:rgba(15,23,42,.55);border:1px solid rgba(148,163,184,.18);border-radius:13px;
+  padding:13px 14px;display:flex;flex-direction:column;gap:9px}
+.pn-card.meu{border-color:rgba(125,209,23,.45)}
+.pn-top{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+.pn-nome{font-size:15.5px;font-weight:800;color:#fff;line-height:1.25}
+.pn-sub{font-size:12.5px;color:#94A3B8;margin-top:2px}
+.pn-nota{font-size:12px;font-weight:800;color:var(--c);border:1px solid var(--c);border-radius:999px;
+  padding:3px 9px;white-space:nowrap;flex:0 0 auto}
+.pn-end{font-size:13px;color:#CBD5E1;line-height:1.45}
+.pn-end span{color:#94A3B8}
+.pn-tags{display:flex;flex-wrap:wrap;gap:5px}
+.pn-tag{font-size:11px;font-weight:700;color:#CBD5E1;background:rgba(148,163,184,.14);
+  border-radius:6px;padding:3px 7px}
+.pn-tag.off{color:#64748B}
+.pn-tag.alerta{background:rgba(248,113,113,.14);color:#F87171}
+.pn-tag.ress{background:rgba(251,191,36,.14);color:#FBBF24}
+.pn-linha{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.pn-sel{background:rgba(15,23,42,.8);border:1px solid var(--c);border-radius:9px;color:var(--c);
+  font-family:inherit;font-size:12.5px;font-weight:800;padding:8px 9px;min-height:38px;cursor:pointer;flex:1 1 140px}
+.pn-bt{background:rgba(148,163,184,.14);border:1px solid rgba(148,163,184,.28);border-radius:9px;
+  color:#E5E7EB;font-family:inherit;font-size:12.5px;font-weight:700;padding:8px 11px;min-height:38px;cursor:pointer}
+.pn-bt:hover{filter:brightness(1.15)}
+.pn-bt.livre{border-style:dashed;color:#94A3B8}
+.pn-bt.meu{background:rgba(125,209,23,.16);border-color:rgba(125,209,23,.5);color:#7DD117}
+.pn-bt.dele{background:rgba(96,165,250,.14);border-color:rgba(96,165,250,.45);color:#60A5FA}
+.pn-bt.contato{background:rgba(96,165,250,.14);border-color:rgba(96,165,250,.40);color:#BFDBFE}
+.pn-bt.pegar{background:rgba(125,209,23,.16);border-color:rgba(125,209,23,.45);color:#7DD117;font-weight:800}
+.pn-bt.ligar{background:#7DD117;border-color:#7DD117;color:#0B1220;font-weight:900}
+.pn-mini{font-size:11.5px;color:#94A3B8}
+.pn-inp{background:rgba(15,23,42,.7);border:1px solid rgba(148,163,184,.26);border-radius:9px;color:#E5E7EB;
+  font-family:inherit;font-size:12.5px;padding:8px 10px;min-height:38px;outline:none;flex:1 1 130px;min-width:0}
+.pn-inp:focus{border-color:#3B82F6}
+.pn-inp.data{flex:0 0 140px;color-scheme:dark}
+.pn-inp.data.venceu{border-color:#F87171;color:#FCA5A5}
+.pn-ta{background:rgba(15,23,42,.7);border:1px solid rgba(148,163,184,.26);border-radius:9px;color:#E5E7EB;
+  font-family:inherit;font-size:12.5px;padding:9px 10px;outline:none;min-height:52px;resize:vertical;line-height:1.5;
+  width:100%;box-sizing:border-box}
+.pn-ta:focus{border-color:#3B82F6}
+.pn-acoes{display:flex;flex-wrap:wrap;gap:6px}
+.pn-link{font-size:12px;font-weight:700;color:#CBD5E1;text-decoration:none;border:1px solid rgba(148,163,184,.28);
+  border-radius:8px;padding:7px 10px;min-height:36px;display:inline-flex;align-items:center}
+.pn-link:hover{border-color:#60A5FA;color:#fff}
+.pn-link.wa{color:#7DD117;border-color:rgba(125,209,23,.34)}
+.pn-vazio{color:#94A3B8;padding:26px 4px;font-size:13.5px;grid-column:1/-1}
+
+/* Modo ligação */
+.pn-liga{position:fixed;inset:0;background:rgba(2,6,23,.86);z-index:9000;display:flex;
+  align-items:center;justify-content:center;padding:16px}
+.pn-liga[hidden]{display:none}
+.pn-liga-box{background:#0F172A;border:1px solid rgba(148,163,184,.25);border-radius:16px;
+  width:100%;max-width:440px;max-height:92vh;overflow-y:auto;padding:20px 18px;position:relative;
+  display:flex;flex-direction:column;gap:10px}
+.pn-liga-x{position:absolute;top:10px;right:10px;background:rgba(148,163,184,.16);border:0;color:#E5E7EB;
+  width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:15px;font-family:inherit}
+#pn-liga-corpo{display:flex;flex-direction:column;gap:10px}
+.pn-liga-conta{font-size:11.5px;font-weight:800;color:#94A3B8;text-transform:uppercase;letter-spacing:.6px}
+.pn-liga-nome{font-size:24px;font-weight:900;color:#fff;line-height:1.15}
+.pn-liga-sub{font-size:13px;color:#94A3B8}
+.pn-liga-end{font-size:14px;color:#CBD5E1;line-height:1.45}
+.pn-liga-rel{font-size:12.5px;font-weight:700;color:#7DD117}
+.pn-liga-tel{display:block;text-align:center;background:#7DD117;color:#0B1220;font-size:20px;font-weight:900;
+  text-decoration:none;border-radius:12px;padding:15px 12px;margin:4px 0}
+.pn-liga-bts{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.pn-liga-bt{background:rgba(255,255,255,.05);border:1px solid var(--c);color:var(--c);border-radius:10px;
+  font-family:inherit;font-size:13.5px;font-weight:800;padding:12px 8px;cursor:pointer;min-height:46px}
+.pn-liga-bt:hover{background:var(--c);color:#0B1220}
+.pn-liga-rodape{display:flex;gap:7px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+@media (max-width:560px){
+  .pn-lista{grid-template-columns:1fr}
+  .pn-resumo{margin-left:0;width:100%}
+}
 .avi-inp,.avi-ta{width:100%;background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.28);border-radius:10px;
   color:#E5E7EB;font-family:inherit;font-size:14.5px;padding:11px 13px;outline:none;box-sizing:border-box}
 .avi-ta{min-height:150px;line-height:1.55;resize:vertical}
@@ -4592,8 +4686,11 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <button type="button" class="cad-aba" id="cad-aba-curioso" onclick="cadAba('curioso')">Curioso <span class="cad-cnt" id="cad-cnt-curioso">—</span></button>
           <button type="button" class="cad-aba" id="cad-aba-integrador" onclick="cadAba('integrador')">Parceiros <span class="cad-cnt" id="cad-cnt-integrador">—</span></button>
           <button type="button" class="cad-aba" id="cad-aba-match" onclick="cadAba('match')">Match <span class="cad-cnt" id="cad-cnt-match">—</span></button>
+          <!-- PONTOS (26/09/2026): a mesma base pelo lado da conversa. Abre um pane
+               proprio; cadAba() chama pontosFechar() pra voltar. -->
+          <button type="button" class="cad-aba" id="cad-aba-pontos" onclick="pontosAbrir()">Pontos <span class="cad-cnt" id="cad-cnt-pontos">•</span></button>
         </div>
-        <div class="cad-acoes">
+        <div class="cad-acoes" id="cad-acoes">
           <input type="search" class="cad-busca" id="cad-busca" placeholder="Buscar nome, cidade ou telefone" oninput="cadRender()">
           <select class="cad-filtro" id="cad-filtro" onchange="cadRender()">
             <option value="">Todos os status</option>
@@ -4614,7 +4711,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <!-- So aparece na aba Curioso: pergunta o valor a todos pela fila de Avisos. -->
       <div class="cad-curioso-acao" id="cad-curioso-acao" hidden></div>
 
-      <div class="card">
+      <div class="card" id="cad-card">
         <div class="eletro-sec-title" id="cad-titulo">Arrendamento — quem tem o local</div>
         <div class="eletro-cmp-scroll"><table class="eletro-cmp cadtab" id="cad-tabela">
           <tbody><tr><td style="color:#94A3B8;padding:18px">Carregando…</td></tr></tbody>
@@ -4623,6 +4720,120 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
              tbody a cada tecla da busca, e painel dentro da linha perderia o
              estado a cada letra. -->
         <div class="cad-painel" id="cad-painel-pares" hidden></div>
+      </div>
+      <!-- ===== PONTOS — a prospecção dos locais (26/09/2026) =====
+           Mora DENTRO do pane de Cadastros, na mesma régua, porque é a mesma
+           base olhada por outro ângulo: lá as pessoas estão separadas por onde
+           caem (Arrendamento / Investidores / Curioso); aqui estão separadas
+           por ONDE ESTÁ A CONVERSA. Não virou botão na régua de cima porque
+           aquela régua já estourou uma vez (ver o comentário da eletro-subnav).
+           O estágio desta tela e o status do card da agenda são coisas
+           diferentes e aparecem juntos: estágio = a conversa, status = o
+           desfecho da reunião. -->
+      <div id="cad-pane-pontos" hidden>
+        <div class="pesquisa-info">
+          Todo lead que já entregou o <b>endereço de um ponto</b>, pronto pra ser trabalhado:
+          as reuniões da LP do eletroposto mais os cadastros da porta do ponto. Ponha o seu nome,
+          registre cada contato e mova o degrau conforme a conversa anda. A <b>nota</b> é o índice
+          do estudo do local; quem ainda não rodou herda a nota da cidade, que hoje é o que o índice
+          mede. <b>Sair ligando</b> abre a fila que está na tela, um por vez.
+        </div>
+
+        <div class="pn-abas">
+          <button type="button" class="pn-aba on" id="pn-aba-fila" onclick="pnAbaTopo('fila')">Na mesa</button>
+          <button type="button" class="pn-aba" id="pn-aba-minha" onclick="pnAbaTopo('minha')">Meus</button>
+          <button type="button" class="pn-aba" id="pn-aba-hoje" onclick="pnAbaTopo('hoje')">Minha fila de hoje</button>
+          <button type="button" class="pn-aba" id="pn-aba-casa" onclick="pnAbaTopo('casa')">Casa do lead</button>
+          <button type="button" class="pn-aba" id="pn-aba-tudo" onclick="pnAbaTopo('tudo')">Tudo</button>
+          <span class="pn-resumo" id="pn-resumo"></span>
+        </div>
+
+        <div class="pn-funil" id="pn-funil"></div>
+
+        <div class="pn-filtros">
+          <input type="search" class="cad-busca" id="pn-busca" placeholder="Buscar nome, rua, cidade, anotação" oninput="pnRender()">
+          <select class="cad-filtro" id="pn-f-estagio" onchange="pnRender()">
+            <option value="">Qualquer degrau</option>
+            <option value="nao_tocado">Não tocado</option>
+            <option value="tentando">Tentando falar</option>
+            <option value="falei">Falei</option>
+            <option value="interessado">Interessado</option>
+            <option value="estudo">Estudo entregue</option>
+            <option value="proposta">Proposta na mão</option>
+            <option value="negociando">Negociando</option>
+            <option value="fechado">Fechado</option>
+            <option value="gelou">Esfriou</option>
+            <option value="fora">Fora</option>
+          </select>
+          <select class="cad-filtro" id="pn-f-resp" onchange="pnRender()"><option value="">Qualquer responsável</option></select>
+          <select class="cad-filtro" id="pn-f-rel" onchange="pnRender()">
+            <option value="">Qualquer relação com o local</option>
+            <option value="proprio">É o proprietário</option>
+            <option value="inquilino">É inquilino</option>
+            <option value="administra">Administra o local</option>
+            <option value="representa">Representa o dono</option>
+            <option value="negociando">Está negociando o local</option>
+            <option value="sem">Não foi perguntado</option>
+          </select>
+          <select class="cad-filtro" id="pn-f-nota" onchange="pnRender()">
+            <option value="">Qualquer nota</option>
+            <option value="8">Nota 8 pra cima</option>
+            <option value="6">Nota 6 a 8</option>
+            <option value="baixa">Nota abaixo de 6</option>
+            <option value="sem">Sem nota nenhuma</option>
+          </select>
+          <select class="cad-filtro" id="pn-f-estudo" onchange="pnRender()">
+            <option value="">Com ou sem estudo</option>
+            <option value="sim">Estudo já rodou</option>
+            <option value="nao">Estudo nunca rodou</option>
+          </select>
+          <select class="cad-filtro" id="pn-f-end" onchange="pnRender()">
+            <option value="">Qualquer endereço</option>
+            <option value="ok">Endereço completo</option>
+            <option value="ressalva">Endereço sem número</option>
+            <option value="lead">É a casa do lead</option>
+          </select>
+          <select class="cad-filtro" id="pn-f-cidade" onchange="pnRender()"><option value="">Todas as cidades</option></select>
+          <select class="cad-filtro" id="pn-f-uf" onchange="pnRender()"><option value="">Todos os estados</option></select>
+          <select class="cad-filtro" id="pn-f-vend" onchange="pnRender()"><option value="">Todos os vendedores</option></select>
+          <select class="cad-filtro" id="pn-f-status" onchange="pnRender()"><option value="">Qualquer desfecho</option></select>
+          <select class="cad-filtro" id="pn-f-perfil" onchange="pnRender()"><option value="">Todos os perfis</option></select>
+          <select class="cad-filtro" id="pn-f-contato" onchange="pnRender()">
+            <option value="">Contato: tanto faz</option>
+            <option value="nunca">Nunca contatado</option>
+            <option value="hoje">Falei hoje</option>
+            <option value="7">Nos últimos 7 dias</option>
+            <option value="mais7">Parado há mais de 7 dias</option>
+            <option value="mais30">Parado há mais de 30 dias</option>
+          </select>
+          <select class="cad-filtro" id="pn-f-agenda" onchange="pnRender()">
+            <option value="">Próximo passo: tanto faz</option>
+            <option value="vencido">Passou da data</option>
+            <option value="hoje">É pra hoje</option>
+            <option value="sem">Sem próximo passo</option>
+          </select>
+          <select class="cad-filtro" id="pn-ordem" onchange="pnRender()">
+            <option value="nota">Ordenar pela nota</option>
+            <option value="novo">Mais novos primeiro</option>
+            <option value="antigo">Mais antigos primeiro</option>
+            <option value="contato">Quem está parado há mais tempo</option>
+            <option value="proximo">Próximo passo mais perto</option>
+          </select>
+          <button type="button" class="ehist-btn" onclick="pnLimpar()">Limpar filtros</button>
+          <button type="button" class="ehist-btn" onclick="pontosCarregar(true)">↻ Atualizar</button>
+          <button type="button" class="pn-bt pegar" onclick="pnPegarTodos()">Pegar os da tela pra mim</button>
+          <button type="button" class="pn-bt ligar" onclick="pnLigarAbrir()">Sair ligando</button>
+        </div>
+
+        <div class="pn-lista" id="pn-lista"></div>
+      </div><!-- /cad-pane-pontos -->
+
+      <!-- Modo ligação: um por vez, em cima de tudo. -->
+      <div class="pn-liga" id="pn-liga" hidden>
+        <div class="pn-liga-box">
+          <button type="button" class="pn-liga-x" onclick="pnLigarFechar()" aria-label="Fechar">✕</button>
+          <div id="pn-liga-corpo"></div>
+        </div>
       </div>
     </div><!-- /eletro-pane-cadastros -->
 
@@ -8995,6 +9206,7 @@ let cadConexoes = [];
 let CAD_MATCH_KM = 200;
 
 function cadAba(lado) {
+  pontosFechar();   // aba Pontos e um pane a parte; voltar pra lista o esconde
   cadLado = lado;
   ['ponto', 'capital', 'curioso', 'integrador', 'match'].forEach(l => {
     const b = document.getElementById('cad-aba-' + l);
@@ -9697,6 +9909,625 @@ const AVI_POR_DIA = 20;
 
 // O Curioso nasce DESMARCADO: e uma pergunta pra 200 pessoas frias, e entrar
 // nela sem querer (junto de uma pauta de oportunidade) seria o pior acidente.
+// ════════════════════════════════════════════════════════════
+// PONTOS — a prospecção dos locais de eletroposto (26/09/2026)
+// ════════════════════════════════════════════════════════════
+// O que esta aba resolve: a base tem ~290 reuniões que trouxeram ENDEREÇO de um
+// ponto, e não existia lugar nenhum pra dizer "eu liguei, falei com o cara, ele
+// quer proposta". O card da agenda guarda o DESFECHO DA REUNIÃO (arrendamento,
+// carregador, 50/50, sem interesse); nada ali conta a conversa de prospecção que
+// vem ANTES ou DEPOIS dela, nem quem está tocando cada um.
+//
+// Por isso `estagio` (esta tela) e `agendamentos.status` (o card) são coisas
+// ORTOGONAIS e aparecem juntos na mesma linha:
+//   estagio = onde está a CONVERSA (liguei? atendeu? quer proposta?)
+//   status  = o DESFECHO DA REUNIÃO, que o consultor marca no card
+// Misturar os dois faria a tela ter duas verdades e ninguém saber qual vale.
+//
+// Nada aqui manda mensagem sozinho. Todo contato sai pela mão da pessoa, em
+// wa.me ou tel:. Disparo automático desta tela entraria no orçamento da linha e
+// brigaria com a fila de Avisos, que é outra feature com tetos próprios.
+//
+// A gravação mora em `eletroposto_negociacao`, uma linha por pessoa, chave =
+// cadTel8 (8 últimos dígitos), o MESMO cruzamento que a aba Cadastros usa.
+
+/** Os degraus da conversa, na ordem do funil. Mora AQUI e não num CHECK do
+ *  banco de propósito: o CHECK de `lado` em eletroposto_parceria já derrubou
+ *  todo POST de valor novo com 500 mudo. Degrau novo é edição desta linha. */
+const PN_ESTAGIOS = [
+  { id: 'nao_tocado',  rot: 'Não tocado',      cor: '#94A3B8', dica: 'ninguém ligou ainda' },
+  { id: 'tentando',    rot: 'Tentando falar',  cor: '#FBBF24', dica: 'liguei e não atendeu' },
+  { id: 'falei',       rot: 'Falei',           cor: '#60A5FA', dica: 'conversei, sem posição' },
+  { id: 'interessado', rot: 'Interessado',     cor: '#7DD117', dica: 'quer ouvir a proposta' },
+  { id: 'estudo',      rot: 'Estudo entregue', cor: '#38BDF8', dica: 'mandei o estudo do local' },
+  { id: 'proposta',    rot: 'Proposta na mão', cor: '#A78BFA', dica: 'recebeu números' },
+  { id: 'negociando',  rot: 'Negociando',      cor: '#34D399', dica: 'discutindo valor e contrato' },
+  { id: 'fechado',     rot: 'Fechado',         cor: '#FDE047', dica: 'assinou' },
+  { id: 'gelou',       rot: 'Esfriou',         cor: '#64748B', dica: 'parou de responder, volta depois' },
+  { id: 'fora',        rot: 'Fora',            cor: '#F87171', dica: 'não vai acontecer' },
+];
+const PN_EST = Object.fromEntries(PN_ESTAGIOS.map(e => [e.id, e]));
+
+let pnDados = null;       // [{tel8, nome, ...}] já cruzado
+let pnNeg = new Map();    // tel8 -> linha de eletroposto_negociacao
+let pnAba = 'fila';       // o atalho de cima
+let pnLigaFila = [];      // modo ligação
+let pnLigaIdx = 0;
+
+// ─── abrir e fechar dentro do pane de Cadastros ───────────────────────────────
+// A régua de cima é a mesma das outras abas; o que troca é o conteúdo. Os quatro
+// blocos da lista antiga somem juntos pra não sobrar meia tela.
+function pnPartes() {
+  const pane = document.getElementById('eletro-pane-cadastros');
+  return pane ? [pane.querySelector('.pesquisa-info'), document.getElementById('cad-acoes'),
+                 document.getElementById('cad-curioso-acao'), document.getElementById('cad-card')] : [];
+}
+function pontosAbrir() {
+  ['ponto', 'capital', 'curioso', 'integrador', 'match'].forEach(l => {
+    const b = document.getElementById('cad-aba-' + l);
+    if (b) b.classList.remove('ativa');
+  });
+  const b = document.getElementById('cad-aba-pontos');
+  if (b) b.classList.add('ativa');
+  pnPartes().forEach(el => { if (el) el.style.display = 'none'; });
+  const p = document.getElementById('cad-pane-pontos');
+  if (p) p.hidden = false;
+  pontosCarregar();
+}
+/** Chamada no topo de cadAba(): voltar pra qualquer aba antiga restaura a lista. */
+function pontosFechar() {
+  const p = document.getElementById('cad-pane-pontos');
+  if (p) p.hidden = true;
+  const b = document.getElementById('cad-aba-pontos');
+  if (b) b.classList.remove('ativa');
+  pnPartes().forEach(el => { if (el) el.style.display = ''; });
+  const ca = document.getElementById('cad-curioso-acao');
+  if (ca) ca.style.display = '';   // o [hidden] dele continua mandando
+}
+
+// ─── leitura da ficha (gêmeas do servidor) ───────────────────────────────────
+// Mesmas regras de api/src/services/io/eletropostoEstudoPuro.ts. Se mudarem lá,
+// mudam aqui: é a diferença entre a tela e o motor do estudo enxergarem o mesmo
+// endereço.
+const pnLinhaEndereco = obs => String(obs || '').split('\n').map(l => l.trim())
+  .find(l => l.startsWith('Endereço:')) || '';
+function pnEndereco(obs) {
+  const linha = pnLinhaEndereco(obs);
+  if (!linha) return null;
+  const partes = linha.slice('Endereço:'.length).trim().split(/\s+[·—]\s+/);
+  const primeira = partes.shift() || '';
+  const v = primeira.lastIndexOf(',');
+  const rua = (v >= 0 ? primeira.slice(0, v) : primeira).trim();
+  if (!rua) return null;
+  const numero = v >= 0 ? primeira.slice(v + 1).trim() : '';
+  const resto = [];
+  for (let i = 0; i < partes.length; i++) {
+    const p = partes[i].trim();
+    if (/^ref\.:/i.test(p)) break;              // referência é texto da pessoa
+    if (/^CEP\b/i.test(p)) continue;
+    resto.push(p);
+  }
+  return { rua, numero, bairro: resto[0] || '', cidade: resto.slice(1).join(' · ') };
+}
+/** A própria LP escreve isso quando a pessoa NÃO tem ponto: o endereço é a casa
+ *  dela. Estudar ali é estudar a casa do lead. */
+const pnCasaDoLead = obs => /\(endereço do lead/i.test(String(obs || ''));
+const pnCampo = (obs, rot) => {
+  const m = String(obs || '').match(new RegExp('^' + rot + ':\\s*([^\\n]+)', 'im'));
+  return m ? m[1].trim() : '';
+};
+const pnPerfil = obs => {
+  const m = String(obs || '').match(/^LP ELETROPOSTO\s*[·—-]\s*([^\n]+)/i);
+  return m ? m[1].trim() : '';
+};
+const pnUf = cid => { const m = String(cid || '').match(/[\s\-\/]([A-Za-z]{2})\s*$/); return m ? m[1].toUpperCase() : ''; };
+/** So o NOME do municipio, sem acento e sem a UF colada. */
+const pnNomeCidade = cid => String(cid || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .toLowerCase().replace(/[^a-z0-9]+/g, ' ')
+  .replace(/\s+(mg|sp|go|rj|ba|pr|rs|sc|pe|ce|df|mt|ms|pa|am|rn|pb|pi|ma|al|se|es|to|ro|rr|ap|ac)\s*$/, '').trim();
+/** Nome + UF. Sem a UF, "Campo Grande" do RN herdaria a nota do MS — que e
+ *  exatamente a fusao que o resolverCidade do servidor se recusa a fazer. */
+const pnChaveCidade = cid => pnNomeCidade(cid) + '|' + pnUf(cid);
+
+// ─── carregar ────────────────────────────────────────────────────────────────
+async function pontosCarregar(forcar) {
+  if (pnDados && !forcar) { pnRender(); return; }
+  const alvo = document.getElementById('pn-lista');
+  if (alvo) alvo.innerHTML = '<div class="pn-vazio">Carregando…</div>';
+  try {
+    const [reunioes, estudos, negoc, cadastros] = await Promise.all([
+      // Só eletroposto e só quem trouxe endereço — o ilike corta no banco o que
+      // seriam ~800 fichas inteiras de observação.
+      supaGet('agendamentos?select=id,created_at,quando,cliente_nome,cliente_telefone,cidade,'
+        + 'observacao,status,vendedor_nome,ponto_relacao'
+        + '&created_by=eq.lp_eletroposto&observacao=ilike.*Endere*'
+        + '&order=created_at.desc&limit=1000'),
+      // A TABELA DO ESTUDO NAO ABRE PRA ESTA CHAVE: eletroposto_estudos tem RLS com
+      // zero policy (guarda endereco, coordenada e o token da pagina publica), e a
+      // leitura direta volta 401. A funcao devolve so id da reuniao + as notas.
+      supaRpc('ep_estudo_notas', {}).catch(() => []),
+      supaGet('eletroposto_negociacao?select=*&limit=2000').catch(() => []),
+      // A porta do ponto também coleta endereço. Essa gente NUNCA marcou reunião,
+      // então o estudo (que pendura em agendamento_id) não alcança — mas ligar,
+      // alcança. Entram na lista com o aviso na cara.
+      supaGet('eletroposto_parceria?lado=eq.ponto&select=id,created_at,nome,telefone,cidade,'
+        + 'ponto_relacao,ponto_endereco,ponto_tipo,status&limit=500').catch(() => []),
+    ]);
+    pnNeg = new Map((negoc || []).map(n => [String(n.tel8), n]));
+    const idx = new Map();
+    (estudos || []).forEach(e => { if (e.agendamento_id != null) idx.set(Number(e.agendamento_id), e); });
+
+    const linhas = [];
+    (reunioes || []).forEach(a => {
+      const end = pnEndereco(a.observacao);
+      if (!end) return;
+      // ficha de teste da propria equipe: abria a fila todo dia
+      if (/^\s*teste\b/i.test(a.cliente_nome || '')) return;
+      const e = idx.get(Number(a.id)) || null;
+      linhas.push({
+        origem: 'agenda', id: a.id, agendamento_id: a.id,
+        tel8: cadTel8(a.cliente_telefone), telefone: a.cliente_telefone,
+        nome: a.cliente_nome || '—', cidade: end.cidade || a.cidade || '',
+        rua: end.rua, numero: end.numero, bairro: end.bairro,
+        perfil: pnPerfil(a.observacao),
+        relacao: pnCampo(a.observacao, 'Local é seu') || a.ponto_relacao || '',
+        ponto: pnCampo(a.observacao, 'Ponto'),
+        casaDoLead: pnCasaDoLead(a.observacao),
+        semNumero: !/[1-9]/.test(String(end.numero || '')),
+        statusReuniao: a.status || '', vendedor: a.vendedor_nome || '',
+        quando: a.quando || a.created_at, criado: a.created_at,
+        indice: e && e.indice != null ? Number(e.indice) : null,
+        temEstudo: !!e,
+      });
+    });
+    (cadastros || []).forEach(c => {
+      if (!String(c.ponto_endereco || '').trim()) return;
+      const t = cadTel8(c.telefone);
+      if (t && linhas.some(l => l.tel8 === t)) return;      // já entrou pela agenda
+      const end = pnEndereco('Endereço: ' + c.ponto_endereco) || { rua: c.ponto_endereco, numero: '', bairro: '', cidade: '' };
+      linhas.push({
+        origem: 'cadastro', id: c.id, agendamento_id: null,
+        tel8: t, telefone: c.telefone, nome: c.nome || '—',
+        cidade: end.cidade || c.cidade || '', rua: end.rua, numero: end.numero, bairro: end.bairro,
+        perfil: c.ponto_tipo || '', relacao: c.ponto_relacao || '', ponto: 'Cadastro da porta do ponto',
+        casaDoLead: false, semNumero: !/[1-9]/.test(String(end.numero || '')),
+        statusReuniao: '', vendedor: '', quando: c.created_at, criado: c.created_at,
+        indice: null, temEstudo: false, semReuniao: true,
+      });
+    });
+
+    // NOTA DA CIDADE: enquanto o Google está em 403 o índice só tem os dois
+    // componentes do município, então duas fichas da mesma cidade têm a MESMA
+    // nota — conferido em 91 municípios, nenhum com dois valores. Quem ainda não
+    // rodou herda a nota da cidade dele. Se algum dia divergir, a projeção cala a
+    // boca sozinha (o Set com mais de um valor não vira previsão).
+    const porCidade = new Map();
+    linhas.filter(l => l.indice != null).forEach(l => {
+      if (!pnNomeCidade(l.cidade)) return;
+      const k = pnChaveCidade(l.cidade);
+      const s = porCidade.get(k) || new Set();
+      s.add(l.indice); porCidade.set(k, s);
+    });
+    linhas.forEach(l => {
+      if (l.indice != null) return;
+      const nome = pnNomeCidade(l.cidade);
+      if (!nome) return;
+      let s = porCidade.get(pnChaveCidade(l.cidade));
+      if (!s && !pnUf(l.cidade)) {
+        // Cidade escrita sem UF: só herda quando existe UMA cidade com esse nome
+        // na base inteira. Com duas, não dá pra saber de qual estado ela é.
+        const iguais = [...porCidade.entries()].filter(e => e[0].split('|')[0] === nome);
+        if (iguais.length === 1) s = iguais[0][1];
+      }
+      if (s && s.size === 1) l.notaCidade = [...s][0];
+    });
+
+    pnDados = linhas;
+    pnMontarSelects();
+    pnRender();
+  } catch (err) {
+    if (alvo) alvo.innerHTML = '<div class="pn-vazio">Não deu pra carregar: ' + String(err.message || err).slice(0, 180) + '</div>';
+  }
+}
+
+const pnNota = l => (l.indice != null ? l.indice : (l.notaCidade != null ? l.notaCidade : null));
+/** Aceita a linha ou o tel8 solto: os dois caminhos existem (a lista tem a linha,
+ *  o botão só tem o telefone) e divergir aqui vira bug silencioso. */
+const pnChave = x => String(x && typeof x === 'object' ? x.tel8 : x);
+const pnNegDe = x => pnNeg.get(pnChave(x)) || null;
+const pnEstagioDe = x => { const n = pnNegDe(x); return (n && n.estagio) || 'nao_tocado'; };
+const pnRespDe = x => { const n = pnNegDe(x); return (n && n.responsavel) || ''; };
+const pnEu = () => (typeof eletroConsultorLogado === 'function' ? eletroConsultorLogado() : '') || 'eu';
+
+// ─── filtros ─────────────────────────────────────────────────────────────────
+const pnVal = id => { const e = document.getElementById(id); return e ? e.value : ''; };
+function pnMontarSelects() {
+  const uniq = (arr) => [...new Set(arr.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt'));
+  const enche = (id, vals, rotulo) => {
+    const s = document.getElementById(id);
+    if (!s) return;
+    const atual = s.value;
+    s.innerHTML = '<option value="">' + rotulo + '</option>' + vals.map(v =>
+      '<option value="' + pnEsc(v) + '">' + pnEsc(v) + '</option>').join('');
+    if (atual) s.value = atual;
+  };
+  enche('pn-f-cidade', uniq(pnDados.map(l => l.cidade)), 'Todas as cidades');
+  enche('pn-f-uf', uniq(pnDados.map(l => pnUf(l.cidade))), 'Todos os estados');
+  enche('pn-f-vend', uniq(pnDados.map(l => l.vendedor)), 'Todos os vendedores');
+  enche('pn-f-perfil', uniq(pnDados.map(l => l.perfil)), 'Todos os perfis');
+  enche('pn-f-status', uniq(pnDados.map(l => l.statusReuniao)), 'Qualquer desfecho');
+  const resp = uniq([...pnNeg.values()].map(n => n.responsavel));
+  const s = document.getElementById('pn-f-resp');
+  if (s) {
+    const atual = s.value;
+    s.innerHTML = '<option value="">Qualquer responsável</option>'
+      + '<option value="__meus">Só os meus</option>'
+      + '<option value="__livre">Sem dono</option>'
+      + resp.map(v => '<option value="' + pnEsc(v) + '">' + pnEsc(v) + '</option>').join('');
+    if (atual) s.value = atual;
+  }
+}
+const pnDias = iso => iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : null;
+const pnHoje = () => new Date().toISOString().slice(0, 10);
+
+function pnFiltrar() {
+  const busca = (pnVal('pn-busca') || '').trim().toLowerCase();
+  const f = {
+    estagio: pnVal('pn-f-estagio'), resp: pnVal('pn-f-resp'), rel: pnVal('pn-f-rel'),
+    nota: pnVal('pn-f-nota'), estudo: pnVal('pn-f-estudo'), end: pnVal('pn-f-end'),
+    cidade: pnVal('pn-f-cidade'), uf: pnVal('pn-f-uf'), vend: pnVal('pn-f-vend'),
+    status: pnVal('pn-f-status'), perfil: pnVal('pn-f-perfil'),
+    contato: pnVal('pn-f-contato'), agenda: pnVal('pn-f-agenda'),
+  };
+  const eu = pnEu();
+  let saida = pnDados.filter(l => {
+    const n = pnNegDe(l), est = pnEstagioDe(l), nota = pnNota(l);
+    if (pnAba === 'fila' && (l.casaDoLead || ['fechado', 'fora', 'gelou'].includes(est))) return false;
+    if (pnAba === 'minha' && (pnRespDe(l) !== eu)) return false;
+    if (pnAba === 'hoje') {
+      const venceu = n && n.proximo_em && n.proximo_em <= pnHoje();
+      const nunca = !n || !n.contato_em;
+      if (pnRespDe(l) !== eu || !(venceu || nunca)) return false;
+      if (['fechado', 'fora'].includes(est)) return false;
+    }
+    if (pnAba === 'casa' && !l.casaDoLead) return false;
+    if (pnAba !== 'casa' && pnAba !== 'tudo' && l.casaDoLead) return false;
+    if (f.estagio && est !== f.estagio) return false;
+    if (f.resp === '__meus' && pnRespDe(l) !== eu) return false;
+    if (f.resp === '__livre' && pnRespDe(l)) return false;
+    if (f.resp && !['__meus', '__livre'].includes(f.resp) && pnRespDe(l) !== f.resp) return false;
+    if (f.rel) {
+      const r = (l.relacao || '').toLowerCase();
+      const bate = f.rel === 'proprio' ? /^sou o propriet/.test(r)
+        : f.rel === 'inquilino' ? /inquilin/.test(r)
+        : f.rel === 'administra' ? /administr/.test(r)
+        : f.rel === 'representa' ? /represent/.test(r)
+        : f.rel === 'negociando' ? /negoci/.test(r)
+        : f.rel === 'sem' ? !r : true;
+      if (!bate) return false;
+    }
+    if (f.nota) {
+      if (f.nota === 'sem' && nota != null) return false;
+      if (f.nota === '8' && !(nota >= 8)) return false;
+      if (f.nota === '6' && !(nota >= 6 && nota < 8)) return false;
+      if (f.nota === 'baixa' && !(nota != null && nota < 6)) return false;
+    }
+    if (f.estudo === 'sim' && !l.temEstudo) return false;
+    if (f.estudo === 'nao' && l.temEstudo) return false;
+    if (f.end === 'ok' && (l.semNumero || l.casaDoLead)) return false;
+    if (f.end === 'ressalva' && !l.semNumero) return false;
+    if (f.end === 'lead' && !l.casaDoLead) return false;
+    if (f.cidade && l.cidade !== f.cidade) return false;
+    if (f.uf && pnUf(l.cidade) !== f.uf) return false;
+    if (f.vend && l.vendedor !== f.vend) return false;
+    if (f.status && l.statusReuniao !== f.status) return false;
+    if (f.perfil && l.perfil !== f.perfil) return false;
+    if (f.contato) {
+      const d = n && n.contato_em ? pnDias(n.contato_em) : null;
+      if (f.contato === 'nunca' && d != null) return false;
+      if (f.contato === 'hoje' && d !== 0) return false;
+      if (f.contato === '7' && !(d != null && d <= 7)) return false;
+      if (f.contato === 'mais7' && !(d == null || d > 7)) return false;
+      if (f.contato === 'mais30' && !(d == null || d > 30)) return false;
+    }
+    if (f.agenda) {
+      const px = n && n.proximo_em ? n.proximo_em : '';
+      if (f.agenda === 'vencido' && !(px && px < pnHoje())) return false;
+      if (f.agenda === 'hoje' && px !== pnHoje()) return false;
+      if (f.agenda === 'sem' && px) return false;
+    }
+    if (busca) {
+      const alvo = [l.nome, l.cidade, l.rua, l.bairro, l.perfil, l.telefone,
+                    (n && n.nota) || '', (n && n.proximo_passo) || ''].join(' ').toLowerCase();
+      if (!alvo.includes(busca)) return false;
+    }
+    return true;
+  });
+  const ordem = pnVal('pn-ordem') || 'nota';
+  const nOrd = l => { const v = pnNota(l); return v == null ? -1 : v; };
+  saida.sort((a, b) => {
+    if (ordem === 'nota') return nOrd(b) - nOrd(a) || String(b.quando).localeCompare(String(a.quando));
+    if (ordem === 'novo') return String(b.quando).localeCompare(String(a.quando));
+    if (ordem === 'antigo') return String(a.quando).localeCompare(String(b.quando));
+    if (ordem === 'contato') {
+      const ca = pnNegDe(a), cb = pnNegDe(b);
+      return String((ca && ca.contato_em) || '').localeCompare(String((cb && cb.contato_em) || ''));
+    }
+    if (ordem === 'proximo') {
+      const pa = (pnNegDe(a) || {}).proximo_em || '9999', pb = (pnNegDe(b) || {}).proximo_em || '9999';
+      return String(pa).localeCompare(String(pb));
+    }
+    return 0;
+  });
+  return saida;
+}
+
+// ─── desenho ─────────────────────────────────────────────────────────────────
+const pnEsc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const pnFone = t => {
+  const d = String(t || '').replace(/\D/g, '');
+  if (d.length < 10) return String(t || '');
+  const r = d.slice(-9).length === 9 ? d.slice(-9) : d.slice(-8);
+  const dd = d.slice(0, d.length - r.length).slice(-2);
+  return '(' + dd + ') ' + r.slice(0, r.length - 4) + '-' + r.slice(-4);
+};
+const pnData = iso => { if (!iso) return ''; const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }); };
+
+function pnRender() {
+  if (!pnDados) return;
+  const lista = pnFiltrar();
+  const eu = pnEu();
+
+  // funil: conta em cima da MESMA lista filtrada, menos o próprio estágio, pra
+  // clicar no degrau não zerar o painel inteiro.
+  const cont = {};
+  pnDados.forEach(l => { const e = pnEstagioDe(l); cont[e] = (cont[e] || 0) + 1; });
+  const funil = document.getElementById('pn-funil');
+  if (funil) funil.innerHTML = PN_ESTAGIOS.map(e =>
+    '<button type="button" class="pn-deg' + (pnVal('pn-f-estagio') === e.id ? ' on' : '') + '" title="' + pnEsc(e.dica) + '"'
+    + ' onclick="pnDegrau(\'' + e.id + '\')" style="--c:' + e.cor + '">'
+    + '<i></i><b>' + (cont[e.id] || 0) + '</b><span>' + pnEsc(e.rot) + '</span></button>').join('');
+
+  const meus = pnDados.filter(l => pnRespDe(l) === eu).length;
+  const cab = document.getElementById('pn-resumo');
+  if (cab) cab.innerHTML = '<b>' + lista.length + '</b> na tela · <b>' + meus + '</b> com o seu nome · '
+    + '<b>' + pnDados.filter(l => !pnNegDe(l)).length + '</b> nunca tocados';
+
+  const alvo = document.getElementById('pn-lista');
+  if (!alvo) return;
+  if (!lista.length) { alvo.innerHTML = '<div class="pn-vazio">Nenhum ponto com esses filtros. Tire um e tente de novo.</div>'; return; }
+  alvo.innerHTML = lista.map(pnCard).join('');
+}
+
+function pnCard(l) {
+  const n = pnNegDe(l) || {};
+  const est = PN_EST[pnEstagioDe(l)] || PN_EST.nao_tocado;
+  const nota = pnNota(l);
+  const resp = n.responsavel || '';
+  const eu = pnEu();
+  const wa = String(l.telefone || '').replace(/\D/g, '');
+  const notaTxt = nota == null ? 'sem nota'
+    : (l.indice != null ? nota.toFixed(1).replace('.', ',') : nota.toFixed(1).replace('.', ',') + ' (cidade)');
+  const notaCor = nota == null ? '#64748B' : nota >= 8 ? '#7DD117' : nota >= 6 ? '#FBBF24' : '#F87171';
+  const dias = n.contato_em ? pnDias(n.contato_em) : null;
+  const venceu = n.proximo_em && n.proximo_em <= pnHoje();
+  return ''
+  + '<div class="pn-card' + (resp === eu ? ' meu' : '') + '">'
+  + '  <div class="pn-top">'
+  + '    <div><div class="pn-nome">' + pnEsc(l.nome) + '</div>'
+  + '      <div class="pn-sub">' + pnEsc(l.cidade || 'sem cidade') + (l.perfil ? ' · ' + pnEsc(l.perfil) : '') + '</div></div>'
+  + '    <span class="pn-nota" style="--c:' + notaCor + '">' + notaTxt + '</span>'
+  + '  </div>'
+  + '  <div class="pn-end">' + pnEsc(l.rua) + (l.numero ? ', ' + pnEsc(l.numero) : '')
+  +      (l.bairro ? '<span> · ' + pnEsc(l.bairro) + '</span>' : '') + '</div>'
+  + '  <div class="pn-tags">'
+  +      (l.relacao ? '<span class="pn-tag">' + pnEsc(l.relacao) + '</span>' : '<span class="pn-tag off">relação não perguntada</span>')
+  +      (l.casaDoLead ? '<span class="pn-tag alerta">endereço é a casa dele</span>' : '')
+  +      (l.semReuniao ? '<span class="pn-tag alerta">sem reunião marcada</span>' : '')
+  +      (l.semNumero && !l.casaDoLead ? '<span class="pn-tag ress">endereço sem número</span>' : '')
+  +      (l.statusReuniao ? '<span class="pn-tag">reunião: ' + pnEsc(l.statusReuniao.replace(/_/g, ' ')) + '</span>' : '')
+  +      (l.vendedor ? '<span class="pn-tag">' + pnEsc(l.vendedor) + '</span>' : '')
+  +      (l.temEstudo ? '<span class="pn-tag">estudo pronto</span>' : '')
+  + '  </div>'
+  + '  <div class="pn-linha">'
+  + '    <select class="pn-sel" style="--c:' + est.cor + '" onchange="pnEstagio(\'' + l.tel8 + '\', this.value)">'
+  +        PN_ESTAGIOS.map(e => '<option value="' + e.id + '"' + (e.id === est.id ? ' selected' : '') + '>' + pnEsc(e.rot) + '</option>').join('')
+  + '    </select>'
+  + '    <button type="button" class="pn-bt ' + (resp ? (resp === eu ? 'meu' : 'dele') : 'livre') + '" onclick="pnAssumir(\'' + l.tel8 + '\')">'
+  +        (resp ? pnEsc(resp) : 'Assumir') + '</button>'
+  + '    <button type="button" class="pn-bt contato" onclick="pnContato(\'' + l.tel8 + '\')">'
+  +        (dias == null ? 'Registrar contato' : dias === 0 ? 'Falei hoje' : 'há ' + dias + 'd (+1)') + '</button>'
+  +      (n.contatos ? '<span class="pn-mini">' + n.contatos + ' toque' + (n.contatos > 1 ? 's' : '') + '</span>' : '')
+  + '  </div>'
+  + '  <div class="pn-linha">'
+  + '    <input class="pn-inp data' + (venceu ? ' venceu' : '') + '" type="date" value="' + pnEsc(n.proximo_em || '') + '"'
+  + '      title="quando voltar a falar" onchange="pnCampoSalvar(\'' + l.tel8 + '\', \'proximo_em\', this.value)">'
+  + '    <input class="pn-inp" type="text" placeholder="próximo passo" value="' + pnEsc(n.proximo_passo || '') + '"'
+  + '      onchange="pnCampoSalvar(\'' + l.tel8 + '\', \'proximo_passo\', this.value)">'
+  + '  </div>'
+  + '  <textarea class="pn-ta" placeholder="o que ele disse…" onchange="pnCampoSalvar(\'' + l.tel8 + '\', \'nota\', this.value)">' + pnEsc(n.nota || '') + '</textarea>'
+  + '  <div class="pn-acoes">'
+  + '    <a class="pn-link" href="tel:+55' + wa + '">Ligar ' + pnEsc(pnFone(l.telefone)) + '</a>'
+  + '    <a class="pn-link wa" href="https://wa.me/55' + wa + '" target="_blank" rel="noopener">WhatsApp</a>'
+  +      (l.agendamento_id ? '<a class="pn-link" href="/gerador/agenda?ag=' + l.agendamento_id + '&ver=1" target="_blank" rel="noopener">Card da reunião</a>' : '')
+  + '  </div>'
+  + '</div>';
+}
+
+// ─── gravação ────────────────────────────────────────────────────────────────
+// Upsert por tel8. O índice único na coluna é o que impede dois consultores
+// clicando "Assumir" ao mesmo tempo de criarem duas linhas da mesma pessoa.
+async function pnSalvar(tel8, patch, historia) {
+  const l = pnDados.find(x => String(x.tel8) === String(tel8));
+  if (!l) return;
+  const atual = pnNeg.get(String(tel8)) || {};
+  const hist = Array.isArray(atual.historico) ? atual.historico.slice(-40) : [];
+  if (historia) hist.push({ em: new Date().toISOString(), quem: pnEu(), o: historia });
+  const corpo = Object.assign({
+    tel8: String(tel8), telefone: l.telefone, nome: l.nome, cidade: l.cidade,
+    agendamento_id: l.agendamento_id, historico: hist,
+    atualizado_em: new Date().toISOString(),
+  }, patch);
+  // otimista: a tela responde na hora e o banco confirma atrás
+  pnNeg.set(String(tel8), Object.assign({}, atual, corpo));
+  pnRender();
+  try {
+    const r = await fetch(SUPABASE_URL + '/rest/v1/eletroposto_negociacao?on_conflict=tel8', {
+      method: 'POST',
+      headers: Object.assign({}, supaHeaders(), { 'Content-Type': 'application/json',
+        'Prefer': 'return=representation,resolution=merge-duplicates' }),
+      body: JSON.stringify([corpo]),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const volta = await r.json();
+    if (volta && volta[0]) pnNeg.set(String(tel8), volta[0]);
+  } catch (e) {
+    showToast('Não gravou: ' + String(e.message || e).slice(0, 120));
+    pnNeg.set(String(tel8), atual.id ? atual : undefined);
+    if (!atual.id) pnNeg.delete(String(tel8));
+    pnRender();
+  }
+}
+function pnEstagio(tel8, valor) {
+  const de = pnEstagioDe(tel8);
+  const patch = { estagio: valor };
+  // Quem sai do "não tocado" é porque falou: se ninguém assumiu, assume quem mexeu.
+  if (!pnRespDe(tel8)) patch.responsavel = pnEu();
+  pnSalvar(tel8, patch, 'estágio ' + (PN_EST[de] || {}).rot + ' → ' + (PN_EST[valor] || {}).rot);
+}
+function pnAssumir(tel8) {
+  const atual = pnRespDe(tel8);
+  const eu = pnEu();
+  if (atual === eu) { pnSalvar(tel8, { responsavel: null }, 'soltou o lead'); return; }
+  if (atual && !confirm('Está com ' + atual + '. Passar pra você?')) return;
+  pnSalvar(tel8, { responsavel: eu }, 'assumiu' + (atual ? ' (era de ' + atual + ')' : ''));
+}
+function pnContato(tel8) {
+  const n = pnNeg.get(String(tel8)) || {};
+  const patch = { contato_em: new Date().toISOString(), contatos: (n.contatos || 0) + 1 };
+  if (!n.responsavel) patch.responsavel = pnEu();
+  if (!n.estagio || n.estagio === 'nao_tocado') patch.estagio = 'tentando';
+  pnSalvar(tel8, patch, 'registrou contato');
+}
+function pnCampoSalvar(tel8, campo, valor) {
+  const patch = {}; patch[campo] = valor === '' ? null : valor;
+  pnSalvar(tel8, patch, campo === 'nota' ? 'anotou' : campo + ' = ' + valor);
+}
+function pnDegrau(id) {
+  const s = document.getElementById('pn-f-estagio');
+  if (s) s.value = (s.value === id ? '' : id);
+  pnRender();
+}
+function pnAbaTopo(qual) {
+  pnAba = qual;
+  ['fila', 'minha', 'hoje', 'casa', 'tudo'].forEach(a => {
+    const b = document.getElementById('pn-aba-' + a);
+    if (b) b.classList.toggle('on', a === qual);
+  });
+  pnRender();
+}
+function pnLimpar() {
+  ['pn-busca', 'pn-f-estagio', 'pn-f-resp', 'pn-f-rel', 'pn-f-nota', 'pn-f-estudo', 'pn-f-end',
+   'pn-f-cidade', 'pn-f-uf', 'pn-f-vend', 'pn-f-status', 'pn-f-perfil', 'pn-f-contato', 'pn-f-agenda']
+    .forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  pnRender();
+}
+
+/** "Pega pra mim os que estão na tela": é assim que se monta a lista do dia. */
+async function pnPegarTodos() {
+  const lista = pnFiltrar().filter(l => pnRespDe(l) !== pnEu());
+  if (!lista.length) { showToast('Todos os da tela já estão com você.'); return; }
+  if (!confirm('Colocar o seu nome em ' + lista.length + ' ponto(s) da tela?')) return;
+  const eu = pnEu();
+  const corpo = lista.map(l => ({
+    tel8: String(l.tel8), telefone: l.telefone, nome: l.nome, cidade: l.cidade,
+    agendamento_id: l.agendamento_id, responsavel: eu, atualizado_em: new Date().toISOString(),
+  }));
+  try {
+    const r = await fetch(SUPABASE_URL + '/rest/v1/eletroposto_negociacao?on_conflict=tel8', {
+      method: 'POST',
+      headers: Object.assign({}, supaHeaders(), { 'Content-Type': 'application/json',
+        'Prefer': 'return=representation,resolution=merge-duplicates' }),
+      body: JSON.stringify(corpo),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    (await r.json()).forEach(n => pnNeg.set(String(n.tel8), n));
+    showToast(lista.length + ' ponto(s) agora estão com você.');
+    pnRender();
+  } catch (e) { showToast('Não deu: ' + String(e.message || e).slice(0, 120)); }
+}
+
+// ─── modo ligação ────────────────────────────────────────────────────────────
+// Um por vez, telefone grande, quatro botões e o campo de anotar. É a tela de
+// quem separou a tarde pra ligar.
+function pnLigarAbrir() {
+  pnLigaFila = pnFiltrar();
+  if (!pnLigaFila.length) { showToast('Sem ninguém na tela pra ligar.'); return; }
+  pnLigaIdx = 0;
+  document.getElementById('pn-liga').hidden = false;
+  pnLigaPinta();
+}
+function pnLigarFechar() { document.getElementById('pn-liga').hidden = true; pnRender(); }
+function pnLigarAndar(passo) {
+  pnLigaIdx += passo;
+  if (pnLigaIdx >= pnLigaFila.length) { pnLigarFechar(); showToast('Fila terminada.'); return; }
+  if (pnLigaIdx < 0) pnLigaIdx = 0;
+  pnLigaPinta();
+}
+function pnLigaPinta() {
+  const l = pnLigaFila[pnLigaIdx];
+  if (!l) { pnLigarFechar(); return; }
+  const n = pnNegDe(l) || {};
+  const nota = pnNota(l);
+  const wa = String(l.telefone || '').replace(/\D/g, '');
+  document.getElementById('pn-liga-corpo').innerHTML = ''
+    + '<div class="pn-liga-conta">' + (pnLigaIdx + 1) + ' de ' + pnLigaFila.length + '</div>'
+    + '<div class="pn-liga-nome">' + pnEsc(l.nome) + '</div>'
+    + '<div class="pn-liga-sub">' + pnEsc(l.cidade || '') + (l.perfil ? ' · ' + pnEsc(l.perfil) : '')
+    +   (nota != null ? ' · nota ' + nota.toFixed(1).replace('.', ',') : '') + '</div>'
+    + '<div class="pn-liga-end">' + pnEsc(l.rua) + (l.numero ? ', ' + pnEsc(l.numero) : '')
+    +   (l.bairro ? ' · ' + pnEsc(l.bairro) : '') + '</div>'
+    + (l.relacao ? '<div class="pn-liga-rel">' + pnEsc(l.relacao) + '</div>' : '')
+    + '<a class="pn-liga-tel" href="tel:+55' + wa + '">' + pnEsc(pnFone(l.telefone)) + '</a>'
+    + '<div class="pn-liga-bts">'
+    +   '<button type="button" class="pn-liga-bt" style="--c:#FBBF24" onclick="pnLigaMarcar(\'tentando\')">Não atendeu</button>'
+    +   '<button type="button" class="pn-liga-bt" style="--c:#60A5FA" onclick="pnLigaMarcar(\'falei\')">Falei</button>'
+    +   '<button type="button" class="pn-liga-bt" style="--c:#7DD117" onclick="pnLigaMarcar(\'interessado\')">Interessado</button>'
+    +   '<button type="button" class="pn-liga-bt" style="--c:#F87171" onclick="pnLigaMarcar(\'fora\')">Fora</button>'
+    + '</div>'
+    + '<textarea class="pn-ta" id="pn-liga-nota" placeholder="o que ele disse…">' + pnEsc(n.nota || '') + '</textarea>'
+    + '<div class="pn-liga-rodape">'
+    +   '<a class="pn-link wa" href="https://wa.me/55' + wa + '" target="_blank" rel="noopener">WhatsApp</a>'
+    +   '<button type="button" class="pn-bt" onclick="pnLigarAndar(-1)">Voltar</button>'
+    +   '<button type="button" class="pn-bt contato" onclick="pnLigaSeguir()">Próximo</button>'
+    + '</div>';
+}
+function pnLigaAnota() {
+  const ta = document.getElementById('pn-liga-nota');
+  const l = pnLigaFila[pnLigaIdx];
+  if (!ta || !l) return null;
+  const n = pnNegDe(l) || {};
+  return ta.value !== (n.nota || '') ? ta.value : null;
+}
+function pnLigaMarcar(estagio) {
+  const l = pnLigaFila[pnLigaIdx];
+  if (!l) return;
+  const n = pnNegDe(l) || {};
+  const patch = { estagio, contato_em: new Date().toISOString(), contatos: (n.contatos || 0) + 1,
+                  responsavel: n.responsavel || pnEu() };
+  const nota = pnLigaAnota();
+  if (nota != null) patch.nota = nota;
+  pnSalvar(l.tel8, patch, 'ligação: ' + (PN_EST[estagio] || {}).rot);
+  setTimeout(() => pnLigarAndar(1), 180);
+}
+function pnLigaSeguir() {
+  const l = pnLigaFila[pnLigaIdx];
+  const nota = pnLigaAnota();
+  if (l && nota != null) pnSalvar(l.tel8, { nota }, 'anotou');
+  pnLigarAndar(1);
+}
+
+
 let aviPublicos = { ponto: true, capital: true, integrador: true, curioso: false };
 let aviDados = null;      // { contatos, avisos, ultimoPorFone }
 let aviEnviando = false;
