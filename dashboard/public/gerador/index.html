@@ -538,6 +538,9 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .pn-aba{background:rgba(148,163,184,.10);border:1px solid rgba(148,163,184,.20);color:#94A3B8;
   font-family:inherit;font-size:13.5px;font-weight:700;padding:9px 14px;border-radius:999px;cursor:pointer;min-height:40px}
 .pn-aba.on{background:#fff;border-color:#fff;color:#0B1220}
+.pn-cnt{font-size:12px;font-weight:700;color:#CBD5E1;background:rgba(148,163,184,.28);
+  border-radius:999px;padding:1px 7px;min-width:20px;text-align:center;display:inline-block}
+.pn-aba.on .pn-cnt{background:#7DD117;color:#0B1220}
 .pn-resumo{margin-left:auto;font-size:12.5px;color:#94A3B8}
 .pn-resumo b{color:#E5E7EB}
 
@@ -4768,11 +4771,11 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         </div>
 
         <div class="pn-abas">
-          <button type="button" class="pn-aba on" id="pn-aba-fila" onclick="pnAbaTopo('fila')">Na mesa</button>
-          <button type="button" class="pn-aba" id="pn-aba-minha" onclick="pnAbaTopo('minha')">Meus</button>
-          <button type="button" class="pn-aba" id="pn-aba-hoje" onclick="pnAbaTopo('hoje')">Minha fila de hoje</button>
-          <button type="button" class="pn-aba" id="pn-aba-casa" onclick="pnAbaTopo('casa')">Casa do lead</button>
-          <button type="button" class="pn-aba" id="pn-aba-tudo" onclick="pnAbaTopo('tudo')">Tudo</button>
+          <button type="button" class="pn-aba on" id="pn-aba-fila" onclick="pnAbaTopo('fila')">Na mesa <span class="pn-cnt" id="pn-cnt-fila">—</span></button>
+          <button type="button" class="pn-aba" id="pn-aba-minha" onclick="pnAbaTopo('minha')">Meus <span class="pn-cnt" id="pn-cnt-minha">—</span></button>
+          <button type="button" class="pn-aba" id="pn-aba-hoje" onclick="pnAbaTopo('hoje')">Minha fila de hoje <span class="pn-cnt" id="pn-cnt-hoje">—</span></button>
+          <button type="button" class="pn-aba" id="pn-aba-casa" onclick="pnAbaTopo('casa')">Casa do lead <span class="pn-cnt" id="pn-cnt-casa">—</span></button>
+          <button type="button" class="pn-aba" id="pn-aba-tudo" onclick="pnAbaTopo('tudo')">Tudo <span class="pn-cnt" id="pn-cnt-tudo">—</span></button>
           <span class="pn-resumo" id="pn-resumo"></span>
         </div>
 
@@ -10257,29 +10260,44 @@ function pnMontarSelects() {
 const pnDias = iso => iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : null;
 const pnHoje = () => new Date().toISOString().slice(0, 10);
 
-function pnFiltrar() {
-  const busca = (pnVal('pn-busca') || '').trim().toLowerCase();
-  const f = {
+/** Os 14 seletores lidos de uma vez. Uma rodada de desenho lê isto UMA vez e
+ *  passa adiante: o funil e os botões de cima reusam a mesma leitura. */
+function pnFiltrosAtuais() {
+  return {
+    busca: (pnVal('pn-busca') || '').trim().toLowerCase(),
     estagio: pnVal('pn-f-estagio'), resp: pnVal('pn-f-resp'), rel: pnVal('pn-f-rel'),
     nota: pnVal('pn-f-nota'), estudo: pnVal('pn-f-estudo'), end: pnVal('pn-f-end'),
     cidade: pnVal('pn-f-cidade'), uf: pnVal('pn-f-uf'), vend: pnVal('pn-f-vend'),
     status: pnVal('pn-f-status'), perfil: pnVal('pn-f-perfil'),
     contato: pnVal('pn-f-contato'), agenda: pnVal('pn-f-agenda'),
   };
+}
+/**
+ * A lista que a tela mostra. Três usos, e por isso os parâmetros:
+ *   pnFiltrar()                      -> o que aparece agora
+ *   pnFiltrar({ aba: 'hoje' })       -> o número que cada botão de cima carrega
+ *   pnFiltrar({ semEstagio: true })  -> o funil, que conta sem o próprio degrau
+ *                                       (senão clicar num degrau zera os outros)
+ */
+function pnFiltrar(o) {
+  o = o || {};
+  const f = o.f || pnFiltrosAtuais();
+  const busca = f.busca;
+  const aba = o.aba || pnAba;
   const eu = pnEu();
   let saida = pnDados.filter(l => {
     const n = pnNegDe(l), est = pnEstagioDe(l), nota = pnNota(l);
-    if (pnAba === 'fila' && (l.casaDoLead || ['fechado', 'fora', 'gelou'].includes(est))) return false;
-    if (pnAba === 'minha' && (pnRespDe(l) !== eu)) return false;
-    if (pnAba === 'hoje') {
+    if (aba === 'fila' && (l.casaDoLead || ['fechado', 'fora', 'gelou'].includes(est))) return false;
+    if (aba === 'minha' && (pnRespDe(l) !== eu)) return false;
+    if (aba === 'hoje') {
       const venceu = n && n.proximo_em && n.proximo_em <= pnHoje();
       const nunca = !n || !n.contato_em;
       if (pnRespDe(l) !== eu || !(venceu || nunca)) return false;
       if (['fechado', 'fora'].includes(est)) return false;
     }
-    if (pnAba === 'casa' && !l.casaDoLead) return false;
-    if (pnAba !== 'casa' && pnAba !== 'tudo' && l.casaDoLead) return false;
-    if (f.estagio && est !== f.estagio) return false;
+    if (aba === 'casa' && !l.casaDoLead) return false;
+    if (aba !== 'casa' && aba !== 'tudo' && l.casaDoLead) return false;
+    if (!o.semEstagio && f.estagio && est !== f.estagio) return false;
     if (f.resp === '__meus' && pnRespDe(l) !== eu) return false;
     if (f.resp === '__livre' && pnRespDe(l)) return false;
     if (f.resp && !['__meus', '__livre'].includes(f.resp) && pnRespDe(l) !== f.resp) return false;
@@ -10362,16 +10380,26 @@ const pnData = iso => { if (!iso) return ''; const d = new Date(iso); return isN
 
 function pnRender() {
   if (!pnDados) return;
-  const lista = pnFiltrar();
+  const f = pnFiltrosAtuais();
+  const lista = pnFiltrar({ f: f });
   const eu = pnEu();
 
-  // funil: conta em cima da MESMA lista filtrada, menos o próprio estágio, pra
-  // clicar no degrau não zerar o painel inteiro.
+  // Cada botão de cima carrega o próprio número, como as abas antigas. O número
+  // é o da aba JÁ com os filtros de baixo aplicados: se não fosse, "Meus 40"
+  // acenderia do lado de uma tela com 3 linhas e o número viraria enfeite.
+  ['fila', 'minha', 'hoje', 'casa', 'tudo'].forEach(a => {
+    const el = document.getElementById('pn-cnt-' + a);
+    if (el) el.textContent = pnFiltrar({ f: f, aba: a }).length;
+  });
+
+  // O funil conta DENTRO do que está filtrado, menos o próprio degrau — senão
+  // clicar num degrau zeraria todos os outros e ninguém sabe pra onde voltar.
+  const base = pnFiltrar({ f: f, semEstagio: true });
   const cont = {};
-  pnDados.forEach(l => { const e = pnEstagioDe(l); cont[e] = (cont[e] || 0) + 1; });
+  base.forEach(l => { const e = pnEstagioDe(l); cont[e] = (cont[e] || 0) + 1; });
   const funil = document.getElementById('pn-funil');
   if (funil) funil.innerHTML = PN_ESTAGIOS.map(e =>
-    '<button type="button" class="pn-deg' + (pnVal('pn-f-estagio') === e.id ? ' on' : '') + '" title="' + pnEsc(e.dica) + '"'
+    '<button type="button" class="pn-deg' + (f.estagio === e.id ? ' on' : '') + '" title="' + pnEsc(e.dica) + '"'
     + ' onclick="pnDegrau(\'' + e.id + '\')" style="--c:' + e.cor + '">'
     + '<i></i><b>' + (cont[e.id] || 0) + '</b><span>' + pnEsc(e.rot) + '</span></button>').join('');
 
