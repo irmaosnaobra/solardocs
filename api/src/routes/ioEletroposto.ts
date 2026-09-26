@@ -566,25 +566,75 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
 // página e o NOTA 1 que declarou recurso e nunca clicou em nada — ele existe na
 // base e é exatamente quem um dono de ponto quer encontrar.
 // Contagem que falha vira null, nunca 0: zero afirmaria "não tem ninguém".
+/** Linhas cruas que o placar recebe de cada fonte. */
+export type LinhaFone = { telefone?: string | null };
+export type LinhaFicha = { telefone?: string | null; endereco?: string | null };
+export type LinhaPonto = { telefone?: string | null; ponto_endereco?: string | null };
+export type LinhaAgenda = { cliente_telefone?: string | null; ponto_relacao?: string | null };
+
+/**
+ * O PLACAR CONTA PESSOA, NÃO LINHA.
+ *
+ * Até 26/09 ele somava duas contagens de tabela e devolvia 200 e 13. Estava
+ * errado dos dois lados: o investidor que preencheu a LP e depois se cadastrou
+ * virava dois, e o lado do ponto ignorava endereço que existe fora de
+ * `eletroposto_parceria`.
+ *
+ * A régua agora é a mesma da aba Cadastros do /gerador:
+ *   investidor = quem se cadastrou como capital  +  toda ficha da LP
+ *   local      = quem tem ENDEREÇO gravado, venha de onde vier
+ *     · cadastro de ponto com `ponto_endereco`
+ *     · ficha da LP com `endereco` (quem declarou ter o ponto definido)
+ *     · agendamento marcado como ARRENDAMENTO pelo consultor
+ *
+ * Dedupe pela chave de telefone do CRM (DDD + 8 últimos): a mesma pessoa
+ * cadastrada com máscara diferente, com ou sem o 55, é uma pessoa só.
+ * Telefone curto demais não entra, senão lixo de digitação vira "investidor".
+ */
+export function contarPlacar(
+  capital: LinhaFone[], fichas: LinhaFicha[], pontos: LinhaPonto[], agenda: LinhaAgenda[],
+): { capital: number; ponto: number } {
+  // `telKey` e a MESMA chave do CRM: DDD + 8 ultimos, tolerando o 9 e o 55.
+  // Comparar digito cru contaria a mesma pessoa duas vezes quando uma tabela
+  // guarda com 55 e outra sem, e existe linha com o 55 duplicado na base.
+  const cheio = (v: unknown) => String(v || '').trim() !== '';
+
+  const investidores = new Set<string>();
+  for (const r of capital) { const t = telKey(r.telefone); if (t) investidores.add(t); }
+  for (const r of fichas)  { const t = telKey(r.telefone); if (t) investidores.add(t); }
+
+  const locais = new Set<string>();
+  for (const r of pontos) { const t = telKey(r.telefone);         if (t && cheio(r.ponto_endereco)) locais.add(t); }
+  for (const r of fichas) { const t = telKey(r.telefone);         if (t && cheio(r.endereco))       locais.add(t); }
+  for (const r of agenda) { const t = telKey(r.cliente_telefone); if (t && cheio(r.ponto_relacao))  locais.add(t); }
+
+  return { capital: investidores.size, ponto: locais.size };
+}
+
 router.get('/parceria/placar', async (_req: Request, res: Response): Promise<void> => {
   try {
-    const [cadCapital, cadPonto, nota1Capital] = await Promise.all([
-      supabaseGerador.from('eletroposto_parceria').select('id', { count: 'exact', head: true }).eq('lado', 'capital'),
-      supabaseGerador.from('eletroposto_parceria').select('id', { count: 'exact', head: true }).eq('lado', 'ponto'),
-      supabaseGerador.from('eletroposto_nota1').select('id', { count: 'exact', head: true })
-        .in('capital_faixa', ['proprio', 'proprio_credito', 'fin_aprovado', 'fin_cnpj'])
-        .is('lado', null),
+    // `limit` alto e explícito: o PostgREST corta em 1000 calado, e um teto
+    // silencioso aqui congelaria o placar sem ninguém perceber.
+    const TETO = 20000;
+    const [capCad, fichas, pontoCad, agenda] = await Promise.all([
+      supabaseGerador.from('eletroposto_parceria').select('telefone').eq('lado', 'capital').limit(TETO),
+      supabaseGerador.from('eletroposto_nota1').select('telefone, endereco').limit(TETO),
+      supabaseGerador.from('eletroposto_parceria').select('telefone, ponto_endereco').eq('lado', 'ponto').limit(TETO),
+      supabaseGerador.from('agendamentos').select('cliente_telefone, ponto_relacao').limit(TETO),
     ]);
+    for (const r of [capCad, fichas, pontoCad, agenda]) if (r.error) throw r.error;
+
+    const placar = contarPlacar(
+      (capCad.data || []) as LinhaFone[],
+      (fichas.data || []) as LinhaFicha[],
+      (pontoCad.data || []) as LinhaPonto[],
+      (agenda.data || []) as LinhaAgenda[],
+    );
+
     res.set('Cache-Control', 'public, max-age=300');
-    // Contagem que DEU CERTO devolve o número, zero inclusive — a página é que
-    // decide o que fazer com um zero (o lado do ponto começa vazio por
-    // definição, e "0 pontos com 38 investidores esperando" é justamente o
-    // argumento de quem tem o local). Null aqui significa só uma coisa: não
-    // consegui contar.
-    res.json({
-      capital: (cadCapital.count || 0) + (nota1Capital.count || 0),
-      ponto: cadPonto.count || 0,
-    });
+    // Contagem que DEU CERTO devolve o número, zero inclusive. Null significa só
+    // uma coisa: não consegui contar. A página distingue os dois.
+    res.json(placar);
   } catch (err) {
     logger.error('io-eletroposto-parceria', 'falha contando o placar', err);
     res.json({ capital: null, ponto: null });

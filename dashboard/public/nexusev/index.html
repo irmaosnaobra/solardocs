@@ -1,0 +1,1349 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- PÁGINA MÃE da marca. Identifica quem chegou e manda para a porta certa:
+     investidor, dono de local, integrador ou compra direta.
+
+     DESENHO: escuro + verde neon + brilho + cartão muito arredondado é a
+     assinatura visual de página gerada por IA. Aqui o escuro é institucional e
+     alterna com seções CLARAS de catálogo, o raio é curto, não há brilho nem
+     mancha de gradiente, e o VERDE APARECE SÓ NO BOTÃO DE AÇÃO. Quem carrega a
+     página é foto real de produção e número com fonte.
+
+     A página mora em /nexusev. As imagens continuam em /nexus/img/ de propósito:
+     duplicar arquivo para mudar de pasta cria duas verdades para manter. Quando
+     virar nexuseletroposto.com.br, a migração é trocar prefixo, não caçar
+     caminho por caminho. -->
+<title>Eletroposto e carregador para carro elétrico | NEXUS ELETROPOSTOS</title>
+<meta name="description" content="Carregador rápido DC de 80 e 120 kW de marca própria, com garantia NEXUS e peça de reposição no Brasil. Projeto, homologação, obra completa de eletroposto e plataforma de gestão e cobrança.">
+<link rel="canonical" href="https://solardoc.app/nexusev">
+<meta name="robots" content="index, follow">
+<meta property="og:type" content="website">
+<meta property="og:title" content="NEXUS ELETROPOSTOS: marca própria, garantia própria e lote em produção">
+<meta property="og:description" content="Carregadores rápidos DC de 80 e 120 kW. Projeto, homologação, obra e a plataforma que cobra pelo aplicativo. Um fornecedor, do equipamento ao primeiro carro carregando.">
+<meta property="og:image" content="https://solardoc.app/nexus/img/estoque-fila-1200.webp">
+<meta property="og:url" content="https://solardoc.app/nexusev">
+<meta name="theme-color" content="#0B1A2B">
+<link rel="icon" href="/nexus/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/nexus/img/icone-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/nexus/img/icone-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/nexus/img/icone-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://solardoc.app/nexus#empresa",
+      "name": "NEXUS ELETROPOSTOS",
+      "alternateName": "NEXUS",
+      "url": "https://solardoc.app/nexus",
+      "logo": "https://solardoc.app/nexus/img/icone-512.png",
+      "image": "https://solardoc.app/nexus/img/estoque-fila-1200.webp",
+      "areaServed": { "@type": "Country", "name": "Brasil" },
+      "knowsAbout": ["eletroposto", "carregador para carro elétrico", "carregador rápido DC", "estação de recarga", "OCPP"],
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "telephone": "+55-34-99816-5040",
+        "contactType": "sales",
+        "availableLanguage": "Portuguese"
+      }
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://solardoc.app/nexusev#pagina",
+      "url": "https://solardoc.app/nexusev",
+      "name": "NEXUS ELETROPOSTOS",
+      "inLanguage": "pt-BR",
+      "about": { "@id": "https://solardoc.app/nexus#empresa" },
+      "publisher": { "@id": "https://solardoc.app/nexus#empresa" }
+    }
+  ]
+}
+</script>
+
+<style>
+:root{
+  /* escuro institucional */
+  --tinta:#0B1A2B; --tinta-2:#0F2438;
+  --linha-e:rgba(255,255,255,.13); --linha-e2:rgba(255,255,255,.24);
+  --texto-e:#EAEEF3; --suave-e:#9BAEC4; --fraco-e:#7389A2;
+  /* claro de catálogo */
+  --claro:#F4F6F9; --branco:#FFFFFF;
+  --linha-c:#DCE3EB; --linha-c2:#C3CEDA;
+  --texto-c:#0B1A2B; --suave-c:#4A5E76; --fraco-c:#75879B;
+  /* acentos. O verde é da AÇÃO e de mais nada. */
+  --acao:#39FF14; --acao-tinta:#06121F;
+  --azul:#0066CC; --azul-claro:#0085FF;
+  --sans:"Montserrat","Helvetica Neue",Arial,sans-serif;
+  --r:8px; --r2:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{
+  background:var(--tinta);color:var(--texto-e);font-family:var(--sans);
+  font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+img{max-width:100%;height:auto;display:block}
+a{color:inherit;text-decoration:none}
+
+.wrap{width:100%;max-width:1200px;margin:0 auto;padding:0 20px}
+section{padding:90px 0;position:relative}
+/* O cabecalho e grudado: sem isto, clicar no menu leva a ancora para debaixo
+   dele e o titulo da secao some. */
+section[id]{scroll-margin-top:86px}
+@media(max-width:760px){section{padding:58px 0}}
+
+.claro{background:var(--claro);color:var(--texto-c)}
+.claro h1,.claro h2,.claro h3{color:var(--texto-c)}
+.claro .sub{color:var(--suave-c)}
+.claro .rotulo{color:var(--fraco-c)}
+
+.rotulo{
+  display:inline-block;font-size:11px;font-weight:800;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--fraco-e);
+  border-left:3px solid var(--azul-claro);padding-left:11px;margin-bottom:20px;
+}
+h1,h2,h3{line-height:1.1;letter-spacing:-.028em;font-weight:800;text-wrap:balance}
+h1{font-size:clamp(34px,5.4vw,62px);font-weight:900;letter-spacing:-.035em}
+h2{font-size:clamp(27px,3.7vw,42px)}
+h3{font-size:clamp(17px,1.9vw,21px);letter-spacing:-.015em}
+.sub{color:var(--suave-e);font-size:clamp(16px,1.55vw,18px);max-width:58ch;margin-top:16px}
+.tituloSec{max-width:64ch;margin-bottom:46px}
+
+/* ── topo ── */
+header{
+  position:sticky;top:0;z-index:80;background:rgba(11,26,43,.94);
+  backdrop-filter:blur(12px);border-bottom:1px solid var(--linha-e);
+}
+.topo{display:flex;align-items:center;justify-content:space-between;gap:16px;height:70px}
+.topo .marca img{height:26px;width:auto}
+.topo nav{display:flex;align-items:center;gap:28px}
+.topo nav a{font-size:13px;font-weight:700;color:var(--suave-e)}
+.topo nav a:hover{color:var(--texto-e)}
+@media(max-width:940px){.topo nav a.esc{display:none}}
+
+/* ── botões. Verde SÓ aqui. ── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:9px;
+  font-family:var(--sans);font-size:15px;font-weight:800;
+  padding:16px 30px;border-radius:var(--r);border:0;cursor:pointer;
+  background:var(--acao);color:var(--acao-tinta);transition:filter .15s ease;
+}
+.btn:hover{filter:brightness(1.08)}
+.btn.linha{background:transparent;color:var(--texto-e);border:1px solid var(--linha-e2);padding:16px 24px}
+.btn.linha:hover{background:rgba(255,255,255,.06);filter:none}
+.claro .btn.linha{color:var(--texto-c);border-color:var(--linha-c2)}
+.btn[disabled]{opacity:.5;cursor:default}
+
+/* ── hero ── */
+.hero{padding:76px 0 0}
+.heroGrid{display:grid;grid-template-columns:1.06fr .94fr;gap:56px;align-items:center}
+@media(max-width:980px){.heroGrid{grid-template-columns:1fr;gap:34px}}
+/* A oferta fica ACIMA dos botões: é a informação que decide o clique, e
+   embaixo dela ninguém leria. O prazo vem junto do preço, porque preço
+   promocional sem data é desconto que o comprador não acredita. */
+.preVenda{
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin-top:28px;
+  border:1px solid var(--linha-e2);border-left:3px solid var(--acao);
+  border-radius:var(--r);padding:16px 18px;
+}
+.pvSelo{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--acao)}
+.pvItem{font-size:16px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.pvItem b{font-weight:800;color:var(--suave-e);font-size:12.5px;letter-spacing:.06em;margin-right:5px}
+.pvItem s{font-size:13px;font-weight:600;color:var(--fraco-e);margin-left:5px}
+.pvNota{flex-basis:100%;font-size:12.5px;color:var(--fraco-e)}
+.heroCta{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
+.heroFoto{border:1px solid var(--linha-e2);border-radius:var(--r2);overflow:hidden;background:#fff}
+/* Faixa de credenciais: é o que um empresário lê antes de rolar. Quatro fatos,
+   sem adjetivo. */
+.cred{
+  display:grid;grid-template-columns:repeat(4,1fr);margin-top:64px;
+  border-top:1px solid var(--linha-e);border-bottom:1px solid var(--linha-e);
+}
+@media(max-width:860px){.cred{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:460px){.cred{grid-template-columns:1fr}}
+.cr{padding:26px 26px 26px 0}
+.cr+.cr{border-left:1px solid var(--linha-e);padding-left:26px}
+@media(max-width:860px){
+  .cr:nth-child(3),.cr:nth-child(4){border-top:1px solid var(--linha-e)}
+  .cr:nth-child(3){border-left:0;padding-left:0}
+}
+@media(max-width:460px){.cr+.cr{border-left:0;padding-left:0;border-top:1px solid var(--linha-e)}}
+.crT{font-size:15.5px;font-weight:800;margin-bottom:6px;letter-spacing:-.01em}
+.crD{font-size:13.5px;color:var(--suave-e);line-height:1.5}
+
+/* ── faixa de foto ── */
+.faixa{position:relative;min-height:440px;display:flex;align-items:flex-end;overflow:hidden}
+.faixa img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.faixa::after{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(90deg,rgba(11,26,43,.96) 0%,rgba(11,26,43,.84) 44%,rgba(11,26,43,.28) 100%);
+}
+.faixaTexto{position:relative;z-index:2;padding:52px 0;max-width:640px}
+.faixaTexto h2{font-size:clamp(25px,3.3vw,38px)}
+.faixaTexto p{color:var(--suave-e);font-size:16px;margin-top:14px;max-width:52ch}
+.faixaSel{
+  display:inline-block;font-size:11.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--texto-e);border:1px solid var(--linha-e2);border-radius:3px;padding:6px 11px;margin-bottom:18px;
+}
+@media(max-width:760px){
+  .faixa{min-height:400px}
+  .faixa::after{background:linear-gradient(180deg,rgba(11,26,43,.5) 0%,rgba(11,26,43,.96) 58%)}
+}
+
+/* ── pilares de estrutura ── */
+.seg4{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--linha-e);border:1px solid var(--linha-e);border-radius:var(--r2);overflow:hidden}
+@media(max-width:820px){.seg4{grid-template-columns:1fr}}
+.s4{background:var(--tinta-2);padding:34px 30px}
+.s4 h3{margin-bottom:10px}
+.s4 p{font-size:14.5px;color:var(--suave-e)}
+.s4 .et{font-size:11px;font-weight:800;letter-spacing:.18em;color:var(--azul-claro);margin-bottom:14px}
+
+/* ── portas ── */
+.portas{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--linha-c);border:1px solid var(--linha-c);border-radius:var(--r2);overflow:hidden}
+@media(max-width:1020px){.portas{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:620px){.portas{grid-template-columns:1fr}}
+.porta{background:var(--branco);padding:32px 26px;display:flex;flex-direction:column}
+.porta:hover{background:#FAFCFE}
+.portaN{font-size:11px;font-weight:800;letter-spacing:.18em;color:var(--fraco-c);margin-bottom:14px}
+.porta h3{margin-bottom:10px}
+.porta > p{font-size:14.2px;color:var(--suave-c)}
+.porta ul{list-style:none;display:grid;gap:8px;margin:16px 0 22px;flex:1}
+.porta li{font-size:13.4px;color:var(--suave-c);padding-left:16px;position:relative}
+.porta li::before{content:"";position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:50%;background:var(--azul)}
+/* Quatro botoes verdes lado a lado anulam a hierarquia e deixam a secao com
+   cara de promocao. Na superficie clara o botao da porta e tinta solida; o
+   verde fica para a acao primaria da pagina (topo e envio do formulario). */
+.porta .btn{width:100%;padding:14px 18px;font-size:14px;background:var(--texto-c);color:#fff}
+.porta .btn:hover{background:#16304C;filter:none}
+
+/* ── barra superior ── */
+/* Bandeira + menu de 3 linhas + botao de conectar rede, no padrao das grandes
+   do setor. O menu de 3 linhas existe em TODA largura, nao so no celular: com
+   seis destinos, esconder metade no desktop e pior que ter o painel. */
+.bandeira{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--suave-e);white-space:nowrap}
+.bandeira svg{width:20px;height:14px;border-radius:2px;display:block;flex:0 0 20px}
+.btnTopo{
+  display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:800;
+  color:var(--texto-e);border:1px solid var(--linha-e2);border-radius:var(--r);
+  padding:0 16px;min-height:44px;white-space:nowrap;transition:all .15s ease;
+}
+.btnTopo:hover{border-color:var(--acao);color:var(--acao)}
+.tresLinhas{
+  position:relative;width:44px;height:44px;cursor:pointer;padding:0;
+  background:transparent;border:1px solid var(--linha-e2);border-radius:var(--r);flex:0 0 44px;
+}
+.tresLinhas span{
+  position:absolute;left:13px;width:18px;height:2px;background:var(--texto-e);border-radius:2px;
+  transition:transform .18s ease, opacity .18s ease;
+}
+.tresLinhas span:nth-child(1){top:15px}
+.tresLinhas span:nth-child(2){top:21px}
+.tresLinhas span:nth-child(3){top:27px}
+.tresLinhas[aria-expanded="true"] span:nth-child(1){transform:translateY(6px) rotate(45deg)}
+.tresLinhas[aria-expanded="true"] span:nth-child(2){opacity:0}
+.tresLinhas[aria-expanded="true"] span:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
+.topoDir{display:flex;align-items:center;gap:12px}
+@media(max-width:620px){.bandeira span{display:none}.btnTopo{display:none}}
+
+/* painel do menu */
+.painelMenu{
+  position:fixed;left:0;right:0;top:70px;z-index:75;
+  background:var(--tinta);border-bottom:1px solid var(--linha-e2);
+  transform:translateY(-12px);opacity:0;pointer-events:none;transition:all .18s ease;
+  max-height:calc(100vh - 70px);overflow-y:auto;
+}
+.painelMenu.on{transform:none;opacity:1;pointer-events:auto}
+.painelGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:30px;padding:34px 0 38px}
+@media(max-width:860px){.painelGrid{grid-template-columns:1fr;gap:22px;padding:24px 0 30px}}
+.painelCol h4{font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--fraco-e);margin-bottom:14px}
+.painelCol a{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;font-size:15px;font-weight:700;color:var(--texto-e);padding:9px 0;min-height:44px}
+.painelCol a:hover{color:var(--acao)}
+.painelCol a small{display:block;font-size:12.5px;font-weight:500;color:var(--fraco-e);margin-top:2px}
+.painelCta{border-top:1px solid var(--linha-e);padding:20px 0 26px;display:flex;gap:12px;flex-wrap:wrap}
+@media(max-width:620px){.painelCta .btn,.painelCta .btnTopo{width:100%;justify-content:center;display:inline-flex}}
+
+/* ── comece agora ── */
+.comece{
+  background:linear-gradient(180deg,var(--tinta-2),var(--tinta));
+  border-top:1px solid var(--linha-e);border-bottom:1px solid var(--linha-e);
+}
+.comeceGrid{display:grid;grid-template-columns:1.2fr .8fr;gap:40px;align-items:center}
+@media(max-width:860px){.comeceGrid{grid-template-columns:1fr;gap:26px}}
+.comece h2{font-size:clamp(28px,4vw,46px)}
+.comeceCta{display:flex;gap:12px;flex-wrap:wrap;justify-content:flex-end}
+@media(max-width:860px){.comeceCta{justify-content:flex-start}}
+
+/* ── telas da plataforma ── */
+/* Fundo claro atras das duas telas de propósito: captura de software respira
+   melhor sobre claro, e a quebra de superficie separa "o que a gente diz" de
+   "o que o produto mostra". */
+.telas{
+  display:grid;grid-template-columns:1.55fr .45fr;gap:26px;align-items:end;
+  background:var(--claro);border:1px solid var(--linha-e);border-radius:var(--r2);
+  padding:26px;margin-bottom:26px;
+}
+@media(max-width:900px){.telas{grid-template-columns:1fr;gap:20px;padding:18px}}
+.tela{position:relative}
+.tela img{width:100%;border-radius:6px;display:block}
+.telaPainel img{border:1px solid var(--linha-c2);box-shadow:0 14px 34px rgba(11,26,43,.16)}
+.telaApp img{max-width:270px;margin:0 auto;filter:drop-shadow(0 14px 30px rgba(11,26,43,.22))}
+.telaLeg{
+  font-size:12.3px;color:var(--suave-c);margin-top:12px;line-height:1.5;text-align:center;
+}
+.telaLeg b{color:var(--texto-c);font-weight:800;display:block;font-size:13px;margin-bottom:2px}
+
+/* ── plataforma ── */
+.plat{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--linha-e);border:1px solid var(--linha-e);border-radius:var(--r2);overflow:hidden}
+@media(max-width:1020px){.plat{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.plat{grid-template-columns:1fr}}
+.pf{background:var(--tinta-2);padding:26px 24px}
+.pf h3{font-size:16px;margin-bottom:8px}
+.pf p{font-size:13.6px;color:var(--suave-e);line-height:1.55}
+.pf .num{font-size:11px;font-weight:800;letter-spacing:.16em;color:var(--azul-claro);margin-bottom:12px}
+.platNota{margin-top:22px;font-size:13px;color:var(--fraco-e);line-height:1.6;max-width:74ch}
+
+/* ── faq ── */
+.faq{display:grid;gap:10px;max-width:880px}
+.faq details{background:var(--branco);border:1px solid var(--linha-c);border-radius:var(--r);padding:18px 22px}
+.faq details[open]{border-color:var(--linha-c2)}
+.faq summary{cursor:pointer;font-size:15.5px;font-weight:700;list-style:none;display:flex;justify-content:space-between;gap:16px;align-items:center;color:var(--texto-c);min-height:26px}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";font-size:21px;font-weight:700;color:var(--azul);line-height:1}
+.faq details[open] summary::after{content:"2"}
+.faq details p{font-size:14.3px;color:var(--suave-c);margin-top:12px}
+@media(max-width:760px){.faq summary{min-height:44px}}
+
+/* ── catálogo ── */
+.cat{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+/* Com dois produtos, tres colunas deixariam um buraco do lado. */
+.cat2{grid-template-columns:repeat(2,1fr);max-width:820px}
+@media(max-width:980px){.cat2{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){.cat2{grid-template-columns:1fr;max-width:none}}
+@media(max-width:980px){.cat{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:620px){.cat{grid-template-columns:1fr}}
+.prod{background:var(--branco);border:1px solid var(--linha-c);border-radius:var(--r2);overflow:hidden;display:flex;flex-direction:column}
+.prodFoto{background:#fff;padding:18px;border-bottom:1px solid var(--linha-c)}
+.prodFoto img{width:100%;aspect-ratio:4/3;object-fit:contain}
+.prodCorpo{padding:22px 22px 24px;display:flex;flex-direction:column;flex:1}
+.prodTopo{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:4px}
+.prodNome{font-size:18px;font-weight:800;letter-spacing:-.02em}
+.prodKw{font-size:13px;color:var(--fraco-c);font-weight:700;margin-bottom:14px}
+.est{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:5px 9px;border-radius:3px;white-space:nowrap}
+.est.ok{color:#0A6B31;background:#DFF5E6;border:1px solid #A9DEBB}
+.est.prev{color:#0B4C8C;background:#DDEBFA;border:1px solid #A9C9EC}
+.est.enc{color:var(--suave-c);background:#EDF1F6;border:1px solid var(--linha-c2)}
+.prodEsp{list-style:none;display:grid;gap:7px;margin-bottom:20px;flex:1}
+.prodEsp li{font-size:13.2px;color:var(--suave-c);display:flex;justify-content:space-between;gap:10px;border-bottom:1px dotted var(--linha-c);padding-bottom:6px}
+.prodEsp b{color:var(--texto-c);font-weight:700;text-align:right}
+.prodPreco{font-size:25px;font-weight:900;letter-spacing:-.035em;font-variant-numeric:tabular-nums;color:var(--texto-c)}
+.prodPreco small{display:block;font-size:12px;font-weight:600;color:var(--fraco-c);letter-spacing:0;margin-top:5px}
+/* O preco cheio riscado acima do promocional: a economia tem que ser lida
+   de uma vez, nao calculada pelo visitante. */
+.prodPreco .de{display:block;font-size:14px;font-weight:700;color:var(--fraco-c);text-decoration:line-through;letter-spacing:-.01em;margin-bottom:2px}
+.prodPreco.sc{font-size:18px;color:var(--suave-c);letter-spacing:-.01em}
+
+/* ── conformidade ── */
+.norma{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+@media(max-width:900px){.norma{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.norma{grid-template-columns:1fr}}
+.nm{border:1px solid var(--linha-c);border-radius:var(--r);padding:20px 18px;background:var(--branco)}
+.nmC{font-size:15px;font-weight:800;letter-spacing:-.01em;margin-bottom:5px}
+.nmD{font-size:13px;color:var(--suave-c);line-height:1.5}
+
+/* ── mercado ── */
+.numGrande{font-size:clamp(50px,8.4vw,92px);font-weight:900;letter-spacing:-.05em;line-height:1;font-variant-numeric:tabular-nums}
+.numLeg{font-size:15.5px;color:var(--suave-e);margin-top:14px;max-width:32ch}
+.mercadoGrid{display:grid;grid-template-columns:.68fr 1.32fr;gap:48px;align-items:center}
+@media(max-width:980px){.mercadoGrid{grid-template-columns:1fr;gap:30px}}
+.grafico{background:var(--tinta-2);border:1px solid var(--linha-e);border-radius:var(--r2);padding:28px 26px 22px}
+.graficoTit{font-size:15.5px;font-weight:800;margin-bottom:3px}
+.graficoSub{font-size:12.5px;color:var(--fraco-e);margin-bottom:22px}
+.grafico svg{width:100%;height:auto;overflow:visible}
+.gBarra{transition:opacity .15s ease}
+.grafico:hover .gBarra{opacity:.5}
+.grafico .gBarra:hover{opacity:1}
+.gUf{font:800 13px var(--sans);fill:var(--texto-e)}
+.gVal{font:700 12.5px var(--sans);fill:var(--suave-e);font-variant-numeric:tabular-nums}
+.gNota{display:flex;gap:9px;align-items:flex-start;margin-top:18px;padding-top:16px;border-top:1px solid var(--linha-e);font-size:12.8px;color:var(--suave-e);line-height:1.55}
+.gChip{width:11px;height:11px;border-radius:2px;background:#4FB477;flex:0 0 11px;margin-top:4px}
+.fonte{font-size:11.5px;color:var(--fraco-e);margin-top:12px}
+.claro .fonte{color:var(--fraco-c)}
+
+/* ── contato ── */
+.contatoGrid{display:grid;grid-template-columns:.85fr 1.15fr;gap:48px;align-items:start}
+@media(max-width:980px){.contatoGrid{grid-template-columns:1fr;gap:30px}}
+.caixa{background:var(--tinta-2);border:1px solid var(--linha-e2);border-radius:var(--r2);padding:32px 30px}
+@media(max-width:620px){.caixa{padding:24px 20px}}
+.segTit{font-size:12px;font-weight:800;letter-spacing:.06em;color:var(--suave-e);margin-bottom:10px;text-transform:uppercase}
+.seg{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:24px}
+.seg button{
+  font-family:var(--sans);font-size:13.5px;font-weight:700;color:var(--suave-e);cursor:pointer;
+  background:transparent;border:1px solid var(--linha-e2);border-radius:var(--r);
+  padding:13px 12px;transition:all .14s ease;min-height:46px;
+}
+.seg button:hover{border-color:#fff;color:var(--texto-e)}
+.seg button[aria-pressed="true"]{background:var(--texto-e);border-color:var(--texto-e);color:var(--tinta);font-weight:800}
+.fRow{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+@media(max-width:620px){.fRow{grid-template-columns:1fr}}
+.fld{margin-bottom:13px}
+.fld label{display:block;font-size:12.5px;font-weight:700;color:var(--suave-e);margin-bottom:6px}
+.fld input,.fld select,.fld textarea{
+  width:100%;font-family:var(--sans);font-size:15px;color:var(--texto-e);
+  background:var(--tinta);border:1px solid var(--linha-e2);border-radius:var(--r);
+  padding:13px 14px;outline:0;transition:border-color .15s ease;-webkit-appearance:none;appearance:none;
+}
+.fld select{
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239BAEC4' stroke-width='2.4' stroke-linecap='round'><path d='m6 9 6 6 6-6'/></svg>");
+  background-repeat:no-repeat;background-position:right 13px center;background-size:17px;padding-right:40px;
+}
+.fld textarea{min-height:84px;resize:vertical}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:#fff}
+.fld input::placeholder,.fld textarea::placeholder{color:var(--fraco-e)}
+.fld.ruim input,.fld.ruim select{border-color:#E8827F}
+.caixa .btn{width:100%;margin-top:8px}
+.micro{font-size:12px;color:var(--fraco-e);text-align:center;margin-top:13px;line-height:1.5}
+.erro{display:none;font-size:13.5px;font-weight:600;color:#FFC7C5;background:rgba(232,130,127,.12);border:1px solid rgba(232,130,127,.4);border-radius:var(--r);padding:12px 14px;margin-bottom:16px}
+.erro.on{display:block}
+.desvio{display:none;text-align:center;padding:8px 4px 4px}
+.desvio.on{display:block}
+.desvio p{font-size:14.5px;color:var(--suave-e);max-width:40ch;margin:0 auto 20px}
+.ok{display:none;text-align:center;padding:10px 4px}
+.ok.on{display:block}
+.ok h3{font-size:21px;margin-bottom:12px}
+.ok p{font-size:14.5px;color:var(--suave-e);max-width:42ch;margin:0 auto 10px}
+.placar{display:flex;gap:30px;flex-wrap:wrap;margin-top:32px;padding-top:26px;border-top:1px solid var(--linha-e)}
+.plcN{font-size:30px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1;letter-spacing:-.03em}
+.plcT{font-size:12.5px;color:var(--fraco-e);font-weight:600;margin-top:5px}
+
+footer{background:var(--tinta-2);border-top:1px solid var(--linha-e);padding:52px 0 40px}
+.rodapeG{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:34px}
+@media(max-width:820px){.rodapeG{grid-template-columns:1fr;gap:26px}}
+.rodapeG img{height:24px;width:auto;margin-bottom:14px}
+.rodapeG p{font-size:12.8px;color:var(--fraco-e);line-height:1.65;max-width:46ch}
+.rodapeT{font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--suave-e);margin-bottom:14px}
+.rodapeG a{display:block;color:var(--fraco-e);font-size:13.2px;font-weight:600;padding:5px 0}
+.rodapeG a:hover{color:var(--texto-e)}
+.legal{margin-top:36px;padding-top:24px;border-top:1px solid var(--linha-e);font-size:12px;color:var(--fraco-e);line-height:1.7}
+.legal b{color:var(--suave-e);font-weight:700}
+
+@media(max-width:760px){
+  .btn{width:100%;padding:17px 22px}
+  .topo nav{gap:14px}
+  .topo nav a,.rodapeG a{display:inline-flex;align-items:center;min-height:44px}
+  .topo .marca{display:inline-flex;align-items:center;min-height:44px}
+}
+/* Alvo de toque por TIPO DE PONTEIRO, nao por largura: tablet de 768px é dedo
+   igual celular de 360px, e a regra por largura deixava ele de fora. */
+@media(pointer:coarse){
+  .topo .marca,.topo nav a,.rodapeG a{display:inline-flex;align-items:center;min-height:44px}
+  .faq summary{min-height:44px}
+  .painelCol a{min-height:48px}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap topo">
+    <a class="marca" href="/nexusev" aria-label="NEXUS ELETROPOSTOS">
+      <img src="/nexus/img/logo.webp" width="1842" height="450" alt="NEXUS ELETROPOSTOS">
+    </a>
+    <nav>
+      <a class="esc" href="#solucoes">Segmentos</a>
+      <a class="esc" href="#plataforma">Plataforma</a>
+      <a class="esc" href="#linha">Equipamentos</a>
+    </nav>
+    <div class="topoDir">
+      <!-- Bandeira: sinaliza operação e atendimento no Brasil, que é
+           exatamente a dúvida de quem já se queimou com importador sem
+           representação aqui. -->
+      <span class="bandeira" title="Operação e atendimento no Brasil">
+        <svg viewBox="0 0 28 20" aria-hidden="true">
+          <rect width="28" height="20" fill="#1B9E4B"/>
+          <path d="M14 2.4 25.6 10 14 17.6 2.4 10z" fill="#F7D117"/>
+          <circle cx="14" cy="10" r="4.3" fill="#1B3A8C"/>
+        </svg>
+        <span>Brasil</span>
+      </span>
+      <a class="btnTopo" href="#falar" data-porta="rede">Conectar minha rede à NEXUS</a>
+      <button class="tresLinhas" id="btnMenu" type="button" aria-expanded="false" aria-controls="painelMenu" aria-label="Abrir menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- Menu de 3 linhas. Existe em toda largura: são seis destinos, e esconder
+     metade no desktop é pior que oferecer o painel inteiro. -->
+<div class="painelMenu" id="painelMenu">
+  <div class="wrap">
+    <div class="painelGrid">
+      <div class="painelCol">
+        <h4>Segmentos</h4>
+        <a href="#falar" data-porta="capital">Investidor<small>Capital em busca de ativo</small></a>
+        <a href="#falar" data-porta="ponto">Tenho um local<small>Arrendar o espaço</small></a>
+        <a href="/nexus/partner">Integrador parceiro<small>Vender e instalar NEXUS</small></a>
+        <a href="#linha">Compra direta<small>Preço e ficha técnica</small></a>
+      </div>
+      <div class="painelCol">
+        <h4>Produto</h4>
+        <a href="#linha">NEXUS DC80<small>80 kW · pré-venda</small></a>
+        <a href="#linha">NEXUS DC120<small>120 kW · pré-venda</small></a>
+        <a href="#plataforma">Plataforma de gestão<small>Cobrança, painel e roaming</small></a>
+        <a href="#mercado">Dados de mercado<small>Frota plug-in por estado</small></a>
+      </div>
+      <div class="painelCol">
+        <h4>A empresa</h4>
+        <a href="#estrutura">Como entregamos<small>Do projeto ao comissionamento</small></a>
+        <a href="https://wa.me/5534998165040" rel="noopener">WhatsApp<small>(34) 99816-5040</small></a>
+        <a href="/nexus/privacidade">Privacidade<small>Tratamento de dados</small></a>
+      </div>
+    </div>
+    <div class="painelCta">
+      <a class="btn" href="#falar">Comece agora mesmo</a>
+      <a class="btnTopo" href="#falar" data-porta="rede" style="display:inline-flex">Conectar minha rede à NEXUS</a>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────── HERO ─────────────── -->
+<section class="hero">
+  <div class="wrap">
+    <div class="heroGrid">
+      <div>
+        <span class="rotulo">Eletromobilidade · Brasil</span>
+        <h1>Marca própria.<br>Garantia própria.<br>Obra completa.</h1>
+        <p class="sub">
+          Carregadores rápidos DC de 80 e 120 kW, projeto e homologação com
+          engenharia, obra completa e a plataforma que cobra pelo aplicativo.
+          Um fornecedor, do equipamento ao primeiro carro carregando.
+        </p>
+        <div class="preVenda">
+          <span class="pvSelo">Pré-venda até 31 de outubro</span>
+          <span class="pvItem"><b>DC80</b> R$ 59.900 <s>R$ 74.900</s></span>
+          <span class="pvItem"><b>DC120</b> R$ 79.900 <s>R$ 94.900</s></span>
+          <span class="pvNota">Chegada do lote: fim de novembro a início de dezembro.</span>
+        </div>
+        <div class="heroCta">
+          <a class="btn" href="#falar">Falar com um especialista</a>
+          <a class="btn linha" href="#linha">Ver equipamentos e preços</a>
+        </div>
+      </div>
+      <div class="heroFoto">
+        <img src="/nexus/img/dc-perspectiva.webp" width="800" height="800" alt="Carregador rápido NEXUS DC de 80 kW, gabinete azul-marinho com faixas verdes e dois cabos CCS2" fetchpriority="high">
+      </div>
+    </div>
+
+    <div class="cred">
+      <div class="cr">
+        <div class="crT">Marca própria</div>
+        <div class="crD">O equipamento é NEXUS. Especificação, identidade e catálogo são nossos.</div>
+      </div>
+      <div class="cr">
+        <div class="crT">Garantia NEXUS</div>
+        <div class="crD">Quem responde é quem vendeu, com peça de reposição no Brasil.</div>
+      </div>
+      <div class="cr">
+        <div class="crT">Lote em produção</div>
+        <div class="crD">Importação em nome próprio, já comprada, com data de chegada declarada.</div>
+      </div>
+      <div class="cr">
+        <div class="crT">Plataforma de cobrança</div>
+        <div class="crD">Gestão, cobrança pelo app e monitoramento, com OCPP 1.6J aberto.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────── FAIXA: PRODUÇÃO ─────────────── -->
+<section class="faixa" style="padding:0">
+  <img src="/nexus/img/estoque-fila-1200.webp" width="1200" height="900" alt="Fila de carregadores rápidos embalados sobre paletes no galpão, prontos para embarque" loading="lazy">
+  <div class="wrap faixaTexto">
+    <span class="faixaSel">Lote em produção</span>
+    <h2>O lote já está em produção, e tem data para chegar.</h2>
+    <p>
+      Boa parte do mercado fecha o pedido e só então procura o equipamento, e aí o
+      prazo vira trimestre. A NEXUS compra em lote e importa em nome próprio: quem
+      entra na pré-venda já sabe a data, e a peça de reposição fica no Brasil.
+    </p>
+  </div>
+</section>
+
+<!-- ─────────────── ESTRUTURA ─────────────── -->
+<section id="estrutura">
+  <div class="wrap">
+    <div class="tituloSec">
+      <span class="rotulo">A estrutura por trás</span>
+      <h2>O carregador é a parte fácil. O resto decide o seu faturamento.</h2>
+      <p class="sub">
+        Comprar a máquina é 20% do trabalho. Os outros 80% são projeto, concessionária,
+        obra, comissionamento e cobrança. A NEXUS responde pelos dois lados.
+      </p>
+    </div>
+
+    <div class="seg4">
+      <div class="s4">
+        <div class="et">01 · EQUIPAMENTO</div>
+        <h3>Linha própria, DC e AC</h3>
+        <p>DC80 e DC120, com dois plugues CCS2 e carga simultânea. Especificação
+        definida por nós, não catálogo de importador.</p>
+      </div>
+      <div class="s4">
+        <div class="et">02 · PÓS-VENDA</div>
+        <h3>Garantia NEXUS e peça no Brasil</h3>
+        <p>Carregador parado não dá prejuízo só para você. Estoque de reposição no país
+        e suporte de quem vendeu, sem triangular com fábrica no exterior.</p>
+      </div>
+      <div class="s4">
+        <div class="et">03 · ENGENHARIA</div>
+        <h3>Projeto, ART e concessionária</h3>
+        <p>Projeto elétrico, parecer de acesso, adequação do padrão de entrada e
+        comissionamento. Acima de 75 kW a ligação sai da norma padrão, e a gente resolve.</p>
+      </div>
+      <div class="s4">
+        <div class="et">04 · OPERAÇÃO</div>
+        <h3>Plataforma de gestão e cobrança</h3>
+        <p>O ponto nasce cobrando pelo aplicativo, com conciliação, tarifa configurável e
+        monitoramento. OCPP 1.6J aberto: o equipamento nunca fica refém da plataforma.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────── PLATAFORMA ─────────────── -->
+<!-- Antes isto era UM parágrafo dizendo "temos plataforma". Dizer que existe não
+     prova nada; listar o que ela faz, sim. As capacidades abaixo são as do white
+     label contratado, e é o que a NEXUS entrega ao ponto. Conferir contra o
+     plano contratado antes de publicar: nível de plano muda roaming e API. -->
+<section id="plataforma">
+  <div class="wrap">
+    <div class="tituloSec">
+      <span class="rotulo">Plataforma NEXUS</span>
+      <h2>O ponto nasce cobrando. Você só olha o painel.</h2>
+      <p class="sub">
+        Sem funcionário na guarita, sem maquininha e sem planilha. O motorista paga
+        pelo celular, o dinheiro cai conciliado e você acompanha cada conector em
+        tempo real.
+      </p>
+    </div>
+
+    <div class="telas">
+      <div class="tela telaPainel">
+        <img src="/nexus/img/plataforma-painel.webp" width="936" height="726" alt="Painel de monitoramento da plataforma: lista de estações com status disponível, em uso, indisponível e offline, mapa com os pontos e detalhe de alarme de uma estação" loading="lazy">
+        <p class="telaLeg"><b>Painel de monitoramento</b>Cada estação com status, o mapa da rede e o alarme aberto no momento em que acontece.</p>
+      </div>
+      <div class="tela telaApp">
+        <img src="/nexus/img/plataforma-app.webp" width="648" height="1054" alt="Tela do aplicativo do motorista durante uma recarga, mostrando tempo decorrido, energia em kWh e valor em reais" loading="lazy">
+        <p class="telaLeg"><b>App do motorista</b>Tempo, kWh e reais na tela, durante a recarga.</p>
+      </div>
+    </div>
+
+    <div class="plat">
+      <div class="pf">
+        <div class="num">01</div>
+        <h3>App com a sua marca</h3>
+        <p>O motorista acha o ponto, conecta, carrega e paga pelo celular, dentro de um app com a identidade da rede.</p>
+      </div>
+      <div class="pf">
+        <div class="num">02</div>
+        <h3>Pix, cartão e carteira</h3>
+        <p>As três formas que o brasileiro usa. Sem maquininha no poste e sem alguém para operar caixa.</p>
+      </div>
+      <div class="pf">
+        <div class="num">03</div>
+        <h3>Painel em tempo real</h3>
+        <p>Status de cada conector, sessão em andamento e falha na hora em que acontece, não no fim do mês.</p>
+      </div>
+      <div class="pf">
+        <div class="num">04</div>
+        <h3>Tarifa que você define</h3>
+        <p>Por kWh ou por minuto, com preço diferente por perfil de usuário, e alterada quando você quiser.</p>
+      </div>
+      <div class="pf">
+        <div class="num">05</div>
+        <h3>Roaming entre redes</h3>
+        <p>O seu ponto aparece para motoristas de outras redes, que carregam ali e pagam pelo app deles. Carro chegando sem você anunciar.</p>
+      </div>
+      <div class="pf">
+        <div class="num">06</div>
+        <h3>Relatório e conciliação</h3>
+        <p>Quanto entrou, de quem, em qual conector e em que horário, com o repasse conferido.</p>
+      </div>
+      <div class="pf">
+        <div class="num">07</div>
+        <h3>API e integração</h3>
+        <p>Quem tem ERP ou gestão de frota puxa os dados de recarga para dentro do próprio sistema.</p>
+      </div>
+      <div class="pf">
+        <div class="num">08</div>
+        <h3>OCPP 1.6J aberto</h3>
+        <p>O equipamento fala o padrão de mercado. Trocar de plataforma um dia nunca vai custar o carregador.</p>
+      </div>
+    </div>
+
+    <p class="platNota">
+      A NEXUS opera a camada de software sob a própria marca e responde pelo suporte do
+      ponto. O equipamento segue OCPP 1.6J aberto, então a escolha de plataforma nunca
+      prende o seu investimento no equipamento.
+    </p>
+  </div>
+</section>
+
+<!-- ─────────────── AS QUATRO PORTAS ─────────────── -->
+<section id="solucoes" class="claro">
+  <div class="wrap">
+    <div class="tituloSec">
+      <span class="rotulo">Segmentos</span>
+      <h2>Quatro formas de entrar. Escolha a sua.</h2>
+      <p class="sub">Cada perfil tem um caminho, um contrato e um interlocutor diferente.</p>
+    </div>
+
+    <div class="portas">
+      <div class="porta">
+        <div class="portaN">01</div>
+        <h3>Investidor</h3>
+        <p>Você tem capital e quer um ativo que fatura todo dia, sem funcionário no local.</p>
+        <ul>
+          <li>Tem o local: obra completa nele</li>
+          <li>Não tem local: apresentamos pontos</li>
+          <li>Entrar junto com outros investidores</li>
+        </ul>
+        <a class="btn" href="#falar" data-porta="capital">Quero investir</a>
+      </div>
+      <div class="porta">
+        <div class="portaN">02</div>
+        <h3>Tenho o local</h3>
+        <p>Você não quer investir, mas tem o que é mais difícil nesse negócio: o ponto certo.</p>
+        <ul>
+          <li>Você entra com o espaço</li>
+          <li>Aluguel por contrato, sem pagar obra</li>
+          <li>Sem custo e sem exclusividade</li>
+        </ul>
+        <a class="btn" href="#falar" data-porta="ponto">Cadastrar meu local</a>
+      </div>
+      <div class="porta">
+        <div class="portaN">03</div>
+        <h3>Integrador</h3>
+        <p>Você já instala solar ou faz obra elétrica e quer somar recarga à sua carteira.</p>
+        <ul>
+          <li>Tabela de parceiro no equipamento</li>
+          <li>Proposta, simulador e treinamento</li>
+          <li>Sem franquia, royalty ou mensalidade</li>
+        </ul>
+        <a class="btn" href="/nexus/partner">Ser parceiro</a>
+      </div>
+      <div class="porta">
+        <div class="portaN">04</div>
+        <h3>Compra direta</h3>
+        <p>Você já sabe o que quer e precisa de preço, prazo e ficha técnica agora.</p>
+        <ul>
+          <li>Preço publicado, sem reunião</li>
+          <li>DC de 80 e 120 kW, dois CCS2</li>
+          <li>Nota fiscal e garantia NEXUS</li>
+        </ul>
+        <a class="btn" href="#linha">Ver a linha</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────── CATÁLOGO ─────────────── -->
+<section id="linha" class="claro" style="padding-top:0">
+  <div class="wrap">
+    <div class="tituloSec">
+      <span class="rotulo">Equipamentos</span>
+      <h2>Preço publicado, disponibilidade declarada modelo a modelo.</h2>
+      <p class="sub">
+        Quem esconde preço cobra de cada cliente o que acha que ele aguenta pagar.
+        Aqui o valor está na tela, com a data de chegada de cada modelo.
+      </p>
+    </div>
+
+    <div class="cat cat2">
+      <div class="prod">
+        <div class="prodFoto"><img src="/nexus/img/p-dc.webp" width="1200" height="1200" alt="Carregador NEXUS DC80 de 80 kW visto de frente, com dois cabos CCS2" loading="lazy"></div>
+        <div class="prodCorpo">
+          <div class="prodTopo"><div class="prodNome">NEXUS DC80</div><span class="est prev">Pré-venda</span></div>
+          <div class="prodKw">80 kW · DC rápido</div>
+          <ul class="prodEsp">
+            <li>Conectores <b>2 × CCS2</b></li>
+            <li>Simultâneo <b>2 carros</b></li>
+            <li>Protocolo <b>OCPP 1.6J</b></li>
+            <li>Chegada <b>fim de nov. a início de dez.</b></li>
+          </ul>
+          <div class="prodPreco">
+            <span class="de">De R$ 74.900</span>
+            R$ 59.900
+            <small>à vista, na pré-venda até 31 de outubro</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="prod">
+        <div class="prodFoto"><img src="/nexus/img/dc-perspectiva.webp" width="800" height="800" alt="Carregador NEXUS DC120 de 120 kW em perspectiva, com dois cabos CCS2" loading="lazy"></div>
+        <div class="prodCorpo">
+          <div class="prodTopo"><div class="prodNome">NEXUS DC120</div><span class="est prev">Pré-venda</span></div>
+          <div class="prodKw">120 kW · DC rápido</div>
+          <ul class="prodEsp">
+            <li>Conectores <b>2 × CCS2</b></li>
+            <li>Potência <b>dividida entre vagas</b></li>
+            <li>Protocolo <b>OCPP 1.6J</b></li>
+            <li>Chegada <b>fim de nov. a início de dez.</b></li>
+          </ul>
+          <div class="prodPreco">
+            <span class="de">De R$ 94.900</span>
+            R$ 79.900
+            <small>à vista, na pré-venda até 31 de outubro</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="fonte" style="margin-top:22px">
+      Preços do equipamento, à vista, sem instalação. Ficha técnica completa e condições de
+      parcelamento em <a href="/nexus#produtos" style="text-decoration:underline">solardoc.app/nexus</a>.
+    </p>
+  </div>
+</section>
+
+<!-- ─────────────── CONFORMIDADE ─────────────── -->
+<section class="claro" style="padding-top:0">
+  <div class="wrap">
+    <div class="tituloSec" style="margin-bottom:28px">
+      <span class="rotulo">Conformidade</span>
+      <h2>A obra segue norma. Todas elas.</h2>
+      <p class="sub">
+        Eletroposto não é tomada grande. É instalação regulada, com parecer de acesso e
+        responsável técnico. São estas as normas que o nosso projeto atende.
+      </p>
+    </div>
+    <div class="norma">
+      <div class="nm"><div class="nmC">ABNT NBR 17019</div><div class="nmD">Instalação de sistemas de recarga de veículos elétricos.</div></div>
+      <div class="nm"><div class="nmC">ANEEL 1.000/2021</div><div class="nmD">Regras de prestação do serviço público de distribuição.</div></div>
+      <div class="nm"><div class="nmC">ANEEL 819/2018</div><div class="nmD">Recarga de veículos elétricos e livre negociação da tarifa.</div></div>
+      <div class="nm"><div class="nmC">NDU da concessionária</div><div class="nmD">Norma de fornecimento local. Acima de 75 kW, o padrão muda.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────── MERCADO ─────────────── -->
+<section id="mercado">
+  <div class="wrap">
+    <div class="tituloSec">
+      <span class="rotulo">Mercado</span>
+      <h2>A frota já existe. A recarga é que não acompanhou.</h2>
+      <p class="sub">
+        Sem projeção de consultoria. O número abaixo é a frota emplacada hoje no registro
+        oficial, e é a demanda que passa na porta do ponto.
+      </p>
+    </div>
+
+    <div class="mercadoGrid">
+      <div>
+        <div class="numGrande">515.912</div>
+        <p class="numLeg">veículos plug-in emplacados no Brasil, entre elétricos puros e híbridos plug-in.</p>
+        <p class="fonte">SENATRAN/RENAVAM, frota por combustível, referência julho/2026.</p>
+        <div class="placar">
+          <div><div class="plcN" id="plc-capital">?</div><div class="plcT">investidores cadastrados</div></div>
+          <div><div class="plcN" id="plc-ponto">?</div><div class="plcT">locais com endereço cadastrado</div></div>
+        </div>
+      </div>
+
+      <div class="grafico">
+        <div class="graficoTit">Onde a frota plug-in está</div>
+        <div class="graficoSub">Dez estados com mais veículos plug-in emplacados</div>
+        <!-- Uma série só: sem legenda, o título nomeia o que é. MG vem destacado
+             e ESCRITO na nota, para a identidade nunca depender só da cor. -->
+        <svg viewBox="0 0 800 340" role="img" aria-label="Frota de veículos plug-in por estado: São Paulo 117.356, Distrito Federal 35.134, Paraná 31.030, Rio Grande do Sul 28.257, Minas Gerais 27.828, Rio de Janeiro 26.401, Santa Catarina 23.896, Pernambuco 18.350, Bahia 16.925, Ceará 10.747.">
+          <line x1="44" y1="2" x2="44" y2="329" stroke="rgba(255,255,255,.22)" stroke-width="2"/>
+          <g class="gBarra"><title>São Paulo: 117.356 veículos plug-in</title><text class="gUf" x="38" y="21" text-anchor="end">SP</text><rect x="44" y="8" width="636" height="18" rx="2" fill="#2E7FD4"/><text class="gVal" x="689" y="21">117.356</text></g>
+          <g class="gBarra"><title>Distrito Federal: 35.134 veículos plug-in</title><text class="gUf" x="38" y="54" text-anchor="end">DF</text><rect x="44" y="41" width="190" height="18" rx="2" fill="#2E7FD4"/><text class="gVal" x="243" y="54">35.134</text></g>
+          <g class="gBarra"><title>Paraná: 31.030 veículos plug-in</title><text class="gUf" x="38" y="87" text-anchor="end">PR</text><rect x="44" y="74" width="168" height="18" rx="2" fill="#2E7FD4"/><text class="gVal" x="221" y="87">31.030</text></g>
+          <g class="gBarra"><title>Rio Grande do Sul: 28.257 veículos plug-in</title><text class="gUf" x="38" y="120" text-anchor="end">RS</text><rect x="44" y="107" width="153" height="18" rx="2" fill="#2E7FD4"/><text class="gVal" x="206" y="120">28.257</text></g>
+          <g class="gBarra"><title>Minas Gerais: 27.828 veículos plug-in. É onde a NEXUS executa a obra completa.</title><text class="gUf" x="38" y="153" text-anchor="end">MG</text><rect x="44" y="140" width="151" height="18" rx="2" fill="#4FB477"/><text class="gVal" x="204" y="153" style="fill:#EAEEF3">27.828</text></g>
+          <g class="gBarra"><title>Rio de Janeiro: 26.401 veículos plug-in</title><text class="gUf" x="38" y="186" text-anchor="end">RJ</text><rect x="44" y="173" width="143" height="18" rx="2" fill="#2E7FD4"/><text class="gVal" x="196" y="186">26.401</text></g>
+          <g class="gBarra"><title>Santa Catarina: 23.896 veículos plug-in</title><text class="gUf" x="38" y="219" text-anchor="end">SC</text><rect x="44" y="206" width="130" height="18" rx="2" fill="#2E7FD4"/><text class="gVal" x="183" y="219">23.896</text></g>
+          <g class="gBarra"><title>Pernambuco: 18.350 veículos plug-in</title><text class="gUf" x="38" y="252" text-anchor="end">PE</text><rect x="44" y="239" width="99" height="18" rx="2" fill="#2E7FD4"/><text class="gVal" x="152" y="252">18.350</text></g>
+          <g class="gBarra"><title>Bahia: 16.925 veículos plug-in</title><text class="gUf" x="38" y="285" text-anchor="end">BA</text><rect x="44" y="272" width="92" height="18" rx="2" fill="#2E7FD4"/><text class="gVal" x="145" y="285">16.925</text></g>
+          <g class="gBarra"><title>Ceará: 10.747 veículos plug-in</title><text class="gUf" x="38" y="318" text-anchor="end">CE</text><rect x="44" y="305" width="58" height="18" rx="2" fill="#2E7FD4"/><text class="gVal" x="111" y="318">10.747</text></g>
+        </svg>
+        <div class="gNota">
+          <span class="gChip"></span>
+          <span><b style="color:var(--texto-e)">Minas Gerais</b> é onde a NEXUS executa a obra completa.
+          Nos demais estados a execução é pelo integrador parceiro da região, com o mesmo equipamento e a mesma garantia.</span>
+        </div>
+        <p class="fonte">Fonte: SENATRAN/RENAVAM, frota por UF e combustível, julho/2026.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────── FAQ ─────────────── -->
+<!-- FAQ não é letra miúda: é objeção respondida antes da reunião. Cada pergunta
+     aqui é uma que aparece de verdade na conversa comercial. -->
+<section class="claro" style="padding-top:0">
+  <div class="wrap">
+    <div class="tituloSec" style="margin-bottom:30px">
+      <span class="rotulo">Perguntas diretas</span>
+      <h2>O que todo comprador pergunta.</h2>
+    </div>
+    <div class="faq">
+      <details open>
+        <summary>Vocês fabricam o carregador?</summary>
+        <p>O equipamento é produzido para a NEXUS em linha de fábrica parceira e importado
+        por nós, em lote e em nome próprio. Especificação, identidade, catálogo e garantia
+        são NEXUS. Não é revenda de caixa de terceiro com etiqueta trocada na hora do pedido.</p>
+      </details>
+      <details>
+        <summary>Qual é o prazo de entrega?</summary>
+        <p>O DC80 e o DC120 estão em pré-venda, com chegada do lote prevista para o fim de
+        novembro a início de dezembro. Quem fecha na pré-venda garante o preço promocional
+        e a posição na fila de entrega do lote.</p>
+      </details>
+      <details>
+        <summary>Vocês fazem a instalação ou só vendem o equipamento?</summary>
+        <p>Os dois. No Triângulo Mineiro e região a NEXUS executa a obra completa, do
+        projeto ao comissionamento. Nos demais estados a execução é por integrador parceiro
+        credenciado da sua região, com o mesmo equipamento e a mesma garantia.</p>
+      </details>
+      <details>
+        <summary>Preciso de aprovação da concessionária?</summary>
+        <p>Sim, e é a etapa que mais atrasa obra de quem não sabe conduzir. Acima de 75 kW
+        a ligação sai da norma padrão de fornecimento e exige tratativa específica. Projeto
+        elétrico, ART e parecer de acesso entram no nosso escopo.</p>
+      </details>
+      <details>
+        <summary>Fico preso à plataforma de vocês?</summary>
+        <p>Não. O equipamento fala OCPP 1.6J, que é padrão de mercado. Se um dia você trocar
+        de plataforma, o carregador vai junto e continua funcionando.</p>
+      </details>
+      <details>
+        <summary>Quanto um eletroposto fatura?</summary>
+        <p>Depende de três coisas: carros por dia, energia entregue por recarga e a tarifa
+        que você cobra. Não publicamos número de retorno solto porque ele não significa
+        nada sem o seu ponto. A equipe roda a conta com os dados reais do seu endereço e
+        entrega o estudo por escrito.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────── CONTATO ─────────────── -->
+<section id="falar">
+  <div class="wrap contatoGrid">
+    <div>
+      <span class="rotulo">Contato comercial</span>
+      <h2>Comece dizendo quem você é.</h2>
+      <p class="sub" style="margin-top:14px">
+        A conversa muda conforme o perfil. Marque o seu e o formulário se ajusta.
+      </p>
+      <p class="sub" style="font-size:15px;margin-top:20px">
+        Direto no WhatsApp:
+        <a href="https://wa.me/5534998165040" rel="noopener" style="color:var(--texto-e);font-weight:700;text-decoration:underline">(34) 99816-5040</a>
+      </p>
+    </div>
+
+    <div class="caixa">
+      <p class="segTit">Eu sou</p>
+      <div class="seg" id="seg" role="group" aria-label="Escolha o seu perfil">
+        <button type="button" data-porta="capital" aria-pressed="true">Investidor</button>
+        <button type="button" data-porta="ponto" aria-pressed="false">Tenho um local</button>
+        <button type="button" data-porta="integrador" aria-pressed="false">Integrador</button>
+        <button type="button" data-porta="compra" aria-pressed="false">Quero comprar</button>
+        <button type="button" data-porta="rede" aria-pressed="false" style="grid-column:1/-1">Já tenho carregador instalado</button>
+      </div>
+
+      <form id="form" novalidate>
+        <div class="erro" id="erro"></div>
+        <div class="fld" id="w-nome">
+          <label for="nome">Nome completo</label>
+          <input id="nome" type="text" autocomplete="name" placeholder="Nome e sobrenome">
+        </div>
+        <div class="fRow">
+          <div class="fld" id="w-tel">
+            <label for="tel">WhatsApp com DDD</label>
+            <input id="tel" type="tel" inputmode="numeric" autocomplete="tel" placeholder="(34) 99999-9999">
+          </div>
+          <div class="fld" id="w-cidade">
+            <label for="cidade">Cidade</label>
+            <input id="cidade" type="text" autocomplete="address-level2" placeholder="Uberlândia">
+          </div>
+        </div>
+        <div class="fld" id="w-uf">
+          <label for="uf">Estado</label>
+          <select id="uf">
+            <option value="">Selecione</option>
+            <option>AC</option><option>AL</option><option>AP</option><option>AM</option>
+            <option>BA</option><option>CE</option><option>DF</option><option>ES</option>
+            <option>GO</option><option>MA</option><option>MT</option><option>MS</option>
+            <option>MG</option><option>PA</option><option>PB</option><option>PR</option>
+            <option>PE</option><option>PI</option><option>RJ</option><option>RN</option>
+            <option>RS</option><option>RO</option><option>RR</option><option>SC</option>
+            <option>SP</option><option>SE</option><option>TO</option>
+          </select>
+        </div>
+
+        <div data-so="capital">
+          <div class="fRow">
+            <div class="fld" id="w-faixa">
+              <label for="faixa">Capital disponível</label>
+              <select id="faixa">
+                <option value="">Selecione</option>
+                <option>Até R$ 85 mil</option>
+                <option>R$ 85 mil a R$ 140 mil</option>
+                <option>R$ 140 mil a R$ 260 mil</option>
+                <option>Acima de R$ 260 mil</option>
+                <option>Quero financiar</option>
+                <option>Ainda estou pesquisando</option>
+              </select>
+            </div>
+            <div class="fld" id="w-caminho">
+              <label for="caminho">Como quer entrar</label>
+              <select id="caminho">
+                <option value="">Selecione</option>
+                <option>Tenho o local e quero montar nele</option>
+                <option>Não tenho local, quero que achem um</option>
+                <option>Quero entrar junto com outros investidores</option>
+                <option>Ainda não sei, quero entender</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div data-so="ponto" hidden>
+          <div class="fld" id="w-endereco">
+            <label for="endereco">Endereço do local</label>
+            <input id="endereco" type="text" placeholder="Rua, número e bairro">
+          </div>
+          <div class="fRow">
+            <div class="fld" id="w-relacao">
+              <label for="relacao">Sua relação com o local</label>
+              <select id="relacao">
+                <option value="">Selecione</option>
+                <option>É meu, tenho a escritura</option>
+                <option>Sou sócio do negócio que fica nele</option>
+                <option>Alugo o imóvel hoje</option>
+                <option>Represento o dono</option>
+              </select>
+            </div>
+            <div class="fld" id="w-tipo">
+              <label for="tipo">Tipo de local</label>
+              <select id="tipo">
+                <option value="">Selecione</option>
+                <option>Posto de combustível</option>
+                <option>Mercado ou atacadista</option>
+                <option>Hotel, pousada ou restaurante</option>
+                <option>Estacionamento ou pátio</option>
+                <option>Loja, oficina ou concessionária</option>
+                <option>Terreno na beira da rodovia</option>
+                <option>Outro</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="fld">
+          <label for="obs">Observação <span style="font-weight:600;color:var(--fraco-e)">(opcional)</span></label>
+          <textarea id="obs" placeholder="Ex.: fica na saída da cidade, na rota para Uberaba, e passa muito carro de fora."></textarea>
+        </div>
+
+        <button type="submit" class="btn" id="sub"><span>Enviar</span></button>
+        <p class="micro">Seus dados vão para a equipe comercial. Nada é publicado.</p>
+      </form>
+
+      <div class="desvio" id="desvio">
+        <p id="desvioTexto"></p>
+        <a class="btn" id="desvioBtn" href="/nexus/partner"><span>Continuar</span></a>
+        <p class="micro" id="desvioMicro"></p>
+      </div>
+
+      <div class="ok" id="ok">
+        <h3>Cadastro recebido.</h3>
+        <p id="okTexto">A equipe já tem os seus dados e vai entrar em contato pelo WhatsApp.</p>
+        <a class="btn" id="okZap" href="https://wa.me/5534998165040" target="_blank" rel="noopener" style="margin-top:18px"><span>Falar agora no WhatsApp</span></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────── COMECE AGORA ─────────────── -->
+<section class="comece">
+  <div class="wrap comeceGrid">
+    <div>
+      <h2>Comece agora mesmo.</h2>
+      <p class="sub">
+        Uma conversa de quinze minutos já diz se o seu caso fecha, e com qual
+        configuração. Sem apresentação de uma hora para chegar no preço.
+      </p>
+    </div>
+    <div class="comeceCta">
+      <a class="btn" href="#falar">Falar com um especialista</a>
+      <a class="btn linha" href="https://wa.me/5534998165040" rel="noopener">WhatsApp</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="rodapeG">
+      <div>
+        <img src="/nexus/img/logo.webp" width="1842" height="450" alt="NEXUS ELETROPOSTOS">
+        <p>
+          Carregadores rápidos DC de 80 e 120 kW de marca própria, projeto, obra e
+          operação. Garantia NEXUS com peça de reposição no Brasil e plataforma de
+          gestão e cobrança com OCPP 1.6J aberto.
+        </p>
+      </div>
+      <div>
+        <div class="rodapeT">Soluções</div>
+        <a href="#falar">Investir em eletroposto</a>
+        <a href="#falar">Arrendar meu local</a>
+        <a href="/nexus/partner">Ser integrador parceiro</a>
+        <a href="/nexus#produtos">Comprar carregador</a>
+      </div>
+      <div>
+        <div class="rodapeT">Atendimento</div>
+        <a href="https://wa.me/5534998165040" rel="noopener">WhatsApp (34) 99816-5040</a>
+        <a href="#linha">Equipamentos e preços</a>
+        <a href="#mercado">Dados de mercado</a>
+        <a href="/nexus/privacidade">Política de privacidade</a>
+      </div>
+    </div>
+    <div class="legal">
+      NEXUS ELETROPOSTOS é marca de produto.
+      Faturamento, emissão de nota fiscal e contratos por <b>AIOROS LTDA</b>, inscrita no
+      <b>CNPJ 63.636.043/0001-88</b>. Obra completa executada no Triângulo Mineiro e região;
+      nos demais estados, execução por integrador parceiro credenciado.
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   UMA CAIXA, QUATRO PORTAS.
+   Investidor e local gravam no MESMO endpoint que a Conexão Eletroposto já usa,
+   com `lado` diferente: os dois lados se casam por distância no backend, e um
+   formulário paralelo criaria uma segunda lista que nunca acharia a primeira.
+   Integrador e compra direta não gravam aqui: cada um já tem página inteira, e
+   formulário duplicado vira o mesmo lead em dois lugares.
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function(){
+  var API = location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api';
+  var ZAP = '5534998165040';
+
+  var form = document.getElementById('form');
+  var caixaErro = document.getElementById('erro');
+  var sub = document.getElementById('sub');
+  var desvio = document.getElementById('desvio');
+  var porta = 'capital';
+
+  /* Contagem de verdade, que sobe sozinha, e conta PESSOA e não linha:
+     investidor = cadastro de capital mais ficha da LP; local = quem tem
+     endereço gravado, venha do cadastro, da ficha ou da agenda. Falhou,
+     fica a interrogação: zero afirmaria "não tem ninguém", que é outra coisa. */
+  fetch(API + '/io/eletroposto/parceria/placar')
+    .then(function(r){ return r.json(); })
+    .then(function(p){
+      if (typeof p.capital === 'number') document.getElementById('plc-capital').textContent = p.capital;
+      if (typeof p.ponto === 'number')   document.getElementById('plc-ponto').textContent = p.ponto;
+    })
+    .catch(function(){ /* fica a interrogação */ });
+
+  var DESVIOS = {
+    integrador: {
+      texto: 'A porta do integrador tem página própria, com a tabela de parceiro, a régua de entrada e o que vem junto.',
+      botao: 'Ir para a página do parceiro', href: '/nexus/partner',
+      micro: 'Cadastro sem custo e sem exclusividade.'
+    },
+    compra: {
+      texto: 'Preço, ficha técnica, potências e condições de parcelamento estão na página da linha.',
+      botao: 'Ver a linha e os preços', href: '/nexus#produtos',
+      micro: 'Se preferir falar com alguém, o WhatsApp é (34) 99816-5040.'
+    },
+    /* Carregador já instalado, de qualquer marca, que hoje não cobra nada. É
+       venda de plataforma pura: sem obra e sem equipamento. Não existe `lado`
+       para isso na API, então a conversa começa direto no WhatsApp com contexto
+       em vez de virar uma linha solta numa lista que ninguém trabalha. */
+    rede: {
+      texto: 'Já tem carregador instalado e ele não cobra nada de ninguém? A NEXUS coloca o seu ponto na plataforma, com app, tarifa e repasse, sem trocar o equipamento.',
+      botao: 'Falar sobre conectar a minha rede',
+      href: 'https://wa.me/5534998165040?text=' + encodeURIComponent('Olá! Já tenho carregador instalado e quero conectar à plataforma da NEXUS para começar a cobrar.'),
+      micro: 'Funciona com qualquer equipamento que fale OCPP.'
+    }
+  };
+
+  function trocar(nova){
+    porta = nova;
+    [].forEach.call(document.querySelectorAll('#seg button'), function(b){
+      b.setAttribute('aria-pressed', String(b.dataset.porta === nova));
+    });
+    caixaErro.classList.remove('on');
+    document.getElementById('ok').classList.remove('on');
+    var d = DESVIOS[nova];
+    if (d) {
+      form.hidden = true;
+      desvio.classList.add('on');
+      document.getElementById('desvioTexto').textContent = d.texto;
+      document.getElementById('desvioMicro').textContent = d.micro;
+      var btn = document.getElementById('desvioBtn');
+      btn.href = d.href;
+      btn.querySelector('span').textContent = d.botao;
+      return;
+    }
+    desvio.classList.remove('on');
+    form.hidden = false;
+    [].forEach.call(document.querySelectorAll('[data-so]'), function(bloco){
+      bloco.hidden = bloco.dataset.so !== nova;
+    });
+  }
+
+  [].forEach.call(document.querySelectorAll('#seg button'), function(b){
+    b.addEventListener('click', function(){ trocar(b.dataset.porta); });
+  });
+  /* Os botões das portas lá em cima já chegam com a caixa certa aberta: rolar
+     até um formulário no perfil errado faz a pessoa escolher duas vezes. */
+  [].forEach.call(document.querySelectorAll('a[data-porta]'), function(a){
+    a.addEventListener('click', function(){ trocar(a.dataset.porta); });
+  });
+
+  function val(id){ var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
+  function marcar(id, ruim){ var w = document.getElementById('w-' + id); if (w) w.classList.toggle('ruim', !!ruim); }
+  function falhar(msg, id){
+    caixaErro.textContent = msg; caixaErro.classList.add('on');
+    if (id) { marcar(id, true); var el = document.getElementById(id); if (el) { el.focus(); el.scrollIntoView({ block:'center', behavior:'smooth' }); } }
+    return false;
+  }
+
+  /* A API exige 12 ou 13 dígitos começando em 55. Número que já vem com 55 não
+     leva outro na frente, senão vira 5555 e é recusado. */
+  function telefoneBR(bruto){
+    var d = String(bruto || '').replace(/\D+/g, '');
+    if (d.length === 10 || d.length === 11) d = '55' + d;
+    if ((d.length === 12 || d.length === 13) && d.indexOf('55') === 0) return d;
+    return '';
+  }
+
+  function utm(){
+    var chaves = ['utm_source','utm_medium','utm_campaign','utm_content','utm_term'];
+    var q = new URLSearchParams(location.search), out = {}, achou = false;
+    for (var i = 0; i < chaves.length; i++) { var v = q.get(chaves[i]); if (v) { out[chaves[i]] = v.slice(0,200); achou = true; } }
+    try {
+      if (achou) localStorage.setItem('nexus_home_utm', JSON.stringify(out));
+      else { var s = localStorage.getItem('nexus_home_utm'); if (s) out = JSON.parse(s); }
+    } catch (e) { /* sem storage a origem some, o cadastro não */ }
+    return out;
+  }
+
+  form.addEventListener('submit', function(ev){
+    ev.preventDefault();
+    caixaErro.classList.remove('on');
+    ['nome','tel','cidade','uf','faixa','caminho','endereco','relacao','tipo'].forEach(function(k){ marcar(k, false); });
+
+    var nome = val('nome');
+    if (nome.length < 3 || nome.indexOf(' ') < 0) return falhar('Escreva o seu nome e o sobrenome.', 'nome');
+    var tel = telefoneBR(val('tel'));
+    if (!tel) return falhar('Confira o WhatsApp: precisa ter DDD e 8 ou 9 dígitos.', 'tel');
+    var cidade = val('cidade');
+    if (cidade.length < 2) return falhar('Diga a sua cidade.', 'cidade');
+    var uf = val('uf');
+    if (!uf) return falhar('Escolha o estado.', 'uf');
+
+    var corpo = { lado: porta, nome: nome, telefone: tel, cidade: cidade + ', ' + uf, origem: 'link_direto' };
+
+    if (porta === 'capital') {
+      if (!val('faixa')) return falhar('Informe o capital disponível. É o que decide qual ponto combina com você.', 'faixa');
+      corpo.capital_faixa = val('faixa');
+      /* O caminho escolhido não tem coluna própria. Vai no texto da observação,
+         que é onde a equipe lê antes de ligar, em vez de virar migration por
+         causa de um campo. */
+      var extra = val('caminho') ? 'Caminho: ' + val('caminho') : '';
+      corpo.obs = (val('obs') ? (extra ? extra + '\n' + val('obs') : val('obs')) : extra).slice(0, 600);
+    } else {
+      if (val('endereco').length < 8) return falhar('Informe o endereço do local, com rua, número e bairro. É o motivo do cadastro existir.', 'endereco');
+      if (!val('relacao')) return falhar('Informe qual é a sua relação com o local.', 'relacao');
+      if (!val('tipo')) return falhar('Informe que tipo de local é.', 'tipo');
+      corpo.ponto_endereco = val('endereco');
+      corpo.ponto_relacao = val('relacao');
+      corpo.ponto_tipo = val('tipo');
+      corpo.obs = val('obs').slice(0, 600);
+    }
+
+    var u = utm();
+    for (var k in u) corpo[k] = u[k];
+
+    sub.setAttribute('disabled', 'disabled');
+    sub.querySelector('span').textContent = 'Enviando…';
+
+    /* Teto de 8s para não pendurar quem está em rede ruim. A tela de recebido só
+       aparece depois do ok da API: quem não gravou não se cadastrou. */
+    var abortou = false;
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var relogio = setTimeout(function(){ abortou = true; if (ctrl) ctrl.abort(); }, 8000);
+
+    fetch(API + '/io/eletroposto/parceria', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(corpo), signal: ctrl ? ctrl.signal : undefined
+    }).then(function(r){
+      clearTimeout(relogio);
+      if (!r.ok) throw new Error('http ' + r.status);
+      var recado = porta === 'capital'
+        ? 'Olá! Acabei de me cadastrar como investidor no site da NEXUS.\n\nNome: ' + nome + '\nCidade: ' + cidade + ', ' + uf + '\nCapital: ' + val('faixa') + '\n\nQuero entender os próximos passos.'
+        : 'Olá! Acabei de cadastrar um local no site da NEXUS.\n\nNome: ' + nome + '\nCidade: ' + cidade + ', ' + uf + '\nLocal: ' + val('tipo') + '\n\nQuero entender como funciona o arrendamento.';
+      document.getElementById('okZap').href = 'https://wa.me/' + ZAP + '?text=' + encodeURIComponent(recado);
+      document.getElementById('okTexto').textContent = porta === 'capital'
+        ? 'A equipe já tem o seu perfil e vai entrar em contato para entender a sua região e o tipo de ponto que combina com você.'
+        : 'O seu local já está na lista. A equipe vai analisar endereço, movimento e energia disponível antes de entrar em contato.';
+      form.hidden = true;
+      desvio.classList.remove('on');
+      document.getElementById('ok').classList.add('on');
+      document.getElementById('ok').scrollIntoView({ block:'start', behavior:'smooth' });
+      if (window.fbq) window.fbq('track', 'Lead', { content_name: 'nexus_home_' + porta });
+    }).catch(function(){
+      clearTimeout(relogio);
+      sub.removeAttribute('disabled');
+      sub.querySelector('span').textContent = 'Enviar';
+      falhar(abortou
+        ? 'A conexão demorou demais. Tente de novo, ou chame a equipe no WhatsApp 34 99816-5040.'
+        : 'Não consegui enviar agora. Tente de novo, ou chame a equipe no WhatsApp 34 99816-5040.');
+    });
+  });
+
+  trocar('capital');
+})();
+</script>
+<script>
+/* Menu de 3 linhas. IIFE separada de propósito: mexer no mesmo bloco do
+   formulário é como um erro de menu derruba o cadastro. */
+(function(){
+  var btn = document.getElementById('btnMenu');
+  var painel = document.getElementById('painelMenu');
+  if (!btn || !painel) return;
+
+  function fechar(){ painel.classList.remove('on'); btn.setAttribute('aria-expanded','false'); btn.setAttribute('aria-label','Abrir menu'); }
+  function abrir(){ painel.classList.add('on'); btn.setAttribute('aria-expanded','true'); btn.setAttribute('aria-label','Fechar menu'); }
+
+  btn.addEventListener('click', function(){
+    if (painel.classList.contains('on')) fechar(); else abrir();
+  });
+  /* Clicar em qualquer destino fecha: painel aberto por cima do conteúdo que a
+     pessoa acabou de pedir é o erro clássico de menu em página única. */
+  painel.addEventListener('click', function(e){ if (e.target.closest('a')) fechar(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') fechar(); });
+  document.addEventListener('click', function(e){
+    if (!painel.classList.contains('on')) return;
+    if (painel.contains(e.target) || btn.contains(e.target)) return;
+    fechar();
+  });
+})();
+</script>
+</body>
+</html>
