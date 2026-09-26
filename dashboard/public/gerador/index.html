@@ -386,7 +386,10 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 /* tabela de comparação */
 /* ===== Cadastros do eletroposto: Arrendamento × Investidores ===== */
 .cad-topo{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin:4px 0 14px}
-.cad-abas{display:flex;gap:6px;background:rgba(148,163,184,.10);padding:4px;border-radius:11px}
+.cad-abas{display:flex;gap:6px;background:rgba(148,163,184,.10);padding:4px;border-radius:11px;
+  overflow-x:auto;scrollbar-width:none;max-width:100%}
+.cad-abas::-webkit-scrollbar{display:none}
+.cad-aba{flex:0 0 auto}
 .cad-aba{background:none;border:none;color:#94A3B8;font-family:inherit;font-size:14px;font-weight:700;
   padding:9px 15px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:7px;min-height:40px}
 .cad-aba.ativa{background:rgba(255,255,255,.10);color:#fff}
@@ -539,6 +542,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
   font-family:inherit;font-size:13.5px;font-weight:700;padding:9px 14px;border-radius:999px;cursor:pointer;min-height:40px}
 .pn-aba.on{background:#fff;border-color:#fff;color:#0B1220}
 #pn-limpar.on{background:#FBBF24;border-color:#FBBF24;color:#1F1600;font-weight:800}
+#pn-bt-mais.on{background:rgba(96,165,250,.16);border-color:rgba(96,165,250,.45);color:#BFDBFE}
 .pn-cnt{font-size:12px;font-weight:700;color:#CBD5E1;background:rgba(148,163,184,.28);
   border-radius:999px;padding:1px 7px;min-width:20px;text-align:center;display:inline-block}
 .pn-aba.on .pn-cnt{background:#7DD117;color:#0B1220}
@@ -555,7 +559,12 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .pn-deg:hover{border-color:var(--c)}
 
 .pn-filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
-.pn-filtros .cad-busca{min-width:240px;flex:1 1 240px}
+.pn-filtros .cad-busca{min-width:0;flex:1 1 240px}
+/* min-width:0 é o que impede o seletor de esticar até o texto da opção mais
+   longa e empurrar a página inteira pro lado. */
+.pn-filtros .cad-filtro{flex:1 1 180px;min-width:0;max-width:100%}
+.pn-mais{display:flex;flex-wrap:wrap;gap:8px;align-items:center;width:100%}
+.pn-mais[hidden]{display:none}
 
 .pn-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
 .pn-card{background:rgba(15,23,42,.55);border:1px solid rgba(148,163,184,.18);border-radius:13px;
@@ -633,6 +642,10 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 @media (max-width:560px){
   .pn-lista{grid-template-columns:1fr}
   .pn-resumo{margin-left:0;width:100%}
+  .pn-filtros .cad-busca{flex:1 1 100%}
+  .pn-filtros .cad-filtro{flex:1 1 100%}
+  .pn-liga-box{max-height:96vh;padding:16px 14px}
+  .pn-liga-nome{font-size:21px}
 }
 .avi-inp,.avi-ta{width:100%;background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.28);border-radius:10px;
   color:#E5E7EB;font-family:inherit;font-size:14.5px;padding:11px 13px;outline:none;box-sizing:border-box}
@@ -4791,6 +4804,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
         <div class="pn-filtros">
           <input type="search" class="cad-busca" id="pn-busca" placeholder="Buscar nome, rua, cidade, anotação" oninput="pnBuscaMudou()">
+          <button type="button" class="pn-bt" id="pn-bt-mais" onclick="pnMaisFiltros()">Filtros</button>
+          <div class="pn-mais" id="pn-mais">
           <select class="cad-filtro" id="pn-f-estagio" onchange="pnRender()">
             <option value="">Qualquer degrau</option>
             <option value="nao_tocado">Não tocado</option>
@@ -4887,6 +4902,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <option value="contato">Quem está parado há mais tempo</option>
             <option value="proximo">Próximo passo mais perto</option>
           </select>
+          </div>
           <button type="button" class="ehist-btn" id="pn-limpar" onclick="pnLimpar()">Limpar filtros</button>
           <button type="button" class="ehist-btn" onclick="pontosCarregar(true)">↻ Atualizar</button>
           <button type="button" class="pn-bt pegar" onclick="pnPegarTodos()">Pegar os da tela pra mim</button>
@@ -10593,6 +10609,9 @@ function pnRender() {
   const ligados = ['estagio', 'resp', 'rel', 'nota', 'estudo', 'end', 'tipo', 'valor', 'como',
                    'cidade', 'uf', 'vend', 'status', 'perfil', 'contato', 'agenda']
     .filter(k => f[k]).length + (f.busca ? 1 : 0);
+  pnMaisPinta();
+  const btMais = document.getElementById('pn-bt-mais');
+  if (btMais && !pnMaisAberto) btMais.textContent = ligados ? 'Filtros (' + ligados + ')' : 'Filtros';
   const btLimpar = document.getElementById('pn-limpar');
   if (btLimpar) {
     btLimpar.textContent = ligados ? 'Limpar ' + ligados + ' filtro' + (ligados > 1 ? 's' : '') : 'Limpar filtros';
@@ -10770,6 +10789,21 @@ function pnAbaTopo(qual) {
   });
   pnRender();
 }
+/** Os seletores atrás de um botão: abertos no desktop, fechados no celular.
+ *  A busca, o Limpar e os botões de ação ficam SEMPRE na tela — são o que se
+ *  usa no meio de uma ligação. */
+let pnMaisAberto = null;
+function pnMaisPinta() {
+  const bl = document.getElementById('pn-mais');
+  const bt = document.getElementById('pn-bt-mais');
+  if (!bl || !bt) return;
+  if (pnMaisAberto === null) pnMaisAberto = window.innerWidth >= 760;
+  bl.hidden = !pnMaisAberto;
+  bt.classList.toggle('on', pnMaisAberto);
+  bt.textContent = pnMaisAberto ? 'Esconder filtros' : 'Filtros';
+}
+function pnMaisFiltros() { pnMaisAberto = !pnMaisAberto; pnMaisPinta(); }
+
 function pnLimpar() {
   ['pn-busca', 'pn-f-estagio', 'pn-f-resp', 'pn-f-rel', 'pn-f-nota', 'pn-f-estudo', 'pn-f-end',
    'pn-f-tipo', 'pn-f-valor', 'pn-f-como', 'pn-f-cidade', 'pn-f-uf', 'pn-f-vend',
