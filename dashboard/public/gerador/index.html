@@ -574,6 +574,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .pn-tag.alerta{background:rgba(248,113,113,.14);color:#F87171}
 .pn-tag.ress{background:rgba(251,191,36,.14);color:#FBBF24}
 .pn-tag.tipo{background:transparent;border:1px solid var(--c);color:var(--c);font-weight:800}
+.pn-tag.valor{background:rgba(125,209,23,.14);color:#7DD117;font-weight:800}
 .pn-linha{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .pn-sel{background:rgba(15,23,42,.8);border:1px solid var(--c);border-radius:9px;color:var(--c);
   font-family:inherit;font-size:12.5px;font-weight:800;padding:8px 9px;min-height:38px;cursor:pointer;flex:1 1 140px}
@@ -4766,7 +4767,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="pesquisa-info">
           <b>A base inteira do eletroposto numa tela só</b>, uma linha por pessoa: as reuniões da LP,
           os cadastros das quatro portas e as fichas. O filtro <b>tipo</b> separa Arrendamento,
-          Investidor, Curioso e Parceiro pela mesma regra das abas ao lado. Ponha o seu nome,
+          Investidor, Curioso e Parceiro pela mesma regra das abas ao lado, e o de <b>valor</b>
+          acha quem declarou quanto investe. Ponha o seu nome,
           registre cada contato e mova o degrau conforme a conversa anda. A <b>nota</b> é o índice
           do estudo do local; quem ainda não rodou herda a nota da cidade, que hoje é o que o índice
           mede. <b>Sair ligando</b> abre a fila que está na tela, um por vez.
@@ -4805,6 +4807,25 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <option value="capital">Investidor</option>
             <option value="curioso">Curioso</option>
             <option value="integrador">Parceiro (integrador)</option>
+          </select>
+          <select class="cad-filtro" id="pn-f-valor" onchange="pnRender()">
+            <option value="">Qualquer valor</option>
+            <option value="280">R$ 280 mil ou mais</option>
+            <option value="140">R$ 140 a 280 mil</option>
+            <option value="70">R$ 70 a 140 mil</option>
+            <option value="50">R$ 50 a 70 mil</option>
+            <option value="abaixo">Abaixo de R$ 50 mil</option>
+            <option value="sem">Não disse quanto investe</option>
+          </select>
+          <select class="cad-filtro" id="pn-f-como" onchange="pnRender()">
+            <option value="">Qualquer forma de pagamento</option>
+            <option value="proprio">Recurso próprio</option>
+            <option value="proprio_credito">Próprio + crédito</option>
+            <option value="fin_aprovado">Financiamento aprovado</option>
+            <option value="fin_cnpj">Financiamento CNPJ</option>
+            <option value="fin_banco">Financiamento a consultar</option>
+            <option value="naosei">Não sabe como paga</option>
+            <option value="modelo01">Modelo 01 (NEXUS investe)</option>
           </select>
           <select class="cad-filtro" id="pn-f-rel" onchange="pnRender()">
             <option value="">Qualquer relação com o local</option>
@@ -4856,6 +4877,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           </select>
           <select class="cad-filtro" id="pn-ordem" onchange="pnRender()">
             <option value="nota">Ordenar pela nota</option>
+            <option value="valor">Ordenar pelo valor que investe</option>
             <option value="novo">Mais novos primeiro</option>
             <option value="antigo">Mais antigos primeiro</option>
             <option value="contato">Quem está parado há mais tempo</option>
@@ -10058,6 +10080,30 @@ const PN_TIPO = {
   integrador: { rot: 'Parceiro',     cor: '#38BDF8' },
 };
 
+/**
+ * COMO a pessoa pretende pagar. O texto vem de três lugares e em quatro
+ * grafias diferentes (travessão, ponto médio, minúsculas antigas), então a
+ * classificação é por regex e a ORDEM importa: "Recurso próprio + cartão ou
+ * financiamento" casa com próprio E com financiamento, e é a primeira regra
+ * que manda.
+ */
+const PN_COMO = {
+  proprio_credito: { rot: 'Próprio + crédito', re: /pr[óo]prio\s*(\+|mais)/i },
+  proprio:         { rot: 'Recurso próprio',   re: /recurso pr[óo]prio|^pr[óo]prio$/i },
+  fin_aprovado:    { rot: 'Financiamento aprovado', re: /pr[ée]-?aprovado|financiamento aprovado/i },
+  fin_cnpj:        { rot: 'Financiamento CNPJ',     re: /cnpj/i },
+  fin_banco:       { rot: 'Financiamento a consultar', re: /financiament/i },
+  modelo01:        { rot: 'Modelo 01 (NEXUS investe)', re: /modelo 01|n[ãa]o se aplica/i },
+  naosei:          { rot: 'Não sabe como paga', re: /ainda n[ãa]o sei|n[ãa]o sabe/i },
+};
+const PN_COMO_ORDEM = ['modelo01', 'proprio_credito', 'proprio', 'fin_aprovado', 'fin_cnpj', 'fin_banco', 'naosei'];
+function pnComo(txt) {
+  const t = String(txt || '').trim();
+  if (!t || /^selecione/i.test(t)) return '';
+  for (const k of PN_COMO_ORDEM) if (PN_COMO[k].re.test(t)) return k;
+  return '';
+}
+
 let pnDados = null;       // [{tel8, nome, ...}] já cruzado
 let pnNeg = new Map();    // tel8 -> linha de eletroposto_negociacao
 let pnAba = 'fila';       // o atalho de cima
@@ -10180,6 +10226,7 @@ async function pontosCarregar(forcar) {
         l = { tel8: tel8, telefone: telefone, nome: '', cidade: '', rua: '', numero: '', bairro: '',
               perfil: '', relacao: '', ponto: '', casaDoLead: false, semNumero: false,
               statusReuniao: '', vendedor: '', quando: '', criado: '',
+              valorTxt: '', valorMil: null, comoTxt: '',
               agendamento_id: null, indice: null, temEstudo: false,
               destino: null, integrador: false, fontes: [] };
         linhas.set(tel8, l);
@@ -10209,6 +10256,11 @@ async function pontosCarregar(forcar) {
       poe(l, 'perfil', pnPerfil(a.observacao));
       poe(l, 'relacao', pnCampo(a.observacao, 'Local é seu') || a.ponto_relacao || '');
       poe(l, 'ponto', pnCampo(a.observacao, 'Ponto'));
+      // QUANTO e COMO: o "capital_faixa" de agendamentos NÃO é valor, é a forma
+      // de pagamento em slug (proprio, fin_cnpj). O valor só existe no texto da
+      // ficha. Trocar um pelo outro põe "fin_cnpj" no lugar de "R$ 140 mil".
+      poe(l, 'valorTxt', pnCampo(a.observacao, 'Quanto pretende investir'));
+      poe(l, 'comoTxt', pnCampo(a.observacao, 'Como pretende investir'));
       // a leitura vem decrescente: a PRIMEIRA reunião de cada pessoa é a mais nova
       if (!l.statusReuniao) {
         l.statusReuniao = a.status || '';
@@ -10231,6 +10283,9 @@ async function pontosCarregar(forcar) {
       if (l.fontes.indexOf('cadastro') < 0) l.fontes.push('cadastro');
       poe(l, 'nome', c.nome); poe(l, 'cidade', c.cidade);
       poe(l, 'relacao', c.ponto_relacao); poe(l, 'perfil', c.ponto_tipo);
+      // aqui capital_faixa É o valor (a porta do capital pergunta a faixa);
+      // capital_origem é a forma. Os dois nomes se cruzam entre as tabelas.
+      poe(l, 'valorTxt', c.capital_faixa); poe(l, 'comoTxt', c.capital_origem);
       poe(l, 'criado', c.created_at);
       if (String(c.ponto_endereco || '').trim()) {
         poeEndereco(l, pnEndereco('Endereço: ' + c.ponto_endereco)
@@ -10250,6 +10305,8 @@ async function pontosCarregar(forcar) {
       poe(l, 'nome', f.nome); poe(l, 'cidade', f.cidade); poe(l, 'perfil', f.perfil);
       poe(l, 'relacao', pnCampo(f.ficha, 'Local é seu'));
       poe(l, 'ponto', pnCampo(f.ficha, 'Ponto'));
+      poe(l, 'valorTxt', f.valor_investir || pnCampo(f.ficha, 'Quanto pretende investir'));
+      poe(l, 'comoTxt', f.invest || pnCampo(f.ficha, 'Como pretende investir'));
       poe(l, 'criado', f.created_at);
       if (String(f.endereco || '').trim()) {
         poeEndereco(l, pnEndereco('Endereço: ' + f.endereco)
@@ -10259,7 +10316,13 @@ async function pontosCarregar(forcar) {
     });
 
     const arr = [...linhas.values()];
-    arr.forEach(l => { if (!l.quando) l.quando = l.criado; if (!l.nome) l.nome = '—'; });
+    arr.forEach(l => {
+      if (!l.quando) l.quando = l.criado;
+      if (!l.nome) l.nome = '—';
+      // Em mil reais, pela MESMA conta do servidor (numa faixa vale o teto).
+      l.valorMil = cadValorEmMil(l.valorTxt);
+      l.comoKey = pnComo(l.comoTxt);
+    });
 
     // NOTA DA CIDADE: enquanto o Google está em 403 o índice só tem os dois
     // componentes do município, então duas fichas da mesma cidade têm a MESMA
@@ -10342,7 +10405,7 @@ function pnFiltrosAtuais() {
     busca: (pnVal('pn-busca') || '').trim().toLowerCase(),
     estagio: pnVal('pn-f-estagio'), resp: pnVal('pn-f-resp'), rel: pnVal('pn-f-rel'),
     nota: pnVal('pn-f-nota'), estudo: pnVal('pn-f-estudo'), end: pnVal('pn-f-end'),
-    tipo: pnVal('pn-f-tipo'),
+    tipo: pnVal('pn-f-tipo'), valor: pnVal('pn-f-valor'), como: pnVal('pn-f-como'),
     cidade: pnVal('pn-f-cidade'), uf: pnVal('pn-f-uf'), vend: pnVal('pn-f-vend'),
     status: pnVal('pn-f-status'), perfil: pnVal('pn-f-perfil'),
     contato: pnVal('pn-f-contato'), agenda: pnVal('pn-f-agenda'),
@@ -10397,6 +10460,16 @@ function pnFiltrar(o) {
       const bateTipo = f.tipo === 'integrador' ? l.integrador : (l.destino === f.tipo);
       if (!bateTipo) return false;
     }
+    if (f.valor) {
+      const v = l.valorMil;
+      if (f.valor === 'sem' && v != null) return false;
+      if (f.valor === '280' && !(v >= 280)) return false;
+      if (f.valor === '140' && !(v >= 140 && v < 280)) return false;
+      if (f.valor === '70' && !(v >= 70 && v < 140)) return false;
+      if (f.valor === '50' && !(v >= 50 && v < 70)) return false;
+      if (f.valor === 'abaixo' && !(v != null && v < 50)) return false;
+    }
+    if (f.como && l.comoKey !== f.como) return false;
     if (f.estudo === 'sim' && !l.temEstudo) return false;
     if (f.estudo === 'nao' && l.temEstudo) return false;
     if (f.end === 'tem' && !l.rua) return false;
@@ -10434,6 +10507,8 @@ function pnFiltrar(o) {
   const nOrd = l => { const v = pnNota(l); return v == null ? -1 : v; };
   saida.sort((a, b) => {
     if (ordem === 'nota') return nOrd(b) - nOrd(a) || String(b.quando).localeCompare(String(a.quando));
+    if (ordem === 'valor') return (b.valorMil == null ? -1 : b.valorMil) - (a.valorMil == null ? -1 : a.valorMil)
+      || nOrd(b) - nOrd(a);
     if (ordem === 'novo') return String(b.quando).localeCompare(String(a.quando));
     if (ordem === 'antigo') return String(a.quando).localeCompare(String(b.quando));
     if (ordem === 'contato') {
@@ -10536,6 +10611,8 @@ function pnCard(l) {
   +      (l.semNumero && !l.casaDoLead ? '<span class="pn-tag ress">endereço sem número</span>' : '')
   +      (l.statusReuniao ? '<span class="pn-tag">reunião: ' + pnEsc(l.statusReuniao.replace(/_/g, ' ')) + '</span>' : '')
   +      (l.vendedor ? '<span class="pn-tag">' + pnEsc(l.vendedor) + '</span>' : '')
+  +      (l.valorTxt ? '<span class="pn-tag valor">' + pnEsc(l.valorTxt) + '</span>' : '')
+  +      (l.comoKey ? '<span class="pn-tag">' + pnEsc(PN_COMO[l.comoKey].rot) + '</span>' : '')
   +      (l.temEstudo ? '<span class="pn-tag">estudo pronto</span>' : '')
   +      (l.fontes && l.fontes.length ? '<span class="pn-tag off">' + pnEsc(l.fontes.join(' + ')) + '</span>' : '')
   + '  </div>'
@@ -10639,7 +10716,8 @@ function pnAbaTopo(qual) {
 }
 function pnLimpar() {
   ['pn-busca', 'pn-f-estagio', 'pn-f-resp', 'pn-f-rel', 'pn-f-nota', 'pn-f-estudo', 'pn-f-end',
-   'pn-f-tipo', 'pn-f-cidade', 'pn-f-uf', 'pn-f-vend', 'pn-f-status', 'pn-f-perfil',
+   'pn-f-tipo', 'pn-f-valor', 'pn-f-como', 'pn-f-cidade', 'pn-f-uf', 'pn-f-vend',
+   'pn-f-status', 'pn-f-perfil',
    'pn-f-contato', 'pn-f-agenda']
     .forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
   pnMostrarTudo = false;
