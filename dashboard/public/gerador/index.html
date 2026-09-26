@@ -538,6 +538,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .pn-aba{background:rgba(148,163,184,.10);border:1px solid rgba(148,163,184,.20);color:#94A3B8;
   font-family:inherit;font-size:13.5px;font-weight:700;padding:9px 14px;border-radius:999px;cursor:pointer;min-height:40px}
 .pn-aba.on{background:#fff;border-color:#fff;color:#0B1220}
+#pn-limpar.on{background:#FBBF24;border-color:#FBBF24;color:#1F1600;font-weight:800}
 .pn-cnt{font-size:12px;font-weight:700;color:#CBD5E1;background:rgba(148,163,184,.28);
   border-radius:999px;padding:1px 7px;min-width:20px;text-align:center;display:inline-block}
 .pn-aba.on .pn-cnt{background:#7DD117;color:#0B1220}
@@ -602,6 +603,9 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
   border-radius:8px;padding:7px 10px;min-height:36px;display:inline-flex;align-items:center}
 .pn-link:hover{border-color:#60A5FA;color:#fff}
 .pn-link.wa{color:#7DD117;border-color:rgba(125,209,23,.34)}
+.pn-hist{font-size:11.5px;color:#94A3B8;line-height:1.6}
+.pn-hist summary{cursor:pointer;color:#CBD5E1;font-weight:700}
+.pn-hist div{padding-left:10px;border-left:1px solid rgba(148,163,184,.25);margin-top:3px}
 .pn-vazio{color:#94A3B8;padding:26px 4px;font-size:13.5px;grid-column:1/-1}
 
 /* Modo ligação */
@@ -4786,7 +4790,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="pn-funil" id="pn-funil"></div>
 
         <div class="pn-filtros">
-          <input type="search" class="cad-busca" id="pn-busca" placeholder="Buscar nome, rua, cidade, anotação" oninput="pnRender()">
+          <input type="search" class="cad-busca" id="pn-busca" placeholder="Buscar nome, rua, cidade, anotação" oninput="pnBuscaMudou()">
           <select class="cad-filtro" id="pn-f-estagio" onchange="pnRender()">
             <option value="">Qualquer degrau</option>
             <option value="nao_tocado">Não tocado</option>
@@ -4883,9 +4887,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <option value="contato">Quem está parado há mais tempo</option>
             <option value="proximo">Próximo passo mais perto</option>
           </select>
-          <button type="button" class="ehist-btn" onclick="pnLimpar()">Limpar filtros</button>
+          <button type="button" class="ehist-btn" id="pn-limpar" onclick="pnLimpar()">Limpar filtros</button>
           <button type="button" class="ehist-btn" onclick="pontosCarregar(true)">↻ Atualizar</button>
           <button type="button" class="pn-bt pegar" onclick="pnPegarTodos()">Pegar os da tela pra mim</button>
+          <button type="button" class="pn-bt" onclick="pnSoltarMeus()">Soltar os meus</button>
           <button type="button" class="pn-bt ligar" onclick="pnLigarAbrir()">Sair ligando</button>
         </div>
 
@@ -10107,6 +10112,8 @@ function pnComo(txt) {
 let pnDados = null;       // [{tel8, nome, ...}] já cruzado
 let pnNeg = new Map();    // tel8 -> linha de eletroposto_negociacao
 let pnAba = 'fila';       // o atalho de cima
+let pnRascunho = {};      // tel8|campo -> texto digitado e ainda não gravado
+let pnBuscaTimer = null;  // a busca espera o dedo parar antes de redesenhar
 let pnMostrarTudo = false; // o teto de cartões, solto pelo botão
 const PN_TETO = 200;
 let pnLigaFila = [];      // modo ligação
@@ -10234,6 +10241,11 @@ async function pontosCarregar(forcar) {
       return l;
     };
     const poe = (l, k, v) => { if (!l[k] && v) l[k] = v; };
+    const norm11 = t => String(t || '').replace(/\D/g, '').replace(/^55/, '').slice(-11);
+    const conferePhone = (l, tel) => {
+      const a = norm11(l.telefone), b = norm11(tel);
+      if (a && b && a.length >= 10 && b.length >= 10 && a !== b) l.telAmbiguo = true;
+    };
     const PESO_D = { ponto: 0, capital: 1, curioso: 2 };
     // Melhor destino ganha, igual à aba Cadastros: quem pode ceder um local é
     // Arrendamento mesmo que também tenha dinheiro.
@@ -10251,6 +10263,7 @@ async function pontosCarregar(forcar) {
       const tel8 = cadTel8(a.cliente_telefone);
       if (!tel8 || ehTeste(a.cliente_nome)) return;
       const l = nova(tel8, a.cliente_telefone);
+      conferePhone(l, a.cliente_telefone);
       if (l.fontes.indexOf('reunião') < 0) l.fontes.push('reunião');
       poe(l, 'nome', a.cliente_nome);
       poe(l, 'perfil', pnPerfil(a.observacao));
@@ -10280,6 +10293,7 @@ async function pontosCarregar(forcar) {
       const tel8 = cadTel8(c.telefone);
       if (!tel8 || ehTeste(c.nome)) return;
       const l = nova(tel8, c.telefone);
+      conferePhone(l, c.telefone);
       if (l.fontes.indexOf('cadastro') < 0) l.fontes.push('cadastro');
       poe(l, 'nome', c.nome); poe(l, 'cidade', c.cidade);
       poe(l, 'relacao', c.ponto_relacao); poe(l, 'perfil', c.ponto_tipo);
@@ -10301,6 +10315,7 @@ async function pontosCarregar(forcar) {
       const tel8 = cadTel8(f.telefone);
       if (!tel8 || ehTeste(f.nome)) return;
       const l = nova(tel8, f.telefone);
+      conferePhone(l, f.telefone);
       if (l.fontes.indexOf('ficha') < 0) l.fontes.push('ficha');
       poe(l, 'nome', f.nome); poe(l, 'cidade', f.cidade); poe(l, 'perfil', f.perfil);
       poe(l, 'relacao', pnCampo(f.ficha, 'Local é seu'));
@@ -10362,10 +10377,25 @@ const pnNota = l => (l.indice != null ? l.indice : (l.notaCidade != null ? l.not
 /** Aceita a linha ou o tel8 solto: os dois caminhos existem (a lista tem a linha,
  *  o botão só tem o telefone) e divergir aqui vira bug silencioso. */
 const pnChave = x => String(x && typeof x === 'object' ? x.tel8 : x);
+/** O que a pessoa digitou e ainda não gravou. Sobrevive ao redesenho. */
+const pnRasK = (t, c) => t + '|' + c;
+function pnRasPoe(t, c, v) { pnRascunho[pnRasK(t, c)] = v; }
+function pnRasLe(t, c, gravado) {
+  const v = pnRascunho[pnRasK(t, c)];
+  return v == null ? (gravado || '') : v;
+}
+/** Quem está mexendo. Sem consultor no login ninguém escreve: gravar "eu" como
+ *  responsável sujaria a base e nunca mais se saberia de quem era o lead. */
+function pnQuemSou() {
+  const e = pnEu();
+  if (!e) { showToast('Entre com o seu nome de consultor pra assumir ou registrar contato.'); return null; }
+  return e;
+}
+function pnBuscaMudou() { clearTimeout(pnBuscaTimer); pnBuscaTimer = setTimeout(pnRender, 220); }
 const pnNegDe = x => pnNeg.get(pnChave(x)) || null;
 const pnEstagioDe = x => { const n = pnNegDe(x); return (n && n.estagio) || 'nao_tocado'; };
 const pnRespDe = x => { const n = pnNegDe(x); return (n && n.responsavel) || ''; };
-const pnEu = () => (typeof eletroConsultorLogado === 'function' ? eletroConsultorLogado() : '') || 'eu';
+const pnEu = () => (typeof eletroConsultorLogado === 'function' ? eletroConsultorLogado() : '') || '';
 
 // ─── filtros ─────────────────────────────────────────────────────────────────
 const pnVal = id => { const e = document.getElementById(id); return e ? e.value : ''; };
@@ -10560,7 +10590,16 @@ function pnRender() {
     + ' onclick="pnDegrau(\'' + e.id + '\')" style="--c:' + e.cor + '">'
     + '<i></i><b>' + (cont[e.id] || 0) + '</b><span>' + pnEsc(e.rot) + '</span></button>').join('');
 
-  const meus = pnDados.filter(l => pnRespDe(l) === eu).length;
+  const ligados = ['estagio', 'resp', 'rel', 'nota', 'estudo', 'end', 'tipo', 'valor', 'como',
+                   'cidade', 'uf', 'vend', 'status', 'perfil', 'contato', 'agenda']
+    .filter(k => f[k]).length + (f.busca ? 1 : 0);
+  const btLimpar = document.getElementById('pn-limpar');
+  if (btLimpar) {
+    btLimpar.textContent = ligados ? 'Limpar ' + ligados + ' filtro' + (ligados > 1 ? 's' : '') : 'Limpar filtros';
+    btLimpar.classList.toggle('on', ligados > 0);
+  }
+
+  const meus = eu ? pnDados.filter(l => pnRespDe(l) === eu).length : 0;
   const cab = document.getElementById('pn-resumo');
   if (cab) cab.innerHTML = '<b>' + lista.length + '</b> na tela · <b>' + meus + '</b> com o seu nome · '
     + '<b>' + pnDados.filter(l => !pnNegDe(l)).length + '</b> nunca tocados';
@@ -10606,6 +10645,7 @@ function pnCard(l) {
   +      (l.integrador ? '<span class="pn-tag tipo" style="--c:' + PN_TIPO.integrador.cor + '">'
              + PN_TIPO.integrador.rot + '</span>' : '')
   +      (l.relacao ? '<span class="pn-tag">' + pnEsc(l.relacao) + '</span>' : '<span class="pn-tag off">relação não perguntada</span>')
+  +      (l.telAmbiguo ? '<span class="pn-tag alerta">dois DDDs com o mesmo final · confira o número</span>' : '')
   +      (l.casaDoLead ? '<span class="pn-tag alerta">endereço é a casa dele</span>' : '')
   +      (l.semReuniao ? '<span class="pn-tag alerta">sem reunião marcada</span>' : '')
   +      (l.semNumero && !l.casaDoLead ? '<span class="pn-tag ress">endereço sem número</span>' : '')
@@ -10629,10 +10669,19 @@ function pnCard(l) {
   + '  <div class="pn-linha">'
   + '    <input class="pn-inp data' + (venceu ? ' venceu' : '') + '" type="date" value="' + pnEsc(n.proximo_em || '') + '"'
   + '      title="quando voltar a falar" onchange="pnCampoSalvar(\'' + l.tel8 + '\', \'proximo_em\', this.value)">'
-  + '    <input class="pn-inp" type="text" placeholder="próximo passo" value="' + pnEsc(n.proximo_passo || '') + '"'
+  + '    <input class="pn-inp" type="text" placeholder="próximo passo" value="' + pnEsc(pnRasLe(l.tel8, 'proximo_passo', n.proximo_passo)) + '"'
+  + '      oninput="pnRasPoe(\'' + l.tel8 + '\', \'proximo_passo\', this.value)"'
   + '      onchange="pnCampoSalvar(\'' + l.tel8 + '\', \'proximo_passo\', this.value)">'
   + '  </div>'
-  + '  <textarea class="pn-ta" placeholder="o que ele disse…" onchange="pnCampoSalvar(\'' + l.tel8 + '\', \'nota\', this.value)">' + pnEsc(n.nota || '') + '</textarea>'
+  + '  <textarea class="pn-ta" placeholder="o que ele disse…"'
+  + '    oninput="pnRasPoe(\'' + l.tel8 + '\', \'nota\', this.value)"'
+  + '    onchange="pnCampoSalvar(\'' + l.tel8 + '\', \'nota\', this.value)">' + pnEsc(pnRasLe(l.tel8, 'nota', n.nota)) + '</textarea>'
+  +      (Array.isArray(n.historico) && n.historico.length
+       ? '<details class="pn-hist"><summary>histórico (' + n.historico.length + ')</summary>'
+         + n.historico.slice().reverse().map(h => '<div>' + pnEsc(pnData(h.em)) + ' · '
+             + pnEsc(h.quem || '—') + ' · ' + pnEsc(h.o || '') + '</div>').join('')
+         + '</details>'
+       : '')
   + '  <div class="pn-acoes">'
   + '    <a class="pn-link" href="tel:+55' + wa + '">Ligar ' + pnEsc(pnFone(l.telefone)) + '</a>'
   + '    <a class="pn-link wa" href="https://wa.me/55' + wa + '" target="_blank" rel="noopener">WhatsApp</a>'
@@ -10668,6 +10717,7 @@ async function pnSalvar(tel8, patch, historia) {
     if (!r.ok) throw new Error(await r.text());
     const volta = await r.json();
     if (volta && volta[0]) pnNeg.set(String(tel8), volta[0]);
+    if (patch.responsavel !== undefined) pnMontarSelects();
   } catch (e) {
     showToast('Não gravou: ' + String(e.message || e).slice(0, 120));
     pnNeg.set(String(tel8), atual.id ? atual : undefined);
@@ -10676,27 +10726,33 @@ async function pnSalvar(tel8, patch, historia) {
   }
 }
 function pnEstagio(tel8, valor) {
+  const eu = pnQuemSou();
+  if (!eu) { pnRender(); return; }
   const de = pnEstagioDe(tel8);
   const patch = { estagio: valor };
   // Quem sai do "não tocado" é porque falou: se ninguém assumiu, assume quem mexeu.
-  if (!pnRespDe(tel8)) patch.responsavel = pnEu();
+  if (!pnRespDe(tel8)) patch.responsavel = eu;
   pnSalvar(tel8, patch, 'estágio ' + (PN_EST[de] || {}).rot + ' → ' + (PN_EST[valor] || {}).rot);
 }
 function pnAssumir(tel8) {
+  const eu = pnQuemSou();
+  if (!eu) return;
   const atual = pnRespDe(tel8);
-  const eu = pnEu();
   if (atual === eu) { pnSalvar(tel8, { responsavel: null }, 'soltou o lead'); return; }
   if (atual && !confirm('Está com ' + atual + '. Passar pra você?')) return;
   pnSalvar(tel8, { responsavel: eu }, 'assumiu' + (atual ? ' (era de ' + atual + ')' : ''));
 }
 function pnContato(tel8) {
+  const eu = pnQuemSou();
+  if (!eu) return;
   const n = pnNeg.get(String(tel8)) || {};
   const patch = { contato_em: new Date().toISOString(), contatos: (n.contatos || 0) + 1 };
-  if (!n.responsavel) patch.responsavel = pnEu();
+  if (!n.responsavel) patch.responsavel = eu;
   if (!n.estagio || n.estagio === 'nao_tocado') patch.estagio = 'tentando';
   pnSalvar(tel8, patch, 'registrou contato');
 }
 function pnCampoSalvar(tel8, campo, valor) {
+  delete pnRascunho[pnRasK(tel8, campo)];   // virou valor gravado
   const patch = {}; patch[campo] = valor === '' ? null : valor;
   pnSalvar(tel8, patch, campo === 'nota' ? 'anotou' : campo + ' = ' + valor);
 }
@@ -10726,10 +10782,17 @@ function pnLimpar() {
 
 /** "Pega pra mim os que estão na tela": é assim que se monta a lista do dia. */
 async function pnPegarTodos() {
-  const lista = pnFiltrar().filter(l => pnRespDe(l) !== pnEu());
-  if (!lista.length) { showToast('Todos os da tela já estão com você.'); return; }
-  if (!confirm('Colocar o seu nome em ' + lista.length + ' ponto(s) da tela?')) return;
-  const eu = pnEu();
+  const eu = pnQuemSou();
+  if (!eu) return;
+  const naTela = pnFiltrar();
+  const deOutro = naTela.filter(l => pnRespDe(l) && pnRespDe(l) !== eu).length;
+  const lista = naTela.filter(l => !pnRespDe(l));
+  if (!lista.length) {
+    showToast(deOutro ? 'Os ' + deOutro + ' que sobraram estão com outra pessoa.' : 'Todos os da tela já estão com você.');
+    return;
+  }
+  if (!confirm('Colocar o seu nome em ' + lista.length + ' lead(s)?'
+      + (deOutro ? '\n' + deOutro + ' ficam de fora: já têm outro responsável.' : ''))) return;
   const corpo = lista.map(l => ({
     tel8: String(l.tel8), telefone: l.telefone, nome: l.nome, cidade: l.cidade,
     agendamento_id: l.agendamento_id, responsavel: eu, atualizado_em: new Date().toISOString(),
@@ -10743,7 +10806,32 @@ async function pnPegarTodos() {
     });
     if (!r.ok) throw new Error(await r.text());
     (await r.json()).forEach(n => pnNeg.set(String(n.tel8), n));
-    showToast(lista.length + ' ponto(s) agora estão com você.');
+    showToast(lista.length + ' lead(s) agora estão com você.'
+      + (deOutro ? ' ' + deOutro + ' ficaram com quem já era dono.' : ''));
+    pnMontarSelects();
+    pnRender();
+  } catch (e) { showToast('Não deu: ' + String(e.message || e).slice(0, 120)); }
+}
+
+/** O desfazer do botão de cima: solta só os que são seus e estão na tela. */
+async function pnSoltarMeus() {
+  const eu = pnQuemSou();
+  if (!eu) return;
+  const meus = pnFiltrar().filter(l => pnRespDe(l) === eu);
+  if (!meus.length) { showToast('Nenhum dos que estão na tela é seu.'); return; }
+  if (!confirm('Tirar o seu nome de ' + meus.length + ' lead(s)? O histórico e o degrau continuam.')) return;
+  const corpo = meus.map(l => ({ tel8: String(l.tel8), responsavel: null,
+    atualizado_em: new Date().toISOString() }));
+  try {
+    const r = await fetch(SUPABASE_URL + '/rest/v1/eletroposto_negociacao?on_conflict=tel8', {
+      method: 'POST',
+      headers: Object.assign({}, supaHeaders(), { 'Content-Type': 'application/json',
+        'Prefer': 'return=representation,resolution=merge-duplicates' }),
+      body: JSON.stringify(corpo),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    (await r.json()).forEach(n => pnNeg.set(String(n.tel8), n));
+    showToast(meus.length + ' lead(s) voltaram pra mesa.');
     pnRender();
   } catch (e) { showToast('Não deu: ' + String(e.message || e).slice(0, 120)); }
 }
@@ -10802,10 +10890,11 @@ function pnLigaAnota() {
 }
 function pnLigaMarcar(estagio) {
   const l = pnLigaFila[pnLigaIdx];
-  if (!l) return;
+  const eu = pnQuemSou();
+  if (!l || !eu) return;
   const n = pnNegDe(l) || {};
   const patch = { estagio, contato_em: new Date().toISOString(), contatos: (n.contatos || 0) + 1,
-                  responsavel: n.responsavel || pnEu() };
+                  responsavel: n.responsavel || eu };
   const nota = pnLigaAnota();
   if (nota != null) patch.nota = nota;
   pnSalvar(l.tel8, patch, 'ligação: ' + (PN_EST[estagio] || {}).rot);
