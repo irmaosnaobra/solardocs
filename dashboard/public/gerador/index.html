@@ -3737,11 +3737,11 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
         <!-- ações -->
         <div class="eletro-acoes">
-          <button type="button" class="eletro-btn" onclick="eletroImprimir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Estudo de Viabilidade</button>
-          <button type="button" class="eletro-btn" onclick="eletroTelaA4()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> Simulador em PDF</button>
-          <button type="button" class="eletro-btn" onclick="epBasicoImprimir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> Orçamento Básico</button>
-          <button type="button" class="eletro-btn" onclick="epCompletoRevisar()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="13" y2="17"></line></svg> Orçamento Completo</button>
-          <button type="button" class="eletro-btn" onclick="eletroSubaba('equipamento')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> Venda de equipamento</button>
+          <button type="button" class="eletro-btn" onclick="epRevisar('estudo')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Estudo de Viabilidade</button>
+          <button type="button" class="eletro-btn" onclick="epRevisar('planilha')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> Simulador em PDF</button>
+          <button type="button" class="eletro-btn" onclick="epRevisar('basico')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> Orçamento Básico</button>
+          <button type="button" class="eletro-btn" onclick="epRevisar('completo')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="13" y2="17"></line></svg> Orçamento Completo</button>
+          <button type="button" class="eletro-btn" onclick="eletroSubaba('equipamento')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> Orçamento Carregador</button>
           <button type="button" class="eletro-btn" onclick="eletroToggleComparar()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Comparar cenários</button>
         </div>
 
@@ -5079,12 +5079,12 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     </div>
 
     <div class="cmp-prev" id="cmp-prev">—</div>
-    <p class="cmp-nota">O <b>link do cliente</b> continua abrindo a apresentação de 13 páginas na web — é ela que o cliente vê no celular. O <b>PDF</b> sai desta mesma apresentação, sem trocar de tela.</p>
+    <p class="cmp-nota" id="cmp-nota">O <b>link do cliente</b> continua abrindo a apresentação de 13 páginas na web — é ela que o cliente vê no celular. O <b>PDF</b> sai desta mesma apresentação, sem trocar de tela.</p>
 
     <div class="modal-acoes">
       <button class="secondary" onclick="epCompletoFechar()">Cancelar</button>
-      <button class="secondary" onclick="epCompletoGerar('pdf')">Gerar PDF</button>
-      <button class="success" onclick="epCompletoGerar('link')">Gerar link do cliente</button>
+      <button class="secondary" onclick="epRevisarGerarPDF()">Gerar PDF</button>
+      <button class="success" id="cmp-btn-link" onclick="epCompletoGerar('link')">Gerar link do cliente</button>
     </div>
   </div>
 </div>
@@ -11582,6 +11582,77 @@ const CMP_CAMPOS = {
   'cmp-assinatura': 'el-assinatura', 'cmp-fixos': 'el-fixos',
   'cmp-ocup': 'el-ocup', 'cmp-rampa': 'el-rampa',
 };
+
+
+// ═══════ A MESMA REVISÃO, PARA OS QUATRO DOCUMENTOS ═══════
+//
+// Ordem do dono (26/09/2026): "todos com opção de editar".
+//
+// O Estudo de Viabilidade, o Simulador em PDF e o Orçamento Básico saíam
+// direto do Simulador, sem o consultor poder conferir nada — o mesmo defeito
+// que o Completo tinha. E os três leem EXATAMENTE os mesmos campos que a
+// revisão do Completo já mostra (eletroParams + eletroTextos + orc-num).
+//
+// Então é uma tela só para os quatro. Nenhum deles ganhou formulário próprio:
+// quatro telas com os mesmos 23 campos seria a mesma coisa escrita quatro
+// vezes, e no dia em que um campo mudasse, três ficariam para trás.
+//
+// O que muda por documento é só o TÍTULO e o que o botão verde faz.
+const REV_DOCS = {
+  completo:  { titulo: 'Orçamento Completo',   acao: 'Gerar link do cliente', pdf: true,
+               nota: 'O <b>link do cliente</b> abre a apresentação de 13 páginas na web — é ela que o cliente vê no celular. O <b>PDF</b> sai desta mesma apresentação, sem trocar de tela.' },
+  estudo:    { titulo: 'Estudo de Viabilidade', acao: null, pdf: true,
+               nota: 'Quatro folhas A4: mercado, operação, fluxo de caixa de 10 anos, sensibilidade, riscos e próximos passos.' },
+  planilha:  { titulo: 'Simulador em PDF',      acao: null, pdf: true,
+               nota: 'Uma folha A4 com o resumo do investimento e a memória de cálculo.' },
+  basico:    { titulo: 'Orçamento Básico',      acao: null, pdf: true,
+               nota: 'Uma folha A4 com o escopo fechado e o valor do projeto.' },
+};
+
+let revDocAtual = 'completo';
+
+// Abre a revisão para o documento pedido. O preenchimento e o vai-e-volta da
+// prévia são os mesmos do Completo — muda só o rótulo da caixa.
+function epRevisar(qual) {
+  revDocAtual = REV_DOCS[qual] ? qual : 'completo';
+  const cfg = REV_DOCS[revDocAtual];
+  const h = document.querySelector('#modal-completo h3');
+  if (h) h.textContent = cfg.titulo + ' — revisar antes de emitir';
+  const nota = document.getElementById('cmp-nota');
+  if (nota) nota.innerHTML = cfg.nota;
+  const bLink = document.getElementById('cmp-btn-link');
+  if (bLink) {
+    bLink.style.display = cfg.acao ? '' : 'none';
+    bLink.textContent = cfg.acao || '';
+  }
+  epCompletoRevisar();
+}
+
+// O botão "Gerar PDF" chama este, que despacha pro documento da vez. Cada um
+// já tem a sua função de impressão — o que faltava era passar pela revisão.
+function epRevisarGerarPDF() {
+  epCompletoAplicar();
+  epCompletoFechar();
+  const p = eletroParams();
+  if (!(p.invest > 0) && revDocAtual !== 'estudo') {
+    alert('Defina o investimento total para emitir este documento.');
+    return;
+  }
+  showToast('⏳ Montando o documento…');
+  // O `setTimeout` deixa o modal fechar ANTES da impressão: sem ele, a caixa
+  // aberta entra no print de quem imprime pela tela.
+  setTimeout(() => {
+    try {
+      if (revDocAtual === 'completo') { epCompletoGerar('pdf'); return; }
+      if (revDocAtual === 'estudo')   { eletroImprimir(); return; }
+      if (revDocAtual === 'planilha') { eletroTelaA4(); return; }
+      if (revDocAtual === 'basico')   { epBasicoImprimir(); return; }
+    } catch (e) {
+      console.error(e);
+      showToast('❌ Não consegui montar o documento');
+    }
+  }, 120);
+}
 
 function epCompletoFechar() {
   const m = document.getElementById('modal-completo');
