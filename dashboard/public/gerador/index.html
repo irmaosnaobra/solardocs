@@ -2580,6 +2580,38 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   #eletroSection .orc-wrap .eletro-field > label{font-size:11.5px;line-height:1.25;margin-bottom:4px}
 }
 
+/* Revisao do Orcamento Completo: 23 campos numa caixa so, entao ela e' larga
+   e rola por dentro. A grade acompanha a largura, 3 colunas no desktop e 1 no
+   celular — o mesmo criterio do formulario das abas de documento. */
+.cmp-box{max-width:1040px;width:calc(100vw - 32px);max-height:90vh;overflow:auto}
+.cmp-sub{font-size:13px;color:#94A3B8;line-height:1.5;margin:-4px 0 14px}
+.cmp-grade{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 14px}
+.cmp-grade .cmp-sec{grid-column:1/-1;font-size:11px;font-weight:800;letter-spacing:1.2px;
+  text-transform:uppercase;color:#7DD117;margin-top:10px;padding-top:10px;
+  border-top:1px solid rgba(255,255,255,.10)}
+.cmp-grade .cmp-sec:first-child{margin-top:0;padding-top:0;border-top:0}
+.cmp-grade .field{margin:0;min-width:0;display:flex;flex-direction:column;gap:4px}
+/* O `.field` da casa nao tem regra de CSS nenhuma no arquivo: no modal estreito
+   ele cai bem por acaso, com o rotulo em linha antes do campo. Numa grade de 3
+   colunas isso sobrepoe o rotulo. Aqui ele empilha, com o mesmo desenho de campo
+   das abas de documento. */
+.cmp-grade .field label{font-size:11.5px;font-weight:700;color:#A8B6C9;line-height:1.25}
+.cmp-grade .field input,.cmp-grade .field select{
+  width:100%;box-sizing:border-box;padding:8px 10px;background:#0f1a2e;
+  border:1px solid rgba(255,255,255,.14);border-radius:8px;color:#fff;
+  font-size:13.5px;font-family:inherit;font-weight:700;outline:none;
+  transition:border-color .2s}
+.cmp-grade .field input:focus,.cmp-grade .field select:focus{border-color:#3B82F6}
+.cmp-grade .field.cmp-2{grid-column:span 2}
+.cmp-prev{margin-top:14px;padding:11px 13px;border-radius:10px;background:rgba(125,209,23,.10);
+  border:1px solid rgba(125,209,23,.35);color:#D7F5B0;font-size:13px;font-weight:700;
+  line-height:1.5;font-variant-numeric:tabular-nums}
+.cmp-nota{font-size:12px;color:#94A3B8;line-height:1.55;margin:10px 0 0}
+.cmp-nota b{color:#CBD5E1}
+@media(max-width:820px){
+  .cmp-grade{grid-template-columns:1fr}
+  .cmp-grade .field.cmp-2{grid-column:span 1}
+}
 </style>
 <script>
 (function(){
@@ -3712,7 +3744,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <button type="button" class="eletro-btn" onclick="eletroImprimir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Estudo de Viabilidade</button>
           <button type="button" class="eletro-btn" onclick="eletroTelaA4()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> Simulador em PDF</button>
           <button type="button" class="eletro-btn" onclick="epBasicoImprimir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> Orçamento Básico</button>
-          <button type="button" class="eletro-btn" onclick="epCompletoApresentacao()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="13" y2="17"></line></svg> Orçamento Completo</button>
+          <button type="button" class="eletro-btn" onclick="epCompletoRevisar()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="13" y2="17"></line></svg> Orçamento Completo</button>
           <button type="button" class="eletro-btn" onclick="eletroSubaba('equipamento')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> Venda de equipamento</button>
           <button type="button" class="eletro-btn" onclick="eletroToggleComparar()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Comparar cenários</button>
         </div>
@@ -5002,6 +5034,65 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   </div>
 
   <!-- container de impressão do Eletroposto (só visível no PDF/print) -->
+
+<!-- ═══ REVISÃO DO ORÇAMENTO COMPLETO ═══
+     O documento sempre saiu direto do Simulador, sem o consultor poder conferir
+     nada, e ainda jogava ele numa outra aba. Agora ele revisa aqui e emite sem
+     sair da tela. Os ids são cmp-* e não el-*: id duplicado no documento faz o
+     getElementById do Simulador VIVO cair neste modal. O que se compartilha é a
+     ORIGEM — ao gerar, o que está aqui é escrito de volta nos campos do
+     Simulador, que continua sendo a fonte única. -->
+<div id="modal-completo" class="modal-overlay" onclick="if(event.target===this) epCompletoFechar()">
+  <div class="modal-box cmp-box">
+    <h3>Orçamento Completo — revisar antes de emitir</h3>
+    <p class="cmp-sub">Tudo aqui já vem preenchido do Simulador. O que você mudar é gravado lá também, então os outros documentos saem com o mesmo número.</p>
+
+    <div class="cmp-grade">
+      <div class="cmp-sec">Documento</div>
+      <div class="field"><label>Nº da proposta</label><input type="text" id="cmp-num" placeholder="automático"></div>
+      <div class="field"><label>Equipamento</label><select id="cmp-equip"></select></div>
+      <div class="field"><label>Carregadores</label><input type="number" id="cmp-qtd" min="1" step="1"></div>
+      <div class="field"><label>Bicos por carregador</label><input type="number" id="cmp-plugs" min="1" step="1"></div>
+
+      <div class="cmp-sec">Cliente</div>
+      <div class="field cmp-2"><label>Cliente</label><input type="text" id="cmp-cliente" autocomplete="off"></div>
+      <div class="field"><label>Cidade / UF</label><input type="text" id="cmp-cidade" autocomplete="off"></div>
+      <div class="field"><label>Vendedor</label><input type="text" id="cmp-autor" autocomplete="off"></div>
+      <div class="field"><label>Contato</label><input type="text" id="cmp-contato" autocomplete="off"></div>
+
+      <div class="cmp-sec">O projeto</div>
+      <div class="field"><label>Investimento total (R$)</label><input type="text" id="cmp-invest" inputmode="decimal"></div>
+      <div class="field"><label>Carros por dia</label><input type="number" id="cmp-carros" min="0" step="1"></div>
+      <div class="field"><label>Carga por sessão (kWh)</label><input type="number" id="cmp-carga" min="0" step="0.1"></div>
+      <div class="field"><label>Preço ao motorista (R$/kWh)</label><input type="text" id="cmp-precokwh" inputmode="decimal"></div>
+      <div class="field"><label>Custo da energia (R$/kWh)</label><input type="text" id="cmp-custokwh" inputmode="decimal"></div>
+      <div class="field"><label>Taxa de ativação (R$)</label><input type="text" id="cmp-ativacao" inputmode="decimal"></div>
+
+      <div class="cmp-sec">Custos da operação</div>
+      <div class="field"><label>Gateway (%)</label><input type="number" id="cmp-gateway" min="0" step="0.1"></div>
+      <div class="field"><label>Software NEXUS (%)</label><input type="number" id="cmp-software" min="0" step="0.1"></div>
+      <div class="field"><label>Imposto (%)</label><input type="number" id="cmp-imposto" min="0" step="0.1"></div>
+      <div class="field"><label>Arrendamento (%)</label><input type="number" id="cmp-arrend" min="0" step="0.1"></div>
+      <div class="field"><label>Manutenção (%)</label><input type="number" id="cmp-manut" min="0" step="0.1"></div>
+      <div class="field"><label>Assinatura mensal (R$)</label><input type="text" id="cmp-assinatura" inputmode="decimal"></div>
+      <div class="field"><label>Outros custos fixos (R$)</label><input type="text" id="cmp-fixos" inputmode="decimal"></div>
+
+      <div class="cmp-sec">Rampa de ocupação</div>
+      <div class="field"><label>Ocupação no 1º mês (%)</label><input type="number" id="cmp-ocup" min="0" max="100" step="1"></div>
+      <div class="field"><label>Meses até a plena</label><input type="number" id="cmp-rampa" min="0" step="1"></div>
+    </div>
+
+    <div class="cmp-prev" id="cmp-prev">—</div>
+    <p class="cmp-nota">O <b>link do cliente</b> continua abrindo a apresentação de 13 páginas na web — é ela que o cliente vê no celular. O <b>PDF</b> sai desta mesma apresentação, sem trocar de tela.</p>
+
+    <div class="modal-acoes">
+      <button class="secondary" onclick="epCompletoFechar()">Cancelar</button>
+      <button class="secondary" onclick="epCompletoGerar('pdf')">Gerar PDF</button>
+      <button class="success" onclick="epCompletoGerar('link')">Gerar link do cliente</button>
+    </div>
+  </div>
+</div>
+
   <div id="eletro-print" aria-hidden="true"></div>
 
   <!-- container de impressão do orçamento de 1 página (solar e eletroposto) -->
@@ -11464,6 +11555,184 @@ function _completoRowFromDados(d) {
   };
 }
 
+
+// ═══════ ORÇAMENTO COMPLETO — revisar e emitir sem sair da tela ═══════
+//
+// Ordem do dono (26/09/2026): "quero a proposta completa sendo emitida conforme
+// as demais, não abrir outra pagina e ter opção de editar".
+//
+// Antes: o botão montava o payload direto do Simulador, sem o consultor poder
+// conferir nada, gravava a proposta e NAVEGAVA pro premium-deck.html numa aba
+// nova. Quem clicava perdia a tela do app.
+//
+// Agora: abre a revisão, o consultor corrige o que precisar, e emite ali mesmo.
+//
+// O QUE NÃO MUDOU, DE PROPÓSITO: o premium-deck.html continua existindo e
+// continua sendo o LINK DO CLIENTE. Aquela URL (?p=CODIGO) é o que o cliente
+// abre no celular; ela não é "a página que o consultor não queria ver", é o
+// produto. O PDF agora sai da MESMA página, renderizada num iframe escondido —
+// assim o que o cliente vê na web e o que sai no PDF nunca divergem. Portar o
+// desenho das 13 páginas pra cá criaria duas versões do mesmo documento.
+
+// Campo do modal -> campo de origem. A origem continua mandando: o Simulador é
+// a fonte única (regra da casa), e o modal só empresta a tela pra revisão.
+const CMP_CAMPOS = {
+  'cmp-num': 'orc-num', 'cmp-equip': 'el-equip', 'cmp-qtd': 'el-qtd', 'cmp-plugs': 'el-plugs',
+  'cmp-cliente': 'el-cliente', 'cmp-cidade': 'el-cidade', 'cmp-autor': 'el-autor', 'cmp-contato': 'el-contato',
+  'cmp-invest': 'el-invest', 'cmp-carros': 'el-carros', 'cmp-carga': 'el-carga',
+  'cmp-precokwh': 'el-precokwh', 'cmp-custokwh': 'el-custokwh', 'cmp-ativacao': 'el-ativacao',
+  'cmp-gateway': 'el-gateway', 'cmp-software': 'el-software', 'cmp-imposto': 'el-imposto',
+  'cmp-arrend': 'el-arrend', 'cmp-manut': 'el-manut',
+  'cmp-assinatura': 'el-assinatura', 'cmp-fixos': 'el-fixos',
+  'cmp-ocup': 'el-ocup', 'cmp-rampa': 'el-rampa',
+};
+
+function epCompletoFechar() {
+  const m = document.getElementById('modal-completo');
+  if (m) m.classList.remove('show');
+}
+
+// Abre a revisão com tudo preenchido. O <select> de equipamento é clonado do
+// Simulador em vez de remontado: a lista de potências nasce de EP_DECK_CHAVE_NA_MAO
+// e duplicar a montagem faria as duas telas divergirem no dia em que a tabela mudar.
+function epCompletoRevisar() {
+  const orig = document.getElementById('el-equip');
+  const alvo = document.getElementById('cmp-equip');
+  if (orig && alvo) {
+    alvo.innerHTML = orig.innerHTML;
+    alvo.selectedIndex = orig.selectedIndex;
+  }
+  Object.entries(CMP_CAMPOS).forEach(([de, para]) => {
+    if (de === 'cmp-equip') return;
+    const a = document.getElementById(de), b = document.getElementById(para);
+    if (a && b) a.value = b.value;
+  });
+  epCompletoPrevia();
+  const m = document.getElementById('modal-completo');
+  if (m) m.classList.add('show');
+}
+
+// Escreve de volta no Simulador e dispara `input`, que é o que faz a tela
+// recalcular. Sem o evento, o computeEletro leria o valor velho e o documento
+// sairia com um número que o consultor não vê em lugar nenhum.
+function epCompletoAplicar() {
+  Object.entries(CMP_CAMPOS).forEach(([de, para]) => {
+    const a = document.getElementById(de), b = document.getElementById(para);
+    if (!a || !b) return;
+    if (b.value === a.value) return;
+    b.value = a.value;
+    b.dispatchEvent(new Event('input', { bubbles: true }));
+    b.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  try { if (typeof eletroCalc === 'function') eletroCalc(); } catch (e) {}
+}
+
+// Prévia dos quatro números que decidem, ao vivo dentro do modal: mexer no
+// investimento e não ver o payback mudar e' o que faz o consultor emitir errado.
+function epCompletoPrevia() {
+  const el = document.getElementById('cmp-prev');
+  if (!el) return;
+  const antes = {};
+  Object.entries(CMP_CAMPOS).forEach(([de, para]) => {
+    const b = document.getElementById(para); if (b) antes[para] = b.value;
+  });
+  epCompletoAplicar();
+  let txt = '—';
+  try {
+    const pp = eletroParams();
+    const r = computeEletro(pp);
+    // Sem investimento o payback da 0, e "Retorno 0,0 anos" le como projeto que
+    // se paga na hora. Enquanto o campo esta vazio, o certo e nao afirmar nada.
+    const pb = (!(pp.invest > 0) || r.payback == null) ? '—' : elAnos1(r.payback);
+    txt = 'Investimento ' + (pp.invest > 0 ? elMoney(pp.invest) : '—')
+        + '  ·  Lucro ' + elMoney(r.lucroMes) + '/mês'
+        + '  ·  Retorno ' + pb
+        + '  ·  Faturamento ' + elMoney(r.fatMes) + '/mês';
+  } catch (e) { txt = '—'; }
+  el.textContent = txt;
+  // devolve o Simulador ao que estava: a previa NAO pode gravar nada sozinha,
+  // senao abrir a revisao e cancelar ja teria mudado o projeto.
+  Object.entries(antes).forEach(([para, v]) => {
+    const b = document.getElementById(para);
+    if (b && b.value !== v) { b.value = v; b.dispatchEvent(new Event('input', { bubbles: true })); }
+  });
+  try { if (typeof eletroCalc === 'function') eletroCalc(); } catch (e) {}
+}
+
+// Imprime o deck SEM trocar de tela: mesma pagina do link do cliente, dentro de
+// um iframe escondido. O nome do arquivo entra no title do iframe, que e' o que
+// o navegador grava no PDF.
+function epDeckImprimir(d, nomeArq) {
+  const velho = document.getElementById('cmp-iframe');
+  if (velho) velho.remove();
+  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(d))));
+  const ifr = document.createElement('iframe');
+  ifr.id = 'cmp-iframe';
+  // fora da tela, mas COM tamanho real: iframe de 0x0 renderiza o deck em
+  // layout degenerado e o PDF sai com as 13 paginas amassadas.
+  ifr.style.cssText = 'position:fixed;left:-20000px;top:0;width:1920px;height:1080px;border:0;opacity:0';
+  ifr.setAttribute('aria-hidden', 'true');
+  ifr.src = '/gerador/premium-deck.html?d=' + b64;
+  ifr.onload = () => {
+    try { ifr.contentDocument.title = nomeArq; } catch (e) {}
+    // o deck monta as 13 paginas no load e busca a fonte do Google: sem esta
+    // espera o print sai com Times New Roman e meia pagina em branco.
+    setTimeout(() => {
+      try { ifr.contentWindow.focus(); ifr.contentWindow.print(); }
+      catch (e) { showToast('❌ Nao consegui abrir a impressao'); }
+      setTimeout(() => { const x = document.getElementById('cmp-iframe'); if (x) x.remove(); }, 60000);
+    }, 1200);
+  };
+  document.body.appendChild(ifr);
+}
+
+// modo: 'pdf' imprime aqui mesmo; 'link' grava e copia o endereco do cliente.
+function epCompletoGerar(modo) {
+  epCompletoAplicar();
+  const p = eletroParams();
+  if (!(p.invest > 0)) { alert('Defina o investimento total para emitir o Orçamento Completo.'); return; }
+  const r = computeEletro(p);
+  if (r.payback == null) {
+    alert('Com estes números o projeto não se paga em 10 anos, então o Orçamento Completo não pode ser emitido.\n\nAjuste carros por dia, preço do kWh ou o investimento e tente de novo.');
+    return;
+  }
+  eletroSalvarHistorico();
+  eletroUltimoSalvar();
+  const d = epCompletoPayload('completa');
+  const nome = epNomeArq('Orcamento', d.cliente);
+
+  if (modo === 'pdf') {
+    epCompletoFechar();
+    showToast('⏳ Montando o orçamento…');
+    epDeckImprimir(d, nome);
+    return;
+  }
+
+  if (!d.cliente || d.cliente === 'Cliente') {
+    alert('Informe o cliente para gerar o link — sem nome, o cliente abre o documento e lê "—" no lugar dele.');
+    return;
+  }
+  showToast('⏳ Gerando o link…');
+  supaInsert('propostas', _completoRowFromDados(d))
+    .then(arr => {
+      const codigo = arr && arr[0] && arr[0].codigo;
+      if (!codigo) throw new Error('sem código');
+      epHistOrcSave({ id: epId(), tipo: 'Completo', cliente: d.cliente, valor: d.ent.invest,
+                      codigo, data: new Date().toLocaleDateString('pt-BR') });
+      const link = location.origin + '/gerador/premium-deck.html?p=' + encodeURIComponent(codigo);
+      epCompletoFechar();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link)
+          .then(() => showToast('🔗 Link ' + codigo + ' copiado!'))
+          .catch(() => fallbackCopy(link));
+      } else fallbackCopy(link);
+    })
+    .catch(e => {
+      console.error(e);
+      showToast('❌ O banco não respondeu — o link não foi gerado');
+    });
+}
+
 function epCompletoApresentacao(versao) {
   const p = eletroParams();
   if (!(p.invest > 0)) {
@@ -11540,6 +11809,17 @@ function epCompletoApresentacao(versao) {
 }
 /** O recorte de 6 páginas, para mandar no WhatsApp sem pedir tempo do cliente. */
 function epCompletoResumo() { epCompletoApresentacao('resumo'); }
+
+// A previa do modal reage a digitacao. Delegado no container de proposito: campo
+// novo na grade passa a valer sem ninguem lembrar de pendurar listener nele.
+document.addEventListener('input', function (e) {
+  const g = document.getElementById('modal-completo');
+  if (!g || !g.classList.contains('show')) return;
+  if (!e.target || !String(e.target.id || '').startsWith('cmp-')) return;
+  clearTimeout(window.__cmpT);
+  window.__cmpT = setTimeout(epCompletoPrevia, 250);
+});
+
 
 // Apresentação comercial 16:9 (slides dark) com os números deste orçamento.
 // A página /gerador/apresentacao.html recalcula com as MESMAS fórmulas (cópia sincronizada).
