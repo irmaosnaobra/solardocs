@@ -11279,7 +11279,7 @@ function eletroImprimir() {
   const limpa = s => (s || '')
     .normalize('NFD').replace(/[̀-ͯ]/g, '')   // remove acentos (compatibilidade de arquivo)
     .replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
-  const nomeArq = [limpa(t.cliente) || 'Estudo', 'Eletroposto', limpa(t.cidade)].filter(Boolean).join('_');
+  const nomeArq = epNomeArq('Estudo', t.cliente);
   epPrint(host, nomeArq);
 }
 
@@ -12288,7 +12288,7 @@ function orcEpDocHTML(d) {
 const orcEpArquivo = d => {
   const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
-  return ['Orcamento', limpa(d.nome) || 'Cliente', d.num ? 'N' + limpa(d.num) : ''].filter(Boolean).join('_');
+  return epNomeArq('Orcamento', d.nome, d.num ? 'N' + d.num : '');
 };
 
 // ═══════ VENDA DE EQUIPAMENTO — padrão brasileiro de orçamento de equipamento ═══════
@@ -12628,7 +12628,7 @@ function orcEquipPayload() {
 const orcEquipArquivo = d => {
   const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
-  return ['Orcamento', 'Equipamento', limpa(d.nome) || 'Cliente', d.num ? 'N' + limpa(d.num) : ''].filter(Boolean).join('_');
+  return epNomeArq('OrcamentoEquipamento', d.nome, d.num ? 'N' + d.num : '');
 };
 
 function equipCritica(d) {
@@ -12957,6 +12957,21 @@ function epWhatsOrcamento(total) {
 // A classe print-doc no <body> é o que diz pro CSS "o que vai pro papel é o host de
 // documento, não a tela". Sem ela nada sai — e sem tirá-la depois o Ctrl+P seguinte
 // imprimiria o documento velho em vez da proposta na tela.
+// Nome de arquivo dos documentos do eletroposto: <Tipo>_Eletroposto_<Cliente>.
+// O nome vira `document.title` no epPrint, e e' o que o navegador grava no PDF.
+// Sem acento e sem espaco de proposito: e' o que sobrevive a Windows, WhatsApp e
+// anexo de e-mail sem virar %20 nem quebrar em duas palavras.
+// Ordem do dono em 26/09/2026: "nao precisa ter premium,
+// orcamento_eletroposto_nomedocliente", e o mesmo padrao pros outros.
+function epNomeArq(tipo, cliente, extra) {
+  const limpa = s => String(s || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')   // tira acento
+    .replace(/[^A-Za-z0-9 _-]/g, '')
+    .trim().replace(/\s+/g, '');
+  return [limpa(tipo), 'Eletroposto', limpa(cliente) || 'Cliente', limpa(extra)]
+    .filter(Boolean).join('_');
+}
+
 function epPrint(host, nomeArq) {
   // Só um documento por impressão: os dois hosts ficam visíveis sob print-doc, então
   // o que sobrou do documento anterior sairia grudado neste no mesmo PDF.
@@ -13226,7 +13241,7 @@ function eletroTelaA4() {
 </div>`;
 
   host.innerHTML = html;
-  epPrint(host, `Resumo do Investimento${t.cliente ? ' - ' + t.cliente : ''}`);
+  epPrint(host, epNomeArq('Simulador', t.cliente));
 }
 
 function epBasicoImprimir() {
@@ -13275,7 +13290,7 @@ function epBasicoImprimir() {
   if (t.cliente) epHistOrcSave({ id: epId(), tipo: 'Básico', cliente: t.cliente, valor: total, data: new Date().toLocaleDateString('pt-BR') });
 
   const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
-  orc1Imprimir(html, ['Orcamento', 'Basico', limpa(t.cliente) || 'Cliente'].filter(Boolean).join('_'), { umaPagina: true, piso: 0.74 });
+  orc1Imprimir(html, epNomeArq('OrcamentoBasico', t.cliente), { umaPagina: true, piso: 0.74 });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
