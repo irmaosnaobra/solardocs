@@ -12300,6 +12300,21 @@ function eletroImprimir() {
   const txPct = (r.taxaDesc * 100).toFixed(2).replace('.', ',') + '% a.a.';
   const hoje = new Date();
 
+  // Campo VAZIO nao vira linha no papel; ZERO DIGITADO fica, porque "Arrendamento
+  // do ponto 0%" e informacao (o terreno e do proprio cliente) e nao lacuna. So o
+  // .value cru distingue os dois: "" e "0" viram o mesmo 0 depois do parse.
+  // Copiado da Planilha (eletroTelaA4) de proposito — os dois saem da MESMA tela
+  // e nao podem responder diferente pro mesmo campo em branco.
+  const cru = id => (document.getElementById(id)?.value || '').trim();
+  const linhaSe = (id, rot, valor) =>
+    cru(id) === '' ? '' : `<tr><td>${rot}</td><td class="num">${valor}</td></tr>`;
+
+  // A validade sai do MESMO campo que o Basico e a Planilha leem. Antes era
+  // "Valido por 7 dias" cravado no HTML: o consultor escolhia o prazo na tela e
+  // o Estudo ignorava, entao dois papeis do mesmo envelope carimbavam prazos
+  // diferentes. O padrao 7 so vale se o campo vier vazio.
+  const valEst = lerValidade('orc-validade-modo', 'orc-validade');
+
   const linhasFluxo = r.fluxo.map((v, i) =>
     `<tr><td>Ano ${i + 1}${i === 0 ? ' (rampa de ocupação)' : ''}</td><td class="num" style="color:${v < 0 ? '#b91c1c' : '#15803d'}">${money(v)}</td></tr>`).join('');
 
@@ -12361,7 +12376,7 @@ function eletroImprimir() {
         [['Cliente', t.cliente ? orcEsc(t.cliente) : ''],
          ['Local', t.cidade ? orcEsc(t.cidade) : ''],
          ['Elaborado por', t.autor ? orcEsc(t.autor) : '']],
-        'Válido por 7 dias')}
+        validadeTexto(valEst, hoje, 7))}
 
       <div class="ep-section">Sumário executivo</div>
       <div class="ep-exec">${execHTML}</div>
@@ -12387,18 +12402,21 @@ function eletroImprimir() {
             <tr><td>Média de carga por carro</td><td class="num">${r.carga} kWh</td></tr>
             <tr><td>Custo do kWh</td><td class="num">${elMoney2(r.custoKwh)}</td></tr>
             <tr><td>Preço kWh revenda</td><td class="num">${elMoney2(r.precoKwh)}</td></tr>
-            <tr><td>Taxa de ativação</td><td class="num">${elMoney2(r.ativacao)}</td></tr>
+            ${linhaSe('el-ativacao', 'Taxa de ativação', elMoney2(r.ativacao))}
             <tr class="hl"><td>Investimento total</td><td class="num">${money(r.investTotal)}</td></tr>
           </table>
         </div>
         <div class="ep-box">
           <h3>Custos, taxas e modelagem</h3>
           <table class="ep-kv">
-            <tr><td>Gateway</td><td class="num">${(r.gateway * 100).toLocaleString('pt-BR')}%</td></tr>
-            <tr><td>Arrendamento do ponto</td><td class="num">${(r.arrend * 100).toLocaleString('pt-BR')}%</td></tr>
-            <tr><td>Manutenção</td><td class="num">${(r.manut * 100).toLocaleString('pt-BR')}%</td></tr>
-            <tr><td>Imposto (Simples Nacional)</td><td class="num">${(r.imposto * 100).toLocaleString('pt-BR')}%</td></tr>
-            <tr><td>Custos fixos/mês (seguro + software/4G)</td><td class="num">${money(r.fixosMes)}</td></tr>
+            ${linhaSe('el-gateway', 'Gateway de pagamento', (r.gateway * 100).toLocaleString('pt-BR') + '%')}
+            ${linhaSe('el-software', 'Software NEXUS', (r.software * 100).toLocaleString('pt-BR') + '%')}
+            ${linhaSe('el-arrend', 'Arrendamento do ponto', (r.arrend * 100).toLocaleString('pt-BR') + '%')}
+            ${linhaSe('el-manut', 'Manutenção', (r.manut * 100).toLocaleString('pt-BR') + '%')}
+            ${linhaSe('el-imposto', 'Imposto (Simples Nacional)', (r.imposto * 100).toLocaleString('pt-BR') + '%')}
+            ${linhaSe('el-assinatura', 'Assinatura mensal', money(r.assinat))}
+            <tr><td>Seguro (1% a.a. do investimento)</td><td class="num">${money(r.seguroMes)} / mês</td></tr>
+            ${linhaSe('el-fixos', 'Outros custos fixos', money(r.fixos) + ' / mês')}
             <tr><td>Ocupação inicial → plena</td><td class="num">${Math.round(r.ocupIni * 100)}% → 100% em ${r.mesesRampa} meses</td></tr>
             <tr><td>Taxa de desconto</td><td class="num">${txPct}</td></tr>
           </table>
@@ -12439,7 +12457,7 @@ function eletroImprimir() {
         <ol class="ep-prem">
           <li>Receita = energia entregue (kWh × preço de revenda) + taxa de ativação por sessão; 30 dias/mês; ${Math.round(r.carros)} carros/dia em regime pleno.</li>
           <li>Rampa de ocupação: ${Math.round(r.ocupIni * 100)}% no mês 1, crescimento linear até 100% no mês ${r.mesesRampa}. Custos fixos correm integralmente desde o mês 1.</li>
-          <li>Custos variáveis (energia, gateway, arrendamento, manutenção, imposto) acompanham a ocupação; custos fixos (seguro de 1% a.a. do investimento, assinatura, software/conectividade/demanda) não.</li>
+          <li>Custos variáveis (energia, gateway, software NEXUS, arrendamento, manutenção, imposto) são percentuais do faturamento e acompanham a ocupação; custos fixos (seguro de 1% a.a. do investimento, assinatura, conectividade/demanda) correm integralmente desde o mês 1.</li>
           <li>Valores em termos reais (sem inflação): assume-se que tarifa de revenda e custos se reajustam em conjunto.</li>
           <li>O investimento total informado deve contemplar equipamento, obra civil, entrada de energia/conexão à concessionária, projeto, homologação e capital de giro inicial.</li>
           <li>VPL e payback descontado calculados à taxa de ${txPct}. TIR calculada sobre o fluxo anual de 10 anos.</li>
