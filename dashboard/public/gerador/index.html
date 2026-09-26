@@ -2625,6 +2625,22 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   transition:border-color .2s}
 .cmp-grade .field input:focus,.cmp-grade .field select:focus{border-color:#3B82F6}
 .cmp-grade .field.cmp-2{grid-column:span 2}
+.cmp-grade .field.cmp-3{grid-column:1/-1}
+/* Textarea entrou junto com as observacoes do documento: sem esta linha ela
+   nasce branca com fonte de maquina de escrever no meio de campos escuros. */
+.cmp-grade .field textarea{
+  width:100%;box-sizing:border-box;padding:8px 10px;background:#0f1a2e;
+  border:1px solid rgba(255,255,255,.14);border-radius:8px;color:#fff;
+  font-size:13.5px;font-family:inherit;font-weight:600;outline:none;
+  line-height:1.45;resize:vertical;transition:border-color .2s}
+.cmp-grade .field textarea:focus{border-color:#3B82F6}
+/* As formas de pagamento: fila de caixas, nao campo. */
+.cmp-grade .cmp-formas{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:9px 20px;
+  align-items:center;color:#A8B6C9;font-size:13px;font-weight:600}
+.cmp-grade .cmp-formas label{display:flex;align-items:center;gap:7px;cursor:pointer;margin:0}
+.cmp-grade .cmp-formas input{width:16px;height:16px;accent-color:#7DD117;margin:0}
+/* O titulo da caixa era PRETO no escuro desde que o modal nasceu. */
+#modal-completo h3{color:#E8EDF5}
 .cmp-prev{margin-top:14px;padding:11px 13px;border-radius:10px;background:rgba(125,209,23,.10);
   border:1px solid rgba(125,209,23,.35);color:#D7F5B0;font-size:13px;font-weight:700;
   line-height:1.5;font-variant-numeric:tabular-nums}
@@ -3763,7 +3779,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <button type="button" class="eletro-btn" onclick="epRevisar('planilha')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> Simulador em PDF</button>
           <button type="button" class="eletro-btn" onclick="epRevisar('basico')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> Orçamento Básico</button>
           <button type="button" class="eletro-btn" onclick="epRevisar('completo')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="13" y2="17"></line></svg> Orçamento Completo</button>
-          <button type="button" class="eletro-btn" onclick="eletroSubaba('equipamento')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> Orçamento Carregador</button>
+          <button type="button" class="eletro-btn" onclick="epRevisar('carregador')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> Orçamento Carregador</button>
           <button type="button" class="eletro-btn" onclick="eletroToggleComparar()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Comparar cenários</button>
         </div>
 
@@ -3887,8 +3903,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="orc-note" style="margin-top:-2px;margin-bottom:10px">Marque <b>todas</b> as formas que quer mostrar no orçamento — elas aparecem juntas.</div>
         <div class="orc-pg-formas">
           <label class="orc-pg-forma"><input type="checkbox" id="orc-pg-ck-avista" checked onchange="orcPgToggle()"> À vista</label>
-          <label class="orc-pg-forma"><input type="checkbox" id="orc-pg-ck-entrada" onchange="orcPgToggle()"> Entrada + cartão</label>
-          <label class="orc-pg-forma"><input type="checkbox" id="orc-pg-ck-fin" onchange="orcPgToggle()"> Entrada + financiamento</label>
+          <label class="orc-pg-forma"><input type="checkbox" id="orc-pg-ck-entrada" checked onchange="orcPgToggle()"> Entrada + cartão</label>
+          <label class="orc-pg-forma"><input type="checkbox" id="orc-pg-ck-fin" checked onchange="orcPgToggle()"> Entrada + financiamento</label>
         </div>
 
         <!-- À vista: valor (editável) + data do vencimento -->
@@ -3946,7 +3962,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     </div><!-- /eletro-pane-orcamento -->
 
     <div id="eletro-pane-equipamento" style="display:none;">
-    <div class="pesquisa-info">Venda de <b>carregador avulso</b>, no padrão brasileiro de orçamento de equipamento: item com NCM, unidade, quantidade e valor unitário, frete CIF/FOB, prazo de entrega e garantia. Não passa pelo Simulador — quem compra equipamento já tem o projeto. Para obra chave na mão, use a aba <b>Orçamento</b>.</div>
+    <div class="pesquisa-info">Venda de <b>carregador avulso</b>, no padrão brasileiro de orçamento de equipamento: item com NCM, unidade, quantidade e valor unitário, frete CIF/FOB, prazo de entrega e garantia. O cliente, a cidade e o local de entrega já vêm do Simulador; o preço não, porque aqui é o equipamento sozinho e não a obra chave na mão.</div>
     <div class="orc-wrap">
 
       <!-- FORNECEDOR (a sua empresa) — MESMO cadastro da aba Orçamento.
@@ -5101,11 +5117,42 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <p class="cmp-sub">Tudo aqui já vem preenchido do Simulador. O que você mudar é gravado lá também, então os outros documentos saem com o mesmo número.</p>
 
     <div class="cmp-grade">
-      <div class="cmp-sec">Documento</div>
+      <div class="cmp-sec" data-sec="base">Documento</div>
       <div class="field"><label>Nº da proposta</label><input type="text" id="cmp-num" placeholder="automático"></div>
       <div class="field"><label>Equipamento</label><select id="cmp-equip"></select></div>
       <div class="field"><label>Carregadores</label><input type="number" id="cmp-qtd" min="1" step="1"></div>
       <div class="field"><label>Bicos por carregador</label><input type="number" id="cmp-plugs" min="1" step="1"></div>
+
+
+      <div class="cmp-sec" data-sec="cliente">Cliente — documento e endereço</div>
+      <div class="field cmp-2" data-sec="cliente"><label>CNPJ / CPF</label><input type="text" id="cmp-cli-doc" autocomplete="off"></div>
+      <div class="field" data-sec="cliente"><label>Inscrição Estadual</label><input type="text" id="cmp-cli-ie" autocomplete="off"></div>
+      <div class="field cmp-2" data-sec="cliente"><label>Endereço</label><input type="text" id="cmp-cli-end" autocomplete="off"></div>
+      <div class="field" data-sec="cliente"><label>CEP</label><input type="text" id="cmp-cli-cep" autocomplete="off"></div>
+      <div class="field" data-sec="cliente"><label>Telefone</label><input type="text" id="cmp-cli-tel" autocomplete="off"></div>
+      <div class="field cmp-2" data-sec="cliente"><label>E-mail</label><input type="text" id="cmp-cli-email" autocomplete="off"></div>
+
+      <div class="cmp-sec" data-sec="valor">Valor e condição de pagamento</div>
+      <div class="field" data-sec="valor"><label>Valor do projeto (R$)</label><input type="text" id="cmp-valor" inputmode="decimal"></div>
+      <div class="field" data-sec="valor"><label>Frete (R$)</label><input type="text" id="cmp-frete" inputmode="decimal"></div>
+      <div class="field" data-sec="valor"><label>Desconto (R$)</label><input type="text" id="cmp-desc" inputmode="decimal"></div>
+      <div class="cmp-formas cmp-3" data-sec="valor">
+        <label><input type="checkbox" id="cmp-pg-avista"> À vista</label>
+        <label><input type="checkbox" id="cmp-pg-entrada"> Entrada + cartão</label>
+        <label><input type="checkbox" id="cmp-pg-fin"> Entrada + financiamento</label>
+      </div>
+      <div class="field" data-sec="valor"><label>Entrada no cartão (R$)</label><input type="text" id="cmp-ent-valor" inputmode="decimal"></div>
+      <div class="field" data-sec="valor"><label>Parcelas no cartão</label><input type="number" id="cmp-ent-parc" min="1" step="1"></div>
+      <div class="field" data-sec="valor"><label>Juros do cartão (%)</label><input type="text" id="cmp-ent-juros" inputmode="decimal"></div>
+      <div class="field" data-sec="valor"><label>Entrada no banco (R$)</label><input type="text" id="cmp-fin-valor" inputmode="decimal"></div>
+      <div class="field" data-sec="valor"><label>Parcelas do banco</label><input type="number" id="cmp-fin-parc" min="1" step="1"></div>
+      <div class="field" data-sec="valor"><label>Valor da parcela (R$)</label><input type="text" id="cmp-fin-parcela" inputmode="decimal"></div>
+
+      <div class="cmp-sec" data-sec="doc2">Emissão e validade</div>
+      <div class="field" data-sec="doc2"><label>Data de emissão</label><input type="date" id="cmp-data"></div>
+      <div class="field cmp-2" data-sec="doc2"><label>Validade</label><select id="cmp-validade-modo"><option value="sexta">Até a próxima sexta, 18h</option><option value="dias">Por um nº de dias</option></select></div>
+      <div class="field" data-sec="doc2"><label>Prazo (dias)</label><input type="number" id="cmp-validade" min="1" max="365" step="1"></div>
+      <div class="field cmp-3" data-sec="doc2"><label>Observações do documento</label><textarea id="cmp-obs" rows="3"></textarea></div>
 
       <div class="cmp-sec">Cliente</div>
       <div class="field cmp-2"><label>Cliente</label><input type="text" id="cmp-cliente" autocomplete="off"></div>
@@ -5135,13 +5182,18 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="field"><label>Meses até a plena</label><input type="number" id="cmp-rampa" min="0" step="1"></div>
     </div>
 
+    <!-- Onde o painel do Carregador fica enquanto a revisao dele esta' aberta.
+         Ele vem EMPRESTADO do lugar dele, nao clonado: duas listas de item
+         vivas ao mesmo tempo e' como o papel passa a discordar da tela. -->
+    <div id="cmp-equip-casa"></div>
+
     <div class="cmp-prev" id="cmp-prev">—</div>
     <p class="cmp-nota" id="cmp-nota">O <b>link do cliente</b> continua abrindo a apresentação de 13 páginas na web — é ela que o cliente vê no celular. O <b>PDF</b> sai desta mesma apresentação, sem trocar de tela.</p>
 
     <div class="modal-acoes">
       <button class="secondary" onclick="epCompletoFechar()">Cancelar</button>
       <button class="secondary" onclick="epRevisarGerarPDF()">Gerar PDF</button>
-      <button class="success" id="cmp-btn-link" onclick="epCompletoGerar('link')">Gerar link do cliente</button>
+      <button class="success" id="cmp-btn-link" onclick="epRevisarGerarLink()">Gerar link do cliente</button>
     </div>
   </div>
 </div>
@@ -11798,13 +11850,15 @@ function eletroWhatsApp() {
 // instante em que ele marca ou desmarca qualquer forma, o documento obedece o
 // card e so' o card. Mudar isso caladamente tiraria cartao e financiamento do
 // papel de quem nunca abre a aba Orcamento.
+// A condicao de pagamento dos QUATRO papeis e do texto de WhatsApp. E' o card,
+// e so' o card: o que o consultor ve' marcado e' o que sai impresso.
+//
+// Nao existe padrao escondido atras disto. Ja existiu, e era defeito: deduzir
+// "ele mexeu" a partir do estado fazia o papel ignorar quem escolhesse
+// exatamente o estado de fabrica. A condicao padrao da casa mora agora no
+// proprio HTML das caixas, que nascem marcadas — visivel, e desmarcavel.
 function epPagDoOrcamento(total) {
-  const on = id => !!document.getElementById(id)?.checked;
-  const mexeu = !on('orc-pg-ck-avista') || on('orc-pg-ck-entrada') || on('orc-pg-ck-fin');
-  if (mexeu) return orcPgLer(total);
-  return { vista: true, vistaValor: null, cartaoNs: [],
-           entrada: { valor: 0, parcelas: ORC_ENTRADA_PARC, juros: ORC_ENTRADA_JUROS },
-           fin: true };
+  return orcPgLer(total);
 }
 
 
@@ -12351,6 +12405,117 @@ const CMP_CAMPOS = {
 // vezes, e no dia em que um campo mudasse, três ficariam para trás.
 //
 // O que muda por documento é só o TÍTULO e o que o botão verde faz.
+
+// ═══════ O SIMULADOR VIRA O ÚNICO LUGAR ═══════
+//
+// Ordem do dono (26/09/2026): "onde fica o simulador, ali terá todos os
+// orçamentos feito apenas por ali, os orçamentos seguem o padrão do
+// preenchimento do simulador e pode ser todos editados... saem pré-definidos já
+// e aqueles que estão na aba somem, pois serão redundantes".
+//
+// O QUE FALTAVA PRA ISSO SER VERDADE: a revisão cobria 23 campos, e 22 deles
+// eram do próprio Simulador. Os 36 campos que só existiam dentro da aba
+// Orçamento — documento e endereço do cliente, valor/frete/desconto, a condição
+// de pagamento inteira, a data e a validade — não tinham como ser editados sem
+// trocar de aba. E o Carregador nem passava pela revisão: o botão navegava.
+//
+// Agora a revisão cobre os três blocos, e o Carregador entra nela também.
+
+// Os campos que a revisão passou a espelhar, além dos 23 do Simulador.
+// São os que os documentos IMPRIMEM. Os que sobraram na aba (Pix, banco/conta,
+// sócio administrador) alimentam Recibo e Contrato, não estes quatro — o lugar
+// deles é o Cadastros, e é lá que eles vão quando a aba sair da barra.
+const CMP_CAMPOS_ORC = {
+  'cmp-cli-doc': 'orc-cli-doc', 'cmp-cli-ie': 'orc-cli-ie', 'cmp-cli-end': 'orc-cli-end',
+  'cmp-cli-cep': 'orc-cli-cep', 'cmp-cli-tel': 'orc-cli-tel', 'cmp-cli-email': 'orc-cli-email',
+  'cmp-valor': 'orc-valor', 'cmp-frete': 'orc-frete', 'cmp-desc': 'orc-desc',
+  'cmp-ent-valor': 'orc-ent-valor', 'cmp-ent-parc': 'orc-ent-parc', 'cmp-ent-juros': 'orc-ent-juros',
+  'cmp-fin-valor': 'orc-fin-valor', 'cmp-fin-parc': 'orc-fin-parc', 'cmp-fin-parcela': 'orc-fin-parcela',
+  'cmp-data': 'orc-data', 'cmp-validade-modo': 'orc-validade-modo', 'cmp-validade': 'orc-validade',
+  'cmp-obs': 'orc-obs',
+};
+
+// CAIXA DE MARCAR NÃO TEM `.value`.
+// O espelho por valor não a enxerga, e o `if (b.value === v) return;` do
+// epCompletoAplicar compararia duas strings vazias e sairia sempre sem fazer
+// nada. Por isso caminho próprio: escreve `.checked` e dispara `change`, que é
+// onde mora o `orcPgToggle` — quem mostra e esconde os campos do card.
+const CMP_CHECKS = {
+  'cmp-pg-avista': 'orc-pg-ck-avista',
+  'cmp-pg-entrada': 'orc-pg-ck-entrada',
+  'cmp-pg-fin': 'orc-pg-ck-fin',
+};
+
+// Quais blocos do formulário aparecem para cada documento. Campo que o papel
+// não imprime só atrapalha a conferência.
+const REV_SECOES = {
+  estudo:    ['cliente', 'doc2'],
+  planilha:  ['doc2'],
+  basico:    ['cliente', 'valor', 'doc2'],
+  completo:  ['cliente', 'valor', 'doc2'],
+};
+
+/** Mostra só os blocos que o documento da vez usa. */
+function epRevSecoes(qual) {
+  const querem = REV_SECOES[qual] || [];
+  document.querySelectorAll('#modal-completo [data-sec]').forEach(el => {
+    el.style.display = querem.includes(el.dataset.sec) ? '' : 'none';
+  });
+}
+
+// ── O CARREGADOR ─────────────────────────────────────────────────────────
+// Ele não cabe num mapa de-para: tem LISTA de itens e de condições, que nascem
+// e morrem por JS. Clonar a lista para dentro do modal criaria duas cópias
+// vivas — e duas cópias vivas é exatamente como o papel passa a discordar da
+// tela. Então a revisão RECEBE o painel de verdade e devolve no fechamento.
+function epRevEquipEntra() {
+  const pane = document.getElementById('eletro-pane-equipamento');
+  const casa = document.getElementById('cmp-equip-casa');
+  if (!pane || !casa || pane.dataset.emprestado === '1') return;
+  // Âncora: devolver com appendChild jogaria o painel pro fim da lista de
+  // panes. A ordem não quebra nada hoje, e contar com isso é que quebra amanhã.
+  let anc = document.getElementById('eq-pane-ancora');
+  if (!anc) {
+    anc = document.createElement('div');
+    anc.id = 'eq-pane-ancora';
+    anc.hidden = true;
+    pane.parentNode.insertBefore(anc, pane);
+  }
+  pane.dataset.emprestado = '1';
+  casa.appendChild(pane);
+  pane.style.display = '';
+  // Os botões do painel saem de cena: quem emite é o rodapé do modal, igual aos
+  // outros quatro. Dois pares de botões na mesma caixa é convite pro errado.
+  const acoes = pane.querySelector('.eletro-acoes, .eletro-btns') ||
+                (pane.querySelector('[onclick*="orcEquipImprimir"]') || {}).parentElement;
+  if (acoes) { acoes.dataset.escondido = '1'; acoes.style.display = 'none'; }
+}
+
+function epRevEquipSai() {
+  const pane = document.getElementById('eletro-pane-equipamento');
+  if (!pane || pane.dataset.emprestado !== '1') return;
+  delete pane.dataset.emprestado;
+  pane.style.display = 'none';
+  const acoes = pane.querySelector('[data-escondido="1"]');
+  if (acoes) { delete acoes.dataset.escondido; acoes.style.display = ''; }
+  const anc = document.getElementById('eq-pane-ancora');
+  if (anc && anc.parentNode) anc.parentNode.insertBefore(pane, anc.nextSibling);
+}
+
+/** O Carregador nasce com o que o Simulador já sabe — sem pisar no que foi digitado. */
+function epEquipPrefill() {
+  const t = eletroTextos();
+  const po = (id, v) => {
+    const e = document.getElementById(id);
+    if (!e || String(e.value).trim() || !v) return;
+    e.value = v;
+    e.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+  po('eq-cli-nome', t.cliente);
+  po('eq-cli-cidade', t.cidade);
+  po('eq-entrega', t.cidade);
+}
+
 const REV_DOCS = {
   completo:  { titulo: 'Orçamento Completo',   acao: 'Gerar link do cliente', pdf: true,
                nota: 'O <b>link do cliente</b> abre a apresentação de 13 páginas na web — é ela que o cliente vê no celular. O <b>PDF</b> sai desta mesma apresentação, sem trocar de tela.' },
@@ -12360,6 +12525,11 @@ const REV_DOCS = {
                nota: 'Uma folha A4 com o resumo do investimento e a memória de cálculo.' },
   basico:    { titulo: 'Orçamento Básico',      acao: null, pdf: true,
                nota: 'Uma folha A4 com o escopo fechado e o valor do projeto.' },
+  // O Carregador e' a venda do equipamento avulso, sem obra chave na mao. Ele
+  // nao sai do computeEletro: tem itens, precos, frete CIF/FOB, prazo de
+  // entrega e garantia proprios. Por isso a revisao dele e' o painel inteiro.
+  carregador:{ titulo: 'Orçamento Carregador',  acao: 'Gerar link do orçamento', pdf: true,
+               nota: 'Venda de carregador avulso, com itens e preço por linha. O cliente, a cidade e o local de entrega já vêm do Simulador.' },
 };
 
 let revDocAtual = 'completo';
@@ -12369,6 +12539,12 @@ let revDocAtual = 'completo';
 function epRevisar(qual) {
   revDocAtual = REV_DOCS[qual] ? qual : 'completo';
   const cfg = REV_DOCS[revDocAtual];
+  // PARTIDA FRIA. Quem preenche a revisao e emite sem NUNCA abrir outra aba
+  // nunca disparou o orcInit — e sem ele orcLerItens().total e' 0 e o
+  // orcEpPayload devolve null. orcInit e' idempotente: chamar sempre e' de
+  // graca e e' o que faz o Simulador bastar sozinho.
+  try { if (typeof orcInit === 'function') orcInit(); } catch (e) {}
+  if (revDocAtual === 'carregador') { try { equipInit(); } catch (e) {} }
   const h = document.querySelector('#modal-completo h3');
   if (h) h.textContent = cfg.titulo + ' — revisar antes de emitir';
   const nota = document.getElementById('cmp-nota');
@@ -12378,16 +12554,55 @@ function epRevisar(qual) {
     bLink.style.display = cfg.acao ? '' : 'none';
     bLink.textContent = cfg.acao || '';
   }
+  epRevSecoes(revDocAtual);
+  if (revDocAtual === 'carregador') {
+    epEquipPrefill();
+    epRevEquipEntra();
+    // O formulario do Simulador sai de cena: quem edita o Carregador e' o
+    // painel dele, que esta' logo abaixo. Dois formularios abertos na mesma
+    // caixa e' o consultor preenchendo o errado.
+    const g = document.querySelector('#modal-completo .cmp-grade');
+    if (g) g.style.display = 'none';
+    const pv = document.getElementById('cmp-prev');
+    if (pv) pv.style.display = 'none';
+    const m = document.getElementById('modal-completo');
+    if (m) m.classList.add('show');
+    const h2 = document.querySelector('#modal-completo h3');
+    if (h2) h2.textContent = cfg.titulo + ' — revisar antes de emitir';
+    const nt = document.getElementById('cmp-nota');
+    if (nt) nt.innerHTML = cfg.nota;
+    const bl = document.getElementById('cmp-btn-link');
+    if (bl) { bl.style.display = ''; bl.textContent = cfg.acao; }
+    return;
+  }
+  epRevEquipSai();
+  const g = document.querySelector('#modal-completo .cmp-grade');
+  if (g) g.style.display = '';
+  const pv = document.getElementById('cmp-prev');
+  if (pv) pv.style.display = '';
   epCompletoRevisar();
 }
 
 // O botão "Gerar PDF" chama este, que despacha pro documento da vez. Cada um
 // já tem a sua função de impressão — o que faltava era passar pela revisão.
+// O botao verde vale pro Completo e pro Carregador, que sao os dois que geram
+// link de cliente. Os outros dois escondem o botao (REV_DOCS[*].acao = null).
+function epRevisarGerarLink() {
+  if (revDocAtual === 'carregador') {
+    epCompletoAplicar();
+    const pane = document.getElementById('eletro-pane-equipamento');
+    const emprestado = pane && pane.dataset.emprestado === '1';
+    try { orcEquipLink(); } finally { if (emprestado) epCompletoFechar(); }
+    return;
+  }
+  epCompletoGerar('link');
+}
+
 function epRevisarGerarPDF() {
   epCompletoAplicar();
   epCompletoFechar();
   const p = eletroParams();
-  if (!(p.invest > 0) && revDocAtual !== 'estudo') {
+  if (!(p.invest > 0) && revDocAtual !== 'estudo' && revDocAtual !== 'carregador') {
     alert('Defina o investimento total para emitir este documento.');
     return;
   }
@@ -12400,6 +12615,7 @@ function epRevisarGerarPDF() {
       if (revDocAtual === 'estudo')   { eletroImprimir(); return; }
       if (revDocAtual === 'planilha') { eletroTelaA4(); return; }
       if (revDocAtual === 'basico')   { epBasicoImprimir(); return; }
+      if (revDocAtual === 'carregador') { orcEquipImprimir(); return; }
     } catch (e) {
       console.error(e);
       showToast('❌ Não consegui montar o documento');
@@ -12408,6 +12624,9 @@ function epRevisarGerarPDF() {
 }
 
 function epCompletoFechar() {
+  // Devolver ANTES de esconder: o painel emprestado tem que voltar pro lugar
+  // dele mesmo que o consultor feche pelo Cancelar, pelo Esc ou clicando fora.
+  try { epRevEquipSai(); } catch (e) {}
   const m = document.getElementById('modal-completo');
   if (m) m.classList.remove('show');
 }
@@ -12426,6 +12645,15 @@ function epCompletoRevisar() {
     if (de === 'cmp-equip') return;
     const a = document.getElementById(de), b = document.getElementById(para);
     if (a && b) a.value = b.value;
+  });
+  // Os campos que vieram da aba Orcamento, e as caixas de pagamento.
+  Object.entries(CMP_CAMPOS_ORC).forEach(([de, para]) => {
+    const a = document.getElementById(de), b = document.getElementById(para);
+    if (a && b) a.value = b.value;
+  });
+  Object.entries(CMP_CHECKS).forEach(([de, para]) => {
+    const a = document.getElementById(de), b = document.getElementById(para);
+    if (a && b) a.checked = !!b.checked;
   });
   epCompletoPrevia();
   const m = document.getElementById('modal-completo');
@@ -12479,6 +12707,44 @@ function epCompletoAplicar() {
     b.dispatchEvent(new Event('input', { bubbles: true }));
     b.dispatchEvent(new Event('change', { bubbles: true }));
   });
+  // Os campos que vieram da aba Orcamento passam pelo MESMO cuidado: a ponte
+  // texto -> number e' a mesma, e a virgula do teclado brasileiro esvazia campo
+  // aqui igual esvaziava la'.
+  Object.entries(CMP_CAMPOS_ORC).forEach(([de, para]) => {
+    const a = document.getElementById(de), b = document.getElementById(para);
+    if (!a || !b) return;
+    const v = (b.tagName === 'INPUT' && b.type === 'number') ? epNumBR(a.value) : a.value;
+    if (b.value === v) return;
+    const antes = b.value;
+    b.value = v;
+    if (b.value === '' && String(a.value).trim() !== '') {
+      b.value = antes; a.value = antes;
+      const rot = (a.closest('.field') && a.closest('.field').querySelector('label'));
+      recusados.push(rot ? rot.textContent.trim() : para);
+      return;
+    }
+    b.dispatchEvent(new Event('input', { bubbles: true }));
+    b.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+
+  // CAIXA DE MARCAR: caminho proprio. Escreve `.checked` e dispara `change`,
+  // que e' onde mora o orcPgToggle — quem mostra e esconde os campos do card.
+  let mexeuPg = false;
+  Object.entries(CMP_CHECKS).forEach(([de, para]) => {
+    const a = document.getElementById(de), b = document.getElementById(para);
+    if (!a || !b || a.checked === b.checked) return;
+    b.checked = a.checked;
+    b.dispatchEvent(new Event('change', { bubbles: true }));
+    mexeuPg = true;
+  });
+  try { if (mexeuPg && typeof orcPgToggle === 'function') orcPgToggle(); } catch (e) {}
+  // O valor do Orcamento volta a puxar o Simulador. MEDIDO: sem esta linha,
+  // mudar o investimento DENTRO da revisao deixava `orc-valor` no numero
+  // velho, e o Basico saia com o valor de antes. orcValorSync respeita o
+  // `tocado`, entao quem digitou o proprio valor continua com o dele.
+  try { if (typeof orcValorSync === 'function') orcValorSync(); } catch (e) {}
+  try { if (typeof orcCalc === 'function') orcCalc(); } catch (e) {}
+
   try { if (typeof eletroCalc === 'function') eletroCalc(); } catch (e) {}
   if (recusados.length && typeof showToast === 'function') {
     showToast('⚠️ Não entendi o número em: ' + recusados.join(', '));
@@ -14222,7 +14488,8 @@ function orcEpPayload() {
 
   // Condição de pagamento inteira (à vista com valor próprio, entrada+cartão,
   // parcelas soltas e financiamento) — congelada aqui pro link do cliente.
-  const pg = orcPgLer(r.total);
+  // Pela mesma funcao dos outros papeis, pra nao voltar a divergir.
+  const pg = epPagDoOrcamento(r.total);
 
   const dEmisISO = orcVal('orc-data') || orcHojeISO();
   const telCli = orcVal('orc-cli-tel');
@@ -14932,7 +15199,8 @@ function epWhatsTextoOrcamento(total) {
   if (t.equip) L.push(`Equipamento: Carregador ${epEquipRotulo(t.equip)}`);
   // As formas seguem o que está marcado no card de pagamento — o mesmo que sai no
   // PDF. Antes eram 12x/21x fixos aqui, então o WhatsApp contradizia o documento.
-  const pg = orcPgLer(total);
+  // Pela mesma funcao, pelo mesmo motivo.
+  const pg = epPagDoOrcamento(total);
   const formas = [];
   if (pg.vista) formas.push(`• À vista: ${elMoney(pg.vistaValor > 0 ? pg.vistaValor : total)}`);
   if (pg.entrada) {
@@ -15290,9 +15558,10 @@ function epBasicoImprimir() {
     compHTML: orc1EpMateriais(itensBasico),
     ...orc1EpFinanceiro(total),
     obs: ORC_OBS_PADRAO,
-    // O Básico sai do Simulador, sem card de pagamento: usa a condição padrão da
-    // casa (18x com 22,5%) pra não quotar cartão diferente do orçamento completo.
-    pagHTML: orc1PagChips({ total, vista: true, entrada: { valor: 0, parcelas: ORC_ENTRADA_PARC, juros: ORC_ENTRADA_JUROS }, fin: true }),
+    // O card manda. Antes a condicao era cravada nesta linha, e o Basico prometia
+    // "18x" e "ate 72x" mesmo com o consultor tendo desmarcado os dois — medido
+    // nos quatro casos de marcacao em 26/09/2026.
+    pagHTML: orc1PagChips({ total, ...epPagDoOrcamento(total) }),
     vendedor: { nome: t.autor, contato: t.contato },
     empresa: orc1EpEmpresa(),
   });
