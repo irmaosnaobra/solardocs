@@ -3587,10 +3587,6 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     </div>
 
     <!-- Aparece só quando os campos vieram de um projeto anterior. -->
-    <div class="eletro-retomar" id="eletro-retomar">
-      <span>Preenchido para <b id="eletro-retomar-quem">—</b><span class="quando" id="eletro-retomar-quando"></span></span>
-      <button type="button" onclick="eletroNovoProjeto()">Começar novo</button>
-    </div>
 
     <!-- ===== PANE: SIMULADOR ===== -->
     <div id="eletro-pane-simulador">
@@ -11900,7 +11896,13 @@ function eletroUltimoCampos() {
   return [...new Set(ids)].filter(id => !/^(orc|eq)-emit-/.test(id));
 }
 
+// DESLIGADO em 26/09/2026, a pedido do dono: o Simulador passa a ser sempre do
+// cliente que esta aberto agora, sem retomar o anterior. A funcao fica (varios
+// pontos a chamam) mas so' limpa o que houver.
 function eletroUltimoSalvar() {
+  try { eletroGuarda().removeItem(ELETRO_ULT_KEY); } catch (e) {}
+  return;
+  /* eslint-disable no-unreachable */
   try {
     const campos = {};
     eletroUltimoCampos().forEach(id => {
@@ -11924,7 +11926,12 @@ function eletroUltimoLer() {
   try { return JSON.parse(eletroGuarda().getItem(ELETRO_ULT_KEY) || 'null'); } catch (e) { return null; }
 }
 
+// DESLIGADA junto com o salvamento. Restaurar so' preenchia campo VAZIO, mas
+// o que incomodava era a barra dizer "Preenchido para <o cliente de antes>"
+// enquanto o consultor ja' estava atendendo outro.
 function eletroUltimoRestaurar() {
+  return;
+  /* eslint-disable no-unreachable */
   const u = eletroUltimoLer();
   if (!u || !u.campos) return;
   let pintou = 0;
@@ -11986,6 +11993,8 @@ function eletroNovoProjeto() {
 // pra nao escrever no localStorage a cada tecla.
 let eletroUltimoT = null;
 function eletroUltimoAgendarSalvar(alvo) {
+  return;   // desligado com o retomar: nada do cliente anterior fica guardado
+  /* eslint-disable no-unreachable */
   if (!alvo || !alvo.id) return;
   // so' reage a campo que faz parte do conjunto salvo
   if (!alvo.closest || !alvo.closest('[id^="eletro-pane-"]')) return;
@@ -11998,10 +12007,11 @@ document.addEventListener('change', (e) => eletroUltimoAgendarSalvar(e.target), 
 // Volta o ultimo projeto assim que a pagina abre. Depois do load pra os campos
 // ja' existirem e os recalculos acharem o que precisam.
 window.addEventListener('DOMContentLoaded', () => {
-  // varre o resto de versões antigas: sem isso o primeiro acesso depois do
-  // deploy ainda abriria com o cliente de ontem
+  // Limpa as DUAS gavetas. A linha antiga so' mexia no localStorage, e o dado
+  // mora no sessionStorage (eletroGuarda) — por isso o cliente anterior
+  // sobrevivia mesmo com o codigo dizendo que apagava.
+  try { sessionStorage.removeItem(ELETRO_ULT_KEY); } catch (e) {}
   try { localStorage.removeItem(ELETRO_ULT_KEY); } catch (e) {}
-  setTimeout(eletroUltimoRestaurar, 350);
 });
 
 async function eletroSalvarHistorico() {
