@@ -3589,8 +3589,6 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
          o relatório BI_Frota da ABVE, e pai com o mesmo nome do filho parece menu quebrado. -->
     <div class="eletro-subnav">
       <button type="button" id="eletro-tab-simulador" class="eletro-subtab ativa" onclick="eletroSubaba('simulador')">Simulador</button>
-      <button type="button" id="eletro-tab-orcamento" class="eletro-subtab" onclick="eletroSubaba('orcamento')">Orçamento</button>
-      <button type="button" id="eletro-tab-equipamento" class="eletro-subtab" onclick="eletroSubaba('equipamento')">Orçamento Carregador</button>
       <!-- Os quatro papéis do pós-venda. Viraram grupo quando o dossiê de crédito
            entrou: cinco documentos em fila na régua 1 empurrava Cadastros e
            Histórico pra fora da tela de novo. Abre no Recibo. -->
@@ -9187,6 +9185,10 @@ async function apxMontar() {
 }
 
 function eletroSubaba(qual) {
+  // Orcamento e Carregador NAO estao mais na barra (26/09/2026): tudo que os
+  // documentos imprimem se edita na revisao do Simulador. Os PAINEIS continuam
+  // aqui, e continuam sendo abertos por dentro — Recibo, Contrato, Procuracao e
+  // Proposta de banco dependem do orcInit, que roda por este caminho.
   const abas = ['simulador', 'orcamento', 'equipamento', 'recibo', 'contrato', 'procuracao', 'banco', 'finame', 'apresentacao', 'cadastros', 'avisos', 'historico', 'pesquisa', 'mercado', 'estados', 'postos', 'mapa'];
   // A cada abertura: monta a lista de potências (uma vez) e tenta completar o
   // vendedor. Fica aqui, e não só no load, porque o cadastro de consultores
