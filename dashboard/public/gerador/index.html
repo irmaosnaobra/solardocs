@@ -538,6 +538,9 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .pn-aba{background:rgba(148,163,184,.10);border:1px solid rgba(148,163,184,.20);color:#94A3B8;
   font-family:inherit;font-size:13.5px;font-weight:700;padding:9px 14px;border-radius:999px;cursor:pointer;min-height:40px}
 .pn-aba.on{background:#fff;border-color:#fff;color:#0B1220}
+.pn-cnt{font-size:12px;font-weight:700;color:#CBD5E1;background:rgba(148,163,184,.28);
+  border-radius:999px;padding:1px 7px;min-width:20px;text-align:center;display:inline-block}
+.pn-aba.on .pn-cnt{background:#7DD117;color:#0B1220}
 .pn-resumo{margin-left:auto;font-size:12.5px;color:#94A3B8}
 .pn-resumo b{color:#E5E7EB}
 
@@ -570,6 +573,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .pn-tag.off{color:#64748B}
 .pn-tag.alerta{background:rgba(248,113,113,.14);color:#F87171}
 .pn-tag.ress{background:rgba(251,191,36,.14);color:#FBBF24}
+.pn-tag.tipo{background:transparent;border:1px solid var(--c);color:var(--c);font-weight:800}
 .pn-linha{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .pn-sel{background:rgba(15,23,42,.8);border:1px solid var(--c);border-radius:9px;color:var(--c);
   font-family:inherit;font-size:12.5px;font-weight:800;padding:8px 9px;min-height:38px;cursor:pointer;flex:1 1 140px}
@@ -4716,7 +4720,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <button type="button" class="cad-aba" id="cad-aba-match" onclick="cadAba('match')">Match <span class="cad-cnt" id="cad-cnt-match">—</span></button>
           <!-- PONTOS (26/09/2026): a mesma base pelo lado da conversa. Abre um pane
                proprio; cadAba() chama pontosFechar() pra voltar. -->
-          <button type="button" class="cad-aba" id="cad-aba-pontos" onclick="pontosAbrir()">Pontos <span class="cad-cnt" id="cad-cnt-pontos">•</span></button>
+          <button type="button" class="cad-aba" id="cad-aba-pontos" onclick="pontosAbrir()">Prospecção <span class="cad-cnt" id="cad-cnt-pontos">•</span></button>
         </div>
         <div class="cad-acoes" id="cad-acoes">
           <input type="search" class="cad-busca" id="cad-busca" placeholder="Buscar nome, cidade ou telefone" oninput="cadRender()">
@@ -4760,19 +4764,20 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
            desfecho da reunião. -->
       <div id="cad-pane-pontos" hidden>
         <div class="pesquisa-info">
-          Todo lead que já entregou o <b>endereço de um ponto</b>, pronto pra ser trabalhado:
-          as reuniões da LP do eletroposto mais os cadastros da porta do ponto. Ponha o seu nome,
+          <b>A base inteira do eletroposto numa tela só</b>, uma linha por pessoa: as reuniões da LP,
+          os cadastros das quatro portas e as fichas. O filtro <b>tipo</b> separa Arrendamento,
+          Investidor, Curioso e Parceiro pela mesma regra das abas ao lado. Ponha o seu nome,
           registre cada contato e mova o degrau conforme a conversa anda. A <b>nota</b> é o índice
           do estudo do local; quem ainda não rodou herda a nota da cidade, que hoje é o que o índice
           mede. <b>Sair ligando</b> abre a fila que está na tela, um por vez.
         </div>
 
         <div class="pn-abas">
-          <button type="button" class="pn-aba on" id="pn-aba-fila" onclick="pnAbaTopo('fila')">Na mesa</button>
-          <button type="button" class="pn-aba" id="pn-aba-minha" onclick="pnAbaTopo('minha')">Meus</button>
-          <button type="button" class="pn-aba" id="pn-aba-hoje" onclick="pnAbaTopo('hoje')">Minha fila de hoje</button>
-          <button type="button" class="pn-aba" id="pn-aba-casa" onclick="pnAbaTopo('casa')">Casa do lead</button>
-          <button type="button" class="pn-aba" id="pn-aba-tudo" onclick="pnAbaTopo('tudo')">Tudo</button>
+          <button type="button" class="pn-aba on" id="pn-aba-fila" onclick="pnAbaTopo('fila')">Na mesa <span class="pn-cnt" id="pn-cnt-fila">—</span></button>
+          <button type="button" class="pn-aba" id="pn-aba-minha" onclick="pnAbaTopo('minha')">Meus <span class="pn-cnt" id="pn-cnt-minha">—</span></button>
+          <button type="button" class="pn-aba" id="pn-aba-hoje" onclick="pnAbaTopo('hoje')">Minha fila de hoje <span class="pn-cnt" id="pn-cnt-hoje">—</span></button>
+          <button type="button" class="pn-aba" id="pn-aba-casa" onclick="pnAbaTopo('casa')">Casa do lead <span class="pn-cnt" id="pn-cnt-casa">—</span></button>
+          <button type="button" class="pn-aba" id="pn-aba-tudo" onclick="pnAbaTopo('tudo')">Tudo <span class="pn-cnt" id="pn-cnt-tudo">—</span></button>
           <span class="pn-resumo" id="pn-resumo"></span>
         </div>
 
@@ -4794,6 +4799,13 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <option value="fora">Fora</option>
           </select>
           <select class="cad-filtro" id="pn-f-resp" onchange="pnRender()"><option value="">Qualquer responsável</option></select>
+          <select class="cad-filtro" id="pn-f-tipo" onchange="pnRender()">
+            <option value="">Qualquer tipo</option>
+            <option value="ponto">Arrendamento (pode ceder o local)</option>
+            <option value="capital">Investidor</option>
+            <option value="curioso">Curioso</option>
+            <option value="integrador">Parceiro (integrador)</option>
+          </select>
           <select class="cad-filtro" id="pn-f-rel" onchange="pnRender()">
             <option value="">Qualquer relação com o local</option>
             <option value="proprio">É o proprietário</option>
@@ -4817,9 +4829,11 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           </select>
           <select class="cad-filtro" id="pn-f-end" onchange="pnRender()">
             <option value="">Qualquer endereço</option>
+            <option value="tem">Tem endereço de ponto</option>
             <option value="ok">Endereço completo</option>
             <option value="ressalva">Endereço sem número</option>
             <option value="lead">É a casa do lead</option>
+            <option value="sem">Sem endereço nenhum</option>
           </select>
           <select class="cad-filtro" id="pn-f-cidade" onchange="pnRender()"><option value="">Todas as cidades</option></select>
           <select class="cad-filtro" id="pn-f-uf" onchange="pnRender()"><option value="">Todos os estados</option></select>
@@ -10035,9 +10049,20 @@ const PN_ESTAGIOS = [
 ];
 const PN_EST = Object.fromEntries(PN_ESTAGIOS.map(e => [e.id, e]));
 
+/** As quatro portas do eletroposto, pela MESMA regra da aba Cadastros
+ *  (cadDestino). Integrador nao e destino: e marca a parte. */
+const PN_TIPO = {
+  ponto:      { rot: 'Arrendamento', cor: '#7DD117' },
+  capital:    { rot: 'Investidor',   cor: '#60A5FA' },
+  curioso:    { rot: 'Curioso',      cor: '#FBBF24' },
+  integrador: { rot: 'Parceiro',     cor: '#38BDF8' },
+};
+
 let pnDados = null;       // [{tel8, nome, ...}] já cruzado
 let pnNeg = new Map();    // tel8 -> linha de eletroposto_negociacao
 let pnAba = 'fila';       // o atalho de cima
+let pnMostrarTudo = false; // o teto de cartões, solto pelo botão
+const PN_TETO = 200;
 let pnLigaFila = [];      // modo ligação
 let pnLigaIdx = 0;
 
@@ -10122,66 +10147,119 @@ async function pontosCarregar(forcar) {
   const alvo = document.getElementById('pn-lista');
   if (alvo) alvo.innerHTML = '<div class="pn-vazio">Carregando…</div>';
   try {
-    const [reunioes, estudos, negoc, cadastros] = await Promise.all([
-      // Só eletroposto e só quem trouxe endereço — o ilike corta no banco o que
-      // seriam ~800 fichas inteiras de observação.
+    const [reunioes, estudos, negoc, cadastros, fichas] = await Promise.all([
+      // TODA reunião do eletroposto, com endereço ou sem: quem não deu endereço
+      // continua sendo gente pra ligar, só não tem ponto pra estudar.
       supaGet('agendamentos?select=id,created_at,quando,cliente_nome,cliente_telefone,cidade,'
         + 'observacao,status,vendedor_nome,ponto_relacao'
-        + '&created_by=eq.lp_eletroposto&observacao=ilike.*Endere*'
-        + '&order=created_at.desc&limit=1000'),
+        + '&created_by=eq.lp_eletroposto&order=created_at.desc&limit=1000'),
       // A TABELA DO ESTUDO NAO ABRE PRA ESTA CHAVE: eletroposto_estudos tem RLS com
       // zero policy (guarda endereco, coordenada e o token da pagina publica), e a
       // leitura direta volta 401. A funcao devolve so id da reuniao + as notas.
       supaRpc('ep_estudo_notas', {}).catch(() => []),
       supaGet('eletroposto_negociacao?select=*&limit=2000').catch(() => []),
-      // A porta do ponto também coleta endereço. Essa gente NUNCA marcou reunião,
-      // então o estudo (que pendura em agendamento_id) não alcança — mas ligar,
-      // alcança. Entram na lista com o aviso na cara.
-      supaGet('eletroposto_parceria?lado=eq.ponto&select=id,created_at,nome,telefone,cidade,'
-        + 'ponto_relacao,ponto_endereco,ponto_tipo,status&limit=500').catch(() => []),
+      // As QUATRO portas, não só a do ponto: arrendamento, investidor e parceiro
+      // saem daqui pela mesma regra da aba Cadastros (cadDestino).
+      supaGet('eletroposto_parceria?select=*&order=created_at.desc&limit=1000').catch(() => []),
+      // As fichas da LP: é de onde sai o Curioso, que não tem cadastro nenhum.
+      supaGet('eletroposto_nota1?select=id,created_at,nome,telefone,cidade,perfil,ponto,invest,'
+        + 'endereco,capital_faixa,status,ficha,valor_investir&order=created_at.desc&limit=1000').catch(() => []),
     ]);
     pnNeg = new Map((negoc || []).map(n => [String(n.tel8), n]));
     const idx = new Map();
     (estudos || []).forEach(e => { if (e.agendamento_id != null) idx.set(Number(e.agendamento_id), e); });
 
-    const linhas = [];
+    // UMA PESSOA, UMA LINHA. As três fontes se completam em vez de competir: a
+    // reunião traz endereço e desfecho, o cadastro traz a porta que a pessoa
+    // escolheu, a ficha traz o que ela respondeu na LP. Dedupe pelo mesmo
+    // cadTel8 do resto da casa.
+    const linhas = new Map();
+    const nova = (tel8, telefone) => {
+      let l = linhas.get(tel8);
+      if (!l) {
+        l = { tel8: tel8, telefone: telefone, nome: '', cidade: '', rua: '', numero: '', bairro: '',
+              perfil: '', relacao: '', ponto: '', casaDoLead: false, semNumero: false,
+              statusReuniao: '', vendedor: '', quando: '', criado: '',
+              agendamento_id: null, indice: null, temEstudo: false,
+              destino: null, integrador: false, fontes: [] };
+        linhas.set(tel8, l);
+      }
+      return l;
+    };
+    const poe = (l, k, v) => { if (!l[k] && v) l[k] = v; };
+    const PESO_D = { ponto: 0, capital: 1, curioso: 2 };
+    // Melhor destino ganha, igual à aba Cadastros: quem pode ceder um local é
+    // Arrendamento mesmo que também tenha dinheiro.
+    const marcaDestino = (l, d) => { if (d && (!l.destino || PESO_D[d] < PESO_D[l.destino])) l.destino = d; };
+    const poeEndereco = (l, end, casa) => {
+      if (!end || !end.rua || l.rua) return;
+      l.rua = end.rua; l.numero = end.numero; l.bairro = end.bairro;
+      if (end.cidade) l.cidade = end.cidade;
+      l.casaDoLead = !!casa;
+      l.semNumero = !/[1-9]/.test(String(end.numero || ''));
+    };
+    const ehTeste = n => /^\s*teste\b/i.test(String(n || ''));
+
     (reunioes || []).forEach(a => {
-      const end = pnEndereco(a.observacao);
-      if (!end) return;
-      // ficha de teste da propria equipe: abria a fila todo dia
-      if (/^\s*teste\b/i.test(a.cliente_nome || '')) return;
-      const e = idx.get(Number(a.id)) || null;
-      linhas.push({
-        origem: 'agenda', id: a.id, agendamento_id: a.id,
-        tel8: cadTel8(a.cliente_telefone), telefone: a.cliente_telefone,
-        nome: a.cliente_nome || '—', cidade: end.cidade || a.cidade || '',
-        rua: end.rua, numero: end.numero, bairro: end.bairro,
-        perfil: pnPerfil(a.observacao),
-        relacao: pnCampo(a.observacao, 'Local é seu') || a.ponto_relacao || '',
-        ponto: pnCampo(a.observacao, 'Ponto'),
-        casaDoLead: pnCasaDoLead(a.observacao),
-        semNumero: !/[1-9]/.test(String(end.numero || '')),
-        statusReuniao: a.status || '', vendedor: a.vendedor_nome || '',
-        quando: a.quando || a.created_at, criado: a.created_at,
-        indice: e && e.indice != null ? Number(e.indice) : null,
-        temEstudo: !!e,
-      });
+      const tel8 = cadTel8(a.cliente_telefone);
+      if (!tel8 || ehTeste(a.cliente_nome)) return;
+      const l = nova(tel8, a.cliente_telefone);
+      if (l.fontes.indexOf('reunião') < 0) l.fontes.push('reunião');
+      poe(l, 'nome', a.cliente_nome);
+      poe(l, 'perfil', pnPerfil(a.observacao));
+      poe(l, 'relacao', pnCampo(a.observacao, 'Local é seu') || a.ponto_relacao || '');
+      poe(l, 'ponto', pnCampo(a.observacao, 'Ponto'));
+      // a leitura vem decrescente: a PRIMEIRA reunião de cada pessoa é a mais nova
+      if (!l.statusReuniao) {
+        l.statusReuniao = a.status || '';
+        l.vendedor = a.vendedor_nome || '';
+        l.quando = a.quando || a.created_at;
+      }
+      poe(l, 'criado', a.created_at);
+      poeEndereco(l, pnEndereco(a.observacao), pnCasaDoLead(a.observacao));
+      poe(l, 'cidade', a.cidade);
+      if (l.agendamento_id == null) l.agendamento_id = a.id;
+      const e = idx.get(Number(a.id));
+      if (e) { l.temEstudo = true; if (l.indice == null && e.indice != null) l.indice = Number(e.indice); }
+      marcaDestino(l, a.status === 'arrendamento' ? 'ponto' : cadDestino('nota1', { ficha: a.observacao }));
     });
+
     (cadastros || []).forEach(c => {
-      if (!String(c.ponto_endereco || '').trim()) return;
-      const t = cadTel8(c.telefone);
-      if (t && linhas.some(l => l.tel8 === t)) return;      // já entrou pela agenda
-      const end = pnEndereco('Endereço: ' + c.ponto_endereco) || { rua: c.ponto_endereco, numero: '', bairro: '', cidade: '' };
-      linhas.push({
-        origem: 'cadastro', id: c.id, agendamento_id: null,
-        tel8: t, telefone: c.telefone, nome: c.nome || '—',
-        cidade: end.cidade || c.cidade || '', rua: end.rua, numero: end.numero, bairro: end.bairro,
-        perfil: c.ponto_tipo || '', relacao: c.ponto_relacao || '', ponto: 'Cadastro da porta do ponto',
-        casaDoLead: false, semNumero: !/[1-9]/.test(String(end.numero || '')),
-        statusReuniao: '', vendedor: '', quando: c.created_at, criado: c.created_at,
-        indice: null, temEstudo: false, semReuniao: true,
-      });
+      const tel8 = cadTel8(c.telefone);
+      if (!tel8 || ehTeste(c.nome)) return;
+      const l = nova(tel8, c.telefone);
+      if (l.fontes.indexOf('cadastro') < 0) l.fontes.push('cadastro');
+      poe(l, 'nome', c.nome); poe(l, 'cidade', c.cidade);
+      poe(l, 'relacao', c.ponto_relacao); poe(l, 'perfil', c.ponto_tipo);
+      poe(l, 'criado', c.created_at);
+      if (String(c.ponto_endereco || '').trim()) {
+        poeEndereco(l, pnEndereco('Endereço: ' + c.ponto_endereco)
+          || { rua: c.ponto_endereco, numero: '', bairro: '', cidade: '' }, false);
+      }
+      // Integrador NÃO é destino: é o terceiro lado, e a pessoa pode instalar E
+      // ter dinheiro. Por isso ele é uma marca à parte, não sobrescreve nada.
+      if (c.lado === 'integrador') l.integrador = true;
+      else marcaDestino(l, cadDestino('parceria', c));
     });
+
+    (fichas || []).forEach(f => {
+      const tel8 = cadTel8(f.telefone);
+      if (!tel8 || ehTeste(f.nome)) return;
+      const l = nova(tel8, f.telefone);
+      if (l.fontes.indexOf('ficha') < 0) l.fontes.push('ficha');
+      poe(l, 'nome', f.nome); poe(l, 'cidade', f.cidade); poe(l, 'perfil', f.perfil);
+      poe(l, 'relacao', pnCampo(f.ficha, 'Local é seu'));
+      poe(l, 'ponto', pnCampo(f.ficha, 'Ponto'));
+      poe(l, 'criado', f.created_at);
+      if (String(f.endereco || '').trim()) {
+        poeEndereco(l, pnEndereco('Endereço: ' + f.endereco)
+          || { rua: f.endereco, numero: '', bairro: '', cidade: '' }, false);
+      }
+      marcaDestino(l, cadDestino('nota1', f));
+    });
+
+    const arr = [...linhas.values()];
+    arr.forEach(l => { if (!l.quando) l.quando = l.criado; if (!l.nome) l.nome = '—'; });
 
     // NOTA DA CIDADE: enquanto o Google está em 403 o índice só tem os dois
     // componentes do município, então duas fichas da mesma cidade têm a MESMA
@@ -10189,27 +10267,27 @@ async function pontosCarregar(forcar) {
     // rodou herda a nota da cidade dele. Se algum dia divergir, a projeção cala a
     // boca sozinha (o Set com mais de um valor não vira previsão).
     const porCidade = new Map();
-    linhas.filter(l => l.indice != null).forEach(l => {
+    arr.filter(l => l.indice != null).forEach(l => {
       if (!pnNomeCidade(l.cidade)) return;
       const k = pnChaveCidade(l.cidade);
-      const s = porCidade.get(k) || new Set();
-      s.add(l.indice); porCidade.set(k, s);
+      const st = porCidade.get(k) || new Set();
+      st.add(l.indice); porCidade.set(k, st);
     });
-    linhas.forEach(l => {
+    arr.forEach(l => {
       if (l.indice != null) return;
       const nome = pnNomeCidade(l.cidade);
       if (!nome) return;
-      let s = porCidade.get(pnChaveCidade(l.cidade));
-      if (!s && !pnUf(l.cidade)) {
+      let st = porCidade.get(pnChaveCidade(l.cidade));
+      if (!st && !pnUf(l.cidade)) {
         // Cidade escrita sem UF: só herda quando existe UMA cidade com esse nome
         // na base inteira. Com duas, não dá pra saber de qual estado ela é.
         const iguais = [...porCidade.entries()].filter(e => e[0].split('|')[0] === nome);
-        if (iguais.length === 1) s = iguais[0][1];
+        if (iguais.length === 1) st = iguais[0][1];
       }
-      if (s && s.size === 1) l.notaCidade = [...s][0];
+      if (st && st.size === 1) l.notaCidade = [...st][0];
     });
 
-    pnDados = linhas;
+    pnDados = arr;
     pnMontarSelects();
     pnRender();
   } catch (err) {
@@ -10257,29 +10335,45 @@ function pnMontarSelects() {
 const pnDias = iso => iso ? Math.floor((Date.now() - new Date(iso).getTime()) / 86400000) : null;
 const pnHoje = () => new Date().toISOString().slice(0, 10);
 
-function pnFiltrar() {
-  const busca = (pnVal('pn-busca') || '').trim().toLowerCase();
-  const f = {
+/** Os 15 seletores lidos de uma vez. Uma rodada de desenho lê isto UMA vez e
+ *  passa adiante: o funil e os botões de cima reusam a mesma leitura. */
+function pnFiltrosAtuais() {
+  return {
+    busca: (pnVal('pn-busca') || '').trim().toLowerCase(),
     estagio: pnVal('pn-f-estagio'), resp: pnVal('pn-f-resp'), rel: pnVal('pn-f-rel'),
     nota: pnVal('pn-f-nota'), estudo: pnVal('pn-f-estudo'), end: pnVal('pn-f-end'),
+    tipo: pnVal('pn-f-tipo'),
     cidade: pnVal('pn-f-cidade'), uf: pnVal('pn-f-uf'), vend: pnVal('pn-f-vend'),
     status: pnVal('pn-f-status'), perfil: pnVal('pn-f-perfil'),
     contato: pnVal('pn-f-contato'), agenda: pnVal('pn-f-agenda'),
   };
+}
+/**
+ * A lista que a tela mostra. Três usos, e por isso os parâmetros:
+ *   pnFiltrar()                      -> o que aparece agora
+ *   pnFiltrar({ aba: 'hoje' })       -> o número que cada botão de cima carrega
+ *   pnFiltrar({ semEstagio: true })  -> o funil, que conta sem o próprio degrau
+ *                                       (senão clicar num degrau zera os outros)
+ */
+function pnFiltrar(o) {
+  o = o || {};
+  const f = o.f || pnFiltrosAtuais();
+  const busca = f.busca;
+  const aba = o.aba || pnAba;
   const eu = pnEu();
   let saida = pnDados.filter(l => {
     const n = pnNegDe(l), est = pnEstagioDe(l), nota = pnNota(l);
-    if (pnAba === 'fila' && (l.casaDoLead || ['fechado', 'fora', 'gelou'].includes(est))) return false;
-    if (pnAba === 'minha' && (pnRespDe(l) !== eu)) return false;
-    if (pnAba === 'hoje') {
+    if (aba === 'fila' && (l.casaDoLead || ['fechado', 'fora', 'gelou'].includes(est))) return false;
+    if (aba === 'minha' && (pnRespDe(l) !== eu)) return false;
+    if (aba === 'hoje') {
       const venceu = n && n.proximo_em && n.proximo_em <= pnHoje();
       const nunca = !n || !n.contato_em;
       if (pnRespDe(l) !== eu || !(venceu || nunca)) return false;
       if (['fechado', 'fora'].includes(est)) return false;
     }
-    if (pnAba === 'casa' && !l.casaDoLead) return false;
-    if (pnAba !== 'casa' && pnAba !== 'tudo' && l.casaDoLead) return false;
-    if (f.estagio && est !== f.estagio) return false;
+    if (aba === 'casa' && !l.casaDoLead) return false;
+    if (aba !== 'casa' && aba !== 'tudo' && l.casaDoLead) return false;
+    if (!o.semEstagio && f.estagio && est !== f.estagio) return false;
     if (f.resp === '__meus' && pnRespDe(l) !== eu) return false;
     if (f.resp === '__livre' && pnRespDe(l)) return false;
     if (f.resp && !['__meus', '__livre'].includes(f.resp) && pnRespDe(l) !== f.resp) return false;
@@ -10299,10 +10393,16 @@ function pnFiltrar() {
       if (f.nota === '6' && !(nota >= 6 && nota < 8)) return false;
       if (f.nota === 'baixa' && !(nota != null && nota < 6)) return false;
     }
+    if (f.tipo) {
+      const bateTipo = f.tipo === 'integrador' ? l.integrador : (l.destino === f.tipo);
+      if (!bateTipo) return false;
+    }
     if (f.estudo === 'sim' && !l.temEstudo) return false;
     if (f.estudo === 'nao' && l.temEstudo) return false;
-    if (f.end === 'ok' && (l.semNumero || l.casaDoLead)) return false;
-    if (f.end === 'ressalva' && !l.semNumero) return false;
+    if (f.end === 'tem' && !l.rua) return false;
+    if (f.end === 'sem' && l.rua) return false;
+    if (f.end === 'ok' && (!l.rua || l.semNumero || l.casaDoLead)) return false;
+    if (f.end === 'ressalva' && (!l.rua || !l.semNumero)) return false;
     if (f.end === 'lead' && !l.casaDoLead) return false;
     if (f.cidade && l.cidade !== f.cidade) return false;
     if (f.uf && pnUf(l.cidade) !== f.uf) return false;
@@ -10362,16 +10462,26 @@ const pnData = iso => { if (!iso) return ''; const d = new Date(iso); return isN
 
 function pnRender() {
   if (!pnDados) return;
-  const lista = pnFiltrar();
+  const f = pnFiltrosAtuais();
+  const lista = pnFiltrar({ f: f });
   const eu = pnEu();
 
-  // funil: conta em cima da MESMA lista filtrada, menos o próprio estágio, pra
-  // clicar no degrau não zerar o painel inteiro.
+  // Cada botão de cima carrega o próprio número, como as abas antigas. O número
+  // é o da aba JÁ com os filtros de baixo aplicados: se não fosse, "Meus 40"
+  // acenderia do lado de uma tela com 3 linhas e o número viraria enfeite.
+  ['fila', 'minha', 'hoje', 'casa', 'tudo'].forEach(a => {
+    const el = document.getElementById('pn-cnt-' + a);
+    if (el) el.textContent = pnFiltrar({ f: f, aba: a }).length;
+  });
+
+  // O funil conta DENTRO do que está filtrado, menos o próprio degrau — senão
+  // clicar num degrau zeraria todos os outros e ninguém sabe pra onde voltar.
+  const base = pnFiltrar({ f: f, semEstagio: true });
   const cont = {};
-  pnDados.forEach(l => { const e = pnEstagioDe(l); cont[e] = (cont[e] || 0) + 1; });
+  base.forEach(l => { const e = pnEstagioDe(l); cont[e] = (cont[e] || 0) + 1; });
   const funil = document.getElementById('pn-funil');
   if (funil) funil.innerHTML = PN_ESTAGIOS.map(e =>
-    '<button type="button" class="pn-deg' + (pnVal('pn-f-estagio') === e.id ? ' on' : '') + '" title="' + pnEsc(e.dica) + '"'
+    '<button type="button" class="pn-deg' + (f.estagio === e.id ? ' on' : '') + '" title="' + pnEsc(e.dica) + '"'
     + ' onclick="pnDegrau(\'' + e.id + '\')" style="--c:' + e.cor + '">'
     + '<i></i><b>' + (cont[e.id] || 0) + '</b><span>' + pnEsc(e.rot) + '</span></button>').join('');
 
@@ -10382,8 +10492,14 @@ function pnRender() {
 
   const alvo = document.getElementById('pn-lista');
   if (!alvo) return;
-  if (!lista.length) { alvo.innerHTML = '<div class="pn-vazio">Nenhum ponto com esses filtros. Tire um e tente de novo.</div>'; return; }
-  alvo.innerHTML = lista.map(pnCard).join('');
+  if (!lista.length) { alvo.innerHTML = '<div class="pn-vazio">Ninguém com esses filtros. Tire um e tente de novo.</div>'; return; }
+  // A base inteira passa de 800 pessoas. Desenhar tudo de uma vez trava o
+  // celular por segundos, e ninguem le 800 cartoes: o teto some assim que o
+  // filtro aperta, e o botao continua ali pra quem quer a lista inteira.
+  const corta = !pnMostrarTudo && lista.length > PN_TETO;
+  alvo.innerHTML = (corta ? lista.slice(0, PN_TETO) : lista).map(pnCard).join('')
+    + (corta ? '<div class="pn-vazio">Mostrando ' + PN_TETO + ' de ' + lista.length
+        + '. <button type="button" class="pn-bt" onclick="pnMostrarTudo=true;pnRender()">Mostrar todos</button></div>' : '');
 }
 
 function pnCard(l) {
@@ -10405,9 +10521,15 @@ function pnCard(l) {
   + '      <div class="pn-sub">' + pnEsc(l.cidade || 'sem cidade') + (l.perfil ? ' · ' + pnEsc(l.perfil) : '') + '</div></div>'
   + '    <span class="pn-nota" style="--c:' + notaCor + '">' + notaTxt + '</span>'
   + '  </div>'
-  + '  <div class="pn-end">' + pnEsc(l.rua) + (l.numero ? ', ' + pnEsc(l.numero) : '')
-  +      (l.bairro ? '<span> · ' + pnEsc(l.bairro) + '</span>' : '') + '</div>'
+  + '  <div class="pn-end">' + (l.rua
+       ? pnEsc(l.rua) + (l.numero ? ', ' + pnEsc(l.numero) : '')
+         + (l.bairro ? '<span> · ' + pnEsc(l.bairro) + '</span>' : '')
+       : '<span>sem endereço na ficha</span>') + '</div>'
   + '  <div class="pn-tags">'
+  +      (PN_TIPO[l.destino] ? '<span class="pn-tag tipo" style="--c:' + PN_TIPO[l.destino].cor + '">'
+             + PN_TIPO[l.destino].rot + '</span>' : '')
+  +      (l.integrador ? '<span class="pn-tag tipo" style="--c:' + PN_TIPO.integrador.cor + '">'
+             + PN_TIPO.integrador.rot + '</span>' : '')
   +      (l.relacao ? '<span class="pn-tag">' + pnEsc(l.relacao) + '</span>' : '<span class="pn-tag off">relação não perguntada</span>')
   +      (l.casaDoLead ? '<span class="pn-tag alerta">endereço é a casa dele</span>' : '')
   +      (l.semReuniao ? '<span class="pn-tag alerta">sem reunião marcada</span>' : '')
@@ -10415,6 +10537,7 @@ function pnCard(l) {
   +      (l.statusReuniao ? '<span class="pn-tag">reunião: ' + pnEsc(l.statusReuniao.replace(/_/g, ' ')) + '</span>' : '')
   +      (l.vendedor ? '<span class="pn-tag">' + pnEsc(l.vendedor) + '</span>' : '')
   +      (l.temEstudo ? '<span class="pn-tag">estudo pronto</span>' : '')
+  +      (l.fontes && l.fontes.length ? '<span class="pn-tag off">' + pnEsc(l.fontes.join(' + ')) + '</span>' : '')
   + '  </div>'
   + '  <div class="pn-linha">'
   + '    <select class="pn-sel" style="--c:' + est.cor + '" onchange="pnEstagio(\'' + l.tel8 + '\', this.value)">'
@@ -10507,6 +10630,7 @@ function pnDegrau(id) {
 }
 function pnAbaTopo(qual) {
   pnAba = qual;
+  pnMostrarTudo = false;
   ['fila', 'minha', 'hoje', 'casa', 'tudo'].forEach(a => {
     const b = document.getElementById('pn-aba-' + a);
     if (b) b.classList.toggle('on', a === qual);
@@ -10515,8 +10639,10 @@ function pnAbaTopo(qual) {
 }
 function pnLimpar() {
   ['pn-busca', 'pn-f-estagio', 'pn-f-resp', 'pn-f-rel', 'pn-f-nota', 'pn-f-estudo', 'pn-f-end',
-   'pn-f-cidade', 'pn-f-uf', 'pn-f-vend', 'pn-f-status', 'pn-f-perfil', 'pn-f-contato', 'pn-f-agenda']
+   'pn-f-tipo', 'pn-f-cidade', 'pn-f-uf', 'pn-f-vend', 'pn-f-status', 'pn-f-perfil',
+   'pn-f-contato', 'pn-f-agenda']
     .forEach(id => { const e = document.getElementById(id); if (e) e.value = ''; });
+  pnMostrarTudo = false;
   pnRender();
 }
 
