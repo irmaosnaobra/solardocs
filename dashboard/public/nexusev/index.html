@@ -20,10 +20,29 @@
 <meta name="description" content="Fornecedor de carregador rápido DC para integradores e donos de rede de recarga: marca própria, estoque e peça no Brasil, garantia NEXUS e plataforma de gestão de rede com cobrança, tarifa por ponto e roaming.">
 <link rel="canonical" href="https://solardoc.app/nexusev">
 <meta name="robots" content="index, follow">
+<!-- CARTÃO DE LINK (WhatsApp, Facebook, LinkedIn).
+     Três coisas decidem se o cartão grande aparece, e faltavam duas:
+     · FORMATO: o WhatsApp não renderiza WebP em prévia. A imagem tem que ser
+       PNG ou JPG, e a nossa apontava para um .webp. Era esse o motivo.
+     · DIMENSÃO DECLARADA: sem og:image:width/height o WhatsApp não sabe que a
+       imagem é grande e cai na miniatura pequena, ou em nenhuma.
+     · CONTEÚDO: prévia é lida em miniatura. Foto de galpão vira mancha; o que
+       sobrevive é logo mais três linhas curtas, que é o cartão desenhado.
+     Quadrado de propósito: é o que abre o cartão GRANDE no WhatsApp. -->
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="NEXUS ELETROPOSTOS">
+<meta property="og:locale" content="pt_BR">
 <meta property="og:title" content="NEXUS ELETROPOSTOS: qualidade que aguenta, garantia que responde e peça no Brasil">
 <meta property="og:description" content="Para quem instala e para quem opera rede de recarga: equipamento de marca própria, logística com peça no Brasil, garantia NEXUS e software de gestão de rede.">
-<meta property="og:image" content="https://solardoc.app/nexus/img/estoque-fila-1200.webp">
+<meta property="og:image" content="https://solardoc.app/nexus/img/og-nexusev.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="1200">
+<meta property="og:image:alt" content="NEXUS ELETROPOSTOS: qualidade que aguenta, garantia que responde, peça no Brasil.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="NEXUS ELETROPOSTOS: qualidade que aguenta, garantia que responde">
+<meta name="twitter:description" content="Carregador rápido DC de marca própria, peça de reposição no Brasil, obra chave na mão e app NEXUS de gestão.">
+<meta name="twitter:image" content="https://solardoc.app/nexus/img/og-nexusev.png">
 <meta property="og:url" content="https://solardoc.app/nexusev">
 <meta name="theme-color" content="#0B1A2B">
 <link rel="icon" href="/nexus/favicon.ico" sizes="any">
@@ -334,6 +353,16 @@ header{
 .pf p{font-size:13.6px;color:var(--suave-e);line-height:1.55}
 .pf .num{font-size:11px;font-weight:800;letter-spacing:.16em;color:var(--azul-claro);margin-bottom:12px}
 .platNota{margin-top:22px;font-size:13px;color:var(--fraco-e);line-height:1.6;max-width:74ch}
+/* O preço do software fica na mesma seção que ele: percentual escondido é a
+   principal queixa de quem já opera rede. */
+.platPreco{
+  display:flex;flex-wrap:wrap;align-items:center;gap:20px 34px;margin-top:22px;
+  border:1px solid var(--linha-e2);border-left:3px solid var(--acao);
+  border-radius:var(--r);padding:22px 26px;
+}
+.platPrecoN{font-size:46px;font-weight:900;letter-spacing:-.04em;line-height:1;color:var(--acao)}
+.platPrecoT{font-size:13.5px;color:var(--suave-e);margin-top:6px;max-width:22ch}
+.platPreco p{font-size:14px;color:var(--suave-e);flex:1;min-width:280px;max-width:56ch}
 
 /* ── faq ── */
 .faq{display:grid;gap:10px;max-width:880px}
@@ -374,6 +403,33 @@ header{
    de uma vez, nao calculada pelo visitante. */
 .prodPreco .de{display:block;font-size:14px;font-weight:700;color:var(--fraco-c);text-decoration:line-through;letter-spacing:-.01em;margin-bottom:2px}
 .prodPreco.sc{font-size:18px;color:var(--suave-c);letter-spacing:-.01em}
+/* Link com altura de dedo. Dentro do <small> do preço ele tinha 15px, que é
+   metade do mínimo de toque. */
+.prodLink{
+  display:inline-flex;align-items:center;min-height:44px;margin-top:6px;
+  font-size:13.5px;font-weight:700;color:var(--azul);text-decoration:underline;
+}
+.prodLink:hover{color:var(--texto-c)}
+
+/* ── chave na mão ──
+   O card do catálogo anuncia o valor fixo; esta seção mostra o que ele compra.
+   Sem ela o comprador não sabe se R$ 145.000 inclui transformador e obra civil,
+   que é exatamente onde os orçamentos do mercado escondem o resto. */
+.chave{background:var(--tinta-2);border-top:1px solid var(--linha-e);border-bottom:1px solid var(--linha-e)}
+.chaveGrid{display:grid;grid-template-columns:1.08fr .92fr;gap:44px;align-items:center}
+@media(max-width:980px){.chaveGrid{grid-template-columns:1fr;gap:28px}}
+.chaveFoto{border-radius:var(--r2);overflow:hidden;border:1px solid var(--linha-e2)}
+.chaveFoto img{width:100%;display:block}
+.chaveLista{list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--linha-e);border:1px solid var(--linha-e);border-radius:var(--r2);overflow:hidden;margin-top:24px}
+@media(max-width:560px){.chaveLista{grid-template-columns:1fr}}
+.chaveLista li{background:var(--tinta);padding:16px 18px;font-size:13.6px;color:var(--suave-e);line-height:1.45}
+.chaveLista li b{display:block;color:var(--texto-e);font-weight:800;font-size:14px;margin-bottom:3px}
+.chaveFim{
+  display:flex;flex-wrap:wrap;align-items:center;gap:14px 26px;margin-top:24px;
+  border-left:3px solid var(--acao);padding:14px 0 14px 18px;
+}
+.chaveFim .v{font-size:32px;font-weight:900;letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+.chaveFim .t{font-size:13.5px;color:var(--suave-e);max-width:34ch}
 
 /* ── conformidade ── */
 .norma{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
@@ -521,8 +577,9 @@ footer{background:var(--tinta-2);border-top:1px solid var(--linha-e);padding:52p
       </div>
       <div class="painelCol">
         <h4>Produto</h4>
-        <a href="#linha">NEXUS DC80<small>80 kW · pré-venda</small></a>
-        <a href="#linha">NEXUS DC120<small>120 kW · pré-venda</small></a>
+        <a href="#chavenamao">Eletroposto chave na mão<small>Montado, a partir da engenharia</small></a>
+        <a href="#linha">NEXUS DC80<small>80 kW · dois CCS2</small></a>
+        <a href="#linha">NEXUS DC120<small>120 kW · dois CCS2</small></a>
         <a href="#plataforma">Plataforma de gestão<small>Cobrança, painel e roaming</small></a>
         <a href="#mercado">Dados de mercado<small>Frota plug-in por estado</small></a>
       </div>
@@ -573,7 +630,7 @@ footer{background:var(--tinta-2);border-top:1px solid var(--linha-e);padding:52p
       </div>
       <div class="cr">
         <div class="crT">Logística</div>
-        <div class="crD">Importação em nome próprio, lote com data e peça de reposição em estoque no país.</div>
+        <div class="crD">Importação em nome próprio, prazo declarado antes do pedido e peça de reposição no país.</div>
       </div>
       <div class="cr">
         <div class="crT">Garantia</div>
@@ -581,7 +638,7 @@ footer{background:var(--tinta-2);border-top:1px solid var(--linha-e);padding:52p
       </div>
       <div class="cr">
         <div class="crT">Software de gestão</div>
-        <div class="crD">A rede inteira num painel: pontos, usuários, tarifa, repasse e roaming.</div>
+        <div class="crD">App NEXUS e a rede num painel: tarifa, cupom, agendamento, repasse e roaming.</div>
       </div>
     </div>
   </div>
@@ -591,12 +648,13 @@ footer{background:var(--tinta-2);border-top:1px solid var(--linha-e);padding:52p
 <section class="faixa" style="padding:0">
   <img src="/nexus/img/estoque-linha-1200.webp" width="1200" height="900" alt="Carregadores NEXUS na linha de produção, com os cabos ainda embalados" loading="lazy">
   <div class="wrap faixaTexto">
-    <span class="faixaSel">Lote em produção</span>
-    <h2>O lote já está em produção, e tem data para chegar.</h2>
+    <span class="faixaSel">Logística</span>
+    <h2>Importamos em nome próprio. A peça fica no Brasil.</h2>
     <p>
       Boa parte do mercado fecha o pedido e só então procura o equipamento, e aí o
-      prazo vira trimestre. A NEXUS compra em lote e importa em nome próprio: quem
-      entra na pré-venda já sabe a data, e a peça de reposição fica no Brasil.
+      prazo vira trimestre. A NEXUS compra em lote, importa no próprio CNPJ e mantém
+      reposição no país. É o que permite declarar prazo antes do pedido, em vez de
+      descobrir depois.
     </p>
   </div>
 </section>
@@ -606,19 +664,20 @@ footer{background:var(--tinta-2);border-top:1px solid var(--linha-e);padding:52p
   <div class="wrap">
     <div class="tituloSec">
       <span class="rotulo">A estrutura por trás</span>
-      <h2>O carregador é a parte fácil. O resto decide o seu faturamento.</h2>
+      <h2>Do equipamento à cobrança, um responsável só.</h2>
       <p class="sub">
-        Comprar a máquina é 20% do trabalho. Os outros 80% são projeto, concessionária,
-        obra, comissionamento e cobrança. A NEXUS responde pelos dois lados.
+        Quem compra só a máquina leva equipamento de marca própria, com garantia e peça
+        no Brasil. Quem precisa do eletroposto inteiro leva projeto, concessionária, obra,
+        comissionamento e cobrança no mesmo contrato, sem juntar quatro fornecedores.
       </p>
     </div>
 
     <div class="seg4">
       <div class="s4">
         <div class="et">01 · EQUIPAMENTO</div>
-        <h3>Linha própria, DC e AC</h3>
-        <p>DC80 e DC120, com dois plugues CCS2 e carga simultânea. Especificação
-        definida por nós, não catálogo de importador.</p>
+        <h3>Linha própria de carregador rápido</h3>
+        <p>DC80 e DC120, dois plugues CCS2 e carga simultânea. Especificação definida
+        por nós, do gabinete ao firmware, não catálogo de importador com etiqueta trocada.</p>
       </div>
       <div class="s4">
         <div class="et">02 · PÓS-VENDA</div>
@@ -635,8 +694,8 @@ footer{background:var(--tinta-2);border-top:1px solid var(--linha-e);padding:52p
       <div class="s4">
         <div class="et">04 · OPERAÇÃO</div>
         <h3>Plataforma de gestão e cobrança</h3>
-        <p>O ponto nasce cobrando pelo aplicativo, com conciliação, tarifa configurável e
-        monitoramento. OCPP 1.6J aberto: o equipamento nunca fica refém da plataforma.</p>
+        <p>App NEXUS, tarifa por ponto, cupom, agendamento, repasse conciliado
+        e roaming. OCPP 1.6J aberto: o equipamento nunca fica refém da plataforma.</p>
       </div>
     </div>
   </div>
@@ -651,11 +710,11 @@ footer{background:var(--tinta-2);border-top:1px solid var(--linha-e);padding:52p
   <div class="wrap">
     <div class="tituloSec">
       <span class="rotulo">Plataforma NEXUS</span>
-      <h2>O ponto nasce cobrando. Você só olha o painel.</h2>
+      <h2>App NEXUS, e a rede inteira num painel.</h2>
       <p class="sub">
-        Sem funcionário na guarita, sem maquininha e sem planilha. O motorista paga
-        pelo celular, o dinheiro cai conciliado e você acompanha cada conector em
-        tempo real.
+        O motorista carrega e paga pelo app NEXUS. Você define tarifa,
+        cria cupom, abre agendamento, acompanha cada conector em tempo real e recebe
+        o repasse conciliado. Sem funcionário na guarita e sem planilha.
       </p>
     </div>
 
@@ -665,52 +724,84 @@ footer{background:var(--tinta-2);border-top:1px solid var(--linha-e);padding:52p
         <p class="telaLeg"><b>Painel de monitoramento</b>Cada estação com status, o mapa da rede e o alarme aberto no momento em que acontece.</p>
       </div>
       <div class="tela telaApp">
-        <img src="/nexus/img/plataforma-app.webp" width="648" height="1054" alt="Tela do aplicativo do motorista durante uma recarga, mostrando tempo decorrido, energia em kWh e valor em reais" loading="lazy">
-        <p class="telaLeg"><b>App do motorista</b>Tempo, kWh e reais na tela, durante a recarga.</p>
+        <img src="/nexus/img/plataforma-app.webp" width="648" height="1054" alt="Tela do aplicativo NEXUS durante uma recarga, mostrando tempo decorrido, energia em kWh e valor em reais" loading="lazy">
+        <p class="telaLeg"><b>App NEXUS</b>Tempo, kWh e reais na tela do motorista, durante a recarga.</p>
       </div>
     </div>
 
     <div class="plat">
       <div class="pf">
         <div class="num">01</div>
-        <h3>App com a sua marca</h3>
-        <p>O motorista acha o ponto, conecta, carrega e paga pelo celular, dentro de um app com a identidade da rede.</p>
+        <h3>App NEXUS</h3>
+        <p>O motorista acha o ponto, conecta, carrega e paga pelo celular, no aplicativo NEXUS. Você não precisa publicar e manter um app seu.</p>
       </div>
       <div class="pf">
         <div class="num">02</div>
+        <h3>Base de motoristas pronta</h3>
+        <p>O seu ponto entra numa rede com milhares de motoristas já usando o app NEXUS. Ele nasce visível, não do zero.</p>
+      </div>
+      <div class="pf">
+        <div class="num">03</div>
         <h3>Pix, cartão e carteira</h3>
         <p>As três formas que o brasileiro usa. Sem maquininha no poste e sem alguém para operar caixa.</p>
       </div>
       <div class="pf">
-        <div class="num">03</div>
+        <div class="num">04</div>
+        <h3>Recebimento facilitado</h3>
+        <p>O repasse cai conciliado, por ponto, sem você cruzar extrato com relatório de recarga.</p>
+      </div>
+      <div class="pf">
+        <div class="num">05</div>
+        <h3>Tarifa que você define</h3>
+        <p>Por kWh ou por minuto, com preço diferente por ponto e por perfil de usuário, alterada quando quiser.</p>
+      </div>
+      <div class="pf">
+        <div class="num">06</div>
+        <h3>Cupom e promoção</h3>
+        <p>Desconto para inauguração, para frota parceira ou para horário vazio, criado por você no painel.</p>
+      </div>
+      <div class="pf">
+        <div class="num">07</div>
+        <h3>Agendamento de recarga</h3>
+        <p>O motorista reserva o horário antes de sair. Menos fila no pico e menos conector ocioso fora dele.</p>
+      </div>
+      <div class="pf">
+        <div class="num">08</div>
         <h3>Painel em tempo real</h3>
         <p>Status de cada conector, sessão em andamento e falha na hora em que acontece, não no fim do mês.</p>
       </div>
       <div class="pf">
-        <div class="num">04</div>
-        <h3>Tarifa que você define</h3>
-        <p>Por kWh ou por minuto, com preço diferente por perfil de usuário, e alterada quando você quiser.</p>
+        <div class="num">09</div>
+        <h3>Vários pontos, vários usuários</h3>
+        <p>A rede inteira numa tela, com acesso separado para quem opera, quem confere o caixa e quem só olha.</p>
       </div>
       <div class="pf">
-        <div class="num">05</div>
-        <h3>Roaming entre redes</h3>
-        <p>O seu ponto aparece para motoristas de outras redes, que carregam ali e pagam pelo app deles. Carro chegando sem você anunciar.</p>
-      </div>
-      <div class="pf">
-        <div class="num">06</div>
+        <div class="num">10</div>
         <h3>Relatório e conciliação</h3>
         <p>Quanto entrou, de quem, em qual conector e em que horário, com o repasse conferido.</p>
       </div>
       <div class="pf">
-        <div class="num">07</div>
-        <h3>API e integração</h3>
-        <p>Quem tem ERP ou gestão de frota puxa os dados de recarga para dentro do próprio sistema.</p>
+        <div class="num">11</div>
+        <h3>Roaming entre redes</h3>
+        <p>O seu ponto aparece para motoristas de outras redes, que carregam ali e pagam pelo app deles.</p>
       </div>
       <div class="pf">
-        <div class="num">08</div>
-        <h3>OCPP 1.6J aberto</h3>
-        <p>O equipamento fala o padrão de mercado. Trocar de plataforma um dia nunca vai custar o carregador.</p>
+        <div class="num">12</div>
+        <h3>API e OCPP 1.6J aberto</h3>
+        <p>Integra com ERP e gestão de frota, e o equipamento fala o padrão de mercado: trocar de plataforma nunca custa o carregador.</p>
       </div>
+    </div>
+
+    <div class="platPreco">
+      <div>
+        <div class="platPrecoN">10%</div>
+        <div class="platPrecoT">sobre o que o ponto fatura em recarga</div>
+      </div>
+      <p>
+        É o preço do software NEXUS, e está publicado pelo mesmo motivo que o preço do
+        equipamento: quem esconde percentual de plataforma cobra de cada rede o que acha
+        que ela aguenta pagar.
+      </p>
     </div>
 
     <p class="platNota">
@@ -791,11 +882,11 @@ footer{background:var(--tinta-2);border-top:1px solid var(--linha-e);padding:52p
       <h2>Preço publicado, disponibilidade declarada modelo a modelo.</h2>
       <p class="sub">
         Quem esconde preço cobra de cada cliente o que acha que ele aguenta pagar.
-        Aqui o valor está na tela, com a data de chegada de cada modelo.
+        Aqui o valor está na tela, e cada modelo declara a própria disponibilidade.
       </p>
     </div>
 
-    <div class="cat cat2">
+    <div class="cat">
       <div class="prod">
         <div class="prodFoto"><img src="/nexus/img/p-dc.webp" width="1200" height="1200" alt="Carregador NEXUS DC80 de 80 kW visto de frente, com dois cabos CCS2" loading="lazy"></div>
         <div class="prodCorpo">
@@ -833,12 +924,65 @@ footer{background:var(--tinta-2);border-top:1px solid var(--linha-e);padding:52p
           </div>
         </div>
       </div>
+
+      <div class="prod">
+        <div class="prodFoto"><img src="/nexus/img/dc-traseira.webp" width="800" height="800" alt="Eletroposto NEXUS de 80 kW instalado, visto de lado" loading="lazy"></div>
+        <div class="prodCorpo">
+          <div class="prodTopo"><div class="prodNome">Eletroposto 80 kW</div><span class="est enc">Chave na mão</span></div>
+          <div class="prodKw">montado e funcionando</div>
+          <ul class="prodEsp">
+            <li>Equipamento <b>NEXUS DC80</b></li>
+            <li>Projeto e ART <b>inclusos</b></li>
+            <li>Obra e homologação <b>inclusas</b></li>
+            <li>Entrega <b>comissionado e cobrando</b></li>
+          </ul>
+          <div class="prodPreco">R$ 145.000<small>valor fixo, não orçamento por consulta</small></div>
+          <a class="prodLink" href="#chavenamao">Ver tudo que está incluso</a>
+        </div>
+      </div>
     </div>
 
     <p class="fonte" style="margin-top:22px">
-      Preços do equipamento, à vista, sem instalação. Ficha técnica completa e condições de
-      parcelamento em <a href="/nexus#produtos" style="text-decoration:underline">solardoc.app/nexus</a>.
+      Os dois primeiros são preço do equipamento, à vista, sem instalação. O terceiro é o
+      eletroposto completo, com obra. Ficha técnica e condições de parcelamento em
+      <a href="/nexus#produtos" style="text-decoration:underline">solardoc.app/nexus</a>.
     </p>
+  </div>
+</section>
+
+<!-- ─────────────── CHAVE NA MÃO ─────────────── -->
+<section class="chave" id="chavenamao">
+  <div class="wrap">
+    <div class="tituloSec" style="margin-bottom:34px">
+      <span class="rotulo">Chave na mão</span>
+      <h2>A gente entrega com o primeiro carro carregando.</h2>
+      <p class="sub">
+        Não é "fornecemos o equipamento e indicamos um eletricista". É o eletroposto
+        inteiro, da engenharia ao primeiro carro plugado, com um contrato e um responsável.
+      </p>
+    </div>
+
+    <div class="chaveGrid">
+      <div class="chaveFoto">
+        <img src="/nexus/img/capa.webp" width="1324" height="827" alt="Eletroposto NEXUS montado, com cobertura iluminada, piso sinalizado e dois carros carregando ao mesmo tempo" loading="lazy">
+      </div>
+      <div>
+        <ul class="chaveLista">
+          <li><b>Engenharia e projeto</b>Projeto elétrico assinado, com ART.</li>
+          <li><b>Padrão de entrada</b>Adequação para a carga nova, acima de 75 kW inclusive.</li>
+          <li><b>Transformador</b>Dimensionado e instalado quando a carga pede.</li>
+          <li><b>Cabeamento</b>Da entrada ao carregador, com proteção e aterramento.</li>
+          <li><b>Obra civil</b>Base, canaletas, piso, sinalização e proteção de impacto.</li>
+          <li><b>Obra elétrica</b>Quadros, disjuntores e a instalação em norma.</li>
+          <li><b>Concessionária</b>Parecer de acesso conduzido por nós, do pedido à ligação.</li>
+          <li><b>Software instalado</b>Ponto ativo no app NEXUS, com tarifa configurada.</li>
+        </ul>
+        <div class="chaveFim">
+          <span class="v">R$ 145.000</span>
+          <span class="t">Valor fixo do eletroposto de 80 kW montado. Tudo desta lista está dentro.</span>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -927,14 +1071,14 @@ footer{background:var(--tinta-2);border-top:1px solid var(--linha-e);padding:52p
       <details open>
         <summary>Vocês fabricam o carregador?</summary>
         <p>O equipamento é produzido para a NEXUS em linha de fábrica parceira e importado
-        por nós, em lote e em nome próprio. Especificação, identidade, catálogo e garantia
+        por nós, no próprio CNPJ. Especificação, identidade, catálogo e garantia
         são NEXUS. Não é revenda de caixa de terceiro com etiqueta trocada na hora do pedido.</p>
       </details>
       <details>
         <summary>Qual é o prazo de entrega?</summary>
-        <p>O DC80 e o DC120 estão em pré-venda, com chegada do lote prevista para o fim de
-        novembro a início de dezembro. Quem fecha na pré-venda garante o preço promocional
-        e a posição na fila de entrega do lote.</p>
+        <p>Cada modelo declara o próprio prazo na tabela acima, e o prazo é dito antes do
+        pedido, não descoberto depois. Hoje o DC80 e o DC120 estão em pré-venda, com o lote
+        previsto para o fim de novembro a início de dezembro.</p>
       </details>
       <details>
         <summary>Vocês fazem a instalação ou só vendem o equipamento?</summary>
