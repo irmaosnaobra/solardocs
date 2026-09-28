@@ -2194,10 +2194,20 @@ function params(){
     carros, carga:cargaKwh(),
     precoKwh:+document.getElementById('s-revenda').value || 0,
     custoKwh:+document.getElementById('s-custo').value || 0,
-    // Premissas idênticas às do Estudo de Viabilidade que o consultor abre na reunião:
     // gateway 14%, manutenção 0,1%, imposto 6% (Simples), rampa 50%→100% em 24 meses.
-    // NÃO MEXER sem refazer a conferência abaixo — a fórmula é a mesma do computeEletro
-    // do /gerador, e é ela que faz a LP bater com o PDF do estudo.
+    // NÃO MEXER sem refazer a conferência abaixo — a FÓRMULA é a mesma do computeEletro
+    // do /gerador (as três cópias são iguais).
+    //
+    // MAS AS PREMISSAS NÃO SÃO MAIS AS MESMAS, e já fazia tempo. Este comentário dizia
+    // "idênticas às do Estudo" e "faz a LP bater com o PDF do estudo": não bate desde
+    // 25/09/2026, quando o Gerador ganhou o Software NEXUS e foi pra 12% de gateway +
+    // 10% de software = 22%, contra os 14% daqui. Em 28/09 o gateway saiu do Gerador
+    // ("deixa só software NEXUS") e lá ficaram 10%.
+    // Hoje a LP cobra 14% de plataforma e o Estudo cobra 10% — a LP é a PESSIMISTA, e
+    // é o lado seguro: o consultor abre na reunião um número melhor que o da tela, não
+    // pior. Não "conserte" isso pra 10% por conta própria; mexer no número que o lead
+    // vê é decisão do Thiago. Ver [[gateway-saiu-so-software-nexus]] na memória.
+    // A conferência abaixo continua valendo pros 14% desta página.
     // ARRENDAMENTO = 0 de propósito. O estudo cobra aluguel do ponto só quando o local é
     // de terceiro; o público desta LP (posto, mercado, academia, condomínio…) em geral já
     // é dono do espaço, e cobrar 10% de quem paga a si mesmo derrubava margem e payback
