@@ -1425,6 +1425,62 @@
           </div>
         </div>
 
+        <!-- ══ O LOCAL DE QUEM COMPRA CARREGADOR (28/09/2026) ════════════════════
+             Ordem do Thiago: "os que tenham o imóvel, sempre, sejam preenchidos,
+             para a gente ter um estudo geral mesmo que essa pessoa fale que quer
+             investir e no final não tiver o dinheiro".
+
+             O QUE ESTAVA ACONTECENDO: a porta do carregador pula a trilha do ponto
+             inteira, e com razão (ver o comentário de `trilhaComercio`). Só que ela
+             pulava TAMBÉM o endereço, e endereço não é formulário do vendedor: é o
+             insumo do Estudo do local. Medido de 24 a 28/09: 31 das 64 reuniões da
+             LP entraram por esta porta, e **as 31 sem uma linha `Endereço:`** —
+             contra 33 de 33 das outras portas. Metade da agenda chegava sem estudo,
+             sem pré-nota e fora do Top 20 pontos do meio-dia.
+
+             POR QUE NÃO PERGUNTAR O ENDEREÇO DE TODO MUNDO: quem ainda não tem local
+             digita a casa dele, e aí o Top 20 ordena pelo endereço errado — é o
+             mesmo motivo pelo qual `tem_ponto` é o primeiro critério de ordenação lá.
+             Por isso a pergunta é o filtro, e o endereço só vem de quem tem o imóvel.
+
+             O VOCABULÁRIO É O MESMO de `f-ponto` de propósito: o trigger do banco
+             (`eletroposto_estruturar`) lê a linha `Ponto:` e preenche `tem_ponto` com
+             `ep_slug_ponto`. Rótulo diferente aqui = coluna nula, e aí esta porta
+             continuaria invisível para o Top 20. Dois caminhos, uma régua. -->
+        <div class="passo" id="p-car-local">
+          <div class="fld">
+            <label for="f-car-local">Você já tem o local onde vai instalar?</label>
+            <div class="inp"><select id="f-car-local" onchange="onCarLocal()">
+              <option value="">Selecione…</option>
+              <option value="definido">Já tenho o ponto definido</option>
+              <option value="negociando">Tenho um local em negociação com o proprietário</option>
+              <option value="em_vista">Tenho um local em vista, mas ainda não conversei</option>
+              <option value="sem_ideia">Não tenho ideia de onde instalar</option>
+            </select></div>
+          </div>
+        </div>
+
+        <!-- Campos PRÓPRIOS (`f-car-*`) e não os do bloco do comércio: os ids da
+             trilha do ponto vivem dentro de `p-ponto`, que esta porta nunca mostra.
+             Reaproveitar aquele nó exigiria movê-lo no DOM em tempo de execução, e
+             um id só pode existir uma vez. O preço é repetir quatro campos; o
+             benefício é que a trilha do comércio não muda uma linha.
+             A LINHA GRAVADA é idêntica à dela: `Endereço: rua, nº · bairro · cidade`
+             — é o formato que `extrairEndereco()` desmonta no servidor. -->
+        <div class="passo" id="p-car-endereco">
+          <div class="fld" style="margin-bottom:0">
+            <label>Endereço do ponto</label>
+          </div>
+          <div class="f2">
+            <div class="fld"><label for="f-car-cep">CEP <span class="hint" id="car-cep-st"></span></label><div class="inp"><input type="text" id="f-car-cep" placeholder="00000-000" inputmode="numeric" autocomplete="postal-code" oninput="maskCep(this)"></div></div>
+            <div class="fld"><label for="f-car-rua">Rua / Avenida</label><div class="inp"><input type="text" id="f-car-rua" placeholder="Ex: Av. João Naves de Ávila"></div></div>
+          </div>
+          <div class="f2">
+            <div class="fld"><label for="f-car-numero">Número</label><div class="inp"><input type="text" id="f-car-numero" placeholder="Ex: 1200" inputmode="numeric"></div></div>
+            <div class="fld"><label for="f-car-bairro">Bairro</label><div class="inp"><input type="text" id="f-car-bairro" placeholder="Ex: Santa Mônica"></div></div>
+          </div>
+        </div>
+
         <!-- A pergunta do software fica DEPOIS de potência, quantidade e uso: quem
              chega aqui já disse o tamanho do negócio, e aí "já tenho" é uma resposta
              informada em vez de um chute. "Já tenho" é resposta de quem opera outros
@@ -3073,8 +3129,20 @@ let cepSeq = 0;
 // ela é coluna própria do agendamento, é o que o alerta imprime e o que define a
 // concessionária do estudo. Sem endereço na ficha pra contradizer, ninguém veria o erro.
 let cidadeDoLead = null;
+// ── O BLOCO DE ENDEREÇO DE CADA TRILHA (28/09/2026) ──────────────────────────
+// São dois blocos com ids diferentes (`f-*` no comércio, `f-car-*` na porta do
+// carregador) e eles NUNCA aparecem juntos — a porta escolhida decide qual existe.
+// Sem este resolvedor o ViaCEP da porta nova escreveria nos campos do comércio,
+// que estão escondidos: a rua e o bairro sumiriam do formulário e, pior, ele
+// sobrescreveria `f-cidade`, que é o MESMO campo nas duas trilhas — o lead veria
+// a cidade dele trocar sozinha.
+const camposDeEndereco = () => (typeof soCarregador === 'function' && soCarregador())
+  ? { cep:'f-car-cep', rua:'f-car-rua', numero:'f-car-numero', bairro:'f-car-bairro', hint:'car-cep-st' }
+  : { cep:'f-cep',     rua:'f-rua',     numero:'f-numero',     bairro:'f-bairro',     hint:'cep-st' };
+
 function cepStatus(txt, bad){
-  const s = document.getElementById('cep-st');
+  const s = document.getElementById(camposDeEndereco().hint);
+  if(!s) return;
   s.textContent = txt;
   s.style.color = bad ? '#fda4af' : '';
 }
@@ -3097,13 +3165,14 @@ async function buscaCep(digitos){
     // (Buritis, que não tem logradouro) ficaria com a rua da cidade antiga sob a cidade
     // nova — os campos preenchidos, validação passando e a equipe indo no lugar errado.
     const set = (id, v) => { document.getElementById(id).value = v || ''; };
-    set('f-rua',    d.logradouro);
-    set('f-bairro', d.bairro);
+    const campos = camposDeEndereco();
+    set(campos.rua,    d.logradouro);
+    set(campos.bairro, d.bairro);
     if(cidadeDoLead === null) cidadeDoLead = document.getElementById('f-cidade').value;
     set('f-cidade', d.localidade && d.uf ? `${d.localidade}-${d.uf}` : '');
     cepStatus(CEP_HINT, false);
     // CEP de cidade inteira não traz logradouro — joga o foco no campo que ficou faltando
-    document.getElementById(d.logradouro ? 'f-numero' : 'f-rua').focus();
+    document.getElementById(d.logradouro ? campos.numero : campos.rua).focus();
   }catch(e){
     // rede fora ou timeout: volta ao normal sem alarme — os campos continuam editáveis
     if(seq === cepSeq) cepStatus(CEP_HINT, false);
@@ -3227,6 +3296,28 @@ const investidorSemLocal = () => soInvestidor() && !!val('f-cap-local') && !inve
 /** Quarta porta (24/09/2026): quem já sabe o carregador que quer comprar. */
 const soCarregador = () => val('f-porta') === 'carregador';
 /**
+ * QUEM COMPRA CARREGADOR E TEM O IMÓVEL (28/09/2026). Mesma régua do comércio:
+ * ponto definido ou em negociação = tem local de verdade, e é dele que sai o
+ * endereço. "Em vista" e "sem ideia" não abrem o bloco — ver o comentário do
+ * passo `p-car-local`.
+ */
+const CAR_COM_LOCAL = new Set(['definido', 'negociando']);
+const carregadorComLocal = () => soCarregador() && CAR_COM_LOCAL.has(val('f-car-local'));
+/**
+ * A SEPARAÇÃO REAL (28/09/2026). Ordem do Thiago: "as pessoas clicam lá e mesmo
+ * assim querem que a gente monte todo o projeto". Medido de 24 a 28/09, nas 31
+ * reuniões desta porta: 17 responderam que querem a obra e/ou o projeto com a
+ * gente (12 "vocês montam", 5 "projeto e ART") — 55%. Ou seja, mais da metade
+ * desta porta NÃO é compra de equipamento: é projeto completo de quem já
+ * escolheu o carregador. A ficha passa a dizer isso em uma linha, para o
+ * consultor levar o estudo do ponto em vez de uma tabela de preço.
+ *
+ * "Ainda não sei" (3 das 31) fica DE FORA de propósito: quem não sabe não pediu
+ * projeto, e contá-lo aqui incharia justamente o número que o dono vai medir.
+ */
+const CAR_PROJETO = new Set(['voces_montam', 'obra_minha_projeto_voces']);
+const carregadorProjetoCompleto = () => soCarregador() && CAR_PROJETO.has(val('f-car-instala'));
+/**
  * A TRILHA DO PONTO — perfil, ponto, relação, vagas, modelo, investir, decisor.
  * É de quem vai instalar no próprio local. Quem compra carregador NÃO passa por
  * ela: perguntar "qual o seu modelo de negócio" a quem já escolheu o equipamento
@@ -3274,6 +3365,17 @@ const PASSOS = [
                          ok:() => val('f-car-qtd') ? null : 'Informe quantas unidades.' },
   { id:'p-car-uso',      quando: soCarregador,
                          ok:() => val('f-car-uso') ? null : 'Informe para onde vai.' },
+  // ── O local vem logo depois de "para onde vai": as duas perguntas são sobre o
+  //    mesmo assunto, e o endereço só aparece para quem acabou de dizer que tem
+  //    o imóvel. Quem não tem segue direto para o software, sem ver campo nenhum.
+  { id:'p-car-local',    quando: soCarregador,
+                         ok:() => val('f-car-local') ? null : 'Informe se você já tem o local.' },
+  { id:'p-car-endereco', quando: carregadorComLocal, ok:() => {
+      if(val('f-car-rua').length < 3)    return 'Informe a rua ou avenida do ponto.';
+      if(!val('f-car-numero'))           return 'Informe o número do endereço do ponto.';
+      if(val('f-car-bairro').length < 2) return 'Informe o bairro do ponto.';
+      return null;
+    } },
   { id:'p-car-software', quando: soCarregador,
                          ok:() => val('f-car-software') ? null : 'Informe se vai precisar do software e do app.' },
   { id:'p-car-instala',  quando: soCarregador,
@@ -3431,6 +3533,32 @@ function onPorta(){
 function onCapLocal(){
   const v = val('f-cap-local');
   if(v) track('cap_local_' + v);
+  if(typeof pintarPasso === 'function') pintarPasso();
+}
+
+/** Porta do carregador: o local decide se o passo do endereço existe (28/09/2026). */
+function onCarLocal(){
+  const v = val('f-car-local');
+  if(v) track('car_local_' + v);
+  // Mesma regra do `limparEndereco()` do comércio: trocou para uma resposta sem
+  // local, o que já estava digitado some. `carEnd` sozinho já bastaria (ele só
+  // monta a linha quando `carregadorComLocal()`), mas deixar texto velho num campo
+  // que pode reaparecer é o jeito de um endereço antigo voltar sem ninguém notar.
+  if(!CAR_COM_LOCAL.has(v)){
+    cepSeq++;                                       // invalida busca de CEP em voo
+    ['f-car-cep','f-car-rua','f-car-numero','f-car-bairro'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.value = '';
+    });
+    // A CIDADE VOLTA A SER A DO LEAD. O ViaCEP sobrescreve `f-cidade` com a cidade
+    // do CEP, e `f-cidade` é o mesmo campo das duas trilhas: sem esta volta, quem
+    // digita Uberlândia, consulta um CEP de Salvador e depois diz que não tem local
+    // manda a ficha com a cidade errada — e é pela cidade que o lead é roteado.
+    if(cidadeDoLead !== null){
+      document.getElementById('f-cidade').value = cidadeDoLead;
+      cidadeDoLead = null;
+    }
+  }
   if(typeof pintarPasso === 'function') pintarPasso();
 }
 
@@ -3808,15 +3936,45 @@ async function agendar(){
     if(!telefoneConfere())  return erro('Informe um WhatsApp válido com DDD.');
     if(cidade.length < 2)   return erro('Informe a cidade e o estado (UF).');
     const q = id => (document.getElementById(id).selectedOptions[0] || {}).text || '—';
+    // Última porta do endereço (28/09/2026): o passo já cobra, mas `agendar()` é
+    // quem grava — e é ela que segura aba velha em memória e Enter fora do passo.
+    if(!val('f-car-local')) return erro('Informe se você já tem o local.');
+    if(carregadorComLocal()){
+      if(val('f-car-rua').length < 3)    return erro('Informe a rua ou avenida do ponto.');
+      if(!val('f-car-numero'))           return erro('Informe o número do endereço do ponto.');
+      if(val('f-car-bairro').length < 2) return erro('Informe o bairro do ponto.');
+    }
     if(!slotSel) return erro('Escolha um horário na lista acima para confirmar.');
     // Mesmo formato de rótulo das outras fichas: cada linha daqui vira uma linha da
     // mensagem no WhatsApp da equipe (api/src/routes/ioEletroposto.ts).
+    // O endereço sai no MESMO formato da trilha do comércio, porque quem o lê é o
+    // mesmo `extrairEndereco()`: `rua, nº · bairro · cidade · CEP x`. Sem a linha
+    // `Endereço:` a ficha não entra nem no tick do estudo nem no Top 20 pontos —
+    // as duas consultas filtram por `ilike '%Endereço:%'`.
+    const carEnd = carregadorComLocal()
+      ? [`${val('f-car-rua')}, ${val('f-car-numero')}`, val('f-car-bairro'), cidade,
+         val('f-car-cep') ? `CEP ${val('f-car-cep')}` : ''].filter(Boolean).join(' · ')
+      : '';
     const obsCar = [
       'LP ELETROPOSTO · COMPRA DE CARREGADOR',
+      // `VENDA DE EQUIPAMENTO` é a CHAVE DO CARD, não um rótulo: o
+      // `montarCardCarregador` em api/src/routes/ioEletroposto.ts desenha o card
+      // desta porta atrás de `tem('VENDA DE EQUIPAMENTO')`. Tirá-la de quem pede
+      // projeto jogaria 55% da porta no card genérico — o dos seis traços que o
+      // commit de 24/09 veio consertar. Ela fica SEMPRE; a separação vem na linha
+      // de baixo, somada, nunca no lugar dela.
       'VENDA DE EQUIPAMENTO',
+      // A SEPARAÇÃO REAL (28/09/2026). Marcador, e não texto para o card adivinhar:
+      // renomear um rótulo do select não pode apagar o destaque lá.
+      carregadorProjetoCompleto() ? 'PROJETO COMPLETO' : '',
       `Potência: ${q('f-car-potencia')}`,
       `Unidades: ${q('f-car-qtd')}`,
       `Para onde vai: ${q('f-car-uso')}`,
+      // `Ponto:` com o vocabulário de `f-ponto`: é esta linha que o trigger
+      // `eletroposto_estruturar` lê para preencher `tem_ponto`, o primeiro critério
+      // de ordenação do Top 20 pontos.
+      `Ponto: ${q('f-car-local')}`,
+      carEnd ? `Endereço: ${carEnd}` : '',
       `Software e app: ${q('f-car-software')}`,
       `Instalação: ${q('f-car-instala')}`,
       `Prazo: ${q('f-car-prazo')}`,

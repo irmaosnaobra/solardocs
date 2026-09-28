@@ -104,11 +104,15 @@ export function montarMensagem(a: any, extra: { estudoUrl?: string; preNota?: nu
     // quem vendeu o equipamento.
     const comObra = tem('COM OBRA');
     const comProjeto = tem('PROJETO E ART');
+    // A separação que o dono pediu em 28/09: 17 das 31 reuniões desta porta (55%)
+    // querem a obra e/ou o projeto com a gente. O card diz isso na primeira tela,
+    // para o consultor abrir a conversa pelo estudo do ponto e não pela tabela.
+    const projetoCompleto = tem('PROJETO COMPLETO');
     // O ⛽ é o ÚNICO emoji do card, e mora só na primeira linha. Um emoji por
     // linha vira enfeite: quando tudo tem símbolo, nenhum símbolo chama. O que
     // separa as linhas aqui é o negrito do rótulo, que o WhatsApp já desenha.
     return [
-      `⛽ *COMPRA DE CARREGADOR*`,
+      projetoCompleto ? `⛽ *PROJETO COMPLETO — ele já escolheu o carregador*` : `⛽ *COMPRA DE CARREGADOR*`,
       `*${potencia}${unidades !== '—' ? ` · ${unidades}` : ''}*`,
       ...(comObra ? [`*COM OBRA* — quer o equipamento e a instalação.`] : []),
       ...(comProjeto ? [`*PROJETO E ART* — a obra é dele, o projeto é nosso.`] : []),
@@ -119,6 +123,15 @@ export function montarMensagem(a: any, extra: { estudoUrl?: string; preNota?: nu
       `*Cliente:* ${a.cliente_nome || '—'}`,
       `*WhatsApp:* wa.me/${soDigitos(a.cliente_telefone)}`,
       `*Cidade:* ${a.cidade || '—'}`,
+      // Local e endereço (28/09/2026): até aqui esta porta chegava sem os dois, e o
+      // consultor descobria na chamada se havia ponto. As duas linhas são
+      // condicionais pelas fichas de 24 a 28/09, que nasceram sem elas.
+      ...(tem('Ponto:') ? [`*Ponto:* ${linha('Ponto:')}`] : []),
+      ...(tem('Endereço:') ? [`*Endereço:* ${linha('Endereço:')}`] : []),
+      // O estudo do local agora alcança esta porta (é o `ilike '%Endereço:%'` do
+      // tick), então a pré-nota e o link aparecem aqui como no card do comércio.
+      ...(extra.preNota != null ? [`*Pré-nota do local:* ${extra.preNota} de 100`] : []),
+      ...(extra.estudoUrl ? [`*Estudo do local:* ${extra.estudoUrl} (fica pronto em até 15 min)`] : []),
       ``,
       `*Para onde vai:* ${linha('Para onde vai:')}`,
       `*Software e app:* ${linha('Software e app:')}`,

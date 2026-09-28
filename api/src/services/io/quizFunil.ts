@@ -49,6 +49,8 @@ export const PERGUNTAS: Record<string, string> = {
   'p-car-potencia':'Qual potência você precisa?',
   'p-car-qtd':     'Quantas unidades?',
   'p-car-uso':     'Para onde vai?',
+  'p-car-local':   'Você já tem o local onde vai instalar?',
+  'p-car-endereco':'Endereço do ponto',
   'p-car-software':'Vai precisar do software e do app?',
   'p-car-instala': 'Quem instala?',
   'p-car-prazo':   'Para quando?',
@@ -66,6 +68,7 @@ export const CURTAS: Record<string, string> = {
   'p-decisor': 'Quem decide',
   'p-car-potencia': 'Potência', 'p-car-qtd': 'Unidades', 'p-car-uso': 'Para onde vai',
   'p-car-software': 'Software', 'p-car-instala': 'Quem instala', 'p-car-prazo': 'Prazo',
+  'p-car-local': 'Local', 'p-car-endereco': 'Endereço',
   'p-whatsapp': 'WhatsApp',
 };
 
@@ -89,7 +92,7 @@ export const CAMINHOS: Caminho[] = [
   { id: 'investidor_sem_local', nome: 'Investidor sem local',                 passos: ['p-porta', 'p-cap-local', 'p-inv-valor', 'p-nome', 'p-cidade', 'p-whatsapp'] },
   // A quarta porta (24/09/2026). Ela NÃO passa pela trilha do ponto: quem já
   // escolheu o equipamento não responde perfil, ponto, modelo nem decisor.
-  { id: 'carregador',           nome: 'Compra de carregador',                 passos: ['p-porta', 'p-horario', 'p-nome', 'p-cidade', 'p-car-potencia', 'p-car-qtd', 'p-car-uso', 'p-car-software', 'p-car-instala', 'p-car-prazo', 'p-whatsapp'] },
+  { id: 'carregador',           nome: 'Compra de carregador',                 passos: ['p-porta', 'p-horario', 'p-nome', 'p-cidade', 'p-car-potencia', 'p-car-qtd', 'p-car-uso', 'p-car-local', 'p-car-endereco', 'p-car-software', 'p-car-instala', 'p-car-prazo', 'p-whatsapp'] },
   { id: 'integrador',           nome: 'Integrador',                           passos: ['p-porta', 'p-nome', 'p-cidade', 'p-i-empresa', 'p-i-atuacao', 'p-i-exp', 'p-i-interesse', 'p-i-equipe', 'p-whatsapp'] },
 ];
 
