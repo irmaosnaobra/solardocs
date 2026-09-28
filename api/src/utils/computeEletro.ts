@@ -92,7 +92,8 @@ export function computeEletro(p: ParamsEletro) {
     fatAno: fatMes * 12, lucroAno: lucroMes * 12, lucroAno1,
     fluxo, acumulado10, payback, vpl, tir, seguroMes, fixosMes,
     ativacaoMes: sessoes * p.ativacao, custoEnergiaMes: custoEnergia,
-    gatewayMes: fatMes * p.gateway, impostoMes: fatMes * p.imposto, manutMes: fatMes * p.manut,
+    gatewayMes: fatMes * p.gateway, softwareMes: fatMes * (p.software || 0),
+    impostoMes: fatMes * p.imposto, manutMes: fatMes * p.manut,
   };
 }
 

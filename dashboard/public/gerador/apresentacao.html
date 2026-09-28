@@ -158,7 +158,7 @@ const p = {
   carros: N('carros', 10), carga: N('carga', 20), custoKwh: N('custokwh', 0.95),
   precoKwh: N('precokwh', 2.35), ativacao: N('ativ', 1.20), invest: N('invest', 180000),
   plugs: N('plugs', 2), assinat: N('assin', 0), fixos: N('fixos', 300),
-  gateway: N('gateway', 14) / 100, arrend: N('arrend', 10) / 100, manut: N('manut', 0.1) / 100,
+  software: N('software', 10) / 100, arrend: N('arrend', 10) / 100, manut: N('manut', 0.1) / 100,
   imposto: N('imposto', 6) / 100, ocupIni: N('ocup', 50) / 100, mesesRampa: N('rampa', 24),
   taxaDesc: N('taxadesc', 14.25) / 100,
 };
@@ -191,7 +191,7 @@ function computa(px) {
   const kwhMes = px.carros * px.carga * DIAS;
   const fatMes = kwhMes * px.precoKwh + px.carros * DIAS * px.ativacao;
   const custoEnergia = kwhMes * px.custoKwh;
-  const taxas = px.gateway + px.arrend + px.manut + px.imposto;
+  const taxas = px.software + px.arrend + px.manut + px.imposto;
   const seguroMes = px.invest * 0.01 / 12;
   const fixosMes = px.assinat + seguroMes + (px.fixos || 0);
   const margemVar = fatMes - custoEnergia - fatMes * taxas;
@@ -429,7 +429,7 @@ document.getElementById('deck').innerHTML = `
         <tr><td>Ticket médio por recarga</td><td>~ R$ ${ticket}</td></tr>
         <tr><td>Custo de energia</td><td class="verde">R$ ${p.custoKwh.toFixed(2).replace('.', ',')} / kWh</td></tr>
         <tr><td>Ocupação (realista)</td><td>${Math.round(p.carros)} recargas / dia</td></tr>
-        <tr><td>Custos operacionais</td><td class="verde">gateway · arrendamento · software · seguro</td></tr>
+        <tr><td>Custos operacionais</td><td class="verde">software NEXUS · arrendamento · seguro</td></tr>
       </table>
     </div>
     <div>
@@ -815,7 +815,7 @@ async function baixarPPTX() {
       ['TICKET MÉDIO POR RECARGA', '~ R$ ' + ticket, PAL.TX],
       ['CUSTO DE ENERGIA', 'R$ ' + p.custoKwh.toFixed(2).replace('.', ',') + ' / kWh', PAL.GREEN],
       ['OCUPAÇÃO (REALISTA)', Math.round(p.carros) + ' recargas / dia', PAL.TX],
-      ['CUSTOS OPERACIONAIS', 'gateway · arrendamento · software · seguro', PAL.GREEN],
+      ['CUSTOS OPERACIONAIS', 'software NEXUS · arrendamento · seguro', PAL.GREEN],
     ];
     prem.forEach((r, i) => {
       const y = 2.05 + i * .72;

@@ -74,7 +74,8 @@ const bodySchema = z.object({
     carros: z.number().default(0), carga: z.number().default(0),
     custoKwh: z.number().default(0), precoKwh: z.number().default(0),
     ativacao: z.number().default(0), invest: z.number().default(0),
-    gateway: z.number().default(0), arrend: z.number().default(0),
+    gateway: z.number().default(0), software: z.number().default(0),
+    arrend: z.number().default(0),
     manut: z.number().default(0), imposto: z.number().default(0),
     assinat: z.number().default(0), fixos: z.number().default(0),
     ocupIni: z.number().default(1), mesesRampa: z.number().default(1),
@@ -504,7 +505,7 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
         padraoArgumento: E.padraoEntrada
           ? `A entrada é um **padrão ${E.padraoEntrada}**: atende o carregador e a operação do imóvel ao mesmo tempo, **sem precisar entrar em média tensão**.` : '',
         custoDetalhe: calc.fatMes > 0
-          ? `Energia R$ ${Math.round(calc.custoEnergiaMes)} · gateway R$ ${Math.round(calc.gatewayMes)} · imposto R$ ${Math.round(calc.impostoMes)} · assinatura R$ ${Math.round(E.assinat)} · seguro R$ ${Math.round(calc.seguroMes)}.` : '',
+          ? `Energia R$ ${Math.round(calc.custoEnergiaMes)} · software NEXUS R$ ${Math.round(calc.softwareMes + calc.gatewayMes)} · imposto R$ ${Math.round(calc.impostoMes)} · assinatura R$ ${Math.round(E.assinat)} · seguro R$ ${Math.round(calc.seguroMes)}.` : '',
         multiplicador: semSol.lucroMes > 0 ? calc.lucroMes / semSol.lucroMes : 0,
         paybackSemSol: anosTxt(semSol.payback),
       },
@@ -610,7 +611,14 @@ export async function montarApresentacao(req: Request, res: Response): Promise<v
           E.precoKwh && `**${brlTxt(E.precoKwh)} o kWh** ao motorista${E.ativacao ? ` e ${brlTxt(E.ativacao)} de ativação por sessão` : ''}`,
           E.custoKwh && `**${brlTxt(E.custoKwh)} o kWh** de custo, porque a energia é sua`,
           E.ocupIni < 1 && `Ocupação de **${Math.round(E.ocupIni * 100)}%** subindo ao pleno em ${E.mesesRampa} meses`,
-          (E.gateway || E.imposto) && `**${Math.round(E.gateway * 100)}% de gateway**${E.imposto ? `, ${Math.round(E.imposto * 100)}% de imposto` : ''}${E.assinat ? `, ${brlTxt(E.assinat)} de assinatura` : ''}`,
+          (() => {
+            const plataforma = (E.software || 0) + (E.gateway || 0);
+            return [
+              plataforma ? `**${Math.round(plataforma * 100)}% de software NEXUS**` : '',
+              E.imposto ? `${Math.round(E.imposto * 100)}% de imposto` : '',
+              E.assinat ? `${brlTxt(E.assinat)} de assinatura` : '',
+            ].filter(Boolean).join(', ');
+          })(),
           S.tarifa && `Tarifa de **${brlTxt(S.tarifa)} o kWh** na conta de luz de hoje`,
           E.taxaDesc && `Taxa de referência de **${(E.taxaDesc * 100).toFixed(2).replace('.', ',')}% a.a.** para o VPL`,
         ].filter(Boolean) as string[],
