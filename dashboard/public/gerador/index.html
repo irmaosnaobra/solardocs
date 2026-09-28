@@ -79,6 +79,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&display=swap" rel="stylesheet">
+  <!-- MONTSERRAT e' a tipografia do manual da marca NEXUS. Ela entra aqui, e nao
+       num @import dentro do documento, porque o Chrome imprime ANTES de uma
+       fonte pedida no meio do caminho chegar — o deck 16:9 precisa esperar
+       1200ms justamente por isso, e apresentacao em Times New Roman nao se
+       entrega pra cliente nenhum. -->
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="manifest" href="/gerador/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="/gerador/icon-192.png">
 <link rel="apple-touch-icon" href="/gerador/icon-192.png">
@@ -776,6 +782,11 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
      volta do retrato. Sem estado em JS pra limpar depois — quem decide é o que está
      dentro do host: só a foto tem .simshot, os documentos .ep-* seguem no branco. */
   body.print-doc #eletro-print:has(.simshot){background:#0F172A!important}
+  /* A apresentacao do Orcamento Completo tem fundo escuro sangrando ate' a
+     borda. Sem esta regra sobra moldura branca em volta de cada folha, e a
+     folha e' 262mm numa pagina de 297mm — a sobra apareceria como faixa. */
+  body.print-doc #eletro-print:has(.nx-deck){background:#0B1A2B!important}
+  html:has(#eletro-print .nx-deck),html:has(#eletro-print .nx-deck) body{background:#0B1A2B!important}
   html:has(#eletro-print .simshot),html:has(#eletro-print .simshot) body{background:#0F172A!important}
 }
 
@@ -12000,6 +12011,691 @@ function epA4Parte(titulo, rows) {
   return corpo ? `<div class="ep-parte"><div class="t">${orcEsc(titulo)}</div>${corpo}</div>` : '';
 }
 
+
+// ═══════ A APRESENTAÇÃO EM PÉ — FOLHA DE ESTILO ═══════
+//
+// A régua é o MANUAL DA MARCA, o mesmo do premium-deck.css, não gosto meu:
+//   Azul Escuro Confiança  #0B1A2B   fundo
+//   Verde Energia          #39FF14   destaque, só em número e em ação
+//   Azul Tecnologia        #0085FF   apoio, nunca compete com o verde
+//   Cinza Equilíbrio       #E5E7EB   texto
+//   tipografia             MONTSERRAT
+//   tagline                ENERGIA QUE MOVE O AMANHÃ
+//
+// VERDE SOBRE CLARO NÃO SE LÊ: #39FF14 sobre branco dá 1,36:1. Na folha clara
+// (.claro), que existe só onde a foto do produto pede fundo branco, o destaque
+// vira tinta escura e o verde só entra como bloco ATRÁS de texto escuro.
+//
+// ALTURA: 262mm, e não os 297mm da folha inteira. Está medido nesta casa que
+// folha com altura fixa de A4 vaza para uma segunda página quando o Chrome
+// ignora o `@page{margin:0}` — o que ele faz quando o consultor tem margem
+// salva na caixa de impressão. Com 262mm cabe em qualquer margem, e a sobra não
+// aparece porque o `html` e o `body` também vão de escuro no print.
+const NX_CSS = `<style>
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+
+.nx-deck{
+  --nx-fundo:#0B1A2B; --nx-fundo2:#081422; --nx-cartao:#10233A; --nx-cartao2:#16304C;
+  --nx-linha:rgba(229,231,235,.11); --nx-linha2:rgba(229,231,235,.22);
+  --nx-texto:#E5E7EB; --nx-suave:#8CA0B8; --nx-fraco:#6C819A;
+  --nx-verde:#39FF14; --nx-verde-bg:rgba(57,255,20,.12); --nx-verde-ln:rgba(57,255,20,.38);
+  --nx-azul:#0085FF; --nx-azul-bg:rgba(0,133,255,.14);
+  --nx-veu:11,26,43;
+  font-family:'Montserrat',Inter,system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  -webkit-print-color-adjust:exact; print-color-adjust:exact;
+}
+.nx-deck *{margin:0;padding:0;box-sizing:border-box}
+
+.nx-slide{position:relative;width:210mm;height:262mm;overflow:hidden;
+  background:var(--nx-fundo);color:var(--nx-texto);
+  display:flex;flex-direction:column;
+  page-break-after:always;break-after:page;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact}
+.nx-slide:last-child{page-break-after:auto;break-after:auto}
+.nx-slide.claro{background:#F4F6F8;color:#0B1A2B;
+  --nx-texto:#0B1A2B;--nx-suave:#51637A;--nx-fraco:#7287A0;
+  --nx-linha:rgba(11,26,43,.12);--nx-linha2:rgba(11,26,43,.24);
+  --nx-cartao:#FFFFFF;--nx-cartao2:#FFFFFF}
+
+/* A FAIXA DA MARCA é VERTICAL, na borda esquerda — citação direta do produto:
+   o carregador tem exatamente essa faixa nas duas bordas. É a mesma do deck
+   16:9, e é o que faz a folha ser reconhecida como NEXUS antes de se ler nada. */
+.nx-faixa{position:absolute;left:0;top:0;bottom:0;width:2.2mm;z-index:4;
+  background:linear-gradient(180deg,var(--nx-verde) 0%,var(--nx-verde) 52%,var(--nx-azul) 100%)}
+
+/* Miolo CENTRADO na vertical, e não empilhado a partir do topo. Empilhado, as
+   folhas de texto enchiam só a metade de cima e a outra metade ficava morta —
+   é exatamente o que o dono apontou no A4 branco. Quem tem tarja no pé usa
+   margin-top:auto, que continua mandando mesmo com o miolo centrado. */
+.nx-corpo{position:relative;z-index:2;flex:1;display:flex;flex-direction:column;
+  justify-content:center;padding:20mm 15mm 12mm;min-height:0}
+.nx-corpo.centro{justify-content:center}
+
+/* a marca no alto */
+.nx-marca{position:absolute;left:15mm;top:10mm;z-index:5;display:flex;align-items:center;gap:9px}
+.nx-marca img{height:24px;display:block}
+.nx-slide.claro .nx-marca img{filter:brightness(0) saturate(100%) invert(9%) sepia(18%) saturate(2400%) hue-rotate(178deg)}
+
+/* rodapé: identificação à esquerda, página à direita */
+.nx-pe{position:relative;z-index:5;display:flex;justify-content:space-between;align-items:center;
+  gap:12px;padding:8px 15mm 9mm 15mm;font-size:8.5pt;color:var(--nx-fraco);font-weight:600}
+.nx-pe .tag{letter-spacing:.8px;text-transform:uppercase}
+.nx-pe .num{font-weight:800;color:var(--nx-suave)}
+
+/* ── títulos ─────────────────────────────────────────────────────────── */
+.nx-kick{font-size:8.5pt;font-weight:800;letter-spacing:2.2px;text-transform:uppercase;
+  color:var(--nx-verde);margin-bottom:7px}
+.nx-slide.claro .nx-kick{color:#0B7A2B}
+.nx-tit{font-size:25pt;font-weight:800;line-height:1.12;letter-spacing:-.4px}
+.nx-tit .g{color:var(--nx-suave);font-weight:600}
+.nx-lead{font-size:11pt;line-height:1.55;color:var(--nx-suave);margin-top:11px;max-width:150mm}
+
+/* ── a capa ──────────────────────────────────────────────────────────── */
+/* A VITRINE é um cartão CLARO de propósito. A foto do produto vem com fundo
+   branco sólido — não é recorte. Fingir que é, jogando ela sobre o escuro,
+   deixa um retângulo branco no meio da folha. Emoldurada, ela vira vitrine. */
+.nx-capa .nx-corpo{justify-content:center;padding-top:100mm;padding-bottom:6mm}
+.nx-vitrine{position:absolute;left:0;right:0;top:0;height:96mm;z-index:1;
+  background:linear-gradient(160deg,#FFFFFF 0%,#E9EEF4 100%);
+  border-radius:0 0 46px 46px;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;padding:14mm 10mm 10mm}
+.nx-vitrine img{max-height:100%;max-width:58%;object-fit:contain;display:block;
+  mix-blend-mode:multiply}
+.nx-capa .nx-marca img{filter:brightness(0) saturate(100%) invert(9%) sepia(18%) saturate(2400%) hue-rotate(178deg)}
+.nx-capa-sobre{font-size:9.5pt;font-weight:700;letter-spacing:1.1px;text-transform:uppercase;
+  color:var(--nx-suave);margin-bottom:12px;max-width:118mm}
+.nx-capa-num{font-size:56pt;font-weight:900;line-height:.92;letter-spacing:-2.5px;color:#fff}
+.nx-capa-num .un{display:block;font-size:13pt;font-weight:700;letter-spacing:.6px;
+  color:var(--nx-verde);margin-top:8px}
+.nx-regua{width:58mm;height:4px;background:var(--nx-verde);border-radius:3px;margin:16px 0 14px}
+.nx-capa-frase{font-size:12.5pt;line-height:1.5;font-weight:500;max-width:112mm;color:var(--nx-texto)}
+.nx-capa-frase b{color:var(--nx-verde);font-weight:800}
+.nx-selos{display:flex;flex-wrap:wrap;gap:7px;margin-top:16px;max-width:120mm}
+.nx-selos span{font-size:8.5pt;font-weight:600;padding:5px 11px;border-radius:999px;
+  background:rgba(255,255,255,.07);border:1px solid var(--nx-linha2);color:var(--nx-texto)}
+.nx-selos b{color:var(--nx-verde);font-weight:800}
+/* A tagline entra no FLUXO. Posicionada em absoluto ela caía por cima dos
+   selos quando o payback tinha duas casas e a fila quebrava em duas linhas. */
+.nx-tagline{margin-top:16px;font-size:8.5pt;font-weight:700;letter-spacing:3px;
+  text-transform:uppercase;color:var(--nx-fraco)}
+.nx-tagline b{color:var(--nx-verde)}
+
+/* ── cartões de número ───────────────────────────────────────────────── */
+.nx-kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-top:16px}
+.nx-kpi{background:var(--nx-cartao);border:1px solid var(--nx-linha);border-radius:12px;padding:13px 15px}
+.nx-kpi .r{font-size:8pt;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--nx-fraco)}
+.nx-kpi .v{font-size:20pt;font-weight:900;line-height:1.1;margin-top:5px;letter-spacing:-.8px}
+.nx-kpi .v.verde{color:var(--nx-verde)}
+.nx-slide.claro .nx-kpi .v.verde{color:#0B7A2B}
+.nx-kpi .n{font-size:8pt;color:var(--nx-fraco);margin-top:3px;font-weight:600}
+
+/* ── as partes ───────────────────────────────────────────────────────── */
+.nx-partes{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}
+.nx-parte{background:var(--nx-cartao);border:1px solid var(--nx-linha);border-radius:12px;padding:13px 15px}
+.nx-parte .t{font-size:8pt;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;
+  color:var(--nx-verde);margin-bottom:9px}
+.nx-parte .l{display:flex;justify-content:space-between;gap:11px;padding:2.5px 0;font-size:9pt;line-height:1.35}
+.nx-parte .l .k{color:var(--nx-fraco);white-space:nowrap;font-weight:600}
+.nx-parte .l .v{text-align:right;font-weight:700;color:var(--nx-texto)}
+
+/* ── a conta aberta ──────────────────────────────────────────────────── */
+.nx-conta{display:flex;flex-wrap:wrap;align-items:flex-end;gap:9px 13px;margin:14px 0 0}
+.nx-conta .c{display:flex;flex-direction:column}
+.nx-conta .c .v{font-size:18pt;font-weight:900;line-height:1;letter-spacing:-.8px}
+.nx-conta .c .r{font-size:8pt;color:var(--nx-fraco);font-weight:600;margin-top:4px;line-height:1.2}
+.nx-conta .op{font-size:15pt;font-weight:700;color:var(--nx-fraco);padding-bottom:12px}
+.nx-fat{margin-top:15px;background:var(--nx-verde-bg);border:1px solid var(--nx-verde-ln);
+  border-radius:12px;padding:14px 17px;display:flex;align-items:baseline;gap:13px;flex-wrap:wrap}
+.nx-fat .r{font-size:8.5pt;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--nx-verde)}
+.nx-fat .v{font-size:26pt;font-weight:900;color:#fff;letter-spacing:-1.2px;line-height:1}
+.nx-fat .n{font-size:9pt;color:var(--nx-suave);font-weight:600}
+
+/* premissas em chip */
+.nx-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:14px}
+.nx-chip{background:var(--nx-cartao);border:1px solid var(--nx-linha);border-radius:9px;padding:8px 10px}
+.nx-chip .r{font-size:7.5pt;color:var(--nx-fraco);font-weight:600;line-height:1.25}
+.nx-chip .v{font-size:11pt;font-weight:800;margin-top:2px;letter-spacing:-.3px}
+
+/* ── custos, com a barra que conta a história ────────────────────────── */
+.nx-custos{margin-top:14px;display:flex;flex-direction:column;gap:9px}
+.nx-custo .l{display:flex;justify-content:space-between;gap:12px;font-size:10pt;font-weight:600}
+.nx-custo .l .v{font-weight:800;white-space:nowrap}
+.nx-custo .trilho{height:6px;background:rgba(255,255,255,.06);border-radius:4px;margin-top:5px;overflow:hidden}
+.nx-custo .trilho i{display:block;height:100%;border-radius:4px;
+  background:linear-gradient(90deg,var(--nx-azul),#4FB0FF)}
+.nx-custo .n{font-size:7.5pt;color:var(--nx-fraco);margin-top:3px;font-weight:600}
+/* A TARJA segue o conteudo (margin-top fixo), nao o pe' da folha. Ancorada com
+   margin-top:auto ela engolia todo o espaco livre do miolo centrado e abria um
+   vao morto no meio — visivel nas folhas de custo, escopo e riscos.
+   A TARJA de destaque. Nome proprio, e nao nx-faixa: eu tinha dado o mesmo
+   nome pra ela e pra faixa vertical da marca, e esta aqui — que vem depois no
+   arquivo — sobrescrevia aquela. A barra da marca saia com 34px de largura,
+   verde chapada, sem o gradiente. Colisao de nome nao da erro, da' desenho
+   errado, que e' pior de achar.
+   (E nada de crase em comentario daqui: este CSS mora dentro de um template
+   literal, e crase fecha a string. O checador de sintaxe passa, porque o que
+   sobra ainda e' JS valido — so' quer dizer outra coisa.) */
+.nx-tarja{margin-top:20px;background:var(--nx-verde);color:#06240A;
+  padding:13px 17px;border-radius:12px;font-size:12.5pt;font-weight:900;text-align:center;
+  letter-spacing:-.3px}
+.nx-tarja.azul{background:var(--nx-azul);color:#fff}
+
+/* ── o retorno ───────────────────────────────────────────────────────── */
+.nx-mega{font-size:76pt;font-weight:900;line-height:.86;letter-spacing:-4px;color:#fff;
+  display:flex;align-items:baseline;gap:12px;justify-content:center}
+.nx-mega .un{font-size:17pt;font-weight:700;letter-spacing:0;color:var(--nx-verde)}
+.nx-anos{position:relative;height:9px;background:rgba(255,255,255,.08);border-radius:6px;margin:22px 0 8px}
+.nx-anos i{position:absolute;left:0;top:0;bottom:0;background:var(--nx-verde);border-radius:6px}
+.nx-anos .pino{position:absolute;top:-6px;width:21px;height:21px;border-radius:50%;
+  background:var(--nx-verde);border:4px solid var(--nx-fundo);transform:translateX(-50%)}
+.nx-anos-rot{display:flex;justify-content:space-between;font-size:8pt;color:var(--nx-fraco);font-weight:700}
+.nx-fin{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:20px}
+.nx-fin .s{background:var(--nx-cartao);border:1px solid var(--nx-linha);
+  border-left:3px solid var(--nx-verde);border-radius:11px;padding:12px 14px}
+.nx-fin .s .k{font-size:8pt;font-weight:800;letter-spacing:1.3px;color:var(--nx-verde)}
+.nx-fin .s .v{font-size:19pt;font-weight:900;line-height:1.1;margin-top:3px;letter-spacing:-.8px}
+.nx-fin .s .d{font-size:8pt;color:var(--nx-fraco);margin-top:4px;line-height:1.35;font-weight:600}
+
+/* ── a rampa do primeiro ano ─────────────────────────────────────────── */
+.nx-rampa{display:flex;align-items:flex-end;gap:4px;height:52mm;margin-top:18px;
+  padding-bottom:22px;border-bottom:1px solid var(--nx-linha2);position:relative}
+.nx-rampa .m{flex:1;background:linear-gradient(180deg,var(--nx-azul),rgba(0,133,255,.35));
+  border-radius:4px 4px 0 0;min-height:4px;position:relative}
+.nx-rampa .m.marco{background:linear-gradient(180deg,var(--nx-verde),rgba(57,255,20,.4))}
+.nx-rampa .m span{position:absolute;left:0;right:0;bottom:-19px;text-align:center;
+  font-size:7pt;color:var(--nx-fraco);font-weight:700}
+
+/* ── cenários ────────────────────────────────────────────────────────── */
+.nx-cen{display:flex;flex-direction:column;gap:9px;margin-top:16px}
+.nx-cen .c{background:var(--nx-cartao);border:1px solid var(--nx-linha);border-radius:12px;
+  padding:13px 15px;display:grid;grid-template-columns:44mm 1fr;gap:12px;align-items:center}
+.nx-cen .c.este{border-color:var(--nx-verde-ln);background:var(--nx-verde-bg)}
+.nx-cen .id .n{font-size:13pt;font-weight:900;letter-spacing:-.4px}
+.nx-cen .id .q{font-size:8.5pt;color:var(--nx-fraco);font-weight:600;margin-top:2px}
+.nx-cen .id .selo{display:inline-block;margin-top:5px;font-size:7pt;font-weight:800;
+  letter-spacing:1px;text-transform:uppercase;color:#06240A;background:var(--nx-verde);
+  padding:2px 7px;border-radius:999px}
+.nx-cen .vals{display:grid;grid-template-columns:repeat(2,1fr);gap:4px 12px}
+.nx-cen .vals div{display:flex;justify-content:space-between;gap:8px;font-size:8.5pt}
+.nx-cen .vals .r{color:var(--nx-fraco);font-weight:600}
+.nx-cen .vals .v{font-weight:800}
+.nx-cen .vals .v.forte{color:var(--nx-verde)}
+
+/* ── equipamento (folha clara) ───────────────────────────────────────── */
+.nx-eq{display:grid;grid-template-columns:76mm 1fr;gap:14px;align-items:center;margin-top:14px}
+.nx-eq-foto{background:linear-gradient(160deg,#FFFFFF 0%,#E9EEF4 100%);
+  border-radius:22px;padding:14px;border:1px solid rgba(11,26,43,.09);
+  display:flex;align-items:center;justify-content:center}
+.nx-eq-foto img{width:100%;display:block;mix-blend-mode:multiply}
+.nx-ficha{display:flex;flex-direction:column;gap:8px}
+.nx-ficha .f{background:#fff;border:1px solid rgba(11,26,43,.10);border-radius:11px;padding:11px 14px;
+  display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.nx-ficha .f .k{font-size:8.5pt;font-weight:700;color:#51637A;letter-spacing:.4px}
+.nx-ficha .f .v{font-size:13pt;font-weight:900;letter-spacing:-.4px;text-align:right}
+.nx-tira{position:relative;margin-top:auto;height:46mm;overflow:hidden;border-radius:0}
+.nx-tira .bg{position:absolute;inset:0;background-size:cover;background-position:center}
+.nx-tira .veu{position:absolute;inset:0;background:linear-gradient(90deg,rgba(11,26,43,.90),rgba(11,26,43,.35))}
+.nx-tira .cont{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;
+  justify-content:center;gap:8px;padding:0 16mm;color:#E5E7EB}
+.nx-tira .leg{font-size:10pt;font-weight:700;max-width:100mm;line-height:1.4}
+.nx-tira .chips{display:flex;gap:7px;flex-wrap:wrap}
+.nx-tira .chips b{font-size:8pt;font-weight:800;background:var(--nx-verde);color:#06240A;
+  padding:4px 10px;border-radius:999px}
+
+/* ── folha de foto cheia ─────────────────────────────────────────────── */
+.nx-slide.foto .bg{position:absolute;inset:0;background-size:cover;background-position:center;z-index:0}
+.nx-slide.foto .veu{position:absolute;inset:0;z-index:1;
+  background:linear-gradient(180deg,rgba(var(--nx-veu),.86) 0%,rgba(var(--nx-veu),.30) 42%,rgba(var(--nx-veu),.92) 100%)}
+.nx-ilustra{position:absolute;right:15mm;bottom:18mm;z-index:3;font-size:7.5pt;
+  color:rgba(229,231,235,.55);font-weight:600;letter-spacing:.4px}
+
+/* ── listas de escopo ────────────────────────────────────────────────── */
+.nx-duas{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.nx-col .h{font-size:8.5pt;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;
+  margin-bottom:9px;color:var(--nx-verde)}
+.nx-col.fora .h{color:var(--nx-azul)}
+.nx-lista{list-style:none}
+.nx-lista li{position:relative;padding-left:20px;font-size:9.5pt;line-height:1.75;font-weight:600}
+.nx-lista li::before{position:absolute;left:0;top:0;font-weight:900}
+.nx-col.dentro .nx-lista li::before{content:'✓';color:var(--nx-verde)}
+.nx-col.fora .nx-lista li::before{content:'—';color:var(--nx-azul)}
+.nx-aviso{margin-top:11px;background:var(--nx-azul-bg);border:1px solid rgba(0,133,255,.34);
+  border-radius:10px;padding:10px 12px;font-size:8.5pt;line-height:1.5;color:var(--nx-texto);font-weight:600}
+
+/* ── medos e cronograma ──────────────────────────────────────────────── */
+.nx-medos{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.nx-medo{background:var(--nx-cartao);border:1px solid var(--nx-linha);border-radius:12px;padding:13px 15px}
+.nx-medo .fala{font-size:11pt;font-style:italic;color:var(--nx-suave);font-weight:600;line-height:1.4}
+.nx-medo .reg{width:34px;height:3px;background:var(--nx-verde);border-radius:2px;margin:9px 0}
+.nx-medo .resp{font-size:9.5pt;line-height:1.55;font-weight:600}
+.nx-passos{display:flex;flex-direction:column;gap:6px;margin-top:16px}
+.nx-passo{display:grid;grid-template-columns:26px 1fr auto;gap:11px;align-items:center;
+  background:var(--nx-cartao);border:1px solid var(--nx-linha);border-radius:10px;padding:10px 13px}
+.nx-passo .n{width:26px;height:26px;border-radius:50%;background:var(--nx-verde);color:#06240A;
+  font-size:9.5pt;font-weight:900;display:flex;align-items:center;justify-content:center}
+.nx-passo.dist .n{background:var(--nx-azul);color:#fff}
+.nx-passo .t{font-size:10pt;font-weight:700}
+.nx-passo .q{font-size:7.5pt;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--nx-verde)}
+.nx-passo.dist .q{color:var(--nx-azul)}
+
+/* ── fecho ───────────────────────────────────────────────────────────── */
+.nx-logo-g{width:92mm;display:block;margin:0 auto 6px}
+.nx-tres{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:20px}
+.nx-tres div{text-align:center;background:var(--nx-cartao);border:1px solid var(--nx-linha);
+  border-radius:12px;padding:13px 9px}
+.nx-tres .v{display:block;font-size:15pt;font-weight:900;color:var(--nx-verde);letter-spacing:-.6px}
+.nx-tres .r{display:block;font-size:8pt;color:var(--nx-fraco);margin-top:4px;font-weight:600;line-height:1.3}
+.nx-pags{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.nx-pags .pag{flex:1 1 52mm;background:var(--nx-cartao);border:1px solid var(--nx-linha);
+  border-radius:11px;padding:11px 13px}
+.nx-pags .pag b{display:block;font-size:7.5pt;font-weight:800;letter-spacing:1.2px;
+  text-transform:uppercase;color:var(--nx-fraco);margin-bottom:3px}
+.nx-pags .pag span{font-size:12pt;font-weight:900;letter-spacing:-.4px}
+.nx-contato{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:16px}
+.nx-contato .b{background:var(--nx-cartao2);border:1px solid var(--nx-linha);border-radius:11px;padding:11px 13px}
+.nx-contato .b .r{font-size:7.5pt;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--nx-fraco)}
+.nx-contato .b .v{font-size:11pt;font-weight:800;margin-top:3px;line-height:1.25}
+.nx-valid{margin-top:16px;text-align:center;font-size:9pt;font-weight:800;letter-spacing:1.6px;
+  text-transform:uppercase;color:var(--nx-verde)}
+.nx-obs{margin-top:14px;font-size:7.5pt;line-height:1.55;color:var(--nx-fraco);font-weight:500}
+</style>`;
+
+// ═══════════ O ORÇAMENTO COMPLETO COMO APRESENTAÇÃO, EM PÉ ═══════════
+//
+// Pedido do dono (28/09/2026): "aquele orçamento completo não me entregou, que
+// tem imagens e parece um power point misturado com site, uma apresentação
+// digna que dê para apresentar pelo mobile e pc em pdf e que tenha todas as
+// informações possíveis e que seja muito bonito e profissional".
+//
+// O QUE ERA: um A4 branco, correto e sem alma. Documento, não apresentação.
+//
+// O QUE É: treze folhas A4 EM PÉ desenhadas como slides — fundo escuro da
+// marca, foto do equipamento recortada, o posto de verdade à noite, a linha de
+// fábrica, números do tamanho que eles merecem.
+//
+// POR QUE EM PÉ, se ele disse "power point". Porque ele também disse "mobile e
+// pc", e porque em 26/09 pediu "o pdf tem que ser na vertical". Deitado, no
+// celular, obriga a girar o aparelho ou a ler tudo de lado — e é no celular que
+// ele entrega a proposta na mesa. Em pé o mesmo PDF serve para rolar no celular
+// e para projetar no PC. O que faltava não era a orientação, era o desenho.
+//
+// O LINK do cliente continua sendo o deck 16:9 de 13 páginas: lá a tela é
+// larga e o formato está certo.
+
+const NX_ART = '/nexus/img/';
+const NX_LOGO = '/gerador/nexus-logo-tela.png';
+
+function nxCompletoDeck(d) {
+  const host = document.getElementById('eletro-print');
+  if (!host) return;
+
+  const E = d.ent || {}, R = d.res || {}, CEN = d.cen || [];
+  const P = d.partes || {}, emit = P.emit || {}, cli = P.cli || {}, vend = P.vend || {};
+  const esc = orcEsc;
+  const brl = v => elMoney(Number(v) || 0);
+  const pct = v => (Number(v) || 0).toFixed(1).replace('.', ',').replace(',0', '') + '%';
+  const dec = v => (Number(v) || 0).toFixed(1).replace('.', ',');
+  const num = v => Math.round(Number(v) || 0);
+  const tem = v => v != null && v !== '' && !(typeof v === 'number' && isNaN(v));
+  const din2 = v => 'R$ ' + (Number(v) || 0).toFixed(2).replace('.', ',');
+
+  const S = [];
+  const TOTAL = () => S.length;
+  const marca = `<div class="nx-marca"><img src="${NX_LOGO}" alt="NEXUS Eletropostos"></div>`;
+  // O rodapé só sabe a contagem no fim, então a página entra com um marcador
+  // e a numeração é costurada depois. Contar antes obrigaria a saber o número
+  // de folhas duas vezes, e no dia em que uma folha sumisse por falta de dado a
+  // contagem mentiria.
+  const pe = (tag) => `<div class="nx-pe"><span class="tag">${esc(tag)}</span><span class="num">__N__ / __T__</span></div>`;
+
+  // ── 1 · A CAPA É O NÚMERO ──────────────────────────────────────────────
+  const selos = [
+    tem(R.payback) ? `investimento de volta em <b>${dec(R.payback)} anos</b>` : '',
+    'chave na mão', 'garantia de <b>24 meses</b>', 'entrega em <b>25 dias</b>',
+  ].filter(Boolean).map(s => `<span>${s}</span>`).join('');
+
+  S.push(`<section class="nx-slide nx-capa">
+  <div class="nx-faixa"></div>${marca}
+  <div class="nx-vitrine"><img src="${NX_ART}dc-3q-dir.webp" alt="Carregador NEXUS"></div>
+  <div class="nx-corpo">
+    <div class="nx-capa-sobre">Orçamento nº ${esc(d.numero || '')}${d.cliente ? ' · ' + esc(d.cliente) : ''}${d.cidade ? ' · ' + esc(d.cidade) : ''}</div>
+    <div class="nx-capa-num">${brl(R.lucroMes)}<span class="un">por mês, em regime</span></div>
+    <div class="nx-regua"></div>
+    <div class="nx-capa-frase">O equipamento se compra, a obra se contrata. <b>O ponto não.</b></div>
+    <div class="nx-selos">${selos}</div>
+    <div class="nx-tagline">Energia que <b>move</b> o amanhã</div>
+  </div>
+  ${pe(d.validade || '')}
+</section>`);
+
+  // ── 2 · OS NÚMEROS E AS PARTES ─────────────────────────────────────────
+  const linha = (k, v) => {
+    const s = String(v == null ? '' : v).trim();
+    return s ? `<div class="l"><span class="k">${esc(k)}</span><span class="v">${esc(s)}</span></div>` : '';
+  };
+  const caixa = (t, rows) => {
+    const c = rows.map(r => linha(r[0], r[1])).join('');
+    return c ? `<div class="nx-parte"><div class="t">${esc(t)}</div>${c}</div>` : '';
+  };
+  const endEmit = [emit.end, emit.cidade].filter(Boolean).join(' · ');
+  const endCli = [cli.end, cli.cep ? 'CEP ' + cli.cep : '', cli.cidade].filter(Boolean).join(' · ');
+
+  S.push(`<section class="nx-slide">
+  <div class="nx-faixa"></div>${marca}
+  <div class="nx-corpo">
+    <div class="nx-kick">A proposta em quatro números</div>
+    <div class="nx-tit">Isto é o que o ponto<span class="g"> devolve</span></div>
+    <div class="nx-kpis">
+      <div class="nx-kpi"><div class="r">Investimento</div><div class="v">${brl(E.invest)}</div><div class="n">valor total, chave na mão</div></div>
+      <div class="nx-kpi"><div class="r">Retorno</div><div class="v verde">${tem(R.payback) ? dec(R.payback) + ' anos' : '—'}</div><div class="n">para o capital voltar</div></div>
+      <div class="nx-kpi"><div class="r">Faturamento / mês</div><div class="v">${brl(R.fatMes)}</div><div class="n">${brl(R.fatAno)} por ano</div></div>
+      <div class="nx-kpi"><div class="r">Patrimônio em 10 anos</div><div class="v verde">${brl(R.patrimonio10)}</div><div class="n">além do que foi investido</div></div>
+    </div>
+    <div class="nx-kick" style="margin-top:20px">As partes</div>
+    <div class="nx-partes">
+      ${caixa('Fornecedor', [['Nome', emit.nome], ['Razão social', emit.razao], ['CNPJ', emit.cnpj],
+        ['Inscrição Estadual', emit.ie], ['Endereço', endEmit], ['Telefone', emit.tel], ['E-mail', emit.email]])}
+      ${caixa('Cliente', [['Nome', cli.nome], ['CNPJ / CPF', cli.doc], ['Inscrição Estadual', cli.ie],
+        ['Endereço', endCli], ['Telefone', cli.tel], ['E-mail', cli.email]])}
+    </div>
+    ${vend.nome || vend.contato ? `<div class="nx-parte" style="margin-top:9px">
+      <div class="t">Consultor responsável</div>
+      ${linha('Nome', vend.nome)}${linha('WhatsApp', vend.contato)}${linha('Emitido em', d.data)}
+    </div>` : ''}
+  </div>
+  ${pe('A proposta')}
+</section>`);
+
+  // ── 3 · DE ONDE SAI ESSE NÚMERO ────────────────────────────────────────
+  const conta = [
+    [String(num(E.carros)), 'carros por dia'], ['×', ''],
+    [String(num(E.carga)), 'kWh por carga'], ['×', ''],
+    [din2(E.precoKwh), 'o kWh'], ['+', ''],
+    [din2(E.ativacao), 'de ativação'], ['×', ''],
+    ['30', 'dias'],
+  ].map(c => c[1]
+    ? `<div class="c"><span class="v">${c[0]}</span><span class="r">${c[1]}</span></div>`
+    : `<div class="op">${c[0]}</div>`).join('');
+
+  const chips = [
+    ['Custo do kWh comprado', tem(E.custoKwh) ? din2(E.custoKwh) : ''],
+    // O GATEWAY saiu da conta em 28/09/2026 ("deixa so software NEXUS"): eram
+    // dois percentuais sobre o MESMO faturamento cobrando a mesma coisa. O
+    // campo nao existe mais no eletroParams, entao a linha aqui seria um chip
+    // fantasma esperando alguem reintroduzir a variavel por outro motivo.
+    ['Software NEXUS', tem(E.software) ? pct(E.software) : ''],
+    ['Arrendamento do ponto', tem(E.arrend) ? pct(E.arrend) : ''],
+    ['Manutenção', tem(E.manut) ? pct(E.manut) : ''],
+    ['Imposto (Simples)', tem(E.imposto) ? pct(E.imposto) : ''],
+    ['Assinatura mensal', Number(E.assinatura) > 0 ? brl(E.assinatura) : ''],
+    ['Custos fixos', Number(E.fixos) > 0 ? brl(E.fixos) : ''],
+    ['Ocupação inicial', tem(E.ocupIni) ? pct(E.ocupIni) + ' · ' + num(E.rampa) + ' meses' : ''],
+  ].filter(c => c[1] !== '')
+   .map(c => `<div class="nx-chip"><div class="r">${c[0]}</div><div class="v">${c[1]}</div></div>`).join('');
+
+  S.push(`<section class="nx-slide">
+  <div class="nx-faixa"></div>${marca}
+  <div class="nx-corpo">
+    <div class="nx-kick">A conta aberta</div>
+    <div class="nx-tit">De onde sai<span class="g"> esse número</span></div>
+    <div class="nx-lead">Mude qualquer premissa e a conta muda na sua frente, agora.</div>
+    <div class="nx-conta">${conta}</div>
+    <div class="nx-fat"><span class="r">Faturamento</span><span class="v">${brl(R.fatMes)}</span><span class="n">${brl(R.fatAno)} por ano</span></div>
+    <div class="nx-kick" style="margin-top:20px">O que você paga</div>
+    <div class="nx-chips">${chips}</div>
+  </div>
+  ${pe('A conta aberta')}
+</section>`);
+
+  // ── 4 · TODO CUSTO NA MESA ─────────────────────────────────────────────
+  const maior = Math.max(...(R.custos || []).map(c => Number(c.val) || 0), 1);
+  const custos = (R.custos || []).map(c => `<div class="nx-custo">
+      <div class="l"><span>${esc(c.rot)}</span><span class="v">${brl(c.val)}</span></div>
+      <div class="trilho"><i style="width:${(100 * (Number(c.val) || 0) / maior).toFixed(1)}%"></i></div>
+      ${c.nota ? `<div class="n">${esc(c.nota)}</div>` : ''}
+    </div>`).join('');
+
+  S.push(`<section class="nx-slide">
+  <div class="nx-faixa"></div>${marca}
+  <div class="nx-corpo">
+    <div class="nx-kick">Nada escondido</div>
+    <div class="nx-tit">O que já foi descontado<span class="g"> antes de você ver o lucro</span></div>
+    <div class="nx-custos">${custos}</div>
+    <div class="nx-tarja">Sobram ${brl(R.lucroMes)} por mês · margem de ${pct(R.margem)}</div>
+  </div>
+  ${pe('Todo custo na mesa')}
+</section>`);
+
+  // ── 5 · O DINHEIRO VOLTA ───────────────────────────────────────────────
+  const pos = Math.min(100, Math.max(0, 100 * (Number(R.payback) || 0) / 10));
+  const fin = [
+    tem(R.tir) ? ['TIR', pct(R.tir) + ' a.a.', 'é o juro que o projeto paga ao dono'] : null,
+    tem(R.vpl) ? ['VPL', brl(R.vpl), 'o que ele vale hoje, já descontado o dinheiro parado a ' + pct(E.taxaDesc) + ' a.a.'] : null,
+  ].filter(Boolean).map(s => `<div class="s"><div class="k">${s[0]}</div><div class="v">${s[1]}</div><div class="d">${s[2]}</div></div>`).join('');
+
+  S.push(`<section class="nx-slide">
+  <div class="nx-faixa"></div>${marca}
+  <div class="nx-corpo centro" style="text-align:center">
+    <div class="nx-kick" style="text-align:center">Você coloca ${brl(E.invest)} uma vez</div>
+    <div class="nx-mega">${tem(R.payback) ? dec(R.payback) : '—'}<span class="un">anos</span></div>
+    <div class="nx-tit" style="margin-top:12px">e o dinheiro<span class="g"> volta</span></div>
+    <div class="nx-anos">
+      <i style="width:${pos.toFixed(1)}%"></i>
+      <div class="pino" style="left:${pos.toFixed(1)}%"></div>
+    </div>
+    <div class="nx-anos-rot"><span>ano 0</span><span>ano 10</span></div>
+    <div class="nx-fin" style="text-align:left">${fin}</div>
+  </div>
+  ${pe('O retorno')}
+</section>`);
+
+  // ── 6 · O PRIMEIRO ANO ─────────────────────────────────────────────────
+  // Colunas = max(12, rampa): travar em 12 corta o gráfico de quem digita 24.
+  const nCol = Math.max(12, num(E.rampa) || 1);
+  const rampa = Math.max(1, num(E.rampa) || 1);
+  const oc0 = Math.min(1, Math.max(0, (Number(E.ocupIni) || 100) / 100));
+  const barras = Array.from({ length: nCol }, (_, i) => {
+    const m = i + 1;
+    const a = rampa <= 1 || m >= rampa ? 1 : oc0 + (1 - oc0) * (m - 1) / (rampa - 1);
+    const rot = (m === 1 || m === rampa || m === nCol) ? `<span>${m}</span>` : '';
+    return `<div class="m${m === rampa ? ' marco' : ''}" style="height:${(a * 100).toFixed(1)}%">${rot}</div>`;
+  }).join('');
+
+  S.push(`<section class="nx-slide">
+  <div class="nx-faixa"></div>${marca}
+  <div class="nx-corpo">
+    <div class="nx-kick">A má notícia antes do preço, de propósito</div>
+    <div class="nx-tit">O primeiro ano<span class="g"> entra mais devagar</span></div>
+    <div class="nx-lead">Ninguém abre um posto lotado, e esta conta não finge que sim. A ocupação sai de ${tem(E.ocupIni) ? pct(E.ocupIni) : '—'} e chega cheia no mês ${rampa}. Os custos fixos correm desde o mês 1.</div>
+    <div class="nx-rampa">${barras}</div>
+    <div class="nx-kpis" style="grid-template-columns:1fr 1fr;margin-top:26px">
+      <div class="nx-kpi"><div class="r">Lucro do ano 1</div><div class="v">${brl(R.lucroAno1)}</div><div class="n">já com a rampa de ocupação</div></div>
+      <div class="nx-kpi"><div class="r">A partir do ano cheio</div><div class="v verde">${brl(R.lucroAno)}</div><div class="n">por ano, em regime</div></div>
+    </div>
+  </div>
+  ${pe('O primeiro ano')}
+</section>`);
+
+  // ── 7 · OS CENÁRIOS ────────────────────────────────────────────────────
+  const cen = CEN.filter((c, i, a) => a.findIndex(x => x.carros === c.carros) === i);
+  const cards = cen.map(c => `<div class="c${c.projeto ? ' este' : ''}">
+      <div class="id">
+        <div class="n">${esc(c.nome)}</div>
+        <div class="q">${num(c.carros)} carros por dia</div>
+        ${c.projeto ? '<div class="selo">a proposta está aqui</div>' : ''}
+      </div>
+      <div class="vals">
+        <div><span class="r">Faturamento/mês</span><span class="v">${brl(c.fatMes)}</span></div>
+        <div><span class="r">Lucro/mês</span><span class="v forte">${brl(c.lucroMes)}</span></div>
+        <div><span class="r">Payback</span><span class="v">${tem(c.payback) ? dec(c.payback) + ' anos' : 'não paga'}</span></div>
+        <div><span class="r">TIR</span><span class="v">${tem(c.tir) ? pct(c.tir) : '—'}</span></div>
+        <div><span class="r">Patrimônio 10 anos</span><span class="v forte">${brl(c.patrimonio)}</span></div>
+      </div>
+    </div>`).join('');
+
+  S.push(`<section class="nx-slide">
+  <div class="nx-faixa"></div>${marca}
+  <div class="nx-corpo">
+    <div class="nx-kick">O piso primeiro</div>
+    <div class="nx-tit">E se vierem<span class="g"> ${num(cen[0] && cen[0].carros)} carros por dia?</span></div>
+    <div class="nx-lead">A proposta foi feita no cenário do meio. Estes são os outros dois, com a mesma conta.</div>
+    <div class="nx-cen">${cards}</div>
+  </div>
+  ${pe('Os cenários')}
+</section>`);
+
+  // ── 8 · O EQUIPAMENTO (folha clara: a foto pede fundo branco) ─────────
+  S.push(`<section class="nx-slide claro">
+  <div class="nx-faixa"></div>${marca}
+  <div class="nx-corpo">
+    <div class="nx-kick">Equipamento de linha, não protótipo</div>
+    <div class="nx-tit">${esc(d.modelo || 'Carregador NEXUS')}</div>
+    <div class="nx-eq">
+      <div class="nx-eq-foto"><img src="${NX_ART}dc-frente-larga.webp" alt="${esc(d.modelo || 'Carregador NEXUS')}"></div>
+      <div class="nx-ficha">
+        <div class="f"><span class="k">Máquinas</span><span class="v">${num(d.quantidade) || 1}</span></div>
+        <div class="f"><span class="k">Bicos de carregamento</span><span class="v">${num(d.bicos)}</span></div>
+        ${Number(d.bicos) === 2 ? '<div class="f"><span class="k">Carros ao mesmo tempo</span><span class="v">2</span></div>' : ''}
+        <div class="f"><span class="k">Prazo de entrega</span><span class="v">25 dias</span></div>
+        <div class="f"><span class="k">Garantia</span><span class="v">24 meses</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="nx-tira">
+    <div class="bg" style="background-image:url('${NX_ART}fabrica-linha.webp')"></div>
+    <div class="veu"></div>
+    <div class="cont">
+      <div class="leg">Linha de produção NEXUS. O equipamento sai de fábrica, não de encomenda.</div>
+      <div class="chips"><b>entrega em 25 dias</b><b>garantia de 24 meses</b></div>
+    </div>
+  </div>
+  ${pe('O equipamento')}
+</section>`);
+
+  // ── 9 · ASSIM FICA O SEU PONTO ─────────────────────────────────────────
+  S.push(`<section class="nx-slide foto">
+  <div class="bg" style="background-image:url('${NX_ART}posto-noite.webp')"></div>
+  <div class="veu"></div>
+  <div class="nx-faixa"></div>${marca}
+  <div class="nx-corpo" style="justify-content:flex-end;padding-bottom:10mm">
+    <div class="nx-kick">O resultado da obra</div>
+    <div class="nx-tit">Assim fica<span class="g"> o seu ponto</span></div>
+    <div class="nx-lead" style="color:#C8D4E2">Cobertura, sinalização, piso demarcado e a máquina ligada. Obra civil e elétrica inclusas — a equipe é nossa.</div>
+  </div>
+  <div class="nx-ilustra">imagem ilustrativa do projeto</div>
+  ${pe('O seu ponto')}
+</section>`);
+
+  // ── 10 · DENTRO DO VALOR E FORA DELE ───────────────────────────────────
+  const DENTRO = (Array.isArray(d.inclui) && d.inclui.length) ? d.inclui : [
+    'Carregador ' + (d.modelo || 'NEXUS'), 'App Usuários NEXUS', 'Projeto de engenharia',
+    'Homologação na concessionária', 'Infraestrutura elétrica', 'Infraestrutura civil',
+    'Mão de obra e instalação', 'Garantia de 24 meses'];
+  const FORA = (Array.isArray(d.excluiPor) && d.excluiPor.length) ? d.excluiPor
+    : ['O espaço', 'A ligação de energia no nome de quem vai operar', 'A energia consumida'];
+
+  S.push(`<section class="nx-slide">
+  <div class="nx-faixa"></div>${marca}
+  <div class="nx-corpo">
+    <div class="nx-kick">Escopo, por escrito</div>
+    <div class="nx-tit">O que está dentro do valor<span class="g"> — e o que não está</span></div>
+    <div class="nx-duas">
+      <div class="nx-col dentro"><div class="h">Dentro do valor</div>
+        <ul class="nx-lista">${DENTRO.map(i => `<li>${esc(i)}</li>`).join('')}</ul></div>
+      <div class="nx-col fora"><div class="h">Por sua conta</div>
+        <ul class="nx-lista">${FORA.map(i => `<li>${esc(i)}</li>`).join('')}</ul>
+        <div class="nx-aviso">Padrão de entrada e transformador, se o seu padrão não aguentar a carga. Orçados depois da medição.</div></div>
+    </div>
+    <div class="nx-tarja">${brl(E.invest)} · valor total do projeto, chave na mão</div>
+  </div>
+  ${pe('O escopo')}
+</section>`);
+
+  // ── 11 · OS TRÊS MEDOS, COM DONO ───────────────────────────────────────
+  const MEDOS = [
+    ['vai virar um canteiro de obra no meu terreno', 'A obra é nossa. Equipe própria, infraestrutura elétrica e civil inclusas no valor.'],
+    ['a concessionária vai travar tudo', 'Nós fazemos o projeto e protocolamos a homologação. O calendário da análise é dela, e está dito no cronograma.'],
+    ['vou ficar com uma máquina parada', '24 meses de garantia. Manutenção e seguro já estão dentro da conta que você viu.'],
+  ];
+  S.push(`<section class="nx-slide">
+  <div class="nx-faixa"></div>${marca}
+  <div class="nx-corpo">
+    <div class="nx-kick">O que costuma travar a decisão</div>
+    <div class="nx-tit">Nenhum dos três riscos<span class="g"> é seu</span></div>
+    <div class="nx-medos">
+      ${MEDOS.map(m => `<div class="nx-medo"><div class="fala">“${esc(m[0])}”</div><div class="reg"></div><div class="resp">${esc(m[1])}</div></div>`).join('')}
+    </div>
+    <div class="nx-tarja azul">Os três têm dono, e nenhum deles é você</div>
+  </div>
+  ${pe('Os riscos')}
+</section>`);
+
+  // ── 12 · O CRONOGRAMA ──────────────────────────────────────────────────
+  const ETAPAS = [
+    ['Assinatura do contrato', 'você'], ['Projeto executivo e ART', 'nosso'],
+    ['Protocolo de homologação', 'nosso'], ['Análise e parecer de acesso', 'concessionária'],
+    ['Obra civil e elétrica', 'nosso'], ['Equipamento no local e instalação', 'nosso'],
+    ['Vistoria e ligação', 'concessionária'],
+  ];
+  const nNos = ETAPAS.filter(e => e[1] === 'nosso').length;
+  const nDist = ETAPAS.filter(e => e[1] === 'concessionária').length;
+
+  S.push(`<section class="nx-slide">
+  <div class="nx-faixa"></div>${marca}
+  <div class="nx-corpo">
+    <div class="nx-kick">Como anda, do sim à ligação</div>
+    <div class="nx-tit">A etapa 1<span class="g"> é a assinatura</span></div>
+    <div class="nx-passos">
+      ${ETAPAS.map((e, i) => `<div class="nx-passo${e[1] === 'concessionária' ? ' dist' : ''}">
+        <div class="n">${i + 1}</div><div class="t">${esc(e[0])}</div><div class="q">${e[1]}</div></div>`).join('')}
+    </div>
+    <div class="nx-lead">Das ${ETAPAS.length} etapas, ${nNos} são nossas e ${nDist} dependem da concessionária, que é quem define o calendário do parecer de acesso. A data da ligação a gente crava assim que ele sai.</div>
+  </div>
+  ${pe('O cronograma')}
+</section>`);
+
+  // ── 13 · O FECHO ───────────────────────────────────────────────────────
+  // NENHUM número novo: os três são repetidos das folhas 1, 5 e 10. É a folha
+  // que fica parada na tela enquanto se conversa.
+  const pags = orc1PagChips({ total: Number(E.invest) || 0, ...(d.pag || {}) });
+  S.push(`<section class="nx-slide">
+  <div class="nx-faixa"></div>
+  <div class="nx-corpo centro">
+    <img class="nx-logo-g" src="${NX_LOGO}" alt="NEXUS Eletropostos">
+    <div class="nx-tagline" style="text-align:center;margin:6px 0 22px">Energia que <b>move</b> o amanhã</div>
+    <div class="nx-tit" style="text-align:center">O que falta<span class="g"> é a sua assinatura</span></div>
+    <div class="nx-tres">
+      <div><span class="v">${brl(R.lucroMes)}</span><span class="r">por mês</span></div>
+      <div><span class="v">${tem(R.payback) ? dec(R.payback) + ' anos' : '—'}</span><span class="r">para o dinheiro voltar</span></div>
+      <div><span class="v">${brl(E.invest)}</span><span class="r">o projeto, chave na mão</span></div>
+    </div>
+    <div class="nx-kick" style="margin-top:22px">Condição de pagamento</div>
+    <div class="nx-pags">${pags}</div>
+    <div class="nx-contato">
+      <div class="b"><div class="r">Seu consultor</div><div class="v">${esc(vend.nome || '—')}</div></div>
+      <div class="b"><div class="r">WhatsApp</div><div class="v">${esc(vend.contato || '—')}</div></div>
+      <div class="b"><div class="r">Proposta</div><div class="v">nº ${esc(d.numero || '—')}</div></div>
+    </div>
+    <div class="nx-valid">${esc(d.validade || '')}</div>
+    <div class="nx-obs">${esc(d.obs || (typeof ORC_OBS_PADRAO === 'string' ? ORC_OBS_PADRAO : ''))}</div>
+  </div>
+  ${pe('O fecho')}
+</section>`);
+
+  // A numeração é costurada no fim, com o total já conhecido.
+  const total = S.length;
+  const html = S.map((s, i) => s.replace('__N__', String(i + 1)).replace('__T__', String(total))).join('\n');
+
+  host.innerHTML = `<div class="nx-deck">${NX_CSS}${html}</div>`;
+  epPrint(host, epNomeArq('Orcamento', d.cliente));
+}
+
+// ORFA desde 28/09/2026: o botao "Gerar PDF" passou a emitir o nxCompletoDeck
+// (apresentacao de 13 folhas em pe'). Este aqui e' o documento FORMAL, A4
+// branco, quatro folhas — fica de pe' pro dia em que alguem precisar anexar o
+// orcamento num processo, num banco ou num cartorio, onde apresentacao nao
+// serve e documento serve.
 function epCompletoA4(d) {
   const host = document.getElementById('eletro-print');
   if (!host) return;
@@ -12835,10 +13531,11 @@ function epCompletoGerar(modo) {
   if (modo === 'pdf') {
     epCompletoFechar();
     showToast('⏳ Montando o orçamento…');
-    // A4 EM PE', nao o deck deitado. O deck continua sendo o LINK: e' o que o
-    // cliente abre no celular, e la' 16:9 e' o formato certo. No papel ele era
-    // impossivel de arquivar, imprimir ou anexar.
-    epCompletoA4(d);
+    // A APRESENTACAO em pe', nao o A4 branco. O dono viu o A4 e disse que nao
+    // era aquilo: "tem imagens e parece um power point misturado com site".
+    // Treze folhas desenhadas, mesmo conteudo, fundo da marca e as fotos.
+    // O deck 16:9 continua sendo o LINK, que e' onde a tela e' larga.
+    nxCompletoDeck(d);
     return;
   }
 
