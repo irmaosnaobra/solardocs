@@ -17,12 +17,12 @@
      virar nexuseletroposto.com.br, a migração é trocar prefixo, não caçar
      caminho por caminho. -->
 <title>Eletroposto e carregador para carro elétrico | NEXUS ELETROPOSTOS</title>
-<meta name="description" content="Carregador rápido DC de 80 e 120 kW de marca própria, com garantia NEXUS e peça de reposição no Brasil. Projeto, homologação, obra completa de eletroposto e plataforma de gestão e cobrança.">
+<meta name="description" content="Fornecedor de carregador rápido DC para integradores e donos de rede de recarga: marca própria, estoque e peça no Brasil, garantia NEXUS e plataforma de gestão de rede com cobrança, tarifa por ponto e roaming.">
 <link rel="canonical" href="https://solardoc.app/nexusev">
 <meta name="robots" content="index, follow">
 <meta property="og:type" content="website">
-<meta property="og:title" content="NEXUS ELETROPOSTOS: marca própria, garantia própria e lote em produção">
-<meta property="og:description" content="Carregadores rápidos DC de 80 e 120 kW. Projeto, homologação, obra e a plataforma que cobra pelo aplicativo. Um fornecedor, do equipamento ao primeiro carro carregando.">
+<meta property="og:title" content="NEXUS ELETROPOSTOS: qualidade que aguenta, garantia que responde e peça no Brasil">
+<meta property="og:description" content="Para quem instala e para quem opera rede de recarga: equipamento de marca própria, logística com peça no Brasil, garantia NEXUS e software de gestão de rede.">
 <meta property="og:image" content="https://solardoc.app/nexus/img/estoque-fila-1200.webp">
 <meta property="og:url" content="https://solardoc.app/nexusev">
 <meta name="theme-color" content="#0B1A2B">
@@ -143,28 +143,44 @@ header{
 .btn[disabled]{opacity:.5;cursor:default}
 
 /* ── hero ── */
-.hero{padding:76px 0 0}
-.heroGrid{display:grid;grid-template-columns:1.06fr .94fr;gap:56px;align-items:center}
-@media(max-width:980px){.heroGrid{grid-template-columns:1fr;gap:34px}}
+/* Foto de ambiente ocupando tudo, titulo grande por cima. O render num quadrado
+   branco lia como catálogo; ele continua na seção de equipamentos, que é o lugar
+   de catálogo. A foto é real e é nossa: a fila do lote no galpão. */
+.hero{position:relative;display:flex;align-items:flex-end;overflow:hidden;min-height:clamp(560px,86vh,820px);padding:0}
+.heroFundo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:62% 50%}
+.hero::after{content:"";position:absolute;inset:0;background:
+  linear-gradient(90deg, rgba(11,26,43,.96) 0%, rgba(11,26,43,.86) 52%, rgba(11,26,43,.42) 100%),
+  linear-gradient(0deg, rgba(11,26,43,.94) 0%, rgba(11,26,43,0) 46%)}
+.heroTexto{position:relative;z-index:2;width:100%;max-width:1200px;margin:0 auto;padding:0 20px 58px}
+.hero h1{text-transform:uppercase;font-size:clamp(42px,7.4vw,92px);line-height:.94;letter-spacing:-.04em;max-width:14ch}
+.hero .sub{font-size:clamp(17px,1.8vw,21px);max-width:46ch;margin-top:20px;color:#C6D2E0}
+.hero .sub b{color:#fff;font-weight:700}
+@media(max-width:760px){
+  .hero{min-height:auto;padding-top:46px}
+  .hero h1{font-size:clamp(40px,11.6vw,58px);max-width:none}
+  .heroTexto{padding-bottom:40px}
+}
+
+/* Pré-venda saiu de dentro do hero: lá ela disputava a primeira tela com o
+   título, e é a primeira tela que decide se a pessoa rola. Virou a primeira
+   coisa DEPOIS da marca. */
+.pvFaixa{background:var(--tinta-2);border-bottom:1px solid var(--linha-e);padding:20px 0}
+.pvNota{font-size:12.5px;color:var(--fraco-e);margin-left:auto}
+@media(max-width:900px){.pvNota{margin-left:0;flex-basis:100%}}
 /* A oferta fica ACIMA dos botões: é a informação que decide o clique, e
    embaixo dela ninguém leria. O prazo vem junto do preço, porque preço
    promocional sem data é desconto que o comprador não acredita. */
-.preVenda{
-  display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin-top:28px;
-  border:1px solid var(--linha-e2);border-left:3px solid var(--acao);
-  border-radius:var(--r);padding:16px 18px;
-}
-.pvSelo{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--acao)}
+.preVenda{display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px}
+.pvSelo{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--acao);border:1px solid var(--acao);border-radius:999px;padding:6px 13px}
 .pvItem{font-size:16px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .pvItem b{font-weight:800;color:var(--suave-e);font-size:12.5px;letter-spacing:.06em;margin-right:5px}
 .pvItem s{font-size:13px;font-weight:600;color:var(--fraco-e);margin-left:5px}
-.pvNota{flex-basis:100%;font-size:12.5px;color:var(--fraco-e)}
 .heroCta{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
 .heroFoto{border:1px solid var(--linha-e2);border-radius:var(--r2);overflow:hidden;background:#fff}
 /* Faixa de credenciais: é o que um empresário lê antes de rolar. Quatro fatos,
    sem adjetivo. */
 .cred{
-  display:grid;grid-template-columns:repeat(4,1fr);margin-top:64px;
+  display:grid;grid-template-columns:repeat(4,1fr);margin-top:0;
   border-top:1px solid var(--linha-e);border-bottom:1px solid var(--linha-e);
 }
 @media(max-width:860px){.cred{grid-template-columns:repeat(2,1fr)}}
@@ -207,22 +223,31 @@ header{
 .s4 .et{font-size:11px;font-weight:800;letter-spacing:.18em;color:var(--azul-claro);margin-bottom:14px}
 
 /* ── portas ── */
-.portas{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--linha-c);border:1px solid var(--linha-c);border-radius:var(--r2);overflow:hidden}
+.portas{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
 @media(max-width:1020px){.portas{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:620px){.portas{grid-template-columns:1fr}}
-.porta{background:var(--branco);padding:32px 26px;display:flex;flex-direction:column}
-.porta:hover{background:#FAFCFE}
-.portaN{font-size:11px;font-weight:800;letter-spacing:.18em;color:var(--fraco-c);margin-bottom:14px}
+/* Cartão ESCURO dentro da seção clara. Cartão branco sobre cinza claro não tem
+   presença nenhuma; é o contraste que faz o bloco existir na página. Com o
+   cartão escuro o verde volta a ser o botão da ação, como na referência. */
+.porta{
+  background:var(--tinta);border:1px solid rgba(255,255,255,.15);border-radius:var(--r2);
+  padding:28px 24px;display:flex;flex-direction:column;color:var(--texto-e);
+  transition:border-color .16s ease;
+}
+.porta:hover{border-color:var(--acao)}
+.claro .porta h3{color:var(--texto-e)}
+.portaN{font-size:11px;font-weight:800;letter-spacing:.18em;color:var(--fraco-e);margin-bottom:14px}
 .porta h3{margin-bottom:10px}
-.porta > p{font-size:14.2px;color:var(--suave-c)}
-.porta ul{list-style:none;display:grid;gap:8px;margin:16px 0 22px;flex:1}
-.porta li{font-size:13.4px;color:var(--suave-c);padding-left:16px;position:relative}
-.porta li::before{content:"";position:absolute;left:0;top:9px;width:6px;height:6px;border-radius:50%;background:var(--azul)}
-/* Quatro botoes verdes lado a lado anulam a hierarquia e deixam a secao com
-   cara de promocao. Na superficie clara o botao da porta e tinta solida; o
-   verde fica para a acao primaria da pagina (topo e envio do formulario). */
-.porta .btn{width:100%;padding:14px 18px;font-size:14px;background:var(--texto-c);color:#fff}
-.porta .btn:hover{background:#16304C;filter:none}
+.porta > p{font-size:14.2px;color:var(--suave-e)}
+/* Fio entre os itens em vez de marcador: a lista vira ficha técnica, que é como
+   comprador técnico lê. */
+.porta ul{list-style:none;display:grid;gap:0;margin:18px 0 0;flex:1}
+.porta li{font-size:13.4px;color:var(--suave-e);padding:10px 0;border-top:1px solid rgba(255,255,255,.1)}
+.porta li:last-child{border-bottom:1px solid rgba(255,255,255,.1)}
+/* "Ideal para" faz o leitor se reconhecer numa frase, sem ler a lista toda. */
+.idealPara{font-size:12.8px;color:var(--suave-e);margin:16px 0 20px;line-height:1.5}
+.idealPara b{display:block;color:var(--fraco-e);font-weight:800;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:5px}
+.porta .btn{width:100%;padding:14px 18px;font-size:14px}
 
 /* ── barra superior ── */
 /* Bandeira + menu de 3 linhas + botao de conectar rede, no padrao das grandes
@@ -517,48 +542,46 @@ footer{background:var(--tinta-2);border-top:1px solid var(--linha-e);padding:52p
 
 <!-- ─────────────── HERO ─────────────── -->
 <section class="hero">
-  <div class="wrap">
-    <div class="heroGrid">
-      <div>
-        <span class="rotulo">Eletromobilidade · Brasil</span>
-        <h1>Marca própria.<br>Garantia própria.<br>Obra completa.</h1>
-        <p class="sub">
-          Carregadores rápidos DC de 80 e 120 kW, projeto e homologação com
-          engenharia, obra completa e a plataforma que cobra pelo aplicativo.
-          Um fornecedor, do equipamento ao primeiro carro carregando.
-        </p>
-        <div class="preVenda">
-          <span class="pvSelo">Pré-venda até 31 de outubro</span>
-          <span class="pvItem"><b>DC80</b> R$ 59.900 <s>R$ 74.900</s></span>
-          <span class="pvItem"><b>DC120</b> R$ 79.900 <s>R$ 94.900</s></span>
-          <span class="pvNota">Chegada do lote: fim de novembro a início de dezembro.</span>
-        </div>
-        <div class="heroCta">
-          <a class="btn" href="#falar">Falar com um especialista</a>
-          <a class="btn linha" href="#linha">Ver equipamentos e preços</a>
-        </div>
-      </div>
-      <div class="heroFoto">
-        <img src="/nexus/img/dc-perspectiva.webp" width="800" height="800" alt="Carregador rápido NEXUS DC de 80 kW, gabinete azul-marinho com faixas verdes e dois cabos CCS2" fetchpriority="high">
-      </div>
+  <img class="heroFundo" src="/nexus/img/estoque-fila-1200.webp" width="1200" height="900" alt="Fila de carregadores rápidos NEXUS sobre paletes no galpão, prontos para embarque" fetchpriority="high">
+  <div class="heroTexto">
+    <span class="rotulo">Eletromobilidade · Brasil</span>
+    <h1>Qualidade que aguenta.<br>Garantia que responde.<br>Peça no Brasil.</h1>
+    <p class="sub">Para quem <b>instala</b> e para quem <b>opera rede de recarga</b>.</p>
+    <div class="heroCta">
+      <a class="btn" href="#falar">Falar com um especialista</a>
     </div>
+  </div>
+</section>
 
+<!-- ─────────────── PRÉ-VENDA ─────────────── -->
+<section class="pvFaixa">
+  <div class="wrap preVenda">
+    <span class="pvSelo">Pré-venda até 31 de outubro</span>
+    <span class="pvItem"><b>DC80</b>R$ 59.900<s>R$ 74.900</s></span>
+    <span class="pvItem"><b>DC120</b>R$ 79.900<s>R$ 94.900</s></span>
+    <span class="pvNota">Chegada do lote: fim de novembro a início de dezembro.</span>
+  </div>
+</section>
+
+<!-- ─────────────── OS QUATRO PILARES ─────────────── -->
+<section style="padding:56px 0 0">
+  <div class="wrap">
     <div class="cred">
       <div class="cr">
-        <div class="crT">Marca própria</div>
-        <div class="crD">O equipamento é NEXUS. Especificação, identidade e catálogo são nossos.</div>
+        <div class="crT">Qualidade</div>
+        <div class="crD">Marca própria, com especificação definida por nós. Não é caixa de importador com etiqueta trocada.</div>
       </div>
       <div class="cr">
-        <div class="crT">Garantia NEXUS</div>
-        <div class="crD">Quem responde é quem vendeu, com peça de reposição no Brasil.</div>
+        <div class="crT">Logística</div>
+        <div class="crD">Importação em nome próprio, lote com data e peça de reposição em estoque no país.</div>
       </div>
       <div class="cr">
-        <div class="crT">Lote em produção</div>
-        <div class="crD">Importação em nome próprio, já comprada, com data de chegada declarada.</div>
+        <div class="crT">Garantia</div>
+        <div class="crD">Quem responde é quem vendeu. Sem triangular com fábrica no exterior.</div>
       </div>
       <div class="cr">
-        <div class="crT">Plataforma de cobrança</div>
-        <div class="crD">Gestão, cobrança pelo app e monitoramento, com OCPP 1.6J aberto.</div>
+        <div class="crT">Software de gestão</div>
+        <div class="crD">A rede inteira num painel: pontos, usuários, tarifa, repasse e roaming.</div>
       </div>
     </div>
   </div>
@@ -566,7 +589,7 @@ footer{background:var(--tinta-2);border-top:1px solid var(--linha-e);padding:52p
 
 <!-- ─────────────── FAIXA: PRODUÇÃO ─────────────── -->
 <section class="faixa" style="padding:0">
-  <img src="/nexus/img/estoque-fila-1200.webp" width="1200" height="900" alt="Fila de carregadores rápidos embalados sobre paletes no galpão, prontos para embarque" loading="lazy">
+  <img src="/nexus/img/estoque-linha-1200.webp" width="1200" height="900" alt="Carregadores NEXUS na linha de produção, com os cabos ainda embalados" loading="lazy">
   <div class="wrap faixaTexto">
     <span class="faixaSel">Lote em produção</span>
     <h2>O lote já está em produção, e tem data para chegar.</h2>
@@ -717,6 +740,7 @@ footer{background:var(--tinta-2);border-top:1px solid var(--linha-e);padding:52p
           <li>Não tem local: apresentamos pontos</li>
           <li>Entrar junto com outros investidores</li>
         </ul>
+        <p class="idealPara"><b>Ideal para</b>Quem tem capital e procura ativo que fatura sozinho, com ou sem local definido.</p>
         <a class="btn" href="#falar" data-porta="capital">Quero investir</a>
       </div>
       <div class="porta">
@@ -728,6 +752,7 @@ footer{background:var(--tinta-2);border-top:1px solid var(--linha-e);padding:52p
           <li>Aluguel por contrato, sem pagar obra</li>
           <li>Sem custo e sem exclusividade</li>
         </ul>
+        <p class="idealPara"><b>Ideal para</b>Posto, mercado, hotel, oficina, pátio e terreno na rota.</p>
         <a class="btn" href="#falar" data-porta="ponto">Cadastrar meu local</a>
       </div>
       <div class="porta">
@@ -739,6 +764,7 @@ footer{background:var(--tinta-2);border-top:1px solid var(--linha-e);padding:52p
           <li>Proposta, simulador e treinamento</li>
           <li>Sem franquia, royalty ou mensalidade</li>
         </ul>
+        <p class="idealPara"><b>Ideal para</b>Integrador solar, empresa de elétrica, engenharia e construtora.</p>
         <a class="btn" href="/nexus/partner">Ser parceiro</a>
       </div>
       <div class="porta">
@@ -750,6 +776,7 @@ footer{background:var(--tinta-2);border-top:1px solid var(--linha-e);padding:52p
           <li>DC de 80 e 120 kW, dois CCS2</li>
           <li>Nota fiscal e garantia NEXUS</li>
         </ul>
+        <p class="idealPara"><b>Ideal para</b>Rede de recarga, frota, concessionária e quem já sabe a potência que quer.</p>
         <a class="btn" href="#linha">Ver a linha</a>
       </div>
     </div>
