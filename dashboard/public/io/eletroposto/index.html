@@ -2955,9 +2955,16 @@ function perfilTexto(sel){
 // Então o gatilho deixou de ser a lotação de hoje: agora entram TODOS os dias
 // úteis com horário livre até o teto. Isso inverte de propósito a régua de
 // 14/08 acima, e o custo dela continua valendo (dia ao lado de dia espalha).
-// Voltar é de uma linha: ABRE_PROXIMO_COM = 2 e TETO_VITRINE = 2.
-const ABRE_PROXIMO_COM = 99;  // sempre abre o próximo: a agenda vai inteira pra tela
-const TETO_VITRINE = 4;       // até quatro dias, que é a semana útil que a grade alcança
+//
+// 28/09/2026 — E VOLTOU PRA DOIS DIAS (ordem do Thiago: "a agenda tem dezenas de
+// opções"). Com o teto em 4 e o próximo sempre aberto, a tela abria a semana toda
+// de uma vez: ~36 botões numa grade de meia em meia hora. Escolher virou trabalho,
+// e horário demais lê como agenda vazia — o oposto do que a vitrine larga queria
+// provar. Volta a régua de 14/08: hoje sozinho enquanto tem o que vender, e o
+// próximo dia inteiro só quando sobram 2 horários.
+// Reabrir é a mesma linha: ABRE_PROXIMO_COM = 99 e TETO_VITRINE = 4.
+const ABRE_PROXIMO_COM = 2;   // sobrou isto ou menos hoje? o próximo dia entra junto
+const TETO_VITRINE = 2;       // nunca mais de dois dias na tela
 function proximosDias(){
   const base = new Date(`${partesBR().ymd}T12:00:00-03:00`);
   const abertos = [];
