@@ -14,7 +14,7 @@ const perto = (n: number): Sugestao => ({
   perto: Array.from({ length: n }, (_, i) => ({
     nome: `Fulano ${i + 1}`, telefone: `5534999${i}0000`, cidade: 'Araguari-MG',
     municipio: 'Araguari', uf: 'MG', km: i * 40, daFicha: i === 1,
-    tab: 'nota1' as const, id: i + 1,
+    tab: 'nota1' as const, id: i + 1, relacao: 'Sou o proprietário', proprio: true,
   })),
 });
 
@@ -35,21 +35,27 @@ describe('blocoPares — as quatro formas', () => {
   it('longe: diz quem é o mais próximo E que é longe demais', () => {
     const s: Sugestao = { status: 'longe', perto: [], maisProximo: {
       nome: 'Distante', telefone: '5592999990000', cidade: 'Manaus - AM',
-      municipio: 'Manaus', uf: 'AM', km: 2400, daFicha: false, tab: 'parceria', id: 9 } };
+      municipio: 'Manaus', uf: 'AM', km: 2400, daFicha: false, tab: 'parceria', id: 9,
+      relacao: 'Sou o proprietário', proprio: true } };
     const txt = blocoPares(s, 'ponto').join('\n');
     expect(txt).toContain('Manaus-AM (2400 km)');
     expect(txt).toContain('Longe demais');
+    // "ponto próprio", nao "ponto": desde 28/09 so o dono do local e oferecido, e a
+    // frase tem que dizer de qual fila ele e o mais perto.
+    expect(txt).toContain('ponto próprio mais perto');
   });
 
   it('sem mapa NÃO vira "ninguém por perto"', () => {
     const txt = blocoPares({ status: 'sem_mapa', perto: [], motivo: 'erro de digitação' }, 'ponto').join('\n');
     expect(txt).toContain('Não consegui localizar');
-    expect(txt).not.toContain('Nenhum ponto cadastrado');
+    expect(txt).not.toContain('cadastrado ainda');
   });
 
   it('pool vazio diz que a fila existe, e não que a medição falhou', () => {
     const txt = blocoPares({ status: 'pool_vazio', perto: [] }, 'ponto').join('\n');
-    expect(txt).toContain('Nenhum ponto cadastrado ainda');
+    // PROPRIO na frase: com 14 inquilinos na base, "nenhum ponto cadastrado" seria
+    // mentira — o que nao existe e ponto de quem e dono do local.
+    expect(txt).toContain('Nenhum ponto próprio cadastrado ainda');
     expect(txt).not.toContain('Não consegui localizar');
   });
 
@@ -114,7 +120,7 @@ describe('as mensagens da equipe', () => {
     expect(m).toContain('INVESTIDOR');
     expect(m).toContain('R$ 100 mil a R$ 200 mil');
     expect(m).toContain('Nos próximos 3 meses');
-    expect(m).toContain('PONTOS MAIS PERTO');
+    expect(m).toContain('PONTOS PRÓPRIOS MAIS PERTO');
   });
 
   it('sem dica nenhuma, a mensagem continua inteira', () => {

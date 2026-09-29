@@ -543,6 +543,13 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 /* PONTOS — prospecção dos locais (26/09/2026). Vive dentro do pane de Cadastros.
    Cartão e não tabela: cada linha tem quatro controles que se escreve com o
    polegar, e é do celular que se liga. */
+.pn-rel-linha{display:flex;align-items:center;gap:8px;margin:8px 0 2px}
+.pn-rel-lbl{font-size:12px;color:#94A3B8;white-space:nowrap}
+.pn-rel{flex:1;min-width:0}
+/* Sem resposta é AMARELO, não cinza: é a pergunta que falta fazer, e é ela que
+   põe a pessoa em Arrendamento. Cinza leria como campo opcional. */
+.pn-rel.vazio{border-color:#F59E0B;color:#F59E0B}
+.pn-rel[disabled]{opacity:.5;cursor:not-allowed}
 .pn-abas{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0 12px}
 .pn-aba{background:rgba(148,163,184,.10);border:1px solid rgba(148,163,184,.20);color:#94A3B8;
   font-family:inherit;font-size:13.5px;font-weight:700;padding:9px 14px;border-radius:999px;cursor:pointer;min-height:40px}
@@ -9374,8 +9381,47 @@ function cadDestino(origem, r) {
   const v = r.valor_investir || (String(r.ficha || '').match(/Quanto pretende investir:\s*([^\n]+)/i) || [])[1];
   return cadValorOk(v) ? 'capital' : 'curioso';
 }
-const CAD_STATUS = { novo: 'Novo', falando: 'Falando', conectado: 'Conectado', sem_interesse: 'Sem interesse' };
+// ── OS DOIS EIXOS (ordem do dono, 28/09/2026) ───────────────────────────────
+// "Temos que considerar todos que tem endereço próprio como opção de arrendamento.
+// Tem gente que chega querendo comprar e no final não tem dinheiro e podemos
+// oferecer arrendamento."
+//
+//   EIXO DO LOCAL    -> pode ceder um local? entra em ARRENDAMENTO. De qualquer
+//                       porta e em QUALQUER desfecho da reunião: quem foi SEM
+//                       INTERESSE por falta de dinheiro é o melhor arrendador.
+//   EIXO DO DINHEIRO -> cadDestino(), intacto: Investidores x Curioso.
+//
+// AS DUAS LISTAS SE CRUZAM de propósito. Quem tem o local E o dinheiro aparece
+// nas duas, porque é venda direta — o pior erro aqui é esconder essa pessoa de
+// um dos lados pra manter a soma bonitinha. Quem impede alguém de virar par de
+// si mesmo é a chave de telefone no servidor (montarPares).
+//
+// GÊMEO de ehOpcaoArrendamento() em api/src/services/io/eletropostoPares.ts.
+// Mudar um sem o outro faz a aba listar quem o Match não oferece, ou o contrário.
+/** Reunião cujo local já ganhou carregador: arrendar ali é alugar ponto ocupado.
+ *  `carregador`, `50/50` e `chave na mão` NÃO entram aqui — são o modelo em
+ *  negociação, não venda. O rótulo de venda é `fechou`. */
+const CAD_STATUS_LOCAL_OCUPADO = new Set(['fechou', 'fechou_concorrente']);
+/** A resposta "O local é seu?" de uma linha qualquer: coluna, observação da
+ *  reunião ou texto da ficha. A coluna de `agendamentos` está vazia em 96% das
+ *  linhas, então o texto é a fonte. */
+function cadRelacaoDaLinha(origem, r) {
+  const col = String(r.ponto_relacao || '').trim();
+  if (col) return col;
+  const texto = origem === 'nota1' ? r.ficha : r.observacao;
+  const m = String(texto || '').match(/Local (?:é|e) seu:\s*([^\n]+)/i);
+  return m ? m[1].trim() : null;
+}
+/** É opção de ARRENDAMENTO? O eixo do local, sem olhar dinheiro nenhum. */
+function cadEhOpcaoArrendamento(origem, r) {
+  if (origem === 'agenda') {
+    if (CAD_STATUS_LOCAL_OCUPADO.has(String(r.status || ''))) return false;
+    if (String(r.status || '') === 'arrendamento') return true;
+  }
+  return cadPodeCeder(cadRelacaoDaLinha(origem, r));
+}
 
+const CAD_STATUS = { novo: 'Novo', falando: 'Falando', conectado: 'Conectado', sem_interesse: 'Sem interesse' };
 // ── COLUNA AGENDA (22/09/2026) ───────────────────────────────────────────────
 // Ordem do dono: ver na lista quem já tem reunião, com a MESMA etiqueta do card
 // da agenda, e poder filtrar por vendedor. O casamento é por telefone (8 últimos
@@ -9424,6 +9470,10 @@ function cadVendedores() {
 }
 let cadLado = 'ponto';
 let cadDados = null;   // null = nunca carregou
+// Alguem gravou "de quem e o local" na Prospeccao: as listas em memoria ficaram
+// velhas e a aba tem que reler antes de mostrar. Sem isto, a pessoa que acabou de
+// virar Arrendamento so apareceria na proxima abertura do pane.
+let cadPrecisaRecarregar = false;
 // Pareamento por proximidade, calculado no servidor (/_api/io/eletroposto/parceria/pares).
 // `null` significa "não consegui calcular" — que é diferente de "ninguém perto",
 // e a célula precisa dizer coisas diferentes nos dois casos.
@@ -9434,21 +9484,35 @@ let cadParesAberto = null;   // "tab:id" da linha com o painel aberto
 // lugares — aviso, coluna e esta aba.
 let cadMatches = null;
 let cadConexoes = [];
+// Os pontos que NAO sao proprios: continuam na lista de Arrendamento, mas nao
+// pareiam. Guardado pra celula "perto" poder dizer o motivo em vez de "—".
+let cadSemDono = [];
+// Quem o servidor não conseguiu localizar no mapa. Vem antes do sem_dono na
+// célula: "não é próprio" seria um motivo errado pra quem não tem par porque a
+// cidade não resolveu.
+let cadSemMapa = [];
 let CAD_MATCH_KM = 200;
+// Quantos investidores cada ponto leva pro Match. Vem do servidor junto com o
+// teto de km: dois números, um lugar só. 3 é o mesmo que cabe numa mensagem.
+let CAD_MAX_POR_PONTO = 3;
 
 function cadAba(lado) {
   pontosFechar();   // aba Pontos e um pane a parte; voltar pra lista o esconde
   cadLado = lado;
+  if (cadPrecisaRecarregar && cadDados) { cadPrecisaRecarregar = false; cadCarregar(); }
   ['ponto', 'capital', 'curioso', 'integrador', 'match'].forEach(l => {
     const b = document.getElementById('cad-aba-' + l);
     if (b) b.classList.toggle('ativa', l === lado);
   });
   const TITULO = {
-    ponto: 'Arrendamento — quem tem o local',
-    capital: 'Investidores: R$ ' + CAD_PISO_MIL + ' mil ou mais, sem local pra ceder',
+    ponto: 'Arrendamento — quem pode ceder um local, de qualquer porta e em qualquer '
+         + 'desfecho de reunião. Cruza com Investidores: quem tem o local E o dinheiro está nas duas',
+    capital: 'Investidores: R$ ' + CAD_PISO_MIL + ' mil ou mais. Quem também tem local próprio '
+           + 'aparece aqui E em Arrendamento — é venda direta',
     curioso: 'Curioso: não disse quanto investe, ou disse menos de R$ ' + CAD_PISO_MIL + ' mil',
     integrador: 'Parceiros: integradores que instalam e querem vender eletroposto',
-    match: 'Match — duplas a até ' + CAD_MATCH_KM + ' km uma da outra',
+    match: 'Match — os ' + CAD_MAX_POR_PONTO + ' investidores mais perto de cada ponto PRÓPRIO, até '
+           + CAD_MATCH_KM + ' km',
   };
   document.getElementById('cad-titulo').textContent = TITULO[lado];
   // O painel de "quem está perto" é da tabela de lista; na aba Match o par já
@@ -9500,8 +9564,14 @@ async function cadCarregar(forcar) {
       // card e a pessoa tem que cair aqui. Antes nao caia: em 21/09 eram 9 leads
       // assim, e NENHUM estava em lista nenhuma — nem cadastro, nem ficha. Se a
       // leitura falhar a aba carrega igual, so sem eles.
-      supaGet('agendamentos?status=eq.arrendamento&select=id,created_at,cliente_nome,'
-              + 'cliente_telefone,cidade,ponto_relacao&order=created_at.desc&limit=1000').catch(() => []),
+      // TODA REUNIÃO DE ELETROPOSTO que diz de quem é o local (28/09), não só a
+      // marcada ARRENDAMENTO: são 197 fichas com a linha "Local é seu", 120 delas
+      // do dono, e só 12 estavam marcadas. As 192 KB de observação desta base
+      // saem mais barato do que a coluna, que o trigger não preenche.
+      supaGet('agendamentos?created_by=ilike.*eletroposto*'
+              + '&or=(status.eq.arrendamento,observacao.ilike.*Local*seu*)'
+              + '&select=id,created_at,cliente_nome,cliente_telefone,cidade,status,'
+              + 'ponto_relacao,observacao&order=created_at.desc&limit=1000').catch(() => []),
       // TODA reunião recente, pra coluna Agenda: a pessoa da lista pode ter
       // reunião de qualquer status, não só arrendamento. Janela de 120 dias e
       // teto de 1000 (o da API) — as mais NOVAS primeiro, que são as que a
@@ -9516,9 +9586,14 @@ async function cadCarregar(forcar) {
       // Filtrando por eletroposto sao ~400 linhas, com folga de anos, e e' o
       // assunto desta tela. Reuniao de solar da mesma pessoa deixa de aparecer
       // aqui de proposito: esta aba e' a base do eletroposto.
+      // A JANELA DE 120 DIAS SAIU (28/09): com o eixo do local, 187 dos 202 pontos
+      // vêm da agenda e parte deles é de agosto — dentro da janela antiga eles
+      // apareciam na lista com travessão na coluna Agenda, que quer dizer "não
+      // tem reunião". Filtrado por eletroposto a base inteira são ~470 linhas,
+      // com folga de anos contra o teto de 1.000 da API; o corte que o comentário
+      // antigo temia era o de TODOS os produtos (1.092 numa janela de 120 dias).
       supaGet('agendamentos?select=id,quando,cliente_telefone,status,vendedor_nome,created_by,src'
               + '&created_by=ilike.*eletroposto*'
-              + '&quando=gte.' + new Date(Date.now() - 120 * 86400000).toISOString()
               + '&order=quando.desc&limit=1000').catch(() => []),
     ]);
     // Uma pessoa pode ter várias reuniões; fica a mais recente (a leitura já vem
@@ -9530,7 +9605,10 @@ async function cadCarregar(forcar) {
     });
     cadPares = pares && pares.pares ? pares.pares : null;
     cadMatches = pares && pares.matches ? pares.matches : null;
+    cadSemDono = pares && Array.isArray(pares.sem_dono) ? pares.sem_dono : [];
+    cadSemMapa = pares && Array.isArray(pares.sem_mapa) ? pares.sem_mapa : [];
     if (pares && pares.teto_km) CAD_MATCH_KM = pares.teto_km;
+    if (pares && pares.max_por_ponto) CAD_MAX_POR_PONTO = pares.max_por_ponto;
     cadConexoes = conexoes || [];
     // Cada linha das tres origens ganha o seu destino pela regra (cadDestino), e
     // cada TELEFONE aparece uma vez so, no melhor destino que tiver:
@@ -9551,36 +9629,81 @@ async function cadCarregar(forcar) {
       ponto_tipo: f.perfil, ponto_fluxo: f.ponto, ponto_endereco: f.endereco,
       capital_faixa: null, capital_origem: f.invest,
       valor_investir: f.valor_investir || cadValorDaFicha(f.ficha) }));
-    const daAgenda = (agendaArr || []).map(a => ({
+    // Só as reuniões que são opção de arrendamento — as outras continuam fora da
+    // aba, como antes. O filtro roda na linha CRUA, onde `status` ainda é o do
+    // card (embaixo ele virá 'novo', que é o status do CADASTRO, outra coisa).
+    const daAgenda = (agendaArr || []).filter(a => cadEhOpcaoArrendamento('agenda', a)).map(a => ({
       id: a.id, created_at: a.created_at, nome: a.cliente_nome,
       telefone: a.cliente_telefone, cidade: a.cidade,
       tab: 'agendamentos', deFicha: false, deAgenda: true,
-      // a posse que o consultor marcou ao apertar ARRENDAMENTO (21/09)
-      ponto_relacao: a.ponto_relacao || null,
-      // A agenda nao perguntou local nem endereco: a coluna "Situacao" diz de onde
-      // veio a certeza, pra quem liga saber que o modelo JA foi conversado.
-      ponto_fluxo: 'Marcado ARRENDAMENTO na agenda',
+      // A posse sai da coluna quando existe e do texto da ficha quando não — e é
+      // gravada aqui pra que o selo e o Match leiam um campo só.
+      ponto_relacao: cadRelacaoDaLinha('agenda', a),
+      // De onde veio a certeza, pra quem liga saber o que já foi conversado.
+      // Sem repetir o status: a coluna Agenda já mostra o desfecho da reunião com
+      // a pílula do card. Dizer duas vezes, em formatos diferentes, na mesma
+      // linha, parece defeito de renderização.
+      ponto_fluxo: a.status === 'arrendamento'
+        ? 'Marcado ARRENDAMENTO na agenda'
+        : 'Dono do local na ficha da LP',
       status: 'novo',
     }));
     const todas = [].concat(
-      cadastros.map(r => ({ ...r, destino: cadDestino('parceria', r) })),
-      daFicha.map(r => ({ ...r, destino: cadDestino('nota1', r) })),
-      daAgenda.map(r => ({ ...r, destino: 'ponto' })));
+      cadastros.map(r => ({ ...r, origem: 'parceria', destino: cadDestino('parceria', r) })),
+      daFicha.map(r => ({ ...r, origem: 'nota1', destino: cadDestino('nota1', r) })),
+      daAgenda.map(r => ({ ...r, origem: 'agenda', destino: 'ponto' })));
+    const listas = { ponto: [], capital: [], curioso: [] };
+    // EIXO DO LOCAL: a lista de Arrendamento é um SUPERCONJUNTO — entra quem pode
+    // ceder um local, tenha ele dinheiro ou não, esteja ele em Investidores ou
+    // não. Um telefone aparece uma vez, na linha mais rica (cadastro > ficha >
+    // agenda), que é a mesma ordem do servidor.
+    const vistosPonto = new Set();
+    // A linha da agenda JA passou pelo filtro na leitura, onde `status` ainda era
+    // o do CARD. Aqui ele vale 'novo', que e o status do CADASTRO: reavaliar o
+    // gate agora responderia "false" pra reuniao marcada ARRENDAMENTO e sumiria
+    // com ela da lista.
+    const ehPonto = r => r.origem === 'agenda' || cadEhOpcaoArrendamento(r.origem, r);
+    todas.forEach(r => {
+      if (!ehPonto(r)) return;
+      const d = soDig(r.telefone);
+      if (d) { if (vistosPonto.has(d)) return; vistosPonto.add(d); }
+      listas.ponto.push(r);
+    });
+    // EIXO DO DINHEIRO — duas listas, e cada uma é gêmea de um lugar diferente do
+    // servidor. Elas NÃO são a mesma régua, e tratar como se fossem foi o erro
+    // que este comentário existe pra não deixar voltar:
+    //
+    //   INVESTIDORES = pool('capital'): toda linha cujo valor qualifica, um
+    //     telefone uma vez. Quem também tem local próprio APARECE aqui — é o lead
+    //     "tem os dois" (venda direta), e é ele que o Match precisa achar nesta
+    //     lista quando o servidor oferece a dupla. Tirá-lo daqui fazia a dupla
+    //     sumir da tela sem erro nenhum.
+    //   CURIOSO = curiosos() no servidor, que é a FILA que recebe a pergunta do
+    //     valor. Lá o destino é UM por telefone (Arrendamento > Investidores >
+    //     Curioso), então aqui também: mostrar nesta aba quem o motor de Avisos
+    //     não vai chamar seria a tela prometendo uma ligação que não sai.
+    const vistosCapital = new Set();
+    todas.forEach(r => {
+      if (r.destino !== 'capital') return;
+      const d = soDig(r.telefone);
+      if (d) { if (vistosCapital.has(d)) return; vistosCapital.add(d); }
+      listas.capital.push(r);
+    });
     const PESO = { ponto: 0, capital: 1, curioso: 2 };
     const melhor = new Map();
     todas.forEach(r => {
       const d = soDig(r.telefone);
       if (d && (!melhor.has(d) || PESO[r.destino] < PESO[melhor.get(d)])) melhor.set(d, r.destino);
     });
-    const listas = { ponto: [], capital: [], curioso: [] };
-    const vistos = new Set();
+    const vistosCurioso = new Set();
     todas.forEach(r => {
+      if (r.destino !== 'curioso') return;
       const d = soDig(r.telefone);
       if (d) {
-        if (vistos.has(d) || melhor.get(d) !== r.destino) return;
-        vistos.add(d);
+        if (vistosCurioso.has(d) || melhor.get(d) !== 'curioso') return;
+        vistosCurioso.add(d);
       }
-      listas[r.destino].push(r);
+      listas.curioso.push(r);
     });
 
     cadDados = {
@@ -9617,6 +9740,9 @@ function cadRender() {
     }
     selVend.value = nomes.includes(vend) ? vend : '';
   }
+  // A soma das abas é maior que o número de pessoas desde 28/09 (o mesmo humano
+  // pode ser ponto e investidor). Sem esta linha, alguém soma 3 números e conclui
+  // que a base tem mais gente do que tem.
   document.getElementById('cad-cnt-ponto').textContent = cadDados.ponto.length;
   document.getElementById('cad-cnt-capital').textContent = cadDados.capital.length;
   document.getElementById('cad-cnt-curioso').textContent = cadDados.curioso.length;
@@ -9760,6 +9886,15 @@ function cadRender() {
 // distância congelada. Congelada de propósito: a cidade do cadastro pode ser
 // corrigida depois, e o histórico tem que dizer o que a equipe viu quando
 // decidiu apresentar.
+//
+// SÓ PONTO PRÓPRIO É OFERECIDO (ordem do dono, 28/09/2026). Quem indica dupla
+// indica ponto de quem é dono do local: apresentar investidor a um inquilino é
+// marcar reunião que depende de um terceiro com quem ninguém falou. Inquilino,
+// administrador e representante CONTINUAM na aba Arrendamento e na fila da
+// equipe (eles assinam, Cl. 16.1) — só não viram dupla automática. Quem filtra é
+// o servidor (soPontosProprios em eletropostoPares.ts), pelo mesmo motivo do teto
+// de km: a lista de Match, a coluna "perto" e o aviso no WhatsApp têm que
+// concordar, senão a mensagem cita quem a tela não oferece.
 // ═══════════════════════════════════════════════════════════════════════════
 // De onde cada linha veio. A chave curta e a mesma que o servidor usa nos pares
 // (`tab` em eletropostoPares.ts) — um nome so nos dois lados.
@@ -9805,7 +9940,9 @@ function cadRenderMatch(busca) {
     tb.innerHTML = '<tr><td colspan="5" style="color:#94A3B8;padding:20px;line-height:1.6">' + (cadMatches.length
       ? 'Nenhuma dupla com esse filtro.'
       : '<b>Nenhuma dupla dentro de ' + CAD_MATCH_KM + ' km.</b><br>'
-        + 'Ou falta gente de um dos lados, ou quem existe está longe demais um do outro. '
+        + 'Só ponto PRÓPRIO pareia: quem é inquilino, administra ou representa o dono '
+        + 'aparece na aba Arrendamento com o selo, mas não entra aqui. '
+        + 'Fora isso, ou falta gente de um dos lados, ou quem existe está longe demais um do outro. '
         + 'A coluna "perto" nas outras abas mostra a que distância está o mais próximo de cada um.')
       + '</td></tr>';
     return;
@@ -9824,7 +9961,9 @@ function cadRenderMatch(busca) {
       const fraco = /Monof/i.test(d.p.padrao_ligacao || '') || /Até 40/i.test(d.p.padrao_disjuntor || '');
       return '<tr>'
         + '<td class="cad-km">' + (d.km === 0 ? 'mesma<br>cidade' : d.km + '<span class="cad-sub" style="margin:0">km</span>') + '</td>'
-        + '<td class="nome">' + escapeHtml(d.p.nome || '—')
+        // O selo repete na dupla de propósito: é a resposta que deixou esta linha
+        // entrar, e ela tem que estar visível onde a equipe decide ligar.
+        + '<td class="nome">' + escapeHtml(d.p.nome || '—') + ' ' + cadRelacaoBadge(d.p)
           + '<span class="cad-sub">' + escapeHtml(d.p.cidade || '—')
           + (d.p.ponto_tipo ? ' · ' + escapeHtml(d.p.ponto_tipo) : '') + '</span>'
           + '<div style="margin-top:6px">' + wa(telP) + '</div></td>'
@@ -9901,13 +10040,31 @@ function cadParesCel(r) {
   const ref = cadRef(r);
   if (!cadPares) return '<td title="não consegui calcular as distâncias agora">—</td>';
   const lista = cadPares[ref];
+  // A ORDEM DOS MOTIVOS IMPORTA: cidade que não resolve vem primeiro, porque é o
+  // motivo mais forte (não houve conta nenhuma). Dizer "não é próprio" pra quem
+  // não foi medido mandaria o consultor corrigir a coisa errada.
+  if (!lista && cadSemMapa.indexOf(ref) >= 0)
+    return '<td title="não consegui localizar esta cidade no mapa">—</td>';
+  // Ponto que nao e proprio nao entra no pareamento (28/09) — e a celula DIZ isso.
+  // "—" aqui seria lido como "ninguem por perto", que e outra coisa e leva o
+  // consultor a procurar no mapa um par que a regra nem calculou.
+  if (!lista && cadSemDono.indexOf(ref) >= 0)
+    return '<td><span class="cad-sub" style="margin:0" title="só ponto próprio entra no Match: '
+      + 'inquilino, administrador e representante ficam na lista, mas sem dupla automática">'
+      + 'não é próprio</span></td>';
   if (!lista) return '<td title="não consegui localizar esta cidade no mapa">—</td>';
   if (!lista.length) return '<td>0</td>';
   const maisPerto = lista[0].km === 0 ? 'mesma cidade' : lista[0].km + ' km';
+  // Na aba Investidores a lista e de PONTOS, e nem todo ponto perto vira dupla: o
+  // numero de cima e quem EXISTE por perto, o de baixo e quem o Match oferece.
+  // Sem os dois, a linha promete uma dupla que a aba Match nao tem.
+  const proprios = cadLado === 'capital' ? lista.filter(x => x.proprio).length : null;
+  const selo = proprios === null ? maisPerto
+    : maisPerto + ' · ' + (proprios ? proprios + ' próprio' + (proprios > 1 ? 's' : '') : 'nenhum próprio');
   const aberto = cadParesAberto === ref;
   return '<td><button type="button" class="cad-par' + (aberto ? ' aberto' : '') + '" aria-expanded="' + aberto + '" '
     + 'onclick="cadAbrirPares(\'' + ref + '\')">'
-    + lista.length + '<span class="cad-sub" style="margin:0">' + maisPerto + '</span>'
+    + lista.length + '<span class="cad-sub" style="margin:0">' + selo + '</span>'
     + '<span class="cad-par-ver">' + (aberto ? 'fechar' : 'ver') + '</span></button></td>';
 }
 
@@ -9976,8 +10133,11 @@ function cadParesHTML(eu) {
           + (alvo.capital_origem ? '<span class="cad-par-como">' + escapeHtml(alvo.capital_origem) + '</span>' : '') + '</span>'
         : '<span class="cad-par-valor sem">valor não informado'
           + (alvo.capital_origem ? '<span class="cad-par-como">' + escapeHtml(alvo.capital_origem) + '</span>' : '') + '</span>';
+    // Do lado do investidor, o selo de posse vai junto: e ele que diz qual desses
+    // nomes a aba Match oferece como dupla e qual so esta por perto.
     return '<div class="cad-par-item">'
       + '<b>' + escapeHtml(alvo.nome || '—') + '</b>'
+      + (ehPonto ? '' : ' ' + cadRelacaoBadge(alvo))
       + '<span class="onde">' + onde + '</span>'
       + valor + org
       + (tel ? '<a class="cad-wa" href="https://wa.me/' + tel + '" target="_blank" rel="noopener">WhatsApp</a>' : '<span></span>')
@@ -9985,6 +10145,7 @@ function cadParesHTML(eu) {
   }).filter(Boolean).join('');
   return '<div class="cad-par-topo"><b>'
     + (ehPonto ? 'Investidores a até ' : 'Pontos a até ') + CAD_MATCH_KM + ' km de ' + escapeHtml(eu.nome || '—') + '</b>'
+    + (ehPonto ? '' : '<span class="cad-sub" style="margin:0">só os PRÓPRIOS viram dupla na aba Match</span>')
     + '<button type="button" class="ehist-btn" onclick="cadAbrirPares(null)">fechar</button></div>'
     + (itens || '<div class="cad-sub" style="margin:0">Os pares saíram da lista com o filtro atual.</div>');
 }
@@ -10165,6 +10326,29 @@ const AVI_POR_DIA = 20;
 /** Os degraus da conversa, na ordem do funil. Mora AQUI e não num CHECK do
  *  banco de propósito: o CHECK de `lado` em eletroposto_parceria já derrubou
  *  todo POST de valor novo com 500 mudo. Degrau novo é edição desta linha. */
+// ── DE QUEM É O LOCAL? (29/09/2026) ─────────────────────────────────────────
+// É a resposta que põe alguém em Arrendamento, e até hoje não tinha onde ser
+// registrada: o único caminho era apertar ARRENDAMENTO no card da reunião, o que
+// TROCA o status e apaga o desfecho (uma reunião "NEGOCIANDO" viraria
+// "ARRENDAMENTO"). São 126 pessoas com endereço na ficha e sem essa resposta — o
+// filtro "Não foi perguntado" já mostra a fila, faltava o lugar de gravar.
+//
+// GRAVA NA COLUNA `ponto_relacao` DA LINHA QUE O POOL LÊ, e numa só (cadastro >
+// reunião): `relacaoDaLinha` lê a coluna antes do texto, e gravar nos dois
+// lugares só dobra a chance de eles discordarem.
+//
+// OS TRIGGERS DA AGENDA NÃO ATRAPALHAM, conferido no banco em 29/09: a função
+// `eletroposto_estruturar` que está em produção NEM conhece `ponto_relacao` (a do
+// `MIGRATION_eletroposto_ponto_proprio.sql` nunca foi aplicada, e é por isso que
+// 96% da coluna está vazia), e `set_repassar_em` só mexe em `repassar_em` quando
+// `status` ou `quando` mudam — este PATCH não toca em nenhum dos dois.
+//
+// Os mesmos rótulos da LP, porque é o mesmo campo: rótulo novo aqui criaria uma
+// resposta que `podeCeder` não conhece, e a pessoa ficaria fora da lista sem
+// ninguém entender por quê.
+const PN_RELACOES = ['Sou o proprietário', 'Administro o local', 'Represento o proprietário',
+                     'Sou inquilino', 'Ainda não é meu · pretendo alugar ou comprar'];
+
 const PN_ESTAGIOS = [
   { id: 'nao_tocado',  rot: 'Não tocado',      cor: '#94A3B8', dica: 'ninguém ligou ainda' },
   { id: 'tentando',    rot: 'Tentando falar',  cor: '#FBBF24', dica: 'liguei e não atendeu' },
@@ -10337,7 +10521,7 @@ async function pontosCarregar(forcar) {
               perfil: '', relacao: '', ponto: '', casaDoLead: false, semNumero: false,
               statusReuniao: '', vendedor: '', quando: '', criado: '',
               valorTxt: '', valorMil: null, comoTxt: '',
-              agendamento_id: null, indice: null, temEstudo: false,
+              agendamento_id: null, cadastro_id: null, indice: null, temEstudo: false,
               destino: null, integrador: false, fontes: [] };
         linhas.set(tel8, l);
       }
@@ -10370,7 +10554,12 @@ async function pontosCarregar(forcar) {
       if (l.fontes.indexOf('reunião') < 0) l.fontes.push('reunião');
       poe(l, 'nome', a.cliente_nome);
       poe(l, 'perfil', pnPerfil(a.observacao));
-      poe(l, 'relacao', pnCampo(a.observacao, 'Local é seu') || a.ponto_relacao || '');
+      // A COLUNA GANHA DO TEXTO, igual a relacaoDaLinha() no servidor: o texto e o
+      // que o lead respondeu na LP, a coluna e o que alguem CONFIRMOU depois (pelo
+      // botao ARRENDAMENTO ou pelo select aqui embaixo). Na ordem contraria, a
+      // resposta registrada na ligacao sumia no proximo carregamento da tela e a
+      // aba Arrendamento e esta lista diziam coisas diferentes da mesma pessoa.
+      poe(l, 'relacao', a.ponto_relacao || pnCampo(a.observacao, 'Local é seu') || '');
       poe(l, 'ponto', pnCampo(a.observacao, 'Ponto'));
       // QUANTO e COMO: o "capital_faixa" de agendamentos NÃO é valor, é a forma
       // de pagamento em slug (proprio, fin_cnpj). O valor só existe no texto da
@@ -10400,6 +10589,8 @@ async function pontosCarregar(forcar) {
       if (l.fontes.indexOf('cadastro') < 0) l.fontes.push('cadastro');
       poe(l, 'nome', c.nome); poe(l, 'cidade', c.cidade);
       poe(l, 'relacao', c.ponto_relacao); poe(l, 'perfil', c.ponto_tipo);
+      // o id do cadastro é onde a resposta "o local é seu?" vai ser gravada
+      if (l.cadastro_id == null) l.cadastro_id = c.id;
       // aqui capital_faixa É o valor (a porta do capital pergunta a faixa);
       // capital_origem é a forma. Os dois nomes se cruzam entre as tabelas.
       poe(l, 'valorTxt', c.capital_faixa); poe(l, 'comoTxt', c.capital_origem);
@@ -10788,12 +10979,71 @@ function pnCard(l) {
              + pnEsc(h.quem || '—') + ' · ' + pnEsc(h.o || '') + '</div>').join('')
          + '</details>'
        : '')
+  + pnRelacaoHTML(l)
   + '  <div class="pn-acoes">'
   + '    <a class="pn-link" href="tel:+55' + wa + '">Ligar ' + pnEsc(pnFone(l.telefone)) + '</a>'
   + '    <a class="pn-link wa" href="https://wa.me/55' + wa + '" target="_blank" rel="noopener">WhatsApp</a>'
   +      (l.agendamento_id ? '<a class="pn-link" href="/gerador/agenda?ag=' + l.agendamento_id + '&ver=1" target="_blank" rel="noopener">Card da reunião</a>' : '')
   + '  </div>'
   + '</div>';
+}
+
+/** O select de "De quem é o local?". Valor fora da lista (texto velho da LP, ou
+ *  "não respondeu") entra como opção própria: trocar calado a resposta de alguém
+ *  por um rótulo parecido seria inventar dado. */
+function pnRelacaoHTML(l) {
+  const atual = String(l.relacao || '').trim();
+  const onde = l.cadastro_id ? 'no cadastro' : l.agendamento_id ? 'na reunião' : '';
+  const lista = PN_RELACOES.slice();
+  if (atual && lista.indexOf(atual) < 0) lista.unshift(atual);
+  return '  <div class="pn-rel-linha">'
+    + '<label class="pn-rel-lbl">De quem é o local?</label>'
+    + '<select class="pn-inp pn-rel' + (atual ? '' : ' vazio') + '"' + (onde ? '' : ' disabled')
+    + ' title="' + (onde
+        ? 'grava ' + onde + ' e, se ele puder ceder, a pessoa entra em Arrendamento'
+        : 'esta pessoa só tem ficha da LP, e a ficha não tem coluna pra guardar a resposta')
+    + '" onchange="pnRelacaoSalvar(\'' + l.tel8 + '\', this.value)">'
+    + '<option value=""' + (atual ? '' : ' selected') + '>ninguém perguntou</option>'
+    + lista.map(r => '<option value="' + pnEsc(r) + '"' + (r === atual ? ' selected' : '') + '>'
+        + pnEsc(r) + '</option>').join('')
+    + '</select></div>';
+}
+
+/** Grava a resposta na linha que o pool lê, e só nela. Otimista na tela, como o
+ *  resto desta aba; erro volta o valor de antes em vez de deixar a tela dizendo
+ *  uma coisa e o banco outra. */
+async function pnRelacaoSalvar(tel8, valor) {
+  const l = pnDados.find(x => String(x.tel8) === String(tel8));
+  if (!l) return;
+  const alvo = l.cadastro_id
+    ? { tabela: 'eletroposto_parceria', id: l.cadastro_id, onde: 'no cadastro' }
+    : l.agendamento_id
+      ? { tabela: 'agendamentos', id: l.agendamento_id, onde: 'na reunião' }
+      : null;
+  if (!alvo) {
+    showToast('Esta pessoa só tem ficha da LP: não há onde gravar a resposta.');
+    pnRender();
+    return;
+  }
+  const antes = l.relacao || '';
+  l.relacao = valor;
+  if (cadPodeCeder(valor)) l.destino = 'ponto';
+  pnRender();
+  try {
+    await supaPatch(alvo.tabela + '?id=eq.' + alvo.id, { ponto_relacao: valor || null });
+    // o histórico da negociação registra quem perguntou e o que ouviu
+    pnSalvar(tel8, {}, 'local é seu: ' + (valor || 'sem resposta') + ' (' + alvo.onde + ')');
+    // A aba Cadastros já está carregada em memória; sem isto, a pessoa só
+    // apareceria em Arrendamento na próxima vez que o pane fosse aberto.
+    cadPrecisaRecarregar = true;
+    showToast(cadPodeCeder(valor)
+      ? 'Registrado ' + alvo.onde + '. Agora ele é opção de arrendamento.'
+      : 'Registrado ' + alvo.onde + '.');
+  } catch (e) {
+    l.relacao = antes;
+    pnRender();
+    showToast('Não gravou: ' + String(e.message || e).slice(0, 120));
+  }
 }
 
 // ─── gravação ────────────────────────────────────────────────────────────────

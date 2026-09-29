@@ -8,8 +8,7 @@ import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
 import { agendaFechadaNoIso, MOTIVO_FECHADA } from '../services/agenda/agendaFechada';
 // A dica de "quem está perto" no aviso: quem tem o ponto procura investidor e
 // vice-versa. Falha aqui nunca segura o aviso — devolve bloco vazio.
-import { blocoParesSeguro, pool, TETO_KM } from '../services/io/eletropostoPares';
-import { distanciaKm } from '../services/io/geoCidade';
+import { blocoParesSeguro, pool, montarPares, MAX_PARES, TETO_KM } from '../services/io/eletropostoPares';
 // Estudo do local: o card já sai com a pré-nota e o link da página.
 import { extraDoCard, garantirEstudo } from '../services/io/eletropostoEstudoGarantir';
 
@@ -688,57 +687,19 @@ router.get('/parceria/placar', async (_req: Request, res: Response): Promise<voi
 // e a tabela de municípios são 408 KB que não vão para dentro de um PWA.
 router.get('/parceria/pares', async (_req: Request, res: Response): Promise<void> => {
   try {
-    // O PONTO primeiro, e o capital só com quem não está lá: o cadastro permite
-    // a mesma pessoa nos dois lados (tem o terreno E o dinheiro), e sem cruzar
-    // os telefones ela viraria par dela mesma a 0 km, no topo da fila.
-    const pontos = await pool('ponto');
-    const capital = await pool('capital', new Set(pontos.map(p => p.telefone)));
-    const chave = (c: { tab: string; id: number }) => `${c.tab}:${c.id}`;
-
-    const pares: Record<string, Array<{ ref: string; km: number }>> = {};
-    const semMapa: string[] = [];
-
-    const cruzar = (lado: typeof capital, outro: typeof capital) => {
-      for (const eu of lado) {
-        if (typeof eu.lat !== 'number') { semMapa.push(chave(eu)); continue; }
-        const perto = outro
-          .filter(o => typeof o.lat === 'number')
-          .map(o => ({ ref: chave(o), km: distanciaKm(
-            { lat: eu.lat!, lng: eu.lng! }, { lat: o.lat!, lng: o.lng! }) }))
-          .filter(o => o.km <= TETO_KM)
-          .sort((a, b) => a.km - b.km);
-        pares[chave(eu)] = perto;
-      }
-    };
-    cruzar(capital, pontos);
-    cruzar(pontos, capital);
-
-    // ── A LISTA DE MATCH ──
-    // O mesmo cálculo virado do avesso: em vez de "quem está perto DESTE", é
-    // "quais duplas existem", já ordenadas pela distância. É o que a aba Match
-    // mostra, e é o que responde "quem eu apresento pra quem" sem ninguém
-    // precisar abrir linha por linha.
-    //
-    // O par é sempre gravado com o PONTO primeiro. Sem isso, (A,B) e (B,A)
-    // virariam duas conexões diferentes da mesma dupla.
-    const matches: Array<{ ponto: string; capital: string; km: number }> = [];
-    for (const p of pontos) {
-      if (typeof p.lat !== 'number') continue;
-      for (const c of capital) {
-        if (typeof c.lat !== 'number') continue;
-        const km = distanciaKm({ lat: p.lat, lng: p.lng! }, { lat: c.lat, lng: c.lng! });
-        if (km <= TETO_KM) matches.push({ ponto: chave(p), capital: chave(c), km });
-      }
-    }
-    matches.sort((a, b) => a.km - b.km);
+    // OS DOIS LADOS PODEM CONTER A MESMA PESSOA (28/09): tem o local E o dinheiro
+    // e o melhor lead que existe, e apagar um lado pra proteger o outro escondia
+    // exatamente ele. Quem impede alguem de virar par DELE MESMO e a chave de
+    // telefone dentro de montarPares.
+    const [pontos, capital] = await Promise.all([pool('ponto'), pool('capital')]);
 
     res.set('Cache-Control', 'public, max-age=300');
-    res.json({ pares, matches, sem_mapa: semMapa, teto_km: TETO_KM });
+    res.json({ ...montarPares(pontos, capital), teto_km: TETO_KM, max_por_ponto: MAX_PARES });
   } catch (err) {
     logger.error('io-eletroposto-pares', 'falha montando os pares', err);
     // Null, não objeto vazio: vazio afirmaria "ninguém tem par", e a tela
     // precisa distinguir isso de "não consegui calcular".
-    res.json({ pares: null, matches: null, sem_mapa: null, teto_km: TETO_KM });
+    res.json({ pares: null, matches: null, sem_mapa: null, sem_dono: null, teto_km: TETO_KM });
   }
 });
 

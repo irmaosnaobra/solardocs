@@ -8,7 +8,8 @@ import { join } from 'node:path';
 // monta os pares e o Match, e cadDestino() na aba Cadastros do /gerador. Este teste
 // cobre a tabela de destino linha a linha e depois LÊ o JavaScript da aba e roda os
 // dois lado a lado. Se alguém mexer num só, ele aponta a resposta em que discordaram.
-import { destinoDe, podeCeder, valorEmMil, valorOk, agruparPorDestino, PISO_INVESTIDOR_MIL, type LinhaOrigem } from '../services/io/eletropostoPares';
+import { destinoDe, podeCeder, valorEmMil, valorOk, agruparPorDestino, PISO_INVESTIDOR_MIL,
+         ehOpcaoArrendamento, relacaoDaLinha, type LinhaOrigem } from '../services/io/eletropostoPares';
 
 const GERADOR = join(__dirname, '../../../dashboard/public/gerador/index.html');
 
@@ -19,11 +20,15 @@ function regraDaTela() {
   // Marcador que sumiu = tela refatorada. Melhor um teste quebrado do que um que
   // passa sem comparar nada.
   if (i < 0 || j < 0 || j <= i) throw new Error(`marcador sumiu do /gerador: "${de}" … "${ate}"`);
-  return new Function(html.slice(i, j) + '\nreturn { cadPodeCeder, cadValorEmMil, cadDestino, CAD_PISO_MIL };')() as {
+  return new Function(html.slice(i, j)
+    + '\nreturn { cadPodeCeder, cadValorEmMil, cadDestino, CAD_PISO_MIL,'
+    + ' cadEhOpcaoArrendamento, cadRelacaoDaLinha };')() as {
     cadPodeCeder: (t: unknown) => boolean;
     cadValorEmMil: (t: unknown) => number | null;
     cadDestino: (origem: string, r: Record<string, unknown>) => string;
     CAD_PISO_MIL: number;
+    cadEhOpcaoArrendamento: (origem: string, r: Record<string, unknown>) => boolean;
+    cadRelacaoDaLinha: (origem: string, r: Record<string, unknown>) => string | null;
   };
 }
 
@@ -211,25 +216,146 @@ describe('a lista de cada aba é a mesma na tela e no servidor', () => {
     { id: 10, telefone: T.B, ficha: 'Quanto pretende investir: R$ 280 mil', created_at: '2026-09-17' },
     { id: 9, telefone: T.C, ficha: '', created_at: '2026-09-16' },
   ];
-  const agenda = [{ id: 900, cliente_telefone: T.C, created_at: '2026-09-21' }];
+  const agenda = [
+    // marcada ARRENDAMENTO: entra pelo botão, sem precisar de resposta
+    { id: 900, cliente_telefone: T.C, status: 'arrendamento', created_at: '2026-09-21' },
+    // a reunião que morreu por falta de dinheiro, com o local do próprio dono:
+    // é a ordem de 28/09 — ela É opção de arrendamento
+    { id: 901, cliente_telefone: '5534999990009', status: 'sem_interesse', created_at: '2026-09-22',
+      observacao: 'LP ELETROPOSTO — Posto\nLocal é seu: Sou o proprietário\nEndereço: Av. X, 10' },
+    // reunião sem ninguém ter perguntado de quem é o local: fica fora
+    { id: 902, cliente_telefone: '5534999990010', status: 'agendado', created_at: '2026-09-23',
+      observacao: 'LP ELETROPOSTO — Posto' },
+  ];
 
-  it('Arrendamento, Investidores e Curioso batem linha a linha', () => {
+  it('CURIOSO é a fila do servidor: um destino por telefone, igualzinho', () => {
     const tela = agrupamentoDaTela()(pontos, capital, fichas, agenda);
     const porData = (a: any, b: any) => String(b.created_at).localeCompare(String(a.created_at));
     const linhas: LinhaOrigem[] = [
       ...[...pontos, ...capital].sort(porData).map(r => ({ origem: 'parceria' as const, r })),
       ...fichas.map(r => ({ origem: 'nota1' as const, r })),
-      ...agenda.map(r => ({ origem: 'agenda' as const, r })),
+      // curiosos() só lê a agenda marcada ARRENDAMENTO — é o que a fila do motor vê
+      ...agenda.filter(r => r.status === 'arrendamento').map(r => ({ origem: 'agenda' as const, r })),
     ];
     const servidor = agruparPorDestino(linhas);
     const ORIGEM: Record<string, string> = { eletroposto_parceria: 'parceria', eletroposto_nota1: 'nota1', agendamentos: 'agenda' };
-    for (const d of ['ponto', 'capital', 'curioso'] as const) {
-      expect(tela[d].map(r => ORIGEM[r.tab] + ':' + r.id), d)
-        .toEqual(servidor[d].map(l => l.origem + ':' + l.r.id));
-    }
-    // e o resultado é o que a regra do dono manda
-    expect(servidor.ponto.map(l => l.origem + ':' + l.r.id).sort()).toEqual(['agenda:900', 'nota1:12', 'parceria:1']);
-    expect(servidor.capital.map(l => l.origem + ':' + l.r.id).sort()).toEqual(['nota1:13', 'parceria:3']);
+    // A aba Curioso e a fila que recebe a pergunta do valor têm que ser as mesmas
+    // pessoas: a tela não pode prometer uma ligação que o motor não faz.
+    expect(tela.curioso.map(r => ORIGEM[r.tab] + ':' + r.id))
+      .toEqual(servidor.curioso.map(l => l.origem + ':' + l.r.id));
     expect(servidor.curioso.map(l => l.origem + ':' + l.r.id)).toEqual(['parceria:5']);
+  });
+
+  it('INVESTIDORES é o pool do servidor: toda linha que qualifica, inclusive quem tem local', () => {
+    const tela = agrupamentoDaTela()(pontos, capital, fichas, agenda);
+    const ORIGEM: Record<string, string> = { eletroposto_parceria: 'parceria', eletroposto_nota1: 'nota1', agendamentos: 'agenda' };
+    const refs = tela.capital.map(r => ORIGEM[r.tab] + ':' + r.id).sort();
+    // parceria:2 é o telefone A, que tem local próprio (parceria:1) E R$ 140 mil:
+    // antes de 28/09 ele desaparecia daqui, e com ele a dupla que o servidor
+    // oferecia — `cadAcha` não encontrava a linha e a tela engolia o par.
+    expect(refs).toContain('parceria:2');
+    expect(refs).toEqual(['nota1:13', 'parceria:2', 'parceria:3', 'parceria:4']);
+    // e é a mesma régua do pool: destinoDe por LINHA, sem o melhor-destino por pessoa
+    const doPool = [
+      ...[...pontos, ...capital].map(r => ['parceria', r] as const),
+      ...fichas.map(r => ['nota1', r] as const),
+    ].filter(([o, r]) => destinoDe(o as 'parceria' | 'nota1', r as Record<string, unknown>) === 'capital');
+    const vistos = new Set<string>();
+    const doPoolRefs: string[] = [];
+    for (const [o, r] of doPool) {
+      const tel = String((r as any).telefone || '').replace(/\D/g, '');
+      if (tel) { if (vistos.has(tel)) continue; vistos.add(tel); }
+      doPoolRefs.push(o + ':' + (r as any).id);
+    }
+    expect(refs).toEqual(doPoolRefs.sort());
+  });
+
+  // O eixo do LOCAL divergiu do agruparPorDestino DE PROPÓSITO em 28/09: lá cada
+  // telefone tem um destino só (é o que a fila do Curioso precisa), aqui a aba
+  // Arrendamento é um superconjunto. Quem garante que a tela e o servidor
+  // concordam nesta régua é o teste de ehOpcaoArrendamento logo abaixo; o que
+  // este caso trava é o CONTEÚDO da lista.
+  it('Arrendamento é superconjunto: dono de local entra mesmo com dinheiro ou reunião perdida', () => {
+    const tela = agrupamentoDaTela()(pontos, capital, fichas, agenda);
+    const refs = (l: Array<{ tab: string; id: number }>) => {
+      const ORIGEM: Record<string, string> = { eletroposto_parceria: 'parceria', eletroposto_nota1: 'nota1', agendamentos: 'agenda' };
+      return l.map(r => ORIGEM[r.tab] + ':' + r.id).sort();
+    };
+    expect(refs(tela.ponto)).toEqual(['agenda:900', 'agenda:901', 'nota1:12', 'parceria:1']);
+    // a reunião sem resposta nenhuma continua fora
+    expect(refs(tela.ponto)).not.toContain('agenda:902');
+    // e o telefone A, que tem local próprio E R$ 140 mil, está nos DOIS eixos
+    expect(refs(tela.ponto)).toContain('parceria:1');
+    expect(refs(tela.capital)).toContain('parceria:2');
+  });
+});
+
+
+// -----------------------------------------------------------------------------
+// O EIXO DO LOCAL TAMBEM E GEMEO (28/09/2026)
+//
+// `ehOpcaoArrendamento` decide quem e opcao de arrendamento no servidor e
+// `cadEhOpcaoArrendamento` faz o mesmo na aba. Sem este teste, os dois derivam e
+// a aba lista quem o Match nao oferece — a falha que este arquivo existe pra
+// impedir, agora na regra nova.
+// -----------------------------------------------------------------------------
+describe('ehOpcaoArrendamento: a tela e o servidor respondem igual', () => {
+  const STATUS = ['arrendamento', 'agendado', 'sem_interesse', 'cancelado', 'nao_atendeu',
+    'em_atendimento', 'proposta_apresentada', 'chave_na_mao', 'meio_a_meio', 'carregador',
+    'fechou', 'fechou_concorrente', 'reagendar', '', null];
+
+  it('reunião: as duas respostas batem em todo status × toda relação', () => {
+    const tela = regraDaTela();
+    for (const status of STATUS) {
+      for (const rel of RELACOES) {
+        const linha = { status, observacao: rel === null ? '' : 'LP ELETROPOSTO — Posto\nLocal é seu: ' + rel };
+        expect(tela.cadEhOpcaoArrendamento('agenda', linha),
+          `agenda ${status} · ${rel}`).toBe(ehOpcaoArrendamento('agenda', linha));
+      }
+      // e com a resposta na COLUNA em vez do texto
+      const naColuna = { status, ponto_relacao: 'Sou o proprietário' };
+      expect(tela.cadEhOpcaoArrendamento('agenda', naColuna), `coluna ${status}`)
+        .toBe(ehOpcaoArrendamento('agenda', naColuna));
+    }
+  });
+
+  it('cadastro e ficha: as duas respostas batem em toda relação', () => {
+    const tela = regraDaTela();
+    for (const rel of RELACOES) {
+      const cad = { lado: 'capital', ponto_relacao: rel };
+      expect(tela.cadEhOpcaoArrendamento('parceria', cad), `parceria ${rel}`)
+        .toBe(ehOpcaoArrendamento('parceria', cad));
+      const ficha = { ficha: rel === null ? '' : 'Local é seu: ' + rel };
+      expect(tela.cadEhOpcaoArrendamento('nota1', ficha), `nota1 ${rel}`)
+        .toBe(ehOpcaoArrendamento('nota1', ficha));
+    }
+  });
+
+  it('a leitura da relação bate nas três origens', () => {
+    const tela = regraDaTela();
+    const casos: Array<[string, Record<string, unknown>]> = [
+      ['agenda', { observacao: 'Ponto: definido\nLocal é seu: Sou o proprietário\nDecisor: eu' }],
+      ['agenda', { ponto_relacao: 'Sou inquilino', observacao: 'Local é seu: Sou o proprietário' }],
+      ['agenda', { observacao: 'LP ELETROPOSTO — Posto' }],
+      ['nota1', { ficha: 'Local é seu: Administro o local' }],
+      ['parceria', { ponto_relacao: 'Represento o proprietário' }],
+      ['parceria', {}],
+    ];
+    for (const [origem, r] of casos) {
+      expect(tela.cadRelacaoDaLinha(origem, r), `${origem} ${JSON.stringify(r)}`)
+        .toBe(relacaoDaLinha(origem as 'parceria' | 'nota1' | 'agenda', r));
+    }
+  });
+
+  it('o eixo do DINHEIRO não mudou: quem pode ceder não deixa de ser investidor', () => {
+    // O cadastro de capital com local próprio é opção de arrendamento E continua
+    // Investidores. É o lead "tem os dois", que antes de 28/09 desaparecia de um
+    // dos lados.
+    const r = { lado: 'capital', ponto_relacao: 'Sou o proprietário', capital_faixa: 'R$ 140 mil' };
+    expect(ehOpcaoArrendamento('parceria', r)).toBe(true);
+    expect(destinoDe('parceria', r)).toBe('capital');
+    const tela = regraDaTela();
+    expect(tela.cadEhOpcaoArrendamento('parceria', r)).toBe(true);
+    expect(tela.cadDestino('parceria', r)).toBe('capital');
   });
 });

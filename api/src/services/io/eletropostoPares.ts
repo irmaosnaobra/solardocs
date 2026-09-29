@@ -54,6 +54,11 @@ export interface Candidato {
    *  aba Cadastros do /gerador usa (CAD_ORIGEM), porque os pares chegam por ele. */
   tab: 'parceria' | 'nota1' | 'agenda';
   id: number;
+  /** O que a pessoa respondeu em "O local é seu?", como ela viu na tela. `null` =
+   *  ninguém perguntou (ficha velha, ou reunião marcada na mão). */
+  relacao?: string | null;
+  /** O local é DELA. Só no lado do ponto; no capital é sempre false. */
+  proprio: boolean;
 }
 
 const soDigitos = (s: unknown) => String(s ?? '').replace(/\D/g, '');
@@ -92,6 +97,39 @@ export function podeCeder(relacao: unknown): boolean {
   if (!t || /ainda n[aã]o [eé] meu|negoci|em vista|n[aã]o conversei/.test(t)) return false;
   return /propriet|inquilin|represent|administr/.test(t);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PONTO PRÓPRIO — quem o Match pode oferecer (ordem do dono, 28/09/2026)
+//
+// `podeCeder` continua sendo quem entra na aba ARRENDAMENTO: proprietário,
+// inquilino, administrador e representante, os quatro que assinam pelo contrato
+// (Cl. 16.1). O MATCH é mais estreito, e de propósito: apresentar um investidor
+// a um inquilino é marcar reunião que depende de um terceiro que ninguém falou
+// com — o dono do imóvel. Quem indica dupla indica ponto PRÓPRIO.
+//
+// SÃO DUAS RÉGUAS, NÃO UMA. Estreitar `podeCeder` jogaria inquilino e
+// representante fora do Arrendamento e dentro de Investidores/Curioso, o que
+// muda a aba, os grupos do Menu de Avisos e o contrato. Eles continuam na lista,
+// continuam na fila da equipe — só não viram dupla automática.
+//
+// A base em 28/09/2026: 33 pontos no pool, 19 próprios. Os 14 que saem do Match
+// são 10 inquilinos, 2 representantes, 1 administrador e 1 da agenda.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** O local é da própria pessoa? A ORDEM importa, e por dois motivos: "REPRESENTO
+ *  o proprietário" e "estou NEGOCIANDO com o proprietário" contêm a palavra dono
+ *  sem ser dono. Mesma leitura do selo PRÓPRIO na aba Cadastros do /gerador. */
+export function ehProprio(relacao: unknown): boolean {
+  const t = String(relacao ?? '').toLowerCase();
+  if (!t) return false;                                    // ninguém perguntou: não afirma nada
+  if (/ainda n[aã]o [eé] meu|nao_e_meu|negoci|em vista|n[aã]o conversei/.test(t)) return false;
+  if (/represent|administr|inquilin/.test(t)) return false;
+  return /propriet|sou o dono|[eé] meu/.test(t);
+}
+
+/** O lado do PONTO como o Match o vê. Existe como função com nome para que as
+ *  duas pontas — a dica no WhatsApp e a tela — filtrem pela MESMA linha. */
+export const soPontosProprios = (lista: Candidato[]): Candidato[] => lista.filter(c => c.proprio);
 
 /**
  * O valor declarado, em MIL reais, ou null quando a pessoa nao disse. Le os tres
@@ -141,6 +179,77 @@ export function valorOk(texto: unknown): boolean | null {
   if (v === null) return null;
   if (/menos de|abaixo de/.test(String(texto).toLowerCase()) && v >= PISO_INVESTIDOR_MIL) return null;
   return v >= PISO_INVESTIDOR_MIL;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OS DOIS EIXOS (ordem do dono, 28/09/2026)
+//
+// "Temos que considerar todos que tem endereco proprio como opcao de
+// arrendamento. Tem gente que chega querendo comprar e no final nao tem dinheiro
+// e podemos oferecer arrendamento."
+//
+// Isso separa duas coisas que estavam grudadas numa unica classificacao:
+//
+//   EIXO DO LOCAL    -> pode ceder um local? e opcao de ARRENDAMENTO. Vale de
+//                       QUALQUER porta (cadastro do ponto, cadastro de capital,
+//                       ficha, reuniao) e em QUALQUER desfecho da reuniao — quem
+//                       foi SEM INTERESSE por falta de dinheiro e justamente o
+//                       melhor arrendador. E `ehOpcaoArrendamento`.
+//   EIXO DO DINHEIRO -> declarou R$ 50 mil ou mais? Investidores; nao disse?
+//                       Curioso. E `destinoDe`, e ele NAO muda.
+//
+// A MESMA PESSOA PODE ESTAR NOS DOIS, e isso e informacao, nao defeito: quem tem
+// o local E o dinheiro e venda direta, nao precisa de par. Era por isso que o
+// pool antigo tirava o telefone de um lado quando ele aparecia no outro; agora
+// quem impede a pessoa de virar par DELA MESMA e a chave de telefone em
+// `montarPares`, no momento de cruzar.
+//
+// O QUE ESTAVA SENDO PERDIDO, medido em 28/09: 120 reunioes da LP respondem "Sou
+// o proprietario" e so 12 estavam marcadas ARRENDAMENTO. As outras 108 morreram
+// em cancelado (28), agendado (15), sem_interesse (15), em_atendimento (13), nao
+// atendeu (11)... todas com o endereco na ficha.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Reuniao cujo local JA ganhou carregador: arrendar ali e alugar ponto ocupado.
+ *  Os outros desfechos continuam todos valendo, e isso e proposital —
+ *  `carregador`, `50/50` e `chave na mao` sao o MODELO em negociacao, nao venda
+ *  (o rotulo de venda e `fechou`/VENDIDO). Hoje isso barra 0 pessoas. */
+export const STATUS_LOCAL_OCUPADO = new Set(['fechou', 'fechou_concorrente']);
+
+/** A pergunta "O local e seu?" escrita como o lead a viu. */
+const ROTULO_LOCAL = /Local (?:é|e) seu:\s*([^\n]+)/i;
+
+/**
+ * A resposta de "O local e seu?" numa linha qualquer, de qualquer origem.
+ *
+ * A COLUNA NAO BASTA. `agendamentos.ponto_relacao` existe desde a migration de
+ * 29/08 e esta VAZIA em 96% das linhas: em setembro, 190 reunioes trazem a linha
+ * no texto e 18 tem a coluna preenchida (as que o botao ARRENDAMENTO gravou). O
+ * trigger que deveria enche-la nao enche. Entao o texto e a fonte, e a coluna e
+ * so um atalho pra quando ela existir.
+ */
+export function relacaoDaLinha(origem: 'parceria' | 'nota1' | 'agenda',
+                               r: Record<string, unknown>): string | null {
+  const col = String(r.ponto_relacao ?? '').trim();
+  if (col) return col;
+  const texto = origem === 'nota1' ? r.ficha : r.observacao;
+  return campoDaFicha(texto, ROTULO_LOCAL);
+}
+
+/**
+ * E opcao de ARRENDAMENTO? O eixo do LOCAL, sem olhar dinheiro nenhum.
+ *
+ * GEMEO de cadEhOpcaoArrendamento() no /gerador. Mudar um sem o outro faz a aba
+ * listar quem o Match nao oferece, ou o contrario.
+ */
+export function ehOpcaoArrendamento(origem: 'parceria' | 'nota1' | 'agenda',
+                                    r: Record<string, unknown>): boolean {
+  if (origem === 'agenda') {
+    if (STATUS_LOCAL_OCUPADO.has(String(r.status || ''))) return false;
+    // Quem aperta ARRENDAMENTO no card ja perguntou de quem e o local.
+    if (String(r.status || '') === 'arrendamento') return true;
+  }
+  return podeCeder(relacaoDaLinha(origem, r));
 }
 
 /** O "Local e seu:" e o "Quanto pretende investir:" moram no TEXTO da ficha. */
@@ -247,13 +356,14 @@ export async function curiosos(): Promise<ContatoCurioso[]> {
 /**
  * Carrega um lado inteiro, das três origens, já com coordenada quando dá.
  *
- * `jaNoOutroLado` existe por um motivo específico: uma pessoa PODE estar nos dois
- * lados (tem o terreno E o dinheiro — o cadastro permite, a chave é lado+telefone).
- * Sem cruzar os telefones entre as duas chamadas, ela viraria par DELA MESMA,
- * a 0 km, no topo da fila do Match — que é onde o erro é mais visível e mais
- * constrangedor. O lado do PONTO ganha a disputa: é o ativo escasso.
+ * OS DOIS LADOS PODEM CONTER A MESMA PESSOA (28/09/2026), porque são dois eixos:
+ * quem tem local próprio é opção de arrendamento mesmo tendo dinheiro, e quem
+ * tem dinheiro é investidor mesmo tendo local. Até 28/09 o lado do ponto
+ * "ganhava a disputa" e apagava a pessoa do outro lado — o que escondia o melhor
+ * lead que existe. Quem impede alguém de virar par DELE MESMO agora é a chave de
+ * telefone em `montarPares`, na hora de cruzar, e não a exclusão no pool.
  */
-export async function pool(lado: Lado, jaNoOutroLado?: Set<string>): Promise<Candidato[]> {
+export async function pool(lado: Lado): Promise<Candidato[]> {
   // As tres origens inteiras: quem decide o lado e destinoDe(), nao o filtro do
   // banco. Um cadastro de "ponto" que ainda negocia o local, e declarou dinheiro,
   // e INVESTIDOR — so a regra enxerga isso. A ORDEM (mais novo primeiro) e a da aba
@@ -266,26 +376,34 @@ export async function pool(lado: Lado, jaNoOutroLado?: Set<string>): Promise<Can
     supabaseGerador.from('eletroposto_nota1')
       .select('id, nome, telefone, cidade, ficha, valor_investir')
       .order('created_at', { ascending: false }).limit(1000),
-    // ARRENDAMENTO MARCADO NA AGENDA (21/09): sempre ponto — o consultor ja
-    // perguntou de quem e o local ao marcar.
+    // TODA REUNIAO DE ELETROPOSTO (28/09), nao so a marcada ARRENDAMENTO: a
+    // resposta "o local e seu?" esta na observacao de 197 delas, e e ela que diz
+    // quem e opcao de arrendamento. Sao 192 KB de observacao no total, entao ler
+    // o texto sai mais barato do que depender da coluna vazia.
     lado === 'ponto'
       ? supabaseGerador.from('agendamentos')
-          .select('id, cliente_nome, cliente_telefone, cidade').eq('status', 'arrendamento')
-          .order('created_at', { ascending: false }).limit(500)
+          .select('id, cliente_nome, cliente_telefone, cidade, status, ponto_relacao, observacao')
+          .ilike('created_by', '%eletroposto%')
+          .order('created_at', { ascending: false }).limit(1000)
       : Promise.resolve({ data: [] as Record<string, unknown>[] }),
   ]);
 
   const linhas: Candidato[] = [];
-  // Nasce com quem já está do outro lado: ninguém aparece nos dois pools.
-  const vistos = new Set<string>(jaNoOutroLado || []);
+  // Um telefone aparece uma vez DENTRO do lado, na linha mais rica.
+  const vistos = new Set<string>();
+  // No lado do ponto manda o eixo do LOCAL; no do capital, o eixo do DINHEIRO.
+  const entra = (origem: 'parceria' | 'nota1', r: Record<string, unknown>) =>
+    lado === 'ponto' ? ehOpcaoArrendamento(origem, r) : destinoDe(origem, r) === 'capital';
 
   for (const c of (cadastros.data || []) as Record<string, unknown>[]) {
     const tel = soDigitos(c.telefone);
     if (!tel || vistos.has(tel)) continue;
-    if (destinoDe('parceria', c) !== lado) continue;
+    if (!entra('parceria', c)) continue;
     vistos.add(tel);
+    const rel = relacaoDaLinha('parceria', c);
     linhas.push({ nome: String(c.nome || '—'), telefone: tel, cidade: (c.cidade as string) || null,
-                  daFicha: false, tab: 'parceria', id: Number(c.id) });
+                  daFicha: false, tab: 'parceria', id: Number(c.id),
+                  relacao: rel, proprio: lado === 'ponto' && ehProprio(rel) });
   }
 
   // A ficha de NOTA 1 nao se declarou de lado nenhum: quem a separa e
@@ -293,10 +411,14 @@ export async function pool(lado: Lado, jaNoOutroLado?: Set<string>): Promise<Can
   for (const f of (fichas.data || []) as Record<string, unknown>[]) {
     const tel = soDigitos(f.telefone);
     if (!tel || vistos.has(tel)) continue;
-    if (destinoDe('nota1', f) !== lado) continue;
+    if (!entra('nota1', f)) continue;
     vistos.add(tel);
+    // A ficha não tem coluna de relação (a migration só criou a de `agendamentos`):
+    // a resposta mora no TEXTO, na mesma linha que destinoDe() lê.
+    const rel = relacaoDaLinha('nota1', f);
     linhas.push({ nome: String(f.nome || '—'), telefone: tel, cidade: (f.cidade as string) || null,
-                  daFicha: true, tab: 'nota1', id: Number(f.id) });
+                  daFicha: true, tab: 'nota1', id: Number(f.id),
+                  relacao: rel, proprio: lado === 'ponto' && ehProprio(rel) });
   }
 
   // A agenda vem por ULTIMO no mesmo `vistos`: cadastro > ficha > agenda. Quem ja
@@ -304,9 +426,16 @@ export async function pool(lado: Lado, jaNoOutroLado?: Set<string>): Promise<Can
   for (const a of (agenda.data || []) as Record<string, unknown>[]) {
     const tel = soDigitos(a.cliente_telefone);
     if (!tel || vistos.has(tel)) continue;
+    if (!ehOpcaoArrendamento('agenda', a)) continue;
     vistos.add(tel);
+    // A resposta vem da coluna quando existe e do texto da observação quando não
+    // (o caso de 96% das linhas). Reunião marcada ARRENDAMENTO na mão não tem
+    // resposta nenhuma: fica no Arrendamento, porque o consultor perguntou, e
+    // fora do Match, porque ninguém registrou de quem é o local.
+    const rel = relacaoDaLinha('agenda', a);
     linhas.push({ nome: String(a.cliente_nome || '—'), telefone: tel, cidade: (a.cidade as string) || null,
-                  daFicha: false, tab: 'agenda', id: Number(a.id) });
+                  daFicha: false, tab: 'agenda', id: Number(a.id),
+                  relacao: rel, proprio: ehProprio(rel) });
   }
 
   for (const l of linhas) {
@@ -314,6 +443,71 @@ export async function pool(lado: Lado, jaNoOutroLado?: Set<string>): Promise<Can
     if (g.status === 'ok') { l.lat = g.lat; l.lng = g.lng; l.municipio = g.municipio; l.uf = g.uf; }
   }
   return linhas;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// O CRUZAMENTO — o que a aba Cadastros recebe pronto
+//
+// Mora aqui, e nao na rota, por dois motivos: a trava de auto-par precisa de
+// teste (os dois lados agora podem conter a mesma pessoa), e o teto por ponto e
+// uma decisao de produto, nao de HTTP.
+//
+// TETO POR PONTO: com 19 pontos a lista de duplas tinha 308 linhas; com o eixo
+// do local ela passaria de 1.500, e fila de 1.500 linhas ninguem trabalha. Cada
+// ponto entra com os MAX_PARES investidores mais perto — o mesmo 3 que cabe numa
+// mensagem de WhatsApp. A aba DIZ que e isso que ela mostra.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Os 8 últimos dígitos: a mesma chave do resto da casa (`cadTel8` na tela). O 55
+ *  e o 9 extra aparecem e somem, e comparar dígito por dígito deixaria a mesma
+ *  pessoa virar par DELA MESMA a 0 km, no topo da fila. */
+const tel8 = (t: unknown) => soDigitos(t).slice(-8);
+
+export interface ParesDaTela {
+  /** ref -> quem está perto dele, em ordem de distância. */
+  pares: Record<string, Array<{ ref: string; km: number; proprio: boolean }>>;
+  /** As duplas oferecidas: só ponto próprio, MAX_PARES por ponto. */
+  matches: Array<{ ponto: string; capital: string; km: number }>;
+  /** Refs de quem não tem cidade que dê pra localizar. */
+  sem_mapa: string[];
+  /** Refs de ponto que não é próprio: está na lista, não vira dupla. */
+  sem_dono: string[];
+}
+
+/** O cruzamento inteiro, puro: mesma entrada, mesma saída, sem banco. */
+export function montarPares(pontos: Candidato[], capital: Candidato[]): ParesDaTela {
+  const chave = (c: Candidato) => `${c.tab}:${c.id}`;
+  const pares: ParesDaTela['pares'] = {};
+  const semMapa: string[] = [];
+
+  const cruzar = (lado: Candidato[], outro: Candidato[]) => {
+    for (const eu of lado) {
+      if (typeof eu.lat !== 'number') { semMapa.push(chave(eu)); continue; }
+      pares[chave(eu)] = outro
+        .filter(o => typeof o.lat === 'number' && tel8(o.telefone) !== tel8(eu.telefone))
+        .map(o => ({ ref: chave(o), km: distanciaKm(
+          { lat: eu.lat!, lng: eu.lng! }, { lat: o.lat!, lng: o.lng! }), proprio: o.proprio }))
+        .filter(o => o.km <= TETO_KM)
+        .sort((a, b) => a.km - b.km);
+    }
+  };
+  // O investidor ve a vizinhanca INTEIRA, com cada ponto marcado: mandar so os
+  // proprios aqui escreveria "0" na celula de quem tem tres inquilinos do lado, e
+  // 0 a equipe le como "ninguem por perto". Quem decide dupla e o Match.
+  cruzar(capital, pontos);
+  // Do lado do ponto e o contrario: quem nao e dono nao recebe lista nenhuma,
+  // porque a lista seria a propria indicacao que a regra tirou.
+  cruzar(soPontosProprios(pontos), capital);
+
+  const matches: ParesDaTela['matches'] = [];
+  for (const p of soPontosProprios(pontos)) {
+    for (const o of (pares[chave(p)] || []).slice(0, MAX_PARES)) {
+      matches.push({ ponto: chave(p), capital: o.ref, km: o.km });
+    }
+  }
+  matches.sort((a, b) => a.km - b.km);
+
+  return { pares, matches, sem_mapa: semMapa, sem_dono: pontos.filter(p => !p.proprio).map(chave) };
 }
 
 export interface Sugestao {
@@ -335,7 +529,11 @@ export async function sugerirPares(
   excluirTelefone?: string,
 ): Promise<Sugestao> {
   const eu = resolverCidade(cidadeTexto);
-  const candidatos = (await pool(alvo))
+  // Dica de par E indicacao de match: no lado do ponto vale a regra estreita
+  // (soPontosProprios). Um inquilino citado aqui e uma dupla que a tela nao
+  // oferece — e a equipe liga sem saber que falta o dono do imovel na conversa.
+  const doLado = await pool(alvo);
+  const candidatos = (alvo === 'ponto' ? soPontosProprios(doLado) : doLado)
     .filter(c => c.telefone !== soDigitos(excluirTelefone));
 
   if (!candidatos.length) return { status: 'pool_vazio', perto: [] };
@@ -381,8 +579,10 @@ export function blocoPares(s: Sugestao, alvo: Lado): string[] {
   // Sem emoji: este bloco entra DENTRO do aviso, e lá o emoji é só da primeira
   // linha (a regra está em montarAvisoPonto). Um símbolo aqui viraria o segundo
   // da mensagem e roubaria o cabeçalho, que é o que separa ponto de investidor.
-  const titulo = alvo === 'capital' ? '*INVESTIDORES MAIS PERTO*' : '*PONTOS MAIS PERTO*';
-  const nada = alvo === 'capital' ? 'investidor' : 'ponto';
+  // "PROPRIOS" no titulo nao e enfeite: sem ele, quem conhece um inquilino da
+  // base le a lista curta como falha de calculo e vai procurar o que nao saiu.
+  const titulo = alvo === 'capital' ? '*INVESTIDORES MAIS PERTO*' : '*PONTOS PRÓPRIOS MAIS PERTO*';
+  const nada = alvo === 'capital' ? 'investidor' : 'ponto próprio';
 
   if (s.status === 'ok') {
     return ['', titulo, ...s.perto.map(c =>
