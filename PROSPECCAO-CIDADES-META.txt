@@ -1,0 +1,362 @@
+Vitória da Conquista, BA, Brazil
+Fernando de Noronha, PE, Brazil
+Passo Fundo, RS, Brazil
+Santa Maria, RS, Brazil
+Santiago, RS, Brazil
+Brasília, DF, Brazil
+Mossoró, RN, Brazil
+Curitiba, PR, Brazil
+São Paulo, SP, Brazil
+Arapiraca, AL, Brazil
+Recife, PE, Brazil
+Salvador, BA, Brazil
+Porto Alegre, RS, Brazil
+Pelotas, RS, Brazil
+Macapá, AP, Brazil
+Sinop, MT, Brazil
+Manaus, AM, Brazil
+Torres, RS, Brazil
+Florianópolis, SC, Brazil
+Belo Horizonte, MG, Brazil
+Chapecó, SC, Brazil
+Natal, RN, Brazil
+Resende, RJ, Brazil
+Maceió, AL, Brazil
+João Pessoa, PB, Brazil
+Rio Branco, AC, Brazil
+Itabuna, BA, Brazil
+Rio das Ostras, RJ, Brazil
+Boa Vista, RR, Brazil
+Porto Velho, RO, Brazil
+Caxias do Sul, RS, Brazil
+Aracaju, SE, Brazil
+São Luís, MA, Brazil
+Fortaleza, CE, Brazil
+Indaiatuba, SP, Brazil
+Vitória, ES, Brazil
+Cuiabá, MT, Brazil
+Imperatriz, MA, Brazil
+São José dos Pinhais, PR, Brazil
+Parnamirim, RN, Brazil
+Lauro de Freitas, BA, Brazil
+Santana de Parnaíba, SP, Brazil
+Barueri, SP, Brazil
+Balneário Camboriú, SC, Brazil
+Jaboatão dos Guararapes, PE, Brazil
+Campinas, SP, Brazil
+Cariacica, ES, Brazil
+Petrolina, PE, Brazil
+Niterói, RJ, Brazil
+Joaçaba, SC, Brazil
+São Caetano do Sul, SP, Brazil
+Pinhais, PR, Brazil
+São José, SC, Brazil
+Jaraguá do Sul, SC, Brazil
+Eusébio, CE, Brazil
+Caruaru, PE, Brazil
+Valinhos, SP, Brazil
+Novo Hamburgo, RS, Brazil
+Rio de Janeiro, RJ, Brazil
+Macaé, RJ, Brazil
+Xangri-lá, RS, Brazil
+Itapema, SC, Brazil
+Uberlândia, MG, Brazil
+Campina Grande, PB, Brazil
+Bauru, SP, Brazil
+Vinhedo, SP, Brazil
+Osório, RS, Brazil
+Parnaíba, PI, Brazil
+Nova Lima, MG, Brazil
+Paulista, PE, Brazil
+Jundiaí, SP, Brazil
+Marechal Deodoro, AL, Brazil
+Vila Velha, ES, Brazil
+Cabedelo, PB, Brazil
+Gramado, RS, Brazil
+Cabo de Santo Agostinho, PE, Brazil
+Goiânia, GO, Brazil
+Camaçari, BA, Brazil
+Itupeva, SP, Brazil
+Camaragibe, PE, Brazil
+Santarém, PA, Brazil
+Barra dos Coqueiros, SE, Brazil
+Erechim, RS, Brazil
+Blumenau, SC, Brazil
+Capão da Canoa, RS, Brazil
+Gravataí, RS, Brazil
+Ribeirão Preto, SP, Brazil
+Itu, SP, Brazil
+Sorriso, MT, Brazil
+Maringá, PR, Brazil
+Teresina, PI, Brazil
+São José do Rio Preto, SP, Brazil
+Itajaí, SC, Brazil
+Itapoá, SC, Brazil
+Rio Verde, GO, Brazil
+Dourados, MS, Brazil
+Olinda, PE, Brazil
+Balneário Piçarras, SC, Brazil
+Ijuí, RS, Brazil
+Presidente Prudente, SP, Brazil
+Sorocaba, SP, Brazil
+Porto Belo, SC, Brazil
+Criciúma, SC, Brazil
+Bombinhas, SC, Brazil
+Palmas, TO, Brazil
+Americana, SP, Brazil
+Ivoti, RS, Brazil
+Londrina, PR, Brazil
+Canoas, RS, Brazil
+Juazeiro do Norte, CE, Brazil
+Araruama, RJ, Brazil
+Montes Claros, MG, Brazil
+Foz do Iguaçu, PR, Brazil
+Feira de Santana, BA, Brazil
+São José de Ribamar, MA, Brazil
+Maricá, RJ, Brazil
+Santana, AP, Brazil
+Paço do Lumiar, MA, Brazil
+Governador Valadares, MG, Brazil
+Palhoça, SC, Brazil
+Atibaia, SP, Brazil
+Belém, PA, Brazil
+Limeira, SP, Brazil
+Santa Rosa, RS, Brazil
+Lajeado, RS, Brazil
+Serra, ES, Brazil
+Volta Redonda, RJ, Brazil
+Aquiraz, CE, Brazil
+Piracicaba, SP, Brazil
+Santos, SP, Brazil
+Mogi das Cruzes, SP, Brazil
+Araguaína, TO, Brazil
+Pouso Alegre, MG, Brazil
+Cabo Frio, RJ, Brazil
+Estância Velha, RS, Brazil
+Parauapebas, PA, Brazil
+Marília, SP, Brazil
+Paulínia, SP, Brazil
+Rio Grande, RS, Brazil
+Arujá, SP, Brazil
+Ponta Grossa, PR, Brazil
+Cotia, SP, Brazil
+Guarapari, ES, Brazil
+Dois Irmãos, RS, Brazil
+Guarapuava, PR, Brazil
+Eldorado do Sul, RS, Brazil
+Juiz de Fora, MG, Brazil
+Cascavel, PR, Brazil
+Garanhuns, PE, Brazil
+Joinville, SC, Brazil
+Campo Grande, MS, Brazil
+Cachoeiro de Itapemirim, ES, Brazil
+Araraquara, SP, Brazil
+Angra dos Reis, RJ, Brazil
+Bragança Paulista, SP, Brazil
+Presidente Epitácio, SP, Brazil
+Votorantim, SP, Brazil
+Rondonópolis, MT, Brazil
+Mirassol, SP, Brazil
+Videira, SC, Brazil
+Ipatinga, MG, Brazil
+São Leopoldo, RS, Brazil
+Varginha, MG, Brazil
+Poços de Caldas, MG, Brazil
+Linhares, ES, Brazil
+Tramandaí, RS, Brazil
+Cacoal, RO, Brazil
+Cachoeirinha, RS, Brazil
+Petrópolis, RJ, Brazil
+São José dos Campos, SP, Brazil
+Várzea Grande, MT, Brazil
+Araçoiaba da Serra, SP, Brazil
+Sobral, CE, Brazil
+Luís Eduardo Magalhães, BA, Brazil
+Araquari, SC, Brazil
+São Bernardo do Campo, SP, Brazil
+Botucatu, SP, Brazil
+Araçatuba, SP, Brazil
+Barreiras, BA, Brazil
+Rio do Sul, SC, Brazil
+Caraguatatuba, SP, Brazil
+Armação dos Búzios, RJ, Brazil
+São Pedro da Aldeia, RJ, Brazil
+Itaperuna, RJ, Brazil
+Itatiba, SP, Brazil
+Pato Branco, PR, Brazil
+São Lourenço da Mata, PE, Brazil
+Brusque, SC, Brazil
+Campo Bom, RS, Brazil
+Camboriú, SC, Brazil
+Campos dos Goytacazes, RJ, Brazil
+Santa Cruz do Sul, RS, Brazil
+Barra Velha, SC, Brazil
+Canela, RS, Brazil
+Anápolis, GO, Brazil
+Biguaçu, SC, Brazil
+Patos, PB, Brazil
+Ilhéus, BA, Brazil
+São Carlos, SP, Brazil
+Altamira, PA, Brazil
+Esteio, RS, Brazil
+Louveira, SP, Brazil
+Santo André, SP, Brazil
+Flores da Cunha, RS, Brazil
+Abreu e Lima, PE, Brazil
+Tangará da Serra, MT, Brazil
+Praia Grande, SP, Brazil
+Porto Seguro, BA, Brazil
+Carazinho, RS, Brazil
+Tubarão, SC, Brazil
+Viamão, RS, Brazil
+Farroupilha, RS, Brazil
+Colombo, PR, Brazil
+Franca, SP, Brazil
+Lages, SC, Brazil
+Senador Canedo, GO, Brazil
+Penha, SC, Brazil
+Três Rios, RJ, Brazil
+Guaíba, RS, Brazil
+Campo Largo, PR, Brazil
+Sapiranga, RS, Brazil
+Aparecida de Goiânia, GO, Brazil
+Marabá, PA, Brazil
+Guarulhos, SP, Brazil
+Bertioga, SP, Brazil
+Unaí, MG, Brazil
+Caucaia, CE, Brazil
+Carpina, PE, Brazil
+Colatina, ES, Brazil
+Timbó, SC, Brazil
+Navegantes, SC, Brazil
+Osasco, SP, Brazil
+Vargem Grande Paulista, SP, Brazil
+Teresópolis, RJ, Brazil
+Bento Gonçalves, RS, Brazil
+Ji-Paraná, RO, Brazil
+Araxá, MG, Brazil
+Mairiporã, SP, Brazil
+Concórdia, SC, Brazil
+Jaguariúna, SP, Brazil
+Salto, SP, Brazil
+Taubaté, SP, Brazil
+Jataí, GO, Brazil
+Três Lagoas, MS, Brazil
+Assis, SP, Brazil
+Crato, CE, Brazil
+Umuarama, PR, Brazil
+Nova Odessa, SP, Brazil
+Itumbiara, GO, Brazil
+João Monlevade, MG, Brazil
+Jacareí, SP, Brazil
+Ubatuba, SP, Brazil
+Divinópolis, MG, Brazil
+Primavera do Leste, MT, Brazil
+Arapongas, PR, Brazil
+Mogi Mirim, SP, Brazil
+Nova Friburgo, RJ, Brazil
+Barretos, SP, Brazil
+Boituva, SP, Brazil
+Ipojuca, PE, Brazil
+Uberaba, MG, Brazil
+Duque de Caxias, RJ, Brazil
+São João da Boa Vista, SP, Brazil
+Nova Iguaçu, RJ, Brazil
+Saquarema, RJ, Brazil
+Toledo, PR, Brazil
+Barra Mansa, RJ, Brazil
+Fazenda Rio Grande, PR, Brazil
+Ananindeua, PA, Brazil
+Montenegro, RS, Brazil
+Caçador, SC, Brazil
+Cambé, PR, Brazil
+São Francisco do Sul, SC, Brazil
+Fernandópolis, SP, Brazil
+Araucária, PR, Brazil
+Santa Bárbara d'Oeste, SP, Brazil
+Almirante Tamandaré, PR, Brazil
+Itapetininga, SP, Brazil
+Caieiras, SP, Brazil
+Catanduva, SP, Brazil
+Maracanaú, CE, Brazil
+Contagem, MG, Brazil
+Sapucaia do Sul, RS, Brazil
+Bayeux, PB, Brazil
+Igarassu, PE, Brazil
+Trindade, GO, Brazil
+São Gonçalo do Amarante, RN, Brazil
+Cianorte, PR, Brazil
+Ariquemes, RO, Brazil
+São Roque, SP, Brazil
+Cajamar, SP, Brazil
+Imbituba, SC, Brazil
+Gaspar, SC, Brazil
+Jandira, SP, Brazil
+Indaial, SC, Brazil
+Simões Filho, BA, Brazil
+Francisco Beltrão, PR, Brazil
+Tijucas, SC, Brazil
+Aracruz, ES, Brazil
+Guarujá, SP, Brazil
+Jaú, SP, Brazil
+Araranguá, SC, Brazil
+Guaramirim, SC, Brazil
+Alvorada, RS, Brazil
+Santo Antônio de Jesus, BA, Brazil
+São Mateus, ES, Brazil
+Araras, SP, Brazil
+Gravatá, PE, Brazil
+Piraquara, PR, Brazil
+São Gonçalo, RJ, Brazil
+Rio Bonito, RJ, Brazil
+Alagoinhas, BA, Brazil
+Rio Claro, SP, Brazil
+Rolândia, PR, Brazil
+São Sebastião, SP, Brazil
+Tatuí, SP, Brazil
+Suzano, SP, Brazil
+Castanhal, PA, Brazil
+Birigui, SP, Brazil
+Sertãozinho, SP, Brazil
+Itabira, MG, Brazil
+Votuporanga, SP, Brazil
+Paranaguá, PR, Brazil
+Mogi Guaçu, SP, Brazil
+Campo Mourão, PR, Brazil
+Carapicuíba, SP, Brazil
+Taboão da Serra, SP, Brazil
+Sumaré, SP, Brazil
+Apucarana, PR, Brazil
+Caçapava, SP, Brazil
+Itaguaí, RJ, Brazil
+Mauá, SP, Brazil
+Betim, MG, Brazil
+Hortolândia, SP, Brazil
+Pindamonhangaba, SP, Brazil
+Paranavaí, PR, Brazil
+Guaratinguetá, SP, Brazil
+Itanhaém, SP, Brazil
+São João de Meriti, RJ, Brazil
+Jaboticabal, SP, Brazil
+Vitória de Santo Antão, PE, Brazil
+Embu das Artes, SP, Brazil
+Diadema, SP, Brazil
+Leme, SP, Brazil
+Itapevi, SP, Brazil
+Poá, SP, Brazil
+Santa Rita, PB, Brazil
+Belford Roxo, RJ, Brazil
+Sarandi, PR, Brazil
+Ribeirão Pires, SP, Brazil
+Mesquita, RJ, Brazil
+Magé, RJ, Brazil
+Itaquaquecetuba, SP, Brazil
+Itaboraí, RJ, Brazil
+São Bento do Sul, SC, Brazil
+Itabaiana, SE, Brazil
+Nilópolis, RJ, Brazil
+Nossa Senhora do Socorro, SE, Brazil
+Itapecerica da Serra, SP, Brazil
+Franco da Rocha, SP, Brazil
+Sete Lagoas, MG, Brazil
+São Vicente, SP, Brazil
