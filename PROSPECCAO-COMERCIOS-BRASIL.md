@@ -252,10 +252,12 @@ público, não criativo ruim: a mesma oferta está sendo mostrada 2,29 vezes par
 alcançada, e para gastar quatro mil por mês o leilão precisa ir buscar gente cada vez mais
 longe do centro do público.
 
-**E é exatamente por isso que a camada 2 importa.** Se dobrar o orçamento de novo, o custo
-por reunião vai para perto de R$ 25 e a conta continua boa, mas a curva já mostrou para
-onde vai. Quem quer "chegar em todos" sem pagar o preço crescente do leilão precisa de um
-canal que não seja leilão, e é a bandeira e o sindicato da seção 5.
+**E é exatamente por isso que a camada 2 importa.** A curva já mostrou para onde vai, e
+o próximo real de orçamento compra reunião mais cara que o anterior. Quem quer "chegar em
+todos" sem pagar o preço crescente do leilão precisa de um canal que não seja leilão, e é a
+bandeira e o sindicato da seção 5. **⚠️ Quanto exatamente custa dobrar o orçamento eu não
+sei**: são três pontos de série, o suficiente para ver a direção e pouco para cravar o
+próximo número.
 
 R$ 17,76 por reunião é um número bom e precisa ser dito como tal. O anúncio é, de longe, o
 melhor canal que a casa tem hoje. O ponto é que ele está na parte da curva onde cada real
