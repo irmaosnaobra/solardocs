@@ -3713,11 +3713,13 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <div class="eletro-inp has-suf"><input type="number" id="el-arrend" inputmode="decimal" value="0" oninput="eletroCalc()"><span class="suf">%</span></div></div>
           <div class="eletro-field"><label>Manutenção<span class="el-tip" tabindex="0" data-tip="Percentual do faturamento reservado para manter o equipamento funcionando: limpeza, reparos e assistência técnica.">?</span></label>
             <div class="eletro-inp has-suf"><input type="number" id="el-manut" inputmode="decimal" value="0.1" oninput="eletroCalc()"><span class="suf">%</span></div></div>
-          <div class="eletro-field"><label>Assinatura mensal<span class="el-tip" tabindex="0" data-tip="Mensalidade fixa de algum serviço ou plano, se houver. Diferente das taxas em %, ela é cobrada mesmo em um mês parado.">?</span></label>
-            <!-- Os R$ 300 do software/4G nascem AQUI (antes nasciam em "Outros custos
-                 fixos"). A conta não muda um centavo — fixos/mês = assinatura + seguro +
-                 outros —, mudou só onde a linha aparece, que é o que o consultor lê. -->
-            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-assinatura" inputmode="decimal" value="300" oninput="eletroCalc()"></div></div>
+          <div class="eletro-field"><label>Internet local<span class="el-tip" tabindex="0" data-tip="O link de internet do ponto, que mantém o carregador online para autorizar a recarga e receber o pagamento. É custo fixo: existe mesmo num mês parado.">?</span></label>
+            <!-- 28/09/2026, ordem do dono: "mensalidade = internet local R$ 200,00 de
+                 custo mês". O campo se chamava "Assinatura mensal" e a dica dizia
+                 "mensalidade fixa de algum serviço" — nome de nada. Agora tem nome: é o
+                 link de internet do ponto. A conta não mudou de forma, só de valor
+                 (300 → 200): fixos/mês = internet + seguro + outros. -->
+            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-assinatura" inputmode="decimal" value="200" oninput="eletroCalc()"></div></div>
           <div class="eletro-field"><label>Seguro | Ano<span class="el-tip" tabindex="0" data-tip="Seguro do equipamento, calculado sozinho como 1% ao ano do investimento e diluído nos meses. Este campo é só demonstrativo: mexer no investimento já atualiza o valor.">?</span></label>
             <div class="eletro-inp has-pre eletro-inp-lock"><span class="pre">R$</span><input type="text" id="el-seguro" value="2.000" readonly tabindex="-1"></div></div>
           <div class="eletro-field"><label>Imposto — Simples Nacional<span class="el-tip" tabindex="0" data-tip="Alíquota de imposto sobre o faturamento, no regime do Simples Nacional. Confirme a faixa com o contador do cliente, porque ela varia conforme o faturamento da empresa.">?</span></label>
@@ -4703,7 +4705,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <label class="apx-campo"><span>Arrendamento (%)</span><input id="apx-arrend" type="text" inputmode="decimal"></label>
           <label class="apx-campo"><span>Manutenção (%)</span><input id="apx-manut" type="text" inputmode="decimal"></label>
           <label class="apx-campo"><span>Imposto (%)</span><input id="apx-imposto" type="text" inputmode="decimal"></label>
-          <label class="apx-campo"><span>Assinatura mensal (R$)</span><input id="apx-assinat" type="text" inputmode="numeric"></label>
+          <label class="apx-campo"><span>Internet local (R$)</span><input id="apx-assinat" type="text" inputmode="numeric"></label>
           <label class="apx-campo"><span>Outros fixos (R$)</span><input id="apx-fixos" type="text" inputmode="numeric"></label>
           <label class="apx-campo"><span>Ocupação inicial (%)</span><input id="apx-ocup" type="text" inputmode="numeric"></label>
           <label class="apx-campo"><span>Meses de rampa</span><input id="apx-rampa" type="text" inputmode="numeric"></label>
@@ -5183,7 +5185,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="field"><label>Imposto (%)</label><input type="number" id="cmp-imposto" min="0" step="0.1"></div>
       <div class="field"><label>Arrendamento (%)</label><input type="number" id="cmp-arrend" min="0" step="0.1"></div>
       <div class="field"><label>Manutenção (%)</label><input type="number" id="cmp-manut" min="0" step="0.1"></div>
-      <div class="field"><label>Assinatura mensal (R$)</label><input type="text" id="cmp-assinatura" inputmode="decimal"></div>
+      <div class="field"><label>Internet local (R$)</label><input type="text" id="cmp-assinatura" inputmode="decimal"></div>
       <div class="field"><label>Outros custos fixos (R$)</label><input type="text" id="cmp-fixos" inputmode="decimal"></div>
 
       <div class="cmp-sec">Rampa de ocupação</div>
@@ -11697,10 +11699,31 @@ function eletroInvestDirty() {
   elInvestDirty = true;
   eletroCalc();
 }
+// Investimento sugerido = preco da POTENCIA escolhida x quantidade.
+//
+// Antes era `VALOR_CARREGADOR` puro, um numero unico que ignorava a potencia, e
+// o campo nascia VAZIO. Os precos por potencia existiam na EP_DECK_CHAVE_NA_MAO
+// desde sempre, mas o unico consumidor deles (epDeckPorTexto) nao era chamado
+// por ninguem — a tabela servia so' pra listar as potencias.
+//
+// NAO dispara `input`: o oninput do campo e' o eletroInvestDirty, que marcaria
+// o valor como digitado a mao e travaria a sugestao no primeiro boot.
+function eletroInvestSugerir() {
+  if (elInvestDirty) return;
+  const inv = document.getElementById('el-invest');
+  if (!inv) return;
+  const sel = document.getElementById('el-equip');
+  const preco = (typeof epDeckPorTexto === 'function' && sel ? epDeckPorTexto(sel.value) : 0)
+              || VALOR_CARREGADOR;
+  inv.value = fmtMilhar(Math.max(1, Math.round(elNum('el-qtd') || 1)) * preco);
+  // O papel do Orcamento le' `orc-valor`, que espelha isto — e so' re-sincroniza
+  // quando ninguem digitou o proprio valor la'.
+  try { if (typeof orcValorSync === 'function') orcValorSync(); } catch (e) {}
+}
+
 function eletroQtdChange() {
   elInvestDirty = false;
-  const inv = document.getElementById('el-invest');
-  if (inv) inv.value = fmtMilhar(Math.max(1, Math.round(elNum('el-qtd') || 1)) * VALOR_CARREGADOR);
+  eletroInvestSugerir();
   eletroCalc();
 }
 
@@ -12444,7 +12467,7 @@ function nxCompletoDeck(d) {
     ['Arrendamento do ponto', tem(E.arrend) ? pct(E.arrend) : ''],
     ['Manutenção', tem(E.manut) ? pct(E.manut) : ''],
     ['Imposto (Simples)', tem(E.imposto) ? pct(E.imposto) : ''],
-    ['Assinatura mensal', Number(E.assinatura) > 0 ? brl(E.assinatura) : ''],
+    ['Internet local', Number(E.assinatura) > 0 ? brl(E.assinatura) : ''],
     ['Custos fixos', Number(E.fixos) > 0 ? brl(E.fixos) : ''],
     ['Ocupação inicial', tem(E.ocupIni) ? pct(E.ocupIni) + ' · ' + num(E.rampa) + ' meses' : ''],
   ].filter(c => c[1] !== '')
@@ -12803,7 +12826,7 @@ function epCompletoA4(d) {
     ['Software NEXUS', tem(E.software) ? pct1(E.software) : ''],
     ['Arrendamento do ponto', tem(E.arrend) ? pct1(E.arrend) : ''],
     ['Manutenção', tem(E.manut) ? pct1(E.manut) : ''],
-    ['Assinatura mensal', Number(E.assinatura) > 0 ? brl(E.assinatura) : ''],
+    ['Internet local', Number(E.assinatura) > 0 ? brl(E.assinatura) : ''],
     ['Imposto (Simples)', tem(E.imposto) ? pct1(E.imposto) : ''],
     ['Custos fixos', Number(E.fixos) > 0 ? brl(E.fixos) : ''],
     ['Ocupação inicial', tem(E.ocupIni) ? pct1(E.ocupIni) + ' por ' + Math.round(Number(E.rampa) || 1) + ' meses' : ''],
@@ -12972,7 +12995,7 @@ function epCompletoPayload(versao) {
     { rot: 'Arrendamento do ponto',val: r.fatMes * p.arrend,   nota: elPctRot(p.arrend) + ' do faturamento do ponto' },
     { rot: 'Software NEXUS',       val: r.fatMes * (p.software || 0), nota: elPctRot(p.software || 0) + ' do faturamento' },
     { rot: 'Manutenção',           val: r.fatMes * p.manut,    nota: elPctRot(p.manut) + ' do faturamento' },
-    { rot: 'Assinatura mensal',    val: p.assinat },
+    { rot: 'Internet local',    val: p.assinat },
     { rot: 'Seguro',               val: r.seguroMes, nota: 'calculado em 1% do investimento ao ano' },
     { rot: 'Custos fixos',         val: p.fixos },
   ].filter(c => (Number(c.val) || 0) > 0).sort((a, b) => b.val - a.val);
@@ -14154,7 +14177,7 @@ function eletroImprimir() {
             ${linhaSe('el-arrend', 'Arrendamento do ponto', (r.arrend * 100).toLocaleString('pt-BR') + '%')}
             ${linhaSe('el-manut', 'Manutenção', (r.manut * 100).toLocaleString('pt-BR') + '%')}
             ${linhaSe('el-imposto', 'Imposto (Simples Nacional)', (r.imposto * 100).toLocaleString('pt-BR') + '%')}
-            ${linhaSe('el-assinatura', 'Assinatura mensal', money(r.assinat))}
+            ${linhaSe('el-assinatura', 'Internet local', money(r.assinat))}
             <tr><td>Seguro (1% a.a. do investimento)</td><td class="num">${money(r.seguroMes)} / mês</td></tr>
             ${linhaSe('el-fixos', 'Outros custos fixos', money(r.fixos) + ' / mês')}
             <tr><td>Ocupação inicial → plena</td><td class="num">${Math.round(r.ocupIni * 100)}% → 100% em ${r.mesesRampa} meses</td></tr>
@@ -14333,9 +14356,11 @@ const EP_KIT = [
 // R$ 17.447 instalado) é outra composição — não leva padrão de entrada 200A,
 // transformador nem obra civil.
 const EP_DECK_CHAVE_NA_MAO = {
-  '40 kW': 109685, '60 kW': 141673, '80 kW': 144595, '120 kW': 203548, '160 kW': 229436,
+  // 80 kW em 145.000 desde 28/09/2026, ordem do dono. E' o carro-chefe
+  // (EP_EQUIP_PADRAO) e e' com ele que o Simulador abre.
+  '40 kW': 109685, '60 kW': 141673, '80 kW': 145000, '120 kW': 203548, '160 kW': 229436,
 };
-// "DC 80 kW", "80kW", "80 KW carregador" → 144595. Escreveu outra potência, sem dica.
+// "DC 80 kW", "80kW", "80 KW carregador" → 145000. Escreveu outra potência, sem dica.
 function epDeckPorTexto(txt) {
   const m = String(txt || '').replace(',', '.').match(/(\d+(?:\.\d+)?)\s*k\s*w/i);
   return m ? EP_DECK_CHAVE_NA_MAO[Math.round(parseFloat(m[1])) + ' kW'] : undefined;
@@ -14384,10 +14409,17 @@ function epEquipNaLinha(txt) {
 }
 function eletroEquipRender() {
   const sel = document.getElementById('el-equip');
-  if (!sel || sel.options.length) return;   // monta uma vez só
+  if (!sel || sel.options.length) {
+    // Ja' montado: so' garante que o investimento tenha a sugestao da potencia.
+    // O campo nascia vazio, e quem abria o Simulador e apertava um documento
+    // direto emitia com investimento zero.
+    if (sel && typeof eletroInvestSugerir === 'function') eletroInvestSugerir();
+    return;
+  }
   // value = "DC 80 kW" (é o que grava e o que a regex lê); texto = nome NEXUS.
   sel.innerHTML = epEquipOpcoes()
     .map(r => `<option value="${r}"${r === EP_EQUIP_PADRAO ? ' selected' : ''}>${epEquipRotulo(r)}</option>`).join('');
+  if (typeof eletroInvestSugerir === 'function') eletroInvestSugerir();
 }
 // Escrever a potência de fora (reabrir do histórico, restaurar orçamento salvo).
 // Potência antiga que não existe mais na lista NÃO troca o campo — melhor manter
@@ -14404,6 +14436,10 @@ function eletroEquipSet(txt) {
 function eletroEquipMudou() {
   const sel = document.getElementById('el-equip');
   if (sel) sel.dataset.tocado = '1';
+  // Trocar a potencia re-sugere o investimento. Antes nao mexia em conta
+  // nenhuma, porque nao havia conta ligada na potencia.
+  if (typeof eletroInvestSugerir === 'function') eletroInvestSugerir();
+  if (typeof eletroCalc === 'function') eletroCalc();
   if (typeof orcKitEquipSync === 'function') orcKitEquipSync();
   if (typeof orcValorBanner === 'function') orcValorBanner();
 }
@@ -16214,7 +16250,7 @@ function eletroTelaA4() {
           ['Arrendamento do ponto', seTem('el-arrend', (r.arrend * 100).toLocaleString('pt-BR') + '%')],
           ['Manutenção', seTem('el-manut', (r.manut * 100).toLocaleString('pt-BR') + '%')],
           ['Imposto (Simples Nacional)', seTem('el-imposto', (r.imposto * 100).toLocaleString('pt-BR') + '%')],
-          ['Assinatura mensal', seTem('el-assinatura', money(r.assinat))],
+          ['Internet local', seTem('el-assinatura', money(r.assinat))],
           ['Seguro (1% a.a. do investimento)', money(r.seguroMes * 12) + ' / ano'],
           ['Outros custos fixos', seTem('el-fixos', money(r.fixos) + ' / mês')],
           ['Taxa de desconto (VPL)', txPct],
