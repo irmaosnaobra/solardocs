@@ -12102,7 +12102,15 @@ const NX_CSS = `<style>
   page-break-after:always;break-after:page;
   -webkit-print-color-adjust:exact;print-color-adjust:exact}
 .nx-slide:last-child{page-break-after:auto;break-after:auto}
-.nx-slide.claro{background:#F4F6F8;color:#0B1A2B;
+/* A SOBRA DE 35MM SO' APARECE NA FOLHA CLARA. A pagina tem 297mm, a folha tem
+   262mm, e o canvas do print vai de escuro pra que as outras oito sangrem ate' a
+   borda — medido no PDF do site no ar, a folha 6 saia com tarja escura no pe'.
+   A sombra sem desfoque estende o proprio branco da folha os 35mm que faltam, e
+   so' pra baixo: 18mm de deslocamento com 17mm de espalhamento da' 35mm embaixo
+   e -1mm em cima. Sombra nao ocupa espaco de layout, entao a quebra nao muda.
+   Subir a folha pra 297mm resolveria a tarja e traria de volta o vazamento pra
+   segunda pagina quando o consultor tem margem salva — vide a nota da ALTURA. */
+.nx-slide.claro{box-shadow:0 18mm 0 17mm #F4F6F8;background:#F4F6F8;color:#0B1A2B;
   --nx-texto:#0B1A2B;--nx-suave:#51637A;--nx-fraco:#7287A0;
   --nx-linha:rgba(11,26,43,.12);--nx-linha2:rgba(11,26,43,.24);
   --nx-cartao:#FFFFFF;--nx-cartao2:#FFFFFF}
