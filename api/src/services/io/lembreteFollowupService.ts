@@ -326,7 +326,7 @@ export function montarLembrete(c: CardAberto, horasUteis: number, toque: number)
   const quem = primeiroNome(c.vendedor_nome);
   return [
     `📞 *LIGA AGORA: ${nome}*`,
-    tel ? `*${tel}*` : '',
+    tel ? `*${tel}*` : null,
     '',
     CHAMADA[c.status] || 'Esse cliente está esperando alguém finalizar o atendimento.',
     '',
@@ -335,13 +335,16 @@ export function montarLembrete(c: CardAberto, horasUteis: number, toque: number)
     ...(c.temperatura ? [`Temperatura: ${c.temperatura.toUpperCase()}`] : []),
     ...(ctx.length ? ['', ...ctx.map(l => `• ${l}`)] : []),
     '',
-    digitos ? `Chamar no WhatsApp: wa.me/${digitos}` : '',
+    digitos ? `Chamar no WhatsApp: wa.me/${digitos}` : null,
     `Abrir a ficha: https://solardoc.app/gerador/agenda?ag=${c.id}&ver=1`,
     '',
     toque > 1
       ? `_${toque}º lembrete deste card${quem ? `, ${quem}` : ''}. Se já resolveu, muda o status na ficha que ele para de voltar._`
       : `_Atualiza o status na ficha depois de falar${quem ? `, ${quem}` : ''}. É assim que ele sai da fila._`,
-  ].filter(l => l !== '').join('\n');
+    // Sai da lista só o que FALTOU no card (`null`). As strings vazias são os
+    // parágrafos, de propósito: filtrar por `l !== ''` come todas elas e o
+    // recado chega como parede de texto, que é o que ninguém lê no celular.
+  ].filter((l): l is string => l !== null).join('\n');
 }
 
 // ── Marcadores ──────────────────────────────────────────────────────────────

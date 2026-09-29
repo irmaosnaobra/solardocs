@@ -200,6 +200,23 @@ describe('o recado que chega no celular', () => {
     expect(msg).not.toContain('—');
   });
 
+  // ISTO JÁ PASSOU VERMELHO NO AR. A primeira versão filtrava a lista por
+  // `l !== ''` pra tirar o telefone quando o card não tinha número, e junto
+  // levava TODOS os parágrafos: o recado chegou no celular como um bloco de 9
+  // linhas coladas. Passou por 27 testes porque nenhum deles olhava o desenho.
+  it('chega em parágrafos, não em parede de texto', () => {
+    const msg = montarLembrete(card({ observacao: 'Consumo: 900 kWh' }), 30, 1);
+    expect(msg.split('\n').filter(l => l === '').length).toBeGreaterThanOrEqual(3);
+    expect(msg).toContain('\n\n');
+  });
+
+  it('card sem telefone não deixa linha solta nem come o parágrafo', () => {
+    const msg = montarLembrete(card({ cliente_telefone: null }), 30, 1);
+    expect(msg.split('\n')[1]).toBe('');            // o telefone saiu, o parágrafo ficou
+    expect(msg).not.toContain('wa.me/');
+    expect(msg).toContain('\n\n');
+  });
+
   it('a partir do 2º toque avisa que é repetição e ensina a sair da fila', () => {
     const msg = montarLembrete(card(), 30, 2);
     expect(msg).toContain('2º lembrete');
