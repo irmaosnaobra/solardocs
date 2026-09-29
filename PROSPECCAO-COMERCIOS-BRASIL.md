@@ -1,5 +1,5 @@
 # Chegar em todos os comércios do Brasil
-### Postos, farmácias, estacionamentos, hotéis e mercados · eletroposto · 28/set/2026
+### Postos, farmácias, estacionamentos, hotéis e mercados · eletroposto · 28 e 29/set/2026
 
 > **A pergunta:** "estratégia para chegar em postos de combustível, farmácias e etc, quero
 > chegar em todos do Brasil".
@@ -9,12 +9,25 @@
 > linha aguenta, a fila levaria **2 anos e 5 meses**, e isso sem contar farmácia. Pior: a
 > fila fria já rodou 349 toques, marcou 7 reuniões e **nenhuma avançou**, enquanto a
 > landing marcou 462 com cerca de 20% avançando. O que chega em todos são as duas camadas
-> que já existem na casa e estão subusadas: o **anúncio por cidade** e o **dono da
-> bandeira**. O 1 a 1 continua na mesa, mas como teste de 200 toques em **10 mil endereços
-> escolhidos**, não como projeto de 45 mil.
+> que já existem na casa e estão subusadas: o **anúncio**, que hoje custa R$ 18,55 por
+> reunião e está comprando a métrica errada, e o **dono da bandeira**, que fala com 18.348
+> postos de uma vez. O 1 a 1 continua na mesa, mas como teste de 200 toques em **10 mil
+> endereços escolhidos**, não como projeto de 45 mil.
 
-Todo número deste documento foi medido em 28/09/2026. A fonte de cada um está na seção 9.
+Todo número deste documento foi medido em 28 e 29/09/2026. A fonte de cada um está na seção 9.
 Seguindo a convenção do `PONTO-COMO-CONSEGUIR.md`, **⚠️ marca raciocínio meu, não medido**.
+
+> **CORREÇÃO da primeira versão, 29/09/2026.** A versão de ontem mandava subir as 362
+> cidades como público do anúncio. **Eu testei contra as 462 reuniões e não se sustenta:**
+> dentro das 362 a taxa de avanço é 21,5% e fora é 22,2%, praticamente igual, e o top 50
+> por carência é o pior bloco, 17,0%. Restringir o anúncio jogaria fora 31% das reuniões
+> sem ganhar qualidade nenhuma. A lista continua valendo para ordenar a fila 1 a 1 e para
+> a conversa com bandeira e sindicato, que são perguntas sobre o ponto, não sobre o
+> público do anúncio. Detalhe na seção 2. O arquivo mudou de nome para
+> `PROSPECCAO-CIDADES-PRIORIDADE.txt` justamente para ninguém colar no Meta por engano.
+>
+> E no lugar disso entrou um achado maior, na seção 4: **a Meta não enxerga nenhuma das
+> 225 reuniões dos últimos 30 dias.** Zero conversão personalizada criada na conta.
 
 ---
 
@@ -100,10 +113,41 @@ E ordenando essas 362 pela régua de carência que a tela `/gerador/estados` já
 - **Top 50 cidades: 6.638 postos.**
 - **Top 100 cidades: 10.016 postos e 69% da frota elétrica do país.**
 
-Esse é o alvo real. Dez mil endereços, não quarenta e cinco mil, cobrindo dois terços da
-frota elétrica do país.
+Esse é o alvo real **para a fila 1 a 1**. Dez mil endereços, não quarenta e cinco mil,
+cobrindo dois terços da frota elétrica do país.
 
-Sobre o prazo, com o cuidado que a seção 1 pede: no teto teórico de 75/dia dá 134 dias
+### O teste que derrubou o uso desta lista como público de anúncio
+
+Antes de mandar subir as 362 no Meta, cruzei as 462 reuniões da LP com elas. Das 461 que
+têm cidade preenchida:
+
+| faixa | cidades | reuniões | % | avançou | taxa |
+|---|---:|---:|---:|---:|---:|
+| Top 50 por carência | 35 | 147 | 31,9% | 25 | **17,0%** |
+| Resto das 362 | 80 | 170 | 36,9% | 43 | 25,3% |
+| **Fora das 362** | 123 | **144** | **31,2%** | 32 | **22,2%** |
+| Total | 238 | 461 | 100% | 100 | 21,7% |
+
+**Dentro das 362 a taxa é 21,5%, fora é 22,2%.** É a mesma coisa. E o top 50 por carência,
+que era para ser o filé, é o pior bloco dos três. Restringir o anúncio às 362 jogaria fora
+144 reuniões, quase um terço, sem comprar qualidade nenhuma.
+
+**Por que a carência não prevê comprador.** A régua responde "onde falta carregador", que é
+uma pergunta sobre o ATIVO. Quem compra é o dono do comércio, e a decisão dele passa pelo
+payback e por ter o ponto, não pela frota da cidade dele. Araguari, Três Marias e Catalão
+estão fora das 362 e somam 13 reuniões com 5 avanços.
+
+**O cuidado que vale declarar:** isso é observação, não experimento. Os anúncios rodam em
+Brasil inteiro, então as 144 reuniões de fora existem *porque* o alcance é nacional. Não dá
+para concluir que um conjunto restrito às 362 iria mal. Dá para concluir, e é o suficiente,
+que **não existe ganho de qualidade geográfica para colher**, e portanto a restrição não é
+o ganho fácil que eu tinha anunciado.
+
+**O que a lista continua servindo:** ordenar a fila 1 a 1 da seção 6, e municiar a conversa
+com bandeira e sindicato da seção 5, onde o argumento é "seus revendedores nestas cidades
+têm frota e não têm carregador". As duas são perguntas sobre o ponto, não sobre público.
+
+Sobre o prazo da fila, com o cuidado que a seção 1 pede: no teto teórico de 75/dia dá 134 dias
 úteis, uns 6 meses e meio. Só que esse teto nunca foi sustentado. O recorde real foi a
 Giovanna sozinha, cerca de 40/dia por oito dias úteis, e depois a fila parou. **No ritmo
 que já se provou sustentável, que é zero, o prazo é infinito.** O número que importa antes
@@ -124,15 +168,12 @@ As dez primeiras da lista:
 | 9 | São Paulo/SP | 51.365 | 1.537 | 0 |
 | 10 | Arapiraca/AL | 957 | 71 | 108 |
 
-A lista completa das 362, já no formato que o Meta aceita em "Adicionar localizações em
-massa", está em **`PROSPECCAO-CIDADES-META.txt`**, uma cidade por linha, `Cidade, UF, Brazil`.
-É colar e escolher o raio no próprio diálogo.
-
-Dois avisos sobre esse arquivo. O Meta só aceita esses dois formatos, `Cidade, Estado, Brazil`
-por linha ou a coordenada crua, e o raio é um só, escolhido no diálogo, então raio por cidade
-não sobrevive à colagem. E o arquivo está **ordenado por carência**, que é a ordem da fila da
-seção 6: para o Meta a ordem não significa nada, ele pega o conjunto inteiro. Ninguém deve ler
-as 50 primeiras linhas como um público separado.
+A lista completa das 362 está em **`PROSPECCAO-CIDADES-PRIORIDADE.txt`**, uma por linha,
+**ordenada por carência**, que é a ordem da fila da seção 6. O formato de cada linha é
+`Cidade, UF, Brazil` porque foi gerado para colagem no Meta antes do teste acima; o formato
+é inofensivo e continua útil se um dia alguém quiser rodar um conjunto de teste separado.
+**Não é para virar o público do anúncio principal**, e foi por isso que o arquivo deixou de
+se chamar `-META`.
 
 ---
 
@@ -185,9 +226,39 @@ Já funciona e é a única coisa que literalmente alcança todo mundo dentro das
 importam. A LP entregou 462 reuniões em 73 dias, cerca de 6 por dia, sem gastar nenhuma
 mensagem fria.
 
-O que fazer com isso:
+### Primeiro, o buraco: a Meta não sabe que essas reuniões existem
 
-1. **Subir as 362 cidades como público geográfico.** Arquivo pronto, seção 2.
+Fui ver a conta `Ekent- Pré Paga` por dentro. Últimos 30 dias, campanha **Nexus - ABO**,
+objetivo `OUTCOME_LEADS`:
+
+| | |
+|---|---:|
+| Gasto em 30 dias | R$ 4.173 |
+| Reuniões marcadas pela LP no mesmo período | **225** |
+| **Custo por reunião, calculado no nosso banco** | **R$ 18,55** |
+| Eventos `lead` que a Meta registrou | **0** |
+| Conversões personalizadas criadas na conta | **0** |
+
+O pixel dispara, e dispara certo: são **229 `offsite_conversion.fb_pixel_custom`** contra
+225 reuniões, quase um para um. Só que é um evento **personalizado que nunca foi
+cadastrado como conversão** na conta. Resultado: a campanha se chama LEADS e a Meta não tem
+um único lead para otimizar. Ela está comprando, na prática, visualização de página.
+
+**É isso que explica o número que me surpreendeu.** Brasil inteiro custa R$ 1,27 por
+visualização de página e as cidades perto de Uberlândia custam R$ 1,76. Parece que amplo
+ganha. Mas o leilão foi mandado buscar visualização barata, e visualização barata mora
+exatamente onde a concorrência é menor. Enquanto a Meta não receber a reunião, ela vai
+continuar otimizando para a métrica errada, **e nenhuma decisão de público vale mais do que
+consertar isso.** É o item 1 da ordem de execução.
+
+Enquanto não conserta, a única fonte honesta de custo por reunião é o nosso banco, e ela
+diz R$ 18,55.
+
+### Depois, o resto
+
+1. **Cadastrar a conversão e mandar o evento de volta.** Criar a conversão personalizada em
+   cima do evento que já dispara, e preferencialmente subir a reunião pela API de Conversões,
+   que é o que sobrevive a bloqueador e a iOS. Só então trocar o objetivo do conjunto.
 2. **Separar conjunto por segmento**, usando o `utm_term` que a aba Quiz do `/admin/hubs` já
    lê. Sem isso não dá para saber se farmácia vale, e a tabela da seção 3 continua com n=6.
 3. **Trocar o anúncio de link para Click to WhatsApp.** Está escrito no `WHATSAPP-OFICIAL.md`
@@ -323,9 +394,12 @@ Duas armadilhas antes de tratar isso como canal de e-mail:
 
 Do mais barato e mais rápido para o mais caro.
 
-1. **Subir as 362 cidades no Meta e separar conjunto por segmento.** Horas. Arquivo pronto.
-2. **Trocar o anúncio para Click to WhatsApp.** Horas, no gerenciador, de graça. É a maior
-   alavanca disponível e independe de tudo o mais.
+1. **Fazer a reunião chegar na Meta.** Conversão personalizada cadastrada em cima do evento
+   que já dispara, e a reunião subindo pela API de Conversões. Hoje são R$ 4.173 por mês
+   comprando a métrica errada porque a Meta enxerga 0 de 225 reuniões. Está acima de
+   qualquer decisão de público, inclusive das 362.
+2. **Trocar o anúncio para Click to WhatsApp.** Horas, no gerenciador, de graça. Segunda
+   maior alavanca e independe de tudo o mais.
 3. **Abrir a conversa com as quatro bandeiras e com a Fecombustíveis.** Cinco telefonemas,
    18.348 postos de bandeira nas quatro e mais 34 sindicatos na federação.
 4. **Ativar os 2.039 integradores que já estão no banco.** Lista pronta, canal pronto, e é a
@@ -354,6 +428,9 @@ Os itens 1 a 4 não dependem de código novo nem de tela nova, e os dois primeir
 | 349 toques e os lembretes que as 7 receberam | `prospeccao_toques` e as colunas `confirmacao_at`, `lembrete_1h_at`, `lembrete_5min_at` |
 | 2.039 contatos sem categoria | `prospeccao_contatos` |
 | 0 de 868 leads com `ctwa_clid`, custo da oficial | `WHATSAPP-OFICIAL.md` |
+| R$ 4.173, 0 eventos `lead`, 229 pixel custom, 0 conversões personalizadas | API da Meta, conta `act_545732112868250`, campanha `Nexus - ABO`, últimos 30 dias |
+| 225 reuniões em 30 dias e o R$ 18,55 por reunião | `agendamentos` cruzado com o gasto da Meta no mesmo período |
+| 21,5% dentro das 362 contra 22,2% fora | `agendamentos.cidade` normalizado com `unaccent`, cruzado com as 362 |
 | Disjuntor de 8% de opt-out | view `prospeccao_saude` e `prospeccao-travas-v2` |
 | 34 sindicatos e 40 mil postos representados | página institucional da Fecombustíveis |
 
@@ -383,6 +460,15 @@ que já foi enfileirada uma vez acabou cancelada sem rodar.
 **Tratar farmácia como segmento.** São 6 reuniões. Testar com conjunto próprio no Meta e
 medir, e olhar rede com estacionamento antes de loja de rua.
 
+**Restringir o anúncio às 362 cidades.** Foi o que a primeira versão deste documento
+mandou fazer, e o teste da seção 2 derrubou: mesma taxa dentro e fora, top 50 pior que a
+média, e 31% das reuniões jogadas fora. A lista serve para a fila e para a conversa com a
+bandeira, não para o público.
+
+**Mexer em público, criativo ou orçamento antes de consertar o sinal.** Com 0 de 225
+reuniões chegando na Meta, qualquer teste de público está sendo julgado por visualização
+de página. Otimizar em cima disso é escolher o melhor caminho para o lugar errado.
+
 **Escalar o 1 a 1 antes do teste.** 7,5% de "não perturbar" com disjuntor em 8% quer dizer
 que mais volume trava a fila em vez de encher a agenda. E o histórico é 7 reuniões, zero
 avançando. Comprar mais lista antes de virar esse zero é gastar em cima de um canal que
@@ -393,7 +479,7 @@ ainda não se pagou uma vez.
 ## Anexo. As 50 primeiras cidades da fila 1 a 1
 
 Ordenadas pela régua de carência. A coluna postos vem do cadastro da ANP cruzado por município.
-Somam **6638 postos**. A lista das 362 está em `PROSPECCAO-CIDADES-META.txt`.
+Somam **6.638 postos**. A lista das 362 está em `PROSPECCAO-CIDADES-PRIORIDADE.txt`.
 
 | # | cidade | UF | plug-in | postos | km até o polo |
 |---:|---|---|---:|---:|---:|
