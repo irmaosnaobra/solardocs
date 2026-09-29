@@ -12353,6 +12353,185 @@ const NX_CSS = `<style>
 .nx-valid{margin-top:16px;text-align:center;font-size:9pt;font-weight:800;letter-spacing:1.6px;
   text-transform:uppercase;color:var(--nx-verde)}
 .nx-obs{margin-top:14px;font-size:7.5pt;line-height:1.55;color:var(--nx-fraco);font-weight:500}
+
+/* ═══════ O APERTO (28/09/2026) ═══════
+   Pedido do dono: "diminuir o minimo e ajustar margens para diminuir
+   quantidade folha e manter informacao". Medido antes: 44% de ocupacao media.
+
+   ANCORAGEM, e nao centralizacao. O justify-content:center que eu tinha posto
+   contra esta mesma queixa so trocou uma faixa morta de 98mm por DUAS de 49mm.
+   Agora o miolo ancora no alto e o ultimo bloco prega no pe. */
+.nx-corpo{justify-content:flex-start;padding:17mm 13mm 0 13mm}
+.nx-capa .nx-corpo{justify-content:flex-end;padding-top:98mm;padding-bottom:3mm}
+.nx-pe{padding:6px 13mm 7mm 13mm}
+.nx-marca{left:13mm;top:8mm}
+.nx-marca img{height:21px}
+
+/* margens internas menores: cada uma valia pouco, somadas valiam uma folha */
+.nx-kick{margin-bottom:5px;font-size:8pt;letter-spacing:2px}
+.nx-tit{font-size:23pt;line-height:1.1}
+.nx-lead{margin-top:8px;font-size:10.5pt;line-height:1.5}
+.nx-kpis{gap:7px;margin-top:11px}
+.nx-kpi{padding:11px 13px;border-radius:11px}
+.nx-kpi .v{font-size:18.5pt;margin-top:3px}
+.nx-partes{gap:7px;margin-top:9px}
+.nx-parte{padding:11px 13px}
+.nx-parte .t{margin-bottom:6px}
+.nx-chips{gap:6px;margin-top:10px}
+.nx-custos{gap:7px;margin-top:9px}
+.nx-tarja{margin-top:12px;padding:11px 15px;font-size:12pt}
+.nx-cen{gap:7px;margin-top:11px}
+.nx-medos{gap:8px;margin-top:11px}
+.nx-passos{gap:5px;margin-top:11px}
+.nx-duas{gap:11px;margin-top:11px}
+.nx-tres{gap:7px;margin-top:14px}
+.nx-pags{gap:7px;margin-top:11px}
+.nx-contato{gap:7px;margin-top:11px}
+.nx-obs{margin-top:10px}
+
+/* O ULTIMO BLOCO **NAO** PREGA NO PE.
+   Foi a primeira tentativa, e ela troca um problema por outro pior: onde o
+   conteudo nao chega perto de encher, o margin-top:auto abre um buraco NO
+   MEIO da folha e empurra a tarja pra borda. Medido na folha de custos: ~35%
+   da folha virou vao entre a ultima linha e a tarja verde.
+   Vazio no FIM da folha le como margem. Vazio no MEIO le como defeito.
+   Entao tudo flui do alto, e a sobra fica onde ninguem estranha. */
+.nx-fim{margin-top:0}
+
+/* ── a folha de custos ganha o print do app ao lado ──────────────────────
+   E o unico lugar do documento onde o cliente VE o que os 10% de Software
+   NEXUS compram: o motorista dele acompanhando a recarga, com kWh e R$ ao
+   vivo. O print tem fundo branco, entao vai no mesmo cartao claro da vitrine,
+   com multiply derretendo o branco. */
+.nx-custo-col{display:grid;grid-template-columns:1fr 46mm;gap:12px;align-items:start}
+.nx-app{background:linear-gradient(160deg,#FFFFFF 0%,#E9EEF4 100%);
+  border-radius:16px;padding:9px 9px 0;overflow:hidden;
+  display:flex;flex-direction:column;align-items:center}
+.nx-app img{width:100%;display:block;mix-blend-mode:multiply}
+.nx-app .leg{font-size:7.5pt;font-weight:700;color:#0B1A2B;line-height:1.3;
+  padding:7px 3px 9px;text-align:center}
+
+/* ── a foto do ponto vira BANDA, e o escopo desce pra baixo dela ────────
+   Ela era uma folha inteira com titulo e uma frase: 12% de ocupacao, a mais
+   vazia do documento. Como banda, ela ilustra o que esta sendo comprado. */
+.nx-banda{position:relative;height:74mm;margin:0 -13mm 0 -13mm;overflow:hidden}
+.nx-banda img{width:100%;height:100%;object-fit:cover;display:block}
+.nx-banda .veu{position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(11,26,43,.72) 0%,rgba(11,26,43,.18) 46%,rgba(11,26,43,.88) 100%)}
+.nx-banda .txt{position:absolute;left:13mm;right:13mm;bottom:8mm;z-index:2}
+.nx-banda .txt .t{font-size:17pt;font-weight:800;line-height:1.12}
+.nx-banda .txt .t .g{color:#C8D4E2;font-weight:600}
+.nx-banda .txt .d{font-size:9.5pt;color:#C8D4E2;margin-top:5px;line-height:1.45;max-width:150mm}
+.nx-banda .ilu{position:absolute;right:13mm;top:7mm;z-index:2;font-size:7pt;
+  color:rgba(229,231,235,.6);font-weight:600}
+
+/* ── o retorno e a rampa na mesma folha ─────────────────────────────────
+   Coladas, a rampa deixa de parecer ressalva e vira parte do retorno. */
+.nx-mega{font-size:62pt;letter-spacing:-3px}
+.nx-mega .un{font-size:15pt}
+.nx-anos{margin:16px 0 6px}
+.nx-fin{margin-top:13px}
+.nx-fin .s{padding:10px 12px}
+.nx-fin .s .v{font-size:17pt}
+.nx-rampa{height:42mm;margin-top:13px;padding-bottom:19px}
+
+/* equacao um pouco maior: e a folha que o consultor aponta com o dedo */
+.nx-conta{margin-top:11px;gap:7px 11px}
+.nx-conta .c .v{font-size:19pt}
+.nx-fat{margin-top:11px;padding:12px 15px}
+.nx-fat .v{font-size:24pt}
+
+/* cenarios e riscos com mais corpo: eles tinham tipo pequeno demais pra
+   celular, e era o tipo pequeno que abria o vao */
+.nx-cen .c{padding:12px 14px}
+.nx-cen .vals div{font-size:9pt}
+.nx-cen .id .n{font-size:14pt}
+.nx-medo{padding:12px 14px}
+.nx-medo .fala{font-size:10.5pt}
+.nx-medo .resp{font-size:10pt;line-height:1.5}
+.nx-medo .reg{margin:7px 0}
+.nx-passo{padding:9px 12px}
+.nx-passo .t{font-size:10.5pt}
+.nx-lista li{font-size:10pt;line-height:1.6}
+
+/* ── as linhas de custo com corpo ────────────────────────────────────────
+   Numa coluna estreita elas ficavam finas demais e abriam o vao que o
+   margin-top:auto depois esticava. Linha alta e barra grossa enchem a folha
+   com a informacao que ja esta la, em vez de com ar. */
+.nx-custos{gap:11px}
+.nx-custo .l{font-size:11pt}
+.nx-custo .trilho{height:8px;margin-top:6px}
+.nx-custo .n{font-size:8pt;margin-top:4px}
+.nx-app{border-radius:18px}
+.nx-app .leg{font-size:8pt;padding:9px 4px 11px}
+
+/* ── os cenarios com corpo ───────────────────────────────────────────────
+   Eram 38% de ocupacao com tipo de 9pt, que no celular ninguem le. O vao nao
+   se resolvia com respiro: era o tipo pequeno demais que o abria. */
+.nx-cen{gap:10px;margin-top:14px}
+.nx-cen .c{padding:16px 18px;grid-template-columns:50mm 1fr;gap:14px}
+.nx-cen .id .n{font-size:16pt}
+.nx-cen .id .q{font-size:9.5pt;margin-top:3px}
+.nx-cen .id .selo{font-size:7.5pt;margin-top:7px;padding:3px 9px}
+.nx-cen .vals{gap:6px 14px}
+.nx-cen .vals div{font-size:10pt}
+
+/* ── os tres angulos do carregador, na folha clara ──────────────────────
+   As fotos tem fundo branco: no cartao claro, o multiply derrete o fundo e o
+   produto fica recortado sem ninguem ter recortado nada. */
+.nx-angulos{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:12px}
+.nx-angulos figure{background:linear-gradient(160deg,#FFFFFF 0%,#E9EEF4 100%);
+  border:1px solid rgba(11,26,43,.09);border-radius:14px;padding:9px 9px 0;
+  display:flex;flex-direction:column;align-items:center}
+.nx-angulos img{width:100%;display:block;mix-blend-mode:multiply}
+.nx-angulos figcaption{font-size:8pt;font-weight:700;letter-spacing:.8px;
+  text-transform:uppercase;color:#51637A;padding:7px 0 9px}
+
+/* ── a folha de riscos + cronograma ─────────────────────────────────────
+   Fundidas, as duas somavam 94% e estouravam por 8px. Oito pixels nao sao
+   margem: cliente com nome maior ou etapa com texto mais longo estoura mais.
+   Estes cortes trazem pra ~85%, que aguenta variacao. */
+.nx-medos{gap:6px;margin-top:10px}
+.nx-medo{padding:10px 13px}
+.nx-medo .resp{line-height:1.45}
+.nx-medo .reg{margin:6px 0}
+.nx-passos{gap:4px;margin-top:9px}
+.nx-passo{padding:7px 11px}
+.nx-passo .n{width:23px;height:23px;font-size:9pt}
+.nx-passo{grid-template-columns:23px 1fr auto}
+
+/* ── a capa ──────────────────────────────────────────────────────────────
+   33% de ocupacao, e' capa: o vazio dela e' o argumento. Mas o numero pode
+   crescer, porque e' a unica coisa que o cliente tem que ver da porta. */
+.nx-capa-num{font-size:62pt}
+.nx-capa-num .un{font-size:14pt;margin-top:10px}
+.nx-capa-frase{font-size:13.5pt}
+.nx-selos span{font-size:9pt;padding:6px 12px}
+.nx-vitrine{height:104mm}
+
+/* ── o seu ponto: a banda cresce e a lista respira ──────────────────────*/
+.nx-banda{height:88mm}
+.nx-banda .txt .t{font-size:19pt}
+.nx-banda .txt .d{font-size:10pt}
+.nx-lista li{font-size:10.5pt;line-height:1.75;padding-left:21px}
+.nx-col .h{font-size:9pt;margin-bottom:10px}
+.nx-aviso{font-size:9pt;padding:11px 13px;margin-top:13px}
+
+/* ── o fluxo acumulado de 10 anos ────────────────────────────────────────
+   "Patrimonio em 10 anos" era numero de manchete sem prova nenhuma. A barra
+   mostra o buraco do ano 1 virando patrimonio, ano a ano. Negativo em azul,
+   positivo em verde: e' o unico grafico do documento que muda de sinal. */
+.nx-fluxo{display:flex;align-items:flex-end;gap:5px;height:40mm;margin-top:9px;
+  padding-bottom:16px;border-bottom:1px solid var(--nx-linha2)}
+.nx-fluxo .col{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;position:relative}
+.nx-fluxo .bar{width:100%;border-radius:4px 4px 0 0;min-height:3px;
+  background:linear-gradient(180deg,var(--nx-verde),rgba(57,255,20,.35))}
+.nx-fluxo .bar.neg{background:linear-gradient(180deg,rgba(0,133,255,.9),rgba(0,133,255,.3))}
+.nx-fluxo .a{position:absolute;left:0;right:0;bottom:-15px;text-align:center;
+  font-size:7pt;color:var(--nx-fraco);font-weight:700}
+.nx-fluxo-rot{display:flex;justify-content:space-between;margin-top:6px;
+  font-size:8.5pt;font-weight:700;color:var(--nx-suave)}
+
 </style>`;
 
 // ═══════════ O ORÇAMENTO COMPLETO COMO APRESENTAÇÃO, EM PÉ ═══════════
@@ -12395,12 +12574,10 @@ function nxCompletoDeck(d) {
   const din2 = v => 'R$ ' + (Number(v) || 0).toFixed(2).replace('.', ',');
 
   const S = [];
-  const TOTAL = () => S.length;
   const marca = `<div class="nx-marca"><img src="${NX_LOGO}" alt="NEXUS Eletropostos"></div>`;
-  // O rodapé só sabe a contagem no fim, então a página entra com um marcador
-  // e a numeração é costurada depois. Contar antes obrigaria a saber o número
-  // de folhas duas vezes, e no dia em que uma folha sumisse por falta de dado a
-  // contagem mentiria.
+  // O rodapé só sabe a contagem no fim, então a página entra com um marcador e
+  // a numeração é costurada depois. Contar antes obrigaria a saber o número de
+  // folhas duas vezes, e no dia em que uma sumisse a contagem mentiria.
   const pe = (tag) => `<div class="nx-pe"><span class="tag">${esc(tag)}</span><span class="num">__N__ / __T__</span></div>`;
 
   // ── 1 · A CAPA É O NÚMERO ──────────────────────────────────────────────
@@ -12425,8 +12602,8 @@ function nxCompletoDeck(d) {
 
   // ── 2 · OS NÚMEROS E AS PARTES ─────────────────────────────────────────
   const linha = (k, v) => {
-    const s = String(v == null ? '' : v).trim();
-    return s ? `<div class="l"><span class="k">${esc(k)}</span><span class="v">${esc(s)}</span></div>` : '';
+    const t = String(v == null ? '' : v).trim();
+    return t ? `<div class="l"><span class="k">${esc(k)}</span><span class="v">${esc(t)}</span></div>` : '';
   };
   const caixa = (t, rows) => {
     const c = rows.map(r => linha(r[0], r[1])).join('');
@@ -12446,14 +12623,14 @@ function nxCompletoDeck(d) {
       <div class="nx-kpi"><div class="r">Faturamento / mês</div><div class="v">${brl(R.fatMes)}</div><div class="n">${brl(R.fatAno)} por ano</div></div>
       <div class="nx-kpi"><div class="r">Patrimônio em 10 anos</div><div class="v verde">${brl(R.patrimonio10)}</div><div class="n">além do que foi investido</div></div>
     </div>
-    <div class="nx-kick" style="margin-top:20px">As partes</div>
+    <div class="nx-kick" style="margin-top:15px">As partes</div>
     <div class="nx-partes">
       ${caixa('Fornecedor', [['Nome', emit.nome], ['Razão social', emit.razao], ['CNPJ', emit.cnpj],
         ['Inscrição Estadual', emit.ie], ['Endereço', endEmit], ['Telefone', emit.tel], ['E-mail', emit.email]])}
       ${caixa('Cliente', [['Nome', cli.nome], ['CNPJ / CPF', cli.doc], ['Inscrição Estadual', cli.ie],
         ['Endereço', endCli], ['Telefone', cli.tel], ['E-mail', cli.email]])}
     </div>
-    ${vend.nome || vend.contato ? `<div class="nx-parte" style="margin-top:9px">
+    ${vend.nome || vend.contato ? `<div class="nx-parte nx-fim">
       <div class="t">Consultor responsável</div>
       ${linha('Nome', vend.nome)}${linha('WhatsApp', vend.contato)}${linha('Emitido em', d.data)}
     </div>` : ''}
@@ -12461,7 +12638,9 @@ function nxCompletoDeck(d) {
   ${pe('A proposta')}
 </section>`);
 
-  // ── 3 · DE ONDE SAI ESSE NÚMERO ────────────────────────────────────────
+  // ── 3 · DE ONDE SAI O NÚMERO  (fusão: a conta + todo custo na mesa) ────
+  // As duas eram folhas de 45% que diziam a MESMA coisa partida ao meio: de
+  // onde vem o faturamento, e o que ele paga antes de virar lucro.
   const conta = [
     [String(num(E.carros)), 'carros por dia'], ['×', ''],
     [String(num(E.carga)), 'kWh por carga'], ['×', ''],
@@ -12472,79 +12651,53 @@ function nxCompletoDeck(d) {
     ? `<div class="c"><span class="v">${c[0]}</span><span class="r">${c[1]}</span></div>`
     : `<div class="op">${c[0]}</div>`).join('');
 
-  const chips = [
-    ['Custo do kWh comprado', tem(E.custoKwh) ? din2(E.custoKwh) : ''],
-    // O GATEWAY saiu da conta em 28/09/2026 ("deixa so software NEXUS"): eram
-    // dois percentuais sobre o MESMO faturamento cobrando a mesma coisa. O
-    // campo nao existe mais no eletroParams, entao a linha aqui seria um chip
-    // fantasma esperando alguem reintroduzir a variavel por outro motivo.
-    ['Software NEXUS', tem(E.software) ? pct(E.software) : ''],
-    ['Arrendamento do ponto', tem(E.arrend) ? pct(E.arrend) : ''],
-    ['Manutenção', Number(E.manutMes) > 0 ? brl(E.manutMes) : ''],
-    ['Imposto (Simples)', tem(E.imposto) ? pct(E.imposto) : ''],
-    ['Internet local', Number(E.assinatura) > 0 ? brl(E.assinatura) : ''],
-    ['Custos fixos', Number(E.fixos) > 0 ? brl(E.fixos) : ''],
-    ['Ocupação inicial', tem(E.ocupIni) ? pct(E.ocupIni) + ' · ' + num(E.rampa) + ' meses' : ''],
-  ].filter(c => c[1] !== '')
-   .map(c => `<div class="nx-chip"><div class="r">${c[0]}</div><div class="v">${c[1]}</div></div>`).join('');
-
-  S.push(`<section class="nx-slide">
-  <div class="nx-faixa"></div>${marca}
-  <div class="nx-corpo">
-    <div class="nx-kick">A conta aberta</div>
-    <div class="nx-tit">De onde sai<span class="g"> esse número</span></div>
-    <div class="nx-lead">Mude qualquer premissa e a conta muda na sua frente, agora.</div>
-    <div class="nx-conta">${conta}</div>
-    <div class="nx-fat"><span class="r">Faturamento</span><span class="v">${brl(R.fatMes)}</span><span class="n">${brl(R.fatAno)} por ano</span></div>
-    <div class="nx-kick" style="margin-top:20px">O que você paga</div>
-    <div class="nx-chips">${chips}</div>
-  </div>
-  ${pe('A conta aberta')}
-</section>`);
-
-  // ── 4 · TODO CUSTO NA MESA ─────────────────────────────────────────────
   const maior = Math.max(...(R.custos || []).map(c => Number(c.val) || 0), 1);
+  // `nx-custo`, e nao `custo`: o CSS mira .nx-custo. Escrevi o nome curto ao
+  // reescrever as folhas e o resultado foi rotulo colado no valor
+  // ("Energia compradaR$ 4.200") e as barras invisiveis.
   const custos = (R.custos || []).map(c => `<div class="nx-custo">
       <div class="l"><span>${esc(c.rot)}</span><span class="v">${brl(c.val)}</span></div>
       <div class="trilho"><i style="width:${(100 * (Number(c.val) || 0) / maior).toFixed(1)}%"></i></div>
       ${c.nota ? `<div class="n">${esc(c.nota)}</div>` : ''}
     </div>`).join('');
 
+  // O print do app entra AQUI, ao lado do Software NEXUS: é o único lugar do
+  // documento onde o cliente vê o que os 10% compram. O print do PAINEL de
+  // gestão não entra — todas as estações dele se chamam "Station Name" e 12
+  // das 16 dizem "Offline há 2 meses", o que numa proposta lê como plataforma
+  // morta. Quando existir um print com dados de verdade, ele entra.
+  const temSoftware = Number(E.software) > 0;
+
   S.push(`<section class="nx-slide">
   <div class="nx-faixa"></div>${marca}
   <div class="nx-corpo">
-    <div class="nx-kick">Nada escondido</div>
-    <div class="nx-tit">O que já foi descontado<span class="g"> antes de você ver o lucro</span></div>
-    <div class="nx-custos">${custos}</div>
-    <div class="nx-tarja">Sobram ${brl(R.lucroMes)} por mês · margem de ${pct(R.margem)}</div>
+    <div class="nx-kick">A conta aberta</div>
+    <div class="nx-tit">De onde sai<span class="g"> esse número</span></div>
+    <div class="nx-conta">${conta}</div>
+    <div class="nx-fat"><span class="r">Faturamento</span><span class="v">${brl(R.fatMes)}</span><span class="n">${brl(R.fatAno)} por ano</span></div>
+
+    <div class="nx-kick" style="margin-top:15px">O que já foi descontado antes de você ver o lucro</div>
+    <div class="nx-custo-col">
+      <div class="nx-custos">${custos}</div>
+      ${temSoftware ? `<div class="nx-app">
+        <img src="${NX_ART}plataforma-app.webp" alt="App NEXUS: recarga em andamento">
+        <div class="leg">Os ${pct(E.software)} de Software NEXUS são isto: o motorista acompanha a recarga, o kWh e o valor ao vivo.</div>
+      </div>` : ''}
+    </div>
+    <div class="nx-tarja nx-fim">Sobram ${brl(R.lucroMes)} por mês · margem de ${pct(R.margem)}</div>
   </div>
-  ${pe('Todo custo na mesa')}
+  ${pe('A conta aberta')}
 </section>`);
 
-  // ── 5 · O DINHEIRO VOLTA ───────────────────────────────────────────────
-  const pos = Math.min(100, Math.max(0, 100 * (Number(R.payback) || 0) / 10));
+  // ── 4 · O DINHEIRO VOLTA  (fusão: o retorno + o primeiro ano) ─────────
+  // Coladas, a rampa deixa de parecer ressalva de rodapé e vira parte do
+  // retorno: o capital volta em X anos JÁ CONTANDO que o primeiro ano é menor.
   const fin = [
     tem(R.tir) ? ['TIR', pct(R.tir) + ' a.a.', 'é o juro que o projeto paga ao dono'] : null,
     tem(R.vpl) ? ['VPL', brl(R.vpl), 'o que ele vale hoje, já descontado o dinheiro parado a ' + pct(E.taxaDesc) + ' a.a.'] : null,
-  ].filter(Boolean).map(s => `<div class="s"><div class="k">${s[0]}</div><div class="v">${s[1]}</div><div class="d">${s[2]}</div></div>`).join('');
+  ].filter(Boolean).map(x => `<div class="s"><div class="k">${x[0]}</div><div class="v">${x[1]}</div><div class="d">${x[2]}</div></div>`).join('');
 
-  S.push(`<section class="nx-slide">
-  <div class="nx-faixa"></div>${marca}
-  <div class="nx-corpo centro" style="text-align:center">
-    <div class="nx-kick" style="text-align:center">Você coloca ${brl(E.invest)} uma vez</div>
-    <div class="nx-mega">${tem(R.payback) ? dec(R.payback) : '—'}<span class="un">anos</span></div>
-    <div class="nx-tit" style="margin-top:12px">e o dinheiro<span class="g"> volta</span></div>
-    <div class="nx-anos">
-      <i style="width:${pos.toFixed(1)}%"></i>
-      <div class="pino" style="left:${pos.toFixed(1)}%"></div>
-    </div>
-    <div class="nx-anos-rot"><span>ano 0</span><span>ano 10</span></div>
-    <div class="nx-fin" style="text-align:left">${fin}</div>
-  </div>
-  ${pe('O retorno')}
-</section>`);
-
-  // ── 6 · O PRIMEIRO ANO ─────────────────────────────────────────────────
+  const pos = Math.min(100, Math.max(0, 100 * (Number(R.payback) || 0) / 10));
   // Colunas = max(12, rampa): travar em 12 corta o gráfico de quem digita 24.
   const nCol = Math.max(12, num(E.rampa) || 1);
   const rampa = Math.max(1, num(E.rampa) || 1);
@@ -12559,19 +12712,28 @@ function nxCompletoDeck(d) {
   S.push(`<section class="nx-slide">
   <div class="nx-faixa"></div>${marca}
   <div class="nx-corpo">
-    <div class="nx-kick">A má notícia antes do preço, de propósito</div>
-    <div class="nx-tit">O primeiro ano<span class="g"> entra mais devagar</span></div>
-    <div class="nx-lead">Ninguém abre um posto lotado, e esta conta não finge que sim. A ocupação sai de ${tem(E.ocupIni) ? pct(E.ocupIni) : '—'} e chega cheia no mês ${rampa}. Os custos fixos correm desde o mês 1.</div>
+    <div class="nx-kick" style="text-align:center">Você coloca ${brl(E.invest)} uma vez</div>
+    <div class="nx-mega">${tem(R.payback) ? dec(R.payback) : '—'}<span class="un">anos</span></div>
+    <div class="nx-tit" style="text-align:center">e o dinheiro<span class="g"> volta</span></div>
+    <div class="nx-anos">
+      <i style="width:${pos.toFixed(1)}%"></i>
+      <div class="pino" style="left:${pos.toFixed(1)}%"></div>
+    </div>
+    <div class="nx-anos-rot"><span>ano 0</span><span>ano 10</span></div>
+    <div class="nx-fin">${fin}</div>
+
+    <div class="nx-kick" style="margin-top:16px">E isso já conta que o primeiro ano entra mais devagar</div>
+    <p class="nx-lead" style="margin-top:4px">Ninguém abre um posto lotado, e esta conta não finge que sim. A ocupação sai de ${tem(E.ocupIni) ? pct(E.ocupIni) : '—'} e chega cheia no mês ${rampa}. Os custos fixos correm desde o mês 1.</p>
     <div class="nx-rampa">${barras}</div>
-    <div class="nx-kpis" style="grid-template-columns:1fr 1fr;margin-top:26px">
+    <div class="nx-kpis nx-fim" style="grid-template-columns:1fr 1fr">
       <div class="nx-kpi"><div class="r">Lucro do ano 1</div><div class="v">${brl(R.lucroAno1)}</div><div class="n">já com a rampa de ocupação</div></div>
       <div class="nx-kpi"><div class="r">A partir do ano cheio</div><div class="v verde">${brl(R.lucroAno)}</div><div class="n">por ano, em regime</div></div>
     </div>
   </div>
-  ${pe('O primeiro ano')}
+  ${pe('O retorno')}
 </section>`);
 
-  // ── 7 · OS CENÁRIOS ────────────────────────────────────────────────────
+  // ── 5 · OS CENÁRIOS ────────────────────────────────────────────────────
   const cen = CEN.filter((c, i, a) => a.findIndex(x => x.carros === c.carros) === i);
   const cards = cen.map(c => `<div class="c${c.projeto ? ' este' : ''}">
       <div class="id">
@@ -12588,18 +12750,38 @@ function nxCompletoDeck(d) {
       </div>
     </div>`).join('');
 
+  // O FLUXO ACUMULADO DE 10 ANOS.
+  // "Patrimonio em 10 anos" e' numero de manchete na folha 2 e no fecho, e ate'
+  // agora nao tinha NENHUMA prova visual: o cliente lia R$ 744 mil e tinha que
+  // acreditar. A barra mostra o buraco do ano 1 virando patrimonio, ano a ano.
+  // `R.fluxo` JA' E' O ACUMULADO: no computeEletro, `acc += f; fluxo.push(acc)`,
+  // e `acumulado10 = fluxo[9]`. Eu tinha somado por cima de novo e o grafico
+  // dizia R$ 2.751.428 onde o cartao ao lado dizia R$ 673.648 — quatro vezes
+  // mais, na mesma folha, pro mesmo cliente.
+  const acum = (Array.isArray(R.fluxo) ? R.fluxo : []).map(v => Number(v) || 0);
+  const topo = Math.max(...acum.map(Math.abs), 1);
+  const grafico = acum.length ? `<div class="nx-kick" style="margin-top:15px">E o que sobra, ano a ano</div>
+    <div class="nx-fluxo">
+      ${acum.map((v, i) => `<div class="col">
+        <div class="bar${v < 0 ? ' neg' : ''}" style="height:${(Math.abs(v) / topo * 100).toFixed(1)}%"></div>
+        <span class="a">${i + 1}</span>
+      </div>`).join('')}
+    </div>
+    <div class="nx-fluxo-rot"><span>ano 1 · ${brl(acum[0])}</span><span>ano ${acum.length} · ${brl(acum[acum.length - 1])}</span></div>` : '';
+
   S.push(`<section class="nx-slide">
   <div class="nx-faixa"></div>${marca}
   <div class="nx-corpo">
     <div class="nx-kick">O piso primeiro</div>
     <div class="nx-tit">E se vierem<span class="g"> ${num(cen[0] && cen[0].carros)} carros por dia?</span></div>
-    <div class="nx-lead">A proposta foi feita no cenário do meio. Estes são os outros dois, com a mesma conta.</div>
+    <div class="nx-lead">A proposta foi feita no cenário do meio. Estes são os outros dois, com a mesma conta — o de baixo é o que importa, porque é ele que diz se o projeto se paga no pior caso.</div>
     <div class="nx-cen">${cards}</div>
+    ${grafico}
   </div>
   ${pe('Os cenários')}
 </section>`);
 
-  // ── 8 · O EQUIPAMENTO (folha clara: a foto pede fundo branco) ─────────
+  // ── 6 · O EQUIPAMENTO (folha clara: a foto do produto pede fundo branco) ─
   S.push(`<section class="nx-slide claro">
   <div class="nx-faixa"></div>${marca}
   <div class="nx-corpo">
@@ -12615,6 +12797,15 @@ function nxCompletoDeck(d) {
         <div class="f"><span class="k">Garantia</span><span class="v">24 meses</span></div>
       </div>
     </div>
+    <!-- Os tres angulos. Nao e' enfeite: quem compra uma maquina de R$ 145 mil
+         quer ver o que vai ficar no terreno dele por todos os lados, e ate'
+         agora a proposta mostrava so' a frente. As tres sao 800x800 de fundo
+         branco, exibidas a ~47mm — densidade de sobra pro papel. -->
+    <div class="nx-angulos">
+      <figure><img src="${NX_ART}dc-perspectiva.webp" alt="Carregador em perspectiva"><figcaption>perspectiva</figcaption></figure>
+      <figure><img src="${NX_ART}dc-lateral.webp" alt="Carregador de lado"><figcaption>lateral</figcaption></figure>
+      <figure><img src="${NX_ART}dc-traseira.webp" alt="Carregador por tras"><figcaption>traseira</figcaption></figure>
+    </div>
   </div>
   <div class="nx-tira">
     <div class="bg"><img src="${NX_ART}fabrica-linha.webp" alt=""></div>
@@ -12627,21 +12818,10 @@ function nxCompletoDeck(d) {
   ${pe('O equipamento')}
 </section>`);
 
-  // ── 9 · ASSIM FICA O SEU PONTO ─────────────────────────────────────────
-  S.push(`<section class="nx-slide foto">
-  <div class="bg"><img src="${NX_ART}posto-noite.webp" alt=""></div>
-  <div class="veu"></div>
-  <div class="nx-faixa"></div>${marca}
-  <div class="nx-corpo" style="justify-content:flex-end;padding-bottom:10mm">
-    <div class="nx-kick">O resultado da obra</div>
-    <div class="nx-tit">Assim fica<span class="g"> o seu ponto</span></div>
-    <div class="nx-lead" style="color:#C8D4E2">Cobertura, sinalização, piso demarcado e a máquina ligada. Obra civil e elétrica inclusas — a equipe é nossa.</div>
-  </div>
-  <div class="nx-ilustra">imagem ilustrativa do projeto</div>
-  ${pe('O seu ponto')}
-</section>`);
-
-  // ── 10 · DENTRO DO VALOR E FORA DELE ───────────────────────────────────
+  // ── 7 · O SEU PONTO E O ESCOPO  (fusão: a foto + o que está no valor) ──
+  // A folha da foto tinha 12% de ocupação — título e uma frase sobre uma foto
+  // de página inteira, a mais vazia do documento. Como BANDA no alto, ela
+  // ilustra exatamente o que a lista embaixo está vendendo.
   const DENTRO = (Array.isArray(d.inclui) && d.inclui.length) ? d.inclui : [
     'Carregador ' + (d.modelo || 'NEXUS'), 'App Usuários NEXUS', 'Projeto de engenharia',
     'Homologação na concessionária', 'Infraestrutura elétrica', 'Infraestrutura civil',
@@ -12652,8 +12832,16 @@ function nxCompletoDeck(d) {
   S.push(`<section class="nx-slide">
   <div class="nx-faixa"></div>${marca}
   <div class="nx-corpo">
-    <div class="nx-kick">Escopo, por escrito</div>
-    <div class="nx-tit">O que está dentro do valor<span class="g"> — e o que não está</span></div>
+    <div class="nx-banda">
+      <img src="${NX_ART}posto-noite.webp" alt="">
+      <div class="veu"></div>
+      <div class="ilu">imagem ilustrativa do projeto</div>
+      <div class="txt">
+        <div class="t">Assim fica<span class="g"> o seu ponto</span></div>
+        <div class="d">Cobertura, sinalização, piso demarcado e a máquina ligada. Obra civil e elétrica inclusas — a equipe é nossa.</div>
+      </div>
+    </div>
+    <div class="nx-kick" style="margin-top:14px">O que está dentro do valor — e o que não está</div>
     <div class="nx-duas">
       <div class="nx-col dentro"><div class="h">Dentro do valor</div>
         <ul class="nx-lista">${DENTRO.map(i => `<li>${esc(i)}</li>`).join('')}</ul></div>
@@ -12661,31 +12849,21 @@ function nxCompletoDeck(d) {
         <ul class="nx-lista">${FORA.map(i => `<li>${esc(i)}</li>`).join('')}</ul>
         <div class="nx-aviso">Padrão de entrada e transformador, se o seu padrão não aguentar a carga. Orçados depois da medição.</div></div>
     </div>
-    <div class="nx-tarja">${brl(E.invest)} · valor total do projeto, chave na mão</div>
+    <div class="nx-tarja nx-fim">${brl(E.invest)} · valor total do projeto, chave na mão</div>
   </div>
-  ${pe('O escopo')}
+  ${pe('O seu ponto')}
 </section>`);
 
-  // ── 11 · OS TRÊS MEDOS, COM DONO ───────────────────────────────────────
+  // ── 8 · OS RISCOS E O CRONOGRAMA  (fusão) ─────────────────────────────
+  // Eram duas meias folhas (43% e 48%) respondendo a MESMA pergunta do
+  // cliente: "e se der errado". Os três medos dizem de quem é cada risco; o
+  // cronograma mostra quem faz o quê, na ordem. Separadas, a resposta ficava
+  // partida; juntas, a segunda é a prova da primeira.
   const MEDOS = [
-    ['vai virar um canteiro de obra no meu terreno', 'A obra é nossa. Equipe própria, infraestrutura elétrica e civil inclusas no valor.'],
-    ['a concessionária vai travar tudo', 'Nós fazemos o projeto e protocolamos a homologação. O calendário da análise é dela, e está dito no cronograma.'],
-    ['vou ficar com uma máquina parada', '24 meses de garantia. Manutenção e seguro já estão dentro da conta que você viu.'],
+    ['vai virar um canteiro de obra no meu terreno', 'A obra é nossa. Equipe própria, infraestrutura elétrica e civil inclusas no valor — você não contrata ninguém.'],
+    ['a concessionária vai travar tudo', 'Nós fazemos o projeto e protocolamos a homologação. O calendário da análise é dela, e está no cronograma aqui embaixo.'],
+    ['vou ficar com uma máquina parada', '24 meses de garantia. Manutenção e seguro já estão dentro da conta que você viu, como custo fixo.'],
   ];
-  S.push(`<section class="nx-slide">
-  <div class="nx-faixa"></div>${marca}
-  <div class="nx-corpo">
-    <div class="nx-kick">O que costuma travar a decisão</div>
-    <div class="nx-tit">Nenhum dos três riscos<span class="g"> é seu</span></div>
-    <div class="nx-medos">
-      ${MEDOS.map(m => `<div class="nx-medo"><div class="fala">“${esc(m[0])}”</div><div class="reg"></div><div class="resp">${esc(m[1])}</div></div>`).join('')}
-    </div>
-    <div class="nx-tarja azul">Os três têm dono, e nenhum deles é você</div>
-  </div>
-  ${pe('Os riscos')}
-</section>`);
-
-  // ── 12 · O CRONOGRAMA ──────────────────────────────────────────────────
   const ETAPAS = [
     ['Assinatura do contrato', 'você'], ['Projeto executivo e ART', 'nosso'],
     ['Protocolo de homologação', 'nosso'], ['Análise e parecer de acesso', 'concessionária'],
@@ -12698,33 +12876,40 @@ function nxCompletoDeck(d) {
   S.push(`<section class="nx-slide">
   <div class="nx-faixa"></div>${marca}
   <div class="nx-corpo">
-    <div class="nx-kick">Como anda, do sim à ligação</div>
-    <div class="nx-tit">A etapa 1<span class="g"> é a assinatura</span></div>
+    <div class="nx-kick">O que costuma travar a decisão</div>
+    <div class="nx-tit">Nenhum dos três riscos<span class="g"> é seu</span></div>
+    <div class="nx-medos">
+      ${MEDOS.map(m => `<div class="nx-medo"><div class="fala">“${esc(m[0])}”</div><div class="reg"></div><div class="resp">${esc(m[1])}</div></div>`).join('')}
+    </div>
+    <div class="nx-tarja azul">Os três têm dono, e nenhum deles é você</div>
+
+    <div class="nx-kick" style="margin-top:15px">Como anda, do sim à ligação</div>
+    <div class="nx-tit" style="font-size:19pt">A etapa 1<span class="g"> é a assinatura</span></div>
     <div class="nx-passos">
       ${ETAPAS.map((e, i) => `<div class="nx-passo${e[1] === 'concessionária' ? ' dist' : ''}">
         <div class="n">${i + 1}</div><div class="t">${esc(e[0])}</div><div class="q">${e[1]}</div></div>`).join('')}
     </div>
-    <div class="nx-lead">Das ${ETAPAS.length} etapas, ${nNos} são nossas e ${nDist} dependem da concessionária, que é quem define o calendário do parecer de acesso. A data da ligação a gente crava assim que ele sai.</div>
+    <p class="nx-lead">Das ${ETAPAS.length} etapas, ${nNos} são nossas e ${nDist} dependem da concessionária, que é quem define o calendário do parecer de acesso. A data da ligação a gente crava assim que ele sai.</p>
   </div>
-  ${pe('O cronograma')}
+  ${pe('Riscos e cronograma')}
 </section>`);
 
-  // ── 13 · O FECHO ───────────────────────────────────────────────────────
-  // NENHUM número novo: os três são repetidos das folhas 1, 5 e 10. É a folha
+  // ── 10 · O FECHO ───────────────────────────────────────────────────────
+  // NENHUM número novo: os três são repetidos das folhas 1, 4 e 7. É a folha
   // que fica parada na tela enquanto se conversa.
   const pags = orc1PagChips({ total: Number(E.invest) || 0, ...(d.pag || {}) });
   S.push(`<section class="nx-slide">
   <div class="nx-faixa"></div>
-  <div class="nx-corpo centro">
+  <div class="nx-corpo" style="justify-content:center">
     <img class="nx-logo-g" src="${NX_LOGO}" alt="NEXUS Eletropostos">
-    <div class="nx-tagline" style="text-align:center;margin:6px 0 22px">Energia que <b>move</b> o amanhã</div>
+    <div class="nx-tagline" style="text-align:center;margin:6px 0 18px">Energia que <b>move</b> o amanhã</div>
     <div class="nx-tit" style="text-align:center">O que falta<span class="g"> é a sua assinatura</span></div>
     <div class="nx-tres">
       <div><span class="v">${brl(R.lucroMes)}</span><span class="r">por mês</span></div>
       <div><span class="v">${tem(R.payback) ? dec(R.payback) + ' anos' : '—'}</span><span class="r">para o dinheiro voltar</span></div>
       <div><span class="v">${brl(E.invest)}</span><span class="r">o projeto, chave na mão</span></div>
     </div>
-    <div class="nx-kick" style="margin-top:22px">Condição de pagamento</div>
+    <div class="nx-kick" style="margin-top:18px">Condição de pagamento</div>
     <div class="nx-pags">${pags}</div>
     <div class="nx-contato">
       <div class="b"><div class="r">Seu consultor</div><div class="v">${esc(vend.nome || '—')}</div></div>
@@ -12739,17 +12924,12 @@ function nxCompletoDeck(d) {
 
   // A numeração é costurada no fim, com o total já conhecido.
   const total = S.length;
-  const html = S.map((s, i) => s.replace('__N__', String(i + 1)).replace('__T__', String(total))).join('\n');
+  const html = S.map((x, i) => x.replace('__N__', String(i + 1)).replace('__T__', String(total))).join('\n');
 
   host.innerHTML = `<div class="nx-deck">${NX_CSS}${html}</div>`;
   epPrint(host, epNomeArq('Orcamento', d.cliente));
 }
 
-// ORFA desde 28/09/2026: o botao "Gerar PDF" passou a emitir o nxCompletoDeck
-// (apresentacao de 13 folhas em pe'). Este aqui e' o documento FORMAL, A4
-// branco, quatro folhas — fica de pe' pro dia em que alguem precisar anexar o
-// orcamento num processo, num banco ou num cartorio, onde apresentacao nao
-// serve e documento serve.
 function epCompletoA4(d) {
   const host = document.getElementById('eletro-print');
   if (!host) return;
