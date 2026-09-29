@@ -3711,8 +3711,12 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
                  arrendamento de quem paga a si mesmo afunda margem e payback. Local de
                  terceiro? o consultor põe o % combinado aqui — o estudo recalcula. -->
             <div class="eletro-inp has-suf"><input type="number" id="el-arrend" inputmode="decimal" value="0" oninput="eletroCalc()"><span class="suf">%</span></div></div>
-          <div class="eletro-field"><label>Manutenção<span class="el-tip" tabindex="0" data-tip="Percentual do faturamento reservado para manter o equipamento funcionando: limpeza, reparos e assistência técnica.">?</span></label>
-            <div class="eletro-inp has-suf"><input type="number" id="el-manut" inputmode="decimal" value="0.1" oninput="eletroCalc()"><span class="suf">%</span></div></div>
+          <div class="eletro-field"><label>Manutenção<span class="el-tip" tabindex="0" data-tip="Valor fixo por mês para manter o equipamento funcionando: limpeza, reparos e assistência técnica. É custo fixo — o contrato de manutenção se paga com o posto parado.">?</span></label>
+            <!-- 28/09/2026, ordem do dono: "manutenção = R$ 200,00 mês". Era 0,1% do
+                 faturamento e escalava com a ocupação: posto vazio, manutenção quase
+                 zero — o que não é como contrato de manutenção funciona. Saiu de
+                 taxasPct e entrou em fixosMes, ao lado da internet local e do seguro. -->
+            <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="el-manut" inputmode="decimal" value="200" oninput="eletroCalc()"></div></div>
           <div class="eletro-field"><label>Internet local<span class="el-tip" tabindex="0" data-tip="O link de internet do ponto, que mantém o carregador online para autorizar a recarga e receber o pagamento. É custo fixo: existe mesmo num mês parado.">?</span></label>
             <!-- 28/09/2026, ordem do dono: "mensalidade = internet local R$ 200,00 de
                  custo mês". O campo se chamava "Assinatura mensal" e a dica dizia
@@ -4703,7 +4707,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="apx-campos" data-grupo="custos">
           <label class="apx-campo"><span>Software NEXUS (%)</span><input id="apx-software" type="text" inputmode="decimal"></label>
           <label class="apx-campo"><span>Arrendamento (%)</span><input id="apx-arrend" type="text" inputmode="decimal"></label>
-          <label class="apx-campo"><span>Manutenção (%)</span><input id="apx-manut" type="text" inputmode="decimal"></label>
+          <label class="apx-campo"><span>Manutenção (R$)</span><input id="apx-manut" type="text" inputmode="decimal"></label>
           <label class="apx-campo"><span>Imposto (%)</span><input id="apx-imposto" type="text" inputmode="decimal"></label>
           <label class="apx-campo"><span>Internet local (R$)</span><input id="apx-assinat" type="text" inputmode="numeric"></label>
           <label class="apx-campo"><span>Outros fixos (R$)</span><input id="apx-fixos" type="text" inputmode="numeric"></label>
@@ -5184,7 +5188,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="field"><label>Software NEXUS (%)</label><input type="number" id="cmp-software" min="0" step="0.1"></div>
       <div class="field"><label>Imposto (%)</label><input type="number" id="cmp-imposto" min="0" step="0.1"></div>
       <div class="field"><label>Arrendamento (%)</label><input type="number" id="cmp-arrend" min="0" step="0.1"></div>
-      <div class="field"><label>Manutenção (%)</label><input type="number" id="cmp-manut" min="0" step="0.1"></div>
+      <div class="field"><label>Manutenção (R$)</label><input type="number" id="cmp-manut" min="0" step="0.1"></div>
       <div class="field"><label>Internet local (R$)</label><input type="text" id="cmp-assinatura" inputmode="decimal"></div>
       <div class="field"><label>Outros custos fixos (R$)</label><input type="text" id="cmp-fixos" inputmode="decimal"></div>
 
@@ -9122,7 +9126,7 @@ async function apxMontar() {
       carros: n('apx-carros'), carga: n('apx-carga'), custoKwh: n('apx-custokwh'),
       precoKwh: n('apx-preco'), ativacao: n('apx-ativacao'), invest: n('apx-invposto'),
       software: n('apx-software') / 100, arrend: n('apx-arrend') / 100,
-      manut: n('apx-manut') / 100, imposto: n('apx-imposto') / 100,
+      manutMes: n('apx-manut'), imposto: n('apx-imposto') / 100,
       assinat: n('apx-assinat'), fixos: n('apx-fixos'),
       ocupIni: n('apx-ocup') / 100, mesesRampa: n('apx-rampa') || 1,
       taxaDesc: n('apx-taxadesc') / 100,
@@ -11590,9 +11594,15 @@ function computeEletro(p) {
   // api/src/utils/computeEletro.ts) e sempre foi um número só, já carregando a
   // plataforma — lá nunca houve duplicata pra remover, e por isso o `gateway`
   // continua existindo naquele cálculo. Quem parou de mandá-lo é o Gerador.
-  const taxasPct     = p.arrend + p.manut + p.imposto + (p.software || 0);
+  // MANUTENCAO SAIU DAQUI em 28/09/2026: ela era 0,1% do faturamento e escalava
+  // com a ocupacao — posto vazio, manutencao quase zero. Virou valor fixo por
+  // mes (p.manutMes), que e' como contrato de manutencao funciona de verdade.
+  const taxasPct     = p.arrend + p.imposto + (p.software || 0);
   const seguroMes    = p.invest * 0.01 / 12;                    // 1% a.a. do investimento ÷ 12 (fixo)
-  const fixosMes     = p.assinat + seguroMes + (p.fixos || 0);  // assinatura + seguro + CPMS/4G/demanda
+  // O `|| 0` do manutMes e' compatibilidade, nao enfeite: orcamento salvo e link
+  // ja' enviado nao tem esta chave, e `undefined` na soma vira NaN — o documento
+  // que o cliente tem na mao reabriria com tudo em branco.
+  const fixosMes     = p.assinat + seguroMes + (p.fixos || 0) + (p.manutMes || 0);  // internet + seguro + manutencao + outros
   const margemVarMes = fatMes - custoEnergia - fatMes * taxasPct;  // contribuição variável plena
   const lucroMes     = margemVarMes - fixosMes;                 // lucro/mês em regime pleno
   const custosMes    = fatMes - lucroMes;                       // custos totais/mês (pleno)
@@ -11658,7 +11668,7 @@ function eletroParams() {
     precoKwh: elNum('el-precokwh'), ativacao: elNum('el-ativacao'), plugs: elNum('el-plugs'),
     invest: elMilhar('el-invest'), assinat: elNum('el-assinatura'), fixos: elNum('el-fixos'),
     arrend: elNum('el-arrend') / 100,
-    manut: elNum('el-manut') / 100, imposto: elNum('el-imposto') / 100,
+    manutMes: elNum('el-manut'), imposto: elNum('el-imposto') / 100,
     software: elNum('el-software') / 100,
     ocupIni: elNum('el-ocup') / 100, mesesRampa: elNum('el-rampa'),
     taxaDesc: EL_TAXA_DESC / 100,
@@ -12465,7 +12475,7 @@ function nxCompletoDeck(d) {
     // fantasma esperando alguem reintroduzir a variavel por outro motivo.
     ['Software NEXUS', tem(E.software) ? pct(E.software) : ''],
     ['Arrendamento do ponto', tem(E.arrend) ? pct(E.arrend) : ''],
-    ['Manutenção', tem(E.manut) ? pct(E.manut) : ''],
+    ['Manutenção', Number(E.manutMes) > 0 ? brl(E.manutMes) : ''],
     ['Imposto (Simples)', tem(E.imposto) ? pct(E.imposto) : ''],
     ['Internet local', Number(E.assinatura) > 0 ? brl(E.assinatura) : ''],
     ['Custos fixos', Number(E.fixos) > 0 ? brl(E.fixos) : ''],
@@ -12825,7 +12835,7 @@ function epCompletoA4(d) {
     ['Custo do kWh comprado', tem(E.custoKwh) ? 'R$ ' + Number(E.custoKwh).toFixed(2).replace('.', ',') : ''],
     ['Software NEXUS', tem(E.software) ? pct1(E.software) : ''],
     ['Arrendamento do ponto', tem(E.arrend) ? pct1(E.arrend) : ''],
-    ['Manutenção', tem(E.manut) ? pct1(E.manut) : ''],
+    ['Manutenção', Number(E.manutMes) > 0 ? brl(E.manutMes) : ''],
     ['Internet local', Number(E.assinatura) > 0 ? brl(E.assinatura) : ''],
     ['Imposto (Simples)', tem(E.imposto) ? pct1(E.imposto) : ''],
     ['Custos fixos', Number(E.fixos) > 0 ? brl(E.fixos) : ''],
@@ -12994,7 +13004,7 @@ function epCompletoPayload(versao) {
     { rot: 'Imposto',              val: r.fatMes * p.imposto,  nota: elPctRot(p.imposto) + ' do faturamento' },
     { rot: 'Arrendamento do ponto',val: r.fatMes * p.arrend,   nota: elPctRot(p.arrend) + ' do faturamento do ponto' },
     { rot: 'Software NEXUS',       val: r.fatMes * (p.software || 0), nota: elPctRot(p.software || 0) + ' do faturamento' },
-    { rot: 'Manutenção',           val: r.fatMes * p.manut,    nota: elPctRot(p.manut) + ' do faturamento' },
+    { rot: 'Manutenção',           val: p.manutMes || 0,       nota: 'valor fixo por mês' },
     { rot: 'Internet local',    val: p.assinat },
     { rot: 'Seguro',               val: r.seguroMes, nota: 'calculado em 1% do investimento ao ano' },
     { rot: 'Custos fixos',         val: p.fixos },
@@ -13054,7 +13064,11 @@ function epCompletoPayload(versao) {
     ent: {
       carros: p.carros, carga: p.carga, precoKwh: p.precoKwh, custoKwh: p.custoKwh,
       ativacao: p.ativacao, invest: p.invest, assinatura: p.assinat, fixos: p.fixos,
-      arrend: p.arrend * 100, manut: p.manut * 100,
+      // `manut` (percentual) NAO vai mais no payload. Nao fica em zero "por
+      // compatibilidade": zero faria todo renderizador que testa tem(E.manut)
+      // imprimir "Manutencao 0%" ao lado de um motor cobrando R$ 200. Sem a
+      // chave, o tem() filtra sozinho — mesma licao do gateway.
+      arrend: p.arrend * 100, manutMes: p.manutMes || 0,
       software: (p.software || 0) * 100,
       imposto: p.imposto * 100, ocupIni: p.ocupIni * 100, rampa: p.mesesRampa,
       taxaDesc: p.taxaDesc * 100,
@@ -13710,7 +13724,7 @@ function eletroApresentacao() {
     carros: elNum('el-carros'), carga: elNum('el-carga'), custokwh: elNum('el-custokwh'),
     precokwh: elNum('el-precokwh'), ativ: elNum('el-ativacao'), invest: elMilhar('el-invest'),
     plugs: elNum('el-plugs'), assin: elNum('el-assinatura'), fixos: elNum('el-fixos'),
-    software: elNum('el-software'), arrend: elNum('el-arrend'), manut: elNum('el-manut'),
+    software: elNum('el-software'), arrend: elNum('el-arrend'), manutmes: elNum('el-manut'),
     imposto: elNum('el-imposto'), ocup: elNum('el-ocup'), rampa: elNum('el-rampa'),
     taxadesc: EL_TAXA_DESC,
   });
@@ -13721,9 +13735,14 @@ function eletroApresentacao() {
 // Salva automaticamente ao gerar PDF/apresentação, se o cliente estiver preenchido.
 // 1 linha por (cliente|cidade|consultor); regerar atualiza a linha e conta em `geracoes`.
 function eletroInputsCrus() {
-  const ids = ['carros','carga','custokwh','precokwh','ativacao','qtd','plugs','invest','assinatura','fixos','software','arrend','manut','imposto','ocup','rampa'];
+  // `manut` virou `manutmes` de proposito. O snapshot antigo guarda 0.1, que
+  // era 0,1% — restaurar isso num campo de REAIS daria "R$ 0,10/mes" calado.
+  // Com chave nova, o snapshot velho simplesmente nao tem, e o campo fica no
+  // padrao de R$ 200 em vez de receber lixo.
+  const ids = ['carros','carga','custokwh','precokwh','ativacao','qtd','plugs','invest','assinatura','fixos','software','arrend','imposto','ocup','rampa'];
   const o = {};
   ids.forEach(id => { o[id] = elNum('el-' + id); });
+  o.manutmes = elNum('el-manut');
   o.taxadesc = EL_TAXA_DESC;
   return o;
 }
@@ -13979,7 +13998,7 @@ function eletroHistDeck(id) {
     cliente: t.cliente || '', cidade: t.cidade || '', equip: epEquipNormalizar(t.equip) ? epEquipRotulo(t.equip) : (t.equip || ''), autor: t.autor || '', contato: t.contato || '',
     carros: i.carros, carga: i.carga, custokwh: i.custokwh, precokwh: i.precokwh, ativ: i.ativacao,
     invest: i.invest, plugs: i.plugs, assin: i.assinatura, fixos: i.fixos, software: i.software,
-    arrend: i.arrend, manut: i.manut, imposto: i.imposto, ocup: i.ocup, rampa: i.rampa, taxadesc: i.taxadesc,
+    arrend: i.arrend, manutmes: i.manutmes, imposto: i.imposto, ocup: i.ocup, rampa: i.rampa, taxadesc: i.taxadesc,
   });
   window.open('/gerador/apresentacao.html?' + qs.toString(), '_blank', 'noopener');
 }
@@ -14175,7 +14194,7 @@ function eletroImprimir() {
           <table class="ep-kv">
             ${linhaSe('el-software', 'Software NEXUS', (r.software * 100).toLocaleString('pt-BR') + '%')}
             ${linhaSe('el-arrend', 'Arrendamento do ponto', (r.arrend * 100).toLocaleString('pt-BR') + '%')}
-            ${linhaSe('el-manut', 'Manutenção', (r.manut * 100).toLocaleString('pt-BR') + '%')}
+            ${linhaSe('el-manut', 'Manutenção', money(r.manutMes || 0) + ' / mês')}
             ${linhaSe('el-imposto', 'Imposto (Simples Nacional)', (r.imposto * 100).toLocaleString('pt-BR') + '%')}
             ${linhaSe('el-assinatura', 'Internet local', money(r.assinat))}
             <tr><td>Seguro (1% a.a. do investimento)</td><td class="num">${money(r.seguroMes)} / mês</td></tr>
@@ -14220,7 +14239,7 @@ function eletroImprimir() {
         <ol class="ep-prem">
           <li>Receita = energia entregue (kWh × preço de revenda) + taxa de ativação por sessão; 30 dias/mês; ${Math.round(r.carros)} carros/dia em regime pleno.</li>
           <li>Rampa de ocupação: ${Math.round(r.ocupIni * 100)}% no mês 1, crescimento linear até 100% no mês ${r.mesesRampa}. Custos fixos correm integralmente desde o mês 1.</li>
-          <li>Custos variáveis (energia, software NEXUS, arrendamento, manutenção, imposto) são percentuais do faturamento e acompanham a ocupação; custos fixos (seguro de 1% a.a. do investimento, assinatura, conectividade/demanda) correm integralmente desde o mês 1.</li>
+          <li>Custos variáveis (energia, software NEXUS, arrendamento, imposto) são percentuais do faturamento e acompanham a ocupação; custos fixos (seguro de 1% a.a. do investimento, internet local, manutenção, conectividade/demanda) correm integralmente desde o mês 1.</li>
           <li>Valores em termos reais (sem inflação): assume-se que tarifa de revenda e custos se reajustam em conjunto.</li>
           <li>O investimento total informado deve contemplar equipamento, obra civil, entrada de energia/conexão à concessionária, projeto, homologação e capital de giro inicial.</li>
           <li>VPL e payback descontado calculados à taxa de ${txPct}. TIR calculada sobre o fluxo anual de 10 anos.</li>
@@ -16248,7 +16267,7 @@ function eletroTelaA4() {
         <table class="ep-kv">${kv([
           ['Software NEXUS', seTem('el-software', (r.software * 100).toLocaleString('pt-BR') + '%')],
           ['Arrendamento do ponto', seTem('el-arrend', (r.arrend * 100).toLocaleString('pt-BR') + '%')],
-          ['Manutenção', seTem('el-manut', (r.manut * 100).toLocaleString('pt-BR') + '%')],
+          ['Manutenção', seTem('el-manut', money(r.manutMes || 0) + ' / mês')],
           ['Imposto (Simples Nacional)', seTem('el-imposto', (r.imposto * 100).toLocaleString('pt-BR') + '%')],
           ['Internet local', seTem('el-assinatura', money(r.assinat))],
           ['Seguro (1% a.a. do investimento)', money(r.seguroMes * 12) + ' / ano'],
@@ -18022,7 +18041,7 @@ function bcoHTML(d) {
       <tr><th>Premissa</th><th class="n">Valor</th><th>Origem</th></tr>
       <tr><td>Software NEXUS — plataforma e gestão</td><td class="n">${pc(r.software || 0, 0)} do faturamento</td><td>contrato da plataforma</td></tr>
       <tr><td>Tributos sobre o faturamento</td><td class="n">${pc(r.imposto, 0)}</td><td><span class="ep-bco-flag">confirmar</span> faixa do Simples, com o contador</td></tr>
-      <tr><td>Manutenção corretiva</td><td class="n">${pc(r.manut, 1)} do faturamento</td><td>${money(r.fatMes * r.manut)}/mês — atendimento pontual. <b>A manutenção efetiva está na reserva técnica</b>, abaixo</td></tr>
+      <tr><td>Manutenção corretiva</td><td class="n">${money(r.manutMes || 0)}/mês</td><td>valor fixo de contrato — atendimento pontual. <b>A manutenção efetiva está na reserva técnica</b>, abaixo</td></tr>
       <tr><td>Arrendamento do ponto</td><td class="n">${pc(r.arrend, 0)}</td><td>${r.arrend > 0 ? 'cessão de espaço de terceiro' : 'imóvel do próprio proponente'}</td></tr>
       <tr><td>Seguro do ativo</td><td class="n">${money(r.seguroMes)}/mês</td><td>1% a.a. do investimento, rateado</td></tr>
       ${d.provisoes.map(x => `<tr><td>${e(x[0])}</td><td class="n">${money(x[1])}/mês</td><td><span class="ep-bco-flag">provisão</span> acrescida para esta análise</td></tr>`).join('')}
@@ -18054,7 +18073,7 @@ function bcoHTML(d) {
           ${tr('(−) Energia comprada', '−' + money(r.kwhMes * r.custoKwh))}
           ${tr('(−) Software NEXUS — plataforma', '−' + money(r.fatMes * (r.software || 0)))}
           ${tr('(−) Tributos', '−' + money(r.fatMes * r.imposto))}
-          ${tr('(−) Manutenção corretiva', '−' + money(r.fatMes * r.manut))}
+          ${tr('(−) Manutenção corretiva', '−' + money(r.manutMes || 0))}
           ${r.arrend > 0 ? tr('(−) Arrendamento do ponto', '−' + money(r.fatMes * r.arrend)) : ''}
           ${tr('(−) Custos fixos e provisões', '−' + money(r.fixosMes))}
           ${tr('Geração de caixa operacional', money(r.lucroMes), 'tot')}

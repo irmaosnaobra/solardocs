@@ -181,7 +181,10 @@ function montar(D) {
     ['Custo do kWh comprado', 'R$ ' + dec(E.custoKwh, 2)],
     ['Software NEXUS', pct(E.software)],
     ['Arrendamento do ponto', pct(E.arrend)],
-    ['Manutenção', pct(E.manut)],
+    // manutMes (R$/mes) desde 28/09/2026. O `E.manut` antigo (percentual) fica
+    // de fallback: todo link JA ENVIADO tem so' ele, e a folha que o cliente
+    // abre no celular precisa continuar dizendo o que ele leu quando recebeu.
+    ['Manutenção', tem(E.manutMes) ? brl(E.manutMes) : (tem(E.manut) ? pct(E.manut) : '')],
     ['Internet local', brl(E.assinatura)],
     ['Imposto', pct(E.imposto)],
     ['Custos fixos', brl(E.fixos)],
