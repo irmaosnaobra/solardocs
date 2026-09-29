@@ -7841,13 +7841,29 @@ function orcCheckDeepLink() {
 
   if (produto === 'eletroposto') {
     navEletroposto();
-    const set = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
+    // SIMULADOR, e nao a aba Orcamento: ela saiu da barra em 26/09/2026 e este
+    // caminho continuava largando o consultor la' dentro, com um toast mandando
+    // "marcar os itens do kit" numa tela que ele nao acha mais.
+    eletroSubaba('simulador');
+    const set = (id, v) => {
+      const el = document.getElementById(id);
+      if (!el || !v) return;
+      el.value = v;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    };
     set('el-cliente', nome);
     set('el-cidade', cidade);
-    set('orc-cli-tel', tel);
-    eletroSubaba('orcamento');
+    // Na mao, e obrigatorio: eletroSubaba('simulador') NAO dispara orcInit — a
+    // lista que dispara e' orcamento|recibo|contrato|procuracao|banco|finame|
+    // apresentacao. Sem ele, orcLerItens().total fica zero e o Basico sai sem
+    // valor. Vem antes do telefone porque e' ele quem prepara o painel.
     if (typeof orcInit === 'function') orcInit();
-    if (typeof showToast === 'function') showToast('⚡ Cliente preenchido — marque os itens do kit');
+    // O telefone do cliente mora no painel do Orcamento, que segue no DOM: e' de
+    // la' que o Recibo, o Contrato, a Procuracao e a Proposta de banco leem. E
+    // agora ele tambem aparece na revisao do Simulador, em Telefone do cliente.
+    set('orc-cli-tel', tel);
+    if (typeof eletroCalc === 'function') eletroCalc();
+    if (typeof showToast === 'function') showToast('⚡ Cliente preenchido — complete o Simulador e emita o documento');
     return;
   }
 
@@ -20536,13 +20552,19 @@ async function crmGerarOrcamento(produto) {
     // reflete), por isso o preenchimento é lá — e o telefone entra na ficha do
     // documento. Os descritores do solar (telhado, fase, padrão) não servem aqui.
     navEletroposto();
-    const set = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
+    eletroSubaba('simulador');
+    const set = (id, v) => {
+      const el = document.getElementById(id);
+      if (!el || !v) return;
+      el.value = v;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    };
     set('el-cliente', nome);
     set('el-cidade', cidade);
-    set('orc-cli-tel', telBonito);
-    eletroSubaba('orcamento');
     if (typeof orcInit === 'function') orcInit();
-    showToast('⚡ Cliente preenchido — marque os itens do kit');
+    set('orc-cli-tel', telBonito);
+    if (typeof eletroCalc === 'function') eletroCalc();
+    showToast('⚡ Cliente preenchido — complete o Simulador e emita o documento');
     return;
   }
 
