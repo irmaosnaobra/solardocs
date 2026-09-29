@@ -58,6 +58,7 @@ import { runEletropostoNaoAtendidoFupTick } from '../services/io/eletropostoNaoA
 import { runEletropostoReagendaAutoTick } from '../services/io/eletropostoReagendaAuto';
 import { runEletropostoCardPingTick } from '../services/io/eletropostoCardPing';
 import { runEletropostoAlerta10minTick } from '../services/io/eletropostoAlerta10min';
+import { runLembreteFollowupTick } from '../services/io/lembreteFollowupService';
 import { runEletropostoEstudoTick } from '../services/io/eletropostoEstudo';
 import { runEletropostoTopPontosTick, respostaPublicaDoTop } from '../services/io/eletropostoTopPontos';
 import { runEletropostoIgConviteTick, publicoIgConvite, bolhaConviteLP } from '../services/io/eletropostoIgConvite';
@@ -356,7 +357,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // duas últimas cadências não apareciam). Os ticks sempre rodaram — quem
     // mentia era o relatório, que é justamente onde a gente vai olhar quando
     // desconfiar de um tick. Nome novo aqui exige chamada nova na MESMA posição.
-    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, limpaproAtendResult, geradorSeqResult, igDrainResult, fbComentResult, fbInboxResult, repescagemResult, conviteResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult, epReagendaResult, epCardPingResult, epIgConviteResult, solarBvResult, solarRespResult, curso19Result, carlaCnpjResult, carlaInativoResult, epAlerta10minResult, recepcaoParadasResult, recepcaoPollResult, avisosResult, vacuoResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, limpaproAtendResult, geradorSeqResult, igDrainResult, fbComentResult, fbInboxResult, repescagemResult, conviteResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult, epReagendaResult, epCardPingResult, epIgConviteResult, solarBvResult, solarRespResult, curso19Result, carlaCnpjResult, carlaInativoResult, epAlerta10minResult, recepcaoParadasResult, recepcaoPollResult, avisosResult, vacuoResult, lembreteFollowupResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),            // detecta inbound IO pra Cora processar
@@ -428,6 +429,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       // represa de 20 min da sentinela). O que muda é a pauta deixar de arrastar.
       runAvisosTick(),                 // avisos: a pauta escrita na tela vai pra base de parceria, 1 por tick (AVISOS_OFF desliga)
       runSentinelaVacuo(),             // sentinela: quem escreveu e ficou sem resposta vira cobrança no dono (VACUO_OFF desliga)
+      runLembreteFollowupTick(),       // follow-up: 1 card parado por consultor a cada 30 min, 10h-20h, no celular dele (LEMBRETE_OFF desliga)
     ]);
     res.json({
       ok: true,
@@ -468,6 +470,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       recepcao_poll:  recepcaoPollResult.status === 'fulfilled' ? recepcaoPollResult.value : { error: String((recepcaoPollResult as any).reason) },
       avisos:         avisosResult.status === 'fulfilled' ? avisosResult.value : { error: String((avisosResult as any).reason) },
       vacuo:          vacuoResult.status === 'fulfilled' ? vacuoResult.value : { error: String((vacuoResult as any).reason) },
+      lembrete_followup: lembreteFollowupResult.status === 'fulfilled' ? lembreteFollowupResult.value : { error: String((lembreteFollowupResult as any).reason) },
       placar:         await placarP,
       luma_io_off: 'Linha IO: polling ativo só pra Cora ouvir inbound, demais tarefas Luma desligadas',
     });
@@ -1373,6 +1376,21 @@ router.get('/avisos-tick', async (req: Request, res: Response) => {
   }
 });
 
+// Máquina de lembrete de follow-up: acha o card parado mais urgente de CADA
+// consultor e manda "liga agora nesse cliente" no celular dele. Um por pessoa a
+// cada 30 min, 10h às 20h, sem domingo e sem feriado. Não fala com cliente nenhum.
+// ?dry=1 mostra quem seria lembrado e por quê, sem mandar nada e ignorando a
+// janela de horário (conferir é pergunta, não envio). Kill-switch: LEMBRETE_OFF=1.
+router.get('/lembrete-followup', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    res.json({ ok: true, ...(await runLembreteFollowupTick({ dry: req.query.dry === '1' })) });
+  } catch (err) {
+    logger.error('cron', 'lembrete-followup falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
 // Sentinela do vácuo: acha quem escreveu pra linha e ficou sem resposta e cobra
 // o dono do produto, num resumo só. Não manda nada pra cliente. ?dry=1 mostra
 // quem seria cobrado, sem avisar ninguém. Kill-switch: VACUO_OFF=1.
@@ -1654,6 +1672,7 @@ router.get('/master', async (req: Request, res: Response) => {
     // resumo pro dono do produto. Não fala com cliente nenhum — cobra a gente.
     // De hora em hora basta: a régua dela é de 3h úteis. Prévia: ?dry=1.
     ['sentinela-vacuo',             () => runSentinelaVacuo()],
+    ['lembrete-followup',           () => runLembreteFollowupTick()], // rede de segurança: se o tick de 2 min morrer, o master ainda entrega 1 lembrete por pessoa
     ['sdr-followup',                () => runSdrFollowups()],
     // FICA DESLIGADO (17/09/2026). Rodava de hora em hora e mandava ZERO desde
     // sempre, por dois defeitos achados em 25/08 e ainda de pé:
