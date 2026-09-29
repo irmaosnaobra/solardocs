@@ -9,9 +9,9 @@
 > linha aguenta, a fila levaria **2 anos e 5 meses**, e isso sem contar farmácia. Pior: a
 > fila fria já rodou 349 toques, marcou 7 reuniões e **nenhuma avançou**, enquanto a
 > landing marcou 462 com cerca de 20% avançando. O que chega em todos são as duas camadas
-> que já existem na casa e estão subusadas: o **anúncio**, que hoje custa R$ 18,55 por
-> reunião e está comprando a métrica errada, e o **dono da bandeira**, que fala com 18.348
-> postos de uma vez. O 1 a 1 continua na mesa, mas como teste de 200 toques em **10 mil
+> que já existem na casa: o **anúncio**, que entrega reunião a R$ 17,76 mas cujo custo já
+> dobrou em três meses de saturação, e o **dono da bandeira**, que fala com 18.348 postos
+> de uma vez e não passa por leilão nenhum. O 1 a 1 continua na mesa, mas como teste de 200 toques em **10 mil
 > endereços escolhidos**, não como projeto de 45 mil.
 
 Todo número deste documento foi medido em 28 e 29/09/2026. A fonte de cada um está na seção 9.
@@ -26,8 +26,13 @@ Seguindo a convenção do `PONTO-COMO-CONSEGUIR.md`, **⚠️ marca raciocínio 
 > público do anúncio. Detalhe na seção 2. O arquivo mudou de nome para
 > `PROSPECCAO-CIDADES-PRIORIDADE.txt` justamente para ninguém colar no Meta por engano.
 >
-> E no lugar disso entrou um achado maior, na seção 4: **a Meta não enxerga nenhuma das
-> 225 reuniões dos últimos 30 dias.** Zero conversão personalizada criada na conta.
+> **SEGUNDA CORREÇÃO, mesma data, e esta é um erro meu.** Cheguei a escrever aqui que a
+> Meta não enxergava nenhuma reunião. **Está errado e foi retirado.** Eu filtrei o evento
+> `lead` e li zero, quando a campanha otimiza `SCHEDULE`: o array `conversions` mostra
+> 223 agendamentos em setembro contra 225 no nosso banco, e a própria Meta calcula
+> R$ 17,76 por reunião contra os R$ 18,55 que eu tinha calculado à parte. **O rastreio
+> está certo e bem ligado.** O que a série de três meses mostra de verdade está na seção 4,
+> e é outra coisa: o custo por reunião mais que dobrou enquanto o orçamento subiu 7 vezes.
 
 ---
 
@@ -220,45 +225,46 @@ número decidir, porque a tabela medida já contradiz a dedução duas vezes.
 
 ---
 
-## 4. Camada 1: o anúncio por cidade. É o que chega em todos hoje
+## 4. Camada 1: o anúncio. É o que chega em todos hoje
 
-Já funciona e é a única coisa que literalmente alcança todo mundo dentro das cidades que
-importam. A LP entregou 462 reuniões em 73 dias, cerca de 6 por dia, sem gastar nenhuma
-mensagem fria.
+Já funciona, roda em Brasil inteiro e é a única coisa que alcança todo mundo sem gastar
+mensagem. A LP entregou 462 reuniões em 73 dias, cerca de 6 por dia.
 
-### Primeiro, o buraco: a Meta não sabe que essas reuniões existem
+### O rastreio funciona, e o que ele mostra é saturação
 
-Fui ver a conta `Ekent- Pré Paga` por dentro. Últimos 30 dias, campanha **Nexus - ABO**,
-objetivo `OUTCOME_LEADS`:
+Conta `Ekent- Pré Paga`, campanha **Nexus - ABO**, otimizando `OFFSITE_CONVERSIONS` com
+evento `SCHEDULE` no pixel `26788759654130722`, que é o mesmo que a LP dispara em
+`gravarAgendamento()`. A série desde o começo:
 
-| | |
-|---|---:|
-| Gasto em 30 dias | R$ 4.173 |
-| Reuniões marcadas pela LP no mesmo período | **225** |
-| **Custo por reunião, calculado no nosso banco** | **R$ 18,55** |
-| Eventos `lead` que a Meta registrou | **0** |
-| Conversões personalizadas criadas na conta | **0** |
+| mês | gasto | reuniões que a Meta registrou | custo por reunião |
+|---|---:|---:|---:|
+| julho | R$ 532 | 68 | **R$ 7,82** |
+| agosto | R$ 2.416 | 163 | R$ 14,82 |
+| setembro (até 29) | R$ 3.961 | 223 | **R$ 17,76** |
+| total | R$ 6.908 | 454 | R$ 15,22 |
 
-O pixel dispara, e dispara certo: são **229 `offsite_conversion.fb_pixel_custom`** contra
-225 reuniões, quase um para um. Só que é um evento **personalizado que nunca foi
-cadastrado como conversão** na conta. Resultado: a campanha se chama LEADS e a Meta não tem
-um único lead para otimizar. Ela está comprando, na prática, visualização de página.
+Confere com o nosso banco: 223 agendamentos do lado da Meta contra 225 reuniões gravadas
+em 30 dias. Duas medições independentes, mesma resposta.
 
-**É isso que explica o número que me surpreendeu.** Brasil inteiro custa R$ 1,27 por
-visualização de página e as cidades perto de Uberlândia custam R$ 1,76. Parece que amplo
-ganha. Mas o leilão foi mandado buscar visualização barata, e visualização barata mora
-exatamente onde a concorrência é menor. Enquanto a Meta não receber a reunião, ela vai
-continuar otimizando para a métrica errada, **e nenhuma decisão de público vale mais do que
-consertar isso.** É o item 1 da ordem de execução.
+**O que a série diz: o orçamento subiu 7,4 vezes e o custo por reunião subiu 2,3 vezes.**
+O CTR caiu junto, de 8,0% em julho e agosto para 4,9% em setembro. Isso é saturação de
+público, não criativo ruim: a mesma oferta está sendo mostrada 2,29 vezes para cada pessoa
+alcançada, e para gastar quatro mil por mês o leilão precisa ir buscar gente cada vez mais
+longe do centro do público.
 
-Enquanto não conserta, a única fonte honesta de custo por reunião é o nosso banco, e ela
-diz R$ 18,55.
+**E é exatamente por isso que a camada 2 importa.** Se dobrar o orçamento de novo, o custo
+por reunião vai para perto de R$ 25 e a conta continua boa, mas a curva já mostrou para
+onde vai. Quem quer "chegar em todos" sem pagar o preço crescente do leilão precisa de um
+canal que não seja leilão, e é a bandeira e o sindicato da seção 5.
 
-### Depois, o resto
+R$ 17,76 por reunião é um número bom e precisa ser dito como tal. O anúncio é, de longe, o
+melhor canal que a casa tem hoje. O ponto é que ele está na parte da curva onde cada real
+novo rende menos que o anterior.
 
-1. **Cadastrar a conversão e mandar o evento de volta.** Criar a conversão personalizada em
-   cima do evento que já dispara, e preferencialmente subir a reunião pela API de Conversões,
-   que é o que sobrevive a bloqueador e a iOS. Só então trocar o objetivo do conjunto.
+### O que fazer nesta camada
+
+1. **Renovar criativo antes de subir orçamento.** É o que endereça a saturação da tabela
+   acima. Frequência em 2,29 e CTR caindo pela metade dizem que o público já viu.
 2. **Separar conjunto por segmento**, usando o `utm_term` que a aba Quiz do `/admin/hubs` já
    lê. Sem isso não dá para saber se farmácia vale, e a tabela da seção 3 continua com n=6.
 3. **Trocar o anúncio de link para Click to WhatsApp.** Está escrito no `WHATSAPP-OFICIAL.md`
@@ -394,12 +400,12 @@ Duas armadilhas antes de tratar isso como canal de e-mail:
 
 Do mais barato e mais rápido para o mais caro.
 
-1. **Fazer a reunião chegar na Meta.** Conversão personalizada cadastrada em cima do evento
-   que já dispara, e a reunião subindo pela API de Conversões. Hoje são R$ 4.173 por mês
-   comprando a métrica errada porque a Meta enxerga 0 de 225 reuniões. Está acima de
-   qualquer decisão de público, inclusive das 362.
-2. **Trocar o anúncio para Click to WhatsApp.** Horas, no gerenciador, de graça. Segunda
-   maior alavanca e independe de tudo o mais.
+1. **Trocar o anúncio para Click to WhatsApp.** Horas, no gerenciador, de graça. Abre janela
+   de 72h, mata a categoria mais cara de mensagem e é a maior alavanca que não depende de
+   mais orçamento. Medido: 0 de 868 leads têm `ctwa_clid` hoje.
+2. **Renovar criativo antes de subir orçamento.** O custo por reunião foi de R$ 7,82 para
+   R$ 17,76 em três meses com frequência em 2,29. Mais dinheiro no mesmo público compra
+   reunião mais cara, não mais reunião barata.
 3. **Abrir a conversa com as quatro bandeiras e com a Fecombustíveis.** Cinco telefonemas,
    18.348 postos de bandeira nas quatro e mais 34 sindicatos na federação.
 4. **Ativar os 2.039 integradores que já estão no banco.** Lista pronta, canal pronto, e é a
@@ -428,8 +434,8 @@ Os itens 1 a 4 não dependem de código novo nem de tela nova, e os dois primeir
 | 349 toques e os lembretes que as 7 receberam | `prospeccao_toques` e as colunas `confirmacao_at`, `lembrete_1h_at`, `lembrete_5min_at` |
 | 2.039 contatos sem categoria | `prospeccao_contatos` |
 | 0 de 868 leads com `ctwa_clid`, custo da oficial | `WHATSAPP-OFICIAL.md` |
-| R$ 4.173, 0 eventos `lead`, 229 pixel custom, 0 conversões personalizadas | API da Meta, conta `act_545732112868250`, campanha `Nexus - ABO`, últimos 30 dias |
-| 225 reuniões em 30 dias e o R$ 18,55 por reunião | `agendamentos` cruzado com o gasto da Meta no mesmo período |
+| Custo por reunião de R$ 7,82 a R$ 17,76, CTR e frequência | API da Meta, conta `act_545732112868250`, campanha `Nexus - ABO`, array `conversions` (`schedule_total`) por mês |
+| 225 reuniões em 30 dias | `agendamentos`, `created_by = lp_eletroposto` |
 | 21,5% dentro das 362 contra 22,2% fora | `agendamentos.cidade` normalizado com `unaccent`, cruzado com as 362 |
 | Disjuntor de 8% de opt-out | view `prospeccao_saude` e `prospeccao-travas-v2` |
 | 34 sindicatos e 40 mil postos representados | página institucional da Fecombustíveis |
@@ -465,9 +471,14 @@ mandou fazer, e o teste da seção 2 derrubou: mesma taxa dentro e fora, top 50 
 média, e 31% das reuniões jogadas fora. A lista serve para a fila e para a conversa com a
 bandeira, não para o público.
 
-**Mexer em público, criativo ou orçamento antes de consertar o sinal.** Com 0 de 225
-reuniões chegando na Meta, qualquer teste de público está sendo julgado por visualização
-de página. Otimizar em cima disso é escolher o melhor caminho para o lugar errado.
+**Subir orçamento sem criativo novo.** O custo por reunião já dobrou de julho para
+setembro com a frequência em 2,29. Mais verba no mesmo público e no mesmo anúncio compra
+reunião mais cara.
+
+**Ler `lead = 0` como rastreio quebrado.** Foi o erro que eu cometi nesta mesma sessão. A
+campanha otimiza `SCHEDULE`, não `LEAD`, então o número certo mora no array `conversions`
+(`schedule_total`), não no `actions` filtrado por "lead". Antes de acusar rastreio de
+quebrado, conferir qual é o `custom_event_type` no `promoted_object` do conjunto.
 
 **Escalar o 1 a 1 antes do teste.** 7,5% de "não perturbar" com disjuntor em 8% quer dizer
 que mais volume trava a fila em vez de encher a agenda. E o histórico é 7 reuniões, zero
