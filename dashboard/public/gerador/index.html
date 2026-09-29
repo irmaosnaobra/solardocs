@@ -790,8 +790,10 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
      dentro do host: só a foto tem .simshot, os documentos .ep-* seguem no branco. */
   body.print-doc #eletro-print:has(.simshot){background:#0F172A!important}
   /* A apresentacao do Orcamento Completo tem fundo escuro sangrando ate' a
-     borda. Sem esta regra sobra moldura branca em volta de cada folha, e a
-     folha e' 262mm numa pagina de 297mm — a sobra apareceria como faixa. */
+     borda. Sem esta regra sobra moldura branca em volta de cada folha. Desde
+     29/09/2026 a folha tem os 297mm da pagina inteira e nao ha mais sobra no
+     pe'; a regra continua valendo pra margem que o Chrome poe quando o
+     consultor escolhe margem na caixa de impressao. */
   body.print-doc #eletro-print:has(.nx-deck){background:#0B1A2B!important}
   html:has(#eletro-print .nx-deck),html:has(#eletro-print .nx-deck) body{background:#0B1A2B!important}
   html:has(#eletro-print .simshot),html:has(#eletro-print .simshot) body{background:#0F172A!important}
@@ -12372,18 +12374,25 @@ function epA4Parte(titulo, rows) {
 // (.claro), que existe só onde a foto do produto pede fundo branco, o destaque
 // vira tinta escura e o verde só entra como bloco ATRÁS de texto escuro.
 //
-// ALTURA: 262mm, e não os 297mm da folha inteira. Está medido nesta casa que
-// folha com altura fixa de A4 vaza para uma segunda página quando o Chrome
-// ignora o `@page{margin:0}` — o que ele faz quando o consultor tem margem
-// salva na caixa de impressão. Com 262mm cabe em qualquer margem, e a sobra não
-// aparece porque o `html` e o `body` também vão de escuro no print.
+// ALTURA: 297mm, a página inteira. Já foi 262mm, com esta justificativa: folha
+// de altura A4 cheia "vaza para uma segunda página quando o Chrome ignora o
+// `@page{margin:0}`". MEDIDO em 29/09/2026, é falso, e o custo era alto: 35mm
+// mortos no pé de toda página, a faixa da marca parando no meio do nada e o
+// rodapé a 42mm da borda do papel.
+// `.nx-slide` tem `overflow:hidden` e `break-after:page`: folha maior que a
+// caixa da página NUNCA vira duas folhas. E o Chrome não corta — ele reduz a
+// escala e põe borda branca em volta. Pior caso medido (297mm de folha com
+// `@page{margin:25mm}`): 9 páginas, folha inteira, rodapé "2 / 9" no lugar.
+// `height:100%` dá o mesmo e ainda acompanharia a margem, mas exigiria
+// `height:100%` em `html`, `body` e no host de impressão, que é COMPARTILHADO
+// com os outros cinco documentos. 297mm resolve sem tocar no que é dos outros.
 const NX_CSS = `<style>
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
 
 .nx-deck{
   --nx-fundo:#0B1A2B; --nx-fundo2:#081422; --nx-cartao:#10233A; --nx-cartao2:#16304C;
   --nx-linha:rgba(229,231,235,.11); --nx-linha2:rgba(229,231,235,.22);
-  --nx-texto:#E5E7EB; --nx-suave:#8CA0B8; --nx-fraco:#6C819A;
+  --nx-texto:#E5E7EB; --nx-suave:#8CA0B8; --nx-fraco:#8496B0;
   --nx-verde:#39FF14; --nx-verde-bg:rgba(57,255,20,.12); --nx-verde-ln:rgba(57,255,20,.38);
   --nx-azul:#0085FF; --nx-azul-bg:rgba(0,133,255,.14);
   --nx-veu:11,26,43;
@@ -12393,22 +12402,19 @@ const NX_CSS = `<style>
 }
 .nx-deck *{margin:0;padding:0;box-sizing:border-box}
 
-.nx-slide{position:relative;width:210mm;height:262mm;overflow:hidden;
+.nx-slide{position:relative;width:210mm;height:297mm;overflow:hidden;
   background:var(--nx-fundo);color:var(--nx-texto);
   display:flex;flex-direction:column;
   page-break-after:always;break-after:page;
   -webkit-print-color-adjust:exact;print-color-adjust:exact}
 .nx-slide:last-child{page-break-after:auto;break-after:auto}
-/* A SOBRA DE 35MM SO' APARECE NA FOLHA CLARA. A pagina tem 297mm, a folha tem
-   262mm, e o canvas do print vai de escuro pra que as outras oito sangrem ate' a
-   borda — medido no PDF do site no ar, a folha 6 saia com tarja escura no pe'.
-   A sombra sem desfoque estende o proprio branco da folha os 35mm que faltam, e
-   so' pra baixo: 18mm de deslocamento com 17mm de espalhamento da' 35mm embaixo
-   e -1mm em cima. Sombra nao ocupa espaco de layout, entao a quebra nao muda.
-   Subir a folha pra 297mm resolveria a tarja e traria de volta o vazamento pra
-   segunda pagina quando o consultor tem margem salva — vide a nota da ALTURA. */
-.nx-slide.claro{box-shadow:0 18mm 0 17mm #F4F6F8;background:#F4F6F8;color:#0B1A2B;
-  --nx-texto:#0B1A2B;--nx-suave:#51637A;--nx-fraco:#7287A0;
+/* A folha clara NAO leva mais sombra pra baixo. Ela existiu de 28 a 29/09 pra
+   pintar os 35mm de sobra que ficavam embaixo dela quando a folha tinha 262mm
+   numa pagina de 297. Agora a folha ocupa a pagina inteira e nao ha sobra: a
+   mesma sombra passaria a pintar o TOPO DA FOLHA SEGUINTE, tarja clara em cima
+   de folha escura. Seria o mesmo defeito de cabeca pra baixo. */
+.nx-slide.claro{background:#F4F6F8;color:#0B1A2B;
+  --nx-texto:#0B1A2B;--nx-suave:#51637A;--nx-fraco:#51637A;
   --nx-linha:rgba(11,26,43,.12);--nx-linha2:rgba(11,26,43,.24);
   --nx-cartao:#FFFFFF;--nx-cartao2:#FFFFFF}
 
@@ -12458,7 +12464,7 @@ const NX_CSS = `<style>
   mix-blend-mode:multiply}
 .nx-capa .nx-marca img{filter:brightness(0) saturate(100%) invert(9%) sepia(18%) saturate(2400%) hue-rotate(178deg)}
 .nx-capa-sobre{font-size:9.5pt;font-weight:700;letter-spacing:1.1px;text-transform:uppercase;
-  color:var(--nx-suave);margin-bottom:12px;max-width:118mm}
+  color:var(--nx-suave);margin-bottom:12px;max-width:172mm;text-wrap:balance}
 .nx-capa-num{font-size:56pt;font-weight:900;line-height:.92;letter-spacing:-2.5px;color:#fff}
 .nx-capa-num .un{display:block;font-size:13pt;font-weight:700;letter-spacing:.6px;
   color:var(--nx-verde);margin-top:8px}
@@ -12675,33 +12681,57 @@ const NX_CSS = `<style>
 /* margens internas menores: cada uma valia pouco, somadas valiam uma folha */
 .nx-kick{margin-bottom:5px;font-size:8pt;letter-spacing:2px}
 .nx-tit{font-size:23pt;line-height:1.1}
-.nx-lead{margin-top:8px;font-size:10.5pt;line-height:1.5}
-.nx-kpis{gap:7px;margin-top:11px}
-.nx-kpi{padding:11px 13px;border-radius:11px}
-.nx-kpi .v{font-size:18.5pt;margin-top:3px}
-.nx-partes{gap:7px;margin-top:9px}
-.nx-parte{padding:11px 13px}
-.nx-parte .t{margin-bottom:6px}
+/* "text-wrap:pretty" mata a linha de uma palavra so ("sai." na folha 8,
+   "operar" na folha 7): o Chrome, que e' quem gera o PDF, puxa uma palavra da
+   linha de cima. Nao muda altura de folha. */
+.nx-lead{margin-top:8px;font-size:10.5pt;line-height:1.5;text-wrap:pretty}
+.nx-kpis{gap:9px;margin-top:16px}
+.nx-kpi{padding:16px 18px;border-radius:12px}
+.nx-kpi .v{font-size:20pt;margin-top:4px}
+.nx-partes{gap:9px;margin-top:14px}
+/* O cartao do consultor e' o unico .nx-parte de largura inteira, e ele nao
+   participa da grade .nx-partes: por isso nascia colado no bloco de cima (calha
+   medida 0,0mm) e com o desenho de meia coluna numa caixa de 184mm, deixando
+   ~156mm de vao entre o rotulo e o valor. Ganha a margem que a grade daria e
+   tres colunas, a mesma grade de tres da folha 9. */
+.nx-partes+.nx-parte{margin-top:7px;display:grid;grid-template-columns:repeat(3,1fr);
+  gap:2px 18px;align-items:start}
+.nx-partes+.nx-parte .t{grid-column:1/-1}
+.nx-parte{padding:14px 16px}
+.nx-parte .t{margin-bottom:9px}
 .nx-chips{gap:6px;margin-top:10px}
 .nx-custos{gap:7px;margin-top:9px}
-.nx-tarja{margin-top:12px;padding:11px 15px;font-size:12pt}
+.nx-tarja{margin-top:16px;padding:14px 17px;font-size:12pt}
 .nx-cen{gap:7px;margin-top:11px}
 .nx-medos{gap:8px;margin-top:11px}
 .nx-passos{gap:5px;margin-top:11px}
-.nx-duas{gap:11px;margin-top:11px}
-.nx-tres{gap:7px;margin-top:14px}
-.nx-pags{gap:7px;margin-top:11px}
-.nx-contato{gap:7px;margin-top:11px}
-.nx-obs{margin-top:10px}
+.nx-duas{gap:13px;margin-top:15px}
+.nx-tres{gap:9px;margin-top:18px}
+.nx-pags{gap:9px;margin-top:14px}
+/* O "orc1PagChips()" devolve os chips dentro de um "<div class="pags">", entao
+   o ".pag" e' NETO do ".nx-pags", e o "flex:1 1 52mm" la em cima nunca chegava
+   nele: quem e' filho e' o embrulho, com "flex:0 1 auto" e "min-width:auto".
+   Ele encolhia pro tamanho do conteudo (99,8mm dos 184mm da coluna) e os chips
+   empilhavam dentro, deixando um vao de ~84x50mm na folha que FECHA a venda.
+   O embrulho vira a fila. Com 3 formas de pagamento elas dividem a linha; com
+   4, a ultima cai numa segunda linha e cresce ate a largura toda. */
+.nx-pags>.pags{display:flex;flex-wrap:wrap;gap:7px;width:100%;margin:0}
+.nx-contato{gap:9px;margin-top:14px}
+/* 7,5pt era o menor corpo do documento, e nele estava o unico texto com peso
+   juridico: garantia, escopo e DIFAL. A folha 9 tem folga no pe. */
+.nx-obs{margin-top:10px;font-size:8.5pt}
 
-/* O ULTIMO BLOCO **NAO** PREGA NO PE.
-   Foi a primeira tentativa, e ela troca um problema por outro pior: onde o
-   conteudo nao chega perto de encher, o margin-top:auto abre um buraco NO
-   MEIO da folha e empurra a tarja pra borda. Medido na folha de custos: ~35%
-   da folha virou vao entre a ultima linha e a tarja verde.
-   Vazio no FIM da folha le como margem. Vazio no MEIO le como defeito.
-   Entao tudo flui do alto, e a sobra fica onde ninguem estranha. */
-.nx-fim{margin-top:0}
+/* O ULTIMO BLOCO NAO PREGA NO PE, e tambem NAO LEVA REGRA NENHUMA.
+   Aqui morava uma regra que zerava a margem de cima do ".nx-fim", escrita em
+   28/09 pra cancelar um "margin-top:auto" que abria buraco no meio da folha.
+   So que zerar nao cancela o auto: ZERA a margem normal do bloco. Medido em 29/09,
+   calha de 0,0mm onde o desenho pede 3mm, em quatro lugares — o cartao do
+   consultor na folha 2, a tarja verde nas folhas 3 e 7, e os dois cartoes de
+   lucro na folha 4, colados na linha de base do grafico.
+   Nao existe nenhuma outra regra ".nx-fim": sem ela cada bloco volta a usar a
+   propria margem. A classe fica no markup, inerte, como marca de onde a folha
+   termina. Vazio no FIM da folha le como margem; vazio no MEIO le como
+   defeito — isso continua valendo, e e' por isso que o auto nao volta. */
 
 /* ── a folha de custos ganha o print do app ao lado ──────────────────────
    E o unico lugar do documento onde o cliente VE o que os 10% de Software
@@ -12732,7 +12762,13 @@ const NX_CSS = `<style>
 
 /* ── o retorno e a rampa na mesma folha ─────────────────────────────────
    Coladas, a rampa deixa de parecer ressalva e vira parte do retorno. */
+/* "line-height:.86" em 62pt faz a caixa da linha ficar MENOR que o desenho da
+   letra: o descendente da virgula sai da caixa e invade o bloco de baixo.
+   Medido: calha de 0,0mm entre ".nx-mega" e o ".nx-tit", e no pixel a virgula
+   do "1,8" e a ascendente do "d" de "dinheiro" se sobrepoem. A caixa continua
+   apertada (e' o desenho da folha) e a folga entra como margem do vizinho. */
 .nx-mega{font-size:62pt;letter-spacing:-3px}
+.nx-mega+.nx-tit{margin-top:11px}
 .nx-mega .un{font-size:15pt}
 .nx-anos{margin:16px 0 6px}
 .nx-fin{margin-top:13px}
@@ -12763,9 +12799,9 @@ const NX_CSS = `<style>
    Numa coluna estreita elas ficavam finas demais e abriam o vao que o
    margin-top:auto depois esticava. Linha alta e barra grossa enchem a folha
    com a informacao que ja esta la, em vez de com ar. */
-.nx-custos{gap:11px}
+.nx-custos{gap:15px}
 .nx-custo .l{font-size:11pt}
-.nx-custo .trilho{height:8px;margin-top:6px}
+.nx-custo .trilho{height:9px;margin-top:7px}
 .nx-custo .n{font-size:8pt;margin-top:4px}
 .nx-app{border-radius:18px}
 .nx-app .leg{font-size:8pt;padding:9px 4px 11px}
@@ -12773,13 +12809,19 @@ const NX_CSS = `<style>
 /* ── os cenarios com corpo ───────────────────────────────────────────────
    Eram 38% de ocupacao com tipo de 9pt, que no celular ninguem le. O vao nao
    se resolvia com respiro: era o tipo pequeno demais que o abria. */
-.nx-cen{gap:10px;margin-top:14px}
+.nx-cen{gap:12px;margin-top:18px}
 .nx-cen .c{padding:16px 18px;grid-template-columns:50mm 1fr;gap:14px}
 .nx-cen .id .n{font-size:16pt}
 .nx-cen .id .q{font-size:9.5pt;margin-top:3px}
 .nx-cen .id .selo{font-size:7.5pt;margin-top:7px;padding:3px 9px}
 .nx-cen .vals{gap:6px 14px}
 .nx-cen .vals div{font-size:10pt}
+/* A quinta linha e' impar numa grade de duas colunas e sobrava espremida na
+   coluna estreita: medida, 8,5mm de altura contra 4,2mm das outras quatro, com
+   "R$" numa linha e "1.110.808" na de baixo, e o cartao 4,2mm mais alto que os
+   irmaos. Ela passa a ocupar a linha inteira e o valor para de poder quebrar. */
+.nx-cen .vals div:last-child{grid-column:1/-1}
+.nx-cen .vals div:last-child .v{white-space:nowrap}
 
 /* ── os tres angulos do carregador, na folha clara ──────────────────────
    As fotos tem fundo branco: no cartao claro, o multiply derrete o fundo e o
@@ -12796,12 +12838,12 @@ const NX_CSS = `<style>
    Fundidas, as duas somavam 94% e estouravam por 8px. Oito pixels nao sao
    margem: cliente com nome maior ou etapa com texto mais longo estoura mais.
    Estes cortes trazem pra ~85%, que aguenta variacao. */
-.nx-medos{gap:6px;margin-top:10px}
+.nx-medos{gap:8px;margin-top:13px}
 .nx-medo{padding:10px 13px}
 .nx-medo .resp{line-height:1.45}
 .nx-medo .reg{margin:6px 0}
-.nx-passos{gap:4px;margin-top:9px}
-.nx-passo{padding:7px 11px}
+.nx-passos{gap:6px;margin-top:12px}
+.nx-passo{padding:9px 12px}
 .nx-passo .n{width:23px;height:23px;font-size:9pt}
 .nx-passo{grid-template-columns:23px 1fr auto}
 
@@ -12812,15 +12854,15 @@ const NX_CSS = `<style>
 .nx-capa-num .un{font-size:14pt;margin-top:10px}
 .nx-capa-frase{font-size:13.5pt}
 .nx-selos span{font-size:9pt;padding:6px 12px}
-.nx-vitrine{height:104mm}
+.nx-vitrine{height:160mm}
 
 /* ── o seu ponto: a banda cresce e a lista respira ──────────────────────*/
 .nx-banda{height:88mm}
 .nx-banda .txt .t{font-size:19pt}
 .nx-banda .txt .d{font-size:10pt}
-.nx-lista li{font-size:10.5pt;line-height:1.75;padding-left:21px}
+.nx-lista li{font-size:10.5pt;line-height:1.75;padding-left:21px;text-wrap:pretty}
 .nx-col .h{font-size:9pt;margin-bottom:10px}
-.nx-aviso{font-size:9pt;padding:11px 13px;margin-top:13px}
+.nx-aviso{font-size:9pt;padding:13px 15px;margin-top:16px}
 
 /* ── o fluxo acumulado de 10 anos ────────────────────────────────────────
    "Patrimonio em 10 anos" era numero de manchete sem prova nenhuma. A barra
