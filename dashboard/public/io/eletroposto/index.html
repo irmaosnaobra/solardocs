@@ -3212,6 +3212,13 @@ function pick(b){
   document.querySelectorAll('.slot').forEach(s=>s.classList.remove('on'));
   b.classList.add('on'); slotSel = b.dataset.iso;
   track('slot_escolhido');
+  // REPINTA (30/09/2026, tarde). Desde que o horário virou o ÚLTIMO passo, o rótulo
+  // do botão depende de `slotSel` — e `pick()` não repintava, porque antes o rótulo
+  // só dependia do telefone, que este clique não muda. Resultado: a pessoa escolhia
+  // o horário, o botão continuava "Continuar →" com ação 'proximo', e `passoProximo()`
+  // no último passo não tem pra onde ir: o clique não fazia NADA. Pego no teste que
+  // roda a página inteira num DOM.
+  if(typeof pintarPasso === 'function') pintarPasso();
   // Escolher NAO avanca: quem decide seguir e o "Continuar" (ordem do Thiago, 16/09).
   if(typeof mostrarContinuar === 'function') mostrarContinuar();
 }
@@ -3845,7 +3852,11 @@ function passoProximo(){
   const vivos = passosVivos();
   const problema = vivos[passoAtual].ok();
   if(problema) return erro(problema);
-  if(passoAtual < vivos.length - 1){ passoAtual++; pintarPasso(); }
+  if(passoAtual < vivos.length - 1){ passoAtual++; pintarPasso(); return; }
+  // ÚLTIMO PASSO COM RESPOSTA VÁLIDA e o botão ainda dizendo "Continuar": o rótulo
+  // ficou para trás de alguma mudança de estado. Repintar é o conserto; não fazer
+  // nada, que era o comportamento, é um clique morto na última tela do quiz.
+  pintarPasso();
 }
 function passoVoltar(){
   if(passoAtual > 0){ passoAtual--; pintarPasso(); }
