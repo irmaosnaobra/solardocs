@@ -55,7 +55,8 @@
 //     (`lembrete_slot:`). Carimbar depois foi o bug do placar: tick repetido
 //     manda duas vezes.
 //   • Teto de 3 toques no MESMO card (`lembrete_card:`), com folga de 48h entre
-//     eles. Sem isso um card teimoso come todos os slots pra sempre.
+//     eles. Sem isso um card teimoso come todos os slots pra sempre. **O teto
+//     não vale pra família do ciclo** desde 30/09/2026 — ver abaixo.
 //   • Janela 10h–20h, sem domingo, sem feriado. Sábado entra: a agenda do solar
 //     trabalha sábado.
 //   • Card que a sentinela do vácuo cobrou nas últimas 24h não vira lembrete. O
@@ -70,7 +71,39 @@
 // lead com recado interno é, ao contrário, o bug que calou todos os follow-ups
 // quando a agenda comeu o orçamento.
 //
+// ── O CICLO DE 48 HORAS (30/09/2026) ──────────────────────────────────────
+//
+// Ordem do Thiago: "aquele que é o chave na mão, arrendamento, negociando,
+// 50-50, ele voltar sempre 48 horas depois, pra ele ficar rodando e a gente
+// fechar ou não fechar com esse cliente. Ele vai estar sempre ocupando a nossa
+// agenda, então a gente tem que se livrar dele ou fechando ou dando um sem
+// interesse nele pra ele sumir de vez. A gente precisa dar destino."
+//
+// Duas mudanças, e a segunda é a que faz a primeira funcionar:
+//   1. os quatro modelos do eletroposto entram na varredura (eram 68 cards que
+//      robô nenhum olhava, no produto onde está o dinheiro);
+//   2. a família do ciclo perde o teto de 3 toques. Ela volta de 48 em 48 horas
+//      até alguém dar destino. Ver `ESTAGIOS_CICLO`.
+//
+// ── O QUE "48 HORAS" VIRA NA PRÁTICA, E POR QUE ISSO ESTÁ CERTO ───────────
+//
+// 48h é o DESCANSO MÍNIMO de cada card, não a promessa de giro da fila. Medido
+// em 30/09: 192 cards na família do ciclo (Diego 109, Thiago 49, Giovanna 34) e
+// 20 slots por pessoa por dia = 60 toques/dia. O giro completo dá ~3,2 dias, e o
+// do Diego sozinho ~5,5.
+//
+// Forçar 48h literais exigiria um slot a cada 11 minutos, e aí morre a premissa
+// que fez este módulo existir: um cliente por vez, tarefa de 3 minutos que cabe
+// entre duas ligações. Robô que fala de 11 em 11 minutos é robô que a equipe
+// silencia no primeiro dia, e aí o giro vira infinito.
+//
+// O giro APERTA SOZINHO conforme a fila drena, e a fila drena porque agora todo
+// card tem saída: Vendido, Sem interesse ou Apalavrado. Que a equipe usa a saída
+// já está medido — são 601 cards em `sem_interesse` no banco. `LEMBRETE_PASSO_MIN`
+// existe pra apertar sem deploy, se ele quiser.
+//
 // Kill-switch: LEMBRETE_OFF=1 congela tudo sem deploy.
+// LEMBRETE_ESPELHO=<telefone> manda tudo pra um número só (modo conferência).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase } from '../../utils/supabase';
@@ -123,24 +156,117 @@ const diasJanela = (): number => num('LEMBRETE_JANELA_DIAS', 3650);
  *  acontecendo. Em horas ÚTEIS. */
 const esperaMinimaH = (): number => num('LEMBRETE_ESPERA_MIN_H', 4);
 
+/**
+ * MODO ESPELHO — tudo num telefone só, nenhum consultor recebe.
+ *
+ * Ordem do Thiago (30/09/2026): "a partir de hoje não manda para ninguém e
+ * manda para si próprio". É o modo de conferência: ele quer LER o que a máquina
+ * escolheu e o que ela diz antes de aquilo chegar no celular do Diego e da
+ * Giovanna.
+ *
+ * Duas coisas mudam, e a segunda é a que evita o tiro no pé:
+ *   1. o destinatário passa a ser este número, sempre;
+ *   2. sai UM card por slot no TOTAL, não um por consultor. Com 3 consultores
+ *      com fila (Diego 109, Thiago 49, Giovanna 34), manter um por pessoa
+ *      despejaria 60 mensagens/dia num telefone só — que é exatamente a "lista
+ *      que vira paisagem" que este módulo existe pra não ser, só que pior,
+ *      porque chega picotada.
+ *
+ * Vazio = modo normal, cada consultor recebe o seu.
+ */
+export const espelho = (): string => (process.env.LEMBRETE_ESPELHO || '').replace(/\D/g, '');
+
+/** Estado da sala de espera: `apalavrado:<id>` → { aguardando, retomar_em, por, em }. */
+export const APALAVRADO_PREFIX = 'apalavrado:';
+
+/** Quanto tempo o card fica parado quando ninguém diz uma data. */
+export const apalavradoDiasPadrao = (): number => num('APALAVRADO_DIAS', 30);
+
 const TZ = 'America/Sao_Paulo';
 
 /**
  * Os estágios em que a bola está com a gente.
  *
  * Fora daqui é desfecho e não é assunto de robô: `sem_interesse`, `perdido`,
- * `fechou`, `fechou_concorrente`, `cancelado`, `arrendamento`, `sem_orcamento`.
+ * `fechou`, `fechou_concorrente`, `cancelado`, `sem_orcamento`.
  * Incluir qualquer um deles seria mandar o consultor ligar pra quem já disse não,
  * que é a forma mais rápida de ensinar a equipe a ignorar este robô.
+ *
+ * ── OS QUATRO MODELOS DO ELETROPOSTO ENTRARAM EM 30/09/2026 ────────────────
+ *
+ * `arrendamento`, `carregador`, `meio_a_meio` e `chave_na_mao` estavam fora, e
+ * o comentário que os tirava daqui dizia "é desfecho e não é assunto de robô".
+ * Estava errado, e a ordem do Thiago (30/09) diz exatamente o contrário: "aquele
+ * que é o chave na mão, arrendamento, negociando, 50-50, ele voltar sempre 48
+ * horas depois, para a gente fechar ou não fechar com esse cliente".
+ *
+ * Escolher o modelo de negócio não é desfecho, é o MEIO da venda: o cliente
+ * disse por qual porta quer entrar e ainda não assinou nada. Eram 68 cards
+ * (medidos em 30/09: arrendamento 20, carregador 21, chave_na_mao 18,
+ * meio_a_meio 9) que nenhum robô olhava, no produto onde está o dinheiro.
+ *
+ * ── POR QUE `arrendamento` PODE ENTRAR AQUI, se ele é excluído em todo lado ──
+ *
+ * Porque ESTA MÁQUINA NÃO FALA COM O CLIENTE. O destinatário é o celular do
+ * consultor. As listas que excluem status (`STATUS_QUE_NAO_RECEBEM`,
+ * `STATUS_ENCERRADOS`, `AG_MORTO`, `CRM_STATUS_PERDIDO`) existem pra proteger o
+ * CLIENTE de receber mensagem que não faz sentido pra ele — e nenhuma delas se
+ * aplica a um recado interno dizendo "liga nesse cara". Quem for mexer aqui vai
+ * ter o reflexo de tirar `arrendamento` de novo: é o mesmo reflexo que escreveu
+ * o comentário errado da primeira vez.
+ *
+ * `apalavrado` entra por um motivo diferente, e só acorda na data marcada — ver
+ * `ESTAGIOS_CICLO` e `pausaApalavrado()` logo abaixo.
  */
 export const ESTAGIOS_ABERTOS = [
   'agendado', 'nao_atendeu', 'falando_whatsapp', 'em_atendimento',
   'fez_orcamento', 'proposta_apresentada', 'reagendar',
+  'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao',
+  'apalavrado',
 ] as const;
+
+/**
+ * A FAMÍLIA QUE VOLTA PARA SEMPRE, de 48 em 48 horas.
+ *
+ * Ordem do Thiago (30/09/2026): "ele vai estar sempre ocupando ali a nossa
+ * agenda, então a gente tem que se livrar dele ou fechando ou dando um sem
+ * interesse nele pra ele sumir de vez". Ou seja: card com negociação viva não
+ * tem teto de insistência. Ele sai da fila pela porta da frente (`fechou`), pela
+ * porta dos fundos (`sem_interesse`) ou pela sala de espera (`apalavrado`), e
+ * por mais nenhuma.
+ *
+ * O teto de 3 toques (`LEMBRETE_MAX_POR_CARD`) continua valendo pra TODO O
+ * RESTO, e isso é de propósito:
+ *   · `nao_atendeu` — "continua a mesma regra", ele disse duas vezes. Quem cuida
+ *     dele é a régua de remarcação (`eletropostoReagendaAuto` /
+ *     `reagendaSolarNaoAtendido`), que marca a reunião de novo e faz a agenda
+ *     falar. Tirar o teto aqui empilharia um segundo robô em cima do primeiro.
+ *   · `agendado` e `reagendar` — a hora passou e ninguém fechou o card. É
+ *     higiene de cadastro, não negociação: 3 toques resolvem ou o card está
+ *     morto.
+ *
+ * A conta de por que isso importa: sem o corte, as 423 fichas abertas entrariam
+ * no ciclo infinito e o giro completo levaria 7 dias. Com o corte, são 192, e o
+ * giro cai pra ~3 dias — e aperta sozinho conforme a fila drena.
+ */
+export const ESTAGIOS_CICLO = new Set<string>([
+  'em_atendimento', 'fez_orcamento', 'proposta_apresentada',
+  'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao',
+]);
 
 /** Peso do estágio na fila. Quanto mais perto do sim, mais cedo se liga:
  *  quem já viu proposta e sumiu é quem ainda dá pra salvar. */
 const PESO_ESTAGIO: Record<string, number> = {
+  // Os quatro modelos do eletroposto vêm ACIMA de proposta apresentada: o
+  // cliente já escolheu POR QUAL PORTA quer entrar, o que é um passo adiante de
+  // ter só visto o preço. Sem estas quatro linhas eles cairiam no `?? 1` do
+  // `pontuarCard` e ficariam atrás até de `agendado` — os 68 cards que o Thiago
+  // mais quer trabalhados dormiriam no fim da fila.
+  chave_na_mao: 9,          // leva o eletroposto inteiro: maior ticket, mais perto do sim
+  meio_a_meio: 8,           // sociedade 50/50
+  arrendamento: 8,          // cede o ponto, nós investimos 100%
+  carregador: 7,            // leva só o equipamento
+  apalavrado: 7,            // só chega aqui com o prazo VENCIDO, e aí é urgente
   proposta_apresentada: 6,
   fez_orcamento: 5,
   em_atendimento: 4,
@@ -152,6 +278,11 @@ const PESO_ESTAGIO: Record<string, number> = {
 
 /** Como o card aparece escrito no recado, igual à etiqueta do /gerador. */
 const ROTULO_ESTAGIO: Record<string, string> = {
+  chave_na_mao: 'CHAVE NA MÃO',
+  meio_a_meio: '50/50 — SOCIEDADE',
+  arrendamento: 'ARRENDAMENTO',
+  carregador: 'CARREGADOR',
+  apalavrado: 'APALAVRADO — PRAZO VENCIDO',
   proposta_apresentada: 'PROPOSTA APRESENTADA',
   fez_orcamento: 'FEZ ORÇAMENTO',
   em_atendimento: 'NEGOCIANDO',
@@ -162,7 +293,16 @@ const ROTULO_ESTAGIO: Record<string, string> = {
 };
 
 /** A frase de comando. É o que o Thiago pediu: direto, com o motivo junto. */
+// Cada linha nomeia as SAÍDAS, porque é isso que o Thiago pediu ("a gente tem
+// que se livrar dele ou fechando ou dando um sem interesse"). Card da família do
+// ciclo volta de 48 em 48h pra sempre: quem lê precisa saber que existe um botão
+// que faz ele parar, senão o robô vira barulho e a equipe aprende a ignorar.
 const CHAMADA: Record<string, string> = {
+  chave_na_mao: 'Escolheu CHAVE NA MÃO e parou. Liga pra fechar. Se não for agora, marca Apalavrado com a data, ou Sem interesse.',
+  meio_a_meio: 'Escolheu a sociedade 50/50 e parou. Liga pra fechar. Se depender de investidor ou terreno, marca Apalavrado com a data.',
+  arrendamento: 'Vai ceder o ponto e a gente investe 100%. Liga pra fechar o contrato. Se estiver esperando algo, marca Apalavrado com a data.',
+  carregador: 'Quer só o carregador e parou. Liga pra fechar ou marca Sem interesse.',
+  apalavrado: 'Você marcou APALAVRADO e o prazo que você mesmo deu venceu. Liga pra confirmar: fecha, estica o prazo ou solta.',
   proposta_apresentada: 'Viu a proposta e não voltou. Liga pra saber o que ficou faltando.',
   fez_orcamento: 'Recebeu o preço e ninguém voltou nele. Liga pra fechar.',
   em_atendimento: 'A negociação parou no meio. Liga pra retomar.',
@@ -247,6 +387,82 @@ export function ultimoToque(c: CardAberto): Date | null {
     if (maior === null || t > maior) maior = t;
   }
   return maior === null ? null : new Date(maior);
+}
+
+// ── A SALA DE ESPERA ────────────────────────────────────────────────────────
+
+/** O que fica guardado quando um card é posto em espera. */
+export interface Pausa {
+  /** O que estamos esperando, na palavra de quem marcou: "o investidor", "o
+   *  terreno em Catalão", "a assinatura do contrato". */
+  aguardando?: string;
+  /** ISO. Quando o card volta pra fila sozinho. */
+  retomar_em?: string;
+  por?: string;
+  em?: string;
+}
+
+/**
+ * Este card está dormindo agora?
+ *
+ * Ordem do Thiago (30/09/2026): "quando a pessoa vai arrendar, a gente tem que
+ * concluir com ela, então a gente tem que criar uma etiqueta para ela não ficar
+ * voltando... entre o perdido e o vendido vai ter aquela margem da pessoa que
+ * está em stand-by, que a gente está negociando alguma forma de fechamento. Ela
+ * é uma pessoa que não fica recebendo mais mensagem."
+ *
+ * Os casos que ele deu são os dois que definem o estado: o cliente de Guarapari,
+ * apalavrado no 50/50, esperando só o investidor; e o Cristiano de Curitiba,
+ * apalavrado, esperando um terreno em Catalão pra entrar com o investimento.
+ * Gente que já disse SIM e está esperando uma peça que não depende da gente.
+ * Cobrar de 48 em 48 horas quem já disse sim é a maneira mais rápida de
+ * transformar um sim em não.
+ *
+ * ── POR QUE A ESPERA TEM DATA, E NÃO É SÓ UM "PAUSADO" ────────────────────
+ *
+ * Porque pausa sem data é cemitério, e cemitério é o oposto do que ele pediu no
+ * mesmo dia ("a gente precisa dar destino"). O card dorme até `retomar_em` e
+ * acorda sozinho, com uma chamada que diz que o prazo venceu. Sem essa data, o
+ * Guarapari ficaria em "esperando o investidor" pra sempre e a sala de espera
+ * viraria o lugar onde os negócios vão morrer sem ninguém assinar embaixo.
+ *
+ * ── SEM DATA, DORME O PRAZO PADRÃO — NÃO ACORDA NA HORA ───────────────────
+ *
+ * O CRM grava o status direto no banco (`crmAtualizarStatus` → `supaPatch`), e
+ * gravar a espera é uma segunda escrita que pode não acontecer: tela velha em
+ * cache do PWA, rede caindo no meio, ou alguém mexendo na linha pelo Supabase.
+ * Se "sem carimbo" quisesse dizer "acorda agora", apertar APALAVRADO devolveria
+ * uma cobrança no mesmo dia — o oposto exato do botão que a pessoa apertou.
+ *
+ * Então sem data o card dorme `APALAVRADO_DIAS` (30) contados do último toque, e
+ * depois acorda. É pausa nos dois casos, nunca gaveta: com data, a que o dono
+ * deu; sem data, a padrão.
+ *
+ * Pura e exportada: é a regra do silêncio, e é ela que o teste prende.
+ */
+export function dormindo(
+  p: Pausa | undefined,
+  agora: Date,
+  desde: Date | null,
+  diasPadrao: number,
+): boolean {
+  const t = Date.parse(String(p?.retomar_em || ''));
+  if (Number.isFinite(t)) return t > agora.getTime();   // a data que o dono deu manda
+  if (!desde) return false;        // sem data e sem último toque, não há o que contar
+  return agora.getTime() - desde.getTime() < diasPadrao * 86400_000;
+}
+
+/** "esperando o investidor · prazo venceu em 12/10" — a linha que entra no recado. */
+export function linhaDaEspera(p: Pausa | undefined): string | null {
+  if (!p) return null;
+  const oQue = String(p.aguardando || '').trim();
+  const t = Date.parse(String(p.retomar_em || ''));
+  const dia = Number.isFinite(t)
+    ? new Date(t).toLocaleDateString('pt-BR', { timeZone: TZ, day: '2-digit', month: '2-digit' })
+    : null;
+  if (!oQue && !dia) return null;
+  return [oQue ? `Estava esperando: ${oQue}` : null, dia ? `prazo ${dia}` : null]
+    .filter(Boolean).join(' · ');
 }
 
 // ── A conta que escolhe o cliente da vez ────────────────────────────────────
@@ -348,14 +564,25 @@ export function esperaPorExtenso(horasUteis: number): string {
  * metade manda áudio. O link da ficha fecha o ciclo: quem atender tem que poder
  * mudar o status ali mesmo, senão o mesmo card volta daqui a 48h.
  */
-export function montarLembrete(c: CardAberto, horasUteis: number, toque: number): string {
+export function montarLembrete(
+  c: CardAberto,
+  horasUteis: number,
+  toque: number,
+  opts: { pausa?: Pausa; espelhoDe?: string | null } = {},
+): string {
   const nome = c.cliente_nome?.trim() || 'Sem nome';
   const tel = telExibicao(c.cliente_telefone);
   const digitos = String(c.cliente_telefone || '').replace(/\D/g, '');
   const ctx = contextoDoCard(c);
   const quem = primeiroNome(c.vendedor_nome);
+  const espera = linhaDaEspera(opts.pausa);
   return [
-    `📞 *LIGA AGORA: ${nome}*`,
+    // No modo espelho o recado abre dizendo DE QUEM ele é. Sem esta linha o
+    // Thiago recebe 20 "liga agora" por dia sem saber quais são dele e quais
+    // seriam do Diego — e o modo existe justamente pra ele conferir a escolha.
+    opts.espelhoDe ? `👁️ *ESPELHO — iria pra ${opts.espelhoDe.toUpperCase()}*` : null,
+    opts.espelhoDe ? '' : null,
+    `${opts.espelhoDe ? '' : '📞 '}*LIGA AGORA: ${nome}*`,
     tel ? `*${tel}*` : null,
     '',
     CHAMADA[c.status] || 'Esse cliente está esperando alguém finalizar o atendimento.',
@@ -366,14 +593,21 @@ export function montarLembrete(c: CardAberto, horasUteis: number, toque: number)
     // CRM: mostrar "QUENTE" ao lado de "NÃO ATENDEU" é dar duas respostas
     // diferentes pra mesma pergunta, e quem lê no celular obedece a errada.
     `Status: ${ROTULO_ESTAGIO[c.status] || c.status.toUpperCase()}${c.cidade ? ` · ${c.cidade}` : ''}`,
+    espera,
     ...(ctx.length ? ['', ...ctx.map(l => `• ${l}`)] : []),
     '',
     digitos ? `Chamar no WhatsApp: wa.me/${digitos}` : null,
     `Abrir a ficha: https://solardoc.app/gerador/agenda?ag=${c.id}&ver=1`,
     '',
-    toque > 1
-      ? `_${toque}º lembrete deste card${quem ? `, ${quem}` : ''}. Se já resolveu, muda o status na ficha que ele para de voltar._`
-      : `_Atualiza o status na ficha depois de falar${quem ? `, ${quem}` : ''}. É assim que ele sai da fila._`,
+    // Card da família do ciclo não tem teto: ele volta de 48 em 48h até alguém
+    // dar destino. Dizer isso em voz alta é o que separa "robô insistente" de
+    // "robô que você sabe desligar" — e as três saídas vão nomeadas, senão a
+    // única que a pessoa lembra é ignorar.
+    ESTAGIOS_CICLO.has(c.status)
+      ? `_${toque}º lembrete${quem ? `, ${quem}` : ''}. Este volta a cada 48h até você fechar (Vendido), soltar (Sem interesse) ou pôr na espera (Apalavrado, com a data)._`
+      : toque > 1
+        ? `_${toque}º lembrete deste card${quem ? `, ${quem}` : ''}. Se já resolveu, muda o status na ficha que ele para de voltar._`
+        : `_Atualiza o status na ficha depois de falar${quem ? `, ${quem}` : ''}. É assim que ele sai da fila._`,
     // Sai da lista só o que FALTOU no card (`null`). As strings vazias são os
     // parágrafos, de propósito: filtrar por `l !== ''` come todas elas e o
     // recado chega como parede de texto, que é o que ninguém lê no celular.
@@ -395,7 +629,10 @@ export interface ResultadoLembrete {
   erros: number;
   motivo?: string;
   dry?: boolean;
-  previa?: Array<{ pessoa: string; card: number; cliente: string | null; status: string; horas: number; nota: number }>;
+  previa?: Array<{
+    pessoa: string; card: number; cliente: string | null; status: string;
+    horas: number; nota: number; ciclo?: boolean; toque?: number;
+  }>;
 }
 
 const zero = (motivo: string, extra: Partial<ResultadoLembrete> = {}): ResultadoLembrete =>
@@ -474,8 +711,12 @@ export async function runLembreteFollowupTick(opts: { dry?: boolean } = {}): Pro
   //    Fail-closed: na dúvida não manda ninguém e tenta na próxima.
   const marc = await supabase
     .from('system_state').select('key, value, updated_at')
-    .or(`key.like.lembrete_card:%,key.like.lembrete_slot:%,key.like.vacuo_avisado:%`)
-    .gte('updated_at', new Date(agora.getTime() - 30 * 86400_000).toISOString())
+    // `apalavrado:` entra aqui SEM o corte de 30 dias que os outros têm: uma
+    // espera de 60 dias é normal (contrato, investidor, terreno) e sumir com o
+    // carimbo por ser velho acordaria o card no meio da espera, que é
+    // exatamente o que o Thiago pediu pra não acontecer.
+    .or(`key.like.lembrete_card:%,key.like.lembrete_slot:%,key.like.vacuo_avisado:%,key.like.${APALAVRADO_PREFIX}%`)
+    .gte('updated_at', new Date(agora.getTime() - 400 * 86400_000).toISOString())
     .limit(20000);
   if (marc.error) {
     logger.error('lembrete-followup', 'falha lendo os marcadores', marc.error);
@@ -489,9 +730,15 @@ export async function runLembreteFollowupTick(opts: { dry?: boolean } = {}): Pro
   const slotsUsados = new Set<string>();
   const toquesDoCard = new Map<number, { n: number; ultimo: number }>();
   const cobradoPelaSentinela = new Set<string>();
+  const pausas = new Map<number, Pausa>();
   const LIMITE_VACUO_MS = 24 * 3600_000;
   for (const l of linhas) {
     const k = String(l.key);
+    if (k.startsWith(APALAVRADO_PREFIX)) {
+      const id = Number(k.slice(APALAVRADO_PREFIX.length));
+      if (Number.isFinite(id)) pausas.set(id, (l.value ?? {}) as Pausa);
+      continue;
+    }
     if (k.startsWith('lembrete_slot:')) { slotsUsados.add(k); continue; }
     if (k.startsWith('lembrete_card:')) {
       const id = Number(k.slice('lembrete_card:'.length));
@@ -513,15 +760,23 @@ export async function runLembreteFollowupTick(opts: { dry?: boolean } = {}): Pro
   const donos = await carregarDonos();
 
   // 3. Fila por pessoa, já filtrada e pontuada.
-  const porPessoa = new Map<string, Array<{ card: CardAberto; horas: number; nota: number; toque: number }>>();
+  //    No modo espelho a fila é UMA só, e a chave passa a ser o destinatário:
+  //    um card por slot no total, não um por consultor.
+  const paraEspelho = espelho();
+  const porPessoa = new Map<string, Array<{ card: CardAberto; horas: number; nota: number; toque: number; dono: string; pausa?: Pausa }>>();
   for (const c of cards) {
-    const pessoa = String(c.vendedor_nome || '').trim().toLowerCase();
-    if (!pessoa || !donos.has(pessoa)) continue;          // card sem dono conhecido não vira ligação de ninguém
+    const dono = String(c.vendedor_nome || '').trim().toLowerCase();
+    if (!dono || !donos.has(dono)) continue;              // card sem dono conhecido não vira ligação de ninguém
     if (!String(c.cliente_telefone || '').replace(/\D/g, '')) continue;
+    const pessoa = paraEspelho ? '__espelho__' : dono;
     if (!dry && slotsUsados.has(chaveSlot(pessoa, janela.dia, slot))) continue;
 
     const toque = toquesDoCard.get(c.id);
-    if (toque && toque.n >= maxPorCard()) continue;       // já insistiu o bastante
+    // O TETO NÃO VALE PRA FAMÍLIA DO CICLO. Negociação viva volta de 48 em 48h
+    // até virar Vendido, Sem interesse ou Apalavrado — ordem do Thiago
+    // (30/09/2026). Ver `ESTAGIOS_CICLO`. A folga de 48h segue valendo pra
+    // todos: é ela que faz disto um ciclo e não uma rajada.
+    if (toque && !ESTAGIOS_CICLO.has(c.status) && toque.n >= maxPorCard()) continue;
     if (toque && agora.getTime() - toque.ultimo < folgaCardH() * 3600_000) continue;
 
     const chaveTel = chaveContato(String(c.cliente_telefone || '')) || '';
@@ -529,10 +784,19 @@ export async function runLembreteFollowupTick(opts: { dry?: boolean } = {}): Pro
 
     const ult = ultimoToque(c);
     if (!ult) continue;
+
+    // A SALA DE ESPERA. Só vale pro status `apalavrado`: carimbo velho de um
+    // card que voltou pra negociação não pode continuar calando ele.
+    const pausa = c.status === 'apalavrado' ? pausas.get(c.id) : undefined;
+    if (c.status === 'apalavrado' && dormindo(pausa, agora, ult, apalavradoDiasPadrao())) continue;
+
     const horas = horasUteisEntre(ult, agora);
     if (horas < esperaMinimaH()) continue;
 
-    const item = { card: c, horas, nota: pontuarCard(c.status, c.temperatura, horas), toque: (toque?.n || 0) + 1 };
+    const item = {
+      card: c, horas, nota: pontuarCard(c.status, c.temperatura, horas),
+      toque: (toque?.n || 0) + 1, dono, pausa,
+    };
     porPessoa.set(pessoa, [...(porPessoa.get(pessoa) || []), item]);
   }
 
@@ -549,8 +813,11 @@ export async function runLembreteFollowupTick(opts: { dry?: boolean } = {}): Pro
       motivo: janela.ok ? 'lembraria_agora' : `fora_da_janela(${janela.motivo})`,
       dry: true,
       previa: escolhidos.map(e => ({
-        pessoa: e.pessoa, card: e.card.id, cliente: e.card.cliente_nome,
+        pessoa: paraEspelho ? `espelho←${e.dono}` : e.pessoa,
+        card: e.card.id, cliente: e.card.cliente_nome,
         status: e.card.status, horas: Math.round(e.horas * 10) / 10, nota: Math.round(e.nota * 10) / 10,
+        ciclo: ESTAGIOS_CICLO.has(e.card.status) || undefined,
+        toque: e.toque,
       })),
     };
   }
@@ -561,7 +828,10 @@ export async function runLembreteFollowupTick(opts: { dry?: boolean } = {}): Pro
   let enviados = 0, erros = 0;
   const pessoas: string[] = [];
   for (const e of escolhidos) {
-    const alvo = donos.get(e.pessoa);
+    // No espelho o destino é fixo e o carimbo de slot é do DESTINATÁRIO
+    // (`__espelho__`), não do dono do card: carimbar por consultor mandaria 3
+    // mensagens no mesmo slot pro mesmo telefone.
+    const alvo = paraEspelho || donos.get(e.pessoa);
     if (!alvo) continue;
     const agoraIso = new Date().toISOString();
     try {
@@ -579,10 +849,17 @@ export async function runLembreteFollowupTick(opts: { dry?: boolean } = {}): Pro
       continue;
     }
     try {
-      await sendWhatsApp(alvo, montarLembrete(e.card, e.horas, e.toque), 'io');
+      await sendWhatsApp(
+        alvo,
+        montarLembrete(e.card, e.horas, e.toque, {
+          pausa: e.pausa,
+          espelhoDe: paraEspelho ? e.dono : null,
+        }),
+        'io',
+      );
       enviados++;
       pessoas.push(e.pessoa);
-      logger.info('lembrete-followup', `lembrete ${e.toque}º do card ${e.card.id} pra ${e.pessoa}`);
+      logger.info('lembrete-followup', `lembrete ${e.toque}º do card ${e.card.id} pra ${e.pessoa}${paraEspelho ? ` (espelho, dono ${e.dono})` : ''}`);
     } catch (err) {
       logger.error('lembrete-followup', `falha avisando ${e.pessoa}`, err);
       erros++;

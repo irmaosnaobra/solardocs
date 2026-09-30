@@ -133,7 +133,12 @@ export const SOLAR_ENTREGA_AMPLA_INICIO = '2026-08-13T22:00:00.000Z';
  * em que a conversa ainda não aconteceu — e `nao_atendeu` é literalmente quem o
  * consultor tentou ligar e não alcançou.
  */
-const STATUS_QUE_NAO_RECEBEM = ['cancelado', 'sem_interesse', 'fez_orcamento', 'perdido', 'fechou', 'fechou_concorrente'];
+/* `apalavrado` entrou em 30/09/2026 com a sala de espera: é quem já disse SIM e
+ * está esperando uma peça de fora (o investidor, o terreno, a assinatura).
+ * Ordem do Thiago no dia: "ela é uma pessoa que não fica recebendo mais
+ * mensagem". Mandar "este é o seu pré-atendimento" pra quem já apertou a mão é
+ * a mensagem mais fora de hora da lista inteira. */
+const STATUS_QUE_NAO_RECEBEM = ['cancelado', 'sem_interesse', 'fez_orcamento', 'perdido', 'fechou', 'fechou_concorrente', 'apalavrado'];
 
 /** Bolha maior que o padrão (160) de propósito: sem isso as frases longas se
  *  quebram no meio, viram 8+ mensagens seguidas, e o teto de 5 do `emBolhas`

@@ -19,7 +19,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   slotAgora, pontuarCard, ultimoToque, contextoDoCard, esperaPorExtenso,
   montarLembrete, chaveSlot, chaveCard, telExibicao, ESTAGIOS_ABERTOS,
-  type CardAberto,
+  ESTAGIOS_CICLO, dormindo, linhaDaEspera,
+  type CardAberto, type Pausa,
 } from '../services/io/lembreteFollowupService';
 
 const card = (over: Partial<CardAberto> = {}): CardAberto => ({
@@ -128,9 +129,50 @@ describe('a conta que escolhe o cliente da vez', () => {
   });
 
   it('a lista de estágios abertos não tem desfecho dentro', () => {
-    for (const morto of ['sem_interesse', 'perdido', 'fechou', 'fechou_concorrente', 'cancelado', 'arrendamento']) {
+    // `arrendamento` SAIU desta lista em 30/09/2026 e virou estágio aberto: ele
+    // é lead vivo (quem cede o ponto), não desfecho. Ver ESTAGIOS_ABERTOS.
+    for (const morto of ['sem_interesse', 'perdido', 'fechou', 'fechou_concorrente', 'cancelado']) {
       expect(ESTAGIOS_ABERTOS as readonly string[]).not.toContain(morto);
     }
+  });
+
+  // ── O CICLO DE 48H (30/09/2026) ───────────────────────────────────────────
+  // "Chave na mão, arrendamento, negociando, 50-50: volta sempre 48h depois,
+  // pra gente fechar ou não fechar." O risco desta mudança é o card do
+  // eletroposto cair no `?? 1` da pontuação e dormir no fim da fila justamente
+  // por ser novo na lista.
+
+  it('os quatro modelos do eletroposto entraram na varredura', () => {
+    for (const vivo of ['arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao']) {
+      expect(ESTAGIOS_ABERTOS as readonly string[]).toContain(vivo);
+    }
+  });
+
+  it('modelo escolhido no eletroposto vem na FRENTE de proposta apresentada', () => {
+    // Mesmo tempo parado: quem já escolheu por qual porta entrar está um passo
+    // adiante de quem só viu o preço.
+    for (const modelo of ['chave_na_mao', 'meio_a_meio', 'arrendamento', 'carregador']) {
+      expect(pontuarCard(modelo, null, 20)).toBeGreaterThan(pontuarCard('proposta_apresentada', null, 20));
+    }
+  });
+
+  it('nenhum estágio do ciclo cai no peso padrão de desconhecido', () => {
+    // O bug que este teste prende: sem entrada no PESO_ESTAGIO o card vale 1 e
+    // fica atrás até de `agendado`.
+    for (const e of ESTAGIOS_CICLO) {
+      expect(pontuarCard(e, null, 0)).toBeGreaterThan(pontuarCard('agendado', null, 0));
+    }
+  });
+
+  it('a família do ciclo é exatamente a que o Thiago nomeou, e nada além', () => {
+    expect([...ESTAGIOS_CICLO].sort()).toEqual([
+      'arrendamento', 'carregador', 'chave_na_mao', 'em_atendimento',
+      'fez_orcamento', 'meio_a_meio', 'proposta_apresentada',
+    ]);
+    // `nao_atendeu` e `agendado` ficam FORA de propósito: "não atendeu continua
+    // a mesma regra", e quem cuida dele é a régua de remarcação.
+    expect(ESTAGIOS_CICLO.has('nao_atendeu')).toBe(false);
+    expect(ESTAGIOS_CICLO.has('agendado')).toBe(false);
   });
 });
 
@@ -242,9 +284,21 @@ describe('o recado que chega no celular', () => {
   });
 
   it('a partir do 2º toque avisa que é repetição e ensina a sair da fila', () => {
-    const msg = montarLembrete(card(), 30, 2);
+    // `nao_atendeu` está FORA da família do ciclo, então ele mantém a frase
+    // antiga. O fixture padrão é `fez_orcamento`, que desde 30/09/2026 cicla e
+    // fecha com as três saídas — a versão dele é testada em "o ciclo da
+    // família que negocia".
+    const msg = montarLembrete(card({ status: 'nao_atendeu' }), 30, 2);
     expect(msg).toContain('2º lembrete');
     expect(msg).toContain('muda o status na ficha');
+  });
+
+  it('todo recado ensina ALGUMA saída, cicle ele ou não', () => {
+    // A garantia que importa: nenhum status sai com um "liga agora" que não
+    // diga como fazer o card parar de voltar.
+    for (const st of ['fez_orcamento', 'nao_atendeu', 'chave_na_mao', 'agendado', 'arrendamento']) {
+      expect(montarLembrete(card({ status: st }), 30, 2).toLowerCase()).toContain('status');
+    }
   });
 });
 
@@ -279,5 +333,114 @@ describe('kill-switch e envs', () => {
     process.env.LEMBRETE_INICIO_H = 'meia-noite';
     expect(slotAgora(brt('2026-09-29', 9, 0)).ok).toBe(false);
     expect(slotAgora(brt('2026-09-29', 11, 0)).ok).toBe(true);
+  });
+});
+
+// ── A SALA DE ESPERA (`apalavrado`, 30/09/2026) ─────────────────────────────
+//
+// "Quando a pessoa vai arrendar, a gente tem que concluir com ela... entre o
+// perdido e o vendido vai ter aquela margem da pessoa que está em stand-by. Ela
+// é uma pessoa que não fica recebendo mais mensagem."
+//
+// Os dois casos reais que ele deu: o cliente de Guarapari, apalavrado no 50/50,
+// esperando só o investidor; e o Cristiano de Curitiba, esperando um terreno em
+// Catalão pra entrar com o investimento.
+//
+// São DOIS jeitos de errar, opostos, e os dois estragam a mesma coisa:
+//   · cobrar quem já disse sim — transforma o sim em não;
+//   · deixar dormir pra sempre — a sala de espera vira o cemitério onde o
+//     negócio morre sem ninguém assinar embaixo, que é o contrário de "dar
+//     destino".
+describe('a sala de espera', () => {
+  const agora = new Date('2026-09-30T15:00:00Z');
+  const DIAS = 30;
+
+  it('cala enquanto o prazo que o dono deu não venceu', () => {
+    const p: Pausa = { aguardando: 'o investidor', retomar_em: '2026-10-20T12:00:00Z' };
+    expect(dormindo(p, agora, new Date('2026-09-01T12:00:00Z'), DIAS)).toBe(true);
+  });
+
+  it('acorda no dia seguinte ao prazo, sem ninguém mexer', () => {
+    const p: Pausa = { aguardando: 'o terreno em Catalão', retomar_em: '2026-09-29T12:00:00Z' };
+    expect(dormindo(p, agora, new Date('2026-09-01T12:00:00Z'), DIAS)).toBe(false);
+  });
+
+  // O caso que morde depois que a tela existir: o CRM grava o status direto no
+  // banco, e o carimbo da espera é uma SEGUNDA escrita que pode não acontecer.
+  // Se "sem carimbo" quisesse dizer "acorda agora", apertar APALAVRADO
+  // devolveria uma cobrança no mesmo dia.
+  it('sem carimbo nenhum, dorme o prazo padrão em vez de cobrar na hora', () => {
+    expect(dormindo(undefined, agora, new Date('2026-09-28T12:00:00Z'), DIAS)).toBe(true);
+  });
+
+  it('sem carimbo, mas parado além do prazo padrão, acorda', () => {
+    expect(dormindo(undefined, agora, new Date('2026-07-01T12:00:00Z'), DIAS)).toBe(false);
+  });
+
+  it('data ilegível não vira sumiço permanente: cai no prazo padrão', () => {
+    const p: Pausa = { aguardando: 'sei lá', retomar_em: 'quando der' };
+    expect(dormindo(p, agora, new Date('2026-07-01T12:00:00Z'), DIAS)).toBe(false);
+    expect(dormindo(p, agora, new Date('2026-09-29T12:00:00Z'), DIAS)).toBe(true);
+  });
+
+  it('o recado diz o que estava esperando e qual prazo venceu', () => {
+    const linha = linhaDaEspera({ aguardando: 'o investidor', retomar_em: '2026-09-29T12:00:00Z' });
+    expect(linha).toContain('o investidor');
+    expect(linha).toContain('29/09');
+  });
+
+  it('espera sem nada escrito não inventa linha', () => {
+    expect(linhaDaEspera(undefined)).toBeNull();
+    expect(linhaDaEspera({})).toBeNull();
+  });
+
+  it('o card que acordou é cobrado nomeando as três saídas', () => {
+    const msg = montarLembrete(
+      card({ status: 'apalavrado' }), 40, 1,
+      { pausa: { aguardando: 'o investidor', retomar_em: '2026-09-29T12:00:00Z' } },
+    );
+    expect(msg).toContain('APALAVRADO');
+    expect(msg).toContain('o investidor');
+    expect(msg.toLowerCase()).toContain('prazo');
+  });
+});
+
+// ── MODO ESPELHO ────────────────────────────────────────────────────────────
+// "A partir de hoje não manda para ninguém e manda para si próprio."
+describe('modo espelho', () => {
+  it('o recado diz de quem ele seria', () => {
+    const msg = montarLembrete(card({ vendedor_nome: 'Diego' }), 20, 1, { espelhoDe: 'diego' });
+    expect(msg.split('\n')[0]).toContain('ESPELHO');
+    expect(msg.split('\n')[0]).toContain('DIEGO');
+  });
+
+  it('fora do espelho não sobra cabeçalho nenhum', () => {
+    const msg = montarLembrete(card(), 20, 1);
+    expect(msg).not.toContain('ESPELHO');
+    expect(msg.split('\n')[0]).toContain('LIGA AGORA');
+  });
+});
+
+// ── O CICLO NÃO TEM TETO, MAS TEM DESCANSO ──────────────────────────────────
+describe('o ciclo da família que negocia', () => {
+  it('o recado do ciclo avisa que volta a cada 48h e ensina as três saídas', () => {
+    const msg = montarLembrete(card({ status: 'chave_na_mao' }), 60, 7);
+    expect(msg).toContain('48h');
+    expect(msg).toContain('Vendido');
+    expect(msg).toContain('Sem interesse');
+    expect(msg).toContain('Apalavrado');
+  });
+
+  it('no 7º toque ele ainda fala como ciclo, não como "já insisti demais"', () => {
+    // O teto de 3 não vale aqui: sem esta garantia o card volta a ser calado no
+    // 4º toque e o ciclo que o Thiago pediu morre em silêncio.
+    const msg = montarLembrete(card({ status: 'em_atendimento' }), 60, 7);
+    expect(msg).toContain('7º lembrete');
+  });
+
+  it('fora da família, o recado antigo continua igual', () => {
+    const msg = montarLembrete(card({ status: 'nao_atendeu' }), 60, 2);
+    expect(msg).not.toContain('48h');
+    expect(msg).toContain('2º lembrete deste card');
   });
 });

@@ -1477,6 +1477,10 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-col-carregador .crm-col-head{box-shadow:inset 0 3px 0 #EADBC0}
 .crm-col-meio_a_meio .crm-col-head{box-shadow:inset 0 3px 0 #EADBC0}
 .crm-col-chave_na_mao .crm-col-head{box-shadow:inset 0 3px 0 #EADBC0}
+/* APALAVRADO (30/09/2026) — a sala de espera, entre o negócio e a venda.
+   Âmbar de propósito: não é vitória (verde do Vendido) nem perda (vermelho),
+   é o aperto de mão esperando a peça que falta. */
+.crm-col-apalavrado .crm-col-head{box-shadow:inset 0 3px 0 #F59E0B}
 /* card de cliente */
 .crm-card{background:#1c2c47;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:11px 12px;display:flex;flex-direction:column;gap:7px}
 .crm-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:6px}
@@ -1596,6 +1600,17 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-btn-status.bg-cr{background:#EADBC0;color:#1f2937}
 .crm-btn-status.bg-mm{background:#EADBC0;color:#1f2937}
 .crm-btn-status.bg-ch{background:#EADBC0;color:#1f2937}
+.crm-btn-status.bg-ap{background:linear-gradient(135deg,#FCD34D 0%,#F59E0B 100%);color:#2A1D00}
+/* A caixa da espera. Âmbar, igual à coluna, pra quem aperta reconhecer
+   onde o card vai parar. */
+.espera-box{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.5)}
+.espera-box[hidden]{display:none}
+.espera-in{width:100%;box-sizing:border-box;margin-bottom:8px;padding:9px 10px;border-radius:8px;
+  border:1px solid rgba(148,163,184,.35);background:rgba(15,23,42,.5);color:#E5E7EB;font-family:inherit;font-size:13px}
+.espera-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.espera-btn{padding:10px 6px;border-radius:8px;border:0;font-family:inherit;font-weight:800;font-size:12px;
+  cursor:pointer;line-height:1.15;background:#F59E0B;color:#2A1D00}
+.espera-btn:hover{filter:brightness(1.08)}
 .crm-btn-status.bg-pe{background:#dc2626;color:#fff}
 .crm-btn-status.bg-pa{background:#B3C7DC;color:#1f2937}
 .crm-det-prop-atual{font-size:12px;color:#7DD3FC;margin-top:8px;min-height:1px}
@@ -5893,6 +5908,13 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <button type="button" class="crm-btn-status bg-cr" data-status="carregador"        onclick="crmAtualizarStatus('carregador')" style="grid-column:span 2">🔌 Carregador</button>
         <button type="button" class="crm-btn-status bg-mm" data-status="meio_a_meio"       onclick="crmAtualizarStatus('meio_a_meio')" style="grid-column:span 2">👥 50/50</button>
         <button type="button" class="crm-btn-status bg-ch" data-status="chave_na_mao"      onclick="crmAtualizarStatus('chave_na_mao')" style="grid-column:span 2">🔑 Chave na mão</button>
+        <!-- APALAVRADO (30/09/2026) — a margem entre o perdido e o vendido.
+             É o cliente que já disse sim e está esperando uma peça que não é
+             nossa: o investidor, o terreno, a assinatura. Ele SAI do ciclo de 48h
+             (não recebe mais cobrança) mas continua na agenda, e volta sozinho na
+             data marcada. Sem a data isto seria uma gaveta, e gaveta é o oposto
+             de dar destino. -->
+        <button type="button" class="crm-btn-status bg-ap" data-status="apalavrado"       onclick="crmAtualizarStatus('apalavrado')" style="grid-column:span 2">🤞 Apalavrado (espera)</button>
         <button type="button" class="crm-btn-status bg-fe" data-status="fechou"           onclick="crmAtualizarStatus('fechou')" style="grid-column:span 2">🏆 Vendido</button>
       </div>
       <!-- POSSE DO LOCAL: abre ao apertar ARRENDAMENTO. So o segundo toque grava. -->
@@ -5904,6 +5926,20 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <button type="button" class="posse-btn rep" onclick="crmAtualizarStatus('arrendamento',{ponto_relacao:'Represento o proprietário'})">REPRESENTA O DONO</button>
         </div>
         <div class="posse-nota">Se o local ainda não é dele, ele não pode ceder (contrato, cl. 16.1): não é arrendamento.</div>
+      </div>
+      <!-- ESPERA: abre ao apertar APALAVRADO. Só o segundo toque grava, igual à
+           posse do arrendamento. O prazo é obrigatório na prática (todo botão
+           tem um), porque pausa sem data vira cemitério. -->
+      <div id="crm-det-espera" class="espera-box" hidden>
+        <div class="posse-tit">Apalavrado: esperando o quê, e até quando?</div>
+        <input id="crm-det-espera-oque" class="espera-in" type="text" maxlength="200"
+               placeholder="Ex.: o investidor · o terreno em Catalão · assinar o contrato">
+        <div class="espera-grid">
+          <button type="button" class="espera-btn" onclick="crmApalavrar(30)">30 dias</button>
+          <button type="button" class="espera-btn" onclick="crmApalavrar(60)">60 dias</button>
+          <button type="button" class="espera-btn" onclick="crmApalavrar(90)">90 dias</button>
+        </div>
+        <div class="posse-nota">Ele para de receber cobrança e sai do ciclo de 48h. Na data, volta sozinho pra sua fila.</div>
       </div>
 
       <!-- Eletroposto: quem REALMENTE apresentou a proposta. Só aparece em card
@@ -9513,6 +9549,7 @@ const CAD_AG_STATUS = {
   proposta_apresentada: 'PROPOSTA', sem_interesse: 'SEM INTERESSE', perdido: 'PERDIDO',
   fechou_concorrente: 'CONCORRENTE', fechou: 'VENDIDO', arrendamento: 'ARRENDAMENTO',
   carregador: 'CARREGADOR', meio_a_meio: '50/50', chave_na_mao: 'CHAVE NA MÃO',
+  apalavrado: 'APALAVRADO',
   cancelado: 'CANCELADO', reagendar: 'REAGENDAR',
 };
 let cadAgendas = new Map();   // 8 últimos dígitos -> a reunião mais recente da pessoa
@@ -21063,6 +21100,9 @@ const CRM_ETAPAS = {
   carregador:  { lbl: 'Carregador',        ic: '🔌' },
   meio_a_meio: { lbl: '50/50 - Cota',      ic: '👥' },
   chave_na_mao:{ lbl: 'Chave na mão',      ic: '🔑' },
+  // A SALA DE ESPERA (30/09/2026). Fica ANTES de Vendido nos dois quadros
+  // porque é isso que ela é: o apalavrado que ainda não assinou.
+  apalavrado:  { lbl: 'Apalavrado',        ic: '🤞' },
   vendido:     { lbl: 'Vendido',           ic: '✅' },
   perdido:     { lbl: 'Perdido',           ic: '❌' }
 };
@@ -21528,8 +21568,42 @@ async function crmAtualizarStatus(novoStatus, extra) {
     if (box) box.hidden = !box.hidden;
     return;
   }
+  // APALAVRADO abre a pergunta do prazo, e só o segundo toque grava. Gravar no
+  // primeiro toque criaria espera sem data, que é a gaveta que este status
+  // existe pra não ser.
+  if (novoStatus === 'apalavrado' && !(extra && extra.__dias)) {
+    const box = document.getElementById('crm-det-espera');
+    if (box) box.hidden = !box.hidden;
+    return;
+  }
+  // O `__dias`/`__oque` são da espera e NÃO são coluna de `agendamentos`:
+  // mandá-los no PATCH derrubaria o próprio botão com erro de coluna inexistente.
+  const espera = extra && extra.__dias ? { dias: extra.__dias, oque: extra.__oque || '' } : null;
+  if (extra) { delete extra.__dias; delete extra.__oque; }
   try {
     await supaPatch(`agendamentos?id=eq.${ag.id}`, { status: novoStatus, ...(extra || {}) });
+    // A espera mora no `system_state` do Supabase principal (é a máquina de
+    // lembrete que lê), e a tela chega lá pelo rewrite /_api/*.
+    try {
+      if (espera) {
+        await fetch(`${APX_API}/gerador/apalavrado`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: ag.id, dias: espera.dias, aguardando: espera.oque, por: (function(){ try { return crmConsultorLogado() || ''; } catch (e) { return ''; } })() }),
+        });
+      } else if (novoStatus !== 'apalavrado') {
+        // Saiu da espera: apaga o carimbo, senão um prazo velho continuaria
+        // calando um card que voltou a negociar.
+        await fetch(`${APX_API}/gerador/apalavrado/soltar`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: ag.id }),
+        });
+      }
+    } catch (e) {
+      // A espera é complemento: o status já está gravado e o card já saiu do
+      // ciclo. Sem o carimbo ele dorme o prazo padrão (30 dias) em vez do
+      // escolhido — degrada, não quebra.
+      console.warn('espera não gravada', e);
+    }
     ag.status = novoStatus;            // atualiza a linha em memória
     if (extra) Object.assign(ag, extra);
     crmDerivar(c);                     // recalcula etapa/coluna + selo do card
@@ -21548,6 +21622,7 @@ async function crmAtualizarStatus(novoStatus, extra) {
       chave_na_mao:     '🔑 Marcado como Chave na mão — o eletroposto é dele',
       fechou_concorrente:'🏢 Marcado como Fechou concorrente',
       perdido:          '❌ Marcado como Perdido',
+      apalavrado:       '🤞 APALAVRADO — sai do ciclo e volta na data',
       fechou:           '🏆 Marcado como VENDIDO',
     };
     showToast((labels[novoStatus] || 'Status atualizado')
@@ -21558,6 +21633,16 @@ async function crmAtualizarStatus(novoStatus, extra) {
     document.getElementById('crm-det-erro').textContent = 'Erro ao atualizar status.';
     console.error(e);
   }
+}
+
+// Segundo toque do APALAVRADO: pega o que está escrito e o prazo do botão, e
+// manda gravar. O texto é opcional; o prazo nunca é.
+function crmApalavrar(dias) {
+  const el = document.getElementById('crm-det-espera-oque');
+  const oque = el ? String(el.value || '').trim() : '';
+  const box = document.getElementById('crm-det-espera');
+  if (box) box.hidden = true;
+  crmAtualizarStatus('apalavrado', { __dias: dias, __oque: oque });
 }
 
 // ===== ELETROPOSTO · PROPOSTA APRESENTADA =====================================
@@ -22240,6 +22325,13 @@ function crmDerivar(c) {
   let etapa;
   if (vendida) {
     etapa = 'vendido';
+  } else if (statusAg === 'apalavrado') {
+    // A SALA DE ESPERA vem antes dos quatro modelos de propósito: quem aperta
+    // APALAVRADO aperta DEPOIS de já ter escolhido arrendamento ou 50/50, e é o
+    // status mais recente que descreve onde o negócio está. Sem esta ordem, o
+    // card apalavrado seguiria aparecendo em Arrendamento e a coluna nova
+    // nasceria vazia pra sempre.
+    etapa = 'apalavrado';
   } else if (statusAg === 'arrendamento') {
     // O status MAIS RECENTE manda (igual em_atendimento). Vem antes de Perdido de
     // propósito: quem foi marcado hoje como arrendamento não pode ser puxado pra
@@ -22358,8 +22450,8 @@ const CRM_KANBAN = {
   // Pedido do Thiago, nesta ordem. As 4 do meio são os modelos de negócio da
   // NEXUS que o lead escolhe na LP (01 "cedo o espaço e vocês investem 100%"
   // vira Arrendamento; 02 "sociedade meio a meio" vira 50/50 - Cota).
-  eletroposto: ['agendado', 'nao_atendeu', 'em_atendimento', 'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao', 'vendido', 'sem_interesse'],
-  solar:       ['agendado', 'reagendar', 'em_atendimento', 'whatsapp', 'fez_orcamento', 'proposta_apresentada', 'vendido', 'perdido'],
+  eletroposto: ['agendado', 'nao_atendeu', 'em_atendimento', 'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao', 'apalavrado', 'vendido', 'sem_interesse'],
+  solar:       ['agendado', 'reagendar', 'em_atendimento', 'whatsapp', 'fez_orcamento', 'proposta_apresentada', 'apalavrado', 'vendido', 'perdido'],
 };
 
 // ONDE CADA ETAPA CAI NUM QUADRO QUE NÃO TEM COLUNA PRÓPRIA PRA ELA.

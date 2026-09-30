@@ -23,6 +23,10 @@ import { montarPlanoCobranca, sanearPlano } from '../services/asaas/cobrancaBrie
 import { buscarTaxas, ambienteAsaas } from '../services/asaas/asaasTaxas';
 import { TRELLO_BOARD_ID } from '../services/insightsService';
 import { logger } from '../utils/logger';
+import { supabase } from '../utils/supabase';
+// A sala de espera do card mora no `system_state`, e o prefixo sai do módulo
+// que LÊ ele: quem escreve e quem lê têm que concordar na chave.
+import { APALAVRADO_PREFIX } from '../services/io/lembreteFollowupService';
 
 const router = Router();
 
@@ -152,6 +156,96 @@ router.post('/form-solar', async (req: Request, res: Response) => {
     res.status(r.ok ? 200 : 400).json(r);
   } catch (err: any) {
     logger.error('gerador', 'form-solar falhou', err);
+    res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
+  }
+});
+
+// ── A SALA DE ESPERA DO CARD (`apalavrado`, 30/09/2026) ─────────────────────
+//
+// Ordem do Thiago: "quando a pessoa vai arrendar, a gente tem que concluir com
+// ela... entre o perdido e o vendido vai ter aquela margem da pessoa que está em
+// stand-by, que a gente está negociando alguma forma de fechamento. Ela é uma
+// pessoa que não fica recebendo mais mensagem."
+//
+// O STATUS mora no banco do gerador (o CRM grava direto, por `supaPatch`). O que
+// mora AQUI é a espera: o que estamos aguardando e a data de voltar. Vai pro
+// `system_state` do Supabase principal, e não numa coluna nova de
+// `agendamentos`, por um motivo prático: coluna nova exige migration, migration
+// neste projeto bate em produção sem staging, e um `supaPatch` numa coluna que
+// não existe derruba o próprio botão. O `system_state` já é onde a máquina de
+// lembrete guarda o resto do estado dela, e ela é quem lê isto.
+//
+// Sem token, como os outros POSTs de `/gerador` que a tela chama pelo rewrite
+// `/_api/*`. O que protege é o formato, não a senha: só a chave
+// `apalavrado:<id numérico>` pode ser escrita, e a data é limitada a 1 ano. O pior
+// caso de abuso é calar um card por um ano, que qualquer consultor desfaz
+// apertando outro status.
+router.post('/apalavrado', async (req: Request, res: Response) => {
+  const b = (req.body || {}) as Record<string, unknown>;
+  const id = Number(b.id);
+  if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: 'id inválido' }); return; }
+
+  // Dias: 1 a 365. Fora disso vira o padrão — data absurda digitada com o polegar
+  // não pode virar sumiço de anos.
+  const diasCru = Number(b.dias);
+  const dias = Number.isFinite(diasCru) && diasCru >= 1 && diasCru <= 365 ? Math.round(diasCru) : 30;
+  const aguardando = String(b.aguardando || '').trim().slice(0, 200);
+  const por = String(b.por || '').trim().slice(0, 60);
+
+  const agora = new Date();
+  const retomar = new Date(agora.getTime() + dias * 86400_000);
+  try {
+    const { error } = await supabase.from('system_state').upsert(
+      {
+        key: `${APALAVRADO_PREFIX}${id}`,
+        value: { aguardando, retomar_em: retomar.toISOString(), por, em: agora.toISOString() },
+        updated_at: agora.toISOString(),
+      },
+      { onConflict: 'key' },
+    );
+    if (error) throw error;
+    res.json({ ok: true, id, dias, retomar_em: retomar.toISOString(), aguardando });
+  } catch (err: any) {
+    logger.error('gerador', 'apalavrado falhou', err);
+    res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
+  }
+});
+
+// Tira o card da sala de espera: apagar o carimbo devolve ele pro ciclo de 48h
+// na próxima varredura. Chamado quando o consultor muda o status pra qualquer
+// outra coisa — senão um carimbo velho calaria um card que voltou a negociar.
+router.post('/apalavrado/soltar', async (req: Request, res: Response) => {
+  const id = Number((req.body || {}).id);
+  if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: 'id inválido' }); return; }
+  try {
+    const { error } = await supabase.from('system_state').delete().eq('key', `${APALAVRADO_PREFIX}${id}`);
+    if (error) throw error;
+    res.json({ ok: true, id, soltou: true });
+  } catch (err: any) {
+    logger.error('gerador', 'apalavrado/soltar falhou', err);
+    res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
+  }
+});
+
+// A tela precisa MOSTRAR a espera no card ("esperando o investidor · volta
+// 30/10"), senão a sala de espera é invisível e vira o cemitério que ela existe
+// pra não ser. Leitura em lote: o CRM desenha 300 cards de uma vez.
+router.get('/apalavrado', async (req: Request, res: Response) => {
+  const ids = String(req.query.ids || '').split(',')
+    .map(n => Number(n.trim())).filter(n => Number.isInteger(n) && n > 0).slice(0, 500);
+  if (!ids.length) { res.json({ ok: true, esperas: {} }); return; }
+  try {
+    const { data, error } = await supabase.from('system_state')
+      .select('key, value')
+      .in('key', ids.map(i => `${APALAVRADO_PREFIX}${i}`));
+    if (error) throw error;
+    const esperas: Record<string, unknown> = {};
+    for (const l of data ?? []) {
+      esperas[String(l.key).slice(APALAVRADO_PREFIX.length)] = l.value;
+    }
+    res.json({ ok: true, esperas });
+  } catch (err: any) {
+    logger.error('gerador', 'apalavrado (leitura) falhou', err);
     res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
   }
 });
