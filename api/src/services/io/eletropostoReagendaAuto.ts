@@ -512,7 +512,10 @@ export async function runEletropostoReagendaAutoTick(
     return { ...zero('erro_rampa'), erros: 1 };
   }
   const jaHoje = (feitosHoje.data || []).length;
-  if (jaHoje >= tetoPorDia()) {
+  // Seco atravessa a rampa, igual à janela de horário: conferir é pergunta, não
+  // envio. Parar aqui fazia a prévia responder só `rampa_do_dia_cheia`, sem dizer
+  // quem seria remarcado — prévia que só serve quando o módulo já podia agir.
+  if (!opts.dry && jaHoje >= tetoPorDia()) {
     logger.info('ep-reagenda', `rampa do dia cheia (${jaHoje}/${tetoPorDia()}) — a fila continua amanhã`);
     return zero('rampa_do_dia_cheia');
   }
@@ -528,7 +531,7 @@ export async function runEletropostoReagendaAutoTick(
   const telPorConsultor = await carregarConsultores();
   // O menor entre o passo do tick e o que resta da rampa: no último slot do dia
   // não adianta o tick permitir 1 se a rampa só tem 0.
-  const alvos = naVez.slice(0, Math.min(POR_TICK, tetoPorDia() - jaHoje));
+  const alvos = naVez.slice(0, opts.dry ? POR_TICK : Math.min(POR_TICK, tetoPorDia() - jaHoje));
   const previa: NonNullable<ResultadoReagendaAuto['previa']> = [];
   let remarcados = 0, erros = 0;
 

@@ -86,6 +86,28 @@ const janelaDias = (): number => num('SOLAR_REAGENDA_JANELA_DIAS', 365);
  *  no solar não existe toque de 5 min saindo em cima: é ligação, não call. */
 const folgaMin = (): number => num('SOLAR_REAGENDA_FOLGA_MIN', 30);
 
+/**
+ * A JANELA EM QUE O MÓDULO PODE MEXER NA AGENDA. 9h às 19h, a mesma do gêmeo do
+ * eletroposto.
+ *
+ * Ela faltou na primeira versão, e a medição de 30/09/2026 às 00h59 mostrou o
+ * custo: o módulo subiu perto da meia-noite, a rampa do dia virou às 00h00, e às
+ * 00h59 as 10 remarcações do dia JÁ ESTAVAM GASTAS. Dez cards mudaram de dia
+ * enquanto ninguém olhava.
+ *
+ * Nenhuma mensagem sai de madrugada (quem fala com o cliente é a régua das 7h),
+ * então o estrago não é anti-ban. É de OBSERVAÇÃO: se o remapeamento estiver
+ * errado, 10 fichas se movem antes de qualquer pessoa poder reagir, e a rampa
+ * que existe pra dar esse tempo não dá tempo nenhum. Robô que mexe na agenda mexe
+ * no horário do expediente.
+ */
+const inicioH = (): number => num('SOLAR_REAGENDA_INICIO_H', 9);
+const fimH = (): number => num('SOLAR_REAGENDA_FIM_H', 19);
+
+/** A hora cheia (0-23) agora, em Brasília. */
+const horaBrasilia = (base: Date = new Date()): number =>
+  Number(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hour12: false, timeZone: TZ }).format(base)) % 24;
+
 /** Duas voltas e o card fica pra gente. Mesma conta do eletroposto. */
 export const MAX_VOLTAS = 2;
 /** Uma por tick: duas no mesmo passo poderiam mirar o mesmo horário. */
@@ -216,6 +238,10 @@ export async function runReagendaSolarTick(
 ): Promise<ResultadoReagendaSolar> {
   const dry = !!opts.dry;
   if (desligado()) return zero('desligado');
+  // O modo seco atravessa a janela de propósito, como em todo módulo da casa:
+  // conferir o que ele faria é pergunta, não ação.
+  const h = horaBrasilia();
+  if (!dry && (h < inicioH() || h >= fimH())) return zero('fora_da_janela');
 
   const agora = Date.now();
   const de = new Date(Math.max(agora - janelaDias() * 86400_000, new Date(inicioPiso()).getTime())).toISOString();
@@ -284,12 +310,18 @@ export async function runReagendaSolarTick(
     return { ...zero('erro_rampa'), erros: 1 };
   }
   const jaHoje = (feitosHoje.data || []).length;
-  if (jaHoje >= tetoPorDia()) {
+  // O modo seco ATRAVESSA a rampa, do mesmo jeito que atravessa a janela de
+  // horário. Na primeira versão ele parava aqui, e isso escondeu justamente o que
+  // eu fui conferir: com a rampa cheia, `?dry=1` respondia `rampa_do_dia_cheia` e
+  // mais nada, sem dizer quem seria movido nem se a fila ainda existia. Prévia
+  // que só funciona quando o módulo já podia agir não serve pra conferir nada.
+  if (!dry && jaHoje >= tetoPorDia()) {
     logger.info('solar-reagenda', `rampa do dia cheia (${jaHoje}/${tetoPorDia()})`);
     return zero('rampa_do_dia_cheia');
   }
 
-  const alvos = naVez.slice(0, Math.min(POR_TICK, tetoPorDia() - jaHoje));
+  const cabemHoje = dry ? POR_TICK : Math.min(POR_TICK, tetoPorDia() - jaHoje);
+  const alvos = naVez.slice(0, cabemHoje);
   if (!alvos.length) return zero('rampa_do_dia_cheia');
 
   // 3. A agenda futura, pra saber o que está ocupado e quem já tem horário.

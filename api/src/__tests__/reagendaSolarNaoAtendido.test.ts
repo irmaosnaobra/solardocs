@@ -329,10 +329,60 @@ describe('a rampa diária', () => {
   });
 });
 
+describe('a janela de horário', () => {
+  // ISTO FALTOU NA PRIMEIRA VERSÃO, e o custo apareceu medindo produção às 00h59
+  // de 30/09: o módulo subiu perto da meia-noite, a rampa do dia virou às 00h00 e
+  // uma hora depois as 10 remarcações do dia já estavam gastas. Dez cards
+  // mudaram de dia enquanto ninguém olhava. Não é anti-ban (nenhuma mensagem sai
+  // de madrugada), é observação: a rampa existe pra dar tempo de reagir, e de
+  // madrugada ela não dá tempo nenhum.
+  it('cala de madrugada', async () => {
+    vi.setSystemTime(new Date('2026-09-30T04:30:00.000Z'));   // 01h30 BRT
+    expect((await tick()).motivo).toBe('fora_da_janela');
+  });
+
+  it('cala depois das 19h', async () => {
+    vi.setSystemTime(new Date('2026-09-30T23:00:00.000Z'));   // 20h BRT
+    expect((await tick()).motivo).toBe('fora_da_janela');
+  });
+
+  it('trabalha no expediente', async () => {
+    vi.setSystemTime(new Date('2026-09-30T13:00:00.000Z'));   // 10h BRT
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  it('a janela é configurável sem deploy', async () => {
+    process.env.SOLAR_REAGENDA_INICIO_H = '0';
+    process.env.SOLAR_REAGENDA_FIM_H = '24';
+    vi.setSystemTime(new Date('2026-09-30T04:30:00.000Z'));   // 01h30 BRT
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  it('seco atravessa a janela: conferir é pergunta, não ação', async () => {
+    vi.setSystemTime(new Date('2026-09-30T04:30:00.000Z'));   // 01h30 BRT
+    const r = await tick({ dry: true });
+    expect(r.motivo).toBe('remarcaria_agora');
+    expect(updates).toHaveLength(0);
+  });
+});
+
 describe('kill-switch e dry', () => {
   it('SOLAR_REAGENDA_OFF=1 desliga tudo', async () => {
     process.env.SOLAR_REAGENDA_OFF = '1';
     expect((await tick()).motivo).toBe('desligado');
+  });
+
+  // O SEGUNDO DEFEITO QUE A SONDA DE PRODUÇÃO ACHOU. Com a rampa cheia, o
+  // `?dry=1` respondia `rampa_do_dia_cheia` e mais nada: não dizia quem seria
+  // movido nem se a fila ainda existia. Prévia que só funciona quando o módulo já
+  // podia agir não serve pra conferir nada — e foi exatamente quando eu precisei
+  // dela que ela ficou muda.
+  it('seco atravessa a rampa cheia e ainda mostra a fila', async () => {
+    process.env.SOLAR_REAGENDA_POR_DIA = '0';
+    const r = await tick({ dry: true });
+    expect(r.motivo).toBe('remarcaria_agora');
+    expect(r.previa?.[0]).toMatchObject({ id: 1, dono: 'Giovanna' });
+    expect(updates).toHaveLength(0);
   });
 
   it('dry mostra de quando pra quando, sem tocar em nada', async () => {
