@@ -195,9 +195,12 @@ function agrupamentoDaTela() {
   const fonte = fatia('function cadPodeCeder(', 'const CAD_STATUS = {')
     + fatia('function cadValorDaFicha(', '/** A lista de quem esta perto')
     + fatia('    // Cada linha das tres origens ganha o seu destino', '    cadDados = {')
-    + '\nreturn listas;';
+    + '\nreturn { listas, semDono };';
   return new Function('pontos', 'capital', 'fichas', 'agendaArr', fonte) as
-    (p: any[], c: any[], f: any[], a: any[]) => Record<string, Array<{ tab: string; id: number }>>;
+    (p: any[], c: any[], f: any[], a: any[]) => {
+      listas: Record<string, Array<{ tab: string; id: number }>>;
+      semDono: Array<{ ref: string; status: string | null; nome?: string }>;
+    };
 }
 
 describe('a lista de cada aba é a mesma na tela e no servidor', () => {
@@ -233,7 +236,7 @@ describe('a lista de cada aba é a mesma na tela e no servidor', () => {
   ];
 
   it('CURIOSO é a fila do servidor: um destino por telefone, igualzinho', () => {
-    const tela = agrupamentoDaTela()(pontos, capital, fichas, agenda);
+    const tela = agrupamentoDaTela()(pontos, capital, fichas, agenda).listas;
     const porData = (a: any, b: any) => String(b.created_at).localeCompare(String(a.created_at));
     const linhas: LinhaOrigem[] = [
       ...[...pontos, ...capital].sort(porData).map(r => ({ origem: 'parceria' as const, r })),
@@ -251,7 +254,7 @@ describe('a lista de cada aba é a mesma na tela e no servidor', () => {
   });
 
   it('INVESTIDORES é o pool do servidor: toda linha que qualifica, inclusive quem tem local', () => {
-    const tela = agrupamentoDaTela()(pontos, capital, fichas, agenda);
+    const tela = agrupamentoDaTela()(pontos, capital, fichas, agenda).listas;
     const ORIGEM: Record<string, string> = { eletroposto_parceria: 'parceria', eletroposto_nota1: 'nota1', agendamentos: 'agenda' };
     const refs = tela.capital.map(r => ORIGEM[r.tab] + ':' + r.id).sort();
     // parceria:2 é o telefone A, que tem local próprio (parceria:1) E R$ 140 mil:
@@ -280,7 +283,7 @@ describe('a lista de cada aba é a mesma na tela e no servidor', () => {
   // concordam nesta régua é o teste de ehOpcaoArrendamento logo abaixo; o que
   // este caso trava é o CONTEÚDO da lista.
   it('Arrendamento é superconjunto: dono de local entra mesmo com dinheiro ou reunião perdida', () => {
-    const tela = agrupamentoDaTela()(pontos, capital, fichas, agenda);
+    const tela = agrupamentoDaTela()(pontos, capital, fichas, agenda).listas;
     const refs = (l: Array<{ tab: string; id: number }>) => {
       const ORIGEM: Record<string, string> = { eletroposto_parceria: 'parceria', eletroposto_nota1: 'nota1', agendamentos: 'agenda' };
       return l.map(r => ORIGEM[r.tab] + ':' + r.id).sort();
@@ -372,6 +375,33 @@ describe('ehOpcaoArrendamento: a tela e o servidor respondem igual', () => {
 // no servidor e de cadPrecisaPerguntarDono() na tela. Se os dois derivarem, a tela
 // promete um numero de destinatarios e o motor manda pra outra gente.
 // -----------------------------------------------------------------------------
+describe('a lista "Dono nao perguntado" que a TELA monta', () => {
+  it('sai com as mesmas linhas da regra, e a da agenda vai com status nulo', () => {
+    const comEnd = 'LP ELETROPOSTO — Posto\nEndereço: Av. K, 50';
+    const r = agrupamentoDaTela()(
+      [],
+      // cadastro de investidor com endereço e sem resposta: entra
+      [{ id: 70, lado: 'capital', telefone: '5534999993001', ponto_endereco: 'Av. X, 10',
+         capital_faixa: 'R$ 140 mil', created_at: '2026-09-20' }],
+      // a que respondeu fica fora; a com "não respondeu" e endereço entra
+      [{ id: 71, telefone: '5534999993002', endereco: 'Rua Z, 30', ficha: 'Local é seu: Ainda não é meu',
+         created_at: '2026-09-19' },
+       { id: 72, telefone: '5534999993003', endereco: 'Rua W, 40', ficha: 'Local é seu: não respondeu',
+         created_at: '2026-09-18' }],
+      // reunião perdida com endereço entra; sem endereço fica fora
+      [{ id: 900, cliente_telefone: '5534999993004', cliente_nome: 'Perdido', status: 'sem_interesse',
+         observacao: comEnd, created_at: '2026-09-21' },
+       { id: 901, cliente_telefone: '5534999993005', cliente_nome: 'Sem endereco', status: 'agendado',
+         observacao: 'LP ELETROPOSTO — Posto', created_at: '2026-09-22' }]);
+    expect(r.semDono.map(x => x.ref).sort()).toEqual(['agenda:900', 'nota1:72', 'parceria:70']);
+    const daAgenda = r.semDono.find(x => x.ref === 'agenda:900');
+    // o desfecho da reunião NÃO vai como status de cadastro: a audiência do aviso
+    // descartaria 'sem_interesse' e jogaria fora justamente quem a pergunta busca
+    expect(daAgenda!.status).toBeNull();
+    expect(daAgenda!.nome).toBe('Perdido');
+  });
+});
+
 describe('precisaPerguntarDoDono: a tela e o servidor escolhem a mesma gente', () => {
   const COM_ENDERECO = 'LP ELETROPOSTO — Posto\nEndereço: Av. João Naves, 1200\n';
 
