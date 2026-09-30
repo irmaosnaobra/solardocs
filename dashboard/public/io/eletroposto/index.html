@@ -399,8 +399,21 @@
      ganhar sempre. */
   [hidden]{display:none!important}
   .slots{margin-top:10px;display:flex;flex-direction:column;gap:14px}
+  /* ===== A FILEIRA DE DIAS (30/09/2026) =====
+     Com um dia só na tela, quem não podia hoje não tinha em que clicar. Com a
+     semana aberta de uma vez eram ~36 botões, e horário demais lê como agenda
+     vazia — foi por isso que a vitrine larga caiu em 28/09. Os dois níveis
+     resolvem os dois lados: o DIA é um chip, e só os horários dele viram botão.
+     Assim dá pra abrir mais dias sem crescer a parede. */
+  .diasFila{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+  .diasFila::-webkit-scrollbar{display:none}
+  .diaChip{flex:0 0 auto;background:#081422;border:1.5px solid var(--line-f);border-radius:10px;
+    padding:9px 13px;cursor:pointer;transition:.15s;font-family:inherit;color:var(--cream);
+    font-size:13.5px;font-weight:800;line-height:1.25;text-align:center;min-height:46px}
+  .diaChip:hover{border-color:var(--neon)}
+  .diaChip.on{background:var(--neon);border-color:var(--neon);color:var(--dk)}
+  .diaChip small{display:block;font-size:11px;font-weight:700;opacity:.72;margin-top:2px}
   .agLoad{color:var(--mut);font-size:13.5px;font-weight:700;padding:14px 0}
-  .dia .diaH{color:var(--fraco);font-size:12px;font-weight:900;letter-spacing:1.4px;text-transform:uppercase;margin-bottom:8px}
   .diaS{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px}
   /* 3 por linha no celular: com a grade de hora em hora são 8 horários por dia
      (14/08), e 3 colunas fecham em 3+3+2 sem sobra de órfão. */
@@ -429,7 +442,6 @@
   .agBox .fld{margin-bottom:22px}
   .agBox .fld label{font-size:16px;font-weight:700}
   .agBox .inp input{font-size:19px;padding:18px 16px;border-radius:12px}
-  .agBox .dia .diaH{color:var(--cream);font-size:13.5px}
   .agBox .diaS{grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px}
   .agBox .slot{min-height:58px;font-size:18px;border-radius:12px}
   #agendar #ag-btn{min-height:60px;font-size:18px;font-weight:800}
@@ -2501,6 +2513,8 @@ function calc(){
 // Fecha o que já passou, o que está a menos de 30 min daqui e o horário em que os
 // DOIS consultores já estão ocupados.
 let slotSel = null;
+/** O dia que a fileira está mostrando. Null = ainda não montou; cai no primeiro aberto. */
+let diaEscolhido = null;
 let compromissos = [];             // [{ts, dono, dur}] com TUDO que já está na agenda do Thiago/Diego
                                    // na janela, de qualquer origem (eletroposto, solar, manual)
 
@@ -3041,22 +3055,22 @@ function perfilTexto(sel){
 // e horário demais lê como agenda vazia — o oposto do que a vitrine larga queria
 // provar. Volta a régua de 14/08: hoje sozinho enquanto tem o que vender, e o
 // próximo dia inteiro só quando sobram 2 horários.
-// Reabrir é a mesma linha: ABRE_PROXIMO_COM = 99 e TETO_VITRINE = 4.
-const ABRE_PROXIMO_COM = 2;   // sobrou isto ou menos hoje? o próximo dia entra junto
-const TETO_VITRINE = 2;       // nunca mais de dois dias na tela
+// 30/09/2026 — A DISCUSSÃO ERA FALSA. "Quantos dias" e "quantos botões" estavam
+// amarrados porque a tela empilhava TODOS os horários de TODOS os dias. Separados,
+// cada um tem a sua resposta: o DIA vira um chip na fileira de cima, e só os
+// horários do dia escolhido viram botão. Quatro dias custam 4 chips + ~10 botões,
+// menos do que os ~36 que derrubaram a vitrine larga em 28/09, e quem não pode
+// hoje passa a ter onde clicar — que era o buraco da régua de um dia só.
+// Abrir ou fechar a agenda é ESTA linha, e só ela.
+const DIAS_NA_VITRINE = 4;
 function proximosDias(){
   const base = new Date(`${partesBR().ymd}T12:00:00-03:00`);
   const abertos = [];
-  for(let i=0; i<21 && abertos.length<TETO_VITRINE; i++){
+  for(let i=0; i<21 && abertos.length<DIAS_NA_VITRINE; i++){
     const ymd = partesBR(new Date(base.getTime() + i*86400000)).ymd;
     if(gradeDoDia(ymd).length && livresDoDia(ymd).length) abertos.push(ymd);
   }
-  if(!abertos.length) return [];
-  // O segundo dia só entra quando o primeiro está no fim. `livresDoDia` já é a
-  // conta do que está VENDÁVEL (tira o que passou, o que está dentro da folga e o
-  // que está ocupado) — é a mesma lista que vira botão na tela, então o gatilho é
-  // literalmente "sobraram 2 botões".
-  return livresDoDia(abertos[0]).length <= ABRE_PROXIMO_COM ? abertos : abertos.slice(0, 1);
+  return abertos;
 }
 // Horários do dia que ainda dá pra marcar: tira o que já passou, o que está dentro
 // da antecedência mínima e o que está ocupado.
@@ -3087,6 +3101,14 @@ function livresDoDia(ymd){
 }
 const rotuloDia = ymd => new Date(`${ymd}T12:00:00-03:00`)
   .toLocaleDateString('pt-BR',{ timeZone:TZ_BR, weekday:'short', day:'2-digit', month:'2-digit' });
+/** No chip, "Hoje" e "Amanhã" valem mais que a data: é como a pessoa pensa a agenda. */
+function rotuloChip(ymd){
+  const hoje = partesBR().ymd;
+  const amanha = partesBR(new Date(Date.now() + 86400000)).ymd;
+  if(ymd === hoje)   return 'Hoje';
+  if(ymd === amanha) return 'Amanhã';
+  return rotuloDia(ymd);
+}
 
 async function montarSlots(){
   const el = document.getElementById('slots');
@@ -3110,16 +3132,34 @@ async function montarSlots(){
     if(!val('f-porta')) soltarQuiz('sem_horario');
     return;
   }
-  el.innerHTML = dias.map(ymd=>{
-    const livres = livresDoDia(ymd);
-    return `<div class="dia">
-      <div class="diaH">${rotuloDia(ymd)}</div>
-      <div class="diaS">${livres.map(h=>{
-        const iso = isoDe(ymd,h);
-        return `<button type="button" class="slot" data-iso="${iso}" data-label="${rotuloDia(ymd)} às ${h}" onclick="pick(this)">${h}</button>`;
-      }).join('')}</div>
-    </div>`;
-  }).join('');
+  // O dia que estava na frente continua na frente se ainda tem vaga; senão cai no
+  // primeiro aberto. Sem isto, toda remontagem (são de 45 em 45 s no passo do
+  // horário) jogaria a pessoa de volta pra hoje no meio da escolha.
+  if(!diaEscolhido || !dias.includes(diaEscolhido)) diaEscolhido = dias[0];
+  const doDia = livresDoDia(diaEscolhido);
+  el.innerHTML =
+    `<div class="diasFila">${dias.map(ymd=>{
+      const q = livresDoDia(ymd).length;
+      return `<button type="button" class="diaChip${ymd === diaEscolhido ? ' on' : ''}" data-ymd="${ymd}"
+        onclick="escolherDia(this)">${rotuloChip(ymd)}<small>${q} ${q === 1 ? 'horário' : 'horários'}</small></button>`;
+    }).join('')}</div>` +
+    // O horário escolhido nasce aceso: a remontagem não pode apagar a escolha de
+    // quem está com o dedo no botão de confirmar.
+    `<div class="diaS">${doDia.map(h=>{
+      const iso = isoDe(diaEscolhido,h);
+      return `<button type="button" class="slot${iso === slotSel ? ' on' : ''}" data-iso="${iso}" data-label="${rotuloDia(diaEscolhido)} às ${h}" onclick="pick(this)">${h}</button>`;
+    }).join('')}</div>`;
+}
+/** Trocar o dia apaga o horário: deixar marcado um horário que saiu da tela é o
+ *  jeito de o botão dizer "Confirmar" sem nada aceso na frente da pessoa. */
+async function escolherDia(b){
+  const ymd = b.dataset.ymd;
+  if(ymd === diaEscolhido) return;
+  diaEscolhido = ymd;
+  slotSel = null;
+  track('dia_escolhido');
+  await montarSlots();
+  pintarPasso();
 }
 function pick(b){
   document.querySelectorAll('.slot').forEach(s=>s.classList.remove('on'));
