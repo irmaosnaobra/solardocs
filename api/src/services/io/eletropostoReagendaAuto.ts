@@ -151,6 +151,25 @@ const inicioPiso = (): string =>
 export const MAX_REAGENDAMENTOS = 2;
 /** Folga depois do horário perdido — o toque de 5 min ainda estava saindo. */
 const APOS_PERDER_MIN = 45;
+
+/**
+ * O CARD CONFIRMADO QUE NINGUÉM MEXEU (ordem do Thiago, 30/09/2026).
+ *
+ * "O card confirmado, se não for alterado, já será remarcado novamente após 6h.
+ * Marcado e confirmado e não mexido às 13:00: quando chegar 19h, remarca para o
+ * outro dia, hora e hora e 30, na mesma hora que não aconteceu ou o mais
+ * próximo possível."
+ *
+ * O gatilho aqui é a INAÇÃO, não o botão. Até hoje este módulo só pegava quem
+ * alguém marcou como NÃO ATENDEU; o buraco era o card que ficou `agendado` pra
+ * sempre porque o consultor não fechou. Medido em 30/09: 119 cards em
+ * `agendado` com a hora já vencida — reunião que aconteceu ou não, ninguém sabe,
+ * e o lead ficava parado sem ninguém decidir nada.
+ *
+ * Seis horas é folga suficiente pra uma reunião de 30 min terminar e o consultor
+ * respirar antes de o robô assumir que ela ficou sem desfecho.
+ */
+const esquecidoH = (): number => num('EP_ESQUECIDO_H', 6);
 /**
  * Quantos dias pra trás a varredura enxerga.
  *
@@ -292,13 +311,26 @@ export function bolhasReagendado(
 
 /** Linha no card: o consultor abre a ficha e vê que o robô já a remarcou — sem
  *  isso, "vermelho parado" e "vermelho sendo trabalhado" são a mesma tela. */
-function linhaDoHistorico(deIso: string, paraIso: string, tentativa: number): string {
+export function linhaDoHistorico(
+  deIso: string, paraIso: string, tentativa: number, esquecido = false,
+): string {
   const carimbo = new Date().toLocaleString('pt-BR', {
     timeZone: BRT_TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
   }).replace(',', ' ·');
+  const de = quandoPorExtenso(deIso).replace('-feira', '');
+  const para = quandoPorExtenso(paraIso).replace('-feira', '');
+  // O histórico é lido por GENTE, e as duas situações são diferentes. "Não
+  // apareceu" é fato quando alguém apertou NÃO ATENDEU. No card esquecido
+  // ninguém sabe se apareceu: o que se sabe é que o card ficou sem desfecho.
+  // Escrever "não apareceu" ali seria o cadastro inventando um fato.
+  if (esquecido) {
+    return `[${carimbo} · Sistema] 🔁 Reagendamento automático ${tentativa}/${MAX_REAGENDAMENTOS}: `
+      + `a reunião de ${de} passou e o card ficou sem desfecho por mais de ${esquecidoH()}h, `
+      + `então ele voltou pra *${para}*, mesmo horário e mesmo consultor. `
+      + 'Nada foi enviado ao cliente. Se a reunião aconteceu, é só marcar o status certo.';
+  }
   return `[${carimbo} · Sistema] 🔁 Reagendamento automático ${tentativa}/${MAX_REAGENDAMENTOS}: `
-    + `não apareceu em ${quandoPorExtenso(deIso).replace('-feira', '')} e voltou pra `
-    + `*${quandoPorExtenso(paraIso).replace('-feira', '')}*, com o mesmo consultor. `
+    + `não apareceu em ${de} e voltou pra *${para}*, com o mesmo consultor. `
     + 'Os avisos recomeçaram do zero.';
 }
 
@@ -319,17 +351,30 @@ export async function candidatosDoOutroDia(
   // Nunca no passado: reunião perdida ontem e detectada hoje de manhã tem que
   // cair de hoje pra frente, não "no dia seguinte ao de ontem".
   const inicio = Math.max(agora, inicioDoDiaSeguinte(quandoIso));
-  // Faixa de REMARCAÇÃO (:15/:45) desde 30/09/2026: remarcar não pode comer o
-  // horário redondo que a vitrine está vendendo pra lead novo.
+  // GRADE REDONDA (:00/:30), e não a faixa dos quinze.
+  //
+  // Ordem do Thiago (30/09/2026, depois de ver a primeira versão): "remarca para
+  // o outro dia, hora e hora e 30, na mesma hora que não aconteceu ou o mais
+  // próximo possível".
+  //
+  // E é o que faz sentido: isto aqui não é follow-up, é a MESMA primeira
+  // reunião mudando de dia. O cliente escolheu 13:00; devolver 13:15 perde
+  // justamente o "na mesma hora", porque a faixa dos quinze não tem 13:00.
+  // Follow-up de verdade (o convite à base, a conversa de remarcação pedida
+  // pelo lead) continua nos quinze.
   const vagas = await proximasVagas(dono, VAGAS_CONSULTADAS,
-    { agora: inicio, ignorarIso: quandoIso, faixa: 'remarcacao' });
+    { agora: inicio, ignorarIso: quandoIso, faixa: 'novo' });
   if (vagas === null) return null;              // leitura falhou: não inventa horário
   if (!vagas.length) return [];
 
   const diaAlvo = diaBRT(vagas[0]!);
   const doDia = vagas.filter(v => diaBRT(v) === diaAlvo);
   const resto = vagas.filter(v => diaBRT(v) !== diaAlvo);
-  const mesmaHora = doDia.filter(v => horaDoIso(v) === horaDoIso(quandoIso));
+  // "Na mesma hora que não aconteceu": compara hora E minuto, senão 13:00 e
+  // 13:30 empatam e o robô pode devolver a meia hora quando a hora cheia estava
+  // livre. Na grade redonda os dois existem, então a distinção é real.
+  const hm = (iso: string) => new Date(iso).toISOString().slice(11, 16);
+  const mesmaHora = doDia.filter(v => hm(v) === hm(quandoIso));
   // Mesma hora primeiro (é o que menos mexe na rotina de quem já tinha dito que
   // aquele horário servia), depois o resto do dia, depois os dias seguintes.
   return [...mesmaHora, ...doDia.filter(v => !mesmaHora.includes(v)), ...resto];
@@ -352,7 +397,7 @@ async function gravarNovoHorario(
   f: FichaVermelha, candidatos: string[], tentativa: number,
 ): Promise<string | null> {
   for (const novo of candidatos.slice(0, CANDIDATOS_MAX)) {
-    const linha = linhaDoHistorico(String(f.quando), novo, tentativa);
+    const linha = linhaDoHistorico(String(f.quando), novo, tentativa, f.status === 'agendado');
     const { data, error } = await supabaseGerador.from('agendamentos')
       .update({
         quando: novo,
@@ -375,7 +420,11 @@ async function gravarNovoHorario(
         historico: f.historico ? `${linha}\n\n${f.historico}` : linha,
       })
       .eq('id', f.id)
-      .eq('status', 'nao_atendeu')
+      // A corrida com GENTE. Era fixo em `nao_atendeu`; agora é o status que
+      // FOI LIDO, porque o módulo passou a pegar `agendado` também. Se alguém
+      // mexeu no status entre a leitura e agora, quem manda é a pessoa e o
+      // update não pega linha nenhuma.
+      .eq('status', String(f.status))
       .select('id');
     if (error) {
       if (String((error as { code?: string }).code) === '23505') {
@@ -433,21 +482,30 @@ export async function runEletropostoReagendaAutoTick(
   const ate = new Date(agora - APOS_PERDER_MIN * 60_000).toISOString();
   if (de >= ate) return zero('piso_ainda_no_futuro');
 
+  // DOIS GATILHOS, e o corte de idade de cada um é diferente:
+  //   `nao_atendeu` — alguém apertou o botão. 45 min de folga (o toque de 5 min
+  //                   ainda sai pra quem já está vermelho).
+  //   `agendado`    — NINGUÉM apertou nada. 6 horas, ordem do Thiago.
+  const corteEsquecido = new Date(agora - esquecidoH() * 3600_000).toISOString();
   const { data, error } = await supabaseGerador
     .from('agendamentos')
     .select('id, cliente_nome, cliente_telefone, quando, vendedor_nome, created_by, status, temperatura, lead_resposta_at, historico')
-    .eq('status', 'nao_atendeu')
+    .in('status', ['nao_atendeu', 'agendado'])
     .gte('quando', de)
     .lte('quando', ate)
     .order('quando', { ascending: false })
-    .limit(200);
+    .limit(400);
   if (error) {
-    logger.error('ep-reagenda', 'ler vermelhos falhou', error);
+    logger.error('ep-reagenda', 'ler as fichas vencidas falhou', error);
     return { ...zero('erro_leitura'), erros: 1 };
   }
 
   const candidatos = ((data ?? []) as FichaVermelha[]).filter(f =>
     ehOrigemEletroposto(f.created_by)
+    // O `agendado` só entra depois das 6 horas. A consulta acima usa o corte
+    // frouxo (45 min) porque ela é uma só pros dois status; quem aperta o corte
+    // certo é esta linha.
+    && (f.status !== 'agendado' || (!!f.quando && f.quando <= corteEsquecido))
     // Desde 29/09/2026 entra TODO NÃO ATENDEU, não só o quente: a ordem é
     // recuperar gente, e quem decide o volume agora é a rampa diária. Com
     // EP_REAGENDA_SO_QUENTE=1 volta a régua de 20/08 sem deploy.
@@ -571,14 +629,31 @@ export async function runEletropostoReagendaAutoTick(
         logger.error('ep-reagenda', 'carimbo do ciclo falhou', { id: f.id, erro: String(e) }));
       await limparCarimbos(f.id);
 
-      const bruto = String(f.cliente_nome || '').trim().split(/\s+/)[0] || '';
-      const primeiro = bruto.length >= 2 && bruto.length <= 20 && bruto.toLowerCase() !== 'lead' ? bruto : '';
-      const tel = String(f.cliente_telefone).replace(/\D/g, '');
-      await sendHuman(
-        tel,
-        bolhasReagendado(primeiro, String(f.quando), novo, quem, telPorConsultor.get(quem) ?? null, tentativa),
-        'io',
-      );
+      // ── O CARD ESQUECIDO MUDA DE DIA EM SILÊNCIO ────────────────────────
+      //
+      // A copy deste módulo abre com "você não conseguiu entrar na
+      // apresentação". Pra quem alguém marcou como NÃO ATENDEU isso é verdade.
+      // Pro card que ficou `agendado` porque o CONSULTOR não fechou, não é: a
+      // reunião pode ter acontecido e ido bem, e o cliente receberia uma
+      // acusação de falta por causa de um cadastro que ninguém atualizou. Esse
+      // é o tipo de mensagem que faz um cliente bom sumir.
+      //
+      // Então aqui o card volta pra grade sem que nada saia pro cliente. Quem
+      // precisa ver é a EQUIPE, e ela vê: o card reaparece no dia seguinte, no
+      // mesmo horário, com a linha do histórico dizendo por que se moveu. Se a
+      // pessoa não aparecer no horário novo, alguém marca NÃO ATENDEU e aí sim
+      // o caminho com mensagem assume.
+      const esquecido = f.status === 'agendado';
+      if (!esquecido) {
+        const bruto = String(f.cliente_nome || '').trim().split(/\s+/)[0] || '';
+        const primeiro = bruto.length >= 2 && bruto.length <= 20 && bruto.toLowerCase() !== 'lead' ? bruto : '';
+        const tel = String(f.cliente_telefone).replace(/\D/g, '');
+        await sendHuman(
+          tel,
+          bolhasReagendado(primeiro, String(f.quando), novo, quem, telPorConsultor.get(quem) ?? null, tentativa),
+          'io',
+        );
+      }
       // Carimbo do teto da linha (o mesmo prefixo dos outros toques da agenda) e,
       // junto, o `confirmacao_at`: é ele que impede a régua da agenda de mandar a
       // confirmação padrão em cima desta mensagem.

@@ -41,6 +41,9 @@ vi.mock('../utils/supabaseGerador', () => ({
         _filtros: {} as Record<string, any>,
         select(_cols?: string) { return q._update ? Promise.resolve(aplicarUpdate(q)) : q; },
         eq(col: string, v: any) { q._filtros[col] = v; return q; },
+        // Desde 30/09/2026 o módulo busca DOIS status de uma vez
+        // (`nao_atendeu` e `agendado`), então a cadeia precisa do `.in`.
+        in(col: string, vs: any[]) { q._filtros[`in_${col}`] = vs; return q; },
         gte(col: string, v: any) { q._filtros[`gte_${col}`] = v; return q; },
         lte(col: string, v: any) { q._filtros[`lte_${col}`] = v; return q; },
         order() { return q; },
@@ -52,7 +55,9 @@ vi.mock('../utils/supabaseGerador', () => ({
             // CÓPIA, não a linha viva: é assim que dá pra simular a corrida com
             // gente (alguém muda o status entre a leitura e a gravação).
             data: fichas.filter(f =>
-              f.status === q._filtros['status']
+              (q._filtros['in_status']
+                ? (q._filtros['in_status'] as string[]).includes(f.status)
+                : f.status === q._filtros['status'])
               && new Date(f.quando).getTime() >= piso
               && new Date(f.quando).getTime() <= teto).map(f => ({ ...f })),
             error: null,
@@ -110,7 +115,7 @@ vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), war
 // `eletropostoVagas` e tem teste próprio. Aqui só interessa QUAL janela o módulo
 // pede e QUAL dos horários devolvidos ele escolhe.
 let vagas: string[] | null = [];
-const pedidos: Array<{ dono: string; agora: number; quantas: number }> = [];
+const pedidos: Array<{ dono: string; agora: number; quantas: number; faixa?: string }> = [];
 /** Gancho pra simular o que acontece ENTRE a leitura da ficha e a gravação. */
 let aoPedirVagas: (() => void) | null = null;
 vi.mock('../services/io/eletropostoVagas', async (real) => {
@@ -118,7 +123,7 @@ vi.mock('../services/io/eletropostoVagas', async (real) => {
   return {
     ...orig,
     proximasVagas: vi.fn(async (dono: string, quantas: number, opts: any) => {
-      pedidos.push({ dono, quantas, agora: opts?.agora });
+      pedidos.push({ dono, quantas, agora: opts?.agora, faixa: opts?.faixa });
       aoPedirVagas?.();
       return vagas;
     }),
@@ -499,5 +504,132 @@ describe('dry', () => {
     expect(updates).toHaveLength(0);
     expect(enviadas).toHaveLength(0);
     expect(state.size).toBe(0);
+  });
+});
+
+// ── O CARD CONFIRMADO QUE NINGUÉM MEXEU (30/09/2026) ───────────────────────
+//
+// Ordem do Thiago: "o card confirmado, se não for alterado, já será remarcado
+// novamente após 6h. Marcado e confirmado e não mexido às 13:00: quando chegar
+// 19h, remarca para o outro dia, hora e hora e 30, na mesma hora que não
+// aconteceu ou o mais próximo possível."
+//
+// O gatilho é a INAÇÃO. Até aqui o módulo só pegava quem alguém marcou como NÃO
+// ATENDEU; o card que ficou `agendado` pra sempre, porque o consultor não
+// fechou, não era assunto de ninguém.
+//
+// O RISCO DESTE CAMINHO, e é ele que os testes abaixo cercam: a reunião pode ter
+// ACONTECIDO e ido bem, e o card só não foi atualizado. Mandar pro cliente a
+// copy de no-show ("você não conseguiu entrar na apresentação") seria acusar de
+// falta quem esteve presente. Por isso o card esquecido se move em SILÊNCIO.
+describe('o card esquecido, 6h depois', () => {
+  const agendadoHa = (h: number) => ficha({ status: 'agendado', quando: horasAtras(h) });
+
+  it('6 horas depois da reunião, o card sem desfecho volta pro dia seguinte', async () => {
+    fichas = [agendadoHa(6)];
+    const r = await tick();
+    expect(r.remarcados).toBe(1);
+    expect(fichas[0].status).toBe('agendado');
+    expect(fichas[0].quando).toBe(SEXTA_13H);
+  });
+
+  it('antes das 6 horas não encosta: o consultor ainda pode fechar o card', async () => {
+    fichas = [agendadoHa(3)];
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(fichas[0].quando).toBe(horasAtras(3));
+  });
+
+  it('o prazo é configurável sem deploy', async () => {
+    process.env.EP_ESQUECIDO_H = '2';
+    fichas = [agendadoHa(3)];
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  it('NADA é enviado ao cliente: a reunião pode ter acontecido', async () => {
+    fichas = [agendadoHa(6)];
+    await tick();
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('mas o vermelho de verdade continua avisando', async () => {
+    fichas = [ficha({ status: 'nao_atendeu', quando: horasAtras(6) })];
+    await tick();
+    expect(enviadas).toHaveLength(1);
+  });
+
+  it('o histórico não inventa que a pessoa faltou', async () => {
+    fichas = [agendadoHa(6)];
+    await tick();
+    const linha = String(fichas[0].historico || '');
+    expect(linha).not.toContain('não apareceu');
+    expect(linha).toContain('sem desfecho');
+    expect(linha).toContain('Nada foi enviado ao cliente');
+  });
+
+  it('o histórico do vermelho continua dizendo que não apareceu', async () => {
+    fichas = [ficha({ status: 'nao_atendeu', quando: horasAtras(6) })];
+    await tick();
+    expect(String(fichas[0].historico || '')).toContain('não apareceu');
+  });
+
+  // A corrida com gente: o guard do UPDATE era fixo em `nao_atendeu`. Com dois
+  // status na busca, ele tem que casar com o que FOI LIDO, senão o card
+  // esquecido nunca grava (o update não acha linha) ou, pior, grava por cima de
+  // alguém que mexeu no card no meio do caminho.
+  it('se alguém mexer no card entre a leitura e a gravação, quem manda é a pessoa', async () => {
+    fichas = [agendadoHa(6)];
+    aoPedirVagas = () => { fichas[0].status = 'em_atendimento'; };
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(fichas[0].status).toBe('em_atendimento');
+    expect(fichas[0].quando).toBe(horasAtras(6));
+  });
+
+  it('card confirmado do FUTURO nunca entra', async () => {
+    fichas = [ficha({ status: 'agendado', quando: new Date(AGORA.getTime() + 3600_000).toISOString() })];
+    expect((await tick()).remarcados).toBe(0);
+  });
+
+  it('os dois gatilhos convivem na mesma varredura', async () => {
+    fichas = [
+      ficha({ id: 1, status: 'nao_atendeu', quando: horasAtras(2) }),
+      ficha({ id: 2, status: 'agendado', quando: horasAtras(8) }),
+    ];
+    // POR_TICK é 1: o tick pega um por vez, mas os dois são candidatos.
+    const r = await tick({ dry: true });
+    expect(r.remarcados).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ── A GRADE REDONDA, E NÃO A FAIXA DOS QUINZE ──────────────────────────────
+// "Remarca pro outro dia, hora e hora e 30, na mesma hora que não aconteceu."
+// Isto não é follow-up: é a MESMA primeira reunião mudando de dia, e o cliente
+// escolheu 13:00. Devolver 13:15 perderia o "na mesma hora".
+describe('para onde o card volta', () => {
+  it('pede vaga na grade de venda, não na faixa de remarcação', async () => {
+    await tick();
+    expect(pedidos).toHaveLength(1);
+    // O mock grava a `faixa` de proposito: sem isso a assercao passava sozinha
+    // (undefined nunca e 'remarcacao') e o teste nao provava nada.
+    expect(pedidos[0]!.faixa).toBe('novo');
+  });
+
+  it('a mesma hora ganha do resto do dia', async () => {
+    vagas = [SEXTA_14H, SEXTA_13H];          // 14h vem primeiro na lista
+    await tick();
+    expect(fichas[0].quando).toBe(SEXTA_13H); // mas 13h era a hora perdida
+  });
+
+  it('sem a mesma hora livre, cai na mais próxima daquele dia', async () => {
+    vagas = [SEXTA_14H];
+    await tick();
+    expect(fichas[0].quando).toBe(SEXTA_14H);
+  });
+
+  it('dia inteiro cheio: vai pro dia seguinte', async () => {
+    vagas = [SEGUNDA_13H];
+    await tick();
+    expect(fichas[0].quando).toBe(SEGUNDA_13H);
   });
 });
