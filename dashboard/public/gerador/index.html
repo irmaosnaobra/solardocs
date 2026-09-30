@@ -3806,6 +3806,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <button type="button" class="eletro-btn" onclick="epRevisar('planilha')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> Simulador em PDF</button>
           <button type="button" class="eletro-btn" onclick="epRevisar('basico')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> Orçamento Básico</button>
           <button type="button" class="eletro-btn" onclick="epRevisar('completo')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="13" y2="17"></line></svg> Orçamento Completo</button>
+          <button type="button" class="eletro-btn" onclick="epRevisar('completosoc')" title="A apresentação de 9 folhas com os números do sócio"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> Completo da Sociedade</button>
           <button type="button" class="eletro-btn" onclick="epRevisar('carregador')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> Orçamento Carregador</button>
           <button type="button" class="eletro-btn" onclick="eletroToggleComparar()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Comparar cenários</button>
         </div>
@@ -13065,6 +13066,10 @@ const NX_ART = '/nexus/img/';
 const NX_LOGO = '/gerador/nexus-logo-tela.png';
 
 function nxCompletoDeck(d) {
+  // O bloco da sociedade, quando o documento e' o do socio. Nulo no Completo
+  // normal, e ai' todo texto abaixo cai na frase de sempre.
+  const SOC = d.soc || null;
+  const socPc = v => String(Math.round((Number(v) || 0) * 10) / 10).replace('.', ',') + '%';
   const host = document.getElementById('eletro-print');
   if (!host) return;
 
@@ -13088,7 +13093,8 @@ function nxCompletoDeck(d) {
   // ── 1 · A CAPA É O NÚMERO ──────────────────────────────────────────────
   const selos = [
     tem(R.payback) ? `investimento de volta em <b>${dec(R.payback)} anos</b>` : '',
-    'chave na mão', 'garantia de <b>24 meses</b>', 'entrega em <b>25 dias</b>',
+    SOC ? `sua cota de <b>${socPc(SOC.cota)}</b>` : 'chave na mão',
+    'garantia de <b>24 meses</b>', 'entrega em <b>25 dias</b>',
   ].filter(Boolean).map(s => `<span>${s}</span>`).join('');
 
   S.push(`<section class="nx-slide nx-capa">
@@ -13123,11 +13129,33 @@ function nxCompletoDeck(d) {
     <div class="nx-kick">A proposta em quatro números</div>
     <div class="nx-tit">Isto é o que o ponto<span class="g"> devolve</span></div>
     <div class="nx-kpis">
-      <div class="nx-kpi"><div class="r">Investimento</div><div class="v">${brl(E.invest)}</div><div class="n">valor total, chave na mão</div></div>
+      <div class="nx-kpi"><div class="r">${SOC ? 'Seu aporte' : 'Investimento'}</div><div class="v">${brl(E.invest)}</div><div class="n">${SOC ? 'sua cota de ' + socPc(SOC.cota) + ' na sociedade' : 'valor total, chave na mão'}</div></div>
       <div class="nx-kpi"><div class="r">Retorno</div><div class="v verde">${tem(R.payback) ? dec(R.payback) + ' anos' : '—'}</div><div class="n">para o capital voltar</div></div>
       <div class="nx-kpi"><div class="r">Faturamento / mês</div><div class="v">${brl(R.fatMes)}</div><div class="n">${brl(R.fatAno)} por ano</div></div>
       <div class="nx-kpi"><div class="r">Patrimônio em 10 anos</div><div class="v verde">${brl(R.patrimonio10)}</div><div class="n">além do que foi investido</div></div>
     </div>
+    ${SOC ? `<div class="nx-kick" style="margin-top:15px">O quadro societário</div>
+    <div class="nx-partes">
+      <div class="nx-parte">
+        <div class="t">Você</div>
+        <div class="l"><span class="k">Cota</span><span class="v">${socPc(SOC.cota)}</span></div>
+        <div class="l"><span class="k">Aporte</span><span class="v">${brl(SOC.aporte)}</span></div>
+      </div>
+      <div class="nx-parte">
+        <div class="t">NEXUS</div>
+        <div class="l"><span class="k">Cota</span><span class="v">${socPc(SOC.cotaNexus)}</span></div>
+        <div class="l"><span class="k">Aporte</span><span class="v">${brl(SOC.aporteNexus)}</span></div>
+      </div>
+      ${SOC.nOutros > 0 ? `<div class="nx-parte">
+        <div class="t">Outros sócios (${SOC.nOutros})</div>
+        <div class="l"><span class="k">Cota somada</span><span class="v">${socPc(SOC.cotaOutros)}</span></div>
+        <div class="l"><span class="k">Aporte somado</span><span class="v">${brl(SOC.aporteOutros)}</span></div>
+      </div>` : ''}
+    </div>
+    <div class="nx-parte nx-fim" style="margin-top:7px">
+      <div class="l"><span class="k">O projeto inteiro</span><span class="v">${brl(SOC.investTotal)}</span></div>
+      ${Math.abs(SOC.faltaCapital) >= 1 ? `<div class="l"><span class="k">${SOC.faltaCapital > 0 ? 'Capital a captar' : 'Capital excedente'}</span><span class="v">${brl(Math.abs(SOC.faltaCapital))}</span></div>` : ''}
+    </div>` : ''}
     <div class="nx-kick" style="margin-top:15px">As partes</div>
     <div class="nx-partes">
       ${caixa('Fornecedor', [['Nome', emit.nome], ['Razão social', emit.razao], ['CNPJ', emit.cnpj],
@@ -13189,7 +13217,9 @@ function nxCompletoDeck(d) {
         <div class="leg">Os ${pct(E.software)} de Software NEXUS são isto: o motorista acompanha a recarga, o kWh e o valor ao vivo.</div>
       </div>` : ''}
     </div>
-    <div class="nx-tarja nx-fim">Sobram ${brl(R.lucroMes)} por mês · margem de ${pct(R.margem)}</div>
+    <div class="nx-tarja nx-fim">${SOC
+    ? `Sobram ${brl(R.lucroMesOperacao)} por mês · a sua parte é ${brl(R.lucroMes)}`
+    : `Sobram ${brl(R.lucroMes)} por mês · margem de ${pct(R.margem)}`}</div>
   </div>
   ${pe('A conta aberta')}
 </section>`);
@@ -13367,7 +13397,7 @@ function nxCompletoDeck(d) {
         <ul class="nx-lista">${FORA.map(i => `<li>${esc(i)}</li>`).join('')}</ul>
         <div class="nx-aviso">Padrão de entrada e transformador, se o seu padrão não aguentar a carga. Orçados depois da medição.</div></div>
     </div>
-    <div class="nx-tarja nx-fim">${brl(E.invest)} · valor total do projeto, chave na mão</div>
+    <div class="nx-tarja nx-fim">${brl(E.invest)} · ${SOC ? 'o seu aporte na sociedade' : 'valor total do projeto, chave na mão'}</div>
   </div>
   ${pe('O seu ponto')}
 </section>`);
@@ -13425,7 +13455,7 @@ function nxCompletoDeck(d) {
     <div class="nx-tres">
       <div><span class="v">${brl(R.lucroMes)}</span><span class="r">por mês</span></div>
       <div><span class="v">${tem(R.payback) ? dec(R.payback) + ' anos' : '—'}</span><span class="r">para o dinheiro voltar</span></div>
-      <div><span class="v">${brl(E.invest)}</span><span class="r">o projeto, chave na mão</span></div>
+      <div><span class="v">${brl(E.invest)}</span><span class="r">${SOC ? 'o seu aporte' : 'o projeto, chave na mão'}</span></div>
     </div>
     <div class="nx-kick" style="margin-top:18px">Condição de pagamento</div>
     <div class="nx-pags">${pags}</div>
@@ -13692,9 +13722,13 @@ function epCompletoA4(d) {
   epPrint(host, epNomeArq('Orcamento', d.cliente));
 }
 
-function epCompletoPayload(versao) {
+function epCompletoPayload(versao, comSociedade) {
   const p = eletroParams();
   const r = computeEletro(p);
+  // MODO SOCIEDADE. O documento e' o mesmo; o sujeito e' outro. Quem entra numa
+  // sociedade nao compra o posto, entra nele: o "investimento" dele e' o aporte,
+  // e o retorno e' a fatia dele. A conta ja existia inteira em socMontar().
+  const soc = comSociedade ? socMontar(socLer(), r) : null;
   const t = eletroTextos();
   const hoje = new Date();
   const val = lerValidade('orc-validade-modo', 'orc-validade');
@@ -13716,9 +13750,10 @@ function epCompletoPayload(versao) {
   // Cenário que empata com o projeto não é impresso duas vezes: com 1 ou 2
   // carros/dia o round(×0,6) cai em cima da base.
   const vistos = new Set();
+  const cenBrutos = [];
   const cen = eletroCenariosSens(p).filter(c => {
     if (vistos.has(c.carros)) return false;
-    vistos.add(c.carros); return true;
+    vistos.add(c.carros); cenBrutos.push(c); return true;
   }).map(c => ({
     nome: c.rot === 'Base' ? 'Este projeto' : c.rot,
     carros: c.carros, projeto: c.rot === 'Base',
@@ -13766,7 +13801,8 @@ function epCompletoPayload(versao) {
     quantidade: orcEpQtdCarregadores(), bicos: p.plugs,
     ent: {
       carros: p.carros, carga: p.carga, precoKwh: p.precoKwh, custoKwh: p.custoKwh,
-      ativacao: p.ativacao, invest: p.invest, assinatura: p.assinat, fixos: p.fixos,
+      ativacao: p.ativacao, invest: soc ? soc.aporte : p.invest,
+      assinatura: p.assinat, fixos: p.fixos,
       // `manut` (percentual) NAO vai mais no payload. Nao fica em zero "por
       // compatibilidade": zero faria todo renderizador que testa tem(E.manut)
       // imprimir "Manutencao 0%" ao lado de um motor cobrando R$ 200. Sem a
@@ -13776,13 +13812,40 @@ function epCompletoPayload(versao) {
       imposto: p.imposto * 100, ocupIni: p.ocupIni * 100, rampa: p.mesesRampa,
       taxaDesc: p.taxaDesc * 100,
     },
+    // FATURAMENTO, CUSTOS e MARGEM ficam os da OPERACAO mesmo no modo
+    // sociedade: a folha 3 e' a conta do posto, e ela e' a mesma pros dois
+    // socios. O que e' do socio e' o LUCRO e os indicadores, e so esses trocam.
     res: {
-      fatMes: r.fatMes, fatAno: r.fatAno, custosMes: r.custosMes, lucroMes: r.lucroMes,
-      lucroAno: r.lucroAno, lucroAno1: r.lucroAno1, margem: r.margem * 100,
-      payback: r.payback, tir: r.tir == null ? null : r.tir * 100, vpl: r.vpl,
-      patrimonio10: r.acumulado10, fluxo: r.fluxo, custos,
+      fatMes: r.fatMes, fatAno: r.fatAno, custosMes: r.custosMes,
+      lucroMes: (soc ? soc.cota : 1) * r.lucroMes,
+      lucroAno: (soc ? soc.cota : 1) * r.lucroAno,
+      lucroAno1: (soc ? soc.cota : 1) * r.lucroAno1,
+      margem: r.margem * 100,
+      payback: soc ? soc.socio.payback : r.payback,
+      tir: (soc ? soc.socio.tir : r.tir) == null ? null : (soc ? soc.socio.tir : r.tir) * 100,
+      vpl: soc ? soc.socio.vpl : r.vpl,
+      patrimonio10: soc ? soc.socio.acumulado10 : r.acumulado10,
+      fluxo: soc ? soc.socio.fluxo : r.fluxo,
+      custos,
+      // o lucro da operacao inteira, pra folha 3 poder dizer quanto daquilo e dele
+      lucroMesOperacao: r.lucroMes,
     },
-    cen,
+    cen: soc ? cen.map((c, i) => {
+      // MESMA CONTA DO socMontar, por cenario: a fatia do fluxo daquele cenario
+      // contra o aporte do socio. Reaproveitar o payback do projeto inteiro aqui
+      // daria o numero errado — o capital do socio e menor, e o fluxo tambem.
+      const fonte = cenBrutos[i];
+      const ind = epIndicadores((fonte.r.fluxoAnual || []).map(f => f * soc.cota),
+                                soc.aporte, p.taxaDesc);
+      return { ...c, lucroMes: soc.cota * c.lucroMes, payback: ind.payback,
+               tir: ind.tir == null ? null : ind.tir * 100,
+               vpl: ind.vpl, patrimonio: ind.acumulado10 };
+    }) : cen,
+    soc: soc ? { cota: soc.cotaSocio, cotaNexus: soc.cotaNexus, n: soc.n,
+                 aporte: soc.aporte, aporteNexus: soc.aporteNexus,
+                 aporteOutros: soc.aporteOutros, nOutros: soc.nOutros,
+                 cotaOutros: soc.cotaOutros * 100, investTotal: soc.invest,
+                 faltaCapital: soc.faltaCapital, nome: soc.botao } : null,
   };
 }
 /** "3,5%" a partir da fração. Só para o rótulo — nunca entra em conta. */
@@ -13974,6 +14037,8 @@ const REV_DOCS = {
                nota: 'O <b>link do cliente</b> abre a apresentação de 13 páginas na web — é ela que o cliente vê no celular. O <b>PDF</b> sai desta mesma apresentação, sem trocar de tela.' },
   estudo:    { titulo: 'Sociedade e cotas', acao: null, pdf: true,
                nota: 'Duas folhas A4. A primeira responde <b>como funciona e quanto você ganha</b>: os quatro números da sua parte, o quadro societário com a divisão, o caminho do sim ao primeiro repasse e as condições à vista, 10x e 18x sobre a cota. A segunda mostra <b>de onde cada número saiu</b>.' },
+  completosoc: { titulo: 'Completo da Sociedade', acao: null, pdf: true,
+               nota: 'A MESMA apresentação de 9 folhas do Orçamento Completo, com os números do <b>sócio</b>: o aporte dele, a cota dele e o retorno da parte dele. O valor do projeto inteiro aparece só no <b>quadro societário</b> da folha 2. A cota e os aportes saem de <b>Sociedade e cotas</b>.' },
   planilha:  { titulo: 'Simulador em PDF',      acao: null, pdf: true,
                nota: 'Uma folha A4 com o resumo do investimento e a memória de cálculo.' },
   basico:    { titulo: 'Orçamento Básico',      acao: null, pdf: true,
@@ -14083,6 +14148,9 @@ function epRevisarGerarPDF() {
   setTimeout(() => {
     try {
       if (revDocAtual === 'completo') { epCompletoGerar('pdf'); return; }
+      // Mesma apresentacao, outro sujeito: o `true` faz o payload trocar o
+      // investimento pelo aporte e o retorno pelo da parte do socio.
+      if (revDocAtual === 'completosoc') { epCompletoGerar('pdf', true); return; }
       if (revDocAtual === 'estudo')   { eletroImprimir(); return; }
       if (revDocAtual === 'planilha') { eletroTelaA4(); return; }
       if (revDocAtual === 'basico')   { epBasicoImprimir(); return; }
@@ -14288,7 +14356,7 @@ function epDeckImprimir(d, nomeArq) {
 }
 
 // modo: 'pdf' imprime aqui mesmo; 'link' grava e copia o endereco do cliente.
-function epCompletoGerar(modo) {
+function epCompletoGerar(modo, comSociedade) {
   epCompletoAplicar();
   const p = eletroParams();
   if (!(p.invest > 0)) { alert('Defina o investimento total para emitir o Orçamento Completo.'); return; }
@@ -14299,8 +14367,8 @@ function epCompletoGerar(modo) {
   }
   eletroSalvarHistorico();
   eletroUltimoSalvar();
-  const d = epCompletoPayload('completa');
-  const nome = epNomeArq('Orcamento', d.cliente);
+  const d = epCompletoPayload('completa', comSociedade);
+  const nome = epNomeArq(comSociedade ? 'Sociedade' : 'Orcamento', d.cliente);
 
   if (modo === 'pdf') {
     epCompletoFechar();
