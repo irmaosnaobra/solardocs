@@ -15092,11 +15092,19 @@ function socPreset(qual) {
 // calculadas sobre o APORTE DO SOCIO — nunca sobre o investimento do projeto:
 // quem paga e' ele, e pela parte dele.
 //
-// Os fatores sao de cartao e foram dados prontos: 1,11 em 10x e 1,20 em 18x.
-// Ficam nomeados aqui em vez de espalhados no HTML porque o dia em que a
-// maquininha mudar, muda num lugar so'.
+// Os fatores sao de cartao e ficam nomeados aqui, em vez de espalhados no HTML,
+// porque o dia em que a maquininha mudar, muda num lugar so'.
+//
+// O 18x veio DE TRAS PRA FRENTE (decisao do dono, 30/09/2026). O anuncio promete
+// "18x de R$ 3.662" sobre a cota de R$ 50 mil, e o fator de 1,20 que estava aqui
+// entregava R$ 3.333,33 — o cara clicava por um numero e recebia a proposta com
+// outro. Perguntado qual dos dois lados cedia, ele respondeu 3.662, entao o fator
+// e' o que se ajusta: 3.662 x 18 / 50.000 = 1,31832, e a conta fecha no centavo.
+// Mexer nele mexe em TODA cota — num aporte de R$ 75 mil o 18x vira R$ 5.493.
 const SOC_FATOR_10X = 1.11;
-const SOC_FATOR_18X = 1.20;
+const SOC_FATOR_18X = 1.31832;
+/** O acrescimo do cartao como o cliente le': "11%" e "31,8%", nunca "1,31832". */
+const socAcrescimo = fator => String(Math.round((fator - 1) * 1000) / 10).replace('.', ',') + '%';
 function socPagLinhas(aporte) {
   const v = Math.max(0, Number(aporte) || 0);
   if (!(v > 0)) return [];
@@ -15414,7 +15422,7 @@ function eletroImprimir() {
 
     ${epFooterBlockHTML({ nome: t.autor, contato: t.contato })}
 
-    <div class="pl-nota">Faturamento = (carros/dia × 30) × [ carga × preço de revenda + taxa de ativação ]. Seguro/mês = investimento × 0,01 ÷ 12. O ano 1 aplica a rampa de ocupação; os custos fixos correm desde o mês 1. O lucro dividido é o que sobra depois de TODOS os custos acima, inclusive o Software NEXUS. Payback, TIR e ROI de cada parte são calculados sobre o aporte e o resultado daquela parte. Parcelamento no cartão com acréscimo de ${String(SOC_FATOR_10X).replace('.', ',')} em 10x e ${String(SOC_FATOR_18X).replace('.', ',')} em 18x sobre o valor da cota. Projeção a partir das premissas acima; não constitui garantia de resultado. Esta proposta não é o contrato da sociedade: aporte, cota, prestação de contas e saída são firmados em instrumento próprio.</div>
+    <div class="pl-nota">Faturamento = (carros/dia × 30) × [ carga × preço de revenda + taxa de ativação ]. Seguro/mês = investimento × 0,01 ÷ 12. O ano 1 aplica a rampa de ocupação; os custos fixos correm desde o mês 1. O lucro dividido é o que sobra depois de TODOS os custos acima, inclusive o Software NEXUS. Payback, TIR e ROI de cada parte são calculados sobre o aporte e o resultado daquela parte. Parcelamento no cartão com acréscimo de ${socAcrescimo(SOC_FATOR_10X)} em 10x e ${socAcrescimo(SOC_FATOR_18X)} em 18x sobre o valor da cota. Projeção a partir das premissas acima; não constitui garantia de resultado. Esta proposta não é o contrato da sociedade: aporte, cota, prestação de contas e saída são firmados em instrumento próprio.</div>
 
     ${epPageFootHTML('Sociedade e cotas', t.cliente || '', 2, 2)}
   </div>
