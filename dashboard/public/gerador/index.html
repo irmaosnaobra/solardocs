@@ -10009,10 +10009,15 @@ const cadAcha = (lista, ref) => {
   const [tab, id] = String(ref).split(':');
   return lista.find(r => r.id === Number(id) && r.tab === tabelaDe(tab));
 };
+// DESFEITA NÃO CONTA (29/09/2026): a linha continua no banco, com a distância
+// congelada e a data de quando foi apresentada, porque o histórico é o que diz o
+// que a equipe viu quando decidiu. Mas ela sai do caminho da tela, e o botão
+// Apresentar volta. Apagar a linha apagaria o histórico junto.
 const cadConectado = (refP, refC) => {
   const [pt, pi] = refP.split(':'), [ct, ci] = refC.split(':');
   return cadConexoes.find(x => x.p_tab === pt && String(x.p_id) === pi
-                            && x.c_tab === ct && String(x.c_id) === ci);
+                            && x.c_tab === ct && String(x.c_id) === ci
+                            && String(x.status || 'apresentado') === 'apresentado');
 };
 
 function cadRenderMatch(busca) {
@@ -10082,6 +10087,10 @@ function cadRenderMatch(busca) {
         + '<td>' + (conex
             ? '<span class="cad-org cad">apresentado</span><span class="cad-sub">'
               + new Date(conex.criado_em).toLocaleDateString('pt-BR') + '</span>'
+              // Apertar sem querer acontece, e sem isto a única saída era mexer no
+              // banco. Desfazer é um clique e volta o botão.
+              + '<button type="button" class="ehist-btn" style="margin-top:6px"'
+              + ' onclick="cadDesfazer(' + conex.id + ',\'' + d.refP + '\',\'' + d.refC + '\',this)">desfazer</button>'
             : '<button type="button" class="cad-conectar" onclick="cadConectar(\'' + d.refP + '\',\'' + d.refC + '\',' + d.km + ',this)">Apresentar</button>')
           + '</td>'
         + '</tr>';
@@ -10123,6 +10132,42 @@ async function cadConectar(refP, refC, km, btn) {
     alert('Não consegui gravar a conexão: ' + (e.message || e));
   }
 }
+/**
+ * Desfaz uma apresentação: a linha do histórico fica, marcada como `desfeito`, e
+ * os dois lados voltam de "conectado" para "novo".
+ *
+ * O `&status=eq.conectado` no PATCH não é enfeite: se alguém já marcou essa pessoa
+ * como "falando" ou "sem interesse" depois da apresentação, desfazer NÃO pode
+ * apagar esse trabalho. Só volta o que o próprio Apresentar tinha escrito.
+ */
+async function cadDesfazer(id, refP, refC, btn) {
+  btn.disabled = true; btn.textContent = 'desfazendo…';
+  try {
+    // So vale o que o banco DEVOLVEU, a mesma licao do Apresentar: o fallback
+    // otimista pintava a tela de um jeito e o banco ficava de outro.
+    const volta = await supaPatch('eletroposto_match?id=eq.' + id + '&select=id,status',
+                                  { status: 'desfeito' });
+    const linha = Array.isArray(volta) ? volta[0] : volta;
+    if (!linha || linha.status !== 'desfeito') throw new Error('o banco aceitou mas nao devolveu a linha desfeita');
+    // os dois lados voltam pra novo, cada um na sua tabela, só se ainda estiverem
+    // como a apresentação os deixou
+    await Promise.all([refP, refC].map(ref => {
+      const [t, i] = String(ref).split(':');
+      const tabela = tabelaDe(t);
+      if (!tabela || !CAD_GRAVAVEL.has(tabela)) return null;
+      return supaPatch(tabela + '?id=eq.' + i + '&status=eq.conectado', { status: 'novo' }).catch(() => {});
+    }));
+    cadConexoes = cadConexoes.map(x => (x.id === id ? { ...x, status: 'desfeito' } : x));
+    ['ponto', 'capital'].forEach(l => (cadDados[l] || []).forEach(x => {
+      if ((cadRef(x) === refP || cadRef(x) === refC) && x.status === 'conectado') x.status = 'novo';
+    }));
+    cadRender();
+  } catch (e) {
+    btn.disabled = false; btn.textContent = 'desfazer';
+    alert('Não consegui desfazer: ' + (e.message || e));
+  }
+}
+
 // Origem desconhecida devolve null, e quem grava confere: o padrao antigo caia em
 // eletroposto_nota1 e escrevia na ficha errada em silencio.
 const tabelaDe = t => Object.keys(CAD_ORIGEM).find(k => CAD_ORIGEM[k] === t) || null;
