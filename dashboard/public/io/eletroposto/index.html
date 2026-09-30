@@ -2741,6 +2741,19 @@ function donosLivres(iso){
 }
 /** Horário sem vaga nenhuma: os dois consultores comprometidos. */
 const slotCheio = iso => donosLivres(iso).length === 0;
+/**
+ * O CONSULTOR DESTE LEAD (30/09/2026). Quem já tem ficha tem dono fixo (1 telefone
+ * = 1 consultor). Até hoje a vitrine chamava de livre todo horário em que UM dos
+ * dois coubesse, e só o clique final recusava porque o dono DELE estava ocupado:
+ * medido em 30/09 às 13h11, 3 dos 5 botões da tela eram exatamente isso. Agora
+ * quem DESENHA e quem REVALIDA fazem a mesma pergunta.
+ * Null = lead novo: cabe nos dois, e o rodízio escolhe na hora de gravar.
+ */
+let donoDoLead = null;
+const cabeNoSlot = iso => {
+  const livres = donosLivres(iso);
+  return donoDoLead ? livres.includes(donoDoLead) : livres.length > 0;
+};
 
 // Rodízio Thiago/Diego: alterna pelo nº de reuniões da LP já marcadas.
 // `vendedor_nome` é NOT NULL e tem FK para `consultores` — só nomes existentes.
@@ -3069,7 +3082,7 @@ function livresDoDia(ymd){
   return gradeDoDia(ymd).filter(h=>{
     const iso = isoDe(ymd, h);
     if(new Date(iso).getTime() < limite) return false;   // passou ou é cedo demais
-    return !slotCheio(iso);
+    return cabeNoSlot(iso);
   });
 }
 const rotuloDia = ymd => new Date(`${ymd}T12:00:00-03:00`)
@@ -3090,7 +3103,11 @@ async function montarSlots(){
   const dias = proximosDias();
   if(!dias.length){
     el.innerHTML = '<div class="agLoad">Sem horários nos próximos dias. Fale com a gente no WhatsApp que a gente encaixa.</div>';
-    soltarQuiz('sem_horario');   // sem horário o quiz é tela morta: abre a página
+    // Soltar o quiz é escape de TELA MORTA, e só faz sentido antes de a pessoa
+    // começar. Desde 30/09 o horário é o ÚLTIMO passo: aqui ela já respondeu tudo,
+    // e abrir a página inteira jogaria o formulário preenchido fora. A mensagem
+    // acima, com o WhatsApp, é a saída dela.
+    if(!val('f-porta')) soltarQuiz('sem_horario');
     return;
   }
   el.innerHTML = dias.map(ymd=>{
@@ -3340,7 +3357,6 @@ const PASSOS = [
   //    local, antes de nome e cidade. É ele que decide Investidor ou Curioso.
   { id:'p-inv-valor', quando: investidorSemLocal,
                       ok:() => val('f-inv-valor') ? null : 'Escolha quanto você pensa em investir.' },
-  { id:'p-horario', quando: vaiParaAgenda, ok:() => slotSel ? null : 'Escolha um horário na lista.' },
   { id:'p-nome',    quando: quizAqui, ok:() => val('f-nome').length >= 2 ? null : 'Escreva o seu nome.' },
   { id:'p-cidade',  quando: quizAqui, ok:() => val('f-cidade').length >= 2 ? null : 'Informe a cidade e o estado (UF).' },
   // ── Trilha do integrador. Vem depois de nome e cidade e antes do WhatsApp, pela
@@ -3413,8 +3429,22 @@ const PASSOS = [
   { id:'p-whatsapp', quando: quizAqui, ok:() => {
       return telefoneConfere() ? null : 'Informe um WhatsApp válido com DDD.';
     } },
+  // ── O HORÁRIO É O ÚLTIMO PASSO (30/09/2026) ──────────────────────────────────
+  // Ordem do Thiago: "a agenda no final, o cliente não pode travar nunca". Ele era
+  // a 2ª pergunta: a pessoa reservava um horário e segurava ele por mais dez
+  // perguntas. Nesse intervalo o horário era tomado, passava da hora ou o consultor
+  // dela enchia, e o servidor só recusava no clique final — com a lista fora da
+  // tela (ver `voltarProHorario`). Agora a janela entre escolher e gravar é de
+  // segundos, e como o WhatsApp já foi respondido dá pra perguntar de quem é este
+  // telefone ANTES de desenhar a lista (ver `prepararAgenda`).
+  // Reverter é devolver esta linha pra antes de `p-nome`.
+  { id:'p-horario', quando: vaiParaAgenda, ok:() => slotSel ? null : 'Escolha um horário na lista.' },
 ];
 let passoAtual = 0;
+/** Qual passo a última pintura acendeu: é o que diferencia ENTRAR no passo de repintá-lo. */
+let ultimoPassoPintado = null;
+/** O telefone cuja consulta de dono/reunião já foi feita, pra não repetir a cada pintura. */
+let agendaPreparadaPara = null;
 
 /** Os passos que valem para as respostas de AGORA (o de investir some sozinho). */
 const passosVivos = () => PASSOS.filter(p => !p.quando || p.quando());
@@ -3477,13 +3507,22 @@ function pintarPasso(){
   });
   const ultimo = passoAtual === vivos.length - 1;
   quizPasso(atual.id, passoAtual + 1, vivos.length);
+  // Só na ENTRADA do passo, não a cada repintura: `pintarPasso()` roda a cada
+  // tecla do telefone e a cada revisão da lista, e chamar aqui sem a guarda vira
+  // laço de remontagem.
+  if(atual.id === 'p-horario' && ultimoPassoPintado !== 'p-horario') prepararAgenda();
+  ultimoPassoPintado = atual.id;
   document.getElementById('passo-conta').textContent = `Passo ${passoAtual+1} de ${vivos.length}`;
   document.getElementById('passo-barra').style.width = ((passoAtual+1) / vivos.length * 100) + '%';
   document.getElementById('passo-voltar').hidden  = passoAtual === 0;
   // UM BOTÃO SÓ. Ele vira "Confirmar agendamento" no último passo assim que o
   // WhatsApp está válido — antes disso ele ainda é "Continuar", porque ainda
   // falta uma resposta pra dar.
-  const pronto = ultimo && telefoneConfere();
+  // O passo final mudou de lugar por trilha (30/09/2026): quem agenda termina no
+  // HORÁRIO, quem cadastra (integrador, investidor sem local) termina no WhatsApp.
+  // Ler o passo ATUAL em vez de supor que o último é sempre o telefone — supondo,
+  // o integrador ficaria com "Continuar" pra sempre e nunca concluiria.
+  const pronto = ultimo && (atual.id === 'p-horario' ? !!slotSel : telefoneConfere());
   const btn = document.getElementById('ag-btn');
   // NINGUÉM MAIS SAI DAQUI (21/09/2026). O investidor sem local ia para o cadastro
   // em /io/eletroposto/parceria no botão "Ir para o cadastro"; agora ele termina o
@@ -3740,6 +3779,51 @@ function voltarProHorario(){
   passoAtual = i;
   pintarPasso();
 }
+/**
+ * ENTROU NO PASSO DO HORÁRIO (30/09/2026). Três coisas antes de a pessoa escolher:
+ *  · quem JÁ TEM reunião marcada descobre aqui, não no clique final;
+ *  · o dono do telefone passa a filtrar a lista (`donoDoLead`), então some o
+ *    horário que aparecia livre e o servidor ia recusar;
+ *  · a lista é remontada AGORA, não é a que nasceu junto com a página.
+ * A consulta do cliente roda uma vez por telefone; a remontagem, toda entrada.
+ * Rede caindo não trava nada: segue sem dono, que é o comportamento de antes.
+ */
+async function prepararAgenda(){
+  const tel = telParaBanco();
+  if(tel && agendaPreparadaPara !== tel){
+    agendaPreparadaPara = tel;
+    try{
+      const c = await consultarCliente(tel);
+      donoDoLead = c.dono && DONOS.includes(c.dono) ? c.dono : null;
+      if(c.jaMarcado){
+        const q = rotuloSlot(c.jaMarcado.quando).completo;
+        erro(`Você já tem reunião marcada: ${q} (horário de Brasília). `
+          + 'Não precisa marcar de novo. Se quiser trocar o dia ou a hora, é só chamar no WhatsApp (34) 99816-5040 que a gente remarca.');
+      }
+    }catch(_){ donoDoLead = null; }
+  }
+  await montarSlots();
+}
+/**
+ * A LISTA VIVA (30/09/2026). Remonta com a pessoa olhando. Se o horário que ela
+ * marcou sumiu no caminho, desmarca e avisa ALI, com a lista na frente — que é o
+ * contrário da recusa no clique final. Nada aqui grava: é a tela seguindo o banco.
+ */
+async function revisarHorarioEscolhido(){
+  const antes = slotSel;
+  await montarSlots();
+  if(!antes) return;
+  const ainda = document.querySelector(`#slots .slot[data-iso="${antes}"]`);
+  if(ainda){ ainda.classList.add('on'); return; }
+  slotSel = null;
+  const btn = document.getElementById('ag-btn');
+  if(btn){ btn.textContent = 'Continuar →'; btn.dataset.acao = 'proximo'; }
+  erro('Esse horário acabou de ser preenchido. A lista já está atualizada, é só escolher outro.');
+}
+const noPassoDoHorario = () => {
+  const el = document.getElementById('p-horario');
+  return !!el && el.classList.contains('on');
+};
 /**
  * Depois de escolher, o Continuar tem que estar à vista. No celular a pilha de
  * opções (o perfil tem 10) empurra o botão para baixo da dobra, e quem escolheu
@@ -4658,6 +4742,13 @@ window.addEventListener('hashchange', () => { if (location.hash === '#agendar') 
 // deixou a pagina aberta continua vendo uma grade que ja envelheceu.
 // Nunca remonta com horario escolhido: apagaria a escolha dele no meio do formulario.
 setInterval(() => { if(!document.hidden && !slotSel) montarSlots(); }, 5*60*1000);
+// No passo do horário a pessoa decide em segundos, e horário vencido na tela é o
+// começo de toda recusa no clique final. 45 s, só com a aba à frente e só com o
+// passo aceso: fora dele a régua de 5 min acima continua valendo.
+setInterval(() => { if(!document.hidden && noPassoDoHorario()) revisarHorarioEscolhido(); }, 45*1000);
+document.addEventListener('visibilitychange', () => {
+  if(!document.hidden && noPassoDoHorario()) revisarHorarioEscolhido();
+});
 
 // ===== O QUE SE MEXE (15/09/2026) =====
 // O primeiro toque num controle de uma das três seções interativas apaga o pulso

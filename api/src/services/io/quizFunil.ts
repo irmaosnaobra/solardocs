@@ -72,9 +72,12 @@ export const CURTAS: Record<string, string> = {
   'p-whatsapp': 'WhatsApp',
 };
 
+// 30/09/2026: `p-horario` saiu da frente e virou o ÚLTIMO passo da LP. A ordem
+// daqui é a que desenha o gráfico, então ela tem que andar junto — e o teste NÃO
+// pega isso: ele confere pertinência, não sequência.
 const TRILHA_AGENDA = [
-  'p-horario', 'p-nome', 'p-cidade', 'p-perfil', 'p-ponto', 'p-vagas',
-  'p-modelo', 'p-invest', 'p-valor', 'p-decisor', 'p-whatsapp',
+  'p-nome', 'p-cidade', 'p-perfil', 'p-ponto', 'p-vagas',
+  'p-modelo', 'p-invest', 'p-valor', 'p-decisor', 'p-whatsapp', 'p-horario',
 ];
 
 export interface Caminho { id: string; nome: string; passos: string[] }
@@ -92,7 +95,7 @@ export const CAMINHOS: Caminho[] = [
   { id: 'investidor_sem_local', nome: 'Investidor sem local',                 passos: ['p-porta', 'p-cap-local', 'p-inv-valor', 'p-nome', 'p-cidade', 'p-whatsapp'] },
   // A quarta porta (24/09/2026). Ela NÃO passa pela trilha do ponto: quem já
   // escolheu o equipamento não responde perfil, ponto, modelo nem decisor.
-  { id: 'carregador',           nome: 'Compra de carregador',                 passos: ['p-porta', 'p-horario', 'p-nome', 'p-cidade', 'p-car-potencia', 'p-car-qtd', 'p-car-uso', 'p-car-local', 'p-car-endereco', 'p-car-software', 'p-car-instala', 'p-car-prazo', 'p-whatsapp'] },
+  { id: 'carregador',           nome: 'Compra de carregador',                 passos: ['p-porta', 'p-nome', 'p-cidade', 'p-car-potencia', 'p-car-qtd', 'p-car-uso', 'p-car-local', 'p-car-endereco', 'p-car-software', 'p-car-instala', 'p-car-prazo', 'p-whatsapp', 'p-horario'] },
   { id: 'integrador',           nome: 'Integrador',                           passos: ['p-porta', 'p-nome', 'p-cidade', 'p-i-empresa', 'p-i-atuacao', 'p-i-exp', 'p-i-interesse', 'p-i-equipe', 'p-whatsapp'] },
 ];
 
