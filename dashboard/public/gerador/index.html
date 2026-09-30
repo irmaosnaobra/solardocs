@@ -12611,7 +12611,8 @@ const NX_CSS = `<style>
 .nx-parte{background:var(--nx-cartao);border:1px solid var(--nx-linha);border-radius:12px;padding:13px 15px}
 .nx-parte .t{font-size:8pt;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;
   color:var(--nx-verde);margin-bottom:9px}
-.nx-parte .l{display:flex;justify-content:space-between;gap:11px;padding:2.5px 0;font-size:9pt;line-height:1.35}
+.nx-parte .l{display:flex;justify-content:space-between;gap:9px;padding:4px 0;font-size:9.8pt;line-height:1.5}
+.nx-parte .l .v{text-wrap:balance;overflow-wrap:anywhere;min-width:0}
 .nx-parte .l .k{color:var(--nx-fraco);white-space:nowrap;font-weight:600}
 .nx-parte .l .v{text-align:right;font-weight:700;color:var(--nx-texto)}
 
@@ -12810,11 +12811,11 @@ const NX_CSS = `<style>
 /* "text-wrap:pretty" mata a linha de uma palavra so ("sai." na folha 8,
    "operar" na folha 7): o Chrome, que e' quem gera o PDF, puxa uma palavra da
    linha de cima. Nao muda altura de folha. */
-.nx-lead{margin-top:8px;font-size:10.5pt;line-height:1.5;text-wrap:pretty}
-.nx-kpis{gap:9px;margin-top:16px}
-.nx-kpi{padding:16px 18px;border-radius:12px}
-.nx-kpi .v{font-size:20pt;margin-top:4px}
-.nx-partes{gap:9px;margin-top:14px}
+.nx-lead{margin-top:10px;font-size:11.5pt;line-height:1.68;text-wrap:pretty}
+.nx-kpis{gap:11px;margin-top:20px}
+.nx-kpi{padding:22px 22px;border-radius:14px}
+.nx-kpi .v{font-size:21pt;margin-top:5px}
+.nx-partes{gap:11px;margin-top:18px}
 /* O cartao do consultor e' o unico .nx-parte de largura inteira, e ele nao
    participa da grade .nx-partes: por isso nascia colado no bloco de cima (calha
    medida 0,0mm) e com o desenho de meia coluna numa caixa de 184mm, deixando
@@ -12823,7 +12824,7 @@ const NX_CSS = `<style>
 .nx-partes+.nx-parte{margin-top:7px;display:grid;grid-template-columns:repeat(3,1fr);
   gap:2px 18px;align-items:start}
 .nx-partes+.nx-parte .t{grid-column:1/-1}
-.nx-parte{padding:14px 16px}
+.nx-parte{padding:18px 20px}
 .nx-parte .t{margin-bottom:9px}
 .nx-chips{gap:6px;margin-top:10px}
 .nx-custos{gap:7px;margin-top:9px}
@@ -12832,8 +12833,8 @@ const NX_CSS = `<style>
 .nx-medos{gap:8px;margin-top:11px}
 .nx-passos{gap:5px;margin-top:11px}
 .nx-duas{gap:13px;margin-top:15px}
-.nx-tres{gap:9px;margin-top:18px}
-.nx-pags{gap:9px;margin-top:14px}
+.nx-tres{gap:11px;margin-top:22px}
+.nx-pags{gap:11px;margin-top:18px}
 /* O "orc1PagChips()" devolve os chips dentro de um "<div class="pags">", entao
    o ".pag" e' NETO do ".nx-pags", e o "flex:1 1 52mm" la em cima nunca chegava
    nele: quem e' filho e' o embrulho, com "flex:0 1 auto" e "min-width:auto".
@@ -12842,10 +12843,10 @@ const NX_CSS = `<style>
    O embrulho vira a fila. Com 3 formas de pagamento elas dividem a linha; com
    4, a ultima cai numa segunda linha e cresce ate a largura toda. */
 .nx-pags>.pags{display:flex;flex-wrap:wrap;gap:7px;width:100%;margin:0}
-.nx-contato{gap:9px;margin-top:14px}
+.nx-contato{gap:11px;margin-top:18px}
 /* 7,5pt era o menor corpo do documento, e nele estava o unico texto com peso
    juridico: garantia, escopo e DIFAL. A folha 9 tem folga no pe. */
-.nx-obs{margin-top:10px;font-size:8.5pt}
+.nx-obs{margin-top:12px;font-size:9.2pt;line-height:1.65}
 
 /* O ULTIMO BLOCO NAO PREGA NO PE, e tambem NAO LEVA REGRA NENHUMA.
    Aqui morava uma regra que zerava a margem de cima do ".nx-fim", escrita em
@@ -12912,7 +12913,7 @@ const NX_CSS = `<style>
 .nx-mega .un{font-size:15pt}
 .nx-anos{margin:16px 0 6px}
 .nx-fin{margin-top:13px}
-.nx-fin .s{padding:10px 12px}
+.nx-fin .s{padding:15px 16px}
 .nx-fin .s .v{font-size:17pt}
 .nx-rampa{height:42mm;margin-top:13px;padding-bottom:19px}
 
@@ -12928,40 +12929,40 @@ const NX_CSS = `<style>
 .nx-cen .vals div{font-size:9pt}
 .nx-cen .id .n{font-size:14pt}
 .nx-medo{padding:12px 14px}
-.nx-medo .fala{font-size:10.5pt}
-.nx-medo .resp{font-size:10pt;line-height:1.5}
+.nx-medo .fala{font-size:11.2pt}
+.nx-medo .resp{font-size:10.8pt;line-height:1.62}
 .nx-medo .reg{margin:7px 0}
 .nx-passo{padding:9px 12px}
-.nx-passo .t{font-size:10.5pt}
+.nx-passo .t{font-size:11.2pt}
 .nx-lista li{font-size:10pt;line-height:1.6}
 
 /* ── as linhas de custo com corpo ────────────────────────────────────────
    Numa coluna estreita elas ficavam finas demais e abriam o vao que o
    margin-top:auto depois esticava. Linha alta e barra grossa enchem a folha
    com a informacao que ja esta la, em vez de com ar. */
-.nx-custos{gap:15px}
-.nx-custo .l{font-size:11pt}
-.nx-custo .trilho{height:9px;margin-top:7px}
-.nx-custo .n{font-size:8pt;margin-top:4px}
+.nx-custos{gap:21px}
+.nx-custo .l{font-size:12pt}
+.nx-custo .trilho{height:11px;margin-top:9px}
+.nx-custo .n{font-size:8.8pt;margin-top:5px}
 .nx-app{border-radius:18px}
 .nx-app .leg{font-size:8pt;padding:9px 4px 11px}
 
 /* ── os cenarios com corpo ───────────────────────────────────────────────
    Eram 38% de ocupacao com tipo de 9pt, que no celular ninguem le. O vao nao
    se resolvia com respiro: era o tipo pequeno demais que o abria. */
-.nx-cen{gap:12px;margin-top:18px}
-.nx-cen .c{padding:16px 18px;grid-template-columns:50mm 1fr;gap:14px}
+.nx-cen{gap:14px;margin-top:22px}
+.nx-cen .c{padding:21px 22px;grid-template-columns:46mm 1fr;gap:13px}
 .nx-cen .id .n{font-size:16pt}
-.nx-cen .id .q{font-size:9.5pt;margin-top:3px}
-.nx-cen .id .selo{font-size:7.5pt;margin-top:7px;padding:3px 9px}
+.nx-cen .id .q{font-size:10.2pt;margin-top:4px}
+.nx-cen .id .selo{font-size:7.5pt;margin-top:7px;padding:3px 9px;white-space:nowrap}
 .nx-cen .vals{gap:6px 14px}
-.nx-cen .vals div{font-size:10pt}
+.nx-cen .vals div{font-size:10.8pt}
 /* A quinta linha e' impar numa grade de duas colunas e sobrava espremida na
    coluna estreita: medida, 8,5mm de altura contra 4,2mm das outras quatro, com
    "R$" numa linha e "1.110.808" na de baixo, e o cartao 4,2mm mais alto que os
    irmaos. Ela passa a ocupar a linha inteira e o valor para de poder quebrar. */
 .nx-cen .vals div:last-child{grid-column:1/-1}
-.nx-cen .vals div:last-child .v{white-space:nowrap}
+.nx-cen .vals .v{white-space:nowrap}
 
 /* ── os tres angulos do carregador, na folha clara ──────────────────────
    As fotos tem fundo branco: no cartao claro, o multiply derrete o fundo e o
@@ -12999,10 +13000,10 @@ const NX_CSS = `<style>
 /* ── o seu ponto: a banda cresce e a lista respira ──────────────────────*/
 .nx-banda{height:88mm}
 .nx-banda .txt .t{font-size:19pt}
-.nx-banda .txt .d{font-size:10pt}
-.nx-lista li{font-size:10.5pt;line-height:1.75;padding-left:21px;text-wrap:pretty}
-.nx-col .h{font-size:9pt;margin-bottom:10px}
-.nx-aviso{font-size:9pt;padding:13px 15px;margin-top:16px}
+.nx-banda .txt .d{font-size:10.6pt;line-height:1.5}
+.nx-lista li{font-size:11.5pt;line-height:1.9;padding-left:22px;text-wrap:pretty}
+.nx-col .h{font-size:9.6pt;margin-bottom:11px}
+.nx-aviso{font-size:9.8pt;line-height:1.55;padding:14px 16px;margin-top:16px}
 
 /* ── o fluxo acumulado de 10 anos ────────────────────────────────────────
    "Patrimonio em 10 anos" era numero de manchete sem prova nenhuma. A barra
