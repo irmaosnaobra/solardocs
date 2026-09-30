@@ -13991,6 +13991,24 @@ function epRevisarGerarLink() {
 function epRevisarGerarPDF() {
   epCompletoAplicar();
   epCompletoFechar();
+  // SEM NOME DO CLIENTE, NAO EMITE (ordem do dono, 29/09/2026).
+  // Ele gerou um PDF sem preencher o cliente: a capa saiu "Orcamento no ... ·
+  // Cliente", com a palavra generica, e a folha 2 ficou com uma parte so'.
+  // A regra ja' existia do outro lado: o epCompletoGerar('link') recusa desde
+  // sempre sem nome, "porque o cliente abre o documento e le '—' no lugar
+  // dele". O caminho do PDF e' que passava.
+  // MEDIDO, um documento por aba pra um nao apagar o outro: os quatro que saem
+  // do Simulador imprimem o nome no papel (completo, basico, estudo, planilha).
+  // O Carregador fica de fora: tem campo de cliente proprio (eq-cli-nome) e nao
+  // le o do Simulador — a mesma excecao que a trava do investimento ja' faz.
+  const campoCli = document.getElementById('el-cliente');
+  if (revDocAtual !== 'carregador' && !String((campoCli && campoCli.value) || '').trim()) {
+    alert('Preencha o nome do cliente antes de emitir.\n\nEle sai na capa e no corpo do documento. Sem ele, o papel chega ao cliente escrito "Cliente".');
+    // O painel ja' foi fechado acima, entao o campo esta' na tela: levar o
+    // cursor ate' ele e' a diferenca entre mandar procurar e entregar.
+    if (campoCli) { try { campoCli.scrollIntoView({ block: 'center' }); campoCli.focus(); } catch (e) {} }
+    return;
+  }
   const p = eletroParams();
   if (!(p.invest > 0) && revDocAtual !== 'estudo' && revDocAtual !== 'carregador') {
     alert('Defina o investimento total para emitir este documento.');
