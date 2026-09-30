@@ -69,6 +69,116 @@ function Dica({ active, payload }: { active?: boolean; payload?: { payload: Pass
   );
 }
 
+// ── MAPA DE CALOR ────────────────────────────────────────────────────────────
+// Os cartões abaixo mostram um caminho de cada vez. Com seis caminhos e até treze
+// perguntas, "onde o quiz mais perde" só aparece depois de comparar seis gráficos
+// na cabeça. Aqui é uma grade só: pergunta na linha, caminho na coluna, e a cor
+// diz quanta gente PAROU ali, em % de quem chegou naquela pergunta.
+//
+// Por que % e não o número cru: os caminhos têm tamanhos muito diferentes (o
+// comércio é dezenas de vezes maior que o integrador), e a cor por quantidade
+// pintaria só o caminho grande. A quantidade fica no número de dentro da célula
+// e na dica.
+//
+// A cor é MAGNITUDE, então é uma rampa de um tom só, clara → escura (rampa azul
+// 250→650 da paleta de referência; validada: L monótona, ΔL ≥ 0,06 entre degraus,
+// ponta clara 2,11:1 no branco, um tom só). O número aparece em TODA célula: a
+// cor é o resumo para a vista, o número é o dado — quem não distingue os tons lê
+// igual. Célula vazia = a pergunta não existe naquele caminho.
+const CALOR = ['#86b6ef', '#5598e7', '#2a78d6', '#1c5cab', '#104281'];
+/** Faixas de %: até 10, até 25, até 40, até 60, acima. Zero não entra na rampa. */
+const FAIXAS = [10, 25, 40, 60];
+const faixaDe = (p: number) => FAIXAS.findIndex((t) => p <= t) === -1 ? CALOR.length - 1 : FAIXAS.findIndex((t) => p <= t);
+/** Nos três tons escuros o número vai em branco; nos dois claros, na tinta do tema. */
+const tintaDaFaixa = (i: number) => (i >= 2 ? '#ffffff' : '#0B1220');
+
+interface Celula { pct: number; chegaram: number; pararam: number; erro: string | null }
+
+function MapaDeCalor({ caminhos }: { caminhos: Caminho[] }) {
+  // A ordem das linhas é a ordem em que as perguntas aparecem na página. Monto
+  // pelo caminho mais movimentado e vou juntando o que os outros têm de diferente,
+  // na posição em que eles mostram — assim o mapa lê de cima para baixo como o quiz.
+  const linhas: { id: string; curta: string; pergunta: string }[] = [];
+  for (const c of caminhos) {
+    let corte = 0;
+    for (const p of c.passos) {
+      const i = linhas.findIndex((l) => l.id === p.id);
+      if (i >= 0) { corte = i + 1; continue; }
+      linhas.splice(corte, 0, { id: p.id, curta: p.curta, pergunta: p.pergunta });
+      corte += 1;
+    }
+  }
+  const celula = (c: Caminho, id: string): Celula | null => {
+    const p = c.passos.find((x) => x.id === id);
+    if (!p || p.chegaram === 0) return null;
+    return { pct: pct(p.pararam, p.chegaram), chegaram: p.chegaram, pararam: p.pararam, erro: p.erros[0]?.msg ?? null };
+  };
+  if (linhas.length === 0) return null;
+  return (
+    <div className={styles.card} style={{ marginTop: 12 }}>
+      <div style={{ fontWeight: 700, marginBottom: 4 }}>Mapa de calor: onde cada caminho perde</div>
+      <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: '0 0 10px', maxWidth: 760 }}>
+        Cada célula é a pergunta num caminho. O número é quanto, de quem CHEGOU naquela pergunta, parou ali — quanto mais
+        escuro, mais gente parou. Passe o mouse para ver os totais e o aviso que mais travou.
+      </p>
+      <div className={styles.tableWrap}>
+        <table className={styles.table} style={{ borderCollapse: 'separate', borderSpacing: 2 }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: 'left' }}>Pergunta</th>
+              {caminhos.map((c) => (
+                <th key={c.id} style={{ textAlign: 'center', fontSize: 12, lineHeight: 1.2 }}>
+                  {c.nome}<br /><span style={{ fontWeight: 400, color: 'var(--color-text-muted)' }}>{c.sessoes}</span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {linhas.map((l) => (
+              <tr key={l.id}>
+                <td style={{ whiteSpace: 'nowrap' }}>{l.curta}</td>
+                {caminhos.map((c) => {
+                  const v = celula(c, l.id);
+                  if (!v) return <td key={c.id} style={{ textAlign: 'center', color: 'var(--color-text-dim)' }}>—</td>;
+                  if (v.pararam === 0) {
+                    return (
+                      <td key={c.id} title={`${l.pergunta} · ${c.nome}
+Chegaram ${v.chegaram}, ninguém parou aqui`}
+                        style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>0%</td>
+                    );
+                  }
+                  const i = faixaDe(v.pct);
+                  return (
+                    <td key={c.id}
+                      title={`${l.pergunta} · ${c.nome}
+Chegaram ${v.chegaram}, pararam aqui ${v.pararam} (${v.pct}%)`
+                        + (v.erro ? `
+Aviso que mais travou: “${v.erro}”` : '')}
+                      style={{ textAlign: 'center', background: CALOR[i], color: tintaDaFaixa(i), fontWeight: 700, borderRadius: 4 }}>
+                      {v.pct}%
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 12, color: 'var(--color-text-muted)', flexWrap: 'wrap' }}>
+        <span>Pararam ali:</span>
+        <span>0%</span>
+        {CALOR.map((cor, i) => (
+          <span key={cor} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <i style={{ width: 16, height: 12, background: cor, borderRadius: 3, display: 'inline-block' }} />
+            {i === 0 ? 'até 10%' : i === CALOR.length - 1 ? 'mais de 60%' : `até ${FAIXAS[i]}%`}
+          </span>
+        ))}
+        <span>· “—” = a pergunta não existe naquele caminho</span>
+      </div>
+    </div>
+  );
+}
+
 function CaminhoCard({ c }: { c: Caminho }) {
   const dados = c.passos.filter((p) => p.chegaram > 0).map((p) => ({ ...p, seguiram: Math.max(0, p.chegaram - p.pararam) }));
   const pior = [...dados].sort((a, b) => b.pararam - a.pararam)[0];
@@ -331,6 +441,8 @@ export default function QuizEletropostoPanel() {
                   </p>
                 )}
               </div>
+
+              <MapaDeCalor caminhos={caminhos} />
 
               {caminhos.map((c) => <CaminhoCard key={c.id} c={c} />)}
 
