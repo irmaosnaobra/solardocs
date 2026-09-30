@@ -3725,6 +3725,22 @@ function passoVoltar(){
   if(passoAtual > 0){ passoAtual--; pintarPasso(); }
 }
 /**
+ * VOLTA PRO PASSO DO HORÁRIO (30/09/2026). As saídas de `gravarAgendamento()` que
+ * perdem o slot mandavam "escolha outro acima" com o passo do WhatsApp na tela:
+ * `#slots` mora dentro de `#p-horario`, e `.passo{display:none}` vale sempre, então
+ * a lista estava escondida, o `scrollIntoView` não tinha alvo e o clique seguinte só
+ * repetia o aviso (`slotSel` já era null). Sem saída a não ser apertar Voltar dez
+ * vezes. Todos os campos continuam no DOM: a pessoa escolhe outro horário e segue no
+ * Continuar com tudo preenchido.
+ * Chamar ANTES do `erro()`: `pintarPasso()` limpa a mensagem.
+ */
+function voltarProHorario(){
+  const i = passosVivos().findIndex(p => p.id === 'p-horario');
+  if(i < 0) return;
+  passoAtual = i;
+  pintarPasso();
+}
+/**
  * Depois de escolher, o Continuar tem que estar à vista. No celular a pilha de
  * opções (o perfil tem 10) empurra o botão para baixo da dobra, e quem escolheu
  * fica olhando para a resposta marcada sem saber o que fazer.
@@ -4351,7 +4367,8 @@ async function gravarAgendamento(){
       // ficha velha esperando é exatamente o jeito de gravar o dado errado depois
       slotSel = null; pendente = null;
       await montarSlots();
-      btn.disabled = false; btn.textContent = 'Confirmar agendamento →';
+      btn.disabled = false;
+      voltarProHorario();   // sem isto a lista de horários fica em display:none
       document.getElementById('slots').scrollIntoView({behavior:'smooth', block:'center'});
       return erro(passou ? 'Esse horário já passou. Escolha outro acima, a agenda foi atualizada.'
                          : 'Esse horário acabou de ser preenchido. Escolha o próximo disponível acima.');
@@ -4366,7 +4383,8 @@ async function gravarAgendamento(){
       // apertou — o dono é fixo; quem muda é o horário.
       slotSel = null; pendente = null;
       await montarSlots();
-      btn.disabled = false; btn.textContent = 'Confirmar agendamento →';
+      btn.disabled = false;
+      voltarProHorario();   // sem isto a lista de horários fica em display:none
       document.getElementById('slots').scrollIntoView({behavior:'smooth', block:'center'});
       return erro('Seu consultor já tem reunião nesse horário. Escolha outro acima, a agenda foi atualizada.');
     }
