@@ -12553,7 +12553,14 @@ const NX_CSS = `<style>
 .nx-kpi .n{font-size:8pt;color:var(--nx-fraco);margin-top:3px;font-weight:600}
 
 /* ── as partes ───────────────────────────────────────────────────────── */
-.nx-partes{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}
+/* auto-fit, e nao "1fr 1fr". O cartao do Cliente nao nasce quando ninguem
+   preencheu nada dele (a funcao caixa() devolve vazio), e a grade fixa deixava o
+   Fornecedor com 91mm dentro de uma coluna de 184mm: 93mm de buraco ao lado, na
+   folha que apresenta a proposta. Medido reproduzindo o caso.
+   Com auto-fit: dois cartoes viram duas colunas, um cartao vira uma coluna
+   inteira. Nada sobra, em nenhum dos dois casos. */
+.nx-partes{display:grid;grid-template-columns:repeat(auto-fit,minmax(70mm,1fr));
+  gap:9px;margin-top:12px}
 .nx-parte{background:var(--nx-cartao);border:1px solid var(--nx-linha);border-radius:12px;padding:13px 15px}
 .nx-parte .t{font-size:8pt;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;
   color:var(--nx-verde);margin-bottom:9px}
@@ -12822,8 +12829,14 @@ const NX_CSS = `<style>
    lataria clara do carro e da 3,70:1 contra os 5% mais claros do fundo.
    A sombra acompanha a letra, entao vale pra qualquer foto que entre aqui
    depois — escurecer o veu da banda inteira apagaria o argumento da folha. */
-.nx-banda .txt{position:absolute;left:13mm;right:13mm;bottom:8mm;z-index:2;
-  text-shadow:0 1px 3px rgba(11,26,43,.92),0 0 10px rgba(11,26,43,.55)}
+/* SEM text-shadow. Ela esteve aqui por um dia. O Chrome desenha a letra DUAS
+   vezes pra fazer sombra, e as duas entram na camada de texto do PDF: medido,
+   84 pedacos de texto viraram 93 e a linha "Cobertura, sinalizacao..." saia
+   duplicada pra quem copia, busca ou usa leitor de tela.
+   Quem resolveu a legibilidade sobre a foto foi o veu logo acima, que sobe pra
+   ~0,75 onde o texto mora. A sombra quase nao mudava o pixel e cobrava a camada
+   de texto inteira. */
+.nx-banda .txt{position:absolute;left:13mm;right:13mm;bottom:8mm;z-index:2}
 .nx-banda .txt .t{font-size:17pt;font-weight:800;line-height:1.12}
 .nx-banda .txt .t .g{color:#C8D4E2;font-weight:600}
 .nx-banda .txt .d{font-size:9.5pt;color:#C8D4E2;margin-top:5px;line-height:1.45;max-width:150mm}
