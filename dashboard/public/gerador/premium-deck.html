@@ -143,6 +143,13 @@ const rodape = (D, n, total) => `<div class="rodape">
 // ══════════════════════════════════════════════════════════════════════════
 function montar(D) {
   const E = D.ent || {}, R = D.res || {}, CEN = D.cen || [];
+  // SOCIEDADE: quando o payload traz o bloco `soc`, quem abre o link e' um SOCIO,
+  // e nao o dono do posto. O investimento na tela e' o APORTE dele, o lucro e' a
+  // COTA dele, e as frases de "chave na mao" mentiriam — ele nao esta comprando o
+  // posto, esta entrando nele. Nulo no Completo normal, e ai' tudo cai na frase de
+  // sempre.
+  const SOC = D.soc || null;
+  const socPc = v => String(Math.round((Number(v) || 0) * 10) / 10).replace('.', ',') + '%';
 
   // Regra 4: capa sem payback é capa mentindo. Aborta antes de imprimir.
   if (!tem(R.payback) || !(Number(R.payback) > 0)) {
@@ -159,13 +166,13 @@ function montar(D) {
   <div class="faixa"></div>
   <div class="vitrine"><img src="${ART}dc-3q-dir.webp" alt="Carregador NEXUS"></div>
   <div class="wrap">
-    <div class="sobre">Orçamento NEXUS nº ${esc(D.numero)} · ${esc(D.cliente)} · ${esc(D.cidade)}</div>
+    <div class="sobre">${SOC ? 'Sociedade' : 'Orçamento'} NEXUS nº ${esc(D.numero)} · ${esc(D.cliente)} · ${esc(D.cidade)}</div>
     <div class="capa-num">${brl(R.lucroMes)}<span class="capa-un">por mês</span></div>
     <div class="regua"></div>
     <div class="entrada" style="max-width:820px">O equipamento se compra, a obra se contrata. <b>O ponto não.</b></div>
     <div class="selos">
       <span>investimento de volta em <b>${dec(R.payback)} anos</b></span>
-      <span>chave na mão</span>
+      <span>${SOC ? 'obra e operação por nossa conta' : 'chave na mão'}</span>
       <span>garantia de 24 meses</span>
     </div>
   </div>
@@ -451,7 +458,10 @@ function montar(D) {
       </div>
     </div>
   </div>
-  <div class="faixa-verde">${brl(E.invest)} · valor total do projeto, chave na mão</div>
+  <div class="faixa-verde">${SOC
+    ? brl(E.invest) + ' · o seu aporte na sociedade, por ' + socPc(SOC.cota) + ' do lucro'
+    : brl(E.invest) + ' · valor total do projeto, chave na mão'}</div>
+  ${SOC ? `<div class="faixa-verde" style="background:#0B1A2B">Projeto inteiro ${brl(SOC.investTotal)}${SOC.nOutros > 0 ? ` · ${SOC.nOutros} outro(s) sócio(s) com ${brl(SOC.aporteOutros)}` : ''} · NEXUS ${SOC.aporteNexus > 0 ? brl(SOC.aporteNexus) : 'trabalho, obra e administração'} por ${socPc(SOC.cotaNexus)}${SOC.faltaCapital > 1 ? ` · ainda a captar ${brl(SOC.faltaCapital)}` : ''}</div>` : ''}
   ${rodape(D, 11, D.total)}
 </section>`);
 
@@ -500,7 +510,7 @@ function montar(D) {
     <div class="tres">
       <div><span class="v">${brl(R.lucroMes)}</span><span class="r">por mês</span></div>
       <div><span class="v">${dec(R.payback)} anos</span><span class="r">para o dinheiro voltar</span></div>
-      <div><span class="v">${brl(E.invest)}</span><span class="r">o projeto, chave na mão</span></div>
+      <div><span class="v">${brl(E.invest)}</span><span class="r">${SOC ? 'o seu aporte na sociedade' : 'o projeto, chave na mão'}</span></div>
     </div>
     <div class="contato">
       <div class="bloco"><div class="r">Seu consultor</div><div class="v">${esc(D.vendedor)}</div></div>
