@@ -1364,6 +1364,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .orc1 .pag{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:9px;padding:7px 12px;font-size:11px}
 .orc1 .pag b{display:block;font-size:9.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;opacity:.6;margin-bottom:2px}
 .orc1 .pag span{font-weight:700;font-variant-numeric:tabular-nums}
+.orc1 .pag small{display:block;font-size:9px;font-weight:600;opacity:.62;margin-top:3px;line-height:1.35}
 /* ===== Orçamento aberto por link (tela do cliente) =====
    A folha tem largura de papel (210mm) e o celular tem 360px. Em vez de deixar a
    página rolar pro lado, a folha é escalada por transform e o palco reserva a
@@ -3959,12 +3960,12 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="orc-pg-cond" id="orc-pg-fin" style="display:none">
           <div class="orc-fin-aviso" style="margin-top:14px;margin-bottom:12px">
             <span class="ic">★</span>
-            <p><b>Financiamento bancário em até 72x.</b> Financia <b>apenas o carregador</b> (o equipamento); os demais itens do projeto seguem em condição própria. Sempre sujeito à análise de crédito.</p>
+            <p><b>Financiamento bancário em até 96x, com 120 dias de carência.</b> Financia <b>100% da compra</b> — o projeto inteiro, não só o equipamento. Sempre sujeito à análise de crédito.</p>
           </div>
           <div class="eletro-field"><label>Entrada</label>
             <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="orc-fin-valor" inputmode="decimal" step="0.01" min="0" value="0" oninput="orcCalc()"></div></div>
           <div class="eletro-field"><label>Parcelas do banco</label>
-            <div class="eletro-inp has-suf"><input type="number" id="orc-fin-parc" inputmode="numeric" step="1" min="1" max="120" value="72" oninput="orcCalc()"><span class="suf">x</span></div></div>
+            <div class="eletro-inp has-suf"><input type="number" id="orc-fin-parc" inputmode="numeric" step="1" min="1" max="120" value="96" oninput="orcCalc()"><span class="suf">x</span></div></div>
           <div class="eletro-field"><label>Valor da parcela</label>
             <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="number" id="orc-fin-parcela" inputmode="decimal" step="0.01" min="0" placeholder="0" oninput="orcCalc()"></div></div>
           <div class="orc-ent-prev" id="orc-fin-preview">—</div>
@@ -12424,6 +12425,7 @@ const EP_A4_CSS = `<style>
 .ep-completo .ep-pags .pag{border:1px solid #e4e8f0;border-radius:7px;padding:7px 12px;background:#fbfcfe;flex:1 1 190px;max-width:100%}
 .ep-completo .ep-pags .pag b{display:block;font-size:9px;font-weight:800;letter-spacing:.7px;text-transform:uppercase;color:#5C6470}
 .ep-completo .ep-pags .pag span{font-size:13px;font-weight:800;color:#161A22}
+.ep-completo .ep-pags .pag small{display:block;font-size:9.5px;font-weight:600;color:#5C6470;margin-top:3px;line-height:1.35}
 
 .ep-completo .ep-valid-fim{margin-top:10px;text-align:center;font-size:10px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:#5C6470}
 </style>`;
@@ -12774,6 +12776,11 @@ const NX_CSS = `<style>
 .nx-pags .pag b{display:block;font-size:7.5pt;font-weight:800;letter-spacing:1.2px;
   text-transform:uppercase;color:var(--nx-fraco);margin-bottom:3px}
 .nx-pags .pag span{font-size:12pt;font-weight:900;letter-spacing:-.4px}
+/* A LETRA MIUDA DO CHIP. E um "small", e nao mais um "span": a regra acima pega
+   TODO span do chip e o transformaria no valor grande. Aqui mora a condicao que
+   o cliente precisa ter lido mas nao precisa ler primeiro. */
+.nx-pags .pag small{display:block;font-size:8.2pt;font-weight:600;line-height:1.4;
+  color:var(--nx-fraco);margin-top:5px;letter-spacing:0}
 .nx-contato{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:16px}
 .nx-contato .b{background:var(--nx-cartao2);border:1px solid var(--nx-linha);border-radius:11px;padding:11px 13px}
 .nx-contato .b .r{font-size:7.5pt;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--nx-fraco)}
@@ -15692,7 +15699,7 @@ function orcEntradaCalc(total) {
 // Aqui a parcela é DIGITADA, não calculada: quem dá o número é a simulação do
 // banco, com a taxa dele e a análise de crédito do cliente. Aplicar o acréscimo
 // da casa a 72x seria inventar uma condição que o banco não aprovou.
-const ORC_FIN_PARC = 72;   // parcelas padrão (é o "até 72x" que a casa já anuncia)
+const ORC_FIN_PARC = 96;   // parcelas padrão (é o "até 96x" que a casa anuncia desde 30/09/2026)
 function orcFinCalc(total) {
   if (total == null) total = orcLerItens().total;
   const entrada = Math.max(0, Math.min(orcNum(orcVal('orc-fin-valor')), total));
@@ -17003,10 +17010,10 @@ function orc1PagChips(o) {
     const financiado = Math.max(0, (o.total || 0) - ent);
     if (p > 0 && financiado > 0) {
       const n = Math.max(1, Math.round(orcNum(f.parcelas) || ORC_FIN_PARC));
-      chips.push(`<div class="pag"><b>Entrada + financiamento</b><span>${ent > 0 ? o1BRL(ent) + ' + ' : ''}${n}x de ${o1BRL(p)} · sob análise</span></div>`);
+      chips.push(`<div class="pag"><b>Entrada + financiamento</b><span>${ent > 0 ? o1BRL(ent) + ' + ' : ''}${n}x de ${o1BRL(p)}</span><small>120 dias de carência · sujeito a análise de crédito</small></div>`);
     } else if (financiado > 0) {
       const n = (f === true) ? ORC_FIN_PARC : Math.max(1, Math.round(orcNum(f.parcelas) || ORC_FIN_PARC));
-      chips.push(`<div class="pag"><b>Financiamento bancário</b><span>até ${n}x (só o carregador, sujeito a análise)</span></div>`);
+      chips.push(`<div class="pag"><b>Financiamento bancário</b><span>até ${n}x · 120 dias de carência</span><small>100% da compra, sujeito a análise de crédito</small></div>`);
     }
   }
   return chips.length ? `<div class="pags">${chips.join('')}</div>` : '';
@@ -17037,8 +17044,8 @@ function epWhatsTextoOrcamento(total) {
   if (pg.fin) {
     const f = pg.fin;
     formas.push(f.parcela > 0
-      ? `• ${f.valor > 0 ? `Entrada de ${elMoney(f.valor)} + ` : ''}${f.parcelas}x de ${elMoney2(f.parcela)} no financiamento (mediante análise de crédito)`
-      : `• Financiamento em até ${f.parcelas}x (mediante análise de crédito)`);
+      ? `• ${f.valor > 0 ? `Entrada de ${elMoney(f.valor)} + ` : ''}${f.parcelas}x de ${elMoney2(f.parcela)} no financiamento, com 120 dias de carência (mediante análise de crédito)`
+      : `• Financiamento em até ${f.parcelas}x com 120 dias de carência — 100% da compra (mediante análise de crédito)`);
   }
   // Nada marcado (ou WhatsApp disparado antes de abrir o card): manda o à vista.
   if (!formas.length) formas.push(`• À vista: ${elMoney(total)}`);
@@ -20098,7 +20105,7 @@ function orcSnapApply(s) {
   set('orc-frete', s.frete); set('orc-desc', s.desc); set('orc-obs', s.obs); set('orc-parc-data', s.parcData);
   setck('orc-pg-ck-avista', s.pgA); setck('orc-pg-ck-fin', s.pgF);
   // Entrada + cartão e entrada + financiamento. Orçamento salvo antes destes campos
-  // não traz nada: o set() ignora null e os defaults (18x/22,5% e 72x) ficam de pé.
+  // não traz nada: o set() ignora null e os defaults (18x/22,5% e 96x) ficam de pé.
   // s.pgC/s.cart (a grade velha de 1x–21x) não são reaplicados: a grade não existe
   // mais na tela, e o consultor remarca a condição no campo.
   setck('orc-pg-ck-entrada', s.pgE);
