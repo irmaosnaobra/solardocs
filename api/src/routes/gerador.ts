@@ -180,20 +180,69 @@ router.post('/form-solar', async (req: Request, res: Response) => {
 // `apalavrado:<id numérico>` pode ser escrita, e a data é limitada a 1 ano. O pior
 // caso de abuso é calar um card por um ano, que qualquer consultor desfaz
 // apertando outro status.
+const APALAVRADO_MIN_TEXTO = 20;
+
 router.post('/apalavrado', async (req: Request, res: Response) => {
   const b = (req.body || {}) as Record<string, unknown>;
   const id = Number(b.id);
   if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: 'id inválido' }); return; }
 
-  // Dias: 1 a 365. Fora disso vira o padrão — data absurda digitada com o polegar
-  // não pode virar sumiço de anos.
-  const diasCru = Number(b.dias);
-  const dias = Number.isFinite(diasCru) && diasCru >= 1 && diasCru <= 365 ? Math.round(diasCru) : 30;
-  const aguardando = String(b.aguardando || '').trim().slice(0, 200);
+  // ── O TEXTO É OBRIGATÓRIO, 20 CARACTERES (ordem do Thiago, 30/09/2026) ────
+  // "a partir do momento que a pessoa clicar apalavrado, ele tem que colocar um
+  // texto de pelo menos 20 caracteres informando sobre o que que é".
+  //
+  // A trava vive AQUI e não só na tela. Validação de tela é conveniência: ela
+  // cai com PWA em cache velho, com aba aberta desde ontem, e com qualquer um
+  // que chame a rota direto. A regra que só existe no navegador não é regra.
+  const aguardando = String(b.aguardando || '').trim().slice(0, 400);
+  if (aguardando.length < APALAVRADO_MIN_TEXTO) {
+    res.status(400).json({
+      error: `escreva pelo menos ${APALAVRADO_MIN_TEXTO} caracteres dizendo o que está esperando`,
+      minimo: APALAVRADO_MIN_TEXTO, recebido: aguardando.length,
+    });
+    return;
+  }
+
+  // ── A DATA TAMBÉM É OBRIGATÓRIA, e quem digita é o consultor ──────────────
+  // Mesma ordem: "um botão também de reagendamento, pra pessoa marcar ali, ele
+  // mesmo digitar, pra essa pessoa no apalavrado não sumir da vida".
+  //
+  // Aceita `retomar_em` (a data digitada, que é o caminho da tela) ou `dias`
+  // (atalho). Sem nenhum dos dois, recusa: espera sem data é a gaveta que este
+  // status existe pra não ser.
+  const agora = new Date();
+  const TETO_MS = 365 * 86400_000;
+  let retomar: Date | null = null;
+
+  const cru = String(b.retomar_em || '').trim();
+  if (cru) {
+    // Data pura ("2026-11-20") vira meio-dia de Brasília: 00:00 num fuso a
+    // oeste cai no dia anterior, e a espera venceria um dia antes do combinado.
+    const iso = /^\d{4}-\d{2}-\d{2}$/.test(cru) ? `${cru}T12:00:00-03:00` : cru;
+    const d = new Date(iso);
+    if (!Number.isFinite(d.getTime())) { res.status(400).json({ error: 'data inválida' }); return; }
+    retomar = d;
+  } else {
+    const diasCru = Number(b.dias);
+    if (!Number.isFinite(diasCru) || diasCru < 1) {
+      res.status(400).json({ error: 'diga até quando esperar (retomar_em ou dias)' });
+      return;
+    }
+    retomar = new Date(agora.getTime() + Math.round(diasCru) * 86400_000);
+  }
+
+  if (retomar.getTime() <= agora.getTime()) {
+    res.status(400).json({ error: 'a data de retomar tem que ser no futuro' });
+    return;
+  }
+  if (retomar.getTime() > agora.getTime() + TETO_MS) {
+    res.status(400).json({ error: 'no máximo 1 ano de espera' });
+    return;
+  }
+
+  const dias = Math.round((retomar.getTime() - agora.getTime()) / 86400_000);
   const por = String(b.por || '').trim().slice(0, 60);
 
-  const agora = new Date();
-  const retomar = new Date(agora.getTime() + dias * 86400_000);
   try {
     const { error } = await supabase.from('system_state').upsert(
       {

@@ -2720,7 +2720,15 @@ async function carregarOcupados(deYmd, ateYmd){
     // "não tem nada marcado". Nos dois casos a grade abre (a gravação valida de
     // novo no servidor), mas só um deles é motivo de olhar o log.
     compromissos = (j && Array.isArray(j.ocupados) ? j.ocupados : [])
-      .map(a => ({ ts: a.ts, dono: String(a.dono), dur: duracaoDe(a) }));
+      // `ep` PRECISA SOBREVIVER AO MAP. O `donosLivres` le a bandeira crua pra
+      // decidir entre distancia e sobreposicao, e na primeira versao (30/09) ela
+      // era consumida so dentro de `duracaoDe` e jogada fora aqui: `c.ep` chegava
+      // `undefined` e o ramo da faixa de remarcacao virava codigo morto em
+      // producao. Resultado medido: a remarcacao das 14:15 continuava apagando as
+      // 14:00 da vitrine, que e exatamente o horario que a regra existe pra
+      // proteger. O `solar` sobreviveu por sorte, porque o efeito dele fica
+      // inteiro dentro de `dur`.
+      .map(a => ({ ts: a.ts, dono: String(a.dono), ep: !!a.ep, dur: duracaoDe(a) }));
     if (j && j.proximoDono) rodizioSugerido = j.proximoDono;
   }catch(e){ compromissos = []; }   // falhou: não trava a agenda, valida no envio
 }

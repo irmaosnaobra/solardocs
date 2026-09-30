@@ -47,6 +47,8 @@ const MAPA: Record<string, string> = {
   // consultor foi atrás. `prosp_eletroposto` guarda a palavra "eletroposto" de
   // propósito: o CRM casa card de EP por ela.
   'prosp_eletroposto': 'EP Prospec',
+  // Convite ao investidor da base: follow-up ativo, marca na faixa dos quinze.
+  'convite_investidor_eletroposto': 'EP Convite',
   'prosp_solar': 'Solar Prospec',
   'crm-bulk': 'Import',
   'import': 'Import',

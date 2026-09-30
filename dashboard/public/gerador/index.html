@@ -1611,6 +1611,18 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .espera-btn{padding:10px 6px;border-radius:8px;border:0;font-family:inherit;font-weight:800;font-size:12px;
   cursor:pointer;line-height:1.15;background:#F59E0B;color:#2A1D00}
 .espera-btn:hover{filter:brightness(1.08)}
+.espera-atalho{padding:8px 6px;border-radius:8px;font-family:inherit;font-weight:700;font-size:12px;cursor:pointer;
+  background:rgba(245,158,11,.18);border:1px solid rgba(245,158,11,.45);color:#FCD34D}
+.espera-atalho:hover{background:rgba(245,158,11,.3)}
+.espera-lbl{display:block;font-size:11px;font-weight:700;color:#FCD34D;margin:8px 0 4px}
+.espera-conta{font-size:11px;color:#94A3B8;margin:-4px 0 4px;text-align:right}
+.espera-conta.ok{color:#7DD117}
+.espera-ok{width:100%;margin-top:8px;padding:12px}
+.espera-ok:disabled{opacity:.45;cursor:not-allowed;filter:none}
+/* Selo da espera no card do quadro. Vencido é vermelho: é o único jeito de a
+   data significar alguma coisa agora que ninguém recebe mensagem. */
+.crm-espera{display:block;font-size:11px;line-height:1.3;margin-top:4px;color:#FCD34D}
+.crm-espera.venceu{color:#FCA5A5;font-weight:700}
 .crm-btn-status.bg-pe{background:#dc2626;color:#fff}
 .crm-btn-status.bg-pa{background:#B3C7DC;color:#1f2937}
 .crm-det-prop-atual{font-size:12px;color:#7DD3FC;margin-top:8px;min-height:1px}
@@ -5931,15 +5943,25 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
            posse do arrendamento. O prazo é obrigatório na prática (todo botão
            tem um), porque pausa sem data vira cemitério. -->
       <div id="crm-det-espera" class="espera-box" hidden>
-        <div class="posse-tit">Apalavrado: esperando o quê, e até quando?</div>
-        <input id="crm-det-espera-oque" class="espera-in" type="text" maxlength="200"
-               placeholder="Ex.: o investidor · o terreno em Catalão · assinar o contrato">
+        <div class="posse-tit">Apalavrado: o que está esperando, e até quando?</div>
+        <!-- OS DOIS CAMPOS SÃO OBRIGATÓRIOS (ordem do Thiago, 30/09/2026): texto
+             de no mínimo 20 caracteres e uma data que o consultor digita. A
+             mesma regra está no servidor, porque validação de tela cai com PWA
+             em cache velho. -->
+        <textarea id="crm-det-espera-oque" class="espera-in" rows="2" maxlength="400"
+                  oninput="crmEsperaValida()"
+                  placeholder="O que está esperando? Ex.: apalavrado no 50/50, esperando o investidor confirmar"></textarea>
+        <div class="espera-conta"><span id="crm-det-espera-cont">0</span>/20 caracteres</div>
+        <label class="espera-lbl" for="crm-det-espera-data">Voltar para mim em</label>
+        <input id="crm-det-espera-data" class="espera-in" type="date" onchange="crmEsperaValida()">
         <div class="espera-grid">
-          <button type="button" class="espera-btn" onclick="crmApalavrar(30)">30 dias</button>
-          <button type="button" class="espera-btn" onclick="crmApalavrar(60)">60 dias</button>
-          <button type="button" class="espera-btn" onclick="crmApalavrar(90)">90 dias</button>
+          <button type="button" class="espera-atalho" onclick="crmEsperaEmDias(30)">+30 dias</button>
+          <button type="button" class="espera-atalho" onclick="crmEsperaEmDias(60)">+60 dias</button>
+          <button type="button" class="espera-atalho" onclick="crmEsperaEmDias(90)">+90 dias</button>
         </div>
-        <div class="posse-nota">Ele para de receber cobrança e sai do ciclo de 48h. Na data, volta sozinho pra sua fila.</div>
+        <button type="button" class="espera-btn espera-ok" id="crm-det-espera-ok" disabled
+                onclick="crmApalavrar()">Pôr na espera</button>
+        <div class="posse-nota">Ele para de receber cobrança e sai do ciclo de 48h. Na data, o card volta marcado como vencido.</div>
       </div>
 
       <!-- Eletroposto: quem REALMENTE apresentou a proposta. Só aparece em card
@@ -21272,6 +21294,18 @@ function crmAbrirDetalhe(key) {
   crmDetAtual = { c, agRec, agEp: crmAgEletroposto(c) };
   const posse = document.getElementById('crm-det-posse');
   if (posse) posse.hidden = true;
+  // A caixa da espera também fecha, e ZERADA. Sem isto ela ficava aberta ao
+  // trocar de card e levava junto o texto do cliente anterior: dois toques e a
+  // espera do Cristiano ia parar na ficha de outra pessoa.
+  const espera = document.getElementById('crm-det-espera');
+  if (espera) {
+    espera.hidden = true;
+    const txt = document.getElementById('crm-det-espera-oque');
+    const dia = document.getElementById('crm-det-espera-data');
+    if (txt) txt.value = '';
+    if (dia) dia.value = '';
+    try { crmEsperaValida(); } catch (e) {}
+  }
 
   // Garante que o form de edição começa fechado (mostra o box de info).
   crmFecharEditar();
@@ -21571,25 +21605,49 @@ async function crmAtualizarStatus(novoStatus, extra) {
   // APALAVRADO abre a pergunta do prazo, e só o segundo toque grava. Gravar no
   // primeiro toque criaria espera sem data, que é a gaveta que este status
   // existe pra não ser.
-  if (novoStatus === 'apalavrado' && !(extra && extra.__dias)) {
+  if (novoStatus === 'apalavrado' && !(extra && extra.__retomar)) {
     const box = document.getElementById('crm-det-espera');
-    if (box) box.hidden = !box.hidden;
+    if (box) {
+      // Fecha a caixa de posse, senão as duas ficam abertas ao mesmo tempo.
+      const posse = document.getElementById('crm-det-posse');
+      if (posse) posse.hidden = true;
+      box.hidden = !box.hidden;
+      if (!box.hidden) {
+        const txt = document.getElementById('crm-det-espera-oque');
+        const dia = document.getElementById('crm-det-espera-data');
+        if (txt) txt.value = '';
+        if (dia) dia.value = '';
+        crmEsperaValida();
+        if (txt) txt.focus();
+      }
+    }
     return;
   }
   // O `__dias`/`__oque` são da espera e NÃO são coluna de `agendamentos`:
   // mandá-los no PATCH derrubaria o próprio botão com erro de coluna inexistente.
-  const espera = extra && extra.__dias ? { dias: extra.__dias, oque: extra.__oque || '' } : null;
-  if (extra) { delete extra.__dias; delete extra.__oque; }
+  const espera = extra && extra.__retomar ? { retomar: extra.__retomar, oque: extra.__oque || '' } : null;
+  if (extra) { delete extra.__retomar; delete extra.__oque; }
   try {
     await supaPatch(`agendamentos?id=eq.${ag.id}`, { status: novoStatus, ...(extra || {}) });
     // A espera mora no `system_state` do Supabase principal (é a máquina de
     // lembrete que lê), e a tela chega lá pelo rewrite /_api/*.
     try {
       if (espera) {
-        await fetch(`${APX_API}/gerador/apalavrado`, {
+        const rEsp = await fetch(`${APX_API}/gerador/apalavrado`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: ag.id, dias: espera.dias, aguardando: espera.oque, por: (function(){ try { return crmConsultorLogado() || ''; } catch (e) { return ''; } })() }),
+          body: JSON.stringify({
+            id: ag.id, retomar_em: espera.retomar, aguardando: espera.oque,
+            por: (function(){ try { return crmConsultorLogado() || ''; } catch (e) { return ''; } })(),
+          }),
         });
+        // O servidor é quem manda na regra dos 20 caracteres e da data. Se ele
+        // recusar, quem apertou tem que saber: o status foi gravado e a espera
+        // NÃO, então o card dormiria 30 dias em vez da data escolhida.
+        if (!rEsp.ok) {
+          const det = await rEsp.json().catch(() => ({}));
+          alert('O status foi salvo, mas a espera NAO foi registrada: ' + (det.error || 'erro')
+                + '. Abra o card e marque Apalavrado de novo, senao ele dorme o prazo padrao.');
+        }
       } else if (novoStatus !== 'apalavrado') {
         // Saiu da espera: apaga o carimbo, senão um prazo velho continuaria
         // calando um card que voltou a negociar.
@@ -21637,12 +21695,47 @@ async function crmAtualizarStatus(novoStatus, extra) {
 
 // Segundo toque do APALAVRADO: pega o que está escrito e o prazo do botão, e
 // manda gravar. O texto é opcional; o prazo nunca é.
-function crmApalavrar(dias) {
-  const el = document.getElementById('crm-det-espera-oque');
-  const oque = el ? String(el.value || '').trim() : '';
+const APALAVRADO_MIN_TEXTO = 20;
+
+/** Liga o botão só quando os DOIS campos obrigatórios estão preenchidos, e
+ *  mostra o contador. Sem isto o consultor descobre a regra levando erro 400 do
+ *  servidor, que é a pior forma de aprender uma regra. */
+function crmEsperaValida() {
+  const txt = document.getElementById('crm-det-espera-oque');
+  const dia = document.getElementById('crm-det-espera-data');
+  const cont = document.getElementById('crm-det-espera-cont');
+  const ok = document.getElementById('crm-det-espera-ok');
+  const n = txt ? String(txt.value || '').trim().length : 0;
+  if (cont) {
+    cont.textContent = n;
+    cont.parentElement.classList.toggle('ok', n >= APALAVRADO_MIN_TEXTO);
+  }
+  const temData = !!(dia && dia.value);
+  if (ok) ok.disabled = !(n >= APALAVRADO_MIN_TEXTO && temData);
+  return n >= APALAVRADO_MIN_TEXTO && temData;
+}
+
+/** Os atalhos PREENCHEM a data, não gravam. A ordem foi "ele mesmo digitar":
+ *  quem decide a data é o consultor, o atalho só poupa o calendário. */
+function crmEsperaEmDias(dias) {
+  const dia = document.getElementById('crm-det-espera-data');
+  if (!dia) return;
+  // Sem Date.now() de fuso: monta a partir de hoje no relógio local do celular,
+  // que é o de Brasília na mão de quem usa.
+  const d = new Date();
+  d.setDate(d.getDate() + dias);
+  const p2 = n => String(n).padStart(2, '0');
+  dia.value = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+  crmEsperaValida();
+}
+
+function crmApalavrar() {
+  if (!crmEsperaValida()) return;
+  const oque = String(document.getElementById('crm-det-espera-oque').value || '').trim();
+  const data = String(document.getElementById('crm-det-espera-data').value || '');
   const box = document.getElementById('crm-det-espera');
   if (box) box.hidden = true;
-  crmAtualizarStatus('apalavrado', { __dias: dias, __oque: oque });
+  crmAtualizarStatus('apalavrado', { __retomar: data, __oque: oque });
 }
 
 // ===== ELETROPOSTO · PROPOSTA APRESENTADA =====================================
@@ -22088,8 +22181,33 @@ async function carregarCRM(forcar) {
   crmPerdidos = new Set((perdidos || []).map(p => p.key));
   crmClientes = crmUnificar(props, agends, leads);
   crmCarregado = true;
+  await crmCarregarEsperas();
   crmRenderFiltros();
   renderCRM();
+}
+
+// ── A SALA DE ESPERA, DESENHADA NO QUADRO ──────────────────────────────────
+//
+// Desde 30/09/2026 ninguém mais recebe lembrete no WhatsApp: o acompanhamento é
+// pelo CRM. Isso muda o peso desta leitura. A data que o consultor é OBRIGADO a
+// digitar ao marcar Apalavrado só quer dizer alguma coisa se ela aparecer em
+// algum lugar quando vencer — senão o card fica parado na coluna, bonito e
+// esquecido, que é exatamente o "sumir da vida" que o status existe pra impedir.
+//
+// A espera mora no system_state (Supabase principal), então quem serve é a API.
+// Falha de leitura NÃO derruba o quadro: o mapa fica vazio e os cards aparecem
+// sem selo, que é pior que com selo e muito melhor que quadro em branco.
+let crmEsperas = {};
+async function crmCarregarEsperas() {
+  try {
+    const ids = crmClientes
+      .filter(c => c.statusAg === 'apalavrado' && c.agId)
+      .map(c => c.agId);
+    if (!ids.length) { crmEsperas = {}; return; }
+    const r = await fetch(`${APX_API}/gerador/apalavrado?ids=${ids.join(',')}`);
+    const j = await r.json();
+    crmEsperas = (j && j.esperas) || {};
+  } catch (e) { crmEsperas = {}; }
 }
 
 // Junta as 3 fontes num mapa por chave de telefone (ou nome quando sem telefone).
@@ -22582,6 +22700,28 @@ function renderCRM() {
     ? `<span class="crm-status-selo selo-pa" title="Proposta apresentada por ${escapeHtml(c.propPor)}">📑 Proposta: ${escapeHtml(c.propPor)}</span>`
     : '';
 
+  /** O que este card está esperando, e se o prazo já venceu. Só em Apalavrado. */
+  const esperaBadge = (c) => {
+    if (c.statusAg !== 'apalavrado') return '';
+    const e = crmEsperas[String(c.agId)];
+    if (!e) {
+      // Apalavrado sem carimbo: ou é ficha antiga, ou a segunda escrita falhou.
+      // Dizer isso é melhor que não dizer nada — sem prazo ninguém volta nele.
+      return `<span class="crm-espera venceu" title="Marcado como apalavrado sem prazo registrado">🤞 Sem prazo registrado</span>`;
+    }
+    const t = Date.parse(String(e.retomar_em || ''));
+    const oque = String(e.aguardando || '').trim();
+    if (!Number.isFinite(t)) {
+      return `<span class="crm-espera">🤞 ${escapeHtml(oque.slice(0, 90))}</span>`;
+    }
+    const venceu = t <= Date.now();
+    const d = new Date(t);
+    const p2 = n => String(n).padStart(2, '0');
+    const dia = `${p2(d.getDate())}/${p2(d.getMonth() + 1)}`;
+    return `<span class="crm-espera${venceu ? ' venceu' : ''}" title="${escapeHtml(oque)}">`
+      + `${venceu ? '⏰ PRAZO VENCEU' : '🤞 volta'} ${dia}${oque ? ' · ' + escapeHtml(oque.slice(0, 70)) : ''}</span>`;
+  };
+
   // Agrupa por COLUNA DO QUADRO ABERTO, não por etapa crua: a etapa é uma só
   // por cliente e os dois quadros têm colunas diferentes.
   const porEtapa = {};
@@ -22625,7 +22765,7 @@ function renderCRM() {
       </div>
       ${telLinha}
       <div class="crm-card-meta">${cons}${tag}${linhaCidade}${linhaAg}</div>
-      ${presencaBadge(c)}${propBadge(c)}${(c.statusAg === 'proposta_apresentada' && c.propPor) ? '' : statusBadge(c.statusAg)}
+      ${presencaBadge(c)}${propBadge(c)}${(c.statusAg === 'proposta_apresentada' && c.propPor) ? '' : statusBadge(c.statusAg)}${esperaBadge(c)}
       <div class="crm-card-foot">
         ${valorTxt}
         <span class="crm-card-acoes">${reagBtn}${wpp}${verProp}</span>

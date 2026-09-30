@@ -70,6 +70,21 @@ const TARDE: Array<[number, number]> = [
   [13, 0], [13, 30], [14, 0], [14, 30], [15, 0], [15, 30], [16, 0], [16, 30], [17, 0], [17, 30],
 ];
 
+/**
+ * O DIA INTEIRO, de 15 em 15 minutos, das 8h às 18h.
+ *
+ * Desde 30/09/2026 a remarcação não sai mais da grade de VENDA: ela tem faixa
+ * própria nos quinze, das 08:15 às 17:45, todo dia útil (ordem do Thiago: "a
+ * agenda para follow-up vai ficar liberada todo o período"). Então lotar a
+ * agenda num teste deixou de ser lotar a tarde: a manhã, que a venda não tem de
+ * terça a sexta, continua valendo pra follow-up e é de lá que sai a oferta.
+ */
+const DIA_TODO: Array<[number, number]> = (() => {
+  const out: Array<[number, number]> = [];
+  for (let t = 8 * 60; t <= 18 * 60; t += 15) out.push([Math.floor(t / 60), t % 60]);
+  return out;
+})();
+
 /** Reunião marcada pra HOJE às 14h com o Diego. */
 const ficha = (over: Partial<any> = {}) => ({
   id: 1, cliente_nome: 'Irineu de Almeida', cliente_telefone: '5569984488158',
@@ -245,11 +260,16 @@ describe('a conversa de ponta a ponta', () => {
   it('o consultor NÃO muda: as opções são todas da agenda de quem já estava marcado', async () => {
     // Diego lotado hoje; Thiago livre. A oferta tem que pular pro próximo dia do
     // DIEGO, nunca oferecer o horário livre do Thiago.
-    compromissos = TARDE.map(([h, m]) => ({ quando: brt('2026-08-13', h, m), vendedor_nome: 'Diego' }));
+    // Lota o dia inteiro do Diego, não só a tarde: a faixa de follow-up abre
+    // às 08:15 desde 30/09/2026, então "hoje lotado" agora inclui a manhã.
+    compromissos = DIA_TODO.map(([h, m]) => ({ quando: brt('2026-08-13', h, m), vendedor_nome: 'Diego' }));
     const { passoDeRemarcacao } = await mod();
     const r = (await passoDeRemarcacao(ficha(), ['pode ser outro dia?'], null)) as any;
     expect(r.acao).toBe('ofertou');
-    expect(r.ofertas.every((o: string) => o >= brt('2026-08-14', 10))).toBe(true);
+    // O piso é o começo do dia seguinte, e ele desceu de 10:00 pra 08:15 junto
+    // com a faixa. O que o teste prende continua o mesmo: nenhuma oferta é de
+    // hoje, e nenhuma é da agenda do Thiago.
+    expect(r.ofertas.every((o: string) => o >= brt('2026-08-14', 8))).toBe(true);
     expect(enviadas[0].bolhas.join(' ')).toContain('Diego');
   });
 
@@ -277,10 +297,11 @@ describe('a conversa de ponta a ponta', () => {
 
   it('agenda sem vaga nenhuma: chama gente em vez de inventar horário', async () => {
     // Diego lotado nos 21 dias varridos.
-    // Lotar de verdade agora exige a grade das duas formas: a tarde de meia em meia
-    // (ter–sex) e a manhã que só a segunda tem.
+    // Lotar de verdade agora exige o DIA INTEIRO de 15 em 15: a tarde de venda,
+    // a manhã que só a segunda vende, e a faixa de follow-up (08:15–17:45), que
+    // é de onde a remarcação tira as opções desde 30/09/2026.
     compromissos = Array.from({ length: 21 }, (_, d) =>
-      [...TARDE, [10, 0], [11, 0], [18, 0]].map(([h, m]) => ({
+      DIA_TODO.map(([h, m]) => ({
         quando: new Date(new Date(brt('2026-08-13', h, m)).getTime() + d * 86400_000).toISOString(),
         vendedor_nome: 'Diego',
       }))).flat();

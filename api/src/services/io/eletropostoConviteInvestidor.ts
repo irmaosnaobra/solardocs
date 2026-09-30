@@ -573,7 +573,15 @@ export async function passoDoConvite(telefone: string, textos: string[]): Promis
     temperatura: 'quente',
     observacao: 'Convite ao investidor (WhatsApp): tem capital declarado e já viu um ponto'
       + (oferta.cidade ? ` em ${oferta.cidade}` : '') + '. Escolheu o horário pela lista.',
-    created_by: 'convite_investidor',
+    // A PALAVRA `eletroposto` TEM QUE ESTAR AQUI (corrigido em 30/09/2026).
+    // `ehOrigemEletroposto` casa por `includes('eletroposto')`, e era assim que
+    // `convite_investidor` ficava de fora: a reuniao nascia na faixa de
+    // remarcacao (:15/:45) mas chegava na vitrine com `ep: false`, valendo bloco
+    // de 30 min, e apagava DOIS horarios redondos em vez de nenhum. E o mesmo
+    // buraco que o comentario do `origemEtiqueta` descreve como ja tendo
+    // acontecido com a prospeccao. Renomear nao custou dado nenhum: medido em
+    // 30/09, zero fichas tinham o nome antigo (o convite nunca marcou reuniao).
+    created_by: 'convite_investidor_eletroposto',
     src: 'convite_investidor',
   };
 

@@ -102,6 +102,27 @@
 // já está medido — são 601 cards em `sem_interesse` no banco. `LEMBRETE_PASSO_MIN`
 // existe pra apertar sem deploy, se ele quiser.
 //
+// ── DESLIGADO EM 30/09/2026, NO MESMO DIA EM QUE O CICLO SUBIU ────────────
+//
+// Ordem do Thiago, horas depois de ver o ciclo funcionando: "não terá
+// necessidade de ficar avisando mais a gente pelo WhatsApp, aquela ferramenta
+// que a gente criou que avisa no WhatsApp não vai ser necessário mais... todos
+// vão acompanhar pelo CRM, então menos mensagem para ficar chegando, vamos
+// focar nos cards novos".
+//
+// `LEMBRETE_OFF=1` está posto na produção. O MÓDULO FICA: a conta que escolhe o
+// card da vez (`pontuarCard`), a família do ciclo (`ESTAGIOS_CICLO`) e a sala de
+// espera (`dormindo`) continuam sendo a definição escrita de "card parado" e de
+// "quem volta a cada 48h", e o quadro do CRM foi desenhado em cima delas.
+// Apagar o módulo apagaria a regra junto com o mensageiro.
+//
+// QUEM FOR RELIGAR ISTO, leia antes: o acompanhamento passou a ser visual, no
+// quadro. Ligar de volta sem combinar devolve à equipe um canal que foi
+// desligado de propósito, e o motivo do desligamento foi volume de mensagem,
+// não defeito. `LEMBRETE_ESPELHO` continua apontando pro celular do Thiago, de
+// propósito: se alguém religar sem querer, a rajada chega nele primeiro e não
+// no time inteiro.
+//
 // Kill-switch: LEMBRETE_OFF=1 congela tudo sem deploy.
 // LEMBRETE_ESPELHO=<telefone> manda tudo pra um número só (modo conferência).
 // ─────────────────────────────────────────────────────────────────────────────
@@ -253,6 +274,22 @@ export const ESTAGIOS_CICLO = new Set<string>([
   'em_atendimento', 'fez_orcamento', 'proposta_apresentada',
   'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao',
 ]);
+
+/**
+ * Este estágio pode ser cobrado quantas vezes for preciso?
+ *
+ * `apalavrado` entra junto com a família do ciclo, e por um motivo que não é
+ * óbvio: o teto de 3 toques o MATARIA em silêncio. O card acorda no dia que o
+ * dono marcou, é cobrado, alguém adia, acorda de novo… na quarta volta o teto
+ * fecha e o card nunca mais aparece pra ninguém. Ou seja: o status criado
+ * justamente pra "essa pessoa não sumir da vida" viraria o jeito mais garantido
+ * de sumir com ela, e sem nenhum aviso.
+ *
+ * O teto continua valendo pro que ele foi escrito: `nao_atendeu`, `agendado` e
+ * `reagendar`, onde insistir sem fim é ruído. A folga de 48h vale pra todos.
+ */
+export const semTetoDeToques = (status: string): boolean =>
+  ESTAGIOS_CICLO.has(status) || status === 'apalavrado';
 
 /** Peso do estágio na fila. Quanto mais perto do sim, mais cedo se liga:
  *  quem já viu proposta e sumiu é quem ainda dá pra salvar. */
@@ -776,7 +813,7 @@ export async function runLembreteFollowupTick(opts: { dry?: boolean } = {}): Pro
     // até virar Vendido, Sem interesse ou Apalavrado — ordem do Thiago
     // (30/09/2026). Ver `ESTAGIOS_CICLO`. A folga de 48h segue valendo pra
     // todos: é ela que faz disto um ciclo e não uma rajada.
-    if (toque && !ESTAGIOS_CICLO.has(c.status) && toque.n >= maxPorCard()) continue;
+    if (toque && !semTetoDeToques(c.status) && toque.n >= maxPorCard()) continue;
     if (toque && agora.getTime() - toque.ultimo < folgaCardH() * 3600_000) continue;
 
     const chaveTel = chaveContato(String(c.cliente_telefone || '')) || '';

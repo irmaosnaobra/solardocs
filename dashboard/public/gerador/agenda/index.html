@@ -382,6 +382,10 @@
   .slot.status-carregador        { background: #EADBC0; color: #1f2937; }
   .slot.status-meio_a_meio       { background: #EADBC0; color: #1f2937; }
   .slot.status-chave_na_mao      { background: #EADBC0; color: #1f2937; }
+  /* APALAVRADO em âmbar, a mesma cor da coluna no quadro do CRM: não é
+     reunião por acontecer (azul), não é venda (verde) e não é perda
+     (vermelho). É o aperto de mão esperando a peça que falta. */
+  .slot.status-apalavrado        { background: #F59E0B; color: #2A1D00; }
   .slot.status-perdido           { background: #dc2626; color: #fff; }
   /* As mesmas cores dentro do quadro dividido: a metade é que recebe o status,
      não o slot. Sem isto as duas ficariam azuis, mentindo o status de uma delas. */
@@ -400,6 +404,7 @@
   .slot.dividido .meia.status-carregador        { background: #EADBC0; color: #1f2937; }
   .slot.dividido .meia.status-meio_a_meio       { background: #EADBC0; color: #1f2937; }
   .slot.dividido .meia.status-chave_na_mao      { background: #EADBC0; color: #1f2937; }
+  .slot.dividido .meia.status-apalavrado        { background: #F59E0B; color: #2A1D00; }
   .slot.dividido .meia.status-perdido           { background: #dc2626; color: #fff; }
   /* ── SILÊNCIO DO LEAD (ordem do Thiago, 19/08/2026) ──────────────────────────
      "O lead do horário que não responder a primeira msg fica em amarelo."
@@ -1074,6 +1079,7 @@
   html[data-theme="dark"] .slot.status-carregador        { background: #EADBC0; color: #1f2937; }
   html[data-theme="dark"] .slot.status-meio_a_meio       { background: #EADBC0; color: #1f2937; }
   html[data-theme="dark"] .slot.status-chave_na_mao      { background: #EADBC0; color: #1f2937; }
+  html[data-theme="dark"] .slot.status-apalavrado        { background: #F59E0B; color: #2A1D00; }
   html[data-theme="dark"] .slot.status-perdido           { background: #dc2626; color: #fff; }
   html[data-theme="dark"] .slot.bloqueado {
     background: repeating-linear-gradient(45deg, #6b7280, #6b7280 6px, #525c6a 6px, #525c6a 12px);
@@ -1707,6 +1713,10 @@ const ETIQUETA_STATUS = {
   carregador:           ['CARREGADOR',     'CARREG'],
   meio_a_meio:          ['50/50',          '50/50'],
   chave_na_mao:         ['CHAVE NA MÃO',   'CHAVE'],
+  // A SALA DE ESPERA (30/09/2026). Sem esta linha o card apalavrado saía da
+  // grade sem selo nenhum e pintado de azul, igual a uma reunião agendada que
+  // ainda vai acontecer: o oposto do que ele é.
+  apalavrado:           ['APALAVRADO',     'APALAV'],
 };
 /** APRESENTAÇÃO: etiqueta verde/vermelha que o consultor marca no card (23/09/2026).
  *  Não é status: convive com qualquer um deles, porque a pergunta que ela responde

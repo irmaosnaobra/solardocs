@@ -86,11 +86,36 @@ const DIAS_UTEIS = new Set([1, 2, 3, 4, 5]);
 // grade do dia. Escrever uma segunda lista literal seria criar duas fontes da
 // verdade pra mesma coisa, e a de cima já precisa espelhar a LP ("mudou lá,
 // muda aqui"). Derivando, mexer na grade nova mexe nas duas faixas juntas.
-const maisQuinze = (hhmm: string): string => {
-  const [h, m] = hhmm.split(':').map(Number);
-  const t = h * 60 + m + 15;
-  return `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
-};
+// ── A FAIXA DE FOLLOW-UP VALE O DIA INTEIRO (30/09/2026, mesma tarde) ──────
+//
+// Ordem do Thiago, logo depois de ver a primeira versão: "a agenda para
+// follow-up vai ficar liberada todo o período, das 8h15 até as 17h45. Como elas
+// estão espalhadas aí por hora e 15, hora e 45, pode ficar marcado durante todo
+// o dia".
+//
+// A PRIMEIRA VERSÃO DERIVAVA a faixa da grade do dia (`+15 min`), e eu defendi
+// isso aqui mesmo como "uma fonte da verdade só". Estava errado para o que ele
+// quer: derivando, a terça só teria follow-up das 13:15 às 17:45, porque a
+// grade de venda da tarde começa às 13:00. A manhã inteira ficaria fechada para
+// remarcar, e remarcação não disputa horário de vitrine nenhuma — ela vive nos
+// quinze, onde a LP nunca vende.
+//
+// Então a faixa de follow-up passa a ser uma grade PRÓPRIA e fixa, e não um
+// espelho da de venda: 08:15 às 17:45, de 30 em 30 minutos, todo dia útil.
+// São 20 horários por consultor por dia, contra os 10 de antes na terça.
+//
+// O ALMOÇO ENTRA. A grade de venda pula as 12h de propósito, esta não pula:
+// ele disse "durante todo o dia", e follow-up é ligação de 15 minutos, não
+// apresentação. Tirar 12:15 e 12:45 é uma linha, se ele quiser.
+const FOLLOWUP_INICIO_MIN = 8 * 60 + 15;      // 08:15
+const FOLLOWUP_FIM_MIN = 17 * 60 + 45;        // 17:45, o último começo
+const HORAS_FOLLOWUP: readonly string[] = (() => {
+  const out: string[] = [];
+  for (let t = FOLLOWUP_INICIO_MIN; t <= FOLLOWUP_FIM_MIN; t += 30) {
+    out.push(`${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`);
+  }
+  return out;
+})();
 
 /** Qual faixa da grade este horário ocupa. `novo` é o padrão em todo lugar: quem
  *  é remarcação sabe que é, quem não sabe é lead novo. */
@@ -126,6 +151,19 @@ const naGrade = (ts: number): boolean =>
   NA_GRADE.has(new Date(ts).getUTCMinutes());
 export function folgaDoCompromisso(c: Compromisso): number {
   return c.ep && naGrade(c.ts) ? 15 * 60 * 1000 : DURACAO_MS;
+}
+
+/**
+ * Quanto tempo este compromisso realmente dura.
+ *
+ * A VISTORIA DE SOLAR LEVA 1 HORA: o sócio entra no carro e fica uma hora na
+ * casa do lead. A vitrine já sabia (`DUR_VISTORIA_MS`), o servidor não, e até
+ * 30/09/2026 ele protegia só os 30 min iniciais. A faixa nova de :15/:45
+ * piorou o buraco, porque acrescentou dois horários por hora que caem dentro
+ * da visita.
+ */
+export function duracaoDoCompromisso(c: Compromisso): number {
+  return c.vistoria ? 60 * 60 * 1000 : DURACAO_MS;
 }
 /** Duração da reunião — é ela que define sobreposição, não o passo da grade. */
 const DURACAO_MS = 30 * 60 * 1000;
@@ -183,10 +221,12 @@ function diasFechadosAntes(ymd: string): number {
  * consultor contra os 8 da segunda, que é o certo para um dia que acumula três.
  */
 export const horasDoDia = (ymd: string, faixa: FaixaAgenda = 'novo'): readonly string[] => {
-  const base = diaDaSemana(ymd) === 1
+  // Follow-up tem grade própria e igual em todo dia útil: ela não depende da
+  // grade de venda, que muda por dia da semana e por acúmulo de dia fechado.
+  if (faixa === 'remarcacao') return HORAS_FOLLOWUP;
+  return diaDaSemana(ymd) === 1
     ? HORAS_SEGUNDA
     : (diasFechadosAntes(ymd) >= 2 ? [...HORAS_MANHA_ACUMULO, ...HORAS_PADRAO] : HORAS_PADRAO);
-  return faixa === 'remarcacao' ? base.map(maisQuinze) : base;
 };
 
 /** A agenda abre neste dia? (dia útil, não feriado e sem bloqueio pontual)
@@ -200,9 +240,9 @@ export function agendaAbre(ymd: string): boolean {
   return !ehFeriadoBR(ymd) && !agendaFechadaEm(ymd) && DIAS_UTEIS.has(diaDaSemana(ymd));
 }
 
-/** `ep` diz se a reunião é de ELETROPOSTO. Ela existe por causa da faixa de
- *  remarcação: só reunião nossa nos quinze vale 15 min — ver `folgaDoCompromisso`. */
-export type Compromisso = { ts: number; dono: string; ep?: boolean };
+/** `ep` diz se a reunião é de ELETROPOSTO (faixa de remarcação), `vistoria` diz
+ *  se é a visita de solar, que leva 1 hora. Ver `folgaDoCompromisso`. */
+export type Compromisso = { ts: number; dono: string; ep?: boolean; vistoria?: boolean };
 
 /**
  * O horário está livre PARA ESTE CONSULTOR? Sobreposição, não igualdade: o que
@@ -211,7 +251,20 @@ export type Compromisso = { ts: number; dono: string; ep?: boolean };
  */
 export function livrePara(iso: string, dono: string, compromissos: Compromisso[]): boolean {
   const t = new Date(iso).getTime();
-  return !compromissos.some(c => c.dono === dono && Math.abs(c.ts - t) < folgaDoCompromisso(c));
+  return !compromissos.some(c => {
+    if (c.dono !== dono) return false;
+    // Reunião NOSSA na grade: a régua é DISTÂNCIA, e é ela que deixa a faixa de
+    // remarcação conviver com a de venda (14:00 e 14:15 no mesmo consultor).
+    if (c.ep && naGrade(c.ts)) return Math.abs(c.ts - t) < folgaDoCompromisso(c);
+    // Qualquer outra coisa: SOBREPOSIÇÃO DE BLOCOS, com a duração real dela.
+    //
+    // Distância simétrica estava errada aqui e criaria discordância nova com a
+    // vitrine: uma vistoria de 1h às 13:30 ocupa [13:30,14:30), então ela NÃO
+    // pega as 13:00 (que acabam justo quando ela começa). Medindo distância, 30
+    // min de |13:00 - 13:30| entraria numa folga de 60 e o servidor recusaria um
+    // horário que a LP vende. Bloco contra bloco é o que as duas pontas falam.
+    return c.ts < t + DURACAO_MS && t < c.ts + duracaoDoCompromisso(c);
+  });
 }
 
 /**
@@ -247,6 +300,8 @@ export async function carregarCompromissos(deIso: string, ateIso: string): Promi
         ts: new Date(String(a.quando)).getTime(),
         dono: String(a.vendedor_nome),
         ep: ehOrigemEletroposto(a.created_by),
+        // Mesma regra da vitrine: a LP do solar marca VISTORIA, e ela ocupa 1h.
+        vistoria: String(a.created_by || '') === 'lp_solar',
       }));
   } catch (err) {
     logger.error('ep-vagas', 'ler compromissos falhou', err);

@@ -47,31 +47,61 @@ describe('a grade de cada faixa', () => {
     expect(g.every(h => /:(15|45)$/.test(h))).toBe(true);
   });
 
-  it('as duas faixas têm o mesmo tamanho e nunca coincidem', () => {
-    for (const dia of ['2026-10-05', '2026-10-06', '2026-10-09']) {   // segunda, terça, sexta
-      const novo = horasDoDia(dia);
-      const rem = horasDoDia(dia, 'remarcacao');
-      expect(rem.length).toBe(novo.length);
-      expect(rem.filter(h => novo.includes(h))).toEqual([]);
+  // ── A FAIXA DE FOLLOW-UP VALE O DIA INTEIRO (ordem do Thiago, 30/09) ──────
+  // "A agenda para follow-up vai ficar liberada todo o período, das 8h15 até as
+  // 17h45. Pode ficar marcado durante todo o dia."
+  //
+  // Isto DERRUBOU o desenho anterior, em que a faixa era derivada da grade de
+  // venda (+15 min). Derivando, a terça só teria follow-up das 13:15 às 17:45,
+  // porque a venda da tarde começa às 13:00: a manhã inteira ficaria fechada
+  // pra remarcar, sem motivo — remarcação não disputa horário de vitrine.
+  it('follow-up abre 08:15 e fecha 17:45', () => {
+    const g = horasDoDia('2026-10-06', 'remarcacao');
+    expect(g[0]).toBe('08:15');
+    expect(g[g.length - 1]).toBe('17:45');
+  });
+
+  it('são 20 horários de follow-up, de 30 em 30 minutos', () => {
+    const g = horasDoDia('2026-10-06', 'remarcacao');
+    expect(g.length).toBe(20);
+    for (let i = 1; i < g.length; i++) {
+      const min = (h: string) => Number(h.split(':')[0]) * 60 + Number(h.split(':')[1]);
+      expect(min(g[i]) - min(g[i - 1])).toBe(30);
     }
   });
 
-  it('a faixa de remarcação é DERIVADA: mexer na grade mexe nas duas', () => {
-    // Prende a derivação, não os valores: se um dia alguém trocar a grade da
-    // tarde, a faixa de remarcação tem que acompanhar sozinha. Uma segunda lista
-    // literal no arquivo passaria neste teste só por sorte.
-    const novo = horasDoDia('2026-10-06');
-    const rem = horasDoDia('2026-10-06', 'remarcacao');
-    novo.forEach((h, i) => {
-      const [hh, mm] = h.split(':').map(Number);
-      const esperado = `${String(Math.floor((hh * 60 + mm + 15) / 60) % 24).padStart(2, '0')}:${String((mm + 15) % 60).padStart(2, '0')}`;
-      expect(rem[i]).toBe(esperado);
-    });
+  it('a faixa de follow-up é IGUAL em todo dia útil, inclusive na segunda', () => {
+    // A grade de VENDA muda por dia (segunda tem lista própria, dia pós-feriado
+    // ganha manhã). A de follow-up não: ela é a mesma sempre, e é isso que quer
+    // dizer "liberada todo o período".
+    const terca = horasDoDia('2026-10-06', 'remarcacao');
+    for (const dia of ['2026-10-05', '2026-10-07', '2026-10-08', '2026-10-09']) {
+      expect(horasDoDia(dia, 'remarcacao')).toEqual(terca);
+    }
   });
 
-  it('a segunda-feira, que tem grade própria, também ganha a faixa', () => {
-    // 05/10/2026 é segunda: HORAS_SEGUNDA, de hora em hora.
-    expect(horasDoDia('2026-10-05', 'remarcacao')).toContain('13:15');
+  it('a manhã, que a venda não tem na terça, existe pro follow-up', () => {
+    const g = horasDoDia('2026-10-06', 'remarcacao');
+    expect(g).toContain('08:15');
+    expect(g).toContain('11:45');
+    expect(horasDoDia('2026-10-06').some(h => h < '13:00')).toBe(false);   // venda não
+  });
+
+  it('o almoço entra no follow-up de propósito', () => {
+    // "Pode ficar marcado durante todo o dia". A grade de venda pula as 12h;
+    // esta não pula, porque follow-up é ligação de 15 min, não apresentação.
+    // Tirar 12:15 e 12:45 é uma linha, se ele mudar de ideia.
+    const g = horasDoDia('2026-10-06', 'remarcacao');
+    expect(g).toContain('12:15');
+    expect(g).toContain('12:45');
+  });
+
+  it('as duas faixas nunca coincidem', () => {
+    for (const dia of ['2026-10-05', '2026-10-06', '2026-10-09']) {
+      const novo = horasDoDia(dia);
+      const rem = horasDoDia(dia, 'remarcacao');
+      expect(rem.filter(h => novo.includes(h))).toEqual([]);
+    }
   });
 });
 
@@ -143,5 +173,61 @@ describe('a distância mínima, que é o que faz a faixa existir', () => {
     expect(distancia).toBe(15 * 60 * 1000);
     expect(distancia < 30 * 60 * 1000).toBe(true);        // recusaria
     expect(distancia < folgaDoCompromisso({ ts: t('14:15'), dono: DONO, ep: true })).toBe(false);
+  });
+});
+
+// ── AS DUAS PONTAS TÊM QUE CONCORDAR ───────────────────────────────────────
+//
+// A revisão de 30/09/2026 achou o defeito que este bloco existe pra impedir de
+// voltar: a vitrine jogava fora a bandeira `ep` no map, o ramo novo do
+// `donosLivres` virava código morto, e ela escondia um horário redondo que o
+// servidor continuava achando livre. Ninguém percebeu porque o teste cobria o
+// servidor e a conferência manual montou o objeto com `ep` na mão, pulando
+// justamente o map defeituoso.
+//
+// Então aqui a régua da VITRINE é reescrita em TypeScript, igualzinha, e as
+// duas são comparadas em cima dos mesmos casos. Se alguém mexer num lado só,
+// isto quebra.
+describe('a vitrine e o servidor dizem a mesma coisa', () => {
+  const DUR = 30 * 60 * 1000;
+  const REMARC = 15 * 60 * 1000;
+  const VIST = 60 * 60 * 1000;
+  const nosQuinze = (ts: number) => [15, 45].includes(new Date(ts).getUTCMinutes());
+  /** Cópia fiel de `duracaoDe` + `donosLivres` da LP do eletroposto. */
+  const vitrineDiz = (slot: number, c: { ts: number; ep?: boolean; vistoria?: boolean }): boolean => {
+    const dur = c.vistoria ? VIST : (c.ep && nosQuinze(c.ts) ? REMARC : DUR);
+    if (c.ep && nosQuinze(c.ts)) return !(Math.abs(c.ts - slot) < REMARC);
+    return !(c.ts < slot + DUR && slot < c.ts + dur);
+  };
+
+  const CASOS: Array<[string, string, Partial<Compromisso>]> = [
+    ['lead novo 14:00 x remarcacao nossa 14:15', '14:00', { ts: t('14:15'), ep: true }],
+    ['lead novo 14:30 x remarcacao nossa 14:15', '14:30', { ts: t('14:15'), ep: true }],
+    ['lead novo 14:00 x lead novo 14:00',        '14:00', { ts: t('14:00'), ep: true }],
+    ['lead novo 14:30 x lead novo 14:00',        '14:30', { ts: t('14:00'), ep: true }],
+    ['lead novo 14:00 x solar do Meta 14:15',    '14:00', { ts: t('14:15'), ep: false }],
+    ['lead novo 14:00 x solar quebrado 14:10',   '14:00', { ts: t('14:10'), ep: false }],
+    ['lead novo 13:00 x vistoria 13:30 (1h)',    '13:00', { ts: t('13:30'), ep: false, vistoria: true }],
+    ['lead novo 14:00 x vistoria 13:30 (1h)',    '14:00', { ts: t('13:30'), ep: false, vistoria: true }],
+    ['lead novo 14:30 x vistoria 13:30 (1h)',    '14:30', { ts: t('13:30'), ep: false, vistoria: true }],
+  ];
+
+  for (const [nome, slot, comp] of CASOS) {
+    it(nome, () => {
+      const c = { dono: DONO, ...comp } as Compromisso;
+      expect(livrePara(iso(slot), DONO, [c])).toBe(vitrineDiz(t(slot), c));
+    });
+  }
+
+  it('a vistoria de 1h fecha as 14:00 no servidor, como já fechava na vitrine', () => {
+    const vist = { ts: t('13:30'), dono: DONO, ep: false, vistoria: true } as Compromisso;
+    expect(livrePara(iso('14:00'), DONO, [vist])).toBe(false);   // o sócio está na rua
+    expect(livrePara(iso('13:00'), DONO, [vist])).toBe(true);    // acaba quando ela começa
+  });
+
+  it('sem a marca de vistoria ela voltaria a valer meia hora, e as 14:00 abririam', () => {
+    // Prende a razão de `vistoria` existir no tipo: é ela que separa 1h de 30min.
+    const comoAntes = { ts: t('13:30'), dono: DONO, ep: false } as Compromisso;
+    expect(livrePara(iso('14:00'), DONO, [comoAntes])).toBe(true);
   });
 });
