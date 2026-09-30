@@ -386,6 +386,11 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .eletro-acoes{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
 .eletro-btn{flex:1;min-width:130px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 14px;border-radius:11px;border:1px solid rgba(255,255,255,.16);background:#1E293B;color:#E5E7EB;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:border-color .2s,background .2s}
 .eletro-btn-ic{width:17px;height:17px;flex-shrink:0}
+/* Par indivisivel na fileira: os dois documentos da Sociedade andam colados.
+   `flex:2 1 280px` da' ao par a largura de dois botoes; `min-width:0` deixa
+   encolher em tela estreita em vez de estourar a linha. */
+.eletro-par{display:flex;gap:10px;flex:2 1 280px;min-width:0}
+.eletro-par .eletro-btn{flex:1 1 0;min-width:0}
 .eletro-btn:hover{border-color:#3B82F6;background:#243349}
 .eletro-btn.primary{background:#3B82F6;border-color:#3B82F6;color:#fff}
 .eletro-btn.primary:hover{background:#2563EB}
@@ -3829,11 +3834,13 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
         <!-- ações -->
         <div class="eletro-acoes">
+          <div class="eletro-par">
           <button type="button" class="eletro-btn" onclick="socAbrir('estudo')" title="Duas folhas A4 com o quadro societario e a conta da sua parte"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Sociedade &middot; Básico</button>
+          <button type="button" class="eletro-btn" onclick="socAbrir('completosoc')" title="A apresentação de 9 folhas com os números do sócio, e o link do cliente"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> Sociedade · Completo</button>
+          </div>
           <button type="button" class="eletro-btn" onclick="epRevisar('planilha')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> Simulador em PDF</button>
           <button type="button" class="eletro-btn" onclick="epRevisar('basico')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> Orçamento Básico</button>
           <button type="button" class="eletro-btn" onclick="epRevisar('completo')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="13" y2="17"></line></svg> Orçamento Completo</button>
-          <button type="button" class="eletro-btn" onclick="socAbrir('completosoc')" title="A apresentação de 9 folhas com os números do sócio, e o link do cliente"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg> Sociedade · Completo</button>
           <button type="button" class="eletro-btn" onclick="epRevisar('carregador')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> Orçamento Carregador</button>
           <button type="button" class="eletro-btn" onclick="eletroToggleComparar()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg> Comparar cenários</button>
         </div>
@@ -12863,7 +12870,7 @@ const NX_CSS = `<style>
    O PADDING E' SIMETRICO de proposito: 17mm em cima e 17mm embaixo. Com
    padding-bottom em 0, o "center" dividia o espaco livre igual mas a sobra de
    cima saia 17mm maior — centrado na conta e torto no olho. */
-.nx-corpo{justify-content:center;padding:17mm 13mm 17mm 13mm}
+.nx-corpo{justify-content:safe center;padding:17mm 13mm 17mm 13mm}
 .nx-corpo:has(.nx-banda){justify-content:flex-start}
 .nx-corpo:has(.nx-banda)>.nx-banda+*{margin-top:auto !important}
 .nx-corpo:has(.nx-banda)>:last-child{margin-bottom:auto}
@@ -13504,7 +13511,10 @@ function nxCompletoDeck(d) {
   // ── 10 · O FECHO ───────────────────────────────────────────────────────
   // NENHUM número novo: os três são repetidos das folhas 1, 4 e 7. É a folha
   // que fica parada na tela enquanto se conversa.
-  const pags = orc1PagChips({ total: Number(E.invest) || 0, ...(d.pag || {}) });
+  const pags = SOC
+    ? '<div class="pags">' + socPagLinhas(Number(E.invest) || 0)
+        .map(l => `<div class="pag"><b>${l[0]}</b><span>${l[1]}</span><small>${l[2]}</small></div>`).join('') + '</div>'
+    : orc1PagChips({ total: Number(E.invest) || 0, ...(d.pag || {}) });
   S.push(`<section class="nx-slide">
   <div class="nx-faixa"></div>
   <div class="nx-corpo" style="justify-content:center">
@@ -13534,7 +13544,7 @@ function nxCompletoDeck(d) {
   const html = S.map((x, i) => x.replace('__N__', String(i + 1)).replace('__T__', String(total))).join('\n');
 
   host.innerHTML = `<div class="nx-deck">${NX_CSS}${html}</div>`;
-  epPrint(host, epNomeArq('Orcamento', d.cliente));
+  epPrint(host, epNomeArq(SOC ? 'Sociedade' : 'Orcamento', d.cliente));
 }
 
 function epCompletoA4(d) {
@@ -13855,7 +13865,14 @@ function epCompletoPayload(versao, comSociedade) {
     // cliente. Guardar markup ali incha a linha e congela a diagramacao de hoje
     // dentro de um registro que vai ser lido daqui a meses.
     pag: epPagDoOrcamento(p.invest),
-    obs: ORC_OBS_PADRAO,
+    obs: comSociedade
+      ? 'Garantia de 24 meses do equipamento a partir da emissão da nota fiscal. '
+        + 'O aporte desta proposta é a entrada do sócio na sociedade, não a compra do projeto: '
+        + 'obra, homologação, software e administração correm por conta da NEXUS, e os custos da operação '
+        + 'saem do faturamento antes da divisão do lucro. Valores válidos durante o prazo desta proposta. '
+        + 'Esta proposta não é o contrato da sociedade: aporte, cota, prestação de contas e saída '
+        + 'são firmados em instrumento próprio.'
+      : ORC_OBS_PADRAO,
     modelo: epEquipRotulo(t.equip) || 'Carregador NEXUS',
     quantidade: orcEpQtdCarregadores(), bicos: p.plugs,
     ent: {
