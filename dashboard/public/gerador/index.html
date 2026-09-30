@@ -5004,6 +5004,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <button type="button" class="avi-pub on" id="avi-pub-capital" onclick="aviTogglePublico('capital')">Investidores <span class="avi-cnt" id="avi-cnt-capital">—</span></button>
           <button type="button" class="avi-pub on" id="avi-pub-integrador" onclick="aviTogglePublico('integrador')">Parceiros <span class="avi-cnt" id="avi-cnt-integrador">—</span></button>
           <button type="button" class="avi-pub" id="avi-pub-curioso" onclick="aviTogglePublico('curioso')">Curioso <span class="avi-cnt" id="avi-cnt-curioso">—</span></button>
+          <!-- Nasce DESMARCADO como o Curioso: e uma pergunta pra mais de cem
+               pessoas frias, e entrar nela por engano, junto de uma pauta de
+               oportunidade, seria o pior acidente possivel aqui. -->
+          <button type="button" class="avi-pub" id="avi-pub-sem_dono" onclick="aviTogglePublico('sem_dono')" title="Tem endereço na ficha e ninguém perguntou de quem é o local. A resposta põe a pessoa em Arrendamento.">Dono não perguntado <span class="avi-cnt" id="avi-cnt-sem_dono">—</span></button>
         </div>
         <div class="avi-conta" id="avi-conta">Carregando a base…</div>
       </div>
@@ -9465,6 +9469,33 @@ function cadEhOpcaoArrendamento(origem, r) {
   }
   return cadPodeCeder(cadRelacaoDaLinha(origem, r));
 }
+// ── A PERGUNTA QUE FALTA (29/09/2026) ───────────────────────────────────────
+// 117 pessoas têm endereço na ficha e nunca foram perguntadas de quem é o local.
+// Elas não aparecem em lista nenhuma, e a resposta de uma linha vale uma vaga em
+// Arrendamento. É o grupo "Dono não perguntado" do Menu de Avisos.
+//
+// QUEM JÁ RESPONDEU NÃO RECEBE: "ainda não é meu" e "estou negociando" são
+// respostas, e repetir a pergunta pra quem respondeu é dizer que ninguém leu. Só
+// "não respondeu" (o que a LP escreve quando a pessoa pula) conta como não feita.
+//
+// GÊMEO de precisaPerguntarDoDono() em api/src/services/io/eletropostoPares.ts.
+function cadRespondeuDeQuemE(relacao) {
+  const t = String(relacao || '').trim().toLowerCase();
+  return !!t && !/^n[aã]o respondeu$/.test(t);
+}
+function cadTemEndereco(origem, r) {
+  if (origem === 'parceria') return String(r.ponto_endereco || '').trim() !== '';
+  if (origem === 'nota1') return String(r.endereco || '').trim() !== '';
+  return /Endere[çc]o:\s*\S/i.test(String(r.observacao || ''));
+}
+function cadPrecisaPerguntarDono(origem, r) {
+  // Ficha de teste fica fora: o telefone dela costuma ser o nosso.
+  if (/^\s*teste\b/i.test(String(r.nome || r.cliente_nome || ''))) return false;
+  if (origem === 'agenda' && CAD_STATUS_LOCAL_OCUPADO.has(String(r.status || ''))) return false;
+  if (cadEhOpcaoArrendamento(origem, r)) return false;
+  if (!cadTemEndereco(origem, r)) return false;
+  return !cadRespondeuDeQuemE(cadRelacaoDaLinha(origem, r));
+}
 
 const CAD_STATUS = { novo: 'Novo', falando: 'Falando', conectado: 'Conectado', sem_interesse: 'Sem interesse' };
 // ── COLUNA AGENDA (22/09/2026) ───────────────────────────────────────────────
@@ -9613,8 +9644,11 @@ async function cadCarregar(forcar) {
       // marcada ARRENDAMENTO: são 197 fichas com a linha "Local é seu", 120 delas
       // do dono, e só 12 estavam marcadas. As 192 KB de observação desta base
       // saem mais barato do que a coluna, que o trigger não preenche.
+      // `*Endere*` entrou em 29/09: sem ele a tela não vê as 117 pessoas que têm
+      // endereço e nunca foram perguntadas, e o grupo "Dono não perguntado" do
+      // Menu de Avisos contaria zero.
       supaGet('agendamentos?created_by=ilike.*eletroposto*'
-              + '&or=(status.eq.arrendamento,observacao.ilike.*Local*seu*)'
+              + '&or=(status.eq.arrendamento,observacao.ilike.*Local*seu*,observacao.ilike.*Endere*)'
               + '&select=id,created_at,cliente_nome,cliente_telefone,cidade,status,'
               + 'ponto_relacao,observacao&order=created_at.desc&limit=1000').catch(() => []),
       // TODA reunião recente, pra coluna Agenda: a pessoa da lista pode ter
@@ -9674,6 +9708,20 @@ async function cadCarregar(forcar) {
       ponto_tipo: f.perfil, ponto_fluxo: f.ponto, ponto_endereco: f.endereco,
       capital_faixa: null, capital_origem: f.invest,
       valor_investir: f.valor_investir || cadValorDaFicha(f.ficha) }));
+    // A PERGUNTA QUE FALTA: quem tem endereço e ninguém perguntou de quem é o
+    // local. Sai da linha CRUA, antes do mapeamento, porque o gate lê `status` do
+    // card e `observacao`, que não sobrevivem ao mapa de baixo.
+    const semDono = []
+      .concat((cadastros || []).filter(r => cadPrecisaPerguntarDono('parceria', r))
+        .map(r => ({ ...r, origem: 'parceria', ref: 'parceria:' + r.id })))
+      .concat((fichas || []).filter(r => cadPrecisaPerguntarDono('nota1', r))
+        .map(r => ({ ...r, origem: 'nota1', ref: 'nota1:' + r.id })))
+      .concat((agendaArr || []).filter(a => cadPrecisaPerguntarDono('agenda', a))
+        .map(a => ({ id: a.id, created_at: a.created_at, nome: a.cliente_nome,
+                     telefone: a.cliente_telefone, cidade: a.cidade,
+                     // status do CADASTRO, não da reunião: a reunião perdida por
+                     // falta de dinheiro é justamente quem a gente quer perguntar
+                     status: null, origem: 'agenda', ref: 'agenda:' + a.id })));
     // Só as reuniões que são opção de arrendamento — as outras continuam fora da
     // aba, como antes. O filtro roda na linha CRUA, onde `status` ainda é o do
     // card (embaixo ele virá 'novo', que é o status do CADASTRO, outra coisa).
@@ -9756,6 +9804,17 @@ async function cadCarregar(forcar) {
       // e apaga-la de Investidores por causa disso esconderia um investidor.
       integrador: (integradores || []).map(r => ({ ...r, tab: 'eletroposto_parceria', deFicha: false })),
       ponto: listas.ponto, capital: listas.capital, curioso: listas.curioso,
+      // Um telefone uma vez, na linha mais rica (cadastro > ficha > agenda), a
+      // mesma ordem de semDonoDeclarado() no servidor.
+      semDono: (() => {
+        const vistos = new Set(); const fora = [];
+        semDono.forEach(r => {
+          const d = soDig(r.telefone).slice(-8);
+          if (d) { if (vistos.has(d)) return; vistos.add(d); }
+          fora.push(r);
+        });
+        return fora;
+      })(),
     };
     // Origens misturadas ficam em ordem de chegada, e nao os cadastros todos em
     // cima e as fichas todas embaixo.
@@ -10338,7 +10397,8 @@ async function cadStatus(tabela, id, sel) {
 // e já foi bloqueada 3 vezes por leva de mensagem; a fila lenta é a feature.
 // ═══════════════════════════════════════════════════════════════════════════
 
-const AVI_LADOS = { ponto: 'Arrendamento', capital: 'Investidores', integrador: 'Parceiros', curioso: 'Curioso' };
+const AVI_LADOS = { ponto: 'Arrendamento', capital: 'Investidores', integrador: 'Parceiros',
+                   curioso: 'Curioso', sem_dono: 'Dono não perguntado' };
 // Espelha AVISOS_TETO_DIA no servidor. Se lá for afrouxado por env var, este
 // número fica conservador (a conta na tela promete mais dias que o real) — que é
 // o lado certo de errar numa estimativa.
@@ -11409,7 +11469,12 @@ function aviElegiveis(lados) {
   // entao quem esta nos dois conta uma vez, no grupo do cadastro.
   const curiosos = lados.curioso && cadDados
     ? (cadDados.curioso || []).map(r => ({ ...r, lado: 'curioso' })) : [];
-  return (aviDados ? aviDados.contatos : []).filter(c => lados[c.lado]).concat(curiosos).filter(c => {
+  // Dono nao perguntado vem por ULTIMO, igual no servidor: quem ja esta num grupo
+  // do cadastro ou no Curioso conta la, e recebe uma mensagem so.
+  const semDono = lados.sem_dono && cadDados
+    ? (cadDados.semDono || []).map(r => ({ ...r, lado: 'sem_dono' })) : [];
+  return (aviDados ? aviDados.contatos : []).filter(c => lados[c.lado])
+    .concat(curiosos).concat(semDono).filter(c => {
     if (String(c.status || '') === 'sem_interesse') return false;
     const k = aviChave(c.telefone);
     if (!k || vistos[k]) return false;
@@ -11429,7 +11494,9 @@ function aviRender() {
     const n = aviElegiveis({ [l]: true }).length;
     const cnt = document.getElementById('avi-cnt-' + l);
     // Curioso sem a aba Cadastros carregada e "nao sei", nao zero.
-    if (cnt) cnt.textContent = (l === 'curioso' && !cadDados) ? '—' : n;
+    // Os dois grupos derivados dependem da aba Cadastros: sem ela e "nao sei",
+    // nunca zero. Zero afirmaria que nao tem ninguem.
+    if (cnt) cnt.textContent = ((l === 'curioso' || l === 'sem_dono') && !cadDados) ? '—' : n;
     const bt = document.getElementById('avi-pub-' + l);
     if (bt) bt.classList.toggle('on', !!aviPublicos[l]);
   });

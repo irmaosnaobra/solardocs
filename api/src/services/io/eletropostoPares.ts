@@ -252,6 +252,55 @@ export function ehOpcaoArrendamento(origem: 'parceria' | 'nota1' | 'agenda',
   return podeCeder(relacaoDaLinha(origem, r));
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// A PERGUNTA QUE FALTA: "DE QUEM É O LOCAL?" (29/09/2026)
+//
+// O eixo do local so funciona com a resposta na mao, e 117 pessoas TEM ENDERECO
+// na ficha e nunca foram perguntadas. Elas nao estao em lista nenhuma: nao sao
+// Arrendamento (ninguem disse que podem ceder) e o endereco delas esta ali,
+// escrito, esperando a pergunta de uma linha.
+//
+// QUEM JA RESPONDEU NAO RECEBE. "Ainda nao e meu" e "estou negociando com o
+// proprietario" SAO respostas: repetir a pergunta pra quem respondeu e dizer na
+// cara que ninguem leu. Sao 9 pessoas, e elas ficam de fora de proposito. Quem a
+// LP marcou como "nao respondeu" entra, porque ai a pergunta nao foi feita.
+//
+// Reuniao que virou venda ou foi pro concorrente fica fora pelo mesmo motivo do
+// eixo do local: o lugar ja tem carregador.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Respondeu de quem e o local? "nao respondeu", vazio e nulo sao a MESMA coisa:
+ *  a pergunta nao foi feita. */
+export function respondeuDeQuemE(relacao: unknown): boolean {
+  const t = String(relacao ?? '').trim().toLowerCase();
+  return !!t && !/^n[aã]o respondeu$/.test(t);
+}
+
+/** Tem endereco anotado? E o que faz a pergunta valer a pena: sem endereco nao
+ *  ha local pra arrendar, so uma pessoa interessada. */
+export function temEndereco(origem: 'parceria' | 'nota1' | 'agenda',
+                            r: Record<string, unknown>): boolean {
+  if (origem === 'parceria') return String(r.ponto_endereco ?? '').trim() !== '';
+  if (origem === 'nota1') return String(r.endereco ?? '').trim() !== '';
+  return /Endere[çc]o:\s*\S/i.test(String(r.observacao ?? ''));
+}
+
+/** Entra na pauta "Dono nao perguntado"? Tem endereco, ninguem perguntou, e ela
+ *  ainda nao e opcao de arrendamento.
+ *
+ *  GEMEO de cadPrecisaPerguntarDono() no /gerador. */
+export function precisaPerguntarDoDono(origem: 'parceria' | 'nota1' | 'agenda',
+                                       r: Record<string, unknown>): boolean {
+  // Ficha de teste fica fora: o telefone dela costuma ser o NOSSO, e a pauta gasta
+  // um envio da linha pra mandar pergunta pra dentro de casa. Mesma regra da aba
+  // Prospeccao, que ja corta nome comecando com "teste".
+  if (/^\s*teste\b/i.test(String(r.nome ?? r.cliente_nome ?? ''))) return false;
+  if (origem === 'agenda' && STATUS_LOCAL_OCUPADO.has(String(r.status || ''))) return false;
+  if (ehOpcaoArrendamento(origem, r)) return false;
+  if (!temEndereco(origem, r)) return false;
+  return !respondeuDeQuemE(relacaoDaLinha(origem, r));
+}
+
 /** O "Local e seu:" e o "Quanto pretende investir:" moram no TEXTO da ficha. */
 const campoDaFicha = (ficha: unknown, rotulo: RegExp): string | null => {
   const m = String(ficha ?? '').match(rotulo);
@@ -351,6 +400,72 @@ export async function curiosos(): Promise<ContatoCurioso[]> {
     status: (r.status as string) || null,
     ref: `${origem}:${r.id}`,
   }));
+}
+
+export interface ContatoSemDono {
+  telefone: string;
+  nome: string | null;
+  cidade: string | null;
+  /** Status do CADASTRO (novo/falando/sem_interesse). `null` nas linhas que vem da
+   *  agenda: lá `status` é o desfecho da REUNIÃO, e reunião perdida por falta de
+   *  dinheiro é justamente quem a gente quer perguntar. Passar o desfecho aqui
+   *  faria a audiência descartar 27 pessoas por "sem_interesse" que não é dela. */
+  status: string | null;
+  /** 'agenda:1128', 'nota1:7' ou 'parceria:45'. */
+  ref: string;
+}
+
+/**
+ * Quem tem endereço e nunca respondeu de quem é o local.
+ *
+ * Um telefone uma vez, na linha mais rica (cadastro > ficha > agenda), a mesma
+ * ordem do pool. Erro de leitura SOBE, nunca vira lista vazia: lista vazia faria
+ * a pauta concluir sem ter mandado nada, com cara de sucesso.
+ */
+export async function semDonoDeclarado(): Promise<ContatoSemDono[]> {
+  const [cad, fic, ag] = await Promise.all([
+    supabaseGerador.from('eletroposto_parceria')
+      .select('id, nome, telefone, cidade, lado, ponto_relacao, ponto_endereco, capital_faixa, status, created_at')
+      .order('created_at', { ascending: false }).limit(1000),
+    supabaseGerador.from('eletroposto_nota1')
+      .select('id, nome, telefone, cidade, endereco, ficha, valor_investir, status, created_at')
+      .order('created_at', { ascending: false }).limit(1000),
+    supabaseGerador.from('agendamentos')
+      .select('id, cliente_nome, cliente_telefone, cidade, status, ponto_relacao, observacao, created_at')
+      .ilike('created_by', '%eletroposto%')
+      .order('created_at', { ascending: false }).limit(1000),
+  ]);
+  if (cad.error) throw new Error(`sem-dono: leitura dos cadastros falhou: ${cad.error.message}`);
+  if (fic.error) throw new Error(`sem-dono: leitura das fichas falhou: ${fic.error.message}`);
+  if (ag.error) throw new Error(`sem-dono: leitura da agenda falhou: ${ag.error.message}`);
+
+  const saida: ContatoSemDono[] = [];
+  const vistos = new Set<string>();
+  const poe = (tel: string, c: ContatoSemDono) => {
+    const k = tel.slice(-8);
+    if (!k || vistos.has(k)) return;
+    vistos.add(k);
+    saida.push(c);
+  };
+  for (const r of (cad.data || []) as Record<string, unknown>[]) {
+    if (!precisaPerguntarDoDono('parceria', r)) continue;
+    const tel = soDigitos(r.telefone);
+    poe(tel, { telefone: tel, nome: (r.nome as string) || null, cidade: (r.cidade as string) || null,
+               status: (r.status as string) || null, ref: `parceria:${r.id}` });
+  }
+  for (const r of (fic.data || []) as Record<string, unknown>[]) {
+    if (!precisaPerguntarDoDono('nota1', r)) continue;
+    const tel = soDigitos(r.telefone);
+    poe(tel, { telefone: tel, nome: (r.nome as string) || null, cidade: (r.cidade as string) || null,
+               status: (r.status as string) || null, ref: `nota1:${r.id}` });
+  }
+  for (const r of (ag.data || []) as Record<string, unknown>[]) {
+    if (!precisaPerguntarDoDono('agenda', r)) continue;
+    const tel = soDigitos(r.cliente_telefone);
+    poe(tel, { telefone: tel, nome: (r.cliente_nome as string) || null, cidade: (r.cidade as string) || null,
+               status: null, ref: `agenda:${r.id}` });
+  }
+  return saida;
 }
 
 /**

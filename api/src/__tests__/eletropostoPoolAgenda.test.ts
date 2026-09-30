@@ -35,7 +35,7 @@ vi.mock('../utils/supabaseGerador', () => {
 });
 
 import { pool, ehProprio, soPontosProprios, ehOpcaoArrendamento, relacaoDaLinha,
-         montarPares, MAX_PARES, type Candidato } from '../services/io/eletropostoPares';
+         montarPares, MAX_PARES, semDonoDeclarado, type Candidato } from '../services/io/eletropostoPares';
 
 describe('pool do PONTO — arrendamento marcado na agenda (21/09)', () => {
   beforeEach(() => {
@@ -351,5 +351,75 @@ describe('montarPares — a trava de auto-par e o teto por ponto', () => {
     expect(sem_dono).toEqual(['parceria:1']);
     // e ele não recebe lista de investidor: a lista seria a indicação que saiu
     expect(pares['parceria:1']).toBeUndefined();
+  });
+});
+
+
+// -----------------------------------------------------------------------------
+// A LISTA DA PERGUNTA (29/09/2026): quem tem endereco e ninguem perguntou.
+// -----------------------------------------------------------------------------
+describe('semDonoDeclarado', () => {
+  beforeEach(() => {
+    tabelas = {
+      eletroposto_parceria: [
+        // tem endereco e ninguem perguntou: ENTRA
+        { id: 50, lado: 'capital', nome: 'Cadastro sem resposta', telefone: '5534999992001',
+          cidade: 'Uberlândia-MG', ponto_endereco: 'Av. X, 10' },
+        // sem endereco: nao tem local pra arrendar
+        { id: 51, lado: 'capital', nome: 'Sem endereco', telefone: '5534999992002', cidade: 'Uberlândia-MG' },
+        // ja disse que e dono: ja e Arrendamento
+        { id: 52, lado: 'ponto', nome: 'Dono', telefone: '5534999992003', cidade: 'Uberlândia-MG',
+          ponto_endereco: 'Av. Y, 20', ponto_relacao: 'Sou o proprietário' },
+      ],
+      eletroposto_nota1: [
+        // a LP marcou "nao respondeu": a pergunta nao foi feita, ENTRA
+        { id: 60, nome: 'Ficha sem resposta', telefone: '5534999992004', cidade: 'Araguari-MG',
+          endereco: 'Rua Z, 30', ficha: 'Local é seu: não respondeu' },
+        // respondeu que ainda nao e dele: NAO recebe de novo
+        { id: 61, nome: 'Respondeu', telefone: '5534999992005', cidade: 'Araguari-MG',
+          endereco: 'Rua W, 40', ficha: 'Local é seu: Ainda não é meu' },
+      ],
+      agendamentos: [
+        // reuniao perdida por falta de dinheiro, com endereco: ENTRA
+        { id: 800, created_by: 'lp_eletroposto', status: 'sem_interesse', cliente_nome: 'Reuniao perdida',
+          cliente_telefone: '5534999992006', cidade: 'Patos de Minas-MG',
+          observacao: 'LP ELETROPOSTO — Posto\nEndereço: Av. K, 50' },
+        // o local ja tem carregador nosso
+        { id: 801, created_by: 'lp_eletroposto', status: 'fechou', cliente_nome: 'Vendido',
+          cliente_telefone: '5534999992007', cidade: 'Patos de Minas-MG',
+          observacao: 'LP ELETROPOSTO — Posto\nEndereço: Av. L, 60' },
+        // outro produto
+        { id: 802, created_by: 'lp_solar', status: 'agendado', cliente_nome: 'Solar',
+          cliente_telefone: '5534999992008', cidade: 'Patos de Minas-MG',
+          observacao: 'Endereço: Av. M, 70' },
+      ],
+    };
+  });
+
+  it('entra quem tem endereço e não foi perguntado, de qualquer origem', async () => {
+    const lista = await semDonoDeclarado();
+    expect(lista.map(c => c.ref).sort()).toEqual(['agenda:800', 'nota1:60', 'parceria:50']);
+  });
+
+  it('a linha da agenda vem com status nulo: o desfecho da reunião não é status de cadastro', async () => {
+    const lista = await semDonoDeclarado();
+    const daAgenda = lista.find(c => c.ref === 'agenda:800');
+    // se passasse 'sem_interesse' pra frente, a audiência do aviso descartaria
+    // justamente quem a pergunta é pra alcançar
+    expect(daAgenda!.status).toBeNull();
+    expect(daAgenda!.nome).toBe('Reuniao perdida');
+  });
+
+  it('erro de leitura SOBE: lista vazia faria a pauta concluir sem mandar nada', async () => {
+    const original = tabelas.eletroposto_nota1;
+    tabelas = { ...tabelas, eletroposto_nota1: original };
+    await expect((async () => {
+      const q: any = { select: () => q, ilike: () => q, order: () => q, limit: () => q,
+        then: (ok: any) => Promise.resolve({ data: null, error: { message: 'timeout' } }).then(ok) };
+      const mod = await import('../utils/supabaseGerador');
+      const antes = mod.supabaseGerador.from;
+      (mod.supabaseGerador as any).from = (t: string) => (t === 'eletroposto_nota1' ? q : antes(t));
+      try { return await semDonoDeclarado(); } finally { (mod.supabaseGerador as any).from = antes; }
+    })()).rejects.toThrow(/fichas/);
   });
 });

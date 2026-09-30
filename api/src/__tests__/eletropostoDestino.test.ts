@@ -9,7 +9,8 @@ import { join } from 'node:path';
 // cobre a tabela de destino linha a linha e depois LÊ o JavaScript da aba e roda os
 // dois lado a lado. Se alguém mexer num só, ele aponta a resposta em que discordaram.
 import { destinoDe, podeCeder, valorEmMil, valorOk, agruparPorDestino, PISO_INVESTIDOR_MIL,
-         ehOpcaoArrendamento, relacaoDaLinha, type LinhaOrigem } from '../services/io/eletropostoPares';
+         ehOpcaoArrendamento, relacaoDaLinha, precisaPerguntarDoDono, respondeuDeQuemE,
+         type LinhaOrigem } from '../services/io/eletropostoPares';
 
 const GERADOR = join(__dirname, '../../../dashboard/public/gerador/index.html');
 
@@ -22,13 +23,16 @@ function regraDaTela() {
   if (i < 0 || j < 0 || j <= i) throw new Error(`marcador sumiu do /gerador: "${de}" … "${ate}"`);
   return new Function(html.slice(i, j)
     + '\nreturn { cadPodeCeder, cadValorEmMil, cadDestino, CAD_PISO_MIL,'
-    + ' cadEhOpcaoArrendamento, cadRelacaoDaLinha };')() as {
+    + ' cadEhOpcaoArrendamento, cadRelacaoDaLinha, cadPrecisaPerguntarDono,'
+    + ' cadRespondeuDeQuemE };')() as {
     cadPodeCeder: (t: unknown) => boolean;
     cadValorEmMil: (t: unknown) => number | null;
     cadDestino: (origem: string, r: Record<string, unknown>) => string;
     CAD_PISO_MIL: number;
     cadEhOpcaoArrendamento: (origem: string, r: Record<string, unknown>) => boolean;
     cadRelacaoDaLinha: (origem: string, r: Record<string, unknown>) => string | null;
+    cadPrecisaPerguntarDono: (origem: string, r: Record<string, unknown>) => boolean;
+    cadRespondeuDeQuemE: (t: unknown) => boolean;
   };
 }
 
@@ -357,5 +361,92 @@ describe('ehOpcaoArrendamento: a tela e o servidor respondem igual', () => {
     const tela = regraDaTela();
     expect(tela.cadEhOpcaoArrendamento('parceria', r)).toBe(true);
     expect(tela.cadDestino('parceria', r)).toBe('capital');
+  });
+});
+
+
+// -----------------------------------------------------------------------------
+// A PERGUNTA QUE FALTA, GEMEA NOS DOIS LADOS (29/09/2026)
+//
+// O grupo "Dono nao perguntado" do Menu de Avisos sai de precisaPerguntarDoDono()
+// no servidor e de cadPrecisaPerguntarDono() na tela. Se os dois derivarem, a tela
+// promete um numero de destinatarios e o motor manda pra outra gente.
+// -----------------------------------------------------------------------------
+describe('precisaPerguntarDoDono: a tela e o servidor escolhem a mesma gente', () => {
+  const COM_ENDERECO = 'LP ELETROPOSTO — Posto\nEndereço: Av. João Naves, 1200\n';
+
+  it('reunião: bate em todo status x toda relação, com e sem endereço', () => {
+    const tela = regraDaTela();
+    const STATUS = ['agendado', 'sem_interesse', 'cancelado', 'nao_atendeu', 'em_atendimento',
+      'chave_na_mao', 'meio_a_meio', 'carregador', 'arrendamento', 'fechou', 'fechou_concorrente', '', null];
+    for (const status of STATUS) {
+      for (const rel of [...RELACOES, 'não respondeu']) {
+        for (const end of [COM_ENDERECO, '']) {
+          const linha = { status, observacao: end + (rel === null ? '' : 'Local é seu: ' + rel) };
+          expect(tela.cadPrecisaPerguntarDono('agenda', linha), `${status} · ${rel} · end=${!!end}`)
+            .toBe(precisaPerguntarDoDono('agenda', linha));
+        }
+      }
+    }
+  });
+
+  it('cadastro e ficha: bate com e sem endereço', () => {
+    const tela = regraDaTela();
+    for (const rel of [...RELACOES, 'não respondeu']) {
+      for (const end of ['Av. X, 10', '']) {
+        const cad = { lado: 'capital', ponto_relacao: rel, ponto_endereco: end };
+        expect(tela.cadPrecisaPerguntarDono('parceria', cad), `parceria ${rel} ${end}`)
+          .toBe(precisaPerguntarDoDono('parceria', cad));
+        const ficha = { endereco: end, ficha: rel === null ? '' : 'Local é seu: ' + rel };
+        expect(tela.cadPrecisaPerguntarDono('nota1', ficha), `nota1 ${rel} ${end}`)
+          .toBe(precisaPerguntarDoDono('nota1', ficha));
+      }
+    }
+  });
+
+  it('a regra em si: endereço sim, resposta não, e quem respondeu fica fora', () => {
+    // entra: tem endereço e ninguém perguntou
+    expect(precisaPerguntarDoDono('agenda', { status: 'sem_interesse', observacao: COM_ENDERECO })).toBe(true);
+    // "não respondeu" é pergunta não feita
+    expect(precisaPerguntarDoDono('agenda',
+      { status: 'agendado', observacao: COM_ENDERECO + 'Local é seu: não respondeu' })).toBe(true);
+    // já respondeu, mesmo que a resposta tire ele do Arrendamento: não recebe
+    expect(precisaPerguntarDoDono('agenda',
+      { status: 'agendado', observacao: COM_ENDERECO + 'Local é seu: Ainda não é meu' })).toBe(false);
+    expect(precisaPerguntarDoDono('agenda',
+      { status: 'agendado', observacao: COM_ENDERECO + 'Local é seu: Estou negociando com o proprietário' })).toBe(false);
+    // já é opção de arrendamento: a pergunta está respondida
+    expect(precisaPerguntarDoDono('agenda',
+      { status: 'agendado', observacao: COM_ENDERECO + 'Local é seu: Sou inquilino' })).toBe(false);
+    // sem endereço não há local pra arrendar
+    expect(precisaPerguntarDoDono('agenda', { status: 'agendado', observacao: 'LP ELETROPOSTO — Posto' })).toBe(false);
+    // o local já tem carregador
+    expect(precisaPerguntarDoDono('agenda', { status: 'fechou', observacao: COM_ENDERECO })).toBe(false);
+    expect(precisaPerguntarDoDono('agenda', { status: 'fechou_concorrente', observacao: COM_ENDERECO })).toBe(false);
+  });
+
+  it('ficha de teste fica fora, e a tela concorda', () => {
+    const tela = regraDaTela();
+    const comEndereco = 'Endereço: Av. X, 10';
+    for (const nome of ['Teste', 'teste 2', 'TESTE joao', '  Teste']) {
+      const linha = { status: 'agendado', cliente_nome: nome, observacao: comEndereco };
+      expect(precisaPerguntarDoDono('agenda', linha), nome).toBe(false);
+      expect(tela.cadPrecisaPerguntarDono('agenda', linha), 'tela ' + nome).toBe(false);
+    }
+    // nome que só COMEÇA parecido continua na pauta
+    for (const nome of ['Testemunha Silva', 'Ernesto', 'Teodoro']) {
+      const linha = { status: 'agendado', cliente_nome: nome, observacao: comEndereco };
+      expect(precisaPerguntarDoDono('agenda', linha), nome).toBe(true);
+      expect(tela.cadPrecisaPerguntarDono('agenda', linha), 'tela ' + nome).toBe(true);
+    }
+  });
+
+  it('respondeuDeQuemE: vazio, nulo e "não respondeu" são a mesma coisa', () => {
+    for (const t of ['', null, undefined, '   ', 'não respondeu', 'Não respondeu', 'nao respondeu']) {
+      expect(respondeuDeQuemE(t), String(t)).toBe(false);
+    }
+    for (const t of ['Sou o proprietário', 'Ainda não é meu', 'Sou inquilino']) {
+      expect(respondeuDeQuemE(t), t).toBe(true);
+    }
   });
 });

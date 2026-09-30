@@ -40,6 +40,11 @@ function fakeFrom(tabela: string) {
     eq(col: string, val: any) { q._filtros.push((r: any) => r[col] === val); return q; },
     gte(col: string, val: any) { q._filtros.push((r: any) => String(r[col]) >= String(val)); return q; },
     in(col: string, vals: any[]) { q._filtros.push((r: any) => vals.includes(r[col])); return q; },
+    ilike(col: string, padrao: string) {
+      const partes = String(padrao).toLowerCase().split('%').filter(Boolean);
+      q._filtros.push((r: any) => partes.every(t => String(r[col] ?? '').toLowerCase().includes(t)));
+      return q;
+    },
     contains(col: string, vals: any[]) { q._filtros.push((r: any) => vals.every(v => (r[col] || []).includes(v))); return q; },
     or() { return q; },
     order() { return q; },
@@ -408,6 +413,82 @@ describe('o grupo CURIOSO (21/09/2026)', () => {
   it('ERRO lendo as fichas não conclui a pauta: sem lista não sai nada, e ela continua na fila', async () => {
     curiosoBase();
     falhar.add('eletroposto_nota1');
+    const r = await runAvisosTick();
+    expect(r.motivo).toBe('erro_lista');
+    expect(enviarZapiIO).not.toHaveBeenCalled();
+    expect(db.avisos[0].status).toBe('rodando');
+  });
+});
+
+
+// -----------------------------------------------------------------------------
+// O GRUPO "DONO NAO PERGUNTADO" (29/09/2026)
+//
+// Tem endereco na ficha e ninguem perguntou de quem e o local. A resposta vale uma
+// vaga em Arrendamento, e sao 117 pessoas: a pauta e uma pergunta so.
+//
+// O que este bloco trava: a reuniao PERDIDA entra (o desfecho da reuniao nao e
+// status de cadastro, e passar 'sem_interesse' pra frente descartaria justamente
+// ela), quem ja respondeu NAO recebe, e o rodape e o do Curioso, porque essa
+// pessoa nunca se cadastrou como parceiro.
+// -----------------------------------------------------------------------------
+describe('o grupo DONO NAO PERGUNTADO (29/09/2026)', () => {
+  const base = () => {
+    db.eletroposto_parceria = [
+      // cadastro de investidor com endereco e sem resposta: entra
+      { ...contato('5511900000010', { lado: 'capital' }), id: 10,
+        ponto_endereco: 'Av. X, 10', capital_faixa: 'R$ 140 mil' } as any,
+    ];
+    db.eletroposto_nota1 = [
+      // respondeu que ainda nao e dele: nao recebe a pergunta de novo
+      { id: 20, telefone: '5511900000011', nome: 'Respondeu', cidade: 'Goiânia',
+        endereco: 'Rua Z, 30', ficha: 'Local é seu: Ainda não é meu', status: 'novo',
+        created_at: '2026-09-12T12:00:00Z' },
+    ];
+    db.agendamentos = [
+      // reuniao perdida por falta de dinheiro, com endereco: ENTRA
+      { id: 800, created_by: 'lp_eletroposto', status: 'sem_interesse', cliente_nome: 'Dono Perdido',
+        cliente_telefone: '5511900000012', cidade: 'Anápolis',
+        observacao: 'LP ELETROPOSTO — Posto\nEndereço: Av. K, 50', created_at: '2026-09-14T12:00:00Z' },
+      // reuniao de outro produto: fora
+      { id: 801, created_by: 'lp_solar', status: 'agendado', cliente_nome: 'Solar',
+        cliente_telefone: '5511900000013', cidade: 'Anápolis',
+        observacao: 'Endereço: Av. M, 70', created_at: '2026-09-14T12:00:00Z' },
+    ];
+    db.avisos = [avisoBase({ publicos: ['sem_dono'], corpo: 'Oi {nome}, o local do seu ponto é seu mesmo?' })];
+  };
+
+  it('a reunião perdida recebe a pergunta, e quem já respondeu não', async () => {
+    base();
+    const r = await runAvisosTick();
+    expect(r.enviados).toBe(1);
+    // dois na audiência: o cadastro sem resposta e a reunião perdida
+    expect(db.avisos[0].alvo).toBe(2);
+    const fones = db.aviso_envios.map(e => e.phone);
+    expect(['5511900000010', '5511900000012']).toContain(fones[0]);
+    expect(fones).not.toContain('5511900000011');   // já respondeu
+    expect(fones).not.toContain('5511900000013');   // outro produto
+  });
+
+  it('o rodapé é o do Curioso: essa pessoa nunca se cadastrou como parceiro', async () => {
+    base();
+    await runAvisosTick();
+    const texto = String((enviarZapiIO.mock.calls[0] as any[])[1]);
+    expect(texto).toContain('pediu informações sobre eletroposto');
+    expect(texto).not.toContain('se cadastrou como parceiro');
+  });
+
+  it('a pauta anda até os dois e só então conclui', async () => {
+    base();
+    await runAvisosTick();
+    await runAvisosTick();
+    expect(db.aviso_envios.map(e => e.phone).sort()).toEqual(['5511900000010', '5511900000012']);
+    expect(db.avisos[0].status).toBe('concluido');
+  });
+
+  it('ERRO lendo a agenda não conclui a pauta: sem lista não sai nada', async () => {
+    base();
+    falhar.add('agendamentos');
     const r = await runAvisosTick();
     expect(r.motivo).toBe('erro_lista');
     expect(enviarZapiIO).not.toHaveBeenCalled();

@@ -8,6 +8,9 @@
 //   integrador → PARCEIROS    (quem instala)
 // e, desde 21/09/2026, um quarto grupo que NÃO é lado de tabela nenhuma:
 //   curioso    → CURIOSO      (quem ainda não disse quanto investe)
+// e, desde 29/09/2026, um quinto que também não é lado de tabela:
+//   sem_dono   → DONO NAO PERGUNTADO (tem endereço na ficha e ninguém perguntou
+//                de quem é o local; a resposta vale uma vaga em Arrendamento)
 // O Curioso é derivado pela regra de destino (curiosos(), em eletropostoPares), e
 // junta cadastro e ficha da LP. A CHECK do banco nem aceita 'curioso' como lado:
 // pedir `.in('lado', ['curioso'])` devolveria zero linhas, e a pauta "concluiria"
@@ -52,11 +55,11 @@ import { MediaType, enviarZapiIO, adquirirLockBlast, liberarLockBlast } from './
 import { carregarSilenciados, chaveContato } from '../agents/whatsapp/silenciar';
 import { carregarPausas } from '../agents/whatsapp/pausaHumana';
 import { dentroDaJanelaDiurna, respeitaEspacamentoLinha } from '../agents/whatsapp/lineThrottle';
-import { curiosos } from './eletropostoPares';
+import { curiosos, semDonoDeclarado } from './eletropostoPares';
 import { lerRespostasCuriosoSeguro } from './curiosoRespostas';
 
 /** Os grupos que a tela chama de Arrendamento, Investidores, Parceiros e Curioso. */
-export const LADOS_AVISO = ['ponto', 'capital', 'integrador', 'curioso'] as const;
+export const LADOS_AVISO = ['ponto', 'capital', 'integrador', 'curioso', 'sem_dono'] as const;
 export type LadoAviso = (typeof LADOS_AVISO)[number];
 /** Os que são a coluna `lado` de eletroposto_parceria. O Curioso não é. */
 const LADOS_DO_CADASTRO = ['ponto', 'capital', 'integrador'];
@@ -151,7 +154,10 @@ export function montarTextoAviso(aviso: Pick<AvisoRow, 'titulo' | 'corpo'>, cont
     titulo ? '' : '',
     corpo,
     '',
-    contato.lado === 'curioso' ? RODAPE_CURIOSO : RODAPE_CADASTRO,
+    // O rodapé do Curioso serve os dois grupos derivados: quem está neles preencheu
+    // ficha ou marcou reunião, não se cadastrou como parceiro. Dizer "se cadastrou"
+    // pra essa pessoa numa mensagem fria é afirmar algo falso.
+    contato.lado === 'curioso' || contato.lado === 'sem_dono' ? RODAPE_CURIOSO : RODAPE_CADASTRO,
   ].filter((l, i, arr) => !(l === '' && arr[i - 1] === '')).join('\n').trim();
 }
 
@@ -194,6 +200,14 @@ export async function audienciaDoAviso(publicos: string[]): Promise<ContatoParce
   if (publicos.includes('curioso')) {
     for (const c of await curiosos()) {
       brutos.push({ telefone: c.telefone, nome: c.nome, cidade: c.cidade, lado: 'curioso', status: c.status, ref: c.ref });
+    }
+  }
+  // DONO NAO PERGUNTADO (29/09): tem endereço e ninguém perguntou de quem é o
+  // local. Vem por último: quem já está num grupo do cadastro ou no Curioso conta
+  // lá, e recebe UMA mensagem só.
+  if (publicos.includes('sem_dono')) {
+    for (const c of await semDonoDeclarado()) {
+      brutos.push({ telefone: c.telefone, nome: c.nome, cidade: c.cidade, lado: 'sem_dono', status: c.status, ref: c.ref });
     }
   }
   const porChave = new Map<string, ContatoParceria>();
