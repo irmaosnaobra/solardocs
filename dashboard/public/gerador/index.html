@@ -1461,9 +1461,8 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-col-agendado .crm-col-head{box-shadow:inset 0 3px 0 #60A5FA}
 .crm-col-reagendar .crm-col-head{box-shadow:inset 0 3px 0 #FDBA74}
 .crm-col-whatsapp .crm-col-head{box-shadow:inset 0 3px 0 #D0DCE9}
-.crm-col-frio .crm-col-head{box-shadow:inset 0 3px 0 #38BDF8}
-.crm-col-morno .crm-col-head{box-shadow:inset 0 3px 0 #FBBF24}
-.crm-col-quente .crm-col-head{box-shadow:inset 0 3px 0 #FB923C}
+.crm-col-fez_orcamento .crm-col-head{box-shadow:inset 0 3px 0 #FBBF24}
+.crm-col-proposta_apresentada .crm-col-head{box-shadow:inset 0 3px 0 #FB923C}
 .crm-col-em_atendimento .crm-col-head{box-shadow:inset 0 3px 0 #DFE7F0}
 .crm-col-vendido .crm-col-head{box-shadow:inset 0 3px 0 #34D399}
 /* Um tom acima do #f87171 do card: a coluna Reagendar ja usa o #F87171 na
@@ -7861,10 +7860,11 @@ function crmCheckDeepLink() {
   const alvo = q.get('crm');
   if (!alvo) return;
   const consultor = q.get('consultor') || '__todos__';
-  // O aviso de lead quente manda ?crm=quentes (plural) e a coluna do kanban se
-  // chama 'quente' — sem traduzir, o link abria o CRM e não rolava pra lugar
-  // nenhum. O de reagendar já casa com o nome da coluna.
-  const coluna = alvo === 'quentes' ? 'quente' : alvo;
+  // A coluna Quente SAIU do quadro em 29/09/2026 (o kanban passa a seguir os
+  // botões de status). O ?crm=quentes do alerta de lead quente continua podendo
+  // chegar, e link que aponta pra coluna inexistente tinha que virar beco.
+  // Agora ele abre o quadro do consultor sem rolar, que é o pior caso aceitável.
+  const coluna = CRM_ETAPAS[alvo] ? alvo : null;
   // tira os params da URL pra não reabrir ao recarregar
   history.replaceState(null, '', location.pathname);
   if (typeof navCRM === 'function') navCRM({ consultor, coluna });
@@ -20686,9 +20686,8 @@ const CRM_ETAPAS = {
   reagendar:   { lbl: 'Reagendar',         ic: '🔄' },
   em_atendimento: { lbl: 'Negociando', ic: '🕐' },
   whatsapp:    { lbl: 'Falando WhatsApp',  ic: '💬' },
-  frio:        { lbl: 'Frio',              ic: '❄️' },
-  morno:       { lbl: 'Morno',             ic: '🌤️' },
-  quente:      { lbl: 'Quente',            ic: '🔥' },
+  fez_orcamento:{ lbl: 'Fez orçamento',    ic: '🧾' },
+  proposta_apresentada: { lbl: 'Proposta apresentada', ic: '📄' },
   arrendamento:{ lbl: 'Arrendamento',      ic: '🤝' },
   carregador:  { lbl: 'Carregador',        ic: '🔌' },
   meio_a_meio: { lbl: '50/50',             ic: '👥' },
@@ -21839,7 +21838,11 @@ function crmDerivar(c) {
   const precisaReagendar = !agFuturo && agOrd.some(a =>
     a.status === 'nao_atendeu' ||
     a.status === 'sem_orcamento' ||
-    (a.status === 'agendado' && !a.temperatura && stamp(a.quando) > 0 && stamp(a.quando) < agora)
+    // O `!a.temperatura` saiu junto com as colunas (29/09/2026). Ele existia
+    // porque card com temperatura ia pra coluna dela de qualquer jeito; sem as
+    // colunas, mantê-lo faria o card vencido com temperatura cair no default
+    // "Agendado" e desaparecer da fila de quem precisa remarcar.
+    (a.status === 'agendado' && stamp(a.quando) > 0 && stamp(a.quando) < agora)
   );
 
   // Perdido manual (lead SEM ficha marcado no modal) — guardado em crm_perdidos.
@@ -21848,7 +21851,18 @@ function crmDerivar(c) {
   c.perdidoManual = !agRecente && crmPerdidos.has(c.key);
 
   // ===== DERIVAÇÃO DA ETAPA (prioridade de cima pra baixo) =====
-  // Temperatura "puxa" o card — força o consultor a classificar a agenda.
+  //
+  // 29/09/2026: O QUADRO SEGUE OS BOTÕES DE STATUS, e só eles.
+  //
+  // Até aqui a temperatura vinha ANTES do status e "puxava" o card: a ideia era
+  // forçar o consultor a classificar a agenda. O efeito colateral é que ela
+  // ESCONDIA o trabalho dele. Lead marcado quente que já recebeu orçamento
+  // aparecia em "Quente", não em "Fez orçamento" — e quem olha o quadro pra
+  // saber o que falta fazer via a etiqueta errada.
+  //
+  // Agora quente/morno/frio não decidem coluna nenhuma. O selo 🔥 continua no
+  // card (é a NOTA 3 que a LP do eletroposto grava, e outros robôs leem), mas
+  // como INFORMAÇÃO ao lado do estágio, não como estágio.
   let etapa;
   if (vendida) {
     etapa = 'vendido';
@@ -21868,12 +21882,14 @@ function crmDerivar(c) {
   } else if (temPerdido || c.perdidoManual) {
     // Venda sempre ganha; fora isso, Perdido (de agendamento OU manual) vence.
     etapa = 'perdido';
-  } else if (c.temperatura === 'quente') {
-    etapa = 'quente';
-  } else if (c.temperatura === 'morno') {
-    etapa = 'morno';
-  } else if (c.temperatura === 'frio') {
-    etapa = 'frio';
+  } else if (statusAg === 'proposta_apresentada') {
+    // Os dois estágios que o consultor JÁ marca no card e que, até 29/09/2026,
+    // não tinham coluna nenhuma: o lead que recebeu orçamento caía em
+    // "Agendado" (o default) ou era sequestrado pra "Quente" pela temperatura.
+    // Nos dois casos o botão que o consultor apertou ficava invisível no quadro.
+    etapa = 'proposta_apresentada';
+  } else if (statusAg === 'fez_orcamento') {
+    etapa = 'fez_orcamento';
   } else if (temWhatsapp) {
     etapa = 'whatsapp';
   } else if (emAtendimento) {
@@ -21956,7 +21972,7 @@ function crmFiltrados() {
 }
 
 // Ordem das colunas do kanban (funil). Perdido por último.
-const CRM_KANBAN_ORDEM = ['agendado', 'reagendar', 'em_atendimento', 'whatsapp', 'frio', 'morno', 'quente', 'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao', 'vendido', 'perdido'];
+const CRM_KANBAN_ORDEM = ['agendado', 'reagendar', 'em_atendimento', 'whatsapp', 'fez_orcamento', 'proposta_apresentada', 'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao', 'vendido', 'perdido'];
 // Colunas que só existem no quadro do ELETROPOSTO: são os modelos de negócio da
 // NEXUS que o lead escolhe na LP (01 "cedo o espaço e vocês investem 100%" vira
 // Arrendamento; 02 "sociedade meio a meio" vira 50/50). No Solar elas nasceriam
@@ -21994,7 +22010,7 @@ function renderCRM() {
     kpiBox.innerHTML =
       kpi('Clientes', total) +
       kpi('Em aberto', ativos, 'azul') +
-      kpi('Quentes', cont('quente'), 'laranja') +
+      kpi('Com orçamento', cont('fez_orcamento') + cont('proposta_apresentada'), 'laranja') +
       kpi('Reagendar', cont('reagendar'), 'vermelho') +
       kpi('Vendidos', vendidos, 'verde') +
       kpi('Pipeline', 'R$ ' + Math.round(pipeline).toLocaleString('pt-BR'), 'roxo');

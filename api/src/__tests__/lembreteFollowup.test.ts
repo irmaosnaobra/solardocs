@@ -94,21 +94,37 @@ describe('a conta que escolhe o cliente da vez', () => {
     expect(proposta).toBeGreaterThan(naoAtendeu);
   });
 
-  it('dentro do mesmo estágio, quente vem antes de frio', () => {
-    expect(pontuarCard('fez_orcamento', 'quente', 11))
-      .toBeGreaterThan(pontuarCard('fez_orcamento', 'frio', 11));
+  // 29/09/2026: A TEMPERATURA NÃO DECIDE MAIS NADA.
+  //
+  // Ordem do Thiago: "as colunas quente, morno e frio não têm necessidade, tem
+  // que acompanhar os botões de status existentes". A temperatura é palpite
+  // gravado uma vez no formulário; o status é o que alguém apertou DEPOIS de
+  // falar com a pessoa. Quando discordam, quem sabe mais é o status.
+  //
+  // O teste é de indiferença, e ele é mais forte que um teste de ordem: prova que
+  // nenhum valor de temperatura muda a nota, incluindo os que nem existem.
+  it('a temperatura é indiferente para a nota, qualquer valor', () => {
+    const base = pontuarCard('fez_orcamento', null, 11);
+    for (const t of ['quente', 'morno', 'frio', 'QUENTE', '', null, 'inventado']) {
+      expect(pontuarCard('fez_orcamento', t as string | null, 11)).toBe(base);
+    }
+  });
+
+  it('quem nunca atendeu não passa na frente de quem viu proposta, nem sendo quente', () => {
+    expect(pontuarCard('proposta_apresentada', 'frio', 11))
+      .toBeGreaterThan(pontuarCard('nao_atendeu', 'quente', 11));
   });
 
   it('o tempo desempata mas não atropela o estágio', () => {
-    const velhoFraco = pontuarCard('agendado', 'frio', 11 * 15);       // parado 15 dias
-    const novoForte = pontuarCard('proposta_apresentada', 'frio', 11); // parado 1 dia
+    const velhoFraco = pontuarCard('agendado', null, 11 * 15);       // parado 15 dias
+    const novoForte = pontuarCard('proposta_apresentada', null, 11); // parado 1 dia
     expect(novoForte).toBeGreaterThan(velhoFraco);
     // e, no mesmo estágio, o mais parado sobe
-    expect(pontuarCard('agendado', 'frio', 110)).toBeGreaterThan(pontuarCard('agendado', 'frio', 11));
+    expect(pontuarCard('agendado', null, 110)).toBeGreaterThan(pontuarCard('agendado', null, 11));
   });
 
-  it('temperatura vazia não quebra a conta', () => {
-    expect(Number.isFinite(pontuarCard('agendado', null, 0))).toBe(true);
+  it('status desconhecido não quebra a conta', () => {
+    expect(Number.isFinite(pontuarCard('status_que_nao_existe', null, 0))).toBe(true);
   });
 
   it('a lista de estágios abertos não tem desfecho dentro', () => {
@@ -181,6 +197,14 @@ describe('o recado que chega no celular', () => {
     expect(msg).toContain('wa.me/5534999887766');      // com o 55, do jeito que o link precisa
     expect(msg).toContain('/gerador/agenda?ag=1&ver=1');
     expect(msg).toContain('Consumo: 900 kWh');
+  });
+
+  // Duas etiquetas discordando no celular fazem quem lê obedecer a errada.
+  it('mostra só o status, nunca a temperatura', () => {
+    const msg = montarLembrete(card({ status: 'nao_atendeu', temperatura: 'quente' }), 30, 1);
+    expect(msg).toContain('Status: NÃO ATENDEU');
+    expect(msg.toLowerCase()).not.toContain('temperatura');
+    expect(msg.toLowerCase()).not.toContain('quente');
   });
 
   it('diz o motivo da ligação em vez de só mostrar o status', () => {

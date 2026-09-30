@@ -39,7 +39,11 @@
 // ── O que escolhe o cliente da vez é CONTA, não modelo de linguagem ────────
 //
 // A ordem sai de `pontuarCard()`, que é pura, exportada e presa por teste: peso
-// do estágio, peso da temperatura e dias úteis parado. Modelo de linguagem aqui
+// do ESTÁGIO (o botão de status que o consultor apertou) e dias úteis parado. A
+// temperatura não entra, e desde 29/09/2026 nem existe como coluna no CRM: é
+// palpite gravado uma vez no formulário, contra um status que alguém apertou
+// depois de falar com a pessoa. Quando discordam, quem sabe mais é o status.
+// Modelo de linguagem aqui
 // só teria uma função, inventar o cliente que não existe, e essa é exatamente a
 // que não pode ter. A "informação relevante" que o Thiago pediu vem de campo
 // real do card (consumo, urgência, quem decide, motivo, cidade, a observação do
@@ -250,21 +254,35 @@ export function ultimoToque(c: CardAberto): Date | null {
 /**
  * Nota do card. Maior liga primeiro.
  *
- * Três parcelas, nesta ordem de força:
- *   estágio × 10  — quem está perto do sim vale mais que quem nem atendeu
- *   temperatura × 4 — quente na frente de frio, dentro do mesmo estágio
- *   dias úteis parados (teto 15) — o tempo desempata e, sozinho, faz o card
- *                                  velho subir sem nunca passar na frente de um
- *                                  quente recém-parado
+ * Duas parcelas:
+ *   estágio × 10 — quem está perto do sim vale mais que quem nem atendeu
+ *   dias úteis parados (teto 15) — o tempo desempata dentro do mesmo estágio, e
+ *                                  sozinho nunca passa na frente de um estágio
+ *                                  mais avançado
+ *
+ * ── A TEMPERATURA SAIU DAQUI EM 29/09/2026 ─────────────────────────────────
+ *
+ * Ela era a segunda parcela (quente × 4). Ordem do Thiago no mesmo dia: "as
+ * colunas quente, morno e frio não têm necessidade, tem que acompanhar os botões
+ * de status existentes".
+ *
+ * E ela estava ERRADA aqui pelo mesmo motivo que estava errada no kanban: é um
+ * palpite gravado uma vez, no ato do agendamento, enquanto o status é o que o
+ * consultor apertou DEPOIS de falar com a pessoa. Quando os dois discordam, quem
+ * sabe mais é o status. Com a temperatura na conta, um lead `quente` que nunca
+ * atendeu podia passar na frente de um `frio` que já tinha recebido proposta —
+ * ou seja, o palpite do formulário na frente do fato da conversa.
+ *
+ * O parâmetro continua na assinatura e é IGNORADO de propósito: os chamadores e
+ * os testes não precisam mudar de forma, e a próxima pessoa que abrir isto vê
+ * que a decisão foi tomada, não esquecida.
  *
  * Pura e exportada: é a regra de prioridade, e é a que o teste prende.
  */
-export function pontuarCard(status: string, temperatura: string | null, horasUteis: number): number {
+export function pontuarCard(status: string, _temperatura: string | null, horasUteis: number): number {
   const estagio = PESO_ESTAGIO[status] ?? 1;
-  const t = (temperatura || '').trim().toLowerCase();
-  const calor = t === 'quente' ? 3 : t === 'morno' ? 2 : 1;
   const diasParado = Math.min(horasUteis / 11, 15);          // 11h de expediente por dia
-  return estagio * 10 + calor * 4 + diasParado;
+  return estagio * 10 + diasParado;
 }
 
 /** O primeiro nome, pra mensagem não virar cartório. */
@@ -343,8 +361,11 @@ export function montarLembrete(c: CardAberto, horasUteis: number, toque: number)
     CHAMADA[c.status] || 'Esse cliente está esperando alguém finalizar o atendimento.',
     '',
     `Parado há ${esperaPorExtenso(horasUteis)}`,
+    // O status é o botão que o consultor apertou, e é a única etiqueta que sai
+    // aqui. A temperatura saiu da mensagem em 29/09/2026 junto com as colunas do
+    // CRM: mostrar "QUENTE" ao lado de "NÃO ATENDEU" é dar duas respostas
+    // diferentes pra mesma pergunta, e quem lê no celular obedece a errada.
     `Status: ${ROTULO_ESTAGIO[c.status] || c.status.toUpperCase()}${c.cidade ? ` · ${c.cidade}` : ''}`,
-    ...(c.temperatura ? [`Temperatura: ${c.temperatura.toUpperCase()}`] : []),
     ...(ctx.length ? ['', ...ctx.map(l => `• ${l}`)] : []),
     '',
     digitos ? `Chamar no WhatsApp: wa.me/${digitos}` : null,
