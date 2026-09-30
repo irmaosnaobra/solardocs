@@ -3062,7 +3062,15 @@ function perfilTexto(sel){
 // menos do que os ~36 que derrubaram a vitrine larga em 28/09, e quem não pode
 // hoje passa a ter onde clicar — que era o buraco da régua de um dia só.
 // Abrir ou fechar a agenda é ESTA linha, e só ela.
-const DIAS_NA_VITRINE = 4;
+//
+// 30/09/2026, à tarde — DOIS DIAS. Ordem do Thiago: "hoje e amanhã apenas, se
+// ficar muito longe as pessoas desmarcam". Não é sobre caber na tela (com o chip
+// cabia): é sobre a reunião acontecer. Quanto mais longe o horário, mais tempo
+// para o lead esfriar, e reunião marcada que não acontece custa mais do que
+// reunião não marcada — ela ainda queima o horário do consultor.
+// São os DOIS DIAS ABERTOS MAIS PRÓXIMOS com vaga: enquanto hoje tem horário é
+// hoje e amanhã; de noite, ou na sexta, vira os dois próximos dias úteis.
+const DIAS_NA_VITRINE = 2;
 function proximosDias(){
   const base = new Date(`${partesBR().ymd}T12:00:00-03:00`);
   const abertos = [];
