@@ -1462,6 +1462,8 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-col-reagendar .crm-col-head{box-shadow:inset 0 3px 0 #FDBA74}
 .crm-col-whatsapp .crm-col-head{box-shadow:inset 0 3px 0 #D0DCE9}
 .crm-col-fez_orcamento .crm-col-head{box-shadow:inset 0 3px 0 #FBBF24}
+.crm-col-nao_atendeu .crm-col-head{box-shadow:inset 0 3px 0 #FDBA74}
+.crm-col-sem_interesse .crm-col-head{box-shadow:inset 0 3px 0 #F87171}
 .crm-col-proposta_apresentada .crm-col-head{box-shadow:inset 0 3px 0 #FB923C}
 .crm-col-em_atendimento .crm-col-head{box-shadow:inset 0 3px 0 #DFE7F0}
 .crm-col-vendido .crm-col-head{box-shadow:inset 0 3px 0 #34D399}
@@ -20698,12 +20700,17 @@ const CRM_ETAPAS = {
   agendado:    { lbl: 'Agendado',          ic: '📅' },
   reagendar:   { lbl: 'Reagendar',         ic: '🔄' },
   em_atendimento: { lbl: 'Negociando', ic: '🕐' },
+  // Colunas do quadro do ELETROPOSTO (29/09/2026). Nenhuma derivação produz
+  // estas duas chaves: elas são DESTINO de remapeamento (CRM_ETAPA_NO_QUADRO),
+  // e existem aqui porque o cabeçalho da coluna lê o rótulo daqui.
+  nao_atendeu: { lbl: 'Não Atendeu',      ic: '📵' },
+  sem_interesse:{ lbl: 'Sem Interesse',   ic: '🚫' },
   whatsapp:    { lbl: 'Falando WhatsApp',  ic: '💬' },
   fez_orcamento:{ lbl: 'Fez orçamento',    ic: '🧾' },
   proposta_apresentada: { lbl: 'Proposta apresentada', ic: '📄' },
   arrendamento:{ lbl: 'Arrendamento',      ic: '🤝' },
   carregador:  { lbl: 'Carregador',        ic: '🔌' },
-  meio_a_meio: { lbl: '50/50',             ic: '👥' },
+  meio_a_meio: { lbl: '50/50 - Cota',      ic: '👥' },
   chave_na_mao:{ lbl: 'Chave na mão',      ic: '🔑' },
   vendido:     { lbl: 'Vendido',           ic: '✅' },
   perdido:     { lbl: 'Perdido',           ic: '❌' }
@@ -20712,8 +20719,8 @@ const CRM_ETAPAS = {
 // Inclui os status manuais 'perdido' e 'fechou_concorrente' (marcados na Agenda).
 // 'arrendamento' e 'meio_a_meio' ficam FORA de propósito: quem aceita que a gente
 // invista 100% no ponto dele, ou entra com metade, é negócio VIVO, não perda. Os
-// dois têm COLUNA PRÓPRIA no quadro do eletroposto (CRM_ETAPAS_EP), entre Quente e
-// Vendido, e selo próprio no card (marrom e rosa).
+// dois têm COLUNA PRÓPRIA no quadro do eletroposto (CRM_KANBAN.eletroposto), entre
+// Negociando e Vendido, e selo próprio no card (marrom e rosa).
 const CRM_STATUS_PERDIDO = new Set(['cancelado', 'sem_interesse', 'perdido', 'fechou_concorrente']);
 
 let crmClientes = [];          // lista unificada já processada
@@ -20807,10 +20814,13 @@ function navCRM(opts) {
     // no de Eletroposto — senão o link levaria a um quadro sem o cliente que ele
     // mandou buscar. Com gente nos dois, manda o padrão (Solar).
     if (opts && opts.coluna && !(opts && opts.produto)) {
+      // Compara com a COLUNA de cada quadro, não com a etapa crua: no quadro do
+      // eletroposto um card em `reagendar` aparece em Não Atendeu, e comparar
+      // etapa faria o link achar o quadro vazio e mandar pro lado errado.
       const naCol = (prod) => crmClientes.filter(c =>
         crmEhDoProduto(c, prod)
         && (crmFiltroConsultor === '__todos__' || c.consultor === crmFiltroConsultor)
-        && c.etapa === opts.coluna).length;
+        && crmColunaDaEtapa(c.etapa, prod) === opts.coluna).length;
       if (!naCol('solar') && naCol('eletroposto')) crmFiltroProduto = 'eletroposto';
     }
     crmRenderFiltros();
@@ -21984,17 +21994,79 @@ function crmFiltrados() {
   });
 }
 
-// Ordem das colunas do kanban (funil). Perdido por último.
-const CRM_KANBAN_ORDEM = ['agendado', 'reagendar', 'em_atendimento', 'whatsapp', 'fez_orcamento', 'proposta_apresentada', 'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao', 'vendido', 'perdido'];
-// Colunas que só existem no quadro do ELETROPOSTO: são os modelos de negócio da
-// NEXUS que o lead escolhe na LP (01 "cedo o espaço e vocês investem 100%" vira
-// Arrendamento; 02 "sociedade meio a meio" vira 50/50). No Solar elas nasceriam
-// vazias pra sempre, e coluna vazia só aumenta a rolagem do quadro.
-const CRM_ETAPAS_EP = ['arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao'];
+// ── OS DOIS QUADROS (29/09/2026) ───────────────────────────────────────────
+//
+// Até aqui existia UMA lista de colunas e o Solar era ela menos as 4 do
+// eletroposto. Deixou de servir quando o Thiago desenhou o quadro do
+// eletroposto: ele pediu 9 colunas, e duas delas (Não Atendeu, Sem Interesse)
+// não existem no Solar, enquanto quatro do Solar (Reagendar, Falando WhatsApp,
+// Fez orçamento, Proposta apresentada) não existem no dele. Não é a mesma lista
+// filtrada: são dois funis, porque os dois produtos param em lugares
+// diferentes.
+const CRM_KANBAN = {
+  // Pedido do Thiago, nesta ordem. As 4 do meio são os modelos de negócio da
+  // NEXUS que o lead escolhe na LP (01 "cedo o espaço e vocês investem 100%"
+  // vira Arrendamento; 02 "sociedade meio a meio" vira 50/50 - Cota).
+  eletroposto: ['agendado', 'nao_atendeu', 'em_atendimento', 'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao', 'vendido', 'sem_interesse'],
+  solar:       ['agendado', 'reagendar', 'em_atendimento', 'whatsapp', 'fez_orcamento', 'proposta_apresentada', 'vendido', 'perdido'],
+};
+
+// ONDE CADA ETAPA CAI NUM QUADRO QUE NÃO TEM COLUNA PRÓPRIA PRA ELA.
+//
+// Este mapa não é conveniência, é o que impede o card de sumir. A derivação em
+// `crmDerivar` é uma só (um cliente tem UMA etapa, e o mesmo cliente pode
+// aparecer nos dois quadros), então sem remapear, os 24 cards de eletroposto em
+// `proposta_apresentada` abririam uma 10ª coluna solta no fim do quadro que o
+// Thiago desenhou com 9. A rede de segurança lá embaixo (etapa com card fora da
+// ordem entra no fim) continua existindo pra pegar o que eu não mapeei aqui.
+//
+// As escolhas, e o motivo de cada uma:
+//   · no eletroposto, `reagendar` vira Não Atendeu. A etapa `reagendar` JÁ é
+//     "não atendeu, ou não orçou, ou o horário passou sem desfecho" — o nome
+//     novo descreve melhor o que aconteceu, e desde 29/09 quem remarca é robô.
+//   · `whatsapp`, `fez_orcamento` e `proposta_apresentada` viram Negociando.
+//     No eletroposto o funil não para no orçamento: ele para no MODELO escolhido
+//     (as 4 colunas do meio). Tudo entre a apresentação e a escolha é negociação.
+//   · `perdido` vira Sem Interesse, que é o botão que a equipe realmente aperta
+//     (PERDIDO saiu do card na faxina de 23/09).
+//   · no solar, o caminho inverso pras duas chaves que só o quadro de EP tem.
+const CRM_ETAPA_NO_QUADRO = {
+  eletroposto: {
+    reagendar: 'nao_atendeu',
+    whatsapp: 'em_atendimento',
+    fez_orcamento: 'em_atendimento',
+    proposta_apresentada: 'em_atendimento',
+    perdido: 'sem_interesse',
+  },
+  solar: {
+    nao_atendeu: 'reagendar',
+    sem_interesse: 'perdido',
+  },
+};
+
 function crmOrdemDoQuadro(produto) {
-  return produto === 'eletroposto'
-    ? CRM_KANBAN_ORDEM.slice()
-    : CRM_KANBAN_ORDEM.filter(k => !CRM_ETAPAS_EP.includes(k));
+  return (CRM_KANBAN[produto] || CRM_KANBAN.solar).slice();
+}
+
+/**
+ * A coluna em que este card aparece NESTE quadro.
+ *
+ * Quando não há coluna própria nem remapeamento decidido, devolve a ETAPA CRUA
+ * de propósito, e não uma coluna qualquer do quadro. Quem cuida daí pra frente é
+ * a rede de segurança do render, que abre uma coluna no fim pra etapa órfã.
+ *
+ * Parece detalhe e não é: o caso real é marcar um lead de SOLAR com um modelo de
+ * eletroposto (o botão está no mesmo modal). Devolver `cols[0]` enterraria esse
+ * card em "Agendado" no quadro solar, sem dizer nada — pior que o comportamento
+ * que já existia, que era justamente dar a ele uma coluna visível no fim. Some
+ * sem avisar é o defeito que aquela rede foi escrita pra impedir.
+ */
+function crmColunaDaEtapa(etapa, produto) {
+  const cols = CRM_KANBAN[produto] || CRM_KANBAN.solar;
+  if (cols.includes(etapa)) return etapa;
+  const alt = (CRM_ETAPA_NO_QUADRO[produto] || {})[etapa];
+  if (alt && cols.includes(alt)) return alt;
+  return etapa;                         // órfã: a rede do render lhe dá coluna
 }
 
 function renderCRM() {
@@ -22067,10 +22139,14 @@ function renderCRM() {
     ? `<span class="crm-status-selo selo-pa" title="Proposta apresentada por ${escapeHtml(c.propPor)}">📑 Proposta: ${escapeHtml(c.propPor)}</span>`
     : '';
 
-  // Agrupa por etapa
+  // Agrupa por COLUNA DO QUADRO ABERTO, não por etapa crua: a etapa é uma só
+  // por cliente e os dois quadros têm colunas diferentes.
   const porEtapa = {};
-  CRM_KANBAN_ORDEM.forEach(k => { porEtapa[k] = []; });
-  lista.forEach(c => { (porEtapa[c.etapa] || (porEtapa[c.etapa] = [])).push(c); });
+  crmOrdemDoQuadro(crmFiltroProduto).forEach(k => { porEtapa[k] = []; });
+  lista.forEach(c => {
+    const col = crmColunaDaEtapa(c.etapa, crmFiltroProduto);
+    (porEtapa[col] || (porEtapa[col] = [])).push(c);
+  });
 
   // Monta um card compacto de cliente
   const card = (c) => {
