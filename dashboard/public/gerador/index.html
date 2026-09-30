@@ -3800,8 +3800,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
         <!-- ações -->
         <div class="eletro-acoes">
-          <button type="button" class="eletro-btn" onclick="epRevisar('estudo')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> <span id="btn-socio-rot">Sociedade 50/50</span></button>
-          <button type="button" class="eletro-btn" onclick="socAbrir()" title="Mudar a cota e o aporte de cada socio"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg> Editar cota</button>
+          <button type="button" class="eletro-btn" onclick="socAbrir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg> Sociedade e cotas</button>
           <button type="button" class="eletro-btn" onclick="epRevisar('planilha')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg> Simulador em PDF</button>
           <button type="button" class="eletro-btn" onclick="epRevisar('basico')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg> Orçamento Básico</button>
           <button type="button" class="eletro-btn" onclick="epRevisar('completo')"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="13" y2="17"></line></svg> Orçamento Completo</button>
@@ -5712,7 +5711,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 <div id="modal-socio" class="modal-overlay" onclick="if(event.target===this) socFechar()">
   <div class="modal-box">
     <h3>Quadro societario</h3>
-    <p>O investimento total continua vindo do <b>Simulador</b>. Aqui se diz quem entra com quanto e quem fica com quanto.</p>
+    <p>Primeiro o quadro: quem entra com quanto e quem fica com quanto. Depois abre a revisao do documento, com cliente, endereco e contato ja preenchidos.</p>
     <div class="modal-acoes" style="justify-content:flex-start;margin:0 0 10px">
       <button class="secondary" onclick="socPreset('meio')">Socios 50/50</button>
       <button class="secondary" onclick="socPreset('cotas25')">Cotas 25% (3 socios)</button>
@@ -5741,7 +5740,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div id="soc-preview" class="venda-ref"></div>
     <div class="modal-acoes">
       <button class="secondary" onclick="socPreset('meio')">Voltar ao padrao</button>
-      <button class="success" onclick="socSalvar()">Aplicar</button>
+      <button class="success" onclick="socContinuar()">Continuar</button>
     </div>
   </div>
 </div>
@@ -12145,10 +12144,6 @@ function eletroCalc() {
   }
 
   renderEletroChart(r.fluxo);
-  // Rotulo do botao mostra a cota escolhida ("Cotas de 25%"). Fica aqui porque
-  // eletroCalc roda na abertura da aba e a cada tecla: cota guardada de ontem tem
-  // que aparecer no controle antes de alguem imprimir achando que e' meio a meio.
-  socRotuloBotao();
 }
 
 // Gráfico de barras "waterfall" — zero no meio, negativas descem, positivas sobem.
@@ -13899,8 +13894,8 @@ function epEquipPrefill() {
 const REV_DOCS = {
   completo:  { titulo: 'Orçamento Completo',   acao: 'Gerar link do cliente', pdf: true,
                nota: 'O <b>link do cliente</b> abre a apresentação de 13 páginas na web — é ela que o cliente vê no celular. O <b>PDF</b> sai desta mesma apresentação, sem trocar de tela.' },
-  estudo:    { titulo: 'Sociedade', acao: null, pdf: true,
-               nota: 'Cinco folhas A4 para o modelo de <b>sociedade</b>: quadro societário, a divisão em números, mercado, operação, fluxo de caixa da parte do sócio, sensibilidade, riscos e próximos passos. A cota e o aporte de cada lado saem do botão <b>Editar cota</b>.' },
+  estudo:    { titulo: 'Sociedade e cotas', acao: null, pdf: true,
+               nota: 'Uma folha A4 no formato do Orçamento Básico: quadro societário, o que a NEXUS entrega, o retorno da parte do sócio e as condições à vista, 10x e 18x sobre a <b>cota</b>.' },
   planilha:  { titulo: 'Simulador em PDF',      acao: null, pdf: true,
                nota: 'Uma folha A4 com o resumo do investimento e a memória de cálculo.' },
   basico:    { titulo: 'Orçamento Básico',      acao: null, pdf: true,
@@ -14920,351 +14915,158 @@ function socPreset(qual) {
   socPreview();
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// SOCIEDADE — o documento do modelo de sociedade (entrou no lugar do Estudo de
-// Viabilidade em 29/09/2026, por decisão do dono).
-// ═══════════════════════════════════════════════════════════════════════════
-// A aba já atendia o chave na mão (Orçamento Básico e Completo) e o carregador
-// avulso (Venda de equipamento); o modelo de sociedade não tinha documento nenhum.
+// Condicoes de pagamento da COTA (decisao do dono, 29/09/2026). Tres, fixas, e
+// calculadas sobre o APORTE DO SOCIO — nunca sobre o investimento do projeto:
+// quem paga e' ele, e pela parte dele.
 //
-// A REGRA DA DIVISÃO: os sócios entram com o capital e TODOS os custos da operação
-// (energia, arrendamento do ponto, manutenção, seguro, internet, imposto e o
-// Software NEXUS) saem do faturamento ANTES; o lucro que sobra é dividido pela cota.
+// Os fatores sao de cartao e foram dados prontos: 1,11 em 10x e 1,20 em 18x.
+// Ficam nomeados aqui em vez de espalhados no HTML porque o dia em que a
+// maquininha mudar, muda num lugar so'.
+const SOC_FATOR_10X = 1.11;
+const SOC_FATOR_18X = 1.20;
+function socPagChips(aporte) {
+  const v = Math.max(0, Number(aporte) || 0);
+  if (!(v > 0)) return '';
+  const chip = (t, s) => `<div class="pag"><b>${t}</b><span>${s}</span></div>`;
+  return '<div class="pags">'
+    + chip('À vista', o1BRL(v))
+    + chip('10x no cartão', '10x de ' + o1BRL(v * SOC_FATOR_10X / 10))
+    + chip('18x no cartão', '18x de ' + o1BRL(v * SOC_FATOR_18X / 18))
+    + '</div>';
+}
+
+// O botao da fileira cai AQUI, e nao direto na emissao: o quadro societario e' a
+// primeira decisao do documento (quem entra com quanto), e emitir antes de olhar
+// pra ela e' como sai proposta com a cota de ontem. Da janela, "Continuar" grava e
+// entrega a revisao normal, que ja' vem com cliente, documento, endereco, CEP,
+// telefone e e-mail preenchidos do Orcamento.
+function socContinuar() {
+  socSalvar();
+  epRevisar('estudo');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SOCIEDADE E COTAS — o documento do modelo de sociedade
+// ═══════════════════════════════════════════════════════════════════════════
+// Entrou no lugar do Estudo de Viabilidade em 29/09/2026 e, no mesmo dia, saiu do
+// formato de estudo (cinco folhas) para o formato do ORCAMENTO BASICO: uma folha
+// A4, mesmo renderizador (orc1HTML), mesmas margens, mesma faixa de pagamento.
+// Estudo e orcamento sao conversas diferentes — esta aqui e' a que fecha.
 //
-// O QUE NÃO PODE SER DIVIDIDO: payback, TIR e ROI não são valores, são razões. Com
-// aporte proporcional à cota eles são IGUAIS aos do projeto inteiro (é o argumento
-// da venda: mesmo retorno, cheque menor). Fora da proporção eles mudam, e cada lado
-// tem os seus, pelo epIndicadores sobre o próprio fluxo. Nunca copiar o número do
-// projeto pra coluna de um sócio.
+// A REGRA DA DIVISAO: os socios entram com o capital, TODOS os custos da operacao
+// saem do faturamento ANTES, e o lucro que sobra e' dividido pela cota.
+//
+// O QUE NAO PODE SER DIVIDIDO: payback, TIR e ROI nao sao valores, sao razoes. Com
+// aporte proporcional a cota eles sao IGUAIS aos do projeto inteiro; fora dela cada
+// lado tem os seus, pelo epIndicadores sobre o proprio fluxo. Quem entra so' com
+// trabalho nao tem payback nem ROI — os dois saem travessao.
 function eletroImprimir() {
   const p = eletroParams();
   const r = computeEletro(p);
   const d = socDados(r);
+  const t = eletroTextos();
 
-  // Cota que não fecha 100% é a única trava desta folha: uma sociedade cujas partes
-  // somam 97% não tem como ser impressa honestamente. Falta de capital NÃO trava —
-  // desce nomeada no quadro societário.
+  if (!(d.invest > 0)) {
+    alert('Defina o "Investimento total" no Simulador antes de emitir a proposta de sociedade.');
+    return;
+  }
+  // Cota que nao fecha 100% e' a unica trava: uma sociedade cujas partes somam 97%
+  // nao tem como ser impressa honestamente. Falta de CAPITAL nao trava — desce
+  // nomeada no quadro, porque e' estado real de quem ainda procura socio.
   if (!d.cotasFecham) {
     alert('As cotas somam ' + socPct(d.somaCotas) + '%, não 100%.\n\n' +
       d.n + ' sócio(s) x ' + socPct(d.cotaSocio) + '% + ' + socPct(d.cotaNexus) + '% da NEXUS.\n\n' +
-      'Abra "Editar cota" e ajuste até fechar antes de emitir.');
+      'Ajuste no quadro societário antes de emitir.');
     return;
   }
 
-  eletroSalvarHistorico();
-  eletroUltimoSalvar();
-  const t = eletroTextos();
-  const host = document.getElementById('eletro-print');
-  const money = elMoney;
-  const m = ELETRO_MERCADO;
-  const txPct = (r.taxaDesc * 100).toFixed(2).replace('.', ',') + '% a.a.';
   const hoje = new Date();
-
-  // Campo VAZIO nao vira linha no papel; ZERO DIGITADO fica, porque "Arrendamento
-  // do ponto 0%" e informacao (o terreno e do proprio cliente) e nao lacuna.
-  const cru = id => (document.getElementById(id)?.value || '').trim();
-  const linhaSe = (id, rot, valor) =>
-    cru(id) === '' ? '' : `<tr><td>${rot}</td><td class="num">${valor}</td></tr>`;
-
-  // A validade sai do MESMO campo que o Basico e a Planilha leem.
-  const valEst = lerValidade('orc-validade-modo', 'orc-validade');
-
+  const val = lerValidade('orc-validade-modo', 'orc-validade');
+  const money = elMoney;
   const pctS = socPct(d.cotaSocio), pctN = socPct(d.cotaNexus);
-  const parteS = v => (Number(v) || 0) * d.cota;
-  const parteN = v => (Number(v) || 0) * d.cotaN;
-  const parteO = v => (Number(v) || 0) * d.cotaOutros;
   const anos = x => x == null ? '—' : elAnos1(x);
-  const tirTxt = x => x == null ? '—' : elPct1(x) + ' a.a.';
-  const pctTxt = x => x == null ? '—' : Math.round(x * 100) + '%';
   const outros = d.n > 1;
 
-  // Fluxo e sensibilidade saem da parte do SÓCIO, calculados sobre o dinheiro dele.
-  const linhasFluxo = d.socio.fluxo.map((v, i) =>
-    `<tr><td>Ano ${i + 1}${i === 0 ? ' (rampa de ocupação)' : ''}</td><td class="num" style="color:${v < 0 ? '#b91c1c' : '#15803d'}">${money(v)}</td></tr>`).join('');
+  // Quadro societario como linhas do "detalhamento": quem entra com quanto e leva
+  // quanto. A linha do capital a captar so' existe quando existe — e tem NOME.
+  const L = [];
+  L.push(['Você', money(d.aporte) + ' · ' + pctS + '% do lucro']);
+  if (outros) L.push([`Demais sócios (${d.nOutros})`, money(d.aporteOutros) + ' · ' + socPct(d.cotaOutros * 100) + '% (' + pctS + '% cada)']);
+  L.push(['NEXUS · trabalho e administração', (d.aporteNexus > 0 ? money(d.aporteNexus) + ' · ' : '') + pctN + '% do lucro']);
+  L.push(['Total dos aportes', money(d.somaAportes) + ' · ' + socPct(d.somaCotas) + '%']);
+  if (!d.aportesFecham) {
+    L.push(d.faltaCapital > 0
+      ? ['Capital ainda a captar', money(d.faltaCapital)]
+      : ['Aporte acima do investimento', money(-d.faltaCapital)]);
+  }
+  L.push(['Investimento total do projeto', money(d.invest)]);
+  if (t.equip) L.push(['Equipamento', epEquipRotulo(t.equip)]);
+  L.push(['Operação em regime pleno', Math.round(r.carros) + ' carros/dia · ' + money(r.fatMes) + '/mês de faturamento']);
+  L.push(['Lucro da operação (regime pleno)', money(r.lucroMes) + '/mês']);
 
-  const cen = eletroCenariosSens(p).map(c => ({
-    ...c, s: epIndicadores(c.r.fluxoAnual.map(f => f * d.cota), d.aporte, r.taxaDesc) }));
-  const cmpHead = cen.map(c => `<th class="num${c.rot === 'Base' ? ' atual' : ''}">${c.rot}<br><span style="font-weight:400;font-size:9.5px;text-transform:none">${c.carros} carros/dia (${c.nota})</span></th>`).join('');
-  const cmpRow = (lbl, fn) => `<tr><td>${lbl}</td>${cen.map(c => `<td class="num">${fn(c)}</td>`).join('')}</tr>`;
-  const cmpBody = [
-    cmpRow('Seu lucro/mês (regime pleno)', c => money(parteS(c.r.lucroMes))),
-    cmpRow('Seu lucro no ano 1 (com rampa)', c => money(parteS(c.r.lucroAno1))),
-    cmpRow('Seu payback', c => anos(c.s.payback)),
-    cmpRow('Sua TIR', c => tirTxt(c.s.tir)),
-    cmpRow('Seu VPL (@ ' + txPct + ')', c => money(c.s.vpl)),
-    cmpRow('Seu patrimônio em 10 anos', c => money(c.s.acumulado10)),
+  // O que a NEXUS entrega, em linhas "Incluído" — mesmo desenho da composição do
+  // Básico, pra folha inteira falar a mesma língua.
+  const entrega = [
+    o1LinhaInc('Projeto de engenharia, ART e homologação na concessionária', '', 'Por nossa conta'),
+    o1LinhaInc('Obra civil, infraestrutura elétrica e padrão de entrada', '', 'Por nossa conta'),
+    o1LinhaInc('Carregador, instalação e primeira recarga', '', 'Incluído'),
+    o1LinhaInc('Software NEXUS, app e gestão do ponto', '', 'Incluído'),
+    o1LinhaInc('Operação e administração da sociedade', '', 'Por nossa conta'),
+    o1LinhaInc('Custos da operação: energia, arrendamento, manutenção, seguro, internet e imposto', '', 'Saem antes da divisão'),
   ].join('');
 
-  const tirFrase = d.socio.tir == null
-    ? `sem payback nominal dentro do horizonte de 10 anos`
-    : (d.socio.tir > r.taxaDesc
-        ? `<b>TIR de ${elPct1(d.socio.tir)} a.a.</b>, acima da taxa de referência adotada (${txPct})`
-        : `<b>TIR de ${elPct1(d.socio.tir)} a.a.</b>, frente à taxa de referência adotada (${txPct})`);
-  const fecho = d.proporcional
-    ? `Como capital e resultado são divididos na mesma proporção, <b>o payback e a TIR da sua parte são os mesmos do projeto inteiro</b>: paga-se em <b>${anos(d.socio.payback)}</b>, com ${tirFrase}. O que muda é o tamanho do cheque de entrada.`
-    : `Nesta proposta o aporte não acompanha a cota: você entra com <b>${d.invest > 0 ? socPct(d.aporte / d.invest * 100) : '0'}%</b> do capital e fica com <b>${pctS}%</b> do lucro. Por isso os indicadores da sua parte são próprios, calculados sobre o seu dinheiro e o seu resultado: paga-se em <b>${anos(d.socio.payback)}</b>, com ${tirFrase}.`;
-  const comoEntra = outros
-    ? `em <b>sociedade por cotas de ${pctS}%</b>, com ${d.n} sócios investidores e a NEXUS, que entra com ${d.aporteNexus > 0 ? 'capital, ' : ''}o trabalho e a administração e fica com ${pctN}%`
-    : `em <b>sociedade ${socRotulo(d.cotaSocio)}</b>, com a NEXUS entrando com ${d.aporteNexus > 0 ? money(d.aporteNexus) + ' do capital e ' : ''}a administração da operação`;
-  const execHTML = `Esta proposta apresenta a implantação de um eletroposto${t.cidade ? ` em <b>${orcEsc(t.cidade)}</b>` : ''}${t.cliente ? ` para <b>${orcEsc(t.cliente)}</b>` : ''} ${comoEntra}. Todos os custos da operação saem do faturamento antes, e o lucro que sobra é dividido pela cota de cada parte. O investimento total do projeto é de <b>${money(d.invest)}</b>${t.equip ? ` (${epEquipRotulo(t.equip)})` : ''}, dos quais <b>${money(d.aporte)}</b> são a sua parte. No cenário-base — <b>${Math.round(r.carros)} carros/dia em regime</b>, atingidos após rampa de ocupação de ${r.mesesRampa} meses — a operação gera ${money(r.lucroMes)}/mês de lucro em regime pleno, e a <b>sua parte é ${money(parteS(r.lucroMes))}/mês</b>. ${fecho}`;
+  // A observacao reconcilia a folha: quem le' tem que conseguir refazer a conta.
+  const obs = [
+    d.aportesFecham
+      ? `O investimento total de ${money(d.invest)} está integralmente coberto pelos aportes acima.`
+      : (d.faltaCapital > 0
+        ? `Os aportes acima somam ${money(d.somaAportes)} de um investimento de ${money(d.invest)}: faltam ${money(d.faltaCapital)} a captar, e as projeções assumem o capital integralizado.`
+        : `Os aportes somam ${money(d.somaAportes)} contra um investimento de ${money(d.invest)} — confira o investimento antes de assinar.`),
+    d.proporcional
+      ? `Capital e resultado são divididos na mesma proporção, então o retorno da sua parte acompanha o do projeto inteiro: o que muda é o tamanho do cheque de entrada.`
+      : `Nesta proposta o aporte não acompanha a cota: você entra com ${d.invest > 0 ? socPct(d.aporte / d.invest * 100) : '0'}% do capital e fica com ${pctS}% do lucro. Por isso os indicadores da sua parte são calculados sobre o seu dinheiro e o seu resultado, e diferem dos do projeto.`,
+    `Parcelamento no cartão com acréscimo: ${String(SOC_FATOR_10X).replace('.', ',')} em 10x e ${String(SOC_FATOR_18X).replace('.', ',')} em 18x sobre o valor da cota.`,
+    `Projeção a partir das premissas do Simulador — valores estimados, não constituem garantia de resultado. Esta proposta não é o contrato da sociedade: aporte, cota, prestação de contas e saída são firmados em instrumento próprio.`,
+  ].join(' ');
 
-  // Quadro societário: quem entra com o quê. A linha do capital a captar só existe
-  // quando existe — e quando existe, ela tem NOME.
-  const qsRow = (quem, aporte, cotaPct, cls = '') =>
-    `<tr class="${cls}"><td>${quem}</td><td class="num">${aporte}</td><td class="num">${cotaPct}</td></tr>`;
-  const quadroRows = [
-    qsRow('<b>Você</b>', money(d.aporte), pctS + '%', 'hl'),
-    outros ? qsRow(`Demais sócios (${d.nOutros})`, money(d.aporteOutros), socPct(d.cotaOutros * 100) + '% (' + pctS + '% cada)') : '',
-    qsRow('NEXUS' + (d.aporteNexus > 0 ? '' : ' <span style="font-weight:400">(trabalho e administração)</span>'),
-          d.aporteNexus > 0 ? money(d.aporteNexus) : '—', pctN + '%'),
-    qsRow('<b>Total</b>', '<b>' + money(d.somaAportes) + '</b>', '<b>' + socPct(d.somaCotas) + '%</b>'),
-    d.aportesFecham ? '' : (d.faltaCapital > 0
-      ? qsRow('<b>Capital ainda a captar</b>', '<b>' + money(d.faltaCapital) + '</b>', '—')
-      : qsRow('<b>Aporte acima do investimento</b>', '<b>' + money(-d.faltaCapital) + '</b>', '—')),
-  ].join('');
-  const notaQuadro = d.aportesFecham
-    ? `O investimento total de ${money(d.invest)} está integralmente coberto pelos aportes acima.`
-    : (d.faltaCapital > 0
-      ? `O investimento total é de ${money(d.invest)} e os aportes acima somam ${money(d.somaAportes)}: faltam <b>${money(d.faltaCapital)}</b> a captar. As projeções desta proposta assumem o projeto implantado, ou seja, o capital integralizado.`
-      : `Os aportes acima somam ${money(d.somaAportes)} contra um investimento de ${money(d.invest)}, uma sobra de <b>${money(-d.faltaCapital)}</b> — confira o investimento total antes de assinar.`);
+  const html = orc1HTML({
+    tema: 'ep',
+    logo: '/gerador/nexus-logo-papel.png',
+    marca: 'NEXUS Eletropostos',
+    sub: '',
+    titulo: d.titulo,
+    data: hoje.toLocaleDateString('pt-BR'),
+    fichaRows: [['Cliente', t.cliente], ['Local', t.cidade], ['Sua cota', pctS + '%']],
+    validade: validadeTexto(val, hoje, 7),
+    detTitulo: 'Quadro societário',
+    tiles: [
+      { k: 'Sua cota', v: pctS, u: '%' },
+      { k: 'Seu aporte', v: o1BRL(d.aporte), u: '' },
+      { k: 'Seu lucro/mês', v: o1BRL(r.lucroMes * d.cota), u: '' },
+    ],
+    linhas: L,
+    compTitulo: 'O que a NEXUS entrega',
+    compHTML: `<div class="rows">${entrega}</div>`,
+    finTitulo: 'A sua parte',
+    heroL: { k: 'Seu lucro acumulado em 10 anos', v: o1BRL(d.socio.acumulado10),
+             s: 'já descontados energia, taxas, custos fixos e a rampa de ocupação' },
+    heroR: { k: 'Seu aporte', v: o1BRL(d.aporte), s: pctS + '% do lucro' },
+    fin: [
+      { k: 'Seu lucro/mês', v: o1BRL(r.lucroMes * d.cota) },
+      { k: 'Seu retorno', v: anos(d.socio.payback) },
+      { k: 'Sua TIR', v: d.socio.tir == null ? '—' : elPct1(d.socio.tir) + ' a.a.' },
+    ],
+    obs,
+    pagHTML: socPagChips(d.aporte),
+    vendedor: { nome: t.autor, contato: t.contato },
+    empresa: orc1EpEmpresa(),
+    cliente: t.cliente,
+  });
 
-  const thDemais = outros ? `<th class="num">Demais sócios (${d.nOutros})</th>` : '';
-  const divRow = (lbl, v, cls = '') =>
-    `<tr class="${cls}"><td>${lbl}</td><td class="num">${money(v)}</td><td class="num">${money(parteS(v))}</td>${outros ? `<td class="num">${money(parteO(v))}</td>` : ''}<td class="num">${money(parteN(v))}</td></tr>`;
-  const indRow = (lbl, proj, soc, out, nex) =>
-    `<tr><td>${lbl}</td><td class="num">${proj}</td><td class="num">${soc}</td>${outros ? `<td class="num">${out}</td>` : ''}<td class="num">${nex}</td></tr>`;
-
-  const notaDivisao = (d.proporcional
-    ? `Payback e TIR não se dividem: são a relação entre o que entra e o que sai, e os dois caem na mesma proporção. Por isso a sua parte rende no mesmo ritmo do projeto inteiro, com menos capital na mesa. O VPL, que é valor absoluto, esse sim acompanha a cota.`
-    : `Atenção à leitura desta tabela: o <b>aporte não acompanha a cota</b>. Você entra com ${d.invest > 0 ? socPct(d.aporte / d.invest * 100) : '0'}% do capital e fica com ${pctS}% do lucro, e é por isso que o payback e a TIR de cada lado são diferentes entre si e diferentes dos do projeto. Cada coluna foi calculada sobre o próprio capital e o próprio resultado.`)
-    + (d.aporteNexus > 0 ? '' : ' A NEXUS entra sem capital, então payback, TIR e ROI dela não existem — não há dinheiro a voltar.');
-
-  const CSS = `<style>
-  .ep-estudo .ep-page{padding:12mm 18mm}
-  .ep-estudo .ep-topo{margin-bottom:2px}
-  .ep-estudo .ep-propbox{padding:9px 15px;gap:4px}
-  .ep-estudo .ep-propbox .rowf{padding-bottom:3px}
-  .ep-estudo .ep-exec{padding:9px 14px}
-  .ep-estudo .ep-mkt{grid-template-columns:repeat(6,1fr);gap:7px}
-  .ep-estudo .ep-mkt-item{padding:7px 6px}
-  .ep-estudo .ep-cols{gap:16px}
-  .ep-estudo .ep-cols .ep-box{padding:10px 13px}
-  .ep-estudo .ep-cols .ep-kv td{padding:3px 0}
-  .ep-estudo .ep-kpi{padding:26px 10px;display:flex;flex-direction:column;justify-content:space-between}
-  .ep-estudo .ep-kpi .v{margin-top:8px}
-  .ep-estudo .ep-kpi-title{margin:18px 0 11px}
-  .ep-estudo .ep-prem{line-height:1.65}
-  .ep-estudo .ep-prem li{margin-bottom:11px}
-  .ep-estudo .ep-page>.ep-box{padding:14px 16px}
-  .ep-estudo .ep-riscos th{padding:7px 8px 7px 0}
-  .ep-estudo .ep-riscos td{padding:11px 8px 11px 0}
-  .ep-estudo .ep-passos li{margin-bottom:8px}
-  .ep-estudo .ep-forma-label{margin:18px 0 9px}
-  .ep-estudo .ep-fb-col{padding:22px 18px}
-  .ep-estudo .ep-foot{margin-top:16px;padding-top:11px}
-  </style>`;
-
-  let html = `
-    <div class="ep-doc ep-estudo">
-      ${CSS}
-      <div class="ep-page">
-      <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
-      ${epTopoHTML(d.titulo, hoje.toLocaleDateString('pt-BR'),
-        [['Cliente', t.cliente ? orcEsc(t.cliente) : ''],
-         ['Local', t.cidade ? orcEsc(t.cidade) : ''],
-         ['Elaborado por', t.autor ? orcEsc(t.autor) : '']],
-        validadeTexto(valEst, hoje, 7))}
-
-      <div class="ep-section">Sumário executivo</div>
-      <div class="ep-exec">${execHTML}</div>
-
-      <div class="ep-box ep-avoid-break">
-        <h3>Quadro societário</h3>
-        <table class="ep-kv ep-cmp">
-          <thead><tr><th>Parte</th><th class="num">Aporte</th><th class="num">Cota do lucro</th></tr></thead>
-          <tbody>${quadroRows}</tbody>
-        </table>
-        <div class="ep-mkt-note">${notaQuadro}</div>
-      </div>
-
-      <div class="ep-box ep-avoid-break">
-        <h3>Como funciona a sociedade</h3>
-        <ol class="ep-prem">
-          <li><b>O capital.</b> Você entra com <b>${money(d.aporte)}</b>${outros ? `, os outros ${d.nOutros} sócios com ${money(d.aporteOutros)}` : ''} e a NEXUS com <b>${d.aporteNexus > 0 ? money(d.aporteNexus) : 'o trabalho e a administração'}</b>.</li>
-          <li><b>A obra é nossa.</b> Projeto com ART, obra civil, entrada de energia, homologação na concessionária e o Software NEXUS de gestão são executados e respondidos por nós.</li>
-          <li><b>Os custos saem antes.</b> Energia, arrendamento do ponto, manutenção, seguro, internet, o Software NEXUS e os impostos são descontados do faturamento antes de qualquer divisão. Nenhum sócio paga custo por fora.</li>
-          <li><b>O lucro divide pela cota.</b> O que sobra depois dos custos é repartido todo mês: <b>${pctS}%</b> seus${outros ? `, ${pctS}% de cada um dos outros ${d.nOutros} sócios` : ''} e <b>${pctN}%</b> da NEXUS.</li>
-        </ol>
-      </div>
-      __FOOT1__
-      </div>
-
-      <div class="ep-page">
-      <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
-      <div class="ep-box ep-avoid-break">
-        <h3>A divisão, em números</h3>
-        <table class="ep-kv ep-cmp">
-          <thead><tr><th>Linha</th><th class="num">Projeto inteiro</th><th class="num atual">Sua parte (${pctS}%)</th>${thDemais}<th class="num">NEXUS (${pctN}%)</th></tr></thead>
-          <tbody>
-            <tr class="hl"><td>Investimento (aporte)</td><td class="num">${money(d.invest)}</td><td class="num">${money(d.aporte)}</td>${outros ? `<td class="num">${money(d.aporteOutros)}</td>` : ''}<td class="num">${d.aporteNexus > 0 ? money(d.aporteNexus) : '—'}</td></tr>
-            ${divRow('Faturamento/mês (regime pleno)', r.fatMes)}
-            ${divRow('Custos + imposto/mês', r.custosMes)}
-            ${divRow('Lucro/mês (regime pleno)', r.lucroMes, 'hl')}
-            ${divRow('Lucro no ano 1 (com rampa)', r.lucroAno1)}
-            ${indRow('Patrimônio em 10 anos', money(r.acumulado10), money(d.socio.acumulado10), money(d.outros.acumulado10), money(d.nexus.acumulado10))}
-            ${indRow('VPL (@ ' + txPct + ')', money(r.vpl), money(d.socio.vpl), money(d.outros.vpl), money(d.nexus.vpl))}
-            ${indRow('Payback', anos(r.payback), anos(d.socio.payback), anos(d.outros.payback), anos(d.nexus.payback))}
-            ${indRow('TIR', tirTxt(r.tir), tirTxt(d.socio.tir), tirTxt(d.outros.tir), tirTxt(d.nexus.tir))}
-          </tbody>
-        </table>
-        <div class="ep-mkt-note">${notaDivisao}</div>
-      </div>
-
-      <div class="ep-section">Panorama do mercado no Brasil</div>
-      <div class="ep-mkt">
-        <div class="ep-mkt-item"><div class="v">${m.plugin}</div><div class="k">carros plug-in vendidos em ${m.ano.split(' / ')[0]}</div></div>
-        <div class="ep-mkt-item"><div class="v">+${m.crescimentoVendas}</div><div class="k">crescimento das vendas no ano</div></div>
-        <div class="ep-mkt-item"><div class="v">${m.postos}</div><div class="k">eletropostos no país</div></div>
-        <div class="ep-mkt-item"><div class="v">+${m.crescimentoPostos}</div><div class="k">de postos em 12 meses</div></div>
-        <div class="ep-mkt-item"><div class="v">+${m.rapidaCresc}</div><div class="k">recarga rápida (DC)</div></div>
-        <div class="ep-mkt-item"><div class="v">${m.municipios}</div><div class="k">municípios já atendidos</div></div>
-      </div>
-      <div class="ep-mkt-note">A frota que recarrega em ponto público (elétricos + híbridos plug-in) cresce em ritmo acima da infraestrutura instalada. ${m.fonte}</div>
-      __FOOT2__
-      </div>
-
-      <div class="ep-page">
-      <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
-      <div class="ep-cols">
-        <div class="ep-box">
-          <h3>Dados da operação</h3>
-          <table class="ep-kv">
-            <tr><td>Carros por dia (regime pleno)</td><td class="num">${Math.round(r.carros)}</td></tr>
-            <tr><td>Bicos de carregamento</td><td class="num">${Math.round(r.plugs)}</td></tr>
-            ${t.equip ? `<tr><td colspan="2" style="text-align:left;font-weight:400;color:#333">Equipamento<span style="float:right;font-weight:700;color:#1a1a1a;white-space:nowrap">${epEquipRotulo(t.equip)}</span></td></tr>` : ''}
-            <tr><td>Média de carga por carro</td><td class="num">${r.carga} kWh</td></tr>
-            <tr><td>Custo do kWh</td><td class="num">${elMoney2(r.custoKwh)}</td></tr>
-            <tr><td>Preço kWh revenda</td><td class="num">${elMoney2(r.precoKwh)}</td></tr>
-            ${linhaSe('el-ativacao', 'Taxa de ativação', elMoney2(r.ativacao))}
-            <tr><td>Investimento total</td><td class="num">${money(r.investTotal)}</td></tr>
-            <tr class="hl"><td>Sua parte do investimento</td><td class="num">${money(d.aporte)}</td></tr>
-          </table>
-        </div>
-        <div class="ep-box">
-          <h3>Custos, taxas e modelagem</h3>
-          <table class="ep-kv">
-            ${linhaSe('el-software', 'Software NEXUS', (r.software * 100).toLocaleString('pt-BR') + '%')}
-            ${linhaSe('el-arrend', 'Arrendamento do ponto', (r.arrend * 100).toLocaleString('pt-BR') + '%')}
-            ${linhaSe('el-manut', 'Manutenção', money(r.manutMes || 0) + ' / mês')}
-            ${linhaSe('el-imposto', 'Imposto (Simples Nacional)', (r.imposto * 100).toLocaleString('pt-BR') + '%')}
-            ${linhaSe('el-assinatura', 'Internet local', money(r.assinat))}
-            <tr><td>Seguro (1% a.a. do investimento)</td><td class="num">${money(r.seguroMes)} / mês</td></tr>
-            ${linhaSe('el-fixos', 'Outros custos fixos', money(r.fixos) + ' / mês')}
-            <tr><td>Ocupação inicial → plena</td><td class="num">${Math.round(r.ocupIni * 100)}% → 100% em ${r.mesesRampa} meses</td></tr>
-            <tr><td>Taxa de desconto</td><td class="num">${txPct}</td></tr>
-          </table>
-          <div class="ep-mkt-note" style="margin-top:6px">Todas estas linhas são custo da sociedade: saem do faturamento antes da divisão, e pesam igual para todos os sócios.</div>
-        </div>
-      </div>
-
-      <div class="ep-avoid-break">
-        <div class="ep-kpi-title">A operação inteira, por mês (regime pleno)</div>
-        <div class="ep-kpis">
-          <div class="ep-kpi"><div class="k">Faturamento</div><div class="v">${money(r.fatMes)}</div></div>
-          <div class="ep-kpi"><div class="k">Custos + imposto</div><div class="v neg">${money(r.custosMes)}</div></div>
-          <div class="ep-kpi"><div class="k">Lucro</div><div class="v pos">${money(r.lucroMes)}</div></div>
-          <div class="ep-kpi"><div class="k">Margem</div><div class="v">${(r.margem * 100).toFixed(1).replace('.', ',')}%</div></div>
-        </div>
-        <div class="ep-kpi-title">A sua parte (${pctS}% do lucro)</div>
-        <div class="ep-kpis c5">
-          <div class="ep-kpi"><div class="k">Lucro/mês (pleno)</div><div class="v pos">${money(parteS(r.lucroMes))}</div></div>
-          <div class="ep-kpi"><div class="k">Patrimônio 10 anos</div><div class="v pos">${money(d.socio.acumulado10)}</div></div>
-          <div class="ep-kpi"><div class="k">TIR</div><div class="v">${d.socio.tir == null ? '—' : elPct1(d.socio.tir)}</div></div>
-          <div class="ep-kpi"><div class="k">Payback</div><div class="v">${anos(d.socio.payback)}</div></div>
-          <div class="ep-kpi"><div class="k">ROI 10 anos</div><div class="v">${pctTxt(d.socio.roi10)}</div></div>
-        </div>
-      </div>
-      __FOOT3__
-      </div>
-
-      <div class="ep-page">
-      <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
-      <div class="ep-box ep-avoid-break">
-        <h3>Fluxo de caixa da sua parte (10 anos)</h3>
-        <div class="ep-chart">${eletroFluxoSVG(d.socio.fluxo)}</div>
-        <table class="ep-kv ep-fluxo">${linhasFluxo}</table>
-      </div>
-
-      <div class="ep-box ep-avoid-break">
-        <h3>Análise de sensibilidade — demanda</h3>
-        <table class="ep-kv ep-cmp">
-          <thead><tr><th>Indicador</th>${cmpHead}</tr></thead>
-          <tbody>${cmpBody}</tbody>
-        </table>
-      </div>
-      __FOOT4__
-      </div>
-
-      <div class="ep-page">
-      <img class="ep-marca" src="/gerador/eletroposto-arte.png" alt="">
-      <div class="ep-box ep-avoid-break">
-        <h3>Premissas e metodologia</h3>
-        <ol class="ep-prem">
-          <li>Receita = energia entregue (kWh × preço de revenda) + taxa de ativação por sessão; 30 dias/mês; ${Math.round(r.carros)} carros/dia em regime pleno.</li>
-          <li>Rampa de ocupação: ${Math.round(r.ocupIni * 100)}% no mês 1, crescimento linear até 100% no mês ${r.mesesRampa}. Custos fixos correm integralmente desde o mês 1.</li>
-          <li>Custos variáveis (energia, software NEXUS, arrendamento, imposto) são percentuais do faturamento e acompanham a ocupação; custos fixos (seguro de 1% a.a. do investimento, internet local, manutenção, conectividade/demanda) correm integralmente desde o mês 1.</li>
-          <li><b>Quadro societário:</b> ${money(d.aporte)} seus (${pctS}% do lucro)${outros ? `, ${money(d.aporteOutros)} dos outros ${d.nOutros} sócios (${socPct(d.cotaOutros * 100)}%)` : ''} e ${d.aporteNexus > 0 ? money(d.aporteNexus) : 'trabalho e administração'} da NEXUS (${pctN}%). Todos os custos acima são da operação e são descontados do faturamento antes da divisão, inclusive o Software NEXUS.</li>
-          <li>${d.proporcional
-            ? 'Payback, payback descontado, TIR e ROI da sua parte são iguais aos do projeto inteiro, porque capital e resultado são divididos na mesma proporção. VPL, lucro e patrimônio acompanham a cota.'
-            : 'Payback, payback descontado, TIR, ROI e VPL da sua parte foram calculados sobre o SEU aporte e o SEU lucro, e por isso diferem dos do projeto inteiro — o aporte não acompanha a cota nesta proposta.'}</li>
-          <li>Valores em termos reais (sem inflação): assume-se que tarifa de revenda e custos se reajustam em conjunto.</li>
-          <li>O investimento total informado deve contemplar equipamento, obra civil, entrada de energia/conexão à concessionária, projeto, homologação e capital de giro inicial.</li>
-          <li>VPL e payback descontado calculados à taxa de ${txPct}. TIR calculada sobre o fluxo anual de 10 anos.</li>
-          <li>A projeção financeira parte de premissas informadas pelo responsável comercial e não constitui garantia de resultado; os dados de mercado têm fonte citada.</li>
-        </ol>
-      </div>
-
-      <div class="ep-box ep-avoid-break">
-        <h3>Riscos e mitigantes</h3>
-        <table class="ep-riscos">
-          <thead><tr><th>Risco</th><th>Mitigante</th></tr></thead>
-          <tbody>
-            <tr><td>Ocupação abaixo do previsto</td><td>Rampa conservadora já modelada no fluxo; validar o ponto com fluxo real de veículos e mapas de recarga antes da implantação (cenário conservador na sensibilidade).</td></tr>
-            <tr><td>Alta no custo da energia</td><td>Repasse ao preço de revenda preserva a margem; avaliar contratação no mercado livre de energia conforme porte.</td></tr>
-            <tr><td>Custo e prazo de conexão à concessionária</td><td>Orçar a entrada de energia antes de fechar o investimento — o valor deve compor o investimento total desta proposta.</td></tr>
-            <tr><td>Manutenção e troca de módulos de potência</td><td>Seguro anual de 1% do investimento + custos fixos mensais já provisionados; contrato de manutenção com o fornecedor do equipamento.</td></tr>
-            <tr><td>Vandalismo e furto de cabos</td><td>Instalação em local com vigilância/câmeras, cabos com trava e cobertura de seguro.</td></tr>
-            ${d.aportesFecham ? '' : '<tr><td>Capital não integralizado</td><td>As projeções assumem o projeto implantado. Enquanto o capital a captar do quadro societário não entrar, a obra não começa e o cronograma não corre.</td></tr>'}
-            <tr><td>Aporte extra no meio do caminho</td><td>Qualquer investimento adicional segue a proporção de aporte deste quadro, com aprovação escrita de todos os sócios antes da despesa.</td></tr>
-            <tr><td>Um dos sócios querer sair</td><td>Saída, preço da parte e direito de preferência dos demais são tratados no contrato da sociedade, assinado antes do início da obra.</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="ep-box ep-avoid-break">
-        <h3>Próximos passos</h3>
-        <ol class="ep-passos">
-          <li>Validar o ponto: fluxo de veículos elétricos na região, concorrência de recarga e conta de energia do local.</li>
-          <li>Orçar equipamento, obra civil e conexão com a concessionária — consolidando o investimento total que os sócios dividem.</li>
-          <li>Fechar em contrato as regras da sociedade: aporte de cada lado, cota do resultado, prestação de contas, aporte extra e saída.</li>
-          <li>Agendar visita técnica e revisar esta proposta com os dados reais do local.</li>
-        </ol>
-      </div>
-
-      ${epFooterBlockHTML({ nome: t.autor, contato: t.contato })}
-      <div class="ep-foot">Dados de mercado: ${m.fonte} · Projeção financeira: elaborada a partir das premissas declaradas na seção "Premissas e metodologia" — valores estimados, não constituem garantia de resultado. Esta proposta não é o contrato da sociedade: as regras de aporte, cota, prestação de contas e saída são firmadas em instrumento próprio.</div>
-      __FOOT5__
-      </div>
-    </div>`;
-
-  // O rodape CONTA as folhas em vez de jurar "de 5": marcador por folha, trocado
-  // depois que o HTML esta montado.
-  const TOT = (html.match(/__FOOT\d+__/g) || []).length || 1;
-  html = html.replace(/__FOOT(\d+)__/g, (_, n) =>
-    `<div class="ep-pagefoot"><span class="ep-foot-esq">${EP_FOOT_LOGO}<span>${d.rodape}${t.cliente ? ' · ' + t.cliente : ''}</span></span><span>Página ${n} de ${TOT}</span></div>`);
-  host.innerHTML = html;
-
-  epPrint(host, epNomeArq(d.arquivo, t.cliente));
+  if (t.cliente) epHistOrcSave({ id: epId(), tipo: 'Sociedade', cliente: t.cliente, valor: d.aporte, data: new Date().toLocaleDateString('pt-BR') });
+  eletroSalvarHistorico();
+  eletroUltimoSalvar();
+  orc1Imprimir(html, epNomeArq(d.arquivo, t.cliente), { umaPagina: true, piso: 0.74 });
 }
 
 // ===================================================================
