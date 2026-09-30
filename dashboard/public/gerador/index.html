@@ -12752,8 +12752,16 @@ const NX_CSS = `<style>
 .nx-banda{position:relative;height:74mm;margin:0 -13mm 0 -13mm;overflow:hidden}
 .nx-banda img{width:100%;height:100%;object-fit:cover;display:block}
 .nx-banda .veu{position:absolute;inset:0;
-  background:linear-gradient(180deg,rgba(11,26,43,.72) 0%,rgba(11,26,43,.18) 46%,rgba(11,26,43,.88) 100%)}
-.nx-banda .txt{position:absolute;left:13mm;right:13mm;bottom:8mm;z-index:2}
+  background:linear-gradient(180deg,rgba(11,26,43,.72) 0%,rgba(11,26,43,.22) 42%,
+    rgba(11,26,43,.72) 68%,rgba(11,26,43,.90) 100%)}
+/* SOMBRA, e nao mais veu. Medido no Chrome (o pdf.js nao desenha veu em
+   gradiente, e por isso duas medicoes minhas anteriores mentiram): o titulo ja
+   tem 11,9:1 de fundo, mas a linha de apoio, cinza e em 10pt, cai sobre a
+   lataria clara do carro e da 3,70:1 contra os 5% mais claros do fundo.
+   A sombra acompanha a letra, entao vale pra qualquer foto que entre aqui
+   depois — escurecer o veu da banda inteira apagaria o argumento da folha. */
+.nx-banda .txt{position:absolute;left:13mm;right:13mm;bottom:8mm;z-index:2;
+  text-shadow:0 1px 3px rgba(11,26,43,.92),0 0 10px rgba(11,26,43,.55)}
 .nx-banda .txt .t{font-size:17pt;font-weight:800;line-height:1.12}
 .nx-banda .txt .t .g{color:#C8D4E2;font-weight:600}
 .nx-banda .txt .d{font-size:9.5pt;color:#C8D4E2;margin-top:5px;line-height:1.45;max-width:150mm}
@@ -12870,10 +12878,20 @@ const NX_CSS = `<style>
    positivo em verde: e' o unico grafico do documento que muda de sinal. */
 .nx-fluxo{display:flex;align-items:flex-end;gap:5px;height:40mm;margin-top:9px;
   padding-bottom:16px;border-bottom:1px solid var(--nx-linha2)}
-.nx-fluxo .col{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;position:relative}
-.nx-fluxo .bar{width:100%;border-radius:4px 4px 0 0;min-height:3px;
+.nx-fluxo{position:relative}
+/* A coluna e' partida na linha do zero: a faixa de cima cresce de baixo pra
+   cima, a de baixo cresce de cima pra baixo. "--nx-zero" e' a altura da faixa
+   de cima e vem do JS, igual em todas as colunas. */
+.nx-fluxo .col{flex:1;height:100%;display:flex;flex-direction:column;position:relative}
+.nx-fluxo .cima{height:var(--nx-zero,100%);display:flex;align-items:flex-end}
+.nx-fluxo .baixo{height:calc(100% - var(--nx-zero,100%));display:flex;align-items:flex-start}
+.nx-fluxo .zero{position:absolute;left:0;right:0;top:var(--nx-zero,100%);
+  border-top:1px solid var(--nx-linha2);z-index:1}
+.nx-fluxo .bar{width:100%;min-height:0;
   background:linear-gradient(180deg,var(--nx-verde),rgba(57,255,20,.35))}
-.nx-fluxo .bar.neg{background:linear-gradient(180deg,rgba(0,133,255,.9),rgba(0,133,255,.3))}
+.nx-fluxo .cima .bar{border-radius:4px 4px 0 0}
+.nx-fluxo .baixo .bar{border-radius:0 0 4px 4px}
+.nx-fluxo .bar.neg{background:linear-gradient(0deg,rgba(0,133,255,.9),rgba(0,133,255,.3))}
 .nx-fluxo .a{position:absolute;left:0;right:0;bottom:-15px;text-align:center;
   font-size:7pt;color:var(--nx-fraco);font-weight:700}
 .nx-fluxo-rot{display:flex;justify-content:space-between;margin-top:6px;
@@ -13106,11 +13124,24 @@ function nxCompletoDeck(d) {
   // dizia R$ 2.751.428 onde o cartao ao lado dizia R$ 673.648 — quatro vezes
   // mais, na mesma folha, pro mesmo cliente.
   const acum = (Array.isArray(R.fluxo) ? R.fluxo : []).map(v => Number(v) || 0);
-  const topo = Math.max(...acum.map(Math.abs), 1);
+  // LINHA DO ZERO. Antes a altura era `Math.abs(v)` e TODA coluna subia da base:
+  // o ano 1, que neste produto quase sempre e' negativo, saia como barra pra
+  // cima — identica a um lucro do mesmo tamanho, mudando so' a cor. Documento
+  // que vai pro contador e pro banco nao pode desenhar prejuizo como lucro.
+  // A altura da faixa de cima e' a mesma em todas as colunas, entao a linha do
+  // zero fica reta. Sem negativo nenhum, ela desce pro pe' e o grafico fica
+  // igual ao de antes.
+  const maiorPos = Math.max(0, ...acum);
+  const maiorNeg = Math.max(0, ...acum.map(v => -v));
+  const faixa = (maiorPos + maiorNeg) || 1;
+  const pctCima = (maiorPos / faixa * 100);
+  const alt = (v, teto) => teto > 0 ? Math.max(1.2, Math.abs(v) / teto * 100).toFixed(1) : '0';
   const grafico = acum.length ? `<div class="nx-kick" style="margin-top:15px">E o que sobra, ano a ano</div>
-    <div class="nx-fluxo">
+    <div class="nx-fluxo" style="--nx-zero:${pctCima.toFixed(1)}%">
+      <div class="zero"></div>
       ${acum.map((v, i) => `<div class="col">
-        <div class="bar${v < 0 ? ' neg' : ''}" style="height:${(Math.abs(v) / topo * 100).toFixed(1)}%"></div>
+        <div class="cima">${v > 0 ? `<div class="bar" style="height:${alt(v, maiorPos)}%"></div>` : ''}</div>
+        <div class="baixo">${v < 0 ? `<div class="bar neg" style="height:${alt(v, maiorNeg)}%"></div>` : ''}</div>
         <span class="a">${i + 1}</span>
       </div>`).join('')}
     </div>
