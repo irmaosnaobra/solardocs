@@ -4445,11 +4445,17 @@ async function gravarAgendamento(){
     // memória. Remontar a vitrine é o conserto — o texto genérico mandaria a
     // pessoa pro WhatsApp por um horário que ela mesma pode reescolher aqui.
     if(String(e && e.message) === 'dia fechado'){
-      montarSlots();
+      // Mesma regra das saídas de cima (30/09/2026): zera o slot que o servidor
+      // recusou, senão o clique seguinte insiste no mesmo horário, e volta pro
+      // passo da lista — em cima do `p-whatsapp` "aí em cima" não existe.
+      slotSel = null; pendente = null;
+      await montarSlots();
+      btn.disabled = false;
+      voltarProHorario();
       erro('Esse horário não está mais disponível. Atualizei os horários aí em cima, é só escolher outro.');
-    } else {
-      erro('Não consegui agendar agora. Chame no WhatsApp (34) 99816-5040 que a gente marca na hora.');
+      return;
     }
+    erro('Não consegui agendar agora. Chame no WhatsApp (34) 99816-5040 que a gente marca na hora.');
     btn.disabled = false; btn.textContent = 'Confirmar agendamento →';
   }
 }
