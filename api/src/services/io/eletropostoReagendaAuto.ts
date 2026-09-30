@@ -319,7 +319,10 @@ export async function candidatosDoOutroDia(
   // Nunca no passado: reunião perdida ontem e detectada hoje de manhã tem que
   // cair de hoje pra frente, não "no dia seguinte ao de ontem".
   const inicio = Math.max(agora, inicioDoDiaSeguinte(quandoIso));
-  const vagas = await proximasVagas(dono, VAGAS_CONSULTADAS, { agora: inicio, ignorarIso: quandoIso });
+  // Faixa de REMARCAÇÃO (:15/:45) desde 30/09/2026: remarcar não pode comer o
+  // horário redondo que a vitrine está vendendo pra lead novo.
+  const vagas = await proximasVagas(dono, VAGAS_CONSULTADAS,
+    { agora: inicio, ignorarIso: quandoIso, faixa: 'remarcacao' });
   if (vagas === null) return null;              // leitura falhou: não inventa horário
   if (!vagas.length) return [];
 

@@ -2720,8 +2720,7 @@ async function carregarOcupados(deYmd, ateYmd){
     // "não tem nada marcado". Nos dois casos a grade abre (a gravação valida de
     // novo no servidor), mas só um deles é motivo de olhar o log.
     compromissos = (j && Array.isArray(j.ocupados) ? j.ocupados : [])
-      .map(a => ({ ts: a.ts, dono: String(a.dono),
-                   dur: a.solar ? DUR_VISTORIA_MS : DURACAO_MS }));
+      .map(a => ({ ts: a.ts, dono: String(a.dono), dur: duracaoDe(a) }));
     if (j && j.proximoDono) rodizioSugerido = j.proximoDono;
   }catch(e){ compromissos = []; }   // falhou: não trava a agenda, valida no envio
 }
@@ -2747,11 +2746,51 @@ async function carregarOcupados(deYmd, ateYmd){
  *  agenda encaixada, e é melhor que vender uma apresentação por cima da visita. */
 const DURACAO_MS = 30 * 60 * 1000;
 const DUR_VISTORIA_MS = 60 * 60 * 1000;
+/* A FAIXA DE REMARCAÇÃO (30/09/2026). Ordem do Thiago: "clientes novos de agenda
+   ocupará hora e hora e meia, os clientes remarcados e followups hora e quinze e
+   hora e quarenta e cinco".
+
+   Sem esta duração menor a regra se inverteria e faria o contrário do que ele
+   pediu: uma remarcação às 14:15 valendo 30 min ocupa [14:15,14:45), que cruza
+   [14:00,14:30) E [14:30,15:00) — ou seja, UMA remarcação apagaria DOIS horários
+   redondos da vitrine, que são justamente os que o lead novo compra. A faixa
+   existe pra proteger esses horários, não pra comê-los em dobro.
+
+   Só vale pra reunião de ELETROPOSTO (bandeira `ep` da API). Reunião de solar em
+   horário quebrado — 14:15 e 16:15 são comuns nos leads do Meta — continua
+   ocupando os 30 min dela, senão a vitrine venderia por cima do consultor. */
+const DUR_REMARCACAO_MS = 15 * 60 * 1000;
+const NOS_QUINZE = ts => { const m = new Date(ts).getUTCMinutes(); return m === 15 || m === 45; };
+function duracaoDe(a){
+  if (a.solar) return DUR_VISTORIA_MS;
+  if (a.ep && NOS_QUINZE(a.ts)) return DUR_REMARCACAO_MS;
+  return DURACAO_MS;
+}
 function donosLivres(iso){
   const t = new Date(iso).getTime();
-  // [t, t+30min) da apresentação contra [c, c+duração dele) do que já existe
-  return DONOS.filter(d => !compromissos.some(c =>
-    c.dono === d && c.ts < t + DURACAO_MS && t < c.ts + c.dur));
+  return DONOS.filter(d => !compromissos.some(c => {
+    if (c.dono !== d) return false;
+    /* FAIXA DE REMARCAÇÃO (30/09/2026): contra uma remarcação nossa nos quinze, a
+       conta é DISTÂNCIA (15 min), não sobreposição de blocos.
+
+       Por que a régua muda aqui: a apresentação nova vale 30 min, então
+       [14:00,14:30) cruza uma remarcação às 14:15 por 15 minutos e a vitrine
+       esconderia o 14:00 — ou seja, a remarcação continuaria comendo o horário
+       redondo, que é exatamente o que a ordem do Thiago quer impedir. Pela
+       distância, 14:00 e 14:30 seguem à venda com a remarcação no meio.
+
+       O que isso quer dizer na prática, e é decisão de operação, não de código:
+       a remarcação é um TOQUE CURTO de 15 min encaixado entre duas
+       apresentações, não uma apresentação inteira. Mesma régua do
+       `folgaEntre()` na API — as duas pontas têm que concordar, senão a vitrine
+       vende o que o robô recusa.
+
+       Só vale pra remarcação de ELETROPOSTO. Solar em horário quebrado cai no
+       `else` e continua ocupando o bloco inteiro. */
+    if (c.ep && NOS_QUINZE(c.ts)) return Math.abs(c.ts - t) < DUR_REMARCACAO_MS;
+    // [t, t+30min) da apresentação contra [c, c+duração dele) do que já existe
+    return c.ts < t + DURACAO_MS && t < c.ts + c.dur;
+  }));
 }
 /** Horário sem vaga nenhuma: os dois consultores comprometidos. */
 const slotCheio = iso => donosLivres(iso).length === 0;

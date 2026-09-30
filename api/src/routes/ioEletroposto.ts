@@ -454,6 +454,12 @@ router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
         dono: String(a.vendedor_nome),
         // A LP do solar marca VISTORIA, que ocupa a agenda por outro tempo.
         solar: a.created_by === 'lp_solar',
+        // É reunião de ELETROPOSTO? (30/09/2026) A vitrine precisa saber pra
+        // aplicar a faixa de remarcação: só reunião NOSSA em :15/:45 vale por 15
+        // minutos. Sem esta bandeira a LP teria que adivinhar pelo minuto, e uma
+        // reunião de solar do Meta às 14:15 (que é horário quebrado comum lá)
+        // encolheria pra 15 min — a vitrine venderia 14:00 por cima dela.
+        ep: ehOrigemEletroposto(a.created_by),
       }));
 
     res.set('Cache-Control', 'no-store');

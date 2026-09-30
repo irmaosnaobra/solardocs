@@ -435,10 +435,13 @@ export async function runConviteTick(): Promise<TickConvite> {
 
   // A vez é de um, mas a agenda manda: consultor lotado não pode travar a fila.
   let dono = await proximoDono();
-  let vagas = await proximasVagas(dono, QUANTAS_OPCOES, { agora });
+  // Faixa de REMARCAÇÃO (:15/:45) desde 30/09/2026: o convite é FOLLOW-UP na
+  // base que já é nossa, e a ordem do Thiago põe follow-up nos quinze. O
+  // horário redondo fica pro lead novo que chega pela vitrine.
+  let vagas = await proximasVagas(dono, QUANTAS_OPCOES, { agora, faixa: 'remarcacao' });
   if (vagas !== null && !vagas.length) {
     const outro = DONOS_EP.find(d => d !== dono)!;
-    const doOutro = await proximasVagas(outro, QUANTAS_OPCOES, { agora });
+    const doOutro = await proximasVagas(outro, QUANTAS_OPCOES, { agora, faixa: 'remarcacao' });
     if (doOutro && doOutro.length) { dono = outro; vagas = doOutro; }
   }
   // `null` é "não consegui ler a agenda" — diferente de "não tem vaga". Nos dois
@@ -515,7 +518,7 @@ export async function passoDoConvite(telefone: string, textos: string[]): Promis
     // e some é o lead mais caro que existe: já custou a mensagem e o interesse.
     // Duas vezes seria insistência, e insistência nesta linha é o que a derruba.
     if (positivoSemHorario(textos) && (oferta.rodada ?? 1) < 2) {
-      const novas = await proximasVagas(oferta.dono, QUANTAS_OPCOES, {});
+      const novas = await proximasVagas(oferta.dono, QUANTAS_OPCOES, { faixa: 'remarcacao' });
       if (novas && novas.length) {
         await supabase.from('system_state').upsert(
           {
@@ -541,7 +544,7 @@ export async function passoDoConvite(telefone: string, textos: string[]): Promis
   const iso = oferta.ofertas[i]!;
   // Entre oferecer e responder passam horas: o slot pode ter sido tomado na LP.
   if (!(await aindaLivre(iso, oferta.dono))) {
-    const novas = await proximasVagas(oferta.dono, QUANTAS_OPCOES, {});
+    const novas = await proximasVagas(oferta.dono, QUANTAS_OPCOES, { faixa: 'remarcacao' });
     if (novas && novas.length) {
       await supabase.from('system_state').upsert(
         {

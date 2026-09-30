@@ -497,7 +497,8 @@ async function ofertar(
   falar: (b: string[], etapa: string) => Promise<boolean>, opts: { dry?: boolean; silencioSemVaga?: boolean },
   copy: (nome: string, ofertas: string[], quem: string) => string[] = bolhasOferta,
 ): Promise<ResultadoRemarcar> {
-  const vagas = await proximasVagas(quem, QUANTAS_OPCOES, { ignorarIso: ficha.quando });
+  // Faixa de REMARCAÇÃO (:15/:45) — ver eletropostoVagas.
+  const vagas = await proximasVagas(quem, QUANTAS_OPCOES, { ignorarIso: ficha.quando, faixa: 'remarcacao' });
   if (vagas === null) return { acao: 'nada' };   // leitura falhou: não inventa horário
   if (!vagas.length) {
     // Quem PEDIU pra remarcar merece a resposta "não tenho horário, já chamei

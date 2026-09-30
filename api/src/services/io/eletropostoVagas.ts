@@ -71,6 +71,62 @@ const HORAS_PADRAO = ['13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:
  *  comeria a manhã deles. */
 const HORAS_MANHA_ACUMULO = ['10:00', '11:00'];
 const DIAS_UTEIS = new Set([1, 2, 3, 4, 5]);
+
+// ── DUAS FAIXAS NA MESMA GRADE (30/09/2026) ────────────────────────────────
+//
+// Ordem do Thiago: "clientes novos de agenda ocupará hora e hora e meia, os
+// clientes remarcados e followups hora e quinze e hora e quarenta e cinco".
+//
+// Ou seja: o lead NOVO cai em :00 e :30 (a grade que a LP vende), e quem já é
+// nosso — remarcação e follow-up — cai nos quinze no meio. O ganho é que a
+// remarcação para de comer o horário que a vitrine estava vendendo pra lead
+// novo, que é o recurso escasso.
+//
+// A FAIXA DE REMARCAÇÃO É DERIVADA, não escrita à mão: `+15 min` em cima da
+// grade do dia. Escrever uma segunda lista literal seria criar duas fontes da
+// verdade pra mesma coisa, e a de cima já precisa espelhar a LP ("mudou lá,
+// muda aqui"). Derivando, mexer na grade nova mexe nas duas faixas juntas.
+const maisQuinze = (hhmm: string): string => {
+  const [h, m] = hhmm.split(':').map(Number);
+  const t = h * 60 + m + 15;
+  return `${String(Math.floor(t / 60) % 24).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+};
+
+/** Qual faixa da grade este horário ocupa. `novo` é o padrão em todo lugar: quem
+ *  é remarcação sabe que é, quem não sabe é lead novo. */
+export type FaixaAgenda = 'novo' | 'remarcacao';
+
+/**
+ * Quanto ESTE compromisso ocupa em volta dele.
+ *
+ * ERA 30 MIN PARA TUDO, e é por isso que esta função existe agora. Com a régua
+ * antiga, a faixa de remarcação seria impossível de usar: 14:15 fica a 15 min de
+ * 14:00 E de 14:30, então `|15| < 30` recusaria o horário nos dois lados e o robô
+ * nunca acharia vaga nenhuma pra remarcar. É essa conta que obriga a regra do
+ * Thiago a ser código, e não só uma lista de horários nova.
+ *
+ * A folga cai pra 15 min quando o compromisso é reunião NOSSA em horário da
+ * grade (:00, :15, :30, :45). Vale nos dois sentidos, e tem que valer: a
+ * remarcação das 14:15 precisa passar por cima do lead novo das 14:00, e o lead
+ * novo das 14:00 precisa continuar cabendo com a remarcação das 14:15 já
+ * marcada. Se a régua olhasse só o lado da remarcação, a primeira das duas a ser
+ * marcada trancaria a outra, e qual delas depende da ordem de chegada — o pior
+ * tipo de bug de agenda, porque só aparece em metade dos dias.
+ *
+ * A PRIMEIRA VERSÃO OLHAVA SÓ O MINUTO e um teste pegou: reunião de SOLAR do
+ * Meta cai em horário quebrado, e 13:15 é dos mais comuns lá. Pelo minuto ela
+ * passaria por remarcação, encolheria pra 15 min e o robô marcaria eletroposto
+ * às 13:00 por cima de uma reunião que já existe. Quem separa é a ORIGEM da
+ * ficha, não o relógio — e é a mesma bandeira `ep` que a vitrine usa no
+ * `donosLivres`, porque as duas pontas têm que concordar.
+ */
+const NA_GRADE = new Set([0, 15, 30, 45]);
+const naGrade = (ts: number): boolean =>
+  // BRT é UTC-3 cheio, então o minuto em UTC é o mesmo de Brasília.
+  NA_GRADE.has(new Date(ts).getUTCMinutes());
+export function folgaDoCompromisso(c: Compromisso): number {
+  return c.ep && naGrade(c.ts) ? 15 * 60 * 1000 : DURACAO_MS;
+}
 /** Duração da reunião — é ela que define sobreposição, não o passo da grade. */
 const DURACAO_MS = 30 * 60 * 1000;
 /** Folga mínima: sem ela o lead marca pra daqui a 10 min e o consultor entra sem estudo. */
@@ -126,9 +182,11 @@ function diasFechadosAntes(ymd: string): number {
  * GANHAM a manhã e mantêm a tarde de meia em meia hora — 12 horários por
  * consultor contra os 8 da segunda, que é o certo para um dia que acumula três.
  */
-export const horasDoDia = (ymd: string): readonly string[] => {
-  if (diaDaSemana(ymd) === 1) return HORAS_SEGUNDA;
-  return diasFechadosAntes(ymd) >= 2 ? [...HORAS_MANHA_ACUMULO, ...HORAS_PADRAO] : HORAS_PADRAO;
+export const horasDoDia = (ymd: string, faixa: FaixaAgenda = 'novo'): readonly string[] => {
+  const base = diaDaSemana(ymd) === 1
+    ? HORAS_SEGUNDA
+    : (diasFechadosAntes(ymd) >= 2 ? [...HORAS_MANHA_ACUMULO, ...HORAS_PADRAO] : HORAS_PADRAO);
+  return faixa === 'remarcacao' ? base.map(maisQuinze) : base;
 };
 
 /** A agenda abre neste dia? (dia útil, não feriado e sem bloqueio pontual)
@@ -142,7 +200,9 @@ export function agendaAbre(ymd: string): boolean {
   return !ehFeriadoBR(ymd) && !agendaFechadaEm(ymd) && DIAS_UTEIS.has(diaDaSemana(ymd));
 }
 
-export type Compromisso = { ts: number; dono: string };
+/** `ep` diz se a reunião é de ELETROPOSTO. Ela existe por causa da faixa de
+ *  remarcação: só reunião nossa nos quinze vale 15 min — ver `folgaDoCompromisso`. */
+export type Compromisso = { ts: number; dono: string; ep?: boolean };
 
 /**
  * O horário está livre PARA ESTE CONSULTOR? Sobreposição, não igualdade: o que
@@ -151,7 +211,7 @@ export type Compromisso = { ts: number; dono: string };
  */
 export function livrePara(iso: string, dono: string, compromissos: Compromisso[]): boolean {
   const t = new Date(iso).getTime();
-  return !compromissos.some(c => c.dono === dono && Math.abs(c.ts - t) < DURACAO_MS);
+  return !compromissos.some(c => c.dono === dono && Math.abs(c.ts - t) < folgaDoCompromisso(c));
 }
 
 /**
@@ -183,7 +243,11 @@ export async function carregarCompromissos(deIso: string, ateIso: string): Promi
       // ocupado — e o lead que pedisse pra remarcar nunca receberia justamente o
       // horário que a página oferece pra todo mundo.
       .filter(a => !(a.status === 'nao_atendeu' && ehOrigemEletroposto(a.created_by)))
-      .map(a => ({ ts: new Date(String(a.quando)).getTime(), dono: String(a.vendedor_nome) }));
+      .map(a => ({
+        ts: new Date(String(a.quando)).getTime(),
+        dono: String(a.vendedor_nome),
+        ep: ehOrigemEletroposto(a.created_by),
+      }));
   } catch (err) {
     logger.error('ep-vagas', 'ler compromissos falhou', err);
     return null;
@@ -199,7 +263,8 @@ export async function carregarCompromissos(deIso: string, ateIso: string): Promi
  * fora da oferta de qualquer jeito, porque quem pediu pra remarcar não quer ele.)
  */
 export async function proximasVagas(
-  dono: string, quantas: number, opts: { agora?: number; ignorarIso?: string | null } = {},
+  dono: string, quantas: number,
+  opts: { agora?: number; ignorarIso?: string | null; faixa?: FaixaAgenda } = {},
 ): Promise<string[] | null> {
   const agora = opts.agora ?? Date.now();
   const limite = agora + ANTECEDENCIA_MIN_MS;
@@ -217,7 +282,7 @@ export async function proximasVagas(
   for (let i = 0; i < DIAS_VARRIDOS && vagas.length < quantas; i++) {
     const ymd = diaBRT(agora + i * 86400_000);
     if (!agendaAbre(ymd)) continue;
-    for (const h of horasDoDia(ymd)) {
+    for (const h of horasDoDia(ymd, opts.faixa ?? 'novo')) {
       if (vagas.length >= quantas) break;
       const iso = isoDe(ymd, h);
       const t = new Date(iso).getTime();
