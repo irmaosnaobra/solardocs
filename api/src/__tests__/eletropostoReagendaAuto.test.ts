@@ -16,6 +16,8 @@ let fichas: any[] = [];
 let ocupados = new Set<string>();
 const state = new Map<string, { key: string; value: any; updated_at: string }>();
 const apagados: string[] = [];
+/** Faz a leitura da rampa do dia falhar, pra provar que ela fecha a porta. */
+let rampaQuebrada = false;
 const updates: Array<{ id: number; patch: any }> = [];
 
 function aplicarUpdate(q: any) {
@@ -73,6 +75,22 @@ vi.mock('../utils/supabase', () => ({
       select: () => ({
         in: async (_col: string, chaves: string[]) => ({
           data: chaves.filter(k => state.has(k)).map(k => state.get(k)), error: null,
+        }),
+        // A rampa do dia: conta os carimbos `ep_reagenda_auto:` de hoje. O mock
+        // devolve o que está no `state` com o prefixo pedido, e `rampaQuebrada`
+        // simula a consulta falhando (que tem que FECHAR a porta, não abrir).
+        like: (_col: string, padrao: string) => ({
+          gte: (_c: string, desde: string) => ({
+            limit: async () => {
+              if (rampaQuebrada) return { data: null, error: { message: 'boom' } };
+              const prefixo = padrao.replace(/%$/, '');
+              return {
+                data: [...state.values()].filter((r: any) =>
+                  String(r.key).startsWith(prefixo) && String(r.updated_at || '') >= desde),
+                error: null,
+              };
+            },
+          }),
         }),
       }),
       upsert: async (r: any) => { state.set(r.key, r); return { error: null }; },
@@ -157,6 +175,7 @@ beforeEach(() => {
   vagas = [SEXTA_13H, SEXTA_14H];
   aoPedirVagas = null;
   tetoLivre = true;
+  rampaQuebrada = false;
   vi.useFakeTimers(); vi.setSystemTime(AGORA);
 });
 afterEach(() => { vi.useRealTimers(); process.env = { ...envOriginal }; vi.resetModules(); });
@@ -262,10 +281,26 @@ describe('não falar demais com quem sumiu', () => {
     expect(enviadas[0].bolhas[2]).toContain('último horário');
   });
 
-  it('estoque velho de vermelho não vira disparo: reunião anterior ao piso duro fica de fora', async () => {
-    fichas = [ficha({ quando: '2026-08-12T16:00:00.000Z' })];
+  // 29/09/2026 INVERTEU ISTO. O piso duro de 20/08 existia pra ligar o módulo não
+  // despejar o estoque velho; a ordem nova é justamente ir buscar o estoque velho
+  // ("mesmo os mais antigos, podemos recuperar pessoas"). Quem passou a segurar o
+  // despejo é a rampa diária, testada logo abaixo.
+  it('vermelho VELHO entra: é pra isso que a régua nova existe', async () => {
+    fichas = [ficha({ quando: '2026-06-12T16:00:00.000Z' })];
     const r = await tick();
-    expect(r.motivo).toBe('nenhum_vermelho');
+    expect(r.remarcados).toBe(1);
+    expect(fichas[0].status).toBe('agendado');
+  });
+
+  it('mas antes do primeiro card da base continua fora — piso não é "sem piso"', async () => {
+    fichas = [ficha({ quando: '2026-04-01T16:00:00.000Z' })];
+    expect((await tick()).motivo).toBe('nenhum_vermelho');
+  });
+
+  it('EP_REAGENDA_INICIO sobe o piso sem deploy', async () => {
+    process.env.EP_REAGENDA_INICIO = '2026-07-01T00:00:00.000Z';
+    fichas = [ficha({ quando: '2026-06-12T16:00:00.000Z' })];
+    expect((await tick()).motivo).toBe('nenhum_vermelho');
   });
 
   it('fora da janela de 9h–19h ninguém é remarcado', async () => {
@@ -274,27 +309,93 @@ describe('não falar demais com quem sumiu', () => {
     expect(r.motivo).toBe('fora_da_janela');
   });
 
-  // "Quero apenas os clientes QUENTES tenham uma 2ª e 3ª chance; os demais
-  // mantêm." Morno é a MAIORIA dos vermelhos (30 dos 45 em 30 dias), então este
-  // corte é o que separa "o robô trabalha o funil" de "o robô enche a agenda".
-  it('morno não ganha segunda chance — fica vermelho como sempre foi', async () => {
+  // ── A VIRADA DE 29/09/2026 ────────────────────────────────────────────────
+  // Em 20/08 o Thiago pediu "apenas os clientes QUENTES tenham uma 2ª e 3ª
+  // chance", e o corte fazia sentido no mundo de então: a grade de eletroposto
+  // estava sendo vendida e cada volta ocupava um horário vendável.
+  //
+  // Em 29/09 ele pediu o contrário, "TODOS os NÃO ATENDEU têm que remarcar
+  // automaticamente". E a medição do dia explica por que a objeção antiga não
+  // vale mais: a agenda futura tem 4 reuniões de eletroposto marcadas pra amanhã
+  // e 3 pra depois, numa grade de 16 a 20 por dia. Não há comprador sendo
+  // empurrado pra fora — 80% da grade está vazia.
+  //
+  // O que passou a ser escasso é a LINHA, e quem cuida dela é a rampa diária.
+  it('morno entra agora — a ordem é recuperar gente', async () => {
     fichas = [ficha({ temperatura: 'morno' })];
     const r = await tick();
-    expect(r.motivo).toBe('nenhum_vermelho');
-    expect(fichas[0].status).toBe('nao_atendeu');
-    expect(enviadas).toHaveLength(0);
+    expect(r.remarcados).toBe(1);
+    expect(fichas[0].status).toBe('agendado');
+    expect(enviadas).toHaveLength(1);
   });
 
-  it('frio também não — e frio aqui costuma ser gente que rebaixou na mão', async () => {
+  it('frio entra', async () => {
     fichas = [ficha({ temperatura: 'frio' })];
-    expect((await tick()).motivo).toBe('nenhum_vermelho');
+    expect((await tick()).remarcados).toBe(1);
   });
 
   // Origem que não qualifica (ManyChat, prospecção, cadastro na mão) grava a ficha
-  // sem temperatura. Default permissivo faria origem nova entrar calada na fila.
-  it('ficha SEM temperatura fica de fora — quente só quem está escrito como quente', async () => {
+  // sem temperatura. Antes isso era motivo pra ficar de fora; agora não é.
+  it('ficha SEM temperatura entra', async () => {
     fichas = [ficha({ temperatura: null })];
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  // A VOLTA ATRÁS. Se a linha reclamar, a régua de 20/08 volta com uma env e sem
+  // deploy — é a única coisa que torna reversível uma decisão que mexe em volume.
+  it('EP_REAGENDA_SO_QUENTE=1 devolve a régua de 20/08', async () => {
+    process.env.EP_REAGENDA_SO_QUENTE = '1';
+    fichas = [ficha({ temperatura: 'morno' })];
     expect((await tick()).motivo).toBe('nenhum_vermelho');
+    expect(fichas[0].status).toBe('nao_atendeu');
+  });
+
+  it('EP_REAGENDA_SO_QUENTE=1 não atrapalha o quente', async () => {
+    process.env.EP_REAGENDA_SO_QUENTE = '1';
+    fichas = [ficha({ temperatura: 'quente' })];
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  // ── A RAMPA DIÁRIA ────────────────────────────────────────────────────────
+  // Ela é o que sobrou de freio depois que o piso duro e o corte de temperatura
+  // saíram. Sem ela: 1 ficha por tick, tick de 2 em 2 minutos, janela de 10
+  // horas = até 300 remarcações por dia, e cada uma recomeça uma régua de 3 a 4
+  // mensagens. As 75 fichas paradas virariam ~300 mensagens numa tarde, pela
+  // linha que já caiu 3 vezes em 7 dias por rajada.
+  it('a rampa do dia fecha a porta quando o teto é atingido', async () => {
+    process.env.EP_REAGENDA_POR_DIA = '2';
+    const hoje = new Date(AGORA).toISOString();
+    state.set('ep_reagenda_auto:901', { key: 'ep_reagenda_auto:901', value: { n: 1 }, updated_at: hoje });
+    state.set('ep_reagenda_auto:902', { key: 'ep_reagenda_auto:902', value: { n: 1 }, updated_at: hoje });
+    const r = await tick();
+    expect(r.motivo).toBe('rampa_do_dia_cheia');
+    expect(r.remarcados).toBe(0);
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('carimbo de ONTEM não gasta a rampa de hoje', async () => {
+    process.env.EP_REAGENDA_POR_DIA = '1';
+    const ontem = new Date(new Date(AGORA).getTime() - 40 * 3600_000).toISOString();
+    state.set('ep_reagenda_auto:901', { key: 'ep_reagenda_auto:901', value: { n: 1 }, updated_at: ontem });
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  it('rampa em 0 congela o módulo sem precisar do kill-switch', async () => {
+    process.env.EP_REAGENDA_POR_DIA = '0';
+    expect((await tick()).motivo).toBe('rampa_do_dia_cheia');
+  });
+
+  // FAIL-CLOSED. Consulta que quebra devolve `data` nulo; contar isso como zero
+  // faria a rampa desaparecer justamente no dia em que o banco está ruim, e aí
+  // são 300 remarcações. Na dúvida não remarca: a fila esperou meses, espera o
+  // próximo tick.
+  it('leitura da rampa falhou: ninguém é remarcado', async () => {
+    rampaQuebrada = true;
+    const r = await tick();
+    expect(r.motivo).toBe('erro_rampa');
+    expect(r.remarcados).toBe(0);
+    expect(updates).toHaveLength(0);
+    expect(enviadas).toHaveLength(0);
   });
 
   it('ficha de solar não entra — a copy é de eletroposto', async () => {

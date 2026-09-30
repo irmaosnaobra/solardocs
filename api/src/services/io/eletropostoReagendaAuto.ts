@@ -115,9 +115,33 @@ const BRT_TZ = 'America/Sao_Paulo';
 /** Estado do ciclo: `ep_reagenda_auto:<id>` → { n, ultimo, de }. */
 export const EP_REAGENDA_PREFIX = 'ep_reagenda_auto:';
 
-/** Piso duro: reunião perdida ANTES disto não é remarcada nunca. É o dia em que
- *  a régua entrou no ar — o estoque velho de vermelhos não vira disparo. */
-const REAGENDA_INICIO = '2026-08-20T00:00:00.000Z';
+// ── Envs, lidas a cada chamada ──────────────────────────────────────────────
+// Não no arranque do módulo: instância quente na Vercel não recarrega módulo, e
+// apertar a rampa no meio de um dia ruim não pode depender de deploy.
+const num = (nome: string, padrao: number): number => {
+  const cru = (process.env[nome] || '').trim();
+  if (cru === '') return padrao;
+  const v = Number(cru);
+  return Number.isFinite(v) && v >= 0 ? v : padrao;
+};
+
+/**
+ * Piso: reunião perdida ANTES disto não é remarcada nunca.
+ *
+ * Era `2026-08-20`, o dia em que a régua entrou no ar, justamente pra ligar o
+ * módulo não despejar o estoque velho de vermelhos de uma vez (o erro que já
+ * custou caro no solar, 87 fichas num disparo).
+ *
+ * Em 29/09/2026 o Thiago pediu o contrário: "todos os NÃO ATENDEU têm que
+ * remarcar automaticamente, mesmo os mais antigos, podemos recuperar pessoas".
+ * Então o piso desce pra antes do primeiro card da base (09/05/2026) e O QUE
+ * IMPEDE O DESPEJO PASSA A SER A RAMPA DIÁRIA (`tetoPorDia`), não o piso. As
+ * duas coisas não podem cair juntas: sem uma delas, ligar isto remarca 75 fichas
+ * de eletroposto numa tarde e manda ~300 mensagens por uma linha que já caiu 3
+ * vezes em 7 dias por rajada.
+ */
+const inicioPiso = (): string =>
+  (process.env.EP_REAGENDA_INICIO || '').trim() || '2026-05-01T00:00:00.000Z';
 
 /** "e assim até o terceiro dia" — e o Thiago fechou em **2 dias** quando
  *  perguntei (20/08). Então são DOIS reagendamentos: a reunião perdida mais duas
@@ -127,8 +151,46 @@ const REAGENDA_INICIO = '2026-08-20T00:00:00.000Z';
 export const MAX_REAGENDAMENTOS = 2;
 /** Folga depois do horário perdido — o toque de 5 min ainda estava saindo. */
 const APOS_PERDER_MIN = 45;
-/** Reunião perdida há mais de 7 dias não é remarcação, é lista fria. */
-const JANELA_DIAS = 7;
+/**
+ * Quantos dias pra trás a varredura enxerga.
+ *
+ * Era 7, com a regra "reunião perdida há mais de 7 dias não é remarcação, é
+ * lista fria". A ordem de 29/09 desfaz isso: o Thiago quer os antigos de volta.
+ * 365 cobre a base toda (ela começa em 09/05/2026) sem virar "sem limite", que é
+ * o tipo de número que ninguém revisa depois.
+ */
+const janelaDias = (): number => num('EP_REAGENDA_JANELA_DIAS', 365);
+
+/**
+ * A RAMPA. Quantas fichas o módulo pode remarcar por dia (dia de Brasília).
+ *
+ * É a trava que substitui o piso duro e o corte de temperatura, e ela é
+ * load-bearing, não decorativa. A conta que a justifica, medida em 29/09/2026:
+ *
+ *   · 75 cards de eletroposto em `nao_atendeu` esperando;
+ *   · cada remarcação recomeça a régua da agenda — confirmação, bom dia, 1h e
+ *     5 min, ou seja 3 a 4 mensagens por ficha;
+ *   · a linha IO tem teto por hora e por dia, e já foi bloqueada 3× em 7 dias
+ *     por leva de mensagens no mesmo minuto.
+ *
+ * 75 fichas de uma vez são ~300 mensagens. A 10 por dia, a fila drena em uma
+ * semana e meia e o volume diário fica na mesma ordem do que a linha já carrega.
+ *
+ * O que NÃO é mais a trava: o slot vendável. Em 20/08 o corte de temperatura foi
+ * escrito porque "cada volta ocupa um horário vendável de uma grade de 10 por
+ * dia". Medido em 29/09, a grade está 80% vazia: 4 reuniões de eletroposto
+ * marcadas pra amanhã e 3 pra depois, numa grade de 16 a 20 por dia. Hoje não há
+ * comprador de verdade sendo empurrado pra fora — o que aperta é a linha.
+ */
+const tetoPorDia = (): number => num('EP_REAGENDA_POR_DIA', 10);
+
+/**
+ * Só QUENTE ganha 2ª chance? Era a ordem de 20/08/2026 ("quero apenas os
+ * clientes QUENTES tenham uma 2ª e 3ª chance"). A de 29/09 é mais ampla ("todos
+ * os NÃO ATENDEU"), então o padrão virou `false` e a env existe pra voltar atrás
+ * sem deploy se a linha reclamar.
+ */
+const soQuente = (): boolean => (process.env.EP_REAGENDA_SO_QUENTE || '').trim() === '1';
 /** Uma pessoa por tick: duas no mesmo passo poderiam mirar o mesmo slot. */
 const POR_TICK = 1;
 const JANELA_INICIO_H = 9;
@@ -364,7 +426,7 @@ export async function runEletropostoReagendaAutoTick(
   if (h < JANELA_INICIO_H || h >= JANELA_FIM_H) return zero('fora_da_janela');
 
   const agora = Date.now();
-  const de = new Date(Math.max(agora - JANELA_DIAS * 86400_000, new Date(REAGENDA_INICIO).getTime())).toISOString();
+  const de = new Date(Math.max(agora - janelaDias() * 86400_000, new Date(inicioPiso()).getTime())).toISOString();
   const ate = new Date(agora - APOS_PERDER_MIN * 60_000).toISOString();
   if (de >= ate) return zero('piso_ainda_no_futuro');
 
@@ -383,9 +445,10 @@ export async function runEletropostoReagendaAutoTick(
 
   const candidatos = ((data ?? []) as FichaVermelha[]).filter(f =>
     ehOrigemEletroposto(f.created_by)
-    // Só QUENTE ganha 2ª e 3ª chance. Morno, frio e sem temperatura ficam
-    // vermelhos como sempre foram — e o horário deles segue na vitrine.
-    && ehQuente(f.temperatura)
+    // Desde 29/09/2026 entra TODO NÃO ATENDEU, não só o quente: a ordem é
+    // recuperar gente, e quem decide o volume agora é a rampa diária. Com
+    // EP_REAGENDA_SO_QUENTE=1 volta a régua de 20/08 sem deploy.
+    && (!soQuente() || ehQuente(f.temperatura))
     && !!f.cliente_telefone
     && !!f.vendedor_nome
     && !!f.quando
@@ -425,6 +488,35 @@ export async function runEletropostoReagendaAutoTick(
     !comOferta.has(f.id) && (estadoDe.get(f.id)?.n ?? 0) < MAX_REAGENDAMENTOS);
   if (!naVez.length) return zero('ninguem_na_vez');
 
+  // A RAMPA DO DIA. Conta quantas fichas já foram remarcadas hoje e para no teto.
+  //
+  // Sem ela o módulo remarca até 1 por tick, o tick roda de ~2 em 2 minutos e a
+  // janela tem 10 horas: são 300 remarcações por dia de teto teórico. Com o piso
+  // duro e o corte de quente fora (29/09), isto é o único lugar em que o volume
+  // é decidido.
+  //
+  // Fail-closed de propósito: consulta que quebra devolve `data` nulo, o
+  // contador nasce zero e a rampa deixa de existir bem no dia em que o banco
+  // está ruim. Na dúvida ninguém é remarcado — a fila não tem pressa, ela
+  // esperou meses.
+  const inicioDoDiaBRT = new Date(
+    `${new Intl.DateTimeFormat('en-CA', { timeZone: BRT_TZ }).format(new Date(agora))}T00:00:00-03:00`,
+  ).toISOString();
+  const feitosHoje = await supabase
+    .from('system_state').select('key')
+    .like('key', `${EP_REAGENDA_PREFIX}%`)
+    .gte('updated_at', inicioDoDiaBRT)
+    .limit(1000);
+  if (feitosHoje.error) {
+    logger.error('ep-reagenda', 'ler a rampa do dia falhou — ninguém remarca nesta rodada', feitosHoje.error);
+    return { ...zero('erro_rampa'), erros: 1 };
+  }
+  const jaHoje = (feitosHoje.data || []).length;
+  if (jaHoje >= tetoPorDia()) {
+    logger.info('ep-reagenda', `rampa do dia cheia (${jaHoje}/${tetoPorDia()}) — a fila continua amanhã`);
+    return zero('rampa_do_dia_cheia');
+  }
+
   // Teto anti-ban ANTES de mexer na ficha: remarcar sem conseguir avisar é
   // marcar reunião que a pessoa não sabe que existe. Estourou? Ninguém é
   // remarcado nesta rodada — a fila espera o próximo tick, ela não tem pressa.
@@ -434,7 +526,9 @@ export async function runEletropostoReagendaAutoTick(
   }
 
   const telPorConsultor = await carregarConsultores();
-  const alvos = naVez.slice(0, POR_TICK);
+  // O menor entre o passo do tick e o que resta da rampa: no último slot do dia
+  // não adianta o tick permitir 1 se a rampa só tem 0.
+  const alvos = naVez.slice(0, Math.min(POR_TICK, tetoPorDia() - jaHoje));
   const previa: NonNullable<ResultadoReagendaAuto['previa']> = [];
   let remarcados = 0, erros = 0;
 

@@ -101,8 +101,20 @@ export const passoMin = (): number => num('LEMBRETE_PASSO_MIN', 30);
 const maxPorCard = (): number => num('LEMBRETE_MAX_POR_CARD', 3);
 /** Folga mínima, em horas, entre dois lembretes do mesmo card. */
 const folgaCardH = (): number => num('LEMBRETE_FOLGA_H', 48);
-/** Quantos dias pra trás a varredura enxerga. Cemitério não vira tarefa. */
-const diasJanela = (): number => num('LEMBRETE_JANELA_DIAS', 90);
+/**
+ * Quantos dias pra trás a varredura enxerga.
+ *
+ * Nasceu em 90 dias pra cemitério não virar tarefa. Virou 10 anos em 29/09/2026,
+ * por ordem do Thiago ("adiciona na lista de followup mesmo os mais antigos,
+ * podemos recuperar pessoas"), e a medição mostrou que o medo do cemitério não
+ * se aplica aqui: a tabela `agendamentos` inteira só tem 319 cards abertos e o
+ * mais antigo é de 09/05/2026, quando a agenda começou. Os 90 dias já pegavam
+ * 308 deles — abrir tudo custou 11 cards, não um despejo.
+ *
+ * A env continua existindo pra ESTREITAR, que é o uso que faz sentido: se um dia
+ * a base tiver anos de história, 90 volta a ser um número bom.
+ */
+const diasJanela = (): number => num('LEMBRETE_JANELA_DIAS', 3650);
 /** Piso de espera: card que venceu agora há pouco não é abandono, é o dia
  *  acontecendo. Em horas ÚTEIS. */
 const esperaMinimaH = (): number => num('LEMBRETE_ESPERA_MIN_H', 4);

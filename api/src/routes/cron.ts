@@ -59,6 +59,7 @@ import { runEletropostoReagendaAutoTick } from '../services/io/eletropostoReagen
 import { runEletropostoCardPingTick } from '../services/io/eletropostoCardPing';
 import { runEletropostoAlerta10minTick } from '../services/io/eletropostoAlerta10min';
 import { runLembreteFollowupTick } from '../services/io/lembreteFollowupService';
+import { runReagendaSolarTick } from '../services/agenda/reagendaSolarNaoAtendido';
 import { runEletropostoEstudoTick } from '../services/io/eletropostoEstudo';
 import { runEletropostoTopPontosTick, respostaPublicaDoTop } from '../services/io/eletropostoTopPontos';
 import { runEletropostoIgConviteTick, publicoIgConvite, bolhaConviteLP } from '../services/io/eletropostoIgConvite';
@@ -357,7 +358,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // duas últimas cadências não apareciam). Os ticks sempre rodaram — quem
     // mentia era o relatório, que é justamente onde a gente vai olhar quando
     // desconfiar de um tick. Nome novo aqui exige chamada nova na MESMA posição.
-    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, limpaproAtendResult, geradorSeqResult, igDrainResult, fbComentResult, fbInboxResult, repescagemResult, conviteResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult, epReagendaResult, epCardPingResult, epIgConviteResult, solarBvResult, solarRespResult, curso19Result, carlaCnpjResult, carlaInativoResult, epAlerta10minResult, recepcaoParadasResult, recepcaoPollResult, avisosResult, vacuoResult, lembreteFollowupResult] = await Promise.allSettled([
+    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, limpaproAtendResult, geradorSeqResult, igDrainResult, fbComentResult, fbInboxResult, repescagemResult, conviteResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult, epReagendaResult, epCardPingResult, epIgConviteResult, solarBvResult, solarRespResult, curso19Result, carlaCnpjResult, carlaInativoResult, epAlerta10minResult, recepcaoParadasResult, recepcaoPollResult, avisosResult, vacuoResult, lembreteFollowupResult, reagendaSolarResult] = await Promise.allSettled([
       processMessageQueue(),
       pollZapiMessages(),
       pollZapiMessagesIO(),            // detecta inbound IO pra Cora processar
@@ -430,6 +431,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       runAvisosTick(),                 // avisos: a pauta escrita na tela vai pra base de parceria, 1 por tick (AVISOS_OFF desliga)
       runSentinelaVacuo(),             // sentinela: quem escreveu e ficou sem resposta vira cobrança no dono (VACUO_OFF desliga)
       runLembreteFollowupTick(),       // follow-up: 1 card parado por consultor a cada 30 min, 10h-20h, no celular dele (LEMBRETE_OFF desliga)
+      runReagendaSolarTick(),          // solar: quem nao atendeu volta pra agenda do mesmo consultor, 1 por tick e rampa de 10/dia (SOLAR_REAGENDA_OFF desliga)
     ]);
     res.json({
       ok: true,
@@ -471,6 +473,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       avisos:         avisosResult.status === 'fulfilled' ? avisosResult.value : { error: String((avisosResult as any).reason) },
       vacuo:          vacuoResult.status === 'fulfilled' ? vacuoResult.value : { error: String((vacuoResult as any).reason) },
       lembrete_followup: lembreteFollowupResult.status === 'fulfilled' ? lembreteFollowupResult.value : { error: String((lembreteFollowupResult as any).reason) },
+      reagenda_solar: reagendaSolarResult.status === 'fulfilled' ? reagendaSolarResult.value : { error: String((reagendaSolarResult as any).reason) },
       placar:         await placarP,
       luma_io_off: 'Linha IO: polling ativo só pra Cora ouvir inbound, demais tarefas Luma desligadas',
     });
@@ -1391,6 +1394,21 @@ router.get('/lembrete-followup', async (req: Request, res: Response) => {
   }
 });
 
+// Solar: quem NÃO ATENDEU volta pra agenda do mesmo consultor, sozinho. Não
+// escreve pro cliente — quem avisa é a régua das 7h do solarAgendaGiovanna, e
+// este módulo só limpa os carimbos que a calariam. 1 card por tick, rampa de 10
+// por dia, 2 voltas por card. ?dry=1 mostra de quando pra quando, sem gravar.
+// Kill-switch: SOLAR_REAGENDA_OFF=1.
+router.get('/reagenda-solar', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    res.json({ ok: true, ...(await runReagendaSolarTick({ dry: req.query.dry === '1' })) });
+  } catch (err) {
+    logger.error('cron', 'reagenda-solar falhou', err);
+    res.status(500).json({ error: 'Cron failed' });
+  }
+});
+
 // Sentinela do vácuo: acha quem escreveu pra linha e ficou sem resposta e cobra
 // o dono do produto, num resumo só. Não manda nada pra cliente. ?dry=1 mostra
 // quem seria cobrado, sem avisar ninguém. Kill-switch: VACUO_OFF=1.
@@ -1672,7 +1690,8 @@ router.get('/master', async (req: Request, res: Response) => {
     // resumo pro dono do produto. Não fala com cliente nenhum — cobra a gente.
     // De hora em hora basta: a régua dela é de 3h úteis. Prévia: ?dry=1.
     ['sentinela-vacuo',             () => runSentinelaVacuo()],
-    ['lembrete-followup',           () => runLembreteFollowupTick()], // rede de segurança: se o tick de 2 min morrer, o master ainda entrega 1 lembrete por pessoa
+    ['lembrete-followup',           () => runLembreteFollowupTick()],
+    ['reagenda-solar',              () => runReagendaSolarTick()], // solar: nao_atendeu volta pra agenda (rede de seguranca do tick de 2 min) // rede de segurança: se o tick de 2 min morrer, o master ainda entrega 1 lembrete por pessoa
     ['sdr-followup',                () => runSdrFollowups()],
     // FICA DESLIGADO (17/09/2026). Rodava de hora em hora e mandava ZERO desde
     // sempre, por dois defeitos achados em 25/08 e ainda de pé:
