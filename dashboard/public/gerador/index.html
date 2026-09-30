@@ -12781,14 +12781,24 @@ const NX_CSS = `<style>
   text-transform:uppercase;color:var(--nx-verde)}
 .nx-obs{margin-top:14px;font-size:7.5pt;line-height:1.55;color:var(--nx-fraco);font-weight:500}
 
-/* ═══════ O APERTO (28/09/2026) ═══════
+/* ═══════ O APERTO (28/09/2026), com o miolo CENTRALIZADO (29/09) ═══════
    Pedido do dono: "diminuir o minimo e ajustar margens para diminuir
    quantidade folha e manter informacao". Medido antes: 44% de ocupacao media.
 
-   ANCORAGEM, e nao centralizacao. O justify-content:center que eu tinha posto
-   contra esta mesma queixa so trocou uma faixa morta de 98mm por DUAS de 49mm.
-   Agora o miolo ancora no alto e o ultimo bloco prega no pe. */
-.nx-corpo{justify-content:flex-start;padding:17mm 13mm 0 13mm}
+   CENTRALIZADO, e isto e' desfazer uma coisa minha. O desenho nasceu com
+   "justify-content:center"; em 28/09 eu troquei por "flex-start" e escrevi aqui
+   que "vazio no FIM da folha le como margem, vazio no MEIO le como defeito".
+   Era opiniao minha sobre o documento do dono, e eu a segurei contra o que ele
+   pediu mais de uma vez. Em 29/09 ele pediu pela terceira vez, com a folha 2
+   marcada de verde: "centraliza as que estao assim". O documento e' dele.
+
+   O PADDING E' SIMETRICO de proposito: 17mm em cima e 17mm embaixo. Com
+   padding-bottom em 0, o "center" dividia o espaco livre igual mas a sobra de
+   cima saia 17mm maior — centrado na conta e torto no olho. */
+.nx-corpo{justify-content:center;padding:17mm 13mm 17mm 13mm}
+.nx-corpo:has(.nx-banda){justify-content:flex-start}
+.nx-corpo:has(.nx-banda)>.nx-banda+*{margin-top:auto !important}
+.nx-corpo:has(.nx-banda)>:last-child{margin-bottom:auto}
 .nx-capa .nx-corpo{justify-content:flex-end;padding-top:98mm;padding-bottom:3mm}
 .nx-pe{padding:6px 13mm 7mm 13mm}
 .nx-marca{left:13mm;top:8mm}
