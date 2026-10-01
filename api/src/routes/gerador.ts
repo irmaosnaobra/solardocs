@@ -29,6 +29,7 @@ import { supabase } from '../utils/supabase';
 // A sala de espera do card mora no `system_state`, e o prefixo sai do módulo
 // que LÊ ele: quem escreve e quem lê têm que concordar na chave.
 import { APALAVRADO_PREFIX } from '../services/io/lembreteFollowupService';
+import { EP_MUDO_PREFIX } from '../services/io/eletropostoReagendaAuto';
 
 const router = Router();
 
@@ -183,6 +184,58 @@ router.post('/form-solar', async (req: Request, res: Response) => {
 // caso de abuso é calar um card por um ano, que qualquer consultor desfaz
 // apertando outro status.
 const APALAVRADO_MIN_TEXTO = 20;
+
+// ── "VOLTA CALADA E O CONSULTOR TENTA UM CONTATO" ──────────────────────────
+//
+// Regra do Thiago (01/10/2026): "quando a pessoa confirma e não é atendida,
+// pode piorar a situação; nesses casos volta calada e o consultor tenta um
+// contato".
+//
+// Marcar uma ficha como MUDA é dizer que ela voltou pra agenda sem ninguém ter
+// avisado o cliente. Duas coisas leem essa marca: a régua do SIM
+// (`eletropostoCobraSim`) não cobra nem libera o horário dela, e a confirmação
+// padrão da agenda já está calada pelo `confirmacao_at`.
+//
+// Sem esta rota a marca só nascia dentro do robô. Ela existe porque as 14
+// fichas que o robô moveu em 01/10 foram canceladas antes da correção, e
+// devolvê-las exige marcar o que já está no banco. Fica como ferramenta: toda
+// vez que um card voltar pra agenda sem o cliente saber, é aqui que se diz isso.
+//
+// Sem token, como os outros POSTs de `/gerador`. O que protege é o formato: só
+// `ep_mudo:<id numérico>`, e o pior caso de abuso é uma ficha deixar de ser
+// cobrada — nunca uma mensagem a mais pra cliente.
+router.post('/mudo', async (req: Request, res: Response) => {
+  const b = (req.body || {}) as Record<string, unknown>;
+  const id = Number(b.id);
+  if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: 'id inválido' }); return; }
+
+  // O horário é obrigatório e a marca vale SÓ pra ele: se a ficha for remarcada
+  // depois por outro caminho, a marca deixa de casar e a régua do SIM volta a
+  // valer, porque aí houve confirmação de verdade.
+  const quandoCru = String(b.quando || '').trim();
+  const quando = new Date(quandoCru);
+  if (!quandoCru || !Number.isFinite(quando.getTime())) {
+    res.status(400).json({ error: 'quando (ISO do horário da reunião) é obrigatório' });
+    return;
+  }
+
+  const agoraIso = new Date().toISOString();
+  try {
+    const { error } = await supabase.from('system_state').upsert(
+      {
+        key: `${EP_MUDO_PREFIX}${id}`,
+        value: { quando: quando.toISOString(), em: agoraIso, por: String(b.por || '').trim().slice(0, 60) },
+        updated_at: agoraIso,
+      },
+      { onConflict: 'key' },
+    );
+    if (error) throw error;
+    res.json({ ok: true, id, quando: quando.toISOString() });
+  } catch (err: any) {
+    logger.error('gerador', 'marcar ficha muda falhou', err);
+    res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
+  }
+});
 
 router.post('/apalavrado', async (req: Request, res: Response) => {
   const b = (req.body || {}) as Record<string, unknown>;
