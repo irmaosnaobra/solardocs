@@ -351,51 +351,66 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // 2 dos 5 horários no primeiro dia. Idempotente por INSERT do slot.
     const placarP = runPlacarGiovanna().catch((e) => ({ enviado: false, motivo: 'erro', erro: String(e) }));
 
-    // ── A ORDEM DESTA LISTA É O CONTRATO ─────────────────────────────────────
-    // Os nomes à esquerda casam por POSIÇÃO com as chamadas abaixo. Até 19/08 a
-    // lista tinha 25 nomes pra 27 chamadas: tudo a partir do 11º vinha rotulado
-    // errado na resposta (o `gerador_seq` mostrava o resultado do LimpaPro, e as
-    // duas últimas cadências não apareciam). Os ticks sempre rodaram — quem
-    // mentia era o relatório, que é justamente onde a gente vai olhar quando
-    // desconfiar de um tick. Nome novo aqui exige chamada nova na MESMA posição.
-    const [queueResult, pollResult, pollIoResult, cleanupResult, dedupCleanupResult, cardRetryResult, agendaResult, recupSeedsResult, recupConsumerResult, biaPollResult, limpaproAtendResult, geradorSeqResult, igDrainResult, fbComentResult, fbInboxResult, repescagemResult, conviteResult, sementeResult, grupoFrioResult, epAgendaResult, epRespostasResult, epReagendaResult, epCardPingResult, epIgConviteResult, solarBvResult, solarRespResult, curso19Result, carlaCnpjResult, carlaInativoResult, epAlerta10minResult, recepcaoParadasResult, recepcaoPollResult, avisosResult, vacuoResult, lembreteFollowupResult, reagendaSolarResult] = await Promise.allSettled([
-      processMessageQueue(),
-      pollZapiMessages(),
-      pollZapiMessagesIO(),            // detecta inbound IO pra Cora processar
+    // ── CADA TAREFA CARREGA A CHAVE DELA (01/10/2026) ────────────────────────
+    //
+    // Isto era um destructure posicional: uma lista de nomes à esquerda casando
+    // por posição com a lista de chamadas. Deu errado DUAS vezes.
+    //
+    // Em 19/08 eram 25 nomes pra 27 chamadas. Foi corrigido realinhando, e a
+    // correção durou seis semanas: em 01/10 eram 36 nomes pra 40 chamadas, e a
+    // deriva começava no 22º. O `ep_reagenda_auto` da resposta mostrava o
+    // resultado da régua do SIM, o `reagenda_solar` mostrava o da recepção da
+    // linha IO, e os quatro últimos ticks não apareciam de jeito nenhum. Isso me
+    // fez concluir, lendo a resposta, que o reciclo do solar devolvia
+    // `{atendidos, pulados}` e estava rodando código velho. Não estava: o número
+    // era de outro módulo.
+    //
+    // Os ticks SEMPRE rodaram, nas duas vezes. O `allSettled` chama tudo que
+    // está na lista; quem mentia era o relatório. E o relatório é exatamente
+    // onde a gente olha quando desconfia de um tick, então um erro aqui custa
+    // mais caro que um erro no tick.
+    //
+    // Realinhar de novo seria combinar com a terceira vez. A lista virou
+    // `[chave, chamada]`: a chave mora ao lado da função, não existe segunda
+    // lista pra desalinhar, e tarefa nova entra sem poder errar o rótulo.
+    const TAREFAS: Array<[string, () => Promise<unknown>]> = [
+      ['queue', () => processMessageQueue()],
+      ['poll', () => pollZapiMessages()],
+      ['poll_io', () => pollZapiMessagesIO()],            // detecta inbound IO pra Cora processar
       // processIoTakeoverEvents(),    // [LUMA-IO-OFF] eventos de takeover humano IO
       // processarLembretesAgendamento(),// [LUMA-IO-OFF] lembretes de agendamento IO
       // revisarLeadsLuma(),            // [LUMA-IO-OFF] revisão de leads pela Luma IO
       // processarReativacao(),         // [LUMA-IO-OFF] reativação Luma IO
       // processarNudge10min(),         // [LUMA-IO-OFF] nudge 10min IO
       // processarNudge18h(),           // [LUMA-IO-OFF] nudge 18h IO
-      cleanupPerdidosAntigos(),
-      cleanupMessageDedup(),
+      ['cleanup', () => cleanupPerdidosAntigos()],
+      ['dedup_cleanup', () => cleanupMessageDedup()],
       // enviarRelatorioDiario(),       // [LUMA-IO-OFF] relatório diário IO
-      retryCardsPendentes(),
-      processarLembretesAgenda(),      // [AVISOS-AGENDA-OFF 28/07] no-op: kill-switch dentro do módulo
-      runLimpaproRecoverySeeds(),      // recuperação LimpaPro (Bia): põe gente na esteira (1x/h, auto-gated)
-      runLimpaproRecoveryConsumer(),   // recuperação LimpaPro (Bia): drena marcadores prontos
-      pollBiaRecuperacao(),            // inbound da Bia (poll IO; webhook IO não entrega texto)
-      pollLimpaproAtendimento(),       // trilha 1x1 do LimpaPro: aluno que escreve na linha (LIMPAPRO_ATENDIMENTO_ENABLED)
-      runGeradorSequenciasConsumer(),  // Central de Automação: drip de sequências (gated por kill-switch)
-      drainIgQueue(),                  // Instagram nativo: drena a fila de DMs/respostas (gated por kill-switch)
-      varrerComentariosFacebook(),     // Facebook: comentário em post/anúncio da Página → resposta privada (FB_COMENTARIOS_OFF desliga)
-      varrerInboxFacebook(),           // Facebook: inbox do Messenger — responde, manda o menu e chama o humano (FB_INBOX_OFF desliga)
-      runRepescagemTick(),             // eletroposto: 1 pessoa do apagão a cada 20min, 07h–20h
-      runConviteTick(),                // eletroposto: convite ao investidor com horários na mesa, 1 a cada 20min (EP_CONVITE_OFF desliga)
-      runSementeTick(),                // semente: nutrição de quem pediu orçamento de solar e não fechou
-      runGrupoFriosTick(),             // eletroposto: quem esfriou (não atendeu / sem interesse) vai pro grupo
-      runEletropostoAgendaTick(),      // eletroposto: confirmação ao marcar + bom dia + lembrete 1h e 5min (anti no-show)
-      runEletropostoRespostasTick(),   // eletroposto: lead respondeu a automação → recado pro Thiago e pro Diego
-      runEletropostoCobraSimTick(),    // eletroposto: régua do SIM — cobra quem não confirmou, libera o horário na 3ª e manda a ficha pro Curioso (EP_COBRA_SIM_OFF desliga)
-      runEletropostoRetornoTick(),     // eletroposto: quem perdeu o horário na régua do SIM é chamado de volta com horário na mesa, 2 vezes (EP_RETORNO_OFF desliga)
-      runEletropostoNaoAtendidoFupTick(), // eletroposto: das 19h, quem o consultor marcou NÃO ATENDIDO recebe a oportunidade e 3 horários pra remarcar (EP_FUP_NAOATENDIDO_OFF desliga)
-      runEletropostoReagendaAutoTick(), // eletroposto: card vermelho QUENTE com o horário vencido volta pro próximo dia útil e recomeça os avisos, até 2× (EP_REAGENDA_AUTO_OFF desliga)
-      runEletropostoCardPingTick(),    // eletroposto: card que trocou de dono no repasse de 12h chega de novo no WhatsApp de quem está com ele (EP_CARD_PING_OFF desliga)
-      runEletropostoIgConviteTick(),   // eletroposto: lead que veio do Instagram não marca agenda — recebe UM convite pra LP (EP_IG_CONVITE_OFF desliga)
-      runSolarBoasVindasTick(),        // solar: quem acabou de se cadastrar recebe o consultor, o contato e a pergunta do consumo (SOLAR_BOASVINDAS_OFF desliga)
-      runSolarRespostasTick(),         // solar: cliente respondeu as boas-vindas → recado pro consultor dono da ficha
-      runSolarAgendaGiovannaTick(),    // solar: a carteira da Giovanna recebe bom dia às 7h e um "oi" 5 min antes da ligação (SOLAR_GIOVANNA_OFF desliga)
+      ['card_retry', () => retryCardsPendentes()],
+      ['agenda', () => processarLembretesAgenda()],      // [AVISOS-AGENDA-OFF 28/07] no-op: kill-switch dentro do módulo
+      ['recup_seeds', () => runLimpaproRecoverySeeds()],      // recuperação LimpaPro (Bia): põe gente na esteira (1x/h, auto-gated)
+      ['recup_consumer', () => runLimpaproRecoveryConsumer()],   // recuperação LimpaPro (Bia): drena marcadores prontos
+      ['bia_poll', () => pollBiaRecuperacao()],            // inbound da Bia (poll IO; webhook IO não entrega texto)
+      ['limpapro_atend', () => pollLimpaproAtendimento()],       // trilha 1x1 do LimpaPro: aluno que escreve na linha (LIMPAPRO_ATENDIMENTO_ENABLED)
+      ['gerador_seq', () => runGeradorSequenciasConsumer()],  // Central de Automação: drip de sequências (gated por kill-switch)
+      ['ig_drain', () => drainIgQueue()],                  // Instagram nativo: drena a fila de DMs/respostas (gated por kill-switch)
+      ['fb_comentarios', () => varrerComentariosFacebook()],     // Facebook: comentário em post/anúncio da Página → resposta privada (FB_COMENTARIOS_OFF desliga)
+      ['fb_inbox', () => varrerInboxFacebook()],           // Facebook: inbox do Messenger — responde, manda o menu e chama o humano (FB_INBOX_OFF desliga)
+      ['ep_repescagem', () => runRepescagemTick()],             // eletroposto: 1 pessoa do apagão a cada 20min, 07h–20h
+      ['ep_convite', () => runConviteTick()],                // eletroposto: convite ao investidor com horários na mesa, 1 a cada 20min (EP_CONVITE_OFF desliga)
+      ['semente', () => runSementeTick()],                // semente: nutrição de quem pediu orçamento de solar e não fechou
+      ['ep_grupo_frio', () => runGrupoFriosTick()],             // eletroposto: quem esfriou (não atendeu / sem interesse) vai pro grupo
+      ['ep_agenda', () => runEletropostoAgendaTick()],      // eletroposto: confirmação ao marcar + bom dia + lembrete 1h e 5min (anti no-show)
+      ['ep_respostas', () => runEletropostoRespostasTick()],   // eletroposto: lead respondeu a automação → recado pro Thiago e pro Diego
+      ['ep_cobra_sim', () => runEletropostoCobraSimTick()],    // eletroposto: régua do SIM — cobra quem não confirmou, libera o horário na 3ª e manda a ficha pro Curioso (EP_COBRA_SIM_OFF desliga)
+      ['ep_retorno', () => runEletropostoRetornoTick()],     // eletroposto: quem perdeu o horário na régua do SIM é chamado de volta com horário na mesa, 2 vezes (EP_RETORNO_OFF desliga)
+      ['ep_nao_atendido', () => runEletropostoNaoAtendidoFupTick()], // eletroposto: das 19h, quem o consultor marcou NÃO ATENDIDO recebe a oportunidade e 3 horários pra remarcar (EP_FUP_NAOATENDIDO_OFF desliga)
+      ['ep_reagenda_auto', () => runEletropostoReagendaAutoTick()], // eletroposto: card vermelho QUENTE com o horário vencido volta pro próximo dia útil e recomeça os avisos, até 2× (EP_REAGENDA_AUTO_OFF desliga)
+      ['ep_card_ping', () => runEletropostoCardPingTick()],    // eletroposto: card que trocou de dono no repasse de 12h chega de novo no WhatsApp de quem está com ele (EP_CARD_PING_OFF desliga)
+      ['ep_ig_convite', () => runEletropostoIgConviteTick()],   // eletroposto: lead que veio do Instagram não marca agenda — recebe UM convite pra LP (EP_IG_CONVITE_OFF desliga)
+      ['solar_boas_vindas', () => runSolarBoasVindasTick()],        // solar: quem acabou de se cadastrar recebe o consultor, o contato e a pergunta do consumo (SOLAR_BOASVINDAS_OFF desliga)
+      ['solar_respostas', () => runSolarRespostasTick()],         // solar: cliente respondeu as boas-vindas → recado pro consultor dono da ficha
+      ['solar_giovanna', () => runSolarAgendaGiovannaTick()],    // solar: a carteira da Giovanna recebe bom dia às 7h e um "oi" 5 min antes da ligação (SOLAR_GIOVANNA_OFF desliga)
       // [06/08] As três cadências da linha B2B passam a drenar AQUI também, não só no
       // master de hora em hora. Motivo: com a margem de 5 min entre envios elas mandariam
       // 1 por ciclo — no master isso viraria 1/h, um quarto do que o teto (4/h) permite.
@@ -403,12 +418,12 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       // uma a cada 5 min, em vez das 4 em 37 segundos desta madrugada. As três já são
       // idempotentes e gated (campanha/janela/teto/espaçamento) — rodar mais vezes não
       // manda MAIS, manda melhor distribuído.
-      runCursoEntradaBroadcast(),      // curso R$19: 3 toques (exige CAMPANHA_CURSO19_ON)
-      runCarlaSemCnpjFollowup(),       // Giovanna: 3 toques em 30d
-      runCarlaInativoFollowup(),       // Giovanna: 5 toques em 60d
-      runEletropostoAlerta10minTick(), // eletroposto: 10 min antes da reunião CONFIRMADA, alerta no WhatsApp do consultor dono (EP_ALERTA_10MIN_OFF desliga)
-      entregarTriagensParadas(),       // recepção da linha IO: triagem parada há 2h vai pro humano do jeito que está (chave em system_state recepcao_io:ativa)
-      pollRecepcaoIo(),                // recepção da linha IO: atende quem escreveu e não é de mais ninguém (o webhook não aguenta, ver recepcaoIoPoll.ts)
+      ['curso19', () => runCursoEntradaBroadcast()],      // curso R$19: 3 toques (exige CAMPANHA_CURSO19_ON)
+      ['carla_sem_cnpj', () => runCarlaSemCnpjFollowup()],       // Giovanna: 3 toques em 30d
+      ['carla_inativo', () => runCarlaInativoFollowup()],       // Giovanna: 5 toques em 60d
+      ['ep_alerta_10min', () => runEletropostoAlerta10minTick()], // eletroposto: 10 min antes da reunião CONFIRMADA, alerta no WhatsApp do consultor dono (EP_ALERTA_10MIN_OFF desliga)
+      ['recepcao_paradas', () => entregarTriagensParadas()],       // recepção da linha IO: triagem parada há 2h vai pro humano do jeito que está (chave em system_state recepcao_io:ativa)
+      ['recepcao_poll', () => pollRecepcaoIo()],                // recepção da linha IO: atende quem escreveu e não é de mais ninguém (o webhook não aguenta, ver recepcaoIoPoll.ts)
       // [18/09] OS AVISOS E A SENTINELA MORAM AQUI PORQUE ESTA É A ÚNICA ROTA
       // COM PINGER VIVO. Quem chama /process-messages é o pg_cron do projeto
       // Supabase do gerador (ancecdfqfwlaujknizof, jobid 2, `*/2 * * * *`), e é
@@ -428,52 +443,28 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       // Rodar de 2 em 2 minutos não manda mais mensagem: os dois são idempotentes
       // e travados por dentro (janela diurna, espaçamento de linha, teto próprio,
       // represa de 20 min da sentinela). O que muda é a pauta deixar de arrastar.
-      runAvisosTick(),                 // avisos: a pauta escrita na tela vai pra base de parceria, 1 por tick (AVISOS_OFF desliga)
-      runSentinelaVacuo(),             // sentinela: quem escreveu e ficou sem resposta vira cobrança no dono (VACUO_OFF desliga)
-      runLembreteFollowupTick(),       // follow-up: 1 card parado por consultor a cada 30 min, 10h-20h, no celular dele (LEMBRETE_OFF desliga)
-      runReagendaSolarTick(),          // solar: quem nao atendeu volta pra agenda do mesmo consultor, 1 por tick e rampa de 10/dia (SOLAR_REAGENDA_OFF desliga)
-    ]);
+      ['avisos', () => runAvisosTick()],                 // avisos: a pauta escrita na tela vai pra base de parceria, 1 por tick (AVISOS_OFF desliga)
+      ['vacuo', () => runSentinelaVacuo()],             // sentinela: quem escreveu e ficou sem resposta vira cobrança no dono (VACUO_OFF desliga)
+      ['lembrete_followup', () => runLembreteFollowupTick()],       // follow-up: 1 card parado por consultor a cada 30 min, 10h-20h, no celular dele (LEMBRETE_OFF desliga)
+      ['reagenda_solar', () => runReagendaSolarTick()],          // solar: quem nao atendeu volta pra agenda do mesmo consultor, 1 por tick e rampa de 10/dia (SOLAR_REAGENDA_OFF desliga)
+    ];
+    const assentados = await Promise.allSettled(TAREFAS.map(([, roda]) => roda()));
+    // A resposta é montada PELO NOME que está ao lado da chamada, não pela
+    // posição. É o que impede isto de voltar uma terceira vez: tarefa nova
+    // carrega a chave dela, e não existe mais uma segunda lista pra desalinhar.
+    const resultados: Record<string, unknown> = {};
+    TAREFAS.forEach(([nome], i) => {
+      const r = assentados[i]!;
+      resultados[nome] = r.status === 'fulfilled'
+        ? r.value
+        : { error: String((r as PromiseRejectedResult).reason) };
+    });
     res.json({
       ok: true,
       pausa_humana: pausaHumanaResult,
       stop_on_reply: stopReplyResult,
       blast_respostas: blastRespResult,
-      queue:      queueResult.status === 'fulfilled' ? queueResult.value : { error: String((queueResult as any).reason) },
-      poll:       pollResult.status  === 'fulfilled' ? pollResult.value  : { error: String((pollResult as any).reason) },
-      poll_io:    pollIoResult.status === 'fulfilled' ? pollIoResult.value : { error: String((pollIoResult as any).reason) },
-      cleanup:    cleanupResult.status === 'fulfilled' ? cleanupResult.value : { error: String((cleanupResult as any).reason) },
-      dedup_cleanup: dedupCleanupResult.status === 'fulfilled' ? dedupCleanupResult.value : { error: String((dedupCleanupResult as any).reason) },
-      card_retry: cardRetryResult.status === 'fulfilled' ? cardRetryResult.value : { error: String((cardRetryResult as any).reason) },
-      agenda:     agendaResult.status === 'fulfilled' ? agendaResult.value : { error: String((agendaResult as any).reason) },
-      recup_seeds:    recupSeedsResult.status === 'fulfilled' ? recupSeedsResult.value : { error: String((recupSeedsResult as any).reason) },
-      recup_consumer: recupConsumerResult.status === 'fulfilled' ? recupConsumerResult.value : { error: String((recupConsumerResult as any).reason) },
-      bia_poll:       biaPollResult.status === 'fulfilled' ? biaPollResult.value : { error: String((biaPollResult as any).reason) },
-      limpapro_atend: limpaproAtendResult.status === 'fulfilled' ? limpaproAtendResult.value : { error: String((limpaproAtendResult as any).reason) },
-      gerador_seq:    geradorSeqResult.status === 'fulfilled' ? geradorSeqResult.value : { error: String((geradorSeqResult as any).reason) },
-      ig_drain:       igDrainResult.status === 'fulfilled' ? igDrainResult.value : { error: String((igDrainResult as any).reason) },
-      fb_comentarios: fbComentResult.status === 'fulfilled' ? fbComentResult.value : { error: String((fbComentResult as any).reason) },
-      fb_inbox:       fbInboxResult.status === 'fulfilled' ? fbInboxResult.value : { error: String((fbInboxResult as any).reason) },
-      ep_repescagem:  repescagemResult.status === 'fulfilled' ? repescagemResult.value : { error: String((repescagemResult as any).reason) },
-      ep_convite:     conviteResult.status === 'fulfilled' ? conviteResult.value : { error: String((conviteResult as any).reason) },
-      semente:        sementeResult.status === 'fulfilled' ? sementeResult.value : { error: String((sementeResult as any).reason) },
-      ep_grupo_frio:  grupoFrioResult.status === 'fulfilled' ? grupoFrioResult.value : { error: String((grupoFrioResult as any).reason) },
-      ep_agenda:      epAgendaResult.status === 'fulfilled' ? epAgendaResult.value : { error: String((epAgendaResult as any).reason) },
-      ep_respostas:   epRespostasResult.status === 'fulfilled' ? epRespostasResult.value : { error: String((epRespostasResult as any).reason) },
-      ep_reagenda_auto: epReagendaResult.status === 'fulfilled' ? epReagendaResult.value : { error: String((epReagendaResult as any).reason) },
-      ep_card_ping:   epCardPingResult.status === 'fulfilled' ? epCardPingResult.value : { error: String((epCardPingResult as any).reason) },
-      ep_ig_convite:  epIgConviteResult.status === 'fulfilled' ? epIgConviteResult.value : { error: String((epIgConviteResult as any).reason) },
-      solar_boas_vindas: solarBvResult.status === 'fulfilled' ? solarBvResult.value : { error: String((solarBvResult as any).reason) },
-      solar_respostas:   solarRespResult.status === 'fulfilled' ? solarRespResult.value : { error: String((solarRespResult as any).reason) },
-      curso19:        curso19Result.status === 'fulfilled' ? curso19Result.value : { error: String((curso19Result as any).reason) },
-      carla_sem_cnpj: carlaCnpjResult.status === 'fulfilled' ? carlaCnpjResult.value : { error: String((carlaCnpjResult as any).reason) },
-      carla_inativo:  carlaInativoResult.status === 'fulfilled' ? carlaInativoResult.value : { error: String((carlaInativoResult as any).reason) },
-      ep_alerta_10min: epAlerta10minResult.status === 'fulfilled' ? epAlerta10minResult.value : { error: String((epAlerta10minResult as any).reason) },
-      recepcao_paradas: recepcaoParadasResult.status === 'fulfilled' ? recepcaoParadasResult.value : { error: String((recepcaoParadasResult as any).reason) },
-      recepcao_poll:  recepcaoPollResult.status === 'fulfilled' ? recepcaoPollResult.value : { error: String((recepcaoPollResult as any).reason) },
-      avisos:         avisosResult.status === 'fulfilled' ? avisosResult.value : { error: String((avisosResult as any).reason) },
-      vacuo:          vacuoResult.status === 'fulfilled' ? vacuoResult.value : { error: String((vacuoResult as any).reason) },
-      lembrete_followup: lembreteFollowupResult.status === 'fulfilled' ? lembreteFollowupResult.value : { error: String((lembreteFollowupResult as any).reason) },
-      reagenda_solar: reagendaSolarResult.status === 'fulfilled' ? reagendaSolarResult.value : { error: String((reagendaSolarResult as any).reason) },
+      ...resultados,
       placar:         await placarP,
       luma_io_off: 'Linha IO: polling ativo só pra Cora ouvir inbound, demais tarefas Luma desligadas',
     });
