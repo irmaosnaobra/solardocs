@@ -47,14 +47,17 @@ vi.mock('../utils/supabaseGerador', () => ({
         order() { return q; },
         update(patch: any) { q._patch = patch; return q; },
         limit() {
-          // Duas leituras usam `limit`: a dos vermelhos (status = nao_atendeu) e
-          // a da agenda futura (status IN ...).
-          if (q._statusIn) {
+          // Duas leituras usam `limit`, e desde 30/09/2026 AS DUAS usam `.in`
+          // em `status` — a fila passou a pedir `nao_atendeu` + `agendado`.
+          // Quem as separa é o `lte`: só a fila tem teto de data (ela busca o
+          // que já venceu); a agenda futura tem só piso.
+          if (q._statusIn && !q._lte) {
             if (agendaQuebrada) return Promise.resolve({ data: null, error: { message: 'boom' } });
             return Promise.resolve({ data: futura, error: null });
           }
           const out = vermelhos.filter(f =>
             (!q._status || f.status === q._status)
+            && (!q._statusIn || q._statusIn.includes(f.status))
             && (!q._gte || f.quando >= q._gte)
             && (!q._lte || f.quando <= q._lte));
           return Promise.resolve({ data: out, error: null });
@@ -83,19 +86,24 @@ vi.mock('../utils/supabase', () => ({
           if (cicloQuebrado) return { data: null, error: { message: 'boom' } };
           return { data: chaves.filter(k => state.has(k)).map(k => state.get(k)), error: null };
         },
-        like: (_col: string, padrao: string) => ({
-          gte: (_c: string, desde: string) => ({
-            limit: async () => {
-              if (rampaQuebrada) return { data: null, error: { message: 'boom' } };
-              const prefixo = padrao.replace(/%$/, '');
-              return {
-                data: [...state.values()].filter((r: any) =>
-                  String(r.key).startsWith(prefixo) && String(r.updated_at || '') >= desde),
-                error: null,
-              };
-            },
-          }),
-        }),
+        like: (_col: string, padrao: string) => {
+          const prefixo = padrao.replace(/%$/, '');
+          const linhas = (desde?: string) => {
+            if (rampaQuebrada) return { data: null, error: { message: 'boom' } };
+            return {
+              data: [...state.values()].filter((r: any) =>
+                String(r.key).startsWith(prefixo)
+                && (desde === undefined || String(r.updated_at || '') >= desde)),
+              error: null,
+            };
+          };
+          // A rampa deixou de filtrar no servidor: ela traz os carimbos e conta
+          // pelo `value.ultimo`. O mock serve as duas formas.
+          return {
+            limit: async () => linhas(),
+            gte: (_c: string, desde: string) => ({ limit: async () => linhas(desde) }),
+          };
+        },
       }),
       upsert: async (r: any) => { state.set(r.key, r); return { error: null }; },
     }),
@@ -287,8 +295,10 @@ describe('a rampa diária', () => {
   it('fecha a porta no teto', async () => {
     process.env.SOLAR_REAGENDA_POR_DIA = '2';
     const hoje = AGORA.toISOString();
-    state.set('solar_reagenda:901', { key: 'solar_reagenda:901', value: { n: 1 }, updated_at: hoje });
-    state.set('solar_reagenda:902', { key: 'solar_reagenda:902', value: { n: 1 }, updated_at: hoje });
+    // `ultimo` e o que a rampa conta desde 30/09/2026 — `updated_at` e coluna
+    // de infraestrutura e deixou de valer pra esta conta.
+    state.set('solar_reagenda:901', { key: 'solar_reagenda:901', value: { n: 1, ultimo: hoje }, updated_at: hoje });
+    state.set('solar_reagenda:902', { key: 'solar_reagenda:902', value: { n: 1, ultimo: hoje }, updated_at: hoje });
     const r = await tick();
     expect(r.motivo).toBe('rampa_do_dia_cheia');
     expect(updates).toHaveLength(0);
@@ -391,5 +401,71 @@ describe('kill-switch e dry', () => {
     expect(r.previa?.[0]).toMatchObject({ id: 1, dono: 'Giovanna', volta: 1 });
     expect(updates).toHaveLength(0);
     expect(state.size).toBe(0);
+  });
+});
+
+// ── O CARD DO SOLAR QUE NINGUÉM FECHOU (30/09/2026) ────────────────────────
+//
+// Mesma ordem que criou a regra no eletroposto: "o card confirmado, se não for
+// alterado, já será remarcado após 6h", e "a pessoa, quando não marca e não
+// utiliza a ferramenta, sempre terá os clientes retornando".
+//
+// Sem isto a regra valia só pra metade da casa: 6 cards de solar vencidos e sem
+// desfecho (Giovanna 2, Nilce 4) que robô nenhum olhava.
+describe('o card esquecido do solar', () => {
+  const esquecido = (h: number, over: any = {}) =>
+    card({ status: 'agendado', quando: new Date(AGORA.getTime() - h * 3600_000).toISOString(), ...over });
+
+  it('6 horas depois, o card sem desfecho volta pra agenda', async () => {
+    vermelhos = [esquecido(7)];
+    const r = await tick();
+    expect(r.remarcados).toBe(1);
+  });
+
+  it('antes das 6 horas não encosta', async () => {
+    vermelhos = [esquecido(3)];
+    expect((await tick()).remarcados).toBe(0);
+  });
+
+  it('NÃO destrava as mensagens: a ligação pode ter acontecido', async () => {
+    // Zerar `bomdia_at` faria a régua mandar "bom dia, hoje tem ligação" pra
+    // quem já conversou ontem.
+    vermelhos = [esquecido(7)];
+    await tick();
+    expect(updates).toHaveLength(1);
+    expect(updates[0].patch).not.toHaveProperty('bomdia_at');
+    expect(updates[0].patch).not.toHaveProperty('lembrete_5min_at');
+  });
+
+  it('mas o vermelho continua destravando, porque ali a falta é fato', async () => {
+    vermelhos = [card({ status: 'nao_atendeu' })];
+    await tick();
+    expect(updates[0].patch).toHaveProperty('bomdia_at', null);
+    expect(updates[0].patch).toHaveProperty('lembrete_5min_at', null);
+  });
+
+  it('a gravação exige o status que foi LIDO, não `nao_atendeu` fixo', async () => {
+    vermelhos = [esquecido(7)];
+    await tick();
+    expect(updates[0].exigiuStatus).toBe('agendado');
+  });
+
+  it('o esquecido não tem teto de voltas: ele sempre retorna', async () => {
+    state.set('solar_reagenda:1', { key: 'solar_reagenda:1', value: { n: 9, ultimo: '2026-09-01T00:00:00.000Z' }, updated_at: '2026-09-01T00:00:00.000Z' });
+    vermelhos = [esquecido(7)];
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  it('o vermelho continua parando no teto de 2 voltas', async () => {
+    state.set('solar_reagenda:1', { key: 'solar_reagenda:1', value: { n: 2, ultimo: '2026-09-01T00:00:00.000Z' }, updated_at: '2026-09-01T00:00:00.000Z' });
+    vermelhos = [card({ status: 'nao_atendeu' })];
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(r.motivo).toBe('ninguem_na_vez');
+  });
+
+  it('card de eletroposto nunca entra aqui: ele tem régua própria', async () => {
+    vermelhos = [esquecido(7, { created_by: 'lp_eletroposto' })];
+    expect((await tick()).remarcados).toBe(0);
   });
 });

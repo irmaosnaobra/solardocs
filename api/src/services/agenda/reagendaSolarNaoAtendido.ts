@@ -110,6 +110,19 @@ const horaBrasilia = (base: Date = new Date()): number =>
 
 /** Duas voltas e o card fica pra gente. Mesma conta do eletroposto. */
 export const MAX_VOLTAS = 2;
+
+/**
+ * O CARD DO SOLAR QUE NINGUEM FECHOU (30/09/2026).
+ *
+ * Mesma regra que o eletroposto ganhou no mesmo dia, pela mesma ordem do
+ * Thiago: "o card confirmado, se nao for alterado, ja sera remarcado apos 6h",
+ * e "a pessoa, quando nao marca e nao utiliza a ferramenta, sempre tera os
+ * clientes retornando e ocupando a agenda".
+ *
+ * Sem isto a regra valia so pra metade da casa: medido em 30/09, 6 cards de
+ * solar vencidos e sem desfecho (Giovanna 2, Nilce 4) que robo nenhum olhava.
+ */
+const esquecidoH = (): number => num('SOLAR_ESQUECIDO_H', 6);
 /** Uma por tick: duas no mesmo passo poderiam mirar o mesmo horário. */
 const POR_TICK = 1;
 /** Até onde procurar vaga. Mais que isso não é remarcação, é chute. */
@@ -240,8 +253,11 @@ export async function runReagendaSolarTick(
   if (desligado()) return zero('desligado');
   // O modo seco atravessa a janela de propósito, como em todo módulo da casa:
   // conferir o que ele faria é pergunta, não ação.
+  // A JANELA SO SEGURA QUEM FALA. O card esquecido se move em silencio (ele nao
+  // destrava `bomdia_at`/`lembrete_5min_at`), entao segura-lo ate as 9h so
+  // atrasa a arrumacao do quadro. Mesma correcao feita no eletroposto.
   const h = horaBrasilia();
-  if (!dry && (h < inicioH() || h >= fimH())) return zero('fora_da_janela');
+  const foraDaJanela = !dry && (h < inicioH() || h >= fimH());
 
   const agora = Date.now();
   const de = new Date(Math.max(agora - janelaDias() * 86400_000, new Date(inicioPiso()).getTime())).toISOString();
@@ -252,7 +268,7 @@ export async function runReagendaSolarTick(
   const { data, error } = await supabaseGerador
     .from('agendamentos')
     .select('id, quando, cliente_nome, cliente_telefone, vendedor_nome, created_by, status, lead_resposta_at, historico')
-    .eq('status', 'nao_atendeu')
+    .in('status', ['nao_atendeu', 'agendado'])
     .gte('quando', de)
     .lte('quando', ate)
     .order('quando', { ascending: false })
@@ -262,10 +278,15 @@ export async function runReagendaSolarTick(
     return { ...zero('erro_leitura'), erros: 1 };
   }
 
+  const corteEsquecido = new Date(agora - esquecidoH() * 3600_000).toISOString();
   const vermelhos = ((data ?? []) as CardSolar[]).filter(f =>
+    // `agendado` so entra depois das 6h; o vermelho entra com a folga de 30 min.
+    (f.status !== 'agendado' || (!!f.quando && f.quando <= corteEsquecido))
+    // Fora do horario comercial sobra so o card esquecido, que e silencioso.
+    && (!foraDaJanela || f.status === 'agendado')
     // Eletroposto tem régua própria, com copy própria. Duas máquinas no mesmo
     // card remarcariam duas vezes o mesmo cliente.
-    !ehOrigemEletroposto(f.created_by)
+    && !ehOrigemEletroposto(f.created_by)
     && !!f.cliente_telefone
     && !!f.vendedor_nome
     && !!f.quando
@@ -273,7 +294,7 @@ export async function runReagendaSolarTick(
     && !(f.lead_resposta_at && f.lead_resposta_at > f.quando)
     // Falta nossa não é falta dele.
     && !agendaFechadaNoIso(f.quando));
-  if (!vermelhos.length) return zero('nenhum_vermelho');
+  if (!vermelhos.length) return zero(foraDaJanela ? 'fora_da_janela' : 'nenhum_vermelho');
 
   // 2. Estado do ciclo por card, e a rampa do dia.
   //
@@ -296,20 +317,29 @@ export async function runReagendaSolarTick(
     if (Number.isInteger(id) && Number.isFinite(n)) voltasDe.set(id, n);
   }
 
-  const naVez = vermelhos.filter(f => (voltasDe.get(f.id) ?? 0) < MAX_VOLTAS);
+  // Sem teto pro esquecido: "sempre tera os clientes retornando". O teto segue
+  // valendo pro vermelho, cujo ciclo destrava as mensagens da regua da agenda.
+  const naVez = vermelhos.filter(f =>
+    f.status === 'agendado' || (voltasDe.get(f.id) ?? 0) < MAX_VOLTAS);
   if (!naVez.length) return zero('ninguem_na_vez');
 
   const inicioDoDiaBRT = `${ymdSP(new Date(agora))}T00:00:00-03:00`;
   const feitosHoje = await supabase
-    .from('system_state').select('key')
+    .from('system_state').select('key, value')
     .like('key', `${SOLAR_REAGENDA_PREFIX}%`)
-    .gte('updated_at', new Date(inicioDoDiaBRT).toISOString())
     .limit(1000);
   if (feitosHoje.error) {
     logger.error('solar-reagenda', 'ler a rampa do dia falhou — ninguém remarca nesta rodada', feitosHoje.error);
     return { ...zero('erro_rampa'), erros: 1 };
   }
-  const jaHoje = (feitosHoje.data || []).length;
+  // Conta pelo `value.ultimo`, o ISO que ESTE modulo grava, e nao pelo
+  // `updated_at`, que e coluna de infraestrutura. Mesma regua do eletroposto.
+  const desdeIso = new Date(inicioDoDiaBRT).toISOString();
+  const jaHoje = (feitosHoje.data || []).filter(r => {
+    const u = String((r as { value?: { ultimo?: string } }).value?.ultimo || '');
+    return !!u && u >= desdeIso;
+  }).length;
+  logger.info('solar-reagenda', `rampa: ${jaHoje}/${tetoPorDia()} hoje (desde ${desdeIso}), ${(feitosHoje.data || []).length} carimbos`);
   // O modo seco ATRAVESSA a rampa, do mesmo jeito que atravessa a janela de
   // horário. Na primeira versão ele parava aqui, e isso escondeu justamente o que
   // eu fui conferir: com a rampa cheia, `?dry=1` respondia `rampa_do_dia_cheia` e
@@ -387,8 +417,12 @@ export async function runReagendaSolarTick(
         // `boas_vindas_at` NÃO é limpo de propósito: ele é do fluxo de cadastro
         // ("bem-vindo, seu consultor é X"), que já aconteceu. Zerar traria uma
         // boas-vindas repetida pra quem é cliente desde julho.
-        bomdia_at: null,
-        lembrete_5min_at: null,
+        // O CARD ESQUECIDO NAO DESTRAVA AS MENSAGENS. A ligacao dele pode ter
+        // acontecido e ido bem — o que faltou foi alguem fechar o card. Zerar
+        // `bomdia_at` faria a regua da agenda mandar "bom dia, hoje tem ligacao"
+        // pra quem ja conversou ontem. O vermelho destrava, porque ali o nao
+        // comparecimento e fato que alguem registrou.
+        ...(f.status === 'agendado' ? {} : { bomdia_at: null, lembrete_5min_at: null }),
         confirmacao_at: null,
         lembrete_1h_at: null,
         historico: f.historico ? `${linha}\n\n${f.historico}` : linha,
@@ -396,7 +430,8 @@ export async function runReagendaSolarTick(
       // Corrida com gente: mexeu no status entre a leitura e agora? quem manda
       // é a pessoa, e o update não pega linha nenhuma.
       .eq('id', f.id)
-      .eq('status', 'nao_atendeu')
+      // O status que FOI LIDO: o modulo passou a pegar `agendado` tambem.
+      .eq('status', String(f.status))
       .select('id');
     if (erroUpd) {
       logger.error('solar-reagenda', 'mover o card falhou', { id: f.id, erro: String(erroUpd.message || erroUpd) });
