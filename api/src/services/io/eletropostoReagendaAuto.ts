@@ -93,6 +93,21 @@
 // escreveu pra gente, quem puxa é o robô. A linha IO já foi bloqueada duas vezes
 // por rajada.
 //
+// ── QUEM CHAMA ESTE TICK (01/10/2026) ──────────────────────────────────────
+//
+// Cron PRÓPRIO na Vercel, `/cron/eletroposto-reagenda-auto` a cada 5 min, além
+// do `/cron/process-messages` e do `/cron/master`.
+//
+// O cron próprio entrou porque o módulo estava dependendo só do
+// `process-messages`, que NÃO é cron da Vercel: ele é pingado pelo pg_cron do
+// projeto do gerador. Medido à 01h40 de 01/10, com a regra do card esquecido já
+// em produção e 16 fichas na fila: nenhuma andou, porque àquela hora ninguém
+// estava chamando aquela rota. O Thiago abriu a agenda e viu o quadro igual.
+//
+// A lição é a de sempre nesta casa: módulo que não é chamado não existe, e o
+// deploy em READY não prova que alguém puxa o gatilho. Agora quem puxa é a
+// infra da Vercel, que é a mesma dos outros cinco crons que funcionam.
+//
 // Kill-switch: EP_REAGENDA_AUTO_OFF=1.
 // ─────────────────────────────────────────────────────────────────────────────
 
