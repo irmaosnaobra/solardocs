@@ -22486,11 +22486,23 @@ async function crmCarregarEsperas() {
     const ids = crmClientes
       .filter(c => CRM_PODE_ESPERAR.has(String(c.statusAg || '')) && c.agId)
       .map(c => c.agId);
-    if (!ids.length) { crmEsperas = {}; return; }
-    const r = await fetch(`${APX_API}/gerador/apalavrado?ids=${ids.join(',')}`);
-    const j = await r.json();
-    crmEsperas = (j && j.esperas) || {};
-    crmEtiquetas = (j && j.etiquetas) || {};
+    if (!ids.length) { crmEsperas = {}; crmEtiquetas = {}; return; }
+    // EM LOTES DE 400. Eram 831 ids numa URL só, contra um teto de 500 no
+    // servidor: 331 cards ficavam sem selo, sem etiqueta guardada e — pior —
+    // um apalavrado além do corte caía na COLUNA ERRADA, porque a coluna sai
+    // da marca. E uma URL de 800 ids passa de 4 KB, que é onde proxy começa a
+    // recusar.
+    const esperas = {};
+    const etiquetas = {};
+    for (let i = 0; i < ids.length; i += 400) {
+      const r = await fetch(`${APX_API}/gerador/apalavrado?ids=${ids.slice(i, i + 400).join(',')}`);
+      const j = await r.json();
+      Object.assign(esperas, (j && j.esperas) || {});
+      Object.assign(etiquetas, (j && j.etiquetas) || {});
+      if (j && j.cortou) console.warn('marcas cortadas pelo servidor:', j.cortou);
+    }
+    crmEsperas = esperas;
+    crmEtiquetas = etiquetas;
   } catch (e) { crmEsperas = {}; crmEtiquetas = {}; }
 }
 

@@ -343,15 +343,53 @@ router.post('/apalavrado/soltar', async (req: Request, res: Response) => {
   const id = Number((req.body || {}).id);
   if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: 'id inválido' }); return; }
   try {
+    // A MARCA DA ESPERA MORRE INTEIRA. Ela é só sala de espera.
     const { error } = await supabase.from('system_state')
-      .delete()
-      .in('key', [
-        `${APALAVRADO_PREFIX}${id}`,
-        `ep_reagenda_auto:${id}`,
-        `solar_reagenda:${id}`,
-      ]);
+      .delete().eq('key', `${APALAVRADO_PREFIX}${id}`);
     if (error) throw error;
-    res.json({ ok: true, id, soltou: true, escadaZerada: true });
+
+    // ── O CARIMBO DO CICLO NÃO: ELE GUARDA TRÊS COISAS ──────────────────
+    //
+    // Esta rota apagava `ep_reagenda_auto:<id>` e `solar_reagenda:<id>` INTEIROS
+    // pra zerar a escada. Só que o mesmo valor guarda:
+    //   `degrau`  a escada (é o que a gente quer zerar)
+    //   `status`  a etiqueta da última volta (idem)
+    //   `n`       quantas voltas o VERMELHO já deu  <-- NÃO
+    //   `relogio` qual das duas rampas ele gastou   <-- NÃO
+    //
+    // `n` é o ÚNICO teto do caminho que manda mensagem (3 voltas). Apagar o
+    // carimbo zerava esse teto, e as duas telas chamam esta rota em TODA troca
+    // de status — inclusive apertar NÃO ATENDEU de novo, que é o movimento
+    // normal de quem acabou de ligar e não foi atendido. Resultado: um card que
+    // já tomou as três mensagens "você não conseguiu entrar na apresentação"
+    // ganhava mais três a cada toque, numa linha que caiu 3 vezes em 7 dias.
+    //
+    // O próprio código já tinha chamado esse desfecho de defeito hoje de manhã,
+    // num comentário sobre outra causa: "o teto de 3 voltas do vermelho também —
+    // liberando mais um 'você não conseguiu entrar na apresentação' pra quem já
+    // tinha recebido três". Era o mesmo estrago, por outra porta.
+    //
+    // Agora só a ESCADA é zerada: lê o carimbo e reescreve sem `status` e sem
+    // `degrau`. Carimbo que não existe não é criado — card que nunca voltou não
+    // tem escada pra zerar.
+    const chaves = [`ep_reagenda_auto:${id}`, `solar_reagenda:${id}`];
+    const { data: carimbos, error: erroLer } = await supabase
+      .from('system_state').select('key, value').in('key', chaves);
+    if (erroLer) throw erroLer;
+    let escadaZerada = 0;
+    for (const c of carimbos ?? []) {
+      const v = { ...((c.value ?? {}) as Record<string, unknown>) };
+      if (v.status === undefined && v.degrau === undefined) continue;
+      delete v.status;
+      delete v.degrau;
+      const { error: erroGravar } = await supabase.from('system_state').upsert(
+        { key: String(c.key), value: v, updated_at: new Date().toISOString() },
+        { onConflict: 'key' },
+      );
+      if (erroGravar) throw erroGravar;
+      escadaZerada++;
+    }
+    res.json({ ok: true, id, soltou: true, escadaZerada });
   } catch (err: any) {
     logger.error('gerador', 'apalavrado/soltar falhou', err);
     res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
@@ -362,8 +400,23 @@ router.post('/apalavrado/soltar', async (req: Request, res: Response) => {
 // 30/10"), senão a sala de espera é invisível e vira o cemitério que ela existe
 // pra não ser. Leitura em lote: o CRM desenha 300 cards de uma vez.
 router.get('/apalavrado', async (req: Request, res: Response) => {
-  const ids = String(req.query.ids || '').split(',')
-    .map(n => Number(n.trim())).filter(n => Number.isInteger(n) && n > 0).slice(0, 500);
+  // ── CORTE SILENCIOSO, DE NOVO ────────────────────────────────────────────
+  //
+  // Eram 500, e o quadro do CRM pede marca pra 831 fichas: 331 cards ficavam
+  // sem o selo da espera E sem a etiqueta guardada, e — pior — um card
+  // apalavrado além do 500 caía na COLUNA ERRADA, porque a coluna sai da marca.
+  // Nada no retorno dizia que tinha sido cortado.
+  //
+  // Agora o teto é 1000 (o PostgREST corta aí de qualquer jeito) e o corte, se
+  // acontecer, VEM NA RESPOSTA. A tela também passou a pedir em lotes.
+  const pedidos = String(req.query.ids || '').split(',')
+    .map(n => Number(n.trim())).filter(n => Number.isInteger(n) && n > 0);
+  const TETO_IDS = 1000;
+  const ids = pedidos.slice(0, TETO_IDS);
+  const cortou = pedidos.length - ids.length;
+  if (cortou) {
+    logger.warn('gerador', `leitura de marcas cortada: pediram ${pedidos.length} ids, o teto é ${TETO_IDS}`);
+  }
   if (!ids.length) { res.json({ ok: true, esperas: {}, etiquetas: {} }); return; }
   try {
     // AS DUAS MARCAS NA MESMA CHAMADA. Separar em duas rotas dobraria a ida e
@@ -387,7 +440,7 @@ router.get('/apalavrado', async (req: Request, res: Response) => {
         esperas[k.slice(APALAVRADO_PREFIX.length)] = l.value;
       }
     }
-    res.json({ ok: true, esperas, etiquetas });
+    res.json({ ok: true, esperas, etiquetas, ...(cortou ? { cortou } : {}) });
   } catch (err: any) {
     logger.error('gerador', 'apalavrado (leitura) falhou', err);
     res.status(500).json({ error: 'falha', detail: String(err?.message || err) });

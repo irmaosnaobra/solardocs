@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import {
   ETIQUETA_PREFIX, ETIQUETAS_DE_NEGOCIO, STATUS_TERMINAIS,
   APALAVRADO_PREFIX, esperaAte, naSalaDeEspera,
@@ -96,5 +98,64 @@ describe('as bordas da data da sala de espera', () => {
     expect(naSalaDeEspera({ retomar_em: '2026-10-30' }, agora)).toBe(true);
     expect(naSalaDeEspera({ retomar_em: '2026-10-01' }, agora)).toBe(false);
     expect(naSalaDeEspera({}, agora)).toBe(false);
+  });
+});
+
+// ── O `soltar` NAO PODE LEVAR O CONTADOR DE VOLTAS JUNTO (01/10/2026) ──────
+//
+// A rota `/gerador/apalavrado/soltar` e chamada pelas DUAS telas em toda troca
+// de status, inclusive apertar NAO ATENDEU de novo, que e o movimento normal de
+// quem acabou de ligar e nao foi atendido.
+//
+// Por algumas horas de 01/10 ela apagou o carimbo do ciclo INTEIRO pra zerar a
+// escada. So que o mesmo valor guarda `n`, que e o unico teto do caminho que
+// manda mensagem: um card que ja tinha tomado as tres mensagens "voce nao
+// conseguiu entrar na apresentacao" ganhava mais tres a cada toque.
+//
+// E teste de ESTRUTURA porque o defeito e de forma: a rota nao tem harness, e o
+// que precisa ser impedido e um `delete` numa chave especifica voltar ao codigo.
+describe('a rota que solta a espera', () => {
+  const rota = readFileSync(join(__dirname, '..', 'routes', 'gerador.ts'), 'utf8');
+  // O recorte é TOLERANTE e o `expect` fica dentro dos testes. `expect` no corpo
+  // de um `describe` roda na COLETA e derruba o arquivo inteiro: o vitest
+  // responde "no tests", que é o pior jeito de descobrir uma regressão. Já
+  // aconteceu uma vez hoje, no teste do relatório do cron.
+  const trecho = (() => {
+    const i = rota.indexOf("router.post('/apalavrado/soltar'");
+    if (i < 0) return '';
+    const fim = rota.indexOf('});', rota.indexOf('} catch', i));
+    return fim > i ? rota.slice(i, fim) : '';
+  })();
+
+  it('a rota existe e foi encontrada', () => {
+    expect(trecho.length).toBeGreaterThan(0);
+  });
+
+  it('apaga a marca da espera', () => {
+    expect(trecho).toMatch(/delete\(\)\s*\.eq\('key', `\$\{APALAVRADO_PREFIX\}\$\{id\}`\)/);
+  });
+
+  it('NAO apaga o carimbo do ciclo: ele guarda o teto de voltas', () => {
+    // A primeira versão deste teste procurava `.delete()` seguido, em até 200
+    // caracteres, do nome de uma chave de ciclo. Era largo demais: casava o
+    // delete LEGÍTIMO da espera com a menção às chaves no bloco de baixo, e
+    // acusava o código consertado. Teste que acusa o certo é tão ruim quanto
+    // teste que deixa passar o errado.
+    //
+    // A régua precisa é: existe UM delete só, e ele é o da marca da espera.
+    const deletes = [...trecho.matchAll(/\.delete\(\)/g)].length;
+    expect(deletes).toBe(1);
+    expect(trecho).toMatch(/\.delete\(\)\s*\.eq\('key', `\$\{APALAVRADO_PREFIX\}\$\{id\}`\)/);
+    // e nenhum delete em lote, que era a forma antiga
+    expect(trecho).not.toMatch(/\.delete\(\)[\s\S]{0,40}\.in\('key'/);
+  });
+
+  it('zera a escada reescrevendo o carimbo, sem levar `n` nem `relogio`', () => {
+    expect(trecho).toContain("delete v.status;");
+    expect(trecho).toContain("delete v.degrau;");
+    // o que NAO pode ser apagado
+    expect(trecho).not.toContain('delete v.n;');
+    expect(trecho).not.toContain('delete v.relogio;');
+    expect(trecho).not.toContain('delete v.ultimo;');
   });
 });

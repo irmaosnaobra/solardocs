@@ -313,8 +313,25 @@ export const DESTINO_FINAL = new Set<string>([
 ]);
 
 /** Roda, e com qual relógio. `null` = não roda. */
+/**
+ * ── O STATUS ANTIGO `apalavrado` NÃO É MAIS FIM DE LINHA (01/10/2026) ──────
+ *
+ * Ele saía da roda por DOIS caminhos: este relógio devolvia `null` e a consulta
+ * o excluía. Enquanto apalavrar GRAVAVA o status, isso estava certo.
+ *
+ * Depois que APALAVRADO virou MARCA, ficou errado — e errado do pior jeito:
+ * nada no sistema tira esse status de uma ficha, então os cards apalavrados
+ * ANTES da marca ficaram presos PRA SEMPRE. A data deles não significava nada:
+ * passasse 31/10 ou 31/12, eles não voltariam. É exatamente o cemitério que o
+ * APALAVRADO foi criado pra não ser. Medido: 3 dos 5 cards na sala de espera
+ * estavam nessa situação.
+ *
+ * Agora `apalavrado` roda no relógio de negociação como qualquer etiqueta, e
+ * quem segura a ficha é a MARCA, que tem data. Card com o status e sem a marca
+ * volta pra roda, que é o certo: ele é uma negociação sem etiqueta.
+ */
 export function relogioDoCiclo(status: string): 'fala' | 'esquecido' | 'negocia' | null {
-  if (DESTINO_FINAL.has(status) || status === 'apalavrado') return null;
+  if (DESTINO_FINAL.has(status)) return null;
   if (status === 'nao_atendeu') return 'fala';        // 45 min, e manda mensagem
   if (status === 'agendado') return 'esquecido';      // 6h, calado
   return 'negocia';                                   // 48h, calado
@@ -793,7 +810,10 @@ export async function runEletropostoReagendaAutoTick(
   const { data, error } = await supabaseGerador
     .from('agendamentos')
     .select('id, cliente_nome, cliente_telefone, quando, vendedor_nome, created_by, status, temperatura, lead_resposta_at, historico')
-    .not('status', 'in', `(${[...DESTINO_FINAL, 'apalavrado'].join(',')})`)
+    // `apalavrado` saiu desta lista: quem segura a ficha agora é a MARCA, que
+    // tem data. Deixar o status aqui prendia pra sempre os cards apalavrados
+    // antes da marca existir.
+    .not('status', 'in', `(${[...DESTINO_FINAL].join(',')})`)
     .gte('quando', de)
     .lte('quando', ate)
     .order('quando', { ascending: false })

@@ -925,11 +925,44 @@ describe('a sala de espera por marca, não por status', () => {
     expect((await tick()).remarcados).toBe(1);
   });
 
-  it('o status antigo `apalavrado` continua tirando da roda, pelos cards de antes', async () => {
-    // Cinco fichas foram apalavradas antes da marca existir e perderam a etiqueta.
-    // Elas não podem voltar a rodar só porque a regra mudou.
+  // ── CORREÇÃO DO QUE EU ESCREVI DE MANHÃ (01/10/2026) ───────────────────
+  //
+  // Este teste dizia "o status antigo continua tirando da roda" e prendia o
+  // `apalavrado` como fim de linha. Era a conclusão errada: NADA no sistema tira
+  // esse status de uma ficha, então os cards apalavrados ANTES da marca ficavam
+  // presos PRA SEMPRE, e a data deles não significava nada. Três dos cinco cards
+  // na sala de espera estavam assim.
+  //
+  // Quem segura a ficha é a MARCA, que tem data. O status é só uma etiqueta sem
+  // nome.
+  it('o status antigo `apalavrado` NÃO prende mais: quem segura é a marca', async () => {
     fichas = [ficha({ id: 84, status: 'apalavrado', quando: horasAtras(300) })];
+    // com a marca viva, não anda
+    state.set('apalavrado:84', {
+      key: 'apalavrado:84',
+      value: { aguardando: 'esperando o banco', retomar_em: new Date(AGORA.getTime() + 20 * 86400_000).toISOString() },
+      updated_at: horasAtras(24),
+    });
     expect((await tick()).remarcados).toBe(0);
+  });
+
+  it('e passada a data ele VOLTA, em vez de morrer na sala de espera', async () => {
+    fichas = [ficha({ id: 84, status: 'apalavrado', quando: horasAtras(300) })];
+    state.set('apalavrado:84', {
+      key: 'apalavrado:84',
+      value: { aguardando: 'esperando o banco', retomar_em: new Date(AGORA.getTime() - 86400_000).toISOString() },
+      updated_at: horasAtras(24),
+    });
+    expect((await tick()).remarcados).toBe(1);
+    expect(enviadas).toHaveLength(0);          // negociação volta calada
+    expect(fichas[0].status).toBe('apalavrado');  // e sem perder o que tem
+  });
+
+  it('sem marca nenhuma, ele é uma negociação como outra qualquer', async () => {
+    // É o certo: card com o status velho e sem prazo registrado não pode ficar
+    // parado pra sempre só porque ninguém apagou o status dele.
+    fichas = [ficha({ id: 87, status: 'apalavrado', quando: horasAtras(300) })];
+    expect((await tick()).remarcados).toBe(1);
   });
 
   it('leitura da sala de espera falhou: NINGUÉM anda nesta rodada', async () => {
@@ -1321,10 +1354,9 @@ describe('o ciclo de 48h da negociação', () => {
     expect(h).toContain('Apalavrado');
   });
 
-  it('APALAVRADO fica de fora da roda: é a sala de espera', async () => {
-    fichas = [ficha({ status: 'apalavrado', quando: horasAtras(100) })];
-    expect((await tick()).remarcados).toBe(0);
-  });
+  // APALAVRADO saiu desta lista em 01/10: ele não é mais fim de linha, é sala de
+  // espera com DATA, e quem segura a ficha é a marca. O teste disso está no
+  // bloco da sala de espera, junto com o que acontece depois do prazo.
 
   it('vendido e sem interesse também ficam de fora', async () => {
     for (const st of ['fechou', 'sem_interesse', 'cancelado']) {
@@ -1428,8 +1460,10 @@ describe('quem roda e quem para de rodar', () => {
     }
   });
 
-  it('apalavrado também para: ele tem data própria', async () => {
-    expect(await relogio('apalavrado')).toBeNull();
+  it('apalavrado roda no relógio da negociação: quem o segura é a MARCA', async () => {
+    // Até 01/10 este relógio devolvia `null` pra ele, e isso prendia pra sempre
+    // os cards que ficaram com o status antigo — nada no sistema o remove.
+    expect(await relogio('apalavrado')).toBe('negocia');
   });
 
   it('cada um com o seu relógio', async () => {
