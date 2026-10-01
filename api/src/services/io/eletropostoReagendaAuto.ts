@@ -607,20 +607,28 @@ export async function runEletropostoReagendaAutoTick(
   const inicioDoDiaBRT = new Date(
     `${new Intl.DateTimeFormat('en-CA', { timeZone: BRT_TZ }).format(new Date(agora))}T00:00:00-03:00`,
   ).toISOString();
-  // A CONTA DA RAMPA SAI DO `value.ultimo`, NÃO DO `updated_at` (01/10/2026).
+  // A CONTA DA RAMPA SAI DO `value.ultimo`, NÃO DO `updated_at` (30/09/2026).
   //
-  // Ela saía de `.gte('updated_at', inicioDoDiaBRT)` e estava ERRADA em
-  // produção: às 02h de 01/10, com ZERO fichas remarcadas no dia, o módulo
-  // logava `rampa do dia cheia (10/10)` a cada tick e não mexia em nada. O
-  // Thiago abriu a agenda e viu o quadro intacto, com 16 fichas na fila.
+  // CORREÇÃO DO QUE EU ESCREVI AQUI PRIMEIRO: eu publiquei este bloco dizendo
+  // que a rampa estava ERRADA em produção. Não estava. Ela estava certa, e quem
+  // errou fui eu, lendo o relógio da minha máquina — que reporta UTC como se
+  // fosse local. Eu li "01h38 de 01/10" e concluí que a rampa contava trabalho
+  // que não tinha acontecido; eram 22h38 de 30/09, e os 10 reagendamentos que
+  // ela contava eram reais, feitos naquela manhã entre 10:08 e 10:40.
+  // "Rampa do dia cheia (10/10) — a fila continua amanhã" era a verdade.
   //
-  // `updated_at` é coluna de infraestrutura da tabela: quem a escreve, quando, e
-  // com que fuso não é contrato deste módulo, e a conta da rampa não pode
-  // depender disso. `value.ultimo` é o ISO que ESTE módulo grava, no mesmo
-  // upsert em que conta a tentativa — dado próprio, com significado único.
+  // O QUE FICA, e fica por mérito próprio: a conta sai de `value.ultimo` em vez
+  // de `updated_at`. `updated_at` é coluna de infraestrutura — quem a escreve,
+  // quando e com que fuso não é contrato deste módulo. `value.ultimo` é o ISO
+  // que ELE grava no mesmo upsert em que conta a tentativa: dado próprio, com
+  // significado único. É mais robusto, mas não estava consertando defeito.
+  //
+  // E FICA A LINHA DE LOG LOGO ABAIXO, que é o que de fato resolveu: foi ela
+  // que mostrou `desde 2026-09-30T03:00:00Z` e derrubou a minha conclusão
+  // errada em um segundo. Número sem a sua origem ao lado não se audita.
   //
   // Fail-closed segue valendo: consulta quebrada devolve `erro_rampa` e ninguém
-  // é remarcado. O que mudou é só de onde sai a data.
+  // é remarcado.
   const feitosHoje = await supabase
     .from('system_state').select('key, value, updated_at')
     .like('key', `${EP_REAGENDA_PREFIX}%`)
