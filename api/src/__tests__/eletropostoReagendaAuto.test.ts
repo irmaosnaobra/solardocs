@@ -800,3 +800,119 @@ describe('a rampa do dia', () => {
     expect(r.motivo).toBe('erro_rampa');
   });
 });
+
+// ── O CARD EM NEGOCIAÇÃO VOLTA PRA AGENDA A CADA 48H (01/10/2026) ──────────
+//
+// "Chave na mão, arrendamento, negociando, 50-50: ele volta sempre 48 horas
+// depois, pra ficar rodando e a gente fechar ou não fechar." E, olhando os
+// parados: "quero a lista lançada na regra".
+//
+// Até aqui o ciclo de 48h existia só como desenho no quadro do CRM: o card
+// mudava de coluna, mas não voltava pra agenda de ninguém. Quadro não é
+// compromisso; agenda é. Medido em 01/10: 60 cards nos quatro modelos
+// (Thiago 38, Diego 22), 94% deles passados das 48h.
+describe('o ciclo de 48h da negociação', () => {
+  const MODELOS = ['chave_na_mao', 'meio_a_meio', 'carregador', 'arrendamento',
+    'em_atendimento', 'fez_orcamento', 'proposta_apresentada'];
+  const QUINZE = '2026-08-21T16:15:00.000Z';   // sexta 13:15 BRT
+  const emNegociacao = (st: string, h = 50) =>
+    ficha({ status: st, quando: horasAtras(h) });
+
+  it('os sete estágios do funil voltam depois de 48h', async () => {
+    for (const st of MODELOS) {
+      fichas = [emNegociacao(st)];
+      state.clear(); updates.length = 0; vagas = [QUINZE];
+      expect((await tick()).remarcados).toBe(1);
+    }
+  });
+
+  it('antes de 48h não encosta', async () => {
+    fichas = [emNegociacao('chave_na_mao', 40)];
+    expect((await tick()).remarcados).toBe(0);
+  });
+
+  // A REGRA MAIS IMPORTANTE DESTE BLOCO. Forçar `agendado` apagaria a
+  // classificação do funil — a informação que diz por qual porta o cliente está
+  // entrando — e, pior, devolveria a ficha pra régua da agenda, que fala com o
+  // cliente. O status diferente de `agendado` é o que a mantém muda.
+  it('o card NÃO perde o status: chave na mão volta chave na mão', async () => {
+    fichas = [emNegociacao('chave_na_mao')];
+    vagas = [QUINZE];
+    await tick();
+    expect(fichas[0].status).toBe('chave_na_mao');
+    expect(updates[0].patch.status).toBeUndefined();
+  });
+
+  it('e não zera carimbo nenhum: quem negocia já falou com a gente', async () => {
+    fichas = [emNegociacao('arrendamento')];
+    vagas = [QUINZE];
+    await tick();
+    const p = updates[0].patch;
+    expect(p).not.toHaveProperty('lead_resposta_at');
+    expect(p).not.toHaveProperty('confirmacao_at');
+    expect(p).not.toHaveProperty('presenca_confirmada_at');
+    expect(Object.keys(p).sort()).toEqual(['historico', 'quando']);
+  });
+
+  it('vai pra faixa dos QUINZE, não pro horário redondo da vitrine', async () => {
+    fichas = [emNegociacao('meio_a_meio')];
+    vagas = [QUINZE];
+    await tick();
+    expect(pedidos[0]!.faixa).toBe('remarcacao');
+  });
+
+  it('o vermelho e o esquecido continuam no horário redondo', async () => {
+    for (const st of ['nao_atendeu', 'agendado']) {
+      fichas = [ficha({ status: st, quando: horasAtras(8) })];
+      pedidos.length = 0; state.clear(); vagas = [SEXTA_13H];
+      await tick();
+      expect(pedidos[0]!.faixa).toBe('novo');
+    }
+  });
+
+  it('nada é enviado ao cliente', async () => {
+    fichas = [emNegociacao('chave_na_mao')];
+    vagas = [QUINZE];
+    await tick();
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('volta pra sempre: não tem teto de voltas', async () => {
+    state.set('ep_reagenda_auto:3', {
+      key: 'ep_reagenda_auto:3', value: { n: 11, ultimo: horasAtras(72) }, updated_at: horasAtras(72),
+    });
+    fichas = [emNegociacao('carregador')];
+    vagas = [QUINZE];
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  it('o histórico diz que é ciclo, e não que a pessoa faltou', async () => {
+    fichas = [emNegociacao('chave_na_mao')];
+    vagas = [QUINZE];
+    await tick();
+    const h = String(fichas[0].historico || '');
+    expect(h).not.toContain('não apareceu');
+    expect(h).not.toContain('sem desfecho');
+    expect(h).toContain('Ciclo de 48h');
+    expect(h).toContain('Apalavrado');
+  });
+
+  it('APALAVRADO fica de fora da roda: é a sala de espera', async () => {
+    fichas = [ficha({ status: 'apalavrado', quando: horasAtras(100) })];
+    expect((await tick()).remarcados).toBe(0);
+  });
+
+  it('vendido e sem interesse também ficam de fora', async () => {
+    for (const st of ['fechou', 'sem_interesse', 'cancelado']) {
+      fichas = [ficha({ status: st, quando: horasAtras(100) })];
+      expect((await tick()).remarcados).toBe(0);
+    }
+  });
+
+  it('o prazo é configurável sem deploy', async () => {
+    process.env.EP_NEGOCIACAO_H = '12';
+    fichas = [emNegociacao('chave_na_mao', 20)];
+    vagas = [QUINZE];
+    expect((await tick()).remarcados).toBe(1);
+  });
+});

@@ -211,6 +211,39 @@ const APOS_PERDER_MIN = 45;
  * respirar antes de o robô assumir que ela ficou sem desfecho.
  */
 const esquecidoH = (): number => num('EP_ESQUECIDO_H', 6);
+
+/**
+ * ── O CARD EM NEGOCIAÇÃO VOLTA PRA AGENDA A CADA 48H (01/10/2026) ──────────
+ *
+ * Ordem do Thiago: "chave na mão, arrendamento, negociando, 50-50, ele voltar
+ * sempre 48 horas depois, pra ele ficar rodando e a gente fechar ou não fechar",
+ * e hoje, olhando os parados: "quero a lista lançada na regra".
+ *
+ * Até aqui o ciclo de 48h existia só como DESENHO NO QUADRO do CRM: o card
+ * mudava de coluna, mas não voltava pra agenda de ninguém. Medido em 01/10, são
+ * 60 cards nos quatro modelos (Thiago 38, Diego 22) e 94% deles passaram das 48
+ * horas. Quadro não é compromisso; agenda é.
+ *
+ * TRÊS COISAS SEPARAM ESTE CAMINHO DOS OUTROS DOIS:
+ *
+ * 1. Ele NÃO mexe no status. Um `chave_na_mao` volta como `chave_na_mao`. Forçar
+ *    `agendado` apagaria a classificação do funil inteiro — justamente a
+ *    informação que diz por qual porta aquele cliente está entrando.
+ * 2. Ele vai pra FAIXA DOS QUINZE (:15/:45), não pro horário redondo. É
+ *    follow-up de quem já é nosso, e não pode comer o horário que a vitrine
+ *    vende pra lead novo. São 60 cards: no horário redondo, isso fecharia a
+ *    agenda de venda em dois dias.
+ * 3. Ele é MUDO e não precisa de marca pra isso. Como o status não é `agendado`,
+ *    nem a régua da agenda nem o alerta de 10 min nem a régua do SIM enxergam a
+ *    ficha — as três filtram por `status = 'agendado'`. Nenhuma mensagem sai, e
+ *    sem carimbar `confirmacao_at`, que é o campo de dois donos que custou 14
+ *    leads nesta mesma semana.
+ */
+const ESTAGIOS_NEGOCIACAO = new Set<string>([
+  'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao',
+  'em_atendimento', 'fez_orcamento', 'proposta_apresentada',
+]);
+const negociacaoH = (): number => num('EP_NEGOCIACAO_H', 48);
 /**
  * Quantos dias pra trás a varredura enxerga.
  *
@@ -353,7 +386,7 @@ export function bolhasReagendado(
 /** Linha no card: o consultor abre a ficha e vê que o robô já a remarcou — sem
  *  isso, "vermelho parado" e "vermelho sendo trabalhado" são a mesma tela. */
 export function linhaDoHistorico(
-  deIso: string, paraIso: string, tentativa: number, esquecido = false,
+  deIso: string, paraIso: string, tentativa: number, esquecido = false, negociacao = false,
 ): string {
   const carimbo = new Date().toLocaleString('pt-BR', {
     timeZone: BRT_TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
@@ -364,6 +397,14 @@ export function linhaDoHistorico(
   // apareceu" é fato quando alguém apertou NÃO ATENDEU. No card esquecido
   // ninguém sabe se apareceu: o que se sabe é que o card ficou sem desfecho.
   // Escrever "não apareceu" ali seria o cadastro inventando um fato.
+  if (negociacao) {
+    // Nem "não apareceu" nem "sem desfecho": esta ficha está em NEGOCIAÇÃO e
+    // volta pela régua das 48h, pra alguém dar destino a ela.
+    return `[${carimbo} · Sistema] 🔁 Ciclo de ${negociacaoH()}h (${tentativa}ª volta): `
+      + `a negociação parou desde ${de} e o card voltou pra *${para}*, nos quinze, `
+      + 'com o mesmo consultor e o mesmo status. Nada foi enviado ao cliente. '
+      + 'Ele sai desta roda fechando, marcando Sem interesse ou pondo em Apalavrado.';
+  }
   if (esquecido) {
     // Sem "x/2": este caminho não tem teto, e escrever um denominador que não
     // existe faria a equipe esperar que o card parasse de voltar sozinho.
@@ -389,7 +430,7 @@ export function linhaDoHistorico(
  * da LP.
  */
 export async function candidatosDoOutroDia(
-  dono: string, quandoIso: string, agora = Date.now(),
+  dono: string, quandoIso: string, agora = Date.now(), negociacao = false,
 ): Promise<string[] | null> {
   // Nunca no passado: reunião perdida ontem e detectada hoje de manhã tem que
   // cair de hoje pra frente, não "no dia seguinte ao de ontem".
@@ -405,8 +446,11 @@ export async function candidatosDoOutroDia(
   // justamente o "na mesma hora", porque a faixa dos quinze não tem 13:00.
   // Follow-up de verdade (o convite à base, a conversa de remarcação pedida
   // pelo lead) continua nos quinze.
+  // Negociação vai pros QUINZE: é follow-up de quem já é nosso e não pode comer
+  // o horário redondo que a vitrine vende pra lead novo. São 60 cards — no
+  // redondo, isso fecharia a agenda de venda em dois dias.
   const vagas = await proximasVagas(dono, VAGAS_CONSULTADAS,
-    { agora: inicio, ignorarIso: quandoIso, faixa: 'novo' });
+    { agora: inicio, ignorarIso: quandoIso, faixa: negociacao ? 'remarcacao' : 'novo' });
   if (vagas === null) return null;              // leitura falhou: não inventa horário
   if (!vagas.length) return [];
 
@@ -439,19 +483,33 @@ export async function candidatosDoOutroDia(
 async function gravarNovoHorario(
   f: FichaVermelha, candidatos: string[], tentativa: number,
 ): Promise<string | null> {
+  // NEGOCIAÇÃO NÃO PERDE O STATUS. Um `chave_na_mao` volta como `chave_na_mao`:
+  // forçar `agendado` apagaria a classificação do funil, que é a informação que
+  // diz por qual porta o cliente está entrando. E é justamente o status não ser
+  // `agendado` que mantém a ficha invisível pra todo robô que fala com cliente.
+  const negociacao = ESTAGIOS_NEGOCIACAO.has(String(f.status));
   for (const novo of candidatos.slice(0, CANDIDATOS_MAX)) {
-    const linha = linhaDoHistorico(String(f.quando), novo, tentativa, f.status === 'agendado');
+    const linha = linhaDoHistorico(String(f.quando), novo, tentativa, f.status === 'agendado', negociacao);
     const { data, error } = await supabaseGerador.from('agendamentos')
       .update({
         quando: novo,
-        status: 'agendado',
-        // NULO de propósito: é a mensagem deste módulo que confirma, e ela só é
-        // carimbada depois de sair. Envio falhou? A fila lenta da agenda manda a
-        // confirmação padrão — melhor copy genérica que horário sem aviso.
-        confirmacao_at: null,
-        lembrete_1h_at: null,
-        lembrete_5min_at: null,
-        presenca_confirmada_at: null,
+        // Negociação mantém o próprio status; os outros dois caminhos voltam
+        // pra `agendado`, que é o que faz a régua da agenda reassumir.
+        ...(negociacao ? {} : { status: 'agendado' }),
+        // ── NEGOCIAÇÃO NÃO ZERA CARIMBO NENHUM ────────────────────────────
+        //
+        // Os zeros abaixo existem pra uma ficha que VOLTA PRA RÉGUA DA AGENDA:
+        // ela precisa poder ser confirmada, lembrada e marcada de novo. A ficha
+        // em negociação não volta pra régua nenhuma (o status dela a esconde de
+        // todas), então zerar seria apagar fato sem ganhar nada — e um deles,
+        // `lead_resposta_at`, é literalmente "esta pessoa já falou com a gente",
+        // que é a definição de quem está negociando. Ela leva só o horário novo
+        // e a linha do histórico.
+        ...(negociacao ? {} : {
+          confirmacao_at: null,
+          lembrete_1h_at: null,
+          lembrete_5min_at: null,
+          presenca_confirmada_at: null,
         // "Sai LIMPO" inclui o silêncio. Sem zerar, quem disse "SIM" e não
         // apareceu (o no-show clássico) voltava pra agenda e NUNCA MAIS podia
         // ficar vermelho — as duas réguas de marcação exigem `lead_resposta_at`
@@ -459,7 +517,8 @@ async function gravarNovoHorario(
         // de 12h pegá-la, trocar o consultor e jogá-la fora da grade.
         // O que a pessoa escreveu não se perde: está no histórico do card e na
         // conversa. O que se apaga é a afirmação "ela já falou NESTE ciclo".
-        lead_resposta_at: null,
+          lead_resposta_at: null,
+        }),
         historico: f.historico ? `${linha}\n\n${f.historico}` : linha,
       })
       .eq('id', f.id)
@@ -540,10 +599,11 @@ export async function runEletropostoReagendaAutoTick(
   //                   ainda sai pra quem já está vermelho).
   //   `agendado`    — NINGUÉM apertou nada. 6 horas, ordem do Thiago.
   const corteEsquecido = new Date(agora - esquecidoH() * 3600_000).toISOString();
+  const corteNegociacao = new Date(agora - negociacaoH() * 3600_000).toISOString();
   const { data, error } = await supabaseGerador
     .from('agendamentos')
     .select('id, cliente_nome, cliente_telefone, quando, vendedor_nome, created_by, status, temperatura, lead_resposta_at, historico')
-    .in('status', ['nao_atendeu', 'agendado'])
+    .in('status', ['nao_atendeu', 'agendado', ...ESTAGIOS_NEGOCIACAO])
     .gte('quando', de)
     .lte('quando', ate)
     .order('quando', { ascending: false })
@@ -559,6 +619,8 @@ export async function runEletropostoReagendaAutoTick(
     // frouxo (45 min) porque ela é uma só pros dois status; quem aperta o corte
     // certo é esta linha.
     && (f.status !== 'agendado' || (!!f.quando && f.quando <= corteEsquecido))
+    // Negociação: 48h desde o último horário dela.
+    && (!ESTAGIOS_NEGOCIACAO.has(String(f.status)) || (!!f.quando && f.quando <= corteNegociacao))
     // Desde 29/09/2026 entra TODO NÃO ATENDEU, não só o quente: a ordem é
     // recuperar gente, e quem decide o volume agora é a rampa diária. Com
     // EP_REAGENDA_SO_QUENTE=1 volta a régua de 20/08 sem deploy.
@@ -577,7 +639,7 @@ export async function runEletropostoReagendaAutoTick(
     // estava marcado nele — senão o lead espera por uma reunião que não vai ter.
     && !agendaFechadaNoIso(f.quando)
     // Fora do horário comercial sobra só o card esquecido, que se move calado.
-    && (!foraDaJanela || f.status === 'agendado'));
+    && (!foraDaJanela || f.status === 'agendado' || ESTAGIOS_NEGOCIACAO.has(String(f.status))));
   if (!candidatos.length) return zero(foraDaJanela ? 'fora_da_janela' : 'nenhum_vermelho');
 
   const ids = candidatos.map(f => f.id);
@@ -614,7 +676,8 @@ export async function runEletropostoReagendaAutoTick(
   // O teto continua valendo pro VERMELHO, e por um motivo diferente: aquele
   // caminho MANDA MENSAGEM pro cliente. Remarcar em silêncio pode ser infinito;
   // dizer "você não apareceu" vinte vezes, não.
-  const semTeto = (f: FichaVermelha) => f.status === 'agendado';
+  const semTeto = (f: FichaVermelha) =>
+    f.status === 'agendado' || ESTAGIOS_NEGOCIACAO.has(String(f.status));
   const naVez = candidatos.filter(f =>
     !comOferta.has(f.id) && (semTeto(f) || (estadoDe.get(f.id)?.n ?? 0) < MAX_REAGENDAMENTOS));
   if (!naVez.length) return zero('ninguem_na_vez');
@@ -707,7 +770,8 @@ export async function runEletropostoReagendaAutoTick(
     const tentativa = (estadoDe.get(f.id)?.n ?? 0) + 1;
     const quem = String(f.vendedor_nome);
     try {
-      const lista = await candidatosDoOutroDia(quem, String(f.quando), agora);
+      const ehNegociacao = ESTAGIOS_NEGOCIACAO.has(String(f.status));
+      const lista = await candidatosDoOutroDia(quem, String(f.quando), agora, ehNegociacao);
       if (lista === null) continue;             // leitura da agenda falhou
       if (!lista.length) {
         logger.info('ep-reagenda', 'agenda do consultor sem vaga — tenta no próximo tick', { id: f.id, quem });
@@ -750,8 +814,13 @@ export async function runEletropostoReagendaAutoTick(
       // mesmo horário, com a linha do histórico dizendo por que se moveu. Se a
       // pessoa não aparecer no horário novo, alguém marca NÃO ATENDEU e aí sim
       // o caminho com mensagem assume.
+      // MUDO: não fala com o cliente. Vale pros dois caminhos silenciosos.
+      // ESQUECIDO: além de mudo, carimba `confirmacao_at`, e por isso precisa da
+      // marca que impede a régua do SIM de liberar o horário. Negociação não
+      // carimba nada, porque o status dela já a esconde de todo mundo.
       const esquecido = f.status === 'agendado';
-      if (!esquecido) {
+      const mudo = esquecido || ESTAGIOS_NEGOCIACAO.has(String(f.status));
+      if (!mudo) {
         const bruto = String(f.cliente_nome || '').trim().split(/\s+/)[0] || '';
         const primeiro = bruto.length >= 2 && bruto.length <= 20 && bruto.toLowerCase() !== 'lead' ? bruto : '';
         const tel = String(f.cliente_telefone).replace(/\D/g, '');
@@ -782,8 +851,13 @@ export async function runEletropostoReagendaAutoTick(
         { onConflict: 'key' },
       ).then(undefined, (e: unknown) =>
         logger.error('ep-reagenda', 'carimbo do teto da linha falhou', { id: f.id, erro: String(e) }));
-      await supabaseGerador.from('agendamentos')
-        .update({ confirmacao_at: new Date().toISOString() }).eq('id', f.id);
+      // Negociação não carimba `confirmacao_at`: ela não cala régua nenhuma (o
+      // status já faz isso) e carimbar sem ter falado com o cliente é exatamente
+      // o campo de dois donos que custou 14 leads nesta semana.
+      if (!ESTAGIOS_NEGOCIACAO.has(String(f.status))) {
+        await supabaseGerador.from('agendamentos')
+          .update({ confirmacao_at: new Date().toISOString() }).eq('id', f.id);
+      }
 
       remarcados++;
       logger.info('ep-reagenda', `ficha #${f.id} remarcada (${tentativa}/${MAX_REAGENDAMENTOS})`, { de: f.quando, para: novo });
