@@ -459,6 +459,37 @@ describe('nunca marcar sem conseguir avisar', () => {
     expect(fichas[0].quando).toBe(SEXTA_14H);
   });
 
+  // ── A FILA ANDA MESMO QUANDO A PRIMEIRA NÃO TEM VAGA (01/10/2026) ───────
+  //
+  // `POR_TICK = 1` pegava a primeira da fila e, sem vaga, devolvia zero. A ordem
+  // da fila não muda entre ticks, então a rodada seguinte tentava a MESMA ficha:
+  // uma ficha sem horário parava a fila inteira com a rampa vazia. Com a rampa
+  // dos calados em 200, isso apareceria no primeiro dia.
+  it('primeira ficha sem vaga: a rodada tenta a seguinte em vez de devolver zero', async () => {
+    fichas = [
+      ficha({ id: 21, status: 'agendado', quando: horasAtras(9) }),
+      ficha({ id: 22, status: 'agendado', quando: horasAtras(8) }),
+    ];
+    let pedido = 0;
+    vagas = [];
+    aoPedirVagas = () => { if (++pedido === 2) vagas = [SEXTA_13H]; };
+    const r = await tick();
+    expect(r.remarcados).toBe(1);
+    expect(pedido).toBe(2);
+    // Moveu a SEGUNDA. A primeira continua na fila, sem tentativa gasta.
+    expect(updates.map(u => u.id)).toEqual([22]);
+    expect(state.has('ep_reagenda_auto:21')).toBe(false);
+  });
+
+  it('mesmo assim move só uma por rodada: para no que MOVEU, não no que tentou', async () => {
+    fichas = [
+      ficha({ id: 31, status: 'agendado', quando: horasAtras(9) }),
+      ficha({ id: 32, status: 'agendado', quando: horasAtras(8) }),
+    ];
+    expect((await tick()).remarcados).toBe(1);
+    expect(updates).toHaveLength(1);
+  });
+
   it('agenda do consultor sem vaga nenhuma: não inventa horário e não gasta tentativa', async () => {
     vagas = [];
     const r = await tick();
@@ -775,10 +806,13 @@ describe('o teto de 2 e quem ele vale', () => {
 // módulo. `value.ultimo` é o ISO que ELE grava no mesmo upsert em que conta a
 // tentativa.
 describe('a rampa do dia', () => {
-  const carimbo = (id: number, ultimo: string, updatedAt: string) =>
+  const carimbo = (id: number, ultimo: string, updatedAt: string, relogio?: 'fala' | 'mudo') =>
     state.set(`ep_reagenda_auto:${id}`, {
-      key: `ep_reagenda_auto:${id}`, value: { n: 1, ultimo }, updated_at: updatedAt,
+      key: `ep_reagenda_auto:${id}`,
+      value: { n: 1, ultimo, ...(relogio ? { relogio } : {}) },
+      updated_at: updatedAt,
     });
+  const hojeCedo = () => new Date(AGORA.getTime() - 2 * 3600_000).toISOString();
 
   it('carimbo VELHO com updated_at de hoje não fecha a rampa', async () => {
     // Exatamente o caso de produção: 10 carimbos antigos que, por qualquer
@@ -788,20 +822,70 @@ describe('a rampa do dia', () => {
     expect((await tick()).remarcados).toBe(1);
   });
 
-  it('10 carimbos de HOJE fecham a rampa, que é o que ela existe pra fazer', async () => {
-    const hojeCedo = new Date(AGORA.getTime() - 2 * 3600_000).toISOString();
-    for (let i = 100; i < 110; i++) carimbo(i, hojeCedo, hojeCedo);
+  it('10 carimbos de HOJE fecham a rampa do vermelho, que é o que ela existe pra fazer', async () => {
+    for (let i = 100; i < 110; i++) carimbo(i, hojeCedo(), hojeCedo(), 'fala');
+    fichas = [ficha({ status: 'nao_atendeu', quando: horasAtras(2) })];
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(r.motivo).toBe('rampa_do_dia_cheia');
+  });
+
+  it('9 de hoje ainda deixam passar um vermelho', async () => {
+    for (let i = 100; i < 109; i++) carimbo(i, hojeCedo(), hojeCedo(), 'fala');
+    fichas = [ficha({ status: 'nao_atendeu', quando: horasAtras(2) })];
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  // ── CADA RELÓGIO TEM A RAMPA DELE (01/10/2026) ──────────────────────────
+  //
+  // Era um teto só pros dois caminhos, e ele foi dimensionado por VOLUME DE
+  // MENSAGEM ("75 fichas de uma vez são ~300 mensagens"). Isso descreve o
+  // vermelho. Os calados não mandam nada, e ficavam presos atrás dele: medido em
+  // 01/10, a rampa fechou em 40/40 às 13h03 com 182 fichas esperando, 110 delas
+  // em negociação. A fila dava 5 dias por causa de um limite que existe pra
+  // proteger uma linha de WhatsApp que elas não usam.
+  it('a rampa cheia do vermelho NÃO segura o card calado', async () => {
+    for (let i = 100; i < 110; i++) carimbo(i, hojeCedo(), hojeCedo(), 'fala');
+    fichas = [ficha({ status: 'agendado', quando: horasAtras(8) })];
+    expect((await tick()).remarcados).toBe(1);
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('nem o card em negociação, que também é calado', async () => {
+    for (let i = 100; i < 110; i++) carimbo(i, hojeCedo(), hojeCedo(), 'fala');
+    fichas = [ficha({ status: 'chave_na_mao', quando: horasAtras(72) })];
+    expect((await tick()).remarcados).toBe(1);
+    expect(enviadas).toHaveLength(0);
+    expect(fichas[0].status).toBe('chave_na_mao');
+  });
+
+  it('mas a rampa do calado também fecha, no número dela', async () => {
+    process.env.EP_REAGENDA_MUDO_POR_DIA = '2';
+    for (let i = 100; i < 102; i++) carimbo(i, hojeCedo(), hojeCedo(), 'mudo');
     fichas = [ficha({ status: 'agendado', quando: horasAtras(8) })];
     const r = await tick();
     expect(r.remarcados).toBe(0);
     expect(r.motivo).toBe('rampa_do_dia_cheia');
   });
 
-  it('9 de hoje ainda deixam passar uma', async () => {
-    const hojeCedo = new Date(AGORA.getTime() - 2 * 3600_000).toISOString();
-    for (let i = 100; i < 109; i++) carimbo(i, hojeCedo, hojeCedo);
+  // Carimbo gravado antes de 01/10 não tem `relogio`. Contar como calado abriria
+  // a torneira da linha no dia da virada: o que já foi falado hoje deixaria de
+  // gastar o teto que protege a linha. Conta como `fala`.
+  it('carimbo sem `relogio` gasta a rampa do vermelho, não a do calado', async () => {
+    for (let i = 100; i < 110; i++) carimbo(i, hojeCedo(), hojeCedo());
+    fichas = [ficha({ status: 'nao_atendeu', quando: horasAtras(2) })];
+    expect((await tick()).motivo).toBe('rampa_do_dia_cheia');
     fichas = [ficha({ status: 'agendado', quando: horasAtras(8) })];
     expect((await tick()).remarcados).toBe(1);
+  });
+
+  it('o carimbo que o módulo grava diz de qual relógio ele é', async () => {
+    fichas = [ficha({ id: 9, status: 'agendado', quando: horasAtras(8) })];
+    await tick();
+    expect(state.get('ep_reagenda_auto:9')?.value?.relogio).toBe('mudo');
+    fichas = [ficha({ id: 11, status: 'nao_atendeu', quando: horasAtras(2) })];
+    await tick();
+    expect(state.get('ep_reagenda_auto:11')?.value?.relogio).toBe('fala');
   });
 
   it('carimbo sem `ultimo` legível não conta: formato velho não trava a fila', async () => {

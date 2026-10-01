@@ -326,6 +326,27 @@ const janelaDias = (): number => num('EP_REAGENDA_JANELA_DIAS', 365);
 const tetoPorDia = (): number => num('EP_REAGENDA_POR_DIA', 10);
 
 /**
+ * A RAMPA DOS CALADOS, que é outra conta (01/10/2026).
+ *
+ * A rampa de cima foi dimensionada por MENSAGEM: "75 fichas de uma vez são
+ * ~300 mensagens". Isso descreve o `nao_atendeu`, que fala com o cliente e
+ * recomeça a régua da agenda inteira. Não descreve o card esquecido nem o card
+ * em negociação: esses dois não mandam nada. O único custo deles é ocupar
+ * horário, e de horário quem cuida é a grade, que já espalha pelos dias quando
+ * o dia enche.
+ *
+ * Com uma rampa só, o calado ficava preso atrás do que fala. Medido em 01/10:
+ * a rampa fechou em 40/40 às 13h03 com 182 fichas ainda esperando, 110 delas
+ * em negociação, nenhuma com mensagem pra mandar. A fila dava 5 dias por causa
+ * de um limite que existe pra proteger uma linha de WhatsApp que elas nem usam.
+ *
+ * 200 não é "sem limite": é acima da base aberta inteira, de propósito, pra
+ * quem decide o ritmo ser a agenda e não um número escrito aqui. Se um dia a
+ * base crescer e isto virar a trava, o log diz na hora qual das duas encheu.
+ */
+const tetoMudoPorDia = (): number => num('EP_REAGENDA_MUDO_POR_DIA', 200);
+
+/**
  * Só QUENTE ganha 2ª chance? Era a ordem de 20/08/2026 ("quero apenas os
  * clientes QUENTES tenham uma 2ª e 3ª chance"). A de 29/09 é mais ampla ("todos
  * os NÃO ATENDEU"), então o padrão virou `false` e a env existe pra voltar atrás
@@ -334,6 +355,19 @@ const tetoPorDia = (): number => num('EP_REAGENDA_POR_DIA', 10);
 const soQuente = (): boolean => (process.env.EP_REAGENDA_SO_QUENTE || '').trim() === '1';
 /** Uma pessoa por tick: duas no mesmo passo poderiam mirar o mesmo slot. */
 const POR_TICK = 1;
+/**
+ * Quantas fichas a rodada pode TENTAR pra conseguir mover `POR_TICK`.
+ *
+ * Era 1: a rodada pegava a primeira da fila e, se ela não tivesse vaga, voltava
+ * zero. Como a ordem da fila não muda entre ticks, a rodada seguinte tentava a
+ * MESMA ficha — uma ficha sem horário livre parava a fila inteira com a rampa
+ * vazia. Com a rampa em 10 isso quase não aparecia; com a dos calados em 200,
+ * apareceria no primeiro dia.
+ *
+ * O limite existe porque cada tentativa lê a agenda do consultor: sem ele, uma
+ * fila de 180 viraria 180 leituras num tick de 2 minutos.
+ */
+const TENTATIVAS_POR_RODADA = 8;
 const JANELA_INICIO_H = 9;
 const JANELA_FIM_H = 19;
 /** Quantas vagas pedir pra escolher: uma grade cheia de segunda tem 8 horários,
@@ -808,42 +842,77 @@ export async function runEletropostoReagendaAutoTick(
     return !!quando && quando >= inicioDoDiaBRT;
   });
   const jaHoje = doDia.length;
+  // ── CADA RELÓGIO TEM A RAMPA DELE (01/10/2026) ───────────────────────────
+  //
+  // O carimbo passou a gravar `relogio`: `fala` pro `nao_atendeu`, `mudo` pros
+  // dois caminhos silenciosos. Carimbo gravado antes disto não tem o campo e
+  // conta como `fala`, que é o lado seguro — o teto que protege a linha segue
+  // cheio no dia da virada, e o dos calados começa do zero.
+  const contados = (qual: 'fala' | 'mudo'): number => doDia.filter(r => {
+    const v = (r as { value?: { relogio?: string } }).value;
+    return (v?.relogio === 'mudo' ? 'mudo' : 'fala') === qual;
+  }).length;
+  const vagaDe = {
+    fala: tetoPorDia() - contados('fala'),
+    mudo: tetoMudoPorDia() - contados('mudo'),
+  };
   // Deixa VISÍVEL o que a rampa contou. Sem isto, "rampa cheia" é uma afirmação
   // sem prova nenhuma no log, e foi assim que o defeito passou despercebido.
-  logger.info('ep-reagenda', `rampa: ${jaHoje}/${tetoPorDia()} hoje (desde ${inicioDoDiaBRT}), ${(feitosHoje.data || []).length} carimbos no total`);
-  // Seco atravessa a rampa, igual à janela de horário: conferir é pergunta, não
-  // envio. Parar aqui fazia a prévia responder só `rampa_do_dia_cheia`, sem dizer
-  // quem seria remarcado — prévia que só serve quando o módulo já podia agir.
-  if (!opts.dry && jaHoje >= tetoPorDia()) {
-    logger.info('ep-reagenda', `rampa do dia cheia (${jaHoje}/${tetoPorDia()}) — a fila continua amanhã`);
-    return zero('rampa_do_dia_cheia');
-  }
+  logger.info('ep-reagenda', `rampa: fala ${contados('fala')}/${tetoPorDia()}, mudo ${contados('mudo')}/${tetoMudoPorDia()} (desde ${inicioDoDiaBRT}), ${jaHoje} hoje de ${(feitosHoje.data || []).length} carimbos no total`);
+
+  // ── A FILA É FILTRADA, NÃO INTERROMPIDA ──────────────────────────────────
+  //
+  // Aqui havia dois `return` que paravam a rodada inteira: rampa cheia parava
+  // tudo, teto da linha parava tudo. Com `POR_TICK = 1` isso tem um efeito que
+  // não se vê lendo: UM `nao_atendeu` na frente da fila, com a rampa dele cheia,
+  // segurava os 110 calados atrás dele até o dia virar.
+  //
+  // Agora quem não pode andar SAI DA FILA e quem pode anda. Seco atravessa as
+  // duas travas, igual à janela de horário: conferir é pergunta, não envio.
+  const relogioDe = (f: FichaVermelha): 'fala' | 'mudo' =>
+    relogioDoCiclo(String(f.status)) === 'fala' ? 'fala' : 'mudo';
+  let aptos = opts.dry ? naVez : naVez.filter(f => vagaDe[relogioDe(f)] > 0);
+  let linhaEstourou = false;
 
   // Teto anti-ban ANTES de mexer na ficha: remarcar sem conseguir avisar é
-  // marcar reunião que a pessoa não sabe que existe. Estourou? Ninguém é
-  // remarcado nesta rodada — a fila espera o próximo tick, ela não tem pressa.
+  // marcar reunião que a pessoa não sabe que existe.
   //
-  // Só vale pra quem VAI FALAR. O card esquecido não manda mensagem nenhuma,
-  // então deixar o teto da linha travar ele seria uma trava sem nada do outro
-  // lado pra proteger: a linha não é usada.
-  const vaiFalar = naVez.some(f => f.status !== 'agendado');
-  if (!opts.dry && vaiFalar && !(await dentroDoTetoHorarioLinha({ transacional: false }))) {
-    logger.info('ep-reagenda', 'teto da linha estourado — a fila espera o próximo tick');
-    return zero('teto_da_linha');
+  // Ele tira da fila SÓ QUEM FALA, e isto era um defeito de duas pontas: o teste
+  // era `status !== 'agendado'`, que dá verdadeiro pra toda ficha em negociação
+  // — calada — e era medido com `.some()` sobre a fila TODA em vez da ficha que
+  // ia se mover. Com 66 `nao_atendeu` esperando, isso era sempre verdadeiro:
+  // todo o ciclo silencioso ficava pendurado no teto de uma linha que ele não
+  // usa. Só pergunta ao throttle se sobrou falante na fila.
+  if (!opts.dry && aptos.some(f => relogioDe(f) === 'fala')
+      && !(await dentroDoTetoHorarioLinha({ transacional: false }))) {
+    logger.info('ep-reagenda', 'teto da linha estourado — nesta rodada andam só os calados');
+    linhaEstourou = true;
+    aptos = aptos.filter(f => relogioDe(f) === 'mudo');
+  }
+  if (!aptos.length) {
+    logger.info('ep-reagenda', `ninguém pode andar: fila ${naVez.length}, vaga fala ${vagaDe.fala}, vaga mudo ${vagaDe.mudo}`);
+    // O motivo não pode virar um só: "a linha estourou" e "a rampa encheu" se
+    // resolvem de formas diferentes, e é por este campo que a gente descobre
+    // qual das duas foi.
+    return zero(linhaEstourou ? 'teto_da_linha' : 'rampa_do_dia_cheia');
   }
 
   const telPorConsultor = await carregarConsultores();
-  // O menor entre o passo do tick e o que resta da rampa: no último slot do dia
-  // não adianta o tick permitir 1 se a rampa só tem 0.
-  const alvos = naVez.slice(0, opts.dry ? POR_TICK : Math.min(POR_TICK, tetoPorDia() - jaHoje));
+  const alvos = aptos.slice(0, POR_TICK * TENTATIVAS_POR_RODADA);
   const previa: NonNullable<ResultadoReagendaAuto['previa']> = [];
   let remarcados = 0, erros = 0;
 
   for (const f of alvos) {
+    // Para no que MOVEU, não no que tentou: é isto que faz a fila andar quando a
+    // primeira ficha não tem vaga.
+    if (remarcados >= POR_TICK) break;
     const tentativa = (estadoDe.get(f.id)?.n ?? 0) + 1;
     const quem = String(f.vendedor_nome);
     try {
       const ehNegociacao = ehNegociacaoStatus(String(f.status));
+      // UMA leitura do relógio, ANTES do update: o vermelho volta pra `agendado`
+      // na mesma gravação, e reler depois o carimbaria como calado.
+      const relogio = relogioDe(f);
       const lista = await candidatosDoOutroDia(quem, String(f.quando), agora, ehNegociacao);
       if (lista === null) continue;             // leitura da agenda falhou
       if (!lista.length) {
@@ -867,7 +936,13 @@ export async function runEletropostoReagendaAutoTick(
       // aconteceu de fato — mensagem é melhor esforço, remarcação não é.
       const nowIso = new Date().toISOString();
       await supabase.from('system_state').upsert(
-        { key: `${EP_REAGENDA_PREFIX}${f.id}`, value: { n: tentativa, ultimo: nowIso, de: f.quando }, updated_at: nowIso },
+        {
+          key: `${EP_REAGENDA_PREFIX}${f.id}`,
+          // `relogio` é o que separa as duas rampas. Sem ele a conta volta a ser
+          // uma só e o calado fica preso atrás do que fala.
+          value: { n: tentativa, ultimo: nowIso, de: f.quando, relogio },
+          updated_at: nowIso,
+        },
         { onConflict: 'key' },
       ).then(undefined, (e: unknown) =>
         logger.error('ep-reagenda', 'carimbo do ciclo falhou', { id: f.id, erro: String(e) }));
