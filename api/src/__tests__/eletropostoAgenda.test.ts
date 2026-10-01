@@ -97,6 +97,10 @@ let leituraCarimboFalha = false;
  *  antiga, e ele não pode valer como "segundo contato de hoje". Sem data explícita,
  *  o carimbo é de agora — que é o caso normal. */
 const carimboEm = new Map<string, string>();
+/** O VALOR de um carimbo. Desde 01/10/2026 a leitura precisa dele: a marca
+ *  `ep_mudo:` guarda o horário que ela moveu, e é esse horário que decide se a
+ *  ficha ainda está muda. */
+const carimboValor = new Map<string, unknown>();
 vi.mock('../utils/supabase', () => ({
   supabase: {
     from: () => ({
@@ -130,7 +134,11 @@ vi.mock('../utils/supabase', () => ({
             // `updated_at` importa desde 20/08: o marcador `ep_resposta:` só vale
             // a partir da confirmação que está na ficha AGORA (`falouNesteCiclo`).
             data: carimbos.filter(k => k.startsWith(p))
-              .map(key => ({ key, updated_at: carimboEm.get(key) ?? new Date().toISOString() })),
+              .map(key => ({
+                key,
+                updated_at: carimboEm.get(key) ?? new Date().toISOString(),
+                value: carimboValor.get(key) ?? null,
+              })),
             error: null,
           };
           return { limit: async () => resposta };
@@ -1136,5 +1144,46 @@ describe('reserva do toque: dois ticks não mandam duas vezes', () => {
     await Promise.all([tick(), tick()]);
     expect(enviadas).toHaveLength(1);
     vi.setSystemTime(AGORA);
+  });
+});
+
+// ── A FICHA QUE VOLTOU EM SILÊNCIO NÃO RECEBE TOQUE NENHUM (01/10/2026) ────
+//
+// O card confirmado que ninguém fechou volta pra agenda sozinho, sem avisar o
+// cliente: a reunião dele pode ter acontecido, e "sua apresentação é amanhã"
+// pra quem conversou ontem é confusão.
+//
+// Até 01/10 o silêncio era conseguido carimbando `confirmacao_at`, que É o campo
+// que este módulo usa como "já confirmei". Dois donos no mesmo campo, e custou
+// duas vezes: a régua do SIM liberou 14 horários achando que o cliente tinha
+// calado, e o card passou a mostrar NÃO CONFIRMOU pro consultor — dizendo que o
+// cliente foi perguntado e não respondeu, quando ninguém tinha falado com ele.
+describe('a ficha marcada como muda', () => {
+  const marcar = (id: number, quando: string) => {
+    carimbos.push(`ep_mudo:${id}`);
+    carimboValor.set(`ep_mudo:${id}`, { quando });
+  };
+
+  it('não recebe confirmação nem nenhum outro toque', async () => {
+    const q = emMinutos(90);
+    fichas = [ficha({ id: 42, quando: q, confirmacao_at: null })];
+    marcar(42, q);
+    await tick();
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('sem a marca, ela é confirmada como sempre foi', async () => {
+    fichas = [ficha({ id: 42, quando: emMinutos(90), confirmacao_at: null })];
+    await tick();
+    expect(enviadas.length).toBeGreaterThan(0);
+  });
+
+  it('a marca vale só pro horário que ela moveu', async () => {
+    // Remarcada depois por um caminho que fala com o cliente? Os toques voltam,
+    // porque aí a ficha entrou na agenda por outra porta.
+    fichas = [ficha({ id: 42, quando: emMinutos(90), confirmacao_at: null })];
+    marcar(42, emMinutos(999));
+    await tick();
+    expect(enviadas.length).toBeGreaterThan(0);
   });
 });

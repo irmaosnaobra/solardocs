@@ -836,7 +836,10 @@ export async function runEletropostoReagendaAutoTick(
       // 01/10. Vai antes do `confirmacao_at` de propósito: entre carimbar e
       // marcar não pode existir um instante em que a ficha parece confirmada
       // sem estar marcada como muda.
-      if (esquecido) {
+      // A marca vale pros DOIS caminhos mudos. Ela deixou de ser so uma defesa
+      // contra a regua do SIM: desde 01/10 e ela que cala a regua da agenda
+      // tambem, no lugar do `confirmacao_at` que tinha dois donos.
+      if (mudo) {
         await supabase.from('system_state').upsert(
           { key: `${EP_MUDO_PREFIX}${f.id}`, value: { quando: novo, em: nowIso }, updated_at: nowIso },
           { onConflict: 'key' },
@@ -851,10 +854,19 @@ export async function runEletropostoReagendaAutoTick(
         { onConflict: 'key' },
       ).then(undefined, (e: unknown) =>
         logger.error('ep-reagenda', 'carimbo do teto da linha falhou', { id: f.id, erro: String(e) }));
-      // Negociação não carimba `confirmacao_at`: ela não cala régua nenhuma (o
-      // status já faz isso) e carimbar sem ter falado com o cliente é exatamente
-      // o campo de dois donos que custou 14 leads nesta semana.
-      if (!ESTAGIOS_NEGOCIACAO.has(String(f.status))) {
+      // ── SÓ QUEM FALOU CARIMBA `confirmacao_at` ────────────────────────────
+      //
+      // Este campo significa UMA coisa: "a mensagem de confirmação saiu pro
+      // cliente e estamos esperando a resposta dele". Quem o lê age em cima
+      // disso: a régua do SIM cobra e libera o horário, e o card da agenda pinta
+      // NÃO CONFIRMOU.
+      //
+      // Os dois caminhos MUDOS não mandam mensagem nenhuma, então carimbar seria
+      // mentir, e a mentira saiu cara em 01/10: a régua do SIM liberou 14
+      // horários achando que o cliente tinha calado, e o card dizia pro Diego
+      // que eles não confirmaram — quando ninguém tinha falado com eles. Quem
+      // cala a régua da agenda agora é a marca `ep_mudo`, que tem um dono só.
+      if (!mudo) {
         await supabaseGerador.from('agendamentos')
           .update({ confirmacao_at: new Date().toISOString() }).eq('id', f.id);
       }

@@ -70,6 +70,7 @@ const INSTANCE_ID_IO = (process.env.ZAPI_INSTANCE_ID_IO || '3F26F6ECE67D72BB7FCA
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 import { agendaFechadaNoIso } from '../agenda/agendaFechada';
+import { EP_MUDO_PREFIX } from './eletropostoReagendaAuto';
 
 /** Marcador de envio efetivado, pro teto anti-ban da linha enxergar este agente. */
 export const EP_AGENDA_PREFIX = 'ep_agenda_sent:';
@@ -654,15 +655,25 @@ function lembreteEhDestaReuniao(f: Ficha): boolean {
  * Uma leitura só, compartilhada pelas duas réguas de marcação: elas rodam no
  * mesmo tick e perguntam exatamente a mesma coisa ao mesmo banco.
  */
-async function marcadoresDeSilencio(): Promise<{ respondeuEm: Map<number, string>; jaMarcado: Set<number> }> {
-  const [{ data: falaram }, { data: marcados }] = await Promise.all([
+async function marcadoresDeSilencio(): Promise<{
+  respondeuEm: Map<number, string>; jaMarcado: Set<number>; mudoEm: Map<number, string>;
+}> {
+  const [{ data: falaram }, { data: marcados }, { data: mudas }] = await Promise.all([
     supabase.from('system_state').select('key, updated_at').like('key', `${EP_RESPOSTA_PREFIX}%`).limit(1000),
     supabase.from('system_state').select('key').like('key', `${EP_NAO_ATENDEU_PREFIX}%`).limit(1000),
+    supabase.from('system_state').select('key, value').like('key', `${EP_MUDO_PREFIX}%`).limit(2000),
   ]);
+  const mudoEm = new Map<number, string>();
+  for (const m of mudas ?? []) {
+    const id = Number(String(m.key).slice(EP_MUDO_PREFIX.length));
+    const q = String((m.value as { quando?: string } | null)?.quando || '');
+    if (Number.isInteger(id) && q) mudoEm.set(id, q);
+  }
   return {
     respondeuEm: new Map((falaram ?? []).map(m =>
       [Number(String(m.key).slice(EP_RESPOSTA_PREFIX.length)), String(m.updated_at ?? '')])),
     jaMarcado: new Set((marcados ?? []).map(m => Number(String(m.key).slice(EP_NAO_ATENDEU_PREFIX.length)))),
+    mudoEm,
   };
 }
 
@@ -1072,6 +1083,10 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
     logger.error('ep-agenda', 'ler marcadores de silêncio falhou — ninguém é marcado nesta rodada', err);
     return null;
   });
+  // Falha ao ler os marcadores devolve `null`: aí NINGUÉM é tocado nesta rodada.
+  // Fail-closed de propósito — sem saber quem voltou em silêncio, qualquer toque
+  // pode ser uma mensagem pra quem não devia receber nada.
+  const mudoEm = marcadores?.mudoEm ?? null;
   const vermelho13h = await marcarVermelhoDoCorte(fichas, agora, opts.dry === true, marcadores);
   const naoAtendeu = await marcarNaoAtendeuAutomatico(fichas, agora, opts.dry === true, marcadores);
 
@@ -1243,6 +1258,27 @@ export async function runEletropostoAgendaTick(opts: { dry?: boolean } = {}): Pr
     if (toques >= MAX_TOQUES_POR_TICK) break;
     const tel = String(ag.cliente_telefone || '').replace(/\D/g, '');
     if (!tel || !ag.quando) continue;
+
+    // ── A FICHA QUE VOLTOU EM SILÊNCIO NÃO RECEBE TOQUE NENHUM ──────────────
+    //
+    // O card confirmado que ninguém fechou volta pra agenda sozinho e volta SEM
+    // avisar o cliente: a reunião dele pode ter acontecido, e "sua apresentação
+    // é amanhã" pra quem já conversou ontem é confusão na melhor das hipóteses.
+    //
+    // Até 01/10/2026 o silêncio era conseguido carimbando `confirmacao_at`, que
+    // é o campo que ESTE laço usa como "já confirmei". Dois donos no mesmo
+    // campo, e saiu caro duas vezes: a régua do SIM liberou o horário de 14
+    // fichas achando que o cliente não tinha respondido, e o card passou a
+    // mostrar "NÃO CONFIRMOU" pro consultor — dizendo que o cliente foi
+    // perguntado e calou, quando ninguém tinha falado com ele.
+    //
+    // Agora quem diz isso é a marca `ep_mudo`, com nome próprio e um dono só. A
+    // marca guarda o horário que ela moveu e vale só pra ele: remarcou por outro
+    // caminho, a marca deixa de casar e os toques voltam — porque aí a ficha
+    // entrou na agenda por uma porta que fala com o cliente.
+    if (!mudoEm) continue;                     // não deu pra ler: não fala com ninguém
+    const mudoPara = mudoEm.get(ag.id);
+    if (mudoPara && new Date(mudoPara).getTime() === new Date(ag.quando).getTime()) continue;
 
     const minutos = (new Date(ag.quando).getTime() - agora) / 60_000;
     const telDoConsultor = telPorConsultor.get(String(ag.vendedor_nome || '')) ?? null;
