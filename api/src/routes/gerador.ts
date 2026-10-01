@@ -29,6 +29,9 @@ import { supabase } from '../utils/supabase';
 // A sala de espera do card mora no `system_state`, e o prefixo sai do módulo
 // que LÊ ele: quem escreve e quem lê têm que concordar na chave.
 import { APALAVRADO_PREFIX } from '../services/io/lembreteFollowupService';
+// A etiqueta preservada e a lista do que vale guardar moram no modulo NEUTRO da
+// sala de espera, junto da leitura do prazo: e tudo marca do mesmo card.
+import { ETIQUETA_PREFIX, ETIQUETAS_DE_NEGOCIO } from '../services/agenda/salaDeEspera';
 import { EP_MUDO_PREFIX } from '../services/io/eletropostoReagendaAuto';
 
 const router = Router();
@@ -361,19 +364,79 @@ router.post('/apalavrado/soltar', async (req: Request, res: Response) => {
 router.get('/apalavrado', async (req: Request, res: Response) => {
   const ids = String(req.query.ids || '').split(',')
     .map(n => Number(n.trim())).filter(n => Number.isInteger(n) && n > 0).slice(0, 500);
-  if (!ids.length) { res.json({ ok: true, esperas: {} }); return; }
+  if (!ids.length) { res.json({ ok: true, esperas: {}, etiquetas: {} }); return; }
   try {
+    // AS DUAS MARCAS NA MESMA CHAMADA. Separar em duas rotas dobraria a ida e
+    // volta num quadro que desenha 300 cards, e as duas são lidas sempre juntas:
+    // o card precisa saber se está em espera E qual era a etiqueta dele.
     const { data, error } = await supabase.from('system_state')
       .select('key, value')
-      .in('key', ids.map(i => `${APALAVRADO_PREFIX}${i}`));
+      .in('key', [
+        ...ids.map(i => `${APALAVRADO_PREFIX}${i}`),
+        ...ids.map(i => `${ETIQUETA_PREFIX}${i}`),
+      ]);
     if (error) throw error;
     const esperas: Record<string, unknown> = {};
+    const etiquetas: Record<string, string> = {};
     for (const l of data ?? []) {
-      esperas[String(l.key).slice(APALAVRADO_PREFIX.length)] = l.value;
+      const k = String(l.key);
+      if (k.startsWith(ETIQUETA_PREFIX)) {
+        const et = String((l.value as { etiqueta?: string } | null)?.etiqueta ?? '').trim();
+        if (et) etiquetas[k.slice(ETIQUETA_PREFIX.length)] = et;
+      } else {
+        esperas[k.slice(APALAVRADO_PREFIX.length)] = l.value;
+      }
     }
-    res.json({ ok: true, esperas });
+    res.json({ ok: true, esperas, etiquetas });
   } catch (err: any) {
     logger.error('gerador', 'apalavrado (leitura) falhou', err);
+    res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
+  }
+});
+
+// ── GUARDA A ETIQUETA QUE O STATUS TERMINAL VAI APAGAR ──────────────────────
+//
+// A tela chama isto ANTES de gravar `sem_interesse` / `fechou` / `cancelado` /
+// `perdido` / `fechou_concorrente`, mandando a etiqueta que está saindo. Depois
+// o card mostra as duas: "ARRENDAMENTO · SEM INTERESSE".
+//
+// `etiqueta` vazia APAGA a marca, e é o caminho de volta: card que sai do
+// terminal pra uma etiqueta de negociação volta a carregar ela no próprio
+// status, e aí a marca seria uma segunda pílula dizendo a mesma coisa.
+//
+// A allowlist mora no módulo da sala de espera e é checada AQUI, no servidor: a
+// rota é pública (chega pelo rewrite `/_api/*`), então sem ela isto seria um
+// campo de texto livre dentro do `system_state`.
+router.post('/etiqueta', async (req: Request, res: Response) => {
+  const b = (req.body || {}) as { id?: unknown; etiqueta?: unknown; por?: unknown };
+  const id = Number(b.id);
+  if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: 'id inválido' }); return; }
+  const etiqueta = String(b.etiqueta ?? '').trim();
+  if (etiqueta && !ETIQUETAS_DE_NEGOCIO.has(etiqueta)) {
+    res.status(400).json({ error: 'etiqueta desconhecida', etiqueta });
+    return;
+  }
+  try {
+    const chave = `${ETIQUETA_PREFIX}${id}`;
+    if (!etiqueta) {
+      const { error } = await supabase.from('system_state').delete().eq('key', chave);
+      if (error) throw error;
+      res.json({ ok: true, id, apagou: true });
+      return;
+    }
+    const agora = new Date().toISOString();
+    const { error } = await supabase.from('system_state').upsert(
+      {
+        key: chave,
+        value: { etiqueta, em: agora, por: String(b.por ?? '').slice(0, 60) },
+        updated_at: agora,
+      },
+      { onConflict: 'key' },
+    );
+    if (error) throw error;
+    res.json({ ok: true, id, etiqueta });
+  } catch (err: any) {
+    logger.error('gerador', 'etiqueta falhou', err);
     res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
   }
 });

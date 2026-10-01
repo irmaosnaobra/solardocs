@@ -1517,6 +1517,27 @@ let bloqueiosCache = [];                     // { id, vendedor_nome, inicio, fim
 // esta é a única fonte que sabe que ele está esperando. Sem ela, a agenda
 // mostraria um card em espera como se fosse um card em negociação comum.
 let esperasCache = {};                       // { '<id>': { retomar_em, aguardando } }
+// ── A ETIQUETA SOBREVIVE AO STATUS TERMINAL (01/10/2026) ────────────────────
+//
+// Ordem do dono: "o sem interesse poderia muito bem preservar a etiqueta, e
+// quando colocar a etiqueta de SEM INTERESSE ficariam as 2, e no CRM o lead
+// ficaria na SEM INTERESSE".
+//
+// Diferente do APALAVRADO, aqui o status terminal CONTINUA sendo gravado, e tem
+// que continuar: `sem_interesse`, `fechou`, `cancelado`, `perdido` e
+// `fechou_concorrente` são lidos por nove lugares da API como "não fale mais com
+// este card". Deixar de gravar faria robô conversar com cliente que já disse não.
+//
+// Então a etiqueta que vai ser apagada é GUARDADA antes, numa marca que só a
+// TELA lê. O card passa a mostrar as duas: "ARRENDAMENTO · SEM INTERESSE".
+let etiquetasCache = {};                     // { '<id>': 'arrendamento' }
+const ETIQUETAS_NEGOCIO = new Set([
+  'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao',
+  'em_atendimento', 'proposta_apresentada', 'fez_orcamento', 'falando_whatsapp',
+]);
+const STATUS_TERMINAIS = new Set([
+  'sem_interesse', 'fechou', 'cancelado', 'perdido', 'fechou_concorrente',
+]);
 let slotAtual = null;                        // { vendedor, dataIso, label } — selecionado pro modal novo
 let detalheAtual = null;                     // agendamento selecionado pro modal detalhes
 let bloqueioAtual = null;                    // bloqueio selecionado pro modal de detalhes
@@ -1706,10 +1727,23 @@ async function carregarEsperas() {
     const r = await fetch(`${API_ESPERA}/gerador/apalavrado?ids=${ids.join(',')}`);
     const j = await r.json();
     esperasCache = (j && j.esperas) || {};
+    etiquetasCache = (j && j.etiquetas) || {};
   } catch (e) {
     console.warn('esperas não carregadas', e);
     esperasCache = {};
+    etiquetasCache = {};
   }
+}
+
+/** A etiqueta que o status terminal apagou, ou string vazia. Só aparece quando o
+ *  status de AGORA é terminal: card que voltou a negociar carrega a etiqueta no
+ *  próprio status, e seriam duas pílulas iguais. */
+function pillEtiquetaGuardada(ag) {
+  if (!ag || !STATUS_TERMINAIS.has(String(ag.status || ''))) return '';
+  const et = etiquetasCache[String(ag.id)];
+  if (!et) return '';
+  const r = ETIQUETA_STATUS[et];
+  return r ? `<span class="tag-modelo">${r[0]}</span>` : '';
 }
 
 /** O selo da espera, ou string vazia. `volta DD/MM` enquanto o prazo corre,
@@ -1852,7 +1886,10 @@ function pillStatus(ag, curto) {
   // É a ordem que o dono pediu: "não substitui a atual, ela é acrescentada".
   const espera = pillEspera(ag);
   const modelo = t ? `<span class="tag-modelo">${curto ? t[1] : t[0]}</span>` : '';
-  return modelo + espera;
+  // A etiqueta GUARDADA vem primeiro: "ARRENDAMENTO · SEM INTERESSE" se lê como
+  // a história do negócio, na ordem em que ela aconteceu.
+  const guardada = pillEtiquetaGuardada(ag);
+  return guardada + modelo + espera;
 }
 
 function semRespostaDoLead(ag) {
@@ -2621,6 +2658,27 @@ async function atualizarStatus(novoStatus, extra) {
   const idAlvo = detalheAtual.id;
   try {
     await supaPatch(`agendamentos?id=eq.${idAlvo}`, { status: novoStatus, ...(extra || {}) });
+    // A ETIQUETA QUE ESTÁ SAINDO É GUARDADA ANTES DE SER APAGADA. Vai antes do
+    // PATCH porque depois dele ela não existe mais em lugar nenhum. Falhar aqui
+    // degrada (o card mostra só o terminal), não quebra.
+    const etqSaindo = String(detalheAtual.status || '');
+    try {
+      if (STATUS_TERMINAIS.has(novoStatus) && ETIQUETAS_NEGOCIO.has(etqSaindo)) {
+        await fetch(`${API_ESPERA}/gerador/etiqueta`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: idAlvo, etiqueta: etqSaindo,
+            por: (function(){ try { return consultorLogado() || ''; } catch (e) { return ''; } })() }),
+        });
+        etiquetasCache[String(idAlvo)] = etqSaindo;
+      } else if (ETIQUETAS_NEGOCIO.has(novoStatus)) {
+        await fetch(`${API_ESPERA}/gerador/etiqueta`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: idAlvo, etiqueta: '' }),
+        });
+        delete etiquetasCache[String(idAlvo)];
+      }
+    } catch (e) { console.warn('etiqueta nao guardada', e); }
+
     // QUALQUER TROCA DE STATUS SOLTA A ESPERA. O ramo que gravava saiu em
     // 01/10/2026 (quem grava é o `apalavrar`, sem tocar no status); o que fica é
     // soltar, porque prazo velho calando um card que voltou a negociar é como um

@@ -21801,6 +21801,34 @@ async function crmAtualizarStatus(novoStatus, extra) {
   if (extra) { delete extra.__retomar; delete extra.__oque; }
   try {
     await supaPatch(`agendamentos?id=eq.${ag.id}`, { status: novoStatus, ...(extra || {}) });
+    // ── A ETIQUETA QUE ESTÁ SAINDO É GUARDADA ANTES DE SER APAGADA ─────────
+    //
+    // Vai ANTES do PATCH de propósito: depois dele a etiqueta antiga já não
+    // existe em lugar nenhum pra ser lida. Se esta chamada falhar, o status é
+    // gravado de qualquer jeito (o desfecho do negócio é mais importante que a
+    // memória dele) e o card mostra só o terminal — degrada, não quebra.
+    const etqSaindo = String(ag.status || '');
+    try {
+      if (CRM_STATUS_TERMINAIS.has(novoStatus) && CRM_ETIQUETAS_NEGOCIO.has(etqSaindo)) {
+        await fetch(`${APX_API}/gerador/etiqueta`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: ag.id, etiqueta: etqSaindo,
+            por: (function(){ try { return crmConsultorLogado() || ''; } catch (e) { return ''; } })() }),
+        });
+        crmEtiquetas[String(ag.id)] = etqSaindo;
+      } else if (CRM_ETIQUETAS_NEGOCIO.has(novoStatus)) {
+        // Voltou a negociar: o próprio status carrega a etiqueta de novo, e a
+        // marca viraria uma segunda pílula dizendo a mesma coisa.
+        await fetch(`${APX_API}/gerador/etiqueta`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: ag.id, etiqueta: '' }),
+        });
+        delete crmEtiquetas[String(ag.id)];
+      }
+    } catch (e) {
+      console.warn('etiqueta não guardada', e);
+    }
+
     // ── QUALQUER TROCA DE STATUS SOLTA A ESPERA ────────────────────────────
     //
     // O ramo que GRAVAVA a espera daqui saiu em 01/10/2026: quem grava é o
@@ -22412,6 +22440,31 @@ async function carregarCRM(forcar) {
 // Falha de leitura NÃO derruba o quadro: o mapa fica vazio e os cards aparecem
 // sem selo, que é pior que com selo e muito melhor que quadro em branco.
 let crmEsperas = {};
+// ── A ETIQUETA SOBREVIVE AO STATUS TERMINAL (01/10/2026) ────────────────────
+//
+// Ordem do dono: "o sem interesse poderia muito bem preservar a etiqueta, e
+// quando colocar a etiqueta de SEM INTERESSE ficariam as 2, e no CRM o lead
+// ficaria na SEM INTERESSE".
+//
+// Diferente do APALAVRADO, aqui o status terminal CONTINUA sendo gravado, e tem
+// que continuar: `sem_interesse`, `fechou`, `cancelado`, `perdido` e
+// `fechou_concorrente` são lidos por nove lugares da API como "não fale mais com
+// este card". Deixar de gravar faria robô conversar com cliente que já disse não.
+//
+// Então a etiqueta que vai ser apagada é GUARDADA antes, numa marca que só a
+// TELA lê. O card passa a mostrar as duas: "ARRENDAMENTO · SEM INTERESSE". A
+// coluna continua sendo a do status terminal, que é o que ele pediu.
+let crmEtiquetas = {};        // { '<agId>': 'arrendamento' } — a etiqueta que o terminal apagou
+/** As etiquetas de negociação — as que vale guardar quando o terminal as apaga.
+ *  Espelha `ETIQUETAS_DE_NEGOCIO` do servidor, que é quem recusa o resto. */
+const CRM_ETIQUETAS_NEGOCIO = new Set([
+  'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao',
+  'em_atendimento', 'proposta_apresentada', 'fez_orcamento', 'falando_whatsapp',
+]);
+/** Os status que apagam a etiqueta. */
+const CRM_STATUS_TERMINAIS = new Set([
+  'sem_interesse', 'fechou', 'cancelado', 'perdido', 'fechou_concorrente',
+]);
 /** Quem PODE estar na sala de espera. Antes era só `apalavrado`, porque a espera
  *  era o status; agora a marca convive com a etiqueta de negociação, então é a
  *  família toda que precisa ser consultada. `apalavrado` fica na lista pelos
@@ -22419,6 +22472,9 @@ let crmEsperas = {};
 const CRM_PODE_ESPERAR = new Set([
   'apalavrado', 'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao',
   'em_atendimento', 'proposta_apresentada', 'fez_orcamento', 'falando_whatsapp',
+  // Os TERMINAIS entram desde 01/10: eles não esperam nada, mas carregam a
+  // etiqueta guardada, e as duas marcas vêm na mesma chamada.
+  'sem_interesse', 'fechou', 'cancelado', 'perdido', 'fechou_concorrente',
 ]);
 
 async function crmCarregarEsperas() {
@@ -22430,7 +22486,8 @@ async function crmCarregarEsperas() {
     const r = await fetch(`${APX_API}/gerador/apalavrado?ids=${ids.join(',')}`);
     const j = await r.json();
     crmEsperas = (j && j.esperas) || {};
-  } catch (e) { crmEsperas = {}; }
+    crmEtiquetas = (j && j.etiquetas) || {};
+  } catch (e) { crmEsperas = {}; crmEtiquetas = {}; }
 }
 
 // Junta as 3 fontes num mapa por chave de telefone (ou nome quando sem telefone).
@@ -22946,6 +23003,16 @@ function renderCRM() {
   // O SELO SAI DA MARCA, NÃO DO STATUS (01/10/2026). Desde que APALAVRADO deixou
   // de substituir a etiqueta, um card apalavrado continua `chave_na_mao` no
   // banco: prender o selo no status o esconderia justamente de quem ele serve.
+  // A ETIQUETA GUARDADA vem ANTES do selo do status, porque foi o que aconteceu
+  // primeiro: "ARRENDAMENTO · SEM INTERESSE" se lê como a história do negócio. Só
+  // aparece se o status de agora for terminal — card que voltou a negociar carrega
+  // a etiqueta no próprio status, e aí seriam duas pílulas iguais.
+  const etiquetaBadge = (c) => {
+    const et = c.agId ? crmEtiquetas[String(c.agId)] : null;
+    if (!et || !CRM_STATUS_TERMINAIS.has(String(c.statusAg || ''))) return '';
+    return statusBadge(et);
+  };
+
   const esperaBadge = (c) => {
     const e = crmEsperas[String(c.agId)];
     if (!e) {
@@ -23012,7 +23079,7 @@ function renderCRM() {
       </div>
       ${telLinha}
       <div class="crm-card-meta">${cons}${tag}${linhaCidade}${linhaAg}</div>
-      ${presencaBadge(c)}${propBadge(c)}${(c.statusAg === 'proposta_apresentada' && c.propPor) ? '' : statusBadge(c.statusAg)}${esperaBadge(c)}
+      ${presencaBadge(c)}${propBadge(c)}${etiquetaBadge(c)}${(c.statusAg === 'proposta_apresentada' && c.propPor) ? '' : statusBadge(c.statusAg)}${esperaBadge(c)}
       <div class="crm-card-foot">
         ${valorTxt}
         <span class="crm-card-acoes">${reagBtn}${wpp}${verProp}</span>
