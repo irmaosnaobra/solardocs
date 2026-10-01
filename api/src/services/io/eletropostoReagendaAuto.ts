@@ -488,14 +488,30 @@ async function gravarNovoHorario(
   // diz por qual porta o cliente está entrando. E é justamente o status não ser
   // `agendado` que mantém a ficha invisível pra todo robô que fala com cliente.
   const negociacao = ESTAGIOS_NEGOCIACAO.has(String(f.status));
+  // ── "DEIXA CAIR SEMPRE COMO CONFIRMADA MESMO, COM A MESMA COR" ───────────
+  //
+  // Ordem do Thiago (01/10/2026), olhando a agenda do Diego cheia de card rosa.
+  //
+  // Os zeros logo abaixo existem pra ficha que VOLTA PRA RÉGUA DA AGENDA: ela
+  // precisa poder ser confirmada, lembrada e marcada de novo. O card que volta
+  // MUDO não volta pra régua nenhuma, então zerar só destrói informação — e foi
+  // o que produziu a tela que ele viu: `presenca_confirmada_at` zerado e
+  // `confirmacao_at` carimbado viram "NÃO CONFIRMOU" em rosa. O card dizendo
+  // que o cliente foi perguntado e calou, sobre gente que tinha confirmado
+  // presença de verdade e sobre gente com quem ninguém nunca falou.
+  //
+  // Agora o card volta exatamente como estava: confirmado continua confirmado,
+  // com a mesma cor. Muda só o horário e a linha do histórico.
+  const mudoAqui = negociacao || f.status === 'agendado';
   for (const novo of candidatos.slice(0, CANDIDATOS_MAX)) {
     const linha = linhaDoHistorico(String(f.quando), novo, tentativa, f.status === 'agendado', negociacao);
     const { data, error } = await supabaseGerador.from('agendamentos')
       .update({
         quando: novo,
-        // Negociação mantém o próprio status; os outros dois caminhos voltam
-        // pra `agendado`, que é o que faz a régua da agenda reassumir.
-        ...(negociacao ? {} : { status: 'agendado' }),
+        // Só o VERMELHO volta pra `agendado`: é isso que faz a régua da agenda
+        // reassumir a ficha. O esquecido já é `agendado` (reescrever seria
+        // barulho) e a negociação mantém o status dela de propósito.
+        ...(f.status === 'nao_atendeu' ? { status: 'agendado' } : {}),
         // ── NEGOCIAÇÃO NÃO ZERA CARIMBO NENHUM ────────────────────────────
         //
         // Os zeros abaixo existem pra uma ficha que VOLTA PRA RÉGUA DA AGENDA:
@@ -505,7 +521,7 @@ async function gravarNovoHorario(
         // `lead_resposta_at`, é literalmente "esta pessoa já falou com a gente",
         // que é a definição de quem está negociando. Ela leva só o horário novo
         // e a linha do histórico.
-        ...(negociacao ? {} : {
+        ...(mudoAqui ? {} : {
           confirmacao_at: null,
           lembrete_1h_at: null,
           lembrete_5min_at: null,
@@ -630,7 +646,13 @@ export async function runEletropostoReagendaAutoTick(
     && !!f.quando
     // Escreveu DEPOIS de perder o horário? Não sumiu — está conversando, e essa
     // conversa é do agente de respostas, que já sabe remarcar.
-    && !(f.lead_resposta_at && f.lead_resposta_at > f.quando)
+    //
+    // SÓ VALE PRO CAMINHO QUE FALA (01/10/2026). O filtro existe pra não
+    // atropelar conversa viva com uma mensagem nossa, e os caminhos mudos não
+    // mandam mensagem nenhuma. Pior: quem escreveu depois da reunião é
+    // justamente quem o consultor PRECISA retornar, e eram 10 fichas ficando de
+    // fora por isso. Agora o card volta pra agenda, calado, e quem fala é gente.
+    && !(f.status === 'nao_atendeu' && f.lead_resposta_at && f.lead_resposta_at > f.quando)
     // Reunião perdida num dia de AGENDA FECHADA (sócios fora) não
     // é no-show: o consultor é que não estava. A copy daqui abre com "você não
     // conseguiu entrar na apresentação" e culparia o cliente pela nossa ausência.

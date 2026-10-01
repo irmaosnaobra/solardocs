@@ -916,3 +916,70 @@ describe('o ciclo de 48h da negociação', () => {
     expect((await tick()).remarcados).toBe(1);
   });
 });
+
+// ── O CARD VOLTA COM A MESMA CARA (01/10/2026) ─────────────────────────────
+//
+// "Deixa cair sempre como confirmada mesmo, com a mesma cor." Ordem do Thiago
+// olhando a agenda do Diego cheia de card rosa.
+//
+// O caminho mudo zerava `presenca_confirmada_at` e carimbava `confirmacao_at`,
+// e essa combinação é exatamente o que a grade pinta como "NÃO CONFIRMOU": o
+// card dizendo que o cliente foi perguntado e calou, sobre gente que tinha
+// confirmado presença de verdade.
+describe('o card que volta mudo não perde o que já era', () => {
+  it('o card esquecido leva só horário e histórico', async () => {
+    fichas = [ficha({ status: 'agendado', quando: horasAtras(8) })];
+    vagas = [SEXTA_13H];
+    await tick();
+    expect(Object.keys(updates[0].patch).sort()).toEqual(['historico', 'quando']);
+  });
+
+  it('presença confirmada sobrevive: continua verde', async () => {
+    fichas = [ficha({ status: 'agendado', quando: horasAtras(8), presenca_confirmada_at: '2026-08-19T10:00:00.000Z' })];
+    vagas = [SEXTA_13H];
+    await tick();
+    expect(updates[0].patch).not.toHaveProperty('presenca_confirmada_at');
+    expect(fichas[0].presenca_confirmada_at).toBe('2026-08-19T10:00:00.000Z');
+  });
+
+  it('mas o vermelho, que FALA, continua saindo limpo', async () => {
+    // Ele volta pra régua da agenda e precisa poder ser confirmado de novo.
+    fichas = [ficha({ status: 'nao_atendeu', quando: horasAtras(2) })];
+    vagas = [SEXTA_13H];
+    await tick();
+    const p = updates[0].patch;
+    expect(p).toHaveProperty('confirmacao_at', null);
+    expect(p).toHaveProperty('presenca_confirmada_at', null);
+    expect(p).toHaveProperty('lead_resposta_at', null);
+  });
+});
+
+// ── QUEM ESCREVEU DEPOIS DA REUNIÃO VOLTA, SE FOR CALADO ───────────────────
+//
+// O filtro existe pra não atropelar conversa viva com mensagem nossa. Os
+// caminhos mudos não mandam mensagem, e quem escreveu depois é justamente quem
+// o consultor precisa retornar: eram 10 fichas ficando de fora por isso.
+describe('quem escreveu depois da reunião', () => {
+  // 8h basta pro esquecido; a negociação exige 48h, então o fixture usa 50.
+  const escreveu = (st: string, h = 8) => ficha({
+    status: st, quando: horasAtras(h),
+    lead_resposta_at: new Date(AGORA.getTime() - 3 * 3600_000).toISOString(),
+  });
+
+  it('o card esquecido volta mesmo tendo escrito', async () => {
+    fichas = [escreveu('agendado')];
+    vagas = [SEXTA_13H];
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  it('o card em negociação também', async () => {
+    fichas = [escreveu('chave_na_mao', 50)];
+    vagas = ['2026-08-21T16:15:00.000Z'];
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  it('mas o vermelho continua de fora: essa conversa tem dono', async () => {
+    fichas = [escreveu('nao_atendeu')];
+    expect((await tick()).remarcados).toBe(0);
+  });
+});
