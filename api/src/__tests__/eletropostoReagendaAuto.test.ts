@@ -795,6 +795,136 @@ describe('o teto de 2 e quem ele vale', () => {
   });
 });
 
+
+// ── A ESCADA DA NEGOCIAÇÃO, DENTRO DO TICK (01/10/2026) ───────────────────
+//
+// A aritmética da escada tem teste próprio e puro (`escadaNegociacao.test.ts`).
+// Este bloco prende a outra metade, que é a que pode quebrar em produção: que o
+// tick REALMENTE segura a ficha que ainda não descansou, que o carimbo guarda a
+// etiqueta, e que os outros dois relógios não foram contaminados.
+describe('a escada da negociação no tick', () => {
+  /** Carimbo com etiqueta e degrau: o estado que a escada lê. */
+  const noDegrau = (id: number, status: string, degrau: number) =>
+    state.set(`ep_reagenda_auto:${id}`, {
+      key: `ep_reagenda_auto:${id}`,
+      value: { n: degrau, ultimo: horasAtras(degrau * 48), relogio: 'mudo', status, degrau },
+      updated_at: horasAtras(24),
+    });
+
+  it('no degrau 1, 60h de parada NÃO bastam: o degrau 2 pede 72h', async () => {
+    fichas = [ficha({ id: 50, status: 'arrendamento', quando: horasAtras(60) })];
+    noDegrau(50, 'arrendamento', 1);
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(r.motivo).toBe('todos_no_degrau');
+    expect(updates).toHaveLength(0);
+  });
+
+  it('e 73h bastam — o card volta e sobe pro degrau 2', async () => {
+    fichas = [ficha({ id: 50, status: 'arrendamento', quando: horasAtras(73) })];
+    noDegrau(50, 'arrendamento', 1);
+    expect((await tick()).remarcados).toBe(1);
+    const v = state.get('ep_reagenda_auto:50')?.value;
+    expect(v?.degrau).toBe(2);
+    expect(v?.status).toBe('arrendamento');
+  });
+
+  it('no degrau 3, 100h não bastam: o degrau 4 pede 120h', async () => {
+    fichas = [ficha({ id: 51, status: 'chave_na_mao', quando: horasAtras(100) })];
+    noDegrau(51, 'chave_na_mao', 3);
+    expect((await tick()).motivo).toBe('todos_no_degrau');
+    fichas = [ficha({ id: 51, status: 'chave_na_mao', quando: horasAtras(121) })];
+    expect((await tick()).remarcados).toBe(1);
+    expect(state.get('ep_reagenda_auto:51')?.value?.degrau).toBe(4);
+  });
+
+  // O CORAÇÃO DA REGRA. "Se manter uma dessas etiquetas" sobe; mudar de etiqueta
+  // é a negociação ANDANDO, e quem andou merece o toque curto de volta.
+  it('etiqueta que MUDOU volta pro degrau 1: 49h bastam, mesmo vindo do degrau 6', async () => {
+    fichas = [ficha({ id: 52, status: 'chave_na_mao', quando: horasAtras(49) })];
+    noDegrau(52, 'arrendamento', 6);          // a etiqueta de antes era outra
+    expect((await tick()).remarcados).toBe(1);
+    expect(state.get('ep_reagenda_auto:52')?.value?.degrau).toBe(1);
+    expect(state.get('ep_reagenda_auto:52')?.value?.status).toBe('chave_na_mao');
+  });
+
+  it('carimbo velho, sem etiqueta: a ficha ganha mais um 48h e a escada começa dali', async () => {
+    fichas = [ficha({ id: 53, status: 'meio_a_meio', quando: horasAtras(49) })];
+    state.set('ep_reagenda_auto:53', {
+      key: 'ep_reagenda_auto:53', value: { n: 4, ultimo: horasAtras(60) }, updated_at: horasAtras(60),
+    });
+    expect((await tick()).remarcados).toBe(1);
+    expect(state.get('ep_reagenda_auto:53')?.value?.degrau).toBe(1);
+  });
+
+  it('a linha do card diz o degrau, as horas dele e as da próxima volta', async () => {
+    fichas = [ficha({ id: 54, status: 'carregador', quando: horasAtras(73) })];
+    noDegrau(54, 'carregador', 1);
+    await tick();
+    const linha = String(fichas[0].historico || '');
+    expect(linha).toContain('Ciclo de 72h (2ª volta nesta etiqueta');
+    expect(linha).toContain('a próxima volta é em 96h');
+    expect(linha).toContain('mudar de etiqueta recomeça em 48h');
+  });
+
+  it('e quando o total não bate com o degrau, ela diz os dois', async () => {
+    // Card que já voltou 9 vezes mas trocou de etiqueta agora: 1ª volta NESTA
+    // etiqueta, 10ª no total. Dizer só "1ª volta" faria parecer card novo.
+    fichas = [ficha({ id: 55, status: 'chave_na_mao', quando: horasAtras(49) })];
+    state.set('ep_reagenda_auto:55', {
+      key: 'ep_reagenda_auto:55',
+      value: { n: 9, ultimo: horasAtras(60), status: 'arrendamento', degrau: 4 },
+      updated_at: horasAtras(60),
+    });
+    await tick();
+    const linha = String(fichas[0].historico || '');
+    expect(linha).toContain('(1ª volta nesta etiqueta (10ª no total))');
+  });
+
+  // A ESCADA É SÓ DA NEGOCIAÇÃO. Os outros dois relógios são ordem antiga e
+  // separada: 45 min pro vermelho e 6h pro esquecido, sem escada.
+  it('o vermelho não entra na escada: 2h e um degrau alto guardado, e ele anda', async () => {
+    fichas = [ficha({ id: 56, status: 'nao_atendeu', quando: horasAtras(2) })];
+    // `n` baixo de propósito: o vermelho TEM teto de 3 voltas, e é esse teto
+    // que a gente não quer que mascare o teste. O que está sendo medido é o
+    // `degrau`, que o relógio dele precisa ignorar.
+    state.set('ep_reagenda_auto:56', {
+      key: 'ep_reagenda_auto:56',
+      value: { n: 1, ultimo: horasAtras(24), relogio: 'fala', status: 'nao_atendeu', degrau: 9 },
+      updated_at: horasAtras(24),
+    });
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  it('nem o card esquecido: 8h e um degrau alto guardado, e ele anda', async () => {
+    fichas = [ficha({ id: 57, status: 'agendado', quando: horasAtras(8) })];
+    noDegrau(57, 'agendado', 9);
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  it('fila cheia de gente no prazo responde `todos_no_degrau`, não `ninguem_na_vez`', async () => {
+    // Os dois se resolvem de formas diferentes: um é fila vazia, o outro é fila
+    // cheia descansando. Juntar num motivo só esconderia a escada de quem lê o
+    // tick e desligaria o módulo achando que ele parou.
+    fichas = [
+      ficha({ id: 58, status: 'arrendamento', quando: horasAtras(50) }),
+      ficha({ id: 59, status: 'carregador', quando: horasAtras(55) }),
+    ];
+    noDegrau(58, 'arrendamento', 2);          // pede 96h
+    noDegrau(59, 'carregador', 2);            // pede 96h
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(r.motivo).toBe('todos_no_degrau');
+  });
+
+  it('o passo muda sem deploy, e o corte do tick acompanha', async () => {
+    process.env.EP_NEGOCIACAO_PASSO_H = '0';   // escada plana: 48h pra sempre
+    fichas = [ficha({ id: 60, status: 'arrendamento', quando: horasAtras(49) })];
+    noDegrau(60, 'arrendamento', 5);
+    expect((await tick()).remarcados).toBe(1);
+  });
+});
+
 // ── A RAMPA CONTA PELO CARIMBO DO MÓDULO, NÃO PELO `updated_at` ───────────
 //
 // O DEFEITO, medido em produção à 02h de 01/10/2026: com ZERO fichas remarcadas
@@ -980,13 +1110,48 @@ describe('o ciclo de 48h da negociação', () => {
     expect(enviadas).toHaveLength(0);
   });
 
-  it('volta pra sempre: não tem teto de voltas', async () => {
-    state.set('ep_reagenda_auto:3', {
-      key: 'ep_reagenda_auto:3', value: { n: 11, ultimo: horasAtras(72) }, updated_at: horasAtras(72),
-    });
-    fichas = [emNegociacao('carregador')];
+  // O CARIMBO AQUI É O QUE O MÓDULO DE FATO GRAVA depois de 11 voltas na mesma
+  // etiqueta. A versão anterior deste teste usava um carimbo SEM `status`, que
+  // cai no degrau 1: ele passava com 50h de parada e não provava teto nenhum,
+  // só que 48h bastam. Agora ele mede o degrau 12, que pede 312h.
+  const onzeVoltas = (st: string) => state.set('ep_reagenda_auto:3', {
+    key: 'ep_reagenda_auto:3',
+    value: { n: 11, ultimo: horasAtras(400), relogio: 'mudo', status: st, degrau: 11 },
+    updated_at: horasAtras(400),
+  });
+
+  it('volta pra sempre: não tem teto de voltas (o degrau sobe, o teto não existe)', async () => {
+    onzeVoltas('carregador');
+    fichas = [emNegociacao('carregador', 313)];      // o degrau 12 pede 312h
     vagas = [QUINZE];
     expect((await tick()).remarcados).toBe(1);
+    expect(state.get('ep_reagenda_auto:3')?.value?.degrau).toBe(12);
+  });
+
+  it('e no degrau 11 ele espera as 312h: 300h não bastam', async () => {
+    onzeVoltas('carregador');
+    fichas = [emNegociacao('carregador', 300)];
+    vagas = [QUINZE];
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(r.motivo).toBe('todos_no_degrau');
+  });
+
+  // IDA E VOLTA, sem helper no meio: o segundo tick lê o carimbo que o PRIMEIRO
+  // escreveu. É o único teste que pega divergência entre quem grava e quem lê —
+  // e essa divergência já existiu neste arquivo (o leitor descartava campos).
+  it('ida e volta: o segundo tick lê o carimbo que o primeiro escreveu', async () => {
+    fichas = [emNegociacao('arrendamento', 60)];
+    vagas = [QUINZE];
+    expect((await tick()).remarcados).toBe(1);
+    expect(state.get('ep_reagenda_auto:3')?.value?.degrau).toBe(1);
+    // A ficha foi pro futuro. Trago o horário pra trás na mão pra medir o
+    // PRÓXIMO degrau, que agora pede 72h e não 48.
+    fichas[0].quando = horasAtras(60);
+    expect((await tick()).remarcados).toBe(0);
+    fichas[0].quando = horasAtras(73);
+    expect((await tick()).remarcados).toBe(1);
+    expect(state.get('ep_reagenda_auto:3')?.value?.degrau).toBe(2);
   });
 
   it('o histórico diz que é ciclo, e não que a pessoa faltou', async () => {

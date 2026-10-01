@@ -223,7 +223,8 @@ describe('mover o card', () => {
     vermelhos = [card({ status: 'fez_orcamento', quando: '2026-09-25T11:15:00.000Z' })];
     await tick();
     const linha = String(updates[0].patch.historico);
-    expect(linha).toContain('Ciclo de 48h (1ª volta)');
+    expect(linha).toContain('Ciclo de 48h (1ª volta nesta etiqueta)');
+    expect(linha).toContain('a proxima volta e em 72h');
     expect(linha).not.toContain('não atendeu');
     expect(linha).toContain('Apalavrado');
   });
@@ -505,6 +506,66 @@ describe('a rampa diária', () => {
     expect(r.remarcados).toBe(0);
     expect(r.erros).toBe(1);
     expect(updates).toHaveLength(1);         // não insistiu no mesmo card
+  });
+
+  // ── A ESCADA DA NEGOCIAÇÃO (01/10/2026) ─────────────────────────────────
+  //
+  // A aritmética tem teste próprio e puro em `escadaNegociacao.test.ts`, junto
+  // com a do eletroposto, pra garantir que as duas contam igual. Aqui fica o que
+  // só o tick prova: que o corte exato segura o card no prazo, que o carimbo
+  // guarda a etiqueta, e que o relógio do vermelho não foi contaminado.
+  const noDegrau = (id: number, status: string, degrau: number, n = degrau) =>
+    state.set(`solar_reagenda:${id}`, {
+      key: `solar_reagenda:${id}`,
+      value: { n, ultimo: AGORA.toISOString(), relogio: 'mudo', status, degrau },
+      updated_at: AGORA.toISOString(),
+    });
+  /** `quando` a N horas antes do AGORA do teste. */
+  const hAtras = (h: number) => new Date(AGORA.getTime() - h * 3600_000).toISOString();
+
+  it('no degrau 1, 60h não bastam: o degrau 2 pede 72h', async () => {
+    vermelhos = [card({ id: 70, status: 'fez_orcamento', quando: hAtras(60) })];
+    noDegrau(70, 'fez_orcamento', 1);
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(r.motivo).toBe('todos_no_degrau');
+  });
+
+  it('e 73h bastam — o card volta e sobe pro degrau 2', async () => {
+    vermelhos = [card({ id: 70, status: 'fez_orcamento', quando: hAtras(73) })];
+    noDegrau(70, 'fez_orcamento', 1);
+    expect((await tick()).remarcados).toBe(1);
+    const v = state.get('solar_reagenda:70')?.value;
+    expect(v?.degrau).toBe(2);
+    expect(v?.status).toBe('fez_orcamento');
+  });
+
+  it('etiqueta que MUDOU volta pro degrau 1: 49h bastam, mesmo vindo do degrau 6', async () => {
+    vermelhos = [card({ id: 71, status: 'em_atendimento', quando: hAtras(49) })];
+    noDegrau(71, 'fez_orcamento', 6, 1);        // etiqueta de antes era outra
+    expect((await tick()).remarcados).toBe(1);
+    expect(state.get('solar_reagenda:71')?.value?.degrau).toBe(1);
+  });
+
+  it('carimbo velho, sem etiqueta: ganha mais um 48h e a escada começa dali', async () => {
+    vermelhos = [card({ id: 72, status: 'fez_orcamento', quando: hAtras(49) })];
+    state.set('solar_reagenda:72', {
+      key: 'solar_reagenda:72', value: { n: 1, ultimo: hAtras(60) }, updated_at: hAtras(60),
+    });
+    expect((await tick()).remarcados).toBe(1);
+    expect(state.get('solar_reagenda:72')?.value?.degrau).toBe(1);
+  });
+
+  it('o vermelho não entra na escada: 1h e um degrau alto guardado, e ele anda', async () => {
+    vermelhos = [card({ id: 73, status: 'nao_atendeu', quando: hAtras(1) })];
+    noDegrau(73, 'nao_atendeu', 9, 1);          // `n` baixo: o teto de 3 voltas é outro assunto
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  it('nem o card esquecido: 7h e um degrau alto guardado, e ele anda', async () => {
+    vermelhos = [card({ id: 74, status: 'agendado', quando: hAtras(7) })];
+    noDegrau(74, 'agendado', 9, 1);
+    expect((await tick()).remarcados).toBe(1);
   });
 
   // FAIL-CLOSED nas duas leituras que seguram repetição.

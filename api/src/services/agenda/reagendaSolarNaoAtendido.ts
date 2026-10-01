@@ -149,6 +149,37 @@ const esquecidoH = (): number => num('SOLAR_ESQUECIDO_H', 6);
  * e status novo nasce rodando.
  */
 const negociacaoH = (): number => num('SOLAR_NEGOCIACAO_H', 48);
+/**
+ * ── A ESCADA DA NEGOCIAÇÃO (01/10/2026) ───────────────────────────────────
+ *
+ * Mesma ordem e mesma conta do eletroposto: 48h na primeira volta, e +24h a
+ * cada volta em que a ETIQUETA NÃO MUDA. 48, 72, 96, 120 e assim por diante,
+ * sem teto, porque o fim é o destino do card.
+ *
+ * As etiquetas que o Thiago nomeou (chave na mão, carregador, 50/50,
+ * arrendamento) são do eletroposto. Aqui a escada vale pras etiquetas de
+ * negociação do solar — `fez_orcamento`, `em_atendimento`,
+ * `falando_whatsapp` — porque o mecanismo é o mesmo: etiqueta que não muda é
+ * negociação que não andou, e devolver de 48 em 48h pra sempre come a grade
+ * sem mudar nada. Deixar o solar de fora faria dois cards idênticos no quadro
+ * se comportarem diferente.
+ */
+const passoNegociacaoH = (): number => num('SOLAR_NEGOCIACAO_PASSO_H', 24);
+/** As horas de descanso do degrau `d`: 48, 72, 96, 120 … */
+export const horasDoDegrau = (d: number): number =>
+  negociacaoH() + passoNegociacaoH() * Math.max(0, Math.floor(d) - 1);
+/**
+ * O degrau da PRÓXIMA volta. Etiqueta igual sobe um; etiqueta diferente, ou
+ * card que nunca voltou, começa no 1. Carimbo antigo não tem `status` e cai no
+ * 1 também: ninguém é pulado na virada.
+ */
+export function degrauDaProximaVolta(
+  estado: { status?: string; degrau?: number } | undefined, statusAgora: string,
+): number {
+  if (!estado?.status || estado.status !== statusAgora) return 1;
+  const d = Math.floor(Number(estado.degrau));
+  return (Number.isFinite(d) && d >= 1 ? d : 1) + 1;
+}
 export const DESTINO_FINAL_SOLAR = new Set<string>([
   'fechou', 'sem_interesse', 'cancelado', 'perdido', 'fechou_concorrente',
 ]);
@@ -274,14 +305,21 @@ const zero = (motivo?: string): ResultadoReagendaSolar =>
  */
 export function linhaDoHistorico(
   deIso: string, paraIso: string, volta: number, relogio: 'fala' | 'esquecido' | 'negocia' = 'fala',
+  degrau = 1,
 ): string {
   const carimbo = new Date().toLocaleString('pt-BR', {
     timeZone: TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
   }).replace(',', ' ·');
   if (relogio === 'negocia') {
-    return `[${carimbo} · Sistema] 🔁 Ciclo de ${negociacaoH()}h (${volta}ª volta): `
+    // A LINHA DIZ O DEGRAU E O PRÓXIMO INTERVALO: um card que volta em 5 dias em
+    // vez de 2 parece defeito, e a primeira coisa que alguém faz com o que parece
+    // defeito é desligar.
+    const total = volta !== degrau ? ` (${volta}ª no total)` : '';
+    return `[${carimbo} · Sistema] 🔁 Ciclo de ${horasDoDegrau(degrau)}h (${degrau}ª volta nesta etiqueta${total}): `
       + `a negociação parou desde ${horaBonita(deIso)} e o card voltou pra ${horaBonita(paraIso)}, `
       + 'com o mesmo consultor e o mesmo status. Nada foi enviado ao cliente. '
+      + `Se a etiqueta nao mudar, a proxima volta e em ${horasDoDegrau(degrau + 1)}h; `
+      + `mudar de etiqueta recomeca em ${horasDoDegrau(1)}h. `
       + 'Ele sai desta roda fechando, marcando Sem interesse ou pondo em Apalavrado.';
   }
   if (relogio === 'esquecido') {
@@ -393,18 +431,50 @@ export async function runReagendaSolarTick(
     logger.error('solar-reagenda', 'ler o ciclo falhou', estadosQ.error);
     return { ...zero('erro_ciclo'), erros: 1 };
   }
+  // O estado deixou de ser só a contagem de voltas: a escada precisa da ETIQUETA
+  // da última volta e do degrau em que ela caiu.
   const voltasDe = new Map<number, number>();
+  const estadoDe = new Map<number, { status?: string; degrau?: number }>();
   for (const r of estadosQ.data ?? []) {
     const id = Number(String(r.key).slice(SOLAR_REAGENDA_PREFIX.length));
-    const n = Number((r.value as { n?: number } | null)?.n);
-    if (Number.isInteger(id) && Number.isFinite(n)) voltasDe.set(id, n);
+    const v = (r.value ?? {}) as { n?: number; status?: string; degrau?: number };
+    const n = Number(v.n);
+    if (!Number.isInteger(id)) continue;
+    if (Number.isFinite(n)) voltasDe.set(id, n);
+    estadoDe.set(id, {
+      ...(typeof v.status === 'string' ? { status: v.status } : {}),
+      ...(typeof v.degrau === 'number' ? { degrau: v.degrau } : {}),
+    });
   }
 
+  // ── O CORTE EXATO DA ESCADA, CARD POR CARD ───────────────────────────────
+  //
+  // O corte de 48h lá em cima é o PISO (degrau 1): ele peneira de graça e não
+  // exclui ninguém no prazo, porque nenhum degrau pede MENOS que 48h. Quem sabe
+  // o degrau de cada card é o `estadoDe`, lido só agora.
+  const descansou = (f: CardSolar): boolean => {
+    if (relogioDoCicloSolar(String(f.status)) !== 'negocia') return true;
+    const horas = horasDoDegrau(degrauDaProximaVolta(estadoDe.get(f.id), String(f.status)));
+    return !!f.quando && new Date(f.quando).getTime() <= agora - horas * 3600_000;
+  };
+  const noPrazo = vermelhos.filter(f => !descansou(f)).length;
+  // Quem o TETO DE VOLTAS barrou (so o vermelho tem teto): contado separado,
+  // porque "descansando no degrau" e "estourou as voltas" se resolvem de
+  // formas diferentes.
+  const noTeto = vermelhos.filter(f =>
+    f.status === 'nao_atendeu' && (voltasDe.get(f.id) ?? 0) >= maxVoltas()).length;
   // Sem teto pro esquecido: "sempre tera os clientes retornando". O teto segue
   // valendo pro vermelho, cujo ciclo destrava as mensagens da regua da agenda.
   const naVez = vermelhos.filter(f =>
-    f.status !== 'nao_atendeu' || (voltasDe.get(f.id) ?? 0) < maxVoltas());
-  if (!naVez.length) return zero('ninguem_na_vez');
+    descansou(f) && (f.status !== 'nao_atendeu' || (voltasDe.get(f.id) ?? 0) < maxVoltas()));
+  if (!naVez.length) {
+    // "Ninguem na vez" e "todos dentro do degrau" sao coisas diferentes, e
+    // juntar as duas num motivo so esconderia a escada de quem le o tick.
+    logger.info('solar-reagenda', `fila parada: ${noPrazo} em negociacao dentro do degrau, `
+      + `${noTeto} vermelho(s) no teto de ${maxVoltas()} voltas, ${vermelhos.length} candidato(s)`);
+    if (noPrazo && !noTeto) return zero('todos_no_degrau');
+    return zero('ninguem_na_vez');
+  }
 
   const inicioDoDiaBRT = `${ymdSP(new Date(agora))}T00:00:00-03:00`;
   const feitosHoje = await supabase
@@ -508,6 +578,9 @@ export async function runReagendaSolarTick(
       .map(o => ({ ini: new Date(o.quando).getTime(), dur: duracaoDe(o.created_by) }));
     const dias = proximosDiasUteis(ymdSP(new Date(agora)), HORIZONTE_DIAS_UTEIS);
     const volta = (voltasDe.get(f.id) ?? 0) + 1;
+    // UMA conta de degrau, usada nos tres lugares: decidir se o card podia andar,
+    // escrever a linha e gravar o carimbo.
+    const degrau = degrauDaProximaVolta(estadoDe.get(f.id), String(f.status));
     // UMA leitura do relógio, ANTES do update. Ler de novo depois é pedir pra
     // classificar a ficha pelo status NOVO: o vermelho volta pra `agendado` na
     // mesma gravação, e aí ele se carimbaria como calado e deixaria de gastar o
@@ -540,7 +613,7 @@ export async function runReagendaSolarTick(
         break;
       }
 
-      const linha = linhaDoHistorico(f.quando, novo, volta, relogio);
+      const linha = linhaDoHistorico(f.quando, novo, volta, relogio, degrau);
     const { data: atualizado, error: erroUpd } = await supabaseGerador
       .from('agendamentos')
       .update({
@@ -597,7 +670,13 @@ export async function runReagendaSolarTick(
         {
           key: `${SOLAR_REAGENDA_PREFIX}${f.id}`,
           // `relogio` é o que separa as duas rampas.
-          value: { n: volta, ultimo: nowIso, de: f.quando, relogio: relogio === 'fala' ? 'fala' : 'mudo' },
+          // `status` e `degrau` sao a escada: a etiqueta desta volta e o degrau em
+          // que ela caiu. A proxima rodada compara a etiqueta de entao com esta.
+          value: {
+            n: volta, ultimo: nowIso, de: f.quando,
+            relogio: relogio === 'fala' ? 'fala' : 'mudo',
+            status: String(f.status), degrau,
+          },
           updated_at: nowIso,
         },
         { onConflict: 'key' },

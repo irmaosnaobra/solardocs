@@ -293,6 +293,47 @@ export function relogioDoCiclo(status: string): 'fala' | 'esquecido' | 'negocia'
 const ehNegociacaoStatus = (st: string): boolean => relogioDoCiclo(st) === 'negocia';
 const negociacaoH = (): number => num('EP_NEGOCIACAO_H', 48);
 /**
+ * ── A ESCADA DA NEGOCIAÇÃO (01/10/2026) ───────────────────────────────────
+ *
+ * Ordem do Thiago: "chave na mão, carregador, 50/50 e arrendamento, após
+ * receber sua etiqueta é agendado novamente 48 hrs; se manter uma dessas
+ * etiquetas, 72hrs; se manter novamente, 96; se manter novamente, 120hrs, e
+ * assim por diante até ter um fim".
+ *
+ * 48, 72, 96, 120: base 48 e passo 24. Sem teto, porque a frase é "assim por
+ * diante" e porque o fim é o destino do card, não um número de voltas.
+ *
+ * POR QUE ISSO É O CONTRÁRIO DE AFROUXAR A REGRA: o ciclo fixo de 48h trata
+ * igual a negociação que andou ontem e a que está parada há três semanas. A
+ * primeira merece o toque curto; a segunda, devolvida a cada 48h para sempre,
+ * come um horário da grade por semana sem nunca mudar de estado. A escada
+ * desacelera quem não anda e deixa a grade livre pra quem anda — e continua
+ * voltando, que é a parte que não muda.
+ *
+ * O QUE ZERA A ESCADA é a ETIQUETA MUDAR. `arrendamento` virando
+ * `chave_na_mao` é a negociação andando: o card volta pro degrau 1, com 48h.
+ * É por isso que `Estado` guarda o status.
+ */
+const passoNegociacaoH = (): number => num('EP_NEGOCIACAO_PASSO_H', 24);
+/** As horas de descanso do degrau `d`: 48, 72, 96, 120 … */
+export const horasDoDegrau = (d: number): number =>
+  negociacaoH() + passoNegociacaoH() * Math.max(0, Math.floor(d) - 1);
+/**
+ * O degrau da PRÓXIMA volta desta ficha.
+ *
+ * Etiqueta igual à da última volta sobe um degrau; etiqueta diferente, ou ficha
+ * que nunca voltou, começa no 1 (48h). Carimbo gravado antes de 01/10 não tem
+ * `status`, então ele cai no 1 também: a ficha ganha mais um 48h e a escada
+ * começa a contar da próxima — nenhuma ficha é pulada na virada.
+ */
+export function degrauDaProximaVolta(
+  estado: { status?: string; degrau?: number } | undefined, statusAgora: string,
+): number {
+  if (!estado?.status || estado.status !== statusAgora) return 1;
+  const d = Math.floor(Number(estado.degrau));
+  return (Number.isFinite(d) && d >= 1 ? d : 1) + 1;
+}
+/**
  * Quantos dias pra trás a varredura enxerga.
  *
  * Era 7, com a regra "reunião perdida há mais de 7 dias não é remarcação, é
@@ -369,6 +410,9 @@ const POR_TICK = 1;
  */
 const TENTATIVAS_POR_RODADA = 8;
 const JANELA_INICIO_H = 9;
+/** Teto da consulta de vencidas. 1000 é onde o PostgREST corta sozinho, então
+ *  pedir mais não traz mais — o que protege é o aviso quando ele é batido. */
+const LIMITE_VARREDURA = 1000;
 const JANELA_FIM_H = 19;
 /** Quantas vagas pedir pra escolher: uma grade cheia de segunda tem 8 horários,
  *  então 12 garante o dia inteiro mais folga pra cair no dia seguinte. */
@@ -409,7 +453,15 @@ function inicioDoDiaSeguinte(iso: string): number {
   return new Date(`${diaBRT(iso)}T00:00:00-03:00`).getTime() + 86400_000;
 }
 
-type Estado = { n: number; ultimo: string; de?: string };
+/**
+ * O estado do ciclo de uma ficha.
+ *
+ * `status` e `degrau` entraram em 01/10/2026 com a escada da negociação. Eles
+ * são a memória de "esta etiqueta já voltou quantas vezes seguidas": sem
+ * guardar a etiqueta, não existe como saber se ela MUDOU, e é a mudança que
+ * zera a escada.
+ */
+type Estado = { n: number; ultimo: string; de?: string; status?: string; degrau?: number };
 
 export type ResultadoReagendaAuto = {
   remarcados: number;
@@ -469,6 +521,7 @@ export function bolhasReagendado(
  *  isso, "vermelho parado" e "vermelho sendo trabalhado" são a mesma tela. */
 export function linhaDoHistorico(
   deIso: string, paraIso: string, tentativa: number, esquecido = false, negociacao = false,
+  degrau = 1,
 ): string {
   const carimbo = new Date().toLocaleString('pt-BR', {
     timeZone: BRT_TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
@@ -481,10 +534,17 @@ export function linhaDoHistorico(
   // Escrever "não apareceu" ali seria o cadastro inventando um fato.
   if (negociacao) {
     // Nem "não apareceu" nem "sem desfecho": esta ficha está em NEGOCIAÇÃO e
-    // volta pela régua das 48h, pra alguém dar destino a ela.
-    return `[${carimbo} · Sistema] 🔁 Ciclo de ${negociacaoH()}h (${tentativa}ª volta): `
+    // volta pela escada, pra alguém dar destino a ela.
+    //
+    // A LINHA TEM QUE DIZER O DEGRAU E O PRÓXIMO INTERVALO. Sem isso, um card
+    // que volta em 5 dias em vez de 2 parece defeito, e a primeira coisa que
+    // alguém faz com o que parece defeito é desligar.
+    const total = tentativa !== degrau ? ` (${tentativa}ª no total)` : '';
+    return `[${carimbo} · Sistema] 🔁 Ciclo de ${horasDoDegrau(degrau)}h (${degrau}ª volta nesta etiqueta${total}): `
       + `a negociação parou desde ${de} e o card voltou pra *${para}*, nos quinze, `
       + 'com o mesmo consultor e o mesmo status. Nada foi enviado ao cliente. '
+      + `Se a etiqueta não mudar, a próxima volta é em ${horasDoDegrau(degrau + 1)}h; `
+      + `mudar de etiqueta recomeça em ${horasDoDegrau(1)}h. `
       + 'Ele sai desta roda fechando, marcando Sem interesse ou pondo em Apalavrado.';
   }
   if (esquecido) {
@@ -563,7 +623,7 @@ export async function candidatosDoOutroDia(
  * linha nenhuma.
  */
 async function gravarNovoHorario(
-  f: FichaVermelha, candidatos: string[], tentativa: number,
+  f: FichaVermelha, candidatos: string[], tentativa: number, degrau = 1,
 ): Promise<string | null> {
   // NEGOCIAÇÃO NÃO PERDE O STATUS. Um `chave_na_mao` volta como `chave_na_mao`:
   // forçar `agendado` apagaria a classificação do funil, que é a informação que
@@ -586,7 +646,8 @@ async function gravarNovoHorario(
   // com a mesma cor. Muda só o horário e a linha do histórico.
   const mudoAqui = negociacao || f.status === 'agendado';
   for (const novo of candidatos.slice(0, CANDIDATOS_MAX)) {
-    const linha = linhaDoHistorico(String(f.quando), novo, tentativa, f.status === 'agendado', negociacao);
+    const linha = linhaDoHistorico(
+      String(f.quando), novo, tentativa, f.status === 'agendado', negociacao, degrau);
     const { data, error } = await supabaseGerador.from('agendamentos')
       .update({
         quando: novo,
@@ -705,10 +766,24 @@ export async function runEletropostoReagendaAutoTick(
     .gte('quando', de)
     .lte('quando', ate)
     .order('quando', { ascending: false })
-    .limit(400);
+    .limit(LIMITE_VARREDURA);
   if (error) {
     logger.error('ep-reagenda', 'ler as fichas vencidas falhou', error);
     return { ...zero('erro_leitura'), erros: 1 };
+  }
+  // ── CORTE SILENCIOSO É O PIOR TIPO DE CORTE ──────────────────────────────
+  //
+  // A consulta ordena por `quando` DESC, então o que ela corta no limite é o
+  // MAIS ANTIGO — exatamente a ficha mais esquecida, que é a razão de o módulo
+  // existir. E a escada piora isso de propósito: card que descansa mais tempo
+  // fica mais tempo com o horário no passado, então o conjunto de vencidos
+  // CRESCE. Hoje são ~160 e o limite é 1000, mas "hoje cabe" não é garantia.
+  //
+  // Não dá pra resolver só subindo o número: o PostgREST corta em 1000 e ignora
+  // `.limit()` acima disso. O que dá, e é o que importa, é NÃO CORTAR CALADO.
+  if ((data?.length ?? 0) >= LIMITE_VARREDURA) {
+    logger.warn('ep-reagenda', `a varredura bateu no limite de ${LIMITE_VARREDURA} fichas: `
+      + 'as mais ANTIGAS ficaram de fora desta rodada. Paginar por range virou necessidade.');
   }
 
   const candidatos = ((data ?? []) as FichaVermelha[]).filter(f =>
@@ -717,7 +792,10 @@ export async function runEletropostoReagendaAutoTick(
     // frouxo (45 min) porque ela é uma só pros dois status; quem aperta o corte
     // certo é esta linha.
     && (f.status !== 'agendado' || (!!f.quando && f.quando <= corteEsquecido))
-    // Negociação: 48h desde o último horário dela.
+    // Negociação: este corte é o PISO da escada (o degrau 1, 48h). Quem sabe o
+    // degrau de cada ficha é o `estadoDe`, que só é lido depois daqui — então o
+    // corte exato é aplicado no `naVez`. Peneirar aqui pelo piso é de graça e
+    // não exclui ninguém que esteja no prazo: nenhum degrau pede MENOS que 48h.
     && (!ehNegociacaoStatus(String(f.status)) || (!!f.quando && f.quando <= corteNegociacao))
     // Rede: status sem relógio nenhum não entra. A consulta já corta destino
     // final e apalavrado; isto segura se alguém mexer na consulta.
@@ -760,7 +838,19 @@ export async function runEletropostoReagendaAutoTick(
   for (const r of estados ?? []) {
     const id = Number(String(r.key).slice(EP_REAGENDA_PREFIX.length));
     const v = (r.value ?? {}) as Partial<Estado>;
-    if (Number.isInteger(id) && typeof v.n === 'number' && v.ultimo) estadoDe.set(id, { n: v.n, ultimo: v.ultimo });
+    if (!Number.isInteger(id)) continue;
+    // `n` e `ultimo` são do CONTADOR DE VOLTAS; `status` e `degrau` são da
+    // ESCADA. Exigir os dois primeiros pra guardar os dois últimos (como esta
+    // linha fazia) significa que um carimbo com a escada mas sem `ultimo` faria
+    // a ficha parecer degrau 1 — e o leitor do solar, que não exige nada, daria
+    // outra resposta pro mesmo dado. Duas leituras do mesmo carimbo têm que
+    // concordar.
+    estadoDe.set(id, {
+      n: typeof v.n === 'number' ? v.n : 0,
+      ultimo: typeof v.ultimo === 'string' ? v.ultimo : '',
+      ...(typeof v.status === 'string' ? { status: v.status } : {}),
+      ...(typeof v.degrau === 'number' ? { degrau: v.degrau } : {}),
+    });
   }
   // Oferta na mesa é qualquer `ep_remarcar:<id>` das últimas 24h — o mesmo prazo
   // que o fluxo reativo usa pra aceitar uma escolha.
@@ -785,9 +875,36 @@ export async function runEletropostoReagendaAutoTick(
   // dizer "você não apareceu" vinte vezes, não.
   const semTeto = (f: FichaVermelha) =>
     f.status === 'agendado' || ehNegociacaoStatus(String(f.status));
+  // ── O CORTE EXATO DA ESCADA, FICHA POR FICHA ─────────────────────────────
+  //
+  // Só a negociação tem escada. O vermelho (45 min) e o esquecido (6h) já foram
+  // cortados na peneira de cima, com relógio fixo, e aqui passam direto.
+  const descansou = (f: FichaVermelha): boolean => {
+    if (relogioDoCiclo(String(f.status)) !== 'negocia') return true;
+    const horas = horasDoDegrau(degrauDaProximaVolta(estadoDe.get(f.id), String(f.status)));
+    return !!f.quando && new Date(f.quando).getTime() <= agora - horas * 3600_000;
+  };
+  const noPrazo = candidatos.filter(f => !descansou(f)).length;
+  // Quem a fila barrou pelo TETO DE VOLTAS (só o vermelho tem teto). Contado
+  // separado porque "descansando no degrau" e "estourou as 3 voltas" se
+  // resolvem de formas diferentes, e um motivo só esconderia o segundo.
+  const noTeto = candidatos.filter(f =>
+    !semTeto(f) && (estadoDe.get(f.id)?.n ?? 0) >= maxVoltas()).length;
   const naVez = candidatos.filter(f =>
-    !comOferta.has(f.id) && (semTeto(f) || (estadoDe.get(f.id)?.n ?? 0) < maxVoltas()));
-  if (!naVez.length) return zero('ninguem_na_vez');
+    !comOferta.has(f.id) && descansou(f)
+    && (semTeto(f) || (estadoDe.get(f.id)?.n ?? 0) < maxVoltas()));
+  if (!naVez.length) {
+    // Dois motivos diferentes, e confundi-los esconde a escada: "ninguém na vez"
+    // é fila vazia; "todos descansando" é fila cheia de gente dentro do prazo.
+    // O log diz SEMPRE os dois números. O motivo só vira `todos_no_degrau`
+    // quando a escada é a única coisa segurando a fila: se há vermelho
+    // estourado no teto, dizer "todos no degrau" mandaria a gente esperar o
+    // relógio por um card que só sai com decisão de gente.
+    logger.info('ep-reagenda', `fila parada: ${noPrazo} em negociação dentro do degrau, `
+      + `${noTeto} vermelho(s) no teto de ${maxVoltas()} voltas, ${candidatos.length} candidato(s)`);
+    if (noPrazo && !noTeto) return zero('todos_no_degrau');
+    return zero('ninguem_na_vez');
+  }
 
   // A RAMPA DO DIA. Conta quantas fichas já foram remarcadas hoje e para no teto.
   //
@@ -907,6 +1024,10 @@ export async function runEletropostoReagendaAutoTick(
     // primeira ficha não tem vaga.
     if (remarcados >= POR_TICK) break;
     const tentativa = (estadoDe.get(f.id)?.n ?? 0) + 1;
+    // O degrau da escada. UMA conta, usada nos três lugares: decidir se a
+    // ficha podia andar (lá no `descansou`), escrever a linha do card e gravar
+    // o carimbo. Recalcular em cada lugar seria convidar os três a discordar.
+    const degrau = degrauDaProximaVolta(estadoDe.get(f.id), String(f.status));
     const quem = String(f.vendedor_nome);
     try {
       const ehNegociacao = ehNegociacaoStatus(String(f.status));
@@ -929,7 +1050,7 @@ export async function runEletropostoReagendaAutoTick(
         continue;
       }
 
-      const novo = await gravarNovoHorario(f, lista, tentativa);
+      const novo = await gravarNovoHorario(f, lista, tentativa, degrau);
       if (!novo) continue;
 
       // A partir daqui a reunião JÁ mudou. A tentativa é contada aqui, no que
@@ -940,7 +1061,13 @@ export async function runEletropostoReagendaAutoTick(
           key: `${EP_REAGENDA_PREFIX}${f.id}`,
           // `relogio` é o que separa as duas rampas. Sem ele a conta volta a ser
           // uma só e o calado fica preso atrás do que fala.
-          value: { n: tentativa, ultimo: nowIso, de: f.quando, relogio },
+          // `status` e `degrau` são a escada: a etiqueta desta volta e em que
+          // degrau ela caiu. A próxima rodada compara a etiqueta de então com
+          // esta — igual sobe, diferente zera.
+          value: {
+            n: tentativa, ultimo: nowIso, de: f.quando, relogio,
+            status: String(f.status), degrau,
+          },
           updated_at: nowIso,
         },
         { onConflict: 'key' },
