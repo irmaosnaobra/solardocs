@@ -231,11 +231,30 @@ const ymdSP = (d: Date): string =>
 const isoDe = (ymd: string, hhmm: string): string =>
   new Date(`${ymd}T${hhmm}:00-03:00`).toISOString();
 
-/** Dia útil é segunda a sábado, sem feriado. Sábado entra: a agenda do solar
- *  trabalha sábado (é o que a grade da LP vende). */
+/**
+ * Dia útil é SEGUNDA A SEXTA, sem feriado.
+ *
+ * ── SÁBADO SAIU EM 01/10/2026, e o comentário que estava aqui era FALSO ──
+ *
+ * Ele dizia "sábado entra: a agenda do solar trabalha sábado (é o que a grade
+ * da LP vende)". A LP não vende: `dashboard/public/io/solar/index.html` fecha o
+ * fim de semana inteiro (`if (dow === 0 || dow === 6) return []`), e o
+ * `nilceParaGiovanna` e o `leadsMetaService` fecham também. Das QUATRO pontas
+ * que definem a semana do solar, esta era a única que discordava — e ela
+ * justificava a diferença com uma afirmação sobre as outras que não era
+ * verdade.
+ *
+ * O preço foi medido no dia em que o ciclo começou a devolver a base inteira:
+ * 30 cards foram parar no sábado 03/10, e 22 deles iam receber "bom dia, hoje
+ * tem ligação" numa manhã em que ninguém atende. Zero eram de eletroposto — o
+ * reciclo de lá usa `agendaAbre`, que sempre fechou o fim de semana.
+ *
+ * A regra da semana vive em quatro arquivos. Enquanto viver, ela precisa de um
+ * teste que compare os quatro, e é o que `semanaDoSolar.test.ts` faz.
+ */
 function ehDiaUtil(ymd: string): boolean {
   const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
-  return dow !== 0 && !ehFeriadoBR(ymd);
+  return dow !== 0 && dow !== 6 && !ehFeriadoBR(ymd);
 }
 
 function proximosDiasUteis(base: string, quantos: number): string[] {
