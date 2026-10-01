@@ -386,6 +386,7 @@
      reunião por acontecer (azul), não é venda (verde) e não é perda
      (vermelho). É o aperto de mão esperando a peça que falta. */
   .slot.status-apalavrado        { background: #F59E0B; color: #2A1D00; }
+  .btn-status.bg-ap{background:linear-gradient(135deg,#FCD34D 0%,#F59E0B 100%);color:#2A1D00}
   .slot.status-perdido           { background: #dc2626; color: #fff; }
   /* As mesmas cores dentro do quadro dividido: a metade é que recebe o status,
      não o slot. Sem isto as duas ficariam azuis, mentindo o status de uma delas. */
@@ -857,6 +858,23 @@
   .posse-btn.inq{background:#FF3131;color:#200000}
   .posse-btn.rep{background:#FFE500;color:#221E00}
   .posse-btn:hover{filter:brightness(1.08)}
+  /* A SALA DE ESPERA (01/10/2026). Ambar, a mesma cor da coluna no CRM e do
+     card nesta grade: nao e reuniao por acontecer (azul), nem venda (verde),
+     nem perda (vermelho). */
+  .espera-box{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.5)}
+  .espera-box[hidden]{display:none}
+  .espera-in{width:100%;box-sizing:border-box;margin-bottom:8px;padding:9px 10px;border-radius:8px;
+    border:1px solid rgba(148,163,184,.35);background:rgba(15,23,42,.5);color:#E5E7EB;font-family:inherit;font-size:13px}
+  .espera-conta{font-size:11px;color:#94A3B8;margin:-4px 0 4px;text-align:right}
+  .espera-conta.ok{color:#7DD117}
+  .espera-lbl{display:block;font-size:11px;font-weight:700;color:#FCD34D;margin:8px 0 4px}
+  .espera-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+  .espera-atalho{padding:8px 6px;border-radius:8px;font-family:inherit;font-weight:700;font-size:12px;cursor:pointer;
+    background:rgba(245,158,11,.18);border:1px solid rgba(245,158,11,.45);color:#FCD34D}
+  .espera-atalho:hover{background:rgba(245,158,11,.3)}
+  .espera-ok{width:100%;margin-top:8px;padding:12px;border-radius:8px;border:0;font-family:inherit;font-weight:800;
+    font-size:13px;cursor:pointer;background:#F59E0B;color:#2A1D00}
+  .espera-ok:disabled{opacity:.45;cursor:not-allowed}
   .posse-nota{font-size:11px;margin-top:8px;opacity:.75;line-height:1.35}
   .status-grid {
     display: grid;
@@ -893,7 +911,8 @@
   .btn-status.bg-fe.is-atual,
   .btn-status.bg-cr.is-atual,
   .btn-status.bg-mm.is-atual,
-  .btn-status.bg-ch.is-atual { outline-color: rgba(17,24,39,.75); }
+  .btn-status.bg-ch.is-atual,
+  .btn-status.bg-ap.is-atual { outline-color: rgba(17,24,39,.75); }
   .btn-status.bg-ag { background: #0d2d5e; color: #fff; }
   .btn-status.bg-na { background: #dc2626; color: #fff; }
   .btn-status.bg-wp { background: #D0DCE9; color: #1f2937; }
@@ -1358,6 +1377,10 @@
            marca "Sem interesse". O status velho continua VIVO nos mapas de rótulo
            e nas cores: fichas antigas o carregam e apareceriam sem selo, e a api
            ainda o lê (STATUS_ENCERRADOS, CRM_STATUS_PERDIDO). Só o botão sumiu. -->
+      <!-- APALAVRADO (01/10/2026) — a margem entre o perdido e o vendido. Já
+           existia no quadro do CRM; faltava AQUI, que é onde o consultor fecha o
+           card no dia a dia. Botão sem o lugar certo é botão que ninguém aperta. -->
+      <button type="button" class="btn-status bg-ap" data-status="apalavrado"       onclick="atualizarStatus('apalavrado')" style="grid-column: span 2;">🤞 Apalavrado (espera)</button>
       <button type="button" class="btn-status bg-fe" data-status="fechou"            onclick="atualizarStatus('fechou')" style="grid-column: span 2;">🏆 Vendido</button>
     </div>
 
@@ -1370,6 +1393,26 @@
         <button type="button" class="posse-btn rep" onclick="atualizarStatus('arrendamento',{ponto_relacao:'Represento o proprietário'})">REPRESENTA O DONO</button>
       </div>
       <div class="posse-nota">Se o local ainda não é dele, ele não pode ceder (contrato, cl. 16.1): não é arrendamento.</div>
+    </div>
+
+    <!-- ESPERA: abre ao apertar APALAVRADO. Os dois campos sao obrigatorios e a
+         mesma regra vale no servidor, porque validacao de tela cai com PWA em
+         cache velho. Só o segundo toque grava, igual à posse do arrendamento. -->
+    <div id="d-espera" class="espera-box" hidden>
+      <div class="posse-tit">Apalavrado: o que está esperando, e até quando?</div>
+      <textarea id="d-espera-oque" class="espera-in" rows="2" maxlength="400"
+                oninput="esperaValida()"
+                placeholder="O que está esperando? Ex.: apalavrado no 50/50, esperando o investidor confirmar"></textarea>
+      <div class="espera-conta"><span id="d-espera-cont">0</span>/20 caracteres</div>
+      <label class="espera-lbl" for="d-espera-data">Voltar para mim em</label>
+      <input id="d-espera-data" class="espera-in" type="date" onchange="esperaValida()">
+      <div class="espera-grid">
+        <button type="button" class="espera-atalho" onclick="esperaEmDias(30)">+30 dias</button>
+        <button type="button" class="espera-atalho" onclick="esperaEmDias(60)">+60 dias</button>
+        <button type="button" class="espera-atalho" onclick="esperaEmDias(90)">+90 dias</button>
+      </div>
+      <button type="button" class="espera-ok" id="d-espera-ok" disabled onclick="apalavrar()">Pôr na espera</button>
+      <div class="posse-nota">Ele sai do ciclo de 48h e para de receber cobrança. Na data, o card volta marcado como vencido.</div>
     </div>
 
     <!-- APRESENTAÇÃO (23/09/2026): etiqueta verde ou vermelha no card. Vale pra
@@ -2416,8 +2459,64 @@ function marcarTemperaturaAtualNosBotoes(temp) {
 function fecharModalDet() {
   document.getElementById('modal-det').classList.remove('show');
 }
+const APALAVRADO_MIN_TEXTO = 20;
+/** Rewrite do dashboard: /_api/* cai em api.solardoc.app/*. */
+const API_ESPERA = (location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api');
+
+/** Liga o botão só com os DOIS campos preenchidos, e mostra o contador. Sem
+ *  isto o consultor descobre a regra levando erro 400 do servidor. */
+function esperaValida() {
+  const txt = document.getElementById('d-espera-oque');
+  const dia = document.getElementById('d-espera-data');
+  const cont = document.getElementById('d-espera-cont');
+  const ok = document.getElementById('d-espera-ok');
+  const n = txt ? String(txt.value || '').trim().length : 0;
+  if (cont) { cont.textContent = n; cont.parentElement.classList.toggle('ok', n >= APALAVRADO_MIN_TEXTO); }
+  const vale = n >= APALAVRADO_MIN_TEXTO && !!(dia && dia.value);
+  if (ok) ok.disabled = !vale;
+  return vale;
+}
+
+/** Os atalhos PREENCHEM a data, não gravam: quem decide o prazo é o consultor. */
+function esperaEmDias(dias) {
+  const dia = document.getElementById('d-espera-data');
+  if (!dia) return;
+  const d = new Date();
+  d.setDate(d.getDate() + dias);
+  const p2 = n => String(n).padStart(2, '0');
+  dia.value = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+  esperaValida();
+}
+
+function apalavrar() {
+  if (!esperaValida()) return;
+  const oque = String(document.getElementById('d-espera-oque').value || '').trim();
+  const data = String(document.getElementById('d-espera-data').value || '');
+  atualizarStatus('apalavrado', { __retomar: data, __oque: oque });
+}
+
 async function atualizarStatus(novoStatus, extra) {
   if (!detalheAtual) return;
+  // APALAVRADO abre a pergunta do prazo, e só o segundo toque grava. Gravar no
+  // primeiro criaria espera sem data, que é a gaveta que este status existe
+  // pra não ser.
+  if (novoStatus === 'apalavrado' && !(extra && extra.__retomar)) {
+    const box = document.getElementById('d-espera');
+    if (box) {
+      const posse = document.getElementById('d-posse');
+      if (posse) posse.hidden = true;
+      box.hidden = !box.hidden;
+      if (!box.hidden) {
+        const txt = document.getElementById('d-espera-oque');
+        const dia = document.getElementById('d-espera-data');
+        if (txt) txt.value = '';
+        if (dia) dia.value = '';
+        esperaValida();
+        if (txt) txt.focus();
+      }
+    }
+    return;
+  }
   // ARRENDAMENTO pergunta de quem e o local ANTES de gravar: o primeiro toque so
   // abre os tres botoes, e e o segundo que grava status + posse juntos. Apertar de
   // novo num card que ja e arrendamento reabre, pra corrigir a posse.
@@ -2427,8 +2526,35 @@ async function atualizarStatus(novoStatus, extra) {
     return;
   }
   if (detalheAtual.status === novoStatus && !extra) { fecharModalDet(); return; }
+  // `__retomar`/`__oque` são da espera e NÃO são coluna de `agendamentos`:
+  // mandá-los no PATCH derrubaria o próprio botão com erro de coluna.
+  const espera = extra && extra.__retomar ? { retomar: extra.__retomar, oque: extra.__oque || '' } : null;
+  if (extra) { delete extra.__retomar; delete extra.__oque; }
+  const idAlvo = detalheAtual.id;
   try {
-    await supaPatch(`agendamentos?id=eq.${detalheAtual.id}`, { status: novoStatus, ...(extra || {}) });
+    await supaPatch(`agendamentos?id=eq.${idAlvo}`, { status: novoStatus, ...(extra || {}) });
+    // A espera mora no `system_state` (Supabase principal), então quem grava é
+    // a API. Sair da espera apaga o carimbo, senão um prazo velho continuaria
+    // calando um card que voltou a negociar.
+    try {
+      if (espera) {
+        const r = await fetch(`${API_ESPERA}/gerador/apalavrado`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: idAlvo, retomar_em: espera.retomar, aguardando: espera.oque,
+            por: (function(){ try { return consultorLogado() || ''; } catch (e) { return ''; } })() }),
+        });
+        if (!r.ok) {
+          const det = await r.json().catch(() => ({}));
+          alert('O status foi salvo, mas a espera NAO: ' + (det.error || 'erro')
+            + '. Abra o card e marque Apalavrado de novo, senao ele dorme o prazo padrao.');
+        }
+      } else if (novoStatus !== 'apalavrado') {
+        await fetch(`${API_ESPERA}/gerador/apalavrado/soltar`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: idAlvo }),
+        });
+      }
+    } catch (e) { console.warn('espera nao gravada', e); }
     fecharModalDet();
     const labels = {
       agendado:          '📞 Marcado como Agendada',
@@ -2445,6 +2571,7 @@ async function atualizarStatus(novoStatus, extra) {
       chave_na_mao:      '🔑 Marcado como Chave na mão — o eletroposto é dele',
       fechou_concorrente:'🏢 Marcado como Fechou concorrente',
       perdido:           '❌ Marcado como Perdido',
+      apalavrado:        '🤞 APALAVRADO — sai do ciclo e volta na data',
       fechou:            '🏆 Marcado como VENDIDO',
     };
     showToast((labels[novoStatus] || 'Status atualizado')
