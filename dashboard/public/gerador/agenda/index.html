@@ -241,6 +241,12 @@
      entao precisa desfazer o tratamento de card escuro — e vem DEPOIS dele. */
   .ocupado.sem-resposta .hora-exata,
   .ocupado.sem-resposta .tag-pill:not([class*=" tag-"]) { background: rgba(31,41,55,.16); color: #1f2937; }
+  /* O card em espera é CLARO e pode carregar um status ESCURO junto (um
+     `agendado` apalavrado é o caso comum). Sem desfazer, o chip da hora e as
+     pílulas sairiam brancos sobre amarelo. Mesmo remédio do NÃO CONFIRMOU, e
+     pela mesma razão: vem DEPOIS da lista dos escuros. */
+  .ocupado.em-espera .hora-exata,
+  .ocupado.em-espera .tag-pill:not([class*=" tag-"]) { background: rgba(31,41,55,.16); color: #1f2937; }
   .slot.ocupado .cidade {
     font-size: 10px;
     opacity: .8;
@@ -288,7 +294,12 @@
      quadro já usa (#F59E0B) — mesmo estado, mesma cor nas duas telas. Texto quase
      preto porque o âmbar é claro. Vermelha quando o prazo venceu: aí não é mais
      espera, é cobrança. */
-  .tag-modelo.tag-espera { background: #F59E0B; color: #3B2A00; }
+  /* A pílula da espera nasceu âmbar porque o card era bege. Agora que o CARD é
+     âmbar, ela voltou ao preto das outras: âmbar sobre âmbar não se lê, e a cor
+     do card já diz que ele está em espera. A pílula ficou com o que a cor não
+     diz, que é a DATA. Vermelha segue valendo: prazo vencido não é mais espera,
+     é cobrança, e ela precisa saltar do amarelo. */
+  .tag-modelo.tag-espera { background: #000; color: #fff; }
   .tag-modelo.tag-espera.venceu { background: #dc2626; color: #fff; }
   .tag-pill {
     display: inline-block;
@@ -390,6 +401,16 @@
      reunião por acontecer (azul), não é venda (verde) e não é perda
      (vermelho). É o aperto de mão esperando a peça que falta. */
   .slot.status-apalavrado        { background: #F59E0B; color: #2A1D00; }
+  /* ── O CARD APALAVRADO É AMARELO (01/10/2026, ordem do dono) ─────────────
+     Desde que APALAVRADO virou MARCA e parou de sobrescrever a etiqueta, o card
+     ficava com a cor da negociação dele (o bege dos quatro modelos) e só a
+     pílula dizia que ele estava em espera. Pílula não se vê de longe; cor sim.
+     É o mesmo âmbar que o status antigo usava e que a coluna APALAVRADO do
+     quadro usa: mesmo estado, mesma cor nas três telas.
+     VEM DEPOIS das cores de status de propósito. `.slot.em-espera` e
+     `.slot.status-chave_na_mao` têm a MESMA especificidade (duas classes), então
+     quem ganha é quem vem por último. Subir esta regra apaga o amarelo. */
+  .slot.em-espera                { background: #F59E0B; color: #2A1D00; }
   .btn-status.bg-ap{background:linear-gradient(135deg,#FCD34D 0%,#F59E0B 100%);color:#2A1D00}
   .slot.status-perdido           { background: #dc2626; color: #fff; }
   /* As mesmas cores dentro do quadro dividido: a metade é que recebe o status,
@@ -410,6 +431,7 @@
   .slot.dividido .meia.status-meio_a_meio       { background: #EADBC0; color: #1f2937; }
   .slot.dividido .meia.status-chave_na_mao      { background: #EADBC0; color: #1f2937; }
   .slot.dividido .meia.status-apalavrado        { background: #F59E0B; color: #2A1D00; }
+  .slot.dividido .meia.em-espera                { background: #F59E0B; color: #2A1D00; }
   .slot.dividido .meia.status-perdido           { background: #dc2626; color: #fff; }
   /* ── SILÊNCIO DO LEAD (ordem do Thiago, 19/08/2026) ──────────────────────────
      "O lead do horário que não responder a primeira msg fica em amarelo."
@@ -484,6 +506,8 @@
   /* "NAO CONFIRMOU": card claro que carrega 'status-agendado'. Desfaz, e vem depois. */
   .ocupado.sem-resposta .ok-btn { background: rgba(31,41,55,.14); color: #1f2937; }
   .ocupado.sem-resposta .ok-btn:hover { background: rgba(31,41,55,.28); color: #1f2937; }
+  .ocupado.em-espera .ok-btn { background: rgba(31,41,55,.14); color: #1f2937; }
+  .ocupado.em-espera .ok-btn:hover { background: rgba(31,41,55,.28); color: #1f2937; }
   /* CONFIRMADO tem botao proprio, e por ultimo: antes ele empatava em
      especificidade com a lista dos escuros e perdia por vir antes — regra morta. */
   .ocupado.confirmado .ok-btn { background: #34d399; color: #052e1f; }
@@ -1101,6 +1125,7 @@
   html[data-theme="dark"] .slot.status-meio_a_meio       { background: #EADBC0; color: #1f2937; }
   html[data-theme="dark"] .slot.status-chave_na_mao      { background: #EADBC0; color: #1f2937; }
   html[data-theme="dark"] .slot.status-apalavrado        { background: #F59E0B; color: #2A1D00; }
+  html[data-theme="dark"] .slot.em-espera                { background: #F59E0B; color: #2A1D00; }
   html[data-theme="dark"] .slot.status-perdido           { background: #dc2626; color: #fff; }
   html[data-theme="dark"] .slot.bloqueado {
     background: repeating-linear-gradient(45deg, #6b7280, #6b7280 6px, #525c6a 6px, #525c6a 12px);
@@ -1746,6 +1771,12 @@ function pillEtiquetaGuardada(ag) {
   return r ? `<span class="tag-modelo">${r[0]}</span>` : '';
 }
 
+/** `' em-espera'` quando o card esta na sala de espera, pra pintar ele de
+ *  amarelo. String vazia quando nao esta. */
+function classeEspera(ag) {
+  return (ag && esperasCache[String(ag.id)]) ? ' em-espera' : '';
+}
+
 /** O selo da espera, ou string vazia. `volta DD/MM` enquanto o prazo corre,
  *  `PRAZO VENCEU` depois dele — mesma régua do quadro do CRM, porque é o mesmo
  *  dado e duas réguas divergem. */
@@ -2003,7 +2034,7 @@ function renderGrid() {
             const etq = etqDeLead(a.created_by, a.src);
             const etqCls = (typeof etiquetaCor === 'function' ? etiquetaCor(etq) : '');
             const okA = !!a.presenca_confirmada_at;
-            return `<div class="meia ocupado status-${escapeHtml(a.status || 'agendado')}${okA ? ' confirmado' : ''}${semRespostaDoLead(a) ? ' sem-resposta' : ''}"
+            return `<div class="meia ocupado status-${escapeHtml(a.status || 'agendado')}${classeEspera(a)}${okA ? ' confirmado' : ''}${semRespostaDoLead(a) ? ' sem-resposta' : ''}"
               data-id="${a.id}" onclick="abrirDetalhes(${a.id})" title="${escapeHtml(a.cliente_nome || '')}">
               <div class="nome">${horaDoSlot(a, iniSlot)}${escapeHtml(a.cliente_nome)}</div>
               ${(pillStatus(a, true) || pontoApres(a) || etq) ? `<div class="cidade">${pillStatus(a, true)}${pontoApres(a)}${etq ? ` <span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>` : ''}</div>` : ''}
@@ -2011,7 +2042,7 @@ function renderGrid() {
             </div>`;
           }).join('') + `</div>`;
         } else if (ag) {
-          const stCls = `status-${(ag.status || 'agendado')}`;
+          const stCls = `status-${(ag.status || 'agendado')}${classeEspera(ag)}`;
           const tempCls = ag.temperatura ? ` temp-${ag.temperatura}` : '';
           const tempLabel = ag.temperatura === 'frio'   ? 'FRIO'
                           : ag.temperatura === 'morno'  ? 'MORNO'
