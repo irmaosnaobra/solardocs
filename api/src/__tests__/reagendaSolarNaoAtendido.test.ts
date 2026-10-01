@@ -185,6 +185,32 @@ describe('mover o card', () => {
     expect(updates[0].patch.historico).toContain('não atendeu');
   });
 
+  // ── A LINHA MUDA COM O RELÓGIO (01/10/2026) ─────────────────────────────
+  //
+  // Havia um texto só, "não atendeu em X", e ele é fato apenas quando alguém
+  // apertou NÃO ATENDEU. Medido em 01/10: os 20 cards que o módulo moveu naquele
+  // dia estavam TODOS em `agendado`, e os 20 ficaram com "não atendeu" escrito
+  // no histórico, com um `/2` de um teto que não se aplica a eles. Cadastro que
+  // inventa um fato é pior que cadastro calado: alguém lê e cobra o cliente.
+  it('o card esquecido não é acusado de falta, e não promete teto nenhum', async () => {
+    vermelhos = [card({ status: 'agendado', quando: '2026-09-29T11:15:00.000Z' })];
+    await tick();
+    const linha = String(updates[0].patch.historico);
+    expect(linha).not.toContain('não atendeu');
+    expect(linha).not.toMatch(/automática \d+\/\d+/);   // sem denominador: este caminho não tem teto
+    expect(linha).toContain('sem desfecho');
+    expect(linha).toContain('Nada foi enviado ao cliente');
+  });
+
+  it('o card em negociação diz que é o ciclo de 48h, e como se sai dele', async () => {
+    vermelhos = [card({ status: 'fez_orcamento', quando: '2026-09-25T11:15:00.000Z' })];
+    await tick();
+    const linha = String(updates[0].patch.historico);
+    expect(linha).toContain('Ciclo de 48h (1ª volta)');
+    expect(linha).not.toContain('não atendeu');
+    expect(linha).toContain('Apalavrado');
+  });
+
   it('o histórico antigo não é apagado', async () => {
     vermelhos = [card({ historico: 'linha velha' })];
     await tick();
@@ -324,6 +350,78 @@ describe('a rampa diária', () => {
   it('rampa em 0 congela sem precisar do kill-switch', async () => {
     process.env.SOLAR_REAGENDA_POR_DIA = '0';
     expect((await tick()).motivo).toBe('rampa_do_dia_cheia');
+  });
+
+  // ── CADA RELÓGIO TEM A RAMPA DELE (01/10/2026) ──────────────────────────
+  //
+  // A rampa de cima é dimensionada por MENSAGEM: cada card vermelho que volta
+  // gera bom dia + oi. O card esquecido e o card em negociação não mandam nada,
+  // e ficavam presos atrás do vermelho: medido em 01/10, o solar fechou a rampa
+  // às 00h40 e deixou 116 cards esperando o dia virar.
+  const carimbo = (id: number, relogio?: 'fala' | 'mudo') => {
+    const hoje = AGORA.toISOString();
+    state.set(`solar_reagenda:${id}`, {
+      key: `solar_reagenda:${id}`,
+      value: { n: 1, ultimo: hoje, ...(relogio ? { relogio } : {}) },
+      updated_at: hoje,
+    });
+  };
+
+  it('a rampa cheia do vermelho NÃO segura o card calado', async () => {
+    process.env.SOLAR_REAGENDA_POR_DIA = '1';
+    carimbo(901, 'fala');
+    vermelhos = [card({ status: 'agendado', quando: '2026-09-29T11:15:00.000Z' })];
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  it('mas a rampa do calado também fecha, no número dela', async () => {
+    process.env.SOLAR_REAGENDA_MUDO_POR_DIA = '1';
+    carimbo(901, 'mudo');
+    vermelhos = [card({ status: 'agendado', quando: '2026-09-29T11:15:00.000Z' })];
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(r.motivo).toBe('rampa_do_dia_cheia');
+  });
+
+  // Carimbo gravado antes de 01/10 não tem `relogio`. Contar como calado faria o
+  // que já foi FALADO hoje deixar de gastar o teto que protege a linha, no dia
+  // exato da virada. Conta como `fala`.
+  it('carimbo sem `relogio` gasta a rampa do vermelho, não a do calado', async () => {
+    process.env.SOLAR_REAGENDA_POR_DIA = '1';
+    process.env.SOLAR_REAGENDA_MUDO_POR_DIA = '1';
+    carimbo(901);
+    expect((await tick()).motivo).toBe('rampa_do_dia_cheia');   // o vermelho parou
+    vermelhos = [card({ status: 'agendado', quando: '2026-09-29T11:15:00.000Z' })];
+    expect((await tick()).remarcados).toBe(1);                   // o calado andou
+  });
+
+  it('o carimbo que o módulo grava diz de qual relógio ele é', async () => {
+    await tick();
+    expect(state.get('solar_reagenda:1')?.value?.relogio).toBe('fala');
+    state.clear();
+    vermelhos = [card({ status: 'agendado', quando: '2026-09-29T11:15:00.000Z' })];
+    await tick();
+    expect(state.get('solar_reagenda:1')?.value?.relogio).toBe('mudo');
+  });
+
+  // ── A FILA ANDA MESMO QUANDO O PRIMEIRO NÃO PODE (01/10/2026) ───────────
+  //
+  // `POR_TICK = 1` pegava o primeiro da fila e, se ele não pudesse se mover,
+  // devolvia zero. A ordem não muda entre ticks, então a rodada seguinte tentava
+  // o MESMO card: um card travado parava a fila inteira com a rampa vazia.
+  it('primeiro card já com ligação marcada: a rodada move o seguinte', async () => {
+    vermelhos = [
+      card({ id: 41, cliente_telefone: '5534900000041' }),
+      card({ id: 42, cliente_telefone: '5534900000042', quando: '2026-09-24T11:15:00.000Z' }),
+    ];
+    // O 41 já tem horário futuro: mover criaria a mesma pessoa em dois lugares.
+    futura = [{
+      id: 999, quando: '2026-10-05T14:00:00.000Z', vendedor_nome: 'Giovanna',
+      cliente_telefone: '5534900000041', created_by: 'lead-meta', status: 'agendado',
+    }] as any;
+    const r = await tick();
+    expect(r.remarcados).toBe(1);
+    expect(updates.map(u => u.id)).toEqual([42]);
   });
 
   // FAIL-CLOSED nas duas leituras que seguram repetição.

@@ -77,6 +77,14 @@ const desligado = (): boolean => (process.env.SOLAR_REAGENDA_OFF || '').trim() =
 /** A rampa. Ver o comentário do cabeçalho: é o único freio de volume que existe
  *  aqui, então ela é load-bearing. */
 export const tetoPorDia = (): number => num('SOLAR_REAGENDA_POR_DIA', 10);
+/**
+ * A rampa dos CALADOS, que é outra conta (01/10/2026). Mesma mudança do
+ * eletroposto, pelo mesmo motivo: a rampa de cima foi dimensionada por volume
+ * de MENSAGEM, e os caminhos silenciosos não mandam nenhuma. Com uma rampa só,
+ * o calado ficava preso atrás do que fala — medido em 01/10, o solar fechou a
+ * rampa às 00h40 e deixou 116 cards esperando o dia virar.
+ */
+export const tetoMudoPorDia = (): number => num('SOLAR_REAGENDA_MUDO_POR_DIA', 200);
 /** Piso: card com horário anterior a isto nunca é movido. */
 const inicioPiso = (): string =>
   (process.env.SOLAR_REAGENDA_INICIO || '').trim() || '2026-05-01T00:00:00.000Z';
@@ -153,6 +161,13 @@ export function relogioDoCicloSolar(status: string): 'fala' | 'esquecido' | 'neg
 }
 /** Uma por tick: duas no mesmo passo poderiam mirar o mesmo horário. */
 const POR_TICK = 1;
+/**
+ * Quantos cards a rodada pode TENTAR pra conseguir mover `POR_TICK`. Era 1, e
+ * card sem vaga na frente da fila parava a fila inteira: a ordem não muda entre
+ * ticks, então a rodada seguinte tentava o mesmo card. O limite existe porque
+ * cada tentativa varre a agenda do dono.
+ */
+const TENTATIVAS_POR_RODADA = 8;
 /** Até onde procurar vaga. Mais que isso não é remarcação, é chute. */
 const HORIZONTE_DIAS_UTEIS = 10;
 /** A ligação do solar ocupa 15 min; a apresentação do eletroposto, 30. A agenda
@@ -237,10 +252,40 @@ const zero = (motivo?: string): ResultadoReagendaSolar =>
  * A linha do card. Sem ela, "card parado" e "card sendo trabalhado pelo robô"
  * são a mesma tela pro consultor que abre a ficha.
  */
-export function linhaDoHistorico(deIso: string, paraIso: string, volta: number): string {
+/**
+ * A LINHA MUDA COM O RELÓGIO, porque as três situações são diferentes
+ * (01/10/2026).
+ *
+ * Havia um texto só: "não atendeu em X". Isso é fato quando alguém apertou NÃO
+ * ATENDEU. Nos outros dois caminhos não é: o card esquecido pode ter tido a
+ * ligação e ido bem, e o card em negociação nunca teve ligação marcada nenhuma.
+ * Medido em 01/10: os 20 cards que o módulo moveu naquele dia estavam todos em
+ * `agendado`, e todos os 20 ficaram com "não atendeu" escrito no histórico, com
+ * um denominador `/2` de um teto que não se aplica a eles. O cadastro inventando
+ * um fato é pior que o cadastro calado: alguém lê isso e cobra o cliente.
+ *
+ * Mesmas três frases do eletroposto, trocando apresentação por ligação.
+ */
+export function linhaDoHistorico(
+  deIso: string, paraIso: string, volta: number, relogio: 'fala' | 'esquecido' | 'negocia' = 'fala',
+): string {
   const carimbo = new Date().toLocaleString('pt-BR', {
     timeZone: TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
   }).replace(',', ' ·');
+  if (relogio === 'negocia') {
+    return `[${carimbo} · Sistema] 🔁 Ciclo de ${negociacaoH()}h (${volta}ª volta): `
+      + `a negociação parou desde ${horaBonita(deIso)} e o card voltou pra ${horaBonita(paraIso)}, `
+      + 'com o mesmo consultor e o mesmo status. Nada foi enviado ao cliente. '
+      + 'Ele sai desta roda fechando, marcando Sem interesse ou pondo em Apalavrado.';
+  }
+  if (relogio === 'esquecido') {
+    // Sem `x/y`: este caminho não tem teto, e escrever um denominador que não
+    // existe faria a equipe esperar que o card parasse de voltar sozinho.
+    return `[${carimbo} · Sistema] 🔁 Remarcação automática (${volta}ª vez): `
+      + `a ligação de ${horaBonita(deIso)} passou e o card ficou sem desfecho por mais de ${esquecidoH()}h, `
+      + `então ele voltou pra ${horaBonita(paraIso)}, com o mesmo consultor. `
+      + 'Nada foi enviado ao cliente. Se a ligação aconteceu, é só marcar o status certo.';
+  }
   return `[${carimbo} · Sistema] 🔁 Remarcação automática ${volta}/${maxVoltas()}: `
     + `não atendeu em ${horaBonita(deIso)} e voltou pra ${horaBonita(paraIso)}, com o mesmo consultor.`;
 }
@@ -366,25 +411,40 @@ export async function runReagendaSolarTick(
   }
   // Conta pelo `value.ultimo`, o ISO que ESTE modulo grava, e nao pelo
   // `updated_at`, que e coluna de infraestrutura. Mesma regua do eletroposto.
+  //
+  // E conta POR RELÓGIO desde 01/10/2026: o carimbo grava `relogio`, e carimbo
+  // antigo (sem o campo) conta como `fala`, que é o lado seguro — o teto que
+  // protege a linha continua cheio no dia da virada.
   const desdeIso = new Date(inicioDoDiaBRT).toISOString();
-  const jaHoje = (feitosHoje.data || []).filter(r => {
+  const deHoje = (feitosHoje.data || []).filter(r => {
     const u = String((r as { value?: { ultimo?: string } }).value?.ultimo || '');
     return !!u && u >= desdeIso;
+  });
+  const contados = (qual: 'fala' | 'mudo'): number => deHoje.filter(r => {
+    const v = (r as { value?: { relogio?: string } }).value;
+    return (v?.relogio === 'mudo' ? 'mudo' : 'fala') === qual;
   }).length;
-  logger.info('solar-reagenda', `rampa: ${jaHoje}/${tetoPorDia()} hoje (desde ${desdeIso}), ${(feitosHoje.data || []).length} carimbos`);
-  // O modo seco ATRAVESSA a rampa, do mesmo jeito que atravessa a janela de
-  // horário. Na primeira versão ele parava aqui, e isso escondeu justamente o que
-  // eu fui conferir: com a rampa cheia, `?dry=1` respondia `rampa_do_dia_cheia` e
-  // mais nada, sem dizer quem seria movido nem se a fila ainda existia. Prévia
-  // que só funciona quando o módulo já podia agir não serve pra conferir nada.
-  if (!dry && jaHoje >= tetoPorDia()) {
-    logger.info('solar-reagenda', `rampa do dia cheia (${jaHoje}/${tetoPorDia()})`);
+  const vagaDe = {
+    fala: tetoPorDia() - contados('fala'),
+    mudo: tetoMudoPorDia() - contados('mudo'),
+  };
+  logger.info('solar-reagenda', `rampa: fala ${contados('fala')}/${tetoPorDia()}, mudo ${contados('mudo')}/${tetoMudoPorDia()} (desde ${desdeIso}), ${deHoje.length} hoje de ${(feitosHoje.data || []).length} carimbos`);
+
+  // A FILA É FILTRADA, NÃO INTERROMPIDA. Aqui havia um `return` em cima da fila
+  // inteira: com `POR_TICK = 1`, um `nao_atendeu` na frente, com a rampa dele
+  // cheia, segurava todos os calados atrás dele até o dia virar.
+  //
+  // O modo seco ATRAVESSA as travas, do mesmo jeito que atravessa a janela de
+  // horário: com a rampa cheia, `?dry=1` respondia `rampa_do_dia_cheia` e mais
+  // nada, sem dizer quem seria movido nem se a fila ainda existia.
+  const relogioDe = (f: CardSolar): 'fala' | 'mudo' =>
+    relogioDoCicloSolar(String(f.status)) === 'fala' ? 'fala' : 'mudo';
+  const aptos = dry ? naVez : naVez.filter(f => vagaDe[relogioDe(f)] > 0);
+  if (!aptos.length) {
+    logger.info('solar-reagenda', `ninguém pode andar: fila ${naVez.length}, vaga fala ${vagaDe.fala}, vaga mudo ${vagaDe.mudo}`);
     return zero('rampa_do_dia_cheia');
   }
-
-  const cabemHoje = dry ? POR_TICK : Math.min(POR_TICK, tetoPorDia() - jaHoje);
-  const alvos = naVez.slice(0, cabemHoje);
-  if (!alvos.length) return zero('rampa_do_dia_cheia');
+  const alvos = aptos.slice(0, POR_TICK * TENTATIVAS_POR_RODADA);
 
   // 3. A agenda futura, pra saber o que está ocupado e quem já tem horário.
   //
@@ -412,6 +472,9 @@ export async function runReagendaSolarTick(
   const previa: NonNullable<ResultadoReagendaSolar['previa']> = [];
 
   for (const f of alvos) {
+    // Para no que MOVEU, não no que tentou: é o que faz a fila andar quando o
+    // primeiro card não tem vaga na agenda do dono.
+    if ((dry ? previa.length : remarcados) >= POR_TICK) break;
     const dono = String(f.vendedor_nome);
     const chave = telKey(f.cliente_telefone);
     // Já tem ligação marcada? Mover criaria a mesma pessoa em dois lugares.
@@ -427,6 +490,11 @@ export async function runReagendaSolarTick(
       continue;
     }
     const volta = (voltasDe.get(f.id) ?? 0) + 1;
+    // UMA leitura do relógio, ANTES do update. Ler de novo depois é pedir pra
+    // classificar a ficha pelo status NOVO: o vermelho volta pra `agendado` na
+    // mesma gravação, e aí ele se carimbaria como calado e deixaria de gastar o
+    // teto que protege a linha.
+    const relogio = relogioDoCicloSolar(String(f.status)) ?? 'fala';
 
     if (dry) {
       previa.push({
@@ -436,7 +504,7 @@ export async function runReagendaSolarTick(
       continue;
     }
 
-    const linha = linhaDoHistorico(f.quando, novo, volta);
+    const linha = linhaDoHistorico(f.quando, novo, volta, relogio);
     const { data: atualizado, error: erroUpd } = await supabaseGerador
       .from('agendamentos')
       .update({
@@ -480,7 +548,12 @@ export async function runReagendaSolarTick(
 
     const nowIso = new Date().toISOString();
     await supabase.from('system_state').upsert(
-      { key: `${SOLAR_REAGENDA_PREFIX}${f.id}`, value: { n: volta, ultimo: nowIso, de: f.quando }, updated_at: nowIso },
+      {
+        key: `${SOLAR_REAGENDA_PREFIX}${f.id}`,
+        // `relogio` é o que separa as duas rampas.
+        value: { n: volta, ultimo: nowIso, de: f.quando, relogio: relogio === 'fala' ? 'fala' : 'mudo' },
+        updated_at: nowIso,
+      },
       { onConflict: 'key' },
     ).then(undefined, (e: unknown) =>
       logger.error('solar-reagenda', 'carimbo do ciclo falhou', { id: f.id, erro: String(e) }));
