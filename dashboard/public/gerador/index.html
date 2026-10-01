@@ -1464,6 +1464,44 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-col-vazia{color:#64748b;text-align:center;padding:18px 0;font-size:13px}
 .crm-col-destaque{outline:2px solid #F87171;outline-offset:-1px;box-shadow:0 0 0 4px rgba(248,113,113,.18)}
 /* faixa de cor no topo de cada coluna por etapa */
+/* ── DOSSIÊ DA VENDA ─────────────────────────────────────────────────────────
+   Mora dentro do modal de venda. Grade de 2 colunas no desktop e UMA no
+   celular: o consultor sobe foto do padrão em pé, na rua, com uma mão. */
+.dossie-topo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:18px 0 8px;padding-top:14px;border-top:1px solid rgba(148,163,184,.28)}
+.dossie-topo h4{margin:0;font-size:15px}
+.dossie-contagem{font-size:12px;color:#64748B;white-space:nowrap}
+.dossie-aviso{font-size:12.5px;line-height:1.45;padding:9px 11px;border-radius:8px;margin-bottom:10px;background:rgba(251,191,36,.14);border:1px solid rgba(251,191,36,.42);color:#92400E}
+.dossie-aviso.erro{background:rgba(248,113,113,.14);border-color:rgba(248,113,113,.45);color:#B91C1C}
+.dossie-aviso.ok{background:rgba(52,211,153,.14);border-color:rgba(52,211,153,.45);color:#047857}
+.dossie-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media(max-width:560px){.dossie-grid{grid-template-columns:1fr}}
+.dossie-slot{border:1px dashed rgba(148,163,184,.5);border-radius:9px;padding:9px 10px;background:rgba(148,163,184,.06)}
+.dossie-slot.cheio{border-style:solid;border-color:rgba(52,211,153,.55);background:rgba(52,211,153,.08)}
+.dossie-slot-lbl{font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:5px}
+.dossie-slot-dica{font-size:11px;color:#64748B;margin:1px 0 6px;line-height:1.35}
+.dossie-miniaturas{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+.dossie-mini{position:relative;width:52px;height:52px;border-radius:6px;overflow:hidden;border:1px solid rgba(148,163,184,.45);background:#fff}
+.dossie-mini img{width:100%;height:100%;object-fit:cover;display:block}
+.dossie-mini .pdf{display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:19px}
+.dossie-mini .x{position:absolute;top:0;right:0;width:17px;height:17px;line-height:15px;text-align:center;border:0;border-radius:0 0 0 6px;background:rgba(15,23,42,.72);color:#fff;font-size:12px;cursor:pointer;padding:0}
+.dossie-mini .selo{position:absolute;bottom:0;left:0;right:0;font-size:9px;text-align:center;line-height:12px;background:rgba(15,23,42,.72);color:#fff}
+.dossie-mini .selo.enviado{background:rgba(5,150,105,.88)}
+.dossie-btn{border:1px solid rgba(148,163,184,.55);background:transparent;color:inherit;border-radius:7px;padding:6px 11px;font-size:12px;font-weight:600;cursor:pointer}
+.dossie-btn:hover{background:rgba(148,163,184,.16)}
+.dossie-btn:disabled{opacity:.55;cursor:default}
+.dossie-btn.enviar{border-color:#0EA5E9;color:#0EA5E9}
+.dossie-campos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+@media(max-width:560px){.dossie-campos{grid-template-columns:1fr}}
+.dossie-campo label{display:block;font-size:11.5px;font-weight:600;margin-bottom:3px;color:#64748B}
+.dossie-inp{width:100%;box-sizing:border-box;padding:7px 9px;font-size:13px;border:1px solid rgba(148,163,184,.5);border-radius:7px;background:transparent;color:inherit}
+.dossie-trello{margin-top:14px;padding-top:11px;border-top:1px solid rgba(148,163,184,.28)}
+.dossie-trello-estado{font-size:12px;margin-bottom:7px;color:#64748B;line-height:1.45}
+.dossie-trello-acoes{display:flex;gap:7px;flex-wrap:wrap}
+.dossie-trello-acoes .dossie-inp{flex:1;min-width:170px}
+/* Badge de anexo na linha do histórico — o atalho pra ver que o dossiê existe
+   sem ter que abrir o modal de cada cliente. */
+.acoes-mini .dossie-badge{border:0;background:transparent;cursor:pointer;font-size:14px;padding:0 3px;position:relative}
+.acoes-mini .dossie-badge .n{font-size:9px;font-weight:700;vertical-align:super;color:#059669}
 .crm-col-agendado .crm-col-head{box-shadow:inset 0 3px 0 #60A5FA}
 .crm-col-reagendar .crm-col-head{box-shadow:inset 0 3px 0 #FDBA74}
 .crm-col-whatsapp .crm-col-head{box-shadow:inset 0 3px 0 #D0DCE9}
@@ -5732,6 +5770,26 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <label>Observações</label>
       <textarea id="venda-obs" placeholder="Detalhes da negociação, prazo, etc..."></textarea>
     </div>
+    <!-- DOSSIÊ DA VENDA — só aparece depois que a venda existe.
+         Antes de vendido não há o que homologar, e um formulário de documento
+         aberto no meio da confirmação rouba a atenção do que está sendo feito. -->
+    <div id="dossie-bloco" style="display:none">
+      <div class="dossie-topo">
+        <h4>📎 Documentos pra homologação</h4>
+        <span id="dossie-contagem" class="dossie-contagem"></span>
+      </div>
+      <div id="dossie-aviso" class="dossie-aviso" style="display:none"></div>
+      <div id="dossie-arquivos" class="dossie-grid"></div>
+      <div id="dossie-campos" class="dossie-campos"></div>
+      <div class="dossie-trello">
+        <div id="dossie-trello-estado" class="dossie-trello-estado"></div>
+        <div class="dossie-trello-acoes">
+          <select id="dossie-card-sel" class="dossie-inp" onfocus="dossieCarregarCartoes()"><option value="">Criar cartão novo em BASE DE CLIENTES</option></select>
+          <button type="button" class="dossie-btn enviar" id="dossie-btn-trello" onclick="dossieEnviarTrello()">Enviar pro Trello</button>
+        </div>
+      </div>
+    </div>
+
     <div class="modal-acoes">
       <button class="secondary" onclick="fecharModalVenda()">Cancelar</button>
       <button class="danger" id="btn-desmarcar-venda" onclick="desmarcarVenda()" style="display:none;">Desmarcar venda</button>
@@ -6277,6 +6335,19 @@ async function salvarOrcamentoEpSupabase(d) {
 }
 
 async function atualizarPropostaSupabase(codigo, d) {
+  // O DOSSIE NAO PODE MORRER NA EDICAO. `_propostaRowFromDados` grava `dados: d`
+  // inteiro, e o `d` que chega aqui foi REMONTADO a partir do formulario — o
+  // editarProposta le `row.dados` so pra preencher os campos e depois descarta o
+  // resto. Sem esta releitura, editar a potencia de um cliente vendido apagaria
+  // a CNH e a conta de luz dele, calado.
+  //
+  // Relido do banco na hora, e nao guardado numa variavel: entre abrir o
+  // formulario e salvar, o consultor pode ter anexado documento no celular.
+  try {
+    const atual = await supaGet(`propostas?codigo=eq.${encodeURIComponent(codigo)}&select=dados&limit=1`);
+    const dossie = atual && atual[0] && atual[0].dados && atual[0].dados.dossie;
+    if (dossie) d = Object.assign({}, d, { dossie });
+  } catch (e) { console.warn('nao consegui reler o dossie antes de salvar', e); }
   const result = await supaPatch(`propostas?codigo=eq.${encodeURIComponent(codigo)}`, _propostaRowFromDados(d));
   if (!Array.isArray(result) || result.length === 0) {
     throw new Error('Proposta não foi atualizada — código inexistente ou sem permissão');
@@ -8467,6 +8538,7 @@ function renderHistoricoTbody() {
           <button class="editar" onclick="editarProposta('${escapeHtml(r.codigo)}')" title="Editar">✏️</button>
           <button class="historico-link" onclick="abrirHistoricoLink('${escapeHtml(r.codigo)}')" title="Histórico do link (quem abriu, quando, de onde)">📊</button>
           <button onclick="abrirProposta('${escapeHtml(r.codigo)}')">Abrir</button>
+          ${r.vendido ? `<button class="dossie-badge" title="${dossieContagemDaLinha(r) ? dossieContagemDaLinha(r) + ' documento(s) anexado(s)' : 'Sem documento anexado ainda'}" onclick="abrirModalVenda('${escapeHtml(r.codigo)}')">📎${dossieContagemDaLinha(r) ? '<span class="n">' + dossieContagemDaLinha(r) + '</span>' : ''}</button>` : ''}
           <button class="vendido-toggle ${r.vendido ? 'sold' : ''}" title="${r.vendido ? 'Vendido' + (r.valor_vendido != null ? ' por R$ ' + fmt(r.valor_vendido) : '') + (r.vendido_por ? ' (' + r.vendido_por.replace(/"/g, '') + ')' : '') + (r.vendido_em ? ' em ' + formatDataBR(r.vendido_em) : '') + ' — clicar pra editar' : 'Não vendido — clicar pra registrar venda'}" onclick="abrirModalVenda('${escapeHtml(r.codigo)}')">${r.vendido ? '✓' : '✗'}</button>
         </div>
       </td>
@@ -23116,12 +23188,20 @@ function abrirModalVenda(codigo) {
   document.getElementById('venda-obs').value = r.obs_venda || '';
 
   document.getElementById('btn-desmarcar-venda').style.display = r.vendido ? '' : 'none';
+  // Documentos so fazem sentido depois que a venda existe. Enquanto nao existe,
+  // o bloco fica fora do caminho em vez de aparecer vazio pedindo CNH de quem
+  // ainda nao comprou.
+  if (r.vendido) dossieAbrir(codigo); else dossieFechar();
   document.getElementById('modal-venda').classList.add('show');
-  setTimeout(() => document.getElementById('venda-valor').focus(), 50);
+  // Foco automatico so na venda NOVA. Reabrindo um cliente ja vendido, o que a
+  // pessoa veio fazer e anexar documento — e no celular o foco no campo de
+  // valor sobe o teclado bem por cima do dossie.
+  if (!r.vendido) setTimeout(() => document.getElementById('venda-valor').focus(), 50);
 }
 
 function fecharModalVenda() {
   document.getElementById('modal-venda').classList.remove('show');
+  dossieFechar();
   _vendaCodigo = null;
 }
 
@@ -23213,10 +23293,13 @@ async function confirmarVenda() {
       throw new Error('Não persistiu — verificar permissões');
     }
     if (r) Object.assign(r, body);
-    fecharModalVenda();
     renderHistoricoTbody();
     renderRanking(historicoRows);
     document.getElementById('historico-stats').innerHTML = '';
+    // NAO fecha: a venda recem-confirmada e exatamente o momento de pedir os
+    // documentos, com o cliente ainda na linha. Reabrir em modo vendido traz o
+    // bloco do dossie; o confete passa por cima e some sozinho.
+    abrirModalVenda(_vendaCodigo);
     if (!jaEraVendido) dispararConfetes(valor);
     showToast(jaEraVendido ? `✅ Venda atualizada: R$ ${fmt(valor)}` : `🎉 Venda confirmada: R$ ${fmt(valor)}!`);
     // Re-render stats
@@ -23254,6 +23337,325 @@ async function desmarcarVenda() {
     console.error(e);
     showToast('❌ Erro: ' + e.message);
   }
+}
+
+// ═══ DOSSIÊ DA VENDA ════════════════════════════════════════════════════════
+// Os documentos que a homologação precisa: sobem uma vez, ficam em bucket
+// privado e a API empurra os bytes pro cartão do cliente no Trello.
+//
+// POR QUE ISTO NÃO FALA DIRETO COM O SUPABASE, como o resto desta página:
+// medido em 30/09/2026, a chave publishable grava em bucket PÚBLICO mas não
+// cria bucket nenhum. CNH e conta de luz em bucket público, num repositório
+// público, é a mesma história do runbook que vazou segredo. Então estes seis
+// arquivos são o único lugar do /gerador que passa pela API.
+
+const DOSSIE_API = (location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api') + '/gerador/dossie';
+
+let _dossieEstado = null;
+let _dossieCodigo = null;
+let _dossieOcupado = false;
+
+/** Manda o token DA PESSOA, e nunca a chave publishable.
+ *
+ *  O `supaHeaders()` do resto da pagina cai na chave publica quando nao ha
+ *  sessao, e isso esta certo la — a tela precisa ficar de pe. Aqui nao: estas
+ *  rotas devolvem link de CNH e de conta de luz, e a chave publica e a que
+ *  qualquer um tem. Sem sessao, o servidor responde 401 e a pessoa ve o pedido
+ *  de login em vez de um dossie vazio sem explicacao. */
+async function dossieFetch(caminho, opcoes) {
+  const tok = sessaoAtual && sessaoAtual.access_token;
+  if (!tok) throw new Error('Entre com sua conta pra ver ou anexar os documentos.');
+  const o = Object.assign({}, opcoes || {});
+  o.headers = Object.assign({ 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok }, o.headers || {});
+  const r = await fetch(DOSSIE_API + caminho, o);
+  const j = await r.json().catch(() => null);
+  if (!r.ok && r.status !== 207) throw new Error((j && j.error) || ('falhou (' + r.status + ')'));
+  return j;
+}
+
+/** Abre o dossiê de uma proposta vendida. Falhar aqui não pode derrubar o modal
+ *  de venda: registrar a venda é o que importa, anexar documento vem depois. */
+async function dossieAbrir(codigo) {
+  _dossieCodigo = codigo;
+  _dossieEstado = null;
+  // O app fica aberto o dia inteiro. Renovar antes evita o 401 no meio do
+  // upload, que custaria a foto que a pessoa acabou de tirar.
+  await authRenovarSePreciso();
+  const bloco = document.getElementById('dossie-bloco');
+  if (!bloco) return;
+  bloco.style.display = '';
+  document.getElementById('dossie-arquivos').innerHTML = '<div style="color:#94A3B8;font-size:12px;padding:6px">Carregando…</div>';
+  document.getElementById('dossie-campos').innerHTML = '';
+  document.getElementById('dossie-trello-estado').textContent = '';
+  try {
+    _dossieEstado = await dossieFetch('/' + encodeURIComponent(codigo));
+    dossieRender();
+  } catch (e) {
+    document.getElementById('dossie-arquivos').innerHTML =
+      '<div class="dossie-aviso erro" style="grid-column:1/-1">Não consegui carregar os documentos: ' + escapeHtml(e.message) + '</div>';
+  }
+}
+
+function dossieFechar() {
+  const bloco = document.getElementById('dossie-bloco');
+  if (bloco) bloco.style.display = 'none';
+  _dossieEstado = null; _dossieCodigo = null; _dossieCartoesDe = null;
+  const sel = document.getElementById('dossie-card-sel');
+  if (sel) sel.innerHTML = '<option value="">Criar cartão novo em BASE DE CLIENTES</option>';
+}
+
+function dossieRender() {
+  const e = _dossieEstado;
+  if (!e) return;
+  const faltam = (e.resumo && e.resumo.slots_vazios) || [];
+  document.getElementById('dossie-contagem').textContent =
+    (e.resumo ? e.resumo.arquivos : 0) + ' arquivo' + ((e.resumo && e.resumo.arquivos) === 1 ? '' : 's') +
+    (faltam.length ? ' · faltam ' + faltam.length + ' de ' + e.slots.length : ' · completo');
+
+  document.getElementById('dossie-arquivos').innerHTML = e.slots.map(function (s) {
+    const lista = (e.arquivos && e.arquivos[s.key]) || [];
+    const aceita = s.aceitaPdf ? 'image/*,application/pdf' : 'image/*';
+    const minis = lista.map(function (a) {
+      const corpo = a.tipo === 'application/pdf'
+        ? '<span class="pdf" title="' + escapeHtml(a.nome) + '">📄</span>'
+        : (a.signed ? '<img src="' + escapeHtml(a.signed) + '" alt="' + escapeHtml(a.nome) + '" loading="lazy">' : '<span class="pdf">🖼️</span>');
+      const selo = a.trello_status === 'enviado'
+        ? '<span class="selo enviado" title="Anexado no cartão">Trello</span>'
+        : (a.trello_status === 'falhou' ? '<span class="selo" title="' + escapeHtml(a.trello_motivo || '') + '">erro</span>' : '');
+      return '<div class="dossie-mini">' + corpo + selo +
+        '<button class="x" title="Remover" onclick="dossieRemover(&quot;' + s.key + '&quot;,&quot;' + escapeHtml(a.path) + '&quot;)">×</button></div>';
+    }).join('');
+    return '<div class="dossie-slot ' + (lista.length ? 'cheio' : '') + '">' +
+      '<div class="dossie-slot-lbl">' + (lista.length ? '✅' : '⬜') + ' ' + escapeHtml(s.label) + '</div>' +
+      '<div class="dossie-slot-dica">' + escapeHtml(s.dica) + '</div>' +
+      (minis ? '<div class="dossie-miniaturas">' + minis + '</div>' : '') +
+      '<label class="dossie-btn" style="display:inline-block;cursor:pointer"><span>' + (lista.length ? '+ Outra' : 'Anexar') + '</span>' +
+        '<input type="file" accept="' + aceita + '" style="display:none" onchange="dossieSubir(this,&quot;' + s.key + '&quot;)"></label>' +
+      '</div>';
+  }).join('');
+
+  document.getElementById('dossie-campos').innerHTML = e.campos_def.map(function (c) {
+    // O valor gravado manda; a sugestão do orçamento só entra como placeholder.
+    // Escrever a sugestão dentro do campo faria "40 placas orçadas" parecer
+    // "40 placas conferidas" — e o que vale pra homologação é o instalado.
+    const val = (e.campos && e.campos[c.key]) || '';
+    const sug = (e.sugestoes && e.sugestoes[c.key]) || '';
+    return '<div class="dossie-campo"><label>' + escapeHtml(c.label) + '</label>' +
+      '<input class="dossie-inp" id="dossie-c-' + c.key + '" value="' + escapeHtml(val) + '"' +
+      (c.numerico ? ' inputmode="numeric"' : (c.key === 'email' ? ' inputmode="email"' : '')) +
+      ' placeholder="' + (sug ? 'orçado: ' + escapeHtml(sug) : '—') + '" onchange="dossieSalvarCampos()"></div>';
+  }).join('');
+
+  dossieRenderTrello();
+}
+
+function dossieRenderTrello() {
+  const e = _dossieEstado;
+  const box = document.getElementById('dossie-trello-estado');
+  if (!e || !box) return;
+  const t = e.trello || {};
+  const btn = document.getElementById('dossie-btn-trello');
+  const semArquivo = (e.resumo ? e.resumo.arquivos : 0) === 0;
+  if (btn) {
+    btn.disabled = semArquivo || _dossieOcupado;
+    btn.textContent = t.status === 'enviado' ? 'Reenviar pro Trello' : 'Lançar no Trello';
+  }
+  if (semArquivo) { box.innerHTML = '<span style="color:#94A3B8">Anexe pelo menos um arquivo pra lançar no quadro.</span>'; return; }
+  if (t.status === 'enviado') {
+    // Dizer QUEM criou o cartão importa: se nasceu aqui, ele ainda está sem o
+    // #NNNN e alguém precisa pôr o número ao cadastrar na planilha.
+    const link = t.card_url ? ' <a href="' + escapeHtml(t.card_url) + '" target="_blank" rel="noopener" style="color:#0EA5E9">abrir</a>' : '';
+    box.innerHTML = '<span style="color:#059669">✓ ' + (t.card_criado ? 'Cartão criado' : 'No cartão') +
+      (t.card_nome ? ' <b>' + escapeHtml(t.card_nome) + '</b>' : '') + (t.em ? ' em ' + formatDataBR(t.em) : '') + '.</span>' + link +
+      (t.card_criado ? '<br><span style="color:#92400E">Falta o número: o cartão nasceu sem o #NNNN, que sai do cadastro na Planilha Mestre.</span>' : '') +
+      '<br>Anexou documento novo? clique em Reenviar, só sobe o que faltou.';
+    return;
+  }
+  if (t.status === 'falhou') {
+    box.innerHTML = '<span style="color:#B91C1C">✗ Não foi: ' + escapeHtml(t.motivo || 'motivo desconhecido') + '</span>' +
+      '<br>Os arquivos estão salvos. Corrija e clique de novo.';
+    return;
+  }
+  box.innerHTML = 'Os arquivos estão salvos na nuvem. Lançar cria o cartão deste cliente na BASE DE CLIENTES e anexa tudo nele.';
+}
+
+/** Reduz a foto ANTES de mandar. O corpo da requisição na Vercel para em ~4,5MB
+ *  e base64 infla 1/3 — uma foto de celular moderno (8 MB) não passaria. 1600px
+ *  é mais do que a homologação precisa pra ler número de medidor. */
+function dossieReduzirImagem(file) {
+  return new Promise(function (resolve) {
+    if (!/^image\//.test(file.type) || file.type === 'image/heic') { resolve(file); return; }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = function () {
+      URL.revokeObjectURL(url);
+      const max = 1600;
+      const escala = Math.min(1, max / Math.max(img.width, img.height));
+      // Já é pequena e leve? não recomprime — recompressão só tira nitidez.
+      if (escala === 1 && file.size <= 1200000) { resolve(file); return; }
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(img.width * escala);
+      cv.height = Math.round(img.height * escala);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      cv.toBlob(function (b) {
+        resolve(b && b.size < file.size ? new File([b], (file.name || 'foto').replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' }) : file);
+      }, 'image/jpeg', 0.82);
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
+function dossieBase64(file) {
+  return new Promise(function (resolve, reject) {
+    const fr = new FileReader();
+    fr.onload = function () { resolve(String(fr.result).split(',')[1] || ''); };
+    fr.onerror = function () { reject(new Error('não consegui ler o arquivo')); };
+    fr.readAsDataURL(file);
+  });
+}
+
+async function dossieSubir(inputEl, slot) {
+  const bruto = inputEl.files && inputEl.files[0];
+  inputEl.value = '';
+  if (!bruto || !_dossieCodigo) return;
+  const rotulo = inputEl.parentElement.querySelector('span');
+  const textoAntigo = rotulo ? rotulo.textContent : '';
+  try {
+    if (rotulo) rotulo.textContent = 'Enviando…';
+    const file = await dossieReduzirImagem(bruto);
+    if (file.size > 3 * 1024 * 1024) {
+      showToast('❌ Arquivo muito grande (' + (file.size / 1048576).toFixed(1) + ' MB, máx 3). Se for PDF, mande foto da página.');
+      return;
+    }
+    const j = await dossieFetch('/' + encodeURIComponent(_dossieCodigo) + '/arquivo', {
+      method: 'POST',
+      body: JSON.stringify({ slot: slot, base64: await dossieBase64(file), media_type: file.type || 'application/octet-stream', nome: file.name || '' }),
+    });
+    _dossieEstado.arquivos[slot] = (_dossieEstado.arquivos[slot] || []).concat([j.arquivo]);
+    _dossieEstado.resumo = j.resumo;
+    if (_dossieEstado.trello && _dossieEstado.trello.status === 'enviado') _dossieEstado.trello.status = 'pendente';
+    dossieRender();
+    dossieMarcarBadge();
+  } catch (e) {
+    showToast('❌ ' + e.message);
+  } finally {
+    if (rotulo) rotulo.textContent = textoAntigo;
+  }
+}
+
+async function dossieRemover(slot, path) {
+  if (!_dossieCodigo) return;
+  if (!confirm('Remover este arquivo do dossiê?\n\nO que já foi anexado no cartão do Trello continua lá.')) return;
+  try {
+    const j = await dossieFetch('/' + encodeURIComponent(_dossieCodigo) + '/arquivo', {
+      method: 'DELETE', body: JSON.stringify({ slot: slot, path: path }),
+    });
+    _dossieEstado.arquivos[slot] = (_dossieEstado.arquivos[slot] || []).filter(function (a) { return a.path !== path; });
+    _dossieEstado.resumo = j.resumo;
+    dossieRender();
+    dossieMarcarBadge();
+  } catch (e) { showToast('❌ ' + e.message); }
+}
+
+async function dossieSalvarCampos() {
+  if (!_dossieCodigo || !_dossieEstado) return;
+  const campos = {};
+  _dossieEstado.campos_def.forEach(function (c) {
+    const el = document.getElementById('dossie-c-' + c.key);
+    if (el) campos[c.key] = el.value.trim();
+  });
+  try {
+    const j = await dossieFetch('/' + encodeURIComponent(_dossieCodigo) + '/campos', { method: 'PUT', body: JSON.stringify({ campos: campos }) });
+    _dossieEstado.campos = j.campos;
+    _dossieEstado.resumo = j.resumo;
+    if (_dossieEstado.trello && _dossieEstado.trello.status === 'enviado') _dossieEstado.trello.status = 'pendente';
+    dossieRenderTrello();
+  } catch (e) { showToast('❌ Não salvei o campo: ' + e.message); }
+}
+
+/** Enche o seletor com os cartões do quadro, os parecidos primeiro.
+ *
+ *  O PADRÃO É CRIAR, não escolher: venda nova não tem cartão no quadro, e o
+ *  lançamento dos documentos é o que coloca o cliente lá. O seletor serve pros
+ *  dois casos em que criar seria errado — cliente que já está no quadro por
+ *  cadastro anterior, e cartão que o automático não casou por diferença de nome.
+ *
+ *  Carrega no primeiro foco, não na abertura do modal: são 68 cartões vindos do
+ *  Trello e quase nenhuma venda precisa tocar aqui. */
+let _dossieCartoesDe = null;
+async function dossieCarregarCartoes() {
+  const sel = document.getElementById('dossie-card-sel');
+  if (!sel || !_dossieCodigo || _dossieCartoesDe === _dossieCodigo) return;
+  _dossieCartoesDe = _dossieCodigo;
+  const escolhido = sel.value;
+  try {
+    const j = await dossieFetch('/' + encodeURIComponent(_dossieCodigo) + '/cartoes');
+    sel.innerHTML = '<option value="">Criar cartão novo em BASE DE CLIENTES</option>' +
+      (j.cartoes || []).map(function (c) {
+        return '<option value="' + escapeHtml(c.id) + '">' + (c.pontos ? '★ ' : '') +
+          escapeHtml(c.nome) + (c.lista ? ' — ' + escapeHtml(c.lista) : '') + '</option>';
+      }).join('');
+    if (escolhido) sel.value = escolhido;
+  } catch (e) {
+    _dossieCartoesDe = null;
+    showToast('❌ Não consegui listar os cartões: ' + e.message);
+  }
+}
+
+async function dossieEnviarTrello() {
+  if (!_dossieCodigo || _dossieOcupado) return;
+  const btn = document.getElementById('dossie-btn-trello');
+  const card = (document.getElementById('dossie-card-sel') || {}).value || '';
+  _dossieOcupado = true;
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
+  try {
+    const j = await dossieFetch('/' + encodeURIComponent(_dossieCodigo) + '/trello', {
+      method: 'POST', body: JSON.stringify(card ? { card_id: card } : {}),
+    });
+    _dossieEstado = await dossieFetch('/' + encodeURIComponent(_dossieCodigo));
+    dossieRender();
+    dossieMarcarBadge();
+    if (j.ok) showToast((j.criou_cartao ? '📎 Cartão criado com ' : '📎 ') + j.enviados + ' anexo(s): ' + ((j.cartao && j.cartao.nome) || ''));
+    else showToast('⚠️ Foi parcial: ' + j.enviados + ' enviado(s), ' + j.falhas + ' com erro.');
+  } catch (e) {
+    showToast('❌ ' + e.message);
+    // O motivo fica escrito no bloco, não só no toast que some em 3s.
+    const box = document.getElementById('dossie-trello-estado');
+    if (box) box.innerHTML = '<span style="color:#B91C1C">✗ ' + escapeHtml(e.message) + '</span>';
+    // Falhou por causa da LISTA (nome mudou no quadro)? aí o seletor resolve,
+    // porque dá pra apontar um cartão existente em vez de criar um novo.
+    if (/lista/i.test(e.message)) dossieCarregarCartoes();
+  } finally {
+    _dossieOcupado = false;
+    if (btn) btn.disabled = false;
+    dossieRenderTrello();
+  }
+}
+
+/** Atualiza o 📎 da linha do histórico sem recarregar a tabela inteira. */
+function dossieMarcarBadge() {
+  if (!_dossieCodigo || !_dossieEstado) return;
+  const r = historicoRows.find(function (x) { return x.codigo === _dossieCodigo; });
+  if (!r) return;
+  r.dados = r.dados || {};
+  r.dados.dossie = Object.assign({}, r.dados.dossie, {
+    _n: _dossieEstado.resumo ? _dossieEstado.resumo.arquivos : 0,
+    trello: _dossieEstado.trello,
+  });
+  renderHistoricoTbody();
+}
+
+/** Quantos arquivos a linha já tem, lendo o que veio do banco. A leitura do
+ *  histórico já traz `dados`, então o badge não custa requisição nenhuma. */
+function dossieContagemDaLinha(r) {
+  const d = r && r.dados && r.dados.dossie;
+  if (!d) return 0;
+  if (typeof d._n === 'number') return d._n;
+  if (!d.arquivos || typeof d.arquivos !== 'object') return 0;
+  return Object.keys(d.arquivos).reduce(function (n, k) {
+    return n + (Array.isArray(d.arquivos[k]) ? d.arquivos[k].length : 0);
+  }, 0);
 }
 
 // Re-renderiza só os stats (sem recarregar do banco)
