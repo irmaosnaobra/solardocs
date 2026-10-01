@@ -607,16 +607,40 @@ export async function runEletropostoReagendaAutoTick(
   const inicioDoDiaBRT = new Date(
     `${new Intl.DateTimeFormat('en-CA', { timeZone: BRT_TZ }).format(new Date(agora))}T00:00:00-03:00`,
   ).toISOString();
+  // A CONTA DA RAMPA SAI DO `value.ultimo`, NÃO DO `updated_at` (01/10/2026).
+  //
+  // Ela saía de `.gte('updated_at', inicioDoDiaBRT)` e estava ERRADA em
+  // produção: às 02h de 01/10, com ZERO fichas remarcadas no dia, o módulo
+  // logava `rampa do dia cheia (10/10)` a cada tick e não mexia em nada. O
+  // Thiago abriu a agenda e viu o quadro intacto, com 16 fichas na fila.
+  //
+  // `updated_at` é coluna de infraestrutura da tabela: quem a escreve, quando, e
+  // com que fuso não é contrato deste módulo, e a conta da rampa não pode
+  // depender disso. `value.ultimo` é o ISO que ESTE módulo grava, no mesmo
+  // upsert em que conta a tentativa — dado próprio, com significado único.
+  //
+  // Fail-closed segue valendo: consulta quebrada devolve `erro_rampa` e ninguém
+  // é remarcado. O que mudou é só de onde sai a data.
   const feitosHoje = await supabase
-    .from('system_state').select('key')
+    .from('system_state').select('key, value, updated_at')
     .like('key', `${EP_REAGENDA_PREFIX}%`)
-    .gte('updated_at', inicioDoDiaBRT)
     .limit(1000);
   if (feitosHoje.error) {
     logger.error('ep-reagenda', 'ler a rampa do dia falhou — ninguém remarca nesta rodada', feitosHoje.error);
     return { ...zero('erro_rampa'), erros: 1 };
   }
-  const jaHoje = (feitosHoje.data || []).length;
+  const doDia = (feitosHoje.data || []).filter(r => {
+    const v = (r as { value?: { ultimo?: string } }).value;
+    const quando = String(v?.ultimo || '');
+    // Sem `ultimo` legível o carimbo é de um formato velho: não conta como
+    // feito hoje, senão carimbo antigo fecha a rampa pra sempre, que é
+    // exatamente o defeito que estamos corrigindo.
+    return !!quando && quando >= inicioDoDiaBRT;
+  });
+  const jaHoje = doDia.length;
+  // Deixa VISÍVEL o que a rampa contou. Sem isto, "rampa cheia" é uma afirmação
+  // sem prova nenhuma no log, e foi assim que o defeito passou despercebido.
+  logger.info('ep-reagenda', `rampa: ${jaHoje}/${tetoPorDia()} hoje (desde ${inicioDoDiaBRT}), ${(feitosHoje.data || []).length} carimbos no total`);
   // Seco atravessa a rampa, igual à janela de horário: conferir é pergunta, não
   // envio. Parar aqui fazia a prévia responder só `rampa_do_dia_cheia`, sem dizer
   // quem seria remarcado — prévia que só serve quando o módulo já podia agir.

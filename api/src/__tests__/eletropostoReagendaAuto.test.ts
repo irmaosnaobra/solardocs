@@ -84,19 +84,25 @@ vi.mock('../utils/supabase', () => ({
         // A rampa do dia: conta os carimbos `ep_reagenda_auto:` de hoje. O mock
         // devolve o que está no `state` com o prefixo pedido, e `rampaQuebrada`
         // simula a consulta falhando (que tem que FECHAR a porta, não abrir).
-        like: (_col: string, padrao: string) => ({
-          gte: (_c: string, desde: string) => ({
-            limit: async () => {
-              if (rampaQuebrada) return { data: null, error: { message: 'boom' } };
-              const prefixo = padrao.replace(/%$/, '');
-              return {
-                data: [...state.values()].filter((r: any) =>
-                  String(r.key).startsWith(prefixo) && String(r.updated_at || '') >= desde),
-                error: null,
-              };
-            },
-          }),
-        }),
+        like: (_col: string, padrao: string) => {
+          const prefixo = padrao.replace(/%$/, '');
+          const linhas = (desde?: string) => {
+            if (rampaQuebrada) return { data: null, error: { message: 'boom' } };
+            return {
+              data: [...state.values()].filter((r: any) =>
+                String(r.key).startsWith(prefixo)
+                && (desde === undefined || String(r.updated_at || '') >= desde)),
+              error: null,
+            };
+          };
+          return {
+            // A rampa deixou de filtrar por `updated_at` no servidor (01/10):
+            // ela traz os carimbos e conta pelo `value.ultimo`, que é o dado que
+            // o próprio módulo escreve. O mock serve as duas formas.
+            limit: async () => linhas(),
+            gte: (_c: string, desde: string) => ({ limit: async () => linhas(desde) }),
+          };
+        },
       }),
       upsert: async (r: any) => { state.set(r.key, r); return { error: null }; },
       delete: () => ({
@@ -370,8 +376,10 @@ describe('não falar demais com quem sumiu', () => {
   it('a rampa do dia fecha a porta quando o teto é atingido', async () => {
     process.env.EP_REAGENDA_POR_DIA = '2';
     const hoje = new Date(AGORA).toISOString();
-    state.set('ep_reagenda_auto:901', { key: 'ep_reagenda_auto:901', value: { n: 1 }, updated_at: hoje });
-    state.set('ep_reagenda_auto:902', { key: 'ep_reagenda_auto:902', value: { n: 1 }, updated_at: hoje });
+    // `ultimo` é o que a rampa conta desde 01/10/2026 — `updated_at` é coluna de
+    // infraestrutura e deixou de valer pra esta conta.
+    state.set('ep_reagenda_auto:901', { key: 'ep_reagenda_auto:901', value: { n: 1, ultimo: hoje }, updated_at: hoje });
+    state.set('ep_reagenda_auto:902', { key: 'ep_reagenda_auto:902', value: { n: 1, ultimo: hoje }, updated_at: hoje });
     const r = await tick();
     expect(r.motivo).toBe('rampa_do_dia_cheia');
     expect(r.remarcados).toBe(0);
@@ -381,7 +389,7 @@ describe('não falar demais com quem sumiu', () => {
   it('carimbo de ONTEM não gasta a rampa de hoje', async () => {
     process.env.EP_REAGENDA_POR_DIA = '1';
     const ontem = new Date(new Date(AGORA).getTime() - 40 * 3600_000).toISOString();
-    state.set('ep_reagenda_auto:901', { key: 'ep_reagenda_auto:901', value: { n: 1 }, updated_at: ontem });
+    state.set('ep_reagenda_auto:901', { key: 'ep_reagenda_auto:901', value: { n: 1, ultimo: ontem }, updated_at: ontem });
     expect((await tick()).remarcados).toBe(1);
   });
 
@@ -734,5 +742,61 @@ describe('o teto de 2 e quem ele vale', () => {
     const linha = String(fichas[0].historico || '');
     expect(linha).toContain('6ª vez');
     expect(linha).not.toContain('/2');
+  });
+});
+
+// ── A RAMPA CONTA PELO CARIMBO DO MÓDULO, NÃO PELO `updated_at` ───────────
+//
+// O DEFEITO, medido em produção à 02h de 01/10/2026: com ZERO fichas remarcadas
+// no dia, o módulo logava "rampa do dia cheia (10/10)" a cada tick e não mexia
+// em nada. O Thiago abriu a agenda e viu o quadro intacto, com 16 na fila.
+//
+// A conta saía de `.gte('updated_at', inicioDoDia)`. `updated_at` é coluna de
+// infraestrutura: quem escreve, quando e com que fuso não é contrato deste
+// módulo. `value.ultimo` é o ISO que ELE grava no mesmo upsert em que conta a
+// tentativa.
+describe('a rampa do dia', () => {
+  const carimbo = (id: number, ultimo: string, updatedAt: string) =>
+    state.set(`ep_reagenda_auto:${id}`, {
+      key: `ep_reagenda_auto:${id}`, value: { n: 1, ultimo }, updated_at: updatedAt,
+    });
+
+  it('carimbo VELHO com updated_at de hoje não fecha a rampa', async () => {
+    // Exatamente o caso de produção: 10 carimbos antigos que, por qualquer
+    // motivo, têm `updated_at` recente. Nenhum deles é trabalho de hoje.
+    for (let i = 100; i < 110; i++) carimbo(i, horasAtras(72), new Date(AGORA).toISOString());
+    fichas = [ficha({ status: 'agendado', quando: horasAtras(8) })];
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  it('10 carimbos de HOJE fecham a rampa, que é o que ela existe pra fazer', async () => {
+    const hojeCedo = new Date(AGORA.getTime() - 2 * 3600_000).toISOString();
+    for (let i = 100; i < 110; i++) carimbo(i, hojeCedo, hojeCedo);
+    fichas = [ficha({ status: 'agendado', quando: horasAtras(8) })];
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(r.motivo).toBe('rampa_do_dia_cheia');
+  });
+
+  it('9 de hoje ainda deixam passar uma', async () => {
+    const hojeCedo = new Date(AGORA.getTime() - 2 * 3600_000).toISOString();
+    for (let i = 100; i < 109; i++) carimbo(i, hojeCedo, hojeCedo);
+    fichas = [ficha({ status: 'agendado', quando: horasAtras(8) })];
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  it('carimbo sem `ultimo` legível não conta: formato velho não trava a fila', async () => {
+    for (let i = 100; i < 115; i++)
+      state.set(`ep_reagenda_auto:${i}`, { key: `ep_reagenda_auto:${i}`, value: { n: 1 }, updated_at: new Date(AGORA).toISOString() });
+    fichas = [ficha({ status: 'agendado', quando: horasAtras(8) })];
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  it('consulta quebrada continua fechando a porta, não abrindo', async () => {
+    rampaQuebrada = true;
+    fichas = [ficha({ status: 'agendado', quando: horasAtras(8) })];
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(r.motivo).toBe('erro_rampa');
   });
 });
