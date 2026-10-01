@@ -22389,6 +22389,13 @@ async function carregarCRM(forcar) {
   crmClientes = crmUnificar(props, agends, leads);
   crmCarregado = true;
   await crmCarregarEsperas();
+  // ── RE-DERIVAR DEPOIS DAS MARCAS ────────────────────────────────────────
+  //
+  // A etapa é calculada dentro do `crmUnificar`, que roda ANTES desta leitura.
+  // Agora que a MARCA de apalavrado decide coluna, derivar uma vez só deixaria
+  // todo card em espera na coluna errada no primeiro desenho — e como o quadro
+  // não redesenha sozinho, "no primeiro desenho" é o tempo todo.
+  crmClientes.forEach(crmDerivar);
   crmRenderFiltros();
   renderCRM();
 }
@@ -22656,15 +22663,34 @@ function crmDerivar(c) {
   // Agora quente/morno/frio não decidem coluna nenhuma. O selo 🔥 continua no
   // card (é a NOTA 3 que a LP do eletroposto grava, e outros robôs leem), mas
   // como INFORMAÇÃO ao lado do estágio, não como estágio.
+  // ── A ETIQUETA EXTRA DECIDE A COLUNA (01/10/2026) ───────────────────────
+  //
+  // Ordem do dono: "o MAURO é arrendamento e coloquei apalavrado nele, então ele
+  // tem que cair no CRM no Apalavrado; todos que receberem a etiqueta extra
+  // APALAVRADO e VENDIDO, seja para suas respectivas colunas".
+  //
+  // São DUAS coisas separadas, e as duas estavam erradas:
+  //
+  // 1. APALAVRADO deixou de ser status hoje e passou a ser MARCA, pra não apagar
+  //    a etiqueta de negociação. A coluna continuou olhando o status, então o
+  //    Mauro ficou em Arrendamento e a coluna Apalavrado esvaziou. Quem decide
+  //    agora é a MARCA — e o status antigo segue valendo pelos cinco cards de
+  //    antes dela.
+  //
+  // 2. VENDIDO pelo botão de status (`fechou`) NUNCA teve ramo aqui. A coluna só
+  //    reconhecia venda vinda de PROPOSTA marcada vendida (`props.vendido`), e
+  //    quem fechava pelo card da agenda caía no default — "Agendado" — com a
+  //    venda feita. Defeito antigo, não desta mudança, e o pedido dele é o
+  //    conserto.
+  //
+  // A ordem importa: a etiqueta extra é a ÚLTIMA coisa que aconteceu com o
+  // negócio, então ela ganha dos quatro modelos. Quem aperta APALAVRADO aperta
+  // DEPOIS de já ter escolhido arrendamento ou 50/50.
+  const naEspera = !!(c.agId && crmEsperas[String(c.agId)]);
   let etapa;
-  if (vendida) {
+  if (vendida || statusAg === 'fechou') {
     etapa = 'vendido';
-  } else if (statusAg === 'apalavrado') {
-    // A SALA DE ESPERA vem antes dos quatro modelos de propósito: quem aperta
-    // APALAVRADO aperta DEPOIS de já ter escolhido arrendamento ou 50/50, e é o
-    // status mais recente que descreve onde o negócio está. Sem esta ordem, o
-    // card apalavrado seguiria aparecendo em Arrendamento e a coluna nova
-    // nasceria vazia pra sempre.
+  } else if (naEspera || statusAg === 'apalavrado') {
     etapa = 'apalavrado';
   } else if (statusAg === 'arrendamento') {
     // O status MAIS RECENTE manda (igual em_atendimento). Vem antes de Perdido de
