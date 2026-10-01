@@ -245,9 +245,9 @@ describe('follow-up do não atendido', () => {
     expect(ofertados).toHaveLength(0);
   });
 
-  it('QUENTE que já gastou as duas voltas entra na escada', async () => {
+  it('QUENTE que já gastou todas as voltas entra na escada', async () => {
     fichas = [ficha({ temperatura: 'quente' })];
-    estado = [{ key: 'ep_reagenda_auto:1', value: { n: 2 } }];
+    estado = [{ key: 'ep_reagenda_auto:1', value: { n: 3 } }];
     const r = await runEletropostoNaoAtendidoFupTick();
     expect(r.ofertas).toBe(1);
   });

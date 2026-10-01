@@ -64,7 +64,7 @@ import {
 } from './eletropostoRemarcar';
 import { EP_NAO_ATENDEU_PREFIX, EP_RESPOSTA_PREFIX } from './eletropostoAgenda';
 import { criarFichaCurioso, type FichaDaAgenda } from './eletropostoCobraSim';
-import { ehQuente, MAX_REAGENDAMENTOS } from './eletropostoReagendaAuto';
+import { ehQuente, maxVoltas } from './eletropostoReagendaAuto';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 
 /** Carimbo de follow-up enviado: `ep_fup_naoatendido:<id>`. Um por ficha, pra
@@ -215,7 +215,7 @@ export async function runEletropostoNaoAtendidoFupTick(
     // novo (não oferece lista), até 2 vezes. Os dois agindo na mesma pessoa
     // seriam o robô pedindo pra ela escolher um horário hoje e marcando outro por
     // conta própria amanhã. Ela entra aqui quando aquele acabar as voltas dele.
-    if (ehQuente(f.temperatura) && (voltasDoQuente.get(f.id) ?? 0) < MAX_REAGENDAMENTOS) {
+    if (ehQuente(f.temperatura) && (voltasDoQuente.get(f.id) ?? 0) < maxVoltas()) {
       doQuenteN++;
       continue;
     }

@@ -181,7 +181,7 @@ describe('mover o card', () => {
 
   it('a volta vira linha no card', async () => {
     await tick();
-    expect(updates[0].patch.historico).toContain('Remarcação automática 1/2');
+    expect(updates[0].patch.historico).toContain('Remarcação automática 1/3');
     expect(updates[0].patch.historico).toContain('não atendeu');
   });
 
@@ -275,8 +275,8 @@ describe('quem não entra', () => {
     expect((await tick()).remarcados).toBe(0);
   });
 
-  it('duas voltas e para: o card fica pra gente', async () => {
-    state.set('solar_reagenda:1', { key: 'solar_reagenda:1', value: { n: 2 }, updated_at: '2026-09-01T00:00:00.000Z' });
+  it('três voltas e para: o card fica pra gente', async () => {
+    state.set('solar_reagenda:1', { key: 'solar_reagenda:1', value: { n: 3 }, updated_at: '2026-09-01T00:00:00.000Z' });
     expect((await tick()).motivo).toBe('ninguem_na_vez');
   });
 
@@ -465,7 +465,7 @@ describe('o card esquecido do solar', () => {
   });
 
   it('o vermelho continua parando no teto de 2 voltas', async () => {
-    state.set('solar_reagenda:1', { key: 'solar_reagenda:1', value: { n: 2, ultimo: '2026-09-01T00:00:00.000Z' }, updated_at: '2026-09-01T00:00:00.000Z' });
+    state.set('solar_reagenda:1', { key: 'solar_reagenda:1', value: { n: 3, ultimo: '2026-09-01T00:00:00.000Z' }, updated_at: '2026-09-01T00:00:00.000Z' });
     vermelhos = [card({ status: 'nao_atendeu' })];
     const r = await tick();
     expect(r.remarcados).toBe(0);

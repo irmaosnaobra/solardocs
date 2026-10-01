@@ -250,7 +250,7 @@ describe('o reagendamento em si', () => {
 
   it('a tentativa vira linha no card — vermelho parado e vermelho trabalhado não são a mesma tela', async () => {
     await tick();
-    expect(updates[0].patch.historico).toContain('Reagendamento automático 1/2');
+    expect(updates[0].patch.historico).toContain('Reagendamento automático 1/3');
   });
 
   it('sem vaga na mesma hora, pega o primeiro livre do dia', async () => {
@@ -287,17 +287,27 @@ describe('não falar demais com quem sumiu', () => {
     expect(r.remarcados).toBe(1);
   });
 
-  it('para na segunda volta: quem já foi remarcado 2 vezes vira assunto de gente', async () => {
-    state.set('ep_reagenda_auto:3', { key: 'ep_reagenda_auto:3', value: { n: 2, ultimo: horasAtras(24) }, updated_at: horasAtras(24) });
+  // Tres voltas desde 01/10/2026 (ordem do Thiago: "nao atendeu, 3 voltas").
+  it('para na terceira volta: quem já foi remarcado 3 vezes vira assunto de gente', async () => {
+    state.set('ep_reagenda_auto:3', { key: 'ep_reagenda_auto:3', value: { n: 3, ultimo: horasAtras(24) }, updated_at: horasAtras(24) });
     const r = await tick();
     expect(r.motivo).toBe('ninguem_na_vez');
     expect(fichas[0].status).toBe('nao_atendeu');
   });
 
-  it('a segunda tentativa avisa que é a última', async () => {
-    state.set('ep_reagenda_auto:3', { key: 'ep_reagenda_auto:3', value: { n: 1, ultimo: horasAtras(24) }, updated_at: horasAtras(24) });
+  it('a última tentativa avisa que é a última', async () => {
+    // Com 3 voltas (01/10/2026), a última é a TERCEIRA: a ficha já gastou duas.
+    state.set('ep_reagenda_auto:3', { key: 'ep_reagenda_auto:3', value: { n: 2, ultimo: horasAtras(24) }, updated_at: horasAtras(24) });
     await tick();
     expect(enviadas[0].bolhas[2]).toContain('último horário');
+  });
+
+  it('a penúltima NÃO avisa que é a última', async () => {
+    // A outra metade da regra: com teto de 3, a segunda volta ainda tem a
+    // terceira pela frente, e prometer "último horário" ali seria mentira.
+    state.set('ep_reagenda_auto:3', { key: 'ep_reagenda_auto:3', value: { n: 1, ultimo: horasAtras(24) }, updated_at: horasAtras(24) });
+    await tick();
+    expect(enviadas[0].bolhas[2]).not.toContain('último horário');
   });
 
   // 29/09/2026 INVERTEU ISTO. O piso duro de 20/08 existia pra ligar o módulo não
@@ -506,8 +516,9 @@ describe('o ciclo chega ao terceiro dia', () => {
     expect(fichas[0].quando).toBe(SEGUNDA_13H);
     expect(fichas[0].status).toBe('agendado');
     expect(enviadas).toHaveLength(1);
-    // E a segunda É a última (o Thiago fechou em 2 voltas): a copy tem que dizer.
-    expect(enviadas[0].bolhas[2]).toContain('último horário');
+    // A SEGUNDA DEIXOU DE SER A ÚLTIMA em 01/10/2026 ("não atendeu, 3 voltas"):
+    // ainda há a terceira pela frente, então a copy não promete o fim.
+    expect(enviadas[0].bolhas[2]).not.toContain('último horário');
   });
 });
 
@@ -735,9 +746,9 @@ describe('o teto de 2 e quem ele vale', () => {
     }
   });
 
-  it('o vermelho para no teto de 2, como sempre parou', async () => {
+  it('o vermelho para no teto, como sempre parou', async () => {
     fichas = [ficha({ id: 7, status: 'nao_atendeu', quando: horasAtras(2) })];
-    jaFoi(7, 2);
+    jaFoi(7, 3);
     const r = await tick();
     expect(r.remarcados).toBe(0);
     expect(r.motivo).toBe('ninguem_na_vez');

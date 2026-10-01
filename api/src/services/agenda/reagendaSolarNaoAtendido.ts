@@ -109,7 +109,12 @@ const horaBrasilia = (base: Date = new Date()): number =>
   Number(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hour12: false, timeZone: TZ }).format(base)) % 24;
 
 /** Duas voltas e o card fica pra gente. Mesma conta do eletroposto. */
-export const MAX_VOLTAS = 2;
+/**
+ * Quantas vezes o NÃO ATENDEU do solar pode ser remarcado. Três desde
+ * 01/10/2026, pela mesma ordem e pelo mesmo motivo do eletroposto: o teto existe
+ * só no caminho que fala com o cliente. Os calados rodam sem teto.
+ */
+export const maxVoltas = (): number => num('SOLAR_REAGENDA_MAX_VOLTAS', 3);
 
 /**
  * O CARD DO SOLAR QUE NINGUEM FECHOU (30/09/2026).
@@ -236,7 +241,7 @@ export function linhaDoHistorico(deIso: string, paraIso: string, volta: number):
   const carimbo = new Date().toLocaleString('pt-BR', {
     timeZone: TZ, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
   }).replace(',', ' ·');
-  return `[${carimbo} · Sistema] 🔁 Remarcação automática ${volta}/${MAX_VOLTAS}: `
+  return `[${carimbo} · Sistema] 🔁 Remarcação automática ${volta}/${maxVoltas()}: `
     + `não atendeu em ${horaBonita(deIso)} e voltou pra ${horaBonita(paraIso)}, com o mesmo consultor.`;
 }
 
@@ -347,7 +352,7 @@ export async function runReagendaSolarTick(
   // Sem teto pro esquecido: "sempre tera os clientes retornando". O teto segue
   // valendo pro vermelho, cujo ciclo destrava as mensagens da regua da agenda.
   const naVez = vermelhos.filter(f =>
-    f.status !== 'nao_atendeu' || (voltasDe.get(f.id) ?? 0) < MAX_VOLTAS);
+    f.status !== 'nao_atendeu' || (voltasDe.get(f.id) ?? 0) < maxVoltas());
   if (!naVez.length) return zero('ninguem_na_vez');
 
   const inicioDoDiaBRT = `${ymdSP(new Date(agora))}T00:00:00-03:00`;
@@ -481,7 +486,7 @@ export async function runReagendaSolarTick(
       logger.error('solar-reagenda', 'carimbo do ciclo falhou', { id: f.id, erro: String(e) }));
 
     remarcados++;
-    logger.info('solar-reagenda', `card ${f.id} (${dono}) voltou pra ${novo}, volta ${volta}/${MAX_VOLTAS}`);
+    logger.info('solar-reagenda', `card ${f.id} (${dono}) voltou pra ${novo}, volta ${volta}/${maxVoltas()}`);
   }
 
   if (dry) return { remarcados: 0, erros: 0, motivo: previa.length ? 'remarcaria_agora' : 'sem_vaga', previa };

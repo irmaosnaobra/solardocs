@@ -189,7 +189,19 @@ const inicioPiso = (): string =>
  *  voltas, três dias no total. Depois disso a ficha fica vermelha e e' assunto de
  *  gente. Este numero e' a conta de quantos slots vendaveis um lead que some pode
  *  consumir — mexer nele mexe em estoque de agenda, nao so' em mensagem. */
-export const MAX_REAGENDAMENTOS = 2;
+/**
+ * Quantas vezes o NÃO ATENDEU pode ser remarcado. Três desde 01/10/2026 (ordem
+ * do Thiago: "não atendeu, 3 voltas"), eram duas desde 20/08.
+ *
+ * O teto existe só aqui porque só este caminho MANDA MENSAGEM: dizer "você não
+ * conseguiu entrar na apresentação" indefinidamente queima a linha e o cliente.
+ * Os caminhos calados (card esquecido e card em negociação) não têm teto — eles
+ * rodam até alguém dar destino, que é a regra da casa.
+ *
+ * Virou env na mesma hora: este número já mudou duas vezes, e número que muda
+ * não devia precisar de deploy.
+ */
+export const maxVoltas = (): number => num('EP_REAGENDA_MAX_VOLTAS', 3);
 /** Folga depois do horário perdido — o toque de 5 min ainda estava saindo. */
 const APOS_PERDER_MIN = 45;
 
@@ -403,7 +415,7 @@ export function bolhasReagendado(
   const tel = telefoneBonito(telVendedor);
   const perdida = quandoPorExtenso(deIso).replace('-feira', '');
   const nova = quandoPorExtenso(paraIso).replace('-feira', '');
-  const ultima = tentativa >= MAX_REAGENDAMENTOS;
+  const ultima = tentativa >= maxVoltas();
   return [
     // A marca na primeira frase: pra quem sumiu, esta pode ser a primeira
     // mensagem que ele de fato lê, de um número que ele nunca respondeu.
@@ -449,7 +461,7 @@ export function linhaDoHistorico(
       + `então ele voltou pra *${para}*, mesmo horário e mesmo consultor. `
       + 'Nada foi enviado ao cliente. Se a reunião aconteceu, é só marcar o status certo.';
   }
-  return `[${carimbo} · Sistema] 🔁 Reagendamento automático ${tentativa}/${MAX_REAGENDAMENTOS}: `
+  return `[${carimbo} · Sistema] 🔁 Reagendamento automático ${tentativa}/${maxVoltas()}: `
     + `não apareceu em ${de} e voltou pra *${para}*, com o mesmo consultor. `
     + 'Os avisos recomeçaram do zero.';
 }
@@ -740,7 +752,7 @@ export async function runEletropostoReagendaAutoTick(
   const semTeto = (f: FichaVermelha) =>
     f.status === 'agendado' || ehNegociacaoStatus(String(f.status));
   const naVez = candidatos.filter(f =>
-    !comOferta.has(f.id) && (semTeto(f) || (estadoDe.get(f.id)?.n ?? 0) < MAX_REAGENDAMENTOS));
+    !comOferta.has(f.id) && (semTeto(f) || (estadoDe.get(f.id)?.n ?? 0) < maxVoltas()));
   if (!naVez.length) return zero('ninguem_na_vez');
 
   // A RAMPA DO DIA. Conta quantas fichas já foram remarcadas hoje e para no teto.
@@ -933,7 +945,7 @@ export async function runEletropostoReagendaAutoTick(
       }
 
       remarcados++;
-      logger.info('ep-reagenda', `ficha #${f.id} remarcada (${tentativa}/${MAX_REAGENDAMENTOS})`, { de: f.quando, para: novo });
+      logger.info('ep-reagenda', `ficha #${f.id} remarcada (${tentativa}/${maxVoltas()})`, { de: f.quando, para: novo });
     } catch (e) {
       logger.error('ep-reagenda', 'reagendamento falhou', { id: f.id, erro: String(e) });
       erros++;
