@@ -324,7 +324,9 @@ export function linhaDoHistorico(
   // ninguém sabe se apareceu: o que se sabe é que o card ficou sem desfecho.
   // Escrever "não apareceu" ali seria o cadastro inventando um fato.
   if (esquecido) {
-    return `[${carimbo} · Sistema] 🔁 Reagendamento automático ${tentativa}/${MAX_REAGENDAMENTOS}: `
+    // Sem "x/2": este caminho não tem teto, e escrever um denominador que não
+    // existe faria a equipe esperar que o card parasse de voltar sozinho.
+    return `[${carimbo} · Sistema] 🔁 Reagendamento automático (${tentativa}ª vez): `
       + `a reunião de ${de} passou e o card ficou sem desfecho por mais de ${esquecidoH()}h, `
       + `então ele voltou pra *${para}*, mesmo horário e mesmo consultor. `
       + 'Nada foi enviado ao cliente. Se a reunião aconteceu, é só marcar o status certo.';
@@ -475,7 +477,17 @@ export async function runEletropostoReagendaAutoTick(
 ): Promise<ResultadoReagendaAuto> {
   if (desligado()) return zero('desligado');
   const h = horaBrasilia();
-  if (h < JANELA_INICIO_H || h >= JANELA_FIM_H) return zero('fora_da_janela');
+  // ── A JANELA SÓ VALE PRO CAMINHO QUE FALA (01/10/2026) ───────────────────
+  //
+  // 9h–19h existe por um motivo só: não mandar "você não apareceu" pra ninguém
+  // às 3 da manhã. O card ESQUECIDO não manda nada, então a janela não tem o
+  // que proteger nele — e segurá-lo até as 9h só atrasa a arrumação do quadro
+  // que a equipe vai encontrar quando abrir o dia.
+  //
+  // Foi exatamente o que aconteceu: a regra subiu depois das 19h e, às 01h38, o
+  // Thiago abriu a agenda e não viu card nenhum remarcado. Não estava quebrado,
+  // estava fora de hora.
+  const foraDaJanela = h < JANELA_INICIO_H || h >= JANELA_FIM_H;
 
   const agora = Date.now();
   const de = new Date(Math.max(agora - janelaDias() * 86400_000, new Date(inicioPiso()).getTime())).toISOString();
@@ -522,8 +534,10 @@ export async function runEletropostoReagendaAutoTick(
     // Elas ficam SEM DONO: este filtro só impede a acusação errada, não avisa
     // ninguém. Quem fechar um dia na `agendaFechada` precisa avisar à mão quem já
     // estava marcado nele — senão o lead espera por uma reunião que não vai ter.
-    && !agendaFechadaNoIso(f.quando));
-  if (!candidatos.length) return zero('nenhum_vermelho');
+    && !agendaFechadaNoIso(f.quando)
+    // Fora do horário comercial sobra só o card esquecido, que se move calado.
+    && (!foraDaJanela || f.status === 'agendado'));
+  if (!candidatos.length) return zero(foraDaJanela ? 'fora_da_janela' : 'nenhum_vermelho');
 
   const ids = candidatos.map(f => f.id);
   const [{ data: estados }, { data: ofertasVivas }] = await Promise.all([
@@ -545,8 +559,23 @@ export async function runEletropostoReagendaAutoTick(
       .filter(r => r.updated_at && agora - new Date(String(r.updated_at)).getTime() < 24 * 3600_000)
       .map(r => Number(String(r.key).slice(EP_REMARCAR_PREFIX.length))));
 
+  // ── O TETO DE 2 NÃO VALE PRO CARD ESQUECIDO (01/10/2026) ─────────────────
+  //
+  // Ordem do Thiago: "agenda é feita para ter responsabilidade de ser
+  // trabalhada, então a pessoa, quando não marca e não utiliza a ferramenta,
+  // sempre terá os clientes retornando e ocupando a agenda. Vamos seguir a
+  // regra."
+  //
+  // "Sempre" é literal, e a pressão é o ponto: o card volta todo dia, no mesmo
+  // horário, até alguém dar destino a ele. Ocupar a grade é o CUSTO que faz a
+  // regra funcionar, não um efeito colateral — é o que obriga a fechar o card.
+  //
+  // O teto continua valendo pro VERMELHO, e por um motivo diferente: aquele
+  // caminho MANDA MENSAGEM pro cliente. Remarcar em silêncio pode ser infinito;
+  // dizer "você não apareceu" vinte vezes, não.
+  const semTeto = (f: FichaVermelha) => f.status === 'agendado';
   const naVez = candidatos.filter(f =>
-    !comOferta.has(f.id) && (estadoDe.get(f.id)?.n ?? 0) < MAX_REAGENDAMENTOS);
+    !comOferta.has(f.id) && (semTeto(f) || (estadoDe.get(f.id)?.n ?? 0) < MAX_REAGENDAMENTOS));
   if (!naVez.length) return zero('ninguem_na_vez');
 
   // A RAMPA DO DIA. Conta quantas fichas já foram remarcadas hoje e para no teto.
@@ -584,7 +613,12 @@ export async function runEletropostoReagendaAutoTick(
   // Teto anti-ban ANTES de mexer na ficha: remarcar sem conseguir avisar é
   // marcar reunião que a pessoa não sabe que existe. Estourou? Ninguém é
   // remarcado nesta rodada — a fila espera o próximo tick, ela não tem pressa.
-  if (!opts.dry && !(await dentroDoTetoHorarioLinha({ transacional: false }))) {
+  //
+  // Só vale pra quem VAI FALAR. O card esquecido não manda mensagem nenhuma,
+  // então deixar o teto da linha travar ele seria uma trava sem nada do outro
+  // lado pra proteger: a linha não é usada.
+  const vaiFalar = naVez.some(f => f.status !== 'agendado');
+  if (!opts.dry && vaiFalar && !(await dentroDoTetoHorarioLinha({ transacional: false }))) {
     logger.info('ep-reagenda', 'teto da linha estourado — a fila espera o próximo tick');
     return zero('teto_da_linha');
   }

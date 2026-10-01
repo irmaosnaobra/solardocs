@@ -633,3 +633,106 @@ describe('para onde o card volta', () => {
     expect(fichas[0].quando).toBe(SEGUNDA_13H);
   });
 });
+
+// ── A JANELA SÓ SEGURA QUEM FALA (01/10/2026) ──────────────────────────────
+//
+// A regra do card esquecido subiu depois das 19h. À 01h38 o Thiago abriu a
+// agenda e não viu card remarcado nenhum: não estava quebrado, estava fora da
+// janela de 9h–19h, que existe pra não mandar "você não apareceu" de madrugada.
+//
+// O card esquecido não manda nada, então a janela não tem o que proteger nele.
+describe('fora do horário comercial', () => {
+  const MADRUGADA = new Date('2026-08-21T04:38:00.000Z');   // 01h38 BRT de sexta
+
+  it('o card esquecido se move de madrugada, porque ele é silencioso', async () => {
+    vi.setSystemTime(MADRUGADA);
+    fichas = [ficha({ status: 'agendado', quando: '2026-08-20T16:00:00.000Z' })];
+    vagas = [SEXTA_13H, SEXTA_14H];
+    const r = await tick();
+    expect(r.remarcados).toBe(1);
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('o vermelho NÃO se move de madrugada: ele mandaria mensagem', async () => {
+    vi.setSystemTime(MADRUGADA);
+    fichas = [ficha({ status: 'nao_atendeu', quando: '2026-08-20T16:00:00.000Z' })];
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(r.motivo).toBe('fora_da_janela');
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('de madrugada, com os dois na fila, só o esquecido anda', async () => {
+    vi.setSystemTime(MADRUGADA);
+    fichas = [
+      ficha({ id: 1, status: 'nao_atendeu', quando: '2026-08-20T16:00:00.000Z' }),
+      ficha({ id: 2, status: 'agendado', quando: '2026-08-20T16:00:00.000Z' }),
+    ];
+    await tick();
+    expect(fichas[0].quando).toBe('2026-08-20T16:00:00.000Z');   // o vermelho ficou
+    expect(fichas[1].quando).toBe(SEXTA_13H);                     // o esquecido andou
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('o teto da linha não trava o esquecido: ele não usa a linha', async () => {
+    tetoLivre = false;
+    fichas = [ficha({ status: 'agendado', quando: horasAtras(8) })];
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  it('mas o teto da linha continua travando o vermelho', async () => {
+    tetoLivre = false;
+    fichas = [ficha({ status: 'nao_atendeu', quando: horasAtras(2) })];
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(r.motivo).toBe('teto_da_linha');
+  });
+
+  it('dentro da janela nada muda: o vermelho anda como sempre andou', async () => {
+    fichas = [ficha({ status: 'nao_atendeu', quando: horasAtras(2) })];
+    expect((await tick()).remarcados).toBe(1);
+    expect(enviadas).toHaveLength(1);
+  });
+});
+
+// ── O CARD ESQUECIDO VOLTA PARA SEMPRE ─────────────────────────────────────
+//
+// "Agenda é feita para ter responsabilidade de ser trabalhada, então a pessoa,
+// quando não marca e não utiliza a ferramenta, sempre terá os clientes
+// retornando e ocupando a agenda. Vamos seguir a regra." (Thiago, 01/10/2026)
+//
+// Ocupar a grade é o CUSTO que faz a regra funcionar. O teto de 2 continua
+// existindo pro vermelho, que manda mensagem: remarcar calado pode ser
+// infinito, dizer "você não apareceu" vinte vezes não pode.
+describe('o teto de 2 e quem ele vale', () => {
+  const jaFoi = (id: number, n: number) =>
+    state.set(`ep_reagenda_auto:${id}`, {
+      key: `ep_reagenda_auto:${id}`, value: { n, ultimo: horasAtras(24) }, updated_at: horasAtras(24),
+    });
+
+  it('o esquecido volta na 3ª, na 5ª e na 10ª vez', async () => {
+    for (const n of [2, 4, 9]) {
+      fichas = [ficha({ id: 7, status: 'agendado', quando: horasAtras(8) })];
+      state.clear(); jaFoi(7, n);
+      vagas = [SEXTA_13H, SEXTA_14H];
+      expect((await tick()).remarcados).toBe(1);
+    }
+  });
+
+  it('o vermelho para no teto de 2, como sempre parou', async () => {
+    fichas = [ficha({ id: 7, status: 'nao_atendeu', quando: horasAtras(2) })];
+    jaFoi(7, 2);
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(r.motivo).toBe('ninguem_na_vez');
+  });
+
+  it('o histórico do esquecido não promete um teto que não existe', async () => {
+    fichas = [ficha({ id: 7, status: 'agendado', quando: horasAtras(8) })];
+    jaFoi(7, 5);
+    await tick();
+    const linha = String(fichas[0].historico || '');
+    expect(linha).toContain('6ª vez');
+    expect(linha).not.toContain('/2');
+  });
+});
