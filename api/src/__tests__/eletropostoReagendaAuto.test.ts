@@ -44,6 +44,12 @@ vi.mock('../utils/supabaseGerador', () => ({
         // Desde 30/09/2026 o módulo busca DOIS status de uma vez
         // (`nao_atendeu` e `agendado`), então a cadeia precisa do `.in`.
         in(col: string, vs: any[]) { q._filtros[`in_${col}`] = vs; return q; },
+        // Desde 01/10/2026 a fila deixou de listar O QUE ENTRA e passou a listar
+        // o que NÃO entra: destino final e apalavrado. O mock precisa do `.not`.
+        not(col: string, _op: string, lista: string) {
+          q._filtros[`not_${col}`] = String(lista).replace(/^\(|\)$/g, '').split(',');
+          return q;
+        },
         gte(col: string, v: any) { q._filtros[`gte_${col}`] = v; return q; },
         lte(col: string, v: any) { q._filtros[`lte_${col}`] = v; return q; },
         order() { return q; },
@@ -55,9 +61,11 @@ vi.mock('../utils/supabaseGerador', () => ({
             // CÓPIA, não a linha viva: é assim que dá pra simular a corrida com
             // gente (alguém muda o status entre a leitura e a gravação).
             data: fichas.filter(f =>
-              (q._filtros['in_status']
-                ? (q._filtros['in_status'] as string[]).includes(f.status)
-                : f.status === q._filtros['status'])
+              (q._filtros['not_status']
+                ? !(q._filtros['not_status'] as string[]).includes(f.status)
+                : q._filtros['in_status']
+                  ? (q._filtros['in_status'] as string[]).includes(f.status)
+                  : (!q._filtros['status'] || f.status === q._filtros['status']))
               && new Date(f.quando).getTime() >= piso
               && new Date(f.quando).getTime() <= teto).map(f => ({ ...f })),
             error: null,
@@ -981,5 +989,57 @@ describe('quem escreveu depois da reunião', () => {
   it('mas o vermelho continua de fora: essa conversa tem dono', async () => {
     fichas = [escreveu('nao_atendeu')];
     expect((await tick()).remarcados).toBe(0);
+  });
+});
+
+// ── "ATÉ ESSE CLIENTE TER UM DESTINO FINAL E PARAR DE RODAR" ───────────────
+//
+// Ordem do Thiago (01/10/2026): "tudo que fica pra trás tem que ser remarcado na
+// agenda à frente, com as regras de tempo de cada um já definido; será cíclico
+// até esse cliente ter um destino final e parar de rodar".
+//
+// A regra deixou de ser uma LISTA DO QUE ENTRA e virou uma lista do que NÃO
+// entra. Toda allowlist tem o mesmo defeito: o status criado depois nasce de
+// fora, calado, e ninguém descobre até um cliente sumir. Foi assim que 68 fichas
+// de eletroposto ficaram sem robô nenhum.
+describe('quem roda e quem para de rodar', () => {
+  const relogio = async (st: string) =>
+    (await import('../services/io/eletropostoReagendaAuto')).relogioDoCiclo(st);
+
+  it('os cinco destinos finais param de rodar', async () => {
+    for (const st of ['fechou', 'sem_interesse', 'cancelado', 'perdido', 'fechou_concorrente']) {
+      expect(await relogio(st)).toBeNull();
+    }
+  });
+
+  it('apalavrado também para: ele tem data própria', async () => {
+    expect(await relogio('apalavrado')).toBeNull();
+  });
+
+  it('cada um com o seu relógio', async () => {
+    expect(await relogio('nao_atendeu')).toBe('fala');       // 45 min, com mensagem
+    expect(await relogio('agendado')).toBe('esquecido');     // 6h, calado
+    expect(await relogio('chave_na_mao')).toBe('negocia');   // 48h, calado
+  });
+
+  // O CORAÇÃO DA INVERSÃO: status que ninguém previu nasce RODANDO.
+  it('status novo, que ninguém escreveu aqui, nasce rodando', async () => {
+    for (const st of ['falando_whatsapp', 'reagendar', 'sem_orcamento', 'status_que_nao_existe_ainda']) {
+      expect(await relogio(st)).toBe('negocia');
+    }
+  });
+
+  it('e roda de verdade: falando_whatsapp volta depois de 48h', async () => {
+    fichas = [ficha({ status: 'falando_whatsapp', quando: horasAtras(50) })];
+    vagas = ['2026-08-21T16:15:00.000Z'];
+    expect((await tick()).remarcados).toBe(1);
+    expect(fichas[0].status).toBe('falando_whatsapp');
+  });
+
+  it('e quem tem destino final não volta, por mais velho que seja', async () => {
+    for (const st of ['fechou', 'sem_interesse', 'cancelado']) {
+      fichas = [ficha({ status: st, quando: horasAtras(24 * 30) })];
+      expect((await tick()).remarcados).toBe(0);
+    }
   });
 });

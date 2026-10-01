@@ -30,6 +30,7 @@ vi.mock('../utils/supabaseGerador', () => ({
       const q: any = {
         _status: null as string | null,
         _statusIn: null as string[] | null,
+        _statusNot: null as string[] | null,
         _gte: null as string | null,
         _lte: null as string | null,
         _id: null as number | null,
@@ -42,6 +43,12 @@ vi.mock('../utils/supabaseGerador', () => ({
           return q;
         },
         in(col: string, v: string[]) { if (col === 'status') q._statusIn = v; return q; },
+        // Desde 01/10/2026 a fila lista o que NAO entra (destino final e
+        // apalavrado) em vez do que entra.
+        not(col: string, _op: string, lista: string) {
+          if (col === 'status') q._statusNot = String(lista).replace(/^\(|\)$/g, '').split(',');
+          return q;
+        },
         gte(_c: string, v: string) { q._gte = v; return q; },
         lte(_c: string, v: string) { q._lte = v; return q; },
         order() { return q; },
@@ -51,13 +58,14 @@ vi.mock('../utils/supabaseGerador', () => ({
           // em `status` — a fila passou a pedir `nao_atendeu` + `agendado`.
           // Quem as separa é o `lte`: só a fila tem teto de data (ela busca o
           // que já venceu); a agenda futura tem só piso.
-          if (q._statusIn && !q._lte) {
+          if ((q._statusIn || q._statusNot) && !q._lte) {
             if (agendaQuebrada) return Promise.resolve({ data: null, error: { message: 'boom' } });
             return Promise.resolve({ data: futura, error: null });
           }
           const out = vermelhos.filter(f =>
             (!q._status || f.status === q._status)
             && (!q._statusIn || q._statusIn.includes(f.status))
+            && (!q._statusNot || !q._statusNot.includes(f.status))
             && (!q._gte || f.quando >= q._gte)
             && (!q._lte || f.quando <= q._lte));
           return Promise.resolve({ data: out, error: null });

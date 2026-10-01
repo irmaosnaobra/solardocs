@@ -123,6 +123,29 @@ export const MAX_VOLTAS = 2;
  * solar vencidos e sem desfecho (Giovanna 2, Nilce 4) que robo nenhum olhava.
  */
 const esquecidoH = (): number => num('SOLAR_ESQUECIDO_H', 6);
+
+/**
+ * ── A MESMA INVERSAO DO ELETROPOSTO (01/10/2026) ──────────────────────────
+ *
+ * "Tudo que fica pra tras tem que ser remarcado na agenda a frente, com as
+ * regras de tempo de cada um ja definido; sera ciclico ate esse cliente ter um
+ * destino final e parar de rodar."
+ *
+ * O solar estava com 51 cards de fora so por causa da lista do que ENTRA: 39 em
+ * fez_orcamento, 8 negociando e 4 no whatsapp. Agora a lista e do que NAO entra,
+ * e status novo nasce rodando.
+ */
+const negociacaoH = (): number => num('SOLAR_NEGOCIACAO_H', 48);
+export const DESTINO_FINAL_SOLAR = new Set<string>([
+  'fechou', 'sem_interesse', 'cancelado', 'perdido', 'fechou_concorrente',
+]);
+/** Roda, e com qual relogio. `null` = parou de rodar. */
+export function relogioDoCicloSolar(status: string): 'fala' | 'esquecido' | 'negocia' | null {
+  if (DESTINO_FINAL_SOLAR.has(status) || status === 'apalavrado') return null;
+  if (status === 'nao_atendeu') return 'fala';
+  if (status === 'agendado') return 'esquecido';
+  return 'negocia';
+}
 /** Uma por tick: duas no mesmo passo poderiam mirar o mesmo horário. */
 const POR_TICK = 1;
 /** Até onde procurar vaga. Mais que isso não é remarcação, é chute. */
@@ -268,7 +291,7 @@ export async function runReagendaSolarTick(
   const { data, error } = await supabaseGerador
     .from('agendamentos')
     .select('id, quando, cliente_nome, cliente_telefone, vendedor_nome, created_by, status, lead_resposta_at, historico')
-    .in('status', ['nao_atendeu', 'agendado'])
+    .not('status', 'in', `(${[...DESTINO_FINAL_SOLAR, 'apalavrado'].join(',')})`)
     .gte('quando', de)
     .lte('quando', ate)
     .order('quando', { ascending: false })
@@ -279,11 +302,15 @@ export async function runReagendaSolarTick(
   }
 
   const corteEsquecido = new Date(agora - esquecidoH() * 3600_000).toISOString();
+  const corteNegociacao = new Date(agora - negociacaoH() * 3600_000).toISOString();
   const vermelhos = ((data ?? []) as CardSolar[]).filter(f =>
-    // `agendado` so entra depois das 6h; o vermelho entra com a folga de 30 min.
+    // Cada um com o seu relogio: vermelho 30 min, esquecido 6h, negociacao 48h.
     (f.status !== 'agendado' || (!!f.quando && f.quando <= corteEsquecido))
+    && (relogioDoCicloSolar(String(f.status)) !== 'negocia'
+      || (!!f.quando && f.quando <= corteNegociacao))
+    && relogioDoCicloSolar(String(f.status)) !== null
     // Fora do horario comercial sobra so o card esquecido, que e silencioso.
-    && (!foraDaJanela || f.status === 'agendado')
+    && (!foraDaJanela || f.status !== 'nao_atendeu')
     // Eletroposto tem régua própria, com copy própria. Duas máquinas no mesmo
     // card remarcariam duas vezes o mesmo cliente.
     && !ehOrigemEletroposto(f.created_by)
@@ -320,7 +347,7 @@ export async function runReagendaSolarTick(
   // Sem teto pro esquecido: "sempre tera os clientes retornando". O teto segue
   // valendo pro vermelho, cujo ciclo destrava as mensagens da regua da agenda.
   const naVez = vermelhos.filter(f =>
-    f.status === 'agendado' || (voltasDe.get(f.id) ?? 0) < MAX_VOLTAS);
+    f.status !== 'nao_atendeu' || (voltasDe.get(f.id) ?? 0) < MAX_VOLTAS);
   if (!naVez.length) return zero('ninguem_na_vez');
 
   const inicioDoDiaBRT = `${ymdSP(new Date(agora))}T00:00:00-03:00`;
@@ -409,7 +436,10 @@ export async function runReagendaSolarTick(
       .from('agendamentos')
       .update({
         quando: novo,
-        status: 'agendado',
+        // So o VERMELHO volta pra `agendado`. O esquecido ja e, e o card em
+        // negociacao mantem o status dele: e ele que diz onde o cliente esta
+        // no funil, e e ele que esconde a ficha dos robos que falam.
+        ...(f.status === 'nao_atendeu' ? { status: 'agendado' } : {}),
         // Os dois carimbos que calariam o dia novo. Quem fala com o cliente é o
         // `solarAgendaGiovanna` (bom dia às 7h e "oi" 5 min antes), e ele só fala
         // enquanto estes dois estão nulos.
@@ -422,7 +452,7 @@ export async function runReagendaSolarTick(
         // `bomdia_at` faria a regua da agenda mandar "bom dia, hoje tem ligacao"
         // pra quem ja conversou ontem. O vermelho destrava, porque ali o nao
         // comparecimento e fato que alguem registrou.
-        ...(f.status === 'agendado' ? {} : { bomdia_at: null, lembrete_5min_at: null }),
+        ...(f.status === 'nao_atendeu' ? { bomdia_at: null, lembrete_5min_at: null } : {}),
         confirmacao_at: null,
         lembrete_1h_at: null,
         historico: f.historico ? `${linha}\n\n${f.historico}` : linha,

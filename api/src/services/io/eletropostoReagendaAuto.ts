@@ -239,10 +239,46 @@ const esquecidoH = (): number => num('EP_ESQUECIDO_H', 6);
  *    sem carimbar `confirmacao_at`, que é o campo de dois donos que custou 14
  *    leads nesta mesma semana.
  */
-const ESTAGIOS_NEGOCIACAO = new Set<string>([
-  'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao',
-  'em_atendimento', 'fez_orcamento', 'proposta_apresentada',
+/**
+ * ── A REGRA VIROU DO AVESSO (01/10/2026) ──────────────────────────────────
+ *
+ * Ordem do Thiago: "tudo que fica pra trás tem que ser remarcado na agenda à
+ * frente, com as regras de tempo de cada um já definido; será cíclico até esse
+ * cliente ter um destino final e parar de rodar".
+ *
+ * Isto não é "mais um status na lista", é a inversão dela. Antes havia uma LISTA
+ * DO QUE ENTRA, e toda lista assim tem o mesmo defeito: o status que alguém
+ * criar depois nasce de fora, em silêncio, e ninguém descobre até um cliente
+ * sumir. A casa já pagou por isso duas vezes — é o buraco que o comentário do
+ * `origemEtiqueta` descreve na prospecção, e é o que deixou 68 fichas de
+ * eletroposto sem robô nenhum até ontem.
+ *
+ * Agora a lista é DO QUE NÃO ENTRA, e ela é curta porque é fim de linha:
+ *
+ *   `fechou`             vendeu
+ *   `sem_interesse`      ele disse não
+ *   `cancelado`          desmarcou
+ *   `perdido`            botão velho, mesma coisa
+ *   `fechou_concorrente` comprou de outro
+ *   `apalavrado`         NÃO é fim de linha, é sala de espera: tem data própria
+ *                        e volta por ela. Rodar junto seria cobrar duas vezes.
+ *
+ * Qualquer outra coisa roda. Status novo nasce rodando, que é o certo.
+ */
+export const DESTINO_FINAL = new Set<string>([
+  'fechou', 'sem_interesse', 'cancelado', 'perdido', 'fechou_concorrente',
 ]);
+
+/** Roda, e com qual relógio. `null` = não roda. */
+export function relogioDoCiclo(status: string): 'fala' | 'esquecido' | 'negocia' | null {
+  if (DESTINO_FINAL.has(status) || status === 'apalavrado') return null;
+  if (status === 'nao_atendeu') return 'fala';        // 45 min, e manda mensagem
+  if (status === 'agendado') return 'esquecido';      // 6h, calado
+  return 'negocia';                                   // 48h, calado
+}
+
+/** Atalho: tudo que não é vermelho nem esquecido roda no relógio de 48h. */
+const ehNegociacaoStatus = (st: string): boolean => relogioDoCiclo(st) === 'negocia';
 const negociacaoH = (): number => num('EP_NEGOCIACAO_H', 48);
 /**
  * Quantos dias pra trás a varredura enxerga.
@@ -487,7 +523,7 @@ async function gravarNovoHorario(
   // forçar `agendado` apagaria a classificação do funil, que é a informação que
   // diz por qual porta o cliente está entrando. E é justamente o status não ser
   // `agendado` que mantém a ficha invisível pra todo robô que fala com cliente.
-  const negociacao = ESTAGIOS_NEGOCIACAO.has(String(f.status));
+  const negociacao = ehNegociacaoStatus(String(f.status));
   // ── "DEIXA CAIR SEMPRE COMO CONFIRMADA MESMO, COM A MESMA COR" ───────────
   //
   // Ordem do Thiago (01/10/2026), olhando a agenda do Diego cheia de card rosa.
@@ -619,7 +655,7 @@ export async function runEletropostoReagendaAutoTick(
   const { data, error } = await supabaseGerador
     .from('agendamentos')
     .select('id, cliente_nome, cliente_telefone, quando, vendedor_nome, created_by, status, temperatura, lead_resposta_at, historico')
-    .in('status', ['nao_atendeu', 'agendado', ...ESTAGIOS_NEGOCIACAO])
+    .not('status', 'in', `(${[...DESTINO_FINAL, 'apalavrado'].join(',')})`)
     .gte('quando', de)
     .lte('quando', ate)
     .order('quando', { ascending: false })
@@ -636,7 +672,10 @@ export async function runEletropostoReagendaAutoTick(
     // certo é esta linha.
     && (f.status !== 'agendado' || (!!f.quando && f.quando <= corteEsquecido))
     // Negociação: 48h desde o último horário dela.
-    && (!ESTAGIOS_NEGOCIACAO.has(String(f.status)) || (!!f.quando && f.quando <= corteNegociacao))
+    && (!ehNegociacaoStatus(String(f.status)) || (!!f.quando && f.quando <= corteNegociacao))
+    // Rede: status sem relógio nenhum não entra. A consulta já corta destino
+    // final e apalavrado; isto segura se alguém mexer na consulta.
+    && relogioDoCiclo(String(f.status)) !== null
     // Desde 29/09/2026 entra TODO NÃO ATENDEU, não só o quente: a ordem é
     // recuperar gente, e quem decide o volume agora é a rampa diária. Com
     // EP_REAGENDA_SO_QUENTE=1 volta a régua de 20/08 sem deploy.
@@ -661,7 +700,7 @@ export async function runEletropostoReagendaAutoTick(
     // estava marcado nele — senão o lead espera por uma reunião que não vai ter.
     && !agendaFechadaNoIso(f.quando)
     // Fora do horário comercial sobra só o card esquecido, que se move calado.
-    && (!foraDaJanela || f.status === 'agendado' || ESTAGIOS_NEGOCIACAO.has(String(f.status))));
+    && (!foraDaJanela || f.status === 'agendado' || ehNegociacaoStatus(String(f.status))));
   if (!candidatos.length) return zero(foraDaJanela ? 'fora_da_janela' : 'nenhum_vermelho');
 
   const ids = candidatos.map(f => f.id);
@@ -699,7 +738,7 @@ export async function runEletropostoReagendaAutoTick(
   // caminho MANDA MENSAGEM pro cliente. Remarcar em silêncio pode ser infinito;
   // dizer "você não apareceu" vinte vezes, não.
   const semTeto = (f: FichaVermelha) =>
-    f.status === 'agendado' || ESTAGIOS_NEGOCIACAO.has(String(f.status));
+    f.status === 'agendado' || ehNegociacaoStatus(String(f.status));
   const naVez = candidatos.filter(f =>
     !comOferta.has(f.id) && (semTeto(f) || (estadoDe.get(f.id)?.n ?? 0) < MAX_REAGENDAMENTOS));
   if (!naVez.length) return zero('ninguem_na_vez');
@@ -792,7 +831,7 @@ export async function runEletropostoReagendaAutoTick(
     const tentativa = (estadoDe.get(f.id)?.n ?? 0) + 1;
     const quem = String(f.vendedor_nome);
     try {
-      const ehNegociacao = ESTAGIOS_NEGOCIACAO.has(String(f.status));
+      const ehNegociacao = ehNegociacaoStatus(String(f.status));
       const lista = await candidatosDoOutroDia(quem, String(f.quando), agora, ehNegociacao);
       if (lista === null) continue;             // leitura da agenda falhou
       if (!lista.length) {
@@ -841,7 +880,7 @@ export async function runEletropostoReagendaAutoTick(
       // marca que impede a régua do SIM de liberar o horário. Negociação não
       // carimba nada, porque o status dela já a esconde de todo mundo.
       const esquecido = f.status === 'agendado';
-      const mudo = esquecido || ESTAGIOS_NEGOCIACAO.has(String(f.status));
+      const mudo = esquecido || ehNegociacaoStatus(String(f.status));
       if (!mudo) {
         const bruto = String(f.cliente_nome || '').trim().split(/\s+/)[0] || '';
         const primeiro = bruto.length >= 2 && bruto.length <= 20 && bruto.toLowerCase() !== 'lead' ? bruto : '';
