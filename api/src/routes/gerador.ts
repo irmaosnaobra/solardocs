@@ -422,13 +422,30 @@ router.get('/apalavrado', async (req: Request, res: Response) => {
     // AS DUAS MARCAS NA MESMA CHAMADA. Separar em duas rotas dobraria a ida e
     // volta num quadro que desenha 300 cards, e as duas são lidas sempre juntas:
     // o card precisa saber se está em espera E qual era a etiqueta dele.
-    const { data, error } = await supabase.from('system_state')
-      .select('key, value')
-      .in('key', [
-        ...ids.map(i => `${APALAVRADO_PREFIX}${i}`),
-        ...ids.map(i => `${ETIQUETA_PREFIX}${i}`),
-      ]);
-    if (error) throw error;
+    // ── FATIADO POR DENTRO, porque a URL estoura antes do teto ─────────────
+    //
+    // Cada id vira DUAS chaves no `.in()`, e o PostgREST recebe tudo isso na
+    // URL. Medido em producao: 600 ids passam, 700 devolvem Bad Request. Subir
+    // o teto pra 1000 sem fatiar foi trocar um corte silencioso por um erro
+    // 500 — pior, porque o quadro inteiro fica sem marca nenhuma.
+    //
+    // Fatiar aqui e nao na tela e de proposito: quem chama nao tem como saber
+    // que o limite e de CARACTERES e nao de ids, e a proxima tela a usar esta
+    // rota ia descobrir do mesmo jeito que eu descobri.
+    const POR_CONSULTA = 200;   // 400 chaves, bem abaixo do que quebrou
+    const linhas: Array<{ key: string; value: unknown }> = [];
+    for (let i = 0; i < ids.length; i += POR_CONSULTA) {
+      const lote = ids.slice(i, i + POR_CONSULTA);
+      const { data: parte, error } = await supabase.from('system_state')
+        .select('key, value')
+        .in('key', [
+          ...lote.map(x => `${APALAVRADO_PREFIX}${x}`),
+          ...lote.map(x => `${ETIQUETA_PREFIX}${x}`),
+        ]);
+      if (error) throw error;
+      linhas.push(...((parte ?? []) as Array<{ key: string; value: unknown }>));
+    }
+    const data = linhas;
     const esperas: Record<string, unknown> = {};
     const etiquetas: Record<string, string> = {};
     for (const l of data ?? []) {
