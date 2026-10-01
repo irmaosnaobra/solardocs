@@ -23,6 +23,11 @@ let futura: any[] = [];
 const updates: Array<{ id: number; patch: any; exigiuStatus: string | null }> = [];
 /** Simula alguém mexendo no card entre a leitura e a gravação. */
 let updateNaoPega = false;
+/** Horários que o índice único recusa (código 23505), como quando a outra
+ *  máquina marcou ali entre a leitura e a gravação. */
+let colidemEm: string[] = [];
+/** Um erro de banco que NÃO é colisão de horário. */
+let updateQuebrado = false;
 
 vi.mock('../utils/supabaseGerador', () => ({
   supabaseGerador: {
@@ -60,7 +65,14 @@ vi.mock('../utils/supabaseGerador', () => ({
           // que já venceu); a agenda futura tem só piso.
           if ((q._statusIn || q._statusNot) && !q._lte) {
             if (agendaQuebrada) return Promise.resolve({ data: null, error: { message: 'boom' } });
-            return Promise.resolve({ data: futura, error: null });
+            // O FILTRO DE STATUS VALE AQUI TAMBÉM. Antes o mock devolvia a
+            // agenda futura inteira, e com isso qualquer teste de "o que ocupa
+            // horário" passava de graça: era exatamente o defeito de 01/10, em
+            // que a varredura real não via 31 das 92 linhas futuras.
+            const vis = futura.filter(o =>
+              (!q._statusIn || q._statusIn.includes(o.status))
+              && (!q._statusNot || !q._statusNot.includes(o.status)));
+            return Promise.resolve({ data: vis, error: null });
           }
           const out = vermelhos.filter(f =>
             (!q._status || f.status === q._status)
@@ -76,6 +88,10 @@ vi.mock('../utils/supabaseGerador', () => ({
           const id = q._id as number;
           updates.push({ id, patch: q._patch, exigiuStatus: q._status });
           if (updateNaoPega) return res({ data: [], error: null });
+          if (colidemEm.includes(String(q._patch?.quando))) {
+            return res({ data: null, error: { code: '23505', message: 'duplicate key' } });
+          }
+          if (updateQuebrado) return res({ data: null, error: { code: '42501', message: 'nao autorizado' } });
           const alvo = vermelhos.find(f => f.id === id);
           if (alvo) Object.assign(alvo, q._patch);
           return res({ data: [{ id }], error: null });
@@ -145,6 +161,7 @@ beforeEach(() => {
   futura = [];
   state.clear(); updates.length = 0;
   rampaQuebrada = false; cicloQuebrado = false; agendaQuebrada = false; updateNaoPega = false;
+  colidemEm = []; updateQuebrado = false;
   vi.useFakeTimers(); vi.setSystemTime(AGORA);
 });
 afterEach(() => { vi.useRealTimers(); process.env = { ...envOriginal }; vi.resetModules(); });
@@ -422,6 +439,72 @@ describe('a rampa diária', () => {
     const r = await tick();
     expect(r.remarcados).toBe(1);
     expect(updates.map(u => u.id)).toEqual([42]);
+  });
+
+  // ── O QUE OCUPA HORÁRIO É DENYLIST, NÃO ALLOWLIST (01/10/2026) ──────────
+  //
+  // A varredura pedia uma LISTA DO QUE ENTRA: agendado, nao_atendeu,
+  // em_atendimento, falando_whatsapp. Status criado depois nascia invisível, e
+  // foi o que aconteceu no dia em que o ciclo de 48h começou a devolver
+  // negociação pra agenda: das 92 linhas futuras, 31 estavam fora da lista. Pro
+  // Thiago, a varredura escolhia um horário que já tinha reunião viva, o índice
+  // único recusava a gravação, e o card não andava — oito vezes por rodada.
+  it('card em negociação no futuro OCUPA o horário, como qualquer reunião', async () => {
+    // 08:00 BRT de quinta 01/10: a varredura comeca no PROXIMO dia util, nao no
+    // resto de hoje.
+    const primeiro = '2026-10-01T11:00:00.000Z';
+    futura = [{
+      id: 900, quando: primeiro, vendedor_nome: 'Giovanna',
+      cliente_telefone: '5534900000900', created_by: 'lead-meta', status: 'chave_na_mao',
+    }];
+    await tick();
+    expect(updates[0].patch.quando).not.toBe(primeiro);
+  });
+
+  it('mas horário cancelado não ocupa nada — é a outra ponta da mesma régua', async () => {
+    const primeiro = '2026-10-01T11:00:00.000Z';
+    futura = [{
+      id: 900, quando: primeiro, vendedor_nome: 'Giovanna',
+      cliente_telefone: '5534900000900', created_by: 'lead-meta', status: 'cancelado',
+    }];
+    await tick();
+    expect(updates[0].patch.quando).toBe(primeiro);
+  });
+
+  // ── RECUSA DE HORÁRIO OCUPADO NÃO É ERRO (01/10/2026) ───────────────────
+  //
+  // A agenda tem dois donos: o reciclo do eletroposto escreve nela também. Entre
+  // ler e gravar, o horário pode ter sido tomado, e o índice único recusa com
+  // 23505. Isso é o banco dizendo a verdade, e a resposta certa é tentar o
+  // seguinte. Contar erro e desistir foi o que devolveu `erros: 8, remarcados: 0`
+  // na primeira rodada da regra nova.
+  it('horário recusado pelo índice único: tenta o seguinte e não conta erro', async () => {
+    const primeiro = '2026-10-01T11:00:00.000Z';
+    colidemEm = [primeiro];
+    const r = await tick();
+    expect(r.remarcados).toBe(1);
+    expect(r.erros).toBe(0);
+    expect(updates).toHaveLength(2);                       // tentou dois horários
+    expect(updates[0].patch.quando).toBe(primeiro);         // o recusado
+    expect(updates[1].patch.quando).not.toBe(primeiro);     // e o que entrou
+  });
+
+  it('mas não tenta pra sempre: horário sempre recusado para em 4 e não vira laço', async () => {
+    // Todos os horários do dia e do dia seguinte recusados.
+    colidemEm = ['2026-10-01T11:00:00.000Z', '2026-10-01T11:30:00.000Z',
+      '2026-10-01T12:00:00.000Z', '2026-10-01T12:30:00.000Z', '2026-10-01T13:00:00.000Z'];
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(r.erros).toBe(0);                 // recusa de horário não é erro
+    expect(updates).toHaveLength(4);         // 4 horários no único card da fila, e para
+  });
+
+  it('erro de banco que NÃO é colisão continua contando como erro, e não repete', async () => {
+    updateQuebrado = true;
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(r.erros).toBe(1);
+    expect(updates).toHaveLength(1);         // não insistiu no mesmo card
   });
 
   // FAIL-CLOSED nas duas leituras que seguram repetição.

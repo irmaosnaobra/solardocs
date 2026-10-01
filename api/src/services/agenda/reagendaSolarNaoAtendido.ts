@@ -168,6 +168,12 @@ const POR_TICK = 1;
  * cada tentativa varre a agenda do dono.
  */
 const TENTATIVAS_POR_RODADA = 8;
+/**
+ * Quantos HORÁRIOS tentar pro mesmo card antes de passar pro seguinte. A agenda
+ * tem dois donos (o reciclo do eletroposto escreve nela também), então colisão
+ * entre ler e gravar é esperada, não excepcional.
+ */
+const HORARIOS_POR_CARD = 4;
 /** Até onde procurar vaga. Mais que isso não é remarcação, é chute. */
 const HORIZONTE_DIAS_UTEIS = 10;
 /** A ligação do solar ocupa 15 min; a apresentação do eletroposto, 30. A agenda
@@ -456,15 +462,32 @@ export async function runReagendaSolarTick(
     .from('agendamentos')
     .select('id, quando, vendedor_nome, cliente_telefone, created_by, status')
     .gte('quando', new Date(agora).toISOString())
-    .in('status', ['agendado', 'nao_atendeu', 'em_atendimento', 'falando_whatsapp'])
+    // ── O QUE OCUPA HORÁRIO É DENYLIST, NÃO ALLOWLIST (01/10/2026) ─────────
+    //
+    // Isto era uma lista do que ENTRA, e toda lista assim tem o mesmo defeito:
+    // status criado depois nasce INVISÍVEL. Medido em 01/10, logo depois de o
+    // ciclo de 48h começar a devolver negociação pra agenda: das 92 linhas
+    // futuras, 31 estavam fora desta lista (chave_na_mao 8, carregador 5,
+    // meio_a_meio 5, arrendamento 4, fez_orcamento 3 e 6 encerradas). Pro Thiago,
+    // a varredura escolhia 01/10 15:00 quando o primeiro horário livre de
+    // verdade era 02/10 11:00: ela marcava EM CIMA de uma reunião viva, o índice
+    // único recusava a gravação e o card não andava.
+    //
+    // A régua agora é a MESMA do `eletropostoVagas`, que é a outra ponta que
+    // escreve nesta agenda: só horário cancelado ou sem interesse deixa de
+    // ocupar. Se as duas discordarem, uma marca onde a outra já marcou.
+    .not('status', 'in', '(cancelado,sem_interesse)')
     .limit(1000);
   if (futuraQ.error) {
     logger.error('solar-reagenda', 'ler a agenda futura falhou — não inventa horário', futuraQ.error);
     return { ...zero('erro_agenda'), erros: 1 };
   }
-  const futura = (futuraQ.data ?? []) as Array<{
+  // CÓPIA, não o array da consulta: o laço abaixo ACRESCENTA nele o horário que
+  // acabou de gravar, e mexer no que outro devolveu é como se descobre, meses
+  // depois, que duas rodadas estavam conversando por baixo da mesa.
+  const futura = [...((futuraQ.data ?? []) as Array<{
     quando: string; vendedor_nome: string | null; cliente_telefone: string | null; created_by: string | null;
-  }>;
+  }>)];
   const comHorarioFuturo = new Set(
     futura.map(f => telKey(f.cliente_telefone)).filter(Boolean) as string[]);
 
@@ -484,11 +507,6 @@ export async function runReagendaSolarTick(
       .filter(o => o.vendedor_nome === dono)
       .map(o => ({ ini: new Date(o.quando).getTime(), dur: duracaoDe(o.created_by) }));
     const dias = proximosDiasUteis(ymdSP(new Date(agora)), HORIZONTE_DIAS_UTEIS);
-    const novo = primeiraVaga(ocupado, agora, dias);
-    if (!novo) {
-      logger.info('solar-reagenda', `sem vaga na agenda do ${dono} em ${HORIZONTE_DIAS_UTEIS} dias úteis`);
-      continue;
-    }
     const volta = (voltasDe.get(f.id) ?? 0) + 1;
     // UMA leitura do relógio, ANTES do update. Ler de novo depois é pedir pra
     // classificar a ficha pelo status NOVO: o vermelho volta pra `agendado` na
@@ -496,15 +514,33 @@ export async function runReagendaSolarTick(
     // teto que protege a linha.
     const relogio = relogioDoCicloSolar(String(f.status)) ?? 'fala';
 
-    if (dry) {
-      previa.push({
-        id: f.id, cliente: f.cliente_nome || '(sem nome)', dono,
-        de: horaBonita(f.quando), para: horaBonita(novo), volta,
-      });
-      continue;
-    }
+    // ── MAIS DE UM HORÁRIO POR CARD, QUANDO O PRIMEIRO É RECUSADO ──────────
+    //
+    // `primeiraVaga` decide pela agenda que a gente LEU. Entre a leitura e a
+    // gravação, outra máquina pode ter marcado ali (a agenda tem dois donos: o
+    // reciclo do eletroposto escreve nela também), e aí o índice único recusa.
+    // Recusa de horário ocupado NÃO é erro: é o banco dizendo a verdade, e a
+    // resposta certa é tentar o seguinte, não contar um erro e desistir.
+    //
+    // Foi o que apareceu na primeira rodada da regra nova: 8 tentativas, 8
+    // `erros`, zero cards movidos. O módulo tentava 8 cards diferentes e todos
+    // mirando o MESMO horário, porque `ocupado` não aprendia nada no caminho.
+    let novo: string | null = null;
+    let moveu = false;
+    for (let tentativa = 1; tentativa <= HORARIOS_POR_CARD && !moveu; tentativa++) {
+      novo = primeiraVaga(ocupado, agora, dias);
+      if (!novo) break;
 
-    const linha = linhaDoHistorico(f.quando, novo, volta, relogio);
+      if (dry) {
+        previa.push({
+          id: f.id, cliente: f.cliente_nome || '(sem nome)', dono,
+          de: horaBonita(f.quando), para: horaBonita(novo), volta,
+        });
+        moveu = true;
+        break;
+      }
+
+      const linha = linhaDoHistorico(f.quando, novo, volta, relogio);
     const { data: atualizado, error: erroUpd } = await supabaseGerador
       .from('agendamentos')
       .update({
@@ -536,30 +572,57 @@ export async function runReagendaSolarTick(
       // O status que FOI LIDO: o modulo passou a pegar `agendado` tambem.
       .eq('status', String(f.status))
       .select('id');
-    if (erroUpd) {
-      logger.error('solar-reagenda', 'mover o card falhou', { id: f.id, erro: String(erroUpd.message || erroUpd) });
-      erros++;
-      continue;
-    }
-    if (!atualizado?.length) {
-      logger.info('solar-reagenda', `card ${f.id} saiu do vermelho no meio do caminho — quem manda é a pessoa`);
-      continue;
-    }
+      if (erroUpd) {
+        // 23505 = índice único: o horário foi ocupado por fora. Marca ele como
+        // ocupado na agenda em memória e tenta o seguinte.
+        if (String((erroUpd as { code?: string }).code) === '23505') {
+          logger.info('solar-reagenda', `horário ${novo} já ocupado — tenta o seguinte`, { id: f.id, dono });
+          ocupado.push({ ini: new Date(novo).getTime(), dur: DUR_LIGACAO_MS });
+          continue;
+        }
+        logger.error('solar-reagenda', 'mover o card falhou', {
+          id: f.id, codigo: String((erroUpd as { code?: string }).code || '?'),
+          erro: String(erroUpd.message || erroUpd),
+        });
+        erros++;
+        break;
+      }
+      if (!atualizado?.length) {
+        logger.info('solar-reagenda', `card ${f.id} saiu do vermelho no meio do caminho — quem manda é a pessoa`);
+        break;
+      }
 
-    const nowIso = new Date().toISOString();
-    await supabase.from('system_state').upsert(
-      {
-        key: `${SOLAR_REAGENDA_PREFIX}${f.id}`,
-        // `relogio` é o que separa as duas rampas.
-        value: { n: volta, ultimo: nowIso, de: f.quando, relogio: relogio === 'fala' ? 'fala' : 'mudo' },
-        updated_at: nowIso,
-      },
-      { onConflict: 'key' },
-    ).then(undefined, (e: unknown) =>
-      logger.error('solar-reagenda', 'carimbo do ciclo falhou', { id: f.id, erro: String(e) }));
+      const nowIso = new Date().toISOString();
+      await supabase.from('system_state').upsert(
+        {
+          key: `${SOLAR_REAGENDA_PREFIX}${f.id}`,
+          // `relogio` é o que separa as duas rampas.
+          value: { n: volta, ultimo: nowIso, de: f.quando, relogio: relogio === 'fala' ? 'fala' : 'mudo' },
+          updated_at: nowIso,
+        },
+        { onConflict: 'key' },
+      ).then(undefined, (e: unknown) =>
+        logger.error('solar-reagenda', 'carimbo do ciclo falhou', { id: f.id, erro: String(e) }));
 
-    remarcados++;
-    logger.info('solar-reagenda', `card ${f.id} (${dono}) voltou pra ${novo}, volta ${volta}/${maxVoltas()}`);
+      // A agenda em memória aprende o que acabou de ser gravado. Com
+      // `POR_TICK = 1` a rodada para no primeiro card que anda, então HOJE isto
+      // não muda nada: é a guarda pro dia em que mais de um card se mover na
+      // mesma rodada, que senão mirariam o mesmo horário. Quem consertou as 8
+      // colisões de 01/10 foi a denylist lá em cima, que fez a varredura ver o
+      // horário ocupado, mais o laço de horários aqui.
+      futura.push({
+        quando: novo, vendedor_nome: dono,
+        cliente_telefone: f.cliente_telefone, created_by: f.created_by,
+      });
+      if (chave) comHorarioFuturo.add(chave);
+
+      remarcados++;
+      moveu = true;
+      logger.info('solar-reagenda', `card ${f.id} (${dono}) voltou pra ${novo}, volta ${volta}/${maxVoltas()}`);
+    }
+    if (!novo) {
+      logger.info('solar-reagenda', `sem vaga na agenda do ${dono} em ${HORIZONTE_DIAS_UTEIS} dias úteis`);
+    }
   }
 
   if (dry) return { remarcados: 0, erros: 0, motivo: previa.length ? 'remarcaria_agora' : 'sem_vaga', previa };
