@@ -58,12 +58,21 @@ import { logger } from '../../utils/logger';
 import { ehFeriadoBR } from '../../utils/feriadosBR';
 import { ehOrigemEletroposto } from './origemEtiqueta';
 import { agendaFechadaNoIso } from './agendaFechada';
+// A leitura mora num modulo NEUTRO. A primeira versao importava do modulo do
+// eletroposto, e isso arrastava o grafo dele (Z-API, teto de linha, agenda) pra
+// dentro de todo teste que carrega o solar: quatro arquivos sem relacao nenhuma
+// com esta mudanca passaram a falhar. A conta continua sendo UMA; o que saiu foi
+// um produto depender do outro.
+import { APALAVRADO_PREFIX, esperaAte } from './salaDeEspera';
 import { GRADE_NILCE } from './nilceParaGiovanna';
 
 const TZ = 'America/Sao_Paulo';
 
 /** Estado do ciclo: `solar_reagenda:<id>` → { n, ultimo, de }. */
 export const SOLAR_REAGENDA_PREFIX = 'solar_reagenda:';
+/** A sala de espera do card, igual ao eletroposto: desde 01/10/2026 ela e MARCA
+ *  e nao status, pra nao apagar a etiqueta de negociacao do cliente. */
+export { APALAVRADO_PREFIX as SOLAR_APALAVRADO_PREFIX } from './salaDeEspera';
 
 const num = (nome: string, padrao: number): number => {
   const cru = (process.env[nome] || '').trim();
@@ -433,6 +442,22 @@ export async function runReagendaSolarTick(
   }
   // O estado deixou de ser só a contagem de voltas: a escada precisa da ETIQUETA
   // da última volta e do degrau em que ela caiu.
+  // A SALA DE ESPERA por marca. Mesma leitura do eletroposto, incluindo o
+  // padrao de 30 dias pra data ilegivel e o `null` pra marca sem data nenhuma.
+  const esperasQ = await supabase
+    .from('system_state').select('key, value')
+    .in('key', ids.map(id => `${APALAVRADO_PREFIX}${id}`));
+  if (esperasQ.error) {
+    logger.error('solar-reagenda', 'ler a sala de espera falhou — ninguem anda nesta rodada', esperasQ.error);
+    return { ...zero('erro_espera'), erros: 1 };
+  }
+  const esperandoAte = new Map<number, number>();
+  for (const r of esperasQ.data ?? []) {
+    const id = Number(String(r.key).slice(APALAVRADO_PREFIX.length));
+    const ate = esperaAte(r.value);
+    if (Number.isInteger(id) && ate !== null) esperandoAte.set(id, ate);
+  }
+
   const voltasDe = new Map<number, number>();
   const estadoDe = new Map<number, { status?: string; degrau?: number }>();
   for (const r of estadosQ.data ?? []) {
@@ -465,13 +490,20 @@ export async function runReagendaSolarTick(
     f.status === 'nao_atendeu' && (voltasDe.get(f.id) ?? 0) >= maxVoltas()).length;
   // Sem teto pro esquecido: "sempre tera os clientes retornando". O teto segue
   // valendo pro vermelho, cujo ciclo destrava as mensagens da regua da agenda.
+  const naEspera = (f: CardSolar): boolean => {
+    const ate = esperandoAte.get(f.id);
+    return ate !== undefined && ate > agora;
+  };
+  const esperando = vermelhos.filter(naEspera).length;
   const naVez = vermelhos.filter(f =>
-    descansou(f) && (f.status !== 'nao_atendeu' || (voltasDe.get(f.id) ?? 0) < maxVoltas()));
+    !naEspera(f) && descansou(f)
+    && (f.status !== 'nao_atendeu' || (voltasDe.get(f.id) ?? 0) < maxVoltas()));
   if (!naVez.length) {
     // "Ninguem na vez" e "todos dentro do degrau" sao coisas diferentes, e
     // juntar as duas num motivo so esconderia a escada de quem le o tick.
     logger.info('solar-reagenda', `fila parada: ${noPrazo} em negociacao dentro do degrau, `
-      + `${noTeto} vermelho(s) no teto de ${maxVoltas()} voltas, ${vermelhos.length} candidato(s)`);
+      + `${noTeto} vermelho(s) no teto de ${maxVoltas()} voltas, ${esperando} na sala de espera, `
+      + `${vermelhos.length} candidato(s)`);
     if (noPrazo && !noTeto) return zero('todos_no_degrau');
     return zero('ninguem_na_vez');
   }

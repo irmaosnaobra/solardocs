@@ -315,16 +315,40 @@ router.post('/apalavrado', async (req: Request, res: Response) => {
   }
 });
 
-// Tira o card da sala de espera: apagar o carimbo devolve ele pro ciclo de 48h
-// na próxima varredura. Chamado quando o consultor muda o status pra qualquer
-// outra coisa — senão um carimbo velho calaria um card que voltou a negociar.
+// ── SOLTAR = SAIR DA ESPERA **E** ZERAR A ESCADA (01/10/2026) ───────────────
+//
+// A tela chama esta rota em TODA troca de status, e é por isso que ela é o lugar
+// certo pra zerar a escada da negociação.
+//
+// A regra do dono é "se manter uma dessas etiquetas, 72hrs": manter é que faz
+// subir, então mudar tem que voltar pro degrau 1. Só que o robô enxerga a
+// etiqueta apenas nos movimentos DELE, e nos primeiros 48h depois do horário a
+// ficha nem é candidata — então `arrendamento` → `chave_na_mao` → `arrendamento`
+// dentro dessa janela era invisível pra ele, e o degrau subia como se a etiqueta
+// nunca tivesse mudado. Com apalavrado no meio, pior: o card saía da consulta,
+// voltava com o degrau congelado e ganhava 144h de silêncio em vez de 48h.
+//
+// Quem SEMPRE vê a troca é quem a faz. Então o carimbo do ciclo morre aqui,
+// junto com o da espera: na próxima varredura a ficha é degrau 1, 48h, que é o
+// que a ordem dá a quem acabou de receber sua etiqueta.
+//
+// Os dois prefixos de ciclo são apagados sem olhar o produto: uma ficha é de
+// eletroposto OU de solar, a outra chave simplesmente não existe, e `delete` em
+// chave inexistente não é erro. Perguntar a origem antes seria uma consulta a
+// mais pra decidir nada.
 router.post('/apalavrado/soltar', async (req: Request, res: Response) => {
   const id = Number((req.body || {}).id);
   if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: 'id inválido' }); return; }
   try {
-    const { error } = await supabase.from('system_state').delete().eq('key', `${APALAVRADO_PREFIX}${id}`);
+    const { error } = await supabase.from('system_state')
+      .delete()
+      .in('key', [
+        `${APALAVRADO_PREFIX}${id}`,
+        `ep_reagenda_auto:${id}`,
+        `solar_reagenda:${id}`,
+      ]);
     if (error) throw error;
-    res.json({ ok: true, id, soltou: true });
+    res.json({ ok: true, id, soltou: true, escadaZerada: true });
   } catch (err: any) {
     logger.error('gerador', 'apalavrado/soltar falhou', err);
     res.status(500).json({ error: 'falha', detail: String(err?.message || err) });

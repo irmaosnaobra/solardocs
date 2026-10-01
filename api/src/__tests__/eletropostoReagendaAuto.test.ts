@@ -18,6 +18,10 @@ const state = new Map<string, { key: string; value: any; updated_at: string }>()
 const apagados: string[] = [];
 /** Faz a leitura da rampa do dia falhar, pra provar que ela fecha a porta. */
 let rampaQuebrada = false;
+/** Faz a leitura da sala de espera falhar. */
+let esperaQuebrada = false;
+/** Faz a leitura do estado do ciclo (a escada e as voltas) falhar. */
+let cicloQuebrado = false;
 const updates: Array<{ id: number; patch: any }> = [];
 
 function aplicarUpdate(q: any) {
@@ -86,9 +90,19 @@ vi.mock('../utils/supabase', () => ({
   supabase: {
     from: () => ({
       select: () => ({
-        in: async (_col: string, chaves: string[]) => ({
-          data: chaves.filter(k => state.has(k)).map(k => state.get(k)), error: null,
-        }),
+        in: async (_col: string, chaves: string[]) => {
+          // A leitura da SALA DE ESPERA tem que poder falhar no teste: ela é
+          // fail-closed, e trava que ninguém prova é trava que ninguém tem.
+          if (esperaQuebrada && chaves.some(k => String(k).startsWith('apalavrado:'))) {
+            return { data: null, error: { message: 'boom' } };
+          }
+          // A leitura do ESTADO DO CICLO também tem que poder falhar: ela
+          // descartava o erro, e isso apagava a escada de todo mundo.
+          if (cicloQuebrado && chaves.some(k => String(k).startsWith('ep_reagenda_auto:'))) {
+            return { data: null, error: { message: 'boom' } };
+          }
+          return { data: chaves.filter(k => state.has(k)).map(k => state.get(k)), error: null };
+        },
         // A rampa do dia: conta os carimbos `ep_reagenda_auto:` de hoje. O mock
         // devolve o que está no `state` com o prefixo pedido, e `rampaQuebrada`
         // simula a consulta falhando (que tem que FECHAR a porta, não abrir).
@@ -195,6 +209,8 @@ beforeEach(() => {
   aoPedirVagas = null;
   tetoLivre = true;
   rampaQuebrada = false;
+  esperaQuebrada = false;
+  cicloQuebrado = false;
   vi.useFakeTimers(); vi.setSystemTime(AGORA);
 });
 afterEach(() => { vi.useRealTimers(); process.env = { ...envOriginal }; vi.resetModules(); });
@@ -795,6 +811,146 @@ describe('o teto de 2 e quem ele vale', () => {
   });
 });
 
+
+// ── A LEITURA DO ESTADO DO CICLO FECHA A PORTA (01/10/2026) ───────────────
+//
+// Achado de revisão adversarial, reproduzido no harness antes de virar conserto.
+// A leitura descartava o `error`, e o cliente do Supabase daqui NÃO lança: erro
+// de banco RESOLVE com `data: null`. Resultado silencioso e PERMANENTE — um tick
+// com o banco ruim zerava a escada de todos os cards e o teto de 3 voltas do
+// vermelho, reescrevendo cada carimbo como degrau 1 / volta 1.
+describe('quando a leitura do estado do ciclo falha', () => {
+  const noDegrauAlto = (id: number, status: string, degrau: number) =>
+    state.set(`ep_reagenda_auto:${id}`, {
+      key: `ep_reagenda_auto:${id}`,
+      value: { n: degrau, ultimo: horasAtras(400), relogio: 'mudo', status, degrau },
+      updated_at: horasAtras(400),
+    });
+
+  it('ninguém é remarcado, e o motivo diz qual leitura caiu', async () => {
+    cicloQuebrado = true;
+    fichas = [ficha({ id: 90, status: 'arrendamento', quando: horasAtras(60) })];
+    noDegrauAlto(90, 'arrendamento', 5);
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(r.motivo).toBe('erro_ciclo');
+    expect(r.erros).toBe(1);
+    expect(updates).toHaveLength(0);
+  });
+
+  it('e o carimbo NÃO é reescrito no degrau 1 — o dano era permanente', async () => {
+    cicloQuebrado = true;
+    fichas = [ficha({ id: 91, status: 'arrendamento', quando: horasAtras(60) })];
+    noDegrauAlto(91, 'arrendamento', 5);
+    await tick();
+    expect(state.get('ep_reagenda_auto:91')?.value?.degrau).toBe(5);
+  });
+
+  it('o vermelho no teto de voltas também não é liberado pela falha', async () => {
+    // Sem a trava, `estadoDe` vazio fazia `tentativa` voltar pra 1 e o cliente
+    // recebia um quarto "você não conseguiu entrar na apresentação".
+    cicloQuebrado = true;
+    fichas = [ficha({ id: 92, status: 'nao_atendeu', quando: horasAtras(2) })];
+    state.set('ep_reagenda_auto:92', {
+      key: 'ep_reagenda_auto:92',
+      value: { n: 3, ultimo: horasAtras(24), relogio: 'fala', status: 'nao_atendeu', degrau: 1 },
+      updated_at: horasAtras(24),
+    });
+    expect((await tick()).remarcados).toBe(0);
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('com a leitura BOA o mesmo card descansa no degrau dele, e isso é o controle', async () => {
+    fichas = [ficha({ id: 93, status: 'arrendamento', quando: horasAtras(60) })];
+    noDegrauAlto(93, 'arrendamento', 5);          // degrau 6 pede 168h
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(r.motivo).toBe('todos_no_degrau');
+  });
+});
+
+// ── A SALA DE ESPERA DEIXOU DE SER UM STATUS (01/10/2026) ─────────────────
+//
+// Ordem do dono: "a etiqueta APALAVRADO não substitui a atual, ela é
+// acrescentada; a etiqueta mantém pra conseguirmos identificar a negociação
+// correta daquele cliente".
+//
+// O que se prende aqui é a consequência no robô: quem tira a ficha da roda
+// passou a ser a MARCA `apalavrado:<id>`, e o status fica com a etiqueta. E a
+// data, que antes só enfeitava a tela, voltou a valer: depois dela a ficha anda.
+describe('a sala de espera por marca, não por status', () => {
+  const marcaEspera = (id: number, retomar: string | null, em?: string) =>
+    state.set(`apalavrado:${id}`, {
+      key: `apalavrado:${id}`,
+      value: {
+        aguardando: 'esperando o investidor',
+        ...(retomar === null ? {} : { retomar_em: retomar }),
+        ...(em ? { em } : {}),
+      },
+      updated_at: horasAtras(24),
+    });
+  const daquiADias = (d: number) => new Date(AGORA.getTime() + d * 86400_000).toISOString();
+
+  it('a etiqueta FICA: o card apalavrado continua chave_na_mao e não anda', async () => {
+    fichas = [ficha({ id: 80, status: 'chave_na_mao', quando: horasAtras(100) })];
+    marcaEspera(80, daquiADias(20));
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(updates).toHaveLength(0);
+    expect(fichas[0].status).toBe('chave_na_mao');   // a etiqueta não foi trocada
+  });
+
+  // ESTA É A PARTE QUE O STATUS NÃO FAZIA. Com `status = 'apalavrado'` a ficha
+  // saía da roda PRA SEMPRE: a data aparecia na tela e, se ninguém olhasse, o
+  // card morria ali — o cemitério que o status foi criado pra não ser.
+  it('passada a data, ela volta pra roda sozinha, e calada', async () => {
+    fichas = [ficha({ id: 81, status: 'arrendamento', quando: horasAtras(100) })];
+    marcaEspera(81, daquiADias(-1));                // o prazo venceu ontem
+    expect((await tick()).remarcados).toBe(1);
+    expect(enviadas).toHaveLength(0);
+    expect(fichas[0].status).toBe('arrendamento');
+  });
+
+  it('data ilegível não vira silêncio eterno: cai no padrão de 30 dias', async () => {
+    fichas = [ficha({ id: 82, status: 'carregador', quando: horasAtras(100) })];
+    marcaEspera(82, 'amanhã de manhã', horasAtras(24));    // marcada ontem
+    expect((await tick()).remarcados).toBe(0);             // 30 dias contados de ontem
+    marcaEspera(82, 'amanhã de manhã', new Date(AGORA.getTime() - 40 * 86400_000).toISOString());
+    expect((await tick()).remarcados).toBe(1);             // marcada há 40 dias: passou
+  });
+
+  it('marca SEM data nenhuma não silencia o card — carimbo quebrado não some com cliente', async () => {
+    fichas = [ficha({ id: 83, status: 'meio_a_meio', quando: horasAtras(100) })];
+    marcaEspera(83, null);
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  it('o status antigo `apalavrado` continua tirando da roda, pelos cards de antes', async () => {
+    // Cinco fichas foram apalavradas antes da marca existir e perderam a etiqueta.
+    // Elas não podem voltar a rodar só porque a regra mudou.
+    fichas = [ficha({ id: 84, status: 'apalavrado', quando: horasAtras(300) })];
+    expect((await tick()).remarcados).toBe(0);
+  });
+
+  it('leitura da sala de espera falhou: NINGUÉM anda nesta rodada', async () => {
+    // Fail-closed. Na dúvida, o errado é devolver pra agenda um cliente que
+    // alguém pediu explicitamente pra deixar em paz.
+    esperaQuebrada = true;
+    fichas = [ficha({ id: 85, status: 'chave_na_mao', quando: horasAtras(100) })];
+    const r = await tick();
+    expect(r.remarcados).toBe(0);
+    expect(r.motivo).toBe('erro_espera');
+    expect(r.erros).toBe(1);
+    expect(updates).toHaveLength(0);
+  });
+
+  it('o vermelho também respeita a espera: ninguém recebe mensagem de card em paz', async () => {
+    fichas = [ficha({ id: 86, status: 'nao_atendeu', quando: horasAtras(2) })];
+    marcaEspera(86, daquiADias(10));
+    expect((await tick()).remarcados).toBe(0);
+    expect(enviadas).toHaveLength(0);
+  });
+});
 
 // ── A ESCADA DA NEGOCIAÇÃO, DENTRO DO TICK (01/10/2026) ───────────────────
 //

@@ -21796,42 +21796,32 @@ async function crmAtualizarStatus(novoStatus, extra) {
   }
   // O `__dias`/`__oque` são da espera e NÃO são coluna de `agendamentos`:
   // mandá-los no PATCH derrubaria o próprio botão com erro de coluna inexistente.
-  const espera = extra && extra.__retomar ? { retomar: extra.__retomar, oque: extra.__oque || '' } : null;
+  // `__retomar`/`__oque` não chegam mais aqui: quem grava a espera é o
+  // `crmApalavrar`, e ele não mexe no status. A limpeza fica por segurança.
   if (extra) { delete extra.__retomar; delete extra.__oque; }
   try {
     await supaPatch(`agendamentos?id=eq.${ag.id}`, { status: novoStatus, ...(extra || {}) });
-    // A espera mora no `system_state` do Supabase principal (é a máquina de
-    // lembrete que lê), e a tela chega lá pelo rewrite /_api/*.
+    // ── QUALQUER TROCA DE STATUS SOLTA A ESPERA ────────────────────────────
+    //
+    // O ramo que GRAVAVA a espera daqui saiu em 01/10/2026: quem grava é o
+    // `crmApalavrar`, e ele não mexe no status. O que fica é soltar — prazo velho
+    // calando um card que voltou a negociar é como um cliente desaparece.
+    //
+    // Soltar em TODA troca é escolha, não descuido. Dá pra argumentar que trocar
+    // o modelo (arrendamento → 50/50) não deveria cancelar a espera, mas o texto
+    // dela costuma ser sobre o modelo antigo ("esperando o investidor do 50/50").
+    // Na dúvida o erro certo é o card VOLTAR pra agenda, nunca ficar calado, e
+    // reapalavrar é um toque.
     try {
-      if (espera) {
-        const rEsp = await fetch(`${APX_API}/gerador/apalavrado`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: ag.id, retomar_em: espera.retomar, aguardando: espera.oque,
-            por: (function(){ try { return crmConsultorLogado() || ''; } catch (e) { return ''; } })(),
-          }),
-        });
-        // O servidor é quem manda na regra dos 20 caracteres e da data. Se ele
-        // recusar, quem apertou tem que saber: o status foi gravado e a espera
-        // NÃO, então o card dormiria 30 dias em vez da data escolhida.
-        if (!rEsp.ok) {
-          const det = await rEsp.json().catch(() => ({}));
-          alert('O status foi salvo, mas a espera NAO foi registrada: ' + (det.error || 'erro')
-                + '. Abra o card e marque Apalavrado de novo, senao ele dorme o prazo padrao.');
-        }
-      } else if (novoStatus !== 'apalavrado') {
-        // Saiu da espera: apaga o carimbo, senão um prazo velho continuaria
-        // calando um card que voltou a negociar.
-        await fetch(`${APX_API}/gerador/apalavrado/soltar`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: ag.id }),
-        });
-      }
+      await fetch(`${APX_API}/gerador/apalavrado/soltar`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: ag.id }),
+      });
+      delete crmEsperas[String(ag.id)];
     } catch (e) {
-      // A espera é complemento: o status já está gravado e o card já saiu do
-      // ciclo. Sem o carimbo ele dorme o prazo padrão (30 dias) em vez do
-      // escolhido — degrada, não quebra.
-      console.warn('espera não gravada', e);
+      // Degrada, não quebra: o status já está gravado. O pior caso é um prazo
+      // velho sobrando, e o selo do card mostra ele.
+      console.warn('espera não foi solta', e);
     }
     ag.status = novoStatus;            // atualiza a linha em memória
     if (extra) Object.assign(ag, extra);
@@ -21900,13 +21890,59 @@ function crmEsperaEmDias(dias) {
   crmEsperaValida();
 }
 
-function crmApalavrar() {
+/**
+ * APALAVRADO É ACRESCENTADO, NÃO SUBSTITUI (01/10/2026).
+ *
+ * Ordem do dono: "a etiqueta APALAVRADO não substitui a atual, ela é
+ * acrescentada; a etiqueta mantém pra conseguirmos identificar a negociação
+ * correta daquele cliente".
+ *
+ * Até aqui este botão chamava `crmAtualizarStatus('apalavrado')`, e isso
+ * SOBRESCREVIA a etiqueta: um `chave_na_mao` apalavrado deixava de ser chave na
+ * mão. Os cinco cards apalavrados antes disto perderam a etiqueta pra sempre —
+ * ela não ficou no histórico nem em coluna nenhuma.
+ *
+ * Agora o botão grava SÓ a marca `apalavrado:<id>` no `system_state`, que é onde
+ * o texto e o prazo já moravam. O status fica como está, e quem tira a ficha da
+ * roda é a marca — a API lê as duas coisas.
+ *
+ * E o erro deixou de ser um `alert` depois do fato: como não existe mais um
+ * status gravado antes, se a marca falhar NADA aconteceu, e o jeito honesto de
+ * dizer isso é no próprio painel, com o card ainda aberto.
+ */
+async function crmApalavrar() {
   if (!crmEsperaValida()) return;
+  if (!crmDetAtual || !crmDetAtual.agRec) return;
+  const { c, agRec: ag } = crmDetAtual;
   const oque = String(document.getElementById('crm-det-espera-oque').value || '').trim();
   const data = String(document.getElementById('crm-det-espera-data').value || '');
-  const box = document.getElementById('crm-det-espera');
-  if (box) box.hidden = true;
-  crmAtualizarStatus('apalavrado', { __retomar: data, __oque: oque });
+  const erroEl = document.getElementById('crm-det-erro');
+  try {
+    const r = await fetch(`${APX_API}/gerador/apalavrado`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: ag.id, retomar_em: data, aguardando: oque,
+        por: (function(){ try { return crmConsultorLogado() || ''; } catch (e) { return ''; } })(),
+      }),
+    });
+    if (!r.ok) {
+      const det = await r.json().catch(() => ({}));
+      if (erroEl) erroEl.textContent = 'A espera NAO foi registrada: ' + (det.error || 'erro') + '. Nada foi alterado.';
+      return;
+    }
+    const box = document.getElementById('crm-det-espera');
+    if (box) box.hidden = true;
+    // Entra no mapa local pro selo aparecer sem refetch, igual ao resto da tela.
+    crmEsperas[String(ag.id)] = { retomar_em: data, aguardando: oque };
+    const dia = data.split('-').reverse().slice(0, 2).join('/');
+    showToast('🤞 APALAVRADO — a etiqueta foi mantida, volta em ' + dia);
+    crmDerivar(c);
+    crmFecharDetalhe();
+    renderCRM();
+  } catch (e) {
+    if (erroEl) erroEl.textContent = 'Erro ao registrar a espera. Nada foi alterado.';
+    console.error(e);
+  }
 }
 
 // ===== ELETROPOSTO · PROPOSTA APRESENTADA =====================================
@@ -22369,10 +22405,19 @@ async function carregarCRM(forcar) {
 // Falha de leitura NÃO derruba o quadro: o mapa fica vazio e os cards aparecem
 // sem selo, que é pior que com selo e muito melhor que quadro em branco.
 let crmEsperas = {};
+/** Quem PODE estar na sala de espera. Antes era só `apalavrado`, porque a espera
+ *  era o status; agora a marca convive com a etiqueta de negociação, então é a
+ *  família toda que precisa ser consultada. `apalavrado` fica na lista pelos
+ *  cards antigos, que ainda carregam o status. */
+const CRM_PODE_ESPERAR = new Set([
+  'apalavrado', 'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao',
+  'em_atendimento', 'proposta_apresentada', 'fez_orcamento', 'falando_whatsapp',
+]);
+
 async function crmCarregarEsperas() {
   try {
     const ids = crmClientes
-      .filter(c => c.statusAg === 'apalavrado' && c.agId)
+      .filter(c => CRM_PODE_ESPERAR.has(String(c.statusAg || '')) && c.agId)
       .map(c => c.agId);
     if (!ids.length) { crmEsperas = {}; return; }
     const r = await fetch(`${APX_API}/gerador/apalavrado?ids=${ids.join(',')}`);
@@ -22872,12 +22917,17 @@ function renderCRM() {
     : '';
 
   /** O que este card está esperando, e se o prazo já venceu. Só em Apalavrado. */
+  // O SELO SAI DA MARCA, NÃO DO STATUS (01/10/2026). Desde que APALAVRADO deixou
+  // de substituir a etiqueta, um card apalavrado continua `chave_na_mao` no
+  // banco: prender o selo no status o esconderia justamente de quem ele serve.
   const esperaBadge = (c) => {
-    if (c.statusAg !== 'apalavrado') return '';
     const e = crmEsperas[String(c.agId)];
     if (!e) {
-      // Apalavrado sem carimbo: ou é ficha antiga, ou a segunda escrita falhou.
-      // Dizer isso é melhor que não dizer nada — sem prazo ninguém volta nele.
+      // Status antigo `apalavrado` sem carimbo: ficha de antes da marca, ou a
+      // segunda escrita falhou. Dizer isso é melhor que não dizer nada — sem
+      // prazo ninguém volta nele. Para os outros status, ausência de marca
+      // significa só que o card não está na espera.
+      if (c.statusAg !== 'apalavrado') return '';
       return `<span class="crm-espera venceu" title="Marcado como apalavrado sem prazo registrado">🤞 Sem prazo registrado</span>`;
     }
     const t = Date.parse(String(e.retomar_em || ''));

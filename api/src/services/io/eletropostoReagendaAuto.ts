@@ -124,8 +124,39 @@ import {
 import { EP_REMARCAR_PREFIX } from './eletropostoRemarcar';
 import { proximasVagas, diaBRT } from './eletropostoVagas';
 import { agendaFechadaNoIso } from '../agenda/agendaFechada';
+import { APALAVRADO_PREFIX, esperaAte } from '../agenda/salaDeEspera';
 
 const BRT_TZ = 'America/Sao_Paulo';
+
+/**
+ * ── A SALA DE ESPERA DEIXOU DE SER UM STATUS (01/10/2026) ─────────────────
+ *
+ * Ordem do dono: "a etiqueta APALAVRADO não substitui a atual, ela é
+ * acrescentada; a etiqueta mantém pra conseguirmos identificar a negociação
+ * correta daquele cliente".
+ *
+ * Até aqui apalavrar GRAVAVA `status = 'apalavrado'`, e isso apagava a
+ * classificação do funil — o mesmo erro que este módulo já evita no caminho de
+ * negociação ("forçar `agendado` apagaria a classificação do funil"). Os cinco
+ * cards que foram apalavrados antes disto perderam a etiqueta deles pra sempre:
+ * ela não está no histórico, não está em coluna nenhuma, não dá pra recuperar.
+ *
+ * Agora quem manda é a MARCA `apalavrado:<id>` no `system_state`, que já existia
+ * (ela é quem guarda o texto e a data). O status fica com a etiqueta de
+ * negociação, e é a marca que tira a ficha da roda.
+ *
+ * E A DATA VOLTOU A VALER PRA ALGO. Com o status, a ficha saía do ciclo PRA
+ * SEMPRE: a data só aparecia na tela e, se ninguém olhasse, o card morria ali —
+ * exatamente o cemitério que o status foi criado pra não ser. Agora a marca cala
+ * a ficha ATÉ a data, e depois dela a ficha volta pra roda sozinha, calada como
+ * todo card em negociação. É a leitura literal do que ele pediu quando criou o
+ * status: "pra essa pessoa no apalavrado não sumir da vida".
+ *
+ * `status = 'apalavrado'` CONTINUA tirando da roda, pelos cinco cards antigos.
+ */
+// O prefixo e a leitura moram no modulo neutro: a conta e UMA pros dois
+// produtos, mas nenhum produto pode depender do outro pra ela.
+export { APALAVRADO_PREFIX as EP_APALAVRADO_PREFIX } from '../agenda/salaDeEspera';
 
 /** Estado do ciclo: `ep_reagenda_auto:<id>` → { n, ultimo, de }. */
 export const EP_REAGENDA_PREFIX = 'ep_reagenda_auto:';
@@ -828,12 +859,44 @@ export async function runEletropostoReagendaAutoTick(
   if (!candidatos.length) return zero(foraDaJanela ? 'fora_da_janela' : 'nenhum_vermelho');
 
   const ids = candidatos.map(f => f.id);
-  const [{ data: estados }, { data: ofertasVivas }] = await Promise.all([
+  const [estadosQ, { data: ofertasVivas }, esperasQ] = await Promise.all([
     supabase.from('system_state').select('key, value')
       .in('key', ids.map(id => `${EP_REAGENDA_PREFIX}${id}`)),
     supabase.from('system_state').select('key, updated_at')
       .in('key', ids.map(id => `${EP_REMARCAR_PREFIX}${id}`)),
+    supabase.from('system_state').select('key, value')
+      .in('key', ids.map(id => `${APALAVRADO_PREFIX}${id}`)),
   ]);
+  // ── FAIL-CLOSED NA LEITURA DO ESTADO DO CICLO ────────────────────────────
+  //
+  // Esta leitura descartava o `error`, e o cliente do Supabase daqui NÃO lança:
+  // erro de banco ou de rede RESOLVE com `data: null`. O efeito era silencioso e
+  // PERMANENTE: `estadoDe` nascia vazio, toda ficha lia degrau 1 e volta 1, o
+  // tick remarcava, e o carimbo era REESCRITO como `{ n: 1, degrau: 1 }`. Num
+  // único tick com o banco ruim, a escada de todos os cards voltava pro zero e o
+  // teto de 3 voltas do vermelho também — liberando mais um "você não conseguiu
+  // entrar na apresentação" pra quem já tinha recebido três.
+  //
+  // O gêmeo do solar já fechava esta porta (`erro_ciclo`). Era diferença entre os
+  // dois, e a diferença estava do lado errado.
+  if (estadosQ.error) {
+    logger.error('ep-reagenda', 'ler o estado do ciclo falhou — ninguém anda nesta rodada', estadosQ.error);
+    return { ...zero('erro_ciclo'), erros: 1 };
+  }
+  const estados = estadosQ.data;
+  // FAIL-CLOSED: se a leitura da sala de espera falhar, ninguém é remarcado.
+  // Na dúvida, o errado é devolver pra agenda um cliente que alguém pediu
+  // explicitamente pra deixar em paz.
+  if (esperasQ.error) {
+    logger.error('ep-reagenda', 'ler a sala de espera falhou — ninguém anda nesta rodada', esperasQ.error);
+    return { ...zero('erro_espera'), erros: 1 };
+  }
+  const esperandoAte = new Map<number, number>();
+  for (const r of esperasQ.data ?? []) {
+    const id = Number(String(r.key).slice(APALAVRADO_PREFIX.length));
+    const ate = esperaAte(r.value);
+    if (Number.isInteger(id) && ate !== null) esperandoAte.set(id, ate);
+  }
   const estadoDe = new Map<number, Estado>();
   for (const r of estados ?? []) {
     const id = Number(String(r.key).slice(EP_REAGENDA_PREFIX.length));
@@ -890,8 +953,16 @@ export async function runEletropostoReagendaAutoTick(
   // resolvem de formas diferentes, e um motivo só esconderia o segundo.
   const noTeto = candidatos.filter(f =>
     !semTeto(f) && (estadoDe.get(f.id)?.n ?? 0) >= maxVoltas()).length;
+  // A SALA DE ESPERA, agora por MARCA e não por status. Enquanto a data não
+  // chega, a ficha não anda; depois dela, volta pra roda calada como qualquer
+  // card em negociação.
+  const naEspera = (f: FichaVermelha): boolean => {
+    const ate = esperandoAte.get(f.id);
+    return ate !== undefined && ate > agora;
+  };
+  const esperando = candidatos.filter(naEspera).length;
   const naVez = candidatos.filter(f =>
-    !comOferta.has(f.id) && descansou(f)
+    !comOferta.has(f.id) && !naEspera(f) && descansou(f)
     && (semTeto(f) || (estadoDe.get(f.id)?.n ?? 0) < maxVoltas()));
   if (!naVez.length) {
     // Dois motivos diferentes, e confundi-los esconde a escada: "ninguém na vez"
@@ -901,7 +972,8 @@ export async function runEletropostoReagendaAutoTick(
     // estourado no teto, dizer "todos no degrau" mandaria a gente esperar o
     // relógio por um card que só sai com decisão de gente.
     logger.info('ep-reagenda', `fila parada: ${noPrazo} em negociação dentro do degrau, `
-      + `${noTeto} vermelho(s) no teto de ${maxVoltas()} voltas, ${candidatos.length} candidato(s)`);
+      + `${noTeto} vermelho(s) no teto de ${maxVoltas()} voltas, ${esperando} na sala de espera, `
+      + `${candidatos.length} candidato(s)`);
     if (noPrazo && !noTeto) return zero('todos_no_degrau');
     return zero('ninguem_na_vez');
   }

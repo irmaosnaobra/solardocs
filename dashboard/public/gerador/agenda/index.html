@@ -284,6 +284,12 @@
      da família, essa confusão deixou de existir, e amarelo sobre bege não tem
      contraste pra nada. A regra de cima vale pra ela igual às outras quatro: a
      COR diz a família, a PÍLULA diz qual é. */
+  /* A PÍLULA DA SALA DE ESPERA. Âmbar porque é a cor que a coluna APALAVRADO do
+     quadro já usa (#F59E0B) — mesmo estado, mesma cor nas duas telas. Texto quase
+     preto porque o âmbar é claro. Vermelha quando o prazo venceu: aí não é mais
+     espera, é cobrança. */
+  .tag-modelo.tag-espera { background: #F59E0B; color: #3B2A00; }
+  .tag-modelo.tag-espera.venceu { background: #dc2626; color: #fff; }
   .tag-pill {
     display: inline-block;
     padding: 0 5px;
@@ -1505,6 +1511,12 @@ let semanaAtual = new Date(inicioSemana);   // segunda-feira
 let vendedorAtivo = VENDEDORES[0];
 let agendamentosCache = [];                  // { id, vendedor_nome, quando, cliente_nome, cliente_telefone, observacao, created_by, ... }
 let bloqueiosCache = [];                     // { id, vendedor_nome, inicio, fim, motivo, created_by }
+// A SALA DE ESPERA (`apalavrado:<id>` no system_state) → { retomar_em, aguardando }.
+// Desde 01/10/2026 APALAVRADO é MARCA e não status (o dono: "não substitui a
+// atual, ela é acrescentada"), então o card continua `chave_na_mao` no banco e
+// esta é a única fonte que sabe que ele está esperando. Sem ela, a agenda
+// mostraria um card em espera como se fosse um card em negociação comum.
+let esperasCache = {};                       // { '<id>': { retomar_em, aguardando } }
 let slotAtual = null;                        // { vendedor, dataIso, label } — selecionado pro modal novo
 let detalheAtual = null;                     // agendamento selecionado pro modal detalhes
 let bloqueioAtual = null;                    // bloqueio selecionado pro modal de detalhes
@@ -1675,6 +1687,46 @@ async function carregarSemana() {
     agendamentosCache = [];
     bloqueiosCache = [];
   }
+  await carregarEsperas();
+}
+
+/** As marcas de sala de espera dos cards DESTA semana.
+ *
+ *  Numa chamada só, pelos ids que já estão na tela: a lista de ids é curta
+ *  (uma semana de agenda) e o endpoint aceita todos de uma vez.
+ *
+ *  Falhar aqui NÃO derruba a agenda: o card aparece sem o selo de espera, que é
+ *  degradar, não quebrar. O que não pode acontecer é a semana inteira não
+ *  renderizar porque uma marca não foi lida.
+ */
+async function carregarEsperas() {
+  const ids = (agendamentosCache || []).map(a => a && a.id).filter(Boolean);
+  if (!ids.length) { esperasCache = {}; return; }
+  try {
+    const r = await fetch(`${API_ESPERA}/gerador/apalavrado?ids=${ids.join(',')}`);
+    const j = await r.json();
+    esperasCache = (j && j.esperas) || {};
+  } catch (e) {
+    console.warn('esperas não carregadas', e);
+    esperasCache = {};
+  }
+}
+
+/** O selo da espera, ou string vazia. `volta DD/MM` enquanto o prazo corre,
+ *  `PRAZO VENCEU` depois dele — mesma régua do quadro do CRM, porque é o mesmo
+ *  dado e duas réguas divergem. */
+function pillEspera(ag) {
+  const e = ag && esperasCache[String(ag.id)];
+  if (!e) return '';
+  const t = Date.parse(String(e.retomar_em || ''));
+  if (!Number.isFinite(t)) return '<span class="tag-modelo tag-espera">🤞 APALAVRADO</span>';
+  const d = new Date(t);
+  const p2 = n => String(n).padStart(2, '0');
+  const dia = `${p2(d.getDate())}/${p2(d.getMonth() + 1)}`;
+  const venceu = t <= Date.now();
+  const txt = venceu ? `⏰ APALAVRADO · VENCEU ${dia}` : `🤞 APALAVRADO · volta ${dia}`;
+  const titulo = String(e.aguardando || '').replace(/"/g, '&quot;');
+  return `<span class="tag-modelo tag-espera${venceu ? ' venceu' : ''}" title="${titulo}">${txt}</span>`;
 }
 
 // Retorna o bloqueio ativo no slot (vendedor + horário inicial do slot), ou null
@@ -1785,19 +1837,22 @@ function pontoApres(ag) {
 function pillStatus(ag, curto) {
   if (!ag) return '';
   let t;
-  // ARRENDAMENTO é o único status com etiqueta colorida (amarelo fluorescente):
-  // o card dele é vermelho igual ao "sem interesse" e é a etiqueta que diz que
-  // este não é um lead perdido, e sim um que foi pro grupo de arrendamento.
-  // Ela também não encolhe: "ARREND" no card vermelho não se lê, e esta etiqueta
-  // é a identidade do card. Quem for cortado na linha é o que vem depois dela.
+  // ARRENDAMENTO não tem mais etiqueta colorida: desde 01/10/2026 o card dele é o
+  // mesmo bege dos outros três modelos, então a pílula preta já basta pra dizer
+  // qual é — era o vermelho do card que exigia o amarelo fluorescente.
+  // O que FICA é ela não encolher: "ARREND" sozinho não diz nada, e abreviar
+  // nunca foi pedido. Quem for cortado na linha é o que vem depois dela.
   const arrend = ag.status === 'arrendamento';   // 'não confirmou' só existe em card agendado
-  // A etiqueta dela deixou de ter cor própria em 01/10, mas continua escrita por
-  // extenso: encolher nunca foi pedido, e "ARREND" sozinho não diz nada.
   if (arrend) curto = false;
   if (semRespostaDoLead(ag)) t = ['NÃO CONFIRMOU', 'N/CONF'];
   else if (ag.presenca_confirmada_at && (ag.status || 'agendado') === 'agendado') t = ['CONFIRMADO', 'CONFIRM'];
   else t = ETIQUETA_STATUS[ag.status || 'agendado'];
-  return t ? `<span class="tag-modelo">${curto ? t[1] : t[0]}</span>` : '';
+  // DUAS pílulas quando o card está na sala de espera: a etiqueta de negociação
+  // CONTINUA ali (é ela que diz qual negociação é) e a de APALAVRADO vem DEPOIS.
+  // É a ordem que o dono pediu: "não substitui a atual, ela é acrescentada".
+  const espera = pillEspera(ag);
+  const modelo = t ? `<span class="tag-modelo">${curto ? t[1] : t[0]}</span>` : '';
+  return modelo + espera;
 }
 
 function semRespostaDoLead(ag) {
@@ -2484,11 +2539,47 @@ function esperaEmDias(dias) {
   esperaValida();
 }
 
-function apalavrar() {
+/**
+ * APALAVRADO É ACRESCENTADO, NÃO SUBSTITUI (01/10/2026).
+ *
+ * Ordem do dono: "a etiqueta APALAVRADO não substitui a atual, ela é
+ * acrescentada; a etiqueta mantém pra conseguirmos identificar a negociação
+ * correta daquele cliente".
+ *
+ * Este botão chamava `atualizarStatus('apalavrado')`, e isso SOBRESCREVIA a
+ * etiqueta — os cinco cards apalavrados antes disto perderam a deles pra sempre.
+ * Agora ele grava só a marca `apalavrado:<id>`, e é ela que tira a ficha da roda.
+ *
+ * Se a marca falhar, NADA aconteceu, e o painel diz isso com o card ainda
+ * aberto: antes o status já estava gravado e o aviso vinha depois do fato.
+ */
+async function apalavrar() {
   if (!esperaValida()) return;
+  if (!detalheAtual) return;
   const oque = String(document.getElementById('d-espera-oque').value || '').trim();
   const data = String(document.getElementById('d-espera-data').value || '');
-  atualizarStatus('apalavrado', { __retomar: data, __oque: oque });
+  const erroEl = document.getElementById('d-erro');
+  try {
+    const r = await fetch(`${API_ESPERA}/gerador/apalavrado`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: detalheAtual.id, retomar_em: data, aguardando: oque,
+        por: (function(){ try { return consultorLogado() || ''; } catch (e) { return ''; } })() }),
+    });
+    if (!r.ok) {
+      const det = await r.json().catch(() => ({}));
+      if (erroEl) erroEl.textContent = 'A espera NAO foi registrada: ' + (det.error || 'erro') + '. Nada foi alterado.';
+      return;
+    }
+    const box = document.getElementById('d-espera');
+    if (box) box.hidden = true;
+    esperasCache[String(detalheAtual.id)] = { retomar_em: data, aguardando: oque };
+    const dia = data.split('-').reverse().slice(0, 2).join('/');
+    showToast('🤞 APALAVRADO — a etiqueta foi mantida, volta em ' + dia);
+    await renderTudo();
+  } catch (e) {
+    if (erroEl) erroEl.textContent = 'Erro ao registrar a espera. Nada foi alterado.';
+    console.error(e);
+  }
 }
 
 async function atualizarStatus(novoStatus, extra) {
@@ -2524,33 +2615,24 @@ async function atualizarStatus(novoStatus, extra) {
   if (detalheAtual.status === novoStatus && !extra) { fecharModalDet(); return; }
   // `__retomar`/`__oque` são da espera e NÃO são coluna de `agendamentos`:
   // mandá-los no PATCH derrubaria o próprio botão com erro de coluna.
-  const espera = extra && extra.__retomar ? { retomar: extra.__retomar, oque: extra.__oque || '' } : null;
+  // `__retomar`/`__oque` não chegam mais aqui: quem grava a espera é o
+  // `apalavrar`, e ele não mexe no status. A limpeza fica por segurança.
   if (extra) { delete extra.__retomar; delete extra.__oque; }
   const idAlvo = detalheAtual.id;
   try {
     await supaPatch(`agendamentos?id=eq.${idAlvo}`, { status: novoStatus, ...(extra || {}) });
-    // A espera mora no `system_state` (Supabase principal), então quem grava é
-    // a API. Sair da espera apaga o carimbo, senão um prazo velho continuaria
-    // calando um card que voltou a negociar.
+    // QUALQUER TROCA DE STATUS SOLTA A ESPERA. O ramo que gravava saiu em
+    // 01/10/2026 (quem grava é o `apalavrar`, sem tocar no status); o que fica é
+    // soltar, porque prazo velho calando um card que voltou a negociar é como um
+    // cliente desaparece. Soltar em TODA troca é escolha: na dúvida o erro certo
+    // é o card VOLTAR pra agenda, nunca ficar calado.
     try {
-      if (espera) {
-        const r = await fetch(`${API_ESPERA}/gerador/apalavrado`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: idAlvo, retomar_em: espera.retomar, aguardando: espera.oque,
-            por: (function(){ try { return consultorLogado() || ''; } catch (e) { return ''; } })() }),
-        });
-        if (!r.ok) {
-          const det = await r.json().catch(() => ({}));
-          alert('O status foi salvo, mas a espera NAO: ' + (det.error || 'erro')
-            + '. Abra o card e marque Apalavrado de novo, senao ele dorme o prazo padrao.');
-        }
-      } else if (novoStatus !== 'apalavrado') {
-        await fetch(`${API_ESPERA}/gerador/apalavrado/soltar`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: idAlvo }),
-        });
-      }
-    } catch (e) { console.warn('espera nao gravada', e); }
+      await fetch(`${API_ESPERA}/gerador/apalavrado/soltar`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: idAlvo }),
+      });
+      delete esperasCache[String(idAlvo)];
+    } catch (e) { console.warn('espera nao foi solta', e); }
     fecharModalDet();
     const labels = {
       agendado:          '📞 Marcado como Agendada',
