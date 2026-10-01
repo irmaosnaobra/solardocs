@@ -998,6 +998,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .orc-cli-banner{font-size:12.5px;color:#bfdbfe;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.28);border-radius:9px;padding:9px 12px;margin-bottom:12px;line-height:1.45}
 .orc-cli-banner b{color:#eaf2ff}
 .orc-link{background:none;border:none;color:#60A5FA;font-weight:700;font-family:inherit;font-size:12.5px;cursor:pointer;padding:0;text-decoration:underline}
+.eq-apagar{float:right;font-size:11px;text-transform:none;letter-spacing:0}
 .orc-link:hover{color:#93C5FD}
 /* kit travado do eletroposto: marca só O QUE ENTRA. Item não tem preço — o valor
    do projeto é um número só, que vem do Simulador. No documento vira "INCLUÍDO". */
@@ -1304,6 +1305,12 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .orc1 .band .tab{color:var(--accent-text);font-size:12.5px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;padding:9px 20px}
 .orc1 .band .bar{flex:1}
 .orc1 .sec{padding:13px 26px 4px}
+/* Foto do equipamento ao lado dos dados (orçamento de venda de carregador). Ao
+   lado e não embaixo: o documento promete UMA folha A4 e a coluna da foto cabe
+   na altura que tiles + linhas já ocupam, então não empurra o penhasco. */
+.orc1 .sec.comFoto{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:16px;align-items:center}
+.orc1 .sec.comFoto .foto{display:flex;justify-content:center}
+.orc1 .sec.comFoto .foto img{display:block;width:100%;max-height:220px;object-fit:contain}
 .orc1 .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
 .orc1 .tile{border:1px solid var(--line);border-bottom:3px solid var(--c1);border-radius:12px;padding:11px 13px}
 .orc1 .tile .k{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted)}
@@ -1630,7 +1637,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-btn-status:active{transform:scale(.97)}
 .crm-btn-status.is-atual{outline:3px solid rgba(255,255,255,.9);outline-offset:-5px;box-shadow:0 0 0 2px #1E293B}
 /* Botao CLARO: o contorno branco de dentro sumia nele. */
-.crm-btn-status.bg-fe.is-atual,.crm-btn-status.bg-wp.is-atual,.crm-btn-status.bg-fo.is-atual,.crm-btn-status.bg-em.is-atual,.crm-btn-status.bg-pa.is-atual,.crm-btn-status.bg-ar.is-atual,.crm-btn-status.bg-cr.is-atual,.crm-btn-status.bg-mm.is-atual,.crm-btn-status.bg-ch.is-atual,.crm-btn-status.bg-ap.is-atual{outline-color:rgba(17,24,39,.75)}
+.crm-btn-status.bg-fe.is-atual,.crm-btn-status.bg-wp.is-atual,.crm-btn-status.bg-fo.is-atual,.crm-btn-status.bg-em.is-atual,.crm-btn-status.bg-pa.is-atual,.crm-btn-status.bg-ar.is-atual,.crm-btn-status.bg-cr.is-atual,.crm-btn-status.bg-mm.is-atual,.crm-btn-status.bg-ch.is-atual{outline-color:rgba(17,24,39,.75)}
 .crm-btn-status.bg-ag{background:#0d2d5e;color:#fff}
 .crm-btn-status.bg-na{background:#dc2626;color:#fff}
 .crm-btn-status.bg-wp{background:#D0DCE9;color:#1f2937}
@@ -3918,7 +3925,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="eletro-field"><label>E-mail</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-email" placeholder="e-mail da empresa" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>Razão social <span style="opacity:.6;font-weight:600">(documentos jurídicos)</span></label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-razao" placeholder="IMPORTADORA ARAGUARI LTDA" oninput="orcEmitSalvar()"></div></div>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-razao" placeholder="AIOROS GROUP LTDA" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>Nome fantasia <span style="opacity:.6;font-weight:600">(documentos jurídicos)</span></label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-fantasia" placeholder="opcional" oninput="orcEmitSalvar()"></div></div>
         <div class="eletro-field"><label>CNPJ <span style="opacity:.6;font-weight:600">(documentos jurídicos)</span></label>
@@ -3935,7 +3942,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="orc-emit-conta" placeholder="Ex: Sicoob 756 · ag 4264 · cc 168882" oninput="orcEmitSalvar()"></div></div>
         <div class="orc-note">Aparecem <b>só no recibo</b>, e só se preenchidos. Hoje o recibo anuncia o saldo a pagar e não diz para onde mandar — o cliente termina de ler pronto para pagar e precisa procurar o consultor.</div>
         <div class="orc-note">Empresa não assina sozinha. O contrato já <b>exige</b> o representante legal do cliente — a exigência vale para os dois lados, e a proposta de banco diz "assinada pelo seu representante legal" sobre uma linha que hoje não nomeia ninguém.</div>
-        <div class="orc-note">O <b>orçamento</b> e o Estudo continuam saindo só com a marca, sem CNPJ. Contrato, procuração, recibo e os papéis do banco saem em nome da <b>NEXUS Eletropostos</b>, com a razão social e o CNPJ da <b>IMPORTADORA ARAGUARI LTDA</b> ao lado. A NEXUS ainda não tem CNPJ próprio, e banco, Pix e Receita conferem o nome contra o número. Preencha uma vez: fica salvo.</div>
+        <div class="orc-note">O <b>orçamento</b> e o Estudo continuam saindo só com a marca, sem CNPJ. Contrato, procuração, recibo e os papéis do banco saem em nome da <b>NEXUS Eletropostos</b>, com a razão social e o CNPJ da <b>AIOROS GROUP LTDA</b> ao lado. A NEXUS ainda não tem CNPJ próprio, e banco, Pix e Receita conferem o nome contra o número. Preencha uma vez: fica salvo.</div>
       </div>
 
       <!-- DADOS DA PROPOSTA -->
@@ -4073,21 +4080,21 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Fornecedor (sua empresa)</div>
         <div class="orc-note" style="margin-top:-2px;margin-bottom:12px">É o <b>mesmo cadastro</b> da aba Orçamento — editar aqui muda lá, e o contrário também. Fica salvo no navegador. A razão social e o CNPJ saem impressos no orçamento porque é este documento que fala em nota fiscal: quem emite precisa estar escrito.</div>
-        <div class="eletro-field"><label>Nome / marca</label>
+        <div class="eletro-field"><label>Nome / marca <button type="button" class="orc-link eq-apagar" onclick="equipEmitApagar('nome')">apagar</button></label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-nome" placeholder="NEXUS Eletropostos" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
-        <div class="eletro-field"><label>Razão social</label>
+        <div class="eletro-field"><label>Razão social <button type="button" class="orc-link eq-apagar" onclick="equipEmitApagar('razao')">apagar</button></label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-razao" placeholder="quem emite a nota" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
-        <div class="eletro-field"><label>CNPJ</label>
+        <div class="eletro-field"><label>CNPJ <button type="button" class="orc-link eq-apagar" onclick="equipEmitApagar('cnpj')">apagar</button></label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-cnpj" placeholder="00.000.000/0000-00" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
-        <div class="eletro-field"><label>Inscrição Estadual</label>
+        <div class="eletro-field"><label>Inscrição Estadual <button type="button" class="orc-link eq-apagar" onclick="equipEmitApagar('ie')">apagar</button></label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-ie" placeholder="ISENTO, se for o caso" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
-        <div class="eletro-field"><label>Endereço</label>
+        <div class="eletro-field"><label>Endereço <button type="button" class="orc-link eq-apagar" onclick="equipEmitApagar('end')">apagar</button></label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-end" placeholder="Rua, nº, bairro" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
-        <div class="eletro-field"><label>Cidade / UF</label>
+        <div class="eletro-field"><label>Cidade / UF <button type="button" class="orc-link eq-apagar" onclick="equipEmitApagar('cidade')">apagar</button></label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-cidade" placeholder="Uberlândia/MG" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
-        <div class="eletro-field"><label>Telefone</label>
+        <div class="eletro-field"><label>Telefone <button type="button" class="orc-link eq-apagar" onclick="equipEmitApagar('tel')">apagar</button></label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="eq-emit-tel" placeholder="(00) 00000-0000" oninput="equipEmitSalvar()" autocomplete="off"></div></div>
-        <div class="orc-note"><b>Inscrição Estadual</b> só aparece no papel se estiver preenchida. Em venda de equipamento ela conta: comprador contribuinte em outro estado muda a conta do ICMS. Escreva <b>ISENTO</b> quando for o caso — é diferente de deixar em branco.</div>
+        <div class="orc-note"><b>Inscrição Estadual</b> só aparece no papel se estiver preenchida. Em venda de equipamento ela conta: comprador contribuinte em outro estado muda a conta do ICMS. Escreva <b>ISENTO</b> quando for o caso — é diferente de deixar em branco. Todo campo aqui é editável e pode ser <b>apagado</b>: o que fica em branco some do papel e não volta sozinho.</div>
       </div>
 
       <!-- DOCUMENTO -->
@@ -4165,6 +4172,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="orc-note" style="margin-top:-2px;margin-bottom:12px">Escreva a condição <b>como foi negociada</b>. Duas condições de prazo podem ter totais diferentes — aqui cada uma sai com o total dela, sem a casa recalcular juros por cima.</div>
         <div id="eq-cond"></div>
         <button type="button" class="eletro-btn" style="margin-top:10px" onclick="equipCondAdd()">+ Adicionar condição</button>
+        <button type="button" class="eletro-btn" style="margin-top:10px" onclick="equipCondSinalAdd()">+ Sinal em % e saldo na NF</button>
       </div>
 
       <!-- OBSERVAÇÕES -->
@@ -4510,7 +4518,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
          Finame financia o EQUIPAMENTO, não a obra — é por isso que o valor sai
          partido em duas linhas, e é por isso que o split não tem default. -->
     <div id="eletro-pane-finame" style="display:none;">
-    <div class="pesquisa-info">Duas folhas em nome da <b>NEXUS</b>, assinadas pela razão social <b>IMPORTADORA ARAGUARI LTDA</b> com o CNPJ ao lado (o banco confere o nome contra o número), que o cliente leva ao banco dele para <b>liberar o crédito</b>. Cliente, endereço e composição descem do <b>Orçamento</b>; o que se preenche aqui é o que só o banco pede.</div>
+    <div class="pesquisa-info">Duas folhas em nome da <b>NEXUS</b>, assinadas pela razão social <b>AIOROS GROUP LTDA</b> com o CNPJ ao lado (o banco confere o nome contra o número), que o cliente leva ao banco dele para <b>liberar o crédito</b>. Cliente, endereço e composição descem do <b>Orçamento</b>; o que se preenche aqui é o que só o banco pede.</div>
     <div class="orc-wrap">
 
       <div class="ep-pasta-host"></div>
@@ -16050,6 +16058,17 @@ function orcEmitCampos() {
           'engNome', 'engNac', 'engEc', 'engProf', 'engRg', 'engCpf', 'engCrea', 'engEnd',
           'tecNome', 'tecNac', 'tecEc', 'tecCrt', 'tecRg', 'tecCpf', 'tecEnd'];
 }
+// Identificacao da empresa: tudo editavel E apagavel (pedido do dono, 01/10/2026).
+// Antes, campo vazio caia no default na leitura, entao apagar o CNPJ fazia ele
+// voltar sozinho. Agora o default so' entra quando o campo NUNCA foi salvo neste
+// aparelho; vazio salvo e' escolha do dono e sai como lacuna (a linha some do papel).
+// Engenheiro e tecnico ficam fora: o orcEmitSalvar grava '' neles quando a aba da
+// procuracao ainda nao carregou, e apagar o default ali seria acidente, nao escolha.
+const EP_EMIT_APAGAVEIS = ['nome', 'razao', 'fantasia', 'cnpj', 'ie', 'end', 'cidade', 'tel', 'email'];
+function epEmitValor(o, k, def) {
+  if (EP_EMIT_APAGAVEIS.includes(k) && typeof o[k] === 'string') return o[k];
+  return (o[k] != null && o[k] !== '') ? o[k] : (def[k] || '');
+}
 function orcEmitSalvar() {
   const o = {};
   orcEmitCampos().forEach(k => { o[k] = orcVal('orc-emit-' + k); });
@@ -16063,11 +16082,11 @@ function orcEmitCarregar() {
   // vai em toda nota fiscal). Ficam de default pra nenhum contrato sair sem a
   // qualificação da parte só porque ninguém preencheu o cadastro neste aparelho.
   // Marca do eletroposto é NEXUS (09/2026) e o e-mail de contato saiu dos documentos.
-  const def = { nome: 'NEXUS Eletropostos', end: 'Rodovia 050, S/N, Km 72, Loja 02', cidade: 'Araguari/MG', tel: '(34) 99816-5040', email: 'nexuseletroposto@gmail.com',
-                cnpj: '31.865.880/0001-92', razao: 'IMPORTADORA ARAGUARI LTDA', fantasia: '', socio: '', socioCpf: '', pix: '', conta: '' };
+  const def = { nome: 'NEXUS Eletropostos', end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'nexuseletroposto@gmail.com',
+                cnpj: '63.636.043/0001-88', razao: 'AIOROS GROUP LTDA', fantasia: '', socio: '', socioCpf: '', pix: '', conta: '' };
   orcEmitCampos().forEach(k => {
     const el = document.getElementById('orc-emit-' + k);
-    if (el) el.value = (o[k] != null && o[k] !== '') ? o[k] : (def[k] || '');
+    if (el) el.value = epEmitValor(o, k, def);
   });
 }
 
@@ -16288,9 +16307,12 @@ function orc1HTML(d) {
   </div>
 
   <div class="band"><div class="tab">${o1Esc(d.detTitulo || 'Detalhamento do Projeto')}</div><div class="bar"></div></div>
-  <div class="sec">
+  <div class="sec${d.foto ? ' comFoto' : ''}">
+    <div class="secDados">
     <div class="tiles">${(d.tiles || []).map(tile).join('')}</div>
     <div class="rows">${(d.linhas || []).map(linha).join('')}</div>
+    </div>
+    ${d.foto ? `<div class="foto"><img src="${o1Esc(d.foto)}" alt="${o1Esc(d.fotoAlt || '')}"/></div>` : ''}
   </div>
 
   <div class="band"><div class="tab">${o1Esc(d.compTitulo || 'Composição do Sistema')}</div><div class="bar"></div></div>
@@ -16366,20 +16388,23 @@ function orc1Imprimir(html, nomeArq, opts) {
 
 // ===== Componentes compartilhados dos PDFs do eletroposto (padrão único) =====
 // Empresa (emitente) — localStorage salvo no Orçamento OU defaults da marca.
-// -- TROCA DE EMITENTE (decisao do dono, 29/09/2026) --
-// Quem emite TODO documento da aba Eletroposto passou a ser a IMPORTADORA ARAGUARI
-// LTDA, no lugar da AIOROS LTDA. Razao social e CNPJ sao um par: migrar um sem o
-// outro imprime nome novo ao lado de numero velho, e nome que nao bate com o CNPJ
-// num Finame volta na mesa do banco. A AIOROS continua no que NAO sai daqui: Pix,
-// Asaas, conta bancaria e SolarDoc.
-const CNPJ_CERTO = '31.865.880/0001-92';
-const CNPJ_ANTIGO = '63.636.043/0001-88';
-const END_CERTO = 'Rodovia 050, S/N, Km 72, Loja 02';
-const CIDADE_CERTA = 'Araguari/MG';
-const END_ANTIGO = 'Av. Ana Godoy de Sousa, 890, Santa Mônica';
-const CIDADE_ANTIGA = 'Uberlândia/MG';
-const RAZAO_ERRADAS = ['aioros holding ltda', 'aioros group ltda', 'aioros ltda'];
-const RAZAO_CERTA = 'IMPORTADORA ARAGUARI LTDA';
+// -- TROCA DE EMITENTE (decisao do dono, 30/09/2026) --
+// VOLTOU a ser a AIOROS GROUP LTDA quem emite TODO documento da aba Eletroposto.
+// Em 29/09/2026 a emitente tinha passado para a IMPORTADORA ARAGUARI LTDA; o dono
+// desfez em 30/09 e o par certo e' de novo o da AIOROS. Razao social, CNPJ e endereco
+// andam JUNTOS: migrar um sem o outro imprime nome novo ao lado de numero velho (ou a
+// sede de outra empresa), e nome que nao bate com o CNPJ num Finame volta na mesa do
+// banco. A AIOROS ja' era quem estava no Pix, no Asaas, na conta bancaria e no
+// SolarDoc: agora o eletroposto volta a assinar com o mesmo CNPJ que recebe.
+const CNPJ_CERTO = '63.636.043/0001-88';
+const CNPJ_ANTIGO = '31.865.880/0001-92';
+const END_CERTO = 'Av. Ana Godoy de Sousa, 890, Santa Mônica';
+const CIDADE_CERTA = 'Uberlândia/MG';
+const END_ANTIGO = 'Rodovia 050, S/N, Km 72, Loja 02';
+const CIDADE_ANTIGA = 'Araguari/MG';
+// 'aioros group ltda' saiu desta lista: virou a razao CERTA em 30/09/2026.
+const RAZAO_ERRADAS = ['aioros holding ltda', 'aioros ltda', 'importadora araguari ltda'];
+const RAZAO_CERTA = 'AIOROS GROUP LTDA';
 const epSoDig = s => String(s || '').replace(/\D/g, '');
 const EP_MARCA = 'NEXUS Eletropostos';
 // "Irmãos na Obra", "IRMAOS NA OBRA — Mobilidade Elétrica"...: com ou sem acento,
@@ -16387,12 +16412,13 @@ const EP_MARCA = 'NEXUS Eletropostos';
 const epMarcaAntiga = s => /irmaos\s+na\s+obra/i.test(String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, ''));
 // ── TRANSIÇÃO NEXUS / AIOROS (decisão do dono, 15/09/2026) ──
 // A marca é NEXUS Eletropostos, mas a NEXUS ainda não tem CNPJ: quem existe
-// juridicamente é a AIOROS LTDA. Documento jurídico (contrato, procuração, recibo,
+// juridicamente é a AIOROS GROUP LTDA. Documento jurídico (contrato, procuração, recibo,
 // análise de crédito, proposta de banco) sai em nome da NEXUS, e tudo que é CNPJ
 // continua da AIOROS, com a razão social SEMPRE colada ao número. Banco, Receita e
 // o app do Pix conferem o nome contra o CNPJ: a marca sozinha ao lado do número é
-// identificação que não bate e trava financiamento. Nunca sai a fantasia do cartão
-// ("AIOROS GROUP LTDA") nem o nome da empresa futura, que ainda não tem CNPJ.
+// identificação que não bate e trava financiamento. Nunca sai a fantasia que só
+// repete a razão social ("AIOROS GROUP LTDA" nos dois campos imprimiria o mesmo nome
+// duas vezes) nem a razão da emitente anterior (IMPORTADORA ARAGUARI LTDA).
 // Vitrine (orçamento, Estudo, deck, link) continua só com a marca.
 // Um helper só, usado por todos os documentos jurídicos, pra regra não divergir.
 const epFantasiaAntiga = s => String(s || '').replace(/\s+/g, '').toLowerCase() === 'aiorosgroupltda';
@@ -16409,7 +16435,7 @@ function epParteFantasia(emp) {
   const fn = epNomeNorm(f);
   return (fn === epNomeNorm(emp.razao) || fn === epNomeNorm(epParteMarca(emp))) ? '' : f;
 }
-/** Qualificação da parte: "<b>NEXUS Eletropostos</b>, marca de IMPORTADORA ARAGUARI LTDA, inscrita
+/** Qualificação da parte: "<b>NEXUS Eletropostos</b>, marca de AIOROS GROUP LTDA, inscrita
  *  no CNPJ sob o nº ...". `vazio` é o do documento que chama: razão ou CNPJ em branco
  *  vira a lacuna dele, e nunca cai na marca. A fantasia vem depois do CNPJ para a
  *  razão social não se separar do número. */
@@ -16418,7 +16444,7 @@ function epParteQualif(emp, vazio) {
   return `<b>${orcEsc(epParteMarca(emp))}</b>, marca de ${vazio(String(emp.razao || '').trim())}` +
     `, inscrita no CNPJ sob o nº ${vazio(String(emp.cnpj || '').trim())}${fant ? ', nome fantasia ' + orcEsc(fant) : ''}`;
 }
-/** Linha de identificação sob a marca: "IMPORTADORA ARAGUARI LTDA · CNPJ 31.865.880/0001-92" (texto puro).
+/** Linha de identificação sob a marca: "AIOROS GROUP LTDA · CNPJ 63.636.043/0001-88" (texto puro).
  *  CNPJ nunca sai sozinho: sem razão no cadastro, vai a razão certa junto. */
 function epParteRazaoCnpj(emp) {
   const c = String((emp && emp.cnpj) || '').trim();
@@ -16427,14 +16453,14 @@ function epParteRazaoCnpj(emp) {
 }
 /** Conserta o cadastro da empresa salvo neste aparelho. Roda uma vez por leitura
  *  e e' barata: comparacao de string. Fantasia fica como o dono escreveu, menos a
- *  do cartao CNPJ ("AIOROS GROUP LTDA"), que sai (transicao NEXUS / AIOROS acima).
+ *  quando repete a razao ("AIOROS GROUP LTDA"), que sai (transicao NEXUS / AIOROS acima).
  *  09/2026: a marca virou NEXUS e o e-mail antigo saiu dos documentos — aparelho
  *  que ja' tinha salvo o nome velho ou o e-mail velho e' migrado aqui, e so'
  *  grava de volta se algo mudou. */
 function epEmitCorrigir(o) {
   if (!o || typeof o !== 'object') return o;
   let mudou = false;
-  // Emitente trocou (29/09/2026): o CNPJ e' a CHAVE da migracao e a razao vai junto,
+  // Emitente voltou pra AIOROS (30/09/2026): o CNPJ e' a CHAVE da migracao e a razao vai junto,
   // no mesmo passo. Trocar so' o default nao alcanca aparelho nenhum: o cadastro
   // fica no localStorage, e quem ja' abriu a aba uma vez tem o par velho gravado.
   // O endereco so' migra se ainda for o default antigo, porque endereco digitado a
@@ -16467,8 +16493,8 @@ function epEmitGet() {
   // estao vazios no cadastro: ficam vazios aqui tambem e viram lacuna no papel
   // — registro profissional inventado num documento que vai ao balcao da
   // concessionaria e' problema de outra ordem.
-  const def = { nome: 'NEXUS Eletropostos', end: 'Rodovia 050, S/N, Km 72, Loja 02', cidade: 'Araguari/MG', tel: '(34) 99816-5040', email: 'nexuseletroposto@gmail.com',
-                cnpj: '31.865.880/0001-92', razao: 'IMPORTADORA ARAGUARI LTDA', fantasia: '',
+  const def = { nome: 'NEXUS Eletropostos', end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica', cidade: 'Uberlândia/MG', tel: '(34) 99816-5040', email: 'nexuseletroposto@gmail.com',
+                cnpj: '63.636.043/0001-88', razao: 'AIOROS GROUP LTDA', fantasia: '',
                 ie: '',
                 socio: '', socioCpf: '', pix: '', conta: '',
                 engNome: 'Guilherme Dornelas Ferreira', engNac: 'brasileiro', engEc: 'solteiro',
@@ -16478,7 +16504,7 @@ function epEmitGet() {
                 tecCrt: '', tecRg: '', tecCpf: '093.912.396-76',
                 tecEnd: 'Rua Maria das Dores, 850, bloco 16, apto 103, Santa Mônica, Uberlândia/MG' };
   const out = {};
-  Object.keys(def).forEach(k => out[k] = (o[k] != null && o[k] !== '') ? o[k] : (def[k] || ''));
+  Object.keys(def).forEach(k => out[k] = epEmitValor(o, k, def));
   return out;
 }
 // Cabeçalho: logo à esquerda + caixa "TÍTULO · Data" à direita (modelo da proposta).
@@ -16762,6 +16788,10 @@ function orcEquipDocHTML(d) {
       { k: 'Entrega', v: orc1EquipPrazoCurto(d.prazoEntrega), u: '' },
     ],
     linhas,
+    // Foto do carregador NEXUS (pedido do dono, 01/10/2026). Caminho absoluto:
+    // o link publico renderiza este mesmo HTML fora da pasta do gerador.
+    foto: '/gerador/equip-carregador.jpg',
+    fotoAlt: 'Carregador NEXUS Eletropostos',
     compTitulo: 'Equipamentos',
     compHTML: orc1EquipTabela(d),
     obs: d.obs || ORC_EQ_OBS_PADRAO,
@@ -16871,6 +16901,46 @@ function equipCondAdd() {
   host.appendChild(d);
 }
 
+// Condição "sinal + saldo na nota" (pedido do dono, 01/10/2026): o comprador paga
+// um sinal em % no pedido e o restante quando a nota fiscal é emitida, depois que
+// o equipamento chega. Título e texto se montam sozinhos a partir do % e do Total
+// do fornecimento, e acompanham o total enquanto ninguém mexer neles. Mexeu à mão,
+// vale o que foi escrito (data-manual), como nas outras condições.
+// % em campo de TEXTO: type=number zera com a vírgula do teclado do celular.
+function equipSinalPct(c) {
+  const e = c.querySelector('.eq-c-pct');
+  const v = parseFloat(String(e ? e.value : '').replace(',', '.'));
+  return (v > 0 && v < 100) ? v : 0;
+}
+function equipCondSinalTexto(c) {
+  const pct = equipSinalPct(c);
+  const tit = c.querySelector('.eq-c-tit'), det = c.querySelector('.eq-c-det');
+  const pctTxt = String(pct).replace('.', ',');
+  const total = equipTotais().total;
+  const sinal = Math.round(total * pct / 100), saldo = total - sinal;
+  const brl = n => o1BRL(n / 100);
+  if (tit && !tit.dataset.manual) tit.value = pct ? `Sinal de ${pctTxt}% + saldo na nota fiscal` : 'Sinal + saldo na nota fiscal';
+  if (det && !det.dataset.manual) det.value = !pct ? ''
+    : `Sinal de ${pctTxt}%${total ? ' (' + brl(sinal) + ')' : ''} no pedido. Saldo de ${String(100 - pct).replace('.', ',')}%${total ? ' (' + brl(saldo) + ')' : ''} na emissão da nota fiscal, após a chegada do equipamento.`;
+}
+function equipCondSinalAdd() {
+  const host = document.getElementById('eq-cond');
+  const d = document.createElement('div');
+  d.className = 'card eq-c-sinal';
+  d.style.cssText = 'margin-top:10px;padding:14px';
+  d.innerHTML =
+    '<div class="eletro-field"><label>Sinal no pedido (%)</label>' +
+      '<div class="eletro-inp"><input type="text" class="eq-c-pct" inputmode="decimal" value="30" oninput="equipCondSinalTexto(this.closest(\'.card\'))"></div></div>' +
+    '<div class="eletro-field"><label>Título</label>' +
+      '<div class="eletro-inp eletro-inp-wide"><input type="text" class="eq-c-tit" oninput="this.dataset.manual=1"></div></div>' +
+    '<div class="eletro-field"><label>Como sai no documento</label>' +
+      '<div class="eletro-inp eletro-inp-wide"><input type="text" class="eq-c-det" oninput="this.dataset.manual=1"></div></div>' +
+    '<div class="orc-note">O valor do sinal e do saldo sai do <b>Total do fornecimento</b> e acompanha o total. Editou o texto à mão, ele fica como você escreveu.</div>' +
+    '<button type="button" class="eletro-btn" style="margin-top:10px" onclick="this.parentNode.remove()">Remover condição</button>';
+  host.appendChild(d);
+  equipCondSinalTexto(d);
+}
+
 // Lê os itens da tela. Linha sem descrição E sem valor é descartada — o
 // formulário nasce com uma linha vazia e ela não pode virar item fantasma.
 function equipLerItens() {
@@ -16915,6 +16985,7 @@ function equipCalc() {
   set('eq-t-opc', brl(t.opcionais));
   const row = document.getElementById('eq-t-opc-row');
   if (row) row.style.display = t.opcionais > 0 ? '' : 'none';
+  document.querySelectorAll('#eq-cond > .eq-c-sinal').forEach(equipCondSinalTexto);
 }
 
 function orcEquipPayload() {
@@ -17048,14 +17119,23 @@ function equipEmitCarregar() {
   // qualificacao de quem emite so' porque ninguem preencheu o cadastro neste
   // aparelho. `ie` NAO tem default: inventar inscricao estadual em papel que
   // fala de ICMS e' problema de outra ordem.
-  const def = { nome: 'NEXUS Eletropostos', razao: 'IMPORTADORA ARAGUARI LTDA', cnpj: '31.865.880/0001-92',
-                ie: '', end: 'Rodovia 050, S/N, Km 72, Loja 02',
-                cidade: 'Araguari/MG', tel: '(34) 99816-5040' };
+  const def = { nome: 'NEXUS Eletropostos', razao: 'AIOROS GROUP LTDA', cnpj: '63.636.043/0001-88',
+                ie: '', end: 'Av. Ana Godoy de Sousa, 890, Santa Mônica',
+                cidade: 'Uberlândia/MG', tel: '(34) 99816-5040' };
   EQ_EMIT_CAMPOS.forEach(k => {
     const el = document.getElementById('eq-emit-' + k);
     if (!el) return;
-    el.value = (o[k] != null && o[k] !== '') ? o[k] : (def[k] || '');
+    el.value = epEmitValor(o, k, def);
   });
+}
+
+// Botao "apagar" ao lado de cada campo do fornecedor: limpa e grava na hora.
+function equipEmitApagar(k) {
+  const el = document.getElementById('eq-emit-' + k);
+  if (!el) return;
+  el.value = '';
+  equipEmitSalvar();
+  el.focus();
 }
 
 // Grava o que esta nos campos desta aba por CIMA do que ja existe, campo a
@@ -19583,8 +19663,11 @@ function bcoImprimir() {
 // paga; esta FORMALIZA a venda pra instituicao liberar o dinheiro contra o bem.
 //
 // ⚠ Assina com RAZAO SOCIAL, nunca com a fantasia: e' peca fiscal, e o banco
-// confere o nome contra o CNPJ. "AIOROS GROUP LTDA" e' fantasia — tanto que o
-// RAZAO_ERRADAS deste arquivo a trata como razao social errada e a reescreve.
+// confere o nome contra o CNPJ. A razao e' "AIOROS GROUP LTDA" por ordem do dono
+// (30/09/2026), colada ao CNPJ 63.636.043/0001-88 — e' o par que o RAZAO_CERTA deste
+// arquivo imprime. ATENCAO: registro anterior desta base tratava GROUP como nome
+// FANTASIA do cartao CNPJ, com a razao em "AIOROS HOLDING LTDA". Se um Finame voltar
+// recusado por nome que nao bate com o numero, RAZAO_CERTA e' a UNICA linha a mudar.
 // Nome que nao bate com o CNPJ num Finame volta na mesa, e devolucao no banco
 // trava o financiamento que fecha a venda.
 //
