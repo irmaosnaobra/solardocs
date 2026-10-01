@@ -74,6 +74,7 @@ import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 import { agendaFechadaNoIso } from '../agenda/agendaFechada';
 import { EP_RESPOSTA_PREFIX, quandoPorExtenso } from './eletropostoAgenda';
+import { EP_MUDO_PREFIX } from './eletropostoReagendaAuto';
 
 /** Carimbo de cobrança ENVIADA: `ep_cobra_sim:<id>:<passo>`. O prefixo está em
  *  BOT_SENT_PREFIXES (lineThrottle), então cada cobrança entra no orçamento da
@@ -476,7 +477,7 @@ export async function runEletropostoCobraSimTick(opts: { dry?: boolean } = {}): 
     return { ...zero('erro_leitura'), erros: 1 };
   }
 
-  const fichas = ((data ?? []) as unknown as FichaDaAgenda[])
+  const fichasBrutas = ((data ?? []) as unknown as FichaDaAgenda[])
     .filter(f => ehOrigemEletroposto(f.created_by))
     // Dia em que a empresa não atende: ninguém é cobrado por não confirmar uma
     // reunião que nós é que não vamos fazer.
@@ -486,11 +487,50 @@ export async function runEletropostoCobraSimTick(opts: { dry?: boolean } = {}): 
   // Marcadores, numa leitura só: quem escreveu (mora no outro projeto e a coluna
   // pode estar zerada por um ciclo novo), o que já foi cobrado e quem já foi
   // liberado mas ainda não avisado.
-  const [falaram, cobrancas, liberados] = await Promise.all([
+  const [falaram, cobrancas, liberados, mudas] = await Promise.all([
     supabase.from('system_state').select('key, updated_at').like('key', `${EP_RESPOSTA_PREFIX}%`).limit(1000),
     supabase.from('system_state').select('key, updated_at').like('key', `${EP_COBRA_PREFIX}%`).limit(2000),
     supabase.from('system_state').select('key, value, updated_at').like('key', `${EP_LIBERADO_PREFIX}%`).limit(1000),
+    // As fichas que o robô moveu SEM AVISAR o cliente. Ver abaixo.
+    supabase.from('system_state').select('key, value').like('key', `${EP_MUDO_PREFIX}%`).limit(2000),
   ]);
+  // ── A FICHA MOVIDA EM SILÊNCIO NÃO É COBRADA, E MUITO MENOS LIBERADA ──────
+  //
+  // O card confirmado que ninguém fechou volta pra agenda sozinho, e volta SEM
+  // mensagem nenhuma pro cliente (a reunião dele pode ter acontecido). Pra calar
+  // a confirmação padrão da agenda, aquele caminho carimba `confirmacao_at`.
+  //
+  // Esta régua lê o MESMO campo com o significado original: "o robô confirmou e
+  // está esperando a resposta". Como ninguém foi avisado, ninguém responde, e em
+  // 01/10/2026 ela liberou o horário de 14 das 15 fichas movidas na primeira
+  // noite (Diego 13, Thiago 1). O card que devia voltar pra agenda virou
+  // `cancelado`, ou seja, lead perdido. Dois significados no mesmo campo.
+  //
+  // A marca `ep_mudo:` guarda o horário que ela moveu, e só vale pra ESSE
+  // horário: se a ficha for remarcada depois por qualquer outro caminho, a marca
+  // deixa de casar e esta régua volta a valer, porque aí houve confirmação de
+  // verdade.
+  //
+  // Fail-closed: sem conseguir ler quem está mudo, ninguém é cobrado nesta
+  // rodada. Cobrar a mais custa uma mensagem; liberar a mais custa o lead.
+  if (mudas.error) {
+    logger.error('ep-cobra-sim', 'ler as fichas mudas falhou — ninguém é cobrado nesta rodada', mudas.error);
+    return { ...zero('erro_mudas'), erros: 1 };
+  }
+  const mudoEm = new Map<number, string>();
+  for (const m of mudas.data ?? []) {
+    const id = Number(String(m.key).slice(EP_MUDO_PREFIX.length));
+    const q = String((m.value as { quando?: string } | null)?.quando || '');
+    if (Number.isInteger(id) && q) mudoEm.set(id, q);
+  }
+  const fichas = fichasBrutas.filter(f => {
+    const q = mudoEm.get(f.id);
+    if (!q) return true;
+    const mesma = new Date(q).getTime() === new Date(String(f.quando)).getTime();
+    if (mesma) logger.info('ep-cobra-sim', `ficha ${f.id} foi movida em silêncio — não cobra nem libera`);
+    return !mesma;
+  });
+
   const respondeuEm = new Map<number, string>((falaram.data ?? []).map(m =>
     [Number(String(m.key).slice(EP_RESPOSTA_PREFIX.length)), String(m.updated_at ?? '')]));
   // Guarda QUANDO cada degrau saiu, não só que saiu: é o carimbo do ultimato que

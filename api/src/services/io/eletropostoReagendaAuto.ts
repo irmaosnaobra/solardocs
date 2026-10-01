@@ -130,6 +130,32 @@ const BRT_TZ = 'America/Sao_Paulo';
 /** Estado do ciclo: `ep_reagenda_auto:<id>` → { n, ultimo, de }. */
 export const EP_REAGENDA_PREFIX = 'ep_reagenda_auto:';
 
+/**
+ * O CARD QUE FOI MOVIDO EM SILÊNCIO: `ep_mudo:<id>` → { quando }.
+ *
+ * ELE EXISTE POR CAUSA DE UM ESTRAGO MEDIDO (01/10/2026). O caminho silencioso
+ * carimba `confirmacao_at` só pra calar a confirmação padrão da agenda, que é
+ * gateada nesse campo. Só que o `eletropostoCobraSim` LÊ O MESMO CAMPO com o
+ * significado original — "o robô confirmou com o cliente e está esperando a
+ * resposta dele" — e, como o cliente nunca respondeu (nada foi enviado a ele),
+ * ele cobrou, não teve resposta, e LIBEROU O HORÁRIO.
+ *
+ * Resultado na primeira noite: das 15 fichas que a regra moveu, 14 amanheceram
+ * `cancelado` (Diego 13, Thiago 1). O card que devia voltar pra agenda virou
+ * lead perdido, que é o oposto exato do que a regra existe pra fazer.
+ *
+ * A raiz é ter dado DOIS significados ao mesmo campo. A correção não é tirar o
+ * carimbo (aí a agenda volta a falar com o cliente): é dizer, num lugar só e
+ * com nome próprio, que esta ficha foi movida sem ninguém ser avisado. Quem
+ * fala com o cliente tem que saber disso, e quem cobra resposta também.
+ *
+ * O `quando` vai junto de propósito: a marca vale pro horário QUE ELA MOVEU. Se
+ * alguém remarcar essa ficha depois, por qualquer caminho, a marca deixa de
+ * casar e a régua do SIM volta a valer, que é o certo — aí houve confirmação de
+ * verdade.
+ */
+export const EP_MUDO_PREFIX = 'ep_mudo:';
+
 // ── Envs, lidas a cada chamada ──────────────────────────────────────────────
 // Não no arranque do módulo: instância quente na Vercel não recarrega módulo, e
 // apertar a rampa no meio de um dia ruim não pode depender de deploy.
@@ -734,6 +760,19 @@ export async function runEletropostoReagendaAutoTick(
           bolhasReagendado(primeiro, String(f.quando), novo, quem, telPorConsultor.get(quem) ?? null, tentativa),
           'io',
         );
+      }
+      // A MARCA DO SILÊNCIO. Sem ela o `eletropostoCobraSim` lê o
+      // `confirmacao_at` abaixo como "o cliente foi avisado e não respondeu" e
+      // libera o horário — foi assim que 14 fichas amanheceram canceladas em
+      // 01/10. Vai antes do `confirmacao_at` de propósito: entre carimbar e
+      // marcar não pode existir um instante em que a ficha parece confirmada
+      // sem estar marcada como muda.
+      if (esquecido) {
+        await supabase.from('system_state').upsert(
+          { key: `${EP_MUDO_PREFIX}${f.id}`, value: { quando: novo, em: nowIso }, updated_at: nowIso },
+          { onConflict: 'key' },
+        ).then(undefined, (e: unknown) =>
+          logger.error('ep-reagenda', 'marca do silêncio falhou', { id: f.id, erro: String(e) }));
       }
       // Carimbo do teto da linha (o mesmo prefixo dos outros toques da agenda) e,
       // junto, o `confirmacao_at`: é ele que impede a régua da agenda de mandar a

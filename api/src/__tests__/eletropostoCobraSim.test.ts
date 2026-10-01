@@ -408,3 +408,67 @@ describe('o tick', () => {
     expect(enviadas).toHaveLength(0);
   });
 });
+
+// ── A FICHA MOVIDA EM SILÊNCIO (01/10/2026) ────────────────────────────────
+//
+// ESTE BLOCO NASCEU DE UM ESTRAGO REAL, não de uma hipótese.
+//
+// O card confirmado que ninguém fechou volta pra agenda sozinho e volta SEM
+// avisar o cliente (a reunião dele pode ter acontecido). Pra calar a
+// confirmação padrão da agenda, aquele caminho carimba `confirmacao_at`.
+//
+// Esta régua lia o MESMO campo com o significado original, "o robô confirmou e
+// está esperando a resposta". Como ninguém foi avisado, ninguém respondeu, e na
+// primeira noite ela liberou o horário de 14 das 15 fichas movidas (Diego 13,
+// Thiago 1): o card que devia voltar pra agenda virou `cancelado`.
+describe('a ficha que o robô moveu sem avisar ninguém', () => {
+  const EP_MUDO_PREFIX = 'ep_mudo:';
+
+  it('não é cobrada nem liberada: ninguém foi avisado, ninguém pode responder', async () => {
+    const q = horasAFrente(48);
+    fichas = [ficha({ quando: q, confirmacao_at: minAtras(200) })];
+    estado = [
+      { key: `${EP_COBRA_PREFIX}1:c1`, updated_at: minAtras(140) },
+      { key: `${EP_COBRA_PREFIX}1:c2`, updated_at: minAtras(80) },
+      { key: `${EP_MUDO_PREFIX}1`, value: { quando: q } },
+    ];
+
+    const r = await runEletropostoCobraSimTick();
+
+    expect(r.liberados).toBe(0);
+    expect(updates).toHaveLength(0);
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('sem a marca, ela é liberada como sempre foi', async () => {
+    // O contraste que prova que o corte é a marca, e não outra coisa.
+    fichas = [ficha({ confirmacao_at: minAtras(200) })];
+    estado = [
+      { key: `${EP_COBRA_PREFIX}1:c1`, updated_at: minAtras(140) },
+      { key: `${EP_COBRA_PREFIX}1:c2`, updated_at: minAtras(80) },
+    ];
+    expect((await runEletropostoCobraSimTick()).liberados).toBe(1);
+  });
+
+  it('a marca vale só pro horário que ela moveu', async () => {
+    // Remarcada depois por outro caminho? Aí houve confirmação de verdade, e a
+    // régua volta a valer. Sem isto a marca viraria imunidade permanente.
+    fichas = [ficha({ quando: horasAFrente(48), confirmacao_at: minAtras(200) })];
+    estado = [
+      { key: `${EP_COBRA_PREFIX}1:c1`, updated_at: minAtras(140) },
+      { key: `${EP_COBRA_PREFIX}1:c2`, updated_at: minAtras(80) },
+      { key: `${EP_MUDO_PREFIX}1`, value: { quando: horasAFrente(72) } },
+    ];
+    expect((await runEletropostoCobraSimTick()).liberados).toBe(1);
+  });
+
+  it('marca sem horário dentro não protege nada', async () => {
+    fichas = [ficha({ confirmacao_at: minAtras(200) })];
+    estado = [
+      { key: `${EP_COBRA_PREFIX}1:c1`, updated_at: minAtras(140) },
+      { key: `${EP_COBRA_PREFIX}1:c2`, updated_at: minAtras(80) },
+      { key: `${EP_MUDO_PREFIX}1`, value: {} },
+    ];
+    expect((await runEletropostoCobraSimTick()).liberados).toBe(1);
+  });
+});
