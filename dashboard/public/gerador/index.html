@@ -21396,6 +21396,9 @@ function crmAbrirDetalhe(key) {
   // `crmAtualizarStatus` nem grava, e botao que nao faz nada e pior que botao
   // ausente.
   crmAplicarMenuDoProduto(agRec);
+  // TODAS as caixas fecham ao abrir outro card, e e UMA chamada. Subconjunto por
+  // guarda foi o que garantiu a divergencia que virou 8 cliques mortos.
+  crmFecharCaixasDoCard();
   const posse = document.getElementById('crm-det-posse');
   if (posse) posse.hidden = true;
   // A caixa do motivo tambem, zerada: aberta ao trocar de card ela gravaria o
@@ -21757,6 +21760,40 @@ async function crmGravarTemperatura(valor) {
   }
 }
 
+/** As caixas que pedem um segundo toque antes de gravar. Espelha
+ *  `CAIXAS_DO_CARD` da agenda; as duas telas tem o mesmo modal. */
+const CRM_CAIXAS_DO_CARD = ['crm-det-posse', 'crm-det-espera', 'crm-det-motivo', 'crm-det-venda'];
+
+/** Fecha TODAS as caixas e devolve qual estava aberta. Ver o comentario longo da
+ *  `fecharCaixasDoCard` na agenda: cada guarda fechava um subconjunto diferente, e
+ *  o resultado medido foram 8 cliques de 55 que nao faziam nada visivel. */
+function crmFecharCaixasDoCard() {
+  let aberta = null;
+  for (const id of CRM_CAIXAS_DO_CARD) {
+    const b = document.getElementById(id);
+    if (!b) continue;
+    if (!b.hidden) aberta = id;
+    b.hidden = true;
+  }
+  return aberta;
+}
+
+/** Abre a caixa e devolve `true` se ela ABRIU. `false` = ela ja estava aberta, o
+ *  toque foi "desisti", e quem chamou sai sem gravar — avisando, porque clique
+ *  calado e indistinguivel de botao quebrado. Rola pra dentro da vista pelo mesmo
+ *  motivo: no celular a caixa nascia embaixo da dobra. */
+function crmAbrirCaixaDoCard(id) {
+  if (crmFecharCaixasDoCard() === id) {
+    showToast('Ok, não mudei nada.');
+    return false;
+  }
+  const b = document.getElementById(id);
+  if (!b) return false;
+  b.hidden = false;
+  try { b.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) {}
+  return true;
+}
+
 async function crmAtualizarStatus(novoStatus, extra) {
   if (!crmDetAtual || !crmDetAtual.agRec) return;
   const { c, agRec: ag } = crmDetAtual;
@@ -21768,59 +21805,39 @@ async function crmAtualizarStatus(novoStatus, extra) {
   // Primeiro toque abre a escolha; o formulario e o MESMO do Historico, nao uma
   // copia. Copiar o formulario em duas telas e a divergencia que custou caro aqui.
   if (novoStatus === 'fechou' && !(extra && extra.__soStatus)) {
-    const box = document.getElementById('crm-det-venda');
-    if (box) {
-      ['crm-det-posse', 'crm-det-espera', 'crm-det-motivo'].forEach(id => {
-        const b = document.getElementById(id); if (b) b.hidden = true;
-      });
-      box.hidden = !box.hidden;
-    }
+    if (!crmAbrirCaixaDoCard('crm-det-venda')) return;
     return;
   }
   // Mesma regra da agenda: SEM INTERESSE abre a pergunta do motivo, e so o segundo
   // toque grava. Com escape, porque o status terminal nao pode ficar mais dificil
   // de marcar — e ele que faz o robo parar de falar com quem ja disse nao.
   if (novoStatus === 'sem_interesse' && !(extra && extra.__motivo !== undefined)) {
-    const box = document.getElementById('crm-det-motivo');
-    if (box) {
-      const po = document.getElementById('crm-det-posse');
-      if (po) po.hidden = true;
-      const es = document.getElementById('crm-det-espera');
-      if (es) es.hidden = true;
-      box.hidden = !box.hidden;
-      const atual = (ag && crmMotivos[String(ag.id)]) || '';
-      document.querySelectorAll('#crm-det-motivo .motivo-btn').forEach(b => {
-        b.classList.toggle('is-atual', b.dataset.motivo === atual);
-      });
-    }
+    if (!crmAbrirCaixaDoCard('crm-det-motivo')) return;
+    const atualMotivo = (ag && crmMotivos[String(ag.id)]) || '';
+    document.querySelectorAll('#crm-det-motivo .motivo-btn').forEach(b => {
+      b.classList.toggle('is-atual', b.dataset.motivo === atualMotivo);
+    });
     return;
   }
   // Mesma regra da agenda: ARRENDAMENTO abre a pergunta de posse, e so o segundo
   // toque grava. Sem isto o CRM virava a porta que produz card sem posse.
   if (novoStatus === 'arrendamento' && !extra) {
-    const box = document.getElementById('crm-det-posse');
-    if (box) box.hidden = !box.hidden;
-    return;
+    if (!crmAbrirCaixaDoCard('crm-det-posse')) return;
+    return;   // o segundo toque vem com `extra` e passa reto por aqui
   }
   // APALAVRADO abre a pergunta do prazo, e só o segundo toque grava. Gravar no
   // primeiro toque criaria espera sem data, que é a gaveta que este status
   // existe pra não ser.
   if (novoStatus === 'apalavrado' && !(extra && extra.__retomar)) {
-    const box = document.getElementById('crm-det-espera');
-    if (box) {
-      // Fecha a caixa de posse, senão as duas ficam abertas ao mesmo tempo.
-      const posse = document.getElementById('crm-det-posse');
-      if (posse) posse.hidden = true;
-      box.hidden = !box.hidden;
-      if (!box.hidden) {
-        const txt = document.getElementById('crm-det-espera-oque');
-        const dia = document.getElementById('crm-det-espera-data');
-        if (txt) txt.value = '';
-        if (dia) dia.value = '';
-        crmEsperaValida();
-        if (txt) txt.focus();
-      }
-    }
+    if (!crmAbrirCaixaDoCard('crm-det-espera')) return;
+    // ZERADA ao abrir: a caixa guarda o texto e o prazo do cliente, e reaproveitar
+    // isso num card novo e como a espera de um vai parar na ficha de outro.
+    const txtEsp = document.getElementById('crm-det-espera-oque');
+    const diaEsp = document.getElementById('crm-det-espera-data');
+    if (txtEsp) txtEsp.value = '';
+    if (diaEsp) diaEsp.value = '';
+    crmEsperaValida();
+    if (txtEsp) txtEsp.focus();
     return;
   }
   // O `__dias`/`__oque` são da espera e NÃO são coluna de `agendamentos`:

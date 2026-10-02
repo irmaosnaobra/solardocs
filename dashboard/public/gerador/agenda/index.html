@@ -1458,6 +1458,7 @@
         <button type="button" class="posse-btn rep" onclick="atualizarStatus('arrendamento',{ponto_relacao:'Represento o proprietário'})">REPRESENTA O DONO</button>
       </div>
       <div class="posse-nota">Se o local ainda não é dele, ele não pode ceder (contrato, cl. 16.1): não é arrendamento.</div>
+    </div>
 
     <!-- ── O MOTIVO DO NÃO (02/10/2026) ─────────────────────────────────────
          Opção B das três que eu medi, escolhida pelo dono depois da A.
@@ -1502,7 +1503,6 @@
         <button type="button" class="motivo-btn" style="grid-column:span 2" onclick="abrirVendaNoGerador()">💰 Registrar o valor da venda</button>
         <button type="button" class="motivo-pular" onclick="fecharCaixaVenda()">Depois</button>
       </div>
-    </div>
     </div>
 
     <!-- ESPERA: abre ao apertar APALAVRADO. Os dois campos sao obrigatorios e a
@@ -2499,15 +2499,14 @@ function abrirDetalhes(id) {
   const ag = agendamentosCache.find(a => a.id === id);
   if (!ag) return;
   detalheAtual = ag;
-  const posse = document.getElementById('d-posse');
-  if (posse) posse.hidden = true;
-  // A caixa do motivo tambem fecha. Sem isto ela ficava aberta ao trocar de card
-  // e o proximo toque gravava o motivo na ficha de OUTRA pessoa — o mesmo defeito
-  // que a caixa da espera teve.
-  const bxMotivo = document.getElementById('d-motivo');
-  if (bxMotivo) bxMotivo.hidden = true;
-  const bxVenda = document.getElementById('d-venda');
-  if (bxVenda) bxVenda.hidden = true;
+  // TODAS as caixas fecham ao abrir outro card, e e UMA chamada.
+  //
+  // A versao anterior fechava posse, motivo e venda e NAO fechava a ESPERA: ela
+  // atravessava a troca de card com o texto e o prazo do cliente ANTERIOR, e o
+  // primeiro toque em APALAVRADO no card novo so fechava ela, sem gravar. O CRM ja
+  // tinha esse conserto desde 01/10 (tem comentario lá dizendo que a espera do
+  // Cristiano ia parar na ficha de outra pessoa); a agenda nunca teve.
+  fecharCaixasDoCard();
   const dt = new Date(ag.quando);
   document.getElementById('modal-det-sub').textContent =
     `${ag.vendedor_nome} · ${diaSemanaLabel(dt)} ${fmtData(dt)} · ${pad(dt.getHours())}h${pad(dt.getMinutes())}`;
@@ -2745,26 +2744,74 @@ async function apalavrar() {
   }
 }
 
+/** As caixas que pedem um segundo toque antes de gravar. A ORDEM nao importa; o
+ *  que importa e a lista ser UMA. */
+const CAIXAS_DO_CARD = ['d-posse', 'd-espera', 'd-motivo', 'd-venda'];
+
+/**
+ * Fecha TODAS as caixas do card e devolve qual estava aberta.
+ *
+ * Isto existe porque cada guarda de status fechava um SUBCONJUNTO diferente das
+ * outras, e o resultado medido foi 8 cliques de 55 que nao fazem nada visivel:
+ * duas caixas abertas juntas, ou o status cuja caixa ja estava aberta so fechando
+ * ela e saindo sem gravar. Da tela do consultor isso e "o botao nao funcionou, tive
+ * que sair e voltar".
+ */
+function fecharCaixasDoCard() {
+  let aberta = null;
+  for (const id of CAIXAS_DO_CARD) {
+    const b = document.getElementById(id);
+    if (!b) continue;
+    if (!b.hidden) aberta = id;
+    b.hidden = true;
+  }
+  return aberta;
+}
+
+/**
+ * Abre a caixa `id`, e devolve `true` se ela ABRIU.
+ *
+ * Devolve `false` quando ela JA ESTAVA aberta: ai o toque foi "deixa pra la", e
+ * quem chamou faz `return` sem gravar. O toggle continua existindo porque e o
+ * unico jeito de desistir, mas agora ele e a EXCECAO explicita e nao o efeito de
+ * um `!hidden` solto.
+ *
+ * E ROLA PRA DENTRO DA VISTA. No celular o modal e alto e a caixa nascia embaixo
+ * da dobra: o consultor clicava, nada aparecia na tela dele, e o toque duplo
+ * passava por defeito. Esta linha e metade do conserto.
+ */
+function abrirCaixaDoCard(id) {
+  const jaEstava = fecharCaixasDoCard() === id;
+  if (jaEstava) {
+    // O SEGUNDO TOQUE NO MESMO BOTAO E "DESISTI", e ele PRECISA avisar.
+    // Sem esta linha ele e um clique calado, e clique calado foi exatamente a
+    // queixa: "clico e nao vai". Fechar a caixa sem dizer nada e
+    // indistinguivel de botao quebrado.
+    showToast('Ok, não mudei nada.');
+    return false;
+  }
+  const b = document.getElementById(id);
+  if (!b) return false;
+  b.hidden = false;
+  try { b.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) {}
+  return true;
+}
+
 async function atualizarStatus(novoStatus, extra) {
   if (!detalheAtual) return;
   // APALAVRADO abre a pergunta do prazo, e só o segundo toque grava. Gravar no
   // primeiro criaria espera sem data, que é a gaveta que este status existe
   // pra não ser.
   if (novoStatus === 'apalavrado' && !(extra && extra.__retomar)) {
-    const box = document.getElementById('d-espera');
-    if (box) {
-      const posse = document.getElementById('d-posse');
-      if (posse) posse.hidden = true;
-      box.hidden = !box.hidden;
-      if (!box.hidden) {
-        const txt = document.getElementById('d-espera-oque');
-        const dia = document.getElementById('d-espera-data');
-        if (txt) txt.value = '';
-        if (dia) dia.value = '';
-        esperaValida();
-        if (txt) txt.focus();
-      }
-    }
+    if (!abrirCaixaDoCard('d-espera')) return;
+    // ZERADA ao abrir: a caixa guarda o texto e o prazo do cliente, e reaproveitar
+    // isso num card novo e como a espera de um vai parar na ficha de outro.
+    const txtEsp = document.getElementById('d-espera-oque');
+    const diaEsp = document.getElementById('d-espera-data');
+    if (txtEsp) txtEsp.value = '';
+    if (diaEsp) diaEsp.value = '';
+    esperaValida();
+    if (txtEsp) txtEsp.focus();
     return;
   }
   // SEM INTERESSE pergunta O MOTIVO antes de gravar, no mesmo formato da posse:
@@ -2776,31 +2823,31 @@ async function atualizarStatus(novoStatus, extra) {
   // perder o motivo de um card e o robô insistir com um cliente, perde o motivo.
   // Por isso o "Encerrar sem dizer o motivo" grava o status e apaga a marca.
   if (novoStatus === 'sem_interesse' && !(extra && extra.__motivo !== undefined)) {
-    const box = document.getElementById('d-motivo');
-    if (box) {
-      const posse = document.getElementById('d-posse');
-      if (posse) posse.hidden = true;
-      const esp = document.getElementById('d-espera');
-      if (esp) esp.hidden = true;
-      box.hidden = !box.hidden;
-      // Marca o motivo que o card JA tem, pra o segundo toque no mesmo botao se
-      // ler como "esse mesmo" e nao como "nao tinha nada aqui".
-      const atual = motivosCache[String(detalheAtual.id)] || '';
-      document.querySelectorAll('#d-motivo .motivo-btn').forEach(b => {
-        b.classList.toggle('is-atual', b.dataset.motivo === atual);
-      });
-    }
+    if (!abrirCaixaDoCard('d-motivo')) return;
+    // Marca o motivo que o card JA tem, pra o segundo toque no mesmo botao se
+    // ler como "esse mesmo" e nao como "nao tinha nada aqui".
+    const atualMotivo = motivosCache[String(detalheAtual.id)] || '';
+    document.querySelectorAll('#d-motivo .motivo-btn').forEach(b => {
+      b.classList.toggle('is-atual', b.dataset.motivo === atualMotivo);
+    });
     return;
   }
   // ARRENDAMENTO pergunta de quem e o local ANTES de gravar: o primeiro toque so
   // abre os tres botoes, e e o segundo que grava status + posse juntos. Apertar de
   // novo num card que ja e arrendamento reabre, pra corrigir a posse.
   if (novoStatus === 'arrendamento' && !extra) {
-    const box = document.getElementById('d-posse');
-    if (box) box.hidden = !box.hidden;
+    if (!abrirCaixaDoCard('d-posse')) return;
+    return;   // o segundo toque vem com `extra` e passa reto por aqui
+  }
+  // CLICAR O STATUS QUE O CARD JA TEM. Antes fechava o modal CALADO, e isso e
+  // metade da queixa "clico e nao vai": da tela, o card fechou e nada mudou. Agora
+  // avisa. Continua fechando porque nao ha nada a gravar.
+  if (detalheAtual.status === novoStatus && !extra) {
+    fecharCaixasDoCard();
+    showToast('Esse card já estava assim: ' + ((ETIQUETA_STATUS[novoStatus] || [novoStatus])[0]));
+    fecharModalDet();
     return;
   }
-  if (detalheAtual.status === novoStatus && !extra) { fecharModalDet(); return; }
   // `__retomar`/`__oque` são da espera e NÃO são coluna de `agendamentos`:
   // mandá-los no PATCH derrubaria o próprio botão com erro de coluna.
   // `__retomar`/`__oque` não chegam mais aqui: quem grava a espera é o
