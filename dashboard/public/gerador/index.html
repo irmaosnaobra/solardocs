@@ -1637,6 +1637,7 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-det-temp-aviso strong{color:#FBBF24}
 /* resultado da ligação (status) */
 .crm-det-status{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.crm-btn-status[hidden]{display:none}
 .crm-btn-status{padding:11px 10px;border-radius:9px;border:2px solid transparent;cursor:pointer;font-weight:700;font-size:13px;color:#fff;font-family:inherit;text-align:center;line-height:1.2;transition:transform .08s,filter .12s}
 .crm-btn-status:hover{filter:brightness(1.12)}
 .crm-btn-status:active{transform:scale(.97)}
@@ -5992,17 +5993,17 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
              VIVO. Por isso ele fica fora dessas listas de propósito. O status velho
              continua nos mapas de rótulo logo abaixo: 10 fichas antigas ainda o
              carregam, e sem rótulo elas apareceriam sem selo. -->
-        <button type="button" class="crm-btn-status bg-ar" data-status="arrendamento"       onclick="crmAtualizarStatus('arrendamento')" style="grid-column:span 2">🤝 Arrendamento</button>
-        <button type="button" class="crm-btn-status bg-cr" data-status="carregador"        onclick="crmAtualizarStatus('carregador')" style="grid-column:span 2">🔌 Carregador</button>
-        <button type="button" class="crm-btn-status bg-mm" data-status="meio_a_meio"       onclick="crmAtualizarStatus('meio_a_meio')" style="grid-column:span 2">👥 50/50</button>
-        <button type="button" class="crm-btn-status bg-ch" data-status="chave_na_mao"      onclick="crmAtualizarStatus('chave_na_mao')" style="grid-column:span 2">🔑 Chave na mão</button>
+        <button type="button" class="crm-btn-status bg-ar" data-produto="eletroposto" data-status="arrendamento"       onclick="crmAtualizarStatus('arrendamento')" style="grid-column:span 2">🤝 Arrendamento</button>
+        <button type="button" class="crm-btn-status bg-cr" data-produto="eletroposto" data-status="carregador"        onclick="crmAtualizarStatus('carregador')" style="grid-column:span 2">🔌 Carregador</button>
+        <button type="button" class="crm-btn-status bg-mm" data-produto="eletroposto" data-status="meio_a_meio"       onclick="crmAtualizarStatus('meio_a_meio')" style="grid-column:span 2">👥 50/50</button>
+        <button type="button" class="crm-btn-status bg-ch" data-produto="eletroposto" data-status="chave_na_mao"      onclick="crmAtualizarStatus('chave_na_mao')" style="grid-column:span 2">🔑 Chave na mão</button>
         <!-- COTISTA e INTEGRADOR (01/10/2026) — os dois caminhos que faltavam.
              COTISTA entra com DINHEIRO e não com ponto; INTEGRADOR compra pra
              revender ou instalar pra terceiro. São modelos de negócio como os
              outros quatro, então mesmo bege, mesma coluna própria, mesma regra
              de etiqueta preservada. -->
-        <button type="button" class="crm-btn-status bg-co" data-status="cotista"           onclick="crmAtualizarStatus('cotista')" style="grid-column:span 2">📊 Cotista</button>
-        <button type="button" class="crm-btn-status bg-in" data-status="integrador"        onclick="crmAtualizarStatus('integrador')" style="grid-column:span 2">🛠️ Integrador</button>
+        <button type="button" class="crm-btn-status bg-co" data-produto="eletroposto" data-status="cotista"           onclick="crmAtualizarStatus('cotista')" style="grid-column:span 2">📊 Cotista</button>
+        <button type="button" class="crm-btn-status bg-in" data-produto="eletroposto" data-status="integrador"        onclick="crmAtualizarStatus('integrador')" style="grid-column:span 2">🛠️ Integrador</button>
         <!-- APALAVRADO (30/09/2026) — a margem entre o perdido e o vendido.
              É o cliente que já disse sim e está esperando uma peça que não é
              nossa: o investidor, o terreno, a assinatura. Ele SAI do ciclo de 48h
@@ -21463,6 +21464,11 @@ function crmAbrirDetalhe(key) {
   if (!c) return;
   const agRec = crmAgRecente(c);
   crmDetAtual = { c, agRec };
+  // O menu segue o produto da ficha. Vai aqui, e nao dentro do `if (temAg)`,
+  // pra o cliente SEM ficha tambem nao ver os seis modelos: sem ficha o
+  // `crmAtualizarStatus` nem grava, e botao que nao faz nada e pior que botao
+  // ausente.
+  crmAplicarMenuDoProduto(agRec);
   const posse = document.getElementById('crm-det-posse');
   if (posse) posse.hidden = true;
   // A caixa da espera também fecha, e ZERADA. Sem isto ela ficava aberta ao
@@ -21663,6 +21669,19 @@ async function crmSalvarEdicao() {
     err.textContent = 'Erro ao salvar. Tente de novo.';
     btn.disabled = false; btn.textContent = 'Salvar';
   }
+}
+
+// O MENU SEGUE O PRODUTO DA FICHA (02/10/2026). Mesma regra da agenda, e o
+// espelho dela: os seis modelos sao do eletroposto e nao dizem nada num lead de
+// solar. Olha a ficha `agRec`, que e a MESMA que o `crmAtualizarStatus` grava —
+// gatear por outra coisa (o cliente ter EP em algum lugar) faria o botao aparecer
+// e escrever modelo de EP numa ficha de solar.
+// O botao do status atual nunca esconde: ver o comentario longo na agenda.
+function crmAplicarMenuDoProduto(ag) {
+  const ehEp = crmEhEletroposto(ag);
+  const stAtual = String((ag && ag.status) || '');
+  document.querySelectorAll('#crm-det-bg .crm-btn-status[data-produto="eletroposto"]')
+    .forEach(b => { b.hidden = !ehEp && b.dataset.status !== stAtual; });
 }
 
 function crmMarcarStatus(status) {

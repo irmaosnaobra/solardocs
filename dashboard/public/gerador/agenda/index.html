@@ -912,6 +912,10 @@
     gap: 8px;
     margin-top: 14px;
   }
+  /* O botao escondido pelo menu do produto. Explicito porque `[hidden]` perde de
+     QUALQUER regra de autor que defina `display` no mesmo elemento, e a proxima
+     pessoa a mexer aqui nao tem como saber disso sozinha. */
+  .btn-status[hidden] { display: none; }
   .btn-status {
     padding: 11px 10px;
     border-radius: 9px;
@@ -1399,12 +1403,12 @@
            VIVO. Por isso ele fica fora dessas listas de propósito. O status velho
            continua nos mapas de rótulo logo abaixo: 10 fichas antigas ainda o
            carregam, e sem rótulo elas apareceriam sem selo. -->
-      <button type="button" class="btn-status bg-ar" data-status="arrendamento"       onclick="atualizarStatus('arrendamento')" style="grid-column: span 2;">🤝 Arrendamento</button>
-      <button type="button" class="btn-status bg-cr" data-status="carregador"        onclick="atualizarStatus('carregador')" style="grid-column: span 2;">🔌 Carregador</button>
-      <button type="button" class="btn-status bg-mm" data-status="meio_a_meio"       onclick="atualizarStatus('meio_a_meio')" style="grid-column: span 2;">👥 50/50</button>
-      <button type="button" class="btn-status bg-ch" data-status="chave_na_mao"      onclick="atualizarStatus('chave_na_mao')" style="grid-column: span 2;">🔑 Chave na mão</button>
-      <button type="button" class="btn-status bg-co" data-status="cotista"           onclick="atualizarStatus('cotista')" style="grid-column: span 2;">📊 Cotista</button>
-      <button type="button" class="btn-status bg-in" data-status="integrador"        onclick="atualizarStatus('integrador')" style="grid-column: span 2;">🛠️ Integrador</button>
+      <button type="button" class="btn-status bg-ar" data-produto="eletroposto" data-status="arrendamento"       onclick="atualizarStatus('arrendamento')" style="grid-column: span 2;">🤝 Arrendamento</button>
+      <button type="button" class="btn-status bg-cr" data-produto="eletroposto" data-status="carregador"        onclick="atualizarStatus('carregador')" style="grid-column: span 2;">🔌 Carregador</button>
+      <button type="button" class="btn-status bg-mm" data-produto="eletroposto" data-status="meio_a_meio"       onclick="atualizarStatus('meio_a_meio')" style="grid-column: span 2;">👥 50/50</button>
+      <button type="button" class="btn-status bg-ch" data-produto="eletroposto" data-status="chave_na_mao"      onclick="atualizarStatus('chave_na_mao')" style="grid-column: span 2;">🔑 Chave na mão</button>
+      <button type="button" class="btn-status bg-co" data-produto="eletroposto" data-status="cotista"           onclick="atualizarStatus('cotista')" style="grid-column: span 2;">📊 Cotista</button>
+      <button type="button" class="btn-status bg-in" data-produto="eletroposto" data-status="integrador"        onclick="atualizarStatus('integrador')" style="grid-column: span 2;">🛠️ Integrador</button>
       <!-- PERDIDO saiu do grid em 23/09/2026 (ordem do dono). Quem perde o lead
            marca "Sem interesse". O status velho continua VIVO nos mapas de rótulo
            e nas cores: fichas antigas o carregam e apareceriam sem selo, e a api
@@ -2394,6 +2398,7 @@ function abrirDetalhes(id) {
   document.getElementById('d-erro').textContent = '';
   document.getElementById('d-hist').textContent = ag.historico || '';
   document.getElementById('d-nota').value = '';
+  aplicarMenuDoProduto(ag);
   marcarStatusAtualNosBotoes(ag.status || 'agendado');
   marcarTemperaturaAtualNosBotoes(ag.temperatura || null);
   fecharReagendar();
@@ -2464,6 +2469,35 @@ async function adicionarNota() {
     btn.disabled = false;
   }
 }
+/**
+ * ── O MENU SEGUE O PRODUTO DO CARD (02/10/2026) ───────────────────────────
+ *
+ * Ordem do dono: "um menu daquele separado e mais simples para o solar".
+ *
+ * Os SEIS modelos de negocio (arrendamento, carregador, 50/50, chave na mao,
+ * cotista, integrador) sao do ELETROPOSTO. Num lead de solar eles nao querem
+ * dizer nada, e apertar um manda o card pra uma coluna solta no quadro do solar.
+ * Com eles fora, o menu do solar fica com cinco botoes: Agendada, Nao atendeu,
+ * Sem interesse, Apalavrado, Vendido.
+ *
+ * MEDIDO ANTES DE ESCREVER (02/10/2026, 1.227 fichas): os seis modelos tem ZERO
+ * card de solar e zero rastro no historico das 735 fichas de solar. Entao isto e
+ * higiene, nao conserto de defeito ativo — e por isso nao vale pagar o preco de
+ * um status novo. "Fez orcamento" segue sem botao porque e automatico.
+ *
+ * O BOTAO DO STATUS ATUAL NUNCA ESCONDE, mesmo sendo de outro produto. Sao zero
+ * cards hoje, mas esconder o status que a ficha TEM faria o consultor abrir o
+ * card e nao achar onde ela esta: e o beco que a faxina de aba de 30/09 criou e
+ * que custou um dia pra achar. Entre mostrar um botao a mais e esconder a
+ * verdade da ficha, mostra o botao.
+ */
+function aplicarMenuDoProduto(ag) {
+  const ehEp = cardEhEletroposto(ag);
+  const stAtual = String((ag && ag.status) || '');
+  document.querySelectorAll('#modal-det .btn-status[data-produto="eletroposto"]')
+    .forEach(b => { b.hidden = !ehEp && b.dataset.status !== stAtual; });
+}
+
 function marcarStatusAtualNosBotoes(status) {
   document.querySelectorAll('#modal-det .btn-status').forEach(b => {
     b.classList.toggle('is-atual', b.dataset.status === status);
