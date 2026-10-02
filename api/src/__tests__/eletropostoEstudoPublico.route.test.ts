@@ -20,7 +20,8 @@ vi.mock('../services/io/eletropostoEstudoFontes', () => ({
 }));
 vi.mock('../services/io/eletropostoEstudoGarantir', () => ({ estudoDesligado: () => false }));
 vi.mock('../services/io/eletropostoEstudoPagina', () => ({
-  renderEstudo: (l: any) => `<html>estudo ${l.status}</html>`,
+  renderEstudo: (l: any, _r: any, o: any) => `<html>estudo ${l.status} cliente=${o.clienteUrl}</html>`,
+  renderEstudoCliente: (l: any) => `<html>cliente ${l.status} ${l.token}</html>`,
   paginaPreparando: () => '<html>Estudo em preparação</html>',
   pagina404: () => '<html>Estudo não encontrado</html>',
   imagensPermitidas: () => h.permitidas,
@@ -135,5 +136,44 @@ describe('imagens por proxy', () => {
     const desligada = await request(app).get(`/io/eletroposto/estudo/${TOKEN}/rua.jpg`);
     expect(desligada.status).toBe(404);
     expect(h.imagem).not.toHaveBeenCalled();
+  });
+});
+
+describe('versão do cliente', () => {
+  const antes = process.env.EP_ESTUDO_DB_SEGREDO;
+  beforeEach(() => { process.env.EP_ESTUDO_DB_SEGREDO = 's'.repeat(40); });
+  afterEach(() => { process.env.EP_ESTUDO_DB_SEGREDO = antes; });
+
+  it('a página do consultor leva o link do cliente, e o link do cliente abre pelo token interno', async () => {
+    const { tokenDoCliente } = await import('../services/io/eletropostoEstudoCliente');
+    const ct = tokenDoCliente(TOKEN) as string;
+    h.achado = achado('pronto');
+    const consultor = await request(app).get(`/io/eletroposto/estudo/${TOKEN}`);
+    expect(consultor.text).toContain(`cliente=https://solardoc.app/_api/io/eletroposto/estudo/cliente/${ct}`);
+
+    const r = await request(app).get(`/io/eletroposto/estudo/cliente/${ct}`);
+    expect(r.status).toBe(200);
+    expect(r.text).toContain('cliente pronto');
+    expect(r.headers['content-security-policy']).toBe(CSP_ESTUDO);
+    expect(r.headers['x-robots-tag']).toBe('noindex, nofollow');
+    expect(r.headers['referrer-policy']).toBe('no-referrer');
+    expect(vi.mocked(lerPorToken)).toHaveBeenLastCalledWith(TOKEN);
+  });
+
+  it('o token interno na rota do cliente não abre a página do consultor', async () => {
+    h.achado = null;
+    const r = await request(app).get(`/io/eletroposto/estudo/cliente/${TOKEN}`);
+    expect(r.status).toBe(404);
+    expect(vi.mocked(lerPorToken)).not.toHaveBeenCalledWith(TOKEN);
+  });
+
+  it('foto do cliente vai pelo token do cliente', async () => {
+    const { tokenDoCliente } = await import('../services/io/eletropostoEstudoCliente');
+    const ct = tokenDoCliente(TOKEN) as string;
+    h.achado = achado('pronto', { local: { lat: -19.7, lng: -47.9 }, imagens: { satelite_ok: true } });
+    h.imagem.mockResolvedValue({ ok: true, dado: { tipo: 'image/jpeg', corpo: Buffer.from('jpg') } });
+    const r = await request(app).get(`/io/eletroposto/estudo/cliente/${ct}/satelite.jpg`);
+    expect(r.status).toBe(200);
+    expect(r.headers['content-type']).toBe('image/jpeg');
   });
 });

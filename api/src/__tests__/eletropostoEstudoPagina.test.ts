@@ -6,8 +6,8 @@ import {
 } from '../services/io/eletropostoEstudoPuro';
 import { contaDeReferencia } from '../utils/computeEletro';
 import {
-  esc, imagensPermitidas, renderEstudo, paginaPreparando, pagina404, svgMedidor, svgBarras,
-  svgBarrasComparadas, svgFluxo10Anos, type LinhaEstudo, type ReuniaoEstudo, type StatusEstudo,
+  esc, imagensPermitidas, renderEstudo, renderEstudoCliente, paginaPreparando, pagina404, svgMedidor, svgBarras,
+  svgBarrasComparadas, svgFluxo10Anos, type LinhaEstudo, type OpcoesEstudo, type ReuniaoEstudo, type StatusEstudo,
 } from '../services/io/eletropostoEstudoPagina';
 
 const obsDe = (trecho: string): string => {
@@ -110,7 +110,9 @@ const reuniao = (o: Partial<ReuniaoEstudo> = {}): ReuniaoEstudo => ({
   cidade: 'Uberaba-MG', observacao: OBS_POSTO, ...o,
 });
 
-const OPTS = { agoraMs: AGORA, imagensLigadas: true };
+const CLIENTE_TOKEN = 'cd'.repeat(32);
+const CLIENTE_URL = `${BASE_ESTUDO_URL}cliente/${CLIENTE_TOKEN}`;
+const OPTS: OpcoesEstudo = { agoraMs: AGORA, imagensLigadas: true, clienteUrl: CLIENTE_URL };
 const render = (l: LinhaEstudo = linha(), r: ReuniaoEstudo = reuniao(), o = OPTS) => renderEstudo(l, r, o);
 const textoVisivel = (html: string) => html.replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ');
 
@@ -202,7 +204,7 @@ describe('invariantes em todo estado da página', () => {
       expect(html).not.toContain('<script');
       expect(html).not.toContain('maps.googleapis.com');
       expect(html).not.toContain('key=');
-      expect(html).not.toContain('wa.me');
+      expect(html).not.toMatch(/wa\.me\/\d/);
       expect(html).not.toMatch(TRAVESSOES);
       expect(html).not.toContain('Souza');
       expect(html).not.toContain(TELEFONE);
@@ -238,9 +240,10 @@ describe('pronto', () => {
   });
 
   it('blocos na ordem combinada', () => {
-    const titulos = ['Em 30 segundos', 'O local', 'Entorno em 1 km', 'Recarga em 5 km', 'Mercado do município',
-      'Conta de referência', 'Roteiro da reunião', 'O que o cliente respondeu', 'Como calculamos e fontes'];
-    const pos = titulos.map(t => html.indexOf(`>${t}</h2>`));
+    const titulos = ['Em 30 segundos', 'O ponto em números', 'Abrir o local', 'Versão para o cliente', 'O local',
+      'Entorno em 1 km', 'Recarga em 5 km', 'Mercado do município',
+      'Conta de referência', 'Roteiro da reunião', 'O que o cliente respondeu'];
+    const pos = [...titulos.map(t => html.indexOf(`>${t}</h2>`)), html.indexOf('<summary>Como calculamos e fontes</summary>')];
     expect(pos.every(p => p > 0)).toBe(true);
     expect([...pos].sort((a, b) => a - b)).toEqual(pos);
   });
@@ -332,12 +335,13 @@ describe('pronto', () => {
     expect(h).toContain('Não paga em 10 anos');
   });
 
-  it('sem coordenada: um botão só, de busca pelo endereço digitado', () => {
+  it('sem coordenada: busca pelo endereço digitado, no Maps e no Earth', () => {
     const d = dadosCompletos();
     d.local = { ...d.local!, lat: null, lng: null };
     const h = render(linha({ dados: d }));
     expect(h).toContain('>Buscar o endereço no Google Maps</a>');
     expect(h).toContain('query=Avenida%20Brasil%2C%203200');
+    expect(h).toContain('https://earth.google.com/web/search/Avenida%20Brasil%2C%203200');
     expect(h).not.toContain('Ver satélite');
     expect(h).not.toContain('<img');
   });
@@ -532,5 +536,84 @@ describe('esc e SVG', () => {
     for (const t of ['Teto', 'Base', 'Piso', 'Ano 0 começa em -R$ 145.000', 'Anos depois da instalação']) expect(s).toContain(t);
     expect(s).toContain('stroke-dasharray="4 3"');
     expect(s).not.toMatch(/NaN/);
+  });
+});
+
+describe('topo direto, Google Earth e PlugShare na cidade (02/10/2026)', () => {
+  it('com o pino: Earth em 3D sobre a coordenada e PlugShare no ponto', () => {
+    const html = render();
+    expect(html).toContain('>Google Earth em 3D</a>');
+    expect(html).toContain('https://earth.google.com/web/@-19.747000,-47.939000,0a,350d,35y,0h,60t,0r');
+    expect(html).toContain('https://www.plugshare.com/?latitude=-19.74700&amp;longitude=-47.93900&amp;zoom=14');
+    for (const t of ['Plug-in em Uberaba', '900', 'Carregadores em 5 km', 'Payback no cenário base']) expect(html).toContain(t);
+  });
+
+  it('sem o pino (o 429 do Rudinei): Earth pela busca e PlugShare no centro da cidade, zoom 11', () => {
+    const d = dadosCompletos();
+    d.local = null;
+    d.recarga = null;
+    d.entorno = null;
+    if (d.municipio) { d.municipio.lat = -30.0346; d.municipio.lng = -51.2177; }
+    const h = render(linha({ status: 'parcial', dados: d, fontes: { searchText: 'erro:429' } }));
+    expect(h).toContain('>Abrir o local</h2>');
+    expect(h).toContain('https://earth.google.com/web/search/');
+    expect(h).toContain('https://www.plugshare.com/?latitude=-30.03460&amp;longitude=-51.21770&amp;zoom=11');
+    expect(h).toContain('>PlugShare na cidade</a>');
+  });
+
+  it('versão do cliente: link, compartilhar sem número e nada quando não há segredo', () => {
+    const html = render();
+    expect(html).toContain('>Versão para o cliente</h2>');
+    expect(html).toContain(`href="${CLIENTE_URL}"`);
+    expect(html).toContain('https://wa.me/?text=Oi%2C%20Maria.');
+    expect(render(linha(), reuniao(), { agoraMs: AGORA, imagensLigadas: true, clienteUrl: null })).not.toContain('Versão para o cliente');
+  });
+
+  it('todo link externo abre em aba nova', () => {
+    for (const a of render().match(/<a\b[^>]*>/g) || []) {
+      expect(a).toContain('target="_blank"');
+      expect(a).toContain('rel="noopener noreferrer"');
+    }
+  });
+});
+
+describe('página do cliente', () => {
+  const OPC = { agoraMs: AGORA, imagensLigadas: true, tokenCliente: CLIENTE_TOKEN };
+  const html = renderEstudoCliente(linha(), reuniao(), OPC);
+  const txt = textoVisivel(html);
+
+  it('mostra o ponto, a cidade, os carregadores, o entorno e o próximo passo', () => {
+    expect(html).toContain('<title>Estudo do seu ponto · NEXUS</title>');
+    expect(txt).toContain('Preparado para Maria');
+    expect(txt).toContain('Uberaba tem 900 carros elétricos e híbridos plug-in emplacados');
+    for (const t of ['>Em resumo</h2>', '>O ponto em números</h2>', '>Abrir o local</h2>', '>O seu ponto</h2>',
+      'Recarga em 5 km', 'Entorno em 1 km', 'Mercado do município', '>Próximos passos</h2>']) expect(html).toContain(t);
+    expect(html).toContain('Google Earth em 3D');
+    expect(txt).toContain('com Diego');
+  });
+
+  it('fotos pelo token do cliente, nunca pelo interno', () => {
+    expect(html).toContain(`src="${BASE_ESTUDO_URL}cliente/${CLIENTE_TOKEN}/satelite.jpg"`);
+    expect(html).not.toContain(TOKEN);
+  });
+
+  it('nada de uso interno: nota, roteiro, ficha, custo, IA, dinheiro', () => {
+    for (const t of ['Pré-nota', 'NOTA', 'PRONTO PARA A REUNIÃO', 'ponto de atenção', 'Roteiro', 'Cuidados',
+      'O que o cliente respondeu', 'Custo estimado', 'uso interno', 'Versão para o cliente', 'Payback', 'Lucro',
+      'R$ 195.000', 'Faturamento', 'Investimento de', 'Posto em Uberaba com entorno movimentado', 'Em volta há posto, mercado', 'Modelo NEXUS sugerido', 'Decisor',
+      'Consultor Diego', 'Souza', TELEFONE]) {
+      expect(txt).not.toContain(t);
+    }
+    expect(html).not.toContain('<script');
+    expect(html).not.toMatch(/wa\.me/);
+    expect(html).not.toMatch(TRAVESSOES);
+    expect(txt).not.toMatch(/\bnull\b|\bundefined\b|\bNaN\b|\[object/);
+  });
+
+  it('estudo que não ficou pronto: preparo ou indisponível, sem dado do cliente', () => {
+    expect(renderEstudoCliente(linha({ status: 'processando' }), reuniao(), OPC)).toContain('Estudo em preparação');
+    const h = renderEstudoCliente(linha({ status: 'erro' }), reuniao(), OPC);
+    expect(h).toContain('Estudo indisponível');
+    for (const t of ['Maria', 'Avenida Brasil', 'Uberaba']) expect(h).not.toContain(t);
   });
 });

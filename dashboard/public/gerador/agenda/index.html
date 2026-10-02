@@ -765,6 +765,12 @@
     word-break: break-word;
     border: 1px solid #e5e7eb;
   }
+  .hist-box a, #d-obs a, .estudo-links a { color: #2563eb; text-decoration: underline; word-break: break-all; }
+  .estudo-links { display: flex; flex-wrap: wrap; gap: 8px; }
+  .estudo-links a.btn-estudo { display: inline-block; padding: 6px 12px; border-radius: 8px; border: 1.5px solid #16a34a;
+    color: #166534; background: #f0fdf4; font-weight: 700; text-decoration: none; word-break: normal; }
+  html[data-theme="dark"] .hist-box a, html[data-theme="dark"] #d-obs a { color: #93c5fd; }
+  html[data-theme="dark"] .estudo-links a.btn-estudo { background: #052e16; color: #bbf7d0; border-color: #22c55e; }
   .hist-box:empty::before {
     content: 'Nenhuma anotação ainda.';
     color: #9ca3af;
@@ -1364,6 +1370,7 @@
       <div class="row"><div class="label">Cliente</div><div class="val" id="d-nome"></div></div>
       <div class="row"><div class="label">WhatsApp</div><div class="val" id="d-tel"></div></div>
       <div class="row" id="d-obs-row" style="display:none"><div class="label">Observação</div><div class="val" id="d-obs"></div></div>
+      <div class="row" id="d-estudo-row" style="display:none"><div class="label">Estudo do local</div><div class="val estudo-links" id="d-estudo"></div></div>
       <div class="row"><div class="label">Etiqueta de origem</div><div class="val" id="d-etiqueta"></div></div>
       <div class="row"><div class="label">Marcado por</div><div class="val" id="d-criador"></div></div>
     </div>
@@ -2131,6 +2138,34 @@ function escapeHtml(s) {
   }[c]));
 }
 
+// Texto livre (histórico, observação) com os links https clicáveis, sempre em aba
+// nova. Escapa ANTES e só depois põe o <a>: o histórico tem nota digitada à mão.
+function textoComLinks(s) {
+  return escapeHtml(s).replace(/https:\/\/[^\s<]+/g, (u) => {
+    const sobra = (u.match(/[.,;:)\]]+$/) || [''])[0];
+    const url = sobra ? u.slice(0, -sobra.length) : u;
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>${sobra}`;
+  });
+}
+
+// O estudo do local (eletroposto) grava no histórico o link do consultor e, desde
+// 02/10/2026, o da versão do cliente. O card mostra os dois como botão.
+const RE_ESTUDO = /https:\/\/solardoc\.app\/_api\/io\/eletroposto\/estudo\/[0-9a-f]{64}(?![0-9a-f])/;
+const RE_ESTUDO_CLIENTE = /https:\/\/solardoc\.app\/_api\/io\/eletroposto\/estudo\/cliente\/[0-9a-f]{64}(?![0-9a-f])/;
+function pintarEstudo(ag) {
+  const texto = `${ag.historico || ''}\n${ag.observacao || ''}`;
+  const interno = (texto.match(RE_ESTUDO) || [])[0];
+  const cliente = (texto.match(RE_ESTUDO_CLIENTE) || [])[0];
+  const row = document.getElementById('d-estudo-row');
+  const box = document.getElementById('d-estudo');
+  if (!interno && !cliente) { row.style.display = 'none'; box.innerHTML = ''; return; }
+  box.innerHTML = [
+    interno ? `<a class="btn-estudo" href="${interno}" target="_blank" rel="noopener noreferrer">Abrir o estudo</a>` : '',
+    cliente ? `<a class="btn-estudo" href="${cliente}" target="_blank" rel="noopener noreferrer">Versão do cliente</a>` : '',
+  ].join('');
+  row.style.display = '';
+}
+
 async function renderTudo() {
   renderPeriodo();
   document.getElementById('grid-container').innerHTML = 'Carregando agenda…';
@@ -2379,7 +2414,7 @@ function abrirDetalhes(id) {
   pintarBotaoConfirmada(ag.presenca_confirmada_at);
   if (ag.observacao) {
     document.getElementById('d-obs-row').style.display = '';
-    document.getElementById('d-obs').textContent = ag.observacao;
+    document.getElementById('d-obs').innerHTML = textoComLinks(ag.observacao);
   } else {
     document.getElementById('d-obs-row').style.display = 'none';
   }
@@ -2396,7 +2431,8 @@ function abrirDetalhes(id) {
   document.getElementById('d-criador').textContent = criador || '—';
   document.getElementById('d-btn-wpp').href = `https://wa.me/${formatTelDigits(ag.cliente_telefone)}`;
   document.getElementById('d-erro').textContent = '';
-  document.getElementById('d-hist').textContent = ag.historico || '';
+  document.getElementById('d-hist').innerHTML = textoComLinks(ag.historico || '');
+  pintarEstudo(ag);
   document.getElementById('d-nota').value = '';
   aplicarMenuDoProduto(ag);
   marcarStatusAtualNosBotoes(ag.status || 'agendado');
@@ -2459,7 +2495,7 @@ async function adicionarNota() {
     detalheAtual.historico = novo;
     const idx = agendamentosCache.findIndex(a => a.id === detalheAtual.id);
     if (idx >= 0) agendamentosCache[idx].historico = novo;
-    document.getElementById('d-hist').textContent = novo;
+    document.getElementById('d-hist').innerHTML = textoComLinks(novo);
     ta.value = '';
     showToast('📝 Nota adicionada');
   } catch (e) {

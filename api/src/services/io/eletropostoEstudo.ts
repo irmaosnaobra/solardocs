@@ -36,6 +36,7 @@ import { carregarConsultores } from './eletropostoAgenda';
 import { resolverCidade } from './geoCidade';
 import * as banco from './eletropostoEstudoBanco';
 import * as fontes from './eletropostoEstudoFontes';
+import { urlDoCliente } from './eletropostoEstudoCliente';
 import { avaliarPortao } from './eletropostoPortao';
 import { ESTUDO_NO_AR_EM, estudoDesligado, garantirEstudo } from './eletropostoEstudoGarantir';
 import {
@@ -118,7 +119,9 @@ export interface EstudoMontado {
  * roteiro) e fica marcado como `google_negado`. Quando a chave volta, o tick refaz e o
  * estudo ganha mapa, entorno e carregadores. Sem redeploy e sem ninguém pedir.
  */
-const googleRecusou = (s: string) => s === 'sem_chave' || s === 'erro:401' || s === 'erro:403';
+// O 429 (cota estourada) entrou em 02/10/2026: o estudo do Rudinei, Porto Alegre, saiu
+// sem mapa por um 429 e ficou parcial para sempre, porque só 401/403 voltavam à fila.
+const googleRecusou = (s: string) => s === 'sem_chave' || s === 'erro:401' || s === 'erro:403' || s === 'erro:429';
 
 /** Endereço público, só para saber se o Google voltou a responder. */
 const ENDERECO_SONDA = 'Praça Tubal Vilela, Centro, Uberlândia - MG, Brasil';
@@ -316,6 +319,7 @@ export function montarAvisoPronto(est: banco.LinhaEstudoBanco, reu: Reuniao): st
   const cidade = d.municipio ? `${d.municipio.nome}-${d.municipio.uf}` : (reu.cidade || '');
   const mercado = d.indice?.valor != null ? `Mercado ${umDecimal(d.indice.valor)} de 10 (${d.indice.faixa})` : 'Mercado sem dado suficiente';
   const atencao = (d.sinais || []).find(s => s.lado === 'atencao');
+  const cliente = urlDoCliente(est.token);
 
   const linhas = [
     '*ESTUDO DO LOCAL PRONTO*',
@@ -323,9 +327,10 @@ export function montarAvisoPronto(est: banco.LinhaEstudoBanco, reu: Reuniao): st
     [d.pre_nota ? `Pré-nota ${d.pre_nota.valor} de 100` : '', mercado].filter(Boolean).join(' · '),
     `Endereço: ${d.confianca ? CONFIANCA_TXT[d.confianca] : 'não conferido agora'}`,
     `Situação: ${rotuloSituacao(d.situacao || 'confirmar')}`,
-    ...(d.google_negado ? ['Sem mapa, entorno e carregadores nesta versão: o Google recusou a chave. O estudo se completa sozinho quando ela voltar.'] : []),
+    ...(d.google_negado ? ['Sem mapa, entorno e carregadores nesta versão: o Google não atendeu. O estudo se completa sozinho quando ele voltar.'] : []),
     ...(atencao ? [`Atenção: ${atencao.texto}`] : []),
     urlDoEstudo(est.token),
+    ...(cliente ? ['', 'Versão para mandar ao cliente:', cliente] : []),
   ];
 
   const enderecoDuvidoso = d.confianca === 'baixa' || d.confianca === 'nao_encontrado'
@@ -347,7 +352,9 @@ export function linhaDoHistorico(est: banco.LinhaEstudoBanco, agoraMs: number): 
   const d = est.dados || {};
   const pre = d.pre_nota ? `Pré-nota ${d.pre_nota.valor} de 100` : 'Estudo do local';
   const mercado = d.indice?.valor != null ? `mercado ${umDecimal(d.indice.valor)} de 10` : 'mercado sem dado suficiente';
-  return `[${carimbo} · Estudo] ${pre}, ${mercado}: ${urlDoEstudo(est.token)}`;
+  // O link do consultor vem primeiro: a agenda e quem mais ler esta linha pegam o primeiro.
+  const cliente = urlDoCliente(est.token);
+  return `[${carimbo} · Estudo] ${pre}, ${mercado}: ${urlDoEstudo(est.token)}${cliente ? ` · Versão do cliente: ${cliente}` : ''}`;
 }
 
 /** Depois de 30 dias o estudo perde as coordenadas. Ficam place_id e os agregados. */

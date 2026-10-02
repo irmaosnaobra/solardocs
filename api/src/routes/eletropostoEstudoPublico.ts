@@ -4,6 +4,11 @@
 //   GET /io/eletroposto/estudo/:token              a página (HTML, sem script)
 //   GET /io/eletroposto/estudo/:token/satelite.jpg  foto de satélite, por proxy
 //   GET /io/eletroposto/estudo/:token/rua.jpg       foto da rua, por proxy
+//   GET /io/eletroposto/estudo/cliente/:ct           a VERSÃO DO CLIENTE (02/10/2026)
+//   GET /io/eletroposto/estudo/cliente/:ct/satelite.jpg e /rua.jpg
+//
+// O token do cliente (:ct) é o interno cifrado (eletropostoEstudoCliente.ts): do link
+// do cliente não se chega no do consultor, e as fotos dele também vão pelo :ct.
 //
 // Link canônico: https://solardoc.app/_api/io/eletroposto/estudo/<token> (o rewrite
 // /_api do dashboard já existe). O token tem 64 hex e é a única chave: quem tem o
@@ -23,8 +28,9 @@ import { bancoConfigurado, lerPorToken, type LinhaEstudoBanco } from '../service
 import { imagemRua, imagemSatelite } from '../services/io/eletropostoEstudoFontes';
 import { estudoDesligado } from '../services/io/eletropostoEstudoGarantir';
 import { TOKEN_RE } from '../services/io/eletropostoEstudoPuro';
+import { tokenInternoDoCliente, urlDoCliente } from '../services/io/eletropostoEstudoCliente';
 import {
-  imagensPermitidas, pagina404, paginaPreparando, renderEstudo, type LinhaEstudo,
+  imagensPermitidas, pagina404, paginaPreparando, renderEstudo, renderEstudoCliente, type LinhaEstudo,
 } from '../services/io/eletropostoEstudoPagina';
 
 const router = Router();
@@ -67,6 +73,26 @@ function paraPagina(e: LinhaEstudoBanco): LinhaEstudo {
   };
 }
 
+// ── versão do cliente ──
+// Mesma CSP, noindex e no-referrer da página do consultor, e o mesmo limitador.
+router.get('/cliente/:ct', estudoPaginaLimiter, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const interno = tokenInternoDoCliente(String(req.params.ct));
+    const achado = interno ? await carregar(interno) : null;
+    if (!achado) { naoEncontrado(res); return; }
+    const linha = paraPagina(achado.estudo);
+    const pronto = linha.status === 'pronto' || linha.status === 'parcial';
+    cabecalhosDaPagina(res, pronto ? 'private, max-age=60' : 'no-store');
+    res.status(200).send(renderEstudoCliente(linha, achado.reuniao, {
+      agoraMs: Date.now(), imagensLigadas: !imagensDesligadas(), tokenCliente: String(req.params.ct),
+    }));
+  } catch (e) {
+    logger.error('ep-estudo', 'versão do cliente falhou', String((e as Error)?.message || e).slice(0, 200));
+    cabecalhosDaPagina(res, 'no-store');
+    res.status(503).send(paginaPreparando(null));
+  }
+});
+
 router.get('/:token', estudoPaginaLimiter, async (req: Request, res: Response): Promise<void> => {
   try {
     const achado = await carregar(String(req.params.token));
@@ -79,7 +105,9 @@ router.get('/:token', estudoPaginaLimiter, async (req: Request, res: Response): 
       return;
     }
     cabecalhosDaPagina(res, 'private, max-age=60');
-    res.status(200).send(renderEstudo(linha, achado.reuniao, { agoraMs: Date.now(), imagensLigadas: !imagensDesligadas() }));
+    res.status(200).send(renderEstudo(linha, achado.reuniao, {
+      agoraMs: Date.now(), imagensLigadas: !imagensDesligadas(), clienteUrl: urlDoCliente(linha.token),
+    }));
   } catch (e) {
     logger.error('ep-estudo', 'página do estudo falhou', String((e as Error)?.message || e).slice(0, 200));
     cabecalhosDaPagina(res, 'no-store');
@@ -87,12 +115,13 @@ router.get('/:token', estudoPaginaLimiter, async (req: Request, res: Response): 
   }
 });
 
-async function imagem(req: Request, res: Response, tipo: 'satelite' | 'rua'): Promise<void> {
+async function imagem(req: Request, res: Response, tipo: 'satelite' | 'rua', doCliente = false): Promise<void> {
   // Qualquer falha é 404 sem corpo: nunca repassa erro do Google.
   const falha = () => { res.setHeader('Cache-Control', 'no-store'); res.status(404).end(); };
   try {
     if (imagensDesligadas()) { falha(); return; }
-    const achado = await carregar(String(req.params.token));
+    const token = doCliente ? tokenInternoDoCliente(String(req.params.ct)) : String(req.params.token);
+    const achado = token ? await carregar(token) : null;
     if (!achado) { falha(); return; }
 
     const linha = paraPagina(achado.estudo);
@@ -117,6 +146,8 @@ async function imagem(req: Request, res: Response, tipo: 'satelite' | 'rua'): Pr
   }
 }
 
+router.get('/cliente/:ct/satelite.jpg', estudoImgLimiter, (req, res) => imagem(req, res, 'satelite', true));
+router.get('/cliente/:ct/rua.jpg', estudoImgLimiter, (req, res) => imagem(req, res, 'rua', true));
 router.get('/:token/satelite.jpg', estudoImgLimiter, (req, res) => imagem(req, res, 'satelite'));
 router.get('/:token/rua.jpg', estudoImgLimiter, (req, res) => imagem(req, res, 'rua'));
 

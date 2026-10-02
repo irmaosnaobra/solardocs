@@ -917,6 +917,24 @@ export function mapsUrls(lat: number, lng: number, placeId?: string | null, head
   };
 }
 
+/**
+ * Google Earth na web, já em 3D inclinado sobre o ponto. O formato
+ * @lat,lng,altitude a,distância d,abertura y,rumo h,inclinação t,giro r é o da
+ * própria barra de endereço do Earth. Sem coordenada, a busca pelo texto.
+ */
+export const earthNoPonto = (lat: number, lng: number): string =>
+  `https://earth.google.com/web/@${coord(lat)},${coord(lng)},0a,350d,35y,0h,60t,0r`;
+
+export const earthBusca = (texto: string): string =>
+  `https://earth.google.com/web/search/${encodeURIComponent(texto)}`;
+
+/**
+ * PlugShare aberto numa coordenada. Medido em 02/10/2026: o site centraliza em
+ * latitude/longitude e respeita o zoom (13 mostra o bairro, 11 a cidade inteira).
+ */
+export const plugshareEm = (lat: number, lng: number, zoom: number): string =>
+  `https://www.plugshare.com/?latitude=${lat.toFixed(5)}&longitude=${lng.toFixed(5)}&zoom=${zoom}`;
+
 export const mapsBuscaTexto = (texto: string): string =>
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(texto)}`;
 
