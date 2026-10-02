@@ -891,6 +891,9 @@
      Mesma forma da posse: abre no primeiro toque, grava no segundo. Cinza e nao
      colorida de proposito — ela aparece depois de um NAO, e pintar de verde ou
      amarelo faria o encerramento parecer uma conquista. */
+  /* A caixa do VENDIDO usa a mesma forma da do motivo. Uma classe, dois usos:
+     duas caixas identicas com nomes diferentes divergem na primeira vez que
+     alguem mexe numa delas. */
   .motivo-box{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.4)}
   .motivo-box[hidden]{display:none}
   .motivo-tit{font-size:12px;font-weight:800;margin-bottom:8px}
@@ -1476,6 +1479,28 @@
         <button type="button" class="motivo-btn" data-produto="eletroposto" data-motivo="achou_caro"     onclick="atualizarStatus('sem_interesse',{__motivo:'achou_caro'})">💰 Achou caro</button>
         <button type="button" class="motivo-btn" data-produto="eletroposto" data-motivo="so_curiosidade" onclick="atualizarStatus('sem_interesse',{__motivo:'so_curiosidade'})">👀 Só curiosidade</button>
         <button type="button" class="motivo-pular" onclick="atualizarStatus('sem_interesse',{__motivo:''})">Encerrar sem dizer o motivo</button>
+      </div>
+    </div>
+
+    <!-- ── VENDIDO: O CARD E O VALOR, NO MESMO ATO (02/10/2026) ──────────────
+         Pedido do dono: o botao tem que marcar a venda nos DOIS lugares, e o
+         lugar de inserir tem que ser o mesmo.
+
+         O card JA foi marcado quando esta caixa aparece — isso e de proposito e
+         e a parte que importa: `fechou` e o que tira a ficha da roda dos robos, e
+         medido em 02/10 havia um cliente de R$ 19.528 parado em NAO_ATENDEU, que
+         e o relogio que MANDA MENSAGEM. O valor pode esperar um minuto; o robo
+         cobrando quem ja pagou nao.
+
+         O formulario de venda mora no /gerador e NAO e clonado aqui. A agenda nem
+         conhece a tabela `propostas`, e ensinar ela seria a segunda copia da
+         regra de "qual proposta e desse cliente" — a divergencia que custou caro
+         neste repo. Entao o link leva o TELEFONE e quem resolve e la. -->
+    <div id="d-venda" class="motivo-box" hidden>
+      <div class="motivo-tit">Card marcado como VENDIDO. Falta o valor.</div>
+      <div class="motivo-grid">
+        <button type="button" class="motivo-btn" style="grid-column:span 2" onclick="abrirVendaNoGerador()">💰 Registrar o valor da venda</button>
+        <button type="button" class="motivo-pular" onclick="fecharCaixaVenda()">Depois</button>
       </div>
     </div>
     </div>
@@ -2481,6 +2506,8 @@ function abrirDetalhes(id) {
   // que a caixa da espera teve.
   const bxMotivo = document.getElementById('d-motivo');
   if (bxMotivo) bxMotivo.hidden = true;
+  const bxVenda = document.getElementById('d-venda');
+  if (bxVenda) bxVenda.hidden = true;
   const dt = new Date(ag.quando);
   document.getElementById('modal-det-sub').textContent =
     `${ag.vendedor_nome} · ${diaSemanaLabel(dt)} ${fmtData(dt)} · ${pad(dt.getHours())}h${pad(dt.getMinutes())}`;
@@ -2602,6 +2629,23 @@ async function adicionarNota() {
  * que custou um dia pra achar. Entre mostrar um botao a mais e esconder a
  * verdade da ficha, mostra o botao.
  */
+/** Leva pro formulario de venda do /gerador, com o telefone deste card.
+ *
+ *  Telefone e nao codigo de proposta porque a agenda nao consulta `propostas`:
+ *  quem sabe qual proposta e deste cliente e a tela que tem a tabela. */
+function abrirVendaNoGerador() {
+  if (!detalheAtual) return;
+  const tel = String(detalheAtual.cliente_telefone || '').replace(/\D/g, '');
+  if (!tel) { showToast('Esse card nao tem telefone: registre a venda pelo Historico.'); return; }
+  location.href = '/gerador/?venda_tel=' + encodeURIComponent(tel);
+}
+
+function fecharCaixaVenda() {
+  const b = document.getElementById('d-venda');
+  if (b) b.hidden = true;
+  fecharModalDet();
+}
+
 function aplicarMenuDoProduto(ag) {
   const produto = cardEhEletroposto(ag) ? 'eletroposto' : 'solar';
   const stAtual = String((ag && ag.status) || '');
@@ -2850,6 +2894,19 @@ async function atualizarStatus(novoStatus, extra) {
     showToast((labels[novoStatus] || 'Status atualizado')
       + (extra && extra.ponto_relacao ? ' · ' + extra.ponto_relacao : ''));
     await renderTudo();
+    // VENDIDO: o card ja esta gravado, agora oferece o valor. Reabre o modal
+    // porque o `fecharModalDet()` acima fecha tudo, e perguntar depois de fechar
+    // nao e perguntar.
+    if (novoStatus === 'fechou') {
+      const bx = document.getElementById('d-venda');
+      if (bx) {
+        document.getElementById('modal-det').classList.add('show');
+        ['d-posse', 'd-espera', 'd-motivo'].forEach(id => {
+          const b = document.getElementById(id); if (b) b.hidden = true;
+        });
+        bx.hidden = false;
+      }
+    }
   } catch (e) {
     document.getElementById('d-erro').textContent = 'Erro ao atualizar status.';
     console.error(e);
