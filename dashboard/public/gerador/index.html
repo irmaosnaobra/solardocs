@@ -1655,6 +1655,10 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .motivo-pular{grid-column:span 2;padding:9px 8px;border-radius:8px;border:1px dashed rgba(148,163,184,.6);background:transparent;color:#94A3B8;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer}
 .motivo-pular:hover{background:rgba(148,163,184,.14)}
 .crm-status-selo.selo-motivo{background:rgba(71,85,105,.5);color:#CBD5E1}
+/* O aviso de venda em dobro. Vermelho porque é dinheiro contado duas vezes. */
+.venda-dobra{margin:8px 0 10px;padding:9px 11px;border-radius:9px;background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.5);font-size:12.5px;line-height:1.45;color:#B91C1C}
+.venda-dobra[hidden]{display:none}
+html[data-theme="dark"] .venda-dobra{color:#FCA5A5}
 .crm-det-status{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
 .crm-btn-status[hidden]{display:none}
 .crm-btn-status{padding:11px 10px;border-radius:9px;border:2px solid transparent;cursor:pointer;font-weight:700;font-size:13px;color:#fff;font-family:inherit;text-align:center;line-height:1.2;transition:transform .08s,filter .12s}
@@ -5779,6 +5783,12 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   <div class="modal-box">
     <h3 id="venda-titulo">💰 Confirmar venda</h3>
     <p>Cliente: <strong id="venda-cliente"></strong></p>
+    <!-- AVISO DE VENDA EM DOBRO (02/10/2026). Medido: de 21 vendas, UM telefone
+         tem TRES propostas marcadas vendidas, R$ 36.698,50 somados, as tres no
+         mesmo dia e uma delas com outro nome. Se for a mesma venda, o total de
+         R$ 302.283 esta 8% inflado e a contagem cai de 21 pra 19. Ninguem tinha
+         como ver isso: nada na tela cruzava proposta vendida com telefone. -->
+    <div id="venda-dobra" class="venda-dobra" hidden></div>
     <div class="venda-ref">
       <div>Orçamento financiado: <strong>R$ <span id="venda-ref-orc"></span></strong></div>
       <div>Preço à vista: <strong>R$ <span id="venda-ref-vista"></span></strong></div>
@@ -6051,6 +6061,20 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <!-- O MOTIVO DO NÃO (02/10/2026). Espelho da caixa da agenda: as duas telas
            gravam na MESMA marca, e divergir faria uma mostrar o que a outra não
            mostra. 498 cards de solar param em SEM INTERESSE e nenhum diz por quê. -->
+      <!-- VENDIDO: as duas formas de registrar. "Com o valor" leva pro mesmo
+           formulario do Historico, que grava proposta E card. "Só marcar" e a
+           valvula: o card fica certo na hora, mesmo sem ninguem ter o numero em
+           maos. Medido em 02/10: 11 das 21 vendas nao tem card nenhum, e o card do
+           Wesler estava em NAO_ATENDEU com R$ 19.528 vendidos — o relogio que
+           manda mensagem. Deixar o card certo nao pode depender de ter o valor. -->
+      <div id="crm-det-venda" class="motivo-box" hidden>
+        <div class="motivo-tit">Registrar a venda</div>
+        <div class="motivo-grid">
+          <button type="button" class="motivo-btn" style="grid-column:span 2" onclick="crmAbrirVendaDoCard()">💰 Com o valor, no formulário de venda</button>
+          <button type="button" class="motivo-pular" onclick="crmAtualizarStatus('fechou',{__soStatus:1})">Só marcar o card como vendido, sem o valor</button>
+        </div>
+      </div>
+
       <div id="crm-det-motivo" class="motivo-box" hidden>
         <div class="motivo-tit">Sem interesse: por quê?</div>
         <div class="motivo-grid">
@@ -8040,6 +8064,15 @@ function mostrarExpirado(d) {
 }
 
 window.addEventListener('DOMContentLoaded', carregarDeURL);
+// A PORTA QUE VEM DA AGENDA. Fica num listener separado do `carregarDeURL` de
+// proposito: aquele e o caminho de ABRIR UMA PROPOSTA pelo `?p=` e ele faz
+// `return` cedo quando nao tem `p`. Pendurar a venda ali dentro seria enterrar
+// uma funcao numa que nao e dela, e ela deixaria de rodar no dia que alguem
+// mexesse naquele return.
+window.addEventListener('DOMContentLoaded', () => {
+  const tel = new URLSearchParams(location.search).get('venda_tel');
+  if (tel) vendaPorTelefone(tel);
+});
 // Escreve a data do prazo padrão embaixo dos dois campos de validade assim que a
 // tela abre — o consultor precisa ver "vence sexta, 07/08, às 18h" sem clicar.
 window.addEventListener('DOMContentLoaded', validadeUiAtualizar);
@@ -21376,12 +21409,17 @@ function crmAbrirDetalhe(key) {
   // `crmAtualizarStatus` nem grava, e botao que nao faz nada e pior que botao
   // ausente.
   crmAplicarMenuDoProduto(agRec);
+  // TODAS as caixas fecham ao abrir outro card, e e UMA chamada. Subconjunto por
+  // guarda foi o que garantiu a divergencia que virou 8 cliques mortos.
+  crmFecharCaixasDoCard();
   const posse = document.getElementById('crm-det-posse');
   if (posse) posse.hidden = true;
   // A caixa do motivo tambem, zerada: aberta ao trocar de card ela gravaria o
   // motivo na ficha de OUTRA pessoa — defeito que a caixa da espera ja teve.
   const bxMot = document.getElementById('crm-det-motivo');
   if (bxMot) bxMot.hidden = true;
+  const bxVen = document.getElementById('crm-det-venda');
+  if (bxVen) bxVen.hidden = true;
   // A caixa da espera também fecha, e ZERADA. Sem isto ela ficava aberta ao
   // trocar de card e levava junto o texto do cliente anterior: dois toques e a
   // espera do Cristiano ia parar na ficha de outra pessoa.
@@ -21588,6 +21626,46 @@ async function crmSalvarEdicao() {
 // gatear por outra coisa (o cliente ter EP em algum lugar) faria o botao aparecer
 // e escrever modelo de EP numa ficha de solar.
 // O botao do status atual nunca esconde: ver o comentario longo na agenda.
+/** Do card pro formulario de venda. Resolve a proposta do cliente e abre O MESMO
+ *  modal do Historico.
+ *
+ *  Qual proposta: a mais RECENTE do produto do card, e entre as do mesmo produto a
+ *  que ainda NAO esta vendida (porque registrar venda nova em cima de uma ja
+ *  vendida e justamente a dobra que o aviso vermelho denuncia). Sem proposta
+ *  nenhuma, nao tem onde por o valor: ai só da pra marcar o card, e eu digo isso
+ *  em vez de abrir um formulario vazio. */
+async function crmAbrirVendaDoCard() {
+  const det = crmDetAtual;
+  if (!det || !det.c) return;
+  const ehEp = crmEhEletroposto(det.agRec);
+  const cands = (det.c.props || []).filter(p => {
+    const pEp = p.tipo === 'eletroposto' || (p.dados && p.dados.produto === 'eletroposto');
+    return pEp === ehEp;
+  });
+  const ordena = (arr) => [...arr].sort((a, b) =>
+    new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  const escolhida = ordena(cands.filter(p => !p.vendido))[0] || ordena(cands)[0]
+    || ordena(det.c.props || [])[0];
+  if (!escolhida || !escolhida.codigo) {
+    showToast('Esse cliente não tem proposta, então não há onde gravar o valor. Use "Só marcar o card".');
+    return;
+  }
+  const box = document.getElementById('crm-det-venda');
+  if (box) box.hidden = true;
+  // O formulario le `historicoRows`. Quem abriu o CRM direto nunca carregou o
+  // Historico, e sem isto o modal abriria vazio e o `salvarVenda` nao acharia a
+  // linha pra gravar — falha silenciosa, o pior tipo.
+  if (!historicoRows || !historicoRows.length) {
+    showToast('Carregando as propostas…');
+    await abrirHistorico();
+  }
+  if (!(historicoRows || []).some(x => x.codigo === escolhida.codigo)) {
+    showToast('Não achei a proposta ' + escolhida.codigo + ' no histórico.');
+    return;
+  }
+  abrirModalVenda(escolhida.codigo);
+}
+
 function crmAplicarMenuDoProduto(ag) {
   const produto = crmEhEletroposto(ag) ? 'eletroposto' : 'solar';
   const stAtual = String((ag && ag.status) || '');
@@ -21695,53 +21773,84 @@ async function crmGravarTemperatura(valor) {
   }
 }
 
+/** As caixas que pedem um segundo toque antes de gravar. Espelha
+ *  `CAIXAS_DO_CARD` da agenda; as duas telas tem o mesmo modal. */
+const CRM_CAIXAS_DO_CARD = ['crm-det-posse', 'crm-det-espera', 'crm-det-motivo', 'crm-det-venda'];
+
+/** Fecha TODAS as caixas e devolve qual estava aberta. Ver o comentario longo da
+ *  `fecharCaixasDoCard` na agenda: cada guarda fechava um subconjunto diferente, e
+ *  o resultado medido foram 8 cliques de 55 que nao faziam nada visivel. */
+function crmFecharCaixasDoCard() {
+  let aberta = null;
+  for (const id of CRM_CAIXAS_DO_CARD) {
+    const b = document.getElementById(id);
+    if (!b) continue;
+    if (!b.hidden) aberta = id;
+    b.hidden = true;
+  }
+  return aberta;
+}
+
+/** Abre a caixa e devolve `true` se ela ABRIU. `false` = ela ja estava aberta, o
+ *  toque foi "desisti", e quem chamou sai sem gravar — avisando, porque clique
+ *  calado e indistinguivel de botao quebrado. Rola pra dentro da vista pelo mesmo
+ *  motivo: no celular a caixa nascia embaixo da dobra. */
+function crmAbrirCaixaDoCard(id) {
+  if (crmFecharCaixasDoCard() === id) {
+    showToast('Ok, não mudei nada.');
+    return false;
+  }
+  const b = document.getElementById(id);
+  if (!b) return false;
+  b.hidden = false;
+  try { b.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) {}
+  return true;
+}
+
 async function crmAtualizarStatus(novoStatus, extra) {
   if (!crmDetAtual || !crmDetAtual.agRec) return;
   const { c, agRec: ag } = crmDetAtual;
+  // ── A PORTA DO CARD PRO FORMULARIO DE VENDA (02/10/2026) ───────────────
+  //
+  // Pedido do dono: "alem de posicionar na coluna ele marca a venda nos 2 lugares,
+  // seriam o mesmo local podendo inserir a venda dos 2 jeitos".
+  //
+  // Primeiro toque abre a escolha; o formulario e o MESMO do Historico, nao uma
+  // copia. Copiar o formulario em duas telas e a divergencia que custou caro aqui.
+  if (novoStatus === 'fechou' && !(extra && extra.__soStatus)) {
+    if (!crmAbrirCaixaDoCard('crm-det-venda')) return;
+    return;
+  }
   // Mesma regra da agenda: SEM INTERESSE abre a pergunta do motivo, e so o segundo
   // toque grava. Com escape, porque o status terminal nao pode ficar mais dificil
   // de marcar — e ele que faz o robo parar de falar com quem ja disse nao.
   if (novoStatus === 'sem_interesse' && !(extra && extra.__motivo !== undefined)) {
-    const box = document.getElementById('crm-det-motivo');
-    if (box) {
-      const po = document.getElementById('crm-det-posse');
-      if (po) po.hidden = true;
-      const es = document.getElementById('crm-det-espera');
-      if (es) es.hidden = true;
-      box.hidden = !box.hidden;
-      const atual = (ag && crmMotivos[String(ag.id)]) || '';
-      document.querySelectorAll('#crm-det-motivo .motivo-btn').forEach(b => {
-        b.classList.toggle('is-atual', b.dataset.motivo === atual);
-      });
-    }
+    if (!crmAbrirCaixaDoCard('crm-det-motivo')) return;
+    const atualMotivo = (ag && crmMotivos[String(ag.id)]) || '';
+    document.querySelectorAll('#crm-det-motivo .motivo-btn').forEach(b => {
+      b.classList.toggle('is-atual', b.dataset.motivo === atualMotivo);
+    });
     return;
   }
   // Mesma regra da agenda: ARRENDAMENTO abre a pergunta de posse, e so o segundo
   // toque grava. Sem isto o CRM virava a porta que produz card sem posse.
   if (novoStatus === 'arrendamento' && !extra) {
-    const box = document.getElementById('crm-det-posse');
-    if (box) box.hidden = !box.hidden;
-    return;
+    if (!crmAbrirCaixaDoCard('crm-det-posse')) return;
+    return;   // o segundo toque vem com `extra` e passa reto por aqui
   }
   // APALAVRADO abre a pergunta do prazo, e só o segundo toque grava. Gravar no
   // primeiro toque criaria espera sem data, que é a gaveta que este status
   // existe pra não ser.
   if (novoStatus === 'apalavrado' && !(extra && extra.__retomar)) {
-    const box = document.getElementById('crm-det-espera');
-    if (box) {
-      // Fecha a caixa de posse, senão as duas ficam abertas ao mesmo tempo.
-      const posse = document.getElementById('crm-det-posse');
-      if (posse) posse.hidden = true;
-      box.hidden = !box.hidden;
-      if (!box.hidden) {
-        const txt = document.getElementById('crm-det-espera-oque');
-        const dia = document.getElementById('crm-det-espera-data');
-        if (txt) txt.value = '';
-        if (dia) dia.value = '';
-        crmEsperaValida();
-        if (txt) txt.focus();
-      }
-    }
+    if (!crmAbrirCaixaDoCard('crm-det-espera')) return;
+    // ZERADA ao abrir: a caixa guarda o texto e o prazo do cliente, e reaproveitar
+    // isso num card novo e como a espera de um vai parar na ficha de outro.
+    const txtEsp = document.getElementById('crm-det-espera-oque');
+    const diaEsp = document.getElementById('crm-det-espera-data');
+    if (txtEsp) txtEsp.value = '';
+    if (diaEsp) diaEsp.value = '';
+    crmEsperaValida();
+    if (txtEsp) txtEsp.focus();
     return;
   }
   // O `__dias`/`__oque` são da espera e NÃO são coluna de `agendamentos`:
@@ -21750,7 +21859,10 @@ async function crmAtualizarStatus(novoStatus, extra) {
   // `crmApalavrar`, e ele não mexe no status. A limpeza fica por segurança.
   // `__motivo` e MARCA, nao coluna de `agendamentos`: no PATCH ele vira 400.
   const motivoEscolhido = extra && extra.__motivo !== undefined ? String(extra.__motivo) : null;
-  if (extra) { delete extra.__retomar; delete extra.__oque; delete extra.__motivo; }
+  // `__soStatus` entra na lista pelo mesmo motivo dos outros tres: nao e coluna
+  // de `agendamentos`, e o PostgREST responde 400. O sintoma seria o botao VENDIDO
+  // parar de funcionar inteiro — foi o que o teste no Chrome pegou.
+  if (extra) { delete extra.__retomar; delete extra.__oque; delete extra.__motivo; delete extra.__soStatus; }
   try {
     await supaPatch(`agendamentos?id=eq.${ag.id}`, { status: novoStatus, ...(extra || {}) });
     // ── A ETIQUETA QUE ESTÁ SAINDO É GUARDADA ANTES DE SER APAGADA ─────────
@@ -23369,6 +23481,116 @@ function getConsultorAtual() {
 
 let _vendaCodigo = null;
 
+// ── QUAL CARD A VENDA MARCA (02/10/2026) ──────────────────────────────────
+//
+// A parte perigosa desta mudanca, e eu simulei a regra contra as 21 vendas REAIS
+// antes de escrever ela.
+//
+// A ARMADILHA: o Flavio comprou em 13/05/2026 e voltou como LEAD NOVO em 21/09,
+// com reuniao em 30/09 que terminou em SEM INTERESSE. Regra que pega "o card mais
+// recente desse telefone" escreveria `fechou` no card de setembro, e o sistema
+// passaria a dizer que um lead que disse nao e uma venda. Por isso existe o teto
+// de data.
+//
+// A REGRA, e o porque de cada linha:
+//   · mesmo telefone pelos ULTIMOS 8 DIGITOS — e o mesmo `crmTelKey` que o CRM
+//     usa pra unificar cliente, e ele resolve o 55 duplicado e o 9 que falta.
+//   · fora os `cancelado`: reuniao que nao aconteceu nao vendeu nada. (Medido: o
+//     card 3, do Edelvan, e cancelado com reuniao DEPOIS da venda — a reuniao foi
+//     desmarcada porque ja tinha fechado. Marcar ele seria inventar.)
+//   · card SEM `quando` ENTRA. Minha primeira versao exigia data e perdia 3 casos
+//     reais (cards 632, 427, 424, todos `fechou` com `quando` NULL, de cadastro
+//     a mao). Exigir data pra existir era um filtro que nao media nada.
+//   · teto de 7 dias depois da venda: a reuniao que gerou a venda acontece antes
+//     dela, ou pouco depois se for a de fechamento.
+//   · se nao sobrar nenhum, NAO MEXE EM CARD NENHUM. 11 das 21 vendas nao tem
+//     ficha de agenda, e inventar card pra elas seria pior que nao ter.
+const VENDA_FOLGA_DIAS = 7;
+
+function vendaCardAlvo(fichas, vendidoEm) {
+  const lim = new Date(vendidoEm).getTime() + VENDA_FOLGA_DIAS * 86400000;
+  const quando = (a) => (a && a.quando ? new Date(a.quando).getTime() : null);
+  return (fichas || [])
+    .filter(a => a && a.status !== 'cancelado')
+    .filter(a => { const q = quando(a); return q === null || q <= lim; })
+    // o de reuniao mais recente; os sem data ficam por ultimo, porque data e
+    // informacao e a falta dela nao pode ganhar de quem tem.
+    .sort((x, y) => (quando(y) ?? -Infinity) - (quando(x) ?? -Infinity))[0] || null;
+}
+
+/** As fichas de agenda deste telefone.
+ *
+ *  FILTRA PELOS 8 ULTIMOS DIGITOS e SO DEPOIS confere a chave inteira em JS, e
+ *  isso nao e preguica: `crmTelKey` devolve DDD + 8 ultimos (`3492474550`), e isso
+ *  NAO e substring do telefone gravado (`5534992474550`), porque o 9 do celular
+ *  fica no meio. Minha primeira versao filtrava pela chave e nao achava nada —
+ *  calada, devolvendo lista vazia como se o cliente nao tivesse card.
+ *
+ *  Medido em 02/10: os telefones gravados sao digitos puros (0 de 1.000 com
+ *  caractere estranho), 12 a 14 digitos. Os 8 ultimos sao substring sempre. */
+async function vendaFichasDoTelefone(tel) {
+  const k = crmTelKey(tel);
+  const ult8 = String(tel || '').replace(/\D/g, '').slice(-8);
+  if (!k || ult8.length < 8) return [];
+  try {
+    const rs = await supaGet(
+      `agendamentos?cliente_telefone=ilike.*${encodeURIComponent(ult8)}` +
+      `&select=id,cliente_nome,cliente_telefone,status,quando,historico&order=quando.desc`) || [];
+    // a conferencia de verdade: DDD tambem tem que bater, senao dois numeros de
+    // estados diferentes com os mesmos 8 digitos viram o mesmo cliente.
+    return rs.filter(a => crmTelKey(a.cliente_telefone) === k);
+  } catch (e) { console.warn('nao li as fichas do telefone', e); return []; }
+}
+
+/** Esta pessoa já tem OUTRA proposta marcada vendida? Cruza por TELEFONE, não por
+ *  nome: medido em 02/10, dois "Rodrigo" de Uberlândia são duas pessoas de verdade
+ *  (telefones diferentes), e as três do telefone ...4550 estão sob DOIS nomes
+ *  diferentes. Nome engana nas duas direções; telefone não. */
+function vendaAvisarDobra(r) {
+  const box = document.getElementById('venda-dobra');
+  if (!box) return;
+  box.hidden = true;
+  box.innerHTML = '';
+  const k = crmTelKey((r.dados && (r.dados.telefoneDigitos || r.dados.telefone)) || '');
+  if (!k) return;
+  const irmas = (historicoRows || []).filter(x =>
+    x.codigo !== r.codigo && x.vendido === true &&
+    crmTelKey((x.dados && (x.dados.telefoneDigitos || x.dados.telefone)) || '') === k);
+  if (!irmas.length) return;
+  const soma = irmas.reduce((t, x) => t + Number(x.valor_vendido || 0), 0)
+    + Number(r.valor_vendido || 0);
+  box.innerHTML = '<strong>Esse telefone já tem ' + irmas.length + ' venda'
+    + (irmas.length > 1 ? 's' : '') + ' marcada' + (irmas.length > 1 ? 's' : '') + ':</strong><br>'
+    + irmas.map(x => '· ' + escapeHtml(x.codigo) + ' — ' + escapeHtml(x.cliente_nome || '')
+        + ' — R$ ' + fmt(x.valor_vendido || 0)
+        + (x.vendido_em ? ' em ' + formatDataBR(x.vendido_em) : '')).join('<br>')
+    + '<br>Somando com esta, dá R$ ' + fmt(soma)
+    + '. Se for a MESMA venda, desmarque as outras: o total do mês conta todas.';
+  box.hidden = false;
+}
+
+/** A PORTA QUE VEM DA AGENDA: `/gerador/?venda_tel=<telefone>`.
+ *
+ *  A agenda nao conhece a tabela `propostas` (medido: ela nunca consulta), e eu
+ *  nao vou ensinar ela — seria uma segunda copia da regra de "qual proposta e
+ *  desse cliente". Entao a agenda manda o TELEFONE e quem resolve e esta tela, que
+ *  e onde o dado mora. */
+async function vendaPorTelefone(tel) {
+  const k = crmTelKey(tel);
+  if (!k) { showToast('Telefone não reconhecido no link.'); return; }
+  if (!historicoRows || !historicoRows.length) await abrirHistorico();
+  const doCli = (historicoRows || []).filter(x =>
+    crmTelKey((x.dados && (x.dados.telefoneDigitos || x.dados.telefone)) || '') === k);
+  if (!doCli.length) {
+    showToast('Esse cliente não tem proposta no histórico, então não há onde gravar o valor.');
+    return;
+  }
+  const ordena = (arr) => [...arr].sort((a, b) =>
+    new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  const escolhida = ordena(doCli.filter(x => !x.vendido))[0] || ordena(doCli)[0];
+  abrirModalVenda(escolhida.codigo);
+}
+
 function abrirModalVenda(codigo) {
   const r = historicoRows.find(x => x.codigo === codigo);
   if (!r) return;
@@ -23400,6 +23622,7 @@ function abrirModalVenda(codigo) {
   // pessoa veio fazer e anexar documento — e no celular o foco no campo de
   // valor sobe o teclado bem por cima do dossie.
   if (!r.vendido) setTimeout(() => document.getElementById('venda-valor').focus(), 50);
+  vendaAvisarDobra(r);
 }
 
 function fecharModalVenda() {
@@ -23496,6 +23719,46 @@ async function confirmarVenda() {
       throw new Error('Não persistiu — verificar permissões');
     }
     if (r) Object.assign(r, body);
+
+    // ── E O CARD DA AGENDA, NO MESMO ATO ────────────────────────────────────
+    //
+    // Era isto que faltava: a venda ficava so na proposta e o card seguia dizendo
+    // outra coisa. Medido em 02/10: o card do Wesler estava em NAO_ATENDEU com a
+    // venda de R$ 19.528 registrada — e `nao_atendeu` e o relogio que MANDA
+    // MENSAGEM, entao o robo estava na fila pra cobrar um cliente que pagou.
+    //
+    // Degrada, nao quebra: a venda JA esta gravada na proposta acima. Falhar aqui
+    // deixa o card desatualizado, que e o que acontecia 100% das vezes antes.
+    let avisoCard = '';
+    try {
+      const telProp = (r && r.dados && (r.dados.telefoneDigitos || r.dados.telefone)) || '';
+      const fichas = await vendaFichasDoTelefone(telProp);
+      const alvo = vendaCardAlvo(fichas, vendidoEm);
+      if (!alvo) {
+        avisoCard = fichas.length
+          ? ' · nenhum card desta venda (os que existem sao cancelados ou de outro ciclo)'
+          : ' · sem card na agenda';
+      } else if (alvo.status === 'fechou') {
+        avisoCard = ' · o card ja estava como vendido';
+      } else {
+        const antes = alvo.status;
+        const ts = (() => { const d = new Date(); const p = n => String(n).padStart(2, '0');
+          return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}h${p(d.getMinutes())}`; })();
+        // A linha no historico e o UNICO rastro que a venda deixa no card: o
+        // clique de status nao escreve nada, medido em 02/10.
+        const linha = `[${ts} · ${consultor}] 🏆 Venda registrada: R$ ${fmt(valor)}`
+          + ` (proposta ${_vendaCodigo}). O card estava em ${antes.toUpperCase()}.`;
+        await supaPatch(`agendamentos?id=eq.${alvo.id}`, {
+          status: 'fechou',
+          historico: alvo.historico ? `${linha}\n\n${alvo.historico}` : linha,
+        });
+        avisoCard = ` · card ${alvo.id} saiu de ${antes.toUpperCase()} pra VENDIDO`;
+      }
+    } catch (e) {
+      console.warn('o card nao foi marcado', e);
+      avisoCard = ' · o card nao foi atualizado (veja o console)';
+    }
+
     renderHistoricoTbody();
     renderRanking(historicoRows);
     document.getElementById('historico-stats').innerHTML = '';
@@ -23504,7 +23767,7 @@ async function confirmarVenda() {
     // bloco do dossie; o confete passa por cima e some sozinho.
     abrirModalVenda(_vendaCodigo);
     if (!jaEraVendido) dispararConfetes(valor);
-    showToast(jaEraVendido ? `✅ Venda atualizada: R$ ${fmt(valor)}` : `🎉 Venda confirmada: R$ ${fmt(valor)}!`);
+    showToast((jaEraVendido ? `✅ Venda atualizada: R$ ${fmt(valor)}` : `🎉 Venda confirmada: R$ ${fmt(valor)}!`) + avisoCard);
     // Re-render stats
     abrirHistoricoStats();
   } catch (e) {
@@ -23531,6 +23794,30 @@ async function desmarcarVenda() {
     }
     const r = historicoRows.find(x => x.codigo === _vendaCodigo);
     if (r) Object.assign(r, body);
+
+    // SIMETRIA. Se marcar poe o card em VENDIDO, desmarcar tem que tirar — senao
+    // o card mente na outra direcao, e é pior: ele diz que vendeu.
+    //
+    // Volta pra `agendado`, nao pro status anterior, porque o status anterior nao
+    // existe em lugar nenhum (o clique nao escreve historico). `agendado` e o
+    // estado "ficha viva, nada decidido", que é a verdade depois de desmarcar.
+    // E só mexe em card que esteja em `fechou`: desmarcar uma venda nao pode
+    // reabrir um card que alguem fechou por outro motivo.
+    try {
+      const telProp = (r && r.dados && (r.dados.telefoneDigitos || r.dados.telefone)) || '';
+      const fichas = await vendaFichasDoTelefone(telProp);
+      const alvo = (fichas || []).find(a => a.status === 'fechou');
+      if (alvo) {
+        const ts = (() => { const d = new Date(); const p = n => String(n).padStart(2, '0');
+          return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}h${p(d.getMinutes())}`; })();
+        const linha = `[${ts} · ${getConsultorAtual()}] ↩️ Venda desmarcada (proposta ${_vendaCodigo}). O card voltou pra AGENDADO.`;
+        await supaPatch(`agendamentos?id=eq.${alvo.id}`, {
+          status: 'agendado',
+          historico: alvo.historico ? `${linha}\n\n${alvo.historico}` : linha,
+        });
+      }
+    } catch (e) { console.warn('o card nao foi revertido', e); }
+
     fecharModalVenda();
     renderHistoricoTbody();
     renderRanking(historicoRows);
