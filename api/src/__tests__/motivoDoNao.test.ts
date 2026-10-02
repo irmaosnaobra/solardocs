@@ -200,6 +200,31 @@ describe('o placar do nao', () => {
     expect(trecho).toMatch(/created_by \?\? ''/);
   });
 
+  // ── O BANCO CERTO (02/10/2026) ──────────────────────────────────────────
+  //
+  // Este repo fala com DOIS Supabase, e eles não têm as mesmas tabelas:
+  // `system_state` mora no PRINCIPAL, `agendamentos` mora no do GERADOR. Eu
+  // escrevi o placar lendo `agendamentos` pelo cliente errado; o tsc passou, o
+  // deploy passou, e a rota devolveu 200 em produção — porque com ZERO marcas o
+  // laço nem roda. Só apareceu quando a sonda gravou uma marca antes de ler:
+  // "Could not find the table 'public.agendamentos' in the schema cache".
+  //
+  // Teste de estrutura porque o erro é de ESCOLHA DE CLIENTE, e nenhum tipo o pega.
+  it('le `agendamentos` pelo cliente do GERADOR e `system_state` pelo PRINCIPAL', () => {
+    expect(trecho).toMatch(/supabaseGerador\.from\('agendamentos'\)/);
+    // e o inverso: a tabela do principal NAO pode ser lida pelo cliente do gerador
+    expect(trecho).not.toMatch(/supabaseGerador\.from\('system_state'\)/);
+    expect(trecho).toMatch(/supabase\.from\('system_state'\)/);
+  });
+
+  it('nenhuma outra rota deste arquivo le `agendamentos` pelo cliente errado', () => {
+    const todo = readFileSync(join(__dirname, '..', 'routes', 'gerador.ts'), 'utf8');
+    // `supabase.from('agendamentos')` tem que ser ZERO: a tabela nao existe nesse
+    // projeto, e qualquer ocorrencia e um 500 esperando a primeira linha de dado.
+    const erradas = todo.match(/(?<!Gerador)supabase\.from\('agendamentos'\)/g) || [];
+    expect(erradas).toEqual([]);
+  });
+
   it('conta o que perdeu: marca sem ficha vem na resposta', () => {
     // Placar que não diz o que não conseguiu contar é placar que mente.
     expect(trecho).toMatch(/semFicha/);

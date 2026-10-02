@@ -35,6 +35,13 @@ import {
   ETIQUETA_PREFIX, ETIQUETAS_DE_NEGOCIO, MOTIVO_PREFIX, MOTIVOS_DO_NAO,
 } from '../services/agenda/salaDeEspera';
 import { EP_MUDO_PREFIX } from '../services/io/eletropostoReagendaAuto';
+// DOIS BANCOS, e eles nao tem as mesmas tabelas. `system_state` mora no Supabase
+// PRINCIPAL (o `supabase` acima); `agendamentos` mora no do GERADOR. Trocar um
+// pelo outro compila liso e devolve 500 em producao: "Could not find the table
+// 'public.agendamentos' in the schema cache". Foi o que aconteceu com o placar
+// em 02/10/2026, e so apareceu porque a sonda ESCREVEU uma marca antes de ler —
+// com zero marcas o laco nao roda e a rota devolve 200 feliz.
+import { supabaseGerador } from '../utils/supabaseGerador';
 
 const router = Router();
 
@@ -600,7 +607,8 @@ router.get('/motivos/placar', async (_req: Request, res: Response) => {
     // resto é solar — e o resto INCLUI `created_by` nulo, que é cadastro à mão.
     const fichas = new Map<number, string>();
     for (let i = 0; i < ids.length; i += 200) {
-      const { data, error } = await supabase.from('agendamentos')
+      // `supabaseGerador`, NAO `supabase`: ver o comentario do import.
+      const { data, error } = await supabaseGerador.from('agendamentos')
         .select('id, created_by').in('id', ids.slice(i, i + 200));
       if (error) throw error;
       for (const f of (data ?? []) as Array<{ id: number; created_by: string | null }>) {
