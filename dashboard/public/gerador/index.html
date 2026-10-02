@@ -3699,7 +3699,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
          as sete telas de trabalho (Simulador → Procuração, mais Cadastros e Histórico)
          continuam planas, a um toque uma da outra, porque é entre elas que o dia inteiro
          acontece — e porque Orçamento, Recibo, Contrato e Procuração compartilham o mesmo
-         orcInit()/epPastaAuto() lá no eletroSubaba: separá-las em grupos cobraria pedágio
+         orcInit()/epVendRender() lá no eletroSubaba: separá-las em grupos cobraria pedágio
          justo na hora de fechar uma obra de R$ 110k a R$ 280k.
          O que virou grupo foram as QUATRO telas de leitura externa (3 Power BI + PlugShare),
          que não alimentam nem consomem nada da tela e são as menos abertas. Elas moram
@@ -3928,10 +3928,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div id="eletro-pane-orcamento" style="display:none;">
     <div class="pesquisa-info">Preencha os dados, adicione os itens e clique em <b>Gerar orçamento PDF</b>. Subtotal, total e vencimentos são calculados automaticamente. Os dados da sua empresa ficam salvos no navegador.</div>
     <div class="orc-wrap">
-      <div class="ep-pasta-host"></div>
-
-
-      <!-- SUA EMPRESA (emitente) -->
+      <!-- SUA EMPRESA (emitente) — cartão de ids. As outras cinco abas pintam o
+           mesmo registro pelo .ep-vend-host, com data-emit no lugar do id. -->
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Sua empresa (emitente)</div>
         <div class="eletro-field"><label>Nome / marca</label>
@@ -4221,7 +4219,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <!-- O bloco da pasta e o mesmo nas tres abas: quem abre direto o Contrato
            precisa do botao de conectar tanto quanto quem abre o Recibo. Um host
            vazio por aba, e o JS pinta os tres com o MESMO estado. -->
-      <div class="ep-pasta-host"></div>
+      <div class="ep-vend-host"></div>
 
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span><span id="rec-card-tit">Recibo de sinal</span></div>
@@ -4274,7 +4272,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div id="eletro-pane-contrato" style="display:none;">
     <div class="pesquisa-info">O contrato fecha o que o orçamento propôs. Partes, valor, prazos e obrigações saem do que já está preenchido nas outras abas — aqui você completa só o que é do contrato.</div>
     <div class="orc-wrap">
-      <div class="ep-pasta-host"></div>
+      <div class="ep-vend-host"></div>
 
 
       <div class="card">
@@ -4360,7 +4358,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div id="eletro-pane-procuracao" style="display:none;">
     <div class="pesquisa-info">Sem ela a concessionária não fala com você: quem pede aumento de carga, acesso ou troca de padrão tem que ser o <b>titular</b> da unidade consumidora. A procuração passa esse direito pra sua empresa até a estação ligar.</div>
     <div class="orc-wrap">
-      <div class="ep-pasta-host"></div>
+      <div class="ep-vend-host"></div>
 
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Outorgante (o cliente)</div>
@@ -4468,7 +4466,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div class="pesquisa-info">Dossiê de <b>11 páginas</b> para o cliente levar ao gerente. Os números da operação descem do <b>Simulador</b>; aqui você define só a estrutura do crédito. A taxa é <b>premissa</b> — o documento já mostra o resultado a 14%, 18% e 22% a.a., então ele sobrevive ao que o banco ofertar.</div>
     <div class="orc-wrap">
 
-      <div class="ep-pasta-host"></div>
+      <div class="ep-vend-host"></div>
 
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Proponente</div>
@@ -4541,7 +4539,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div class="pesquisa-info">Duas folhas em nome da <b>NEXUS</b>, assinadas pela razão social <b>AIOROS GROUP LTDA</b> com o CNPJ ao lado (o banco confere o nome contra o número), que o cliente leva ao banco dele para <b>liberar o crédito</b>. Cliente, endereço e composição descem do <b>Orçamento</b>; o que se preenche aqui é o que só o banco pede.</div>
     <div class="orc-wrap">
 
-      <div class="ep-pasta-host"></div>
+      <div class="ep-vend-host"></div>
 
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Dados bancários do cliente</div>
@@ -4646,6 +4644,13 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           </select></div></div>
         <div class="orc-note" id="bnk-origem-note">Em branco, a folha <b>não fala de origem</b> — não sai aviso nenhum no papel.</div>
         <div class="orc-note">O documento solar declara o código <b>3</b>. Isso valia para um kit Helius/Solax — <b>não</b> se herda para um carregador DC sem conferir a nota do fornecedor.</div>
+      </div>
+
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Telefone da emitente nesta proposta</div>
+        <div class="orc-note" style="margin-top:-2px;margin-bottom:10px">O formulário pede o telefone da emitente para informar o nº do PAC. Nasce com o do consultor que montou a operação; troque se quem vai falar com o gerente for outro.</div>
+        <div class="eletro-field"><label>Telefone</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="bnk-vend-tel" placeholder="(34) 99816-5040" oninput="epTocar(this);bnkCalc()"></div></div>
       </div>
 
       <div class="card">
@@ -9482,7 +9487,7 @@ function eletroSubaba(qual) {
   if (qual === 'orcamento' || qual === 'recibo' || qual === 'contrato' || qual === 'procuracao' || qual === 'banco' || qual === 'finame' || qual === 'apresentacao') orcInit();
   // Depois do orcInit, nunca antes: a pasta só preenche campo vazio, e é o
   // orcInit que decide quais campos nascem preenchidos.
-  if (qual === 'orcamento' || qual === 'recibo' || qual === 'contrato' || qual === 'procuracao' || qual === 'banco' || qual === 'finame' || qual === 'apresentacao') epPastaAuto();
+  if (qual === 'orcamento' || qual === 'recibo' || qual === 'contrato' || qual === 'procuracao' || qual === 'banco' || qual === 'finame' || qual === 'apresentacao') epVendRender();
   // Venda de equipamento NÃO chama orcInit: ela não depende do Simulador nem do
   // kit chave-na-mão. Tem cliente, itens e preço próprios.
   if (qual === 'equipamento') equipInit();
@@ -16110,6 +16115,9 @@ function orcEmitSalvar() {
   const o = {};
   orcEmitCampos().forEach(k => { o[k] = orcVal('orc-emit-' + k); });
   try { localStorage.setItem(ORC_EMIT_KEY, JSON.stringify(o)); } catch (e) {}
+  // O cartão de ids desta aba e os .ep-vend-host das outras cinco são o MESMO
+  // registro: editar aqui tem que aparecer lá sem recarregar a página.
+  try { if (typeof epVendRender === 'function') epVendRender(); } catch (e) {}
 }
 function orcEmitCarregar() {
   let o = {};
@@ -18064,280 +18072,123 @@ function recImprimir() {
   });
 }
 
-// ═══ PUXAR OS DADOS QUE O COLETOR RECOLHEU DA PASTA DO CLIENTE ═══
-// O coletar-docs.js lê os PDFs do cliente (CNH, contrato social, conta de luz)
-// e escreve um _dados.json na pasta dele. Aqui esse arquivo vira campo
-// preenchido — é o que evita redigitar CNPJ olhando pro PDF ao lado.
+// ════════════════════════════════════════════════════════════════════════════
+// DADOS DO VENDEDOR — editáveis em TODA aba que emite documento
 //
-// Só preenche campo VAZIO. O que o consultor já digitou na tela ganha do
-// arquivo: importar não pode desfazer, por baixo, uma correção feita à mão.
-const EP_IMPORT_MAPA = {
-  cliente: 'el-cliente', cidade: 'el-cidade',
-  doc: 'orc-cli-doc', end: 'orc-cli-end', cep: 'orc-cli-cep',
-  tel: 'orc-cli-tel', email: 'orc-cli-email',
-  base: 'orc-valor',
-  contratante: 'ctr-contratante', contratanteDoc: 'ctr-contratante-doc',
-  contratanteEnd: 'ctr-contratante-end', rep: 'ctr-rep', repDoc: 'ctr-rep-doc',
-  local: 'ctr-local', num: 'rec-num', extras: 'ctr-extras',
-};
-/**
- * Um caminho só de preenchimento — o arquivo escolhido na mão e a pasta
- * conectada entram aqui. Dois preenchedores separados viram dois
- * comportamentos diferentes pro mesmo _dados.json na primeira vez que alguém
- * mexer em um deles.
- */
-function epAplicarDados(d, classeMsg, origem) {
-  const postos = [], pulados = [];
-  Object.entries(EP_IMPORT_MAPA).forEach(([campo, id]) => {
-    const el = document.getElementById(id);
-    const v = d[campo];
-    if (!el || v == null || v === '') return;
-    if (String(el.value || '').trim()) { pulados.push(campo); return; }
-    el.value = v;
-    if (id === 'orc-valor') el.dataset.tocado = '1';   // veio de fora: não deixa o Simulador sobrescrever
-    postos.push(campo);
-  });
-  orcCalc(); recCalc(); recBanner(); ctrResumo();
-  if (!classeMsg) return postos.length;
-  // Só cobra o que o coletor TENTOU recolher (chave existe e veio vazia).
-  // Campo que ele nem procura — telefone, e-mail — não é "faltando".
-  const vazios = Object.keys(EP_IMPORT_MAPA).filter(c => (c in d) && !d[c] && d[c] !== 0);
-  epPastaTexto(classeMsg, (origem ? `<b>${orcEsc(origem)}</b> · ` : '') +
-    `✅ <b>${postos.length}</b> campo(s) preenchido(s)` +
-    (pulados.length ? ` · ${pulados.length} já tinham valor e foram mantidos` : '') +
-    (vazios.length ? `<br>O coletor deixou vazio (documentos não confirmam): <b>${orcEsc(vazios.join(', '))}</b>` : ''));
-  return postos.length;
-}
+// Ordem do dono (02/10/2026): "Preciso que tenha os dados do vendedor que possa
+// ser totalmente editado, retire de tudo o puxar dados de cliente, praticamente
+// tudo ter que ser editado e ter uma pré preenchimento automático."
+//
+// SAIU daqui o painel "Puxar da pasta do cliente": File System Access API, o
+// _dados.json que o coletar-docs.js escrevia na pasta do cliente, o import do
+// arquivo na mão e a busca no Trello. A permissão da pasta não sobrevive ao
+// fechamento do Chrome, então a tela que mais aparecia era a de pedir um clique
+// pra reconectar.
+//
+// ENTROU o mesmo cartão de empresa que a aba Orçamento sempre teve. Não é
+// cadastro novo: é o MESMO registro (ORC_EMIT_KEY) que o epEmitGet() já lê pra
+// imprimir o emitente em todo documento. Digitar em qualquer aba muda o papel de
+// todas, e a aba Orçamento segue com o cartão de ids que ela já tinha.
+//
+// O PLACEHOLDER NÃO REPETE O PADRÃO em razão social e CNPJ. Repetindo, campo
+// APAGADO ficava com o texto cinza igual ao do preenchido e passava por cheio —
+// foi assim que uma Proposta de banco saiu com o CNPJ e sem o nome da empresa.
+//
+// IDs viraram data-attribute DE PROPÓSITO: existem cinco cópias vivas ao mesmo
+// tempo, e id repetido faria getElementById devolver só a primeira.
+// ════════════════════════════════════════════════════════════════════════════
 
-function epImportarDados(input) {
-  const arq = input.files && input.files[0];
-  input.value = '';   // permite reimportar o mesmo arquivo depois de editar
-  if (!arq) return;
-  const leitor = new FileReader();
-  leitor.onload = () => {
-    let d;
-    try { d = JSON.parse(leitor.result); }
-    catch (e) { epPastaTexto('ep-import-msg', '❌ Esse arquivo não é um _dados.json válido.'); return; }
-    epAplicarDados(d, 'ep-import-msg');
-  };
-  leitor.readAsText(arq, 'utf-8');
-}
+// [chave, rótulo, dica]. A ordem é a de quem confere um papel: quem é, o número,
+// onde fica, como se fala com a empresa, quem assina, pra onde vai o dinheiro.
+const EP_VEND_CAMPOS = [
+  ['nome',     'Nome / marca',                 'NEXUS Eletropostos'],
+  ['razao',    'Raz\u00e3o social',                 'vazio: o papel sai sem o nome'],
+  ['fantasia', 'Nome fantasia',                'opcional'],
+  ['cnpj',     'CNPJ',                         'vazio: o papel sai sem o CNPJ'],
+  ['ie',       'Inscri\u00e7\u00e3o Estadual',           'ISENTO, se for o caso'],
+  ['end',      'Endere\u00e7o',                      'Rua, n\u00ba, bairro'],
+  ['cidade',   'Cidade / UF',                  'Uberl\u00e2ndia/MG'],
+  ['tel',      'Telefone',                     '(34) 99816-5040'],
+  ['email',    'E-mail',                       'e-mail da empresa'],
+  ['socio',    'S\u00f3cio administrador \u2014 nome',   'quem assina pela empresa'],
+  ['socioCpf', 'S\u00f3cio administrador \u2014 CPF',    '000.000.000-00'],
+  ['pix',      'Chave Pix para recebimento',   'CNPJ, telefone, e-mail ou chave'],
+  ['conta',    'Conta banc\u00e1ria',                'banco, ag\u00eancia e conta'],
+];
 
-// ═══════════════════════════════════════════════════════════════════════════
-// PASTA DO CLIENTE CONECTADA — abrir Recibo/Contrato já vem preenchido
-//
-// O navegador não lê `C:\...\#ELETROPOSTO` por caminho, e nunca vai ler: a
-// página é servida pela Vercel. O que existe é a File System Access API — o
-// humano ESCOLHE a pasta uma vez, o navegador guarda a permissão e a partir daí
-// a página lê de lá sozinha. Cada subpasta é um cliente; o `_dados.json` dentro
-// dela é o que preenche os campos.
-//
-// A permissão sobrevive ao fechamento da aba, mas NÃO ao fechamento do
-// navegador: ao voltar, o Chrome devolve 'prompt' e exige um clique humano pra
-// reconceder. Por isso o botão diz "Reconectar pasta" em vez de a tela fingir
-// que está tudo automático e mostrar campo vazio sem explicação.
-//
-// Só preenche campo VAZIO (epAplicarDados) — abrir a aba de novo não desfaz
-// correção feita à mão.
-// ═══════════════════════════════════════════════════════════════════════════
-
-// O bloco da pasta, pintado igual nas tres abas. IDs viraram CLASSES: existem
-// tres copias vivas ao mesmo tempo, e id repetido faria getElementById devolver
-// so' a primeira - a mensagem apareceria numa aba e sumiria nas outras.
-const EP_PASTA_HTML = `
+const EP_VEND_HTML = `
   <div class="card">
-    <div class="calc-card-title"><span class="dot"></span>Puxar da pasta do cliente</div>
-    <div class="orc-note" style="margin-top:-2px;margin-bottom:10px">Conecte a pasta <b>#ELETROPOSTO</b> uma vez: cada subpasta vira um cliente na lista, e Orçamento, Recibo e Contrato passam a nascer preenchidos com o <b>_dados.json</b> de lá. O que você digitou à mão nunca é sobrescrito.</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <button type="button" class="eletro-btn ep-pasta-btn" onclick="epPastaConectar()">
-        <svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-      Conectar pasta</button>
-      <div class="eletro-inp" style="flex:1;min-width:220px"><select class="ep-pasta-cliente" onchange="epPastaCarregar(this.value)"><option value="">— nenhum cliente —</option></select></div>
-    </div>
-    <div class="orc-note ep-pasta-msg" style="margin-top:10px">Pasta não conectada.</div>
-    <div class="orc-note ep-trello-msg" style="margin-top:6px">Trello: —</div>
-    <details style="margin-top:10px">
-      <summary class="orc-note" style="cursor:pointer">Sem a pasta conectada? escolher o arquivo na mão</summary>
-      <label class="eletro-btn" style="display:inline-flex;cursor:pointer;margin-top:8px">
-        <svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-        Escolher _dados.json
-        <input type="file" accept=".json,application/json" style="display:none" onchange="epImportarDados(this)">
-      </label>
-    </details>
-    <div class="orc-note ep-import-msg" style="margin-top:10px">—</div>
+    <div class="calc-card-title"><span class="dot"></span>Dados do vendedor</div>
+    <div class="orc-note" style="margin-top:-2px;margin-bottom:10px">\u00c9 o que sai no papel como <b>emitente</b>. Nasce preenchido e vale para <b>todos</b> os documentos: mexeu aqui, mudou em todas as abas. Campo apagado sai como lacuna, de prop\u00f3sito \u2014 e s\u00f3 volta pelo bot\u00e3o do fim.</div>
+    ${EP_VEND_CAMPOS.map(c => `<div class="eletro-field"><label>${c[1]}</label>
+      <div class="eletro-inp eletro-inp-wide"><input type="text" data-emit="${c[0]}" placeholder="${c[2]}" oninput="epVendEditado(this)"></div></div>`).join('')}
+    <div class="orc-note ep-vend-aviso" style="margin-top:10px;display:none"></div>
+    <button type="button" class="eletro-btn" style="margin-top:10px" onclick="epVendRestaurar()">
+      <svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"></path><polyline points="3 3 3 9 9 9"></polyline></svg>
+    Voltar ao padr\u00e3o da marca</button>
   </div>`;
 
-function epPastaHostRender() {
-  document.querySelectorAll('.ep-pasta-host').forEach(h => {
-    if (!h.children.length) h.innerHTML = EP_PASTA_HTML;
+// Pinta o cartão onde ele faltar e recarrega TODAS as cópias do registro salvo.
+// Roda a cada troca de aba: é o que faz o que foi digitado numa aba aparecer na
+// outra sem ninguém recarregar a página.
+function epVendRender() {
+  document.querySelectorAll('.ep-vend-host').forEach(h => {
+    if (!h.children.length) h.innerHTML = EP_VEND_HTML;
   });
-}
-/** Escreve a mesma mensagem nas tres copias. */
-function epPastaTexto(classe, html) {
-  document.querySelectorAll('.' + classe).forEach(el => { el.innerHTML = html; });
-}
-
-let epPastaHandle = null;
-let epPastaOcupado = false;
-const EP_PASTA_CLI = 'io-ep-pasta-cliente';   // último cliente escolhido
-
-function epPastaMsg(html) { epPastaTexto('ep-pasta-msg', html); }
-function epPastaBotao(texto) {
-  document.querySelectorAll('.ep-pasta-btn').forEach(b => { b.lastChild.textContent = texto; });
+  const o = epEmitGet();
+  document.querySelectorAll('.ep-vend-host [data-emit]').forEach(el => {
+    // Quem está digitando neste instante não tem o tapete puxado.
+    if (el === document.activeElement) return;
+    el.value = o[el.dataset.emit] || '';
+  });
+  epVendAviso(o);
 }
 
-// IndexedDB porque handle de pasta não sobrevive a JSON.stringify —
-// localStorage não guarda isto. Três linhas de store, sem biblioteca.
-function epIdb(fn) {
-  return new Promise((ok, err) => {
-    const r = indexedDB.open('gerador-pasta', 1);
-    r.onupgradeneeded = () => r.result.createObjectStore('h');
-    r.onerror = () => err(r.error);
-    r.onsuccess = () => {
-      const q = fn(r.result.transaction('h', 'readwrite').objectStore('h'));
-      q.onsuccess = () => ok(q.result);
-      q.onerror = () => err(q.error);
-    };
+// O papel que vai pro banco não pode sair sem o nome da empresa em cima do CNPJ.
+// O bnkHTML imprime `emp.razao || emp.fantasia`: com as duas vazias, a linha some
+// e a assinatura fica só com o número — foi o que aconteceu de verdade.
+function epVendAviso(o) {
+  const falta = [];
+  if (!String((o && (o.razao || o.fantasia)) || '').trim()) falta.push('raz\u00e3o social');
+  if (!String((o && o.cnpj) || '').trim()) falta.push('CNPJ');
+  const txt = falta.length
+    ? `\u26a0\ufe0f Falta <b>${falta.join('</b> e <b>')}</b>. Contrato, Procura\u00e7\u00e3o e Proposta de banco saem com essa linha em branco.`
+    : '';
+  document.querySelectorAll('.ep-vend-aviso').forEach(a => {
+    a.innerHTML = txt; a.style.display = txt ? '' : 'none';
   });
 }
 
-/** Botão único: reconcede a permissão do handle guardado, ou pede a pasta. */
-async function epPastaConectar() {
-  if (!('showDirectoryPicker' in window)) {
-    epPastaMsg('❌ Este navegador não abre pasta. Use Chrome ou Edge no computador — ou escolha o <b>_dados.json</b> na mão, aqui embaixo.');
-    return;
-  }
-  try {
-    const guardado = await epIdb(st => st.get('clientes')).catch(() => null);
-    if (guardado && (await guardado.requestPermission({ mode: 'read' })) === 'granted') {
-      epPastaHandle = guardado;
-    } else {
-      const h = await window.showDirectoryPicker({ id: 'ep-clientes', mode: 'read' });
-      epPastaHandle = h;
-      await epIdb(st => st.put(h, 'clientes')).catch(() => {});
-    }
-    await epPastaListar();
-  } catch (e) {
-    if (e && e.name === 'AbortError') return;    // fechou o seletor, não é erro
-    epPastaMsg('❌ Não consegui abrir a pasta: ' + orcEsc(String(e && e.message || e)));
-  }
+// Grava SÓ a chave tocada. O orcEmitSalvar escreve as 28 de uma vez e zera
+// engenheiro e técnico quando a aba da Procuração ainda não carregou; aqui
+// isso não pode acontecer, porque este cartão vive em abas que nunca abrem aquela.
+function epVendEditado(el) {
+  if (!el || !el.dataset.emit) return;
+  const k = el.dataset.emit;
+  let o = {};
+  try { o = JSON.parse(localStorage.getItem(ORC_EMIT_KEY) || '{}') || {}; } catch (e) {}
+  o[k] = el.value;
+  try { localStorage.setItem(ORC_EMIT_KEY, JSON.stringify(o)); } catch (e) {}
+  // As outras cópias e o cartão de ids da aba Orçamento acompanham na hora.
+  document.querySelectorAll('.ep-vend-host [data-emit="' + k + '"]').forEach(x => {
+    if (x !== el) x.value = el.value;
+  });
+  const idEl = document.getElementById('orc-emit-' + k);
+  if (idEl) idEl.value = el.value;
+  epVendAviso(epEmitGet());
+  // A prévia da Proposta de banco mostra o bloco da emitente: reflete na hora.
+  try { if (typeof bnkCalc === 'function' && document.getElementById('bnk-total')) bnkCalc(); } catch (e) {}
 }
 
-/** Cada subpasta é um cliente. Ordem alfabética = a numeração #0001, #0002... */
-async function epPastaListar() {
-  const sels = [...document.querySelectorAll('.ep-pasta-cliente')];
-  if (!sels.length || !epPastaHandle) return;
-  const nomes = [];
-  for await (const [nome, h] of epPastaHandle.entries()) {
-    if (h.kind === 'directory' && !nome.startsWith('.')) nomes.push(nome);
-  }
-  nomes.sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  const anterior = (() => { try { return localStorage.getItem(EP_PASTA_CLI) || ''; } catch (e) { return ''; } })();
-  const opcoes = '<option value="">— escolha o cliente —</option>' +
-    nomes.map(n => `<option value="${orcEsc(n)}"${n === anterior ? ' selected' : ''}>${orcEsc(n)}</option>`).join('');
-  sels.forEach(sl => { sl.innerHTML = opcoes; });
-  epPastaBotao('Trocar pasta');
-  epPastaMsg(`Pasta conectada · <b>${nomes.length}</b> cliente(s).`);
-  if (anterior && nomes.includes(anterior)) await epPastaCarregar(anterior);
-}
-
-/**
- * O nome da pasta é a única coisa garantida em todo cliente: a casa nomeia
- * "#0001 - Bruno Lages - Itaobim MG". Dá número do recibo, nome e cidade — o
- * suficiente pro documento não sair anônimo enquanto o coletor não roda.
- */
-function epDadosDoNome(pasta) {
-  const partes = String(pasta || '').split(' - ').map(p => p.trim()).filter(Boolean);
-  const d = {};
-  if (partes[0] && partes[0].startsWith('#')) {
-    d.num = partes.shift().replace('#', '').trim();
-  }
-  if (partes[0]) d.cliente = partes[0];
-  if (partes[1]) d.cidade = partes[1];
-  return d;
-}
-
-async function epPastaCarregar(nome) {
-  try { localStorage.setItem(EP_PASTA_CLI, nome || ''); } catch (e) {}
-  if (!nome || !epPastaHandle) return;
-  try {
-    const dir = await epPastaHandle.getDirectoryHandle(nome);
-    let arq;
-    try { arq = await dir.getFileHandle('_dados.json'); }
-    catch (e) {
-      // Sem o arquivo, o nome da pasta ainda vale três campos — e dizer QUAL foi
-      // a fonte importa: nome de pasta é convenção, documento é prova.
-      const daPasta = epDadosDoNome(nome);
-      const n = epAplicarDados(daPasta, null);
-      if (daPasta.cliente) epTrelloBuscar(daPasta.cliente, daPasta.num);
-      epPastaMsg(`⚠️ <b>${orcEsc(nome)}</b> não tem <b>_dados.json</b>. ` +
-        (n ? `Preenchi <b>${n}</b> campo(s) pelo <b>nome da pasta</b> — confira, e o resto (CNPJ, endereço, UC) digite ou rode o coletor.`
-           : 'Nenhum campo foi tocado.'));
-      return;
-    }
-    const d = JSON.parse(await (await arq.getFile()).text());
-    epAplicarDados(d, 'ep-pasta-msg', nome);
-    epTrelloBuscar(d.cliente || nome, d.num || epDadosDoNome(nome).num);
-  } catch (e) {
-    epPastaMsg('❌ Não consegui ler a pasta desse cliente: ' + orcEsc(String(e && e.message || e)));
-  }
-}
-
-/**
- * Chamado ao abrir Orçamento, Recibo e Contrato. Reconecta em silêncio quando a
- * permissão ainda vale; quando não vale, pede o clique em vez de falhar mudo.
- */
-async function epPastaAuto() {
-  if (epPastaOcupado) return;
-  epPastaHostRender();
-  if (!document.querySelector('.ep-pasta-cliente')) return;
-  epPastaOcupado = true;
-  try {
-    if (epPastaHandle) { await epPastaListar(); return; }
-    if (!('showDirectoryPicker' in window)) {
-      epPastaMsg('Este navegador não abre pasta — escolha o <b>_dados.json</b> na mão, aqui embaixo.');
-      return;
-    }
-    const guardado = await epIdb(st => st.get('clientes')).catch(() => null);
-    if (!guardado) { epPastaMsg('Pasta não conectada. Conecte a <b>#ELETROPOSTO</b> uma vez e ela passa a abrir sozinha.'); return; }
-    if ((await guardado.queryPermission({ mode: 'read' })) === 'granted') {
-      epPastaHandle = guardado;
-      await epPastaListar();
-    } else {
-      epPastaBotao('Reconectar pasta');
-      epPastaMsg('A pasta está lembrada, mas o navegador pede um clique pra liberar de novo — é assim toda vez que o Chrome é fechado.');
-    }
-  } catch (e) {
-    epPastaMsg('❌ ' + orcEsc(String(e && e.message || e)));
-  } finally {
-    epPastaOcupado = false;
-  }
-}
-
-/**
- * Situação no Trello — em que lista da homologação o cliente está. Quem fala
- * com o Trello é o servidor; o quadro é público, então não há credencial em
- * jogo. O número da pasta vai junto porque é o que os dois lados compartilham:
- * a pasta é "#0001 - Bruno Lages" e o cartão, "ELETROPOSTO #0001 - Bruno
- * Martins Lages".
- */
-async function epTrelloBuscar(cliente, num) {
-  if (!cliente) return;
-  epPastaTexto('ep-trello-msg', 'Trello: procurando…');
-  try {
-    const r = await fetch('/_api/gerador/trello?cliente=' + encodeURIComponent(cliente) +
-      (num ? '&num=' + encodeURIComponent(num) : ''));
-    const j = await r.json();
-    if (!r.ok) { epPastaTexto('ep-trello-msg', 'Trello: <b>' + orcEsc(j.error || ('erro ' + r.status)) + '</b>'); return; }
-    if (!j.cartao) { epPastaTexto('ep-trello-msg', `Trello: nenhum cartão com o nome <b>${orcEsc(cliente)}</b>.`); return; }
-    const c = j.cartao;
-    epPastaTexto('ep-trello-msg', `Trello · <b>${orcEsc(c.lista || '—')}</b>` +
-      (c.etiquetas && c.etiquetas.length ? ' · ' + orcEsc(c.etiquetas.join(', ')) : '') +
-      (c.prazo ? ` · prazo ${orcEsc(c.prazo)}` : '') +
-      (c.url ? ` · <a class="orc-link" href="${orcEsc(c.url)}" target="_blank" rel="noopener">abrir cartão</a>` : ''));
-  } catch (e) {
-    epPastaTexto('ep-trello-msg', 'Trello: sem resposta do servidor.');
-  }
+// Campo apagado é escolha que PERSISTE (EP_EMIT_APAGAVEIS, 01/10): o default só
+// entra quando a chave nunca foi salva neste aparelho. Sem este botão, quem
+// apagou a razão social não tem como trazê-la de volta a não ser digitando.
+function epVendRestaurar() {
+  if (!confirm('Voltar os dados do vendedor ao padr\u00e3o da marca?\n\nO que foi digitado neste aparelho ser\u00e1 apagado.')) return;
+  try { localStorage.removeItem(ORC_EMIT_KEY); } catch (e) {}
+  if (typeof orcEmitCarregar === 'function' && document.getElementById('orc-emit-nome')) orcEmitCarregar();
+  epVendRender();
+  try { if (typeof bnkCalc === 'function' && document.getElementById('bnk-total')) bnkCalc(); } catch (e) {}
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -20042,6 +19893,14 @@ function bnkCidadeUF(txt) {
   return m ? { cidade: m[1].trim(), uf: m[2].toUpperCase() } : { cidade: t, uf: '' };
 }
 
+// O telefone do CONSULTOR que montou a operação (ordem do dono, 29/09/2026): o
+// gerente do banco liga pra quem montou, não pra central. Vira a SUGESTÃO do campo.
+function bnkVendTelSugerido() {
+  const nm = orcVal('el-autor') || (typeof crmConsultorLogado === 'function' ? crmConsultorLogado() : '');
+  const tl = orcVal('el-contato') || (typeof whatsDoConsultor === 'function' ? whatsDoConsultor(nm) : '');
+  return tl ? (typeof crmTelDisplay === 'function' ? crmTelDisplay(tl) : tl) : '';
+}
+
 function bnkDados() {
   const g = id => (document.getElementById(id) || {}).value || '';
   const n = id => { const v = parseFloat(String(g(id)).replace(',', '.')); return isFinite(v) ? v : 0; };
@@ -20078,11 +19937,12 @@ function bnkDados() {
     // Telefone que sai no bloco da emitente e' o do CONSULTOR que esta' vendendo
     // (ordem do dono, 29/09/2026): o gerente do banco liga pra quem montou a
     // operacao, nao pra central. Sem consultor resolvido, cai no da empresa.
-    vendTel: (function () {
-      const nm = orcVal('el-autor') || (typeof crmConsultorLogado === 'function' ? crmConsultorLogado() : '');
-      const tl = orcVal('el-contato') || (typeof whatsDoConsultor === 'function' ? whatsDoConsultor(nm) : '');
-      return tl ? (typeof crmTelDisplay === 'function' ? crmTelDisplay(tl) : tl) : '';
-    })(),
+    // O campo da tela MANDA, inclusive quando está vazio. A sugestão (o telefone
+    // do consultor) entra uma vez só, no bnkInit, pelo epSugerir; recalculá-la aqui
+    // faria o telefone voltar sozinho depois de apagado, que é exatamente o que o
+    // emitente deixou de fazer em 01/10. Apagado cai no telefone da EMPRESA, que
+    // está editável no cartão logo acima (no bnkHTML: d.vendTel ou emp.tel).
+    vendTel: g('bnk-vend-tel').trim(),
     objeto: g('bnk-objeto').trim(),
     equip: t.equip, empresa: emp,
     data: dt ? new Date(dt + 'T12:00:00') : new Date(),
@@ -20234,7 +20094,8 @@ function bnkInit() {
   // nunca tocado recebe a sugestão; digitado ou apagado, fica como está.
   epSugerir([['bnk-nome', t0.cliente], ['bnk-doc', orcVal('orc-cli-doc')],
              ['bnk-end', orcVal('orc-cli-end')], ['bnk-cep', orcVal('orc-cli-cep')],
-             ['bnk-cidade', cu.cidade], ['bnk-uf', cu.uf]]);
+             ['bnk-cidade', cu.cidade], ['bnk-uf', cu.uf],
+             ['bnk-vend-tel', bnkVendTelSugerido()]]);
   const b = document.getElementById('bnk-cli-banner');
   if (b) {
     const t = eletroTextos();
