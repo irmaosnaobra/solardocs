@@ -479,15 +479,13 @@ th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:right;white
 th:first-child,td:first-child{text-align:left;white-space:normal}
 thead th{color:var(--mut);font-weight:700}
 .rodape{margin-top:18px;text-align:center}
-.numeros{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0}
-.numeros .dado strong{font-size:22px}
 .cliente{border:2px solid var(--neon)}
 .cliente .link-cliente{display:block;font-size:13px;color:var(--mut);margin:8px 0 0;word-break:break-all}
 details>summary{cursor:pointer;font-size:20px;font-weight:700;line-height:1.3;list-style-position:inside}
 details[open]>summary{margin-bottom:12px}
 .passos li{margin:8px 0}
-@media (max-width:560px){.numeros{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:360px){h1{font-size:28px}.dados{grid-template-columns:minmax(0,1fr)}.numeros{grid-template-columns:minmax(0,1fr)}}
+
+@media (max-width:360px){h1{font-size:28px}.dados{grid-template-columns:minmax(0,1fr)}}
 @media print{
 html,body{background:#fff!important;color:#000!important}
 main{max-width:none;padding:0}
@@ -795,7 +793,7 @@ function secaoEntorno(l: LinhaEstudo, d: DadosEstudo, parcial: boolean): string 
  * Maps pelo endereço, que abre no app do consultor, e o PlugShare, que é comunidade
  * e mostra carregador que não está cadastrado no Google.
  */
-function botoesDeCarregadores(d: DadosEstudo, arquivado = false): string {
+function botoesDeCarregadores(d: DadosEstudo): string {
   const e = d.endereco_digitado;
   const m = d.municipio;
   const cidade = m?.nome ? `${m.nome}${m.uf ? `-${m.uf}` : ''}` : (e?.cidade || '');
@@ -808,17 +806,7 @@ function botoesDeCarregadores(d: DadosEstudo, arquivado = false): string {
       'Carregadores no Google Maps', true,
     ]);
   }
-  // Estudo arquivado perdeu as coordenadas de propósito: o link vai sem ponto.
-  const lat = arquivado ? null : (temNumero(d.local?.lat) ? d.local?.lat : (temNumero(m?.lat) ? m?.lat : null));
-  const lng = arquivado ? null : (temNumero(d.local?.lng) ? d.local?.lng : (temNumero(m?.lng) ? m?.lng : null));
-  lista.push([
-    lat != null && lng != null ? plugshareEm(lat, lng, 13) : 'https://www.plugshare.com/',
-    'Ver no PlugShare',
-  ]);
-  // Na cidade inteira: zoom 11 sobre o centro do município, que é o que o
-  // consultor quer ver para medir a concorrência.
-  const cid = arquivado ? null : centroDaCidade(d);
-  if (cid) lista.push([plugshareEm(cid.lat, cid.lng, 11), 'PlugShare na cidade']);
+  // O PlugShare (no ponto e na cidade) fica só em "Abrir o local".
   if (cidade) {
     lista.push([
       `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`carregador de carro elétrico ${cidade}`)}`,
@@ -834,8 +822,7 @@ function secaoRecarga(l: LinhaEstudo, d: DadosEstudo, parcial: boolean): string 
     return parcial
       ? secao('recarga', 'Recarga em 5 km',
           aviso(`Carregadores não consultados agora${motivo(l.fontes, ['recarga'])}.`)
-          + botoesDeCarregadores(d, !!l.coords_apagadas_em)
-          + '<p class="pequeno">O PlugShare é mantido pela comunidade e mostra carregador que não está cadastrado no Google.</p>')
+          + botoesDeCarregadores(d))
       : '';
   }
   const raio = temNumero(rc.raio_m) && rc.raio_m > 0 ? rc.raio_m : 5000;
@@ -849,11 +836,15 @@ function secaoRecarga(l: LinhaEstudo, d: DadosEstudo, parcial: boolean): string 
     corpo = `<p><strong>${esc(quantos)}</strong>${esc(perto)}.</p>`;
     const rap = textoRapidos(rc);
     if (rap) corpo += `<p>Desses, <strong>${esc(rap)}</strong>. Rápido (DC) é quem disputa a mesma recarga que um carregador NEXUS.</p>`;
+    const pl = d.municipio?.plugin;
+    if (temNumero(pl) && pl >= 50 && !rc.cheio) {
+      corpo += `<p>${esc(numero(Math.round(pl / (n + 1))))} plug-in da cidade para cada carregador perto do ponto.</p>`;
+    }
     const lista = (rc.lista || []).slice(0, 10);
     if (lista.length) corpo += `<ul class="lugares">${lista.map(itemLugar).join('')}</ul>`;
   }
-  corpo += botoesDeCarregadores(d, !!l.coords_apagadas_em);
-  corpo += '<p class="pequeno">Dados do Google Maps. O PlugShare é mantido pela comunidade e costuma ter carregador que não está no Google.</p>';
+  corpo += botoesDeCarregadores(d);
+  corpo += '<p class="pequeno">Dados do Google Maps.</p>';
   return secao('recarga', `Recarga em ${distancia(raio)}`, corpo);
 }
 
@@ -867,12 +858,16 @@ function secaoMercado(l: LinhaEstudo, d: DadosEstudo, parcial: boolean): string 
   const cartao = (rot: string, valor: string, fonte: string) =>
     `<div class="dado"><span class="rot">${esc(rot)}</span><strong>${esc(valor)}</strong><span class="fonte">${esc(fonte)}</span></div>`;
 
-  let corpo = m.nome ? `<p>${esc(m.nome)}${m.uf ? `-${esc(m.uf)}` : ''}</p>` : '';
-  corpo += '<div class="dados">'
+  const hab = umACada(m.pop_2026, m.plugin);
+  const porMilHab = temNumero(m.frota) && temNumero(m.pop_2026) && m.pop_2026 > 0
+    ? numero(Math.round((m.frota / m.pop_2026) * 1000)) : '';
+  let corpo = '<div class="dados">'
     + cartao('População 2026', temNumero(m.pop_2026) ? numero(m.pop_2026) : semDado, 'IBGE')
     + cartao('PIB per capita 2023', temNumero(m.pib_pc_2023) ? reais(m.pib_pc_2023) : semDado, 'IBGE')
     + cartao('Frota total', temNumero(m.frota) ? numero(m.frota) : semDado, ref)
     + cartao('Veículos plug-in', temNumero(m.plugin) ? numero(m.plugin) : semDado, ref)
+    + (hab ? cartao('Um plug-in para', `${hab.replace('1 a cada ', '')} habitantes`, 'IBGE e SENATRAN') : '')
+    + (porMilHab ? cartao('Veículos por mil habitantes', porMilHab, 'Frota ÷ população') : '')
     + '</div>';
 
   if ([m.por_mil, m.uf_por_mil, m.br_por_mil].some(temNumero)) {
@@ -980,12 +975,12 @@ function secaoRoteiro(l: LinhaEstudo, d: DadosEstudo, parcial: boolean): string 
   return secao('roteiro', 'Roteiro da reunião', corpo);
 }
 
-function secaoRespostas(d: DadosEstudo): string {
+function secaoRespostas(d: DadosEstudo, omitir: string[] = []): string {
   const f = d.ficha;
   if (!f) return secao('respostas', 'O que o cliente respondeu', '<p>A ficha não trouxe respostas.</p>');
   let corpo = f.perfil_texto ? `<p>Perfil: <strong>${esc(f.perfil_texto)}</strong></p>` : '';
   if (f.para_investidor) corpo += '<p>Ponto disponível para investidor.</p>';
-  const respostas = (f.respostas || []).filter(x => x && x.texto);
+  const respostas = (f.respostas || []).filter(x => x && x.texto && !omitir.includes(x.rotulo));
   corpo += respostas.length
     ? `<dl class="respostas">${respostas.map(x => `<dt>${esc(x.rotulo)}</dt><dd>${esc(x.texto)}</dd>`).join('')}</dl>`
     : '<p>A ficha não trouxe respostas.</p>';
@@ -1042,67 +1037,6 @@ function secaoMetodo(l: LinhaEstudo, d: DadosEstudo): string {
 function umACada(total: number | null | undefined, parte: number | null | undefined): string {
   if (!temNumero(total) || !temNumero(parte) || parte <= 0) return '';
   return `1 a cada ${numero(Math.round(total / parte))}`;
-}
-
-const cartao = (rot: string, valor: string, fonte: string): string =>
-  `<div class="dado"><span class="rot">${esc(rot)}</span><strong>${esc(valor)}</strong><span class="fonte">${esc(fonte)}</span></div>`;
-
-/**
- * Os números que decidem a conversa, num quadro só. Cada cartão some quando não
- * tem dado: cartão "sem dado" no topo é ruído.
- */
-function cartoesDoPonto(d: DadosEstudo, comDinheiro: boolean): string[] {
-  const m = d.municipio;
-  const rc = d.recarga;
-  const en = d.entorno;
-  const k = d.conta;
-  const out: string[] = [];
-  const cidade = m?.nome || 'Município';
-
-  if (m && temNumero(m.plugin)) out.push(cartao(`Plug-in em ${cidade}`, numero(m.plugin), m.ref ? `SENATRAN, ${m.ref}` : 'SENATRAN'));
-  if (m && temNumero(m.por_mil)) {
-    const br = temNumero(m.br_por_mil) && m.br_por_mil > 0 ? `${numeroEnxuto(m.por_mil / m.br_por_mil, 1)}× a média do Brasil` : 'por mil veículos';
-    out.push(cartao('Plug-in por mil veículos', numeroEnxuto(m.por_mil, 1), br));
-  }
-  const hab = m ? umACada(m.pop_2026, m.plugin) : '';
-  if (hab) out.push(cartao('Um plug-in para', `${hab.replace('1 a cada ', '')} hab.`, 'IBGE e SENATRAN'));
-  if (m && temNumero(m.frota) && temNumero(m.pop_2026) && m.pop_2026 > 0) {
-    out.push(cartao('Veículos por mil habitantes', numero(Math.round((m.frota / m.pop_2026) * 1000)), 'Frota ÷ população'));
-  }
-  if (rc) {
-    const n = temNumero(rc.n) ? rc.n : (rc.lista || []).length;
-    const raio = temNumero(rc.raio_m) && rc.raio_m > 0 ? rc.raio_m : 5000;
-    out.push(cartao(`Carregadores em ${distancia(raio)}`, rc.cheio ? '20 ou mais' : numero(n),
-      temNumero(rc.mais_perto_m) ? `O mais perto a ${distancia(rc.mais_perto_m)}` : 'Google Maps'));
-    if (temNumero(rc.rapidos)) {
-      const maisPerto = (rc.lista || []).find(i => i.carga?.rapido);
-      out.push(cartao(`Rápidos (DC) em ${distancia(raio)}`, numero(rc.rapidos),
-        maisPerto ? `O mais perto a ${distancia(maisPerto.dist_m)}` : 'Concorrência direta'));
-    }
-    if (m && temNumero(m.plugin) && m.plugin >= 50 && !rc.cheio) {
-      out.push(cartao('Plug-in da cidade por carregador perto', numero(Math.round(m.plugin / (n + 1))), 'Quanto maior, mais espaço'));
-    }
-  }
-  if (en) {
-    const n = temNumero(en.n) ? en.n : (en.lista || []).length;
-    const raio = temNumero(en.raio_m) && en.raio_m > 0 ? en.raio_m : 1000;
-    out.push(cartao(`Comércio que atrai recarga em ${distancia(raio)}`, en.cheio ? '20 ou mais' : numero(n), 'Google Maps'));
-  }
-  if (k && temNumero(k.teto_fisico)) {
-    out.push(cartao(`Capacidade de um carregador de ${numero(k.kw)} kW`, `${numero(k.teto_fisico)} por dia`, 'Recargas de 20 kWh'));
-  }
-  if (comDinheiro && k) {
-    if (temNumero(k.base?.payback)) out.push(cartao('Payback no cenário base', payback(k.base.payback), `${numero(k.base.carros)} recargas por dia`));
-    if (temNumero(k.base?.lucroMes)) out.push(cartao('Lucro por mês no cenário base', reais(k.base.lucroMes), `Investimento de ${reais(k.invest)}`));
-    if (temNumero(k.recargas_36m)) out.push(cartao('Para pagar em 36 meses', `${numero(k.recargas_36m)} recargas/dia`, 'Conta de referência'));
-  }
-  return out;
-}
-
-function secaoNumeros(d: DadosEstudo, comDinheiro: boolean): string {
-  const c = cartoesDoPonto(d, comDinheiro);
-  if (!c.length) return '';
-  return secao('numeros', 'O ponto em números', `<div class="dados numeros">${c.join('')}</div>`);
 }
 
 function secaoMapas(l: LinhaEstudo, d: DadosEstudo): string {
@@ -1198,7 +1132,6 @@ function paginaCompleta(l: LinhaEstudo, r: ReuniaoEstudo, opts: OpcoesEstudo, pa
     cabecalho(l, r, d, true),
     parcial ? '<p class="aviso">Estudo parcial. Algumas fontes não responderam, e cada bloco afetado diz qual.</p>\n' : '',
     secao30s(d),
-    secaoNumeros(d, true),
     secaoMapas(l, d),
     secaoVersaoCliente(r, opts.clienteUrl),
     secaoLocal(l, d, perm, parcial),
@@ -1207,7 +1140,8 @@ function paginaCompleta(l: LinhaEstudo, r: ReuniaoEstudo, opts: OpcoesEstudo, pa
     secaoMercado(l, d, parcial),
     secaoConta(d, parcial),
     secaoRoteiro(l, d, parcial),
-    secaoRespostas(d),
+    // Endereço e vagas estão em "O local"; quanto pretende investir, na conta.
+    secaoRespostas(d, ['Endereço', 'Vagas', 'Quanto pretende investir']),
     secaoMetodo(l, d),
     rodape(),
   ].join('');
@@ -1250,38 +1184,6 @@ const MARCA_CLIENTE = '<p class="marca">NEXUS Eletropostos · Estudo do seu pont
 const rodapeCliente = (): string =>
   '<footer class="rodape pequeno"><p>Estudo preparado pela NEXUS Eletropostos · Irmãos na Obra, com dados públicos do IBGE, do SENATRAN/RENAVAM e do Google Maps.</p></footer>';
 
-function resumoCliente(d: DadosEstudo): string[] {
-  const m = d.municipio;
-  const rc = d.recarga;
-  const en = d.entorno;
-  const out: string[] = [];
-  if (m?.nome && temNumero(m.plugin)) {
-    const comp = temNumero(m.por_mil) && temNumero(m.br_por_mil) && m.br_por_mil > 0
-      ? (m.por_mil >= m.br_por_mil
-        ? `, ${numeroEnxuto(m.por_mil / m.br_por_mil, 1)} vezes a proporção do Brasil`
-        : ', abaixo da proporção do Brasil, o que quer dizer mercado ainda para crescer')
-      : '';
-    out.push(`${m.nome} tem ${numero(m.plugin)} carros elétricos e híbridos plug-in emplacados${comp}.`);
-  }
-  if (rc) {
-    const n = temNumero(rc.n) ? rc.n : (rc.lista || []).length;
-    const raio = distancia(temNumero(rc.raio_m) && rc.raio_m > 0 ? rc.raio_m : 5000);
-    out.push(!n
-      ? `Não há carregador cadastrado no Google em ${raio} do ponto.`
-      : `${rc.cheio ? 'Há 20 ou mais carregadores' : `Há ${plural(n, 'carregador', 'carregadores')}`} cadastrados em ${raio}${temNumero(rc.mais_perto_m) ? `, o mais perto a ${distancia(rc.mais_perto_m)}` : ''}${textoRapidos(rc) ? `: ${textoRapidos(rc)}` : ''}.`);
-  }
-  if (en) {
-    const n = temNumero(en.n) ? en.n : (en.lista || []).length;
-    const raio = distancia(temNumero(en.raio_m) && en.raio_m > 0 ? en.raio_m : 1000);
-    if (n) out.push(`Em ${raio} há ${en.cheio ? '20 ou mais' : numero(n)} comércios do tipo que faz o motorista parar e carregar.`);
-  }
-  const k = d.conta;
-  if (k && temNumero(k.teto_fisico) && temNumero(k.kw)) {
-    out.push(`Um carregador rápido de ${numero(k.kw)} kW atende até ${numero(k.teto_fisico)} recargas por dia.`);
-  }
-  return out;
-}
-
 function secaoLocalCliente(l: LinhaEstudo, d: DadosEstudo, perm: { satelite: boolean; rua: boolean }, baseImg: string): string {
   const e = d.endereco_digitado || null;
   const loc = d.local || null;
@@ -1293,6 +1195,10 @@ function secaoLocalCliente(l: LinhaEstudo, d: DadosEstudo, perm: { satelite: boo
   if (vagas) pares.push(`<dt>Vagas disponíveis</dt><dd>${esc(vagas)}</dd>`);
   const est = loc?.estabelecimento?.nome;
   if (est) pares.push(`<dt>No Google, o endereço aparece como</dt><dd>${esc(est)}${loc?.estabelecimento?.tipo ? `, ${esc(loc.estabelecimento.tipo)}` : ''}</dd>`);
+  const k = d.conta;
+  if (k && temNumero(k.teto_fisico) && temNumero(k.kw)) {
+    pares.push(`<dt>O que um carregador NEXUS faz aqui</dt><dd>Um carregador rápido de ${esc(numero(k.kw))} kW atende até ${esc(numero(k.teto_fisico))} recargas por dia.</dd>`);
+  }
   return secao('local', 'O seu ponto', `<dl class="pares">${pares.join('')}</dl>` + imagens(l, d, perm, baseImg));
 }
 
@@ -1326,13 +1232,10 @@ export function renderEstudoCliente(
   const cidade = d.municipio?.nome ? `${d.municipio.nome}-${d.municipio.uf}` : (r?.cidade || '');
   const meta = [nome ? `Preparado para ${nome}` : '', cidade].filter(Boolean);
 
-  const resumo = resumoCliente(d);
   const corpo = [
     `<header class="topo">${MARCA_CLIENTE}<h1>Estudo do ponto</h1>`
       + (meta.length ? `<p class="meta">${meta.map(p => `<span>${esc(p)}</span>`).join(' · ')}</p>` : '')
       + '</header>\n',
-    resumo.length ? secao('resumo', 'Em resumo', `<ul>${resumo.map(t => `<li>${esc(t)}</li>`).join('')}</ul>`) : '',
-    secaoNumeros(d, false),
     secaoMapas(l, d),
     secaoLocalCliente(l, d, perm, baseImg),
     secaoRecarga(l, d, false),

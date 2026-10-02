@@ -117,7 +117,7 @@ const render = (l: LinhaEstudo = linha(), r: ReuniaoEstudo = reuniao(), o = OPTS
 const textoVisivel = (html: string) => html.replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ');
 
 describe('botões de carregador (não dependem da Places API)', () => {
-  it('com o Google recusando, a seção de recarga ainda oferece Google Maps, PlugShare e a busca na cidade', () => {
+  it('com o Google recusando, ainda há busca de carregador no Maps e PlugShare na cidade, cada um uma vez', () => {
     const d = dadosCompletos();
     d.recarga = null;
     d.local = null;
@@ -126,18 +126,18 @@ describe('botões de carregador (não dependem da Places API)', () => {
     const html = render(linha({ status: 'parcial', dados: d, fontes: { searchText: 'erro:403', nearby_recarga: 'pulado' } }));
 
     expect(html).toContain('Carregadores no Google Maps');
-    expect(html).toContain('Ver no PlugShare');
     expect(html).toContain('Carregadores na cidade');
-    // PlugShare centrado no município, já que o ponto não foi encontrado.
-    expect(html).toContain('https://www.plugshare.com/?latitude=-19.74830&amp;longitude=-47.93190&amp;zoom=13');
+    // PlugShare centrado no município, já que o ponto não foi encontrado, e uma vez só.
+    expect(html.split('https://www.plugshare.com/?latitude=-19.74830&amp;longitude=-47.93190&amp;zoom=11').length - 1).toBe(1);
+    expect(html).not.toContain('Ver no PlugShare');
     expect(html).toContain('google.com/maps/search/?api=1&amp;query=carregador');
   });
 
   it('com o ponto achado, o PlugShare abre na coordenada do ponto', () => {
     const html = render();
     const d = dadosCompletos();
-    expect(html).toContain(`https://www.plugshare.com/?latitude=${(d.local!.lat as number).toFixed(5)}`);
-    expect(html).toContain('Ver no PlugShare');
+    expect(html.split(`https://www.plugshare.com/?latitude=${(d.local!.lat as number).toFixed(5)}`).length - 1).toBe(1);
+    expect(html).toContain('>PlugShare no ponto</a>');
   });
 });
 
@@ -240,7 +240,7 @@ describe('pronto', () => {
   });
 
   it('blocos na ordem combinada', () => {
-    const titulos = ['Em 30 segundos', 'O ponto em números', 'Abrir o local', 'Versão para o cliente', 'O local',
+    const titulos = ['Em 30 segundos', 'Abrir o local', 'Versão para o cliente', 'O local',
       'Entorno em 1 km', 'Recarga em 5 km', 'Mercado do município',
       'Conta de referência', 'Roteiro da reunião', 'O que o cliente respondeu'];
     const pos = [...titulos.map(t => html.indexOf(`>${t}</h2>`)), html.indexOf('<summary>Como calculamos e fontes</summary>')];
@@ -547,7 +547,7 @@ describe('topo direto, Google Earth e PlugShare na cidade (02/10/2026)', () => {
     // Satélite com alfinete, não só centralizado.
     expect(html).toContain('https://www.google.com/maps?q=-19.747000%2C-47.939000&amp;t=k&amp;z=19');
     expect(html).toContain('https://www.plugshare.com/?latitude=-19.74700&amp;longitude=-47.93900&amp;zoom=14');
-    for (const t of ['Plug-in em Uberaba', '900', 'Carregadores em 5 km', 'Payback no cenário base']) expect(html).toContain(t);
+    expect(html).not.toContain('O ponto em números');
   });
 
   it('sem o pino (o 429 do Rudinei): Earth pela busca e PlugShare no centro da cidade, zoom 11', () => {
@@ -587,8 +587,8 @@ describe('página do cliente', () => {
   it('mostra o ponto, a cidade, os carregadores, o entorno e o próximo passo', () => {
     expect(html).toContain('<title>Estudo do seu ponto · NEXUS</title>');
     expect(txt).toContain('Preparado para Maria');
-    expect(txt).toContain('Uberaba tem 900 carros elétricos e híbridos plug-in emplacados');
-    for (const t of ['>Em resumo</h2>', '>O ponto em números</h2>', '>Abrir o local</h2>', '>O seu ponto</h2>',
+    expect(txt).toContain('Um carregador rápido de 120 kW atende até 40 recargas por dia.');
+    for (const t of ['>Abrir o local</h2>', '>O seu ponto</h2>',
       'Recarga em 5 km', 'Entorno em 1 km', 'Mercado do município', '>Próximos passos</h2>']) expect(html).toContain(t);
     expect(html).toContain('Google Earth em 3D');
     expect(txt).toContain('com Diego');
@@ -644,7 +644,7 @@ describe('carregador com potência e nota a confirmar (02/10/2026)', () => {
     expect(h).toContain('DC 60 kW · 2 conectores · CCS2');
     expect(h).toContain('AC 22 kW · 4 conectores · Tipo 2');
     expect(h).toContain('1 rápido (DC) e 1 lento (AC), 1 sem potência informada');
-    expect(h).toContain('Rápidos (DC) em 5 km');
+    expect(h).toContain('plug-in da cidade para cada carregador perto do ponto');
     const cli = renderEstudoCliente(linha({ dados: d }), reuniao(), { agoraMs: AGORA, imagensLigadas: false, tokenCliente: CLIENTE_TOKEN });
     expect(cli).toContain('1 rápido (DC) e 1 lento (AC)');
   });
@@ -669,5 +669,31 @@ describe('carregador com potência e nota a confirmar (02/10/2026)', () => {
     if (d.municipio) d.municipio.plugin = 30;
     d.indice = { valor: 5, faixa: 'mercado em formação', a_confirmar: false, componentes: { a: 5, b: 3.7, c: 4, d: null } };
     expect(criteriosDoIndice(d).faltaram).toEqual([]);
+  });
+});
+
+describe('sem redundância (02/10/2026)', () => {
+  const html = render();
+  const vezes = (h: string, t: string) => h.split(t).length - 1;
+
+  it('cada número num bloco só', () => {
+    expect(html).not.toContain('O ponto em números');
+    expect(vezes(textoVisivel(html), 'Veículos plug-in')).toBe(1);
+    expect(html).toContain('Um plug-in para');
+    expect(html).toContain('Veículos por mil habitantes');
+    expect(vezes(html, 'Payback')).toBe(1);
+  });
+
+  it('as respostas não repetem endereço, vagas e investimento', () => {
+    const resp = html.slice(html.indexOf('>O que o cliente respondeu</h2>'));
+    expect(resp).not.toContain('<dt>Endereço</dt>');
+    expect(resp).not.toContain('<dt>Vagas</dt>');
+    expect(resp).not.toContain('<dt>Quanto pretende investir</dt>');
+    expect(resp).toContain('<dt>Decisor</dt>');
+  });
+
+  it('PlugShare e a explicação dele aparecem uma vez', () => {
+    expect(vezes(html, '>PlugShare no ponto</a>')).toBe(1);
+    expect(vezes(html, 'O PlugShare')).toBe(1);
   });
 });
