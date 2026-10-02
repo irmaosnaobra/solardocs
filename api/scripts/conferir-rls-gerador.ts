@@ -12,6 +12,12 @@
 //   FECHADO = 401/403, ou 404 (tabela nem existe), ou lista vazia por policy
 //   ABERTO  = 200 com linha voltando
 //
+// ESTA SONDA SÓ MEDE LEITURA, de propósito: sonda que escreve em produção pra
+// provar um ponto é sonda que um dia escreve errado. Mas o risco maior é a
+// ESCRITA, e ela está aberta: em 01/10/2026 um PATCH em `agendamentos` com esta
+// chave foi aceito (card 1300, escrito e desfeito na mesma rodada). O DELETE foi
+// revogado em 29/09; o UPDATE não. Quem fechar a leitura precisa fechar os dois.
+//
 // Rode ANTES e DEPOIS do MIGRATION_fechar_leitura_publica.sql. Antes, esperado é
 // ABERTO. Depois, tem que ser FECHADO em tudo — e é isso que fecha o assunto,
 // não o arquivo existir.
@@ -29,6 +35,11 @@ const CHAVE_PUBLICA = 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6';
 
 /** As tabelas que carregam dado de pessoa. Acrescente aqui quando criar outra. */
 const TABELAS = [
+  // `agendamentos` faltava, e era a maior porta: 1.223 fichas com nome, telefone
+  // e cidade. Medido em 02/10/2026 com esta mesma chave, de fora: responde 200 com
+  // linha. E ela aceita PATCH (provado em 01/10 escrevendo e desfazendo no card
+  // 1300), então aqui não é só leitura vazando — é escrita.
+  'agendamentos',
   'eletroposto_nota1',
   'eletroposto_parceria',
   'eletroposto_match',

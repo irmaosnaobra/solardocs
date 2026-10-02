@@ -1,8 +1,29 @@
-# Achados já tratados na rotação de 26/06/2026 (ver SECURITY-RUNBOOK.md).
-# Os valores abaixo NÃO funcionam mais. Qualquer fingerprint novo = vazamento novo.
-# Gerado em 10/09/2026 por gitleaks v8.30.1 sobre 1.946 commits.
+# Achados já tratados (ver SECURITY-RUNBOOK.md). Gerado em 10/09/2026 por
+# gitleaks v8.30.1 sobre 1.946 commits, e mantido à mão desde então.
+#
+# SÃO DUAS COISAS DIFERENTES AQUI DENTRO, e a linha de cima dizia só a primeira:
+#
+#   1. SEGREDO MORTO — rotacionado em 26/06/2026. O valor não funciona mais.
+#
+#   2. A CHAVE PUBLISHABLE DO SUPABASE, que funciona e é PRA funcionar: ela vai
+#      pro navegador por desenho, como qualquer chave anon. São as linhas de
+#      dashboard/public/, de worker-prospeccao/ e de api/src/utils/supabaseGerador.ts
+#      — os mesmos lugares que a regra `url-supabase-com-chave` do .gitleaks.toml
+#      já declara como públicos de propósito. Quem levanta esses achados é a regra
+#      PADRÃO `generic-api-key`, e allowlist de regra não vale pra outra regra;
+#      por isso eles vêm pra cá, um fingerprint por ocorrência.
+#
+#      O RISCO DESSA CHAVE NÃO É ELA VAZAR, é a RLS estar desligada do outro lado.
+#      Medido em 02/10/2026 com ela, de fora: 6 tabelas respondem pra qualquer um,
+#      e `agendamentos` aceita UPDATE. Nenhuma linha deste arquivo mexe nisso.
+#      Quem mede é api/scripts/conferir-rls-gerador.ts.
+#
+# Fingerprint novo que NÃO seja um destes dois casos = vazamento novo.
 e0d12edc39c2c84fa2032b1c3b3a5183009401de:worker-prospeccao/worker.mjs:generic-api-key:42
 e0c67999301d7cbf67e56b4b794a7ab2d5723cc5:dashboard/public/gerador/radar/index.html:generic-api-key:169
+# 25/09/2026 — o 8o arquivo com a mesma chave publishable. Entrou depois da
+# regeneracao de 10/09, e por isso o CI Seguranca ficou vermelho de 25/09 a 02/10.
+1cefed0193ae5de81092a378d010ca74bb649e21:dashboard/public/gerador/premium-deck.html:generic-api-key:64
 4abe07b5036fe614c5e165ee05048a673c1b9b7d:dashboard/public/gerador/eletroposto/metricas/index.html:generic-api-key:137
 22e76014d839872ac1e962277ca509470d5e3abd:dashboard/public/gerador/prospeccao/index.html:generic-api-key:303
 ab70055a254e417bfb9a4eaa590f0027cef717ad:dashboard/public/io/solar/index.html:generic-api-key:661
