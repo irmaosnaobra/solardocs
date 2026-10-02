@@ -243,6 +243,9 @@ export const ESTAGIOS_ABERTOS = [
   'agendado', 'nao_atendeu', 'falando_whatsapp', 'em_atendimento',
   'fez_orcamento', 'proposta_apresentada', 'reagendar',
   'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao',
+  // 01/10/2026: os dois modelos novos. Fora daqui, marcar um card como COTISTA
+  // o faz PARAR de gerar lembrete — negociação viva que emudece sem avisar.
+  'cotista', 'integrador',
   'apalavrado',
 ] as const;
 
@@ -273,6 +276,10 @@ export const ESTAGIOS_ABERTOS = [
 export const ESTAGIOS_CICLO = new Set<string>([
   'em_atendimento', 'fez_orcamento', 'proposta_apresentada',
   'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao',
+  // 01/10/2026. Sem eles aqui, COTISTA e INTEGRADOR caem no teto de 3 toques
+  // e desaparecem na quarta volta — o mesmo jeito silencioso de sumir com uma
+  // pessoa que o comentário acima descreve pro `apalavrado`.
+  'cotista', 'integrador',
 ]);
 
 /**
@@ -303,6 +310,11 @@ const PESO_ESTAGIO: Record<string, number> = {
   meio_a_meio: 8,           // sociedade 50/50
   arrendamento: 8,          // cede o ponto, nós investimos 100%
   carregador: 7,            // leva só o equipamento
+  // 01/10/2026. Os dois entram no degrau do carregador, e não acima: nesta
+  // operação o escasso é o PONTO, não o capital. Quem entra com dinheiro é a
+  // fila grande; quem tem o local é a fila curta.
+  cotista: 7,               // entra com dinheiro, não com ponto
+  integrador: 7,            // compra pra revender ou instalar pra terceiro
   apalavrado: 7,            // só chega aqui com o prazo VENCIDO, e aí é urgente
   proposta_apresentada: 6,
   fez_orcamento: 5,
@@ -319,6 +331,8 @@ const ROTULO_ESTAGIO: Record<string, string> = {
   meio_a_meio: '50/50 — SOCIEDADE',
   arrendamento: 'ARRENDAMENTO',
   carregador: 'CARREGADOR',
+  cotista: 'COTISTA',
+  integrador: 'INTEGRADOR',
   apalavrado: 'APALAVRADO — PRAZO VENCIDO',
   proposta_apresentada: 'PROPOSTA APRESENTADA',
   fez_orcamento: 'FEZ ORÇAMENTO',
@@ -339,6 +353,8 @@ const CHAMADA: Record<string, string> = {
   meio_a_meio: 'Escolheu a sociedade 50/50 e parou. Liga pra fechar. Se depender de investidor ou terreno, marca Apalavrado com a data.',
   arrendamento: 'Vai ceder o ponto e a gente investe 100%. Liga pra fechar o contrato. Se estiver esperando algo, marca Apalavrado com a data.',
   carregador: 'Quer só o carregador e parou. Liga pra fechar ou marca Sem interesse.',
+  cotista: 'Quer entrar como COTISTA, com dinheiro e sem ponto. Liga pra fechar. Se estiver esperando o local, marca Apalavrado com a data.',
+  integrador: 'É INTEGRADOR: compra pra revender ou instalar pra terceiro. Liga pra fechar o pedido ou marca Sem interesse.',
   apalavrado: 'Você marcou APALAVRADO e o prazo que você mesmo deu venceu. Liga pra confirmar: fecha, estica o prazo ou solta.',
   proposta_apresentada: 'Viu a proposta e não voltou. Liga pra saber o que ficou faltando.',
   fez_orcamento: 'Recebeu o preço e ninguém voltou nele. Liga pra fechar.',

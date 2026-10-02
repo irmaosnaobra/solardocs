@@ -82,6 +82,9 @@ export const ETIQUETA_PREFIX = 'etiqueta_card:';
  *  livre dentro do `system_state`. */
 export const ETIQUETAS_DE_NEGOCIO = new Set<string>([
   'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao',
+  // 01/10/2026. Sem os dois aqui, a rota RECUSA guardar a etiqueta deles e o
+  // card marcado como sem interesse perde de que negócio se tratava.
+  'cotista', 'integrador',
   'em_atendimento', 'proposta_apresentada', 'fez_orcamento', 'falando_whatsapp',
 ]);
 

@@ -1515,7 +1515,6 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-col-nao_atendeu .crm-col-head{box-shadow:inset 0 3px 0 #FDBA74}
 .crm-col-sem_interesse .crm-col-head{box-shadow:inset 0 3px 0 #F87171}
 .crm-col-proposta_apresentada .crm-col-head{box-shadow:inset 0 3px 0 #FB923C}
-.crm-col-em_atendimento .crm-col-head{box-shadow:inset 0 3px 0 #DFE7F0}
 .crm-col-vendido .crm-col-head{box-shadow:inset 0 3px 0 #34D399}
 /* Um tom acima do #f87171 do card: a coluna Reagendar ja usa o #F87171 na
    faixa, e duas faixas identicas no mesmo quadro confundem. */
@@ -1526,16 +1525,18 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-col-carregador .crm-col-head{box-shadow:inset 0 3px 0 #EADBC0}
 .crm-col-meio_a_meio .crm-col-head{box-shadow:inset 0 3px 0 #EADBC0}
 .crm-col-chave_na_mao .crm-col-head{box-shadow:inset 0 3px 0 #EADBC0}
+.crm-col-cotista .crm-col-head{box-shadow:inset 0 3px 0 #EADBC0}
+.crm-col-integrador .crm-col-head{box-shadow:inset 0 3px 0 #EADBC0}
 /* APALAVRADO (30/09/2026) — a sala de espera, entre o negócio e a venda.
    Âmbar de propósito: não é vitória (verde do Vendido) nem perda (vermelho),
    é o aperto de mão esperando a peça que falta. */
-.crm-col-apalavrado .crm-col-head{box-shadow:inset 0 3px 0 #F59E0B}
+.crm-col-apalavrado .crm-col-head{box-shadow:inset 0 3px 0 #FCD34D}
 /* card de cliente */
 .crm-card{background:#1c2c47;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:11px 12px;display:flex;flex-direction:column;gap:7px}
 /* Card em espera: ambar tingido, nao solido. Solido apagaria o texto branco, e
    e o mesmo #F59E0B da agenda e do cabecalho da coluna APALAVRADO. */
-.crm-card.em-espera{background:rgba(245,158,11,.18);border-color:rgba(245,158,11,.55)}
-.crm-card.em-espera:hover{border-color:rgba(245,158,11,.85)}
+.crm-card.em-espera{background:rgba(252,211,77,.18);border-color:rgba(252,211,77,.55)}
+.crm-card.em-espera:hover{border-color:rgba(252,211,77,.85)}
 .crm-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:6px}
 .crm-card-nome{font-size:14px;font-weight:700;color:#fff;line-height:1.25;word-break:break-word}
 .crm-card-tel{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:600;color:#93C5FD;text-decoration:none;width:fit-content}
@@ -1569,14 +1570,15 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-status-selo.selo-si{background:rgba(220,38,38,.24);color:#FCA5A5}
 .crm-status-selo.selo-so{background:rgba(194,65,12,.3);color:#FDBA74}
 .crm-status-selo.selo-fo{background:rgba(194,210,226,.16);color:#C2D2E2}
-.crm-status-selo.selo-fe{background:rgba(245,158,11,.3);color:#FDE68A}
+.crm-status-selo.selo-fe{background:rgba(180,83,9,.5);color:#FDBA74}
 .crm-status-selo.selo-em{background:rgba(223,231,240,.16);color:#DFE7F0}
 .crm-status-selo.selo-pe{background:rgba(220,38,38,.24);color:#FCA5A5}
-.crm-status-selo.selo-pa{background:rgba(179,199,220,.16);color:#B3C7DC}
 .crm-status-selo.selo-ar{background:rgba(234,219,192,.22);color:#EADBC0}
 .crm-status-selo.selo-cr{background:rgba(234,219,192,.22);color:#EADBC0}
 .crm-status-selo.selo-mm{background:rgba(234,219,192,.22);color:#EADBC0}
 .crm-status-selo.selo-ch{background:rgba(234,219,192,.22);color:#EADBC0}
+.crm-status-selo.selo-co{background:rgba(234,219,192,.22);color:#EADBC0}
+.crm-status-selo.selo-in{background:rgba(234,219,192,.22);color:#EADBC0}
 /* presenca confirmada: esmeralda, o mesmo par de cores do card da agenda */
 .crm-status-selo.selo-ok{background:rgba(52,211,153,.2);color:#6EE7B7}
 /* Silêncio do lead: o mesmo âmbar do card amarelo da agenda. */
@@ -1640,20 +1642,21 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-btn-status:active{transform:scale(.97)}
 .crm-btn-status.is-atual{outline:3px solid rgba(255,255,255,.9);outline-offset:-5px;box-shadow:0 0 0 2px #1E293B}
 /* Botao CLARO: o contorno branco de dentro sumia nele. */
-.crm-btn-status.bg-fe.is-atual,.crm-btn-status.bg-wp.is-atual,.crm-btn-status.bg-fo.is-atual,.crm-btn-status.bg-em.is-atual,.crm-btn-status.bg-pa.is-atual,.crm-btn-status.bg-ar.is-atual,.crm-btn-status.bg-cr.is-atual,.crm-btn-status.bg-mm.is-atual,.crm-btn-status.bg-ch.is-atual{outline-color:rgba(17,24,39,.75)}
+.crm-btn-status.bg-wp.is-atual,.crm-btn-status.bg-fo.is-atual,.crm-btn-status.bg-ar.is-atual,.crm-btn-status.bg-cr.is-atual,.crm-btn-status.bg-mm.is-atual,.crm-btn-status.bg-ch.is-atual,.crm-btn-status.bg-co.is-atual,.crm-btn-status.bg-in.is-atual,.crm-btn-status.bg-ap.is-atual{outline-color:rgba(17,24,39,.75)}
 .crm-btn-status.bg-ag{background:#0d2d5e;color:#fff}
 .crm-btn-status.bg-na{background:#dc2626;color:#fff}
 .crm-btn-status.bg-wp{background:#D0DCE9;color:#1f2937}
 .crm-btn-status.bg-si{background:#dc2626;color:#fff}
 .crm-btn-status.bg-so{background:#C2410C;color:#fff}
 .crm-btn-status.bg-fo{background:#C2D2E2;color:#1f2937}
-.crm-btn-status.bg-fe{background:linear-gradient(135deg,#FDE047 0%,#F59E0B 100%);color:#3B2A00}
-.crm-btn-status.bg-em{background:#DFE7F0;color:#1f2937}
+.crm-btn-status.bg-fe{background:linear-gradient(135deg,#B45309 0%,#92400E 100%);color:#fff}
 .crm-btn-status.bg-ar{background:#EADBC0;color:#1f2937}
 .crm-btn-status.bg-cr{background:#EADBC0;color:#1f2937}
 .crm-btn-status.bg-mm{background:#EADBC0;color:#1f2937}
 .crm-btn-status.bg-ch{background:#EADBC0;color:#1f2937}
-.crm-btn-status.bg-ap{background:linear-gradient(135deg,#FCD34D 0%,#F59E0B 100%);color:#2A1D00}
+.crm-btn-status.bg-co{background:#EADBC0;color:#1f2937}
+.crm-btn-status.bg-in{background:#EADBC0;color:#1f2937}
+.crm-btn-status.bg-ap{background:#FCD34D;color:#3B2A00}
 /* A caixa da espera. Âmbar, igual à coluna, pra quem aperta reconhecer
    onde o card vai parar. */
 .espera-box{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.5)}
@@ -1677,8 +1680,6 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-espera{display:block;font-size:11px;line-height:1.3;margin-top:4px;color:#FCD34D}
 .crm-espera.venceu{color:#FCA5A5;font-weight:700}
 .crm-btn-status.bg-pe{background:#dc2626;color:#fff}
-.crm-btn-status.bg-pa{background:#B3C7DC;color:#1f2937}
-.crm-det-prop-atual{font-size:12px;color:#7DD3FC;margin-top:8px;min-height:1px}
 /* ações de rodapé */
 .crm-det-acoes{display:flex;gap:10px;margin-top:14px}
 .crm-det-acoes>*{flex:1;padding:12px;border-radius:10px;font-weight:700;font-size:14px;font-family:inherit;cursor:pointer;text-align:center;border:none;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
@@ -5981,7 +5982,6 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="crm-det-status">
         <button type="button" class="crm-btn-status bg-ag" data-status="agendado"         onclick="crmAtualizarStatus('agendado')">📞 Agendada</button>
         <button type="button" class="crm-btn-status bg-na" data-status="nao_atendeu"      onclick="crmAtualizarStatus('nao_atendeu')">❌ Não atendeu</button>
-        <button type="button" class="crm-btn-status bg-em" data-status="em_atendimento"   onclick="crmAtualizarStatus('em_atendimento')" style="grid-column:span 2">🕐 NEGOCIANDO (segura o lead)</button>
         <button type="button" class="crm-btn-status bg-si" data-status="sem_interesse"    onclick="crmAtualizarStatus('sem_interesse')" style="grid-column:span 2">🙅 Sem interesse</button>
         <!-- ARRENDAMENTO (17/09/2026) — tomou o lugar do botão "Fechou concorrente".
              É quem NÃO quer comprar mas deixa a gente instalar no ponto dele: nós
@@ -5996,6 +5996,13 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <button type="button" class="crm-btn-status bg-cr" data-status="carregador"        onclick="crmAtualizarStatus('carregador')" style="grid-column:span 2">🔌 Carregador</button>
         <button type="button" class="crm-btn-status bg-mm" data-status="meio_a_meio"       onclick="crmAtualizarStatus('meio_a_meio')" style="grid-column:span 2">👥 50/50</button>
         <button type="button" class="crm-btn-status bg-ch" data-status="chave_na_mao"      onclick="crmAtualizarStatus('chave_na_mao')" style="grid-column:span 2">🔑 Chave na mão</button>
+        <!-- COTISTA e INTEGRADOR (01/10/2026) — os dois caminhos que faltavam.
+             COTISTA entra com DINHEIRO e não com ponto; INTEGRADOR compra pra
+             revender ou instalar pra terceiro. São modelos de negócio como os
+             outros quatro, então mesmo bege, mesma coluna própria, mesma regra
+             de etiqueta preservada. -->
+        <button type="button" class="crm-btn-status bg-co" data-status="cotista"           onclick="crmAtualizarStatus('cotista')" style="grid-column:span 2">📊 Cotista</button>
+        <button type="button" class="crm-btn-status bg-in" data-status="integrador"        onclick="crmAtualizarStatus('integrador')" style="grid-column:span 2">🛠️ Integrador</button>
         <!-- APALAVRADO (30/09/2026) — a margem entre o perdido e o vendido.
              É o cliente que já disse sim e está esperando uma peça que não é
              nossa: o investidor, o terreno, a assinatura. Ele SAI do ciclo de 48h
@@ -6040,14 +6047,6 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="posse-nota">Ele para de receber cobrança e sai do ciclo de 48h. Na data, o card volta marcado como vencido.</div>
       </div>
 
-      <!-- Eletroposto: quem REALMENTE apresentou a proposta. Só aparece em card
-           de eletroposto (o lead circula entre Thiago e Diego, então o dono do
-           card nem sempre é quem fez a apresentação). -->
-      <div id="crm-det-prop-wrap" style="display:none">
-        <span class="crm-det-lbl">📑 Proposta apresentada — quem fez?</span>
-        <div class="crm-det-status" id="crm-det-prop-grid"></div>
-        <div class="crm-det-prop-atual" id="crm-det-prop-atual"></div>
-      </div>
     </div>
 
     <!-- Aviso quando o lead ainda não tem ligação agendada -->
@@ -9661,6 +9660,7 @@ const CAD_AG_STATUS = {
   proposta_apresentada: 'PROPOSTA', sem_interesse: 'SEM INTERESSE', perdido: 'PERDIDO',
   fechou_concorrente: 'CONCORRENTE', fechou: 'VENDIDO', arrendamento: 'ARRENDAMENTO',
   carregador: 'CARREGADOR', meio_a_meio: '50/50', chave_na_mao: 'CHAVE NA MÃO',
+  cotista: 'COTISTA', integrador: 'INTEGRADOR',
   apalavrado: 'APALAVRADO',
   cancelado: 'CANCELADO', reagendar: 'REAGENDAR',
 };
@@ -21297,6 +21297,8 @@ const CRM_ETAPAS = {
   carregador:  { lbl: 'Carregador',        ic: '🔌' },
   meio_a_meio: { lbl: '50/50 - Cota',      ic: '👥' },
   chave_na_mao:{ lbl: 'Chave na mão',      ic: '🔑' },
+  cotista:     { lbl: 'Cotista',           ic: '📊' },
+  integrador:  { lbl: 'Integrador',        ic: '🛠️' },
   // A SALA DE ESPERA (30/09/2026). Fica ANTES de Vendido nos dois quadros
   // porque é isso que ela é: o apalavrado que ainda não assinou.
   apalavrado:  { lbl: 'Apalavrado',        ic: '🤞' },
@@ -21454,19 +21456,13 @@ function crmEhEletroposto(ag) {
 }
 // O agendamento de eletroposto mais recente do cliente. Um mesmo telefone pode
 // ter ficha de solar E de EP — a marcação de proposta tem que cair na linha do
-// EP, não na mais recente qualquer.
-function crmAgEletroposto(c) {
-  const stamp = (iso) => iso ? new Date(iso).getTime() : 0;
-  const eps = (c.agends || []).filter(crmEhEletroposto)
-    .sort((x, y) => stamp(y.quando) - stamp(x.quando));
-  return eps[0] || null;
-}
+
 
 function crmAbrirDetalhe(key) {
   const c = crmClientes.find(x => x.key === key);
   if (!c) return;
   const agRec = crmAgRecente(c);
-  crmDetAtual = { c, agRec, agEp: crmAgEletroposto(c) };
+  crmDetAtual = { c, agRec };
   const posse = document.getElementById('crm-det-posse');
   if (posse) posse.hidden = true;
   // A caixa da espera também fecha, e ZERADA. Sem isto ela ficava aberta ao
@@ -21560,8 +21556,6 @@ function crmAbrirDetalhe(key) {
     // Temperatura é sempre liberada (botões nunca opacos, classificação opcional).
     crmAplicarGateTemp(c, c.temperatura || agRec.temperatura || null);
   }
-  crmRenderPropostaEP();
-
   // Perdido/Reativar só pra lead SEM ficha (com ficha usa o status "Sem interesse").
   const perdidoWrap = document.getElementById('crm-det-perdido-wrap');
   perdidoWrap.style.display = temAg ? 'none' : '';
@@ -21871,6 +21865,8 @@ async function crmAtualizarStatus(novoStatus, extra) {
       meio_a_meio:      '👥 Marcado como 50/50 — sociedade meio a meio',
       carregador:       '🔌 Marcado como Carregador — leva só o equipamento',
       chave_na_mao:     '🔑 Marcado como Chave na mão — o eletroposto é dele',
+      cotista:          '📊 Marcado como COTISTA — entra com dinheiro, não com ponto',
+      integrador:       '🛠️ Marcado como INTEGRADOR — revende/instala pra terceiro',
       fechou_concorrente:'🏢 Marcado como Fechou concorrente',
       perdido:          '❌ Marcado como Perdido',
       apalavrado:       '🤞 APALAVRADO — sai do ciclo e volta na data',
@@ -21973,76 +21969,6 @@ async function crmApalavrar() {
     renderCRM();
   } catch (e) {
     if (erroEl) erroEl.textContent = 'Erro ao registrar a espera. Nada foi alterado.';
-    console.error(e);
-  }
-}
-
-// ===== ELETROPOSTO · PROPOSTA APRESENTADA =====================================
-// O lead de eletroposto circula entre Thiago e Diego (repasse de 12h), então
-// quem está com o card no fim NÃO é necessariamente quem apresentou a proposta.
-// Estes botões gravam o crédito na mão: proposta_por/proposta_em na linha do
-// agendamento de EP. Marcar também muda o status pra proposta_apresentada, o
-// que zera o repassar_em no banco (trigger) — proposta apresentada não fica
-// mais pulando de consultor.
-const CRM_EP_TIME = ['Thiago', 'Diego'];
-
-function crmRenderPropostaEP() {
-  const wrap = document.getElementById('crm-det-prop-wrap');
-  if (!wrap) return;
-  const det = crmDetAtual;
-  const ag = det && det.agEp;
-  wrap.style.display = ag ? '' : 'none';
-  if (!ag) return;
-
-  const c = det.c;
-  const logado = crmConsultorLogado();
-  document.getElementById('crm-det-prop-grid').innerHTML = CRM_EP_TIME.map(nome => {
-    const atual = ag.proposta_por === nome ? ' is-atual' : '';
-    const eu = nome === logado ? ' (você)' : '';
-    return `<button type="button" class="crm-btn-status bg-pa${atual}" onclick="crmMarcarPropostaEP('${nome}')">📑 ${escapeHtml(nome)}${eu}</button>`;
-  }).join('');
-
-  const p2 = n => String(n).padStart(2, '0');
-  let quando = '';
-  if (ag.proposta_em) {
-    const d = new Date(ag.proposta_em);
-    if (!isNaN(d.getTime())) quando = ` em ${p2(d.getDate())}/${p2(d.getMonth()+1)} ${p2(d.getHours())}h${p2(d.getMinutes())}`;
-  }
-  document.getElementById('crm-det-prop-atual').textContent = ag.proposta_por
-    ? `Apresentada por ${ag.proposta_por}${quando} — clique no outro nome pra corrigir, ou nesse mesmo pra desmarcar.`
-    : 'Clique em quem realmente apresentou a proposta pro cliente.';
-}
-
-async function crmMarcarPropostaEP(quem) {
-  if (!crmDetAtual || !crmDetAtual.agEp) return;
-  const { c, agEp: ag } = crmDetAtual;
-  // Toggle igual ao da temperatura: clicar em quem já está marcado desmarca
-  // (conserta clique errado). Desmarcar devolve o card pro fluxo normal —
-  // status 'agendado' religa o relógio do repasse, como era antes da marcação.
-  const desmarcar = ag.proposta_por === quem;
-  const agora = new Date();
-  const p2 = n => String(n).padStart(2, '0');
-  const autor = crmConsultorLogado() || '—';
-  const ts = `${p2(agora.getDate())}/${p2(agora.getMonth()+1)} ${p2(agora.getHours())}h${p2(agora.getMinutes())}`;
-  const entrada = desmarcar
-    ? `[${ts} · ${autor}] 📑 Marcação de proposta apresentada removida.`
-    : `[${ts} · ${autor}] 📑 Proposta apresentada por ${quem}.`;
-  const historico = ag.historico ? `${entrada}\n\n${ag.historico}` : entrada;
-  const patch = desmarcar
-    ? { status: 'agendado', proposta_por: null, proposta_em: null, historico }
-    : { status: 'proposta_apresentada', proposta_por: quem, proposta_em: agora.toISOString(), historico };
-  try {
-    await supaPatch(`agendamentos?id=eq.${ag.id}`, patch);
-    Object.assign(ag, patch);          // espelha na linha em memória
-    crmDerivar(c);                     // recalcula selo/etapa do card
-    crmMarcarStatus(ag.status);
-    crmRenderPropostaEP();
-    const hist = document.getElementById('crm-det-hist');
-    if (hist && crmDetAtual.agRec && crmDetAtual.agRec.id === ag.id) hist.textContent = historico;
-    showToast(desmarcar ? '📑 Marcação de proposta removida' : `📑 Proposta apresentada por ${quem}`);
-    renderCRM();                       // re-render local, sem refetch
-  } catch (e) {
-    document.getElementById('crm-det-erro').textContent = 'Erro ao marcar a proposta.';
     console.error(e);
   }
 }
@@ -22463,6 +22389,7 @@ let crmEtiquetas = {};        // { '<agId>': 'arrendamento' } — a etiqueta que
  *  Espelha `ETIQUETAS_DE_NEGOCIO` do servidor, que é quem recusa o resto. */
 const CRM_ETIQUETAS_NEGOCIO = new Set([
   'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao',
+  'cotista', 'integrador',
   'em_atendimento', 'proposta_apresentada', 'fez_orcamento', 'falando_whatsapp',
 ]);
 /** Os status que apagam a etiqueta. */
@@ -22475,6 +22402,7 @@ const CRM_STATUS_TERMINAIS = new Set([
  *  cards antigos, que ainda carregam o status. */
 const CRM_PODE_ESPERAR = new Set([
   'apalavrado', 'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao',
+  'cotista', 'integrador',
   'em_atendimento', 'proposta_apresentada', 'fez_orcamento', 'falando_whatsapp',
   // Os TERMINAIS entram desde 01/10: eles não esperam nada, mas carregam a
   // etiqueta guardada, e as duas marcas vêm na mesma chamada.
@@ -22778,6 +22706,10 @@ function crmDerivar(c) {
     etapa = 'carregador';
   } else if (statusAg === 'chave_na_mao') {
     etapa = 'chave_na_mao';
+  } else if (statusAg === 'cotista') {
+    etapa = 'cotista';
+  } else if (statusAg === 'integrador') {
+    etapa = 'integrador';
   } else if (temPerdido || c.perdidoManual) {
     // Venda sempre ganha; fora isso, Perdido (de agendamento OU manual) vence.
     etapa = 'perdido';
@@ -22883,8 +22815,23 @@ const CRM_KANBAN = {
   // Pedido do Thiago, nesta ordem. As 4 do meio são os modelos de negócio da
   // NEXUS que o lead escolhe na LP (01 "cedo o espaço e vocês investem 100%"
   // vira Arrendamento; 02 "sociedade meio a meio" vira 50/50 - Cota).
-  eletroposto: ['agendado', 'nao_atendeu', 'em_atendimento', 'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao', 'apalavrado', 'vendido', 'sem_interesse'],
-  solar:       ['agendado', 'reagendar', 'em_atendimento', 'whatsapp', 'fez_orcamento', 'proposta_apresentada', 'apalavrado', 'vendido', 'perdido'],
+  // 01/10/2026 — NEGOCIANDO saiu dos DOIS quadros, e com ela as duas colunas que
+  // já não tinham botão pra alimentar: nenhum status chega mais em
+  // `em_atendimento` nem em `proposta_apresentada`, e coluna que não recebe card
+  // novo é um cemitério que ninguém entende. O que estava nelas não desaparece:
+  // cai em AGENDADO pelo mapa de remapeamento logo abaixo, e a pílula do card
+  // continua dizendo em que estágio aquela ficha parou.
+  //
+  // FALANDO WHATSAPP fica no quadro do solar, apesar de ter sido riscada junto:
+  // é onde cai o contato criado à mão no CRM (`novoContato` grava
+  // `falando_whatsapp` de propósito, por ser contato sem data). Tirar a coluna
+  // faria o card recém-criado nascer invisível.
+  //
+  // FEZ ORÇAMENTO também fica, e só no solar: lá a marca é automática (sai do
+  // `gerarOrcamentoDoDetalhe`), e no eletroposto não existe uma única ficha com
+  // esse status — medido em 01/10: 43 no solar, 0 no eletroposto.
+  eletroposto: ['agendado', 'nao_atendeu', 'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao', 'cotista', 'integrador', 'apalavrado', 'vendido', 'sem_interesse'],
+  solar:       ['agendado', 'reagendar', 'whatsapp', 'fez_orcamento', 'apalavrado', 'vendido', 'perdido'],
 };
 
 // ONDE CADA ETAPA CAI NUM QUADRO QUE NÃO TEM COLUNA PRÓPRIA PRA ELA.
@@ -22909,14 +22856,30 @@ const CRM_KANBAN = {
 const CRM_ETAPA_NO_QUADRO = {
   eletroposto: {
     reagendar: 'nao_atendeu',
-    whatsapp: 'em_atendimento',
-    fez_orcamento: 'em_atendimento',
-    proposta_apresentada: 'em_atendimento',
+    // Os quatro riscados em 01/10 caem em AGENDADO, que é a primeira coluna:
+    // ficha viva, nada decidido. Antes caíam em Negociando, que não existe mais.
+    // São 81 cards de eletroposto (57 em_atendimento, 23 proposta_apresentada,
+    // 1 falando_whatsapp), medidos em 01/10.
+    em_atendimento: 'agendado',
+    whatsapp: 'agendado',
+    fez_orcamento: 'agendado',
+    proposta_apresentada: 'agendado',
     perdido: 'sem_interesse',
   },
   solar: {
     nao_atendeu: 'reagendar',
     sem_interesse: 'perdido',
+    // As duas colunas que saíram do quadro do solar. 8 cards em em_atendimento
+    // e 0 em proposta_apresentada, em 01/10.
+    em_atendimento: 'agendado',
+    proposta_apresentada: 'agendado',
+    // OS SEIS MODELOS DE ELETROPOSTO FICAM DE FORA DESTE MAPA, de propósito.
+    // Eu os mandei pra `agendado` numa primeira versão de 01/10 e voltei atrás:
+    // o docstring do `crmColunaDaEtapa` logo abaixo argumenta contra, e tem
+    // razão. Um lead de SOLAR marcado com modelo de eletroposto (o botão está no
+    // mesmo modal) enterrado em Agendado fica entre os leads a ligar, e o time
+    // de solar lê como ligação pendente. A coluna solta no fim do quadro é feia
+    // e é o ponto: ela diz que aquele card está num lugar que não é dele.
   },
 };
 
@@ -22994,6 +22957,8 @@ function renderCRM() {
     meio_a_meio:      { lbl: '👥 50/50', cls: 'mm' },
     carregador:       { lbl: '🔌 Carregador', cls: 'cr' },
     chave_na_mao:     { lbl: '🔑 Chave na mão', cls: 'ch' },
+    cotista:          { lbl: '📊 Cotista', cls: 'co' },
+    integrador:       { lbl: '🛠️ Integrador', cls: 'in' },
     fechou_concorrente:{ lbl: '🏢 Fechou concorrente', cls: 'pe' },
     perdido:          { lbl: '❌ Perdido', cls: 'pe' },
     fechou:           { lbl: '🏆 VENDIDO', cls: 'fe' },
@@ -23002,8 +22967,6 @@ function renderCRM() {
     const def = STATUS_SELO[s];
     return def ? `<span class="crm-status-selo selo-${def.cls}">${escapeHtml(def.lbl)}</span>` : '';
   };
-  // Quem apresentou a proposta fica no card com NOME — é a pergunta que o selo
-  // genérico não responde ("apresentada", mas por quem?) depois de um repasse.
   // Mesma informacao do card da agenda, na outra tela: quem confirmou presenca na
   // proxima reuniao. Sem isto o dado aparecia num lugar e sumia no outro.
   const presencaBadge = (c) => c.presencaOk
@@ -23011,9 +22974,6 @@ function renderCRM() {
     : (c.semResposta
       ? `<span class="crm-status-selo selo-sr" title="A automação confirmou a reunião no WhatsApp dele e ele não respondeu nada">Não respondeu</span>`
       : '');
-  const propBadge = (c) => c.propPor
-    ? `<span class="crm-status-selo selo-pa" title="Proposta apresentada por ${escapeHtml(c.propPor)}">📑 Proposta: ${escapeHtml(c.propPor)}</span>`
-    : '';
 
   /** O que este card está esperando, e se o prazo já venceu. Só em Apalavrado. */
   // O SELO SAI DA MARCA, NÃO DO STATUS (01/10/2026). Desde que APALAVRADO deixou
@@ -23100,7 +23060,7 @@ function renderCRM() {
       </div>
       ${telLinha}
       <div class="crm-card-meta">${cons}${tag}${linhaCidade}${linhaAg}</div>
-      ${presencaBadge(c)}${propBadge(c)}${etiquetaBadge(c)}${(c.statusAg === 'proposta_apresentada' && c.propPor) ? '' : statusBadge(c.statusAg)}${esperaBadge(c)}
+      ${presencaBadge(c)}${etiquetaBadge(c)}${statusBadge(c.statusAg)}${esperaBadge(c)}
       <div class="crm-card-foot">
         ${valorTxt}
         <span class="crm-card-acoes">${reagBtn}${wpp}${verProp}</span>

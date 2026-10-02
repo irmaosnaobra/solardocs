@@ -142,8 +142,9 @@ describe('a conta que escolhe o cliente da vez', () => {
   // eletroposto cair no `?? 1` da pontuação e dormir no fim da fila justamente
   // por ser novo na lista.
 
-  it('os quatro modelos do eletroposto entraram na varredura', () => {
-    for (const vivo of ['arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao']) {
+  it('os seis modelos do eletroposto entraram na varredura', () => {
+    for (const vivo of ['arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao',
+      'cotista', 'integrador']) {
       expect(ESTAGIOS_ABERTOS as readonly string[]).toContain(vivo);
     }
   });
@@ -151,7 +152,8 @@ describe('a conta que escolhe o cliente da vez', () => {
   it('modelo escolhido no eletroposto vem na FRENTE de proposta apresentada', () => {
     // Mesmo tempo parado: quem já escolheu por qual porta entrar está um passo
     // adiante de quem só viu o preço.
-    for (const modelo of ['chave_na_mao', 'meio_a_meio', 'arrendamento', 'carregador']) {
+    for (const modelo of ['chave_na_mao', 'meio_a_meio', 'arrendamento', 'carregador',
+      'cotista', 'integrador']) {
       expect(pontuarCard(modelo, null, 20)).toBeGreaterThan(pontuarCard('proposta_apresentada', null, 20));
     }
   });
@@ -165,9 +167,10 @@ describe('a conta que escolhe o cliente da vez', () => {
   });
 
   it('a família do ciclo é exatamente a que o Thiago nomeou, e nada além', () => {
+    // COTISTA e INTEGRADOR entraram em 01/10/2026, junto com os botões.
     expect([...ESTAGIOS_CICLO].sort()).toEqual([
-      'arrendamento', 'carregador', 'chave_na_mao', 'em_atendimento',
-      'fez_orcamento', 'meio_a_meio', 'proposta_apresentada',
+      'arrendamento', 'carregador', 'chave_na_mao', 'cotista', 'em_atendimento',
+      'fez_orcamento', 'integrador', 'meio_a_meio', 'proposta_apresentada',
     ]);
     // `nao_atendeu` e `agendado` ficam FORA de propósito: "não atendeu continua
     // a mesma regra", e quem cuida dele é a régua de remarcação.

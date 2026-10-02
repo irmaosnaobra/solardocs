@@ -332,12 +332,6 @@
   /* No QUADRO DIVIDIDO (dois clientes no mesmo horário) a metade tem 90px: lá
      nem a pílula curta cabe, ela empilhava uma terceira linha e espremia o botão
      de confirmar. Vira um ponto colado no status, e a legenda explica. */
-  .apres-ponto {
-    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
-    margin-left: 3px; vertical-align: middle; box-shadow: 0 0 0 1.5px rgba(255,255,255,.8);
-  }
-  .apres-ponto.ok  { background: #15803D }
-  .apres-ponto.nao { background: #B91C1C }
   /* Com a etiqueta de apresentação são TRÊS pílulas numa linha que já enchia a
      coluna de 180px (a mais estreita da grade) com duas. A linha é nowrap com
      ellipsis, então sem apertar a terceira sumia no corte. */
@@ -347,15 +341,6 @@
   .detalhe-box .tag-pill { font-size: 11px; padding: 1px 8px; background: #e5e7eb; color: #374151; }
   /* Os dois botões da apresentação, no detalhe: mesma cor da etiqueta que eles põem. */
   .apres-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
-  .apres-btn {
-    padding: 11px 8px; border-radius: 9px; border: 2px solid transparent; cursor: pointer;
-    font-family: inherit; font-size: 12.5px; font-weight: 800; line-height: 1.15; color: #fff;
-  }
-  .apres-btn.ok  { background: #15803D }
-  .apres-btn.nao { background: #B91C1C }
-  .apres-btn:hover { filter: brightness(1.08) }
-  /* Marcado: contorno claro, igual ao is-atual dos outros botões do detalhe. */
-  .apres-btn.is-atual { border-color: #fff; box-shadow: 0 0 0 2px rgba(255,255,255,.25) }
   .detalhe-box .tag-pill.tag-ep,
   .detalhe-box .tag-pill.tag-ep-trafego    { background: #39FF14; color: #06210A; }
   .detalhe-box .tag-pill.tag-ep-organic    { background: #00E5A0; color: #00241A; }
@@ -377,7 +362,7 @@
      verde-esmeralda de "reunião confirmada", que aparece ANTES da reunião; a
      venda é o fim da linha e tem que saltar de longe. Contorno claro e brilho
      porque é o único card que ganha destaque na semana inteira. */
-  .slot.status-fechou            { background: linear-gradient(135deg, #FDE047 0%, #F59E0B 100%); color: #3B2A00;
+  .slot.status-fechou            { background: linear-gradient(135deg, #B45309 0%, #92400E 100%); color: #fff;
                                    box-shadow: inset 0 0 0 2px #FFFBEB, 0 0 12px rgba(245,158,11,.6); }
   .slot.status-em_atendimento    { background: #DFE7F0; color: #1f2937; }
   .slot.status-proposta_apresentada { background: #B3C7DC; color: #1f2937; }
@@ -397,10 +382,27 @@
   .slot.status-carregador        { background: #EADBC0; color: #1f2937; }
   .slot.status-meio_a_meio       { background: #EADBC0; color: #1f2937; }
   .slot.status-chave_na_mao      { background: #EADBC0; color: #1f2937; }
+  .slot.status-cotista           { background: #EADBC0; color: #1f2937; }
+  .slot.status-integrador        { background: #EADBC0; color: #1f2937; }
   /* APALAVRADO em âmbar, a mesma cor da coluna no quadro do CRM: não é
      reunião por acontecer (azul), não é venda (verde) e não é perda
      (vermelho). É o aperto de mão esperando a peça que falta. */
-  .slot.status-apalavrado        { background: #F59E0B; color: #2A1D00; }
+  /* ── OS DOIS DOURADOS (01/10/2026, ordem do dono) ───────────────────────
+     "Apalavrado dourado claro, vendido dourado mais forte."
+
+     Eles eram quase a mesma cor: o apalavrado era #F59E0B e o vendido um
+     gradiente que TERMINAVA em #F59E0B. Distância de cor entre os dois: 34.
+     Agora são 49, e os dois continuam legíveis — que é a parte difícil, porque
+     o meio da rampa de ouro (#D97706, #CA8A04) não aceita texto escuro nem
+     claro: fica em 3 a 4:1 com os dois, abaixo do piso de 4,5.
+
+     claro  #FCD34D com texto escuro  9,6:1
+     forte  #B45309 → #92400E, texto BRANCO, 5,0:1 na ponta pior
+
+     Os dois ficam a mais de 50 de distância do bege dos modelos, então o olho
+     separa de longe mesmo tendo brilho parecido: contraste WCAG mede só
+     luminância, e ouro saturado contra bege dessaturado é outra cor. */
+  .slot.status-apalavrado        { background: #FCD34D; color: #3B2A00; }
   /* ── O CARD APALAVRADO É AMARELO (01/10/2026, ordem do dono) ─────────────
      Desde que APALAVRADO virou MARCA e parou de sobrescrever a etiqueta, o card
      ficava com a cor da negociação dele (o bege dos quatro modelos) e só a
@@ -410,7 +412,7 @@
      VEM DEPOIS das cores de status de propósito. `.slot.em-espera` e
      `.slot.status-chave_na_mao` têm a MESMA especificidade (duas classes), então
      quem ganha é quem vem por último. Subir esta regra apaga o amarelo. */
-  .slot.em-espera                { background: #F59E0B; color: #2A1D00; }
+  .slot.em-espera                { background: #FCD34D; color: #3B2A00; }
   .btn-status.bg-ap{background:linear-gradient(135deg,#FCD34D 0%,#F59E0B 100%);color:#2A1D00}
   .slot.status-perdido           { background: #dc2626; color: #fff; }
   /* As mesmas cores dentro do quadro dividido: a metade é que recebe o status,
@@ -421,7 +423,7 @@
   .slot.dividido .meia.status-sem_interesse     { background: #dc2626; color: #fff; }
   .slot.dividido .meia.status-sem_orcamento     { background: #C2410C; color: #fff; }
   .slot.dividido .meia.status-fez_orcamento     { background: #C2D2E2; color: #1f2937; }
-  .slot.dividido .meia.status-fechou            { background: linear-gradient(135deg, #FDE047 0%, #F59E0B 100%); color: #3B2A00;
+  .slot.dividido .meia.status-fechou            { background: linear-gradient(135deg, #B45309 0%, #92400E 100%); color: #fff;
                                                   box-shadow: inset 0 0 0 2px #FFFBEB; }
   .slot.dividido .meia.status-em_atendimento    { background: #DFE7F0; color: #1f2937; }
   .slot.dividido .meia.status-proposta_apresentada { background: #B3C7DC; color: #1f2937; }
@@ -430,8 +432,10 @@
   .slot.dividido .meia.status-carregador        { background: #EADBC0; color: #1f2937; }
   .slot.dividido .meia.status-meio_a_meio       { background: #EADBC0; color: #1f2937; }
   .slot.dividido .meia.status-chave_na_mao      { background: #EADBC0; color: #1f2937; }
-  .slot.dividido .meia.status-apalavrado        { background: #F59E0B; color: #2A1D00; }
-  .slot.dividido .meia.em-espera                { background: #F59E0B; color: #2A1D00; }
+  .slot.dividido .meia.status-cotista           { background: #EADBC0; color: #1f2937; }
+  .slot.dividido .meia.status-integrador        { background: #EADBC0; color: #1f2937; }
+  .slot.dividido .meia.status-apalavrado        { background: #FCD34D; color: #3B2A00; }
+  .slot.dividido .meia.em-espera                { background: #FCD34D; color: #3B2A00; }
   .slot.dividido .meia.status-perdido           { background: #dc2626; color: #fff; }
   /* ── SILÊNCIO DO LEAD (ordem do Thiago, 19/08/2026) ──────────────────────────
      "O lead do horário que não responder a primeira msg fica em amarelo."
@@ -931,13 +935,13 @@
   /* Botao CLARO: o contorno branco de dentro sumia nele. */
   .btn-status.bg-wp.is-atual,
   .btn-status.bg-fo.is-atual,
-  .btn-status.bg-em.is-atual,
-  .btn-status.bg-pa.is-atual,
   .btn-status.bg-ar.is-atual,
   .btn-status.bg-fe.is-atual,
   .btn-status.bg-cr.is-atual,
   .btn-status.bg-mm.is-atual,
   .btn-status.bg-ch.is-atual,
+  .btn-status.bg-co.is-atual,
+  .btn-status.bg-in.is-atual,
   .btn-status.bg-ap.is-atual { outline-color: rgba(17,24,39,.75); }
   .btn-status.bg-ag { background: #0d2d5e; color: #fff; }
   .btn-status.bg-na { background: #dc2626; color: #fff; }
@@ -946,13 +950,13 @@
   .btn-status.bg-so { background: #C2410C; color: #fff; }
   .btn-status.bg-fo { background: #C2D2E2; color: #1f2937; }
   .btn-status.bg-fe { background: linear-gradient(135deg, #FDE047 0%, #F59E0B 100%); color: #3B2A00; }
-  .btn-status.bg-em { background: #DFE7F0; color: #1f2937; }
   .btn-status.bg-ar { background: #EADBC0; color: #1f2937; }
   .btn-status.bg-cr { background: #EADBC0; color: #1f2937; }
   .btn-status.bg-mm { background: #EADBC0; color: #1f2937; }
   .btn-status.bg-ch { background: #EADBC0; color: #1f2937; }
+  .btn-status.bg-co { background: #EADBC0; color: #1f2937; }
+  .btn-status.bg-in { background: #EADBC0; color: #1f2937; }
   .btn-status.bg-pe { background: #dc2626; color: #fff; }
-  .btn-status.bg-pa { background: #B3C7DC; color: #1f2937; }
   .prop-atual { font-size: 12px; color: #0369a1; margin-top: 8px; line-height: 1.4; }
   html[data-theme="dark"] .prop-atual { color: #7DD3FC; }
   .status-label { font-size: 11px; color: #6b7280; text-transform: uppercase; font-weight: 700; letter-spacing: .4px; margin-top: 14px; }
@@ -1115,7 +1119,7 @@
   html[data-theme="dark"] .slot.status-sem_interesse     { background: #dc2626; color: #fff; }
   html[data-theme="dark"] .slot.status-sem_orcamento     { background: #C2410C; color: #fff; }
   html[data-theme="dark"] .slot.status-fez_orcamento     { background: #C2D2E2; color: #1f2937; }
-  html[data-theme="dark"] .slot.status-fechou            { background: linear-gradient(135deg, #FDE047 0%, #F59E0B 100%); color: #3B2A00;
+  html[data-theme="dark"] .slot.status-fechou            { background: linear-gradient(135deg, #B45309 0%, #92400E 100%); color: #fff;
                                                            box-shadow: inset 0 0 0 2px #FFFBEB, 0 0 12px rgba(245,158,11,.6); }
   html[data-theme="dark"] .slot.status-em_atendimento    { background: #DFE7F0; color: #1f2937; }
   html[data-theme="dark"] .slot.status-proposta_apresentada { background: #B3C7DC; color: #1f2937; }
@@ -1124,8 +1128,10 @@
   html[data-theme="dark"] .slot.status-carregador        { background: #EADBC0; color: #1f2937; }
   html[data-theme="dark"] .slot.status-meio_a_meio       { background: #EADBC0; color: #1f2937; }
   html[data-theme="dark"] .slot.status-chave_na_mao      { background: #EADBC0; color: #1f2937; }
-  html[data-theme="dark"] .slot.status-apalavrado        { background: #F59E0B; color: #2A1D00; }
-  html[data-theme="dark"] .slot.em-espera                { background: #F59E0B; color: #2A1D00; }
+  html[data-theme="dark"] .slot.status-cotista           { background: #EADBC0; color: #1f2937; }
+  html[data-theme="dark"] .slot.status-integrador        { background: #EADBC0; color: #1f2937; }
+  html[data-theme="dark"] .slot.status-apalavrado        { background: #FCD34D; color: #3B2A00; }
+  html[data-theme="dark"] .slot.em-espera                { background: #FCD34D; color: #3B2A00; }
   html[data-theme="dark"] .slot.status-perdido           { background: #dc2626; color: #fff; }
   html[data-theme="dark"] .slot.bloqueado {
     background: repeating-linear-gradient(45deg, #6b7280, #6b7280 6px, #525c6a 6px, #525c6a 12px);
@@ -1227,7 +1233,6 @@
     <div class="item"><div class="sw sw-fo"></div> Fez orçamento</div>
     <div class="item"><div class="sw sw-pa"></div> Proposta apresentada</div>
     <div class="item"><div class="sw sw-fe"></div> Vendido</div>
-    <div class="item"><span class="apres-ponto ok"></span><span class="apres-ponto nao"></span> Apresentação concluída / não concluída (no quadro dividido)</div>
     <div class="item"><div class="sw sw-mod"></div> Arrendamento, carregador, 50/50 e chave na mão (a etiqueta no card diz qual)</div>
     <div class="item"><div class="sw" style="background:repeating-linear-gradient(45deg,#6b7280,#6b7280 4px,#525c6a 4px,#525c6a 8px)"></div> Bloqueado</div>
     <div class="item" style="margin-left:8px;padding-left:12px;border-left:1px solid #d1d5db">❄️ <div class="sw sw-tf"></div> Frio</div>
@@ -1384,7 +1389,6 @@
     <div class="status-grid">
       <button type="button" class="btn-status bg-ag" data-status="agendado"          onclick="atualizarStatus('agendado')">📞 Agendada</button>
       <button type="button" class="btn-status bg-na" data-status="nao_atendeu"       onclick="atualizarStatus('nao_atendeu')">❌ Não atendeu</button>
-      <button type="button" class="btn-status bg-em" data-status="em_atendimento"    onclick="atualizarStatus('em_atendimento')" style="grid-column: span 2;">🕐 NEGOCIANDO (segura o lead)</button>
       <button type="button" class="btn-status bg-si" data-status="sem_interesse"     onclick="atualizarStatus('sem_interesse')" style="grid-column: span 2;">🙅 Sem interesse</button>
       <!-- ARRENDAMENTO (17/09/2026) — tomou o lugar do botão "Fechou concorrente".
            É quem NÃO quer comprar mas deixa a gente instalar no ponto dele: nós
@@ -1399,6 +1403,8 @@
       <button type="button" class="btn-status bg-cr" data-status="carregador"        onclick="atualizarStatus('carregador')" style="grid-column: span 2;">🔌 Carregador</button>
       <button type="button" class="btn-status bg-mm" data-status="meio_a_meio"       onclick="atualizarStatus('meio_a_meio')" style="grid-column: span 2;">👥 50/50</button>
       <button type="button" class="btn-status bg-ch" data-status="chave_na_mao"      onclick="atualizarStatus('chave_na_mao')" style="grid-column: span 2;">🔑 Chave na mão</button>
+      <button type="button" class="btn-status bg-co" data-status="cotista"           onclick="atualizarStatus('cotista')" style="grid-column: span 2;">📊 Cotista</button>
+      <button type="button" class="btn-status bg-in" data-status="integrador"        onclick="atualizarStatus('integrador')" style="grid-column: span 2;">🛠️ Integrador</button>
       <!-- PERDIDO saiu do grid em 23/09/2026 (ordem do dono). Quem perde o lead
            marca "Sem interesse". O status velho continua VIVO nos mapas de rótulo
            e nas cores: fichas antigas o carregam e apareceriam sem selo, e a api
@@ -1439,27 +1445,6 @@
       </div>
       <button type="button" class="espera-ok" id="d-espera-ok" disabled onclick="apalavrar()">Pôr na espera</button>
       <div class="posse-nota">Ele sai do ciclo de 48h e para de receber cobrança. Na data, o card volta marcado como vencido.</div>
-    </div>
-
-    <!-- APRESENTAÇÃO (23/09/2026): etiqueta verde ou vermelha no card. Vale pra
-         todo card, solar inclusive, e não mexe no status: é a resposta de outra
-         pergunta. Clicar no botão já marcado desmarca, e o card volta a não
-         mostrar nada — não marcado é diferente de "não concluída". -->
-    <div id="d-apres-wrap">
-      <div class="status-label">🖥️ Apresentação</div>
-      <div class="apres-grid">
-        <button type="button" class="apres-btn ok"  id="d-apres-ok"  onclick="marcarApresentacao('concluida')">APRES CONCLUÍDA</button>
-        <button type="button" class="apres-btn nao" id="d-apres-nao" onclick="marcarApresentacao('nao_concluida')">APRES NÃO CONCLUÍDA</button>
-      </div>
-      <div class="prop-atual" id="d-apres-atual"></div>
-    </div>
-
-    <!-- Eletroposto: quem REALMENTE apresentou a proposta. Só aparece em card de
-         eletroposto (o lead circula entre Thiago e Diego a cada 12h sem ação). -->
-    <div id="d-prop-wrap" style="display:none">
-      <div class="status-label">📑 Proposta apresentada — quem fez?</div>
-      <div class="status-grid" id="d-prop-grid"></div>
-      <div class="prop-atual" id="d-prop-atual"></div>
     </div>
 
     <div class="modal-erro" id="d-erro"></div>
@@ -1558,6 +1543,7 @@ let esperasCache = {};                       // { '<id>': { retomar_em, aguardan
 let etiquetasCache = {};                     // { '<id>': 'arrendamento' }
 const ETIQUETAS_NEGOCIO = new Set([
   'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao',
+  'cotista', 'integrador',
   'em_atendimento', 'proposta_apresentada', 'fez_orcamento', 'falando_whatsapp',
 ]);
 const STATUS_TERMINAIS = new Set([
@@ -1771,6 +1757,52 @@ function pillEtiquetaGuardada(ag) {
   return r ? `<span class="tag-modelo">${r[0]}</span>` : '';
 }
 
+/**
+ * ── CINCO ESTADOS SAÍRAM DA PALETA (01/10/2026, ordem do dono) ────────────
+ *
+ * Ele riscou no quadro: EM ATENDIMENTO, FEZ ORÇAMENTO, FALANDO WHATSAPP,
+ * PROPOSTA APRESENTADA e CONCORRENTE. Os quatro últimos nem botão tinham mais;
+ * sobreviviam só como COR, e eram quatro azuis pálidos a menos de 1,25 de
+ * contraste um do outro e do bege dos modelos. Oito cards do quadro pareciam o
+ * mesmo card.
+ *
+ * Eles não somem do banco: ~105 fichas ainda têm esses status, e apagar isso
+ * seria jogar fora em que estágio cada uma parou. O que muda é a COR: elas
+ * passam a ser pintadas como AGENDADO, e a pílula continua dizendo o que o card
+ * é. Volta a valer a regra da casa: a cor diz a família, a pílula diz qual.
+ *
+ * A EXCEÇÃO É O SOLAR. Gerar orçamento num card de solar marca `fez_orcamento`
+ * sozinho (é o `gerarOrcamentoDoDetalhe`, de 23/09), e o dono quis manter: lá a
+ * cor TEM que mudar, porque ela é o aviso de que o orçamento saiu. No
+ * eletroposto a mesma etiqueta não existe mais.
+ */
+/** Card de ELETROPOSTO? A mesma regra do `semRespostaDoLead` logo abaixo, do
+ *  `crmEhEletroposto` no CRM e do repasse no banco: a família é NOMEADA no
+ *  `created_by`, e o resto é solar.
+ *
+ *  Não uso o `origemEhSolar` do etiqueta.js de propósito. Ele é allowlist de
+ *  cinco origens exatas e serve a outra pergunta — de que lado do quadro
+ *  dividido o card senta, espelhando dois índices do banco. Medido nos 43 cards
+ *  `fez_orcamento` de 01/10: a allowlist reconhece 41, esta regra reconhece 43, e
+ *  os 2 que faltam são cadastro à mão — exatamente quem digita o orçamento
+ *  esperando ver a cor mudar. */
+function cardEhEletroposto(ag) {
+  return String((ag && ag.created_by) || '').toLowerCase().includes('eletroposto');
+}
+
+const SEM_COR_PROPRIA = new Set([
+  'em_atendimento', 'falando_whatsapp', 'proposta_apresentada', 'fechou_concorrente',
+]);
+
+/** A classe de cor do card. Nem sempre é o status: ver acima. */
+function classeDeCor(ag) {
+  const st = String((ag && ag.status) || 'agendado');
+  if (SEM_COR_PROPRIA.has(st)) return 'status-agendado';
+  // `fez_orcamento` só pinta no SOLAR.
+  if (st === 'fez_orcamento' && cardEhEletroposto(ag)) return 'status-agendado';
+  return 'status-' + st;
+}
+
 /** `' em-espera'` quando o card esta na sala de espera, pra pintar ele de
  *  amarelo. String vazia quando nao esta. */
 function classeEspera(ag) {
@@ -1868,6 +1900,8 @@ const ETIQUETA_STATUS = {
   carregador:           ['CARREGADOR',     'CARREG'],
   meio_a_meio:          ['50/50',          '50/50'],
   chave_na_mao:         ['CHAVE NA MÃO',   'CHAVE'],
+  cotista:              ['COTISTA',        'COTISTA'],
+  integrador:           ['INTEGRADOR',     'INTEGR'],
   // A SALA DE ESPERA (30/09/2026). Sem esta linha o card apalavrado saía da
   // grade sem selo nenhum e pintado de azul, igual a uma reunião agendada que
   // ainda vai acontecer: o oposto do que ele é.
@@ -1885,13 +1919,7 @@ function pillApres(ag, curto) {
   const t = ag && ETIQUETA_APRES[ag.apresentacao];
   return t ? `<span class="tag-pill ${t[2]}">${curto ? t[1] : t[0]}</span>` : '';
 }
-/** A mesma informação em 8px, pro quadro dividido, onde não cabe pílula. */
-function pontoApres(ag) {
-  const v = ag && ag.apresentacao;
-  if (v !== 'concluida' && v !== 'nao_concluida') return '';
-  const ok = v === 'concluida';
-  return `<span class="apres-ponto ${ok ? 'ok' : 'nao'}" title="Apresentação ${ok ? 'concluída' : 'NÃO concluída'}"></span>`;
-}
+
 
 /** Etiqueta de status do card. Depois que tres status passaram a dividir o mesmo
  *  vermelho e quatro o mesmo bege, a cor sozinha nao diz mais qual e — quem diz
@@ -2034,15 +2062,15 @@ function renderGrid() {
             const etq = etqDeLead(a.created_by, a.src);
             const etqCls = (typeof etiquetaCor === 'function' ? etiquetaCor(etq) : '');
             const okA = !!a.presenca_confirmada_at;
-            return `<div class="meia ocupado status-${escapeHtml(a.status || 'agendado')}${classeEspera(a)}${okA ? ' confirmado' : ''}${semRespostaDoLead(a) ? ' sem-resposta' : ''}"
+            return `<div class="meia ocupado ${classeDeCor(a)}${classeEspera(a)}${okA ? ' confirmado' : ''}${semRespostaDoLead(a) ? ' sem-resposta' : ''}"
               data-id="${a.id}" onclick="abrirDetalhes(${a.id})" title="${escapeHtml(a.cliente_nome || '')}">
               <div class="nome">${horaDoSlot(a, iniSlot)}${escapeHtml(a.cliente_nome)}</div>
-              ${(pillStatus(a, true) || pontoApres(a) || etq) ? `<div class="cidade">${pillStatus(a, true)}${pontoApres(a)}${etq ? ` <span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>` : ''}</div>` : ''}
+              ${(pillStatus(a, true) || etq) ? `<div class="cidade">${pillStatus(a, true)}${etq ? ` <span class="tag-pill${etqCls ? ' tag-' + etqCls : ''}">${escapeHtml(etq)}</span>` : ''}</div>` : ''}
               ${btnConfirmada(a, true)}
             </div>`;
           }).join('') + `</div>`;
         } else if (ag) {
-          const stCls = `status-${(ag.status || 'agendado')}${classeEspera(ag)}`;
+          const stCls = `${classeDeCor(ag)}${classeEspera(ag)}`;
           const tempCls = ag.temperatura ? ` temp-${ag.temperatura}` : '';
           const tempLabel = ag.temperatura === 'frio'   ? 'FRIO'
                           : ag.temperatura === 'morno'  ? 'MORNO'
@@ -2368,140 +2396,11 @@ function abrirDetalhes(id) {
   document.getElementById('d-nota').value = '';
   marcarStatusAtualNosBotoes(ag.status || 'agendado');
   marcarTemperaturaAtualNosBotoes(ag.temperatura || null);
-  renderPropostaEP(ag);
-  renderApresentacao(ag);
   fecharReagendar();
   document.getElementById('modal-det').classList.add('show');
 }
 
-// ===== APRESENTAÇÃO · A ETIQUETA VERDE OU VERMELHA DO CARD ===================
-// Ordem do dono (23/09/2026): dá pra bater o olho na grade e ver onde a
-// apresentação já foi feita. Fica numa coluna própria (`apresentacao`), e não no
-// status, por dois motivos: o status já carrega o desfecho do negócio (arrendamento,
-// 50/50, perdido), e a apresentação acontece POR DENTRO de vários desses desfechos.
-// Card sem marcação não mostra etiqueta nenhuma: "ninguém marcou" não é "não fez".
-function renderApresentacao(ag) {
-  const wrap = document.getElementById('d-apres-wrap');
-  if (!wrap || !ag) return;
-  const v = ag.apresentacao || '';
-  document.getElementById('d-apres-ok').classList.toggle('is-atual', v === 'concluida');
-  document.getElementById('d-apres-nao').classList.toggle('is-atual', v === 'nao_concluida');
-  let quando = '';
-  if (ag.apresentacao_em) {
-    const d = new Date(ag.apresentacao_em);
-    if (!isNaN(d.getTime())) quando = ` em ${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}h${pad(d.getMinutes())}`;
-  }
-  const quem = ag.apresentacao_por ? ` por ${ag.apresentacao_por}` : '';
-  document.getElementById('d-apres-atual').textContent = v
-    ? `${v === 'concluida' ? 'Apresentação concluída' : 'Apresentação não concluída'}${quem}${quando} — clique no mesmo botão pra desmarcar.`
-    : 'Marque quando a apresentação for feita. A etiqueta aparece no card, na grade.';
-}
-
-async function marcarApresentacao(valor) {
-  if (!detalheAtual) return;
-  const ag = detalheAtual;
-  // Toggle igual ao da proposta: clicar no que já está marcado desmarca, e o card
-  // volta a não mostrar etiqueta nenhuma.
-  const desmarcar = (ag.apresentacao || '') === valor;
-  const agora = new Date();
-  const autor = consultorLogado() || '—';
-  const ts = `${pad(agora.getDate())}/${pad(agora.getMonth()+1)} ${pad(agora.getHours())}h${pad(agora.getMinutes())}`;
-  const rotulo = valor === 'concluida' ? 'concluída' : 'não concluída';
-  const entrada = desmarcar
-    ? `[${ts} · ${autor}] 🖥️ Etiqueta de apresentação removida.`
-    : `[${ts} · ${autor}] 🖥️ Apresentação ${rotulo}.`;
-  const historico = ag.historico ? `${entrada}\n\n${ag.historico}` : entrada;
-  const patch = desmarcar
-    ? { apresentacao: null, apresentacao_em: null, apresentacao_por: null, historico }
-    : { apresentacao: valor, apresentacao_em: agora.toISOString(), apresentacao_por: autor, historico };
-  try {
-    await supaPatch(`agendamentos?id=eq.${ag.id}`, patch);
-    Object.assign(ag, patch);
-    const idx = agendamentosCache.findIndex(a => a.id === ag.id);
-    if (idx >= 0) Object.assign(agendamentosCache[idx], patch);
-    document.getElementById('d-hist').textContent = historico;
-    renderApresentacao(ag);
-    showToast(desmarcar ? '🖥️ Etiqueta de apresentação removida' : `🖥️ Apresentação ${rotulo}`);
-    renderGrid();
-  } catch (e) {
-    document.getElementById('d-erro').textContent = 'Erro ao marcar a apresentação.';
-    console.error(e);
-  }
-}
-
-// ===== ELETROPOSTO · PROPOSTA APRESENTADA ===================================
-// O lead de eletroposto roda entre Thiago e Diego (repasse de 12h sem ação),
-// então quem termina com o card nem sempre é quem apresentou a proposta. Estes
-// botões gravam o crédito na mão (proposta_por/proposta_em). Marcar também põe
-// o status em proposta_apresentada, e isso zera o repassar_em no banco (trigger):
-// proposta já apresentada não fica mais pulando de consultor.
-const EP_TIME = ['Thiago', 'Diego'];
-const ehCardEletroposto = (ag) => String((ag && ag.created_by) || '').includes('eletroposto');
-
-function renderPropostaEP(ag) {
-  const wrap = document.getElementById('d-prop-wrap');
-  if (!wrap) return;
-  const ehEp = ehCardEletroposto(ag);
-  wrap.style.display = ehEp ? '' : 'none';
-  if (!ehEp) return;
-
-  const logado = consultorLogado();
-  document.getElementById('d-prop-grid').innerHTML = EP_TIME.map(nome => {
-    const atual = ag.proposta_por === nome ? ' is-atual' : '';
-    const eu = nome === logado ? ' (você)' : '';
-    return `<button type="button" class="btn-status bg-pa${atual}" onclick="marcarPropostaEP('${nome}')">📑 ${escapeHtml(nome)}${eu}</button>`;
-  }).join('');
-
-  let quando = '';
-  if (ag.proposta_em) {
-    const d = new Date(ag.proposta_em);
-    if (!isNaN(d.getTime())) quando = ` em ${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}h${pad(d.getMinutes())}`;
-  }
-  document.getElementById('d-prop-atual').textContent = ag.proposta_por
-    ? `Apresentada por ${ag.proposta_por}${quando} — clique no outro nome pra corrigir, ou nesse mesmo pra desmarcar.`
-    : 'Clique em quem realmente apresentou a proposta pro cliente.';
-}
-
-async function marcarPropostaEP(quem) {
-  if (!detalheAtual) return;
-  const ag = detalheAtual;
-  // Toggle igual ao da temperatura: clicar em quem já está marcado desmarca
-  // (conserta clique errado). Desmarcar devolve o card pro fluxo normal —
-  // status 'agendado' religa o relógio do repasse, como era antes da marcação.
-  const desmarcar = ag.proposta_por === quem;
-  const agora = new Date();
-  const autor = consultorLogado() || '—';
-  const ts = `${pad(agora.getDate())}/${pad(agora.getMonth()+1)} ${pad(agora.getHours())}h${pad(agora.getMinutes())}`;
-  const entrada = desmarcar
-    ? `[${ts} · ${autor}] 📑 Marcação de proposta apresentada removida.`
-    : `[${ts} · ${autor}] 📑 Proposta apresentada por ${quem}.`;
-  const historico = ag.historico ? `${entrada}\n\n${ag.historico}` : entrada;
-  const patch = desmarcar
-    ? { status: 'agendado', proposta_por: null, proposta_em: null, historico }
-    : { status: 'proposta_apresentada', proposta_por: quem, proposta_em: agora.toISOString(), historico };
-  try {
-    await supaPatch(`agendamentos?id=eq.${ag.id}`, patch);
-    Object.assign(ag, patch);
-    const idx = agendamentosCache.findIndex(a => a.id === ag.id);
-    if (idx >= 0) Object.assign(agendamentosCache[idx], patch);
-    document.getElementById('d-hist').textContent = historico;
-    marcarStatusAtualNosBotoes(patch.status);
-    renderPropostaEP(ag);
-    showToast(desmarcar ? '📑 Marcação de proposta removida' : `📑 Proposta apresentada por ${quem}`);
-    renderGrid();
-  } catch (e) {
-    document.getElementById('d-erro').textContent = 'Erro ao marcar a proposta.';
-    console.error(e);
-  }
-}
-
-// "Gerar orçamento" → volta pro gerador (página separada) já com os dados do
-// cliente. O handoff é por querystring, mesmo padrão do botão Reagendar do CRM
-// (?ag=). O /gerador lê ?orc=1 no load e pré-preenche o form.
-// Gerar orçamento JÁ classifica o lead como Frio (era o antigo botão "Fez
-// orçamento", removido): quem recebeu orçamento entra na coluna Frio do CRM e
-// sai do alvo do followup automático (que pula qualquer lead com temperatura).
-// A gravação é best-effort — se falhar, ainda navega (não trava o consultor).
+// ===== GERAR ORÇAMENTO A PARTIR DO CARD =====================================
 async function gerarOrcamentoDoDetalhe(produto) {
   if (!detalheAtual) return;
   const ag = detalheAtual;
@@ -2736,6 +2635,8 @@ async function atualizarStatus(novoStatus, extra) {
       meio_a_meio:       '👥 Marcado como 50/50 — sociedade meio a meio',
       carregador:        '🔌 Marcado como Carregador — leva só o equipamento',
       chave_na_mao:      '🔑 Marcado como Chave na mão — o eletroposto é dele',
+      cotista:           '📊 Marcado como COTISTA — entra com dinheiro, não com ponto',
+      integrador:        '🛠️ Marcado como INTEGRADOR — revende/instala pra terceiro',
       fechou_concorrente:'🏢 Marcado como Fechou concorrente',
       perdido:           '❌ Marcado como Perdido',
       apalavrado:        '🤞 APALAVRADO — sai do ciclo e volta na data',

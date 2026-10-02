@@ -340,7 +340,11 @@ export function montarFunil(eventos: EventoQuiz[], visitas: VisitaQuiz[], opcoes
 // valem para qualquer período. Só a coluna "onde mais para" começa em 22/09.
 
 /** Como o status da reunião, depois que ela aconteceu, se lê aqui. */
-export const STATUS_NEGOCIO = ['fez_orcamento', 'proposta_apresentada', 'chave_na_mao', 'meio_a_meio', 'carregador'];
+// COTISTA e INTEGRADOR entram em 01/10/2026: os dois COMPRAM, então são negócio
+// como os outros. `arrendamento` continua fora porque tem contador próprio
+// (`l.arrendamento`) logo abaixo — lá a casa é que investe.
+export const STATUS_NEGOCIO = ['fez_orcamento', 'proposta_apresentada', 'chave_na_mao',
+  'meio_a_meio', 'carregador', 'cotista', 'integrador'];
 export const STATUS_PERDIDA = ['sem_interesse', 'nao_atendeu', 'cancelado', 'perdido', 'fechou_concorrente'];
 
 export interface ResultadoLead {

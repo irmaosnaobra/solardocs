@@ -19,10 +19,16 @@ import {
 // status que ocupa horário na agenda.
 
 describe('as duas listas da etiqueta preservada', () => {
-  it('as etiquetas de negociação são as oito que o quadro tem coluna pra mostrar', () => {
+  it('as etiquetas de negociação são as dez que dizem de que negócio se tratava', () => {
+    // COTISTA e INTEGRADOR entraram em 01/10/2026, junto com os botões. Os três
+    // riscados no mesmo dia (`em_atendimento`, `proposta_apresentada`,
+    // `falando_whatsapp`) FICAM: eles perderam o botão, não o passado — 97
+    // fichas ainda os carregam, e é justo essa etiqueta que o terminal precisa
+    // guardar pra o card não virar só "sem interesse" sem assunto.
     expect([...ETIQUETAS_DE_NEGOCIO].sort()).toEqual([
-      'arrendamento', 'carregador', 'chave_na_mao', 'em_atendimento',
-      'falando_whatsapp', 'fez_orcamento', 'meio_a_meio', 'proposta_apresentada',
+      'arrendamento', 'carregador', 'chave_na_mao', 'cotista', 'em_atendimento',
+      'falando_whatsapp', 'fez_orcamento', 'integrador', 'meio_a_meio',
+      'proposta_apresentada',
     ]);
   });
 
@@ -56,6 +62,54 @@ describe('as duas listas da etiqueta preservada', () => {
       expect(ETIQUETAS_DE_NEGOCIO.has(st)).toBe(false);
       expect(STATUS_TERMINAIS.has(st)).toBe(false);
     }
+  });
+
+  // ── AS TRÊS CÓPIAS DA LISTA (01/10/2026) ──────────────────────────────────
+  //
+  // O cabeçalho deste arquivo sempre disse que o defeito a pegar é "as três
+  // cópias divergindo", e nenhum teste comparava as três. Hoje eu mesmo editei a
+  // lista nos três lugares à mão pra entrar com COTISTA e INTEGRADOR: é
+  // exatamente o movimento em que uma fica pra trás.
+  //
+  // E o estrago é silencioso dos dois lados. Se a tela manda uma etiqueta que o
+  // servidor não tem na lista, a rota recusa e o card perde o assunto do
+  // negócio. Se a tela não manda a que o servidor tem, ninguém nem tenta.
+  // Nenhum dos dois dá erro em tela: só falta informação depois.
+  it('as três cópias da lista são a MESMA lista', () => {
+    const lista = (txt: string, nome: string): string[] => {
+      const i = txt.indexOf(nome);
+      expect(i).toBeGreaterThan(-1);
+      const fim = txt.indexOf(']', i);
+      expect(fim).toBeGreaterThan(i);
+      return (txt.slice(i, fim).match(/'([a-z_]+)'/g) || [])
+        .map(q => q.replace(/'/g, '')).sort();
+    };
+    const pub = join(__dirname, '..', '..', '..', 'dashboard', 'public', 'gerador');
+    const naAgenda = lista(
+      readFileSync(join(pub, 'agenda', 'index.html'), 'utf8'), 'const ETIQUETAS_NEGOCIO');
+    const noCrm = lista(
+      readFileSync(join(pub, 'index.html'), 'utf8'), 'const CRM_ETIQUETAS_NEGOCIO');
+    const noServidor = [...ETIQUETAS_DE_NEGOCIO].sort();
+
+    expect(naAgenda).toEqual(noServidor);
+    expect(noCrm).toEqual(noServidor);
+  });
+
+  // Mesma ideia pros terminais: é a outra metade do par, e um terminal que só
+  // existe numa das telas apaga a etiqueta num lugar e preserva no outro.
+  it('os terminais também são os mesmos nas três', () => {
+    const lista = (txt: string, nome: string): string[] => {
+      const i = txt.indexOf(nome);
+      expect(i).toBeGreaterThan(-1);
+      const fim = txt.indexOf(']', i);
+      return (txt.slice(i, fim).match(/'([a-z_]+)'/g) || [])
+        .map(q => q.replace(/'/g, '')).sort();
+    };
+    const pub = join(__dirname, '..', '..', '..', 'dashboard', 'public', 'gerador');
+    expect(lista(readFileSync(join(pub, 'agenda', 'index.html'), 'utf8'),
+      'const STATUS_TERMINAIS')).toEqual([...STATUS_TERMINAIS].sort());
+    expect(lista(readFileSync(join(pub, 'index.html'), 'utf8'),
+      'const CRM_STATUS_TERMINAIS')).toEqual([...STATUS_TERMINAIS].sort());
   });
 
   it('os dois prefixos de marca são diferentes, senão uma sobrescreve a outra', () => {
