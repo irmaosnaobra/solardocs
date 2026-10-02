@@ -1092,8 +1092,17 @@ export async function runEletropostoReagendaAutoTick(
   // ia se mover. Com 66 `nao_atendeu` esperando, isso era sempre verdadeiro:
   // todo o ciclo silencioso ficava pendurado no teto de uma linha que ele não
   // usa. Só pergunta ao throttle se sobrou falante na fila.
+  //
+  // E A CONTA TEM QUE SER DA LINHA INTEIRA (02/10/2026). Era `transacional:
+  // false`, que conta só os prefixos FRIOS. Só que o carimbo deste módulo é
+  // `ep_agenda_sent:<id>:reagendado`, prefixo da AGENDA: o robô não enxergava os
+  // próprios envios, o contador dele nunca subia e o teto de 6/h nunca fechava.
+  // Em 02/10 ele mandou 39 remarcações das 9h00 às 9h55, uma a cada ~90s, para
+  // fichas de agosto que nunca responderam, e a linha 5040 caiu às 9h55.
+  // `transacional: true` aqui NÃO é passe livre: sem `piso*` ele só troca a
+  // conta pela da linha toda, que é a que inclui este carimbo.
   if (!opts.dry && aptos.some(f => relogioDe(f) === 'fala')
-      && !(await dentroDoTetoHorarioLinha({ transacional: false }))) {
+      && !(await dentroDoTetoHorarioLinha({ transacional: true }))) {
     logger.info('ep-reagenda', 'teto da linha estourado — nesta rodada andam só os calados');
     linhaEstourou = true;
     aptos = aptos.filter(f => relogioDe(f) === 'mudo');
@@ -1195,6 +1204,10 @@ export async function runEletropostoReagendaAutoTick(
           tel,
           bolhasReagendado(primeiro, String(f.quando), novo, quem, telPorConsultor.get(quem) ?? null, tentativa),
           'io',
+          // Quem recebe isto sumiu de uma reunião: é toque frio, e toque frio é
+          // UMA mensagem desde o bloqueio de agosto. Sem `maxBolhas` o fatiador
+          // soltava 3 ou mais bolhas por pessoa.
+          { maxBolhas: 1, max: 1200 },
         );
       }
       // A MARCA DO SILÊNCIO. Sem ela o `eletropostoCobraSim` lê o
@@ -1243,6 +1256,11 @@ export async function runEletropostoReagendaAutoTick(
     } catch (e) {
       logger.error('ep-reagenda', 'reagendamento falhou', { id: f.id, erro: String(e) });
       erros++;
+      // ERRO PARA A RODADA (02/10/2026). O laço só parava no que MOVEU, então
+      // um erro seguia pra próxima ficha. Com a linha caída cada uma era
+      // remarcada ANTES do envio falhar: num tick só, 8 fichas mudaram de dia
+      // sem o cliente saber, e a rampa passou de 39/40 pra 47/40.
+      break;
     }
   }
 

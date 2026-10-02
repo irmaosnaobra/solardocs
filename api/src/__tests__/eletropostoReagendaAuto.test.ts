@@ -168,14 +168,19 @@ vi.mock('../services/io/eletropostoAgenda', () => ({
 
 vi.mock('../services/io/eletropostoRemarcar', () => ({ EP_REMARCAR_PREFIX: 'ep_remarcar:' }));
 
-const enviadas: Array<{ tel: string; bolhas: string[] }> = [];
+const enviadas: Array<{ tel: string; bolhas: string[]; opts?: any }> = [];
+let envioQuebrado = false;
 vi.mock('../services/agents/zapiClient', () => ({
-  sendHuman: vi.fn(async (tel: string, bolhas: string[]) => { enviadas.push({ tel, bolhas }); }),
+  sendHuman: vi.fn(async (tel: string, bolhas: string[], _inst?: string, opts?: any) => {
+    if (envioQuebrado) throw new Error('[zapi:io] HTTP 400 — whatsapp is disconnected');
+    enviadas.push({ tel, bolhas, opts });
+  }),
 }));
 
 let tetoLivre = true;
+const pedidosTeto: any[] = [];
 vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
-  dentroDoTetoHorarioLinha: vi.fn(async () => tetoLivre),
+  dentroDoTetoHorarioLinha: vi.fn(async (o?: any) => { pedidosTeto.push(o); return tetoLivre; }),
 }));
 
 // 20/08/2026 (quinta), 15h BRT = 18h UTC — dentro da janela de 9h–19h.
@@ -208,6 +213,8 @@ beforeEach(() => {
   vagas = [SEXTA_13H, SEXTA_14H];
   aoPedirVagas = null;
   tetoLivre = true;
+  envioQuebrado = false;
+  pedidosTeto.length = 0;
   rampaQuebrada = false;
   esperaQuebrada = false;
   cicloQuebrado = false;
@@ -456,6 +463,38 @@ describe('não falar demais com quem sumiu', () => {
     const r = await tick();
     expect(r.motivo).toBe('desligado');
     expect(updates).toHaveLength(0);
+  });
+});
+
+// ── A QUEDA DA LINHA 5040 EM 02/10/2026 ──────────────────────────────────────
+// 39 remarcações das 9h00 às 9h55, uma a cada ~90s, e a linha caiu. Três
+// defeitos somados; cada teste abaixo falha no código daquele dia.
+describe('a rajada de 02/10 não se repete', () => {
+  it('o teto é perguntado pela LINHA INTEIRA — o carimbo deste robô é prefixo da agenda', async () => {
+    await tick();
+    expect(pedidosTeto).toHaveLength(1);
+    expect(pedidosTeto[0]?.transacional).toBe(true);
+    // Sem piso: pedir a conta da linha toda não pode virar passe livre.
+    expect(pedidosTeto[0]?.pisoHora).toBeUndefined();
+    expect(pedidosTeto[0]?.pisoDia).toBeUndefined();
+  });
+
+  it('a remarcação sai em UMA mensagem — toque frio não fatia', async () => {
+    await tick();
+    expect(enviadas).toHaveLength(1);
+    expect(enviadas[0]!.opts?.maxBolhas).toBe(1);
+  });
+
+  it('envio falhou: a rodada PARA, em vez de remarcar a fila inteira sem avisar ninguém', async () => {
+    fichas = [
+      ficha({ id: 41, quando: horasAtras(9) }),
+      ficha({ id: 42, quando: horasAtras(8) }),
+      ficha({ id: 43, quando: horasAtras(7) }),
+    ];
+    envioQuebrado = true;
+    const r = await tick();
+    expect(r.erros).toBe(1);
+    expect(updates.map(u => u.id)).toEqual([41]);
   });
 });
 
