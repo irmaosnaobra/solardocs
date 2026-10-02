@@ -911,19 +911,22 @@ export function mapsUrls(lat: number, lng: number, placeId?: string | null, head
   const ll = `${coord(lat)}%2C${coord(lng)}`;
   return {
     abrir: `https://www.google.com/maps/search/?api=1&query=${ll}${placeId ? `&query_place_id=${encodeURIComponent(placeId)}` : ''}`,
-    satelite: `https://www.google.com/maps/@?api=1&map_action=map&center=${ll}&zoom=19&basemap=satellite`,
+    // ?q= com t=k abre o satélite com ALFINETE na coordenada (a URL vira /place/...!3d!4d).
+    // O map_action=map de antes só centralizava, sem marcar o ponto.
+    satelite: `https://www.google.com/maps?q=${ll}&t=k&z=19`,
     rua: `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${ll}${heading != null ? `&heading=${Math.round(heading)}` : ''}`,
     rota: `https://www.google.com/maps/dir/?api=1&destination=${ll}`,
   };
 }
 
 /**
- * Google Earth na web, já em 3D inclinado sobre o ponto. O formato
- * @lat,lng,altitude a,distância d,abertura y,rumo h,inclinação t,giro r é o da
- * própria barra de endereço do Earth. Sem coordenada, a busca pelo texto.
+ * Google Earth na web, já em 3D inclinado sobre o ponto. O /search/lat,lng põe o
+ * alfinete na coordenada; o @lat,lng,altitude a,distância d,abertura y,rumo h,
+ * inclinação t,giro r posiciona a câmera. Só o @ (como era) centralizava sem marcar.
+ * Sem coordenada, a busca pelo texto, que também marca.
  */
 export const earthNoPonto = (lat: number, lng: number): string =>
-  `https://earth.google.com/web/@${coord(lat)},${coord(lng)},0a,350d,35y,0h,60t,0r`;
+  `https://earth.google.com/web/search/${coord(lat)},${coord(lng)}/@${coord(lat)},${coord(lng)},0a,350d,35y,0h,60t,0r`;
 
 export const earthBusca = (texto: string): string =>
   `https://earth.google.com/web/search/${encodeURIComponent(texto)}`;

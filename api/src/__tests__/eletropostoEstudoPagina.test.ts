@@ -543,7 +543,9 @@ describe('topo direto, Google Earth e PlugShare na cidade (02/10/2026)', () => {
   it('com o pino: Earth em 3D sobre a coordenada e PlugShare no ponto', () => {
     const html = render();
     expect(html).toContain('>Google Earth em 3D</a>');
-    expect(html).toContain('https://earth.google.com/web/@-19.747000,-47.939000,0a,350d,35y,0h,60t,0r');
+    expect(html).toContain('https://earth.google.com/web/search/-19.747000,-47.939000/@-19.747000,-47.939000,0a,350d,35y,0h,60t,0r');
+    // Satélite com alfinete, não só centralizado.
+    expect(html).toContain('https://www.google.com/maps?q=-19.747000%2C-47.939000&amp;t=k&amp;z=19');
     expect(html).toContain('https://www.plugshare.com/?latitude=-19.74700&amp;longitude=-47.93900&amp;zoom=14');
     for (const t of ['Plug-in em Uberaba', '900', 'Carregadores em 5 km', 'Payback no cenário base']) expect(html).toContain(t);
   });

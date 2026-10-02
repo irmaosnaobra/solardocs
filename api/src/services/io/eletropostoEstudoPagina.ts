@@ -1058,7 +1058,7 @@ function secaoMapas(l: LinhaEstudo, d: DadosEstudo): string {
   const b = botoesDoLocal(l, d);
   if (!b) return '';
   return secao('mapas', 'Abrir o local', b
-    + '<p class="pequeno">Tudo abre numa aba nova. O Google Earth mostra o ponto em 3D; o PlugShare mostra os carregadores que a comunidade cadastrou.</p>');
+    + '<p class="pequeno">Tudo abre numa aba nova. Google Maps, satélite e Google Earth marcam o ponto com alfinete. O PlugShare não põe alfinete: o ponto fica no centro do mapa.</p>');
 }
 
 /** Texto que o consultor manda junto com o link do cliente. Sem número de telefone. */

@@ -343,7 +343,8 @@ describe('links e textos', () => {
     expect(u.abrir).toBe('https://www.google.com/maps/search/?api=1&query=-18.914600%2C-48.275000&query_place_id=ChIJ%20abc%2F1');
     expect(u.rua).toContain('map_action=pano');
     expect(u.rua).toContain('heading=124');
-    expect(u.satelite).toContain('basemap=satellite');
+    expect(u.satelite).toContain('maps?q=');
+    expect(u.satelite).toContain('t=k');
     expect(u.rota).toBe('https://www.google.com/maps/dir/?api=1&destination=-18.914600%2C-48.275000');
     expect(JSON.stringify(u)).not.toContain('key=');
   });
