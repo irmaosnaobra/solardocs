@@ -43,6 +43,8 @@ export interface Resultado<T> {
 export const CUSTO_USD = {
   searchText: 0.032,
   nearby: 0.032,
+  /** Com evChargeOptions a busca sobe para o SKU Enterprise + Atmosphere. */
+  nearbyRecarga: 0.04,
   staticmap: 0.002,
   streetview: 0.007,
 } as const;
@@ -127,6 +129,9 @@ async function motivoDoErro(res: Response | null): Promise<string | undefined> {
 // Sem rating, telefone ou site: são SKUs mais caros e o estudo não usa.
 export const MASCARA_LOCAL = 'places.id,places.location,places.formattedAddress,places.addressComponents,places.types,places.primaryType,places.displayName,places.businessStatus';
 export const MASCARA_PROXIMOS = 'places.id,places.displayName,places.location,places.primaryType,places.types,places.businessStatus';
+// Carregador (02/10/2026): conector, quantidade e potência máxima de cada um. É o que
+// separa rápido (DC) de lento (AC) na concorrência. Só nesta busca: custa mais.
+export const MASCARA_RECARGA = `${MASCARA_PROXIMOS},places.evChargeOptions`;
 
 const headersPlaces = (chave: string, mascara: string) => ({
   'Content-Type': 'application/json',
@@ -153,7 +158,9 @@ export async function buscarLocal(texto: string, vies?: Coord | null): Promise<R
   return resultado(lugares, lugares.length ? 'ok' : 'zero_resultados', r.http, t0, custo);
 }
 
-export async function buscarProximos(centro: Coord, tipos: string[], raioM: number): Promise<Resultado<LugarGoogle[]>> {
+export async function buscarProximos(
+  centro: Coord, tipos: string[], raioM: number, mascara = MASCARA_PROXIMOS,
+): Promise<Resultado<LugarGoogle[]>> {
   const t0 = Date.now();
   const chave = chaveGoogle();
   if (!chave) return resultado<LugarGoogle[]>(null, 'sem_chave', null, t0);
@@ -167,8 +174,8 @@ export async function buscarProximos(centro: Coord, tipos: string[], raioM: numb
     regionCode: 'BR',
   };
   const r = await pedir('https://places.googleapis.com/v1/places:searchNearby',
-    { method: 'POST', headers: headersPlaces(chave, MASCARA_PROXIMOS), body: JSON.stringify(corpo) }, 8000, true);
-  const custo = r.http === 200 ? CUSTO_USD.nearby : 0;
+    { method: 'POST', headers: headersPlaces(chave, mascara), body: JSON.stringify(corpo) }, 8000, true);
+  const custo = r.http === 200 ? (mascara === MASCARA_RECARGA ? CUSTO_USD.nearbyRecarga : CUSTO_USD.nearby) : 0;
   if (!r.res || !r.res.ok) {
     return { ...resultado<LugarGoogle[]>(null, r.status, r.http, t0, custo), motivo: await motivoDoErro(r.res) };
   }

@@ -589,6 +589,12 @@ function cabecalho(l: LinhaEstudo, r: ReuniaoEstudo | null | undefined, d: Dados
       + `<div class="card">${svgMedidor(pn && temNumero(pn.valor) ? pn.valor : null, 100, 'Pré-nota', pn?.faixa || 'sem dado suficiente')}</div>`
       + `<div class="card">${svgMedidor(ix && temNumero(ix.valor) ? ix.valor : null, 10, 'Mercado', ix?.faixa || 'sem dado suficiente')}</div>`
       + '</div>';
+    // 02/10/2026: o Rudinei saiu "9,9, mercado forte" com 2 de 4 critérios, porque o
+    // Google falhou. Nota feita pela metade tem que dizer isso no topo.
+    const cr = criteriosDoIndice(d);
+    if (ix && temNumero(ix.valor) && cr.faltaram.length) {
+      medidores += `<p class="aviso">Mercado a confirmar: a nota saiu com ${esc(numero(cr.com))} de 4 critérios. Faltaram ${esc(cr.faltaram.join(' e '))}.</p>`;
+    }
   }
 
   return `<header class="topo">${MARCA}<h1>${esc(nome)}</h1>`
@@ -709,10 +715,48 @@ function secaoLocal(l: LinhaEstudo, d: DadosEstudo, perm: { satelite: boolean; r
   return secao('local', 'O local', corpo);
 }
 
+/** "DC 60 kW · 2 conectores · CCS2, CHAdeMO". Sem dado do Google, vazio. */
+export function textoCarga(k: ItemLugar['carga']): string {
+  if (!k) return '';
+  const pot = temNumero(k.max_kw) ? `${k.rapido ? 'DC' : 'AC'} ${numeroEnxuto(k.max_kw, 1)} kW` : (k.rapido ? 'DC' : 'AC');
+  return [
+    pot,
+    temNumero(k.conectores) ? plural(k.conectores, 'conector', 'conectores') : '',
+    k.tipos.length ? k.tipos.join(', ') : '',
+  ].filter(Boolean).join(' · ');
+}
+
+/** "3 rápidos (DC) e 5 lentos (AC), 2 sem potência informada". Sem o resumo, vazio. */
+function textoRapidos(rc: NonNullable<DadosEstudo['recarga']>): string {
+  if (!temNumero(rc.rapidos)) return '';
+  const partes = [
+    plural(rc.rapidos, 'rápido (DC)', 'rápidos (DC)'),
+    plural(temNumero(rc.lentos) ? rc.lentos : 0, 'lento (AC)', 'lentos (AC)'),
+  ].join(' e ');
+  const sem = temNumero(rc.sem_potencia) && rc.sem_potencia > 0 ? `, ${numero(rc.sem_potencia)} sem potência informada` : '';
+  return `${partes}${sem}`;
+}
+
+/**
+ * Quantos dos 4 critérios do índice entraram, e o nome dos que faltaram por falta
+ * de dado. O D fora por regra (município com menos de 50 plug-in) não conta como falta.
+ */
+export function criteriosDoIndice(d: DadosEstudo): { com: number; faltaram: string[] } {
+  const comp = d.indice?.componentes;
+  if (!comp) return { com: 0, faltaram: [] };
+  const faltaram: string[] = [];
+  if (comp.a == null || comp.b == null) faltaram.push('frota do município');
+  if (comp.c == null) faltaram.push('comércio em 1 km');
+  const dPorRegra = temNumero(d.municipio?.plugin) && (d.municipio?.plugin as number) < 50;
+  if (comp.d == null && !dPorRegra) faltaram.push('carregadores em 5 km');
+  const com = [comp.a, comp.b, comp.c, comp.d].filter(x => x != null).length;
+  return { com, faltaram };
+}
+
 function itemLugar(i: ItemLugar): string {
   const nome = i.nome || 'Sem nome no Google';
   const titulo = i.place_id ? linkExterno(mapsDoLugar(i.place_id, nome), nome) : esc(nome);
-  const extra = [i.rotulo, temNumero(i.dist_m) ? distancia(i.dist_m) : ''].filter(Boolean);
+  const extra = [i.rotulo, temNumero(i.dist_m) ? distancia(i.dist_m) : '', textoCarga(i.carga)].filter(Boolean);
   return `<li>${titulo}${extra.length ? ` <span class="pequeno">· ${extra.map(esc).join(' · ')}</span>` : ''}</li>`;
 }
 
@@ -803,6 +847,8 @@ function secaoRecarga(l: LinhaEstudo, d: DadosEstudo, parcial: boolean): string 
     const quantos = rc.cheio ? '20 ou mais carregadores cadastrados' : plural(n, 'carregador cadastrado', 'carregadores cadastrados');
     const perto = temNumero(rc.mais_perto_m) ? `, o mais perto a ${distancia(rc.mais_perto_m)}` : '';
     corpo = `<p><strong>${esc(quantos)}</strong>${esc(perto)}.</p>`;
+    const rap = textoRapidos(rc);
+    if (rap) corpo += `<p>Desses, <strong>${esc(rap)}</strong>. Rápido (DC) é quem disputa a mesma recarga que um carregador NEXUS.</p>`;
     const lista = (rc.lista || []).slice(0, 10);
     if (lista.length) corpo += `<ul class="lugares">${lista.map(itemLugar).join('')}</ul>`;
   }
@@ -1028,6 +1074,11 @@ function cartoesDoPonto(d: DadosEstudo, comDinheiro: boolean): string[] {
     const raio = temNumero(rc.raio_m) && rc.raio_m > 0 ? rc.raio_m : 5000;
     out.push(cartao(`Carregadores em ${distancia(raio)}`, rc.cheio ? '20 ou mais' : numero(n),
       temNumero(rc.mais_perto_m) ? `O mais perto a ${distancia(rc.mais_perto_m)}` : 'Google Maps'));
+    if (temNumero(rc.rapidos)) {
+      const maisPerto = (rc.lista || []).find(i => i.carga?.rapido);
+      out.push(cartao(`Rápidos (DC) em ${distancia(raio)}`, numero(rc.rapidos),
+        maisPerto ? `O mais perto a ${distancia(maisPerto.dist_m)}` : 'Concorrência direta'));
+    }
     if (m && temNumero(m.plugin) && m.plugin >= 50 && !rc.cheio) {
       out.push(cartao('Plug-in da cidade por carregador perto', numero(Math.round(m.plugin / (n + 1))), 'Quanto maior, mais espaço'));
     }
@@ -1217,7 +1268,7 @@ function resumoCliente(d: DadosEstudo): string[] {
     const raio = distancia(temNumero(rc.raio_m) && rc.raio_m > 0 ? rc.raio_m : 5000);
     out.push(!n
       ? `Não há carregador cadastrado no Google em ${raio} do ponto.`
-      : `${rc.cheio ? 'Há 20 ou mais carregadores' : `Há ${plural(n, 'carregador', 'carregadores')}`} cadastrados em ${raio}${temNumero(rc.mais_perto_m) ? `, o mais perto a ${distancia(rc.mais_perto_m)}` : ''}.`);
+      : `${rc.cheio ? 'Há 20 ou mais carregadores' : `Há ${plural(n, 'carregador', 'carregadores')}`} cadastrados em ${raio}${temNumero(rc.mais_perto_m) ? `, o mais perto a ${distancia(rc.mais_perto_m)}` : ''}${textoRapidos(rc) ? `: ${textoRapidos(rc)}` : ''}.`);
   }
   if (en) {
     const n = temNumero(en.n) ? en.n : (en.lista || []).length;

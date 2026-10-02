@@ -37,6 +37,7 @@ import { resolverCidade } from './geoCidade';
 import * as banco from './eletropostoEstudoBanco';
 import * as fontes from './eletropostoEstudoFontes';
 import { urlDoCliente } from './eletropostoEstudoCliente';
+import { criteriosDoIndice } from './eletropostoEstudoPagina';
 import { avaliarPortao } from './eletropostoPortao';
 import { ESTUDO_NO_AR_EM, estudoDesligado, garantirEstudo } from './eletropostoEstudoGarantir';
 import {
@@ -194,7 +195,7 @@ export async function montarEstudo(r: Reuniao): Promise<EstudoMontado> {
 
   const [entorno, recarga, sv, prova, pop, pib] = await Promise.all([
     centro ? fontes.buscarProximos(centro, TIPOS_ENTORNO, 1000) : pulado<LugarGoogle[]>(),
-    centro ? fontes.buscarProximos(centro, ['electric_vehicle_charging_station'], 5000) : pulado<LugarGoogle[]>(),
+    centro ? fontes.buscarProximos(centro, ['electric_vehicle_charging_station'], 5000, fontes.MASCARA_RECARGA) : pulado<LugarGoogle[]>(),
     centro ? fontes.streetViewMeta(centro) : pulado<fontes.PanoramaRua>(),
     centro ? fontes.provarStaticMap(centro) : pulado<boolean>(),
     mun && !reaproveita ? fontes.ibgePopulacao(mun.ibge) : pulado<fontes.ValorAno>(),
@@ -317,7 +318,10 @@ export function montarAvisoPronto(est: banco.LinhaEstudoBanco, reu: Reuniao): st
   const d = est.dados || {};
   const nome = primeiroNome(reu.cliente_nome);
   const cidade = d.municipio ? `${d.municipio.nome}-${d.municipio.uf}` : (reu.cidade || '');
-  const mercado = d.indice?.valor != null ? `Mercado ${umDecimal(d.indice.valor)} de 10 (${d.indice.faixa})` : 'Mercado sem dado suficiente';
+  const cr = criteriosDoIndice(d);
+  const mercado = d.indice?.valor != null
+    ? `Mercado ${umDecimal(d.indice.valor)} de 10 (${d.indice.faixa}${cr.faltaram.length ? `, a confirmar: ${cr.com} de 4 critérios` : ''})`
+    : 'Mercado sem dado suficiente';
   const atencao = (d.sinais || []).find(s => s.lado === 'atencao');
   const cliente = urlDoCliente(est.token);
 

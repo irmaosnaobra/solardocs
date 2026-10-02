@@ -303,6 +303,43 @@ export interface LugarGoogle {
   primaryType?: string;
   businessStatus?: string;
   addressComponents?: Array<{ longText?: string; shortText?: string; types?: string[] }>;
+  evChargeOptions?: {
+    connectorCount?: number;
+    connectorAggregation?: Array<{ type?: string; maxChargeRateKw?: number; count?: number }>;
+  };
+}
+
+/** O que o Google diz de um carregador: conectores, potência e se é rápido. */
+export interface CargaDoLugar {
+  conectores: number | null;
+  max_kw: number | null;
+  /** Nomes curtos, sem repetir: CCS2, CHAdeMO, Tipo 2, GB/T, Tesla, Tomada. */
+  tipos: string[];
+  /** DC: conector de corrente contínua ou 40 kW ou mais. */
+  rapido: boolean;
+}
+
+const NOME_CONECTOR: Record<string, string> = {
+  EV_CONNECTOR_TYPE_CCS_COMBO_2: 'CCS2', EV_CONNECTOR_TYPE_CCS_COMBO_1: 'CCS1', EV_CONNECTOR_TYPE_CHADEMO: 'CHAdeMO',
+  EV_CONNECTOR_TYPE_TYPE_2: 'Tipo 2', EV_CONNECTOR_TYPE_J1772: 'Tipo 1', EV_CONNECTOR_TYPE_TESLA: 'Tesla',
+  EV_CONNECTOR_TYPE_NACS: 'NACS', EV_CONNECTOR_TYPE_UNSPECIFIED_GB_T: 'GB/T',
+  EV_CONNECTOR_TYPE_UNSPECIFIED_WALL_OUTLET: 'Tomada', EV_CONNECTOR_TYPE_OTHER: 'Outro',
+};
+const CONECTOR_DC = new Set(['EV_CONNECTOR_TYPE_CCS_COMBO_2', 'EV_CONNECTOR_TYPE_CCS_COMBO_1', 'EV_CONNECTOR_TYPE_CHADEMO']);
+export const KW_RAPIDO = 40;
+
+export function cargaDoLugar(l: Pick<LugarGoogle, 'evChargeOptions'>): CargaDoLugar | null {
+  const ev = l.evChargeOptions;
+  if (!ev) return null;
+  const ag = (ev.connectorAggregation || []).filter(Boolean);
+  const kws = ag.map(a => a.maxChargeRateKw).filter((x): x is number => typeof x === 'number' && Number.isFinite(x) && x > 0);
+  const max_kw = kws.length ? Math.round(Math.max(...kws) * 10) / 10 : null;
+  const somados = ag.reduce((s, a) => s + (Number(a.count) || 0), 0);
+  const conectores = Number(ev.connectorCount) || somados || null;
+  const tipos = [...new Set(ag.map(a => NOME_CONECTOR[String(a.type)] || '').filter(Boolean))];
+  const rapido = ag.some(a => CONECTOR_DC.has(String(a.type))) || (max_kw != null && max_kw >= KW_RAPIDO);
+  if (conectores == null && max_kw == null && !tipos.length) return null;
+  return { conectores, max_kw, tipos, rapido };
 }
 
 export type Confianca = 'alta' | 'media' | 'baixa' | 'nao_encontrado';
@@ -381,6 +418,8 @@ export interface ItemLugar {
   dist_m: number;
   lat: number | null;
   lng: number | null;
+  /** Só nos carregadores, e só quando o Google trouxe evChargeOptions. */
+  carga?: CargaDoLugar | null;
 }
 
 export interface ResumoLugares {
@@ -392,6 +431,10 @@ export interface ResumoLugares {
   mais_perto_m: number | null;
   por_tipo: Record<string, number>;
   lista: ItemLugar[];
+  /** Carregadores: quantos são rápidos (DC), lentos (AC) e sem dado de potência. */
+  rapidos?: number;
+  lentos?: number;
+  sem_potencia?: number;
 }
 
 export function resumirLugares(lugares: LugarGoogle[], centro: Coord, raio_m: number, rotuloPadrao = 'Local'): ResumoLugares {
@@ -401,6 +444,7 @@ export function resumirLugares(lugares: LugarGoogle[], centro: Coord, raio_m: nu
       const cat = categoriaDoLugar(l);
       const lat = (l.location as { latitude: number }).latitude;
       const lng = (l.location as { longitude: number }).longitude;
+      const carga = l.evChargeOptions ? cargaDoLugar(l) : undefined;
       return {
         place_id: l.id || '',
         nome: l.displayName?.text || 'Sem nome no Google',
@@ -409,9 +453,11 @@ export function resumirLugares(lugares: LugarGoogle[], centro: Coord, raio_m: nu
         dist_m: distanciaM(centro, { lat, lng }),
         lat,
         lng,
+        ...(carga !== undefined ? { carga } : {}),
       };
     })
     .sort((a, b) => a.dist_m - b.dist_m);
+  const comCarga = (lugares || []).some(l => l.evChargeOptions);
 
   const por_tipo: Record<string, number> = {};
   for (const i of lista) por_tipo[i.tipo] = (por_tipo[i.tipo] || 0) + 1;
@@ -424,6 +470,12 @@ export function resumirLugares(lugares: LugarGoogle[], centro: Coord, raio_m: nu
     mais_perto_m: lista.length ? lista[0].dist_m : null,
     por_tipo,
     lista,
+    // Só a busca de carregadores leva o resumo de potência; estudo antigo não tem o campo.
+    ...(comCarga ? {
+      rapidos: lista.filter(i => i.carga?.rapido).length,
+      lentos: lista.filter(i => i.carga && !i.carga.rapido).length,
+      sem_potencia: lista.filter(i => !i.carga).length,
+    } : {}),
   };
 }
 

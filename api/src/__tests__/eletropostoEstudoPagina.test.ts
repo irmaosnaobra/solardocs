@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest';
 import fixtures from './fixtures/estudoFichas.json';
 import {
   extrairFicha, extrairEndereco, preNota, notaDoLocal, sinaisDeAtencao, situacao, resumirLugares,
-  validarTextoIA, montarFatosIA, BASE_ESTUDO_URL, type DadosEstudo, type LugarGoogle, type Ficha,
+  validarTextoIA, montarFatosIA, BASE_ESTUDO_URL, cargaDoLugar, type DadosEstudo, type LugarGoogle, type Ficha,
 } from '../services/io/eletropostoEstudoPuro';
 import { contaDeReferencia } from '../utils/computeEletro';
 import {
-  esc, imagensPermitidas, renderEstudo, renderEstudoCliente, paginaPreparando, pagina404, svgMedidor, svgBarras,
+  esc, imagensPermitidas, renderEstudo, renderEstudoCliente, criteriosDoIndice, paginaPreparando, pagina404, svgMedidor, svgBarras,
   svgBarrasComparadas, svgFluxo10Anos, type LinhaEstudo, type OpcoesEstudo, type ReuniaoEstudo, type StatusEstudo,
 } from '../services/io/eletropostoEstudoPagina';
 
@@ -617,5 +617,57 @@ describe('página do cliente', () => {
     const h = renderEstudoCliente(linha({ status: 'erro' }), reuniao(), OPC);
     expect(h).toContain('Estudo indisponível');
     for (const t of ['Maria', 'Avenida Brasil', 'Uberaba']) expect(h).not.toContain(t);
+  });
+});
+
+describe('carregador com potência e nota a confirmar (02/10/2026)', () => {
+  const ev = (tipo: string, kw: number, n: number) => ({ connectorCount: n, connectorAggregation: [{ type: tipo, maxChargeRateKw: kw, count: n }] });
+
+  it('cargaDoLugar separa DC de AC pelo conector e pelos 40 kW', () => {
+    expect(cargaDoLugar({ evChargeOptions: ev('EV_CONNECTOR_TYPE_CCS_COMBO_2', 60, 2) }))
+      .toEqual({ conectores: 2, max_kw: 60, tipos: ['CCS2'], rapido: true });
+    expect(cargaDoLugar({ evChargeOptions: ev('EV_CONNECTOR_TYPE_TYPE_2', 22, 4) })?.rapido).toBe(false);
+    expect(cargaDoLugar({ evChargeOptions: ev('EV_CONNECTOR_TYPE_UNSPECIFIED_GB_T', 120, 1) })?.rapido).toBe(true);
+    expect(cargaDoLugar({})).toBeNull();
+    expect(cargaDoLugar({ evChargeOptions: {} })).toBeNull();
+  });
+
+  it('a página mostra potência de cada carregador e quantos são rápidos', () => {
+    const d = dadosCompletos();
+    d.recarga = resumirLugares([
+      { ...lugar('c1', 'Eletroposto Centro', 'electric_vehicle_charging_station', 0.009, 0.009), evChargeOptions: ev('EV_CONNECTOR_TYPE_CCS_COMBO_2', 60, 2) },
+      { ...lugar('c2', 'Shopping Recarga', 'electric_vehicle_charging_station', -0.02, 0.01), evChargeOptions: ev('EV_CONNECTOR_TYPE_TYPE_2', 22, 4) },
+      lugar('c3', 'Hotel Tomada', 'electric_vehicle_charging_station', 0.03, 0.01),
+    ], CENTRO, 5000, 'Carregador');
+    expect(d.recarga).toMatchObject({ rapidos: 1, lentos: 1, sem_potencia: 1 });
+    const h = render(linha({ dados: d }));
+    expect(h).toContain('DC 60 kW · 2 conectores · CCS2');
+    expect(h).toContain('AC 22 kW · 4 conectores · Tipo 2');
+    expect(h).toContain('1 rápido (DC) e 1 lento (AC), 1 sem potência informada');
+    expect(h).toContain('Rápidos (DC) em 5 km');
+    const cli = renderEstudoCliente(linha({ dados: d }), reuniao(), { agoraMs: AGORA, imagensLigadas: false, tokenCliente: CLIENTE_TOKEN });
+    expect(cli).toContain('1 rápido (DC) e 1 lento (AC)');
+  });
+
+  it('estudo antigo, sem evChargeOptions, não inventa contagem de rápidos', () => {
+    const h = render();
+    expect(h).not.toContain('rápido (DC)');
+    expect(h).not.toContain('Rápidos (DC)');
+  });
+
+  it('índice com critério faltando sai marcado como a confirmar no topo', () => {
+    const d = dadosCompletos();
+    d.indice = { valor: 9.9, faixa: 'mercado forte', a_confirmar: false, componentes: { a: 10, b: 9.7, c: null, d: null } };
+    const h = render(linha({ status: 'parcial', dados: d }));
+    expect(h).toContain('Mercado a confirmar: a nota saiu com 2 de 4 critérios. Faltaram comércio em 1 km e carregadores em 5 km.');
+    expect(criteriosDoIndice(d)).toEqual({ com: 2, faltaram: ['comércio em 1 km', 'carregadores em 5 km'] });
+    expect(render()).not.toContain('Mercado a confirmar');
+  });
+
+  it('o D fora por regra (menos de 50 plug-in) não é falta', () => {
+    const d = dadosCompletos();
+    if (d.municipio) d.municipio.plugin = 30;
+    d.indice = { valor: 5, faixa: 'mercado em formação', a_confirmar: false, componentes: { a: 5, b: 3.7, c: 4, d: null } };
+    expect(criteriosDoIndice(d).faltaram).toEqual([]);
   });
 });

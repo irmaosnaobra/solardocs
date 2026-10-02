@@ -98,6 +98,7 @@ vi.mock('../services/io/eletropostoEstudoFontes', () => ({
   escreverTextos: (...a: unknown[]) => h.s.f.escreverTextos(...a),
   frotaDoMunicipio: (...a: unknown[]) => h.s.f.frotaDoMunicipio(...a),
   sondarFontes: async () => ({}),
+  MASCARA_RECARGA: 'mascara-recarga',
 }));
 vi.mock('../services/agents/zapiClient', () => ({
   sendWhatsApp: vi.fn(async (tel: string, texto: string) => {
