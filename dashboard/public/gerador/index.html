@@ -1636,6 +1636,21 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .crm-det-temp-aviso{margin-top:8px;font-size:12px;color:#94A3B8;line-height:1.4;padding:8px 10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px}
 .crm-det-temp-aviso strong{color:#FBBF24}
 /* resultado da ligação (status) */
+/* A CAIXA DO MOTIVO (02/10/2026). Cinza de propósito: ela aparece depois de um
+   NÃO, e pintar de verde faria o encerramento parecer conquista. */
+.motivo-box{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(148,163,184,.14);border:1px solid rgba(148,163,184,.4)}
+.motivo-box[hidden]{display:none}
+.motivo-tit{font-size:12px;font-weight:800;margin-bottom:8px;color:#E5E7EB}
+.motivo-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.motivo-btn{padding:10px 8px;border-radius:8px;border:0;font-family:inherit;font-weight:700;font-size:12px;cursor:pointer;line-height:1.15;background:#E2E8F0;color:#1f2937;text-align:left}
+.motivo-btn[hidden]{display:none}
+.motivo-btn:hover{filter:brightness(.95)}
+.motivo-btn.is-atual{outline:3px solid rgba(17,24,39,.6);outline-offset:-4px}
+/* O escape existe porque o status terminal nao pode ficar mais difícil de marcar:
+   e ele que faz o robo parar de falar com quem ja disse nao. */
+.motivo-pular{grid-column:span 2;padding:9px 8px;border-radius:8px;border:1px dashed rgba(148,163,184,.6);background:transparent;color:#94A3B8;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer}
+.motivo-pular:hover{background:rgba(148,163,184,.14)}
+.crm-status-selo.selo-motivo{background:rgba(71,85,105,.5);color:#CBD5E1}
 .crm-det-status{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
 .crm-btn-status[hidden]{display:none}
 .crm-btn-status{padding:11px 10px;border-radius:9px;border:2px solid transparent;cursor:pointer;font-weight:700;font-size:13px;color:#fff;font-family:inherit;text-align:center;line-height:1.2;transition:transform .08s,filter .12s}
@@ -6022,6 +6037,24 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <button type="button" class="posse-btn rep" onclick="crmAtualizarStatus('arrendamento',{ponto_relacao:'Represento o proprietário'})">REPRESENTA O DONO</button>
         </div>
         <div class="posse-nota">Se o local ainda não é dele, ele não pode ceder (contrato, cl. 16.1): não é arrendamento.</div>
+      </div>
+
+      <!-- O MOTIVO DO NÃO (02/10/2026). Espelho da caixa da agenda: as duas telas
+           gravam na MESMA marca, e divergir faria uma mostrar o que a outra não
+           mostra. 498 cards de solar param em SEM INTERESSE e nenhum diz por quê. -->
+      <div id="crm-det-motivo" class="motivo-box" hidden>
+        <div class="motivo-tit">Sem interesse: por quê?</div>
+        <div class="motivo-grid">
+          <button type="button" class="motivo-btn" data-produto="solar"       data-motivo="preco"          onclick="crmAtualizarStatus('sem_interesse',{__motivo:'preco'})">💰 Achou caro</button>
+          <button type="button" class="motivo-btn" data-produto="solar"       data-motivo="concorrente"    onclick="crmAtualizarStatus('sem_interesse',{__motivo:'concorrente'})">🏢 Fechou com outro</button>
+          <button type="button" class="motivo-btn" data-produto="solar"       data-motivo="nao_decisor"    onclick="crmAtualizarStatus('sem_interesse',{__motivo:'nao_decisor'})">🙋 Não é quem decide</button>
+          <button type="button" class="motivo-btn" data-produto="solar"       data-motivo="sem_perfil"     onclick="crmAtualizarStatus('sem_interesse',{__motivo:'sem_perfil'})">📉 Não tem perfil</button>
+          <button type="button" class="motivo-btn" data-produto="eletroposto" data-motivo="sem_ponto"      onclick="crmAtualizarStatus('sem_interesse',{__motivo:'sem_ponto'})">📍 Não tem o ponto</button>
+          <button type="button" class="motivo-btn" data-produto="eletroposto" data-motivo="sem_capital"    onclick="crmAtualizarStatus('sem_interesse',{__motivo:'sem_capital'})">💸 Não tem capital</button>
+          <button type="button" class="motivo-btn" data-produto="eletroposto" data-motivo="achou_caro"     onclick="crmAtualizarStatus('sem_interesse',{__motivo:'achou_caro'})">💰 Achou caro</button>
+          <button type="button" class="motivo-btn" data-produto="eletroposto" data-motivo="so_curiosidade" onclick="crmAtualizarStatus('sem_interesse',{__motivo:'so_curiosidade'})">👀 Só curiosidade</button>
+          <button type="button" class="motivo-pular" onclick="crmAtualizarStatus('sem_interesse',{__motivo:''})">Encerrar sem dizer o motivo</button>
+        </div>
       </div>
       <!-- ESPERA: abre ao apertar APALAVRADO. Só o segundo toque grava, igual à
            posse do arrendamento. O prazo é obrigatório na prática (todo botão
@@ -21471,6 +21504,10 @@ function crmAbrirDetalhe(key) {
   crmAplicarMenuDoProduto(agRec);
   const posse = document.getElementById('crm-det-posse');
   if (posse) posse.hidden = true;
+  // A caixa do motivo tambem, zerada: aberta ao trocar de card ela gravaria o
+  // motivo na ficha de OUTRA pessoa — defeito que a caixa da espera ja teve.
+  const bxMot = document.getElementById('crm-det-motivo');
+  if (bxMot) bxMot.hidden = true;
   // A caixa da espera também fecha, e ZERADA. Sem isto ela ficava aberta ao
   // trocar de card e levava junto o texto do cliente anterior: dois toques e a
   // espera do Cristiano ia parar na ficha de outra pessoa.
@@ -21678,10 +21715,14 @@ async function crmSalvarEdicao() {
 // e escrever modelo de EP numa ficha de solar.
 // O botao do status atual nunca esconde: ver o comentario longo na agenda.
 function crmAplicarMenuDoProduto(ag) {
-  const ehEp = crmEhEletroposto(ag);
+  const produto = crmEhEletroposto(ag) ? 'eletroposto' : 'solar';
   const stAtual = String((ag && ag.status) || '');
-  document.querySelectorAll('#crm-det-bg .crm-btn-status[data-produto="eletroposto"]')
-    .forEach(b => { b.hidden = !ehEp && b.dataset.status !== stAtual; });
+  document.querySelectorAll('#crm-det-bg .crm-btn-status[data-produto]')
+    .forEach(b => { b.hidden = b.dataset.produto !== produto && b.dataset.status !== stAtual; });
+  // Os botoes de MOTIVO nao tem excecao: motivo do produto errado nao e "um botao
+  // a mais", e o numero errado no placar, que e a unica coisa que B produz.
+  document.querySelectorAll('#crm-det-motivo .motivo-btn[data-produto]')
+    .forEach(b => { b.hidden = b.dataset.produto !== produto; });
 }
 
 function crmMarcarStatus(status) {
@@ -21783,6 +21824,24 @@ async function crmGravarTemperatura(valor) {
 async function crmAtualizarStatus(novoStatus, extra) {
   if (!crmDetAtual || !crmDetAtual.agRec) return;
   const { c, agRec: ag } = crmDetAtual;
+  // Mesma regra da agenda: SEM INTERESSE abre a pergunta do motivo, e so o segundo
+  // toque grava. Com escape, porque o status terminal nao pode ficar mais dificil
+  // de marcar — e ele que faz o robo parar de falar com quem ja disse nao.
+  if (novoStatus === 'sem_interesse' && !(extra && extra.__motivo !== undefined)) {
+    const box = document.getElementById('crm-det-motivo');
+    if (box) {
+      const po = document.getElementById('crm-det-posse');
+      if (po) po.hidden = true;
+      const es = document.getElementById('crm-det-espera');
+      if (es) es.hidden = true;
+      box.hidden = !box.hidden;
+      const atual = (ag && crmMotivos[String(ag.id)]) || '';
+      document.querySelectorAll('#crm-det-motivo .motivo-btn').forEach(b => {
+        b.classList.toggle('is-atual', b.dataset.motivo === atual);
+      });
+    }
+    return;
+  }
   // Mesma regra da agenda: ARRENDAMENTO abre a pergunta de posse, e so o segundo
   // toque grava. Sem isto o CRM virava a porta que produz card sem posse.
   if (novoStatus === 'arrendamento' && !extra) {
@@ -21815,7 +21874,9 @@ async function crmAtualizarStatus(novoStatus, extra) {
   // mandá-los no PATCH derrubaria o próprio botão com erro de coluna inexistente.
   // `__retomar`/`__oque` não chegam mais aqui: quem grava a espera é o
   // `crmApalavrar`, e ele não mexe no status. A limpeza fica por segurança.
-  if (extra) { delete extra.__retomar; delete extra.__oque; }
+  // `__motivo` e MARCA, nao coluna de `agendamentos`: no PATCH ele vira 400.
+  const motivoEscolhido = extra && extra.__motivo !== undefined ? String(extra.__motivo) : null;
+  if (extra) { delete extra.__retomar; delete extra.__oque; delete extra.__motivo; }
   try {
     await supaPatch(`agendamentos?id=eq.${ag.id}`, { status: novoStatus, ...(extra || {}) });
     // ── A ETIQUETA QUE ESTÁ SAINDO É GUARDADA ANTES DE SER APAGADA ─────────
@@ -21845,6 +21906,28 @@ async function crmAtualizarStatus(novoStatus, extra) {
     } catch (e) {
       console.warn('etiqueta não guardada', e);
     }
+
+    // O MOTIVO DO NÃO. Degrada, não quebra: o status já foi gravado, e é ele que
+    // para o robô. Espelho exato do que a agenda faz.
+    try {
+      if (motivoEscolhido !== null) {
+        await fetch(`${APX_API}/gerador/motivo`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: ag.id, motivo: motivoEscolhido,
+            por: (function(){ try { return crmConsultorLogado() || ''; } catch (e) { return ''; } })() }),
+        });
+        if (motivoEscolhido) crmMotivos[String(ag.id)] = motivoEscolhido;
+        else delete crmMotivos[String(ag.id)];
+      } else if (crmMotivos[String(ag.id)] && !CRM_STATUS_QUE_ACEITAM_MOTIVO.has(novoStatus)) {
+        // O card voltou a viver: motivo de recusa colado nele faria o placar contar
+        // como perdido quem está em conversa.
+        await fetch(`${APX_API}/gerador/motivo`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: ag.id, motivo: '' }),
+        });
+        delete crmMotivos[String(ag.id)];
+      }
+    } catch (e) { console.warn('motivo nao guardado', e); }
 
     // ── QUALQUER TROCA DE STATUS SOLTA A ESPERA ────────────────────────────
     //
@@ -22404,6 +22487,11 @@ let crmEsperas = {};
 // TELA lê. O card passa a mostrar as duas: "ARRENDAMENTO · SEM INTERESSE". A
 // coluna continua sendo a do status terminal, que é o que ele pediu.
 let crmEtiquetas = {};        // { '<agId>': 'arrendamento' } — a etiqueta que o terminal apagou
+let crmMotivos = {};          // { '<agId>': 'preco' } — por que o cliente disse não
+/** Espelha `STATUS_QUE_ACEITAM_MOTIVO` do servidor. `fechou` fica fora: e venda. */
+const CRM_STATUS_QUE_ACEITAM_MOTIVO = new Set([
+  'sem_interesse', 'fechou_concorrente', 'perdido', 'cancelado',
+]);
 /** As etiquetas de negociação — as que vale guardar quando o terminal as apaga.
  *  Espelha `ETIQUETAS_DE_NEGOCIO` do servidor, que é quem recusa o resto. */
 const CRM_ETIQUETAS_NEGOCIO = new Set([
@@ -22433,7 +22521,7 @@ async function crmCarregarEsperas() {
     const ids = crmClientes
       .filter(c => CRM_PODE_ESPERAR.has(String(c.statusAg || '')) && c.agId)
       .map(c => c.agId);
-    if (!ids.length) { crmEsperas = {}; crmEtiquetas = {}; return; }
+    if (!ids.length) { crmEsperas = {}; crmEtiquetas = {}; crmMotivos = {}; return; }
     // EM LOTES DE 400. Eram 831 ids numa URL só, contra um teto de 500 no
     // servidor: 331 cards ficavam sem selo, sem etiqueta guardada e — pior —
     // um apalavrado além do corte caía na COLUNA ERRADA, porque a coluna sai
@@ -22441,14 +22529,17 @@ async function crmCarregarEsperas() {
     // recusar.
     const esperas = {};
     const etiquetas = {};
+    const motivos = {};
     for (let i = 0; i < ids.length; i += 400) {
       const r = await fetch(`${APX_API}/gerador/apalavrado?ids=${ids.slice(i, i + 400).join(',')}`);
       const j = await r.json();
       Object.assign(esperas, (j && j.esperas) || {});
       Object.assign(etiquetas, (j && j.etiquetas) || {});
+      Object.assign(motivos, (j && j.motivos) || {});
       if (j && j.cortou) console.warn('marcas cortadas pelo servidor:', j.cortou);
     }
     crmEsperas = esperas;
+    crmMotivos = motivos;
     crmEtiquetas = etiquetas;
   } catch (e) { crmEsperas = {}; crmEtiquetas = {}; }
 }
@@ -23002,6 +23093,19 @@ function renderCRM() {
   // primeiro: "ARRENDAMENTO · SEM INTERESSE" se lê como a história do negócio. Só
   // aparece se o status de agora for terminal — card que voltou a negociar carrega
   // a etiqueta no próprio status, e aí seriam duas pílulas iguais.
+  // O MOTIVO DO NÃO, no card do quadro. Vem DEPOIS do status: "ARRENDAMENTO ·
+  // SEM INTERESSE · ACHOU CARO" se lê como a história do negócio, na ordem.
+  const MOTIVO_LBL = {
+    preco: 'ACHOU CARO', concorrente: 'FECHOU C/ OUTRO', nao_decisor: 'NÃO DECIDE',
+    sem_perfil: 'SEM PERFIL', sem_ponto: 'SEM PONTO', sem_capital: 'SEM CAPITAL',
+    achou_caro: 'ACHOU CARO', so_curiosidade: 'CURIOSIDADE',
+  };
+  const motivoBadge = (c) => {
+    const mo = c.agId ? crmMotivos[String(c.agId)] : null;
+    const lbl = mo ? MOTIVO_LBL[mo] : null;
+    return lbl ? `<span class="crm-status-selo selo-motivo">${lbl}</span>` : '';
+  };
+
   const etiquetaBadge = (c) => {
     const et = c.agId ? crmEtiquetas[String(c.agId)] : null;
     if (!et || !CRM_STATUS_TERMINAIS.has(String(c.statusAg || ''))) return '';
@@ -23079,7 +23183,7 @@ function renderCRM() {
       </div>
       ${telLinha}
       <div class="crm-card-meta">${cons}${tag}${linhaCidade}${linhaAg}</div>
-      ${presencaBadge(c)}${etiquetaBadge(c)}${statusBadge(c.statusAg)}${esperaBadge(c)}
+      ${presencaBadge(c)}${etiquetaBadge(c)}${statusBadge(c.statusAg)}${motivoBadge(c)}${esperaBadge(c)}
       <div class="crm-card-foot">
         ${valorTxt}
         <span class="crm-card-acoes">${reagBtn}${wpp}${verProp}</span>

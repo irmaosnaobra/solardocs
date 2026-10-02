@@ -93,6 +93,82 @@ export const STATUS_TERMINAIS = new Set<string>([
   'sem_interesse', 'fechou', 'cancelado', 'perdido', 'fechou_concorrente',
 ]);
 
+
+// ── O MOTIVO DO NÃO (02/10/2026) ────────────────────────────────────────────
+//
+// Esta é a opção B das três que eu medi e que o dono escolheu ("A agora, B em
+// seguida"). Ela existe por causa de um número só:
+//
+//   589 reuniões de SOLAR já aconteceram. 498 delas estão em SEM INTERESSE: 85%.
+//   Marcadas VENDIDO: 10, ou 1,7%.
+//
+// Ou seja, 498 cards param todos no mesmo lugar e nenhum deles diz POR QUE. Essa
+// é a única informação que o funil do solar não tem, e nenhuma etiqueta de
+// estágio novo a produz: `proposta_apresentada` já existe e tem ZERO uso no solar
+// em toda a história, igual a `apalavrado`. Degrau novo de funil é o que a casa já
+// tentou duas vezes, e o resultado está em zero.
+//
+// ── POR QUE MARCA, E NÃO COLUNA ────────────────────────────────────────────
+//
+// `agendamentos` TEM uma coluna `motivo_descarte`, e eu não uso ela de propósito:
+// ela já tem dono. Quem escreve é um TRIGGER do banco, a partir da régua da LP do
+// eletroposto (valores `fluxo_baixo`, `sem_capital`, `nao_decisor`), e 446 linhas
+// já estão preenchidas. Gravar o motivo do consultor ali corromperia um sinal que
+// existe e é lido pelo plugcash e pelo /admin.
+//
+// Coluna nova exigiria migration, e aqui toda migration bate em PRODUÇÃO (é um
+// projeto Supabase só, sem staging). A marca no `system_state` é o mecanismo que
+// esta casa já construiu pra exatamente isto: guardar um fato pequeno sobre um
+// card sem mexer no esquema. É o mesmo caminho da etiqueta preservada.
+//
+// ── O VOCABULÁRIO É POR PRODUTO, E É CURTO DE PROPÓSITO ────────────────────
+//
+// Quatro motivos por produto, sem campo livre. Sem campo livre porque o ponto de
+// B é CONTAR: "outro: ..." digitado à mão vira 498 textos diferentes e nenhuma
+// conta. Quem precisa dizer mais escreve na nota, que já existe.
+//
+// Quatro e não oito porque a lição desta casa é que menu grande não é apertado:
+// são 11 botões de status hoje e dois deles têm zero uso no solar.
+//
+// Os slugs `sem_capital` e `nao_decisor` são de propósito os MESMOS que o trigger
+// já usa em `motivo_descarte`. Colunas diferentes, mesmo vocabulário: quem for
+// cruzar os dois um dia não vai ter que traduzir.
+export const MOTIVO_PREFIX = 'motivo_nao:';
+
+/** Os motivos do SOLAR. */
+export const MOTIVOS_SOLAR = new Set<string>([
+  // Achou caro, não cabe no bolso, não fechou a conta pra ele.
+  'preco',
+  // Já comprou, ou fechou com outro integrador.
+  'concorrente',
+  // Quem atendeu não é quem decide (cônjuge, sócio, síndico).
+  'nao_decisor',
+  // Não serve: consumo baixo demais, telhado/imóvel que não dá, não é o dono.
+  'sem_perfil',
+]);
+
+/** Os motivos do ELETROPOSTO. O ponto é o escasso aqui, não o capital: 217
+ *  interessados com dinheiro contra 17 com local. Por isso `sem_ponto` vem
+ *  primeiro na lista — é o que mais mata reunião deste lado. */
+export const MOTIVOS_ELETROPOSTO = new Set<string>([
+  'sem_ponto',
+  'sem_capital',
+  'achou_caro',
+  'so_curiosidade',
+]);
+
+/** A allowlist que a rota usa. É a união, porque a rota é uma e o card é um:
+ *  separar em duas rotas faria a tela ter que saber de qual produto ela é antes
+ *  de gravar, e ela já erra isso de outras formas. Quem escolhe o vocabulário
+ *  certo é a TELA, que mostra só os quatro do produto daquele card. */
+export const MOTIVOS_DO_NAO = new Set<string>([...MOTIVOS_SOLAR, ...MOTIVOS_ELETROPOSTO]);
+
+/** O motivo só faz sentido em card que disse não. Gravar motivo num card vivo
+ *  seria guardar a razão de uma recusa que não houve. */
+export const STATUS_QUE_ACEITAM_MOTIVO = new Set<string>([
+  'sem_interesse', 'fechou_concorrente', 'perdido', 'cancelado',
+]);
+
 /** `true` quando a ficha está em paz AGORA. */
 export function naSalaDeEspera(valor: unknown, agora: number): boolean {
   const ate = esperaAte(valor);

@@ -31,7 +31,9 @@ import { supabase } from '../utils/supabase';
 import { APALAVRADO_PREFIX } from '../services/io/lembreteFollowupService';
 // A etiqueta preservada e a lista do que vale guardar moram no modulo NEUTRO da
 // sala de espera, junto da leitura do prazo: e tudo marca do mesmo card.
-import { ETIQUETA_PREFIX, ETIQUETAS_DE_NEGOCIO } from '../services/agenda/salaDeEspera';
+import {
+  ETIQUETA_PREFIX, ETIQUETAS_DE_NEGOCIO, MOTIVO_PREFIX, MOTIVOS_DO_NAO,
+} from '../services/agenda/salaDeEspera';
 import { EP_MUDO_PREFIX } from '../services/io/eletropostoReagendaAuto';
 
 const router = Router();
@@ -417,7 +419,7 @@ router.get('/apalavrado', async (req: Request, res: Response) => {
   if (cortou) {
     logger.warn('gerador', `leitura de marcas cortada: pediram ${pedidos.length} ids, o teto é ${TETO_IDS}`);
   }
-  if (!ids.length) { res.json({ ok: true, esperas: {}, etiquetas: {} }); return; }
+  if (!ids.length) { res.json({ ok: true, esperas: {}, etiquetas: {}, motivos: {} }); return; }
   try {
     // AS DUAS MARCAS NA MESMA CHAMADA. Separar em duas rotas dobraria a ida e
     // volta num quadro que desenha 300 cards, e as duas são lidas sempre juntas:
@@ -432,7 +434,12 @@ router.get('/apalavrado', async (req: Request, res: Response) => {
     // Fatiar aqui e nao na tela e de proposito: quem chama nao tem como saber
     // que o limite e de CARACTERES e nao de ids, e a proxima tela a usar esta
     // rota ia descobrir do mesmo jeito que eu descobri.
-    const POR_CONSULTA = 200;   // 400 chaves, bem abaixo do que quebrou
+    // 150 e nao 200 desde 02/10/2026: cada id virou TRES chaves quando o motivo
+    // do nao entrou, e 200 ids passariam a ser 600 chaves numa URL. 700 ids (1400
+    // chaves) foi o que devolveu Bad Request na medicao; 450 segue com folga, e
+    // mais uma ida e volta num quadro de 300 cards custa menos que o quadro
+    // inteiro ficar sem marca.
+    const POR_CONSULTA = 150;   // 450 chaves
     const linhas: Array<{ key: string; value: unknown }> = [];
     for (let i = 0; i < ids.length; i += POR_CONSULTA) {
       const lote = ids.slice(i, i + POR_CONSULTA);
@@ -441,6 +448,7 @@ router.get('/apalavrado', async (req: Request, res: Response) => {
         .in('key', [
           ...lote.map(x => `${APALAVRADO_PREFIX}${x}`),
           ...lote.map(x => `${ETIQUETA_PREFIX}${x}`),
+          ...lote.map(x => `${MOTIVO_PREFIX}${x}`),
         ]);
       if (error) throw error;
       linhas.push(...((parte ?? []) as Array<{ key: string; value: unknown }>));
@@ -448,16 +456,24 @@ router.get('/apalavrado', async (req: Request, res: Response) => {
     const data = linhas;
     const esperas: Record<string, unknown> = {};
     const etiquetas: Record<string, string> = {};
+    const motivos: Record<string, string> = {};
+    // A ORDEM AQUI É O QUE IMPEDE A MARCA ERRADA. O ramo da espera era um `else`
+    // pega-tudo, e com uma terceira chave ele passaria a engolir o motivo: o card
+    // apareceria em sala de espera por ter dito não. Então cada prefixo é testado
+    // explícito e a espera é a última, não o resto.
     for (const l of data ?? []) {
       const k = String(l.key);
       if (k.startsWith(ETIQUETA_PREFIX)) {
         const et = String((l.value as { etiqueta?: string } | null)?.etiqueta ?? '').trim();
         if (et) etiquetas[k.slice(ETIQUETA_PREFIX.length)] = et;
-      } else {
+      } else if (k.startsWith(MOTIVO_PREFIX)) {
+        const mo = String((l.value as { motivo?: string } | null)?.motivo ?? '').trim();
+        if (mo) motivos[k.slice(MOTIVO_PREFIX.length)] = mo;
+      } else if (k.startsWith(APALAVRADO_PREFIX)) {
         esperas[k.slice(APALAVRADO_PREFIX.length)] = l.value;
       }
     }
-    res.json({ ok: true, esperas, etiquetas, ...(cortou ? { cortou } : {}) });
+    res.json({ ok: true, esperas, etiquetas, motivos, ...(cortou ? { cortou } : {}) });
   } catch (err: any) {
     logger.error('gerador', 'apalavrado (leitura) falhou', err);
     res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
@@ -507,6 +523,108 @@ router.post('/etiqueta', async (req: Request, res: Response) => {
     res.json({ ok: true, id, etiqueta });
   } catch (err: any) {
     logger.error('gerador', 'etiqueta falhou', err);
+    res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
+  }
+});
+
+// ── O MOTIVO DO NÃO (02/10/2026) ──────────────────────────────────────────
+//
+// Gêmea da `/etiqueta`, e de propósito: mesmo formato de marca, mesma allowlist
+// fechada, mesmo degrade. A diferença é o que ela responde — 498 cards de solar
+// param em SEM INTERESSE e nenhum diz por quê.
+//
+// Degrada, não quebra: se isto falhar, o status terminal já foi gravado pela tela
+// e o card fica sem o motivo. O contrário (recusar o status porque o motivo não
+// gravou) deixaria o robô falando com quem já disse não.
+router.post('/motivo', async (req: Request, res: Response) => {
+  const b = (req.body || {}) as { id?: unknown; motivo?: unknown; por?: unknown };
+  const id = Number(b.id);
+  if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ error: 'id inválido' }); return; }
+  const motivo = String(b.motivo ?? '').trim();
+  if (motivo && !MOTIVOS_DO_NAO.has(motivo)) {
+    res.status(400).json({ error: 'motivo desconhecido', motivo });
+    return;
+  }
+  try {
+    const chave = `${MOTIVO_PREFIX}${id}`;
+    if (!motivo) {
+      const { error } = await supabase.from('system_state').delete().eq('key', chave);
+      if (error) throw error;
+      res.json({ ok: true, id, apagou: true });
+      return;
+    }
+    const agora = new Date().toISOString();
+    const { error } = await supabase.from('system_state').upsert(
+      {
+        key: chave,
+        value: { motivo, em: agora, por: String(b.por ?? '').slice(0, 60) },
+        updated_at: agora,
+      },
+      { onConflict: 'key' },
+    );
+    if (error) throw error;
+    res.json({ ok: true, id, motivo });
+  } catch (err: any) {
+    logger.error('gerador', 'motivo falhou', err);
+    res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
+  }
+});
+
+// O PLACAR DO NÃO. Sem este endpoint a opção B não paga nada: gravar o motivo e
+// não ter onde ver a conta é guardar dado pra ninguém. Cruza a marca com a ficha
+// pra separar solar de eletroposto, porque o mesmo motivo pesa diferente nos dois.
+router.get('/motivos/placar', async (_req: Request, res: Response) => {
+  try {
+    // As marcas primeiro. São poucas por natureza (uma por card que disse não),
+    // mas pagino por range de propósito: o PostgREST corta em 1000 e ignora o
+    // `.limit()`, e um placar truncado mente pra baixo sem avisar.
+    const marcas: Array<{ key: string; value: unknown }> = [];
+    for (let de = 0; ; de += 1000) {
+      const { data, error } = await supabase.from('system_state')
+        .select('key, value')
+        .like('key', `${MOTIVO_PREFIX}%`)
+        .range(de, de + 999);
+      if (error) throw error;
+      const parte = (data ?? []) as Array<{ key: string; value: unknown }>;
+      marcas.push(...parte);
+      if (parte.length < 1000) break;
+    }
+    const porId = new Map<number, string>();
+    for (const m of marcas) {
+      const id = Number(String(m.key).slice(MOTIVO_PREFIX.length));
+      const mo = String((m.value as { motivo?: string } | null)?.motivo ?? '').trim();
+      if (Number.isInteger(id) && mo) porId.set(id, mo);
+    }
+    const ids = [...porId.keys()];
+    // O produto sai do `created_by` da ficha: eletroposto é a família NOMEADA, o
+    // resto é solar — e o resto INCLUI `created_by` nulo, que é cadastro à mão.
+    const fichas = new Map<number, string>();
+    for (let i = 0; i < ids.length; i += 200) {
+      const { data, error } = await supabase.from('agendamentos')
+        .select('id, created_by').in('id', ids.slice(i, i + 200));
+      if (error) throw error;
+      for (const f of (data ?? []) as Array<{ id: number; created_by: string | null }>) {
+        fichas.set(f.id, String(f.created_by ?? '').toLowerCase().includes('eletroposto')
+          ? 'eletroposto' : 'solar');
+      }
+    }
+    const placar: Record<string, Record<string, number>> = { solar: {}, eletroposto: {} };
+    let semFicha = 0;
+    for (const [id, mo] of porId) {
+      const prod = fichas.get(id);
+      if (!prod) { semFicha++; continue; }
+      placar[prod][mo] = (placar[prod][mo] || 0) + 1;
+    }
+    res.json({
+      ok: true,
+      total: porId.size,
+      placar,
+      // Ficha apagada depois de a marca ser escrita. Vem na resposta porque
+      // placar que não conta o que perdeu é placar que mente.
+      ...(semFicha ? { semFicha } : {}),
+    });
+  } catch (err: any) {
+    logger.error('gerador', 'placar de motivos falhou', err);
     res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
   }
 });

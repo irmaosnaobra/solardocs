@@ -299,6 +299,8 @@
      do card já diz que ele está em espera. A pílula ficou com o que a cor não
      diz, que é a DATA. Vermelha segue valendo: prazo vencido não é mais espera,
      é cobrança, e ela precisa saltar do amarelo. */
+  /* O motivo e CINZA: ele nao e etiqueta de negocio, e a razao de uma recusa. */
+  .tag-modelo.tag-motivo { background: #475569; color: #F1F5F9; }
   .tag-modelo.tag-espera { background: #000; color: #fff; }
   .tag-modelo.tag-espera.venceu { background: #dc2626; color: #fff; }
   .tag-pill {
@@ -885,6 +887,23 @@
      Um toque virou dois de proposito: sem a pergunta, todo card marcado caia na aba
      Arrendamento como "dono? nao perguntado". A tinta segue a cor do ARRENDAMENTO,
      que em 23/09/2026 deixou de ser bege e virou o amarelo fluorescente. */
+  /* ── A CAIXA DO MOTIVO (02/10/2026) ─────────────────────────────────────
+     Mesma forma da posse: abre no primeiro toque, grava no segundo. Cinza e nao
+     colorida de proposito — ela aparece depois de um NAO, e pintar de verde ou
+     amarelo faria o encerramento parecer uma conquista. */
+  .motivo-box{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.4)}
+  .motivo-box[hidden]{display:none}
+  .motivo-tit{font-size:12px;font-weight:800;margin-bottom:8px}
+  .motivo-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .motivo-btn{padding:10px 8px;border-radius:8px;border:0;font-family:inherit;font-weight:700;font-size:12px;cursor:pointer;line-height:1.15;background:#E2E8F0;color:#1f2937;text-align:left}
+  .motivo-btn[hidden]{display:none}
+  .motivo-btn:hover{filter:brightness(.95)}
+  .motivo-btn.is-atual{outline:3px solid rgba(17,24,39,.6);outline-offset:-4px}
+  /* O escape. Ele existe porque o status terminal NAO pode ficar mais dificil de
+     marcar: e ele que para o robo de falar com quem ja disse nao. Entre perder o
+     motivo de um card e o robo insistir com um cliente, perde o motivo. */
+  .motivo-pular{grid-column:span 2;padding:9px 8px;border-radius:8px;border:1px dashed rgba(148,163,184,.6);background:transparent;color:#64748B;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer}
+  .motivo-pular:hover{background:rgba(148,163,184,.12)}
   .posse-box{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(234,255,0,.1);border:1px solid rgba(234,255,0,.45)}
   .posse-box[hidden]{display:none}
   .posse-tit{font-size:12px;font-weight:800;margin-bottom:8px}
@@ -1436,6 +1455,29 @@
         <button type="button" class="posse-btn rep" onclick="atualizarStatus('arrendamento',{ponto_relacao:'Represento o proprietário'})">REPRESENTA O DONO</button>
       </div>
       <div class="posse-nota">Se o local ainda não é dele, ele não pode ceder (contrato, cl. 16.1): não é arrendamento.</div>
+
+    <!-- ── O MOTIVO DO NÃO (02/10/2026) ─────────────────────────────────────
+         Opção B das três que eu medi, escolhida pelo dono depois da A.
+         Existe por um número: 589 reuniões de solar já aconteceram, 498 estão em
+         SEM INTERESSE (85%) e nenhuma diz por quê. Não é degrau de funil que
+         falta no solar — `proposta_apresentada` e `apalavrado` já existem e têm
+         ZERO uso lá, em toda a história. É o motivo da recusa.
+         Quatro por produto, sem campo livre: o ponto é CONTAR, e "outro: ..."
+         digitado à mão vira 498 textos diferentes e nenhuma conta. -->
+    <div id="d-motivo" class="motivo-box" hidden>
+      <div class="motivo-tit">Sem interesse: por quê?</div>
+      <div class="motivo-grid">
+        <button type="button" class="motivo-btn" data-produto="solar"       data-motivo="preco"          onclick="atualizarStatus('sem_interesse',{__motivo:'preco'})">💰 Achou caro</button>
+        <button type="button" class="motivo-btn" data-produto="solar"       data-motivo="concorrente"    onclick="atualizarStatus('sem_interesse',{__motivo:'concorrente'})">🏢 Fechou com outro</button>
+        <button type="button" class="motivo-btn" data-produto="solar"       data-motivo="nao_decisor"    onclick="atualizarStatus('sem_interesse',{__motivo:'nao_decisor'})">🙋 Não é quem decide</button>
+        <button type="button" class="motivo-btn" data-produto="solar"       data-motivo="sem_perfil"     onclick="atualizarStatus('sem_interesse',{__motivo:'sem_perfil'})">📉 Não tem perfil</button>
+        <button type="button" class="motivo-btn" data-produto="eletroposto" data-motivo="sem_ponto"      onclick="atualizarStatus('sem_interesse',{__motivo:'sem_ponto'})">📍 Não tem o ponto</button>
+        <button type="button" class="motivo-btn" data-produto="eletroposto" data-motivo="sem_capital"    onclick="atualizarStatus('sem_interesse',{__motivo:'sem_capital'})">💸 Não tem capital</button>
+        <button type="button" class="motivo-btn" data-produto="eletroposto" data-motivo="achou_caro"     onclick="atualizarStatus('sem_interesse',{__motivo:'achou_caro'})">💰 Achou caro</button>
+        <button type="button" class="motivo-btn" data-produto="eletroposto" data-motivo="so_curiosidade" onclick="atualizarStatus('sem_interesse',{__motivo:'so_curiosidade'})">👀 Só curiosidade</button>
+        <button type="button" class="motivo-pular" onclick="atualizarStatus('sem_interesse',{__motivo:''})">Encerrar sem dizer o motivo</button>
+      </div>
+    </div>
     </div>
 
     <!-- ESPERA: abre ao apertar APALAVRADO. Os dois campos sao obrigatorios e a
@@ -1552,10 +1594,16 @@ let esperasCache = {};                       // { '<id>': { retomar_em, aguardan
 // Então a etiqueta que vai ser apagada é GUARDADA antes, numa marca que só a
 // TELA lê. O card passa a mostrar as duas: "ARRENDAMENTO · SEM INTERESSE".
 let etiquetasCache = {};                     // { '<id>': 'arrendamento' }
+let motivosCache = {};                       // { '<id>': 'preco' } — o motivo do não
 const ETIQUETAS_NEGOCIO = new Set([
   'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao',
   'cotista', 'integrador',
   'em_atendimento', 'proposta_apresentada', 'fez_orcamento', 'falando_whatsapp',
+]);
+/** Quem aceita motivo de recusa. Espelha `STATUS_QUE_ACEITAM_MOTIVO` do servidor.
+ *  `fechou` fica FORA: e venda, nao recusa. */
+const STATUS_QUE_ACEITAM_MOTIVO = new Set([
+  'sem_interesse', 'fechou_concorrente', 'perdido', 'cancelado',
 ]);
 const STATUS_TERMINAIS = new Set([
   'sem_interesse', 'fechou', 'cancelado', 'perdido', 'fechou_concorrente',
@@ -1750,16 +1798,36 @@ async function carregarEsperas() {
     const j = await r.json();
     esperasCache = (j && j.esperas) || {};
     etiquetasCache = (j && j.etiquetas) || {};
+    motivosCache = (j && j.motivos) || {};
   } catch (e) {
     console.warn('esperas não carregadas', e);
     esperasCache = {};
     etiquetasCache = {};
+    motivosCache = {};
   }
 }
 
 /** A etiqueta que o status terminal apagou, ou string vazia. Só aparece quando o
  *  status de AGORA é terminal: card que voltou a negociar carrega a etiqueta no
  *  próprio status, e seriam duas pílulas iguais. */
+/** Os rotulos do motivo, curtos: a pilula divide espaco com a etiqueta guardada
+ *  e com o selo do status no mesmo card. */
+const MOTIVO_ROTULO = {
+  preco: 'ACHOU CARO', concorrente: 'FECHOU C/ OUTRO', nao_decisor: 'NÃO DECIDE',
+  sem_perfil: 'SEM PERFIL', sem_ponto: 'SEM PONTO', sem_capital: 'SEM CAPITAL',
+  achou_caro: 'ACHOU CARO', so_curiosidade: 'CURIOSIDADE',
+};
+
+/** A pilula do motivo. Sai da MARCA, igual a etiqueta guardada: nao ha coluna
+ *  pra isso (a `motivo_descarte` de `agendamentos` ja tem dono, e o dono e um
+ *  trigger do banco). */
+function pillMotivo(ag) {
+  if (!ag) return '';
+  const mo = motivosCache[String(ag.id)];
+  const r = mo ? MOTIVO_ROTULO[mo] : null;
+  return r ? `<span class="tag-modelo tag-motivo">${r}</span>` : '';
+}
+
 function pillEtiquetaGuardada(ag) {
   if (!ag || !STATUS_TERMINAIS.has(String(ag.status || ''))) return '';
   const et = etiquetasCache[String(ag.id)];
@@ -1959,7 +2027,9 @@ function pillStatus(ag, curto) {
   // A etiqueta GUARDADA vem primeiro: "ARRENDAMENTO · SEM INTERESSE" se lê como
   // a história do negócio, na ordem em que ela aconteceu.
   const guardada = pillEtiquetaGuardada(ag);
-  return guardada + modelo + espera;
+  // O motivo vem DEPOIS do status: "ARRENDAMENTO · SEM INTERESSE · ACHOU CARO"
+  // se le como a historia do negocio, na ordem em que ela aconteceu.
+  return guardada + modelo + espera + pillMotivo(ag);
 }
 
 function semRespostaDoLead(ag) {
@@ -2406,6 +2476,11 @@ function abrirDetalhes(id) {
   detalheAtual = ag;
   const posse = document.getElementById('d-posse');
   if (posse) posse.hidden = true;
+  // A caixa do motivo tambem fecha. Sem isto ela ficava aberta ao trocar de card
+  // e o proximo toque gravava o motivo na ficha de OUTRA pessoa — o mesmo defeito
+  // que a caixa da espera teve.
+  const bxMotivo = document.getElementById('d-motivo');
+  if (bxMotivo) bxMotivo.hidden = true;
   const dt = new Date(ag.quando);
   document.getElementById('modal-det-sub').textContent =
     `${ag.vendedor_nome} · ${diaSemanaLabel(dt)} ${fmtData(dt)} · ${pad(dt.getHours())}h${pad(dt.getMinutes())}`;
@@ -2528,10 +2603,17 @@ async function adicionarNota() {
  * verdade da ficha, mostra o botao.
  */
 function aplicarMenuDoProduto(ag) {
-  const ehEp = cardEhEletroposto(ag);
+  const produto = cardEhEletroposto(ag) ? 'eletroposto' : 'solar';
   const stAtual = String((ag && ag.status) || '');
-  document.querySelectorAll('#modal-det .btn-status[data-produto="eletroposto"]')
-    .forEach(b => { b.hidden = !ehEp && b.dataset.status !== stAtual; });
+  // Os botoes de STATUS: `data-produto` so existe nos seis modelos de EP, e o do
+  // status ATUAL nunca esconde (ver o comentario longo acima).
+  document.querySelectorAll('#modal-det .btn-status[data-produto]')
+    .forEach(b => { b.hidden = b.dataset.produto !== produto && b.dataset.status !== stAtual; });
+  // Os botoes de MOTIVO: aqui nao ha excecao nenhuma. O vocabulario do solar num
+  // card de eletroposto nao e "um botao a mais", e o motivo errado no placar, que
+  // e a unica coisa que a opcao B produz.
+  document.querySelectorAll('#d-motivo .motivo-btn[data-produto]')
+    .forEach(b => { b.hidden = b.dataset.produto !== produto; });
 }
 
 function marcarStatusAtualNosBotoes(status) {
@@ -2641,6 +2723,31 @@ async function atualizarStatus(novoStatus, extra) {
     }
     return;
   }
+  // SEM INTERESSE pergunta O MOTIVO antes de gravar, no mesmo formato da posse:
+  // o primeiro toque abre a caixa, o segundo grava.
+  //
+  // E A CAIXA TEM ESCAPE, de propósito. O status terminal não pode ficar mais
+  // difícil de marcar: é ele que faz o robô parar de falar com quem já disse não
+  // (nove lugares leem `sem_interesse` como "não fale mais com este card"). Entre
+  // perder o motivo de um card e o robô insistir com um cliente, perde o motivo.
+  // Por isso o "Encerrar sem dizer o motivo" grava o status e apaga a marca.
+  if (novoStatus === 'sem_interesse' && !(extra && extra.__motivo !== undefined)) {
+    const box = document.getElementById('d-motivo');
+    if (box) {
+      const posse = document.getElementById('d-posse');
+      if (posse) posse.hidden = true;
+      const esp = document.getElementById('d-espera');
+      if (esp) esp.hidden = true;
+      box.hidden = !box.hidden;
+      // Marca o motivo que o card JA tem, pra o segundo toque no mesmo botao se
+      // ler como "esse mesmo" e nao como "nao tinha nada aqui".
+      const atual = motivosCache[String(detalheAtual.id)] || '';
+      document.querySelectorAll('#d-motivo .motivo-btn').forEach(b => {
+        b.classList.toggle('is-atual', b.dataset.motivo === atual);
+      });
+    }
+    return;
+  }
   // ARRENDAMENTO pergunta de quem e o local ANTES de gravar: o primeiro toque so
   // abre os tres botoes, e e o segundo que grava status + posse juntos. Apertar de
   // novo num card que ja e arrendamento reabre, pra corrigir a posse.
@@ -2654,7 +2761,10 @@ async function atualizarStatus(novoStatus, extra) {
   // mandá-los no PATCH derrubaria o próprio botão com erro de coluna.
   // `__retomar`/`__oque` não chegam mais aqui: quem grava a espera é o
   // `apalavrar`, e ele não mexe no status. A limpeza fica por segurança.
-  if (extra) { delete extra.__retomar; delete extra.__oque; }
+  // `__motivo` entra na mesma lista: ele e MARCA, nao coluna de `agendamentos`.
+  // Mandar no PATCH derrubaria o proprio botao com erro de coluna desconhecida.
+  const motivoEscolhido = extra && extra.__motivo !== undefined ? String(extra.__motivo) : null;
+  if (extra) { delete extra.__retomar; delete extra.__oque; delete extra.__motivo; }
   const idAlvo = detalheAtual.id;
   try {
     await supaPatch(`agendamentos?id=eq.${idAlvo}`, { status: novoStatus, ...(extra || {}) });
@@ -2678,6 +2788,31 @@ async function atualizarStatus(novoStatus, extra) {
         delete etiquetasCache[String(idAlvo)];
       }
     } catch (e) { console.warn('etiqueta nao guardada', e); }
+
+    // O MOTIVO DO NÃO. Degrada, não quebra: o status terminal JÁ foi gravado
+    // acima, e é ele que para o robô. Se esta chamada falhar o card fica sem o
+    // motivo, que é uma pílula a menos — o contrário (recusar o status porque o
+    // motivo não subiu) deixaria o robô conversando com quem disse não.
+    try {
+      if (motivoEscolhido !== null) {
+        await fetch(`${API_ESPERA}/gerador/motivo`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: idAlvo, motivo: motivoEscolhido,
+            por: (function(){ try { return consultorLogado() || ''; } catch (e) { return ''; } })() }),
+        });
+        if (motivoEscolhido) motivosCache[String(idAlvo)] = motivoEscolhido;
+        else delete motivosCache[String(idAlvo)];
+      } else if (motivosCache[String(idAlvo)] && !STATUS_QUE_ACEITAM_MOTIVO.has(novoStatus)) {
+        // O CARD VOLTOU A VIVER. Motivo de recusa colado num card que voltou a
+        // negociar é o mesmo defeito do prazo velho calando um card ativo: o
+        // placar passaria a contar como perdido quem está em conversa.
+        await fetch(`${API_ESPERA}/gerador/motivo`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: idAlvo, motivo: '' }),
+        });
+        delete motivosCache[String(idAlvo)];
+      }
+    } catch (e) { console.warn('motivo nao guardado', e); }
 
     // QUALQUER TROCA DE STATUS SOLTA A ESPERA. O ramo que gravava saiu em
     // 01/10/2026 (quem grava é o `apalavrar`, sem tocar no status); o que fica é
