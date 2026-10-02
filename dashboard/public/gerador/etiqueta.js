@@ -106,3 +106,26 @@ function etiquetaDeLead(createdBy, src) {
   return cb.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()
     .split(' ').map(function (w) { return w ? w[0].toUpperCase() + w.slice(1) : w; }).join(' ');
 }
+
+// ── FORA DO PADRÃO: a chave do bloqueio (02/10/2026) ────────────────────────
+//
+// Cópia FIEL da `chaveContato` de api/src/services/agents/whatsapp/silenciar.ts.
+// Ela mora aqui, no arquivo que a agenda E o CRM carregam, porque as duas telas
+// precisam decidir "este card está bloqueado?" e duas cópias da normalização
+// divergiriam no primeiro ajuste — foi assim que as três listas de etiqueta
+// divergiram em 01/10.
+//
+// DDD + os 8 últimos dígitos. Não é capricho: a Z-API alterna o nono dígito entre
+// mensagens do MESMO contato, e um `slice(-10)` dá duas chaves pro mesmo telefone
+// (5534991360172 e 553491360172 viram "4991360172" e "3491360172"). O DDD nunca
+// muda entre as duas formas; o nono dígito sim.
+//
+// Devolve null pro que não normaliza com segurança. Null NUNCA casa com nada, e
+// isso é de propósito: bloquear por engano é pior que deixar passar.
+function chaveContatoBloqueio(phone) {
+  const d = String(phone == null ? '' : phone).replace(/\D/g, '');
+  if (d.length < 10 || d.length > 13) return null;
+  const semDdi = d.indexOf('55') === 0 && d.length >= 12 ? d.slice(2) : d;
+  if (semDdi.length < 10) return null;
+  return semDdi.slice(0, 2) + semDdi.slice(-8);
+}

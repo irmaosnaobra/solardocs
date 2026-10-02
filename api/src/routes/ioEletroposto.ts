@@ -11,6 +11,7 @@ import { agendaFechadaNoIso, MOTIVO_FECHADA } from '../services/agenda/agendaFec
 import { blocoParesSeguro, pool, montarPares, MAX_PARES, TETO_KM } from '../services/io/eletropostoPares';
 // Estudo do local: o card já sai com a pré-nota e o link da página.
 import { extraDoCard, garantirEstudo } from '../services/io/eletropostoEstudoGarantir';
+import { estaBloqueado } from '../services/agents/whatsapp/silenciar';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alerta de lead novo da LP do Eletroposto (/io/eletroposto) no WhatsApp da equipe.
@@ -546,6 +547,16 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
     ...utm(b),
   };
 
+  // FORA DO PADRAO (02/10/2026): ficha NOVA nao nasce pra telefone bloqueado.
+  //
+  // Responde `ok` pra quem preencheu, de proposito. A pessoa do outro lado nao
+  // precisa saber que foi bloqueada, e um erro na tela dela viraria ligacao pro
+  // suporte. O rastro fica no log, que e onde quem bloqueou vai procurar.
+  if (await estaBloqueado(tel)) {
+    logger.info('io-eletroposto-agendar', `${tel} esta FORA DO PADRAO: ficha nao criada`);
+    res.json({ ok: true, id: null });
+    return;
+  }
   try {
     const { data, error } = await supabaseGerador
       .from('agendamentos').insert(ficha).select('id').single();

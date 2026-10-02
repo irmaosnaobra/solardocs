@@ -129,6 +129,7 @@
 
 import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
+import { carregarBloqueados } from '../agents/whatsapp/silenciar';
 import { logger } from '../../utils/logger';
 import { sendWhatsApp } from '../agents/zapiClient';
 import { ehFeriadoBR } from '../../utils/feriadosBR';
@@ -751,7 +752,18 @@ export async function runLembreteFollowupTick(opts: { dry?: boolean } = {}): Pro
     logger.error('lembrete-followup', 'falha lendo os cards abertos', error);
     return zero('erro_leitura', { erros: 1 });
   }
-  const cards = (data || []) as unknown as CardAberto[];
+  const todosCards = (data || []) as unknown as CardAberto[];
+  // FORA DO PADRAO: o bloqueado nao vira lembrete pro consultor.
+  //
+  // O corte vem ANTES do `nenhum_card_aberto` de proposito: se o unico card
+  // aberto da rodada for de um bloqueado, a rodada tem que terminar dizendo
+  // 'nenhum', e nao seguir e escolher ele.
+  const bloqueado = await carregarBloqueados();
+  const cards = todosCards.filter(c => !bloqueado(c.cliente_telefone || ''));
+  if (todosCards.length !== cards.length) {
+    logger.info('lembrete-followup',
+      `${todosCards.length - cards.length} card(s) fora do padrao, nao entram na fila`);
+  }
   if (!cards.length) return zero('nenhum_card_aberto');
 
   // 2. Marcadores: o slot de cada pessoa, o histórico de toque de cada card e a

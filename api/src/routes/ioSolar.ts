@@ -5,6 +5,7 @@ import { logger } from '../utils/logger';
 import { agendaFechadaNoIso, ehSocio, MOTIVO_FECHADA } from '../services/agenda/agendaFechada';
 import { proximoDaContaBaixa } from '../services/agenda/filaContaBaixa';
 import { FILA_CONTA_ALTA } from '../services/agenda/leadSolarFicha';
+import { estaBloqueado } from '../services/agents/whatsapp/silenciar';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alerta de lead novo da LP de Energia Solar (/io/solar) no WhatsApp da equipe.
@@ -265,6 +266,16 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
     res.status(409).json({ error: 'dia fechado', motivo: MOTIVO_FECHADA }); return;
   }
 
+  // FORA DO PADRAO (02/10/2026): ficha NOVA nao nasce pra telefone bloqueado.
+  //
+  // Responde `ok` pra quem preencheu, de proposito. A pessoa do outro lado nao
+  // precisa saber que foi bloqueada, e um erro na tela dela viraria ligacao pro
+  // suporte. O rastro fica no log, que e onde quem bloqueou vai procurar.
+  if (await estaBloqueado(tel)) {
+    logger.info('io-solar-agendar', `${tel} esta FORA DO PADRAO: ficha nao criada`);
+    res.json({ ok: true, id: null });
+    return;
+  }
   try {
     const { data, error } = await supabaseGerador.from('agendamentos').insert({
       vendedor_nome: dono,

@@ -7,6 +7,7 @@ import { indicacaoRateLimit } from '../middleware/indicacaoRateLimit';
 import { sendWhatsApp } from '../services/agents/zapiClient';
 import { slotLivreConsultor, dataBaseDaFaixa } from '../services/agenda/leadsMetaService';
 import { logger } from '../utils/logger';
+import { estaBloqueado } from '../services/agents/whatsapp/silenciar';
 
 const router = Router();
 
@@ -122,6 +123,11 @@ router.post('/', indicacaoRateLimit, async (req: Request, res: Response) => {
         origem ? `Origem: ${origem}` : '',
         '→ Atendimento personalizado',
       ].filter(Boolean).join('\n');
+      // FORA DO PADRAO: o INDICADO bloqueado nao vira ficha. A indicacao em si
+      // continua salva (ela ja foi, acima): o que nao acontece e abrir agenda.
+      if (await estaBloqueado(indicado_telefone)) {
+        logger.info('io-indicacoes', `indicado ${indicado_telefone} esta FORA DO PADRAO: sem ficha`);
+      } else {
       await supabaseGerador.from('agendamentos').insert({
         vendedor_nome: 'Thiago',
         quando: quando.toISOString(),
@@ -132,6 +138,7 @@ router.post('/', indicacaoRateLimit, async (req: Request, res: Response) => {
         status: 'agendado',
         created_by: 'indicacao',
       });
+      }
     } catch (agErr: any) {
       logger.error('io-indicacoes', 'agendamento do indicado falhou (indicação salva)', String(agErr?.message || agErr));
     }

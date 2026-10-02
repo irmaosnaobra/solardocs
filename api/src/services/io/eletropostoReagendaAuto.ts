@@ -125,6 +125,7 @@ import { EP_REMARCAR_PREFIX } from './eletropostoRemarcar';
 import { proximasVagas, diaBRT } from './eletropostoVagas';
 import { agendaFechadaNoIso } from '../agenda/agendaFechada';
 import { APALAVRADO_PREFIX, esperaAte } from '../agenda/salaDeEspera';
+import { carregarBloqueados } from '../agents/whatsapp/silenciar';
 
 const BRT_TZ = 'America/Sao_Paulo';
 
@@ -837,6 +838,9 @@ export async function runEletropostoReagendaAutoTick(
       + 'as mais ANTIGAS ficaram de fora desta rodada. Paginar por range virou necessidade.');
   }
 
+  // UMA leitura pra rodada inteira, nao um select por ficha: e pra isso que o
+  // `carregarBloqueados` devolve predicado em vez de consultar.
+  const bloqueado = await carregarBloqueados();
   const candidatos = ((data ?? []) as FichaVermelha[]).filter(f =>
     ehOrigemEletroposto(f.created_by)
     // O `agendado` só entra depois das 6 horas. A consulta acima usa o corte
@@ -856,6 +860,10 @@ export async function runEletropostoReagendaAutoTick(
     // EP_REAGENDA_SO_QUENTE=1 volta a régua de 20/08 sem deploy.
     && (!soQuente() || ehQuente(f.temperatura))
     && !!f.cliente_telefone
+    // FORA DO PADRÃO: o telefone bloqueado não volta pra agenda. Sem esta linha o
+    // reciclo remarcaria a reunião dele sozinho, e remarcar é o que faz o card
+    // reaparecer na fila de quem liga.
+    && !bloqueado(f.cliente_telefone)
     && !!f.vendedor_nome
     && !!f.quando
     // Escreveu DEPOIS de perder o horário? Não sumiu — está conversando, e essa

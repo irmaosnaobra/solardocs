@@ -35,6 +35,13 @@ import {
   ETIQUETA_PREFIX, ETIQUETAS_DE_NEGOCIO, MOTIVO_PREFIX, MOTIVOS_DO_NAO,
 } from '../services/agenda/salaDeEspera';
 import { EP_MUDO_PREFIX } from '../services/io/eletropostoReagendaAuto';
+// O bloqueio mora no MESMO lugar do opt-out (`whatsapp_suppression`), e nao numa
+// lista nova: tres listas de 'nao fale com essa pessoa' foi exatamente o defeito
+// que o silenciar.ts foi escrito pra acabar, em 31/08/2026.
+import {
+  silenciarContato, desbloquearContato, listarBloqueados, chaveContato,
+  MOTIVO_FORA_DO_PADRAO,
+} from '../services/agents/whatsapp/silenciar';
 // DOIS BANCOS, e eles nao tem as mesmas tabelas. `system_state` mora no Supabase
 // PRINCIPAL (o `supabase` acima); `agendamentos` mora no do GERADOR. Trocar um
 // pelo outro compila liso e devolve 500 em producao: "Could not find the table
@@ -633,6 +640,71 @@ router.get('/motivos/placar', async (_req: Request, res: Response) => {
     });
   } catch (err: any) {
     logger.error('gerador', 'placar de motivos falhou', err);
+    res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
+  }
+});
+
+// ── FORA DO PADRÃO (02/10/2026) ───────────────────────────────────────────
+//
+// Ordem do dono: "coloque alguma forma que esse cliente fique bloqueado, sem
+// condições nenhuma de nenhuma opção, não tem perigo dele aparecer de novo em
+// outras formas". E: "de um jeito que fique sem nenhuma etiqueta, apenas FORA DO
+// PADRÃO".
+//
+// O BLOQUEIO É POR TELEFONE, não por card, e isso é o ponto inteiro: bloquear o
+// card não impediria uma ficha NOVA do mesmo número de nascer amanhã pela LP.
+//
+// A chave é a `chaveContato`: DDD + os 8 últimos dígitos. Medido nas 1.230 fichas
+// de hoje: 1 telefone não normaliza (14 dígitos), 44 chaves têm mais de uma ficha
+// — e dessas, as de nome diferente são o mesmo nome escrito de dois jeitos ("José
+// Camargo" e "Jose Camargo", "Léo Borges" e "Leo Borges"). Ou seja: a chave junta
+// duplicata, não junta gente diferente.
+//
+// O QUE ELA NÃO RESOLVE, e é honesto dizer: 81 nomes aparecem com mais de um
+// telefone. Bloquear um NÚMERO não bloqueia a PESSOA. Se ele voltar de outro
+// número, é um lead novo de verdade — e aí a decisão é de gente outra vez.
+router.post('/bloquear', async (req: Request, res: Response) => {
+  const b = (req.body || {}) as { telefone?: unknown; id?: unknown; por?: unknown };
+  const telefone = String(b.telefone ?? '').trim();
+  const chave = chaveContato(telefone);
+  if (!chave) {
+    // Recusa FALANDO. Telefone que não normaliza é o caso da ficha da Laura (14
+    // dígitos): bloquear "mais ou menos" seria pior que não bloquear, porque a
+    // tela diria bloqueado e o robô continuaria falando.
+    res.status(400).json({ error: 'telefone não normaliza: não dá pra bloquear com segurança', telefone });
+    return;
+  }
+  try {
+    await silenciarContato(telefone, MOTIVO_FORA_DO_PADRAO, String(b.por ?? 'gerador').slice(0, 60));
+    res.json({ ok: true, chave });
+  } catch (err: any) {
+    logger.error('gerador', 'bloquear falhou', err);
+    res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
+  }
+});
+
+// Desfaz. Clique errado precisa de volta pela TELA: sem isto, marcar por engano
+// vira "me chama pra arrumar no banco".
+router.post('/desbloquear', async (req: Request, res: Response) => {
+  const telefone = String(((req.body || {}) as { telefone?: unknown }).telefone ?? '').trim();
+  if (!chaveContato(telefone)) { res.status(400).json({ error: 'telefone inválido' }); return; }
+  try {
+    await desbloquearContato(telefone);
+    res.json({ ok: true });
+  } catch (err: any) {
+    logger.error('gerador', 'desbloquear falhou', err);
+    res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
+  }
+});
+
+// A LISTA, pra tela conferir sem um select por card. Ela é por CHAVE justamente
+// pra uma ficha nova do mesmo número já nascer marcada na tela.
+router.get('/bloqueados', async (_req: Request, res: Response) => {
+  try {
+    const chaves = await listarBloqueados();
+    res.json({ ok: true, chaves });
+  } catch (err: any) {
+    logger.error('gerador', 'listar bloqueados falhou', err);
     res.status(500).json({ error: 'falha', detail: String(err?.message || err) });
   }
 });

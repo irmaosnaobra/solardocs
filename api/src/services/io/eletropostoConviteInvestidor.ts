@@ -43,6 +43,7 @@ import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { quandoPorExtenso } from './eletropostoAgenda';
 import { proximasVagas, aindaLivre } from './eletropostoVagas';
 import { escolhaDaResposta } from './eletropostoRemarcar';
+import { estaBloqueado } from '../agents/whatsapp/silenciar';
 
 // PREFIXO 'ep_convinv_', nao 'ep_convite_': este ultimo JA' E' de outro robo (o
 // convite de grupo garantido) e ja' esta' no teto da linha. Compartilhar o
@@ -585,6 +586,11 @@ export async function passoDoConvite(telefone: string, textos: string[]): Promis
     src: 'convite_investidor',
   };
 
+  // FORA DO PADRAO: quem foi bloqueado nao marca horario pelo convite.
+  if (await estaBloqueado(tel)) {
+    logger.info('ep-convite', `${tel} esta FORA DO PADRAO: nao marquei`);
+    return { acao: 'nada' };
+  }
   const { data, error } = await supabaseGerador
     .from('agendamentos').insert(ficha).select('id').single();
   if (error) {

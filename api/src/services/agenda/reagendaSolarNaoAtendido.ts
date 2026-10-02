@@ -64,6 +64,7 @@ import { agendaFechadaNoIso } from './agendaFechada';
 // com esta mudanca passaram a falhar. A conta continua sendo UMA; o que saiu foi
 // um produto depender do outro.
 import { APALAVRADO_PREFIX, esperaAte } from './salaDeEspera';
+import { carregarBloqueados } from '../agents/whatsapp/silenciar';
 import { GRADE_NILCE } from './nilceParaGiovanna';
 
 const TZ = 'America/Sao_Paulo';
@@ -443,6 +444,7 @@ export async function runReagendaSolarTick(
 
   const corteEsquecido = new Date(agora - esquecidoH() * 3600_000).toISOString();
   const corteNegociacao = new Date(agora - negociacaoH() * 3600_000).toISOString();
+  const bloqueado = await carregarBloqueados();
   const vermelhos = ((data ?? []) as CardSolar[]).filter(f =>
     // Cada um com o seu relogio: vermelho 30 min, esquecido 6h, negociacao 48h.
     (f.status !== 'agendado' || (!!f.quando && f.quando <= corteEsquecido))
@@ -455,6 +457,8 @@ export async function runReagendaSolarTick(
     // card remarcariam duas vezes o mesmo cliente.
     && !ehOrigemEletroposto(f.created_by)
     && !!f.cliente_telefone
+    // FORA DO PADRÃO: mesma regra do reciclo do eletroposto.
+    && !bloqueado(f.cliente_telefone)
     && !!f.vendedor_nome
     && !!f.quando
     // Escreveu depois de perder o horário? Não sumiu, está conversando.

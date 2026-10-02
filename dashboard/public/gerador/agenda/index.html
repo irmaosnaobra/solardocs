@@ -905,6 +905,15 @@
   /* O escape. Ele existe porque o status terminal NAO pode ficar mais dificil de
      marcar: e ele que para o robo de falar com quem ja disse nao. Entre perder o
      motivo de um card e o robo insistir com um cliente, perde o motivo. */
+  /* O bloqueio e VERMELHO e separado do resto por uma linha: ele nao e mais um
+     motivo, e a unica acao desta caixa que nao tem volta por aqui. */
+  .motivo-bloquear{grid-column:span 2;margin-top:8px;padding:11px 8px;border-radius:8px;border:0;
+    background:#7F1D1D;color:#FECACA;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer;
+    border-top:1px solid rgba(248,113,113,.4)}
+  .motivo-bloquear:hover{background:#991B1B;color:#fff}
+  /* A pilula. Cinza-chumbo: ela nao e etiqueta de negocio nem de perda, e o
+     carimbo de "esse nao existe mais pra nos". */
+  .tag-modelo.tag-fora{background:#1F2937;color:#9CA3AF;border:1px solid #4B5563}
   .motivo-pular{grid-column:span 2;padding:9px 8px;border-radius:8px;border:1px dashed rgba(148,163,184,.6);background:transparent;color:#64748B;font-family:inherit;font-weight:700;font-size:11.5px;cursor:pointer}
   .motivo-pular:hover{background:rgba(148,163,184,.12)}
   .posse-box{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(234,255,0,.1);border:1px solid rgba(234,255,0,.45)}
@@ -1480,6 +1489,13 @@
         <button type="button" class="motivo-btn" data-produto="eletroposto" data-motivo="achou_caro"     onclick="atualizarStatus('sem_interesse',{__motivo:'achou_caro'})">💰 Achou caro</button>
         <button type="button" class="motivo-btn" data-produto="eletroposto" data-motivo="so_curiosidade" onclick="atualizarStatus('sem_interesse',{__motivo:'so_curiosidade'})">👀 Só curiosidade</button>
         <button type="button" class="motivo-pular" onclick="atualizarStatus('sem_interesse',{__motivo:''})">Encerrar sem dizer o motivo</button>
+        <!-- FORA DO PADRÃO (02/10/2026). Ordem do dono: "sem condições nenhuma de
+             nenhuma opção, não tem perigo dele aparecer de novo em outras formas",
+             e "sem nenhuma etiqueta, apenas FORA DO PADRÃO".
+             Separado dos quatro motivos de propósito: os motivos CONTAM (viram
+             placar), este BLOQUEIA. Misturar faria o placar do não contar bloqueio
+             como se fosse recusa de preço. -->
+        <button type="button" class="motivo-bloquear" onclick="marcarForaDoPadrao()">🚫 FORA DO PADRÃO · bloquear para sempre</button>
       </div>
     </div>
 
@@ -1620,6 +1636,9 @@ let esperasCache = {};                       // { '<id>': { retomar_em, aguardan
 // TELA lê. O card passa a mostrar as duas: "ARRENDAMENTO · SEM INTERESSE".
 let etiquetasCache = {};                     // { '<id>': 'arrendamento' }
 let motivosCache = {};                       // { '<id>': 'preco' } — o motivo do não
+// As CHAVES bloqueadas (DDD + 8 ultimos), nao os ids: o bloqueio e por TELEFONE,
+// entao uma ficha NOVA do mesmo numero tambem nasce marcada aqui.
+let bloqueadosCache = new Set();
 const ETIQUETAS_NEGOCIO = new Set([
   'arrendamento', 'carregador', 'meio_a_meio', 'chave_na_mao',
   'cotista', 'integrador',
@@ -1824,6 +1843,13 @@ async function carregarEsperas() {
     esperasCache = (j && j.esperas) || {};
     etiquetasCache = (j && j.etiquetas) || {};
     motivosCache = (j && j.motivos) || {};
+    // A lista dos bloqueados vem em separado: ela e por telefone e nao depende
+    // dos ids desta semana.
+    try {
+      const rb = await fetch(`${API_ESPERA}/gerador/bloqueados`);
+      const jb = await rb.json();
+      bloqueadosCache = new Set((jb && jb.chaves) || []);
+    } catch (e) { console.warn('lista de bloqueados nao carregou', e); }
   } catch (e) {
     console.warn('esperas não carregadas', e);
     esperasCache = {};
@@ -2031,6 +2057,14 @@ function pillApres(ag, curto) {
  *  Dois estados que nao sao status ganham rotulo proprio, porque e o que o card
  *  esta mostrando: presenca confirmada e lead que nao respondeu.
  *  @param curto metade do slot dividido: metade da largura, nome inteiro nao cabe. */
+/** Este card esta FORA DO PADRAO? Pela CHAVE do telefone, nao pelo id: e isso que
+ *  faz uma ficha nova do mesmo numero ja nascer bloqueada. */
+function foraDoPadrao(ag) {
+  if (!ag || typeof chaveContatoBloqueio !== 'function') return false;
+  const k = chaveContatoBloqueio(ag.cliente_telefone);
+  return k !== null && bloqueadosCache.has(k);
+}
+
 function pillStatus(ag, curto) {
   if (!ag) return '';
   let t;
@@ -2054,6 +2088,13 @@ function pillStatus(ag, curto) {
   const guardada = pillEtiquetaGuardada(ag);
   // O motivo vem DEPOIS do status: "ARRENDAMENTO · SEM INTERESSE · ACHOU CARO"
   // se le como a historia do negocio, na ordem em que ela aconteceu.
+  // FORA DO PADRÃO SUBSTITUI TODAS AS OUTRAS, e nao se soma a elas.
+  //
+  // Ordem do dono, literal: "de um jeito que fique sem nenhuma etiqueta, apenas
+  // FORA DO PADRÃO". O card bloqueado nao e mais arrendamento nem sem interesse
+  // nem nada: ele saiu. Mostrar "ARRENDAMENTO · SEM INTERESSE · ACHOU CARO · FORA
+  // DO PADRÃO" seria contar uma historia de um cliente que nao existe mais.
+  if (foraDoPadrao(ag)) return '<span class="tag-modelo tag-fora">FORA DO PADRÃO</span>';
   return guardada + modelo + espera + pillMotivo(ag);
 }
 
@@ -2795,6 +2836,56 @@ function abrirCaixaDoCard(id) {
   b.hidden = false;
   try { b.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) {}
   return true;
+}
+
+/**
+ * FORA DO PADRÃO: encerra o card E bloqueia o telefone.
+ *
+ * A ORDEM IMPORTA e nao e arbitraria. Primeiro o BLOQUEIO, depois o status:
+ *   · se o bloqueio falhar, nada acontece e o consultor ve o erro — melhor que um
+ *     card encerrado que todo mundo acha que esta bloqueado e nao esta;
+ *   · o status `sem_interesse` e o que nove lugares da api ja leem como "nao fale
+ *     mais com este card". Reusar ele e de graca e e o que faz o bloqueio valer
+ *     mesmo nos caminhos que eu nao tiver ligado ainda.
+ * E o MOTIVO e apagado: bloqueado nao entra no placar do nao, que conta recusa.
+ */
+async function marcarForaDoPadrao() {
+  if (!detalheAtual) return;
+  const tel = String(detalheAtual.cliente_telefone || '');
+  const k = typeof chaveContatoBloqueio === 'function' ? chaveContatoBloqueio(tel) : null;
+  if (!k) {
+    showToast('Esse card não tem telefone válido: não dá pra bloquear com segurança.');
+    return;
+  }
+  if (!confirm('FORA DO PADRÃO bloqueia este telefone para sempre:\n\n'
+    + '· o card não volta pra agenda\n· não vira lembrete\n· não recebe mensagem\n'
+    + '· e ficha nova desse número não é criada\n\nConfirma?')) return;
+  const idAlvo = detalheAtual.id;
+  try {
+    const r = await fetch(`${API_ESPERA}/gerador/bloquear`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: idAlvo, telefone: tel,
+        por: (function(){ try { return consultorLogado() || ''; } catch (e) { return ''; } })() }),
+    });
+    const j = await r.json();
+    if (!r.ok || !j.ok) throw new Error((j && j.error) || 'não consegui bloquear');
+    bloqueadosCache.add(k);
+  } catch (e) {
+    document.getElementById('d-erro').textContent = 'Erro ao bloquear: ' + e.message;
+    console.error(e);
+    return;
+  }
+  // o motivo some: bloqueado nao e recusa contada, e sair do placar e parte do
+  // "sem nenhuma etiqueta".
+  try {
+    await fetch(`${API_ESPERA}/gerador/motivo`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: idAlvo, motivo: '' }),
+    });
+    delete motivosCache[String(idAlvo)];
+  } catch (e) { console.warn('motivo nao foi limpo', e); }
+  await atualizarStatus('sem_interesse', { __motivo: '' });
+  showToast('🚫 FORA DO PADRÃO: bloqueado para sempre.');
 }
 
 async function atualizarStatus(novoStatus, extra) {
