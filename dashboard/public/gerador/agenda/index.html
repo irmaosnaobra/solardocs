@@ -1439,7 +1439,7 @@
          não tem opção nenhuma, era o pedido. O único caminho daqui é desbloquear. -->
     <div id="d-bloqueado" class="bloqueado-box" hidden>
       <div class="bloqueado-tit">🚫 FORA DO PADRÃO</div>
-      <div class="bloqueado-txt">Este telefone está bloqueado. O card não volta pra agenda,
+      <div class="bloqueado-txt">Sem grana e sem condição de ponto. O card não volta pra agenda,
         não vira lembrete, não recebe mensagem, e ficha nova desse número não é criada.</div>
       <button type="button" class="bloqueado-btn" onclick="desfazerForaDoPadrao()">Desbloquear este cliente</button>
     </div>
@@ -1667,6 +1667,11 @@ const ETIQUETAS_NEGOCIO = new Set([
  *  `fechou` fica FORA: e venda, nao recusa. */
 const STATUS_QUE_ACEITAM_MOTIVO = new Set([
   'sem_interesse', 'fechou_concorrente', 'perdido', 'cancelado',
+]);
+/** Desfecho que nao desenha em dia FUTURO. Espelha `STATUS_QUE_NAO_OCUPAM` do
+ *  servidor: os quatro que nao ocupam horario, sem o `fechou`. */
+const SEM_DESFECHO_NO_FUTURO = new Set([
+  'cancelado', 'sem_interesse', 'perdido', 'fechou_concorrente',
 ]);
 const STATUS_TERMINAIS = new Set([
   'sem_interesse', 'fechou', 'cancelado', 'perdido', 'fechou_concorrente',
@@ -2213,7 +2218,25 @@ function renderGrid() {
         const doSlot = agendamentosCache.filter(a => {
           if (a.vendedor_nome !== vendedorAtivo || !a.quando) return false;
           const t = new Date(a.quando).getTime();
-          return t >= iniSlot && t < fimSlot;
+          if (t < iniSlot || t >= fimSlot) return false;
+          // CARD COM DESFECHO NAO DESENHA EM DIA FUTURO (03/10/2026).
+          //
+          // Ordem do dono: "deixando os SEM INTERESSE (PERDIDO, CONCORRENTE e etc)
+          // todos onde pararam".
+          //
+          // Eles chegaram no futuro porque o robo remarcou ANTES de alguem fechar o
+          // card: a data e o resto de uma remarcacao que a decisao tornou sem
+          // sentido. Medido em 03/10: 39 cards assim, 37 cancelados (que a consulta
+          // ja escondia) e 2 sem interesse, que apareciam como se fossem reuniao.
+          //
+          // NO PASSADO ELES CONTINUAM, e e por isso que a regra olha a data: o
+          // passado e justamente ONDE ELES PARARAM. Sumir com eles de la seria
+          // apagar a semana que a pessoa trabalhou.
+          //
+          // A lista e a mesma do servidor (`STATUS_QUE_NAO_OCUPAM`): `fechou` fica
+          // de fora, porque reuniao de quem comprou e reuniao de verdade.
+          if (t > Date.now() && SEM_DESFECHO_NO_FUTURO.has(String(a.status || ''))) return false;
+          return true;
         });
         const ag = doSlot[0] || null;
 
@@ -2914,9 +2937,7 @@ async function marcarForaDoPadrao() {
     showToast('Esse card não tem telefone válido: não dá pra bloquear com segurança.');
     return;
   }
-  if (!confirm('FORA DO PADRÃO bloqueia este telefone para sempre:\n\n'
-    + '· o card não volta pra agenda\n· não vira lembrete\n· não recebe mensagem\n'
-    + '· e ficha nova desse número não é criada\n\nConfirma?')) return;
+  if (!confirm('FORA DO PADRAO e quem nao tem grana E nao tem condicao nenhuma de ponto.\n\nNao serve pra nos, e nao entra em follow-up de nada:\n\n- o card nao volta pra agenda\n- nao vira lembrete\n- nao recebe mensagem\n- e ficha nova desse numero nao e criada\n\nConfirma?')) return;
   const idAlvo = detalheAtual.id;
   try {
     const r = await fetch(`${API_ESPERA}/gerador/bloquear`, {

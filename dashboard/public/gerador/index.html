@@ -6029,7 +6029,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
       <div id="crm-det-bloqueado" class="bloqueado-box" hidden>
         <div class="bloqueado-tit">🚫 FORA DO PADRÃO</div>
-        <div class="bloqueado-txt">Este telefone está bloqueado. O card não volta pra agenda,
+        <div class="bloqueado-txt">Sem grana e sem condição de ponto. O card não volta pra agenda,
           não vira lembrete, não recebe mensagem, e ficha nova desse número não é criada.</div>
         <button type="button" class="bloqueado-btn" onclick="crmDesfazerForaDoPadrao()">Desbloquear este cliente</button>
       </div>
@@ -21899,9 +21899,7 @@ async function crmMarcarForaDoPadrao() {
   const tel = crmTelDoBloqueio(ag, crmDetAtual.c);
   const k = typeof chaveContatoBloqueio === 'function' ? chaveContatoBloqueio(tel) : null;
   if (!k) { showToast('Sem telefone válido: não dá pra bloquear com segurança.'); return; }
-  if (!confirm('FORA DO PADRÃO bloqueia este telefone para sempre:\n\n'
-    + '· o card não volta pra agenda\n· não vira lembrete\n· não recebe mensagem\n'
-    + '· e ficha nova desse número não é criada\n\nConfirma?')) return;
+  if (!confirm('FORA DO PADRAO e quem nao tem grana E nao tem condicao nenhuma de ponto.\n\nNao serve pra nos, e nao entra em follow-up de nada:\n\n- o card nao volta pra agenda\n- nao vira lembrete\n- nao recebe mensagem\n- e ficha nova desse numero nao e criada\n\nConfirma?')) return;
   try {
     const r = await fetch(`${APX_API}/gerador/bloquear`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
