@@ -2644,18 +2644,38 @@ async function gerarOrcamentoDoDetalhe(produto) {
   if (!detalheAtual) return;
   const ag = detalheAtual;
   // Gerar orçamento marca (best-effort, independentes):
-  //  - temperatura=frio → joga o card na coluna Frio do CRM e tira do followup
   //  - status=fez_orcamento → SÓ NO SOLAR. No eletroposto essa etiqueta não existe
   //    mais (ordem do dono, 23/09/2026): depois do orçamento o desfecho é um dos
   //    modelos, e quem diz qual é o CONSULTOR, apertando o botão (Arrendamento,
-  //    Carregador, 50/50, Chave na mão). Marcar "fez orçamento" sozinho fazia o
-  //    card parar num meio-termo que não é desfecho de nada e escondia a escolha.
+  //    Carregador, 50/50, Chave na mão, Cotista, Integrador). Marcar "fez
+  //    orçamento" sozinho fazia o card parar num meio-termo que não é desfecho de
+  //    nada e escondia a escolha.
+  //  - temperatura=frio → SÓ NO SOLAR também, desde 03/10/2026.
+  //
+  // ── O QUE O COMENTÁRIO DAQUI DIZIA, E NÃO ERA MAIS VERDADE ───────────────
+  //
+  // Estava escrito que `temperatura=frio` "joga o card na coluna Frio do CRM e
+  // tira do followup". Conferido em 03/10/2026: as duas coisas pararam de valer
+  // e ninguém atualizou a linha.
+  //   · as colunas Quente/Morno/Frio saíram do quadro do CRM quando ele passou a
+  //     seguir os botões de status;
+  //   · nenhum robô corta por `agendamentos.temperatura`. O único que lia era o
+  //     reciclo do eletroposto, pelo `soQuente()`, e ele está desligado por
+  //     padrão desde 29/09.
+  // Então a escrita não tirava do follow-up nada; ela só gravava um campo.
+  //
+  // E hoje o dono tirou a temperatura do eletroposto ("eletroposto não tem
+  // temperatura mais, mantém no solar"). Gravar `frio` num card de eletroposto
+  // agora seria escrever num campo que a tela dele não mostra mais e que ele não
+  // tem como desfazer: estado invisível, que é pior que estado nenhum.
+  //
   // Guard 'fechou': nunca rebaixa um lead já ganho de volta pra amarelo.
   // Patch montado à parte do gate de temperatura: um card que já era frio
   // (reclique) ainda precisa receber o status pra virar amarelo.
+  const ehEp = produto === 'eletroposto';
   const patch = {};
-  if (ag.temperatura !== 'frio') patch.temperatura = 'frio';
-  if (produto !== 'eletroposto' && ag.status !== 'fez_orcamento' && ag.status !== 'fechou') patch.status = 'fez_orcamento';
+  if (!ehEp && ag.temperatura !== 'frio') patch.temperatura = 'frio';
+  if (!ehEp && ag.status !== 'fez_orcamento' && ag.status !== 'fechou') patch.status = 'fez_orcamento';
   if (Object.keys(patch).length) {
     try {
       await supaPatch(`agendamentos?id=eq.${ag.id}`, patch);

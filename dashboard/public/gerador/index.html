@@ -22321,7 +22321,22 @@ async function crmGerarOrcamento(produto) {
   // Marca Frio (só se ainda não estiver). crmGravarTemperatura é setter direto
   // (NÃO o toggle crmAtualizarTemperatura), grava em todas as agendas do cliente
   // e recalcula a coluna. Só roda quando há agenda onde gravar.
-  if (c.temperatura !== 'frio' && (c.agends || []).some(a => a.id != null)) {
+  //
+  // ── E SÓ NO SOLAR, DESDE 03/10/2026 ──────────────────────────────────────
+  //
+  // Ordem do dono: "eletroposto não tem temperatura mais (frio, morno e quente),
+  // mantém no solar". Este setter grava em TODAS as agendas do cliente, então
+  // apertar "⚡ Orçamento Eletroposto" carimbava `frio` até nos cards de
+  // eletroposto — campo que a tela dele não mostra mais e que ele não tem como
+  // desfazer. Estado invisível é pior que estado nenhum.
+  //
+  // E o que este comentário prometia já não valia: conferido hoje, as colunas
+  // Quente/Morno/Frio saíram do quadro quando ele passou a seguir os botões de
+  // status, e nenhum robô corta por `agendamentos.temperatura` (o único que lia
+  // era o `soQuente()` do reciclo do eletroposto, desligado por padrão desde
+  // 29/09). Mesma correção em `gerarOrcamentoDoDetalhe` na agenda.
+  if (produto !== 'eletroposto' && c.temperatura !== 'frio'
+      && (c.agends || []).some(a => a.id != null)) {
     await crmGravarTemperatura('frio');
   }
 
