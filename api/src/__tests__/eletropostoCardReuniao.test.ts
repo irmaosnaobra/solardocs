@@ -52,14 +52,45 @@ describe('montarMensagem — card da reunião de eletroposto', () => {
     expect(msg).not.toContain('NUTRIÇÃO');
   });
 
-  it('ficha antiga, sem modelo nem nota: não inventa linha e usa a temperatura', () => {
+  it('ficha antiga, sem modelo nem nota: não inventa linha NEM nota (03/10/2026)', () => {
+    // ── A TEMPERATURA ERA O PLANO B DA NOTA, E ELA SAIU DO ELETROPOSTO ─────
+    //
+    // Ordem do Thiago: "eletroposto não tem temperatura mais (frio, morno e
+    // quente), mantém no solar". Enquanto a temperatura existia aqui, cair nela
+    // era razoável: `morno` → NOTA 2. Agora NENHUMA ficha nova tem o campo, e o
+    // plano B passaria a rebaixar toda ficha antiga pra NOTA 1 — 🔴 NUTRIÇÃO,
+    // sobre lead que pode ser prioridade.
+    //
+    // Então o card DIZ que não sabe, em vez de chutar. Nota errada é pior que
+    // nota ausente, porque ela é lida como medição.
+    //
+    // (O `SELO[nota] || SELO[1]` que estava no código engolia o 0 e devolvia
+    // NUTRIÇÃO do mesmo jeito. Virou `?? SELO[0]`.)
     const msg = montarMensagem(ficha(
       ['LP ELETROPOSTO — Outro', 'Simulou 80 kW com 10 carros/dia'],
       { temperatura: 'morno' },
     ));
     expect(msg).not.toContain('*Modelo:*');
-    expect(msg).toContain('*NOTA 2');
     expect(msg).toContain('*Perfil:* Outro');
+    // sem a linha `NOTA n`, nenhuma nota é afirmada — nem a 2 pela temperatura,
+    // nem a 1 pelo fallback antigo
+    expect(msg).toContain('SEM NOTA');
+    expect(msg).not.toContain('*NOTA 1');
+    expect(msg).not.toContain('*NOTA 2');
+    expect(msg).not.toContain('*NOTA 3');
+    expect(msg).not.toContain('NUTRIÇÃO');
+  });
+
+  it('e com a linha NOTA a nota continua saindo dela, nao da temperatura', () => {
+    // O par do teste acima: o conserto não pode ter desligado a nota de verdade.
+    // A temperatura aqui diz `frio` e a linha diz 3 — quem manda é a linha.
+    const msg = montarMensagem(ficha(
+      ['LP ELETROPOSTO · Posto', 'NOTA 3 · 10/11 pts'],
+      { temperatura: 'frio' },
+    ));
+    expect(msg).toContain('*NOTA 3');
+    expect(msg).toContain('(10/11 pts)');
+    expect(msg).not.toContain('SEM NOTA');
   });
 
   it('vagas e valor (15/09): entram no card quando a ficha traz, e só então', () => {

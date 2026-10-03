@@ -31,17 +31,30 @@
 -- O card fica em pingue-pongue entre o Thiago e o Diego, e cada volta o
 -- re-encaixa na grade. A cada 12 horas comerciais, indefinidamente.
 --
--- POR QUE NÃO DEU PRA CONSERTAR DE FORA
--- O laço só pega `repassar_em is not null and repassar_em <= now()`, então zerar
--- essa coluna tiraria o card do laço. Medido em 03/10: NÃO FUNCIONA. Há trigger
--- recalculando `repassar_em` a partir do `quando` no mesmo UPDATE — eu gravei
--- null e a resposta do PostgREST já voltou com `2026-05-11T11:00`, ou seja a
--- origem mais 12h comerciais, que nasce vencida. Dois outros cards nem gravaram:
--- `agendamentos_vq_solar_uniq`, porque o repasse já tinha trocado o dono e o
--- horário de origem com o dono novo está ocupado.
+-- O TRIGGER, MEDIDO COM GRUPO DE CONTROLE
+-- Há trigger recalculando `repassar_em` a partir do `quando`, e ele dispara
+-- quando o `quando` muda. A consequência, medida em 03/10/2026:
+--   · PATCH único com `quando` + `repassar_em = null` NÃO cola: o trigger roda
+--     depois e sobrescreve o null com `quando + 12h`, que pra reunião passada
+--     nasce vencido;
+--   · PATCH com SÓ `repassar_em = null` COLA, porque o `quando` não muda.
+-- É esse o padrão que o corte novo usa, e é o mesmo do ramo `dono_fixo` logo
+-- acima dele.
 --
--- (O ramo `dono_fixo` desta própria função zera `repassar_em` e FUNCIONA, porque
--- ele não toca no `quando`. É esse o padrão que o corte novo usa.)
+-- O grupo de controle, que é a razão pra confiar nisto: dos 4 cards afetados eu
+-- estacionei 1 com o PATCH extra e deixei 3 sem. A função rodou às 16h15 e
+-- trouxe os 3 de volta pra segunda; o estacionado ficou. Depois disso os 4 foram
+-- devolvidos em dois passos (data e dono, depois só o relógio) e os 4 ficaram.
+--
+-- PORTANTO ESTA MIGRATION NÃO É URGENTE. Os cards de hoje já estão parados. Ela
+-- é o conserto do caso GERAL: card que envelhecer daqui pra frente cai no mesmo
+-- buraco, e aí ninguém vai estar olhando.
+--
+-- (Dois dos quatro nem gravaram na primeira tentativa:
+-- `agendamentos_vq_solar_uniq` é (vendedor, quando), e o repasse já tinha
+-- trocado o dono — o horário de origem COM O DONO NOVO estava ocupado. Pra
+-- devolver, devolva o dono também; a linha `Repasse automático: Diego → Thiago`
+-- diz qual era.)
 --
 -- A MUDANÇA
 -- Um CORTE DE IDADE, depois do `dono_fixo` e antes da fila: reunião que passou
@@ -68,7 +81,8 @@
 --   select prosrc from pg_proc where proname = 'processar_repasses';
 --   -- tem que conter a linha: r.quando < now() - (dias_janela || ' days')::interval
 --
--- STATUS: NÃO APLICADO. Depende do Thiago rodar no SQL Editor.
+-- STATUS: NÃO APLICADO, e NÃO URGENTE (ver o grupo de controle acima: os cards
+--         de hoje já estão parados). Depende do Thiago rodar no SQL Editor.
 -- ============================================================================
 
 create or replace function public.processar_repasses()
