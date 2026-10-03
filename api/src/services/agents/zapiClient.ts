@@ -71,6 +71,15 @@ const instanceCooldownUntil: Record<string, number> = {};
 // além de disparar o cooldown, pula os retries internos.
 const PERMANENT_ERR = /Instance not found/i;
 
+/** A linha física desta instância falhou há menos de 60s? É o mesmo cooldown
+ *  que faz o `zapiPost` pular o envio, exposto pra quem precisa decidir ANTES
+ *  de mexer em dado que pressupõe a mensagem saindo. Vale só pra esta
+ *  invocação (é memória), então quem pergunta também deve olhar o monitor. */
+export function linhaEmCooldown(instance: ZapiInstance = 'solardoc'): boolean {
+  const cd = instanceCooldownUntil[linhaFisica(instance)];
+  return !!cd && Date.now() < cd;
+}
+
 export function fmtPhone(raw: string): string {
   const d = raw.replace(/\D/g, '');
   return d.startsWith('55') ? d : `55${d}`;

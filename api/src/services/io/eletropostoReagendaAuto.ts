@@ -114,7 +114,7 @@
 import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
-import { sendHuman } from '../agents/zapiClient';
+import { sendHuman, linhaEmCooldown } from '../agents/zapiClient';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 import {
@@ -187,6 +187,20 @@ export const EP_REAGENDA_PREFIX = 'ep_reagenda_auto:';
  * verdade.
  */
 export const EP_MUDO_PREFIX = 'ep_mudo:';
+
+/**
+ * A linha IO está fora do ar? Fail-closed na leitura do monitor: se o banco não
+ * responde, ninguém que fala é remarcado nesta rodada. A fila não tem pressa, e
+ * remarcar sem avisar é marcar reunião que a pessoa não sabe que existe.
+ */
+async function linhaIoForaDoAr(): Promise<boolean> {
+  if (linhaEmCooldown('io')) return true;
+  const { data, error } = await supabase
+    .from('system_state').select('key, value').in('key', ['zapi_io_health']);
+  if (error) return true;
+  const v = (data?.[0]?.value ?? null) as { downStreak?: number } | null;
+  return Number(v?.downStreak ?? 0) > 0;
+}
 
 // ── Envs, lidas a cada chamada ──────────────────────────────────────────────
 // Não no arranque do módulo: instância quente na Vercel não recarrega módulo, e
@@ -1109,6 +1123,21 @@ export async function runEletropostoReagendaAutoTick(
   // fichas de agosto que nunca responderam, e a linha 5040 caiu às 9h55.
   // `transacional: true` aqui NÃO é passe livre: sem `piso*` ele só troca a
   // conta pela da linha toda, que é a que inclui este carimbo.
+  //
+  // LINHA FORA DO AR, MESMA SAÍDA (03/10/2026). O teto não enxerga queda: com
+  // a linha caída nada sai, o contador fica zerado e o teto diz "pode". A ficha
+  // era remarcada, o envio falhava logo depois, e o `break` do erro só limitava
+  // o estrago a uma por tick. Das 9h46 às 10h06 de 03/10 foram 15 reuniões
+  // mudadas de dia sem o cliente saber. Duas fontes, porque cada uma cega num
+  // lado: o cooldown do zapiClient sabe da falha desta invocação, e o monitor
+  // (`zapi_io_health.downStreak`) sabe da queda que outra invocação viu. Depois
+  // que a linha volta, o monitor segura o que fala por até 1h, até a próxima
+  // checagem dele, e isso também serve de aquecimento.
+  if (!opts.dry && aptos.some(f => relogioDe(f) === 'fala') && (await linhaIoForaDoAr())) {
+    logger.info('ep-reagenda', 'linha IO fora do ar — nesta rodada andam só os calados');
+    linhaEstourou = true;
+    aptos = aptos.filter(f => relogioDe(f) === 'mudo');
+  }
   if (!opts.dry && aptos.some(f => relogioDe(f) === 'fala')
       && !(await dentroDoTetoHorarioLinha({ transacional: true }))) {
     logger.info('ep-reagenda', 'teto da linha estourado — nesta rodada andam só os calados');
@@ -1237,11 +1266,18 @@ export async function runEletropostoReagendaAutoTick(
       // Carimbo do teto da linha (o mesmo prefixo dos outros toques da agenda) e,
       // junto, o `confirmacao_at`: é ele que impede a régua da agenda de mandar a
       // confirmação padrão em cima desta mensagem.
-      await supabase.from('system_state').upsert(
-        { key: `${EP_AGENDA_PREFIX}${f.id}:reagendado`, value: { em: nowIso, para: novo }, updated_at: nowIso },
-        { onConflict: 'key' },
-      ).then(undefined, (e: unknown) =>
-        logger.error('ep-reagenda', 'carimbo do teto da linha falhou', { id: f.id, erro: String(e) }));
+      // SÓ QUEM FALOU CARIMBA (03/10/2026). O teto, o espaçamento de 10 min e a
+      // Central das Agentes leem este prefixo como "mensagem que saiu". O
+      // caminho mudo não manda nada, e carimbando ele gastava orçamento da linha
+      // com mensagem fantasma: até 200 por dia de rampa muda, segurando
+      // confirmação de agenda que tinha gente esperando.
+      if (!mudo) {
+        await supabase.from('system_state').upsert(
+          { key: `${EP_AGENDA_PREFIX}${f.id}:reagendado`, value: { em: nowIso, para: novo }, updated_at: nowIso },
+          { onConflict: 'key' },
+        ).then(undefined, (e: unknown) =>
+          logger.error('ep-reagenda', 'carimbo do teto da linha falhou', { id: f.id, erro: String(e) }));
+      }
       // ── SÓ QUEM FALOU CARIMBA `confirmacao_at` ────────────────────────────
       //
       // Este campo significa UMA coisa: "a mensagem de confirmação saiu pro

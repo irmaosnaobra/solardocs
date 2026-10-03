@@ -170,7 +170,9 @@ vi.mock('../services/io/eletropostoRemarcar', () => ({ EP_REMARCAR_PREFIX: 'ep_r
 
 const enviadas: Array<{ tel: string; bolhas: string[]; opts?: any }> = [];
 let envioQuebrado = false;
+let linhaEmCooldownAgora = false;
 vi.mock('../services/agents/zapiClient', () => ({
+  linhaEmCooldown: vi.fn(() => linhaEmCooldownAgora),
   sendHuman: vi.fn(async (tel: string, bolhas: string[], _inst?: string, opts?: any) => {
     if (envioQuebrado) throw new Error('[zapi:io] HTTP 400 — whatsapp is disconnected');
     enviadas.push({ tel, bolhas, opts });
@@ -214,6 +216,7 @@ beforeEach(() => {
   aoPedirVagas = null;
   tetoLivre = true;
   envioQuebrado = false;
+  linhaEmCooldownAgora = false;
   pedidosTeto.length = 0;
   rampaQuebrada = false;
   esperaQuebrada = false;
@@ -495,6 +498,50 @@ describe('a rajada de 02/10 não se repete', () => {
     const r = await tick();
     expect(r.erros).toBe(1);
     expect(updates.map(u => u.id)).toEqual([41]);
+  });
+});
+
+// ── A LINHA CAÍDA NÃO MOVE QUEM FALA (03/10/2026) ──────────────────────────
+//
+// Com a linha fora o teto diz "pode", porque nada sai e o contador fica zerado.
+// Em 03/10 foram 15 reuniões mudadas de dia, uma por tick, sem o cliente saber.
+describe('linha fora do ar', () => {
+  it('cooldown do zapiClient: o vermelho NÃO é tocado', async () => {
+    linhaEmCooldownAgora = true;
+    const r = await tick();
+    expect(r.motivo).toBe('teto_da_linha');
+    expect(updates).toHaveLength(0);
+    expect(enviadas).toHaveLength(0);
+    expect(fichas[0].status).toBe('nao_atendeu');
+  });
+
+  it('monitor viu a queda (downStreak > 0): o vermelho NÃO é tocado', async () => {
+    state.set('zapi_io_health', { key: 'zapi_io_health', value: { downStreak: 2 }, updated_at: horasAtras(1) });
+    const r = await tick();
+    expect(updates).toHaveLength(0);
+    expect(r.remarcados).toBe(0);
+  });
+
+  it('monitor diz que voltou (downStreak 0): anda normal', async () => {
+    state.set('zapi_io_health', { key: 'zapi_io_health', value: { downStreak: 0 }, updated_at: horasAtras(1) });
+    const r = await tick();
+    expect(r.remarcados).toBe(1);
+  });
+
+  it('o calado continua andando com a linha fora: ele não depende de mensagem', async () => {
+    linhaEmCooldownAgora = true;
+    fichas = [ficha({ status: 'agendado', quando: horasAtras(8) })];
+    vagas = [SEXTA_13H];
+    const r = await tick();
+    expect(r.remarcados).toBe(1);
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('o calado NÃO grava carimbo de envio: o teto da linha não paga mensagem fantasma', async () => {
+    fichas = [ficha({ status: 'agendado', quando: horasAtras(8) })];
+    vagas = [SEXTA_13H];
+    await tick();
+    expect([...state.keys()].filter(k => k.startsWith('ep_agenda_sent:'))).toEqual([]);
   });
 });
 
