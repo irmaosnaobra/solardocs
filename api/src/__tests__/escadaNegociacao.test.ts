@@ -1,9 +1,9 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import {
-  horasDoDegrau as horasEp, degrauDaProximaVolta as degrauEp,
+  horasDoDegrau as horasEp, degrauDaProximaVolta as degrauEp, tetoDoDegrauH as tetoEp,
 } from '../services/io/eletropostoReagendaAuto';
 import {
-  horasDoDegrau as horasSolar, degrauDaProximaVolta as degrauSolar,
+  horasDoDegrau as horasSolar, degrauDaProximaVolta as degrauSolar, tetoDoDegrauH as tetoSolar,
 } from '../services/agenda/reagendaSolarNaoAtendido';
 
 // ── A ESCADA DA NEGOCIAÇÃO (01/10/2026) ────────────────────────────────────
@@ -38,8 +38,8 @@ const MINHAS = [
 afterEach(() => { for (const k of MINHAS) delete process.env[k]; });
 
 const produtos = [
-  { nome: 'eletroposto', horas: horasEp, degrau: degrauEp, baseEnv: 'EP_NEGOCIACAO_H', passoEnv: 'EP_NEGOCIACAO_PASSO_H' },
-  { nome: 'solar', horas: horasSolar, degrau: degrauSolar, baseEnv: 'SOLAR_NEGOCIACAO_H', passoEnv: 'SOLAR_NEGOCIACAO_PASSO_H' },
+  { nome: 'eletroposto', horas: horasEp, teto: tetoEp, degrau: degrauEp, baseEnv: 'EP_NEGOCIACAO_H', passoEnv: 'EP_NEGOCIACAO_PASSO_H' },
+  { nome: 'solar', horas: horasSolar, teto: tetoSolar, degrau: degrauSolar, baseEnv: 'SOLAR_NEGOCIACAO_H', passoEnv: 'SOLAR_NEGOCIACAO_PASSO_H' },
 ] as const;
 
 for (const p of produtos) {
@@ -50,8 +50,25 @@ for (const p of produtos) {
       expect(p.horas(3)).toBe(96);
       expect(p.horas(4)).toBe(120);
       expect(p.horas(5)).toBe(144);
-      // "e assim por diante": sem teto. Se um dia alguém puser um, este teste cai.
-      expect(p.horas(20)).toBe(48 + 24 * 19);
+      expect(p.horas(10)).toBe(48 + 24 * 9);
+    });
+
+    it('e PARA no teto, que sai da janela do reciclo (03/10/2026)', () => {
+      // Este teste dizia "sem teto. Se um dia alguém puser um, este teste cai",
+      // e foi exatamente o que aconteceu — ele avisou no mesmo dia. O que mudou
+      // foi a janela do reciclo: de 365 dias pra 21. Sem teto, a escada passa a
+      // janela, e no degrau 21 o card só fica elegível com `quando` de 22 dias
+      // atrás, um dia DEPOIS de a janela já tê-lo excluído. Ele sumiria sozinho,
+      // sem ninguém ter decidido isso.
+      //
+      // O teto não é um número solto: ele é `(janelaDias − 3) · 24`, então quem
+      // mexer na janela mexe no teto sem saber que mexeu.
+      expect(p.horas(999)).toBe(p.teto());
+      expect(p.teto()).toBe((21 - 3) * 24);
+      // a folga de 3 dias existe porque ELEGÍVEL NÃO É REMARCADO: entre uma
+      // coisa e a outra tem rampa, teto por dia e janela de horário. O card
+      // precisa de alguns ticks dentro da janela pra ser pego de verdade.
+      expect(p.teto()).toBeLessThan(21 * 24);
     });
 
     it('degrau 0 ou negativo não desce abaixo do piso de 48h', () => {

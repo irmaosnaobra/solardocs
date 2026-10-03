@@ -329,7 +329,22 @@ describe('quem não entra', () => {
     expect((await tick()).motivo).toBe('nenhum_vermelho');
   });
 
-  it('mas card VELHO dentro do piso entra: é a ordem de 29/09', async () => {
+  // 03/10/2026 inverteu isto, e o motivo está escrito no gêmeo do eletroposto
+  // ("vermelho VELHO fica FORA"): com a janela em 365 dias este módulo foi buscar
+  // card de maio e jogou na semana do Thiago. Vinte das 51 fichas que eu devolvi
+  // naquele dia eram daqui.
+  it('card VELHO fica FORA: 21 dias, não 365', async () => {
+    vermelhos = [card({ quando: '2026-06-10T11:15:00.000Z' })];   // 112 dias atrás
+    expect((await tick()).motivo).toBe('nenhum_vermelho');
+  });
+
+  it('e o card DENTRO dos 21 dias entra, que é o trabalho do módulo', async () => {
+    vermelhos = [card({ quando: '2026-09-16T11:15:00.000Z' })];   // 14 dias atrás
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  it('SOLAR_REAGENDA_JANELA_DIAS abre a janela sem deploy, pra rodada de resgate', async () => {
+    process.env.SOLAR_REAGENDA_JANELA_DIAS = '365';
     vermelhos = [card({ quando: '2026-06-10T11:15:00.000Z' })];
     expect((await tick()).remarcados).toBe(1);
   });

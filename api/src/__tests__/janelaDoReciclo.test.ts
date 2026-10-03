@@ -77,6 +77,49 @@ describe('a janela dos dois reciclos', () => {
     }
   });
 
+  it('a escada NUNCA passa a janela: senao o card some sozinho', () => {
+    // O defeito que isto prende, achado em 03/10 junto com o conserto da janela:
+    // `horasDoDegrau` era `48 + 24·(d−1)` sem teto. Com a janela em 365 isso
+    // nunca encostava em nada. Com ela em 21, o degrau 21 pede 528h de descanso
+    // — o card só ficaria elegível com `quando` de 22 dias atrás, um dia DEPOIS
+    // de a janela ja te-lo excluido. Ele viraria numero no log de "FORA da
+    // janela" e nao voltaria nunca mais, sem ninguem ter decidido isso.
+    //
+    // A trava nao e o numero do teto: e o teto SAIR da janela. Quem mexer num
+    // dos dois mexe no outro sem saber que mexeu.
+    for (const [nome, txt] of [['eletroposto', EP], ['solar', SO]] as [string, string][]) {
+      expect(txt, nome + ': horasDoDegrau sem Math.min, a escada nao tem teto')
+        .toContain('export const horasDoDegrau = (d: number): number => Math.min(');
+      expect(txt, nome + ': o teto do degrau nao sai de janelaDias()')
+        .toContain('(janelaDias() - FOLGA_ATE_A_BORDA_DIAS) * 24');
+    }
+  });
+
+  it('e o teto medido fica DENTRO da janela, com folga', async () => {
+    // Prova de verdade: chama as funções e compara. O teste de texto acima pega
+    // quem apagar o `Math.min`; este pega quem trocar a conta por dentro.
+    const ep = await import('../services/io/eletropostoReagendaAuto');
+    const so = await import('../services/agenda/reagendaSolarNaoAtendido');
+    for (const [nome, m, env] of [
+      ['eletroposto', ep, 'EP_REAGENDA_JANELA_DIAS'],
+      ['solar', so, 'SOLAR_REAGENDA_JANELA_DIAS'],
+    ] as [string, { tetoDoDegrauH: () => number; horasDoDegrau: (d: number) => number }, string][]) {
+      const janelaH = janelaDe(nome === 'solar' ? SO : EP, env) * 24;
+      expect(m.tetoDoDegrauH(), nome + ': o teto do degrau passa a janela')
+        .toBeLessThan(janelaH);
+      // e nenhum degrau, nem um absurdo, escapa do teto
+      for (const d of [1, 2, 5, 13, 21, 50, 999]) {
+        expect(m.horasDoDegrau(d), nome + ': degrau ' + d + ' passa a janela')
+          .toBeLessThan(janelaH);
+      }
+      // a escada continua subindo onde importa: 48h no 1, 72h no 2
+      expect(m.horasDoDegrau(1), nome + ': o degrau 1 deixou de ser 48h').toBe(48);
+      expect(m.horasDoDegrau(2), nome + ': o degrau 2 deixou de ser 72h').toBe(72);
+      expect(m.horasDoDegrau(999), nome + ': o degrau 999 nao bateu no teto')
+        .toBe(m.tetoDoDegrauH());
+    }
+  });
+
   it('os dois CONTAM o que a janela deixou de fora', () => {
     // A janela agora ignora ficha de propósito. Ignorar calado é o defeito que
     // este módulo já levou uma vez, no corte de 1000 linhas do PostgREST.

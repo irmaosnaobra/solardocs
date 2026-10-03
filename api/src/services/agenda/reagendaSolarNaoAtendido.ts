@@ -187,8 +187,45 @@ const negociacaoH = (): number => num('SOLAR_NEGOCIACAO_H', 48);
  */
 const passoNegociacaoH = (): number => num('SOLAR_NEGOCIACAO_PASSO_H', 24);
 /** As horas de descanso do degrau `d`: 48, 72, 96, 120 … */
-export const horasDoDegrau = (d: number): number =>
-  negociacaoH() + passoNegociacaoH() * Math.max(0, Math.floor(d) - 1);
+/**
+ * O teto da escada, derivado da janela. O motivo está escrito inteiro no gêmeo
+ * do eletroposto (`tetoDoDegrauH`): sem teto, a escada passa a janela e o card
+ * fica elegível um dia depois de a janela já tê-lo excluído — some sozinho, sem
+ * ninguém ter decidido. Três dias de folga porque elegível não é remarcado:
+ * tem rampa, teto por dia e janela de horário no meio.
+ */
+const FOLGA_ATE_A_BORDA_DIAS = 3;
+export const tetoDoDegrauH = (): number =>
+  Math.max(negociacaoH(), (janelaDias() - FOLGA_ATE_A_BORDA_DIAS) * 24);
+export const horasDoDegrau = (d: number): number => Math.min(
+  negociacaoH() + passoNegociacaoH() * Math.max(0, Math.floor(d) - 1),
+  tetoDoDegrauH(),
+);
+
+/**
+ * A janela corta ficha parada há semanas, de propósito. Contar o que ela deixou
+ * de fora é o que impede isso de ser corte calado — mesma contagem do gêmeo do
+ * eletroposto (`contarForaDaJanela` lá), pelo mesmo motivo, e com o mesmo
+ * try/catch: diagnóstico no caminho quente do tick não pode derrubar o tick, e
+ * quando ele falha tem que AVISAR, porque silêncio aqui parece "está zero".
+ */
+async function contarForaDaJanela(de: string): Promise<void> {
+  try {
+    const { count } = await supabaseGerador
+      .from('agendamentos')
+      .select('id', { count: 'exact', head: true })
+      .not('status', 'in', `(${[...DESTINO_FINAL_SOLAR].join(',')})`)
+      .gte('quando', inicioPiso())
+      .lt('quando', de);
+    if ((count ?? 0) > 0) {
+      logger.info('solar-reagenda', `${count} ficha(s) ficaram FORA da janela de `
+        + `${janelaDias()} dias e não voltam pra agenda, ficam na data onde pararam.`);
+    }
+  } catch (e) {
+    logger.warn('solar-reagenda', 'contar o que ficou FORA da janela falhou — o tick '
+      + 'segue, mas ninguem sabe quantas fichas a janela esta ignorando', { erro: String(e) });
+  }
+}
 /**
  * O degrau da PRÓXIMA volta. Etiqueta igual sobe um; etiqueta diferente, ou
  * card que nunca voltou, começa no 1. Carimbo antigo não tem `status` e cai no
@@ -453,19 +490,7 @@ export async function runReagendaSolarTick(
     return { ...zero('erro_leitura'), erros: 1 };
   }
 
-  // A janela de 21 dias corta ficha parada há semanas, de propósito. Contar o
-  // que ela deixou de fora é o que impede isso de ser corte calado — mesma
-  // contagem do gêmeo do eletroposto, pelo mesmo motivo.
-  const { count: foraDaJanelaN } = await supabaseGerador
-    .from('agendamentos')
-    .select('id', { count: 'exact', head: true })
-    .not('status', 'in', `(${[...DESTINO_FINAL_SOLAR].join(',')})`)
-    .gte('quando', inicioPiso())
-    .lt('quando', de);
-  if ((foraDaJanelaN ?? 0) > 0) {
-    logger.info('solar-reagenda', `${foraDaJanelaN} ficha(s) ficaram FORA da janela de `
-      + `${janelaDias()} dias e não voltam pra agenda, ficam na data onde pararam.`);
-  }
+  await contarForaDaJanela(de);
 
   const corteEsquecido = new Date(agora - esquecidoH() * 3600_000).toISOString();
   const corteNegociacao = new Date(agora - negociacaoH() * 3600_000).toISOString();

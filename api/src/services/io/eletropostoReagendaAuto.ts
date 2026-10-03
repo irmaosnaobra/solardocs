@@ -379,8 +379,68 @@ const negociacaoH = (): number => num('EP_NEGOCIACAO_H', 48);
  */
 const passoNegociacaoH = (): number => num('EP_NEGOCIACAO_PASSO_H', 24);
 /** As horas de descanso do degrau `d`: 48, 72, 96, 120 … */
-export const horasDoDegrau = (d: number): number =>
-  negociacaoH() + passoNegociacaoH() * Math.max(0, Math.floor(d) - 1);
+/**
+ * ── O TETO DA ESCADA SAI DA JANELA, NÃO DE UM NÚMERO SOLTO ─────────────────
+ *
+ * A escada era `48 + 24·(d−1)` sem teto. Com a janela em 365 dias isso nunca
+ * encostou em nada; com ela em 21, encosta: no degrau 21 a escada pede 528h de
+ * descanso, ou seja o card só ficaria elegível com `quando` de 22 dias atrás —
+ * um dia depois de a janela já tê-lo excluído. O card viraria número no log de
+ * "FORA da janela" e não voltaria nunca mais, sem ninguém ter decidido isso.
+ *
+ * Três dias de folga porque elegível não é remarcado: entre uma coisa e outra
+ * tem rampa, teto por dia e janela de horário. O card precisa de alguns ticks
+ * dentro da janela pra ser efetivamente pego.
+ *
+ * Derivar o teto de `janelaDias()` é o ponto: quem mexer num dos dois números
+ * mexe no outro sem saber que mexeu.
+ */
+const FOLGA_ATE_A_BORDA_DIAS = 3;
+export const tetoDoDegrauH = (): number =>
+  Math.max(negociacaoH(), (janelaDias() - FOLGA_ATE_A_BORDA_DIAS) * 24);
+
+/**
+ * ── A JANELA TAMBÉM CORTA, E ELA NÃO CORTA CALADA ──────────────────────────
+ *
+ * O `de` da varredura é uma decisão de produto: ficha parada há mais de
+ * `janelaDias()` não volta pra agenda. Ela não deixa de existir por isso, e
+ * ninguém abrindo a agenda consegue ver quantas são. Esta contagem é o único
+ * lugar onde esse número aparece — uma requisição `head`, sem trazer linha.
+ *
+ * Se ela crescer e ninguém quiser as fichas, a resposta é marcá-las (Sem
+ * interesse, Fora do padrão); se alguém quiser, é uma rodada com
+ * `EP_REAGENDA_JANELA_DIAS` grande, de propósito e por tempo limitado.
+ *
+ * FALHA ABERTA, e por um motivo que eu aprendi no susto: isto é DIAGNÓSTICO, e
+ * ponho ela no caminho quente do tick. Eu escrevi a consulta direto no fluxo e
+ * derrubei 186 testes de uma vez — não por causa do número, mas porque o
+ * `.lt()` não existia no mock do builder. Em produção o mesmo tipo de surpresa
+ * (coluna, política, PostgREST novo) pararia o reciclo inteiro pra imprimir uma
+ * contagem. Então ela é try/catch e o `catch` AVISA: diagnóstico que falha
+ * calado é pior que diagnóstico nenhum, porque o silêncio parece "está zero".
+ */
+async function contarForaDaJanela(de: string): Promise<void> {
+  try {
+    const { count } = await supabaseGerador
+      .from('agendamentos')
+      .select('id', { count: 'exact', head: true })
+      .not('status', 'in', `(${[...DESTINO_FINAL].join(',')})`)
+      .gte('quando', inicioPiso())
+      .lt('quando', de);
+    if ((count ?? 0) > 0) {
+      logger.info('ep-reagenda', `${count} ficha(s) ficaram FORA da janela de `
+        + `${janelaDias()} dias e não voltam pra agenda. Elas continuam no banco, `
+        + 'na data onde pararam.');
+    }
+  } catch (e) {
+    logger.warn('ep-reagenda', 'contar o que ficou FORA da janela falhou — o tick '
+      + 'segue, mas ninguém sabe quantas fichas a janela está ignorando', { erro: String(e) });
+  }
+}
+export const horasDoDegrau = (d: number): number => Math.min(
+  negociacaoH() + passoNegociacaoH() * Math.max(0, Math.floor(d) - 1),
+  tetoDoDegrauH(),
+);
 /**
  * O degrau da PRÓXIMA volta desta ficha.
  *
@@ -879,17 +939,7 @@ export async function runEletropostoReagendaAutoTick(
   // Se ela crescer e ninguém quiser as fichas, a resposta é marcá-las (Sem
   // interesse, Fora do padrão); se alguém quiser, é uma rodada com
   // `EP_REAGENDA_JANELA_DIAS` grande, de propósito e por tempo limitado.
-  const { count: foraDaJanelaN } = await supabaseGerador
-    .from('agendamentos')
-    .select('id', { count: 'exact', head: true })
-    .not('status', 'in', `(${[...DESTINO_FINAL].join(',')})`)
-    .gte('quando', inicioPiso())
-    .lt('quando', de);
-  if ((foraDaJanelaN ?? 0) > 0) {
-    logger.info('ep-reagenda', `${foraDaJanelaN} ficha(s) ficaram FORA da janela de `
-      + `${janelaDias()} dias e não voltam pra agenda. Elas continuam no banco, `
-      + 'na data onde pararam.');
-  }
+  await contarForaDaJanela(de);
 
   // UMA leitura pra rodada inteira, nao um select por ficha: e pra isso que o
   // `carregarBloqueados` devolve predicado em vez de consultar.

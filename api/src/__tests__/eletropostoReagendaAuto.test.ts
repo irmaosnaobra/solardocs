@@ -336,15 +336,39 @@ describe('não falar demais com quem sumiu', () => {
     expect(enviadas[0].bolhas[2]).not.toContain('último horário');
   });
 
-  // 29/09/2026 INVERTEU ISTO. O piso duro de 20/08 existia pra ligar o módulo não
-  // despejar o estoque velho; a ordem nova é justamente ir buscar o estoque velho
-  // ("mesmo os mais antigos, podemos recuperar pessoas"). Quem passou a segurar o
-  // despejo é a rampa diária, testada logo abaixo.
-  it('vermelho VELHO entra: é pra isso que a régua nova existe', async () => {
-    fichas = [ficha({ quando: '2026-06-12T16:00:00.000Z' })];
+  // ── ESTE TESTE JÁ FOI INVERTIDO DUAS VEZES, E A SEGUNDA É A DE HOJE ───────
+  //
+  // 20/08: piso duro, pra o módulo novo não despejar o estoque velho.
+  // 29/09: o Thiago mandou ir buscar o estoque velho, e a janela foi pra 365.
+  // 03/10: ele abriu a agenda de 05 a 09/10, achou card com reunião de origem em
+  //        MAIO, e mandou de volta — "esses ficam onde estavam".
+  //
+  // Medido naquele dia: 143 dos 263 cards da semana tinham origem a mais de 3
+  // semanas, 29 deles a mais de 2 meses. A rampa segurou o VOLUME por dia, como
+  // prometido, mas ninguém tinha segurado a IDADE — e uma semana de rampa foi
+  // tempo suficiente pra fila chegar nos antigos e despejá-los todos de uma vez.
+  //
+  // A janela de 21 dias é o freio que faltava. Ela e a rampa fazem coisas
+  // diferentes: a rampa diz quantos por dia, a janela diz quais.
+  it('vermelho VELHO fica FORA: 21 dias, não 365', async () => {
+    fichas = [ficha({ quando: '2026-06-12T16:00:00.000Z' })];   // 69 dias atrás
+    expect((await tick()).motivo).toBe('nenhum_vermelho');
+    expect(fichas[0].status).toBe('nao_atendeu');
+  });
+
+  it('e o vermelho DENTRO dos 21 dias entra, que é o trabalho do módulo', async () => {
+    fichas = [ficha({ quando: '2026-08-06T16:00:00.000Z' })];   // 14 dias atrás
     const r = await tick();
     expect(r.remarcados).toBe(1);
     expect(fichas[0].status).toBe('agendado');
+  });
+
+  it('EP_REAGENDA_JANELA_DIAS abre a janela sem deploy, pra rodada de resgate', async () => {
+    // Se um dia ele quiser os antigos de volta DE NOVO, é por aqui: de propósito,
+    // por uma rodada, e não como padrão.
+    process.env.EP_REAGENDA_JANELA_DIAS = '365';
+    fichas = [ficha({ quando: '2026-06-12T16:00:00.000Z' })];
+    expect((await tick()).remarcados).toBe(1);
   });
 
   it('mas antes do primeiro card da base continua fora — piso não é "sem piso"', async () => {
