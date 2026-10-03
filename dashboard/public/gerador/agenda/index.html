@@ -1421,11 +1421,17 @@
       <button type="button" class="btn-nota" id="d-btn-nota" onclick="adicionarNota()">Adicionar nota</button>
     </div>
 
-    <div class="status-label">Temperatura do cliente</div>
-    <div class="temp-grid">
-      <button type="button" class="btn-temp bt-frio"   data-temp="frio"   onclick="atualizarTemperatura('frio')"><span class="emoji">❄️</span>Frio</button>
-      <button type="button" class="btn-temp bt-morno"  data-temp="morno"  onclick="atualizarTemperatura('morno')"><span class="emoji">🌤️</span>Morno</button>
-      <button type="button" class="btn-temp bt-quente" data-temp="quente" onclick="atualizarTemperatura('quente')"><span class="emoji">🔥</span>Quente</button>
+    <!-- TEMPERATURA É SÓ DO SOLAR (03/10/2026). Ordem do Thiago: "eletroposto não
+         tem temperatura mais (frio, morno e quente), mantém no solar".
+         O rótulo e a grade moram no MESMO container de propósito: esconder só a
+         grade deixaria "Temperatura do cliente" escrito em cima de nada. -->
+    <div id="d-temperatura">
+      <div class="status-label">Temperatura do cliente</div>
+      <div class="temp-grid">
+        <button type="button" class="btn-temp bt-frio"   data-temp="frio"   onclick="atualizarTemperatura('frio')"><span class="emoji">❄️</span>Frio</button>
+        <button type="button" class="btn-temp bt-morno"  data-temp="morno"  onclick="atualizarTemperatura('morno')"><span class="emoji">🌤️</span>Morno</button>
+        <button type="button" class="btn-temp bt-quente" data-temp="quente" onclick="atualizarTemperatura('quente')"><span class="emoji">🔥</span>Quente</button>
+      </div>
     </div>
 
     <!-- Presença: pergunta diferente de "resultado da ligação". O agente já marca
@@ -2260,8 +2266,14 @@ function renderGrid() {
           }).join('') + `</div>`;
         } else if (ag) {
           const stCls = `${classeDeCor(ag)}${classeEspera(ag)}`;
-          const tempCls = ag.temperatura ? ` temp-${ag.temperatura}` : '';
-          const tempLabel = ag.temperatura === 'frio'   ? 'FRIO'
+          // TEMPERATURA É SÓ DO SOLAR (03/10/2026), aqui também. O card de
+          // eletroposto tem `temperatura` gravada de antes da regra, e desenhar
+          // FRIO/MORNO/QUENTE num card cuja tela nem oferece mais os botões
+          // mostraria um marcador que o consultor não consegue mudar.
+          const temTemp = !cardEhEletroposto(ag) && ag.temperatura;
+          const tempCls = temTemp ? ` temp-${ag.temperatura}` : '';
+          const tempLabel = !temTemp ? ''
+                          : ag.temperatura === 'frio'   ? 'FRIO'
                           : ag.temperatura === 'morno'  ? 'MORNO'
                           : ag.temperatura === 'quente' ? 'QUENTE' : '';
           // Cidade e etiqueta dividem a MESMA linha: o slot tem altura fixa
@@ -2778,6 +2790,13 @@ function aplicarMenuDoProduto(ag) {
   // e a unica coisa que a opcao B produz.
   document.querySelectorAll('#d-motivo .motivo-btn[data-produto]')
     .forEach(b => { b.hidden = b.dataset.produto !== produto; });
+  // TEMPERATURA: so no solar (03/10/2026). No eletroposto quem diz a prioridade e
+  // a NOTA 1/2/3, que sai dos pontos do quiz — ter as duas reguas na mesma tela
+  // fazia o consultor marcar uma e ler a outra. O reciclo nao depende dela desde
+  // 29/09 (`EP_REAGENDA_SO_QUENTE` so liga por env), entao esconder nao desliga
+  // automacao nenhuma.
+  const cxTemp = document.getElementById('d-temperatura');
+  if (cxTemp) cxTemp.hidden = produto === 'eletroposto';
 }
 
 function marcarStatusAtualNosBotoes(status) {

@@ -6019,13 +6019,20 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <button type="button" class="btn-nota" id="crm-det-nota-btn" onclick="crmAdicionarNota()">Adicionar nota</button>
       </div>
 
-      <span class="crm-det-lbl">Temperatura do cliente</span>
-      <div class="crm-det-temp">
-        <button type="button" class="crm-btn-temp bt-frio"   data-temp="frio"   onclick="crmAtualizarTemperatura('frio')"><span class="emoji">❄️</span>Frio</button>
-        <button type="button" class="crm-btn-temp bt-morno"  data-temp="morno"  onclick="crmAtualizarTemperatura('morno')"><span class="emoji">🌤️</span>Morno</button>
-        <button type="button" class="crm-btn-temp bt-quente" data-temp="quente" onclick="crmAtualizarTemperatura('quente')"><span class="emoji">🔥</span>Quente</button>
+      <!-- TEMPERATURA É SÓ DO SOLAR (03/10/2026). Ordem do Thiago: "eletroposto não
+           tem temperatura mais (frio, morno e quente), mantém no solar".
+           Rótulo, grade e o botão de limpar moram no MESMO container: esconder só
+           a grade deixaria o rótulo em cima de nada, e esconder só os dois
+           deixaria um "✖ Remover temperatura" solto. -->
+      <div id="crm-det-temperatura">
+        <span class="crm-det-lbl">Temperatura do cliente</span>
+        <div class="crm-det-temp">
+          <button type="button" class="crm-btn-temp bt-frio"   data-temp="frio"   onclick="crmAtualizarTemperatura('frio')"><span class="emoji">❄️</span>Frio</button>
+          <button type="button" class="crm-btn-temp bt-morno"  data-temp="morno"  onclick="crmAtualizarTemperatura('morno')"><span class="emoji">🌤️</span>Morno</button>
+          <button type="button" class="crm-btn-temp bt-quente" data-temp="quente" onclick="crmAtualizarTemperatura('quente')"><span class="emoji">🔥</span>Quente</button>
+        </div>
+        <button type="button" class="crm-det-limpar-temp" id="crm-det-limpar-temp" onclick="crmLimparTemperatura()" style="display:none">✖ Remover temperatura</button>
       </div>
-      <button type="button" class="crm-det-limpar-temp" id="crm-det-limpar-temp" onclick="crmLimparTemperatura()" style="display:none">✖ Remover temperatura</button>
 
       <div id="crm-det-bloqueado" class="bloqueado-box" hidden>
         <div class="bloqueado-tit">🚫 FORA DO PADRÃO</div>
@@ -21759,6 +21766,13 @@ function crmAplicarMenuDoProduto(ag) {
   // a mais", e o numero errado no placar, que e a unica coisa que B produz.
   document.querySelectorAll('#crm-det-motivo .motivo-btn[data-produto]')
     .forEach(b => { b.hidden = b.dataset.produto !== produto; });
+  // TEMPERATURA: so no solar (03/10/2026). No eletroposto quem diz a prioridade e
+  // a NOTA 1/2/3, que sai dos pontos do quiz. O reciclo nao depende dela desde
+  // 29/09 (`EP_REAGENDA_SO_QUENTE` so liga por env), entao esconder nao desliga
+  // automacao nenhuma. As duas telas escondem a MESMA coisa de proposito: ja
+  // custou um dia de producao o CRM e a agenda discordarem sobre um card.
+  const cxTemp = document.getElementById('crm-det-temperatura');
+  if (cxTemp) cxTemp.hidden = produto === 'eletroposto';
 }
 
 function crmMarcarStatus(status) {

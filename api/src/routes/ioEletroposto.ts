@@ -65,11 +65,20 @@ export function montarMensagem(a: any, extra: { estudoUrl?: string; preNota?: nu
 
   // A nota (1-3) substitui os ♻️: ela carrega o que o consultor precisa decidir antes
   // de abrir a agenda — prioridade, o que falta e quanto o lead pontuou.
-  // Vem da própria ficha (`NOTA 3 · 10/11 pts`); a temperatura é só o plano B, caso
-  // a linha não venha (ficha antiga ou formato mudado).
+  // Vem da própria ficha (`NOTA 3 · 10/11 pts`).
+  //
+  // ── O PLANO B ERA A TEMPERATURA, E ELE SAIU EM 03/10/2026 ────────────────
+  //
+  // Ordem do Thiago: "eletroposto não tem temperatura mais (frio, morno e
+  // quente), mantém no solar". Com a temperatura fora da tela do eletroposto,
+  // nenhuma ficha NOVA vai ter o campo preenchido, e o plano B passaria a
+  // rebaixar TODA ficha sem a linha `NOTA n` pra NOTA 1 — 🔴 NUTRIÇÃO no card
+  // do consultor, sobre lead que pode ser prioridade.
+  //
+  // Então quando a linha não vem, o card não INVENTA nota: ele diz que não sabe.
+  // Nota errada é pior que nota ausente, porque ela é lida como medição.
   const m = String(a.observacao || '').match(/^NOTA ([123])\s*·\s*(\d+\/\d+ pts.*)$/m);
-  const temp = String(a.temperatura || '').toLowerCase();
-  const nota = m ? Number(m[1]) : (temp === 'quente' ? 3 : temp === 'morno' ? 2 : 1);
+  const nota = m ? Number(m[1]) : 0;
   const SELO: Record<number, string> = {
     3: '🟢 *NOTA 3 — PRIORIDADE*',
     // "DEFINIR PONTO" saiu em 14/08: com o corte de quem não tem local, 3 em cada 4
@@ -77,8 +86,12 @@ export function montarMensagem(a: any, extra: { estudoUrl?: string; preNota?: nu
     // de quem decide. O selo é o que o consultor lê pra priorizar — não pode mentir.
     2: '🟡 *NOTA 2 — FALTA UMA PERNA*',
     1: '🔴 *NOTA 1 — NUTRIÇÃO*',
+    // Ficha sem a linha `NOTA n`: o selo DIZ que não sabe, em vez de chutar 1. O
+    // `|| SELO[1]` que estava aqui engolia o 0 e devolvia 🔴 NUTRIÇÃO — ele
+    // desfazia, calado, a própria correção de não inventar nota.
+    0: '⚪ *SEM NOTA — ficha antiga, confira no card*',
   };
-  const selo = `${SELO[nota] || SELO[1]}${m ? `  (${m[2]})` : ''}`;
+  const selo = `${SELO[nota] ?? SELO[0]}${m ? `  (${m[2]})` : ''}`;
   // Tem onde instalar e não tem como pagar: o par que fecha com quem tem o contrário.
   const paraInvestidor = tem('PONTO DISPONIVEL PARA INVESTIDOR');
 
