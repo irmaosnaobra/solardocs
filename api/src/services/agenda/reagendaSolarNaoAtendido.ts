@@ -99,8 +99,18 @@ export const tetoMudoPorDia = (): number => num('SOLAR_REAGENDA_MUDO_POR_DIA', 2
 /** Piso: card com horário anterior a isto nunca é movido. */
 const inicioPiso = (): string =>
   (process.env.SOLAR_REAGENDA_INICIO || '').trim() || '2026-05-01T00:00:00.000Z';
-/** Quantos dias pra trás enxergar. 365 cobre a base toda sem virar "sem limite". */
-const janelaDias = (): number => num('SOLAR_REAGENDA_JANELA_DIAS', 365);
+/**
+ * Quantos dias pra trás enxergar.
+ *
+ * 21, e o motivo está escrito inteiro no gêmeo do eletroposto (`janelaDias` em
+ * `eletropostoReagendaAuto.ts`): com 365 este módulo foi buscar negociação
+ * parada desde maio e remarcou como se fosse a 1ª volta da escada. Vinte das 53
+ * fichas velhas da semana de 05/10 eram daqui, todas da Giovanna, todas com
+ * origem em 01 e 02/09.
+ *
+ * Os dois números têm que andar juntos: o Thiago vê UMA agenda, não duas.
+ */
+const janelaDias = (): number => num('SOLAR_REAGENDA_JANELA_DIAS', 21);
 /** Folga depois do horário perdido. Menor que a do eletroposto (45 min) porque
  *  no solar não existe toque de 5 min saindo em cima: é ligação, não call. */
 const folgaMin = (): number => num('SOLAR_REAGENDA_FOLGA_MIN', 30);
@@ -441,6 +451,20 @@ export async function runReagendaSolarTick(
   if (error) {
     logger.error('solar-reagenda', 'ler os nao_atendeu falhou', error);
     return { ...zero('erro_leitura'), erros: 1 };
+  }
+
+  // A janela de 21 dias corta ficha parada há semanas, de propósito. Contar o
+  // que ela deixou de fora é o que impede isso de ser corte calado — mesma
+  // contagem do gêmeo do eletroposto, pelo mesmo motivo.
+  const { count: foraDaJanelaN } = await supabaseGerador
+    .from('agendamentos')
+    .select('id', { count: 'exact', head: true })
+    .not('status', 'in', `(${[...DESTINO_FINAL_SOLAR].join(',')})`)
+    .gte('quando', inicioPiso())
+    .lt('quando', de);
+  if ((foraDaJanelaN ?? 0) > 0) {
+    logger.info('solar-reagenda', `${foraDaJanelaN} ficha(s) ficaram FORA da janela de `
+      + `${janelaDias()} dias e não voltam pra agenda, ficam na data onde pararam.`);
   }
 
   const corteEsquecido = new Date(agora - esquecidoH() * 3600_000).toISOString();

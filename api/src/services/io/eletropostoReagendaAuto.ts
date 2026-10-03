@@ -399,12 +399,29 @@ export function degrauDaProximaVolta(
 /**
  * Quantos dias pra trás a varredura enxerga.
  *
+ * ── 365 FOI UM ERRO MEU, E A CONTA DELE CHEGOU EM 03/10/2026 ───────────────
+ *
  * Era 7, com a regra "reunião perdida há mais de 7 dias não é remarcação, é
- * lista fria". A ordem de 29/09 desfaz isso: o Thiago quer os antigos de volta.
- * 365 cobre a base toda (ela começa em 09/05/2026) sem virar "sem limite", que é
- * o tipo de número que ninguém revisa depois.
+ * lista fria". Em 29/09 o Thiago pediu os antigos de volta e eu abri pra 365,
+ * "a base toda". O efeito não apareceu no dia: a rampa solta poucas fichas por
+ * dia, então a fila levou uma semana pra chegar nos antigos de verdade.
+ *
+ * O que ele abriu na agenda de 05 a 09/10, medido: 262 cards, e 53 deles com a
+ * reunião de origem a mais de 3 semanas — 22 entre 2 e 3 meses, 7 acima de 3
+ * meses. O pior era de 22/05, 136 dias, com "Ciclo de 48h, 1ª volta". Dez do
+ * Diego com origem em 31/07 empilhados na mesma quinta, um atrás do outro.
+ *
+ * A ordem dele, no mesmo dia: "esses ficam onde estavam".
+ *
+ * 21 dias é o número porque ele é maior que qualquer degrau legítimo e menor
+ * que "mês". A escada do `negocia` cresce 24h por volta, e card que está MESMO
+ * na escada tem `quando` recente — ela acabou de mover. Quem 21 dias corta é só
+ * quem está parado há semanas, que é exatamente o que ele não quer ver.
+ *
+ * Quem quiser uma rodada de resgate põe `EP_REAGENDA_JANELA_DIAS` grande por um
+ * tick. O default não é esse.
  */
-const janelaDias = (): number => num('EP_REAGENDA_JANELA_DIAS', 365);
+const janelaDias = (): number => num('EP_REAGENDA_JANELA_DIAS', 21);
 
 /**
  * A RAMPA. Quantas fichas o módulo pode remarcar por dia (dia de Brasília).
@@ -850,6 +867,28 @@ export async function runEletropostoReagendaAutoTick(
   if ((data?.length ?? 0) >= LIMITE_VARREDURA) {
     logger.warn('ep-reagenda', `a varredura bateu no limite de ${LIMITE_VARREDURA} fichas: `
       + 'as mais ANTIGAS ficaram de fora desta rodada. Paginar por range virou necessidade.');
+  }
+
+  // ── E A JANELA TAMBÉM CORTA. ELA NÃO CORTA CALADA ────────────────────────
+  //
+  // O `de` acima é uma decisão de produto: ficha parada há mais de 21 dias não
+  // volta pra agenda. Ela não deixa de existir por isso, e ninguém abrindo a
+  // agenda consegue ver quantas são. Esta contagem é o único lugar onde esse
+  // número aparece. Uma requisição `head` por tick, sem trazer linha.
+  //
+  // Se ela crescer e ninguém quiser as fichas, a resposta é marcá-las (Sem
+  // interesse, Fora do padrão); se alguém quiser, é uma rodada com
+  // `EP_REAGENDA_JANELA_DIAS` grande, de propósito e por tempo limitado.
+  const { count: foraDaJanelaN } = await supabaseGerador
+    .from('agendamentos')
+    .select('id', { count: 'exact', head: true })
+    .not('status', 'in', `(${[...DESTINO_FINAL].join(',')})`)
+    .gte('quando', inicioPiso())
+    .lt('quando', de);
+  if ((foraDaJanelaN ?? 0) > 0) {
+    logger.info('ep-reagenda', `${foraDaJanelaN} ficha(s) ficaram FORA da janela de `
+      + `${janelaDias()} dias e não voltam pra agenda. Elas continuam no banco, `
+      + 'na data onde pararam.');
   }
 
   // UMA leitura pra rodada inteira, nao um select por ficha: e pra isso que o
