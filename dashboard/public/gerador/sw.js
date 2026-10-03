@@ -1,6 +1,6 @@
 // Service Worker do gerador hospedado em /gerador/ (subpath do dashboard)
 // Scope limitado a /gerador/ pra não interferir no resto do app.
-const CACHE = 'gerador-propostas-v320';
+const CACHE = 'gerador-propostas-v321';
 const PRECACHE = [
   '/gerador/',
   '/gerador/index.html',

@@ -3233,11 +3233,45 @@ async function salvarReagendamento() {
   if (isNaN(novoQuando.getTime())) { if (erroEl) erroEl.textContent = 'Data/hora inválida.'; return; }
   const btn = document.querySelector('#d-reagendar-box .btn-salvar');
   if (btn) { btn.disabled = true; btn.dataset._t = btn.textContent; btn.textContent = 'Salvando…'; }
+  // ── O REAGENDAR À MÃO ERA O ÚNICO QUE MOVIA SEM DEIXAR RASTRO ────────────
+  //
+  // Achado em 03/10/2026 tentando responder "onde este card estava?". O card 481
+  // (Luiz Felippe, Nilce) tinha o histórico contando a vida dele até 15/09 08:45
+  // e o `quando` em 05/10 09:45, sem UMA linha explicando o pulo. Todos os robôs
+  // escrevem: remarcação, ciclo de 48h, repasse de 12h, readequação de semana.
+  // Só este não escrevia — e ele muda TRÊS coisas: horário, consultor e status.
+  //
+  // Sem a linha, "volte ele pra onde estava" não tem resposta: eu fico escolhendo
+  // entre a última posição que o histórico conhece e a posição atual, sem saber
+  // qual delas uma pessoa decidiu. E `showToast` não é registro: ele vive 3
+  // segundos na tela de quem clicou.
+  //
+  // A linha sai como NOTA DE GENTE (nome do consultor, não "Sistema"), porque foi
+  // gente que decidiu. O formato é o mesmo do `adicionarNota`.
+  const agoraRe = new Date();
+  const autorRe = (typeof consultorLogado === 'function' && consultorLogado()) || '—';
+  const tsRe = `${pad(agoraRe.getDate())}/${pad(agoraRe.getMonth() + 1)} `
+    + `${pad(agoraRe.getHours())}h${pad(agoraRe.getMinutes())}`;
+  const deQuando = detalheAtual.quando
+    ? `${pad(new Date(detalheAtual.quando).getDate())}/${pad(new Date(detalheAtual.quando).getMonth() + 1)} `
+      + `${pad(new Date(detalheAtual.quando).getHours())}:${pad(new Date(detalheAtual.quando).getMinutes())}`
+    : '(sem horário)';
+  const paraQuando = `${pad(novoQuando.getDate())}/${pad(novoQuando.getMonth() + 1)} `
+    + `${pad(novoQuando.getHours())}:${pad(novoQuando.getMinutes())}`;
+  const trocouDono = consultor !== detalheAtual.vendedor_nome
+    ? `, e de ${detalheAtual.vendedor_nome || '—'} para ${consultor}` : '';
+  const stAntes = String(detalheAtual.status || 'agendado');
+  const voltouPraAgendado = stAntes !== 'agendado'
+    ? `. O status era ${stAntes} e voltou pra agendado` : '';
+  const linhaRe = `[${tsRe} · ${autorRe}] 📅 Reagendado à mão: ${deQuando} → ${paraQuando}`
+    + `${trocouDono}${voltouPraAgendado}.`;
+  const histRe = detalheAtual.historico ? `${linhaRe}\n\n${detalheAtual.historico}` : linhaRe;
   try {
     const res = await supaPatch(`agendamentos?id=eq.${detalheAtual.id}`, {
       quando: novoQuando.toISOString(),
       vendedor_nome: consultor,
       status: 'agendado',
+      historico: histRe,
     });
     // PostgREST devolve 200 com [] quando nenhuma linha casou (id sumiu / RLS).
     // Sem isso, fecharia o modal e diria "Reagendado" sem ter mudado nada.
