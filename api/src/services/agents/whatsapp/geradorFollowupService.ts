@@ -40,6 +40,7 @@ import { supabaseGerador } from '../../../utils/supabaseGerador'; // gerador: le
 import { sendFrio, fmtPhone } from '../zapiClient';
 import { logger } from '../../../utils/logger';
 import { dentroDoTetoHorarioLinha, dentroDaJanelaDiurna, respeitaEspacamentoLinha } from './lineThrottle';
+import { STATUS_QUE_NAO_OCUPAM } from '../../agenda/salaDeEspera';
 
 const INSTANCE = 'io' as const;
 
@@ -62,7 +63,14 @@ const MAX_ENVIOS_POR_TICK = Number(process.env.GERADOR_MAX_POR_TICK || 1);
 const SENT_PREFIX = 'gerador_followup:';
 const PENDING_PREFIX = 'gerador_followup_pending:';
 
-const STATUS_PERDIDO = new Set(['cancelado', 'sem_interesse']);
+// `perdido` e `fechou_concorrente` entraram em 03/10/2026. Eles ficaram de fora
+// das TRES copias desta lista, e o efeito era o mesmo nas tres: card dado como
+// perdido continuava entrando na fila de follow-up. Ordem do dono: "PERDIDO e
+// SEM INTERESSE ficam parados onde estao".
+//
+// A lista mora no modulo neutro junto com a de ocupacao de horario, porque sao
+// a mesma pergunta: este card ainda e trabalho?
+const STATUS_PERDIDO = new Set(STATUS_QUE_NAO_OCUPAM);
 // Alvo v1: só estes status. fez_orcamento/sem_orcamento ficam de fora (agendamentos não
 // tem updated_at → não dá pra distinguir "orçou ontem, negociando" de "orçou há semanas").
 const STATUS_ALVO = new Set(['nao_atendeu', 'agendado']);

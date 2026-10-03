@@ -12,6 +12,7 @@ import { blocoParesSeguro, pool, montarPares, MAX_PARES, TETO_KM } from '../serv
 // Estudo do local: o card já sai com a pré-nota e o link da página.
 import { extraDoCard, garantirEstudo } from '../services/io/eletropostoEstudoGarantir';
 import { estaBloqueado } from '../services/agents/whatsapp/silenciar';
+import { FILTRO_NAO_OCUPA } from '../services/agenda/salaDeEspera';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alerta de lead novo da LP do Eletroposto (/io/eletroposto) no WhatsApp da equipe.
@@ -422,7 +423,7 @@ router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
         .select('quando, vendedor_nome, created_by, status')
         .gte('quando', de).lte('quando', ate)
         .in('vendedor_nome', DONOS_EP)
-        .not('status', 'in', '(cancelado,sem_interesse)')
+        .not('status', 'in', FILTRO_NAO_OCUPA)
         .limit(500),
       // O rodízio é pelo TOTAL já marcado pela LP — a página só precisa do
       // próximo nome, não da lista.

@@ -66,6 +66,7 @@ import { agendaFechadaNoIso } from './agendaFechada';
 import { APALAVRADO_PREFIX, esperaAte } from './salaDeEspera';
 import { carregarBloqueados } from '../agents/whatsapp/silenciar';
 import { GRADE_NILCE } from './nilceParaGiovanna';
+import { FILTRO_NAO_OCUPA } from './salaDeEspera';
 
 const TZ = 'America/Sao_Paulo';
 
@@ -619,7 +620,7 @@ export async function runReagendaSolarTick(
     // A régua agora é a MESMA do `eletropostoVagas`, que é a outra ponta que
     // escreve nesta agenda: só horário cancelado ou sem interesse deixa de
     // ocupar. Se as duas discordarem, uma marca onde a outra já marcou.
-    .not('status', 'in', '(cancelado,sem_interesse)')
+    .not('status', 'in', FILTRO_NAO_OCUPA)
     .limit(1000);
   if (futuraQ.error) {
     logger.error('solar-reagenda', 'ler a agenda futura falhou — não inventa horário', futuraQ.error);

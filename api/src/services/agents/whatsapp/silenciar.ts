@@ -211,9 +211,23 @@ export async function carregarBloqueados(): Promise<(phone: string) => boolean> 
 export async function estaBloqueado(phone: string | null | undefined): Promise<boolean> {
   const k = chaveContato(phone);
   if (!k) return false;
+  // FILTRA PELOS 8 ULTIMOS NO SERVIDOR, e so depois confere a chave inteira aqui.
+  //
+  // A primeira versao trazia a tabela TODA e peneirava em JS. Funciona com 10
+  // bloqueados e vira varredura completa a cada lead que entra — e esta funcao
+  // roda no caminho quente da LP, do ManyChat e do cron do Meta, que e de onde
+  // vem 577 das 1.230 fichas.
+  //
+  // Os 8 ultimos digitos sao substring do telefone gravado em qualquer formato
+  // (medido: 0 de 1.000 fichas tem caractere nao-digito). O DDD e conferido
+  // depois, em JS, porque `chaveContato` e quem sabe a regra do nono digito.
+  const ult8 = String(phone ?? '').replace(/\D/g, '').slice(-8);
+  if (ult8.length < 8) return false;
   try {
     const { data, error } = await supabase
-      .from('whatsapp_suppression').select('phone').eq('motivo', MOTIVO_FORA_DO_PADRAO);
+      .from('whatsapp_suppression').select('phone')
+      .eq('motivo', MOTIVO_FORA_DO_PADRAO)
+      .ilike('phone', `%${ult8}`);
     if (error) throw error;
     return (data ?? []).some((r) => chaveContato((r as { phone: string }).phone) === k);
   } catch (err) {

@@ -1654,6 +1654,14 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
    e ele que faz o robo parar de falar com quem ja disse nao. */
 /* O bloqueio e vermelho e separado: nao e mais um motivo, e a unica acao da caixa
    que nao tem volta por aqui. */
+.bloqueado-box{margin:10px 0;padding:14px;border-radius:12px;background:#1F2937;border:1px solid #4B5563}
+.bloqueado-box[hidden]{display:none}
+.bloqueado-tit{font-size:15px;font-weight:900;color:#F87171;margin-bottom:6px;letter-spacing:.4px}
+.bloqueado-txt{font-size:12.5px;line-height:1.5;color:#9CA3AF;margin-bottom:12px}
+.bloqueado-btn{width:100%;padding:12px;border-radius:9px;border:0;background:#E5E7EB;color:#1f2937;
+  font-family:inherit;font-weight:800;font-size:13px;cursor:pointer}
+.bloqueado-btn:hover{background:#fff}
+#crm-det-status-wrap[hidden]{display:none}
 .motivo-bloquear{grid-column:span 2;margin-top:8px;padding:11px 8px;border-radius:8px;border:0;
   background:#7F1D1D;color:#FECACA;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer}
 .motivo-bloquear:hover{background:#991B1B;color:#fff}
@@ -6019,6 +6027,14 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       </div>
       <button type="button" class="crm-det-limpar-temp" id="crm-det-limpar-temp" onclick="crmLimparTemperatura()" style="display:none">✖ Remover temperatura</button>
 
+      <div id="crm-det-bloqueado" class="bloqueado-box" hidden>
+        <div class="bloqueado-tit">🚫 FORA DO PADRÃO</div>
+        <div class="bloqueado-txt">Este telefone está bloqueado. O card não volta pra agenda,
+          não vira lembrete, não recebe mensagem, e ficha nova desse número não é criada.</div>
+        <button type="button" class="bloqueado-btn" onclick="crmDesfazerForaDoPadrao()">Desbloquear este cliente</button>
+      </div>
+
+      <div id="crm-det-status-wrap">
       <span class="crm-det-lbl">Resultado da ligação</span>
       <div class="crm-det-status">
         <button type="button" class="crm-btn-status bg-ag" data-status="agendado"         onclick="crmAtualizarStatus('agendado')">📞 Agendada</button>
@@ -6053,6 +6069,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <button type="button" class="crm-btn-status bg-ap" data-status="apalavrado"       onclick="crmAtualizarStatus('apalavrado')" style="grid-column:span 2">🤞 Apalavrado (espera)</button>
         <button type="button" class="crm-btn-status bg-fe" data-status="fechou"           onclick="crmAtualizarStatus('fechou')" style="grid-column:span 2">🏆 Vendido</button>
       </div>
+      </div><!-- /crm-det-status-wrap -->
       <!-- POSSE DO LOCAL: abre ao apertar ARRENDAMENTO. So o segundo toque grava. -->
       <div id="crm-det-posse" class="posse-box" hidden>
         <div class="posse-tit">Arrendamento: de quem é o local?</div>
@@ -21417,6 +21434,7 @@ function crmAbrirDetalhe(key) {
   // pra o cliente SEM ficha tambem nao ver os seis modelos: sem ficha o
   // `crmAtualizarStatus` nem grava, e botao que nao faz nada e pior que botao
   // ausente.
+  crmAplicarCaraDeBloqueado(agRec);
   crmAplicarMenuDoProduto(agRec);
   // TODAS as caixas fecham ao abrir outro card, e e UMA chamada. Subconjunto por
   // guarda foi o que garantiu a divergencia que virou 8 cliques mortos.
@@ -21673,6 +21691,42 @@ async function crmAbrirVendaDoCard() {
     return;
   }
   abrirModalVenda(escolhida.codigo);
+}
+
+/** Card bloqueado some com o grid e mostra o desbloqueio. Espelho da agenda. */
+function crmAplicarCaraDeBloqueado(ag) {
+  const k = typeof chaveContatoBloqueio === 'function'
+    ? chaveContatoBloqueio(ag && ag.cliente_telefone) : null;
+  const bloq = k !== null && crmBloqueados.has(k);
+  const cx = document.getElementById('crm-det-bloqueado');
+  const grid = document.getElementById('crm-det-status-wrap');
+  if (cx) cx.hidden = !bloq;
+  if (grid) grid.hidden = bloq;
+}
+
+async function crmDesfazerForaDoPadrao() {
+  if (!crmDetAtual || !crmDetAtual.agRec) return;
+  const ag = crmDetAtual.agRec;
+  const tel = String(ag.cliente_telefone || '');
+  const k = typeof chaveContatoBloqueio === 'function' ? chaveContatoBloqueio(tel) : null;
+  if (!k) { showToast('Sem telefone válido.'); return; }
+  if (!confirm('Desbloquear este cliente?\n\nEle volta a poder receber mensagem, '
+    + 'virar lembrete e ter ficha nova.')) return;
+  try {
+    const r = await fetch(`${APX_API}/gerador/desbloquear`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ telefone: tel }),
+    });
+    const j = await r.json();
+    if (!r.ok || !j.ok) throw new Error((j && j.error) || 'não consegui desbloquear');
+    crmBloqueados.delete(k);
+    crmAplicarCaraDeBloqueado(ag);
+    showToast('Desbloqueado. O card voltou a ser um card normal.');
+    renderCRM();
+  } catch (e) {
+    document.getElementById('crm-det-erro').textContent = 'Erro ao desbloquear: ' + e.message;
+    console.error(e);
+  }
 }
 
 function crmAplicarMenuDoProduto(ag) {

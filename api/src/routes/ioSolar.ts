@@ -6,6 +6,7 @@ import { agendaFechadaNoIso, ehSocio, MOTIVO_FECHADA } from '../services/agenda/
 import { proximoDaContaBaixa } from '../services/agenda/filaContaBaixa';
 import { FILA_CONTA_ALTA } from '../services/agenda/leadSolarFicha';
 import { estaBloqueado } from '../services/agents/whatsapp/silenciar';
+import { FILTRO_NAO_OCUPA } from '../services/agenda/salaDeEspera';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alerta de lead novo da LP de Energia Solar (/io/solar) no WhatsApp da equipe.
@@ -170,7 +171,7 @@ router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
         .select('quando, vendedor_nome, created_by')
         .gte('quando', de).lte('quando', ate)
         .in('vendedor_nome', DONOS_SOLAR)
-        .not('status', 'in', '(cancelado,sem_interesse)')
+        .not('status', 'in', FILTRO_NAO_OCUPA)
         .limit(500),
       // A vez da conta alta agora sai do MESMO contador que o cron do Meta e o
       // ManyChat giram (`leads_meta_state.rodizio_idx`), e não mais de uma

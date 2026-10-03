@@ -44,6 +44,7 @@ import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { carregarBloqueioProativo } from './ioSend';
 // Família de origem, não lista fixa: origem nova de EP entra sozinha na trava.
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
+import { FILTRO_NAO_OCUPA } from '../agenda/salaDeEspera';
 
 /** Origem gravada em `eletroposto_nota1` pelo lead que chegou por DM/comentário.
  *  Mora aqui (e não no manychatLeadService) porque é a chave que liga os dois
@@ -165,7 +166,7 @@ async function jaTemCardDeEletroposto(chave: string, telefone: string): Promise<
   const { data, error } = await supabaseGerador
     .from('agendamentos')
     .select('cliente_telefone, created_by, status')
-    .not('status', 'in', '(cancelado,sem_interesse)')
+    .not('status', 'in', FILTRO_NAO_OCUPA)
     .ilike('cliente_telefone', `%${telefone.slice(-8)}`)
     .limit(50);
   // Falhou a leitura? Trata como "já tem" e não manda. Convite a mais é

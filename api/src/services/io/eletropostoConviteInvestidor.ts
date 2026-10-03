@@ -498,6 +498,16 @@ export type PassoConvite =
  * separado no funil.
  */
 export async function passoDoConvite(telefone: string, textos: string[]): Promise<PassoConvite> {
+  // FORA DO PADRAO, e o corte vem AQUI e nao no insert la embaixo.
+  //
+  // A oferta vive no `system_state` e SOBREVIVE ao bloqueio: bloquear hoje e o
+  // lead responder amanha ainda dispararia as reofertas (`bolhaReoferta` e
+  // `bolhaSlotTomado`), que sao mensagem pra quem foi bloqueado. Cortar so no
+  // insert pararia a ficha e deixaria as mensagens saindo.
+  if (await estaBloqueado(telefone)) {
+    logger.info('ep-convite', `${telefone} esta FORA DO PADRAO: nao falo nem marco`);
+    return { acao: 'nada' };
+  }
   if (desligado()) return { acao: 'nada' };
   const tel = normalizarTel(telefone);
   if (!tel || !textos.length) return { acao: 'nada' };
@@ -586,11 +596,6 @@ export async function passoDoConvite(telefone: string, textos: string[]): Promis
     src: 'convite_investidor',
   };
 
-  // FORA DO PADRAO: quem foi bloqueado nao marca horario pelo convite.
-  if (await estaBloqueado(tel)) {
-    logger.info('ep-convite', `${tel} esta FORA DO PADRAO: nao marquei`);
-    return { acao: 'nada' };
-  }
   const { data, error } = await supabaseGerador
     .from('agendamentos').insert(ficha).select('id').single();
   if (error) {

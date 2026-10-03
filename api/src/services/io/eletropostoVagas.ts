@@ -37,6 +37,7 @@ import { logger } from '../../utils/logger';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 import { agendaFechadaEm } from '../agenda/agendaFechada';
 import { ehFeriadoBR } from '../../utils/feriadosBR';
+import { FILTRO_NAO_OCUPA } from '../agenda/salaDeEspera';
 
 const BRT_TZ = 'America/Sao_Paulo';
 
@@ -280,7 +281,7 @@ export async function carregarCompromissos(deIso: string, ateIso: string): Promi
     const { data, error } = await supabaseGerador
       .from('agendamentos').select('quando, vendedor_nome, status, created_by')
       .gte('quando', deIso).lte('quando', ateIso)
-      .not('status', 'in', '(cancelado,sem_interesse)')
+      .not('status', 'in', FILTRO_NAO_OCUPA)
       .limit(2000);
     if (error) throw error;
     // Resposta SEM erro e SEM corpo não é uma agenda vazia — é uma resposta que

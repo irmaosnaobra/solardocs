@@ -46,6 +46,7 @@ import {
 // Quem GRAVA a ficha de Instagram e quem MANDA o convite têm que concordar na
 // mesma palavra de origem — por isso ela vem de lá, não é literal daqui.
 import { ORIGEM_IG } from '../io/eletropostoIgConvite';
+import { estaBloqueado } from '../agents/whatsapp/silenciar';
 
 // Telefone de cada consultor (mesmo mapa da Luma / leadsMeta / ioEletroposto).
 const TEL_CONSULTOR: Record<string, string> = {
@@ -536,6 +537,19 @@ export async function ingestManychatLead(p: ManychatLeadPayload): Promise<Ingest
 
   if (soDigitos(whatsapp).length < 12) {
     return { ok: false, motivo: 'whatsapp inválido (precisa DDD + número)' };
+  }
+  // FORA DO PADRAO: o corte vai AQUI, na entrada, e nao nos dois inserts.
+  // Sao DUAS bocas pro mesmo caminho (`POST /gerador/manychat-lead` e o
+  // `POST /gerador/form-solar`, que e PUBLICO), e tres destinos la dentro
+  // (solar, eletroposto e o desvio que so registra pra LP). Cortar nos inserts
+  // deixaria o desvio passando, e ligar `EP_IG_AGENDA_DIRETA` ressuscitaria o
+  // bloqueado sem ninguem mexer em codigo.
+  //
+  // Responde `ok` de proposito: quem chama e o ManyChat, e um erro ali vira
+  // retry infinito do lado deles.
+  if (await estaBloqueado(whatsapp)) {
+    logger.info('manychat-lead', `${whatsapp} esta FORA DO PADRAO: ignorado`);
+    return { ok: true, motivo: 'fora do padrao' };
   }
   if (produto === 'solar') return ingestSolar(p, nome, whatsapp);
   if (produto === 'eletroposto') return ingestEletroposto(p, nome, whatsapp);

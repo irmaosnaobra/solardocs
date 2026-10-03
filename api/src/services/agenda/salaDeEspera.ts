@@ -169,6 +169,33 @@ export const STATUS_QUE_ACEITAM_MOTIVO = new Set<string>([
   'sem_interesse', 'fechou_concorrente', 'perdido', 'cancelado',
 ]);
 
+/**
+ * ── O QUE NÃO OCUPA HORÁRIO NA AGENDA (03/10/2026) ─────────────────────────
+ *
+ * Ordem do dono: "PERDIDO e SEM INTERESSE ficam parados onde estão".
+ *
+ * Card com desfecho não segura vaga. A reunião não vai acontecer, e deixar ela
+ * ocupando o horário tira do consultor um slot que ele poderia vender.
+ *
+ * ESTA LISTA ESTAVA ESCRITA À MÃO EM SETE LUGARES, e em todos como
+ * `(cancelado,sem_interesse)` — `perdido` e `fechou_concorrente` ficaram de fora
+ * dos sete. Medido em 03/10: zero cards presos hoje, então o buraco ainda não
+ * cobrou nada. Mas o comentário do próprio `reagendaSolarNaoAtendido` já avisa o
+ * que acontece quando duas pontas discordam: "uma marca onde a outra já marcou",
+ * o índice único recusa a gravação e o card não anda.
+ *
+ * Então agora é UMA lista, e os sete leem dela.
+ *
+ * `fechou` fica FORA de propósito: a reunião do cliente que comprou aconteceu, e
+ * o horário dela foi usado de verdade.
+ */
+export const STATUS_QUE_NAO_OCUPAM: readonly string[] = [
+  'cancelado', 'sem_interesse', 'perdido', 'fechou_concorrente',
+];
+
+/** O mesmo, no formato que o PostgREST pede no `.not('status', 'in', ...)`. */
+export const FILTRO_NAO_OCUPA = `(${STATUS_QUE_NAO_OCUPAM.join(',')})`;
+
 /** `true` quando a ficha está em paz AGORA. */
 export function naSalaDeEspera(valor: unknown, agora: number): boolean {
   const ate = esperaAte(valor);

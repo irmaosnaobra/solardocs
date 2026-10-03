@@ -46,6 +46,7 @@ import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { ehFeriadoBR } from '../../utils/feriadosBR';
+import { FILTRO_NAO_OCUPA } from './salaDeEspera';
 
 /** Carimbo da passagem, por ficha: `nilce_giovanna:<id>`. */
 export const PASSAGEM_PREFIX = 'nilce_giovanna:';
@@ -150,13 +151,13 @@ export async function runNilceParaGiovanna(opts: { dry?: boolean } = {}): Promis
     supabaseGerador.from('agendamentos')
       .select('id,quando,cliente_nome,cliente_telefone,status,temperatura,created_by,historico')
       .eq('vendedor_nome', DE)
-      .not('status', 'in', '(cancelado,sem_interesse)')
+      .not('status', 'in', FILTRO_NAO_OCUPA)
       .gte('quando', VARREDURA_INICIO)
       .order('quando', { ascending: true }),
     supabaseGerador.from('agendamentos')
       .select('id,quando,cliente_nome,cliente_telefone,status,temperatura,created_by,historico')
       .eq('vendedor_nome', PARA)
-      .not('status', 'in', '(cancelado,sem_interesse)')
+      .not('status', 'in', FILTRO_NAO_OCUPA)
       .gte('quando', agoraIso),
   ]);
   if (daNilce.error) { logger.error('nilce-19h', 'falha lendo a agenda da Nilce', daNilce.error); return vazio; }

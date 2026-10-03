@@ -907,6 +907,14 @@
      motivo de um card e o robo insistir com um cliente, perde o motivo. */
   /* O bloqueio e VERMELHO e separado do resto por uma linha: ele nao e mais um
      motivo, e a unica acao desta caixa que nao tem volta por aqui. */
+  .bloqueado-box{margin:10px 0;padding:14px 14px;border-radius:12px;background:#1F2937;border:1px solid #4B5563}
+  .bloqueado-box[hidden]{display:none}
+  .bloqueado-tit{font-size:15px;font-weight:900;color:#F87171;margin-bottom:6px;letter-spacing:.4px}
+  .bloqueado-txt{font-size:12.5px;line-height:1.5;color:#9CA3AF;margin-bottom:12px}
+  .bloqueado-btn{width:100%;padding:12px;border-radius:9px;border:0;background:#E5E7EB;color:#1f2937;
+    font-family:inherit;font-weight:800;font-size:13px;cursor:pointer}
+  .bloqueado-btn:hover{background:#fff}
+  #d-status-wrap[hidden]{display:none}
   .motivo-bloquear{grid-column:span 2;margin-top:8px;padding:11px 8px;border-radius:8px;border:0;
     background:#7F1D1D;color:#FECACA;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer;
     border-top:1px solid rgba(248,113,113,.4)}
@@ -1427,6 +1435,16 @@
     <button type="button" class="btn-confirmada" id="d-btn-confirmada"
             onclick="toggleConfirmada(detalheAtual && detalheAtual.id)">Confirmar reunião</button>
 
+    <!-- O CARD BLOQUEADO. Aparece no lugar do grid inteiro: card fora do padrão
+         não tem opção nenhuma, era o pedido. O único caminho daqui é desbloquear. -->
+    <div id="d-bloqueado" class="bloqueado-box" hidden>
+      <div class="bloqueado-tit">🚫 FORA DO PADRÃO</div>
+      <div class="bloqueado-txt">Este telefone está bloqueado. O card não volta pra agenda,
+        não vira lembrete, não recebe mensagem, e ficha nova desse número não é criada.</div>
+      <button type="button" class="bloqueado-btn" onclick="desfazerForaDoPadrao()">Desbloquear este cliente</button>
+    </div>
+
+    <div id="d-status-wrap">
     <div class="status-label">Resultado da ligação</div>
     <div class="status-grid">
       <button type="button" class="btn-status bg-ag" data-status="agendado"          onclick="atualizarStatus('agendado')">📞 Agendada</button>
@@ -1457,6 +1475,7 @@
       <button type="button" class="btn-status bg-ap" data-status="apalavrado"       onclick="atualizarStatus('apalavrado')" style="grid-column: span 2;">🤞 Apalavrado (espera)</button>
       <button type="button" class="btn-status bg-fe" data-status="fechou"            onclick="atualizarStatus('fechou')" style="grid-column: span 2;">🏆 Vendido</button>
     </div>
+    </div><!-- /d-status-wrap -->
 
     <!-- POSSE DO LOCAL: abre ao apertar ARRENDAMENTO. So o segundo toque grava. -->
     <div id="d-posse" class="posse-box" hidden>
@@ -2576,6 +2595,8 @@ function abrirDetalhes(id) {
   document.getElementById('d-hist').innerHTML = textoComLinks(ag.historico || '');
   pintarEstudo(ag);
   document.getElementById('d-nota').value = '';
+  // O card bloqueado troca o grid inteiro pela caixa do desbloqueio.
+  aplicarCaraDeBloqueado(ag);
   aplicarMenuDoProduto(ag);
   marcarStatusAtualNosBotoes(ag.status || 'agendado');
   marcarTemperaturaAtualNosBotoes(ag.temperatura || null);
@@ -2684,6 +2705,42 @@ function fecharCaixaVenda() {
   const b = document.getElementById('d-venda');
   if (b) b.hidden = true;
   fecharModalDet();
+}
+
+/** Card bloqueado some com o grid e mostra o desbloqueio. */
+function aplicarCaraDeBloqueado(ag) {
+  const bloq = foraDoPadrao(ag);
+  const cx = document.getElementById('d-bloqueado');
+  const grid = document.getElementById('d-status-wrap');
+  if (cx) cx.hidden = !bloq;
+  if (grid) grid.hidden = bloq;
+}
+
+/** Desfaz o bloqueio. NÃO devolve o status: o card continua `sem_interesse`, que é
+ *  onde ele estava. Desbloquear é "pode falar com ele de novo", não "reabre a
+ *  negociação" — quem decide isso é quem ligar. */
+async function desfazerForaDoPadrao() {
+  if (!detalheAtual) return;
+  const tel = String(detalheAtual.cliente_telefone || '');
+  const k = typeof chaveContatoBloqueio === 'function' ? chaveContatoBloqueio(tel) : null;
+  if (!k) { showToast('Sem telefone válido.'); return; }
+  if (!confirm('Desbloquear este cliente?\n\nEle volta a poder receber mensagem, '
+    + 'virar lembrete e ter ficha nova.')) return;
+  try {
+    const r = await fetch(`${API_ESPERA}/gerador/desbloquear`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ telefone: tel }),
+    });
+    const j = await r.json();
+    if (!r.ok || !j.ok) throw new Error((j && j.error) || 'não consegui desbloquear');
+    bloqueadosCache.delete(k);
+    aplicarCaraDeBloqueado(detalheAtual);
+    showToast('Desbloqueado. O card voltou a ser um card normal.');
+    await renderTudo();
+  } catch (e) {
+    document.getElementById('d-erro').textContent = 'Erro ao desbloquear: ' + e.message;
+    console.error(e);
+  }
 }
 
 function aplicarMenuDoProduto(ag) {

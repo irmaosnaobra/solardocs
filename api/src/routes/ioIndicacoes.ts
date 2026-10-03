@@ -92,6 +92,18 @@ router.post('/', indicacaoRateLimit, async (req: Request, res: Response) => {
     });
     if (error) throw error;
 
+    // FORA DO PADRAO: o corte sobe pra ANTES do aviso ao time.
+    //
+    // Meu primeiro corte ficou no insert la embaixo, e estava tarde: o WhatsApp
+    // pro Thiago ("chamar o quanto antes") sai AQUI, e e exatamente o lembrete
+    // que o bloqueio existe pra impedir. A indicacao em si continua salva — ela
+    // e do INDICADOR, que nao fez nada de errado.
+    if (await estaBloqueado(indicado_telefone)) {
+      logger.info('io-indicacoes', `indicado ${indicado_telefone} esta FORA DO PADRAO: sem aviso e sem ficha`);
+      res.json({ ok: true });
+      return;
+    }
+
     // AVISO DO TIME (Thiago) — cada indicado chega no WhatsApp pra atendimento
     // PERSONALIZADO (é o pedido explícito do dono; indicação é lead quente).
     // Best-effort e isolado: a indicação já está salva, WhatsApp não pode derrubar.
@@ -123,11 +135,6 @@ router.post('/', indicacaoRateLimit, async (req: Request, res: Response) => {
         origem ? `Origem: ${origem}` : '',
         '→ Atendimento personalizado',
       ].filter(Boolean).join('\n');
-      // FORA DO PADRAO: o INDICADO bloqueado nao vira ficha. A indicacao em si
-      // continua salva (ela ja foi, acima): o que nao acontece e abrir agenda.
-      if (await estaBloqueado(indicado_telefone)) {
-        logger.info('io-indicacoes', `indicado ${indicado_telefone} esta FORA DO PADRAO: sem ficha`);
-      } else {
       await supabaseGerador.from('agendamentos').insert({
         vendedor_nome: 'Thiago',
         quando: quando.toISOString(),
@@ -138,7 +145,6 @@ router.post('/', indicacaoRateLimit, async (req: Request, res: Response) => {
         status: 'agendado',
         created_by: 'indicacao',
       });
-      }
     } catch (agErr: any) {
       logger.error('io-indicacoes', 'agendamento do indicado falhou (indicação salva)', String(agErr?.message || agErr));
     }

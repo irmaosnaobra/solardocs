@@ -68,6 +68,15 @@ function query(table: string) {
 
 vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: { from: (t: string) => query(t) } }));
 vi.mock('../services/agents/zapiClient', () => ({ sendWhatsApp: vi.fn().mockResolvedValue({}) }));
+// O Supabase PRINCIPAL, onde mora `whatsapp_suppression`. Ele entrou no caminho
+// em 03/10/2026, quando o FORA DO PADRAO passou a barrar lead de telefone
+// bloqueado antes de criar ficha. Sem este duble a checagem tenta a REDE e o
+// teste estoura em 5s — e o sintoma e "timeout", que nao diz nada sobre a causa.
+vi.mock('../utils/supabase', () => ({
+  supabase: { from: () => ({
+    select: () => ({ eq: () => ({ ilike: () => ({ data: [], error: null }) }) }),
+  }) },
+}));
 
 import {
   consumoTipico, ehContaAlta, consumoDaFicha, FieldItem,

@@ -1,6 +1,7 @@
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { sendWhatsApp } from '../agents/zapiClient';
 import { logger } from '../../utils/logger';
+import { STATUS_QUE_NAO_OCUPAM } from './salaDeEspera';
 
 /**
  * Digest diário "Reagendar" — todo dia às 17h (BRT) manda pra cada consultor a
@@ -18,7 +19,14 @@ import { logger } from '../../utils/logger';
 const ZAPI_INSTANCE = 'io' as const;
 const CRM_BASE_URL = 'https://solardoc.app/gerador';
 
-const STATUS_PERDIDO = new Set(['cancelado', 'sem_interesse']);
+// `perdido` e `fechou_concorrente` entraram em 03/10/2026. Eles ficaram de fora
+// das TRES copias desta lista, e o efeito era o mesmo nas tres: card dado como
+// perdido continuava entrando na fila de follow-up. Ordem do dono: "PERDIDO e
+// SEM INTERESSE ficam parados onde estao".
+//
+// A lista mora no modulo neutro junto com a de ocupacao de horario, porque sao
+// a mesma pergunta: este card ainda e trabalho?
+const STATUS_PERDIDO = new Set(STATUS_QUE_NAO_OCUPAM);
 const STATUS_REAGENDAR = new Set(['nao_atendeu', 'sem_orcamento']);
 
 type Agendamento = {

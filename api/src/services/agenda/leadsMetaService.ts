@@ -7,6 +7,7 @@ import {
   TIME_CONTA_ALTA, FILA_CONTA_ALTA, KWH_CORTE_TIME,
 } from './leadSolarFicha';
 import { proximoDaContaBaixa } from './filaContaBaixa';
+import { carregarBloqueados } from '../agents/whatsapp/silenciar';
 
 // Telefone de cada consultor do rodízio (mesmo mapa que a Luma usa pra chamar consultor).
 const TEL_CONSULTOR: Record<string, string> = {
@@ -503,6 +504,8 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
   );
 
   {
+    // UMA leitura pra sincronizacao inteira, nao um select por lead.
+    const bloqueado = await carregarBloqueados();
     for (const { lead, formId } of todosLeads) {
       try {
         const createdUnix = Math.floor(new Date(lead.created_time).getTime() / 1000);
@@ -520,7 +523,13 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
         const cidade = fieldVal(fields, 'city');
         const faixa = fieldContains(fields, 'horário', 'horario', 'hoario');
 
-        const naArea = await dentroDaArea(cidade, whatsapp);
+        // FORA DO PADRAO: lead pago REENTRA sozinho. Quem foi bloqueado e
+        // preencher o anuncio de novo nasceria ficha, e o consultor seria avisado.
+        // Esta e a maior porta do sistema: 577 das 1.230 fichas vieram por aqui.
+        //
+        // Conta como fora de area de proposito, pra nao gastar o rodizio de
+        // consultor com uma ficha que nao vai existir.
+        const naArea = !bloqueado(whatsapp) && await dentroDaArea(cidade, whatsapp);
         const obs = montarObservacaoSolar(fields);
 
         let agendadoId: number | null = null;
