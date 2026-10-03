@@ -21694,9 +21694,30 @@ async function crmAbrirVendaDoCard() {
 }
 
 /** Card bloqueado some com o grid e mostra o desbloqueio. Espelho da agenda. */
+/**
+ * O TELEFONE DO BLOQUEIO, numa expressao so.
+ *
+ * Isto nasceu de um defeito real, achado olhando a producao: eu tinha TRES
+ * expressoes diferentes em quatro lugares. O bloqueio gravava
+ * `ag.cliente_telefone || c.tel`, o DESBLOQUEIO gravava so `ag.cliente_telefone`,
+ * o selo do card conferia `c.tel` e o modal conferia `ag.cliente_telefone`.
+ *
+ * O estrago: cliente cujo card nao tem telefone mas cujo cadastro unificado tem
+ * (o caso do Napoleao, lead da base de parceria) era bloqueado pelo `c.tel`, o
+ * card mostrava FORA DO PADRAO pelo selo, e o modal NAO mostrava a caixa de
+ * desbloqueio porque olhava outro campo. Bloqueado sem como desbloquear, que e
+ * exatamente o que o botao de desfazer existe pra impedir.
+ *
+ * A ficha manda, e o cadastro unificado e a reserva: e o telefone do card que o
+ * robo usa pra falar com a pessoa.
+ */
+function crmTelDoBloqueio(ag, c) {
+  return String((ag && ag.cliente_telefone) || (c && c.tel) || '');
+}
+
 function crmAplicarCaraDeBloqueado(ag) {
   const k = typeof chaveContatoBloqueio === 'function'
-    ? chaveContatoBloqueio(ag && ag.cliente_telefone) : null;
+    ? chaveContatoBloqueio(crmTelDoBloqueio(ag, crmDetAtual && crmDetAtual.c)) : null;
   const bloq = k !== null && crmBloqueados.has(k);
   const cx = document.getElementById('crm-det-bloqueado');
   const grid = document.getElementById('crm-det-status-wrap');
@@ -21707,7 +21728,7 @@ function crmAplicarCaraDeBloqueado(ag) {
 async function crmDesfazerForaDoPadrao() {
   if (!crmDetAtual || !crmDetAtual.agRec) return;
   const ag = crmDetAtual.agRec;
-  const tel = String(ag.cliente_telefone || '');
+  const tel = crmTelDoBloqueio(ag, crmDetAtual && crmDetAtual.c);
   const k = typeof chaveContatoBloqueio === 'function' ? chaveContatoBloqueio(tel) : null;
   if (!k) { showToast('Sem telefone válido.'); return; }
   if (!confirm('Desbloquear este cliente?\n\nEle volta a poder receber mensagem, '
@@ -21875,7 +21896,7 @@ function crmAbrirCaixaDoCard(id) {
 async function crmMarcarForaDoPadrao() {
   if (!crmDetAtual || !crmDetAtual.agRec) return;
   const ag = crmDetAtual.agRec;
-  const tel = String(ag.cliente_telefone || (crmDetAtual.c && crmDetAtual.c.tel) || '');
+  const tel = crmTelDoBloqueio(ag, crmDetAtual.c);
   const k = typeof chaveContatoBloqueio === 'function' ? chaveContatoBloqueio(tel) : null;
   if (!k) { showToast('Sem telefone válido: não dá pra bloquear com segurança.'); return; }
   if (!confirm('FORA DO PADRÃO bloqueia este telefone para sempre:\n\n'
@@ -23201,6 +23222,9 @@ function renderCRM() {
   /** Este cliente esta FORA DO PADRAO? Pela chave do TELEFONE. */
   const foraDoPadrao = (c) => {
     if (typeof chaveContatoBloqueio !== 'function') return false;
+    // O selo nao tem o `ag` em maos, so o cliente unificado. O `c.tel` do
+    // `crmUnificar` JA e o telefone da ficha quando ela tem um, entao as duas
+    // pontas chegam na mesma chave. Se um dia divergirem, e aqui que aparece.
     const k = chaveContatoBloqueio(c && c.tel);
     return k !== null && crmBloqueados.has(k);
   };
