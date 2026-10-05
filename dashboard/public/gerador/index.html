@@ -1307,6 +1307,12 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
    é do "%" e do "dias". Dois ids pra vencer a regra do formulário empilhado. */
 #eletroSection .orc-wrap #ctr-juros{padding-right:88px}
 #eletroSection .orc-wrap #ctr-garantia{padding-right:64px}
+/* Etiqueta de espelhamento: de onde vem o número, e o botão de soltar o vínculo. */
+.ctr-esp{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px}
+.ctr-esp:empty{display:none}
+.ctr-esp .tag{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-weight:700;font-size:11.5px;line-height:1.3}
+.ctr-esp .tag.on{background:rgba(59,130,246,.12);border:1px solid rgba(96,165,250,.45);color:#BFDBFE}
+.ctr-esp .tag.off{background:rgba(148,163,184,.10);border:1px solid rgba(148,163,184,.35);color:#E2E8F0}
 /* Cláusulas de proteção: cada uma é um interruptor com a explicação embaixo. */
 .ctr-opc-lista{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px}
 .ctr-opc-row{display:grid;grid-template-columns:20px 1fr;gap:10px;align-items:start;background:#0f1a2e;border:1px solid rgba(255,255,255,.10);border-radius:10px;padding:10px 12px;cursor:pointer}
@@ -4415,6 +4421,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Escopo: o que entra no preço</div>
         <div class="orc-note" style="margin-top:-2px">Marcado sai como <b>Incluído</b>. Desmarcado vai para <b>Não incluído</b>, que é onde a briga costuma nascer. O nome de cada item pode ser reescrito, e o <b>×</b> tira o item do contrato. Mexer aqui não muda o Orçamento.</div>
+        <div class="ctr-esp" id="ctr-esc-esp"></div>
         <div class="ctr-esc-lista" id="ctr-esc-lista"></div>
         <div class="ctr-esc-add">
           <input type="text" id="ctr-esc-novo" placeholder="Novo item (ex.: Sinalização da vaga, totem, câmera)" onkeydown="if(event.key==='Enter'){event.preventDefault();ctrEscAdd(true)}">
@@ -4470,9 +4477,22 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="calc-card-title"><span class="dot"></span>Valor e formas de pagamento</div>
         <div class="orc-tot">
           <div class="orc-tot-row"><span>Valor total do projeto</span><span class="v" id="ctr-t-total">R$ 0,00</span></div>
-          <div class="orc-tot-row"><span>Sinal já pago (recibo)</span><span class="v" id="ctr-t-sinal">R$ 0,00</span></div>
+          <div class="orc-tot-row"><span>Sinal já pago</span><span class="v" id="ctr-t-sinal">R$ 0,00</span></div>
           <div class="orc-tot-row big"><span>Saldo a pagar</span><span class="v" id="ctr-t-saldo">R$ 0,00</span></div>
         </div>
+        <!-- SINAL EDITAVEL (05/10/2026). Nasce com o valor do Recibo de sinal e
+             acompanha o recibo ate alguem digitar aqui; dai manda o contrato,
+             sem mexer no recibo ja' emitido. Texto com leitor brasileiro, nao
+             type=number (virgula zera, ponto de milhar corta tres zeros). -->
+        <div class="eletro-field"><label>Valor total do projeto</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-total" inputmode="decimal" placeholder="0,00" oninput="ctrTotalEditado(this)"></div></div>
+        <div class="eletro-field"><label>Sinal já pago</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-sinal" inputmode="decimal" placeholder="0,00" oninput="ctrSinalEditado(this)"></div></div>
+        <div class="ctr-esp" id="ctr-total-esp"></div>
+        <div class="ctr-esp" id="ctr-sinal-esp"></div>
+        <div class="eletro-field" style="grid-column:span 2"><label>O sinal foi destinado a</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-sinal-destino" value="ao projeto elétrico" placeholder="Em branco = a frase sai sem destinação" oninput="epTocar(this)"></div></div>
+        <div class="orc-note" id="ctr-sinal-nota">—</div>
         <div class="ctr-pag-modelos"><span>Modelos rápidos</span>
           <button type="button" class="ctr-chip" onclick="ctrPagAplicar('vista')">À vista no Pix</button>
           <button type="button" class="ctr-chip" onclick="ctrPagAplicar('cartao')">Entrada + cartão</button>
@@ -4480,6 +4500,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <button type="button" class="ctr-chip" onclick="ctrPagAplicar('etapas')">Por etapa da obra (30/40/30)</button>
           <button type="button" class="ctr-chip" onclick="ctrPagAplicar('boleto')">Entrada + boletos</button>
         </div>
+        <div class="ctr-esp" id="ctr-pag-esp"></div>
         <div class="ctr-pag-lista" id="ctr-pag-lista"></div>
         <button type="button" class="eletro-btn" onclick="ctrPagAdd()">+ Adicionar forma de pagamento</button>
         <div class="ctr-pag-soma" id="ctr-pag-soma">—</div>
@@ -4507,7 +4528,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="eletro-field" style="grid-column:1/-1"><label>Observações do pagamento (opcional)</label>
           <div class="eletro-inp eletro-inp-wide"><textarea id="ctr-pag-obs" class="ctr-ta" rows="3" placeholder="Ex.: as parcelas do cartão são lançadas na maquininha da contratada. Sem nenhuma forma na lista acima, este texto vira a cláusula de pagamento inteira."></textarea></div></div>
         <div class="orc-note" id="ctr-pag-ficha" style="display:none"></div>
-        <div class="orc-note">A lista nasce com a condição marcada no Orçamento, recalculada sobre o saldo. Mexeu em qualquer linha, ela fica como você deixou. <button type="button" class="orc-link" onclick="ctrPagReset()">Refazer a partir do Orçamento</button></div>
+        <div class="orc-note">Espelhando, a lista segue a condição marcada no Orçamento, recalculada sobre o saldo. Mexer em qualquer linha, ou excluir o espelhamento, deixa a lista como você deixou.</div>
       </div>
 
       <div class="card">
@@ -18698,6 +18719,14 @@ function ctrEstadoZerar() {
   ctrPag = { tocado: false, linhas: [] };
   ctrOpc = {};
   epFicha = null;
+  // O "Comecar novo" esvazia o campo disparando input, e o input marca como
+  // digitado: sem isto o proximo cliente nascia com sinal zero travado.
+  const sinalEl = document.getElementById('ctr-sinal');
+  if (sinalEl) delete sinalEl.dataset.tocado;
+  const totEl = document.getElementById('ctr-total');
+  if (totEl) delete totEl.dataset.tocado;
+  const destEl = document.getElementById('ctr-sinal-destino');
+  if (destEl && !destEl.value.trim()) { destEl.value = 'ao projeto elétrico'; delete destEl.dataset.tocado; }
   ctrEscRender();
   ctrOpcRender();
   ctrResumo();
@@ -18714,8 +18743,95 @@ function ctrEstadoZerar() {
 // avulso e depois gerava o contrato entregava um instrumento dizendo que o cliente
 // ja' havia pago R$ 3.000 DA OBRA — saldo menor, cobranca menor, e nada na tela
 // denunciando. Dinheiro saindo por um bug de uma linha.
-function ctrSinalPago() { return recAvulso() ? 0 : orcNum(orcVal('rec-valor')); }
-function ctrSaldo() { return Math.max(0, recBase() - ctrSinalPago()); }
+// ESPELHAMENTO (05/10/2026). Quatro coisas do contrato nascem COPIADAS de outra
+// aba e acompanham a fonte enquanto ninguém mexe: valor total (Orçamento), sinal
+// (Recibo), escopo (kit do Orçamento) e formas de pagamento (condição do
+// Orçamento). O dono pediu que todo espelho tenha a opção de ser excluído, e não
+// só "digitar por cima": a etiqueta diz de onde vem o número, "Excluir
+// espelhamento" congela o que está na tela como valor próprio do contrato, e
+// "Voltar a espelhar" devolve o vínculo.
+const CTR_ESP_IC = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>';
+function ctrEspelho(id, ligado, fonte, proprio, desligar, religar) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = ligado
+    ? `<span class="tag on">${CTR_ESP_IC} Espelhando ${orcEsc(fonte)}</span><button type="button" class="orc-link" onclick="${desligar}">Excluir espelhamento</button>`
+    : `<span class="tag off">${orcEsc(proprio)}</span><button type="button" class="orc-link" onclick="${religar}">Voltar a espelhar ${orcEsc(fonte)}</button>`;
+}
+
+// Valor total: o do Orçamento até alguém digitar ou excluir o espelhamento.
+// Só o CONTRATO lê este campo: Orçamento, Recibo e os outros papéis continuam
+// com o valor do Orçamento.
+function ctrTotal() {
+  const el = document.getElementById('ctr-total');
+  if (el && el.dataset.tocado === '1') return ctrMoeda(el.value);
+  return recBase();
+}
+function ctrTotalEditado(inp) { inp.dataset.tocado = '1'; ctrResumo(); }
+function ctrTotalDesligar() {
+  const el = document.getElementById('ctr-total');
+  if (!el) return;
+  el.value = ctrFmt(recBase());
+  el.dataset.tocado = '1';
+  ctrResumo();
+}
+function ctrTotalReset() {
+  const el = document.getElementById('ctr-total');
+  if (el) delete el.dataset.tocado;
+  ctrResumo();
+}
+function ctrTotalUi() {
+  const el = document.getElementById('ctr-total');
+  if (!el) return;
+  const tocado = el.dataset.tocado === '1';
+  if (!tocado) { const v = recBase(); el.value = v > 0 ? ctrFmt(v) : ''; }
+  ctrEspelho('ctr-total-esp', !tocado, 'o Orçamento (valor total)', 'Valor total próprio do contrato', 'ctrTotalDesligar()', 'ctrTotalReset()');
+}
+
+function ctrSinalRecibo() { return recAvulso() ? 0 : orcNum(orcVal('rec-valor')); }
+// 05/10/2026: o sinal ficou EDITAVEL no contrato. Digitado aqui, manda o
+// contrato (o cliente pagou diferente do recibo, ou pagou sem recibo); vazio
+// depois de digitado conta como zero, contrato sem sinal. Apagar e' apagar.
+function ctrSinalPago() {
+  const el = document.getElementById('ctr-sinal');
+  if (el && el.dataset.tocado === '1') return ctrMoeda(el.value);
+  return ctrSinalRecibo();
+}
+function ctrSinalEditado(inp) { inp.dataset.tocado = '1'; ctrResumo(); }
+function ctrSinalReset() {
+  const el = document.getElementById('ctr-sinal');
+  if (el) delete el.dataset.tocado;
+  ctrResumo();
+}
+function ctrSinalDesligar() {
+  const el = document.getElementById('ctr-sinal');
+  if (!el) return;
+  el.value = ctrFmt(ctrSinalRecibo());
+  el.dataset.tocado = '1';
+  ctrResumo();
+}
+// O campo mostra o número que vai pro papel. Enquanto ninguém digitou, ele
+// espelha o recibo; digitado, fica como está e a nota diz de onde veio cada um.
+function ctrSinalUi() {
+  const el = document.getElementById('ctr-sinal');
+  const nota = document.getElementById('ctr-sinal-nota');
+  if (!el) return;
+  const rec = ctrSinalRecibo();
+  const tocado = el.dataset.tocado === '1';
+  if (!tocado) el.value = rec > 0 ? ctrFmt(rec) : '';
+  ctrEspelho('ctr-sinal-esp', !tocado, 'o Recibo de sinal', 'Sinal próprio do contrato', 'ctrSinalDesligar()', 'ctrSinalReset()');
+  if (!nota) return;
+  if (tocado) {
+    nota.innerHTML = `Sinal <b>digitado aqui</b>: ${ORC_MONEY(ctrSinalPago())}${rec > 0 ? `. No Recibo de sinal está ${ORC_MONEY(rec)}` : ''}. O recibo não muda.`;
+  } else if (recAvulso()) {
+    nota.innerHTML = 'O recibo emitido é de <b>projeto avulso</b>: ele não abate da obra. Se houve sinal da obra, digite o valor aqui.';
+  } else {
+    nota.innerHTML = rec > 0
+      ? `Vem do <b>Recibo de sinal</b>. Digite outro valor se o cliente pagou diferente; <b>0</b> deixa o contrato sem sinal.`
+      : 'Sem recibo de sinal emitido. Se o cliente já pagou uma entrada, digite o valor aqui e ele é abatido do saldo.';
+  }
+}
+function ctrSaldo() { return Math.max(0, ctrTotal() - ctrSinalPago()); }
 
 // ─── Escopo ──────────────────────────────────────────────────────────────────
 // O carregador leva a potência do Simulador no nome, ao vivo, até alguém
@@ -18747,7 +18863,26 @@ function ctrEscItens() {
 
 const ctrAttr = s => orcEsc(s).replace(/"/g, '&quot;');
 
+// Escopo espelha o kit do Orçamento enquanto nenhuma linha do kit foi tocada
+// aqui. Excluir o espelhamento congela marcação e nome de cada linha (o
+// carregador para de seguir a potência); itens acrescentados não mudam.
+function ctrEscEspelhando() {
+  return !Object.keys(ctrEsc.toque).length && !Object.keys(ctrEsc.nomes).length && !Object.keys(ctrEsc.oculto).length;
+}
+function ctrEscDesligar() {
+  EP_KIT.forEach(k => {
+    if (ctrEsc.oculto[k.id]) return;
+    ctrEsc.toque[k.id] = ctrEscKitOn(k.id);
+    if (!Object.prototype.hasOwnProperty.call(ctrEsc.nomes, k.id)) ctrEsc.nomes[k.id] = ctrEscNomeKit(k);
+  });
+  ctrEscRender(); ctrPctNota(); ctrOpcRender();
+}
+function ctrEscReligar() {
+  ctrEsc.toque = {}; ctrEsc.nomes = {}; ctrEsc.oculto = {};
+  ctrEscRender(); ctrPctNota(); ctrOpcRender();
+}
 function ctrEscRender() {
+  ctrEspelho('ctr-esc-esp', ctrEscEspelhando(), 'o kit do Orçamento', 'Escopo próprio do contrato', 'ctrEscDesligar()', 'ctrEscReligar()');
   const box = document.getElementById('ctr-esc-lista');
   if (!box) return;
   const linhas = ctrEscLinhas();
@@ -18931,7 +19066,9 @@ function ctrPagFechar() {
 }
 // Soma das formas contra o saldo. Fechar no centavo é o que impede o papel de
 // cobrar a mais ou deixar parte do preço sem forma nenhuma.
+function ctrPagDesligar() { ctrPag.tocado = true; ctrPagSoma(); }
 function ctrPagSoma() {
+  ctrEspelho('ctr-pag-esp', !ctrPag.tocado, 'o Orçamento (condição de pagamento)', 'Formas de pagamento próprias do contrato', 'ctrPagDesligar()', 'ctrPagReset()');
   const el = document.getElementById('ctr-pag-soma');
   if (!el) return;
   const saldo = ctrSaldo(), soma = ctrPagTotal(), dif = ctrCent(saldo - soma);
@@ -18981,7 +19118,9 @@ function ctrBanner() {
 }
 
 function ctrResumo() {
-  const total = recBase(), sinal = ctrSinalPago(), saldo = Math.max(0, total - sinal);
+  ctrTotalUi();
+  ctrSinalUi();
+  const total = ctrTotal(), sinal = ctrSinalPago(), saldo = Math.max(0, total - sinal);
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   set('ctr-t-total', ORC_MONEY(total));
   set('ctr-t-sinal', (sinal > 0 ? '- ' : '') + ORC_MONEY(sinal));
@@ -19036,7 +19175,7 @@ function ctrInit() {
 function ctrDados() {
   const t = eletroTextos();
   const emp = epEmitGet();
-  const total = recBase(), sinal = ctrSinalPago();
+  const total = ctrTotal(), sinal = ctrSinalPago();
   const dISO = orcVal('ctr-data') || orcHojeISO();
   const esc = ctrEscItens();
   // Linha sem valor e sem forma é rascunho abandonado: não vai pro papel.
@@ -19061,6 +19200,7 @@ function ctrDados() {
     local: orcVal('ctr-local') || [orcVal('orc-cli-end'), t.cidade].filter(Boolean).join(' — '),
     empresa: emp,
     total, sinal, saldo: Math.max(0, total - sinal),
+    sinalDestino: orcVal('ctr-sinal-destino'),
     pagLinhas, pagSoma: pagLinhas.reduce((s, l) => s + l.conta.valor, 0),
     pagObs: orcVal('ctr-pag-obs'), pagDados: orcVal('ctr-pag-dados'),
     temFin: pagLinhas.some(l => l.conta.fin),
@@ -19295,7 +19435,7 @@ function ctrHTML(d) {
     ...clausula(3, 'Do preço e da forma de pagamento', [
       `O preço total dos serviços e equipamentos é de <b>${money(d.total)}</b> (${e(recExtenso(d.total))}).`,
       d.sinal > 0
-        ? `O CONTRATANTE já pagou, a título de <b>sinal e princípio de pagamento</b>, a quantia de <b>${money(d.sinal)}</b> (${e(recExtenso(d.sinal))}), destinada ao projeto elétrico, a qual é <b>integralmente abatida</b> do preço, remanescendo o saldo de <b>${money(d.saldo)}</b>.`
+        ? `O CONTRATANTE já pagou, a título de <b>sinal e princípio de pagamento</b>, a quantia de <b>${money(d.sinal)}</b> (${e(recExtenso(d.sinal))}),${d.sinalDestino ? ` destinada ${e(d.sinalDestino)},` : ''} a qual é <b>integralmente abatida</b> do preço, remanescendo o saldo de <b>${money(d.saldo)}</b>.`
         : 'Não houve pagamento de sinal antecipado, correndo o preço integralmente na forma do item seguinte.',
       d.pagLinhas.length
         ? { t: `O ${base} será pago da seguinte forma:`, apos: tabelaPag }
@@ -21073,6 +21213,9 @@ function orcSnapTake() {
     // o "tocado" junto: reabrir a 2ª via devolve a tabela que foi assinada.
     ctrPag: JSON.parse(JSON.stringify(ctrPag)), ctrEsc: JSON.parse(JSON.stringify(ctrEsc)),
     ctrPagObs: v('ctr-pag-obs'), ctrPagDados: v('ctr-pag-dados'),
+    ctrSinal: v('ctr-sinal'), ctrSinalTocado: document.getElementById('ctr-sinal')?.dataset.tocado === '1',
+    ctrTotal: v('ctr-total'), ctrTotalTocado: document.getElementById('ctr-total')?.dataset.tocado === '1',
+    ctrSinalDestino: document.getElementById('ctr-sinal-destino')?.value,
     ctrPrazoUnid: v('ctr-prazo-unid'), ctrPrazoMarco: v('ctr-prazo-marco'), ctrPrazoDocs: v('ctr-prazo-docs'),
     ctrPrazoCredito: v('ctr-prazo-credito'), ctrPrazoCorrigir: v('ctr-prazo-corrigir'), ctrPrazoAviso: v('ctr-prazo-aviso'),
     ctrTestemunhas: v('ctr-testemunhas'), ctrMostraPct: v('ctr-mostra-pct'),
@@ -21171,6 +21314,19 @@ function orcSnapApply(s, tipo) {
   // Campos novos de 05/10/2026. Snapshot de antes não os tem: o set() ignora
   // undefined e cada um fica no padrão com que o contrato saía.
   set('ctr-pag-dados', s.ctrPagDados); set('ctr-pag-obs', s.ctrPagObs);
+  // Sinal digitado no contrato volta digitado; snapshot sem ele segue o recibo,
+  // que é como o contrato antigo calculava.
+  const sinalEl = document.getElementById('ctr-sinal');
+  if (sinalEl) {
+    if (s.ctrSinalTocado) { sinalEl.dataset.tocado = '1'; sinalEl.value = s.ctrSinal || ''; }
+    else delete sinalEl.dataset.tocado;
+  }
+  set('ctr-sinal-destino', s.ctrSinalDestino);
+  const totEl = document.getElementById('ctr-total');
+  if (totEl) {
+    if (s.ctrTotalTocado) { totEl.dataset.tocado = '1'; totEl.value = s.ctrTotal || ''; }
+    else delete totEl.dataset.tocado;
+  }
   set('ctr-prazo-unid', s.ctrPrazoUnid); set('ctr-prazo-marco', s.ctrPrazoMarco); set('ctr-prazo-docs', s.ctrPrazoDocs);
   set('ctr-prazo-credito', s.ctrPrazoCredito); set('ctr-prazo-corrigir', s.ctrPrazoCorrigir); set('ctr-prazo-aviso', s.ctrPrazoAviso);
   set('ctr-testemunhas', s.ctrTestemunhas); set('ctr-mostra-pct', s.ctrMostraPct);
