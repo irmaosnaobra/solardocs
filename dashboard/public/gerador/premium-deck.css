@@ -526,11 +526,15 @@ body.movel .faixa-verde{font-size:26px;padding:26px 72px}
   body{background:#05070D;padding:34px 0 120px}
   #deck{display:flex;flex-direction:column;align-items:center;gap:30px}
   .slide{box-shadow:0 26px 70px rgba(0,0,0,.55);border-radius:10px}
-  /* cabe na janela sem rolagem lateral, sem mexer nas medidas internas */
-  @media (max-width:2040px){
-    #deck{transform-origin:top center;
-      transform:scale(calc((100vw - 60px) / 1920))}
-  }
+  /* Cabe na janela sem rolagem lateral, sem mexer nas medidas internas. A
+     escala --esc vem do script no <head> do HTML, porque o CSS não consegue
+     escrevê-la: scale(calc((100vw - 60px) / 1920)) dá uma MEDIDA, não um
+     número, e o navegador descartava a regra calado. O deck ficava em 1920 px
+     em toda tela menor: cortado no notebook, ilegível no celular.
+     `zoom` e não `transform`: o zoom encolhe a caixa de layout junto, o
+     transform deixaria 1920 px de rolagem lateral e o comprimento original
+     inteiro de rolagem vazia embaixo. */
+  #deck{zoom:var(--esc,1)}
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

@@ -3,7 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="robots" content="noindex">
+<!-- Sem esta tag o celular desenha a página numa janela de 980 px e a escala
+     abaixo calcula em cima de uma largura que não é a da tela. -->
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Orçamento Premium — NEXUS Eletropostos</title>
+<script>
+/* A escala da tela: a folha tem 1920 px e encolhe até caber na janela, com
+   folga lateral. Só vale na TELA; a impressão (e o PDF do servidor, que roda
+   em modo print) usa o zoom próprio do @media print. */
+(function () {
+  function esc() {
+    var w = document.documentElement.clientWidth || window.innerWidth;
+    var folga = w < 700 ? 24 : 60;
+    var e = Math.min(1, (w - folga) / 1920);
+    document.documentElement.style.setProperty('--esc', e.toFixed(4));
+  }
+  esc();
+  window.addEventListener('resize', esc);
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
