@@ -20,9 +20,11 @@
 // já tinha dos leads novos, uns 2 ou 3 por dia.
 //
 // ── POR QUE UM MÓDULO NOVO, E NÃO O lembretesAgenda ──────────────────────────
-// O `lembretesAgenda.ts` já tem quatro réguas escritas em cima de energia solar,
-// e está mudo desde 28/07 por ordem ("nenhum lead precisa de avisos — pode cessar
-// todos"). Religar aquele switch acorda a régua pra TODA a agenda, e a mesma
+// (O `lembretesAgenda.ts` foi apagado em 05/10/2026. O motivo abaixo segue valendo
+// pra quem pensar em recriar uma régua única pra agenda inteira.)
+// O `lembretesAgenda.ts` tinha quatro réguas escritas em cima de energia solar,
+// e estava mudo desde 28/07 por ordem ("nenhum lead precisa de avisos — pode cessar
+// todos"). Religar aquele switch acordava a régua pra TODA a agenda, e a mesma
 // agenda atende eletroposto: foi assim que o lead #584 respondeu "não solicitei
 // nenhum serviço de energia solar". Este módulo é o contrário disso — o corte é
 // por NOME (`DONAS`) e por produto, e nada fora da carteira delas recebe nada.

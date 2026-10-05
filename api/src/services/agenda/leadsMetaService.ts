@@ -583,8 +583,9 @@ export async function syncLeadsMeta(): Promise<{ novos: number; agendados: numbe
               nome, whatsapp, cidade, quando: slot, fields,
             });
           }
-          // confirmação no WhatsApp: enviada pelo cron processarLembretesAgenda
-          // (com retry até entregar) — não inline, pra "sem falhar".
+          // confirmação no WhatsApp: não sai daqui. O cron que mandava
+          // (lembretesAgenda) ficou mudo desde 28/07 e foi apagado em 05/10/2026;
+          // o recibo do cadastro pro cliente é do solarBoasVindas.
         }
         // fora da área: não agenda, não consome rodízio — só registra com fora_area=true
 

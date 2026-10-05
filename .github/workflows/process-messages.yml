@@ -1,9 +1,11 @@
 name: Process Messages (lembretes agenda + fila Z-API)
 
-# A cada 5 minutos: dispara as 3 mensagens da agenda (confirmação ao marcar,
-# lembrete 1h e 5min antes), pra cliente E consultor, além de processar a fila Z-API.
-# GitHub Actions tem piso de ~5min e pode atrasar; as janelas no código são
-# alargadas (5min: -3..12 / 1h: 45..75) pra tolerar ticks atrasados sem perder envio.
+# A cada 5 minutos: chama o /cron/process-messages (fila Z-API e os ticks curtos
+# da lista TAREFAS do cron.ts) e os passos abaixo. As 3 mensagens da agenda do
+# /gerador (lembretesAgenda.ts) estavam mudas desde 28/07 e o módulo foi apagado
+# em 05/10/2026; o nome do workflow ficou como estava.
+# GitHub Actions tem piso de ~5min e pode atrasar, então todo tick daqui tem que
+# tolerar chamada atrasada.
 on:
   schedule:
     - cron: '*/5 * * * *'

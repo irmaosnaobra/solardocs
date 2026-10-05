@@ -28,15 +28,14 @@
 //   • Não lê a resposta do lead. O "SIM" chega no 5040 e aparece no digest de
 //     entrada (12h/18h) — leitura humana. Robô nenhum marca presença aqui ainda.
 //
-// ── Por que não é o lembretesAgenda.ts ──
-// Aquele módulo está desligado desde 28/07 e a copy dele é de ENERGIA SOLAR — foi
+// ── Por que não é o lembretesAgenda.ts (apagado em 05/10/2026) ──
+// Aquele módulo ficou desligado desde 28/07 e a copy dele era de ENERGIA SOLAR — foi
 // exatamente ele que fez um lead de eletroposto responder "não solicitei nenhum
 // serviço de energia solar". Este é o módulo separado por produto que o comentário
-// de lá pede. As colunas de flag (confirmacao_at / lembrete_1h_at /
-// lembrete_5min_at) são as MESMAS, e isso é seguro nos dois sentidos: o módulo
-// solar só confirma created_by='lead-meta' e está atrás de kill-switch, e se um dia
-// religarem, as fichas de eletroposto já vão estar marcadas — ninguém recebe duas
-// vezes. Quem religar o solar: não tire aquele filtro de created_by.
+// de lá pedia. As colunas de flag (confirmacao_at / lembrete_1h_at /
+// lembrete_5min_at) são as MESMAS que ele usava. Se um dia alguém recriar um aviso
+// solar em cima delas, as fichas de eletroposto já vão estar marcadas — ninguém
+// recebe duas vezes —, mas o corte por produto (created_by) tem que vir junto.
 //
 // ── Travas (a linha IO foi bloqueada em 01–03/ago; ela não aguenta rajada) ──
 //   • Ficha recém-criada confirma na hora — é transacional, o lead acabou de

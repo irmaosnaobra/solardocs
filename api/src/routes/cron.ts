@@ -62,7 +62,6 @@ import { runEletropostoIgConviteTick, publicoIgConvite, bolhaConviteLP } from '.
 import { runSolarBoasVindasTick } from '../services/io/solarBoasVindas';
 import { runSolarRespostasTick } from '../services/io/solarRespostas';
 import { runSolarAgendaGiovannaTick } from '../services/io/solarAgendaGiovanna';
-import { processarLembretesAgenda } from '../services/agenda/lembretesAgenda';
 import { enviarReagendarDiario } from '../services/agenda/reagendarDigest';
 import { enviarAgendaProxima } from '../services/agenda/agendaProximaDigest';
 import { syncLeadsMeta, realinharAgendamentosLeadMeta } from '../services/agenda/leadsMetaService';
@@ -382,7 +381,6 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       ['dedup_cleanup', () => cleanupMessageDedup()],
       // enviarRelatorioDiario(),       // [LUMA-IO-OFF] relatório diário IO
       ['card_retry', () => retryCardsPendentes()],
-      ['agenda', () => processarLembretesAgenda()],      // [AVISOS-AGENDA-OFF 28/07] no-op: kill-switch dentro do módulo
       ['recup_seeds', () => runLimpaproRecoverySeeds()],      // recuperação LimpaPro (Bia): põe gente na esteira (1x/h, auto-gated)
       ['recup_consumer', () => runLimpaproRecoveryConsumer()],   // recuperação LimpaPro (Bia): drena marcadores prontos
       ['bia_poll', () => pollBiaRecuperacao()],            // inbound da Bia (poll IO; webhook IO não entrega texto)
@@ -1650,7 +1648,6 @@ router.get('/master', async (req: Request, res: Response) => {
     ['cleanup-pro-docs',            () => cleanupProDocuments()],
     ['monthly-reset',               () => runMonthlyReset()],
     ['process-message-queue',       () => processMessageQueue()],
-    ['lembretes-agenda',            () => processarLembretesAgenda()], // [AVISOS-AGENDA-OFF 28/07] no-op: kill-switch dentro do módulo
     // TICK QUE JÁ RODA NO /process-messages NÃO ENTRA AQUI. Regra da lista inteira,
     // e ela custou caro (bug de bd6f994): no minuto :00 os dois chamadores leem a
     // MESMA fila, os dois passam no teto — que é pré-claim, não trava nada — e a
