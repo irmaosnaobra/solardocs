@@ -8,18 +8,31 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Orçamento Premium — NEXUS Eletropostos</title>
 <script>
-/* A escala da tela: a folha tem 1920 px e encolhe até caber na janela, com
-   folga lateral. Só vale na TELA; a impressão (e o PDF do servidor, que roda
-   em modo print) usa o zoom próprio do @media print. */
+/* O FORMATO E A ESCALA DA TELA.
+   Janela com menos de 900 px é celular: a classe .movel no <html> troca a
+   folha deitada de 1920 pela folha em pé de 1080, com letra de telefone (o
+   bloco MODO CELULAR do CSS). Celular deitado (~850 px) continua em pé, que é
+   onde a letra se lê; tablet deitado e computador ficam com o deck de sempre.
+   ?tela=celular ou ?tela=deitado força um dos dois, para o consultor ver o que
+   o cliente vai ver. O payload também pode forçar, com `movel`.
+   A folha então encolhe até caber na janela. No celular a escala tem teto de
+   0,6: num tablet em pé a folha vira uma coluna no meio, não um cartaz.
+   Só vale na TELA; a impressão (e o PDF do servidor, que roda em modo print)
+   usa o zoom próprio do @media print e ignora as duas coisas. */
 (function () {
-  function esc() {
-    var w = document.documentElement.clientWidth || window.innerWidth;
-    var folga = w < 700 ? 24 : 60;
-    var e = Math.min(1, (w - folga) / 1920);
-    document.documentElement.style.setProperty('--esc', e.toFixed(4));
+  var raiz = document.documentElement;
+  var pedido = new URLSearchParams(location.search).get('tela');
+  window.__forcaMovel = pedido === 'celular';
+  function ajusta() {
+    var w = raiz.clientWidth || window.innerWidth;
+    var movel = window.__forcaMovel || (pedido !== 'deitado' && w < 900);
+    raiz.classList.toggle('movel', movel);
+    var e = movel ? Math.min(0.6, (w - 16) / 1080) : Math.min(1, (w - 60) / 1920);
+    raiz.style.setProperty('--esc', e.toFixed(4));
   }
-  esc();
-  window.addEventListener('resize', esc);
+  window.__ajustaTela = ajusta;
+  ajusta();
+  window.addEventListener('resize', ajusta);
 })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -476,10 +489,10 @@ function montar(D) {
       </div>
     </div>
   </div>
-  <div class="faixa-verde">${SOC
+  ${SOC ? '<div class="faixas">' : ''}<div class="faixa-verde">${SOC
     ? brl(E.invest) + ' · o seu aporte na sociedade, por ' + socPc(SOC.cota) + ' do lucro'
     : brl(E.invest) + ' · valor total do projeto, chave na mão'}</div>
-  ${SOC ? `<div class="faixa-verde" style="background:#0B1A2B">Projeto inteiro ${brl(SOC.investTotal)}${SOC.nOutros > 0 ? ` · ${SOC.nOutros} outro(s) sócio(s) com ${brl(SOC.aporteOutros)}` : ''} · NEXUS ${SOC.aporteNexus > 0 ? brl(SOC.aporteNexus) : 'trabalho, obra e administração'} por ${socPc(SOC.cotaNexus)}${SOC.faltaCapital > 1 ? ` · ainda a captar ${brl(SOC.faltaCapital)}` : ''}</div>` : ''}
+  ${SOC ? `<div class="faixa-verde escura">Projeto inteiro ${brl(SOC.investTotal)}${SOC.nOutros > 0 ? ` · ${SOC.nOutros} outro(s) sócio(s) com ${brl(SOC.aporteOutros)}` : ''} · NEXUS ${SOC.aporteNexus > 0 ? brl(SOC.aporteNexus) : 'trabalho, obra e administração'} por ${socPc(SOC.cotaNexus)}${SOC.faltaCapital > 1 ? ` · ainda a captar ${brl(SOC.faltaCapital)}` : ''}</div></div>` : ''}
   ${rodape(D, 11, D.total)}
 </section>`);
 
@@ -616,7 +629,7 @@ const aviso = (cor, titulo, texto) =>
   }
 
   const D = dados;
-  if (D.movel) document.body.classList.add('movel');
+  if (D.movel) { window.__forcaMovel = true; window.__ajustaTela(); }
   // total de páginas do RECORTE, não do deck inteiro: rodapé dizendo 7/13 num
   // documento de 6 folhas faz o cliente procurar o que não recebeu.
   D.total = D.versao === 'resumo' ? 6 : 13;
