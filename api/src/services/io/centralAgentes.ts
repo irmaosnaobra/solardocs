@@ -545,19 +545,6 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       ],
     },
     {
-      id: 'followup_gerador',
-      nome: 'Follow-up do Gerador (solar)',
-      papel: 'Reaquece lead de energia solar que pediu simulação e parou de responder.',
-      canal: 'whatsapp', linha: 'io',
-      estado: followup.total > 0 ? 'ativo' : 'dark',
-      ultima_atividade: followup.ultima,
-      metricas: [
-        { label: 'Toques (7d)', valor: followup.d7 },
-        { label: 'Toques (30d)', valor: followup.d30 },
-      ],
-      toques: [{ titulo: 'toque de retomada', quando: 'depois do silêncio do lead', copy: 'Mensagem curta puxando a conversa de volta pro orçamento.' }],
-    },
-    {
       id: 'central_automacao',
       nome: 'Central de Automação (disparos e sequências)',
       papel: 'Disparo em massa e drip de sequências pra contatos do CRM do Gerador.',

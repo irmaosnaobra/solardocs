@@ -70,8 +70,8 @@ const AGENTES: Record<string, AgenteInfo> = {
       'Não cota preço final nem promete instalação — faz a ponte pro consultor humano.',
       'Follow-up de reengajamento é "puxador": ao responder, avisa o consultor e cala (handoff).',
     ],
-    killSwitches: [{ flag: 'GERADOR_FOLLOWUP_ENABLED=true', efeito: 'liga o follow-up de leads solar (hoje DARK)' }],
-    fontes: ['sdrAgentService.ts', 'sdrIoPolling.ts', 'geradorInboundService.ts', 'geradorFollowupService.ts'],
+    killSwitches: [],
+    fontes: ['sdrAgentService.ts', 'sdrIoPolling.ts'],
   },
   none: {
     nome: '—',

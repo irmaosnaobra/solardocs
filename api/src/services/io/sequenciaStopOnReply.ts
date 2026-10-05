@@ -17,7 +17,7 @@ import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 
-// Instância Z-API da linha IO (mesma const do geradorInboundService, com override por env).
+// Instância Z-API da linha IO (com override por env).
 const INSTANCE_ID_IO = (process.env.ZAPI_INSTANCE_ID_IO || '3F26F6ECE67D72BB7FCA6244BF24326C').trim();
 
 // Mesma chave do CRM (reagendarDigest.telKey): só dígitos, tira 55, DDD + últimos 8
@@ -53,7 +53,7 @@ export async function runSequenciaStopOnReply(): Promise<{ paradas: number; inbo
     if (p.type !== 'ReceivedCallback') continue;
     if (p.instanceId !== INSTANCE_ID_IO) continue;
     if (p.isGroup === true || p.isGroup === 'true') continue;
-    // fromMe pode vir string — mesma coerção do geradorInboundService.
+    // fromMe pode vir string, por isso a comparação com 'true' também.
     if (p.fromMe === true || p.fromMe === 'true') continue; // é NOSSO envio, não resposta do cliente
     const phone = String(p.phone || p.senderPhone || '').replace(/\D/g, '');
     const k = telKey(phone);
