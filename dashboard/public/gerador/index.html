@@ -1307,7 +1307,23 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
    é do "%" e do "dias". Dois ids pra vencer a regra do formulário empilhado. */
 #eletroSection .orc-wrap #ctr-juros{padding-right:88px}
 #eletroSection .orc-wrap #ctr-garantia{padding-right:64px}
-/* Etiqueta de espelhamento: de onde vem o número, e o botão de soltar o vínculo. */
+/* Caixinha de espelho: ao lado do rótulo de cada campo que copia outra aba.
+   Grade no campo pra ela ficar na linha do rótulo; os dois ids vencem o
+   formulário empilhado. No celular desce pra linha de baixo do rótulo. */
+#eletroSection .orc-wrap .eletro-field.ctr-com-esp{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:8px;align-items:end}
+#eletroSection .orc-wrap .eletro-field.ctr-com-esp > label{grid-column:1;grid-row:1}
+#eletroSection .orc-wrap .eletro-field.ctr-com-esp > .ctr-esp-slot{grid-column:2;grid-row:1;margin-bottom:4px}
+#eletroSection .orc-wrap .eletro-field.ctr-com-esp > .eletro-inp{grid-column:1/-1;grid-row:2}
+.ctr-esp-chk{display:inline-flex;align-items:center;gap:5px;padding:2px 9px 2px 6px;border-radius:999px;font-size:10.5px;font-weight:700;line-height:1.55;white-space:nowrap;cursor:pointer;user-select:none;text-transform:none;letter-spacing:0}
+.ctr-esp-chk input{width:13px;height:13px;margin:0;accent-color:#3B82F6;cursor:pointer}
+.ctr-esp-chk.on{background:rgba(59,130,246,.14);border:1px solid rgba(96,165,250,.45);color:#BFDBFE}
+.ctr-esp-chk.off{background:transparent;border:1px dashed rgba(148,163,184,.5);color:#94A3B8}
+@media(max-width:640px){
+  #eletroSection .orc-wrap .eletro-field.ctr-com-esp{grid-template-columns:minmax(0,1fr)}
+  #eletroSection .orc-wrap .eletro-field.ctr-com-esp > .ctr-esp-slot{grid-column:1;grid-row:2;justify-self:start;margin:0 0 5px}
+  #eletroSection .orc-wrap .eletro-field.ctr-com-esp > .eletro-inp{grid-column:1;grid-row:3}
+}
+/* Etiqueta de espelhamento das listas (escopo e formas de pagamento). */
 .ctr-esp{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px}
 .ctr-esp:empty{display:none}
 .ctr-esp .tag{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-weight:700;font-size:11.5px;line-height:1.3}
@@ -4385,21 +4401,29 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Partes</div>
         <div class="orc-cli-banner" id="ctr-partes-banner">—</div>
-        <div class="orc-note" style="margin-top:10px;margin-bottom:12px">Nome, cidade, CPF/CNPJ e endereço vêm do Simulador e do <b>Orçamento</b>. Contratada vem do card <b>Sua empresa</b>. Os campos abaixo só existem quando <b>quem assina não é quem negociou</b> — deixe em branco e o contrato usa os dados do cliente.</div>
+        <div class="orc-note" style="margin-top:10px;margin-bottom:12px">Contratada vem do card <b>Sua empresa</b>.</div>
         <!-- Quem negocia é uma pessoa; quem assina costuma ser a empresa dela.
              Trocar o cliente do Simulador pra razão social resolveria o contrato
              e estragaria orçamento e recibo, que falam com a PESSOA. -->
-        <div class="eletro-field"><label>Contratante (razão social)</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-contratante" placeholder="Em branco = o cliente do Simulador" oninput="ctrBanner()"></div></div>
-        <div class="eletro-field"><label>CNPJ do contratante</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-contratante-doc" placeholder="Em branco = o CPF/CNPJ do Orçamento" oninput="ctrBanner()"></div></div>
+        <div class="eletro-field"><label>Contratante (nome ou razão social)</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-contratante" placeholder="Quem assina" oninput="ctrBanner()"></div></div>
+        <div class="eletro-field"><label>CPF/CNPJ do contratante</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-contratante-doc" placeholder="CPF ou CNPJ" oninput="ctrBanner()"></div></div>
         <div class="eletro-field"><label>Endereço do contratante</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-contratante-end" placeholder="Em branco = o endereço do Orçamento"></div></div>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-contratante-end" placeholder="Rua, número, bairro"></div></div>
+        <div class="eletro-field"><label>CEP</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-contratante-cep" inputmode="numeric" placeholder="00000-000"></div></div>
+        <div class="eletro-field"><label>Cidade</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-cidade" placeholder="Cidade/UF"></div></div>
+        <div class="eletro-field"><label>Telefone do contratante</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-contratante-tel" inputmode="tel" placeholder="(00) 00000-0000"></div></div>
+        <div class="eletro-field"><label>E-mail do contratante</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-contratante-email" inputmode="email" placeholder="nome@exemplo.com"></div></div>
         <div class="eletro-field" style="margin-top:12px"><label>Representante legal</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-rep" placeholder="Quem assina pela empresa"></div></div>
         <div class="eletro-field"><label>CPF do representante</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-rep-doc" placeholder="000.000.000-00"></div></div>
-        <div class="orc-note">Empresa não assina sozinha: sem o representante e o CPF dele, a assinatura não amarra a pessoa jurídica.</div>
+        <div class="orc-note">Contratante com CNPJ precisa de representante: empresa não assina sozinha, e sem o representante e o CPF dele a assinatura não amarra a pessoa jurídica.</div>
       </div>
 
       <div class="card">
@@ -4409,8 +4433,13 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="eletro-field"><label>Data de assinatura</label>
           <div class="eletro-inp eletro-inp-wide"><input type="date" id="ctr-data"></div></div>
         <div class="eletro-field"><label>Local da instalação</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-local" placeholder="Endereço da obra — se vazio, usa o endereço do cliente"></div></div>
-        <div class="orc-note">Onde o eletroposto vai ser instalado. Nem sempre é o endereço de cadastro do cliente.</div>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-local" placeholder="Endereço da obra"></div></div>
+        <div class="eletro-field"><label>Equipamento</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-equip" placeholder="Ex.: NEXUS DC80 · 80 kW"></div></div>
+        <div class="eletro-field"><label>Carregadores</label>
+          <div class="eletro-inp has-suf"><input type="text" id="ctr-qtd" inputmode="numeric" placeholder="1"><span class="suf">un</span></div></div>
+        <div class="eletro-field"><label>Pontos de recarga</label>
+          <div class="eletro-inp has-suf"><input type="text" id="ctr-plugs" inputmode="numeric" placeholder="1"><span class="suf">un</span></div></div>
       </div>
 
       <!-- ESCOPO DO CONTRATO (05/10/2026). Nasce do kit marcado no Orcamento e
@@ -4429,6 +4458,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <button type="button" class="eletro-btn" onclick="ctrEscAdd(false)">+ Não incluído</button>
         </div>
         <div class="orc-note" style="margin-top:0"><button type="button" class="orc-link" onclick="ctrEscReset()">Refazer a partir do Orçamento</button> desfaz tudo o que foi mexido nesta lista.</div>
+        <div class="eletro-field"><label>Percentual da plataforma</label>
+          <div class="eletro-inp has-suf"><input type="text" id="ctr-pct" inputmode="decimal" placeholder="12" oninput="ctrPctNota()"><span class="suf">%</span></div></div>
         <div class="eletro-field"><label>Percentual da plataforma no contrato</label>
           <div class="eletro-inp eletro-inp-wide"><select id="ctr-mostra-pct" onchange="ctrPctNota()">
             <option value="1">Mostrar: a cláusula diz quanto é cobrado</option>
@@ -4485,11 +4516,9 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
              sem mexer no recibo ja' emitido. Texto com leitor brasileiro, nao
              type=number (virgula zera, ponto de milhar corta tres zeros). -->
         <div class="eletro-field"><label>Valor total do projeto</label>
-          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-total" inputmode="decimal" placeholder="0,00" oninput="ctrTotalEditado(this)"></div></div>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-total" inputmode="decimal" placeholder="0,00" oninput="ctrResumo()"></div></div>
         <div class="eletro-field"><label>Sinal já pago</label>
-          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-sinal" inputmode="decimal" placeholder="0,00" oninput="ctrSinalEditado(this)"></div></div>
-        <div class="ctr-esp" id="ctr-total-esp"></div>
-        <div class="ctr-esp" id="ctr-sinal-esp"></div>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-sinal" inputmode="decimal" placeholder="0,00" oninput="ctrResumo()"></div></div>
         <div class="eletro-field" style="grid-column:span 2"><label>O sinal foi destinado a</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-sinal-destino" value="ao projeto elétrico" placeholder="Em branco = a frase sai sem destinação" oninput="epTocar(this)"></div></div>
         <div class="orc-note" id="ctr-sinal-nota">—</div>
@@ -4520,7 +4549,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <option value="Mensais, a primeira 30 dias após a assinatura"></option>
         </datalist>
         <div class="eletro-field" style="grid-column:1/-1"><label>Dados para pagamento (Pix ou conta da contratada)</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-pag-dados" placeholder="Ex.: Pix CNPJ 00.000.000/0001-00 · Banco, agência e conta" oninput="epTocar(this)"></div></div>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-pag-dados" placeholder="Ex.: Pix CNPJ 00.000.000/0001-00 · Banco, agência e conta"></div></div>
         <div class="eletro-field"><label>Multa por atraso</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-multa" inputmode="decimal" step="0.5" min="0" value="2"><span class="suf">%</span></div></div>
         <div class="eletro-field"><label>Juros de mora</label>
@@ -4528,7 +4557,6 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="eletro-field" style="grid-column:1/-1"><label>Observações do pagamento (opcional)</label>
           <div class="eletro-inp eletro-inp-wide"><textarea id="ctr-pag-obs" class="ctr-ta" rows="3" placeholder="Ex.: as parcelas do cartão são lançadas na maquininha da contratada. Sem nenhuma forma na lista acima, este texto vira a cláusula de pagamento inteira."></textarea></div></div>
         <div class="orc-note" id="ctr-pag-ficha" style="display:none"></div>
-        <div class="orc-note">Espelhando, a lista segue a condição marcada no Orçamento, recalculada sobre o saldo. Mexer em qualquer linha, ou excluir o espelhamento, deixa a lista como você deixou.</div>
       </div>
 
       <div class="card">
@@ -4541,7 +4569,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Foro, assinatura e cláusulas extras</div>
         <div class="eletro-field"><label>Foro (comarca)</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-foro" placeholder="Uberlândia/MG"></div></div>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-foro" placeholder="Comarca"></div></div>
         <div class="eletro-field"><label>Testemunhas</label>
           <div class="eletro-inp eletro-inp-wide"><select id="ctr-testemunhas">
             <option value="2">Com 2 testemunhas</option>
@@ -15322,6 +15350,9 @@ function eletroHistAbrir(id) {
   [['el-cliente', t.cliente], ['el-cidade', t.cidade], ['el-autor', t.autor], ['el-contato', t.contato]]
     .forEach(([id2, v]) => { const el = document.getElementById(id2); if (el) { el.value = v || ''; el.dataset.tocado = '1'; } });
   eletroEquipSet(t.equip);
+  // Outro cliente: o contrato volta aos espelhos (o histórico do Simulador só
+  // guarda campos do Simulador, então não há nada do contrato a perder aqui).
+  if (typeof ctrEstadoZerar === 'function') ctrEstadoZerar();
   eletroSubaba('simulador');
   eletroCalc();
   if (typeof showToast === 'function') showToast('Orçamento carregado no simulador');
@@ -18721,12 +18752,9 @@ function ctrEstadoZerar() {
   epFicha = null;
   // O "Comecar novo" esvazia o campo disparando input, e o input marca como
   // digitado: sem isto o proximo cliente nascia com sinal zero travado.
-  const sinalEl = document.getElementById('ctr-sinal');
-  if (sinalEl) delete sinalEl.dataset.tocado;
-  const totEl = document.getElementById('ctr-total');
-  if (totEl) delete totEl.dataset.tocado;
+  ctrEspMarcarTodos();
   const destEl = document.getElementById('ctr-sinal-destino');
-  if (destEl && !destEl.value.trim()) { destEl.value = 'ao projeto elétrico'; delete destEl.dataset.tocado; }
+  if (destEl) { destEl.value = 'ao projeto elétrico'; delete destEl.dataset.tocado; }
   ctrEscRender();
   ctrOpcRender();
   ctrResumo();
@@ -18743,92 +18771,141 @@ function ctrEstadoZerar() {
 // avulso e depois gerava o contrato entregava um instrumento dizendo que o cliente
 // ja' havia pago R$ 3.000 DA OBRA — saldo menor, cobranca menor, e nada na tela
 // denunciando. Dinheiro saindo por um bug de uma linha.
-// ESPELHAMENTO (05/10/2026). Quatro coisas do contrato nascem COPIADAS de outra
-// aba e acompanham a fonte enquanto ninguém mexe: valor total (Orçamento), sinal
-// (Recibo), escopo (kit do Orçamento) e formas de pagamento (condição do
-// Orçamento). O dono pediu que todo espelho tenha a opção de ser excluído, e não
-// só "digitar por cima": a etiqueta diz de onde vem o número, "Excluir
-// espelhamento" congela o que está na tela como valor próprio do contrato, e
-// "Voltar a espelhar" devolve o vínculo.
+// ESPELHAMENTO (05/10/2026, ampliado no mesmo dia por ordem do dono: "quero
+// todos os espelhamentos possíveis, mas com um botão em cada um para
+// desmarcar"). Todo campo do contrato que tem origem em outra aba ESPELHA essa
+// origem: mostra o valor de lá e acompanha enquanto ninguém mexe. Cada um tem
+// UMA caixinha ao lado do nome, "Espelho: <origem>". Desmarcar congela o que
+// está na tela como valor próprio do contrato; marcar de novo volta a copiar.
+// Digitar no campo também desmarca.
+//
+// Três regras seguram isto:
+//  - Tudo lê o campo por ctrCampo(id): espelho marcado = a origem AGORA;
+//    desmarcado = o que está escrito. Nunca o DOM direto, que só fica fresco
+//    depois do ctrResumo.
+//  - A sincronização escreve .value SEM disparar input/change. O ouvinte que
+//    desmarca ao digitar (delegado, abaixo) não pode acordar com ela.
+//  - "Começar novo" dispara input em todo campo com id, o que desmarcaria
+//    todos; o ctrEstadoZerar roda depois e remarca a lista inteira.
+// Campo sem origem (nº, data, representante, prazos, multa) não entra aqui:
+// não há o que espelhar. O nº do contrato NÃO herda o do recibo de propósito.
 const CTR_ESP_IC = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>';
-function ctrEspelho(id, ligado, fonte, proprio, desligar, religar) {
+const ctrMoedaFmt = v => v > 0 ? ctrFmt(v) : '';
+const CTR_ESPELHOS = [
+  { id: 'ctr-contratante',       fonte: 'Simulador',   de: () => eletroTextos().cliente },
+  { id: 'ctr-contratante-doc',   fonte: 'Orçamento',   de: () => orcVal('orc-cli-doc') },
+  { id: 'ctr-contratante-end',   fonte: 'Orçamento',   de: () => orcVal('orc-cli-end') },
+  { id: 'ctr-contratante-cep',   fonte: 'Orçamento',   de: () => orcVal('orc-cli-cep') },
+  { id: 'ctr-cidade',            fonte: 'Simulador',   de: () => eletroTextos().cidade },
+  { id: 'ctr-contratante-tel',   fonte: 'Orçamento',   de: () => orcVal('orc-cli-tel') },
+  { id: 'ctr-contratante-email', fonte: 'Orçamento',   de: () => orcVal('orc-cli-email') },
+  { id: 'ctr-local',             fonte: 'Orçamento',   de: () => [orcVal('orc-cli-end'), eletroTextos().cidade].filter(Boolean).join(' — ') },
+  { id: 'ctr-equip',             fonte: 'Simulador',   de: () => { const eq = eletroTextos().equip; return eq ? epEquipRotulo(eq) : ''; } },
+  { id: 'ctr-qtd',               fonte: 'Simulador',   de: () => String(orcEpQtdCarregadores()) },
+  { id: 'ctr-plugs',             fonte: 'Simulador',   de: () => String(Math.max(1, Math.round(elNum('el-plugs') || 1))) },
+  { id: 'ctr-pct',               fonte: 'Orçamento',   de: () => String(orcPctKit('software')).replace('.', ',') },
+  { id: 'ctr-total',             fonte: 'Orçamento',   de: () => ctrMoedaFmt(recBase()) },
+  { id: 'ctr-sinal',             fonte: 'Recibo',      de: () => ctrMoedaFmt(ctrSinalRecibo()) },
+  { id: 'ctr-pag-dados',         fonte: 'Sua empresa', de: () => { const emp = epEmitGet(); return [emp.pix ? 'Pix ' + emp.pix : '', emp.conta].filter(Boolean).join(' · '); } },
+  { id: 'ctr-foro',              fonte: 'Sua empresa', de: () => epEmitGet().cidade || '' },
+];
+const CTR_ESP_POR_ID = Object.fromEntries(CTR_ESPELHOS.map(m => [m.id, m]));
+// Campo que ainda não existe na tela conta como marcado: vale a origem.
+function ctrEspLigado(id) { const el = document.getElementById(id); return !el || el.dataset.tocado !== '1'; }
+function ctrEspOrigem(id) {
+  const m = CTR_ESP_POR_ID[id];
+  if (!m) return '';
+  try { return String(m.de() == null ? '' : m.de()).trim(); } catch (e) { return ''; }
+}
+// O valor que vai pro papel.
+function ctrCampo(id) {
+  if (CTR_ESP_POR_ID[id] && ctrEspLigado(id)) return ctrEspOrigem(id);
+  const el = document.getElementById(id);
+  return el ? el.value.trim() : '';
+}
+// A caixinha. É um <label> próprio com o checkbox dentro, ao LADO do rótulo do
+// campo e nunca dentro dele: rótulo sem `for` adota o primeiro controle que
+// encontra, e clicar no nome do campo desmarcaria o espelho.
+function ctrEspChk(ligado, fonte, onchange) {
+  const dica = ligado
+    ? `Copiando de ${fonte}. Desmarque para escrever outro valor só no contrato.`
+    : `Desmarcado: vale o que está escrito no contrato. Marque para voltar a copiar de ${fonte}.`;
+  return `<label class="ctr-esp-chk ${ligado ? 'on' : 'off'}" title="${orcEsc(dica)}"><input type="checkbox"${ligado ? ' checked' : ''} onchange="${onchange}">Espelho: ${orcEsc(fonte)}</label>`;
+}
+function ctrEspUi(id) {
+  const m = CTR_ESP_POR_ID[id], el = document.getElementById(id);
+  if (!m || !el) return;
+  const campo = el.closest('.eletro-field');
+  if (!campo) return;
+  let slot = campo.querySelector(':scope > .ctr-esp-slot');
+  if (!slot) {
+    campo.classList.add('ctr-com-esp');
+    slot = document.createElement('span');
+    slot.className = 'ctr-esp-slot';
+    const rot = campo.querySelector(':scope > label');
+    if (rot) rot.after(slot); else campo.prepend(slot);
+  }
+  slot.innerHTML = ctrEspChk(ctrEspLigado(id), m.fonte, `ctrEspAlternar('${id}')`);
+}
+function ctrEspAlternar(id) {
   const el = document.getElementById(id);
   if (!el) return;
-  el.innerHTML = ligado
-    ? `<span class="tag on">${CTR_ESP_IC} Espelhando ${orcEsc(fonte)}</span><button type="button" class="orc-link" onclick="${desligar}">Excluir espelhamento</button>`
-    : `<span class="tag off">${orcEsc(proprio)}</span><button type="button" class="orc-link" onclick="${religar}">Voltar a espelhar ${orcEsc(fonte)}</button>`;
+  if (ctrEspLigado(id)) { el.value = ctrEspOrigem(id); el.dataset.tocado = '1'; }   // congela o que está na tela
+  else delete el.dataset.tocado;
+  ctrResumo();
+  ctrPctNota();
+}
+// Escreve a origem nos campos marcados (sem disparar evento) e redesenha as caixinhas.
+function ctrEspSync() {
+  CTR_ESPELHOS.forEach(m => {
+    const el = document.getElementById(m.id);
+    if (!el) return;
+    if (el.dataset.tocado !== '1') { const v = ctrEspOrigem(m.id); if (el.value !== v) el.value = v; }
+    ctrEspUi(m.id);
+  });
+}
+function ctrEspMarcarTodos() {
+  CTR_ESPELHOS.forEach(m => { const el = document.getElementById(m.id); if (el) delete el.dataset.tocado; });
+}
+// Digitou num campo espelhado: desmarca. Delegado no documento, em captura,
+// para rodar antes do oninput do próprio campo (que recalcula com o novo valor).
+document.addEventListener('input', ev => {
+  const t = ev.target;
+  if (!t || !t.id || !CTR_ESP_POR_ID[t.id] || t.dataset.tocado === '1') return;
+  t.dataset.tocado = '1';
+  ctrEspUi(t.id);
+}, true);
+// Listas (escopo e formas de pagamento): a mesma caixinha, no topo do cartão.
+function ctrEspelho(id, ligado, fonte, desligar, religar) {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = ctrEspChk(ligado, fonte, ligado ? desligar : religar);
 }
 
-// Valor total: o do Orçamento até alguém digitar ou excluir o espelhamento.
-// Só o CONTRATO lê este campo: Orçamento, Recibo e os outros papéis continuam
-// com o valor do Orçamento.
-function ctrTotal() {
-  const el = document.getElementById('ctr-total');
-  if (el && el.dataset.tocado === '1') return ctrMoeda(el.value);
-  return recBase();
-}
-function ctrTotalEditado(inp) { inp.dataset.tocado = '1'; ctrResumo(); }
-function ctrTotalDesligar() {
-  const el = document.getElementById('ctr-total');
-  if (!el) return;
-  el.value = ctrFmt(recBase());
-  el.dataset.tocado = '1';
-  ctrResumo();
-}
-function ctrTotalReset() {
-  const el = document.getElementById('ctr-total');
-  if (el) delete el.dataset.tocado;
-  ctrResumo();
-}
-function ctrTotalUi() {
-  const el = document.getElementById('ctr-total');
-  if (!el) return;
-  const tocado = el.dataset.tocado === '1';
-  if (!tocado) { const v = recBase(); el.value = v > 0 ? ctrFmt(v) : ''; }
-  ctrEspelho('ctr-total-esp', !tocado, 'o Orçamento (valor total)', 'Valor total próprio do contrato', 'ctrTotalDesligar()', 'ctrTotalReset()');
-}
-
+// Valor total e sinal: espelham Orçamento e Recibo. Só o CONTRATO lê estes
+// campos; Orçamento, Recibo e os outros papéis seguem com os valores deles.
+function ctrTotal() { return ctrEspLigado('ctr-total') ? recBase() : ctrMoeda(document.getElementById('ctr-total').value); }
 function ctrSinalRecibo() { return recAvulso() ? 0 : orcNum(orcVal('rec-valor')); }
-// 05/10/2026: o sinal ficou EDITAVEL no contrato. Digitado aqui, manda o
-// contrato (o cliente pagou diferente do recibo, ou pagou sem recibo); vazio
-// depois de digitado conta como zero, contrato sem sinal. Apagar e' apagar.
-function ctrSinalPago() {
-  const el = document.getElementById('ctr-sinal');
-  if (el && el.dataset.tocado === '1') return ctrMoeda(el.value);
-  return ctrSinalRecibo();
-}
-function ctrSinalEditado(inp) { inp.dataset.tocado = '1'; ctrResumo(); }
-function ctrSinalReset() {
-  const el = document.getElementById('ctr-sinal');
-  if (el) delete el.dataset.tocado;
-  ctrResumo();
-}
-function ctrSinalDesligar() {
-  const el = document.getElementById('ctr-sinal');
-  if (!el) return;
-  el.value = ctrFmt(ctrSinalRecibo());
-  el.dataset.tocado = '1';
-  ctrResumo();
-}
-// O campo mostra o número que vai pro papel. Enquanto ninguém digitou, ele
-// espelha o recibo; digitado, fica como está e a nota diz de onde veio cada um.
-function ctrSinalUi() {
-  const el = document.getElementById('ctr-sinal');
-  const nota = document.getElementById('ctr-sinal-nota');
-  if (!el) return;
+// Vazio depois de desmarcado conta como zero: contrato sem sinal. Apagar é apagar.
+function ctrSinalPago() { return ctrEspLigado('ctr-sinal') ? ctrSinalRecibo() : ctrMoeda(document.getElementById('ctr-sinal').value); }
+// O sinal do papel é o do Recibo de sinal? Só aí o contrato pode citar "o recibo
+// de sinal firmado". Sinal digitado sem recibo (ou com recibo de projeto avulso,
+// que não abate da obra) apontava para um documento que não existe.
+function ctrSinalDoRecibo() {
   const rec = ctrSinalRecibo();
-  const tocado = el.dataset.tocado === '1';
-  if (!tocado) el.value = rec > 0 ? ctrFmt(rec) : '';
-  ctrEspelho('ctr-sinal-esp', !tocado, 'o Recibo de sinal', 'Sinal próprio do contrato', 'ctrSinalDesligar()', 'ctrSinalReset()');
+  return rec > 0 && Math.abs(ctrSinalPago() - rec) < 0.005;
+}
+function ctrSinalUi() {
+  const nota = document.getElementById('ctr-sinal-nota');
   if (!nota) return;
-  if (tocado) {
-    nota.innerHTML = `Sinal <b>digitado aqui</b>: ${ORC_MONEY(ctrSinalPago())}${rec > 0 ? `. No Recibo de sinal está ${ORC_MONEY(rec)}` : ''}. O recibo não muda.`;
+  const rec = ctrSinalRecibo();
+  if (!ctrEspLigado('ctr-sinal')) {
+    nota.innerHTML = `Sinal escrito no contrato: ${ORC_MONEY(ctrSinalPago())}${rec > 0 ? `. No Recibo de sinal está ${ORC_MONEY(rec)}` : ''}. O recibo não muda.`;
   } else if (recAvulso()) {
-    nota.innerHTML = 'O recibo emitido é de <b>projeto avulso</b>: ele não abate da obra. Se houve sinal da obra, digite o valor aqui.';
+    nota.innerHTML = 'O recibo emitido é de <b>projeto avulso</b>: ele não abate da obra. Se houve sinal da obra, digite o valor.';
   } else {
     nota.innerHTML = rec > 0
-      ? `Vem do <b>Recibo de sinal</b>. Digite outro valor se o cliente pagou diferente; <b>0</b> deixa o contrato sem sinal.`
-      : 'Sem recibo de sinal emitido. Se o cliente já pagou uma entrada, digite o valor aqui e ele é abatido do saldo.';
+      ? '<b>0</b> deixa o contrato sem sinal.'
+      : 'Sem recibo de sinal emitido. Se o cliente já pagou uma entrada, digite o valor e ele é abatido do saldo.';
   }
 }
 function ctrSaldo() { return Math.max(0, ctrTotal() - ctrSinalPago()); }
@@ -18863,12 +18940,16 @@ function ctrEscItens() {
 
 const ctrAttr = s => orcEsc(s).replace(/"/g, '&quot;');
 
-// Escopo espelha o kit do Orçamento enquanto nenhuma linha do kit foi tocada
-// aqui. Excluir o espelhamento congela marcação e nome de cada linha (o
-// carregador para de seguir a potência); itens acrescentados não mudam.
+// Escopo espelha o kit do Orçamento enquanto ALGUMA linha do kit ainda copia de
+// lá (marcação ou nome). Meio espelhado conta como espelhado: era o estado em que
+// a etiqueta dizia "próprio" e sumia o botão de soltar, com metade das linhas
+// ainda mudando por outra aba (achado da revisão de 05/10). Desmarcar congela
+// marcação e nome de cada linha; itens acrescentados não mudam.
 function ctrEscEspelhando() {
-  return !Object.keys(ctrEsc.toque).length && !Object.keys(ctrEsc.nomes).length && !Object.keys(ctrEsc.oculto).length;
+  const tem = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  return EP_KIT.some(k => !ctrEsc.oculto[k.id] && (!tem(ctrEsc.toque, k.id) || !tem(ctrEsc.nomes, k.id)));
 }
+function ctrEscTag() { ctrEspelho('ctr-esc-esp', ctrEscEspelhando(), 'Orçamento', 'ctrEscDesligar()', 'ctrEscReligar()'); }
 function ctrEscDesligar() {
   EP_KIT.forEach(k => {
     if (ctrEsc.oculto[k.id]) return;
@@ -18882,7 +18963,7 @@ function ctrEscReligar() {
   ctrEscRender(); ctrPctNota(); ctrOpcRender();
 }
 function ctrEscRender() {
-  ctrEspelho('ctr-esc-esp', ctrEscEspelhando(), 'o kit do Orçamento', 'Escopo próprio do contrato', 'ctrEscDesligar()', 'ctrEscReligar()');
+  ctrEscTag();
   const box = document.getElementById('ctr-esc-lista');
   if (!box) return;
   const linhas = ctrEscLinhas();
@@ -18910,6 +18991,7 @@ function ctrEscNome(key, v) {
   const a = ctrEscAlvo(key);
   if (a.kit) ctrEsc.nomes[a.kit] = v;
   else if (a.extra) a.extra.nome = v;
+  ctrEscTag();   // só a caixinha: redesenhar a lista tiraria o foco do campo
 }
 function ctrEscRemove(key) {
   const a = ctrEscAlvo(key);
@@ -19068,7 +19150,7 @@ function ctrPagFechar() {
 // cobrar a mais ou deixar parte do preço sem forma nenhuma.
 function ctrPagDesligar() { ctrPag.tocado = true; ctrPagSoma(); }
 function ctrPagSoma() {
-  ctrEspelho('ctr-pag-esp', !ctrPag.tocado, 'o Orçamento (condição de pagamento)', 'Formas de pagamento próprias do contrato', 'ctrPagDesligar()', 'ctrPagReset()');
+  ctrEspelho('ctr-pag-esp', !ctrPag.tocado, 'Orçamento', 'ctrPagDesligar()', 'ctrPagReset()');
   const el = document.getElementById('ctr-pag-soma');
   if (!el) return;
   const saldo = ctrSaldo(), soma = ctrPagTotal(), dif = ctrCent(saldo - soma);
@@ -19106,19 +19188,22 @@ function ctrBanner() {
   if (!el) return;
   const emp = epEmitGet();
   const falta = [];
-  if (!orcVal('el-cliente')) falta.push('nome do cliente (Simulador)');
-  if (!(orcVal('ctr-contratante-doc') || orcVal('orc-cli-doc'))) falta.push('CPF/CNPJ do cliente (Orçamento)');
-  // Contratante com razão social própria é PJ: sem representante, ninguém assina.
-  if (orcVal('ctr-contratante') && !orcVal('ctr-rep')) falta.push('representante legal do contratante');
+  const doc = ctrCampo('ctr-contratante-doc');
+  if (!ctrCampo('ctr-contratante')) falta.push('nome do contratante');
+  if (!doc) falta.push('CPF/CNPJ do contratante');
+  // Contratante com CNPJ é empresa: sem representante, ninguém assina. Pelo
+  // DOCUMENTO, e não por "o campo tem nome": o nome agora vem sempre preenchido
+  // pelo espelho, e a cobrança aparecia até para cliente pessoa física.
+  if (doc.replace(/\D/g, '').length === 14 && !orcVal('ctr-rep')) falta.push('representante legal do contratante');
   if (!emp.cnpj) falta.push('CNPJ da sua empresa (Orçamento → Sua empresa)');
   if (!emp.razao) falta.push('razão social da sua empresa (Orçamento → Sua empresa)');
   el.innerHTML = falta.length
     ? `Falta pra qualificar as partes: <b>${orcEsc(falta.join(' · '))}</b>. Sem isso o contrato sai com linha em branco no lugar.`
-    : `<b>${orcEsc(orcVal('ctr-contratante') || orcVal('el-cliente'))}</b> e <b>${orcEsc(epParteMarca(emp))}</b> (${orcEsc(epParteRazaoCnpj(emp))}) — partes qualificadas.`;
+    : `<b>${orcEsc(ctrCampo('ctr-contratante'))}</b> e <b>${orcEsc(epParteMarca(emp))}</b> (${orcEsc(epParteRazaoCnpj(emp))}) — partes qualificadas.`;
 }
 
 function ctrResumo() {
-  ctrTotalUi();
+  ctrEspSync();
   ctrSinalUi();
   const total = ctrTotal(), sinal = ctrSinalPago(), saldo = Math.max(0, total - sinal);
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
@@ -19149,7 +19234,7 @@ function ctrPctNota() {
     return;
   }
   const mostra = orcVal('ctr-mostra-pct') !== '';
-  const pct = String(orcPctKit('software')).replace('.', ',');
+  const pct = ctrCampo('ctr-pct') || '0';
   el.innerHTML = mostra
     ? 'A cláusula da plataforma dirá <b>' + pct + '% do faturamento bruto</b>. O percentual sai <b>só aqui</b> — orçamento, proposta comercial e proposta de banco não o mencionam.'
     : '<b style="color:#fca5a5">Atenção:</b> sem essa cláusula o contrato não estabelece a remuneração da plataforma. O que não está escrito não se cobra — se a intenção é cobrar os ' + pct + '%, isso precisa estar em algum instrumento assinado.';
@@ -19158,14 +19243,9 @@ function ctrPctNota() {
 function ctrInit() {
   // Sugestão VISÍVEL: o que está na tela é o que sai no papel. Campo vazio e
   // nunca tocado recebe a sugestão; digitado ou apagado, fica como está.
-  const emp = epEmitGet();
-  epSugerir([['ctr-contratante', eletroTextos().cliente],
-             ['ctr-contratante-doc', orcVal('orc-cli-doc')],
-             ['ctr-contratante-end', orcVal('orc-cli-end')],
-             ['ctr-pag-dados', [emp.pix ? 'Pix ' + emp.pix : '', emp.conta].filter(Boolean).join(' · ')]]);
+  // Partes, local, equipamento, percentual, valores, dados de pagamento e foro
+  // vêm do espelho (ctrEspSync, dentro do ctrResumo). Aqui só a data.
   const d = document.getElementById('ctr-data'); if (d && !d.value) d.value = orcHojeISO();
-  const f = document.getElementById('ctr-foro');
-  if (f && !f.value.trim()) f.value = emp.cidade || '';
   ctrEscRender();
   ctrOpcRender();
   ctrPctNota();
@@ -19189,20 +19269,25 @@ function ctrDados() {
     data: new Date(dISO + 'T00:00:00'),
     // Quem NEGOCIOU (vai no cabeçalho, é o nome que o cliente reconhece) e quem
     // ASSINA (a qualificação da parte). Em branco, os dois são a mesma pessoa.
-    cliente: t.cliente, cidade: t.cidade, equip: t.equip,
-    contratante: orcVal('ctr-contratante'),
-    contratanteDoc: orcVal('ctr-contratante-doc'),
-    contratanteEnd: orcVal('ctr-contratante-end'),
+    // Cada campo da parte, do objeto e do local sai pelo espelho (ctrCampo):
+    // marcado = a aba de origem agora; desmarcado = o que está escrito aqui.
+    cliente: t.cliente, cidade: ctrCampo('ctr-cidade'), equip: t.equip,
+    equipTxt: ctrCampo('ctr-equip'),
+    contratante: ctrCampo('ctr-contratante'),
+    contratanteDoc: ctrCampo('ctr-contratante-doc'),
+    contratanteEnd: ctrCampo('ctr-contratante-end'),
     rep: orcVal('ctr-rep'), repDoc: orcVal('ctr-rep-doc'),
-    qtd: orcEpQtdCarregadores(), plugs: Math.max(1, Math.round(elNum('el-plugs') || 1)),
-    doc: orcVal('orc-cli-doc'), end: orcVal('orc-cli-end'), cep: orcVal('orc-cli-cep'),
-    tel: orcVal('orc-cli-tel'), email: orcVal('orc-cli-email'),
-    local: orcVal('ctr-local') || [orcVal('orc-cli-end'), t.cidade].filter(Boolean).join(' — '),
+    qtd: Math.max(1, Math.round(orcNum(ctrCampo('ctr-qtd')) || 1)),
+    plugs: Math.max(1, Math.round(orcNum(ctrCampo('ctr-plugs')) || 1)),
+    doc: orcVal('orc-cli-doc'), end: orcVal('orc-cli-end'), cep: ctrCampo('ctr-contratante-cep'),
+    tel: ctrCampo('ctr-contratante-tel'), email: ctrCampo('ctr-contratante-email'),
+    local: ctrCampo('ctr-local'),
     empresa: emp,
     total, sinal, saldo: Math.max(0, total - sinal),
     sinalDestino: orcVal('ctr-sinal-destino'),
+    sinalDoRecibo: ctrSinalDoRecibo(),
     pagLinhas, pagSoma: pagLinhas.reduce((s, l) => s + l.conta.valor, 0),
-    pagObs: orcVal('ctr-pag-obs'), pagDados: orcVal('ctr-pag-dados'),
+    pagObs: orcVal('ctr-pag-obs'), pagDados: ctrCampo('ctr-pag-dados'),
     temFin: pagLinhas.some(l => l.conta.fin),
     temAcr: pagLinhas.some(l => !l.conta.fin && l.conta.acr > 0 && l.conta.parc > 1),
     unid: orcVal('ctr-prazo-unid') === 'corridos' ? 'dias corridos' : 'dias úteis',
@@ -19216,7 +19301,7 @@ function ctrDados() {
     garantia: ctrInt('ctr-garantia', 24),
     multa: orcNum(orcVal('ctr-multa')),
     juros: orcNum(orcVal('ctr-juros')),
-    foro: orcVal('ctr-foro') || emp.cidade,
+    foro: ctrCampo('ctr-foro'),
     // Cada linha das cláusulas extras vira um item numerado.
     extras: orcVal('ctr-extras').split(/\n+/).map(s => s.trim()).filter(Boolean),
     testemunhas: orcVal('ctr-testemunhas') !== '',
@@ -19229,7 +19314,7 @@ function ctrDados() {
     // Operação: o Software de gestão marcado no escopo liga a cláusula da
     // plataforma; desmarcado ou tirado, ela não existe e as seguintes sobem.
     software: ctrSoftware(),
-    softwarePct: orcPctKit('software'),
+    softwarePct: ctrCampo('ctr-pct') || '0',
     // Só o contrato pode mostrar o percentual, e só se o consultor mandar.
     mostraPct: orcVal('ctr-mostra-pct') !== '',
     vendedor: { nome: t.autor, contato: t.contato },
@@ -19398,7 +19483,9 @@ function ctrHTML(d) {
   // alguma forma for financiamento.
   const ressalvaFin = `A aprovação e a liberação do crédito devem ocorrer em até ${d.prazoCredito} dias da assinatura. ` +
     'Não aprovado o financiamento nesse prazo, as partes ajustarão nova forma de pagamento em até 10 dias; não havendo acordo, o contrato fica resolvido, ' +
-    (d.sinal > 0 ? 'ressalvada a retenção do sinal na forma do recibo firmado, que remunera o projeto elétrico já executado' : 'devendo o CONTRATANTE apenas os custos já incorridos e comprovados pela CONTRATADA') +
+    (d.sinal > 0
+      ? (d.sinalDoRecibo ? 'ressalvada a retenção do sinal na forma do recibo de sinal firmado' : 'ressalvada a retenção do sinal referido na Cláusula 3.2')
+      : 'devendo o CONTRATANTE apenas os custos já incorridos e comprovados pela CONTRATADA') +
     '. Os prazos da Cláusula 4ª correm da liberação do crédito.';
 
   const marcoObra = {
@@ -19420,7 +19507,7 @@ function ctrHTML(d) {
     `<p class="ep-ctr-p">As partes acima têm entre si justo e contratado o presente instrumento, que se regerá pelas cláusulas seguintes.</p>`,
 
     ...clausula(1, 'Do objeto', [
-      `Fornecimento e instalação de estação de recarga de veículos elétricos composta por <b>${d.qtd} carregador(es) ${e(d.equip ? epEquipRotulo(d.equip) : 'de corrente contínua')}</b>, com ${d.plugs} ponto(s) de carregamento, a ser implantada em <b>${vazio(d.local)}</b>.`,
+      `Fornecimento e instalação de estação de recarga de veículos elétricos composta por <b>${d.qtd} carregador(es) ${e(d.equipTxt || 'de corrente contínua')}</b>, com ${d.plugs} ponto(s) de carregamento, a ser implantada em <b>${vazio(d.local)}</b>.`,
       `O escopo compreende o projeto de engenharia, o fornecimento dos equipamentos, a instalação e a homologação junto à concessionária de energia${temOperacao ? `, além da plataforma de gestão, na forma da Cláusula ${numOper}ª` : ''}, conforme a Cláusula 2ª.`,
     ]),
 
@@ -19499,7 +19586,7 @@ function ctrHTML(d) {
 
     ...clausula(nResc, 'Da rescisão', [
       `O descumprimento de qualquer cláusula autoriza a parte prejudicada a rescindir este contrato, mediante notificação com prazo de ${d.prazoCorrigir} dias para correção.`,
-      `Rescindido por desistência do CONTRATANTE, ser-lhe-ão cobrados os custos já incorridos e o material já adquirido${d.sinal > 0 ? ', sem prejuízo da retenção do sinal na forma do recibo de sinal firmado' : ''}.`,
+      `Rescindido por desistência do CONTRATANTE, ser-lhe-ão cobrados os custos já incorridos e o material já adquirido${d.sinal > 0 ? (d.sinalDoRecibo ? ', sem prejuízo da retenção do sinal na forma do recibo de sinal firmado' : ', sem prejuízo da retenção do sinal referido na Cláusula 3.2') : ''}.`,
     ]),
 
     ...clausula(nGerais, 'Das disposições gerais', [
@@ -19535,7 +19622,12 @@ function ctrHTML(d) {
 
 function ctrImprimir() {
   const d = ctrDados();
-  if (!(d.total > 0)) { alert('Defina o "Valor do projeto" no Orçamento antes de gerar o contrato.'); return; }
+  if (!(d.total > 0)) {
+    alert(ctrEspLigado('ctr-total')
+      ? 'Defina o "Valor do projeto" no Orçamento antes de gerar o contrato.'
+      : 'O "Valor total do projeto" do contrato está vazio. Digite o valor ou marque "Espelho: Orçamento" ao lado dele.');
+    return;
+  }
   // Formas que não fecham o saldo = papel cobrando a mais ou deixando parte do
   // preço sem forma. Não trava (pode ser de propósito), mas não passa calado.
   const difPag = ctrCent(d.saldo - d.pagSoma);
@@ -21215,6 +21307,8 @@ function orcSnapTake() {
     ctrPagObs: v('ctr-pag-obs'), ctrPagDados: v('ctr-pag-dados'),
     ctrSinal: v('ctr-sinal'), ctrSinalTocado: document.getElementById('ctr-sinal')?.dataset.tocado === '1',
     ctrTotal: v('ctr-total'), ctrTotalTocado: document.getElementById('ctr-total')?.dataset.tocado === '1',
+    // Cada espelho: o valor na tela e se estava desmarcado. Reabrir devolve igual.
+    ctrEspelhos: Object.fromEntries(CTR_ESPELHOS.map(m => [m.id, { v: (document.getElementById(m.id) || {}).value || '', t: !ctrEspLigado(m.id) }])),
     ctrSinalDestino: document.getElementById('ctr-sinal-destino')?.value,
     ctrPrazoUnid: v('ctr-prazo-unid'), ctrPrazoMarco: v('ctr-prazo-marco'), ctrPrazoDocs: v('ctr-prazo-docs'),
     ctrPrazoCredito: v('ctr-prazo-credito'), ctrPrazoCorrigir: v('ctr-prazo-corrigir'), ctrPrazoAviso: v('ctr-prazo-aviso'),
@@ -21321,7 +21415,10 @@ function orcSnapApply(s, tipo) {
     if (s.ctrSinalTocado) { sinalEl.dataset.tocado = '1'; sinalEl.value = s.ctrSinal || ''; }
     else delete sinalEl.dataset.tocado;
   }
-  set('ctr-sinal-destino', s.ctrSinalDestino);
+  // Destinação: snapshot sem ela (contrato de antes) volta com o texto que era
+  // fixo e foi assinado, não com o que estiver na tela agora.
+  { const dEl = document.getElementById('ctr-sinal-destino');
+    if (dEl) { dEl.value = s.ctrSinalDestino != null ? s.ctrSinalDestino : 'ao projeto elétrico'; delete dEl.dataset.tocado; } }
   const totEl = document.getElementById('ctr-total');
   if (totEl) {
     if (s.ctrTotalTocado) { totEl.dataset.tocado = '1'; totEl.value = s.ctrTotal || ''; }
@@ -21347,6 +21444,29 @@ function orcSnapApply(s, tipo) {
     set('ctr-testemunhas', '');
   } else {
     ctrOpc = s.ctrOpc ? JSON.parse(JSON.stringify(s.ctrOpc)) : {};
+  }
+  // Espelhos. Três gerações de snapshot: com o mapa (de hoje em diante), só com
+  // sinal/total (66503a10, já tratados acima) e antes disso. Sem o mapa, campo
+  // de parte/local/foro/pagamento salvo com texto volta DESMARCADO (é o que foi
+  // assinado; marcado ele copiaria a origem de hoje); vazio volta marcado, que
+  // era o "em branco = usa o do cliente" de antes. Os espelhos novos ficam
+  // marcados.
+  if (s.ctrEspelhos) {
+    Object.entries(s.ctrEspelhos).forEach(([id, o]) => {
+      const el = document.getElementById(id);
+      if (!el || !o) return;
+      if (o.t) { el.value = o.v || ''; el.dataset.tocado = '1'; } else delete el.dataset.tocado;
+    });
+  } else {
+    ['ctr-contratante', 'ctr-contratante-doc', 'ctr-contratante-end', 'ctr-local', 'ctr-foro', 'ctr-pag-dados'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (el.value.trim()) el.dataset.tocado = '1'; else delete el.dataset.tocado;
+    });
+    ['ctr-contratante-cep', 'ctr-cidade', 'ctr-contratante-tel', 'ctr-contratante-email', 'ctr-equip', 'ctr-qtd', 'ctr-plugs', 'ctr-pct'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) delete el.dataset.tocado;
+    });
   }
   ctrEscRender(); ctrPagRender(); ctrOpcRender(); ctrPctNota();
   orcKitEquipSync(); orcValorBanner();
@@ -23265,8 +23385,16 @@ async function crmGerarOrcamento(produto) {
     set('el-cidade', cidade);
     if (typeof orcInit === 'function') orcInit();
     set('orc-cli-tel', telBonito);
+    // Cliente novo: o contrato volta aos espelhos e ao padrão (sem isto, total e
+    // sinal escritos no contrato do cliente anterior passavam para este). E a
+    // ficha do formulário, se o lead veio da LP, preenche o que ela sabe.
+    if (typeof ctrEstadoZerar === 'function') ctrEstadoZerar();
+    const obsEp = (c.agends || []).map(a => a.observacao).filter(o => o && /LP ELETROPOSTO|Simulou\s|Endereço:/i.test(o)).pop() || '';
+    const usou = typeof epFichaAplicar === 'function' ? epFichaAplicar(obsEp, set) : [];
     if (typeof eletroCalc === 'function') eletroCalc();
-    showToast('⚡ Cliente preenchido — complete o Simulador e emita o documento');
+    showToast(usou.length
+      ? '⚡ Ficha do formulário aplicada: ' + usou.join(', ') + '. Tudo editável.'
+      : '⚡ Cliente preenchido — complete o Simulador e emita o documento');
     return;
   }
 
