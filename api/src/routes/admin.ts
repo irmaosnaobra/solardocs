@@ -8,7 +8,7 @@ import { getPixFunil } from '../controllers/pixFunilController';
 import { getVslRetencao } from '../controllers/vslController';
 import { jornadaLimpapro } from '../controllers/limpaproJornadaController';
 import { getMetaAds } from '../controllers/metaAdsController';
-import { listarOrdens, marcarFeita, setModo, sincronizarOrdens } from '../services/metaOrdensService';
+import { listarOrdens, marcarFeita, setModo, tickOrdens } from '../services/metaOrdensService';
 import { supabase } from '../utils/supabase';
 import { supabaseGerador } from '../utils/supabaseGerador';
 import { temChaveDeBootstrap } from '../utils/bootstrapKey';
@@ -1317,11 +1317,13 @@ router.patch('/kit-avaliacoes/:id', async (req: Request, res: Response): Promise
 });
 
 // ── Disciplina das ordens (marcar feito, expira, manual/auto) ──
-// GET lista pendentes + histórico + modo. Sincroniza on-demand pra a lista vir
-// fresca mesmo entre ticks do cron.
+// GET lista pendentes + histórico + modo. A disciplina roda aqui, sob demanda,
+// ao abrir a aba Meta Ads: o tick saiu do /cron/master em 05/10 (rodava e não
+// criava nada). tickOrdens vence as pendentes atrasadas (reconfere no Meta) e só
+// então abre as novas, senão uma pendente vencida trava a mesma chave pra sempre.
 router.get('/ordens', async (_req: Request, res: Response): Promise<void> => {
   try {
-    await sincronizarOrdens().catch(() => {}); // best-effort: abre novas antes de listar
+    await tickOrdens().catch(() => {}); // best-effort: vence as atrasadas e abre novas antes de listar
     const data = await listarOrdens();
     res.json(data);
   } catch (err: any) {

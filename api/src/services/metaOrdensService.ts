@@ -1,5 +1,5 @@
 // ─── Disciplina das ordens de tráfego (lifecycle persistido) ─────────────────
-// Fonte da verdade das ordens: painel E robô leem/escrevem aqui. Cada ordem é
+// Fonte da verdade das ordens: o painel /admin lê e escreve aqui. Cada ordem é
 // uma instância time-boxed: nasce 'pendente' com prazo (Escalar 24h · Pausar
 // 12h), o usuário marca 'feita' (readback confirma), e ao vencer o sistema
 // RECONFERE no Meta → 'perdida' (condição ainda valia = perdeu a janela) ou
@@ -113,7 +113,7 @@ export async function sincronizarOrdens(): Promise<{ criadas: number; jaAbertas:
       },
     };
   });
-  // Insere UMA A UMA: se duas execuções (painel, cron, robô) sincronizarem ao
+  // Insere UMA A UMA: se duas execuções (duas abas do painel abertas) sincronizarem ao
   // mesmo tempo, o índice único parcial (chave WHERE pendente) faz a 2ª falhar —
   // per-row degrada pra "pula essa", não "perde o lote todo".
   let criadas = 0;
@@ -229,26 +229,7 @@ export async function listarOrdens(limitHistorico = 40): Promise<{ pendentes: Or
   return { pendentes: (pend ?? []) as OrdemRow[], historico: (hist ?? []) as OrdemRow[], modo };
 }
 
-// ── Robô WhatsApp: pega ordens PENDENTES ainda não alertadas ──
-// Fonte da verdade única: o robô lê daqui (não do gerarOrdens direto). Ordem
-// feita/perdida/vencida não é pendente → nunca re-alerta. Motivo/como/leitura
-// vêm da linha persistida → WhatsApp e painel dizem EXATAMENTE a mesma coisa.
-export async function ordensPendentesNaoAlertadas(): Promise<OrdemRow[]> {
-  const { data, error } = await supabase
-    .from('mm_ordens').select('*')
-    .eq('estado', 'pendente').is('alertado_em', null)
-    .order('criada_em', { ascending: true });
-  if (error) { logger.error('ordens', 'pendentes-nao-alertadas falhou', error); return []; }
-  return (data ?? []) as OrdemRow[];
-}
-
-// Carimba as ordens como alertadas (após enviar o WhatsApp).
-export async function marcarAlertadas(ids: string[]): Promise<void> {
-  if (!ids.length) return;
-  await supabase.from('mm_ordens').update({ alertado_em: new Date().toISOString() }).in('id', ids);
-}
-
-// ── Tick do cron: expira vencidas + sincroniza novas. Roda de hora em hora. ──
+// ── Tick: expira vencidas + sincroniza novas. Chamado pelo GET /admin/ordens ao abrir a aba Meta Ads. ──
 export async function tickOrdens(): Promise<{ expiradas: { perdidas: number; vencidas: number }; sync: { criadas: number; jaAbertas: number } }> {
   const expiradas = await expirarOrdens();       // primeiro fecha as vencidas
   const sync = await sincronizarOrdens();          // depois abre as novas

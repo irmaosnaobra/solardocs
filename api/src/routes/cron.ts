@@ -69,10 +69,8 @@ import { runDunning } from '../services/dunningService';
 import { runDisputeWatch } from '../services/disputeWatcher';
 import { syncStripePlans } from '../services/stripeSyncService';
 import { runWinback } from '../services/winbackService';
-import { runAuxiliarTrafego } from '../services/agenda/auxiliarTrafegoService';
 import { runCapiLeads } from '../services/agenda/capiLeadsService';
 import { runCapiLeadQualificado } from '../services/agenda/capiLeadQualificadoService';
-import { tickOrdens } from '../services/metaOrdensService';
 import { runInventoryLowStockAlert } from '../services/inventoryAlertService';
 import { logger } from '../utils/logger';
 import { supabaseGerador } from '../utils/supabaseGerador';
@@ -1463,24 +1461,6 @@ router.get('/dunning', async (req: Request, res: Response) => {
   }
 });
 
-// Copiloto de tráfego 24h. Roda de hora em hora (master). SÓ AVISA no WhatsApp
-// do Thiago (34991360223) quando há AÇÃO: escalar (ROAS forte), pausar sangrador,
-// bateu meta (LimpaPro R$1200/dia · SolarDoc 10 clientes/dia), lembrete meia-noite.
-// Dia parado = silêncio. Madrugada segura pra 7h. NÃO mexe no Meta.
-// ?dry=1 → não envia, só loga a msg + match-rate. ?force=1 → ignora dedup/madrugada.
-router.get('/auxiliar-trafego', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    const dry   = req.query.dry === '1' || req.query.dry === 'true';
-    const force = req.query.force === '1' || req.query.force === 'true';
-    const result = await runAuxiliarTrafego({ dry, force });
-    res.json({ ok: true, dry, force, ...result });
-  } catch (err: any) {
-    logger.error('cron', 'auxiliar-trafego falhou', err);
-    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
-  }
-});
-
 // Loop CAPI: fechamentos da planilha CONTRATOS → lead capturado → Meta (conversão
 // de leads). Roda de hora em hora no master, mas é idempotente (dedup por lead_id
 // → não remanda). Teste: /cron/capi-leads?dry=1
@@ -1506,20 +1486,6 @@ router.get('/capi-lead-qualificado', async (req: Request, res: Response) => {
     res.json({ ok: true, dry, ...(await runCapiLeadQualificado({ dry })) });
   } catch (err: any) {
     logger.error('cron', 'capi-lead-qualificado falhou', err);
-    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
-  }
-});
-
-// Disciplina das ordens de tráfego: expira as vencidas (reconferindo no Meta se
-// a condição ainda valia = perdida, ou já não vale = vencida) e abre as novas.
-// Roda de hora em hora no master. Manual: /cron/ordens-trafego-tick
-router.get('/ordens-trafego-tick', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    const result = await tickOrdens();
-    res.json({ ok: true, ...result });
-  } catch (err: any) {
-    logger.error('cron', 'ordens-trafego-tick falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });
@@ -1646,8 +1612,6 @@ router.get('/master', async (req: Request, res: Response) => {
     ['meta-purchase-redrive',       () => reDrivePendingPurchases()], // reenvia Purchase que não confirmou entrega (garante Meta = card-pass)
     ['winback',                     () => runWinback()],            // emails D+7 e D+30 pra cancelados
     ['pix-vip-reminder',            () => runPixVipReminder()],     // avisa VIP-pix (84994501564) ~2d antes de vencer: valor + chave Pix
-    // ['auxiliar-trafego',            () => runAuxiliarTrafego()],    // [COPILOTO-OFF 23/07] Thiago pediu pra desligar — não quer mais os avisos horários. Rota manual /cron/auxiliar-trafego segue existindo (só dispara se chamada à mão). Reativar = descomentar.
-    ['ordens-trafego-tick',         () => tickOrdens()],           // disciplina das ordens: expira vencidas (reconfere Meta) + abre novas
     ['capi-leads',                  () => runCapiLeads()],         // loop: fechamento (planilha) → lead → Meta (conversão de leads, otimiza perfil)
     ['capi-lead-qualificado',       () => runCapiLeadQualificado()], // solar >700 kWh que orçou → Meta aprende o perfil do cliente bom (CAPI_QUALIFICADO_OFF desliga)
     ['zapi-health',                 () => runZapiHealthCheck()],   // monitor: linha IO caída → 1 email pro Thiago (2 checagens seguidas). Toda a mensageria depende dela.
