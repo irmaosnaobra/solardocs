@@ -39,11 +39,8 @@ import { runSondaDocumentos } from '../services/documentos/sondaDocumentos';
 import { drainIgQueue, refreshIgToken } from '../services/instagram/igEngine';
 import { varrerComentariosFacebook } from '../services/instagram/fbComentarios';
 import { varrerInboxFacebook } from '../services/instagram/fbMensagens';
-import { runRepescagemTick, semearRepescagem } from '../services/io/eletropostoRepescagem';
-import { runConviteTick, semearConvites } from '../services/io/eletropostoConviteInvestidor';
 import { runEntradaIoDigest } from '../services/io/entradaIoDigest';
 import { runSementeTick, publicoSemente, bolhasSemente } from '../services/io/sementeSolarService';
-import { runGrupoFriosTick, publicoGrupoFrio, bolhasGrupoFrio } from '../services/io/eletropostoGrupoFrios';
 import { runEletropostoAgendaTick } from '../services/io/eletropostoAgenda';
 import { runEletropostoRespostasTick } from '../services/io/eletropostoRespostas';
 import { runEletropostoCobraSimTick } from '../services/io/eletropostoCobraSim';
@@ -385,10 +382,7 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       ['ig_drain', () => drainIgQueue()],                  // Instagram nativo: drena a fila de DMs/respostas (gated por kill-switch)
       ['fb_comentarios', () => varrerComentariosFacebook()],     // Facebook: comentário em post/anúncio da Página → resposta privada (FB_COMENTARIOS_OFF desliga)
       ['fb_inbox', () => varrerInboxFacebook()],           // Facebook: inbox do Messenger — responde, manda o menu e chama o humano (FB_INBOX_OFF desliga)
-      ['ep_repescagem', () => runRepescagemTick()],             // eletroposto: 1 pessoa do apagão a cada 20min, 07h–20h
-      ['ep_convite', () => runConviteTick()],                // eletroposto: convite ao investidor com horários na mesa, 1 a cada 20min (EP_CONVITE_OFF desliga)
       ['semente', () => runSementeTick()],                // semente: nutrição de quem pediu orçamento de solar e não fechou
-      ['ep_grupo_frio', () => runGrupoFriosTick()],             // eletroposto: quem esfriou (não atendeu / sem interesse) vai pro grupo
       ['ep_agenda', () => runEletropostoAgendaTick()],      // eletroposto: confirmação ao marcar + bom dia + lembrete 1h e 5min (anti no-show)
       ['ep_respostas', () => runEletropostoRespostasTick()],   // eletroposto: lead respondeu a automação → recado pro Thiago e pro Diego
       ['ep_cobra_sim', () => runEletropostoCobraSimTick()],    // eletroposto: régua do SIM — cobra quem não confirmou, libera o horário na 3ª e manda a ficha pro Curioso (EP_COBRA_SIM_OFF desliga)
@@ -477,68 +471,10 @@ router.get('/limpapro-recovery-consume', async (req: Request, res: Response) => 
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });
-// ── Convite ao investidor: quem tem capital e já viu um ponto, e nunca sentou.
-// ?dry=1 mostra quem entraria (e por que cada um foi pulado) sem gravar nada.
-// ?semear=1 enfileira de verdade. Sem parâmetro, roda um tick à mão — o consumo
-// normal é no /process-messages, 1 pessoa a cada 20min entre 07h e 20h.
-router.get('/eletroposto-convite', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    const dry = req.query.dry === '1' || req.query.dry === 'true';
-    if (dry || req.query.semear === '1') {
-      const limite = Number(req.query.limite) || undefined;
-      // ?desde=2026-09-09T19:30:00-03:00 — piso do PRIMEIRO envio. Sem ele, semear
-      // 19:20 dispararia no mesmo minuto em vez de esperar a hora combinada.
-      const naoAntesDe = String(req.query.desde || '').trim() || undefined;
-      res.json({ ok: true, dry, ...(await semearConvites({ dry, limite, naoAntesDe })) });
-      return;
-    }
-    res.json({ ok: true, ...(await runConviteTick()) });
-  } catch (err: any) {
-    logger.error('cron', 'eletroposto-convite falhou', err);
-    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
-  }
-});
-
-// ── Repescagem do eletroposto: quem chegou no apagão de 01–03/ago e ficou sem resposta.
-// Semeia a fila UMA vez (?semear=1); ?dry=1 mostra quem entraria sem gravar nada.
-// Sem parâmetro, roda um tick à mão — o consumo normal é no /process-messages,
-// 1 pessoa a cada 20min entre 07h e 20h.
-router.get('/eletroposto-repescagem', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    const dry = req.query.dry === '1' || req.query.dry === 'true';
-    if (dry || req.query.semear === '1') {
-      res.json({ ok: true, dry, ...(await semearRepescagem({ dry })) });
-      return;
-    }
-    res.json({ ok: true, ...(await runRepescagemTick()) });
-  } catch (err: any) {
-    logger.error('cron', 'eletroposto-repescagem falhou', err);
-    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
-  }
-});
 // ── SEMENTE: nutrição de quem pediu orçamento de solar e não fechou ──────────
 // ?dry=1 mostra QUEM entraria e a mensagem que sairia, sem enviar nada — é o
 // jeito de revisar a campanha em produção antes de ligar (SEMENTE_ON=true).
 // Sem parâmetro, roda um tick à mão; o normal é rodar no /process-messages.
-// ── Convite do grupo pra quem esfriou no eletroposto (não atendeu / sem interesse)
-// ?publico=1 lista quem entraria e a mensagem, sem enviar.
-router.get('/eletroposto-grupo-frios', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    if (req.query.publico === '1') {
-      const p = await publicoGrupoFrio();
-      res.json({ ok: true, total: p.length, amostra: p.slice(0, 20), exemplo: p[0] ? bolhasGrupoFrio(p[0].status, p[0].nome) : [] });
-      return;
-    }
-    const dry = req.query.dry === '1' || req.query.dry === 'true';
-    res.json({ ok: true, dry, ...(await runGrupoFriosTick({ dry })) });
-  } catch (err: any) {
-    logger.error('cron', 'eletroposto-grupo-frios falhou', err);
-    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
-  }
-});
 
 // ── Convite pra LP de quem veio do Instagram (não marca agenda direta) ───────
 // ?publico=1 lista quem está na fila e a mensagem que sai, sem enviar.

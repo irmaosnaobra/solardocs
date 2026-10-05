@@ -54,7 +54,6 @@ describe('o polling só age quando o lead escreveu', () => {
   it('a trava vem ANTES dos avisos e do lead novo', () => {
     const trava = poller.indexOf('pareceMensagemDoLead(chat.lastMessage');
     expect(trava, 'a trava sumiu do polling').toBeGreaterThan(0);
-    expect(trava).toBeLessThan(poller.indexOf('respostaPendenteRepescagem(phone)'));
     expect(trava).toBeLessThan(poller.indexOf('respostaDeCampanhaPonto(phone)'));
     expect(trava).toBeLessThan(poller.indexOf('handleSdrLead(phone, FRASE_PADRAO_ANUNCIO'));
   });

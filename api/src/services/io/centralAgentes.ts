@@ -135,7 +135,6 @@ const PREFIXOS = [
   'ep_reagenda_auto:',       // card vermelho vencido que o robô devolveu pro dia seguinte
   'ep_cobra_sim:',           // régua do SIM: as duas cobranças e o aviso do horário liberado
   'ep_liberado_sim:',        // régua do SIM: horário que voltou pra vitrine por silêncio
-  'ep_repescagem_sent:', 'ep_repescagem_pending:', 'ep_repescagem_resposta:',
   'ep_resposta:',
   'solar_resposta:',
   'limpapro_atendimento:',
@@ -201,13 +200,10 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
   // Escalada é o número que importa nesta trilha: é quanto ela NÃO resolveu sozinha.
   const atendLimpaEscalados = (stRows ?? []).filter(r =>
     String(r.key).startsWith('limpapro_atendimento:') && (r.value as any)?.escalado === true).length;
-  const repesc = resumo(chaves, 'ep_repescagem_sent:');
-  const repescFila = resumo(chaves, 'ep_repescagem_pending:').total;
-  const repescResp = resumo(chaves, 'ep_repescagem_resposta:').total;
 
   // Teto da linha IO na última hora — mesma conta do lineThrottle.
   const prefixosLinha = ['limpapro_recovery:', 'limpapro_cupom_sent:', 'limpapro_fechamento_sent:',
-    'limpapro_grupo_sent:', 'gerador_followup:', 'gerador_seq:', 'ep_repescagem_sent:',
+    'limpapro_grupo_sent:', 'gerador_followup:', 'gerador_seq:',
     ...(solardocViaIo() ? ['carla_sent:'] : [])];
   const usadosNaHora = chaves.filter(k =>
     prefixosLinha.some(p => k.key.startsWith(p)) && agora - new Date(k.updated_at).getTime() <= H).length;
@@ -527,24 +523,6 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       toques: [{ titulo: 'nenhum envio automático', quando: '—', copy: 'A linha só recebe. Quem responde é gente.' }],
     },
     {
-      id: 'repescagem',
-      nome: 'Repescagem do eletroposto',
-      papel: 'Fala uma vez com quem chegou durante o apagão de 01–03/ago e ficou sem resposta. Uma pessoa a cada 20 min, das 07h às 20h.',
-      canal: 'whatsapp', linha: 'io',
-      estado: envLigado('EP_REPESCAGEM_OFF') ? 'desligado' : (repescFila > 0 || repesc.total > 0 ? 'ativo' : 'dark'),
-      chave: 'EP_REPESCAGEM_OFF',
-      ultima_atividade: repesc.ultima,
-      fila: repescFila,
-      metricas: [
-        { label: 'Já falaram com', valor: repesc.total, sub: `${repescFila} ainda na fila` },
-        { label: 'Responderam', valor: repescResp, sub: 'aviso vai pro Thiago e pro Diego' },
-      ],
-      toques: [
-        { titulo: 'ficha nota 2 e 3', quando: 'na vez dela na fila', copy: 'Assume o atraso, diz quem é o consultor dono do caso e pede um horário.' },
-        { titulo: 'nota 1 · convite do grupo', quando: 'na vez dela na fila', copy: 'Mesma oferta do grupo gratuito do eletroposto, em versão que reconhece a demora.' },
-      ],
-    },
-    {
       id: 'central_automacao',
       nome: 'Central de Automação (disparos e sequências)',
       papel: 'Disparo em massa e drip de sequências pra contatos do CRM do Gerador.',
@@ -826,8 +804,8 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
     },
   ];
 
-  const enviados24 = bia1.h24 + bia2.h24 + bia3.h24 + bia4.h24 + followup.h24 + seq.h24 + carla.h24 + repesc.h24 + ig.h24;
-  const enviados7 = bia1.d7 + bia2.d7 + bia3.d7 + bia4.d7 + followup.d7 + seq.d7 + carla.d7 + repesc.d7 + ig.d7;
+  const enviados24 = bia1.h24 + bia2.h24 + bia3.h24 + bia4.h24 + followup.h24 + seq.h24 + carla.h24 + ig.h24;
+  const enviados7 = bia1.d7 + bia2.d7 + bia3.d7 + bia4.d7 + followup.d7 + seq.d7 + carla.d7 + ig.d7;
 
   return {
     gerado_em: new Date().toISOString(),
