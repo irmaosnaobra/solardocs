@@ -446,14 +446,35 @@ describe('o grupo DONO NAO PERGUNTADO (29/09/2026)', () => {
         created_at: '2026-09-12T12:00:00Z' },
     ];
     db.agendamentos = [
-      // reuniao perdida por falta de dinheiro, com endereco: ENTRA
-      { id: 800, created_by: 'lp_eletroposto', status: 'sem_interesse', cliente_nome: 'Dono Perdido',
+      // ── ESTA FICHA ERA `sem_interesse` ATÉ 05/10/2026 ────────────────────
+      //
+      // Ela nasceu em 29/09 escrita assim, com o comentário "reuniao perdida por
+      // falta de dinheiro, com endereco: ENTRA" — e era a regra certa naquele
+      // dia: quem perdeu a reunião por não ter capital continua sendo dono de um
+      // LOCAL, que é outro eixo.
+      //
+      // A ordem do dono em 05/10 inverte isso, e ele a repetiu três vezes: "sem
+      // interesse, quando eu colocar, eu não quero falar com essa pessoa por agora
+      // mais". Medido no dia: 37 das 111 pessoas desta audiência estavam em
+      // `sem_interesse`.
+      //
+      // A ficha virou `cancelado` pra o teste continuar provando o que ele
+      // existe pra provar — reunião MORTA com endereço entra — porque `cancelado`
+      // é posto por robô (a régua do SIM), não é declaração de ninguém.
+      { id: 800, created_by: 'lp_eletroposto', status: 'cancelado', cliente_nome: 'Dono Perdido',
         cliente_telefone: '5511900000012', cidade: 'Anápolis',
         observacao: 'LP ELETROPOSTO — Posto\nEndereço: Av. K, 50', created_at: '2026-09-14T12:00:00Z' },
       // reuniao de outro produto: fora
       { id: 801, created_by: 'lp_solar', status: 'agendado', cliente_nome: 'Solar',
         cliente_telefone: '5511900000013', cidade: 'Anápolis',
         observacao: 'Endereço: Av. M, 70', created_at: '2026-09-14T12:00:00Z' },
+      // DISSE NÃO (05/10/2026): tem endereço, nunca foi perguntado, e mesmo assim
+      // NÃO entra. O corte vive em `precisaPerguntarDoDono`, não aqui no tick: a
+      // linha que vem da agenda chega ao tick com `status: null` de propósito, e
+      // por isso o `continue` de `sem_interesse` do tick nunca a tocava.
+      { id: 802, created_by: 'lp_eletroposto', status: 'sem_interesse', cliente_nome: 'Disse Nao',
+        cliente_telefone: '5511900000014', cidade: 'Anápolis',
+        observacao: 'LP ELETROPOSTO — Posto\nEndereço: Av. Q, 90', created_at: '2026-09-14T12:00:00Z' },
     ];
     db.avisos = [avisoBase({ publicos: ['sem_dono'], corpo: 'Oi {nome}, o local do seu ponto é seu mesmo?' })];
   };
@@ -462,12 +483,29 @@ describe('o grupo DONO NAO PERGUNTADO (29/09/2026)', () => {
     base();
     const r = await runAvisosTick();
     expect(r.enviados).toBe(1);
-    // dois na audiência: o cadastro sem resposta e a reunião perdida
+    // dois na audiência: o cadastro sem resposta e a reunião morta.
+    // O terceiro candidato (802) tem endereço e nunca foi perguntado, e mesmo
+    // assim não conta: ele disse NÃO. Se o corte cair, este número vira 3.
     expect(db.avisos[0].alvo).toBe(2);
     const fones = db.aviso_envios.map(e => e.phone);
     expect(['5511900000010', '5511900000012']).toContain(fones[0]);
     expect(fones).not.toContain('5511900000011');   // já respondeu
     expect(fones).not.toContain('5511900000013');   // outro produto
+    expect(fones).not.toContain('5511900000014');   // disse NÃO (05/10/2026)
+  });
+
+  it('quem está em SEM INTERESSE não recebe, nem na segunda volta', async () => {
+    // O par do teste acima. A pauta anda 1 por tick: só olhar o primeiro envio
+    // não prova que o 802 ficou fora, prova que ele não foi o primeiro. Aqui a
+    // pauta anda até CONCLUIR, e aí a lista inteira de quem recebeu é o veredito.
+    base();
+    await runAvisosTick();
+    await runAvisosTick();
+    await runAvisosTick();
+    const fones = db.aviso_envios.map(e => e.phone).sort();
+    expect(fones).toEqual(['5511900000010', '5511900000012']);
+    expect(fones).not.toContain('5511900000014');
+    expect(db.avisos[0].status).toBe('concluido');
   });
 
   it('o rodapé é o do Curioso: essa pessoa nunca se cadastrou como parceiro', async () => {

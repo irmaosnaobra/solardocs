@@ -389,7 +389,9 @@ describe('a lista "Dono nao perguntado" que a TELA monta', () => {
        { id: 72, telefone: '5534999993003', endereco: 'Rua W, 40', ficha: 'Local é seu: não respondeu',
          created_at: '2026-09-18' }],
       // reunião perdida com endereço entra; sem endereço fica fora
-      [{ id: 900, cliente_telefone: '5534999993004', cliente_nome: 'Perdido', status: 'sem_interesse',
+      // `cancelado` desde 05/10/2026: era `sem_interesse`, e quem disse não parou
+      // de entrar nesta lista por ordem do dono. Morto por robô continua entrando.
+      [{ id: 900, cliente_telefone: '5534999993004', cliente_nome: 'Perdido', status: 'cancelado',
          observacao: comEnd, created_at: '2026-09-21' },
        { id: 901, cliente_telefone: '5534999993005', cliente_nome: 'Sem endereco', status: 'agendado',
          observacao: 'LP ELETROPOSTO — Posto', created_at: '2026-09-22' }]);
@@ -436,7 +438,11 @@ describe('precisaPerguntarDoDono: a tela e o servidor escolhem a mesma gente', (
 
   it('a regra em si: endereço sim, resposta não, e quem respondeu fica fora', () => {
     // entra: tem endereço e ninguém perguntou
-    expect(precisaPerguntarDoDono('agenda', { status: 'sem_interesse', observacao: COM_ENDERECO })).toBe(true);
+    expect(precisaPerguntarDoDono('agenda', { status: 'cancelado', observacao: COM_ENDERECO })).toBe(true);
+    // ... MENOS quem disse não (05/10/2026). Mesma ficha, mesmo endereço, mesma
+    // ausência de resposta: só o status muda, e ele decide sozinho.
+    expect(precisaPerguntarDoDono('agenda', { status: 'sem_interesse', observacao: COM_ENDERECO })).toBe(false);
+    expect(precisaPerguntarDoDono('agenda', { status: 'perdido', observacao: COM_ENDERECO })).toBe(false);
     // "não respondeu" é pergunta não feita
     expect(precisaPerguntarDoDono('agenda',
       { status: 'agendado', observacao: COM_ENDERECO + 'Local é seu: não respondeu' })).toBe(true);

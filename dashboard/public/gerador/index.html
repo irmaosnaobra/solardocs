@@ -9710,6 +9710,16 @@ function cadDestino(origem, r) {
  *  `carregador`, `50/50` e `chave na mão` NÃO entram aqui — são o modelo em
  *  negociação, não venda. O rótulo de venda é `fechou`. */
 const CAD_STATUS_LOCAL_OCUPADO = new Set(['fechou', 'fechou_concorrente']);
+// A PESSOA DISSE NAO (05/10/2026). Gemeo de STATUS_DISSE_NAO em
+// api/src/services/io/eletropostoPares.ts, e o comentario longo mora la.
+// Ordem do dono, repetida tres vezes: "sem interesse, quando eu colocar, eu nao
+// quero falar com essa pessoa por agora mais". Medido no dia: 37 das 111 pessoas
+// do publico `sem_dono` estavam em sem_interesse.
+// `cancelado` NAO entra de proposito: ele e posto por robo (a regua do SIM), nao
+// e declaracao de ninguem.
+// Mudar um sem o outro faz a aba listar quem o servidor nao pergunta, ou o
+// contrario — e existe teste (eletropostoDestino) prendendo os dois juntos.
+const CAD_STATUS_DISSE_NAO = new Set(['sem_interesse', 'perdido']);
 /** A resposta "O local é seu?" de uma linha qualquer: coluna, observação da
  *  reunião ou texto da ficha. A coluna de `agendamentos` está vazia em 96% das
  *  linhas, então o texto é a fonte. */
@@ -9751,6 +9761,7 @@ function cadPrecisaPerguntarDono(origem, r) {
   // Ficha de teste fica fora: o telefone dela costuma ser o nosso.
   if (/^\s*teste\b/i.test(String(r.nome || r.cliente_nome || ''))) return false;
   if (origem === 'agenda' && CAD_STATUS_LOCAL_OCUPADO.has(String(r.status || ''))) return false;
+  if (origem === 'agenda' && CAD_STATUS_DISSE_NAO.has(String(r.status || ''))) return false;
   if (cadEhOpcaoArrendamento(origem, r)) return false;
   if (!cadTemEndereco(origem, r)) return false;
   return !cadRespondeuDeQuemE(cadRelacaoDaLinha(origem, r));

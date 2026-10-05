@@ -216,6 +216,37 @@ export function valorOk(texto: unknown): boolean | null {
  *  (o rotulo de venda e `fechou`/VENDIDO). Hoje isso barra 0 pessoas. */
 export const STATUS_LOCAL_OCUPADO = new Set(['fechou', 'fechou_concorrente']);
 
+/**
+ * ── A PESSOA DISSE NÃO. NÃO PERGUNTE NADA A ELA (05/10/2026) ───────────────
+ *
+ * Ordem do Thiago, repetida três vezes: "sem interesse, quando eu colocar, eu
+ * não quero falar com essa pessoa por agora mais".
+ *
+ * O MÓDULO DO MENU DE AVISOS JÁ TINHA ESSA REGRA, e ela não funcionava pra cá.
+ * Em `avisosTickService` existe, literalmente:
+ *
+ *     if (String(r.status || '') === 'sem_interesse') continue;
+ *     // a equipe já marcou que não quer
+ *
+ * Mas a linha que sai DAQUI chega lá com `status: null`, de propósito (ver
+ * `ContatoSemDono.status`): a ideia era não descartar ninguém por um desfecho de
+ * REUNIÃO, que é outra pergunta. O efeito foi derrotar o corte: `'' !==
+ * 'sem_interesse'`, a pessoa passa, e o WhatsApp sai.
+ *
+ * Medido em 05/10/2026, replicando a audiência: de 111 contatos do público
+ * `sem_dono`, 37 estavam em `sem_interesse`. Um em cada três.
+ *
+ * O corte vai AQUI e não lá porque é aqui que o status verdadeiro do card existe.
+ * O `status: null` do payload continua, porque ele resolve outra coisa (a
+ * categorização por aba) e não essa.
+ *
+ * `cancelado` NÃO entra, e isso é escolha: ele é posto por robô (a régua do SIM
+ * cancela sozinha na 3ª cobrança), não é declaração de ninguém. São 34 pessoas
+ * com endereço, e a razão de o público existir é justamente recuperar o LOCAL de
+ * reunião que morreu. Se o dono quiser cortar essas também, é só pôr aqui.
+ */
+export const STATUS_DISSE_NAO = new Set(['sem_interesse', 'perdido']);
+
 /** A pergunta "O local e seu?" escrita como o lead a viu. */
 const ROTULO_LOCAL = /Local (?:é|e) seu:\s*([^\n]+)/i;
 
@@ -296,6 +327,10 @@ export function precisaPerguntarDoDono(origem: 'parceria' | 'nota1' | 'agenda',
   // Prospeccao, que ja corta nome comecando com "teste".
   if (/^\s*teste\b/i.test(String(r.nome ?? r.cliente_nome ?? ''))) return false;
   if (origem === 'agenda' && STATUS_LOCAL_OCUPADO.has(String(r.status || ''))) return false;
+  // A pessoa disse não (ver STATUS_DISSE_NAO). Vale só pra origem `agenda`, que é
+  // a única em que `status` é o desfecho da reunião — nas outras duas ele é o
+  // estágio do cadastro, e `sem_interesse` lá já é cortado no tick.
+  if (origem === 'agenda' && STATUS_DISSE_NAO.has(String(r.status || ''))) return false;
   if (ehOpcaoArrendamento(origem, r)) return false;
   if (!temEndereco(origem, r)) return false;
   return !respondeuDeQuemE(relacaoDaLinha(origem, r));

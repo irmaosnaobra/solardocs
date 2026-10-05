@@ -380,10 +380,20 @@ describe('semDonoDeclarado', () => {
           endereco: 'Rua W, 40', ficha: 'Local é seu: Ainda não é meu' },
       ],
       agendamentos: [
-        // reuniao perdida por falta de dinheiro, com endereco: ENTRA
-        { id: 800, created_by: 'lp_eletroposto', status: 'sem_interesse', cliente_nome: 'Reuniao perdida',
+        // ── ESTA FICHA ERA `sem_interesse` ATÉ 05/10/2026 ──────────────────
+        // Em 29/09 ela nascia assim de propósito: reunião perdida por falta de
+        // dinheiro continua sendo dona de um LOCAL, que é outro eixo. A ordem do
+        // dono em 05/10 inverte ("sem interesse, eu não quero falar com essa
+        // pessoa por agora mais"), e ela virou `cancelado` — que é posto por robô
+        // (a régua do SIM), não é declaração de ninguém. O teste segue provando o
+        // que importa: reunião MORTA com endereço entra.
+        { id: 800, created_by: 'lp_eletroposto', status: 'cancelado', cliente_nome: 'Reuniao perdida',
           cliente_telefone: '5534999992006', cidade: 'Patos de Minas-MG',
           observacao: 'LP ELETROPOSTO — Posto\nEndereço: Av. K, 50' },
+        // DISSE NÃO: tem endereço, nunca foi perguntado, e NÃO entra (05/10/2026)
+        { id: 803, created_by: 'lp_eletroposto', status: 'sem_interesse', cliente_nome: 'Disse nao',
+          cliente_telefone: '5534999992009', cidade: 'Patos de Minas-MG',
+          observacao: 'LP ELETROPOSTO — Posto\nEndereço: Av. N, 80' },
         // o local ja tem carregador nosso
         { id: 801, created_by: 'lp_eletroposto', status: 'fechou', cliente_nome: 'Vendido',
           cliente_telefone: '5534999992007', cidade: 'Patos de Minas-MG',
@@ -404,10 +414,26 @@ describe('semDonoDeclarado', () => {
   it('a linha da agenda vem com status nulo: o desfecho da reunião não é status de cadastro', async () => {
     const lista = await semDonoDeclarado();
     const daAgenda = lista.find(c => c.ref === 'agenda:800');
-    // se passasse 'sem_interesse' pra frente, a audiência do aviso descartaria
-    // justamente quem a pergunta é pra alcançar
+    // O `status: null` FICA, e ele resolve uma coisa real: o desfecho de uma
+    // reunião não é estágio de cadastro, e passar `cancelado` pra frente faria a
+    // audiência julgar a pessoa por uma palavra que não é dela.
+    //
+    // O QUE ELE NÃO RESOLVIA, e ninguém tinha visto: o tick corta `sem_interesse`
+    // POR NOME, e com `status: null` esse corte nunca disparava pra estas linhas.
+    // Duas peças do mesmo módulo concordavam na intenção e discordavam no efeito.
+    // Quem disse não agora é cortado na ORIGEM, onde o status verdadeiro existe —
+    // `STATUS_DISSE_NAO`. Medido em 05/10: 37 das 111 pessoas deste público
+    // estavam em `sem_interesse`.
     expect(daAgenda!.status).toBeNull();
     expect(daAgenda!.nome).toBe('Reuniao perdida');
+  });
+
+  it('quem DISSE NÃO não entra, mesmo com endereço e sem ninguém ter perguntado', async () => {
+    const lista = await semDonoDeclarado();
+    expect(lista.map(c => c.ref)).not.toContain('agenda:803');
+    // O CONTROLE: o card morto por robô CONTINUA entrando. Sem ele, um corte que
+    // zerasse a lista inteira passaria neste teste.
+    expect(lista.map(c => c.ref)).toContain('agenda:800');
   });
 
   it('erro de leitura SOBE: lista vazia faria a pauta concluir sem mandar nada', async () => {
