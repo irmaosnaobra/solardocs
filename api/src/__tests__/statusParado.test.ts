@@ -95,8 +95,9 @@ describe('a lista nao volta a ser copiada', () => {
 
   it('quem usa o filtro importa do modulo neutro', () => {
     const usam = arquivos.filter(p => /FILTRO_NAO_OCUPA|STATUS_QUE_NAO_OCUPAM/.test(readFileSync(p, 'utf8')));
-    // o próprio módulo + os dez que leem dele
-    expect(usam.length).toBeGreaterThanOrEqual(10);
+    // o próprio módulo + os que leem dele. A limpeza de 05/10 apagou três
+    // leitores mortos (follow-up do Gerador, lead quente, Nilce para Giovanna).
+    expect(usam.length).toBeGreaterThanOrEqual(7);
     for (const p of usam) {
       const txt = readFileSync(p, 'utf8');
       if (p.endsWith(join('agenda', 'salaDeEspera.ts'))) continue;

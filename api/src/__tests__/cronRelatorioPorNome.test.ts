@@ -62,7 +62,9 @@ describe('o relatório do process-messages é por nome, não por posição', () 
     // par e a contagem de `=>` passa a ser maior que a de pares.
     const thunks = (bloco.match(/\(\)\s*=>/g) || []).length;
     expect(pares.length).toBe(thunks);
-    expect(pares.length).toBeGreaterThanOrEqual(40);
+    // Piso baixo de propósito: a guarda de verdade é pares === thunks. A limpeza
+    // de 05/10 tirou robôs mortos da lista, e um piso justo quebraria cada revert.
+    expect(pares.length).toBeGreaterThanOrEqual(30);
   });
 
   it('nenhuma chave aparece duas vezes — a segunda apagaria a primeira', () => {
