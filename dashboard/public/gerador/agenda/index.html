@@ -2737,6 +2737,10 @@ async function gerarOrcamentoDoDetalhe(produto) {
   // Sem produto (link velho do digest, por exemplo) o gerador cai no solar,
   // que era o único destino que existia — nada quebra retroativamente.
   if (produto === 'eletroposto') p.set('produto', 'eletroposto');
+  // A ficha do formulário (05/10/2026): a observação do card traz endereço, CEP,
+  // potência simulada, se o local é dele e como pretende pagar. O /gerador lê e
+  // pré-preenche Simulador, Orçamento e Contrato; tudo continua editável lá.
+  if (produto === 'eletroposto' && ag.observacao) p.set('obs', String(ag.observacao).slice(0, 2000));
   location.href = `/gerador?${p.toString()}`;
 }
 
