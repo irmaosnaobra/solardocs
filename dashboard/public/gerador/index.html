@@ -8360,11 +8360,19 @@ function epFichaAplicar(obs, set) {
   if (!obs) return usou;
   const f = epFichaLer(obs);
   epFicha = f;
-  if (f.kw && epEquipNormalizar(f.kw + ' kW')) { eletroEquipSet(f.kw + ' kW'); usou.push('potência ' + f.kw.replace('.', ',') + ' kW'); }
+  // eletroEquipSet troca o select mas sugere o investimento ANTES da troca;
+  // o eletroEquipMudou refaz a sugestão com a potência nova. Sem ele o contrato
+  // dizia "DC120 · 120 kW" cobrando o preço do 80 kW.
+  if (f.kw && epEquipNormalizar(f.kw + ' kW')) { eletroEquipSet(f.kw + ' kW'); eletroEquipMudou(); usou.push('potência ' + f.kw.replace('.', ',') + ' kW'); }
   if (f.carros) { set('el-carros', f.carros); usou.push(f.carros + ' carros/dia'); }
-  if (f.end) { set('orc-cli-end', f.end); usou.push('endereço'); }
-  if (f.cep) { set('orc-cli-cep', f.cep); usou.push('CEP'); }
-  if (f.local) set('ctr-local', f.local);
+  // O Endereço da ficha é o do PONTO. Ele vira o endereço do CLIENTE (que sai
+  // na qualificação do contratante) só quando o cliente está lá: dono, quem
+  // administra ou inquilino. Quem ainda negocia o local ou só representa o dono
+  // não mora nele; aí o endereço vai só para o local da instalação.
+  const ocupa = /^(sou o propriet|administro|sou inquilino)/i.test(f.localRel || '');
+  if (ocupa && f.end) { set('orc-cli-end', f.end); usou.push('endereço'); }
+  if (ocupa && f.cep) { set('orc-cli-cep', f.cep); usou.push('CEP'); }
+  if (f.local) { set('ctr-local', f.local); usou.push('local da instalação'); }
   if (f.invest) usou.push('forma de pagamento');
   if (epFichaNaoDono()) usou.push('anuência do dono do imóvel');
   if (typeof ctrOpcRender === 'function') ctrOpcRender();
@@ -21024,7 +21032,7 @@ function epHistOrcAbrir(id) {
   const e = epHistOrcList().find(x => x.id === id);
   if (!e || !e.snap) return;
   eletroSubaba('orcamento');
-  orcSnapApply(e.snap);
+  orcSnapApply(e.snap, e.tipo);
 }
 // Snapshot do formulário do Orçamento completo (pra reabrir)
 function orcSnapTake() {
@@ -21077,7 +21085,7 @@ function orcSnapTake() {
     ctrContratanteEnd: v('ctr-contratante-end'), ctrRep: v('ctr-rep'), ctrRepDoc: v('ctr-rep-doc'),
   };
 }
-function orcSnapApply(s) {
+function orcSnapApply(s, tipo) {
   if (!s) return;
   orcInit();   // garante o pane montado (grid do cartão etc.)
   const set = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.value = val; };
@@ -21173,7 +21181,17 @@ function orcSnapApply(s) {
   // observações SÃO a cláusula 3.3, palavra por palavra como foi assinada.
   else if (s.ctrPagTocado && s.ctrPagamento) { ctrPag = { tocado: true, linhas: [] }; set('ctr-pag-obs', s.ctrPagamento); }
   else ctrPag = { tocado: false, linhas: [] };
-  ctrOpc = s.ctrOpc ? JSON.parse(JSON.stringify(s.ctrOpc)) : {};
+  // CONTRATO de antes de 05/10/2026 (snapshot sem `ctrOpc`): a 2ª via tem que
+  // sair como foi assinada — sem as cláusulas de proteção e sem as linhas de
+  // testemunha, que ele nunca teve. Qualquer outro papel antigo (orçamento,
+  // recibo) reaberto para fazer contrato NOVO ganha o padrão de hoje.
+  const ctrAntigo = tipo === 'Contrato' && !('ctrOpc' in s);
+  if (ctrAntigo) {
+    ctrOpc = Object.fromEntries(CTR_OPC.map(o => [o.id, false]));
+    set('ctr-testemunhas', '');
+  } else {
+    ctrOpc = s.ctrOpc ? JSON.parse(JSON.stringify(s.ctrOpc)) : {};
+  }
   ctrEscRender(); ctrPagRender(); ctrOpcRender(); ctrPctNota();
   orcKitEquipSync(); orcValorBanner();
   orcPgToggle(); orcCalc();
