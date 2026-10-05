@@ -1389,10 +1389,18 @@ const SUPABASE_KEY = 'sb_publishable_IK5RV-I0PlQNpb7-cXBQFg_-pSYscO6';
 // ganhou vale aqui também. Sem sessão cai na chave pública, que é o que segura a
 // tela de pé enquanto a RLS ainda está desligada.
 const SESSAO_KEY = 'irmaos-na-obra-sessao-v1';
+/** Token vencido não é token (05/10/2026). O motivo longo está na agenda, no
+ *  gêmeo desta função: o token dura 1h, a tela fica aberta o dia todo, e mandar
+ *  o que venceu faz TODA gravação dar 401 numa tela cheia de dados — que foi o
+ *  "clico e não vai, tenho que sair e voltar". Sem token, cai na chave pública,
+ *  que grava. `expira_em` já vem com 5 min de margem. */
 function tokenDaSessao() {
   try {
     const s = JSON.parse(localStorage.getItem(SESSAO_KEY) || 'null');
-    return (s && s.access_token) || null;
+    if (!s || !s.access_token) return null;
+    const ate = Number(s.expira_em || 0);
+    if (!ate || Date.now() >= ate) return null;
+    return s.access_token;
   } catch (e) { return null; }
 }
 const supaHeaders = () => ({

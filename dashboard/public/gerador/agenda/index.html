@@ -1693,10 +1693,44 @@ let abaAtiva = 'agendar';                    // 'agendar' | 'bloquear'
 // ganhou vale aqui também. Sem sessão cai na chave pública, que é o que segura a
 // tela de pé enquanto a RLS ainda está desligada.
 const SESSAO_KEY = 'irmaos-na-obra-sessao-v1';
+/**
+ * ── TOKEN VENCIDO NÃO É TOKEN (05/10/2026) ─────────────────────────────────
+ *
+ * Esta função devolvia o `access_token` sem olhar a validade, e `supaHeaders`
+ * manda ele no `Authorization`. O token do Supabase dura 1 HORA e esta tela fica
+ * aberta o dia inteiro.
+ *
+ * O QUE ISSO PRODUZIA, e o Thiago relatou duas vezes antes de eu entender:
+ * "tem hora que clico pra escolher o status e não vai, tenho que sair e voltar",
+ * e depois o print de `Erro ao reagendar: PATCH agendamentos?id=eq.729 401`.
+ *
+ * O desenho do sintoma é o que enganava: `supaGet` e `supaPatch` usam os MESMOS
+ * headers. Quando a aba abre, o token ainda vale e a grade carrega. Uma hora
+ * depois o token venceu e TODA GRAVAÇÃO passa a dar 401 — numa tela cheia de
+ * dados, que é o que faz parecer defeito do botão. Recarregar conserta porque o
+ * login refaz o token, e é por isso que "sair e voltar" funcionava.
+ *
+ * O CRM não tem esse problema: ele tem `authRenovarSePreciso()`, com três
+ * gatilhos (abertura, 10 em 10 min, e ao voltar pra aba). Esta tela nunca ganhou
+ * essa máquina.
+ *
+ * O CONSERTO MÍNIMO é não mandar o que já venceu. Sem token, `supaHeaders` cai
+ * na chave pública, que grava — medido hoje contra produção: PATCH 200. E o
+ * comportamento é o mesmo que o CRM documenta pra quando a RLS ligar: aí a chave
+ * pública passa a dar 401 e a pessoa vê o login, que é o certo.
+ *
+ * `expira_em` já vem com 5 minutos de margem de quem gravou a sessão.
+ */
 function tokenDaSessao() {
   try {
     const s = JSON.parse(localStorage.getItem(SESSAO_KEY) || 'null');
-    return (s && s.access_token) || null;
+    if (!s || !s.access_token) return null;
+    const ate = Number(s.expira_em || 0);
+    // Sessão antiga, gravada antes de `expira_em` existir: não dá pra saber se
+    // venceu. Mandar e torcer é o que produzia o 401 silencioso, então ela
+    // também cai na chave pública.
+    if (!ate || Date.now() >= ate) return null;
+    return s.access_token;
   } catch (e) { return null; }
 }
 const supaHeaders = () => ({
@@ -1727,7 +1761,17 @@ async function supaPatch(query, body) {
     headers: { ...supaHeaders(), 'Prefer': 'return=representation' },
     body: JSON.stringify(body),
   });
-  if (!r.ok) throw new Error(`PATCH ${query}: ${r.status}`);
+  if (!r.ok) {
+    // A MENSAGEM TEM QUE DIZER O QUE FAZER. `PATCH agendamentos?id=eq.729: 401`
+    // é o que o consultor viu na barra vermelha, e com isso ele não tem o que
+    // fazer além de chamar alguém. 401/403 aqui é sessão: recarregar resolve.
+    if (r.status === 401 || r.status === 403) {
+      throw new Error('A sessão venceu. Recarregue a página (puxe pra baixo) e tente de novo — '
+        + 'nada foi gravado.');
+    }
+    const txt = await r.text().catch(() => '');
+    throw new Error(`PATCH ${query}: ${r.status}${txt ? ' · ' + txt.slice(0, 160) : ''}`);
+  }
   return r.json();
 }
 async function supaDelete(query) {
