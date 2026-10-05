@@ -62,7 +62,6 @@ import { runEletropostoIgConviteTick, publicoIgConvite, bolhaConviteLP } from '.
 import { runSolarBoasVindasTick } from '../services/io/solarBoasVindas';
 import { runSolarRespostasTick } from '../services/io/solarRespostas';
 import { runSolarAgendaGiovannaTick } from '../services/io/solarAgendaGiovanna';
-import { runNilceParaGiovanna } from '../services/agenda/nilceParaGiovanna';
 import { processarLembretesAgenda } from '../services/agenda/lembretesAgenda';
 import { enviarReagendarDiario } from '../services/agenda/reagendarDigest';
 import { enviarAgendaProxima } from '../services/agenda/agendaProximaDigest';
@@ -682,24 +681,6 @@ router.get('/solar-giovanna', async (req: Request, res: Response) => {
     res.json({ dry, ...(await runSolarAgendaGiovannaTick({ dry })) });
   } catch (err: any) {
     logger.error('cron', 'solar-giovanna falhou', err);
-    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
-  }
-});
-
-// ── 19h: o que a Nilce não atendeu passa pra Giovanna ────────────────────────
-// SEM AGENDAMENTO DESDE 15/09/2026: a carteira da Nilce passou a seguir a regra
-// da Giovanna (sai por venda ou perdido, nunca por robô). O workflow ficou só
-// com disparo manual. Rodava 1×/dia às 19h BRT (0 22 * * * UTC). NÃO entra no
-// /cron/master: rodar de hora em hora esvaziaria a agenda da Nilce o dia inteiro.
-// ?dry=1 lista o que seria passado, de quando pra quando, sem gravar nada — e
-// ignora o kill-switch de propósito, que é como se confere antes de ligar.
-router.get('/nilce-para-giovanna', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    const dry = req.query.dry === '1' || req.query.dry === 'true';
-    res.json({ dry, ...(await runNilceParaGiovanna({ dry })) });
-  } catch (err: any) {
-    logger.error('cron', 'nilce-para-giovanna falhou', err);
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });

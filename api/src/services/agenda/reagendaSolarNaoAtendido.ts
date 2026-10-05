@@ -65,10 +65,26 @@ import { agendaFechadaNoIso } from './agendaFechada';
 // um produto depender do outro.
 import { APALAVRADO_PREFIX, esperaAte } from './salaDeEspera';
 import { carregarBloqueados } from '../agents/whatsapp/silenciar';
-import { GRADE_NILCE } from './nilceParaGiovanna';
 import { FILTRO_NAO_OCUPA } from './salaDeEspera';
 
 const TZ = 'America/Sao_Paulo';
+
+/** A grade do perfil de conta baixa — espelha a `GRADE_NILCE` da LP do solar
+ *  (dashboard/public/io/solar/index.html): 08:00–11:00 e 13:00–16:00, de 30 em
+ *  30, almoço fechado. Vale pras duas: a Giovanna atende o mesmo perfil, então
+ *  herda a mesma grade. Mexeu na LP? mexa aqui, senão o reciclo marca num
+ *  horário que a página nunca venderia.
+ *
+ *  Morava no `nilceParaGiovanna.ts` até 05/10/2026, quando aquele robô (morto
+ *  desde 15/09) foi apagado. O reciclo era o último leitor dela. */
+export const GRADE_NILCE: string[] = (() => {
+  const out: string[] = [];
+  for (let t = 8 * 60; t <= 16 * 60; t += 30) {
+    if (t > 11 * 60 && t < 13 * 60) continue;
+    out.push(`${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`);
+  }
+  return out;
+})();
 
 /** Estado do ciclo: `solar_reagenda:<id>` → { n, ultimo, de }. */
 export const SOLAR_REAGENDA_PREFIX = 'solar_reagenda:';
@@ -305,8 +321,9 @@ const isoDe = (ymd: string, hhmm: string): string =>
  * Ele dizia "sábado entra: a agenda do solar trabalha sábado (é o que a grade
  * da LP vende)". A LP não vende: `dashboard/public/io/solar/index.html` fecha o
  * fim de semana inteiro (`if (dow === 0 || dow === 6) return []`), e o
- * `nilceParaGiovanna` e o `leadsMetaService` fecham também. Das QUATRO pontas
- * que definem a semana do solar, esta era a única que discordava — e ela
+ * `leadsMetaService` fecha também (o `nilceParaGiovanna`, que também fechava,
+ * foi apagado em 05/10/2026). Das pontas que definem a semana do solar, esta
+ * era a única que discordava — e ela
  * justificava a diferença com uma afirmação sobre as outras que não era
  * verdade.
  *
@@ -315,8 +332,8 @@ const isoDe = (ymd: string, hhmm: string): string =>
  * tem ligação" numa manhã em que ninguém atende. Zero eram de eletroposto — o
  * reciclo de lá usa `agendaAbre`, que sempre fechou o fim de semana.
  *
- * A regra da semana vive em quatro arquivos. Enquanto viver, ela precisa de um
- * teste que compare os quatro, e é o que `semanaDoSolar.test.ts` faz.
+ * A regra da semana vive em três arquivos. Enquanto viver, ela precisa de um
+ * teste que compare os três, e é o que `semanaDoSolar.test.ts` faz.
  */
 function ehDiaUtil(ymd: string): boolean {
   const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
@@ -335,8 +352,8 @@ function proximosDiasUteis(base: string, quantos: number): string[] {
 }
 
 /**
- * Chave de telefone: DDD + os 8 últimos dígitos, que é a mesma ideia do
- * `nilceParaGiovanna` (tolera o nono dígito entrar e sair).
+ * Chave de telefone: DDD + os 8 últimos dígitos (tolera o nono dígito entrar e
+ * sair).
  *
  * A diferença está no 55: aqui ele é tirado EM LAÇO, enquanto sobrar mais que um
  * número brasileiro (11 dígitos). O `.replace(/^55/, '')` de uma passada só

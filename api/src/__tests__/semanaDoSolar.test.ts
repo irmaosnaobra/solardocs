@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-// ── A SEMANA DO SOLAR VIVE EM QUATRO ARQUIVOS (01/10/2026) ─────────────────
+// ── A SEMANA DO SOLAR VIVE EM TRÊS ARQUIVOS (01/10/2026) ───────────────────
 //
-// A LP vende os horários, dois serviços marcam, e o reciclo devolve. Os quatro
+// A LP vende os horários, um serviço marca, e o reciclo devolve. Os três
 // precisam concordar sobre que dia existe — e em 01/10 não concordavam: o
 // reciclo era o único que achava sábado dia útil, com um comentário dizendo que
 // a LP vendia sábado. A LP não vende.
@@ -13,28 +13,26 @@ import { join } from 'path';
 // cards no sábado 03/10, 22 deles com "bom dia, hoje tem ligação" marcado pra
 // uma manhã em que ninguém atende.
 //
-// Este teste lê o FONTE dos quatro. É teste de estrutura, de propósito: o que
+// Eram quatro até 05/10/2026: o nilceParaGiovanna.ts, que também marcava, foi
+// apagado (estava sem agendamento desde 15/09).
+//
+// Este teste lê o FONTE dos três. É teste de estrutura, de propósito: o que
 // quebrou não foi uma conta, foi duas cópias da mesma regra divergindo — e
 // nenhum teste de comportamento de um dos lados pega isso, porque cada lado
 // está certo sozinho.
 //
-// Se um dia o sábado ABRIR, ele abre nos quatro, e este teste é o lugar onde
+// Se um dia o sábado ABRIR, ele abre nos três, e este teste é o lugar onde
 // isso fica escrito.
 
 const RAIZ = join(__dirname, '..', '..', '..');
 const ler = (...p: string[]) => readFileSync(join(RAIZ, ...p), 'utf8');
 
-/** As quatro pontas e o trecho que decide o dia da semana em cada uma. */
+/** As três pontas e o trecho que decide o dia da semana em cada uma. */
 const PONTAS: Array<{ nome: string; fonte: string; alvo: RegExp }> = [
   {
     nome: 'LP do solar (vitrine)',
     fonte: ler('dashboard', 'public', 'io', 'solar', 'index.html'),
     alvo: /if\(dow === 0 \|\| dow === 6\) return \[\];/,
-  },
-  {
-    nome: 'nilceParaGiovanna (bom dia e oi)',
-    fonte: ler('api', 'src', 'services', 'agenda', 'nilceParaGiovanna.ts'),
-    alvo: /dow !== 0 && dow !== 6/,
   },
   {
     nome: 'leadsMetaService (entrada do Meta)',
@@ -48,7 +46,7 @@ const PONTAS: Array<{ nome: string; fonte: string; alvo: RegExp }> = [
   },
 ];
 
-describe('as quatro pontas fecham o fim de semana', () => {
+describe('as três pontas fecham o fim de semana', () => {
   for (const p of PONTAS) {
     it(`${p.nome} fecha sábado e domingo`, () => {
       expect(p.fonte).toMatch(p.alvo);

@@ -249,6 +249,16 @@ describe('mover o card', () => {
 });
 
 describe('onde a ligação cai', () => {
+  // A grade morava no nilceParaGiovanna.ts, apagado em 05/10/2026, e o teste dela
+  // foi junto. Ela espelha a GRADE_NILCE da LP do solar: mexeu numa, mexe na outra.
+  it('a grade é 8–11 e 13–16 de 30 em 30, com almoço fechado', async () => {
+    const { GRADE_NILCE } = await import('../services/agenda/reagendaSolarNaoAtendido');
+    expect(GRADE_NILCE).toEqual([
+      '08:00','08:30','09:00','09:30','10:00','10:30','11:00',
+      '13:00','13:30','14:00','14:30','15:00','15:30','16:00',
+    ]);
+  });
+
   it('nunca no passado', async () => {
     await tick();
     expect(new Date(updates[0].patch.quando).getTime()).toBeGreaterThan(AGORA.getTime());
