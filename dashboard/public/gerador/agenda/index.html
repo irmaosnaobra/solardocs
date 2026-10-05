@@ -3065,8 +3065,42 @@ async function atualizarStatus(novoStatus, extra) {
   const motivoEscolhido = extra && extra.__motivo !== undefined ? String(extra.__motivo) : null;
   if (extra) { delete extra.__retomar; delete extra.__oque; delete extra.__motivo; }
   const idAlvo = detalheAtual.id;
+  // ── O CLIQUE DE STATUS NÃO DEIXAVA RASTRO, E ISSO CUSTOU O DIA 05/10 ──────
+  //
+  // Por anos este PATCH gravava só a coluna. O `showToast` vive 3 segundos na
+  // tela de quem clicou, e o histórico não ganhava uma linha. Duas consequências
+  // concretas, as duas medidas no mesmo dia:
+  //
+  //   · o dono perguntou "se algum sem interesse foi marcado pra a semana de
+  //     05 a 09/10, volte pra onde estava" e eu NÃO CONSEGUI RESPONDER direto:
+  //     "este card foi marcado sem interesse" não existe escrito em lugar nenhum.
+  //     Tive que inventar três caminhos indiretos (o status atual, a marca de
+  //     motivo, outra ficha do mesmo telefone) pra chegar a UM card;
+  //   · o `desmarcarVenda` do CRM precisa voltar o card pro status anterior e
+  //     não pode: o comentário dele diz, com estas palavras, "o status anterior
+  //     não existe em lugar nenhum (o clique não escreve histórico)". Então ele
+  //     chuta `agendado`.
+  //
+  // A linha é nota de GENTE (nome do consultor), no formato do `adicionarNota`.
+  // Ela vai NO MESMO PATCH do status de propósito: duas chamadas separadas
+  // deixariam o par meio-gravado quando a segunda falha, e aí o histórico
+  // mentiria — que é pior que não ter histórico.
+  const stDe = String(detalheAtual.status || 'agendado');
+  // `typeof` pelo mesmo motivo do gêmeo no CRM: a linha do histórico não pode
+  // ser a razão de o status deixar de gravar.
+  const rot = (s) => ((typeof ETIQUETA_STATUS !== 'undefined' && ETIQUETA_STATUS[s]) || [s])[0];
+  const motivoTxt = motivoEscolhido ? (motivoEscolhido ? ', motivo ' + motivoEscolhido : ', sem dizer o motivo') : '';
+  const posseTxt = extra && extra.ponto_relacao ? ', posse: ' + extra.ponto_relacao : '';
+  const tsSt = (() => {
+    const d = new Date(); const p = n => String(n).padStart(2, '0');
+    return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}h${p(d.getMinutes())}`;
+  })();
+  const autorSt = (typeof consultorLogado === 'function' && consultorLogado()) || '—';
+  const linhaSt = `[${tsSt} · ${autorSt}] 🏷️ Status: ${rot(stDe)} → ${rot(novoStatus)}${motivoTxt}${posseTxt}.`;
+  const histSt = detalheAtual.historico ? `${linhaSt}\n\n${detalheAtual.historico}` : linhaSt;
   try {
-    await supaPatch(`agendamentos?id=eq.${idAlvo}`, { status: novoStatus, ...(extra || {}) });
+    await supaPatch(`agendamentos?id=eq.${idAlvo}`,
+      { status: novoStatus, historico: histSt, ...(extra || {}) });
     // A ETIQUETA QUE ESTÁ SAINDO É GUARDADA ANTES DE SER APAGADA. Vai antes do
     // PATCH porque depois dele ela não existe mais em lugar nenhum. Falhar aqui
     // degrada (o card mostra só o terminal), não quebra.

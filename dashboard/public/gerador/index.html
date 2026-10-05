@@ -22006,8 +22006,35 @@ async function crmAtualizarStatus(novoStatus, extra) {
   // de `agendamentos`, e o PostgREST responde 400. O sintoma seria o botao VENDIDO
   // parar de funcionar inteiro — foi o que o teste no Chrome pegou.
   if (extra) { delete extra.__retomar; delete extra.__oque; delete extra.__motivo; delete extra.__soStatus; }
+  // O CLIQUE DE STATUS DEIXA RASTRO (05/10/2026). Gêmeo do `atualizarStatus` da
+  // agenda, e o motivo longo mora lá: sem esta linha "este card foi marcado sem
+  // interesse" não existe escrito em lugar nenhum, e o `desmarcarVenda` logo
+  // abaixo tem que chutar `agendado` porque o status anterior se perdeu.
+  // As duas telas escrevem no MESMO formato: duas redações do mesmo fato fariam
+  // o histórico parecer dois sistemas.
+  const stDeCrm = String(ag.status || 'agendado');
+  // `typeof` E NAO ACESSO DIRETO, e isto nao e paranoia: `CAD_AG_STATUS` mora 12
+  // mil linhas acima e a linha do historico NAO pode ser o motivo de o status
+  // deixar de gravar. Um ReferenceError aqui derrubaria o botao inteiro — foi
+  // exatamente o que a prova do motivo pegou na primeira versao desta linha.
+  // Sem o mapa, o proprio nome do status em maiuscula diz a mesma coisa.
+  const rotCrm = (s) => (typeof CAD_AG_STATUS !== 'undefined' && CAD_AG_STATUS[s])
+    || String(s || '').toUpperCase();
+  const motivoTxtCrm = motivoEscolhido
+    ? (motivoEscolhido ? ', motivo ' + motivoEscolhido : ', sem dizer o motivo') : '';
+  const posseTxtCrm = extra && extra.ponto_relacao ? ', posse: ' + extra.ponto_relacao : '';
+  const tsCrm = (() => {
+    const d = new Date(); const p = n => String(n).padStart(2, '0');
+    return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}h${p(d.getMinutes())}`;
+  })();
+  const autorCrm = (typeof crmConsultorLogado === 'function' && crmConsultorLogado())
+    || getConsultorAtual() || '—';
+  const linhaCrm = `[${tsCrm} · ${autorCrm}] 🏷️ Status: ${rotCrm(stDeCrm)} → `
+    + `${rotCrm(novoStatus)}${motivoTxtCrm}${posseTxtCrm}.`;
+  const histCrm = ag.historico ? `${linhaCrm}\n\n${ag.historico}` : linhaCrm;
   try {
-    await supaPatch(`agendamentos?id=eq.${ag.id}`, { status: novoStatus, ...(extra || {}) });
+    await supaPatch(`agendamentos?id=eq.${ag.id}`,
+      { status: novoStatus, historico: histCrm, ...(extra || {}) });
     // ── A ETIQUETA QUE ESTÁ SAINDO É GUARDADA ANTES DE SER APAGADA ─────────
     //
     // Vai ANTES do PATCH de propósito: depois dele a etiqueta antiga já não
