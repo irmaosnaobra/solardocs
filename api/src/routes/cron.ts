@@ -12,8 +12,6 @@ import { runCarlaRetomada } from '../services/agents/sdr/carlaRetomada';
 import { dentroDaJanelaDiurna } from '../services/agents/whatsapp/lineThrottle';
 import { dentroDoTetoCarla } from '../services/agents/whatsapp/carlaThrottle';
 import { runCursoEntradaBroadcast } from '../services/agents/whatsapp/cursoEntradaBroadcast';
-import { runPromoGeradorBroadcast } from '../services/agents/whatsapp/promoGeradorBroadcast';
-import { runPromoGeradorV2Broadcast } from '../services/agents/whatsapp/promoGeradorV2Broadcast';
 import { runPixVipReminder } from '../services/agents/whatsapp/pixVipReminderService';
 import { runConfiancaNutricao } from '../services/confiancaService';
 import { runConfiancaWhatsApp } from '../services/confiancaWhatsAppService';
@@ -1218,33 +1216,6 @@ router.get('/carla-pergunta-cnpj', async (req: Request, res: Response) => {
     res.json({ ok: true, ...result });
   } catch (err) {
     logger.error('cron', 'carla-pergunta-cnpj falhou', err);
-    res.status(500).json({ error: 'Cron failed', message: String(err) });
-  }
-});
-
-// One-shot 27/05/2026 06:50 BRT — broadcast pros users plano=free pedindo
-// e-mail em troca de 10 créditos no novo gerador. Idempotente
-// (promo_gerador_sent_at). GitHub Actions chama em sequência até esvaziar.
-router.get('/promo-gerador-blast', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    const result = await runPromoGeradorBroadcast();
-    res.json({ ok: true, ...result });
-  } catch (err) {
-    logger.error('cron', 'promo-gerador-blast falhou', err);
-    res.status(500).json({ error: 'Cron failed', message: String(err) });
-  }
-});
-
-// V2: re-engajamento sem pedir email, link direto pro /auth.
-// Cadência 15-20s, idempotente via promo_gerador_v2_sent_at.
-router.get('/promo-gerador-v2-blast', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    const result = await runPromoGeradorV2Broadcast();
-    res.json({ ok: true, ...result });
-  } catch (err) {
-    logger.error('cron', 'promo-gerador-v2-blast falhou', err);
     res.status(500).json({ error: 'Cron failed', message: String(err) });
   }
 });
