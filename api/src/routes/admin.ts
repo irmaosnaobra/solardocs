@@ -670,9 +670,7 @@ const HUB_CONFIG: Record<string, () => { flags: HubFlag[]; saude: HubSaude[] }> 
     saude: [{ item: 'Linha IO (WhatsApp) configurada', ok: Boolean(process.env.ZAPI_INSTANCE_ID_IO), detalhe: 'ZAPI_INSTANCE_ID_IO' }],
   }),
   solar: () => ({
-    flags: [
-      { label: 'Alerta lead quente sem proposta', ativo: featAtivo('ALERTA_LEAD_QUENTE_ENABLED', { defaultOn: false }), detalhe: 'ALERTA_LEAD_QUENTE_ENABLED' },
-    ],
+    flags: [],
     saude: [{ item: 'Linha IO (WhatsApp) configurada', ok: Boolean(process.env.ZAPI_INSTANCE_ID_IO), detalhe: 'ZAPI_INSTANCE_ID_IO' }],
   }),
   eletroposto: () => ({
