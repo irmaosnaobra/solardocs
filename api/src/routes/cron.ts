@@ -23,8 +23,6 @@ import { pollLimpaproAtendimento } from '../services/agents/whatsapp/limpaproAte
 import { getInsights } from '../services/insightsService';
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
 import { runSdrFollowups, } from '../services/agents/sdr/sdrFollowupService';
-import { runSdrB2bFollowups } from '../services/agents/sdr/sdrB2bFollowupService';
-import { runCarlaMorningBroadcast } from '../services/agents/sdr/sdrB2bMorningHook';
 import { pollZapiMessages, retryCardsPendentes } from '../services/agents/sdr/sdrAgentService';
 import { entregarTriagensParadas } from '../services/io/recepcaoIo';
 import { pollRecepcaoIo } from '../services/io/recepcaoIoPoll';
@@ -1086,18 +1084,6 @@ router.get('/sdr-followup', async (req: Request, res: Response) => {
   }
 });
 
-// Follow-up B2B — Carla. Cadência mais espaçada (6 toques em 30d).
-router.get('/sdr-b2b-followup', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    const result = await runSdrB2bFollowups();
-    res.json({ ok: true, ...result });
-  } catch (err) {
-    logger.error('cron', 'sdr-b2b-followup falhou', err);
-    res.status(500).json({ error: 'Cron failed' });
-  }
-});
-
 // Campanha de reconquista com a entrada de R$19 (curso + 30 dias de plataforma).
 // Público: FREE, inadimplente e quem cancelou. 3 toques; para quando ele responde.
 //
@@ -1670,12 +1656,6 @@ router.get('/master', async (req: Request, res: Response) => {
     // CARLA_RETOMADA_ON=true. Sem a variável é no-op barato.
     // Prévia sem enviar: GET /cron/carla-retomada?seco=1
     ['carla-retomada',              () => runCarlaRetomada()],
-    // FICA DESLIGADO. Conferido em 12/08/2026: sdrB2bMorningHook chama `sendZAPI`
-    // CRU — fora do teto da linha, fora da margem de 5 min e fora da janela 08–21h.
-    // É exatamente o caminho que bloqueou a linha de 01 a 03/ago (57 msgs em 5h).
-    // Broadcast matinal disparando de madrugada, sem espaçamento, é denúncia certa.
-    // Religar exige antes passar pelo sendHuman/lineThrottle, como a Bia e a Giovanna.
-    // ['carla-morning-broadcast',      () => runCarlaMorningBroadcast()],    // [BLOQUEIA A LINHA] broadcast matinal sem throttle
     // Sentinela do vácuo: quem escreveu pra linha e ficou sem resposta vira UM
     // resumo pro dono do produto. Não fala com cliente nenhum — cobra a gente.
     // De hora em hora basta: a régua dela é de 3h úteis. Prévia: ?dry=1.
@@ -1683,18 +1663,6 @@ router.get('/master', async (req: Request, res: Response) => {
     ['lembrete-followup',           () => runLembreteFollowupTick()],
     ['reagenda-solar',              () => runReagendaSolarTick()], // solar: nao_atendeu volta pra agenda (rede de seguranca do tick de 2 min) // rede de segurança: se o tick de 2 min morrer, o master ainda entrega 1 lembrete por pessoa
     ['sdr-followup',                () => runSdrFollowups()],
-    // FICA DESLIGADO (17/09/2026). Rodava de hora em hora e mandava ZERO desde
-    // sempre, por dois defeitos achados em 25/08 e ainda de pé:
-    //   1. a consulta exige `aguardando_resposta = true`, e o `upsertCrmLead`
-    //      grava `false` em TODA mensagem (sdrB2bAgentService.ts) — a fila nasce
-    //      vazia. Conferido no banco hoje: 45 leads b2b, ZERO com a flag.
-    //   2. envia por `sendHuman(..., 'solardoc')`, uma linha que o lead do
-    //      anúncio nunca viu — ele conversa pela IO.
-    // Quem cobre esse mesmo público HOJE é a `carla-retomada` logo acima, que já
-    // sai pela linha certa e carimba o teto. O que faltava a ela era orçamento,
-    // e isso foi corrigido junto (ver PREFIXOS_AGENDA em lineThrottle).
-    // Religar exige corrigir os dois defeitos, não tirar o comentário.
-    // ['sdr-b2b-followup',             () => runSdrB2bFollowups()],   // [B2B-FOLLOWUP-MORTO] fila sempre vazia + linha errada
     ['sync-social-windsor',         () => syncSocialWindsor()],      // métricas IG+TikTok → aba Redes do gerador
     ['produtos-virais',             () => gerarProdutosVirais()],    // 3 produtos top TikTok Shop → roteiro AIDA → fila canal 'produtos'
     ['insights-prewarm',             () => getInsights(true)],

@@ -49,9 +49,6 @@ vi.mock('../services/agents/whatsapp/whatsappAgentService', () => ({
 vi.mock('../services/agents/sdr/sdrFollowupService', () => ({
   runSdrFollowups: vi.fn().mockResolvedValue({ enviados: 0, perdidos: 0 }),
 }));
-vi.mock('../services/agents/sdr/sdrB2bFollowupService', () => ({
-  runSdrB2bFollowups: vi.fn().mockResolvedValue({ enviados: 0, perdidos: 0 }),
-}));
 vi.mock('../services/agents/whatsapp/whatsappFollowupService', () => ({
   runWhatsappFollowup:    vi.fn().mockResolvedValue({ sent: 0, abandoned: 0 }),
   runInactiveEngagement:  vi.fn().mockResolvedValue({ sent: 0 }),

@@ -1,6 +1,7 @@
 // Follow-ups da Carla (vendedora B2B SolarDoc) pra usuários cadastrados na
-// plataforma. Diferente do sdrB2bFollowupService — aqueles são leads que
-// chegaram via WhatsApp sem nunca cadastrar. Estes JÁ tem conta solardoc.app.
+// plataforma. Não é o antigo follow-up B2B de lead que chegou via WhatsApp sem
+// nunca cadastrar (sdrB2bFollowupService, apagado em 05/10/2026 sem nunca ter
+// enviado nada). Estes JÁ tem conta solardoc.app.
 //
 // Dois fluxos paralelos:
 //
