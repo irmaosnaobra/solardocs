@@ -16,7 +16,6 @@ let eventos: any[] = [];
 let claims: string[] = [];
 let donoRecepcao: string[] = [];
 let leadsBia: string[] = [];
-let alunosLimpapro: string[] = [];
 let vendedoraDona: string[] = [];
 
 vi.mock('../utils/supabase', () => ({
@@ -44,9 +43,6 @@ vi.mock('../services/agents/sdr/sdrAgentService', () => ({
 
 vi.mock('../services/agents/whatsapp/biaInboundService', () => ({
   ehLeadRecuperacao: (p: string) => Promise.resolve(leadsBia.includes(p)),
-}));
-vi.mock('../services/agents/whatsapp/limpaproAtendimentoService', () => ({
-  ehAlunoLimpapro: (p: string) => Promise.resolve(alunosLimpapro.includes(p)),
 }));
 vi.mock('../services/agents/whatsapp/whatsappAgentService', () => ({
   ehGatilhoSolarDoc: (t: string) => /solardoc/i.test(t),
@@ -90,7 +86,6 @@ beforeEach(() => {
   claims = [];
   donoRecepcao = [];
   leadsBia = [];
-  alunosLimpapro = [];
   vendedoraDona = [];
   comReuniao.length = 0;
 });
@@ -158,11 +153,9 @@ describe('poll da recepção', () => {
   it('não rouba conversa das outras trilhas', async () => {
     const { pollRecepcaoIo } = await import('../services/io/recepcaoIoPoll');
     leadsBia = ['5534900000001'];
-    alunosLimpapro = ['5534900000002'];
     vendedoraDona = ['5534900000003'];
     eventos = [
       evento({ phone: '5534900000001' }),                                  // Bia
-      evento({ phone: '5534900000002' }),                                  // LimpaPro
       evento({ phone: '5534900000003' }),                                  // vendedora
       evento({ phone: '5534900000004', text: { message: 'quero o SolarDoc' } }), // gatilho
       evento({ phone: '5534900000005' }),                                  // sobrou: é da recepção

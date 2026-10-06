@@ -16,16 +16,15 @@
 // background da rota sendo cortado em lugar imprevisível. Robô de recepção que
 // funciona às vezes é pior que recepção nenhuma: a pessoa fica esperando.
 //
-// A casa já sabia disso. A Bia (`pollBiaRecuperacao`) e a trilha do LimpaPro
-// (`pollLimpaproAtendimento`) atendem inbound da linha IO pelo CRON, lendo
-// `webhook_debug`, exatamente por isso. No cron a promessa é aguardada até o
+// A casa já sabia disso. A Bia (`pollBiaRecuperacao`) atende inbound da linha
+// IO pelo CRON, lendo `webhook_debug`, exatamente por isso. No cron a promessa é aguardada até o
 // fim, porque a resposta HTTP só sai quando o tick termina.
 //
 // O CUSTO é latência: até ~1 minuto pra responder, que é o intervalo do tick.
 // Contra as 24h de silêncio que 117 pessoas receberam em 30 dias, é barato.
 //
 // Este arquivo fica separado do `recepcaoIo.ts` de propósito: é aqui que moram
-// os detectores de dono das outras trilhas (Bia, LimpaPro, vendedora), e mantê-los
+// os detectores de dono das outras trilhas (Bia, vendedora), e mantê-los
 // fora do serviço evita ciclo de import e deixa claro que a ORDEM de quem atende
 // é decisão de roteamento, não da recepção.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -34,7 +33,6 @@ import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
 import { tryClaimMessage } from '../agents/sdr/sdrAgentService';
 import { ehLeadRecuperacao } from '../agents/whatsapp/biaInboundService';
-import { ehAlunoLimpapro } from '../agents/whatsapp/limpaproAtendimentoService';
 import { ehGatilhoSolarDoc, vendedoraJaAtende } from '../agents/whatsapp/whatsappAgentService';
 import { handleRecepcaoIo, recepcaoJaAtende, temReuniaoAtiva } from './recepcaoIo';
 
@@ -96,7 +94,6 @@ export async function pollRecepcaoIo(): Promise<{ atendidos: number; pulados: nu
       if (!(await recepcaoJaAtende(phone))) {
         if (ehGatilhoSolarDoc(texto) || await vendedoraJaAtende(phone)) { pulados++; continue; }
         if (await ehLeadRecuperacao(phone)) { pulados++; continue; }
-        if (await ehAlunoLimpapro(phone)) { pulados++; continue; }
         // Já tem reunião marcada: a régua da agenda é dona desta conversa.
         // Sem isto, o cliente responde o 'SIM' que a régua pediu e recebe uma
         // apresentação do zero, como se fosse o primeiro contato. Era o caso

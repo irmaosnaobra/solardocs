@@ -137,7 +137,6 @@ const PREFIXOS = [
   'ep_liberado_sim:',        // régua do SIM: horário que voltou pra vitrine por silêncio
   'ep_resposta:',
   'solar_resposta:',
-  'limpapro_atendimento:',
   'zapi_io_health',
 ];
 
@@ -196,10 +195,6 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
   const epCobranca1 = resumo(chaves.filter(k => k.key.endsWith(':c1')), 'ep_cobra_sim:');
   const epCobranca2 = resumo(chaves.filter(k => k.key.endsWith(':c2')), 'ep_cobra_sim:');
   const solarResp = resumo(chaves, 'solar_resposta:');
-  const atendLimpa = resumo(chaves, 'limpapro_atendimento:');
-  // Escalada é o número que importa nesta trilha: é quanto ela NÃO resolveu sozinha.
-  const atendLimpaEscalados = (stRows ?? []).filter(r =>
-    String(r.key).startsWith('limpapro_atendimento:') && (r.value as any)?.escalado === true).length;
 
   // Teto da linha IO na última hora — mesma conta do lineThrottle.
   const prefixosLinha = ['limpapro_recovery:', 'limpapro_cupom_sent:', 'limpapro_fechamento_sent:',
@@ -288,7 +283,6 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
     prospTotal, prospToques, seqAtivas, disparosRodando, igAutomacoes,
     epReunioesFuturas, epFuturasConfirmadas, epPresencaConfirmada, epLembretes5min30d, epUltimoToque,
     solarCadastros30, solarBoasVindas30, solarUltimoToque, roteamento,
-    alunosLimpapro,
     prospCusto, prospSaude,
   ] = await Promise.all([
     // Só a 1ª DM de cada comentário (private_reply). Contar todo 'sent'
@@ -407,8 +401,6 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
         return { leads: 0, vendas: 0, conversao: null, foraDaRegra: 0, exemplos: [] as string[] };
       }
     })(),
-    // Universo da trilha 1x1 do LimpaPro: quem ela PODE atender (aluno ativo com conta).
-    contar('limpapro_membros', (q: any) => q.eq('ativo', true)),
     // ── Prospecção v2 (10/09) ──────────────────────────────────────────────
     // Custo por lead e por cliente ativo: a conta que diz se a lista fria deu
     // lucro. `prospeccao_listas.custo` existia desde 01/08 e nunca foi lido por
@@ -485,27 +477,6 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       ],
       alerta: envLigado('RECUP_GRUPO_ENABLED') ? undefined
         : 'O 4º toque está desligado desde 03/ago. Enquanto estiver assim, quem recebe o 3º toque NÃO entra na fila do grupo — é pulado, não adiado.',
-    },
-    {
-      id: 'atendimento_limpapro',
-      nome: 'Atendimento 1x1 do LimpaPro',
-      papel: 'Responde o ALUNO que já comprou e escreve na linha: destrava o acesso (reenvia o link pro e-mail dele), tira dúvida do curso, e só oferece mentoria se ele puxar. O que não é dela — reembolso, cobrança, energia solar — vira aviso e cala.',
-      canal: 'whatsapp', linha: 'io',
-      estado: envLigado('LIMPAPRO_ATENDIMENTO_ENABLED') ? 'ativo' : 'desligado',
-      chave: 'LIMPAPRO_ATENDIMENTO_ENABLED',
-      ultima_atividade: atendLimpa.ultima,
-      metricas: [
-        { label: 'Conversas atendidas (30d)', valor: atendLimpa.d30, sub: `${atendLimpa.total} desde o início` },
-        { label: 'Nas últimas 24h', valor: atendLimpa.h24 },
-        { label: 'Passadas pro humano', valor: atendLimpaEscalados, sub: 'reembolso, cobrança ou coisa que ela não resolveu' },
-        { label: 'Alunos que ela cobre', valor: alunosLimpapro, sub: 'cadastro ativo com telefone em limpapro_membros' },
-      ],
-      toques: [
-        { titulo: 'só responde — não puxa conversa', quando: 'quando o aluno escreve', copy: 'Transacional: fora do teto de 12/h e da janela 08h–21h de propósito. Responder às 22h quem perguntou é normal, e resposta de suporte não pode comer a cota de venda da Bia.' },
-        { titulo: 'reenvio de acesso', quando: 'quando ele não consegue entrar', copy: 'Chama o /api/membro-login do app: o link de entrada vai pro E-MAIL dele (nunca pelo WhatsApp). 1 reenvio a cada 10 min. Se falhar, ela cala e chama o humano em vez de prometer um e-mail que não vem.' },
-      ],
-      motivo: envLigado('LIMPAPRO_ATENDIMENTO_ENABLED') ? undefined
-        : 'Nasce desligada. Enquanto estiver assim, aluno que escreve na linha continua sem resposta automática.',
     },
     {
       id: 'cora',

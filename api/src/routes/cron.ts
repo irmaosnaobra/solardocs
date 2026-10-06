@@ -17,7 +17,6 @@ import { runConfiancaNutricao } from '../services/confiancaService';
 import { runConfiancaWhatsApp } from '../services/confiancaWhatsAppService';
 import { runLimpaproRecoveryConsumer, runLimpaproRecoverySeeds, seedLimpaproRecoveryBacklog, seedLimpaproCupomBacklog, seedLimpaproFechamentoBacklog, seedLimpaproGrupoBacklog, enviarOpenerTeste } from '../services/agents/whatsapp/limpaproRecoveryService';
 import { pollBiaRecuperacao } from '../services/agents/whatsapp/biaInboundService';
-import { pollLimpaproAtendimento } from '../services/agents/whatsapp/limpaproAtendimentoService';
 import { getInsights } from '../services/insightsService';
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
 import { retryCardsPendentes } from '../services/agents/sdr/sdrAgentService';
@@ -368,7 +367,6 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       ['recup_seeds', () => runLimpaproRecoverySeeds()],      // recuperação LimpaPro (Bia): põe gente na esteira (1x/h, auto-gated)
       ['recup_consumer', () => runLimpaproRecoveryConsumer()],   // recuperação LimpaPro (Bia): drena marcadores prontos
       ['bia_poll', () => pollBiaRecuperacao()],            // inbound da Bia (poll IO; webhook IO não entrega texto)
-      ['limpapro_atend', () => pollLimpaproAtendimento()],       // trilha 1x1 do LimpaPro: aluno que escreve na linha (LIMPAPRO_ATENDIMENTO_ENABLED)
       ['gerador_seq', () => runGeradorSequenciasConsumer()],  // Central de Automação: drip de sequências (gated por kill-switch)
       ['ig_drain', () => drainIgQueue()],                  // Instagram nativo: drena a fila de DMs/respostas (gated por kill-switch)
       ['fb_comentarios', () => varrerComentariosFacebook()],     // Facebook: comentário em post/anúncio da Página → resposta privada (FB_COMENTARIOS_OFF desliga)
