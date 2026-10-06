@@ -35,7 +35,8 @@ function getCreds(instance: ZapiInstance): ZapiCreds {
 //
 // O que NÃO muda: o inbound. Os pollers leem `ZAPI_*_IO` direto, então a
 // resposta do cliente chega na linha IO — onde nenhum agente atende sozinho
-// (`handleSdrLead` tem early-return pra 'io'), ou seja, cai pra humano.
+// (a Luma, que tinha early-return pra 'io', saiu do código em 05/10/2026), ou
+// seja, cai pra humano.
 // Ligar isto SÓ com a B2B fora: o teto anti-ban da linha passa a ser dividido
 // (ver `carlaThrottle`/`lineThrottle`) e o cliente recebe de um número que não
 // conhece.

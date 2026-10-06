@@ -1,6 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../../utils/supabase';
-import { handleSdrLead } from '../sdr/sdrAgentService';
 import { fmtPhone, sendHuman, sendImage, sendWhatsApp, ZapiInstance } from '../zapiClient';
 import { porBarras } from '../bolhas';
 import { logger } from '../../../utils/logger';
@@ -830,8 +829,10 @@ export async function handleIncomingWhatsApp(
       return;
     }
     if (b2cSession || isB2cTriggered) {
-      // Luma (B2C SDR) roda na linha IO — passa instance + imageSource (multimodal)
-      await handleSdrLead(cleanPhone, text, senderName, tracking, 'io', imageSource);
+      // Lead de energia solar não recebe robô nesta linha: fica com o humano.
+      // A Luma, que respondia aqui, foi removida em 05/10/2026 (já não fazia nada
+      // pra linha IO desde maio). O if FICA: sem ele, a mensagem B2C que veio de
+      // anúncio (ctwa_clid) cairia no isFromAd abaixo e iria pra Carla.
       return;
     }
     if (isFromAd) {

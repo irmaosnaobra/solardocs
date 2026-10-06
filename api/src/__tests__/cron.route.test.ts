@@ -46,9 +46,6 @@ vi.mock('../services/agents/whatsapp/whatsappAgentService', () => ({
   handleIncomingWhatsApp: vi.fn(),
   processMessageQueue:    vi.fn().mockResolvedValue({ processed: 0 }),
 }));
-vi.mock('../services/agents/sdr/sdrFollowupService', () => ({
-  runSdrFollowups: vi.fn().mockResolvedValue({ enviados: 0, perdidos: 0 }),
-}));
 vi.mock('../services/agents/whatsapp/whatsappFollowupService', () => ({
   runWhatsappFollowup:    vi.fn().mockResolvedValue({ sent: 0, abandoned: 0 }),
   runInactiveEngagement:  vi.fn().mockResolvedValue({ sent: 0 }),
@@ -113,17 +110,5 @@ describe('GET /cron/process-messages', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
-  });
-});
-
-// ─── GET /cron/sdr-followup ──────────────────────────────────────────
-describe('GET /cron/sdr-followup', () => {
-  it('retorna 200 com enviados e perdidos', async () => {
-    const res = await request(app)
-      .get('/cron/sdr-followup')
-      .set('Authorization', `Bearer ${CRON_SECRET}`);
-
-    expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ ok: true, enviados: 0, perdidos: 0 });
   });
 });

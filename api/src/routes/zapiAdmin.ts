@@ -254,63 +254,6 @@ router.get('/io/try-paths/:phone', async (req: Request, res: Response): Promise<
   })) });
 });
 
-// Polling de leads NOVOS na linha IO via /chats (Z-API webhook nao dispara em Multi Device).
-// Pra leads SEM sessao SDR existente, dispara handleSdrLead com texto fixo "Tenho interesse
-// em energia solar!" (todo lead de anuncio Meta chega com essa frase).
-// Pra continuacao do fluxo (etapas 2+), webhook eh o unico caminho — bug Z-API ainda em aberto.
-router.post('/io/poll', async (req: Request, res: Response): Promise<void> => {
-  // Aceita key via query OU header (pra cron interno usar)
-  const isAuthed = req.query.key === BOOTSTRAP_KEY || req.get('x-bootstrap-key') === BOOTSTRAP_KEY;
-  if (!isAuthed) { res.status(403).json({ error: 'forbidden' }); return; }
-
-  const creds = getIOCreds();
-  if ('error' in creds) { res.status(500).json({ error: creds.error }); return; }
-
-  const minutesBack = Number(req.query.minutes) || 5;
-  const cutoff = Date.now() - minutesBack * 60 * 1000;
-  const FRASE_PADRAO_ANUNCIO = 'Tenho interesse em energia solar!';
-
-  const chatsRes = await zapiGet(creds, 'chats?pageSize=30');
-  if (chatsRes.status !== 200) { res.json({ error: 'chats fetch failed', detail: chatsRes }); return; }
-
-  const chats: any[] = Array.isArray(chatsRes.body) ? chatsRes.body : (chatsRes.body?.value ?? chatsRes.body?.chats ?? []);
-
-  const { handleSdrLead } = await import('../services/agents/sdr/sdrAgentService');
-  const { supabase } = await import('../utils/supabase');
-
-  const processed: any[] = [];
-  for (const chat of chats) {
-    if (chat.isGroup === true || chat.isGroup === 'true') continue;
-    if (!chat.phone) continue;
-
-    const rawT = chat.lastMessageTime ?? 0;
-    const lastTime = typeof rawT === 'number' ? (rawT > 1e12 ? rawT : rawT * 1000) : Number(rawT) || new Date(rawT).getTime();
-    if (!lastTime || lastTime < cutoff) continue;
-
-    const phone = String(chat.phone).replace(/\D/g, '');
-    if (!phone) continue;
-
-    // Skip se ja processamos esse phone (existe sessao SDR pra ele)
-    const { data: session } = await supabase.from('whatsapp_sessions')
-      .select('updated_at').eq('phone', phone).eq('tipo', 'sdr')
-      .order('updated_at', { ascending: false }).limit(1).maybeSingle();
-    if (session) {
-      processed.push({ phone, name: chat.name, status: 'has session - waiting webhook for continuation' });
-      continue;
-    }
-
-    // Lead NOVO sem sessao — assume frase padrao do anuncio Meta
-    try {
-      await handleSdrLead(phone, FRASE_PADRAO_ANUNCIO, chat.name ?? null, undefined, 'io');
-      processed.push({ phone, name: chat.name, status: 'NEW LEAD processed (assumed default text)' });
-    } catch (err) {
-      processed.push({ phone, status: 'error', error: err instanceof Error ? err.message : String(err) });
-    }
-  }
-
-  res.json({ minutes_back: minutesBack, total_chats: chats.length, processed });
-});
-
 // Le webhook config da instancia SolarDocs (referencia funcional)
 router.get('/solardoc/me', async (req: Request, res: Response): Promise<void> => {
   if (req.query.key !== BOOTSTRAP_KEY) { res.status(403).json({ error: 'forbidden' }); return; }

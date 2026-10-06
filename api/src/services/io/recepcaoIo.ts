@@ -170,9 +170,9 @@ interface LeadData {
   entregue_em?: string | null;
 }
 
-// Quem recebe o aviso de cada produto. Os números são os mesmos que a Luma já
-// usa pra escalação interna (prompt do sdrAgentService) — um lugar só teria sido
-// melhor, mas duplicar aqui é menos arriscado que mexer no prompt dela agora.
+// Quem recebe o aviso de cada produto. Os números são os mesmos que a Luma SDR
+// usava pra escalação interna (o prompt dela saiu do sdrAgentService em
+// 05/10/2026, então este mapa deixou de ser cópia).
 const CONSULTOR: Record<string, { nome: string; phone: string }> = {
   thiago:   { nome: 'Thiago',   phone: '34991360223' },
   diego:    { nome: 'Diego',    phone: '34991360172' },
@@ -393,8 +393,10 @@ async function avisarConsultor(
 /**
  * Registra o lead no CRM já com `human_takeover`.
  *
- * O takeover não é firula: TODO cron de saída desta casa (reativação, nudge de
- * 10min, nudge das 18h, revisão da Luma) filtra por ele. Sem isso, um lead que a
+ * O takeover não é firula: os crons de saída da Luma (reativação, nudge de 10min,
+ * nudge das 18h, revisão) filtravam por ele quando isto foi escrito. Eles saíram
+ * do código em 05/10/2026, mas o flag segue sendo o sinal de humano na conversa
+ * que o webhook da linha lê antes de responder. Sem isso, um lead que a
  * recepção acabou de entregar a um humano entraria na fila de disparo automático
  * e levaria mensagem de robô por cima da conversa do consultor.
  */
@@ -653,8 +655,8 @@ export async function entregarTriagensParadas(minutos = 120): Promise<{ entregue
   // O filtro de estado vai no BANCO, não em JS depois do `.limit(20)`. Sessão
   // entregue nunca é apagada: com o tempo a página de 20 encheria só de
   // `entregue` e as triagens paradas nunca mais seriam alcançadas. A forma
-  // `.filter('coluna->>chave', ...)` é a que o repo já usa pra jsonb
-  // (`sdrIoPolling.processIoTakeoverEvents`), e o guarda em JS lá embaixo
+  // `.filter('coluna->>chave', ...)` é a que o repo usava pra jsonb (no antigo
+  // `sdrIoPolling.processIoTakeoverEvents`, removido em 05/10/2026), e o guarda em JS lá embaixo
   // continua de pé: se o filtro do banco falhar, a entrega erra pra menos, nunca
   // pro lado de avisar o consultor de uma conversa que ainda está viva.
   const { data: paradas, error } = await supabase

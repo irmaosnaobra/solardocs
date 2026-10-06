@@ -20,11 +20,10 @@ import { pollBiaRecuperacao } from '../services/agents/whatsapp/biaInboundServic
 import { pollLimpaproAtendimento } from '../services/agents/whatsapp/limpaproAtendimentoService';
 import { getInsights } from '../services/insightsService';
 import { processMessageQueue } from '../services/agents/whatsapp/whatsappAgentService';
-import { runSdrFollowups, } from '../services/agents/sdr/sdrFollowupService';
-import { pollZapiMessages, retryCardsPendentes } from '../services/agents/sdr/sdrAgentService';
+import { retryCardsPendentes } from '../services/agents/sdr/sdrAgentService';
 import { entregarTriagensParadas } from '../services/io/recepcaoIo';
 import { pollRecepcaoIo } from '../services/io/recepcaoIoPoll';
-import { pollZapiMessagesIO, processIoTakeoverEvents, processarLembretesAgendamento, revisarLeadsLuma, processarReativacao, processarNudge10min, processarNudge18h, cleanupPerdidosAntigos, cleanupMessageDedup, enviarRelatorioDiario } from '../services/agents/sdr/sdrIoPolling';
+import { pollZapiMessagesIO, cleanupPerdidosAntigos, cleanupMessageDedup } from '../services/agents/sdr/sdrIoPolling';
 import { runIoBroadcastTick } from '../services/io/broadcastTickService';
 import { runGeradorBroadcastTick, runGeradorSequenciasConsumer } from '../services/io/geradorAutomacaoService';
 import { runAvisosTick } from '../services/io/avisosTickService';
@@ -299,14 +298,14 @@ router.get('/inactive-engagement', async (req: Request, res: Response) => {
   } catch (err) { res.status(500).json({ error: 'Cron failed' }); }
 });
 
-// Roda a cada minuto — processa fila + polling Z-API SolarDoc + polling Z-API Irmaos na Obra
+// Processa a fila + polling Z-API da linha Irmaos na Obra
 // (Z-API webhook MD nao dispara consistentemente, polling eh fallback)
 //
-// LUMA DESLIGADA NA LINHA IO (34998165040) — Cora é a única agente nesse número.
-// Polling IO permanece ATIVO porque é como Cora "escuta" mensagens inbound
-// (sem ele, ela nunca saberia que o lead clicou no botão WhatsApp do simulador).
-// O early-return em handleSdrLead garante que Luma não age, só Cora.
-// Tarefas Luma específicas (nudges, lembretes, reativação) seguem desligadas.
+// A Luma saiu do código em 05/10/2026. Com ela foram o polling da linha SolarDoc
+// (tarefa 'poll') e as tarefas dela na linha IO (nudges, lembretes, reativação,
+// revisão, relatório diário), que estavam comentadas desde maio. O poll_io fica:
+// é ele que transforma resposta de campanha em aviso pra equipe. O inbound sem
+// dono da linha IO é da recepção (recepcao_poll).
 router.get('/process-messages', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
@@ -362,17 +361,9 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // lista pra desalinhar, e tarefa nova entra sem poder errar o rótulo.
     const TAREFAS: Array<[string, () => Promise<unknown>]> = [
       ['queue', () => processMessageQueue()],
-      ['poll', () => pollZapiMessages()],
-      ['poll_io', () => pollZapiMessagesIO()],            // detecta inbound IO pra Cora processar
-      // processIoTakeoverEvents(),    // [LUMA-IO-OFF] eventos de takeover humano IO
-      // processarLembretesAgendamento(),// [LUMA-IO-OFF] lembretes de agendamento IO
-      // revisarLeadsLuma(),            // [LUMA-IO-OFF] revisão de leads pela Luma IO
-      // processarReativacao(),         // [LUMA-IO-OFF] reativação Luma IO
-      // processarNudge10min(),         // [LUMA-IO-OFF] nudge 10min IO
-      // processarNudge18h(),           // [LUMA-IO-OFF] nudge 18h IO
+      ['poll_io', () => pollZapiMessagesIO()],            // linha IO: resposta de campanha vira aviso pra equipe
       ['cleanup', () => cleanupPerdidosAntigos()],
       ['dedup_cleanup', () => cleanupMessageDedup()],
-      // enviarRelatorioDiario(),       // [LUMA-IO-OFF] relatório diário IO
       ['card_retry', () => retryCardsPendentes()],
       ['recup_seeds', () => runLimpaproRecoverySeeds()],      // recuperação LimpaPro (Bia): põe gente na esteira (1x/h, auto-gated)
       ['recup_consumer', () => runLimpaproRecoveryConsumer()],   // recuperação LimpaPro (Bia): drena marcadores prontos
@@ -449,7 +440,6 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       blast_respostas: blastRespResult,
       ...resultados,
       placar:         await placarP,
-      luma_io_off: 'Linha IO: polling ativo só pra Cora ouvir inbound, demais tarefas Luma desligadas',
     });
   } catch (err) {
     logger.error('cron', 'process-messages falhou', err);
@@ -982,18 +972,6 @@ router.get('/giovanna-test-followup', async (req: Request, res: Response) => {
   }
 });
 
-// Roda a cada 30 min — follow-up SDR (10 tentativas antes de marcar Perdido)
-router.get('/sdr-followup', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    const result = await runSdrFollowups();
-    res.json({ ok: true, ...result });
-  } catch (err) {
-    logger.error('cron', 'sdr-followup falhou', err);
-    res.status(500).json({ error: 'Cron failed' });
-  }
-});
-
 // Campanha de reconquista com a entrada de R$19 (curso + 30 dias de plataforma).
 // Público: FREE, inadimplente e quem cancelou. 3 toques; para quando ele responde.
 //
@@ -1513,11 +1491,9 @@ router.get('/master', async (req: Request, res: Response) => {
     ['sentinela-vacuo',             () => runSentinelaVacuo()],
     ['lembrete-followup',           () => runLembreteFollowupTick()],
     ['reagenda-solar',              () => runReagendaSolarTick()], // solar: nao_atendeu volta pra agenda (rede de seguranca do tick de 2 min) // rede de segurança: se o tick de 2 min morrer, o master ainda entrega 1 lembrete por pessoa
-    ['sdr-followup',                () => runSdrFollowups()],
     ['sync-social-windsor',         () => syncSocialWindsor()],      // métricas IG+TikTok → aba Redes do gerador
     ['produtos-virais',             () => gerarProdutosVirais()],    // 3 produtos top TikTok Shop → roteiro AIDA → fila canal 'produtos'
     ['insights-prewarm',             () => getInsights(true)],
-    // ['luma-reativacao',             () => processarReativacao()], // [LUMA-IO-OFF] linha IO é só da Cora
     ['cleanup-pro-docs',            () => cleanupProDocuments()],
     ['monthly-reset',               () => runMonthlyReset()],
     ['process-message-queue',       () => processMessageQueue()],

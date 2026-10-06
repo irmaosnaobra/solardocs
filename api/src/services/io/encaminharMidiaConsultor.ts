@@ -44,9 +44,9 @@ export interface MidiaLead {
   fileName?: string | null;
 }
 
-// Mesmos números do `chamar_consultor` da Luma (sdrAgentService) e do EQUIPE de
-// ioSolar. Aqui é um mapa próprio porque nenhum dos dois cobre os 4 nomes: o de
-// ioEletroposto não tem Nilce, o da Luma vive dentro do loop de tools.
+// Mesmos números do antigo `chamar_consultor` da Luma (removido do sdrAgentService
+// em 05/10/2026) e do EQUIPE de ioSolar. Aqui é um mapa próprio porque o de
+// ioEletroposto não tem Nilce e o da Luma não existe mais.
 const EQUIPE_IO: Record<string, string> = {
   thiago: '34991360223',
   diego: '34991360172',

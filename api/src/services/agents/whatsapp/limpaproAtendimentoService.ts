@@ -2,8 +2,8 @@
 // TRILHA DE ATENDIMENTO 1x1 DO LIMPAPRO — quem já comprou e escreve na linha IO.
 //
 // O buraco que isto fecha: na linha IO só a Bia responde, e só quem ELA abordou (sessão
-// tipo='recuperacao'). Todo o resto cai no `handleSdrLead`, que tem `if (instance ===
-// 'io') return` — ou seja, SILÊNCIO. Foi assim que um aluno pagante escreveu "comprei
+// tipo='recuperacao'). Todo o resto caía no `handleSdrLead` (removido em 05/10/2026),
+// que tinha `if (instance === 'io') return` — ou seja, SILÊNCIO. Foi assim que um aluno pagante escreveu "comprei
 // esse curso mas não estou conseguindo abrir os vídeos" (03/ago 22h07) e ninguém
 // respondeu. Nenhum CRM cobre o caso: `depositarOuAvisar` só conhece solar e
 // eletroposto, e LimpaPro vira um aviso solto no WhatsApp do dono.

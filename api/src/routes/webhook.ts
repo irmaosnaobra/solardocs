@@ -198,8 +198,11 @@ router.post('/io-sent', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-// Webhook da instância Irmãos na Obra (Luma SDR — energia solar B2C).
-// Toda mensagem nessa linha vai DIRETO pra Luma (sem trigger, sem checagem de user da plataforma).
+// Webhook da instância Irmãos na Obra (linha IO, 5040).
+// Grupo "Agendamento": comandos dos consultores pro agente do grupo (sdrGroupAgent,
+// que ainda atende por "Luma"). DM: Bia, trilha do LimpaPro e cessão pra vendedora
+// do SolarDoc; o que sobra é da recepção, que lê por cron. A Luma SDR, que recebia
+// toda DM daqui, saiu do código em 05/10/2026.
 router.post('/io', async (req: Request, res: Response): Promise<void> => {
   const body = normalizeBody(req.body);
   const adData = body.externalAdReply || {};
@@ -435,7 +438,8 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
 
   // ── TRILHA DE ATENDIMENTO 1x1 DO LIMPAPRO (aluno que já comprou) ──
   // Depois da Bia (quem ela abordou é dela) e ANTES do fluxo de energia — que pra linha
-  // IO é `return` puro (handleSdrLead), ou seja, aluno do curso ficava sem resposta.
+  // IO era `return` puro (o handleSdrLead da Luma, removido em 05/10/2026), ou seja,
+  // aluno do curso ficava sem resposta.
   // Casa por telefone em `limpapro_membros`; cliente de energia nunca casa.
   if (textoRecup) {
     const aluno = await ehAlunoLimpapro(String(phone));

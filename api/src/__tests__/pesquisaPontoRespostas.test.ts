@@ -51,11 +51,12 @@ describe('o aviso diz o que aconteceu com a reunião', () => {
 describe('o polling só age quando o lead escreveu', () => {
   const poller = readFileSync(join(__dirname, '../services/agents/sdr/sdrIoPolling.ts'), 'utf8');
 
-  it('a trava vem ANTES dos avisos e do lead novo', () => {
+  it('a trava vem ANTES do aviso de campanha', () => {
+    // O lead novo ia pra Luma depois deste ponto. Ela saiu em 05/10/2026 e o
+    // aviso de campanha ficou como a única ação do polling.
     const trava = poller.indexOf('pareceMensagemDoLead(chat.lastMessage');
     expect(trava, 'a trava sumiu do polling').toBeGreaterThan(0);
     expect(trava).toBeLessThan(poller.indexOf('respostaDeCampanhaPonto(phone)'));
-    expect(trava).toBeLessThan(poller.indexOf('handleSdrLead(phone, FRASE_PADRAO_ANUNCIO'));
   });
 
   it('o aviso de quem já está na base sai uma vez por dia', () => {

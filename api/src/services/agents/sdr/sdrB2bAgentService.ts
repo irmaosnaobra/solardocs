@@ -470,9 +470,9 @@ type Estagio = 'novo' | 'frio' | 'morno' | 'quente' | 'fechado' | 'perdido' | 'p
 // contrário vaza: o replace listava as 7 palavras exatas, então QUALQUER outro
 // token entre colchetes sobrevivia e ia inteiro pro WhatsApp do lead. O prompt
 // vivo pede "marque como desqualificado" e "marca como encerrado", nenhuma das
-// duas está no enum. E o precedente já existe neste repo: sdrAgentService remove
-// 'fechamento' sem reconhecê-lo, remendo que alguém aplicou depois de a tag
-// vazar em produção.
+// duas está no enum. E o precedente existia neste repo: o extractEstagio da Luma
+// (sdrAgentService, removido em 05/10/2026) removia 'fechamento' sem reconhecê-lo,
+// remendo que alguém aplicou depois de a tag vazar em produção.
 //
 // A garantia mora AQUI e não no texto, porque o texto é editável pela aba do
 // /admin, amanhã alguém escreve outra palavra e o transporte tem que aguentar.

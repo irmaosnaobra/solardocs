@@ -1596,7 +1596,8 @@ router.patch('/sdr-leads/:phone/takeover', async (req: Request, res: Response) =
 
 // Importa lista em massa de leads pra reativação. Aceita lista de objetos
 // { nome, phone, cidade? }. Cria com estagio='reativacao', lead_origem='reativacao'.
-// Cron horário processa em horário comercial respeitando meta de 50/dia.
+// Quem chamava esses leads era a reativação da Luma (meta de 50/dia), que saiu
+// do código em 05/10/2026. Hoje o import só cadastra: o contato é humano.
 router.post('/sdr-leads/import', async (req: Request, res: Response) => {
   try {
     const { leads } = (req.body as any) ?? {};
@@ -1872,11 +1873,13 @@ router.post('/sdr-leads/:phone/cancel-schedule', async (req: Request, res: Respo
   } catch { res.status(500).json({ error: 'Erro ao cancelar' }); }
 });
 
-// Força próximo follow-up agora (independente da cadência)
+// Força próximo follow-up agora (independente da cadência).
+// A rota FICA porque o botão do /crm chama, mas o cron que lia esta marcação
+// (o follow-up da Luma) saiu do código em 05/10/2026: hoje ela só grava.
 router.post('/sdr-leads/:phone/force-followup', async (req: Request, res: Response) => {
   try {
     const { phone } = req.params;
-    // Reseta ultimo_contato pra muito atrás → cron vai disparar próximo toque
+    // Reseta ultimo_contato pra muito atrás (era o que fazia o cron da Luma disparar o próximo toque)
     const old = new Date(Date.now() - 30*24*60*60*1000).toISOString();
     await supabase.from('sdr_leads').update({
       ultimo_contato: old,
@@ -1884,7 +1887,7 @@ router.post('/sdr-leads/:phone/force-followup', async (req: Request, res: Respon
       human_takeover: false,
       updated_at: new Date().toISOString(),
     }).eq('phone', phone);
-    res.json({ ok: true, message: 'Próximo follow-up sairá no próximo cron (~1 min)' });
+    res.json({ ok: true, message: 'Lead marcado. Nenhum robô manda follow-up nesta linha: o próximo contato é humano.' });
   } catch { res.status(500).json({ error: 'Erro' }); }
 });
 

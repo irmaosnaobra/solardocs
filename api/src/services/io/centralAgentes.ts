@@ -513,7 +513,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       papel: 'Ouve tudo que chega no WhatsApp 5040 e registra. Hoje ela NÃO responde: o atendimento dessa linha é humano por decisão do dono.',
       canal: 'whatsapp', linha: 'io',
       estado: 'sem_agente',
-      motivo: 'handleSdrLead tem early-return pra linha IO — nada é respondido automaticamente',
+      motivo: 'A Luma foi desligada desta linha em maio de 2026 e removida do código. O atendimento é humano.',
       ultima_atividade: null,
       metricas: [
         { label: 'Mensagens recebidas (24h)', valor: inbound24 },

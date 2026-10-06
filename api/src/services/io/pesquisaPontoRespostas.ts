@@ -4,9 +4,10 @@ import { logger } from '../../utils/logger';
 /**
  * QUEM RESPONDE UMA CAMPANHA NOSSA NÃO É LEAD DE ANÚNCIO.
  *
- * A linha IO tem um poller (`sdrIoPolling`) que trata todo inbound sem sessão como lead
- * novo e joga a Luma em cima dele, com a frase padrão do anúncio. Isso está certo pra quem
- * chega do tráfego — e errado pra quem está respondendo uma pergunta que a gente fez.
+ * A linha IO tem um poller (`sdrIoPolling`) que tratava todo inbound sem sessão como lead
+ * novo e jogava a Luma em cima dele, com a frase padrão do anúncio (a Luma saiu do código
+ * em 05/10/2026; hoje esse inbound é da recepção). Isso servia pra quem chega do tráfego —
+ * e era errado pra quem está respondendo uma pergunta que a gente fez.
  *
  * O caso que trouxe isto (30/08/2026): a pesquisa do treinamento de ponto foi para 184
  * investidores da base. Sem desvio, quem respondesse "sim, fecharia" receberia um
