@@ -5,11 +5,12 @@
 // [crítica]. Foi a classe autodeclarada que derrubou a linha em 02/10 (o
 // reagenda perguntava o teto do frio e carimbava como agenda).
 //
-// Só entram robôs VIVOS no HEAD (e2a225db). Os da limpeza ficaram de fora
-// (gerador_seq, broadcastTick, Luma, repescagem, convite investidor, grupo frio,
-// estudo e top pontos do eletroposto, MCP e test-send, script de 1º de maio).
-// Os prefixos que eles deixaram no lineThrottle continuam contando: estão em
-// PREFIXOS_LEGADOS_FRIOS, para a troca futura não mudar a conta.
+// Só entram robôs VIVOS no HEAD (origin/main 2c67eaff, depois da limpeza). Os
+// que a limpeza apagou ou que vão ser apagados ficaram de fora (broadcastTick,
+// Luma, repescagem, convite investidor, grupo frio, estudo e top pontos do
+// eletroposto, MCP e test-send, script de 1º de maio). Os prefixos que eles
+// deixaram no lineThrottle continuam contando: estão em PREFIXOS_LEGADOS_FRIOS,
+// para a troca futura não mudar a conta.
 //
 // Arquivo PURO: só dado e função de dado.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -308,7 +309,6 @@ export const ROBOS_META: Readonly<Record<string, { canal: 'instagram' | 'faceboo
  */
 export const PREFIXOS_LEGADOS_FRIOS: readonly string[] = Object.freeze([
   'gerador_followup:',   // followup do Gerador: ninguém mais carimba
-  'gerador_seq:',        // drip da Central (geradorAutomacaoService): ainda no process-messages, na limpeza
   'ep_repescagem_sent:', // repescagem do eletroposto: ninguém mais carimba
   'ep_convite_sent:',    // convite do grupo garantido: órfão desde antes
   'ep_grupo_frio:',      // grupo frio do eletroposto: ninguém mais carimba

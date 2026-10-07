@@ -109,8 +109,9 @@ interface Migracao {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LISTA EXPLÍCITA DE MIGRAÇÃO — os ofensores que existem hoje (HEAD 1c375020,
-// base origin/main e2a225db). Referência por ROTA ou função, não por número de
+// LISTA EXPLÍCITA DE MIGRAÇÃO — os ofensores que existem hoje (base origin/main
+// 2c67eaff, depois da limpeza, que apagou o POST /admin/io/send-text e os
+// broadcasts do admin.ts). Referência por ROTA ou função, não por número de
 // linha: as linhas já andaram desde a especificação.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -121,18 +122,12 @@ const MIGRAR: Readonly<Record<string, Migracao>> = Object.freeze({
       'Sem circuit-breaker, sem desvio e sem contagem. O chamador vivo é o avisosTickService.',
     destino: 'Usar sendWhatsApp/sendImage/sendVideo/sendAudio do zapiClient na linha io, com o mesmo retorno {ok, messageId, erro}.',
   },
-  'api/src/routes/admin.ts': {
-    contagem: { 'zapi:envio': 1 },
-    porque: 'POST /admin/io/send-text faz fetch cru em send-text: disparo na mão, fora do teto, da janela e do dedup.',
-    destino: '[crítica] Passar pelo CHEFE como frio, com freio duro valendo mesmo na sombra (6/h, 30 em 24h, 1 por chamada). ' +
-      'A classe nunca é a que o operador declara.',
-  },
   'api/src/routes/zapiAdmin.ts': {
     contagem: { 'zapi:envio': 3, 'zapi:caminho_livre': 4 },
     porque: 'Envio: GET /solardoc/test-send, POST /io/test-send e POST /io/send-text (a rota da queda de 30/08: 98 frios a 18/h). ' +
       'Caminho livre: os helpers zapiPut, tryPut e tryReq e o POST genérico do /io/setup aceitam qualquer caminho.',
     destino: '[crítica] APAGAR /solardoc/test-send e /io/test-send (migrar abriria a instância morta pela 5040). ' +
-      '/io/send-text passa pelo CHEFE como frio com freio duro, igual ao /admin/io/send-text. ' +
+      '/io/send-text passa pelo CHEFE como frio com freio duro (6/h, 30 em 24h, 1 por chamada); a classe nunca é a que o operador declara. ' +
       'Os helpers ficam restritos a caminho fixo de leitura e configuração (nunca send-*).',
   },
   'api/src/routes/mcp.ts': {
@@ -802,12 +797,22 @@ describe('chefeGuarda: controle positivo (ofensor sintético é pego)', () => {
     // Arquivo novo fora do mapa.
     const novo: Achado = { arquivo: 'api/src/services/io/roboNovo.ts', linha: 1, regra: 'zapi', tipo: 'envio', trecho: 'x' };
     expect(avaliar([...real, novo]).join('\n')).toContain('OFENSOR NOVO: api/src/services/io/roboNovo.ts');
-    // Um envio a mais num arquivo já listado.
-    const mais: Achado = { arquivo: 'api/src/routes/admin.ts', linha: 9999, regra: 'zapi', tipo: 'envio', trecho: 'x' };
-    expect(avaliar([...real, mais]).join('\n')).toContain('OFENSOR NOVO: api/src/routes/admin.ts');
-    // Um envio a menos (migrou e não baixou o mapa).
-    const semUm = real.filter(a => !(a.arquivo === 'api/src/routes/admin.ts' && a.regra === 'zapi' && a.tipo === 'envio'));
-    expect(avaliar(semUm).join('\n')).toContain('A catraca só aperta: api/src/routes/admin.ts');
+    // O alvo sai do próprio mapa, para o autoteste não fixar arquivo (fixar o
+    // admin.ts quebrou quando a limpeza apagou o /admin/io/send-text).
+    const [alvoArq, alvoM] = Object.entries(MIGRAR)[0]!;
+    const alvoChave = Object.keys(alvoM.contagem)[0]!;
+    const [regra, tipo] = alvoChave.split(':') as [Regra, string];
+    // Um ofensor a mais num arquivo já listado.
+    const mais: Achado = { arquivo: alvoArq, linha: 9999, regra, tipo, trecho: 'x' };
+    expect(avaliar([...real, mais]).join('\n')).toContain(`OFENSOR NOVO: ${alvoArq}`);
+    // Um ofensor a menos (migrou e não baixou o mapa): tira só 1 achado real daquela chave.
+    let tirou = false;
+    const semUm = real.filter(a => {
+      if (!tirou && a.arquivo === alvoArq && `${a.regra}:${a.tipo}` === alvoChave) { tirou = true; return false; }
+      return true;
+    });
+    expect(tirou).toBe(true);
+    expect(avaliar(semUm).join('\n')).toContain(`A catraca só aperta: ${alvoArq}`);
     // Leitura num arquivo fora da lista de consulta.
     const leitura: Achado = { arquivo: 'api/src/services/io/roboNovo.ts', linha: 1, regra: 'zapi', tipo: 'consulta', trecho: 'x' };
     expect(avaliar([...real, leitura]).join('\n')).toContain('fora de CONSULTA_ZAPI');
