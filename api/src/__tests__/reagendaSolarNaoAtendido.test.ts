@@ -579,6 +579,25 @@ describe('a rampa diária', () => {
     expect((await tick()).motivo).toBe('todos_no_degrau');
   });
 
+  // A NEGOCIAÇÃO CAI HOJE (07/10/2026). A busca começava sempre amanhã, e com a
+  // escada em 24h isso virava 42h: elegível às 11h de quarta, ligação às 08h de
+  // quinta. AGORA é quarta 11:00 BRT, então o primeiro horário livre de hoje é
+  // 13:00 (11:30 a 12:30 não existem na grade).
+  it('a negociação cai no primeiro horário livre de HOJE, não de amanhã', async () => {
+    vermelhos = [card({ id: 77, status: 'fez_orcamento', quando: hAtras(25) })];
+    expect((await tick()).remarcados).toBe(1);
+    expect(updates[0].patch.quando).toBe('2026-09-30T16:00:00.000Z');
+  });
+
+  it('o vermelho e o esquecido continuam caindo no OUTRO dia', async () => {
+    for (const [id, status, h] of [[78, 'nao_atendeu', 1], [79, 'agendado', 7]] as const) {
+      state.clear(); updates.length = 0;
+      vermelhos = [card({ id, status, quando: hAtras(h) })];
+      expect((await tick()).remarcados, status).toBe(1);
+      expect(String(updates[0].patch.quando).slice(0, 10), status).toBe('2026-10-01');
+    }
+  });
+
   it('etiqueta que MUDOU volta pro degrau 1: 25h bastam, mesmo vindo do degrau 6', async () => {
     vermelhos = [card({ id: 71, status: 'em_atendimento', quando: hAtras(25) })];
     noDegrau(71, 'fez_orcamento', 6, 1);        // etiqueta de antes era outra

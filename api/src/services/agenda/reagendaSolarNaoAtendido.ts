@@ -726,16 +726,32 @@ export async function runReagendaSolarTick(
     const ocupado = futura
       .filter(o => o.vendedor_nome === dono)
       .map(o => ({ ini: new Date(o.quando).getTime(), dur: duracaoDe(o.created_by) }));
-    const dias = proximosDiasUteis(ymdSP(new Date(agora)), HORIZONTE_DIAS_UTEIS);
-    const volta = (voltasDe.get(f.id) ?? 0) + 1;
-    // UMA conta de degrau, usada nos tres lugares: decidir se o card podia andar,
-    // escrever a linha e gravar o carimbo.
-    const degrau = degrauDaProximaVolta(estadoDe.get(f.id), String(f.status));
     // UMA leitura do relógio, ANTES do update. Ler de novo depois é pedir pra
     // classificar a ficha pelo status NOVO: o vermelho volta pra `agendado` na
     // mesma gravação, e aí ele se carimbaria como calado e deixaria de gastar o
     // teto que protege a linha.
     const relogio = relogioDoCicloSolar(String(f.status)) ?? 'fala';
+    // ── A NEGOCIAÇÃO PODE CAIR HOJE (07/10/2026) ────────────────────────────
+    //
+    // A busca de vaga começava sempre AMANHÃ. Pro vermelho e pro esquecido isso
+    // é a regra ("remarca para o outro dia"). Pra negociação não era regra
+    // nenhuma, e com a escada começando em 24h ela virava atraso: o card ficava
+    // elegível às 14h de quarta e caía às 08h de quinta, 42h depois da reunião
+    // em vez de 24h, e cada degrau seguinte herdava o mesmo meio dia a mais. O
+    // eletroposto já caía no mesmo dia (`candidatosDoOutroDia` parte de agora).
+    //
+    // Então a negociação procura a partir de HOJE, se hoje for dia útil, e o
+    // `primeiraVaga` já pula todo horário que passou. Os outros dois relógios
+    // continuam começando amanhã.
+    const hoje = ymdSP(new Date(agora));
+    const dias = [
+      ...(relogio === 'negocia' && ehDiaUtil(hoje) ? [hoje] : []),
+      ...proximosDiasUteis(hoje, HORIZONTE_DIAS_UTEIS),
+    ];
+    const volta = (voltasDe.get(f.id) ?? 0) + 1;
+    // UMA conta de degrau, usada nos tres lugares: decidir se o card podia andar,
+    // escrever a linha e gravar o carimbo.
+    const degrau = degrauDaProximaVolta(estadoDe.get(f.id), String(f.status));
 
     // ── MAIS DE UM HORÁRIO POR CARD, QUANDO O PRIMEIRO É RECUSADO ──────────
     //
