@@ -1232,6 +1232,8 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-prev-folha.editando .ep-page{outline:2px dashed rgba(59,130,246,.55);outline-offset:-7px;cursor:text}
 .ep-prev-folha.editando .ep-page:focus{outline:2px solid #3B82F6}
 /* ===== ABA CONTRATO: escopo editável e formas de pagamento (05/10/2026) ===== */
+.ctr-fora{display:none!important}
+#eletroSection .orc-wrap .eletro-inp.has-suf.suf-l input{padding-right:60px}
 .ctr-esc-lista{display:flex;flex-direction:column;gap:6px}
 .ctr-esc-row{display:grid;grid-template-columns:22px 1fr auto 30px;gap:10px;align-items:center;background:#0f1a2e;border:1px solid rgba(255,255,255,.10);border-radius:10px;padding:5px 8px 5px 12px}
 .ctr-esc-row.on{border-color:#3B82F6}
@@ -4292,35 +4294,51 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div id="eletro-pane-contrato" style="display:none;">
     <div class="pesquisa-info">O contrato fecha o que o orçamento propôs. Partes, valor, prazos e obrigações saem do que já está preenchido nas outras abas — aqui você completa só o que é do contrato.</div>
     <div class="orc-wrap">
-      <div class="ep-vend-host"></div>
+      <!-- MODELO DO CONTRATO (07/10/2026). Um contrato por jeito de fazer
+           negócio da LP: Completo (o de sempre), Sociedade 50/50, Arrendamento
+           do ponto e Cotas por %. A ficha do formulário escolhe sozinha pelo
+           "Modelo de interesse" enquanto ninguém mexer aqui. Cada cartão abaixo
+           diz em data-ctr-tipos para quais modelos ele aparece. -->
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Modelo do contrato</div>
+        <div class="eletro-field" style="grid-column:1/-1"><label>Qual contrato</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="ctr-tipo" onchange="ctrTipoMudou(this)">
+            <option value="completo">Completo: chave na mão, o eletroposto é do cliente</option>
+            <option value="socio50">Sociedade 50/50: cada um entra com metade do capital</option>
+            <option value="arrend">Arrendamento: o cliente cede o espaço e a NEXUS investe</option>
+            <option value="cotas">Cotas por %: o cliente compra cota da sociedade</option>
+          </select></div></div>
+        <div class="orc-note" id="ctr-tipo-nota">—</div>
+      </div>
 
+      <div class="ep-vend-host"></div>
 
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Partes</div>
         <div class="orc-cli-banner" id="ctr-partes-banner">—</div>
-        <div class="orc-note" style="margin-top:10px;margin-bottom:12px">Contratada vem do card <b>Sua empresa</b>.</div>
+        <div class="orc-note" style="margin-top:10px;margin-bottom:12px"><span class="ctr-rot-Nossa">Contratada</span> vem do card <b>Sua empresa</b>.</div>
         <!-- Quem negocia é uma pessoa; quem assina costuma ser a empresa dela.
              Trocar o cliente do Simulador pra razão social resolveria o contrato
              e estragaria orçamento e recibo, que falam com a PESSOA. -->
-        <div class="eletro-field"><label>Contratante (nome ou razão social)</label>
+        <div class="eletro-field"><label><span class="ctr-rot-Parte">Contratante</span> (nome ou razão social)</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-contratante" placeholder="Quem assina" oninput="ctrBanner()"></div></div>
-        <div class="eletro-field"><label>CPF/CNPJ do contratante</label>
+        <div class="eletro-field"><label>CPF/CNPJ do <span class="ctr-rot-parte">contratante</span></label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-contratante-doc" placeholder="CPF ou CNPJ" oninput="ctrBanner()"></div></div>
-        <div class="eletro-field"><label>Endereço do contratante</label>
+        <div class="eletro-field"><label>Endereço do <span class="ctr-rot-parte">contratante</span></label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-contratante-end" placeholder="Rua, número, bairro"></div></div>
         <div class="eletro-field"><label>CEP</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-contratante-cep" inputmode="numeric" placeholder="00000-000"></div></div>
         <div class="eletro-field"><label>Cidade</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-cidade" placeholder="Cidade/UF"></div></div>
-        <div class="eletro-field"><label>Telefone do contratante</label>
+        <div class="eletro-field"><label>Telefone do <span class="ctr-rot-parte">contratante</span></label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-contratante-tel" inputmode="tel" placeholder="(00) 00000-0000"></div></div>
-        <div class="eletro-field"><label>E-mail do contratante</label>
+        <div class="eletro-field"><label>E-mail do <span class="ctr-rot-parte">contratante</span></label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-contratante-email" inputmode="email" placeholder="nome@exemplo.com"></div></div>
         <div class="eletro-field" style="margin-top:12px"><label>Representante legal</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-rep" placeholder="Quem assina pela empresa"></div></div>
         <div class="eletro-field"><label>CPF do representante</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-rep-doc" placeholder="000.000.000-00"></div></div>
-        <div class="orc-note">Contratante com CNPJ precisa de representante: empresa não assina sozinha, e sem o representante e o CPF dele a assinatura não amarra a pessoa jurídica.</div>
+        <div class="orc-note"><span class="ctr-rot-Parte">Contratante</span> com CNPJ precisa de representante: empresa não assina sozinha, e sem o representante e o CPF dele a assinatura não amarra a pessoa jurídica.</div>
       </div>
 
       <div class="card">
@@ -4339,13 +4357,130 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp has-suf"><input type="text" id="ctr-plugs" inputmode="numeric" placeholder="1"><span class="suf">un</span></div></div>
       </div>
 
+      <!-- SOCIEDADE (50/50 e cotas, 07/10/2026). Os números nascem do quadro da
+           janela "Editar cota" (o mesmo da Sociedade em PDF) e do Simulador, cada
+           um com a sua caixinha de espelho. O quadro só espelha quando tem a forma
+           do modelo: 1 sócio no 50/50, mais de um em cotas (ver ctrSocQuadro). -->
+      <div class="card" data-ctr-tipos="socio50 cotas">
+        <div class="calc-card-title"><span class="dot"></span>Sociedade: capital, cotas e prazos</div>
+        <div class="eletro-field"><label>Investimento total</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-soc-invest" inputmode="decimal" placeholder="0,00" oninput="ctrResumo()"></div></div>
+        <div class="eletro-field" data-ctr-tipos="cotas"><label>Cotas de sócios investidores</label>
+          <div class="eletro-inp has-suf"><input type="text" id="ctr-soc-n" inputmode="numeric" placeholder="3" oninput="ctrResumo()"><span class="suf">un</span></div></div>
+        <div class="eletro-field"><label id="ctr-soc-cota-rot">Cota do sócio</label>
+          <div class="eletro-inp has-suf"><input type="text" id="ctr-soc-cota" inputmode="decimal" placeholder="50" oninput="ctrResumo()"><span class="suf">%</span></div></div>
+        <div class="eletro-field"><label id="ctr-soc-aporte-rot">Aporte do sócio</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-soc-aporte" inputmode="decimal" placeholder="0,00" oninput="ctrResumo()"></div></div>
+        <div class="eletro-field" data-ctr-tipos="cotas"><label>Cotas deste sócio</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-soc-qtd" inputmode="numeric" min="1" value="1" oninput="ctrResumo()"><span class="suf">un</span></div></div>
+        <div class="eletro-field"><label>Cota da NEXUS</label>
+          <div class="eletro-inp has-suf"><input type="text" id="ctr-soc-cota-nexus" inputmode="decimal" placeholder="50" oninput="ctrResumo()"><span class="suf">%</span></div></div>
+        <div class="eletro-field"><label>Aporte da NEXUS</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-soc-aporte-nexus" inputmode="decimal" placeholder="0,00" oninput="ctrResumo()"></div></div>
+        <div class="ctr-pag-soma" id="ctr-soc-conta" style="grid-column:1/-1">—</div>
+        <div class="eletro-field"><label>Software NEXUS, % do faturamento</label>
+          <div class="eletro-inp has-suf"><input type="text" id="ctr-soc-software" inputmode="decimal" placeholder="10" oninput="ctrResumo()"><span class="suf">%</span></div></div>
+        <div class="eletro-field"><label id="ctr-soc-arrend-rot">Arrendamento do local</label>
+          <div class="eletro-inp has-suf"><input type="text" id="ctr-soc-arrend" inputmode="decimal" placeholder="0" oninput="ctrResumo()"><span class="suf">%</span></div></div>
+        <div class="orc-note" id="ctr-soc-arrend-nota" style="grid-column:1/-1">—</div>
+        <div class="eletro-field"><label>Dia de pagar o resultado (mês seguinte)</label>
+          <div class="eletro-inp"><input type="number" id="ctr-soc-dia" inputmode="numeric" min="1" max="28" value="15"></div></div>
+        <div class="eletro-field" id="ctr-soc-f-captacao"><label>Prazo para fechar o capital</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-soc-captacao" inputmode="numeric" min="1" value="90"><span class="suf">dias</span></div></div>
+        <div class="eletro-field"><label>Ponto em operação em até</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-soc-implant" inputmode="numeric" min="1" value="90"><span class="suf">dias</span></div></div>
+        <div class="eletro-field"><label>Prazo da sociedade</label>
+          <div class="eletro-inp has-suf suf-l"><input type="number" id="ctr-soc-prazo" inputmode="numeric" min="0" value="120"><span class="suf">meses</span></div></div>
+        <div class="eletro-field"><label>Ninguém sai antes de</label>
+          <div class="eletro-inp has-suf suf-l"><input type="number" id="ctr-soc-permanencia" inputmode="numeric" min="0" value="36"><span class="suf">meses</span></div></div>
+        <div class="eletro-field"><label>Aviso prévio para sair</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-soc-aviso" inputmode="numeric" min="1" value="90"><span class="suf">dias</span></div></div>
+        <div class="eletro-field"><label>Haveres de quem sai pagos em</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-soc-haveres" inputmode="numeric" min="1" value="12"><span class="suf">x</span></div></div>
+        <div class="eletro-field"><label>Prazo para corrigir antes de rescindir</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-soc-corrigir" inputmode="numeric" min="1" value="15"><span class="suf">dias</span></div></div>
+        <div class="orc-note" style="grid-column:1/-1">A NEXUS é a <b>sócia ostensiva</b>: opera em nome próprio, responde perante terceiros e presta contas. O cliente é <b>sócio participante</b>: integraliza o aporte, fiscaliza e recebe a parte dele no resultado. Prazo da sociedade em <b>0</b> = prazo indeterminado.</div>
+      </div>
+
+      <!-- ARRENDAMENTO DO PONTO (modelo 01, 07/10/2026). O cliente é o CEDENTE e
+           a NEXUS a CESSIONÁRIA que investe 100%. Texto a partir do
+           CONTRATO-ARRENDAMENTO-PONTO.md, sem a corretagem e a preferência: lá a
+           IO era interveniente entre dono e investidor, aqui ela é a parte. -->
+      <div class="card" data-ctr-tipos="arrend">
+        <div class="calc-card-title"><span class="dot"></span>Arrendamento: remuneração, prazos e local</div>
+        <div class="eletro-field"><label>Percentual do faturamento bruto</label>
+          <div class="eletro-inp has-suf"><input type="text" id="ctr-arr-pct" inputmode="decimal" placeholder="10" oninput="ctrResumo()"><span class="suf">%</span></div></div>
+        <div class="eletro-field"><label>Piso mensal (opcional)</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-arr-piso" inputmode="decimal" placeholder="sem piso" oninput="ctrResumo()"></div></div>
+        <div class="eletro-field"><label>O piso vale a partir do mês de operação</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-carencia" inputmode="numeric" min="1" value="4" oninput="ctrResumo()"><span class="suf">º</span></div></div>
+        <div class="orc-note" id="ctr-arr-nota" style="grid-column:1/-1">—</div>
+        <div class="eletro-field"><label>Dia de pagar o cedente (mês seguinte)</label>
+          <div class="eletro-inp"><input type="number" id="ctr-arr-dia" inputmode="numeric" min="1" max="28" value="10"></div></div>
+        <div class="eletro-field" style="grid-column:span 2"><label>Conta do cedente para receber</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-arr-dados" placeholder="Pix ou banco, agência e conta do dono do local"></div></div>
+        <div class="eletro-field"><label>Vigência</label>
+          <div class="eletro-inp has-suf suf-l"><input type="number" id="ctr-arr-vigencia" inputmode="numeric" min="1" value="60"><span class="suf">meses</span></div></div>
+        <div class="eletro-field"><label>Ninguém sai antes de</label>
+          <div class="eletro-inp has-suf suf-l"><input type="number" id="ctr-arr-permanencia" inputmode="numeric" min="0" value="36"><span class="suf">meses</span></div></div>
+        <div class="eletro-field"><label>Aviso para não renovar</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-aviso" inputmode="numeric" min="1" value="180"><span class="suf">dias</span></div></div>
+        <div class="eletro-field"><label>Prazo máximo para ligar o ponto</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-implant" inputmode="numeric" min="1" value="180"><span class="suf">dias</span></div></div>
+        <div class="eletro-field"><label>Vagas cedidas</label>
+          <div class="eletro-inp has-suf"><input type="text" id="ctr-arr-vagas" inputmode="numeric" placeholder="1"><span class="suf">un</span></div></div>
+        <div class="eletro-field"><label>Área cedida (opcional)</label>
+          <div class="eletro-inp has-suf"><input type="text" id="ctr-arr-area" inputmode="decimal" placeholder="—"><span class="suf">m²</span></div></div>
+        <div class="eletro-field"><label>Horário do ponto</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="ctr-arr-horario" onchange="ctrResumo()">
+            <option value="24h">24 horas, todos os dias</option>
+            <option value="estab">O horário do estabelecimento</option>
+            <option value="outro">Outro (escrever ao lado)</option>
+          </select></div></div>
+        <div class="eletro-field" id="ctr-arr-f-horario"><label>Horário combinado</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-arr-horario-txt" placeholder="Ex.: das 6h às 23h, de segunda a sábado"></div></div>
+        <div class="eletro-field"><label>Energia do ponto</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="ctr-arr-energia">
+            <option value="uc">Ligação própria, em nome da NEXUS</option>
+            <option value="sub">Medidor da NEXUS na conta do cedente</option>
+            <option value="refatura">Cedente paga a conta e cobra da NEXUS</option>
+          </select></div></div>
+        <div class="eletro-field"><label>O cedente é</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="ctr-arr-relacao" onchange="ctrResumo()">
+            <option value="proprietario">Proprietário, com o imóvel livre</option>
+            <option value="locado">Proprietário, com o imóvel alugado a terceiro</option>
+            <option value="locatario">Inquilino do imóvel</option>
+            <option value="representante">Administrador ou representante do dono</option>
+            <option value="condominio">Condomínio</option>
+            <option value="branco">A confirmar (sai para marcar à mão)</option>
+          </select></div></div>
+        <div class="orc-note" id="ctr-arr-relacao-nota" style="grid-column:1/-1">—</div>
+        <div class="eletro-field"><label>Multa por saída antecipada, em meses de remuneração</label>
+          <div class="eletro-inp"><input type="number" id="ctr-arr-multa-saida" inputmode="numeric" min="0" value="3"></div></div>
+        <div class="eletro-field"><label>Retirada do equipamento em</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-retirada" inputmode="numeric" min="1" value="30"><span class="suf">dias</span></div></div>
+        <div class="eletro-field"><label>Base de concreto no fim</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="ctr-arr-base">
+            <option value="fica">Fica no imóvel, sem indenização</option>
+            <option value="sai">A NEXUS remove e refaz o piso</option>
+          </select></div></div>
+        <div class="eletro-field"><label>Multa por atraso</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-mora-multa" inputmode="decimal" step="0.5" min="0" value="2"><span class="suf">%</span></div></div>
+        <div class="eletro-field"><label>Juros de mora</label>
+          <div class="eletro-inp has-suf suf-l"><input type="number" id="ctr-arr-mora-juros" inputmode="decimal" step="0.5" min="0" value="1"><span class="suf">% a.m.</span></div></div>
+        <div class="eletro-field"><label>Prazo para corrigir antes de rescindir</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-corrigir" inputmode="numeric" min="1" value="15"><span class="suf">dias</span></div></div>
+        <div class="orc-note" style="grid-column:1/-1">O dono do local não põe dinheiro e não responde pelo negócio: recebe o percentual sobre o <b>faturamento bruto</b>, que ele confere no painel do ponto. Recarga grátis ou com desconto entra na conta pelo preço de tabela.</div>
+      </div>
+
       <!-- ESCOPO DO CONTRATO (05/10/2026). Nasce do kit marcado no Orcamento e
            se mexe AQUI sem mexer no Orcamento: marcar, desmarcar, renomear,
            tirar e acrescentar item. Linha do kit que ninguem tocou aqui segue o
            Orcamento; tocou, manda o contrato. As linhas sao montadas por JS e
            NAO tem id: o "Comecar novo" limpa por id (ver ctrEstadoZerar). -->
-      <div class="card">
-        <div class="calc-card-title"><span class="dot"></span>Escopo: o que entra no preço</div>
+      <div class="card" data-ctr-tipos="completo socio50 cotas">
+        <div class="calc-card-title"><span class="dot"></span><span id="ctr-esc-tit">Escopo: o que entra no preço</span></div>
+        <div class="orc-note" style="margin-top:-2px" data-ctr-tipos="socio50 cotas">Na sociedade, esta lista diz o que o <b>investimento</b> cobre: é a implantação que a NEXUS executa com o capital.</div>
         <div class="orc-note" style="margin-top:-2px">Marcado sai como <b>Incluído</b>. Desmarcado vai para <b>Não incluído</b>, que é onde a briga costuma nascer. O nome de cada item pode ser reescrito, e o <b>×</b> tira o item do contrato. Mexer aqui não muda o Orçamento.</div>
         <div class="ctr-esp" id="ctr-esc-esp"></div>
         <div class="ctr-esc-lista" id="ctr-esc-lista"></div>
@@ -4355,17 +4490,17 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <button type="button" class="eletro-btn" onclick="ctrEscAdd(false)">+ Não incluído</button>
         </div>
         <div class="orc-note" style="margin-top:0"><button type="button" class="orc-link" onclick="ctrEscReset()">Refazer a partir do Orçamento</button> desfaz tudo o que foi mexido nesta lista.</div>
-        <div class="eletro-field"><label>Percentual da plataforma</label>
+        <div class="eletro-field" data-ctr-tipos="completo"><label>Percentual da plataforma</label>
           <div class="eletro-inp has-suf"><input type="text" id="ctr-pct" inputmode="decimal" placeholder="12" oninput="ctrPctNota()"><span class="suf">%</span></div></div>
-        <div class="eletro-field"><label>Percentual da plataforma no contrato</label>
+        <div class="eletro-field" data-ctr-tipos="completo"><label>Percentual da plataforma no contrato</label>
           <div class="eletro-inp eletro-inp-wide"><select id="ctr-mostra-pct" onchange="ctrPctNota()">
             <option value="1">Mostrar: a cláusula diz quanto é cobrado</option>
             <option value="">Não mostrar: omite a cláusula da remuneração</option>
           </select></div></div>
-        <div class="orc-note" id="ctr-pct-nota">—</div>
+        <div class="orc-note" id="ctr-pct-nota" data-ctr-tipos="completo">—</div>
       </div>
 
-      <div class="card">
+      <div class="card" data-ctr-tipos="completo">
         <div class="calc-card-title"><span class="dot"></span>Prazos</div>
         <div class="eletro-field"><label>Contagem dos prazos</label>
           <div class="eletro-inp eletro-inp-wide"><select id="ctr-prazo-unid" onchange="ctrResumo()">
@@ -4401,10 +4536,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
            uma lista de formas (Pix, boleto, cartao, financiamento, permuta... o
            campo aceita qualquer nome) que vira tabela na Clausula 3a. Corre
            sobre o SALDO: total menos o sinal ja' pago no recibo. -->
-      <div class="card">
-        <div class="calc-card-title"><span class="dot"></span>Valor e formas de pagamento</div>
+      <div class="card" data-ctr-tipos="completo socio50 cotas">
+        <div class="calc-card-title"><span class="dot"></span><span id="ctr-pag-tit">Valor e formas de pagamento</span></div>
         <div class="orc-tot">
-          <div class="orc-tot-row"><span>Valor total do projeto</span><span class="v" id="ctr-t-total">R$ 0,00</span></div>
+          <div class="orc-tot-row"><span id="ctr-t-total-rot">Valor total do projeto</span><span class="v" id="ctr-t-total">R$ 0,00</span></div>
           <div class="orc-tot-row"><span>Sinal já pago</span><span class="v" id="ctr-t-sinal">R$ 0,00</span></div>
           <div class="orc-tot-row big"><span>Saldo a pagar</span><span class="v" id="ctr-t-saldo">R$ 0,00</span></div>
         </div>
@@ -4412,19 +4547,21 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
              acompanha o recibo ate alguem digitar aqui; dai manda o contrato,
              sem mexer no recibo ja' emitido. Texto com leitor brasileiro, nao
              type=number (virgula zera, ponto de milhar corta tres zeros). -->
-        <div class="eletro-field"><label>Valor total do projeto</label>
+        <div class="eletro-field" data-ctr-tipos="completo"><label>Valor total do projeto</label>
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-total" inputmode="decimal" placeholder="0,00" oninput="ctrResumo()"></div></div>
         <div class="eletro-field"><label>Sinal já pago</label>
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-sinal" inputmode="decimal" placeholder="0,00" oninput="ctrResumo()"></div></div>
-        <div class="eletro-field" style="grid-column:span 2"><label>O sinal foi destinado a</label>
+        <div class="eletro-field" style="grid-column:span 2" data-ctr-tipos="completo"><label>O sinal foi destinado a</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-sinal-destino" value="ao projeto elétrico" placeholder="Em branco = a frase sai sem destinação" oninput="epTocar(this)"></div></div>
         <div class="orc-note" id="ctr-sinal-nota">—</div>
         <div class="ctr-pag-modelos"><span>Modelos rápidos</span>
           <button type="button" class="ctr-chip" onclick="ctrPagAplicar('vista')">À vista no Pix</button>
-          <button type="button" class="ctr-chip" onclick="ctrPagAplicar('cartao')">Entrada + cartão</button>
-          <button type="button" class="ctr-chip" onclick="ctrPagAplicar('fin')">Entrada + financiamento</button>
-          <button type="button" class="ctr-chip" onclick="ctrPagAplicar('etapas')">Por etapa da obra (30/40/30)</button>
+          <button type="button" class="ctr-chip" data-ctr-tipos="completo" onclick="ctrPagAplicar('cartao')">Entrada + cartão</button>
+          <button type="button" class="ctr-chip" data-ctr-tipos="completo" onclick="ctrPagAplicar('fin')">Entrada + financiamento</button>
+          <button type="button" class="ctr-chip" data-ctr-tipos="completo" onclick="ctrPagAplicar('etapas')">Por etapa da obra (30/40/30)</button>
           <button type="button" class="ctr-chip" onclick="ctrPagAplicar('boleto')">Entrada + boletos</button>
+          <button type="button" class="ctr-chip" data-ctr-tipos="socio50 cotas" onclick="ctrPagAplicar('cartao10')">10x no cartão</button>
+          <button type="button" class="ctr-chip" data-ctr-tipos="socio50 cotas" onclick="ctrPagAplicar('cartao18')">18x no cartão</button>
         </div>
         <div class="ctr-esp" id="ctr-pag-esp"></div>
         <div class="ctr-pag-lista" id="ctr-pag-lista"></div>
@@ -7932,6 +8069,10 @@ function epFichaLer(obs) {
     return l ? l.slice(rot.length + 1).trim() : '';
   };
   const f = { invest: val('Como pretende investir'), localRel: val('Local é seu'), ponto: val('Ponto') };
+  // "Modelo de interesse: 02 · Sociedade meio a meio" → o modelo do contrato.
+  // "Ainda não sei", 04 (equipamento) e 05 (consultoria) não escolhem nada.
+  f.modeloTxt = val('Modelo de interesse');
+  f.modelo = ({ '01': 'arrend', '02': 'socio50', '03': 'completo' })[(f.modeloTxt.match(/^(\d\d)\b/) || [])[1]] || '';
   // "Endereço: Rua X, 123 · Bairro · Cidade/UF · CEP 38400-000"
   const end = val('Endereço');
   if (end) {
@@ -7983,6 +8124,14 @@ function epFichaAplicar(obs, set) {
   if (f.local) { set('ctr-local', f.local); usou.push('local da instalação'); }
   if (f.invest) usou.push('forma de pagamento');
   if (epFichaNaoDono()) usou.push('anuência do dono do imóvel');
+  // O modelo que o cliente escolheu na LP vira o modelo do contrato, enquanto o
+  // consultor não tiver escolhido outro na aba.
+  const tp = document.getElementById('ctr-tipo');
+  if (f.modelo && tp && tp.dataset.tocado !== '1') {
+    tp.value = f.modelo;
+    if (typeof ctrTipoUi === 'function') ctrTipoUi();
+    usou.push('contrato ' + CTR_TIPOS[f.modelo].nome);
+  }
   if (typeof ctrOpcRender === 'function') ctrOpcRender();
   return usou;
 }
@@ -17820,7 +17969,206 @@ let ctrEsc = ctrEscNovo();
 // tocado=false: a lista acompanha o Orcamento e o saldo. Mexeu, fica como esta.
 let ctrPag = { tocado: false, linhas: [] };
 
+// ─── O MODELO DO CONTRATO (07/10/2026) ──────────────────────────────────────
+// Quatro contratos na mesma aba, um por jeito de fazer negócio da LP:
+//   completo  chave na mão: o cliente compra e o eletroposto é dele (o de sempre)
+//   socio50   sociedade meio a meio: cada um entra com metade, o local é do sócio
+//   arrend    arrendamento do ponto: o cliente cede o espaço e a NEXUS investe 100%
+//   cotas     cotas por %: o cliente compra cota, a NEXUS administra
+// 50/50 e cotas são o MESMO instrumento, sociedade em conta de participação (CC,
+// arts. 991 a 996) com a NEXUS de sócia ostensiva: muda o quadro e a captação.
+// Partes, Dados, Cláusulas de proteção, Foro e o pedido à IA servem aos quatro;
+// cada modelo tem o seu cartão de números (data-ctr-tipos no HTML diz qual
+// cartão aparece em qual). O Completo continua byte a byte o contrato de antes.
+const CTR_TIPOS = {
+  completo: { nome: 'Completo', nossa: 'CONTRATADA', deles: 'CONTRATANTE', Nossa: 'Contratada', Parte: 'Contratante', parte: 'contratante',
+    nota: 'Contrato de fornecimento e instalação: o cliente paga a obra e o eletroposto é dele. A plataforma entra quando o Software está no escopo.' },
+  socio50: { nome: 'Sociedade 50/50', nossa: 'SÓCIA OSTENSIVA', deles: 'SÓCIO PARTICIPANTE', Nossa: 'Sócia ostensiva', Parte: 'Sócio participante', parte: 'sócio participante',
+    nota: 'Sociedade em conta de participação: cada um entra com a sua parte do capital, a NEXUS implanta, opera e presta contas, os custos saem do faturamento e o lucro se divide pela cota. O local é do sócio.' },
+  arrend: { nome: 'Arrendamento', nossa: 'CESSIONÁRIA', deles: 'CEDENTE', Nossa: 'Cessionária', Parte: 'Cedente', parte: 'cedente',
+    nota: 'Cessão onerosa de área: o dono do local cede o espaço, a NEXUS investe 100%, instala e opera, e paga a ele todo mês um percentual do faturamento bruto.' },
+  cotas: { nome: 'Cotas por %', nossa: 'SÓCIA OSTENSIVA', deles: 'SÓCIO PARTICIPANTE', Nossa: 'Sócia ostensiva', Parte: 'Sócio participante', parte: 'sócio participante',
+    nota: 'Sociedade em conta de participação dividida em cotas: o cliente compra uma ou mais, a NEXUS administra e fica com a dela, e o local vem por arrendamento. Enquanto o capital não fecha, o dinheiro fica parado, e volta se não fechar no prazo.' },
+};
+function ctrTipo() { const el = document.getElementById('ctr-tipo'); const v = el ? el.value : ''; return CTR_TIPOS[v] ? v : 'completo'; }
+const ctrEhSoc = t => t === 'socio50' || t === 'cotas';
+// Percentual com vírgula ou ponto; o texto do papel sai com vírgula e sem zero à toa.
+const ctrPctLe = v => { const n = parseFloat(String(v == null ? '' : v).replace(/[\s%]/g, '').replace(',', '.')); return isFinite(n) && n >= 0 ? n : 0; };
+const ctrPctTxt = n => String(Math.round((Number(n) || 0) * 100) / 100).replace('.', ',');
+// Inteiro que aceita zero (prazo indeterminado, sem permanência mínima). Vazio vale o padrão.
+function ctrInt0(id, padrao) { const v = orcVal(id); if (v === '') return padrao; const n = Math.round(orcNum(v)); return n >= 0 ? n : padrao; }
+// Número que, apagado, volta ao padrão em vez de imprimir 0% no papel.
+function ctrNumOu(id, padrao) { const v = orcVal(id); return v === '' ? padrao : Math.max(0, orcNum(v)); }
+
+// O quadro da janela "Editar cota" (ep_socio_v1) é do APARELHO, sobrevive ao
+// "Começar novo" e atende os dois modelos. Só espelha quando tem a forma do
+// modelo escolhido: 1 sócio no 50/50, mais de um em cotas. Fora disso vale o
+// preset do modelo (50/50 proporcional; 3 cotas de 25% a R$ 50 mil e a NEXUS
+// com 25% sem aporte), senão um 50/50 nascia com o quadro de cotas de ontem.
+function ctrSocQuadro() {
+  const s = socLer();
+  if (ctrTipo() === 'cotas') return s.n > 1 ? s : { n: 3, cotaSocio: 25, cotaNexus: 25, aporteSocio: 50000, aporteNexus: 0 };
+  return s.n === 1 ? s : { ...SOC_PADRAO };
+}
+// Aporte sem número no quadro = proporcional à cota sobre o investimento DO
+// CONTRATO (o campo, que pode ter sido desmarcado e reescrito), como na janela.
+function ctrSocAporteOrigem(nexus) {
+  const q = ctrSocQuadro();
+  const v = nexus ? q.aporteNexus : q.aporteSocio;
+  if (v != null) return v;
+  const cota = ctrPctLe(ctrCampo(nexus ? 'ctr-soc-cota-nexus' : 'ctr-soc-cota'));
+  return cota / 100 * ctrMoeda(ctrCampo('ctr-soc-invest'));
+}
+// A conta da sociedade, lida dos campos do contrato. É a única fonte: o cartão,
+// o quadro do papel e as cláusulas chamam daqui.
+function ctrSoc() {
+  const t = ctrTipo();
+  const cotas = t === 'cotas';
+  const invest = ctrMoeda(ctrCampo('ctr-soc-invest'));
+  const n = cotas ? Math.max(1, Math.round(orcNum(ctrCampo('ctr-soc-n')) || 1)) : 1;
+  const qtd = cotas ? Math.max(1, Math.min(n, Math.round(orcNum(orcVal('ctr-soc-qtd')) || 1))) : 1;
+  const cota = ctrPctLe(ctrCampo('ctr-soc-cota')), aporte = ctrMoeda(ctrCampo('ctr-soc-aporte'));
+  const cotaN = ctrPctLe(ctrCampo('ctr-soc-cota-nexus')), aporteN = ctrMoeda(ctrCampo('ctr-soc-aporte-nexus'));
+  const somaCotas = n * cota + cotaN, somaAportes = n * aporte + aporteN;
+  const falta = invest - somaAportes;   // >0 = capital a captar, <0 = sobra (capital de giro)
+  // Proporcional = cada um põe do dinheiro a mesma fração que leva do resultado.
+  const prop = invest > 0 && Math.abs(aporte - cota / 100 * invest) < 1 && Math.abs(aporteN - cotaN / 100 * invest) < 1;
+  return { t, invest, n, qtd, cota, aporte, cotaN, aporteN, somaCotas, somaAportes, falta, prop,
+    cotaCli: qtd * cota, aporteCli: qtd * aporte,
+    outros: n - qtd, cotaOutros: (n - qtd) * cota, aporteOutros: (n - qtd) * aporte,
+    cotasFecham: Math.abs(somaCotas - 100) < 0.05,
+    // Captação: cota sem dono (cotas) ou dinheiro faltando para o investimento.
+    captacao: (cotas && n - qtd > 0) || falta > 1,
+    software: ctrPctLe(ctrCampo('ctr-soc-software')), arrend: ctrPctLe(ctrCampo('ctr-soc-arrend')) };
+}
+function ctrSocPrazos() {
+  return {
+    dia: Math.min(28, ctrInt('ctr-soc-dia', 15)), captacao: ctrInt('ctr-soc-captacao', 90),
+    implant: ctrInt('ctr-soc-implant', 90), prazo: ctrInt0('ctr-soc-prazo', 120),
+    permanencia: ctrInt0('ctr-soc-permanencia', 36), aviso: ctrInt('ctr-soc-aviso', 90),
+    haveres: ctrInt('ctr-soc-haveres', 12), corrigir: ctrInt('ctr-soc-corrigir', 15),
+  };
+}
+// O "Local é seu" do formulário vira a condição do cedente. Quem ainda negocia
+// o local não pode ceder: sai em branco, para marcar à mão quando souber.
+function ctrArrRelacaoFicha() {
+  const r = (epFicha && epFicha.localRel) || '';
+  if (/^sou o propriet/i.test(r)) return 'proprietario';
+  if (/^sou inquilino/i.test(r)) return 'locatario';
+  if (/^(administro|represento)/i.test(r)) return 'representante';
+  if (/ainda não é meu|negociando/i.test(r)) return 'branco';
+  return 'proprietario';
+}
+function ctrArr() {
+  return {
+    pct: ctrPctLe(ctrCampo('ctr-arr-pct')), piso: ctrMoeda(orcVal('ctr-arr-piso')),
+    carencia: ctrInt('ctr-arr-carencia', 4), dia: Math.min(28, ctrInt('ctr-arr-dia', 10)),
+    dados: orcVal('ctr-arr-dados'),
+    vigencia: ctrInt('ctr-arr-vigencia', 60), permanencia: ctrInt0('ctr-arr-permanencia', 36),
+    aviso: ctrInt('ctr-arr-aviso', 180), implant: ctrInt('ctr-arr-implant', 180),
+    vagas: Math.max(1, Math.round(orcNum(ctrCampo('ctr-arr-vagas')) || 1)), area: orcVal('ctr-arr-area'),
+    horario: orcVal('ctr-arr-horario') || '24h', horarioTxt: orcVal('ctr-arr-horario-txt'),
+    energia: orcVal('ctr-arr-energia') || 'uc', relacao: ctrCampo('ctr-arr-relacao') || 'proprietario',
+    multaSaida: ctrInt0('ctr-arr-multa-saida', 3), retirada: ctrInt('ctr-arr-retirada', 30),
+    base: orcVal('ctr-arr-base') || 'fica',
+    moraMulta: ctrNumOu('ctr-arr-mora-multa', 2), moraJuros: ctrNumOu('ctr-arr-mora-juros', 1),
+    corrigir: ctrInt('ctr-arr-corrigir', 15),
+  };
+}
+
+// Mostra o cartão de cada modelo e troca os nomes das partes na tela.
+function ctrTipoUi() {
+  const t = ctrTipo(), T = CTR_TIPOS[t], soc = ctrEhSoc(t);
+  const pane = document.getElementById('eletro-pane-contrato');
+  if (!pane) return;
+  pane.querySelectorAll('[data-ctr-tipos]').forEach(el => el.classList.toggle('ctr-fora', !el.dataset.ctrTipos.split(/\s+/).includes(t)));
+  const txt = (sel, v) => pane.querySelectorAll(sel).forEach(el => { if (el.textContent !== v) el.textContent = v; });
+  txt('.ctr-rot-Nossa', T.Nossa); txt('.ctr-rot-Parte', T.Parte); txt('.ctr-rot-parte', T.parte);
+  const set = (id, v) => { const el = document.getElementById(id); if (el && el.textContent !== v) el.textContent = v; };
+  set('ctr-esc-tit', soc ? 'Escopo: o que o investimento cobre' : 'Escopo: o que entra no preço');
+  set('ctr-pag-tit', soc ? 'Aporte do sócio e formas de pagamento' : 'Valor e formas de pagamento');
+  set('ctr-t-total-rot', soc ? 'Aporte deste sócio' : 'Valor total do projeto');
+  set('ctr-soc-cota-rot', t === 'cotas' ? 'Cada cota vale' : 'Cota do sócio');
+  set('ctr-soc-aporte-rot', t === 'cotas' ? 'Aporte por cota' : 'Aporte do sócio');
+  set('ctr-soc-arrend-rot', t === 'cotas' ? 'Arrendamento ao dono do local, % do faturamento' : 'Arrendamento ao sócio pelo local, % do faturamento');
+  const nota = document.getElementById('ctr-tipo-nota');
+  if (nota) {
+    const daFicha = epFicha && epFicha.modeloTxt;
+    nota.innerHTML = orcEsc(T.nota) + (daFicha ? ` No formulário, o cliente escolheu <b>${orcEsc(daFicha)}</b>.` : '');
+  }
+}
+function ctrTipoMudou(sel) {
+  if (sel) sel.dataset.tocado = '1';
+  // A tabela de pagamento corre sobre outra base (preço da obra ou aporte do
+  // sócio): o que estava montado para um modelo não serve para o outro.
+  ctrPag = { tocado: false, linhas: [] };
+  ctrTipoUi();
+  ctrEscRender(); ctrOpcRender(); ctrPctNota();
+  ctrResumo();
+}
+// O cartão da sociedade: a conta das cotas e dos aportes, na hora.
+function ctrSocUi() {
+  const box = document.getElementById('ctr-soc-conta');
+  if (!box || !ctrEhSoc(ctrTipo())) return;
+  const s = ctrSoc(), money = ORC_MONEY, p = n => ctrPctTxt(n) + '%';
+  const fc = document.getElementById('ctr-soc-f-captacao');
+  if (fc) fc.classList.toggle('ctr-fora', !s.captacao);
+  const conta = s.t === 'cotas'
+    ? `${s.n} cota(s) de ${p(s.cota)} + NEXUS ${p(s.cotaN)} = <b>${p(s.somaCotas)}</b>`
+    : `Sócio ${p(s.cota)} + NEXUS ${p(s.cotaN)} = <b>${p(s.somaCotas)}</b>`;
+  if (!s.cotasFecham) {
+    box.className = 'ctr-pag-soma dif';
+    box.innerHTML = `${conta}. <b>As cotas precisam somar 100%</b>: o contrato não sai assim.`;
+    return;
+  }
+  const cli = `Este sócio fica com <b>${p(s.cotaCli)}</b> do resultado e aporta <b>${money(s.aporteCli)}</b>.`;
+  if (s.falta > 1) {
+    box.className = 'ctr-pag-soma';
+    box.innerHTML = `${conta}. Os aportes somam ${money(s.somaAportes)} de ${money(s.invest)}: <b>faltam ${money(s.falta)}</b>. O contrato sai com a linha <b>capital a captar</b>, e a obra só começa com o capital completo. ${cli}`;
+  } else if (s.falta < -1) {
+    box.className = 'ctr-pag-soma';
+    box.innerHTML = `${conta}. Os aportes passam o investimento em <b>${money(-s.falta)}</b>, que o contrato chama de reserva de capital de giro. ${cli}`;
+  } else {
+    box.className = 'ctr-pag-soma fecha';
+    box.innerHTML = `${conta}, e os aportes fecham o investimento de ${money(s.invest)}. ${cli}`;
+  }
+  const an = document.getElementById('ctr-soc-arrend-nota');
+  if (an) an.innerHTML = s.t === 'socio50'
+    ? (s.arrend > 0 ? `O sócio recebe <b>${p(s.arrend)} do faturamento bruto</b> pelo local, como custo da operação, antes da divisão do lucro.` : 'Em <b>0</b>, o sócio cede o local sem cobrar, como parte da contribuição dele.')
+    : (s.arrend > 0 ? `O dono do local recebe <b>${p(s.arrend)} do faturamento bruto</b>, custo da operação pago antes da divisão.` : 'Em <b>0</b>, o contrato diz que o custo do local, se houver, é custo da operação, sem fixar o número.');
+}
+// O cartão do arrendamento: quanto o percentual vale em dinheiro no Simulador.
+function ctrArrUi() {
+  if (ctrTipo() !== 'arrend') return;
+  const a = ctrArr(), money = ORC_MONEY;
+  const fh = document.getElementById('ctr-arr-f-horario');
+  if (fh) fh.classList.toggle('ctr-fora', a.horario !== 'outro');
+  const nota = document.getElementById('ctr-arr-nota');
+  if (nota) {
+    let fat = 0;
+    try { fat = computeEletro(eletroParams()).fatMes || 0; } catch (e) {}
+    const piso = a.piso > 0 ? ` O piso de <b>${money(a.piso)}</b> vale a partir do ${a.carencia}º mês de operação, quando o ponto já saiu da rampa.` : ' Sem piso, o dono do local recebe só o percentual, e a rampa dos primeiros meses fica com ele.';
+    nota.innerHTML = !(a.pct > 0)
+      ? '<b>Sem percentual</b>, a remuneração sai em branco no papel, para preencher à mão. A referência da casa é <b>10%</b>; no Simulador o arrendamento está em 0%.' + piso
+      : (fat > 0 ? `No Simulador o ponto fatura <b>${money(fat)}/mês</b> em plena operação: <b>${ctrPctTxt(a.pct)}%</b> dão <b>${money(fat * a.pct / 100)}/mês</b> ao cedente, e cada ponto percentual vale ${money(fat / 100)}/mês.` : `<b>${ctrPctTxt(a.pct)}%</b> do faturamento bruto.`) + piso;
+  }
+  const rn = document.getElementById('ctr-arr-relacao-nota');
+  if (rn) rn.innerHTML = ({
+    proprietario: 'O cedente declara ser o dono e ter a posse do imóvel.',
+    locado: 'Com o imóvel alugado, quem tem a posse é o inquilino: o contrato exige a <b>anuência escrita dele</b>.',
+    locatario: '<b>Inquilino não assina sozinho</b>: o contrato exige a anuência escrita do proprietário e não passa do prazo da locação.',
+    representante: 'Quem representa o dono assina com procuração ou contrato de administração que dê poder para ceder a área.',
+    condominio: 'Condomínio assina com a ata da assembleia que autorizou a cessão.',
+    branco: 'O contrato sai com as cinco condições para marcar à mão. Quem ainda negocia o local não pode ceder: confirme antes de assinar.',
+  })[a.relacao] || '';
+}
+
 function ctrEstadoZerar() {
+  // Modelo do contrato volta ao Completo, sem marca de escolhido: a ficha do
+  // próximo cliente pode escolher sozinha.
+  const tpEl = document.getElementById('ctr-tipo');
+  if (tpEl) { tpEl.value = 'completo'; delete tpEl.dataset.tocado; }
+  ctrTipoUi();
   ctrEsc = ctrEscNovo();
   ctrPag = { tocado: false, linhas: [] };
   ctrOpc = {};
@@ -17884,11 +18232,36 @@ const CTR_ESPELHOS = [
   { id: 'ctr-plugs',             fonte: 'Simulador',   de: () => String(Math.max(1, Math.round(elNum('el-plugs') || 1))) },
   { id: 'ctr-pct',               fonte: 'Orçamento',   de: () => String(orcPctKit('software')).replace('.', ',') },
   { id: 'ctr-total',             fonte: 'Orçamento',   de: () => ctrMoedaFmt(recBase()) },
-  { id: 'ctr-sinal',             fonte: 'Recibo',      de: () => ctrMoedaFmt(ctrSinalRecibo()) },
+  { id: 'ctr-sinal',             fonte: 'Recibo',      de: () => ctrMoedaFmt(ctrSinalOrigem()) },
   { id: 'ctr-pag-dados',         fonte: 'Sua empresa', de: () => { const emp = epEmitGet(); return [emp.pix ? 'Pix ' + emp.pix : '', emp.conta].filter(Boolean).join(' · '); } },
   { id: 'ctr-foro',              fonte: 'Sua empresa', de: () => epEmitGet().cidade || '' },
+  // Sociedade (50/50 e cotas): quadro da janela "Editar cota" e custos do Simulador.
+  { id: 'ctr-soc-invest',        fonte: 'Simulador',   de: () => ctrMoedaFmt(elMilhar('el-invest')) },
+  { id: 'ctr-soc-n',             fonte: 'Sociedade',   de: () => String(ctrSocQuadro().n) },
+  { id: 'ctr-soc-cota',          fonte: 'Sociedade',   de: () => ctrPctTxt(ctrSocQuadro().cotaSocio) },
+  { id: 'ctr-soc-aporte',        fonte: 'Sociedade',   de: () => ctrMoedaFmt(ctrSocAporteOrigem(false)) },
+  { id: 'ctr-soc-cota-nexus',    fonte: 'Sociedade',   de: () => ctrPctTxt(ctrSocQuadro().cotaNexus) },
+  { id: 'ctr-soc-aporte-nexus',  fonte: 'Sociedade',   de: () => ctrMoedaFmt(ctrSocAporteOrigem(true)) },
+  { id: 'ctr-soc-software',      fonte: 'Simulador',   de: () => ctrPctTxt(elNum('el-software')) },
+  { id: 'ctr-soc-arrend',        fonte: 'Simulador',   de: () => ctrPctTxt(elNum('el-arrend')) },
+  // Arrendamento. O Simulador abre o arrendamento em 0 (o caso comum é o local
+  // do próprio cliente): 0 não vira "0%" no papel, vira campo vazio e aviso.
+  { id: 'ctr-arr-pct',           fonte: 'Simulador',   de: () => elNum('el-arrend') > 0 ? ctrPctTxt(elNum('el-arrend')) : '' },
+  { id: 'ctr-arr-vagas',         fonte: 'Simulador',   de: () => String(Math.max(1, Math.round(elNum('el-plugs') || 1))) },
+  { id: 'ctr-arr-relacao',       fonte: 'Formulário',  de: () => ctrArrRelacaoFicha() },
 ];
 const CTR_ESP_POR_ID = Object.fromEntries(CTR_ESPELHOS.map(m => [m.id, m]));
+// Espelhos cuja origem (quadro do aparelho, Simulador, ficha) NÃO volta com o
+// snapshot do histórico: reabrir um contrato desses modelos os congela.
+const CTR_ESP_CONGELA = ['ctr-soc-invest', 'ctr-soc-n', 'ctr-soc-cota', 'ctr-soc-aporte', 'ctr-soc-cota-nexus',
+  'ctr-soc-aporte-nexus', 'ctr-soc-software', 'ctr-soc-arrend', 'ctr-arr-pct', 'ctr-arr-vagas', 'ctr-arr-relacao'];
+// Campos próprios de sociedade e arrendamento, sem espelho. UMA lista para o
+// snapshot levar e trazer: campo esquecido aqui é a 2ª via que sai diferente.
+const CTR_CAMPOS_MODELOS = ['ctr-soc-qtd', 'ctr-soc-dia', 'ctr-soc-captacao', 'ctr-soc-implant', 'ctr-soc-prazo',
+  'ctr-soc-permanencia', 'ctr-soc-aviso', 'ctr-soc-haveres', 'ctr-soc-corrigir',
+  'ctr-arr-piso', 'ctr-arr-carencia', 'ctr-arr-dia', 'ctr-arr-dados', 'ctr-arr-vigencia', 'ctr-arr-permanencia',
+  'ctr-arr-aviso', 'ctr-arr-implant', 'ctr-arr-area', 'ctr-arr-horario', 'ctr-arr-horario-txt', 'ctr-arr-energia',
+  'ctr-arr-multa-saida', 'ctr-arr-retirada', 'ctr-arr-base', 'ctr-arr-mora-multa', 'ctr-arr-mora-juros', 'ctr-arr-corrigir'];
 // Campo que ainda não existe na tela conta como marcado: vale a origem.
 function ctrEspLigado(id) { const el = document.getElementById(id); return !el || el.dataset.tocado !== '1'; }
 function ctrEspOrigem(id) {
@@ -17962,21 +18335,39 @@ function ctrEspelho(id, ligado, fonte, desligar, religar) {
 
 // Valor total e sinal: espelham Orçamento e Recibo. Só o CONTRATO lê estes
 // campos; Orçamento, Recibo e os outros papéis seguem com os valores deles.
-function ctrTotal() { return ctrEspLigado('ctr-total') ? recBase() : ctrMoeda(document.getElementById('ctr-total').value); }
+// O que o contrato cobra do cliente: o preço da obra no Completo, o aporte dele
+// na sociedade (cota comprada x aporte por cota) e nada no arrendamento, em que
+// quem paga é a NEXUS.
+function ctrTotal() {
+  const t = ctrTipo();
+  if (ctrEhSoc(t)) return ctrSoc().aporteCli;
+  if (t === 'arrend') return 0;
+  return ctrEspLigado('ctr-total') ? recBase() : ctrMoeda(document.getElementById('ctr-total').value);
+}
 function ctrSinalRecibo() { return recAvulso() ? 0 : orcNum(orcVal('rec-valor')); }
+// O sinal do Recibo só abate no Completo. O recibo é sinal da OBRA (5% do preço):
+// abatê-lo do aporte de uma cota repetiria o erro de 19/08 com outro nome. Na
+// sociedade o sinal nasce zero; se o sócio já pagou parte do aporte, digita-se.
+function ctrSinalOrigem() { return ctrTipo() === 'completo' ? ctrSinalRecibo() : 0; }
 // Vazio depois de desmarcado conta como zero: contrato sem sinal. Apagar é apagar.
-function ctrSinalPago() { return ctrEspLigado('ctr-sinal') ? ctrSinalRecibo() : ctrMoeda(document.getElementById('ctr-sinal').value); }
+function ctrSinalPago() { return ctrEspLigado('ctr-sinal') ? ctrSinalOrigem() : ctrMoeda(document.getElementById('ctr-sinal').value); }
 // O sinal do papel é o do Recibo de sinal? Só aí o contrato pode citar "o recibo
 // de sinal firmado". Sinal digitado sem recibo (ou com recibo de projeto avulso,
 // que não abate da obra) apontava para um documento que não existe.
 function ctrSinalDoRecibo() {
   const rec = ctrSinalRecibo();
-  return rec > 0 && Math.abs(ctrSinalPago() - rec) < 0.005;
+  return ctrTipo() === 'completo' && rec > 0 && Math.abs(ctrSinalPago() - rec) < 0.005;
 }
 function ctrSinalUi() {
   const nota = document.getElementById('ctr-sinal-nota');
   if (!nota) return;
   const rec = ctrSinalRecibo();
+  if (ctrTipo() !== 'completo') {
+    nota.innerHTML = ctrEspLigado('ctr-sinal')
+      ? 'Na sociedade, o sinal do Recibo (que é da obra) não abate o aporte. Se o sócio já pagou parte do aporte, digite o valor.'
+      : `Já pago do aporte, escrito no contrato: ${ORC_MONEY(ctrSinalPago())}.`;
+    return;
+  }
   if (!ctrEspLigado('ctr-sinal')) {
     nota.innerHTML = `Sinal escrito no contrato: ${ORC_MONEY(ctrSinalPago())}${rec > 0 ? `. No Recibo de sinal está ${ORC_MONEY(rec)}` : ''}. O recibo não muda.`;
   } else if (recAvulso()) {
@@ -18161,6 +18552,13 @@ function ctrPagModelo(tipo, saldo) {
     return [L('Pix', a, 1, 0, 'Na assinatura do contrato'),
             L('Boleto bancário', ctrCent(saldo - a), 6, 0, 'Mensais, a primeira 30 dias após a assinatura')];
   }
+  // As condições da COTA (decisão do dono, 29/09/2026): os mesmos fatores do
+  // cartão da Sociedade em PDF e do anúncio. O 18x sobre R$ 50 mil fecha em
+  // R$ 3.662,00, o número que o anúncio promete. Acréscimo arredondado no
+  // milionésimo: (1,31832 - 1) x 100 em ponto flutuante dá 31,832000000000004.
+  const acrDe = f => Math.round((f - 1) * 1e8) / 1e6;
+  if (tipo === 'cartao10') return [L('Cartão de crédito', saldo, 10, acrDe(SOC_FATOR_10X), 'Na assinatura do contrato')];
+  if (tipo === 'cartao18') return [L('Cartão de crédito', saldo, 18, acrDe(SOC_FATOR_18X), 'Na assinatura do contrato')];
   return [];
 }
 // O que a lista mostra antes de alguém mexer: a condição marcada no Orçamento.
@@ -18168,6 +18566,11 @@ function ctrPagModelo(tipo, saldo) {
 // escolhe "ou": sai a condição padrão da casa, entrada + 18x, e o consultor
 // troca num clique pelos modelos rápidos. O padrão fica VISÍVEL na lista.
 function ctrPagSugerida(saldo) {
+  // Arrendamento não cobra nada do cliente; na sociedade o aporte sai à vista
+  // até o consultor escolher outra condição pelos modelos rápidos.
+  const tipo = ctrTipo();
+  if (tipo === 'arrend') return [];
+  if (tipo !== 'completo') return ctrPagModelo('vista', saldo);
   const on = id => !!document.getElementById(id)?.checked;
   const A = on('orc-pg-ck-avista'), E = on('orc-pg-ck-entrada'), F = on('orc-pg-ck-fin');
   if (A && !E && !F) return ctrPagModelo('vista', saldo);
@@ -18268,12 +18671,13 @@ function ctrBanner() {
   const emp = epEmitGet();
   const falta = [];
   const doc = ctrCampo('ctr-contratante-doc');
-  if (!ctrCampo('ctr-contratante')) falta.push('nome do contratante');
-  if (!doc) falta.push('CPF/CNPJ do contratante');
+  const parte = CTR_TIPOS[ctrTipo()].parte;
+  if (!ctrCampo('ctr-contratante')) falta.push('nome do ' + parte);
+  if (!doc) falta.push('CPF/CNPJ do ' + parte);
   // Contratante com CNPJ é empresa: sem representante, ninguém assina. Pelo
   // DOCUMENTO, e não por "o campo tem nome": o nome agora vem sempre preenchido
   // pelo espelho, e a cobrança aparecia até para cliente pessoa física.
-  if (doc.replace(/\D/g, '').length === 14 && !orcVal('ctr-rep')) falta.push('representante legal do contratante');
+  if (doc.replace(/\D/g, '').length === 14 && !orcVal('ctr-rep')) falta.push('representante legal do ' + parte);
   if (!emp.cnpj) falta.push('CNPJ da sua empresa (Orçamento → Sua empresa)');
   if (!emp.razao) falta.push('razão social da sua empresa (Orçamento → Sua empresa)');
   el.innerHTML = falta.length
@@ -18282,8 +18686,11 @@ function ctrBanner() {
 }
 
 function ctrResumo() {
+  ctrTipoUi();
   ctrEspSync();
   ctrSinalUi();
+  ctrSocUi();
+  ctrArrUi();
   const total = ctrTotal(), sinal = ctrSinalPago(), saldo = Math.max(0, total - sinal);
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   set('ctr-t-total', ORC_MONEY(total));
@@ -18326,6 +18733,7 @@ function ctrInit() {
   // Partes, local, equipamento, percentual, valores, dados de pagamento e foro
   // vêm do espelho (ctrEspSync, dentro do ctrResumo). Aqui só a data.
   const d = document.getElementById('ctr-data'); if (d && !d.value) d.value = orcHojeISO();
+  ctrTipoUi();
   ctrEscRender();
   ctrOpcRender();
   ctrPctNota();
@@ -18339,11 +18747,16 @@ function ctrDados() {
   const total = ctrTotal(), sinal = ctrSinalPago();
   const dISO = orcVal('ctr-data') || orcHojeISO();
   const esc = ctrEscItens();
-  // Linha sem valor e sem forma é rascunho abandonado: não vai pro papel.
-  const pagLinhas = ctrPag.linhas
+  const tipo = ctrTipo();
+  // Linha sem valor e sem forma é rascunho abandonado: não vai pro papel. No
+  // arrendamento o cliente não paga nada, e a tabela não existe.
+  const pagLinhas = tipo === 'arrend' ? [] : ctrPag.linhas
     .map(l => ({ forma: (l.forma || '').trim(), quando: (l.quando || '').trim(), obs: (l.obs || '').trim(), conta: ctrPagConta(l), cond: ctrPagCondicao(l) }))
     .filter(l => l.conta.valor > 0 || l.forma);
   return {
+    // Modelo do contrato e os números de cada um (null fora do modelo).
+    tipo, soc: ctrEhSoc(tipo) ? ctrSoc() : null, socP: ctrEhSoc(tipo) ? ctrSocPrazos() : null,
+    arr: tipo === 'arrend' ? ctrArr() : null,
     // Numero do contrato. NAO herda mais do recibo: dois instrumentos diferentes
     // saindo com o mesmo numero torna impossivel citar "o documento nº 001".
     num: orcVal('ctr-num'),
@@ -18410,30 +18823,56 @@ function ctrDados() {
 // anuência do dono liga sozinha quando a ficha do formulário diz que o cliente
 // não é o proprietário; a LGPD acompanha o Software de gestão. O que o consultor
 // marcar ou desmarcar fica em ctrOpc e manda sobre o padrão.
+// Desde 07/10/2026 cada uma diz em `tipos` em que modelo de contrato existe
+// (sem `tipos` = em todos), e `dicas` troca a explicação por modelo.
+const CTR_OB = ['completo'];
+const CTR_SOC = ['socio50', 'cotas'];
 const CTR_OPC = [
-  { id: 'suspensao', rot: 'Suspensão por falta de pagamento', padrao: true,
+  { id: 'suspensao', tipos: CTR_OB, rot: 'Suspensão por falta de pagamento', padrao: true,
     dica: 'Atraso de mais de 10 dias deixa parar a obra e a plataforma até regularizar, e os prazos esperam junto.' },
-  { id: 'distribuidora', rot: 'Exigências e negativa da concessionária', padrao: true,
+  { id: 'distribuidora', tipos: CTR_OB, rot: 'Exigências e negativa da concessionária', padrao: true,
     dica: 'Reforço de rede e obra de conexão que a concessionária pedir ficam com o cliente. Conexão negada encerra sem multa, pagos os custos.' },
-  { id: 'vistoria', rot: 'Condição do local fora da vistoria', padrao: true,
+  { id: 'vistoria', tipos: CTR_OB, rot: 'Condição do local fora da vistoria', padrao: true,
     dica: 'O que não dava para ver na vistoria (aterramento, distância do quadro, padrão) vira aditivo, e o prazo espera a aprovação.' },
-  { id: 'aceite', rot: 'Recebimento da obra', padrao: true,
+  { id: 'aceite', tipos: CTR_OB, rot: 'Recebimento da obra', padrao: true,
     dica: '5 dias úteis para apontar defeito aparente depois do comissionamento. Silêncio ou começar a vender recarga valem como aceite.' },
-  { id: 'risco', rot: 'Guarda e seguro dos equipamentos', padrao: true,
+  { id: 'risco', tipos: CTR_OB, rot: 'Guarda e seguro dos equipamentos', padrao: true,
     dica: 'Entregue no local, furto, vandalismo e batida passam a ser risco do cliente, que contrata o seguro.' },
   { id: 'eletronica', rot: 'Assinatura eletrônica', padrao: true,
     dica: 'Reconhece a assinatura digital (Lei 14.063/2020). Assinado em plataforma que atesta a integridade, dispensa as testemunhas (CPC 784, §4º).' },
-  { id: 'lgpd', rot: 'Dados e propriedade do projeto (LGPD)', padrao: () => ctrSoftware(),
-    dica: 'Dados de recarga tratados só para operar a plataforma. Projeto, software e marca continuam da NEXUS. Nasce marcada quando o Software está no escopo.' },
-  { id: 'anuencia', rot: 'Autorização do dono do imóvel', padrao: () => epFichaNaoDono(),
+  { id: 'lgpd', rot: 'Dados e propriedade do projeto (LGPD)', padrao: () => ctrTipo() !== 'completo' || ctrSoftware(),
+    dica: 'Dados de recarga tratados só para operar a plataforma. Projeto, software e marca continuam da NEXUS. Nasce marcada quando o Software está no escopo.',
+    dicas: { socio50: 'Dados dos usuários tratados só pela NEXUS para operar o ponto; o sócio recebe números agregados. Marca e software continuam da NEXUS.',
+             cotas: 'Dados dos usuários tratados só pela NEXUS para operar o ponto; o sócio recebe números agregados. Marca e software continuam da NEXUS.',
+             arrend: 'O dono do local recebe só números agregados, nunca dado pessoal de motorista: mandar lista com placa ou telefone é tratamento sem base legal.' } },
+  { id: 'anuencia', tipos: ['completo', 'socio50'], rot: 'Autorização do dono do imóvel', padrao: () => epFichaNaoDono(),
     dica: 'Para inquilino ou quem representa o dono: a anuência escrita do proprietário vem junto com os documentos. Nasce marcada quando o formulário diz que o local não é dele.' },
-  { id: 'reajuste', rot: 'Reajuste se o início atrasar', padrao: false,
+  { id: 'reajuste', tipos: CTR_OB, rot: 'Reajuste se o início atrasar', padrao: false,
     dica: 'Se a obra demorar mais de 60 dias para começar por causa do cliente, o saldo corrige pelo IPCA e o equipamento importado pelo câmbio.' },
-  { id: 'reserva', rot: 'Reserva de domínio até quitar', padrao: false,
+  { id: 'reserva', tipos: CTR_OB, rot: 'Reserva de domínio até quitar', padrao: false,
     dica: 'O equipamento só passa a ser do cliente quando ele pagar tudo. Serve em venda parcelada direta; com financiamento, a garantia é do banco. Contra terceiros, só vale registrada em cartório.' },
-  { id: 'limite', rot: 'Limite de responsabilidade', padrao: false,
+  { id: 'limite', tipos: CTR_OB, rot: 'Limite de responsabilidade', padrao: false,
     dica: 'Responsabilidade limitada ao valor do contrato, sem lucro cessante. Só vale entre empresas: com pessoa física (consumidor) a cláusula é nula.' },
+  // Sociedade (50/50 e cotas).
+  { id: 'soc_perda', tipos: CTR_SOC, rot: 'Perda do sócio limitada ao aporte', padrao: true,
+    dica: 'O sócio participante nunca perde mais do que pôs, e aporte extra só com a concordância escrita dele. É a pergunta que todo investidor faz.' },
+  { id: 'soc_auditoria', tipos: CTR_SOC, rot: 'Auditoria anual das contas', padrao: true,
+    dica: 'Uma vez por ano o sócio pode auditar por profissional dele. Diferença acima de 5% contra ele passa o custo para a NEXUS. Quem mede é quem administra: sem isto, a conta não tem conferência.' },
+  { id: 'soc_preferencia', tipos: CTR_SOC, rot: 'Preferência na venda de cota', padrao: true,
+    dica: 'Quem vende a cota oferece primeiro aos outros sócios, por 30 dias. Cessão a terceiro só com o sim da NEXUS (Código Civil, art. 995).' },
+  // Arrendamento.
+  { id: 'arr_exclusiv', tipos: ['arrend'], rot: 'Exclusividade no imóvel', padrao: true,
+    dica: 'O dono não instala nem autoriza outro carregador aberto ao público no mesmo imóvel. Só vale dentro do imóvel: raio em volta precisa de advogado.' },
+  { id: 'arr_privativo', tipos: ['arrend'], rot: 'Carregador privativo do dono permitido', padrao: true,
+    dica: 'A exclusividade não impede tomada ou carregador de uso próprio, sem cobrança e fechado ao público. Desmarcada, até a van do mercado tem que carregar no ponto.' },
+  { id: 'arr_auditoria', tipos: ['arrend'], rot: 'Auditoria anual do faturamento', padrao: true,
+    dica: 'Uma vez por ano o dono do local pode auditar a apuração. Diferença acima de 5% contra ele passa o custo para a NEXUS, que é quem mede a base do percentual.' },
+  { id: 'arr_registro', tipos: ['arrend'], rot: 'Registro em cartório e na matrícula', padrao: false,
+    dica: 'Registrado, o contrato vale contra quem comprar o imóvel ou o credor do dono. Sem registro, vale só entre as partes. Custa cartório, pago pela NEXUS.' },
+  { id: 'arr_publicidade', tipos: ['arrend'], rot: 'Uso do nome do estabelecimento na divulgação', padrao: false,
+    dica: 'Separado do cadastro nos mapas de recarga, que é sempre autorizado: este é o uso do nome e da imagem do local em anúncio da NEXUS.' },
 ];
+function ctrOpcDoTipo(t) { return CTR_OPC.filter(o => !o.tipos || o.tipos.includes(t)); }
 let ctrOpc = {};
 function ctrOpcOn(id) {
   if (Object.prototype.hasOwnProperty.call(ctrOpc, id)) return !!ctrOpc[id];
@@ -18444,9 +18883,11 @@ function ctrOpcOn(id) {
 function ctrOpcRender() {
   const box = document.getElementById('ctr-opc-lista');
   if (!box) return;
-  box.innerHTML = CTR_OPC.map(o => {
+  const t = ctrTipo();
+  box.innerHTML = ctrOpcDoTipo(t).map(o => {
     const on = ctrOpcOn(o.id);
-    return `<label class="ctr-opc-row ${on ? 'on' : 'off'}"><input type="checkbox"${on ? ' checked' : ''} onchange="ctrOpcMarca('${o.id}', this.checked)"><span><b>${orcEsc(o.rot)}</b><small>${orcEsc(o.dica)}</small></span></label>`;
+    const dica = (o.dicas && o.dicas[t]) || o.dica;
+    return `<label class="ctr-opc-row ${on ? 'on' : 'off'}"><input type="checkbox"${on ? ' checked' : ''} onchange="ctrOpcMarca('${o.id}', this.checked)"><span><b>${orcEsc(o.rot)}</b><small>${orcEsc(dica)}</small></span></label>`;
   }).join('');
 }
 function ctrOpcMarca(id, on) { ctrOpc[id] = !!on; ctrOpcRender(); }
@@ -18514,7 +18955,8 @@ function epPaginar(blocos, pe) {
 //      guardam OPERAÇÕES, não texto pronto), numera, resolve os marcadores e
 //      pagina. O que a IA não tocou continua vindo dos campos, ao vivo.
 // Travado = tem campo próprio na tela; a IA não mexe (e o servidor descarta).
-function ctrModelo(d) {
+// Desde 07/10/2026 este é o contrato do Completo; ctrModelo escolhe pelo modelo.
+function ctrModeloObra(d) {
   const e = orcEsc, money = ORC_MONEY;
   const vazio = v => v ? e(v) : '<span class="ep-rec-vazio"></span>';
   const pct = n => e(String(n).replace('.', ','));
@@ -18630,6 +19072,309 @@ function ctrModelo(d) {
   ].filter(Boolean);
 }
 
+// O contrato de cada modelo. Mesma forma do ctrModeloObra: cláusulas com chave
+// estável, itens com chave, referência cruzada por marcador, travado = número de
+// campo que a IA não mexe. Cláusula que fica sem item nenhum não existe.
+function ctrModelo(d) {
+  if (d.tipo === 'arrend') return ctrModeloArrend(d);
+  if (ctrEhSoc(d.tipo)) return ctrModeloSociedade(d);
+  return ctrModeloObra(d);
+}
+function ctrModeloPecas(d) {
+  const e = orcEsc;
+  return {
+    e, money: ORC_MONEY,
+    vazio: v => v ? e(v) : '<span class="ep-rec-vazio"></span>',
+    lacuna: '<span class="ep-rec-vazio"></span>',
+    pct: n => e(ctrPctTxt(n)),
+    op: id => !!(d.opc && d.opc[id]),
+    C: (key, titulo, itens, travada) => {
+      const its = itens.filter(Boolean);
+      return its.length ? { key, titulo, travada: !!travada || its.some(it => it.travado), itens: its } : null;
+    },
+    I: (key, html, extra) => html ? Object.assign({ key, html }, extra || {}) : null,
+    eletronica: 'As partes admitem como válida a assinatura eletrônica deste instrumento, nos termos da Lei nº 14.063/2020 e da Medida Provisória nº 2.200-2/2001, com os mesmos efeitos da assinatura de próprio punho.',
+    tolerancia: 'A tolerância quanto ao descumprimento de qualquer cláusula não implica novação nem renúncia de direito.',
+  };
+}
+
+// ─── SOCIEDADE EM CONTA DE PARTICIPAÇÃO (50/50 e cotas) ──────────────────────
+// A NEXUS é a SÓCIA OSTENSIVA (opera em nome próprio, responde perante
+// terceiros, presta contas) e o cliente o SÓCIO PARTICIPANTE. Regras da casa
+// (29/09/2026): todos os custos da operação saem do faturamento ANTES, inclusive
+// o Software NEXUS, e o que sobra se divide pela cota. Cota e aporte são
+// independentes. Duas declarações que protegem a NEXUS de propósito: a
+// implantação é feita por ela pelo preço dela (conflito dito em voz alta), e o
+// dinheiro de cota fica parado até o capital fechar (cotas ainda à venda).
+function ctrModeloSociedade(d) {
+  const { e, money, vazio, lacuna, pct, op, C, I, eletronica, tolerancia } = ctrModeloPecas(d);
+  const s = d.soc, P = d.socP;
+  const cotas = d.tipo === 'cotas';
+  const socio50 = d.tipo === 'socio50';
+  const arrendLocal = s.arrend > 0;
+  const objeto = loc => `As partes constituem entre si, nos termos dos arts. 991 a 996 do Código Civil, <b>sociedade em conta de participação</b> (a "SOCIEDADE") para a implantação e a exploração comercial de estação de recarga de veículos elétricos composta por <b>${d.qtd} carregador(es) ${e(d.equipTxt || 'de corrente contínua')}</b>, com ${d.plugs} ponto(s) de carregamento, em <b>${loc}</b> (o "PONTO").`;
+  const base = d.sinal > 0 ? 'saldo do aporte' : 'aporte';
+  return [
+    C('objeto', 'Do objeto e da natureza da sociedade', [
+      I('objeto.sociedade', objeto(vazio(d.local)), { travado: true, iaTexto: objeto('[local da instalação]') }),
+      I('objeto.ostensiva', 'A atividade da SOCIEDADE é exercida unicamente pela SÓCIA OSTENSIVA, em seu nome individual e sob sua própria e exclusiva responsabilidade, obrigando-se perante terceiros somente ela. O SÓCIO PARTICIPANTE participa dos resultados na forma da {{c:resultado}} e obriga-se exclusivamente perante a SÓCIA OSTENSIVA, nos termos deste contrato.'),
+      I('objeto.personalidade', 'A SOCIEDADE não tem personalidade jurídica, e este contrato produz efeito somente entre os sócios. Sem prejuízo do direito de fiscalizar a gestão, o SÓCIO PARTICIPANTE não toma parte nas relações da SÓCIA OSTENSIVA com terceiros, sob pena de responder solidariamente com ela pelas obrigações em que intervier (art. 993 do Código Civil).'),
+    ]),
+    C('capital', 'Do capital e das cotas', [
+      I('capital.total', `O capital da SOCIEDADE é de <b>${s.invest > 0 ? money(s.invest) : lacuna}</b>${s.invest > 0 ? ` (${e(recExtenso(s.invest))})` : ''}, correspondente ao investimento total do PONTO: projeto de engenharia, equipamentos, obra, homologação junto à concessionária e implantação da plataforma de gestão, conforme a {{i:capital.escopo}}.`, { travado: true }),
+      I('capital.quadro', 'As cotas e os aportes dos sócios são os do quadro a seguir. A cota de cada sócio é a sua participação no resultado e no patrimônio da SOCIEDADE.', { bloco: 'cotas', travado: true }),
+      I('capital.proporcao', s.prop ? '' : 'A cota de cada sócio independe da proporção do seu aporte em dinheiro, conforme ajustado no quadro acima, e é ela que define a participação no resultado.'),
+      I('capital.giro', s.falta < -1 ? `Os aportes excedem o investimento em <b>${money(-s.falta)}</b>, que formam a reserva de capital de giro da SOCIEDADE, empregada nos custos da operação até o PONTO gerar receita suficiente.` : ''),
+      I('capital.escopo', 'O investimento compreende os itens a seguir. O que não estiver relacionado como incluído não integra o capital e, se vier a ser necessário, segue a {{i:capital.adicional}}.', { bloco: 'escopo', travado: true }),
+      I('capital.preco', 'A implantação do PONTO é executada pela própria SÓCIA OSTENSIVA pelo valor da {{i:capital.total}}, que corresponde ao seu preço de projeto, fornecimento e instalação, e que o SÓCIO PARTICIPANTE declara conhecer e aceitar.'),
+      I('capital.adicional', 'Aporte adicional, para obra exigida pela concessionária ou outra despesa não prevista, depende da concordância escrita dos sócios e é feito na proporção das cotas. Recusando-se um sócio, os demais podem fazê-lo, com o ajuste proporcional das cotas.'),
+      I('capital.patrimonio', 'As contribuições dos sócios constituem patrimônio especial, objeto da conta de participação. Os equipamentos adquiridos com ele, ainda que faturados em nome da SÓCIA OSTENSIVA, integram esse patrimônio especial e pertencem aos sócios na proporção das cotas, produzindo essa especialização efeito entre os sócios (art. 994 do Código Civil).'),
+    ]),
+    C('aporte', 'Da integralização do aporte', [
+      I('aporte.valor', `O SÓCIO PARTICIPANTE integraliza o seu aporte de <b>${d.total > 0 ? money(d.total) : lacuna}</b>${d.total > 0 ? ` (${e(recExtenso(d.total))})` : ''}${d.sinal > 0 ? `, do qual já pagou <b>${money(d.sinal)}</b> (${e(recExtenso(d.sinal))}), remanescendo <b>${money(d.saldo)}</b>` : ''}.`, { travado: true }),
+      d.pagLinhas.length
+        ? I('aporte.forma', `O ${base} será pago da seguinte forma:`, { bloco: 'pagamento', travado: true })
+        : I('aporte.forma', `Forma de pagamento acordada: ${d.pagObs ? e(d.pagObs) : lacuna}`, { travado: true }),
+      I('aporte.obs', d.pagLinhas.length && d.pagObs ? e(d.pagObs) : ''),
+      I('aporte.acrescimo', d.temAcr ? 'Nas formas parceladas com acréscimo, o valor das parcelas já o inclui, e a coluna Valor indica a parte do aporte quitada por aquela forma. O acréscimo é custo do meio de pagamento e não aumenta a cota.' : ''),
+      I('aporte.dados', d.pagDados ? `Os pagamentos serão feitos em favor da SÓCIA OSTENSIVA por meio de: <b>${e(d.pagDados)}</b>. Pagamento feito a terceiro ou em conta diversa não quita a obrigação.` : ''),
+      I('aporte.financiamento', d.temFin ? 'Sendo parte do aporte financiada, o crédito deve ser liberado em até 30 (trinta) dias da assinatura. Não liberado nesse prazo, as partes ajustarão nova forma de pagamento em até 10 (dez) dias e, não havendo acordo, aplica-se a {{i:aporte.inadimplencia}}.' : ''),
+      I('aporte.mora', `O atraso no pagamento de qualquer parcela sujeita o SÓCIO PARTICIPANTE a multa de ${pct(d.multa)}% e juros de ${pct(d.juros)}% ao mês, e suspende os prazos da {{c:implantacao}} enquanto perdurar.`),
+      I('aporte.inadimplencia', 'Não pago o aporte em até 30 (trinta) dias do vencimento, a SÓCIA OSTENSIVA poderá, mediante notificação, reduzir a cota do SÓCIO PARTICIPANTE na proporção do que ele efetivamente integralizou, oferecendo a diferença a outro sócio, ou resolver este contrato, restituindo o valor pago em até 30 (trinta) dias, deduzidos os custos já incorridos e comprovados.'),
+      I('aporte.ostensiva', s.aporteN > 0
+        ? `A SÓCIA OSTENSIVA integraliza o seu aporte de <b>${money(s.aporteN)}</b> (${e(recExtenso(s.aporteN))}) em dinheiro ou em equipamentos e serviços de implantação, estes pelo valor que integra a {{i:capital.total}}.`
+        : `A SÓCIA OSTENSIVA não aporta dinheiro: a sua cota de <b>${pct(s.cotaN)}%</b> corresponde à gestão, à operação e à administração do PONTO, prestadas por ela durante toda a vigência sem outra remuneração além da plataforma da {{i:operacao.plataforma}}.`, { travado: true }),
+    ]),
+    s.captacao ? C('captacao', 'Da captação do capital', [
+      I('captacao.adesao', cotas
+        ? 'As cotas ainda não subscritas serão oferecidas pela SÓCIA OSTENSIVA a outros participantes, que ingressarão na SOCIEDADE por termo de adesão a este contrato, nas mesmas condições, ficando desde já consentidas essas admissões (art. 995 do Código Civil).'
+        : 'O capital ainda não coberto pelos aportes do quadro da {{i:capital.quadro}} será captado pela SÓCIA OSTENSIVA junto a outros participantes, que ingressarão na SOCIEDADE por termo de adesão a este contrato, ficando desde já consentidas essas admissões (art. 995 do Código Civil).'),
+      I('captacao.reserva', 'Até completar o capital, os valores integralizados permanecem reservados e não são empregados na implantação, salvo autorização escrita de todos os sócios.'),
+      I('captacao.prazo', `Não completado o capital em até <b>${P.captacao} dias</b> da assinatura, qualquer dos sócios pode resolver este contrato sem multa, e a SÓCIA OSTENSIVA restituirá ao SÓCIO PARTICIPANTE, em até 10 (dez) dias, todo o valor integralizado, sem dedução.`),
+    ]) : null,
+    C('local', 'Do local', [
+      I('local.cessao', socio50
+        ? (arrendLocal
+          ? `O SÓCIO PARTICIPANTE cede à SÓCIA OSTENSIVA, para uso exclusivo da SOCIEDADE e durante toda a sua vigência, a área do local necessária à instalação, à operação e ao acesso do PONTO, mediante remuneração de <b>${pct(s.arrend)}% do faturamento bruto</b>, que integra os custos da operação da {{i:resultado.custos}}.`
+          : 'O SÓCIO PARTICIPANTE cede à SÓCIA OSTENSIVA, para uso exclusivo da SOCIEDADE, durante toda a sua vigência e sem remuneração, a área do local necessária à instalação, à operação e ao acesso do PONTO, como parte da sua contribuição.')
+        : (arrendLocal
+          ? `O local é objeto de contrato de cessão de área firmado pela SÓCIA OSTENSIVA com o seu titular, mediante remuneração de <b>${pct(s.arrend)}% do faturamento bruto</b>, que integra os custos da operação da {{i:resultado.custos}}.`
+          : 'O local é objeto de contrato de cessão de área firmado pela SÓCIA OSTENSIVA com o seu titular, cujo custo, se houver, integra os custos da operação da {{i:resultado.custos}}.')),
+      I('local.acesso', socio50 ? 'O SÓCIO PARTICIPANTE assegura o acesso livre dos usuários durante o horário de funcionamento e o das equipes de manutenção a qualquer tempo, e não instala nem autoriza, no mesmo imóvel, outra estação de recarga aberta ao público.' : ''),
+      I('opc.anuencia', socio50 && op('anuencia') ? 'Não sendo o SÓCIO PARTICIPANTE proprietário do imóvel, ele apresenta, na assinatura, a anuência escrita do proprietário para a instalação, e a SOCIEDADE não ultrapassa o prazo do direito dele sobre o local.' : ''),
+      I('local.bens', 'Os equipamentos são bens móveis, removíveis, e não se incorporam ao imóvel. Saindo o PONTO do local, a SÓCIA OSTENSIVA os retira em até 30 (trinta) dias e recompõe a área.'),
+      I('local.energia', 'A ligação do PONTO à rede, a demanda contratada e o consumo de energia correm por conta da SOCIEDADE, como custo da operação. Obra de conexão exigida pela concessionária segue a {{i:capital.adicional}}.'),
+    ]),
+    C('implantacao', 'Da implantação', [
+      I('implantacao.prazo', `A SÓCIA OSTENSIVA elaborará o projeto, recolherá a ART, protocolará o pedido de acesso junto à concessionária e entregará o PONTO em operação em até <b>${P.implant} dias</b> contados ${s.captacao ? 'da integralização do capital completo' : 'da integralização do aporte do SÓCIO PARTICIPANTE'}.`),
+      I('implantacao.suspensao', 'Suspendem esse prazo, pelo tempo que durarem: exigências ou atrasos da concessionária, falta de energia no local, embargos, indisponibilidade de acesso e atraso no pagamento de aporte.'),
+      I('implantacao.negativa', 'Negada a conexão pela concessionária ou inviabilizado o local, este contrato se resolve sem multa, e o capital é restituído aos sócios na proporção dos aportes, deduzidos os custos já incorridos e comprovados.'),
+      I('implantacao.inicio', 'A operação considera-se iniciada na primeira recarga comercial, data a partir da qual correm a apuração da {{c:resultado}} e o prazo da {{c:prazo}}.'),
+    ]),
+    C('operacao', 'Da operação e da administração', [
+      I('operacao.gestao', 'Cabe à SÓCIA OSTENSIVA, com exclusividade, a gestão do PONTO: preço da recarga, contratação de energia, manutenção, seguro, conectividade, meio de pagamento, atendimento aos usuários e relacionamento com a concessionária e os órgãos públicos.'),
+      I('operacao.plataforma', `O PONTO opera na plataforma de gestão e cobrança da SÓCIA OSTENSIVA (Software NEXUS, protocolo OCPP), remunerada em <b>${pct(s.software)}% do faturamento bruto</b>, que integra os custos da operação.`),
+      I('operacao.painel', 'O SÓCIO PARTICIPANTE tem acesso permanente de leitura ao painel do PONTO, com sessões, energia entregue e faturamento, sem dados pessoais de usuários.'),
+      I('operacao.escrituracao', 'A SÓCIA OSTENSIVA mantém escrituração própria da SOCIEDADE, separada da sua, e promove a inscrição dela no CNPJ e as demais obrigações fiscais da conta de participação, na forma da legislação.'),
+      I('operacao.gratuidade', 'Recarga gratuita, com desconto ou de cortesia concedida pela SÓCIA OSTENSIVA entra no faturamento pelo preço de tabela do PONTO, salvo campanha aprovada por escrito pelos sócios.'),
+    ]),
+    C('resultado', 'Da apuração e da distribuição do resultado', [
+      I('resultado.faturamento', 'Faturamento bruto é tudo o que for cobrado dos usuários pelo uso do PONTO no mês: energia, taxa de ativação, tempo de permanência e qualquer outra receita do PONTO.'),
+      I('resultado.custos', `Do faturamento bruto deduzem-se, antes de qualquer distribuição, todos os custos da operação: energia elétrica e demanda, tributos sobre o faturamento, a plataforma da {{i:operacao.plataforma}}, meio de pagamento, manutenção, conectividade, seguro${arrendLocal || cotas ? ', a remuneração do local da {{i:local.cessao}}' : ''} e demais despesas comprovadas do PONTO.`),
+      I('resultado.divisao', `O resultado líquido é dividido entre os sócios na proporção das cotas do quadro da {{i:capital.quadro}} e pago até o dia <b>${P.dia}</b> do mês seguinte ao da apuração, acompanhado de demonstrativo com o faturamento, cada custo e o valor de cada sócio.`),
+      I('resultado.negativo', 'Mês de resultado negativo não gera distribuição, e o déficit é compensado nos meses seguintes antes de nova distribuição.'),
+      I('opc.soc_perda', op('soc_perda') ? 'As perdas são suportadas na proporção das cotas, e a responsabilidade do SÓCIO PARTICIPANTE limita-se ao valor do seu aporte: nenhum aporte adicional lhe pode ser exigido sem a sua concordância escrita.' : ''),
+      I('resultado.contas', 'A SÓCIA OSTENSIVA presta contas aos sócios anualmente, com o balanço do PONTO, em até 90 (noventa) dias do encerramento do exercício.'),
+      I('opc.soc_auditoria', op('soc_auditoria') ? 'O SÓCIO PARTICIPANTE pode, uma vez por ano, auditar as contas por profissional habilitado, às suas expensas. Apurada diferença superior a 5% (cinco por cento) em seu desfavor, o custo da auditoria passa à SÓCIA OSTENSIVA, que paga a diferença corrigida.' : ''),
+      I('resultado.tributos', 'Cada sócio responde pelos tributos incidentes sobre o que receber.'),
+    ]),
+    C('projecoes', 'Das projeções de resultado', [
+      I('projecoes.natureza', 'Os estudos de viabilidade, simulações e demais materiais que estimem faturamento, lucro, retorno, payback ou volume de recargas constituem <b>projeção técnica fundamentada nas premissas neles declaradas</b>, e <b>não representam promessa, garantia ou compromisso de resultado</b> por parte da SÓCIA OSTENSIVA.'),
+      I('projecoes.fatores', 'O resultado depende de fatores alheios à vontade dos sócios, como o movimento de veículos no local, a tarifa de energia, a concorrência e as condições regulatórias, e o SÓCIO PARTICIPANTE declara conhecer o risco do negócio.'),
+    ]),
+    C('prazo', 'Do prazo, da saída e da cessão de cotas', [
+      I('prazo.vigencia', P.prazo > 0
+        ? `A SOCIEDADE vigora por <b>${P.prazo} meses</b> contados do início da operação, prorrogando-se por prazo indeterminado se nenhum sócio se opuser por escrito com 90 (noventa) dias de antecedência do término.`
+        : 'A SOCIEDADE vigora por prazo indeterminado, contado do início da operação.'),
+      I('prazo.permanencia', P.permanencia > 0 ? `Nenhum sócio pode retirar-se nos primeiros <b>${P.permanencia} meses</b> de operação, salvo pelas hipóteses da {{c:dissolucao}}.` : ''),
+      I('prazo.retirada', `${P.permanencia > 0 ? 'Depois disso, a' : 'A'} retirada se faz por notificação com <b>${P.aviso} dias</b> de antecedência. Os haveres do sócio que sai são apurados pelo valor patrimonial da SOCIEDADE em balanço especial da data da saída e pagos em até <b>${P.haveres} parcelas mensais</b>.`),
+      I('opc.soc_preferencia', op('soc_preferencia') ? 'O sócio que quiser ceder a sua cota a oferecerá primeiro aos demais, que terão 30 (trinta) dias para exercer a preferência nas mesmas condições. A cessão a terceiro depende do consentimento expresso da SÓCIA OSTENSIVA (art. 995 do Código Civil).' : ''),
+      I('prazo.sucessao', 'Falecendo o SÓCIO PARTICIPANTE, seus herdeiros sucedem na cota, salvo se preferirem a apuração de haveres na forma da {{i:prazo.retirada}}.'),
+    ]),
+    C('dissolucao', 'Da dissolução e da liquidação', [
+      I('dissolucao.hipoteses', 'A SOCIEDADE se dissolve pelo término do prazo sem prorrogação, por acordo entre os sócios, pela inviabilidade do PONTO (negativa ou corte da concessionária, perda do local, interdição) ou pela falência da SÓCIA OSTENSIVA (art. 994, § 2º, do Código Civil).'),
+      I('dissolucao.liquidacao', 'Na dissolução, os equipamentos são vendidos ou adjudicados a um dos sócios pelo valor de avaliação, com preferência aos sócios em igualdade de condições, e o saldo, pagos os custos, é partilhado na proporção das cotas. A liquidação rege-se pelas normas da prestação de contas (art. 996 do Código Civil).'),
+    ]),
+    C('rescisao', 'Do descumprimento', [
+      I('rescisao.descumprimento', `O descumprimento de qualquer cláusula autoriza o sócio prejudicado a resolver este contrato, mediante notificação com prazo de ${P.corrigir} dias para correção, respondendo o culpado por perdas e danos e apurando-se os haveres na forma da {{i:prazo.retirada}}.`),
+    ]),
+    C('gerais', 'Das disposições gerais', [
+      I('gerais.aditivo', 'Este contrato substitui entendimentos anteriores sobre o objeto e só pode ser alterado por aditivo escrito assinado pelos sócios.'),
+      I('gerais.tolerancia', tolerancia),
+      I('gerais.confidencialidade', 'Os sócios tratam como confidenciais as informações comerciais e financeiras do PONTO, salvo exigência legal.'),
+      I('opc.lgpd', op('lgpd') ? 'Os dados pessoais de usuários do PONTO são tratados pela SÓCIA OSTENSIVA exclusivamente para a operação, na forma da Lei nº 13.709/2018 (LGPD), e os demonstrativos entregues ao SÓCIO PARTICIPANTE são agregados, sem identificação de usuário. A marca, o projeto e o software utilizados permanecem de propriedade da SÓCIA OSTENSIVA.' : ''),
+      I('opc.eletronica', op('eletronica') ? eletronica : ''),
+      ...d.extras.map((x, i) => I('extra.' + (i + 1), e(x))),
+    ]),
+    C('foro', 'Do foro', [
+      I('foro.comarca', `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b> para dirimir as questões oriundas deste contrato, com renúncia a qualquer outro.`),
+    ]),
+  ].filter(Boolean);
+}
+
+// ─── ARRENDAMENTO DO PONTO: cessão onerosa de área (modelo 01) ───────────────
+// O cliente cede o espaço (CEDENTE) e a NEXUS investe 100% (CESSIONÁRIA). Texto
+// a partir do CONTRATO-ARRENDAMENTO-PONTO.md, sem a corretagem e a preferência
+// (lá a IO era interveniente entre dono e investidor) e sem a fornecedora
+// separada (aqui o equipamento é da própria NEXUS). Ficaram, e de propósito:
+// a medição com painel, auditoria e média dos meses quando a telemetria cai, e
+// a recarga grátis contando pelo preço de tabela. Quem mede a base do
+// percentual é a mesma NEXUS que paga sobre ela.
+function ctrModeloArrend(d) {
+  const { e, money, vazio, lacuna, pct, op, C, I, eletronica, tolerancia } = ctrModeloPecas(d);
+  const a = d.arr;
+  const objeto = loc => `O CEDENTE cede à CESSIONÁRIA, a título oneroso, o uso de área do imóvel situado em <b>${loc}</b> (o "IMÓVEL"), com destinação exclusiva à instalação, à operação, à manutenção e à exploração comercial de estação de recarga de veículos elétricos composta por <b>${d.qtd} carregador(es) ${e(d.equipTxt || 'de corrente contínua')}</b>, com ${d.plugs} ponto(s) de carregamento (o "PONTO").`;
+  const anuenciaFalta = 'A falta, a invalidade ou a revogação dessa anuência, descoberta depois da assinatura, é causa de rescisão por culpa do CEDENTE.';
+  const legitimidade = {
+    proprietario: 'Declarar e garantir que é proprietário do IMÓVEL, com a sua posse direta e sem impedimento à cessão, e mantê-lo assim durante toda a vigência.',
+    locado: `Declarar que é proprietário do IMÓVEL, alugado a terceiro, e apresentar na assinatura a anuência escrita do locatário a esta cessão. ${anuenciaFalta}`,
+    locatario: `Declarar que é locatário do IMÓVEL e apresentar na assinatura cópia do contrato de locação e a anuência escrita e específica do proprietário. Este contrato não ultrapassa o prazo da locação. ${anuenciaFalta}`,
+    representante: 'Declarar que administra ou representa o proprietário do IMÓVEL, com poderes documentados para esta cessão, cuja cópia integra este contrato.',
+    condominio: `Apresentar na assinatura a ata da assembleia que autorizou esta cessão, com o quórum exigido pela convenção do condomínio. ${anuenciaFalta}`,
+    branco: 'Declarar a sua condição sobre o IMÓVEL: ( ) proprietário, com a posse direta; ( ) proprietário, com o IMÓVEL alugado, mediante anuência escrita do locatário; ( ) locatário, mediante anuência escrita do proprietário, sem ultrapassar o prazo da locação; ( ) administrador ou representante do proprietário, com poderes documentados; ( ) condomínio, mediante ata de assembleia.',
+  }[a.relacao] || '';
+  return [
+    C('objeto', 'Do objeto e da área cedida', [
+      I('objeto.cessao', objeto(vazio(d.local)), { travado: true, iaTexto: objeto('[local da instalação]') }),
+      I('objeto.area', `A área cedida (a "ÁREA") compreende <b>${a.vagas} vaga(s)</b> de estacionamento destinada(s) exclusivamente à recarga${a.area ? `, num total de <b>${e(a.area)} m²</b>` : ''}, a base e a proteção do equipamento, o trajeto do cabeamento até o ponto de entrega de energia, o espaço do quadro elétrico e do medidor, a área de manobra e a posição da sinalização, conforme croqui assinado pelas partes, que integra este contrato.`),
+      I('objeto.finalidade', 'A ÁREA não pode ser usada para outra finalidade, nem sublocada ou cedida a terceiro, salvo na hipótese da {{i:sucessao.cessao}}.'),
+      I('objeto.laudo', 'O estado da ÁREA na data da assinatura é registrado em laudo fotográfico assinado pelas partes, que é a referência para a devolução da {{c:devolucao}}.'),
+    ]),
+    C('natureza', 'Da natureza da cessão', [
+      I('natureza.atipica', 'Este contrato é cessão onerosa de uso de área com destinação específica. Não configura sociedade, parceria, consórcio ou qualquer participação do CEDENTE no negócio da CESSIONÁRIA.'),
+      I('natureza.gestao', 'O CEDENTE não administra o PONTO, não define a tarifa, não opera o equipamento e não responde pelo resultado econômico. A CESSIONÁRIA não adquire sobre o IMÓVEL direito algum além do uso da ÁREA, nos limites deste contrato.'),
+      I('natureza.preco', 'O percentual da {{i:remuneracao.pct}} é o preço da cessão, medido por um índice objetivo: o CEDENTE não participa de lucro, não suporta prejuízo e não assume o risco do negócio.'),
+    ]),
+    C('prazo', 'Do prazo', [
+      I('prazo.vigencia', `O prazo de vigência é de <b>${a.vigencia} meses</b>, contados da energização do PONTO e da primeira recarga, renovando-se automaticamente por períodos iguais, salvo aviso escrito de qualquer das partes com <b>${a.aviso} dias</b> de antecedência do término.`),
+      I('prazo.permanencia', a.permanencia > 0 ? `Nenhuma das partes pode denunciar este contrato sem motivo antes de <b>${a.permanencia} meses</b> da energização.` : ''),
+      I('prazo.implantacao', `Da assinatura à energização corre a fase de implantação, de até <b>${a.implant} dias</b>, em que não é devida remuneração. Vencido esse prazo sem energização, por causa não imputável ao CEDENTE, qualquer das partes pode resolver o contrato sem ônus, retirando a CESSIONÁRIA o que houver instalado e recompondo a ÁREA.`),
+      I('prazo.negativa', 'Negado o acesso pela concessionária, ou recusado por escrito pela CESSIONÁRIA o custo de reforço de rede, o contrato se resolve sem multa de parte a parte.'),
+    ]),
+    C('remuneracao', 'Da remuneração do CEDENTE', [
+      I('remuneracao.pct', `Pela cessão, a CESSIONÁRIA pagará ao CEDENTE <b>${a.pct > 0 ? pct(a.pct) : lacuna}% do faturamento bruto de recarga do PONTO</b>, apurado mensalmente.`, { travado: true }),
+      I('remuneracao.base', 'Faturamento bruto é a soma de tudo o que for cobrado dos usuários pelo uso do PONTO no mês: energia entregue, taxa de ativação por sessão, tempo de permanência e qualquer outra receita do PONTO. Recargas gratuitas, com desconto, de cortesia ou de campanha entram na base pelo preço de tabela vigente na data da sessão.'),
+      I('remuneracao.deducoes', 'Do faturamento bruto não se deduzem, para este fim, energia, meio de pagamento, plataforma, conectividade, tributos, manutenção, seguro ou depreciação.'),
+      I('remuneracao.piso', a.piso > 0 ? `A partir do <b>${a.carencia}º mês</b> de operação, a remuneração mensal não será inferior a <b>${money(a.piso)}</b> (${e(recExtenso(a.piso))}), valor reajustado anualmente pelo IPCA. O percentual não se reajusta, por já acompanhar o preço da recarga.` : '', { travado: true }),
+      I('remuneracao.vencimento', `O pagamento vence até o dia <b>${a.dia}</b> do mês seguinte ao da apuração, acompanhado do demonstrativo da {{i:contas.demonstrativo}}${a.dados ? `, e é feito diretamente ao CEDENTE por meio de: <b>${e(a.dados)}</b>` : ''}.`),
+      I('remuneracao.mora', `O atraso sujeita a CESSIONÁRIA a multa de ${pct(a.moraMulta)}%, juros de ${pct(a.moraJuros)}% ao mês e correção pelo IPCA.`),
+      I('remuneracao.tributos', 'Cada parte responde pelos tributos incidentes sobre o que recebe, e o CEDENTE emite o documento fiscal ou o recibo compatível com a sua natureza jurídica.'),
+    ]),
+    C('contas', 'Da medição e da prestação de contas', [
+      I('contas.fonte', 'A base de apuração é o registro da plataforma de gestão e cobrança do PONTO (protocolo OCPP): sessões, energia entregue e valores cobrados.'),
+      I('contas.demonstrativo', 'Até o vencimento, a CESSIONÁRIA entrega ao CEDENTE demonstrativo mensal com o número de sessões, a energia entregue, o faturamento bruto discriminado, as recargas gratuitas ou promocionais, o percentual aplicado e o valor devido, acompanhado do extrato da plataforma.'),
+      I('contas.painel', 'O CEDENTE tem acesso permanente de leitura ao painel do PONTO, restrito aos dados do PONTO e sem dados pessoais de usuários.'),
+      I('contas.contestacao', 'O CEDENTE pode contestar o demonstrativo por escrito em 30 (trinta) dias do recebimento, e a CESSIONÁRIA responde em 10 (dez) dias úteis com o extrato bruto da plataforma.'),
+      I('opc.arr_auditoria', op('arr_auditoria') ? 'O CEDENTE pode, uma vez por ano, auditar a apuração por profissional habilitado, às suas expensas. Apurada diferença superior a 5% (cinco por cento) em seu desfavor, o custo da auditoria passa à CESSIONÁRIA, que paga a diferença com os acréscimos da {{i:remuneracao.mora}}.' : ''),
+      I('contas.falha', `Faltando registro auditável por troca de plataforma ou por falha de telemetria superior a 15 (quinze) dias, a CESSIONÁRIA paga a média dos três últimos meses apurados${a.piso > 0 ? ', ou o piso, se maior' : ''}, acertando-se a diferença quando o registro voltar.`),
+      I('contas.conflito', 'As partes reconhecem que a CESSIONÁRIA opera a plataforma que mede a base da remuneração, razão pela qual os direitos desta cláusula não podem ser afastados por acordo verbal.'),
+    ]),
+    op('arr_exclusiv') ? C('exclusividade', 'Da exclusividade', [
+      I('opc.arr_exclusiv', 'Durante a vigência, o CEDENTE não instala, não autoriza e não cede área a terceiro, no IMÓVEL, para estação de recarga de veículos elétricos aberta ao público.'),
+      I('opc.arr_privativo', op('arr_privativo') ? 'A exclusividade não impede o CEDENTE de manter tomada ou carregador de uso privativo, sem cobrança e sem abertura ao público, para veículos próprios ou da sua frota.' : ''),
+      I('exclusividade.cessionaria', 'A exclusividade não é recíproca: a CESSIONÁRIA pode implantar e operar outros pontos, inclusive próximos.'),
+    ]) : null,
+    C('energia', 'Da energia elétrica', [
+      I('energia.config', {
+        uc: 'O PONTO é atendido por unidade consumidora própria, em nome da CESSIONÁRIA, com ramal, padrão de entrada e medição separados, sendo dela a titularidade e o pagamento integral da conta.',
+        sub: 'O PONTO é atendido pela unidade consumidora do CEDENTE, com medidor aferido instalado e mantido pela CESSIONÁRIA, que reembolsa mensalmente o consumo medido pela tarifa efetiva da fatura do período, incluídos bandeira, tributos e encargos, mediante cópia da fatura.',
+        refatura: 'O CEDENTE paga a fatura da unidade consumidora e refatura à CESSIONÁRIA o consumo do PONTO, apurado por medidor próprio, pela tarifa efetiva do período, mediante cópia da fatura.',
+      }[a.energia] || ''),
+      I('energia.custo', 'A energia consumida nas recargas é integralmente da CESSIONÁRIA.'),
+      I('energia.rede', 'Reforço de rede, extensão, transformador, aumento de carga e participação financeira exigidos pela concessionária correm por conta exclusiva da CESSIONÁRIA. O CEDENTE assina os documentos que dependam da titularidade da unidade consumidora e outorga procuração específica para o trâmite, sem que isso lhe transfira custo.'),
+      I('energia.conta', a.energia !== 'uc' ? 'Se a carga do PONTO mudar o enquadramento ou a demanda contratada da unidade consumidora do CEDENTE, a CESSIONÁRIA indeniza a diferença comprovada na conta dele, apurada contra a média dos 12 (doze) meses anteriores.' : ''),
+    ]),
+    C('obras', 'Das obras e dos equipamentos', [
+      I('obras.execucao', 'As obras de implantação são executadas por conta e risco da CESSIONÁRIA, por empresa habilitada, com ART de engenheiro responsável e observadas a ABNT NBR 17019, a NR-10 e as normas da concessionária. O projeto e o cronograma são apresentados previamente ao CEDENTE, que só pode recusá-los por motivo técnico ou de segurança justificado.'),
+      I('obras.danos', 'Danos causados ao IMÓVEL pela obra ou pela operação são reparados pela CESSIONÁRIA, às suas expensas.'),
+      I('obras.benfeitorias', 'As obras são feitas no interesse da CESSIONÁRIA e não geram, durante a vigência, direito de indenização nem de retenção a nenhuma das partes.'),
+      I('obras.propriedade', 'O carregador, os cabos, o medidor, o quadro, as proteções, o totem e os demais equipamentos são bens móveis de propriedade da CESSIONÁRIA, instalados por destinação temporária e removíveis, e em nenhuma hipótese aderem ao IMÓVEL ou passam ao patrimônio do CEDENTE.'),
+      I('obras.retencao', 'O CEDENTE não adquire posse, retenção ou garantia sobre os equipamentos, nem por inadimplemento da remuneração, cujo remédio é a cobrança e a rescisão, nunca a retenção ou o desligamento do PONTO.'),
+      I('obras.constricao', 'Havendo penhora, hipoteca, execução ou desapropriação que alcance o IMÓVEL, o CEDENTE comunica a CESSIONÁRIA em 5 (cinco) dias e apresenta este contrato para demonstrar que os equipamentos são de terceiro.'),
+      I('opc.arr_registro', op('arr_registro') ? 'As partes registrarão este contrato no Cartório de Registro de Títulos e Documentos e o averbarão na matrícula do IMÓVEL, às expensas da CESSIONÁRIA, para que produza efeito perante terceiros.' : ''),
+      I('obras.ampliacao', 'Ampliação do PONTO, com novo carregador, novo ponto de carregamento ou aumento de potência, depende de aditivo escrito.'),
+    ]),
+    C('operacao', 'Do acesso e da operação', [
+      I('operacao.horario', {
+        '24h': 'O PONTO funciona 24 (vinte e quatro) horas, todos os dias.',
+        estab: 'O PONTO funciona no horário de funcionamento do estabelecimento do CEDENTE, que comunicará por escrito qualquer mudança.',
+        outro: `O PONTO funciona ${a.horarioTxt ? e(a.horarioTxt) : lacuna}.`,
+      }[a.horario] || ''),
+      I('operacao.acesso', 'O CEDENTE assegura o acesso livre dos usuários à ÁREA no horário de funcionamento, sem cobrança de entrada, sem exigência de consumo e sem obstrução, e o acesso da CESSIONÁRIA para manutenção em horário combinado e, em emergência, a qualquer hora.'),
+      I('operacao.tarifa', 'O preço da recarga ao usuário é definido livre e exclusivamente pela CESSIONÁRIA, como admite a regulação da ANEEL para a atividade de recarga. O CEDENTE não fixa, não veta e não sugere tarifa.'),
+      I('operacao.cedente', 'O CEDENTE não opera o PONTO e não intervém no equipamento, na plataforma ou na configuração, salvo o acionamento do botão de emergência em situação de risco.'),
+      I('operacao.fechamento', `Fechado o estabelecimento de modo a impedir o acesso ao PONTO por mais de 15 (quinze) dias, ${a.piso > 0 ? 'suspende-se o piso da {{i:remuneracao.piso}} e ' : ''}prorroga-se o prazo pelo mesmo período; passados 60 (sessenta) dias, a CESSIONÁRIA pode resolver o contrato sem multa.`),
+    ]),
+    C('cedente', 'Das obrigações do CEDENTE', [
+      I('cedente.legitimidade', legitimidade),
+      I('cedente.manter', 'Manter a ÁREA livre, desembaraçada e utilizável, e o IMÓVEL em condições regulares de estrutura, pavimento, drenagem e iluminação, comunicando antes obra ou reforma que afete a ÁREA.'),
+      I('cedente.aviso', 'Comunicar por escrito, com 30 (trinta) dias de antecedência, a intenção de vender, dar em garantia, alugar ou desocupar o IMÓVEL.'),
+      I('cedente.ocorrencia', 'Comunicar de imediato avaria, vandalismo, furto ou acidente de que souber, sem que isso lhe atribua dever de vigilância.'),
+      I('cedente.naobloquear', 'Não obstruir, não desligar e não bloquear o PONTO, ainda que haja valor em aberto.'),
+    ]),
+    C('cessionaria', 'Das obrigações da CESSIONÁRIA', [
+      I('cessionaria.operar', 'Implantar e operar o PONTO na forma da lei, das normas técnicas e das exigências da concessionária, com responsabilidade técnica.'),
+      I('cessionaria.custos', 'Arcar com energia, conectividade, plataforma, meio de pagamento, manutenção, seguro e tributos da exploração.'),
+      I('cessionaria.conservar', 'Manter o equipamento em bom estado, limpo, sinalizado e seguro, retirando de operação o que oferecer risco.'),
+      I('cessionaria.usuario', 'Responder perante o usuário como fornecedora do serviço de recarga e manter o CEDENTE indene de reclamação de usuário, de órgão de defesa do consumidor, do fisco ou de terceiro relacionada ao PONTO.'),
+      I('cessionaria.seguro', 'Manter seguro do equipamento contra incêndio, dano elétrico, vandalismo e furto, e seguro de responsabilidade civil por danos a terceiros e ao IMÓVEL, apresentando as apólices ao CEDENTE quando pedidas.'),
+      I('cessionaria.emergencia', 'Orientar a equipe do CEDENTE sobre o desligamento de emergência do PONTO.'),
+    ]),
+    C('responsabilidade', 'Da responsabilidade', [
+      I('resp.divisao', 'A CESSIONÁRIA responde pelos danos da instalação e da operação do PONTO; o CEDENTE, pelos danos decorrentes do estado e da conservação do IMÓVEL.'),
+      I('resp.guarda', 'O CEDENTE não é depositário do equipamento e não responde por furto, vandalismo ou dano causado por terceiro, salvo culpa comprovada.'),
+      I('resp.indiretos', 'Nenhuma das partes responde por lucros cessantes ou danos indiretos da outra, e a interrupção do fornecimento de energia pela concessionária não gera responsabilidade a nenhuma delas.'),
+      I('resp.projecoes', 'Estudos, simulações e projeções apresentados na negociação não constituem garantia de faturamento, de ocupação ou de remuneração ao CEDENTE.'),
+    ]),
+    C('marca', 'Da sinalização e da divulgação', [
+      I('marca.sinalizacao', 'A CESSIONÁRIA pode instalar, às suas expensas, sinalização, totem e comunicação visual do PONTO, aprovados pelo CEDENTE quanto à dimensão e à posição, cabendo a ela a licença municipal, quando exigida.'),
+      I('marca.mapas', 'O CEDENTE autoriza a publicação do nome, do endereço, do horário e de fotos do local nos aplicativos e mapas de recarga, condição para o PONTO ser encontrado.'),
+      I('opc.arr_publicidade', op('arr_publicidade') ? 'O CEDENTE autoriza o uso do nome, da imagem e do endereço do estabelecimento pela CESSIONÁRIA em material institucional e publicitário.' : ''),
+    ]),
+    C('sucessao', 'Da venda do imóvel e da cessão do contrato', [
+      I('sucessao.venda', 'Vendendo o IMÓVEL ou o estabelecimento, o CEDENTE dá ciência prévia e escrita deste contrato ao adquirente, oferece-lhe a sub-rogação nas mesmas condições e faz constar a cessão do instrumento de venda. Recusada a sub-rogação, o contrato se resolve por culpa do CEDENTE.'),
+      I('sucessao.cessao', 'A CESSIONÁRIA pode ceder este contrato, mediante comunicação ao CEDENTE, a empresa do seu grupo, a sociedade de que seja sócia ostensiva ou a quem adquirir o PONTO, permanecendo solidária pelas obrigações anteriores à cessão.'),
+      I('sucessao.herdeiros', 'Este contrato obriga herdeiros e sucessores das partes.'),
+    ]),
+    C('rescisao', 'Da rescisão', [
+      I('rescisao.hipoteses', `O contrato se resolve pelo fim do prazo sem renovação, por acordo, por descumprimento não sanado em ${a.corrigir} dias da notificação, por atraso da remuneração superior a 60 (sessenta) dias, por desapropriação, sinistro ou interdição do IMÓVEL, e nas hipóteses da {{i:prazo.implantacao}}, da {{i:prazo.negativa}} e da {{i:operacao.fechamento}}.`),
+      I('rescisao.multa', a.multaSaida > 0 ? `A parte que der causa à rescisão${a.permanencia > 0 ? ', ou denunciar o contrato antes do prazo da {{i:prazo.permanencia}},' : ''} paga à outra multa equivalente a <b>${a.multaSaida} meses</b> da remuneração média dos 12 (doze) meses anteriores${a.piso > 0 ? ', ou do piso, se maior' : ''}, reduzida na proporção do prazo de vigência já cumprido.` : ''),
+      I('rescisao.cedente', 'Rescindido o contrato por culpa do CEDENTE, ele ressarce também o custo comprovado e não amortizado das obras, apurado linearmente pelo prazo de vigência, e o custo de retirada do equipamento.'),
+      I('rescisao.semculpa', 'Na rescisão sem culpa, faz-se o acerto pelo período decorrido, sem multa e sem indenização de parte a parte.'),
+      I('rescisao.retencao', 'Em nenhuma hipótese a rescisão autoriza a retenção, a apreensão ou o desligamento do equipamento.'),
+    ]),
+    C('devolucao', 'Da devolução da área', [
+      I('devolucao.retirada', `Encerrado o contrato, a CESSIONÁRIA retira, em até <b>${a.retirada} dias</b> e às suas expensas, o carregador, os cabos, o medidor, o quadro, as proteções, o totem, a sinalização e os demais componentes removíveis.`),
+      I('devolucao.base', a.base === 'sai'
+        ? 'A base de concreto e a ancoragem também são removidas pela CESSIONÁRIA, com recomposição do piso; eletrodutos enterrados, caixas de passagem e aterramento permanecem no IMÓVEL, sem indenização.'
+        : 'Permanecem no IMÓVEL, sem indenização, a base de concreto, a ancoragem, os eletrodutos enterrados, as caixas de passagem e o aterramento.'),
+      I('devolucao.estado', 'A CESSIONÁRIA recompõe o pavimento, a pintura e a sinalização da vaga, entregando a ÁREA no estado do laudo da {{i:objeto.laudo}}, ressalvado o desgaste natural, em termo de devolução assinado pelas partes.'),
+      I('devolucao.abandono', 'Não retirado o equipamento no prazo, o CEDENTE notifica a CESSIONÁRIA e, passados mais 30 (trinta) dias, pode removê-lo e guardá-lo às expensas dela, sem adquirir propriedade e sem direito de venda ou retenção.'),
+    ]),
+    C('gerais', 'Das disposições gerais', [
+      I('gerais.aditivo', 'Alterações de área, prazo ou remuneração só valem por aditivo escrito assinado pelas partes.'),
+      I('gerais.tolerancia', tolerancia),
+      I('gerais.confidencialidade', 'As partes tratam como confidenciais as informações comerciais e financeiras trocadas, inclusive o faturamento do PONTO, salvo exigência legal ou a auditoria da {{c:contas}}.'),
+      I('opc.lgpd', op('lgpd') ? 'Os dados pessoais de usuários do PONTO não são compartilhados com o CEDENTE, e os demonstrativos da {{c:contas}} são agregados, sem identificação de usuário, na forma da Lei nº 13.709/2018 (LGPD).' : ''),
+      I('opc.eletronica', op('eletronica') ? eletronica : ''),
+      ...d.extras.map((x, i) => I('extra.' + (i + 1), e(x))),
+    ]),
+    C('foro', 'Do foro', [
+      I('foro.comarca', `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b> para dirimir as questões oriundas deste contrato, com renúncia a qualquer outro.`),
+    ]),
+  ].filter(Boolean);
+}
+
 // Texto da IA passa pela mesma peneira do servidor: negrito, itálico, quebra e
 // a lacuna. O resto vira texto. Os marcadores {{c:...}} não têm < e passam.
 function ctrSanitizar(s) {
@@ -18688,6 +19433,11 @@ let ctrIa = { pedidos: [] };
 // Sobe a cada troca de cliente: resposta da IA que chega depois disso é de outro
 // contrato e é descartada.
 let ctrIaGeracao = 0;
+// Cada pedido é do modelo em que foi feito (pedido sem modelo, de antes de
+// 07/10/2026, é do Completo). Trocar de modelo esconde os pedidos do outro, e
+// voltar traz de volta: as chaves das cláusulas não são as mesmas entre eles.
+const ctrIaTipoDe = p => (p && p.tipo) || 'completo';
+function ctrIaPedidos(tipo) { const t = tipo || ctrTipo(); return ctrIa.pedidos.filter(p => ctrIaTipoDe(p) === t); }
 
 // Título vem da IA já escapado pelo servidor; aqui volta a texto puro, porque
 // quem escapa (uma vez só) é o ctrHTML e a tela.
@@ -18790,6 +19540,44 @@ function ctrIaAplicar(base, pedidos) {
   return { modelo, relatorio };
 }
 
+// Título, subtítulo e rodapé de cada modelo. O do Completo é o de sempre.
+function ctrCabecalho(d) {
+  if (d.tipo === 'arrend') return {
+    titulo: 'Contrato de Cessão Onerosa de Área<br>para Estação de Recarga de Veículos Elétricos',
+    sub: 'Arrendamento do ponto · remuneração sobre o faturamento',
+    rodape: 'Cessão de Área — Eletroposto', curto: 'Contrato de cessão de área' };
+  if (ctrEhSoc(d.tipo)) {
+    const rot = d.tipo === 'cotas' ? 'Cotas de ' + ctrPctTxt(d.soc.cota) + '%' : 'Sociedade ' + socRotulo(d.soc.cota);
+    return {
+      titulo: 'Contrato de Sociedade em Conta de Participação<br>para Estação de Recarga de Veículos Elétricos',
+      sub: rot + ' · implantação, operação e divisão do resultado',
+      rodape: (d.tipo === 'cotas' ? 'Sociedade em cotas' : 'Sociedade ' + socRotulo(d.soc.cota)) + ' — Eletroposto',
+      curto: 'Contrato de sociedade (' + rot + ')' };
+  }
+  return {
+    titulo: 'Contrato de Fornecimento e Instalação<br>de Estação de Recarga de Veículos Elétricos',
+    sub: `Fornecimento e instalação${d.software ? ', plataforma de gestão' : ''}`,
+    rodape: 'Contrato de Fornecimento e Instalação — Eletroposto', curto: 'Contrato de fornecimento e instalação' };
+}
+// O quadro societário do papel. Quem sobra sem dono aparece com nome: "demais
+// sócios participantes" (cotas por vender) e "capital a captar" (dinheiro que
+// ainda falta). Número que não fecha se discute; diferença sem nome derruba.
+function ctrQuadroCotas(d) {
+  const s = d.soc, e = orcEsc, money = ORC_MONEY;
+  const p = n => ctrPctTxt(n) + '%';
+  const nome = d.contratante ? e(d.contratante) : '<span class="ep-rec-vazio"></span>';
+  const linhas = [[`<b>${nome}</b><span>SÓCIO PARTICIPANTE${d.tipo === 'cotas' ? ` · ${s.qtd} cota(s) de ${p(s.cota)}` : ''}</span>`, p(s.cotaCli), s.aporteCli > 0 ? money(s.aporteCli) : '<span class="ep-rec-vazio"></span>']];
+  if (s.outros > 0) linhas.push([`<b>Demais sócios participantes</b><span>${s.outros} cota(s) de ${p(s.cota)}, por termo de adesão</span>`, p(s.cotaOutros), money(s.aporteOutros)]);
+  linhas.push([`<b>${e(d.empresa.razao || d.empresa.nome || 'NEXUS Eletropostos')}</b><span>SÓCIA OSTENSIVA</span>`, p(s.cotaN), s.aporteN > 0 ? money(s.aporteN) : 'gestão e administração']);
+  if (s.falta > 1) linhas.push(['<b>Capital a captar</b><span>por termo de adesão, até fechar o investimento</span>', '—', money(s.falta)]);
+  const totalAportes = s.falta > 1 ? s.invest : s.somaAportes;
+  return `<table class="ep-ctr-pag ep-ctr-cotas">
+      <thead><tr><th>Sócio</th><th class="n">Cota</th><th class="n">Aporte</th></tr></thead>
+      <tbody>${linhas.map(l => `<tr><td>${l[0]}</td><td class="n">${l[1]}</td><td class="n">${l[2]}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td>Total</td><td class="n">${p(s.somaCotas)}</td><td class="n">${money(totalAportes)}</td></tr></tfoot>
+    </table>`;
+}
+
 function ctrHTML(d) {
   const e = orcEsc, money = ORC_MONEY;
   const vazio = v => v ? e(v) : '<span class="ep-rec-vazio"></span>';
@@ -18797,7 +19585,9 @@ function ctrHTML(d) {
   // no Simulador: num cliente com PF e dois CNPJs, o contrato da PJ carimbava a
   // pessoa física no pé de todas as folhas.
   const quem = d.contratante;   // apagou a parte? o rodapé fica sem nome. Apagar é apagar.
-  const pageFoot = (n, tot) => `<div class="ep-pagefoot"><span class="ep-foot-esq">${EP_FOOT_LOGO}<span>Contrato de Fornecimento e Instalação — Eletroposto${quem ? ' · ' + e(quem) : ''}</span></span><span>Página ${n} de ${tot}</span></div>`;
+  const T = CTR_TIPOS[d.tipo] || CTR_TIPOS.completo;
+  const cab = ctrCabecalho(d);
+  const pageFoot = (n, tot) => `<div class="ep-pagefoot"><span class="ep-foot-esq">${EP_FOOT_LOGO}<span>${cab.rodape}${quem ? ' · ' + e(quem) : ''}</span></span><span>Página ${n} de ${tot}</span></div>`;
   const dataTxt = d.data.toLocaleDateString('pt-BR');
   const endCli = [d.contratanteEnd, d.cep, d.cidade].filter(Boolean).join(', ');
   const endEmp = [d.empresa.end, d.empresa.cidade].filter(Boolean).join(', ');
@@ -18815,8 +19605,9 @@ function ctrHTML(d) {
       <tbody>${d.pagLinhas.map(l => `<tr><td><b>${vazio(l.forma)}</b>${l.obs ? `<span>${e(l.obs)}</span>` : ''}</td><td class="n">${money(l.conta.valor)}</td><td>${e(l.cond)}</td><td>${vazio(l.quando)}</td></tr>`).join('')}</tbody>
       <tfoot><tr><td>Total</td><td class="n">${money(d.pagSoma)}</td><td colspan="2"></td></tr></tfoot>
     </table>`,
+    cotas: d.soc ? ctrQuadroCotas(d) : '',
   };
-  const { modelo } = ctrIaAplicar(ctrModelo(d), ctrIa.pedidos);
+  const { modelo } = ctrIaAplicar(ctrModelo(d), ctrIaPedidos(d.tipo));
   const { resolver } = ctrNumerar(modelo);
   // Cláusula = título + itens numerados pela posição. O título vai grudado no
   // primeiro item (título órfão no pé da folha não se manda); o quadro vai no
@@ -18834,18 +19625,18 @@ function ctrHTML(d) {
         <div class="ep-brand"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletropostos"></div>
         <div class="ep-ctr-ident">${d.num ? 'Contrato nº <b>' + e(d.num) + '</b> · ' : ''}${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}</div>
       </div>
-      <div class="ep-ctr-tit">Contrato de Fornecimento e Instalação<br>de Estação de Recarga de Veículos Elétricos</div>
-      <div class="ep-ctr-sub">Fornecimento e instalação${temOperacao ? ', plataforma de gestão' : ''}</div>`,
-    `<p class="ep-ctr-p"><b>CONTRATADA:</b> ${epParteQualif(d.empresa, vazio)}${endEmp ? ', com sede em ' + e(endEmp) : ''}${d.empresa.tel ? ', telefone ' + e(d.empresa.tel) : ''}${d.empresa.email ? ', e-mail ' + e(d.empresa.email) : ''}.</p>`,
-    `<p class="ep-ctr-p"><b>CONTRATANTE:</b> ${vazio(d.contratante)}, inscrito(a) no CPF/CNPJ sob o nº ${vazio(d.contratanteDoc)}${endCli ? ', com endereço em ' + e(endCli) : ''}${d.tel ? ', telefone ' + e(d.tel) : ''}${d.email ? ', e-mail ' + e(d.email) : ''}${d.rep ? `, neste ato representado(a) por <b>${e(d.rep)}</b>${d.repDoc ? ', CPF nº ' + e(d.repDoc) : ''}` : ''}.</p>`,
+      <div class="ep-ctr-tit">${cab.titulo}</div>
+      <div class="ep-ctr-sub">${cab.sub}</div>`,
+    `<p class="ep-ctr-p"><b>${T.nossa}:</b> ${epParteQualif(d.empresa, vazio)}${endEmp ? ', com sede em ' + e(endEmp) : ''}${d.empresa.tel ? ', telefone ' + e(d.empresa.tel) : ''}${d.empresa.email ? ', e-mail ' + e(d.empresa.email) : ''}.</p>`,
+    `<p class="ep-ctr-p"><b>${T.deles}:</b> ${vazio(d.contratante)}, inscrito(a) no CPF/CNPJ sob o nº ${vazio(d.contratanteDoc)}${endCli ? ', com endereço em ' + e(endCli) : ''}${d.tel ? ', telefone ' + e(d.tel) : ''}${d.email ? ', e-mail ' + e(d.email) : ''}${d.rep ? `, neste ato representado(a) por <b>${e(d.rep)}</b>${d.repDoc ? ', CPF nº ' + e(d.repDoc) : ''}` : ''}.</p>`,
     `<p class="ep-ctr-p">As partes acima têm entre si justo e contratado o presente instrumento, que se regerá pelas cláusulas seguintes.</p>`,
     ...blocosClausulas,
     // O fecho é UM bloco: assinatura órfã em folha nova não se manda.
     `<div class="ep-ctr-fim">
       <p class="ep-ctr-p" style="margin-top:14px">E por estarem justas e contratadas, as partes assinam o presente em duas vias de igual teor${d.testemunhas ? ', na presença das testemunhas abaixo' : ''}${d.cidade ? `, em ${e(d.cidade)}` : ''}, ${e(dataTxt)}.</p>
       <div class="ep-ctr-assin">
-        <div class="a"><b>${vazio(d.empresa.razao || d.empresa.nome)}</b>${d.empresa.cnpj ? `<span>CNPJ ${e(d.empresa.cnpj)}</span>` : ''}${d.empresa.socio ? `<span>neste ato representada por ${e(d.empresa.socio)}${d.empresa.socioCpf ? ', CPF ' + e(d.empresa.socioCpf) : ''}</span>` : ''}CONTRATADA</div>
-        <div class="a"><b>${vazio(d.contratante)}</b>${d.contratanteDoc ? `<span>CPF/CNPJ ${e(d.contratanteDoc)}</span>` : ''}${d.rep ? e(d.rep) + '<br>' : ''}CONTRATANTE</div>
+        <div class="a"><b>${vazio(d.empresa.razao || d.empresa.nome)}</b>${d.empresa.cnpj ? `<span>CNPJ ${e(d.empresa.cnpj)}</span>` : ''}${d.empresa.socio ? `<span>neste ato representada por ${e(d.empresa.socio)}${d.empresa.socioCpf ? ', CPF ' + e(d.empresa.socioCpf) : ''}</span>` : ''}${T.nossa}</div>
+        <div class="a"><b>${vazio(d.contratante)}</b>${d.contratanteDoc ? `<span>CPF/CNPJ ${e(d.contratanteDoc)}</span>` : ''}${d.rep ? e(d.rep) + '<br>' : ''}${T.deles}</div>
       </div>
       ${d.testemunhas ? `<div class="ep-ctr-test">
         <div class="a"><b>Testemunha 1</b><span>Nome:</span><span>CPF:</span></div>
@@ -18878,24 +19669,58 @@ const CTR_IA_CAMPOS = {
   'escopo.lista': 'Escopo: o que entra no preço', 'preco.total': 'Valor e formas de pagamento > Valor total do projeto',
   'preco.sinal': 'Valor e formas de pagamento > Sinal já pago', 'preco.forma': 'Valor e formas de pagamento > formas de pagamento',
 };
+// Os mesmos nomes de campo para os modelos novos. As chaves se repetem entre os
+// modelos (prazo.vigencia, rescisao...) com campos diferentes: cada um tem o seu mapa.
+const CTR_IA_CAMPOS_SOC = {
+  'objeto.sociedade': 'Dados do contrato > Equipamento, Carregadores, Pontos de recarga e Local da instalação',
+  'capital.total': 'Sociedade > Investimento total', 'capital.quadro': 'Sociedade > cotas e aportes dos sócios',
+  'capital.escopo': 'Escopo: o que o investimento cobre', 'aporte.valor': 'Sociedade > Aporte do sócio, e Sinal já pago',
+  'aporte.forma': 'Aporte do sócio e formas de pagamento', 'aporte.mora': 'Aporte do sócio e formas de pagamento > Multa por atraso e Juros de mora',
+  'aporte.dados': 'Aporte do sócio e formas de pagamento > Dados para pagamento', 'aporte.ostensiva': 'Sociedade > Cota e Aporte da NEXUS',
+  'local.cessao': 'Sociedade > Arrendamento do local', 'captacao.prazo': 'Sociedade > Prazo para fechar o capital',
+  'implantacao.prazo': 'Sociedade > Ponto em operação em até', 'operacao.plataforma': 'Sociedade > Software NEXUS',
+  'resultado.divisao': 'Sociedade > Resultado pago até o dia', 'prazo.vigencia': 'Sociedade > Prazo da sociedade',
+  'prazo.permanencia': 'Sociedade > Ninguém sai antes de', 'prazo.retirada': 'Sociedade > Aviso prévio para sair e Haveres de quem sai pagos em',
+  'rescisao.descumprimento': 'Sociedade > Prazo para corrigir antes de rescindir', 'foro.comarca': 'Foro, assinatura e cláusulas extras > Foro (comarca)',
+};
+const CTR_IA_CAMPOS_TIPO = {
+  socio50: CTR_IA_CAMPOS_SOC, cotas: CTR_IA_CAMPOS_SOC,
+  arrend: {
+    'objeto.cessao': 'Dados do contrato > Equipamento, Carregadores, Pontos de recarga e Local da instalação',
+    'objeto.area': 'Arrendamento > Vagas cedidas e Área cedida', 'remuneracao.pct': 'Arrendamento > Percentual do faturamento bruto',
+    'remuneracao.piso': 'Arrendamento > Piso mensal e O piso vale a partir do', 'remuneracao.vencimento': 'Arrendamento > Pagamento até o dia e Conta do cedente',
+    'remuneracao.mora': 'Arrendamento > Multa por atraso e Juros de mora', 'prazo.vigencia': 'Arrendamento > Vigência e Aviso para não renovar',
+    'prazo.permanencia': 'Arrendamento > Ninguém sai antes de', 'prazo.implantacao': 'Arrendamento > Prazo máximo para ligar o ponto',
+    'energia.config': 'Arrendamento > Energia do ponto', 'operacao.horario': 'Arrendamento > Horário do ponto',
+    'cedente.legitimidade': 'Arrendamento > O cedente é', 'rescisao.hipoteses': 'Arrendamento > Prazo para corrigir antes de rescindir',
+    'rescisao.multa': 'Arrendamento > Multa por saída antecipada', 'devolucao.retirada': 'Arrendamento > Retirada do equipamento em',
+    'devolucao.base': 'Arrendamento > Base de concreto no fim', 'foro.comarca': 'Foro, assinatura e cláusulas extras > Foro (comarca)',
+  },
+};
+const ctrIaCampo = (tipo, key) => (tipo === 'completo' ? CTR_IA_CAMPOS : (CTR_IA_CAMPOS_TIPO[tipo] || {}))[key] || null;
 
 // O que vai para a IA: o contrato como está agora (com os pedidos anteriores já
 // aplicados), em texto com os marcadores. As partes não vão, e o item do objeto
 // vai sem o local da instalação: endereço de cliente não sai daqui.
 function ctrIaPayload(pedido) {
   const d = ctrDados();
-  const { modelo } = ctrIaAplicar(ctrModelo(d), ctrIa.pedidos);
+  const { modelo } = ctrIaAplicar(ctrModelo(d), ctrIaPedidos(d.tipo));
   const { pos } = ctrNumerar(modelo);
-  return {
+  const corpo = {
     pedido,
     clausulas: modelo.map(c => ({
       key: c.key, numero: `${pos[c.key].n}ª`, titulo: c.titulo, travada: !!c.travada,
       itens: c.itens.map(it => ({
         key: it.key, numero: `${pos[it.key].n}.${pos[it.key].m}`, texto: it.iaTexto || it.html, travado: !!it.travado,
-        campo: CTR_IA_CAMPOS[it.key] || null,
+        campo: ctrIaCampo(d.tipo, it.key),
       })),
     })),
   };
+  // Os modelos novos dizem à IA qual contrato é; o texto que o descreve e o
+  // nome das partes moram no servidor. O Completo vai sem, exatamente como
+  // antes: o servidor assume fornecimento e instalação.
+  if (d.tipo !== 'completo') corpo.contrato = { tipo: d.tipo };
+  return corpo;
 }
 
 // Números que a IA escreveu e que não estavam nem no contrato nem no pedido:
@@ -18915,17 +19740,19 @@ async function ctrIaPedir() {
   // Classe `falha`, nunca `erro`: o style.css global esconde todo `.erro`.
   const diz = (html, tipo) => { if (msg) { msg.className = 'ctr-ia-msg ' + (tipo || ''); msg.innerHTML = html; } };
   if (texto.length < 3) { diz('Escreva o que você quer mudar no contrato.', 'falha'); if (campo) campo.focus(); return; }
-  if (ctrIa.pedidos.length >= 12) { diz('São 12 pedidos no máximo. Desfaça algum ou volte ao contrato padrão.', 'falha'); return; }
+  if (ctrIaPedidos().length >= 12) { diz('São 12 pedidos no máximo. Desfaça algum ou volte ao contrato padrão.', 'falha'); return; }
   const tok = sessaoAtual && sessaoAtual.access_token;
   if (!tok) { diz('Entre com sua conta para pedir à IA.', 'falha'); return; }
   const d = ctrDados();
-  if (!(d.total > 0)) { diz('Defina o valor do projeto antes: a IA lê o contrato pronto.', 'falha'); return; }
+  // Só o Completo precisa do preço para fazer sentido. Nos outros o contrato
+  // existe com lacuna no lugar do número, e é ele que a IA lê.
+  if (d.tipo === 'completo' && !(d.total > 0)) { diz('Defina o valor do projeto antes: a IA lê o contrato pronto.', 'falha'); return; }
   // O contrato como estava NA HORA do pedido: de onde saem a base de cada troca
   // e a cláusula-âncora de cada inserção.
   const geracao = ctrIaGeracao;
   const payload = ctrIaPayload(texto);
   const htmlDe = {}, clausulaDe = {};
-  ctrIaAplicar(ctrModelo(d), ctrIa.pedidos).modelo.forEach(c => { clausulaDe[c.key] = c.key; c.itens.forEach(it => { htmlDe[it.key] = it.html; clausulaDe[it.key] = c.key; }); });
+  ctrIaAplicar(ctrModelo(d), ctrIaPedidos(d.tipo)).modelo.forEach(c => { clausulaDe[c.key] = c.key; c.itens.forEach(it => { htmlDe[it.key] = it.html; clausulaDe[it.key] = c.key; }); });
   ctrIaOcupado = true;
   const btn = document.getElementById('ctr-ia-btn');
   if (btn) { btn.disabled = true; btn.lastChild.textContent = ' A IA está lendo o contrato...'; }
@@ -18942,6 +19769,9 @@ async function ctrIaPedir() {
     if (r.status === 401) { diz('Sua sessão expirou. Entre de novo e repita o pedido.', 'falha'); return; }
     if (r.status === 403) { diz('Esta conta não é de consultor. Entre com a sua conta da equipe.', 'falha'); return; }
     if (!r.ok || !j || !j.ok) { diz(orcEsc((j && j.error) || ('A IA não respondeu (' + r.status + '). Tente de novo.')), 'falha'); return; }
+    // Modelo novo e servidor que ainda não o conhece (o /gerador e a API sobem
+    // separados): a resposta tem nomes de parte do Completo. Descarta.
+    if (d.tipo !== 'completo' && j.tipo !== d.tipo) { diz('A IA ainda está sendo atualizada para este modelo de contrato. Tente de novo em um minuto.', 'falha'); return; }
     const ops = (j.operacoes || []).map(op => {
       const o = Object.assign({}, op);
       if (o.tipo === 'substituir_item' || o.tipo === 'remover_item') o.base = htmlDe[o.alvo] != null ? htmlDe[o.alvo] : null;
@@ -18953,7 +19783,7 @@ async function ctrIaPedir() {
         ((j.avisos || []).length ? '<br>' + j.avisos.map(a => orcEsc(a)).join('<br>') : ''), 'falha');
       return;
     }
-    ctrIa.pedidos.push({ id: 'p' + Date.now().toString(36), texto, ops, avisos: j.avisos || [], recusa: j.recusa || null, em: new Date().toISOString() });
+    ctrIa.pedidos.push({ id: 'p' + Date.now().toString(36), tipo: d.tipo, texto, ops, avisos: j.avisos || [], recusa: j.recusa || null, em: new Date().toISOString() });
     if (campo && campo.value.trim() === texto) campo.value = '';
     diz(j.recusa ? '<b>Feito em parte.</b> ' + orcEsc(j.recusa) + ' Confira abaixo o que mudou.' : 'Pronto. Confira abaixo o antes e o depois de cada mudança, e gere a prévia.', j.recusa ? 'espera' : 'ok');
     ctrIaRender();
@@ -18969,15 +19799,17 @@ async function ctrIaPedir() {
 // que ele criou) não desfaz o efeito: os seguintes trazem o texto dele embutido.
 // Então pergunta e desfaz o grupo junto.
 function ctrIaDesfazer(id) {
-  const i = ctrIa.pedidos.findIndex(p => p.id === id);
+  // A lista do modelo aberto: é ela que a tela numera.
+  const lista = ctrIaPedidos();
+  const i = lista.findIndex(p => p.id === id);
   if (i < 0) return;
-  const p = ctrIa.pedidos[i];
+  const p = lista[i];
   const alvos = new Set((p.ops || []).map(o => o.alvo).filter(Boolean));
-  const dependentes = ctrIa.pedidos.slice(i + 1).filter(q => (q.ops || []).some(o =>
+  const dependentes = lista.slice(i + 1).filter(q => (q.ops || []).some(o =>
     alvos.has(o.alvo) || [o.alvo, o.depois_de].some(k => k && String(k).startsWith(p.id + '.')) ||
     [o.texto, ...(o.itens || [])].some(t => t && String(t).includes(':' + p.id + '.'))));
   if (dependentes.length) {
-    const nums = dependentes.map(q => ctrIa.pedidos.indexOf(q) + 1).join(', ');
+    const nums = dependentes.map(q => lista.indexOf(q) + 1).join(', ');
     if (!confirm('O(s) pedido(s) ' + nums + ' foram feitos em cima deste e trazem o texto dele. Desfazer todos juntos?')) return;
   }
   const fora = new Set([p.id, ...dependentes.map(q => q.id)]);
@@ -18985,8 +19817,9 @@ function ctrIaDesfazer(id) {
   ctrIaRender();
 }
 function ctrIaLimpar() {
-  if (ctrIa.pedidos.length && !confirm('Voltar ao contrato padrão? Os ' + ctrIa.pedidos.length + ' pedido(s) feitos à IA saem.')) return;
-  ctrIa = { pedidos: [] };
+  const t = ctrTipo(), n = ctrIaPedidos(t).length;
+  if (n && !confirm('Voltar ao contrato padrão? Os ' + n + ' pedido(s) feitos à IA saem.')) return;
+  ctrIa = { pedidos: ctrIa.pedidos.filter(p => ctrIaTipoDe(p) !== t) };
   ctrIaRender();
 }
 
@@ -18998,17 +19831,18 @@ function ctrIaRender() {
   const box = document.getElementById('ctr-ia-lista');
   if (!box) return;
   const btnLimpar = document.getElementById('ctr-ia-limpar');
-  if (btnLimpar) btnLimpar.style.display = ctrIa.pedidos.length ? '' : 'none';
-  if (!ctrIa.pedidos.length) { box.innerHTML = ''; return; }
+  const pedidos = ctrIaPedidos();
+  if (btnLimpar) btnLimpar.style.display = pedidos.length ? '' : 'none';
+  if (!pedidos.length) { box.innerHTML = ''; return; }
   let d;
   try { d = ctrDados(); } catch (e) { return; }
   const base = ctrModelo(d);
-  const { modelo, relatorio } = ctrIaAplicar(base, ctrIa.pedidos);
+  const { modelo, relatorio } = ctrIaAplicar(base, pedidos);
   const { resolver, quebradas } = ctrNumerar(modelo);
   const numsBase = new Set(base.flatMap(c => c.itens.flatMap(it => ctrIaNumeros(it.html))));
   const e = orcEsc;
   const ROT = { troca: 'Muda', inclui: 'Inclui', nova: 'Cláusula nova', tira: 'Tira a cláusula', remove: 'Tira', renomeia: 'Renomeia' };
-  box.innerHTML = ctrIa.pedidos.map((p, i) => {
+  box.innerHTML = pedidos.map((p, i) => {
     const r = relatorio.find(x => x.id === p.id) || { mudancas: [], falhas: [] };
     const { traduz } = ctrIaAlias(p);
     const numsPedido = new Set(ctrIaNumeros(p.texto));
@@ -19039,18 +19873,30 @@ function ctrIaRender() {
 
 function ctrImprimir() {
   const d = ctrDados();
-  if (!(d.total > 0)) {
+  if (d.tipo === 'completo' && !(d.total > 0)) {
     alert(ctrEspLigado('ctr-total')
       ? 'Defina o "Valor do projeto" no Orçamento antes de gerar o contrato.'
       : 'O "Valor total do projeto" do contrato está vazio. Digite o valor ou marque "Espelho: Orçamento" ao lado dele.');
     return;
   }
+  // Sociedade cujas cotas não somam 100% não existe: trava, como na Sociedade em PDF.
+  if (d.soc && !d.soc.cotasFecham) {
+    alert(`As cotas somam ${ctrPctTxt(d.soc.somaCotas)}%. Ajuste o cartão "Sociedade" até fechar 100% antes de gerar o contrato.`);
+    return;
+  }
+  // Número em branco nos modelos novos não trava: sai lacuna para preencher à
+  // mão (é o "modelo para mandar"). Mas não passa calado.
+  if (d.soc) {
+    const faltam = [!(d.soc.invest > 0) && 'investimento total', !(d.total > 0) && 'aporte do sócio'].filter(Boolean);
+    if (faltam.length && !confirm(`Sem ${faltam.join(' e ')}: o contrato sai com a linha em branco no lugar, para preencher à mão.\n\nGerar assim mesmo?`)) return;
+  }
+  if (d.arr && !(d.arr.pct > 0) && !confirm('Sem o percentual do faturamento: a remuneração do cedente sai em branco, para preencher à mão.\n\nGerar assim mesmo?')) return;
   // Formas que não fecham o saldo = papel cobrando a mais ou deixando parte do
   // preço sem forma. Não trava (pode ser de propósito), mas não passa calado.
   // Pedido à IA que tirou um trecho citado em outro lugar deixa a citação sem
   // destino; no papel ela vira lacuna. Não trava, mas não passa calada.
-  if (ctrIa.pedidos.length) {
-    const ap = ctrIaAplicar(ctrModelo(d), ctrIa.pedidos);
+  if (ctrIaPedidos(d.tipo).length) {
+    const ap = ctrIaAplicar(ctrModelo(d), ctrIaPedidos(d.tipo));
     const qb = ctrNumerar(ap.modelo).quebradas;
     const nf = ap.relatorio.reduce((t, r) => t + r.falhas.length, 0);
     if (nf && !confirm(nf + ' mudança(s) pedida(s) à IA não entra(m) no papel: o trecho mudou ou saiu do contrato depois do pedido. Veja em "Pedir mudança à IA".\n\nGerar assim mesmo?')) return;
@@ -19061,10 +19907,13 @@ function ctrImprimir() {
       !confirm(`As formas de pagamento somam ${ORC_MONEY(d.pagSoma)}, mas o saldo a pagar é ${ORC_MONEY(d.saldo)} (${difPag > 0 ? 'faltam' : 'passam'} ${ORC_MONEY(Math.abs(difPag))}).\n\nGerar o contrato assim mesmo?`)) return;
   const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
   // Contrato PAGINA — sem opts, nada de encolher pra caber numa folha.
+  // Arquivo e título dizem o modelo; o do Completo continua "Contrato_...".
+  const prefixo = { completo: 'Contrato', socio50: 'Contrato-Sociedade', cotas: 'Contrato-Cotas', arrend: 'Contrato-Arrendamento' }[d.tipo] || 'Contrato';
+  const tituloPrev = { completo: 'Contrato', socio50: 'Contrato de sociedade', cotas: 'Contrato de cotas', arrend: 'Contrato de arrendamento' }[d.tipo] || 'Contrato';
   epPreview({
     html: ctrHTML(d),
-    arquivo: ['Contrato', limpa(d.contratante) || 'Cliente', d.num ? 'N' + limpa(d.num) : ''].filter(Boolean).join('_'),
-    titulo: 'Contrato' + (d.cliente ? ' — ' + d.cliente : ''),
+    arquivo: [prefixo, limpa(d.contratante) || 'Cliente', d.num ? 'N' + limpa(d.num) : ''].filter(Boolean).join('_'),
+    titulo: tituloPrev + (d.cliente ? ' — ' + d.cliente : ''),
     opts: null,
     hist: d.cliente ? { id: epId(), tipo: 'Contrato', num: d.num, cliente: d.cliente, valor: d.total, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
   });
@@ -20069,6 +20918,10 @@ function orcSnapTake() {
     ctrForo: v('ctr-foro'), ctrExtras: v('ctr-extras'), ctrMulta: v('ctr-multa'), ctrJuros: v('ctr-juros'),
     ctrContratante: v('ctr-contratante'), ctrContratanteDoc: v('ctr-contratante-doc'),
     ctrContratanteEnd: v('ctr-contratante-end'), ctrRep: v('ctr-rep'), ctrRepDoc: v('ctr-rep-doc'),
+    // Modelo do contrato e os campos próprios de sociedade e arrendamento
+    // (07/10/2026). Os espelhados deles já vão no ctrEspelhos acima.
+    ctrTipo: v('ctr-tipo'),
+    ctrModelos: Object.fromEntries(CTR_CAMPOS_MODELOS.map(id => [id, v(id)])),
   };
 }
 function orcSnapApply(s, tipo) {
@@ -20217,8 +21070,23 @@ function orcSnapApply(s, tipo) {
       if (el) delete el.dataset.tocado;
     });
   }
+  // Modelo do contrato. Snapshot de antes de 07/10/2026 não tem: é Completo.
+  { const tp = document.getElementById('ctr-tipo');
+    if (tp) { tp.value = CTR_TIPOS[s.ctrTipo] ? s.ctrTipo : 'completo'; if (s.ctrTipo) tp.dataset.tocado = '1'; else delete tp.dataset.tocado; } }
+  if (s.ctrModelos) Object.entries(s.ctrModelos).forEach(([id, val]) => { if (CTR_CAMPOS_MODELOS.includes(id)) set(id, val); });
+  // Os números de sociedade e arrendamento espelham o quadro da janela "Editar
+  // cota" (que é do aparelho) e o Simulador, e nenhum dos dois volta com o
+  // snapshot. Contrato desses modelos reaberto traz esses números DESMARCADOS,
+  // com o valor assinado: marcado, copiaria o quadro e o Simulador de hoje.
+  if (s.ctrTipo && s.ctrTipo !== 'completo' && s.ctrEspelhos) {
+    CTR_ESP_CONGELA.forEach(id => {
+      const o = s.ctrEspelhos[id], el = document.getElementById(id);
+      if (o && el) { el.value = o.v || ''; el.dataset.tocado = '1'; }
+    });
+  }
   ctrIaGeracao++;
   ctrIa = s.ctrIa && Array.isArray(s.ctrIa.pedidos) ? JSON.parse(JSON.stringify(s.ctrIa)) : { pedidos: [] };
+  ctrTipoUi();
   ctrEscRender(); ctrPagRender(); ctrOpcRender(); ctrPctNota(); ctrIaRender();
   orcKitEquipSync(); orcValorBanner();
   orcPgToggle(); orcCalc();
