@@ -4457,6 +4457,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="orc-note" id="ctr-arr-relacao-nota" style="grid-column:1/-1">—</div>
         <div class="eletro-field"><label>Multa por saída antecipada, em meses de remuneração</label>
           <div class="eletro-inp"><input type="number" id="ctr-arr-multa-saida" inputmode="numeric" min="0" value="3"></div></div>
+        <div class="eletro-field"><label>Multa mínima (opcional)</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-arr-multa-min" inputmode="decimal" placeholder="sem mínimo"></div></div>
         <div class="eletro-field"><label>Retirada do equipamento em</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-retirada" inputmode="numeric" min="1" value="30"><span class="suf">dias</span></div></div>
         <div class="eletro-field"><label>Base de concreto no fim</label>
@@ -18029,11 +18031,16 @@ function ctrSoc() {
   const qtd = cotas ? Math.max(1, Math.min(n, Math.round(orcNum(orcVal('ctr-soc-qtd')) || 1))) : 1;
   const cota = ctrPctLe(ctrCampo('ctr-soc-cota')), aporte = ctrMoeda(ctrCampo('ctr-soc-aporte'));
   const cotaN = ctrPctLe(ctrCampo('ctr-soc-cota-nexus')), aporteN = ctrMoeda(ctrCampo('ctr-soc-aporte-nexus'));
+  // Aporte da NEXUS escrito (inclusive "0"): sabido. Vazio: não se sabe, e o
+  // papel não pode afirmar que ela entra sem dinheiro.
+  const aporteNDef = aporteN > 0 || ctrCampo('ctr-soc-aporte-nexus') !== '';
   const somaCotas = n * cota + cotaN, somaAportes = n * aporte + aporteN;
-  const falta = invest - somaAportes;   // >0 = capital a captar, <0 = sobra (capital de giro)
+  // >0 = capital a captar, <0 = sobra (capital de giro). Sem investimento não há
+  // conta a fazer: nem captação nem sobra, e o capital sai em branco.
+  const falta = invest > 0 ? invest - somaAportes : 0;
   // Proporcional = cada um põe do dinheiro a mesma fração que leva do resultado.
   const prop = invest > 0 && Math.abs(aporte - cota / 100 * invest) < 1 && Math.abs(aporteN - cotaN / 100 * invest) < 1;
-  return { t, invest, n, qtd, cota, aporte, cotaN, aporteN, somaCotas, somaAportes, falta, prop,
+  return { t, invest, n, qtd, cota, aporte, cotaN, aporteN, aporteNDef, somaCotas, somaAportes, falta, prop,
     cotaCli: qtd * cota, aporteCli: qtd * aporte,
     outros: n - qtd, cotaOutros: (n - qtd) * cota, aporteOutros: (n - qtd) * aporte,
     cotasFecham: Math.abs(somaCotas - 100) < 0.05,
@@ -18069,7 +18076,7 @@ function ctrArr() {
     vagas: Math.max(1, Math.round(orcNum(ctrCampo('ctr-arr-vagas')) || 1)), area: orcVal('ctr-arr-area'),
     horario: orcVal('ctr-arr-horario') || '24h', horarioTxt: orcVal('ctr-arr-horario-txt'),
     energia: orcVal('ctr-arr-energia') || 'uc', relacao: ctrCampo('ctr-arr-relacao') || 'proprietario',
-    multaSaida: ctrInt0('ctr-arr-multa-saida', 3), retirada: ctrInt('ctr-arr-retirada', 30),
+    multaSaida: ctrInt0('ctr-arr-multa-saida', 3), multaMin: ctrMoeda(orcVal('ctr-arr-multa-min')), retirada: ctrInt('ctr-arr-retirada', 30),
     base: orcVal('ctr-arr-base') || 'fica',
     moraMulta: ctrNumOu('ctr-arr-mora-multa', 2), moraJuros: ctrNumOu('ctr-arr-mora-juros', 1),
     corrigir: ctrInt('ctr-arr-corrigir', 15),
@@ -18102,6 +18109,15 @@ function ctrTipoMudou(sel) {
   // A tabela de pagamento corre sobre outra base (preço da obra ou aporte do
   // sócio): o que estava montado para um modelo não serve para o outro.
   ctrPag = { tocado: false, linhas: [] };
+  // O mesmo vale para o que foi DIGITADO e muda de sentido com o modelo: o
+  // sinal da obra não é parte paga do aporte, e o aporte do 50/50 (total) não é
+  // o "aporte por cota". Voltam ao espelho; o resto do contrato fica.
+  CTR_ESPELHOS.forEach(m => {
+    if (m.id !== 'ctr-sinal' && !/^ctr-soc-/.test(m.id)) return;
+    const el = document.getElementById(m.id);
+    if (el) delete el.dataset.tocado;
+  });
+  const qtd = document.getElementById('ctr-soc-qtd'); if (qtd) qtd.value = qtd.defaultValue;
   ctrTipoUi();
   ctrEscRender(); ctrOpcRender(); ctrPctNota();
   ctrResumo();
@@ -18122,7 +18138,10 @@ function ctrSocUi() {
     return;
   }
   const cli = `Este sócio fica com <b>${p(s.cotaCli)}</b> do resultado e aporta <b>${money(s.aporteCli)}</b>.`;
-  if (s.falta > 1) {
+  if (!(s.invest > 0)) {
+    box.className = 'ctr-pag-soma dif';
+    box.innerHTML = `${conta}. <b>Sem investimento total</b>: o capital e os aportes que dependem dele saem em branco no papel, para preencher à mão.`;
+  } else if (s.falta > 1) {
     box.className = 'ctr-pag-soma';
     box.innerHTML = `${conta}. Os aportes somam ${money(s.somaAportes)} de ${money(s.invest)}: <b>faltam ${money(s.falta)}</b>. O contrato sai com a linha <b>capital a captar</b>, e a obra só começa com o capital completo. ${cli}`;
   } else if (s.falta < -1) {
@@ -18180,6 +18199,17 @@ function ctrEstadoZerar() {
   ctrEspMarcarTodos();
   const destEl = document.getElementById('ctr-sinal-destino');
   if (destEl) { destEl.value = 'ao projeto elétrico'; delete destEl.dataset.tocado; }
+  // Campo próprio do contrato (sem espelho) volta ao que o HTML traz: agenda,
+  // CRM e histórico trocam de cliente só por aqui, e sem isto o próximo
+  // contrato saía com a conta do cedente, o representante, o número e as
+  // cláusulas extras do anterior. Espelhos já voltaram a copiar acima.
+  document.querySelectorAll('#eletro-pane-contrato input[id], #eletro-pane-contrato select[id], #eletro-pane-contrato textarea[id]').forEach(el => {
+    if (el.id === 'ctr-tipo' || el.id === 'ctr-sinal-destino' || CTR_ESP_POR_ID[el.id]) return;
+    if (el.tagName === 'SELECT') { const o = [...el.options].find(x => x.defaultSelected) || el.options[0]; if (o) el.value = o.value; }
+    else if (el.type === 'checkbox' || el.type === 'radio') el.checked = el.defaultChecked;
+    else el.value = el.defaultValue;
+    delete el.dataset.tocado;
+  });
   ctrEscRender();
   ctrOpcRender();
   ctrResumo();
@@ -18241,8 +18271,12 @@ const CTR_ESPELHOS = [
   { id: 'ctr-soc-cota',          fonte: 'Sociedade',   de: () => ctrPctTxt(ctrSocQuadro().cotaSocio) },
   { id: 'ctr-soc-aporte',        fonte: 'Sociedade',   de: () => ctrMoedaFmt(ctrSocAporteOrigem(false)) },
   { id: 'ctr-soc-cota-nexus',    fonte: 'Sociedade',   de: () => ctrPctTxt(ctrSocQuadro().cotaNexus) },
-  { id: 'ctr-soc-aporte-nexus',  fonte: 'Sociedade',   de: () => ctrMoedaFmt(ctrSocAporteOrigem(true)) },
-  { id: 'ctr-soc-software',      fonte: 'Simulador',   de: () => ctrPctTxt(elNum('el-software')) },
+  // Aporte da NEXUS: zero DECLARADO no quadro (cotas) sai "0,00"; zero por falta
+  // de investimento sai vazio, que o contrato imprime como lacuna, nunca como
+  // "a NEXUS não aporta dinheiro".
+  { id: 'ctr-soc-aporte-nexus',  fonte: 'Sociedade',   de: () => ctrSocQuadro().aporteNexus === 0 ? '0,00' : ctrMoedaFmt(ctrSocAporteOrigem(true)) },
+  // Simulador apagado não é 0%: vazio vira lacuna no papel.
+  { id: 'ctr-soc-software',      fonte: 'Simulador',   de: () => elNum('el-software') > 0 ? ctrPctTxt(elNum('el-software')) : '' },
   { id: 'ctr-soc-arrend',        fonte: 'Simulador',   de: () => ctrPctTxt(elNum('el-arrend')) },
   // Arrendamento. O Simulador abre o arrendamento em 0 (o caso comum é o local
   // do próprio cliente): 0 não vira "0%" no papel, vira campo vazio e aviso.
@@ -18261,7 +18295,7 @@ const CTR_CAMPOS_MODELOS = ['ctr-soc-qtd', 'ctr-soc-dia', 'ctr-soc-captacao', 'c
   'ctr-soc-permanencia', 'ctr-soc-aviso', 'ctr-soc-haveres', 'ctr-soc-corrigir',
   'ctr-arr-piso', 'ctr-arr-carencia', 'ctr-arr-dia', 'ctr-arr-dados', 'ctr-arr-vigencia', 'ctr-arr-permanencia',
   'ctr-arr-aviso', 'ctr-arr-implant', 'ctr-arr-area', 'ctr-arr-horario', 'ctr-arr-horario-txt', 'ctr-arr-energia',
-  'ctr-arr-multa-saida', 'ctr-arr-retirada', 'ctr-arr-base', 'ctr-arr-mora-multa', 'ctr-arr-mora-juros', 'ctr-arr-corrigir'];
+  'ctr-arr-multa-saida', 'ctr-arr-multa-min', 'ctr-arr-retirada', 'ctr-arr-base', 'ctr-arr-mora-multa', 'ctr-arr-mora-juros', 'ctr-arr-corrigir'];
 // Campo que ainda não existe na tela conta como marcado: vale a origem.
 function ctrEspLigado(id) { const el = document.getElementById(id); return !el || el.dataset.tocado !== '1'; }
 function ctrEspOrigem(id) {
@@ -18570,7 +18604,9 @@ function ctrPagSugerida(saldo) {
   // até o consultor escolher outra condição pelos modelos rápidos.
   const tipo = ctrTipo();
   if (tipo === 'arrend') return [];
-  if (tipo !== 'completo') return ctrPagModelo('vista', saldo);
+  // Sem aporte (investimento em branco) não há o que dividir: a lista fica
+  // vazia e a cláusula sai com a lacuna, nunca "Pix R$ 0,00".
+  if (tipo !== 'completo') return saldo > 0 ? ctrPagModelo('vista', saldo) : [];
   const on = id => !!document.getElementById(id)?.checked;
   const A = on('orc-pg-ck-avista'), E = on('orc-pg-ck-entrada'), F = on('orc-pg-ck-fin');
   if (A && !E && !F) return ctrPagModelo('vista', saldo);
@@ -19093,7 +19129,7 @@ function ctrModeloPecas(d) {
       return its.length ? { key, titulo, travada: !!travada || its.some(it => it.travado), itens: its } : null;
     },
     I: (key, html, extra) => html ? Object.assign({ key, html }, extra || {}) : null,
-    eletronica: 'As partes admitem como válida a assinatura eletrônica deste instrumento, nos termos da Lei nº 14.063/2020 e da Medida Provisória nº 2.200-2/2001, com os mesmos efeitos da assinatura de próprio punho.',
+    eletronica: 'As partes admitem como válida a assinatura eletrônica deste instrumento, por meio que comprove a autoria e a integridade do documento, nos termos do art. 10, § 2º, da Medida Provisória nº 2.200-2/2001, com os mesmos efeitos da assinatura de próprio punho.',
     tolerancia: 'A tolerância quanto ao descumprimento de qualquer cláusula não implica novação nem renúncia de direito.',
   };
 }
@@ -19121,14 +19157,18 @@ function ctrModeloSociedade(d) {
       I('objeto.personalidade', 'A SOCIEDADE não tem personalidade jurídica, e este contrato produz efeito somente entre os sócios. Sem prejuízo do direito de fiscalizar a gestão, o SÓCIO PARTICIPANTE não toma parte nas relações da SÓCIA OSTENSIVA com terceiros, sob pena de responder solidariamente com ela pelas obrigações em que intervier (art. 993 do Código Civil).'),
     ]),
     C('capital', 'Do capital e das cotas', [
-      I('capital.total', `O capital da SOCIEDADE é de <b>${s.invest > 0 ? money(s.invest) : lacuna}</b>${s.invest > 0 ? ` (${e(recExtenso(s.invest))})` : ''}, correspondente ao investimento total do PONTO: projeto de engenharia, equipamentos, obra, homologação junto à concessionária e implantação da plataforma de gestão, conforme a {{i:capital.escopo}}.`, { travado: true }),
+      I('capital.total', s.falta < -1
+        ? `O capital da SOCIEDADE é de <b>${money(s.somaAportes)}</b> (${e(recExtenso(s.somaAportes))}), soma dos aportes do quadro da {{i:capital.quadro}}, dos quais <b>${money(s.invest)}</b> (${e(recExtenso(s.invest))}) correspondem ao investimento total do PONTO: projeto de engenharia, equipamentos, obra, homologação junto à concessionária e implantação da plataforma de gestão, conforme a {{i:capital.escopo}}, e o restante à reserva da {{i:capital.giro}}.`
+        : `O capital da SOCIEDADE é de <b>${s.invest > 0 ? money(s.invest) : lacuna}</b>${s.invest > 0 ? ` (${e(recExtenso(s.invest))})` : ''}, correspondente ao investimento total do PONTO: projeto de engenharia, equipamentos, obra, homologação junto à concessionária e implantação da plataforma de gestão, conforme a {{i:capital.escopo}}.`, { travado: true }),
       I('capital.quadro', 'As cotas e os aportes dos sócios são os do quadro a seguir. A cota de cada sócio é a sua participação no resultado e no patrimônio da SOCIEDADE.', { bloco: 'cotas', travado: true }),
-      I('capital.proporcao', s.prop ? '' : 'A cota de cada sócio independe da proporção do seu aporte em dinheiro, conforme ajustado no quadro acima, e é ela que define a participação no resultado.'),
+      I('capital.proporcao', s.prop || !(s.invest > 0) ? '' : 'A cota de cada sócio independe da proporção do seu aporte em dinheiro, conforme ajustado no quadro acima, e é ela que define a participação no resultado.'),
       I('capital.giro', s.falta < -1 ? `Os aportes excedem o investimento em <b>${money(-s.falta)}</b>, que formam a reserva de capital de giro da SOCIEDADE, empregada nos custos da operação até o PONTO gerar receita suficiente.` : ''),
       I('capital.escopo', 'O investimento compreende os itens a seguir. O que não estiver relacionado como incluído não integra o capital e, se vier a ser necessário, segue a {{i:capital.adicional}}.', { bloco: 'escopo', travado: true }),
-      I('capital.preco', 'A implantação do PONTO é executada pela própria SÓCIA OSTENSIVA pelo valor da {{i:capital.total}}, que corresponde ao seu preço de projeto, fornecimento e instalação, e que o SÓCIO PARTICIPANTE declara conhecer e aceitar.'),
-      I('capital.adicional', 'Aporte adicional, para obra exigida pela concessionária ou outra despesa não prevista, depende da concordância escrita dos sócios e é feito na proporção das cotas. Recusando-se um sócio, os demais podem fazê-lo, com o ajuste proporcional das cotas.'),
-      I('capital.patrimonio', 'As contribuições dos sócios constituem patrimônio especial, objeto da conta de participação. Os equipamentos adquiridos com ele, ainda que faturados em nome da SÓCIA OSTENSIVA, integram esse patrimônio especial e pertencem aos sócios na proporção das cotas, produzindo essa especialização efeito entre os sócios (art. 994 do Código Civil).'),
+      I('capital.preco', 'A implantação do PONTO é executada pela própria SÓCIA OSTENSIVA pelo valor do investimento da {{i:capital.total}}, que corresponde ao seu preço de projeto, fornecimento e instalação, e que o SÓCIO PARTICIPANTE declara conhecer e aceitar.'),
+      I('capital.adicional', s.aporteN > 0 || !s.aporteNDef
+        ? 'Aporte adicional, para obra exigida pela concessionária ou outra despesa não prevista, depende da concordância escrita dos sócios e é feito na proporção das cotas. Recusando-se um sócio, os demais podem fazê-lo, recalculando-se as cotas na proporção do total aportado por cada um.'
+        : 'Aporte adicional, para obra exigida pela concessionária ou outra despesa não prevista, depende da concordância escrita dos sócios e é feito pelos SÓCIOS PARTICIPANTES, na proporção das suas cotas, sem alteração da cota da SÓCIA OSTENSIVA. Recusando-se um sócio participante, os demais podem fazê-lo, recalculando-se as cotas dos sócios participantes na proporção do total aportado por cada um, preservada a cota da SÓCIA OSTENSIVA.'),
+      I('capital.patrimonio', 'As contribuições dos sócios constituem patrimônio especial, objeto da conta de participação. Os equipamentos adquiridos com ele são de titularidade da SÓCIA OSTENSIVA perante terceiros e, entre os sócios, integram esse patrimônio especial na proporção das cotas, produzindo essa especialização efeito somente entre eles (art. 994, § 1º, do Código Civil).'),
     ]),
     C('aporte', 'Da integralização do aporte', [
       I('aporte.valor', `O SÓCIO PARTICIPANTE integraliza o seu aporte de <b>${d.total > 0 ? money(d.total) : lacuna}</b>${d.total > 0 ? ` (${e(recExtenso(d.total))})` : ''}${d.sinal > 0 ? `, do qual já pagou <b>${money(d.sinal)}</b> (${e(recExtenso(d.sinal))}), remanescendo <b>${money(d.saldo)}</b>` : ''}.`, { travado: true }),
@@ -19138,55 +19178,57 @@ function ctrModeloSociedade(d) {
       I('aporte.obs', d.pagLinhas.length && d.pagObs ? e(d.pagObs) : ''),
       I('aporte.acrescimo', d.temAcr ? 'Nas formas parceladas com acréscimo, o valor das parcelas já o inclui, e a coluna Valor indica a parte do aporte quitada por aquela forma. O acréscimo é custo do meio de pagamento e não aumenta a cota.' : ''),
       I('aporte.dados', d.pagDados ? `Os pagamentos serão feitos em favor da SÓCIA OSTENSIVA por meio de: <b>${e(d.pagDados)}</b>. Pagamento feito a terceiro ou em conta diversa não quita a obrigação.` : ''),
+      I('aporte.cartao', d.pagLinhas.some(l => /cart[ãa]o/i.test(l.forma)) ? 'Pago por cartão, o aporte considera-se integralizado na autorização da transação, e a contestação ou o estorno pedido pelo SÓCIO PARTICIPANTE equivale à falta de pagamento para os fins da {{i:aporte.inadimplencia}}.' : ''),
       I('aporte.financiamento', d.temFin ? 'Sendo parte do aporte financiada, o crédito deve ser liberado em até 30 (trinta) dias da assinatura. Não liberado nesse prazo, as partes ajustarão nova forma de pagamento em até 10 (dez) dias e, não havendo acordo, aplica-se a {{i:aporte.inadimplencia}}.' : ''),
-      I('aporte.mora', `O atraso no pagamento de qualquer parcela sujeita o SÓCIO PARTICIPANTE a multa de ${pct(d.multa)}% e juros de ${pct(d.juros)}% ao mês, e suspende os prazos da {{c:implantacao}} enquanto perdurar.`),
+      I('aporte.mora', `O atraso no pagamento de qualquer parcela sujeita o SÓCIO PARTICIPANTE a multa de ${pct(d.multa)}% sobre o valor em atraso e juros de ${pct(d.juros)}% ao mês, e suspende os prazos da {{c:implantacao}} enquanto perdurar.`),
       I('aporte.inadimplencia', 'Não pago o aporte em até 30 (trinta) dias do vencimento, a SÓCIA OSTENSIVA poderá, mediante notificação, reduzir a cota do SÓCIO PARTICIPANTE na proporção do que ele efetivamente integralizou, oferecendo a diferença a outro sócio, ou resolver este contrato, restituindo o valor pago em até 30 (trinta) dias, deduzidos os custos já incorridos e comprovados.'),
-      I('aporte.ostensiva', s.aporteN > 0
-        ? `A SÓCIA OSTENSIVA integraliza o seu aporte de <b>${money(s.aporteN)}</b> (${e(recExtenso(s.aporteN))}) em dinheiro ou em equipamentos e serviços de implantação, estes pelo valor que integra a {{i:capital.total}}.`
-        : `A SÓCIA OSTENSIVA não aporta dinheiro: a sua cota de <b>${pct(s.cotaN)}%</b> corresponde à gestão, à operação e à administração do PONTO, prestadas por ela durante toda a vigência sem outra remuneração além da plataforma da {{i:operacao.plataforma}}.`, { travado: true }),
+      I('aporte.ostensiva', s.aporteN > 0 || !s.aporteNDef
+        ? `A SÓCIA OSTENSIVA integraliza o seu aporte de <b>${s.aporteN > 0 ? money(s.aporteN) : lacuna}</b>${s.aporteN > 0 ? ` (${e(recExtenso(s.aporteN))})` : ''} em dinheiro ou em equipamentos e serviços de implantação, estes pelo valor que integra a {{i:capital.total}}.`
+        : `A SÓCIA OSTENSIVA não aporta dinheiro: a sua cota de <b>${pct(s.cotaN)}%</b> corresponde à gestão, à operação e à administração do PONTO, prestadas por ela durante toda a vigência sem outra remuneração pela administração além da plataforma da {{i:operacao.plataforma}}.`, { travado: true }),
     ]),
     s.captacao ? C('captacao', 'Da captação do capital', [
       I('captacao.adesao', cotas
         ? 'As cotas ainda não subscritas serão oferecidas pela SÓCIA OSTENSIVA a outros participantes, que ingressarão na SOCIEDADE por termo de adesão a este contrato, nas mesmas condições, ficando desde já consentidas essas admissões (art. 995 do Código Civil).'
         : 'O capital ainda não coberto pelos aportes do quadro da {{i:capital.quadro}} será captado pela SÓCIA OSTENSIVA junto a outros participantes, que ingressarão na SOCIEDADE por termo de adesão a este contrato, ficando desde já consentidas essas admissões (art. 995 do Código Civil).'),
-      I('captacao.reserva', 'Até completar o capital, os valores integralizados permanecem reservados e não são empregados na implantação, salvo autorização escrita de todos os sócios.'),
-      I('captacao.prazo', `Não completado o capital em até <b>${P.captacao} dias</b> da assinatura, qualquer dos sócios pode resolver este contrato sem multa, e a SÓCIA OSTENSIVA restituirá ao SÓCIO PARTICIPANTE, em até 10 (dez) dias, todo o valor integralizado, sem dedução.`),
+      I('captacao.reserva', 'Até completar o capital, os valores integralizados permanecem reservados em conta bancária da SÓCIA OSTENSIVA destinada exclusivamente à SOCIEDADE e não são empregados na implantação, salvo autorização escrita de todos os sócios.'),
+      I('captacao.prazo', `Não completado o capital em até <b>${P.captacao} dias</b> da assinatura, qualquer dos sócios pode resolver este contrato sem multa, e a SÓCIA OSTENSIVA restituirá ao SÓCIO PARTICIPANTE, em até 10 (dez) dias, todo o valor integralizado, sem dedução, por estorno da transação quando pago por cartão, ressalvados os valores empregados com a autorização da {{i:captacao.reserva}}.`),
     ]) : null,
     C('local', 'Do local', [
       I('local.cessao', socio50
         ? (arrendLocal
-          ? `O SÓCIO PARTICIPANTE cede à SÓCIA OSTENSIVA, para uso exclusivo da SOCIEDADE e durante toda a sua vigência, a área do local necessária à instalação, à operação e ao acesso do PONTO, mediante remuneração de <b>${pct(s.arrend)}% do faturamento bruto</b>, que integra os custos da operação da {{i:resultado.custos}}.`
-          : 'O SÓCIO PARTICIPANTE cede à SÓCIA OSTENSIVA, para uso exclusivo da SOCIEDADE, durante toda a sua vigência e sem remuneração, a área do local necessária à instalação, à operação e ao acesso do PONTO, como parte da sua contribuição.')
-        : (arrendLocal
-          ? `O local é objeto de contrato de cessão de área firmado pela SÓCIA OSTENSIVA com o seu titular, mediante remuneração de <b>${pct(s.arrend)}% do faturamento bruto</b>, que integra os custos da operação da {{i:resultado.custos}}.`
-          : 'O local é objeto de contrato de cessão de área firmado pela SÓCIA OSTENSIVA com o seu titular, cujo custo, se houver, integra os custos da operação da {{i:resultado.custos}}.')),
-      I('local.acesso', socio50 ? 'O SÓCIO PARTICIPANTE assegura o acesso livre dos usuários durante o horário de funcionamento e o das equipes de manutenção a qualquer tempo, e não instala nem autoriza, no mesmo imóvel, outra estação de recarga aberta ao público.' : ''),
+          ? `O SÓCIO PARTICIPANTE cede à SÓCIA OSTENSIVA, para uso exclusivo da SOCIEDADE e durante toda a vigência dela, a área do local necessária à instalação, à operação e ao acesso do PONTO, mediante remuneração de <b>${pct(s.arrend)}% do faturamento bruto</b>, valor que integra os custos da operação da {{i:resultado.custos}}.`
+          : 'O SÓCIO PARTICIPANTE cede à SÓCIA OSTENSIVA, para uso exclusivo da SOCIEDADE, durante toda a vigência dela e sem remuneração, a área do local necessária à instalação, à operação e ao acesso do PONTO, como parte da sua contribuição.')
+        : `O local é objeto de contrato de cessão de área firmado pela SÓCIA OSTENSIVA com o titular do imóvel, cuja cópia fica à disposição dos sócios e cujo custo${arrendLocal ? `, de <b>${pct(s.arrend)}% do faturamento bruto</b>,` : ', se houver,'} integra os custos da operação da {{i:resultado.custos}}. A SÓCIA OSTENSIVA mantém esse contrato em vigor durante toda a vigência da SOCIEDADE, e a perda do local por fato imputável a ela é descumprimento da {{c:rescisao}}.`),
+      I('local.acesso', socio50 ? 'O SÓCIO PARTICIPANTE assegura o acesso livre dos usuários durante o horário de funcionamento do PONTO definido pela SÓCIA OSTENSIVA e o das equipes de manutenção a qualquer tempo, e não instala nem autoriza, no mesmo imóvel, outra estação de recarga aberta ao público.' : ''),
       I('opc.anuencia', socio50 && op('anuencia') ? 'Não sendo o SÓCIO PARTICIPANTE proprietário do imóvel, ele apresenta, na assinatura, a anuência escrita do proprietário para a instalação, e a SOCIEDADE não ultrapassa o prazo do direito dele sobre o local.' : ''),
+      I('local.proprietario', socio50 && !op('anuencia') ? 'O SÓCIO PARTICIPANTE declara ser proprietário do imóvel, com a posse direta.' : ''),
+      I('local.protecao', socio50 ? 'O SÓCIO PARTICIPANTE não obstrui, não desliga e não bloqueia o PONTO; comunica à SÓCIA OSTENSIVA, em 5 (cinco) dias, penhora, execução ou desapropriação que alcance o imóvel; e, vendendo-o ou dando-o em garantia, faz constar do instrumento a existência da cessão da {{i:local.cessao}}. Recusada pelo adquirente a continuidade da cessão, aplica-se a {{i:rescisao.descumprimento}}, sendo culpado o SÓCIO PARTICIPANTE.' : ''),
       I('local.bens', 'Os equipamentos são bens móveis, removíveis, e não se incorporam ao imóvel. Saindo o PONTO do local, a SÓCIA OSTENSIVA os retira em até 30 (trinta) dias e recompõe a área.'),
       I('local.energia', 'A ligação do PONTO à rede, a demanda contratada e o consumo de energia correm por conta da SOCIEDADE, como custo da operação. Obra de conexão exigida pela concessionária segue a {{i:capital.adicional}}.'),
     ]),
     C('implantacao', 'Da implantação', [
       I('implantacao.prazo', `A SÓCIA OSTENSIVA elaborará o projeto, recolherá a ART, protocolará o pedido de acesso junto à concessionária e entregará o PONTO em operação em até <b>${P.implant} dias</b> contados ${s.captacao ? 'da integralização do capital completo' : 'da integralização do aporte do SÓCIO PARTICIPANTE'}.`),
       I('implantacao.suspensao', 'Suspendem esse prazo, pelo tempo que durarem: exigências ou atrasos da concessionária, falta de energia no local, embargos, indisponibilidade de acesso e atraso no pagamento de aporte.'),
-      I('implantacao.negativa', 'Negada a conexão pela concessionária ou inviabilizado o local, este contrato se resolve sem multa, e o capital é restituído aos sócios na proporção dos aportes, deduzidos os custos já incorridos e comprovados.'),
+      I('implantacao.negativa', 'Negada a conexão pela concessionária, inviabilizado o local ou não aprovado pelos sócios, em até 30 (trinta) dias da exigência, o aporte adicional para obra de conexão, antes do início da operação, este contrato se resolve sem multa: o saldo em dinheiro, deduzidos os custos já incorridos e comprovados, é restituído aos sócios na proporção dos aportes em dinheiro, e os bens aportados em espécie e ainda não instalados voltam a quem os aportou.'),
       I('implantacao.inicio', 'A operação considera-se iniciada na primeira recarga comercial, data a partir da qual correm a apuração da {{c:resultado}} e o prazo da {{c:prazo}}.'),
     ]),
     C('operacao', 'Da operação e da administração', [
       I('operacao.gestao', 'Cabe à SÓCIA OSTENSIVA, com exclusividade, a gestão do PONTO: preço da recarga, contratação de energia, manutenção, seguro, conectividade, meio de pagamento, atendimento aos usuários e relacionamento com a concessionária e os órgãos públicos.'),
-      I('operacao.plataforma', `O PONTO opera na plataforma de gestão e cobrança da SÓCIA OSTENSIVA (Software NEXUS, protocolo OCPP), remunerada em <b>${pct(s.software)}% do faturamento bruto</b>, que integra os custos da operação.`),
+      I('operacao.plataforma', `O PONTO opera na plataforma de gestão e cobrança da SÓCIA OSTENSIVA (Software NEXUS, protocolo OCPP), remunerada em <b>${s.software > 0 ? pct(s.software) : lacuna}% do faturamento bruto</b>, valor que integra os custos da operação.`),
       I('operacao.painel', 'O SÓCIO PARTICIPANTE tem acesso permanente de leitura ao painel do PONTO, com sessões, energia entregue e faturamento, sem dados pessoais de usuários.'),
       I('operacao.escrituracao', 'A SÓCIA OSTENSIVA mantém escrituração própria da SOCIEDADE, separada da sua, e promove a inscrição dela no CNPJ e as demais obrigações fiscais da conta de participação, na forma da legislação.'),
       I('operacao.gratuidade', 'Recarga gratuita, com desconto ou de cortesia concedida pela SÓCIA OSTENSIVA entra no faturamento pelo preço de tabela do PONTO, salvo campanha aprovada por escrito pelos sócios.'),
+      I('operacao.outros', 'A SÓCIA OSTENSIVA pode implantar e operar outras estações de recarga, inclusive próximas ao PONTO, o que os sócios reconhecem como convenção em contrário para os fins do art. 1.006 do Código Civil.'),
     ]),
     C('resultado', 'Da apuração e da distribuição do resultado', [
       I('resultado.faturamento', 'Faturamento bruto é tudo o que for cobrado dos usuários pelo uso do PONTO no mês: energia, taxa de ativação, tempo de permanência e qualquer outra receita do PONTO.'),
-      I('resultado.custos', `Do faturamento bruto deduzem-se, antes de qualquer distribuição, todos os custos da operação: energia elétrica e demanda, tributos sobre o faturamento, a plataforma da {{i:operacao.plataforma}}, meio de pagamento, manutenção, conectividade, seguro${arrendLocal || cotas ? ', a remuneração do local da {{i:local.cessao}}' : ''} e demais despesas comprovadas do PONTO.`),
+      I('resultado.custos', `Do faturamento bruto deduzem-se, antes de qualquer distribuição, todos os custos da operação: energia elétrica e demanda, tributos incidentes sobre o faturamento e sobre o resultado da SOCIEDADE, a plataforma da {{i:operacao.plataforma}}, meio de pagamento, manutenção, conectividade, seguro${arrendLocal || cotas ? ', a remuneração do local da {{i:local.cessao}}' : ''} e demais despesas comprovadas do PONTO.`),
       I('resultado.divisao', `O resultado líquido é dividido entre os sócios na proporção das cotas do quadro da {{i:capital.quadro}} e pago até o dia <b>${P.dia}</b> do mês seguinte ao da apuração, acompanhado de demonstrativo com o faturamento, cada custo e o valor de cada sócio.`),
       I('resultado.negativo', 'Mês de resultado negativo não gera distribuição, e o déficit é compensado nos meses seguintes antes de nova distribuição.'),
       I('opc.soc_perda', op('soc_perda') ? 'As perdas são suportadas na proporção das cotas, e a responsabilidade do SÓCIO PARTICIPANTE limita-se ao valor do seu aporte: nenhum aporte adicional lhe pode ser exigido sem a sua concordância escrita.' : ''),
       I('resultado.contas', 'A SÓCIA OSTENSIVA presta contas aos sócios anualmente, com o balanço do PONTO, em até 90 (noventa) dias do encerramento do exercício.'),
-      I('opc.soc_auditoria', op('soc_auditoria') ? 'O SÓCIO PARTICIPANTE pode, uma vez por ano, auditar as contas por profissional habilitado, às suas expensas. Apurada diferença superior a 5% (cinco por cento) em seu desfavor, o custo da auditoria passa à SÓCIA OSTENSIVA, que paga a diferença corrigida.' : ''),
-      I('resultado.tributos', 'Cada sócio responde pelos tributos incidentes sobre o que receber.'),
+      I('opc.soc_auditoria', op('soc_auditoria') ? 'O SÓCIO PARTICIPANTE pode, uma vez por ano, auditar as contas por profissional habilitado que assine termo de confidencialidade, às suas expensas. Apurada diferença superior a 5% (cinco por cento) do valor devido a ele no período auditado, em seu desfavor, o custo da auditoria passa à SÓCIA OSTENSIVA, que paga a diferença corrigida.' : ''),
+      I('resultado.tributos', 'Os tributos devidos pela SOCIEDADE são recolhidos pela SÓCIA OSTENSIVA e deduzidos na forma da {{i:resultado.custos}}; cada sócio responde pelos demais tributos incidentes sobre o que receber.'),
     ]),
     C('projecoes', 'Das projeções de resultado', [
       I('projecoes.natureza', 'Os estudos de viabilidade, simulações e demais materiais que estimem faturamento, lucro, retorno, payback ou volume de recargas constituem <b>projeção técnica fundamentada nas premissas neles declaradas</b>, e <b>não representam promessa, garantia ou compromisso de resultado</b> por parte da SÓCIA OSTENSIVA.'),
@@ -19197,22 +19239,26 @@ function ctrModeloSociedade(d) {
         ? `A SOCIEDADE vigora por <b>${P.prazo} meses</b> contados do início da operação, prorrogando-se por prazo indeterminado se nenhum sócio se opuser por escrito com 90 (noventa) dias de antecedência do término.`
         : 'A SOCIEDADE vigora por prazo indeterminado, contado do início da operação.'),
       I('prazo.permanencia', P.permanencia > 0 ? `Nenhum sócio pode retirar-se nos primeiros <b>${P.permanencia} meses</b> de operação, salvo pelas hipóteses da {{c:dissolucao}}.` : ''),
-      I('prazo.retirada', `${P.permanencia > 0 ? 'Depois disso, a' : 'A'} retirada se faz por notificação com <b>${P.aviso} dias</b> de antecedência. Os haveres do sócio que sai são apurados pelo valor patrimonial da SOCIEDADE em balanço especial da data da saída e pagos em até <b>${P.haveres} parcelas mensais</b>.`),
-      I('opc.soc_preferencia', op('soc_preferencia') ? 'O sócio que quiser ceder a sua cota a oferecerá primeiro aos demais, que terão 30 (trinta) dias para exercer a preferência nas mesmas condições. A cessão a terceiro depende do consentimento expresso da SÓCIA OSTENSIVA (art. 995 do Código Civil).' : ''),
+      I('prazo.retirada', `${P.permanencia > 0 ? 'Depois disso, a' : 'A'} retirada se faz por notificação com <b>${P.aviso} dias</b> de antecedência. Os haveres do sócio que sai são apurados pelo valor patrimonial da SOCIEDADE em balanço especial da data da saída e pagos em até <b>${P.haveres} parcelas mensais</b>, corrigidas pelo IPCA.`),
+      I('prazo.ostensiva', 'A retirada da SÓCIA OSTENSIVA dissolve a SOCIEDADE, que se liquida na forma da {{i:dissolucao.liquidacao}}.'),
+      I('opc.soc_preferencia', op('soc_preferencia') ? (cotas
+        ? 'O sócio que quiser ceder a sua cota a oferecerá primeiro aos demais, que terão 30 (trinta) dias para exercer a preferência nas mesmas condições. A cessão a terceiro depende do consentimento expresso da SÓCIA OSTENSIVA, dispensado o dos demais sócios participantes, como permite o art. 995 do Código Civil.'
+        : 'O sócio que quiser ceder a sua cota a oferecerá primeiro ao outro, que terá 30 (trinta) dias para exercer a preferência nas mesmas condições. A cessão a terceiro depende do consentimento expresso do outro sócio.') : ''),
       I('prazo.sucessao', 'Falecendo o SÓCIO PARTICIPANTE, seus herdeiros sucedem na cota, salvo se preferirem a apuração de haveres na forma da {{i:prazo.retirada}}.'),
     ]),
     C('dissolucao', 'Da dissolução e da liquidação', [
-      I('dissolucao.hipoteses', 'A SOCIEDADE se dissolve pelo término do prazo sem prorrogação, por acordo entre os sócios, pela inviabilidade do PONTO (negativa ou corte da concessionária, perda do local, interdição) ou pela falência da SÓCIA OSTENSIVA (art. 994, § 2º, do Código Civil).'),
-      I('dissolucao.liquidacao', 'Na dissolução, os equipamentos são vendidos ou adjudicados a um dos sócios pelo valor de avaliação, com preferência aos sócios em igualdade de condições, e o saldo, pagos os custos, é partilhado na proporção das cotas. A liquidação rege-se pelas normas da prestação de contas (art. 996 do Código Civil).'),
+      I('dissolucao.hipoteses', 'A SOCIEDADE se dissolve pelo término do prazo sem prorrogação, por acordo entre os sócios, pela inviabilidade do PONTO depois do início da operação (corte da concessionária, perda do local, interdição) ou pela falência da SÓCIA OSTENSIVA (art. 994, § 2º, do Código Civil).'),
+      I('dissolucao.liquidacao', 'Na dissolução, os equipamentos são vendidos ou adjudicados a um dos sócios pelo valor apurado por avaliador independente escolhido pelos sócios, com preferência aos sócios em igualdade de condições, e o saldo, pagos os custos, é partilhado na proporção das cotas. A liquidação rege-se pelas normas da prestação de contas (art. 996 do Código Civil).'),
     ]),
     C('rescisao', 'Do descumprimento', [
-      I('rescisao.descumprimento', `O descumprimento de qualquer cláusula autoriza o sócio prejudicado a resolver este contrato, mediante notificação com prazo de ${P.corrigir} dias para correção, respondendo o culpado por perdas e danos e apurando-se os haveres na forma da {{i:prazo.retirada}}.`),
+      I('rescisao.descumprimento', `O descumprimento de qualquer cláusula autoriza o sócio prejudicado a resolver este contrato, mediante notificação com prazo de ${P.corrigir} dias para correção, respondendo o culpado por perdas e danos. Sendo culpado o SÓCIO PARTICIPANTE, os haveres dele são apurados na forma da {{i:prazo.retirada}}; sendo culpada a SÓCIA OSTENSIVA, a SOCIEDADE se liquida na forma da {{i:dissolucao.liquidacao}} ou, à escolha do SÓCIO PARTICIPANTE, os haveres dele são apurados na forma da {{i:prazo.retirada}} e pagos em parcela única em até 30 (trinta) dias.`),
     ]),
     C('gerais', 'Das disposições gerais', [
       I('gerais.aditivo', 'Este contrato substitui entendimentos anteriores sobre o objeto e só pode ser alterado por aditivo escrito assinado pelos sócios.'),
       I('gerais.tolerancia', tolerancia),
       I('gerais.confidencialidade', 'Os sócios tratam como confidenciais as informações comerciais e financeiras do PONTO, salvo exigência legal.'),
-      I('opc.lgpd', op('lgpd') ? 'Os dados pessoais de usuários do PONTO são tratados pela SÓCIA OSTENSIVA exclusivamente para a operação, na forma da Lei nº 13.709/2018 (LGPD), e os demonstrativos entregues ao SÓCIO PARTICIPANTE são agregados, sem identificação de usuário. A marca, o projeto e o software utilizados permanecem de propriedade da SÓCIA OSTENSIVA.' : ''),
+      I('gerais.propriedade', 'A marca, o projeto de engenharia e o Software NEXUS são de propriedade da SÓCIA OSTENSIVA. O valor da {{i:capital.total}} remunera a elaboração do projeto e a implantação da plataforma no PONTO, sem transferência de titularidade.'),
+      I('opc.lgpd', op('lgpd') ? 'Os dados pessoais de usuários do PONTO são tratados pela SÓCIA OSTENSIVA exclusivamente para a operação, na forma da Lei nº 13.709/2018 (LGPD), e os demonstrativos entregues ao SÓCIO PARTICIPANTE são agregados, sem identificação de usuário.' : ''),
       I('opc.eletronica', op('eletronica') ? eletronica : ''),
       ...d.extras.map((x, i) => I('extra.' + (i + 1), e(x))),
     ]),
@@ -19235,6 +19281,8 @@ function ctrModeloArrend(d) {
   const a = d.arr;
   const objeto = loc => `O CEDENTE cede à CESSIONÁRIA, a título oneroso, o uso de área do imóvel situado em <b>${loc}</b> (o "IMÓVEL"), com destinação exclusiva à instalação, à operação, à manutenção e à exploração comercial de estação de recarga de veículos elétricos composta por <b>${d.qtd} carregador(es) ${e(d.equipTxt || 'de corrente contínua')}</b>, com ${d.plugs} ponto(s) de carregamento (o "PONTO").`;
   const anuenciaFalta = 'A falta, a invalidade ou a revogação dessa anuência, descoberta depois da assinatura, é causa de rescisão por culpa do CEDENTE.';
+  // A conta do cedente (Pix, muitas vezes o CPF) sai no papel e NÃO vai à IA.
+  const venc = conta => `O pagamento vence até o dia <b>${a.dia}</b> do mês seguinte ao da apuração, acompanhado do demonstrativo da {{i:contas.demonstrativo}}${conta ? `, e é feito diretamente ao CEDENTE por meio de: ${conta}` : ''}.`;
   const legitimidade = {
     proprietario: 'Declarar e garantir que é proprietário do IMÓVEL, com a sua posse direta e sem impedimento à cessão, e mantê-lo assim durante toda a vigência.',
     locado: `Declarar que é proprietário do IMÓVEL, alugado a terceiro, e apresentar na assinatura a anuência escrita do locatário a esta cessão. ${anuenciaFalta}`,
@@ -19256,8 +19304,8 @@ function ctrModeloArrend(d) {
       I('natureza.preco', 'O percentual da {{i:remuneracao.pct}} é o preço da cessão, medido por um índice objetivo: o CEDENTE não participa de lucro, não suporta prejuízo e não assume o risco do negócio.'),
     ]),
     C('prazo', 'Do prazo', [
-      I('prazo.vigencia', `O prazo de vigência é de <b>${a.vigencia} meses</b>, contados da energização do PONTO e da primeira recarga, renovando-se automaticamente por períodos iguais, salvo aviso escrito de qualquer das partes com <b>${a.aviso} dias</b> de antecedência do término.`),
-      I('prazo.permanencia', a.permanencia > 0 ? `Nenhuma das partes pode denunciar este contrato sem motivo antes de <b>${a.permanencia} meses</b> da energização.` : ''),
+      I('prazo.vigencia', `O prazo de vigência é de <b>${a.vigencia} meses</b>, contados da energização do PONTO, assim entendida a data da primeira recarga comercial, renovando-se automaticamente por períodos iguais, salvo aviso escrito de qualquer das partes com <b>${a.aviso} dias</b> de antecedência do término.`),
+      I('prazo.permanencia', `${a.permanencia > 0 ? `Nenhuma das partes pode denunciar este contrato sem motivo antes de <b>${a.permanencia} meses</b> da energização. Depois disso, a` : 'A'} denúncia sem motivo depende de aviso escrito com <b>${a.aviso} dias</b> de antecedência e, sendo do CEDENTE, obriga-o ao ressarcimento da {{i:rescisao.cedente}}.`),
       I('prazo.implantacao', `Da assinatura à energização corre a fase de implantação, de até <b>${a.implant} dias</b>, em que não é devida remuneração. Vencido esse prazo sem energização, por causa não imputável ao CEDENTE, qualquer das partes pode resolver o contrato sem ônus, retirando a CESSIONÁRIA o que houver instalado e recompondo a ÁREA.`),
       I('prazo.negativa', 'Negado o acesso pela concessionária, ou recusado por escrito pela CESSIONÁRIA o custo de reforço de rede, o contrato se resolve sem multa de parte a parte.'),
     ]),
@@ -19265,9 +19313,9 @@ function ctrModeloArrend(d) {
       I('remuneracao.pct', `Pela cessão, a CESSIONÁRIA pagará ao CEDENTE <b>${a.pct > 0 ? pct(a.pct) : lacuna}% do faturamento bruto de recarga do PONTO</b>, apurado mensalmente.`, { travado: true }),
       I('remuneracao.base', 'Faturamento bruto é a soma de tudo o que for cobrado dos usuários pelo uso do PONTO no mês: energia entregue, taxa de ativação por sessão, tempo de permanência e qualquer outra receita do PONTO. Recargas gratuitas, com desconto, de cortesia ou de campanha entram na base pelo preço de tabela vigente na data da sessão.'),
       I('remuneracao.deducoes', 'Do faturamento bruto não se deduzem, para este fim, energia, meio de pagamento, plataforma, conectividade, tributos, manutenção, seguro ou depreciação.'),
-      I('remuneracao.piso', a.piso > 0 ? `A partir do <b>${a.carencia}º mês</b> de operação, a remuneração mensal não será inferior a <b>${money(a.piso)}</b> (${e(recExtenso(a.piso))}), valor reajustado anualmente pelo IPCA. O percentual não se reajusta, por já acompanhar o preço da recarga.` : '', { travado: true }),
-      I('remuneracao.vencimento', `O pagamento vence até o dia <b>${a.dia}</b> do mês seguinte ao da apuração, acompanhado do demonstrativo da {{i:contas.demonstrativo}}${a.dados ? `, e é feito diretamente ao CEDENTE por meio de: <b>${e(a.dados)}</b>` : ''}.`),
-      I('remuneracao.mora', `O atraso sujeita a CESSIONÁRIA a multa de ${pct(a.moraMulta)}%, juros de ${pct(a.moraJuros)}% ao mês e correção pelo IPCA.`),
+      I('remuneracao.piso', a.piso > 0 ? `A partir do <b>${a.carencia}º mês</b> de operação, a remuneração mensal não será inferior a <b>${money(a.piso)}</b> (${e(recExtenso(a.piso))}), valor reajustado a cada 12 (doze) meses da energização pela variação acumulada do IPCA/IBGE. O percentual não se reajusta, por já acompanhar o preço da recarga.` : '', { travado: true }),
+      I('remuneracao.vencimento', venc(a.dados ? `<b>${e(a.dados)}</b>` : ''), { iaTexto: venc(a.dados ? '<b>[conta do cedente]</b>' : '') }),
+      I('remuneracao.mora', `O atraso sujeita a CESSIONÁRIA a multa de ${pct(a.moraMulta)}% sobre o valor em atraso, juros de ${pct(a.moraJuros)}% ao mês e correção pelo IPCA.`),
       I('remuneracao.tributos', 'Cada parte responde pelos tributos incidentes sobre o que recebe, e o CEDENTE emite o documento fiscal ou o recibo compatível com a sua natureza jurídica.'),
     ]),
     C('contas', 'Da medição e da prestação de contas', [
@@ -19275,8 +19323,8 @@ function ctrModeloArrend(d) {
       I('contas.demonstrativo', 'Até o vencimento, a CESSIONÁRIA entrega ao CEDENTE demonstrativo mensal com o número de sessões, a energia entregue, o faturamento bruto discriminado, as recargas gratuitas ou promocionais, o percentual aplicado e o valor devido, acompanhado do extrato da plataforma.'),
       I('contas.painel', 'O CEDENTE tem acesso permanente de leitura ao painel do PONTO, restrito aos dados do PONTO e sem dados pessoais de usuários.'),
       I('contas.contestacao', 'O CEDENTE pode contestar o demonstrativo por escrito em 30 (trinta) dias do recebimento, e a CESSIONÁRIA responde em 10 (dez) dias úteis com o extrato bruto da plataforma.'),
-      I('opc.arr_auditoria', op('arr_auditoria') ? 'O CEDENTE pode, uma vez por ano, auditar a apuração por profissional habilitado, às suas expensas. Apurada diferença superior a 5% (cinco por cento) em seu desfavor, o custo da auditoria passa à CESSIONÁRIA, que paga a diferença com os acréscimos da {{i:remuneracao.mora}}.' : ''),
-      I('contas.falha', `Faltando registro auditável por troca de plataforma ou por falha de telemetria superior a 15 (quinze) dias, a CESSIONÁRIA paga a média dos três últimos meses apurados${a.piso > 0 ? ', ou o piso, se maior' : ''}, acertando-se a diferença quando o registro voltar.`),
+      I('opc.arr_auditoria', op('arr_auditoria') ? 'O CEDENTE pode, uma vez por ano, auditar a apuração por profissional habilitado que assine termo de confidencialidade, às suas expensas. Apurada diferença superior a 5% (cinco por cento) do valor devido a ele no período auditado, em seu desfavor, o custo da auditoria passa à CESSIONÁRIA, que paga a diferença com os acréscimos da {{i:remuneracao.mora}}.' : ''),
+      I('contas.falha', `Faltando registro auditável por troca de plataforma ou por falha de telemetria superior a 15 (quinze) dias, a CESSIONÁRIA paga, pelos dias sem registro, a média diária dos meses apurados, até os três últimos${a.piso > 0 ? ', ou o piso proporcional, se maior' : ''}, acertando-se a diferença quando o registro voltar.`),
       I('contas.conflito', 'As partes reconhecem que a CESSIONÁRIA opera a plataforma que mede a base da remuneração, razão pela qual os direitos desta cláusula não podem ser afastados por acordo verbal.'),
     ]),
     op('arr_exclusiv') ? C('exclusividade', 'Da exclusividade', [
@@ -19292,7 +19340,7 @@ function ctrModeloArrend(d) {
       }[a.energia] || ''),
       I('energia.custo', 'A energia consumida nas recargas é integralmente da CESSIONÁRIA.'),
       I('energia.rede', 'Reforço de rede, extensão, transformador, aumento de carga e participação financeira exigidos pela concessionária correm por conta exclusiva da CESSIONÁRIA. O CEDENTE assina os documentos que dependam da titularidade da unidade consumidora e outorga procuração específica para o trâmite, sem que isso lhe transfira custo.'),
-      I('energia.conta', a.energia !== 'uc' ? 'Se a carga do PONTO mudar o enquadramento ou a demanda contratada da unidade consumidora do CEDENTE, a CESSIONÁRIA indeniza a diferença comprovada na conta dele, apurada contra a média dos 12 (doze) meses anteriores.' : ''),
+      I('energia.conta', a.energia !== 'uc' ? 'Se a carga do PONTO mudar o enquadramento ou a demanda contratada da unidade consumidora do CEDENTE, a CESSIONÁRIA indeniza o acréscimo comprovado da fatura que decorra exclusivamente dessa mudança, sem o consumo já reembolsado na {{i:energia.config}}.' : ''),
     ]),
     C('obras', 'Das obras e dos equipamentos', [
       I('obras.execucao', 'As obras de implantação são executadas por conta e risco da CESSIONÁRIA, por empresa habilitada, com ART de engenheiro responsável e observadas a ABNT NBR 17019, a NR-10 e as normas da concessionária. O projeto e o cronograma são apresentados previamente ao CEDENTE, que só pode recusá-los por motivo técnico ou de segurança justificado.'),
@@ -19300,7 +19348,7 @@ function ctrModeloArrend(d) {
       I('obras.benfeitorias', 'As obras são feitas no interesse da CESSIONÁRIA e não geram, durante a vigência, direito de indenização nem de retenção a nenhuma das partes.'),
       I('obras.propriedade', 'O carregador, os cabos, o medidor, o quadro, as proteções, o totem e os demais equipamentos são bens móveis de propriedade da CESSIONÁRIA, instalados por destinação temporária e removíveis, e em nenhuma hipótese aderem ao IMÓVEL ou passam ao patrimônio do CEDENTE.'),
       I('obras.retencao', 'O CEDENTE não adquire posse, retenção ou garantia sobre os equipamentos, nem por inadimplemento da remuneração, cujo remédio é a cobrança e a rescisão, nunca a retenção ou o desligamento do PONTO.'),
-      I('obras.constricao', 'Havendo penhora, hipoteca, execução ou desapropriação que alcance o IMÓVEL, o CEDENTE comunica a CESSIONÁRIA em 5 (cinco) dias e apresenta este contrato para demonstrar que os equipamentos são de terceiro.'),
+      I('obras.constricao', 'Havendo penhora, hipoteca, execução ou desapropriação que alcance o IMÓVEL, o CEDENTE comunica o fato à CESSIONÁRIA em 5 (cinco) dias e apresenta este contrato para demonstrar que os equipamentos são de terceiro.'),
       I('opc.arr_registro', op('arr_registro') ? 'As partes registrarão este contrato no Cartório de Registro de Títulos e Documentos e o averbarão na matrícula do IMÓVEL, às expensas da CESSIONÁRIA, para que produza efeito perante terceiros.' : ''),
       I('obras.ampliacao', 'Ampliação do PONTO, com novo carregador, novo ponto de carregamento ou aumento de potência, depende de aditivo escrito.'),
     ]),
@@ -19313,7 +19361,7 @@ function ctrModeloArrend(d) {
       I('operacao.acesso', 'O CEDENTE assegura o acesso livre dos usuários à ÁREA no horário de funcionamento, sem cobrança de entrada, sem exigência de consumo e sem obstrução, e o acesso da CESSIONÁRIA para manutenção em horário combinado e, em emergência, a qualquer hora.'),
       I('operacao.tarifa', 'O preço da recarga ao usuário é definido livre e exclusivamente pela CESSIONÁRIA, como admite a regulação da ANEEL para a atividade de recarga. O CEDENTE não fixa, não veta e não sugere tarifa.'),
       I('operacao.cedente', 'O CEDENTE não opera o PONTO e não intervém no equipamento, na plataforma ou na configuração, salvo o acionamento do botão de emergência em situação de risco.'),
-      I('operacao.fechamento', `Fechado o estabelecimento de modo a impedir o acesso ao PONTO por mais de 15 (quinze) dias, ${a.piso > 0 ? 'suspende-se o piso da {{i:remuneracao.piso}} e ' : ''}prorroga-se o prazo pelo mesmo período; passados 60 (sessenta) dias, a CESSIONÁRIA pode resolver o contrato sem multa.`),
+      I('operacao.fechamento', `Fechado o estabelecimento de modo a impedir o acesso ao PONTO por mais de 15 (quinze) dias, ${a.piso > 0 ? 'suspende-se o piso da {{i:remuneracao.piso}} e ' : ''}prorrogam-se os prazos da {{i:prazo.vigencia}} e da {{i:prazo.permanencia}} pelo mesmo período; passados 60 (sessenta) dias do fechamento, a CESSIONÁRIA pode resolver o contrato sem multa, correndo por conta do CEDENTE a retirada e a recomposição da {{c:devolucao}}, salvo caso fortuito ou força maior.`),
     ]),
     C('cedente', 'Das obrigações do CEDENTE', [
       I('cedente.legitimidade', legitimidade),
@@ -19342,14 +19390,14 @@ function ctrModeloArrend(d) {
       I('opc.arr_publicidade', op('arr_publicidade') ? 'O CEDENTE autoriza o uso do nome, da imagem e do endereço do estabelecimento pela CESSIONÁRIA em material institucional e publicitário.' : ''),
     ]),
     C('sucessao', 'Da venda do imóvel e da cessão do contrato', [
-      I('sucessao.venda', 'Vendendo o IMÓVEL ou o estabelecimento, o CEDENTE dá ciência prévia e escrita deste contrato ao adquirente, oferece-lhe a sub-rogação nas mesmas condições e faz constar a cessão do instrumento de venda. Recusada a sub-rogação, o contrato se resolve por culpa do CEDENTE.'),
-      I('sucessao.cessao', 'A CESSIONÁRIA pode ceder este contrato, mediante comunicação ao CEDENTE, a empresa do seu grupo, a sociedade de que seja sócia ostensiva ou a quem adquirir o PONTO, permanecendo solidária pelas obrigações anteriores à cessão.'),
+      I('sucessao.venda', 'Vendendo o IMÓVEL ou o estabelecimento, o CEDENTE dá ciência prévia e escrita deste contrato ao adquirente, oferece-lhe a sub-rogação nas mesmas condições e faz constar do instrumento de venda a existência deste contrato. Recusada a sub-rogação, o contrato se resolve por culpa do CEDENTE.'),
+      I('sucessao.cessao', 'A CESSIONÁRIA pode ceder este contrato, mediante comunicação ao CEDENTE, a empresa do seu grupo ou a quem adquirir o PONTO, permanecendo solidária pelas obrigações anteriores à cessão. A exploração do PONTO em sociedade em conta de participação de que a CESSIONÁRIA seja sócia ostensiva não constitui cessão, e ela permanece a única parte perante o CEDENTE.'),
       I('sucessao.herdeiros', 'Este contrato obriga herdeiros e sucessores das partes.'),
     ]),
     C('rescisao', 'Da rescisão', [
-      I('rescisao.hipoteses', `O contrato se resolve pelo fim do prazo sem renovação, por acordo, por descumprimento não sanado em ${a.corrigir} dias da notificação, por atraso da remuneração superior a 60 (sessenta) dias, por desapropriação, sinistro ou interdição do IMÓVEL, e nas hipóteses da {{i:prazo.implantacao}}, da {{i:prazo.negativa}} e da {{i:operacao.fechamento}}.`),
-      I('rescisao.multa', a.multaSaida > 0 ? `A parte que der causa à rescisão${a.permanencia > 0 ? ', ou denunciar o contrato antes do prazo da {{i:prazo.permanencia}},' : ''} paga à outra multa equivalente a <b>${a.multaSaida} meses</b> da remuneração média dos 12 (doze) meses anteriores${a.piso > 0 ? ', ou do piso, se maior' : ''}, reduzida na proporção do prazo de vigência já cumprido.` : ''),
-      I('rescisao.cedente', 'Rescindido o contrato por culpa do CEDENTE, ele ressarce também o custo comprovado e não amortizado das obras, apurado linearmente pelo prazo de vigência, e o custo de retirada do equipamento.'),
+      I('rescisao.hipoteses', `O contrato extingue-se pelo fim do prazo sem renovação, por distrato, por desapropriação, sinistro ou interdição do IMÓVEL e nas hipóteses da {{i:prazo.implantacao}}, da {{i:prazo.negativa}} e da {{i:operacao.fechamento}}, e pode ser resolvido pela parte prejudicada por descumprimento não sanado em ${a.corrigir} dias da notificação ou, pelo CEDENTE, por atraso da remuneração superior a 60 (sessenta) dias.`),
+      I('rescisao.multa', a.multaSaida > 0 ? `A parte que der causa à rescisão${a.permanencia > 0 ? ', ou denunciar o contrato antes do prazo da {{i:prazo.permanencia}},' : ''} paga à outra multa equivalente a <b>${a.multaSaida} meses</b> da remuneração média dos meses apurados, até os 12 (doze) últimos${a.piso > 0 ? ', ou do piso da {{i:remuneracao.piso}}, se maior' : ''}${a.multaMin > 0 ? `, e nunca inferior a <b>${money(a.multaMin)}</b>` : ''}, reduzida proporcionalmente aos meses já cumpridos do período de vigência em curso.` : ''),
+      I('rescisao.cedente', 'Rescindido o contrato por culpa do CEDENTE, ou denunciado por ele sem motivo, ele ressarce o custo comprovado e não amortizado das obras, apurado linearmente pelo prazo de vigência, e o custo de retirada do equipamento.'),
       I('rescisao.semculpa', 'Na rescisão sem culpa, faz-se o acerto pelo período decorrido, sem multa e sem indenização de parte a parte.'),
       I('rescisao.retencao', 'Em nenhuma hipótese a rescisão autoriza a retenção, a apreensão ou o desligamento do equipamento.'),
     ]),
@@ -19358,13 +19406,13 @@ function ctrModeloArrend(d) {
       I('devolucao.base', a.base === 'sai'
         ? 'A base de concreto e a ancoragem também são removidas pela CESSIONÁRIA, com recomposição do piso; eletrodutos enterrados, caixas de passagem e aterramento permanecem no IMÓVEL, sem indenização.'
         : 'Permanecem no IMÓVEL, sem indenização, a base de concreto, a ancoragem, os eletrodutos enterrados, as caixas de passagem e o aterramento.'),
-      I('devolucao.estado', 'A CESSIONÁRIA recompõe o pavimento, a pintura e a sinalização da vaga, entregando a ÁREA no estado do laudo da {{i:objeto.laudo}}, ressalvado o desgaste natural, em termo de devolução assinado pelas partes.'),
+      I('devolucao.estado', 'A CESSIONÁRIA recompõe o pavimento, a pintura e a sinalização da vaga, entregando a ÁREA no estado do laudo da {{i:objeto.laudo}}, ressalvados o desgaste natural e o que permanece no IMÓVEL na forma da {{i:devolucao.base}}, em termo de devolução assinado pelas partes. Não havendo termo nem apontamento escrito do CEDENTE em 10 (dez) dias da retirada, presume-se a ÁREA recebida em ordem.'),
       I('devolucao.abandono', 'Não retirado o equipamento no prazo, o CEDENTE notifica a CESSIONÁRIA e, passados mais 30 (trinta) dias, pode removê-lo e guardá-lo às expensas dela, sem adquirir propriedade e sem direito de venda ou retenção.'),
     ]),
     C('gerais', 'Das disposições gerais', [
       I('gerais.aditivo', 'Alterações de área, prazo ou remuneração só valem por aditivo escrito assinado pelas partes.'),
       I('gerais.tolerancia', tolerancia),
-      I('gerais.confidencialidade', 'As partes tratam como confidenciais as informações comerciais e financeiras trocadas, inclusive o faturamento do PONTO, salvo exigência legal ou a auditoria da {{c:contas}}.'),
+      I('gerais.confidencialidade', 'As partes tratam como confidenciais as informações comerciais e financeiras trocadas, inclusive o faturamento do PONTO, salvo exigência legal ou o exercício dos direitos da {{c:contas}}.'),
       I('opc.lgpd', op('lgpd') ? 'Os dados pessoais de usuários do PONTO não são compartilhados com o CEDENTE, e os demonstrativos da {{c:contas}} são agregados, sem identificação de usuário, na forma da Lei nº 13.709/2018 (LGPD).' : ''),
       I('opc.eletronica', op('eletronica') ? eletronica : ''),
       ...d.extras.map((x, i) => I('extra.' + (i + 1), e(x))),
@@ -19544,7 +19592,7 @@ function ctrIaAplicar(base, pedidos) {
 function ctrCabecalho(d) {
   if (d.tipo === 'arrend') return {
     titulo: 'Contrato de Cessão Onerosa de Área<br>para Estação de Recarga de Veículos Elétricos',
-    sub: 'Arrendamento do ponto · remuneração sobre o faturamento',
+    sub: 'Remuneração sobre o faturamento do ponto',
     rodape: 'Cessão de Área — Eletroposto', curto: 'Contrato de cessão de área' };
   if (ctrEhSoc(d.tipo)) {
     const rot = d.tipo === 'cotas' ? 'Cotas de ' + ctrPctTxt(d.soc.cota) + '%' : 'Sociedade ' + socRotulo(d.soc.cota);
@@ -19567,14 +19615,16 @@ function ctrQuadroCotas(d) {
   const p = n => ctrPctTxt(n) + '%';
   const nome = d.contratante ? e(d.contratante) : '<span class="ep-rec-vazio"></span>';
   const linhas = [[`<b>${nome}</b><span>SÓCIO PARTICIPANTE${d.tipo === 'cotas' ? ` · ${s.qtd} cota(s) de ${p(s.cota)}` : ''}</span>`, p(s.cotaCli), s.aporteCli > 0 ? money(s.aporteCli) : '<span class="ep-rec-vazio"></span>']];
-  if (s.outros > 0) linhas.push([`<b>Demais sócios participantes</b><span>${s.outros} cota(s) de ${p(s.cota)}, por termo de adesão</span>`, p(s.cotaOutros), money(s.aporteOutros)]);
-  linhas.push([`<b>${e(d.empresa.razao || d.empresa.nome || 'NEXUS Eletropostos')}</b><span>SÓCIA OSTENSIVA</span>`, p(s.cotaN), s.aporteN > 0 ? money(s.aporteN) : 'gestão e administração']);
+  const lac = '<span class="ep-rec-vazio"></span>';
+  if (s.outros > 0) linhas.push([`<b>Demais sócios participantes</b><span>${s.outros} cota(s) de ${p(s.cota)}, por termo de adesão</span>`, p(s.cotaOutros), s.aporteOutros > 0 ? money(s.aporteOutros) : lac]);
+  linhas.push([`<b>${e(d.empresa.razao || d.empresa.nome || 'NEXUS Eletropostos')}</b><span>SÓCIA OSTENSIVA</span>`, p(s.cotaN), s.aporteN > 0 ? money(s.aporteN) : (s.aporteNDef ? 'gestão e administração' : lac)]);
   if (s.falta > 1) linhas.push(['<b>Capital a captar</b><span>por termo de adesão, até fechar o investimento</span>', '—', money(s.falta)]);
   const totalAportes = s.falta > 1 ? s.invest : s.somaAportes;
+  const totalTxt = totalAportes > 0 && (s.aporteNDef || s.aporteN > 0) ? money(totalAportes) : lac;
   return `<table class="ep-ctr-pag ep-ctr-cotas">
       <thead><tr><th>Sócio</th><th class="n">Cota</th><th class="n">Aporte</th></tr></thead>
       <tbody>${linhas.map(l => `<tr><td>${l[0]}</td><td class="n">${l[1]}</td><td class="n">${l[2]}</td></tr>`).join('')}</tbody>
-      <tfoot><tr><td>Total</td><td class="n">${p(s.somaCotas)}</td><td class="n">${money(totalAportes)}</td></tr></tfoot>
+      <tfoot><tr><td>Total</td><td class="n">${p(s.somaCotas)}</td><td class="n">${totalTxt}</td></tr></tfoot>
     </table>`;
 }
 
@@ -19674,12 +19724,12 @@ const CTR_IA_CAMPOS = {
 const CTR_IA_CAMPOS_SOC = {
   'objeto.sociedade': 'Dados do contrato > Equipamento, Carregadores, Pontos de recarga e Local da instalação',
   'capital.total': 'Sociedade > Investimento total', 'capital.quadro': 'Sociedade > cotas e aportes dos sócios',
-  'capital.escopo': 'Escopo: o que o investimento cobre', 'aporte.valor': 'Sociedade > Aporte do sócio, e Sinal já pago',
+  'capital.escopo': 'Escopo: o que o investimento cobre', 'aporte.valor': 'Sociedade > Aporte do sócio (em cotas: Aporte por cota e Cotas deste sócio), e Sinal já pago',
   'aporte.forma': 'Aporte do sócio e formas de pagamento', 'aporte.mora': 'Aporte do sócio e formas de pagamento > Multa por atraso e Juros de mora',
   'aporte.dados': 'Aporte do sócio e formas de pagamento > Dados para pagamento', 'aporte.ostensiva': 'Sociedade > Cota e Aporte da NEXUS',
-  'local.cessao': 'Sociedade > Arrendamento do local', 'captacao.prazo': 'Sociedade > Prazo para fechar o capital',
-  'implantacao.prazo': 'Sociedade > Ponto em operação em até', 'operacao.plataforma': 'Sociedade > Software NEXUS',
-  'resultado.divisao': 'Sociedade > Resultado pago até o dia', 'prazo.vigencia': 'Sociedade > Prazo da sociedade',
+  'local.cessao': 'Sociedade > Arrendamento ao sócio (ou ao dono) do local, % do faturamento', 'captacao.prazo': 'Sociedade > Prazo para fechar o capital',
+  'implantacao.prazo': 'Sociedade > Ponto em operação em até', 'operacao.plataforma': 'Sociedade > Software NEXUS, % do faturamento',
+  'resultado.divisao': 'Sociedade > Dia de pagar o resultado (mês seguinte)', 'prazo.vigencia': 'Sociedade > Prazo da sociedade',
   'prazo.permanencia': 'Sociedade > Ninguém sai antes de', 'prazo.retirada': 'Sociedade > Aviso prévio para sair e Haveres de quem sai pagos em',
   'rescisao.descumprimento': 'Sociedade > Prazo para corrigir antes de rescindir', 'foro.comarca': 'Foro, assinatura e cláusulas extras > Foro (comarca)',
 };
@@ -19688,12 +19738,12 @@ const CTR_IA_CAMPOS_TIPO = {
   arrend: {
     'objeto.cessao': 'Dados do contrato > Equipamento, Carregadores, Pontos de recarga e Local da instalação',
     'objeto.area': 'Arrendamento > Vagas cedidas e Área cedida', 'remuneracao.pct': 'Arrendamento > Percentual do faturamento bruto',
-    'remuneracao.piso': 'Arrendamento > Piso mensal e O piso vale a partir do', 'remuneracao.vencimento': 'Arrendamento > Pagamento até o dia e Conta do cedente',
+    'remuneracao.piso': 'Arrendamento > Piso mensal e O piso vale a partir do mês de operação', 'remuneracao.vencimento': 'Arrendamento > Dia de pagar o cedente (mês seguinte) e Conta do cedente para receber',
     'remuneracao.mora': 'Arrendamento > Multa por atraso e Juros de mora', 'prazo.vigencia': 'Arrendamento > Vigência e Aviso para não renovar',
-    'prazo.permanencia': 'Arrendamento > Ninguém sai antes de', 'prazo.implantacao': 'Arrendamento > Prazo máximo para ligar o ponto',
+    'prazo.permanencia': 'Arrendamento > Ninguém sai antes de e Aviso para não renovar', 'prazo.implantacao': 'Arrendamento > Prazo máximo para ligar o ponto',
     'energia.config': 'Arrendamento > Energia do ponto', 'operacao.horario': 'Arrendamento > Horário do ponto',
     'cedente.legitimidade': 'Arrendamento > O cedente é', 'rescisao.hipoteses': 'Arrendamento > Prazo para corrigir antes de rescindir',
-    'rescisao.multa': 'Arrendamento > Multa por saída antecipada', 'devolucao.retirada': 'Arrendamento > Retirada do equipamento em',
+    'rescisao.multa': 'Arrendamento > Multa por saída antecipada, em meses de remuneração, e Multa mínima', 'devolucao.retirada': 'Arrendamento > Retirada do equipamento em',
     'devolucao.base': 'Arrendamento > Base de concreto no fim', 'foro.comarca': 'Foro, assinatura e cláusulas extras > Foro (comarca)',
   },
 };
