@@ -342,52 +342,59 @@ describe('caixa de saída: o drenador nunca manda o mesmo toque duas vezes', () 
 
 interface Reuniao { T: number; consultor: number }
 
+const tDia = (hhmm: string) => brt(`2026-10-05T${hhmm}`);
+
+/** Uma segunda de agenda: reuniões, resposta, aviso, evento e 40 frios de fundo, das 7h às 21h. */
+function diaDeAgenda(reunioes: readonly Reuniao[], opts: { bomDiaComPrazo: boolean; todosSemConversa: boolean }): ResultadoSimulacao {
+  const t = tDia;
+  const pedidos: PedidoAgendado[] = [];
+  const entradas = new Map<string, number>();
+  const semConversa = (m: number) => opts.todosSemConversa || m % 2 === 0;
+
+  reunioes.forEach(({ T, consultor }, m) => {
+    const tel = lead(m);
+    pedidos.push({ robo: 'ep_agenda', destino: tel, chave: `bd:${m}`, prazo: opts.bomDiaComPrazo ? T - HORA : undefined, desde: t('07:00'),
+      validoAte: Math.min(t('12:00'), T - HORA), modo: 'tick', semConversa: semConversa(m), rotulo: 'bom_dia' });
+    pedidos.push({ robo: 'ep_agenda', destino: tel, chave: `1h:${m}`, prazo: T, desde: T - 75 * MIN,
+      validoAte: T - 45 * MIN, modo: 'tick', semConversa: opts.todosSemConversa, rotulo: '1h' });
+    pedidos.push({ robo: 'ep_agenda', destino: tel, chave: `5m:${m}`, prazo: T, desde: T - 12 * MIN,
+      validoAte: T + 3 * MIN, modo: 'tick', semConversa: opts.todosSemConversa, rotulo: '5min' });
+    pedidos.push({ robo: 'ep_alerta_10min', destino: EQUIPE[consultor]!, chave: `al:${m}`, prazo: T, desde: T - 10 * MIN,
+      validoAte: T, modo: 'tick', rotulo: 'alerta' });
+    if (m % 3 === 0) {
+      pedidos.push({ robo: 'ep_agenda', destino: tel, chave: `cf:${m}`, prazo: T, desde: t('07:00'),
+        validoAte: T, modo: 'tick', semConversa: true, rotulo: 'confirmacao' });
+    } else if (m % 3 === 1) {
+      pedidos.push({ robo: 'ep_cobra_sim', destino: tel, chave: `cs:${m}`, prazo: T, desde: Math.max(t('08:00'), T - 3 * HORA),
+        validoAte: T - HORA, modo: 'tick', semConversa: true, rotulo: 'cobranca' });
+    }
+  });
+  // 60 respostas a quem escreveu, 2 bolhas cada, das 8h às 19h.
+  for (let i = 0; i < 60; i++) {
+    const quando = t('08:00') + i * 11 * MIN + 37_000;
+    const tel = lead(500 + i);
+    entradas.set(tel, quando - 30_000);
+    pedidos.push({ robo: i % 2 ? 'giovanna_reativa' : 'duda_recepcao', destino: tel, bolhas: 2, desde: quando, modo: 'imediato', rotulo: 'reativo' });
+  }
+  // 3 compras (uma no pico das 9h) e 10 fichas novas para a equipe.
+  for (const [i, hhmm] of ['09:00', '12:07', '16:31'].entries()) {
+    pedidos.push({ robo: 'solardoc_compra', destino: lead(700 + i), desde: t(hhmm) + 20_000, modo: 'imediato', rotulo: 'evento' });
+  }
+  for (let i = 0; i < 10; i++) {
+    pedidos.push({ robo: 'ep_aviso_ficha', destino: EQUIPE[i % 2]!, desde: t('08:15') + i * 53 * MIN, modo: 'imediato', rotulo: 'aviso_ficha' });
+  }
+  // Frio de fundo: 40 toques da Bia esperando desde as 9h.
+  for (let i = 0; i < 40; i++) {
+    pedidos.push({ robo: 'bia_recuperacao', destino: lead(800 + i), chave: `bia:${i}`, desde: t('09:00'), modo: 'tick', semConversa: true, rotulo: 'frio' });
+  }
+
+  return simular(pedidos, { inicio: t('07:00'), fim: t('21:00'), equipe: EQUIPE, entradas });
+}
+
 function controle(titulo: string, reunioes: readonly Reuniao[], opts: { bomDiaComPrazo: boolean; todosSemConversa: boolean; frioCravado: number }) {
   describe(`CONTROLE POSITIVO — ${titulo}`, () => {
-    const dia = '2026-10-05';
-    const t = (hhmm: string) => brt(`${dia}T${hhmm}`);
-    const pedidos: PedidoAgendado[] = [];
-    const entradas = new Map<string, number>();
-    const semConversa = (m: number) => opts.todosSemConversa || m % 2 === 0;
-
-    reunioes.forEach(({ T, consultor }, m) => {
-      const tel = lead(m);
-      pedidos.push({ robo: 'ep_agenda', destino: tel, chave: `bd:${m}`, prazo: opts.bomDiaComPrazo ? T - HORA : undefined, desde: t('07:00'),
-        validoAte: Math.min(t('12:00'), T - HORA), modo: 'tick', semConversa: semConversa(m), rotulo: 'bom_dia' });
-      pedidos.push({ robo: 'ep_agenda', destino: tel, chave: `1h:${m}`, prazo: T, desde: T - 75 * MIN,
-        validoAte: T - 45 * MIN, modo: 'tick', semConversa: opts.todosSemConversa, rotulo: '1h' });
-      pedidos.push({ robo: 'ep_agenda', destino: tel, chave: `5m:${m}`, prazo: T, desde: T - 12 * MIN,
-        validoAte: T + 3 * MIN, modo: 'tick', semConversa: opts.todosSemConversa, rotulo: '5min' });
-      pedidos.push({ robo: 'ep_alerta_10min', destino: EQUIPE[consultor]!, chave: `al:${m}`, prazo: T, desde: T - 10 * MIN,
-        validoAte: T, modo: 'tick', rotulo: 'alerta' });
-      if (m % 3 === 0) {
-        pedidos.push({ robo: 'ep_agenda', destino: tel, chave: `cf:${m}`, prazo: T, desde: t('07:00'),
-          validoAte: T, modo: 'tick', semConversa: true, rotulo: 'confirmacao' });
-      } else if (m % 3 === 1) {
-        pedidos.push({ robo: 'ep_cobra_sim', destino: tel, chave: `cs:${m}`, prazo: T, desde: Math.max(t('08:00'), T - 3 * HORA),
-          validoAte: T - HORA, modo: 'tick', semConversa: true, rotulo: 'cobranca' });
-      }
-    });
-    // 60 respostas a quem escreveu, 2 bolhas cada, das 8h às 19h.
-    for (let i = 0; i < 60; i++) {
-      const quando = t('08:00') + i * 11 * MIN + 37_000;
-      const tel = lead(500 + i);
-      entradas.set(tel, quando - 30_000);
-      pedidos.push({ robo: i % 2 ? 'giovanna_reativa' : 'duda_recepcao', destino: tel, bolhas: 2, desde: quando, modo: 'imediato', rotulo: 'reativo' });
-    }
-    // 3 compras (uma no pico das 9h) e 10 fichas novas para a equipe.
-    for (const [i, hhmm] of ['09:00', '12:07', '16:31'].entries()) {
-      pedidos.push({ robo: 'solardoc_compra', destino: lead(700 + i), desde: t(hhmm) + 20_000, modo: 'imediato', rotulo: 'evento' });
-    }
-    for (let i = 0; i < 10; i++) {
-      pedidos.push({ robo: 'ep_aviso_ficha', destino: EQUIPE[i % 2]!, desde: t('08:15') + i * 53 * MIN, modo: 'imediato', rotulo: 'aviso_ficha' });
-    }
-    // Frio de fundo: 40 toques da Bia esperando desde as 9h.
-    for (let i = 0; i < 40; i++) {
-      pedidos.push({ robo: 'bia_recuperacao', destino: lead(800 + i), chave: `bia:${i}`, desde: t('09:00'), modo: 'tick', semConversa: true, rotulo: 'frio' });
-    }
-
-    const r = simular(pedidos, { inicio: t('07:00'), fim: t('21:00'), equipe: EQUIPE, entradas });
+    const t = tDia;
+    const r = diaDeAgenda(reunioes, opts);
     resumo(`agenda cheia, ${titulo}`, r);
     const de = (rotulo: string) => r.enviados.filter(e => e.pedido.rotulo === rotulo);
     const IMPORTANTES = ['bom_dia', '1h', '5min', 'alerta', 'confirmacao', 'cobranca', 'reativo', 'evento', 'aviso_ficha'];
@@ -453,7 +460,7 @@ function controle(titulo: string, reunioes: readonly Reuniao[], opts: { bomDiaCo
 }
 
 {
-  const t = (hhmm: string) => brt(`2026-10-05T${hhmm}`);
+  const t = tDia;
   // FOME CONHECIDA: com uma reunião a cada 15 min o frio entrega 15 de 30. Não
   // é limite da linha, é o espaçamento do frio contra o lembrete (regra do
   // HEAD). Medir na sombra contra a agenda real antes de afrouxar.
@@ -467,3 +474,30 @@ function controle(titulo: string, reunioes: readonly Reuniao[], opts: { bomDiaCo
   controle('duas faixas cheias, 2 reuniões por quarto de hora', Array.from({ length: 36 }, (_, i) => ({ T: t('09:00') + Math.floor(i / 2) * 15 * MIN, consultor: i % 2 })),
     { bomDiaComPrazo: true, todosSemConversa: false, frioCravado: 30 });
 }
+
+describe('DÍVIDA CONHECIDA — agenda densa com bom dia sem prazo, todo mundo sem conversa', () => {
+  // As duas faixas cheias (2 reuniões por quarto de hora, 9h às 13h15), o bom
+  // dia sem prazo e ninguém com conversa nas últimas 24h. O total proativo de
+  // 40/h (lembrete e resposta entram na conta) e o volume sustentado (40 em 3h
+  // para quem não escreveu) seguram o bom dia, que é P3 sem prazo, e 8 deles
+  // passam das 12h sem sair: 7 pelo total da hora e 1 pelo volume. É régua de
+  // volume segurando agenda legítima; nenhuma delas separa agenda de frio mal
+  // classificado (ver o regulamento). A rajada do lembrete não entra nisso.
+  // Cravado para medir na sombra contra a agenda real antes de mexer.
+  const t = tDia;
+  const r = diaDeAgenda(Array.from({ length: 36 }, (_, i) => ({ T: t('09:00') + Math.floor(i / 2) * 15 * MIN, consultor: i % 2 })),
+    { bomDiaComPrazo: false, todosSemConversa: true });
+  resumo('agenda densa, bom dia sem prazo', r);
+
+  it('8 bons dias expiram; os lembretes, as respostas e os eventos saem todos', () => {
+    const perdidos = r.expirados.map(x => x.pedido.rotulo);
+    expect(perdidos).toEqual(Array(8).fill('bom_dia'));
+    const motivos = r.expirados.map(x => x.ultimoMotivo);
+    expect(motivos.filter(m => m === 'teto_proativo_total').length).toBe(7);
+    expect(motivos.filter(m => m === 'volume_sustentado').length).toBe(1);
+    expect(r.motivos.rajada_lembrete ?? 0).toBe(0);
+    for (const rotulo of ['1h', '5min', 'alerta', 'reativo', 'evento']) {
+      expect({ rotulo, fora: r.pendentes.concat(r.expirados).filter(x => x.pedido.rotulo === rotulo).length }).toEqual({ rotulo, fora: 0 });
+    }
+  });
+});
