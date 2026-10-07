@@ -192,11 +192,26 @@ describe('decidir: uma regra por caso', () => {
     expect(bolhas(decidir(est(), ped('ep_agenda', { bolhas: 5 }), T))).toBe(1);
   });
 
-  it('reativo sem mensagem nos últimos 15 min é rebaixado: P3 com conversa em 24h, frio sem', () => {
-    expect(decidir(est(comEntrada(3 * 60)), ped('giovanna_reativa'), T).classe).toBe('transacional_agenda_p3');
+  it('reativo sem mensagem nos últimos 15 min vira FRIO, com ou sem conversa em 24h (o P3 é só de robô de agenda)', () => {
+    // Antes: quem escreveu há 3h rebaixava a P3 e saía a 24/h, fora do frio.
+    expect(decidir(est(comEntrada(3 * 60)), ped('giovanna_reativa'), T).classe).toBe('frio_p5');
+    expect(decidir(est(comEntrada(20 * 60)), ped('manual_crm'), T).classe).toBe('frio_p5');
     expect(decidir(est(comEntrada(3 * 24 * 60)), ped('giovanna_reativa'), T).classe).toBe('frio_p5');
     expect(decidir(est(), ped('manual_crm'), T).classe).toBe('frio_p5');
     expect(adiar(decidir(est(), ped('manual_crm'), DOMINGO_10H)).motivo).toBe('fora_da_janela');
+    // No orçamento do frio: o 7º da hora espera, mesmo para quem escreveu ontem.
+    expect(adiar(decidir(est({ h1: { frio_p5: 6 }, ...comEntrada(20 * 60) }), ped('manual_crm'), T)).motivo).toBe('teto_frio_hora');
+    // Quem escreveu agora continua resposta.
+    expect(decidir(est(comEntrada(5)), ped('manual_crm'), T).classe).toBe('reativo_p1');
+  });
+
+  it('manual_crm é de 1 destino por chamada: chamada com mais de um é lote e sai como o robô de lote (frio)', () => {
+    const d = decidir(est(comEntrada(5)), ped('manual_crm', { destinosNaChamada: 60 }), T);
+    expect(d.classe).toBe('frio_p5');
+    expect(d.prioridade).toBe(56); // a subprioridade do zapi_admin_lote, não a do humano digitando
+    expect(decidir(est(comEntrada(5)), ped('manual_crm', { destinosNaChamada: 1 }), T).classe).toBe('reativo_p1');
+    // Robô sem limite de destinos não muda com o número.
+    expect(decidir(est(comEntrada(5)), ped('giovanna_reativa', { destinosNaChamada: 60 }), T).classe).toBe('reativo_p1');
   });
 
   it('evento nunca é adiado: domingo às 3h com a linha cheia, sai agora', () => {
@@ -246,6 +261,33 @@ describe('decidir: uma regra por caso', () => {
     const frio = est({ h1: { frio_p5: 4 }, esperando: { frio_receita_p4: 2 }, ultimoEm: {} });
     expect(adiar(decidir(frio, ped('semente'), T)).motivo).toBe('reservado_prioridade_maior');
     expect(decidir(frio, ped('recuperacao_checkout'), T).acao).toBe('enviar_agora');
+  });
+
+  it('prazo não é passe livre: o lembrete com prazo mora na janela do transacional (7h–21h)', () => {
+    const tresDaManha = brt('2026-10-04T03:00');
+    const d = adiar(decidir(est(), ped('ep_agenda', { prazo: tresDaManha + 60 * MIN }), tresDaManha));
+    expect(d).toMatchObject({ classe: 'lembrete_p1', motivo: 'fora_da_janela', escopo: 'linha' });
+    expect(d.ate).toBeGreaterThanOrEqual(brt('2026-10-04T07:00'));
+    expect(d.ate).toBeLessThanOrEqual(brt('2026-10-04T07:00') + 90_000);
+    expect(adiar(decidir(est(), ped('ep_agenda', { prazo: brt('2026-10-05T21:30') }), brt('2026-10-05T21:05'))).motivo).toBe('fora_da_janela');
+    // A resposta e o evento continuam sem janela.
+    expect(decidir(est({ destino: { ultimaEntradaEm: tresDaManha - MIN } }), ped('giovanna_reativa'), tresDaManha).acao).toBe('enviar_agora');
+    expect(decidir(est(), ped('solardoc_compra'), tresDaManha).acao).toBe('enviar_agora');
+  });
+
+  it('prazo não é passe livre: no máximo 6 lembretes com prazo em 10 min; a resposta passa', () => {
+    const cheio = est({ m10: { lembrete_p1: 6 }, maisAntigoEm: { lembrete_10min: T - 7 * MIN }, ...comEntrada(1) });
+    const d = adiar(decidir(cheio, ped('ep_agenda', { prazo: T + 5 * MIN }), T));
+    expect(d).toMatchObject({ classe: 'lembrete_p1', motivo: 'rajada_lembrete' });
+    expect(d.ate).toBeGreaterThanOrEqual(T + 3 * MIN);
+    expect(d.ate).toBeLessThanOrEqual(T + 3 * MIN + 90_000);
+    expect(decidir(est({ m10: { lembrete_p1: 5 } }), ped('ep_agenda', { prazo: T + 5 * MIN }), T).acao).toBe('enviar_agora');
+    expect(decidir(cheio, ped('giovanna_reativa'), T).acao).toBe('enviar_agora');
+    // O alerta de 10 min ao time também vira lembrete pelo prazo e entra na mesma rajada.
+    expect(adiar(decidir(cheio, ped('ep_alerta_10min', { destino: EQUIPE[0], prazo: T + 10 * MIN }), T)).motivo).toBe('rajada_lembrete');
+    // Env só aperta.
+    expect(adiar(decidir(est({ m10: { lembrete_p1: 3 } }), ped('ep_agenda', { prazo: T + 5 * MIN }), T,
+      lerRegulamento({ CHEFE_RAJADA_LEMBRETE_10MIN: '3' }).reg)).motivo).toBe('rajada_lembrete');
   });
 
   it('prazo só promove robô de agenda, de 5 min depois até 90 min antes', () => {
@@ -383,6 +425,7 @@ function sortearCaso(r: () => number, i: number): { estado: Estado; pedido: Pedi
     temPix: chance(0.1),
     chave: chance(0.7) ? `k${i}` : undefined,
     prazo: chance(0.4) ? agora + int(-30, 180) * MIN : undefined,
+    destinosNaChamada: chance(0.15) ? int(1, 40) : undefined,
   };
   return { estado, pedido, agora };
 }
@@ -393,7 +436,9 @@ function sortearCaso(r: () => number, i: number): { estado: Estado; pedido: Pedi
  * sorteio do espaçamento) ou nada.
  */
 function oraculo(e: Estado, p: Pedido, agora: number): { classe: Classe; custo: number; evento: boolean; travas: Map<string, 'sim' | 'talvez'> } {
-  const meta: MetaRobo = CLASSE_POR_ROBO[p.robo] ?? ROBO_DESCONHECIDO;
+  const meta0: MetaRobo = CLASSE_POR_ROBO[p.robo] ?? ROBO_DESCONHECIDO;
+  // Robô de 1 destino por chamada com mais de um destino: é o robô de lote.
+  const meta: MetaRobo = meta0.roboDeLote && (p.destinosNaChamada ?? 1) > 1 ? CLASSE_POR_ROBO[meta0.roboDeLote]! : meta0;
   const evento = meta.nasceDeEvento;
   const soma = (j: JanelaContagem, ks: Classe[]) => ks.reduce((s, k) => s + (e.contagens[j]?.[k] ?? 0), 0);
   const ent = e.destino?.ultimaEntradaEm;
@@ -410,7 +455,7 @@ function oraculo(e: Estado, p: Pedido, agora: number): { classe: Classe; custo: 
   const interno = /-group$|@g\.us$/.test(p.destino) || (kDest !== null && (e.equipe ?? []).some(t => chave(t) === kDest));
   let classe: Classe = meta.classe;
   if (interno) classe = 'aviso_interno_p2';
-  else if (classe === 'reativo_p1' && idadeEnt > 15 * MIN) classe = idadeEnt <= DIA ? 'transacional_agenda_p3' : 'frio_p5';
+  else if (classe === 'reativo_p1' && idadeEnt > 15 * MIN) classe = 'frio_p5';
   if (meta.podeTerPrazo && typeof p.prazo === 'number' && (classe === 'transacional_agenda_p3' || classe === 'aviso_interno_p2')
     && p.prazo >= agora - 5 * MIN && p.prazo <= agora + 90 * MIN) classe = 'lembrete_p1';
 
@@ -434,11 +479,17 @@ function oraculo(e: Estado, p: Pedido, agora: number): { classe: Classe; custo: 
   }
   const total1h = soma('1h', CLASSES_TODAS);
   if (total1h + custo > 60 || soma('24h', CLASSES_TODAS) + custo > 450) sim('teto_emergencia');
-  if (URGENTES.includes(classe)) return { classe, custo, evento, travas };
 
-  // Janela (BRT): frio 9–20 sem domingo; P3 7–21.
+  // Janela (BRT): frio 9–20 sem domingo; P3 e lembrete com prazo 7–21.
   const b = new Date(agora - 3 * HORA);
   const h = b.getUTCHours();
+  // Lembrete com prazo: janela do transacional e no máximo 6 em 10 min.
+  if (classe === 'lembrete_p1') {
+    if (h < 7 || h >= 21) sim('fora_da_janela');
+    if (soma('10min', ['lembrete_p1']) + custo > 6) sim('rajada_lembrete');
+  }
+  if (URGENTES.includes(classe)) return { classe, custo, evento, travas };
+
   if (fria && (b.getUTCDay() === 0 || h < 9 || h >= 20)) sim('fora_da_janela');
   if (classe === 'transacional_agenda_p3' && (h < 7 || h >= 21)) sim('fora_da_janela');
 
@@ -524,6 +575,21 @@ describe('decidir: propriedade com 2.000 estados sorteados (semente fixa)', () =
         expect(dentroDaJanela(REGULAMENTO_PADRAO.janelaFrio, casos[i]!.agora)).toBe(true);
       }
     });
+  });
+
+  it('nunca envia lembrete com prazo fora das 7h–21h nem acima de 6 em 10 min (o prazo não é passe livre)', () => {
+    let vistos = 0;
+    decisoes.forEach((d, i) => {
+      if (d.acao !== 'enviar_agora' || d.classe !== 'lembrete_p1') return;
+      const { estado: e, agora } = casos[i]!;
+      const h = new Date(agora - 3 * HORA).getUTCHours();
+      expect({ i, h, dentro: h >= 7 && h < 21 }).toEqual({ i, h, dentro: true });
+      expect((e.contagens['10min']?.lembrete_p1 ?? 0) + d.maxBolhas).toBeLessThanOrEqual(6);
+      vistos++;
+    });
+    expect(vistos).toBeGreaterThan(5);
+    // E o outro lado aparece: lembrete preso pela janela ou pela rajada.
+    expect(decisoes.some(d => d.classe === 'lembrete_p1' && d.acao === 'adiar' && (d.motivo === 'fora_da_janela' || d.motivo === 'rajada_lembrete'))).toBe(true);
   });
 
   it('nunca passa do teto do frio (6/h e 30/24h), da linha (24/h), da rajada (6 em 10 min), do total proativo (40/h) nem da emergência (60/h)', () => {

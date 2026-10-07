@@ -39,10 +39,11 @@ describe('regulamento: números padrão', () => {
     expect(REGULAMENTO_PADRAO.totalProativoHora).toBe(40);
   });
 
-  it('espaçamento do frio 10 min + até 5 min; rajada 6 em 10 min; sustentado 40/3h e 60/6h', () => {
+  it('espaçamento do frio 10 min + até 5 min; rajada 6 em 10 min (proativa e, à parte, lembrete com prazo); sustentado 40/3h e 60/6h', () => {
     expect(REGULAMENTO_PADRAO.espacoFrioMs).toBe(10 * MIN);
     expect(REGULAMENTO_PADRAO.jitterFrioMs).toBe(5 * MIN);
     expect(REGULAMENTO_PADRAO.rajadaMaxProativas).toBe(6);
+    expect(REGULAMENTO_PADRAO.rajadaMaxLembrete).toBe(6);
     expect(REGULAMENTO_PADRAO.rajadaJanelaMs).toBe(10 * MIN);
     expect(REGULAMENTO_PADRAO.sustentado3h).toBe(40);
     expect(REGULAMENTO_PADRAO.sustentado6h).toBe(60);
@@ -68,6 +69,9 @@ describe('regulamento: números padrão', () => {
   it('as divergências com a memória e com a especificação estão escritas', () => {
     expect(DIVERGENCIAS.length).toBeGreaterThanOrEqual(10);
     expect(DIVERGENCIAS.some(d => /09h–20h/.test(d))).toBe(true);
+    // A pausa humana segue o HEAD robô a robô: as duas mudanças contra a memória e contra o HEAD estão escritas.
+    expect(DIVERGENCIAS.some(d => /lembrete da Giovanna/.test(d) && /Vale o HEAD/.test(d))).toBe(true);
+    expect(DIVERGENCIAS.some(d => /frio da linha solardoc/.test(d) && /Aperto novo/.test(d))).toBe(true);
   });
 });
 
@@ -128,6 +132,10 @@ describe('regulamento: env só aperta', () => {
     expect(l.reg.emergenciaHora).toBe(60);
     expect(l.reg.rajadaMaxProativas).toBe(4);
     expect(l.ignorados.length).toBe(2);
+    expect(lerRegulamento({ CHEFE_RAJADA_LEMBRETE_10MIN: '4' }).reg.rajadaMaxLembrete).toBe(4);
+    const solta = lerRegulamento({ CHEFE_RAJADA_LEMBRETE_10MIN: '20' });
+    expect(solta.reg.rajadaMaxLembrete).toBe(6);
+    expect(solta.ignorados.join()).toMatch(/CHEFE_RAJADA_LEMBRETE_10MIN=20/);
   });
 
   it('os interruptores do HEAD que afrouxam são ignorados e registrados', () => {

@@ -7,7 +7,8 @@
 // pronto, então o mesmo estado dá sempre a mesma decisão.
 //
 // Cada número carrega a origem num colchete:
-//   [código arquivo.ts:NN]  valor padrão que o código do HEAD (e2a225db) usa hoje
+//   [código arquivo.ts:NN]  valor padrão que o código do HEAD (origin/main
+//                           2c67eaff) usa hoje; NN é a linha nesse commit
 //   [memória arquivo.md]    regra escrita na memória do projeto
 //   [proposta]              número novo do desenho do CHEFE, a calibrar na sombra
 //   [crítica]               correção dos críticos, que vale sobre a especificação
@@ -23,7 +24,7 @@
 // ESPACAMENTO_OFF) também são ignorados aqui: no CHEFE o botão de emergência é o
 // modo (off/sombra/valendo), não uma env que solta a régua para sempre.
 // Afrouxar espaçamento só com data de expiração escrita no código
-// [código lineThrottle.ts:313-322; memória de 25/08].
+// [código lineThrottle.ts:312-321; memória de 25/08].
 //
 // NADA AQUI ESTÁ LIGADO A ENVIO. É a régua que o decidir() usa; quem ainda manda
 // mensagem hoje continua passando pelo lineThrottle.ts.
@@ -77,6 +78,7 @@ export interface Regulamento {
   // ── Rajada e volume sustentado ──
   rajadaJanelaMs: number;
   rajadaMaxProativas: number;
+  rajadaMaxLembrete: number;
   sustentado3h: number;
   sustentado6h: number;
 
@@ -130,11 +132,11 @@ export interface Regulamento {
 /** Rampa de 72h depois de reconectar, por dia corrido desde a volta. */
 const RAMPA_PADRAO: readonly DegrauRampa[] = Object.freeze([
   // [código lineThrottle.ts:53-56] frio 2/h, 3/h, 4/h e dia 10, 20, 30. Com a
-  // reserva de 10 descontada (lineThrottle.ts:237-239) o frio fica com 1, 10 e
+  // reserva de 10 descontada (lineThrottle.ts:236-238) o frio fica com 1, 10 e
   // 20 por dia, e é esse o valor que vale. A especificação queria o frio da rampa
   // sem descontar a reserva (10, 20, 30): NÃO adotado, vale o HEAD.
   // [proposta] linha de P3 a P5 em 40%, 60% e 80% de 24/h e 200/dia. Hoje os
-  // pisos por robô passam POR CIMA da rampa (lineThrottle.ts:247); aqui a rampa
+  // pisos por robô passam POR CIMA da rampa (lineThrottle.ts:246); aqui a rampa
   // segura o transacional do dia e deixa o P0 e o P1 de fora [crítica].
   Object.freeze({ frioHora: 2, dia: 10, linhaHora: 10, linhaDia: 80 }),
   Object.freeze({ frioHora: 3, dia: 20, linhaHora: 14, linhaDia: 120 }),
@@ -157,27 +159,31 @@ export const REGULAMENTO_BASE: Readonly<Regulamento> = Object.freeze({
   reservaTransacionalDia: 10,
   frioPorDia: 30,
 
-  // [código lineThrottle.ts:280-292] frio das 9h às 20h de Brasília, sem domingo.
+  // [código lineThrottle.ts:279-291] frio das 9h às 20h de Brasília, sem domingo.
   // DIVERGÊNCIA: a memória janela-diurna-linha-whatsapp.md (06/08) diz 08h–21h;
   // o código fechou para 09h–20h em 07/08 e o próprio comentário de
-  // lineThrottle.ts:283 ficou com o texto velho. Vale o código.
+  // lineThrottle.ts:282 ficou com o texto velho. Vale o código.
   janelaFrio: Object.freeze({ inicioH: 9, fimH: 20, domingo: false }),
   // [proposta] transacional proativo (P3) das 7h às 21h, todo dia. Hoje cada robô
-  // tem a sua (agenda 7–20 eletropostoAgenda.ts:293-294, cobrança 8–20
+  // tem a sua (agenda 7–20 eletropostoAgenda.ts:292-293, cobrança 8–20
   // eletropostoCobraSim.ts:151-152, bom dia da Giovanna 7–11 solarAgendaGiovanna.ts:128,
   // boas-vindas nenhuma solarBoasVindas.ts:514) e continua tendo: esta é a moldura
-  // de fora. Lembrete com hora marcada (P1) segue o horário da reunião.
+  // de fora. O lembrete com prazo (P1 pelo prazo) também mora nela [revisão]: o
+  // prazo vem de quem chama, então não pode virar passe livre para a madrugada.
+  // Não corta nada que a agenda do eletroposto manda hoje: ela só fala das 7h às
+  // 20h, e no dia de 36 reuniões a primeira foi às 9h (eletropostoAgenda.ts:290-293).
   janelaTransacional: Object.freeze({ inicioH: 7, fimH: 21, domingo: true }),
 
-  // [código lineThrottle.ts:326] 10 min de base, MAIS
-  // [código lineThrottle.ts:331] sorteio de 0 a 5 min. Contado contra o último
+  // [código lineThrottle.ts:325] 10 min de base, MAIS
+  // [código lineThrottle.ts:330] sorteio de 0 a 5 min. Contado contra o último
   // envio de robô CARIMBADO (frio ou agenda), como o respeitaEspacamentoLinha do
-  // HEAD (lineThrottle.ts:338, que olha prefixosDaLinha, agenda inclusive: "um
-  // follow-up nunca sai colado num lembrete", lineThrottle.ts:203-206).
+  // HEAD (lineThrottle.ts:337, que olha prefixosDaLinha, agenda inclusive: "um
+  // follow-up nunca sai colado num lembrete", lineThrottle.ts:202-205).
   // DIVERGÊNCIA: no HEAD só Bia, avisos e carlaThrottle chamam o espaçamento; no
   // CHEFE ele vale para TODO frio. Isso aperta semente, oferta fria, carlaRetomada
-  // e convite IG. Risco registrado: em dia de agenda cheia o frio pode passar fome.
-  // Afrouxar só com data de expiração no código, nunca em env.
+  // e convite IG. FOME MEDIDA no controle de agenda cheia do chefeQuedas: o frio
+  // entrega bem menos que os 30 do dia (o número está cravado lá). Afrouxar só
+  // depois de medir na sombra, e só com data de expiração no código, nunca em env.
   espacoFrioMs: 10 * MIN,
   jitterFrioMs: 5 * MIN,
   // [proposta] frio contra QUALQUER outra mensagem física que o HEAD não conta
@@ -202,9 +208,23 @@ export const REGULAMENTO_BASE: Readonly<Regulamento> = Object.freeze({
   // [memória linha-io-queda-02-out-reagenda.md, linha-io-5040-bloqueio-e-travas.md].
   rajadaJanelaMs: 10 * MIN,
   rajadaMaxProativas: 6,
+  // [revisão] rajada PRÓPRIA do lembrete com prazo: no máximo 6 lembrete_p1 em
+  // qualquer janela de 10 min. O prazo é declarado por quem chama; sem isto, um
+  // robô de agenda pedindo com prazo=agora+60min mandava 39 frios em 6 min,
+  // fora da rajada, da janela e do teto da linha (o 02/10, pior). A resposta a
+  // quem escreveu e o evento continuam fora dela. Nos três controles de agenda
+  // cheia do chefeQuedas (até 2 reuniões por quarto de hora) ela não segura
+  // nenhum lembrete.
+  // Na hora, o lote com prazo declarado ainda passa 30 (dívida no chefeQuedas).
+  rajadaMaxLembrete: 6,
   // [crítica da ÍRIS] volume sustentado para quem NÃO escreveu nas últimas 24h:
-  // 40 em 3h ou 60 em 6h. Pega o formato de 30/08 (18/h por 9h, 54 em 3h) que a
-  // rajada curta não vê [memória linha-io-bloqueio-30-ago.md]. Vale de P3 a P5.
+  // 40 em 3h ou 60 em 6h, de P3 a P5. Segura o pico de 3h e de 6h, não a hora.
+  // NÃO pega a classe errada: o frio pedindo como agenda no ritmo de 30/08 (1 a
+  // cada 3,2 min) ainda passa os 98 até 18h17, com pico de 19 numa hora (a queda
+  // foi a 18/h), e uma agenda cheia legítima tem o mesmo formato (dívida cravada
+  // no chefeQuedas).
+  // A defesa contra classe errada é a guarda arquivo → robôs permitidos, ligada
+  // com a catraca: volume nenhum separa frio mal classificado de agenda.
   sustentado3h: 40,
   sustentado6h: 60,
 
@@ -212,7 +232,7 @@ export const REGULAMENTO_BASE: Readonly<Regulamento> = Object.freeze({
   // frio): 24/h e 200 em 24h corridas, em mensagem física. 24/h é o maior piso
   // por hora que o HEAD já autoriza (eletropostoCobraSim.ts:149, liberação) e
   // 200/24h é o pisoDia de todo transacional do HEAD (eletropostoAgenda.ts:127,
-  // :151, :202; eletropostoCobraSim.ts:140; solarAgendaGiovanna.ts:139;
+  // :150, :201; eletropostoCobraSim.ts:140; solarAgendaGiovanna.ts:141;
   // solarBoasVindas.ts:447). Os pisos por robô somem: a ordem passa a ser por
   // prioridade e prazo, não pelo tamanho do piso [crítica; memória de 03/10].
   linhaHora: 24,
@@ -275,7 +295,7 @@ export const REGULAMENTO_BASE: Readonly<Regulamento> = Object.freeze({
 
   // 1 TOQUE = 1 MENSAGEM [memória linha-io-antiban-1-toque-1-msg.md]:
   // [código zapiClient.ts:295] frio em 1 bolha de até 900 caracteres;
-  // [código eletropostoAgenda.ts:1242, eletropostoReagendaAuto.ts] agenda em 1
+  // [código eletropostoAgenda.ts:1241, eletropostoReagendaAuto.ts:1368] agenda em 1
   // bolha de até 1200; [código bolhas.ts:53] MAX_BOLHAS_PADRAO 2 para conversa
   // viva. DIVERGÊNCIA: a memória ia-msg-frase-por-frase.md fala em "teto de 5
   // bolhas"; o código usa 2. Vale o código.
@@ -427,6 +447,7 @@ export function lerRegulamento(env: Env = {}): LeituraRegulamento {
     emergenciaHora: teto('CHEFE_EMERGENCIA_HORA', b.emergenciaHora),
     emergenciaDia: teto('CHEFE_EMERGENCIA_DIA', b.emergenciaDia),
     rajadaMaxProativas: teto('CHEFE_RAJADA_10MIN', b.rajadaMaxProativas),
+    rajadaMaxLembrete: teto('CHEFE_RAJADA_LEMBRETE_10MIN', b.rajadaMaxLembrete),
     sustentado3h: teto('CHEFE_SUSTENTADO_3H', b.sustentado3h),
     sustentado6h: teto('CHEFE_SUSTENTADO_6H', b.sustentado6h),
     avisoHora: teto('CHEFE_AVISO_HORA', b.avisoHora),
@@ -466,7 +487,7 @@ export function degrauDaRampa(reg: Regulamento, desde: number | null | undefined
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FUSO E JANELA — Brasília fixo (UTC−3, sem horário de verão)
-// [memória relogio-local-e-utc-nao-brt.md; código lineThrottle.ts:286]
+// [memória relogio-local-e-utc-nao-brt.md; código lineThrottle.ts:285]
 // ─────────────────────────────────────────────────────────────────────────────
 
 const BRT_MS = 3 * HORA;
@@ -513,7 +534,10 @@ export const DIVERGENCIAS: readonly string[] = Object.freeze([
   'LINHA_MAX_DIA e LINHA_MAX_HORA: no HEAD a env subia o teto; no CHEFE só aperta.',
   'JANELA_DIURNA_OFF, JANELA_DOMINGO_ON e ESPACAMENTO_OFF afrouxam no HEAD; no CHEFE são ignoradas.',
   'Pisos por robô (6, 10, 14, 18, 20 e 24/h) somem. No lugar: prioridade por classe e teto de 24/h e 200/24h para P2–P5.',
-  'P0 (evento) e P1 (resposta e lembrete com prazo) ficam fora do teto da linha e da rampa, só com espaçamento de 10 s e teto de emergência de 60/h e 450/24h [crítica].',
+  'P0 (evento) e P1 (resposta e lembrete com prazo) ficam fora do teto da linha e da rampa, só com espaçamento de 10 s e teto de emergência de 60/h e 450/24h [crítica]. O lembrete com prazo ainda mora na janela do transacional (7h–21h) e numa rajada própria de 6 em 10 min, porque o prazo vem de quem chama [revisão].',
+  'Reativo atrasado (o destino não escreveu nos últimos 15 min) vira FRIO, com ou sem conversa nas últimas 24h [crítica; revisão]. A versão anterior o rebaixava a P3 com conversa viva, e um lote do CRM para quem escreveu ontem saía a 24/h, fora do orçamento do frio. O manual_crm é de 1 destino por chamada; chamada com mais de um é lote e é decidida como o zapi_admin_lote (frio).',
+  'Pausa humana no lembrete da Giovanna: a memória pausa-humana-linha-io diz que confirmação e lembrete de reunião que o próprio lead marcou passam com humano dentro; o HEAD segura (solarAgendaGiovanna.ts:320 e solarBoasVindas.ts:506 chamam podeFalarComLead sem {transacional}, e a cobrança do SIM manda por sendFrio, que confere a pausa por dentro, zapiClient.ts:280-291). Vale o HEAD, robô a robô, inclusive quando o prazo vira P1.',
+  'Pausa humana no frio da linha solardoc: hoje curso19, Carla (sem CNPJ e inativo), confiança, Pix VIP, dunning, recuperação de checkout, whatsappFollowup e a pergunta do CNPJ mandam por sendWhatsApp ou sendZAPI sem conferir a pausa. No CHEFE todo frio respeita. Aperto novo, que o HEAD não faz.',
   'Rampa: no HEAD os pisos passam por cima dela; no CHEFE ela segura P3–P5 (10, 14 e 19 por hora) e deixa P0, P1 e o aviso ao time de fora.',
   'Instagram frio: worker.mjs do origin/main usa 4 min e 0–24h; vale a memória (45 min, 8h–21h).',
   'Espaçamento do frio contra agenda (10–15 min) mantido do HEAD; a especificação queria 2 min contra qualquer mensagem. Os 2 min ficam só contra o que o HEAD não contava (resposta, aviso, evento).',

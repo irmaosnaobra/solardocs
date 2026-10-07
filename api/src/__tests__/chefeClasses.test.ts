@@ -142,11 +142,22 @@ describe('CLASSE_POR_ROBO: forma de cada robô', () => {
     }
   });
 
-  it('as lotes manuais e a rota da queda de 30/08 são frio, sem classe declarada pelo operador', () => {
-    expect(CLASSE_POR_ROBO.manual_lote_admin!.classe).toBe('frio_p5');
+  it('o lote manual e a rota da queda de 30/08 são frio, sem classe declarada pelo operador', () => {
     expect(CLASSE_POR_ROBO.zapi_admin_lote!.classe).toBe('frio_p5');
     expect(CLASSE_POR_ROBO.ep_reagenda_auto!.classe).toBe('frio_p5');
     expect(CLASSE_POR_ROBO.ep_ig_convite!.classe).toBe('frio_p5');
+    // O lote do admin.ts (/admin/io/send-text e broadcasts) saiu na limpeza, e o robô dele também.
+    expect(metaDoRobo('manual_lote_admin')).toBeNull();
+  });
+
+  it('robô de 1 destino por chamada aponta para um robô de lote que existe e é frio', () => {
+    const comLote = robos.filter(([, r]) => r.roboDeLote !== null);
+    expect(comLote.map(([n]) => n)).toEqual(['manual_crm']);
+    for (const [nome, r] of comLote) {
+      const lote = metaDoRobo(r.roboDeLote!);
+      expect({ nome, existe: lote !== null, classe: lote?.classe, encadeia: lote?.roboDeLote ?? null })
+        .toEqual({ nome, existe: true, classe: 'frio_p5', encadeia: null });
+    }
   });
 
   it('robô sem registro é frio; nome de protótipo não vira robô', () => {

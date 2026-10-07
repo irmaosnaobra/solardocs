@@ -69,30 +69,37 @@ especificação.
    24h corridas (`LINHA_MAX_DIA` 40 menos `LINHA_RESERVA_TRANSACIONAL` 10). Nunca
    afrouxa. [código lineThrottle.ts:31-39; a queda de 30/08 foi a 18/h de frio]
 3. **Janela.** Frio das 9h às 20h de Brasília, de segunda a sábado; fora dela,
-   adia para a próxima abertura. Transacional proativo das 7h às 21h. Lembrete
-   com hora marcada segue a reunião. [código lineThrottle.ts:280-292; o
-   transacional é proposta]
+   adia para a próxima abertura. Transacional proativo das 7h às 21h, e o
+   lembrete com prazo (P1) também: o prazo vem de quem chama e não abre a
+   madrugada. [código lineThrottle.ts:279-291; o transacional é proposta; o
+   lembrete na janela é revisão]
 4. **Espaçamento.** Frio contra o último envio carimbado (frio ou agenda): 10 min
    mais sorteio de 0 a 5 min, para TODO frio. Frio contra resposta, aviso ou
    evento: 2 min. Entre proativas para destinos diferentes: 25 s mais sorteio de
-   0 a 35 s. [código lineThrottle.ts:326-331; o resto é proposta]
-5. **Anti-rajada.** No máximo 6 proativas em qualquer janela de 10 min.
-   [proposta; 02/10 foi cerca de 21 em 10 min, 01/08 cerca de 10]
+   0 a 35 s. [código lineThrottle.ts:325-330; o resto é proposta]
+5. **Anti-rajada.** No máximo 6 proativas em qualquer janela de 10 min e, à
+   parte, no máximo 6 lembretes com prazo em 10 min. [proposta e revisão; 02/10
+   foi cerca de 21 em 10 min, 01/08 cerca de 10]
 6. **Volume sustentado sem conversa** (destino que não escreveu em 24h): 40 em
-   3h e 60 em 6h. Pega o formato de 30/08 (54 em 3h) que a rajada curta não vê.
-   [crítica]
+   3h e 60 em 6h. Segura os picos de 3h e de 6h, não a hora, e NÃO pega classe
+   errada: o frio pedindo como agenda no ritmo de 30/08 ainda passa os 98 até
+   18h17, com pico de 19 numa hora. Contra classe errada vale a guarda arquivo
+   → robôs permitidos, que ainda não existe: confira à mão que o robô pede com
+   o próprio nome de `CLASSE_POR_ROBO`. [crítica; dívida medida no chefeQuedas]
 7. **Teto da linha** para P2 a P5 (aviso ao time, transacional do dia e frio):
    24 por hora e 200 em 24h, e proativa nenhuma leva o total da hora acima de 40
    (nível de atenção do monitor). [proposta; código linhaSaudeMonitor.ts:44]
 8. **Urgente fora do teto.** Evento (P0) e resposta ou lembrete com prazo (P1)
    ficam fora do teto da linha e da rampa: só 10 s entre destinos diferentes e o
-   teto de emergência de 60 por hora e 450 em 24h. [crítica; código
-   linhaSaudeMonitor.ts:45-50]
+   teto de emergência de 60 por hora e 450 em 24h. O lembrete com prazo ainda
+   tem a janela do transacional e a rajada própria, porque o prazo é declarado
+   por quem chama. [crítica e revisão; código linhaSaudeMonitor.ts:45-50]
 9. **Reserva.** O frio não pega as 4 últimas vagas da hora da linha, e para quando
    a linha chega a 190 em 24h. [proposta; reserva de 10 do código]
 10. **Ordem quando falta vaga**, por prioridade e prazo, nunca por tamanho de piso:
     P0 evento (compra, ativação, D0, recuperado, convite pedido, comprovante);
-    P1 resposta a quem escreveu nos últimos 15 min e lembrete com prazo (5 min,
+    P1 resposta a quem escreveu nos últimos 15 min (atrasou, vira frio, mesmo
+    para quem escreveu ontem) e lembrete com prazo (5 min,
     1h, reunião em menos de 2h, ficha com menos de 30 min); P2 aviso ao time;
     P3 transacional do dia (confirmação, bom dia, cobrança do SIM,
     boas-vindas); P4 frio de receita (recuperação de checkout, dunning D1 em
@@ -114,10 +121,13 @@ especificação.
     mesmo no frio: 1 toque, até 2 mensagens. Vai no fim do texto (no meio vira 3
     bolhas). Teto de bolhas vale por chamada e nunca corta o Pix nem o link.
     [crítica; código bolhas.ts:145-157]
-15. **Pausa humana.** Frio espera 24h de silêncio (`PAUSA_HUMANA_JANELA_H`).
-    Transacional que o lead marcou, pagou ou pediu passa, como hoje. A pausa mora
-    na escolha do alvo: o robô pula o destino, não para a fila. [código
-    pausaHumana.ts]
+15. **Pausa humana.** Segue o HEAD robô a robô: a agenda do eletroposto e a
+    vendedora reativa passam com humano dentro; a Duda, a Giovanna (bom dia e
+    lembrete), as boas-vindas e a cobrança do SIM esperam, mesmo com prazo. Todo
+    frio espera 24h de silêncio (`PAUSA_HUMANA_JANELA_H`), inclusive o da linha
+    SolarDoc, que hoje não confere (aperto novo). A pausa mora na escolha do
+    alvo: o robô pula o destino, não para a fila. [código pausaHumana.ts,
+    `podeFalarComLead` e `sendFrio`]
 16. **Erro.** 2 erros de LINHA seguidos (instância fora, desconectado, 5xx,
     timeout, 429) param o proativo por 15 min. Número inválido não conta. Durante
     o freio, resposta e lembrete tentam no máximo 1 vez a cada 5 min. [memória
@@ -200,7 +210,8 @@ Cada item: ok, ou falha com `arquivo:linha` e o efeito na linha.
    pergunta como transacional carimba com prefixo da agenda. Gravar só uma coluna
    da ficha, ou perguntar um teto e carimbar no outro: BLOQUEIA (é o 02/10). Com
    o CHEFE ligado: o robô está em `CLASSE_POR_ROBO` e a classe vem de lá, nunca do
-   chamador.
+   chamador. Pedir com o nome de outro robô, ou passar prazo que não é de uma
+   reunião de verdade para virar P1: BLOQUEIA (o CHEFE puro não segura isso).
 4. **Classe certa.** Transacional só quando a pessoa está esperando: marcou,
    preencheu, pagou ou pediu. Quem começa a conversa é frio. Destino da equipe é
    aviso ao time.
@@ -214,11 +225,13 @@ Cada item: ok, ou falha com `arquivo:linha` e o efeito na linha.
    das 20h, entra no domingo ou começa antes das 9h para frio: BLOQUEIA.
 8. **Rajada e relógios.** Laço que manda para vários destinos sem perguntar a cada
    envio, sleep fixo, lote "todos agora", ou tick novo em mais de um relógio sem
-   chave ou claim por insert: BLOQUEIA.
+   chave ou claim por insert: BLOQUEIA. O CRM manda para 1 destino por chamada;
+   lote só pelo robô de lote, que é frio.
 9. **Para no erro.** Laço que segue depois de falha de envio, ou que move a ficha
    antes de avisar e não desfaz: BLOQUEIA.
 10. **Pausa humana e portão.** Proativo sem opt-out, mudo e pausa humana:
-    BLOQUEIA. Transacional que o lead pediu passa.
+    BLOQUEIA. Só passa com humano dentro quem já passa hoje (agenda do
+    eletroposto, vendedora reativa); robô novo nasce respeitando a pausa.
 11. **Contexto.** O robô sabe o que já foi dito, se tem humano na conversa, se tem
     reunião ou régua ativa e se a pessoa desarmou? Se não sabe, não fala.
 12. **Pix em bolha própria.** Copia-e-cola sozinho, no fim; nenhum teto de bolhas

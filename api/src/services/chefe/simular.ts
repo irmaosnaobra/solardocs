@@ -7,7 +7,8 @@
 //   do tick, manda um depois do outro; 'adiar' com escopo 'linha' faz ele parar
 //   a rodada, com escopo 'destino' ele pula para o próximo candidato;
 // - pedido que nasce de webhook ou de fila ('imediato') pergunta na hora em que
-//   chega; se for adiado, volta como robô de tick;
+//   chega; se for adiado, ou se o robô parou a rodada antes de chegar nele,
+//   volta como robô de tick;
 // - erro de envio para a rodada do robô (parar no erro) e devolve o pedido à
 //   fila; o livro registra o erro com o tipo, e é dele que sai o freio;
 // - o que vai para a caixa de saída fica nela (persistido) e o drenador pergunta
@@ -19,9 +20,9 @@
 // replay das quedas e ao replay offline de um dia real do livro.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { Classe, ehUrgente, metaDoRobo, ROBO_DESCONHECIDO, prioridadeFina } from './classes';
+import { Classe, ehUrgente, prioridadeFina } from './classes';
 import { Regulamento, REGULAMENTO_PADRAO } from './regulamento';
-import { Decisao, Motivo, Pedido, TipoErro, ContagemPorClasse, decidir, classeEfetiva } from './decidir';
+import { Decisao, Motivo, Pedido, TipoErro, ContagemPorClasse, decidir, classeEfetiva, metaDoPedido } from './decidir';
 import { EnvioLivro, montarEstado } from './estado';
 import { chaveDoContato } from './destinos';
 
@@ -128,12 +129,12 @@ export function simular(pedidos: readonly PedidoAgendado[], opts: OpcoesSimulaca
   let cursor = opts.inicio;
 
   const classeDe = (v: Vivo, t: number): Classe => {
-    const meta = metaDoRobo(v.p.robo) ?? ROBO_DESCONHECIDO;
+    const meta = metaDoPedido(v.p);
     const k = chaveDoContato(v.p.destino);
     return classeEfetiva(meta, v.p, { equipe: opts.equipe, destino: { ultimaEntradaEm: k ? entradas.get(k) ?? null : null } }, t, reg);
   };
   const ordem = (v: Vivo, t: number): number => {
-    const meta = metaDoRobo(v.p.robo) ?? ROBO_DESCONHECIDO;
+    const meta = metaDoPedido(v.p);
     return prioridadeFina(classeDe(v, t), meta.subprioridade);
   };
 
@@ -156,7 +157,12 @@ export function simular(pedidos: readonly PedidoAgendado[], opts: OpcoesSimulaca
 
     const parados = new Set<string>();
     for (const v of daVez) {
-      if (parados.has(v.p.robo)) continue;
+      if (parados.has(v.p.robo)) {
+        // O robô parou a rodada: o pedido imediato que ficou atrás dele volta
+        // como pedido de tick (senão ele nunca mais seria perguntado).
+        if (v.modo === 'imediato') { v.modo = 'tick'; v.proxima = t + tickMs; }
+        continue;
+      }
       const agora = cursor;
 
       // Espera viva: quem já nasceu e ainda não saiu, por classe efetiva.
@@ -178,7 +184,7 @@ export function simular(pedidos: readonly PedidoAgendado[], opts: OpcoesSimulaca
       if (d.acao === 'enviar_agora') {
         const em = agora + d.esperarMs;
         const erro = falhaEm(em);
-        const meta = metaDoRobo(v.p.robo) ?? ROBO_DESCONHECIDO;
+        const meta = metaDoPedido(v.p);
         livro.push({
           em, robo: v.p.robo, classe: d.classe, destino: v.p.destino, bolhas: d.maxBolhas,
           ok: erro === null, erro, semConversa: v.p.semConversa ?? false,

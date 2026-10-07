@@ -56,6 +56,7 @@ const GRUPOS: ReadonlyArray<[GrupoJanela, number, (e: EnvioLivro) => boolean]> =
   ['frio_1h', HORA, e => ehFria(e.classe)],
   ['frio_24h', 24 * HORA, e => ehFria(e.classe)],
   ['proativa_10min', 10 * MIN, e => ehProativa(e.classe)],
+  ['lembrete_10min', 10 * MIN, e => e.classe === 'lembrete_p1'],
   ['linha_1h', HORA, e => ehProativa(e.classe)],
   ['linha_24h', 24 * HORA, e => ehProativa(e.classe)],
   ['total_1h', HORA, () => true],

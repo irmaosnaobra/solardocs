@@ -21,10 +21,12 @@
  * - evento_p0: nasce de um evento e não volta sozinho (compra, ativação, D0,
  *   recuperado, convite pedido, comprovante). NUNCA recebe 'adiar': sai agora
  *   como P0 ou vai para a caixa de saída [crítica].
- * - reativo_p1: resposta a quem escreveu nos últimos 15 min.
+ * - reativo_p1: resposta a quem escreveu nos últimos 15 min. Atrasou, vira frio.
  * - lembrete_p1: transacional com prazo em menos de 90 min (lembrete de 5 min e
  *   de 1h, ficha com menos de 30 min, reunião em menos de 2h). Não é classe de
- *   robô: é a classe EFETIVA de um P3 de agenda quando o prazo chega perto.
+ *   robô: é a classe EFETIVA de um P3 de agenda quando o prazo chega perto. O
+ *   prazo vem de quem chama, então o lembrete ainda mora na janela do
+ *   transacional e numa rajada própria [revisão].
  * - aviso_interno_p2: destino da equipe. Destino interno vira esta classe,
  *   seja qual for o robô.
  * - transacional_agenda_p3: transacional do dia (confirmação de backlog, bom
@@ -59,7 +61,7 @@ export const PRIORIDADE: Readonly<Record<Classe, number>> = Object.freeze({
   frio_p5: 5,
 });
 
-/** P0 e P1: fora do teto da linha e da rampa; só espaçamento curto e emergência [crítica]. */
+/** P0 e P1: fora do teto da linha e da rampa; só espaçamento curto e emergência [crítica]. O lembrete_p1 ainda tem janela e rajada própria [revisão]. */
 export const CLASSES_URGENTES: readonly Classe[] = Object.freeze(['evento_p0', 'reativo_p1', 'lembrete_p1']);
 /** P2 a P5: as proativas. Contam no teto da linha, na rajada de 10 min e no espaçamento entre proativas. */
 export const CLASSES_PROATIVAS: readonly Classe[] = Object.freeze(['aviso_interno_p2', 'transacional_agenda_p3', 'frio_receita_p4', 'frio_p5']);
@@ -73,7 +75,7 @@ export const ehProativa = (c: Classe): boolean => CLASSES_PROATIVAS.includes(c);
 export const ehFria = (c: Classe): boolean => CLASSES_FRIAS.includes(c);
 export const naRampa = (c: Classe): boolean => CLASSES_RAMPA.includes(c);
 
-/** Janela de horário do robô: livre (24h), transacional (7h–21h) ou frio (9h–20h, sem domingo). */
+/** Janela de horário do robô: livre (24h), transacional (7h–21h) ou frio (9h–20h, sem domingo). O lembrete_p1 usa a do transacional. */
 export type JanelaRobo = 'livre' | 'transacional' | 'frio';
 
 /** Como o lineThrottle.ts do HEAD conta o prefixo hoje. */
@@ -84,7 +86,7 @@ export interface Carimbo {
   prefixo: string;
   /** Balde em que o HEAD conta: frio (prefixosFrios) ou agenda (PREFIXOS_AGENDA). */
   contaHoje: ContaHoje;
-  /** Só conta na linha IO quando o desvio ZAPI_SOLARDOC_VIA_IO=1 está ligado (lineThrottle.ts:177). */
+  /** Só conta na linha IO quando o desvio ZAPI_SOLARDOC_VIA_IO=1 está ligado (lineThrottle.ts:176-177). */
   soComDesvio?: boolean;
 }
 
@@ -100,7 +102,12 @@ export interface MetaRobo {
   carimbos: readonly Carimbo[];
   /** Linha pedida. 'solardoc' sai pela 5040 com o desvio ligado. */
   linha: 'io' | 'solardoc';
-  /** Semântica de hoje (pausaHumana.ts): frio respeita; transacional que a pessoa marcou, pagou ou pediu passa. */
+  /**
+   * Pausa humana: segue o HEAD robô a robô (quem chama podeFalarComLead,
+   * carregarPausas ou sendFrio hoje respeita; quem não chama, passa). Todo frio
+   * respeita, inclusive o da linha solardoc que hoje não confere (aperto novo,
+   * registrado em DIVERGENCIAS).
+   */
   respeitaPausa: boolean;
   /** Envio que nasce de evento não volta se for adiado: vai para a caixa de saída, nunca para 'adiar'. */
   nasceDeEvento: boolean;
@@ -110,6 +117,12 @@ export interface MetaRobo {
   urgente: boolean;
   /** Onde o envio mora hoje, relativo a api/src. É a semente do mapa arquivo → robôs da guarda. */
   arquivos: readonly string[];
+  /**
+   * Robô de UM destino por chamada (o humano digitando no CRM). Chamada com
+   * mais de um destino é lote, e lote só sai pelo robô de lote nomeado aqui,
+   * que é frio [revisão]. null = o robô não tem esse limite.
+   */
+  roboDeLote: string | null;
 }
 
 /** Padrões por classe. Cada robô só escreve o que foge deles. */
@@ -127,6 +140,7 @@ function base(classe: Classe): Omit<MetaRobo, 'arquivos'> {
     nasceDeEvento: classe === 'evento_p0',
     podeTerPrazo: false,
     urgente: false,
+    roboDeLote: null,
   };
 }
 
@@ -159,7 +173,7 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   trafego_confirmacao: robo('evento_p0', ['controllers/trafegoController.ts'], { linha: 'solardoc' }),
   indicacao_confirmacao: robo('evento_p0', ['routes/ioIndicacoes.ts']),
 
-  // ── P1 · reativo (rebaixa sozinho se o destino não escreveu em 15 min) ─────
+  // ── P1 · reativo (vira frio sozinho se o destino não escreveu em 15 min) ───
   // A vendedora é ela: não respeita a pausa (whatsappAgentService.ts).
   giovanna_reativa: robo('reativo_p1', ['services/agents/whatsapp/whatsappAgentService.ts'], { linha: 'solardoc' }),
   carla_b2b_reativa: robo('reativo_p1', ['services/agents/sdr/sdrB2bAgentService.ts'], { linha: 'solardoc' }),
@@ -167,13 +181,16 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   duda_recepcao: robo('reativo_p1', ['services/io/recepcaoIo.ts'], { respeitaPausa: true }),
   bia_inbound: robo('reativo_p1', ['services/agents/whatsapp/biaInboundService.ts']),
   // Resposta a quem PEDIU para remarcar. O HEAD conta o carimbo como agenda
-  // (lineThrottle.ts:209): divergência conhecida, ver DIVERGENCIAS_DE_CARIMBO.
+  // (lineThrottle.ts:208): divergência conhecida, ver divergenciasDeCarimbo().
   ep_remarcar_reativo: robo('reativo_p1', ['services/io/eletropostoRemarcar.ts', 'services/io/eletropostoRespostas.ts'], {
     carimbos: [agenda('ep_remarcar_sent:')],
   }),
   webhook_audio_falhou: robo('reativo_p1', ['routes/webhook.ts']),
-  // Humano digitando no CRM. Sem conversa nos últimos 15 min, rebaixa como qualquer reativo.
-  manual_crm: robo('reativo_p1', ['routes/admin.ts']),
+  // Humano digitando no CRM: POST /admin/sdr-leads/:phone/send-message, 1
+  // telefone por chamada. Sem mensagem do destino nos últimos 15 min vira frio,
+  // como qualquer reativo. Chamada com mais de um destino é lote e é decidida
+  // como o zapi_admin_lote [revisão].
+  manual_crm: robo('reativo_p1', ['routes/admin.ts'], { roboDeLote: 'zapi_admin_lote' }),
 
   // ── P2 · aviso ao time ─────────────────────────────────────────────────────
   ep_aviso_ficha: robo('aviso_interno_p2', ['routes/ioEletroposto.ts'], { nasceDeEvento: true, urgente: true }),
@@ -212,7 +229,10 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
 
   // ── P3 · transacional do dia (agenda; vira P1 com prazo perto) ─────────────
   // Confirmação de backlog, bom dia, diário; e os lembretes de 1h e 5 min e a
-  // ficha fresca, que chegam aqui com prazo e saem como P1. Hoje sem pausa.
+  // ficha fresca, que chegam aqui com prazo e saem como P1. A pausa segue o HEAD
+  // robô a robô: a agenda do eletroposto não confere; a cobrança do SIM (sendFrio),
+  // a Giovanna (solarAgendaGiovanna.ts:320) e as boas-vindas (solarBoasVindas.ts:506)
+  // conferem, inclusive quando o prazo vira P1 (ver DIVERGENCIAS).
   ep_agenda: robo('transacional_agenda_p3', ['services/io/eletropostoAgenda.ts'], {
     carimbos: [agenda('ep_agenda_sent:')], podeTerPrazo: true,
   }),
@@ -222,8 +242,8 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   giovanna_agenda: robo('transacional_agenda_p3', ['services/io/solarAgendaGiovanna.ts'], {
     carimbos: [agenda('solar_giovanna_sent:')], podeTerPrazo: true, respeitaPausa: true,
   }),
-  // Hoje 5 bolhas sem janela (solarBoasVindas.ts:147, :514); aqui 1 bolha e,
-  // passada a ficha fresca, a janela do transacional.
+  // Hoje até 7 bolhas (BOLHA_TETO, solarBoasVindas.ts:147) e sem janela (:514);
+  // aqui 1 bolha e, passada a ficha fresca, a janela do transacional.
   solar_boas_vindas: robo('transacional_agenda_p3', ['services/io/solarBoasVindas.ts'], {
     carimbos: [agenda('solar_boasvindas_sent:')], podeTerPrazo: true, respeitaPausa: true,
   }),
@@ -264,9 +284,10 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   semente: robo('frio_p5', ['services/io/sementeSolarService.ts'], { carimbos: [frio('semente:')], subprioridade: 6 }),
   // Hoje carimba só a coluna convite_enviado_at: invisível ao teto (eletropostoIgConvite.ts:226).
   ep_ig_convite: robo('frio_p5', ['services/io/eletropostoIgConvite.ts'], { subprioridade: 6 }),
-  // As rotas de lote passam pelo CHEFE como frio, sempre [crítica]. A de
-  // zapiAdmin é a da queda de 30/08.
-  manual_lote_admin: robo('frio_p5', ['routes/admin.ts'], { subprioridade: 6 }),
+  // As rotas de lote passam pelo CHEFE como frio, sempre [crítica]. Sobrou a de
+  // zapiAdmin, a da queda de 30/08: o /admin/io/send-text e os broadcasts do
+  // admin.ts saíram na limpeza (bd7be8da), e o manual_lote_admin foi junto. É
+  // também o robô de lote do manual_crm.
   zapi_admin_lote: robo('frio_p5', ['routes/zapiAdmin.ts'], { subprioridade: 6 }),
 });
 
@@ -325,17 +346,17 @@ function carimbosVivos(opts: { solardocViaIo: boolean }): Carimbo[] {
     .filter(c => !c.soComDesvio || opts.solardocViaIo);
 }
 
-/** Todos os prefixos da linha (o prefixosDaLinha do HEAD, lineThrottle.ts:177). */
+/** Todos os prefixos da linha (o prefixosDaLinha do HEAD, lineThrottle.ts:176). */
 export function prefixosDaLinhaDerivados(opts: { solardocViaIo: boolean }): string[] {
   return unicos([...carimbosVivos(opts).map(c => c.prefixo), ...PREFIXOS_LEGADOS_FRIOS]);
 }
 
-/** Os prefixos de agenda (o PREFIXOS_AGENDA do HEAD, lineThrottle.ts:207). */
+/** Os prefixos de agenda (o PREFIXOS_AGENDA do HEAD, lineThrottle.ts:206). */
 export function prefixosAgendaDerivados(): string[] {
   return unicos(carimbosVivos({ solardocViaIo: true }).filter(c => c.contaHoje === 'agenda').map(c => c.prefixo));
 }
 
-/** Os prefixos do frio (o prefixosFrios do HEAD, lineThrottle.ts:216). */
+/** Os prefixos do frio (o prefixosFrios do HEAD, lineThrottle.ts:215). */
 export function prefixosFriosDerivados(opts: { solardocViaIo: boolean }): string[] {
   const agendaSet = new Set(prefixosAgendaDerivados());
   return prefixosDaLinhaDerivados(opts).filter(p => !agendaSet.has(p));
