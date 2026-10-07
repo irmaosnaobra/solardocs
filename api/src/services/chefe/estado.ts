@@ -43,6 +43,8 @@ export interface ExtrasEstado {
   rampaForcadaEm?: number | null;
   esperando?: ContagemPorClasse;
   equipe?: readonly string[];
+  /** Grupos do time (lista explícita). */
+  gruposInternos?: readonly string[];
 }
 
 const MIN = 60 * 1000;
@@ -134,6 +136,7 @@ export function montarEstado(livro: readonly EnvioLivro[], agora: number, extras
     rampaForcadaEm: extras.rampaForcadaEm ?? null,
     esperando: extras.esperando,
     equipe: extras.equipe,
+    gruposInternos: extras.gruposInternos,
     destino: {
       ultimaEntradaEm: k ? (extras.entradas?.get(k) ?? null) : null,
       pausa: typeof pausaEm === 'number' ? { ultimaFalaEm: pausaEm } : null,

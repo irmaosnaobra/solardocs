@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { chaveDoContato, ehGrupo, ehDestinoInterno } from '../services/chefe/destinos';
+import { chaveDoContato, chaveDoGrupo, ehGrupo, ehDestinoInterno } from '../services/chefe/destinos';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Destino da equipe vira aviso_interno. A comparação tem de ser a MESMA do
+// Destino da equipe vira aviso_interno; grupo só quando está na lista explícita
+// ou o robô é de grupo. A comparação tem de ser a MESMA do
 // silenciar.ts (DDD + 8 dígitos), senão o nono dígito ou o 55 fazem o celular
 // do consultor passar por lead, ou o lead passar por consultor. A função foi
 // reescrita no núcleo (o silenciar puxa o supabase), então este teste prova que
@@ -47,12 +48,31 @@ describe('destino interno', () => {
     expect(ehDestinoInterno('5534900000001', [])).toBe(false);
   });
 
-  it('grupo é interno; LID e lixo não são', () => {
+  it('grupo NÃO é interno por padrão; LID e lixo também não', () => {
+    // A linha é membro do grupo do eletroposto, onde entra lead pelo convite
+    // (webhook.ts, IO_GRUPO_ELETROPOSTO_ID): grupo qualquer não é a equipe [revisão].
     expect(ehGrupo('120363000000000000-group')).toBe(true);
     expect(ehGrupo('120363000000000000@g.us')).toBe(true);
-    expect(ehDestinoInterno('120363000000000000-group', [])).toBe(true);
+    expect(ehDestinoInterno('120363000000000000-group', [])).toBe(false);
+    expect(ehDestinoInterno('120363410228854732-group', equipe)).toBe(false);
     expect(ehDestinoInterno('253068247589084@lid', equipe)).toBe(false);
     expect(ehDestinoInterno('', equipe)).toBe(false);
     expect(ehDestinoInterno(null, equipe)).toBe(false);
+  });
+
+  it('grupo da lista explícita é interno, com -group ou @g.us (a Z-API alterna os dois)', () => {
+    const grupos = ['120363424419098566-group'];
+    expect(chaveDoGrupo('120363424419098566@g.us')).toBe(chaveDoGrupo('120363424419098566-group'));
+    expect(ehDestinoInterno('120363424419098566-group', [], { grupos })).toBe(true);
+    expect(ehDestinoInterno('120363424419098566@g.us', [], { grupos })).toBe(true);
+    expect(ehDestinoInterno('120363410228854732-group', [], { grupos })).toBe(false);
+    // Telefone nunca casa com grupo da lista.
+    expect(ehDestinoInterno('5534900000099', [], { grupos: ['5534900000099-group'] })).toBe(false);
+    expect(chaveDoGrupo('5534900000099')).toBeNull();
+  });
+
+  it('para robô marcado como de grupo, grupo é interno; telefone de lead continua de fora', () => {
+    expect(ehDestinoInterno('120363000000000000-group', [], { roboDeGrupo: true })).toBe(true);
+    expect(ehDestinoInterno('5534900000099', equipe, { roboDeGrupo: true })).toBe(false);
   });
 });

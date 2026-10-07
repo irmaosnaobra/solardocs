@@ -28,7 +28,8 @@
  *   prazo vem de quem chama, então o lembrete ainda mora na janela do
  *   transacional e numa rajada própria [revisão].
  * - aviso_interno_p2: destino da equipe. Destino interno vira esta classe,
- *   seja qual for o robô.
+ *   seja qual for o robô. E SÓ destino interno: robô de aviso pedindo para quem
+ *   não é da equipe (nem grupo da lista) vira frio [revisão].
  * - transacional_agenda_p3: transacional do dia (confirmação de backlog, bom
  *   dia, diário, cobrança do SIM, boas-vindas). A pessoa marcou, pagou ou pediu.
  * - frio_receita_p4: frio que traz receita (recuperação de checkout, dunning D1
@@ -123,6 +124,18 @@ export interface MetaRobo {
    * que é frio [revisão]. null = o robô não tem esse limite.
    */
   roboDeLote: string | null;
+  /**
+   * Robô de grupo (o cartão de agendamento do sendToGroup): para ele, destino
+   * grupo é interno. Para os outros, grupo só é interno na lista explícita
+   * [revisão]: a linha é membro do grupo do eletroposto, onde entra lead.
+   */
+  roboDeGrupo: boolean;
+  /**
+   * Classe de um robô de AVISO quando o destino não é da equipe. null = frio.
+   * Nenhum robô de hoje declara: todo aviso vai para equipe, dono ou consultor.
+   * Se um dia declarar, é transacional ou frio, nunca urgente nem aviso.
+   */
+  classeComLead: Classe | null;
 }
 
 /** Padrões por classe. Cada robô só escreve o que foge deles. */
@@ -141,6 +154,8 @@ function base(classe: Classe): Omit<MetaRobo, 'arquivos'> {
     podeTerPrazo: false,
     urgente: false,
     roboDeLote: null,
+    roboDeGrupo: false,
+    classeComLead: null,
   };
 }
 
@@ -223,7 +238,8 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   prospeccao_aviso: robo('aviso_interno_p2', ['services/io/prospeccaoAviso.ts', 'routes/cron.ts']),
   agenda_proxima_digest: robo('aviso_interno_p2', ['services/agenda/agendaProximaDigest.ts']),
   reagendar_digest: robo('aviso_interno_p2', ['services/agenda/reagendarDigest.ts']),
-  sdr_grupo_interno: robo('aviso_interno_p2', ['services/agents/sdr/sdrGroupAgent.ts', 'services/agents/sdr/sdrAgentService.ts']),
+  // O cartão de agendamento vai para o grupo do time (ZAPI_IO_GROUP_ID): é o único robô de grupo.
+  sdr_grupo_interno: robo('aviso_interno_p2', ['services/agents/sdr/sdrGroupAgent.ts', 'services/agents/sdr/sdrAgentService.ts'], { roboDeGrupo: true }),
   resumo_dia: robo('aviso_interno_p2', ['routes/cron.ts'], { linha: 'solardoc' }),
   fila_alerta: robo('aviso_interno_p2', ['services/agents/whatsapp/filaAlerta.ts'], { linha: 'solardoc' }),
 

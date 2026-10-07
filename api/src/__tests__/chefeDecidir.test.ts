@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  decidir, classificarErroEnvio, Estado, Pedido, Decisao, ContagemPorClasse, JanelaContagem,
+  decidir, classeEfetiva, classificarErroEnvio, Estado, Pedido, Decisao, ContagemPorClasse, JanelaContagem,
 } from '../services/chefe/decidir';
 import { lerRegulamento, REGULAMENTO_PADRAO, dentroDaJanela } from '../services/chefe/regulamento';
 import { CLASSE_POR_ROBO, Classe, MetaRobo, ROBO_DESCONHECIDO } from '../services/chefe/classes';
@@ -173,6 +173,55 @@ describe('decidir: uma regra por caso', () => {
   it('destino da equipe declarado como frio vira aviso_interno (sem janela e sem gastar o frio)', () => {
     const d = decidir(est({ h1: { frio_p5: 6 } }), ped('semente', { destino: '5534900000001' }), brt('2026-10-04T23:00'));
     expect(d).toMatchObject({ acao: 'enviar_agora', classe: 'aviso_interno_p2' });
+  });
+
+  // [revisão] Aviso ao time com destino FORA da equipe era aviso_interno_p2: sem
+  // janela, sem pausa, sem orçamento do frio. O eletropostoRespostas.ts podia
+  // pedir como ep_respostas_aviso e mandar a oferta fria a lead no domingo às 3h.
+  it('aviso para destino fora da equipe é frio: domingo às 3h não sai, nem com prazo', () => {
+    const tres = brt('2026-10-04T03:00');
+    for (const robo of ['ep_alerta_10min', 'ep_respostas_aviso', 'ep_card_ping', 'sentinela_vacuo', 'lembrete_followup']) {
+      const d = adiar(decidir(est(), ped(robo), tres));
+      expect({ robo, classe: d.classe, motivo: d.motivo }).toEqual({ robo, classe: 'frio_p5', motivo: 'fora_da_janela' });
+    }
+    // Com prazo, o alerta de 10 min para lead não vira lembrete (era P1 sem pausa).
+    expect(adiar(decidir(est(), ped('ep_alerta_10min', { prazo: tres + 10 * MIN }), tres))).toMatchObject({ classe: 'frio_p5', motivo: 'fora_da_janela' });
+    expect(decidir(est(), ped('ep_alerta_10min', { prazo: T + 10 * MIN }), T).classe).toBe('frio_p5');
+    // O aviso que nasce de evento vai para a caixa como frio, não sai.
+    expect(decidir(est(), ped('ep_aviso_ficha'), tres)).toMatchObject({ acao: 'caixa_de_saida', classe: 'frio_p5', motivo: 'fora_da_janela' });
+    // No orçamento do frio: o 7º da hora espera.
+    expect(adiar(decidir(est({ h1: { frio_p5: 6 } }), ped('ep_respostas_aviso'), T)).motivo).toBe('teto_frio_hora');
+    // Para a equipe, continua aviso e continua sem janela.
+    expect(decidir(est(), ped('ep_respostas_aviso', { destino: EQUIPE[0] }), tres)).toMatchObject({ acao: 'enviar_agora', classe: 'aviso_interno_p2' });
+    expect(decidir(est(), ped('ep_alerta_10min', { destino: EQUIPE[0], prazo: T + 10 * MIN }), T).classe).toBe('lembrete_p1');
+  });
+
+  it('robô com classe declarada para lead usa a dele com destino de fora (nenhum robô de hoje declara)', () => {
+    const meta: MetaRobo = { ...CLASSE_POR_ROBO.ep_alerta_10min!, classeComLead: 'transacional_agenda_p3' };
+    expect(classeEfetiva(meta, ped('ep_alerta_10min'), { equipe: EQUIPE }, T)).toBe('transacional_agenda_p3');
+    expect(classeEfetiva(meta, ped('ep_alerta_10min', { prazo: T + 10 * MIN }), { equipe: EQUIPE }, T)).toBe('lembrete_p1');
+    expect(classeEfetiva(meta, ped('ep_alerta_10min', { destino: EQUIPE[0] }), { equipe: EQUIPE }, T)).toBe('aviso_interno_p2');
+  });
+
+  // [revisão] Qualquer grupo virava destino interno, para qualquer robô: o frio,
+  // o robô sem registro e a rota da queda de 30/08 saíam como aviso para
+  // '...-group', fora da janela e do orçamento do frio. A linha é membro do
+  // grupo do eletroposto, onde entra lead.
+  it('grupo não é interno por padrão: frio, robô sem registro e lote do admin para grupo continuam frio', () => {
+    const tres = brt('2026-10-04T03:00');
+    for (const destino of ['120363410228854732-group', '120363000000000000@g.us']) {
+      for (const robo of ['semente', 'robo_novo_sem_registro', 'zapi_admin_lote']) {
+        const d = adiar(decidir(est(), ped(robo, { destino }), tres));
+        expect({ robo, destino, classe: d.classe, motivo: d.motivo }).toEqual({ robo, destino, classe: 'frio_p5', motivo: 'fora_da_janela' });
+      }
+    }
+    // Grupo da lista explícita (com o sufixo trocado) é interno.
+    const lista = { gruposInternos: ['120363424419098566-group'] };
+    expect(decidir(est(lista), ped('semente', { destino: '120363424419098566@g.us' }), tres)).toMatchObject({ acao: 'enviar_agora', classe: 'aviso_interno_p2' });
+    expect(decidir(est(lista), ped('semente', { destino: '120363410228854732-group' }), tres).classe).toBe('frio_p5');
+    // O robô do cartão de agendamento é de grupo; para telefone de lead, é frio.
+    expect(decidir(est(), ped('sdr_grupo_interno', { destino: '120363424419098566-group' }), tres)).toMatchObject({ acao: 'enviar_agora', classe: 'aviso_interno_p2' });
+    expect(decidir(est(), ped('sdr_grupo_interno'), tres).classe).toBe('frio_p5');
   });
 
   it('13º aviso na hora: o de tick adia, o de evento vai para a caixa, o urgente passa', () => {
@@ -372,6 +421,8 @@ const FRIAS: Classe[] = ['frio_receita_p4', 'frio_p5'];
 const RAMPA: Classe[] = ['transacional_agenda_p3', 'frio_receita_p4', 'frio_p5'];
 const URGENTES: Classe[] = ['evento_p0', 'reativo_p1', 'lembrete_p1'];
 const PRI: Record<Classe, number> = { evento_p0: 0, reativo_p1: 1, lembrete_p1: 1, aviso_interno_p2: 2, transacional_agenda_p3: 3, frio_receita_p4: 4, frio_p5: 5 };
+/** Grupo da lista explícita, sorteado com o sufixo trocado do que o pedido usa. */
+const GRUPO_DA_LISTA = '120363000000000000-group';
 
 function sortearCaso(r: () => number, i: number): { estado: Estado; pedido: Pedido; agora: number } {
   const int = (a: number, b: number) => a + Math.floor(r() * (b - a + 1));
@@ -411,6 +462,7 @@ function sortearCaso(r: () => number, i: number): { estado: Estado; pedido: Pedi
     rampaForcadaEm: talvez(0.1, () => agora - int(0, 4 * 24 * 60) * MIN),
     esperando: chance(0.5) ? {} : Object.fromEntries(CLASSES_TODAS.map(k => [k, int(0, 5)])) as ContagemPorClasse,
     equipe: EQUIPE,
+    gruposInternos: chance(0.5) ? [GRUPO_DA_LISTA] : [],
     destino: {
       ultimaEntradaEm: [null, agora - int(0, 15) * MIN, agora - int(16, 24 * 60) * MIN, agora - int(2, 5) * DIA][int(0, 3)],
       pausa: chance(0.3) ? { ultimaFalaEm: agora - int(0, 48 * 60) * MIN } : null,
@@ -420,7 +472,7 @@ function sortearCaso(r: () => number, i: number): { estado: Estado; pedido: Pedi
   const robos = [...Object.keys(CLASSE_POR_ROBO), 'robo_inexistente'];
   const pedido: Pedido = {
     robo: robos[int(0, robos.length - 1)]!,
-    destino: chance(0.85) ? LEAD : chance(0.66) ? EQUIPE[0]! : '120363000000000000-group',
+    destino: chance(0.8) ? LEAD : chance(0.5) ? EQUIPE[0]! : chance(0.5) ? '120363000000000000@g.us' : '120363999999999999-group',
     bolhas: chance(0.3) ? undefined : int(1, 4),
     temPix: chance(0.1),
     chave: chance(0.7) ? `k${i}` : undefined,
@@ -444,18 +496,36 @@ function oraculo(e: Estado, p: Pedido, agora: number): { classe: Classe; custo: 
   const ent = e.destino?.ultimaEntradaEm;
   const idadeEnt = typeof ent === 'number' ? Math.max(0, agora - ent) : Infinity;
 
-  // Classe.
-  const chave = (s: string): string | null => {
+  // Classe, pela especificação, decidida primeiro pelo DESTINO:
+  // - interno é telefone da equipe; grupo só quando está na lista explícita ou o
+  //   robô é de grupo (grupo qualquer é de fora: lá entra lead);
+  // - para destino interno, todo robô vira aviso ao time;
+  // - para destino de fora, aviso ao time vira frio (ou a classe com lead que o
+  //   robô declara), reativo sem mensagem nos últimos 15 min vira frio, e o resto
+  //   fica com a classe do robô;
+  // - por fim, robô de agenda com prazo entre 5 min depois e 90 min antes vira
+  //   lembrete, se até aqui é transacional ou aviso.
+  const telefone = (s: string): string | null => {
     const d = s.replace(/\D/g, '');
     if (d.length < 10 || d.length > 13) return null;
     const x = d.startsWith('55') && d.length >= 12 ? d.slice(2) : d;
     return x.length < 10 ? null : x.slice(0, 2) + x.slice(-8);
   };
-  const kDest = chave(p.destino);
-  const interno = /-group$|@g\.us$/.test(p.destino) || (kDest !== null && (e.equipe ?? []).some(t => chave(t) === kDest));
-  let classe: Classe = meta.classe;
-  if (interno) classe = 'aviso_interno_p2';
-  else if (classe === 'reativo_p1' && idadeEnt > 15 * MIN) classe = 'frio_p5';
+  const ehGrupoS = /-group$|@g\.us$/i.test(p.destino.trim());
+  const idGrupo = (s: string) => s.trim().toLowerCase().replace(/(-group|@g\.us)$/, '').replace(/\D/g, '');
+  const interno = ehGrupoS
+    ? meta.roboDeGrupo || (e.gruposInternos ?? []).some(g => idGrupo(g) === idGrupo(p.destino))
+    : telefone(p.destino) !== null && (e.equipe ?? []).some(t => telefone(t) === telefone(p.destino));
+  let classe: Classe;
+  if (interno) {
+    classe = 'aviso_interno_p2';
+  } else {
+    switch (meta.classe) {
+      case 'aviso_interno_p2': classe = meta.classeComLead ?? 'frio_p5'; break;
+      case 'reativo_p1': classe = idadeEnt <= 15 * MIN ? 'reativo_p1' : 'frio_p5'; break;
+      default: classe = meta.classe;
+    }
+  }
   if (meta.podeTerPrazo && typeof p.prazo === 'number' && (classe === 'transacional_agenda_p3' || classe === 'aviso_interno_p2')
     && p.prazo >= agora - 5 * MIN && p.prazo <= agora + 90 * MIN) classe = 'lembrete_p1';
 
@@ -560,6 +630,22 @@ describe('decidir: propriedade com 2.000 estados sorteados (semente fixa)', () =
         expect(d.esperarMs).toBeLessThanOrEqual(10_000);
       }
     });
+  });
+
+  it('aviso ao time só para destino interno: telefone da equipe, grupo da lista ou grupo de robô de grupo', () => {
+    let avisos = 0;
+    let rebaixados = 0;
+    decisoes.forEach((d, i) => {
+      const { pedido: p, estado: e } = casos[i]!;
+      const lista = (e.gruposInternos ?? []).length > 0;
+      const interno = p.destino === EQUIPE[0] || (p.destino === '120363000000000000@g.us' && lista)
+        || (/-group$|@g\.us$/.test(p.destino) && !!CLASSE_POR_ROBO[p.robo]?.roboDeGrupo);
+      if (d.classe === 'aviso_interno_p2') { expect({ i, destino: p.destino, interno }).toEqual({ i, destino: p.destino, interno: true }); avisos++; }
+      if (!interno && CLASSE_POR_ROBO[p.robo]?.classe === 'aviso_interno_p2') { expect(['frio_p5', 'frio_receita_p4']).toContain(d.classe); rebaixados++; }
+    });
+    // Os dois lados aparecem na amostra.
+    expect(avisos).toBeGreaterThan(50);
+    expect(rebaixados).toBeGreaterThan(50);
   });
 
   it('envio que nasce de evento nunca recebe adiar', () => {

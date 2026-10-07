@@ -52,6 +52,8 @@ export interface OpcoesSimulacao {
   falhas?: readonly Falha[];
   reconectadoEm?: number | null;
   equipe?: readonly string[];
+  /** Grupos do time (lista explícita). */
+  gruposInternos?: readonly string[];
   /** Última mensagem recebida por destino (telefone cru; a chave é calculada aqui). */
   entradas?: ReadonlyMap<string, number>;
   pausas?: ReadonlyMap<string, number>;
@@ -131,7 +133,9 @@ export function simular(pedidos: readonly PedidoAgendado[], opts: OpcoesSimulaca
   const classeDe = (v: Vivo, t: number): Classe => {
     const meta = metaDoPedido(v.p);
     const k = chaveDoContato(v.p.destino);
-    return classeEfetiva(meta, v.p, { equipe: opts.equipe, destino: { ultimaEntradaEm: k ? entradas.get(k) ?? null : null } }, t, reg);
+    return classeEfetiva(meta, v.p, {
+      equipe: opts.equipe, gruposInternos: opts.gruposInternos, destino: { ultimaEntradaEm: k ? entradas.get(k) ?? null : null },
+    }, t, reg);
   };
   const ordem = (v: Vivo, t: number): number => {
     const meta = metaDoPedido(v.p);
@@ -175,7 +179,7 @@ export function simular(pedidos: readonly PedidoAgendado[], opts: OpcoesSimulaca
 
       const estado = montarEstado(livro, agora, {
         destino: v.p.destino, chave: v.p.chave, entradas, pausas,
-        reconectadoEm: opts.reconectadoEm ?? null, esperando, equipe: opts.equipe,
+        reconectadoEm: opts.reconectadoEm ?? null, esperando, equipe: opts.equipe, gruposInternos: opts.gruposInternos,
       });
       const d: Decisao = decidir(estado, v.p, agora, reg);
       res.decisoes++;

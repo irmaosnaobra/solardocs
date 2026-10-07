@@ -160,6 +160,19 @@ describe('CLASSE_POR_ROBO: forma de cada robô', () => {
     }
   });
 
+  it('só o cartão de agendamento é robô de grupo; nenhum robô declara classe para lead hoje', () => {
+    // Robô de grupo: para ele, grupo é destino interno. Os outros só com o grupo
+    // na lista explícita (o grupo do eletroposto tem lead dentro).
+    expect(robos.filter(([, r]) => r.roboDeGrupo).map(([n]) => n)).toEqual(['sdr_grupo_interno']);
+    // Todo aviso de hoje vai para equipe, dono ou consultor (o alerta de 10 min
+    // "não fala com o lead", eletropostoAlerta10min.ts:39). Quando um robô
+    // precisar, a classe com lead é transacional ou frio, nunca urgente nem aviso.
+    for (const [nome, r] of robos) {
+      expect({ nome, c: r.classeComLead }).toEqual({ nome, c: null });
+    }
+    expect(ROBO_DESCONHECIDO.roboDeGrupo).toBe(false);
+  });
+
   it('robô sem registro é frio; nome de protótipo não vira robô', () => {
     expect(ROBO_DESCONHECIDO.classe).toBe('frio_p5');
     expect(metaDoRobo('robo_que_nao_existe')).toBeNull();

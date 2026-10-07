@@ -315,6 +315,50 @@ describe('lote do CRM para quem escreveu ontem: conta no orçamento do frio', ()
   });
 });
 
+describe('aviso para lead e grupo de fora: frio, não aviso ao time', () => {
+  // [revisão] As sondas do verificador, domingo 04/10 às 3h: 60 pedidos de
+  // robô de aviso para lead saíam como aviso_interno_p2 a 24/h, de madrugada
+  // e no domingo; 40 pedidos de robô frio para '...-group' saíam a 12/h.
+  const tres = brt('2026-10-04T03:00');
+  const segunda9h = brt('2026-10-05T09:00');
+  const domingoInteiro = (r: ResultadoSimulacao) => r.enviados.filter(e => e.em < segunda9h);
+
+  for (const robo of ['ep_alerta_10min', 'ep_respostas_aviso', 'ep_aviso_ficha', 'ep_card_ping', 'sentinela_vacuo']) {
+    // Simulado na coleta (o de evento passa 30h na caixa de saída, re-perguntado a cada tick).
+    const pedidos: PedidoAgendado[] = Array.from({ length: 60 }, (_, i) => ({
+      robo, destino: lead(i), chave: `${robo}:${i}`, desde: tres, modo: 'tick', semConversa: true, rotulo: 'aviso_lead',
+      prazo: robo === 'ep_alerta_10min' ? tres + 10 * MIN : undefined,
+    }));
+    const r = simular(pedidos, { inicio: tres, fim: brt('2026-10-05T13:00'), equipe: EQUIPE });
+    it(`60 ${robo} para lead, domingo às 3h: nada sai no domingo; na segunda, frio a 6/h`, () => {
+      expect(domingoInteiro(r)).toEqual([]);
+      expect(r.enviados.every(e => e.classe === 'frio_p5')).toBe(true);
+      expect(picoEmJanela(r.enviados, HORA)).toBeLessThanOrEqual(6);
+      expect(r.enviados.length).toBeGreaterThan(0);
+    });
+  }
+
+  for (const robo of ['semente', 'robo_novo_sem_registro', 'zapi_admin_lote']) {
+    it(`40 ${robo} para '...-group', domingo às 3h: continua frio, nada sai no domingo`, () => {
+      const pedidos: PedidoAgendado[] = Array.from({ length: 40 }, (_, i) => ({
+        robo, destino: '120363410228854732-group', chave: `${robo}:g:${i}`, desde: tres, modo: 'tick', semConversa: true, rotulo: 'grupo',
+      }));
+      const r = simular(pedidos, { inicio: tres, fim: brt('2026-10-05T21:00'), equipe: EQUIPE });
+      expect(domingoInteiro(r)).toEqual([]);
+      expect(r.enviados.every(e => e.classe === 'frio_p5')).toBe(true);
+      expect(picoEmJanela(r.enviados, HORA)).toBeLessThanOrEqual(6);
+    });
+  }
+
+  it('o grupo da lista explícita continua aviso ao time', () => {
+    const pedidos: PedidoAgendado[] = Array.from({ length: 4 }, (_, i) => ({
+      robo: 'semente', destino: '120363424419098566@g.us', chave: `g:${i}`, desde: tres, modo: 'tick', rotulo: 'grupo_time',
+    }));
+    const r = simular(pedidos, { inicio: tres, fim: tres + HORA, equipe: EQUIPE, gruposInternos: ['120363424419098566-group'] });
+    expect(r.enviados.map(e => e.classe)).toEqual(Array(4).fill('aviso_interno_p2'));
+  });
+});
+
 describe('caixa de saída: o drenador nunca manda o mesmo toque duas vezes', () => {
   it('webhook reentregue (a mesma compra 1 min depois): sai uma vez, a 2ª entra na caixa como chave repetida e recebe baixa', () => {
     const dez = brt('2026-10-05T10:00');

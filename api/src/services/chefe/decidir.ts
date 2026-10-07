@@ -33,6 +33,9 @@
 // - Reativo atrasado vira frio, com ou sem conversa nas últimas 24h [crítica].
 //   O manual_crm é de 1 destino por chamada: chamada com mais é lote e é
 //   decidida como o robô de lote (frio) [revisão].
+// - Aviso ao time só vale com destino interno; para estranho, vira frio. Grupo
+//   não é interno por padrão: só o da lista explícita, ou para o robô de grupo
+//   [revisão].
 // - 'adiar' tem escopo: 'linha' faz o robô parar a rodada; 'destino' faz o robô
 //   pular para o próximo candidato (pausa e chave repetida são do destino).
 // ─────────────────────────────────────────────────────────────────────────────
@@ -95,6 +98,8 @@ export interface Estado {
   esperando?: ContagemPorClasse;
   /** Telefones da equipe: destino daqui vira aviso_interno. */
   equipe?: readonly string[];
+  /** Grupos do time (lista explícita): só eles são interno, fora o robô de grupo. */
+  gruposInternos?: readonly string[];
   destino?: EstadoDestino;
 }
 
@@ -239,21 +244,28 @@ export function metaDoPedido(pedido: Pick<Pedido, 'robo' | 'destinosNaChamada'>)
 
 /**
  * A classe que vale para ESTE pedido, agora. Ninguém declara classe: ela sai do
- * robô, e só três coisas mudam:
- * 1. destino da equipe vira aviso_interno;
- * 2. reativo sem mensagem do destino nos últimos 15 min vira FRIO, tenha ou não
+ * robô, e só quatro coisas mudam:
+ * 1. destino interno (telefone da equipe; grupo só da lista explícita ou para
+ *    robô de grupo) vira aviso_interno [revisão: grupo qualquer era interno];
+ * 2. aviso ao time para destino de FORA vira frio (ou a classe com lead que o
+ *    robô declara) [revisão]: o aviso não tem janela, pausa nem orçamento do
+ *    frio, então só vale para a equipe. Vem antes do prazo, para o alerta de
+ *    10 min mandado a lead não virar lembrete sem pausa;
+ * 3. reativo sem mensagem do destino nos últimos 15 min vira FRIO, tenha ou não
  *    conversa nas últimas 24h [crítica]. O P3 é só de robô de agenda; um
  *    reativo atrasado rebaixado a P3 deixava um lote do CRM para quem escreveu
  *    ontem sair a 24/h, fora do orçamento do frio [revisão];
- * 3. robô de agenda com prazo em até 90 min (e até 5 min depois dele) vira P1.
+ * 4. robô de agenda com prazo em até 90 min (e até 5 min depois dele) vira P1.
  */
 export function classeEfetiva(
-  meta: MetaRobo, pedido: Pedido, estado: Pick<Estado, 'equipe' | 'destino'>, agora: number,
+  meta: MetaRobo, pedido: Pedido, estado: Pick<Estado, 'equipe' | 'gruposInternos' | 'destino'>, agora: number,
   reg: Regulamento = REGULAMENTO_PADRAO,
 ): Classe {
   let classe = meta.classe;
-  if (ehDestinoInterno(pedido.destino, estado.equipe ?? [])) {
+  if (ehDestinoInterno(pedido.destino, estado.equipe ?? [], { grupos: estado.gruposInternos ?? [], roboDeGrupo: meta.roboDeGrupo })) {
     classe = 'aviso_interno_p2';
+  } else if (classe === 'aviso_interno_p2') {
+    classe = meta.classeComLead ?? 'frio_p5';
   } else if (classe === 'reativo_p1') {
     const entrada = estado.destino?.ultimaEntradaEm;
     const desde = typeof entrada === 'number' ? Math.max(0, agora - entrada) : Infinity;
