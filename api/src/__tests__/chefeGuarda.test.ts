@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readdirSync, readFileSync } from 'fs';
-import { join, extname } from 'path';
+import { join, extname, posix } from 'path';
 import * as ts from 'typescript';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -23,14 +23,23 @@ import * as ts from 'typescript';
 //               consulta       leitura ou configuração (status, me, chats,
 //                              contacts, webhooks). Não manda mensagem: só
 //                              precisa estar em CONSULTA_ZAPI, sem contagem.
-//             Num arquivo que fala com a Z-API, um literal de caminho 'send-*'
-//             solto também conta como envio: pega o tryReq('POST','send-text').
+//             Num arquivo que fala com a Z-API, um caminho com send- no começo
+//             ou depois de uma barra também conta como envio: pega o
+//             tryReq('POST','send-text') e o `${base(c)}/send-text` com a base
+//             vinda de função, propriedade ou let reatribuído.
 //   graph     POST (ou método não provado GET) num edge de envio do Graph
 //             (/messages, /replies, /comments, /private_replies) de
 //             graph.facebook.com ou graph.instagram.com, fora dos clientes
-//             oficiais (igClient, fbComentarios, fbMensagens).
+//             oficiais (igClient, fbComentarios, fbMensagens). Num arquivo com
+//             host do Graph, também: o edge exato passado como argumento de
+//             chamada (gpost(pg, 'messages', corpo)) é envio, e o template que
+//             termina em /${x}/${y} sem GET provado é caminho_livre.
 //   zapipost  chamada crua a zapiPost/zapiDelete fora do zapiClient.ts: pula os
 //             envios tipados (bolhas, sendFrio) por onde o CHEFE vai passar.
+//   envio_cru chamada a uma função de envio cru exportada por um arquivo do
+//             MIGRAR (ENVIO_CRU_EXPORTADO: enviarZapiIO, encaminharMidiaAoConsultor),
+//             contada como o zapiPost cru: cada chamador está no MIGRAR com o
+//             número exato, e chamada nova fora deles reprova.
 //   script    em api/scripts e worker-prospeccao: importar o transporte da api,
 //             chamar uma função de envio ou apontar para uma rota de envio. Disparo
 //             passa a ser rota que passa pelo CHEFE, nunca script local.
@@ -56,9 +65,12 @@ import * as ts from 'typescript';
 //     a guarda ver.
 //   - Edge do Graph montado num arquivo SEM host do Graph e passado a um helper
 //     de outro arquivo não aparece. Os helpers de hoje são privados.
-//   - URL da Z-API inteira vinda de env, sem o molde /instances/.../token/ e sem
-//     o cabeçalho Client-Token no arquivo, não aparece (fetch(`${base}/send-text`)
-//     com a base num parâmetro, fetch(process.env.X)).
+//   - URL da Z-API inteira vinda de env ou de outro arquivo, num arquivo sem o
+//     host, sem o molde /instances/.../token/ e sem o cabeçalho Client-Token, não
+//     aparece (fetch(`${base}/send-text`) com a base num parâmetro vindo de fora,
+//     fetch(process.env.X)). Com a base montada no próprio arquivo, aparece.
+//   - Função de envio cru re-exportada por um arquivo intermediário (barrel) não
+//     é seguida: o chamador do barrel não aparece. Hoje não há barrel desses.
 //   - Endpoint de envio da Z-API que não começa com send- (se existir) cai como
 //     consulta, e consulta num arquivo de CONSULTA_ZAPI passa sem contagem.
 //   - Quem chama sendWhatsApp/sendHuman sem passar pelo CHEFE NÃO é assunto
@@ -94,11 +106,12 @@ const PASTAS_IGNORADAS = new Set(['node_modules', 'dist', '.vercel', '__tests__'
 const CAMINHOS_IGNORADOS = new Set(['api/scripts/out']);
 const EXT_TEXTO = new Set(['.py', '.ps1', '.sh', '.cmd', '.bat', '.vbs']);
 
-type Regra = 'zapi' | 'graph' | 'zapipost' | 'script';
+type Regra = 'zapi' | 'graph' | 'zapipost' | 'envio_cru' | 'script';
 type Chave =
   | 'zapi:envio' | 'zapi:caminho_livre'
-  | 'graph:envio'
+  | 'graph:envio' | 'graph:caminho_livre'
   | 'zapipost:chamada'
+  | 'envio_cru:chamada'
   | 'script:import' | 'script:chamada' | 'script:rota';
 type Metodo = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'DESCONHECIDO';
 
@@ -107,7 +120,7 @@ interface Achado {
   arquivo: string;
   linha: number;
   regra: Regra;
-  /** envio | caminho_livre | consulta (zapi); envio (graph); chamada (zapipost); import | chamada | rota (script). */
+  /** envio | caminho_livre | consulta (zapi); envio | caminho_livre (graph); chamada (zapipost, envio_cru); import | chamada | rota (script). */
   tipo: string;
   trecho: string;
 }
@@ -159,6 +172,34 @@ const MIGRAR: Readonly<Record<string, Migracao>> = Object.freeze({
     porque: 'Disparo único de 01/05 com fetch cru em send-text e credencial local.',
     destino: 'APAGAR o arquivo. Script local de envio deixa de existir: disparo é rota que passa pelo CHEFE.',
   },
+  // ── Chamadores das funções de envio cru (ENVIO_CRU_EXPORTADO) ──
+  'api/src/services/io/avisosTickService.ts': {
+    contagem: { 'envio_cru:chamada': 1 },
+    porque: 'O Menu de Avisos manda cada alvo da vez pelo enviarZapiIO, o fetch cru da linha io (sem circuit-breaker, sem desvio, sem contagem).',
+    destino: 'Sai junto com o enviarZapiIO: mandar pelo zapiClient da linha io e pedir ao CHEFE como avisos_pauta (frio).',
+  },
+  'api/src/routes/webhook.ts': {
+    contagem: { 'envio_cru:chamada': 2 },
+    porque: 'Encaminha a mídia do lead ao consultor pelo encaminharMidiaAoConsultor, que chama zapiPost cru (entrada da linha io e da solardoc).',
+    destino: 'Sai quando o encaminharMidiaConsultor.ts passar para os envios tipados; pede ao CHEFE como encaminha_midia (aviso ao time).',
+  },
+  'api/src/services/agents/whatsapp/whatsappAgentService.ts': {
+    contagem: { 'envio_cru:chamada': 1 },
+    porque: 'A Giovanna encaminha a mídia do lead ao consultor pelo encaminharMidiaAoConsultor, que chama zapiPost cru.',
+    destino: 'Sai quando o encaminharMidiaConsultor.ts passar para os envios tipados; pede ao CHEFE como encaminha_midia (aviso ao time).',
+  },
+});
+
+/**
+ * Funções EXPORTADAS por arquivos do MIGRAR que mandam mensagem por fora dos
+ * envios tipados. Quem as chama é contado como 'envio_cru:chamada'. O teste
+ * "toda função de envio cru exportada" prova que a lista está completa: função
+ * exportada de um arquivo do MIGRAR que leva a um ofensor (direto ou por um
+ * helper do próprio arquivo) tem de estar aqui.
+ */
+const ENVIO_CRU_EXPORTADO: Readonly<Record<string, readonly string[]>> = Object.freeze({
+  'api/src/services/io/ioSend.ts': ['enviarZapiIO'],
+  'api/src/services/io/encaminharMidiaConsultor.ts': ['encaminharMidiaAoConsultor'],
 });
 
 /**
@@ -183,10 +224,16 @@ const URL_ZAPI_SEM_HOST = /\/instances\/\$\{[^}]*\}\/token\//;
 // send- sem exigir letra depois: `send-${tipo}` e 'send-' + k também são envio.
 const ZAPI_ENVIO = /(^|\/)send-/i;
 const ZAPI_CAMINHO_VARIAVEL = /\/token\/\$\{[^}]*\}\/\$\{|api\.z-api\.io\/\$\{/i;
-const PATH_ENVIO_SOLTO = /^\/?send-/i;
+// No começo ou depois de uma barra: '${*}/send-text' é a base da instância vinda
+// de função, propriedade ou let reatribuído, com o caminho montado depois.
+const PATH_ENVIO_SOLTO = /(^|\/)send-/i;
 const CABECALHO_ZAPI = /^client-token$/i;
 const HOST_GRAPH = /graph\.(facebook|instagram)\.com/i;
 const EDGE_ENVIO_GRAPH = /\/(messages|private_replies|replies|comments)(?=$|[/?#&])/i;
+/** O edge sozinho, passado como argumento a um helper do próprio arquivo. */
+const EDGE_SOLTO_GRAPH = /^(messages|private_replies|replies|comments)$/i;
+/** Template do Graph que termina em dois segmentos variáveis: o helper que manda para o edge que pedirem. */
+const GRAPH_CAMINHO_LIVRE = /\/\$\{\*\}\/\$\{\*\}(\?|$)/;
 const ROTA_DE_ENVIO = /send-(text|message|image|document|audio|video|sticker|link|button)|zapi-admin|\/io\/broadcasts/i;
 const MODULO_ZAPI = /(^|\/)zapiClient(\.[cm]?[jt]s)?$/;
 const MODULO_TRANSPORTE = /(^|\/)(zapiClient|ioSend|igClient|fbComentarios|fbMensagens|encaminharMidiaConsultor)(\.[cm]?[jt]s)?$/;
@@ -199,7 +246,10 @@ const METODOS_DE_ROTA = new Set(['get', 'post', 'put', 'patch', 'delete', 'all',
 const RECEPTOR_DE_ROTA = /^(router|app|\w+Router)$/;
 
 /** Só abre o AST de quem tem chance de ofender (a varredura fica em poucos segundos). */
-const GATILHOS = ['z-api', 'client-token', '/instances/', 'graph.facebook', 'graph.instagram', 'zapipost', 'zapidelete'];
+const GATILHOS = [
+  'z-api', 'client-token', '/instances/', 'graph.facebook', 'graph.instagram', 'zapipost', 'zapidelete',
+  ...Object.values(ENVIO_CRU_EXPORTADO).flat().map(n => n.toLowerCase()),
+];
 const GATILHOS_SCRIPT = [
   'send', 'zapiclient', 'iosend', 'igclient', 'fbcomentarios', 'fbmensagens', 'encaminharmidia',
   'replytocomment', 'enviarzapiio', 'zapi-admin', 'broadcast',
@@ -360,6 +410,26 @@ function subirEmbrulho(n: ts.Node): ts.Node {
   return a;
 }
 
+/** Como subirEmbrulho, e também passa pelo await (const { f } = await import('...')). */
+function subirEmbrulhoEAwait(n: ts.Node): ts.Node {
+  let a = subirEmbrulho(n);
+  while (a.parent && ts.isAwaitExpression(a.parent)) a = subirEmbrulho(a.parent);
+  return a;
+}
+
+/**
+ * Funções de envio cru que o módulo importado exporta, ou null. O caminho é
+ * resolvido a partir do arquivo que importa (não pelo nome do arquivo): só
+ * caminho relativo, que é como a api importa entre si.
+ */
+function envioCruDoModulo(arquivo: string, modulo: string): readonly string[] | null {
+  if (!modulo.startsWith('.')) return null;
+  const semExt = (s: string) => s.replace(/\.[cm]?[jt]sx?$/, '');
+  const alvo = semExt(posix.normalize(posix.join(posix.dirname(arquivo), modulo)));
+  for (const [arq, nomes] of Object.entries(ENVIO_CRU_EXPORTADO)) if (semExt(arq) === alvo) return nomes;
+  return null;
+}
+
 function escopoDe(n: ts.Node): ts.Node {
   let a: ts.Node | undefined = n.parent;
   while (a && !ts.isSourceFile(a) && !ts.isFunctionLike(a)) a = a.parent;
@@ -404,13 +474,15 @@ function metodoDoUso(no: ts.Node): Metodo {
  * função (o handler). Uma instância axios com baseURL da Z-API fazendo
  * z.post('/send-text', body) NÃO é rota: é envio.
  */
-function ehRotaExpress(no: ts.Node, texto: string): boolean {
+function ehRotaExpress(no: ts.Node, texto: string, clientesHttp: ReadonlySet<string> = new Set()): boolean {
   if (!texto.startsWith('/')) return false;
   const a = subirEmbrulho(no);
   const p = a.parent;
   if (!p || !ts.isCallExpression(p) || p.arguments[0] !== a) return false;
   if (!ts.isPropertyAccessExpression(p.expression) || !METODOS_DE_ROTA.has(p.expression.name.text)) return false;
   const receptor = p.expression.expression;
+  // Instância de cliente HTTP (const app = axios.create(...)): o nome não faz rota.
+  if (ts.isIdentifier(receptor) && clientesHttp.has(receptor.text)) return false;
   if (ts.isIdentifier(receptor) && RECEPTOR_DE_ROTA.test(receptor.text)) return true;
   const ultimo = p.arguments[p.arguments.length - 1];
   return p.arguments.length > 1 && !!ultimo && (ts.isArrowFunction(ultimo) || ts.isFunctionExpression(ultimo));
@@ -422,7 +494,17 @@ function classificarZapi(texto: string, metodo: Metodo): 'envio' | 'caminho_livr
   return 'consulta';
 }
 
-interface ImportZapi { no: ts.Node; locais: string[]; namespaces: string[]; reexporta: boolean }
+/** Import de um módulo cujas funções são vigiadas: o zapiPost cru, ou uma função de envio cru do MIGRAR. */
+interface ImportVigiado {
+  no: ts.Node;
+  regra: 'zapipost' | 'envio_cru';
+  nomes: readonly string[];
+  locais: string[];
+  namespaces: string[];
+  reexporta: boolean;
+}
+
+const NOMES_ZAPIPOST: readonly string[] = Object.freeze(['zapiPost', 'zapiDelete']);
 
 function varrerAst(texto: string, arquivo: string, kind: ts.ScriptKind): Achado[] {
   const sf = ts.createSourceFile(arquivo, texto, ts.ScriptTarget.Latest, /* setParentNodes */ true, kind);
@@ -432,15 +514,22 @@ function varrerAst(texto: string, arquivo: string, kind: ts.ScriptKind): Achado[
 
   const nos: { no: ts.Node; texto: string }[] = [];
   const chamadas: ts.CallExpression[] = [];
-  const importsZapi: ImportZapi[] = [];
+  const vigiados: ImportVigiado[] = [];
   const importsTransporte: ts.Node[] = [];
+  /** const app = axios.create(...): instância de cliente HTTP, nunca receptor de rota. */
+  const clientesHttp = new Set<string>();
 
-  const registrarModulo = (no: ts.Node, modulo: string, montar: (imp: ImportZapi) => void): void => {
+  const registrarModulo = (no: ts.Node, modulo: string, montar: (imp: ImportVigiado) => void): void => {
     if (MODULO_TRANSPORTE.test(modulo)) importsTransporte.push(no);
-    if (!MODULO_ZAPI.test(modulo)) return;
-    const imp: ImportZapi = { no, locais: [], namespaces: [], reexporta: false };
-    montar(imp);
-    importsZapi.push(imp);
+    const alvos: Array<[ImportVigiado['regra'], readonly string[]]> = [];
+    if (MODULO_ZAPI.test(modulo)) alvos.push(['zapipost', NOMES_ZAPIPOST]);
+    const crus = envioCruDoModulo(arquivo, modulo);
+    if (crus) alvos.push(['envio_cru', crus]);
+    for (const [regra, nomes] of alvos) {
+      const imp: ImportVigiado = { no, regra, nomes, locais: [], namespaces: [], reexporta: false };
+      montar(imp);
+      vigiados.push(imp);
+    }
   };
 
   const visitar = (n: ts.Node): void => {
@@ -453,7 +542,7 @@ function varrerAst(texto: string, arquivo: string, kind: ts.ScriptKind): Achado[
         if (nb && ts.isNamedImports(nb)) {
           for (const el of nb.elements) {
             const importado = (el.propertyName ?? el.name).text;
-            if (importado === 'zapiPost' || importado === 'zapiDelete') imp.locais.push(el.name.text);
+            if (imp.nomes.includes(importado)) imp.locais.push(el.name.text);
           }
         }
       });
@@ -462,12 +551,18 @@ function varrerAst(texto: string, arquivo: string, kind: ts.ScriptKind): Achado[
     if (ts.isExportDeclaration(n) && n.moduleSpecifier && ts.isStringLiteral(n.moduleSpecifier)) {
       registrarModulo(n, n.moduleSpecifier.text, imp => {
         const ec = n.exportClause;
-        if (!ec || (ts.isNamedExports(ec) && ec.elements.some(el => {
-          const nome = (el.propertyName ?? el.name).text;
-          return nome === 'zapiPost' || nome === 'zapiDelete';
-        }))) imp.reexporta = true;
+        if (!ec || (ts.isNamedExports(ec) && ec.elements.some(el => imp.nomes.includes((el.propertyName ?? el.name).text)))) {
+          imp.reexporta = true;
+        }
       });
       return;
+    }
+    if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer) {
+      let ini: ts.Expression = n.initializer;
+      while (ts.isParenthesizedExpression(ini) || ts.isAsExpression(ini) || ts.isNonNullExpression(ini) || ts.isAwaitExpression(ini)) ini = ini.expression;
+      if (ts.isCallExpression(ini) && ts.isPropertyAccessExpression(ini.expression) && ini.expression.name.text === 'create') {
+        clientesHttp.add(n.name.text);
+      }
     }
     if (ts.isCallExpression(n)) {
       chamadas.push(n);
@@ -475,13 +570,13 @@ function varrerAst(texto: string, arquivo: string, kind: ts.ScriptKind): Achado[
       const ehRequire = ts.isIdentifier(n.expression) && n.expression.text === 'require';
       if ((ehRequire || n.expression.kind === ts.SyntaxKind.ImportKeyword) && arg && ts.isStringLiteral(arg)) {
         registrarModulo(n, arg.text, imp => {
-          const pai = subirEmbrulho(n).parent;
+          const pai = subirEmbrulhoEAwait(n).parent;
           if (pai && ts.isVariableDeclaration(pai)) {
             if (ts.isIdentifier(pai.name)) imp.namespaces.push(pai.name.text);
             else if (ts.isObjectBindingPattern(pai.name)) {
               for (const el of pai.name.elements) {
                 const importado = nomeDaPropriedade(el.propertyName) ?? (ts.isIdentifier(el.name) ? el.name.text : null);
-                if ((importado === 'zapiPost' || importado === 'zapiDelete') && ts.isIdentifier(el.name)) imp.locais.push(el.name.text);
+                if (importado && imp.nomes.includes(importado) && ts.isIdentifier(el.name)) imp.locais.push(el.name.text);
               }
             }
           }
@@ -509,7 +604,7 @@ function varrerAst(texto: string, arquivo: string, kind: ts.ScriptKind): Achado[
   const falaComZapi = temUrlZapi || temCabecalho;
   const temHostGraph = nos.some(x => HOST_GRAPH.test(x.texto));
   for (const x of nos) {
-    const rota = ehRotaExpress(x.no, x.texto);
+    const rota = ehRotaExpress(x.no, x.texto, clientesHttp);
     if (HOST_ZAPI.test(x.texto) || URL_ZAPI_SEM_HOST.test(x.texto)) {
       add(x.no, 'zapi', classificarZapi(x.texto, metodoDoUso(x.no)), x.texto);
       continue;
@@ -527,23 +622,42 @@ function varrerAst(texto: string, arquivo: string, kind: ts.ScriptKind): Achado[
       add(x.no, 'graph', 'envio', x.texto);
       continue;
     }
+    // Helper do Graph que manda para o edge que pedirem: `${G}/${id}/${edge}`.
+    if ((HOST_GRAPH.test(x.texto) || (temHostGraph && x.texto.startsWith(CORINGA))) && GRAPH_CAMINHO_LIVRE.test(x.texto)
+      && !rota && metodoDoUso(x.no) !== 'GET') {
+      add(x.no, 'graph', 'caminho_livre', x.texto);
+      continue;
+    }
     if (script && !rota && ROTA_DE_ENVIO.test(x.texto)) add(x.no, 'script', 'rota', x.texto);
   }
 
-  // ── zapiPost / zapiDelete crus ──
-  const locais = new Set(importsZapi.flatMap(i => i.locais));
-  const namespaces = new Set(importsZapi.flatMap(i => i.namespaces));
-  let chamadasCruas = 0;
-  for (const c of chamadas) {
-    const e = c.expression;
-    const crua = (ts.isIdentifier(e) && locais.has(e.text))
-      || (ts.isPropertyAccessExpression(e) && ts.isIdentifier(e.expression) && namespaces.has(e.expression.text)
-        && (e.name.text === 'zapiPost' || e.name.text === 'zapiDelete'));
-    if (crua) { add(c, 'zapipost', 'chamada', c.getText(sf)); chamadasCruas++; }
+  // ── Graph: o edge exato passado como argumento (gpost(pg, 'messages', corpo)) ──
+  if (temHostGraph) {
+    for (const c of chamadas) {
+      for (const arg of c.arguments) {
+        const t = ts.isIdentifier(arg) ? consts.get(arg.text) ?? null
+          : (ts.isStringLiteral(arg) || ts.isNoSubstitutionTemplateLiteral(arg)) ? arg.text : null;
+        if (t !== null && EDGE_SOLTO_GRAPH.test(t)) add(arg, 'graph', 'envio', `${nomeDoChamado(c) ?? '?'}(… '${t}' …)`);
+      }
+    }
   }
-  for (const imp of importsZapi) {
-    if (imp.reexporta || (imp.locais.length > 0 && chamadasCruas === 0)) {
-      add(imp.no, 'zapipost', 'chamada', imp.no.getText(sf));
+
+  // ── zapiPost / zapiDelete crus, e chamadores das funções de envio cru do MIGRAR ──
+  for (const regra of ['zapipost', 'envio_cru'] as const) {
+    const imps = vigiados.filter(i => i.regra === regra);
+    if (imps.length === 0) continue;
+    const nomes = new Set(imps.flatMap(i => i.nomes));
+    const locais = new Set(imps.flatMap(i => i.locais));
+    const namespaces = new Set(imps.flatMap(i => i.namespaces));
+    let chamadasCruas = 0;
+    for (const c of chamadas) {
+      const e = c.expression;
+      const crua = (ts.isIdentifier(e) && locais.has(e.text))
+        || (ts.isPropertyAccessExpression(e) && ts.isIdentifier(e.expression) && namespaces.has(e.expression.text) && nomes.has(e.name.text));
+      if (crua) { add(c, regra, 'chamada', c.getText(sf)); chamadasCruas++; }
+    }
+    for (const imp of imps) {
+      if (imp.reexporta || (imp.locais.length > 0 && chamadasCruas === 0)) add(imp.no, regra, 'chamada', imp.no.getText(sf));
     }
   }
 
@@ -691,7 +805,69 @@ describe('chefeGuarda: ninguém fala com a Z-API nem com o Graph por fora', () =
   it('os clientes oficiais existem (isenção não aponta para arquivo sumido)', () => {
     for (const f of [CLIENTE_ZAPI, ...CLIENTES_GRAPH]) expect({ f, existe: existsSync(join(RAIZ, ...f.split('/'))) }).toEqual({ f, existe: true });
   });
+
+  it('toda função de envio cru exportada por um arquivo do MIGRAR está em ENVIO_CRU_EXPORTADO, e a lista não tem nome velho', () => {
+    let vistas = 0;
+    for (const arquivo of Object.keys(MIGRAR)) {
+      if (!existsSync(join(RAIZ, ...arquivo.split('/'))) || tipoDeScript(arquivo) === null) continue;
+      const { exportadas, comOfensor } = funcoesExportadasComOfensor(arquivo);
+      vistas += exportadas.length;
+      const listadas = [...(ENVIO_CRU_EXPORTADO[arquivo] ?? [])].sort();
+      expect({ arquivo, envioCru: comOfensor.sort() }).toEqual({ arquivo, envioCru: listadas });
+    }
+    // Controle positivo: a varredura de exports leu de verdade (o ioSend.ts exporta 5 funções).
+    expect(vistas).toBeGreaterThanOrEqual(5);
+    for (const arquivo of Object.keys(ENVIO_CRU_EXPORTADO)) expect({ arquivo, noMigrar: arquivo in MIGRAR }).toEqual({ arquivo, noMigrar: true });
+  });
 });
+
+/**
+ * Funções de topo exportadas por um arquivo, e quais delas levam a um ofensor de
+ * TRANSPORTE (Z-API, Graph ou zapiPost cru), direto ou por um helper do próprio
+ * arquivo. O chamador de envio cru (envio_cru) não entra: ele é robô, não
+ * transporte, e é contado à parte.
+ */
+function funcoesExportadasComOfensor(arquivo: string): { exportadas: string[]; comOfensor: string[] } {
+  const texto = readFileSync(join(RAIZ, ...arquivo.split('/')), 'utf8');
+  const sf = ts.createSourceFile(arquivo, texto, ts.ScriptTarget.Latest, true, tipoDeScript(arquivo)!);
+  const linha = (pos: number) => sf.getLineAndCharacterOfPosition(pos).line + 1;
+  const ofensas = inventario.achados.filter(a => a.arquivo === arquivo && a.regra !== 'envio_cru' && a.regra !== 'script'
+    && !(a.regra === 'zapi' && a.tipo === 'consulta'));
+  const funcs = new Map<string, { no: ts.Node; exportada: boolean }>();
+  for (const st of sf.statements) {
+    const exportada = (ts.canHaveModifiers(st) ? ts.getModifiers(st) ?? [] : []).some(m => m.kind === ts.SyntaxKind.ExportKeyword);
+    if (ts.isFunctionDeclaration(st) && st.name) funcs.set(st.name.text, { no: st, exportada });
+    if (ts.isVariableStatement(st)) {
+      for (const d of st.declarationList.declarations) {
+        if (ts.isIdentifier(d.name) && d.initializer && (ts.isArrowFunction(d.initializer) || ts.isFunctionExpression(d.initializer))) {
+          funcs.set(d.name.text, { no: d, exportada });
+        }
+      }
+    }
+  }
+  const leva = new Set<string>();
+  const chama = new Map<string, Set<string>>();
+  for (const [nome, f] of funcs) {
+    const de = linha(f.no.getStart(sf));
+    const ate = linha(f.no.getEnd());
+    if (ofensas.some(a => a.linha >= de && a.linha <= ate)) leva.add(nome);
+    const chamados = new Set<string>();
+    const visitar = (n: ts.Node): void => {
+      if (ts.isCallExpression(n) && ts.isIdentifier(n.expression)) chamados.add(n.expression.text);
+      ts.forEachChild(n, visitar);
+    };
+    visitar(f.no);
+    chama.set(nome, chamados);
+  }
+  for (let mudou = true; mudou;) {
+    mudou = false;
+    for (const [nome, chamados] of chama) {
+      if (!leva.has(nome) && [...chamados].some(c => leva.has(c))) { leva.add(nome); mudou = true; }
+    }
+  }
+  const exportadas = [...funcs].filter(([, f]) => f.exportada).map(([n]) => n);
+  return { exportadas, comOfensor: exportadas.filter(n => leva.has(n)) };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONTROLE POSITIVO: a MESMA função de varredura, em código sintético na
@@ -858,6 +1034,102 @@ describe('chefeGuarda: controle positivo (ofensor sintético é pego)', () => {
     }
   });
 
+  // [revisão] A base da instância vinha de função, propriedade ou let reatribuído
+  // e o caminho era montado depois: `${base(c)}/send-text` resolve como
+  // '${*}/send-text', e o send- só era procurado no começo. Nos 4 arquivos de
+  // CONSULTA_ZAPI passava verde, e num arquivo novo reprovava só como consulta.
+  it('base da instância vinda de função, propriedade ou let reatribuído: envio, também nos arquivos de CONSULTA_ZAPI', () => {
+    const formatos: Record<string, string> = {
+      funcao: 'const baseZ = (c: any) => `https://api.z-api.io/instances/${c.id}/token/${c.token}`;\n' +
+        'export async function p3c(c: any, lista: string[]) { for (const phone of lista) await fetch(`${baseZ(c)}/send-text`, { method: "POST", body: JSON.stringify({ phone }) }); }',
+      propriedade: 'export async function p3e(id: string, tk: string) { const cfg = { base: `https://api.z-api.io/instances/${id}/token/${tk}` }; await fetch(`${cfg.base}/send-text`, { method: "POST" }); }',
+      let_reatribuido: 'export async function p3f(id: string, tk: string) { let b = ""; b = `https://api.z-api.io/instances/${id}/token/${tk}`; await fetch(`${b}/send-text`, { method: "POST" }); }',
+      axios_url: 'import axios from "axios";\nconst bz = (c: any) => `https://api.z-api.io/instances/${c.id}/token/${c.token}`;\n' +
+        'export async function p4c(c: any) { await axios({ method: "post", url: `${bz(c)}/send-text`, data: {} }); }',
+    };
+    const envios = (achados: Achado[]) => achados.filter(a => a.regra === 'zapi' && a.tipo === 'envio').length;
+    for (const [nome, codigo] of Object.entries(formatos)) {
+      // Num arquivo novo: reprova como ENVIO, não só como consulta.
+      const novo = 'api/src/services/io/roboNovo.ts';
+      const ach = varrerFonte(codigo, novo);
+      expect({ nome, envio: resumo(ach).includes('zapi:envio') }).toEqual({ nome, envio: true });
+      expect(avaliar([...inventario.achados, ...ach]).join('\n')).toContain(`OFENSOR NOVO: ${novo} tem 1 × zapi:envio`);
+      // Anexado aos arquivos que podem consultar: o envio sobe 1 e reprova.
+      for (const arquivo of Object.keys(CONSULTA_ZAPI)) {
+        const real = readFileSync(join(RAIZ, ...arquivo.split('/')), 'utf8');
+        const depois = varrerFonte(`${real}\n${codigo}\n`, arquivo);
+        expect({ nome, arquivo, a_mais: envios(depois) - envios(varrerFonte(real, arquivo)) }).toEqual({ nome, arquivo, a_mais: 1 });
+        const resto = inventario.achados.filter(a => a.arquivo !== arquivo);
+        expect(avaliar([...resto, ...depois]).join('\n')).toMatch(new RegExp(`OFENSOR NOVO: ${arquivo.replace(/[.]/g, '\\.')} tem \\d+ × zapi:envio`));
+      }
+    }
+  });
+
+  it('instância axios chamada app com baseURL da Z-API: app.post(\'/send-text\') é envio, não rota', () => {
+    const achados = varrerFonte(src(
+      'import axios from "axios";',
+      'export async function p4d(c: any) {',
+      '  const app = axios.create({ baseURL: `https://api.z-api.io/instances/${c.id}/token/${c.token}` });',
+      '  await app.post("/send-text", { phone: "1" });',
+      '}',
+    ), 'api/src/services/agents/sdr/sdrIoPolling.ts');
+    expect(resumo(achados)).toContain('zapi:envio');
+  });
+
+  // [revisão] POST no Graph por um helper do próprio arquivo com o edge como
+  // parâmetro: o template do helper termina em ${*} e o 'messages' vai solto,
+  // sem barra. É o formato do helper genérico do igClient.ts, o natural de copiar.
+  it('POST no Graph por helper com o edge em parâmetro: o literal do edge e o caminho livre contam', () => {
+    const helper = 'const G = "https://graph.facebook.com/v21.0";\n' +
+      'async function gpost(id: string, edge: string, body: unknown) { return fetch(`${G}/${id}/${edge}?access_token=x`, { method: "POST", body: JSON.stringify(body) }); }';
+    const novo = 'api/src/services/instagram/roboNovo.ts';
+    // Só o helper: caminho livre (manda para o edge que pedirem).
+    expect(resumo(varrerFonte(helper, novo))).toEqual(['graph:caminho_livre']);
+    // O helper chamado em laço com 'messages': o literal do edge é envio.
+    const lote = varrerFonte(`${helper}\nexport async function lote(pg: string, lista: string[]) { for (const para of lista) await gpost(pg, "messages", { recipient: { id: para } }); }`, novo);
+    expect(resumo(lote)).toEqual(['graph:caminho_livre', 'graph:envio']);
+    expect(avaliar([...inventario.achados, ...lote]).join('\n')).toContain(`OFENSOR NOVO: ${novo}`);
+    // O edge numa const passada ao helper também conta.
+    expect(resumo(varrerFonte(`${helper}\nconst EDGE = "private_replies";\nexport const f = (c: string) => gpost(c, EDGE, {});`, novo))).toContain('graph:envio');
+    // Dentro de um cliente oficial, isento.
+    expect(avaliar(lote.map(a => ({ ...a, arquivo: 'api/src/services/instagram/igClient.ts' })), {}, {})).toEqual([]);
+  });
+
+  // [revisão] O enviarZapiIO é o fetch cru da linha io (no MIGRAR). A guarda só
+  // via a definição: um robô novo que o importava passava verde. Agora quem
+  // chama uma função de envio cru exportada por um arquivo do MIGRAR é contado
+  // como o zapiPost cru: chamada nova fora dos chamadores registrados reprova.
+  it('chamada nova ao enviarZapiIO ou ao encaminharMidiaAoConsultor fora dos chamadores registrados reprova', () => {
+    const novo = 'api/src/services/io/roboNovo.ts';
+    for (const codigo of [
+      'import { enviarZapiIO } from "./ioSend";\nexport async function lote(lista: string[]) { for (const p of lista) await enviarZapiIO(p, "oi"); }',
+      'import { enviarZapiIO as mandar } from "./ioSend";\nexport const f = (p: string) => mandar(p, "oi");',
+      'import * as io from "./ioSend";\nexport const f = (p: string) => io.enviarZapiIO(p, "oi");',
+      'const { enviarZapiIO } = require("./ioSend");\nexport const f = (p: string) => enviarZapiIO(p, "oi");',
+      'export async function f(p: string) { const { enviarZapiIO } = await import("./ioSend"); return enviarZapiIO(p, "oi"); }',
+      'import { encaminharMidiaAoConsultor } from "./encaminharMidiaConsultor";\nexport const f = (m: any) => encaminharMidiaAoConsultor(m);',
+    ]) {
+      const ach = varrerFonte(codigo, novo);
+      expect({ codigo, r: resumo(ach) }).toEqual({ codigo, r: ['envio_cru:chamada'] });
+      expect(avaliar([...inventario.achados, ...ach]).join('\n')).toContain(`OFENSOR NOVO: ${novo}`);
+    }
+    // Anexado a um robô real e a rotas reais (o lote do P6b): o número sobe e reprova.
+    const robo = 'import { enviarZapiIO } from "./ioSend";\nexport async function lote(lista: string[]) { for (const p of lista) await enviarZapiIO(p, "oi"); }';
+    const rota = 'import { enviarZapiIO } from "../services/io/ioSend";\n' +
+      'router.post("/io/lote10", async (req: any, res: any) => { for (const phone of req.body.lista) await enviarZapiIO(phone, req.body.msg); res.json({ ok: true }); });';
+    for (const [arquivo, codigo] of [
+      ['api/src/services/io/sementeSolarService.ts', robo],
+      ['api/src/services/io/avisosTickService.ts', robo],
+      ['api/src/routes/zapiAdmin.ts', rota],
+      ['api/src/routes/admin.ts', rota],
+    ] as const) {
+      const real = readFileSync(join(RAIZ, ...arquivo.split('/')), 'utf8');
+      const depois = varrerFonte(`${real}\n${codigo}\n`, arquivo);
+      const resto = inventario.achados.filter(a => a.arquivo !== arquivo);
+      expect({ arquivo, r: avaliar([...resto, ...depois]).join('\n') }).toMatchObject({ arquivo, r: expect.stringContaining(`OFENSOR NOVO: ${arquivo}`) });
+    }
+  });
+
   it('zapiPost cru importado fora do zapiClient (direto, com alias e por namespace)', () => {
     expect(resumo(varrerFonte(src(
       'import { zapiPost as zp } from "../agents/zapiClient";',
@@ -913,6 +1185,18 @@ describe('chefeGuarda: controle negativo (o que NÃO é ofensor)', () => {
       '  res.json(await r.json());',
       '});',
     ), 'api/src/routes/zapiAdmin.ts'))).toEqual(['zapi:consulta']);
+  });
+
+  it('edge solto sem host do Graph no arquivo, ou fora de argumento de chamada, não conta', () => {
+    expect(varrerFonte(src(
+      'export const ROTULO = "messages";',
+      'export const f = (x: any) => x.from("messages").select("*");',
+    ), 'api/src/services/io/qualquer.ts')).toEqual([]);
+    expect(varrerFonte(src(
+      'const GRAPH = "https://graph.facebook.com/v21.0";',
+      'export const CAMPOS = { aba: "comments" };',
+      'export async function ler(id: string) { return fetch(`${GRAPH}/${id}?fields=comments`); }',
+    ), 'api/src/services/metaNovo.ts')).toEqual([]);
   });
 
   it('GET provado de /comments e leitura de anúncio no Graph não contam', () => {
