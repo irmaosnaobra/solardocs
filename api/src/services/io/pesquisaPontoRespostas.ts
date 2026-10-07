@@ -18,7 +18,7 @@ import { logger } from '../../utils/logger';
  * A régua é conservadora de propósito: só desvia quem JÁ ESTÁ na base do eletroposto e NÃO
  * tem reunião futura marcada. Quem tem reunião continua com o agente de agendamento
  * (`eletropostoRespostas`), que sabe confirmar e remarcar; quem nunca apareceu na base
- * segue sendo lead novo de anúncio, com a Luma.
+ * segue sendo lead novo de anúncio, com a recepção.
  */
 
 export interface RespostaDeCampanha {
@@ -97,7 +97,7 @@ export async function respostaDeCampanhaPonto(phone: string): Promise<RespostaDe
 
     return null;
   } catch (err) {
-    // Falhou a leitura? Devolve null e o inbound segue o caminho normal — é melhor a Luma
+    // Falhou a leitura? Devolve null e o inbound segue o caminho normal — é melhor a recepção
     // atender um respondente do que ninguém atender um lead de verdade.
     logger.error('pesquisa-ponto', `falha checando ${phone}`, err);
     return null;

@@ -74,10 +74,11 @@ Cada um destes já custou caro pelo menos uma vez.
 ## Estado atual (11/09/2026)
 
 - Typecheck da `api`: **verde**, 0 erro. É o gate que bloqueia no CI.
-- Testes da `api`: **17 vermelhos** de 1.253, em 5 arquivos
-  (`agendaSolarSocios`, `centralRoteamentoSolar`, `leadSolar700kwh`,
-  `nilceParaGiovanna`, `pixSaidaCheckout`). O CI roda com `continue-on-error`
-  por causa desse baseline.
+- Testes da `api` (medido em 07/10/2026): **1 vermelho fixo** de ~2.590
+  (`eletropostoEstudoTick`, "quando a chave volta..."). Com a máquina carregada
+  ainda falham por tempo o `beforeAll` do `pixSaidaCheckout` e o 1º teste do
+  `centralRoteamentoSolar`; rodando sozinhos, passam. O CI segue com
+  `continue-on-error` até o vermelho fixo fechar.
 - CI `Segurança`: **vermelho**, 4 achados do gitleaks no histórico. Está assim
   em todo push desde 10/09.
 - `main` não tem branch protection. Há pre-commit de segredo em `.githooks/`

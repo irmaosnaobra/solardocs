@@ -199,7 +199,7 @@ router.post('/io-sent', async (req: Request, res: Response): Promise<void> => {
 
 // Webhook da instância Irmãos na Obra (linha IO, 5040).
 // Grupo "Agendamento": comandos dos consultores pro agente do grupo (sdrGroupAgent,
-// que ainda atende por "Luma"). DM: Bia, trilha do LimpaPro e cessão pra vendedora
+// que ainda atende por "Luma"). DM: Bia e cessão pra vendedora
 // do SolarDoc; o que sobra é da recepção, que lê por cron. A Luma SDR, que recebia
 // toda DM daqui, saiu do código em 05/10/2026.
 router.post('/io', async (req: Request, res: Response): Promise<void> => {
@@ -352,7 +352,7 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
 
   // ── MÍDIA DO LEAD → CONSULTOR DONO ──
   // Fica AQUI, logo depois do dedup e antes de qualquer roteamento: os fluxos
-  // abaixo (convite do grupo, Bia) dão `return`, e o bloco da Luma no
+  // abaixo (convite do grupo, Bia) dão `return`, e o tratamento de mídia no
   // fim também retorna cedo quando o Whisper falha — justo o áudio que o humano
   // mais precisa ouvir. Fire-and-forget: nunca segura o atendimento.
   if (media) {
@@ -368,7 +368,7 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
   // Quem cai em NOTA 1 na LP não vê agenda: vê a tela do grupo, cujo CTA é um wa.me
   // com este texto fixo. O link é constante — deixar isso na fila humana custou 3h e
   // 6h de espera pros dois primeiros (01/08), com o lead parado esperando um copiar-colar.
-  // Responde e encerra: sem isso a mensagem seguia pra Luma, que não conhece o grupo.
+  // Responde e encerra: sem isso a mensagem do grupo seguiria a cascata de DM.
   const textoGrupo = String(text || '').toLowerCase();
   if (/quero entrar no grupo do eletroposto/.test(textoGrupo)) {
     const link = process.env.IO_GRUPO_ELETROPOSTO_LINK?.trim()
@@ -483,7 +483,7 @@ router.post('/io', async (req: Request, res: Response): Promise<void> => {
       // background, e a invocação é cortada em ponto imprevisível — nos testes
       // de 11/09 uma execução morreu depois de mandar as bolhas e antes de
       // avisar o consultor, e outra morreu antes de qualquer escrita. É a mesma
-      // razão pela qual a Bia e a trilha do LimpaPro leem por poll nesta linha.
+      // razão pela qual a Bia e a recepção leem por poll nesta linha.
       //
       // Só o audit log em `webhook_debug` (lá em cima, síncrono) precisa
       // acontecer aqui: é dele que o cron lê.

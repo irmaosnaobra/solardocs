@@ -459,11 +459,6 @@ router.get('/limpapro-recovery-consume', async (req: Request, res: Response) => 
     res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
   }
 });
-// ── SEMENTE: nutrição de quem pediu orçamento de solar e não fechou ──────────
-// ?dry=1 mostra QUEM entraria e a mensagem que sairia, sem enviar nada — é o
-// jeito de revisar a campanha em produção antes de ligar (SEMENTE_ON=true).
-// Sem parâmetro, roda um tick à mão; o normal é rodar no /process-messages.
-
 // ── Convite pra LP de quem veio do Instagram (não marca agenda direta) ───────
 // ?publico=1 lista quem está na fila e a mensagem que sai, sem enviar.
 router.get('/eletroposto-ig-convite', async (req: Request, res: Response) => {
@@ -873,6 +868,10 @@ router.get('/eletroposto-top-pontos', async (req: Request, res: Response) => {
   }
 });
 
+// ── SEMENTE: nutrição de quem pediu orçamento de solar e não fechou ──────────
+// ?dry=1 mostra QUEM entraria e a mensagem que sairia, sem enviar nada — é o
+// jeito de revisar a campanha em produção antes de ligar (SEMENTE_ON=true).
+// Sem parâmetro, roda um tick à mão; o normal é rodar no /process-messages.
 router.get('/semente-solar', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {

@@ -63,15 +63,14 @@ const AGENTES: Record<string, AgenteInfo> = {
     linha: "'io'",
     modelo: 'claude-sonnet-4-6',
     missao:
-      'SDR B2C de energia solar: recebe o lead (Meta / LP /io/*), qualifica, agenda a conversa com o consultor e nutre o pipeline (sdr_leads). Quando o lead esquenta, entrega quente pro consultor dono.',
+      'Removida do código em 05/10/2026. A Luma estava desligada da linha IO desde maio de 2026. Hoje quem chega sozinho é atendido pela Duda (recepção), e o lead do solar segue com o consultor humano dono do telefone.',
     regras: [
-      'Estágios do pipeline: reativacao → novo → frio → morno → quente → fechamento / perdido.',
+      'Nenhum robô qualifica nem faz follow-up de lead solar nesta linha.',
       'Rodízio: 1 telefone = 1 consultor (gruda no dono; nunca duplica).',
-      'Não cota preço final nem promete instalação — faz a ponte pro consultor humano.',
-      'Follow-up de reengajamento é "puxador": ao responder, avisa o consultor e cala (handoff).',
+      'Primeiro contato do cadastro solar: boas-vindas do solar (solarBoasVindas.ts).',
     ],
     killSwitches: [],
-    fontes: ['sdrAgentService.ts', 'sdrIoPolling.ts'],
+    fontes: ['recepcaoIo.ts', 'solarBoasVindas.ts', 'sdrIoPolling.ts (só dedup, card e aviso)'],
   },
   none: {
     nome: '—',

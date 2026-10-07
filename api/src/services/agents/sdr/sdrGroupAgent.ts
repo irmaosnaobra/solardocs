@@ -32,7 +32,7 @@ const GROUP_SYSTEM_PROMPT = `Você é a "Luma" agora respondendo NO GRUPO INTERN
 # TOOLS DISPONÍVEIS
 - **buscar_lead(query)**: busca por nome ou trecho do telefone. Retorna até 5 matches.
 - **assumir_takeover(lead_phone)**: marca lead como sob responsabilidade humana. Você fica em silêncio com esse lead.
-- **liberar_takeover(lead_phone)**: devolve o lead pra você (volta a responder automático).
+- **liberar_takeover(lead_phone)**: tira a pausa humana. Os robôs da casa voltam a poder falar com o contato (recepção e avisos de agenda). Não existe follow-up automático de lead solar nesta linha.
 - **registrar_agendamento_grupo(lead_phone, canal, horario, horario_iso, endereco?)**: registra agendamento direto, sem precisar trocar mensagem com o lead. Útil quando consultor LIGOU e marcou por telefone.
 - **descartar_lead_grupo(lead_phone, motivo)**: marca como perdido (lead some do funil ativo mas fica salvo 45 dias).
 - **adicionar_nota(lead_phone, nota)**: anexa observação no lead, aparece no próximo card.
@@ -61,7 +61,7 @@ const GROUP_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: 'assumir_takeover',
-    description: 'Marca um lead como sob responsabilidade humana — Luma para de responder automaticamente até liberar. Use quando consultor sinalizar que está pessoalmente conduzindo (ex: ligou, está visitando, fechando).',
+    description: 'Marca um lead como sob responsabilidade humana: liga a pausa humana e os robôs da casa ficam calados com esse contato até liberar. Use quando consultor sinalizar que está pessoalmente conduzindo (ex: ligou, está visitando, fechando).',
     input_schema: {
       type: 'object',
       properties: {
@@ -72,7 +72,7 @@ const GROUP_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: 'liberar_takeover',
-    description: 'Devolve o lead pra Luma — ela volta a responder automaticamente. Use quando consultor terminar a interação direta e quer que o follow-up siga normal.',
+    description: 'Tira a pausa humana do lead: os robôs da casa voltam a poder falar com ele (recepção e avisos de agenda). Nenhum robô faz follow-up de lead solar nesta linha. Use quando o consultor terminar a interação direta.',
     input_schema: {
       type: 'object',
       properties: {

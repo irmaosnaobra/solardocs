@@ -482,7 +482,7 @@ function LeadDrawer({ lead, onClose, onUpdate, onSetConsultor }: {
 
   async function forcarFollowup() {
     if (!lead) return;
-    if (!confirm('Forçar follow-up agora? A Luma vai mandar próxima mensagem no próximo cron (~1 min).')) return;
+    if (!confirm('Marcar este lead para follow-up? Nenhum robô envia nesta linha: o contato é do consultor.')) return;
     setBusy(true);
     await api.post(`/admin/sdr-leads/${lead.phone}/force-followup`);
     setBusy(false);
@@ -1191,7 +1191,7 @@ function ImportModal({ onClose, onImport }: { onClose: () => void; onImport: () 
         </div>
 
         <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: '0 0 12px' }}>
-          Importe um Excel (.xlsx) ou cole a lista. A Luma chama até <strong>50/dia</strong> em horário comercial (seg-sex 9h-20h). Quando responderem, viram &quot;Novo&quot; automático.
+          Importe um Excel (.xlsx) ou cole a lista. O import só cadastra os contatos: quem chama é o consultor, nenhum robô envia mensagem para essa lista.
         </p>
 
         {/* Upload Excel/CSV */}

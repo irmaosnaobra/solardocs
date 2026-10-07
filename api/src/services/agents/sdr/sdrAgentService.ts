@@ -6,7 +6,7 @@
 // (sdrGroupAgent), que ainda atende por "Luma", não é ela e fica.
 // Ficaram aqui as três peças que outros módulos usam:
 //   - o dedup atômico de mensagens (tryClaimMessage e companhia), usado pelo
-//     webhook, pela Bia, pela recepção, pelo LimpaPro e pelo poll da linha IO;
+//     webhook, pela Bia, pela recepção e pelo poll da linha IO;
 //   - o card de agendamento do grupo IO (criarCardAgendamento), usado pelo
 //     agente do grupo e pela rota /zapi-admin/io/test-card;
 //   - o reenvio de card pendente (retryCardsPendentes), tarefa card_retry do
