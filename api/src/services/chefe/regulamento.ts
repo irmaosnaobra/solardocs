@@ -244,8 +244,12 @@ export const REGULAMENTO_BASE: Readonly<Regulamento> = Object.freeze({
   // cada 3,2 min) ainda passa os 98 até 18h17, com pico de 19 numa hora (a queda
   // foi a 18/h), e uma agenda cheia legítima tem o mesmo formato (dívida cravada
   // no chefeQuedas).
-  // A defesa contra classe errada é a guarda arquivo → robôs permitidos, ligada
-  // com a catraca: volume nenhum separa frio mal classificado de agenda.
+  // A defesa contra classe errada é a guarda arquivo → robôs permitidos (no
+  // chefeGuarda, regra robo): volume nenhum separa frio mal classificado de
+  // agenda. Ela reprova o pedido com o nome de um robô de OUTRO arquivo, mas NÃO
+  // separa a classe nos 9 arquivos que hospedam robôs de classes diferentes (o
+  // dunningService.ts tem evento ao lado de frio de receita): ali o passaporte
+  // por chamada precisa provar o evento. Dívida declarada, cravada no chefeQuedas.
   sustentado3h: 40,
   sustentado6h: 60,
 
@@ -568,5 +572,6 @@ export const DIVERGENCIAS: readonly string[] = Object.freeze([
   'Teto da linha "sobre o que sobra depois do P0 e do P1" [crítica] lido assim: P2–P5 com 24/h e 200/24h próprios, e a proativa não leva o total da hora acima de 40 (picoAtencao do monitor). O aviso urgente ao time (lead novo) fica fora desses 40 [interpretação].',
   'Freio de erro: a especificação deixava a resposta tentar sempre; aqui, durante o freio, resposta e lembrete tentam no máximo 1 vez a cada 5 min (o replay de 04/08 deu 24 falhas numa hora sem isso).',
   'Aviso ao time para destino de fora da equipe vira frio [revisão]: o aviso não tem janela, pausa, orçamento do frio nem rampa, então só vale para a equipe. A lista da equipe, quando o CHEFE for ligado, tem de trazer o dono e todo consultor que recebe aviso; telefone que faltar aparece na sombra como aviso rebaixado.',
+  'Guarda arquivo → robôs permitidos (chefeGuarda): reprova o pedido com o nome literal de um robô de outro arquivo. Não basta nos 9 arquivos que hospedam robôs de classes diferentes (dunningService, whatsappAgentService, webhook, pixComprovante, ioIndicacoes, recepcaoIo, eletropostoRemarcar, eletropostoRespostas, eletropostoAgenda): ali o passaporte por chamada precisa provar o evento. Dívida declarada: um lote pedindo como evento sai a 60 em 10 min.',
   'Grupo não é destino interno por padrão [revisão]: só o grupo da lista explícita (o do cartão de agendamento, ZAPI_IO_GROUP_ID) ou o robô de grupo (sdr_grupo_interno). A linha é membro do grupo do eletroposto, onde entra lead.',
 ]);

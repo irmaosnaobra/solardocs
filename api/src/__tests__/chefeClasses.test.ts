@@ -123,6 +123,15 @@ describe('CLASSE_POR_ROBO: forma de cada robô', () => {
     }
   });
 
+  it('fora do frio, a pausa humana segue o HEAD robô a robô: só a Duda, a cobrança do SIM, a Giovanna e as boas-vindas', () => {
+    // recepcaoIo.ts (Duda), sendFrio (cobrança do SIM, zapiClient.ts:280-291),
+    // solarAgendaGiovanna.ts:320 e solarBoasVindas.ts:506. Mexer nesta lista é
+    // mudar quem fala com humano dentro da conversa: passa pela DIVERGENCIAS.
+    const naoFrios = robos.filter(([, r]) => r.classe !== 'frio_p5' && r.classe !== 'frio_receita_p4');
+    expect(naoFrios.filter(([, r]) => r.respeitaPausa).map(([n]) => n).sort())
+      .toEqual(['duda_recepcao', 'ep_cobra_sim', 'giovanna_agenda', 'solar_boas_vindas']);
+  });
+
   it('evento nasce de evento e sai em 1 bolha; só reativo tem 2 bolhas', () => {
     for (const [nome, r] of robos) {
       if (r.classe === 'evento_p0') expect({ nome, ev: r.nasceDeEvento, b: r.maxBolhas }).toEqual({ nome, ev: true, b: 1 });

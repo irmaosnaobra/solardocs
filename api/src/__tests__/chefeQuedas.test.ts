@@ -23,11 +23,13 @@ import { simular, porHoraBrt, picoEmJanela, PedidoAgendado, ResultadoSimulacao, 
 // ele, um CHEFE que não deixa nada sair passaria em todos os replays acima.
 //
 // Os replays recebem o robô com a classe CERTA de CLASSE_POR_ROBO. Os casos de
-// classe ERRADA (o frio pedindo como agenda, em 30/08 e em 02/10) estão
-// cravados como DÍVIDA CONHECIDA: o CHEFE puro não segura classe errada na
-// escala da hora, e nenhum volume separa o frio mal classificado de uma agenda
-// cheia. A defesa é a guarda arquivo → robôs permitidos, ligada com a catraca
-// (correção 4 da crítica), que ainda não existe. Telefones fictícios.
+// classe ERRADA (o frio pedindo como agenda, em 30/08 e em 02/10, e o lote
+// pedindo como evento num arquivo misto) estão cravados como DÍVIDA CONHECIDA:
+// o CHEFE puro não segura classe errada na escala da hora, e nenhum volume
+// separa o frio mal classificado de uma agenda cheia. A guarda arquivo → robôs
+// permitidos (chefeGuarda, regra robo) já reprova o pedido com o nome de um
+// robô de OUTRO arquivo; dentro dos 9 arquivos mistos ela não separa a classe,
+// e a defesa completa é o passaporte por chamada (dívida). Telefones fictícios.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MIN = 60_000;
@@ -181,9 +183,10 @@ describe('queda 3 — 30/08, 184 frios pela rota crua (98 saíram a 18/h)', () =
     // O volume sustentado (40 em 3h, 60 em 6h) só achata os picos de 3h e 6h.
     // Na hora passa 19, acima dos 18/h que bloquearam a linha, e saem todos os
     // 98 até 18h17, como na queda. A defesa contra classe errada é a guarda
-    // arquivo → robôs permitidos (zapiAdmin.ts só pode pedir como
-    // zapi_admin_lote), ligada com a catraca. Enquanto ela não existe, estes
-    // números ficam cravados: se mudarem, alguém mexeu na régua e tem de olhar.
+    // arquivo → robôs permitidos: o zapiAdmin.ts só pode pedir como
+    // zapi_admin_lote, e o pedido como ep_agenda reprova no chefeGuarda. Ela
+    // só vê nome literal; o passaporte por chamada fecha o resto (dívida).
+    // Números cravados: se mudarem, alguém mexeu na régua e tem de olhar.
     const seg = brt('2026-08-31T09:30');
     const r = simular(fila(98, i => seg + Math.round(i * 3.2 * MIN), 'ep_agenda'), { inicio: seg, fim: brt('2026-08-31T21:00') });
     resumo('30/08 classe errada', r);
@@ -245,9 +248,9 @@ describe('queda 4 — 02/10, o reagenda (39 frios em 55 min, 3 bolhas, carimband
   it('DÍVIDA CONHECIDA: com a classe ERRADA (pedindo como ep_agenda) o CHEFE puro deixa 24 frios em 55 min', () => {
     // A rajada achata os 10 min (de ~21 para 5), a bolha cai para 1, mas a hora
     // fica em 24 de frio para quem não escreveu: o teto da linha de P3. Na queda
-    // foram 39 contatos em 55 min. A defesa é a guarda arquivo → robôs (o
-    // eletropostoReagendaAuto.ts só pode pedir como ep_reagenda_auto), ligada
-    // com a catraca. Números cravados enquanto ela não existe.
+    // foram 39 contatos em 55 min. A defesa é a guarda arquivo → robôs: o
+    // eletropostoReagendaAuto.ts só pode pedir como ep_reagenda_auto, e o pedido
+    // como ep_agenda reprova no chefeGuarda. Números cravados.
     const r = simular(comoAgenda(), { inicio: nove, fim: brt('2026-10-03T20:00') });
     resumo('02/10 classe errada', r);
     expect(r.enviados.length).toBe(39);
@@ -334,6 +337,30 @@ describe('DÍVIDA CONHECIDA — o prazo declarado por quem chama (sondas A, A2 e
     expect(lembretes(rA3).length).toBe(150);
     expect(picoEmJanela(rA3.enviados, HORA)).toBe(36);
     expect(picoEmJanela(rA3.enviados, 10 * MIN)).toBe(6);
+  });
+});
+
+describe('DÍVIDA CONHECIDA — lote pedindo como evento num arquivo misto (passaporte por chamada)', () => {
+  // O dunningService.ts hospeda o dunning_lembrete (frio de receita) e o
+  // dunning_d0 (evento). A guarda arquivo → robôs deixa o arquivo pedir os dois
+  // (chefeGuarda, "DÍVIDA DECLARADA"), então um lote do lembrete pedindo como
+  // dunning_d0 sai como evento: sem janela, sem orçamento do frio, só com o
+  // espaçamento de 10 s e a emergência. Domingo 04/10 às 3h, 150 leads.
+  // Evento nunca é adiado (vai para a caixa), então o risco é mandar demais,
+  // não atrasar. A defesa é o passaporte por chamada provar o evento.
+  const tres = brt('2026-10-04T03:00');
+  const pedidos: PedidoAgendado[] = Array.from({ length: 150 }, (_, i) => ({
+    robo: 'dunning_d0', destino: lead(3000 + i), chave: `dunning:${i}`, desde: tres, modo: 'tick', semConversa: true, rotulo: 'lote_como_evento',
+  }));
+  const r = simular(pedidos, { inicio: tres, fim: tres + 6 * HORA, equipe: EQUIPE });
+  resumo('lote como evento', r);
+
+  it('150 enviados como evento a partir das 3h de domingo: 60 em 10 min, 60 na hora (a emergência é o único freio)', () => {
+    expect(r.enviados.length).toBe(150);
+    expect(r.enviados.every(e => e.classe === 'evento_p0')).toBe(true);
+    expect(picoEmJanela(r.enviados, 10 * MIN)).toBe(60);
+    expect(picoEmJanela(r.enviados, HORA)).toBe(60);
+    expect([...porHoraBrt(r.enviados).values()]).toEqual([60, 60, 30]);
   });
 });
 

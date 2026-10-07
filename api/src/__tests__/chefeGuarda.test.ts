@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join, extname, posix } from 'path';
 import * as ts from 'typescript';
+import { CLASSE_POR_ROBO, CLASSES, Classe } from '../services/chefe/classes';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CHEFE anti-ban — GUARDA ESTÁTICA: ninguém fala com a Z-API nem com o Graph da
@@ -43,6 +44,12 @@ import * as ts from 'typescript';
 //   script    em api/scripts e worker-prospeccao: importar o transporte da api,
 //             chamar uma função de envio ou apontar para uma rota de envio. Disparo
 //             passa a ser rota que passa pelo CHEFE, nunca script local.
+//   robo      em api/src (fora do CHEFE): pedido com robo: '<nome>' literal de
+//             um arquivo que não está na lista daquele robô (ROBOS_POR_ARQUIVO,
+//             igual ao CLASSE_POR_ROBO[*].arquivos), ou com nome sem registro.
+//             É a guarda arquivo → robôs permitidos contra a classe errada (o
+//             reagenda pedindo como ep_agenda em 02/10, a rota da queda de 30/08
+//             pedindo como agenda).
 //
 // COMO A CATRACA FUNCIONA. Os ofensores que existem hoje estão em MIGRAR, com a
 // contagem exata por arquivo e tipo e o porquê. O teste passa hoje e falha:
@@ -75,8 +82,13 @@ import * as ts from 'typescript';
 //     consulta, e consulta num arquivo de CONSULTA_ZAPI passa sem contagem.
 //   - Quem chama sendWhatsApp/sendHuman sem passar pelo CHEFE NÃO é assunto
 //     desta guarda: isso é a catraca de passaporte, que entra com o CHEFE ligado.
-//     O mapa arquivo → robôs permitidos (CLASSE_POR_ROBO[*].arquivos) também
-//     ainda não é usado aqui: entra com a catraca.
+//   - O mapa arquivo → robôs permitidos (regra robo) só vê o nome LITERAL do
+//     robô no pedido; nome vindo de variável não aparece. E ele NÃO separa
+//     classes dentro dos 9 arquivos que hospedam robôs de classes diferentes
+//     (ARQUIVOS_MISTOS): o dunningService.ts pode pedir o lote do lembrete
+//     (frio de receita) como dunning_d0 (evento) e passa. A defesa completa é o
+//     passaporte por chamada, que prova o evento: DÍVIDA declarada, com os
+//     números do evento cravados no chefeQuedas.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const RAIZ = join(__dirname, '..', '..', '..');
@@ -106,13 +118,14 @@ const PASTAS_IGNORADAS = new Set(['node_modules', 'dist', '.vercel', '__tests__'
 const CAMINHOS_IGNORADOS = new Set(['api/scripts/out']);
 const EXT_TEXTO = new Set(['.py', '.ps1', '.sh', '.cmd', '.bat', '.vbs']);
 
-type Regra = 'zapi' | 'graph' | 'zapipost' | 'envio_cru' | 'script';
+type Regra = 'zapi' | 'graph' | 'zapipost' | 'envio_cru' | 'script' | 'robo';
 type Chave =
   | 'zapi:envio' | 'zapi:caminho_livre'
   | 'graph:envio' | 'graph:caminho_livre'
   | 'zapipost:chamada'
   | 'envio_cru:chamada'
-  | 'script:import' | 'script:chamada' | 'script:rota';
+  | 'script:import' | 'script:chamada' | 'script:rota'
+  | 'robo:fora_do_arquivo' | 'robo:sem_registro';
 type Metodo = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'DESCONHECIDO';
 
 interface Achado {
@@ -215,6 +228,124 @@ const CONSULTA_ZAPI: Readonly<Record<string, string>> = Object.freeze({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// MAPA ARQUIVO → ROBÔS PERMITIDOS, com a classe máxima de cada arquivo (a mais
+// urgente que um pedido dali pode ter; robô de agenda com prazo conta como
+// lembrete_p1). Caminho relativo a api/src, como em CLASSE_POR_ROBO.
+//
+// Escrito aqui por extenso, e não lido do CLASSE_POR_ROBO, de propósito: o
+// teste prova que os dois são iguais, então pôr um robô num arquivo novo (ou um
+// evento ao lado de um frio) muda este mapa no mesmo diff e aparece na revisão.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ROBOS_POR_ARQUIVO: Readonly<Record<string, { robos: readonly string[]; classeMaxima: Classe }>> = Object.freeze({
+  'controllers/authController.ts': { robos: ['solardoc_boas_vindas', 'solardoc_compra'], classeMaxima: 'evento_p0' },
+  'controllers/paymentsController.ts': { robos: ['solardoc_compra'], classeMaxima: 'evento_p0' },
+  'controllers/trackingGeradorController.ts': { robos: ['tracking_gerador_aviso'], classeMaxima: 'aviso_interno_p2' },
+  'controllers/trafegoController.ts': { robos: ['trafego_confirmacao'], classeMaxima: 'evento_p0' },
+  'routes/admin.ts': { robos: ['manual_crm'], classeMaxima: 'reativo_p1' },
+  'routes/cron.ts': { robos: ['prospeccao_aviso', 'resumo_dia'], classeMaxima: 'aviso_interno_p2' },
+  'routes/ioEletroposto.ts': { robos: ['ep_aviso_ficha'], classeMaxima: 'aviso_interno_p2' },
+  'routes/ioIndicacoes.ts': { robos: ['indicacao_aviso_equipe', 'indicacao_confirmacao'], classeMaxima: 'evento_p0' },
+  'routes/ioSolar.ts': { robos: ['solar_aviso_ficha'], classeMaxima: 'aviso_interno_p2' },
+  'routes/webhook.ts': { robos: ['convite_grupo_pedido', 'webhook_audio_falhou', 'webhook_aviso_equipe'], classeMaxima: 'evento_p0' },
+  'routes/zapiAdmin.ts': { robos: ['zapi_admin_lote'], classeMaxima: 'frio_p5' },
+  'services/agenda/agendaProximaDigest.ts': { robos: ['agenda_proxima_digest'], classeMaxima: 'aviso_interno_p2' },
+  'services/agenda/leadsMetaService.ts': { robos: ['leads_meta_alerta'], classeMaxima: 'aviso_interno_p2' },
+  'services/agenda/manychatLeadService.ts': { robos: ['manychat_aviso'], classeMaxima: 'aviso_interno_p2' },
+  'services/agenda/reagendarDigest.ts': { robos: ['reagendar_digest'], classeMaxima: 'aviso_interno_p2' },
+  'services/agents/sdr/carlaRetomada.ts': { robos: ['carla_retomada'], classeMaxima: 'frio_p5' },
+  'services/agents/sdr/sdrAgentService.ts': { robos: ['sdr_grupo_interno'], classeMaxima: 'aviso_interno_p2' },
+  'services/agents/sdr/sdrB2bAgentService.ts': { robos: ['carla_b2b_reativa'], classeMaxima: 'reativo_p1' },
+  'services/agents/sdr/sdrGroupAgent.ts': { robos: ['sdr_grupo_interno'], classeMaxima: 'aviso_interno_p2' },
+  'services/agents/sdr/sdrIoPolling.ts': { robos: ['sdr_io_aviso'], classeMaxima: 'aviso_interno_p2' },
+  'services/agents/whatsapp/biaInboundService.ts': { robos: ['bia_inbound'], classeMaxima: 'reativo_p1' },
+  'services/agents/whatsapp/carlaCnpjKillerQuestion.ts': { robos: ['carla_cnpj_killer'], classeMaxima: 'frio_p5' },
+  'services/agents/whatsapp/carlaPlatformFollowupService.ts': { robos: ['carla_inativo', 'carla_sem_cnpj'], classeMaxima: 'frio_p5' },
+  'services/agents/whatsapp/cursoEntradaBroadcast.ts': { robos: ['curso19'], classeMaxima: 'frio_p5' },
+  'services/agents/whatsapp/filaAlerta.ts': { robos: ['fila_alerta'], classeMaxima: 'aviso_interno_p2' },
+  'services/agents/whatsapp/limpaproRecoveryService.ts': { robos: ['bia_recuperacao'], classeMaxima: 'frio_p5' },
+  'services/agents/whatsapp/pixComprovanteService.ts': { robos: ['pix_comprovante_cliente', 'pix_comprovante_dono'], classeMaxima: 'evento_p0' },
+  'services/agents/whatsapp/pixRecoveryAgentService.ts': { robos: ['recuperacao_checkout'], classeMaxima: 'frio_receita_p4' },
+  'services/agents/whatsapp/pixVipReminderService.ts': { robos: ['pix_vip_lembrete'], classeMaxima: 'frio_receita_p4' },
+  'services/agents/whatsapp/whatsappAgentService.ts': {
+    robos: ['giovanna_aviso_dono', 'giovanna_reativa', 'solardoc_ativacao', 'solardoc_boas_vindas', 'solardoc_compra'], classeMaxima: 'evento_p0',
+  },
+  'services/agents/whatsapp/whatsappFollowupService.ts': { robos: ['whatsapp_followup'], classeMaxima: 'frio_p5' },
+  'services/asaas/asaasWebhookService.ts': { robos: ['asaas_aviso'], classeMaxima: 'aviso_interno_p2' },
+  'services/confiancaWhatsAppService.ts': { robos: ['confianca_whatsapp'], classeMaxima: 'frio_p5' },
+  'services/dunningService.ts': { robos: ['dunning_d0', 'dunning_d5', 'dunning_lembrete', 'dunning_recuperado'], classeMaxima: 'evento_p0' },
+  'services/followupService.ts': { robos: ['recuperacao_checkout'], classeMaxima: 'frio_receita_p4' },
+  'services/instagram/fbMensagens.ts': { robos: ['fb_aviso_equipe'], classeMaxima: 'aviso_interno_p2' },
+  'services/instagram/igEngine.ts': { robos: ['ig_aviso_equipe'], classeMaxima: 'aviso_interno_p2' },
+  'services/io/avisosTickService.ts': { robos: ['avisos_pauta'], classeMaxima: 'frio_p5' },
+  'services/io/eletropostoAgenda.ts': { robos: ['ep_agenda', 'ep_desmarcacao_aviso'], classeMaxima: 'lembrete_p1' },
+  'services/io/eletropostoAlerta10min.ts': { robos: ['ep_alerta_10min'], classeMaxima: 'lembrete_p1' },
+  'services/io/eletropostoCardPing.ts': { robos: ['ep_card_ping'], classeMaxima: 'aviso_interno_p2' },
+  'services/io/eletropostoCobraSim.ts': { robos: ['ep_cobra_sim'], classeMaxima: 'lembrete_p1' },
+  'services/io/eletropostoIgConvite.ts': { robos: ['ep_ig_convite'], classeMaxima: 'frio_p5' },
+  'services/io/eletropostoNaoAtendidoFup.ts': { robos: ['ep_oferta_fria'], classeMaxima: 'frio_p5' },
+  'services/io/eletropostoReagendaAuto.ts': { robos: ['ep_reagenda_auto'], classeMaxima: 'frio_p5' },
+  'services/io/eletropostoRemarcar.ts': { robos: ['ep_oferta_fria', 'ep_remarcar_reativo'], classeMaxima: 'reativo_p1' },
+  'services/io/eletropostoRespostas.ts': { robos: ['ep_oferta_fria', 'ep_remarcar_reativo', 'ep_respostas_aviso'], classeMaxima: 'reativo_p1' },
+  'services/io/eletropostoRetorno.ts': { robos: ['ep_oferta_fria'], classeMaxima: 'frio_p5' },
+  'services/io/encaminharMidiaConsultor.ts': { robos: ['encaminha_midia'], classeMaxima: 'aviso_interno_p2' },
+  'services/io/entradaIoDigest.ts': { robos: ['entrada_io_digest'], classeMaxima: 'aviso_interno_p2' },
+  'services/io/ioSend.ts': { robos: ['avisos_pauta'], classeMaxima: 'frio_p5' },
+  'services/io/lembreteFollowupService.ts': { robos: ['lembrete_followup'], classeMaxima: 'aviso_interno_p2' },
+  'services/io/placarGiovanna.ts': { robos: ['placar_giovanna'], classeMaxima: 'aviso_interno_p2' },
+  'services/io/prospeccaoAviso.ts': { robos: ['prospeccao_aviso'], classeMaxima: 'aviso_interno_p2' },
+  'services/io/recepcaoIo.ts': { robos: ['duda_ficha_consultor', 'duda_recepcao'], classeMaxima: 'reativo_p1' },
+  'services/io/sementeSolarService.ts': { robos: ['semente'], classeMaxima: 'frio_p5' },
+  'services/io/sentinelaVacuo.ts': { robos: ['sentinela_vacuo'], classeMaxima: 'aviso_interno_p2' },
+  'services/io/solarAgendaGiovanna.ts': { robos: ['giovanna_agenda'], classeMaxima: 'lembrete_p1' },
+  'services/io/solarBoasVindas.ts': { robos: ['solar_boas_vindas'], classeMaxima: 'lembrete_p1' },
+  'services/io/solarRespostas.ts': { robos: ['solar_respostas_aviso'], classeMaxima: 'aviso_interno_p2' },
+  'services/pesquisaSatisfacao.ts': { robos: ['pesquisa_satisfacao'], classeMaxima: 'frio_p5' },
+  'services/vendaAviso.ts': { robos: ['venda_aviso'], classeMaxima: 'aviso_interno_p2' },
+});
+
+/**
+ * Os 9 arquivos que hospedam robôs de classes diferentes. Aqui a regra robo não
+ * separa a classe: um pedido com o nome de outro robô do MESMO arquivo passa.
+ * A defesa completa é o passaporte por chamada (dívida declarada).
+ */
+const ARQUIVOS_MISTOS: Readonly<Record<string, readonly Classe[]>> = Object.freeze({
+  'routes/ioIndicacoes.ts': ['evento_p0', 'aviso_interno_p2'],
+  'routes/webhook.ts': ['evento_p0', 'reativo_p1', 'aviso_interno_p2'],
+  'services/agents/whatsapp/pixComprovanteService.ts': ['evento_p0', 'aviso_interno_p2'],
+  'services/agents/whatsapp/whatsappAgentService.ts': ['evento_p0', 'reativo_p1', 'aviso_interno_p2'],
+  'services/dunningService.ts': ['evento_p0', 'frio_receita_p4'],
+  'services/io/eletropostoAgenda.ts': ['aviso_interno_p2', 'transacional_agenda_p3'],
+  'services/io/eletropostoRemarcar.ts': ['reativo_p1', 'frio_p5'],
+  'services/io/eletropostoRespostas.ts': ['reativo_p1', 'aviso_interno_p2', 'frio_p5'],
+  'services/io/recepcaoIo.ts': ['reativo_p1', 'aviso_interno_p2'],
+});
+
+/** O mapa como o CLASSE_POR_ROBO dá hoje (o teste confere com o literal acima). */
+function mapaDerivado(): { mapa: Record<string, { robos: string[]; classeMaxima: Classe }>; classes: Record<string, Classe[]> } {
+  const rank = (c: Classe) => CLASSES.indexOf(c);
+  const mapa: Record<string, { robos: string[]; classeMaxima: Classe }> = {};
+  const classes: Record<string, Classe[]> = {};
+  for (const [nome, r] of Object.entries(CLASSE_POR_ROBO)) {
+    const efetiva: Classe = r.podeTerPrazo && rank('lembrete_p1') < rank(r.classe) ? 'lembrete_p1' : r.classe;
+    for (const a of r.arquivos) {
+      const e = mapa[a] ?? (mapa[a] = { robos: [], classeMaxima: 'frio_p5' });
+      e.robos.push(nome);
+      if (rank(efetiva) < rank(e.classeMaxima)) e.classeMaxima = efetiva;
+      const cs = classes[a] ?? (classes[a] = []);
+      if (!cs.includes(r.classe)) cs.push(r.classe);
+    }
+  }
+  for (const e of Object.values(mapa)) e.robos.sort();
+  for (const cs of Object.values(classes)) cs.sort((x, y) => rank(x) - rank(y));
+  return { mapa, classes };
+}
+
+const PASTA_CHEFE = 'api/src/services/chefe/';
+/** Pedido com robo: '<nome>' literal (o passaporte do pedido ao CHEFE). */
+const PEDIDO_COM_ROBO = /\brobo\s*:\s*['"`]/;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // VARREDURA — a mesma função roda no disco e nas fixtures do controle positivo.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -268,10 +399,14 @@ function tipoDeScript(arquivo: string): ts.ScriptKind | null {
   }
 }
 
+/** O arquivo pede ao CHEFE com nome literal de robô (e não é o próprio CHEFE)? */
+const pedeRobo = (texto: string, arquivo: string): boolean =>
+  arquivo.startsWith('api/src/') && !arquivo.startsWith(PASTA_CHEFE) && PEDIDO_COM_ROBO.test(texto);
+
 function varrerFonte(texto: string, arquivo: string): Achado[] {
   const baixo = texto.toLowerCase();
   const gatilhos = ehScript(arquivo) ? [...GATILHOS, ...GATILHOS_SCRIPT] : GATILHOS;
-  if (!gatilhos.some(g => baixo.includes(g))) return [];
+  if (!pedeRobo(texto, arquivo) && !gatilhos.some(g => baixo.includes(g))) return [];
   const kind = tipoDeScript(arquivo);
   if (kind !== null) return varrerAst(texto, arquivo, kind);
   if (EXT_TEXTO.has(extname(arquivo).toLowerCase())) return varrerTexto(texto, arquivo);
@@ -518,6 +653,8 @@ function varrerAst(texto: string, arquivo: string, kind: ts.ScriptKind): Achado[
   const importsTransporte: ts.Node[] = [];
   /** const app = axios.create(...): instância de cliente HTTP, nunca receptor de rota. */
   const clientesHttp = new Set<string>();
+  const olhaRobo = pedeRobo(texto, arquivo);
+  const pedidosDeRobo: { no: ts.Node; nome: string }[] = [];
 
   const registrarModulo = (no: ts.Node, modulo: string, montar: (imp: ImportVigiado) => void): void => {
     if (MODULO_TRANSPORTE.test(modulo)) importsTransporte.push(no);
@@ -556,6 +693,10 @@ function varrerAst(texto: string, arquivo: string, kind: ts.ScriptKind): Achado[
         }
       });
       return;
+    }
+    if (olhaRobo && ts.isPropertyAssignment(n) && nomeDaPropriedade(n.name) === 'robo'
+      && (ts.isStringLiteral(n.initializer) || ts.isNoSubstitutionTemplateLiteral(n.initializer))) {
+      pedidosDeRobo.push({ no: n, nome: n.initializer.text });
     }
     if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer) {
       let ini: ts.Expression = n.initializer;
@@ -659,6 +800,13 @@ function varrerAst(texto: string, arquivo: string, kind: ts.ScriptKind): Achado[
     for (const imp of imps) {
       if (imp.reexporta || (imp.locais.length > 0 && chamadasCruas === 0)) add(imp.no, regra, 'chamada', imp.no.getText(sf));
     }
+  }
+
+  // ── robô pedido de um arquivo que não é o dele ──
+  const rel = arquivo.slice('api/src/'.length);
+  for (const { no, nome } of pedidosDeRobo) {
+    if (!Object.prototype.hasOwnProperty.call(CLASSE_POR_ROBO, nome)) add(no, 'robo', 'sem_registro', `robo '${nome}' sem registro em CLASSE_POR_ROBO`);
+    else if (!(ROBOS_POR_ARQUIVO[rel]?.robos ?? []).includes(nome)) add(no, 'robo', 'fora_do_arquivo', `robo '${nome}' pedido de ${rel}`);
   }
 
   // ── script de envio ──
@@ -1166,6 +1314,75 @@ describe('chefeGuarda: controle positivo (ofensor sintético é pego)', () => {
     // Leitura num arquivo fora da lista de consulta.
     const leitura: Achado = { arquivo: 'api/src/services/io/roboNovo.ts', linha: 1, regra: 'zapi', tipo: 'consulta', trecho: 'x' };
     expect(avaliar([...real, leitura]).join('\n')).toContain('fora de CONSULTA_ZAPI');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ARQUIVO → ROBÔS PERMITIDOS: a guarda contra a classe errada. As quedas de
+// 30/08 e 02/10 foram um remetente pedindo com o nome (e a conta) de outro.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('chefeGuarda: arquivo → robôs permitidos, com a classe máxima de cada arquivo', () => {
+  const pedido = (robo: string) => `export const pedir = (decidir: any, estado: any, p: string, agora: number) => decidir(estado, { robo: '${robo}', destino: p }, agora);`;
+
+  it('o mapa escrito na guarda é igual ao CLASSE_POR_ROBO (robô em arquivo novo muda os dois no mesmo diff)', () => {
+    const { mapa } = mapaDerivado();
+    const literal = Object.fromEntries(Object.entries(ROBOS_POR_ARQUIVO).map(([a, e]) => [a, { robos: [...e.robos].sort(), classeMaxima: e.classeMaxima }]));
+    expect(literal).toEqual(mapa);
+  });
+
+  it('os 9 arquivos com robôs de classes diferentes estão documentados pelo nome', () => {
+    const { classes } = mapaDerivado();
+    const mistos = Object.fromEntries(Object.entries(classes).filter(([, cs]) => cs.length > 1));
+    expect(mistos).toEqual(ARQUIVOS_MISTOS);
+    expect(Object.keys(ARQUIVOS_MISTOS).length).toBe(9);
+    // O pior deles: evento ao lado de frio de receita.
+    expect(ARQUIVOS_MISTOS['services/dunningService.ts']).toEqual(['evento_p0', 'frio_receita_p4']);
+  });
+
+  it('arquivo novo pedindo robô de outro arquivo reprova; o arquivo do robô passa; nome sem registro reprova', () => {
+    const novo = 'api/src/services/io/roboNovo.ts';
+    const fora = varrerFonte(pedido('dunning_d0'), novo);
+    expect(resumo(fora)).toEqual(['robo:fora_do_arquivo']);
+    expect(avaliar([...inventario.achados, ...fora]).join('\n')).toContain(`OFENSOR NOVO: ${novo} tem 1 × robo:fora_do_arquivo`);
+    expect(varrerFonte(pedido('dunning_d0'), 'api/src/services/dunningService.ts')).toEqual([]);
+    expect(resumo(varrerFonte(pedido('robo_que_nao_existe'), novo))).toEqual(['robo:sem_registro']);
+    // O próprio CHEFE e os testes ficam fora da regra.
+    expect(varrerFonte(pedido('dunning_d0'), 'api/src/services/chefe/simularNovo.ts')).toEqual([]);
+  });
+
+  it('as quedas de classe errada reprovam: o reagenda pedindo como ep_agenda (02/10) e a rota do admin pedindo como agenda (30/08)', () => {
+    for (const [arquivo, robo] of [
+      ['api/src/services/io/eletropostoReagendaAuto.ts', 'ep_agenda'],
+      ['api/src/routes/zapiAdmin.ts', 'ep_agenda'],
+      ['api/src/routes/zapiAdmin.ts', 'manual_crm'],
+    ] as const) {
+      const real = readFileSync(join(RAIZ, ...arquivo.split('/')), 'utf8');
+      const depois = varrerFonte(`${real}\n${pedido(robo)}\n`, arquivo);
+      const resto = inventario.achados.filter(a => a.arquivo !== arquivo);
+      expect({ arquivo, robo, r: avaliar([...resto, ...depois]).join('\n') })
+        .toMatchObject({ arquivo, robo, r: expect.stringContaining(`OFENSOR NOVO: ${arquivo} tem 1 × robo:fora_do_arquivo`) });
+    }
+    // O robô certo, do arquivo certo, passa.
+    const reagenda = 'api/src/services/io/eletropostoReagendaAuto.ts';
+    const real = readFileSync(join(RAIZ, ...reagenda.split('/')), 'utf8');
+    expect(resumo(varrerFonte(`${real}\n${pedido('ep_reagenda_auto')}\n`, reagenda)).filter(k => k.startsWith('robo:'))).toEqual([]);
+  });
+
+  it('DÍVIDA DECLARADA: num arquivo misto a regra não separa a classe; o lote do lembrete pedindo como dunning_d0 passa', () => {
+    // O dunningService.ts hospeda dunning_lembrete (frio de receita) e
+    // dunning_d0/d5/recuperado (evento). Pedir o lote do lembrete como
+    // dunning_d0 passa nesta guarda e sai como evento: 60 em 10 min, de
+    // madrugada e no domingo (números cravados no chefeQuedas). A defesa completa
+    // é o passaporte por chamada, que prova o evento. Se este teste quebrar
+    // porque a guarda passou a pegar, ótimo: troque por um controle positivo.
+    const arquivo = 'api/src/services/dunningService.ts';
+    const real = readFileSync(join(RAIZ, ...arquivo.split('/')), 'utf8');
+    const lote = 'export async function loteDoLembrete(decidir: any, estado: any, lista: string[], agora: number) { for (const p of lista) decidir(estado, { robo: \'dunning_d0\', destino: p }, agora); }';
+    const depois = varrerFonte(`${real}\n${lote}\n`, arquivo);
+    const resto = inventario.achados.filter(a => a.arquivo !== arquivo);
+    expect(avaliar([...resto, ...depois])).toEqual([]);
+    expect(ROBOS_POR_ARQUIVO['services/dunningService.ts']!.classeMaxima).toBe('evento_p0');
   });
 });
 

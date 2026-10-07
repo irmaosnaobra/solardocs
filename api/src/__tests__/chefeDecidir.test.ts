@@ -135,6 +135,28 @@ describe('decidir: uma regra por caso', () => {
     expect(decidir(est({ destino: { pausa: { ultimaFalaEm: T - 25 * HORA } } }), ped('giovanna_agenda'), T).acao).toBe('enviar_agora');
   });
 
+  // [revisão] As mudanças de pausa escritas em DIVERGENCIAS só eram pegas pelo
+  // oráculo sorteado: tirar a pausa da cobrança do SIM, das boas-vindas ou do
+  // reativo rebaixado a frio não derrubava nenhum caso.
+  it('pausa fixada robô a robô: cobrança do SIM, boas-vindas e Giovanna esperam, com prazo também; reativo rebaixado a frio espera', () => {
+    const comPausa = (extra: Partial<NonNullable<Estado['destino']>> = {}) => est({ destino: { pausa: { ultimaFalaEm: T - HORA }, ...extra } });
+    for (const robo of ['ep_cobra_sim', 'solar_boas_vindas', 'giovanna_agenda']) {
+      // Sem prazo (P3) e com prazo (vira lembrete_p1): a pausa segura os dois.
+      expect({ robo, d: adiar(decidir(comPausa(), ped(robo), T)) }).toMatchObject({ robo, d: { classe: 'transacional_agenda_p3', motivo: 'pausa_humana', escopo: 'destino' } });
+      expect({ robo, d: adiar(decidir(comPausa(), ped(robo, { prazo: T + 5 * MIN }), T)) }).toMatchObject({ robo, d: { classe: 'lembrete_p1', motivo: 'pausa_humana', escopo: 'destino' } });
+      // Pausa esfriada (25h): sai.
+      expect(decidir(est({ destino: { pausa: { ultimaFalaEm: T - 25 * HORA } } }), ped(robo, { prazo: T + 5 * MIN }), T).acao).toBe('enviar_agora');
+    }
+    // A vendedora reativa passa com o lead que escreveu agora; atrasada, vira frio, e frio espera a pausa.
+    expect(decidir(comPausa({ ultimaEntradaEm: T - MIN }), ped('giovanna_reativa'), T).acao).toBe('enviar_agora');
+    expect(adiar(decidir(comPausa({ ultimaEntradaEm: T - 3 * HORA }), ped('giovanna_reativa'), T))).toMatchObject({ classe: 'frio_p5', motivo: 'pausa_humana' });
+    expect(adiar(decidir(comPausa({ ultimaEntradaEm: T - 3 * HORA }), ped('manual_crm'), T))).toMatchObject({ classe: 'frio_p5', motivo: 'pausa_humana' });
+    // O aviso rebaixado a frio (destino de fora) também espera.
+    expect(adiar(decidir(comPausa(), ped('ep_respostas_aviso'), T))).toMatchObject({ classe: 'frio_p5', motivo: 'pausa_humana' });
+    // A agenda do eletroposto não confere a pausa hoje, nem com prazo.
+    expect(decidir(comPausa(), ped('ep_agenda', { prazo: T + 5 * MIN }), T).acao).toBe('enviar_agora');
+  });
+
   it('pausa (destino) e janela (linha) juntas: o escopo é da linha', () => {
     const d = adiar(decidir(est({ destino: { pausa: { ultimaFalaEm: DOMINGO_10H - HORA } } }), ped('semente'), DOMINGO_10H));
     expect(d.escopo).toBe('linha');
