@@ -349,12 +349,14 @@ export function relogioDoCiclo(status: string): 'fala' | 'esquecido' | 'negocia'
   if (DESTINO_FINAL.has(status)) return null;
   if (status === 'nao_atendeu') return 'fala';        // 45 min, e manda mensagem
   if (status === 'agendado') return 'esquecido';      // 6h, calado
-  return 'negocia';                                   // 48h, calado
+  return 'negocia';                                   // 24, 48, 48, 72, 72 … h, calado
 }
 
-/** Atalho: tudo que não é vermelho nem esquecido roda no relógio de 48h. */
+/** Atalho: tudo que não é vermelho nem esquecido roda no relógio da escada. */
 const ehNegociacaoStatus = (st: string): boolean => relogioDoCiclo(st) === 'negocia';
-const negociacaoH = (): number => num('EP_NEGOCIACAO_H', 48);
+/** A PRIMEIRA volta da escada, que é também o menor descanso dela (24h desde
+ *  07/10/2026; era 48h). O corte da consulta usa este número como piso. */
+const negociacaoH = (): number => num('EP_NEGOCIACAO_H', 24);
 /**
  * ── A ESCADA DA NEGOCIAÇÃO (01/10/2026) ───────────────────────────────────
  *
@@ -374,11 +376,37 @@ const negociacaoH = (): number => num('EP_NEGOCIACAO_H', 48);
  * voltando, que é a parte que não muda.
  *
  * O QUE ZERA A ESCADA é a ETIQUETA MUDAR. `arrendamento` virando
- * `chave_na_mao` é a negociação andando: o card volta pro degrau 1, com 48h.
- * É por isso que `Estado` guarda o status.
+ * `chave_na_mao` é a negociação andando: o card volta pro degrau 1, com o
+ * descanso mais curto. É por isso que `Estado` guarda o status.
+ *
+ * ── A ESCADA MUDOU DE FORMA (07/10/2026) ──────────────────────────────────
+ *
+ * Ordem do Thiago: "quando o lead cai na agenda e é colocada alguma etiqueta
+ * de negociação, quero que volte 24hrs; se mantém, volte depois de 48hrs; se
+ * manteve, depois de 48hrs; se manteve, depois de 72hrs; se manteve, depois de
+ * 72hrs; se manteve, depois de 96hrs; se manteve, depois de 96hrs, e assim por
+ * diante".
+ *
+ *   volta:  1   2   3   4   5   6   7   8 …
+ *   horas: 24  48  48  72  72  96  96 120 …
+ *
+ * Duas mudanças em relação à de 01/10: a primeira volta caiu de 48h pra 24h, e
+ * cada intervalo depois dela se REPETE UMA VEZ antes de subir. O passo continua
+ * 24h; ele só sobe a cada duas voltas. Em 30 dias de etiqueta parada são
+ * perto de 9 voltas (dias 1, 3, 5, 8, 11, 15, 19, 24, 29), contra 6 na escada
+ * de 01/10 (dias 2, 5, 9, 14, 20, 27).
+ *
+ * O resto não mudou: etiqueta diferente zera, o teto sai da janela, e
+ * `EP_NEGOCIACAO_H` (a primeira volta) e `EP_NEGOCIACAO_PASSO_H` (quanto sobe)
+ * mexem sem deploy.
  */
 const passoNegociacaoH = (): number => num('EP_NEGOCIACAO_PASSO_H', 24);
-/** As horas de descanso do degrau `d`: 48, 72, 96, 120 … */
+/** Quantas voltas cada intervalo dura antes de subir um passo. A primeira volta
+ *  é a única que não repete: 24 | 48 48 | 72 72 | 96 96 … */
+const VOLTAS_POR_PASSO = 2;
+/** Os degraus que o log da rampa imprime: bastam pra ver a forma da escada. */
+const ESCADA_NO_LOG = [1, 2, 3, 4, 5, 6, 7];
+/** As horas de descanso do degrau `d`: 24, 48, 48, 72, 72, 96, 96 … */
 /**
  * ── O TETO DA ESCADA SAI DA JANELA, NÃO DE UM NÚMERO SOLTO ─────────────────
  *
@@ -438,15 +466,15 @@ async function contarForaDaJanela(de: string): Promise<void> {
   }
 }
 export const horasDoDegrau = (d: number): number => Math.min(
-  negociacaoH() + passoNegociacaoH() * Math.max(0, Math.floor(d) - 1),
+  negociacaoH() + passoNegociacaoH() * Math.floor(Math.max(1, Math.floor(d)) / VOLTAS_POR_PASSO),
   tetoDoDegrauH(),
 );
 /**
  * O degrau da PRÓXIMA volta desta ficha.
  *
  * Etiqueta igual à da última volta sobe um degrau; etiqueta diferente, ou ficha
- * que nunca voltou, começa no 1 (48h). Carimbo gravado antes de 01/10 não tem
- * `status`, então ele cai no 1 também: a ficha ganha mais um 48h e a escada
+ * que nunca voltou, começa no 1 (24h). Carimbo gravado antes de 01/10 não tem
+ * `status`, então ele cai no 1 também: a ficha ganha mais um degrau 1 e a escada
  * começa a contar da próxima — nenhuma ficha é pulada na virada.
  */
 export function degrauDaProximaVolta(
@@ -950,10 +978,10 @@ export async function runEletropostoReagendaAutoTick(
     // frouxo (45 min) porque ela é uma só pros dois status; quem aperta o corte
     // certo é esta linha.
     && (f.status !== 'agendado' || (!!f.quando && f.quando <= corteEsquecido))
-    // Negociação: este corte é o PISO da escada (o degrau 1, 48h). Quem sabe o
+    // Negociação: este corte é o PISO da escada (o degrau 1, 24h). Quem sabe o
     // degrau de cada ficha é o `estadoDe`, que só é lido depois daqui — então o
     // corte exato é aplicado no `naVez`. Peneirar aqui pelo piso é de graça e
-    // não exclui ninguém que esteja no prazo: nenhum degrau pede MENOS que 48h.
+    // não exclui ninguém que esteja no prazo: nenhum degrau pede MENOS que o 1.
     && (!ehNegociacaoStatus(String(f.status)) || (!!f.quando && f.quando <= corteNegociacao))
     // Rede: status sem relógio nenhum não entra. A consulta já corta destino
     // final e apalavrado; isto segura se alguém mexer na consulta.
@@ -1178,7 +1206,11 @@ export async function runEletropostoReagendaAutoTick(
   };
   // Deixa VISÍVEL o que a rampa contou. Sem isto, "rampa cheia" é uma afirmação
   // sem prova nenhuma no log, e foi assim que o defeito passou despercebido.
-  logger.info('ep-reagenda', `rampa: fala ${contados('fala')}/${tetoPorDia()}, mudo ${contados('mudo')}/${tetoMudoPorDia()} (desde ${inicioDoDiaBRT}), ${jaHoje} hoje de ${(feitosHoje.data || []).length} carimbos no total`);
+  // A ESCADA QUE ESTÁ VALENDO, no mesmo log da rampa (07/10/2026). Os números
+  // dela saem de env, e a lista de envs da Vercel não é legível daqui: sem esta
+  // linha, uma `*_NEGOCIACAO_H` esquecida em produção seguraria a escada velha
+  // sem ninguém ver. Assim ela se prova a cada tick.
+  logger.info('ep-reagenda', `rampa: fala ${contados('fala')}/${tetoPorDia()}, mudo ${contados('mudo')}/${tetoMudoPorDia()} (desde ${inicioDoDiaBRT}), ${jaHoje} hoje de ${(feitosHoje.data || []).length} carimbos no total, escada ${ESCADA_NO_LOG.map(horasDoDegrau).join('/')}h`);
 
   // ── A FILA É FILTRADA, NÃO INTERROMPIDA ──────────────────────────────────
   //

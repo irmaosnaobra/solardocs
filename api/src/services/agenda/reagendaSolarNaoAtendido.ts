@@ -185,13 +185,15 @@ const esquecidoH = (): number => num('SOLAR_ESQUECIDO_H', 6);
  * fez_orcamento, 8 negociando e 4 no whatsapp. Agora a lista e do que NAO entra,
  * e status novo nasce rodando.
  */
-const negociacaoH = (): number => num('SOLAR_NEGOCIACAO_H', 48);
+/** A primeira volta da escada, e o menor descanso dela: 24h desde 07/10/2026. */
+const negociacaoH = (): number => num('SOLAR_NEGOCIACAO_H', 24);
 /**
- * ── A ESCADA DA NEGOCIAÇÃO (01/10/2026) ───────────────────────────────────
+ * ── A ESCADA DA NEGOCIAÇÃO (01/10/2026, nova forma em 07/10/2026) ─────────
  *
- * Mesma ordem e mesma conta do eletroposto: 48h na primeira volta, e +24h a
- * cada volta em que a ETIQUETA NÃO MUDA. 48, 72, 96, 120 e assim por diante,
- * sem teto, porque o fim é o destino do card.
+ * Mesma ordem e mesma conta do eletroposto: enquanto a ETIQUETA NÃO MUDA, o
+ * card volta em 24, 48, 48, 72, 72, 96, 96 … horas. Cada intervalo depois do
+ * primeiro se repete uma vez antes de subir 24h. A conta inteira, com a frase
+ * do Thiago, está no gêmeo (`horasDoDegrau` em `eletropostoReagendaAuto.ts`).
  *
  * As etiquetas que o Thiago nomeou (chave na mão, carregador, 50/50,
  * arrendamento) são do eletroposto. Aqui a escada vale pras etiquetas de
@@ -202,7 +204,11 @@ const negociacaoH = (): number => num('SOLAR_NEGOCIACAO_H', 48);
  * se comportarem diferente.
  */
 const passoNegociacaoH = (): number => num('SOLAR_NEGOCIACAO_PASSO_H', 24);
-/** As horas de descanso do degrau `d`: 48, 72, 96, 120 … */
+/** Quantas voltas cada intervalo dura antes de subir um passo. */
+const VOLTAS_POR_PASSO = 2;
+/** Os degraus que o log da rampa imprime: bastam pra ver a forma da escada. */
+const ESCADA_NO_LOG = [1, 2, 3, 4, 5, 6, 7];
+/** As horas de descanso do degrau `d`: 24, 48, 48, 72, 72, 96, 96 … */
 /**
  * O teto da escada, derivado da janela. O motivo está escrito inteiro no gêmeo
  * do eletroposto (`tetoDoDegrauH`): sem teto, a escada passa a janela e o card
@@ -214,7 +220,7 @@ const FOLGA_ATE_A_BORDA_DIAS = 3;
 export const tetoDoDegrauH = (): number =>
   Math.max(negociacaoH(), (janelaDias() - FOLGA_ATE_A_BORDA_DIAS) * 24);
 export const horasDoDegrau = (d: number): number => Math.min(
-  negociacaoH() + passoNegociacaoH() * Math.max(0, Math.floor(d) - 1),
+  negociacaoH() + passoNegociacaoH() * Math.floor(Math.max(1, Math.floor(d)) / VOLTAS_POR_PASSO),
   tetoDoDegrauH(),
 );
 
@@ -513,7 +519,7 @@ export async function runReagendaSolarTick(
   const corteNegociacao = new Date(agora - negociacaoH() * 3600_000).toISOString();
   const bloqueado = await carregarBloqueados();
   const vermelhos = ((data ?? []) as CardSolar[]).filter(f =>
-    // Cada um com o seu relogio: vermelho 30 min, esquecido 6h, negociacao 48h.
+    // Cada um com o seu relogio: vermelho 30 min, esquecido 6h, negociacao 24h no degrau 1.
     (f.status !== 'agendado' || (!!f.quando && f.quando <= corteEsquecido))
     && (relogioDoCicloSolar(String(f.status)) !== 'negocia'
       || (!!f.quando && f.quando <= corteNegociacao))
@@ -582,8 +588,8 @@ export async function runReagendaSolarTick(
 
   // ── O CORTE EXATO DA ESCADA, CARD POR CARD ───────────────────────────────
   //
-  // O corte de 48h lá em cima é o PISO (degrau 1): ele peneira de graça e não
-  // exclui ninguém no prazo, porque nenhum degrau pede MENOS que 48h. Quem sabe
+  // O corte de 24h lá em cima é o PISO (degrau 1): ele peneira de graça e não
+  // exclui ninguém no prazo, porque nenhum degrau pede MENOS que o 1. Quem sabe
   // o degrau de cada card é o `estadoDe`, lido só agora.
   const descansou = (f: CardSolar): boolean => {
     if (relogioDoCicloSolar(String(f.status)) !== 'negocia') return true;
@@ -644,7 +650,11 @@ export async function runReagendaSolarTick(
     fala: tetoPorDia() - contados('fala'),
     mudo: tetoMudoPorDia() - contados('mudo'),
   };
-  logger.info('solar-reagenda', `rampa: fala ${contados('fala')}/${tetoPorDia()}, mudo ${contados('mudo')}/${tetoMudoPorDia()} (desde ${desdeIso}), ${deHoje.length} hoje de ${(feitosHoje.data || []).length} carimbos`);
+  // A ESCADA QUE ESTÁ VALENDO, no mesmo log da rampa (07/10/2026). Os números
+  // dela saem de env, e a lista de envs da Vercel não é legível daqui: sem esta
+  // linha, uma `*_NEGOCIACAO_H` esquecida em produção seguraria a escada velha
+  // sem ninguém ver. Assim ela se prova a cada tick.
+  logger.info('solar-reagenda', `rampa: fala ${contados('fala')}/${tetoPorDia()}, mudo ${contados('mudo')}/${tetoMudoPorDia()} (desde ${desdeIso}), ${deHoje.length} hoje de ${(feitosHoje.data || []).length} carimbos, escada ${ESCADA_NO_LOG.map(horasDoDegrau).join('/')}h`);
 
   // A FILA É FILTRADA, NÃO INTERROMPIDA. Aqui havia um `return` em cima da fila
   // inteira: com `POR_TICK = 1`, um `nao_atendeu` na frente, com a rampa dele

@@ -219,12 +219,12 @@ describe('mover o card', () => {
     expect(linha).toContain('Nada foi enviado ao cliente');
   });
 
-  it('o card em negociação diz que é o ciclo de 48h, e como se sai dele', async () => {
+  it('o card em negociação diz que é o ciclo de 24h, e como se sai dele', async () => {
     vermelhos = [card({ status: 'fez_orcamento', quando: '2026-09-25T11:15:00.000Z' })];
     await tick();
     const linha = String(updates[0].patch.historico);
-    expect(linha).toContain('Ciclo de 48h (1ª volta nesta etiqueta)');
-    expect(linha).toContain('a proxima volta e em 72h');
+    expect(linha).toContain('Ciclo de 24h (1ª volta nesta etiqueta)');
+    expect(linha).toContain('a proxima volta e em 48h');
     expect(linha).not.toContain('não atendeu');
     expect(linha).toContain('Apalavrado');
   });
@@ -548,16 +548,16 @@ describe('a rampa diária', () => {
   /** `quando` a N horas antes do AGORA do teste. */
   const hAtras = (h: number) => new Date(AGORA.getTime() - h * 3600_000).toISOString();
 
-  it('no degrau 1, 60h não bastam: o degrau 2 pede 72h', async () => {
-    vermelhos = [card({ id: 70, status: 'fez_orcamento', quando: hAtras(60) })];
+  it('no degrau 1, 40h não bastam: o degrau 2 pede 48h', async () => {
+    vermelhos = [card({ id: 70, status: 'fez_orcamento', quando: hAtras(40) })];
     noDegrau(70, 'fez_orcamento', 1);
     const r = await tick();
     expect(r.remarcados).toBe(0);
     expect(r.motivo).toBe('todos_no_degrau');
   });
 
-  it('e 73h bastam — o card volta e sobe pro degrau 2', async () => {
-    vermelhos = [card({ id: 70, status: 'fez_orcamento', quando: hAtras(73) })];
+  it('e 49h bastam — o card volta e sobe pro degrau 2', async () => {
+    vermelhos = [card({ id: 70, status: 'fez_orcamento', quando: hAtras(49) })];
     noDegrau(70, 'fez_orcamento', 1);
     expect((await tick()).remarcados).toBe(1);
     const v = state.get('solar_reagenda:70')?.value;
@@ -565,15 +565,29 @@ describe('a rampa diária', () => {
     expect(v?.status).toBe('fez_orcamento');
   });
 
-  it('etiqueta que MUDOU volta pro degrau 1: 49h bastam, mesmo vindo do degrau 6', async () => {
-    vermelhos = [card({ id: 71, status: 'em_atendimento', quando: hAtras(49) })];
+  // A REPETIÇÃO (07/10/2026): o degrau 3 pede as mesmas 48h do 2, e só o 4
+  // sobe pra 72h. É a forma nova da escada, então ela é provada no tick também.
+  it('no degrau 2 o próximo REPETE as 48h, e no 3 o próximo sobe pra 72h', async () => {
+    vermelhos = [card({ id: 75, status: 'fez_orcamento', quando: hAtras(49) })];
+    noDegrau(75, 'fez_orcamento', 2);
+    expect((await tick()).remarcados).toBe(1);
+    expect(state.get('solar_reagenda:75')?.value?.degrau).toBe(3);
+
+    state.clear(); updates.length = 0;
+    vermelhos = [card({ id: 76, status: 'fez_orcamento', quando: hAtras(60) })];
+    noDegrau(76, 'fez_orcamento', 3);
+    expect((await tick()).motivo).toBe('todos_no_degrau');
+  });
+
+  it('etiqueta que MUDOU volta pro degrau 1: 25h bastam, mesmo vindo do degrau 6', async () => {
+    vermelhos = [card({ id: 71, status: 'em_atendimento', quando: hAtras(25) })];
     noDegrau(71, 'fez_orcamento', 6, 1);        // etiqueta de antes era outra
     expect((await tick()).remarcados).toBe(1);
     expect(state.get('solar_reagenda:71')?.value?.degrau).toBe(1);
   });
 
-  it('carimbo velho, sem etiqueta: ganha mais um 48h e a escada começa dali', async () => {
-    vermelhos = [card({ id: 72, status: 'fez_orcamento', quando: hAtras(49) })];
+  it('carimbo velho, sem etiqueta: ganha mais um degrau 1 e a escada começa dali', async () => {
+    vermelhos = [card({ id: 72, status: 'fez_orcamento', quando: hAtras(25) })];
     state.set('solar_reagenda:72', {
       key: 'solar_reagenda:72', value: { n: 1, ultimo: hAtras(60) }, updated_at: hAtras(60),
     });

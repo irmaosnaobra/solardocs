@@ -72,8 +72,8 @@ describe('a janela dos dois reciclos', () => {
       // 31 já é o começo do que ele mandou parar.
       expect(n, nome + ': janela de ' + n + ' dias traz cadaver de volta').toBeLessThanOrEqual(30);
       // E nem some: menos de 8 dias mataria a própria escada do `negocia`, que
-      // cresce 24h por volta e passa de uma semana nos degraus de cima.
-      expect(n, nome + ': janela de ' + n + ' dias corta a escada de 48h').toBeGreaterThanOrEqual(8);
+      // cresce 24h a cada duas voltas e passa de uma semana nos degraus de cima.
+      expect(n, nome + ': janela de ' + n + ' dias corta a escada da negociacao').toBeGreaterThanOrEqual(8);
     }
   });
 
@@ -112,9 +112,11 @@ describe('a janela dos dois reciclos', () => {
         expect(m.horasDoDegrau(d), nome + ': degrau ' + d + ' passa a janela')
           .toBeLessThan(janelaH);
       }
-      // a escada continua subindo onde importa: 48h no 1, 72h no 2
-      expect(m.horasDoDegrau(1), nome + ': o degrau 1 deixou de ser 48h').toBe(48);
-      expect(m.horasDoDegrau(2), nome + ': o degrau 2 deixou de ser 72h').toBe(72);
+      // a escada continua subindo onde importa: 24h no 1, 48h no 2 e no 3,
+      // 72h no 4 (ordem de 07/10/2026)
+      expect(m.horasDoDegrau(1), nome + ': o degrau 1 deixou de ser 24h').toBe(24);
+      expect(m.horasDoDegrau(2), nome + ': o degrau 2 deixou de ser 48h').toBe(48);
+      expect(m.horasDoDegrau(4), nome + ': o degrau 4 deixou de ser 72h').toBe(72);
       expect(m.horasDoDegrau(999), nome + ': o degrau 999 nao bateu no teto')
         .toBe(m.tetoDoDegrauH());
     }
