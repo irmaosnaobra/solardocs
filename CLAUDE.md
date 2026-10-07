@@ -86,7 +86,7 @@ Cada um destes já custou caro pelo menos uma vez.
 - Hooks: 6 regras em `.claude/hookify.*.local.md`. Quatro bloqueiam (`git add -A`,
   `vercel --prod` sem alvo explícito, force push e `reset --hard`, `DROP` e
   `TRUNCATE`) e duas avisam (bump do `sw.js`; e envio pelo WhatsApp, Instagram
-  ou Facebook passa pelo subagente `chefe-antiban`). Os padrões dos que bloqueiam
+  ou Facebook passa pelo subagente `chefe-antiban`). Os padrões de git e vercel
   são ancorados em posição de comando, então mencionar um deles dentro de outro
   comando não bloqueia.
   Tudo isso depende de `python3` resolver para um Python de verdade no PATH: no

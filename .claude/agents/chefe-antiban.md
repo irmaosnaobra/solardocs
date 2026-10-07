@@ -33,9 +33,10 @@ Se bloqueia, diz como remodelar, numa linha, e o passo a passo logo abaixo.
   (`sendFrio`, `sendHuman` com `maxBolhas`, `sendWhatsApp`, `sendImage`...). Todo
   envio passa pelo `zapiPost` de lá, que é onde o desvio e o freio de 60 s moram.
 - O CHEFE em código existe só como núcleo PURO em `api/src/services/chefe/`
-  (`regulamento.ts`, `classes.ts`, `decidir.ts`). Ainda não tem livro, catraca
-  nem passaporte, e nada está ligado a envio. Quando o regulamento abaixo e o
-  `regulamento.ts` divergirem, vale o `regulamento.ts`.
+  (`regulamento.ts`, `classes.ts`, `decidir.ts`), já com a regra "agenda nunca
+  bloqueia" (regra 0). Ainda não tem livro, catraca nem passaporte, e nada está
+  ligado a envio. Quando o regulamento abaixo e o `regulamento.ts` divergirem,
+  vale o `regulamento.ts`.
 - Por isso cada item do checklist tem duas leituras: **hoje** (o que protege a
   produção agora) e **com o CHEFE ligado** (o desenho que vem). Mudança que só
   cumpre o futuro e quebra o de hoje: BLOQUEIA.
@@ -47,10 +48,17 @@ Se bloqueia, diz como remodelar, numa linha, e o passo a passo logo abaixo.
   sujo ou atrasado.
 - A mudança: o diff recebido, ou `git diff <base>...HEAD -- api`.
 - De dentro de `api/`: `npx vitest run src/__tests__/chefeGuarda.test.ts`.
-  Guarda vermelha = BLOQUEIA. Ela reprova fetch ou URL da Z-API fora do
-  `zapiClient.ts`, POST de envio no Graph fora de `igClient.ts`,
-  `fbComentarios.ts` e `fbMensagens.ts`, `zapiPost` cru e script de envio. Os
-  ofensores antigos estão numa lista de migração que só encolhe.
+  Guarda vermelha = BLOQUEIA. Ela trabalha por LISTA DO PERMITIDO: toda chamada
+  à Z-API fora do `zapiClient.ts` cujo endpoint não está na lista de consultas
+  (status, me, chats, contacts, qr-code, phone-exists, webhooks...) é envio,
+  inclusive `forward-message` e endpoint novo; toda escrita no Graph (método
+  literal, de spread ou atribuído depois) fora de `igClient.ts`,
+  `fbComentarios.ts` e `fbMensagens.ts` é envio, menos o `/events` da API de
+  Conversões; referência crua a `zapiPost` e às funções de envio cru do MIGRAR;
+  script de envio; e o robô pedido de um arquivo que não é o dele. Os ofensores
+  antigos estão numa lista de migração que só encolhe. A guarda é REDE, não
+  prova: a defesa completa é a catraca física no `zapiPost` (próxima fase, com
+  o livro no banco).
 - O relógio desta máquina está em UTC. Toda janela deste repo é em Brasília
   (UTC menos 3, sem horário de verão).
 
@@ -60,6 +68,33 @@ Por linha FÍSICA. Origem entre colchetes: [código] é o que o HEAD faz hoje,
 [memória] é regra escrita depois de uma queda, [proposta] é número novo do CHEFE
 a calibrar na sombra, [crítica] é correção dos revisores que vale sobre a
 especificação.
+
+0. **AGENDA NUNCA BLOQUEIA** (ordem do dono, 07/10/2026; vale acima das regras
+   abaixo). [memória agenda-nunca-bloqueia]
+   - **O que é agenda:** confirmação de reunião marcada, bom dia do dia, lembrete
+     de 1h e de 5 min, cobrança do SIM, alerta de 10 min ao consultor da equipe,
+     resposta a quem pediu para remarcar e a remarcação do NÃO ATENDEU. No CHEFE
+     é marca do robô (`agenda` em `CLASSE_POR_ROBO`: `ep_agenda`,
+     `giovanna_agenda`, `ep_cobra_sim`, `ep_alerta_10min`, `ep_remarcar_reativo`,
+     `ep_reagenda_auto`) com a classe efetiva fora do frio. As boas-vindas do
+     solar não são agenda (recibo do cadastro).
+   - **O que se pode fazer com ela:** ordenar e espaçar DENTRO da janela útil
+     (`validoAte` do pedido; sem ele, o prazo mais 5 min). Nunca expirar,
+     descartar nem adiar além do momento útil: no último momento útil ela sai.
+     Ela conta em todo teto (o frio vê a linha ocupada e cede), mas nenhum freio
+     de VOLUME a segura: teto total da hora, teto da linha, vaga guardada, volume
+     sustentado, rampa e o teto próprio do lembrete. Na emergência (60/h) as
+     últimas vagas são do evento e da agenda; quem cede é o frio e o resto.
+   - **O que ainda a para:** a linha fisicamente caída (freio de erro; quando
+     volta, a régua é de reenvio, não de descarte), a chave repetida (o toque
+     já saiu), a pausa humana robô a robô como no HEAD, a janela do
+     transacional (7h–21h) para destino de fora e a rajada por robô (6 em 10
+     min, a defesa contra robô frio pedindo como agenda).
+   - **A remarcação do NÃO ATENDEU** sai sempre, só espaçada: no máximo 1 a cada
+     15 min por robô (cadência própria), nunca em rajada, nunca cortada.
+   - **Vale para qualquer mudança:** limpeza, teto novo, kill-switch, janela.
+     Mudança que faz uma mensagem de agenda expirar, ser descartada ou adiada
+     além da janela útil: BLOQUEIA. Robô de agenda declara o `validoAte`.
 
 1. **Unidade.** Mensagem física: texto, imagem, documento, áudio, vídeo,
    figurinha, grupo incluso. Digitando e apagar não contam. Hoje o teto conta
@@ -78,41 +113,64 @@ especificação.
    evento: 2 min. Entre proativas para destinos diferentes: 25 s mais sorteio de
    0 a 35 s. [código lineThrottle.ts:325-330; o resto é proposta]
 5. **Anti-rajada.** No máximo 6 proativas em qualquer janela de 10 min e, à
-   parte, no máximo 6 lembretes com prazo em 10 min. [proposta e revisão; 02/10
-   foi cerca de 21 em 10 min, 01/08 cerca de 10]
+   parte, no máximo 6 lembretes com prazo em 10 min. Para a agenda as duas só
+   espaçam dentro da janela útil (regra 0); o mesmo robô nunca passa de 6 em 10
+   min (rajada por robô, dura). [proposta e revisão; 02/10 foi cerca de 21 em
+   10 min, 01/08 cerca de 10]
 6. **Volume sustentado sem conversa** (destino que não escreveu em 24h): 40 em
-   3h e 60 em 6h. Segura os picos de 3h e de 6h, não a hora, e NÃO pega classe
-   errada: o frio pedindo como agenda no ritmo de 30/08 ainda passa os 98 até
-   18h17, com pico de 19 numa hora. Contra classe errada vale a guarda arquivo
-   → robôs permitidos, que ainda não existe: confira à mão que o robô pede com
-   o próprio nome de `CLASSE_POR_ROBO`. [crítica; dívida medida no chefeQuedas]
+   3h e 60 em 6h, de P3 a P5 que não são agenda. Segura os picos de 3h e de 6h,
+   não a hora, e NÃO pega classe errada: nenhum volume separa frio mal
+   classificado de agenda (o frio pedindo como agenda no ritmo de 30/08 passa
+   os 98 até 18h17). Contra classe errada vale a guarda arquivo → robôs
+   permitidos (`chefeGuarda`, regra robo), que JÁ EXISTE: reprova o pedido com o
+   nome de um robô de outro arquivo, escrito literal, `as const`, `satisfies`,
+   numa const ou no atalho `{ robo }`. Mais a rajada por robô. Dívida: dentro de
+   um arquivo que pode pedir classe mais urgente que a do próprio robô (8 de
+   classe máxima evento, entre eles authController, paymentsController e
+   trafegoController; 5 de agenda) ela não separa a classe; ali, até o
+   passaporte por chamada, confira à mão que o lote pede com o nome do próprio
+   robô. [crítica; dívida medida no chefeQuedas]
 7. **Teto da linha** para P2 a P5 (aviso ao time, transacional do dia e frio):
    24 por hora e 200 em 24h, e proativa nenhuma leva o total da hora acima de 40
-   (nível de atenção do monitor). [proposta; código linhaSaudeMonitor.ts:44]
+   (nível de atenção do monitor). A agenda conta nele mas não é segurada (regra
+   0); o aviso de lead novo ao time também fica fora. [proposta; código
+   linhaSaudeMonitor.ts:44]
 8. **Urgente fora do teto.** Evento (P0) e resposta ou lembrete com prazo (P1)
    ficam fora do teto da linha e da rampa: só 10 s entre destinos diferentes e o
-   teto de emergência de 60 por hora e 450 em 24h. O lembrete com prazo ainda
-   tem a janela do transacional e a rajada própria, porque o prazo é declarado
-   por quem chama. [crítica e revisão; código linhaSaudeMonitor.ts:45-50]
+   teto de emergência de 60 por hora e 450 em 24h. O lembrete com prazo para
+   destino de fora ainda tem a janela do transacional e a rajada própria de 6
+   em 10 min (para a agenda, só espaça), porque o prazo é declarado por quem
+   chama. O teto próprio de 28 por hora e 150 em 24h só vale para o lembrete que
+   NÃO é agenda (as boas-vindas com a ficha fresca); o lembrete de agenda saiu
+   dele pela regra 0. O alerta ao consultor não tem janela. [crítica e revisão;
+   código linhaSaudeMonitor.ts:45-50]
 9. **Reserva.** O frio não pega as 4 últimas vagas da hora da linha, e para quando
-   a linha chega a 190 em 24h. [proposta; reserva de 10 do código]
+   a linha chega a 190 em 24h. Na emergência, as últimas 10 vagas da hora (de 50
+   a 60) são do evento e da agenda e, por medida, da resposta e do aviso de lead
+   novo: cede o resto. [proposta; reserva de 10 do código]
 10. **Ordem quando falta vaga**, por prioridade e prazo, nunca por tamanho de piso:
     P0 evento (compra, ativação, D0, recuperado, convite pedido, comprovante);
-    P1 resposta a quem escreveu nos últimos 15 min (atrasou, vira frio, mesmo
-    para quem escreveu ontem) e lembrete com prazo (5 min,
+    P1 resposta a quem escreveu nos últimos 15 min antes do pedido nascer
+    (atrasou, vira frio, mesmo para quem escreveu ontem; a resposta a quem pediu
+    para remarcar, com conversa em 24h, vira agenda) e lembrete com prazo (5 min,
     1h, reunião em menos de 2h, ficha com menos de 30 min); P2 aviso ao time;
     P3 transacional do dia (confirmação, bom dia, cobrança do SIM,
-    boas-vindas); P4 frio de receita (recuperação de checkout, dunning D1 em
-    diante, Pix VIP); P5 o resto do frio. Piso novo por robô não existe mais.
-    [proposta; corrige a inversão de 03/10]
+    boas-vindas, remarcação do NÃO ATENDEU); P4 frio de receita (recuperação de
+    checkout, dunning D1 em diante, Pix VIP); P5 o resto do frio. Dentro da
+    classe, quem vence antes (fim da janela útil) vai antes. Piso novo por robô
+    não existe mais. [proposta; corrige a inversão de 03/10]
 11. **Aviso ao time:** até 12 por hora. Acima disso, junta por pessoa num cartão a
     cada 10 min. Mídia e documento nunca são juntados, só atrasados. Lead novo e
-    alerta de 10 min não entram no cartão. [proposta e crítica]
+    alerta de 10 min não entram no cartão. Só vale para destino DA EQUIPE: aviso
+    para quem não é da equipe vira frio; grupo só é interno na lista explícita
+    (o `ZAPI_IO_GROUP_ID`) ou para o robô de grupo (`sdr_grupo_interno`), porque
+    a linha é membro do grupo do eletroposto, onde entra lead. [proposta,
+    crítica e revisão]
 12. **Rampa de 72h** depois de reconectar (`LINHA_RECONECTADA_EM` ou
     `zapi_io_health.reconectadoEm`). Frio 2, 3 e 4 por hora, e 1, 10 e 20 por dia
     (o dia da rampa, 10, 20 e 30, menos a reserva de 10). Linha de P3 a P5 com 10,
-    14 e 19 por hora e 80, 120 e 160 no dia. P0, P1 e aviso ao time ficam fora. [código lineThrottle.ts:50-58; a
-    linha é proposta]
+    14 e 19 por hora e 80, 120 e 160 no dia. P0, P1, aviso ao time e a agenda
+    (regra 0) ficam fora. [código lineThrottle.ts:50-58; a linha é proposta]
 13. **1 toque = 1 mensagem.** Frio em 1 bolha de até 900 caracteres
     (`sendFrio`); transacional proativo em 1 bolha de até 1200; resposta até 2
     bolhas, com 2 a 5 s entre elas; aviso, 1 por pessoa; evento, 1 bolha.
@@ -121,17 +179,22 @@ especificação.
     mesmo no frio: 1 toque, até 2 mensagens. Vai no fim do texto (no meio vira 3
     bolhas). Teto de bolhas vale por chamada e nunca corta o Pix nem o link.
     [crítica; código bolhas.ts:145-157]
-15. **Pausa humana.** Segue o HEAD robô a robô: a agenda do eletroposto e a
-    vendedora reativa passam com humano dentro; a Duda, a Giovanna (bom dia e
-    lembrete), as boas-vindas e a cobrança do SIM esperam, mesmo com prazo. Todo
-    frio espera 24h de silêncio (`PAUSA_HUMANA_JANELA_H`), inclusive o da linha
-    SolarDoc, que hoje não confere (aperto novo). A pausa mora na escolha do
-    alvo: o robô pula o destino, não para a fila. [código pausaHumana.ts,
-    `podeFalarComLead` e `sendFrio`]
+15. **Pausa humana.** Segue o HEAD robô a robô: a agenda do eletroposto, a
+    remarcação do NÃO ATENDEU e a vendedora reativa passam com humano dentro; a
+    Duda, a Giovanna (bom dia e lembrete), as boas-vindas e a cobrança do SIM
+    esperam, mesmo com prazo. Todo frio espera 24h de silêncio
+    (`PAUSA_HUMANA_JANELA_H`), inclusive o da linha SolarDoc, que hoje não
+    confere (aperto novo). Aviso rebaixado a frio (destino de fora) também
+    espera. A pausa mora na escolha do alvo: o robô pula o destino, não para a
+    fila. Pendente para o dono: a memória pausa-humana diz que lembrete e
+    confirmação passam com humano dentro, e a regra 0 diz que só a linha caída
+    para agenda; o HEAD segura a Giovanna, a cobrança e as boas-vindas. [código
+    pausaHumana.ts, `podeFalarComLead` e `sendFrio`]
 16. **Erro.** 2 erros de LINHA seguidos (instância fora, desconectado, 5xx,
     timeout, 429) param o proativo por 15 min. Número inválido não conta. Durante
-    o freio, resposta e lembrete tentam no máximo 1 vez a cada 5 min. [memória
-    linha-io-bloqueio-30-ago; crítica]
+    o freio, resposta e lembrete tentam no máximo 1 vez a cada 5 min. É o freio
+    que a regra 0 deixa parar a agenda; na volta, reenvio, não descarte.
+    [memória linha-io-bloqueio-30-ago; crítica]
 17. **Evento nunca é adiado.** Compra, ativação, D0, recuperado, convite pedido e
     comprovante saem agora como P0 ou vão para uma caixa de saída persistida.
     Adiar envio de evento é descartar. [crítica]
@@ -210,19 +273,29 @@ Cada item: ok, ou falha com `arquivo:linha` e o efeito na linha.
    pergunta como transacional carimba com prefixo da agenda. Gravar só uma coluna
    da ficha, ou perguntar um teto e carimbar no outro: BLOQUEIA (é o 02/10). Com
    o CHEFE ligado: o robô está em `CLASSE_POR_ROBO` e a classe vem de lá, nunca do
-   chamador. Pedir com o nome de outro robô, ou passar prazo que não é de uma
-   reunião de verdade para virar P1: BLOQUEIA (o CHEFE puro não segura isso).
+   chamador. Pedir com o nome de outro robô reprova na `chefeGuarda` (literal,
+   `as const`, `satisfies`, const ou atalho), menos dentro de um arquivo que já
+   hospeda um robô de classe mais urgente (os 8 de classe máxima evento, os 5 de
+   agenda): ali, confira à mão. Passar prazo que não é de uma reunião de verdade
+   para virar P1, ou `validoAte` que não é o fim da janela do robô para escapar
+   do espaçamento: BLOQUEIA (o CHEFE puro não segura isso).
 4. **Classe certa.** Transacional só quando a pessoa está esperando: marcou,
-   preencheu, pagou ou pediu. Quem começa a conversa é frio. Destino da equipe é
-   aviso ao time.
+   preencheu, pagou ou pediu. Quem começa a conversa é frio (a exceção é a
+   remarcação do NÃO ATENDEU, agenda por ordem do dono). Destino da equipe é
+   aviso ao time; aviso para quem não é da equipe vira frio; grupo só é interno
+   na lista explícita ou para o robô de grupo. Robô novo de agenda entra na
+   lista da regra 0 com o dono sabendo.
 5. **Teto por hora e por dia.** O envio pergunta o teto antes do claim, todo
    toque, e a conta fecha no orçamento (frio 6 por hora e 30 em 24h; linha 24 por
-   hora e 200 em 24h). Env que sobe teto: BLOQUEIA.
+   hora e 200 em 24h; a agenda conta, mas não é segurada). Env que sobe teto:
+   BLOQUEIA.
 6. **Rampa.** Respeita a rampa de 72h depois de reconectar. Rampa diária própria
    (por exemplo `EP_REAGENDA_POR_DIA`) só sobe depois de conferir que o teto por
    hora conta o carimbo daquele robô.
 7. **Janela.** Frio das 9h às 20h, de segunda a sábado. Janela própria que passa
-   das 20h, entra no domingo ou começa antes das 9h para frio: BLOQUEIA.
+   das 20h, entra no domingo ou começa antes das 9h para frio: BLOQUEIA. Agenda:
+   a janela do transacional (7h às 21h) para lead; o alerta ao consultor não tem
+   janela.
 8. **Rajada e relógios.** Laço que manda para vários destinos sem perguntar a cada
    envio, sleep fixo, lote "todos agora", ou tick novo em mais de um relógio sem
    chave ou claim por insert: BLOQUEIA. O CRM manda para 1 destino por chamada;
@@ -243,10 +316,17 @@ Cada item: ok, ou falha com `arquivo:linha` e o efeito na linha.
 15. **Instagram por conta.** DM fora da janela de 24h, resposta de prospecção fora
     do livro, espera fixa no lugar do sorteio, ou conta forçada acima de 12 frios
     por dia: BLOQUEIA.
+16. **Agenda nunca bloqueia (regra 0).** A mudança faz alguma mensagem de agenda
+    (confirmação, bom dia, lembrete de 1h e de 5 min, cobrança do SIM, alerta de
+    10 min ao consultor, remarcação pedida, remarcação do NÃO ATENDEU) expirar,
+    ser descartada ou adiada além da janela útil? BLOQUEIA. Remodelar: ordenar e
+    espaçar dentro da janela, e o frio cede. Robô de agenda sem `validoAte`
+    declarado: falha.
 
 **Faça a conta sempre:** quantas mensagens físicas por hora e por dia a mudança
 acrescenta, por classe, e onde isso fica contra o orçamento (frio 30 em 24h,
-linha 200 em 24h, 6 proativas em 10 min). Antes de prometer prazo de campanha
+linha 200 em 24h, 6 proativas em 10 min, 60 por hora de emergência). A agenda
+não cede: com a agenda cheia, conte quanto do frio do dia ainda cabe. Antes de prometer prazo de campanha
 fria, conte os envios das últimas 24h por prefixo: numa agenda cheia o
 transacional come o frio, e robô frio novo entra numa fila que já está cheia.
 

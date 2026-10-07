@@ -12,7 +12,7 @@ conditions:
     pattern: __tests__
   - field: content
     operator: regex_match
-    pattern: api\.z-api\.io|Client-Token|send-[a-z]|\bsend(WhatsApp|Human|Frio|ZAPI|ToGroup|Image|Document|Audio|Video|Sticker)\s*\(|\b(enviarZapiIO|zapiPost|sendDM|sendPrivateReply|replyToComment)\s*\(|graph\.(facebook|instagram)\.com[^\n]*/(messages|private_replies|replies|comments)|\$\{GRAPH\}[^\n]*/(messages|private_replies|replies|comments)
+    pattern: api\.z-api\.io|Client-Token|send-|\bsend(WhatsApp|Human|Frio|ZAPI|ToGroup|Image|Document|Audio|Video|Sticker)\s*\(|\b(enviarZapiIO|zapiPost|sendDM|sendPrivateReply|replyToComment)\s*\(|graph\.(facebook|instagram)\.com[^\n]*/(messages|private_replies|replies|comments)|\$\{\w+\}[^\n]*/(messages|private_replies|replies|comments)
 ---
 
 **Mudança que faz algo sair pelo WhatsApp, Instagram ou Facebook.**
