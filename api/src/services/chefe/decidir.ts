@@ -19,10 +19,13 @@
 // - P0 e P1 ficam fora do teto da linha e da rampa. Só obedecem a um
 //   espaçamento curto (10 s, vira espera em processo) e ao teto de emergência.
 //   O lembrete com prazo (P1 pelo prazo) ainda mora na janela do transacional
-//   (7h–21h) e numa rajada própria de 6 em 10 min [revisão]: o prazo vem de
-//   quem chama, e sem isso era passe livre para a classe autodeclarada voltar.
+//   (7h–21h), numa rajada própria de 6 em 10 min e num teto próprio de 28/h e
+//   150/24h [revisão]: o prazo vem de quem chama, e sem isso era passe livre
+//   para a classe autodeclarada voltar.
 // - O teto da linha (24/h e 200/24h) vale para P2 a P5. A proativa também não
 //   empurra o TOTAL da hora, urgente incluído, acima de 40.
+// - O mesmo robô não passa de 6 mensagens em 10 min somando o lembrete com
+//   prazo e as proativas dele [revisão].
 // - O freio de erro conta só erro de LINHA, nunca número inválido. Durante o
 //   freio, a resposta e o lembrete viram a sonda da linha (1 tentativa a cada
 //   5 min); a proativa espera 15 min; o evento vai para a caixa.
@@ -61,7 +64,7 @@ export type ContagemPorClasse = Partial<Record<Classe, number>>;
  * vaga abre. Opcional: sem ele, o 'adiar' usa o ritmo médio (janela ÷ teto).
  */
 export type GrupoJanela =
-  | 'frio_1h' | 'frio_24h' | 'proativa_10min' | 'lembrete_10min' | 'linha_1h' | 'linha_24h'
+  | 'frio_1h' | 'frio_24h' | 'proativa_10min' | 'lembrete_10min' | 'lembrete_1h' | 'lembrete_24h' | 'robo_10min' | 'linha_1h' | 'linha_24h'
   | 'total_1h' | 'total_24h' | 'rampa_1h' | 'rampa_24h' | 'aviso_1h'
   | 'semConversa_3h' | 'semConversa_6h';
 
@@ -84,6 +87,8 @@ export interface Estado {
   contagens: Partial<Record<JanelaContagem, ContagemPorClasse>>;
   /** Físicas de P3 a P5 para destino que NÃO escreveu nas últimas 24h. */
   semConversa?: Partial<Record<'3h' | '6h', number>>;
+  /** Físicas do MESMO robô do pedido nos últimos 10 min, somando lembrete com prazo e proativas. */
+  doRobo10min?: number;
   /** Últimos envios (epoch ms). `carimbado` = último envio de robô que o HEAD conta (frio ou agenda). */
   ultimoEm?: { fisica?: number | null; proativa?: number | null; frio?: number | null; carimbado?: number | null };
   maisAntigoEm?: Partial<Record<GrupoJanela, number>>;
@@ -133,10 +138,13 @@ export type Motivo =
   | 'teto_emergencia'
   | 'rajada_10min'
   | 'rajada_lembrete'
+  | 'rajada_robo'
   | 'espaco_proativa'
   | 'teto_proativo_total'
   | 'teto_linha_hora'
   | 'teto_linha_dia'
+  | 'teto_lembrete_hora'
+  | 'teto_lembrete_dia'
   | 'reservado_prioridade_maior'
   | 'volume_sustentado'
   | 'rampa_hora'
@@ -398,10 +406,19 @@ export function travasDoPedido(estado: Estado, pedido: Pedido, agora: number, re
   if (total1h + custo > reg.emergenciaHora) trava('teto_emergencia', vaga('total_1h', HORA, reg.emergenciaHora));
   if (total24h + custo > reg.emergenciaDia) trava('teto_emergencia', vaga('total_24h', 24 * HORA, reg.emergenciaDia));
 
+  // ── Rajada por robô: lembrete com prazo e proativas do mesmo robô ─────────
+  // A rajada do lembrete e a das proativas são contadas à parte; sem esta, o
+  // mesmo robô passava 11 em 10 min com metade dos pedidos com prazo [revisão].
+  if (classe === 'lembrete_p1' || ehProativa(classe)) {
+    const doRobo = Math.max(0, estado.doRobo10min ?? 0);
+    if (doRobo + custo > reg.rajadaMaxPorRobo) trava('rajada_robo', vaga('robo_10min', reg.rajadaJanelaMs, reg.rajadaMaxPorRobo));
+  }
+
   // ── Lembrete com prazo: o prazo vem de quem chama [revisão] ───────────────
   // Sem isto, um robô de agenda pedindo com prazo=agora+60min mandava 39 frios
   // em 6 min, inclusive de madrugada (o 02/10, pior). O P1 pelo prazo continua
-  // na janela do transacional e numa rajada própria. Resposta e evento, não.
+  // na janela do transacional, numa rajada própria e num teto próprio de hora e
+  // de dia. Resposta e evento, não.
   if (classe === 'lembrete_p1') {
     const jl = janelaDaClasse(classe, reg);
     if (jl && !dentroDaJanela(jl, agora)) trava('fora_da_janela', proximaAbertura(jl, agora));
@@ -409,6 +426,11 @@ export function travasDoPedido(estado: Estado, pedido: Pedido, agora: number, re
     if (lembretes10 + custo > reg.rajadaMaxLembrete) {
       trava('rajada_lembrete', vaga('lembrete_10min', reg.rajadaJanelaMs, reg.rajadaMaxLembrete));
     }
+    // Teto PRÓPRIO de hora e de dia, não o balde de 24/h das proativas nem o
+    // total de 40/h: nos dois, a agenda cheia legítima perdia alerta, lembrete
+    // e cobrança (ver o regulamento). O total do lembrete é o da emergência.
+    if (somar(estado, '1h', ['lembrete_p1']) + custo > reg.lembreteHora) trava('teto_lembrete_hora', vaga('lembrete_1h', HORA, reg.lembreteHora));
+    if (somar(estado, '24h', ['lembrete_p1']) + custo > reg.lembreteDia) trava('teto_lembrete_dia', vaga('lembrete_24h', 24 * HORA, reg.lembreteDia));
   }
 
   if (ehUrgente(classe)) {

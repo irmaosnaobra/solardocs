@@ -3,6 +3,7 @@ import {
   decidir, classeEfetiva, classificarErroEnvio, Estado, Pedido, Decisao, ContagemPorClasse, JanelaContagem,
 } from '../services/chefe/decidir';
 import { lerRegulamento, REGULAMENTO_PADRAO, dentroDaJanela } from '../services/chefe/regulamento';
+import { montarEstado, EnvioLivro } from '../services/chefe/estado';
 import { CLASSE_POR_ROBO, Classe, MetaRobo, ROBO_DESCONHECIDO } from '../services/chefe/classes';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -339,6 +340,55 @@ describe('decidir: uma regra por caso', () => {
       lerRegulamento({ CHEFE_RAJADA_LEMBRETE_10MIN: '3' }).reg)).motivo).toBe('rajada_lembrete');
   });
 
+  it('prazo não é passe livre: o lembrete tem teto próprio de 28 na hora e 150 em 24h', () => {
+    const p = ped('ep_agenda', { prazo: T + 30 * MIN });
+    expect(adiar(decidir(est({ h1: { lembrete_p1: 28 } }), p, T))).toMatchObject({ classe: 'lembrete_p1', motivo: 'teto_lembrete_hora' });
+    expect(decidir(est({ h1: { lembrete_p1: 27 } }), p, T).acao).toBe('enviar_agora');
+    expect(adiar(decidir(est({ h24: { lembrete_p1: 150 } }), p, T)).motivo).toBe('teto_lembrete_dia');
+    expect(decidir(est({ h24: { lembrete_p1: 149 } }), p, T).acao).toBe('enviar_agora');
+    // Não divide o balde de 24/h das proativas nem o total de 40/h (desvio medido:
+    // dividindo, a agenda cheia legítima perdia alerta e lembrete; ver o regulamento).
+    expect(decidir(est({ h1: { transacional_agenda_p3: 24 } }), p, T).acao).toBe('enviar_agora');
+    expect(decidir(est({ h1: { reativo_p1: 30, transacional_agenda_p3: 10 } }), p, T).acao).toBe('enviar_agora');
+    // A resposta não entra no teto do lembrete; env só aperta.
+    expect(decidir(est({ h1: { lembrete_p1: 28 }, ...comEntrada(1) }), ped('giovanna_reativa'), T).acao).toBe('enviar_agora');
+    expect(adiar(decidir(est({ h1: { lembrete_p1: 10 } }), p, T, lerRegulamento({ CHEFE_LEMBRETE_HORA: '10' }).reg)).motivo).toBe('teto_lembrete_hora');
+  });
+
+  // [revisão] A rajada do lembrete e a das proativas eram contadas à parte: o
+  // mesmo ep_agenda, com metade dos pedidos com prazo, passava 11 em 10 min.
+  it('rajada por robô: o mesmo robô não passa de 6 em 10 min somando lembrete com prazo e proativa', () => {
+    const cheio = est({ doRobo10min: 6, maisAntigoEm: { robo_10min: T - 4 * MIN } });
+    const d = adiar(decidir(cheio, ped('ep_agenda', { prazo: T + 5 * MIN }), T));
+    expect(d).toMatchObject({ classe: 'lembrete_p1', motivo: 'rajada_robo' });
+    expect(d.ate).toBeGreaterThanOrEqual(T + 6 * MIN);
+    expect(d.ate).toBeLessThanOrEqual(T + 6 * MIN + 90_000);
+    expect(adiar(decidir(cheio, ped('ep_agenda'), T)).motivo).toBe('rajada_robo');
+    expect(decidir(est({ doRobo10min: 5 }), ped('ep_agenda', { prazo: T + 5 * MIN }), T).acao).toBe('enviar_agora');
+    // Resposta e evento ficam fora da rajada por robô.
+    expect(decidir({ ...cheio, ...comEntrada(1) }, ped('giovanna_reativa'), T).acao).toBe('enviar_agora');
+    expect(decidir(cheio, ped('solardoc_compra'), T).acao).toBe('enviar_agora');
+    expect(adiar(decidir(est({ doRobo10min: 3 }), ped('ep_agenda', { prazo: T + 5 * MIN }), T,
+      lerRegulamento({ CHEFE_RAJADA_ROBO_10MIN: '3' }).reg)).motivo).toBe('rajada_robo');
+  });
+
+  it('a contagem por robô sai do livro só para o robô do pedido, somando lembrete e proativa dos últimos 10 min', () => {
+    const envio = (min: number, robo: string, classe: Classe): EnvioLivro =>
+      ({ em: T - min * MIN, robo, classe, destino: `55349800000${10 + min}`, bolhas: 1, ok: true });
+    const livro: EnvioLivro[] = [
+      envio(1, 'ep_agenda', 'lembrete_p1'), envio(2, 'ep_agenda', 'lembrete_p1'), envio(3, 'ep_agenda', 'lembrete_p1'),
+      envio(4, 'ep_agenda', 'transacional_agenda_p3'), envio(5, 'ep_agenda', 'transacional_agenda_p3'), envio(6, 'ep_agenda', 'transacional_agenda_p3'),
+      envio(7, 'ep_agenda', 'reativo_p1'), envio(11, 'ep_agenda', 'lembrete_p1'),
+      envio(8, 'giovanna_agenda', 'lembrete_p1'),
+    ];
+    const doRobo = (robo: string) => montarEstado(livro, T, { robo, destino: LEAD, equipe: EQUIPE });
+    expect(doRobo('ep_agenda').doRobo10min).toBe(6);
+    expect(doRobo('ep_agenda').maisAntigoEm?.robo_10min).toBe(T - 6 * MIN);
+    expect(doRobo('giovanna_agenda').doRobo10min).toBe(1);
+    expect(adiar(decidir(doRobo('ep_agenda'), ped('ep_agenda', { prazo: T + 5 * MIN }), T)).motivo).toBe('rajada_robo');
+    expect(decidir(doRobo('giovanna_agenda'), ped('giovanna_agenda', { prazo: T + 5 * MIN }), T).acao).toBe('enviar_agora');
+  });
+
   it('prazo só promove robô de agenda, de 5 min depois até 90 min antes', () => {
     expect(decidir(est(), ped('semente', { prazo: T + 5 * MIN }), T).classe).toBe('frio_p5');
     expect(decidir(est(), ped('ep_agenda', { prazo: T - 3 * MIN }), T).classe).toBe('lembrete_p1');
@@ -429,12 +479,12 @@ function sortearCaso(r: () => number, i: number): { estado: Estado; pedido: Pedi
   const chance = (p: number) => r() < p;
   const agora = brt('2026-10-05T00:00') + int(0, 14 * 24 * 60) * MIN;
 
-  const R1: Record<Classe, number> = { evento_p0: 3, reativo_p1: 30, lembrete_p1: 12, aviso_interno_p2: 14, transacional_agenda_p3: 24, frio_receita_p4: 4, frio_p5: 7 };
-  const R24: Record<Classe, number> = { evento_p0: 20, reativo_p1: 220, lembrete_p1: 80, aviso_interno_p2: 60, transacional_agenda_p3: 190, frio_receita_p4: 8, frio_p5: 28 };
+  const R1: Record<Classe, number> = { evento_p0: 3, reativo_p1: 30, lembrete_p1: 40, aviso_interno_p2: 14, transacional_agenda_p3: 24, frio_receita_p4: 4, frio_p5: 7 };
+  const R24: Record<Classe, number> = { evento_p0: 20, reativo_p1: 220, lembrete_p1: 130, aviso_interno_p2: 60, transacional_agenda_p3: 190, frio_receita_p4: 8, frio_p5: 28 };
   const c: Contagens = { '10min': {}, '1h': {}, '3h': {}, '6h': {}, '24h': {} };
   for (const k of CLASSES_TODAS) {
     const h1 = chance(0.35) ? 0 : int(0, R1[k]);
-    const m10 = int(0, Math.min(h1, 4));
+    const m10 = int(0, Math.min(h1, 7));
     const h3 = h1 + int(0, 6);
     const h6 = h3 + int(0, 8);
     const h24 = h6 + int(0, R24[k]);
@@ -449,6 +499,7 @@ function sortearCaso(r: () => number, i: number): { estado: Estado; pedido: Pedi
   const estado: Estado = {
     contagens: c,
     semConversa: { '3h': s3, '6h': s6 },
+    doRobo10min: chance(0.5) ? 0 : int(0, 7),
     ultimoEm: {
       fisica: talvez(0.85, () => agora - int(0, 20 * 60) * 1000),
       proativa: talvez(0.8, () => agora - int(0, 30 * 60) * 1000),
@@ -470,8 +521,11 @@ function sortearCaso(r: () => number, i: number): { estado: Estado; pedido: Pedi
     },
   };
   const robos = [...Object.keys(CLASSE_POR_ROBO), 'robo_inexistente'];
+  // 1 em 5 vem de robô de agenda, para o lembrete com prazo aparecer o bastante na amostra.
+  const deAgenda = Object.keys(CLASSE_POR_ROBO).filter(n => CLASSE_POR_ROBO[n]!.podeTerPrazo);
+  const lista = chance(0.2) ? deAgenda : robos;
   const pedido: Pedido = {
-    robo: robos[int(0, robos.length - 1)]!,
+    robo: lista[int(0, lista.length - 1)]!,
     destino: chance(0.8) ? LEAD : chance(0.5) ? EQUIPE[0]! : chance(0.5) ? '120363000000000000@g.us' : '120363999999999999-group',
     bolhas: chance(0.3) ? undefined : int(1, 4),
     temPix: chance(0.1),
@@ -553,10 +607,14 @@ function oraculo(e: Estado, p: Pedido, agora: number): { classe: Classe; custo: 
   // Janela (BRT): frio 9–20 sem domingo; P3 e lembrete com prazo 7–21.
   const b = new Date(agora - 3 * HORA);
   const h = b.getUTCHours();
-  // Lembrete com prazo: janela do transacional e no máximo 6 em 10 min.
+  // O mesmo robô: no máximo 6 em 10 min, somando lembrete com prazo e proativa.
+  if ((classe === 'lembrete_p1' || PROATIVAS.includes(classe)) && (e.doRobo10min ?? 0) + custo > 6) sim('rajada_robo');
+  // Lembrete com prazo: janela do transacional, no máximo 6 em 10 min, 28 na hora e 150 em 24h.
   if (classe === 'lembrete_p1') {
     if (h < 7 || h >= 21) sim('fora_da_janela');
     if (soma('10min', ['lembrete_p1']) + custo > 6) sim('rajada_lembrete');
+    if (soma('1h', ['lembrete_p1']) + custo > 28) sim('teto_lembrete_hora');
+    if (soma('24h', ['lembrete_p1']) + custo > 150) sim('teto_lembrete_dia');
   }
   if (URGENTES.includes(classe)) return { classe, custo, evento, travas };
 
@@ -663,7 +721,7 @@ describe('decidir: propriedade com 2.000 estados sorteados (semente fixa)', () =
     });
   });
 
-  it('nunca envia lembrete com prazo fora das 7h–21h nem acima de 6 em 10 min (o prazo não é passe livre)', () => {
+  it('nunca envia lembrete com prazo fora das 7h–21h, acima de 6 em 10 min, de 28 na hora nem de 150 em 24h (o prazo não é passe livre)', () => {
     let vistos = 0;
     decisoes.forEach((d, i) => {
       if (d.acao !== 'enviar_agora' || d.classe !== 'lembrete_p1') return;
@@ -671,11 +729,30 @@ describe('decidir: propriedade com 2.000 estados sorteados (semente fixa)', () =
       const h = new Date(agora - 3 * HORA).getUTCHours();
       expect({ i, h, dentro: h >= 7 && h < 21 }).toEqual({ i, h, dentro: true });
       expect((e.contagens['10min']?.lembrete_p1 ?? 0) + d.maxBolhas).toBeLessThanOrEqual(6);
+      expect((e.contagens['1h']?.lembrete_p1 ?? 0) + d.maxBolhas).toBeLessThanOrEqual(28);
+      expect((e.contagens['24h']?.lembrete_p1 ?? 0) + d.maxBolhas).toBeLessThanOrEqual(150);
       vistos++;
     });
     expect(vistos).toBeGreaterThan(5);
-    // E o outro lado aparece: lembrete preso pela janela ou pela rajada.
-    expect(decisoes.some(d => d.classe === 'lembrete_p1' && d.acao === 'adiar' && (d.motivo === 'fora_da_janela' || d.motivo === 'rajada_lembrete'))).toBe(true);
+    // E o outro lado aparece: cada regra do lembrete prende algum lembrete da
+    // amostra (o motivo informado é o da trava que libera mais tarde, então a
+    // existência da trava sai do oráculo).
+    for (const m of ['fora_da_janela', 'rajada_lembrete', 'teto_lembrete_hora', 'teto_lembrete_dia', 'rajada_robo']) {
+      const preso = decisoes.some((d, i) => d.classe === 'lembrete_p1' && d.acao !== 'enviar_agora'
+        && oraculo(casos[i]!.estado, casos[i]!.pedido, casos[i]!.agora).travas.get(m) === 'sim');
+      expect({ m, preso }).toEqual({ m, preso: true });
+    }
+  });
+
+  it('o mesmo robô nunca passa de 6 em 10 min somando lembrete com prazo e proativa', () => {
+    let vistos = 0;
+    decisoes.forEach((d, i) => {
+      if (d.acao !== 'enviar_agora' || !(d.classe === 'lembrete_p1' || PROATIVAS.includes(d.classe))) return;
+      expect((casos[i]!.estado.doRobo10min ?? 0) + d.maxBolhas).toBeLessThanOrEqual(6);
+      vistos++;
+    });
+    expect(vistos).toBeGreaterThan(20);
+    expect(decisoes.some(d => d.acao !== 'enviar_agora' && d.motivo === 'rajada_robo' && PROATIVAS.includes(d.classe))).toBe(true);
   });
 
   it('nunca passa do teto do frio (6/h e 30/24h), da linha (24/h), da rajada (6 em 10 min), do total proativo (40/h) nem da emergência (60/h)', () => {

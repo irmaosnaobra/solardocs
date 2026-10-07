@@ -49,6 +49,14 @@ describe('regulamento: números padrão', () => {
     expect(REGULAMENTO_PADRAO.sustentado6h).toBe(60);
   });
 
+  it('o prazo não é passe livre: rajada por robô de 6 em 10 min e teto próprio do lembrete de 28/h e 150/24h', () => {
+    expect(REGULAMENTO_PADRAO.rajadaMaxPorRobo).toBe(6);
+    expect(REGULAMENTO_PADRAO.lembreteHora).toBe(28);
+    expect(REGULAMENTO_PADRAO.lembreteDia).toBe(150);
+    // O desvio da revisão (lembrete fora do balde de 24/h e do total de 40/h) está escrito.
+    expect(DIVERGENCIAS.some(d => /lembrete com prazo/.test(d) && /não adotado/.test(d))).toBe(true);
+  });
+
   it('1 toque = 1 mensagem: frio, transacional, aviso e evento em 1; resposta em 2; Pix em bolha própria', () => {
     const r = REGULAMENTO_PADRAO;
     expect([r.bolhasFrio, r.bolhasTransacional, r.bolhasAviso, r.bolhasEvento]).toEqual([1, 1, 1, 1]);
@@ -133,6 +141,9 @@ describe('regulamento: env só aperta', () => {
     expect(l.reg.rajadaMaxProativas).toBe(4);
     expect(l.ignorados.length).toBe(2);
     expect(lerRegulamento({ CHEFE_RAJADA_LEMBRETE_10MIN: '4' }).reg.rajadaMaxLembrete).toBe(4);
+    const novos = lerRegulamento({ CHEFE_RAJADA_ROBO_10MIN: '4', CHEFE_LEMBRETE_HORA: '20', CHEFE_LEMBRETE_DIA: '300' });
+    expect([novos.reg.rajadaMaxPorRobo, novos.reg.lembreteHora, novos.reg.lembreteDia]).toEqual([4, 20, 150]);
+    expect(novos.ignorados.join()).toMatch(/CHEFE_LEMBRETE_DIA=300/);
     const solta = lerRegulamento({ CHEFE_RAJADA_LEMBRETE_10MIN: '20' });
     expect(solta.reg.rajadaMaxLembrete).toBe(6);
     expect(solta.ignorados.join()).toMatch(/CHEFE_RAJADA_LEMBRETE_10MIN=20/);

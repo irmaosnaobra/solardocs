@@ -79,6 +79,9 @@ export interface Regulamento {
   rajadaJanelaMs: number;
   rajadaMaxProativas: number;
   rajadaMaxLembrete: number;
+  rajadaMaxPorRobo: number;
+  lembreteHora: number;
+  lembreteDia: number;
   sustentado3h: number;
   sustentado6h: number;
 
@@ -215,8 +218,26 @@ export const REGULAMENTO_BASE: Readonly<Regulamento> = Object.freeze({
   // quem escreveu e o evento continuam fora dela. Nos três controles de agenda
   // cheia do chefeQuedas (até 2 reuniões por quarto de hora) ela não segura
   // nenhum lembrete.
-  // Na hora, o lote com prazo declarado ainda passa 30 (dívida no chefeQuedas).
   rajadaMaxLembrete: 6,
+  // [revisão] rajada POR ROBÔ: o mesmo robô não passa de 6 mensagens em 10 min
+  // somando o lembrete com prazo e as proativas dele. Sem isto, metade dos
+  // pedidos com prazo e metade sem dava 11 em 10 min para o mesmo ep_agenda (a
+  // rajada do lembrete e a das proativas eram contadas à parte).
+  rajadaMaxPorRobo: 6,
+  // [revisão] teto PRÓPRIO do lembrete com prazo: 28/h e 150/24h, a medir na
+  // sombra. Sem isto, o prazo renovado (nascimento + 60 min) sustentava 35/h
+  // por 13 horas e 450 no dia, até o teto de emergência.
+  // DESVIO DA REVISÃO, medido no simulador: ela pedia o lembrete no MESMO balde
+  // de 24/h das proativas e no total de 40/h. Dividindo o balde, o controle das
+  // duas faixas perdia 26 itens (alerta, lembrete, cobrança); só com o total de
+  // 40/h, perdia 4 a 6 alertas e lembretes em toda combinação; com teto próprio
+  // de 24/h e a rajada por robô ligada, perdia 2. Com a rajada por robô, o
+  // lembrete legítimo chega a 27/h nas duas faixas (a rajada espalha o
+  // ep_agenda e junta lembretes numa hora); o menor teto que não segura nenhum
+  // é 26, e fica 28 para a sombra ter folga. O dia: os controles chegam a 120,
+  // o ataque a 450. O total do lembrete é o da emergência (60/h).
+  lembreteHora: 28,
+  lembreteDia: 150,
   // [crítica da ÍRIS] volume sustentado para quem NÃO escreveu nas últimas 24h:
   // 40 em 3h ou 60 em 6h, de P3 a P5. Segura o pico de 3h e de 6h, não a hora.
   // NÃO pega a classe errada: o frio pedindo como agenda no ritmo de 30/08 (1 a
@@ -448,6 +469,9 @@ export function lerRegulamento(env: Env = {}): LeituraRegulamento {
     emergenciaDia: teto('CHEFE_EMERGENCIA_DIA', b.emergenciaDia),
     rajadaMaxProativas: teto('CHEFE_RAJADA_10MIN', b.rajadaMaxProativas),
     rajadaMaxLembrete: teto('CHEFE_RAJADA_LEMBRETE_10MIN', b.rajadaMaxLembrete),
+    rajadaMaxPorRobo: teto('CHEFE_RAJADA_ROBO_10MIN', b.rajadaMaxPorRobo),
+    lembreteHora: teto('CHEFE_LEMBRETE_HORA', b.lembreteHora),
+    lembreteDia: teto('CHEFE_LEMBRETE_DIA', b.lembreteDia),
     sustentado3h: teto('CHEFE_SUSTENTADO_3H', b.sustentado3h),
     sustentado6h: teto('CHEFE_SUSTENTADO_6H', b.sustentado6h),
     avisoHora: teto('CHEFE_AVISO_HORA', b.avisoHora),
@@ -534,7 +558,7 @@ export const DIVERGENCIAS: readonly string[] = Object.freeze([
   'LINHA_MAX_DIA e LINHA_MAX_HORA: no HEAD a env subia o teto; no CHEFE só aperta.',
   'JANELA_DIURNA_OFF, JANELA_DOMINGO_ON e ESPACAMENTO_OFF afrouxam no HEAD; no CHEFE são ignoradas.',
   'Pisos por robô (6, 10, 14, 18, 20 e 24/h) somem. No lugar: prioridade por classe e teto de 24/h e 200/24h para P2–P5.',
-  'P0 (evento) e P1 (resposta e lembrete com prazo) ficam fora do teto da linha e da rampa, só com espaçamento de 10 s e teto de emergência de 60/h e 450/24h [crítica]. O lembrete com prazo ainda mora na janela do transacional (7h–21h) e numa rajada própria de 6 em 10 min, porque o prazo vem de quem chama [revisão].',
+  'P0 (evento) e a resposta (P1) ficam fora do teto da linha e da rampa, só com espaçamento de 10 s e teto de emergência de 60/h e 450/24h [crítica]. O lembrete com prazo (P1 pelo prazo) não: mora na janela do transacional (7h–21h), numa rajada própria de 6 em 10 min e num teto próprio de 28/h e 150/24h, e o mesmo robô não passa de 6 em 10 min somando lembrete e proativa, porque o prazo vem de quem chama [revisão]. A revisão pedia o lembrete no MESMO balde de 24/h das proativas e no total de 40/h: não adotado, porque nos dois a agenda cheia legítima perdia alerta, lembrete e cobrança (medido no simulador; ver lembreteHora). O total do lembrete é o da emergência; fica fora do teto da linha de P2–P5 e da rampa.',
   'Reativo atrasado (o destino não escreveu nos últimos 15 min) vira FRIO, com ou sem conversa nas últimas 24h [crítica; revisão]. A versão anterior o rebaixava a P3 com conversa viva, e um lote do CRM para quem escreveu ontem saía a 24/h, fora do orçamento do frio. O manual_crm é de 1 destino por chamada; chamada com mais de um é lote e é decidida como o zapi_admin_lote (frio).',
   'Pausa humana no lembrete da Giovanna: a memória pausa-humana-linha-io diz que confirmação e lembrete de reunião que o próprio lead marcou passam com humano dentro; o HEAD segura (solarAgendaGiovanna.ts:320 e solarBoasVindas.ts:506 chamam podeFalarComLead sem {transacional}, e a cobrança do SIM manda por sendFrio, que confere a pausa por dentro, zapiClient.ts:280-291). Vale o HEAD, robô a robô, inclusive quando o prazo vira P1.',
   'Pausa humana no frio da linha solardoc: hoje curso19, Carla (sem CNPJ e inativo), confiança, Pix VIP, dunning, recuperação de checkout, whatsappFollowup e a pergunta do CNPJ mandam pelo zapiClient (sendHuman, sendImage, sendWhatsApp, sendZAPI) sem passar pelo sendFrio nem pelo podeFalarComLead. No CHEFE todo frio respeita. Aperto novo, que o HEAD não faz.',

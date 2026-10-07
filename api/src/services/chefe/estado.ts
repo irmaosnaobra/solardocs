@@ -35,6 +35,8 @@ export interface ExtrasEstado {
   /** Destino e chave do pedido que vai ser decidido (para a parte do destino). */
   destino?: string;
   chave?: string;
+  /** Robô do pedido (para a rajada por robô). */
+  robo?: string;
   /** Última mensagem recebida, por chave do contato (chaveDoContato). */
   entradas?: ReadonlyMap<string, number>;
   /** Pausa humana ativa: última fala, por chave do contato. */
@@ -59,6 +61,8 @@ const GRUPOS: ReadonlyArray<[GrupoJanela, number, (e: EnvioLivro) => boolean]> =
   ['frio_24h', 24 * HORA, e => ehFria(e.classe)],
   ['proativa_10min', 10 * MIN, e => ehProativa(e.classe)],
   ['lembrete_10min', 10 * MIN, e => e.classe === 'lembrete_p1'],
+  ['lembrete_1h', HORA, e => e.classe === 'lembrete_p1'],
+  ['lembrete_24h', 24 * HORA, e => e.classe === 'lembrete_p1'],
   ['linha_1h', HORA, e => ehProativa(e.classe)],
   ['linha_24h', 24 * HORA, e => ehProativa(e.classe)],
   ['total_1h', HORA, () => true],
@@ -79,6 +83,7 @@ export function montarEstado(livro: readonly EnvioLivro[], agora: number, extras
     contagens[j] = c;
   }
   const semConversa = { '3h': 0, '6h': 0 };
+  let doRobo10min = 0;
   const ultimoEm: NonNullable<Estado['ultimoEm']> = { fisica: null, proativa: null, frio: null, carimbado: null };
   const maisAntigoEm: Partial<Record<GrupoJanela, number>> = {};
   const max = (a: number | null | undefined, b: number) => (typeof a === 'number' && a > b ? a : b);
@@ -92,6 +97,13 @@ export function montarEstado(livro: readonly EnvioLivro[], agora: number, extras
     if (naRampa(e.classe) && e.semConversa) {
       if (idade < 3 * HORA) semConversa['3h'] += e.bolhas;
       if (idade < 6 * HORA) semConversa['6h'] += e.bolhas;
+    }
+    // Rajada por robô: o mesmo robô, lembrete com prazo e proativas, em 10 min.
+    if (extras.robo !== undefined && e.robo === extras.robo && idade < 10 * MIN
+      && (ehProativa(e.classe) || e.classe === 'lembrete_p1')) {
+      doRobo10min += e.bolhas;
+      const atual = maisAntigoEm.robo_10min;
+      if (atual === undefined || e.em < atual) maisAntigoEm.robo_10min = e.em;
     }
     ultimoEm.fisica = max(ultimoEm.fisica, e.em);
     if (ehProativa(e.classe)) ultimoEm.proativa = max(ultimoEm.proativa, e.em);
@@ -128,6 +140,7 @@ export function montarEstado(livro: readonly EnvioLivro[], agora: number, extras
   return {
     contagens,
     semConversa,
+    doRobo10min,
     ultimoEm,
     maisAntigoEm,
     errosLinhaSeguidos,

@@ -178,7 +178,7 @@ export function simular(pedidos: readonly PedidoAgendado[], opts: OpcoesSimulaca
       }
 
       const estado = montarEstado(livro, agora, {
-        destino: v.p.destino, chave: v.p.chave, entradas, pausas,
+        destino: v.p.destino, chave: v.p.chave, robo: v.p.robo, entradas, pausas,
         reconectadoEm: opts.reconectadoEm ?? null, esperando, equipe: opts.equipe, gruposInternos: opts.gruposInternos,
       });
       const d: Decisao = decidir(estado, v.p, agora, reg);
