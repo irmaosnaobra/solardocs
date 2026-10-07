@@ -93,7 +93,9 @@ export async function runBlastRespostas(): Promise<ResultadoRespostas> {
     .select('phone, broadcast_id, enviado_em')
     .gte('enviado_em', desdeEnvio)
     .limit(5000);
-  if (eEnvios) { logger.error('blast-resp', 'ler envios falhou', eEnvios); return vazio; }
+  // Erro aqui NÃO pode sair cedo: os disparos de lista foram apagados em 07/10 e
+  // esta tabela ficou só de histórico, mas o PARAR da semente é lido logo abaixo.
+  if (eEnvios) logger.error('blast-resp', 'ler envios falhou (segue para semente)', eEnvios);
 
   const porChave = new Map<string, string>();  // telKey → broadcast_id
   for (const e of (envios ?? []) as Array<{ phone: string; broadcast_id: string }>) {
