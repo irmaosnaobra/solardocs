@@ -367,14 +367,15 @@ describe('DÍVIDA CONHECIDA — o prazo declarado por quem chama (sondas A, A2 e
   });
 });
 
-describe('DÍVIDA CONHECIDA — lote pedindo como evento num arquivo misto (passaporte por chamada)', () => {
-  // O dunningService.ts hospeda o dunning_lembrete (frio de receita) e o
-  // dunning_d0 (evento). A guarda arquivo → robôs deixa o arquivo pedir os dois
-  // (chefeGuarda, "DÍVIDA DECLARADA"), então um lote do lembrete pedindo como
-  // dunning_d0 sai como evento: sem janela, sem orçamento do frio, só com o
-  // espaçamento de 10 s e a emergência. Domingo 04/10 às 3h, 150 leads.
-  // Evento nunca é adiado (vai para a caixa), então o risco é mandar demais,
-  // não atrasar. A defesa é o passaporte por chamada provar o evento.
+describe('DÍVIDA CONHECIDA — lote pedindo como evento num arquivo de classe máxima evento (passaporte por chamada)', () => {
+  // São 8 arquivos que podem pedir como evento (chefeGuarda, "DÍVIDA
+  // DECLARADA"): 5 mistos (o dunningService.ts hospeda o dunning_lembrete, frio
+  // de receita, ao lado do dunning_d0) e 3 só de evento (authController,
+  // paymentsController, trafegoController). Um lote novo ali, pedindo com o nome
+  // do robô de evento do arquivo, sai como evento: sem janela, sem orçamento do
+  // frio, só com o espaçamento de 10 s e a emergência. Domingo 04/10 às 3h, 150
+  // leads. Evento nunca é adiado (vai para a caixa), então o risco é mandar
+  // demais, não atrasar. A defesa é o passaporte por chamada provar o evento.
   const tres = brt('2026-10-04T03:00');
   const pedidos: PedidoAgendado[] = Array.from({ length: 150 }, (_, i) => ({
     robo: 'dunning_d0', destino: lead(3000 + i), chave: `dunning:${i}`, desde: tres, modo: 'tick', semConversa: true, rotulo: 'lote_como_evento',
