@@ -35,7 +35,7 @@ export interface ExtrasEstado {
   /** Destino e chave do pedido que vai ser decidido (para a parte do destino). */
   destino?: string;
   chave?: string;
-  /** Robô do pedido (para a rajada por robô). */
+  /** Robô do pedido (para a rajada por robô e a cadência própria). */
   robo?: string;
   /** Última mensagem recebida, por chave do contato (chaveDoContato). */
   entradas?: ReadonlyMap<string, number>;
@@ -84,6 +84,7 @@ export function montarEstado(livro: readonly EnvioLivro[], agora: number, extras
   }
   const semConversa = { '3h': 0, '6h': 0 };
   let doRobo10min = 0;
+  let ultimoDoRoboEm: number | null = null;
   const ultimoEm: NonNullable<Estado['ultimoEm']> = { fisica: null, proativa: null, frio: null, carimbado: null };
   const maisAntigoEm: Partial<Record<GrupoJanela, number>> = {};
   const max = (a: number | null | undefined, b: number) => (typeof a === 'number' && a > b ? a : b);
@@ -105,6 +106,8 @@ export function montarEstado(livro: readonly EnvioLivro[], agora: number, extras
       const atual = maisAntigoEm.robo_10min;
       if (atual === undefined || e.em < atual) maisAntigoEm.robo_10min = e.em;
     }
+    // Cadência própria: o último envio do mesmo robô, qualquer classe.
+    if (extras.robo !== undefined && e.robo === extras.robo) ultimoDoRoboEm = max(ultimoDoRoboEm, e.em);
     ultimoEm.fisica = max(ultimoEm.fisica, e.em);
     if (ehProativa(e.classe)) ultimoEm.proativa = max(ultimoEm.proativa, e.em);
     if (ehFria(e.classe)) ultimoEm.frio = max(ultimoEm.frio, e.em);
@@ -141,6 +144,7 @@ export function montarEstado(livro: readonly EnvioLivro[], agora: number, extras
     contagens,
     semConversa,
     doRobo10min,
+    ultimoDoRoboEm,
     ultimoEm,
     maisAntigoEm,
     errosLinhaSeguidos,

@@ -284,7 +284,7 @@ const ROBOS_POR_ARQUIVO: Readonly<Record<string, { robos: readonly string[]; cla
   'services/io/eletropostoCobraSim.ts': { robos: ['ep_cobra_sim'], classeMaxima: 'lembrete_p1' },
   'services/io/eletropostoIgConvite.ts': { robos: ['ep_ig_convite'], classeMaxima: 'frio_p5' },
   'services/io/eletropostoNaoAtendidoFup.ts': { robos: ['ep_oferta_fria'], classeMaxima: 'frio_p5' },
-  'services/io/eletropostoReagendaAuto.ts': { robos: ['ep_reagenda_auto'], classeMaxima: 'frio_p5' },
+  'services/io/eletropostoReagendaAuto.ts': { robos: ['ep_reagenda_auto'], classeMaxima: 'transacional_agenda_p3' },
   'services/io/eletropostoRemarcar.ts': { robos: ['ep_oferta_fria', 'ep_remarcar_reativo'], classeMaxima: 'reativo_p1' },
   'services/io/eletropostoRespostas.ts': { robos: ['ep_oferta_fria', 'ep_remarcar_reativo', 'ep_respostas_aviso'], classeMaxima: 'reativo_p1' },
   'services/io/eletropostoRetorno.ts': { robos: ['ep_oferta_fria'], classeMaxima: 'frio_p5' },

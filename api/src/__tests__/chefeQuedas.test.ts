@@ -22,14 +22,23 @@ import { simular, porHoraBrt, picoEmJanela, PedidoAgendado, ResultadoSimulacao, 
 // e evento no meio. Nada importante fica de fora e nada de evento é adiado. Sem
 // ele, um CHEFE que não deixa nada sair passaria em todos os replays acima.
 //
+// AGENDA NUNCA BLOQUEIA [regra do dono, 07/10/2026; memória
+// agenda-nunca-bloqueia.md]: nos controles, nenhuma mensagem de agenda expira
+// nem fica pendente, nem com as carteiras do solar na mesma linha, nem na hora de
+// pico de conversa. Quando falta espaço, quem perde a vez é o frio.
+//
 // Os replays recebem o robô com a classe CERTA de CLASSE_POR_ROBO. Os casos de
-// classe ERRADA (o frio pedindo como agenda, em 30/08 e em 02/10, e o lote
-// pedindo como evento num arquivo misto) estão cravados como DÍVIDA CONHECIDA:
+// classe ERRADA (o frio pedindo como agenda, em 30/08 e em 02/10, o prazo
+// inventado e o lote pedindo como evento) estão cravados como DÍVIDA CONHECIDA:
 // o CHEFE puro não segura classe errada na escala da hora, e nenhum volume
-// separa o frio mal classificado de uma agenda cheia. A guarda arquivo → robôs
-// permitidos (chefeGuarda, regra robo) já reprova o pedido com o nome de um
-// robô de OUTRO arquivo; dentro dos 9 arquivos mistos ela não separa a classe,
-// e a defesa completa é o passaporte por chamada (dívida). Telefones fictícios.
+// separa o frio mal classificado de uma agenda cheia. Desde a regra do dono a
+// agenda está fora dos freios de volume, então essas dívidas PIORARAM (números
+// novos abaixo): o que segura o robô frio pedindo como agenda é a rajada por
+// robô (6 em 10 min) e a guarda arquivo → robôs permitidos (chefeGuarda, regra
+// robo), que reprova o pedido com o nome de um robô de OUTRO arquivo. Dentro de
+// um arquivo que pode pedir uma classe mais urgente que a do próprio robô ela não
+// separa a classe, e a defesa completa é o passaporte por chamada (dívida).
+// Telefones fictícios.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MIN = 60_000;
@@ -98,7 +107,7 @@ describe('queda 2 — 04/08, a fila da agenda (8 pessoas, 37 mensagens às 8h) e
     expect(Math.min(...gaps(r.enviados))).toBeGreaterThanOrEqual(25_000);
   });
 
-  it('linha caída: o freio para a proativa depois de 2 erros, o evento vai para a caixa, e na volta a rampa segura o P3 sem segurar o lembrete', () => {
+  it('linha caída: o freio para a proativa depois de 2 erros, o evento vai para a caixa, e na volta a rampa segura o frio sem segurar a agenda', () => {
     const nove = brt('2026-08-04T09:00');
     const dez = brt('2026-08-04T10:00');
     const reunioes = Array.from({ length: 8 }, (_, i) => brt('2026-08-04T11:00') + i * 15 * MIN);
@@ -113,6 +122,9 @@ describe('queda 2 — 04/08, a fila da agenda (8 pessoas, 37 mensagens às 8h) e
       })),
       { robo: 'solardoc_compra', destino: lead(300), desde: brt('2026-08-04T09:05'), modo: 'imediato', rotulo: 'compra' },
       { robo: 'solardoc_compra', destino: lead(301), desde: brt('2026-08-04T09:10'), modo: 'imediato', rotulo: 'compra' },
+      ...Array.from({ length: 10 }, (_, i): PedidoAgendado => ({
+        robo: 'semente', destino: lead(400 + i), chave: `semente:${i}`, desde: nove, modo: 'tick', semConversa: true, rotulo: 'frio',
+      })),
     ];
     const r = simular(pedidos, {
       inicio: nove, fim: brt('2026-08-04T14:00'),
@@ -134,10 +146,14 @@ describe('queda 2 — 04/08, a fila da agenda (8 pessoas, 37 mensagens às 8h) e
       expect(c.em).toBeGreaterThanOrEqual(dez);
       expect(c.em).toBeLessThan(dez + 30 * MIN);
     }
-    // Volta: rampa dia 0 segura o transacional do dia em 10/h...
-    const p3 = r.enviados.filter(e => e.classe === 'transacional_agenda_p3');
-    expect(picoEmJanela(p3, HORA)).toBeLessThanOrEqual(10);
-    expect(r.enviados.filter(e => e.pedido.rotulo === 'diario').length).toBe(20);
+    // Volta: a rampa do dia 0 segura o frio (1 no dia, o dia da rampa menos a
+    // reserva); a agenda do dia fica fora da rampa [regra do dono, 07/10] e só é
+    // espaçada: os 20 diários saem na hora da volta, 1 bolha, no máximo 6 em 10 min.
+    expect(r.enviados.filter(e => e.pedido.rotulo === 'frio').length).toBe(1);
+    const p3 = r.enviados.filter(e => e.pedido.rotulo === 'diario');
+    expect(p3.length).toBe(20);
+    expect(p3.every(e => e.bolhas === 1 && e.em >= dez && e.em < dez + HORA)).toBe(true);
+    expect(picoEmJanela(p3, 10 * MIN)).toBeLessThanOrEqual(6);
     // ...e todo lembrete de 1h sai dentro da janela dele.
     const lembretes = r.enviados.filter(e => e.pedido.rotulo === '1h');
     expect(lembretes.length).toBe(8);
@@ -180,25 +196,31 @@ describe('queda 3 — 30/08, 184 frios pela rota crua (98 saíram a 18/h)', () =
   });
 
   it('DÍVIDA CONHECIDA: com a classe ERRADA (frio pedindo como agenda) o CHEFE puro NÃO segura 30/08', () => {
-    // O volume sustentado (40 em 3h, 60 em 6h) só achata os picos de 3h e 6h.
-    // Na hora passa 19, acima dos 18/h que bloquearam a linha, e saem todos os
-    // 98 até 18h17, como na queda. A defesa contra classe errada é a guarda
-    // arquivo → robôs permitidos: o zapiAdmin.ts só pode pedir como
+    // A agenda está fora do volume sustentado desde a regra do dono (07/10): os
+    // picos de 3h e 6h, que ele achatava em 40 e 60, agora são 57 e 98. Na hora
+    // passa 19 (o ritmo de chegada), acima dos 18/h que bloquearam a linha, e saem
+    // todos os 98 até 18h17, como na queda. A defesa contra classe errada é a
+    // guarda arquivo → robôs permitidos: o zapiAdmin.ts só pode pedir como
     // zapi_admin_lote, e o pedido como ep_agenda reprova no chefeGuarda. Ela
-    // só vê nome literal; o passaporte por chamada fecha o resto (dívida).
-    // Números cravados: se mudarem, alguém mexeu na régua e tem de olhar.
+    // lê o nome literal, 'x' as const, satisfies e const do arquivo; o passaporte
+    // por chamada fecha o resto (dívida). Números cravados: se mudarem, alguém
+    // mexeu na régua e tem de olhar.
     const seg = brt('2026-08-31T09:30');
     const r = simular(fila(98, i => seg + Math.round(i * 3.2 * MIN), 'ep_agenda'), { inicio: seg, fim: brt('2026-08-31T21:00') });
     resumo('30/08 classe errada', r);
     expect(r.enviados.filter(e => e.em < brt('2026-08-31T18:17')).length).toBe(98);
     expect(picoEmJanela(r.enviados, HORA)).toBe(19);
-    expect(picoEmJanela(r.enviados, 3 * HORA)).toBe(40);
-    expect(picoEmJanela(r.enviados, 6 * HORA)).toBe(60);
+    expect(picoEmJanela(r.enviados, 3 * HORA)).toBe(57);
+    expect(picoEmJanela(r.enviados, 6 * HORA)).toBe(98);
     expect(r.enviados.every(e => e.classe === 'transacional_agenda_p3')).toBe(true);
   });
 });
 
-describe('queda 4 — 02/10, o reagenda (39 frios em 55 min, 3 bolhas, carimbando como agenda)', () => {
+describe('queda 4 — 02/10, o reagenda (39 em 55 min, 3 bolhas, carimbando como agenda)', () => {
+  // Desde 07/10 a remarcação do NÃO ATENDEU é AGENDA, por ordem do dono: sai
+  // sempre, só espaçada (1 a cada 15 min, a cadência própria), nunca em rajada e
+  // nunca cortada. Antes ela era frio e o que não cabia nos 30 do dia ia para o
+  // dia seguinte.
   const nove = brt('2026-10-02T09:00');
   const reagenda: PedidoAgendado[] = Array.from({ length: 39 }, (_, i) => ({
     robo: 'ep_reagenda_auto', destino: lead(i), bolhas: 3, chave: `ep_agenda_sent:${600 + i}:reagendado`,
@@ -213,23 +235,24 @@ describe('queda 4 — 02/10, o reagenda (39 frios em 55 min, 3 bolhas, carimband
     modo: 'tick', semConversa: true, rotulo: 'bom_dia',
   }));
 
-  it('nos 55 min da queda saem no máximo 6 reagendas (eram 39 × 3 bolhas), e o bom dia passa na frente', () => {
+  it('a remarcação do NÃO ATENDEU sai toda no mesmo dia, 1 a cada 15 min ou mais, 1 bolha; nos 55 min da queda, no máximo 4 (eram 39 × 3 bolhas); o bom dia passa na frente', () => {
     const r = simular([...reagenda, ...bonsDias], { inicio: nove, fim: brt('2026-10-03T20:00') });
     resumo('02/10', r);
     const rg = r.enviados.filter(e => e.pedido.rotulo === 'reagenda');
     const bd = r.enviados.filter(e => e.pedido.rotulo === 'bom_dia');
-    expect(rg.filter(e => e.em < nove + 55 * MIN).length).toBeLessThanOrEqual(6);
-    expect(rg.every(e => e.bolhas === 1 && e.classe === 'frio_p5')).toBe(true);
-    expect(picoEmJanela(rg, HORA)).toBeLessThanOrEqual(6);
-    expect(picoEmJanela(rg, 24 * HORA)).toBeLessThanOrEqual(30);
-    expect(Math.min(...gaps(rg))).toBeGreaterThanOrEqual(10 * MIN);
-    // Todos os bons dias saem antes do prazo, e o frio espera a fila deles.
+    expect(rg.filter(e => e.em < nove + 55 * MIN).length).toBeLessThanOrEqual(4);
+    expect(rg.every(e => e.bolhas === 1 && e.classe === 'transacional_agenda_p3')).toBe(true);
+    expect(picoEmJanela(rg, HORA)).toBeLessThanOrEqual(4);
+    expect(Math.min(...gaps(rg))).toBeGreaterThanOrEqual(15 * MIN);
+    // Todos os bons dias saem antes do prazo, e a remarcação espera a fila deles.
     expect(bd.length).toBe(12);
     const ultimoBomDia = Math.max(...bd.map(e => e.em));
-    expect(rg.filter(e => e.em < ultimoBomDia).length).toBeLessThanOrEqual(1);
-    // Ninguém se perde: o que não coube na sexta sai no sábado.
+    expect(rg.filter(e => e.em < ultimoBomDia).length).toBe(0);
+    // Nunca cortada: as 39 saem, todas na sexta, dentro da janela do transacional.
     expect(rg.length).toBe(39);
-    expect(new Set(rg.map(e => diaBrt(e.em)))).toEqual(new Set(['2026-10-02', '2026-10-03']));
+    expect(r.expirados.length + r.pendentes.length).toBe(0);
+    expect(new Set(rg.map(e => diaBrt(e.em)))).toEqual(new Set(['2026-10-02']));
+    for (const e of rg) expect(horaBrt(e.em)).toBeLessThan(21);
   });
 
   it('com a linha caindo às 9h55, para no erro: 2 erros e uma sonda a cada 15 min, não um por tick', () => {
@@ -245,20 +268,22 @@ describe('queda 4 — 02/10, o reagenda (39 frios em 55 min, 3 bolhas, carimband
   // pede como ep_agenda, a classe errada, como fez na queda.
   const comoAgenda = (prazo?: number, desde = nove): PedidoAgendado[] => reagenda.map(p => ({ ...p, robo: 'ep_agenda', prazo, desde }));
 
-  it('DÍVIDA CONHECIDA: com a classe ERRADA (pedindo como ep_agenda) o CHEFE puro deixa 24 frios em 55 min', () => {
-    // A rajada achata os 10 min (de ~21 para 5), a bolha cai para 1, mas a hora
-    // fica em 24 de frio para quem não escreveu: o teto da linha de P3. Na queda
-    // foram 39 contatos em 55 min. A defesa é a guarda arquivo → robôs: o
-    // eletropostoReagendaAuto.ts só pode pedir como ep_reagenda_auto, e o pedido
-    // como ep_agenda reprova no chefeGuarda. Números cravados.
+  it('DÍVIDA CONHECIDA: com a classe ERRADA (pedindo como ep_agenda) o CHEFE puro deixa 28 em 55 min (eram 24)', () => {
+    // A rajada achata os 10 min (de ~21 para 5) e a bolha cai para 1. A hora,
+    // que o teto da linha de P3 segurava em 24, sobe para 30: desde a regra do
+    // dono (07/10) a agenda está fora do teto da linha, e quem segura é o espaço
+    // entre proativas e a rajada por robô. Na queda foram 39 contatos em 55 min.
+    // A defesa é a guarda arquivo → robôs: o eletropostoReagendaAuto.ts só pode
+    // pedir como ep_reagenda_auto (que tem a cadência de 15 min), e o pedido como
+    // ep_agenda reprova no chefeGuarda. Números cravados.
     const r = simular(comoAgenda(), { inicio: nove, fim: brt('2026-10-03T20:00') });
     resumo('02/10 classe errada', r);
     expect(r.enviados.length).toBe(39);
     expect(r.enviados.every(e => e.bolhas === 1 && e.classe === 'transacional_agenda_p3')).toBe(true);
-    expect(r.enviados.filter(e => e.em < nove + 55 * MIN).length).toBe(24);
+    expect(r.enviados.filter(e => e.em < nove + 55 * MIN).length).toBe(28);
     expect(picoEmJanela(r.enviados, 10 * MIN)).toBe(5);
-    expect(picoEmJanela(r.enviados, HORA)).toBe(24);
-    expect([...porHoraBrt(r.enviados).values()]).toEqual([24, 15]);
+    expect(picoEmJanela(r.enviados, HORA)).toBe(30);
+    expect([...porHoraBrt(r.enviados).values()]).toEqual([30, 9]);
   });
 
   it('o prazo não é passe livre: 39 pedidos como ep_agenda com prazo=agora+60min não saem em rajada nem de madrugada', () => {
@@ -271,10 +296,10 @@ describe('queda 4 — 02/10, o reagenda (39 frios em 55 min, 3 bolhas, carimband
     expect(picoEmJanela(sexta.enviados, 10 * MIN)).toBeLessThanOrEqual(6);
     // Quem segura é a rajada por robô (o mesmo ep_agenda, com e sem prazo).
     expect(sexta.motivos.rajada_robo ?? 0).toBeGreaterThan(0);
-    // DÍVIDA CONHECIDA: na hora ainda passam 28, o teto próprio do lembrete (era
-    // 30 antes dele). O prazo é de quem chama; a defesa é a guarda arquivo →
-    // robôs e, completa, o passaporte por chamada.
-    expect(picoEmJanela(sexta.enviados, HORA)).toBe(28);
+    // DÍVIDA CONHECIDA: na hora passam 32 (eram 28 com o teto próprio do
+    // lembrete, que saiu da agenda pela regra do dono). O prazo é de quem chama;
+    // a defesa é a guarda arquivo → robôs e, completa, o passaporte por chamada.
+    expect(picoEmJanela(sexta.enviados, HORA)).toBe(32);
 
     const tresDaManha = brt('2026-10-04T03:00');
     const domingo = simular(comoAgenda(tresDaManha + HORA, tresDaManha), { inicio: tresDaManha, fim: tresDaManha + 40 * HORA });
@@ -289,13 +314,15 @@ describe('queda 4 — 02/10, o reagenda (39 frios em 55 min, 3 bolhas, carimband
 });
 
 describe('DÍVIDA CONHECIDA — o prazo declarado por quem chama (sondas A, A2 e A3 da revisão)', () => {
-  // O mesmo ep_agenda pedindo com prazo inventado. Antes desta rodada: A dava
-  // 11 em 10 min e 48 na hora; A2 sustentava 35/h por 13 horas e 450 no dia,
-  // até o teto de emergência; A3 dava 406 no dia. Agora a rajada por robô (6 em
-  // 10 min somando com e sem prazo) e o teto próprio do lembrete (28/h e
-  // 150/24h) seguram o que dá para segurar sem cortar a agenda cheia legítima.
-  // O que sobra é P3 sem prazo para quem não conversa, que só o volume
-  // sustentado segura (nenhum volume separa frio mal classificado de agenda).
+  // O mesmo ep_agenda pedindo com prazo inventado. Na 1ª revisão: A dava 11 em
+  // 10 min e 48 na hora; A2 sustentava 35/h por 13 horas e 450 no dia; A3 dava
+  // 406. Na 2ª, com o teto próprio do lembrete (28/h e 150/24h) e o volume
+  // sustentado, A2 caiu para 164 e A3 para 305. A regra do dono (07/10, agenda
+  // nunca bloqueia) tirou a agenda dos dois: o que segura o prazo inventado é só
+  // a rajada por robô (6 em 10 min, dura) e a emergência, e A2 e A3 voltam para
+  // perto de 35/h o dia inteiro. É a dívida declarada da regra: nenhum volume
+  // separa frio mal classificado de agenda, e a defesa é a guarda arquivo →
+  // robôs e, completa, o passaporte por chamada.
   // Números cravados: se mudarem, alguém mexeu na régua e tem de olhar.
   const nove = brt('2026-10-02T09:00');
   const seg7 = brt('2026-10-05T07:00');
@@ -316,25 +343,25 @@ describe('DÍVIDA CONHECIDA — o prazo declarado por quem chama (sondas A, A2 e
   resumo('sonda A3', rA3);
   const lembretes = (r: ResultadoSimulacao) => r.enviados.filter(e => e.classe === 'lembrete_p1');
 
-  it('A: metade com prazo e metade sem, o mesmo robô: 6 em 10 min (eram 11) e 35 na hora (eram 48)', () => {
+  it('A: metade com prazo e metade sem, o mesmo robô: 6 em 10 min (eram 11) e 36 na hora (eram 48; 35 na 2ª revisão)', () => {
     expect(rA.enviados.length).toBe(78);
     expect(picoEmJanela(rA.enviados, 10 * MIN)).toBe(6);
-    expect(picoEmJanela(rA.enviados, HORA)).toBe(35);
-    expect(lembretes(rA).length).toBe(30);
+    expect(picoEmJanela(rA.enviados, HORA)).toBe(36);
+    expect(lembretes(rA).length).toBe(32);
   });
 
-  it('A2: prazo renovado (nascimento + 60 min): 28/h e 150 lembretes no dia (eram 35/h e 450)', () => {
-    expect(picoEmJanela(lembretes(rA2), HORA)).toBe(28);
-    expect(lembretes(rA2).length).toBe(150);
-    expect(rA2.enviados.length).toBe(164);
+  it('A2: prazo renovado (nascimento + 60 min): 35/h e 466 lembretes no dia (eram 35/h e 450; 28/h e 150 na 2ª revisão)', () => {
+    expect(picoEmJanela(lembretes(rA2), HORA)).toBe(35);
+    expect(lembretes(rA2).length).toBe(466);
+    expect(rA2.enviados.length).toBe(466);
     expect(picoEmJanela(rA2.enviados, 10 * MIN)).toBe(6);
-    expect(picoEmJanela(rA2.enviados, HORA)).toBe(36);
-    expect(rA2.motivos.teto_lembrete_dia ?? 0).toBeGreaterThan(0);
+    expect(rA2.motivos.rajada_robo ?? 0).toBeGreaterThan(0);
+    expect(rA2.motivos.teto_lembrete_dia ?? 0).toBe(0);
   });
 
-  it('A3: metade sem prazo: 305 no dia (eram 406), pico de 36 na hora; o resto é P3 que só o volume sustentado segura', () => {
-    expect(rA3.enviados.length).toBe(305);
-    expect(lembretes(rA3).length).toBe(150);
+  it('A3: metade sem prazo: 457 no dia (eram 406; 305 na 2ª revisão), pico de 36 na hora', () => {
+    expect(rA3.enviados.length).toBe(457);
+    expect(lembretes(rA3).length).toBe(233);
     expect(picoEmJanela(rA3.enviados, HORA)).toBe(36);
     expect(picoEmJanela(rA3.enviados, 10 * MIN)).toBe(6);
   });
@@ -455,21 +482,52 @@ describe('caixa de saída: o drenador nunca manda o mesmo toque duas vezes', () 
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONTROLE POSITIVO — segunda de agenda cheia (36 reuniões), com resposta, aviso
-// e evento no meio. Três formatos de agenda:
+// e evento no meio. AGENDA NUNCA BLOQUEIA [regra do dono, 07/10/2026]: nenhuma
+// mensagem de agenda expira nem fica pendente, e quando falta espaço quem perde a
+// vez é o frio. Os formatos:
 //   - uma reunião a cada 15 min das 9h às 17h45, com o bom dia levando prazo
 //     de 1h antes da reunião (alguns entram como P1 pelo prazo);
 //   - a grade real, 2 consultores em :00/:30 das 9h às 17h30, com o bom dia SEM
-//     prazo e todo mundo sem conversa (o P1 não entra pela porta do prazo e o
-//     volume sustentado pega todo P3) [revisão];
-//   - as duas faixas cheias, 2 reuniões por quarto de hora das 9h às 13h15.
+//     prazo e todo mundo sem conversa;
+//   - as duas faixas cheias, 2 reuniões por quarto de hora das 9h às 13h15;
+//   - as duas faixas com o bom dia sem prazo e todo mundo sem conversa (era a
+//     dívida de 8 bons dias expirados: o total da hora e o volume sustentado
+//     seguravam agenda legítima);
+//   - as duas faixas com as duas carteiras do solar na mesma linha;
+//   - a hora de pico de conversa em cima das duas faixas.
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface Reuniao { T: number; consultor: number }
 
+interface ExtraDoDia {
+  /**
+   * Carteiras do solar (giovanna_agenda), uma ligação por horário. Bom dia das 7h
+   * às 11h, nunca a menos de 30 min da ligação; toque de 5 min de T−10 a T+2
+   * (solarAgendaGiovanna.ts:128-139).
+   */
+  solar?: readonly number[];
+  /** Pico de conversa: n respostas novas (2 bolhas) espalhadas pela hora que começa em `de`. */
+  pico?: { de: string; n: number };
+  /** Horários das compras (evento). Padrão: 9h, 12h07 e 16h31. */
+  compras?: readonly string[];
+}
+
+// Números cravados dos controles (fome do frio e pior espera da resposta no pico).
+const FRIO_UMA_A_15 = 15;
+const FRIO_GRADE = 29;
+const FRIO_FAIXAS = 30;
+const FRIO_DENSA = 30;
+const FRIO_SOLAR = 29;
+const FRIO_PICO = 30;
+const PIOR_RESPOSTA_PICO_MIN = 40;
+const LIMITE_DOBRO_PICO_HORA = 62;
+
 const tDia = (hhmm: string) => brt(`2026-10-05T${hhmm}`);
+const AGENDA = ['bom_dia', '1h', '5min', 'alerta', 'confirmacao', 'cobranca', 'solar_bom_dia', 'solar_5min'];
+const IMPORTANTES = [...AGENDA, 'reativo', 'pico', 'evento', 'aviso_ficha'];
 
 /** Uma segunda de agenda: reuniões, resposta, aviso, evento e 40 frios de fundo, das 7h às 21h. */
-function diaDeAgenda(reunioes: readonly Reuniao[], opts: { bomDiaComPrazo: boolean; todosSemConversa: boolean }): ResultadoSimulacao {
+function diaDeAgenda(reunioes: readonly Reuniao[], opts: { bomDiaComPrazo: boolean; todosSemConversa: boolean }, x: ExtraDoDia = {}): ResultadoSimulacao {
   const t = tDia;
   const pedidos: PedidoAgendado[] = [];
   const entradas = new Map<string, number>();
@@ -493,6 +551,13 @@ function diaDeAgenda(reunioes: readonly Reuniao[], opts: { bomDiaComPrazo: boole
         validoAte: T - HORA, modo: 'tick', semConversa: true, rotulo: 'cobranca' });
     }
   });
+  (x.solar ?? []).forEach((T, g) => {
+    const tel = lead(900 + g);
+    pedidos.push({ robo: 'giovanna_agenda', destino: tel, chave: `sbd:${g}`, desde: t('07:00'),
+      validoAte: Math.min(t('11:00'), T - 30 * MIN), modo: 'tick', semConversa: true, rotulo: 'solar_bom_dia' });
+    pedidos.push({ robo: 'giovanna_agenda', destino: tel, chave: `s5:${g}`, prazo: T, desde: T - 10 * MIN,
+      validoAte: T + 2 * MIN, modo: 'tick', semConversa: true, rotulo: 'solar_5min' });
+  });
   // 60 respostas a quem escreveu, 2 bolhas cada, das 8h às 19h.
   for (let i = 0; i < 60; i++) {
     const quando = t('08:00') + i * 11 * MIN + 37_000;
@@ -500,9 +565,17 @@ function diaDeAgenda(reunioes: readonly Reuniao[], opts: { bomDiaComPrazo: boole
     entradas.set(tel, quando - 30_000);
     pedidos.push({ robo: i % 2 ? 'giovanna_reativa' : 'duda_recepcao', destino: tel, bolhas: 2, desde: quando, modo: 'imediato', rotulo: 'reativo' });
   }
-  // 3 compras (uma no pico das 9h) e 10 fichas novas para a equipe.
-  for (const [i, hhmm] of ['09:00', '12:07', '16:31'].entries()) {
-    pedidos.push({ robo: 'solardoc_compra', destino: lead(700 + i), desde: t(hhmm) + 20_000, modo: 'imediato', rotulo: 'evento' });
+  if (x.pico) {
+    for (let i = 0; i < x.pico.n; i++) {
+      const quando = t(x.pico.de) + i * Math.floor(HORA / x.pico.n) + 11_000;
+      const tel = lead(600 + i);
+      entradas.set(tel, quando - 20_000);
+      pedidos.push({ robo: 'duda_recepcao', destino: tel, bolhas: 2, desde: quando, modo: 'imediato', rotulo: 'pico' });
+    }
+  }
+  // Compras (uma no pico das 9h) e 10 fichas novas para a equipe.
+  for (const [i, hhmm] of (x.compras ?? ['09:00', '12:07', '16:31']).entries()) {
+    pedidos.push({ robo: 'solardoc_compra', destino: lead(700 + i), chave: `compra:${i}`, desde: t(hhmm) + 20_000, modo: 'imediato', rotulo: 'evento' });
   }
   for (let i = 0; i < 10; i++) {
     pedidos.push({ robo: 'ep_aviso_ficha', destino: EQUIPE[i % 2]!, desde: t('08:15') + i * 53 * MIN, modo: 'imediato', rotulo: 'aviso_ficha' });
@@ -515,57 +588,60 @@ function diaDeAgenda(reunioes: readonly Reuniao[], opts: { bomDiaComPrazo: boole
   return simular(pedidos, { inicio: t('07:00'), fim: t('21:00'), equipe: EQUIPE, entradas });
 }
 
+/** Itens de agenda (ou importantes) que expiraram ou ficaram pendentes, com o último motivo. */
+const foraDe = (r: ResultadoSimulacao, rotulos: readonly string[]) =>
+  [...r.expirados, ...r.pendentes].filter(x => rotulos.includes(x.pedido.rotulo!)).map(x => `${x.pedido.rotulo}:${x.ultimoMotivo}`);
+
 function controle(titulo: string, reunioes: readonly Reuniao[], opts: {
-  bomDiaComPrazo: boolean; todosSemConversa: boolean; frioCravado: number; rajadaLembreteCravada: number;
+  bomDiaComPrazo: boolean; todosSemConversa: boolean; frioCravado: number; extra?: ExtraDoDia;
+  /** Linha no teto físico pela agenda (o solar junto): a resposta pode esperar a vaga, até 10 min. */
+  linhaCheia?: boolean;
 }) {
   describe(`CONTROLE POSITIVO — ${titulo}`, () => {
-    const t = tDia;
-    const r = diaDeAgenda(reunioes, opts);
+    const r = diaDeAgenda(reunioes, opts, opts.extra);
     resumo(`agenda cheia, ${titulo}`, r);
     const de = (rotulo: string) => r.enviados.filter(e => e.pedido.rotulo === rotulo);
-    const IMPORTANTES = ['bom_dia', '1h', '5min', 'alerta', 'confirmacao', 'cobranca', 'reativo', 'evento', 'aviso_ficha'];
+    const solar = opts.extra?.solar?.length ?? 0;
 
-    it('nada importante fica de fora: nenhum expirado nem pendente; o que passou pela caixa chega em até 10 min', () => {
-      const fora = [...r.expirados, ...r.pendentes].map(x => x.pedido.rotulo).filter(x => IMPORTANTES.includes(x!));
-      expect(fora).toEqual([]);
+    it('AGENDA NUNCA BLOQUEIA: nenhuma mensagem de agenda expira nem fica pendente; nada importante fica de fora; o que passou pela caixa chega em até 10 min', () => {
+      expect(foraDe(r, AGENDA)).toEqual([]);
+      expect(foraDe(r, IMPORTANTES)).toEqual([]);
       expect(r.caixa.filter(c => c.pedido.rotulo === 'evento')).toEqual([]);
       for (const e of r.enviados.filter(x => x.viaCaixa)) expect(e.em - e.pedido.desde).toBeLessThanOrEqual(10 * MIN);
-      for (const [rotulo, n] of [['bom_dia', 36], ['1h', 36], ['5min', 36], ['alerta', 36], ['confirmacao', 12], ['cobranca', 12], ['reativo', 60], ['evento', 3], ['aviso_ficha', 10]] as const) {
+      for (const [rotulo, n] of [['bom_dia', 36], ['1h', 36], ['5min', 36], ['alerta', 36], ['confirmacao', 12], ['cobranca', 12],
+        ['solar_bom_dia', solar], ['solar_5min', solar], ['reativo', 60], ['evento', 3], ['aviso_ficha', 10]] as const) {
         expect({ rotulo, n: de(rotulo).length }).toEqual({ rotulo, n });
       }
     });
 
-    it('evento e resposta saem em até 10 s, na primeira pergunta', () => {
+    it(opts.linhaCheia
+      ? 'com a linha no teto físico pela agenda, a resposta espera a vaga (até 10 min) e continua resposta; o evento sai em até 1 min'
+      : 'evento e resposta saem em até 10 s, na primeira pergunta', () => {
       for (const e of [...de('evento'), ...de('reativo')]) {
-        expect(e.tentativas).toBe(1);
-        expect(e.em - e.pedido.desde).toBeLessThanOrEqual(10_000);
+        if (!opts.linhaCheia) expect(e.tentativas).toBe(1);
+        const teto = opts.linhaCheia ? (e.pedido.rotulo === 'evento' ? MIN : 10 * MIN) : 10_000;
+        expect({ rotulo: e.pedido.rotulo, ok: e.em - e.pedido.desde <= teto }).toEqual({ rotulo: e.pedido.rotulo, ok: true });
       }
-      expect(de('reativo').every(e => e.bolhas === 2)).toBe(true);
+      expect(de('reativo').every(e => e.bolhas === 2 && e.classe === 'reativo_p1')).toBe(true);
     });
 
-    it('todo lembrete sai dentro da janela dele, e o alerta antes da reunião; o lembrete legítimo fica abaixo do teto próprio', () => {
+    it('todo lembrete sai dentro da janela dele, e o alerta antes da reunião; nenhum freio de volume segura agenda', () => {
       for (const e of de('1h')) {
         expect(e.em).toBeGreaterThanOrEqual(e.pedido.prazo! - 75 * MIN);
         expect(e.em).toBeLessThanOrEqual(e.pedido.prazo! - 45 * MIN);
       }
-      for (const e of de('5min')) {
+      for (const e of [...de('5min'), ...de('solar_5min')]) {
         expect(e.em).toBeGreaterThanOrEqual(e.pedido.prazo! - 12 * MIN);
-        expect(e.em).toBeLessThanOrEqual(e.pedido.prazo! + 3 * MIN);
+        expect(e.em).toBeLessThanOrEqual(e.pedido.validoAte!);
       }
       for (const e of de('alerta')) expect(e.em).toBeLessThan(e.pedido.prazo!);
-      // A rajada própria do lembrete (6 em 10 min) e o teto próprio (28/h e
-      // 150/24h) existem para o prazo declarado por quem chama. Na agenda de
-      // verdade não seguram nenhum lembrete de vez: no máximo adiam alguns
-      // minutos dentro da janela (número cravado por controle).
-      const lembretes = r.enviados.filter(e => e.classe === 'lembrete_p1');
-      expect(picoEmJanela(lembretes, HORA)).toBeLessThanOrEqual(28);
-      expect(lembretes.length).toBeLessThanOrEqual(150);
-      expect(r.motivos.rajada_lembrete ?? 0).toBe(opts.rajadaLembreteCravada);
+      // O teto próprio do lembrete (28/h e 150/24h) saiu da agenda legítima.
       expect(r.motivos.teto_lembrete_hora ?? 0).toBe(0);
+      expect(r.motivos.teto_lembrete_dia ?? 0).toBe(0);
     });
 
-    it('todo bom dia sai entre 7h e 12h e pelo menos 60 min antes da reunião; confirmação e cobrança antes do prazo', () => {
-      for (const e of de('bom_dia')) {
+    it('todo bom dia sai entre 7h e o fim da janela útil; confirmação e cobrança antes do prazo', () => {
+      for (const e of [...de('bom_dia'), ...de('solar_bom_dia')]) {
         expect(horaBrt(e.em)).toBeGreaterThanOrEqual(7);
         expect(e.em).toBeLessThanOrEqual(e.pedido.validoAte!);
       }
@@ -573,64 +649,113 @@ function controle(titulo: string, reunioes: readonly Reuniao[], opts: {
       for (const e of de('cobranca')) expect(e.em).toBeLessThanOrEqual(e.pedido.validoAte!);
     });
 
-    it('mesmo assim, a régua segura: P2–P5 até 24/h, total até 60/h, frio até 6/h, 1 bolha no proativo', () => {
+    it('mesmo assim, a régua segura o resto: frio até 6/h e 30/24h só das 9h às 20h, total até 60/h, 1 bolha no proativo, nenhum robô acima de 6 em 10 min', () => {
       const proativos = r.enviados.filter(e => ['aviso_interno_p2', 'transacional_agenda_p3', 'frio_receita_p4', 'frio_p5'].includes(e.classe));
-      expect(picoEmJanela(proativos, HORA)).toBeLessThanOrEqual(24);
-      expect(picoEmJanela(proativos, 10 * MIN)).toBeLessThanOrEqual(6);
       expect(picoEmJanela(r.enviados, HORA)).toBeLessThanOrEqual(60);
       expect(picoEmJanela(de('frio'), HORA)).toBeLessThanOrEqual(6);
+      expect(picoEmJanela(de('frio'), 24 * HORA)).toBeLessThanOrEqual(30);
+      for (const e of de('frio')) { expect(horaBrt(e.em)).toBeGreaterThanOrEqual(9); expect(horaBrt(e.em)).toBeLessThan(20); }
       expect(proativos.every(e => e.bolhas === 1)).toBe(true);
+      // Rajada por robô (dura, agenda inclusive): o mesmo robô, lembrete e proativa, até 6 em 10 min.
+      for (const robo of ['ep_agenda', 'ep_cobra_sim', 'giovanna_agenda', 'ep_alerta_10min']) {
+        const doRobo = r.enviados.filter(e => e.pedido.robo === robo && e.classe !== 'reativo_p1' && e.classe !== 'evento_p0');
+        expect({ robo, pico: picoEmJanela(doRobo, 10 * MIN) <= 6 }).toEqual({ robo, pico: true });
+      }
     });
 
-    it(`frio entregue: ${opts.frioCravado} de 30 (40 esperando)`, () => {
+    it(`frio entregue: ${opts.frioCravado} de 30 (40 esperando); quando falta espaço, o frio é quem cede`, () => {
       // Número cravado, para a fome do frio não mudar sem ninguém ver. O frio
       // espera 10 a 15 min do último envio CARIMBADO, agenda inclusive (regra do
-      // HEAD, lineThrottle.ts:337), então a agenda densa come o frio.
+      // HEAD, lineThrottle.ts:337), e não pega a vaga da linha que a agenda usa.
       expect(de('frio').length).toBe(opts.frioCravado);
     });
   });
 }
 
-{
-  const t = tDia;
-  // FOME CONHECIDA: com uma reunião a cada 15 min o frio entrega 15 de 30. Não
-  // é limite da linha, é o espaçamento do frio contra o lembrete (regra do
-  // HEAD). Medir na sombra contra a agenda real antes de afrouxar.
-  controle('uma reunião a cada 15 min', Array.from({ length: 36 }, (_, i) => ({ T: t('09:00') + i * 15 * MIN, consultor: i % 2 })),
-    { bomDiaComPrazo: true, todosSemConversa: false, frioCravado: 15, rajadaLembreteCravada: 0 });
-  controle('grade real, 2 consultores em :00/:30, bom dia sem prazo', Array.from({ length: 36 }, (_, i) => ({ T: t('09:00') + Math.floor(i / 2) * 30 * MIN, consultor: i % 2 })),
-    { bomDiaComPrazo: false, todosSemConversa: true, frioCravado: 29, rajadaLembreteCravada: 0 });
-  // As duas faixas cheias (lead novo em :00/:30, remarcação em :15/:45), 2 por
-  // quarto de hora: o mais denso que a agenda faz. A rajada por robô espalha o
-  // ep_agenda e junta lembretes: a rajada do lembrete adia 9 vezes, sem perder
-  // nenhum, e o lembrete chega a 27/h (o teto próprio é 28 por isso).
-  controle('duas faixas cheias, 2 reuniões por quarto de hora', Array.from({ length: 36 }, (_, i) => ({ T: t('09:00') + Math.floor(i / 2) * 15 * MIN, consultor: i % 2 })),
-    { bomDiaComPrazo: true, todosSemConversa: false, frioCravado: 30, rajadaLembreteCravada: 9 });
-}
+const umaA15 = Array.from({ length: 36 }, (_, i) => ({ T: tDia('09:00') + i * 15 * MIN, consultor: i % 2 }));
+const grade = Array.from({ length: 36 }, (_, i) => ({ T: tDia('09:00') + Math.floor(i / 2) * 30 * MIN, consultor: i % 2 }));
+const duasFaixas = Array.from({ length: 36 }, (_, i) => ({ T: tDia('09:00') + Math.floor(i / 2) * 15 * MIN, consultor: i % 2 }));
+/**
+ * As duas carteiras do solar (Giovanna e Nilce) como o solarAgendaGiovanna.ts:60
+ * as descreve: "as duas carteiras somam 30 a 32 ligações por dia". Aqui 32, uma
+ * por dona a cada 30 min, das 9h às 16h30.
+ */
+const carteirasSolar = Array.from({ length: 32 }, (_, i) => tDia('09:00') + Math.floor(i / 2) * 30 * MIN);
+/** O DOBRO do real: 62 ligações, uma por dona a cada 15 min (o LIMITE MEDIDO abaixo). */
+const carteirasSolarDobro = Array.from({ length: 62 }, (_, i) => tDia('09:00') + Math.floor(i / 2) * 15 * MIN);
 
-describe('DÍVIDA CONHECIDA — agenda densa com bom dia sem prazo, todo mundo sem conversa', () => {
-  // As duas faixas cheias (2 reuniões por quarto de hora, 9h às 13h15), o bom
-  // dia sem prazo e ninguém com conversa nas últimas 24h. O total proativo de
-  // 40/h (lembrete e resposta entram na conta) e o volume sustentado (40 em 3h
-  // para quem não escreveu) seguram o bom dia, que é P3 sem prazo, e 8 deles
-  // passam das 12h sem sair: 7 pelo total da hora e 1 pelo volume. É régua de
-  // volume segurando agenda legítima; nenhuma delas separa agenda de frio mal
-  // classificado (ver o regulamento). A rajada do lembrete não entra nisso.
-  // Cravado para medir na sombra contra a agenda real antes de mexer.
-  const t = tDia;
-  const r = diaDeAgenda(Array.from({ length: 36 }, (_, i) => ({ T: t('09:00') + Math.floor(i / 2) * 15 * MIN, consultor: i % 2 })),
-    { bomDiaComPrazo: false, todosSemConversa: true });
-  resumo('agenda densa, bom dia sem prazo', r);
+// FOME CONHECIDA: com uma reunião a cada 15 min o frio entrega metade do dia. Não
+// é limite da linha, é o espaçamento do frio contra o lembrete (regra do HEAD).
+controle('uma reunião a cada 15 min', umaA15, { bomDiaComPrazo: true, todosSemConversa: false, frioCravado: FRIO_UMA_A_15 });
+controle('grade real, 2 consultores em :00/:30, bom dia sem prazo', grade, { bomDiaComPrazo: false, todosSemConversa: true, frioCravado: FRIO_GRADE });
+controle('duas faixas cheias, 2 reuniões por quarto de hora', duasFaixas, { bomDiaComPrazo: true, todosSemConversa: false, frioCravado: FRIO_FAIXAS });
+// Era DÍVIDA CONHECIDA na rodada anterior: 8 bons dias expiravam (7 pelo total da
+// hora de 40, 1 pelo volume sustentado). A regra do dono tirou a agenda dos dois.
+controle('duas faixas, bom dia sem prazo, todo mundo sem conversa (eram 8 bons dias expirados)', duasFaixas,
+  { bomDiaComPrazo: false, todosSemConversa: true, frioCravado: FRIO_DENSA });
+// A agenda do eletroposto e as carteiras do solar na MESMA linha: bom dia das 7h
+// às 11h, toque de 5 min. Na rodada anterior, o teto próprio do lembrete (28/h),
+// o total da hora e o teto da linha seguravam de 20 a 34 itens de agenda aqui.
+controle('duas faixas + as duas carteiras do solar (32 ligações, bom dia 7h–11h, toque de 5 min)', duasFaixas,
+  { bomDiaComPrazo: true, todosSemConversa: false, frioCravado: FRIO_SOLAR, extra: { solar: carteirasSolar }, linhaCheia: true });
 
-  it('8 bons dias expiram; os lembretes, as respostas e os eventos saem todos', () => {
-    const perdidos = r.expirados.map(x => x.pedido.rotulo);
-    expect(perdidos).toEqual(Array(8).fill('bom_dia'));
-    const motivos = r.expirados.map(x => x.ultimoMotivo);
-    expect(motivos.filter(m => m === 'teto_proativo_total').length).toBe(7);
-    expect(motivos.filter(m => m === 'volume_sustentado').length).toBe(1);
-    expect(r.motivos.rajada_lembrete ?? 0).toBe(0);
-    for (const rotulo of ['1h', '5min', 'alerta', 'reativo', 'evento']) {
-      expect({ rotulo, fora: r.pendentes.concat(r.expirados).filter(x => x.pedido.rotulo === rotulo).length }).toEqual({ rotulo, fora: 0 });
-    }
+describe('LIMITE MEDIDO — duas faixas + o DOBRO das carteiras do solar (62 ligações) na mesma linha', () => {
+  // Com 62 ligações do solar em cima das duas faixas do eletroposto, a agenda
+  // sozinha põe a linha em 58 a 62 mensagens por hora das 8h ao meio-dia: é o
+  // teto físico (emergência, 60/h). O frio já cedeu tudo. O que ainda segura é a
+  // rajada por robô (6 em 10 min, DURA, a defesa contra robô frio pedindo como
+  // agenda), e ela corta 5 itens que vencem entre 11h e 12h (3 do ep_agenda e 2
+  // bons dias do solar). Medido nesta rodada, com outras saídas: reservar vagas
+  // do robô para o lembrete dele perde 16 bons dias do solar; tirar o lembrete
+  // da agenda da rajada global perde 10. No volume real (32 ligações, controle
+  // acima) nada se perde. Cravado para o dono decidir: afrouxar a rajada por robô
+  // no último momento útil abre o prazo inventado.
+  const r = diaDeAgenda(duasFaixas, { bomDiaComPrazo: true, todosSemConversa: false }, { solar: carteirasSolarDobro });
+  resumo('dobro do solar', r);
+
+  it('5 itens de agenda vencem entre 11h e 12h pela rajada por robô; o alerta, o toque de 5 min, a confirmação e a cobrança saem inteiros, e a linha fica no teto físico', () => {
+    expect(foraDe(r, AGENDA).sort()).toEqual(['1h:rajada_robo', '1h:rajada_robo', 'bom_dia:rajada_robo', 'solar_bom_dia:null', 'solar_bom_dia:rajada_robo']);
+    expect(foraDe(r, ['solar_5min', 'alerta', '5min', 'confirmacao', 'cobranca'])).toEqual([]);
+    expect(picoEmJanela(r.enviados, HORA)).toBe(LIMITE_DOBRO_PICO_HORA);
+  });
+});
+
+describe('CONTROLE POSITIVO — hora de pico de conversa em cima da agenda cheia: nenhum alerta ao consultor expira; o frio perde a vez', () => {
+  // As duas faixas cheias, 20 conversas novas às 10h (2 bolhas cada) e 8 compras,
+  // uma a cada meia hora das 9h às 12h37. Na rodada anterior 4 alertas ao
+  // consultor expiravam pelo teto de emergência, e a resposta segurada passava de
+  // 15 min, virava frio e saía até 5 horas depois. Medido junto: com a reserva da
+  // emergência valendo para a resposta, ela esperava até 379 min (regulamento).
+  const compras = ['09:00', '09:31', '10:02', '10:33', '11:04', '11:35', '12:06', '12:37'];
+  const base = diaDeAgenda(duasFaixas, { bomDiaComPrazo: true, todosSemConversa: false }, { compras });
+  const r = diaDeAgenda(duasFaixas, { bomDiaComPrazo: true, todosSemConversa: false }, { compras, pico: { de: '10:00', n: 20 } });
+  resumo('pico de conversa', r);
+  const de = (res: ResultadoSimulacao, rotulo: string) => res.enviados.filter(e => e.pedido.rotulo === rotulo);
+
+  it('nenhum alerta ao consultor, lembrete ou bom dia expira; toda a agenda sai na janela', () => {
+    expect(foraDe(r, AGENDA)).toEqual([]);
+    expect(de(r, 'alerta').length).toBe(36);
+    for (const e of de(r, 'alerta')) expect(e.em).toBeLessThan(e.pedido.prazo!);
+    for (const e of de(r, '5min')) expect(e.em).toBeLessThanOrEqual(e.pedido.validoAte!);
+  });
+
+  it('a resposta continua resposta (nenhuma vira frio) e sai na mesma manhã; o evento chega pela caixa em até 10 min', () => {
+    const respostas = [...de(r, 'reativo'), ...de(r, 'pico')];
+    expect(respostas.length).toBe(80);
+    expect(respostas.every(e => e.classe === 'reativo_p1')).toBe(true);
+    expect(Math.max(...respostas.map(e => e.em - e.pedido.desde))).toBeLessThanOrEqual(PIOR_RESPOSTA_PICO_MIN * MIN);
+    expect(de(r, 'evento').length).toBe(8);
+    for (const e of de(r, 'evento')) expect(e.em - e.pedido.desde).toBeLessThanOrEqual(10 * MIN);
+  });
+
+  it('o frio é quem perde a vez (não o toque): nada de frio enquanto a agenda e o pico correm; sai mais tarde que no dia sem o pico, e sai inteiro', () => {
+    const t = tDia;
+    const primeiro = (res: ResultadoSimulacao) => Math.min(...de(res, 'frio').map(e => e.em));
+    expect(de(r, 'frio').filter(e => e.em < t('12:00'))).toEqual([]);
+    expect(primeiro(r)).toBeGreaterThan(primeiro(base));
+    expect(de(r, 'frio').length).toBe(FRIO_PICO);
+    expect(de(base, 'frio').length).toBe(FRIO_PICO);
+    expect(picoEmJanela(de(r, 'frio'), HORA)).toBeLessThanOrEqual(6);
+    for (const e of de(r, 'frio')) { expect(horaBrt(e.em)).toBeGreaterThanOrEqual(9); expect(horaBrt(e.em)).toBeLessThan(20); }
   });
 });

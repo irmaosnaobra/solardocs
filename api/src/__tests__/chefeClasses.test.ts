@@ -4,7 +4,7 @@ import { join } from 'path';
 import {
   CLASSE_POR_ROBO, CLASSES, PRIORIDADE, ROBO_DESCONHECIDO, PREFIXOS_LEGADOS_FRIOS, ROBOS_META,
   metaDoRobo, prioridadeFina, prefixosDaLinhaDerivados, prefixosAgendaDerivados, prefixosFriosDerivados,
-  divergenciasDeCarimbo, baldeDaClasse,
+  divergenciasDeCarimbo, baldeDaClasse, robosDeAgenda, ehAgendaDoPedido,
 } from '../services/chefe/classes';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -91,9 +91,12 @@ describe('prefixos derivados = conta do lineThrottle.ts de hoje', () => {
 });
 
 describe('divergências de carimbo (dívidas da migração, fixadas pelo nome)', () => {
-  it('só o reagenda (frio carimbando como agenda) e a remarcação reativa (conta como agenda)', () => {
+  it('só a remarcação reativa (conta como agenda); o reagenda saiu da lista quando virou agenda (07/10)', () => {
+    // O reagenda carimba ep_agenda_sent:<id>:reagendado, que o HEAD conta como
+    // agenda. Era divergência enquanto ele era frio; desde a regra do dono de
+    // 07/10 (agenda nunca bloqueia) ele é transacional de agenda e o carimbo bate.
     const d = divergenciasDeCarimbo().map(x => `${x.robo}:${x.prefixo}`).sort();
-    expect(d).toEqual(['ep_reagenda_auto:ep_agenda_sent:', 'ep_remarcar_reativo:ep_remarcar_sent:']);
+    expect(d).toEqual(['ep_remarcar_reativo:ep_remarcar_sent:']);
   });
 
   it('o balde da classe segue a regra de 17/09 e 23/09', () => {
@@ -153,10 +156,35 @@ describe('CLASSE_POR_ROBO: forma de cada robô', () => {
 
   it('o lote manual e a rota da queda de 30/08 são frio, sem classe declarada pelo operador', () => {
     expect(CLASSE_POR_ROBO.zapi_admin_lote!.classe).toBe('frio_p5');
-    expect(CLASSE_POR_ROBO.ep_reagenda_auto!.classe).toBe('frio_p5');
     expect(CLASSE_POR_ROBO.ep_ig_convite!.classe).toBe('frio_p5');
     // O lote do admin.ts (/admin/io/send-text e broadcasts) saiu na limpeza, e o robô dele também.
     expect(metaDoRobo('manual_lote_admin')).toBeNull();
+  });
+
+  // [regra do dono, 07/10] AGENDA NUNCA BLOQUEIA. A lista é fixada pelo nome:
+  // pôr ou tirar um robô dela muda o que nenhum freio de volume segura.
+  it('os robôs de agenda são os da regra do dono; as boas-vindas do solar não são agenda', () => {
+    expect(robosDeAgenda()).toEqual(['ep_agenda', 'ep_alerta_10min', 'ep_cobra_sim', 'ep_reagenda_auto', 'ep_remarcar_reativo', 'giovanna_agenda']);
+    expect(CLASSE_POR_ROBO.solar_boas_vindas!.agenda).toBe(false);
+    expect(ROBO_DESCONHECIDO.agenda).toBe(false);
+    // Nenhum frio, evento ou robô de lote é agenda.
+    for (const [nome, r] of robos) {
+      if (r.classe === 'frio_p5' || r.classe === 'frio_receita_p4' || r.classe === 'evento_p0' || r.roboDeLote) {
+        expect({ nome, agenda: r.agenda }).toEqual({ nome, agenda: false });
+      }
+    }
+    // O pedido de robô de agenda que caiu para frio deixa de ser agenda.
+    expect(ehAgendaDoPedido(CLASSE_POR_ROBO.ep_alerta_10min!, 'lembrete_p1')).toBe(true);
+    expect(ehAgendaDoPedido(CLASSE_POR_ROBO.ep_alerta_10min!, 'frio_p5')).toBe(false);
+    expect(ehAgendaDoPedido(CLASSE_POR_ROBO.solar_boas_vindas!, 'lembrete_p1')).toBe(false);
+  });
+
+  it('a remarcação do NÃO ATENDEU é agenda do dia: transacional, cadência própria de 15 min, sem prazo, abaixo da agenda do dia', () => {
+    const r = CLASSE_POR_ROBO.ep_reagenda_auto!;
+    expect({ classe: r.classe, agenda: r.agenda, cadencia: r.cadenciaPropria, prazo: r.podeTerPrazo, pausa: r.respeitaPausa, bolhas: r.maxBolhas })
+      .toEqual({ classe: 'transacional_agenda_p3', agenda: true, cadencia: true, prazo: false, pausa: false, bolhas: 1 });
+    expect(r.subprioridade).toBeGreaterThan(CLASSE_POR_ROBO.ep_agenda!.subprioridade);
+    expect(robos.filter(([, x]) => x.cadenciaPropria).map(([n]) => n)).toEqual(['ep_reagenda_auto']);
   });
 
   it('robô de 1 destino por chamada aponta para um robô de lote que existe e é frio', () => {

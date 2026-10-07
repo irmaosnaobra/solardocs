@@ -16,6 +16,14 @@
 //   item continua lá; se é enviar_agora, sai. Com o motivo chave_repetida o
 //   drenador trata como já enviado e dá baixa (nunca manda duas vezes).
 //
+// - a fila do tick é por prioridade e, dentro dela, pelo fim da janela útil
+//   (validoAte, ou o prazo): quem vence antes pergunta antes, como cada robô de
+//   agenda ordena a própria fila por horário. Entre robôs, é o que a espera viva
+//   do CHEFE ligado vai fazer;
+// - o pedido leva o próprio nascimento (`desde`) como nascidoEm, e passado o
+//   validoAte sem sair ele EXPIRA: é a conta da regra do dono (agenda nunca
+//   expira por freio do CHEFE).
+//
 // PURO e determinístico: o mesmo roteiro dá sempre o mesmo resultado. Serve ao
 // replay das quedas e ao replay offline de um dia real do livro.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -26,12 +34,15 @@ import { Decisao, Motivo, Pedido, TipoErro, ContagemPorClasse, decidir, classeEf
 import { EnvioLivro, montarEstado } from './estado';
 import { chaveDoContato } from './destinos';
 
+/**
+ * Um pedido com hora de nascer. O `validoAte` (do Pedido) é também o ponto em que
+ * o robô desiste: passado dele sem sair, o simulador marca como EXPIRADO. É a
+ * conta da regra do dono: agenda nunca expira por freio do CHEFE.
+ */
 export interface PedidoAgendado extends Pedido {
-  /** Quando o pedido nasce (epoch ms). */
+  /** Quando o pedido nasce (epoch ms). Vira o `nascidoEm` do pedido, se ele não trouxer o dele. */
   desde: number;
   modo: 'tick' | 'imediato';
-  /** Depois disto o robô desiste (o toque perdeu o sentido). */
-  validoAte?: number;
   /** O destino não escreveu nas últimas 24h (conta no volume sustentado). */
   semConversa?: boolean;
   rotulo?: string;
@@ -130,13 +141,17 @@ export function simular(pedidos: readonly PedidoAgendado[], opts: OpcoesSimulaca
   const linhaDoTempo = [...momentos].sort((a, b) => a - b);
   let cursor = opts.inicio;
 
+  /** O pedido como o robô o faz: com o nascimento (o `desde`), se não trouxer o dele. */
+  const comoPedido = (p: PedidoAgendado): Pedido => (p.nascidoEm === undefined ? { ...p, nascidoEm: p.desde } : p);
   const classeDe = (v: Vivo, t: number): Classe => {
     const meta = metaDoPedido(v.p);
     const k = chaveDoContato(v.p.destino);
-    return classeEfetiva(meta, v.p, {
+    return classeEfetiva(meta, comoPedido(v.p), {
       equipe: opts.equipe, gruposInternos: opts.gruposInternos, destino: { ultimaEntradaEm: k ? entradas.get(k) ?? null : null },
     }, t, reg);
   };
+  /** Prazo para a fila: o fim da janela útil, ou o prazo (quem vence antes vai antes). */
+  const fimDe = (v: Vivo): number => (typeof v.p.validoAte === 'number' ? v.p.validoAte : v.p.prazo ?? Infinity);
   const ordem = (v: Vivo, t: number): number => {
     const meta = metaDoPedido(v.p);
     return prioridadeFina(classeDe(v, t), meta.subprioridade);
@@ -149,7 +164,7 @@ export function simular(pedidos: readonly PedidoAgendado[], opts: OpcoesSimulaca
     // Expira quem passou do prazo de validade sem sair.
     for (let i = vivos.length - 1; i >= 0; i--) {
       const v = vivos[i]!;
-      if (v.p.validoAte !== undefined && v.p.validoAte < t) {
+      if (typeof v.p.validoAte === 'number' && v.p.validoAte < t) {
         res.expirados.push({ pedido: v.p, ultimoMotivo: v.ultimoMotivo });
         vivos.splice(i, 1);
       }
@@ -157,7 +172,7 @@ export function simular(pedidos: readonly PedidoAgendado[], opts: OpcoesSimulaca
 
     const daVez = vivos
       .filter(v => v.p.desde <= t && v.proxima <= t && (v.modo === 'tick' ? ehTick : v.p.desde === t))
-      .sort((a, b) => ordem(a, t) - ordem(b, t) || (a.p.prazo ?? Infinity) - (b.p.prazo ?? Infinity) || a.p.desde - b.p.desde);
+      .sort((a, b) => ordem(a, t) - ordem(b, t) || fimDe(a) - fimDe(b) || a.p.desde - b.p.desde);
 
     const parados = new Set<string>();
     for (const v of daVez) {
@@ -181,7 +196,7 @@ export function simular(pedidos: readonly PedidoAgendado[], opts: OpcoesSimulaca
         destino: v.p.destino, chave: v.p.chave, robo: v.p.robo, entradas, pausas,
         reconectadoEm: opts.reconectadoEm ?? null, esperando, equipe: opts.equipe, gruposInternos: opts.gruposInternos,
       });
-      const d: Decisao = decidir(estado, v.p, agora, reg);
+      const d: Decisao = decidir(estado, comoPedido(v.p), agora, reg);
       res.decisoes++;
       v.tentativas++;
 

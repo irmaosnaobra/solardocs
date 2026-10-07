@@ -18,10 +18,10 @@
 //   para a caixa de saída, que é persistida e drenada depois.
 // - P0 e P1 ficam fora do teto da linha e da rampa. Só obedecem a um
 //   espaçamento curto (10 s, vira espera em processo) e ao teto de emergência.
-//   O lembrete com prazo (P1 pelo prazo) ainda mora na janela do transacional
-//   (7h–21h), numa rajada própria de 6 em 10 min e num teto próprio de 28/h e
-//   150/24h [revisão]: o prazo vem de quem chama, e sem isso era passe livre
-//   para a classe autodeclarada voltar.
+//   O lembrete com prazo (P1 pelo prazo) para destino de fora ainda mora na
+//   janela do transacional (7h–21h) e numa rajada própria de 6 em 10 min
+//   [revisão]: o prazo vem de quem chama. O teto próprio de 28/h e 150/24h só
+//   vale para o lembrete que não é agenda (regra do dono, abaixo).
 // - O teto da linha (24/h e 200/24h) vale para P2 a P5. A proativa também não
 //   empurra o TOTAL da hora, urgente incluído, acima de 40.
 // - O mesmo robô não passa de 6 mensagens em 10 min somando o lembrete com
@@ -41,11 +41,31 @@
 //   [revisão].
 // - 'adiar' tem escopo: 'linha' faz o robô parar a rodada; 'destino' faz o robô
 //   pular para o próximo candidato (pausa e chave repetida são do destino).
+//
+// AGENDA NUNCA BLOQUEIA [regra do dono, 07/10/2026; memória
+// agenda-nunca-bloqueia.md]. Pedido de robô de agenda (classes.ts, campo agenda)
+// cuja classe efetiva não caiu para frio:
+// - nunca é segurado por freio de VOLUME: teto total da hora (40), teto da linha
+//   (24/h e 200/24h), vaga guardada para prioridade maior, volume sustentado,
+//   rampa e o teto próprio do lembrete (28/h e 150/24h). Ele conta em todos,
+//   para o frio ver a linha ocupada e ceder;
+// - o que só ESPAÇA (a rajada global de proativas e a do lembrete, o espaço de
+//   25 a 60 s entre proativas e a emergência) adia a agenda só DENTRO da janela
+//   útil: até Pedido.validoAte menos 3 min. No último momento útil a agenda sai
+//   assim mesmo, e o 'adiar' nunca aponta para depois desse limite;
+// - o que ainda a para (DURO): a linha caída (freio de erro), a chave repetida
+//   (o toque já saiu), a pausa humana robô a robô como no HEAD, a janela do
+//   transacional (7h–21h) para destino de fora, a rajada por robô (6 em 10 min,
+//   a defesa de volume contra robô frio pedindo como agenda) e a cadência
+//   própria da remarcação do NÃO ATENDEU (1 a cada 15 min);
+// - dentro dos 60/h da emergência as últimas vagas ficam para o evento e a
+//   agenda (e, por medida, para a resposta e o aviso de lead novo ao time):
+//   quem cede é o frio e o resto proativo.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import {
   Classe, MetaRobo, CLASSES, PRIORIDADE, ROBO_DESCONHECIDO,
-  ehUrgente, ehProativa, ehFria, naRampa, metaDoRobo, prioridadeFina,
+  ehUrgente, ehProativa, ehFria, naRampa, metaDoRobo, prioridadeFina, ehAgendaDoPedido,
 } from './classes';
 import {
   Regulamento, REGULAMENTO_PADRAO, JanelaHorario, degrauDaRampa, dentroDaJanela, proximaAbertura,
@@ -89,6 +109,8 @@ export interface Estado {
   semConversa?: Partial<Record<'3h' | '6h', number>>;
   /** Físicas do MESMO robô do pedido nos últimos 10 min, somando lembrete com prazo e proativas. */
   doRobo10min?: number;
+  /** Último envio do MESMO robô do pedido (epoch ms), qualquer classe. Decide a cadência própria. */
+  ultimoDoRoboEm?: number | null;
   /** Últimos envios (epoch ms). `carimbado` = último envio de robô que o HEAD conta (frio ou agenda). */
   ultimoEm?: { fisica?: number | null; proativa?: number | null; frio?: number | null; carimbado?: number | null };
   maisAntigoEm?: Partial<Record<GrupoJanela, number>>;
@@ -122,6 +144,22 @@ export interface Pedido {
   /** Prazo do envio (epoch ms). Só vale para robô de agenda (podeTerPrazo). */
   prazo?: number | null;
   /**
+   * Fim da janela ÚTIL do toque (epoch ms): depois disto o robô desiste (o
+   * lembrete de 1h passou dos 45 min, o bom dia passou das 12h). É por ele que
+   * o CHEFE nunca adia agenda para depois do momento útil. CONTRATO: robô de
+   * agenda com janela própria declara. Sem ele, o fim útil é o prazo mais a
+   * tolerância de 5 min; sem os dois, a agenda é só espaçada, sem prazo (nunca
+   * descartada), como a remarcação do NÃO ATENDEU.
+   */
+  validoAte?: number | null;
+  /**
+   * Quando o pedido nasceu (epoch ms): a primeira vez que o robô o fez. A janela
+   * de 15 min do reativo conta até aqui enquanto o pedido tiver até 2h
+   * (reativoEsperaMaxMs), para a espera imposta pelo CHEFE não rebaixar a
+   * resposta a frio.
+   */
+  nascidoEm?: number | null;
+  /**
    * Quantos destinos a CHAMADA do robô cobre (o lista.length da rota). Robô de
    * 1 destino por chamada (roboDeLote) com mais de 1 é lote. É contrato para a
    * fase do passaporte, que confere o número; a defesa de verdade contra lote
@@ -139,6 +177,7 @@ export type Motivo =
   | 'rajada_10min'
   | 'rajada_lembrete'
   | 'rajada_robo'
+  | 'cadencia_robo'
   | 'espaco_proativa'
   | 'teto_proativo_total'
   | 'teto_linha_hora'
@@ -173,6 +212,8 @@ export interface Trava {
   motivo: Motivo;
   libera: number;
   escopo: Escopo;
+  /** Trava que só ESPAÇA a agenda dentro da janela útil (cai no último momento útil). */
+  mole?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -259,10 +300,14 @@ export function metaDoPedido(pedido: Pick<Pedido, 'robo' | 'destinosNaChamada'>)
  *    robô declara) [revisão]: o aviso não tem janela, pausa nem orçamento do
  *    frio, então só vale para a equipe. Vem antes do prazo, para o alerta de
  *    10 min mandado a lead não virar lembrete sem pausa;
- * 3. reativo sem mensagem do destino nos últimos 15 min vira FRIO, tenha ou não
- *    conversa nas últimas 24h [crítica]. O P3 é só de robô de agenda; um
- *    reativo atrasado rebaixado a P3 deixava um lote do CRM para quem escreveu
- *    ontem sair a 24/h, fora do orçamento do frio [revisão];
+ * 3. reativo sem mensagem do destino nos 15 min antes do nascimento do pedido
+ *    (ou de agora, se o pedido tem mais de 2h) vira FRIO, tenha ou não
+ *    conversa nas últimas 24h [crítica]. Um reativo atrasado rebaixado a P3
+ *    deixava um lote do CRM para quem escreveu ontem sair a 24/h, fora do
+ *    orçamento do frio [revisão]. A exceção é a resposta a quem pediu para
+ *    remarcar (robô de agenda): com conversa nas últimas 24h, vira
+ *    transacional de agenda, porque a agenda não pode virar frio [regra do
+ *    dono, 07/10];
  * 4. robô de agenda com prazo em até 90 min (e até 5 min depois dele) vira P1.
  */
 export function classeEfetiva(
@@ -276,8 +321,16 @@ export function classeEfetiva(
     classe = meta.classeComLead ?? 'frio_p5';
   } else if (classe === 'reativo_p1') {
     const entrada = estado.destino?.ultimaEntradaEm;
-    const desde = typeof entrada === 'number' ? Math.max(0, agora - entrada) : Infinity;
-    if (!(desde >= 0 && desde <= reg.reativoJanelaMs)) classe = 'frio_p5';
+    const nasc = pedido.nascidoEm;
+    // A espera que o próprio CHEFE impõe não rebaixa a resposta: os 15 min contam
+    // até o nascimento, enquanto o pedido tiver até 2h.
+    const ancora = typeof nasc === 'number' && Number.isFinite(nasc) && nasc <= agora && agora - nasc <= reg.reativoEsperaMaxMs
+      ? nasc : agora;
+    const desde = typeof entrada === 'number' ? Math.max(0, ancora - entrada) : Infinity;
+    if (!(desde <= reg.reativoJanelaMs)) {
+      const conversa = typeof entrada === 'number' && Math.max(0, agora - entrada) <= reg.conversaVivaMs;
+      classe = meta.agenda && conversa ? 'transacional_agenda_p3' : 'frio_p5';
+    }
   }
   const prazo = pedido.prazo;
   if (meta.podeTerPrazo && typeof prazo === 'number' && Number.isFinite(prazo)
@@ -286,6 +339,20 @@ export function classeEfetiva(
     classe = 'lembrete_p1';
   }
   return classe;
+}
+
+/**
+ * Fim da janela útil do pedido (epoch ms), ou null. O validoAte declarado vale;
+ * sem ele, o prazo mais a tolerância (o toque de 5 min ainda sai até 3 a 5 min
+ * depois do início); sem os dois, null: a agenda é espaçada sem prazo, nunca
+ * descartada. A resposta não usa o prazo.
+ */
+export function fimUtilDoPedido(pedido: Pick<Pedido, 'validoAte' | 'prazo'>, classe: Classe, reg: Regulamento = REGULAMENTO_PADRAO): number | null {
+  const v = pedido.validoAte;
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  const p = pedido.prazo;
+  if (classe !== 'reativo_p1' && typeof p === 'number' && Number.isFinite(p)) return p + reg.prazoP1ToleranciaMs;
+  return null;
 }
 
 /** Bolhas que este envio pode usar: 1 toque = 1 mensagem, mais a do Pix. */
@@ -353,13 +420,23 @@ const RAMPA: readonly Classe[] = CLASSES.filter(naRampa);
 /**
  * Levanta TODAS as travas do pedido (não para na primeira), para o 'adiar'
  * apontar o instante em que todas liberam. Exportado para a sombra e o teste.
+ *
+ * `agenda` diz se o pedido é de agenda e `limiteUtil` é o fim da janela útil
+ * menos a margem (null = sem prazo). Para a agenda, as travas que só espaçam
+ * vêm marcadas `mole` e somem no último momento útil.
  */
 export function travasDoPedido(estado: Estado, pedido: Pedido, agora: number, reg: Regulamento = REGULAMENTO_PADRAO): {
-  meta: MetaRobo; classe: Classe; custo: number; travas: Trava[]; esperarMs: number;
+  meta: MetaRobo; classe: Classe; custo: number; travas: Trava[]; esperarMs: number; agenda: boolean; limiteUtil: number | null;
 } {
   const meta = metaDoPedido(pedido);
   const classe = classeEfetiva(meta, pedido, estado, agora, reg);
   const custo = bolhasPermitidas(meta, classe, pedido, reg);
+  const agenda = ehAgendaDoPedido(meta, classe);
+  const interno = ehDestinoInterno(pedido.destino, estado.equipe ?? [], { grupos: estado.gruposInternos ?? [], roboDeGrupo: meta.roboDeGrupo });
+  const fim = agenda ? fimUtilDoPedido(pedido, classe, reg) : null;
+  const limiteUtil = fim === null ? null : fim - reg.agendaMargemUtilMs;
+  // Último momento útil: não cabe mais um 'adiar' (piso de 60 s) antes do limite.
+  const ultimoMomento = limiteUtil !== null && agora + reg.adiarPisoMs > limiteUtil;
   const travas: Trava[] = [];
   const semente = pedido.chave ?? `${pedido.robo}|${pedido.destino}`;
   const antigo = estado.maisAntigoEm ?? {};
@@ -371,7 +448,16 @@ export function travasDoPedido(estado: Estado, pedido: Pedido, agora: number, re
     if (typeof a === 'number' && Number.isFinite(a) && a + janelaMs > agora) return a + janelaMs;
     return agora + Math.ceil(janelaMs / Math.max(1, teto));
   };
+  /** Trava DURA: vale para todos, agenda inclusive. */
   const trava = (motivo: Motivo, libera: number, escopo: Escopo = 'linha') => travas.push({ motivo, libera, escopo });
+  /**
+   * Trava que só ESPAÇA: dura para quem não é agenda; para a agenda, adia só
+   * dentro da janela útil e some no último momento útil [regra do dono].
+   */
+  const espaca = (motivo: Motivo, libera: number) => {
+    if (agenda && ultimoMomento) return;
+    travas.push({ motivo, libera, escopo: 'linha', mole: agenda });
+  };
 
   // ── Chave repetida: o mesmo toque já saiu (4 relógios no mesmo tick) ──────
   const reservada = estado.destino?.chaveReservadaEm;
@@ -387,13 +473,15 @@ export function travasDoPedido(estado: Estado, pedido: Pedido, agora: number, re
     trava('pausa_humana', pausa.ultimaFalaEm + reg.pausaSilencioMs, 'destino');
   }
 
-  // ── Freio de erro de linha ────────────────────────────────────────────────
+  // ── Freio de erro de linha: a linha caída é o que para a agenda ───────────
   const ultErro = estado.ultimoErroLinhaEm;
   const freioAtivo = estado.errosLinhaSeguidos >= reg.freioErros
     && typeof ultErro === 'number' && agora < ultErro + reg.freioMs;
   // A proativa espera o freio acabar; o evento vai para a caixa, que não perde
   // nada; a resposta e o lembrete viram a sonda da linha: tentam no máximo 1 vez
-  // a cada 5 min, e o primeiro ok desarma o freio para todo mundo.
+  // a cada 5 min, e o primeiro ok desarma o freio para todo mundo. A linha caída
+  // é o freio que a regra do dono deixa parar a agenda (e a régua, quando ela
+  // volta, é de reenvio, não de descarte).
   if (freioAtivo) {
     const urgenteSonda = classe === 'reativo_p1' || classe === 'lembrete_p1';
     if (!urgenteSonda) trava('freio_de_erro', ultErro! + reg.freioMs);
@@ -401,36 +489,57 @@ export function travasDoPedido(estado: Estado, pedido: Pedido, agora: number, re
   }
 
   // ── Emergência: o único teto do P0 e do P1, e vale para todos ─────────────
+  // As últimas vagas da hora (a reserva) ficam para o evento e a agenda: quem
+  // cede é o frio e o resto proativo. O frio e a proativa comum já param em 40;
+  // aqui param antes dos 60 o resto (o lembrete que não é agenda). A resposta e
+  // o aviso urgente ao time (lead novo) NÃO cedem, por medida (chefeQuedas): com
+  // a reserva valendo para eles, a resposta segurada no pico esperava horas e
+  // virava frio, e o aviso de lead novo esperava 104 min na caixa no dia real
+  // do solar. Para a agenda a emergência só espaça, e no último momento útil
+  // ela sai assim mesmo [regra do dono, 07/10].
   const total1h = somar(estado, '1h', TODAS);
   const total24h = somar(estado, '24h', TODAS);
-  if (total1h + custo > reg.emergenciaHora) trava('teto_emergencia', vaga('total_1h', HORA, reg.emergenciaHora));
-  if (total24h + custo > reg.emergenciaDia) trava('teto_emergencia', vaga('total_24h', 24 * HORA, reg.emergenciaDia));
+  const naoCede = classe === 'evento_p0' || classe === 'reativo_p1' || agenda || (classe === 'aviso_interno_p2' && meta.urgente);
+  const reservaUrgente = naoCede ? 0 : reg.reservaEmergenciaHora;
+  const tetoHoraEmergencia = reg.emergenciaHora - reservaUrgente;
+  if (total1h + custo > tetoHoraEmergencia) espaca('teto_emergencia', vaga('total_1h', HORA, tetoHoraEmergencia));
+  if (total24h + custo > reg.emergenciaDia) espaca('teto_emergencia', vaga('total_24h', 24 * HORA, reg.emergenciaDia));
 
   // ── Rajada por robô: lembrete com prazo e proativas do mesmo robô ─────────
   // A rajada do lembrete e a das proativas são contadas à parte; sem esta, o
   // mesmo robô passava 11 em 10 min com metade dos pedidos com prazo [revisão].
+  // DURA também para a agenda: é a defesa de volume contra robô frio pedindo
+  // com o nome de um robô de agenda (ao lado da guarda arquivo → robôs).
   if (classe === 'lembrete_p1' || ehProativa(classe)) {
     const doRobo = Math.max(0, estado.doRobo10min ?? 0);
     if (doRobo + custo > reg.rajadaMaxPorRobo) trava('rajada_robo', vaga('robo_10min', reg.rajadaJanelaMs, reg.rajadaMaxPorRobo));
   }
 
+  // ── Cadência própria: a remarcação do NÃO ATENDEU, 1 a cada 15 min ────────
+  // Espaçada, nunca em rajada (a de 02/10 foi 39 em 55 min), nunca cortada.
+  const ultDoRobo = estado.ultimoDoRoboEm;
+  if (meta.cadenciaPropria && typeof ultDoRobo === 'number' && Number.isFinite(ultDoRobo)
+    && agora < ultDoRobo + reg.cadenciaPropriaMs) {
+    trava('cadencia_robo', ultDoRobo + reg.cadenciaPropriaMs);
+  }
+
   // ── Lembrete com prazo: o prazo vem de quem chama [revisão] ───────────────
   // Sem isto, um robô de agenda pedindo com prazo=agora+60min mandava 39 frios
   // em 6 min, inclusive de madrugada (o 02/10, pior). O P1 pelo prazo continua
-  // na janela do transacional, numa rajada própria e num teto próprio de hora e
-  // de dia. Resposta e evento, não.
+  // na janela do transacional (para destino de fora: o alerta ao time não tem
+  // janela) e numa rajada própria. O teto próprio de hora e de dia só vale para
+  // o lembrete que não é agenda [regra do dono, 07/10].
   if (classe === 'lembrete_p1') {
     const jl = janelaDaClasse(classe, reg);
-    if (jl && !dentroDaJanela(jl, agora)) trava('fora_da_janela', proximaAbertura(jl, agora));
+    if (!interno && jl && !dentroDaJanela(jl, agora)) trava('fora_da_janela', proximaAbertura(jl, agora));
     const lembretes10 = somar(estado, '10min', ['lembrete_p1']);
     if (lembretes10 + custo > reg.rajadaMaxLembrete) {
-      trava('rajada_lembrete', vaga('lembrete_10min', reg.rajadaJanelaMs, reg.rajadaMaxLembrete));
+      espaca('rajada_lembrete', vaga('lembrete_10min', reg.rajadaJanelaMs, reg.rajadaMaxLembrete));
     }
-    // Teto PRÓPRIO de hora e de dia, não o balde de 24/h das proativas nem o
-    // total de 40/h: nos dois, a agenda cheia legítima perdia alerta, lembrete
-    // e cobrança (ver o regulamento). O total do lembrete é o da emergência.
-    if (somar(estado, '1h', ['lembrete_p1']) + custo > reg.lembreteHora) trava('teto_lembrete_hora', vaga('lembrete_1h', HORA, reg.lembreteHora));
-    if (somar(estado, '24h', ['lembrete_p1']) + custo > reg.lembreteDia) trava('teto_lembrete_dia', vaga('lembrete_24h', 24 * HORA, reg.lembreteDia));
+    if (!agenda) {
+      if (somar(estado, '1h', ['lembrete_p1']) + custo > reg.lembreteHora) trava('teto_lembrete_hora', vaga('lembrete_1h', HORA, reg.lembreteHora));
+      if (somar(estado, '24h', ['lembrete_p1']) + custo > reg.lembreteDia) trava('teto_lembrete_dia', vaga('lembrete_24h', 24 * HORA, reg.lembreteDia));
+    }
   }
 
   if (ehUrgente(classe)) {
@@ -438,7 +547,7 @@ export function travasDoPedido(estado: Estado, pedido: Pedido, agora: number, re
     const fis = ult.fisica;
     const falta = typeof fis === 'number' ? fis + reg.espacoUrgenteMs - agora : 0;
     const esperarMs = Math.max(0, Math.min(reg.esperaMaxEmProcessoMs, falta));
-    return { meta, classe, custo, travas, esperarMs };
+    return { meta, classe, custo, travas, esperarMs, agenda, limiteUtil };
   }
 
   // ═══ Daqui para baixo: P2 a P5, as proativas ═══════════════════════════════
@@ -450,47 +559,58 @@ export function travasDoPedido(estado: Estado, pedido: Pedido, agora: number, re
   // ── Anti-rajada de 10 min e espaçamento entre proativas ───────────────────
   const proativas10 = somar(estado, '10min', PROATIVAS);
   if (proativas10 + custo > reg.rajadaMaxProativas) {
-    trava('rajada_10min', vaga('proativa_10min', reg.rajadaJanelaMs, reg.rajadaMaxProativas));
+    espaca('rajada_10min', vaga('proativa_10min', reg.rajadaJanelaMs, reg.rajadaMaxProativas));
   }
   if (typeof ult.proativa === 'number') {
     const jitter = Math.floor(sorteio(`${semente}|p|${ult.proativa}`) * reg.jitterProativaMs);
     const libera = ult.proativa + reg.espacoProativaMs + jitter;
-    if (agora < libera) trava('espaco_proativa', libera);
+    if (agora < libera) espaca('espaco_proativa', libera);
   }
 
-  // ── Total da hora: a proativa não leva a linha ao nível de atenção ────────
-  // O aviso URGENTE ao time (lead novo) fica fora desta conta: vai para contato
-  // salvo da equipe, não para estranho, e segurá-lo atrás de uma hora cheia de
-  // resposta e lembrete atrasa a ligação para o lead. Continua no teto da linha,
-  // na rajada, no espaçamento e na emergência.
-  if (!(classe === 'aviso_interno_p2' && meta.urgente) && total1h + custo > reg.totalProativoHora) {
-    trava('teto_proativo_total', vaga('total_1h', HORA, reg.totalProativoHora));
-  }
-
-  // ── Teto da linha para P2 a P5, com a vaga de quem tem prioridade maior ───
   const linha1h = somar(estado, '1h', PROATIVAS);
   const linha24h = somar(estado, '24h', PROATIVAS);
   const acima = esperandoAcima(estado, classe, PROATIVAS);
-  if (linha1h + custo > reg.linhaHora) trava('teto_linha_hora', vaga('linha_1h', HORA, reg.linhaHora));
-  else if (linha1h + custo > reg.linhaHora - acima) trava('reservado_prioridade_maior', vaga('linha_1h', HORA, reg.linhaHora));
-  if (linha24h + custo > reg.linhaDia) trava('teto_linha_dia', vaga('linha_24h', 24 * HORA, reg.linhaDia));
-  else if (linha24h + custo > reg.linhaDia - acima) trava('reservado_prioridade_maior', vaga('linha_24h', 24 * HORA, reg.linhaDia));
 
-  // ── Volume sustentado para quem não está conversando ─────────────────────
-  // Segura o pico de 3h e de 6h. NÃO segura classe errada na escala da hora
-  // (ver o regulamento e a dívida cravada no chefeQuedas).
-  const entrada = estado.destino?.ultimaEntradaEm;
-  const temConversa = typeof entrada === 'number' && Math.max(0, agora - entrada) <= reg.conversaVivaMs;
-  if (naRampa(classe) && !temConversa) {
-    const s3 = Math.max(0, estado.semConversa?.['3h'] ?? 0);
-    const s6 = Math.max(0, estado.semConversa?.['6h'] ?? 0);
-    if (s3 + custo > reg.sustentado3h) trava('volume_sustentado', vaga('semConversa_3h', 3 * HORA, reg.sustentado3h));
-    if (s6 + custo > reg.sustentado6h) trava('volume_sustentado', vaga('semConversa_6h', 6 * HORA, reg.sustentado6h));
+  // ── Freios de VOLUME: a agenda conta neles, mas nenhum a segura ───────────
+  // [regra do dono, 07/10] Teto total da hora, teto da linha, vaga guardada,
+  // volume sustentado e rampa. Quem cede quando falta espaço é o frio.
+  if (!agenda) {
+    // O aviso URGENTE ao time (lead novo) fica fora do total da hora e do teto
+    // da linha: vai para contato salvo da equipe, não para estranho, e segurá-lo
+    // atrás de uma hora cheia atrasa a ligação para o lead. Desde que a agenda
+    // não é mais segurada pelo teto da linha, ela sozinha enche os 24/h de
+    // manhã, e o aviso de lead novo esperava 37 min na caixa (medido no controle
+    // de uma reunião a cada 15 min). Continua na rajada, no espaçamento e na
+    // emergência, com a reserva (para em 50 na hora).
+    const avisoUrgente = classe === 'aviso_interno_p2' && meta.urgente;
+    // Total da hora: a proativa não leva a linha ao nível de atenção.
+    if (!avisoUrgente && total1h + custo > reg.totalProativoHora) {
+      trava('teto_proativo_total', vaga('total_1h', HORA, reg.totalProativoHora));
+    }
+
+    // Teto da linha para P2 a P5, com a vaga de quem tem prioridade maior.
+    if (!avisoUrgente) {
+      if (linha1h + custo > reg.linhaHora) trava('teto_linha_hora', vaga('linha_1h', HORA, reg.linhaHora));
+      else if (linha1h + custo > reg.linhaHora - acima) trava('reservado_prioridade_maior', vaga('linha_1h', HORA, reg.linhaHora));
+      if (linha24h + custo > reg.linhaDia) trava('teto_linha_dia', vaga('linha_24h', 24 * HORA, reg.linhaDia));
+      else if (linha24h + custo > reg.linhaDia - acima) trava('reservado_prioridade_maior', vaga('linha_24h', 24 * HORA, reg.linhaDia));
+    }
+
+    // Volume sustentado para quem não está conversando. Segura o pico de 3h e
+    // de 6h. NÃO segura classe errada (ver o regulamento e o chefeQuedas).
+    const entrada = estado.destino?.ultimaEntradaEm;
+    const temConversa = typeof entrada === 'number' && Math.max(0, agora - entrada) <= reg.conversaVivaMs;
+    if (naRampa(classe) && !temConversa) {
+      const s3 = Math.max(0, estado.semConversa?.['3h'] ?? 0);
+      const s6 = Math.max(0, estado.semConversa?.['6h'] ?? 0);
+      if (s3 + custo > reg.sustentado3h) trava('volume_sustentado', vaga('semConversa_3h', 3 * HORA, reg.sustentado3h));
+      if (s6 + custo > reg.sustentado6h) trava('volume_sustentado', vaga('semConversa_6h', 6 * HORA, reg.sustentado6h));
+    }
   }
 
-  // ── Rampa de reconexão (P3 a P5) ──────────────────────────────────────────
+  // ── Rampa de reconexão (P3 a P5 que não são agenda) ───────────────────────
   const tetos = tetosVigentes(estado, agora, reg);
-  if (tetos.rampa && naRampa(classe)) {
+  if (!agenda && tetos.rampa && naRampa(classe)) {
     const r1h = somar(estado, '1h', RAMPA);
     const r24h = somar(estado, '24h', RAMPA);
     if (r1h + custo > tetos.rampa.linhaHora) trava('rampa_hora', vaga('rampa_1h', HORA, tetos.rampa.linhaHora));
@@ -527,13 +647,13 @@ export function travasDoPedido(estado: Estado, pedido: Pedido, agora: number, re
     }
   }
 
-  // ── Sublimite do aviso ao time (o urgente não entra em cartão) ────────────
-  if (classe === 'aviso_interno_p2' && !meta.urgente) {
+  // ── Sublimite do aviso ao time (o urgente e a agenda não entram em cartão) ─
+  if (classe === 'aviso_interno_p2' && !meta.urgente && !agenda) {
     const avisos1h = somar(estado, '1h', ['aviso_interno_p2']);
     if (avisos1h + custo > reg.avisoHora) trava('sublimite_aviso', vaga('aviso_1h', HORA, reg.avisoHora));
   }
 
-  return { meta, classe, custo, travas, esperarMs: 0 };
+  return { meta, classe, custo, travas, esperarMs: 0, agenda, limiteUtil };
 }
 
 /**
@@ -546,10 +666,13 @@ export function travasDoPedido(estado: Estado, pedido: Pedido, agora: number, re
  * - Travou: adiar até o instante em que a ÚLTIMA trava libera (todas precisam
  *   liberar), mais um sorteio de 0 a 90 s, nunca menos de 60 s à frente. Se
  *   alguma trava é da linha, o escopo é 'linha' (o robô para a rodada).
+ * - AGENDA [regra do dono, 07/10]: o que só espaça nunca empurra o 'adiar' para
+ *   depois do limite útil (fim da janela útil menos 3 min). Só uma trava dura
+ *   (linha caída, chave, pausa, janela, rajada por robô, cadência) passa dele.
  */
 export function decidir(estado: Estado, pedido: Pedido, agora: number | Date, reg: Regulamento = REGULAMENTO_PADRAO): Decisao {
   const t = typeof agora === 'number' ? agora : agora.getTime();
-  const { meta, classe, custo, travas, esperarMs } = travasDoPedido(estado, pedido, t, reg);
+  const { meta, classe, custo, travas, esperarMs, agenda, limiteUtil } = travasDoPedido(estado, pedido, t, reg);
   const prioridade = prioridadeFina(classe, meta.subprioridade);
 
   if (travas.length === 0) {
@@ -566,6 +689,13 @@ export function decidir(estado: Estado, pedido: Pedido, agora: number | Date, re
 
   const semente = pedido.chave ?? `${pedido.robo}|${pedido.destino}`;
   const jitter = Math.floor(sorteio(`${semente}|a|${alvo.motivo}|${Math.floor(t / 60000)}`) * reg.adiarJitterMs);
-  const ate = Math.max(t + reg.adiarPisoMs, alvo.libera) + jitter;
+  let ate = Math.max(t + reg.adiarPisoMs, alvo.libera) + jitter;
+  if (agenda && limiteUtil !== null) {
+    // Só o duro passa do limite útil. Fora do último momento útil, t + piso cabe
+    // antes do limite, então o 'adiar' fica entre t + 60 s e o limite.
+    const duras = travas.filter(x => !x.mole);
+    const liberaDura = duras.reduce((m, x) => Math.max(m, x.libera), -Infinity);
+    if (liberaDura <= limiteUtil) ate = Math.max(t + reg.adiarPisoMs, Math.min(ate, limiteUtil));
+  }
   return { acao: 'adiar', ate, motivo: alvo.motivo, escopo: alvo.escopo, classe, prioridade };
 }

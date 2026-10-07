@@ -12,6 +12,16 @@
 // deixaram no lineThrottle continuam contando: estão em PREFIXOS_LEGADOS_FRIOS,
 // para a troca futura não mudar a conta.
 //
+// AGENDA NUNCA BLOQUEIA [memória agenda-nunca-bloqueia.md, regra do dono de
+// 07/10/2026]. Agenda é marca do ROBÔ (campo `agenda`), não classe: confirmação,
+// bom dia e diário, lembrete de 1h e de 5 min (ep_agenda, giovanna_agenda), a
+// cobrança do SIM (ep_cobra_sim), o alerta de 10 min ao consultor da equipe
+// (ep_alerta_10min), a resposta a quem pediu para remarcar (ep_remarcar_reativo)
+// e a remarcação do NÃO ATENDEU (ep_reagenda_auto). O pedido é de agenda quando
+// o robô é de agenda e a classe efetiva não caiu para frio (o alerta mandado a
+// lead vira frio e deixa de ser agenda). As boas-vindas do solar NÃO são agenda:
+// são o recibo do cadastro, não falam de horário (solarBoasVindas.ts:20-24).
+//
 // Arquivo PURO: só dado e função de dado.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -31,11 +41,13 @@
  *   seja qual for o robô. E SÓ destino interno: robô de aviso pedindo para quem
  *   não é da equipe (nem grupo da lista) vira frio [revisão].
  * - transacional_agenda_p3: transacional do dia (confirmação de backlog, bom
- *   dia, diário, cobrança do SIM, boas-vindas). A pessoa marcou, pagou ou pediu.
+ *   dia, diário, cobrança do SIM, boas-vindas, remarcação do NÃO ATENDEU). A
+ *   pessoa marcou, pagou ou pediu.
  * - frio_receita_p4: frio que traz receita (recuperação de checkout, dunning D1
  *   em diante, Pix VIP). Passa na frente do resto do frio.
- * - frio_p5: todo o resto do frio. Quem começa a conversa é frio, mesmo sendo de
- *   agenda.
+ * - frio_p5: todo o resto do frio. Quem começa a conversa é frio. A exceção é a
+ *   remarcação do NÃO ATENDEU, que o dono pôs na agenda em 07/10/2026: a pessoa
+ *   tinha reunião marcada.
  */
 export type Classe =
   | 'evento_p0'
@@ -136,6 +148,21 @@ export interface MetaRobo {
    * Se um dia declarar, é transacional ou frio, nunca urgente nem aviso.
    */
   classeComLead: Classe | null;
+  /**
+   * Robô de AGENDA [regra do dono, 07/10/2026]: nenhum freio de volume o
+   * segura (teto total da hora, teto da linha, volume sustentado, rampa e o
+   * teto próprio do lembrete). Ele só pode ser ordenado e espaçado DENTRO da
+   * janela útil (Pedido.validoAte), e quando falta vaga o frio cede. O que
+   * ainda o para: a linha caída (freio), a chave repetida, a pausa humana do
+   * HEAD, a janela do transacional para destino de fora e a rajada por robô.
+   */
+  agenda: boolean;
+  /**
+   * No máximo 1 envio deste robô a cada `cadenciaPropriaMs` do regulamento
+   * (15 min). É a remarcação do NÃO ATENDEU: sai sempre, espaçada, nunca em
+   * rajada (a de 02/10 foi 39 em 55 min) e nunca cortada.
+   */
+  cadenciaPropria: boolean;
 }
 
 /** Padrões por classe. Cada robô só escreve o que foge deles. */
@@ -156,6 +183,8 @@ function base(classe: Classe): Omit<MetaRobo, 'arquivos'> {
     roboDeLote: null,
     roboDeGrupo: false,
     classeComLead: null,
+    agenda: false,
+    cadenciaPropria: false,
   };
 }
 
@@ -195,10 +224,13 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   // A Duda cala quando um humano entrou (recepcaoIo.ts).
   duda_recepcao: robo('reativo_p1', ['services/io/recepcaoIo.ts'], { respeitaPausa: true }),
   bia_inbound: robo('reativo_p1', ['services/agents/whatsapp/biaInboundService.ts']),
-  // Resposta a quem PEDIU para remarcar. O HEAD conta o carimbo como agenda
-  // (lineThrottle.ts:208): divergência conhecida, ver divergenciasDeCarimbo().
+  // Resposta a quem PEDIU para remarcar: agenda [regra do dono, 07/10]. O HEAD
+  // conta o carimbo como agenda (lineThrottle.ts:208): divergência conhecida,
+  // ver divergenciasDeCarimbo(). Atrasada (o destino não escreveu nos últimos
+  // 15 min) mas com conversa nas últimas 24h, vira transacional de agenda, não
+  // frio; sem conversa em 24h, frio (decidir.ts, classeEfetiva).
   ep_remarcar_reativo: robo('reativo_p1', ['services/io/eletropostoRemarcar.ts', 'services/io/eletropostoRespostas.ts'], {
-    carimbos: [agenda('ep_remarcar_sent:')],
+    carimbos: [agenda('ep_remarcar_sent:')], agenda: true,
   }),
   webhook_audio_falhou: robo('reativo_p1', ['routes/webhook.ts']),
   // Humano digitando no CRM: POST /admin/sdr-leads/:phone/send-message, 1
@@ -222,8 +254,9 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   giovanna_aviso_dono: robo('aviso_interno_p2', ['services/agents/whatsapp/whatsappAgentService.ts'], { nasceDeEvento: true, linha: 'solardoc' }),
   venda_aviso: robo('aviso_interno_p2', ['services/vendaAviso.ts'], { nasceDeEvento: true, linha: 'solardoc' }),
   asaas_aviso: robo('aviso_interno_p2', ['services/asaas/asaasWebhookService.ts'], { nasceDeEvento: true, linha: 'solardoc' }),
-  // Alerta de 10 min antes da reunião: tem hora marcada, então vira P1 pelo prazo.
-  ep_alerta_10min: robo('aviso_interno_p2', ['services/io/eletropostoAlerta10min.ts'], { urgente: true, podeTerPrazo: true }),
+  // Alerta de 10 min antes da reunião: tem hora marcada, então vira P1 pelo
+  // prazo. Agenda quando vai para a equipe; para lead vira frio e deixa de ser.
+  ep_alerta_10min: robo('aviso_interno_p2', ['services/io/eletropostoAlerta10min.ts'], { urgente: true, podeTerPrazo: true, agenda: true }),
   ep_respostas_aviso: robo('aviso_interno_p2', ['services/io/eletropostoRespostas.ts']),
   ep_desmarcacao_aviso: robo('aviso_interno_p2', ['services/io/eletropostoAgenda.ts']),
   ep_card_ping: robo('aviso_interno_p2', ['services/io/eletropostoCardPing.ts']),
@@ -248,20 +281,32 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   // ficha fresca, que chegam aqui com prazo e saem como P1. A pausa segue o HEAD
   // robô a robô: a agenda do eletroposto não confere; a cobrança do SIM (sendFrio),
   // a Giovanna (solarAgendaGiovanna.ts:320) e as boas-vindas (solarBoasVindas.ts:506)
-  // conferem, inclusive quando o prazo vira P1 (ver DIVERGENCIAS).
+  // conferem, inclusive quando o prazo vira P1 (ver DIVERGENCIAS). Os três
+  // primeiros são AGENDA: nenhum freio de volume os segura [regra do dono].
   ep_agenda: robo('transacional_agenda_p3', ['services/io/eletropostoAgenda.ts'], {
-    carimbos: [agenda('ep_agenda_sent:')], podeTerPrazo: true,
+    carimbos: [agenda('ep_agenda_sent:')], podeTerPrazo: true, agenda: true,
   }),
   ep_cobra_sim: robo('transacional_agenda_p3', ['services/io/eletropostoCobraSim.ts'], {
-    carimbos: [agenda('ep_cobra_sim:')], podeTerPrazo: true, respeitaPausa: true,
+    carimbos: [agenda('ep_cobra_sim:')], podeTerPrazo: true, respeitaPausa: true, agenda: true,
   }),
   giovanna_agenda: robo('transacional_agenda_p3', ['services/io/solarAgendaGiovanna.ts'], {
-    carimbos: [agenda('solar_giovanna_sent:')], podeTerPrazo: true, respeitaPausa: true,
+    carimbos: [agenda('solar_giovanna_sent:')], podeTerPrazo: true, respeitaPausa: true, agenda: true,
   }),
   // Hoje até 7 bolhas (BOLHA_TETO, solarBoasVindas.ts:147) e sem janela (:514);
-  // aqui 1 bolha e, passada a ficha fresca, a janela do transacional.
+  // aqui 1 bolha e, passada a ficha fresca, a janela do transacional. NÃO é
+  // agenda: é o recibo do cadastro e não fala de horário (solarBoasVindas.ts:20).
+  // É o único transacional que continua nos freios de volume.
   solar_boas_vindas: robo('transacional_agenda_p3', ['services/io/solarBoasVindas.ts'], {
     carimbos: [agenda('solar_boasvindas_sent:')], podeTerPrazo: true, respeitaPausa: true,
+  }),
+  // A remarcação do NÃO ATENDEU (a da queda de 02/10): AGENDA desde 07/10, por
+  // ordem do dono. Sai sempre, só espaçada: no máximo 1 a cada 15 min
+  // (cadenciaPropria, a mesma cadência do HEAD, eletropostoReagendaAuto.ts:586),
+  // nunca em rajada e nunca cortada. Não vira P1 pelo prazo (o 02/10 pedindo com
+  // prazo era o pior caso), e não confere a pausa, como no HEAD (sendHuman sem
+  // podeFalarComLead). Prioridade abaixo da agenda do dia.
+  ep_reagenda_auto: robo('transacional_agenda_p3', ['services/io/eletropostoReagendaAuto.ts'], {
+    carimbos: [agenda('ep_agenda_sent:')], subprioridade: 2, agenda: true, cadenciaPropria: true,
   }),
 
   // ── P4 · frio de receita ───────────────────────────────────────────────────
@@ -275,12 +320,6 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
     'services/io/eletropostoRemarcar.ts', 'services/io/eletropostoRetorno.ts',
     'services/io/eletropostoNaoAtendidoFup.ts', 'services/io/eletropostoRespostas.ts',
   ], { carimbos: [frio('ep_oferta_fria:')], subprioridade: 2 }),
-  // No-show de agosto é campanha: frio [especificação]. Mas o HEAD ainda carimba
-  // ep_agenda_sent:<id>:reagendado, que conta como agenda: é o defeito de 02/10
-  // pela metade. Divergência conhecida; a migração dá a ele prefixo frio.
-  ep_reagenda_auto: robo('frio_p5', ['services/io/eletropostoReagendaAuto.ts'], {
-    carimbos: [agenda('ep_agenda_sent:')], subprioridade: 2,
-  }),
   bia_recuperacao: robo('frio_p5', ['services/agents/whatsapp/limpaproRecoveryService.ts'], {
     carimbos: [frio('limpapro_recovery:'), frio('limpapro_cupom_sent:'), frio('limpapro_fechamento_sent:'), frio('limpapro_grupo_sent:')],
     subprioridade: 3,
@@ -315,6 +354,20 @@ export const ROBO_DESCONHECIDO: MetaRobo = robo('frio_p5', [], { subprioridade: 
 
 export function metaDoRobo(nome: string): MetaRobo | null {
   return Object.prototype.hasOwnProperty.call(CLASSE_POR_ROBO, nome) ? CLASSE_POR_ROBO[nome]! : null;
+}
+
+/**
+ * O pedido é de AGENDA? Robô de agenda cuja classe efetiva não caiu para frio
+ * (o alerta de 10 min para lead e a remarcação para quem não conversa viram frio
+ * e deixam de ser agenda). Ver o cabeçalho e MetaRobo.agenda.
+ */
+export function ehAgendaDoPedido(meta: MetaRobo, classe: Classe): boolean {
+  return meta.agenda && !ehFria(classe);
+}
+
+/** Os robôs de agenda, pelo nome (o teste fixa a lista). */
+export function robosDeAgenda(): string[] {
+  return Object.entries(CLASSE_POR_ROBO).filter(([, r]) => r.agenda).map(([n]) => n).sort();
 }
 
 /** Prioridade fina: classe × 10 + subprioridade. Menor sai primeiro. */

@@ -49,12 +49,24 @@ describe('regulamento: números padrão', () => {
     expect(REGULAMENTO_PADRAO.sustentado6h).toBe(60);
   });
 
-  it('o prazo não é passe livre: rajada por robô de 6 em 10 min e teto próprio do lembrete de 28/h e 150/24h', () => {
+  it('o prazo não é passe livre: rajada por robô de 6 em 10 min e teto próprio do lembrete de 28/h e 150/24h (só para o que não é agenda)', () => {
     expect(REGULAMENTO_PADRAO.rajadaMaxPorRobo).toBe(6);
     expect(REGULAMENTO_PADRAO.lembreteHora).toBe(28);
     expect(REGULAMENTO_PADRAO.lembreteDia).toBe(150);
-    // O desvio da revisão (lembrete fora do balde de 24/h e do total de 40/h) está escrito.
-    expect(DIVERGENCIAS.some(d => /lembrete com prazo/.test(d) && /não adotado/.test(d))).toBe(true);
+    // A regra do dono (07/10) tirou o teto próprio da agenda: está escrito.
+    expect(DIVERGENCIAS.some(d => /lembrete com prazo/.test(d) && /não é agenda/.test(d))).toBe(true);
+  });
+
+  it('agenda nunca bloqueia: margem de 3 min antes do fim útil, cadência de 15 min da remarcação, reserva de 10 na emergência, resposta segurada por até 2h', () => {
+    const r = REGULAMENTO_PADRAO;
+    expect(r.agendaMargemUtilMs).toBe(3 * 60_000);
+    expect(r.cadenciaPropriaMs).toBe(15 * 60_000);
+    expect(r.reservaEmergenciaHora).toBe(10);
+    expect(r.reativoEsperaMaxMs).toBe(2 * 60 * 60_000);
+    expect(DIVERGENCIAS.some(d => /AGENDA NUNCA BLOQUEIA/.test(d))).toBe(true);
+    expect(DIVERGENCIAS.some(d => /Pausa humana na agenda/.test(d) && /dono decidir/.test(d))).toBe(true);
+    // Env só aperta: a reserva e a cadência só sobem.
+    expect(lerRegulamento({ CHEFE_RESERVA_EMERGENCIA_HORA: '3', CHEFE_CADENCIA_PROPRIA_MIN: '5' }).reg).toMatchObject({ reservaEmergenciaHora: 10, cadenciaPropriaMs: 15 * 60_000 });
   });
 
   it('1 toque = 1 mensagem: frio, transacional, aviso e evento em 1; resposta em 2; Pix em bolha própria', () => {
