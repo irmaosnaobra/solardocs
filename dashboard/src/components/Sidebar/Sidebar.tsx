@@ -58,7 +58,7 @@ const baseAdminItems: NavItem[] = [
   // CRM SolarDoc, Funil SolarDoc e Funil LimpaPro viraram abas dentro do Painel
   // SolarDoc (/admin) — saíram daqui pra não duplicar. Rotas /crm/solardoc,
   // /admin/funil e /admin/funil-limpapro seguem vivas (acesso pela aba / URL).
-  { href: '/admin/pesquisa-disparo', icon: Send,   label: 'Pesquisa/Disparo IO' },
+  { href: '/admin/pesquisa-disparo', icon: Send,   label: 'Leads Google' },
   { href: '/admin/insights',     icon: BarChart3,  label: 'Insights IO' },
   { href: '/admin/leads-origem', icon: Tags,       label: 'Leads por Origem' },
   // Link na Bio IO e Indicações IO viraram sub-abas dentro do Funil LimpaPro

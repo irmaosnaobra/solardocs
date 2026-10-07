@@ -130,7 +130,7 @@ function resumo(chaves: Array<{ key: string; updated_at: string }>, prefixo: str
 const PREFIXOS = [
   'limpapro_recovery:', 'limpapro_cupom_sent:', 'limpapro_fechamento_sent:', 'limpapro_grupo_sent:',
   'limpapro_recovery_pending:', 'limpapro_cupom_pending:', 'limpapro_fechamento_pending:', 'limpapro_grupo_pending:',
-  'gerador_followup:', 'gerador_seq:', 'carla_sent:', 'curso19:', 'ig_sent',
+  'gerador_followup:', 'carla_sent:', 'curso19:', 'ig_sent',
   'ep_remarcar_sent:',       // remarcação automática do eletroposto (oferta + confirmação)
   'ep_reagenda_auto:',       // card vermelho vencido que o robô devolveu pro dia seguinte
   'ep_cobra_sim:',           // régua do SIM: as duas cobranças e o aviso do horário liberado
@@ -173,7 +173,6 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
   const bia4 = resumo(chaves, 'limpapro_grupo_sent:');
   const biaFila = chaves.filter(k => k.key.includes('_pending:') && k.key.startsWith('limpapro_')).length;
   const followup = resumo(chaves, 'gerador_followup:');
-  const seq = resumo(chaves, 'gerador_seq:');
   const carla = resumo(chaves, 'carla_sent:');
   const curso = resumo(chaves, 'curso19:');
   const ig = resumo(chaves, 'ig_sent');
@@ -198,7 +197,7 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
 
   // Teto da linha IO na última hora — mesma conta do lineThrottle.
   const prefixosLinha = ['limpapro_recovery:', 'limpapro_cupom_sent:', 'limpapro_fechamento_sent:',
-    'limpapro_grupo_sent:', 'gerador_followup:', 'gerador_seq:',
+    'limpapro_grupo_sent:', 'gerador_followup:',
     ...(solardocViaIo() ? ['carla_sent:'] : [])];
   const usadosNaHora = chaves.filter(k =>
     prefixosLinha.some(p => k.key.startsWith(p)) && agora - new Date(k.updated_at).getTime() <= H).length;
@@ -279,8 +278,8 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
   const epDesde = desde30 > EP_AGENDA_INICIO ? desde30 : EP_AGENDA_INICIO;
   const [
     igEnviadas30, igRespostas30, igLinks30, inbound24, inbound7,
-    fichasEletro30, nota1_30, nota1SemConvite, ig30, igSemConvite, indicacoes30, respostasBlast,
-    prospTotal, prospToques, seqAtivas, disparosRodando, igAutomacoes,
+    fichasEletro30, nota1_30, nota1SemConvite, ig30, igSemConvite, indicacoes30,
+    prospTotal, prospToques, igAutomacoes,
     epReunioesFuturas, epFuturasConfirmadas, epPresencaConfirmada, epLembretes5min30d, epUltimoToque,
     solarCadastros30, solarBoasVindas30, solarUltimoToque, roteamento,
     prospCusto, prospSaude,
@@ -306,11 +305,8 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
     contarGerador('eletroposto_nota1', (q: any) => q.eq('origem', ORIGEM_IG).gte('created_at', desde30)),
     contarGerador('eletroposto_nota1', (q: any) => q.eq('origem', ORIGEM_IG).is('convite_enviado_at', null)),
     contar('io_indicacoes', (q: any) => q.gte('created_at', desde30)),
-    contar('io_blast_respostas', (q: any) => q.eq('atendido', false)),
     contarGerador('prospeccao_contatos', (q: any) => q),
     contarGerador('prospeccao_toques', (q: any) => q),
-    contarGerador('sequencias', (q: any) => q.eq('ativo', true)),
-    contarGerador('gerador_broadcasts', (q: any) => q.eq('status', 'rodando')),
     contarGerador('ig_automations', (q: any) => q.eq('ativo', true)),
     // Agente de agendamento do eletroposto: a régua dele mora nas 3 colunas de
     // flag da própria ficha, então a métrica é contagem direta — sem system_state.
@@ -489,25 +485,8 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
       metricas: [
         { label: 'Mensagens recebidas (24h)', valor: inbound24 },
         { label: 'Mensagens recebidas (7d)', valor: inbound7 },
-        { label: 'Respostas de disparo sem atender', valor: respostasBlast, sub: 'fila humana no /admin' },
       ],
       toques: [{ titulo: 'nenhum envio automático', quando: '—', copy: 'A linha só recebe. Quem responde é gente.' }],
-    },
-    {
-      id: 'central_automacao',
-      nome: 'Central de Automação (disparos e sequências)',
-      papel: 'Disparo em massa e drip de sequências pra contatos do CRM do Gerador.',
-      canal: 'whatsapp', linha: 'io',
-      estado: (process.env.IO_BLAST_OFF || '').trim() === '1' ? 'desligado' : (envLigado('GERADOR_AUTOMACAO_ENABLED') ? 'ativo' : 'dark'),
-      chave: 'IO_BLAST_OFF / GERADOR_AUTOMACAO_ENABLED',
-      motivo: (process.env.IO_BLAST_OFF || '').trim() === '1' ? 'congelado em 03/ago pra proteger a linha recém-desbloqueada' : undefined,
-      ultima_atividade: seq.ultima,
-      metricas: [
-        { label: 'Disparos rodando', valor: disparosRodando },
-        { label: 'Sequências ativas', valor: seqAtivas },
-        { label: 'Passos de sequência (30d)', valor: seq.d30 },
-      ],
-      toques: [{ titulo: 'mensagens do painel', quando: 'quando alguém inicia', copy: 'O texto é escrito no /gerador na hora de criar o disparo — não tem copy fixa aqui.' }],
     },
     {
       id: 'giovanna',
@@ -775,8 +754,8 @@ export async function montarCentralAgentes(): Promise<CentralPayload> {
     },
   ];
 
-  const enviados24 = bia1.h24 + bia2.h24 + bia3.h24 + bia4.h24 + followup.h24 + seq.h24 + carla.h24 + ig.h24;
-  const enviados7 = bia1.d7 + bia2.d7 + bia3.d7 + bia4.d7 + followup.d7 + seq.d7 + carla.d7 + ig.d7;
+  const enviados24 = bia1.h24 + bia2.h24 + bia3.h24 + bia4.h24 + followup.h24 + carla.h24 + ig.h24;
+  const enviados7 = bia1.d7 + bia2.d7 + bia3.d7 + bia4.d7 + followup.d7 + carla.d7 + ig.d7;
 
   return {
     gerado_em: new Date().toISOString(),

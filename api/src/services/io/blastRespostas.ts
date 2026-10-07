@@ -1,21 +1,24 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// O que acontece quando alguém RESPONDE a um disparo.
+// O que acontece quando alguém RESPONDE a um toque proativo da linha IO.
 //
-// Hoje: nada. O agente de SDR tem early-return para a linha 'io', o próprio
-// blast marca human_takeover pra calar os bots, e a Bia só fala com quem já
-// tinha conversa. Ou seja, a pessoa responde ao anúncio que a gente mandou e
-// cai no vazio até alguém abrir o WhatsApp na mão.
+// Nasceu pros disparos em lista (io_broadcast_envios). Os dois motores de
+// disparo foram apagados em 07/10/2026, mas a parte que importa ficou: a
+// semente promete "responde PARAR que eu paro", e é aqui que a promessa vale.
+// O prefixo do grupo frio do eletroposto (robô apagado em 05/10) segue lido.
 //
-// Este serviço faz o mínimo honesto, sem colocar robô pra conversar com lead
+// O serviço faz o mínimo honesto, sem colocar robô pra conversar com lead
 // frio (que é como se queima número e reputação):
 //
-//  1. Quem pede pra parar sai da lista NA HORA, sozinho — vai pra
-//     whatsapp_suppression, a mesma lista que o motor de disparo já respeita.
-//     É a diferença entre "insistente" e "denunciado".
-//  2. Quem responde qualquer outra coisa vira FILA visível no /admin, com o
-//     texto do que escreveu, pra atendimento humano. Uma vez por pessoa.
+//  1. Quem pede pra parar sai da lista NA HORA, sozinho: vai pra
+//     whatsapp_suppression, a mesma lista que o portão de envio proativo
+//     (carregarBloqueioProativo) consulta. É a diferença entre "insistente" e
+//     "denunciado".
+//  2. Quem responde qualquer outra coisa é gravado em io_blast_respostas, uma
+//     vez por pessoa por dia. A fila que mostrava isso no /admin saiu junto com
+//     os disparos; a conversa segue no WhatsApp, com gente.
 //
-// Roda junto do stop-on-reply das sequências, no /process-messages.
+// Roda no /process-messages, ANTES da lista de tarefas, pra supressão valer no
+// mesmo tick.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { supabase } from '../../utils/supabase';
@@ -182,7 +185,7 @@ export async function runBlastRespostas(): Promise<ResultadoRespostas> {
     const querParar = RE_PARE.test(r.texto);
 
     if (querParar) {
-      // Entra na MESMA lista que o motor de disparo já consulta antes de mandar.
+      // Entra na MESMA lista que o portão de envio proativo consulta antes de mandar.
       const { error } = await supabase.from('whatsapp_suppression').upsert(
         {
           phone: normalizarParaSupressao(r.phone) ?? r.phone,

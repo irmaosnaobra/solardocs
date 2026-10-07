@@ -116,7 +116,6 @@ const BOT_SENT_PREFIXES = [
   'limpapro_fechamento_sent:',
   'limpapro_grupo_sent:',
   'gerador_followup:',
-  'gerador_seq:',            // sequências da Central de Automação (drip do Gerador)
   'ep_repescagem_sent:',     // repescagem do eletroposto (quem ficou sem resposta no apagão)
   'ep_convite_sent:',        // convite do grupo garantido (nota 1 que a LP não conseguiu convidar)
   // [04/08] Os dois agentes de ficha estavam FORA do teto por decisão ("é

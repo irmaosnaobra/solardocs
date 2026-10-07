@@ -189,20 +189,16 @@ sem uso — ficaram como registro de quem recebeu a campanha antiga.
 
 ### Antes de prospectar frio
 
-A linha de WhatsApp já foi banida uma vez. Os freios agora existem e são env var, então
-dá pra apertar sem deploy:
+A linha de WhatsApp já foi banida uma vez. Não existe mais disparo em lista: os dois
+motores (o do `/admin` e o da Central de Automação do `/gerador`) foram apagados em
+07/10/2026, depois de 30 dias sem nenhuma campanha.
 
-| Variável | Padrão | O que faz |
-|---|---|---|
-| `IO_BLAST_OFF=1` | — | congela todo disparo da linha |
-| `IO_BLAST_HORA_INICIO` / `_FIM` | 9 / 20 | janela de envio (horário de Brasília) |
-| `IO_BLAST_TETO_DIA` | 150 | teto por dia na LINHA, somando campanhas |
-| `IO_BLAST_DIAS_DEDUP` | 45 | não recontatar o mesmo número, mesmo em campanha diferente |
-
-E quem responde a um disparo deixou de cair no vazio: quem pede pra parar sai sozinho da
-lista (entra na supressão no mesmo tick), e o resto vira fila no `/admin` → **Disparos**,
-com o texto que a pessoa escreveu e botão pra abrir a conversa. O atendimento é humano —
-não coloquei robô pra conversar com lead frio.
+- Para a base de parceria, o caminho é o **Menu de Avisos** (`/gerador` → Eletroposto →
+  Avisos): um contato por tick, com janela diurna, espaçamento da linha e teto próprio.
+- O `zapi-admin/io/send-text` serve só para um punhado de mensagens: ele não passa por
+  teto, janela, supressão nem dedup.
+- Quem responde PARAR à semente entra sozinho na supressão, no mesmo tick. O atendimento
+  de quem responde é humano: não coloquei robô pra conversar com lead frio.
 
 ---
 

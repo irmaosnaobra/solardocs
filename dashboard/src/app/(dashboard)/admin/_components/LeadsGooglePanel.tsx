@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import api from '@/services/api';
 
 interface Lead {
@@ -71,7 +70,6 @@ function isCelularBR(rawPhone: string | null | undefined): boolean {
 }
 
 export default function LeadsGooglePage() {
-  const router = useRouter();
   const [query, setQuery] = useState('');
   const [maxPages, setMaxPages] = useState(3);
   const [buscando, setBuscando] = useState(false);
@@ -265,16 +263,20 @@ export default function LeadsGooglePage() {
     setSelecionados(novo);
   }
 
-  function enviarParaDisparos() {
+  // O destino antigo (/admin/disparos) foi apagado em 07/10/2026. A seleção
+  // continua servindo: copia os telefones, um por linha.
+  async function copiarTelefones() {
     const fones = leads
       .filter(l => selecionados[l.id])
       .map(l => digits(l.telefone))
       .filter(Boolean);
     if (fones.length === 0) { alert('Selecione pelo menos 1 lead com telefone'); return; }
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('disparos_telefones_prefill', fones.join('\n'));
+    try {
+      await navigator.clipboard.writeText(fones.join('\n'));
+      alert(`${fones.length} telefones copiados.`);
+    } catch {
+      alert('Não deu pra copiar automaticamente.');
     }
-    router.push('/admin/disparos');
   }
 
   const totalSelecionados = useMemo(
@@ -282,7 +284,7 @@ export default function LeadsGooglePage() {
     [leads, selecionados],
   );
 
-  // ── estilos inline (mesmo padrao do /admin/disparos) ─────────────
+  // ── estilos inline ───────────────────────────────────────────────
   const cardStyle: React.CSSProperties = {
     background: 'var(--color-surface)',
     border: '1px solid var(--color-border)',
@@ -326,7 +328,7 @@ export default function LeadsGooglePage() {
       <header style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Extrator de leads (Google)</h1>
         <p style={{ color: 'var(--color-text-muted)', fontSize: 13, marginTop: 4 }}>
-          Busca estabelecimentos no Google Maps por palavra-chave. Telefones recuperados podem ser enviados direto pra /admin/disparos.
+          Busca estabelecimentos no Google Maps por palavra-chave. Os telefones selecionados podem ser copiados de uma vez.
         </p>
       </header>
 
@@ -485,8 +487,8 @@ export default function LeadsGooglePage() {
               <button style={btnGhost} onClick={toggleTodos}>
                 {visiveis.every(l => selecionados[l.id]) ? 'Desmarcar todos' : 'Marcar todos'}
               </button>
-              <button style={btnPrimary} onClick={enviarParaDisparos} disabled={totalSelecionados === 0}>
-                Enviar {totalSelecionados} pra /disparos →
+              <button style={btnPrimary} onClick={copiarTelefones} disabled={totalSelecionados === 0}>
+                Copiar {totalSelecionados} telefones
               </button>
             </div>
           </div>

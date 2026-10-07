@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // PROSPECÇÃO — motor de busca de lead na Apify.
 //
-// Modelo de segurança (mesmo do geradorAutomacaoService): a tela /gerador/prospeccao
+// Modelo de segurança (o da antiga Central de Automação): a tela /gerador/prospeccao
 // é estática e usa a chave publishable, que é PÚBLICA. Então ela só escreve um
 // PEDIDO em prospeccao_buscas. Quem gasta dinheiro na Apify é este arquivo, que só
 // roda no servidor. As travas moram aqui, não na tela:

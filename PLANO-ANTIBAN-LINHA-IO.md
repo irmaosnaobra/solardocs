@@ -88,7 +88,7 @@ Nada é perdido: todos os gates são pré-claim — quem não passa espera o pr�
 ## 3. O que NÃO foi feito e por quê
 
 - **Teto de "números novos por dia"** (o preditor mais forte de ban): os marcadores atuais são por e-mail/chave, não guardam se o número já respondeu alguma vez. Dá pra fazer, mas exige tabela nova — o teto diário de 40 cobre 90% do risco por enquanto.
-- **Blast do admin** (`runIoBroadcastTick`) continua **isento** dos tetos por decisão antiga: é operador-iniciado, você aperta o botão. Se a linha cair de novo com o blast rodando, esse é o primeiro suspeito e o próximo a entrar no orçamento.
+- **Blast do admin** (`runIoBroadcastTick`): era **isento** dos tetos por decisão antiga (operador-iniciado). Foi apagado em 07/10/2026, junto com o disparo da Central de Automação, e não existe mais envio em lista na linha. O que sobra de volume é o Menu de Avisos, com teto próprio e espaçamento. O `zapi-admin/io/send-text` continua fora do teto (e da supressão) e serve só para um punhado de mensagens.
 
 ## 4. Efeito colateral esperado (não é bug)
 

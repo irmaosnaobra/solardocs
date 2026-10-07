@@ -1,65 +1,23 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers COMPARTILHADOS de envio na linha física IO (34998165040).
 //
-// Extraído de broadcastTickService.ts pra que o motor de disparos do admin
-// (runIoBroadcastTick) e o novo motor do Gerador (geradorAutomacaoService) usem
-// EXATAMENTE o mesmo envio Z-API, a mesma humanização e a MESMA lista de bloqueio
-// (anti-denúncia). Duplicar essas três coisas = risco de mandar pra quem pediu
-// opt-out ou tomar ban — então elas moram aqui, num lugar só.
-//
-// Também vive aqui o LOCK DE LINHA compartilhado entre os dois motores de blast:
-// os dois rodam pela MESMA linha e ambos são isentos do teto 12/h (blast é
-// operador-iniciado). Sem coordenação, dois blasts simultâneos dobram o envio e
-// arriscam ban. O lock deixa só UM motor de blast ativo por janela.
+// Nasceu pra que os dois motores de disparo em lista (o do /admin e o da Central
+// de Automação do /gerador) usassem o mesmo envio Z-API e a MESMA lista de
+// bloqueio (anti-denúncia). Os dois motores foram apagados em 07/10/2026 (0
+// disparos em 30 dias). Fica aqui o que os robôs vivos usam:
+//   - enviarZapiIO e o LOCK DE LINHA: Menu de Avisos (avisosTickService);
+//   - carregarBloqueioProativo: o portão de todo envio proativo (semente,
+//     convite do Instagram, retomada da Carla).
+// Duplicar o envio ou a lista de bloqueio é risco de mandar pra quem pediu
+// opt-out ou tomar ban, então elas moram aqui, num lugar só.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../utils/supabase';
 import { logger } from '../../utils/logger';
 import { carregarSilenciados, carregarMudos } from '../agents/whatsapp/silenciar';
 import { carregarPausas } from '../agents/whatsapp/pausaHumana';
-import { novoAnthropic } from "../../utils/anthropicClient";
 
 export type MediaType = 'image' | 'video' | 'audio';
-
-export function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-/** Reescreve uma mensagem-base pra soar humana (Haiku). Fail-open: sem key, devolve a base. */
-export async function humanizar(base: string, contexto: string | null): Promise<string> {
-  const key = process.env.ANTHROPIC_API_KEY?.trim();
-  if (!key) return base;
-  const anthropic = novoAnthropic(key);
-  const ctx = (contexto || '').trim();
-  const systemPrompt = [
-    'Voce reformula uma mensagem-base do WhatsApp para soar como um humano brasileiro real escrevendo, nao como robo.',
-    'Regras absolutas:',
-    '- Mantenha o significado e a intencao da mensagem-base.',
-    '- Frases curtas, naturais, coloquiais.',
-    '- NUNCA use travessao (—) nem em-dash. Use virgula, ponto, ou simplesmente quebre a frase.',
-    '- Sem emoji.',
-    '- Variar sutilmente entre reformulacoes: ora "tudo bem?", ora vai direto; ora "Boa tarde", ora "Oi".',
-    '- Nao adicione informacao nova que nao esteja na base.',
-    '- Saida: APENAS a mensagem reformulada, sem aspas, sem prefixo, sem explicacao.',
-    '',
-    'Exemplo de reformulacao no tom certo:',
-    'Base: Boa tarde, aqui e a Giovanna',
-    'Saida: Boa tarde, e a Giovanna falando',
-    ctx ? `\nContexto adicional do disparo: ${ctx}` : '',
-  ].filter(Boolean).join('\n');
-
-  const r = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 200,
-    temperature: 0.9,
-    system: systemPrompt,
-    messages: [{ role: 'user', content: `Mensagem-base: ${base}\n\nReformule.` }],
-  });
-  const c = r.content[0];
-  if (c?.type === 'text') return c.text.trim().replace(/^["']|["']$/g, '') || base;
-  return base;
-}
 
 /** Envio Z-API pela linha IO (texto/imagem/vídeo/áudio). Áudio vai sozinho (nota de voz). */
 export async function enviarZapiIO(
@@ -155,10 +113,12 @@ export async function carregarBloqueioProativo(): Promise<(phone: string) => boo
     pediuParar(phone) || estaMudo(phone) || !pausa(phone).pode;
 }
 
-// ── Lock de linha compartilhado entre os motores de blast ────────────────────
+// ── Lock de linha ────────────────────────────────────────────────────────────
 // Guardado em system_state (MAIN), chave única. Best-effort (leitura+escrita não
-// atômica, igual ao rodízio) — suficiente porque os dois crons pingam em
-// instantes diferentes e o objetivo é só evitar dois blasts sobrepostos.
+// atômica, igual ao rodízio). Nasceu pra não deixar dois motores de blast
+// mandarem juntos pela mesma linha. Desde 07/10/2026 o único dono é o Menu de
+// Avisos, que é chamado por mais de um pinger: o lock segura dois ticks dele
+// sobrepostos. A chave ficou com o nome antigo.
 const LINE_LOCK_KEY = 'io_line_blast_lock';
 
 /** Tenta pegar o lock de blast da linha pra `owner`. `true` = pegou (ou já era seu). */

@@ -62,10 +62,11 @@ o lembrete pra recuperar quem comentou e sumiu.
 
 ## O que **não** temos ainda
 
-- **Disparo e sequência de WhatsApp:** a ferramenta está pronta e ligada no painel,
-  mas **nenhuma campanha foi criada** — zero mensagens enviadas até hoje. Antes de usar
-  em lista fria, falar com o Thiago: a linha já foi banida uma vez e os limites (150/dia,
-  9h–20h) existem por isso.
+- **Disparo e sequência de WhatsApp:** saíram em 07/10/2026. A ferramenta nunca mandou
+  uma campanha e foi apagada (as abas Disparos e Sequências da Central de Automação e o
+  disparo do `/admin`). Para a base de parceria, o caminho é o Menu de Avisos, um contato
+  por vez, com janela e teto. Lista fria, só falando com o Thiago antes: a linha já foi
+  banida uma vez.
 - **DM automática pra novo seguidor:** não existe e não dá pra fazer — o Instagram não
   libera. O que substitui é o post fixado pedindo "comenta COMEÇAR".
 - **Robô que conversa:** nenhuma automação responde pergunta. Ela entrega o link e para;

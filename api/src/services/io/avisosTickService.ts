@@ -251,17 +251,15 @@ async function contarEnvios(desdeIso: string): Promise<number> {
 }
 
 /**
- * Os OUTROS dois motores de blast desta mesma linha (o de /admin/disparos e o da
- * Central de Automação) não carimbam `system_state`: eles registram só nas
- * tabelas de envio deles. Ou seja, o espaçamento da linha — que lê marcador — é
- * CEGO pra eles. E eles mandam até 10 mensagens por tick.
+ * Os dois motores de blast desta linha (o do /admin/disparos e o da Central de
+ * Automação) não carimbavam `system_state`: registravam só nas tabelas de envio
+ * deles, e o espaçamento da linha, que lê marcador, era CEGO pra eles. Esta
+ * checagem impedia um aviso de sair 1 segundo depois da décima mensagem de um
+ * disparo, que é a forma da rajada que derruba número.
  *
- * O lock de linha impede dois ticks ao mesmo tempo, mas é solto no fim de cada
- * tick: sem esta checagem, um aviso poderia sair 1 segundo depois da décima
- * mensagem de um disparo, que é exatamente a forma da rajada que derruba número.
- *
- * Hoje as duas tabelas estão zeradas (nenhuma campanha rodou ainda). Isto aqui é
- * o que faz continuar valendo no dia em que voltarem a ser usadas.
+ * Os dois motores foram apagados em 07/10/2026 e ninguém mais escreve nessas
+ * tabelas, então hoje isto sempre responde "não". Ficou de propósito: é barato,
+ * e se um disparo em lista voltar por revert, o freio volta junto.
  *
  * Fail-open, igual ao espaçamento da casa: erro de leitura não pode calar o
  * canal pra sempre — quem segura o volume é o teto próprio, que é lido antes.
@@ -337,8 +335,8 @@ async function tickInterno(dry: boolean): Promise<AvisoTickResult> {
   // que o consultasse ficaria bloqueado PARA SEMPRE — o aviso nunca sairia, e o
   // jeito de descobrir isso seria alguém perguntar por que a pauta não chegou.
   //
-  // Então o aviso segue o regime dos outros dois motores de blast desta mesma
-  // linha (admin e Central de Automação): operador-iniciado, com teto PRÓPRIO,
+  // Então o aviso segue o regime que os motores de blast desta linha tinham
+  // (apagados em 07/10/2026): operador-iniciado, com teto PRÓPRIO,
   // menor, conferido logo acima. O que o mantém preso à realidade da linha é o
   // espaçamento abaixo, que é o freio que de fato evita ban — e o marcador
   // `aviso_sent:` em BOT_SENT_PREFIXES, que faz os OUTROS robôs recuarem depois
@@ -347,8 +345,8 @@ async function tickInterno(dry: boolean): Promise<AvisoTickResult> {
   // Espaçamento: nada sai a menos de 10–15 min do último envio de QUALQUER robô.
   // É o que impede o aviso de colar num toque da Giovanna.
   if (!(await respeitaEspacamentoLinha())) return { enviados: 0, motivo: 'espacamento_linha' };
-  // E o espaçamento contra os dois motores de blast, que não aparecem no
-  // marcador (o porquê está na função).
+  // E o espaçamento contra os disparos em lista, que não aparecem no marcador
+  // (o porquê, e por que ficou depois de os motores saírem, está na função).
   if (await blastMandouAgoraPouco()) return { enviados: 0, motivo: 'blast_em_andamento' };
 
   // ── O aviso da vez ───────────────────────────────────────────────────────

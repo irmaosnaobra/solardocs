@@ -23,13 +23,10 @@ import { retryCardsPendentes } from '../services/agents/sdr/sdrAgentService';
 import { entregarTriagensParadas } from '../services/io/recepcaoIo';
 import { pollRecepcaoIo } from '../services/io/recepcaoIoPoll';
 import { pollZapiMessagesIO, cleanupPerdidosAntigos, cleanupMessageDedup } from '../services/agents/sdr/sdrIoPolling';
-import { runIoBroadcastTick } from '../services/io/broadcastTickService';
-import { runGeradorBroadcastTick, runGeradorSequenciasConsumer } from '../services/io/geradorAutomacaoService';
 import { runAvisosTick } from '../services/io/avisosTickService';
 import { runSentinelaVacuo } from '../services/io/sentinelaVacuo';
 import { runPlacarGiovanna } from '../services/io/placarGiovanna';
 import { runProspeccaoApifyTick } from '../services/io/prospeccaoApifyService';
-import { runSequenciaStopOnReply } from '../services/io/sequenciaStopOnReply';
 import { rodarPausaHumanaTick } from '../services/agents/whatsapp/pausaHumanaTick';
 import { runBlastRespostas } from '../services/io/blastRespostas';
 import { runZapiHealthCheck } from '../services/io/zapiHealthMonitor';
@@ -316,15 +313,12 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     // em cima (165 mensagens em 3 dias). PAUSA_HUMANA_OFF=1 desliga.
     const pausaHumanaResult = await rodarPausaHumanaTick().catch((e) => ({ error: String(e) }));
 
-    // Trava de segurança (stop-on-reply): PARA as sequências de quem respondeu ANTES
-    // de rodar o drip deste tick — evita mandar o próximo passo por cima da resposta
-    // do cliente. Awaited de propósito (roda antes do runGeradorSequenciasConsumer).
-    const stopReplyResult = await runSequenciaStopOnReply().catch((e) => ({ error: String(e) }));
-
-    // Respostas a DISPARO: quem pediu pra parar entra na supressão antes de
-    // qualquer envio deste tick; o resto vira fila de atendimento humano no
-    // /admin. Também awaited — a supressão precisa valer pro tick que vem logo
-    // abaixo, senão a pessoa que acabou de pedir "pare" recebe o próximo slot.
+    // Quem responde PARAR a um toque da semente entra na supressão antes de
+    // qualquer envio deste tick. Awaited e ANTES da lista de tarefas de
+    // propósito: a supressão precisa valer pro tick que vem logo abaixo, senão a
+    // pessoa que acabou de pedir "pare" leva o próximo toque. Os disparos em
+    // lista (/admin e Central de Automação do /gerador) e a fila de respostas no
+    // /admin foram apagados em 07/10/2026; esta parte ficou.
     const blastRespResult = await runBlastRespostas().catch((e) => ({ error: String(e) }));
 
     // Placar do 5040 (Giovanna). FORA da lista posicional abaixo de propósito:
@@ -367,7 +361,6 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       ['recup_seeds', () => runLimpaproRecoverySeeds()],      // recuperação LimpaPro (Bia): põe gente na esteira (1x/h, auto-gated)
       ['recup_consumer', () => runLimpaproRecoveryConsumer()],   // recuperação LimpaPro (Bia): drena marcadores prontos
       ['bia_poll', () => pollBiaRecuperacao()],            // inbound da Bia (poll IO; webhook IO não entrega texto)
-      ['gerador_seq', () => runGeradorSequenciasConsumer()],  // Central de Automação: drip de sequências (gated por kill-switch)
       ['ig_drain', () => drainIgQueue()],                  // Instagram nativo: drena a fila de DMs/respostas (gated por kill-switch)
       ['fb_comentarios', () => varrerComentariosFacebook()],     // Facebook: comentário em post/anúncio da Página → resposta privada (FB_COMENTARIOS_OFF desliga)
       ['fb_inbox', () => varrerInboxFacebook()],           // Facebook: inbox do Messenger — responde, manda o menu e chama o humano (FB_INBOX_OFF desliga)
@@ -434,7 +427,6 @@ router.get('/process-messages', async (req: Request, res: Response) => {
     res.json({
       ok: true,
       pausa_humana: pausaHumanaResult,
-      stop_on_reply: stopReplyResult,
       blast_respostas: blastRespResult,
       ...resultados,
       placar:         await placarP,
@@ -1129,11 +1121,10 @@ router.get('/carla-pergunta-cnpj', async (req: Request, res: Response) => {
   }
 });
 
-// Processa fila de disparos em massa (broadcasts /admin/disparos) server-side.
-// Cloudflare Worker chama a cada minuto. Cada tick pega o broadcast mais antigo
-// em status='rodando', adquire lock, e processa até MAX_ENVIOS_POR_TICK envios
-// respeitando cadência aleatória. Loop client-side da página é apenas um fallback
-// — mesmo se o browser fechar, o servidor continua até concluir.
+// Pinger de 5 em 5 min dos avisos e da sentinela do vácuo. O nome é de quando
+// esta rota processava a fila de disparos em massa do /admin; esse motor foi
+// apagado em 07/10/2026 (0 disparos em 30 dias). O nome ficou porque o
+// api/vercel.json, o Cloudflare Worker e talvez o pg_cron chamam por ele.
 router.get('/io-broadcast-tick', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
@@ -1168,31 +1159,13 @@ router.get('/io-broadcast-tick', async (req: Request, res: Response) => {
     // ~4 dias que a tela promete, e a sentinela cobraria uma conversa parada meio
     // dia depois do combinado.
     //
-    // Os dois vêm ANTES do disparo de propósito: são curtos e saem cedo (janela,
-    // espaçamento, teto, represa de 20 min da sentinela), enquanto o disparo em
-    // massa pode levar 4 minutos de uma função que tem 300s. Cada um tem lock
-    // próprio, então não atropelam o outro.
+    // Os dois são curtos e saem cedo (janela, espaçamento, teto, represa de 20
+    // min da sentinela). Cada um tem lock próprio, então não atropelam o outro.
     const avisos = await runAvisosTick();
     const vacuo = await runSentinelaVacuo();
-    const result = await runIoBroadcastTick();
-    res.json({ ok: true, ...result, avisos, vacuo });
+    res.json({ ok: true, avisos, vacuo });
   } catch (err) {
     logger.error('cron', 'io-broadcast-tick falhou', err);
-    res.status(500).json({ error: 'Cron failed' });
-  }
-});
-
-// Tick dedicado da Central de Automação do Gerador (disparos). Espelha o
-// io-broadcast-tick: um blast pode levar até 4 min, então não roda dentro do
-// /process-messages. Apontar o mesmo pinger de 1 min (Cloudflare Worker / GitHub
-// Actions) pra cá. Gated por CRON_SECRET + kill-switch GERADOR_AUTOMACAO_ENABLED.
-router.get('/gerador-broadcast-tick', async (req: Request, res: Response) => {
-  if (!verifyCronSecret(req, res)) return;
-  try {
-    const result = await runGeradorBroadcastTick();
-    res.json({ ok: true, ...result });
-  } catch (err) {
-    logger.error('cron', 'gerador-broadcast-tick falhou', err);
     res.status(500).json({ error: 'Cron failed' });
   }
 });
