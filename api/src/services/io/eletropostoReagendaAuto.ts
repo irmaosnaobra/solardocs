@@ -115,7 +115,7 @@ import { supabase } from '../../utils/supabase';
 import { supabaseGerador } from '../../utils/supabaseGerador';
 import { logger } from '../../utils/logger';
 import { sendHuman, linhaEmCooldown } from '../agents/zapiClient';
-import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
+import { dentroDoTetoHorarioLinha, rampaReconexaoVigente } from '../agents/whatsapp/lineThrottle';
 import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 import {
   quandoPorExtenso, telefoneBonito, carregarConsultores,
@@ -187,6 +187,31 @@ export const EP_REAGENDA_PREFIX = 'ep_reagenda_auto:';
  * verdade.
  */
 export const EP_MUDO_PREFIX = 'ep_mudo:';
+
+/**
+ * A VEZ DE FALAR: `ep_reagenda_vez:<dia>T<hora>:<quarto>` → { em, ficha }.
+ *
+ * O TICK RODA EM TRÊS RELÓGIOS (07/10/2026): o pg_cron do process-messages, um
+ * segundo process-messages e o cron de 5 em 5 min da Vercel, sem trava nenhuma
+ * entre eles. O espaçamento de 15 min lê os carimbos, e o carimbo só é gravado
+ * DEPOIS de mover a ficha e mandar a mensagem, uns 5 s depois da leitura. Dois
+ * relógios que leem nesse intervalo passam os dois. Às 16h30m34s e 16h30m36s de
+ * 07/10 dois deles leram a rampa com 2 s de diferença: o que perdia a ficha 1
+ * pulava pra ficha 2, e saíam duas falas a segundos uma da outra.
+ *
+ * Agora quem vai mover um vermelho pega a vez ANTES, com `insert` numa chave por
+ * quarto de hora. A chave é primary key: só um relógio ganha, e quem perde leva
+ * 23505 e não fala naquele quarto de hora (os calados continuam andando).
+ */
+export const EP_REAGENDA_VEZ_PREFIX = 'ep_reagenda_vez:';
+
+/** A chave da vez para um instante: dia e hora de Brasília e o quarto de hora
+ *  (0 a 3). `-03:00` fixo, como no resto do módulo: sem horário de verão desde
+ *  2019. */
+export function chaveDaVez(ms: number): string {
+  const brt = new Date(ms - 3 * 3600_000);
+  return `${EP_REAGENDA_VEZ_PREFIX}${brt.toISOString().slice(0, 13)}:${Math.floor(brt.getUTCMinutes() / 15)}`;
+}
 
 /**
  * A linha IO está fora do ar? Fail-closed na leitura do monitor: se o banco não
@@ -930,6 +955,54 @@ async function limparCarimbos(id: number): Promise<void> {
       logger.error('ep-reagenda', 'limpar carimbos falhou', { id, erro: String(e) }));
 }
 
+/** Devolve a vez de um quarto de hora em que ninguém falou, pra outro relógio
+ *  poder usá-la. */
+async function devolverAVez(chave: string): Promise<void> {
+  await supabase.from('system_state').delete().eq('key', chave)
+    .then(undefined, (e: unknown) =>
+      logger.error('ep-reagenda', 'devolver a vez falhou', { chave, erro: String(e) }));
+}
+
+/**
+ * Pega a vez de falar deste quarto de hora (ver `EP_REAGENDA_VEZ_PREFIX`).
+ * Devolve a chave ganha, ou `null` se a vez é de outro relógio.
+ *
+ * A VIRADA DO QUARTO DE HORA. Uma chave por quarto não basta sozinha: um relógio
+ * às 15h14m59s e outro às 15h15m01s pegam chaves diferentes e os dois ganham.
+ * E a virada é justamente onde os relógios se encontram (o pg_cron bate nos
+ * minutos pares, a Vercel de 5 em 5, e os dois caem juntos no :00 e no :30). Por
+ * isso, depois de ganhar, ele olha se existe OUTRA vez pega dentro do
+ * espaçamento. Se existe, devolve a dele e não fala. De dois relógios que
+ * correm, pelo menos um vê o outro: o que lê por último enxerga o insert do que
+ * leu primeiro. Os dois podem desistir juntos, e aí ninguém fala neste tick, o
+ * que só atrasa a fila em um tick. Leitura que falha também desiste.
+ */
+async function pegarAVez(id: number): Promise<string | null> {
+  const agoraMs = Date.now();
+  const chave = chaveDaVez(agoraMs);
+  const emIso = new Date(agoraMs).toISOString();
+  const { error } = await supabase.from('system_state')
+    .insert({ key: chave, value: { em: emIso, ficha: id }, updated_at: emIso });
+  if (error) {
+    logger.info('ep-reagenda', 'outro relógio já pegou a vez deste quarto de hora: nesta rodada o vermelho não fala', { chave });
+    return null;
+  }
+  const desde = new Date(agoraMs - falaIntervaloMin() * 60_000).toISOString();
+  const vizinha = await supabase.from('system_state').select('key, updated_at')
+    .like('key', `${EP_REAGENDA_VEZ_PREFIX}%`)
+    .neq('key', chave)
+    .gte('updated_at', desde)
+    .limit(1);
+  if (vizinha.error || (vizinha.data?.length ?? 0) > 0) {
+    logger.info('ep-reagenda', 'outro relógio pegou a vez há menos que o espaçamento: devolvo a minha e não falo', {
+      chave, outra: vizinha.data?.[0]?.key ?? null, erro: vizinha.error ? String(vizinha.error.message ?? vizinha.error) : null,
+    });
+    await devolverAVez(chave);
+    return null;
+  }
+  return chave;
+}
+
 /**
  * Um passo da fila. Roda a cada ~5 min dentro do /cron/process-messages.
  * `dry` decide igual e não envia, não grava e não gasta tentativa.
@@ -1208,9 +1281,17 @@ export async function runEletropostoReagendaAutoTick(
   //
   // Fail-closed segue valendo: consulta quebrada devolve `erro_rampa` e ninguém
   // é remarcado.
+  //
+  // DECRESCENTE, PORQUE O CORTE É CERTO (07/10/2026). Ninguém apaga estes
+  // carimbos (eram 309 em 07/10) e o PostgREST corta em 1000 linhas, peça o que
+  // pedir. Sem ordem, passando de mil, o corte cai em qualquer lugar, inclusive
+  // nos de HOJE, e a rampa conta menos do que saiu. Do mais novo pro mais velho,
+  // quem fica de fora é o mais antigo, que esta conta descarta de qualquer jeito
+  // (um dia tem no máximo 40 + 200 carimbos).
   const feitosHoje = await supabase
     .from('system_state').select('key, value, updated_at')
     .like('key', `${EP_REAGENDA_PREFIX}%`)
+    .order('updated_at', { ascending: false })
     .limit(1000);
   if (feitosHoje.error) {
     logger.error('ep-reagenda', 'ler a rampa do dia falhou — ninguém remarca nesta rodada', feitosHoje.error);
@@ -1261,22 +1342,84 @@ export async function runEletropostoReagendaAutoTick(
   let aptos = opts.dry ? naVez : naVez.filter(f => vagaDe[relogioDe(f)] > 0);
   let linhaEstourou = false;
 
-  // O ESPAÇAMENTO DO QUE FALA (07/10/2026). A última remarcação que mandou
-  // mensagem sai do mesmo carimbo que a rampa já leu, sem consulta nova. Carimbo
-  // sem `relogio` conta como fala, que é o lado seguro, igual na rampa.
+  // O ESPAÇAMENTO DO QUE FALA (07/10/2026).
+  //
+  // LÊ SÓ A ÚLTIMA FALA, E LÊ NO SERVIDOR. Ele saía da leitura da rampa logo
+  // acima, que era sem ordem e com limite de 1000: com mais de mil carimbos, a
+  // última fala podia ficar de fora, e aí o freio abria calado e sobrava só o
+  // piso de 16/h da linha (o formato de 02/10). Agora é uma consulta própria:
+  // só carimbo de quem FALA (o calado chega a 200 por dia e seria quase sempre
+  // o mais novo), do mais novo pro mais velho, uma linha.
+  //
+  // O instante é o `updated_at`, a coluna pela qual a consulta ordena. A rota de
+  // soltar a espera do /gerador reescreve o carimbo com `updated_at` de agora sem
+  // fala nova; contar isso como fala só segura a fila até 15 min a mais, que é
+  // o lado seguro. Ler o `ultimo` daquela linha deixaria passar uma fala real
+  // logo atrás dela.
+  //
+  // Carimbo sem `relogio` não entra aqui: ele é anterior a 01/10, mais velho que
+  // qualquer espaçamento. Leitura que falha segura o vermelho nesta rodada.
   let falaEspera = false;
-  const ultimaFala = (feitosHoje.data || []).reduce((max, r) => {
-    const v = (r as { value?: { relogio?: string; ultimo?: string } }).value;
-    if (v?.relogio === 'mudo') return max;
-    const t = Date.parse(String(v?.ultimo || ''));
-    return Number.isFinite(t) && t > max ? t : max;
-  }, 0);
-  if (!opts.dry && aptos.some(f => relogioDe(f) === 'fala')
-      && agora - ultimaFala < falaIntervaloMin() * 60_000) {
-    logger.info('ep-reagenda', `espaçamento: a última remarcação que fala saiu há `
-      + `${Math.round((agora - ultimaFala) / 60_000)} min (mínimo ${falaIntervaloMin()}) — nesta rodada andam só os calados`);
-    falaEspera = true;
-    aptos = aptos.filter(f => relogioDe(f) === 'mudo');
+  if (!opts.dry && aptos.some(f => relogioDe(f) === 'fala')) {
+    const ultimaFalaQ = await supabase
+      .from('system_state').select('key, value, updated_at')
+      .like('key', `${EP_REAGENDA_PREFIX}%`)
+      .eq('value->>relogio', 'fala')
+      .order('updated_at', { ascending: false })
+      .limit(1);
+    const r = ultimaFalaQ.data?.[0] as { value?: { ultimo?: string }; updated_at?: string } | undefined;
+    const ultimaFala = Math.max(
+      0,
+      ...[Date.parse(String(r?.updated_at || '')), Date.parse(String(r?.value?.ultimo || ''))]
+        .filter(Number.isFinite),
+    );
+    if (ultimaFalaQ.error) {
+      logger.error('ep-reagenda', 'ler a última fala falhou: nesta rodada andam só os calados', ultimaFalaQ.error);
+      falaEspera = true;
+    } else if (agora - ultimaFala < falaIntervaloMin() * 60_000) {
+      logger.info('ep-reagenda', `espaçamento: a última remarcação que fala saiu há `
+        + `${Math.round((agora - ultimaFala) / 60_000)} min (mínimo ${falaIntervaloMin()}) — nesta rodada andam só os calados`);
+      falaEspera = true;
+    }
+    if (falaEspera) aptos = aptos.filter(f => relogioDe(f) === 'mudo');
+  }
+
+  // ── A LINHA QUE ACABOU DE VOLTAR (07/10/2026) ────────────────────────────
+  //
+  // O piso deste robô (16/h e 200/24h, logo abaixo) eleva o teto da linha e,
+  // junto, apaga a rampa de reconexão: `max(2, 16)` dá 16. No dia em que a linha
+  // volta de uma queda, o frio tem 1 por dia e este robô podia mandar 40 "você
+  // não conseguiu entrar" para as fichas que se acumularam durante ela, numa
+  // linha que o WhatsApp está olhando de perto.
+  //
+  // Então, com a rampa armada, o vermelho anda no RITMO dela, contando as
+  // próprias falas: na última hora, no máximo o `hora` da rampa (2, 3, 4), e nas
+  // últimas 24h, no máximo o `dia` (10, 20, 30). Não é a linha inteira contra a
+  // rampa: a agenda sozinha passa disso, e o vermelho ficaria mudo três dias. E
+  // não descarta ninguém: quem não coube continua na fila, sem tentativa gasta,
+  // e anda num tick seguinte. Leitura que falha segura o vermelho nesta rodada.
+  let rampaSegura = false;
+  if (!opts.dry && aptos.some(f => relogioDe(f) === 'fala')) {
+    const rampa = await rampaReconexaoVigente(new Date(agora));
+    if (rampa) {
+      const recentes = await supabase
+        .from('system_state').select('key, updated_at')
+        .like('key', `${EP_REAGENDA_PREFIX}%`)
+        .eq('value->>relogio', 'fala')
+        .gte('updated_at', new Date(agora - 24 * 3600_000).toISOString())
+        .order('updated_at', { ascending: false })
+        .limit(rampa.dia + 1);
+      const noDia = (recentes.data || []).length;
+      const naHora = (recentes.data || [])
+        .filter(r => Date.parse(String(r.updated_at || '')) >= agora - 3600_000).length;
+      if (recentes.error || naHora >= rampa.hora || noDia >= rampa.dia) {
+        logger.info('ep-reagenda', recentes.error
+          ? 'ler as falas da rampa de reconexão falhou: nesta rodada andam só os calados'
+          : `rampa de reconexão: ${naHora}/${rampa.hora} na hora e ${noDia}/${rampa.dia} em 24h — o vermelho espera, e quem não coube continua na fila`);
+        rampaSegura = true;
+        aptos = aptos.filter(f => relogioDe(f) === 'mudo');
+      }
+    }
   }
 
   // Teto anti-ban ANTES de mexer na ficha: remarcar sem conseguir avisar é
@@ -1331,18 +1474,28 @@ export async function runEletropostoReagendaAutoTick(
     // O motivo não pode virar um só: "a linha estourou" e "a rampa encheu" se
     // resolvem de formas diferentes, e é por este campo que a gente descobre
     // qual das duas foi.
-    return zero(linhaEstourou ? 'teto_da_linha' : falaEspera ? 'espacamento_da_fala' : 'rampa_do_dia_cheia');
+    return zero(linhaEstourou ? 'teto_da_linha'
+      : falaEspera ? 'espacamento_da_fala'
+        : rampaSegura ? 'rampa_de_reconexao' : 'rampa_do_dia_cheia');
   }
 
   const telPorConsultor = await carregarConsultores();
   const alvos = aptos.slice(0, POR_TICK * TENTATIVAS_POR_RODADA);
   const previa: NonNullable<ResultadoReagendaAuto['previa']> = [];
   let remarcados = 0, erros = 0;
+  // A VEZ DE FALAR deste quarto de hora (ver `pegarAVez`). Pega uma vez só por
+  // rodada, na primeira ficha que fala e tem vaga, e serve pras seguintes se a
+  // primeira não andar. Perdida pra outro relógio, nenhum vermelho anda nesta
+  // rodada; os calados continuam.
+  let vez: string | null = null;
+  let vezPerdida = false;
+  let falaMoveu = false;
 
   for (const f of alvos) {
     // Para no que MOVEU, não no que tentou: é isto que faz a fila andar quando a
     // primeira ficha não tem vaga.
     if (remarcados >= POR_TICK) break;
+    if (vezPerdida && relogioDe(f) === 'fala') continue;
     const tentativa = (estadoDe.get(f.id)?.n ?? 0) + 1;
     // O degrau da escada. UMA conta, usada nos três lugares: decidir se a
     // ficha podia andar (lá no `descansou`), escrever a linha do card e gravar
@@ -1371,8 +1524,15 @@ export async function runEletropostoReagendaAutoTick(
         continue;
       }
 
+      // ANTES de mexer na ficha: só quem ganhou a vez move um vermelho.
+      if (relogio === 'fala' && vez === null) {
+        vez = await pegarAVez(f.id);
+        if (vez === null) { vezPerdida = true; continue; }
+      }
+
       const novo = await gravarNovoHorario(f, lista, tentativa, degrau);
       if (!novo) continue;
+      if (relogio === 'fala') falaMoveu = true;
 
       // A partir daqui a reunião JÁ mudou. A tentativa é contada aqui, no que
       // aconteceu de fato — mensagem é melhor esforço, remarcação não é.
@@ -1490,6 +1650,12 @@ export async function runEletropostoReagendaAutoTick(
       break;
     }
   }
+
+  // Pegou a vez e nenhum vermelho mudou de dia (sem vaga, ficha que saiu do
+  // vermelho no meio do caminho, erro antes de gravar): nada saiu, então a vez
+  // volta pra outro relógio usar. Vermelho que mudou de dia fica com ela mesmo
+  // se o envio falhou depois, porque a mensagem pode ter saído.
+  if (vez !== null && !falaMoveu) await devolverAVez(vez);
 
   return { remarcados, erros, ...(opts.dry ? { motivo: 'dry', previa } : {}) };
 }

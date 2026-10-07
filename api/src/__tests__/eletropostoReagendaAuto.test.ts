@@ -24,7 +24,11 @@ let esperaQuebrada = false;
 let cicloQuebrado = false;
 const updates: Array<{ id: number; patch: any }> = [];
 
+/** Chamado a cada UPDATE de ficha, antes de aplicar. */
+let aplicarUpdateGancho: (() => void) | null = null;
+
 function aplicarUpdate(q: any) {
+  aplicarUpdateGancho?.();
   const alvo = fichas.find(f => f.id === q._filtros.id);
   if (!alvo) return { data: [], error: null };
   // O `.eq('status','nao_atendeu')` do módulo: corrida com gente.
@@ -86,55 +90,133 @@ vi.mock('../utils/supabaseGerador', () => ({
   },
 }));
 
+// ── O MOCK DO `system_state` CORTA E ORDENA COMO O SERVIDOR (07/10/2026) ─────
+//
+// Era um mock de formas fixas (`.like().limit()`, `.like().gte().limit()`) que
+// devolvia TUDO, na ordem de inserção. Com ele, ler "sem ordem e com limit 1000"
+// e ler "o mais recente" davam o mesmo resultado, e o freio da cadência podia
+// abrir calado em produção com o teste verde. Agora ele é um construtor de
+// consulta de verdade:
+//   · `.order()` ordena de fato, e sem ele a ordem é a de inserção;
+//   · a resposta nunca passa de 1000 linhas, pedindo mais ou não (o `max-rows`
+//     do PostgREST);
+//   · `insert` em chave que já existe devolve 23505, que é o que faz o claim;
+//   · `value->>campo` lê o campo do JSON como texto, igual ao Postgres.
+const MAX_ROWS = 1000;
+/** Chamado depois de cada `insert` que entrou: é por aqui que o teste mexe no
+ *  relógio ENTRE o claim de um tick e o do outro. */
+let aoInserir: ((chave: string) => void) | null = null;
+/** Chamado a cada leitura de coluna: um `throw` aqui faz quebrar só a consulta
+ *  que filtra por aquela coluna. */
+let colunaDeGancho: ((col: string) => void) | null = null;
+
+function colunaDe(r: any, col: string): any {
+  colunaDeGancho?.(col);
+  const json = /^(\w+)->>(\w+)$/.exec(col);
+  if (json) {
+    const v = r?.[json[1]!]?.[json[2]!];
+    return v === undefined || v === null ? null : String(v);
+  }
+  return r?.[col];
+}
+
+function consultaSystemState() {
+  const filtros: Array<(r: any) => boolean> = [];
+  let op: 'select' | 'insert' | 'upsert' | 'delete' = 'select';
+  let linha: any = null;
+  let opcoes: any = null;
+  let chavesIn: string[] | null = null;
+  let chaveEq: string | null = null;
+  const likes: string[] = [];
+  let ordem: { col: string; asc: boolean } | null = null;
+  let limite = Infinity;
+  let unica = false;
+
+  const executar = () => {
+    if (op === 'insert') {
+      if (state.has(linha.key)) return { data: null, error: { code: '23505', message: 'duplicate key' } };
+      state.set(linha.key, { key: linha.key, value: linha.value, updated_at: linha.updated_at });
+      aoInserir?.(linha.key);
+      return { data: null, error: null };
+    }
+    if (op === 'upsert') {
+      if (!(opcoes?.ignoreDuplicates && state.has(linha.key))) state.set(linha.key, linha);
+      return { data: null, error: null };
+    }
+    if (op === 'delete') {
+      const chaves = chavesIn ?? (chaveEq !== null ? [chaveEq]
+        : [...state.values()].filter(r => filtros.every(f => f(r))).map(r => r.key));
+      for (const k of chaves) { apagados.push(k); state.delete(k); }
+      return { data: null, error: null };
+    }
+    // A leitura da SALA DE ESPERA tem que poder falhar no teste: ela é
+    // fail-closed, e trava que ninguém prova é trava que ninguém tem.
+    if (esperaQuebrada && chavesIn?.some(k => k.startsWith('apalavrado:'))) {
+      return { data: null, error: { message: 'boom' } };
+    }
+    // A leitura do ESTADO DO CICLO também tem que poder falhar: ela
+    // descartava o erro, e isso apagava a escada de todo mundo.
+    if (cicloQuebrado && chavesIn?.some(k => k.startsWith('ep_reagenda_auto:'))) {
+      return { data: null, error: { message: 'boom' } };
+    }
+    // A rampa do dia (e tudo que varre `ep_reagenda_auto:%`): `rampaQuebrada`
+    // simula a consulta falhando, que tem que FECHAR a porta, não abrir.
+    if (rampaQuebrada && likes.some(p => p.startsWith('ep_reagenda_auto:'))) {
+      return { data: null, error: { message: 'boom' } };
+    }
+    let linhas = [...state.values()].filter(r => filtros.every(f => f(r)));
+    if (ordem) {
+      const { col, asc } = ordem;
+      linhas = linhas.sort((a, b) => {
+        const x = String(colunaDe(a, col) ?? ''), y = String(colunaDe(b, col) ?? '');
+        return x === y ? 0 : (x < y ? -1 : 1) * (asc ? 1 : -1);
+      });
+    }
+    linhas = linhas.slice(0, Math.min(limite, MAX_ROWS));
+    if (unica) return { data: linhas[0] ?? null, error: null };
+    return { data: linhas, error: null };
+  };
+
+  const q: any = {
+    select() { return q; },
+    in(col: string, vs: any[]) {
+      if (col === 'key') chavesIn = vs.map(String);
+      filtros.push(r => vs.map(String).includes(String(colunaDe(r, col))));
+      return q;
+    },
+    like(col: string, padrao: string) {
+      likes.push(padrao);
+      const prefixo = padrao.replace(/%$/, '');
+      filtros.push(r => String(colunaDe(r, col) ?? '').startsWith(prefixo));
+      return q;
+    },
+    eq(col: string, v: any) {
+      if (col === 'key') chaveEq = String(v);
+      filtros.push(r => { const x = colunaDe(r, col); return x !== null && x !== undefined && String(x) === String(v); });
+      return q;
+    },
+    neq(col: string, v: any) {
+      filtros.push(r => { const x = colunaDe(r, col); return x !== null && x !== undefined && String(x) !== String(v); });
+      return q;
+    },
+    gte(col: string, v: any) { filtros.push(r => String(colunaDe(r, col) ?? '') >= String(v)); return q; },
+    order(col: string, o?: { ascending?: boolean }) { ordem = { col, asc: o?.ascending !== false }; return q; },
+    limit(n: number) { limite = n; return q; },
+    maybeSingle() { unica = true; return q; },
+    insert(r: any) { op = 'insert'; linha = r; return q; },
+    upsert(r: any, o?: any) { op = 'upsert'; linha = r; opcoes = o; return q; },
+    delete() { op = 'delete'; return q; },
+    then(ok: any, falha: any) {
+      return Promise.resolve().then(() => {
+        try { return executar(); } catch (e) { return { data: null, error: { message: String(e) } }; }
+      }).then(ok, falha);
+    },
+  };
+  return q;
+}
+
 vi.mock('../utils/supabase', () => ({
-  supabase: {
-    from: () => ({
-      select: () => ({
-        in: async (_col: string, chaves: string[]) => {
-          // A leitura da SALA DE ESPERA tem que poder falhar no teste: ela é
-          // fail-closed, e trava que ninguém prova é trava que ninguém tem.
-          if (esperaQuebrada && chaves.some(k => String(k).startsWith('apalavrado:'))) {
-            return { data: null, error: { message: 'boom' } };
-          }
-          // A leitura do ESTADO DO CICLO também tem que poder falhar: ela
-          // descartava o erro, e isso apagava a escada de todo mundo.
-          if (cicloQuebrado && chaves.some(k => String(k).startsWith('ep_reagenda_auto:'))) {
-            return { data: null, error: { message: 'boom' } };
-          }
-          return { data: chaves.filter(k => state.has(k)).map(k => state.get(k)), error: null };
-        },
-        // A rampa do dia: conta os carimbos `ep_reagenda_auto:` de hoje. O mock
-        // devolve o que está no `state` com o prefixo pedido, e `rampaQuebrada`
-        // simula a consulta falhando (que tem que FECHAR a porta, não abrir).
-        like: (_col: string, padrao: string) => {
-          const prefixo = padrao.replace(/%$/, '');
-          const linhas = (desde?: string) => {
-            if (rampaQuebrada) return { data: null, error: { message: 'boom' } };
-            return {
-              data: [...state.values()].filter((r: any) =>
-                String(r.key).startsWith(prefixo)
-                && (desde === undefined || String(r.updated_at || '') >= desde)),
-              error: null,
-            };
-          };
-          return {
-            // A rampa deixou de filtrar por `updated_at` no servidor (01/10):
-            // ela traz os carimbos e conta pelo `value.ultimo`, que é o dado que
-            // o próprio módulo escreve. O mock serve as duas formas.
-            limit: async () => linhas(),
-            gte: (_c: string, desde: string) => ({ limit: async () => linhas(desde) }),
-          };
-        },
-      }),
-      upsert: async (r: any) => { state.set(r.key, r); return { error: null }; },
-      delete: () => ({
-        in: async (_col: string, chaves: string[]) => {
-          for (const k of chaves) { apagados.push(k); state.delete(k); }
-          return { error: null };
-        },
-      }),
-    }),
-  },
+  supabase: { from: () => consultaSystemState() },
 }));
 
 vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
@@ -144,15 +226,17 @@ vi.mock('../utils/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), war
 // pede e QUAL dos horários devolvidos ele escolhe.
 let vagas: string[] | null = [];
 const pedidos: Array<{ dono: string; agora: number; quantas: number; faixa?: string }> = [];
-/** Gancho pra simular o que acontece ENTRE a leitura da ficha e a gravação. */
-let aoPedirVagas: (() => void) | null = null;
+/** Gancho pra simular o que acontece ENTRE a leitura da ficha e a gravação. Pode
+ *  ser assíncrono: é assim que dois ticks ficam presos no mesmo ponto (a corrida
+ *  dos relógios). */
+let aoPedirVagas: (() => void | Promise<void>) | null = null;
 vi.mock('../services/io/eletropostoVagas', async (real) => {
   const orig = await real() as any;
   return {
     ...orig,
     proximasVagas: vi.fn(async (dono: string, quantas: number, opts: any) => {
       pedidos.push({ dono, quantas, agora: opts?.agora, faixa: opts?.faixa });
-      aoPedirVagas?.();
+      await aoPedirVagas?.();
       return vagas;
     }),
   };
@@ -181,8 +265,11 @@ vi.mock('../services/agents/zapiClient', () => ({
 
 let tetoLivre = true;
 const pedidosTeto: any[] = [];
+/** A rampa de reconexão da linha: `null` = linha aquecida, tetos cheios. */
+let rampaAgora: { hora: number; dia: number } | null = null;
 vi.mock('../services/agents/whatsapp/lineThrottle', () => ({
   dentroDoTetoHorarioLinha: vi.fn(async (o?: any) => { pedidosTeto.push(o); return tetoLivre; }),
+  rampaReconexaoVigente: vi.fn(async () => rampaAgora),
 }));
 
 // 20/08/2026 (quinta), 15h BRT = 18h UTC — dentro da janela de 9h–19h.
@@ -214,7 +301,11 @@ beforeEach(() => {
   state.clear(); apagados.length = 0; updates.length = 0; enviadas.length = 0; pedidos.length = 0;
   vagas = [SEXTA_13H, SEXTA_14H];
   aoPedirVagas = null;
+  aoInserir = null;
+  colunaDeGancho = null;
+  aplicarUpdateGancho = null;
   tetoLivre = true;
+  rampaAgora = null;
   envioQuebrado = false;
   linhaEmCooldownAgora = false;
   pedidosTeto.length = 0;
@@ -1696,5 +1787,238 @@ describe('a antecedência do horário novo', () => {
     fichas = [ficha({ quando: horasAtras(26) })];
     await tick();
     expect(pedidos[0]!.agora).toBe(AGORA.getTime());
+  });
+});
+
+// ── OS TRÊS FUROS DA REVISÃO ANTI-BAN DE 07/10/2026 ─────────────────────────
+//
+// O conserto de 07/10 (o vermelho voltou a falar, com espaçamento de 15 min)
+// subiu às 16h20 e a revisão achou três jeitos de o freio não segurar. Os
+// testes abaixo caem no código daquele commit. Nenhum deles corta remarcação:
+// o que não sai agora continua na fila, sem tentativa gasta.
+const vezesNoBanco = () => [...state.keys()].filter(k => k.startsWith('ep_reagenda_vez:'));
+
+describe('três relógios: uma fala por quarto de hora', () => {
+  it('a chave da vez é o quarto de hora de Brasília', async () => {
+    const { chaveDaVez } = await import('../services/io/eletropostoReagendaAuto');
+    // 18h00 UTC = 15h00 BRT
+    expect(chaveDaVez(AGORA.getTime())).toBe('ep_reagenda_vez:2026-08-20T15:0');
+    expect(chaveDaVez(AGORA.getTime() + (14 * 60 + 59) * 1000)).toBe('ep_reagenda_vez:2026-08-20T15:0');
+    expect(chaveDaVez(AGORA.getTime() + 15 * 60_000)).toBe('ep_reagenda_vez:2026-08-20T15:1');
+    expect(chaveDaVez(AGORA.getTime() + 59 * 60_000)).toBe('ep_reagenda_vez:2026-08-20T15:3');
+    // 02h59 UTC do dia 21 ainda é 23h59 do dia 20 em Brasília
+    expect(chaveDaVez(new Date('2026-08-21T02:59:00.000Z').getTime())).toBe('ep_reagenda_vez:2026-08-20T23:3');
+  });
+
+  // A corrida de 16h30m34s e 16h30m36s de 07/10: dois relógios passam o
+  // espaçamento juntos (o carimbo só é gravado depois do envio). No código
+  // daquele dia, o que perdia a ficha 1 pulava pra ficha 2 e saíam DUAS falas.
+  it('dois ticks ao mesmo tempo no mesmo quarto de hora: só UM fala', async () => {
+    fichas = [
+      ficha({ id: 51, quando: horasAtras(3) }),
+      ficha({ id: 52, quando: horasAtras(2.5) }),
+      ficha({ id: 53, quando: horasAtras(2.2) }),
+    ];
+    // Os dois ticks só passam daqui juntos: os dois já leram o espaçamento.
+    let chegaram = 0;
+    let soltar!: () => void;
+    const juntos = new Promise<void>(r => { soltar = r; });
+    aoPedirVagas = async () => { if (++chegaram === 2) soltar(); await juntos; };
+    const mod = await import('../services/io/eletropostoReagendaAuto');
+    const [a, b] = await Promise.all([
+      mod.runEletropostoReagendaAutoTick(), mod.runEletropostoReagendaAutoTick(),
+    ]);
+    expect(enviadas).toHaveLength(1);
+    expect(a.remarcados + b.remarcados).toBe(1);
+    // E ninguém se perdeu: as outras duas continuam vermelhas, na fila.
+    expect(fichas.filter(f => f.status === 'nao_atendeu')).toHaveLength(2);
+    expect(vezesNoBanco()).toHaveLength(1);
+  });
+
+  // Uma chave por quarto de hora sozinha deixaria passar este: um relógio às
+  // 15h14m59s e outro às 15h15m01s pegam chaves diferentes.
+  it('na virada do quarto de hora (15h14m59s e 15h15m01s) também não saem duas', async () => {
+    vi.setSystemTime(new Date(AGORA.getTime() + (14 * 60 + 59) * 1000));
+    fichas = [
+      ficha({ id: 61, quando: horasAtras(3) }),
+      ficha({ id: 62, quando: horasAtras(2.5) }),
+    ];
+    // O segundo tick fica parado na agenda até o primeiro pegar a vez; aí o
+    // relógio anda 2 s e cruza o quarto de hora.
+    let n = 0;
+    let soltarB!: () => void;
+    const bPode = new Promise<void>(r => { soltarB = r; });
+    aoPedirVagas = async () => { if (++n === 2) await bPode; };
+    aoInserir = (k) => {
+      if (k.startsWith('ep_reagenda_vez:')) { vi.setSystemTime(new Date(Date.now() + 2000)); soltarB(); }
+    };
+    const mod = await import('../services/io/eletropostoReagendaAuto');
+    const pa = mod.runEletropostoReagendaAutoTick();
+    // Sem vez nenhuma (o código antigo), o segundo sai quando o primeiro acaba.
+    void pa.then(() => soltarB());
+    const pb = mod.runEletropostoReagendaAutoTick();
+    await Promise.all([pa, pb]);
+    expect(enviadas.length).toBeLessThanOrEqual(1);
+    // A vez de quem desistiu foi devolvida: só sobra a chave de quem falou.
+    expect(vezesNoBanco()).toHaveLength(enviadas.length);
+  });
+
+  it('a vez é pega ANTES de mexer na ficha, e quem falou fica com ela', async () => {
+    let vezNaHora: string[] | null = null;
+    aplicarUpdateGancho = () => { if (vezNaHora === null) vezNaHora = vezesNoBanco(); };
+    expect((await tick()).remarcados).toBe(1);
+    expect(vezNaHora).toEqual(['ep_reagenda_vez:2026-08-20T15:0']);
+    expect(state.get('ep_reagenda_vez:2026-08-20T15:0')?.value).toMatchObject({ ficha: 3 });
+  });
+
+  it('pegou a vez e o vermelho não mudou de dia: a vez é devolvida pra outro relógio', async () => {
+    // A pessoa tira a ficha do vermelho entre a leitura e a gravação.
+    aoPedirVagas = () => { fichas[0].status = 'em_atendimento'; };
+    expect((await tick()).remarcados).toBe(0);
+    expect(vezesNoBanco()).toEqual([]);
+    expect(apagados).toContain('ep_reagenda_vez:2026-08-20T15:0');
+  });
+
+  it('a vez deste quarto é de outro relógio: o vermelho espera e o calado anda', async () => {
+    state.set('ep_reagenda_vez:2026-08-20T15:0', {
+      key: 'ep_reagenda_vez:2026-08-20T15:0', value: { em: AGORA.toISOString(), ficha: 999 }, updated_at: AGORA.toISOString(),
+    });
+    fichas = [
+      ficha({ id: 71, quando: horasAtras(3) }),
+      ficha({ id: 72, status: 'agendado', quando: horasAtras(8) }),
+    ];
+    const r = await tick();
+    expect(r.remarcados).toBe(1);
+    expect(enviadas).toHaveLength(0);
+    expect(fichas.find(f => f.id === 71)!.status).toBe('nao_atendeu');
+    expect(updates.map(u => u.id)).toEqual([72]);
+    // E a vez do outro relógio não é apagada por quem perdeu.
+    expect(state.has('ep_reagenda_vez:2026-08-20T15:0')).toBe(true);
+  });
+
+  it('no quarto de hora seguinte, passado o espaçamento, a ficha que esperou fala', async () => {
+    fichas = [ficha({ id: 81, quando: horasAtras(3) }), ficha({ id: 82, quando: horasAtras(2.5) })];
+    await tick();
+    expect(enviadas).toHaveLength(1);
+    vi.setSystemTime(new Date(AGORA.getTime() + 16 * 60_000));
+    await tick();
+    expect(enviadas).toHaveLength(2);
+    expect(fichas.every(f => f.status === 'agendado')).toBe(true);
+  });
+});
+
+describe('a leitura do espaçamento não pode ser cortada', () => {
+  const carimbo = (id: number, quando: string, relogio: 'fala' | 'mudo') =>
+    state.set(`ep_reagenda_auto:${id}`, {
+      key: `ep_reagenda_auto:${id}`, value: { n: 1, ultimo: quando, relogio }, updated_at: quando,
+    });
+  const ontem = () => new Date(AGORA.getTime() - 30 * 3600_000).toISOString();
+
+  // Ninguém apaga estes carimbos (309 em 07/10). Passando de mil, a leitura sem
+  // ordem e com limit 1000 perdia a última fala e o freio abria calado.
+  it('1500 carimbos antigos e 1 recente: o freio de 15 min segura', async () => {
+    for (let i = 0; i < 1500; i++) carimbo(10_000 + i, ontem(), 'fala');
+    carimbo(900, new Date(AGORA.getTime() - 5 * 60_000).toISOString(), 'fala');
+    // E o calado mais novo não esconde a fala: é a última FALA que conta.
+    for (let i = 0; i < 5; i++) carimbo(20_000 + i, new Date(AGORA.getTime() - 60_000).toISOString(), 'mudo');
+    const r = await tick();
+    expect(r.motivo).toBe('espacamento_da_fala');
+    expect(enviadas).toHaveLength(0);
+    expect(fichas[0].status).toBe('nao_atendeu');
+  });
+
+  it('e com a última fala há 16 min, o vermelho anda: o freio não fecha pra sempre', async () => {
+    for (let i = 0; i < 1500; i++) carimbo(10_000 + i, ontem(), 'fala');
+    carimbo(900, new Date(AGORA.getTime() - 16 * 60_000).toISOString(), 'fala');
+    expect((await tick()).remarcados).toBe(1);
+    expect(enviadas).toHaveLength(1);
+  });
+
+  it('a rampa do dia também não perde os de HOJE no corte', async () => {
+    process.env.EP_REAGENDA_POR_DIA = '10';
+    for (let i = 0; i < 1500; i++) carimbo(10_000 + i, ontem(), 'fala');
+    const cedo = new Date(AGORA.getTime() - 2 * 3600_000).toISOString();
+    for (let i = 0; i < 10; i++) carimbo(30_000 + i, cedo, 'fala');
+    const r = await tick();
+    expect(r.motivo).toBe('rampa_do_dia_cheia');
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('a leitura da última fala quebrou: o vermelho espera, o calado anda', async () => {
+    // Só quebra a consulta que filtra por `relogio`, que é a do espaçamento.
+    colunaDeGancho = (col) => { if (col === 'value->>relogio') throw new Error('boom'); };
+    carimbo(950, ontem(), 'mudo');   // uma linha pro filtro ter o que ler
+    fichas =[ficha({ id: 91, quando: horasAtras(3) }), ficha({ id: 92, status: 'agendado', quando: horasAtras(8) })];
+    const r = await tick();
+    expect(r.remarcados).toBe(1);
+    expect(enviadas).toHaveLength(0);
+    expect(updates.map(u => u.id)).toEqual([92]);
+  });
+});
+
+describe('a linha que acabou de voltar', () => {
+  const fala = (id: number, quando: string) =>
+    state.set(`ep_reagenda_auto:${id}`, {
+      key: `ep_reagenda_auto:${id}`, value: { n: 1, ultimo: quando, relogio: 'fala' }, updated_at: quando,
+    });
+  const minAtras = (m: number) => new Date(AGORA.getTime() - m * 60_000).toISOString();
+  // Como em produção: a rampa do dia do vermelho em 40, pra ela não mascarar a
+  // de reconexão.
+  beforeEach(() => { process.env.EP_REAGENDA_POR_DIA = '40'; });
+
+  it('no dia da volta ela ANDA: sem fala na última hora, o vermelho sai', async () => {
+    rampaAgora = { hora: 2, dia: 10 };
+    expect((await tick()).remarcados).toBe(1);
+    expect(enviadas).toHaveLength(1);
+  });
+
+  // O piso de 16/h passava por cima da rampa (max(2, 16) = 16): no dia da volta,
+  // 40 "você não conseguiu entrar" pras fichas acumuladas durante a queda.
+  it('2 falas na última hora com a rampa em 2/h: espera, e a ficha NÃO se perde', async () => {
+    rampaAgora = { hora: 2, dia: 10 };
+    fala(901, minAtras(20));
+    fala(902, minAtras(40));
+    const r = await tick();
+    expect(r.motivo).toBe('rampa_de_reconexao');
+    expect(r.remarcados).toBe(0);
+    expect(updates).toHaveLength(0);
+    expect(enviadas).toHaveLength(0);
+    expect(fichas[0].status).toBe('nao_atendeu');
+    expect(state.has('ep_reagenda_auto:3')).toBe(false);   // sem tentativa gasta
+    expect(vezesNoBanco()).toEqual([]);
+    // Passada a hora, a MESMA ficha anda no tick seguinte.
+    vi.setSystemTime(new Date(AGORA.getTime() + 45 * 60_000));
+    const r2 = await tick();
+    expect(r2.remarcados).toBe(1);
+    expect(enviadas).toHaveLength(1);
+    expect(fichas[0].status).toBe('agendado');
+  });
+
+  it('o teto do dia da rampa também vale: 10 falas em 24h seguram a 11ª', async () => {
+    rampaAgora = { hora: 2, dia: 10 };
+    for (let i = 0; i < 10; i++) fala(910 + i, minAtras(90 + i * 100));
+    expect((await tick()).motivo).toBe('rampa_de_reconexao');
+    expect(enviadas).toHaveLength(0);
+  });
+
+  it('no 3º dia a rampa é 4/h: 2 falas na hora já não seguram', async () => {
+    rampaAgora = { hora: 4, dia: 30 };
+    fala(901, minAtras(20));
+    fala(902, minAtras(40));
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  it('a rampa não segura o calado: ele não usa a linha', async () => {
+    rampaAgora = { hora: 2, dia: 10 };
+    fala(901, minAtras(20));
+    fala(902, minAtras(40));
+    fichas = [ficha({ status: 'agendado', quando: horasAtras(8) })];
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  it('linha aquecida (sem rampa): as mesmas 2 falas na hora não seguram nada', async () => {
+    fala(901, minAtras(20));
+    fala(902, minAtras(40));
+    expect((await tick()).remarcados).toBe(1);
   });
 });

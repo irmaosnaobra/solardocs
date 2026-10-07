@@ -94,6 +94,20 @@ export async function tetosVigentesLinha(now: Date = new Date()): Promise<{ hora
     : { hora: maxPorHora(), dia: maxPorDia() };
 }
 
+/**
+ * A rampa de reconexão que vale AGORA (`{ hora, dia }`), ou `null` com a linha
+ * aquecida.
+ *
+ * Existe por causa do `piso*` (07/10/2026). O piso eleva o teto e, junto, apaga
+ * a rampa: `max(2, 16)` dá 16, e no dia em que a linha volta a remarcação do NÃO
+ * ATENDEU podia mandar 40 "você não conseguiu entrar" para as fichas acumuladas
+ * durante a queda. Quem tem fila própria pra drenar lê a rampa daqui e anda no
+ * ritmo dela, contando os PRÓPRIOS envios, sem copiar a tabela 2/10, 3/20, 4/30.
+ */
+export async function rampaReconexaoVigente(now: Date = new Date()): Promise<{ hora: number; dia: number } | null> {
+  return rampaDesde(await inicioDoAquecimento(), now);
+}
+
 /** Versão só-env (sem I/O). Usada onde não dá pra esperar leitura de banco. */
 export function tetosVigentes(now: Date = new Date()): { hora: number; dia: number } {
   const r = rampaDesde(envReconexao(), now);
