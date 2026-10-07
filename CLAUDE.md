@@ -83,10 +83,12 @@ Cada um destes já custou caro pelo menos uma vez.
   em todo push desde 10/09.
 - `main` não tem branch protection. Há pre-commit de segredo em `.githooks/`
   (precisa de `core.hooksPath` ligado no clone).
-- Hooks: 5 regras em `.claude/hookify.*.local.md`. Quatro bloqueiam (`git add -A`,
+- Hooks: 6 regras em `.claude/hookify.*.local.md`. Quatro bloqueiam (`git add -A`,
   `vercel --prod` sem alvo explícito, force push e `reset --hard`, `DROP` e
-  `TRUNCATE`) e uma avisa (bump do `sw.js`). Os padrões são ancorados em posição
-  de comando, então mencionar um deles dentro de outro comando não bloqueia.
+  `TRUNCATE`) e duas avisam (bump do `sw.js`; e envio pelo WhatsApp, Instagram
+  ou Facebook passa pelo subagente `chefe-antiban`). Os padrões dos que bloqueiam
+  são ancorados em posição de comando, então mencionar um deles dentro de outro
+  comando não bloqueia.
   Tudo isso depende de `python3` resolver para um Python de verdade no PATH: no
   Windows o atalho da Microsoft Store sai com código 49 e mata os hooks calado.
 

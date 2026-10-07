@@ -47,12 +47,24 @@ import * as ts from 'typescript';
 //   CHEFE_GUARDA_INVENTARIO=1 npx vitest run src/__tests__/chefeGuarda.test.ts
 //
 // LIMITES CONHECIDOS (escritos para ninguém achar que a guarda vê mais do que vê):
+//   - ESCOPO: só lê as pastas de RAIZES (api/src, api/scripts, worker-prospeccao
+//     e cloudflare-worker). Ficam de fora dashboard/, widget/, plugcash/,
+//     ebike-ecommerce/ (que tem rotas de API em src/app/api) e .github/workflows.
+//     Hoje nenhuma delas fala com a Z-API nem manda pelo Graph (só texto de tela,
+//     o nome do process-messages.yml e o pixel /events da loja), mas uma rota de
+//     servidor nova ali, ou um curl num workflow para api.z-api.io, passaria sem
+//     a guarda ver.
 //   - Edge do Graph montado num arquivo SEM host do Graph e passado a um helper
 //     de outro arquivo não aparece. Os helpers de hoje são privados.
 //   - URL da Z-API inteira vinda de env, sem o molde /instances/.../token/ e sem
-//     o cabeçalho Client-Token no arquivo, não aparece.
+//     o cabeçalho Client-Token no arquivo, não aparece (fetch(`${base}/send-text`)
+//     com a base num parâmetro, fetch(process.env.X)).
+//   - Endpoint de envio da Z-API que não começa com send- (se existir) cai como
+//     consulta, e consulta num arquivo de CONSULTA_ZAPI passa sem contagem.
 //   - Quem chama sendWhatsApp/sendHuman sem passar pelo CHEFE NÃO é assunto
 //     desta guarda: isso é a catraca de passaporte, que entra com o CHEFE ligado.
+//     O mapa arquivo → robôs permitidos (CLASSE_POR_ROBO[*].arquivos) também
+//     ainda não é usado aqui: entra com a catraca.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const RAIZ = join(__dirname, '..', '..', '..');
@@ -168,9 +180,10 @@ const CONSULTA_ZAPI: Readonly<Record<string, string>> = Object.freeze({
 const CORINGA = '${*}';
 const HOST_ZAPI = /api\.z-api\.io/i;
 const URL_ZAPI_SEM_HOST = /\/instances\/\$\{[^}]*\}\/token\//;
-const ZAPI_ENVIO = /(^|\/)send-[a-z]/i;
+// send- sem exigir letra depois: `send-${tipo}` e 'send-' + k também são envio.
+const ZAPI_ENVIO = /(^|\/)send-/i;
 const ZAPI_CAMINHO_VARIAVEL = /\/token\/\$\{[^}]*\}\/\$\{|api\.z-api\.io\/\$\{/i;
-const PATH_ENVIO_SOLTO = /^\/?send-[a-z]/i;
+const PATH_ENVIO_SOLTO = /^\/?send-/i;
 const CABECALHO_ZAPI = /^client-token$/i;
 const HOST_GRAPH = /graph\.(facebook|instagram)\.com/i;
 const EDGE_ENVIO_GRAPH = /\/(messages|private_replies|replies|comments)(?=$|[/?#&])/i;
@@ -182,6 +195,8 @@ const FUNCOES_DE_ENVIO = new Set([
   'sendSticker', 'sendToGroup', 'enviarZapiIO', 'sendDM', 'sendPrivateReply', 'replyToComment', 'zapiPost',
 ]);
 const METODOS_DE_ROTA = new Set(['get', 'post', 'put', 'patch', 'delete', 'all', 'use']);
+/** Receptor de definição de rota do Express: router, app, adminRouter... */
+const RECEPTOR_DE_ROTA = /^(router|app|\w+Router)$/;
 
 /** Só abre o AST de quem tem chance de ofender (a varredura fica em poucos segundos). */
 const GATILHOS = ['z-api', 'client-token', '/instances/', 'graph.facebook', 'graph.instagram', 'zapipost', 'zapidelete'];
@@ -383,13 +398,22 @@ function metodoDoUso(no: ts.Node): Metodo {
   return 'DESCONHECIDO';
 }
 
-/** router.post('/io/send-text', ...) define rota da api: não é chamada para fora. */
+/**
+ * router.post('/io/send-text', ...) define rota da api: não é chamada para fora.
+ * Só conta como rota quando o receptor é router/app ou o último argumento é uma
+ * função (o handler). Uma instância axios com baseURL da Z-API fazendo
+ * z.post('/send-text', body) NÃO é rota: é envio.
+ */
 function ehRotaExpress(no: ts.Node, texto: string): boolean {
   if (!texto.startsWith('/')) return false;
   const a = subirEmbrulho(no);
   const p = a.parent;
-  return !!p && ts.isCallExpression(p) && p.arguments[0] === a
-    && ts.isPropertyAccessExpression(p.expression) && METODOS_DE_ROTA.has(p.expression.name.text);
+  if (!p || !ts.isCallExpression(p) || p.arguments[0] !== a) return false;
+  if (!ts.isPropertyAccessExpression(p.expression) || !METODOS_DE_ROTA.has(p.expression.name.text)) return false;
+  const receptor = p.expression.expression;
+  if (ts.isIdentifier(receptor) && RECEPTOR_DE_ROTA.test(receptor.text)) return true;
+  const ultimo = p.arguments[p.arguments.length - 1];
+  return p.arguments.length > 1 && !!ultimo && (ts.isArrowFunction(ultimo) || ts.isFunctionExpression(ultimo));
 }
 
 function classificarZapi(texto: string, metodo: Metodo): 'envio' | 'caminho_livre' | 'consulta' {
@@ -778,6 +802,60 @@ describe('chefeGuarda: controle positivo (ofensor sintético é pego)', () => {
     expect(resumo(varrerFonte(src(
       'r = requests.post(f"https://api.z-api.io/instances/{i}/token/{t}/send-text", json=b)',
     ), 'api/scripts/disparo.py'))).toEqual(['zapi:envio']);
+  });
+
+  it('template string com a URL e send-${tipo}: envio, mesmo num arquivo de CONSULTA_ZAPI', () => {
+    const achados = varrerFonte(src(
+      'export async function mandar(c: any, phone: string, tipo: string) {',
+      '  await fetch(`https://api.z-api.io/instances/${c.id}/token/${c.token}/send-${tipo}`, { method: "POST", body: JSON.stringify({ phone }) });',
+      '}',
+    ), 'api/src/services/agents/sdr/sdrIoPolling.ts');
+    expect(resumo(achados)).toEqual(['zapi:envio']);
+    expect(avaliar(achados).join('\n')).toContain('OFENSOR NOVO: api/src/services/agents/sdr/sdrIoPolling.ts');
+  });
+
+  it('host em variável: instância axios com baseURL da Z-API e z.post(\'/send-text\') não é rota, é envio', () => {
+    const achados = varrerFonte(src(
+      'import axios from "axios";',
+      'export async function mandar(c: any, phone: string) {',
+      '  const z = axios.create({ baseURL: `https://api.z-api.io/instances/${c.id}/token/${c.token}` });',
+      '  await z.post("/send-text", { phone, message: "oi" });',
+      '}',
+    ), 'api/src/services/agents/sdr/sdrIoPolling.ts');
+    expect(resumo(achados)).toEqual(['zapi:consulta', 'zapi:envio']);
+    expect(avaliar(achados).join('\n')).toContain('OFENSOR NOVO: api/src/services/agents/sdr/sdrIoPolling.ts');
+
+    // O host num let montado em pedaços também é pego.
+    expect(resumo(varrerFonte(src(
+      'let host = "https://api.z-" + "api.io";',
+      'export const f = (id: string, tk: string) => fetch(`${host}/instances/${id}/token/${tk}/send-text`, { method: "POST" });',
+    ), 'api/src/services/io/roboNovo.ts'))).toContain('zapi:envio');
+  });
+
+  it('send- sem letra depois (\'send-\' + k) num helper do painel: envio', () => {
+    const achados = varrerFonte(src(
+      'async function tryReq(method: string, path: string, c: any) {',
+      '  return fetch(`https://api.z-api.io/instances/${c.id}/token/${c.token}/${path}`, { method });',
+      '}',
+      'export const x = (k: string) => tryReq("POST", "send-" + k, {});',
+    ), 'api/src/routes/zapiAdmin.ts');
+    expect(resumo(achados)).toContain('zapi:envio');
+  });
+
+  it('rota nova em laço dentro do zapiAdmin.ts real (o arquivo da queda de 30/08): o número sobe e a guarda reprova', () => {
+    const arquivo = 'api/src/routes/zapiAdmin.ts';
+    const real = readFileSync(join(RAIZ, ...arquivo.split('/')), 'utf8');
+    const conta = (achados: Achado[]) => achados.filter(a => a.regra === 'zapi' && a.tipo === 'envio').length;
+    const antes = varrerFonte(real, arquivo);
+    for (const rota of [
+      'router.post("/io/lote", async (req: any, res: any) => { for (const phone of req.body.lista) await fetch(`https://api.z-api.io/instances/${req.body.id}/token/${req.body.tk}/send-${req.body.tipo}`, { method: "POST", body: JSON.stringify({ phone }) }); res.json({ ok: true }); });',
+      'router.post("/io/lote2", async (req: any, res: any) => { for (const phone of req.body.lista) await fetch(`https://api.z-api.io/instances/${req.body.id}/token/${req.body.tk}/send-text`, { method: "POST", body: JSON.stringify({ phone }) }); res.json({ ok: true }); });',
+    ]) {
+      const depois = varrerFonte(`${real}\n${rota}\n`, arquivo);
+      expect(conta(depois)).toBe(conta(antes) + 1);
+      const resto = inventario.achados.filter(a => a.arquivo !== arquivo);
+      expect(avaliar([...resto, ...depois]).join('\n')).toContain(`OFENSOR NOVO: ${arquivo}`);
+    }
   });
 
   it('zapiPost cru importado fora do zapiClient (direto, com alias e por namespace)', () => {
