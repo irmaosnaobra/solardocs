@@ -18,7 +18,9 @@ import { montarPlanoCobranca, sanearPlano } from '../services/asaas/cobrancaBrie
 import { buscarTaxas, ambienteAsaas } from '../services/asaas/asaasTaxas';
 import { TRELLO_BOARD_ID } from '../services/insightsService';
 import { buscarCartao } from '../services/gerador/dossieVenda';
-import { mountDossie } from './geradorDossie';
+import { mountDossie, exigeConsultor } from './geradorDossie';
+import { aiLimiter } from '../middleware/rateLimiter';
+import { PedidoContratoIa, pedirMudancaContrato, MAX_BYTES_PEDIDO } from '../services/gerador/contratoIa';
 import { logger } from '../utils/logger';
 import { supabase } from '../utils/supabase';
 // A sala de espera do card mora no `system_state`, e o prefixo sai do módulo
@@ -1026,5 +1028,25 @@ router.get('/trello', async (req: Request, res: Response) => {
 // conteúdo: elas devolvem signed url de CNH e de conta de luz, e o código da
 // proposta é sequencial.
 mountDossie(router);
+
+// Contrato do eletroposto: o consultor descreve uma mudança e a IA devolve as
+// OPERAÇÕES sobre as cláusulas (ver services/gerador/contratoIa.ts). Só consultor
+// logado (mesmo token do dossiê) e com o limite de IA: 10 por minuto por IP. O
+// /gerador chama a API direto, sem o proxy /_api, para o limite contar o IP de
+// quem pede e o tempo da IA não esbarrar no limite do proxy.
+router.post('/contrato/redesenhar', aiLimiter, exigeConsultor, async (req: Request, res: Response) => {
+  const p = PedidoContratoIa.safeParse(req.body);
+  if (!p.success) {
+    res.status(400).json({ error: 'pedido inválido', detalhe: p.error.issues.slice(0, 3).map(i => `${i.path.join('.')}: ${i.message}`) });
+    return;
+  }
+  if (JSON.stringify(p.data).length > MAX_BYTES_PEDIDO) {
+    res.status(413).json({ error: 'contrato grande demais para mandar à IA' });
+    return;
+  }
+  const r = await pedirMudancaContrato(p.data);
+  if (!r.ok) { res.status(r.status).json({ error: r.erro }); return; }
+  res.json(r);
+});
 
 export default router;

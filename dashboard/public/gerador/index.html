@@ -1291,6 +1291,30 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
   #eletroSection .orc-wrap .eletro-field.ctr-com-esp > .ctr-esp-slot{grid-column:1;grid-row:2;justify-self:start;margin:0 0 5px}
   #eletroSection .orc-wrap .eletro-field.ctr-com-esp > .eletro-inp{grid-column:1;grid-row:3}
 }
+/* Pedido à IA no contrato: o pedido, o antes e o depois de cada mudança e os alertas. */
+.ctr-ia-acoes{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.ctr-ia-acoes .eletro-btn{flex:0 0 auto}
+.ctr-ia-acoes .eletro-btn[disabled]{opacity:.6;cursor:wait}
+.ctr-ia-msg{font-size:12.5px;line-height:1.5;padding:9px 12px;border-radius:9px;background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.2);color:#CBD5E1}
+.ctr-ia-msg:empty{display:none}
+.ctr-ia-msg.ok{background:rgba(34,197,94,.10);border-color:rgba(34,197,94,.35);color:#BBF7D0}
+.ctr-ia-msg.falha{background:rgba(239,68,68,.10);border-color:rgba(239,68,68,.4);color:#FECACA}
+.ctr-ia-msg.espera{background:rgba(59,130,246,.10);border-color:rgba(96,165,250,.4);color:#BFDBFE}
+.ctr-ia-lista{display:flex;flex-direction:column;gap:10px}
+.ctr-ia-lista:empty{display:none}
+.ctr-ia-ped{background:#0f1a2e;border:1px solid rgba(255,255,255,.10);border-radius:11px;padding:10px 12px;display:flex;flex-direction:column;gap:9px}
+.ctr-ia-ped-cab{display:flex;gap:10px;align-items:flex-start}
+.ctr-ia-ped-cab .n{flex:0 0 auto;width:22px;height:22px;border-radius:50%;background:rgba(59,130,246,.2);color:#BFDBFE;font-size:11.5px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.ctr-ia-ped-cab .t{flex:1;min-width:0;color:#fff;font-weight:600;font-size:13px;line-height:1.45}
+.ctr-ia-mud{border-left:3px solid #3B82F6;padding:2px 0 2px 10px;display:flex;flex-direction:column;gap:4px}
+.ctr-ia-mud-cab{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#93C5FD}
+.ctr-ia-antes,.ctr-ia-depois{font-size:12.5px;line-height:1.5;padding:6px 9px;border-radius:7px}
+.ctr-ia-antes{background:rgba(239,68,68,.08);color:#FCA5A5}
+.ctr-ia-antes::before{content:'Antes: ';font-weight:800}
+.ctr-ia-depois{background:rgba(34,197,94,.08);color:#BBF7D0}
+.ctr-ia-depois::before{content:'Depois: ';font-weight:800}
+.ctr-ia-alertas{margin:0;padding-left:18px;font-size:12px;line-height:1.5;color:#FDE68A}
+.ctr-ia-alertas li.forte{color:#FECACA}
 /* Etiqueta de espelhamento das listas (escopo e formas de pagamento). */
 .ctr-esp{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px}
 .ctr-esp:empty{display:none}
@@ -4452,6 +4476,23 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="eletro-field" style="grid-column:1/-1"><label>Cláusulas extras (opcional)</label>
           <div class="eletro-inp eletro-inp-wide"><textarea id="ctr-extras" class="ctr-ta" rows="4" placeholder="O que foi combinado fora do padrão. Cada linha vira um item numerado. Fica em branco se não houver."></textarea></div></div>
         <div class="orc-note">Para mudar qualquer outra frase do contrato, gere a prévia e use <b>Editar texto</b>: dá para escrever direto na folha antes de baixar.</div>
+      </div>
+
+      <!-- PEDIDO À IA (07/10/2026). O consultor escreve a mudança e a IA devolve
+           OPERAÇÕES sobre as cláusulas, que o /gerador aplica por cima do contrato
+           gerado na hora (ver ctrIaAplicar). Partes, preço, sinal, tabela de
+           pagamento e escopo são travados: têm campo próprio acima. -->
+      <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Pedir mudança à IA</div>
+        <div class="orc-note" style="margin-top:-2px">Escreva a cláusula que você quer diferente e a IA ajusta o contrato. Partes, preço, sinal, tabela de pagamento e escopo continuam nos campos acima.</div>
+        <div class="eletro-field" style="grid-column:1/-1"><label>O que mudar no contrato</label>
+          <div class="eletro-inp eletro-inp-wide"><textarea id="ctr-ia-pedido" class="ctr-ta" rows="3" maxlength="2000" placeholder="Ex.: inclua manutenção preventiva semestral por R$ 350 a visita · mude a garantia da instalação para 36 meses · tire a cláusula de reserva de domínio"></textarea></div></div>
+        <div class="ctr-ia-acoes">
+          <button type="button" class="eletro-btn primary" id="ctr-ia-btn" onclick="ctrIaPedir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4z"></path><path d="M19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"></path></svg><span> Aplicar pedido com a IA</span></button>
+          <button type="button" class="orc-link" id="ctr-ia-limpar" style="display:none" onclick="ctrIaLimpar()">Voltar ao contrato padrão</button>
+        </div>
+        <div class="ctr-ia-msg" id="ctr-ia-msg"></div>
+        <div class="ctr-ia-lista" id="ctr-ia-lista"></div>
       </div>
 
       <div class="eletro-acoes">
@@ -17783,6 +17824,8 @@ function ctrEstadoZerar() {
   ctrEsc = ctrEscNovo();
   ctrPag = { tocado: false, linhas: [] };
   ctrOpc = {};
+  ctrIa = { pedidos: [] };
+  ctrIaGeracao++;
   epFicha = null;
   // O "Comecar novo" esvazia o campo disparando input, e o input marca como
   // digitado: sem isto o proximo cliente nascia com sinal zero travado.
@@ -17792,6 +17835,8 @@ function ctrEstadoZerar() {
   ctrEscRender();
   ctrOpcRender();
   ctrResumo();
+  ctrIaRender();
+  const m = document.getElementById('ctr-ia-msg'); if (m) { m.className = 'ctr-ia-msg'; m.innerHTML = ''; }
 }
 
 // Sinal já pago = o valor do recibo. Zero significa contrato sem sinal, e o
@@ -18255,6 +18300,7 @@ function ctrResumo() {
     nf.innerHTML = inv ? `No formulário, o cliente respondeu como pretende investir: <b>${orcEsc(inv)}</b>.` : '';
   }
   ctrBanner();
+  ctrIaRender();
 }
 
 // A consequência de esconder tem que estar na tela, no momento da decisão: sem a
@@ -18284,6 +18330,7 @@ function ctrInit() {
   ctrOpcRender();
   ctrPctNota();
   ctrResumo();
+  ctrIaRender();
 }
 
 function ctrDados() {
@@ -18455,23 +18502,297 @@ function epPaginar(blocos, pe) {
   return folhas.map((its, i) => `<div class="ep-page">\n${its.join('\n')}\n${pe(i + 1, tot)}\n</div>`).join('\n');
 }
 
-function ctrHTML(d) {
+// ─── O contrato como MODELO (07/10/2026) ─────────────────────────────────────
+// Antes o ctrHTML escrevia as cláusulas direto em HTML, com os números cravados.
+// Para a IA poder mudar o contrato sem quebrar nada, ele virou dois passos:
+//   1) ctrModelo(d): a lista de cláusulas e itens, cada um com CHAVE estável
+//      ('prazo.obra', 'opc.suspensao'...). Referência cruzada não é número, é
+//      marcador: {{c:prazos}} vira "Cláusula 4ª", {{i:prazo.suspensao}} vira
+//      "Cláusula 4.3", {{n:objeto}} vira "1ª". Quem numera é a impressão, pela
+//      posição. Incluir uma cláusula no meio nunca deixa citação errada.
+//   2) ctrHTML(d): aplica por cima os pedidos feitos à IA (ctrIa.pedidos, que
+//      guardam OPERAÇÕES, não texto pronto), numera, resolve os marcadores e
+//      pagina. O que a IA não tocou continua vindo dos campos, ao vivo.
+// Travado = tem campo próprio na tela; a IA não mexe (e o servidor descarta).
+function ctrModelo(d) {
   const e = orcEsc, money = ORC_MONEY;
   const vazio = v => v ? e(v) : '<span class="ep-rec-vazio"></span>';
   const pct = n => e(String(n).replace('.', ','));
   const op = id => !!(d.opc && d.opc[id]);
-  // Cláusula = título + itens numerados na hora. Item falso não entra e não deixa
-  // buraco: a numeração conta só o que sobrou. Item pode trazer `apos` (a tabela
-  // de pagamento), que vai no MESMO bloco da frase que a apresenta. O título vai
-  // grudado no primeiro item — título órfão no pé da folha não se manda.
-  const clausula = (n, titulo, itens) => {
-    const xs = itens.filter(Boolean).map((it, i) => {
-      const txt = typeof it === 'string' ? it : it.t;
-      return `<p class="ep-ctr-li">${n}.${i + 1} ${txt}</p>${typeof it === 'string' ? '' : (it.apos || '')}`;
-    });
-    const tit = `<div class="ep-ctr-cl">Cláusula ${n}ª — ${e(titulo)}</div>`;
-    return xs.length ? [tit + xs[0], ...xs.slice(1)] : [tit];
+  const temOperacao = d.software;
+  // Omitiu a remuneração? o item some e a referência a ele também.
+  const temRemun = d.software && d.mostraPct;
+  // Cláusula com algum item travado também é travada (não sai nem muda de nome).
+  const C = (key, titulo, itens, travada) => ({ key, titulo, travada: !!travada || itens.some(it => it && it.travado), itens: itens.filter(Boolean) });
+  const I = (key, html, extra) => html ? Object.assign({ key, html }, extra || {}) : null;
+  const base = d.sinal > 0 ? 'saldo' : 'preço';
+  // FINANCIAMENTO tem uma condicao que nenhuma outra forma tem: depende de um
+  // TERCEIRO dizer sim. Sem isto escrito, o cliente assina, o banco nega tres
+  // semanas depois e o contrato segue de pe' cobrando o saldo.
+  const ressalvaFin = `A aprovação e a liberação do crédito devem ocorrer em até ${d.prazoCredito} dias da assinatura. ` +
+    'Não aprovado o financiamento nesse prazo, as partes ajustarão nova forma de pagamento em até 10 dias; não havendo acordo, o contrato fica resolvido, ' +
+    (d.sinal > 0
+      ? (d.sinalDoRecibo ? 'ressalvada a retenção do sinal na forma do recibo de sinal firmado' : 'ressalvada a retenção do sinal referido na {{i:preco.sinal}}')
+      : 'devendo o CONTRATANTE apenas os custos já incorridos e comprovados pela CONTRATADA') +
+    '. Os prazos da {{c:prazos}} correm da liberação do crédito.';
+  const marcoObra = {
+    aprovacao: 'contados da <b>aprovação do projeto pela concessionária</b>, e não da assinatura, por não estar o prazo de análise sob governo das partes',
+    assinatura: 'contados da <b>assinatura deste contrato</b>',
+    entrada: 'contados da <b>compensação do primeiro pagamento</b> previsto na {{c:preco}}',
+    docs: 'contados da <b>entrega completa, pelo CONTRATANTE, dos documentos</b> previstos na {{i:contratante.docs}}',
+  }[d.marco] || '';
+
+  return [
+    C('objeto', 'Do objeto', [
+      I('objeto.estacao', `Fornecimento e instalação de estação de recarga de veículos elétricos composta por <b>${d.qtd} carregador(es) ${e(d.equipTxt || 'de corrente contínua')}</b>, com ${d.plugs} ponto(s) de carregamento, a ser implantada em <b>${vazio(d.local)}</b>.`,
+        // Tudo aqui vem de campos (equipamento, quantidade, pontos, local): travado.
+        // E para a IA vai sem o local, que costuma ser o endereço do cliente.
+        { travado: true, iaTexto: `Fornecimento e instalação de estação de recarga de veículos elétricos composta por <b>${d.qtd} carregador(es) ${e(d.equipTxt || 'de corrente contínua')}</b>, com ${d.plugs} ponto(s) de carregamento, a ser implantada em <b>[local da instalação]</b>.` }),
+      I('objeto.escopo', `O escopo compreende o projeto de engenharia, o fornecimento dos equipamentos, a instalação e a homologação junto à concessionária de energia${temOperacao ? ', além da plataforma de gestão, na forma da {{c:plataforma}}' : ''}, conforme a {{c:escopo}}.`),
+    ]),
+    C('escopo', 'Do escopo', [
+      I('escopo.lista', 'Estão incluídos no preço os itens a seguir. O que não estiver relacionado como incluído não integra o preço, e as obrigações do CONTRATANTE quanto a documentação, demanda de energia e consumo seguem a {{c:contratante}}.', { bloco: 'escopo', travado: true }),
+    ], true),
+    C('preco', 'Do preço e da forma de pagamento', [
+      I('preco.total', `O preço total dos serviços e equipamentos é de <b>${money(d.total)}</b> (${e(recExtenso(d.total))}).`, { travado: true }),
+      I('preco.sinal', d.sinal > 0
+        ? `O CONTRATANTE já pagou, a título de <b>sinal e princípio de pagamento</b>, a quantia de <b>${money(d.sinal)}</b> (${e(recExtenso(d.sinal))}),${d.sinalDestino ? ` destinada ${e(d.sinalDestino)},` : ''} a qual é <b>integralmente abatida</b> do preço, remanescendo o saldo de <b>${money(d.saldo)}</b>.`
+        : 'Não houve pagamento de sinal antecipado, correndo o preço integralmente na forma do item seguinte.', { travado: true }),
+      d.pagLinhas.length
+        ? I('preco.forma', `O ${base} será pago da seguinte forma:`, { bloco: 'pagamento', travado: true })
+        : I('preco.forma', `Forma de pagamento acordada: ${d.pagObs ? e(d.pagObs) : '<span class="ep-rec-vazio"></span>'}`, { travado: true }),
+      I('preco.obs', d.pagLinhas.length && d.pagObs ? e(d.pagObs) : ''),
+      I('preco.acrescimo', d.temAcr ? 'Nas formas parceladas com acréscimo, o valor das parcelas já o inclui; a coluna Valor indica a parte do preço quitada por aquela forma.' : ''),
+      I('preco.dados', d.pagDados ? `Os pagamentos serão feitos em favor da CONTRATADA por meio de: <b>${e(d.pagDados)}</b>. Pagamento feito a terceiro ou em conta diversa não quita a obrigação.` : ''),
+      I('preco.financiamento', d.temFin ? ressalvaFin : ''),
+      I('preco.mora', `O atraso no pagamento de qualquer parcela sujeita o CONTRATANTE a multa de ${pct(d.multa)}% e juros de ${pct(d.juros)}% ao mês, suspendendo os prazos da {{c:prazos}} enquanto perdurar.`),
+      I('opc.suspensao', op('suspensao') ? `O atraso superior a 10 (dez) dias no pagamento de qualquer parcela autoriza a CONTRATADA a suspender a execução dos serviços${temOperacao ? ' e o acesso à plataforma' : ''} até a regularização, prorrogando-se os prazos pelo período da suspensão.` : ''),
+      I('opc.reserva', op('reserva') ? 'Os equipamentos fornecidos permanecem de propriedade da CONTRATADA até a quitação integral do preço, na forma dos arts. 521 a 528 do Código Civil (reserva de domínio), cabendo ao CONTRATANTE, até lá, a sua guarda e conservação.' : ''),
+      I('opc.reajuste', op('reajuste') ? 'Se o início da execução atrasar mais de 60 (sessenta) dias por fato imputável ao CONTRATANTE, o saldo será reajustado pela variação do IPCA no período, e a parcela correspondente aos equipamentos importados, pela variação cambial do mesmo período.' : ''),
+    ]),
+    C('prazos', 'Dos prazos', [
+      I('prazo.projeto', `O projeto elétrico e o respectivo protocolo junto à concessionária serão apresentados em até <b>${d.prazoProjeto} ${d.unid}</b> contados da assinatura deste e da entrega, pelo CONTRATANTE, dos documentos da {{c:contratante}}.`),
+      I('prazo.obra', `A obra será entregue em até <b>${d.prazoObra} ${d.unid}</b> ${marcoObra}.`),
+      I('prazo.suspensao', 'Suspendem os prazos, pelo tempo que durarem: exigências ou atrasos da concessionária, falta de energia no local, embargos, indisponibilidade de acesso à obra e atrasos de pagamento.'),
+      I('opc.distribuidora', op('distribuidora') ? 'Reforço de rede, obra de conexão ou participação financeira exigidos pela concessionária correm por conta do CONTRATANTE. Negada a conexão pela concessionária, qualquer das partes poderá rescindir este contrato sem multa, pagos os custos já incorridos e comprovados pela CONTRATADA.' : ''),
+      I('opc.vistoria', op('vistoria') ? 'Condição do local não identificável na vistoria técnica — aterramento, distância até o quadro de energia, capacidade do padrão de entrada ou da rede interna — será orçada em aditivo, ficando os prazos suspensos até a aprovação deste pelo CONTRATANTE.' : ''),
+    ]),
+    C('contratada', 'Das obrigações da CONTRATADA', [
+      I('contratada.projeto', 'Elaborar o projeto de engenharia, recolher a ART e protocolar a solicitação junto à concessionária.'),
+      I('contratada.instalacao', 'Fornecer os equipamentos e executar a instalação com mão de obra especializada, atendendo às normas técnicas aplicáveis.'),
+      I('contratada.homologacao', 'Acompanhar a homologação e entregar a estação em funcionamento, com orientação de uso ao CONTRATANTE.'),
+      I('opc.aceite', op('aceite') ? 'Concluído o comissionamento, o CONTRATANTE terá 5 (cinco) dias úteis para apontar por escrito eventuais vícios aparentes. Decorrido o prazo sem apontamento, ou iniciada a operação comercial da estação, a obra considera-se recebida, sem prejuízo da garantia da {{c:garantia}}.' : ''),
+    ]),
+    C('contratante', 'Das obrigações do CONTRATANTE', [
+      I('contratante.local', 'Disponibilizar o local da instalação livre e desimpedido, com acesso para equipe, veículos e equipamentos.'),
+      I('contratante.docs', `Fornecer, em até <b>${d.prazoDocs} ${d.unid}</b> contados da assinatura, a documentação necessária ao projeto e à homologação: titularidade do imóvel ou autorização do proprietário, conta de energia, autorização do titular da unidade consumidora quando esta estiver em nome de terceiro, e dados cadastrais. Vencido o prazo sem a entrega, os prazos da CONTRATADA ficam suspensos na forma da {{i:prazo.suspensao}}, sem prejuízo do reajuste de custos de equipamento que decorrer da demora.`),
+      I('contratante.demanda', 'Contratar junto à concessionária a demanda de energia compatível com a potência instalada e arcar com o consumo.'),
+      I('contratante.pagamentos', 'Efetuar os pagamentos nas datas acordadas.'),
+      I('opc.risco', op('risco') ? 'A partir da entrega dos equipamentos no local da instalação, a guarda e os riscos de furto, roubo, vandalismo, colisão e intempéries passam ao CONTRATANTE, a quem cabe contratar o seguro patrimonial correspondente.' : ''),
+    ]),
+    C('garantia', 'Da garantia', [
+      I('garantia.instalacao', `A <b>instalação</b> — projeto, montagem, infraestrutura elétrica e comissionamento — tem garantia de <b>${d.garantia} meses</b> contados do <b>comissionamento</b> ({{i:contratada.homologacao}}), prestada pela CONTRATADA e cobrindo defeitos de execução, sem prejuízo das garantias legais.`),
+      I('garantia.equipamentos', 'Os <b>equipamentos</b> são cobertos pela garantia do respectivo <b>fabricante</b>, nos prazos e condições do certificado que acompanha cada bem, entregue ao CONTRATANTE no recebimento. A CONTRATADA não amplia esse prazo, e se responsabiliza por intermediar o acionamento da garantia junto ao fabricante durante o período indicado na {{i:garantia.instalacao}}, sem custo de mão de obra.'),
+      I('garantia.exclusoes', 'A garantia não cobre danos por uso indevido, vandalismo, descargas atmosféricas, oscilação da rede, intervenção de terceiros não autorizados ou falta de manutenção.'),
+    ]),
+    C('projecoes', 'Das projeções de resultado', [
+      I('projecoes.natureza', 'Os estudos de viabilidade, simulações, orçamentos e demais materiais que estimem faturamento, lucro, retorno, payback ou volume de recargas constituem <b>projeção técnica fundamentada nas premissas neles declaradas</b>, e <b>não representam promessa, garantia ou compromisso de resultado econômico</b> por parte da CONTRATADA.'),
+      I('projecoes.fatores', 'O resultado efetivo depende de fatores alheios à execução da obra — movimento de veículos no local, tarifa de energia da concessionária, preço praticado pelo CONTRATANTE, condições regulatórias e a própria operação do ponto —, todos sob gestão exclusiva do CONTRATANTE.'),
+      I('projecoes.plataforma', temOperacao ? 'A remuneração da CONTRATADA pela plataforma, prevista na {{c:plataforma}}, é contraprestação de serviço e não a torna sócia, participante do resultado ou responsável pelo desempenho econômico da operação.' : ''),
+      I('opc.limite', op('limite') ? 'Ressalvados os casos de dolo, a responsabilidade da CONTRATADA por perdas e danos decorrentes deste contrato limita-se ao valor nele pago, excluídos lucros cessantes, perda de faturamento e perda de uma chance.' : ''),
+    ]),
+    C('tributos', 'Dos tributos e da nota fiscal', [
+      I('tributos.inclusos', 'Os tributos incidentes já estão computados no preço. Eventual DIFAL em operação interestadual, quando aplicável, é de responsabilidade do CONTRATANTE.'),
+      I('tributos.nf', 'A CONTRATADA emitirá a nota fiscal correspondente na forma da legislação.'),
+    ]),
+    temOperacao ? C('plataforma', 'Da plataforma de gestão', [
+      I('plataforma.entrega', 'A CONTRATADA entrega e mantém a <b>plataforma de gestão e cobrança</b> da estação (protocolo OCPP), com cadastro do ponto, definição do preço da recarga pelo CONTRATANTE, controle de acesso, meio de pagamento e relatórios de recarga e de faturamento.'),
+      I('plataforma.remuneracao', temRemun ? `Pela operação da plataforma, a CONTRATADA é remunerada em <b>${pct(d.softwarePct)}% do faturamento bruto</b> da estação, apurado mensalmente e retido no repasse ao CONTRATANTE.` : ''),
+      I('plataforma.continuado', `O equipamento e a obra entregues na forma das Cláusulas {{n:objeto}} a {{n:tributos}} são de propriedade do CONTRATANTE${op('reserva') ? ', observada a reserva de domínio da {{c:preco}},' : ''} e não dependem da manutenção da plataforma, que constitui <b>serviço continuado</b>, prestado enquanto houver interesse das partes e denunciável por qualquer delas mediante aviso prévio de ${d.prazoAviso} dias${temRemun ? ', cessando a partir de então a remuneração da {{i:plataforma.remuneracao}}' : ''}.`),
+    ]) : null,
+    C('rescisao', 'Da rescisão', [
+      I('rescisao.descumprimento', `O descumprimento de qualquer cláusula autoriza a parte prejudicada a rescindir este contrato, mediante notificação com prazo de ${d.prazoCorrigir} dias para correção.`),
+      I('rescisao.desistencia', `Rescindido por desistência do CONTRATANTE, ser-lhe-ão cobrados os custos já incorridos e o material já adquirido${d.sinal > 0 ? (d.sinalDoRecibo ? ', sem prejuízo da retenção do sinal na forma do recibo de sinal firmado' : ', sem prejuízo da retenção do sinal referido na {{i:preco.sinal}}') : ''}.`),
+    ]),
+    C('gerais', 'Das disposições gerais', [
+      I('gerais.aditivo', 'Este contrato substitui entendimentos anteriores sobre o objeto e só pode ser alterado por aditivo escrito assinado pelas partes.'),
+      I('gerais.tolerancia', 'A tolerância quanto ao descumprimento de qualquer cláusula não implica novação nem renúncia de direito.'),
+      I('opc.anuencia', op('anuencia') ? 'Não sendo o CONTRATANTE proprietário do imóvel, ele declara ter autorização do proprietário para a instalação e apresentará a anuência escrita deste junto com a documentação da {{i:contratante.docs}}.' : ''),
+      I('opc.lgpd', op('lgpd') ? (temOperacao
+        ? 'Os dados de recarga e de usuários da estação são tratados pela CONTRATADA exclusivamente para a operação da plataforma, na forma da Lei nº 13.709/2018 (LGPD). O projeto, o software e a marca utilizados permanecem de propriedade da CONTRATADA.'
+        : 'Os dados pessoais trocados entre as partes serão tratados exclusivamente para a execução deste contrato, na forma da Lei nº 13.709/2018 (LGPD). O projeto de engenharia permanece de propriedade intelectual da CONTRATADA.') : ''),
+      I('opc.eletronica', op('eletronica') ? 'As partes admitem como válida a assinatura eletrônica deste instrumento, nos termos da Lei nº 14.063/2020 e da Medida Provisória nº 2.200-2/2001, com os mesmos efeitos da assinatura de próprio punho.' : ''),
+      ...d.extras.map((x, i) => I('extra.' + (i + 1), e(x))),
+    ]),
+    C('foro', 'Do foro', [
+      I('foro.comarca', `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b> para dirimir as questões oriundas deste contrato, com renúncia a qualquer outro.`),
+    ]),
+  ].filter(Boolean);
+}
+
+// Texto da IA passa pela mesma peneira do servidor: negrito, itálico, quebra e
+// a lacuna. O resto vira texto. Os marcadores {{c:...}} não têm < e passam.
+function ctrSanitizar(s) {
+  let t = String(s == null ? '' : s).replace(/[\u0001\u0002]/g, '');
+  [[/<\s*(b|strong)\s*>/gi, '\u0001b\u0002'], [/<\s*\/\s*(b|strong)\s*>/gi, '\u0001/b\u0002'],
+   [/<\s*(i|em)\s*>/gi, '\u0001i\u0002'], [/<\s*\/\s*(i|em)\s*>/gi, '\u0001/i\u0002'],
+   [/<\s*br\s*\/?\s*>/gi, '\u0001br\u0002'],
+   [/<\s*span\s+class\s*=\s*"ep-rec-vazio"\s*>\s*<\s*\/\s*span\s*>/gi, '\u0001lacuna\u0002']].forEach(([re, ph]) => { t = t.replace(re, ph); });
+  t = t.replace(/&(?!(amp|lt|gt|quot|#39|nbsp);)/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return t.replace(/\u0001lacuna\u0002/g, '<span class="ep-rec-vazio"></span>').replace(/\u0001(\/?(?:b|i|br))\u0002/g, '<$1>');
+}
+
+// Numera pela posição e resolve os marcadores. Marcador que aponta para algo que
+// saiu do contrato vira lacuna (linha para preencher à mão) e entra na lista de
+// problemas, que a tela mostra antes de imprimir.
+function ctrNumerar(modelo) {
+  const pos = {};
+  modelo.forEach((c, ci) => {
+    pos[c.key] = { n: ci + 1 };
+    c.itens.forEach((it, ii) => { pos[it.key] = { n: ci + 1, m: ii + 1 }; });
+  });
+  // Varre o contrato inteiro na hora: a lista de citações sem destino não pode
+  // depender de alguém ter passado o texto pelo resolver antes de perguntar.
+  const quebradas = [];
+  const RE_MARCA = /\{\{([cin]):([A-Za-z0-9._-]+)\}\}/g;
+  modelo.forEach(c => c.itens.forEach(it => {
+    for (const [, t, k] of String(it.html).matchAll(RE_MARCA)) {
+      const p = pos[k];
+      if (!p || (t === 'i' && !p.m)) quebradas.push(k);
+    }
+  }));
+  const resolver = html => String(html).replace(RE_MARCA, (_, t, k) => {
+    const p = pos[k];
+    if (!p || (t === 'i' && !p.m)) return '<span class="ep-rec-vazio"></span>';
+    if (t === 'n') return `${p.n}ª`;
+    if (t === 'c') return `Cláusula ${p.n}ª`;
+    return `Cláusula ${p.n}.${p.m}`;
+  });
+  return { pos, resolver, quebradas };
+}
+
+// ─── Pedidos à IA: guardados como OPERAÇÕES e aplicados a cada impressão ─────
+// ctrIa.pedidos = [{ id, texto, ops, avisos, recusa, em }]. A chave do que um
+// pedido cria é `<id do pedido>.<id_novo ou nº da operação>`: estável, e um
+// pedido seguinte pode mirar nela. Desfazer um pedido não renumera os outros.
+//
+// Cada operação guarda, do momento do pedido:
+//   base   o texto do item que ela troca ou tira. Se na hora de imprimir o item
+//          não for mais aquele (um campo mudou, uma extra foi apagada e as
+//          outras subiram), a operação NÃO é aplicada às cegas: vira falha
+//          visível, e o papel sai com o texto dos campos, que está certo.
+//   ancora a cláusula onde a inserção entrava. Se o item de referência sumir
+//          (uma caixinha foi desligada), o item novo vai para o fim dela em vez
+//          de desaparecer.
+let ctrIa = { pedidos: [] };
+// Sobe a cada troca de cliente: resposta da IA que chega depois disso é de outro
+// contrato e é descartada.
+let ctrIaGeracao = 0;
+
+// Título vem da IA já escapado pelo servidor; aqui volta a texto puro, porque
+// quem escapa (uma vez só) é o ctrHTML e a tela.
+function ctrIaTituloPuro(s) {
+  return String(s == null ? '' : s).replace(/<[^>]*>/g, '')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&').trim();
+}
+
+// id_novo da IA vira chave estável do pedido, inclusive nos marcadores. Só
+// operação que CRIA algo tem id_novo; os itens de uma cláusula nova são ID.1, ID.2...
+function ctrIaAlias(p) {
+  const alias = {};
+  (p.ops || []).forEach(op => {
+    if (!op.id_novo || (op.tipo !== 'inserir_item' && op.tipo !== 'inserir_clausula')) return;
+    alias[op.id_novo] = `${p.id}.${op.id_novo}`;
+  });
+  const chave = k => {
+    if (!k) return k;
+    if (alias[k]) return alias[k];
+    const m = String(k).match(/^(.+)\.(\d+)$/);   // ID_NOVO.N de cláusula nova
+    return m && alias[m[1]] ? `${alias[m[1]]}.${m[2]}` : k;
   };
+  const traduz = s => s == null ? s : String(s).replace(/\{\{([cin]):([A-Za-z0-9._-]+)\}\}/g, (x, t, k) => {
+    const k2 = chave(k);
+    return k2 !== k ? `{{${t}:${k2}}}` : x;
+  });
+  return { alias, chave, traduz };
+}
+
+function ctrIaAplicar(base, pedidos) {
+  // Remoção deixa LÁPIDE no lugar em vez de tirar da lista: ela não serve de alvo,
+  // mas serve de âncora. "Tire X e ponha Y no lugar" funciona no mesmo pedido.
+  const m = base.map(c => Object.assign({}, c, { itens: c.itens.map(it => Object.assign({}, it)) }));
+  const relatorio = [];
+  const vivo = x => x && !x.removido;
+  const achaItem = (k, ancora) => {
+    for (const c of m) {
+      if (!vivo(c) && !ancora) continue;
+      const i = c.itens.findIndex(x => x.key === k && (ancora || vivo(x)));
+      if (i >= 0) return { c, i };
+    }
+    return null;
+  };
+  const achaCl = (k, ancora) => m.findIndex(c => c.key === k && (ancora || vivo(c)));
+  (pedidos || []).forEach(p => {
+    const r = { id: p.id, mudancas: [], falhas: [] };
+    const { chave, traduz } = ctrIaAlias(p);
+    (p.ops || []).forEach((op, oi) => {
+      const novaKey = op.id_novo && (op.tipo === 'inserir_item' || op.tipo === 'inserir_clausula') ? `${p.id}.${op.id_novo}` : `${p.id}.${oi + 1}`;
+      const falha = motivo => r.falhas.push({ op, motivo });
+      if (op.tipo === 'substituir_item' || op.tipo === 'remover_item') {
+        const a = achaItem(chave(op.alvo));
+        if (!a) return falha('o trecho que ele mudava não está mais no contrato');
+        const it = a.c.itens[a.i];
+        if (it.travado) return falha('esse trecho tem campo próprio na tela');
+        if (op.base != null && it.html !== op.base) return falha('o trecho mudou depois do pedido (um campo da tela foi alterado); peça de novo ou desfaça');
+        const antes = it.html;
+        if (op.tipo === 'remover_item') { a.c.itens[a.i] = Object.assign({}, it, { removido: true }); r.mudancas.push({ tipo: 'remove', clausula: a.c.titulo, antes }); }
+        else { a.c.itens[a.i] = Object.assign({}, it, { html: ctrSanitizar(traduz(op.texto)), ia: true }); r.mudancas.push({ tipo: 'troca', clausula: a.c.titulo, antes, depois: a.c.itens[a.i].html, key: it.key }); }
+      } else if (op.tipo === 'inserir_item') {
+        const novo = { key: novaKey, html: ctrSanitizar(traduz(op.texto)), ia: true };
+        const a = achaItem(chave(op.depois_de), true);
+        if (a) a.c.itens.splice(a.i + 1, 0, novo);
+        else {
+          let ci = achaCl(chave(op.depois_de), true);
+          if (ci < 0 && op.ancora) ci = achaCl(chave(op.ancora));
+          if (ci < 0) return falha('o lugar onde ele entrava não está mais no contrato');
+          m[ci].itens.push(novo);
+        }
+        const onde = achaItem(novaKey);
+        r.mudancas.push({ tipo: 'inclui', clausula: onde ? onde.c.titulo : '', depois: novo.html, key: novaKey });
+      } else if (op.tipo === 'inserir_clausula') {
+        const ci = op.depois_de === 'inicio' ? -1 : achaCl(chave(op.depois_de), true);
+        if (ci < 0 && op.depois_de !== 'inicio') return falha('a cláusula depois da qual ela entrava não está mais no contrato');
+        const cl = { key: novaKey, titulo: ctrIaTituloPuro(op.titulo), ia: true,
+          itens: (op.itens || []).filter(t => String(t || '').trim()).map((t, ii) => ({ key: `${novaKey}.${ii + 1}`, html: ctrSanitizar(traduz(t)), ia: true })) };
+        m.splice(ci + 1, 0, cl);
+        r.mudancas.push({ tipo: 'nova', clausula: cl.titulo, depois: cl.itens.map(i => i.html).join('<br>'), key: novaKey });
+      } else if (op.tipo === 'remover_clausula' || op.tipo === 'renomear_clausula') {
+        const ci = achaCl(chave(op.alvo));
+        if (ci < 0) return falha('a cláusula que ele mudava não está mais no contrato');
+        // Cláusula com item travado também não sai nem muda de nome: era assim que
+        // a do preço sumia levando preço, sinal e tabela.
+        if (m[ci].travada || m[ci].itens.some(i => i.travado)) return falha('essa cláusula tem campo próprio na tela');
+        if (op.tipo === 'remover_clausula') {
+          r.mudancas.push({ tipo: 'tira', clausula: m[ci].titulo, antes: m[ci].itens.filter(vivo).map(i => i.html).join('<br>') });
+          m[ci] = Object.assign({}, m[ci], { removido: true });
+        } else {
+          const antes = m[ci].titulo;
+          m[ci] = Object.assign({}, m[ci], { titulo: ctrIaTituloPuro(op.titulo) });
+          r.mudancas.push({ tipo: 'renomeia', clausula: m[ci].titulo, antes, depois: m[ci].titulo });
+        }
+      }
+    });
+    relatorio.push(r);
+  });
+  // Sai lápide e cláusula que ficou sem item (título solto não se manda).
+  const modelo = m.filter(vivo).map(c => Object.assign({}, c, { itens: c.itens.filter(vivo) })).filter(c => c.itens.length);
+  return { modelo, relatorio };
+}
+
+function ctrHTML(d) {
+  const e = orcEsc, money = ORC_MONEY;
+  const vazio = v => v ? e(v) : '<span class="ep-rec-vazio"></span>';
   // Rodapé e nome do arquivo seguem a PARTE do documento, não o nome do negócio
   // no Simulador: num cliente com PF e dois CNPJs, o contrato da PJ carimbava a
   // pessoa física no pé de todas as folhas.
@@ -18480,54 +18801,33 @@ function ctrHTML(d) {
   const dataTxt = d.data.toLocaleDateString('pt-BR');
   const endCli = [d.contratanteEnd, d.cep, d.cidade].filter(Boolean).join(', ');
   const endEmp = [d.empresa.end, d.empresa.cidade].filter(Boolean).join(', ');
-
-  // O escopo é o da lista da aba Contrato (marcado = Incluído, desmarcado = Não
-  // incluído). O reforço de rede, que era chumbado aqui, virou uma linha dessa
-  // lista: nasce como Não incluído e pode ser tirado ou renomeado.
-  //
-  // ⚠ 19/08: a coluna "Não incluído" ignorava `d.fora`. Item desmarcado sumia do
-  // papel — não estava em Incluído nem em Não incluído — e omissão em contrato
-  // de adesão se interpreta contra quem redigiu.
   const temOperacao = d.software;
-
-  // Numeração DINÂMICA do fim do contrato: sem plataforma, a 10ª não existe e
-  // rescisão, disposições e foro sobem um número. Buraco na numeração é o tipo
-  // de coisa que faz o cliente perguntar o que foi tirado do contrato.
-  // Quem mexer aqui de novo: este número é SEMPRE o da última cláusula fixa
-  // acima (hoje a 9ª, tributos), e o resto se numera sozinho.
-  let nCl = 9;
-  const numOper = temOperacao ? ++nCl : 0;
-  // Omitiu a remuneração? a subcláusula seguinte volta a ser .2 e a referência
-  // cruzada some junto.
-  const temRemun = d.software && d.mostraPct;
-  const nResc = ++nCl, nGerais = ++nCl, nForo = ++nCl;
-
-  // Cláusula 3ª. Tabela, observação, dados de pagamento e ressalva do
-  // financiamento entram e saem conforme o que foi preenchido.
-  const base = d.sinal > 0 ? 'saldo' : 'preço';
-  const tabelaPag = !d.pagLinhas.length ? '' : `<table class="ep-ctr-pag">
+  // Os dois quadros que vêm dos campos e nunca passam pela IA: a lista do escopo
+  // (⚠ 19/08: "Não incluído" sempre aparece quando há item fora, omissão em
+  // contrato de adesão se interpreta contra quem redigiu) e a tabela de pagamento.
+  const quadros = {
+    escopo: `<div class="ep-ctr-esc">
+        <div><h4>Incluído</h4><ul>${(d.incluso || []).map(i => `<li>${e(i)}</li>`).join('') || '<li><span class="ep-rec-vazio"></span></li>'}</ul></div>
+        ${(d.fora || []).length ? `<div class="fora"><h4>Não incluído</h4><ul>${d.fora.map(i => `<li>${e(i)}</li>`).join('')}</ul></div>` : ''}
+      </div>`,
+    pagamento: !d.pagLinhas.length ? '' : `<table class="ep-ctr-pag">
       <thead><tr><th>Forma</th><th class="n">Valor</th><th>Condição</th><th>Vencimento</th></tr></thead>
       <tbody>${d.pagLinhas.map(l => `<tr><td><b>${vazio(l.forma)}</b>${l.obs ? `<span>${e(l.obs)}</span>` : ''}</td><td class="n">${money(l.conta.valor)}</td><td>${e(l.cond)}</td><td>${vazio(l.quando)}</td></tr>`).join('')}</tbody>
       <tfoot><tr><td>Total</td><td class="n">${money(d.pagSoma)}</td><td colspan="2"></td></tr></tfoot>
-    </table>`;
-  // FINANCIAMENTO tem uma condicao que nenhuma outra forma tem: depende de um
-  // TERCEIRO dizer sim. Sem isto escrito, o cliente assina, o banco nega tres
-  // semanas depois e o contrato segue de pe' cobrando o saldo — com a multa e os
-  // juros correndo em cima de dinheiro que ele nao tem. Entra sozinho sempre que
-  // alguma forma for financiamento.
-  const ressalvaFin = `A aprovação e a liberação do crédito devem ocorrer em até ${d.prazoCredito} dias da assinatura. ` +
-    'Não aprovado o financiamento nesse prazo, as partes ajustarão nova forma de pagamento em até 10 dias; não havendo acordo, o contrato fica resolvido, ' +
-    (d.sinal > 0
-      ? (d.sinalDoRecibo ? 'ressalvada a retenção do sinal na forma do recibo de sinal firmado' : 'ressalvada a retenção do sinal referido na Cláusula 3.2')
-      : 'devendo o CONTRATANTE apenas os custos já incorridos e comprovados pela CONTRATADA') +
-    '. Os prazos da Cláusula 4ª correm da liberação do crédito.';
-
-  const marcoObra = {
-    aprovacao: 'contados da <b>aprovação do projeto pela concessionária</b>, e não da assinatura, por não estar o prazo de análise sob governo das partes',
-    assinatura: 'contados da <b>assinatura deste contrato</b>',
-    entrada: 'contados da <b>compensação do primeiro pagamento</b> previsto na Cláusula 3ª',
-    docs: 'contados da <b>entrega completa, pelo CONTRATANTE, dos documentos</b> previstos na Cláusula 6.2',
-  }[d.marco] || '';
+    </table>`,
+  };
+  const { modelo } = ctrIaAplicar(ctrModelo(d), ctrIa.pedidos);
+  const { resolver } = ctrNumerar(modelo);
+  // Cláusula = título + itens numerados pela posição. O título vai grudado no
+  // primeiro item (título órfão no pé da folha não se manda); o quadro vai no
+  // MESMO bloco da frase que o apresenta.
+  const blocosClausulas = [];
+  modelo.forEach((c, ci) => {
+    const n = ci + 1;
+    const itens = c.itens.map((it, ii) => `<p class="ep-ctr-li">${n}.${ii + 1} ${resolver(it.html)}</p>${it.bloco ? (quadros[it.bloco] || '') : ''}`);
+    const tit = `<div class="ep-ctr-cl">Cláusula ${n}ª — ${e(c.titulo)}</div>`;
+    blocosClausulas.push(tit + itens[0], ...itens.slice(1));
+  });
 
   const blocos = [
     `<div class="ep-ctr-topo">
@@ -18539,105 +18839,7 @@ function ctrHTML(d) {
     `<p class="ep-ctr-p"><b>CONTRATADA:</b> ${epParteQualif(d.empresa, vazio)}${endEmp ? ', com sede em ' + e(endEmp) : ''}${d.empresa.tel ? ', telefone ' + e(d.empresa.tel) : ''}${d.empresa.email ? ', e-mail ' + e(d.empresa.email) : ''}.</p>`,
     `<p class="ep-ctr-p"><b>CONTRATANTE:</b> ${vazio(d.contratante)}, inscrito(a) no CPF/CNPJ sob o nº ${vazio(d.contratanteDoc)}${endCli ? ', com endereço em ' + e(endCli) : ''}${d.tel ? ', telefone ' + e(d.tel) : ''}${d.email ? ', e-mail ' + e(d.email) : ''}${d.rep ? `, neste ato representado(a) por <b>${e(d.rep)}</b>${d.repDoc ? ', CPF nº ' + e(d.repDoc) : ''}` : ''}.</p>`,
     `<p class="ep-ctr-p">As partes acima têm entre si justo e contratado o presente instrumento, que se regerá pelas cláusulas seguintes.</p>`,
-
-    ...clausula(1, 'Do objeto', [
-      `Fornecimento e instalação de estação de recarga de veículos elétricos composta por <b>${d.qtd} carregador(es) ${e(d.equipTxt || 'de corrente contínua')}</b>, com ${d.plugs} ponto(s) de carregamento, a ser implantada em <b>${vazio(d.local)}</b>.`,
-      `O escopo compreende o projeto de engenharia, o fornecimento dos equipamentos, a instalação e a homologação junto à concessionária de energia${temOperacao ? `, além da plataforma de gestão, na forma da Cláusula ${numOper}ª` : ''}, conforme a Cláusula 2ª.`,
-    ]),
-
-    ...clausula(2, 'Do escopo', [{
-      t: 'Estão incluídos no preço os itens a seguir. O que não estiver relacionado como incluído não integra o preço, e as obrigações do CONTRATANTE quanto a documentação, demanda de energia e consumo seguem a Cláusula 6ª.',
-      apos: `<div class="ep-ctr-esc">
-        <div><h4>Incluído</h4><ul>${(d.incluso || []).map(i => `<li>${e(i)}</li>`).join('') || '<li><span class="ep-rec-vazio"></span></li>'}</ul></div>
-        ${(d.fora || []).length ? `<div class="fora"><h4>Não incluído</h4><ul>${d.fora.map(i => `<li>${e(i)}</li>`).join('')}</ul></div>` : ''}
-      </div>`,
-    }]),
-
-    ...clausula(3, 'Do preço e da forma de pagamento', [
-      `O preço total dos serviços e equipamentos é de <b>${money(d.total)}</b> (${e(recExtenso(d.total))}).`,
-      d.sinal > 0
-        ? `O CONTRATANTE já pagou, a título de <b>sinal e princípio de pagamento</b>, a quantia de <b>${money(d.sinal)}</b> (${e(recExtenso(d.sinal))}),${d.sinalDestino ? ` destinada ${e(d.sinalDestino)},` : ''} a qual é <b>integralmente abatida</b> do preço, remanescendo o saldo de <b>${money(d.saldo)}</b>.`
-        : 'Não houve pagamento de sinal antecipado, correndo o preço integralmente na forma do item seguinte.',
-      d.pagLinhas.length
-        ? { t: `O ${base} será pago da seguinte forma:`, apos: tabelaPag }
-        : `Forma de pagamento acordada: ${d.pagObs ? e(d.pagObs) : '<span class="ep-rec-vazio"></span>'}`,
-      d.pagLinhas.length && d.pagObs ? e(d.pagObs) : '',
-      d.temAcr ? 'Nas formas parceladas com acréscimo, o valor das parcelas já o inclui; a coluna Valor indica a parte do preço quitada por aquela forma.' : '',
-      d.pagDados ? `Os pagamentos serão feitos em favor da CONTRATADA por meio de: <b>${e(d.pagDados)}</b>. Pagamento feito a terceiro ou em conta diversa não quita a obrigação.` : '',
-      d.temFin ? ressalvaFin : '',
-      `O atraso no pagamento de qualquer parcela sujeita o CONTRATANTE a multa de ${pct(d.multa)}% e juros de ${pct(d.juros)}% ao mês, suspendendo os prazos da Cláusula 4ª enquanto perdurar.`,
-      op('suspensao') ? `O atraso superior a 10 (dez) dias no pagamento de qualquer parcela autoriza a CONTRATADA a suspender a execução dos serviços${temOperacao ? ' e o acesso à plataforma' : ''} até a regularização, prorrogando-se os prazos pelo período da suspensão.` : '',
-      op('reserva') ? 'Os equipamentos fornecidos permanecem de propriedade da CONTRATADA até a quitação integral do preço, na forma dos arts. 521 a 528 do Código Civil (reserva de domínio), cabendo ao CONTRATANTE, até lá, a sua guarda e conservação.' : '',
-      op('reajuste') ? 'Se o início da execução atrasar mais de 60 (sessenta) dias por fato imputável ao CONTRATANTE, o saldo será reajustado pela variação do IPCA no período, e a parcela correspondente aos equipamentos importados, pela variação cambial do mesmo período.' : '',
-    ]),
-
-    ...clausula(4, 'Dos prazos', [
-      `O projeto elétrico e o respectivo protocolo junto à concessionária serão apresentados em até <b>${d.prazoProjeto} ${d.unid}</b> contados da assinatura deste e da entrega, pelo CONTRATANTE, dos documentos da Cláusula 6ª.`,
-      `A obra será entregue em até <b>${d.prazoObra} ${d.unid}</b> ${marcoObra}.`,
-      'Suspendem os prazos, pelo tempo que durarem: exigências ou atrasos da concessionária, falta de energia no local, embargos, indisponibilidade de acesso à obra e atrasos de pagamento.',
-      op('distribuidora') ? 'Reforço de rede, obra de conexão ou participação financeira exigidos pela concessionária correm por conta do CONTRATANTE. Negada a conexão pela concessionária, qualquer das partes poderá rescindir este contrato sem multa, pagos os custos já incorridos e comprovados pela CONTRATADA.' : '',
-      op('vistoria') ? 'Condição do local não identificável na vistoria técnica — aterramento, distância até o quadro de energia, capacidade do padrão de entrada ou da rede interna — será orçada em aditivo, ficando os prazos suspensos até a aprovação deste pelo CONTRATANTE.' : '',
-    ]),
-
-    ...clausula(5, 'Das obrigações da CONTRATADA', [
-      'Elaborar o projeto de engenharia, recolher a ART e protocolar a solicitação junto à concessionária.',
-      'Fornecer os equipamentos e executar a instalação com mão de obra especializada, atendendo às normas técnicas aplicáveis.',
-      'Acompanhar a homologação e entregar a estação em funcionamento, com orientação de uso ao CONTRATANTE.',
-      op('aceite') ? 'Concluído o comissionamento, o CONTRATANTE terá 5 (cinco) dias úteis para apontar por escrito eventuais vícios aparentes. Decorrido o prazo sem apontamento, ou iniciada a operação comercial da estação, a obra considera-se recebida, sem prejuízo da garantia da Cláusula 7ª.' : '',
-    ]),
-
-    ...clausula(6, 'Das obrigações do CONTRATANTE', [
-      'Disponibilizar o local da instalação livre e desimpedido, com acesso para equipe, veículos e equipamentos.',
-      `Fornecer, em até <b>${d.prazoDocs} ${d.unid}</b> contados da assinatura, a documentação necessária ao projeto e à homologação: titularidade do imóvel ou autorização do proprietário, conta de energia, autorização do titular da unidade consumidora quando esta estiver em nome de terceiro, e dados cadastrais. Vencido o prazo sem a entrega, os prazos da CONTRATADA ficam suspensos na forma da Cláusula 4.3, sem prejuízo do reajuste de custos de equipamento que decorrer da demora.`,
-      'Contratar junto à concessionária a demanda de energia compatível com a potência instalada e arcar com o consumo.',
-      'Efetuar os pagamentos nas datas acordadas.',
-      op('risco') ? 'A partir da entrega dos equipamentos no local da instalação, a guarda e os riscos de furto, roubo, vandalismo, colisão e intempéries passam ao CONTRATANTE, a quem cabe contratar o seguro patrimonial correspondente.' : '',
-    ]),
-
-    ...clausula(7, 'Da garantia', [
-      `A <b>instalação</b> — projeto, montagem, infraestrutura elétrica e comissionamento — tem garantia de <b>${d.garantia} meses</b> contados do <b>comissionamento</b> (Cláusula 5.3), prestada pela CONTRATADA e cobrindo defeitos de execução, sem prejuízo das garantias legais.`,
-      'Os <b>equipamentos</b> são cobertos pela garantia do respectivo <b>fabricante</b>, nos prazos e condições do certificado que acompanha cada bem, entregue ao CONTRATANTE no recebimento. A CONTRATADA não amplia esse prazo, e se responsabiliza por intermediar o acionamento da garantia junto ao fabricante durante o período indicado na Cláusula 7.1, sem custo de mão de obra.',
-      'A garantia não cobre danos por uso indevido, vandalismo, descargas atmosféricas, oscilação da rede, intervenção de terceiros não autorizados ou falta de manutenção.',
-    ]),
-
-    ...clausula(8, 'Das projeções de resultado', [
-      'Os estudos de viabilidade, simulações, orçamentos e demais materiais que estimem faturamento, lucro, retorno, payback ou volume de recargas constituem <b>projeção técnica fundamentada nas premissas neles declaradas</b>, e <b>não representam promessa, garantia ou compromisso de resultado econômico</b> por parte da CONTRATADA.',
-      'O resultado efetivo depende de fatores alheios à execução da obra — movimento de veículos no local, tarifa de energia da concessionária, preço praticado pelo CONTRATANTE, condições regulatórias e a própria operação do ponto —, todos sob gestão exclusiva do CONTRATANTE.',
-      temOperacao ? `A remuneração da CONTRATADA pela plataforma, prevista na Cláusula ${numOper}ª, é contraprestação de serviço e não a torna sócia, participante do resultado ou responsável pelo desempenho econômico da operação.` : '',
-      op('limite') ? 'Ressalvados os casos de dolo, a responsabilidade da CONTRATADA por perdas e danos decorrentes deste contrato limita-se ao valor nele pago, excluídos lucros cessantes, perda de faturamento e perda de uma chance.' : '',
-    ]),
-
-    ...clausula(9, 'Dos tributos e da nota fiscal', [
-      'Os tributos incidentes já estão computados no preço. Eventual DIFAL em operação interestadual, quando aplicável, é de responsabilidade do CONTRATANTE.',
-      'A CONTRATADA emitirá a nota fiscal correspondente na forma da legislação.',
-    ]),
-
-    ...(temOperacao ? clausula(numOper, 'Da plataforma de gestão', [
-      'A CONTRATADA entrega e mantém a <b>plataforma de gestão e cobrança</b> da estação (protocolo OCPP), com cadastro do ponto, definição do preço da recarga pelo CONTRATANTE, controle de acesso, meio de pagamento e relatórios de recarga e de faturamento.',
-      temRemun ? `Pela operação da plataforma, a CONTRATADA é remunerada em <b>${pct(d.softwarePct)}% do faturamento bruto</b> da estação, apurado mensalmente e retido no repasse ao CONTRATANTE.` : '',
-      `O equipamento e a obra entregues na forma das Cláusulas 1ª a 9ª são de propriedade do CONTRATANTE${op('reserva') ? ', observada a reserva de domínio da Cláusula 3ª,' : ''} e não dependem da manutenção da plataforma, que constitui <b>serviço continuado</b>, prestado enquanto houver interesse das partes e denunciável por qualquer delas mediante aviso prévio de ${d.prazoAviso} dias${temRemun ? `, cessando a partir de então a remuneração da Cláusula ${numOper}.2` : ''}.`,
-    ]) : []),
-
-    ...clausula(nResc, 'Da rescisão', [
-      `O descumprimento de qualquer cláusula autoriza a parte prejudicada a rescindir este contrato, mediante notificação com prazo de ${d.prazoCorrigir} dias para correção.`,
-      `Rescindido por desistência do CONTRATANTE, ser-lhe-ão cobrados os custos já incorridos e o material já adquirido${d.sinal > 0 ? (d.sinalDoRecibo ? ', sem prejuízo da retenção do sinal na forma do recibo de sinal firmado' : ', sem prejuízo da retenção do sinal referido na Cláusula 3.2') : ''}.`,
-    ]),
-
-    ...clausula(nGerais, 'Das disposições gerais', [
-      'Este contrato substitui entendimentos anteriores sobre o objeto e só pode ser alterado por aditivo escrito assinado pelas partes.',
-      'A tolerância quanto ao descumprimento de qualquer cláusula não implica novação nem renúncia de direito.',
-      op('anuencia') ? 'Não sendo o CONTRATANTE proprietário do imóvel, ele declara ter autorização do proprietário para a instalação e apresentará a anuência escrita deste junto com a documentação da Cláusula 6.2.' : '',
-      op('lgpd') ? (temOperacao
-        ? 'Os dados de recarga e de usuários da estação são tratados pela CONTRATADA exclusivamente para a operação da plataforma, na forma da Lei nº 13.709/2018 (LGPD). O projeto, o software e a marca utilizados permanecem de propriedade da CONTRATADA.'
-        : 'Os dados pessoais trocados entre as partes serão tratados exclusivamente para a execução deste contrato, na forma da Lei nº 13.709/2018 (LGPD). O projeto de engenharia permanece de propriedade intelectual da CONTRATADA.') : '',
-      op('eletronica') ? 'As partes admitem como válida a assinatura eletrônica deste instrumento, nos termos da Lei nº 14.063/2020 e da Medida Provisória nº 2.200-2/2001, com os mesmos efeitos da assinatura de próprio punho.' : '',
-      ...d.extras.map(x => e(x)),
-    ]),
-
-    ...clausula(nForo, 'Do foro', [
-      `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b> para dirimir as questões oriundas deste contrato, com renúncia a qualquer outro.`,
-    ]),
-
+    ...blocosClausulas,
     // O fecho é UM bloco: assinatura órfã em folha nova não se manda.
     `<div class="ep-ctr-fim">
       <p class="ep-ctr-p" style="margin-top:14px">E por estarem justas e contratadas, as partes assinam o presente em duas vias de igual teor${d.testemunhas ? ', na presença das testemunhas abaixo' : ''}${d.cidade ? `, em ${e(d.cidade)}` : ''}, ${e(dataTxt)}.</p>
@@ -18654,6 +18856,187 @@ function ctrHTML(d) {
   return `<div class="ep-doc">${epPaginar(blocos, pageFoot)}</div>`;
 }
 
+// ─── A tela do pedido ────────────────────────────────────────────────────────
+// A API é chamada DIRETO (api.solardoc.app aceita solardoc.app no CORS), sem o
+// proxy /_api: o limite de IA conta o IP de cada consultor, e uma resposta de
+// um minuto não esbarra no tempo do proxy.
+const CTR_IA_API = location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://api.solardoc.app';
+let ctrIaOcupado = false;
+
+// Itens cujos números vêm de um campo da tela. A IA recebe o nome do campo e é
+// instruída a mandar o consultor para ele quando o pedido é só trocar o número:
+// mudar pelo campo mantém o contrato sincronizado.
+const CTR_IA_CAMPOS = {
+  'prazo.projeto': 'Prazos > Projeto elétrico e protocolo', 'prazo.obra': 'Prazos > Entrega da obra',
+  'contratante.docs': 'Prazos > Cliente entrega os documentos em', 'garantia.instalacao': 'Prazos > Garantia da instalação',
+  'preco.mora': 'Valor e formas de pagamento > Multa por atraso e Juros de mora', 'preco.financiamento': 'Prazos > Banco aprova o financiamento em',
+  'preco.dados': 'Valor e formas de pagamento > Dados para pagamento', 'rescisao.descumprimento': 'Prazos > Prazo para corrigir antes de rescindir',
+  'plataforma.continuado': 'Prazos > Aviso prévio para sair da plataforma', 'plataforma.remuneracao': 'Escopo > Percentual da plataforma',
+  'foro.comarca': 'Foro, assinatura e cláusulas extras > Foro (comarca)',
+  // Travados: a IA não mexe, mas precisa do nome exato do campo para explicar.
+  'objeto.estacao': 'Dados do contrato > Equipamento, Carregadores, Pontos de recarga e Local da instalação',
+  'escopo.lista': 'Escopo: o que entra no preço', 'preco.total': 'Valor e formas de pagamento > Valor total do projeto',
+  'preco.sinal': 'Valor e formas de pagamento > Sinal já pago', 'preco.forma': 'Valor e formas de pagamento > formas de pagamento',
+};
+
+// O que vai para a IA: o contrato como está agora (com os pedidos anteriores já
+// aplicados), em texto com os marcadores. As partes não vão, e o item do objeto
+// vai sem o local da instalação: endereço de cliente não sai daqui.
+function ctrIaPayload(pedido) {
+  const d = ctrDados();
+  const { modelo } = ctrIaAplicar(ctrModelo(d), ctrIa.pedidos);
+  const { pos } = ctrNumerar(modelo);
+  return {
+    pedido,
+    clausulas: modelo.map(c => ({
+      key: c.key, numero: `${pos[c.key].n}ª`, titulo: c.titulo, travada: !!c.travada,
+      itens: c.itens.map(it => ({
+        key: it.key, numero: `${pos[it.key].n}.${pos[it.key].m}`, texto: it.iaTexto || it.html, travado: !!it.travado,
+        campo: CTR_IA_CAMPOS[it.key] || null,
+      })),
+    })),
+  };
+}
+
+// Números que a IA escreveu e que não estavam nem no contrato nem no pedido:
+// valor em real, percentual, prazo em dias/meses/anos, parcelas. É o tipo de
+// coisa que passa batido na leitura e custa caro depois.
+function ctrIaNumeros(txt) {
+  const plano = String(txt || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+  const re = /R\$\s?[\d.]+(?:,\d{1,2})?|\d+(?:[.,]\d+)?\s?%|\b\d+\s?(?:\(\s?[a-zà-ú\s]+\)\s?)?(?:dias?|meses|mês|anos?|horas?|x|vezes|parcelas?)\b/gi;
+  return (plano.match(re) || []).map(s => s.replace(/\([^)]*\)\s?/, '').replace(/\s+/g, ' ').trim().toLowerCase());
+}
+
+async function ctrIaPedir() {
+  if (ctrIaOcupado) return;
+  const campo = document.getElementById('ctr-ia-pedido');
+  const texto = (campo && campo.value || '').trim();
+  const msg = document.getElementById('ctr-ia-msg');
+  // Classe `falha`, nunca `erro`: o style.css global esconde todo `.erro`.
+  const diz = (html, tipo) => { if (msg) { msg.className = 'ctr-ia-msg ' + (tipo || ''); msg.innerHTML = html; } };
+  if (texto.length < 3) { diz('Escreva o que você quer mudar no contrato.', 'falha'); if (campo) campo.focus(); return; }
+  if (ctrIa.pedidos.length >= 12) { diz('São 12 pedidos no máximo. Desfaça algum ou volte ao contrato padrão.', 'falha'); return; }
+  const tok = sessaoAtual && sessaoAtual.access_token;
+  if (!tok) { diz('Entre com sua conta para pedir à IA.', 'falha'); return; }
+  const d = ctrDados();
+  if (!(d.total > 0)) { diz('Defina o valor do projeto antes: a IA lê o contrato pronto.', 'falha'); return; }
+  // O contrato como estava NA HORA do pedido: de onde saem a base de cada troca
+  // e a cláusula-âncora de cada inserção.
+  const geracao = ctrIaGeracao;
+  const payload = ctrIaPayload(texto);
+  const htmlDe = {}, clausulaDe = {};
+  ctrIaAplicar(ctrModelo(d), ctrIa.pedidos).modelo.forEach(c => { clausulaDe[c.key] = c.key; c.itens.forEach(it => { htmlDe[it.key] = it.html; clausulaDe[it.key] = c.key; }); });
+  ctrIaOcupado = true;
+  const btn = document.getElementById('ctr-ia-btn');
+  if (btn) { btn.disabled = true; btn.lastChild.textContent = ' A IA está lendo o contrato...'; }
+  diz('A IA está lendo o contrato e escrevendo a mudança. Costuma levar de 10 segundos a 1 minuto.', 'espera');
+  try {
+    const r = await fetch(CTR_IA_API + '/gerador/contrato/redesenhar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok },
+      body: JSON.stringify(payload),
+    });
+    const j = await r.json().catch(() => null);
+    // Trocou de cliente enquanto esperava? A resposta é do contrato anterior.
+    if (geracao !== ctrIaGeracao) { diz('O contrato mudou de cliente enquanto a IA respondia. O pedido foi descartado.', 'falha'); return; }
+    if (r.status === 401) { diz('Sua sessão expirou. Entre de novo e repita o pedido.', 'falha'); return; }
+    if (r.status === 403) { diz('Esta conta não é de consultor. Entre com a sua conta da equipe.', 'falha'); return; }
+    if (!r.ok || !j || !j.ok) { diz(orcEsc((j && j.error) || ('A IA não respondeu (' + r.status + '). Tente de novo.')), 'falha'); return; }
+    const ops = (j.operacoes || []).map(op => {
+      const o = Object.assign({}, op);
+      if (o.tipo === 'substituir_item' || o.tipo === 'remover_item') o.base = htmlDe[o.alvo] != null ? htmlDe[o.alvo] : null;
+      if (o.tipo === 'inserir_item') o.ancora = clausulaDe[o.depois_de] || null;
+      return o;
+    });
+    if (!ops.length) {
+      diz((j.recusa ? '<b>A IA não mudou nada.</b> ' + orcEsc(j.recusa) : '<b>A IA não achou o que mudar.</b> Tente explicar de outro jeito.') +
+        ((j.avisos || []).length ? '<br>' + j.avisos.map(a => orcEsc(a)).join('<br>') : ''), 'falha');
+      return;
+    }
+    ctrIa.pedidos.push({ id: 'p' + Date.now().toString(36), texto, ops, avisos: j.avisos || [], recusa: j.recusa || null, em: new Date().toISOString() });
+    if (campo && campo.value.trim() === texto) campo.value = '';
+    diz(j.recusa ? '<b>Feito em parte.</b> ' + orcEsc(j.recusa) + ' Confira abaixo o que mudou.' : 'Pronto. Confira abaixo o antes e o depois de cada mudança, e gere a prévia.', j.recusa ? 'espera' : 'ok');
+    ctrIaRender();
+  } catch (err) {
+    if (geracao === ctrIaGeracao) diz('Não consegui falar com a IA agora. Confira a internet e tente de novo.', 'falha');
+  } finally {
+    ctrIaOcupado = false;
+    if (btn) { btn.disabled = false; btn.lastChild.textContent = ' Aplicar pedido com a IA'; }
+  }
+}
+
+// Desfazer um pedido de que outros dependem (mexem no mesmo trecho, ou citam o
+// que ele criou) não desfaz o efeito: os seguintes trazem o texto dele embutido.
+// Então pergunta e desfaz o grupo junto.
+function ctrIaDesfazer(id) {
+  const i = ctrIa.pedidos.findIndex(p => p.id === id);
+  if (i < 0) return;
+  const p = ctrIa.pedidos[i];
+  const alvos = new Set((p.ops || []).map(o => o.alvo).filter(Boolean));
+  const dependentes = ctrIa.pedidos.slice(i + 1).filter(q => (q.ops || []).some(o =>
+    alvos.has(o.alvo) || [o.alvo, o.depois_de].some(k => k && String(k).startsWith(p.id + '.')) ||
+    [o.texto, ...(o.itens || [])].some(t => t && String(t).includes(':' + p.id + '.'))));
+  if (dependentes.length) {
+    const nums = dependentes.map(q => ctrIa.pedidos.indexOf(q) + 1).join(', ');
+    if (!confirm('O(s) pedido(s) ' + nums + ' foram feitos em cima deste e trazem o texto dele. Desfazer todos juntos?')) return;
+  }
+  const fora = new Set([p.id, ...dependentes.map(q => q.id)]);
+  ctrIa.pedidos = ctrIa.pedidos.filter(q => !fora.has(q.id));
+  ctrIaRender();
+}
+function ctrIaLimpar() {
+  if (ctrIa.pedidos.length && !confirm('Voltar ao contrato padrão? Os ' + ctrIa.pedidos.length + ' pedido(s) feitos à IA saem.')) return;
+  ctrIa = { pedidos: [] };
+  ctrIaRender();
+}
+
+// A lista de pedidos com o antes e o depois calculado AQUI (não o resumo da IA:
+// resumo pode deixar coisa de fora), os avisos e a recusa dela, os números novos,
+// o que não se aplica mais e as citações que ficaram sem destino. Roda também a
+// cada mudança de campo (ctrResumo), para nada disso ficar velho na tela.
+function ctrIaRender() {
+  const box = document.getElementById('ctr-ia-lista');
+  if (!box) return;
+  const btnLimpar = document.getElementById('ctr-ia-limpar');
+  if (btnLimpar) btnLimpar.style.display = ctrIa.pedidos.length ? '' : 'none';
+  if (!ctrIa.pedidos.length) { box.innerHTML = ''; return; }
+  let d;
+  try { d = ctrDados(); } catch (e) { return; }
+  const base = ctrModelo(d);
+  const { modelo, relatorio } = ctrIaAplicar(base, ctrIa.pedidos);
+  const { resolver, quebradas } = ctrNumerar(modelo);
+  const numsBase = new Set(base.flatMap(c => c.itens.flatMap(it => ctrIaNumeros(it.html))));
+  const e = orcEsc;
+  const ROT = { troca: 'Muda', inclui: 'Inclui', nova: 'Cláusula nova', tira: 'Tira a cláusula', remove: 'Tira', renomeia: 'Renomeia' };
+  box.innerHTML = ctrIa.pedidos.map((p, i) => {
+    const r = relatorio.find(x => x.id === p.id) || { mudancas: [], falhas: [] };
+    const { traduz } = ctrIaAlias(p);
+    const numsPedido = new Set(ctrIaNumeros(p.texto));
+    const novos = new Set();
+    r.mudancas.forEach(mu => ctrIaNumeros(mu.depois).forEach(n => { if (!numsBase.has(n) && !numsPedido.has(n)) novos.add(n); }));
+    const mud = r.mudancas.map(mu => `<div class="ctr-ia-mud">
+        <div class="ctr-ia-mud-cab"><b>${ROT[mu.tipo] || mu.tipo}</b>${mu.clausula ? ' · ' + e(mu.clausula) : ''}</div>
+        ${mu.antes != null ? `<div class="ctr-ia-antes">${mu.tipo === 'renomeia' ? e(mu.antes) : resolver(mu.antes)}</div>` : ''}
+        ${mu.depois != null ? `<div class="ctr-ia-depois">${mu.tipo === 'renomeia' ? e(mu.depois) : resolver(mu.depois)}</div>` : ''}
+      </div>`).join('');
+    const alertas = [
+      ...(p.recusa ? [`<li class="forte">A IA não fez parte do pedido: ${resolver(e(traduz(p.recusa)))}</li>`] : []),
+      // Aviso da IA pode citar cláusula com marcador: sai numerado como no papel.
+      ...(p.avisos || []).map(a => `<li>${resolver(e(traduz(a)))}</li>`),
+      ...(novos.size ? [`<li class="forte">Número que não estava no contrato nem no pedido: <b>${e([...novos].join(', '))}</b>. Confira antes de mandar.</li>`] : []),
+      ...r.falhas.map(f => `<li class="forte">Uma mudança deste pedido não entra no papel: ${e(f.motivo)}.</li>`),
+    ];
+    return `<div class="ctr-ia-ped">
+      <div class="ctr-ia-ped-cab"><span class="n">${i + 1}</span><span class="t">${e(p.texto)}</span>
+        <button type="button" class="orc-link" onclick="ctrIaDesfazer('${p.id}')">Desfazer</button></div>
+      ${mud || '<div class="ctr-vazio">Nenhuma mudança deste pedido entra no contrato atual.</div>'}
+      ${alertas.length ? `<ul class="ctr-ia-alertas">${alertas.join('')}</ul>` : ''}
+    </div>`;
+  }).join('') + ([...new Set(quebradas)].length
+    ? `<div class="ctr-ia-msg falha">Há citação de cláusula que ficou sem destino (${e([...new Set(quebradas)].join(', '))}). Ela sai como lacuna no papel: desfaça o pedido que tirou o trecho ou peça à IA para ajustar a citação.</div>`
+    : '');
+}
+
 function ctrImprimir() {
   const d = ctrDados();
   if (!(d.total > 0)) {
@@ -18664,6 +19047,15 @@ function ctrImprimir() {
   }
   // Formas que não fecham o saldo = papel cobrando a mais ou deixando parte do
   // preço sem forma. Não trava (pode ser de propósito), mas não passa calado.
+  // Pedido à IA que tirou um trecho citado em outro lugar deixa a citação sem
+  // destino; no papel ela vira lacuna. Não trava, mas não passa calada.
+  if (ctrIa.pedidos.length) {
+    const ap = ctrIaAplicar(ctrModelo(d), ctrIa.pedidos);
+    const qb = ctrNumerar(ap.modelo).quebradas;
+    const nf = ap.relatorio.reduce((t, r) => t + r.falhas.length, 0);
+    if (nf && !confirm(nf + ' mudança(s) pedida(s) à IA não entra(m) no papel: o trecho mudou ou saiu do contrato depois do pedido. Veja em "Pedir mudança à IA".\n\nGerar assim mesmo?')) return;
+    if (qb.length && !confirm('Há citação de cláusula que ficou sem destino depois dos pedidos à IA (' + [...new Set(qb)].join(', ') + '). No papel ela sai como lacuna.\n\nGerar assim mesmo?')) return;
+  }
   const difPag = ctrCent(d.saldo - d.pagSoma);
   if (d.pagLinhas.length && Math.abs(difPag) >= 0.01 &&
       !confirm(`As formas de pagamento somam ${ORC_MONEY(d.pagSoma)}, mas o saldo a pagar é ${ORC_MONEY(d.saldo)} (${difPag > 0 ? 'faltam' : 'passam'} ${ORC_MONEY(Math.abs(difPag))}).\n\nGerar o contrato assim mesmo?`)) return;
@@ -19671,6 +20063,9 @@ function orcSnapTake() {
     // anuência que a ficha ligou sozinha tem que voltar ligada na 2ª via, mesmo
     // sem a ficha na memória.
     ctrOpc: Object.fromEntries(CTR_OPC.map(o => [o.id, ctrOpcOn(o.id)])),
+    // Pedidos à IA: guardados como operações. A 2ª via reaplica sobre o contrato
+    // reaberto e sai igual, sem chamar a IA de novo.
+    ctrIa: JSON.parse(JSON.stringify(ctrIa)),
     ctrForo: v('ctr-foro'), ctrExtras: v('ctr-extras'), ctrMulta: v('ctr-multa'), ctrJuros: v('ctr-juros'),
     ctrContratante: v('ctr-contratante'), ctrContratanteDoc: v('ctr-contratante-doc'),
     ctrContratanteEnd: v('ctr-contratante-end'), ctrRep: v('ctr-rep'), ctrRepDoc: v('ctr-rep-doc'),
@@ -19822,7 +20217,9 @@ function orcSnapApply(s, tipo) {
       if (el) delete el.dataset.tocado;
     });
   }
-  ctrEscRender(); ctrPagRender(); ctrOpcRender(); ctrPctNota();
+  ctrIaGeracao++;
+  ctrIa = s.ctrIa && Array.isArray(s.ctrIa.pedidos) ? JSON.parse(JSON.stringify(s.ctrIa)) : { pedidos: [] };
+  ctrEscRender(); ctrPagRender(); ctrOpcRender(); ctrPctNota(); ctrIaRender();
   orcKitEquipSync(); orcValorBanner();
   orcPgToggle(); orcCalc();
   ctrResumo();

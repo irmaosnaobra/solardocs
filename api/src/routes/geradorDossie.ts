@@ -40,7 +40,7 @@ const MAX_BYTES = 3 * 1024 * 1024;
  * validado no Supabase do Gerador. A chave publishable NÃO passa: ela não é
  * um usuário, e é justamente ela que qualquer um teria.
  */
-async function exigeConsultor(req: Request, res: Response, next: () => void): Promise<void> {
+export async function exigeConsultor(req: Request, res: Response, next: () => void): Promise<void> {
   const auth = String(req.headers['authorization'] || '');
   const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
   if (!token || token.startsWith('sb_publishable_')) {
@@ -51,6 +51,19 @@ async function exigeConsultor(req: Request, res: Response, next: () => void): Pr
     const { data, error } = await supabaseGerador.auth.getUser(token);
     if (error || !data?.user) {
       res.status(401).json({ error: 'sessão expirada. Entre de novo.', precisa: 'login' });
+      return;
+    }
+    // Token válido não basta: o cadastro público do Supabase do Gerador está
+    // ABERTO (conferido em 07/10/2026: disable_signup=false), então qualquer um
+    // cria conta com a chave publishable que está no HTML e passaria aqui. As
+    // contas de consultor nascem por script, todas `<nome>@irmaosnaobra.app`
+    // (emailDoConsultor no /gerador), e confirmar esse e-mail exige receber
+    // mensagem no domínio. Vale para o dossiê (CNH, conta de luz) e para a IA
+    // do contrato, que gasta crédito a cada chamada.
+    const email = String(data.user.email || '').toLowerCase();
+    const confirmado = !!(data.user.email_confirmed_at || (data.user as { confirmed_at?: string }).confirmed_at);
+    if (!email.endsWith('@irmaosnaobra.app') || !confirmado) {
+      res.status(403).json({ error: 'esta conta não é de consultor.', precisa: 'login' });
       return;
     }
   } catch {
