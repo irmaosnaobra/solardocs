@@ -1,11 +1,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // O MOTOR DO SIMULADOR, sem navegador em volta.
 //
-// Morava dentro do apresentacaoController.ts, que importa chromium e puppeteer no
-// topo. O estudo do local (eletropostoEstudo.ts) usa a mesma conta dentro do tick
-// de 5 min, e importar o controller só pela conta carregaria o navegador junto.
-// A função veio movida sem mudar uma linha; o controller reexporta, então quem
-// importava de lá continua importando.
+// Morava no apresentacaoController.ts, que saiu em 07/10/2026 junto com a aba
+// Apresentação do /gerador. Ficou aqui porque o estudo do local
+// (eletropostoEstudo.ts) usa a mesma conta no tick de 5 min.
 //
 // Conferência escrita na própria LP (/io/eletroposto, params()) e repetida no
 // teste: 10 carros/dia, revenda 2,35, custo 0,70, sem arrendamento.
@@ -178,8 +176,8 @@ export interface ContaReferencia {
 
 /**
  * A conta do estudo, com o que o lead simulou na LP. Sem a linha "Simulou", vale o
- * que o simulador abre: 80 kW e 10 carros por dia. Piso e teto são os mesmos ±33%
- * da apresentação (apresentacaoController), com o teto limitado pela máquina.
+ * que o simulador abre: 80 kW e 10 carros por dia. Piso e teto ficam ±33% em
+ * volta da base, com o teto limitado pela máquina.
  */
 export function contaDeReferencia(
   e: { kw?: number | null; carros?: number | null; rodovia?: boolean },

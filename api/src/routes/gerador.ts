@@ -1,7 +1,5 @@
-import express, { Router, Request, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import { generateGeradorPdf } from '../controllers/pdfGeradorController';
-import { montarApresentacao } from '../controllers/apresentacaoController';
-import { extrairApresentacao } from '../controllers/apresentacaoExtrair';
 import { trackEvent } from '../controllers/trackingGeradorController';
 import { gerarIdeiasSociais, roteirizarTema, roteirizarUpload } from '../services/agenda/socialIdeiasService';
 import { varrerAdLibrary, gerarVideoAvatar } from '../services/agenda/socialStudioStubs';
@@ -57,14 +55,9 @@ const router = Router();
 // de levantar o browser.
 router.get('/pdf/:codigo', generateGeradorPdf);
 
-// Monta a apresentação de projeto (21 páginas, padrão da casa) a partir dos
-// parâmetros do Simulador + orçamentos + fotos com legenda. O corpo carrega
-// imagens em base64, então tem limite próprio, maior que o 10mb global.
-router.post('/apresentacao', express.json({ limit: '40mb' }), montarApresentacao);
-
-// Le os anexos e devolve os campos para o formulario. Separado da montagem de
-// proposito: leitura errada nao pode custar um render inteiro para aparecer.
-router.post('/apresentacao/extrair', express.json({ limit: '40mb' }), extrairApresentacao);
+// 07/10/2026: sairam POST /apresentacao e /apresentacao/extrair junto com a aba
+// Apresentacao do /gerador, a pedido do dono. Eram rotas abertas, sem login, que
+// chamavam a IA e levantavam um navegador a cada uso.
 
 // Tracking server-side de acessos e cliques (lê IP + UA da request, resolve geo).
 router.post('/track', trackEvent);

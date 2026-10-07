@@ -3,7 +3,6 @@ import {
   computeEletro, tetoFisico, recargasParaPagar, contaDeReferencia, configDoKw,
   PREMISSAS_LP, CARGAS_EP, CONFIGS_EP,
 } from '../utils/computeEletro';
-import { computeEletro as doController } from '../controllers/apresentacaoController';
 
 // Conferência escrita na LP /io/eletroposto (params()): é ela que manda.
 const lp = (invest: number, carros = 10) => computeEletro({
@@ -22,10 +21,6 @@ describe('computeEletro: teste de ouro contra a conferência da LP', () => {
     const r = lp(144595);
     expect(Math.abs(r.lucroMes - 6933)).toBeLessThanOrEqual(1);
     expect(Math.abs(Number(r.payback) - 2.27)).toBeLessThanOrEqual(0.005);
-  });
-
-  it('o controller reexporta a mesma função', () => {
-    expect(doController).toBe(computeEletro);
   });
 });
 
