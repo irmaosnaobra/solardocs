@@ -95,6 +95,7 @@ export interface Regulamento {
   // ── Freio de erro ──
   freioErros: number;
   freioMs: number;
+  freioSondaUrgenteMs: number;
 
   // ── Pausa humana, conversa e prazo ──
   pausaSilencioMs: number;
@@ -243,6 +244,12 @@ export const REGULAMENTO_BASE: Readonly<Regulamento> = Object.freeze({
   // (zapiClient.ts:69), que trata qualquer 4xx como linha.
   freioErros: 2,
   freioMs: 15 * MIN,
+  // [proposta] durante o freio, o urgente (resposta e lembrete com prazo) vira a
+  // SONDA da linha: tenta no máximo 1 vez a cada 5 min. Sem isto, o lembrete
+  // batia na linha caída a cada tick (o replay de 04/08 deu 24 falhas numa hora);
+  // com isto a volta da linha aparece em até 5 min e o lembrete ainda cabe na
+  // janela dele. A proativa espera os 15 min inteiros.
+  freioSondaUrgenteMs: 5 * MIN,
 
   // [código pausaHumana.ts:65] PAUSA_HUMANA_JANELA_H, padrão 24.
   pausaSilencioMs: 24 * HORA,
@@ -510,4 +517,6 @@ export const DIVERGENCIAS: readonly string[] = Object.freeze([
   'Rampa: no HEAD os pisos passam por cima dela; no CHEFE ela segura P3–P5 (10, 14 e 19 por hora) e deixa P0, P1 e o aviso ao time de fora.',
   'Instagram frio: worker.mjs do origin/main usa 4 min e 0–24h; vale a memória (45 min, 8h–21h).',
   'Espaçamento do frio contra agenda (10–15 min) mantido do HEAD; a especificação queria 2 min contra qualquer mensagem. Os 2 min ficam só contra o que o HEAD não contava (resposta, aviso, evento).',
+  'Teto da linha "sobre o que sobra depois do P0 e do P1" [crítica] lido assim: P2–P5 com 24/h e 200/24h próprios, e a proativa não leva o total da hora acima de 40 (picoAtencao do monitor). O aviso urgente ao time (lead novo) fica fora desses 40 [interpretação].',
+  'Freio de erro: a especificação deixava a resposta tentar sempre; aqui, durante o freio, resposta e lembrete tentam no máximo 1 vez a cada 5 min (o replay de 04/08 deu 24 falhas numa hora sem isso).',
 ]);
