@@ -76,6 +76,25 @@ const MAX_RODADAS = 2;
 
 const desligado = () => (process.env.EP_REMARCAR_OFF || '').trim() === '1';
 
+/**
+ * O PISO DA RESPOSTA (07/10/2026). A conversa de remarcação responde quem
+ * acabou de escrever, e perguntava o teto da linha inteira SEM piso: 6/h e
+ * 40/dia contra uma linha que faz mais de 40 por dia só com a agenda. Na
+ * prática a resposta quase nunca saía, e a mensagem do cliente é consumida no
+ * mesmo tick (o `eletropostoRespostas` marca antes de agir), então ela não era
+ * tentada de novo: sobrava só o aviso pra equipe. Medido em 36h: 5 respostas
+ * barradas, uma delas do Eduardo (#1349), que pediu pra remarcar às 7h10 do
+ * dia da reunião e ficou sem resposta.
+ *
+ * 24/h é o piso do aviso de liberação da régua do SIM, o maior da casa: é
+ * resposta a quem falou primeiro, que é a mensagem mais segura que existe.
+ */
+const respostaPisoHora = (): number => {
+  const v = Number((process.env.EP_REMARCAR_RESPOSTA_PISO_HORA || '').trim() || 24);
+  return Number.isFinite(v) && v >= 0 ? v : 24;
+};
+const RESPOSTA_PISO_DIA = 200;
+
 // ── INTENÇÃO ────────────────────────────────────────────────────────────────
 // CANCELAR NÃO É REMARCAR, e o robô só atende o segundo. Os dois moravam na mesma
 // expressão (a `RE_REMARCAR` do módulo de respostas, que serve pro selo e pra
@@ -426,7 +445,9 @@ export async function passoDeRemarcacao(
   const falar = async (bolhas: string[], etapa: string): Promise<boolean> => {
     if (opts.dry) return true;
     // Conversa de remarcação é transacional — é resposta a quem escreveu agora.
-    if (!(await dentroDoTetoHorarioLinha({ transacional: true }))) {
+    if (!(await dentroDoTetoHorarioLinha({
+      transacional: true, pisoHora: respostaPisoHora(), pisoDia: RESPOSTA_PISO_DIA,
+    }))) {
       logger.info('ep-remarcar', 'teto da linha estourado — resposta espera o próximo tick', { id: ficha.id });
       return false;
     }
@@ -569,7 +590,9 @@ export async function ofertarPorConta(
       logger.info('ep-remarcar', 'humano na conversa — oferta ativa não sai', { id: ficha.id });
       return false;
     }
-    if (!(await dentroDoTetoHorarioLinha({ transacional: opts.transacional === true }))) {
+    if (!(await dentroDoTetoHorarioLinha(opts.transacional === true
+      ? { transacional: true, pisoHora: respostaPisoHora(), pisoDia: RESPOSTA_PISO_DIA }
+      : { transacional: false }))) {
       logger.info('ep-remarcar', 'teto da linha estourado — oferta ativa espera o próximo tick', { id: ficha.id });
       return false;
     }

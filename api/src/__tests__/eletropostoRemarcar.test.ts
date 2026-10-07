@@ -333,6 +333,20 @@ describe('a conversa de ponta a ponta', () => {
     expect(updates).toEqual([]);
   });
 
+  // 07/10/2026: sem piso, a resposta a quem pediu pra remarcar quase nunca
+  // passava no teto da linha inteira, e a mensagem do cliente era consumida sem
+  // nova tentativa. Foi o que aconteceu com o Eduardo (#1349).
+  it('a resposta a quem pediu pra remarcar pergunta o teto COM piso', async () => {
+    const { passoDeRemarcacao } = await mod();
+    const { dentroDoTetoHorarioLinha } = await import('../services/agents/whatsapp/lineThrottle');
+    vi.mocked(dentroDoTetoHorarioLinha).mockClear();
+    await passoDeRemarcacao(ficha(), ['preciso remarcar'], null);
+    const pedido = vi.mocked(dentroDoTetoHorarioLinha).mock.calls[0]?.[0] as any;
+    expect(pedido?.transacional).toBe(true);
+    expect(pedido?.pisoHora).toBeGreaterThanOrEqual(24);
+    expect(pedido?.pisoDia).toBeGreaterThanOrEqual(200);
+  });
+
   it('teto da linha estourado: não fala, não grava oferta e não gasta rodada', async () => {
     const { passoDeRemarcacao } = await mod();
     tetoLivre = false;

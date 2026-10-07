@@ -501,9 +501,58 @@ describe('a rajada de 02/10 não se repete', () => {
     await tick();
     expect(pedidosTeto).toHaveLength(1);
     expect(pedidosTeto[0]?.transacional).toBe(true);
-    // Sem piso: pedir a conta da linha toda não pode virar passe livre.
-    expect(pedidosTeto[0]?.pisoHora).toBeUndefined();
-    expect(pedidosTeto[0]?.pisoDia).toBeUndefined();
+    // 07/10/2026: este teste exigia "sem piso", e sem piso a linha inteira (mais
+    // de 40 por dia só com a agenda) contra 6/h e 40/dia nunca passava. O
+    // vermelho ficou 0/40 por cinco dias. O piso volta FINITO e ABAIXO dos 20/h
+    // da régua do SIM: quando a linha enche, este robô cala primeiro.
+    expect(Number.isFinite(pedidosTeto[0]?.pisoHora)).toBe(true);
+    expect(pedidosTeto[0]?.pisoHora).toBeLessThan(20);
+    expect(Number.isFinite(pedidosTeto[0]?.pisoDia)).toBe(true);
+  });
+
+  // O FREIO QUE DE FATO FALTOU EM 02/10 é a cadência, e ela é medida aqui pelo
+  // comportamento: dez vermelhos na fila, teto da linha sempre aberto, um tick a
+  // cada 2 minutos por uma hora inteira. No código de 02/10 seriam 30 mensagens.
+  it('numa hora de teto aberto, no máximo 4 mensagens: o espaçamento é de 15 min', async () => {
+    fichas = Array.from({ length: 10 }, (_, i) => ficha({ id: 70 + i, quando: horasAtras(2 + i / 10) }));
+    for (let m = 0; m < 60; m += 2) {
+      vi.setSystemTime(new Date(AGORA.getTime() + m * 60_000));
+      await tick();
+    }
+    expect(enviadas.length).toBeGreaterThan(0);
+    expect(enviadas.length).toBeLessThanOrEqual(4);
+  });
+
+  it('dentro do espaçamento o vermelho espera, e o calado anda', async () => {
+    const ha5 = new Date(AGORA.getTime() - 5 * 60_000).toISOString();
+    state.set('ep_reagenda_auto:900', {
+      key: 'ep_reagenda_auto:900', value: { n: 1, ultimo: ha5, relogio: 'fala' }, updated_at: ha5,
+    });
+    const r = await tick();
+    expect(r.motivo).toBe('espacamento_da_fala');
+    expect(enviadas).toHaveLength(0);
+    expect(fichas[0].status).toBe('nao_atendeu');
+    // o calado não manda mensagem, então o espaçamento não tem o que segurar nele
+    fichas = [ficha({ id: 5, status: 'agendado', quando: horasAtras(8) })];
+    expect((await tick()).remarcados).toBe(1);
+  });
+
+  it('passados os 15 min, o vermelho anda', async () => {
+    const ha16 = new Date(AGORA.getTime() - 16 * 60_000).toISOString();
+    state.set('ep_reagenda_auto:900', {
+      key: 'ep_reagenda_auto:900', value: { n: 1, ultimo: ha16, relogio: 'fala' }, updated_at: ha16,
+    });
+    expect((await tick()).remarcados).toBe(1);
+    expect(enviadas).toHaveLength(1);
+  });
+
+  it('o carimbo de um CALADO não conta no espaçamento de quem fala', async () => {
+    const agora = AGORA.toISOString();
+    state.set('ep_reagenda_auto:900', {
+      key: 'ep_reagenda_auto:900', value: { n: 1, ultimo: agora, relogio: 'mudo' }, updated_at: agora,
+    });
+    expect((await tick()).remarcados).toBe(1);
+    expect(enviadas).toHaveLength(1);
   });
 
   it('a remarcação sai em UMA mensagem — toque frio não fatia', async () => {
@@ -1615,5 +1664,37 @@ describe('quem roda e quem para de rodar', () => {
       fichas = [ficha({ status: st, quando: horasAtras(24 * 30) })];
       expect((await tick()).remarcados).toBe(0);
     }
+  });
+});
+
+// ── O HORÁRIO NOVO DO VERMELHO NÃO É EM CIMA DA HORA (07/10/2026) ──────────
+//
+// A fila que ficou presa cinco dias é de reuniões de dias atrás, e pra elas a
+// busca começava AGORA: destravar às 16h30 mandaria "já separei outro: hoje
+// 17h". O vermelho passa a buscar com 3h de antecedência; o calado não avisa
+// ninguém e continua buscando de agora.
+describe('a antecedência do horário novo', () => {
+  it('perdida ONTEM e vista agora: a busca começa 3h à frente', async () => {
+    fichas = [ficha({ quando: horasAtras(26) })];
+    await tick();
+    expect(pedidos[0]!.agora).toBe(AGORA.getTime() + 180 * 60_000);
+  });
+
+  it('perdida HOJE: continua sendo o dia seguinte, como sempre foi', async () => {
+    await tick();
+    expect(new Date(pedidos[0]!.agora).toISOString()).toBe('2026-08-21T03:00:00.000Z');
+  });
+
+  it('o calado não ganha antecedência: ele não avisa ninguém', async () => {
+    fichas = [ficha({ status: 'agendado', quando: horasAtras(26) })];
+    await tick();
+    expect(pedidos[0]!.agora).toBe(AGORA.getTime());
+  });
+
+  it('a antecedência muda sem deploy', async () => {
+    process.env.EP_REAGENDA_FALA_ANTECEDENCIA_MIN = '0';
+    fichas = [ficha({ quando: horasAtras(26) })];
+    await tick();
+    expect(pedidos[0]!.agora).toBe(AGORA.getTime());
   });
 });

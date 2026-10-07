@@ -556,6 +556,39 @@ const tetoPorDia = (): number => num('EP_REAGENDA_POR_DIA', 10);
 const tetoMudoPorDia = (): number => num('EP_REAGENDA_MUDO_POR_DIA', 200);
 
 /**
+ * ── O VERMELHO FICOU MUDO POR CINCO DIAS (07/10/2026) ─────────────────────
+ *
+ * O conserto de 02/10 trocou um defeito por outro. Antes, o robô perguntava o
+ * teto FRIO e não enxergava os próprios envios: 39 remarcações em 55 min e a
+ * linha caiu. Depois, passou a perguntar a LINHA INTEIRA sem piso, e isso
+ * compara de 98 a 154 envios por dia (a agenda sozinha) contra 6 por hora e 40
+ * por dia. Nunca mais passou: a rampa do vermelho fechou em 0/40 em 05/10, 06/10
+ * e 07/10, com fila de 5 aptos, todos travados em "teto da linha estourado".
+ *
+ * As três travas abaixo substituem aquela, cada uma respondendo uma pergunta:
+ *
+ *   ESPAÇAMENTO (o freio de rajada). Uma mensagem deste caminho a cada
+ *   `falaIntervaloMin`, contada pelos carimbos que o próprio módulo grava. Foi
+ *   a cadência que derrubou a linha em 02/10 (uma a cada ~90s), e o teto da
+ *   linha nunca controlou isso. Com 15 min são no máximo 4 por hora.
+ *
+ *   PISO (quem cede quando a linha está cheia). Conta a linha inteira, como em
+ *   02/10, mas com piso finito e ABAIXO do da régua do SIM (20/h): os pisos não
+ *   somam, todos olham o mesmo contador, e quem tem o menor cala primeiro. Quem
+ *   ainda tem reunião pela frente fala antes de quem já perdeu a dele.
+ *
+ *   ANTECEDÊNCIA (o horário novo não pode ser em cima da hora). A fila que
+ *   ficou presa é de reuniões de dias atrás, e para elas `inicio` era AGORA:
+ *   destravar às 16h30 mandaria "já separei outro: hoje 17h". Três horas
+ *   mantêm o caso de sempre (perdida ontem à noite, vista às 9h, cai hoje à
+ *   tarde) e tiram o aviso de 20 minutos.
+ */
+const falaIntervaloMin = (): number => num('EP_REAGENDA_FALA_INTERVALO_MIN', 15);
+const falaPisoHora = (): number => num('EP_REAGENDA_FALA_PISO_HORA', 16);
+const falaPisoDia = (): number => num('EP_REAGENDA_FALA_PISO_DIA', 200);
+const falaAntecedenciaMin = (): number => num('EP_REAGENDA_FALA_ANTECEDENCIA_MIN', 180);
+
+/**
  * Só QUENTE ganha 2ª chance? Era a ordem de 20/08/2026 ("quero apenas os
  * clientes QUENTES tenham uma 2ª e 3ª chance"). A de 29/09 é mais ampla ("todos
  * os NÃO ATENDEU"), então o padrão virou `false` e a env existe pra voltar atrás
@@ -740,11 +773,13 @@ export function linhaDoHistorico(
  * da LP.
  */
 export async function candidatosDoOutroDia(
-  dono: string, quandoIso: string, agora = Date.now(), negociacao = false,
+  dono: string, quandoIso: string, agora = Date.now(), negociacao = false, antecedenciaMin = 0,
 ): Promise<string[] | null> {
   // Nunca no passado: reunião perdida ontem e detectada hoje de manhã tem que
   // cair de hoje pra frente, não "no dia seguinte ao de ontem".
-  const inicio = Math.max(agora, inicioDoDiaSeguinte(quandoIso));
+  // `antecedenciaMin` é só do caminho que FALA (07/10/2026): ele avisa o
+  // cliente do horário novo, e o aviso precisa chegar com tempo de ser lido.
+  const inicio = Math.max(agora + antecedenciaMin * 60_000, inicioDoDiaSeguinte(quandoIso));
   // GRADE REDONDA (:00/:30), e não a faixa dos quinze.
   //
   // Ordem do Thiago (30/09/2026, depois de ver a primeira versão): "remarca para
@@ -1226,6 +1261,24 @@ export async function runEletropostoReagendaAutoTick(
   let aptos = opts.dry ? naVez : naVez.filter(f => vagaDe[relogioDe(f)] > 0);
   let linhaEstourou = false;
 
+  // O ESPAÇAMENTO DO QUE FALA (07/10/2026). A última remarcação que mandou
+  // mensagem sai do mesmo carimbo que a rampa já leu, sem consulta nova. Carimbo
+  // sem `relogio` conta como fala, que é o lado seguro, igual na rampa.
+  let falaEspera = false;
+  const ultimaFala = (feitosHoje.data || []).reduce((max, r) => {
+    const v = (r as { value?: { relogio?: string; ultimo?: string } }).value;
+    if (v?.relogio === 'mudo') return max;
+    const t = Date.parse(String(v?.ultimo || ''));
+    return Number.isFinite(t) && t > max ? t : max;
+  }, 0);
+  if (!opts.dry && aptos.some(f => relogioDe(f) === 'fala')
+      && agora - ultimaFala < falaIntervaloMin() * 60_000) {
+    logger.info('ep-reagenda', `espaçamento: a última remarcação que fala saiu há `
+      + `${Math.round((agora - ultimaFala) / 60_000)} min (mínimo ${falaIntervaloMin()}) — nesta rodada andam só os calados`);
+    falaEspera = true;
+    aptos = aptos.filter(f => relogioDe(f) === 'mudo');
+  }
+
   // Teto anti-ban ANTES de mexer na ficha: remarcar sem conseguir avisar é
   // marcar reunião que a pessoa não sabe que existe.
   //
@@ -1245,6 +1298,12 @@ export async function runEletropostoReagendaAutoTick(
   // `transacional: true` aqui NÃO é passe livre: sem `piso*` ele só troca a
   // conta pela da linha toda, que é a que inclui este carimbo.
   //
+  // E SEM PISO ELE NUNCA PASSA (07/10/2026): a linha inteira faz mais de 40 por
+  // dia só com a agenda, então "linha toda contra 6/h e 40/dia" é sempre não.
+  // O piso finito, abaixo do da régua do SIM, devolve a fala ao vermelho sem
+  // tirar dele o lugar de quem cede primeiro. O freio de rajada é o espaçamento
+  // logo acima, que é o que de fato faltou em 02/10.
+  //
   // LINHA FORA DO AR, MESMA SAÍDA (03/10/2026). O teto não enxerga queda: com
   // a linha caída nada sai, o contador fica zerado e o teto diz "pode". A ficha
   // era remarcada, o envio falhava logo depois, e o `break` do erro só limitava
@@ -1260,7 +1319,9 @@ export async function runEletropostoReagendaAutoTick(
     aptos = aptos.filter(f => relogioDe(f) === 'mudo');
   }
   if (!opts.dry && aptos.some(f => relogioDe(f) === 'fala')
-      && !(await dentroDoTetoHorarioLinha({ transacional: true }))) {
+      && !(await dentroDoTetoHorarioLinha({
+        transacional: true, pisoHora: falaPisoHora(), pisoDia: falaPisoDia(),
+      }))) {
     logger.info('ep-reagenda', 'teto da linha estourado — nesta rodada andam só os calados');
     linhaEstourou = true;
     aptos = aptos.filter(f => relogioDe(f) === 'mudo');
@@ -1270,7 +1331,7 @@ export async function runEletropostoReagendaAutoTick(
     // O motivo não pode virar um só: "a linha estourou" e "a rampa encheu" se
     // resolvem de formas diferentes, e é por este campo que a gente descobre
     // qual das duas foi.
-    return zero(linhaEstourou ? 'teto_da_linha' : 'rampa_do_dia_cheia');
+    return zero(linhaEstourou ? 'teto_da_linha' : falaEspera ? 'espacamento_da_fala' : 'rampa_do_dia_cheia');
   }
 
   const telPorConsultor = await carregarConsultores();
@@ -1293,7 +1354,8 @@ export async function runEletropostoReagendaAutoTick(
       // UMA leitura do relógio, ANTES do update: o vermelho volta pra `agendado`
       // na mesma gravação, e reler depois o carimbaria como calado.
       const relogio = relogioDe(f);
-      const lista = await candidatosDoOutroDia(quem, String(f.quando), agora, ehNegociacao);
+      const lista = await candidatosDoOutroDia(quem, String(f.quando), agora, ehNegociacao,
+        relogio === 'fala' ? falaAntecedenciaMin() : 0);
       if (lista === null) continue;             // leitura da agenda falhou
       if (!lista.length) {
         logger.info('ep-reagenda', 'agenda do consultor sem vaga — tenta no próximo tick', { id: f.id, quem });
