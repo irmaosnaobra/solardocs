@@ -983,9 +983,17 @@ async function pegarAVez(id: number): Promise<string | null> {
   const emIso = new Date(agoraMs).toISOString();
   const { error } = await supabase.from('system_state')
     .insert({ key: chave, value: { em: emIso, ficha: id }, updated_at: emIso });
+  // Só a chave repetida (23505) quer dizer "outro relógio pegou a vez". Qualquer
+  // outro erro (rede, permissão) NÃO pode calar o vermelho: agenda nunca bloqueia.
+  // Loga como erro e segue para a checagem da vizinha, que ainda segura a dupla.
+  let minha: string | null = chave;
   if (error) {
-    logger.info('ep-reagenda', 'outro relógio já pegou a vez deste quarto de hora: nesta rodada o vermelho não fala', { chave });
-    return null;
+    if (String((error as { code?: string }).code ?? '') === '23505') {
+      logger.info('ep-reagenda', 'outro relógio já pegou a vez deste quarto de hora: nesta rodada o vermelho não fala', { chave });
+      return null;
+    }
+    logger.error('ep-reagenda', 'pegar a vez falhou (não é corrida): segue pela checagem da vizinha', error);
+    minha = null;
   }
   const desde = new Date(agoraMs - falaIntervaloMin() * 60_000).toISOString();
   const vizinha = await supabase.from('system_state').select('key, updated_at')
@@ -997,7 +1005,7 @@ async function pegarAVez(id: number): Promise<string | null> {
     logger.info('ep-reagenda', 'outro relógio pegou a vez há menos que o espaçamento: devolvo a minha e não falo', {
       chave, outra: vizinha.data?.[0]?.key ?? null, erro: vizinha.error ? String(vizinha.error.message ?? vizinha.error) : null,
     });
-    await devolverAVez(chave);
+    if (minha) await devolverAVez(chave);
     return null;
   }
   return chave;
@@ -1398,14 +1406,18 @@ export async function runEletropostoReagendaAutoTick(
   // rampa: a agenda sozinha passa disso, e o vermelho ficaria mudo três dias. E
   // não descarta ninguém: quem não coube continua na fila, sem tentativa gasta,
   // e anda num tick seguinte. Leitura que falha segura o vermelho nesta rodada.
+  //
+  // A conta é pelas chaves da VEZ (ep_reagenda_vez:), uma por fala, gravadas uma
+  // vez e nunca reescritas. Não pelo updated_at do ep_reagenda_auto:<id>: a rota
+  // /gerador/apalavrado/soltar reescreve esse carimbo em toda troca de status, e
+  // gente mexendo no card calaria o vermelho sem mensagem nenhuma ter saído.
   let rampaSegura = false;
   if (!opts.dry && aptos.some(f => relogioDe(f) === 'fala')) {
     const rampa = await rampaReconexaoVigente(new Date(agora));
     if (rampa) {
       const recentes = await supabase
         .from('system_state').select('key, updated_at')
-        .like('key', `${EP_REAGENDA_PREFIX}%`)
-        .eq('value->>relogio', 'fala')
+        .like('key', `${EP_REAGENDA_VEZ_PREFIX}%`)
         .gte('updated_at', new Date(agora - 24 * 3600_000).toISOString())
         .order('updated_at', { ascending: false })
         .limit(rampa.dia + 1);

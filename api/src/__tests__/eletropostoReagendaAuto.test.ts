@@ -106,6 +106,8 @@ const MAX_ROWS = 1000;
 /** Chamado depois de cada `insert` que entrou: é por aqui que o teste mexe no
  *  relógio ENTRE o claim de um tick e o do outro. */
 let aoInserir: ((chave: string) => void) | null = null;
+// Insert que falha por rede (não é 23505): o claim da vez não pode calar o vermelho.
+let falhaInsert: ((chave: string) => boolean) | null = null;
 /** Chamado a cada leitura de coluna: um `throw` aqui faz quebrar só a consulta
  *  que filtra por aquela coluna. */
 let colunaDeGancho: ((col: string) => void) | null = null;
@@ -134,6 +136,7 @@ function consultaSystemState() {
 
   const executar = () => {
     if (op === 'insert') {
+      if (falhaInsert?.(linha.key)) return { data: null, error: { code: 'PGRST000', message: 'rede caiu' } };
       if (state.has(linha.key)) return { data: null, error: { code: '23505', message: 'duplicate key' } };
       state.set(linha.key, { key: linha.key, value: linha.value, updated_at: linha.updated_at });
       aoInserir?.(linha.key);
@@ -302,6 +305,7 @@ beforeEach(() => {
   vagas = [SEXTA_13H, SEXTA_14H];
   aoPedirVagas = null;
   aoInserir = null;
+  falhaInsert = null;
   colunaDeGancho = null;
   aplicarUpdateGancho = null;
   tetoLivre = true;
@@ -1796,6 +1800,12 @@ describe('a antecedência do horário novo', () => {
 // subiu às 16h20 e a revisão achou três jeitos de o freio não segurar. Os
 // testes abaixo caem no código daquele commit. Nenhum deles corta remarcação:
 // o que não sai agora continua na fila, sem tentativa gasta.
+// Mesma fórmula do chaveDaVez (quarto de hora de Brasília); o teste da chave
+// confere a do módulo. Aqui é síncrona para os ajudantes.
+const chaveVez = (ms: number) => {
+  const d = new Date(ms - 3 * 3600_000);
+  return `ep_reagenda_vez:${d.toISOString().slice(0, 10)}T${String(d.getUTCHours()).padStart(2, "0")}:${Math.floor(d.getUTCMinutes() / 15)}`;
+};
 const vezesNoBanco = () => [...state.keys()].filter(k => k.startsWith('ep_reagenda_vez:'));
 
 describe('três relógios: uma fala por quarto de hora', () => {
@@ -1957,10 +1967,15 @@ describe('a leitura do espaçamento não pode ser cortada', () => {
 });
 
 describe('a linha que acabou de voltar', () => {
-  const fala = (id: number, quando: string) =>
+  // Uma fala de verdade deixa o carimbo da ficha E a chave da vez daquele quarto
+  // de hora. A rampa de reconexão conta pela vez (nunca reescrita).
+  const fala = (id: number, quando: string) => {
     state.set(`ep_reagenda_auto:${id}`, {
       key: `ep_reagenda_auto:${id}`, value: { n: 1, ultimo: quando, relogio: 'fala' }, updated_at: quando,
     });
+    const vez = chaveVez(Date.parse(quando));
+    state.set(vez, { key: vez, value: { em: quando, ficha: id }, updated_at: quando });
+  };
   const minAtras = (m: number) => new Date(AGORA.getTime() - m * 60_000).toISOString();
   // Como em produção: a rampa do dia do vermelho em 40, pra ela não mascarar a
   // de reconexão.
@@ -1985,7 +2000,7 @@ describe('a linha que acabou de voltar', () => {
     expect(enviadas).toHaveLength(0);
     expect(fichas[0].status).toBe('nao_atendeu');
     expect(state.has('ep_reagenda_auto:3')).toBe(false);   // sem tentativa gasta
-    expect(vezesNoBanco()).toEqual([]);
+    expect(vezesNoBanco()).toHaveLength(2);                // só as duas das falas antigas
     // Passada a hora, a MESMA ficha anda no tick seguinte.
     vi.setSystemTime(new Date(AGORA.getTime() + 45 * 60_000));
     const r2 = await tick();
@@ -2020,5 +2035,39 @@ describe('a linha que acabou de voltar', () => {
     fala(901, minAtras(20));
     fala(902, minAtras(40));
     expect((await tick()).remarcados).toBe(1);
+  });
+
+  // Troca de status no /gerador reescreve o ep_reagenda_auto:<id> (rota
+  // /gerador/apalavrado/soltar) sem mensagem nenhuma. Isso não pode contar como
+  // fala na rampa: agenda nunca bloqueia por coisa que não saiu.
+  it('carimbo reescrito pela troca de status (sem vez) não conta na rampa', async () => {
+    rampaAgora = { hora: 2, dia: 10 };
+    for (const id of [901, 902, 903]) {
+      state.set(`ep_reagenda_auto:${id}`, {
+        key: `ep_reagenda_auto:${id}`, value: { n: 1, ultimo: minAtras(600), relogio: 'fala' }, updated_at: minAtras(30),
+      });
+    }
+    const r = await tick();
+    expect(r.motivo).not.toBe('rampa_de_reconexao');
+    expect(r.remarcados).toBe(1);
+    expect(enviadas).toHaveLength(1);
+  });
+});
+
+describe('a vez com o banco instável', () => {
+  it('insert da vez com erro de rede (não 23505): o vermelho fala uma vez, não cala', async () => {
+    falhaInsert = (k) => k.startsWith('ep_reagenda_vez:');
+    const r = await tick();
+    expect(r.remarcados).toBe(1);
+    expect(enviadas).toHaveLength(1);
+  });
+
+  it('erro de rede mas outra vez recente na vizinhança: não fala (a dupla continua impossível)', async () => {
+    falhaInsert = (k) => k.startsWith('ep_reagenda_vez:');
+    const outra = chaveVez(AGORA.getTime() - 5 * 60_000);
+    state.set(outra, { key: outra, value: { em: 'x', ficha: 1 }, updated_at: new Date(AGORA.getTime() - 5 * 60_000).toISOString() });
+    const r = await tick();
+    expect(enviadas).toHaveLength(0);
+    expect(r.remarcados).toBe(0);
   });
 });
