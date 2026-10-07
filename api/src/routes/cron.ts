@@ -56,7 +56,6 @@ import { enviarReagendarDiario } from '../services/agenda/reagendarDigest';
 import { enviarAgendaProxima } from '../services/agenda/agendaProximaDigest';
 import { syncLeadsMeta, realinharAgendamentosLeadMeta } from '../services/agenda/leadsMetaService';
 import { syncSocialWindsor } from '../services/agenda/socialWindsorService';
-import { gerarProdutosVirais } from '../services/agenda/produtosViraisService';
 import { runDunning } from '../services/dunningService';
 import { runDisputeWatch } from '../services/disputeWatcher';
 import { syncStripePlans } from '../services/stripeSyncService';
@@ -1462,7 +1461,6 @@ router.get('/master', async (req: Request, res: Response) => {
     ['lembrete-followup',           () => runLembreteFollowupTick()],
     ['reagenda-solar',              () => runReagendaSolarTick()], // solar: nao_atendeu volta pra agenda (rede de seguranca do tick de 2 min) // rede de segurança: se o tick de 2 min morrer, o master ainda entrega 1 lembrete por pessoa
     ['sync-social-windsor',         () => syncSocialWindsor()],      // métricas IG+TikTok → aba Redes do gerador
-    ['produtos-virais',             () => gerarProdutosVirais()],    // 3 produtos top TikTok Shop → roteiro AIDA → fila canal 'produtos'
     ['insights-prewarm',             () => getInsights(true)],
     ['cleanup-pro-docs',            () => cleanupProDocuments()],
     ['monthly-reset',               () => runMonthlyReset()],

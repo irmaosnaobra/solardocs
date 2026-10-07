@@ -3,8 +3,6 @@ import { generateGeradorPdf } from '../controllers/pdfGeradorController';
 import { trackEvent } from '../controllers/trackingGeradorController';
 import { gerarIdeiasSociais, roteirizarTema, roteirizarUpload } from '../services/agenda/socialIdeiasService';
 import { varrerAdLibrary, gerarVideoAvatar } from '../services/agenda/socialStudioStubs';
-import { gerarProdutosVirais, redispararVideoProduto } from '../services/agenda/produtosViraisService';
-import { processarWebhook, reconciliarStatusProduto, animarProduto } from '../services/agenda/higgsfieldService';
 import { ingestManychatLead } from '../services/agenda/manychatLeadService';
 import { runAvisosTick, respostasDaPauta, audienciaDoAviso, LADOS_AVISO } from '../services/io/avisosTickService';
 import { runProspeccaoApifyTick } from '../services/io/prospeccaoApifyService';
@@ -738,73 +736,6 @@ router.post('/social/varrer', async (_req: Request, res: Response) => {
 // Estúdio: gerar vídeo com avatar (HeyGen) — STUB até configurar HeyGen.
 router.post('/social/gerar-video', async (req: Request, res: Response) => {
   res.json(await gerarVideoAvatar(String(req.body?.roteiro || '')));
-});
-
-// Máquina 2: TOP 1 produto viral do dia → roteiro → dispara vídeo automático no
-// Higgsfield (sem aprovação). Disparável manual (botão) e pelo cron (8h30 BRT).
-router.post('/social/produtos-virais', async (_req: Request, res: Response) => {
-  try {
-    const r = await gerarProdutosVirais();
-    res.json({ ok: true, ...r });
-  } catch (err: any) {
-    logger.error('gerador', 'produtos-virais falhou', err);
-    res.status(500).json({ error: 'falhou', detail: String(err?.message || err) });
-  }
-});
-
-// Webhook do Higgsfield: chamado por eles quando o vídeo fica pronto. Responde
-// 200 rápido. A função casa pelo request_id e só toca linha existente (defesa
-// contra POST externo). Não tem auth pesada de propósito (Higgsfield não assina).
-router.post('/social/higgsfield-webhook', async (req: Request, res: Response) => {
-  try {
-    const r = await processarWebhook(req.body || {});
-    res.json({ ok: r.ok });
-  } catch (err: any) {
-    logger.error('gerador', 'higgsfield-webhook falhou', err);
-    res.status(200).json({ ok: false }); // 200 mesmo no erro: não queremos retry agressivo
-  }
-});
-
-// Reconcilia o status do vídeo de um produto consultando o Higgsfield (GET status,
-// grátis). Caminho principal — o webhook do Higgsfield não dispara sozinho. O front
-// chama isso a cada 20s enquanto a linha está 'gerando'.
-router.post('/social/produto-status', async (req: Request, res: Response) => {
-  try {
-    const id = Number(req.body?.id);
-    if (!id) return res.status(400).json({ error: 'id obrigatório' });
-    const r = await reconciliarStatusProduto(id);
-    res.json(r);
-  } catch (err: any) {
-    logger.error('gerador', 'produto-status falhou', err);
-    res.status(500).json({ error: 'falhou', detail: String(err?.message || err) });
-  }
-});
-
-// Anima o criativo (imagem→vídeo Kling) de uma linha de produto — botão "Animar".
-// Sob demanda: gasta crédito só quando o Thiago clica. Duração = tempo da narração.
-router.post('/social/produto-animar', async (req: Request, res: Response) => {
-  try {
-    const id = Number(req.body?.id);
-    if (!id) return res.status(400).json({ error: 'id obrigatório' });
-    const r = await animarProduto(id);
-    res.json(r);
-  } catch (err: any) {
-    logger.error('gerador', 'produto-animar falhou', err);
-    res.status(500).json({ error: 'falhou', detail: String(err?.message || err) });
-  }
-});
-
-// Re-dispara o vídeo de uma linha de produto (botão "Tentar de novo" no front).
-router.post('/social/produto-regerar', async (req: Request, res: Response) => {
-  try {
-    const id = Number(req.body?.id);
-    if (!id) return res.status(400).json({ error: 'id obrigatório' });
-    const r = await redispararVideoProduto(id);
-    res.json({ ...r });
-  } catch (err: any) {
-    logger.error('gerador', 'produto-regerar falhou', err);
-    res.status(500).json({ error: 'falhou', detail: String(err?.message || err) });
-  }
 });
 
 // Prospecção: o consultor descreve a lista em português e a IA monta a busca.

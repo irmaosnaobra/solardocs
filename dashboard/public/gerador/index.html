@@ -1993,37 +1993,6 @@ html[data-theme="dark"] .venda-dobra{color:#FCA5A5}
 /* nota verde do HeyGen (só no aprovado) */
 .st-heygen-nota{margin:10px 0 4px;padding:8px 12px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.22);border-radius:8px;font-size:12px;color:#6ee7b7;line-height:1.45}
 .st-heygen-nota b{color:#a7f3d0}
-/* card de produto (aba Produtos) */
-.st-produto{display:flex;gap:12px;margin:10px 0;padding:10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:8px}
-.st-prod-img{width:64px;height:64px;border-radius:8px;object-fit:cover;flex-shrink:0;background:#1a1b1e}
-.st-prod-info{flex:1;min-width:0}
-.st-prod-nome{font-size:13px;color:#cdd0d6;line-height:1.35;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.st-prod-mets{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:#9ca0a8;font-weight:600}
-.st-prod-desc{color:#6ee7b7}
-.st-prod-link{font-size:11px;color:#f5a623;text-decoration:none;display:inline-block;margin-top:4px}
-/* vídeo auto-gerado do produto (Higgsfield) — gerando / pronto / erro / aguardando */
-.st-video{margin:10px 0;border-radius:10px;font-size:13px;line-height:1.45}
-.st-video--gerando{display:flex;align-items:center;gap:12px;padding:14px;background:rgba(245,166,35,.07);border:1px solid rgba(245,166,35,.22);color:#f7d9a6}
-.st-video--gerando b{color:#ffce8a}
-.st-vid-sub{font-size:11.5px;color:#b79a72;margin-top:2px;font-weight:400}
-.st-vid-spinner{flex-shrink:0;width:20px;height:20px;border:2.5px solid rgba(245,166,35,.25);border-top-color:#f5a623;border-radius:50%;animation:st-spin .8s linear infinite}
-@keyframes st-spin{to{transform:rotate(360deg)}}
-.st-video--pronto{padding:0;background:#000;overflow:hidden;border:1px solid rgba(255,255,255,.1)}
-.st-vid-player{display:block;width:100%;max-height:560px;object-fit:contain;background:#000;border-radius:10px}
-.st-video--erro{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);color:#fca5a5}
-.st-vid-retry{background:#131416;border:1px solid rgba(255,255,255,.18);color:#f7f8f8;font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer;font-family:inherit;font-weight:600}
-.st-vid-retry:hover{background:#1a1b1e}
-.st-video--cfg{padding:12px 14px;background:rgba(255,255,255,.04);border:1px dashed rgba(255,255,255,.18);color:#9ca0a8}
-.st-video--novo{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 14px;background:rgba(245,166,35,.06);border:1px solid rgba(245,166,35,.2);color:#cdd0d6}
-.st-video--novo b{color:#f7f8f8}
-.st-vid-gerar{flex-shrink:0;background:#f5a623;color:#1a1206;border:none;font-size:13px;font-weight:700;padding:8px 16px;border-radius:7px;cursor:pointer;font-family:inherit}
-.st-vid-gerar:hover{background:#ffb13d}
-.st-vid-gerar:disabled{opacity:.6;cursor:default}
-/* gerar manual (fallback, recolhível) — produto agora é automático */
-.st-manual{font-size:12px}
-.st-manual summary{cursor:pointer;color:#7e8794;font-size:11.5px;padding:4px 0;list-style:none}
-.st-manual summary:hover{color:#9ca0a8}
-.st-manual-box{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
 /* b-roll sugerido (Higgsfield) */
 .st-broll{margin:8px 0;font-size:12px}
 .st-broll summary{cursor:pointer;color:#9ca0a8;font-weight:600;padding:6px 0;display:flex;align-items:center;gap:8px}
@@ -5455,8 +5424,6 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <!-- sub-abas: Criação (estúdio) | Destaques (analytics) | Analytics (externo) -->
     <div class="redes-subnav">
       <button type="button" class="redes-subtab ativo" id="subtab-criacao" onclick="redesSubaba('criacao')">🎬 Criação</button>
-      <!-- Produtos arquivado (oculto): manter pra reativar quando quiser -->
-      <button type="button" class="redes-subtab" id="subtab-produtos" onclick="redesSubaba('produtos')" style="display:none;">🛒 Produtos</button>
       <button type="button" class="redes-subtab" id="subtab-destaques" onclick="redesSubaba('destaques')">📊 Destaques</button>
     </div>
 
@@ -5474,30 +5441,6 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
       <div id="redes-conteudo">
         <div class="historico-vazio" style="padding:40px">Carregando...</div>
-      </div>
-    </div>
-
-    <!-- ===== SUB-ABA PRODUTOS (afiliados — TikTok Shop) ===== -->
-    <div id="redes-pane-produtos" style="display:none;">
-      <div class="card redes-studio-card lnr">
-        <div class="redes-ia-head">
-          <h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="vertical-align:-2px;margin-right:6px;opacity:.85"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 0 1-8 0"/></svg>Produtos virais (afiliados)</h3>
-          <span class="redes-st-badge" id="redes-st-status">Beta</span>
-        </div>
-        <p class="redes-ia-sub">Produtos mais vendidos do TikTok Shop viram roteiro AIDA pra sua conta de afiliados — gancho + prova social + CTA forte. Posta em conta separada (não-solar) e ganha comissão.</p>
-        <div class="st-trilho">
-          <span class="st-tr-step"><i>1</i>Busca top do dia</span><span class="st-tr-sep"></span>
-          <span class="st-tr-step"><i>2</i>IA roteiriza (AIDA)</span><span class="st-tr-sep"></span>
-          <span class="st-tr-step"><i>3</i>Você aprova</span><span class="st-tr-sep"></span>
-          <span class="st-tr-step"><i>4</i>Gera no HeyGen</span><span class="st-tr-sep"></span>
-          <span class="st-tr-step"><i>5</i>Publica + link afiliado</span>
-        </div>
-        <div class="redes-st-fontes">
-          <button type="button" class="btn-redes-ia" id="btn-produtos-buscar" onclick="buscarProdutosVirais()">🛒 Buscar produtos do dia</button>
-        </div>
-        <p class="redes-ia-sub" id="redes-produtos-msg" style="margin-top:8px;display:none"></p>
-        <p class="redes-ia-sub" style="margin-top:10px;font-size:11px">⚙️ Automático: todo dia às 8h30 a plataforma já busca e roteiriza 3 produtos novos. Aqui você revisa e posta.</p>
-        <div id="redes-produtos-fila" class="redes-studio-fila"></div>
       </div>
     </div>
 
@@ -20035,9 +19978,9 @@ function redesTrocaRede(rede) {
   renderRede(rede);
 }
 
-// alterna entre sub-abas: criacao (estúdio solar) | produtos (afiliados) | destaques (analytics)
+// alterna entre sub-abas: criacao (estúdio solar) | destaques (analytics)
 function redesSubaba(qual) {
-  const panes = { criacao: 'redes-pane-criacao', produtos: 'redes-pane-produtos', destaques: 'redes-pane-destaques' };
+  const panes = { criacao: 'redes-pane-criacao', destaques: 'redes-pane-destaques' };
   Object.entries(panes).forEach(([k, id]) => {
     const el = document.getElementById(id);
     if (el) el.style.display = (k === qual) ? (k === 'criacao' ? 'flex' : '') : 'none';
@@ -20045,7 +19988,6 @@ function redesSubaba(qual) {
     if (tab) tab.classList.toggle('ativo', k === qual);
   });
   if (qual === 'criacao') carregarStudioFila('solar', 'redes-studio-fila');
-  if (qual === 'produtos') carregarStudioFila('produtos', 'redes-produtos-fila');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -20307,7 +20249,7 @@ async function gerarIdeiasRedes() {
 }
 
 // ===== ESTÚDIO DE VIRAIS (fila de produção) =====
-const ARQ_LABEL = { fernando: 'História + tensão', larcabral: 'Listicle obra', lucas: 'Descoberta + CTA', aida: 'AIDA · produto' };
+const ARQ_LABEL = { fernando: 'História + tensão', larcabral: 'Listicle obra', lucas: 'Descoberta + CTA' };
 
 async function carregarStudioFila(canal, boxId) {
   canal = canal || 'solar';
@@ -20317,16 +20259,6 @@ async function carregarStudioFila(canal, boxId) {
   try {
     rows = await supaGet(`social_studio?select=*&canal=eq.${canal}&status=neq.descartado&order=criado_em.desc&limit=50`);
   } catch (e) { box.innerHTML = ''; return; }
-  // PRODUTOS (afiliados): a aba mostra só 2 cards — o produto do dia (mais recente)
-  // + o último vídeo pronto. Os demais continuam no banco mas não poluem a tela.
-  // (decisão Thiago: aba = produto do dia + vídeo criado)
-  if (canal === 'produtos' && rows && rows.length) {
-    const doDia = rows[0];                                              // mais recente = produto do dia
-    const ultimoPronto = rows.find(r => r.video_status === 'pronto');  // último vídeo gerado
-    const sel = [doDia];
-    if (ultimoPronto && ultimoPronto.id !== doDia.id) sel.push(ultimoPronto);
-    rows = sel;
-  }
   if (!rows || !rows.length) {
     box.innerHTML = '<div class="redes-st-vazio"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" style="opacity:.5;margin-bottom:8px"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M3 7l3.5-3 3 3M9.5 7l3.5-3 3 3M16 7l3.5-3"/></svg><div class="st-vazio-tit">Nenhum roteiro ainda</div><div class="st-vazio-sub">Cole um link viral acima — a IA cria o roteiro com a ponte pro solar.</div></div>';
     return;
@@ -20334,12 +20266,6 @@ async function carregarStudioFila(canal, boxId) {
   box.innerHTML = rows.map(r => {
     const arq = ARQ_LABEL[r.arquetipo] || r.arquetipo || 'Roteiro';
     const aprovado = r.status === 'aprovado' || r.status === 'postado';
-    // produtos = afiliados, vídeo modelado no Higgsfield (recria o anúncio, sem avatar/clone).
-    // solar = UGC com o avatar/clone no HeyGen. O render é compartilhado, ramifica por canal.
-    const ehProduto = r.canal === 'produtos';
-    // produtos: vídeo é gerado AUTOMÁTICO no Higgsfield (sem aprovação). video_status:
-    // null (texto, aguardando) / aguardando_config (sem HF_KEY) / gerando / pronto / erro
-    const vs = ehProduto ? (r.video_status || null) : null;
     // texto completo do roteiro pra copiar (vai pro avatar no HeyGen)
     const roteiroFull = [
       r.gancho ? `GANCHO: ${r.gancho}` : '',
@@ -20355,106 +20281,23 @@ async function carregarStudioFila(canal, boxId) {
         ${r.fonte_url ? `<a href="${r.fonte_url}" target="_blank" rel="noopener" class="st-fonte-link">fonte ↗</a>` : ''}
         <span class="st-status">${escapeHtml(r.status)}</span>
       </div>
-      ${r.canal === 'produtos' && r.produto_meta ? `<div class="st-produto">
-        ${r.produto_meta.imagem ? `<img src="${r.produto_meta.imagem}" class="st-prod-img" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : ''}
-        <div class="st-prod-info">
-          <div class="st-prod-nome">${escapeHtml(r.tema || '')}</div>
-          <div class="st-prod-mets"><span>🔥 ${Number(r.produto_meta.vendas||0).toLocaleString('pt-BR')} vendas</span><span>${escapeHtml(r.produto_meta.preco||'')}</span>${r.produto_meta.desconto?`<span class="st-prod-desc">${escapeHtml(r.produto_meta.desconto)} OFF</span>`:''}${r.produto_meta.nota?`<span>⭐ ${r.produto_meta.nota}</span>`:''}</div>
-          ${r.fonte_url ? `<a href="${r.fonte_url}" target="_blank" rel="noopener" class="st-prod-link">ver produto no TikTok Shop ↗</a>` : ''}
-        </div>
-      </div>` : ''}
       ${r.precisa_revisao_humana ? `<div class="st-revisao">⚠️ Revise antes de usar — a IA não fechou 100% das regras automáticas. Confira minutagem e falas.</div>` : ''}
       ${r.transcricao ? `<details class="st-transc"><summary>📄 Transcrição do vídeo (o que a IA entendeu)</summary><div class="st-transc-txt">${escapeHtml(r.transcricao)}</div></details>` : ''}
       ${r.gancho ? `<div class="st-gancho">${escapeHtml(r.gancho)}</div>` : ''}
-      ${r.roteiro ? `<div class="st-bloco"><span class="st-rotulo">${ehProduto ? 'Prompt Higgsfield (recria o anúncio)' : 'Roteiro (falas)'}</span><div class="st-falas">${escapeHtml(r.roteiro)}</div></div>` : ''}
+      ${r.roteiro ? `<div class="st-bloco"><span class="st-rotulo">Roteiro (falas)</span><div class="st-falas">${escapeHtml(r.roteiro)}</div></div>` : ''}
       ${r.legenda ? `<div class="st-corpo st-sec"><span class="st-rotulo">Legenda</span> ${escapeHtml(r.legenda)}</div>` : ''}
       ${r.cta ? `<div class="st-corpo st-sec"><span class="st-rotulo">CTA</span> ${escapeHtml(r.cta)}</div>` : ''}
       ${Array.isArray(r.broll) && r.broll.length ? `<details class="st-broll"><summary>🎞️ B-roll sugerido (cole no Higgsfield) <a href="https://higgsfield.ai/" target="_blank" rel="noopener" class="st-broll-link" onclick="event.stopPropagation()">abrir ↗</a></summary>${r.broll.map(p => `<div class="st-broll-item"><code>${escapeHtml(p)}</code><button class="st-broll-cp" data-copy="${encodeURIComponent(p)}" onclick="studioCopiar(this,'broll')">copiar</button></div>`).join('')}</details>` : ''}
-      ${!ehProduto && aprovado ? `<div class="st-heygen-nota">🟢 No HeyGen gere o avatar com <b>fundo verde/transparente</b> — depois ponha num canto sobre o viral no CapCut.</div>` : ''}
-      ${ehProduto && vs === 'gerando' ? `<div class="st-video st-video--gerando"><span class="st-vid-spinner"></span><div><b>🎨 Modelando o criativo…</b><div class="st-vid-sub">a IA recria a cena do produto — o criativo aparece aqui sozinho em ~1 min.</div></div></div>` : ''}
-      ${ehProduto && vs === 'compondo' ? `<div class="st-video st-video--gerando"><span class="st-vid-spinner"></span><div><b>✍️ Aplicando os textos…</b><div class="st-vid-sub">gancho, preço e CTA por cima da imagem. Quase lá.</div></div></div>` : ''}
-      ${ehProduto && vs === 'animando' ? `<div class="st-video st-video--gerando"><span class="st-vid-spinner"></span><div><b>🎬 Animando o criativo…</b><div class="st-vid-sub">virando vídeo no Higgsfield (~1 min). Mudo — você põe música/voz no app.</div></div></div>` : ''}
-      ${ehProduto && vs === 'pronto' && r.video_url ? (ehVideoUrl(r.video_url)
-          ? `<div class="st-video st-video--pronto"><video class="st-vid-player" src="${r.video_url}" controls muted loop playsinline preload="metadata"></video></div>`
-          : `<div class="st-video st-video--pronto"><img class="st-vid-player" src="${r.video_url}" alt="criativo do produto" loading="lazy"></div>`) : ''}
-      ${ehProduto && vs === 'erro' ? `<div class="st-video st-video--erro">⚠️ Não consegui modelar o criativo agora. <button class="st-vid-retry" onclick="produtoRegerar(${r.id},this)">Tentar de novo</button></div>` : ''}
-      ${ehProduto && vs === 'aguardando_config' ? `<div class="st-video st-video--cfg">🔌 Criativo automático aguardando a chave do Higgsfield (HF_KEY). O roteiro/copy já está pronto — assim que a chave for configurada, passa a modelar sozinho.</div>` : ''}
-      ${ehProduto && (vs === 'pendente' || vs === null || vs === undefined) ? `<div class="st-video st-video--novo"><div>🎨 <b>Copy pronta.</b> Modela o criativo do anúncio (a IA recria a cena do produto + aplica os textos).</div><button class="st-vid-gerar" onclick="produtoRegerar(${r.id},this)">Modelar criativo</button></div>` : ''}
+      ${aprovado ? `<div class="st-heygen-nota">🟢 No HeyGen gere o avatar com <b>fundo verde/transparente</b> — depois ponha num canto sobre o viral no CapCut.</div>` : ''}
       <div class="redes-st-acoes">
-        ${ehProduto ? '' : (!aprovado ? `<button class="st-aprovar" onclick="studioAcao(${r.id},'aprovado')">Aprovar</button>` : '<span class="st-aprovado-selo">✓ aprovado</span>')}
-        ${ehProduto && vs === 'pronto' && r.video_url ? `<a class="st-aprovar" href="${r.video_url}" download="criativo-${r.id}.${ehVideoUrl(r.video_url) ? 'mp4' : 'png'}" target="_blank" rel="noopener">⬇ Baixar ${ehVideoUrl(r.video_url) ? 'vídeo' : 'imagem'}</a>` : ''}
-        ${ehProduto && vs === 'pronto' && r.video_url && !ehVideoUrl(r.video_url) ? `<button class="st-vid-gerar" onclick="produtoAnimar(${r.id},this)">🎬 Animar (vira vídeo)</button>` : ''}
+        ${!aprovado ? `<button class="st-aprovar" onclick="studioAcao(${r.id},'aprovado')">Aprovar</button>` : '<span class="st-aprovado-selo">✓ aprovado</span>'}
         <button class="st-copiar" data-copy="${encodeURIComponent(legendaFull)}" onclick="studioCopiar(this,'legenda')"><span>Copiar legenda</span><span class="st-hint">cole no post</span></button>
-        ${ehProduto
-          ? `<details class="st-manual"><summary>gerar manual</summary><div class="st-manual-box"><button class="st-copiar" data-copy="${encodeURIComponent(r.roteiro || '')}" onclick="studioCopiar(this,'prompt')"><span>Copiar prompt</span><span class="st-hint">cole no Higgsfield</span></button><a class="st-heygen" href="https://higgsfield.ai/" target="_blank" rel="noopener">Abrir Higgsfield ↗</a></div></details>`
-          : `<button class="st-copiar" data-copy="${encodeURIComponent(roteiroFull)}" onclick="studioCopiar(this,'roteiro')"><span>Copiar roteiro</span><span class="st-hint">cole no HeyGen</span></button>
-             <a class="st-heygen${aprovado ? ' st-heygen--primaria' : ''}" href="https://app.heygen.com/" target="_blank" rel="noopener">Gerar no HeyGen <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:4px"><path d="M7 17L17 7M9 7h8v8"/></svg></a>`}
+        <button class="st-copiar" data-copy="${encodeURIComponent(roteiroFull)}" onclick="studioCopiar(this,'roteiro')"><span>Copiar roteiro</span><span class="st-hint">cole no HeyGen</span></button>
+        <a class="st-heygen${aprovado ? ' st-heygen--primaria' : ''}" href="https://app.heygen.com/" target="_blank" rel="noopener">Gerar no HeyGen <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:4px"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
         <button class="st-descartar" title="Descartar" onclick="studioAcao(${r.id},'descartado')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
       </div>
     </div>`;
   }).join('');
-  // auto-refresh: se algum produto está 'gerando', re-busca a fila pra o player
-  // aparecer sozinho quando o webhook do Higgsfield chegar.
-  agendarRefreshProdutos(rows, canal, boxId);
-}
-
-// true se a url é um vídeo (mp4) — pra escolher <video> vs <img> no card.
-function ehVideoUrl(u) { return /\.mp4($|\?)/i.test(u || ''); }
-
-// botão "Animar": transforma o criativo (imagem) em vídeo no Higgsfield. Sob demanda.
-async function produtoAnimar(id, btn) {
-  if (btn) { btn.disabled = true; btn.textContent = '🎬 Animando…'; }
-  try {
-    const r = await fetch('/_api/gerador/social/produto-animar', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }),
-    });
-    const j = await r.json();
-    if (j.ok) { showToast && showToast('🎬 Animando o criativo — vídeo aparece aqui em ~1 min (mudo)'); recarregarFilas(); }
-    else {
-      const msg = j.motivo === 'sem_hf_key' ? 'Falta a chave do Higgsfield' : 'Não consegui animar agora';
-      showToast && showToast(msg);
-      if (btn) { btn.disabled = false; btn.textContent = '🎬 Animar (vira vídeo)'; }
-    }
-  } catch (e) { if (btn) { btn.disabled = false; btn.textContent = '🎬 Animar (vira vídeo)'; } }
-}
-
-// dispara (ou re-dispara) o vídeo de uma linha de produto no Higgsfield.
-async function produtoRegerar(id, btn) {
-  const textoOrig = btn ? btn.textContent : 'Modelar criativo';
-  if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
-  try {
-    const r = await fetch('/_api/gerador/social/produto-regerar', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }),
-    });
-    const j = await r.json();
-    if (j.ok) { showToast && showToast('🎨 Modelando o criativo — aparece aqui em ~1 min'); recarregarFilas(); }
-    else {
-      const msg = j.motivo === 'sem_hf_key' ? 'Falta configurar a chave do Higgsfield' : 'Não consegui enviar agora';
-      showToast && showToast(msg);
-      if (btn) { btn.disabled = false; btn.textContent = textoOrig; }
-    }
-  } catch (e) { if (btn) { btn.disabled = false; btn.textContent = textoOrig; } }
-}
-
-// polling leve: enquanto houver produto 'gerando', a cada 20s pergunta ao Higgsfield
-// o status de cada um (GET grátis, via backend) e recarrega a fila. O webhook do
-// Higgsfield não dispara sozinho, então o reconcile é o caminho que faz o vídeo
-// aparecer. GET status não gasta crédito (só a geração gasta).
-let _refreshProdutosTimer = null;
-function agendarRefreshProdutos(rows, canal, boxId) {
-  if (canal !== 'produtos') return;
-  const gerando = (rows || []).filter(r => r.video_status === 'gerando' || r.video_status === 'compondo' || r.video_status === 'animando');
-  if (_refreshProdutosTimer) { clearTimeout(_refreshProdutosTimer); _refreshProdutosTimer = null; }
-  if (!gerando.length) return;
-  _refreshProdutosTimer = setTimeout(async () => {
-    // reconcilia cada um (best-effort) e então recarrega a fila pra refletir
-    await Promise.all(gerando.map(r =>
-      fetch('/_api/gerador/social/produto-status', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: r.id }),
-      }).catch(() => {})
-    ));
-    carregarStudioFila(canal, boxId);
-  }, 20000);
 }
 
 async function roteirizarTemaEstudio() {
@@ -20578,10 +20421,9 @@ async function enviarVideoEstudio(inputEl) {
   }
 }
 
-// recarrega as filas que existem na tela (solar e/ou produtos)
+// recarrega a fila do estúdio solar
 async function recarregarFilas() {
   await carregarStudioFila('solar', 'redes-studio-fila');
-  if (document.getElementById('redes-produtos-fila')) await carregarStudioFila('produtos', 'redes-produtos-fila');
 }
 
 async function studioAcao(id, status) {
@@ -20616,24 +20458,6 @@ async function varrerAdLibraryEstudio() {
     if (j.ok === false) { showToast && showToast(j.motivo || 'Varredura ainda não disponível'); return; }
     await carregarStudioFila('solar', 'redes-studio-fila');
   } catch (e) { showToast && showToast('Erro na varredura'); }
-}
-
-// Máquina 2: busca os produtos virais do dia e roteiriza (AIDA) sob demanda
-async function buscarProdutosVirais() {
-  const btn = document.getElementById('btn-produtos-buscar');
-  const msg = document.getElementById('redes-produtos-msg');
-  const show = (t) => { if (msg) { msg.style.display = ''; msg.textContent = t; } };
-  btn.disabled = true; btn.textContent = 'Buscando...';
-  show('🛒 Buscando os produtos mais vendidos do TikTok Shop e criando os roteiros... (até 1 min)');
-  try {
-    const r = await fetch('/_api/gerador/social/produtos-virais', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-    const j = await r.json();
-    if (!j.ok) { show('❌ Não consegui buscar agora. Tente de novo.'); return; }
-    await carregarStudioFila('produtos', 'redes-produtos-fila');
-    show(j.roteiros_criados ? `✅ ${j.roteiros_criados} produto(s) novo(s) na fila!` : 'Nenhum produto novo agora (todos já foram processados). Tente mais tarde.');
-    setTimeout(() => { if (msg) msg.style.display = 'none'; }, 5000);
-  } catch (e) { show('❌ Erro ao buscar produtos.'); }
-  finally { btn.disabled = false; btn.textContent = '🛒 Buscar produtos do dia'; }
 }
 
 // ============= TELA LEADS (Instagram/Meta) =============
