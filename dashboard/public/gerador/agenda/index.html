@@ -1960,7 +1960,7 @@ function pillCaminhoQuiz(ag, curto) {
   if (!ag || ag.created_by !== 'lp_solar') return '';
   const linha = String(ag.observacao || '').split('\n')[0].toUpperCase();
   if (!linha.startsWith('LP SOLAR QUIZ')) return '';
-  const r = linha.includes('VISTORIA') ? ['VISITA', 'VISITA'] : linha.includes('VIDEO') ? ['VIDEOCHAMADA', 'VÍDEO'] : ['LIGAÇÃO', 'LIG'];
+  const r = linha.includes('VISTORIA') ? ['VISITA', 'VISITA'] : (linha.includes('ATENDIMENTO') || linha.includes('VIDEO')) ? ['ATENDIMENTO', 'ATEND'] : ['LIGAÇÃO', 'LIG'];
   return `<span class="tag-modelo">${curto ? r[1] : r[0]}</span>`;
 }
 

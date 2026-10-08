@@ -150,6 +150,7 @@ describe('ocupação de ficha que já existe', () => {
   it('ficha do quiz lê o caminho da primeira linha', () => {
     expect(caminhoDaFicha(`${MARCA_QUIZ} · Casa · VISTORIA PRESENCIAL\nConta`)).toBe('vistoria');
     expect(caminhoDaFicha(`${MARCA_QUIZ} · Empresa · VIDEOCHAMADA`)).toBe('video');
+    expect(caminhoDaFicha(`${MARCA_QUIZ} · Empresa · ATENDIMENTO ONLINE`)).toBe('video');
     expect(caminhoDaFicha(`${MARCA_QUIZ} · Casa · LIGAÇÃO`)).toBe('ligacao');
     expect(caminhoDaFicha('LP SOLAR — Residência')).toBeNull();
   });

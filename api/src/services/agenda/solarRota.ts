@@ -416,7 +416,8 @@ export function caminhoDaFicha(observacao: unknown): Caminho | null {
   const linha = String(observacao ?? '').split('\n')[0].toUpperCase();
   if (!linha.startsWith(MARCA_QUIZ)) return null;
   if (linha.includes('VISTORIA')) return 'vistoria';
-  if (linha.includes('VIDEO')) return 'video';
+  // "ATENDIMENTO ONLINE" desde 08/10 (o do Thiago); "VIDEOCHAMADA" nas fichas do dia 07.
+  if (linha.includes('ATENDIMENTO') || linha.includes('VIDEO')) return 'video';
   return 'ligacao';
 }
 
