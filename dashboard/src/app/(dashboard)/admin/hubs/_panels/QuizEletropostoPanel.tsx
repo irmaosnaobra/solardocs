@@ -40,10 +40,21 @@ const PERIODOS = [
   { k: 'hoje', label: 'Hoje' }, { k: 'ontem', label: 'Ontem' }, { k: '7dias', label: '7 dias' },
   { k: '30dias', label: '30 dias' }, { k: 'maximo', label: 'Desde 21/07' },
 ];
-const DESTINOS: [string, string][] = [
-  ['reuniao', 'Reunião marcada'], ['arrendamento', 'Arrendamento'], ['investidor', 'Investidores'],
-  ['curioso', 'Curioso'], ['parceiro', 'Parceiros'], ['curso', 'Curso /ponto-certo'],
-];
+// O mesmo painel serve o quiz do eletroposto e o do solar (07/10/2026); muda o
+// endereço da leitura, os destinos e algumas palavras.
+type Produto = 'eletroposto' | 'solar';
+const DESTINOS_POR: Record<Produto, [string, string][]> = {
+  eletroposto: [
+    ['reuniao', 'Reunião marcada'], ['arrendamento', 'Arrendamento'], ['investidor', 'Investidores'],
+    ['curioso', 'Curioso'], ['parceiro', 'Parceiros'], ['curso', 'Curso /ponto-certo'],
+  ],
+  solar: [
+    ['vistoria', 'Visita marcada'], ['video', 'Videochamada marcada'], ['ligacao', 'Ligação marcada'],
+    ['nao_confirmou', 'Não confirmou presença'], ['ja_marcado', 'Já tinha horário'], ['sem_vitrine', 'Sem horário'],
+    ['parceiro', 'Integrador'],
+  ],
+};
+const DESTINOS: [string, string][] = [...DESTINOS_POR.eletroposto, ...DESTINOS_POR.solar.filter(([k]) => k !== 'parceiro')];
 // Duas séries, as duas primeiras da paleta de referência (validadas juntas:
 // CVD ΔE 24.7, contraste ≥ 3:1 no fundo claro). O texto nunca usa a cor da série.
 const COR_SEGUIU = '#2a78d6';
@@ -251,7 +262,9 @@ function useEstreito(): boolean {
 // resto (cadastros, o que a reunião virou, onde para no quiz) fica na tabela.
 // Reunião, cadastro e gasto valem para qualquer período (o utm_term é gravado
 // desde julho); "onde mais para" só existe a partir de 22/09.
-function ConjuntosCard({ f, conjunto, escolher }: { f: Funil; conjunto: string; escolher: (id: string) => void }) {
+function ConjuntosCard({ f, conjunto, escolher, produto = 'eletroposto' }: { f: Funil; conjunto: string; escolher: (id: string) => void; produto?: Produto }) {
+  const solar = produto === 'solar';
+  const um = solar ? 'horário marcado' : 'reunião', muitos = solar ? 'horários marcados' : 'reuniões';
   const linhas = f.por_conjunto;
   const estreito = useEstreito();
   // O nome inteiro fica na dica e na tabela; no eixo, o começo basta (os
@@ -267,8 +280,8 @@ function ConjuntosCard({ f, conjunto, escolher }: { f: Funil; conjunto: string; 
     <div className={styles.card} style={{ marginTop: 12 }}>
       <div style={{ fontWeight: 700, marginBottom: 4 }}>Por conjunto de anúncios</div>
       <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: '0 0 10px', maxWidth: 760 }}>
-        De onde veio cada pessoa: o conjunto sai do link do anúncio (utm_term) e vale para visita, reunião, ficha e cadastro.
-        {melhor && <> A reunião mais barata do período veio de <b style={{ color: 'var(--color-text)' }}>{melhor.nome}</b>, a {reais(melhor.custo_reuniao)} cada.</>}
+        De onde veio cada pessoa: o conjunto sai do link do anúncio (utm_term) e vale para visita, {um}{solar ? '' : ', ficha e cadastro'}.
+        {melhor && <> O {um} mais barato do período veio de <b style={{ color: 'var(--color-text)' }}>{melhor.nome}</b>, a {reais(melhor.custo_reuniao)} cada.</>}
       </p>
       {!f.meta_ok && (
         <p style={{ fontSize: 13, margin: '0 0 10px' }}>A Meta não respondeu agora{f.meta_motivo ? ` (${f.meta_motivo})` : ''}: nome e gasto ficaram de fora, o resto está certo.</p>
@@ -290,12 +303,12 @@ function ConjuntosCard({ f, conjunto, escolher }: { f: Funil; conjunto: string; 
               return (
                 <div style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '8px 10px', fontSize: 12 }}>
                   <div style={{ fontWeight: 700, marginBottom: 4 }}>{d.completo}</div>
-                  <div>Custo por reunião: <b>{reais(d.custo)}</b></div>
-                  <div>{reais(d.gasto)} gastos · {d.reunioes} {d.reunioes === 1 ? 'reunião' : 'reuniões'}</div>
+                  <div>Custo por {um}: <b>{reais(d.custo)}</b></div>
+                  <div>{reais(d.gasto)} gastos · {d.reunioes} {d.reunioes === 1 ? um : muitos}</div>
                 </div>
               );
             }} />
-            <Bar dataKey="custo" name="Custo por reunião" fill={COR_SEGUIU} radius={[0, 4, 4, 0]} isAnimationActive={false}>
+            <Bar dataKey="custo" name={`Custo por ${um}`} fill={COR_SEGUIU} radius={[0, 4, 4, 0]} isAnimationActive={false}>
               <LabelList dataKey="custo" position="right" style={{ fontSize: 11, fill: 'var(--color-text-muted)' }}
                 formatter={(v: unknown) => reais(Number(v))} />
             </Bar>
@@ -306,8 +319,8 @@ function ConjuntosCard({ f, conjunto, escolher }: { f: Funil; conjunto: string; 
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Conjunto</th><th>Gasto</th><th>Visitas</th><th>Reuniões</th><th>Custo por reunião</th>
-              <th>Investidores</th><th>Custo por resultado</th><th>Reuniões que já aconteceram</th><th>Onde mais para no quiz</th><th></th>
+              <th>Conjunto</th><th>Gasto</th><th>Visitas</th><th>{solar ? 'Horários marcados' : 'Reuniões'}</th><th>Custo por {um}</th>
+              {!solar && <><th>Investidores</th><th>Custo por resultado</th></>}<th>{solar ? 'O que já aconteceu' : 'Reuniões que já aconteceram'}</th><th>Onde mais para no quiz</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -321,11 +334,11 @@ function ConjuntosCard({ f, conjunto, escolher }: { f: Funil; conjunto: string; 
                 <td>{l.visitas}</td>
                 <td>{l.reunioes}</td>
                 <td style={melhor && melhor.id === l.id ? { fontWeight: 700 } : undefined}>{reais(l.custo_reuniao)}</td>
-                <td>{l.investidores}</td>
-                <td>{reais(l.custo_resultado)}</td>
+                {!solar && <><td>{l.investidores}</td>
+                <td>{reais(l.custo_resultado)}</td></>}
                 <td className={styles.mutedCell}>
                   {l.negocio + l.arrendamento + l.perdidas === 0 ? '—'
-                    : `${l.negocio} negócio · ${l.arrendamento} arrend. · ${l.perdidas} perdidas`}
+                    : solar ? `${l.negocio} orçamento · ${l.perdidas} perdidas` : `${l.negocio} negócio · ${l.arrendamento} arrend. · ${l.perdidas} perdidas`}
                 </td>
                 <td className={styles.mutedCell}>{l.pior ? `${l.pior.pergunta} (${l.pior.pararam})` : '—'}</td>
                 <td>
@@ -342,15 +355,17 @@ function ConjuntosCard({ f, conjunto, escolher }: { f: Funil; conjunto: string; 
       </div>
       <p style={{ fontSize: 12, color: 'var(--color-text-muted)', margin: '8px 0 0' }}>
         Gasto é o do período na Meta. O conjunto é o do primeiro clique da pessoa (a UTM da primeira visita).
-        Custo por resultado = gasto ÷ (reuniões + investidores + pontos); a mesma pessoa pode contar em mais de uma coluna.
+        {solar
+          ? <>Orçamento = fez orçamento ou proposta apresentada; perdida = sem interesse, não atendeu, cancelou ou fechou com outro. O quiz solar conta desde 08/10/2026.</>
+          : <>Custo por resultado = gasto ÷ (reuniões + investidores + pontos); a mesma pessoa pode contar em mais de uma coluna.
         Negócio = orçamento, proposta, chave na mão, meio a meio ou carregador; perdida = sem interesse, não atendeu, cancelou ou
-        fechou com outro. A coluna “onde mais para no quiz” só existe a partir de 22/09.
+        fechou com outro. A coluna “onde mais para no quiz” só existe a partir de 22/09.</>}
       </p>
     </div>
   );
 }
 
-export default function QuizEletropostoPanel() {
+export default function QuizEletropostoPanel({ produto = 'eletroposto' }: { produto?: Produto } = {}) {
   const [periodo, setPeriodo] = useState('7dias');
   const [f, setF] = useState<Funil | null>(null);
   const [erro, setErro] = useState('');
@@ -362,12 +377,12 @@ export default function QuizEletropostoPanel() {
   // CLICA que acende o "Atualizando…" (trocar/atualizar, logo abaixo).
   useEffect(() => {
     let vivo = true;
-    api.get(`/admin/eletroposto/quiz-funil?period=${periodo}${conjunto ? `&conjunto=${encodeURIComponent(conjunto)}` : ''}`)
+    api.get(`/admin/${produto}/quiz-funil?period=${periodo}${conjunto ? `&conjunto=${encodeURIComponent(conjunto)}` : ''}`)
       .then((r) => { if (vivo) { setF(r.data as Funil); setErro(''); } })
       .catch((e) => { if (vivo) { setF(null); setErro(String(e?.response?.data?.error || e?.message || e)); } })
       .finally(() => { if (vivo) setCarregando(false); });
     return () => { vivo = false; };
-  }, [periodo, versao, conjunto]);
+  }, [periodo, versao, conjunto, produto]);
   const trocar = (p: string) => { if (p === periodo) return; setCarregando(true); setPeriodo(p); };
   const atualizar = () => { setCarregando(true); setVersao((v) => v + 1); };
   const escolherConjunto = (id: string) => { setCarregando(true); setConjunto(id); };
@@ -388,7 +403,7 @@ export default function QuizEletropostoPanel() {
       </div>
 
       <p style={{ fontSize: 13, color: 'var(--color-text-muted)', margin: '10px 0 0', maxWidth: 760 }}>
-        Quem abre o link de /io/eletroposto vê só o quiz. Aqui aparece, pergunta por pergunta, quantos chegaram e quantos pararam ali.
+        Quem abre o link de /io/{produto} vê só o quiz. Aqui aparece, pergunta por pergunta, quantos chegaram e quantos pararam ali.
         {f && <> As perguntas são contadas desde {dataBR(f.medindo_desde)}: antes disso a página não contava.</>}
       </p>
 
@@ -404,7 +419,7 @@ export default function QuizEletropostoPanel() {
               <div className={styles.cardSub}>{pct(f.abriram, f.visitas)}% das visitas</div>
             </div>
             <div className={styles.card}>
-              <div className={styles.cardLabel}>Escolheram uma porta</div><div className={styles.cardValue}>{f.escolheram_porta}</div>
+              <div className={styles.cardLabel}>{produto === 'solar' ? 'Responderam a conta' : 'Escolheram uma porta'}</div><div className={styles.cardValue}>{f.escolheram_porta}</div>
               <div className={styles.cardSub}>{pct(f.escolheram_porta, f.abriram)}% de quem abriu</div>
             </div>
             <div className={styles.card}>
@@ -413,7 +428,7 @@ export default function QuizEletropostoPanel() {
             </div>
           </div>
 
-          <ConjuntosCard f={f} conjunto={conjunto} escolher={escolherConjunto} />
+          <ConjuntosCard f={f} conjunto={conjunto} escolher={escolherConjunto} produto={produto} />
 
           {conjunto && (
             <div className={styles.card} style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -431,13 +446,13 @@ export default function QuizEletropostoPanel() {
               <div className={styles.card} style={{ marginTop: 12 }}>
                 <div style={{ fontWeight: 700, marginBottom: 8 }}>Onde terminaram</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 18px', fontSize: 13 }}>
-                  {DESTINOS.map(([k, nome]) => (
+                  {DESTINOS_POR[produto].map(([k, nome]) => (
                     <span key={k}>{nome}: <b>{f.destinos[k] || 0}</b></span>
                   ))}
                 </div>
                 {inicio && inicio.sessoes > 0 && (
                   <p style={{ fontSize: 13, margin: '10px 0 0', color: 'var(--color-text)' }}>
-                    <b>{inicio.sessoes}</b> abriram e saíram sem escolher uma porta ({pct(inicio.sessoes, f.abriram)}% de quem abriu).
+                    <b>{inicio.sessoes}</b> abriram e saíram sem {produto === 'solar' ? 'responder a conta' : 'escolher uma porta'} ({pct(inicio.sessoes, f.abriram)}% de quem abriu).
                   </p>
                 )}
               </div>
@@ -451,7 +466,7 @@ export default function QuizEletropostoPanel() {
                   <div style={{ fontWeight: 700, marginBottom: 8 }}>Por campanha</div>
                   <div className={styles.tableWrap}>
                     <table className={styles.table}>
-                      <thead><tr><th>Campanha</th><th>Visitas</th><th>Abriram</th><th>Terminaram</th><th>Reuniões</th></tr></thead>
+                      <thead><tr><th>Campanha</th><th>Visitas</th><th>Abriram</th><th>Terminaram</th><th>{produto === 'solar' ? 'Horários marcados' : 'Reuniões'}</th></tr></thead>
                       <tbody>
                         {f.campanhas.map((c) => (
                           <tr key={c.campanha}>

@@ -946,6 +946,56 @@ router.get('/eletroposto/quiz-funil', async (req: Request, res: Response): Promi
   }
 });
 
+// O QUIZ DA /io/solar (07/10/2026). A mesma conta do eletroposto com a
+// configuração do solar (qf.CONFIG_SOLAR). Horário marcado é a ficha com a
+// marca "LP SOLAR QUIZ" na primeira linha, e o utm_term dela é o conjunto, então
+// o custo por horário marcado de cada conjunto sai igual ao de lá.
+router.get('/solar/quiz-funil', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const periodo = String(req.query.period || '7dias');
+    const conjunto = String(req.query.conjunto || '').trim() || null;
+    const desde = qf.inicioDoPeriodo(periodo);
+    const ate = qf.fimDoPeriodo(periodo);
+    const [eventos, visitas, marcados] = await Promise.all([
+      lerTudo<qf.EventoQuiz>((de, fim) => {
+        let q = supabase.from('lp_events')
+          .select('session_id, event_type, event_data, created_at')
+          .in('event_type', ['quiz_passo', 'quiz_erro', 'quiz_fim'])
+          .gte('created_at', desde);
+        if (ate) q = q.lt('created_at', ate);
+        return q.order('created_at', { ascending: true }).range(de, fim);
+      }),
+      lerTudo<qf.VisitaQuiz>((de, fim) => {
+        let q = supabase.from('page_visits')
+          .select('session_id, landing_url, utm_campaign, utm_term')
+          .ilike('landing_url', '%/io/solar%')
+          .gte('created_at', desde);
+        if (ate) q = q.lt('created_at', ate);
+        return q.order('created_at', { ascending: true }).range(de, fim);
+      }),
+      lerTudo<{ utm_term: string | null; status: string | null }>((de, fim) => {
+        let q = supabaseGerador.from('agendamentos').select('utm_term, status')
+          .eq('created_by', 'lp_solar').like('observacao', 'LP SOLAR QUIZ%')
+          .gte('created_at', desde);
+        if (ate) q = q.lt('created_at', ate);
+        return q.order('created_at', { ascending: true }).range(de, fim);
+      }),
+    ]);
+    const funil = qf.montarFunil(eventos, visitas, { conjunto, config: qf.CONFIG_SOLAR });
+    const resultados: qf.ResultadoLead[] = marcados.map((r) => ({ conjunto: r.utm_term, tipo: 'reuniao' as const, status: r.status }));
+    const diaSP = (ms: number) => new Date(ms - 3 * 3600_000).toISOString().slice(0, 10);
+    const ids = [...new Set([...funil.conjuntos.map((c) => c.id), ...resultados.map((r) => String(r.conjunto || ''))])];
+    const meta = await buscarConjuntosMeta(ids, diaSP(Date.parse(desde)), diaSP(ate ? Date.parse(ate) - 1 : Date.now()));
+    res.json({
+      periodo, desde, ate, ...funil,
+      por_conjunto: qf.montarConjuntos(funil.conjuntos, resultados, meta.conjuntos),
+      meta_ok: meta.ok, meta_motivo: meta.motivo || null,
+    });
+  } catch (err) {
+    res.status(500).json({ error: String((err as Error)?.message || err) });
+  }
+});
+
 // A CONTA em si mora em services/io/nota1Funil.ts, com teste — aqui só se lê
 // banco e se devolve JSON.
 router.get('/nota1-funil', async (req: Request, res: Response): Promise<void> => {

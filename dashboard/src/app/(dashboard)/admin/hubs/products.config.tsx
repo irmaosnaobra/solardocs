@@ -99,6 +99,8 @@ export const PRODUCTS: Product[] = [
       { key: 'funil',     label: 'Funil',            status: 'pronto',    Comp: () => <GeradorFunilPanel produto="solar" /> },
       { key: 'membros',   label: 'Leads',            status: 'pronto',    Comp: () => <GeradorLeadsPanel produto="solar" /> },
       { key: 'lp',        label: 'Página de Venda',   status: 'pronto',   Comp: () => <IoLpPanel match="/io/solar" /> },
+      // Quiz solar (07/10/2026): o mesmo painel do quiz do eletroposto, lendo /admin/solar/quiz-funil.
+      { key: 'quiz',      label: 'Quiz',              status: 'pronto',   Comp: () => <QuizEletropostoPanel produto="solar" /> },
       { key: 'followup',  label: 'Followup',         status: 'pronto',    Comp: () => <FollowupPanel produto="solar" /> },
       { key: 'agente',    label: 'Agente',           status: 'pronto',    Comp: () => <AgentePanel agent="luma" /> },
       { key: 'config',    label: 'Config & Alertas', status: 'pronto',    Comp: () => <ConfigAlertasPanel produto="solar" /> },

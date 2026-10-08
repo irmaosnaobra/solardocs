@@ -164,11 +164,80 @@ export interface QuizDoConjunto {
 /** Visita sem utm_term: orgânico, link direto ou anúncio sem o parâmetro. */
 export const SEM_CONJUNTO = '(sem)';
 
+// ── QUAL QUIZ (07/10/2026) ───────────────────────────────────────────────────
+// A conta é a mesma para o quiz do eletroposto e o do solar; muda o que é de
+// cada página: o `lp` dos eventos, as perguntas, os caminhos, os destinos e qual
+// URL é visita da LP. O padrão continua sendo o eletroposto, que já existia.
+export interface ConfigFunil {
+  lp: string;
+  /** Evento sem `lp` conta? (o eletroposto gravou sem `lp` nos primeiros dias) */
+  aceitaSemLp: boolean;
+  medindoDesde: string;
+  perguntas: Record<string, string>;
+  curtas: Record<string, string>;
+  caminhos: Caminho[];
+  /** Destinos que são horário marcado (a coluna "reuniões" das campanhas). */
+  marcaram: string[];
+  ehVisita: (url: string | null) => boolean;
+}
+
+/** O quiz da /io/solar. Os ids são os do array PASSOS da página. */
+export const MEDINDO_DESDE_SOLAR = '2026-10-08';
+export const PERGUNTAS_SOLAR: Record<string, string> = {
+  conta: 'Quanto vem a sua conta de luz por mês?',
+  tipo: 'Onde vai ficar a energia solar?',
+  cidade: 'Em qual cidade fica o imóvel?',
+  imovel: 'O imóvel é seu?',
+  urgencia: 'Quando você quer o sistema funcionando?',
+  concorrente: 'Já fez orçamento com outra empresa?',
+  pagamento: 'Como pretende pagar?',
+  decisor: 'Quem decide a compra?',
+  grupoa: 'A conta tem "Demanda contratada"?',
+  nome: 'Como podemos te chamar?',
+  whatsapp: 'Qual é o seu WhatsApp?',
+  endereco: 'Onde fica o imóvel? (só visita)',
+  horario: 'Escolha o horário',
+};
+export const CURTAS_SOLAR: Record<string, string> = {
+  conta: 'Conta de luz', tipo: 'Onde', cidade: 'Cidade', imovel: 'Imóvel é seu?', urgencia: 'Quando quer',
+  concorrente: 'Já tem orçamento', pagamento: 'Pagamento', decisor: 'Quem decide', grupoa: 'Alta tensão',
+  nome: 'Nome', whatsapp: 'WhatsApp', endereco: 'Endereço', horario: 'Horário',
+};
+const BASE_SOLAR = ['conta', 'tipo', 'cidade', 'imovel', 'urgencia', 'concorrente', 'pagamento', 'decisor', 'grupoa', 'nome', 'whatsapp'];
+/** O caminho da página é 'inicio' antes da conta, 'respondendo' até o servidor
+ *  decidir no passo do WhatsApp, e o caminho decidido depois. */
+export const CAMINHOS_SOLAR: Caminho[] = [
+  { id: 'inicio', nome: 'Não respondeu a conta', passos: ['conta'] },
+  { id: 'respondendo', nome: 'Parou antes do WhatsApp', passos: BASE_SOLAR },
+  { id: 'vistoria', nome: 'Visita (acima de 1.000 kWh, até 150 km)', passos: [...BASE_SOLAR, 'endereco', 'horario'] },
+  { id: 'video', nome: 'Videochamada (grande e longe)', passos: [...BASE_SOLAR, 'horario'] },
+  { id: 'ligacao', nome: 'Ligação', passos: [...BASE_SOLAR, 'horario'] },
+];
+export const DESTINOS_SOLAR: Record<string, string> = {
+  vistoria: 'Visita marcada', video: 'Videochamada marcada', ligacao: 'Ligação marcada',
+  nao_confirmou: 'Não confirmou presença', ja_marcado: 'Já tinha horário', sem_vitrine: 'Sem horário, a equipe chama',
+  parceiro: 'Integrador (SolarDoc)',
+};
+export function ehVisitaDaLpSolar(url: string | null): boolean {
+  const u = String(url || '');
+  return /\/io\/solar(?:[/?#]|$)/.test(u) && !/\/io\/solar\/simulador/.test(u);
+}
+
 /** A visita é da LP (quiz ou página inteira), não das páginas-filhas. */
 export function ehVisitaDaLp(url: string | null): boolean {
   const u = String(url || '');
   return /\/io\/eletroposto(?:[/?#]|$)/.test(u) && !/\/io\/eletroposto\/(parceria|material)/.test(u);
 }
+
+export const CONFIG_ELETROPOSTO: ConfigFunil = {
+  lp: 'eletroposto', aceitaSemLp: true, medindoDesde: MEDINDO_DESDE,
+  perguntas: PERGUNTAS, curtas: CURTAS, caminhos: CAMINHOS, marcaram: ['reuniao'], ehVisita: ehVisitaDaLp,
+};
+export const CONFIG_SOLAR: ConfigFunil = {
+  lp: 'solar', aceitaSemLp: false, medindoDesde: MEDINDO_DESDE_SOLAR,
+  perguntas: PERGUNTAS_SOLAR, curtas: CURTAS_SOLAR, caminhos: CAMINHOS_SOLAR,
+  marcaram: ['vistoria', 'video', 'ligacao'], ehVisita: ehVisitaDaLpSolar,
+};
 
 const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : Number(v) || 0);
 const txt = (v: unknown): string => (typeof v === 'string' ? v : '');
@@ -195,7 +264,8 @@ const depois = (a: number[], b: number[]) => a[0] > b[0] || (a[0] === b[0] && a[
  * Com `conjunto`, o funil de cima (ponta, caminhos, campanhas) fica só com as
  * sessões daquele conjunto; o resumo `conjuntos` continua com todos.
  */
-export function montarFunil(eventos: EventoQuiz[], visitas: VisitaQuiz[], opcoes: { conjunto?: string | null } = {}): FunilQuiz {
+export function montarFunil(eventos: EventoQuiz[], visitas: VisitaQuiz[], opcoes: { conjunto?: string | null; config?: ConfigFunil } = {}): FunilQuiz {
+  const cfg = opcoes.config || CONFIG_ELETROPOSTO;
   const sessoes = new Map<string, Sessao>();
   const pegar = (id: string): Sessao => {
     let s = sessoes.get(id);
@@ -210,7 +280,7 @@ export function montarFunil(eventos: EventoQuiz[], visitas: VisitaQuiz[], opcoes
   for (const e of eventos) {
     if (!e.session_id) continue;
     const d = e.event_data || {};
-    if (txt(d.lp) && txt(d.lp) !== 'eletroposto') continue;
+    if (txt(d.lp) ? txt(d.lp) !== cfg.lp : !cfg.aceitaSemLp) continue;
     const s = pegar(e.session_id);
     const ordem = ordemDe(e);
     const caminho = txt(d.caminho);
@@ -239,7 +309,7 @@ export function montarFunil(eventos: EventoQuiz[], visitas: VisitaQuiz[], opcoes
   const campanhaDa = new Map<string, string>();
   const conjuntoDa = new Map<string, string>();
   for (const v of visitas) {
-    if (!v.session_id || !ehVisitaDaLp(v.landing_url)) continue;
+    if (!v.session_id || !cfg.ehVisita(v.landing_url)) continue;
     const id = v.session_id;
     if (!campanhaDa.has(id) || (!campanhaDa.get(id) && v.utm_campaign)) campanhaDa.set(id, v.utm_campaign || '');
     const conj = txt(v.utm_term).trim();
@@ -255,7 +325,7 @@ export function montarFunil(eventos: EventoQuiz[], visitas: VisitaQuiz[], opcoes
   const destinos: Record<string, number> = {};
   for (const [, s] of noQuiz) if (s.fim) destinos[s.fim] = (destinos[s.fim] || 0) + 1;
 
-  const caminhos: CaminhoDoFunil[] = CAMINHOS.map((c) => {
+  const caminhos: CaminhoDoFunil[] = cfg.caminhos.map((c) => {
     const delas = noQuiz.filter(([, s]) => s.caminho === c.id).map(([, s]) => s);
     const dest: Record<string, number> = {};
     for (const s of delas) if (s.fim) dest[s.fim] = (dest[s.fim] || 0) + 1;
@@ -270,8 +340,8 @@ export function montarFunil(eventos: EventoQuiz[], visitas: VisitaQuiz[], opcoes
         for (const s of delas) for (const m of s.erros.get(p) || []) erros.set(m, (erros.get(m) || 0) + 1);
         return {
           id: p,
-          pergunta: PERGUNTAS[p] || p,
-          curta: CURTAS[p] || p,
+          pergunta: cfg.perguntas[p] || p,
+          curta: cfg.curtas[p] || p,
           chegaram: delas.filter((s) => s.passos.has(p)).length,
           pararam: delas.filter((s) => !s.fim && s.ultimoPasso === p).length,
           erros: [...erros.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([msg, n]) => ({ msg, sessoes: n })),
@@ -290,7 +360,7 @@ export function montarFunil(eventos: EventoQuiz[], visitas: VisitaQuiz[], opcoes
     if (s && s.passos.size > 0) {
       linha.abriram++;
       if (s.fim) linha.terminaram++;
-      if (s.fim === 'reuniao') linha.reunioes++;
+      if (cfg.marcaram.includes(s.fim)) linha.reunioes++;
     }
     porCampanha.set(k, linha);
   }
@@ -312,12 +382,12 @@ export function montarFunil(eventos: EventoQuiz[], visitas: VisitaQuiz[], opcoes
     const topo = [...l.parados.entries()].sort((a, b) => b[1] - a[1])[0];
     return {
       id, visitas: l.visitas, abriram: l.abriram, terminaram: l.terminaram,
-      pior: topo ? { passo: topo[0], pergunta: PERGUNTAS[topo[0]] || topo[0], pararam: topo[1] } : null,
+      pior: topo ? { passo: topo[0], pergunta: cfg.perguntas[topo[0]] || topo[0], pararam: topo[1] } : null,
     };
   }).sort((a, b) => b.visitas - a.visitas);
 
   return {
-    medindo_desde: MEDINDO_DESDE,
+    medindo_desde: cfg.medindoDesde,
     visitas: [...campanhaDa.keys()].filter(noRecorte).length,
     abriram: noQuiz.length,
     escolheram_porta: noQuiz.filter(([, s]) => s.caminho !== 'inicio').length,
