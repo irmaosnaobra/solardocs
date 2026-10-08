@@ -2100,6 +2100,16 @@ html[data-theme="dark"] #leadsSection .historico-vazio{color:#94A3B8}
 #leadsSection .leads-tabela tr.lead-fora td{background:rgba(239,68,68,.16)!important;color:#fecaca}
 #leadsSection .leads-tabela tr.lead-fora:hover td{background:rgba(239,68,68,.24)!important}
 .lead-fora-tag{display:inline-block;font-size:11px;font-weight:700;color:#fca5a5;background:rgba(239,68,68,.2);padding:2px 9px;border-radius:99px}
+/* Abas por caminho do quiz solar (07/10/2026), o mesmo jeito dos Cadastros do eletroposto */
+.leads-abas{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+.leads-aba{background:transparent;border:1px solid #334155;color:#CBD5E1;border-radius:999px;padding:7px 13px;font:600 13px inherit;font-family:inherit;cursor:pointer}
+.leads-aba .c{font-weight:500;color:#94A3B8;margin-left:6px}
+.leads-aba.on{background:#1E3A8A;border-color:#3B82F6;color:#fff}
+.leads-aba.on .c{color:#BFDBFE}
+.lead-caminho{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;white-space:nowrap;color:#E5E7EB}
+.lead-caminho i{width:9px;height:9px;border-radius:3px;display:inline-block}
+.lead-caminho.vistoria i{background:#1baf7a}.lead-caminho.video i{background:#3987e5}.lead-caminho.ligacao i{background:#eda100}.lead-caminho.form i{background:#64748B}
+.lead-caminho small{font-weight:600;color:#fbbf24}
 
 /* ===== Tela Tabelas ===== */
 .tbl-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px}
@@ -5545,14 +5555,15 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
   <div id="leadsSection" style="display:none;">
     <div class="header">
       <div class="header-titulo">
-        <h1>📱 Leads do Instagram</h1>
+        <h1>Leads Solar</h1>
       </div>
       <button class="btn-hist-voltar" onclick="voltarDosLeads()">← Voltar</button>
     </div>
 
     <div class="card">
-      <div class="leads-info">
-        Leads dos anúncios são agendados automaticamente pelo tamanho da conta: acima de <strong>700 kWh/mês</strong> alterna <strong>Thiago → Diego</strong>; abaixo disso (ou sem consumo informado) vai pra <strong>Nilce</strong>. Cliente que já tem consultor continua com ele. O card pode ser transferido a outro consultor na Agenda.
+      <div class="leads-abas" id="leads-abas" role="tablist"></div>
+      <div class="leads-info" id="leads-info">
+        Quiz da <strong>/io/solar</strong>: acima de <strong>1.000 kWh</strong> e até <strong>150 km</strong> de estrada é <strong>visita</strong> com o sócio mais perto; acima de 1.000 kWh e mais longe, <strong>videochamada</strong>; o resto, <strong>ligação</strong> da Nilce. Formulário do Meta: acima de 1.200 kWh entra no rodízio Nilce, Thiago e Diego; abaixo, Nilce. Cliente que já tem consultor continua com ele.
       </div>
       <div class="historico-tabela-wrap">
         <table class="historico-tabela leads-tabela">
@@ -5560,6 +5571,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             <tr>
               <th>Entrou</th>
               <th>Nome</th>
+              <th>Caminho</th>
               <th>WhatsApp</th>
               <th>Cidade</th>
               <th>Consultor</th>
@@ -5572,7 +5584,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
             </tr>
           </thead>
           <tbody id="leads-tbody">
-            <tr><td colspan="11" class="historico-vazio">Carregando...</td></tr>
+            <tr><td colspan="12" class="historico-vazio">Carregando...</td></tr>
           </tbody>
         </table>
       </div>
@@ -24143,19 +24155,63 @@ function leadCampo(fd, ...termos) {
   return '';
 }
 
+// ── LEADS SOLAR POR CAMINHO (07/10/2026) ───────────────────────────────────
+// O quiz da /io/solar grava em leads_meta com form_id 'quiz_solar' e o campo
+// "Caminho" (vistoria, video, ligacao). As abas separam os leads como os
+// Cadastros do eletroposto separam os do quiz de lá. "Projetos grandes" é o eixo
+// do tamanho (acima de 1.000 kWh, de qualquer porta), então uma pessoa pode estar
+// nela e em "Vistorias" ao mesmo tempo, como no Arrendamento.
+let leadsRowsCache = [], leadsQuandoMap = {}, leadsAba = 'todos';
+const LEADS_ABAS = [
+  ['todos', 'Todos'], ['vistoria', 'Vistorias'], ['grandes', 'Projetos grandes'],
+  ['ligacao', 'Ligações'], ['nao_marcou', 'Não marcaram'], ['formulario', 'Formulário e DM'],
+];
+const leadEhQuiz = r => r.form_id === 'quiz_solar' || String(r.lead_id || '').startsWith('quiz_');
+function leadCaminho(r) {
+  if (!leadEhQuiz(r)) return null;
+  const c = leadCampo(r.field_data || [], 'caminho');
+  return ['vistoria', 'video', 'ligacao'].includes(c) ? c : null;
+}
+// Projeto grande: no quiz, quem foi para visita ou videochamada ou qualifica para
+// elas; no formulário, a faixa de cima (a faixa "900 a 1200" é lida pelo meio, 1.050).
+function leadGrande(r) {
+  if (leadEhQuiz(r)) {
+    const c = leadCaminho(r);
+    return c === 'vistoria' || c === 'video' || !!leadCampo(r.field_data || [], 'qualifica');
+  }
+  const consumo = String(leadCampo(r.field_data || [], 'consum') || '').replace(/\s/g, '').toLowerCase();
+  return /^\+|mais|acima|900a1200|1200|1\.?500/.test(consumo);
+}
+function leadNaAba(r, aba) {
+  if (aba === 'todos') return true;
+  if (aba === 'formulario') return !leadEhQuiz(r);
+  if (aba === 'grandes') return leadGrande(r);
+  if (aba === 'nao_marcou') return leadEhQuiz(r) && !r.agendado_id;
+  return leadEhQuiz(r) && !!r.agendado_id && leadCaminho(r) === aba;
+}
+function renderLeadsAbas() {
+  const el = document.getElementById('leads-abas');
+  if (!el) return;
+  el.innerHTML = LEADS_ABAS.map(([k, rot]) => {
+    const n = leadsRowsCache.filter(r => leadNaAba(r, k)).length;
+    return `<button class="leads-aba${leadsAba === k ? ' on' : ''}" role="tab" aria-selected="${leadsAba === k}" onclick="leadsTrocarAba('${k}')">${rot}<span class="c">${n}</span></button>`;
+  }).join('');
+}
+function leadsTrocarAba(k) { leadsAba = k; renderLeadsAbas(); renderLeadsTabela(); }
+
 async function carregarLeads() {
   const tbody = document.getElementById('leads-tbody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="11" class="historico-vazio">Carregando...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="12" class="historico-vazio">Carregando...</td></tr>';
   let rows = [];
   try {
     rows = await supaGet('leads_meta?select=*&order=created_time.desc&limit=500');
   } catch (e) {
-    tbody.innerHTML = '<tr><td colspan="11" class="historico-vazio">Erro ao carregar leads.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="historico-vazio">Erro ao carregar leads.</td></tr>';
     return;
   }
   if (!rows || rows.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="11" class="historico-vazio">Nenhum lead ainda. Quando chegarem anúncios novos, aparecem aqui automaticamente.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="historico-vazio">Nenhum lead ainda. Quando chegarem anúncios novos, aparecem aqui automaticamente.</td></tr>';
     return;
   }
   // Busca o "quando" dos agendamentos vinculados pra mostrar a data agendada
@@ -24167,7 +24223,23 @@ async function carregarLeads() {
       (ags || []).forEach(a => { quandoMap[a.id] = a.quando; });
     } catch (e) {}
   }
+  leadsRowsCache = rows;
+  leadsQuandoMap = quandoMap;
+  renderLeadsAbas();
+  renderLeadsTabela();
+}
+
+function renderLeadsTabela() {
+  const tbody = document.getElementById('leads-tbody');
+  if (!tbody) return;
+  const quandoMap = leadsQuandoMap;
+  const rows = leadsRowsCache.filter(r => leadNaAba(r, leadsAba));
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="12" class="historico-vazio">Ninguém nesta aba.</td></tr>';
+    return;
+  }
   const p2 = n => String(n).padStart(2, '0');
+  const ROT_CAMINHO = { vistoria: 'Visita', video: 'Videochamada', ligacao: 'Ligação' };
   tbody.innerHTML = rows.map(r => {
     const fd = r.field_data || [];
     const dt = r.created_time ? new Date(r.created_time) : null;
@@ -24191,9 +24263,15 @@ async function carregarLeads() {
       ? '<span class="lead-fora-tag">fora da área</span>'
       : `<span class="lead-consultor">${escapeHtml(r.consultor || '—')}</span>`;
     const detJson = encodeURIComponent(JSON.stringify(fd));
+    const cam = leadCaminho(r);
+    const qualifica = leadEhQuiz(r) ? leadCampo(fd, 'qualifica') : '';
+    const caminhoCell = leadEhQuiz(r)
+      ? `<span class="lead-caminho ${cam || 'form'}"><i></i>${cam ? ROT_CAMINHO[cam] : 'Quiz'}${r.agendado_id ? '' : ' · não marcou'}${qualifica ? ` <small>qualifica ${qualifica === 'vistoria' ? 'visita' : 'vídeo'}</small>` : ''}</span>`
+      : `<span class="lead-caminho form"><i></i>${String(r.lead_id || '').startsWith('mc_') ? 'DM' : 'Formulário'}</span>`;
     return `<tr class="${foraArea ? 'lead-fora' : ''}">
       <td>${dtTxt}</td>
       <td>${escapeHtml(r.nome || '—')}</td>
+      <td>${caminhoCell}</td>
       <td>${wppLink}</td>
       <td>${escapeHtml(r.cidade || '—')}</td>
       <td>${consultorCell}</td>

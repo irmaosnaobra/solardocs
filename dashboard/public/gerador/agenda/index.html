@@ -1953,6 +1953,17 @@ function pillMotivo(ag) {
   return r ? `<span class="tag-modelo tag-motivo">${r}</span>` : '';
 }
 
+/** O caminho do quiz solar (07/10/2026): a primeira linha da ficha é
+ *  "LP SOLAR QUIZ · Casa · VISTORIA PRESENCIAL". Pílula para o consultor ver de
+ *  relance se é visita (com estrada), videochamada ou ligação. */
+function pillCaminhoQuiz(ag, curto) {
+  if (!ag || ag.created_by !== 'lp_solar') return '';
+  const linha = String(ag.observacao || '').split('\n')[0].toUpperCase();
+  if (!linha.startsWith('LP SOLAR QUIZ')) return '';
+  const r = linha.includes('VISTORIA') ? ['VISITA', 'VISITA'] : linha.includes('VIDEO') ? ['VIDEOCHAMADA', 'VÍDEO'] : ['LIGAÇÃO', 'LIG'];
+  return `<span class="tag-modelo">${curto ? r[1] : r[0]}</span>`;
+}
+
 function pillEtiquetaGuardada(ag) {
   if (!ag || !STATUS_TERMINAIS.has(String(ag.status || ''))) return '';
   const et = etiquetasCache[String(ag.id)];
@@ -2169,7 +2180,7 @@ function pillStatus(ag, curto) {
   // nem nada: ele saiu. Mostrar "ARRENDAMENTO · SEM INTERESSE · ACHOU CARO · FORA
   // DO PADRÃO" seria contar uma historia de um cliente que nao existe mais.
   if (foraDoPadrao(ag)) return '<span class="tag-modelo tag-fora">FORA DO PADRÃO</span>';
-  return guardada + modelo + espera + pillMotivo(ag);
+  return guardada + modelo + espera + pillMotivo(ag) + pillCaminhoQuiz(ag, curto);
 }
 
 function semRespostaDoLead(ag) {
