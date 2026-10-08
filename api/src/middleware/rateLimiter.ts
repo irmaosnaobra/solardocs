@@ -36,6 +36,16 @@ export const estudoPaginaLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Mapa do Arrendamento: cada chamada geocodifica no máximo 15 endereços novos e
+// a tela repete até acabar. Abrir o mapa com o cache cheio é UMA chamada.
+export const geoLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 120,
+  message: { error: 'Muitas consultas ao mapa em pouco tempo. Tente de novo em alguns minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Rua e satélite do estudo passam por proxy, e cada imagem é paga no Google.
 export const estudoImgLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hora

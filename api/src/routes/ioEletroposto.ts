@@ -14,6 +14,8 @@ import { extraDoCard, garantirEstudo } from '../services/io/eletropostoEstudoGar
 import { estaBloqueado } from '../services/agents/whatsapp/silenciar';
 import { FILTRO_NAO_OCUPA } from '../services/agenda/salaDeEspera';
 import { ocupacoesSolar } from '../services/agenda/solarOcupacao';
+import { geocodificarLote, ItemGeo } from '../services/io/eletropostoGeo';
+import { geoLimiter } from '../middleware/rateLimiter';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alerta de lead novo da LP do Eletroposto (/io/eletroposto) no WhatsApp da equipe.
@@ -747,6 +749,36 @@ router.get('/parceria/pares', async (_req: Request, res: Response): Promise<void
     // Null, não objeto vazio: vazio afirmaria "ninguém tem par", e a tela
     // precisa distinguir isso de "não consegui calcular".
     res.json({ pares: null, matches: null, sem_mapa: null, sem_dono: null, teto_km: TETO_KM });
+  }
+});
+
+// ── Onde fica cada local, para o mapa do Arrendamento (08/10/2026) ─────────
+// Mesmo desenho dos pares: a aba já tem a lista e manda SÓ o endereço, a cidade
+// e o DDD de cada pessoa, com uma chave dela. Volta só coordenada e precisão,
+// nunca o endereço de volta. Quem ficou pra depois vem em `pendentes`, e a tela
+// chama de novo (ver eletropostoGeo.ts: o IP do Nominatim é compartilhado).
+const GEO_MAX_ITENS = 400;
+router.post('/geo', geoLimiter, async (req: Request, res: Response): Promise<void> => {
+  const bruto = (req.body && Array.isArray(req.body.itens)) ? req.body.itens as unknown[] : null;
+  if (!bruto || bruto.length > GEO_MAX_ITENS) {
+    res.status(400).json({ error: `mande "itens" com no máximo ${GEO_MAX_ITENS} endereços` });
+    return;
+  }
+  const texto = (v: unknown, max: number) => String(v ?? '').slice(0, max);
+  const itens: ItemGeo[] = [];
+  for (const b of bruto) {
+    const o = (b && typeof b === 'object' ? b : {}) as Record<string, unknown>;
+    const k = texto(o.k, 40);
+    if (!k) continue;
+    itens.push({ k, endereco: texto(o.endereco, 300), cidade: texto(o.cidade, 120),
+                 ddd: texto(o.ddd, 2).replace(/\D/g, '') });
+  }
+  try {
+    res.set('Cache-Control', 'no-store');
+    res.json(await geocodificarLote(itens));
+  } catch (err) {
+    logger.error('io-eletroposto-geo', 'falha geocodificando o lote', err);
+    res.status(500).json({ error: 'não consegui localizar os endereços agora' });
   }
 });
 
