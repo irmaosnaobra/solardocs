@@ -57,7 +57,8 @@ import { logger } from '../../utils/logger';
 import { sendHuman } from '../agents/zapiClient';
 import { podeFalarComLead, registrarBloqueio } from '../agents/whatsapp/pausaHumana';
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
-import { telefoneBonito } from './eletropostoAgenda';
+import { telefoneBonito, quandoPorExtenso } from './eletropostoAgenda';
+import { caminhoDaFicha, type Caminho } from '../agenda/solarRota';
 
 /** Marcador de envio efetivado. É por ele que o teto anti-ban da linha enxerga
  *  este agente — sem isto ele fura o teto em silêncio (ver lineThrottle.ts). */
@@ -299,8 +300,49 @@ export function bolhasBoasVindas(
   ];
 }
 
+// ── A CONFIRMAÇÃO DO QUIZ SOLAR (07/10/2026) ────────────────────────────────
+// Quem veio do quiz da /io/solar ESCOLHEU o horário na página. Para essa pessoa
+// a regra "não falar de horário" vira o contrário: o recibo do cadastro é a
+// confirmação do que ela marcou, com dia, hora e quem vai. As boas-vindas de
+// sempre ("nós entramos em contato", "qual o seu consumo") seriam mentira e
+// pergunta repetida: ela acabou de responder a conta no quiz. É o mesmo toque,
+// pelo mesmo robô e com as mesmas travas; muda só o texto.
+//
+// Sem artigo antes do nome (a frase serve para Thiago, Diego e Nilce), emoji só
+// na primeira linha, nada de travessão. O SIM só é pedido na visita e na
+// videochamada, onde o horário custa estrada ou a manhã do sócio.
+export function bolhasConfirmacaoQuiz(
+  nome: string | null | undefined,
+  vendedor: string | null | undefined,
+  quandoIso: string,
+  caminho: Caminho,
+  telVendedor?: string | null,
+): string[] {
+  const n = primeiroNome(nome);
+  const quem = String(vendedor || '').trim() || 'nossa equipe';
+  const quando = quandoPorExtenso(quandoIso);
+  const tel = telefoneBonito(telVendedor);
+  const out = [`☀️ Está marcado${comNome(n)}!`];
+  if (caminho === 'vistoria') {
+    out.push(`*${quem}* vai até você *${quando}* para a visita técnica. Leva uns 40 minutos.`);
+    out.push('Responda *SIM* para confirmar.');
+    out.push('Se puder, mande aqui uma foto da conta de luz e do padrão de entrada. Assim o estudo já chega com o número certo.');
+  } else if (caminho === 'video') {
+    out.push(`*${quem}* te chama por vídeo neste WhatsApp *${quando}*, com o estudo do seu projeto na tela.`);
+    out.push('Responda *SIM* para confirmar.');
+    out.push('Se puder, mande aqui uma foto da conta de luz. Assim o estudo já chega com o número certo.');
+  } else {
+    out.push(`*${quem}* te liga *${quando}*. É uma ligação curta para entender a sua conta.`);
+    out.push('Se puder, mande aqui uma foto da conta de luz antes. Assim a conversa já começa com o número certo.');
+  }
+  if (tel) out.push(`O WhatsApp direto de *${quem}* é *${tel}*.`);
+  return out;
+}
+
 interface Ficha {
   id: number;
+  quando?: string | null;
+  observacao?: string | null;
   vendedor_nome: string | null;
   cliente_nome: string | null;
   cliente_telefone: string | null;
@@ -367,7 +409,7 @@ export async function runSolarBoasVindasTick(opts: { dry?: boolean } = {}): Prom
 
   const { data, error } = await supabaseGerador
     .from('agendamentos')
-    .select('id, vendedor_nome, cliente_nome, cliente_telefone, telefone_norm, created_at, created_by, status, boas_vindas_at')
+    .select('id, vendedor_nome, cliente_nome, cliente_telefone, telefone_norm, created_at, created_by, status, boas_vindas_at, quando, observacao')
     .in('created_by', SOLAR_ORIGENS)
     .not('status', 'in', `(${STATUS_QUE_NAO_RECEBEM.join(',')})`)
     .is('boas_vindas_at', null)
@@ -415,7 +457,11 @@ export async function runSolarBoasVindasTick(opts: { dry?: boolean } = {}): Prom
     // teto da linha: fechar ficha repetida não manda nada, então não gasta a linha e
     // não pode ficar presa esperando ela abrir (a 1053 esperou 7 horas assim em 14/09).
     const chaveTel = ficha.telefone_norm || tel;
-    if (!opts.dry) {
+    // Ficha do quiz é confirmação de um horário que a pessoa escolheu, não recibo
+    // de cadastro: não passa pela trava de "este telefone já recebeu". O próprio
+    // quiz já não deixa nascer segunda ficha com horário futuro (`ja marcado`).
+    const caminhoQuiz = ficha.created_by === 'lp_solar' ? caminhoDaFicha(ficha.observacao) : null;
+    if (!opts.dry && !caminhoQuiz) {
       let repetido = telefonesDaRodada.has(chaveTel);
       if (!repetido) {
         try {
@@ -464,7 +510,9 @@ export async function runSolarBoasVindasTick(opts: { dry?: boolean } = {}): Prom
     }
 
     const telDoConsultor = telPorConsultor.get(String(ficha.vendedor_nome || '')) ?? null;
-    const bolhas = bolhasBoasVindas(ficha.cliente_nome, ficha.vendedor_nome, telDoConsultor);
+    const bolhas = caminhoQuiz && ficha.quando
+      ? bolhasConfirmacaoQuiz(ficha.cliente_nome, ficha.vendedor_nome, ficha.quando, caminhoQuiz, telDoConsultor)
+      : bolhasBoasVindas(ficha.cliente_nome, ficha.vendedor_nome, telDoConsultor);
 
     if (opts.dry) {
       previa.push({
