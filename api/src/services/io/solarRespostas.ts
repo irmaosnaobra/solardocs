@@ -45,6 +45,7 @@ import { logger } from '../../utils/logger';
 import { sendWhatsApp, sendImage, sendDocument, sendAudio, sendVideo } from '../agents/zapiClient';
 import { EQUIPE } from '../../routes/ioSolar';
 import { SOLAR_ORIGENS, desligado as boasVindasDesligado } from './solarBoasVindas';
+import { caminhoDaFicha } from '../agenda/solarRota';
 
 /** Exportado desde 11/09: o `solarAgendaGiovanna` precisa ler o MESMO inbox pra
  *  saber quem respondeu o bom dia. Duas cópias deste id divergem no dia em que a
@@ -161,7 +162,7 @@ export async function encaminharMidias(
 /** O recado que cai no WhatsApp do consultor. O texto do cliente vai INTEIRO —
  *  robô nenhum resume aqui: o consumo é a matéria-prima do estudo. */
 export function montarRecado(
-  ficha: { cliente_nome: string | null; cliente_telefone: string | null; vendedor_nome: string | null; cidade?: string | null },
+  ficha: { cliente_nome: string | null; cliente_telefone: string | null; vendedor_nome: string | null; cidade?: string | null; created_by?: string | null; observacao?: string | null },
   msgs: Msg[],
 ): string {
   const textos = msgs.map(m => m.texto).filter(Boolean);
@@ -205,7 +206,11 @@ export function montarRecado(
     // Genérico de propósito desde 11/09: este recado agora cobre DOIS toques (as
     // boas-vindas do cadastro e o bom dia das 7h da Giovanna), e dizer "boas-vindas"
     // pro segundo mandaria o consultor procurar uma mensagem que nunca existiu.
-    '_Respondeu à mensagem automática da linha. Aqui ninguém responde por robô — a bola está com você._',
+    // Lead do quiz solar (08/10/2026): a Duda (solarAgenteQuiz.ts) responde o
+    // básico no 5040 e manda recado à parte quando é com o consultor.
+    ficha.created_by === 'lp_solar' && caminhoDaFicha(ficha.observacao)
+      ? '_Lead do quiz: a Duda responde o básico no 5040 e te chama quando for com você (trocar horário, falar com gente, não quer mais)._'
+      : '_Respondeu à mensagem automática da linha. Aqui ninguém responde por robô — a bola está com você._',
   ].join('\n');
 }
 
@@ -224,6 +229,8 @@ interface Ficha {
    *  recebiam "vou fazer seu atendimento" às 7h e quem respondesse "não quero"
    *  não chegava a ninguém — e ainda levava a ligação às 8h15. */
   bomdia_at: string | null;
+  created_by?: string | null;
+  observacao?: string | null;
 }
 
 /** O toque mais recente que a automação deu nesta ficha. É o piso do que conta
@@ -286,7 +293,7 @@ export async function runSolarRespostasTick(opts: { dry?: boolean } = {}): Promi
   //      que a lista de origens não pega. O corte dessa metade é o toque em si.
   const [rBoasVindas, rBomDia] = await Promise.all([
     supabaseGerador.from('agendamentos')
-      .select('id, cliente_nome, cliente_telefone, vendedor_nome, cidade, status, boas_vindas_at, bomdia_at')
+      .select('id, cliente_nome, cliente_telefone, vendedor_nome, cidade, status, boas_vindas_at, bomdia_at, created_by, observacao')
       .in('created_by', SOLAR_ORIGENS)
       .not('status', 'in', `(${STATUS_ENCERRADOS.join(',')})`)
       .not('boas_vindas_at', 'is', null)

@@ -226,6 +226,9 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   carla_b2b_reativa: robo('reativo_p1', ['services/agents/sdr/sdrB2bAgentService.ts'], { linha: 'solardoc' }),
   // A Duda cala quando um humano entrou (recepcaoIo.ts).
   duda_recepcao: robo('reativo_p1', ['services/io/recepcaoIo.ts'], { respeitaPausa: true }),
+  // A agente do quiz solar (08/10/2026) responde quem escreveu de volta e cala
+  // quando um humano entrou, como a Duda da recepção (solarAgenteQuiz.ts).
+  solar_agente_quiz: robo('reativo_p1', ['services/io/solarAgenteQuiz.ts'], { respeitaPausa: true }),
   bia_inbound: robo('reativo_p1', ['services/agents/whatsapp/biaInboundService.ts']),
   // Resposta a quem PEDIU para remarcar: agenda [regra do dono, 07/10]. O HEAD
   // conta o carimbo como agenda (lineThrottle.ts:208): divergência conhecida,
@@ -256,6 +259,8 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   // Mídia e documento nunca são juntados num cartão, só atrasados [crítica].
   encaminha_midia: robo('aviso_interno_p2', ['services/io/encaminharMidiaConsultor.ts'], { nasceDeEvento: true }),
   duda_ficha_consultor: robo('aviso_interno_p2', ['services/io/recepcaoIo.ts'], { nasceDeEvento: true }),
+  // O recado "a Duda passou para você" no celular de quem atende o lead do quiz.
+  solar_agente_recado: robo('aviso_interno_p2', ['services/io/solarAgenteQuiz.ts'], { nasceDeEvento: true }),
   pix_comprovante_dono: robo('aviso_interno_p2', ['services/agents/whatsapp/pixComprovanteService.ts'], { nasceDeEvento: true, linha: 'solardoc' }),
   giovanna_aviso_dono: robo('aviso_interno_p2', ['services/agents/whatsapp/whatsappAgentService.ts'], { nasceDeEvento: true, linha: 'solardoc' }),
   venda_aviso: robo('aviso_interno_p2', ['services/vendaAviso.ts'], { nasceDeEvento: true, linha: 'solardoc' }),

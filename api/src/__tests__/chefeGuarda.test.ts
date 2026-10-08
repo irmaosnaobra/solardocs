@@ -373,6 +373,7 @@ const ROBOS_POR_ARQUIVO: Readonly<Record<string, { robos: readonly string[]; cla
   'services/io/placarGiovanna.ts': { robos: ['placar_giovanna'], classeMaxima: 'aviso_interno_p2' },
   'services/io/prospeccaoAviso.ts': { robos: ['prospeccao_aviso'], classeMaxima: 'aviso_interno_p2' },
   'services/io/recepcaoIo.ts': { robos: ['duda_ficha_consultor', 'duda_recepcao'], classeMaxima: 'reativo_p1' },
+  'services/io/solarAgenteQuiz.ts': { robos: ['solar_agente_quiz', 'solar_agente_recado'], classeMaxima: 'reativo_p1' },
   'services/io/sementeSolarService.ts': { robos: ['semente'], classeMaxima: 'frio_p5' },
   'services/io/sentinelaVacuo.ts': { robos: ['sentinela_vacuo'], classeMaxima: 'aviso_interno_p2' },
   'services/io/solarAgendaGiovanna.ts': { robos: ['giovanna_agenda'], classeMaxima: 'lembrete_p1' },
@@ -397,6 +398,7 @@ const ARQUIVOS_MISTOS: Readonly<Record<string, readonly Classe[]>> = Object.free
   'services/io/eletropostoRemarcar.ts': ['reativo_p1', 'frio_p5'],
   'services/io/eletropostoRespostas.ts': ['reativo_p1', 'aviso_interno_p2', 'frio_p5'],
   'services/io/recepcaoIo.ts': ['reativo_p1', 'aviso_interno_p2'],
+  'services/io/solarAgenteQuiz.ts': ['reativo_p1', 'aviso_interno_p2'],
 });
 
 /**
@@ -1834,7 +1836,7 @@ describe('chefeGuarda: arquivo → robôs permitidos, com a classe máxima de ca
     const { classes } = mapaDerivado();
     const mistos = Object.fromEntries(Object.entries(classes).filter(([, cs]) => cs.length > 1));
     expect(mistos).toEqual(ARQUIVOS_MISTOS);
-    expect(Object.keys(ARQUIVOS_MISTOS).length).toBe(9);
+    expect(Object.keys(ARQUIVOS_MISTOS).length).toBe(10);
     // O pior deles: evento ao lado de frio de receita.
     expect(ARQUIVOS_MISTOS['services/dunningService.ts']).toEqual(['evento_p0', 'frio_receita_p4']);
   });

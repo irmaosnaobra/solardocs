@@ -54,6 +54,14 @@ export const PONTOS_CURIOSO = 40;
 /** Quem atende cada faixa. Todas as visitas são do Diego. */
 export const QUEM = { pequena: 'Giovanna', media: 'Nilce', visita: 'Diego', grande: 'Thiago' } as const;
 
+/** Quem atenderia pela conta, sem olhar pontuação: é quem a agente chama quando
+ *  um curioso pede gente (o curioso não tem horário, mas tem dono). */
+export function donoDaFaixa(kwh: number | null): string {
+  if (kwh !== null && kwh > KWH_VISITA) return QUEM.grande;
+  if (kwh !== null && kwh > KWH_GIOVANNA) return QUEM.media;
+  return QUEM.pequena;
+}
+
 /** Quilômetros de ESTRADA contados de Uberlândia, a base do Diego, que faz
  *  todas as visitas. */
 export const RAIO_VISITA_KM = 150;

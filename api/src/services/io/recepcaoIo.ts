@@ -54,6 +54,7 @@ import { variantesBR } from '../agents/whatsapp/whatsappAgentService';
 import { pareceRoboDeles, temRoboAtendendo, marcarRoboDoOutroLado } from '../agents/whatsapp/roboDoOutroLado';
 import { carregarSilenciados } from '../agents/whatsapp/silenciar';
 import { podeFalarComLead, registrarBloqueio } from '../agents/whatsapp/pausaHumana';
+import { quizSolarAtende } from './solarAgenteQuiz';
 
 const anthropic = novoAnthropic();
 
@@ -551,6 +552,14 @@ export async function handleRecepcaoIo(
     // conversa é o erro que esta linha já pagou em 25/08.
     if (await temAgendaDeEletroposto(phone)) {
       logger.info('recepcao-io', 'lead tem reunião de eletroposto — a agenda responde por ele', { phone });
+      return;
+    }
+
+    // Lead do quiz solar (08/10/2026): a conversa é da agente do quiz
+    // (solarAgenteQuiz.ts), que já sabe a conta, a cidade, quem atende e o
+    // horário. A triagem aqui se apresentaria de novo por cima dela.
+    if (await quizSolarAtende(phone)) {
+      logger.info('recepcao-io', 'lead do quiz solar: a agente do quiz responde por ele', { phone });
       return;
     }
 

@@ -59,6 +59,7 @@ import { podeFalarComLead, registrarBloqueio } from '../agents/whatsapp/pausaHum
 import { dentroDoTetoHorarioLinha } from '../agents/whatsapp/lineThrottle';
 import { telefoneBonito, quandoPorExtenso } from './eletropostoAgenda';
 import { caminhoDaFicha, type Caminho } from '../agenda/solarRota';
+import { estaBloqueado } from '../agents/whatsapp/silenciar';
 
 /** Marcador de envio efetivado. É por ele que o teto anti-ban da linha enxerga
  *  este agente — sem isto ele fura o teto em silêncio (ver lineThrottle.ts). */
@@ -300,43 +301,114 @@ export function bolhasBoasVindas(
   ];
 }
 
-// ── A CONFIRMAÇÃO DO QUIZ SOLAR (07/10/2026) ────────────────────────────────
+// ── A AGENTE DO QUIZ SOLAR: A PRIMEIRA MENSAGEM (07 e 08/10/2026) ───────────
 // Quem veio do quiz da /io/solar ESCOLHEU o horário na página. Para essa pessoa
 // a regra "não falar de horário" vira o contrário: o recibo do cadastro é a
 // confirmação do que ela marcou, com dia, hora e quem vai. As boas-vindas de
 // sempre ("nós entramos em contato", "qual o seu consumo") seriam mentira e
-// pergunta repetida: ela acabou de responder a conta no quiz. É o mesmo toque,
-// pelo mesmo robô e com as mesmas travas; muda só o texto.
+// pergunta repetida: ela acabou de responder a conta no quiz.
 //
-// Sem artigo antes do nome (a frase serve para Thiago, Diego e Nilce), emoji só
-// na primeira linha, nada de travessão. O SIM só é pedido na visita e na
-// videochamada, onde o horário custa estrada ou a manhã do sócio.
+// 08/10: ordem do Thiago, "uma agente tem que atender de imediato essas pessoas
+// indicando quem irá atender; o lead chega com todas as informações preenchidas
+// no WhatsApp". Então a mensagem é da Duda (a mesma voz da recepção da linha),
+// diz quem atende e devolve o resumo do que a pessoa respondeu: a conversa no
+// 5040 passa a ter tudo, e quem abrir já vê. A continuação, quando a pessoa
+// responde, é do solarAgenteQuiz.ts.
+//
+// Sem artigo antes do nome (a frase serve para Thiago, Diego, Nilce e Giovanna),
+// emoji só na primeira linha, nada de travessão. O SIM só é pedido na visita e no
+// atendimento do Thiago, onde o horário custa estrada ou a manhã do sócio.
+
+/** "conta de R$ 2.000 a R$ 5.000, imóvel próprio em Catalão, quer para este mês e
+ *  pagamento à vista". Sai das linhas da ficha (montarObservacao do solarQuiz.ts);
+ *  linha que falta some da frase. */
+export function resumoDaFicha(observacao: string | null | undefined): string {
+  const linhas = String(observacao || '').split('\n');
+  const val = (rot: string) => (linhas.find(l => l.startsWith(rot)) || '').slice(rot.length).trim();
+  const conta = val('Conta de luz:').replace(/\s*\(.*\)$/, '');
+  const cidade = val('Cidade:').split(' · ')[0].replace(/-[A-Z]{2}$/, '');
+  const imovel = val('Imóvel:').toLowerCase();
+  const quando = val('Quando quer:').toLowerCase();
+  const pag = val('Pagamento:').toLowerCase();
+  const partes = [
+    conta ? `conta de ${conta}` : '',
+    imovel || cidade ? `imóvel ${imovel}${cidade ? ` em ${cidade}` : ''}`.replace('imóvel  em', 'imóvel em').trim() : '',
+    quando ? `quer ${quando.replace(/^o quanto antes, /, '').replace(/^ainda /, 'ainda ')}` : '',
+    pag ? `pagamento ${pag}` : '',
+  ].filter(Boolean);
+  if (!partes.length) return '';
+  return partes.length === 1 ? partes[0] : `${partes.slice(0, -1).join(', ')} e ${partes[partes.length - 1]}`;
+}
+
 export function bolhasConfirmacaoQuiz(
   nome: string | null | undefined,
   vendedor: string | null | undefined,
   quandoIso: string,
   caminho: Caminho,
   telVendedor?: string | null,
+  observacao?: string | null,
 ): string[] {
   const n = primeiroNome(nome);
   const quem = String(vendedor || '').trim() || 'nossa equipe';
   const quando = quandoPorExtenso(quandoIso);
   const tel = telefoneBonito(telVendedor);
-  const out = [`☀️ Está marcado${comNome(n)}!`];
+  const resumo = resumoDaFicha(observacao);
+  const out = [`☀️ Oi${comNome(n)}! Aqui é a Duda, da Irmãos na Obra.`];
   if (caminho === 'vistoria') {
-    out.push(`*${quem}* vai até você *${quando}* para a visita técnica. Leva uns 40 minutos.`);
-    out.push('Responda *SIM* para confirmar.');
-    out.push('Se puder, mande aqui uma foto da conta de luz e do padrão de entrada. Assim o estudo já chega com o número certo.');
+    out.push(`Recebi suas respostas e já está marcado: *${quem}* vai até você *${quando}* para a visita técnica. Leva uns 40 minutos.`);
   } else if (caminho === 'video') {
-    out.push(`*${quem}* te chama por vídeo neste WhatsApp *${quando}*, com o estudo do seu projeto na tela.`);
-    out.push('Responda *SIM* para confirmar.');
-    out.push('Se puder, mande aqui uma foto da conta de luz. Assim o estudo já chega com o número certo.');
+    out.push(`Recebi suas respostas e já está marcado: *${quem}* te chama por vídeo neste WhatsApp *${quando}*, com o estudo do seu projeto na tela.`);
   } else {
-    out.push(`*${quem}* te liga *${quando}*. É uma ligação curta para entender a sua conta.`);
-    out.push('Se puder, mande aqui uma foto da conta de luz antes. Assim a conversa já começa com o número certo.');
+    out.push(`Recebi suas respostas e já está marcado: *${quem}* te liga *${quando}*. É uma ligação curta para entender a sua conta.`);
   }
+  if (resumo) out.push(`Anotei aqui: ${resumo}.`);
+  if (caminho === 'vistoria' || caminho === 'video') out.push('Responda *SIM* para confirmar.');
+  out.push(caminho === 'vistoria'
+    ? 'Se puder, mande aqui uma foto da conta de luz e do padrão de entrada. Qualquer dúvida, pode me perguntar por aqui.'
+    : 'Se puder, mande aqui uma foto da conta de luz. Qualquer dúvida, pode me perguntar por aqui.');
   if (tel) out.push(`O WhatsApp direto de *${quem}* é *${tel}*.`);
   return out;
+}
+
+/** Resumo das respostas a partir do `leads_meta.field_data` do quiz (curioso e
+ *  quem não marcou não têm ficha na agenda, só o lead). */
+export function resumoDoLead(campos: Array<{ name?: string; values?: string[] }> | null | undefined, cidade?: string | null): string {
+  const val = (nome: string) => String((campos || []).find(c => c?.name === nome)?.values?.[0] || '');
+  const linhas = [
+    val('Consumo') ? `Conta de luz: ${val('Consumo')}` : '',
+    cidade ? `Cidade: ${cidade}` : '',
+    val('Imóvel') ? `Imóvel: ${val('Imóvel')}` : '',
+    val('Urgência') ? `Quando quer: ${val('Urgência')}` : '',
+    val('Pagamento') ? `Pagamento: ${val('Pagamento')}` : '',
+  ].filter(Boolean);
+  return resumoDaFicha(linhas.join('\n'));
+}
+
+/** Curioso (abaixo de 40 pontos): não ganhou horário, vai para a lista de um
+ *  atendimento futuro. A mensagem não promete ligação com data; promete que a
+ *  equipe chama e abre a conversa com a Duda. */
+export function bolhasCuriosoQuiz(nome: string | null | undefined, resumo: string): string[] {
+  const n = primeiroNome(nome);
+  return [
+    `☀️ Oi${comNome(n)}! Aqui é a Duda, da Irmãos na Obra.`,
+    `Recebi suas respostas do simulador de energia solar${resumo ? `. Anotei aqui: ${resumo}` : ''}.`,
+    'Deixei o seu contato com a nossa equipe, e a gente te chama quando tiver uma condição boa para o seu caso.',
+    'Se tiver alguma dúvida sobre energia solar, pode me perguntar por aqui.',
+  ];
+}
+
+/** Quem respondeu tudo e não chegou a escolher o horário. */
+export function bolhasNaoMarcouQuiz(nome: string | null | undefined, consultor: string | null | undefined, resumo: string): string[] {
+  const n = primeiroNome(nome);
+  const quem = String(consultor || '').trim();
+  return [
+    `☀️ Oi${comNome(n)}! Aqui é a Duda, da Irmãos na Obra.`,
+    `Vi que você respondeu o simulador de energia solar${resumo ? ` (${resumo})` : ''}, mas não chegou a escolher o horário.`,
+    quem
+      ? `Quer que eu peça para *${quem}* te chamar? Se preferir, escolha o melhor horário aqui: solardoc.app/io/solar`
+      : 'Quer que a gente te chame? Se preferir, escolha o melhor horário aqui: solardoc.app/io/solar',
+    'É só responder esta mensagem.',
+  ];
 }
 
 interface Ficha {
@@ -511,7 +583,7 @@ export async function runSolarBoasVindasTick(opts: { dry?: boolean } = {}): Prom
 
     const telDoConsultor = telPorConsultor.get(String(ficha.vendedor_nome || '')) ?? null;
     const bolhas = caminhoQuiz && ficha.quando
-      ? bolhasConfirmacaoQuiz(ficha.cliente_nome, ficha.vendedor_nome, ficha.quando, caminhoQuiz, telDoConsultor)
+      ? bolhasConfirmacaoQuiz(ficha.cliente_nome, ficha.vendedor_nome, ficha.quando, caminhoQuiz, telDoConsultor, ficha.observacao)
       : bolhasBoasVindas(ficha.cliente_nome, ficha.vendedor_nome, telDoConsultor);
 
     if (opts.dry) {
@@ -704,4 +776,80 @@ async function mudou(chave: string, assinatura: string): Promise<boolean> {
     .upsert({ key: chave, value: { assinatura, em: agora }, updated_at: agora }, { onConflict: 'key' });
   if (erroGravar) logger.warn('solar-boas-vindas', 'gravar estado do aviso falhou', { chave, erro: erroGravar.message });
   return true;
+}
+
+// ── A AGENTE DO QUIZ SOLAR: CURIOSO E QUEM NÃO MARCOU (08/10/2026) ──────────
+// Estes dois não têm ficha na agenda, só o lead em `leads_meta` (form_id
+// quiz_solar), e por isso não passam pela rodada de cima, que lê `agendamentos`.
+// Mesmo robô, mesmas travas: teto da linha, humano na conversa, telefone fora do
+// padrão, e o carimbo `solar_boasvindas_sent:quiz_<lead>` que o teto já conta.
+//   · curioso (abaixo de 40 pontos): mensagem na hora, sem horário prometido
+//   · não marcou: só depois de 30 min (a pessoa pode estar terminando), dentro
+//     das 8h às 20h, uma vez só
+// O carimbo é REIVINDICADO antes do envio (insert numa chave única): dois ticks
+// lendo a mesma fila nunca mandam a mesma mensagem duas vezes. Falha de envio
+// apaga o carimbo e a mensagem volta para a fila.
+
+const QUIZ_LEAD_JANELA_MS = 24 * 3600_000;
+const NAO_MARCOU_ESPERA_MS = 30 * 60_000;
+const QUIZ_LEADS_POR_TICK = 3;
+
+const horaBRT = (ms: number): number =>
+  Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hour12: false }).format(new Date(ms)));
+
+export type ResultadoQuizLeads = { enviadas: number; erros: number; motivo?: string; previa?: Array<{ lead: string; tipo: string; bolhas: string[] }> };
+
+export async function runSolarQuizLeadsTick(opts: { dry?: boolean } = {}): Promise<ResultadoQuizLeads> {
+  if (!opts.dry && desligado()) return { enviadas: 0, erros: 0, motivo: 'desligado' };
+  const agora = Date.now();
+  const { data, error } = await supabaseGerador.from('leads_meta')
+    .select('lead_id, nome, whatsapp, cidade, field_data, agendado_id, consultor, created_time')
+    .eq('form_id', 'quiz_solar')
+    .is('agendado_id', null)
+    .gte('created_time', new Date(agora - QUIZ_LEAD_JANELA_MS).toISOString())
+    .order('created_time', { ascending: true })
+    .limit(100);
+  if (error) { logger.error('solar-boas-vindas', 'ler leads do quiz falhou', error); return { enviadas: 0, erros: 1, motivo: 'erro_leitura' }; }
+
+  let enviadas = 0, erros = 0;
+  const previa: NonNullable<ResultadoQuizLeads['previa']> = [];
+  for (const l of (data ?? []) as Array<Record<string, any>>) {
+    if (enviadas >= QUIZ_LEADS_POR_TICK) break;
+    const campos = Array.isArray(l.field_data) ? l.field_data : [];
+    const caminho = String(campos.find((c: any) => c?.name === 'Caminho')?.values?.[0] || '');
+    const idade = agora - new Date(String(l.created_time)).getTime();
+    const tipo = caminho === 'curioso' ? 'curioso' : (idade >= NAO_MARCOU_ESPERA_MS ? 'nao_marcou' : null);
+    if (!tipo) continue;
+    if (tipo === 'nao_marcou') { const h = horaBRT(agora); if (h < 8 || h >= 20) continue; }
+    const tel = String(l.whatsapp || '').replace(/\D/g, '');
+    if (!tel) continue;
+    const resumo = resumoDoLead(campos, l.cidade);
+    const bolhas = tipo === 'curioso' ? bolhasCuriosoQuiz(l.nome, resumo) : bolhasNaoMarcouQuiz(l.nome, l.consultor, resumo);
+    const chave = `${SOLAR_BV_PREFIX}quiz_${l.lead_id}`;
+
+    if (opts.dry) {
+      const { data: ja } = await supabase.from('system_state').select('key').eq('key', chave).limit(1);
+      if (!ja?.length) { previa.push({ lead: String(l.lead_id), tipo, bolhas }); enviadas++; }
+      continue;
+    }
+    // Reivindica antes de enviar. Chave existente = já foi (ou outro tick está indo).
+    const em = new Date().toISOString();
+    const { error: erroClaim } = await supabase.from('system_state').insert({ key: chave, value: { tipo, em }, updated_at: em });
+    if (erroClaim) continue;
+    const devolver = async () => { await supabase.from('system_state').delete().eq('key', chave).eq('updated_at', em); };
+
+    if (await estaBloqueado(tel)) continue;   // fica carimbado: nunca recebe
+    if (!(await podeFalarComLead(tel)).pode) { await registrarBloqueio(tel, 'solar-quiz-lead'); await devolver(); continue; }
+    if (!(await dentroDoTetoHorarioLinha({ transacional: true, pisoDia: 200 }))) { await devolver(); break; }
+    try {
+      await sendHuman(tel, bolhas, 'io', { max: BOLHA_MAX, maxBolhas: BOLHA_TETO });
+      enviadas++;
+    } catch (e) {
+      erros++;
+      await devolver();
+      logger.error('solar-boas-vindas', 'falha ao mandar a mensagem do quiz', { lead: l.lead_id, tipo, erro: String(e) });
+    }
+  }
+  if (enviadas && !opts.dry) logger.info('solar-boas-vindas', `${enviadas} mensagem(ns) do quiz para curioso ou quem não marcou`);
+  return { enviadas, erros, ...(opts.dry ? { motivo: 'dry', previa } : {}) };
 }

@@ -736,7 +736,9 @@ function sortearCaso(r: () => number, i: number): { estado: Estado; pedido: Pedi
   const agora = brt('2026-10-05T00:00') + int(0, 14 * 24 * 60) * MIN;
 
   const R1: Record<Classe, number> = { evento_p0: 3, reativo_p1: 30, lembrete_p1: 40, aviso_interno_p2: 14, transacional_agenda_p3: 24, frio_receita_p4: 4, frio_p5: 7 };
-  const R24: Record<Classe, number> = { evento_p0: 20, reativo_p1: 220, lembrete_p1: 130, aviso_interno_p2: 60, transacional_agenda_p3: 190, frio_receita_p4: 8, frio_p5: 28 };
+  // Lembrete até 150 no dia mais o resto da janela: com 130 só 1 caso batia no teto
+  // de 24h, e cada robô novo registrado mexia no sorteio e tirava esse caso.
+  const R24: Record<Classe, number> = { evento_p0: 20, reativo_p1: 220, lembrete_p1: 150, aviso_interno_p2: 60, transacional_agenda_p3: 190, frio_receita_p4: 8, frio_p5: 28 };
   const c: Contagens = { '10min': {}, '1h': {}, '3h': {}, '6h': {}, '24h': {} };
   for (const k of CLASSES_TODAS) {
     const h1 = chance(0.35) ? 0 : int(0, R1[k]);

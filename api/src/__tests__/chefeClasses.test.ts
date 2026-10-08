@@ -132,7 +132,7 @@ describe('CLASSE_POR_ROBO: forma de cada robô', () => {
     // mudar quem fala com humano dentro da conversa: passa pela DIVERGENCIAS.
     const naoFrios = robos.filter(([, r]) => r.classe !== 'frio_p5' && r.classe !== 'frio_receita_p4');
     expect(naoFrios.filter(([, r]) => r.respeitaPausa).map(([n]) => n).sort())
-      .toEqual(['duda_recepcao', 'ep_cobra_sim', 'giovanna_agenda', 'solar_boas_vindas']);
+      .toEqual(['duda_recepcao', 'ep_cobra_sim', 'giovanna_agenda', 'solar_agente_quiz', 'solar_boas_vindas']);
   });
 
   it('evento nasce de evento e sai em 1 bolha; só reativo tem 2 bolhas', () => {

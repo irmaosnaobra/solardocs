@@ -9,7 +9,7 @@ import { estaBloqueado } from '../services/agents/whatsapp/silenciar';
 import { FILTRO_NAO_OCUPA } from '../services/agenda/salaDeEspera';
 import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
 import { ocupacoesSolar } from '../services/agenda/solarOcupacao';
-import { SOCIOS_VISITA, DONAS_LIGACAO, MARCA_QUIZ, caminhoDaFicha, type Socio } from '../services/agenda/solarRota';
+import { SOCIOS_VISITA, DONAS_LIGACAO, caminhoDaFicha, donoDaFaixa } from '../services/agenda/solarRota';
 import {
   limparRespostas, limparEndereco, decidirEMontar, montarObservacao, camposDoLead, blocoDaFicha, cabe,
   msDe, DIAS_VARRIDOS, ROTULO_CAMINHO, type Ocupacao, type Respostas,
@@ -442,7 +442,8 @@ router.post('/quiz', async (req: Request, res: Response): Promise<void> => {
     if (String(req.query.dry || '') !== '1') await gravarLead(leadId, {
       form_id: FORM_QUIZ, form_name: 'Quiz Solar', nome: e.nome, whatsapp: e.tel,
       cidade: dec.cidade ? `${dec.cidade.nome}-${dec.cidade.uf}` : (e.resp.cidade || null),
-      field_data: camposDoLead(e.resp, dec, { semHorario }), consultor: dec.candidatos[0] ?? null, fora_area: false,
+      // Curioso não tem horário, mas tem dono pela conta: é quem a agente chama se ele pedir gente.
+      field_data: camposDoLead(e.resp, dec, { semHorario }), consultor: dec.candidatos[0] ?? donoDaFaixa(dec.kwh), fora_area: false,
     });
     res.json({
       ok: true, lead_id: leadId, caminho: dec.caminho, motivo: dec.motivo, qualifica: dec.qualifica, semHorario,
@@ -474,7 +475,7 @@ function mensagemDoQuiz(a: Record<string, unknown>): string {
     `*Cliente:* ${a.cliente_nome || ''}`,
     `*WhatsApp:* wa.me/${soDigitos(String(a.cliente_telefone || ''))}`,
   ];
-  for (const [rot, campo] of [['Cidade', 'Cidade:'], ['Conta', 'Conta de luz:'], ['Endereço', 'Endereço:'], ['Imóvel', 'Imóvel:'],
+  for (const [rot, campo] of [['Pontos', 'Pontuação:'], ['Cidade', 'Cidade:'], ['Conta', 'Conta de luz:'], ['Endereço', 'Endereço:'], ['Imóvel', 'Imóvel:'],
     ['Quando quer', 'Quando quer:'], ['Já tem orçamento', 'Já tem orçamento:'], ['Pagamento', 'Pagamento:'], ['Decisor', 'Decisor:'],
     ['Demanda contratada', 'Demanda contratada:']] as const) {
     const v = val(campo);
@@ -482,7 +483,8 @@ function mensagemDoQuiz(a: Record<string, unknown>): string {
   }
   const marca = linhas.find(l => /^(QUALIFICA PARA|SEM HORÁRIO DE)/.test(l));
   if (marca) out.push('', `*${marca}*`);
-  out.push('', '_Veja no CRM: solardoc.app/gerador_');
+  out.push('', '_Logo em seguida a Duda manda a mensagem para o cliente com o seu nome e o horário, e responde o básico no 5040. O que for com você, ela te passa aqui._');
+  out.push('_Veja no CRM: solardoc.app/gerador_');
   return out.join('\n');
 }
 

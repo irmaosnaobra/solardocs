@@ -49,7 +49,8 @@ import { runReagendaSolarTick } from '../services/agenda/reagendaSolarNaoAtendid
 import { runEletropostoEstudoTick } from '../services/io/eletropostoEstudo';
 import { runEletropostoTopPontosTick, respostaPublicaDoTop } from '../services/io/eletropostoTopPontos';
 import { runEletropostoIgConviteTick, publicoIgConvite, bolhaConviteLP } from '../services/io/eletropostoIgConvite';
-import { runSolarBoasVindasTick } from '../services/io/solarBoasVindas';
+import { runSolarBoasVindasTick, runSolarQuizLeadsTick } from '../services/io/solarBoasVindas';
+import { runSolarAgenteQuizTick } from '../services/io/solarAgenteQuiz';
 import { runSolarRespostasTick } from '../services/io/solarRespostas';
 import { runSolarAgendaGiovannaTick } from '../services/io/solarAgendaGiovanna';
 import { enviarReagendarDiario } from '../services/agenda/reagendarDigest';
@@ -374,6 +375,12 @@ router.get('/process-messages', async (req: Request, res: Response) => {
       ['ep_ig_convite', () => runEletropostoIgConviteTick()],   // eletroposto: lead que veio do Instagram não marca agenda — recebe UM convite pra LP (EP_IG_CONVITE_OFF desliga)
       ['solar_boas_vindas', () => runSolarBoasVindasTick()],        // solar: quem acabou de se cadastrar recebe o consultor, o contato e a pergunta do consumo (SOLAR_BOASVINDAS_OFF desliga)
       ['solar_respostas', () => runSolarRespostasTick()],         // solar: cliente respondeu as boas-vindas → recado pro consultor dono da ficha
+      // Quiz solar (08/10/2026): a Duda manda a primeira mensagem ao curioso e a quem
+      // não marcou (o agendado recebe pelo solar_boas_vindas), e responde quem escreve
+      // de volta. Só aqui, fora do /master: dois ticks lendo a mesma fila é o que já
+      // mandou mensagem em dobro (as duas filas reivindicam a vez antes de falar).
+      ['solar_quiz_leads', () => runSolarQuizLeadsTick()],       // (SOLAR_BOASVINDAS_OFF desliga)
+      ['solar_agente_quiz', () => runSolarAgenteQuizTick()],     // (SOLAR_AGENTE_OFF desliga)
       ['solar_giovanna', () => runSolarAgendaGiovannaTick()],    // solar: a carteira da Giovanna recebe bom dia às 7h e um "oi" 5 min antes da ligação (SOLAR_GIOVANNA_OFF desliga)
       // [06/08] As três cadências da linha B2B passam a drenar AQUI também, não só no
       // master de hora em hora. Motivo: com a margem de 5 min entre envios elas mandariam
@@ -549,6 +556,21 @@ router.get('/eletroposto-retorno', async (req: Request, res: Response) => {
 // a flag — e funciona COM O AGENTE DESLIGADO, que é como a copy é conferida
 // contra ficha real sem tocar em ninguém.
 // O tick normal roda no /process-messages a cada 5 min.
+// Agente do quiz solar (08/10/2026). ?dry=1 mostra o que a Duda responderia a
+// quem escreveu nos últimos 15 min, e a fila de curioso e de quem não marcou,
+// sem enviar e sem gravar.
+router.get('/solar-agente', async (req: Request, res: Response) => {
+  if (!verifyCronSecret(req, res)) return;
+  try {
+    const dry = req.query.dry === '1' || req.query.dry === 'true';
+    const [leads, agente] = await Promise.all([runSolarQuizLeadsTick({ dry }), runSolarAgenteQuizTick({ dry })]);
+    res.json({ ok: true, dry, leads, agente });
+  } catch (err: any) {
+    logger.error('cron', 'solar-agente falhou', err);
+    res.status(500).json({ error: 'Cron failed', detail: String(err?.message || err) });
+  }
+});
+
 router.get('/solar-boas-vindas', async (req: Request, res: Response) => {
   if (!verifyCronSecret(req, res)) return;
   try {
