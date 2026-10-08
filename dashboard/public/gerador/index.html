@@ -2129,6 +2129,34 @@ html[data-theme="dark"] #leadsSection .historico-tabela td{color:#E5E7EB;border-
 html[data-theme="dark"] #leadsSection .historico-tabela tr:hover td{background:#1E293B}
 html[data-theme="dark"] #leadsSection .historico-vazio{color:#94A3B8}
 #leadsSection .leads-tabela{min-width:980px}
+/* Planilha completa (08/10/2026): a caixa tem altura de tela e rola nos dois
+   sentidos, então a barra de baixo fica sempre à vista (antes ela só aparecia no
+   fim de 500 linhas). Cabeçalho e coluna do nome ficam presos. */
+.leads-barra{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 10px;font-size:13px;color:#94A3B8}
+.leads-barra .btn-hist-csv{margin-left:0}
+#leadsSection .leads-wrap{max-height:calc(100vh - 250px);min-height:340px;overflow:auto;border:1px solid #334155;border-radius:10px;scrollbar-width:auto;scrollbar-color:#3B82F6 #E2E8F0}
+#leadsSection .leads-wrap::-webkit-scrollbar{width:14px;height:14px}
+#leadsSection .leads-wrap::-webkit-scrollbar-track{background:#E2E8F0}
+#leadsSection .leads-wrap::-webkit-scrollbar-thumb{background:#3B82F6;border-radius:8px;border:3px solid #E2E8F0}
+#leadsSection .leads-wrap::-webkit-scrollbar-corner{background:#E2E8F0}
+html[data-theme="dark"] #leadsSection .leads-wrap{scrollbar-color:#3B82F6 #0F172A}
+html[data-theme="dark"] #leadsSection .leads-wrap::-webkit-scrollbar-track,
+html[data-theme="dark"] #leadsSection .leads-wrap::-webkit-scrollbar-corner{background:#0F172A}
+html[data-theme="dark"] #leadsSection .leads-wrap::-webkit-scrollbar-thumb{border-color:#0F172A}
+#leadsSection .leads-tabela{width:max-content;min-width:100%}
+#leadsSection .leads-tabela thead th{position:sticky;top:0;z-index:2}
+#leadsSection .leads-tabela .fixa{position:sticky;left:0;z-index:1;background:#fff;box-shadow:2px 0 0 #CBD5E1}
+#leadsSection .leads-tabela thead th.fixa{z-index:3;background:#1E3A8A}
+html[data-theme="dark"] #leadsSection .leads-tabela td.fixa{background:#1E293B;box-shadow:2px 0 0 #475569}
+#leadsSection .leads-tabela tr.lead-fora td.fixa{background:#4C1D24!important}
+#leadsSection .leads-tabela td.num{text-align:right;font-variant-numeric:tabular-nums}
+/* O bloco que forma a nota, no fim da linha (pedido de 08/10): cabeçalho âmbar e
+   uma linha separando do resto; a nota fecha a linha em negrito. */
+html #leadsSection .leads-tabela thead th.nota-bloco{background:#92400E;color:#fff}
+html #leadsSection .leads-tabela thead th.nota-final{background:#B45309}
+#leadsSection .leads-tabela .nota-inicio{border-left:3px solid #B45309}
+#leadsSection .leads-tabela td.nota-final{font-weight:800;font-size:13px}
+#leadsSection .leads-tabela td.nota-final .lead-caminho{font-size:13px}
 /* Lead fora da área de atendimento: linha em vermelho claro, não agendado */
 #leadsSection .leads-tabela tr.lead-fora td{background:rgba(239,68,68,.16)!important;color:#fecaca}
 #leadsSection .leads-tabela tr.lead-fora:hover td{background:rgba(239,68,68,.24)!important}
@@ -5761,28 +5789,17 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div class="card">
       <div class="leads-abas" id="leads-abas" role="tablist"></div>
       <div class="leads-info" id="leads-info">
-        Quiz da <strong>/io/solar</strong>, com pontuação de 0 a 100 pelas respostas: abaixo de <strong>40 pontos</strong> é <strong>curioso</strong> (lista, sem agenda); até <strong>300 kWh</strong> liga a <strong>Giovanna</strong>; de 300 a 1.000, a <strong>Nilce</strong>; acima de 1.000 kWh com mais de <strong>90 pontos</strong> e até 150 km de Uberlândia é <strong>visita do Diego</strong>; o resto acima de 1.000 é <strong>atendimento do Thiago</strong>. Formulário do Meta segue a regra antiga. Cliente que já tem consultor continua com ele.
+        Quiz da <strong>/io/solar</strong>, com pontuação de 0 a 100 pelas respostas: abaixo de <strong>40 pontos</strong> é <strong>curioso</strong> (lista para depois, sem agenda e sem WhatsApp: o fim do quiz convida a seguir o Instagram); até <strong>300 kWh</strong> liga a <strong>Giovanna</strong>; de 300 a 1.000, a <strong>Nilce</strong>; acima de 1.000 kWh com mais de <strong>90 pontos</strong> e até 150 km de Uberlândia é <strong>visita do Diego</strong>; o resto acima de 1.000 é <strong>atendimento do Thiago</strong>. Formulário do Meta segue a regra antiga. Cliente que já tem consultor continua com ele.
       </div>
-      <div class="historico-tabela-wrap">
+      <div class="leads-barra">
+        <span id="leads-conta"></span>
+        <button class="btn-hist-csv" type="button" onclick="exportarLeadsCSV()">Baixar planilha (CSV)</button>
+      </div>
+      <div class="historico-tabela-wrap leads-wrap">
         <table class="historico-tabela leads-tabela">
-          <thead>
-            <tr>
-              <th>Entrou</th>
-              <th>Nome</th>
-              <th>Caminho</th>
-              <th>WhatsApp</th>
-              <th>Cidade</th>
-              <th>Consultor</th>
-              <th>Agendado p/</th>
-              <th>Consumo</th>
-              <th>Urgência</th>
-              <th>Pagamento</th>
-              <th>Decisor</th>
-              <th>Detalhes</th>
-            </tr>
-          </thead>
+          <thead id="leads-thead"></thead>
           <tbody id="leads-tbody">
-            <tr><td colspan="12" class="historico-vazio">Carregando...</td></tr>
+            <tr><td class="historico-vazio">Carregando...</td></tr>
           </tbody>
         </table>
       </div>
@@ -25304,7 +25321,7 @@ function leadCampo(fd, ...termos) {
 // Cadastros do eletroposto separam os do quiz de lá. "Projetos grandes" é o eixo
 // do tamanho (acima de 1.000 kWh, de qualquer porta), então uma pessoa pode estar
 // nela e em "Vistorias" ao mesmo tempo, como no Arrendamento.
-let leadsRowsCache = [], leadsQuandoMap = {}, leadsAba = 'todos';
+let leadsRowsCache = [], leadsAgMap = {}, leadsAba = 'todos';
 const LEADS_ABAS = [
   ['todos', 'Todos'], ['vistoria', 'Vistorias'], ['grandes', 'Projetos grandes'],
   ['ligacao', 'Ligações'], ['curioso', 'Curiosos'], ['nao_marcou', 'Não marcaram'], ['formulario', 'Formulário e DM'],
@@ -25348,88 +25365,237 @@ function leadsTrocarAba(k) { leadsAba = k; renderLeadsAbas(); renderLeadsTabela(
 async function carregarLeads() {
   const tbody = document.getElementById('leads-tbody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="12" class="historico-vazio">Carregando...</td></tr>';
+  leadsMensagem('Carregando...');
   let rows = [];
   try {
-    rows = await supaGet('leads_meta?select=*&order=created_time.desc&limit=500');
+    rows = await supaGet('leads_meta?select=*&order=created_time.desc&limit=1000');
   } catch (e) {
-    tbody.innerHTML = '<tr><td colspan="12" class="historico-vazio">Erro ao carregar leads.</td></tr>';
+    leadsMensagem('Erro ao carregar leads.');
     return;
   }
   if (!rows || rows.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="12" class="historico-vazio">Nenhum lead ainda. Quando chegarem anúncios novos, aparecem aqui automaticamente.</td></tr>';
+    leadsRowsCache = [];
+    renderLeadsAbas();
+    leadsMensagem('Nenhum lead ainda. Quando chegarem anúncios novos, aparecem aqui automaticamente.');
     return;
   }
-  // Busca o "quando" dos agendamentos vinculados pra mostrar a data agendada
-  const agIds = rows.map(r => r.agendado_id).filter(Boolean);
-  const quandoMap = {};
-  if (agIds.length) {
+  // O card da agenda de quem marcou: horário, status, presença e de qual anúncio veio.
+  const agIds = [...new Set(rows.map(r => r.agendado_id).filter(Boolean))];
+  const agMap = {};
+  for (let i = 0; i < agIds.length; i += 150) {
     try {
-      const ags = await supaGet(`agendamentos?select=id,quando&id=in.(${agIds.join(',')})`);
-      (ags || []).forEach(a => { quandoMap[a.id] = a.quando; });
+      const ags = await supaGet(`agendamentos?select=id,quando,status,presenca_confirmada_at,utm_source,utm_campaign,utm_term,utm_content&id=in.(${agIds.slice(i, i + 150).join(',')})`);
+      (ags || []).forEach(a => { agMap[a.id] = a; });
     } catch (e) {}
   }
   leadsRowsCache = rows;
-  leadsQuandoMap = quandoMap;
+  leadsAgMap = agMap;
   renderLeadsAbas();
   renderLeadsTabela();
 }
 
-function renderLeadsTabela() {
+function leadsMensagem(txt) {
   const tbody = document.getElementById('leads-tbody');
   if (!tbody) return;
-  const quandoMap = leadsQuandoMap;
-  const rows = leadsRowsCache.filter(r => leadNaAba(r, leadsAba));
-  if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="12" class="historico-vazio">Ninguém nesta aba.</td></tr>';
+  const n = Math.max(1, document.querySelectorAll('#leads-thead th').length);
+  tbody.innerHTML = `<tr><td colspan="${n}" class="historico-vazio">${escapeHtml(txt)}</td></tr>`;
+}
+
+// ── A PLANILHA COMPLETA (08/10/2026) ───────────────────────────────────────
+// Pedido do Thiago: "colocar uma barra de rolar pra enxergar toda planilha, quero
+// essa planilha completíssima". Toda resposta vira coluna. As do quiz têm coluna
+// própria; as do formulário do Meta caem na mesma coluna quando é a mesma
+// pergunta (consumo, urgência, pagamento, decisor), e o resto ganha uma coluna
+// com o nome da pergunta. A origem do anúncio vem do card de quem marcou ou do
+// próprio lead (o quiz grava as UTMs no lead desde 08/10).
+//
+// A ORDEM (pedido do Thiago, 08/10): "as mais importantes por último, que fez ela
+// ser a nota que é". Primeiro quem é, o que aconteceu e de onde veio; depois as
+// respostas que não pontuam; no fim as cinco que formam a nota, cada uma com os
+// pontos que valeu, da de menor peso (orçamento, 10) à de maior (prazo, 35), e a
+// nota fechando a linha.
+const LEADS_COLS = [
+  { k: 'entrou', rot: 'Entrou' },
+  { k: 'nome', rot: 'Nome', fixa: true },
+  { k: 'whatsapp', rot: 'WhatsApp' },
+  { k: 'email', rot: 'E-mail' },
+  { k: 'cidade', rot: 'Cidade' },
+  { k: 'raio', rot: 'Distância de Uberlândia' },
+  { k: 'caminho', rot: 'Caminho' },
+  { k: 'consultor', rot: 'Consultor' },
+  { k: 'agendado', rot: 'Agendado para' },
+  { k: 'status', rot: 'Status do card' },
+  { k: 'confirmou', rot: 'Confirmou presença' },
+  { k: 'qualifica', rot: 'Qualifica para' },
+  { k: 'semHorario', rot: 'Sem horário' },
+  { k: 'origem', rot: 'Origem' },
+  { k: 'fonte', rot: 'Fonte' },
+  { k: 'campanha', rot: 'Campanha' },
+  { k: 'conjunto', rot: 'Conjunto' },
+  { k: 'anuncio', rot: 'Anúncio' },
+  { k: 'consumo', rot: 'Consumo' },
+  { k: 'onde', rot: 'Onde' },
+  { k: 'demanda', rot: 'Demanda contratada' },
+];
+// As que formam a nota, sempre por último (as perguntas extras do formulário
+// entram antes delas).
+const LEADS_COLS_NOTA = [
+  { k: 'orcamento', rot: 'Já tem orçamento', nota: true, inicio: true },
+  { k: 'p:orcamento', rot: 'Pontos do orçamento (de 10)', nota: true, num: true },
+  { k: 'imovel', rot: 'Imóvel', nota: true },
+  { k: 'p:imovel', rot: 'Pontos do imóvel (de 15)', nota: true, num: true },
+  { k: 'pagamento', rot: 'Pagamento', nota: true },
+  { k: 'p:pagamento', rot: 'Pontos do pagamento (de 20)', nota: true, num: true },
+  { k: 'decisor', rot: 'Quem decide', nota: true },
+  { k: 'p:decisor', rot: 'Pontos do decisor (de 20)', nota: true, num: true },
+  { k: 'urgencia', rot: 'Urgência', nota: true },
+  { k: 'p:prazo', rot: 'Pontos do prazo (de 35)', nota: true, num: true },
+  { k: 'pontos', rot: 'Nota (de 100)', nota: true, num: true, final: true },
+];
+const LEAD_PONTOS_DE = {
+  'pontos do orçamento': 'p:orcamento', 'pontos do imóvel': 'p:imovel', 'pontos do pagamento': 'p:pagamento',
+  'pontos do decisor': 'p:decisor', 'pontos do prazo': 'p:prazo',
+};
+const ROT_CAMINHO_LEAD = { vistoria: 'Visita', video: 'Atendimento', ligacao: 'Ligação', curioso: 'Curioso' };
+const LEAD_FONTE = { ig: 'Instagram', fb: 'Facebook', an: 'Audience Network', th: 'Threads', msg: 'Messenger' };
+let leadsLinhasAtuais = [];
+
+// De qual coluna é cada pergunta do field_data. null = já tem coluna própria
+// (nome, telefone, caminho, pontos...) ou não interessa.
+function leadColunaDoCampo(nome) {
+  const n = String(nome || '').toLowerCase().trim();
+  if (!n) return null;
+  if (['origem', 'caminho', 'pontos', 'qualifica', 'utm_medium'].includes(n)) return null;
+  if (LEAD_PONTOS_DE[n]) return LEAD_PONTOS_DE[n];   // antes do resto: "pontos do pagamento" não é a resposta do pagamento
+  if (n === 'utm_source') return 'fonte';
+  if (n === 'utm_campaign') return 'campanha';
+  if (n === 'utm_term') return 'conjunto';
+  if (n === 'utm_content') return 'anuncio';
+  if (/^(nome|nome_completo|full_name|phone_number|telefone|whatsapp|email|e-mail)$/.test(n)) return null;
+  if (n === 'cidade' || n === 'city') return 'cidade';
+  if (n === 'raio') return 'raio';
+  if (n === 'sem horário') return 'semHorario';
+  if (n === 'onde') return 'onde';
+  if (n.includes('consum') || n.includes('conta_de_luz') || n.includes('conta de luz')) return 'consumo';
+  if (n.includes('urg')) return 'urgencia';
+  if (n.includes('orçamento') || n.includes('orcamento')) return 'orcamento';
+  if (n.includes('investir') || n.includes('pagamento') || n.includes('pagar')) return 'pagamento';
+  if (n.includes('decide') || n.includes('decisor')) return 'decisor';
+  if (n.includes('imóvel') || n.includes('imovel')) return 'imovel';
+  if (n.includes('demanda')) return 'demanda';
+  return 'x:' + String(nome).trim();
+}
+function leadRotuloExtra(nome) {
+  const s = String(nome).replace(/_/g, ' ').replace(/\s+/g, ' ').trim().replace(/[?:]$/, '');
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+function leadDataTxt(d) {
+  const p2 = n => String(n).padStart(2, '0');
+  return `${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${String(d.getFullYear()).slice(2)} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+}
+
+// Uma linha da planilha, em texto puro (a tela e o CSV leem o mesmo objeto).
+function leadLinha(r) {
+  const fd = Array.isArray(r.field_data) ? r.field_data : [];
+  const ag = r.agendado_id ? leadsAgMap[r.agendado_id] : null;
+  const L = {};
+  for (const f of fd) {
+    const v = f && f.values && f.values[0];
+    if (!v) continue;
+    const k = leadColunaDoCampo(f.name);
+    if (k && L[k] == null) L[k] = String(v);
+  }
+  const quiz = leadEhQuiz(r);
+  const cam = leadCaminho(r);
+  const dm = String(r.lead_id || '').startsWith('mc_');
+  L.entrou = r.created_time ? leadDataTxt(new Date(r.created_time)) : '';
+  L.nome = r.nome || '';
+  L.whatsapp = r.whatsapp || '';
+  L.email = r.email || '';
+  L.cidade = r.cidade || L.cidade || '';
+  L.caminho = quiz
+    ? (cam ? ROT_CAMINHO_LEAD[cam] : 'Quiz') + (r.agendado_id || cam === 'curioso' ? '' : ', não marcou')
+    : (dm ? 'DM' : 'Formulário');
+  L.pontos = quiz ? (leadCampo(fd, 'pontos') || '') : '';
+  const q = quiz ? leadCampo(fd, 'qualifica') : '';
+  L.qualifica = q ? (q === 'vistoria' ? 'Visita' : 'Atendimento') : '';
+  L.consultor = r.fora_area ? 'fora da área' : (r.consultor || '');
+  L.agendado = ag && ag.quando ? leadDataTxt(new Date(ag.quando)) : (r.fora_area ? 'fora da área' : '');
+  L.status = ag ? (ag.status || '') : '';
+  L.confirmou = ag ? (ag.presenca_confirmada_at ? 'Sim, ' + leadDataTxt(new Date(ag.presenca_confirmada_at)) : 'Não') : '';
+  L.origem = quiz ? 'Quiz /io/solar' : (dm ? 'DM' : (r.form_name || 'Formulário'));
+  if (ag) {
+    if (ag.utm_source) L.fonte = ag.utm_source;
+    if (ag.utm_campaign) L.campanha = ag.utm_campaign;
+    if (ag.utm_term) L.conjunto = ag.utm_term;
+    if (ag.utm_content) L.anuncio = ag.utm_content;
+  }
+  if (L.fonte) L.fonte = LEAD_FONTE[String(L.fonte).toLowerCase()] || L.fonte;
+  if (L.semHorario) L.semHorario = 'Sim';
+  for (const k of Object.values(LEAD_PONTOS_DE)) if (L[k]) L[k] = String(L[k]).split('/')[0];   // "18/35" vira 18: o máximo está no cabeçalho
+  return { r, L, cam, quiz };
+}
+function leadsColunas(linhas) {
+  const extras = [];
+  for (const { L } of linhas) for (const k of Object.keys(L)) if (k.startsWith('x:') && !extras.includes(k)) extras.push(k);
+  return [...LEADS_COLS, ...extras.map(k => ({ k, rot: leadRotuloExtra(k.slice(2)) })), ...LEADS_COLS_NOTA];
+}
+
+function renderLeadsTabela() {
+  const thead = document.getElementById('leads-thead');
+  const tbody = document.getElementById('leads-tbody');
+  if (!tbody || !thead) return;
+  const linhas = leadsRowsCache.filter(r => leadNaAba(r, leadsAba)).map(leadLinha);
+  leadsLinhasAtuais = linhas;
+  const cols = leadsColunas(linhas);
+  const clsTh = c => [c.fixa ? 'fixa' : '', c.nota ? 'nota-bloco' : '', c.inicio ? 'nota-inicio' : '', c.final ? 'nota-final' : ''].filter(Boolean).join(' ');
+  thead.innerHTML = '<tr>' + cols.map(c => `<th${clsTh(c) ? ` class="${clsTh(c)}"` : ''}>${escapeHtml(c.rot)}</th>`).join('') + '</tr>';
+  const conta = document.getElementById('leads-conta');
+  if (conta) conta.textContent = `${linhas.length} lead${linhas.length === 1 ? '' : 's'} nesta aba, ${cols.length} colunas. Role para o lado: as últimas mostram de onde veio a nota.`;
+  if (!linhas.length) {
+    tbody.innerHTML = `<tr><td colspan="${cols.length}" class="historico-vazio">Ninguém nesta aba.</td></tr>`;
     return;
   }
-  const p2 = n => String(n).padStart(2, '0');
-  const ROT_CAMINHO = { vistoria: 'Visita', video: 'Atendimento', ligacao: 'Ligação', curioso: 'Curioso' };
-  tbody.innerHTML = rows.map(r => {
-    const fd = r.field_data || [];
-    const dt = r.created_time ? new Date(r.created_time) : null;
-    const dtTxt = dt ? `${p2(dt.getDate())}/${p2(dt.getMonth()+1)} ${p2(dt.getHours())}:${p2(dt.getMinutes())}` : '—';
-    const wppLink = r.whatsapp ? `<a class="lead-wpp" href="https://wa.me/${r.whatsapp}" target="_blank">${r.whatsapp}</a>` : '—';
-    const consumo = leadCampo(fd, 'consum');
-    const urgencia = leadCampo(fd, 'urg');
-    const pagamento = leadCampo(fd, 'investir', 'pagamento', 'pagar');
-    const decisor = leadCampo(fd, 'decide', 'decisor');
-    const foraArea = !!r.fora_area;
-    let agendado;
-    if (r.agendado_id && quandoMap[r.agendado_id]) {
-      const q = new Date(quandoMap[r.agendado_id]);
-      agendado = `${p2(q.getDate())}/${p2(q.getMonth()+1)} ${p2(q.getHours())}:${p2(q.getMinutes())}`;
-    } else if (foraArea) {
-      agendado = '⚠ fora da área';
-    } else {
-      agendado = '—';
-    }
-    const consultorCell = foraArea
-      ? '<span class="lead-fora-tag">fora da área</span>'
-      : `<span class="lead-consultor">${escapeHtml(r.consultor || '—')}</span>`;
-    const detJson = encodeURIComponent(JSON.stringify(fd));
-    const cam = leadCaminho(r);
-    const qualifica = leadEhQuiz(r) ? leadCampo(fd, 'qualifica') : '';
-    const pontos = leadEhQuiz(r) ? leadCampo(fd, 'pontos') : '';
-    const caminhoCell = leadEhQuiz(r)
-      ? `<span class="lead-caminho ${cam || 'form'}"><i></i>${cam ? ROT_CAMINHO[cam] : 'Quiz'}${pontos ? ` · ${pontos} pts` : ''}${r.agendado_id || cam === 'curioso' ? '' : ' · não marcou'}${qualifica ? ` <small>qualifica ${qualifica === 'vistoria' ? 'visita' : 'atendimento'}</small>` : ''}</span>`
-      : `<span class="lead-caminho form"><i></i>${String(r.lead_id || '').startsWith('mc_') ? 'DM' : 'Formulário'}</span>`;
-    return `<tr class="${foraArea ? 'lead-fora' : ''}">
-      <td>${dtTxt}</td>
-      <td>${escapeHtml(r.nome || '—')}</td>
-      <td>${caminhoCell}</td>
-      <td>${wppLink}</td>
-      <td>${escapeHtml(r.cidade || '—')}</td>
-      <td>${consultorCell}</td>
-      <td>${agendado}</td>
-      <td>${escapeHtml(consumo || '—')}</td>
-      <td>${escapeHtml(urgencia || '—')}</td>
-      <td>${escapeHtml(pagamento || '—')}</td>
-      <td>${escapeHtml(decisor || '—')}</td>
-      <td><button class="lead-det-btn" onclick="verLeadDetalhe('${detJson}')">ver tudo</button></td>
-    </tr>`;
+  tbody.innerHTML = linhas.map(({ r, L, cam, quiz }) => {
+    const tds = cols.map(c => {
+      const cls = [c.fixa ? 'fixa' : '', c.num ? 'num' : '', c.nota ? 'nota-bloco' : '', c.inicio ? 'nota-inicio' : '', c.final ? 'nota-final' : ''].filter(Boolean).join(' ');
+      const td = inner => `<td${cls ? ` class="${cls}"` : ''}>${inner}</td>`;
+      const v = L[c.k];
+      if (c.k === 'whatsapp') return td(r.whatsapp ? `<a class="lead-wpp" href="https://wa.me/${encodeURIComponent(r.whatsapp)}" target="_blank" rel="noopener">${escapeHtml(r.whatsapp)}</a>` : '—');
+      if (c.k === 'caminho') return td(`<span class="lead-caminho ${quiz ? (cam || 'form') : 'form'}"><i></i>${escapeHtml(v)}</span>`);
+      if (c.k === 'consultor') return td(r.fora_area ? '<span class="lead-fora-tag">fora da área</span>' : `<span class="lead-consultor">${escapeHtml(v || '—')}</span>`);
+      if (c.k === 'pontos' && v) {
+        // A faixa da nota com a mesma cor do caminho: acima de 90 visita, abaixo de 40 curioso.
+        const n = Number(v), faixa = n > 90 ? 'vistoria' : n < 40 ? 'curioso' : 'ligacao';
+        return td(`<span class="lead-caminho ${faixa}"><i></i>${escapeHtml(v)}</span>`);
+      }
+      return td(v ? escapeHtml(v) : '—');
+    }).join('');
+    return `<tr class="${r.fora_area ? 'lead-fora' : ''}">${tds}</tr>`;
   }).join('');
+}
+
+// A mesma planilha em CSV (a aba aberta, todas as colunas), para abrir no Excel.
+function exportarLeadsCSV() {
+  const linhas = leadsRowsCache.filter(r => leadNaAba(r, leadsAba)).map(leadLinha);
+  if (!linhas.length) { showToast('Nenhum lead nesta aba'); return; }
+  const cols = leadsColunas(linhas);
+  const esc = v => {
+    const s = v == null ? '' : String(v);
+    return /[",;\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const out = [cols.map(c => esc(c.rot)).join(';')];
+  for (const { L } of linhas) out.push(cols.map(c => esc(L[c.k] || '')).join(';'));
+  const blob = new Blob(['﻿' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `leads_solar_${leadsAba}_${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast(`${linhas.length} lead${linhas.length === 1 ? '' : 's'} na planilha baixada`);
 }
 
 function verLeadDetalhe(detJson) {

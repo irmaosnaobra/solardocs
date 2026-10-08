@@ -426,14 +426,20 @@ function renderFim(){
     rodape.innerHTML = '<a class="cta" style="text-align:center;text-decoration:none" href="https://solardoc.app/">Conhecer o SolarDoc</a>';
     corpo.innerHTML = h; return;
   }
+  // Curioso (abaixo de 40 pontos). Ordem do Thiago em 08/10: o WhatsApp não entra
+  // em contato, ele fica no cadastro como curioso e o fim do quiz é o convite para
+  // seguir o Instagram. Nada de prometer mensagem nem ligação.
+  if (fim === 'curioso'){
+    h = '<h2 class="q">Recebemos as suas respostas</h2><p class="sub">Siga a gente no Instagram para ver as obras que a gente entrega e as novidades de energia solar.</p>';
+    rodape.innerHTML = '<a class="cta" style="display:block;text-align:center;text-decoration:none" href="https://www.instagram.com/irmaosnaobra__/" target="_blank" rel="noopener" data-source="solar_curioso">Seguir @irmaosnaobra__ no Instagram</a>';
+    corpo.innerHTML = h; return;
+  }
   if (fim === 'ja_marcado' && srv && srv.jaMarcado){
     const d = new Date(srv.jaMarcado.quando);
     const q = d.toLocaleString('pt-BR', { timeZone:'America/Sao_Paulo', weekday:'long', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
     h = '<h2 class="q">Você já tem um horário marcado</h2><p class="sub">É ' + esc(q) + (srv.jaMarcado.dono ? ', com ' + esc(srv.jaMarcado.dono) : '') + '. Se precisar trocar, responda a mensagem de confirmação no WhatsApp.</p>' + ig;
   } else if (fim === 'nao_confirmou'){
     h = '<h2 class="q">Sem problema</h2><p class="sub">Guardamos as suas respostas. Quando puder, a gente te chama no WhatsApp com novos horários.</p>' + ig;
-  } else if (fim === 'curioso'){
-    h = '<h2 class="q">Recebemos as suas respostas</h2><p class="sub">A gente acabou de te mandar uma mensagem no WhatsApp. Pode responder por lá quando quiser, com as suas dúvidas.</p>' + ig;
   } else if (fim === 'sem_vitrine'){
     h = '<h2 class="q">Recebemos as suas respostas</h2><p class="sub">A gente te chama no WhatsApp para combinar o melhor horário.</p>' + ig;
   } else {
