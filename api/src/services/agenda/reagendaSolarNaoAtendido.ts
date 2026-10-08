@@ -66,6 +66,7 @@ import { agendaFechadaNoIso } from './agendaFechada';
 import { APALAVRADO_PREFIX, esperaAte } from './salaDeEspera';
 import { carregarBloqueados } from '../agents/whatsapp/silenciar';
 import { FILTRO_NAO_OCUPA } from './salaDeEspera';
+import { caminhoDaFicha } from './solarRota';
 
 const TZ = 'America/Sao_Paulo';
 
@@ -390,6 +391,7 @@ export interface CardSolar {
   status: string | null;
   lead_resposta_at: string | null;
   historico: string | null;
+  observacao?: string | null;
 }
 
 export type ResultadoReagendaSolar = {
@@ -501,7 +503,7 @@ export async function runReagendaSolarTick(
   // 1. Os cards vermelhos do solar.
   const { data, error } = await supabaseGerador
     .from('agendamentos')
-    .select('id, quando, cliente_nome, cliente_telefone, vendedor_nome, created_by, status, lead_resposta_at, historico')
+    .select('id, quando, cliente_nome, cliente_telefone, vendedor_nome, created_by, status, lead_resposta_at, historico, observacao')
     // `apalavrado` saiu: quem segura a ficha e a MARCA, que tem data.
     .not('status', 'in', `(${[...DESTINO_FINAL_SOLAR].join(',')})`)
     .gte('quando', de)
@@ -529,6 +531,10 @@ export async function runReagendaSolarTick(
     // Eletroposto tem régua própria, com copy própria. Duas máquinas no mesmo
     // card remarcariam duas vezes o mesmo cliente.
     && !ehOrigemEletroposto(f.created_by)
+    // Visita e videochamada do quiz solar (07/10/2026) ficam com o sócio: este
+    // reciclo remarca na grade da Nilce como ligação de 15 min, e uma visita em
+    // Catalão ocupa a manhã inteira com a estrada. A ligação do quiz segue aqui.
+    && !(f.created_by === 'lp_solar' && ['vistoria', 'video'].includes(String(caminhoDaFicha(f.observacao))))
     && !!f.cliente_telefone
     // FORA DO PADRÃO: mesma regra do reciclo do eletroposto.
     && !bloqueado(f.cliente_telefone)

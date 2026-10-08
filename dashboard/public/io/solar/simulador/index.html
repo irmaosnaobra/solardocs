@@ -284,7 +284,17 @@
   .fc svg{width:16px;height:16px;stroke:var(--gold-2);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
   .fLegal{color:var(--soft);font-size:11.5px;font-weight:600;line-height:1.6;margin-top:18px}
   .cta-center{text-align:center;margin-top:30px}
+  /* 07/10/2026: esta página saiu da /io/solar, que virou o quiz. A marcação
+     daqui usava a régua antiga (1.200 kWh e 60 min fixos, sem a estrada), então
+     ela fica escondida e todo "agendar" leva para o quiz, onde o servidor decide
+     o caminho e a agenda conta o deslocamento. */
+  #agendar{display:none!important}
 </style>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('a[href="#agendar"]').forEach(function(a){ a.setAttribute('href', '/io/solar' + location.search); });
+});
+</script>
 </head>
 <body>
 

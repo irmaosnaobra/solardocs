@@ -341,7 +341,12 @@ async function donoDoTelefone(alvo: string): Promise<{ dono: string | null; jaMa
   const meus = ((data || []) as Array<Record<string, unknown>>).filter(a => telKeySolar(a.cliente_telefone) === alvo);
   const nome = meus.map(a => String(a.vendedor_nome || '')).find(Boolean) || null;
   const agora = Date.now();
-  const futuro = meus.find(a => a.status === 'agendado' && !ehOrigemEletroposto(a.created_by)
+  // "Já marcado" é só horário que o CLIENTE escolheu (fichas desta LP). O card
+  // do formulário do Meta também nasce com horário, mas a pessoa nunca soube
+  // dele (as boas-vindas não falam de horário): dizer "você já tem horário" a
+  // quem veio pelos dois canais, que é o lead mais quente, seria barrar ele com
+  // uma confirmação que ele nunca recebeu. O dono continua valendo pelo `nome`.
+  const futuro = meus.find(a => a.status === 'agendado' && a.created_by === 'lp_solar'
     && new Date(String(a.quando)).getTime() > agora);
   return {
     // Dono que não atende solar (nome fora da lista) não amarra o lead: cai na
