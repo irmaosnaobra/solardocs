@@ -511,6 +511,34 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
   font-family:inherit;font-size:13px;font-weight:900;padding:10px 14px;cursor:pointer;min-height:40px;white-space:nowrap}
 .cad-conectar:hover{filter:brightness(1.07)}
 .cad-conectar[disabled]{opacity:.6;cursor:default}
+/* FILTROS DO MATCH (07/10/2026): pagamento do investidor e nota do local. Chip e
+   nao select porque o numero de cada faixa e a informacao: quem olha ja ve que
+   ha 40 duplas de nota alta antes de clicar. */
+.cad-mf{display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;margin:2px 0 16px}
+.cad-mf[hidden]{display:none}
+.cad-mf-grupo{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.cad-mf-rot{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#64748B;margin-right:4px}
+.cad-mf-chip{display:inline-flex;align-items:center;gap:7px;background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.26);
+  border-radius:999px;color:#CBD5E1;font-family:inherit;font-size:12.5px;font-weight:700;padding:6px 8px 6px 12px;
+  min-height:34px;cursor:pointer;white-space:nowrap}
+.cad-mf-chip:hover{border-color:#64748B;color:#fff}
+.cad-mf-chip b{font-size:11px;font-weight:800;color:#94A3B8;background:rgba(148,163,184,.14);border-radius:999px;padding:2px 7px;min-width:14px;text-align:center}
+.cad-mf-chip i{width:8px;height:8px;border-radius:50%;background:var(--c);flex:0 0 auto}
+.cad-mf-chip.zero{opacity:.45}
+.cad-mf-chip.on{background:rgba(167,139,250,.18);border-color:#A78BFA;color:#fff}
+.cad-mf-chip.on b{background:#A78BFA;color:#1E1B4B}
+.cad-mf-espera{font-size:12.5px;color:#94A3B8;font-weight:600}
+.cad-mf-total{margin-left:auto;font-size:12.5px;color:#94A3B8;font-weight:600;white-space:nowrap}
+.cad-mf-total b{color:#E5E7EB}
+.cad-mf-limpa{background:none;border:0;color:#A78BFA;font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer;padding:4px 0 4px 8px}
+/* a nota do local na propria linha: filtrar por uma coisa que a tela nao mostra
+   faz a pessoa desconfiar do filtro */
+.cad-mnota{display:inline-block;margin:6px 0 0 4px;font-size:10.5px;font-weight:800;color:var(--c);border:1px solid var(--c);
+  border-radius:999px;padding:2px 8px;white-space:nowrap;cursor:help;vertical-align:middle}
+@media(max-width:720px){
+  .cad-mf{gap:10px}
+  .cad-mf-total{margin-left:0;width:100%}
+}
 @media(max-width:720px){
   .cad-topo{flex-direction:column;align-items:stretch}
   .cad-busca{min-width:0;flex:1}
@@ -4938,6 +4966,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
       <div class="card" id="cad-card">
         <div class="eletro-sec-title" id="cad-titulo">Arrendamento — quem tem o local</div>
+        <!-- So no Match: os chips sao montados por cadRenderMatch, com a contagem. -->
+        <div class="cad-mf" id="cad-mf" hidden></div>
         <div class="eletro-cmp-scroll"><table class="eletro-cmp cadtab" id="cad-tabela">
           <tbody><tr><td style="color:#94A3B8;padding:18px">Carregando…</td></tr></tbody>
         </table></div>
@@ -9396,6 +9426,9 @@ function cadAba(lado) {
 
 async function cadCarregar(forcar) {
   if (cadDados && !forcar) { cadRender(); return; }
+  // ↻ Atualizar refaz a nota do Match junto: sem isto a faixa ficava presa na
+  // leitura da primeira abertura.
+  if (forcar && pnDados) cadNotasGarantir(true);
   const tb = document.querySelector('#cad-tabela tbody');
   tb.innerHTML = '<tr><td style="color:#94A3B8;padding:18px">Carregando…</td></tr>';
   try {
@@ -9645,6 +9678,7 @@ function cadRender() {
   document.getElementById('cad-cnt-match').textContent = cadMatches ? cadMatches.length : '—';
 
   cadRenderChamadaCurioso();
+  document.getElementById('cad-mf').hidden = cadLado !== 'match';
   if (cadLado === 'match') { cadRenderMatch(busca); return; }
 
   let linhas = cadDados[cadLado];
@@ -9808,11 +9842,137 @@ const cadConectado = (refP, refC) => {
                             && String(x.status || 'apresentado') === 'apresentado');
 };
 
+// ─── FILTROS DO MATCH (07/10/2026) ───────────────────────────────────────────
+// Dois, e simples: COMO o investidor paga (a segunda linha do "O que decide") e
+// a NOTA do local, nas faixas 10 a 8, 7 a 5 e 4 a 0. Nao existe filtro de
+// "proprio": todo ponto desta aba JA E PROPRIO, e a regra que deixa a linha
+// entrar (soPontosProprios no servidor). Um filtro com uma opcao so seria enfeite.
+let cadMF = { como: '', nota: '' };
+const CAD_MF_COMO = [
+  { id: 'proprio',         rot: 'Recurso próprio' },
+  { id: 'proprio_credito', rot: 'Próprio + crédito' },
+  { id: 'fin',             rot: 'Financiamento' },
+  { id: 'naosei',          rot: 'Não sabe como paga' },
+  { id: 'outro',           rot: 'Outra resposta' },
+  { id: 'sem',             rot: 'Não disse' },
+];
+const CAD_MF_NOTA = [
+  { id: 'alta',  rot: '10 a 8',   cor: '#7DD117' },
+  { id: 'media', rot: '7 a 5',    cor: '#FBBF24' },
+  { id: 'baixa', rot: '4 a 0',    cor: '#F87171' },
+  { id: 'sem',   rot: 'Sem nota', cor: '#64748B' },
+];
+function cadMFPoe(grupo, v) {
+  cadMF[grupo] = v && cadMF[grupo] === v ? '' : v;
+  cadRender();
+}
+function cadMFLimpa() { cadMF = { como: '', nota: '' }; cadRender(); }
+/** O grupo de pagamento, pela MESMA regex da Prospecção (pnComo). Vazio e "nao
+ *  reconheci" sao coisas diferentes: a celula mostra o texto, e um filtro que
+ *  chamasse de "nao disse" quem disse alguma coisa estaria mentindo. */
+function cadComoGrupo(c) {
+  const t = String(c.capital_origem || c.invest || '').trim();
+  if (!t || /^selecione/i.test(t)) return 'sem';
+  const k = pnComo(t);
+  if (k === 'proprio' || k === 'proprio_credito' || k === 'naosei') return k;
+  return /^fin_/.test(k) ? 'fin' : 'outro';
+}
+
+// A NOTA DO LOCAL e a mesma da aba Prospecção: o indice do estudo, ou a nota da
+// cidade pra quem ainda nao rodou. Ela sai de pontosCarregar, que ja sabe montar
+// isso; refazer a conta aqui seria uma segunda regua divergindo calada.
+// Enquanto ela nao chega, a tela diz "carregando" e NAO filtra: tratar "ainda nao
+// sei" como "sem nota" poria todo mundo na faixa errada.
+let cadNotasEstado = '';   // '' | 'carregando' | 'falhou'
+let cadNotaIdx = null;     // { de: pnDados, porTel, porCidade }
+function cadNotasGarantir(forcar) {
+  if (cadNotasEstado === 'carregando') return;
+  // falhou uma vez, so tenta de novo no ↻ Atualizar: cadRender roda a cada tecla
+  // da busca, e cada tentativa sao cinco leituras
+  if (!forcar && (pnDados || cadNotasEstado === 'falhou')) return;
+  cadNotasEstado = 'carregando';
+  pontosCarregar(forcar).catch(() => {}).then(() => {
+    cadNotasEstado = pnDados ? '' : 'falhou';
+    if (cadLado === 'match') cadRender();
+  });
+}
+/** undefined = ainda nao sei; null = medi e nao tem nota; {n, daCidade} = a nota. */
+function cadNotaDe(p) {
+  if (!pnDados) return undefined;
+  if (!cadNotaIdx || cadNotaIdx.de !== pnDados) {
+    const porTel = new Map(), porCidade = new Map();
+    pnDados.forEach(l => {
+      porTel.set(l.tel8, l);
+      if (l.indice == null || !pnNomeCidade(l.cidade)) return;
+      const k = pnChaveCidade(l.cidade);
+      if (!porCidade.has(k)) porCidade.set(k, new Set());
+      porCidade.get(k).add(l.indice);
+    });
+    cadNotaIdx = { de: pnDados, porTel: porTel, porCidade: porCidade };
+  }
+  const l = cadNotaIdx.porTel.get(cadTel8(p.telefone));
+  if (l && pnNota(l) != null) return { n: pnNota(l), daCidade: l.indice == null };
+  // Quem nao esta na Prospecção (reuniao que veio por outra porta) herda pela
+  // cidade do proprio ponto, com a mesma trava de la: cidade sem UF so herda
+  // quando existe uma unica cidade com aquele nome.
+  const nome = pnNomeCidade(p.cidade);
+  if (!nome) return null;
+  let st = cadNotaIdx.porCidade.get(pnChaveCidade(p.cidade));
+  if (!st && !pnUf(p.cidade)) {
+    const iguais = [...cadNotaIdx.porCidade.entries()].filter(e => e[0].split('|')[0] === nome);
+    if (iguais.length === 1) st = iguais[0][1];
+  }
+  return st && st.size === 1 ? { n: [...st][0], daCidade: true } : null;
+}
+const cadNotaFaixa = x => (x == null ? 'sem' : x.n >= 8 ? 'alta' : x.n >= 5 ? 'media' : 'baixa');
+function cadNotaPilula(x) {
+  const pil = (cor, txt, dica) => '<span class="cad-mnota" style="--c:' + cor + '" title="' + dica + '">' + txt + '</span>';
+  if (x === undefined) return cadNotasEstado === 'falhou'
+    ? pil('#64748B', 'nota ?', 'Não consegui ler as notas agora. Tente ↻ Atualizar.')
+    : pil('#64748B', 'nota …', 'Carregando a nota do local');
+  if (x === null) return pil('#64748B', 'sem nota', 'O estudo deste local nunca rodou e a cidade não tem nota');
+  const f = CAD_MF_NOTA.find(b => b.id === cadNotaFaixa(x));
+  return pil(f.cor, 'nota ' + x.n.toFixed(1).replace('.', ',') + (x.daCidade ? ' · cidade' : ''),
+    x.daCidade ? 'Nota da cidade: o estudo deste local ainda não rodou' : 'Índice do estudo deste local');
+}
+/** Os chips com a contagem. Cada grupo conta com o OUTRO filtro aplicado e sem o
+ *  proprio, igual ao funil da Prospecção: contando com o proprio, clicar em
+ *  "10 a 8" zeraria as outras faixas e ninguem saberia pra onde voltar. */
+function cadMFPinta(contaComo, contaNota, notasProntas, mostrando, total) {
+  const el = document.getElementById('cad-mf');
+  const chip = (grupo, id, rot, n, cor) => {
+    const on = cadMF[grupo] === id;
+    return '<button type="button" class="cad-mf-chip' + (on ? ' on' : '') + (n || on ? '' : ' zero') + '"'
+      + ' onclick="cadMFPoe(\'' + grupo + '\',\'' + id + '\')">'
+      + (cor ? '<i style="--c:' + cor + '"></i>' : '') + escapeHtml(rot) + ' <b>' + n + '</b></button>';
+  };
+  const soma = o => Object.values(o).reduce((a, b) => a + b, 0);
+  const como = '<div class="cad-mf-grupo"><span class="cad-mf-rot">Pagamento</span>'
+    + chip('como', '', 'Todos', soma(contaComo))
+    + CAD_MF_COMO.filter(o => o.id !== 'outro' || contaComo.outro || cadMF.como === 'outro')
+        .map(o => chip('como', o.id, o.rot, contaComo[o.id] || 0)).join('')
+    + '</div>';
+  const nota = '<div class="cad-mf-grupo"><span class="cad-mf-rot">Nota do local</span>'
+    + (notasProntas
+      ? chip('nota', '', 'Todas', soma(contaNota))
+        + CAD_MF_NOTA.map(o => chip('nota', o.id, o.rot, contaNota[o.id] || 0, o.cor)).join('')
+      : '<span class="cad-mf-espera">' + (cadNotasEstado === 'falhou'
+          ? 'indisponível agora, tente ↻ Atualizar' : 'carregando…') + '</span>')
+    + '</div>';
+  const ligado = cadMF.como || (notasProntas && cadMF.nota);
+  el.innerHTML = como + nota + '<span class="cad-mf-total">'
+    + (ligado ? '<b>' + mostrando + '</b> de ' + total + ' duplas'
+               + '<button type="button" class="cad-mf-limpa" onclick="cadMFLimpa()">limpar</button>'
+             : '<b>' + total + '</b> duplas')
+    + '</span>';
+}
+
 function cadRenderMatch(busca) {
   const tb = document.querySelector('#cad-tabela tbody');
   document.getElementById('cad-painel-pares').hidden = true;
 
   if (!cadMatches) {
+    document.getElementById('cad-mf').hidden = true;
     tb.innerHTML = '<tr><td colspan="5" style="color:#94A3B8;padding:20px;line-height:1.6">'
       + '<b>Não consegui calcular as distâncias agora.</b><br>'
       + 'A lista de duplas depende do serviço de proximidade — as abas Arrendamento e '
@@ -9831,12 +9991,35 @@ function cadRenderMatch(busca) {
     // uma fila de trabalho vira lista que ninguém confia.
     .filter(d => d.p.status !== 'sem_interesse' && d.c.status !== 'sem_interesse');
 
+  // O seletor de vendedor ficava na tela do Match sem fazer nada. Agora vale:
+  // fica a dupla em que ele tem reunião com UM dos dois lados.
+  const vend = (document.getElementById('cad-vend') || {}).value || '';
+  if (vend) duplas = duplas.filter(d => [d.p, d.c].some(x => {
+    const a = cadAgendaDe(x); return a && a.vendedor_nome === vend; }));
   if (busca) duplas = duplas.filter(d =>
     [d.p.nome, d.c.nome, d.p.cidade, d.c.cidade].filter(Boolean).join(' ').toLowerCase().includes(busca));
+
+  cadNotasGarantir();
+  const notasProntas = !!pnDados;
+  duplas.forEach(d => {
+    d.como = cadComoGrupo(d.c);
+    d.nota = cadNotaDe(d.p);
+    d.faixa = notasProntas ? cadNotaFaixa(d.nota) : '';
+  });
+  const total = duplas.length;
+  const filtraNota = notasProntas && cadMF.nota;
+  const porNota = filtraNota ? duplas.filter(d => d.faixa === cadMF.nota) : duplas;
+  const porComo = cadMF.como ? duplas.filter(d => d.como === cadMF.como) : duplas;
+  const contaComo = {}, contaNota = {};
+  porNota.forEach(d => { contaComo[d.como] = (contaComo[d.como] || 0) + 1; });
+  porComo.forEach(d => { contaNota[d.faixa] = (contaNota[d.faixa] || 0) + 1; });
+  duplas = filtraNota ? porComo.filter(d => d.faixa === cadMF.nota) : porComo;
+  cadMFPinta(contaComo, contaNota, notasProntas, duplas.length, total);
 
   if (!duplas.length) {
     tb.innerHTML = '<tr><td colspan="5" style="color:#94A3B8;padding:20px;line-height:1.6">' + (cadMatches.length
       ? 'Nenhuma dupla com esse filtro.'
+        + (cadMF.como || filtraNota ? ' <button type="button" class="cad-mf-limpa" onclick="cadMFLimpa()">limpar os filtros</button>' : '')
       : '<b>Nenhuma dupla dentro de ' + CAD_MATCH_KM + ' km.</b><br>'
         + 'Só ponto PRÓPRIO pareia: quem é inquilino, administra ou representa o dono '
         + 'aparece na aba Arrendamento com o selo, mas não entra aqui. '
@@ -9861,7 +10044,7 @@ function cadRenderMatch(busca) {
         + '<td class="cad-km">' + (d.km === 0 ? 'mesma<br>cidade' : d.km + '<span class="cad-sub" style="margin:0">km</span>') + '</td>'
         // O selo repete na dupla de propósito: é a resposta que deixou esta linha
         // entrar, e ela tem que estar visível onde a equipe decide ligar.
-        + '<td class="nome">' + escapeHtml(d.p.nome || '—') + ' ' + cadRelacaoBadge(d.p)
+        + '<td class="nome">' + escapeHtml(d.p.nome || '—') + ' ' + cadRelacaoBadge(d.p) + cadNotaPilula(d.nota)
           + '<span class="cad-sub">' + escapeHtml(d.p.cidade || '—')
           + (d.p.ponto_tipo ? ' · ' + escapeHtml(d.p.ponto_tipo) : '') + '</span>'
           + '<div style="margin-top:6px">' + wa(telP) + '</div></td>'
