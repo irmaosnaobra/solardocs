@@ -635,7 +635,11 @@ export async function realinharAgendamentosLeadMeta(): Promise<{ realinhados: nu
   const { data: leads } = await supabaseGerador
     .from('leads_meta')
     .select('agendado_id, consultor, field_data')
-    .not('agendado_id', 'is', null);
+    .not('agendado_id', 'is', null)
+    // O quiz solar escolhe o horário com o cliente: realinhar pela "faixa de
+    // horário" do formulário moveria a visita que ele marcou.
+    // (`neq` sozinho jogaria fora também quem tem form_id nulo.)
+    .or('form_id.is.null,form_id.neq.quiz_solar');
   if (!leads) return { realinhados: 0, erros: 0 };
 
   for (const lead of leads as any[]) {

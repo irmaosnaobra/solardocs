@@ -119,6 +119,10 @@ export async function runCapiLeads(opts: { dry?: boolean } = {}): Promise<CapiLe
     .not('lead_id', 'is', null);
   if (error) { logger.error('cron', 'capi-leads: leads_meta falhou', error); throw new Error(error.message); }
   for (const l of (leads ?? [])) {
+    // Só lead do formulário do Meta tem lead_id que a Meta reconhece (número).
+    // O quiz solar (quiz_...) e o ManyChat (mc_...) também moram nesta tabela, e
+    // mandar o id deles só gerava falha e reenvio todo dia.
+    if (!/^\d{6,20}$/.test(String(l.lead_id))) continue;
     const k = core8(l.whatsapp as string);
     if (k && !leadsPorFone.has(k)) leadsPorFone.set(k, { lead_id: String(l.lead_id), nome: String(l.nome ?? '') });
   }

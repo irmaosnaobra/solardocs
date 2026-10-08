@@ -7,6 +7,13 @@ import { proximoDaContaBaixa } from '../services/agenda/filaContaBaixa';
 import { FILA_CONTA_ALTA } from '../services/agenda/leadSolarFicha';
 import { estaBloqueado } from '../services/agents/whatsapp/silenciar';
 import { FILTRO_NAO_OCUPA } from '../services/agenda/salaDeEspera';
+import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
+import { ocupacoesSolar } from '../services/agenda/solarOcupacao';
+import { SOCIOS_VISITA, DONAS_LIGACAO, MARCA_QUIZ, caminhoDaFicha, type Socio } from '../services/agenda/solarRota';
+import {
+  limparRespostas, limparEndereco, decidirEMontar, montarObservacao, camposDoLead, blocoDaFicha, cabe,
+  msDe, DIAS_VARRIDOS, ROTULO_CAMINHO, type Ocupacao, type Respostas,
+} from '../services/io/solarQuiz';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alerta de lead novo da LP de Energia Solar (/io/solar) no WhatsApp da equipe.
@@ -293,6 +300,262 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
     res.json({ ok: true, id: data?.id ?? null });
   } catch (err) {
     logger.error('io-solar-agendar', `falha gravando ${tel}`, err);
+    res.status(500).json({ ok: false, error: 'nao consegui gravar' });
+  }
+});
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// O QUIZ SOLAR (07/10/2026)
+//
+// A página pergunta, o servidor decide. Duas rotas:
+//   POST /quiz           no passo do WhatsApp: grava o rascunho em `leads_meta`
+//                        (quem desiste antes do horário não some) e devolve o
+//                        caminho e a vitrine prontos.
+//   POST /quiz/agendar   no último passo: refaz a mesma conta com a agenda
+//                        lida na hora e grava a ficha.
+//
+// A vitrine sai daqui, não do navegador: a página só desenha. É a diferença
+// para o eletroposto, onde a vitrine e a gravação são duas contas que já
+// discordaram três vezes.
+//
+// As respostas vão para `leads_meta`, a mesma tabela do formulário do Meta e do
+// ManyChat, com `lead_id` = quiz_<DDD+8> e `form_id` = quiz_solar. Assim a tela
+// Leads do Gerador já enxerga o quiz e não precisou de migração no banco.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Telefone de quem recebe o aviso da ficha do quiz. A Giovanna entra aqui (e
+ *  não no EQUIPE, que o alerta antigo manda para todos de uma vez). */
+const TEL_AVISO: Record<string, string> = { ...EQUIPE, giovanna: '34993396255' };
+const DONOS_QUIZ = [...SOCIOS_VISITA, ...DONAS_LIGACAO] as string[];
+const FORM_QUIZ = 'quiz_solar';
+
+/** De quem é este telefone, e se ele já tem horário de solar marcado. */
+async function donoDoTelefone(alvo: string): Promise<{ dono: string | null; jaMarcado: { quando: string; dono: string } | null }> {
+  const { data, error } = await supabaseGerador.from('agendamentos')
+    .select('vendedor_nome, cliente_telefone, quando, status, created_by')
+    .neq('status', 'cancelado')
+    .ilike('cliente_telefone', `%${alvo.slice(-8)}`)
+    .order('quando', { ascending: false }).limit(20);
+  if (error) throw error;
+  const meus = ((data || []) as Array<Record<string, unknown>>).filter(a => telKeySolar(a.cliente_telefone) === alvo);
+  const nome = meus.map(a => String(a.vendedor_nome || '')).find(Boolean) || null;
+  const agora = Date.now();
+  const futuro = meus.find(a => a.status === 'agendado' && !ehOrigemEletroposto(a.created_by)
+    && new Date(String(a.quando)).getTime() > agora);
+  return {
+    // Dono que não atende solar (nome fora da lista) não amarra o lead: cai na
+    // regra normal. É o furo do eletroposto, onde esse cliente via horário livre
+    // e levava "não consegui agendar" no clique.
+    dono: nome && DONOS_QUIZ.includes(nome) ? nome : null,
+    jaMarcado: futuro ? { quando: String(futuro.quando), dono: String(futuro.vendedor_nome || '') } : null,
+  };
+}
+
+/** A vez dos sócios quando os dois servem igual (vistoria na cidade da base e
+ *  videochamada). Paridade das fichas do quiz já marcadas com eles. */
+async function vezDosSocios(): Promise<Socio> {
+  const { count } = await supabaseGerador.from('agendamentos')
+    .select('id', { count: 'exact', head: true })
+    .eq('created_by', 'lp_solar').like('observacao', `${MARCA_QUIZ}%`)
+    .in('vendedor_nome', [...SOCIOS_VISITA]);
+  return SOCIOS_VISITA[(count || 0) % SOCIOS_VISITA.length];
+}
+
+/** Tudo que ocupa a agenda destas pessoas nos próximos dias, já em bloco.
+ *  `null` = não deu para ler, e aí a vitrine não abre (melhor que vender por
+ *  cima de alguém). */
+async function lerOcupacoes(pessoas: string[]): Promise<Ocupacao[] | null> {
+  const agora = Date.now();
+  const de = new Date(agora).toISOString();
+  const ate = new Date(agora + (DIAS_VARRIDOS + 1) * 86_400_000).toISOString();
+  const [outrasQ, solar, blqQ] = await Promise.all([
+    supabaseGerador.from('agendamentos')
+      .select('quando, vendedor_nome, created_by, status')
+      .gte('quando', new Date(agora - 2 * 3_600_000).toISOString()).lte('quando', ate)
+      .in('vendedor_nome', pessoas)
+      .neq('created_by', 'lp_solar')
+      .not('status', 'in', FILTRO_NAO_OCUPA)
+      .limit(2000),
+    ocupacoesSolar(de, ate, pessoas),
+    supabaseGerador.from('agenda_bloqueios')
+      .select('inicio, fim, vendedor_nome').in('vendedor_nome', pessoas).gte('fim', de).limit(500),
+  ]);
+  if (outrasQ.error || !outrasQ.data || solar === null) return null;
+  const out: Ocupacao[] = [];
+  for (const a of outrasQ.data as Array<Record<string, unknown>>) {
+    // Vermelho do eletroposto devolve o horário, como na vitrine de lá.
+    if (a.status === 'nao_atendeu' && ehOrigemEletroposto(a.created_by)) continue;
+    const b = blocoDaFicha(a as never);
+    if (b && a.vendedor_nome) out.push({ dono: String(a.vendedor_nome), ...b });
+  }
+  for (const s of solar) out.push({ dono: s.dono, ini: s.ini, fim: s.fim });
+  for (const b of (blqQ.data || []) as Array<Record<string, unknown>>) {
+    const ini = new Date(String(b.inicio)).getTime(), fim = new Date(String(b.fim)).getTime();
+    if (!Number.isNaN(ini) && !Number.isNaN(fim) && b.vendedor_nome) out.push({ dono: String(b.vendedor_nome), ini, fim });
+  }
+  return out;
+}
+
+/** Rascunho do lead em `leads_meta`. Falha aqui não segura o quiz. */
+async function gravarLead(leadId: string, campos: Record<string, unknown>): Promise<void> {
+  try {
+    const { data } = await supabaseGerador.from('leads_meta').select('lead_id').eq('lead_id', leadId).limit(1);
+    const { error } = data?.length
+      ? await supabaseGerador.from('leads_meta').update(campos).eq('lead_id', leadId)
+      : await supabaseGerador.from('leads_meta').insert({ lead_id: leadId, created_time: new Date().toISOString(), ...campos });
+    if (error) throw error;
+  } catch (err) {
+    logger.error('io-solar-quiz', `rascunho do lead ${leadId} falhou`, err);
+  }
+}
+
+function lerEntrada(b: Record<string, unknown>): { nome: string; tel: string; alvo: string | null; resp: Respostas; erro?: string } {
+  const nome = String(b.nome || '').trim().replace(/\s+/g, ' ').slice(0, 120);
+  const tel = soDigitosSolar(b.tel);
+  const resp = limparRespostas(b.respostas);
+  const alvo = telKeySolar(tel);
+  if (nome.length < 3) return { nome, tel, alvo, resp, erro: 'nome invalido' };
+  if (tel.length < 12 || tel.length > 13 || !tel.startsWith('55') || !alvo) return { nome, tel, alvo, resp, erro: 'telefone invalido' };
+  if (!resp.conta) return { nome, tel, alvo, resp, erro: 'conta invalida' };
+  return { nome, tel, alvo, resp };
+}
+
+const UTM = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'] as const;
+const utmDe = (b: Record<string, unknown>): Record<string, string> => {
+  const out: Record<string, string> = {};
+  for (const k of UTM) { const v = String(b[k] ?? '').trim().slice(0, 200); if (v) out[k] = v; }
+  return out;
+};
+
+router.post('/quiz', async (req: Request, res: Response): Promise<void> => {
+  const b = (req.body || {}) as Record<string, unknown>;
+  const e = lerEntrada(b);
+  if (e.erro) { res.status(400).json({ ok: false, error: e.erro }); return; }
+  res.set('Cache-Control', 'no-store');
+  // Telefone FORA DO PADRÃO não ganha ficha nem vitrine, e não fica sabendo
+  // (mesma regra do /agendar). A página mostra o "a gente te chama".
+  if (await estaBloqueado(e.tel)) { res.json({ ok: true, caminho: 'ligacao', dias: [], semVitrine: true }); return; }
+  try {
+    const [quem, vez] = await Promise.all([donoDoTelefone(e.alvo!), vezDosSocios()]);
+    const pessoas = [...new Set([...SOCIOS_VISITA, 'Nilce', ...(quem.dono ? [quem.dono] : [])])];
+    const ocupacoes = await lerOcupacoes(pessoas);
+    if (!ocupacoes) { res.status(503).json({ ok: false, error: 'agenda indisponivel' }); return; }
+    const { dec, dias, semHorario } = decidirEMontar(e.resp, quem.dono, vez, ocupacoes, Date.now());
+    const leadId = `quiz_${e.alvo}`;
+    // ?dry=1 confere caminho e vitrine no ar sem gravar o rascunho (sonda pós-deploy).
+    if (String(req.query.dry || '') !== '1') await gravarLead(leadId, {
+      form_id: FORM_QUIZ, form_name: 'Quiz Solar', nome: e.nome, whatsapp: e.tel,
+      cidade: dec.cidade ? `${dec.cidade.nome}-${dec.cidade.uf}` : (e.resp.cidade || null),
+      field_data: camposDoLead(e.resp, dec, { semHorario }), consultor: dec.candidatos[0] ?? null, fora_area: false,
+    });
+    res.json({
+      ok: true, lead_id: leadId, caminho: dec.caminho, motivo: dec.motivo, qualifica: dec.qualifica, semHorario,
+      kwh: dec.kwh, cidade: dec.cidade ? { nome: dec.cidade.nome, uf: dec.cidade.uf } : null,
+      dono: quem.dono, jaMarcado: quem.jaMarcado, dias,
+    });
+  } catch (err) {
+    logger.error('io-solar-quiz', 'falha montando o caminho', err);
+    res.status(503).json({ ok: false, error: 'agenda indisponivel' });
+  }
+});
+
+/** O aviso da ficha nova do quiz, para quem atende e cópia para o Thiago.
+ *  Emoji só na primeira linha (regra de 24/09). */
+function mensagemDoQuiz(a: Record<string, unknown>): string {
+  const caminho = caminhoDaFicha(a.observacao) || 'ligacao';
+  const linhas = String(a.observacao || '').split('\n');
+  const val = (rot: string) => linhas.find(l => l.startsWith(rot))?.slice(rot.length).trim() || '';
+  const quando = new Date(String(a.quando)).toLocaleString('pt-BR', {
+    timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+  });
+  const titulo = { vistoria: 'NOVA VISTORIA', video: 'NOVA VIDEOCHAMADA', ligacao: 'NOVA LIGAÇÃO' }[caminho];
+  const out = [
+    `☀️ *${titulo}, ENERGIA SOLAR*`,
+    `Veio do quiz da /io/solar.`,
+    ``,
+    `*Quando:* ${quando}`,
+    `*Com:* ${a.vendedor_nome || ''}`,
+    `*Cliente:* ${a.cliente_nome || ''}`,
+    `*WhatsApp:* wa.me/${soDigitos(String(a.cliente_telefone || ''))}`,
+  ];
+  for (const [rot, campo] of [['Cidade', 'Cidade:'], ['Conta', 'Conta de luz:'], ['Endereço', 'Endereço:'], ['Imóvel', 'Imóvel:'],
+    ['Quando quer', 'Quando quer:'], ['Já tem orçamento', 'Já tem orçamento:'], ['Pagamento', 'Pagamento:'], ['Decisor', 'Decisor:'],
+    ['Demanda contratada', 'Demanda contratada:']] as const) {
+    const v = val(campo);
+    if (v) out.push(`*${rot}:* ${v}`);
+  }
+  const marca = linhas.find(l => /^(QUALIFICA PARA|SEM HORÁRIO DE)/.test(l));
+  if (marca) out.push('', `*${marca}*`);
+  out.push('', '_Veja no CRM: solardoc.app/gerador_');
+  return out.join('\n');
+}
+
+router.post('/quiz/agendar', async (req: Request, res: Response): Promise<void> => {
+  const b = (req.body || {}) as Record<string, unknown>;
+  const e = lerEntrada(b);
+  if (e.erro) { res.status(400).json({ ok: false, error: e.erro }); return; }
+  const ymd = String(b.ymd || '');
+  const h = String(b.h || '');
+  const dono = String(b.dono || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd) || !/^\d{2}:\d{2}$/.test(h)) { res.status(400).json({ ok: false, error: 'horario invalido' }); return; }
+  if (await estaBloqueado(e.tel)) {
+    logger.info('io-solar-quiz', `${e.tel} esta FORA DO PADRAO: ficha nao criada`);
+    res.json({ ok: true, id: null });
+    return;
+  }
+  try {
+    const [quem, vez] = await Promise.all([donoDoTelefone(e.alvo!), vezDosSocios()]);
+    // Já tem horário de solar marcado: não nasce a segunda ficha. A página avisa
+    // no passo do horário; isto aqui é para a página velha ou o clique duplo.
+    if (quem.jaMarcado) { res.status(409).json({ ok: false, error: 'ja marcado', jaMarcado: quem.jaMarcado }); return; }
+    const pessoas = [...new Set([...SOCIOS_VISITA, 'Nilce', ...(quem.dono ? [quem.dono] : [])])];
+    const ocupacoes = await lerOcupacoes(pessoas);
+    if (!ocupacoes) { res.status(503).json({ ok: false, error: 'agenda indisponivel' }); return; }
+    const agora = Date.now();
+    const { dec, dias, semHorario } = decidirEMontar(e.resp, quem.dono, vez, ocupacoes, agora);
+    // A mesma pergunta da vitrine, com a agenda lida agora: quem escolheu um
+    // horário que outra pessoa tomou no meio do caminho recebe a vitrine nova.
+    if (!dec.candidatos.includes(dono) || !cabe(dec.caminho, ymd, h, dono, dec, ocupacoes, agora)) {
+      res.status(409).json({ ok: false, error: 'horario tomado', caminho: dec.caminho, dias });
+      return;
+    }
+    const endereco = dec.caminho === 'vistoria' ? limparEndereco(b.endereco) : null;
+    const quando = new Date(msDe(ymd, h)).toISOString();
+    const src = String(b.src || '').trim().toLowerCase();
+    const { data, error } = await supabaseGerador.from('agendamentos').insert({
+      vendedor_nome: dono,
+      quando,
+      cliente_nome: e.nome,
+      cliente_telefone: e.tel,
+      cidade: dec.cidade ? `${dec.cidade.nome}-${dec.cidade.uf}` : (e.resp.cidade || null),
+      status: 'agendado',
+      observacao: montarObservacao(e.resp, dec, endereco, semHorario).slice(0, 4000),
+      created_by: 'lp_solar',
+      ...(/^[a-z0-9_-]{1,20}$/.test(src) ? { src } : {}),
+      ...utmDe(b),
+    }).select('id, vendedor_nome, quando, cliente_nome, cliente_telefone, observacao').single();
+    if (error) {
+      // 23505 = o índice (vendedor, quando) recusou: alguém marcou no mesmo instante.
+      if ((error as { code?: string }).code === '23505') { res.status(409).json({ ok: false, error: 'horario tomado', caminho: dec.caminho, dias }); return; }
+      throw error;
+    }
+    const leadId = `quiz_${e.alvo}`;
+    await gravarLead(leadId, { agendado_id: data.id, consultor: dono, field_data: camposDoLead(e.resp, dec, { semHorario }) });
+
+    // Aviso da equipe: quem atende e cópia para o Thiago. Esperado (a Vercel
+    // corta o que roda depois da resposta), mas sem segurar o cliente: teto de 4 s.
+    const alvos = [...new Set([TEL_AVISO[dono.toLowerCase()], TEL_AVISO.thiago].filter(Boolean))];
+    const msg = mensagemDoQuiz(data as Record<string, unknown>);
+    await Promise.race([
+      Promise.allSettled(alvos.map(n => sendWhatsApp(n, msg, 'io'))).then(r => r.forEach((x, i) => {
+        if (x.status === 'rejected') logger.error('io-solar-quiz', `aviso falhou pra ${alvos[i]}`, x.reason);
+      })),
+      new Promise(resolve => setTimeout(resolve, 4000)),
+    ]);
+    res.json({ ok: true, id: data.id, caminho: dec.caminho, dono, quando, rotulo: ROTULO_CAMINHO[dec.caminho] });
+  } catch (err) {
+    logger.error('io-solar-quiz', `falha gravando ${e.tel}`, err);
     res.status(500).json({ ok: false, error: 'nao consegui gravar' });
   }
 });
