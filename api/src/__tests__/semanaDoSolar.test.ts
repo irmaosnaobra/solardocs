@@ -29,9 +29,17 @@ const ler = (...p: string[]) => readFileSync(join(RAIZ, ...p), 'utf8');
 
 /** As três pontas e o trecho que decide o dia da semana em cada uma. */
 const PONTAS: Array<{ nome: string; fonte: string; alvo: RegExp }> = [
+  // 07/10/2026: a /io/solar virou o quiz, e a vitrine dele é montada no
+  // SERVIDOR (solarQuiz.ts). A página antiga, com a vitrine no navegador, mora
+  // em /io/solar/simulador e continua marcando; as duas entram aqui.
   {
-    nome: 'LP do solar (vitrine)',
-    fonte: ler('dashboard', 'public', 'io', 'solar', 'index.html'),
+    nome: 'Quiz solar (vitrine no servidor)',
+    fonte: ler('api', 'src', 'services', 'io', 'solarQuiz.ts'),
+    alvo: /w !== 0 && w !== 6 && !ehFeriadoBR\(ymd\)/,
+  },
+  {
+    nome: 'Simulador antigo do solar (vitrine)',
+    fonte: ler('dashboard', 'public', 'io', 'solar', 'simulador', 'index.html'),
     alvo: /if\(dow === 0 \|\| dow === 6\) return \[\];/,
   },
   {
