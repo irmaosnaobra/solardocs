@@ -8,38 +8,55 @@
 // desenho tinha vistoria em qualquer conta, começa na regra geral e a lista
 // CIDADES_VISITA_SEMPRE nasce vazia.
 //
-// Quatro caminhos, decididos ANTES da agenda pela conta e pela cidade:
-//   · vistoria   acima de 1.000 kWh e até 150 km de estrada da base mais perto
-//   · video      acima de 1.000 kWh e mais longe (videochamada com sócio)
-//   · ligacao    o resto, com a Nilce, como sempre foi
+// REGRAS DE 08/10/2026 (ordem do Thiago, substitui a do dia 07):
+//   "Até 300 kWh para Giovanna; de 300 a 1.000 Nilce; visitas todas acima de
+//    1.000 com Diego; atendimentos acima de 1.000 sem visita Thiago." E: "temos
+//    que selecionar todos por ponto de 0 a 100 conforme as respostas, e a visita
+//    presencial será para acima de 90 pontos; queremos que chegue apenas quem
+//    realmente quer fechar negócio; a lista de curiosos e demais vai sendo
+//    separada para um futuro atendimento."
+//
+// Cinco caminhos, decididos ANTES da agenda pela pontuação, pela conta e pela
+// cidade:
+//   · curioso    abaixo de 40 pontos: sem agenda, vai para a lista
+//   · vistoria   acima de 1.000 kWh, acima de 90 pontos e até 150 km de
+//                estrada de Uberlândia: visita do Diego
+//   · video      acima de 1.000 kWh sem visita: atendimento do Thiago
+//   · ligacao    300 a 1.000 kWh com a Nilce; até 300 kWh com a Giovanna
 //   (integrador sai da página antes de chegar aqui e nunca agenda)
 //
+// A PONTUAÇÃO mede vontade de fechar, não tamanho (o tamanho já decide o dono).
+// Os pesos saíram dos 599 leads do formulário com todas as respostas (20/05 a
+// 07/10): o prazo é o que mais separa (quem quer "para já" chegou a orçamento
+// 2,6 vezes mais que quem pesquisa), depois quem decide e como paga. Acima de 90
+// pontos, 13,2% chegaram a orçamento; de 30 a 49, 6,9%.
+//
 // Este arquivo é PURO: não lê banco. A rota da LP, a vitrine do eletroposto, o
-// formulário do Meta e a régua de vagas dos robôs perguntam para ele, e é por
-// isso que as quatro pontas concordam. A página /io/solar tem uma cópia da
-// decisão (o cliente vê o caminho antes de mandar), e o teste gêmeo
-// solarRotaPagina.test.ts compara as duas caso a caso.
+// formulário do Meta e a régua de vagas dos robôs perguntam para ele.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { TARIFA_KWH } from './leadSolarFicha';
 
-/** Acima disto o projeto é grande e tem atendimento presencial no raio.
+/** Acima disto o projeto é grande: visita do Diego ou atendimento do Thiago.
  *  NÃO é o KWH_CORTE_TIME (1.200), que continua mandando só no rodízio do
  *  formulário do Meta. São perguntas diferentes: lá "de quem é a vez", aqui
  *  "vale a viagem". */
 export const KWH_VISITA = 1000;
+/** Até isto a conta é da Giovanna; acima, até KWH_VISITA, da Nilce. */
+export const KWH_GIOVANNA = 300;
+/** Visita só ACIMA disto (0 a 100). */
+export const PONTOS_VISITA = 90;
+/** Abaixo disto é curioso: não ganha agenda, vai para a lista. Medido nos 599
+ *  leads: abaixo de 40 ficam 12% deles e 4 dos 49 orçamentos, nenhuma venda.
+ *  Abaixo de 50 seriam 26% dos leads, 11 orçamentos e 1 venda. */
+export const PONTOS_CURIOSO = 40;
 
-/** Quilômetros de ESTRADA, contados da base mais perto (Uberlândia ou Araguari). */
+/** Quem atende cada faixa. Todas as visitas são do Diego. */
+export const QUEM = { pequena: 'Giovanna', media: 'Nilce', visita: 'Diego', grande: 'Thiago' } as const;
+
+/** Quilômetros de ESTRADA contados de Uberlândia, a base do Diego, que faz
+ *  todas as visitas. */
 export const RAIO_VISITA_KM = 150;
-
-/** Cidades com vistoria em qualquer conta. Vazio desde a ordem de 07/10:
- *  presencial só acima de 1.000 kWh. Voltar Uberlândia é uma linha aqui e
- *  outra na página (o teste gêmeo acusa se só uma mudar). */
-export const CIDADES_VISITA_SEMPRE: readonly string[] = [];
-
-/** Só vale para CIDADES_VISITA_SEMPRE: quem está "só pesquisando" passa pela
- *  ligação antes da visita. Com a lista vazia não tem efeito nenhum. */
-export const PESQUISANDO_LIGA_PRIMEIRO = false;
 
 /** A marca na primeira linha da ficha. É por ela que o servidor reconhece uma
  *  ficha do quiz sem precisar de coluna nova: `created_by` continua `lp_solar`
@@ -201,13 +218,45 @@ export function socioMaisPerto(c: CidadeRaio): Socio {
 export const ehVisitaUrbana = (c: CidadeRaio, socio: Socio): boolean =>
   deslocamentoMin(c, socio) <= URBANA_ATE_MIN;
 
+// ── A pontuação (0 a 100) ───────────────────────────────────────────────────
+/** Pesos por resposta. Somam 100 no melhor caso: quer para já (35), decide
+ *  sozinho (20), já sabe como paga à vista (20), imóvel próprio (15) e está
+ *  comparando orçamento (10). Pergunta sem resposta vale 0.
+ *
+ *  Para passar de 90 é preciso querer para este mês, ter o imóvel e saber como
+ *  paga; "nos próximos 3 meses" com todo o resto no máximo dá 83. É de
+ *  propósito: a visita do Diego é para quem está fechando. */
+export const PESOS = {
+  urgencia: { ja: 35, '3meses': 18, pesquisando: 0 },
+  decisor: { eu: 20, junto: 14, outro: 0 },
+  pagamento: { vista: 20, financiamento: 16, cartao: 16, naosei: 0 },
+  imovel: { proprio: 15, construcao: 8, alugado: 0 },
+  concorrente: { sim: 10, nao: 5 },
+} as const;
+type CampoPeso = keyof typeof PESOS;
+
+export interface Pontuacao { pontos: number; partes: Array<{ campo: CampoPeso; pts: number; max: number }> }
+
+export function pontuar(r: Partial<Record<CampoPeso, unknown>>): Pontuacao {
+  const partes = (Object.keys(PESOS) as CampoPeso[]).map(campo => {
+    const tabela = PESOS[campo] as Record<string, number>;
+    const v = String(r[campo] ?? '');
+    return { campo, pts: Object.prototype.hasOwnProperty.call(tabela, v) ? tabela[v] : 0, max: Math.max(...Object.values(tabela)) };
+  });
+  return { pontos: partes.reduce((s, p) => s + p.pts, 0), partes };
+}
+
 // ── A decisão ───────────────────────────────────────────────────────────────
-export type Caminho = 'vistoria' | 'video' | 'ligacao';
+export type Caminho = 'vistoria' | 'video' | 'ligacao' | 'curioso';
 
 export interface RespostasDoCaminho {
-  conta?: unknown;      // valor de FAIXAS_CONTA
-  cidade?: unknown;     // texto digitado
-  urgencia?: unknown;   // 'ja' | '3meses' | 'pesquisando'
+  conta?: unknown;        // valor de FAIXAS_CONTA
+  cidade?: unknown;       // texto digitado
+  urgencia?: unknown;     // 'ja' | '3meses' | 'pesquisando'
+  decisor?: unknown;      // 'eu' | 'junto' | 'outro'
+  pagamento?: unknown;    // 'vista' | 'financiamento' | 'cartao' | 'naosei'
+  imovel?: unknown;       // 'proprio' | 'construcao' | 'alugado'
+  concorrente?: unknown;  // 'sim' | 'nao'
 }
 
 export interface Decisao {
@@ -216,73 +265,94 @@ export interface Decisao {
   kwh: number | null;
   grande: boolean;
   cidade: CidadeRaio | null;
+  pontos: number;
+  pontuacao: Pontuacao;
   /** Em ordem de preferência. A rota escolhe o primeiro que tiver horário. */
   candidatos: string[];
-  /** O cliente já é de alguém que não faz visita: o caminho virou ligação com
-   *  a dona, e aqui fica o que ele qualificaria. */
+  /** O cliente já é de alguém que não faz aquele atendimento: ficou com o
+   *  dono, e aqui fica o que ele qualificaria. */
   qualifica: Caminho | null;
 }
 
 const ehSocioVisita = (n: unknown): n is Socio => (SOCIOS_VISITA as readonly string[]).includes(String(n));
 const ehDonaLigacao = (n: unknown): boolean => (DONAS_LIGACAO as readonly string[]).includes(String(n));
+const kwhTxt = (n: number) => n.toLocaleString('pt-BR');
 
-/** O caminho pela conta e pela cidade, sem olhar dono. */
-export function caminhoPelasRespostas(r: RespostasDoCaminho): { caminho: Caminho; motivo: string; kwh: number | null; grande: boolean; cidade: CidadeRaio | null } {
+/** A cidade está no raio da visita (estrada a partir de Uberlândia, a base do Diego)? */
+export const noRaioDaVisita = (c: CidadeRaio | null): boolean => !!c && c.kmUdi <= RAIO_VISITA_KM;
+
+/** O caminho e o dono pela pontuação, pela conta e pela cidade, sem olhar quem
+ *  já é dono do telefone. */
+export function caminhoPelasRespostas(r: RespostasDoCaminho): Omit<Decisao, 'qualifica'> {
   const kwh = kwhDaFaixa(r.conta);
   const cidade = acharCidadeRaio(r.cidade);
   const grande = kwh !== null && kwh > KWH_VISITA;
-  const noRaio = !!cidade && kmDaBase(cidade) <= RAIO_VISITA_KM;
-  const sempre = !!cidade && CIDADES_VISITA_SEMPRE.includes(cidade.nome);
-  const pesquisando = r.urgencia === 'pesquisando';
+  const pontuacao = pontuar(r as Partial<Record<CampoPeso, unknown>>);
+  const pontos = pontuacao.pontos;
+  const base = { kwh, grande, cidade, pontos, pontuacao };
 
-  if (sempre && !(PESQUISANDO_LIGA_PRIMEIRO && pesquisando)) {
-    return { caminho: 'vistoria', motivo: `${cidade!.nome} tem vistoria em qualquer conta.`, kwh, grande, cidade };
+  if (pontos < PONTOS_CURIOSO) {
+    return { ...base, caminho: 'curioso', candidatos: [],
+      motivo: `${pontos} pontos, abaixo de ${PONTOS_CURIOSO}: vai para a lista de curiosos, sem agenda.` };
   }
-  if (grande && noRaio) {
-    const onde = kmDaBase(cidade!) === 0 ? `em ${cidade!.nome}, cidade da base` : `a ${kmDaBase(cidade!)} km da base pela estrada`;
-    return { caminho: 'vistoria', motivo: `Acima de ${KWH_VISITA.toLocaleString('pt-BR')} kWh e ${onde}.`, kwh, grande, cidade };
+  if (grande && pontos > PONTOS_VISITA && noRaioDaVisita(cidade)) {
+    const onde = cidade!.kmUdi === 0 ? 'em Uberlândia' : `a ${cidade!.kmUdi} km de Uberlândia pela estrada`;
+    return { ...base, caminho: 'vistoria', candidatos: [QUEM.visita],
+      motivo: `Acima de ${kwhTxt(KWH_VISITA)} kWh, ${pontos} pontos e ${onde}: visita do Diego.` };
   }
   if (grande) {
-    return { caminho: 'video', motivo: `Acima de ${KWH_VISITA.toLocaleString('pt-BR')} kWh, fora dos ${RAIO_VISITA_KM} km.`, kwh, grande, cidade };
+    const porque = pontos > PONTOS_VISITA ? `fora dos ${RAIO_VISITA_KM} km da visita` : `${pontos} pontos, a visita é acima de ${PONTOS_VISITA}`;
+    return { ...base, caminho: 'video', candidatos: [QUEM.grande],
+      motivo: `Acima de ${kwhTxt(KWH_VISITA)} kWh, ${porque}: atendimento do Thiago sem visita.` };
   }
-  return { caminho: 'ligacao', motivo: `Até ${KWH_VISITA.toLocaleString('pt-BR')} kWh: começa pela ligação.`, kwh, grande, cidade };
+  if (kwh !== null && kwh > KWH_GIOVANNA) {
+    return { ...base, caminho: 'ligacao', candidatos: [QUEM.media],
+      motivo: `De ${kwhTxt(KWH_GIOVANNA)} a ${kwhTxt(KWH_VISITA)} kWh: ligação da Nilce.` };
+  }
+  return { ...base, caminho: 'ligacao', candidatos: [QUEM.pequena],
+    motivo: `Até ${kwhTxt(KWH_GIOVANNA)} kWh: ligação da Giovanna.` };
 }
 
 /**
  * O caminho e quem atende.
  *
- * Cliente que volta fica com o dono (1 telefone = 1 consultor). Dona fixa
- * (Nilce, Giovanna) não faz visita: o caminho vira ligação com ela e a ficha
- * leva "QUALIFICA PARA ..." para ela marcar o sócio na ligação. Dono sócio
- * segue o caminho calculado com ele mesmo.
- *
- * `vezDosSocios` é o próximo do rodízio (a rota lê do banco); só decide quem
- * vem primeiro quando os dois sócios servem igual.
+ * Cliente que volta fica com o dono (1 telefone = 1 consultor). Se o dono não
+ * faz aquele atendimento, ele atende do jeito que faz e a ficha leva
+ * "QUALIFICA PARA ..." para ele chamar quem faz: Nilce e Giovanna ligam; o
+ * Thiago não faz visita (todas são do Diego). Curioso continua curioso.
  */
-export function decidirCaminho(r: RespostasDoCaminho, dono?: string | null, vezDosSocios: Socio = 'Thiago'): Decisao {
+export function decidirCaminho(r: RespostasDoCaminho, dono?: string | null): Decisao {
   const base = caminhoPelasRespostas(r);
-  const outro = (s: Socio): Socio => (s === 'Thiago' ? 'Diego' : 'Thiago');
-
-  if (dono && ehDonaLigacao(dono)) {
+  if (base.caminho === 'curioso' || !dono || base.candidatos[0] === dono) return { ...base, qualifica: null };
+  if (ehDonaLigacao(dono)) {
     return { ...base, caminho: 'ligacao', candidatos: [String(dono)],
       qualifica: base.caminho === 'ligacao' ? null : base.caminho,
-      motivo: base.caminho === 'ligacao' ? base.motivo : `${base.motivo} O cliente já é de ${dono}: ela liga e marca o sócio.` };
+      motivo: `${base.motivo} O cliente já é de ${dono}: ela atende${base.caminho === 'ligacao' ? '' : ' e chama quem faz o próximo passo'}.` };
   }
-  if (dono && ehSocioVisita(dono)) {
-    return { ...base, candidatos: [dono], qualifica: null };
+  if (dono === 'Thiago' && base.caminho === 'vistoria') {
+    return { ...base, caminho: 'video', candidatos: ['Thiago'], qualifica: 'vistoria',
+      motivo: `${base.motivo} O cliente já é do Thiago: ele atende e marca a visita com o Diego.` };
   }
-  if (base.caminho === 'vistoria' && base.cidade) {
-    const c = base.cidade;
-    // Na cidade de uma base os dois rodam o dia inteiro: vale o rodízio. Fora,
-    // vai quem chega mais rápido, e o outro é a reserva.
-    const primeiro = (c.nome === 'Uberlândia' || c.nome === 'Araguari') && ehVisitaUrbana(c, 'Thiago') && ehVisitaUrbana(c, 'Diego')
-      ? vezDosSocios : socioMaisPerto(c);
-    return { ...base, candidatos: [primeiro, outro(primeiro)], qualifica: null };
+  if (ehSocioVisita(dono)) {
+    return { ...base, candidatos: [dono], qualifica: null, motivo: `${base.motivo} O cliente já é do ${dono}.` };
   }
-  if (base.caminho === 'video') {
-    return { ...base, candidatos: [vezDosSocios, outro(vezDosSocios)], qualifica: null };
+  return { ...base, qualifica: null };
+}
+
+/** Sem horário no caminho: a visita cai no atendimento do Thiago, o atendimento
+ *  do Thiago cai na ligação da Nilce, a ligação da Giovanna cai na da Nilce.
+ *  O cliente nunca fica sem botão. `null` = já é a última reserva. */
+export function reservaDe(dec: Decisao): Decisao | null {
+  const qual = dec.qualifica ?? (dec.caminho === 'ligacao' ? null : dec.caminho);
+  if (dec.caminho === 'vistoria') {
+    return { ...dec, caminho: 'video', candidatos: [QUEM.grande], qualifica: 'vistoria',
+      motivo: `${dec.motivo} Sem horário de visita nos próximos dias: o Thiago atende e marca a visita.` };
   }
-  return { ...base, candidatos: ['Nilce'], qualifica: null };
+  if (dec.caminho === 'video' || (dec.caminho === 'ligacao' && !dec.candidatos.includes(QUEM.media))) {
+    return { ...dec, caminho: 'ligacao', candidatos: [QUEM.media], qualifica: qual,
+      motivo: `${dec.motivo} Sem horário nos próximos dias: a Nilce liga.` };
+  }
+  return null;
 }
 
 // ── O tempo de agenda ───────────────────────────────────────────────────────
@@ -318,7 +388,10 @@ export function blocoDoCompromisso(caminho: Caminho, quandoMs: number, socio?: s
 
 /** Os horários que o caminho oferece naquele dia para aquela pessoa. */
 export function horariosDoCaminho(caminho: Caminho, ymd: string, pessoa: string, cidade: CidadeRaio | null): string[] {
-  if (caminho === 'ligacao') return [...GRADE_LIGACAO];
+  if (caminho === 'curioso') return [];
+  // Ligação de sócio (cliente que já é dele) fica nas manhãs: a tarde é do
+  // eletroposto. Nilce e Giovanna ligam na grade delas.
+  if (caminho === 'ligacao') return ehSocioVisita(pessoa) ? [...GRADE_VIDEO] : [...GRADE_LIGACAO];
   if (caminho === 'video') return [...GRADE_VIDEO];
   if (!cidade || !ehSocioVisita(pessoa)) return [];
   if (ehVisitaUrbana(cidade, pessoa)) return [...GRADE_SOCIOS_SOLAR];

@@ -12,9 +12,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import {
-  decidirCaminho, horariosDoCaminho, blocoDoCompromisso, ocupacaoDaFichaSolar, kmDaBase,
+  decidirCaminho, reservaDe, horariosDoCaminho, blocoDoCompromisso, ocupacaoDaFichaSolar, kmDaBase,
   rotuloDaFaixa, MARCA_QUIZ, RAIO_VISITA_KM, BASE_DO_SOCIO, socioMaisPerto,
-  type Caminho, type Decisao, type Socio, type FichaAgenda,
+  type Caminho, type Decisao, type FichaAgenda,
 } from '../agenda/solarRota';
 import { ehFeriadoBR } from '../../utils/feriadosBR';
 import { agendaFechadaEm, ehSocio } from '../agenda/agendaFechada';
@@ -27,10 +27,10 @@ export const DIAS_NA_VITRINE = 2;
 /** Quantos dias para frente a vitrine procura os dois com vaga. */
 export const DIAS_VARRIDOS = 14;
 /** Antecedência mínima. A visita pede mais: o sócio precisa sair da base. */
-export const ANTECEDENCIA_MIN: Record<Caminho, number> = { vistoria: 180, video: 60, ligacao: 30 };
+export const ANTECEDENCIA_MIN: Record<Caminho, number> = { vistoria: 180, video: 60, ligacao: 30, curioso: 0 };
 
 export const ROTULO_CAMINHO: Record<Caminho, string> = {
-  vistoria: 'VISTORIA PRESENCIAL', video: 'VIDEOCHAMADA', ligacao: 'LIGAÇÃO',
+  vistoria: 'VISTORIA PRESENCIAL', video: 'ATENDIMENTO ONLINE', ligacao: 'LIGAÇÃO', curioso: 'CURIOSO',
 };
 
 // ── As respostas ────────────────────────────────────────────────────────────
@@ -142,25 +142,25 @@ export function montarVitrine(dec: Decisao, ocupacoes: readonly Ocupacao[], agor
   return out;
 }
 
-/** Visita ou videochamada sem horário em 14 dias vira ligação com a Nilce, e a
- *  ficha diz o que era. O cliente nunca fica sem botão. */
-export function semHorarioViraLigacao(dec: Decisao): Decisao {
-  return { ...dec, caminho: 'ligacao', candidatos: ['Nilce'], qualifica: dec.caminho === 'ligacao' ? dec.qualifica : dec.caminho,
-    motivo: `${dec.motivo} Sem horário de ${dec.caminho === 'vistoria' ? 'visita' : 'videochamada'} nos próximos dias: a Nilce liga e marca.` };
+/** Decide e monta a vitrine. Sem horário no caminho, desce a escada de
+ *  reservas (reservaDe em solarRota.ts): visita, atendimento do Thiago,
+ *  ligação da Nilce. Curioso não tem vitrine. */
+export function decidirEMontar(resp: Respostas, dono: string | null, ocupacoes: readonly Ocupacao[], agoraMs: number):
+  { dec: Decisao; dias: DiaVitrine[]; semHorario: boolean } {
+  const dec = decidirCaminho(resp, dono);
+  if (dec.caminho === 'curioso') return { dec, dias: [], semHorario: false };
+  let atual: Decisao | null = dec;
+  let primeira = true;
+  while (atual) {
+    const dias = montarVitrine(atual, ocupacoes, agoraMs);
+    if (dias.length) return { dec: atual, dias, semHorario: !primeira };
+    atual = reservaDe(atual);
+    primeira = false;
+  }
+  return { dec, dias: [], semHorario: true };
 }
 
-/** Decide e monta a vitrine, com a reserva da ligação quando não há horário. */
-export function decidirEMontar(resp: Respostas, dono: string | null, vez: Socio, ocupacoes: readonly Ocupacao[], agoraMs: number):
-  { dec: Decisao; dias: DiaVitrine[]; semHorario: boolean } {
-  let dec = decidirCaminho({ conta: resp.conta, cidade: resp.cidade, urgencia: resp.urgencia }, dono, vez);
-  let dias = montarVitrine(dec, ocupacoes, agoraMs);
-  if (!dias.length && dec.caminho !== 'ligacao') {
-    const reserva = semHorarioViraLigacao(dec);
-    const diasReserva = montarVitrine(reserva, ocupacoes, agoraMs);
-    if (diasReserva.length) return { dec: reserva, dias: diasReserva, semHorario: true };
-  }
-  return { dec, dias, semHorario: false };
-}
+const NOME_PESO: Record<string, string> = { urgencia: 'prazo', decisor: 'decisor', pagamento: 'pagamento', imovel: 'imóvel', concorrente: 'orçamento' };
 
 // ── O que fica escrito ──────────────────────────────────────────────────────
 export interface Endereco { cep?: string; rua?: string; numero?: string; bairro?: string }
@@ -179,10 +179,12 @@ export function montarObservacao(resp: Respostas, dec: Decisao, end: Endereco | 
   L.push(`${MARCA_QUIZ} · ${rot('tipo', resp.tipo) ?? 'Imóvel'} · ${ROTULO_CAMINHO[dec.caminho]}`);
   const faixa = rotuloDaFaixa(resp.conta);
   if (faixa) L.push(`Conta de luz: ${faixa}${dec.kwh ? ` (~${dec.kwh.toLocaleString('pt-BR')} kWh/mês)` : ''}`);
+  L.push(`Pontuação: ${dec.pontos}/100 (${dec.pontuacao.partes.map(p => `${NOME_PESO[p.campo]} ${p.pts}/${p.max}`).join(', ')})`);
   if (dec.cidade) {
     const c = dec.cidade;
-    const km = kmDaBase(c);
-    L.push(`Cidade: ${c.nome}-${c.uf}${km ? ` · ${km} km de ${BASE_DO_SOCIO[socioMaisPerto(c)]} pela estrada` : ''}`);
+    // Distância de Uberlândia: é de lá que o Diego sai para todas as visitas.
+    const km = c.kmUdi;
+    L.push(`Cidade: ${c.nome}-${c.uf}${km ? ` · ${km} km de Uberlândia pela estrada` : ''}`);
   } else if (resp.cidade) {
     L.push(`Cidade: ${resp.cidade} · FORA DO RAIO DE ${RAIO_VISITA_KM} KM`);
   }
@@ -196,8 +198,8 @@ export function montarObservacao(resp: Respostas, dec: Decisao, end: Endereco | 
   const ga = rot('grupoa', resp.grupoa);
   if (ga) L.push(`Demanda contratada: ${ga}${resp.grupoa === 'sim' ? ' · GRUPO A' : ''}`);
   if (dec.qualifica) {
-    const oque = dec.qualifica === 'vistoria' ? 'VISTORIA' : 'VIDEOCHAMADA';
-    L.push(semHorario ? `SEM HORÁRIO DE ${oque}: marcar na ligação` : `QUALIFICA PARA ${oque}: marcar com o sócio na ligação`);
+    const oque = dec.qualifica === 'vistoria' ? 'VISITA DO DIEGO' : 'ATENDIMENTO DO THIAGO';
+    L.push(semHorario ? `SEM HORÁRIO DE ${oque}: marcar no atendimento` : `QUALIFICA PARA ${oque}: chamar quem faz no atendimento`);
   }
   if (end && dec.caminho === 'vistoria') {
     const partes = [[end.rua, end.numero].filter(Boolean).join(', '), end.bairro, dec.cidade?.nome, end.cep ? `CEP ${end.cep}` : '']
@@ -216,6 +218,7 @@ export function camposDoLead(resp: Respostas, dec: Decisao, extra: { semHorario?
   const add = (name: string, v: string | null | undefined) => { if (v) f.push({ name, values: [v] }); };
   add('Origem', 'Quiz Solar');
   add('Caminho', dec.caminho);
+  add('Pontos', String(dec.pontos));
   add('Consumo', rotuloDaFaixa(resp.conta) ? `${rotuloDaFaixa(resp.conta)}${dec.kwh ? ` (~${dec.kwh} kWh)` : ''}` : null);
   add('Onde', rot('tipo', resp.tipo));
   add('Imóvel', rot('imovel', resp.imovel));

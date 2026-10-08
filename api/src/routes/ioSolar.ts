@@ -357,16 +357,6 @@ async function donoDoTelefone(alvo: string): Promise<{ dono: string | null; jaMa
   };
 }
 
-/** A vez dos sócios quando os dois servem igual (vistoria na cidade da base e
- *  videochamada). Paridade das fichas do quiz já marcadas com eles. */
-async function vezDosSocios(): Promise<Socio> {
-  const { count } = await supabaseGerador.from('agendamentos')
-    .select('id', { count: 'exact', head: true })
-    .eq('created_by', 'lp_solar').like('observacao', `${MARCA_QUIZ}%`)
-    .in('vendedor_nome', [...SOCIOS_VISITA]);
-  return SOCIOS_VISITA[(count || 0) % SOCIOS_VISITA.length];
-}
-
 /** Tudo que ocupa a agenda destas pessoas nos próximos dias, já em bloco.
  *  `null` = não deu para ler, e aí a vitrine não abre (melhor que vender por
  *  cima de alguém). */
@@ -442,11 +432,11 @@ router.post('/quiz', async (req: Request, res: Response): Promise<void> => {
   // (mesma regra do /agendar). A página mostra o "a gente te chama".
   if (await estaBloqueado(e.tel)) { res.json({ ok: true, caminho: 'ligacao', dias: [], semVitrine: true }); return; }
   try {
-    const [quem, vez] = await Promise.all([donoDoTelefone(e.alvo!), vezDosSocios()]);
-    const pessoas = [...new Set([...SOCIOS_VISITA, 'Nilce', ...(quem.dono ? [quem.dono] : [])])];
+    const quem = await donoDoTelefone(e.alvo!);
+    const pessoas = [...new Set([...SOCIOS_VISITA, ...DONAS_LIGACAO, ...(quem.dono ? [quem.dono] : [])])];
     const ocupacoes = await lerOcupacoes(pessoas);
     if (!ocupacoes) { res.status(503).json({ ok: false, error: 'agenda indisponivel' }); return; }
-    const { dec, dias, semHorario } = decidirEMontar(e.resp, quem.dono, vez, ocupacoes, Date.now());
+    const { dec, dias, semHorario } = decidirEMontar(e.resp, quem.dono, ocupacoes, Date.now());
     const leadId = `quiz_${e.alvo}`;
     // ?dry=1 confere caminho e vitrine no ar sem gravar o rascunho (sonda pós-deploy).
     if (String(req.query.dry || '') !== '1') await gravarLead(leadId, {
@@ -474,7 +464,7 @@ function mensagemDoQuiz(a: Record<string, unknown>): string {
   const quando = new Date(String(a.quando)).toLocaleString('pt-BR', {
     timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
   });
-  const titulo = { vistoria: 'NOVA VISTORIA', video: 'NOVA VIDEOCHAMADA', ligacao: 'NOVA LIGAÇÃO' }[caminho];
+  const titulo = { vistoria: 'NOVA VISITA', video: 'NOVO ATENDIMENTO ONLINE', ligacao: 'NOVA LIGAÇÃO', curioso: 'NOVO CURIOSO' }[caminho];
   const out = [
     `☀️ *${titulo}, ENERGIA SOLAR*`,
     `Veio do quiz da /io/solar.`,
@@ -510,15 +500,15 @@ router.post('/quiz/agendar', async (req: Request, res: Response): Promise<void> 
     return;
   }
   try {
-    const [quem, vez] = await Promise.all([donoDoTelefone(e.alvo!), vezDosSocios()]);
+    const quem = await donoDoTelefone(e.alvo!);
     // Já tem horário de solar marcado: não nasce a segunda ficha. A página avisa
     // no passo do horário; isto aqui é para a página velha ou o clique duplo.
     if (quem.jaMarcado) { res.status(409).json({ ok: false, error: 'ja marcado', jaMarcado: quem.jaMarcado }); return; }
-    const pessoas = [...new Set([...SOCIOS_VISITA, 'Nilce', ...(quem.dono ? [quem.dono] : [])])];
+    const pessoas = [...new Set([...SOCIOS_VISITA, ...DONAS_LIGACAO, ...(quem.dono ? [quem.dono] : [])])];
     const ocupacoes = await lerOcupacoes(pessoas);
     if (!ocupacoes) { res.status(503).json({ ok: false, error: 'agenda indisponivel' }); return; }
     const agora = Date.now();
-    const { dec, dias, semHorario } = decidirEMontar(e.resp, quem.dono, vez, ocupacoes, agora);
+    const { dec, dias, semHorario } = decidirEMontar(e.resp, quem.dono, ocupacoes, agora);
     // A mesma pergunta da vitrine, com a agenda lida agora: quem escolheu um
     // horário que outra pessoa tomou no meio do caminho recebe a vitrine nova.
     if (!dec.candidatos.includes(dono) || !cabe(dec.caminho, ymd, h, dono, dec, ocupacoes, agora)) {
@@ -548,9 +538,10 @@ router.post('/quiz/agendar', async (req: Request, res: Response): Promise<void> 
     const leadId = `quiz_${e.alvo}`;
     await gravarLead(leadId, { agendado_id: data.id, consultor: dono, field_data: camposDoLead(e.resp, dec, { semHorario }) });
 
-    // Aviso da equipe: quem atende e cópia para o Thiago. Esperado (a Vercel
-    // corta o que roda depois da resposta), mas sem segurar o cliente: teto de 4 s.
-    const alvos = [...new Set([TEL_AVISO[dono.toLowerCase()], TEL_AVISO.thiago].filter(Boolean))];
+    // Aviso no celular de QUEM ATENDE, com tudo (ordem de 08/10/2026: "cada um,
+    // além de receber na agenda, recebe no celular com todos os detalhes").
+    // Esperado (a Vercel corta o que roda depois da resposta), teto de 4 s.
+    const alvos = [TEL_AVISO[dono.toLowerCase()]].filter(Boolean);
     const msg = mensagemDoQuiz(data as Record<string, unknown>);
     await Promise.race([
       Promise.allSettled(alvos.map(n => sendWhatsApp(n, msg, 'io'))).then(r => r.forEach((x, i) => {

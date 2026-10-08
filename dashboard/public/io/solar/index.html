@@ -244,7 +244,7 @@ function mensagemDoErro(p){
 // ── Desenho ───────────────────────────────────────────────────────────────────
 const SEMANA = ['dom','seg','ter','qua','qui','sex','sáb'];
 const rotDia = ymd => { const d = new Date(ymd + 'T12:00:00-03:00'); return { s: SEMANA[d.getUTCDay()], n: ymd.slice(8,10) + '/' + ymd.slice(5,7) }; };
-const MODO = { vistoria:'Visita técnica no endereço', video:'Videochamada', ligacao:'Ligação' };
+const MODO = { vistoria:'Visita técnica no endereço', video:'Atendimento online', ligacao:'Ligação' };
 
 function render(){
   portao.hidden = true;
@@ -276,7 +276,7 @@ function render(){
 
   const ultimo = p.tipo === 'horario';
   const rot = ocupado ? (p.tipo === 'whatsapp' ? 'Buscando os horários...' : 'Marcando...')
-    : ultimo ? ({ vistoria:'Marcar visita', video:'Marcar videochamada', ligacao:'Marcar ligação' }[srv.caminho]) : 'Continuar';
+    : ultimo ? ({ vistoria:'Marcar visita', video:'Marcar atendimento', ligacao:'Marcar ligação' }[srv.caminho]) : 'Continuar';
   rodape.innerHTML = '<button class="cta" id="btn" type="button"' + ((respondido(p) && !ocupado) ? '' : ' disabled') + '>' + rot + '</button>'
     + (idx > 0 && !ocupado ? '<button class="voltar" id="voltar" type="button">Voltar</button>' : '');
   ligar(p);
@@ -284,10 +284,10 @@ function render(){
 
 function desenhoHorario(){
   const c = srv.caminho;
-  const titulo = c === 'vistoria' ? 'Escolha o dia da visita' : c === 'video' ? 'Escolha o horário da videochamada' : 'Escolha o horário da ligação';
+  const titulo = c === 'vistoria' ? 'Escolha o dia da visita' : c === 'video' ? 'Escolha o horário do atendimento' : 'Escolha o horário da ligação';
   let h = '<span class="modo ' + c + '"><i></i>' + MODO[c] + '</span><h2 class="q">' + titulo + '</h2>';
   if (c === 'vistoria') h += '<p class="sub">A visita leva uns 40 minutos.' + (R.decisor === 'junto' ? ' Escolha um horário em que vocês dois possam estar.' : '') + '</p>';
-  else if (c === 'video') h += '<p class="sub">Pelo celular ou pelo computador, com o estudo do seu projeto na tela.</p>';
+  else if (c === 'video') h += '<p class="sub">Uma chamada de vídeo pelo WhatsApp, com o estudo do seu projeto na tela.</p>';
   else h += '<p class="sub">Uma ligação curta para entender a sua conta.' + (srv.qualifica ? ' Na ligação a gente marca a visita.' : '') + '</p>';
   if (avisoHorario) h += '<div class="aviso">' + esc(avisoHorario) + '</div>';
   h += '<div class="dias">' + srv.dias.map((d, i) => { const r = rotDia(d.ymd); return '<button type="button" class="dia' + (diaSel === i ? ' sel' : '') + '" data-dia="' + i + '">' + r.s + '<small>' + r.n + '</small></button>'; }).join('') + '</div>';
@@ -367,6 +367,7 @@ async function buscarCaminho(p){
     if (status >= 400 || !j.ok){ render(); return erro(p, status === 400 ? 'Confira o nome e o WhatsApp.' : 'Não consegui ver os horários agora. Tente de novo em instantes.'); }
     srv = j; track('quiz_whatsapp_ok');
     if (j.jaMarcado) return fimDoQuiz('ja_marcado');
+    if (j.caminho === 'curioso') return fimDoQuiz('curioso');
     if (j.semVitrine || !j.dias || !j.dias.length) return fimDoQuiz('sem_vitrine');
     diaSel = 0; horaSel = null; idx++; render(); window.scrollTo({ top: 0, behavior: 'smooth' });
   }catch(e){
@@ -402,7 +403,7 @@ async function agendar(){
     if (status === 409 && j.error === 'ja marcado'){ srv.jaMarcado = j.jaMarcado; return fimDoQuiz('ja_marcado'); }
     if (status >= 400 || !j.ok){ render(); return erro(vivos()[idx], 'Não consegui marcar agora. Tente de novo em instantes.'); }
     marcado = { ymd: dia.ymd, h: hora.h, dono: hora.dono, caminho: srv.caminho };
-    try { fbq('track', 'Schedule', { content_name: srv.caminho === 'vistoria' ? 'Vistoria Solar' : srv.caminho === 'video' ? 'Videochamada Solar' : 'Ligacao Solar' }); } catch(e){}
+    try { fbq('track', 'Schedule', { content_name: srv.caminho === 'vistoria' ? 'Vistoria Solar' : srv.caminho === 'video' ? 'Atendimento Solar' : 'Ligacao Solar' }); } catch(e){}
     fimDoQuiz(srv.caminho);
   }catch(e){
     ocupado = false; render(); erro(vivos()[idx], 'Não consegui marcar agora. Tente de novo em instantes.');
@@ -431,11 +432,13 @@ function renderFim(){
     h = '<h2 class="q">Você já tem um horário marcado</h2><p class="sub">É ' + esc(q) + (srv.jaMarcado.dono ? ', com ' + esc(srv.jaMarcado.dono) : '') + '. Se precisar trocar, responda a mensagem de confirmação no WhatsApp.</p>' + ig;
   } else if (fim === 'nao_confirmou'){
     h = '<h2 class="q">Sem problema</h2><p class="sub">Guardamos as suas respostas. Quando puder, a gente te chama no WhatsApp com novos horários.</p>' + ig;
+  } else if (fim === 'curioso'){
+    h = '<h2 class="q">Recebemos as suas respostas</h2><p class="sub">A gente acabou de te mandar uma mensagem no WhatsApp. Pode responder por lá quando quiser, com as suas dúvidas.</p>' + ig;
   } else if (fim === 'sem_vitrine'){
     h = '<h2 class="q">Recebemos as suas respostas</h2><p class="sub">A gente te chama no WhatsApp para combinar o melhor horário.</p>' + ig;
   } else {
     const r = rotDia(marcado.ymd);
-    const oque = { vistoria:'Visita técnica', video:'Videochamada', ligacao:'Ligação' }[marcado.caminho];
+    const oque = { vistoria:'Visita técnica', video:'Atendimento online', ligacao:'Ligação' }[marcado.caminho];
     h = '<div class="ok" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>'
       + '<h2 class="q">Está marcado!</h2><p class="sub">' + oque + ' ' + r.s + ', ' + r.n + ', às ' + esc(marcado.h) + ', com ' + esc(marcado.dono) + '.</p>'
       + '<div class="passos"><div><span class="n">1</span><span>Confirme pelo WhatsApp respondendo <b>SIM</b> na mensagem que vai chegar.</span></div>'

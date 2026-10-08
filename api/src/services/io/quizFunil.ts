@@ -209,12 +209,13 @@ const BASE_SOLAR = ['conta', 'tipo', 'cidade', 'imovel', 'urgencia', 'concorrent
 export const CAMINHOS_SOLAR: Caminho[] = [
   { id: 'inicio', nome: 'Não respondeu a conta', passos: ['conta'] },
   { id: 'respondendo', nome: 'Parou antes do WhatsApp', passos: BASE_SOLAR },
-  { id: 'vistoria', nome: 'Visita (acima de 1.000 kWh, até 150 km)', passos: [...BASE_SOLAR, 'endereco', 'horario'] },
-  { id: 'video', nome: 'Videochamada (grande e longe)', passos: [...BASE_SOLAR, 'horario'] },
-  { id: 'ligacao', nome: 'Ligação', passos: [...BASE_SOLAR, 'horario'] },
+  { id: 'vistoria', nome: 'Visita do Diego (acima de 1.000 kWh, acima de 90 pontos, até 150 km)', passos: [...BASE_SOLAR, 'endereco', 'horario'] },
+  { id: 'video', nome: 'Atendimento do Thiago (acima de 1.000 kWh, sem visita)', passos: [...BASE_SOLAR, 'horario'] },
+  { id: 'ligacao', nome: 'Ligação (Nilce de 300 a 1.000 kWh, Giovanna até 300)', passos: [...BASE_SOLAR, 'horario'] },
+  { id: 'curioso', nome: 'Curioso (abaixo de 40 pontos, sem agenda)', passos: BASE_SOLAR },
 ];
 export const DESTINOS_SOLAR: Record<string, string> = {
-  vistoria: 'Visita marcada', video: 'Videochamada marcada', ligacao: 'Ligação marcada',
+  vistoria: 'Visita marcada', video: 'Atendimento marcado', ligacao: 'Ligação marcada', curioso: 'Curioso (lista)',
   nao_confirmou: 'Não confirmou presença', ja_marcado: 'Já tinha horário', sem_vitrine: 'Sem horário, a equipe chama',
   parceiro: 'Integrador (SolarDoc)',
 };

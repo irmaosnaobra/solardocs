@@ -49,7 +49,7 @@ const DESTINOS_POR: Record<Produto, [string, string][]> = {
     ['curioso', 'Curioso'], ['parceiro', 'Parceiros'], ['curso', 'Curso /ponto-certo'],
   ],
   solar: [
-    ['vistoria', 'Visita marcada'], ['video', 'Videochamada marcada'], ['ligacao', 'Ligação marcada'],
+    ['vistoria', 'Visita marcada'], ['video', 'Atendimento marcado'], ['ligacao', 'Ligação marcada'], ['curioso', 'Curioso (lista)'],
     ['nao_confirmou', 'Não confirmou presença'], ['ja_marcado', 'Já tinha horário'], ['sem_vitrine', 'Sem horário'],
     ['parceiro', 'Integrador'],
   ],
