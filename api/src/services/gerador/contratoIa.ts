@@ -52,7 +52,7 @@ const ClausulaEntrada = z.object({
 });
 /** Os quatro contratos do /gerador (07/10/2026). Sem o campo, é o Completo,
  *  o de fornecimento e instalação, que é o que o /gerador mandava antes. */
-export const TIPOS_CONTRATO = ['completo', 'socio50', 'cotas', 'arrend'] as const;
+export const TIPOS_CONTRATO = ['completo', 'socio50', 'cotas', 'arrend', 'termo_arr', 'termo_inv'] as const;
 export const PedidoContratoIa = z.object({
   pedido: z.string().trim().min(3).max(2000),
   clausulas: z.array(ClausulaEntrada).min(1).max(40),
@@ -237,6 +237,17 @@ const OUTROS_CONTRATOS: Record<Exclude<TipoContrato, 'completo'>, { objeto: stri
     objeto: 'Você edita o contrato de cessão onerosa de área (arrendamento do ponto) da NEXUS Eletropostos, empresa brasileira: o cliente, dono do local, cede a área e a NEXUS investe tudo, instala e explora um eletroposto (estação de recarga de veículos elétricos), pagando a ele um percentual do faturamento bruto.',
     partes: 'As partes se chamam CEDENTE (o cliente, dono do local) e CESSIONÁRIA (a NEXUS), em maiúsculas.',
     travados: '(objeto, percentual da remuneração, piso mensal)',
+  },
+  // Termos de compromisso (08/10/2026): o papel entre a reunião e o contrato.
+  termo_arr: {
+    objeto: 'Você edita o termo de compromisso do dono do local (promessa de cessão de área ou carta de intenção) da NEXUS Eletropostos, empresa brasileira: antes do contrato de cessão, o dono reserva o local para a NEXUS estudar a instalação de um eletroposto (estação de recarga de veículos elétricos), com as condições da cessão já combinadas.',
+    partes: 'As partes se chamam pelos nomes que já aparecem nas cláusulas (COMPROMITENTE CEDENTE e COMPROMISSÁRIA CESSIONÁRIA na promessa, CEDENTE e CESSIONÁRIA na carta de intenção), em maiúsculas; o dono do local é o cedente e a NEXUS a cessionária.',
+    travados: '(objeto, remuneração da cessão, valor da reserva)',
+  },
+  termo_inv: {
+    objeto: 'Você edita o termo de compromisso do investidor da NEXUS Eletropostos, empresa brasileira: reserva de cota em sociedade em conta de participação para um eletroposto (estação de recarga de veículos elétricos), antes do contrato da sociedade, ou adesão a uma sociedade em cotas já assinada. Nunca escreva promessa de rentabilidade, de retorno ou de renda.',
+    partes: 'As partes se chamam pelos nomes que já aparecem nas cláusulas (INVESTIDOR e NEXUS na reserva, ADERENTE e SÓCIA OSTENSIVA na adesão), em maiúsculas.',
+    travados: '(objeto, quadro de cotas e aportes, depósito de reserva, tabela de pagamento)',
   },
 };
 export function sistemaPara(tipo?: TipoContrato): string {

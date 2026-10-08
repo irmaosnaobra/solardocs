@@ -1255,12 +1255,45 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ep-ctr-pag td b{color:#1a1a1a}
 .ep-ctr-pag td span{display:block;font-size:10px;color:#6b7684;margin-top:1px}
 .ep-ctr-pag .n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.ep-ctr-anexo{font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#0B1A2B;border:1.2px solid #0B1A2B;border-radius:4px;padding:6px 10px;margin:0 0 10px}
+.ep-ctr-fotos{display:flex;gap:4%;margin:4px 0 10px;break-inside:avoid;page-break-inside:avoid}
+.ep-ctr-foto{width:48%}
+.ep-ctr-foto img{width:100%;height:62mm;object-fit:cover;border:1px solid #d1d5db;border-radius:3px;display:block}
+.ep-ctr-foto span{display:block;font-family:Arial,Helvetica,sans-serif;font-size:9.5px;color:#4b5563;margin-top:3px;line-height:1.3}
+.ep-ctr-dos td.st{white-space:nowrap;font-family:Arial,Helvetica,sans-serif;font-size:10px;font-weight:700}
+.ep-ctr-dos td.st.ok{color:#047857}
+.ep-ctr-dos td.st.pend{color:#b45309}
+.ep-ctr-dos td.st.na{color:#6b7280}
 .ep-ctr-pag tfoot td{font-family:Arial,Helvetica,sans-serif;font-weight:800;font-size:10.5px;color:#0B1A2B;border-bottom:none;border-top:1.2px solid #0B1A2B}
 /* Prévia em modo "Editar texto": a folha avisa que está aberta pra escrever. */
 .ep-prev-folha.editando .ep-page{outline:2px dashed rgba(59,130,246,.55);outline-offset:-7px;cursor:text}
 .ep-prev-folha.editando .ep-page:focus{outline:2px solid #3B82F6}
 /* ===== ABA CONTRATO: escopo editável e formas de pagamento (05/10/2026) ===== */
 .ctr-fora{display:none!important}
+.cad-termo{padding:3px 10px;border-radius:999px;border:1px solid rgba(96,165,250,.45);background:rgba(59,130,246,.12);color:#BFDBFE;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer}
+.cad-termo:hover{background:rgba(59,130,246,.25);color:#fff}
+.ctr-alerta{background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.45);border-radius:10px;padding:10px 12px;color:#FDE68A}
+.ctr-alerta b{color:#fff}
+.ctr-sec{grid-column:1/-1;font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#93C5FD;margin:12px 0 -2px}
+.ctr-dos-lista{display:flex;flex-direction:column;gap:6px}
+.ctr-dos-grupo{font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#94A3B8;margin:8px 0 2px}
+.ctr-dos-row{display:grid;grid-template-columns:1fr auto auto;gap:8px 10px;align-items:center;background:#0f1a2e;border:1px solid rgba(255,255,255,.10);border-radius:10px;padding:8px 10px}
+.ctr-dos-row.entregue{border-color:rgba(34,197,94,.45)}
+.ctr-dos-row.na{opacity:.6}
+.ctr-dos-row.pendente.obrig{border-color:rgba(245,158,11,.5)}
+.ctr-dos-nome{font-size:13px;font-weight:700;color:#fff;line-height:1.35}
+.ctr-dos-nome small{display:block;font-size:11px;font-weight:600;color:#94A3B8}
+.ctr-dos-nome .obr{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:#FBBF24}
+.ctr-dos-row select{background:#0b1424;border:1px solid rgba(255,255,255,.14);border-radius:8px;color:#fff;font:inherit;font-size:12.5px;padding:6px 8px}
+.ctr-dos-anexar{display:inline-flex;align-items:center;padding:6px 12px;border-radius:8px;border:1px solid rgba(96,165,250,.4);background:rgba(59,130,246,.10);color:#BFDBFE;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.ctr-dos-arqs{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px}
+.ctr-dos-arq{position:relative;width:76px;height:76px;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.14);background:#0b1424;display:flex;align-items:center;justify-content:center;font-size:10px;color:#CBD5E1;text-align:center;line-height:1.25}
+.ctr-dos-arq img{width:100%;height:100%;object-fit:cover}
+.ctr-dos-arq a{color:#BFDBFE;text-decoration:none;padding:4px;word-break:break-all}
+.ctr-dos-arq button{position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:6px;border:none;background:rgba(0,0,0,.65);color:#fff;font-size:13px;line-height:1;cursor:pointer;padding:0}
+.ctr-dos-obs{grid-column:1/-1;width:100%;box-sizing:border-box;background:transparent;border:1px dashed rgba(255,255,255,.14);border-radius:8px;color:#E5E7EB;font:inherit;font-size:12.5px;padding:6px 8px;outline:none}
+.ctr-dos-obs:focus{border-color:#3B82F6;border-style:solid}
+@media (max-width:600px){.ctr-dos-row{grid-template-columns:1fr auto}.ctr-dos-nome{grid-column:1/-1}}
 #eletroSection .orc-wrap .eletro-inp.has-suf.suf-l input{padding-right:60px}
 .ctr-esc-lista{display:flex;flex-direction:column;gap:6px}
 .ctr-esc-row{display:grid;grid-template-columns:22px 1fr auto 30px;gap:10px;align-items:center;background:#0f1a2e;border:1px solid rgba(255,255,255,.10);border-radius:10px;padding:5px 8px 5px 12px}
@@ -1274,10 +1307,10 @@ html[data-mode="app"].automacao-aberto .container{margin-left:0!important}
 .ctr-esc-row.off .ctr-esc-tag{color:#64748B}
 .ctr-x{width:28px;height:28px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:transparent;color:#94A3B8;font-size:17px;line-height:1;cursor:pointer;padding:0;flex:0 0 auto}
 .ctr-x:hover{color:#fca5a5;border-color:rgba(252,165,165,.5)}
-.ctr-esc-add{display:flex;gap:8px;flex-wrap:wrap}
-.ctr-esc-add input{flex:1 1 240px;min-width:0;box-sizing:border-box;padding:9px 12px;background:#0f1a2e;border:1px dashed rgba(255,255,255,.24);border-radius:9px;color:#fff;font:inherit;font-size:13.5px;outline:none}
-.ctr-esc-add input:focus{border-color:#3B82F6;border-style:solid}
-.ctr-esc-add .eletro-btn{flex:0 0 auto;min-width:0;padding:9px 14px;font-size:13px}
+.ctr-esc-add,.ctr-dos-add{display:flex;gap:8px;flex-wrap:wrap}
+.ctr-esc-add input,.ctr-dos-add input{flex:1 1 240px;min-width:0;box-sizing:border-box;padding:9px 12px;background:#0f1a2e;border:1px dashed rgba(255,255,255,.24);border-radius:9px;color:#fff;font:inherit;font-size:13.5px;outline:none}
+.ctr-esc-add input:focus,.ctr-dos-add input:focus{border-color:#3B82F6;border-style:solid}
+.ctr-esc-add .eletro-btn,.ctr-dos-add .eletro-btn{flex:0 0 auto;min-width:0;padding:9px 14px;font-size:13px}
 .ctr-vazio{font-size:12.5px;color:#64748B;font-style:italic;padding:10px 12px;border:1px dashed rgba(255,255,255,.14);border-radius:10px;line-height:1.45}
 .ctr-pag-modelos{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .ctr-pag-modelos>span{font-size:10.5px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;color:#94A3B8;margin-right:4px}
@@ -3789,7 +3822,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
          lazy-load dos iframes eletro-frame-<slug>. -->
     <div class="eletro-subnav2" id="eletro-subnav2-fechamento">
       <button type="button" id="eletro-tab-recibo" class="eletro-subtab2" onclick="eletroSubaba('recibo')">Recibo</button>
-      <button type="button" id="eletro-tab-contrato" class="eletro-subtab2" onclick="eletroSubaba('contrato')">Contrato</button>
+      <button type="button" id="eletro-tab-contrato" class="eletro-subtab2" onclick="eletroSubaba('contrato')">Contratos e termos</button>
       <button type="button" id="eletro-tab-procuracao" class="eletro-subtab2" onclick="eletroSubaba('procuracao')">Procuração</button>
       <button type="button" id="eletro-tab-finame" class="eletro-subtab2" onclick="eletroSubaba('finame')">Proposta de banco</button>
     </div>
@@ -4338,13 +4371,19 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
            "Modelo de interesse" enquanto ninguém mexer aqui. Cada cartão abaixo
            diz em data-ctr-tipos para quais modelos ele aparece. -->
       <div class="card">
-        <div class="calc-card-title"><span class="dot"></span>Modelo do contrato</div>
-        <div class="eletro-field" style="grid-column:1/-1"><label>Qual contrato</label>
+        <div class="calc-card-title"><span class="dot"></span>Qual documento</div>
+        <div class="eletro-field" style="grid-column:1/-1"><label>Contrato ou termo</label>
           <div class="eletro-inp eletro-inp-wide"><select id="ctr-tipo" onchange="ctrTipoMudou(this)">
+            <optgroup label="Contratos">
             <option value="completo">Completo: chave na mão, o eletroposto é do cliente</option>
             <option value="socio50">Sociedade 50/50: cada um entra com metade do capital</option>
             <option value="arrend">Arrendamento: o cliente cede o espaço e a NEXUS investe</option>
             <option value="cotas">Cotas por %: o cliente compra cota da sociedade</option>
+            </optgroup>
+            <optgroup label="Termos de compromisso (antes do contrato)">
+            <option value="termo_arr">Termo do Arrendador: reserva do local e dossiê</option>
+            <option value="termo_inv">Termo do Investidor: reserva ou adesão à cota</option>
+            </optgroup>
           </select></div></div>
         <div class="orc-note" id="ctr-tipo-nota">—</div>
       </div>
@@ -4377,6 +4416,27 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="eletro-field"><label>CPF do representante</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-rep-doc" placeholder="000.000.000-00"></div></div>
         <div class="orc-note"><span class="ctr-rot-Parte">Contratante</span> com CNPJ precisa de representante: empresa não assina sozinha, e sem o representante e o CPF dele a assinatura não amarra a pessoa jurídica.</div>
+        <div class="eletro-field" style="grid-column:1/-1"><label>Nacionalidade, estado civil e profissão (opcional)</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-qualif" placeholder="Ex.: brasileiro, casado, empresário · em branco não sai no papel"></div></div>
+        <!-- INTERVENIENTE ANUENTE (08/10/2026). Quem também assina para autorizar a
+             cessão e a obra: o dono do imóvel quando o cedente é inquilino (Lei
+             8.245/91, arts. 13 e 23, VI), o inquilino quando o imóvel está alugado,
+             o condomínio. Em branco, não sai no papel. -->
+        <div class="orc-note" style="grid-column:1/-1;margin-top:10px" data-ctr-tipos="arrend termo_arr"><b>Interveniente anuente:</b> quem também assina para autorizar a cessão e a obra. Inquilino não cede sozinho: o dono do imóvel assina aqui. Em branco, não sai no papel.</div>
+        <div class="eletro-field" data-ctr-tipos="arrend termo_arr"><label>Interveniente anuente (nome ou razão social)</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-int-nome" placeholder="Ex.: o dono do imóvel" oninput="ctrResumo()"></div></div>
+        <div class="eletro-field" data-ctr-tipos="arrend termo_arr"><label>CPF/CNPJ do interveniente</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-int-doc" placeholder="CPF ou CNPJ"></div></div>
+        <div class="eletro-field" data-ctr-tipos="arrend termo_arr"><label>Endereço do interveniente</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-int-end" placeholder="Rua, número, cidade"></div></div>
+        <div class="eletro-field" data-ctr-tipos="arrend termo_arr"><label>O interveniente é</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="ctr-int-qualidade">
+            <option value="proprietario">Proprietário do imóvel</option>
+            <option value="locatario">Locatário (inquilino) do imóvel</option>
+            <option value="condominio">Condomínio</option>
+            <option value="administradora">Administradora do imóvel ou do shopping</option>
+            <option value="credor">Credor do imóvel (hipoteca ou alienação fiduciária)</option>
+          </select></div></div>
       </div>
 
       <div class="card">
@@ -4399,17 +4459,17 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
            janela "Editar cota" (o mesmo da Sociedade em PDF) e do Simulador, cada
            um com a sua caixinha de espelho. O quadro só espelha quando tem a forma
            do modelo: 1 sócio no 50/50, mais de um em cotas (ver ctrSocQuadro). -->
-      <div class="card" data-ctr-tipos="socio50 cotas">
+      <div class="card" data-ctr-tipos="socio50 cotas termo_inv">
         <div class="calc-card-title"><span class="dot"></span>Sociedade: capital, cotas e prazos</div>
         <div class="eletro-field"><label>Investimento total</label>
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-soc-invest" inputmode="decimal" placeholder="0,00" oninput="ctrResumo()"></div></div>
-        <div class="eletro-field" data-ctr-tipos="cotas"><label>Cotas de sócios investidores</label>
+        <div class="eletro-field" data-ctr-tipos="cotas termo_inv" data-ctr-socmodo="cotas"><label>Cotas de sócios investidores</label>
           <div class="eletro-inp has-suf"><input type="text" id="ctr-soc-n" inputmode="numeric" placeholder="3" oninput="ctrResumo()"><span class="suf">un</span></div></div>
         <div class="eletro-field"><label id="ctr-soc-cota-rot">Cota do sócio</label>
           <div class="eletro-inp has-suf"><input type="text" id="ctr-soc-cota" inputmode="decimal" placeholder="50" oninput="ctrResumo()"><span class="suf">%</span></div></div>
         <div class="eletro-field"><label id="ctr-soc-aporte-rot">Aporte do sócio</label>
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-soc-aporte" inputmode="decimal" placeholder="0,00" oninput="ctrResumo()"></div></div>
-        <div class="eletro-field" data-ctr-tipos="cotas"><label>Cotas deste sócio</label>
+        <div class="eletro-field" data-ctr-tipos="cotas termo_inv" data-ctr-socmodo="cotas"><label>Cotas deste sócio</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-soc-qtd" inputmode="numeric" min="1" value="1" oninput="ctrResumo()"><span class="suf">un</span></div></div>
         <div class="eletro-field"><label>Cota da NEXUS</label>
           <div class="eletro-inp has-suf"><input type="text" id="ctr-soc-cota-nexus" inputmode="decimal" placeholder="50" oninput="ctrResumo()"><span class="suf">%</span></div></div>
@@ -4444,7 +4504,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
            a NEXUS a CESSIONÁRIA que investe 100%. Texto a partir do
            CONTRATO-ARRENDAMENTO-PONTO.md, sem a corretagem e a preferência: lá a
            IO era interveniente entre dono e investidor, aqui ela é a parte. -->
-      <div class="card" data-ctr-tipos="arrend">
+      <div class="card" data-ctr-tipos="arrend termo_arr">
         <div class="calc-card-title"><span class="dot"></span>Arrendamento: remuneração, prazos e local</div>
         <div class="eletro-field"><label>Percentual do faturamento bruto</label>
           <div class="eletro-inp has-suf"><input type="text" id="ctr-arr-pct" inputmode="decimal" placeholder="10" oninput="ctrResumo()"><span class="suf">%</span></div></div>
@@ -4458,13 +4518,13 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="eletro-field" style="grid-column:span 2"><label>Conta do cedente para receber</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-arr-dados" placeholder="Pix ou banco, agência e conta do dono do local"></div></div>
         <div class="eletro-field"><label>Vigência</label>
-          <div class="eletro-inp has-suf suf-l"><input type="number" id="ctr-arr-vigencia" inputmode="numeric" min="1" value="60"><span class="suf">meses</span></div></div>
+          <div class="eletro-inp has-suf suf-l"><input type="number" id="ctr-arr-vigencia" inputmode="numeric" min="1" value="60" oninput="ctrTermoUi()"><span class="suf">meses</span></div></div>
         <div class="eletro-field"><label>Ninguém sai antes de</label>
           <div class="eletro-inp has-suf suf-l"><input type="number" id="ctr-arr-permanencia" inputmode="numeric" min="0" value="36"><span class="suf">meses</span></div></div>
         <div class="eletro-field"><label>Aviso para não renovar</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-aviso" inputmode="numeric" min="1" value="180"><span class="suf">dias</span></div></div>
         <div class="eletro-field"><label>Prazo máximo para ligar o ponto</label>
-          <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-implant" inputmode="numeric" min="1" value="180"><span class="suf">dias</span></div></div>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-implant" inputmode="numeric" min="1" value="180" oninput="ctrTermoUi()"><span class="suf">dias</span></div></div>
         <div class="eletro-field"><label>Vagas cedidas</label>
           <div class="eletro-inp has-suf"><input type="text" id="ctr-arr-vagas" inputmode="numeric" placeholder="1"><span class="suf">un</span></div></div>
         <div class="eletro-field"><label>Área cedida (opcional)</label>
@@ -4511,6 +4571,144 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="eletro-field"><label>Prazo para corrigir antes de rescindir</label>
           <div class="eletro-inp has-suf"><input type="number" id="ctr-arr-corrigir" inputmode="numeric" min="1" value="15"><span class="suf">dias</span></div></div>
         <div class="orc-note" style="grid-column:1/-1">O dono do local não põe dinheiro e não responde pelo negócio: recebe o percentual sobre o <b>faturamento bruto</b>, que ele confere no painel do ponto. Recarga grátis ou com desconto entra na conta pelo preço de tabela.</div>
+      </div>
+
+      <!-- TERMO DO ARRENDADOR (08/10/2026). O papel entre a reunião e o contrato
+           de cessão: o dono do local promete ceder e a NEXUS ganha um prazo para
+           estudar o ponto (promessa unilateral, CC art. 466), ou só registra a
+           intenção. As condições da cessão vêm do cartão Arrendamento, e a minuta
+           do contrato vai anexada: é o que faz a promessa valer (CC art. 462). -->
+      <div class="card" data-ctr-tipos="termo_arr">
+        <div class="calc-card-title"><span class="dot"></span>Termo do Arrendador: força, imóvel, prazos e reserva</div>
+        <div class="eletro-field" style="grid-column:1/-1"><label>Força do termo</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="ctr-ta-nivel" onchange="ctrNivelMudou()">
+            <option value="promessa">Promessa de cessão: o dono fica obrigado se a NEXUS confirmar o ponto</option>
+            <option value="intencao">Carta de intenção: registra a vontade, sem obrigar a ceder</option>
+          </select></div></div>
+        <div class="orc-note" id="ctr-ta-nivel-nota" style="grid-column:1/-1">—</div>
+        <div class="eletro-field"><label>Modelo pretendido</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="ctr-ta-modelo" onchange="ctrResumo()">
+            <option value="arrend">Arrendamento: a NEXUS investe 100%</option>
+            <option value="aberto">A definir depois do estudo</option>
+          </select></div></div>
+        <div class="eletro-field"><label>Tipo de estabelecimento</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ta-tipo-local" placeholder="Posto, farmácia, mercado, shopping..."></div></div>
+        <div class="ctr-sec">O imóvel</div>
+        <div class="eletro-field"><label>Matrícula nº</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ta-matricula" placeholder="Da certidão do cartório"></div></div>
+        <div class="eletro-field"><label>Cartório de registro de imóveis</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ta-cartorio" placeholder="Ex.: 1º Ofício de Uberlândia"></div></div>
+        <div class="eletro-field"><label>Inscrição do IPTU</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ta-iptu" placeholder="Do carnê"></div></div>
+        <div class="eletro-field"><label>Unidade consumidora (nº da instalação)</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ta-uc" placeholder="Da conta de energia"></div></div>
+        <div class="eletro-field"><label>Distribuidora de energia</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ta-distribuidora" placeholder="CEMIG, Neoenergia, Enel..."></div></div>
+        <div class="eletro-field"><label>Padrão de entrada (ligação e disjuntor)</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ta-padrao" placeholder="Ex.: trifásico, disjuntor de 100 A"></div></div>
+        <div class="eletro-field" id="ctr-ta-f-locacao"><label>A locação do cedente vai até</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="date" id="ctr-ta-locacao-fim" onchange="ctrResumo()"></div></div>
+        <div class="orc-note" id="ctr-ta-locacao-nota" style="grid-column:1/-1;display:none"></div>
+        <div class="ctr-sec">Prazos</div>
+        <div class="eletro-field"><label>Prazo para a NEXUS estudar o ponto</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-ta-prazo" inputmode="numeric" min="1" value="120" oninput="ctrTermoUi()"><span class="suf">dias</span></div></div>
+        <div class="eletro-field"><label>NEXUS pede o acesso à distribuidora em até</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-ta-protocolo" inputmode="numeric" min="1" value="60"><span class="suf">dias</span></div></div>
+        <div class="eletro-field" data-ctr-ta="promessa"><label>Assinar o contrato depois da confirmação em até</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-ta-assinar" inputmode="numeric" min="1" value="10" oninput="ctrTermoUi()"><span class="suf">dias</span></div></div>
+        <div class="eletro-field"><label>Dono entrega os documentos em até</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-ta-docs" inputmode="numeric" min="1" value="15"><span class="suf">dias</span></div></div>
+        <div class="ctr-sec">Reserva e multa</div>
+        <div class="eletro-field"><label>Valor pago ao dono pela reserva (opcional)</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-ta-premio" inputmode="decimal" placeholder="sem valor" oninput="ctrResumo()"></div></div>
+        <div class="eletro-field"><label>Quando a reserva é paga</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ta-premio-quando" value="na assinatura deste termo"></div></div>
+        <div class="eletro-field" data-ctr-ta="promessa"><label>Multa se o dono recusar assinar (opcional)</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-ta-multa" inputmode="decimal" placeholder="sem multa"></div></div>
+        <div class="orc-note" style="grid-column:1/-1">As condições da cessão (percentual, piso, vigência, vagas, energia) vêm do cartão <b>Arrendamento</b> abaixo e são as mesmas da minuta anexada. A NEXUS paga todo o estudo e pode não confirmar o ponto sem multa. Se ela não pedir o acesso à distribuidora no prazo, o dono fica livre.</div>
+      </div>
+
+      <!-- DOSSIÊ DO LOCAL (08/10/2026). Checklist de documentos e fotos do local,
+           com anexo de foto ou PDF em cada item. Os arquivos ficam neste aparelho
+           (IndexedDB) e as fotos saem no PDF, como anexo do termo ou do contrato.
+           Por que não na nuvem: ver o comentário de ctrDosDb no script. -->
+      <div class="card" data-ctr-tipos="arrend termo_arr">
+        <div class="calc-card-title"><span class="dot"></span>Dossiê do local: documentos e fotos</div>
+        <div class="orc-note" style="margin-top:-2px;grid-column:1/-1">Marque o que já foi entregue e anexe a foto ou o PDF de cada item. Os arquivos ficam <b>neste aparelho</b> e as fotos saem no PDF como anexo, num relatório com o checklist. Um item anexado já conta como entregue.</div>
+        <div class="ctr-pag-soma" id="ctr-dos-resumo" style="grid-column:1/-1">—</div>
+        <div class="ctr-dos-lista" id="ctr-dos-lista" style="grid-column:1/-1"></div>
+        <div class="ctr-dos-add" style="grid-column:1/-1">
+          <input type="text" id="ctr-dos-novo" placeholder="Outro documento ou foto (ex.: alvará, licença do shopping)" onkeydown="if(event.key==='Enter'){event.preventDefault();ctrDosAdd()}">
+          <button type="button" class="eletro-btn" onclick="ctrDosAdd()">+ Item</button>
+        </div>
+      </div>
+
+      <!-- TERMO DO INVESTIDOR (08/10/2026). Dois usos num papel só, por ordem do
+           dono: RESERVA (antes de o contrato da sociedade existir: depósito parado
+           em conta própria, condição de capital fechado e local contratado,
+           desistência livre) e ADESÃO (entrada de sócio participante numa
+           sociedade em cotas já assinada, que o contrato de cotas cita). Os
+           números da cota vêm do cartão Sociedade. -->
+      <div class="card" data-ctr-tipos="termo_inv">
+        <div class="calc-card-title"><span class="dot"></span>Termo do Investidor: reserva ou adesão</div>
+        <div class="orc-note ctr-alerta" style="grid-column:1/-1"><b>Use só com investidor que você conhece e abordou individualmente.</b> Com quem chegou pelo anúncio de cotas, este termo vira prova de oferta pública de valor mobiliário (CVM). Antes de usar em escala, fale com o advogado.</div>
+        <div class="eletro-field" style="grid-column:1/-1"><label>Uso do termo</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="ctr-ti-uso" onchange="ctrUsoMudou()">
+            <option value="reserva">Reserva: antes de o contrato da sociedade existir</option>
+            <option value="adesao">Adesão: entrar numa sociedade em cotas já assinada</option>
+          </select></div></div>
+        <div class="eletro-field" style="grid-column:1/-1"><label>Como o investidor conheceu a NEXUS</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="ctr-ti-origem" onchange="ctrResumo()">
+            <option value="">Não informado: o termo não declara a origem</option>
+            <option value="anuncio">Anúncio, formulário ou quiz: risco de oferta pública (CVM)</option>
+            <option value="pessoal">Contato pessoal anterior a este negócio</option>
+            <option value="indicacao">Indicação de um conhecido</option>
+          </select></div></div>
+        <div class="eletro-field" data-ctr-ti="reserva" style="grid-column:1/-1"><label>Modelo pretendido</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="ctr-ti-modelo" onchange="ctrUsoMudou()">
+            <option value="cotas">Cotas por %</option>
+            <option value="socio50">Sociedade 50/50</option>
+          </select></div></div>
+        <div class="eletro-field" data-ctr-ti="adesao"><label>Nº do contrato da sociedade</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ti-contrato-num" placeholder="O número do contrato já assinado"></div></div>
+        <div class="eletro-field" data-ctr-ti="adesao"><label>Data do contrato da sociedade</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="date" id="ctr-ti-contrato-data"></div></div>
+        <div class="eletro-field" data-ctr-ti="adesao"><label>Cláusula do contrato que consente novos sócios</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ti-consent" placeholder="Ex.: 3.4 (a da captação por adesão)"></div></div>
+        <div class="eletro-field" style="grid-column:1/-1"><label>Local do ponto (se já definido)</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ti-ponto" placeholder="Em branco: ponto a definir na região abaixo"></div></div>
+        <div class="eletro-field"><label>Cidade ou região de interesse</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ti-regiao" placeholder="Cidade/UF"></div></div>
+        <div class="eletro-field"><label>Distância aceita (opcional)</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-ti-raio" inputmode="numeric" min="0" placeholder="—"><span class="suf">km</span></div></div>
+        <div class="ctr-sec" data-ctr-ti="reserva">Reserva</div>
+        <div class="eletro-field" data-ctr-ti="reserva"><label>A reserva vale por</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-ti-validade" inputmode="numeric" min="1" value="90"><span class="suf">dias</span></div></div>
+        <div class="eletro-field" data-ctr-ti="reserva"><label>Assinar o contrato depois de cumprida a condição em até</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-ti-assinar" inputmode="numeric" min="1" value="10"><span class="suf">dias</span></div></div>
+        <div class="eletro-field" data-ctr-ti="reserva adesao"><label>Desistência livre em até (mínimo 7)</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-ti-desist" inputmode="numeric" min="7" value="7"><span class="suf">dias</span></div></div>
+        <div class="eletro-field" data-ctr-ti="reserva adesao"><label>Devolução do valor pago em até</label>
+          <div class="eletro-inp has-suf"><input type="number" id="ctr-ti-devolucao" inputmode="numeric" min="1" value="7"><span class="suf">dias</span></div></div>
+        <div class="eletro-field" data-ctr-ti="reserva"><label>Depósito de reserva (opcional)</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-ti-deposito" inputmode="decimal" placeholder="sem depósito" oninput="ctrResumo()"></div></div>
+        <div class="eletro-field" data-ctr-ti="reserva"><label>Forma do depósito</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="ctr-ti-deposito-forma">
+            <option>Pix</option><option>transferência bancária</option><option>cartão de crédito</option><option>boleto bancário</option>
+          </select></div></div>
+        <div class="eletro-field" data-ctr-ti="reserva"><label>Quando o depósito é feito</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ti-deposito-quando" value="na assinatura deste termo"></div></div>
+        <div class="eletro-field" data-ctr-ti="reserva"><label>Retenção se desistir depois do prazo livre</label>
+          <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-ti-arras" inputmode="decimal" placeholder="vale com a caixinha marcada"></div></div>
+        <div class="ctr-sec">Declarações do investidor</div>
+        <div class="eletro-field"><label>Pessoa politicamente exposta</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="ctr-ti-pep">
+            <option value="nao">Não é</option>
+            <option value="sim">É</option>
+          </select></div></div>
+        <div class="eletro-field"><label>Renda ou patrimônio aproximado (opcional)</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-ti-faixa" placeholder="Ex.: renda de R$ 20 mil por mês, ou patrimônio de R$ 1 milhão"></div></div>
+        <div class="orc-note" id="ctr-ti-nota" style="grid-column:1/-1">—</div>
       </div>
 
       <!-- ESCOPO DO CONTRATO (05/10/2026). Nasce do kit marcado no Orcamento e
@@ -4576,11 +4774,11 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
            uma lista de formas (Pix, boleto, cartao, financiamento, permuta... o
            campo aceita qualquer nome) que vira tabela na Clausula 3a. Corre
            sobre o SALDO: total menos o sinal ja' pago no recibo. -->
-      <div class="card" data-ctr-tipos="completo socio50 cotas">
+      <div class="card" data-ctr-tipos="completo socio50 cotas termo_inv">
         <div class="calc-card-title"><span class="dot"></span><span id="ctr-pag-tit">Valor e formas de pagamento</span></div>
         <div class="orc-tot">
           <div class="orc-tot-row"><span id="ctr-t-total-rot">Valor total do projeto</span><span class="v" id="ctr-t-total">R$ 0,00</span></div>
-          <div class="orc-tot-row"><span>Sinal já pago</span><span class="v" id="ctr-t-sinal">R$ 0,00</span></div>
+          <div class="orc-tot-row"><span id="ctr-t-sinal-rot">Sinal já pago</span><span class="v" id="ctr-t-sinal">R$ 0,00</span></div>
           <div class="orc-tot-row big"><span>Saldo a pagar</span><span class="v" id="ctr-t-saldo">R$ 0,00</span></div>
         </div>
         <!-- SINAL EDITAVEL (05/10/2026). Nasce com o valor do Recibo de sinal e
@@ -4589,7 +4787,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
              type=number (virgula zera, ponto de milhar corta tres zeros). -->
         <div class="eletro-field" data-ctr-tipos="completo"><label>Valor total do projeto</label>
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-total" inputmode="decimal" placeholder="0,00" oninput="ctrResumo()"></div></div>
-        <div class="eletro-field"><label>Sinal já pago</label>
+        <div class="eletro-field" data-ctr-tipos="completo socio50 cotas"><label>Sinal já pago</label>
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-sinal" inputmode="decimal" placeholder="0,00" oninput="ctrResumo()"></div></div>
         <div class="eletro-field" style="grid-column:span 2" data-ctr-tipos="completo"><label>O sinal foi destinado a</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-sinal-destino" value="ao projeto elétrico" placeholder="Em branco = a frase sai sem destinação" oninput="epTocar(this)"></div></div>
@@ -4600,8 +4798,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <button type="button" class="ctr-chip" data-ctr-tipos="completo" onclick="ctrPagAplicar('fin')">Entrada + financiamento</button>
           <button type="button" class="ctr-chip" data-ctr-tipos="completo" onclick="ctrPagAplicar('etapas')">Por etapa da obra (30/40/30)</button>
           <button type="button" class="ctr-chip" onclick="ctrPagAplicar('boleto')">Entrada + boletos</button>
-          <button type="button" class="ctr-chip" data-ctr-tipos="socio50 cotas" onclick="ctrPagAplicar('cartao10')">10x no cartão</button>
-          <button type="button" class="ctr-chip" data-ctr-tipos="socio50 cotas" onclick="ctrPagAplicar('cartao18')">18x no cartão</button>
+          <button type="button" class="ctr-chip" data-ctr-tipos="socio50 cotas termo_inv" onclick="ctrPagAplicar('cartao10')">10x no cartão</button>
+          <button type="button" class="ctr-chip" data-ctr-tipos="socio50 cotas termo_inv" onclick="ctrPagAplicar('cartao18')">18x no cartão</button>
         </div>
         <div class="ctr-esp" id="ctr-pag-esp"></div>
         <div class="ctr-pag-lista" id="ctr-pag-lista"></div>
@@ -9744,7 +9942,11 @@ function cadRender() {
       + '<span class="cad-sub">' + quando
         + (!ehPonto && cadLado !== 'curioso' && r.ponto_relacao ? ' · ' + escapeHtml(r.ponto_relacao) : '') + '</span>'
       + (ehPonto ? cadRelacaoBadge(r) : '')
-      + '<div style="margin-top:6px">' + wa + '</div></td>';
+      + '<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">' + wa
+      // Termo de compromisso (08/10/2026): abre o termo já com os dados da pessoa.
+      + ((cadLado === 'ponto' || cadLado === 'capital')
+        ? '<button type="button" class="cad-termo" onclick="cadTermo(\'' + cadLado + '\',\'' + cadRef(r) + '\')" title="Abrir o termo de compromisso com os dados desta pessoa">Termo</button>' : '')
+      + '</div></td>';
     const st = r.deAgenda
       ? '<td><span class="cad-st-agenda" title="O status desta pessoa mora na agenda. Trocar aqui '
         + 'mudaria o agendamento e tiraria ela do Arrendamento.">na agenda</span></td>'
@@ -9811,6 +10013,37 @@ function cadRender() {
   }).join('');
 
   cadPainelPares();
+}
+
+// TERMO A PARTIR DO CADASTRO (08/10/2026). Quem está na lista de Arrendamento
+// ganha o Termo do Arrendador; quem está em Investidores, o Termo do Investidor.
+// Cliente novo no /gerador: zera o contrato, põe nome, cidade e telefone no
+// Simulador e no Orçamento (de onde os espelhos copiam), e no termo do
+// arrendador o endereço do PONTO vai direto para o local, porque ele não é,
+// necessariamente, o endereço da pessoa.
+function cadTermo(lado, ref) {
+  const r = cadAcha((cadDados && cadDados[lado]) || [], ref);
+  if (!r) return;
+  const set = (id, v) => { const el = document.getElementById(id); if (!el) return; el.value = v || ''; el.dispatchEvent(new Event('input', { bubbles: true })); };
+  if (typeof ctrEstadoZerar === 'function') ctrEstadoZerar();
+  set('el-cliente', r.nome); set('el-cidade', r.cidade);
+  if (typeof orcInit === 'function') orcInit();
+  set('orc-cli-tel', r.telefone);
+  const rel = r.ponto_relacao || (typeof cadRelacaoDaFicha === 'function' ? cadRelacaoDaFicha(r) : '') || '';
+  epFicha = { localRel: rel, invest: '', ponto: '' };
+  ctrTermoOrigem = { lado, valor: r.valor_investir || r.capital_faixa || '' };
+  const tp = document.getElementById('ctr-tipo');
+  if (tp) { tp.value = lado === 'ponto' ? 'termo_arr' : 'termo_inv'; tp.dataset.tocado = '1'; }
+  // Quem está em Investidores chegou pelo formulário, pelo quiz ou pela agenda
+  // do anúncio: o termo nasce dizendo isso, e só o consultor que conhece a
+  // pessoa de fora troca (risco CVM de oferta pública).
+  if (lado !== 'ponto') { const og = document.getElementById('ctr-ti-origem'); if (og) og.value = 'anuncio'; }
+  if (lado === 'ponto' && r.ponto_endereco) {
+    const loc = document.getElementById('ctr-local');
+    if (loc) { loc.value = [r.ponto_endereco, r.cidade].filter(Boolean).join(', '); loc.dataset.tocado = '1'; }
+  }
+  eletroSubaba('contrato');
+  if (typeof showToast === 'function') showToast('Termo aberto com os dados do cadastro de ' + (r.nome || 'cliente') + '. Tudo editável.');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -18186,9 +18419,35 @@ const CTR_TIPOS = {
     nota: 'Cessão onerosa de área: o dono do local cede o espaço, a NEXUS investe 100%, instala e opera, e paga a ele todo mês um percentual do faturamento bruto.' },
   cotas: { nome: 'Cotas por %', nossa: 'SÓCIA OSTENSIVA', deles: 'SÓCIO PARTICIPANTE', Nossa: 'Sócia ostensiva', Parte: 'Sócio participante', parte: 'sócio participante',
     nota: 'Sociedade em conta de participação dividida em cotas: o cliente compra uma ou mais, a NEXUS administra e fica com a dela, e o local vem por arrendamento. Enquanto o capital não fecha, o dinheiro fica parado, e volta se não fechar no prazo.' },
+  // TERMOS DE COMPROMISSO (08/10/2026): o papel entre a reunião e o contrato.
+  // Os nomes das partes mudam com a força do termo e com o uso (ver ctrNomes).
+  termo_arr: { nome: 'Termo do Arrendador', termo: true, nossa: 'COMPROMISSÁRIA CESSIONÁRIA', deles: 'COMPROMITENTE CEDENTE', Nossa: 'Compromissária cessionária', Parte: 'Compromitente cedente', parte: 'compromitente cedente',
+    nota: 'Termo do dono do local: segura o ponto enquanto a NEXUS estuda, com as condições da cessão já combinadas e o dossiê do local anexado. Na promessa, o dono fica obrigado se a NEXUS confirmar; na carta de intenção, só a vontade fica registrada.' },
+  termo_inv: { nome: 'Termo do Investidor', termo: true, nossa: 'NEXUS', deles: 'INVESTIDOR', Nossa: 'NEXUS', Parte: 'Investidor', parte: 'investidor',
+    nota: 'Termo do investidor: reserva de cota antes de o contrato da sociedade existir (depósito parado, desistência livre, devolução se o capital não fechar) ou adesão a uma sociedade em cotas já assinada.' },
 };
 function ctrTipo() { const el = document.getElementById('ctr-tipo'); const v = el ? el.value : ''; return CTR_TIPOS[v] ? v : 'completo'; }
 const ctrEhSoc = t => t === 'socio50' || t === 'cotas';
+// A forma da sociedade cujos números o documento lê: os dois contratos de
+// sociedade e o Termo do Investidor, que reserva cota numa delas ou adere a
+// uma. Adesão é sempre a uma sociedade em cotas. Fora disso, null.
+function ctrSocModo(t) {
+  t = t || ctrTipo();
+  if (t === 'cotas' || t === 'socio50') return t;
+  if (t === 'termo_inv') return orcVal('ctr-ti-uso') === 'adesao' || orcVal('ctr-ti-modelo') !== 'socio50' ? 'cotas' : 'socio50';
+  return null;
+}
+// Os nomes das partes. Nos termos eles dependem da força e do uso: quem promete
+// ceder é COMPROMITENTE; na carta de intenção, que não promete, ficam os nomes
+// do contrato futuro; na adesão, quem entra é ADERENTE e a NEXUS já é a sócia
+// ostensiva. No Completo e nos contratos, os de sempre.
+function ctrNomes(t) {
+  t = t || ctrTipo();
+  const T = CTR_TIPOS[t] || CTR_TIPOS.completo;
+  if (t === 'termo_arr' && orcVal('ctr-ta-nivel') === 'intencao') return { nossa: 'CESSIONÁRIA', deles: 'CEDENTE', Nossa: 'Cessionária', Parte: 'Cedente', parte: 'cedente' };
+  if (t === 'termo_inv' && orcVal('ctr-ti-uso') === 'adesao') return { nossa: 'SÓCIA OSTENSIVA', deles: 'ADERENTE', Nossa: 'Sócia ostensiva', Parte: 'Aderente', parte: 'aderente' };
+  return { nossa: T.nossa, deles: T.deles, Nossa: T.Nossa, Parte: T.Parte, parte: T.parte };
+}
 // Percentual com vírgula ou ponto; o texto do papel sai com vírgula e sem zero à toa.
 const ctrPctLe = v => { const n = parseFloat(String(v == null ? '' : v).replace(/[\s%]/g, '').replace(',', '.')); return isFinite(n) && n >= 0 ? n : 0; };
 const ctrPctTxt = n => String(Math.round((Number(n) || 0) * 100) / 100).replace('.', ',');
@@ -18204,7 +18463,7 @@ function ctrNumOu(id, padrao) { const v = orcVal(id); return v === '' ? padrao :
 // com 25% sem aporte), senão um 50/50 nascia com o quadro de cotas de ontem.
 function ctrSocQuadro() {
   const s = socLer();
-  if (ctrTipo() === 'cotas') return s.n > 1 ? s : { n: 3, cotaSocio: 25, cotaNexus: 25, aporteSocio: 50000, aporteNexus: 0 };
+  if (ctrSocModo() === 'cotas') return s.n > 1 ? s : { n: 3, cotaSocio: 25, cotaNexus: 25, aporteSocio: 50000, aporteNexus: 0 };
   return s.n === 1 ? s : { ...SOC_PADRAO };
 }
 // Aporte sem número no quadro = proporcional à cota sobre o investimento DO
@@ -18219,7 +18478,7 @@ function ctrSocAporteOrigem(nexus) {
 // A conta da sociedade, lida dos campos do contrato. É a única fonte: o cartão,
 // o quadro do papel e as cláusulas chamam daqui.
 function ctrSoc() {
-  const t = ctrTipo();
+  const t = ctrSocModo() || ctrTipo();
   const cotas = t === 'cotas';
   const invest = ctrMoeda(ctrCampo('ctr-soc-invest'));
   const n = cotas ? Math.max(1, Math.round(orcNum(ctrCampo('ctr-soc-n')) || 1)) : 1;
@@ -18278,26 +18537,40 @@ function ctrArr() {
   };
 }
 
-// Mostra o cartão de cada modelo e troca os nomes das partes na tela.
+// Mostra o cartão de cada modelo e troca os nomes das partes na tela. Um passe
+// só decide o que aparece: tipo do documento (data-ctr-tipos), forma da
+// sociedade (data-ctr-socmodo), força do termo do arrendador (data-ctr-ta) e uso
+// do termo do investidor (data-ctr-ti). Elemento com dois atributos precisa
+// passar nos dois, senão um toggle desfazia o outro.
 function ctrTipoUi() {
-  const t = ctrTipo(), T = CTR_TIPOS[t], soc = ctrEhSoc(t);
+  const t = ctrTipo(), N = ctrNomes(t), modo = ctrSocModo(t), soc = !!modo;
   const pane = document.getElementById('eletro-pane-contrato');
   if (!pane) return;
-  pane.querySelectorAll('[data-ctr-tipos]').forEach(el => el.classList.toggle('ctr-fora', !el.dataset.ctrTipos.split(/\s+/).includes(t)));
+  const nivel = orcVal('ctr-ta-nivel') === 'intencao' ? 'intencao' : 'promessa';
+  const uso = orcVal('ctr-ti-uso') === 'adesao' ? 'adesao' : 'reserva';
+  pane.querySelectorAll('[data-ctr-tipos],[data-ctr-socmodo],[data-ctr-ta],[data-ctr-ti]').forEach(el => {
+    const ds = el.dataset;
+    const ok = (!ds.ctrTipos || ds.ctrTipos.split(/\s+/).includes(t))
+      && (!ds.ctrSocmodo || ds.ctrSocmodo === modo)
+      && (!ds.ctrTa || ds.ctrTa === nivel)
+      && (!ds.ctrTi || ds.ctrTi.split(/\s+/).includes(uso));
+    el.classList.toggle('ctr-fora', !ok);
+  });
   const txt = (sel, v) => pane.querySelectorAll(sel).forEach(el => { if (el.textContent !== v) el.textContent = v; });
-  txt('.ctr-rot-Nossa', T.Nossa); txt('.ctr-rot-Parte', T.Parte); txt('.ctr-rot-parte', T.parte);
+  txt('.ctr-rot-Nossa', N.Nossa); txt('.ctr-rot-Parte', N.Parte); txt('.ctr-rot-parte', N.parte);
   const set = (id, v) => { const el = document.getElementById(id); if (el && el.textContent !== v) el.textContent = v; };
   set('ctr-esc-tit', soc ? 'Escopo: o que o investimento cobre' : 'Escopo: o que entra no preço');
-  set('ctr-pag-tit', soc ? 'Aporte do sócio e formas de pagamento' : 'Valor e formas de pagamento');
-  set('ctr-t-total-rot', soc ? 'Aporte deste sócio' : 'Valor total do projeto');
-  set('ctr-soc-cota-rot', t === 'cotas' ? 'Cada cota vale' : 'Cota do sócio');
-  set('ctr-soc-aporte-rot', t === 'cotas' ? 'Aporte por cota' : 'Aporte do sócio');
-  set('ctr-soc-arrend-rot', t === 'cotas' ? 'Arrendamento ao dono do local, % do faturamento' : 'Arrendamento ao sócio pelo local, % do faturamento');
+  set('ctr-pag-tit', t === 'termo_inv' ? (uso === 'adesao' ? 'Aporte do aderente e formas de pagamento' : 'Forma pretendida de pagar o aporte') : (soc ? 'Aporte do sócio e formas de pagamento' : 'Valor e formas de pagamento'));
+  set('ctr-t-total-rot', t === 'termo_inv' ? 'Aporte deste investidor' : (soc ? 'Aporte deste sócio' : 'Valor total do projeto'));
+  set('ctr-soc-cota-rot', modo === 'cotas' ? 'Cada cota vale' : 'Cota do sócio');
+  set('ctr-soc-aporte-rot', modo === 'cotas' ? 'Aporte por cota' : 'Aporte do sócio');
+  set('ctr-soc-arrend-rot', modo === 'cotas' ? 'Arrendamento ao dono do local, % do faturamento' : 'Arrendamento ao sócio pelo local, % do faturamento');
   const nota = document.getElementById('ctr-tipo-nota');
   if (nota) {
     const daFicha = epFicha && epFicha.modeloTxt;
-    nota.innerHTML = orcEsc(T.nota) + (daFicha ? ` No formulário, o cliente escolheu <b>${orcEsc(daFicha)}</b>.` : '');
+    nota.innerHTML = orcEsc(CTR_TIPOS[t].nota) + (daFicha ? ` No formulário, o cliente escolheu <b>${orcEsc(daFicha)}</b>.` : '');
   }
+  ctrTermoUi();
 }
 function ctrTipoMudou(sel) {
   if (sel) sel.dataset.tocado = '1';
@@ -18314,13 +18587,13 @@ function ctrTipoMudou(sel) {
   });
   const qtd = document.getElementById('ctr-soc-qtd'); if (qtd) qtd.value = qtd.defaultValue;
   ctrTipoUi();
-  ctrEscRender(); ctrOpcRender(); ctrPctNota();
+  ctrEscRender(); ctrOpcRender(); ctrPctNota(); ctrDosRender();
   ctrResumo();
 }
 // O cartão da sociedade: a conta das cotas e dos aportes, na hora.
 function ctrSocUi() {
   const box = document.getElementById('ctr-soc-conta');
-  if (!box || !ctrEhSoc(ctrTipo())) return;
+  if (!box || !ctrSocModo()) return;
   const s = ctrSoc(), money = ORC_MONEY, p = n => ctrPctTxt(n) + '%';
   const fc = document.getElementById('ctr-soc-f-captacao');
   if (fc) fc.classList.toggle('ctr-fora', !s.captacao);
@@ -18353,7 +18626,7 @@ function ctrSocUi() {
 }
 // O cartão do arrendamento: quanto o percentual vale em dinheiro no Simulador.
 function ctrArrUi() {
-  if (ctrTipo() !== 'arrend') return;
+  if (ctrTipo() !== 'arrend' && ctrTipo() !== 'termo_arr') return;
   const a = ctrArr(), money = ORC_MONEY;
   const fh = document.getElementById('ctr-arr-f-horario');
   if (fh) fh.classList.toggle('ctr-fora', a.horario !== 'outro');
@@ -18377,6 +18650,372 @@ function ctrArrUi() {
   })[a.relacao] || '';
 }
 
+// ─── TERMOS DE COMPROMISSO: leitura dos campos e tela (08/10/2026) ───────────
+// Termo do Arrendador: o dono do local promete ceder (ou só manifesta a
+// intenção) e a NEXUS ganha prazo para estudar o ponto. Termo do Investidor:
+// reserva de cota antes do contrato, ou adesão a uma sociedade em cotas já
+// assinada. As condições econômicas não têm campo próprio aqui: vêm dos cartões
+// Arrendamento e Sociedade, os mesmos do contrato definitivo, para o termo e o
+// contrato nunca dizerem números diferentes.
+function ctrTA() {
+  return {
+    nivel: orcVal('ctr-ta-nivel') === 'intencao' ? 'intencao' : 'promessa',
+    modelo: orcVal('ctr-ta-modelo') === 'aberto' ? 'aberto' : 'arrend',
+    tipoLocal: orcVal('ctr-ta-tipo-local'), matricula: orcVal('ctr-ta-matricula'), cartorio: orcVal('ctr-ta-cartorio'),
+    iptu: orcVal('ctr-ta-iptu'), uc: ctrCampo('ctr-ta-uc'), distribuidora: ctrCampo('ctr-ta-distribuidora'),
+    padrao: orcVal('ctr-ta-padrao'), locacaoFim: orcVal('ctr-ta-locacao-fim'),
+    prazo: ctrInt('ctr-ta-prazo', 120), protocolo: ctrInt('ctr-ta-protocolo', 60),
+    assinar: ctrInt('ctr-ta-assinar', 10), docs: ctrInt('ctr-ta-docs', 15),
+    premio: ctrMoeda(orcVal('ctr-ta-premio')), premioQuando: orcVal('ctr-ta-premio-quando') || 'na assinatura deste termo',
+    multa: ctrMoeda(orcVal('ctr-ta-multa')),
+  };
+}
+function ctrTI() {
+  return {
+    uso: orcVal('ctr-ti-uso') === 'adesao' ? 'adesao' : 'reserva', modelo: ctrSocModo('termo_inv'),
+    contratoNum: orcVal('ctr-ti-contrato-num'), contratoData: orcVal('ctr-ti-contrato-data'), consent: orcVal('ctr-ti-consent'),
+    ponto: orcVal('ctr-ti-ponto'), regiao: ctrCampo('ctr-ti-regiao'), raio: Math.max(0, Math.round(orcNum(orcVal('ctr-ti-raio')))),
+    validade: ctrInt('ctr-ti-validade', 90), assinar: ctrInt('ctr-ti-assinar', 10),
+    desist: Math.max(7, ctrInt('ctr-ti-desist', 7)), devolucao: ctrInt('ctr-ti-devolucao', 7),
+    deposito: ctrMoeda(orcVal('ctr-ti-deposito')), depositoForma: orcVal('ctr-ti-deposito-forma') || 'Pix',
+    depositoQuando: orcVal('ctr-ti-deposito-quando') || 'na assinatura deste termo',
+    arras: ctrMoeda(orcVal('ctr-ti-arras')),
+    pep: orcVal('ctr-ti-pep') === 'sim' ? 'sim' : 'nao', faixa: orcVal('ctr-ti-faixa'),
+    origem: ['anuncio', 'pessoal', 'indicacao'].includes(orcVal('ctr-ti-origem')) ? orcVal('ctr-ti-origem') : '',
+  };
+}
+const CTR_INT_QUALIDADE = {
+  proprietario: 'proprietário(a) do imóvel', locatario: 'locatário(a) do imóvel', condominio: 'condomínio',
+  administradora: 'administradora do imóvel', credor: 'credor(a) do imóvel',
+};
+function ctrInterv() {
+  const nome = orcVal('ctr-int-nome');
+  const papel = CTR_INT_QUALIDADE[orcVal('ctr-int-qualidade')] ? orcVal('ctr-int-qualidade') : 'proprietario';
+  return { nome, doc: orcVal('ctr-int-doc'), end: orcVal('ctr-int-end'), papel, qualidade: CTR_INT_QUALIDADE[papel] };
+}
+// O interveniente é quem dá a anuência que este cedente precisa? Inquilino
+// precisa do proprietário; dono com o imóvel alugado precisa do inquilino.
+function ctrIntervAnui(rel, papel) {
+  return (rel === 'locatario' && papel === 'proprietario') || (rel === 'locado' && papel === 'locatario');
+}
+// A locação do cedente inquilino cobre a cessão inteira? Conta o pior caso do
+// papel: estudo (dobrado se pode prorrogar), assinatura, implantação e a
+// vigência do cartão Arrendamento. true cabe, false não cabe, null sem data.
+function ctrTALocacaoFimCessao(d) {
+  const ta = d.ta, a = d.arr;
+  const x = new Date(d.data.getTime());
+  const prorroga = !!(d.opc && d.opc.ta_prorroga);
+  x.setDate(x.getDate() + ta.prazo * (prorroga ? 2 : 1) + (ta.nivel === 'promessa' ? ta.assinar : 0) + a.implant);
+  x.setMonth(x.getMonth() + a.vigencia);
+  return x;
+}
+function ctrTALocacaoCabe(d) {
+  if (!d.ta || !d.arr || !d.ta.locacaoFim) return null;
+  const fim = new Date(d.ta.locacaoFim + 'T00:00:00');
+  if (isNaN(fim)) return null;
+  return fim >= ctrTALocacaoFimCessao(d);
+}
+// Data ISO (aaaa-mm-dd) como o papel escreve.
+const ctrDataBR = iso => { const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? `${m[3]}/${m[2]}/${m[1]}` : ''; };
+// O que veio do cadastro (aba Cadastros > botão Termo), para as notas da tela.
+let ctrTermoOrigem = null;
+
+// Notas e campos que dependem do que está escolhido dentro de cada termo.
+function ctrTermoUi() {
+  const t = ctrTipo();
+  const fl = document.getElementById('ctr-ta-f-locacao');
+  if (fl) fl.classList.toggle('ctr-fora', !(t === 'termo_arr' && ctrCampo('ctr-arr-relacao') === 'locatario'));
+  const nl = document.getElementById('ctr-ta-locacao-nota');
+  if (nl) {
+    let txt = '';
+    if (t === 'termo_arr' && ctrCampo('ctr-arr-relacao') === 'locatario') {
+      let d = null;
+      try { d = ctrDados(); } catch (err) { d = null; }
+      const cabe = d ? ctrTALocacaoCabe(d) : null;
+      const iv = d && d.interv && d.interv.nome && d.interv.papel === 'proprietario';
+      if (cabe === false) txt = `<b style="color:#fca5a5">A locação acaba antes da cessão.</b> No pior caso a cessão vai até ${ctrTALocacaoFimCessao(d).toLocaleDateString('pt-BR')}. ${iv ? 'O termo põe o proprietário (interveniente) como cedente quando a locação acabar.' : 'Sem o proprietário como interveniente, o termo pede que a anuência dele preveja assumir a cessão. Melhor: ponha o proprietário como interveniente anuente.'}`;
+      else if (!d) txt = '';
+      else if (cabe === null) txt = 'Sem a data do fim da locação, o termo não afirma que a cessão cabe nela e pede que o proprietário assuma a cessão se a locação acabar antes.';
+      else txt = `A locação cobre a cessão inteira (pior caso até ${ctrTALocacaoFimCessao(d).toLocaleDateString('pt-BR')}).`;
+    }
+    nl.style.display = txt ? '' : 'none';
+    nl.innerHTML = txt;
+  }
+  const nn = document.getElementById('ctr-ta-nivel-nota');
+  if (nn && t === 'termo_arr') {
+    nn.innerHTML = orcVal('ctr-ta-nivel') === 'intencao'
+      ? 'Registra a vontade e trava estudo, exclusividade, documentos e sigilo, mas <b>ninguém fica obrigado a assinar o contrato</b>. Bom para o primeiro contato, quando o dono ainda quer pensar.'
+      : 'O dono fica <b>obrigado a assinar o contrato de cessão</b> se a NEXUS confirmar o ponto no prazo, e a NEXUS fica livre para não confirmar. Para valer, a minuta do contrato vai anexada com os números do cartão Arrendamento (Código Civil, arts. 462 a 466).';
+  }
+  const ni = document.getElementById('ctr-ti-nota');
+  if (ni && t === 'termo_inv') {
+    const ti = ctrTI(), s = ctrSoc();
+    const partes = [];
+    if (ti.origem === 'anuncio') partes.push('<b style="color:#fca5a5">Veio de anúncio, formulário ou quiz.</b> O termo não declara negociação individual e, ao gerar, a tela pede confirmação. Use só com orientação do advogado.');
+    else if (ti.origem) partes.push('O termo traz a declaração do investidor de que conheceu a NEXUS fora de anúncio. Marque isto só se for verdade.');
+    if (ctrTermoOrigem && ctrTermoOrigem.valor) partes.push(`No cadastro, declarou investir <b>${orcEsc(ctrTermoOrigem.valor)}</b>.`);
+    partes.push(ti.uso === 'adesao'
+      ? 'Na adesão, o investidor entra na sociedade já assinada e aceita as cláusulas dela: confira o número e a data do contrato.'
+      : `A reserva vale ${ti.validade} dias. Se ${ti.modelo === 'socio50' ? 'a distribuidora não aceitar o pedido de acesso do local dele' : 'o contrato de cessão do local não for assinado'} nesse prazo, o termo cai sozinho${ti.deposito > 0 ? ' e o depósito volta inteiro' : ''}.${ti.deposito > 0 && s.aporteCli > 0 ? ` O depósito já abate do aporte: a forma de pagamento cobra ${ORC_MONEY(Math.max(0, s.aporteCli - ti.deposito))}.` : ''}`);
+    if (ti.deposito > 0 && s.aporteCli > 0 && ti.deposito > s.aporteCli) partes.push('<b style="color:#fca5a5">O depósito passa o aporte.</b>');
+    ni.innerHTML = partes.join(' ');
+  }
+}
+function ctrNivelMudou() { ctrOpcRender(); ctrResumo(); }
+function ctrUsoMudou() {
+  // A base do pagamento muda (aporte da reserva x aporte da adesão, cotas x
+  // 50/50): a tabela volta a acompanhar.
+  ctrPag = { tocado: false, linhas: [] };
+  CTR_ESPELHOS.forEach(m => { if (/^ctr-soc-/.test(m.id)) { const el = document.getElementById(m.id); if (el) delete el.dataset.tocado; } });
+  const qtd = document.getElementById('ctr-soc-qtd'); if (qtd) qtd.value = qtd.defaultValue;
+  ctrOpcRender(); ctrResumo();
+}
+
+// ─── DOSSIÊ DO LOCAL (08/10/2026) ───────────────────────────────────────────
+// Pedido do dono: "uma opção de check com docs importantes, que possamos incluir
+// arquivos de fotos e montar o dossiê completo do local, e aí sim assinarmos e
+// segurarmos". Checklist de documentos e fotos, com foto ou PDF em cada item.
+//
+// ONDE MORAM OS ARQUIVOS: neste aparelho (IndexedDB), não na nuvem. O dossiê de
+// venda do solar sobe para um bucket privado pela API, mas em produção falta a
+// SUPABASE_GERADOR_SERVICE_KEY na Vercel e nada sobe (GET /gerador/dossie/saude,
+// conferido em 08/10/2026). Documento de terceiro (RG, matrícula) não pode ir
+// para bucket público. Então: arquivo no aparelho e foto no PDF. O PDF assinado
+// é o dossiê que circula; o aparelho guarda os originais para a 2ª via.
+//
+// Estado: ctrDos = { id, itens: { key: { estado, obs } }, extras: [{ key, nome }] }.
+// O id liga o snapshot do histórico aos arquivos guardados no aparelho.
+const CTR_DOS_ITENS = [
+  { key: 'doc_identidade', grupo: 'doc', nome: 'Documento de identidade do cedente', dica: 'RG ou CNH; se for empresa, de quem assina por ela', obrig: () => true },
+  { key: 'doc_cnpj', grupo: 'doc', nome: 'Contrato social e cartão CNPJ', dica: 'Quando o cedente é empresa', obrig: c => c.pj },
+  { key: 'doc_propriedade', grupo: 'doc', nome: 'Matrícula atualizada ou escritura do imóvel', dica: 'Matrícula com até 30 dias; a distribuidora pede prova do imóvel', obrig: c => c.rel !== 'branco' },
+  { key: 'doc_iptu', grupo: 'doc', nome: 'Carnê do IPTU', dica: 'Confere endereço e inscrição', obrig: () => false },
+  { key: 'doc_energia', grupo: 'doc', nome: 'Conta de energia recente', dica: 'Titular, unidade consumidora e endereço', obrig: () => true },
+  { key: 'doc_locacao', grupo: 'doc', nome: 'Contrato de locação', dica: 'Quando o cedente é inquilino: a cessão não passa do prazo dele', obrig: c => c.rel === 'locatario' },
+  { key: 'doc_anuencia', grupo: 'doc', nome: 'Anuência escrita do proprietário ou do inquilino', dica: 'Inquilino não cede sozinho; com o imóvel alugado, quem tem a posse é o inquilino. Com interveniente anuente, a assinatura dele no termo é a anuência', obrig: c => (c.rel === 'locatario' || c.rel === 'locado') && !c.ivAnui },
+  { key: 'doc_interveniente', grupo: 'doc', nome: 'Documento de identidade do interveniente anuente', dica: 'RG ou CNH de quem assina como interveniente', obrig: c => c.iv },
+  { key: 'doc_procuracao', grupo: 'doc', nome: 'Procuração ou contrato de administração', dica: 'Quando quem assina representa o dono', obrig: c => c.rel === 'representante' },
+  { key: 'doc_condominio', grupo: 'doc', nome: 'Ata ou autorização do condomínio ou do shopping', dica: 'Área comum precisa de autorização', obrig: c => c.rel === 'condominio' },
+  { key: 'doc_bandeira', grupo: 'doc', nome: 'Autorização da bandeira do posto', dica: 'Se o contrato com a distribuidora de combustível exigir', obrig: () => false },
+  { key: 'doc_onus', grupo: 'doc', nome: 'Certidão de ônus do imóvel', dica: 'Penhora e hipoteca aparecem aqui', obrig: () => false },
+  { key: 'foto_fachada', grupo: 'foto', nome: 'Fachada e entrada do estabelecimento', obrig: () => true },
+  { key: 'foto_vaga', grupo: 'foto', nome: 'Vaga(s) para a recarga', obrig: () => true },
+  { key: 'foto_padrao', grupo: 'foto', nome: 'Padrão de entrada de energia', obrig: () => true },
+  { key: 'foto_medidor', grupo: 'foto', nome: 'Medidor e disjuntor geral, com a amperagem', obrig: () => true },
+  { key: 'foto_quadro', grupo: 'foto', nome: 'Quadro de distribuição', obrig: () => true },
+  { key: 'foto_trajeto', grupo: 'foto', nome: 'Caminho do cabo, do padrão até a vaga', obrig: () => true },
+  { key: 'foto_rede', grupo: 'foto', nome: 'Poste e transformador mais próximos', obrig: () => false },
+  { key: 'foto_entorno', grupo: 'foto', nome: 'Entorno, acesso e iluminação', obrig: () => false },
+  { key: 'foto_croqui', grupo: 'foto', nome: 'Croqui ou planta da área', dica: 'Desenho à mão vale. Na promessa, é o que diz quais vagas são', obrig: c => c.prom },
+];
+const ctrDosNovo = () => ({ id: null, itens: {}, extras: [] });
+let ctrDos = ctrDosNovo();
+// Os arquivos do dossiê aberto, em memória ({ chave: registro }): o PDF é montado
+// de uma vez e não espera o IndexedDB.
+let ctrDosCache = {};
+const CTR_DOS_DB = 'nexus-dossie-local';
+const CTR_DOS_MAX = 8 * 1048576;
+
+function ctrDosDb() {
+  return new Promise((ok, falha) => {
+    if (!window.indexedDB) { falha(new Error('este navegador não guarda arquivos')); return; }
+    const r = indexedDB.open(CTR_DOS_DB, 1);
+    r.onupgradeneeded = () => {
+      const db = r.result;
+      if (!db.objectStoreNames.contains('arquivos')) db.createObjectStore('arquivos', { keyPath: 'k' }).createIndex('dos', 'dos');
+    };
+    r.onsuccess = () => ok(r.result);
+    r.onerror = () => falha(r.error || new Error('não consegui abrir o armazenamento do aparelho'));
+  });
+}
+async function ctrDosTx(modo, fn) {
+  const db = await ctrDosDb();
+  return new Promise((ok, falha) => {
+    const tx = db.transaction('arquivos', modo);
+    let out;
+    Promise.resolve(fn(tx.objectStore('arquivos'), v => { out = v; })).catch(falha);
+    tx.oncomplete = () => { db.close(); ok(out); };
+    tx.onerror = () => { db.close(); falha(tx.error || new Error('falha no armazenamento do aparelho')); };
+    tx.onabort = () => { db.close(); falha(tx.error || new Error('o aparelho recusou guardar (espaço cheio?)')); };
+  });
+}
+const ctrDosGrava = reg => ctrDosTx('readwrite', st => { st.put(reg); });
+const ctrDosApaga = k => ctrDosTx('readwrite', st => { st.delete(k); });
+const ctrDosLista = id => ctrDosTx('readonly', (st, devolve) => {
+  const r = st.index('dos').getAll(id);
+  r.onsuccess = () => devolve(r.result || []);
+});
+// Traz para a memória os arquivos do dossiê aberto. Chamado ao abrir a aba e ao
+// reabrir um documento do histórico.
+async function ctrDosCarregar() {
+  if (!ctrDos.id) { ctrDosCache = {}; return; }
+  const id = ctrDos.id;
+  try {
+    const regs = await ctrDosLista(id);
+    if (ctrDos.id !== id) return;   // trocou de cliente no meio
+    ctrDosCache = Object.fromEntries(regs.map(r => [r.k, r]));
+  } catch (e) { ctrDosCache = {}; }
+}
+
+// Contexto que decide o que é obrigatório: quem é o cedente e se é empresa.
+function ctrDosCtx() {
+  const doc = String(ctrCampo('ctr-contratante-doc') || '').replace(/\D/g, '');
+  return { rel: ctrCampo('ctr-arr-relacao') || 'proprietario', pj: doc.length === 14,
+    prom: ctrTipo() === 'termo_arr' && orcVal('ctr-ta-nivel') !== 'intencao', iv: !!orcVal('ctr-int-nome'),
+    ivAnui: !!orcVal('ctr-int-nome') && ctrIntervAnui(ctrCampo('ctr-arr-relacao') || 'proprietario', ctrInterv().papel) };
+}
+function ctrDosItensTodos() {
+  return CTR_DOS_ITENS.concat(ctrDos.extras.map(x => ({ key: x.key, grupo: 'extra', nome: x.nome, obrig: () => false, extra: true })));
+}
+const ctrDosEstado = key => (ctrDos.itens[key] && ctrDos.itens[key].estado) || 'pendente';
+const ctrDosArquivos = key => Object.values(ctrDosCache).filter(r => r.item === key).sort((a, b) => (a.em < b.em ? -1 : 1));
+const ctrDosEhImagem = r => /^image\/(jpe?g|png|webp|gif)$/i.test(r.tipo || '');
+function ctrDosResumo() {
+  const ctx = ctrDosCtx(), its = ctrDosItensTodos();
+  const obr = its.filter(i => i.obrig(ctx) && ctrDosEstado(i.key) !== 'na');
+  const falta = obr.filter(i => ctrDosEstado(i.key) !== 'entregue');
+  return { obrig: obr.length, ok: obr.length - falta.length, faltam: falta.map(i => i.nome),
+    arquivos: Object.keys(ctrDosCache).length, entregues: its.filter(i => ctrDosEstado(i.key) === 'entregue').length };
+}
+// Tem alguma coisa no dossiê? É o que liga sozinho o anexo no PDF.
+function ctrDosTem() { const r = ctrDosResumo(); return r.arquivos > 0 || r.entregues > 0; }
+
+// Desenha a lista inteira (com as miniaturas). Roda nas ações do dossiê e ao
+// abrir a aba, não a cada tecla: miniatura é imagem, e redesenhar a cada letra
+// digitada pesaria. A cada tecla roda só o ctrDosAtualiza.
+function ctrDosRender() {
+  const box = document.getElementById('ctr-dos-lista');
+  if (!box) return;
+  const ctx = ctrDosCtx(), e = orcEsc;
+  const grupos = [['doc', 'Documentos'], ['foto', 'Fotos do local'], ['extra', 'Outros itens']];
+  const its = ctrDosItensTodos();
+  box.innerHTML = grupos.map(([g, rot]) => {
+    const lista = its.filter(i => i.grupo === g);
+    if (!lista.length) return '';
+    return `<div class="ctr-dos-grupo">${rot}</div>` + lista.map(i => {
+      const st = ctrDosEstado(i.key), ob = i.obrig(ctx), o = (ctrDos.itens[i.key] || {}).obs || '';
+      const arqs = ctrDosArquivos(i.key).map(r => `<div class="ctr-dos-arq" title="${ctrAttr(r.nome)}">${ctrDosEhImagem(r)
+        ? `<img src="${r.url}" alt="">` : `<a href="${r.url}" download="${ctrAttr(r.nome)}">${e(/pdf/i.test(r.tipo) ? 'PDF' : 'Arquivo')}<br>${e(String(r.nome).slice(0, 18))}</a>`}<button type="button" onclick="ctrDosRemover('${r.k}')" aria-label="Tirar este arquivo">×</button></div>`).join('');
+      return `<div class="ctr-dos-row ${st}${ob ? ' obrig' : ''}" data-dos="${i.key}">
+        <div class="ctr-dos-nome">${e(i.nome)} <span class="obr">${ob ? 'obrigatório' : ''}</span>${i.dica ? `<small>${e(i.dica)}</small>` : ''}</div>
+        <select onchange="ctrDosEstadoMuda('${i.key}', this.value)" aria-label="Situação">
+          <option value="pendente"${st === 'pendente' ? ' selected' : ''}>Pendente</option>
+          <option value="entregue"${st === 'entregue' ? ' selected' : ''}>Entregue</option>
+          <option value="na"${st === 'na' ? ' selected' : ''}>Não se aplica</option>
+        </select>
+        <label class="ctr-dos-anexar">Anexar<input type="file" accept="image/*,application/pdf" multiple style="display:none" onchange="ctrDosAnexar(this,'${i.key}')"></label>
+        ${arqs ? `<div class="ctr-dos-arqs">${arqs}</div>` : ''}
+        <input type="text" class="ctr-dos-obs" value="${ctrAttr(o)}" placeholder="Observação (opcional)" oninput="ctrDosObs('${i.key}', this.value)">
+        ${i.extra ? `<button type="button" class="orc-link" onclick="ctrDosTirarItem('${i.key}')">Tirar este item</button>` : ''}
+      </div>`;
+    }).join('');
+  }).join('');
+  ctrDosAtualiza();
+}
+// O leve: resumo e o selo de obrigatório, que muda com quem é o cedente.
+function ctrDosAtualiza() {
+  const el = document.getElementById('ctr-dos-resumo');
+  if (!el) return;
+  const ctx = ctrDosCtx();
+  document.querySelectorAll('#ctr-dos-lista .ctr-dos-row').forEach(row => {
+    const it = ctrDosItensTodos().find(i => i.key === row.dataset.dos);
+    if (!it) return;
+    const ob = it.obrig(ctx);
+    row.classList.toggle('obrig', ob);
+    const sel = row.querySelector('.obr'); if (sel) sel.textContent = ob ? 'obrigatório' : '';
+  });
+  const r = ctrDosResumo();
+  if (!r.obrig) { el.className = 'ctr-pag-soma'; el.innerHTML = 'Nada obrigatório marcado.'; return; }
+  if (!r.faltam.length) {
+    el.className = 'ctr-pag-soma fecha';
+    el.innerHTML = `<b>Dossiê completo:</b> os ${r.obrig} itens obrigatórios estão entregues${r.arquivos ? `, com ${r.arquivos} arquivo(s) guardado(s) neste aparelho` : ''}. Pode assinar.`;
+  } else {
+    el.className = 'ctr-pag-soma dif';
+    el.innerHTML = `<b>${r.ok} de ${r.obrig}</b> obrigatórios entregues. Faltam: ${orcEsc(r.faltam.join(' · '))}.`;
+  }
+}
+function ctrDosId() {
+  if (!ctrDos.id) ctrDos.id = 'L' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '-' + Math.random().toString(36).slice(2, 8);
+  return ctrDos.id;
+}
+function ctrDosEstadoMuda(key, v) {
+  (ctrDos.itens[key] = ctrDos.itens[key] || {}).estado = v;
+  const row = document.querySelector(`#ctr-dos-lista .ctr-dos-row[data-dos="${key}"]`);
+  if (row) { row.classList.remove('pendente', 'entregue', 'na'); row.classList.add(v); }
+  ctrDosAtualiza(); ctrOpcRender();
+}
+function ctrDosObs(key, v) { (ctrDos.itens[key] = ctrDos.itens[key] || {}).obs = v; }
+async function ctrDosAnexar(input, key) {
+  const files = [...(input.files || [])];
+  input.value = '';
+  if (!files.length) return;
+  const id = ctrDosId();
+  for (const bruto of files) {
+    try {
+      const f = await dossieReduzirImagem(bruto);
+      if (!/^image\//.test(f.type) && f.type !== 'application/pdf') { showToast('Mande foto ou PDF (' + (bruto.name || 'arquivo') + ').'); continue; }
+      if (f.size > CTR_DOS_MAX) { showToast('Arquivo muito grande, máx. 8 MB (' + (bruto.name || 'arquivo') + ').'); continue; }
+      const url = await new Promise((ok, falha) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result)); fr.onerror = () => falha(fr.error); fr.readAsDataURL(f); });
+      const reg = { k: id + '/' + key + '/' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        dos: id, item: key, nome: (f.name || bruto.name || key).slice(0, 120), tipo: f.type, url, em: new Date().toISOString() };
+      await ctrDosGrava(reg);
+      if (ctrDos.id !== id) return;   // trocou de cliente enquanto gravava
+      ctrDosCache[reg.k] = reg;
+      const st = ctrDos.itens[key] = ctrDos.itens[key] || {};
+      if (!st.estado || st.estado === 'pendente') st.estado = 'entregue';
+      if (/heic|heif/i.test(f.type)) showToast('Foto HEIC guardada, mas ela não aparece no PDF. Se puder, mande em JPG.');
+    } catch (err) { showToast('Não consegui guardar o arquivo: ' + (err && err.message || err)); }
+  }
+  ctrDosRender(); ctrOpcRender();
+}
+async function ctrDosRemover(k) {
+  if (!confirm('Tirar este arquivo do dossiê? Ele sai deste aparelho.')) return;
+  try { await ctrDosApaga(k); } catch (e) {}
+  delete ctrDosCache[k];
+  ctrDosRender(); ctrOpcRender();
+}
+function ctrDosAdd() {
+  const el = document.getElementById('ctr-dos-novo');
+  const nome = (el && el.value || '').trim();
+  if (!nome) { if (el) el.focus(); return; }
+  ctrDos.extras.push({ key: 'extra_' + Date.now().toString(36), nome: nome.slice(0, 120) });
+  el.value = '';
+  ctrDosRender();
+}
+async function ctrDosTirarItem(key) {
+  const arqs = ctrDosArquivos(key);
+  if (arqs.length && !confirm('Este item tem ' + arqs.length + ' arquivo(s). Tirar o item tira os arquivos deste aparelho. Continuar?')) return;
+  for (const r of arqs) { try { await ctrDosApaga(r.k); } catch (e) {} delete ctrDosCache[r.k]; }
+  ctrDos.extras = ctrDos.extras.filter(x => x.key !== key);
+  delete ctrDos.itens[key];
+  ctrDosRender(); ctrOpcRender();
+}
+// O anexo do PDF: o checklist em tabela (em pedaços, para a folha não estourar)
+// e as fotos de duas em duas, com legenda. PDF e HEIC não desenham no papel:
+// aparecem pelo nome na tabela, e o original fica no aparelho.
+function ctrDosBlocos(rotulo, d) {
+  const e = orcEsc, ctx = ctrDosCtx();
+  const est = { pendente: ['Pendente', 'pend'], entregue: ['Entregue', 'ok'], na: ['Não se aplica', 'na'] };
+  const its = ctrDosItensTodos();
+  const linhas = its.map(i => {
+    const s = ctrDosEstado(i.key), arqs = ctrDosArquivos(i.key), o = (ctrDos.itens[i.key] || {}).obs || '';
+    const ob = i.obrig(ctx);
+    // Pendente que não é obrigatório para este cedente não é falta: é "se for o caso".
+    const ivAnui = i.key === 'doc_anuencia' && ctx.ivAnui && s !== 'na';
+    const [rot, cls] = ivAnui ? ['Entregue: o interveniente anuente assina este instrumento', 'ok'] : s === 'pendente' && !ob ? ['Se for o caso', 'na'] : est[s];
+    return `<tr><td><b>${e(i.nome)}</b>${ob ? '<span>obrigatório</span>' : ''}${o ? `<span>${e(o)}</span>` : ''}</td><td class="st ${cls}">${rot}</td><td>${arqs.length ? arqs.map(a => e(a.nome)).join('<br>') : '—'}</td></tr>`;
+  });
+  const cab = '<thead><tr><th>Item</th><th>Situação</th><th>Arquivo(s)</th></tr></thead>';
+  const blocos = [`<div class="ep-ctr-anexo">${e(rotulo)}</div><p class="ep-ctr-p">${ctrDos.id ? `Dossiê nº <b>${e(ctrDos.id)}</b>.` : 'Dossiê sem arquivos anexados.'} Situação de cada documento e relatório fotográfico do local na data deste instrumento, ${e(d.data.toLocaleDateString('pt-BR'))}.${ctrDos.id ? ' Os arquivos originais ficam guardados no aparelho da NEXUS em que este dossiê foi montado.' : ''}</p>`];
+  for (let i = 0; i < linhas.length; i += 8) blocos.push(`<table class="ep-ctr-pag ep-ctr-dos">${cab}<tbody>${linhas.slice(i, i + 8).join('')}</tbody></table>`);
+  const fotos = its.flatMap(i => ctrDosArquivos(i.key).filter(ctrDosEhImagem).map(r => ({ r, nome: i.nome })));
+  if (fotos.length) blocos.push('<div class="ep-ctr-cl">Relatório fotográfico</div>');
+  for (let i = 0; i < fotos.length; i += 2) {
+    blocos.push(`<div class="ep-ctr-fotos">${fotos.slice(i, i + 2).map(f => `<div class="ep-ctr-foto"><img src="${f.r.url}" alt=""><span><b>${e(f.nome)}</b> · ${e(new Date(f.r.em).toLocaleDateString('pt-BR'))}</span></div>`).join('')}</div>`);
+  }
+  return blocos;
+}
+
 function ctrEstadoZerar() {
   // Modelo do contrato volta ao Completo, sem marca de escolhido: a ficha do
   // próximo cliente pode escolher sozinha.
@@ -18389,6 +19028,10 @@ function ctrEstadoZerar() {
   ctrIa = { pedidos: [] };
   ctrIaGeracao++;
   epFicha = null;
+  // Dossiê do próximo cliente começa vazio. Os arquivos do anterior ficam no
+  // aparelho, ligados ao histórico dele.
+  ctrDos = ctrDosNovo(); ctrDosCache = {};
+  ctrTermoOrigem = null;
   // O "Comecar novo" esvazia o campo disparando input, e o input marca como
   // digitado: sem isto o proximo cliente nascia com sinal zero travado.
   ctrEspMarcarTodos();
@@ -18407,6 +19050,7 @@ function ctrEstadoZerar() {
   });
   ctrEscRender();
   ctrOpcRender();
+  ctrDosRender();
   ctrResumo();
   ctrIaRender();
   const m = document.getElementById('ctr-ia-msg'); if (m) { m.className = 'ctr-ia-msg'; m.innerHTML = ''; }
@@ -18451,7 +19095,9 @@ const CTR_ESPELHOS = [
   { id: 'ctr-cidade',            fonte: 'Simulador',   de: () => eletroTextos().cidade },
   { id: 'ctr-contratante-tel',   fonte: 'Orçamento',   de: () => orcVal('orc-cli-tel') },
   { id: 'ctr-contratante-email', fonte: 'Orçamento',   de: () => orcVal('orc-cli-email') },
-  { id: 'ctr-local',             fonte: 'Orçamento',   de: () => [orcVal('orc-cli-end'), eletroTextos().cidade].filter(Boolean).join(' — ') },
+  // Nas cotas e no Termo do Investidor o cliente é investidor: o endereço dele
+  // não é o do ponto. O local fica em branco até alguém escrever.
+  { id: 'ctr-local',             fonte: 'Orçamento',   de: () => (ctrTipo() === 'cotas' || ctrTipo() === 'termo_inv') ? '' : [orcVal('orc-cli-end'), eletroTextos().cidade].filter(Boolean).join(' — ') },
   { id: 'ctr-equip',             fonte: 'Simulador',   de: () => { const eq = eletroTextos().equip; return eq ? epEquipRotulo(eq) : ''; } },
   { id: 'ctr-qtd',               fonte: 'Simulador',   de: () => String(orcEpQtdCarregadores()) },
   { id: 'ctr-plugs',             fonte: 'Simulador',   de: () => String(Math.max(1, Math.round(elNum('el-plugs') || 1))) },
@@ -18478,18 +19124,30 @@ const CTR_ESPELHOS = [
   { id: 'ctr-arr-pct',           fonte: 'Simulador',   de: () => elNum('el-arrend') > 0 ? ctrPctTxt(elNum('el-arrend')) : '' },
   { id: 'ctr-arr-vagas',         fonte: 'Simulador',   de: () => String(Math.max(1, Math.round(elNum('el-plugs') || 1))) },
   { id: 'ctr-arr-relacao',       fonte: 'Formulário',  de: () => ctrArrRelacaoFicha() },
+  // Termos: dados do imóvel que a Procuração já tem, e a região do investidor.
+  { id: 'ctr-ta-uc',             fonte: 'Procuração',  de: () => orcVal('proc-uc') },
+  { id: 'ctr-ta-distribuidora',  fonte: 'Procuração',  de: () => orcVal('proc-concessionaria') },
+  { id: 'ctr-ti-regiao',         fonte: 'Simulador',   de: () => eletroTextos().cidade },
 ];
 const CTR_ESP_POR_ID = Object.fromEntries(CTR_ESPELHOS.map(m => [m.id, m]));
 // Espelhos cuja origem (quadro do aparelho, Simulador, ficha) NÃO volta com o
 // snapshot do histórico: reabrir um contrato desses modelos os congela.
 const CTR_ESP_CONGELA = ['ctr-soc-invest', 'ctr-soc-n', 'ctr-soc-cota', 'ctr-soc-aporte', 'ctr-soc-cota-nexus',
-  'ctr-soc-aporte-nexus', 'ctr-soc-software', 'ctr-soc-arrend', 'ctr-arr-pct', 'ctr-arr-vagas', 'ctr-arr-relacao'];
+  'ctr-soc-aporte-nexus', 'ctr-soc-software', 'ctr-soc-arrend', 'ctr-arr-pct', 'ctr-arr-vagas', 'ctr-arr-relacao',
+  'ctr-ta-uc', 'ctr-ta-distribuidora', 'ctr-ti-regiao'];
 // Campos próprios de sociedade e arrendamento, sem espelho. UMA lista para o
 // snapshot levar e trazer: campo esquecido aqui é a 2ª via que sai diferente.
 const CTR_CAMPOS_MODELOS = ['ctr-soc-qtd', 'ctr-soc-dia', 'ctr-soc-captacao', 'ctr-soc-implant', 'ctr-soc-prazo',
   'ctr-soc-permanencia', 'ctr-soc-aviso', 'ctr-soc-haveres', 'ctr-soc-corrigir',
   'ctr-arr-piso', 'ctr-arr-carencia', 'ctr-arr-dia', 'ctr-arr-dados', 'ctr-arr-vigencia', 'ctr-arr-permanencia',
   'ctr-arr-aviso', 'ctr-arr-implant', 'ctr-arr-area', 'ctr-arr-horario', 'ctr-arr-horario-txt', 'ctr-arr-energia',
+  'ctr-qualif', 'ctr-int-nome', 'ctr-int-doc', 'ctr-int-end', 'ctr-int-qualidade',
+  'ctr-ta-nivel', 'ctr-ta-modelo', 'ctr-ta-tipo-local', 'ctr-ta-matricula', 'ctr-ta-cartorio', 'ctr-ta-iptu', 'ctr-ta-padrao',
+  'ctr-ta-locacao-fim', 'ctr-ta-prazo', 'ctr-ta-protocolo', 'ctr-ta-assinar', 'ctr-ta-docs', 'ctr-ta-premio',
+  'ctr-ta-premio-quando', 'ctr-ta-multa',
+  'ctr-ti-uso', 'ctr-ti-modelo', 'ctr-ti-contrato-num', 'ctr-ti-contrato-data', 'ctr-ti-ponto', 'ctr-ti-raio',
+  'ctr-ti-validade', 'ctr-ti-assinar', 'ctr-ti-desist', 'ctr-ti-devolucao', 'ctr-ti-deposito', 'ctr-ti-deposito-forma',
+  'ctr-ti-deposito-quando', 'ctr-ti-arras', 'ctr-ti-pep', 'ctr-ti-faixa', 'ctr-ti-origem', 'ctr-ti-consent',
   'ctr-arr-multa-saida', 'ctr-arr-multa-min', 'ctr-arr-retirada', 'ctr-arr-base', 'ctr-arr-mora-multa', 'ctr-arr-mora-juros', 'ctr-arr-corrigir'];
 // Campo que ainda não existe na tela conta como marcado: vale a origem.
 function ctrEspLigado(id) { const el = document.getElementById(id); return !el || el.dataset.tocado !== '1'; }
@@ -18569,8 +19227,8 @@ function ctrEspelho(id, ligado, fonte, desligar, religar) {
 // quem paga é a NEXUS.
 function ctrTotal() {
   const t = ctrTipo();
-  if (ctrEhSoc(t)) return ctrSoc().aporteCli;
-  if (t === 'arrend') return 0;
+  if (ctrSocModo(t)) return ctrSoc().aporteCli;
+  if (t === 'arrend' || t === 'termo_arr') return 0;
   return ctrEspLigado('ctr-total') ? recBase() : ctrMoeda(document.getElementById('ctr-total').value);
 }
 function ctrSinalRecibo() { return recAvulso() ? 0 : orcNum(orcVal('rec-valor')); }
@@ -18607,7 +19265,13 @@ function ctrSinalUi() {
       : 'Sem recibo de sinal emitido. Se o cliente já pagou uma entrada, digite o valor e ele é abatido do saldo.';
   }
 }
-function ctrSaldo() { return Math.max(0, ctrTotal() - ctrSinalPago()); }
+// O depósito da reserva do Termo do Investidor já foi pago e abate do aporte.
+// Só ali: o Completo e os contratos não passam por esta conta.
+function ctrDepReserva() {
+  if (ctrTipo() !== 'termo_inv' || orcVal('ctr-ti-uso') === 'adesao') return 0;
+  return ctrMoeda(orcVal('ctr-ti-deposito'));
+}
+function ctrSaldo() { return Math.max(0, ctrTotal() - ctrSinalPago() - ctrDepReserva()); }
 
 // ─── Escopo ──────────────────────────────────────────────────────────────────
 // O carregador leva a potência do Simulador no nome, ao vivo, até alguém
@@ -18750,6 +19414,14 @@ function ctrPagCondicao(l) {
   if (c.parc <= 1) return 'parcela única';
   return `${c.parc}x de ${ORC_MONEY(c.parcela)}${c.acr > 0 ? ` (acréscimo de ${String(c.acr).replace('.', ',')}%)` : ''}`;
 }
+// No termo do investidor, parcelado com acréscimo diz também o total pago (o
+// Completo e os contratos seguem com a condição de sempre).
+function ctrPagCondicaoTotal(l) {
+  const c = ctrPagConta(l);
+  if (c.fin || c.parc <= 1 || !(c.acr > 0)) return ctrPagCondicao(l);
+  const parcela = Math.round(c.parcela * 100) / 100;
+  return `${c.parc}x de ${ORC_MONEY(parcela)}, total de ${ORC_MONEY(parcela * c.parc)} (acréscimo de ${String(Math.round(c.acr * 100) / 100).replace('.', ',')}%)`;
+}
 function ctrPagTotal() { return ctrPag.linhas.reduce((t, l) => t + ctrPagConta(l).valor, 0); }
 
 // Modelos prontos, todos sobre o saldo. A última linha leva o centavo que sobra
@@ -18798,7 +19470,7 @@ function ctrPagSugerida(saldo) {
   // Arrendamento não cobra nada do cliente; na sociedade o aporte sai à vista
   // até o consultor escolher outra condição pelos modelos rápidos.
   const tipo = ctrTipo();
-  if (tipo === 'arrend') return [];
+  if (tipo === 'arrend' || tipo === 'termo_arr') return [];
   // Sem aporte (investimento em branco) não há o que dividir: a lista fica
   // vazia e a cláusula sai com a lacuna, nunca "Pix R$ 0,00".
   if (tipo !== 'completo') return saldo > 0 ? ctrPagModelo('vista', saldo) : [];
@@ -18902,7 +19574,7 @@ function ctrBanner() {
   const emp = epEmitGet();
   const falta = [];
   const doc = ctrCampo('ctr-contratante-doc');
-  const parte = CTR_TIPOS[ctrTipo()].parte;
+  const parte = ctrNomes().parte;
   if (!ctrCampo('ctr-contratante')) falta.push('nome do ' + parte);
   if (!doc) falta.push('CPF/CNPJ do ' + parte);
   // Contratante com CNPJ é empresa: sem representante, ninguém assina. Pelo
@@ -18922,10 +19594,12 @@ function ctrResumo() {
   ctrSinalUi();
   ctrSocUi();
   ctrArrUi();
-  const total = ctrTotal(), sinal = ctrSinalPago(), saldo = Math.max(0, total - sinal);
+  ctrDosAtualiza();
+  const total = ctrTotal(), sinal = ctrSinalPago() + ctrDepReserva(), saldo = Math.max(0, total - sinal);
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   set('ctr-t-total', ORC_MONEY(total));
   set('ctr-t-sinal', (sinal > 0 ? '- ' : '') + ORC_MONEY(sinal));
+  set('ctr-t-sinal-rot', ctrDepReserva() > 0 ? 'Depósito da reserva, abatido' : 'Sinal já pago');
   set('ctr-t-saldo', ORC_MONEY(saldo));
   // Ninguém mexeu na lista: ela acompanha o Orçamento e o saldo de agora.
   if (!ctrPag.tocado) { ctrPag.linhas = ctrPagSugerida(saldo); ctrPagRender(); }
@@ -18970,6 +19644,8 @@ function ctrInit() {
   ctrPctNota();
   ctrResumo();
   ctrIaRender();
+  ctrDosRender();
+  ctrDosCarregar().then(() => { ctrDosRender(); ctrOpcRender(); });
 }
 
 function ctrDados() {
@@ -18981,13 +19657,19 @@ function ctrDados() {
   const tipo = ctrTipo();
   // Linha sem valor e sem forma é rascunho abandonado: não vai pro papel. No
   // arrendamento o cliente não paga nada, e a tabela não existe.
-  const pagLinhas = tipo === 'arrend' ? [] : ctrPag.linhas
-    .map(l => ({ forma: (l.forma || '').trim(), quando: (l.quando || '').trim(), obs: (l.obs || '').trim(), conta: ctrPagConta(l), cond: ctrPagCondicao(l) }))
+  const pagLinhas = (tipo === 'arrend' || tipo === 'termo_arr') ? [] : ctrPag.linhas
+    .map(l => ({ forma: (l.forma || '').trim(), quando: (l.quando || '').trim(), obs: (l.obs || '').trim(), conta: ctrPagConta(l), cond: tipo === 'termo_inv' ? ctrPagCondicaoTotal(l) : ctrPagCondicao(l) }))
     .filter(l => l.conta.valor > 0 || l.forma);
   return {
     // Modelo do contrato e os números de cada um (null fora do modelo).
-    tipo, soc: ctrEhSoc(tipo) ? ctrSoc() : null, socP: ctrEhSoc(tipo) ? ctrSocPrazos() : null,
-    arr: tipo === 'arrend' ? ctrArr() : null,
+    tipo, soc: ctrSocModo(tipo) ? ctrSoc() : null, socP: ctrSocModo(tipo) ? ctrSocPrazos() : null,
+    arr: (tipo === 'arrend' || tipo === 'termo_arr') ? ctrArr() : null,
+    // Nomes das partes, termos (null fora deles), interveniente anuente e a
+    // qualificação civil da parte, que só sai no papel quando escrita.
+    nomes: ctrNomes(tipo),
+    ta: tipo === 'termo_arr' ? ctrTA() : null, ti: tipo === 'termo_inv' ? ctrTI() : null,
+    interv: (tipo === 'arrend' || tipo === 'termo_arr') ? ctrInterv() : null,
+    qualif: orcVal('ctr-qualif'),
     // Numero do contrato. NAO herda mais do recibo: dois instrumentos diferentes
     // saindo com o mesmo numero torna impossivel citar "o documento nº 001".
     num: orcVal('ctr-num'),
@@ -19008,7 +19690,7 @@ function ctrDados() {
     tel: ctrCampo('ctr-contratante-tel'), email: ctrCampo('ctr-contratante-email'),
     local: ctrCampo('ctr-local'),
     empresa: emp,
-    total, sinal, saldo: Math.max(0, total - sinal),
+    total, sinal, saldo: Math.max(0, total - sinal - ctrDepReserva()), depReserva: ctrDepReserva(),
     sinalDestino: orcVal('ctr-sinal-destino'),
     sinalDoRecibo: ctrSinalDoRecibo(),
     pagLinhas, pagSoma: pagLinhas.reduce((s, l) => s + l.conta.valor, 0),
@@ -19102,6 +19784,41 @@ const CTR_OPC = [
     dica: 'Registrado, o contrato vale contra quem comprar o imóvel ou o credor do dono. Sem registro, vale só entre as partes. Custa cartório, pago pela NEXUS.' },
   { id: 'arr_publicidade', tipos: ['arrend'], rot: 'Uso do nome do estabelecimento na divulgação', padrao: false,
     dica: 'Separado do cadastro nos mapas de recarga, que é sempre autorizado: este é o uso do nome e da imagem do local em anúncio da NEXUS.' },
+  // Dossiê do local, no termo do arrendador e no contrato de arrendamento.
+  { id: 'dossie_anexo', tipos: ['termo_arr', 'arrend'], rot: 'Anexar o dossiê do local ao PDF', padrao: () => ctrDosTem(),
+    dica: 'Checklist dos documentos e relatório fotográfico do local, em folhas próprias no fim do PDF. Liga sozinha quando o dossiê tem algo entregue ou anexado.' },
+  // Termo do Arrendador.
+  { id: 'ta_minuta', tipos: ['termo_arr'], rot: 'Anexar a minuta do contrato de cessão', padrao: () => orcVal('ctr-ta-nivel') !== 'intencao',
+    dica: 'Só na promessa. Ela só obriga se tiver todos os termos essenciais do contrato definitivo (Código Civil, art. 462): a minuta anexada, com os números do cartão Arrendamento, é o que cumpre isso.' },
+  { id: 'ta_exclusiv', tipos: ['termo_arr'], rot: 'Exclusividade durante o estudo', padrao: true,
+    dica: 'Enquanto o termo vale, o dono não cede nem negocia o local com outro eletroposto. É o que "segura" o ponto.' },
+  { id: 'ta_prorroga', tipos: ['termo_arr'], rot: 'Prazo estende se a distribuidora atrasar', padrao: true,
+    dica: 'O prazo do estudo cresce pelo tempo de atraso da distribuidora, uma vez e no máximo o mesmo prazo. Sem isto, a demora dela pode vencer o termo.' },
+  { id: 'ta_relatorio', tipos: ['termo_arr'], rot: 'Resumo do estudo para o dono', padrao: false,
+    dica: 'A NEXUS entrega ao dono o resultado técnico do estudo, sem projeção financeira. Ajuda a fechar, mas é compromisso a mais.' },
+  { id: 'ta_registro', tipos: ['termo_arr'], rot: 'Registro em cartório', padrao: false,
+    dica: 'Registrado, o termo ganha data certa e publicidade. Para valer contra quem comprar o imóvel, confirme com o advogado a averbação na matrícula. Custa cartório, pago pela NEXUS.' },
+  // Termo do Investidor.
+  { id: 'ti_minuta', tipos: ['termo_inv'], rot: 'Anexar a minuta do contrato de sociedade (só na reserva)', padrao: () => orcVal('ctr-ti-uso') !== 'adesao',
+    dica: 'O contrato de sociedade com os números do cartão Sociedade, sem assinatura, no fim do PDF. O investidor sabe exatamente o que vai assinar, e ninguém discute depois qual versão valia. Na adesão o anexo é a cópia do contrato já assinado, juntada à mão.' },
+  { id: 'ti_fila', tipos: ['termo_inv'], rot: 'Sem reserva além das cotas', padrao: true,
+    dica: 'A NEXUS não aceita, para o mesmo ponto, mais reservas do que cotas. Fila de espera por escrito parece captação pública (CVM).' },
+  { id: 'ti_arras', tipos: ['termo_inv'], rot: 'Retenção se desistir depois do prazo livre', padrao: false,
+    dica: 'Arras penitenciais de valor fixo e modesto (campo no cartão do termo). Sem isto, quem desiste recebe tudo de volta. Valor alto o juiz reduz.' },
+  { id: 'ti_risco', tipos: ['termo_inv'], rot: 'Ciência de risco', padrao: true,
+    dica: 'O investidor declara que pode perder o capital, que não administra, que não há revenda fácil da cota e que a ligação depende da distribuidora.' },
+  { id: 'ti_promessa', tipos: ['termo_inv'], rot: 'Sem promessa de retorno', padrao: true,
+    dica: 'O investidor declara que não decidiu por promessa de rentabilidade ou de renda mensal. É a cláusula que mais protege a NEXUS.' },
+  { id: 'ti_capacidade', tipos: ['termo_inv'], rot: 'Capacidade financeira', padrao: true,
+    dica: 'O valor não compromete o sustento dele. Com a faixa de renda ou patrimônio, se preenchida no cartão.' },
+  { id: 'ti_origem', tipos: ['termo_inv'], rot: 'Origem lícita e pessoa politicamente exposta', padrao: true,
+    dica: 'Declaração de origem dos recursos e se é pessoa politicamente exposta (campo no cartão).' },
+  { id: 'ti_indicacao', tipos: ['termo_inv'], rot: 'Sem pagamento por indicação', padrao: true,
+    dica: 'Ninguém ganha por trazer outro investidor. Pagar indicação foi um dos motivos da CVM em casos de sociedade em conta de participação.' },
+  { id: 'ti_sigilo', tipos: ['termo_inv'], rot: 'Sigilo do local e do dono', padrao: true,
+    dica: 'O investidor não usa nem divulga o local e o dono que conhecer pela NEXUS.' },
+  { id: 'ti_match', tipos: ['termo_inv'], rot: 'Autoriza apresentar ao dono do local', padrao: false,
+    dica: 'Consentimento para mostrar nome, cidade e valor do aporte ao dono do ponto. Marque só se ele autorizou.' },
 ];
 function ctrOpcDoTipo(t) { return CTR_OPC.filter(o => !o.tipos || o.tipos.includes(t)); }
 let ctrOpc = {};
@@ -19121,7 +19838,7 @@ function ctrOpcRender() {
     return `<label class="ctr-opc-row ${on ? 'on' : 'off'}"><input type="checkbox"${on ? ' checked' : ''} onchange="ctrOpcMarca('${o.id}', this.checked)"><span><b>${orcEsc(o.rot)}</b><small>${orcEsc(dica)}</small></span></label>`;
   }).join('');
 }
-function ctrOpcMarca(id, on) { ctrOpc[id] = !!on; ctrOpcRender(); }
+function ctrOpcMarca(id, on) { ctrOpc[id] = !!on; ctrOpcRender(); if (id === 'ta_prorroga') ctrTermoUi(); }
 function ctrOpcReset() { ctrOpc = {}; ctrOpcRender(); }
 
 // ─── Paginação medida (05/10/2026) ──────────────────────────────────────────
@@ -19137,6 +19854,8 @@ function ctrOpcReset() { ctrOpc = {}; ctrOpcRender(); }
 // 260mm: medido em 05/10/2026 que cabe na folha A4 com margem 0 E com a margem
 // de 10mm nos quatro lados que o Chrome às vezes põe por conta própria (a folha
 // estreita a 190mm e o texto reflui ~5% mais alto).
+// Bloco especial: começa folha nova. Os anexos (minuta, dossiê) abrem folha.
+const EP_QUEBRA = '<!--quebra-de-folha-->';
 function epPaginar(blocos, pe) {
   const LIM = 260 * 96 / 25.4;
   const caixa = document.createElement('div');
@@ -19158,6 +19877,7 @@ function epPaginar(blocos, pe) {
   const poe = nos => { const rod = folha.lastElementChild; nos.forEach(n => folha.insertBefore(n, rod)); };
   nova();
   blocos.filter(Boolean).forEach(b => {
+    if (b === EP_QUEBRA) { if (itens.length) nova(); return; }
     const t = document.createElement('template');
     t.innerHTML = b;
     const nos = [...t.content.childNodes];
@@ -19307,6 +20027,8 @@ function ctrModeloObra(d) {
 // estável, itens com chave, referência cruzada por marcador, travado = número de
 // campo que a IA não mexe. Cláusula que fica sem item nenhum não existe.
 function ctrModelo(d) {
+  if (d.tipo === 'termo_arr') return ctrModeloTermoArr(d);
+  if (d.tipo === 'termo_inv') return ctrModeloTermoInv(d);
   if (d.tipo === 'arrend') return ctrModeloArrend(d);
   if (ctrEhSoc(d.tipo)) return ctrModeloSociedade(d);
   return ctrModeloObra(d);
@@ -19474,14 +20196,20 @@ function ctrModeloSociedade(d) {
 function ctrModeloArrend(d) {
   const { e, money, vazio, lacuna, pct, op, C, I, eletronica, tolerancia } = ctrModeloPecas(d);
   const a = d.arr;
+  const iv = d.interv && d.interv.nome ? d.interv : null;
+  const ivDono = !!iv && iv.papel === 'proprietario';
+  // Anexada ao termo do arrendador, a minuta segue a conta da locação do termo:
+  // os dois papéis não podem dizer coisas diferentes sobre ela.
+  const locacaoCurta = d.ta ? ctrTALocacaoCabe(d) !== true : false;
   const objeto = loc => `O CEDENTE cede à CESSIONÁRIA, a título oneroso, o uso de área do imóvel situado em <b>${loc}</b> (o "IMÓVEL"), com destinação exclusiva à instalação, à operação, à manutenção e à exploração comercial de estação de recarga de veículos elétricos composta por <b>${d.qtd} carregador(es) ${e(d.equipTxt || 'de corrente contínua')}</b>, com ${d.plugs} ponto(s) de carregamento (o "PONTO").`;
-  const anuenciaFalta = 'A falta, a invalidade ou a revogação dessa anuência, descoberta depois da assinatura, é causa de rescisão por culpa do CEDENTE.';
+  const anuenciaFalta = 'A falta, a invalidade ou a revogação dessa anuência, descoberta depois da assinatura, é causa de rescisão por culpa do CEDENTE.'
+    + (iv ? ' A anuência do INTERVENIENTE ANUENTE, dada neste contrato, é irrevogável pelo prazo dele e das suas renovações.' : '');
   // A conta do cedente (Pix, muitas vezes o CPF) sai no papel e NÃO vai à IA.
   const venc = conta => `O pagamento vence até o dia <b>${a.dia}</b> do mês seguinte ao da apuração, acompanhado do demonstrativo da {{i:contas.demonstrativo}}${conta ? `, e é feito diretamente ao CEDENTE por meio de: ${conta}` : ''}.`;
   const legitimidade = {
     proprietario: 'Declarar e garantir que é proprietário do IMÓVEL, com a sua posse direta e sem impedimento à cessão, e mantê-lo assim durante toda a vigência.',
     locado: `Declarar que é proprietário do IMÓVEL, alugado a terceiro, e apresentar na assinatura a anuência escrita do locatário a esta cessão. ${anuenciaFalta}`,
-    locatario: `Declarar que é locatário do IMÓVEL e apresentar na assinatura cópia do contrato de locação e a anuência escrita e específica do proprietário. Este contrato não ultrapassa o prazo da locação. ${anuenciaFalta}`,
+    locatario: `Declarar que é locatário do IMÓVEL e apresentar na assinatura cópia do contrato de locação e a anuência escrita e específica do proprietário. ${ivDono ? 'Terminada a locação antes do fim deste contrato ou das suas renovações, o INTERVENIENTE ANUENTE assume a posição de CEDENTE, nas mesmas condições, desde o dia seguinte ao fim da locação.' : locacaoCurta ? 'A anuência do proprietário prevê que, terminada a locação antes do fim deste contrato ou das suas renovações, ele assume a posição de CEDENTE nas mesmas condições.' : 'Este contrato não ultrapassa o prazo da locação.'} ${anuenciaFalta}`,
     representante: 'Declarar que administra ou representa o proprietário do IMÓVEL, com poderes documentados para esta cessão, cuja cópia integra este contrato.',
     condominio: `Apresentar na assinatura a ata da assembleia que autorizou esta cessão, com o quórum exigido pela convenção do condomínio. ${anuenciaFalta}`,
     branco: 'Declarar a sua condição sobre o IMÓVEL: ( ) proprietário, com a posse direta; ( ) proprietário, com o IMÓVEL alugado, mediante anuência escrita do locatário; ( ) locatário, mediante anuência escrita do proprietário, sem ultrapassar o prazo da locação; ( ) administrador ou representante do proprietário, com poderes documentados; ( ) condomínio, mediante ata de assembleia.',
@@ -19491,7 +20219,9 @@ function ctrModeloArrend(d) {
       I('objeto.cessao', objeto(vazio(d.local)), { travado: true, iaTexto: objeto('[local da instalação]') }),
       I('objeto.area', `A área cedida (a "ÁREA") compreende <b>${a.vagas} vaga(s)</b> de estacionamento destinada(s) exclusivamente à recarga${a.area ? `, num total de <b>${e(a.area)} m²</b>` : ''}, a base e a proteção do equipamento, o trajeto do cabeamento até o ponto de entrega de energia, o espaço do quadro elétrico e do medidor, a área de manobra e a posição da sinalização, conforme croqui assinado pelas partes, que integra este contrato.`),
       I('objeto.finalidade', 'A ÁREA não pode ser usada para outra finalidade, nem sublocada ou cedida a terceiro, salvo na hipótese da {{i:sucessao.cessao}}.'),
-      I('objeto.laudo', 'O estado da ÁREA na data da assinatura é registrado em laudo fotográfico assinado pelas partes, que é a referência para a devolução da {{c:devolucao}}.'),
+      I('objeto.laudo', op('dossie_anexo')
+        ? 'O estado da ÁREA na data da assinatura está registrado no relatório fotográfico do dossiê do local, anexo a este contrato, que é a referência para a devolução da {{c:devolucao}}.'
+        : 'O estado da ÁREA na data da assinatura é registrado em laudo fotográfico assinado pelas partes, que é a referência para a devolução da {{c:devolucao}}.'),
     ]),
     C('natureza', 'Da natureza da cessão', [
       I('natureza.atipica', 'Este contrato é cessão onerosa de uso de área com destinação específica. Não configura sociedade, parceria, consórcio ou qualquer participação do CEDENTE no negócio da CESSIONÁRIA.'),
@@ -19510,6 +20240,8 @@ function ctrModeloArrend(d) {
       I('remuneracao.deducoes', 'Do faturamento bruto não se deduzem, para este fim, energia, meio de pagamento, plataforma, conectividade, tributos, manutenção, seguro ou depreciação.'),
       I('remuneracao.piso', a.piso > 0 ? `A partir do <b>${a.carencia}º mês</b> de operação, a remuneração mensal não será inferior a <b>${money(a.piso)}</b> (${e(recExtenso(a.piso))}), valor reajustado a cada 12 (doze) meses da energização pela variação acumulada do IPCA/IBGE. O percentual não se reajusta, por já acompanhar o preço da recarga.` : '', { travado: true }),
       I('remuneracao.vencimento', venc(a.dados ? `<b>${e(a.dados)}</b>` : ''), { iaTexto: venc(a.dados ? '<b>[conta do cedente]</b>' : '') }),
+      // Só na minuta anexada ao termo do arrendador (ctrAnexos põe o valor).
+      I('remuneracao.reserva', d.premioReserva > 0 ? `O valor de <b>${money(d.premioReserva)}</b> (${e(recExtenso(d.premioReserva))}) pago ao CEDENTE na reserva do local é abatido da primeira remuneração devida e das seguintes, até se esgotar.` : ''),
       I('remuneracao.mora', `O atraso sujeita a CESSIONÁRIA a multa de ${pct(a.moraMulta)}% sobre o valor em atraso, juros de ${pct(a.moraJuros)}% ao mês e correção pelo IPCA.`),
       I('remuneracao.tributos', 'Cada parte responde pelos tributos incidentes sobre o que recebe, e o CEDENTE emite o documento fiscal ou o recibo compatível com a sua natureza jurídica.'),
     ]),
@@ -19615,6 +20347,272 @@ function ctrModeloArrend(d) {
     C('foro', 'Do foro', [
       I('foro.comarca', `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b> para dirimir as questões oriundas deste contrato, com renúncia a qualquer outro.`),
     ]),
+  ].filter(Boolean);
+}
+
+// ─── TERMO DO ARRENDADOR (08/10/2026) ────────────────────────────────────────
+// PROMESSA: promessa unilateral de cessão (CC art. 466). O dono (COMPROMITENTE
+// CEDENTE) fica obrigado; a NEXUS (COMPROMISSÁRIA CESSIONÁRIA) decide se
+// confirma no prazo do estudo. Vale como contrato preliminar porque leva todos
+// os termos essenciais da cessão (art. 462): os do cartão Arrendamento e a
+// minuta anexada. Sem cláusula de arrependimento, a NEXUS pode exigir o
+// contrato (arts. 463 e 464). Em troca, o dono sai livre se a NEXUS não pedir o
+// acesso à distribuidora no prazo (desenho das torres de telecom).
+// INTENÇÃO: só registra a vontade; obrigam estudo, exclusividade, documentos,
+// sigilo e custos. Romper de má-fé depois de despesa alheia é o art. 422.
+function ctrModeloTermoArr(d) {
+  const { e, money, vazio, lacuna, pct, op, C, I, eletronica, tolerancia } = ctrModeloPecas(d);
+  const a = d.arr, ta = d.ta, N = d.nomes.nossa, D = d.nomes.deles;
+  const prom = ta.nivel === 'promessa';
+  const anexoMinuta = prom && op('ta_minuta');
+  const anexoDos = op('dossie_anexo');
+  const nDos = anexoMinuta ? 'II' : 'I';
+  const iv = d.interv && d.interv.nome ? d.interv : null;
+  const equip = `<b>${d.qtd} carregador(es) ${e(d.equipTxt || 'de corrente contínua')}</b>, com ${d.plugs} ponto(s) de carregamento`;
+  const objeto = loc => prom
+    ? `Pelo presente termo, o ${D} promete ceder à ${N}, a título oneroso, o uso de área do imóvel situado em <b>${loc}</b> (o "IMÓVEL"), destinada à instalação, à operação e à exploração comercial de estação de recarga de veículos elétricos composta por ${equip} (o "PONTO"), nas condições da {{c:condicoes}}${anexoMinuta ? ' e da minuta do contrato de cessão que integra este termo como Anexo I' : ''}.`
+    : `Pelo presente termo, o ${D} manifesta a intenção de ceder à ${N}, a título oneroso, o uso de área do imóvel situado em <b>${loc}</b> (o "IMÓVEL"), para a instalação e a exploração comercial de estação de recarga de veículos elétricos composta por ${equip} (o "PONTO"), e as partes registram as condições em que pretendem negociar.`;
+  const dadosImovel = [
+    ta.tipoLocal && `estabelecimento: ${e(ta.tipoLocal)}`,
+    ta.matricula && `matrícula nº ${e(ta.matricula)}${ta.cartorio ? ` do ${e(ta.cartorio)}` : ''}`,
+    ta.iptu && `inscrição do IPTU nº ${e(ta.iptu)}`,
+    ta.uc && `unidade consumidora nº ${e(ta.uc)}${ta.distribuidora ? ` da ${e(ta.distribuidora)}` : ''}`,
+    !ta.uc && ta.distribuidora && `atendido pela distribuidora ${e(ta.distribuidora)}`,
+    ta.padrao && `padrão de entrada: ${e(ta.padrao)}`,
+  ].filter(Boolean);
+  const horario = { '24h': '24 (vinte e quatro) horas por dia, todos os dias', estab: 'no horário de funcionamento do estabelecimento', outro: a.horarioTxt ? e(a.horarioTxt) : lacuna }[a.horario] || lacuna;
+  const energia = { uc: `ligação própria em nome da ${N}`, sub: `medidor da ${N} na unidade consumidora do ${D}, com reembolso do consumo`, refatura: `conta paga pelo ${D} e reembolsada pela ${N}` }[a.energia] || lacuna;
+  const verbo = prom ? 'esta promessa' : 'este termo';
+  const leiInq = '(arts. 13 e 23, VI, da Lei nº 8.245/1991)';
+  // A locação cobre a cessão inteira? Só aí o papel pode dizer que não passa
+  // dela. Sem a data, ou com a conta não fechando, o texto pede a assunção.
+  const cabeLocacao = ctrTALocacaoCabe(d) === true;
+  const ivAnui = !!iv && ctrIntervAnui(a.relacao, iv.papel);
+  const legitimidade = {
+    proprietario: `O ${D} declara ser proprietário do IMÓVEL, com a sua posse direta, sem ônus ou restrição que impeça a cessão.`,
+    locado: `O ${D} declara ser proprietário do IMÓVEL, alugado a terceiro, que ${ivAnui ? 'assina este termo como INTERVENIENTE ANUENTE e anui à cessão e às obras' : 'dará a sua anuência escrita à cessão e às obras até a assinatura do contrato de cessão, sem a qual ele não será assinado'}.`,
+    locatario: `O ${D} declara ser locatário do IMÓVEL${ta.locacaoFim ? `, com locação vigente até ${ctrDataBR(ta.locacaoFim)}` : ''}. ${ivAnui
+      ? `O proprietário assina este termo como INTERVENIENTE ANUENTE e autoriza a cessão e as obras ${leiInq}. Terminada a locação antes do fim da cessão ou das suas renovações, o INTERVENIENTE ANUENTE assume a posição de cedente no contrato de cessão, nas mesmas condições, desde o dia seguinte ao fim da locação, para que a cessão não se extinga com ela.`
+      : `A cessão e as obras dependem da anuência escrita do proprietário ${leiInq}, sem a qual o contrato de cessão não será assinado${cabeLocacao ? ', e a cessão não ultrapassa o prazo da locação' : '. A anuência deve prever que, terminada a locação antes do fim da cessão ou das suas renovações, o proprietário assume a posição de cedente nas mesmas condições'}.`}`,
+    representante: `O ${D} declara administrar ou representar o proprietário do IMÓVEL, com poderes para ${verbo}, cuja prova integra o dossiê do local.`,
+    condominio: `O ${D} declara que ${prom ? 'esta promessa foi autorizada' : 'este termo foi autorizado'} na forma da convenção do condomínio, cuja ata integra o dossiê do local.`,
+    branco: `O ${D} declara a sua condição sobre o IMÓVEL: ( ) proprietário, com a posse direta; ( ) proprietário, com o IMÓVEL alugado, com anuência escrita do locatário; ( ) locatário, com anuência escrita do proprietário, sem ultrapassar o prazo da locação; ( ) administrador ou representante do proprietário, com poderes documentados; ( ) condomínio, com ata de assembleia.`,
+  }[a.relacao] || '';
+  return [
+    C('objeto', 'Do objeto', [
+      I('objeto.promessa', objeto(vazio(d.local)), { travado: true, iaTexto: objeto('[local da instalação]') }),
+      I('objeto.imovel', dadosImovel.length ? `Dados do IMÓVEL: ${dadosImovel.join('; ')}.` : ''),
+      I('objeto.exploracao', ta.modelo === 'aberto'
+        ? (prom
+          ? `A ${N} pode, no aviso da {{i:exercicio.aviso}}, propor ao ${D} uma sociedade entre as partes em lugar da cessão, que dependerá de contrato próprio. Não aceita a proposta em 10 (dez) dias, vale a cessão nas condições da {{c:condicoes}}${anexoMinuta ? ' e do Anexo I' : ''}.`
+          : `O modelo de exploração do PONTO, cessão à ${N} ou sociedade entre as partes, será definido ao fim do estudo da {{c:estudo}}. Sendo cessão, valem as condições da {{c:condicoes}}.`)
+        : `A ${N} explorará o PONTO por conta e risco próprios, diretamente ou por sociedade em conta de participação de que seja sócia ostensiva, e arcará com todo o investimento.`),
+    ]),
+    C('condicoes', prom ? 'Das condições da cessão' : 'Das condições pretendidas', [
+      I('condicoes.remuneracao', `${prom ? 'A cessão será remunerada com' : 'As partes pretendem negociar a cessão nas condições a seguir. Remuneração pretendida:'} <b>${a.pct > 0 ? pct(a.pct) : lacuna}% do faturamento bruto de recarga do PONTO</b>${a.piso > 0 ? `, com piso mensal de <b>${money(a.piso)}</b> a partir do ${a.carencia}º mês de operação` : ''}, pago até o dia ${a.dia} do mês seguinte ao da apuração.`, { travado: true }),
+      I('condicoes.prazo', `${prom ? 'O contrato de cessão terá vigência de' : 'Vigência pretendida do contrato de cessão:'} <b>${a.vigencia} meses</b> contados da primeira recarga comercial, renovável por períodos iguais${a.permanencia > 0 ? `, com permanência mínima de ${a.permanencia} meses` : ''} e aviso de ${a.aviso} dias para não renovar.`),
+      I('condicoes.area', `A área compreende <b>${a.vagas} vaga(s)</b> de estacionamento${a.area ? `, num total de ${e(a.area)} m²` : ''}, com o PONTO funcionando ${horario} e atendido por ${energia}.`),
+      I('condicoes.vagas', prom ? `A localização das vagas é a do croqui do dossiê do local${anexoDos ? `, no Anexo ${nDos}` : ''}. Faltando o croqui, a ${N} indica as vagas no aviso da {{i:exercicio.aviso}}, e o ${D} só pode recusá-las por motivo técnico ou de segurança justificado.` : ''),
+      I('condicoes.custos', `Estudo, projeto, obra, equipamentos, ligação à rede e operação correm por conta da ${N}. O ${D} não paga por eles e não responde pelo resultado do PONTO, ressalvadas as obrigações e as penalidades deste termo e do contrato de cessão.`),
+      I('condicoes.minuta', prom
+        ? (anexoMinuta
+          ? `As demais condições são as da minuta do Anexo I, que o ${D} declara ter lido e aceitado, e o contrato de cessão será assinado nos termos dela, ressalvado o que as partes ajustarem por escrito.`
+          : `As demais condições serão as do contrato de cessão onerosa de área da ${N}, cuja minuta, na versão entregue na data deste termo, o ${D} declara ter recebido, lido e rubricado.`)
+        : 'Estas condições são a base da negociação e serão detalhadas no contrato de cessão, que só obriga as partes depois de assinado.'),
+    ], true),
+    C('estudo', 'Do estudo do local', [
+      I('estudo.prazo', `A ${N} terá <b>${ta.prazo} dias</b> contados da assinatura para estudar a viabilidade do PONTO, podendo visitar o IMÓVEL, fotografar, medir, levantar o padrão de entrada e a rede elétrica e pedir à distribuidora o parecer de acesso.`),
+      I('estudo.acesso', `As visitas são combinadas com o ${D} com antecedência mínima de 24 (vinte e quatro) horas, por conta da ${N}, que recompõe o que mexer e responde pelo dano que causar.`),
+      I('estudo.protocolo', `A ${N} protocolará o pedido de acesso junto à distribuidora em até <b>${ta.protocolo} dias</b> da assinatura. Esse prazo e o da {{i:estudo.prazo}} não correm enquanto o ${D} não entregar os documentos da {{i:cedente.docs}} e a procuração da {{i:cedente.distribuidora}}. Vencido o prazo sem o protocolo, e enquanto ele não for feito, o ${D} pode encerrar este termo por aviso escrito, sem ônus para nenhuma das partes.`),
+      I('opc.ta_prorroga', op('ta_prorroga') ? `Não tendo a distribuidora respondido ao pedido de acesso até o fim do prazo da {{i:estudo.prazo}}, esse prazo se prorroga até a resposta, uma única vez e por no máximo igual período, mediante aviso escrito da ${N} antes do vencimento.` : ''),
+      I('opc.ta_relatorio', op('ta_relatorio') ? `Concluído o estudo, a ${N} entrega ao ${D} um resumo do resultado técnico, sem obrigação de fornecer projeções financeiras.` : ''),
+    ]),
+    prom ? C('exercicio', 'Da confirmação e da assinatura do contrato', [
+      I('exercicio.aviso', `Dentro do prazo da {{i:estudo.prazo}}, a ${N} comunicará por escrito ao ${D} se confirma o PONTO. Confirmado, as partes assinarão o contrato de cessão em até <b>${ta.assinar} dias</b> do aviso.`),
+      I('exercicio.livre', `A ${N} decide livremente se confirma o PONTO. Sem o aviso no prazo, este termo se extingue de pleno direito, sem multa nem indenização pela falta de confirmação (art. 466 do Código Civil).`),
+      I('exercicio.arrependimento', `Esta promessa é irrevogável e irretratável e não admite arrependimento do ${D} desde a assinatura até a celebração do contrato de cessão ou a extinção deste termo, inclusive durante ${op('ta_prorroga') ? 'a prorrogação da {{i:opc.ta_prorroga}} e ' : ''}o prazo de assinatura da {{i:exercicio.aviso}}.`),
+      I('exercicio.recusa', `Recusando-se o ${D} a assinar o contrato de cessão depois da confirmação, a ${N} pode, à sua escolha: (a) exigir a celebração do contrato (arts. 463 e 464 do Código Civil), com as perdas e danos do atraso; ou (b) considerar desfeito este termo e cobrar ${ta.multa > 0 ? `a multa de <b>${money(ta.multa)}</b> (${e(recExtenso(ta.multa))}), que vale como mínimo da indenização, podendo provar prejuízo maior (arts. 410, 416, parágrafo único, e 465 do Código Civil)` : 'as perdas e danos (art. 465 do Código Civil)'}.`),
+    ]) : C('negociacao', 'Da natureza deste termo', [
+      I('negociacao.natureza', 'Este termo registra a intenção das partes e não as obriga a celebrar o contrato de cessão, que só existe depois de assinado. Todas as demais cláusulas deste termo obrigam as partes desde a assinatura.'),
+      I('negociacao.boafe', 'Encerrar a negociação não gera indenização, salvo ruptura contrária à boa-fé depois de despesas que a outra parte fez confiando no negócio (art. 422 do Código Civil).'),
+    ]),
+    op('ta_exclusiv') ? C('exclusividade', 'Da exclusividade', [
+      I('opc.ta_exclusiv', `Durante a vigência deste termo, o ${D} não cede, não promete ceder e não negocia com terceiro área do IMÓVEL para estação de recarga de veículos elétricos aberta ao público.`),
+    ]) : null,
+    ta.premio > 0 ? C('reserva', 'Do valor da reserva', [
+      I('reserva.valor', `Pela reserva do local, a ${N} paga ao ${D} <b>${money(ta.premio)}</b> (${e(recExtenso(ta.premio))}), ${e(ta.premioQuando)}. Esse valor é o preço da reserva do local e do prazo de estudo e não constitui arras nem sinal${prom && ta.multa > 0 ? ', nem se compensa com a multa da {{i:exercicio.recusa}}' : ''}.`, { travado: true }),
+      I('reserva.destino', prom
+        ? `Assinado o contrato de cessão, esse valor é abatido da primeira remuneração devida e, se ela não bastar, das seguintes, até se esgotar, e esta cláusula sobrevive à assinatura do contrato. Extinto este termo sem o contrato porque a ${N} não confirmou o PONTO, ou pelo encerramento da {{i:estudo.protocolo}}, o valor fica com o ${D}. Extinto por descumprimento do ${D}, ele devolve o valor em 10 (dez) dias, corrigido pelo IPCA, sem prejuízo do que prevê a {{i:exercicio.recusa}}.`
+        : `Assinado o contrato de cessão, esse valor é abatido da primeira remuneração devida e, se ela não bastar, das seguintes, até se esgotar. Extinto este termo sem o contrato, o valor fica com o ${D}, salvo se ele encerrar a negociação antes do fim do prazo da {{i:estudo.prazo}}${op('ta_exclusiv') ? ' ou descumprir a exclusividade' : ''}, caso em que o devolve em 10 (dez) dias, corrigido pelo IPCA.`),
+    ]) : null,
+    C('cedente', `Das obrigações e declarações do ${D}`, [
+      I('cedente.legitimidade', legitimidade),
+      I('cedente.interveniente', iv ? (prom
+        ? `O INTERVENIENTE ANUENTE assina o contrato de cessão na mesma qualidade, no prazo da {{i:exercicio.aviso}}. A anuência que ele dá neste termo é irrevogável e vale para o contrato de cessão${anexoMinuta ? ' celebrado nos termos do Anexo I' : ''} e para as suas renovações.`
+        : 'A anuência que o INTERVENIENTE ANUENTE dá neste termo vale para o contrato de cessão que as partes vierem a celebrar nestas condições, que ele assina na mesma qualidade.') : ''),
+      I('cedente.docs', `O ${D} entrega à ${N}, em até <b>${ta.docs} dias</b> da assinatura, os documentos do dossiê do local${anexoDos ? `, cuja situação consta do Anexo ${nDos}` : ': documento de identidade, prova da propriedade ou da posse do IMÓVEL, conta de energia e, quando for o caso, contrato de locação, anuências e poderes de representação'}.`),
+      I('cedente.distribuidora', `O ${D} assina os documentos que dependam da titularidade da unidade consumidora e outorga à ${N} procuração específica para o pedido de acesso, sem custo para ele.`),
+      I('cedente.posse', `O ${D} autoriza a ${N} a usar a área para pedir em nome próprio a ligação nova, o acesso à rede e as licenças do PONTO, e a apresentar este termo como prova dessa autorização à distribuidora e à prefeitura.`),
+      I('cedente.aviso', `O ${D} comunica à ${N}, de imediato, venda, promessa de venda, oneração, penhora ou locação do IMÓVEL e, nos atos que dependam dele, faz constar a existência deste termo.${prom ? ` Vendendo ou prometendo vender o IMÓVEL durante este termo, o ${D} faz o adquirente assumir este termo no próprio instrumento${ta.multa > 0 ? '; não o fazendo, responde pela multa da {{i:exercicio.recusa}}' : ''}.` : ''}`),
+      I('cedente.area', `O ${D} não altera a área reservada nem a instalação elétrica do IMÓVEL de modo que prejudique o estudo, sem aviso prévio à ${N}.`),
+      I('cedente.descumprimento', `Descumprida ${op('ta_exclusiv') ? 'a exclusividade da {{c:exclusividade}}' : 'esta cláusula'}, ou sendo falsa a declaração da {{i:cedente.legitimidade}}, a ${N} pode considerar ${prom ? 'desfeito' : 'encerrado'} este termo e cobrar ${prom && ta.multa > 0 ? 'a multa da {{i:exercicio.recusa}}, que vale como mínimo da indenização' : 'as perdas e danos'}${ta.premio > 0 ? ', com a devolução da {{i:reserva.destino}}' : ''}.`),
+    ]),
+    C('cessionaria', `Das obrigações da ${N}`, [
+      I('cessionaria.custos', prom
+        ? `A ${N} arca com todos os custos do estudo e do pedido de acesso. O ${D} não os reembolsa, salvo se der causa à extinção deste termo, caso em que eles integram as perdas e danos da {{i:exercicio.recusa}}.`
+        : `A ${N} arca com todos os custos do estudo e do pedido de acesso. O ${D} não os reembolsa, salvo na ruptura da {{i:negociacao.boafe}} ou no descumprimento deste termo por ele.`),
+      I('cessionaria.danos', `A ${N} repara qualquer dano causado ao IMÓVEL nas visitas e nos levantamentos.`),
+      I('cessionaria.uso', `A ${N} usa os documentos e as fotos do dossiê só para o estudo, o pedido de acesso e o contrato de cessão.`),
+    ]),
+    C('vigencia', 'Do prazo e da extinção', [
+      I('vigencia.prazo', prom
+        ? `Este termo vigora da assinatura até a assinatura do contrato de cessão. Ele se extingue antes disso: (a) no fim do prazo da {{i:estudo.prazo}}${op('ta_prorroga') ? ', com a prorrogação da {{i:opc.ta_prorroga}}' : ''}, se a ${N} não tiver dado o aviso da {{i:exercicio.aviso}}; (b) pelo encerramento da {{i:estudo.protocolo}}; ou (c) por descumprimento, na forma deste termo. Dado o aviso no prazo, este termo segue em vigor até a assinatura do contrato de cessão e, havendo recusa do ${D}, até o fim das medidas da {{i:exercicio.recusa}}.`
+        : `Este termo vigora da assinatura até a assinatura do contrato de cessão ou o fim do prazo da {{i:estudo.prazo}}${op('ta_prorroga') ? ', com a prorrogação da {{i:opc.ta_prorroga}}' : ''}, o que ocorrer primeiro.`),
+      I('vigencia.custos', `Extinto este termo sem o contrato de cessão, cada parte arca com os seus custos${ta.premio > 0 ? ', e o valor da {{c:reserva}} segue a {{i:reserva.destino}}' : ''}, ressalvada a responsabilidade de quem tiver descumprido este termo.`),
+      I('vigencia.sobrevive', `A extinção deste termo não afasta a responsabilidade por descumprimento anterior a ela nem a reparação de danos da {{i:cessionaria.danos}}, e o sigilo da {{i:gerais.sigilo}} sobrevive a ela. Extinto este termo sem o contrato de cessão, a ${N} devolve ou elimina, em 30 (trinta) dias, os documentos pessoais do dossiê, salvo o que a lei mandar guardar (arts. 15 e 16, I, da Lei nº 13.709/2018).`),
+    ]),
+    C('gerais', 'Das disposições gerais', [
+      I('gerais.sigilo', `As partes mantêm sigilo sobre as condições deste termo e o resultado do estudo, salvo exigência legal e o que a ${N} precisar mostrar à distribuidora, aos órgãos públicos, a assessores, a financiadores e a sócios e investidores do PONTO, que ficam sujeitos ao mesmo sigilo. O sigilo dura 2 (dois) anos depois da extinção deste termo.`),
+      I('gerais.comunicacoes', 'As comunicações deste termo são feitas por escrito, entregues em mão com recibo, por carta com aviso de recebimento ou pelo e-mail ou WhatsApp das partes indicados no preâmbulo ou usados por elas nesta negociação, e valem da data do envio. Os prazos deste termo são contados em dias corridos.'),
+      I('gerais.sucessores', 'Este termo obriga herdeiros e sucessores das partes.'),
+      I('gerais.proposta', `A versão deste termo enviada para leitura antes da assinatura não constitui proposta e só obriga depois de assinada (art. 427 do Código Civil).${anexoMinuta ? ' O Anexo I, rubricado pelas partes, integra este termo desde a assinatura.' : ''}`),
+      I('opc.ta_registro', op('ta_registro') ? `As partes registrarão este termo no Cartório de Registro de Títulos e Documentos, às expensas da ${N}, para que produza efeito perante terceiros (art. 463, parágrafo único, do Código Civil).` : ''),
+      I('gerais.aditivo', 'Alterações deste termo só valem por escrito assinado pelas partes.'),
+      I('gerais.tolerancia', tolerancia),
+      I('opc.lgpd', op('lgpd') ? 'Os dados pessoais e os documentos trocados são tratados só para o estudo do local, o pedido de acesso e o contrato de cessão, na forma da Lei nº 13.709/2018 (LGPD).' : ''),
+      I('opc.eletronica', op('eletronica') ? eletronica : ''),
+      ...d.extras.map((x, i) => I('extra.' + (i + 1), e(x))),
+    ]),
+    C('foro', 'Do foro', [
+      I('foro.comarca', `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b> para dirimir as questões oriundas deste termo, com renúncia a qualquer outro.`),
+    ]),
+  ].filter(Boolean);
+}
+
+// ─── TERMO DO INVESTIDOR (08/10/2026) ────────────────────────────────────────
+// RESERVA: intenção e reserva, sem sociedade (a SCP se prova por qualquer meio,
+// CC art. 992, e um termo com dinheiro pago poderia ser lido como entrada nela:
+// por isso a cláusula de natureza diz que ninguém é sócio ainda). O depósito
+// fica parado sob condição: capital inteiro e local contratado no prazo. Não
+// cumprida, tudo volta. Desistência livre nos primeiros dias, sem custo.
+// ADESÃO: o termo que o contrato de cotas cita ("ingressarão por termo de
+// adesão"). O aderente aceita o contrato já assinado e fica com as cotas dele.
+// CVM: termo padrão para quem veio de anúncio é prova de oferta pública; a tela
+// avisa. Nada de promessa de rentabilidade em lugar nenhum do papel.
+function ctrModeloTermoInv(d) {
+  const { e, money, vazio, lacuna, pct, op, C, I, eletronica, tolerancia } = ctrModeloPecas(d);
+  const s = d.soc, ti = d.ti, N = d.nomes.nossa, D = d.nomes.deles;
+  const ades = ti.uso === 'adesao';
+  const cotas = s.t === 'cotas';
+  const s50 = !ades && ti.modelo === 'socio50';
+  const onde = s50 ? `no local do ${D}, em <b>${ti.ponto ? e(ti.ponto) : lacuna}</b>`
+    : ti.ponto ? `em <b>${e(ti.ponto)}</b>`
+    : `em ponto a definir${ti.regiao ? ` em ${e(ti.regiao)}` : ''}${ti.raio > 0 ? `, a até ${ti.raio} km ${ti.regiao ? `do centro de ${e(ti.regiao)}` : 'do endereço do ' + D}` : ''}`;
+  const qtdTxt = cotas ? `<b>${s.qtd} cota(s) de ${pct(s.cota)}%</b>` : `participação de <b>${pct(s.cotaCli)}%</b> no resultado`;
+  const aporteTxt = s.aporteCli > 0 ? `<b>${money(s.aporteCli)}</b> (${e(recExtenso(s.aporteCli))})` : `<b>${lacuna}</b>`;
+  const temCartao = d.pagLinhas.some(l => /cart[ãa]o/i.test(l.forma));
+  const dep = ti.deposito > 0 && !ades;
+  // A declaração de origem só sai quando o consultor marcou que conhece a
+  // pessoa de fora do anúncio. O papel nunca diz "não veio de anúncio" de quem veio.
+  // Arras só com depósito, e nunca acima dele (a retenção cabe no que foi pago).
+  const arrasOn = dep && op('ti_arras') && ti.arras > 0;
+  const arrasEf = Math.min(ti.arras, ti.deposito);
+  const origemTxt = { pessoal: 'contato pessoal anterior a este negócio', indicacao: 'indicação de um conhecido' }[ti.origem] || '';
+  const declOrigem = origemTxt ? `O ${D} declara que conheceu a ${N} por <b>${origemTxt}</b> e que este termo não lhe foi enviado por anúncio, link aberto ou mensagem em massa.` : '';
+  const declaracoes = C('declaracoes', `Das declarações do ${D}`, [
+    I('opc.ti_risco', op('ti_risco') ? `O ${D} declara saber que: pode perder todo o capital aportado; ${ades ? 'é' : 'será'} sócio participante, sem gestão do negócio, que cabe à sócia ostensiva; não há mercado para revender a cota nem garantia de liquidez; a energização do PONTO depende da distribuidora de energia; falindo a sócia ostensiva, o saldo dele é crédito sem garantia (art. 994, § 2º, do Código Civil)${dep ? `; e, até a assinatura do contrato de sociedade, o depósito é crédito dele contra a ${N}, sem garantia` : ''}.` : ''),
+    I('declaracoes.conflito', `O ${D} sabe que a ${N} é, ao mesmo tempo, sócia ostensiva, fornecedora da implantação pelo seu próprio preço e dona da plataforma de gestão, remunerada com ${s.software > 0 ? pct(s.software) : lacuna}% do faturamento bruto.${!(s.aporteN > 0) && s.aporteNDef && s.cotaN > 0 ? ` A cota de ${pct(s.cotaN)}% da ${N} remunera a gestão, sem aporte em dinheiro.` : ''}`),
+    I('declaracoes.estado', ades ? `O ${D} declara ter recebido da ${N}, por escrito, o estado da sociedade nesta data: capital integralizado, valores já empregados com autorização dos sócios e fase da implantação do PONTO.` : ''),
+    I('opc.ti_promessa', op('ti_promessa') ? `O ${D} declara que não decidiu com base em promessa de rentabilidade, de prazo de retorno ou de renda mensal, e que estudos e simulações recebidos são projeções, não garantia.` : ''),
+    I('opc.ti_capacidade', op('ti_capacidade') ? `O ${D} declara que o valor do aporte não compromete o seu sustento${ti.faixa ? `, e informa ter, aproximadamente, ${e(ti.faixa)}` : ''}.` : ''),
+    I('opc.ti_origem', op('ti_origem') ? `O ${D} declara que os recursos têm origem lícita e que ${ti.pep === 'sim' ? 'é' : 'não é'} pessoa politicamente exposta.` : ''),
+    I('opc.ti_indicacao', op('ti_indicacao') ? `A ${N} não paga ao ${D}, e o ${D} não recebe de ninguém, valor por indicar outros investidores.` : ''),
+  ]);
+  const gerais = C('gerais', 'Das disposições gerais', [
+    I('opc.ti_sigilo', op('ti_sigilo') ? (s50 ? `O ${D} mantém sigilo sobre o estudo e as condições comerciais da ${N} que vier a conhecer.` : `O ${D} mantém sigilo sobre o estudo, o local e o dono do local que vier a conhecer.`) : ''),
+    I('opc.ti_match', op('ti_match') && !s50 ? `<b>O ${D} autoriza, de forma específica, a ${N} a apresentar o seu nome, a sua cidade e o valor do seu aporte ao dono do local pretendido, só para esta negociação, e pode revogar esta autorização a qualquer momento, por aviso na forma da {{i:gerais.comunicacoes}}.</b>` : ''),
+    I('opc.lgpd', op('lgpd') ? `Os dados do ${D} são tratados pela ${N}, controladora, para os procedimentos deste negócio, a pedido dele (art. 7º, V, da Lei nº 13.709/2018). Encerrado o negócio, ficam guardados só pelo prazo das obrigações legais e para o exercício de direitos (arts. 7º, VI, e 16, I). Os direitos do art. 18 se exercem por aviso na forma da {{i:gerais.comunicacoes}}.` : ''),
+    I('gerais.proposta', `A versão deste termo enviada para leitura antes da assinatura não constitui proposta e só obriga depois de assinada (art. 427 do Código Civil).${!ades && op('ti_minuta') ? ' O Anexo I, rubricado pelas partes, integra este termo desde a assinatura.' : ''}`),
+    I('gerais.comunicacoes', 'As comunicações deste termo são feitas por escrito, entregues em mão com recibo, por carta com aviso de recebimento ou pelo e-mail ou WhatsApp das partes indicados no preâmbulo ou usados por elas nesta negociação, e valem da data do envio. Os prazos deste termo são contados em dias corridos.'),
+    I('gerais.sucessores', ades ? 'Este termo obriga herdeiros e sucessores das partes.'
+      : `Este termo obriga os sucessores da ${N}. Falecendo o ${D} antes da assinatura do contrato de sociedade, a reserva se extingue${dep ? ', e o depósito é devolvido aos herdeiros no prazo da {{i:deposito.devolucao}}' : ''}.`),
+    I('gerais.aditivo', 'Alterações deste termo só valem por escrito assinado pelas partes.'),
+    I('gerais.tolerancia', tolerancia),
+    I('opc.eletronica', op('eletronica') ? eletronica : ''),
+    ...d.extras.map((x, i) => I('extra.' + (i + 1), e(x))),
+  ]);
+  const foro = C('foro', 'Do foro', [
+    I('foro.comarca', `Fica eleito o foro da comarca de <b>${vazio(d.foro)}</b> para dirimir as questões oriundas deste termo, com renúncia a qualquer outro.`),
+  ]);
+  const pagamento = [
+    d.pagLinhas.length
+      ? I(ades ? 'cotas.forma' : 'condicoes.pagamento', ades ? 'O aporte será pago da seguinte forma:'
+        : dep ? `O saldo do aporte, de <b>${money(d.saldo)}</b>, já abatido o depósito da {{i:deposito.valor}}, será pago a partir da assinatura do contrato de sociedade, na forma pretendida a seguir:`
+        : 'O aporte será pago a partir da assinatura do contrato de sociedade, na forma pretendida a seguir:', { bloco: 'pagamento', travado: true })
+      : I(ades ? 'cotas.forma' : 'condicoes.pagamento', `Forma ${ades ? '' : 'pretendida '}de pagamento do aporte: ${d.pagObs ? e(d.pagObs) : lacuna}`, { travado: true }),
+    I(ades ? 'cotas.obs' : 'condicoes.obs', d.pagLinhas.length && d.pagObs ? e(d.pagObs) : ''),
+    I(ades ? 'cotas.acrescimo' : 'condicoes.acrescimo', d.temAcr ? 'O acréscimo do parcelamento é custo do pagamento: não integra o aporte, não aumenta a cota e volta junto em todo estorno.' : ''),
+    I(ades ? 'cotas.dados' : 'condicoes.dados', d.pagDados ? `Os pagamentos serão feitos em favor da ${N} por meio de: <b>${e(d.pagDados)}</b>. Pagamento feito a terceiro ou em conta diversa não quita a obrigação.` : ''),
+  ];
+
+  if (ades) return [
+    C('objeto', 'Do objeto da adesão', [
+      I('objeto.adesao', `O ${D} adere ao Contrato de Sociedade em Conta de Participação nº <b>${vazio(ti.contratoNum)}</b>, firmado em <b>${ti.contratoData ? ctrDataBR(ti.contratoData) : lacuna}</b> (o "CONTRATO"), para a implantação e a exploração comercial de estação de recarga de veículos elétricos ${onde} (o "PONTO"), e ingressa na sociedade como sócio participante, nas condições deste termo.`, { travado: true }),
+      I('objeto.copia', `O ${D} declara ter recebido cópia integral do CONTRATO, assinada pelas partes dele, que rubrica e que integra este termo como anexo, e cujas cláusulas passam a obrigá-lo como se o tivesse assinado.`),
+      I('objeto.admissao', `A admissão do ${D} está consentida na Cláusula <b>${ti.consent ? e(ti.consent) : lacuna}</b> do CONTRATO, nos termos do art. 995 do Código Civil, e se faz nas mesmas condições nele previstas para as cotas.`),
+      I('objeto.privado', declOrigem),
+    ]),
+    C('cotas', 'Das cotas e do aporte', [
+      I('cotas.subscricao', `O ${D} subscreve ${qtdTxt} e se obriga a integralizar aporte de ${aporteTxt}, na forma da {{i:cotas.forma}}, ficando o quadro de cotas, depois desta adesão, como a seguir.`, { bloco: 'cotas', travado: true }),
+      ...pagamento,
+      I('cotas.desistencia', `O ${D} pode desistir desta adesão em até <b>${ti.desist} dias</b> da assinatura, sem custo e sem justificar, por aviso escrito na forma da {{i:gerais.comunicacoes}}, e recebe de volta todo o valor pago em até ${ti.devolucao} dias${temCartao ? ', por estorno total da transação quando pago por cartão' : ''}.`),
+      I('cotas.cartao', temCartao ? `Pago por cartão, o aporte considera-se integralizado na autorização da transação. <b>Passado o prazo da {{i:cotas.desistencia}}, a contestação ou o estorno pedido pelo ${D} equivale à falta de pagamento.</b>` : ''),
+      I('cotas.mora', `O atraso no pagamento sujeita o ${D} a multa de ${pct(d.multa)}% sobre o valor em atraso e juros de ${pct(d.juros)}% ao mês, aplicando-se ao aporte não pago as regras de inadimplência do CONTRATO.`),
+      I('cotas.captacao', `Enquanto o capital do CONTRATO não estiver completo, o aporte fica reservado e, não completado no prazo nele previsto, é devolvido ao ${D} na forma do CONTRATO.`),
+    ], true),
+    declaracoes, gerais, foro,
+  ].filter(Boolean);
+
+  return [
+    C('objeto', 'Do objeto e da natureza deste termo', [
+      I('objeto.reserva', `O ${D} manifesta a intenção de participar, como sócio participante, de sociedade em conta de participação a ser constituída com a ${N} como sócia ostensiva, para a implantação e a exploração comercial de estação de recarga de veículos elétricos ${onde} (o "PONTO"), e reserva para isso ${qtdTxt}, correspondente a aporte de ${aporteTxt}, nas condições da {{c:condicoes}}.`, { travado: true }),
+      I('objeto.natureza', `Este termo registra intenção e reserva. Não constitui sociedade nem torna o ${D} sócio participante${dep ? ', e o depósito não é aporte nem dá direito a resultado' : ''}. O vínculo societário só nasce com a assinatura do contrato de sociedade, que as partes se obrigam a assinar depois de cumprida a condição da {{c:condicao}}, ressalvados a desistência e o cancelamento da {{c:desistencia}}.`),
+      I('objeto.privado', ti.origem === 'anuncio'
+        ? ''
+        : `Este termo resulta de negociação individual entre as partes e não constitui oferta pública de valores mobiliários.${declOrigem ? ' ' + declOrigem : ''}`),
+    ]),
+    C('condicoes', 'Das condições pretendidas', [
+      I('condicoes.quadro', `O capital pretendido é de <b>${s.invest > 0 ? money(s.invest) : lacuna}</b>, distribuído conforme o quadro a seguir, e o resultado do PONTO será dividido na proporção das cotas, depois de deduzidos todos os custos da operação, inclusive a plataforma de gestão da ${N}, de ${s.software > 0 ? pct(s.software) : lacuna}% do faturamento bruto${s.arrend > 0 ? `, e a remuneração do dono do local, de ${pct(s.arrend)}% do faturamento bruto` : ''}.`, { bloco: 'cotas', travado: true }),
+      ...pagamento,
+      I('condicoes.minuta', op('ti_minuta')
+        ? `As demais condições são as da minuta do contrato de sociedade do Anexo I, que o ${D} declara ter lido.`
+        : `As demais condições serão as do contrato de sociedade em conta de participação da ${N}, cuja minuta, na versão entregue na data deste termo, o ${D} declara ter recebido e rubricado.`),
+    ], true),
+    C('condicao', 'Da condição e da validade da reserva', [
+      I('condicao.eventos', s50
+        ? `A reserva depende de que, em até <b>${ti.validade} dias</b> da assinatura, a ${N} confirme a viabilidade técnica do local do ${D}, com o pedido de acesso aceito pela distribuidora. Cumprida a condição, as partes assinam o contrato de sociedade em até ${ti.assinar} dias.`
+        : `A reserva depende de que, em até <b>${ti.validade} dias</b> da assinatura, o contrato de cessão do local esteja assinado. Cumprida a condição, as partes assinam o contrato de sociedade em até ${ti.assinar} dias, e o capital que faltar segue a captação prevista nele.`),
+      I('condicao.falha', `Não cumprida a condição no prazo, este termo se resolve de pleno direito, sem multa nem indenização para nenhuma das partes${dep ? ', com a devolução da {{i:deposito.devolucao}}' : ''}.`),
+      I('condicao.boafe', `Considera-se cumprida a condição cujo cumprimento a ${N} tiver impedido de má-fé (art. 129 do Código Civil).`),
+      I('opc.ti_fila', op('ti_fila') && !s50 ? 'A ' + N + ' não aceita, para o mesmo ponto, mais reservas do que as cotas do quadro da {{i:condicoes.quadro}}.' : ''),
+    ]),
+    dep ? C('deposito', 'Do depósito de reserva', [
+      I('deposito.valor', `Para garantir a reserva, o ${D} deposita <b>${money(ti.deposito)}</b> (${e(recExtenso(ti.deposito))}), por ${e(ti.depositoForma)}, ${e(ti.depositoQuando)}, em favor da ${N}. Até o cumprimento da condição da {{c:condicao}}, o depósito só pode ser devolvido ou abatido do aporte, na forma desta cláusula.`, { travado: true }),
+      I('deposito.abate', 'Assinado o contrato de sociedade, o depósito é abatido do aporte, e a forma de pagamento da {{i:condicoes.pagamento}} já considera esse abatimento.'),
+      I('deposito.devolucao', `Não cumprida a condição, desistindo o ${D} no prazo da {{i:desistencia.livre}} ou cancelando a ${N} a reserva, a ${N} devolve todo o depósito em até <b>${ti.devolucao} dias</b>, contados do fim do prazo da {{i:condicao.eventos}}, do aviso de desistência ou do cancelamento. ${/cart/i.test(ti.depositoForma) ? 'A devolução é o estorno total da transação, que cancela as parcelas a vencer.' : `A devolução é feita por transferência para conta do ${D}, com correção pelo IPCA.`}`),
+      I('opc.ti_arras', arrasOn ? (ti.arras >= ti.deposito
+        ? `<b>Desistindo o ${D} sem motivo depois do prazo da {{i:desistencia.livre}} e antes da assinatura do contrato de sociedade, a ${N} retém todo o depósito a título de arras penitenciais, sem outra indenização (art. 420 do Código Civil).</b>`
+        : `<b>Desistindo o ${D} sem motivo depois do prazo da {{i:desistencia.livre}} e antes da assinatura do contrato de sociedade, a ${N} retém ${money(arrasEf)} a título de arras penitenciais, sem outra indenização (art. 420 do Código Civil), e devolve o restante no prazo da {{i:deposito.devolucao}}.</b>`) : ''),
+    ]) : null,
+    C('desistencia', 'Da desistência', [
+      I('desistencia.livre', !ti.ponto && !s50
+        ? `O ${D} pode desistir da reserva, sem custo e sem justificar, em até <b>${ti.desist} dias</b> da assinatura ou da comunicação escrita do local escolhido pela ${N}, o que vier depois, por aviso escrito na forma da {{i:gerais.comunicacoes}}.`
+        : `O ${D} pode desistir da reserva em até <b>${ti.desist} dias</b> da assinatura, sem custo e sem justificar, por aviso escrito na forma da {{i:gerais.comunicacoes}}.`),
+      I('desistencia.depois', dep && !arrasOn ? `Desistindo depois desse prazo e antes da assinatura do contrato de sociedade, o ${D} recebe de volta todo o depósito no prazo da {{i:deposito.devolucao}}.` : ''),
+      I('desistencia.nexus', `A ${N} pode cancelar a reserva${dep ? ', devolvendo todo o depósito no prazo da {{i:deposito.devolucao}},' : ''} se a distribuidora negar o acesso ao PONTO ou o condicionar a obra de rede por conta do interessado${ti.modelo === 'socio50' ? '' : ', ou se o dono do local desistir da cessão'}.`),
+      I('desistencia.arrasNexus', arrasOn ? `<b>Cancelando a ${N} a reserva fora dessas hipóteses, ela devolve o depósito acrescido de ${money(arrasEf)}, no prazo da {{i:deposito.devolucao}}.</b>` : ''),
+    ]),
+    declaracoes, gerais, foro,
   ].filter(Boolean);
 }
 
@@ -19785,6 +20783,21 @@ function ctrIaAplicar(base, pedidos) {
 
 // Título, subtítulo e rodapé de cada modelo. O do Completo é o de sempre.
 function ctrCabecalho(d) {
+  if (d.tipo === 'termo_arr') {
+    const prom = d.ta && d.ta.nivel !== 'intencao';
+    return {
+      titulo: prom ? 'Termo de Compromisso e Promessa de Cessão de Área<br>para Estação de Recarga de Veículos Elétricos' : 'Carta de Intenção de Cessão de Área<br>para Estação de Recarga de Veículos Elétricos',
+      sub: prom ? 'Reserva do local · antes do contrato de cessão' : 'Intenção de ceder o local · antes do contrato de cessão',
+      rodape: (prom ? 'Termo do Arrendador' : 'Carta de Intenção') + ' · Eletroposto', curto: prom ? 'Termo de compromisso e promessa de cessão de área' : 'Carta de intenção de cessão de área', numRot: 'Termo' };
+  }
+  if (d.tipo === 'termo_inv') {
+    const ades = d.ti && d.ti.uso === 'adesao';
+    const rot = d.soc && d.soc.t === 'cotas' ? 'Cotas de ' + ctrPctTxt(d.soc.cota) + '%' : 'Sociedade ' + socRotulo(d.soc ? d.soc.cota : 50);
+    return {
+      titulo: ades ? 'Termo de Adesão à Sociedade em Conta de Participação<br>para Estação de Recarga de Veículos Elétricos' : 'Termo de Compromisso e Reserva de Cota<br>em Estação de Recarga de Veículos Elétricos',
+      sub: rot + (ades ? ' · entrada de sócio participante' : ' · reserva de participação antes do contrato de sociedade'),
+      rodape: (ades ? 'Termo de Adesão' : 'Termo do Investidor') + ' · Eletroposto', curto: ades ? 'Termo de adesão à sociedade em conta de participação' : 'Termo de compromisso e reserva de cota', numRot: 'Termo' };
+  }
   if (d.tipo === 'arrend') return {
     titulo: 'Contrato de Cessão Onerosa de Área<br>para Estação de Recarga de Veículos Elétricos',
     sub: 'Remuneração sobre o faturamento do ponto',
@@ -19809,11 +20822,16 @@ function ctrQuadroCotas(d) {
   const s = d.soc, e = orcEsc, money = ORC_MONEY;
   const p = n => ctrPctTxt(n) + '%';
   const nome = d.contratante ? e(d.contratante) : '<span class="ep-rec-vazio"></span>';
-  const linhas = [[`<b>${nome}</b><span>SÓCIO PARTICIPANTE${d.tipo === 'cotas' ? ` · ${s.qtd} cota(s) de ${p(s.cota)}` : ''}</span>`, p(s.cotaCli), s.aporteCli > 0 ? money(s.aporteCli) : '<span class="ep-rec-vazio"></span>']];
+  const papel = (d.nomes && d.nomes.deles) || 'SÓCIO PARTICIPANTE';
+  const linhas = [[`<b>${nome}</b><span>${papel}${s.t === 'cotas' ? ` · ${s.qtd} cota(s) de ${p(s.cota)}` : ''}</span>`, p(s.cotaCli), s.aporteCli > 0 ? money(s.aporteCli) : '<span class="ep-rec-vazio"></span>']];
   const lac = '<span class="ep-rec-vazio"></span>';
-  if (s.outros > 0) linhas.push([`<b>Demais sócios participantes</b><span>${s.outros} cota(s) de ${p(s.cota)}, por termo de adesão</span>`, p(s.cotaOutros), s.aporteOutros > 0 ? money(s.aporteOutros) : lac]);
+  // No termo do investidor, a reserva ainda não tem sociedade (as outras cotas
+  // estão a reservar) e a adesão entra numa que já tem sócios. Nos contratos, o
+  // rótulo de sempre.
+  const comoOutros = d.tipo !== 'termo_inv' ? 'por termo de adesão' : d.ti && d.ti.uso === 'adesao' ? 'do contrato e de outras adesões' : 'a reservar';
+  if (s.outros > 0) linhas.push([`<b>Demais sócios participantes</b><span>${s.outros} cota(s) de ${p(s.cota)}, ${comoOutros}</span>`, p(s.cotaOutros), s.aporteOutros > 0 ? money(s.aporteOutros) : lac]);
   linhas.push([`<b>${e(d.empresa.razao || d.empresa.nome || 'NEXUS Eletropostos')}</b><span>SÓCIA OSTENSIVA</span>`, p(s.cotaN), s.aporteN > 0 ? money(s.aporteN) : (s.aporteNDef ? 'gestão e administração' : lac)]);
-  if (s.falta > 1) linhas.push(['<b>Capital a captar</b><span>por termo de adesão, até fechar o investimento</span>', '—', money(s.falta)]);
+  if (s.falta > 1) linhas.push([`<b>Capital a captar</b><span>${d.tipo === 'termo_inv' && !(d.ti && d.ti.uso === 'adesao') ? 'a reservar' : 'por termo de adesão'}, até fechar o investimento</span>`, '—', money(s.falta)]);
   const totalAportes = s.falta > 1 ? s.invest : s.somaAportes;
   const totalTxt = totalAportes > 0 && (s.aporteNDef || s.aporteN > 0) ? money(totalAportes) : lac;
   return `<table class="ep-ctr-pag ep-ctr-cotas">
@@ -19823,20 +20841,20 @@ function ctrQuadroCotas(d) {
     </table>`;
 }
 
-function ctrHTML(d) {
+// Os blocos de um documento (cabeçalho, partes, cláusulas e, se pedido, o
+// fecho com as assinaturas). Separado do ctrHTML em 08/10/2026 para a minuta do
+// contrato entrar como ANEXO de um termo sem as assinaturas dela.
+function ctrBlocosDoc(d, opts) {
+  opts = opts || {};
   const e = orcEsc, money = ORC_MONEY;
   const vazio = v => v ? e(v) : '<span class="ep-rec-vazio"></span>';
-  // Rodapé e nome do arquivo seguem a PARTE do documento, não o nome do negócio
-  // no Simulador: num cliente com PF e dois CNPJs, o contrato da PJ carimbava a
-  // pessoa física no pé de todas as folhas.
-  const quem = d.contratante;   // apagou a parte? o rodapé fica sem nome. Apagar é apagar.
-  const T = CTR_TIPOS[d.tipo] || CTR_TIPOS.completo;
+  const N = d.nomes || ctrNomes(d.tipo);
   const cab = ctrCabecalho(d);
-  const pageFoot = (n, tot) => `<div class="ep-pagefoot"><span class="ep-foot-esq">${EP_FOOT_LOGO}<span>${cab.rodape}${quem ? ' · ' + e(quem) : ''}</span></span><span>Página ${n} de ${tot}</span></div>`;
   const dataTxt = d.data.toLocaleDateString('pt-BR');
   const endCli = [d.contratanteEnd, d.cep, d.cidade].filter(Boolean).join(', ');
   const endEmp = [d.empresa.end, d.empresa.cidade].filter(Boolean).join(', ');
-  const temOperacao = d.software;
+  // Interveniente anuente: quem também assina para autorizar a cessão e a obra.
+  const iv = d.interv && d.interv.nome ? d.interv : null;
   // Os dois quadros que vêm dos campos e nunca passam pela IA: a lista do escopo
   // (⚠ 19/08: "Não incluído" sempre aparece quando há item fora, omissão em
   // contrato de adesão se interpreta contra quem redigiu) e a tabela de pagamento.
@@ -19868,27 +20886,66 @@ function ctrHTML(d) {
   const blocos = [
     `<div class="ep-ctr-topo">
         <div class="ep-brand"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletropostos"></div>
-        <div class="ep-ctr-ident">${d.num ? 'Contrato nº <b>' + e(d.num) + '</b> · ' : ''}${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}</div>
+        <div class="ep-ctr-ident">${d.num ? (cab.numRot || 'Contrato') + ' nº <b>' + e(d.num) + '</b> · ' : ''}${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}</div>
       </div>
       <div class="ep-ctr-tit">${cab.titulo}</div>
       <div class="ep-ctr-sub">${cab.sub}</div>`,
-    `<p class="ep-ctr-p"><b>${T.nossa}:</b> ${epParteQualif(d.empresa, vazio)}${endEmp ? ', com sede em ' + e(endEmp) : ''}${d.empresa.tel ? ', telefone ' + e(d.empresa.tel) : ''}${d.empresa.email ? ', e-mail ' + e(d.empresa.email) : ''}.</p>`,
-    `<p class="ep-ctr-p"><b>${T.deles}:</b> ${vazio(d.contratante)}, inscrito(a) no CPF/CNPJ sob o nº ${vazio(d.contratanteDoc)}${endCli ? ', com endereço em ' + e(endCli) : ''}${d.tel ? ', telefone ' + e(d.tel) : ''}${d.email ? ', e-mail ' + e(d.email) : ''}${d.rep ? `, neste ato representado(a) por <b>${e(d.rep)}</b>${d.repDoc ? ', CPF nº ' + e(d.repDoc) : ''}` : ''}.</p>`,
+    `<p class="ep-ctr-p"><b>${N.nossa}:</b> ${epParteQualif(d.empresa, vazio)}${endEmp ? ', com sede em ' + e(endEmp) : ''}${d.empresa.tel ? ', telefone ' + e(d.empresa.tel) : ''}${d.empresa.email ? ', e-mail ' + e(d.empresa.email) : ''}.</p>`,
+    `<p class="ep-ctr-p"><b>${N.deles}:</b> ${vazio(d.contratante)}${d.qualif ? ', ' + e(d.qualif) : ''}, inscrito(a) no CPF/CNPJ sob o nº ${vazio(d.contratanteDoc)}${endCli ? ', com endereço em ' + e(endCli) : ''}${d.tel ? ', telefone ' + e(d.tel) : ''}${d.email ? ', e-mail ' + e(d.email) : ''}${d.rep ? `, neste ato representado(a) por <b>${e(d.rep)}</b>${d.repDoc ? ', CPF nº ' + e(d.repDoc) : ''}` : ''}.</p>`,
+    iv ? `<p class="ep-ctr-p"><b>INTERVENIENTE ANUENTE:</b> ${e(iv.nome)}, inscrito(a) no CPF/CNPJ sob o nº ${vazio(iv.doc)}${iv.end ? ', com endereço em ' + e(iv.end) : ''}, na qualidade de ${e(iv.qualidade)}, que assina este instrumento para anuir à cessão e às obras.</p>` : '',
     `<p class="ep-ctr-p">As partes acima têm entre si justo e contratado o presente instrumento, que se regerá pelas cláusulas seguintes.</p>`,
     ...blocosClausulas,
-    // O fecho é UM bloco: assinatura órfã em folha nova não se manda.
-    `<div class="ep-ctr-fim">
-      <p class="ep-ctr-p" style="margin-top:14px">E por estarem justas e contratadas, as partes assinam o presente em duas vias de igual teor${d.testemunhas ? ', na presença das testemunhas abaixo' : ''}${d.cidade ? `, em ${e(d.cidade)}` : ''}, ${e(dataTxt)}.</p>
+  ];
+  // O fecho é UM bloco: assinatura órfã em folha nova não se manda.
+  if (!opts.semFecho) blocos.push(`<div class="ep-ctr-fim">
+      <p class="ep-ctr-p" style="margin-top:14px">E por estarem justas e contratadas, as partes assinam o presente em ${iv ? 'três' : 'duas'} vias de igual teor${d.testemunhas ? ', na presença das testemunhas abaixo' : ''}${d.cidade ? `, em ${e(d.cidade)}` : ''}, ${e(dataTxt)}.</p>
       <div class="ep-ctr-assin">
-        <div class="a"><b>${vazio(d.empresa.razao || d.empresa.nome)}</b>${d.empresa.cnpj ? `<span>CNPJ ${e(d.empresa.cnpj)}</span>` : ''}${d.empresa.socio ? `<span>neste ato representada por ${e(d.empresa.socio)}${d.empresa.socioCpf ? ', CPF ' + e(d.empresa.socioCpf) : ''}</span>` : ''}${T.nossa}</div>
-        <div class="a"><b>${vazio(d.contratante)}</b>${d.contratanteDoc ? `<span>CPF/CNPJ ${e(d.contratanteDoc)}</span>` : ''}${d.rep ? e(d.rep) + '<br>' : ''}${T.deles}</div>
-      </div>
+        <div class="a"><b>${vazio(d.empresa.razao || d.empresa.nome)}</b>${d.empresa.cnpj ? `<span>CNPJ ${e(d.empresa.cnpj)}</span>` : ''}${d.empresa.socio ? `<span>neste ato representada por ${e(d.empresa.socio)}${d.empresa.socioCpf ? ', CPF ' + e(d.empresa.socioCpf) : ''}</span>` : ''}${N.nossa}</div>
+        <div class="a"><b>${vazio(d.contratante)}</b>${d.contratanteDoc ? `<span>CPF/CNPJ ${e(d.contratanteDoc)}</span>` : ''}${d.rep ? e(d.rep) + '<br>' : ''}${N.deles}</div>
+      </div>${iv ? `
+      <div class="ep-ctr-assin" style="justify-content:center">
+        <div class="a" style="flex:0 1 48%"><b>${e(iv.nome)}</b>${iv.doc ? `<span>CPF/CNPJ ${e(iv.doc)}</span>` : ''}INTERVENIENTE ANUENTE</div>
+      </div>` : ''}
       ${d.testemunhas ? `<div class="ep-ctr-test">
         <div class="a"><b>Testemunha 1</b><span>Nome:</span><span>CPF:</span></div>
         <div class="a"><b>Testemunha 2</b><span>Nome:</span><span>CPF:</span></div>
       </div>` : ''}
-    </div>`,
-  ];
+    </div>`);
+  return blocos;
+}
+
+// Os anexos que um documento leva, cada um em folha nova: a minuta do contrato
+// definitivo (o que faz a promessa e a reserva valerem: todos os termos
+// essenciais por escrito, CC art. 462) e o dossiê do local com as fotos.
+function ctrAnexos(d) {
+  const op = id => !!(d.opc && d.opc[id]);
+  const out = [];
+  if (d.tipo === 'termo_arr' && d.ta.nivel === 'promessa' && op('ta_minuta')) {
+    // A minuta é o contrato de arrendamento com os MESMOS campos, sem número e
+    // sem assinatura. O dossiê aqui é anexo do termo, não da minuta.
+    const dm = Object.assign({}, d, { tipo: 'arrend', nomes: ctrNomes('arrend'), num: '', opc: Object.assign({}, d.opc, { dossie_anexo: false }), premioReserva: d.ta.premio });
+    out.push(['<div class="ep-ctr-anexo">Anexo I · Minuta do contrato de cessão onerosa de área, rubricada pelas partes</div>', ...ctrBlocosDoc(dm, { semFecho: true })]);
+  }
+  if (d.tipo === 'termo_inv' && d.soc && d.ti.uso !== 'adesao' && op('ti_minuta')) {
+    const dm = Object.assign({}, d, { tipo: d.soc.t, nomes: ctrNomes(d.soc.t), local: d.ti.ponto, num: '', sinal: d.sinal + (d.depReserva || 0) });
+    out.push(['<div class="ep-ctr-anexo">Anexo I · Minuta do contrato de sociedade em conta de participação</div>', ...ctrBlocosDoc(dm, { semFecho: true })]);
+  }
+  if ((d.tipo === 'termo_arr' || d.tipo === 'arrend') && op('dossie_anexo')) {
+    out.push(ctrDosBlocos((out.length ? 'Anexo II' : 'Anexo I') + ' · Dossiê do local: documentos e relatório fotográfico', d));
+  }
+  return out;
+}
+
+function ctrHTML(d) {
+  const e = orcEsc;
+  // Rodapé e nome do arquivo seguem a PARTE do documento, não o nome do negócio
+  // no Simulador: num cliente com PF e dois CNPJs, o contrato da PJ carimbava a
+  // pessoa física no pé de todas as folhas.
+  const quem = d.contratante;   // apagou a parte? o rodapé fica sem nome. Apagar é apagar.
+  const cab = ctrCabecalho(d);
+  const pageFoot = (n, tot) => `<div class="ep-pagefoot"><span class="ep-foot-esq">${EP_FOOT_LOGO}<span>${cab.rodape}${quem ? ' · ' + e(quem) : ''}</span></span><span>Página ${n} de ${tot}</span></div>`;
+  const blocos = ctrBlocosDoc(d);
+  ctrAnexos(d).forEach(a => blocos.push(EP_QUEBRA, ...a));
   return `<div class="ep-doc">${epPaginar(blocos, pageFoot)}</div>`;
 }
 
@@ -19941,6 +20998,34 @@ const CTR_IA_CAMPOS_TIPO = {
     'rescisao.multa': 'Arrendamento > Multa por saída antecipada, em meses de remuneração, e Multa mínima', 'devolucao.retirada': 'Arrendamento > Retirada do equipamento em',
     'devolucao.base': 'Arrendamento > Base de concreto no fim', 'foro.comarca': 'Foro, assinatura e cláusulas extras > Foro (comarca)',
   },
+};
+CTR_IA_CAMPOS_TIPO.termo_arr = {
+  'objeto.promessa': 'Dados do contrato > Equipamento, Carregadores, Pontos de recarga e Local da instalação',
+  'condicoes.remuneracao': 'Arrendamento > Percentual do faturamento bruto, Piso mensal e Dia de pagar o cedente',
+  'condicoes.prazo': 'Arrendamento > Vigência, Ninguém sai antes de e Aviso para não renovar',
+  'condicoes.area': 'Arrendamento > Vagas cedidas, Área cedida, Horário do ponto e Energia do ponto',
+  'estudo.prazo': 'Termo do Arrendador > Prazo para a NEXUS estudar o ponto',
+  'estudo.protocolo': 'Termo do Arrendador > NEXUS pede o acesso à distribuidora em até',
+  'exercicio.aviso': 'Termo do Arrendador > Assinar o contrato depois da confirmação em até',
+  'exercicio.recusa': 'Termo do Arrendador > Multa se o dono recusar assinar',
+  'reserva.valor': 'Termo do Arrendador > Valor pago ao dono pela reserva e Quando a reserva é paga',
+  'cedente.docs': 'Termo do Arrendador > Dono entrega os documentos em até',
+  'cedente.legitimidade': 'Arrendamento > O cedente é',
+  'foro.comarca': 'Foro, assinatura e cláusulas extras > Foro (comarca)',
+};
+CTR_IA_CAMPOS_TIPO.termo_inv = {
+  'objeto.reserva': 'Sociedade > cotas e aporte, e Termo do Investidor > Local do ponto, Cidade ou região e Distância',
+  'objeto.adesao': 'Termo do Investidor > Nº e Data do contrato da sociedade, e Local do ponto',
+  'condicoes.quadro': 'Sociedade > Investimento total, cotas, aportes e Software NEXUS',
+  'cotas.subscricao': 'Sociedade > cotas e aportes',
+  'condicao.eventos': 'Termo do Investidor > A reserva vale por e Assinar o contrato depois que o capital fechar em até',
+  'deposito.valor': 'Termo do Investidor > Depósito de reserva, Forma do depósito e Quando o depósito é feito',
+  'deposito.devolucao': 'Termo do Investidor > Devolução do depósito em até',
+  'desistencia.livre': 'Termo do Investidor > Desistência livre em até',
+  'opc.ti_arras': 'Termo do Investidor > Retenção se desistir depois do prazo livre',
+  'opc.ti_origem': 'Termo do Investidor > Pessoa politicamente exposta',
+  'opc.ti_capacidade': 'Termo do Investidor > Renda ou patrimônio aproximado',
+  'foro.comarca': 'Foro, assinatura e cláusulas extras > Foro (comarca)',
 };
 const ctrIaCampo = (tipo, key) => (tipo === 'completo' ? CTR_IA_CAMPOS : (CTR_IA_CAMPOS_TIPO[tipo] || {}))[key] || null;
 
@@ -20116,7 +21201,31 @@ function ctrIaRender() {
     : '');
 }
 
-function ctrImprimir() {
+// Promessa de retorno no texto LIVRE do termo do investidor: cláusulas extras e
+// o que a IA escreveu. O texto fixo não entra (a própria declaração "não decidiu
+// por promessa de rentabilidade" diria que sim). Negação logo antes não conta.
+function ctrPromessaRetorno(d) {
+  const RE = /rentabilidade|renda (mensal|passiva|garantida|fixa)|retorno (garantido|certo|mensal|fixo|de \d|em \d)|lucro (garantido|certo|fixo|mensal)|payback|ganho (garantido|certo|fixo)|\d+([.,]\d+)?\s*% (ao|por) (m[eê]s|ano) de (retorno|lucro|rendimento)/gi;
+  const ap = ctrIaAplicar(ctrModelo(d), ctrIaPedidos(d.tipo)).modelo;
+  const livres = ap.flatMap(c => c.itens.filter(it => it.ia || /^extra\./.test(it.key)).map(it => it.html));
+  for (const h of livres) {
+    const t = String(h).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+    for (const m of t.matchAll(RE)) {
+      // Só a frase do achado conta: "Sem taxa. Retorno garantido" não é negado.
+      const ini = Math.max(t.lastIndexOf('.', m.index), t.lastIndexOf(';', m.index), t.lastIndexOf('!', m.index), t.lastIndexOf('?', m.index)) + 1;
+      const fimR = t.slice(m.index).search(/[.;!?]/);
+      const antes = t.slice(ini, m.index), depois = t.slice(m.index + m[0].length, fimR < 0 ? t.length : m.index + fimR);
+      // \b não serve: "ã" não é letra para o \b do JavaScript.
+      if (/(^|[\s(,;])(não|nao|sem|nenhum|nenhuma|nem)(?=[\s,;])/i.test(antes)) continue;
+      if (/não (é|são|está|estão|há) garantid|sem garantia|não há garantia/i.test(depois)) continue;
+      return t.slice(Math.max(0, m.index - 30), m.index + m[0].length + 30).trim();
+    }
+  }
+  return '';
+}
+async function ctrImprimir() {
+  // As fotos do dossiê vêm do aparelho antes de montar o papel.
+  if (ctrDos.id) await ctrDosCarregar();
   const d = ctrDados();
   if (d.tipo === 'completo' && !(d.total > 0)) {
     alert(ctrEspLigado('ctr-total')
@@ -20136,6 +21245,22 @@ function ctrImprimir() {
     if (faltam.length && !confirm(`Sem ${faltam.join(' e ')}: o contrato sai com a linha em branco no lugar, para preencher à mão.\n\nGerar assim mesmo?`)) return;
   }
   if (d.arr && !(d.arr.pct > 0) && !confirm('Sem o percentual do faturamento: a remuneração do cedente sai em branco, para preencher à mão.\n\nGerar assim mesmo?')) return;
+  // Termo do arrendador: o pedido do dono é "dossiê completo e aí sim assinar".
+  // Não trava (o termo pode sair antes, para o dono ler), mas diz o que falta.
+  if (d.tipo === 'termo_arr' && d.ta.nivel === 'promessa' && !(d.opc && d.opc.ta_minuta) &&
+      !confirm('A promessa vai sem a minuta do contrato de cessão anexada.\n\nSem ela, a promessa só obriga se os termos essenciais estiverem todos no termo (Código Civil, art. 462), e fica mais difícil provar o que foi prometido. Gerar assim mesmo?')) return;
+  if (d.tipo === 'termo_arr' && d.ta.nivel === 'promessa') {
+    const r = ctrDosResumo();
+    if (r.faltam.length && !confirm(`O dossiê do local está incompleto: faltam ${r.faltam.length} de ${r.obrig} itens obrigatórios (${r.faltam.slice(0, 4).join(', ')}${r.faltam.length > 4 ? '...' : ''}).\n\nO termo segura o local de verdade com o dossiê completo. Gerar assim mesmo?`)) return;
+  }
+  if (d.tipo === 'termo_inv') {
+    const frase = ctrPromessaRetorno(d);
+    if (frase && !confirm('O termo do investidor não pode prometer retorno (CVM). Confira este trecho, que está nas cláusulas extras ou numa mudança pedida à IA:\n\n"' + frase + '"\n\nSe ele promete rentabilidade, renda ou prazo de retorno, cancele e tire do texto. Gerar assim mesmo?')) return;
+  }
+  if (d.tipo === 'termo_inv' && d.ti.origem === 'anuncio' &&
+      !confirm('Este investidor chegou por anúncio, formulário ou quiz.\n\nCom ele, o termo pode ser lido pela CVM como prova de oferta pública de valor mobiliário (Lei nº 6.385/1976, art. 19). O papel não vai declarar negociação individual.\n\nGere só com orientação do advogado. Gerar assim mesmo?')) return;
+  if (d.tipo === 'termo_inv' && d.ti.uso === 'adesao' && !d.ti.contratoNum &&
+      !confirm('Sem o número do contrato da sociedade: a adesão sai com a linha em branco no lugar.\n\nGerar assim mesmo?')) return;
   // Formas que não fecham o saldo = papel cobrando a mais ou deixando parte do
   // preço sem forma. Não trava (pode ser de propósito), mas não passa calado.
   // Pedido à IA que tirou um trecho citado em outro lugar deixa a citação sem
@@ -20153,14 +21278,19 @@ function ctrImprimir() {
   const limpa = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
   // Contrato PAGINA — sem opts, nada de encolher pra caber numa folha.
   // Arquivo e título dizem o modelo; o do Completo continua "Contrato_...".
-  const prefixo = { completo: 'Contrato', socio50: 'Contrato-Sociedade', cotas: 'Contrato-Cotas', arrend: 'Contrato-Arrendamento' }[d.tipo] || 'Contrato';
-  const tituloPrev = { completo: 'Contrato', socio50: 'Contrato de sociedade', cotas: 'Contrato de cotas', arrend: 'Contrato de arrendamento' }[d.tipo] || 'Contrato';
+  const prefixo = { completo: 'Contrato', socio50: 'Contrato-Sociedade', cotas: 'Contrato-Cotas', arrend: 'Contrato-Arrendamento',
+    termo_arr: d.ta && d.ta.nivel === 'intencao' ? 'Carta-Intencao' : 'Termo-Arrendador',
+    termo_inv: d.ti && d.ti.uso === 'adesao' ? 'Termo-Adesao' : 'Termo-Investidor' }[d.tipo] || 'Contrato';
+  const tituloPrev = { completo: 'Contrato', socio50: 'Contrato de sociedade', cotas: 'Contrato de cotas', arrend: 'Contrato de arrendamento',
+    termo_arr: 'Termo do arrendador', termo_inv: 'Termo do investidor' }[d.tipo] || 'Contrato';
+  const ehTermo = !!CTR_TIPOS[d.tipo].termo;
+  const valorHist = d.tipo === 'termo_arr' ? d.ta.premio : d.tipo === 'termo_inv' ? (d.ti.uso === 'adesao' ? d.total : d.ti.deposito) : d.total;
   epPreview({
     html: ctrHTML(d),
     arquivo: [prefixo, limpa(d.contratante) || 'Cliente', d.num ? 'N' + limpa(d.num) : ''].filter(Boolean).join('_'),
     titulo: tituloPrev + (d.cliente ? ' — ' + d.cliente : ''),
     opts: null,
-    hist: d.cliente ? { id: epId(), tipo: 'Contrato', num: d.num, cliente: d.cliente, valor: d.total, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
+    hist: d.cliente ? { id: epId(), tipo: ehTermo ? 'Termo' : 'Contrato', num: d.num, cliente: d.cliente, valor: valorHist, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
   });
 }
 
@@ -21105,6 +22235,8 @@ function epHistOrcAbrir(id) {
   if (!e || !e.snap) return;
   eletroSubaba('orcamento');
   orcSnapApply(e.snap, e.tipo);
+  // Termo (08/10/2026) reabre na aba dele, com o dossiê do aparelho de volta.
+  if (e.tipo === 'Termo') eletroSubaba('contrato');
 }
 // Snapshot do formulário do Orçamento completo (pra reabrir)
 function orcSnapTake() {
@@ -21167,6 +22299,9 @@ function orcSnapTake() {
     // (07/10/2026). Os espelhados deles já vão no ctrEspelhos acima.
     ctrTipo: v('ctr-tipo'),
     ctrModelos: Object.fromEntries(CTR_CAMPOS_MODELOS.map(id => [id, v(id)])),
+    // Dossiê do local: o checklist vai inteiro; os arquivos ficam no aparelho,
+    // ligados pelo id (a 2ª via no mesmo aparelho traz as fotos de volta).
+    ctrDos: JSON.parse(JSON.stringify(ctrDos)),
   };
 }
 function orcSnapApply(s, tipo) {
@@ -21331,6 +22466,9 @@ function orcSnapApply(s, tipo) {
   }
   ctrIaGeracao++;
   ctrIa = s.ctrIa && Array.isArray(s.ctrIa.pedidos) ? JSON.parse(JSON.stringify(s.ctrIa)) : { pedidos: [] };
+  ctrDos = s.ctrDos && typeof s.ctrDos === 'object' ? Object.assign(ctrDosNovo(), JSON.parse(JSON.stringify(s.ctrDos))) : ctrDosNovo();
+  ctrDosCache = {};
+  ctrDosCarregar().then(() => { ctrDosRender(); ctrOpcRender(); });
   ctrTipoUi();
   ctrEscRender(); ctrPagRender(); ctrOpcRender(); ctrPctNota(); ctrIaRender();
   orcKitEquipSync(); orcValorBanner();

@@ -155,3 +155,19 @@ describe('os quatro contratos (07/10/2026)', () => {
     expect(PedidoContratoIa.parse({ pedido: 'teste', clausulas: entrada.clausulas }).contrato).toBeUndefined();
   });
 });
+
+describe('termos de compromisso (08/10/2026)', () => {
+  it('o prompt descreve cada termo e proíbe promessa de retorno ao investidor', () => {
+    const arr = sistemaPara('termo_arr'), inv = sistemaPara('termo_inv');
+    expect(arr).toMatch(/termo de compromisso do dono do local/);
+    expect(arr).toMatch(/COMPROMITENTE CEDENTE/);
+    expect(inv).toMatch(/reserva de cota/);
+    expect(inv).toMatch(/Nunca escreva promessa de rentabilidade/);
+    for (const p of [arr, inv]) expect(p).not.toMatch(/CONTRATADA e CONTRATANTE/);
+  });
+  it('o schema aceita os dois termos', () => {
+    for (const tipo of ['termo_arr', 'termo_inv']) {
+      expect(PedidoContratoIa.safeParse({ pedido: 'teste', clausulas: entrada.clausulas, contrato: { tipo } }).success).toBe(true);
+    }
+  });
+});
