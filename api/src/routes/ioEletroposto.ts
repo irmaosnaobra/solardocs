@@ -13,6 +13,7 @@ import { blocoParesSeguro, pool, montarPares, MAX_PARES, TETO_KM } from '../serv
 import { extraDoCard, garantirEstudo } from '../services/io/eletropostoEstudoGarantir';
 import { estaBloqueado } from '../services/agents/whatsapp/silenciar';
 import { FILTRO_NAO_OCUPA } from '../services/agenda/salaDeEspera';
+import { ocupacoesSolar } from '../services/agenda/solarOcupacao';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alerta de lead novo da LP do Eletroposto (/io/eletroposto) no WhatsApp da equipe.
@@ -431,7 +432,7 @@ router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
   const ate = String(req.query.ate || '').slice(0, 30);
   if (!de || !ate) { res.status(400).json({ error: 'de/ate obrigatorios' }); return; }
   try {
-    const [ocupadosQ, totalQ] = await Promise.all([
+    const [ocupadosQ, totalQ, solar] = await Promise.all([
       supabaseGerador.from('agendamentos')
         .select('quando, vendedor_nome, created_by, status')
         .gte('quando', de).lte('quando', ate)
@@ -443,9 +444,21 @@ router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
       supabaseGerador.from('agendamentos')
         .select('id', { count: 'exact', head: true })
         .eq('created_by', 'lp_eletroposto'),
+      // A VISITA DO QUIZ SOLAR OCUPA DA SAÍDA À VOLTA (07/10/2026). Uma vistoria
+      // em Catalão tira o Thiago da agenda das 08:02 às 10:58; com os 60 min fixos
+      // de antes esta vitrine venderia uma apresentação com ele na estrada. A
+      // leitura é a mesma do formulário do Meta e da régua dos robôs
+      // (solarOcupacao.ts), e vem com o bloco pronto em `ini`/`fim`.
+      ocupacoesSolar(de, ate, DONOS_EP),
     ]);
 
-    const ocupados = ((ocupadosQ.data || []) as Array<Record<string, unknown>>)
+    // Com a leitura do solar de pé, as fichas `lp_solar` saem desta lista e
+    // entram pela de cima, com o bloco certo. Se ela falhou, ficam aqui com a
+    // marca `solar` e a vitrine aplica os 60 min de antes: errar para menos
+    // tempo de estrada é melhor que travar a agenda inteira.
+    const solarLido = Array.isArray(solar);
+    const ocupados: Array<Record<string, unknown>> = ((ocupadosQ.data || []) as Array<Record<string, unknown>>)
+      .filter(a => !(solarLido && a.created_by === 'lp_solar'))
       .filter(a => a.quando)
       // ── O VERMELHO DEVOLVE O HORÁRIO (19/08/2026) ──────────────────────────
       // Ficha de eletroposto marcada como NÃO ATENDIDO deixa de reservar o
@@ -476,6 +489,9 @@ router.get('/agenda', async (req: Request, res: Response): Promise<void> => {
         // encolheria pra 15 min — a vitrine venderia 14:00 por cima dela.
         ep: ehOrigemEletroposto(a.created_by),
       }));
+    // `ts` continua sendo o horário marcado (página antiga em cache lê só ele);
+    // a página nova usa `ini` e `fim`, que já contam a estrada.
+    for (const s of solar || []) ocupados.push({ ts: s.quando, dono: s.dono, solar: true, ep: false, ini: s.ini, fim: s.fim });
 
     res.set('Cache-Control', 'no-store');
     res.json({ ocupados, proximoDono: DONOS_EP[(totalQ.count || 0) % DONOS_EP.length] });

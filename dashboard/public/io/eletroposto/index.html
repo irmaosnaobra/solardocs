@@ -2728,7 +2728,11 @@ async function carregarOcupados(deYmd, ateYmd){
       // 14:00 da vitrine, que e exatamente o horario que a regra existe pra
       // proteger. O `solar` sobreviveu por sorte, porque o efeito dele fica
       // inteiro dentro de `dur`.
-      .map(a => ({ ts: a.ts, dono: String(a.dono), ep: !!a.ep, dur: duracaoDe(a) }));
+      // `ini`/`fim` (07/10/2026): a visita do quiz solar chega com o bloco pronto,
+      // da saída à volta do sócio. Sem eles vale a regra de antes.
+      .map(a => (a.ini && a.fim > a.ini)
+        ? { ts: a.ini, dono: String(a.dono), ep: false, dur: a.fim - a.ini }
+        : { ts: a.ts, dono: String(a.dono), ep: !!a.ep, dur: duracaoDe(a) });
     if (j && j.proximoDono) rodizioSugerido = j.proximoDono;
   }catch(e){ compromissos = []; }   // falhou: não trava a agenda, valida no envio
 }

@@ -38,6 +38,7 @@ import { ehOrigemEletroposto } from '../agenda/origemEtiqueta';
 import { agendaFechadaEm } from '../agenda/agendaFechada';
 import { ehFeriadoBR } from '../../utils/feriadosBR';
 import { FILTRO_NAO_OCUPA } from '../agenda/salaDeEspera';
+import { ocupacoesSolar } from '../agenda/solarOcupacao';
 
 const BRT_TZ = 'America/Sao_Paulo';
 
@@ -243,7 +244,12 @@ export function agendaAbre(ymd: string): boolean {
 
 /** `ep` diz se a reunião é de ELETROPOSTO (faixa de remarcação), `vistoria` diz
  *  se é a visita de solar, que leva 1 hora. Ver `folgaDoCompromisso`. */
-export type Compromisso = { ts: number; dono: string; ep?: boolean; vistoria?: boolean };
+export type Compromisso = {
+  ts: number; dono: string; ep?: boolean; vistoria?: boolean;
+  /** O bloco pronto (07/10/2026): a visita do quiz solar ocupa da saída à volta
+   *  do sócio, então ela traz o próprio começo e fim. Quando vem, manda. */
+  ini?: number; fim?: number;
+};
 
 /**
  * O horário está livre PARA ESTE CONSULTOR? Sobreposição, não igualdade: o que
@@ -254,6 +260,8 @@ export function livrePara(iso: string, dono: string, compromissos: Compromisso[]
   const t = new Date(iso).getTime();
   return !compromissos.some(c => {
     if (c.dono !== dono) return false;
+    // Bloco pronto (visita do quiz solar, com a estrada): sobreposição pura.
+    if (typeof c.ini === 'number' && typeof c.fim === 'number') return c.ini < t + DURACAO_MS && t < c.fim;
     // Reunião NOSSA na grade: a régua é DISTÂNCIA, e é ela que deixa a faixa de
     // remarcação conviver com a de venda (14:00 e 14:15 no mesmo consultor).
     if (c.ep && naGrade(c.ts)) return Math.abs(c.ts - t) < folgaDoCompromisso(c);
@@ -278,19 +286,29 @@ export function livrePara(iso: string, dono: string, compromissos: Compromisso[]
  */
 export async function carregarCompromissos(deIso: string, ateIso: string): Promise<Compromisso[] | null> {
   try {
-    const { data, error } = await supabaseGerador
-      .from('agendamentos').select('quando, vendedor_nome, status, created_by')
-      .gte('quando', deIso).lte('quando', ateIso)
-      .not('status', 'in', FILTRO_NAO_OCUPA)
-      .limit(2000);
+    const [{ data, error }, solar] = await Promise.all([
+      supabaseGerador
+        .from('agendamentos').select('quando, vendedor_nome, status, created_by')
+        .gte('quando', deIso).lte('quando', ateIso)
+        .not('status', 'in', FILTRO_NAO_OCUPA)
+        .limit(2000),
+      // As fichas da LP do solar com o bloco pronto, inclusive as marcadas fora
+      // da janela que ocupam tempo dentro dela (manhã de rota). Mesma leitura da
+      // vitrine do eletroposto e do formulário do Meta.
+      ocupacoesSolar(deIso, ateIso),
+    ]);
     if (error) throw error;
+    // Sem a leitura do solar o robô PARA, como em qualquer outra falha de
+    // leitura: oferecer um horário com o sócio na estrada é pior que esperar.
+    if (solar === null) throw new Error('leitura das fichas do solar falhou');
     // Resposta SEM erro e SEM corpo não é uma agenda vazia — é uma resposta que
     // não dá pra ler. Tratar como `[]` diria "está tudo livre" e o robô ofereceria
     // horário ocupado; a agenda do eletroposto nunca está literalmente vazia nos
     // próximos 21 dias, então null aqui é sempre falha, nunca fato.
     if (!data) throw new Error('resposta sem corpo');
-    return data
+    const lista: Compromisso[] = data
       .filter(a => a.quando && a.vendedor_nome)
+      .filter(a => String(a.created_by || '') !== 'lp_solar')   // entram pela leitura do solar
       // Vermelho de eletroposto não ocupa (19/08/2026): quem foi dado como NÃO
       // ATENDIDO devolveu o horário, na vitrine da LP e aqui. Se as duas listas
       // discordassem, a página venderia um slot que o robô continuaria achando
@@ -301,9 +319,9 @@ export async function carregarCompromissos(deIso: string, ateIso: string): Promi
         ts: new Date(String(a.quando)).getTime(),
         dono: String(a.vendedor_nome),
         ep: ehOrigemEletroposto(a.created_by),
-        // Mesma regra da vitrine: a LP do solar marca VISTORIA, e ela ocupa 1h.
-        vistoria: String(a.created_by || '') === 'lp_solar',
       }));
+    for (const s of solar) lista.push({ ts: s.quando, dono: s.dono, ep: false, vistoria: true, ini: s.ini, fim: s.fim });
+    return lista;
   } catch (err) {
     logger.error('ep-vagas', 'ler compromissos falhou', err);
     return null;

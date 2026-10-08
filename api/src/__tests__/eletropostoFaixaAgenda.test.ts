@@ -194,7 +194,10 @@ describe('a vitrine e o servidor dizem a mesma coisa', () => {
   const VIST = 60 * 60 * 1000;
   const nosQuinze = (ts: number) => [15, 45].includes(new Date(ts).getUTCMinutes());
   /** Cópia fiel de `duracaoDe` + `donosLivres` da LP do eletroposto. */
-  const vitrineDiz = (slot: number, c: { ts: number; ep?: boolean; vistoria?: boolean }): boolean => {
+  const vitrineDiz = (slot: number, c: { ts: number; ep?: boolean; vistoria?: boolean; ini?: number; fim?: number }): boolean => {
+    // Cópia do map do `carregarOcupados` (07/10/2026): bloco pronto da visita do
+    // quiz solar vira ts = ini e dur = fim - ini, sem bandeira `ep`.
+    if (c.ini && c.fim && c.fim > c.ini) return !(c.ini < slot + DUR && slot < c.fim);
     const dur = c.vistoria ? VIST : (c.ep && nosQuinze(c.ts) ? REMARC : DUR);
     if (c.ep && nosQuinze(c.ts)) return !(Math.abs(c.ts - slot) < REMARC);
     return !(c.ts < slot + DUR && slot < c.ts + dur);
@@ -210,6 +213,12 @@ describe('a vitrine e o servidor dizem a mesma coisa', () => {
     ['lead novo 13:00 x vistoria 13:30 (1h)',    '13:00', { ts: t('13:30'), ep: false, vistoria: true }],
     ['lead novo 14:00 x vistoria 13:30 (1h)',    '14:00', { ts: t('13:30'), ep: false, vistoria: true }],
     ['lead novo 14:30 x vistoria 13:30 (1h)',    '14:30', { ts: t('13:30'), ep: false, vistoria: true }],
+    // Visita do quiz solar com estrada: marcada 10:00 em Patrocínio, o sócio sai
+    // 07:49 e volta 13:11. Fecha o 13:00 dos dois lados; o 13:30 continua à venda.
+    ['lead novo 13:00 x rota que volta 13:11',   '13:00', { ts: t('10:00'), ep: false, vistoria: true, ini: t('07:49'), fim: t('13:11') }],
+    ['lead novo 13:30 x rota que volta 13:11',   '13:30', { ts: t('10:00'), ep: false, vistoria: true, ini: t('07:49'), fim: t('13:11') }],
+    ['lead novo 10:00 x rota de Catalão 08:02-10:58', '10:00', { ts: t('09:00'), ep: false, vistoria: true, ini: t('08:02'), fim: t('10:58') }],
+    ['lead novo 11:00 x rota de Catalão 08:02-10:58', '11:00', { ts: t('09:00'), ep: false, vistoria: true, ini: t('08:02'), fim: t('10:58') }],
   ];
 
   for (const [nome, slot, comp] of CASOS) {
@@ -229,5 +238,17 @@ describe('a vitrine e o servidor dizem a mesma coisa', () => {
     // Prende a razão de `vistoria` existir no tipo: é ela que separa 1h de 30min.
     const comoAntes = { ts: t('13:30'), dono: DONO, ep: false } as Compromisso;
     expect(livrePara(iso('14:00'), DONO, [comoAntes])).toBe(true);
+  });
+});
+
+// A cópia da vitrine aqui em cima só vale se a página fizer a mesma coisa. Lê o
+// HTML e confere que o map do `carregarOcupados` usa o bloco pronto da visita.
+describe('a vitrine do eletroposto lê o bloco da visita do solar', () => {
+  const { readFileSync } = require('node:fs') as typeof import('node:fs');
+  const { join } = require('node:path') as typeof import('node:path');
+  const html = readFileSync(join(__dirname, '../../../dashboard/public/io/eletroposto/index.html'), 'utf8');
+  it('o map troca ts e dur por ini e fim quando eles vêm', () => {
+    expect(html).toMatch(/\(a\.ini && a\.fim > a\.ini\)/);
+    expect(html).toMatch(/\{ ts: a\.ini, dono: String\(a\.dono\), ep: false, dur: a\.fim - a\.ini \}/);
   });
 });

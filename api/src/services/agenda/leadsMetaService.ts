@@ -8,6 +8,7 @@ import {
 } from './leadSolarFicha';
 import { proximoDaContaBaixa } from './filaContaBaixa';
 import { carregarBloqueados } from '../agents/whatsapp/silenciar';
+import { ocupacaoDaFichaSolar, MARGEM_LEITURA_MS } from './solarRota';
 
 // Telefone de cada consultor do rodízio (mesmo mapa que a Luma usa pra chamar consultor).
 const TEL_CONSULTOR: Record<string, string> = {
@@ -293,17 +294,23 @@ function duracaoDe(createdBy: string | null, consultor?: string): number {
 // A janela começa 1h antes de "agora": uma vistoria que já começou ainda ocupa a
 // próxima meia hora, e sem esta folga ela sumiria da consulta.
 async function carregarOcupacao(consultor: string, agoraIso: string) {
-  const desde = new Date(new Date(agoraIso).getTime() - DUR_VISTORIA_MS).toISOString();
+  // 07/10/2026: a visita do quiz solar começa antes do horário marcado (o sócio
+  // sai da base) e pode passar de 3 horas. A margem cobre a manhã de rota inteira.
+  const desde = new Date(new Date(agoraIso).getTime() - Math.max(DUR_VISTORIA_MS, MARGEM_LEITURA_MS)).toISOString();
   const [{ data: ags }, { data: blqs }] = await Promise.all([
     supabaseGerador.from('agendamentos')
-      .select('quando,created_by').eq('vendedor_nome', consultor).neq('status', 'cancelado').gte('quando', desde),
+      .select('quando,created_by,cidade,observacao').eq('vendedor_nome', consultor).neq('status', 'cancelado').gte('quando', desde),
     supabaseGerador.from('agenda_bloqueios')
       .select('inicio,fim').eq('vendedor_nome', consultor).gte('fim', agoraIso),
   ]);
-  const ocupados = (ags || []).map((a: any) => ({
-    ini: new Date(a.quando).getTime(),
-    dur: duracaoDe(a.created_by, consultor),
-  }));
+  const ocupados = (ags || []).map((a: any) => {
+    // Ficha da LP do solar: o bloco sai da régua única (solarRota.ts), a mesma
+    // que a vitrine do eletroposto e os robôs usam. O resto segue como era.
+    const bloco = ocupacaoDaFichaSolar({ ...a, vendedor_nome: consultor });
+    return bloco
+      ? { ini: bloco.ini, dur: bloco.fim - bloco.ini }
+      : { ini: new Date(a.quando).getTime(), dur: duracaoDe(a.created_by, consultor) };
+  });
   const bloqueios = (blqs || []).map((b: any) => ({ ini: new Date(b.inicio).getTime(), fim: new Date(b.fim).getTime() }));
   return { ocupados, bloqueios };
 }
