@@ -154,7 +154,10 @@ export interface MetaRobo {
    * teto próprio do lembrete). Ele só pode ser ordenado e espaçado DENTRO da
    * janela útil (Pedido.validoAte), e quando falta vaga o frio cede. O que
    * ainda o para: a linha caída (freio), a chave repetida, a pausa humana do
-   * HEAD, a janela do transacional para destino de fora e a rajada por robô.
+   * HEAD, a janela do transacional para destino de fora e a cadência própria. A
+   * rajada por robô NÃO o para (rodada 4). A linha caída segura, mas não
+   * descarta: o toque que ela segurou sai atrasado na volta
+   * (agendaRepresadaPelaLinha, no decidir).
    */
   agenda: boolean;
   /**
@@ -228,7 +231,10 @@ export const CLASSE_POR_ROBO: Readonly<Record<string, MetaRobo>> = Object.freeze
   // conta o carimbo como agenda (lineThrottle.ts:208): divergência conhecida,
   // ver divergenciasDeCarimbo(). Atrasada (o destino não escreveu nos últimos
   // 15 min) mas com conversa nas últimas 24h, vira transacional de agenda, não
-  // frio; sem conversa em 24h, frio (decidir.ts, classeEfetiva).
+  // frio; sem conversa em 24h, frio (decidir.ts, classeEfetiva). DÍVIDA: os dois
+  // arquivos dela hospedam também a oferta fria (ep_oferta_fria), e a guarda não
+  // separa robôs do mesmo arquivo; um lote de oferta fria pedindo com este nome
+  // sai como agenda (chefeQuedas). Fecha com o passaporte por chamada.
   ep_remarcar_reativo: robo('reativo_p1', ['services/io/eletropostoRemarcar.ts', 'services/io/eletropostoRespostas.ts'], {
     carimbos: [agenda('ep_remarcar_sent:')], agenda: true,
   }),

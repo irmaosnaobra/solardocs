@@ -48,17 +48,41 @@ Se bloqueia, diz como remodelar, numa linha, e o passo a passo logo abaixo.
   sujo ou atrasado.
 - A mudança: o diff recebido, ou `git diff <base>...HEAD -- api`.
 - De dentro de `api/`: `npx vitest run src/__tests__/chefeGuarda.test.ts`.
-  Guarda vermelha = BLOQUEIA. Ela trabalha por LISTA DO PERMITIDO: toda chamada
-  à Z-API fora do `zapiClient.ts` cujo endpoint não está na lista de consultas
-  (status, me, chats, contacts, qr-code, phone-exists, webhooks...) é envio,
-  inclusive `forward-message` e endpoint novo; toda escrita no Graph (método
-  literal, de spread ou atribuído depois) fora de `igClient.ts`,
-  `fbComentarios.ts` e `fbMensagens.ts` é envio, menos o `/events` da API de
-  Conversões; referência crua a `zapiPost` e às funções de envio cru do MIGRAR;
-  script de envio; e o robô pedido de um arquivo que não é o dele. Os ofensores
-  antigos estão numa lista de migração que só encolhe. A guarda é REDE, não
-  prova: a defesa completa é a catraca física no `zapiPost` (próxima fase, com
-  o livro no banco).
+  Guarda vermelha = BLOQUEIA. Guarda verde NÃO prova que nada sai por fora: ela
+  lê o código parado e pega os formatos escritos nela. Hoje ela pega, fora do
+  `zapiClient.ts`:
+  - **Z-API:** URL com o host `api.z-api.io`, o molde `/instances/${id}/token/`
+    ou o cabeçalho `Client-Token`, com o 1º segmento depois do token fora da
+    lista de consultas (status, me, chats, contacts, qr-code, phone-exists,
+    webhooks...). Num arquivo que fala com a Z-API, pega também: `send-` no
+    começo, depois de barra ou colado numa substituição; `forward-message` em
+    qualquer posição; o caminho fora da lista depois de uma base que o arquivo
+    não resolve, com ou sem barra, quando é alvo de requisição sem GET provado;
+    o caminho passado a um helper do próprio arquivo; e o `path:` de uma lista
+    de tentativas.
+  - **Graph:** escrita sem GET provado (método literal, de spread ou atribuído
+    depois) fora de `igClient.ts`, `fbComentarios.ts` e `fbMensagens.ts`, menos
+    o `/events` da API de Conversões. O caminho é lido quando o host está no
+    mesmo texto, quando o texto começa com `/vNN` e é alvo de requisição, quando
+    vem depois de uma base não resolvida, ou quando começa com `/` e é alvo de
+    requisição num arquivo com o host do Graph (nesses dois últimos, só o edge
+    de mensagem ou o segmento variável com escrita provada).
+  - Referência crua a `zapiPost` e às funções de envio cru do MIGRAR: chamada,
+    alias, `.call`, `map`, `io.f`, `io['f']`, desestruturação do namespace e
+    `import x = require(...)`.
+  - Script de envio, e o robô pedido de um arquivo que não é o dele: literal,
+    `as const`, `satisfies`, const, atalho `{ robo }`, ternário, let/var, padrão
+    de parâmetro, objeto de constantes, `??` e atribuição depois.
+
+  O que ela NÃO pega está nos LIMITES CONHECIDOS do cabeçalho dela, cada um com
+  um teste que crava zero achado. Entre eles: endpoint novo que não é `send-*`
+  nem `forward-message` montado por join num arquivo de consulta; URL da Z-API
+  ou host do Graph vindos só de env; escrita no Graph sem host e sem versão num
+  edge que não é de mensagem; robô vindo de parâmetro sem padrão, de import ou
+  de texto com variável; membro calculado e barrel no envio cru; robôs do mesmo
+  arquivo. Os ofensores antigos estão numa lista de migração que só encolhe. A
+  defesa completa é a catraca física no `zapiPost`, com o livro no banco
+  (próxima fase).
 - O relógio desta máquina está em UTC. Toda janela deste repo é em Brasília
   (UTC menos 3, sem horário de verão).
 
@@ -80,21 +104,37 @@ especificação.
      solar não são agenda (recibo do cadastro).
    - **O que se pode fazer com ela:** ordenar e espaçar DENTRO da janela útil
      (`validoAte` do pedido; sem ele, o prazo mais 5 min). Nunca expirar,
-     descartar nem adiar além do momento útil: no último momento útil ela sai.
-     Ela conta em todo teto (o frio vê a linha ocupada e cede), mas nenhum freio
-     de VOLUME a segura: teto total da hora, teto da linha, vaga guardada, volume
-     sustentado, rampa e o teto próprio do lembrete. Na emergência (60/h) as
-     últimas vagas são do evento e da agenda; quem cede é o frio e o resto.
-   - **O que ainda a para:** a linha fisicamente caída (freio de erro; quando
-     volta, a régua é de reenvio, não de descarte), a chave repetida (o toque
-     já saiu), a pausa humana robô a robô como no HEAD, a janela do
-     transacional (7h–21h) para destino de fora e a rajada por robô (6 em 10
-     min, a defesa contra robô frio pedindo como agenda).
+     descartar nem adiar além do momento útil: no último momento útil ela sai,
+     só com o espaçamento curto entre mensagens (10 s). Ela conta em todo teto
+     (o frio vê a linha ocupada e cede), mas nenhum freio de VOLUME a segura:
+     teto total da hora, teto da linha, vaga guardada, volume sustentado, rampa
+     e o teto próprio do lembrete. A rajada por robô (6 em 10 min) também NÃO a
+     segura: dura, ela cortava lembrete legítimo no último momento útil depois
+     de uma queda curta. Na emergência (60/h) as últimas vagas são do evento e
+     da agenda; quem cede é o frio e o resto.
+   - **O que ainda a para:** a linha fisicamente caída (freio de erro), a chave
+     repetida (o toque já saiu), a pausa humana robô a robô como no HEAD, a
+     janela do transacional (7h–21h) para destino de fora e a cadência própria
+     do NÃO ATENDEU (1 a cada 15 min).
+   - **Linha caída: reenvio, nunca descarte.** A agenda cujo fim útil caiu
+     dentro da queda (o livro do CHEFE prova: entre o 1º erro de linha e o 1º
+     envio ok da volta) continua viva e é REENVIADA na volta, como lembrete
+     atrasado (o robô troca o texto), só com o espaçamento curto e na frente de
+     qualquer frio. Pedido de agenda que chega depois do fim útil sem essa prova
+     é só espaçado. Robô de agenda não desiste do toque que a linha segurou.
    - **A remarcação do NÃO ATENDEU** sai sempre, só espaçada: no máximo 1 a cada
      15 min por robô (cadência própria), nunca em rajada, nunca cortada.
    - **Vale para qualquer mudança:** limpeza, teto novo, kill-switch, janela.
      Mudança que faz uma mensagem de agenda expirar, ser descartada ou adiada
-     além da janela útil: BLOQUEIA. Robô de agenda declara o `validoAte`.
+     além da janela útil: BLOQUEIA. Robô de agenda com janela própria declara o
+     `validoAte` (a remarcação do NÃO ATENDEU não tem, por desenho: é só
+     espaçada pela cadência).
+   - **O preço, escrito:** sem a rajada por robô na agenda, o robô frio pedindo
+     com o nome de um robô de agenda só é segurado pela guarda arquivo → robôs e
+     pelo que só espaça. Dentro dos 7 arquivos que hospedam robô de agenda, a
+     guarda não separa a classe (em `eletropostoRemarcar.ts` e
+     `eletropostoRespostas.ts` a oferta fria mora junto da remarcação pedida):
+     confira à mão até o passaporte por chamada.
 
 1. **Unidade.** Mensagem física: texto, imagem, documento, áudio, vídeo,
    figurinha, grupo incluso. Digitando e apagar não contam. Hoje o teto conta
@@ -114,9 +154,9 @@ especificação.
    0 a 35 s. [código lineThrottle.ts:325-330; o resto é proposta]
 5. **Anti-rajada.** No máximo 6 proativas em qualquer janela de 10 min e, à
    parte, no máximo 6 lembretes com prazo em 10 min. Para a agenda as duas só
-   espaçam dentro da janela útil (regra 0); o mesmo robô nunca passa de 6 em 10
-   min (rajada por robô, dura). [proposta e revisão; 02/10 foi cerca de 21 em
-   10 min, 01/08 cerca de 10]
+   espaçam dentro da janela útil (regra 0). Fora da agenda, o mesmo robô nunca
+   passa de 6 em 10 min (rajada por robô, dura); a agenda não entra nela.
+   [proposta e revisão; 02/10 foi cerca de 21 em 10 min, 01/08 cerca de 10]
 6. **Volume sustentado sem conversa** (destino que não escreveu em 24h): 40 em
    3h e 60 em 6h, de P3 a P5 que não são agenda. Segura os picos de 3h e de 6h,
    não a hora, e NÃO pega classe errada: nenhum volume separa frio mal
@@ -124,11 +164,14 @@ especificação.
    os 98 até 18h17). Contra classe errada vale a guarda arquivo → robôs
    permitidos (`chefeGuarda`, regra robo), que JÁ EXISTE: reprova o pedido com o
    nome de um robô de outro arquivo, escrito literal, `as const`, `satisfies`,
-   numa const ou no atalho `{ robo }`. Mais a rajada por robô. Dívida: dentro de
-   um arquivo que pode pedir classe mais urgente que a do próprio robô (8 de
-   classe máxima evento, entre eles authController, paymentsController e
-   trafegoController; 5 de agenda) ela não separa a classe; ali, até o
-   passaporte por chamada, confira à mão que o lote pede com o nome do próprio
+   numa const, no atalho `{ robo }`, por ternário, let/var, padrão de
+   parâmetro, objeto de constantes, `??` ou atribuição depois. A rajada por robô
+   não vale para a agenda (regra 0). Dívida: ela não separa robôs do mesmo
+   arquivo, então nos 8 arquivos com robô de evento (entre eles authController,
+   paymentsController e trafegoController) e nos 7 com robô de agenda (em
+   `eletropostoRemarcar.ts` e `eletropostoRespostas.ts`, a oferta fria pode
+   pedir como `ep_remarcar_reativo` e sair como agenda no domingo) confira à
+   mão, até o passaporte por chamada, que o lote pede com o nome do próprio
    robô. [crítica; dívida medida no chefeQuedas]
 7. **Teto da linha** para P2 a P5 (aviso ao time, transacional do dia e frio):
    24 por hora e 200 em 24h, e proativa nenhuma leva o total da hora acima de 40
@@ -192,8 +235,10 @@ especificação.
     pausaHumana.ts, `podeFalarComLead` e `sendFrio`]
 16. **Erro.** 2 erros de LINHA seguidos (instância fora, desconectado, 5xx,
     timeout, 429) param o proativo por 15 min. Número inválido não conta. Durante
-    o freio, resposta e lembrete tentam no máximo 1 vez a cada 5 min. É o freio
-    que a regra 0 deixa parar a agenda; na volta, reenvio, não descarte.
+    o freio, resposta, lembrete e a agenda no último momento útil (a represada
+    inclusive) tentam no máximo 1 vez a cada 5 min. É o freio que a regra 0
+    deixa parar a agenda; na volta, reenvio como lembrete atrasado, não
+    descarte.
     [memória linha-io-bloqueio-30-ago; crítica]
 17. **Evento nunca é adiado.** Compra, ativação, D0, recuperado, convite pedido e
     comprovante saem agora como P0 ou vão para uma caixa de saída persistida.
@@ -274,11 +319,15 @@ Cada item: ok, ou falha com `arquivo:linha` e o efeito na linha.
    da ficha, ou perguntar um teto e carimbar no outro: BLOQUEIA (é o 02/10). Com
    o CHEFE ligado: o robô está em `CLASSE_POR_ROBO` e a classe vem de lá, nunca do
    chamador. Pedir com o nome de outro robô reprova na `chefeGuarda` (literal,
-   `as const`, `satisfies`, const ou atalho), menos dentro de um arquivo que já
-   hospeda um robô de classe mais urgente (os 8 de classe máxima evento, os 5 de
-   agenda): ali, confira à mão. Passar prazo que não é de uma reunião de verdade
-   para virar P1, ou `validoAte` que não é o fim da janela do robô para escapar
-   do espaçamento: BLOQUEIA (o CHEFE puro não segura isso).
+   `as const`, `satisfies`, const, atalho, ternário, let/var, padrão de
+   parâmetro, objeto de constantes, `??`, atribuição depois), menos dentro de um
+   arquivo que já hospeda o robô pedido (os 8 com robô de evento, os 7 com robô
+   de agenda; em `eletropostoRemarcar.ts` e `eletropostoRespostas.ts` a oferta
+   fria mora junto de `ep_remarcar_reativo`): ali, confira à mão. Passar prazo
+   que não é de uma reunião de verdade para virar P1, ou `validoAte` que não é
+   o fim da janela do robô para cair no último momento útil e escapar do
+   espaçamento: BLOQUEIA (o CHEFE puro não segura isso, e sem a rajada por robô
+   na agenda o fim da fila sai junto, a 10 s).
 4. **Classe certa.** Transacional só quando a pessoa está esperando: marcou,
    preencheu, pagou ou pediu. Quem começa a conversa é frio (a exceção é a
    remarcação do NÃO ATENDEU, agenda por ordem do dono). Destino da equipe é
@@ -320,8 +369,10 @@ Cada item: ok, ou falha com `arquivo:linha` e o efeito na linha.
     (confirmação, bom dia, lembrete de 1h e de 5 min, cobrança do SIM, alerta de
     10 min ao consultor, remarcação pedida, remarcação do NÃO ATENDEU) expirar,
     ser descartada ou adiada além da janela útil? BLOQUEIA. Remodelar: ordenar e
-    espaçar dentro da janela, e o frio cede. Robô de agenda sem `validoAte`
-    declarado: falha.
+    espaçar dentro da janela, e o frio cede. Robô que desiste do toque que a
+    linha caída segurou, em vez de reenviar na volta: BLOQUEIA. Robô de agenda
+    com janela própria sem `validoAte` declarado: falha (a remarcação do NÃO
+    ATENDEU não tem janela, por desenho).
 
 **Faça a conta sempre:** quantas mensagens físicas por hora e por dia a mudança
 acrescenta, por classe, e onde isso fica contra o orçamento (frio 30 em 24h,

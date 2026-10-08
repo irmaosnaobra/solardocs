@@ -49,12 +49,14 @@ describe('regulamento: números padrão', () => {
     expect(REGULAMENTO_PADRAO.sustentado6h).toBe(60);
   });
 
-  it('o prazo não é passe livre: rajada por robô de 6 em 10 min e teto próprio do lembrete de 28/h e 150/24h (só para o que não é agenda)', () => {
+  it('rajada por robô de 6 em 10 min e teto próprio do lembrete de 28/h e 150/24h, os dois só para o que não é agenda', () => {
     expect(REGULAMENTO_PADRAO.rajadaMaxPorRobo).toBe(6);
     expect(REGULAMENTO_PADRAO.lembreteHora).toBe(28);
     expect(REGULAMENTO_PADRAO.lembreteDia).toBe(150);
-    // A regra do dono (07/10) tirou o teto próprio da agenda: está escrito.
+    // A regra do dono (07/10) tirou o teto próprio da agenda, e a rodada 4 tirou
+    // a rajada por robô: está escrito.
     expect(DIVERGENCIAS.some(d => /lembrete com prazo/.test(d) && /não é agenda/.test(d))).toBe(true);
+    expect(DIVERGENCIAS.some(d => /AGENDA NUNCA BLOQUEIA/.test(d) && /rajada por robô NÃO para mais a agenda/.test(d))).toBe(true);
   });
 
   it('agenda nunca bloqueia: margem de 3 min antes do fim útil, cadência de 15 min da remarcação, reserva de 10 na emergência, resposta segurada por até 2h', () => {

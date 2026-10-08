@@ -22,7 +22,11 @@
 //   do CHEFE ligado vai fazer;
 // - o pedido leva o próprio nascimento (`desde`) como nascidoEm, e passado o
 //   validoAte sem sair ele EXPIRA: é a conta da regra do dono (agenda nunca
-//   expira por freio do CHEFE).
+//   expira por freio do CHEFE);
+// - MENOS a agenda que a linha caída segurou (agendaRepresadaPelaLinha, no
+//   decidir, com a última queda que o livro mostra): ela continua viva, é
+//   perguntada de novo a cada tick e sai quando a linha volta, marcada como
+//   atrasada (Enviado.atrasado). A prova é a mesma que o decidir usa.
 //
 // PURO e determinístico: o mesmo roteiro dá sempre o mesmo resultado. Serve ao
 // replay das quedas e ao replay offline de um dia real do livro.
@@ -30,7 +34,9 @@
 
 import { Classe, ehUrgente, prioridadeFina } from './classes';
 import { Regulamento, REGULAMENTO_PADRAO } from './regulamento';
-import { Decisao, Motivo, Pedido, TipoErro, ContagemPorClasse, decidir, classeEfetiva, metaDoPedido } from './decidir';
+import {
+  Decisao, Motivo, Pedido, TipoErro, ContagemPorClasse, decidir, classeEfetiva, metaDoPedido, agendaRepresadaPelaLinha,
+} from './decidir';
 import { EnvioLivro, montarEstado } from './estado';
 import { chaveDoContato } from './destinos';
 
@@ -82,6 +88,11 @@ export interface Enviado {
   tentativas: number;
   /** Saiu pela caixa de saída (o drenador), não na primeira pergunta. */
   viaCaixa: boolean;
+  /**
+   * Agenda represada pela linha caída (passou do validoAte dentro da queda),
+   * reenviada na volta como lembrete atrasado: nunca descartada.
+   */
+  atrasado: boolean;
 }
 
 export interface ResultadoSimulacao {
@@ -105,6 +116,8 @@ interface Vivo {
   ultimoMotivo: Motivo | null;
   modo: 'tick' | 'imediato';
   naCaixa: boolean;
+  /** Agenda represada pela linha: passou do validoAte e não expira (sai atrasada na volta). */
+  represada: boolean;
 }
 
 const chaveMap = (m?: ReadonlyMap<string, number>): Map<string, number> => {
@@ -128,7 +141,9 @@ export function simular(pedidos: readonly PedidoAgendado[], opts: OpcoesSimulaca
     enviados: [], caixa: [], pendentes: [], expirados: [], falhas: [], deduplicados: [], livro, decisoes: 0, motivos: {},
   };
 
-  const vivos: Vivo[] = pedidos.map(p => ({ p, proxima: p.desde, tentativas: 0, ultimoMotivo: null, modo: p.modo, naCaixa: false }));
+  const vivos: Vivo[] = pedidos.map(p => ({
+    p, proxima: p.desde, tentativas: 0, ultimoMotivo: null, modo: p.modo, naCaixa: false, represada: false,
+  }));
   const falhaEm = (t: number): TipoErro | null => {
     for (const f of opts.falhas ?? []) if (t >= f.de && t < f.ate) return f.erro;
     return null;
@@ -161,13 +176,19 @@ export function simular(pedidos: readonly PedidoAgendado[], opts: OpcoesSimulaca
     const ehTick = (t - opts.inicio) % tickMs === 0;
     cursor = Math.max(cursor, t);
 
-    // Expira quem passou do prazo de validade sem sair.
+    // Expira quem passou do prazo de validade sem sair, menos a agenda que a
+    // linha caída segurou: essa continua viva e sai atrasada na volta.
+    let agoraNoLivro: ReturnType<typeof montarEstado> | null = null;
     for (let i = vivos.length - 1; i >= 0; i--) {
       const v = vivos[i]!;
-      if (typeof v.p.validoAte === 'number' && v.p.validoAte < t) {
-        res.expirados.push({ pedido: v.p, ultimoMotivo: v.ultimoMotivo });
-        vivos.splice(i, 1);
+      if (v.represada || typeof v.p.validoAte !== 'number' || v.p.validoAte >= t) continue;
+      agoraNoLivro ??= montarEstado(livro, t);
+      if (agendaRepresadaPelaLinha(metaDoPedido(v.p), classeDe(v, t), v.p.validoAte, agoraNoLivro, reg)) {
+        v.represada = true;
+        continue;
       }
+      res.expirados.push({ pedido: v.p, ultimoMotivo: v.ultimoMotivo });
+      vivos.splice(i, 1);
     }
 
     const daVez = vivos
@@ -211,7 +232,7 @@ export function simular(pedidos: readonly PedidoAgendado[], opts: OpcoesSimulaca
         });
         cursor = em + d.maxBolhas * msPorBolha;
         if (erro === null) {
-          res.enviados.push({ pedido: v.p, em, bolhas: d.maxBolhas, classe: d.classe, tentativas: v.tentativas, viaCaixa: v.naCaixa });
+          res.enviados.push({ pedido: v.p, em, bolhas: d.maxBolhas, classe: d.classe, tentativas: v.tentativas, viaCaixa: v.naCaixa, atrasado: v.represada });
           vivos.splice(vivos.indexOf(v), 1);
         } else {
           // Parar no erro: o robô encerra a rodada e o pedido volta à fila.

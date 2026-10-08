@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join, extname, posix } from 'path';
 import * as ts from 'typescript';
 import { CLASSE_POR_ROBO, CLASSES, Classe } from '../services/chefe/classes';
+import { DIVERGENCIAS } from '../services/chefe/regulamento';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CHEFE anti-ban — GUARDA ESTÁTICA: ninguém fala com a Z-API nem com o Graph da
@@ -14,57 +15,80 @@ import { CLASSE_POR_ROBO, CLASSES, Classe } from '../services/chefe/classes';
 // fazendo fetch direto na Z-API, sem teto, sem janela e sem dedup. Esta guarda
 // lê o disco e reprova o próximo robô que nascer assim.
 //
-// O QUE REPROVA (fora da lista de migração abaixo), pela LISTA DO PERMITIDO:
-// em vez de caçar o formato de cada envio, tudo que fala com a Z-API ou escreve
-// no Graph é envio, menos o que está numa lista explícita.
-//   zapi      fetch ou montagem de URL da Z-API (host api.z-api.io, o molde
-//             /instances/${id}/token/${tk}/, ou o cabeçalho Client-Token) fora
-//             de api/src/services/agents/zapiClient.ts. O endpoint é o 1º
-//             segmento depois do token. Tipos:
+// O QUE REPROVA (fora da lista de migração abaixo). É exatamente isto, nada além
+// (a guarda lê o código parado; o que não está escrito aqui passa):
+//   zapi      fora de api/src/services/agents/zapiClient.ts, todo texto com o
+//             host api.z-api.io, o molde /instances/${id}/token/${tk}/ ou o
+//             cabeçalho Client-Token. O endpoint é o 1º segmento depois do
+//             token. Tipos:
 //               consulta       endpoint de CONSULTAS_ZAPI_PERMITIDAS (leitura e
 //                              configuração: status, me, chats, contacts,
 //                              qr-code, phone-exists, webhooks...) ou a base
 //                              sozinha. Só precisa estar em CONSULTA_ZAPI;
-//               envio          QUALQUER endpoint fora da lista: send-*,
-//                              forward-message, ou um que a Z-API lançar amanhã;
+//               envio          endpoint fixo fora da lista (send-*,
+//                              forward-message, pin-message...);
 //               caminho_livre  o caminho é variável e o método não é GET
 //                              provado (helper genérico que manda o que pedirem).
-//             Num arquivo que fala com a Z-API, também passam pela lista: send-
-//             em qualquer texto (tryReq('POST','send-text'), 'send-' + k), o
-//             caminho depois de uma base que o arquivo não resolve
-//             (`${base(c)}/forward-message`, z.post('/forward-message')) sem GET
-//             provado, o caminho passado a um helper do próprio arquivo que monta
-//             a URL (zapiGet(c, 'x'), tryReq('POST', 'x')) e o path: '...' de uma
-//             lista de tentativas.
-//   graph     toda ESCRITA (POST, PUT, PATCH, DELETE: tudo que não é GET provado)
-//             no host graph.facebook.com ou graph.instagram.com fora dos clientes
-//             oficiais (igClient, fbComentarios, fbMensagens), venha o método
-//             literal, de spread ({ ...options, method: 'POST' }) ou de
-//             atribuição depois (options.method = 'POST'). GET provado é: fetch
-//             sem opções ou com opções sem method (literal ou numa const que só
-//             vai direto à chamada), ou um helper do arquivo que só faz isso.
-//             Lista do permitido: só o /events da API de Conversões. Edge fixo é
-//             envio; último segmento variável é caminho_livre (o helper que
-//             manda para o edge que pedirem). Com a base não resolvida
-//             (`${*}/...`), conta edge de mensagem, ou segmento variável com
-//             escrita provada. E o edge exato passado como argumento de chamada
-//             (gpost(pg, 'messages', corpo)) é envio.
-//   zapipost  REFERÊNCIA crua a zapiPost/zapiDelete fora do zapiClient.ts
-//             (chamada, alias, .call, map): pula os envios tipados (bolhas,
-//             sendFrio) por onde o CHEFE vai passar.
+//             Num arquivo que fala com a Z-API (tem o host, o molde ou o
+//             Client-Token), conta também como envio (menos a definição de
+//             rota da própria api, router.post('/x', handler)):
+//               - send- no começo de um texto, depois de uma barra ou colado numa
+//                 substituição (tryReq('POST','send-text'), 'send-' + k,
+//                 `${base(c)}send-text`);
+//               - forward-message em QUALQUER posição de qualquer texto (colado na
+//                 base sem barra, 1º argumento de new URL, pedaço de um join);
+//               - o caminho fora da lista depois de uma base que o arquivo não
+//                 resolve, com ou sem a barra (`${base(c)}/x`, `${base(c)}x`,
+//                 z.post('/x'), z.post('x') de uma instância com baseURL), quando
+//                 o texto é ALVO de requisição (1º argumento de chamada ou de new,
+//                 url/path/baseURL, const que vai a uma dessas) e o método não é
+//                 GET provado; caminho variável ali é caminho_livre;
+//               - o caminho passado a um helper do próprio arquivo que monta a
+//                 URL (zapiGet(c, 'x'), tryReq('POST', 'x')) e o path: '...' de
+//                 uma lista de tentativas.
+//   graph     fora dos clientes oficiais (igClient, fbComentarios, fbMensagens),
+//             toda ESCRITA (POST, PUT, PATCH, DELETE: tudo que não é GET provado)
+//             num caminho do Graph, venha o método literal, de spread
+//             ({ ...options, method: 'POST' }) ou de atribuição depois
+//             (options.method = 'POST'). GET provado é: fetch sem opções ou com
+//             opções sem method (literal ou numa const que só vai direto à
+//             chamada), ou um helper do arquivo que só faz isso. O CAMINHO do
+//             Graph é lido nestes casos, só num arquivo com o host do Graph
+//             (graph.facebook.com ou graph.instagram.com) num literal:
+//               - o host no próprio texto: edge fixo é envio, último segmento
+//                 variável é caminho_livre;
+//               - o texto começa com /vNN e é alvo de requisição (o path do
+//                 https.request com o host noutro literal): idem;
+//               - o texto vem depois de uma base não resolvida (`${*}/...`), ou
+//                 começa com / e é alvo de requisição (o path sem versão do
+//                 https.request, o 1º argumento de new URL com o host no 2º, o
+//                 post de uma instância com baseURL do Graph): aí só conta o edge
+//                 de MENSAGEM (messages, private_replies, replies, comments) ou o
+//                 segmento variável com escrita provada.
+//             Lista do permitido: só o /events da API de Conversões. E o edge
+//             exato passado como argumento de chamada (gpost(pg, 'messages',
+//             corpo)) é envio.
+//   zapipost  REFERÊNCIA crua a zapiPost/zapiDelete fora do zapiClient.ts:
+//             chamada, alias, .call, map, z.zapiPost, z['zapiPost'],
+//             desestruturação do namespace e import z = require(...). Pula os
+//             envios tipados (bolhas, sendFrio) por onde o CHEFE vai passar.
 //   envio_cru REFERÊNCIA a uma função de envio cru exportada por um arquivo do
-//             MIGRAR (ENVIO_CRU_EXPORTADO: enviarZapiIO, encaminharMidiaAoConsultor):
-//             a chamada, o alias (const mandar = enviarZapiIO), o .call e o
-//             map(enviarZapiIO) contam. Cada chamador está no MIGRAR com o
-//             número exato, e referência nova fora deles reprova.
+//             MIGRAR (ENVIO_CRU_EXPORTADO: enviarZapiIO, encaminharMidiaAoConsultor),
+//             com as mesmas formas do zapipost. Cada chamador está no MIGRAR com
+//             o número exato, e referência nova fora deles reprova.
 //   script    em api/scripts e worker-prospeccao: importar o transporte da api,
 //             chamar uma função de envio ou apontar para uma rota de envio. Disparo
 //             passa a ser rota que passa pelo CHEFE, nunca script local.
-//   robo      em api/src (fora do CHEFE): pedido com robo: '<nome>' (literal,
-//             'x' as const, 'x' satisfies Y, const do arquivo ou o atalho { robo }
-//             com const local) de um arquivo que não está na lista daquele robô
-//             (ROBOS_POR_ARQUIVO, igual ao CLASSE_POR_ROBO[*].arquivos), ou com
-//             nome sem registro.
+//   robo      em api/src (fora do CHEFE): pedido com robo de um arquivo que não
+//             está na lista daquele robô (ROBOS_POR_ARQUIVO, igual ao
+//             CLASSE_POR_ROBO[*].arquivos), ou com nome sem registro. O nome é
+//             lido quando o próprio arquivo o resolve: literal, 'x' as const,
+//             'x' satisfies Y, <T>'x', const do arquivo, o atalho { robo }, os
+//             dois ramos de um ternário, os dois lados de ?? e ||, let/var (o
+//             inicializador e toda atribuição no arquivo, por nome, sem escopo),
+//             padrão de parâmetro ou de desestruturação, propriedade de um objeto
+//             do arquivo (ROBOS.agenda, ROBOS['agenda']) e a atribuição depois
+//             (pedido.robo = 'x', pedido['robo'] = 'x').
 //             É a guarda arquivo → robôs permitidos contra a classe errada (o
 //             reagenda pedindo como ep_agenda em 02/10, a rota da queda de 30/08
 //             pedindo como agenda).
@@ -80,13 +104,15 @@ import { CLASSE_POR_ROBO, CLASSES, Classe } from '../services/chefe/classes';
 // Para ver o inventário inteiro que a varredura achou:
 //   CHEFE_GUARDA_INVENTARIO=1 npx vitest run src/__tests__/chefeGuarda.test.ts --silent=false --reporter=verbose
 //
-// LIMITES CONHECIDOS (escritos para ninguém achar que a guarda vê mais do que vê):
-//   - A GUARDA É REDE, NÃO PROVA. Ela lê o código parado e pega os formatos que
-//     alguém já escreveu aqui; formato que ninguém pensou passa até ser
-//     acrescentado. A defesa completa é a CATRACA FÍSICA no zapiPost (próxima
-//     fase, com o livro no banco): todo envio pela linha passa por ela com o
-//     passaporte do robô, ou não sai. Até lá, guarda verde não prova que nada
-//     sai por fora.
+// LIMITES CONHECIDOS (escritos para ninguém achar que a guarda vê mais do que vê).
+// Os de formato têm um teste que crava zero achado ("rodada 4, os formatos do
+// verificador da rodada 3 e os limites que ficam"): no dia em que a guarda passar
+// a pegar, o teste quebra e este texto muda junto.
+//   - A GUARDA É REDE, NÃO PROVA. Ela lê o código parado e pega os formatos
+//     escritos acima; formato que ninguém pensou passa até ser acrescentado. A
+//     defesa completa é a CATRACA FÍSICA no zapiPost (próxima fase, com o livro
+//     no banco): todo envio pela linha passa por ela com o passaporte do robô, ou
+//     não sai. Até lá, guarda verde não prova que nada sai por fora.
 //   - ESCOPO: só lê as pastas de RAIZES (api/src, api/api, api/scripts,
 //     worker-prospeccao e cloudflare-worker). Ficam de fora dashboard/, widget/, plugcash/,
 //     ebike-ecommerce/ (que tem rotas de API em src/app/api) e .github/workflows.
@@ -94,39 +120,51 @@ import { CLASSE_POR_ROBO, CLASSES, Classe } from '../services/chefe/classes';
 //     o nome do process-messages.yml e o pixel /events da loja), mas uma rota de
 //     servidor nova ali, ou um curl num workflow para api.z-api.io, passaria sem
 //     a guarda ver.
-//   - Edge do Graph montado num arquivo SEM host do Graph e passado a um helper
-//     de outro arquivo não aparece. Os helpers de hoje são privados.
-//   - URL da Z-API inteira vinda de env ou de outro arquivo, num arquivo sem o
-//     host, sem o molde /instances/.../token/ e sem o cabeçalho Client-Token, não
-//     aparece (fetch(`${base}/send-text`) com a base num parâmetro vindo de fora,
-//     fetch(process.env.X)). Inclusive a base e o Client-Token EXPORTADOS por um
-//     arquivo de CONSULTA_ZAPI e importados por um robô novo. Com a base montada
-//     no próprio arquivo, aparece.
-//   - Caminho depois de uma base não resolvida com GET provado não conta (GET
-//     não manda nada na Z-API, e a base pode ser a da própria api).
-//   - Função de envio cru re-exportada por um arquivo intermediário (barrel) não
-//     é seguida: o chamador do barrel não aparece. Hoje não há barrel desses.
+//   - Z-API: endpoint fora da lista que não é send-* nem forward-message, num
+//     texto que NÃO é alvo direto de requisição (o pedaço de um join, uma
+//     propriedade lida depois), num arquivo de CONSULTA_ZAPI, passa. Num arquivo
+//     novo a base sozinha já reprova, como consulta fora da lista.
+//   - Z-API: URL inteira vinda de env ou de outro arquivo, num arquivo sem o
+//     host, sem o molde /instances/.../token/ e sem o cabeçalho Client-Token,
+//     não aparece (fetch(`${base}/send-text`) com a base num parâmetro vindo de
+//     fora, fetch(process.env.X)). Inclusive a base e o Client-Token EXPORTADOS
+//     por um arquivo de CONSULTA_ZAPI e importados por um robô novo. Com a base
+//     montada no próprio arquivo, aparece.
+//   - Z-API: caminho depois de uma base não resolvida com GET provado não conta
+//     (GET não manda nada na Z-API, e a base pode ser a da própria api).
+//   - Graph: o host só na env (sem literal do host no arquivo) não aparece, e o
+//     edge montado num arquivo sem host e passado a um helper de outro arquivo
+//     também não (os helpers de hoje são privados).
+//   - Graph: escrita com o caminho sem host e sem versão num edge que NÃO é de
+//     mensagem (POST em /{pagina}/feed pelo https.request com o hostname noutro
+//     literal) passa: sem host nem versão, só o edge de mensagem conta, para o
+//     caminho da própria api não virar falso positivo.
+//   - Graph: num arquivo com host do Graph, qualquer chamada com o literal
+//     exato 'messages' ou 'comments' como argumento conta como envio (um
+//     supabase.from('messages') ali daria falso positivo). Hoje não há nenhum.
+//   - robo: nome vindo de parâmetro sem padrão, de import de outro arquivo, de
+//     retorno de função ou de texto com variável (`ep_${tipo}`) não aparece. A
+//     leitura de let/var é por nome no arquivo inteiro, sem escopo.
+//   - robo: NÃO separa robôs do mesmo arquivo. São 8 arquivos com robô de evento
+//     (5 mistos: whatsappAgentService, dunningService, webhook,
+//     pixComprovanteService e ioIndicacoes; e 3 só de evento, fora de
+//     ARQUIVOS_MISTOS: authController, paymentsController e trafegoController)
+//     e 7 com robô de agenda (ARQUIVOS_COM_ROBO_DE_AGENDA). Ali um lote novo, com
+//     o nome do robô de evento ou de agenda do próprio arquivo, passa: sai a 60
+//     em 10 min como evento, ou fora dos freios de volume e da rajada por robô
+//     como agenda. Em eletropostoRemarcar e eletropostoRespostas a oferta fria
+//     mora junto da remarcação pedida (ep_remarcar_reativo, agenda): o lote de
+//     oferta fria pedindo com esse nome sai como agenda, no domingo, a 30/h. A
+//     defesa completa é o passaporte por chamada, que prova a classe: DÍVIDA
+//     declarada, com os números cravados no chefeQuedas.
+//   - envio cru: membro calculado (io['enviar' + 'ZapiIO'], io[k]) e função
+//     re-exportada por um arquivo intermediário (barrel) não são seguidos: o
+//     chamador não aparece. Hoje não há barrel desses.
 //   - Isenção por ARQUIVO INTEIRO: um lote novo escrito dentro do zapiClient.ts,
 //     do igClient.ts, do fbComentarios.ts ou do fbMensagens.ts passa (são os
 //     transportes oficiais); a pasta services/chefe/ fica fora da regra robo.
-//   - Num arquivo com host do Graph, qualquer chamada com o literal exato
-//     'messages' ou 'comments' como argumento conta como envio (um
-//     supabase.from('messages') ali daria falso positivo). Hoje não há nenhum.
 //   - Quem chama sendWhatsApp/sendHuman sem passar pelo CHEFE NÃO é assunto
 //     desta guarda: isso é a catraca de passaporte, que entra com o CHEFE ligado.
-//   - O mapa arquivo → robôs permitidos (regra robo) só vê o nome que o próprio
-//     arquivo resolve (literal, as const, satisfies, const, atalho com const
-//     local); nome vindo de parâmetro, de outro arquivo ou de conta não aparece.
-//     E ele NÃO separa a classe dentro de um arquivo que pode pedir uma classe
-//     mais urgente que a do próprio robô: são 8 arquivos de classe máxima
-//     evento_p0 (5 mistos: whatsappAgentService, dunningService, webhook,
-//     pixComprovanteService e ioIndicacoes; e 3 só de evento, fora de
-//     ARQUIVOS_MISTOS: authController, paymentsController e trafegoController)
-//     e 5 de classe máxima lembrete_p1 (os de agenda). Ali um lote novo, com o
-//     nome do robô de evento ou de agenda do próprio arquivo, passa: sai a 60 em
-//     10 min como evento, ou fora dos freios de volume como agenda. A defesa
-//     completa é o passaporte por chamada, que prova a classe: DÍVIDA
-//     declarada, com os números cravados no chefeQuedas.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const RAIZ = join(__dirname, '..', '..', '..');
@@ -361,6 +399,26 @@ const ARQUIVOS_MISTOS: Readonly<Record<string, readonly Classe[]>> = Object.free
   'services/io/recepcaoIo.ts': ['reativo_p1', 'aviso_interno_p2'],
 });
 
+/**
+ * Os 7 arquivos que hospedam um robô de AGENDA (CLASSE_POR_ROBO[*].agenda), com
+ * os robôs frios que moram no mesmo arquivo. A regra robo não separa robôs do
+ * mesmo arquivo: um lote novo escrito num deles, pedindo com o nome do robô de
+ * agenda dali, passa e sai como agenda (fora dos freios de volume e da rajada por
+ * robô). Nos dois que hospedam também a oferta fria, ela pode se passar pela
+ * resposta a quem pediu para remarcar (ep_remarcar_reativo), que é agenda e não
+ * foi rebaixada (regra do dono). DÍVIDA declarada: fecha com o passaporte por
+ * chamada, na fase da catraca (números cravados no chefeQuedas).
+ */
+const ARQUIVOS_COM_ROBO_DE_AGENDA: Readonly<Record<string, { agenda: readonly string[]; frio: readonly string[] }>> = Object.freeze({
+  'services/io/eletropostoAgenda.ts': { agenda: ['ep_agenda'], frio: [] },
+  'services/io/eletropostoAlerta10min.ts': { agenda: ['ep_alerta_10min'], frio: [] },
+  'services/io/eletropostoCobraSim.ts': { agenda: ['ep_cobra_sim'], frio: [] },
+  'services/io/eletropostoReagendaAuto.ts': { agenda: ['ep_reagenda_auto'], frio: [] },
+  'services/io/eletropostoRemarcar.ts': { agenda: ['ep_remarcar_reativo'], frio: ['ep_oferta_fria'] },
+  'services/io/eletropostoRespostas.ts': { agenda: ['ep_remarcar_reativo'], frio: ['ep_oferta_fria'] },
+  'services/io/solarAgendaGiovanna.ts': { agenda: ['giovanna_agenda'], frio: [] },
+});
+
 /** O mapa como o CLASSE_POR_ROBO dá hoje (o teste confere com o literal acima). */
 function mapaDerivado(): { mapa: Record<string, { robos: string[]; classeMaxima: Classe }>; classes: Record<string, Classe[]> } {
   const rank = (c: Classe) => CLASSES.indexOf(c);
@@ -392,8 +450,9 @@ const PEDIDO_COM_ROBO = /\brobo\b/;
 /**
  * LISTA DO PERMITIDO da Z-API: as CONSULTAS (leitura e configuração da
  * instância), pelo primeiro segmento do caminho depois de /token/<tk>/. Nome a
- * nome, sem prefixo: endpoint fora daqui é ENVIO, venha como vier (send-*,
- * forward-message, ou qualquer um novo da Z-API). Levantado com git grep no
+ * nome, sem prefixo: quando a guarda acha o caminho (os casos de O QUE REPROVA),
+ * endpoint fora daqui é ENVIO (send-*, forward-message, um que a Z-API lançar
+ * amanhã). O caminho que ela não acha passa (LIMITES CONHECIDOS). Levantado com git grep no
  * repo (zapiAdmin, mcp, sdrIoPolling, zapiHealthMonitor) mais os de leitura da
  * documentação (qr-code, phone-exists, device).
  */
@@ -425,9 +484,19 @@ const HOST_ZAPI = /api\.z-api\.io/i;
 const URL_ZAPI_SEM_HOST = /\/instances\/\$\{[^}]*\}\/token\//;
 // send- sem exigir letra depois: `send-${tipo}` e 'send-' + k também são envio.
 const ZAPI_ENVIO = /(^|\/)send-/i;
-// No começo ou depois de uma barra: '${*}/send-text' é a base da instância vinda
-// de função, propriedade ou let reatribuído, com o caminho montado depois.
-const PATH_ENVIO_SOLTO = /(^|\/)send-/i;
+// No começo, depois de uma barra ou colado numa substituição: '${*}/send-text' e
+// '${*}send-text' são a base da instância vinda de função, propriedade ou let
+// reatribuído, com o caminho montado depois (com ou sem a barra).
+const PATH_ENVIO_SOLTO = /(^|[/}])send-/i;
+/**
+ * O forward-message (encaminhar mensagem: manda para quem a lista disser) em
+ * QUALQUER posição de qualquer texto, num arquivo que fala com a Z-API: colado na
+ * base sem barra (`${base(c)}forward-message`), 1º argumento de new URL, pedaço de
+ * um join. Nenhum arquivo do disco cita o nome, então não há falso positivo.
+ */
+const ZAPI_FORWARD = /forward-message/i;
+/** Caminho depois de uma base que o arquivo não resolve: com barra ('${*}/x', '/x') ou colado nela ('${*}x'). */
+const CAMINHO_DEPOIS_DA_BASE = /^(?:(?:\$\{\*\})?\/[^/]|\$\{\*\}[a-z])/i;
 const CABECALHO_ZAPI = /^client-token$/i;
 const HOST_GRAPH = /graph\.(facebook|instagram)\.com/i;
 /** Host (e versão) do Graph no começo de uma URL: o que sobra é o caminho. */
@@ -556,6 +625,59 @@ function resolverTexto(e: ts.Node, consts: ReadonlyMap<string, string>, prof = 0
     return (a ?? CORINGA) + (b ?? CORINGA);
   }
   return null;
+}
+
+/**
+ * Os nomes de robô que uma expressão pode ter, resolvidos no próprio arquivo:
+ * texto (com as const, satisfies, <T> e parênteses), const, os dois ramos do
+ * ternário, os dois lados de ?? e ||, let/var (o inicializador e toda atribuição
+ * NOME = ... no arquivo), o padrão de parâmetro ou de desestruturação, e a
+ * propriedade de um objeto do arquivo (ROBOS.agenda, ROBOS['agenda']). É por
+ * NOME no arquivo inteiro, sem escopo. O que não resolve (parâmetro sem padrão,
+ * import de outro arquivo, retorno de função, texto com variável) fica de fora:
+ * é limite declarado.
+ */
+function nomesDoRobo(e: ts.Node, consts: ReadonlyMap<string, string>, sf: ts.SourceFile, prof = 0, vistos: Set<string> = new Set()): string[] {
+  if (prof > 8) return [];
+  let x: ts.Node = e;
+  while (ts.isParenthesizedExpression(x) || ts.isAsExpression(x) || ts.isNonNullExpression(x)
+    || ts.isSatisfiesExpression(x) || ts.isTypeAssertionExpression(x)) x = x.expression;
+  const sub = (y: ts.Node) => nomesDoRobo(y, consts, sf, prof + 1, vistos);
+  if (ts.isConditionalExpression(x)) return [...sub(x.whenTrue), ...sub(x.whenFalse)];
+  if (ts.isBinaryExpression(x) && (x.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken || x.operatorToken.kind === ts.SyntaxKind.BarBarToken)) {
+    return [...sub(x.left), ...sub(x.right)];
+  }
+  if (ts.isIdentifier(x)) {
+    const c = consts.get(x.text);
+    if (c !== undefined) return c.includes(CORINGA) ? [] : [c];
+    if (vistos.has(x.text)) return [];
+    vistos.add(x.text);
+    return valoresDaVariavel(x.text, sf).flatMap(sub);
+  }
+  const acesso = ts.isPropertyAccessExpression(x) && ts.isIdentifier(x.expression) ? { obj: x.expression.text, chave: x.name.text }
+    : ts.isElementAccessExpression(x) && ts.isIdentifier(x.expression) && ts.isStringLiteral(x.argumentExpression)
+      ? { obj: x.expression.text, chave: x.argumentExpression.text } : null;
+  if (acesso) {
+    const d = declaracaoDeObjeto(sf, acesso.obj);
+    const p = d?.obj.properties.find(pp => ts.isPropertyAssignment(pp) && nomeDaPropriedade(pp.name) === acesso.chave);
+    return p && ts.isPropertyAssignment(p) ? sub(p.initializer) : [];
+  }
+  const t = resolverTexto(x, consts);
+  return t !== null && !t.includes(CORINGA) ? [t] : [];
+}
+
+/** O que uma variável NOME pode valer no arquivo: let/var com inicializador, toda atribuição NOME = ..., padrão de parâmetro e de desestruturação. */
+function valoresDaVariavel(nome: string, sf: ts.SourceFile): ts.Expression[] {
+  const out: ts.Expression[] = [];
+  const visitar = (n: ts.Node): void => {
+    if ((ts.isVariableDeclaration(n) || ts.isParameter(n) || ts.isBindingElement(n)) && ts.isIdentifier(n.name) && n.name.text === nome && n.initializer) {
+      out.push(n.initializer);
+    }
+    if (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isIdentifier(n.left) && n.left.text === nome) out.push(n.right);
+    ts.forEachChild(n, visitar);
+  };
+  visitar(sf);
+  return out;
 }
 
 /** const NOME = <texto resolvível>, em qualquer escopo (o primeiro que resolve vence). */
@@ -865,8 +987,8 @@ function ehRotaExpress(no: ts.Node, texto: string, clientesHttp: ReadonlySet<str
 }
 
 /**
- * Pela LISTA DO PERMITIDO: endpoint fora de CONSULTAS_ZAPI_PERMITIDAS é envio
- * (forward-message, send-*, qualquer um novo); caminho variável sem GET provado
+ * Pela LISTA DO PERMITIDO, num texto com a URL da Z-API: endpoint fora de
+ * CONSULTAS_ZAPI_PERMITIDAS é envio (forward-message, send-*, um novo); caminho variável sem GET provado
  * é caminho livre; a base sozinha (sem caminho) é consulta.
  */
 function classificarZapi(texto: string, metodo: Metodo): 'envio' | 'caminho_livre' | 'consulta' {
@@ -950,6 +1072,12 @@ function varrerAst(texto: string, arquivo: string, kind: ts.ScriptKind): Achado[
       });
       return;
     }
+    // import io = require('./ioSend'): o nome vira namespace vigiado.
+    if (ts.isImportEqualsDeclaration(n) && ts.isExternalModuleReference(n.moduleReference)
+      && ts.isStringLiteral(n.moduleReference.expression)) {
+      registrarModulo(n, n.moduleReference.expression.text, imp => { imp.namespaces.push(n.name.text); });
+      return;
+    }
     if (ts.isExportDeclaration(n) && n.moduleSpecifier && ts.isStringLiteral(n.moduleSpecifier)) {
       registrarModulo(n, n.moduleSpecifier.text, imp => {
         const ec = n.exportClause;
@@ -960,9 +1088,17 @@ function varrerAst(texto: string, arquivo: string, kind: ts.ScriptKind): Achado[
       return;
     }
     if (olhaRobo && (ts.isPropertyAssignment(n) || ts.isShorthandPropertyAssignment(n)) && nomeDaPropriedade(n.name) === 'robo') {
-      // 'x', 'x' as const, 'x' satisfies Y, <T>'x', (x), const do arquivo e o atalho { robo }.
-      const nome = ts.isShorthandPropertyAssignment(n) ? consts.get(n.name.text) ?? null : resolverTexto(n.initializer, consts);
-      if (nome !== null && !nome.includes(CORINGA)) pedidosDeRobo.push({ no: n, nome });
+      // 'x', 'x' as const, 'x' satisfies Y, <T>'x', (x), const do arquivo, o atalho
+      // { robo }, o ternário (os dois ramos), let/var com textos, o padrão do
+      // parâmetro, o objeto de constantes (ROBOS.agenda) e a ?? ou ||.
+      const alvo = ts.isShorthandPropertyAssignment(n) ? n.name : n.initializer;
+      for (const nome of nomesDoRobo(alvo, consts, sf)) pedidosDeRobo.push({ no: n, nome });
+    }
+    // Atribuição depois: pedido.robo = 'ep_agenda' (ou pedido['robo'] = ...).
+    if (olhaRobo && ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken
+      && ((ts.isPropertyAccessExpression(n.left) && n.left.name.text === 'robo')
+        || (ts.isElementAccessExpression(n.left) && ts.isStringLiteral(n.left.argumentExpression) && n.left.argumentExpression.text === 'robo'))) {
+      for (const nome of nomesDoRobo(n.right, consts, sf)) pedidosDeRobo.push({ no: n, nome });
     }
     if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer) {
       let ini: ts.Expression = n.initializer;
@@ -1021,26 +1157,34 @@ function varrerAst(texto: string, arquivo: string, kind: ts.ScriptKind): Achado[
       if (!temUrlZapi) add(x.no, 'zapi', 'caminho_livre', `cabeçalho ${x.texto} sem URL no arquivo`);
       continue;
     }
-    if (falaComZapi && !rota && PATH_ENVIO_SOLTO.test(x.texto)) {
+    if (falaComZapi && !rota && (PATH_ENVIO_SOLTO.test(x.texto) || ZAPI_FORWARD.test(x.texto))) {
       add(x.no, 'zapi', 'envio', x.texto);
       continue;
     }
-    // Caminho montado depois de uma base que o arquivo não resolve
-    // (`${base(c)}/forward-message`, z.post('/forward-message')): endpoint fora da
-    // lista do permitido, sem GET provado, é envio (GET não manda nada na Z-API, e
-    // a base pode ser a da própria api: o mcp.ts lê `${BASE}/cron/...` por GET).
-    if (falaComZapi && !rota && /^(\$\{\*\})?\/[^/]/.test(x.texto) && ehAlvoDeRequisicao(x.no) && metodoDoUso(x.no) !== 'GET') {
+    // Caminho montado depois de uma base que o arquivo não resolve, com ou sem a
+    // barra (`${base(c)}/x`, `${base(c)}x`, z.post('/x')), ALVO de requisição:
+    // endpoint fora da lista do permitido, sem GET provado, é envio (GET não manda
+    // nada na Z-API, e a base pode ser a da própria api: o mcp.ts lê
+    // `${BASE}/cron/...` por GET).
+    if (falaComZapi && !rota && CAMINHO_DEPOIS_DA_BASE.test(x.texto) && ehAlvoDeRequisicao(x.no) && metodoDoUso(x.no) !== 'GET') {
       const seg = primeiroSegmento(x.texto.replace(/^\$\{\*\}/, ''));
       if (seg.tipo === 'fixo' && !CONSULTAS_ZAPI_PERMITIDAS.has(seg.nome)) { add(x.no, 'zapi', 'envio', x.texto); continue; }
       if (seg.tipo === 'variavel') { add(x.no, 'zapi', 'caminho_livre', x.texto); continue; }
     }
-    // Graph fora dos clientes: toda escrita (o que não é GET provado).
+    // Graph fora dos clientes: escrita (o que não é GET provado) num caminho que
+    // a guarda lê (os casos de O QUE REPROVA).
     if (temHostGraph && !rota) {
       let caminho: string | null = null;
       let baseSolta = false;
       if (HOST_GRAPH.test(x.texto)) caminho = x.texto.replace(PREFIXO_GRAPH, '');
       else if (VERSAO_GRAPH.test(x.texto) && ehAlvoDeRequisicao(x.no)) caminho = x.texto.replace(VERSAO_GRAPH, '');
       else if (x.texto.startsWith(`${CORINGA}/`)) { caminho = x.texto.slice(CORINGA.length); baseSolta = true; }
+      // Caminho sem host e sem versão, alvo de requisição (o path do
+      // https.request com o hostname noutro literal, o 1º argumento de new URL
+      // com o host no 2º, o post de uma instância com baseURL do Graph): conta
+      // como a base solta, ou seja, só o edge de MENSAGEM ou o segmento variável
+      // com escrita provada.
+      else if (x.texto.startsWith('/') && ehAlvoDeRequisicao(x.no)) { caminho = x.texto; baseSolta = true; }
       const tipo = caminho === null ? null : classificarGraph(caminho, metodoDoUso(x.no), baseSolta);
       if (tipo) { add(x.no, 'graph', tipo, x.texto); continue; }
     }
@@ -1099,6 +1243,24 @@ function varrerAst(texto: string, arquivo: string, kind: ts.ScriptKind): Achado[
   for (const regra of ['zapipost', 'envio_cru'] as const) {
     const imps = vigiados.filter(i => i.regra === regra);
     if (imps.length === 0) continue;
+    // Desestruturação do namespace: const { enviarZapiIO: mandar } = io.
+    const visitarDesestruturacao = (n: ts.Node): void => {
+      if (ts.isVariableDeclaration(n) && ts.isObjectBindingPattern(n.name) && n.initializer) {
+        let ini: ts.Expression = n.initializer;
+        while (ts.isParenthesizedExpression(ini) || ts.isAsExpression(ini) || ts.isNonNullExpression(ini) || ts.isAwaitExpression(ini)) ini = ini.expression;
+        if (ts.isIdentifier(ini)) {
+          for (const imp of imps) {
+            if (!imp.namespaces.includes(ini.text)) continue;
+            for (const el of n.name.elements) {
+              const importado = nomeDaPropriedade(el.propertyName) ?? (ts.isIdentifier(el.name) ? el.name.text : null);
+              if (importado && imp.nomes.includes(importado) && ts.isIdentifier(el.name)) imp.locais.push(el.name.text);
+            }
+          }
+        }
+      }
+      ts.forEachChild(n, visitarDesestruturacao);
+    };
+    visitarDesestruturacao(sf);
     const nomes = new Set(imps.flatMap(i => i.nomes));
     const locais = new Set(imps.flatMap(i => i.locais));
     const namespaces = new Set(imps.flatMap(i => i.namespaces));
@@ -1115,7 +1277,11 @@ function varrerAst(texto: string, arquivo: string, kind: ts.ScriptKind): Achado[
       return false;
     };
     const visitarRef = (n: ts.Node): void => {
-      if (ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.expression) && namespaces.has(n.expression.text) && nomes.has(n.name.text)) {
+      const membro = ts.isPropertyAccessExpression(n) ? n.name.text
+        : ts.isElementAccessExpression(n) && ts.isStringLiteral(n.argumentExpression) ? n.argumentExpression.text : null;
+      if ((ts.isPropertyAccessExpression(n) || ts.isElementAccessExpression(n)) && ts.isIdentifier(n.expression)
+        && namespaces.has(n.expression.text) && membro !== null && nomes.has(membro)) {
+        // io.enviarZapiIO e io['enviarZapiIO'].
         const alvo = n.parent && ts.isCallExpression(n.parent) && n.parent.expression === n ? n.parent : n;
         add(alvo, regra, 'chamada', alvo.getText(sf));
         chamadasCruas++;
@@ -1702,11 +1868,47 @@ describe('chefeGuarda: arquivo → robôs permitidos, com a classe máxima de ca
     expect(resumo(varrerFonte(`${real}\n${pedido('ep_reagenda_auto')}\n`, reagenda)).filter(k => k.startsWith('robo:'))).toEqual([]);
   });
 
-  it('DÍVIDA DECLARADA: num arquivo que pode pedir classe mais urgente que a do robô a regra não separa a classe (8 de evento, 5 de agenda)', () => {
+  it('os 7 arquivos com robô de agenda estão escritos pelo nome, com o frio que mora junto (eletropostoRemarcar e eletropostoRespostas)', () => {
+    const derivado: Record<string, { agenda: string[]; frio: string[] }> = {};
+    for (const [nome, r] of Object.entries(CLASSE_POR_ROBO)) {
+      if (!r.agenda) continue;
+      for (const a of r.arquivos) derivado[a] = { agenda: [...(derivado[a]?.agenda ?? []), nome].sort(), frio: [] };
+    }
+    for (const [nome, r] of Object.entries(CLASSE_POR_ROBO)) {
+      if (r.classe !== 'frio_p5' && r.classe !== 'frio_receita_p4') continue;
+      for (const a of r.arquivos) if (derivado[a]) derivado[a]!.frio = [...derivado[a]!.frio, nome].sort();
+    }
+    expect(derivado).toEqual(ARQUIVOS_COM_ROBO_DE_AGENDA);
+    expect(Object.entries(ARQUIVOS_COM_ROBO_DE_AGENDA).filter(([, e]) => e.frio.length > 0).map(([a]) => a))
+      .toEqual(['services/io/eletropostoRemarcar.ts', 'services/io/eletropostoRespostas.ts']);
+  });
+
+  it('a dívida está escrita onde se lê: o regulamento (DIVERGENCIAS) e o checklist do subagente nomeiam os arquivos com robô de agenda', () => {
+    const base = (a: string) => a.split('/').pop()!.replace(/\.ts$/, '');
+    const guarda = DIVERGENCIAS.find(d => d.startsWith('Guarda arquivo'))!;
+    for (const a of Object.keys(ARQUIVOS_COM_ROBO_DE_AGENDA)) expect({ a, no: guarda.includes(base(a)) }).toEqual({ a, no: true });
+    const subagente = readFileSync(join(RAIZ, '.claude', 'agents', 'chefe-antiban.md'), 'utf8');
+    for (const a of ['eletropostoRemarcar', 'eletropostoRespostas']) expect({ a, no: subagente.includes(a) }).toEqual({ a, no: true });
+  });
+
+  it('REMARCAÇÃO PEDIDA: arquivo novo, ou um dos arquivos só da oferta fria, pedindo ep_remarcar_reativo reprova; nos dois que hospedam a remarcação passa (dívida)', () => {
+    for (const arquivo of ['api/src/services/io/roboNovo.ts', 'api/src/services/io/eletropostoRetorno.ts', 'api/src/services/io/eletropostoNaoAtendidoFup.ts']) {
+      const r = reprovaEm(pedido('ep_remarcar_reativo'), arquivo);
+      expect({ arquivo, novos: r.novos, reprova: r.problemas.length > 0 }).toEqual({ arquivo, novos: ['robo:fora_do_arquivo'], reprova: true });
+    }
+    // DÍVIDA: o lote de oferta fria escrito no arquivo da remarcação, pedindo com o nome dela, passa.
+    const lote = 'export async function loteNovo(decidir: any, estado: any, lista: string[], agora: number) { for (const p of lista) decidir(estado, { robo: \'ep_remarcar_reativo\', destino: p }, agora); }';
+    for (const arquivo of ['api/src/services/io/eletropostoRemarcar.ts', 'api/src/services/io/eletropostoRespostas.ts']) {
+      expect({ arquivo, problemas: reprovaEm(lote, arquivo).problemas }).toEqual({ arquivo, problemas: [] });
+    }
+  });
+
+  it('DÍVIDA DECLARADA: num arquivo que hospeda robô de evento (8) ou de agenda (7) a regra não separa a classe', () => {
     // O que expõe não é ser misto, é ter robô de evento (ou de agenda) entre os
     // permitidos. Um lote novo pedindo com o nome do robô de evento do próprio
     // arquivo passa nesta guarda e sai como evento: 60 em 10 min, de madrugada e
-    // no domingo (números cravados no chefeQuedas). A defesa completa é o
+    // no domingo; com o nome do robô de agenda, sai fora dos freios de volume e
+    // da rajada por robô (números cravados no chefeQuedas). A defesa completa é o
     // passaporte por chamada, que prova a classe. Se este teste quebrar porque a
     // guarda passou a pegar, ótimo: troque por um controle positivo.
     const deClasse = (c: Classe) => Object.entries(ROBOS_POR_ARQUIVO).filter(([, e]) => e.classeMaxima === c).map(([a]) => a).sort();
@@ -1929,5 +2131,121 @@ describe('chefeGuarda: lista do permitido (os formatos do verificador anterior, 
       'api/src/services/metaNovo.ts');
     expect(resumo(varrerFonte('export const s = (id: string, tk: string) => fetch(`https://api.z-api.io/instances/${id}/token/${tk}/qr-code`);', 'api/src/services/io/zapiHealthMonitor.ts')))
       .toEqual(['zapi:consulta']);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RODADA 4 — os formatos que o verificador da rodada 3 achou passando verdes
+// (G3, G10, G5, G12), agora pegos, e os LIMITES que ficam, escritos como teste:
+// cada formato que a guarda NÃO pega tem um teste que crava zero achado, para
+// que, no dia em que ela passar a pegar, o teste quebre e o texto dos LIMITES
+// CONHECIDOS seja atualizado junto. A defesa completa é a catraca física no
+// zapiPost, com o livro no banco (próxima fase).
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('chefeGuarda: rodada 4, os formatos do verificador da rodada 3 e os limites que ficam', () => {
+  const NOVO = 'api/src/services/io/roboNovo.ts';
+  const NOVO_IG = 'api/src/services/instagram/roboNovo.ts';
+  const ARQUIVOS_DE_CONSULTA = Object.keys(CONSULTA_ZAPI);
+  const reprova = (nome: string, codigo: string, arquivos: readonly string[], chave: string) => {
+    for (const arquivo of arquivos) {
+      const r = reprovaEm(codigo, arquivo);
+      expect({ nome, arquivo, reprova: r.problemas.length > 0, sobe: r.novos.includes(chave) })
+        .toEqual({ nome, arquivo, reprova: true, sobe: true });
+    }
+  };
+  /** O formato passa sem achado nenhum da regra: é LIMITE declarado. */
+  const limite = (nome: string, codigo: string, arquivo: string, regra: Regra) => {
+    const achados = varrerFonte(codigo, arquivo).filter(a => a.regra === regra);
+    expect({ nome, arquivo, achados: resumo(achados) }).toEqual({ nome, arquivo, achados: [] });
+  };
+  const BASE_Z = 'const baseZ = (c: any) => `https://api.z-api.io/instances/${c.id}/token/${c.token}/`;\n';
+
+  it('Z-API: o forward-message em qualquer posição (G3c colado na base sem barra, G3b new URL, G3 join, G1 axios sem barra), em arquivo novo e nos 4 de consulta', () => {
+    const casos: Record<string, string> = {
+      G3c: `${BASE_Z}export async function fw(c: any, lista: string[]) { for (const phone of lista) await fetch(\`\${baseZ(c)}forward-message\`, { method: "POST", body: JSON.stringify({ phone }) }); }`,
+      G3b: `${BASE_Z}export async function fw(c: any, lista: string[]) { for (const phone of lista) await fetch(new URL("forward-message", baseZ(c)), { method: "POST", body: JSON.stringify({ phone }) }); }`,
+      G3: `${BASE_Z}export async function fw(c: any, lista: string[]) { for (const phone of lista) await fetch([baseZ(c), "forward-message"].join("/"), { method: "POST", body: JSON.stringify({ phone }) }); }`,
+      G1: 'import axios from "axios";\nexport async function fw(c: any) { const z = axios.create({ baseURL: `https://api.z-api.io/instances/${c.id}/token/${c.token}/` }); await z.post("forward-message", { phone: "1" }); }',
+    };
+    for (const [nome, codigo] of Object.entries(casos)) reprova(nome, codigo, [NOVO, ...ARQUIVOS_DE_CONSULTA], 'zapi:envio');
+  });
+
+  it('Z-API: endpoint colado na base sem barra, alvo de requisição sem GET provado, passa pela lista do permitido (send-* e endpoint novo)', () => {
+    reprova('send colado', `${BASE_Z}export const f = (c: any, p: string) => fetch(\`\${baseZ(c)}send-text\`, { method: "POST", body: JSON.stringify({ phone: p }) });`,
+      [NOVO, ...ARQUIVOS_DE_CONSULTA], 'zapi:envio');
+    reprova('endpoint novo colado', `${BASE_Z}export const f = (c: any, p: string) => fetch(\`\${baseZ(c)}reply-message\`, { method: "POST", body: JSON.stringify({ phone: p }) });`,
+      [NOVO, ...ARQUIVOS_DE_CONSULTA], 'zapi:envio');
+    // A consulta colada na base, por GET, continua consulta.
+    expect(resumo(varrerFonte(`${BASE_Z}export const s = (c: any) => fetch(\`\${baseZ(c)}status\`);`, 'api/src/services/io/zapiHealthMonitor.ts')))
+      .toEqual(['zapi:consulta']);
+  });
+
+  it('Graph: caminho sem host e sem versão para um edge de mensagem (G10d https.request, G10e new URL, G10 e G10b axios com baseURL)', () => {
+    const casos: Record<string, string> = {
+      G10d: 'import https from "https";\nexport function lote(pg: string, lista: string[], tk: string) { for (const para of lista) { const req = https.request({ hostname: "graph.facebook.com", port: 443, path: `/${pg}/messages?access_token=${tk}`, method: "POST" }); req.write(JSON.stringify({ recipient: { id: para } })); req.end(); } }',
+      G10e: 'export async function lote(lista: string[], tk: string) { for (const para of lista) await fetch(new URL(`/me/messages?access_token=${tk}`, "https://graph.facebook.com"), { method: "POST", body: JSON.stringify({ recipient: { id: para } }) }); }',
+      G10: 'import axios from "axios";\nexport async function lote(pg: string, lista: string[]) { const g = axios.create({ baseURL: "https://graph.facebook.com/v21.0" }); for (const para of lista) await g.post(`/${pg}/messages`, { recipient: { id: para } }); }',
+      G10b: 'import axios from "axios";\nexport async function lote(lista: string[]) { const g = axios.create({ baseURL: "https://graph.facebook.com/v21.0" }); for (const para of lista) await g.post("/me/messages", { recipient: { id: para } }); }',
+    };
+    for (const [nome, codigo] of Object.entries(casos)) {
+      reprova(nome, codigo, [NOVO_IG, 'api/src/services/metaOrdensService.ts', 'api/src/services/io/prospeccaoConversaIg.ts'], 'graph:envio');
+    }
+    // Controle negativo: a leitura (sem method) e o /events da API de Conversões continuam passando.
+    expect(varrerFonte('import https from "https";\nexport function ler(pg: string, tk: string) { https.request({ hostname: "graph.facebook.com", path: `/${pg}/comments?access_token=${tk}` }).end(); }', NOVO_IG)).toEqual([]);
+    expect(varrerFonte('import https from "https";\nexport function ev(px: string, tk: string) { https.request({ hostname: "graph.facebook.com", path: `/${px}/events?access_token=${tk}`, method: "POST" }).end(); }', NOVO_IG)).toEqual([]);
+  });
+
+  it('robo: ternário, let/var, padrão de parâmetro, objeto de constantes, ?? e atribuição depois (G5a a G5e) reprovam como o literal', () => {
+    const casos: Record<string, string> = {
+      G5a: 'export const pedir = (decidir: any, estado: any, p: string, urgente: boolean, agora: number) => decidir(estado, { robo: urgente ? \'ep_agenda\' : \'ep_reagenda_auto\', destino: p }, agora);',
+      G5b: 'export const pedir = (decidir: any, estado: any, p: string, urgente: boolean, agora: number) => { let r = \'ep_reagenda_auto\'; if (urgente) r = \'ep_agenda\'; return decidir(estado, { robo: r, destino: p }, agora); };',
+      G5c: 'export function pedir(decidir: any, estado: any, p: string, agora: number, robo = \'ep_agenda\') { return decidir(estado, { robo, destino: p }, agora); }',
+      G5d: 'const ROBOS = { agenda: \'ep_agenda\', reagenda: \'ep_reagenda_auto\' } as const;\nexport const pedir = (decidir: any, estado: any, p: string, agora: number) => decidir(estado, { robo: ROBOS.agenda, destino: p }, agora);',
+      G5e: 'export const pedir = (decidir: any, estado: any, p: string, agora: number) => { const pedido: any = { destino: p }; pedido.robo = \'ep_agenda\'; return decidir(estado, pedido, agora); };',
+      nulo: 'export const pedir = (decidir: any, estado: any, p: string, agora: number, r?: string) => decidir(estado, { robo: r ?? \'ep_agenda\', destino: p }, agora);',
+    };
+    for (const [nome, codigo] of Object.entries(casos)) {
+      reprova(nome, codigo, ['api/src/services/io/eletropostoReagendaAuto.ts', 'api/src/services/io/sementeSolarService.ts', NOVO], 'robo:fora_do_arquivo');
+    }
+    // O robô certo no arquivo certo, por ternário entre dois nomes dele, passa.
+    expect(varrerFonte('const ROBO_A = \'ep_reagenda_auto\';\nexport const pedir = (decidir: any, estado: any, p: string, x: boolean, agora: number) => decidir(estado, { robo: x ? ROBO_A : \'ep_reagenda_auto\', destino: p }, agora);',
+      'api/src/services/io/eletropostoReagendaAuto.ts').filter(a => a.regra === 'robo')).toEqual([]);
+  });
+
+  it('envio cru: desestruturação do namespace, import = require e acesso por colchete (G12a a G12c) contam como referência', () => {
+    reprova('G12a', 'import * as io from "./ioSend";\nconst { enviarZapiIO: mandar } = io;\nexport async function lote(lista: string[]) { for (const p of lista) await mandar(p, "oi"); }',
+      [NOVO, 'api/src/services/io/sementeSolarService.ts', 'api/src/services/io/avisosTickService.ts'], 'envio_cru:chamada');
+    reprova('G12b', 'import io = require("./ioSend");\nexport async function lote(lista: string[]) { for (const p of lista) await io.enviarZapiIO(p, "oi"); }',
+      [NOVO, 'api/src/services/io/sementeSolarService.ts'], 'envio_cru:chamada');
+    reprova('G12c', 'import z = require("../agents/zapiClient");\nexport async function lote(lista: string[]) { for (const p of lista) await z.zapiPost("send-text", { phone: p, message: "oi" }, 2, "io"); }',
+      [NOVO, 'api/src/services/io/sementeSolarService.ts'], 'zapipost:chamada');
+    reprova('colchete', 'import * as io from "./ioSend";\nexport async function lote(lista: string[]) { for (const p of lista) await io["enviarZapiIO"](p, "oi"); }',
+      [NOVO], 'envio_cru:chamada');
+  });
+
+  it('LIMITES que ficam (zero achado, de propósito): cada um está escrito nos LIMITES CONHECIDOS', () => {
+    // Z-API: endpoint fora da lista, que não é send-* nem forward-message, num
+    // texto que não é alvo direto de requisição (o pedaço de um join), dentro de
+    // um arquivo de CONSULTA_ZAPI. Num arquivo novo a base sozinha já reprova
+    // (como consulta fora da lista de consulta).
+    for (const arquivo of ARQUIVOS_DE_CONSULTA) {
+      const r = reprovaEm(`${BASE_Z}export const fj = (c: any, p: string) => fetch([baseZ(c), "reply-message"].join(""), { method: "POST", body: p });`, arquivo);
+      expect({ arquivo, problemas: r.problemas, envio: r.novos.filter(k => k !== 'zapi:consulta') }).toEqual({ arquivo, problemas: [], envio: [] });
+    }
+    expect(reprovaEm(`${BASE_Z}export const fj = (c: any, p: string) => fetch([baseZ(c), "reply-message"].join(""), { method: "POST", body: p });`, NOVO).problemas.join(' | '))
+      .toContain('fora de CONSULTA_ZAPI');
+    // Z-API: a URL inteira vinda de env, sem host, molde nem Client-Token no arquivo.
+    limite('URL da env', 'export const f = (p: string) => fetch(process.env.ZAPI_URL_ENVIO!, { method: "POST", body: p });', NOVO, 'zapi');
+    // Graph: o host só na env (sem literal no arquivo).
+    limite('Graph com host da env', 'export const f = (pg: string, para: string) => fetch(`${process.env.META_GRAPH_URL!}/${pg}/messages`, { method: "POST", body: para });', NOVO_IG, 'graph');
+    // Graph: caminho sem host e sem versão para um edge que NÃO é de mensagem (o /feed de uma página).
+    limite('Graph sem versão, edge que não é de mensagem', 'import https from "https";\nexport function post(pg: string, tk: string) { https.request({ hostname: "graph.facebook.com", path: `/${pg}/feed?access_token=${tk}`, method: "POST" }).end(); }', NOVO_IG, 'graph');
+    // robo: nome vindo de parâmetro sem padrão, de import, ou de texto com variável.
+    limite('robo de parâmetro', 'export const pedir = (decidir: any, estado: any, p: string, robo: string, agora: number) => decidir(estado, { robo, destino: p }, agora);', NOVO, 'robo');
+    limite('robo de import', 'import { NOME_ROBO } from "./outro";\nexport const pedir = (decidir: any, estado: any, p: string, agora: number) => decidir(estado, { robo: NOME_ROBO, destino: p }, agora);', NOVO, 'robo');
+    limite('robo com variável', 'export const pedir = (decidir: any, estado: any, p: string, t: string, agora: number) => decidir(estado, { robo: `ep_${t}`, destino: p }, agora);', NOVO, 'robo');
+    // envio cru: membro calculado (io["enviar" + "ZapiIO"]) e o barrel que re-exporta.
+    limite('membro calculado', 'import * as io from "./ioSend";\nconst k = "enviar" + "ZapiIO";\nexport async function lote(lista: string[]) { for (const p of lista) await (io as any)[k](p, "oi"); }', NOVO, 'envio_cru');
   });
 });

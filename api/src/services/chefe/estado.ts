@@ -133,6 +133,25 @@ export function montarEstado(livro: readonly EnvioLivro[], agora: number, extras
     }
   }
 
+  // A última queda: do 1º erro de linha da última sequência (sem ok no meio) até
+  // o 1º envio ok depois do último erro de linha. É a prova de que a linha
+  // segurou a agenda (agendaRepresadaPelaLinha).
+  let quedaRecente: Estado['quedaRecente'] = null;
+  const iErro = ordenado.findIndex(e => !e.ok && e.erro === 'linha');
+  if (iErro >= 0) {
+    let de = ordenado[iErro]!.em;
+    for (let i = iErro + 1; i < ordenado.length; i++) {
+      const e = ordenado[i]!;
+      if (e.ok) break;
+      if (e.erro === 'linha') de = e.em;
+    }
+    let voltouEm: number | null = null;
+    for (let i = iErro - 1; i >= 0; i--) {
+      if (ordenado[i]!.ok) { voltouEm = ordenado[i]!.em; break; }
+    }
+    quedaRecente = { de, voltouEm };
+  }
+
   const k = chaveDoContato(extras.destino);
   let chaveReservadaEm: number | null = null;
   if (extras.chave) {
@@ -149,6 +168,7 @@ export function montarEstado(livro: readonly EnvioLivro[], agora: number, extras
     maisAntigoEm,
     errosLinhaSeguidos,
     ultimoErroLinhaEm,
+    quedaRecente,
     reconectadoEm: extras.reconectadoEm ?? null,
     rampaForcadaEm: extras.rampaForcadaEm ?? null,
     esperando: extras.esperando,

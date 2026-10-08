@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  decidir, classeEfetiva, classificarErroEnvio, Estado, Pedido, Decisao, ContagemPorClasse, JanelaContagem,
+  decidir, classeEfetiva, classificarErroEnvio, agendaRepresadaPelaLinha, Estado, Pedido, Decisao, ContagemPorClasse, JanelaContagem,
 } from '../services/chefe/decidir';
 import { lerRegulamento, REGULAMENTO_PADRAO, dentroDaJanela } from '../services/chefe/regulamento';
 import { montarEstado, EnvioLivro } from '../services/chefe/estado';
@@ -388,19 +388,29 @@ describe('decidir: uma regra por caso', () => {
   });
 
   // [revisão] A rajada do lembrete e a das proativas eram contadas à parte: o
-  // mesmo ep_agenda, com metade dos pedidos com prazo, passava 11 em 10 min.
-  it('rajada por robô: o mesmo robô não passa de 6 em 10 min somando lembrete com prazo e proativa', () => {
+  // mesmo robô, com metade dos pedidos com prazo, passava 11 em 10 min.
+  // [rodada 4, regra do dono] Ela não vale para a agenda: dura, já gasta pelos
+  // outros toques do mesmo robô, ela cortava o lembrete no último momento útil
+  // depois de uma queda curta (chefeQuedas, "agenda não expira depois de queda").
+  it('rajada por robô: fora da agenda, o mesmo robô não passa de 6 em 10 min somando lembrete com prazo e proativa; a agenda não é segurada por ela', () => {
     const cheio = est({ doRobo10min: 6, maisAntigoEm: { robo_10min: T - 4 * MIN } });
-    const d = adiar(decidir(cheio, ped('ep_agenda', { prazo: T + 5 * MIN }), T));
+    // O lembrete que não é agenda (as boas-vindas com a ficha fresca) e o transacional que não é agenda.
+    const d = adiar(decidir(cheio, ped('solar_boas_vindas', { prazo: T + 5 * MIN }), T));
     expect(d).toMatchObject({ classe: 'lembrete_p1', motivo: 'rajada_robo' });
     expect(d.ate).toBeGreaterThanOrEqual(T + 6 * MIN);
     expect(d.ate).toBeLessThanOrEqual(T + 6 * MIN + 90_000);
-    expect(adiar(decidir(cheio, ped('ep_agenda'), T)).motivo).toBe('rajada_robo');
-    expect(decidir(est({ doRobo10min: 5 }), ped('ep_agenda', { prazo: T + 5 * MIN }), T).acao).toBe('enviar_agora');
+    expect(adiar(decidir(cheio, ped('solar_boas_vindas'), T)).motivo).toBe('rajada_robo');
+    expect(adiar(decidir(cheio, ped('ep_desmarcacao_aviso', { destino: EQUIPE[0] }), T)).motivo).toBe('rajada_robo');
+    expect(decidir(est({ doRobo10min: 5 }), ped('solar_boas_vindas', { prazo: T + 5 * MIN }), T).acao).toBe('enviar_agora');
+    // A agenda passa com o robô cheio: lembrete com prazo, bom dia sem prazo, cobrança, alerta ao consultor.
+    for (const p of [ped('ep_agenda', { prazo: T + 5 * MIN }), ped('ep_agenda'), ped('giovanna_agenda', { prazo: T + 5 * MIN }),
+      ped('ep_cobra_sim'), ped('ep_alerta_10min', { destino: EQUIPE[0], prazo: T + 10 * MIN })]) {
+      expect({ robo: p.robo, prazo: p.prazo, acao: decidir(cheio, p, T).acao }).toEqual({ robo: p.robo, prazo: p.prazo, acao: 'enviar_agora' });
+    }
     // Resposta e evento ficam fora da rajada por robô.
     expect(decidir({ ...cheio, ...comEntrada(1) }, ped('giovanna_reativa'), T).acao).toBe('enviar_agora');
     expect(decidir(cheio, ped('solardoc_compra'), T).acao).toBe('enviar_agora');
-    expect(adiar(decidir(est({ doRobo10min: 3 }), ped('ep_agenda', { prazo: T + 5 * MIN }), T,
+    expect(adiar(decidir(est({ doRobo10min: 3 }), ped('solar_boas_vindas', { prazo: T + 5 * MIN }), T,
       lerRegulamento({ CHEFE_RAJADA_ROBO_10MIN: '3' }).reg)).motivo).toBe('rajada_robo');
   });
 
@@ -413,11 +423,16 @@ describe('decidir: uma regra por caso', () => {
       envio(7, 'ep_agenda', 'reativo_p1'), envio(11, 'ep_agenda', 'lembrete_p1'),
       envio(8, 'giovanna_agenda', 'lembrete_p1'),
     ];
-    const doRobo = (robo: string) => montarEstado(livro, T, { robo, destino: LEAD, equipe: EQUIPE });
+    const doRobo = (robo: string, l: EnvioLivro[] = livro) => montarEstado(l, T, { robo, destino: LEAD, equipe: EQUIPE });
     expect(doRobo('ep_agenda').doRobo10min).toBe(6);
     expect(doRobo('ep_agenda').maisAntigoEm?.robo_10min).toBe(T - 6 * MIN);
     expect(doRobo('giovanna_agenda').doRobo10min).toBe(1);
-    expect(adiar(decidir(doRobo('ep_agenda'), ped('ep_agenda', { prazo: T + 5 * MIN }), T)).motivo).toBe('rajada_robo');
+    // A agenda não é segurada pela rajada por robô; o mesmo livro com as
+    // boas-vindas (lembrete que não é agenda) no lugar do ep_agenda segura.
+    expect(decidir(doRobo('ep_agenda'), ped('ep_agenda', { prazo: T + 5 * MIN }), T).acao).toBe('enviar_agora');
+    const boasVindas = livro.map(e => (e.robo === 'ep_agenda' ? { ...e, robo: 'solar_boas_vindas' } : e));
+    expect(doRobo('solar_boas_vindas', boasVindas).doRobo10min).toBe(6);
+    expect(adiar(decidir(doRobo('solar_boas_vindas', boasVindas), ped('solar_boas_vindas', { prazo: T + 5 * MIN }), T)).motivo).toBe('rajada_robo');
     expect(decidir(doRobo('giovanna_agenda'), ped('giovanna_agenda', { prazo: T + 5 * MIN }), T).acao).toBe('enviar_agora');
   });
 
@@ -487,14 +502,82 @@ describe('decidir: uma regra por caso', () => {
     expect(folga.ate).toBeLessThanOrEqual(tarde + 2 * HORA - 3 * MIN);
   });
 
-  it('agenda: o que é duro ainda segura no último momento útil (rajada por robô, linha caída, chave, janela para lead, pausa do HEAD)', () => {
+  it('agenda: o que é duro ainda segura no último momento útil (linha caída, chave, janela para lead, pausa do HEAD); a rajada por robô não', () => {
     const p = ped('ep_agenda', { prazo: T + 4 * MIN, validoAte: T + 3 * MIN, chave: 'k:1' });
-    expect(adiar(decidir(est({ doRobo10min: 6, maisAntigoEm: { robo_10min: T - 2 * MIN } }), p, T)).motivo).toBe('rajada_robo');
+    // [rodada 4] A rajada por robô cheia não segura a agenda no último momento útil.
+    expect(decidir(est({ doRobo10min: 6, maisAntigoEm: { robo_10min: T - 2 * MIN } }), p, T).acao).toBe('enviar_agora');
     expect(adiar(decidir(est({ errosLinhaSeguidos: 2, ultimoErroLinhaEm: T - MIN }), p, T)).motivo).toBe('freio_de_erro');
     expect(adiar(decidir(est({ destino: { chaveReservadaEm: T - MIN } }), p, T)).motivo).toBe('chave_repetida');
     const tres = brt('2026-10-04T03:00');
     expect(adiar(decidir(est(), ped('ep_agenda', { prazo: tres + 5 * MIN, validoAte: tres + 3 * MIN }), tres)).motivo).toBe('fora_da_janela');
     expect(adiar(decidir(est({ destino: { pausa: { ultimaFalaEm: T - HORA } } }), ped('giovanna_agenda', { prazo: T + 4 * MIN, validoAte: T + 3 * MIN }), T)).motivo).toBe('pausa_humana');
+  });
+
+  it('agenda no último momento útil sai só com o espaçamento curto entre mensagens (10 s em processo), com a rajada global cheia', () => {
+    const cheio = est({ m10: { transacional_agenda_p3: 6 }, ultimoEm: { fisica: T - 3000, proativa: T - 3000 } });
+    // Com folga na janela, o espaço entre proativas e a rajada global adiam.
+    expect(decidir(cheio, ped('ep_agenda', { validoAte: T + HORA }), T).acao).toBe('adiar');
+    // No último momento útil: sai, esperando os 7 s que faltam para os 10 s do último envio físico.
+    expect(decidir(cheio, ped('ep_agenda', { validoAte: T + 2 * MIN }), T)).toMatchObject({ acao: 'enviar_agora', esperarMs: 7000, classe: 'transacional_agenda_p3' });
+    expect(decidir(est({ ultimoEm: { fisica: T - 30_000 } }), ped('ep_agenda', { validoAte: T + 2 * MIN }), T)).toMatchObject({ acao: 'enviar_agora', esperarMs: 0 });
+  });
+
+  it('montarEstado: a última queda da linha sai do livro (1º erro de linha da sequência até o 1º ok depois dela)', () => {
+    const e = (min: number, ok: boolean, erro?: 'linha' | 'destino'): EnvioLivro =>
+      ({ em: T - min * MIN, robo: 'ep_agenda', classe: 'transacional_agenda_p3', destino: `55349800000${10 + min}`, bolhas: 1, ok, erro: erro ?? null });
+    // ok às −60; erros de linha em −40 e −30 com um de destino no meio; ok em −10 e −5.
+    const livro = [e(60, true), e(40, false, 'linha'), e(35, false, 'destino'), e(30, false, 'linha'), e(10, true), e(5, true)];
+    expect(montarEstado(livro, T).quedaRecente).toEqual({ de: T - 40 * MIN, voltouEm: T - 10 * MIN });
+    // Ainda caída: sem ok depois do último erro.
+    expect(montarEstado(livro, T - 20 * MIN).quedaRecente).toEqual({ de: T - 40 * MIN, voltouEm: null });
+    // Uma queda antiga separada por ok não entra na sequência: vale a última.
+    const duas = [e(120, false, 'linha'), e(100, true), ...livro];
+    expect(montarEstado(duas, T).quedaRecente).toEqual({ de: T - 40 * MIN, voltouEm: T - 10 * MIN });
+    // Sem erro de linha (só de destino): sem queda.
+    expect(montarEstado([e(30, false, 'destino'), e(10, true)], T).quedaRecente).toBeNull();
+  });
+
+  it('agenda represada pela linha: o fim útil caiu na queda, nunca expira e sai na volta só com o espaçamento curto; sem a prova da queda, o prazo vencido é só espaçado', () => {
+    const queda = { de: T - 70 * MIN, voltouEm: T - 2 * MIN };
+    const ep = CLASSE_POR_ROBO.ep_agenda!;
+    // A função pura: dentro da queda (com a folga de 5 min antes do 1º erro), sim; fora, não.
+    expect(agendaRepresadaPelaLinha(ep, 'transacional_agenda_p3', T - 7 * MIN, { quedaRecente: queda })).toBe(true);
+    expect(agendaRepresadaPelaLinha(ep, 'transacional_agenda_p3', T - 74 * MIN, { quedaRecente: queda })).toBe(true);
+    expect(agendaRepresadaPelaLinha(ep, 'transacional_agenda_p3', T - 76 * MIN, { quedaRecente: queda })).toBe(false);
+    expect(agendaRepresadaPelaLinha(ep, 'transacional_agenda_p3', T - MIN, { quedaRecente: queda })).toBe(false);
+    expect(agendaRepresadaPelaLinha(ep, 'transacional_agenda_p3', T + HORA, { quedaRecente: { de: T - 70 * MIN, voltouEm: null } })).toBe(true);
+    expect(agendaRepresadaPelaLinha(ep, 'transacional_agenda_p3', T - 7 * MIN, { quedaRecente: null })).toBe(false);
+    // Só agenda: as boas-vindas não; o robô de agenda rebaixado a frio não.
+    expect(agendaRepresadaPelaLinha(CLASSE_POR_ROBO.solar_boas_vindas!, 'transacional_agenda_p3', T - 7 * MIN, { quedaRecente: queda })).toBe(false);
+    expect(agendaRepresadaPelaLinha(CLASSE_POR_ROBO.ep_remarcar_reativo!, 'frio_p5', T - 7 * MIN, { quedaRecente: queda })).toBe(false);
+
+    // No decidir: o lembrete de 5 min da reunião das 9h50 (fim útil 9h53), com a
+    // linha fora das 8h50 às 9h58, sai às 10h com a rajada global e a emergência cheias.
+    const cinco = ped('ep_agenda', { prazo: T - 10 * MIN, validoAte: T - 7 * MIN, chave: '5m:1' });
+    const cheio = { m10: { transacional_agenda_p3: 6, lembrete_p1: 6 }, h1: { reativo_p1: 54 }, ultimoEm: { fisica: T - 4000, proativa: T - 4000 } };
+    expect(decidir(est({ ...cheio, quedaRecente: queda }), cinco, T)).toMatchObject({ acao: 'enviar_agora', esperarMs: 6000, classe: 'transacional_agenda_p3' });
+    // Sem queda no livro, o mesmo prazo vencido não ganha o último momento útil: espaça (e não é cortado).
+    const sem = adiar(decidir(est(cheio), cinco, T));
+    expect(['rajada_10min', 'espaco_proativa', 'teto_emergencia']).toContain(sem.motivo);
+    // O alerta ao consultor represado também sai (sem janela, interno).
+    expect(decidir(est({ ...cheio, quedaRecente: queda }), ped('ep_alerta_10min', { destino: EQUIPE[0], prazo: T - 10 * MIN, validoAte: T - 10 * MIN }), T).acao).toBe('enviar_agora');
+    // A janela do transacional continua dura para lead: represado às 21h30 espera as 7h (não morre).
+    const noite = brt('2026-10-05T21:30');
+    const d = adiar(decidir(est({ quedaRecente: { de: noite - HORA, voltouEm: noite - MIN } }), ped('ep_agenda', { prazo: noite - 30 * MIN, validoAte: noite - 27 * MIN }), noite));
+    expect(d.motivo).toBe('fora_da_janela');
+  });
+
+  it('agenda no último momento útil (e a represada) é a sonda da linha durante o freio: 1 tentativa a cada 5 min, não os 15 min da proativa', () => {
+    const caida = { errosLinhaSeguidos: 2, ultimoErroLinhaEm: T - 6 * MIN, quedaRecente: { de: T - 40 * MIN, voltouEm: null } };
+    // Com folga na janela, espera os 15 min do freio.
+    const folga = adiar(decidir(est(caida), ped('ep_agenda', { validoAte: T + HORA }), T));
+    expect(folga.motivo).toBe('freio_de_erro');
+    expect(folga.ate).toBeGreaterThanOrEqual(T + 9 * MIN);
+    // No último momento útil, ou já represada, tenta (passaram 5 min do último erro).
+    expect(decidir(est(caida), ped('ep_agenda', { validoAte: T + 2 * MIN }), T).acao).toBe('enviar_agora');
+    expect(decidir(est(caida), ped('ep_agenda', { prazo: T - 20 * MIN, validoAte: T - 15 * MIN }), T).acao).toBe('enviar_agora');
+    // E respeita o intervalo da sonda: 2 min depois do último erro, espera.
+    expect(adiar(decidir(est({ ...caida, ultimoErroLinhaEm: T - 2 * MIN }), ped('ep_agenda', { validoAte: T + 2 * MIN }), T)).motivo).toBe('freio_de_erro');
   });
 
   it('agenda: o alerta de 10 min ao consultor não tem janela (reunião às 21h30); o lembrete para lead tem', () => {
@@ -683,6 +766,8 @@ function sortearCaso(r: () => number, i: number): { estado: Estado; pedido: Pedi
     maisAntigoEm: chance(0.5) ? { frio_1h: agora - int(1, 59) * MIN, linha_1h: agora - int(1, 59) * MIN, total_1h: agora - int(1, 59) * MIN } : undefined,
     errosLinhaSeguidos: erros,
     ultimoErroLinhaEm: erros ? agora - int(0, 30) * MIN : null,
+    // A última queda do livro (às vezes ainda fora), para a agenda represada aparecer na amostra.
+    quedaRecente: chance(0.3) ? (() => { const de = agora - int(5, 180) * MIN; return { de, voltouEm: chance(0.4) ? null : de + int(0, agora - de) }; })() : null,
     reconectadoEm: talvez(0.3, () => agora - int(0, 4 * 24 * 60) * MIN),
     rampaForcadaEm: talvez(0.1, () => agora - int(0, 4 * 24 * 60) * MIN),
     esperando: chance(0.5) ? {} : Object.fromEntries(CLASSES_TODAS.map(k => [k, int(0, 5)])) as ContagemPorClasse,
@@ -695,9 +780,10 @@ function sortearCaso(r: () => number, i: number): { estado: Estado; pedido: Pedi
     },
   };
   const robos = [...Object.keys(CLASSE_POR_ROBO), 'robo_inexistente'];
-  // 1 em 4 vem de robô de agenda (ou das boas-vindas, o único lembrete que não é
-  // agenda), para a agenda e o lembrete com prazo aparecerem o bastante na amostra.
-  const lista = chance(0.25) ? [...AGENDA, 'solar_boas_vindas', 'solar_boas_vindas'] : robos;
+  // 3 em 10 vêm de robô de agenda (ou das boas-vindas, o único lembrete que não é
+  // agenda e o único que a rajada por robô ainda segura entre eles), para a
+  // agenda e o lembrete com prazo aparecerem o bastante na amostra.
+  const lista = chance(0.3) ? [...AGENDA, 'solar_boas_vindas', 'solar_boas_vindas', 'solar_boas_vindas'] : robos;
   const pedido: Pedido = {
     robo: lista[int(0, lista.length - 1)]!,
     destino: chance(0.8) ? LEAD : chance(0.5) ? EQUIPE[0]! : chance(0.5) ? '120363000000000000@g.us' : '120363999999999999-group',
@@ -705,8 +791,10 @@ function sortearCaso(r: () => number, i: number): { estado: Estado; pedido: Pedi
     temPix: chance(0.1),
     chave: chance(0.7) ? `k${i}` : undefined,
     prazo: chance(0.4) ? agora + int(-30, 180) * MIN : undefined,
-    // Fim da janela útil: às vezes já no último momento útil (até 4 min à frente).
-    validoAte: chance(0.35) ? agora + (chance(0.4) ? int(0, 4 * 60) * 1000 : int(5, 240) * MIN) : undefined,
+    // Fim da janela útil: às vezes já no último momento útil (até 4 min à frente),
+    // às vezes já vencido (a agenda represada pela linha, ou o prazo vencido sem queda).
+    validoAte: chance(0.35) ? agora + (chance(0.4) ? int(0, 4 * 60) * 1000 : int(5, 240) * MIN)
+      : chance(0.15) ? agora - int(4, 150) * MIN : undefined,
     nascidoEm: chance(0.3) ? agora - int(0, 180) * MIN : undefined,
     destinosNaChamada: chance(0.15) ? int(1, 40) : undefined,
   };
@@ -781,9 +869,16 @@ function oraculo(e: Estado, p: Pedido, agora: number): Oraculo {
     && p.prazo >= agora - 5 * MIN && p.prazo <= agora + 90 * MIN) classe = 'lembrete_p1';
   const fria = FRIAS.includes(classe);
   const agenda = deAgenda && !fria;
-  const fim = !agenda ? null
+  const fim0 = !agenda ? null
     : typeof p.validoAte === 'number' ? p.validoAte
     : classe !== 'reativo_p1' && typeof p.prazo === 'number' ? p.prazo + 5 * MIN : null;
+  // Passado o fim útil (mais 3 min), só a agenda cujo fim caiu dentro da última
+  // queda do livro (com 5 min de folga antes do 1º erro) guarda o último momento
+  // útil; a outra vira agenda sem prazo.
+  const q = e.quedaRecente;
+  const passou = fim0 !== null && agora > fim0 + 3 * MIN;
+  const represada = passou && !!q && fim0! > q.de - 5 * MIN && (q.voltouEm === null || fim0! <= q.voltouEm);
+  const fim = passou && !represada ? null : fim0;
   const limite = fim === null ? null : fim - 3 * MIN;
   const ultimoMomento = limite !== null && agora + 60_000 > limite;
 
@@ -806,7 +901,8 @@ function oraculo(e: Estado, p: Pedido, agora: number): Oraculo {
   const pausa = e.destino?.pausa;
   if ((meta.respeitaPausa || fria) && classe !== 'aviso_interno_p2' && pausa && agora - pausa.ultimaFalaEm <= DIA) sim('pausa_humana');
   if (e.errosLinhaSeguidos >= 2 && typeof e.ultimoErroLinhaEm === 'number') {
-    const sonda = classe === 'reativo_p1' || classe === 'lembrete_p1';
+    // Resposta, lembrete e a agenda no último momento útil são a sonda da linha.
+    const sonda = classe === 'reativo_p1' || classe === 'lembrete_p1' || (agenda && ultimoMomento);
     if (agora < e.ultimoErroLinhaEm + (sonda ? 5 : 15) * MIN) sim('freio_de_erro');
   }
   // Emergência: 60/h e 450/24h; as últimas 10 vagas da hora são do evento, da resposta e da agenda.
@@ -817,8 +913,8 @@ function oraculo(e: Estado, p: Pedido, agora: number): Oraculo {
   // Janela (BRT): frio 9–20 sem domingo; P3 e lembrete com prazo 7–21 (o lembrete só para destino de fora).
   const b = new Date(agora - 3 * HORA);
   const h = b.getUTCHours();
-  // O mesmo robô: no máximo 6 em 10 min, somando lembrete com prazo e proativa. Duro, agenda inclusive.
-  if ((classe === 'lembrete_p1' || PROATIVAS.includes(classe)) && (e.doRobo10min ?? 0) + custo > 6) sim('rajada_robo');
+  // O mesmo robô: no máximo 6 em 10 min, somando lembrete com prazo e proativa. Duro, e fora da agenda.
+  if (!agenda && (classe === 'lembrete_p1' || PROATIVAS.includes(classe)) && (e.doRobo10min ?? 0) + custo > 6) sim('rajada_robo');
   // A remarcação do NÃO ATENDEU: 1 a cada 15 min.
   if (nomeEfetivo === 'ep_reagenda_auto' && typeof e.ultimoDoRoboEm === 'number' && agora < e.ultimoDoRoboEm + 15 * MIN) sim('cadencia_robo');
   // Lembrete com prazo: janela do transacional (para fora), no máximo 6 em 10 min; 28 na hora e 150 em 24h só fora da agenda.
@@ -976,7 +1072,7 @@ describe('decidir: propriedade com 2.000 estados sorteados (semente fixa)', () =
     expect(livresNoVolume).toBeGreaterThan(20);
   });
 
-  it('AGENDA NUNCA BLOQUEIA: o adiar da agenda só passa do limite útil por trava dura (linha caída, chave, pausa, janela, rajada por robô, cadência)', () => {
+  it('AGENDA NUNCA BLOQUEIA: o adiar da agenda só passa do limite útil por trava dura (linha caída, chave, pausa, janela, cadência)', () => {
     let presosNoLimite = 0;
     let saiuNoUltimoMomento = 0;
     decisoes.forEach((d, i) => {
@@ -994,15 +1090,41 @@ describe('decidir: propriedade com 2.000 estados sorteados (semente fixa)', () =
     expect(saiuNoUltimoMomento).toBeGreaterThan(5);
   });
 
-  it('o mesmo robô nunca passa de 6 em 10 min somando lembrete com prazo e proativa (agenda inclusive)', () => {
+  it('fora da agenda, o mesmo robô nunca passa de 6 em 10 min somando lembrete com prazo e proativa; a agenda nunca é segurada pela rajada por robô', () => {
     let vistos = 0;
+    let agendaAcima = 0;
     decisoes.forEach((d, i) => {
+      const o = oraculos[i]!;
+      if (o.agenda) {
+        if (d.acao !== 'enviar_agora') expect({ i, motivo: d.motivo }).not.toEqual({ i, motivo: 'rajada_robo' });
+        if (d.acao === 'enviar_agora' && (casos[i]!.estado.doRobo10min ?? 0) + d.maxBolhas > 6) agendaAcima++;
+        return;
+      }
       if (d.acao !== 'enviar_agora' || !(d.classe === 'lembrete_p1' || PROATIVAS.includes(d.classe))) return;
       expect((casos[i]!.estado.doRobo10min ?? 0) + d.maxBolhas).toBeLessThanOrEqual(6);
       vistos++;
     });
     expect(vistos).toBeGreaterThan(20);
+    // Os dois lados aparecem: a proativa comum presa pela rajada por robô e a agenda saindo acima dela.
     expect(decisoes.some(d => d.acao !== 'enviar_agora' && d.motivo === 'rajada_robo' && PROATIVAS.includes(d.classe))).toBe(true);
+    expect(agendaAcima).toBeGreaterThan(5);
+  });
+
+  it('agenda no último momento útil (e a represada pela linha) sai só com o espaçamento curto: a espera em processo é a do urgente', () => {
+    let vistos = 0;
+    let represadas = 0;
+    decisoes.forEach((d, i) => {
+      const o = oraculos[i]!;
+      const { estado: e, agora } = casos[i]!;
+      if (!o.agenda || o.limite === null || !(agora + 60_000 > o.limite) || d.acao !== 'enviar_agora') return;
+      const fis = e.ultimoEm?.fisica;
+      const esperado = typeof fis === 'number' ? Math.max(0, Math.min(10_000, fis + 10_000 - agora)) : 0;
+      expect({ i, esperarMs: d.esperarMs }).toEqual({ i, esperarMs: esperado });
+      vistos++;
+      if (o.limite + 3 * MIN + 3 * MIN < agora) represadas++;
+    });
+    expect(vistos).toBeGreaterThan(10);
+    expect(represadas).toBeGreaterThan(0);
   });
 
   it('fora da agenda: nunca passa do teto do frio (6/h e 30/24h), da linha (24/h), da rajada (6 em 10 min), do total proativo (40/h) nem da emergência (60/h, 50 para o resto)', () => {

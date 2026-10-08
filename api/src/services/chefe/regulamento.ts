@@ -233,18 +233,22 @@ export const REGULAMENTO_BASE: Readonly<Regulamento> = Object.freeze({
   rajadaMaxLembrete: 6,
   // [revisão] rajada POR ROBÔ: o mesmo robô não passa de 6 mensagens em 10 min
   // somando o lembrete com prazo e as proativas dele. Sem isto, metade dos
-  // pedidos com prazo e metade sem dava 11 em 10 min para o mesmo ep_agenda.
-  // Vale para a agenda também, e DURO (não cai no último momento útil): é a
-  // defesa de volume contra robô frio pedindo com o nome de um robô de agenda,
-  // ao lado da guarda arquivo → robôs. Os controles de agenda cheia do
-  // chefeQuedas (eletroposto nas duas faixas, e com as carteiras do solar na
-  // mesma linha) provam que ela não segura agenda legítima além da janela útil.
+  // pedidos com prazo e metade sem dava 11 em 10 min para o mesmo robô.
+  // NÃO vale para a agenda [regra do dono; rodada 4]. Dura, ela já tinha sido
+  // gasta pelos outros toques do mesmo robô quando o lembrete chegava ao último
+  // momento útil, e o lembrete expirava: medido no chefeQuedas, 3 itens de agenda
+  // no dia das duas faixas com as carteiras do solar e 40 min de linha fora às
+  // 8h (5 com o dobro do solar, sem queda nenhuma). Ela continua valendo, dura,
+  // para todo o resto. O preço: contra o robô frio pedindo com o nome de um robô
+  // de agenda sobram a guarda arquivo → robôs e o que só espaça (dívidas
+  // cravadas no chefeQuedas; a defesa completa é o passaporte por chamada).
   rajadaMaxPorRobo: 6,
   // [revisão] teto PRÓPRIO do lembrete com prazo: 28/h e 150/24h. Desde 07/10 só
   // vale para o lembrete que NÃO é agenda (hoje, só as boas-vindas do solar com
   // a ficha fresca): a regra do dono tirou a agenda legítima dele. Ele fora da
   // agenda deixa o ataque do prazo inventado (sondas A, A2 e A3 do chefeQuedas)
-  // limitado só pela rajada por robô e pela guarda; números cravados lá.
+  // limitado só pelo que espaça (a rajada global, dentro da janela útil) e pela
+  // guarda; a rajada por robô também saiu da agenda (rodada 4). Números cravados lá.
   lembreteHora: 28,
   lembreteDia: 150,
   // [crítica da ÍRIS] volume sustentado para quem NÃO escreveu nas últimas 24h:
@@ -254,19 +258,23 @@ export const REGULAMENTO_BASE: Readonly<Regulamento> = Object.freeze({
   // NÃO pega a classe errada, e nenhum volume pega: o frio pedindo como agenda
   // tem o mesmo formato de uma agenda cheia legítima (dívida cravada no
   // chefeQuedas). A defesa contra classe errada é a guarda arquivo → robôs
-  // permitidos (chefeGuarda, regra robo), mais a rajada por robô. A guarda
-  // reprova o pedido com o nome de um robô de OUTRO arquivo, mas não separa a
-  // classe dentro de um arquivo que pode pedir uma classe mais urgente que a do
-  // próprio robô (os 8 arquivos de classe máxima evento, os de lembrete): ali o
-  // passaporte por chamada precisa provar a classe. Dívida declarada.
+  // permitidos (chefeGuarda, regra robo). Ela reprova o pedido com o nome de um
+  // robô de OUTRO arquivo, mas não separa robôs do mesmo arquivo: nos 8 arquivos
+  // com robô de evento e nos 7 com robô de agenda (dois deles, eletropostoRemarcar
+  // e eletropostoRespostas, com a oferta fria morando junto) o passaporte por
+  // chamada precisa provar a classe. Dívida declarada.
   sustentado3h: 40,
   sustentado6h: 60,
 
   // [regra do dono, 07/10] AGENDA NUNCA BLOQUEIA: margem antes do fim da janela
   // útil (Pedido.validoAte). Até lá, o que só espaça (rajadas globais, espaço
   // entre proativas, emergência) pode adiar a agenda; passado o limite, ela sai
-  // na hora. 3 min = o tick de 2 min do pg_cron mais folga, para o robô voltar
-  // ainda dentro da janela. [proposta]
+  // na hora, só com o espaçamento curto (10 s). 3 min = o tick de 2 min do
+  // pg_cron mais folga, para o robô voltar ainda dentro da janela. É também a
+  // folga depois do fim útil: o pedido que chega até 3 min depois ainda é do
+  // último momento útil; depois disso, só a agenda represada pela linha caída
+  // (agendaRepresadaPelaLinha, com a queda provada pelo livro) guarda o último
+  // momento útil, e o resto vira agenda sem prazo, só espaçada. [proposta]
   agendaMargemUtilMs: 3 * MIN,
   // [memória agenda-nunca-bloqueia.md; código eletropostoReagendaAuto.ts:586]
   // a remarcação do NÃO ATENDEU sai no máximo 1 a cada 15 min por robô: espaçada,
@@ -327,7 +335,10 @@ export const REGULAMENTO_BASE: Readonly<Regulamento> = Object.freeze({
   // SONDA da linha: tenta no máximo 1 vez a cada 5 min. Sem isto, o lembrete
   // batia na linha caída a cada tick (o replay de 04/08 deu 24 falhas numa hora);
   // com isto a volta da linha aparece em até 5 min e o lembrete ainda cabe na
-  // janela dele. A proativa espera os 15 min inteiros.
+  // janela dele. A agenda no último momento útil (e a represada pela linha, que
+  // já passou dele) também é sonda [regra do dono; rodada 4]: com os 15 min da
+  // proativa, ela ficava 10 min parada com a linha já de pé. O resto da proativa
+  // espera os 15 min inteiros.
   freioSondaUrgenteMs: 5 * MIN,
 
   // [código pausaHumana.ts:65] PAUSA_HUMANA_JANELA_H, padrão 24.
@@ -607,8 +618,8 @@ export const DIVERGENCIAS: readonly string[] = Object.freeze([
   'LINHA_MAX_DIA e LINHA_MAX_HORA: no HEAD a env subia o teto; no CHEFE só aperta.',
   'JANELA_DIURNA_OFF, JANELA_DOMINGO_ON e ESPACAMENTO_OFF afrouxam no HEAD; no CHEFE são ignoradas.',
   'Pisos por robô (6, 10, 14, 18, 20 e 24/h) somem. No lugar: prioridade por classe e teto de 24/h e 200/24h para P2–P5.',
-  'P0 (evento) e a resposta (P1) ficam fora do teto da linha e da rampa, só com espaçamento de 10 s e teto de emergência de 60/h e 450/24h [crítica]. O lembrete com prazo (P1 pelo prazo) para destino de fora mora na janela do transacional (7h–21h) e numa rajada própria de 6 em 10 min, e o mesmo robô não passa de 6 em 10 min somando lembrete e proativa, porque o prazo vem de quem chama [revisão]. O teto próprio de 28/h e 150/24h só vale para o lembrete que não é agenda (as boas-vindas): a regra do dono de 07/10 o tirou da agenda.',
-  'AGENDA NUNCA BLOQUEIA [regra do dono, 07/10/2026; memória agenda-nunca-bloqueia.md]. Agenda = robô de agenda (ep_agenda, giovanna_agenda, ep_cobra_sim, ep_alerta_10min para a equipe, ep_remarcar_reativo, ep_reagenda_auto) com a classe efetiva fora do frio. Ela conta em todos os freios (o frio vê a linha ocupada e cede) mas nenhum freio de volume a segura: teto total da hora (40), teto da linha (24/h e 200/24h), vaga guardada, volume sustentado, rampa e o teto próprio do lembrete. O que só espaça (rajada global de proativas e de lembrete, espaço entre proativas, emergência) adia só até o fim da janela útil (Pedido.validoAte) menos 3 min; no último momento útil ela sai. Ainda param a agenda: a linha caída (freio), a chave repetida, a pausa humana do HEAD, a janela do transacional para lead e a rajada por robô (6 em 10 min, a defesa contra robô frio pedindo como agenda). DÍVIDA: o prazo inventado e o frio pedindo como agenda pioraram (chefeQuedas); a defesa é a guarda arquivo → robôs e a rajada por robô. LIMITE MEDIDO: com o dobro das carteiras do solar (62 ligações) em cima das duas faixas, a linha fica no teto físico das 8h ao meio-dia e a rajada por robô corta 5 itens que vencem até as 12h.',
+  'P0 (evento) e a resposta (P1) ficam fora do teto da linha e da rampa, só com espaçamento de 10 s e teto de emergência de 60/h e 450/24h [crítica]. O lembrete com prazo (P1 pelo prazo) para destino de fora mora na janela do transacional (7h–21h) e numa rajada própria de 6 em 10 min, e o mesmo robô não passa de 6 em 10 min somando lembrete e proativa (fora da agenda, desde a rodada 4), porque o prazo vem de quem chama [revisão]. O teto próprio de 28/h e 150/24h só vale para o lembrete que não é agenda (as boas-vindas): a regra do dono de 07/10 o tirou da agenda.',
+  'AGENDA NUNCA BLOQUEIA [regra do dono, 07/10/2026; memória agenda-nunca-bloqueia.md]. Agenda = robô de agenda (ep_agenda, giovanna_agenda, ep_cobra_sim, ep_alerta_10min para a equipe, ep_remarcar_reativo, ep_reagenda_auto) com a classe efetiva fora do frio. Ela conta em todos os freios (o frio vê a linha ocupada e cede) mas nenhum freio de volume a segura: teto total da hora (40), teto da linha (24/h e 200/24h), vaga guardada, volume sustentado, rampa e o teto próprio do lembrete. O que só espaça (rajada global de proativas e de lembrete, espaço entre proativas, emergência) adia só até o fim da janela útil (Pedido.validoAte) menos 3 min; no último momento útil ela sai. No último momento útil ela sai só com o espaçamento curto (10 s). Ainda param a agenda: a linha caída (freio), a chave repetida, a pausa humana do HEAD, a janela do transacional para lead e a cadência própria do NÃO ATENDEU. A rajada por robô NÃO para mais a agenda [rodada 4]: dura, ela cortava lembrete legítimo no último momento útil (3 itens no dia das duas faixas com as carteiras do solar e 40 min de linha fora; 5 com o dobro do solar). A linha caída segura, mas não descarta: a agenda cujo fim útil caiu dentro da queda (provada pelo livro: Estado.quedaRecente) continua viva e é REENVIADA na volta, como lembrete atrasado, só com o espaçamento curto e na frente do frio; o pedido de agenda que chega depois do fim útil sem essa prova é só espaçado (não ganha o último momento útil). CUSTO MEDIDO: na volta de 70 min de linha fora, 40 mensagens em 10 min e 74 na hora (eram 29 e 68 descartando a agenda represada), e a resposta nascida depois da volta espera até 39 min (nenhuma vira frio). DÍVIDA: o prazo inventado, o frio pedindo como agenda e a oferta fria pedindo como remarcação pioraram ou ficaram (chefeQuedas); a defesa é a guarda arquivo → robôs e, completa, o passaporte por chamada.',
   'A remarcação do NÃO ATENDEU (ep_reagenda_auto) era frio [especificação]; desde 07/10 é agenda por ordem do dono: transacional do dia, 1 envio a cada 15 min (cadência própria, a do HEAD), sem prazo e sem pausa (como no HEAD), na janela do transacional. Sai toda no mesmo dia, nunca em rajada, nunca cortada. O carimbo ep_agenda_sent:ID:reagendado deixou de ser divergência.',
   'Emergência: as últimas 10 vagas da hora (reservaEmergenciaHora) são do evento e da agenda; cede o resto (o lembrete que não é agenda; o frio e a proativa comum já param em 40). A resposta e o aviso de lead novo ao time não cedem, por medida (chefeQuedas e regulamento).',
   'Resposta segurada pelo CHEFE: a janela de 15 min conta até o nascimento do pedido (Pedido.nascidoEm) enquanto ele tiver até 2h [revisão]; antes contava até agora, e no pico a resposta virava frio e saía horas depois.',
@@ -621,8 +632,8 @@ export const DIVERGENCIAS: readonly string[] = Object.freeze([
   'Instagram frio: worker.mjs do origin/main usa 4 min e 0–24h; vale a memória (45 min, 8h–21h).',
   'Espaçamento do frio contra agenda (10–15 min) mantido do HEAD; a especificação queria 2 min contra qualquer mensagem. Os 2 min ficam só contra o que o HEAD não contava (resposta, aviso, evento).',
   'Teto da linha "sobre o que sobra depois do P0 e do P1" [crítica] lido assim: P2–P5 com 24/h e 200/24h próprios, e a proativa não leva o total da hora acima de 40 (picoAtencao do monitor). O aviso urgente ao time (lead novo) fica fora desses 40 [interpretação].',
-  'Freio de erro: a especificação deixava a resposta tentar sempre; aqui, durante o freio, resposta e lembrete tentam no máximo 1 vez a cada 5 min (o replay de 04/08 deu 24 falhas numa hora sem isso).',
+  'Freio de erro: a especificação deixava a resposta tentar sempre; aqui, durante o freio, resposta, lembrete e a agenda no último momento útil (a represada inclusive) tentam no máximo 1 vez a cada 5 min (o replay de 04/08 deu 24 falhas numa hora sem isso); o resto da proativa espera 15 min.',
   'Aviso ao time para destino de fora da equipe vira frio [revisão]: o aviso não tem janela, pausa, orçamento do frio nem rampa, então só vale para a equipe. A lista da equipe, quando o CHEFE for ligado, tem de trazer o dono e todo consultor que recebe aviso; telefone que faltar aparece na sombra como aviso rebaixado.',
-  'Guarda arquivo → robôs permitidos (chefeGuarda): reprova o pedido com o nome de um robô de outro arquivo (literal, as const, satisfies, const do arquivo, atalho { robo }). Não separa a classe dentro de um arquivo que pode pedir classe mais urgente que a do próprio robô: os 8 arquivos de classe máxima evento (dunningService, whatsappAgentService, webhook, pixComprovante, ioIndicacoes, authController, paymentsController, trafegoController) e os de agenda. Ali o passaporte por chamada precisa provar a classe. Dívida declarada: um lote pedindo como evento sai a 60 em 10 min.',
+  'Guarda arquivo → robôs permitidos (chefeGuarda): reprova o pedido com o nome de um robô de outro arquivo (literal, as const, satisfies, const do arquivo, atalho { robo }, ternário, let/var, padrão de parâmetro, objeto de constantes, ?? e atribuição depois). Não separa robôs do MESMO arquivo: os 8 arquivos com robô de evento (dunningService, whatsappAgentService, webhook, pixComprovanteService, ioIndicacoes, authController, paymentsController, trafegoController) e os 7 com robô de agenda (eletropostoAgenda, eletropostoAlerta10min, eletropostoCobraSim, eletropostoReagendaAuto, eletropostoRemarcar, eletropostoRespostas, solarAgendaGiovanna). Em eletropostoRemarcar e eletropostoRespostas a oferta fria mora junto da resposta a quem pediu para remarcar (ep_remarcar_reativo, agenda, não rebaixada): um lote de oferta fria pedindo com o nome dela sai como agenda, no domingo, a 30/h. Ali o passaporte por chamada precisa provar a classe (fase da catraca). Dívida declarada: um lote pedindo como evento sai a 60 em 10 min.',
   'Grupo não é destino interno por padrão [revisão]: só o grupo da lista explícita (o do cartão de agendamento, ZAPI_IO_GROUP_ID) ou o robô de grupo (sdr_grupo_interno). A linha é membro do grupo do eletroposto, onde entra lead.',
 ]);

@@ -25,7 +25,7 @@
 // - O teto da linha (24/h e 200/24h) vale para P2 a P5. A proativa também não
 //   empurra o TOTAL da hora, urgente incluído, acima de 40.
 // - O mesmo robô não passa de 6 mensagens em 10 min somando o lembrete com
-//   prazo e as proativas dele [revisão].
+//   prazo e as proativas dele [revisão], fora da agenda (abaixo).
 // - O freio de erro conta só erro de LINHA, nunca número inválido. Durante o
 //   freio, a resposta e o lembrete viram a sonda da linha (1 tentativa a cada
 //   5 min); a proativa espera 15 min; o evento vai para a caixa.
@@ -33,7 +33,11 @@
 //   a agenda do eletroposto e a vendedora reativa passam; a Duda, a Giovanna, as
 //   boas-vindas e a cobrança do SIM esperam. Todo frio espera a conversa esfriar
 //   (aperto novo para o frio da linha solardoc, que hoje não confere).
-// - Reativo atrasado vira frio, com ou sem conversa nas últimas 24h [crítica].
+// - Reativo atrasado vira frio, com ou sem conversa nas últimas 24h [crítica],
+//   menos a resposta a quem pediu para remarcar (ep_remarcar_reativo), que é
+//   agenda: com conversa em 24h vira transacional de agenda [regra do dono].
+//   DÍVIDA: a oferta fria mora nos mesmos arquivos e pode pedir com esse nome;
+//   fecha com o passaporte por chamada (chefeQuedas e chefeGuarda cravam).
 //   O manual_crm é de 1 destino por chamada: chamada com mais é lote e é
 //   decidida como o robô de lote (frio) [revisão].
 // - Aviso ao time só vale com destino interno; para estranho, vira frio. Grupo
@@ -53,14 +57,30 @@
 //   25 a 60 s entre proativas e a emergência) adia a agenda só DENTRO da janela
 //   útil: até Pedido.validoAte menos 3 min. No último momento útil a agenda sai
 //   assim mesmo, e o 'adiar' nunca aponta para depois desse limite;
+// - no último momento útil ela sai só com o espaçamento curto entre mensagens
+//   (10 s, espera em processo), como o urgente;
 // - o que ainda a para (DURO): a linha caída (freio de erro), a chave repetida
 //   (o toque já saiu), a pausa humana robô a robô como no HEAD, a janela do
-//   transacional (7h–21h) para destino de fora, a rajada por robô (6 em 10 min,
-//   a defesa de volume contra robô frio pedindo como agenda) e a cadência
-//   própria da remarcação do NÃO ATENDEU (1 a cada 15 min);
+//   transacional (7h–21h) para destino de fora e a cadência própria da
+//   remarcação do NÃO ATENDEU (1 a cada 15 min). A rajada por robô (6 em 10
+//   min) NÃO para a agenda [rodada 4]: dura no último momento útil, ela cortava
+//   lembrete legítimo depois de uma queda curta (3 itens no dia das duas faixas
+//   com as carteiras do solar e 40 min de linha fora). Ela continua valendo
+//   para todo o resto;
+// - a linha caída segura a agenda, mas NUNCA a descarta: o toque cujo fim útil
+//   caiu dentro da queda (provada pelo livro, Estado.quedaRecente) continua vivo
+//   e é REENVIADO na volta, como lembrete atrasado, só com o espaçamento curto
+//   (agendaRepresadaPelaLinha, abaixo). Durante o freio, a agenda no último
+//   momento útil é a sonda da linha (1 tentativa a cada 5 min), para sair logo
+//   que a linha volta. O pedido de agenda que chega depois do fim útil SEM essa
+//   prova é tratado como agenda sem prazo, só espaçada;
 // - dentro dos 60/h da emergência as últimas vagas ficam para o evento e a
 //   agenda (e, por medida, para a resposta e o aviso de lead novo ao time):
 //   quem cede é o frio e o resto proativo.
+// O preço, escrito: sem a rajada por robô na agenda, o robô frio pedindo com o
+// nome de um robô de agenda só é segurado pela guarda arquivo → robôs
+// (chefeGuarda) e pelo que só espaça; os números pioraram e estão cravados como
+// DÍVIDA no chefeQuedas. A defesa completa é o passaporte por chamada.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import {
@@ -117,6 +137,13 @@ export interface Estado {
   /** Erros de LINHA seguidos desde o último envio ok. Número inválido não entra. */
   errosLinhaSeguidos: number;
   ultimoErroLinhaEm?: number | null;
+  /**
+   * A última QUEDA da linha vista no livro: `de` = o 1º erro de linha da última
+   * sequência de erros; `voltouEm` = o 1º envio ok depois do último erro de
+   * linha (null = a linha ainda não voltou). É a prova, do próprio CHEFE, de que
+   * foi a linha que segurou a agenda (agendaRepresadaPelaLinha).
+   */
+  quedaRecente?: { de: number; voltouEm: number | null } | null;
   /** Última volta da linha (monitor). Arma a rampa de 72h. */
   reconectadoEm?: number | null;
   /** Rampa forçada à mão (LINHA_RECONECTADA_EM). Vale a mais recente das duas. */
@@ -144,12 +171,19 @@ export interface Pedido {
   /** Prazo do envio (epoch ms). Só vale para robô de agenda (podeTerPrazo). */
   prazo?: number | null;
   /**
-   * Fim da janela ÚTIL do toque (epoch ms): depois disto o robô desiste (o
-   * lembrete de 1h passou dos 45 min, o bom dia passou das 12h). É por ele que
-   * o CHEFE nunca adia agenda para depois do momento útil. CONTRATO: robô de
-   * agenda com janela própria declara. Sem ele, o fim útil é o prazo mais a
-   * tolerância de 5 min; sem os dois, a agenda é só espaçada, sem prazo (nunca
-   * descartada), como a remarcação do NÃO ATENDEU.
+   * Fim da janela ÚTIL do toque (epoch ms): o lembrete de 1h passou dos 45 min,
+   * o bom dia passou das 12h. É por ele que o CHEFE nunca adia agenda para
+   * depois do momento útil: passado o limite, ela sai. CONTRATO: robô de agenda
+   * com janela própria declara. Sem ele, o fim útil é o prazo mais a tolerância
+   * de 5 min; sem os dois, a agenda é só espaçada, sem prazo (nunca descartada),
+   * como a remarcação do NÃO ATENDEU.
+   *
+   * Passado o validoAte, o robô de AGENDA só desiste do toque se a linha não o
+   * segurou. Se segurou (agendaRepresadaPelaLinha), o toque continua vivo e é
+   * REENVIADO quando a linha volta, como lembrete atrasado: o texto é do robô
+   * ("a reunião começou às 9h, o link é este"), o CHEFE só garante que ele sai
+   * [regra do dono, 07/10: a linha caída é a única que para a agenda, e na volta
+   * a régua é reenviar, não descartar].
    */
   validoAte?: number | null;
   /**
@@ -355,6 +389,44 @@ export function fimUtilDoPedido(pedido: Pick<Pedido, 'validoAte' | 'prazo'>, cla
   return null;
 }
 
+/**
+ * AGENDA REPRESADA PELA LINHA NUNCA EXPIRA [regra do dono, 07/10/2026; memória
+ * agenda-nunca-bloqueia.md]. Responde se um pedido de agenda cujo fim útil já
+ * passou foi segurado pela LINHA CAÍDA: então ele continua vivo e é REENVIADO
+ * quando a linha volta, em vez de o robô desistir dele.
+ *
+ * A prova sai do estado do próprio CHEFE (Estado.quedaRecente, montado do
+ * livro), nunca de um campo declarado por quem chama, que viraria passe livre
+ * como o prazo inventado: o fim útil caiu dentro da última queda, isto é,
+ * depois do 1º erro de linha da sequência (com a folga da sonda, 5 min, para a
+ * linha que morreu antes da 1ª tentativa) e antes do 1º envio ok da volta (ou a
+ * linha ainda está fora). Nesse intervalo nenhum envio saiu: o toque não tinha
+ * como sair no último momento útil dele.
+ *
+ * ESCOLHA DOCUMENTADA: o toque cujo momento passou durante a queda (o lembrete
+ * de 5 min de uma reunião que já começou, o alerta de 10 min ao consultor) SAI
+ * na volta, marcado como atrasado; o robô troca o texto para o de lembrete
+ * atrasado ("a reunião começou às 9h, o link é este"). Na volta ele fica no
+ * último momento útil: nada que só espaça o segura, sai com o espaçamento curto
+ * entre mensagens (10 s), na frente de qualquer frio. O que é duro continua
+ * valendo (janela do transacional para lead, pausa humana do HEAD, chave
+ * repetida, cadência própria): o toque espera, mas não morre.
+ *
+ * O pedido de agenda que chega depois do fim útil SEM essa prova (prazo ou
+ * validoAte no passado sem queda nenhuma) não ganha o último momento útil: é
+ * tratado como agenda sem prazo, só espaçada. Sem isto, um prazo vencido
+ * declarado por quem chama soltava 39 toques às 7h02 de domingo, um a cada 10 s.
+ */
+export function agendaRepresadaPelaLinha(
+  meta: MetaRobo, classe: Classe, fimUtil: number | null, estado: Pick<Estado, 'quedaRecente'>,
+  reg: Regulamento = REGULAMENTO_PADRAO,
+): boolean {
+  if (!ehAgendaDoPedido(meta, classe) || fimUtil === null || !Number.isFinite(fimUtil)) return false;
+  const q = estado.quedaRecente;
+  if (!q || !Number.isFinite(q.de)) return false;
+  return fimUtil > q.de - reg.freioSondaUrgenteMs && (q.voltouEm === null || fimUtil <= q.voltouEm);
+}
+
 /** Bolhas que este envio pode usar: 1 toque = 1 mensagem, mais a do Pix. */
 export function bolhasPermitidas(meta: MetaRobo, classe: Classe, pedido: Pedido, reg: Regulamento = REGULAMENTO_PADRAO): number {
   const porClasse: Record<Classe, number> = {
@@ -434,7 +506,11 @@ export function travasDoPedido(estado: Estado, pedido: Pedido, agora: number, re
   const agenda = ehAgendaDoPedido(meta, classe);
   const interno = ehDestinoInterno(pedido.destino, estado.equipe ?? [], { grupos: estado.gruposInternos ?? [], roboDeGrupo: meta.roboDeGrupo });
   const fim = agenda ? fimUtilDoPedido(pedido, classe, reg) : null;
-  const limiteUtil = fim === null ? null : fim - reg.agendaMargemUtilMs;
+  // Passou do fim útil (com a margem do tick): só a agenda represada pela linha
+  // caída guarda o último momento útil; o resto vira agenda sem prazo, só espaçada.
+  const passou = fim !== null && agora > fim + reg.agendaMargemUtilMs;
+  const represada = passou && agendaRepresadaPelaLinha(meta, classe, fim, estado, reg);
+  const limiteUtil = fim === null || (passou && !represada) ? null : fim - reg.agendaMargemUtilMs;
   // Último momento útil: não cabe mais um 'adiar' (piso de 60 s) antes do limite.
   const ultimoMomento = limiteUtil !== null && agora + reg.adiarPisoMs > limiteUtil;
   const travas: Trava[] = [];
@@ -442,6 +518,12 @@ export function travasDoPedido(estado: Estado, pedido: Pedido, agora: number, re
   const antigo = estado.maisAntigoEm ?? {};
   const ult = estado.ultimoEm ?? {};
 
+  /** Espaçamento curto entre mensagens (10 s), em processo: o do urgente e o da agenda no último momento útil. */
+  const esperaCurta = (): number => {
+    const fis = ult.fisica;
+    const falta = typeof fis === 'number' ? fis + reg.espacoUrgenteMs - agora : 0;
+    return Math.max(0, Math.min(reg.esperaMaxEmProcessoMs, falta));
+  };
   /** Instante em que uma vaga da janela abre: o mais antigo sai, ou o ritmo médio. */
   const vaga = (grupo: GrupoJanela, janelaMs: number, teto: number): number => {
     const a = antigo[grupo];
@@ -478,12 +560,14 @@ export function travasDoPedido(estado: Estado, pedido: Pedido, agora: number, re
   const freioAtivo = estado.errosLinhaSeguidos >= reg.freioErros
     && typeof ultErro === 'number' && agora < ultErro + reg.freioMs;
   // A proativa espera o freio acabar; o evento vai para a caixa, que não perde
-  // nada; a resposta e o lembrete viram a sonda da linha: tentam no máximo 1 vez
-  // a cada 5 min, e o primeiro ok desarma o freio para todo mundo. A linha caída
-  // é o freio que a regra do dono deixa parar a agenda (e a régua, quando ela
-  // volta, é de reenvio, não de descarte).
+  // nada; a resposta, o lembrete e a agenda no último momento útil (a represada
+  // inclusive) viram a sonda da linha: tentam no máximo 1 vez a cada 5 min, e o
+  // primeiro ok desarma o freio para todo mundo. A linha caída é o freio que a
+  // regra do dono deixa parar a agenda (e a régua, quando ela volta, é de
+  // reenvio, não de descarte): sem a sonda, a agenda represada dormia os 15 min
+  // do freio depois da volta (medido: 10 min parada com a linha já de pé).
   if (freioAtivo) {
-    const urgenteSonda = classe === 'reativo_p1' || classe === 'lembrete_p1';
+    const urgenteSonda = classe === 'reativo_p1' || classe === 'lembrete_p1' || (agenda && ultimoMomento);
     if (!urgenteSonda) trava('freio_de_erro', ultErro! + reg.freioMs);
     else if (agora < ultErro! + reg.freioSondaUrgenteMs) trava('freio_de_erro', ultErro! + reg.freioSondaUrgenteMs);
   }
@@ -508,9 +592,13 @@ export function travasDoPedido(estado: Estado, pedido: Pedido, agora: number, re
   // ── Rajada por robô: lembrete com prazo e proativas do mesmo robô ─────────
   // A rajada do lembrete e a das proativas são contadas à parte; sem esta, o
   // mesmo robô passava 11 em 10 min com metade dos pedidos com prazo [revisão].
-  // DURA também para a agenda: é a defesa de volume contra robô frio pedindo
-  // com o nome de um robô de agenda (ao lado da guarda arquivo → robôs).
-  if (classe === 'lembrete_p1' || ehProativa(classe)) {
+  // FORA DA AGENDA [regra do dono; rodada 4]: dura, ela já tinha sido gasta pelos
+  // outros toques do mesmo robô quando o lembrete chegava ao último momento útil,
+  // e o lembrete expirava (medido: 3 no dia das duas faixas com o solar e 40 min
+  // de linha fora às 8h). Para a agenda, o que espaça é a rajada global (que só
+  // espaça dentro da janela útil). Contra o robô frio pedindo com o nome de um
+  // robô de agenda fica a guarda arquivo → robôs (dívida cravada no chefeQuedas).
+  if (!agenda && (classe === 'lembrete_p1' || ehProativa(classe))) {
     const doRobo = Math.max(0, estado.doRobo10min ?? 0);
     if (doRobo + custo > reg.rajadaMaxPorRobo) trava('rajada_robo', vaga('robo_10min', reg.rajadaJanelaMs, reg.rajadaMaxPorRobo));
   }
@@ -544,10 +632,7 @@ export function travasDoPedido(estado: Estado, pedido: Pedido, agora: number, re
 
   if (ehUrgente(classe)) {
     // Espaçamento curto: vira espera em processo, nunca 'adiar'.
-    const fis = ult.fisica;
-    const falta = typeof fis === 'number' ? fis + reg.espacoUrgenteMs - agora : 0;
-    const esperarMs = Math.max(0, Math.min(reg.esperaMaxEmProcessoMs, falta));
-    return { meta, classe, custo, travas, esperarMs, agenda, limiteUtil };
+    return { meta, classe, custo, travas, esperarMs: esperaCurta(), agenda, limiteUtil };
   }
 
   // ═══ Daqui para baixo: P2 a P5, as proativas ═══════════════════════════════
@@ -653,7 +738,10 @@ export function travasDoPedido(estado: Estado, pedido: Pedido, agora: number, re
     if (avisos1h + custo > reg.avisoHora) trava('sublimite_aviso', vaga('aviso_1h', HORA, reg.avisoHora));
   }
 
-  return { meta, classe, custo, travas, esperarMs: 0, agenda, limiteUtil };
+  // A agenda no último momento útil (e a represada pela linha, que já passou
+  // dele) sai só com o espaçamento curto entre mensagens: o espaço de 25 a 60 s
+  // entre proativas é dos que só espaçam, e caiu.
+  return { meta, classe, custo, travas, esperarMs: agenda && ultimoMomento ? esperaCurta() : 0, agenda, limiteUtil };
 }
 
 /**
@@ -668,7 +756,8 @@ export function travasDoPedido(estado: Estado, pedido: Pedido, agora: number, re
  *   alguma trava é da linha, o escopo é 'linha' (o robô para a rodada).
  * - AGENDA [regra do dono, 07/10]: o que só espaça nunca empurra o 'adiar' para
  *   depois do limite útil (fim da janela útil menos 3 min). Só uma trava dura
- *   (linha caída, chave, pausa, janela, rajada por robô, cadência) passa dele.
+ *   (linha caída, chave, pausa, janela, cadência) passa dele. A rajada por robô
+ *   não vale para a agenda.
  */
 export function decidir(estado: Estado, pedido: Pedido, agora: number | Date, reg: Regulamento = REGULAMENTO_PADRAO): Decisao {
   const t = typeof agora === 'number' ? agora : agora.getTime();
