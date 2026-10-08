@@ -3,683 +3,139 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Energia Solar — Pare de alugar a sua energia | Irmãos na Obra</title>
-<meta name="description" content="Você paga a conta de luz a vida toda e nunca fica com nada. Com energia solar, a parcela cabe no lugar da conta — e em pouco mais de 2 anos o sistema é seu. Agende uma vistoria técnica gratuita.">
+<title>Energia solar | Irmãos na Obra</title>
+<meta name="description" content="Responda em 1 minuto, veja o caminho certo para o seu projeto e escolha o horário da visita, da videochamada ou da ligação com a Irmãos na Obra.">
 <link rel="icon" type="image/png" href="/io/img/logoio.png">
 <link rel="apple-touch-icon" href="/io/img/logoio.png">
 <meta name="theme-color" content="#0F2A52">
-<meta property="og:title" content="Pare de alugar a sua energia — Irmãos na Obra Energia Solar">
-<meta property="og:description" content="A parcela cabe no lugar da conta de luz. Em pouco mais de 2 anos o sistema é seu e a energia vira quase de graça por 25 anos. Agende sua vistoria técnica.">
+<meta property="og:title" content="Veja quanto a sua conta pode cair | Irmãos na Obra Energia Solar">
+<meta property="og:description" content="Responda em 1 minuto e escolha o horário de falar com a gente.">
 <meta property="og:image" content="https://solardoc.app/io/img/logoio.png">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://solardoc.app/io/solar">
-<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,500;0,600;0,700;0,800;0,900;1,600;1,700;1,800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+<!--
+  QUIZ SOLAR (07/10/2026). O molde do quiz do eletroposto aplicado ao solar.
+
+  A página PERGUNTA. Quem decide o caminho (vistoria, videochamada ou ligação),
+  quem atende e quais horários aparecem é o servidor (api/src/services/io/
+  solarQuiz.ts + solarRota.ts), no passo do WhatsApp. Por isso não existe aqui
+  cópia de grade, de corte de kWh nem de raio: a vitrine e a gravação são a mesma
+  conta e não têm como discordar.
+
+  O que ficou no navegador é o que é da página: a ordem das perguntas (PASSOS),
+  o desenho, o portão de presença e o rastreio por pergunta (lp_events com
+  lp:'solar', o mesmo formato do eletroposto). O simulador antigo mora em
+  /io/solar/simulador.
+
+  Regras herdadas do eletroposto que já custaram teste: uma pergunta por tela,
+  escolher não avança (avança o Continuar), o telefone vem antes do horário (é
+  ele que acha o dono do cliente), o horário é o último passo e só dois dias
+  aparecem na vitrine.
+-->
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   :root{
-    --navy:#0F2A52; --navy-2:#1A3A6B; --gold:#C28A2C; --gold-2:#a8761f; --gold-soft:#E6B860;
-    --bg:#FBFAF7; --surface:#ffffff; --border:#E7E3DB; --line:#EEE9DF;
-    --text:#1A1F2E; --mut:#5C6478; --soft:#8B92A5; --success:#1E7A4A; --danger:#C0492F;
-    --peach:#FFF6E9;
-    --sh-sm:0 2px 10px rgba(15,42,82,.06);
-    --sh-md:0 16px 40px -12px rgba(15,42,82,.14), 0 6px 16px rgba(194,138,44,.06);
+    --navy:#0F2A52; --navy-2:#1A3A6B; --gold:#C28A2C; --gold-2:#a8761f; --bg:#FBFAF7; --surface:#fff;
+    --border:#E7E3DB; --text:#1A1F2E; --mut:#5C6478; --soft:#8B92A5; --ok:#1E7A4A; --danger:#B4411F;
+    --sel:#F2F5FA;
   }
-  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
-  body{font-family:'Inter',system-ui,sans-serif;color:var(--text);background:var(--bg);line-height:1.55;-webkit-font-smoothing:antialiased}
-  img{display:block;max-width:100%}
-  a{color:inherit;text-decoration:none}
-  .serif{font-family:'Inter',system-ui,sans-serif}
-  .wrap{max-width:1120px;margin:0 auto;padding:0 22px}
-  section{padding:64px 0}
-  @media(max-width:760px){section{padding:44px 0}}
-  .sh{max-width:680px;margin:0 auto 34px;text-align:center}
-  .eyebrow{display:inline-block;font-size:12px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:12px}
-  h2{font-family:'Inter',system-ui,sans-serif;font-size:clamp(28px,4.2vw,44px);font-weight:800;color:var(--navy);line-height:1.08;letter-spacing:-.02em}
-  h2 em{font-style:italic;color:var(--gold)}
-  .sub{color:var(--mut);font-size:17px;line-height:1.6;margin-top:14px}
-
-  /* ===== topbar ===== */
-  .topbar{background:var(--navy);color:rgba(255,255,255,.86);font-size:12.5px}
-  .topbar .in{max-width:1120px;margin:0 auto;padding:9px 22px;display:flex;gap:18px;align-items:center;justify-content:space-between;flex-wrap:wrap}
-  .topbar b{color:#fff;font-weight:700}
-  .topbar .r{display:flex;gap:18px;flex-wrap:wrap}
-  @media(max-width:600px){.topbar .in{justify-content:center;text-align:center;gap:6px 16px}}
-
-  /* ===== nav ===== */
-  .nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.96);backdrop-filter:saturate(160%) blur(10px);border-bottom:1px solid var(--border)}
-  .nav .in{max-width:1120px;margin:0 auto;padding:12px 22px;display:flex;align-items:center;justify-content:space-between;gap:16px}
-  .brand{display:flex;align-items:center;gap:11px}
-  .brand img{width:46px;height:46px;border-radius:50%;object-fit:cover;box-shadow:0 4px 12px rgba(15,42,82,.18)}
-  .brand .t{line-height:1.05}
-  .brand .t .l1{font-weight:800;font-size:15.5px;color:var(--navy)}
-  .brand .t .l2{font-size:9.5px;letter-spacing:.2em;color:var(--gold);text-transform:uppercase;margin-top:2px}
-  .navCta{background:var(--navy);color:#fff;font-weight:800;font-size:13px;padding:12px 20px;border-radius:10px;white-space:nowrap;min-height:44px;display:inline-flex;align-items:center;transition:.2s}
-  .navCta:hover{background:var(--navy-2)}
-  @media(max-width:520px){.brand .t .l1{font-size:14px}.navCta{font-size:12px;padding:11px 15px}}
-
-  /* ===== hero ===== */
-  .hero{position:relative;overflow:hidden;background:
-    radial-gradient(circle 620px at 10% 95%, rgba(242,166,90,.20), transparent 60%),
-    radial-gradient(circle 720px at 92% -8%, rgba(194,138,44,.16), transparent 55%),
-    linear-gradient(180deg, var(--bg) 0%, #FFF6E9 100%);}
-  .hero::before{content:'';position:absolute;inset:0;pointer-events:none;background-image:
-    radial-gradient(circle at 7% 24%, rgba(194,138,44,.16) 0 6px, transparent 7px),
-    radial-gradient(circle at 94% 68%, rgba(242,166,90,.20) 0 9px, transparent 10px),
-    radial-gradient(circle at 72% 16%, rgba(15,42,82,.07) 0 4px, transparent 5px);}
-  .heroIn{position:relative;display:grid;grid-template-columns:1.1fr .9fr;gap:52px;align-items:center;padding:58px 0 72px}
-  @media(max-width:900px){.heroIn{grid-template-columns:1fr;gap:34px;padding:36px 0 48px}}
-  .tag{display:inline-flex;align-items:center;gap:9px;background:rgba(15,42,82,.05);border:1px solid rgba(15,42,82,.12);padding:7px 15px;border-radius:999px;font-size:12px;font-weight:700;color:var(--navy);letter-spacing:.05em;margin-bottom:22px}
-  .tag .dot{width:8px;height:8px;background:var(--success);border-radius:50%;box-shadow:0 0 0 4px rgba(30,122,74,.18)}
-  h1{font-family:'Inter',system-ui,sans-serif;font-weight:800;font-size:clamp(38px,5.6vw,64px);line-height:1.03;letter-spacing:-.03em;color:var(--navy)}
-  h1 em{font-style:italic;color:var(--gold)}
-  .lead{font-size:clamp(16px,2vw,19px);color:var(--mut);line-height:1.62;max-width:560px;margin-top:22px}
-  .lead b{color:var(--navy);font-weight:800}
-  .heroCta{margin-top:30px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
-  .btn{background:linear-gradient(135deg,var(--gold) 0%,var(--gold-soft) 100%);color:#fff;font-weight:800;font-size:16px;padding:18px 28px;border-radius:13px;display:inline-flex;align-items:center;gap:10px;border:0;cursor:pointer;font-family:inherit;box-shadow:0 12px 30px rgba(194,138,44,.4);transition:transform .15s,box-shadow .2s}
-  .btn:hover{transform:translateY(-2px);box-shadow:0 16px 36px rgba(194,138,44,.52)}
-  .btn:active{transform:translateY(0)}
-  .btn.ghost{background:transparent;color:var(--navy);border:1.6px solid rgba(15,42,82,.2);box-shadow:none;font-size:15px;padding:16px 22px}
-  .btn.navy{background:var(--navy);box-shadow:0 12px 30px rgba(15,42,82,.28)}
-  .btn.navy:hover{background:var(--navy-2)}
-  .heroStats{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:34px;padding:22px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);max-width:560px}
-  .hs .n{font-family:'Inter',system-ui,sans-serif;font-size:clamp(26px,3.4vw,34px);font-weight:800;color:var(--navy);line-height:1}
-  .hs .n em{font-style:normal;color:var(--gold)}
-  .hs .l{margin-top:6px;font-size:10.5px;font-weight:700;color:var(--soft);text-transform:uppercase;letter-spacing:.1em;line-height:1.3}
-
-  /* hero visual: comparativo conta vs dono */
-  .heroCard{background:var(--surface);border:1px solid var(--border);border-radius:24px;box-shadow:var(--sh-md);padding:26px;position:relative}
-  .heroCard .ct{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);text-align:center;margin-bottom:16px}
-  .vsRow{display:flex;align-items:stretch;gap:12px}
-  .vsBox{flex:1;border-radius:16px;padding:18px 16px;text-align:center}
-  .vsBox.bad{background:#FBF1EE;border:1px solid #F0D9D2}
-  .vsBox.good{background:var(--peach);border:1px solid #F3E2C4}
-  .vsBox .h{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
-  .vsBox.bad .h{color:var(--danger)}
-  .vsBox.good .h{color:var(--gold-2)}
-  .vsBox .big{font-family:'Inter',system-ui,sans-serif;font-weight:800;font-size:26px;line-height:1;color:var(--navy)}
-  .vsBox .sm{font-size:11.5px;color:var(--mut);font-weight:600;margin-top:7px;line-height:1.35}
-  .vsMid{display:flex;align-items:center;font-weight:900;color:var(--soft);font-size:13px}
-  .heroCard .foot{margin-top:16px;background:var(--navy);color:#fff;border-radius:13px;padding:13px 16px;font-size:13px;font-weight:700;text-align:center;line-height:1.4}
-  .heroCard .foot em{font-style:normal;color:var(--gold-soft)}
-
-  /* ===== manifesto (navy band) ===== */
-  .manifesto{background:var(--navy);border-radius:28px;padding:40px 38px;color:#fff;text-align:center;position:relative;overflow:hidden}
-  .manifesto::after{content:'';position:absolute;inset:0;background:
-    radial-gradient(circle 400px at 90% 10%, rgba(194,138,44,.28), transparent 60%),
-    radial-gradient(circle 360px at 5% 100%, rgba(242,166,90,.18), transparent 60%);pointer-events:none}
-  .manifesto .eyebrow{color:var(--gold-soft)}
-  .manifesto h2{color:#fff;position:relative}
-  .manifesto h2 em{color:var(--gold-soft)}
-  .manifesto p{position:relative;color:rgba(255,255,255,.82);font-size:17px;line-height:1.62;max-width:720px;margin:16px auto 0}
-  .manifesto p b{color:#fff;font-weight:800}
-
-  /* ===== comparativo aluguel ===== */
-  .compare{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-  @media(max-width:760px){.compare{grid-template-columns:1fr}}
-  .cc{background:var(--surface);border:1px solid var(--border);border-radius:22px;padding:28px 26px;box-shadow:var(--sh-sm)}
-  .cc.bad{background:#FCF4F1;border-color:#F0DBD3}
-  .cc.good{border-color:#F0DFBE;box-shadow:var(--sh-md);position:relative}
-  .cc .badge{position:absolute;top:-13px;left:26px;background:var(--gold);color:#fff;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:6px 14px;border-radius:999px}
-  .cc .ch{display:flex;align-items:center;gap:11px;margin-bottom:16px}
-  .cc .cic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;flex:0 0 auto}
-  .cc.bad .cic{background:#F6E2DB}
-  .cc.good .cic{background:var(--peach)}
-  .cc .cic svg{width:23px;height:23px;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-  .cc.bad .cic svg{stroke:var(--danger)}
-  .cc.good .cic svg{stroke:var(--gold-2)}
-  .cc .ct{font-family:'Inter',system-ui,sans-serif;font-size:22px;font-weight:700;color:var(--navy);line-height:1.1}
-  .cc ul{list-style:none;display:flex;flex-direction:column;gap:12px;margin-top:4px}
-  .cc li{display:flex;gap:11px;align-items:flex-start;font-size:14.5px;color:var(--mut);font-weight:600;line-height:1.45}
-  .cc li svg{width:19px;height:19px;flex:0 0 auto;margin-top:1px;fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
-  .cc.bad li svg{stroke:#C88}
-  .cc.good li svg{stroke:var(--success)}
-  .cc li b{color:var(--navy);font-weight:800}
-
-  /* ===== simulador ===== */
-  .simGrid{display:grid;grid-template-columns:380px 1fr;gap:20px}
-  @media(max-width:900px){.simGrid{grid-template-columns:1fr}}
-  .panel{background:var(--surface);border:1px solid var(--border);border-radius:22px;padding:26px;box-shadow:var(--sh-sm)}
-  .fld{margin-bottom:20px}
-  .fld:last-child{margin-bottom:0}
-  .fld label{display:block;font-size:13.5px;font-weight:800;color:var(--navy);margin-bottom:9px}
-  .fld .hint{color:var(--soft);font-weight:600;font-size:11.5px}
-  .rng{width:100%;accent-color:var(--gold);height:44px;-webkit-appearance:none;background:transparent;cursor:pointer}
-  .rng:focus{outline:none}
-  .rng::-webkit-slider-runnable-track{height:8px;border-radius:99px;background:#EFE7D6}
-  .rng::-moz-range-track{height:8px;border-radius:99px;background:#EFE7D6}
-  .rng::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;border-radius:50%;background:var(--gold);border:3px solid #fff;margin-top:-10px;box-shadow:0 2px 10px rgba(194,138,44,.5)}
-  .rng::-moz-range-thumb{width:28px;height:28px;border-radius:50%;background:var(--gold);border:3px solid #fff;box-shadow:0 2px 10px rgba(194,138,44,.5)}
-  .rngRow{display:flex;justify-content:space-between;color:var(--soft);font-size:11.5px;font-weight:700;margin-top:5px}
-  .rngRow .cur{color:var(--gold-2);font-weight:800}
-  .contaBig{text-align:center;font-family:'Inter',system-ui,sans-serif;font-weight:800;font-size:32px;color:var(--navy);margin:2px 0 6px}
-  .chips{display:flex;flex-wrap:wrap;gap:9px}
-  .chip{background:#fff;border:1.5px solid var(--border);border-radius:11px;padding:11px 13px;font-size:13px;font-weight:700;color:var(--mut);cursor:pointer;font-family:inherit;transition:.15s;display:inline-flex;align-items:center;gap:7px;min-height:44px}
-  .chip:hover{border-color:var(--gold-soft)}
-  .chip.on{background:var(--peach);border-color:var(--gold);color:var(--gold-2)}
-  .chip .x{width:17px;height:17px;border-radius:5px;border:1.5px solid var(--soft);display:grid;place-items:center;font-size:11px;line-height:1}
-  .chip.on .x{background:var(--gold);border-color:var(--gold);color:#fff}
-
-  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  .kpi{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 16px;text-align:center}
-  .kpi.hl{background:linear-gradient(135deg,#fff 0%,var(--peach) 100%);border-color:#F0DFBE}
-  .kpi .k{color:var(--soft);font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.09em}
-  .kpi .v{font-family:'Inter',system-ui,sans-serif;font-size:clamp(22px,3vw,30px);font-weight:800;color:var(--navy);margin-top:7px;line-height:1;font-variant-numeric:tabular-nums}
-  .kpi .v.gold{color:var(--gold-2)}
-  .kpi .u{font-size:11px;color:var(--mut);font-weight:600;margin-top:5px}
-
-  .cmpBar{margin-top:14px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px}
-  .cmpBar .ct{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);margin-bottom:14px;text-align:center}
-  .cbRow{display:flex;align-items:center;gap:12px;margin-bottom:12px}
-  .cbRow .lbl{width:96px;flex:0 0 auto;font-size:12px;font-weight:800;color:var(--navy);line-height:1.15}
-  .cbTrack{flex:1;background:#F3EFE6;border-radius:99px;height:34px;position:relative;overflow:hidden}
-  .cbFill{height:100%;border-radius:99px;display:flex;align-items:center;justify-content:flex-end;padding:0 12px;font-size:13px;font-weight:800;color:#fff;white-space:nowrap;transition:width .5s}
-  .cbFill.bad{background:linear-gradient(90deg,#C0492F,#d76b52)}
-  .cbFill.good{background:linear-gradient(90deg,var(--gold),var(--gold-soft))}
-  .cbTag{position:absolute;top:50%;transform:translateY(-50%);left:24%;font-size:12.5px;font-weight:800;color:var(--gold-2);white-space:nowrap;pointer-events:none}
-  .simObs{color:var(--soft);font-size:12px;font-weight:600;margin-top:14px;line-height:1.5;text-align:center}
-  .simObs b{color:var(--gold-2)}
-
-  /* ===== faixa 21x ===== */
-  .band21{background:var(--surface);border:1px solid #F0DFBE;border-radius:24px;box-shadow:var(--sh-md);padding:34px 34px;display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:center}
-  @media(max-width:680px){.band21{grid-template-columns:1fr;gap:18px;text-align:center;padding:28px 22px}}
-  .b21n{font-family:'Inter',system-ui,sans-serif;font-weight:800;font-size:clamp(60px,11vw,96px);line-height:.85;color:var(--gold);white-space:nowrap}
-  .b21n small{display:block;font-size:16px;color:var(--navy);letter-spacing:.02em}
-  .b21t h3{font-family:'Inter',system-ui,sans-serif;font-size:clamp(22px,3vw,30px);font-weight:700;color:var(--navy);line-height:1.12}
-  .b21t p{color:var(--mut);font-size:15.5px;line-height:1.6;margin-top:10px}
-  .b21t p b{color:var(--navy);font-weight:800}
-  .b21pills{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
-  @media(max-width:680px){.b21pills{justify-content:center}}
-  .b21pill{background:var(--peach);border:1px solid #F0DFBE;color:var(--gold-2);font-size:12.5px;font-weight:800;padding:9px 15px;border-radius:999px}
-
-  /* ===== qualidade ===== */
-  .qcards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-  @media(max-width:860px){.qcards{grid-template-columns:repeat(2,1fr)}}
-  @media(max-width:520px){.qcards{grid-template-columns:1fr}}
-  .qc{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px 22px;box-shadow:var(--sh-sm)}
-  .qc .ic{width:48px;height:48px;border-radius:13px;background:var(--peach);display:grid;place-items:center;margin-bottom:15px}
-  .qc .ic svg{width:24px;height:24px;stroke:var(--gold-2);fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-  .qc .t{font-family:'Inter',system-ui,sans-serif;font-size:19px;font-weight:700;color:var(--navy);line-height:1.15}
-  .qc .d{color:var(--mut);font-size:14px;font-weight:600;margin-top:8px;line-height:1.5}
-
-  /* ===== prova/empresa ===== */
-  .trust{background:var(--navy);border-radius:28px;padding:44px 38px;color:#fff;text-align:center;position:relative;overflow:hidden}
-  .trust::after{content:'';position:absolute;inset:0;background:radial-gradient(circle 420px at 88% 0%, rgba(194,138,44,.26), transparent 60%);pointer-events:none}
-  .trust h2{color:#fff;position:relative}
-  .trust h2 em{color:var(--gold-soft)}
-  .trust .tg{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:22px;margin-top:30px}
-  @media(max-width:720px){.trust .tg{grid-template-columns:repeat(2,1fr);gap:26px 18px}}
-  .tg .n{font-family:'Inter',system-ui,sans-serif;font-size:clamp(30px,4.4vw,42px);font-weight:800;color:var(--gold-soft);line-height:1}
-  .tg .l{margin-top:8px;font-size:12px;font-weight:700;color:rgba(255,255,255,.78);text-transform:uppercase;letter-spacing:.08em;line-height:1.35}
-
-  /* ===== agendamento ===== */
-  .agBox{background:var(--surface);border:1px solid var(--border);border-radius:24px;box-shadow:var(--sh-md);padding:30px}
-  @media(max-width:600px){.agBox{padding:22px 16px}}
-  .step{margin-bottom:20px}
-  .slots{display:flex;flex-direction:column;gap:14px;margin-top:10px}
-  .agLoad{color:var(--mut);font-size:13.5px;font-weight:700;padding:14px 0}
-  .dia .diaH{color:var(--gold-2);font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
-  .diaS{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px}
-  @media(max-width:520px){.diaS{grid-template-columns:repeat(4,1fr)}}
-  .slot{background:#fff;border:1.5px solid var(--border);border-radius:11px;padding:12px 6px;text-align:center;cursor:pointer;transition:.15s;font-family:inherit;color:var(--navy);font-size:15px;font-weight:800;min-height:46px}
-  .slot:hover{border-color:var(--gold);background:var(--peach)}
-  .slot.on{background:var(--gold);border-color:var(--gold);color:#fff}
-  .f2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  @media(max-width:600px){.f2{grid-template-columns:1fr;gap:0}}
-  .fld2{margin-bottom:16px}
-  .fld2 label{display:block;font-size:13px;font-weight:700;color:var(--navy);margin-bottom:7px}
-  .fld2 .hint{color:var(--soft);font-weight:600;font-size:11.5px}
-  .inp{position:relative}
-  .inp input,.inp select{width:100%;padding:14px;background:#fff;border:1.5px solid var(--border);border-radius:11px;color:var(--text);font-size:16px;font-family:inherit;font-weight:600;outline:none;transition:border-color .2s}
-  .inp input:focus,.inp select:focus{border-color:var(--gold)}
-  .inp input::placeholder{color:#B7BCC7}
-  .opt2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  @media(max-width:440px){.opt2{grid-template-columns:1fr}}
-  .optb{background:#fff;border:1.5px solid var(--border);border-radius:11px;padding:14px 12px;min-height:48px;color:var(--navy);font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer;transition:.15s}
-  .optb:hover{border-color:var(--gold)}
-  .optb.on{background:var(--gold);border-color:var(--gold);color:#fff}
-  .agMsg{margin-top:14px;padding:13px 16px;border-radius:11px;font-size:13.5px;font-weight:700;display:none}
-  .agMsg.err{background:#FBF0ED;border:1px solid #F0D2C9;color:var(--danger);display:block}
-  .agMsg.info{background:#EFF7F2;border:1px solid #CFE6DA;color:var(--success);display:block}
-
-  /* ===== portão de presença ===== */
-  /* z-index acima da nav sticky, senão ela atravessa o overlay */
-  .cfBg{position:fixed;inset:0;z-index:200;background:rgba(15,42,82,.55);backdrop-filter:blur(5px);
-    display:none;align-items:center;justify-content:center;padding:20px}
-  .cfBg.on{display:flex}
-  .cf{background:var(--surface);border:1px solid var(--border);border-radius:22px;padding:30px 26px;
-    max-width:460px;width:100%;text-align:center;box-shadow:0 30px 80px rgba(15,42,82,.3);
-    max-height:92vh;overflow-y:auto}
-  .cf .ic{width:52px;height:52px;border-radius:15px;margin:0 auto 16px;background:var(--peach);
-    border:1px solid rgba(194,138,44,.3);display:grid;place-items:center}
-  .cf .ic svg{width:26px;height:26px;stroke:var(--gold);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-  .cf h3{font-size:22px;font-weight:800;letter-spacing:-.6px;line-height:1.2;color:var(--navy)}
-  .cf .quando{margin-top:12px;background:var(--peach);border:1px solid rgba(194,138,44,.28);
-    border-radius:12px;padding:12px 14px;color:var(--navy);font-size:15px;font-weight:800;line-height:1.35}
-  .cf p{color:var(--mut);font-size:14px;font-weight:600;line-height:1.5;margin-top:14px}
-  .cf p b{color:var(--text);font-weight:800}
-  .cfBtns{display:grid;gap:10px;margin-top:22px}
-  .cfBtns .btn{width:100%;justify-content:center}
-  .fineprint{color:var(--soft);font-size:11.5px;font-weight:600;text-align:center;margin-top:12px}
-  .ok{text-align:center;padding:24px 8px;display:none}
-  .ok .ic{width:72px;height:72px;border-radius:50%;background:var(--peach);border:2px solid var(--gold);display:grid;place-items:center;margin:0 auto 18px}
-  .ok .ic svg{width:34px;height:34px;stroke:var(--gold-2);fill:none;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
-  .ok h3{font-family:'Inter',system-ui,sans-serif;font-size:clamp(24px,3.4vw,30px);font-weight:700;color:var(--navy)}
-  .ok #ok-txt{color:var(--gold-2);font-size:clamp(15px,2vw,18px);font-weight:800;margin-top:10px;line-height:1.5}
-  .okCard{margin:24px auto 0;max-width:520px;text-align:left;display:flex;flex-direction:column;gap:16px;background:var(--bg);border:1px solid var(--border);border-radius:16px;padding:22px}
-  .okRow{display:flex;gap:14px;align-items:flex-start}
-  .okIc{width:38px;height:38px;border-radius:10px;background:var(--peach);display:grid;place-items:center;flex:0 0 auto}
-  .okIc svg{width:19px;height:19px;stroke:var(--gold-2);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-  .okTx{color:var(--mut);font-size:14px;font-weight:600;line-height:1.5}
-  .okTx b{display:block;color:var(--navy);font-weight:800;font-size:15px;margin-bottom:3px}
-  .okObs{color:var(--soft);font-size:14px;font-weight:700;margin-top:22px}
-  .okObs #ok-dia{color:var(--gold-2)}
-
-  /* ===== rodapé ===== */
-  footer{border-top:1px solid var(--border);padding:34px 0;margin-top:10px}
-  .fRow{display:flex;flex-wrap:wrap;gap:18px;align-items:center;justify-content:space-between}
-  .fc{display:flex;align-items:center;gap:9px;color:var(--mut);font-size:14px;font-weight:700}
-  .fc svg{width:16px;height:16px;stroke:var(--gold-2);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
-  .fLegal{color:var(--soft);font-size:11.5px;font-weight:600;line-height:1.6;margin-top:18px}
-  .cta-center{text-align:center;margin-top:30px}
+  html,body{height:100%}
+  body{font-family:'Inter',system-ui,-apple-system,sans-serif;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;line-height:1.5}
+  button{font-family:inherit}
+  .app{min-height:100%;display:flex;flex-direction:column;align-items:center;padding:0 16px env(safe-area-inset-bottom,0)}
+  .topo{width:100%;max-width:560px;display:flex;align-items:center;gap:11px;padding:18px 2px 14px}
+  .topo img{width:42px;height:42px;border-radius:50%;object-fit:cover;box-shadow:0 4px 12px rgba(15,42,82,.18)}
+  .topo .l1{font-weight:800;font-size:15px;color:var(--navy);line-height:1.1}
+  .topo .l2{font-size:9.5px;letter-spacing:.2em;color:var(--gold);text-transform:uppercase;margin-top:2px}
+  .quadro{width:100%;max-width:560px;background:var(--surface);border:1px solid var(--border);border-radius:22px;box-shadow:0 18px 44px -18px rgba(15,42,82,.22);overflow:hidden;display:flex;flex-direction:column}
+  .prog{height:4px;background:#EEE9DF}
+  .prog i{display:block;height:100%;width:0;background:var(--gold);transition:width .3s}
+  .corpo{padding:26px 22px 8px;display:flex;flex-direction:column;gap:14px;min-height:340px}
+  .hl{font-weight:800;font-size:clamp(28px,6.4vw,40px);line-height:1.06;letter-spacing:-.025em;color:var(--navy)}
+  .hl em{font-style:normal;color:var(--gold)}
+  .q{font-weight:800;font-size:clamp(22px,5vw,27px);line-height:1.16;letter-spacing:-.015em;color:var(--navy)}
+  .sub{font-size:15px;color:var(--mut)}
+  .ops{display:flex;flex-direction:column;gap:10px}
+  .op{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font-weight:600;font-size:16px;color:var(--navy);background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:15px 16px;cursor:pointer;min-height:54px;transition:border-color .15s,background .15s}
+  .op:hover{border-color:var(--gold)}
+  .op .dot{width:19px;height:19px;border-radius:50%;border:2px solid #C9C2B4;flex:none}
+  .op.sel{border-color:var(--navy);background:var(--sel)}
+  .op.sel .dot{border-color:var(--navy);background:radial-gradient(circle,var(--navy) 0 4px,transparent 5px)}
+  .op:focus-visible,.cta:focus-visible,.dia:focus-visible,.hora:focus-visible,.inp:focus-visible,.link:focus-visible{outline:3px solid rgba(194,138,44,.55);outline-offset:2px}
+  .inp{width:100%;font:500 17px 'Inter',system-ui,sans-serif;color:var(--navy);background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:14px}
+  .inp:focus{outline:none;border-color:var(--navy)}
+  .linha2{display:grid;grid-template-columns:1fr 110px;gap:10px}
+  .aviso{font-size:14px;line-height:1.45;border-radius:12px;padding:12px 14px;background:var(--sel);color:var(--navy-2)}
+  .aviso.erro{background:#FDEFEA;color:var(--danger)}
+  .link{font-size:13.5px;color:var(--mut);text-align:center}
+  .link a,.link button{color:var(--navy);font-weight:700;background:none;border:0;text-decoration:underline;cursor:pointer;font-size:13.5px}
+  .rodape{padding:14px 22px 22px;display:flex;flex-direction:column;gap:6px}
+  .cta{width:100%;font-weight:800;font-size:17px;color:#fff;background:var(--navy);border:0;border-radius:14px;padding:17px;min-height:56px;cursor:pointer;transition:background .15s}
+  .cta:hover{background:var(--navy-2)}
+  .cta:disabled{background:#B9C2D1;cursor:not-allowed}
+  .voltar{background:none;border:0;color:var(--mut);font-weight:600;font-size:14px;padding:8px;cursor:pointer}
+  .modo{display:inline-flex;align-self:flex-start;align-items:center;gap:8px;font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;padding:6px 11px;border-radius:999px;background:var(--sel);color:var(--navy-2)}
+  .modo i{width:8px;height:8px;border-radius:50%;background:var(--gold)}
+  .modo.vistoria i{background:#1baf7a}.modo.video i{background:#2a78d6}.modo.ligacao i{background:#eda100}
+  .dias{display:flex;gap:10px}
+  .dia{flex:1;font-weight:700;font-size:15px;color:var(--navy);background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:11px 6px;cursor:pointer;line-height:1.25}
+  .dia small{display:block;font-weight:500;color:var(--mut);font-size:12.5px}
+  .dia.sel{border-color:var(--navy);background:var(--sel)}
+  .horas{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+  .hora{font-weight:700;font-size:16px;color:var(--navy);background:#fff;border:1.5px solid var(--border);border-radius:12px;padding:13px 4px;cursor:pointer}
+  .hora.sel{border-color:var(--navy);background:var(--navy);color:#fff}
+  .ok{width:58px;height:58px;border-radius:50%;background:#E8F4EE;color:var(--ok);display:grid;place-items:center}
+  .passos{display:flex;flex-direction:column;gap:11px;font-size:15px}
+  .passos div{display:grid;grid-template-columns:24px 1fr;gap:11px;align-items:start}
+  .passos .n{width:24px;height:24px;border-radius:50%;background:var(--navy);color:#fff;font-weight:700;font-size:12px;display:grid;place-items:center}
+  .passos b{color:var(--navy)}
+  .ig{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1.5px solid var(--border);border-radius:14px;padding:13px 15px;font-size:14.5px;color:var(--text)}
+  .ig a{font-weight:700;font-size:14px;background:var(--navy);color:#fff;text-decoration:none;border-radius:10px;padding:10px 14px;white-space:nowrap}
+  .carregando{display:flex;align-items:center;gap:10px;color:var(--mut);font-size:15px}
+  .carregando i{width:18px;height:18px;border-radius:50%;border:2.5px solid var(--border);border-top-color:var(--navy);animation:gira .8s linear infinite}
+  @keyframes gira{to{transform:rotate(360deg)}}
+  .portao{position:fixed;inset:0;background:rgba(15,21,31,.55);display:flex;align-items:flex-end;justify-content:center;z-index:50;padding:0 0 env(safe-area-inset-bottom,0)}
+  .portao[hidden]{display:none}
+  .portao .caixa{background:#fff;width:100%;max-width:560px;border-radius:22px 22px 0 0;padding:24px 22px 26px;display:flex;flex-direction:column;gap:12px}
+  .portao .alt{font-weight:700;font-size:15px;color:var(--navy);background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:15px;cursor:pointer}
+  .pe{width:100%;max-width:560px;text-align:center;font-size:12.5px;color:var(--soft);padding:18px 0 26px;display:flex;flex-direction:column;gap:6px}
+  .pe a{color:var(--mut)}
+  [hidden]{display:none!important}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
+<div class="app">
+  <header class="topo">
+    <img src="/io/img/logoio.png" alt="" width="42" height="42" onerror="this.style.display='none'">
+    <div><div class="l1">Irmãos na Obra</div><div class="l2">Energia solar</div></div>
+  </header>
 
-<div class="nav">
-  <div class="in">
-    <div class="brand">
-      <img src="/io/img/logoio.png" alt="Irmãos na Obra Energia Solar">
-      <div class="t"><div class="l1">Irmãos na Obra</div><div class="l2">Energia Solar</div></div>
+  <main class="quadro" aria-live="polite">
+    <div class="prog" aria-hidden="true"><i id="prog"></i></div>
+    <div class="corpo" id="corpo">
+      <noscript><p class="sub">Para continuar, ative o JavaScript ou fale com a gente pelo WhatsApp: (34) 99816-5040.</p></noscript>
     </div>
-    <a href="#agendar" class="navCta" onclick="track('cta_topo')">Agendar vistoria grátis</a>
-  </div>
+    <div class="rodape" id="rodape"></div>
+  </main>
+
+  <footer class="pe">
+    <span>Irmãos na Obra · Energia solar em Uberlândia e região</span>
+    <a href="/io/solar/simulador">Ver o simulador completo</a>
+  </footer>
 </div>
 
-<div class="hero">
-  <div class="wrap">
-    <div class="heroIn">
-      <div>
-        <div class="tag"><span class="dot"></span>MAIS DE 1.200 FAMÍLIAS JÁ SÃO DONAS DA PRÓPRIA ENERGIA</div>
-        <h1>Pare de <em>alugar</em> a sua energia.</h1>
-        <p class="lead">Todo mês você paga a conta de luz — e nunca fica com nada. Com energia solar, a parcela no cartão fica <b>na faixa da sua conta de hoje</b>. A diferença: em pouco mais de <b>2 anos o sistema é seu</b> e a luz vira quase de graça pelos próximos 25 anos.<br><br>Se o dono do seu aluguel te oferecesse a casa pela parcela quase igual ao aluguel — você não compraria?</p>
-        <div class="heroCta">
-          <a href="#simulador" class="btn" onclick="track('cta_simular')">Simular minha economia →</a>
-          <a href="#agendar" class="btn ghost" onclick="track('cta_hero_agendar')">Agendar vistoria</a>
-        </div>
-        <div class="heroStats">
-          <div class="hs"><div class="n">1.200<em>+</em></div><div class="l">Famílias atendidas</div></div>
-          <div class="hs"><div class="n">25<em> anos</em></div><div class="l">De garantia</div></div>
-          <div class="hs"><div class="n">~90<em>%</em></div><div class="l">De economia na conta</div></div>
-        </div>
-      </div>
-      <div class="heroCard">
-        <div class="ct">A conta que você já paga</div>
-        <div class="vsRow">
-          <div class="vsBox bad">
-            <div class="h">Alugando (hoje)</div>
-            <div class="big">Pra sempre</div>
-            <div class="sm">Você paga a conta todo mês, ela só sobe, e nunca é sua.</div>
-          </div>
-          <div class="vsMid">→</div>
-          <div class="vsBox good">
-            <div class="h">Sendo dono</div>
-            <div class="big">~2 anos</div>
-            <div class="sm">A parcela cabe no lugar da conta. Depois, a energia é sua.</div>
-          </div>
-        </div>
-        <div class="foot">Em 25 anos, isso vira <em>uma casa a mais</em> em economia.</div>
-      </div>
-    </div>
+<div class="portao" id="portao" hidden role="dialog" aria-modal="true" aria-labelledby="portao-q">
+  <div class="caixa">
+    <div class="q" id="portao-q"></div>
+    <div class="sub" id="portao-sub"></div>
+    <button class="cta" id="portao-sim" type="button">Sim, vou estar</button>
+    <button class="alt" id="portao-nao" type="button">Ainda não posso confirmar</button>
   </div>
 </div>
-
-<div class="wrap">
-
-  <!-- MANIFESTO -->
-  <section>
-    <div class="manifesto">
-      <div class="eyebrow">Não é só energia solar</div>
-      <h2>É a sua <em>independência</em> da conta de luz.</h2>
-      <p>A gente não vende placa — entrega um sistema que <b>trabalha por você todo dia</b>: engenharia, material de primeira e monitoramento pelo celular. O que a concessionária cobra a vida toda, o sol te dá de graça. <b>Você troca uma despesa eterna por um patrimônio que valoriza o seu imóvel.</b></p>
-    </div>
-  </section>
-
-  <!-- COMPARATIVO ALUGUEL -->
-  <section>
-    <div class="sh">
-      <div class="eyebrow">A conta que ninguém te faz</div>
-      <h2>Alugar a energia <em>ou</em> ser dono dela</h2>
-      <p class="sub">Morar de aluguel a vida toda ou comprar a casa. Aqui a parcela é quase igual — e o prazo é curto.</p>
-    </div>
-    <div class="compare">
-      <div class="cc bad">
-        <div class="ch">
-          <div class="cic"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/></svg></div>
-          <div class="ct">Continuar alugando</div>
-        </div>
-        <ul>
-          <li><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg><span>Paga a conta <b>todo mês, pra sempre</b> — e nunca fica com nada.</span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg><span>A tarifa <b>só sobe</b>: reajuste, bandeira vermelha, impostos.</span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg><span>Depois de 25 anos você gastou o valor de <b>uma casa</b> — em luz.</span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg><span>Seu imóvel <b>não vale um centavo a mais</b> por isso.</span></li>
-        </ul>
-      </div>
-      <div class="cc good">
-        <div class="badge">O jeito certo</div>
-        <div class="ch">
-          <div class="cic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></div>
-          <div class="ct">Ter o seu solar</div>
-        </div>
-        <ul>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>A parcela no cartão <b>cabe no lugar da conta</b> que você já paga.</span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Em pouco mais de <b>2 anos</b> você termina de pagar — e acabou.</span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Depois disso, energia <b>quase de graça por 25 anos</b>.</span></li>
-          <li><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>Vira <b>patrimônio</b> e valoriza o seu imóvel.</span></li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  <!-- SIMULADOR -->
-  <section id="simulador">
-    <div class="sh">
-      <div class="eyebrow">Simulador</div>
-      <h2>Quanto o sol <em>devolve</em> pra você?</h2>
-      <p class="sub">Mexa nos seus números — muda na hora. Sem cadastro e sem preço escondido: o valor exato sai na vistoria.</p>
-    </div>
-    <div class="simGrid">
-      <div class="panel">
-        <div class="fld">
-          <label>Quanto vem a sua conta de luz por mês?</label>
-          <div class="contaBig" id="s-conta-v">R$ 500</div>
-          <input type="range" class="rng" id="s-conta" min="200" max="4000" step="50" value="500" oninput="calc()">
-          <div class="rngRow"><span>R$ 200</span><span class="cur" id="s-conta-lbl">média da casa</span><span>R$ 4.000+</span></div>
-        </div>
-        <div class="fld">
-          <label>Tipo de imóvel</label>
-          <div class="inp"><select id="s-tipo" onchange="calc()">
-            <option value="Residência">Residência</option>
-            <option value="Comércio">Comércio</option>
-            <option value="Rural / Chácara">Rural / Chácara</option>
-            <option value="Indústria">Indústria</option>
-          </select></div>
-        </div>
-        <div class="fld">
-          <label>Vai aumentar o consumo? <span class="hint">(a gente já dimensiona pra isso)</span></label>
-          <div class="chips" id="s-extras">
-            <button type="button" class="chip" data-kwh="150" data-nome="ar-condicionado" onclick="toggleExtra(this)"><span class="x"></span>Ar-condicionado</button>
-            <button type="button" class="chip" data-kwh="250" data-nome="carro elétrico" onclick="toggleExtra(this)"><span class="x"></span>Carro elétrico</button>
-            <button type="button" class="chip" data-kwh="130" data-nome="piscina" onclick="toggleExtra(this)"><span class="x"></span>Piscina</button>
-            <button type="button" class="chip" data-kwh="120" data-nome="chuveiro/forno elétrico" onclick="toggleExtra(this)"><span class="x"></span>Chuveiro elétrico</button>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <div class="kpis">
-          <div class="kpi hl"><div class="k">Economia estimada / mês</div><div class="v gold" id="k-eco">—</div><div class="u">~90% da sua conta</div></div>
-          <div class="kpi hl"><div class="k">Economia em 25 anos</div><div class="v gold" id="k-eco25">—</div><div class="u">com a tarifa subindo</div></div>
-          <div class="kpi"><div class="k">Tamanho do sistema</div><div class="v" id="k-kwp">—</div><div class="u" id="k-paineis">— painéis</div></div>
-          <div class="kpi"><div class="k">CO₂ que deixa de emitir</div><div class="v" id="k-co2">—</div><div class="u">em 25 anos</div></div>
-        </div>
-
-        <div class="cmpBar">
-          <div class="ct">O que você gasta em energia nos próximos 25 anos</div>
-          <div class="cbRow">
-            <div class="lbl">Sem solar</div>
-            <div class="cbTrack"><div class="cbFill bad" id="cb-sem" style="width:100%">—</div></div>
-          </div>
-          <div class="cbRow">
-            <div class="lbl">Com solar</div>
-            <div class="cbTrack"><div class="cbFill good" id="cb-com" style="width:16%"></div><span class="cbTag">~2 anos e pronto</span></div>
-          </div>
-          <div class="simObs"><b>A parcela no cartão 21x fica na faixa da sua conta de hoje</b> — e some depois de ~2 anos. O valor exato sai na vistoria gratuita.<br>Valores estimados; não constituem proposta. O resultado real depende do telhado, da região e do consumo.</div>
-        </div>
-      </div>
-    </div>
-    <div class="cta-center">
-      <a href="#agendar" class="btn" onclick="track('cta_pos_sim')">Quero a vistoria do meu telhado →</a>
-    </div>
-  </section>
-
-  <!-- FAIXA 21x -->
-  <section>
-    <div class="band21">
-      <div class="b21n">21x<small>no cartão</small></div>
-      <div class="b21t">
-        <h3>O seu projeto pago em pouco mais de <em class="serif" style="font-style:italic;color:var(--gold)">2 anos</em>.</h3>
-        <p>Parcela em até <b>21x no cartão</b>, sem entrada. A conta de luz que ia embora todo mês passa a <b>quitar o que é seu</b>. Terminou de pagar? A energia vira quase de graça pelos <b>25 anos</b> seguintes — com garantia.</p>
-        <div class="b21pills">
-          <span class="b21pill">Sem entrada</span>
-          <span class="b21pill">Também no financiamento</span>
-          <span class="b21pill">A parcela ≈ sua conta</span>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- QUALIDADE -->
-  <section>
-    <div class="sh">
-      <div class="eyebrow">Feito pra durar 25 anos</div>
-      <h2>Onde os baratos <em>economizam</em>, a gente reforça</h2>
-      <p class="sub">Um sistema encara sol e chuva por 25 anos. O que segura ele de pé é o que ninguém vê — e é aí que a gente não abre mão.</p>
-    </div>
-    <div class="qcards">
-      <div class="qc">
-        <div class="ic"><svg viewBox="0 0 24 24"><path d="M4 8l8-4 8 4-8 4-8-4zM4 8v8l8 4 8-4V8"/></svg></div>
-        <div class="t">Estrutura de alumínio e inox</div>
-        <div class="d">Não enferruja nem afrouxa. Nada de estrutura barata que solta a placa na primeira chuva forte.</div>
-      </div>
-      <div class="qc">
-        <div class="ic"><svg viewBox="0 0 24 24"><path d="M4 12h4l3-8 4 16 3-8h2"/></svg></div>
-        <div class="t">Cabos de primeira linha</div>
-        <div class="d">Cabo solar certificado: sem perda de geração e sem esquentar. Mais segurança no telhado.</div>
-      </div>
-      <div class="qc">
-        <div class="ic"><svg viewBox="0 0 24 24"><path d="M2 12h20M6 12V8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v4M9 12v4M15 12v4"/></svg></div>
-        <div class="t">Tubulação de PVC embutida</div>
-        <div class="d">Fiação em conduíte, acabamento limpo. Sem gambiarra exposta ao tempo.</div>
-      </div>
-      <div class="qc">
-        <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 2v4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2zM9 21h6M10 19h4"/></svg></div>
-        <div class="t">Mão de obra qualificada</div>
-        <div class="d">Equipe própria e treinada, com projeto e ART. Nada de improviso no seu telhado.</div>
-      </div>
-      <div class="qc">
-        <div class="ic"><svg viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg></div>
-        <div class="t">App de monitoramento 24h</div>
-        <div class="d">Acompanhe a geração pelo celular, em tempo real. Se algo cair, a gente vê antes de você.</div>
-      </div>
-      <div class="qc">
-        <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></div>
-        <div class="t">Pós-venda e garantia real</div>
-        <div class="d">Homologação, suporte de gente de verdade e até 25 anos de garantia. A relação não acaba na entrega.</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- PROVA / EMPRESA -->
-  <section>
-    <div class="trust">
-      <div class="eyebrow">Quem vai no seu telhado</div>
-      <h2>Uma empresa de <em>obra</em>, que entende de estrutura</h2>
-      <div class="tg">
-        <div><div class="n">1.200+</div><div class="l">Famílias já são donas da energia</div></div>
-        <div><div class="n">25 anos</div><div class="l">De garantia de geração</div></div>
-        <div><div class="n">100%</div><div class="l">Homologado na concessionária</div></div>
-        <div><div class="n">Uberlândia</div><div class="l">E toda a região</div></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- AGENDAMENTO -->
-  <section id="agendar">
-    <div class="sh">
-      <div class="eyebrow">Ligação com especialista</div>
-      <h2>Escolha o melhor <em>horário</em></h2>
-      <p class="sub">Primeiro a gente <b>liga</b> no horário que você escolher: uns 10 minutos pra entender sua conta e marcar a vistoria gratuita no seu endereço.</p>
-    </div>
-
-    <div class="agBox">
-      <div id="ag-form">
-        <div class="step">
-          <label style="display:block;font-size:13px;font-weight:800;color:var(--navy);margin-bottom:8px">Horários disponíveis</label>
-          <div class="slots" id="slots"></div>
-        </div>
-
-        <div class="f2">
-          <div class="fld2"><label>Seu nome</label><div class="inp"><input type="text" id="f-nome" placeholder="Nome completo"></div></div>
-          <div class="fld2"><label>WhatsApp</label><div class="inp"><input type="tel" id="f-tel" placeholder="(34) 99999-9999" oninput="maskTel(this); checarDono(this)"></div></div>
-        </div>
-        <div class="f2">
-          <div class="fld2"><label>CEP <span class="hint" id="cep-st">(opcional — completa o endereço)</span></label><div class="inp"><input type="text" id="f-cep" placeholder="00000-000" inputmode="numeric" autocomplete="postal-code" oninput="maskCep(this)"></div></div>
-          <div class="fld2"><label>Cidade / UF</label><div class="inp"><input type="text" id="f-cidade" placeholder="Ex: Uberlândia-MG"></div></div>
-        </div>
-        <div class="f2">
-          <div class="fld2"><label>Rua / Avenida</label><div class="inp"><input type="text" id="f-rua" placeholder="Ex: Rua das Acácias"></div></div>
-          <div class="fld2"><label>Número</label><div class="inp"><input type="text" id="f-numero" placeholder="Ex: 250" inputmode="numeric"></div></div>
-        </div>
-        <div class="f2">
-          <div class="fld2"><label>Bairro</label><div class="inp"><input type="text" id="f-bairro" placeholder="Ex: Santa Mônica"></div></div>
-          <div class="fld2"><label>Complemento / referência <span class="hint">(opcional)</span></label><div class="inp"><input type="text" id="f-compl" placeholder="Casa, apto, ponto de referência"></div></div>
-        </div>
-        <div class="f2">
-          <div class="fld2">
-            <label>O imóvel é</label>
-            <div class="inp"><select id="f-posse">
-              <option value="">Selecione…</option>
-              <option value="Próprio">Próprio</option>
-              <option value="Alugado">Alugado</option>
-              <option value="Em construção">Em construção</option>
-            </select></div>
-          </div>
-          <div class="fld2">
-            <label>Tipo de telhado</label>
-            <div class="inp"><select id="f-telhado">
-              <option value="">Selecione…</option>
-              <option>Cerâmico (telha de barro)</option>
-              <option>Fibrocimento / Eternit</option>
-              <option>Metálico</option>
-              <option>Laje</option>
-              <option>Solo / estrutura no chão</option>
-              <option>Não sei</option>
-            </select></div>
-          </div>
-        </div>
-        <div class="f2">
-          <div class="fld2">
-            <label>Padrão de energia</label>
-            <div class="inp"><select id="f-padrao">
-              <option value="">Selecione…</option>
-              <option>Monofásico</option>
-              <option>Bifásico</option>
-              <option>Trifásico</option>
-              <option>Não sei</option>
-            </select></div>
-          </div>
-          <div class="fld2">
-            <label>Quando pretende instalar?</label>
-            <div class="inp"><select id="f-urgencia">
-              <option value="">Selecione…</option>
-              <option value="imediato">O quanto antes</option>
-              <option value="30d">Nos próximos 30 dias</option>
-              <option value="90d">Em 1 a 3 meses</option>
-              <option value="pesquisando">Só pesquisando por enquanto</option>
-            </select></div>
-          </div>
-        </div>
-        <div class="f2">
-          <div class="fld2">
-            <label>Como prefere investir?</label>
-            <div class="inp"><select id="f-pagamento">
-              <option value="">Selecione…</option>
-              <option value="cartao">Cartão em até 21x</option>
-              <option value="avista">À vista (com desconto)</option>
-              <option value="financiamento">Financiamento</option>
-              <option value="decidindo">Ainda estou decidindo</option>
-            </select></div>
-          </div>
-          <div class="fld2">
-            <label>A decisão de comprar é</label>
-            <div class="inp"><select id="f-decisor">
-              <option value="">Selecione…</option>
-              <option value="sou">Sua (você decide)</option>
-              <option value="conjunto">Sua e de mais alguém</option>
-              <option value="nao">De outra pessoa</option>
-            </select></div>
-          </div>
-        </div>
-
-        <button class="btn navy" style="width:100%;justify-content:center;margin-top:6px" id="ag-btn" onclick="agendar()">Confirmar minha ligação →</button>
-        <div class="agMsg" id="ag-msg"></div>
-        <div class="fineprint">Seus dados são usados só para agendar esta ligação. Sem spam.</div>
-      </div>
-
-      <div class="ok" id="ag-ok">
-        <div class="ic"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
-        <h3>Ligação agendada!</h3>
-        <p id="ok-txt">—</p>
-        <div class="okCard">
-          <div class="okRow">
-            <div class="okIc"><svg viewBox="0 0 24 24"><path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
-            <div class="okTx"><b>A gente liga pra você.</b>No horário marcado, do número do seu consultor. São uns 10 minutos pra entender sua conta e tirar suas dúvidas.</div>
-          </div>
-          <div class="okRow">
-            <div class="okIc"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8"/></svg></div>
-            <div class="okTx"><b>A vistoria é marcada na ligação.</b>Um técnico vai até o seu endereço medir o telhado e o padrão — de graça — e é dela que sai a proposta fechada com o valor exato.</div>
-          </div>
-          <div class="okRow">
-            <div class="okIc"><svg viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01"/><path d="M21 12a9 9 0 0 1-9 9 8.9 8.9 0 0 1-4.3-1.1L3 21l1.1-4.7A8.9 8.9 0 0 1 3 12a9 9 0 1 1 18 0z"/></svg></div>
-            <div class="okTx"><b>Confirmamos pelo WhatsApp.</b>Enviamos a confirmação e um lembrete antes do horário. Qualquer coisa, é só responder por lá.</div>
-          </div>
-        </div>
-        <p class="okObs">Obrigado pela confiança. A gente se fala <span id="ok-dia">na ligação</span>!</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Portão de presença: último passo antes de gravar. Aqui pesa mais que na LP do
-       eletroposto — a vistoria é PRESENCIAL: um técnico entra no carro e vai até o
-       endereço. Não ter ninguém no local é a hora perdida de alguém na rua, não uma
-       sala de vídeo vazia. E as duas LPs caem na MESMA agenda (tabela agendamentos,
-       rodízio Thiago/Diego): filtrar só numa delas deixaria a outra porta aberta. -->
-  <div class="cfBg" id="cf-bg" onclick="if(event.target===this) confirmarNao()">
-    <div class="cf" role="dialog" aria-modal="true" aria-labelledby="cf-tit">
-      <div class="ic"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
-      <h3 id="cf-tit">Você vai poder atender?</h3>
-      <div class="quando" id="cf-quando">—</div>
-      <p>É uma <b>ligação de uns 10 minutos</b> no horário acima. Nela a gente entende sua conta e marca a vistoria gratuita no seu endereço.</p>
-      <p>A agenda está concorrida e <b>cada horário é de alguém</b>. Confirme só se você vai poder falar nesse horário.</p>
-      <div class="cfBtns">
-        <button type="button" class="btn navy" id="cf-sim" onclick="confirmarSim()">Sim, pode ligar</button>
-        <button type="button" class="btn ghost" onclick="confirmarNao()">Não vou conseguir</button>
-      </div>
-    </div>
-  </div>
-
-</div>
-
-<footer>
-  <div class="wrap">
-    <div class="fRow">
-      <a class="brand" href="/irmaosnaobra" title="Site da Irmãos na Obra">
-        <img src="/io/img/logoio.png" alt="">
-        <div class="t"><div class="l1">Irmãos na Obra</div><div class="l2">Energia Solar</div></div>
-      </a>
-      <div style="display:flex;gap:20px;flex-wrap:wrap">
-        <div class="fc"><svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8.1 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.8 2z"/></svg>(34) 99816-5040</div>
-        <div class="fc"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></svg>@irmaosnaobra__</div>
-      </div>
-    </div>
-    <div class="fLegal">
-      Os valores apresentados no simulador são estimativas de referência, calculadas a partir dos parâmetros informados por você, e não constituem proposta ou garantia de resultado. O resultado real varia conforme o telhado, a região, o consumo e as condições da instalação. © Irmãos na Obra — Energia Solar · Uberlândia/MG.
-    </div>
-  </div>
-</footer>
 
 <script>
 // ===== Meta Pixel (Solar) =====
@@ -690,735 +146,336 @@ t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
 document,'script','https://connect.facebook.net/en_US/fbevents.js');
 fbq('init', '446093469730871');   // pixel "Energia Solar"
 fbq('track', 'PageView');
+// Só evento PERSONALIZADO e o Schedule. NADA de 'Lead' padrão: este pixel
+// também recebe o Lead do simulador do SolarDoc (api/src/routes/quiz.ts), e um
+// Lead daqui ensinaria as campanhas do SolarDoc com o público errado.
 function track(tag){ try{ fbq('trackCustom','LPsolar_'+tag); }catch(e){} }
 </script>
-<noscript><img height="1" width="1" style="display:none"
+<noscript><img height="1" width="1" style="display:none" alt=""
 src="https://www.facebook.com/tr?id=446093469730871&ev=PageView&noscript=1"/></noscript>
 
 <script>
-// ===== Supabase (mesmo projeto do /gerador — CRM/agenda) =====
-// A CHAVE DO BANCO SAIU DAQUI EM 18/08/2026, pelo mesmo motivo da LP do
-// eletroposto: esta página é pública, e o que está no fonte dela está no "ver
-// código-fonte" de qualquer visitante. Com RLS desligada nas tabelas, aquela
-// chave lia as fichas inteiras e era aceita num DELETE — conferido com curl.
-//
-// Agora a página fala com a nossa API, que fala com o banco.
-const API = location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api';
-// Grava a vistoria PELA API. O servidor valida telefone, consultor e horário
-// antes de gravar: o que chega daqui é pedido, não comando.
-async function agendarNaApi(body){
-  const r = await fetch(`${API}/io/solar/agendar`, {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify(body)
-  });
-  const j = await r.json().catch(() => null);
-  if(!r.ok || !j || !j.ok) throw new Error((j && j.error) || ('http ' + r.status));
-  return j;
-}
+(function(){
+'use strict';
+const API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? 'http://localhost:3001' : '/_api';
+const WHATS_CENTRAL = '5534998165040';
+const $ = id => document.getElementById(id);
+const corpo = $('corpo'), rodape = $('rodape'), portao = $('portao');
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-// ===== SIMULADOR SOLAR =====
-// Sem preço final de propósito: o simulador é funil de interação e confiança.
-// Mostra economia, tamanho do sistema e impacto — o valor do kit fecha na vistoria.
-const TARIFA = 1.05;   // R$/kWh cheia (média com impostos)
-const HSP    = 5.2;    // horas de sol pleno/dia (região)
-const PR     = 0.80;   // performance ratio
-const PAINEL_W = 590;  // W por painel
-const OFFSET = 0.90;   // % da conta que o solar zera (taxa mínima permanece)
-const INFLA  = 0.08;   // reajuste médio anual da tarifa
-const money  = n => 'R$ ' + Math.round(n||0).toLocaleString('pt-BR');
-const moneyK = n => n >= 1000 ? 'R$ ' + (Math.round(n/1000)).toLocaleString('pt-BR') + ' mil' : money(n);
-
-let extrasKwh = 0;
-function toggleExtra(b){
-  b.classList.toggle('on');
-  extrasKwh = [...document.querySelectorAll('#s-extras .chip.on')]
-    .reduce((s,el)=> s + (+el.dataset.kwh||0), 0);
-  track('extra_'+(b.dataset.nome||'').replace(/\s/g,'_'));
-  calc();
-}
-function extrasNomes(){
-  return [...document.querySelectorAll('#s-extras .chip.on')].map(el=>el.dataset.nome);
-}
-
-function computeSolar(){
-  const conta = +document.getElementById('s-conta').value;
-  const consumoKwh = conta / TARIFA + extrasKwh;
-  const kwp = consumoKwh / (HSP*30*PR);
-  const paineis = Math.max(2, Math.ceil(kwp*1000/PAINEL_W));
-  const geracao = kwp*HSP*30*PR;                 // kWh/mês
-  const economiaMes = conta*OFFSET + (extrasKwh*TARIFA*OFFSET);
-  // 25 anos com a tarifa subindo
-  let eco25=0, m=economiaMes, gasto25=0, c=conta + extrasKwh*TARIFA;
-  for(let y=0;y<25;y++){ eco25 += m*12; m*=(1+INFLA); gasto25 += c*12; c*=(1+INFLA); }
-  const co2 = geracao*12*25*0.0817/1000;         // toneladas de CO₂ evitadas
-  return { conta, consumoKwh, kwp, paineis, geracao, economiaMes, eco25, gasto25, co2 };
-}
-function calc(){
-  const r = computeSolar();
-  document.getElementById('s-conta-v').textContent = money(r.conta);
-  document.getElementById('s-conta-lbl').textContent =
-    r.conta < 400 ? 'casa menor' : r.conta < 900 ? 'média da casa' : r.conta < 2000 ? 'casa grande / comércio' : 'alto consumo';
-  document.getElementById('k-eco').textContent   = money(r.economiaMes);
-  document.getElementById('k-eco25').textContent = moneyK(r.eco25);
-  document.getElementById('k-kwp').textContent   = r.kwp.toFixed(1).replace('.',',') + ' kWp';
-  document.getElementById('k-paineis').textContent = r.paineis + ' painéis';
-  document.getElementById('k-co2').textContent   = r.co2.toFixed(1).replace('.',',') + ' t';
-  // barras comparativas — solar fixado num traço curto pra mostrar "paga e acaba"
-  document.getElementById('cb-sem').style.width = '100%';
-  document.getElementById('cb-sem').textContent = moneyK(r.gasto25);
-  document.getElementById('cb-com').style.width = '18%';
-  // Passou (ou deixou de passar) dos 700 kWh? Muda quem atende — e a grade de
-  // horário troca junto. Redesenha só na VIRADA: calc() roda a cada pixel do
-  // slider. Fica aqui, e não no oninput, porque marcar ar-condicionado/carro
-  // elétrico também empurra o consumo (toggleExtra chama calc).
-  avaliarTurnoPeloConsumo(r.consumoKwh);
-}
-
-// ===== TEMPERATURA (mesma lógica do CRM solar) =====
-// urgência e pagamento definidos separam quem compra; alugado pune; consumo vale pouco.
-function medirTemperatura(conta, urgencia, pagamento, decisor, posse){
-  let p = 0;
-  if(urgencia === 'imediato') p += 3;
-  else if(urgencia === '30d') p += 1;
-  if(pagamento && pagamento !== 'decidindo') p += 3;
-  if(decisor === 'nao') p -= 1; else if(decisor === 'sou') p += 1;
-  if(posse === 'Alugado') p -= 3;
-  if(conta >= 700) p += 1;
-  if(extrasKwh > 0) p += 1;
-  return p >= 5 ? 'quente' : p >= 3 ? 'morno' : 'frio';
-}
-
-// ===== AGENDA (o que o lead marca aqui) =====
-// 3 dias rolantes a partir de HOJE, pulando fim de semana e feriado.
-//
-// O que é marcado depende de QUEM atende, e é a diferença que manda em toda a
-// conta de ocupação daqui pra baixo:
-//   • Nilce  → LIGAÇÃO de ~15 min. É o primeiro contato dela; a vistoria, se o
-//     lead qualificar, é marcada DENTRO da ligação.
-//   • sócios → VISTORIA presencial de ~1 hora, no endereço do lead.
-// Quem traduz isso em minutos é o durSolarDe(), e é ele que o livresEm() usa.
-//
-// 12/08: quem atende depende do TAMANHO DA CONTA. Thiago e Diego só pegam lead
-// acima de 700 kWh/mês; abaixo disso é da Nilce. Como o simulador já está em cima
-// do formulário, a página sabe o consumo ANTES de mostrar horário — mexer no valor
-// da conta (ou marcar ar-condicionado/carro elétrico) redesenha a grade na hora: o
-// lead nunca vê um horário que a gente ia recusar depois. Quem já tem dono
-// continua com ele (1 telefone = 1 consultor) e o dono manda na grade: assim que o
-// lead digita o WhatsApp, a página descobre o consultor dele e troca a lista.
-//
-// 17/08: a TARDE dos sócios VOLTOU, encaixada. Em 10/08 ela tinha saído porque a
-// vistoria das 14h caía em cima da apresentação de eletroposto; agora a LP de lá
-// vende de hora em hora (10:00, 11:00 e 13:00–18:00), então a vistoria deles mora
-// nas MEIAS-HORAS que sobram entre uma apresentação e outra. Não é grade de 30 em
-// 30: é a lista fechada que o Thiago pediu — 08:00 e 09:00 ainda cabem inteiras
-// porque o eletroposto só começa às 10:00.
-//   • sócios (conta > 700 kWh) → 08:00 08:30 09:00 09:30 10:30 11:30
-//                                13:30 14:30 15:30 16:30 17:30 18:30
-//   • Nilce  (conta ≤ 700 kWh) → 08:00–11:00 e 13:00–16:00, de hora em hora
-//
-// A vistoria leva ~1 hora (é o que a página promete ao lead), e é por isso que a
-// ocupação aqui virou SOBREPOSIÇÃO por consultor, não "mesmo timestamp": marcar
-// 08:00 apaga o 08:30 daquele sócio (as duas só cabem no mesmo dia se forem de
-// pessoas diferentes), e um 13:30 de vistoria come o 14:00 de eletroposto dele —
-// a LP do eletroposto enxerga isso, ela lê a duração da ficha pelo created_by.
-// 23/09/2026: 1.200 kWh. Espelha o KWH_CORTE_TIME do backend
-// (api/src/services/agenda/leadSolarFicha.ts) - mexeu la, mexa aqui. Esta copia
-// ja ficou dias em 700 enquanto o backend estava em 762: a pagina mostrava a
-// grade do socio pra quem o servidor ia mandar pra Nilce.
-const KWH_CORTE_TIME = 1200;
-const DUR_VISTORIA_MS = 60 * 60 * 1000;   // sócios: a hora que a agenda encaixada reserva
-const DUR_PADRAO_MS   = 30 * 60 * 1000;   // apresentação de eletroposto / card de lead
-const DUR_LIGACAO_MS  = 15 * 60 * 1000;   // Nilce: o primeiro contato é ligação, 15 min
-/** Quanto tempo um agendamento SOLAR ocupa, por quem atende. */
-const durSolarDe = dono => SOCIOS.includes(dono) ? DUR_VISTORIA_MS : DUR_LIGACAO_MS;
-let slotSel = null;
-let donoLead = null;             // consultor que JÁ atende o telefone digitado (null = novo/não sei)
-let compromissos = [];           // [{ts, dono, dur}] — a agenda dos três, com duração por tipo
-
-// ── FERIADOS NACIONAIS, CALCULADOS ──────────────────────────────────────────
-// Era uma lista escrita à mão que ia até 2027. Em 01/01/2028 ela pararia de
-// conhecer feriado em silêncio e esta vitrine venderia horário no Natal.
-// Agora sai de conta e vale pra qualquer ano (03/09/2026). Mesma regra do
-// backend (`api/src/utils/feriadosBR.ts`) — se mexer em uma, mexa na outra.
-// Feriado NACIONAL só: ponto facultativo e feriado da cidade não entram.
-const _p2 = n => String(n).padStart(2,'0');
-const _ymd = d => `${d.getUTCFullYear()}-${_p2(d.getUTCMonth()+1)}-${_p2(d.getUTCDate())}`;
-/** Domingo de Páscoa (algoritmo gregoriano anônimo). Os móveis penduram nele. */
-function _pascoa(ano){
-  const a=ano%19, b=Math.floor(ano/100), c=ano%100;
-  const d=Math.floor(b/4), e=b%4, f=Math.floor((b+8)/25);
-  const g=Math.floor((b-f+1)/3), h=(19*a+b-d-g+15)%30;
-  const i=Math.floor(c/4), k=c%4, l=(32+2*e+2*i-h-k)%7;
-  const m=Math.floor((a+11*h+22*l)/451);
-  const mes=Math.floor((h+l-7*m+114)/31), dia=((h+l-7*m+114)%31)+1;
-  return new Date(Date.UTC(ano, mes-1, dia));
-}
-function _daPascoa(ano, dias){ const d=_pascoa(ano); d.setUTCDate(d.getUTCDate()+dias); return _ymd(d); }
-const _FIXOS = ['01-01','04-21','05-01','09-07','10-12','11-02','11-15','11-20','12-25'];
-const _feriadosCache = new Map();
-function feriadosDoAno(ano){
-  if(_feriadosCache.has(ano)) return _feriadosCache.get(ano);
-  const s = new Set([
-    ..._FIXOS.map(md => `${ano}-${md}`),
-    _daPascoa(ano,-48),  // Carnaval (segunda)
-    _daPascoa(ano,-47),  // Carnaval (terça)
-    _daPascoa(ano,-2),   // Sexta-feira Santa
-    _daPascoa(ano, 60),  // Corpus Christi
-  ]);
-  _feriadosCache.set(ano, s);
-  return s;
-}
-/** É feriado nacional? `ymd` = 'YYYY-MM-DD' no fuso de Brasília. */
-function ehFeriado(ymd){
-  const ano = Number(String(ymd).slice(0,4));
-  if(!Number.isInteger(ano) || ano < 1900 || ano > 2200) return false;
-  return feriadosDoAno(ano).has(ymd);
-}
-const TZ_BR = 'America/Sao_Paulo';
-function partesBR(d = new Date()){
-  const f = new Intl.DateTimeFormat('en-CA', { timeZone: TZ_BR, year:'numeric', month:'2-digit',
-    day:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false });
-  const p = Object.fromEntries(f.formatToParts(d).filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
-  return { ymd:`${p.year}-${p.month}-${p.day}`, hhmm:`${p.hour}:${p.minute}` };
-}
-const isoDe = (ymd, hhmm) => new Date(`${ymd}T${hhmm}:00-03:00`).toISOString();
-
-// Horários de INÍCIO, por quem atende. Os dos sócios são a lista fechada do
-// Thiago (17/08) — as meias-horas que sobram entre as apresentações de eletroposto
-// dele e do Diego, mais as duas primeiras horas da manhã, que o eletroposto não
-// usa.
-const SOCIOS = ['Thiago', 'Diego'];
-// 17/08 (valendo 18/08): a conta baixa deixou de ser de uma pessoa só — a Giovanna
-// entrou pra treinar, 1 a cada 4. TIME_BAIXA é pra PERGUNTAR ("esse dono é do
-// perfil de conta baixa?"), FILA_BAIXA é pra SORTEAR, e é o tamanho dela que
-// define a proporção. Espelha leadSolarFicha.ts no backend.
-// 23/09/2026: a Giovanna saiu do rodizio de lead novo - "a Nilce recebe todos".
-// Ela FICA no TIME_BAIXA porque ainda tem carteira: cliente dela que voltar pela
-// pagina e reconhecido pelo telefone e continua com ela.
-const TIME_BAIXA = ['Nilce', 'Giovanna'];
-const FILA_BAIXA = ['Nilce'];
-const GRADE_SOCIOS = ['08:00','08:30','09:00','09:30','10:30','11:30',
-                      '13:30','14:30','15:30','16:30','17:30','18:30'];
-// Nilce, 17/08 (ordem do Thiago): 08:00–11:00 e 13:00–16:00, de 30 em 30. Ela não
-// tem eletroposto, então não precisa se encaixar em intervalo nenhum, e o que ela
-// marca aqui é LIGAÇÃO de 15 min — não visita. Por isso os 14 horários são 14
-// ligações de verdade: com o passo de 30 e a ligação de 15, um horário nunca come
-// o seguinte. Sobra folga de 15 min entre uma e outra. O almoço segue fechado.
-//
-// NÃO confundir com a grade do CARD de ligação dela, que é outra coisa e vive no
-// backend (leadsMetaService.ts): 15 em 15 min, com teto no FIM_SOLAR_MIN.
-const GRADE_NILCE = (() => {
-  const out = [];
-  for (let t = 8 * 60; t <= 16 * 60; t += 30) {
-    if (t > 11 * 60 && t < 13 * 60) continue;    // 11:30 e 12:xx: almoço
-    out.push(String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'));
-  }
-  return out;
-})();
-// ── AGENDA FECHADA: os dias em que os SÓCIOS estão fora ─────────────────────
-// HOJE VAZIA. Quando preencher, vale SÓ pro Thiago e pro Diego: a Nilce e a
-// Giovanna não viajam, o que elas marcam é ligação de 15 min e a grade delas
-// continua inteira. Fechar tudo jogaria fora dias de lead de conta baixa, que é
-// o volume do Meta.
-//
-// Lista pontual, com data pra sumir — por isso não entra no FERIADOS. Ela existe
-// em três lugares (esta LP, a do eletroposto e a régua do servidor em
-// `api/src/services/agenda/agendaFechada.ts`); mexeu numa, mexa nas três.
-const AGENDA_FECHADA = new Set([]);   // vazio = agenda normal. Formato: '2026-08-25'
-
-function gradeDoDia(ymd, dosSocios){
-  const dow = new Date(`${ymd}T12:00:00-03:00`).getUTCDay();
-  if(dow === 0 || dow === 6) return [];        // fim de semana: fechado
-  if(ehFeriado(ymd)) return [];             // feriado: fechado
-  if(dosSocios && AGENDA_FECHADA.has(ymd)) return [];   // sócios fora
-  return dosSocios ? GRADE_SOCIOS : GRADE_NILCE;
-}
-async function carregarOcupados(deYmd, ateYmd){
+// ── Origem do lead: primeiro toque da sessão, como no eletroposto ─────────────
+const UTM_KEYS = ['utm_source','utm_medium','utm_campaign','utm_content','utm_term'];
+function utmPrimeiroToque(){
   try{
-    const de  = isoDe(deYmd, '00:00');
-    const ate = isoDe(ateYmd,'23:59');
-    const r = await fetch(`${API}/io/solar/agenda?de=${encodeURIComponent(de)}&ate=${encodeURIComponent(ate)}`);
-    const j = await r.json();
-    // Os dois rodízios vêm junto: eram duas leituras a mais só pra contar ficha.
-    if (j && j.proximoAlta)  rodizioAlta  = j.proximoAlta;
-    if (j && j.proximoBaixa) rodizioBaixa = j.proximoBaixa;
-    // `ocupados: null` é a API dizendo que NÃO conseguiu ler — diferente de
-    // "não tem nada marcado". A grade abre nos dois casos (a gravação valida de
-    // novo no servidor), mas só um deles é motivo de olhar o log.
-    compromissos = (j && Array.isArray(j.ocupados) ? j.ocupados : []).map(a=>({
-      ts: a.ts,
-      dono: String(a.dono),
-      // O solar da LP ocupa conforme quem atende: 1 hora nos sócios (a vistoria
-      // presencial que a grade encaixada reserva) e 15 min na Nilce (ligação). O
-      // resto — apresentação de eletroposto, card de lead do Meta — ocupa meia
-      // hora e devolve a agenda.
-      dur: a.solar ? durSolarDe(String(a.dono)) : DUR_PADRAO_MS,
-    }));
-  }catch(e){ compromissos = []; }   // falhou: não trava a agenda, valida no envio
+    const salvo = sessionStorage.getItem('sq_utm'); if (salvo) return JSON.parse(salvo);
+    const p = new URLSearchParams(location.search), u = {};
+    UTM_KEYS.forEach(k => { const v = p.get(k); if (v) u[k] = v.slice(0, 200); });
+    if (Object.keys(u).length) sessionStorage.setItem('sq_utm', JSON.stringify(u));
+    return u;
+  }catch(e){ return {}; }
 }
-/** Dos nomes passados, quem ainda cabe num compromisso começando em `iso`.
- *
- *  Sobreposição de intervalos, não timestamp igual: [t, t + o que ESTA pessoa
- *  reserva) contra [c, c + o que aquele compromisso reserva). Os dois lados são
- *  medidos por dono, e é isso que faz a mesma função servir pra ligação de 15 min
- *  da Nilce e pra vistoria de 1 hora dos sócios.
- *
- *  Horário colado na ponta NÃO é conflito — é a agenda emendando, que é o desenho
- *  inteiro da grade encaixada (13:00 de eletroposto acaba 13:30, e é aí que a
- *  vistoria do sócio começa). */
-function livresEm(iso, nomes){
-  const t = new Date(iso).getTime();
-  return nomes.filter(n => !compromissos.some(c =>
-    c.dono === n && c.ts < t + durSolarDe(n) && t < c.ts + c.dur));
+const UTM = utmPrimeiroToque();
+const SRC = (() => { try{ const s = (new URLSearchParams(location.search).get('src')||'').trim().toLowerCase(); return /^[a-z0-9_-]{1,20}$/.test(s) ? s : ''; }catch(e){ return ''; } })();
+
+// ── Funil por pergunta (lp_events), o mesmo formato do eletroposto ────────────
+const PL = Date.now(); let SEQ = 0;
+const vistos = new Set(), errosVistos = new Set(); let fimMandado = false;
+function lpFunil(tipo, dados){
+  const corpoEv = Object.assign({ lp: 'solar', modo: 'quiz', caminho: caminhoAtual(), pl: PL, seq: ++SEQ }, dados || {});
+  try { if (window.lpEvt) window.lpEvt(tipo, corpoEv); else (window.__lpFila = window.__lpFila || []).push([tipo, corpoEv]); } catch(e){}
 }
-// Rodízio da CONTA ALTA. Desde 23/09/2026 a Nilce está nele: dos leads acima de
-// 1.200 kWh ela leva metade, o Thiago um quarto e o Diego um quarto. É o TAMANHO
-// da fila que carrega a proporção, e a ordem é a ordem do rodízio, igualzinho ao
-// FILA_CONTA_ALTA do backend, que é quem manda de verdade.
-//
-// TIME_ pergunta ("esse dono é do perfil de conta alta?"), FILA_ sorteia. Usar a
-// fila pra perguntar contaria a Nilce duas vezes; usar o time pra sortear daria
-// 1/3 pra cada um em vez de 50/25/25.
-const TIME_ALTA = ['Thiago', 'Diego', 'Nilce'];
-const FILA_ALTA = ['Thiago', 'Nilce', 'Diego', 'Nilce'];
-// Os dois rodízios chegam junto com a agenda: a API devolve o próximo nome
-// pronto, contado no MESMO lugar que o formulário do Meta e a DM giram. Três
-// contadores separados dariam três rodízios independentes, e a proporção real
-// dependeria do mix do dia.
-let rodizioAlta  = FILA_ALTA[0];
-let rodizioBaixa = FILA_BAIXA[0];
-function proximoDono(){
-  return TIME_ALTA.includes(rodizioAlta) ? rodizioAlta : FILA_ALTA[0];
+
+// ── Estado ────────────────────────────────────────────────────────────────────
+const R = {};                      // respostas
+let nome = '', tel = '', endereco = { cep:'', rua:'', numero:'', bairro:'' };
+let srv = null;                    // o que o servidor decidiu no passo do WhatsApp
+let idx = 0, diaSel = null, horaSel = null, fim = null, ocupado = false, avisoHorario = '';
+
+const CONTAS = [
+  ['ate300','Até R$ 300'], ['300_600','R$ 300 a R$ 600'], ['600_1050','R$ 600 a R$ 1.050'],
+  ['1050_2000','R$ 1.050 a R$ 2.000'], ['2000_5000','R$ 2.000 a R$ 5.000'], ['5000_mais','Mais de R$ 5.000'],
+];
+const CIDADES_SUGERIDAS = ['Uberlândia','Araguari','Uberaba','Catalão','Ituiutaba','Patrocínio','Monte Carmelo','Itumbiara','Tupaciguara','Prata','Monte Alegre de Minas','Caldas Novas','Ipameri','Araporã','Centralina','Canápolis','Indianópolis','Nova Ponte','Santa Juliana','Estrela do Sul','Cascalho Rico','Romaria','Iraí de Minas','Coromandel'];
+
+const PASSOS = [
+  { id:'conta', campo:'conta', q:'Quanto vem a sua conta de luz por mês?', ops: CONTAS, topo:true },
+  { id:'tipo', campo:'tipo', q:'Onde vai ficar a energia solar?', ops:[['casa','Na minha casa'],['empresa','No meu comércio ou empresa'],['rural','Na fazenda, chácara ou agro']] },
+  { id:'cidade', tipo:'cidade', q:'Em qual cidade fica o imóvel?' },
+  { id:'imovel', campo:'imovel', q:'O imóvel é seu?', ops:[['proprio','Sim, é meu'],['alugado','É alugado'],['construcao','Está em construção']] },
+  { id:'urgencia', campo:'urgencia', q:'Quando você quer o sistema funcionando?', ops:[['ja','O quanto antes, este mês'],['3meses','Nos próximos 3 meses'],['pesquisando','Ainda estou pesquisando preços']] },
+  { id:'concorrente', campo:'concorrente', q:'Já fez orçamento com outra empresa?', ops:[['sim','Sim, quero comparar'],['nao','Não, este é o primeiro']] },
+  { id:'pagamento', campo:'pagamento', q:'Como pretende pagar?', ops:[['vista','À vista'],['financiamento','Financiamento'],['cartao','Cartão em até 21x'],['naosei','Ainda não sei']] },
+  { id:'decisor', campo:'decisor', q:'Quem decide a compra?', ops:[['eu','Eu decido'],['junto','Eu e mais alguém'],['outro','Outra pessoa']] },
+  { id:'grupoa', campo:'grupoa', q:'A sua conta tem a linha "Demanda contratada"?', sub:'Ela aparece na conta de quem é atendido em alta tensão.',
+    quando: () => R.tipo && R.tipo !== 'casa' && (R.conta === '2000_5000' || R.conta === '5000_mais'),
+    ops:[['sim','Sim, tem'],['nao','Não tem'],['naosei','Não sei']] },
+  { id:'nome', tipo:'nome', q:'Como podemos te chamar?' },
+  { id:'whatsapp', tipo:'whatsapp', q:'Qual é o seu WhatsApp?', sub:'É por ele que chega a confirmação.' },
+  { id:'endereco', tipo:'endereco', q:'Onde fica o imóvel?', sub:'É para lá que o consultor vai.', quando: () => srv && srv.caminho === 'vistoria' },
+  { id:'horario', tipo:'horario', quando: () => srv && srv.dias && srv.dias.length },
+];
+const vivos = () => PASSOS.filter(p => !p.quando || p.quando());
+function caminhoAtual(){ return srv ? srv.caminho : (R.conta ? 'respondendo' : 'inicio'); }
+
+// Qualquer resposta que muda depois do WhatsApp invalida a decisão do servidor.
+function responder(campo, v){ if (R[campo] !== v){ R[campo] = v; srv = null; diaSel = null; horaSel = null; } }
+
+// ── Validações ────────────────────────────────────────────────────────────────
+const digitos = s => String(s || '').replace(/\D/g, '');
+const telOk = () => { const d = digitos(tel); return d.length === 10 || d.length === 11; };
+const telBanco = () => { const d = digitos(tel); return d.length >= 12 && d.startsWith('55') ? d : '55' + d; };
+function respondido(p){
+  if (p.ops) return !!R[p.campo];
+  if (p.tipo === 'cidade') return (R.cidade || '').trim().length >= 3;
+  if (p.tipo === 'nome') return nome.trim().length >= 3;
+  if (p.tipo === 'whatsapp') return telOk();
+  if (p.tipo === 'endereco') return digitos(endereco.cep).length === 8 && endereco.rua.trim().length >= 3 && endereco.numero.trim().length >= 1;
+  if (p.tipo === 'horario') return diaSel !== null && !!horaSel;
+  return false;
 }
-function proximoDonoBaixa(){
-  return TIME_BAIXA.includes(rodizioBaixa) ? rodizioBaixa : FILA_BAIXA[0];
+function mensagemDoErro(p){
+  if (p.ops) return 'Escolha uma das opções para continuar.';
+  if (p.tipo === 'cidade') return 'Digite o nome da cidade.';
+  if (p.tipo === 'nome') return 'Digite o seu nome.';
+  if (p.tipo === 'whatsapp') return 'Confira o número com DDD.';
+  if (p.tipo === 'endereco') return 'Preencha o CEP, a rua e o número.';
+  return 'Escolha o dia e o horário.';
 }
-// Cliente que JÁ tem dono fica com ele — nunca aparece sob 2 consultores e não
-// entra no rodízio. Chave = DDD + últimos 8 dígitos (tolera o "9" e o 55), a
-// mesma do CRM/backend (donoDoTelefone).
-function telkeyLP(raw){
-  const dd = String(raw||'').replace(/\D/g,'').replace(/^55/,'');
-  if(dd.length < 10) return null;
-  return dd.slice(0,2) + dd.slice(-8);
-}
-// UMA pergunta ao servidor: de quem é este telefone? Antes a página baixava a
-// LISTA de fichas de todo mundo cujos 8 últimos dígitos batessem — quem digitasse
-// um número qualquer recebia o horário e o consultor de outra pessoa.
-async function donoDoTelefone(tel){
-  try{
-    const r = await fetch(`${API}/io/solar/cliente?tel=${encodeURIComponent(tel)}`);
-    const j = await r.json();
-    return (j && j.dono) || null;
-  }catch(e){ return null; }
-}
-function proximosDias(){
-  const hoje = partesBR().ymd;
-  const dias = [];
-  let d = new Date(`${hoje}T12:00:00-03:00`);
-  for(let i=0; i<21 && dias.length<3; i++){
-    const ymd = partesBR(d).ymd;
-    if(gradeDoDia(ymd, ehLeadDosSocios()).length && livresDoDia(ymd).length) dias.push(ymd);
-    d = new Date(d.getTime() + 86400000);
+
+// ── Desenho ───────────────────────────────────────────────────────────────────
+const SEMANA = ['dom','seg','ter','qua','qui','sex','sáb'];
+const rotDia = ymd => { const d = new Date(ymd + 'T12:00:00-03:00'); return { s: SEMANA[d.getUTCDay()], n: ymd.slice(8,10) + '/' + ymd.slice(5,7) }; };
+const MODO = { vistoria:'Visita técnica no endereço', video:'Videochamada', ligacao:'Ligação' };
+
+function render(){
+  portao.hidden = true;
+  if (fim) return renderFim();
+  const lista = vivos();
+  if (idx >= lista.length) idx = lista.length - 1;
+  const p = lista[idx];
+  $('prog').style.width = Math.round(idx / lista.length * 100) + '%';
+  if (!vistos.has(p.id)){ vistos.add(p.id); lpFunil('quiz_passo', { passo: p.id, n: idx + 1, de: lista.length }); }
+
+  let h = '';
+  if (p.topo) h += '<h1 class="hl">Veja quanto a sua conta <em>pode cair</em></h1>';
+  if (p.tipo === 'horario') h += desenhoHorario();
+  else {
+    h += '<h2 class="q">' + esc(p.q) + '</h2>';
+    if (p.sub) h += '<p class="sub">' + esc(p.sub) + '</p>';
+    if (p.ops) h += '<div class="ops" role="radiogroup">' + p.ops.map(([v,l]) =>
+      '<button type="button" role="radio" aria-checked="' + (R[p.campo] === v) + '" class="op' + (R[p.campo] === v ? ' sel' : '') + '" data-v="' + v + '"><span class="dot"></span>' + esc(l) + '</button>').join('') + '</div>';
+    if (p.tipo === 'cidade') h += '<input class="inp" id="in-cidade" list="dl-cid" placeholder="Ex.: Uberlândia" autocomplete="address-level2" value="' + esc(R.cidade || '') + '"><datalist id="dl-cid">' + CIDADES_SUGERIDAS.map(c => '<option value="' + c + '">').join('') + '</datalist>';
+    if (p.tipo === 'nome') h += '<input class="inp" id="in-nome" placeholder="Seu nome" autocomplete="name" value="' + esc(nome) + '">';
+    if (p.tipo === 'whatsapp') h += '<input class="inp" id="in-tel" inputmode="tel" autocomplete="tel-national" placeholder="(34) 9 9999-9999" value="' + esc(tel) + '">';
+    if (p.tipo === 'endereco') h += '<div class="linha2"><input class="inp" id="in-cep" inputmode="numeric" placeholder="CEP" value="' + esc(endereco.cep) + '"><input class="inp" id="in-num" placeholder="Nº" value="' + esc(endereco.numero) + '"></div>'
+      + '<input class="inp" id="in-rua" placeholder="Rua" autocomplete="address-line1" value="' + esc(endereco.rua) + '">'
+      + '<input class="inp" id="in-bairro" placeholder="Bairro" value="' + esc(endereco.bairro) + '">';
+    if (p.topo) h += '<p class="link">Trabalha com energia solar? <a href="https://solardoc.app/" id="link-int" rel="noopener">Conheça o SolarDoc</a></p>';
   }
-  return dias;
-}
-const contaAltaAtual = () => computeSolar().consumoKwh > KWH_CORTE_TIME;
+  h += '<div id="erro" class="aviso erro" hidden></div>';
+  corpo.innerHTML = h;
 
-/**
- * QUEM vai atender este lead. Uma pessoa, nunca um par, e é esta função que
- * manda em tudo daqui pra baixo: a grade desenhada, a ocupação consultada e o
- * nome gravado.
- *
- * Era um PAR até 22/09, e virou obrigatório passar a UM em 23/09: a Nilce entrou
- * no rodízio da conta alta, e o que ela marca é LIGAÇÃO de 15 min na grade dela,
- * enquanto o sócio marca VISTORIA de 1 hora na grade encaixada. Decidir a grade
- * pelo CONSUMO passou a estar errado, um lead de 1.500 kWh cuja vez é da Nilce
- * veria os horários de vistoria do sócio e seria gravado com ela, num horário que
- * a agenda dela não tem. A grade tem que sair de QUEM atende, não do tamanho.
- *
- * Ordem de prioridade: dono do telefone (1 telefone = 1 consultor) vem antes de
- * qualquer regra de tamanho, cliente que já é da Nilce continua com ela e vê a
- * grade dela, mesmo com conta grande.
- */
-const donoDaVez = () => donoLead || (contaAltaAtual() ? proximoDono() : proximoDonoBaixa());
-const ehLeadDosSocios = () => SOCIOS.includes(donoDaVez());
-/** Quem pode receber ESTE lead. Hoje é sempre um só: ver donoDaVez. */
-const atendentesDoLead = () => [donoDaVez()];
-
-// Chamado pelo simulador (calc) a cada mudança de conta/extras: só redesenha a
-// grade quando a GRADE muda, senão o slider repintaria a lista sem parar.
-// Repare que o gatilho não é mais "cruzou o corte": com a Nilce nos dois lados,
-// cruzar o corte pode cair nela de novo e não mudar grade nenhuma.
-let ultimaGrade = null;
-function avaliarTurnoPeloConsumo(consumoKwh){
-  const socios = donoLead ? SOCIOS.includes(donoLead)
-               : consumoKwh > KWH_CORTE_TIME ? SOCIOS.includes(proximoDono())
-               : false;
-  if(socios === ultimaGrade) return;
-  const primeira = ultimaGrade === null;   // no load a grade já nasce certa
-  ultimaGrade = socios;
-  if(!primeira && !donoLead) montarSlots();    // quem tem dono não muda de turno por consumo
-}
-function livresDoDia(ymd){
-  const agora = partesBR();
-  const nomes = atendentesDoLead();
-  return gradeDoDia(ymd, ehLeadDosSocios()).filter(h=>{
-    if(ymd === agora.ymd && h <= agora.hhmm) return false;
-    // agenda é por PESSOA: o horário só some quando ninguém que pode atender este
-    // lead cabe nele (com dono definido, "ninguém" é uma pessoa só).
-    return livresEm(isoDe(ymd, h), nomes).length > 0;
-  });
-}
-const rotuloDia = ymd => new Date(`${ymd}T12:00:00-03:00`)
-  .toLocaleDateString('pt-BR',{ timeZone:TZ_BR, weekday:'short', day:'2-digit', month:'2-digit' });
-
-// Guarda de ordem: a grade é redesenhada pelo telefone (checarDono) E pelo valor
-// da conta (calc). Sem isto, um carregarOcupados lento de uma chamada anterior
-// volta depois e repinta a grade com a regra velha.
-let slotsSeq = 0;
-async function montarSlots(){
-  const seq = ++slotsSeq;
-  const el = document.getElementById('slots');
-  el.innerHTML = '<div class="agLoad">Carregando horários…</div>';
-  const hoje = partesBR().ymd;
-  const ate  = partesBR(new Date(Date.now() + 12*86400000)).ymd;
-  await carregarOcupados(hoje, ate);
-  if(seq !== slotsSeq) return;
-  const dias = proximosDias();
-  if(!dias.length){
-    el.innerHTML = '<div class="agLoad">Sem horários nos próximos dias — chame no WhatsApp que a gente encaixa.</div>';
-    return;
-  }
-  el.innerHTML = dias.map(ymd=>{
-    const livres = livresDoDia(ymd);
-    return `<div class="dia">
-      <div class="diaH">${rotuloDia(ymd)}</div>
-      <div class="diaS">${livres.map(h=>{
-        const iso = isoDe(ymd,h);
-        return `<button type="button" class="slot" data-iso="${iso}" data-label="${rotuloDia(ymd)} às ${h}" onclick="pick(this)">${h}</button>`;
-      }).join('')}</div>
-    </div>`;
-  }).join('');
-  // Explica a lista quebrada (08:30, 10:30, 13:30…) — horário fora do redondo, sem
-  // motivo, parece página com defeito.
-  if(ehLeadDosSocios())
-    el.insertAdjacentHTML('beforeend', `<div class="agLoad">${donoLead
-      ? `${donoLead} já é o seu consultor. A agenda dele tem reunião de hora em hora, e a vistoria entra nos intervalos — por isso os horários quebrados.`
-      : 'Pelo tamanho da sua conta, quem vai na sua casa é um dos sócios. A agenda deles tem reunião de hora em hora, e a vistoria entra nos intervalos — por isso os horários quebrados.'
-    }</div>`);
-  // re-render não pode perder a escolha do lead (o telefone dele redesenha a grade)
-  if(slotSel){
-    const b = el.querySelector(`.slot[data-iso="${slotSel}"]`);
-    if(b) b.classList.add('on'); else slotSel = null;
-  }
-}
-function pick(b){
-  document.querySelectorAll('.slot').forEach(s=>s.classList.remove('on'));
-  b.classList.add('on'); slotSel = b.dataset.iso;
-  track('slot_escolhido');
-}
-function maskTel(i){
-  let v = i.value.replace(/\D/g,'').slice(0,11);
-  if(v.length>6) v = `(${v.slice(0,2)}) ${v.slice(2,7)}-${v.slice(7)}`;
-  else if(v.length>2) v = `(${v.slice(0,2)}) ${v.slice(2)}`;
-  i.value = v;
-}
-// Com o WhatsApp completo dá pra saber se o lead JÁ tem consultor — e é isso que
-// decide qual grade ele enxerga. Roda enquanto digita, com guarda de ordem:
-// resposta velha chegando depois da nova não pode repintar a grade errada.
-let donoSeq = 0;
-async function checarDono(input){
-  const dd = String(input.value||'').replace(/\D/g,'');
-  const seq = ++donoSeq;
-  const dono = dd.length >= 10 ? await donoDoTelefone('55' + dd) : null;
-  if(seq !== donoSeq || dono === donoLead) return;
-  donoLead = dono;
-  await montarSlots();   // já derruba a seleção se o horário escolhido sumiu da lista
-}
-// ViaCEP: com o CEP completo, rua/bairro/cidade se preenchem sozinhos. É CONVENIÊNCIA,
-// não dependência: se a API cair, expirar ou o CEP não existir, o lead preenche na mão e
-// o agendamento segue igual (o CEP em si continua opcional e nada aqui bloqueia o envio).
-const CEP_HINT = '(opcional — completa o endereço)';
-let cepSeq = 0;
-function cepStatus(txt, bad){
-  const s = document.getElementById('cep-st');
-  s.textContent = txt;
-  s.style.color = bad ? 'var(--danger)' : '';
-}
-async function buscaCep(digitos){
-  const seq = ++cepSeq;
-  cepStatus('buscando…', false);
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 6000);   // sem isto, rede ruim trava o "buscando…" pra sempre
-  try{
-    const r = await fetch(`https://viacep.com.br/ws/${digitos}/json/`, {signal: ctrl.signal});
-    // digitou outro CEP enquanto esta resposta vinha: ela é velha, não pode pintar o form
-    if(seq !== cepSeq) return;
-    if(!r.ok) return cepStatus('CEP não encontrado — preencha abaixo', true);
-    const d = await r.json();
-    if(seq !== cepSeq) return;
-    if(d.erro)  return cepStatus('CEP não encontrado — preencha abaixo', true);
-
-    // busca que deu certo SUBSTITUI o bloco inteiro, inclusive com vazio: preencher só
-    // o que veio misturava endereços (CEP sem logradouro deixava a rua da cidade antiga
-    // sob a cidade nova, com a validação passando e o técnico indo no lugar errado)
-    const set = (id, v) => { document.getElementById(id).value = v || ''; };
-    set('f-rua',    d.logradouro);
-    set('f-bairro', d.bairro);
-    set('f-cidade', d.localidade && d.uf ? `${d.localidade}-${d.uf}` : '');
-    cepStatus(CEP_HINT, false);
-    // CEP de cidade inteira não traz logradouro — joga o foco no campo que ficou faltando
-    document.getElementById(d.logradouro ? 'f-numero' : 'f-rua').focus();
-  }catch(e){
-    // rede fora ou timeout: volta ao normal sem alarme — os campos continuam editáveis
-    if(seq === cepSeq) cepStatus(CEP_HINT, false);
-  }finally{
-    clearTimeout(t);
-  }
-}
-function maskCep(i){
-  let v = i.value.replace(/\D/g,'').slice(0,8);
-  if(v.length>5) v = `${v.slice(0,5)}-${v.slice(5)}`;
-  i.value = v;
-  const dig = v.replace(/\D/g,'');
-  if(dig.length === 8) buscaCep(dig);
-  else { cepSeq++; cepStatus(CEP_HINT, false); }   // apagou/editou: invalida a busca em voo
-}
-function erro(txt){
-  const m = document.getElementById('ag-msg');
-  m.textContent = txt; m.className = 'agMsg err';
-  m.scrollIntoView({behavior:'smooth', block:'center'});
-}
-const txtSel = id => { const s = document.getElementById(id); return s.selectedOptions[0] ? s.selectedOptions[0].text : ''; };
-
-async function agendar(){
-  const nome     = document.getElementById('f-nome').value.trim();
-  const telRaw   = document.getElementById('f-tel').value.replace(/\D/g,'');
-  const cep      = document.getElementById('f-cep').value.trim();
-  const cidadeIn = document.getElementById('f-cidade').value.trim();
-  const rua      = document.getElementById('f-rua').value.trim();
-  const numero   = document.getElementById('f-numero').value.trim();
-  const bairro   = document.getElementById('f-bairro').value.trim();
-  const compl    = document.getElementById('f-compl').value.trim();
-  const posse    = document.getElementById('f-posse').value;
-  const telhado  = document.getElementById('f-telhado').value;
-  const padrao   = document.getElementById('f-padrao').value;
-  const urgencia = document.getElementById('f-urgencia').value;
-  const pagamento= document.getElementById('f-pagamento').value;
-  const decisor  = document.getElementById('f-decisor').value;
-  const btn      = document.getElementById('ag-btn');
-
-  if(!slotSel)            return erro('Escolha um horário acima.');
-  if(nome.length < 3)     return erro('Informe seu nome completo.');
-  if(telRaw.length < 10)  return erro('Informe um WhatsApp válido com DDD.');
-  if(rua.length < 3)      return erro('Informe a rua ou avenida do imóvel.');
-  if(!numero)             return erro('Informe o número do imóvel.');
-  if(bairro.length < 2)   return erro('Informe o bairro.');
-  if(cidadeIn.length < 2) return erro('Informe a cidade e o estado (UF).');
-  if(!posse)              return erro('Informe se o imóvel é próprio ou alugado.');
-  if(!telhado)            return erro('Selecione o tipo de telhado.');
-  if(!urgencia)           return erro('Informe quando pretende instalar.');
-  if(!pagamento)          return erro('Informe como prefere investir.');
-  if(!decisor)            return erro('Informe de quem é a decisão.');
-
-  const r = computeSolar();
-  const tel = '55' + telRaw;
-  // endereço completo montado a partir dos campos (a ficha vai na observação)
-  const endereco = [`${rua}, ${numero}`, bairro, cidadeIn, cep ? `CEP ${cep}` : '', compl ? `ref.: ${compl}` : '']
-    .filter(Boolean).join(' — ');
-  const cidade = cidadeIn || null;
-  const extras = extrasNomes();
-  const obs = [
-    `LP SOLAR — ${document.getElementById('s-tipo').value}`,
-    `Conta de luz: ${money(r.conta)}/mês (~${Math.round(r.consumoKwh)} kWh/mês)`,
-    `Imóvel: ${posse}`,
-    `Telhado: ${telhado}`,
-    `Padrão: ${padrao || '—'}`,
-    `Urgência: ${txtSel('f-urgencia')}`,
-    `Pagamento: ${txtSel('f-pagamento')}`,
-    `Decisor: ${txtSel('f-decisor')}`,
-    `Endereço: ${endereco}`,
-    `Simulou: economia ${money(r.economiaMes)}/mês · sistema ${r.kwp.toFixed(1).replace('.',',')} kWp (${r.paineis} painéis)`
-      + (extras.length ? ` · vai aumentar: ${extras.join(', ')}` : ''),
-  ].join('\n');
-
-  // Rede de segurança: a grade certa já é redesenhada quando o telefone fica
-  // completo (checarDono) e quando a grade muda no simulador. Isto aqui só pega o
-  // caso da consulta ter falhado antes, em vez de gravar a vistoria num horário
-  // que não é da agenda daquele consultor (14:00 é apresentação de eletroposto),
-  // devolve o lead pra grade dele.
-  //
-  // A pergunta é sempre "de QUEM é a grade", nunca "a conta é grande": conta
-  // grande cuja vez é da Nilce usa a grade de ligação dela.
-  const donoAtual = await donoDoTelefone(tel);
-  const donoFinal = donoAtual || (r.consumoKwh > KWH_CORTE_TIME ? proximoDono() : proximoDonoBaixa());
-  const dosSocios = SOCIOS.includes(donoFinal);
-  if(!(dosSocios ? GRADE_SOCIOS : GRADE_NILCE).includes(partesBR(new Date(slotSel)).hhmm)){
-    donoLead = donoAtual; slotSel = null;
-    await montarSlots();
-    return erro(donoAtual
-      ? `${donoAtual} já é o seu consultor, e esse horário não é da agenda dele. Escolha um dos horários ali em cima.`
-      : dosSocios
-        ? 'Pelo tamanho da sua conta quem vai na sua casa é um dos sócios, e a agenda deles é outra. Escolha um dos horários ali em cima.'
-        : 'Esse horário não está mais na agenda de quem vai te atender. Escolha um dos horários ali em cima.');
-  }
-
-  // Ficha pronta, mas NÃO gravada: quem grava é o "Sim" do portão de presença.
-  // O DONO viaja resolvido: decidir de novo na hora de gravar já deu ficha com o
-  // consultor de um turno no horário de outro.
-  pendente = { nome, tel, cidade, temperatura: medirTemperatura(r.conta, urgencia, pagamento, decisor, posse),
-               obs, donoFinal };
-  document.getElementById('ag-msg').className = 'agMsg';   // limpa aviso de tentativa anterior
-  abrirConfirma();
+  const ultimo = p.tipo === 'horario';
+  const rot = ocupado ? (p.tipo === 'whatsapp' ? 'Buscando os horários...' : 'Marcando...')
+    : ultimo ? ({ vistoria:'Marcar visita', video:'Marcar videochamada', ligacao:'Marcar ligação' }[srv.caminho]) : 'Continuar';
+  rodape.innerHTML = '<button class="cta" id="btn" type="button"' + ((respondido(p) && !ocupado) ? '' : ' disabled') + '>' + rot + '</button>'
+    + (idx > 0 && !ocupado ? '<button class="voltar" id="voltar" type="button">Voltar</button>' : '');
+  ligar(p);
 }
 
-// ── Portão de presença ───────────────────────────────────────────────────────
-// Marcar é barato pro curioso e caro pra operação: do outro lado tem alguém
-// parando o dia pra ligar no horário combinado — e, quando o lead é dos sócios,
-// um técnico saindo pra rua por 1 hora. O portão cobra a intenção ANTES de
-// reservar: quem responde "Não" não deixa ficha nem ocupa horário, só vai embora.
-let pendente = null;
+function desenhoHorario(){
+  const c = srv.caminho;
+  const titulo = c === 'vistoria' ? 'Escolha o dia da visita' : c === 'video' ? 'Escolha o horário da videochamada' : 'Escolha o horário da ligação';
+  let h = '<span class="modo ' + c + '"><i></i>' + MODO[c] + '</span><h2 class="q">' + titulo + '</h2>';
+  if (c === 'vistoria') h += '<p class="sub">A visita leva uns 40 minutos.' + (R.decisor === 'junto' ? ' Escolha um horário em que vocês dois possam estar.' : '') + '</p>';
+  else if (c === 'video') h += '<p class="sub">Pelo celular ou pelo computador, com o estudo do seu projeto na tela.</p>';
+  else h += '<p class="sub">Uma ligação curta para entender a sua conta.' + (srv.qualifica ? ' Na ligação a gente marca a visita.' : '') + '</p>';
+  if (avisoHorario) h += '<div class="aviso">' + esc(avisoHorario) + '</div>';
+  h += '<div class="dias">' + srv.dias.map((d, i) => { const r = rotDia(d.ymd); return '<button type="button" class="dia' + (diaSel === i ? ' sel' : '') + '" data-dia="' + i + '">' + r.s + '<small>' + r.n + '</small></button>'; }).join('') + '</div>';
+  if (diaSel !== null && srv.dias[diaSel]) h += '<div class="horas">' + srv.dias[diaSel].horas.map(x => '<button type="button" class="hora' + (horaSel === x.h ? ' sel' : '') + '" data-h="' + x.h + '">' + x.h + '</button>').join('') + '</div>';
+  return h;
+}
 
-function rotuloSlot(iso){
-  const dt = new Date(iso);
-  const TZ = { timeZone:'America/Sao_Paulo' };   // exibe no fuso do Brasil, não no do visitante
-  const diaSemana = dt.toLocaleDateString('pt-BR',{...TZ, weekday:'long'});
-  return {
-    diaSemana,
-    completo: `${diaSemana}, ${dt.toLocaleDateString('pt-BR',{...TZ,day:'2-digit',month:'long'})}`
-            + ` às ${dt.toLocaleTimeString('pt-BR',{...TZ,hour:'2-digit',minute:'2-digit'})}`,
+function ligar(p){
+  corpo.querySelectorAll('.op').forEach(b => b.onclick = () => { responder(p.campo, b.dataset.v); render(); rolarAteBotao(); });
+  const ic = $('in-cidade'); if (ic) ic.oninput = () => { responder('cidade', ic.value); habilitar(p); };
+  const inn = $('in-nome'); if (inn) inn.oninput = () => { nome = inn.value; habilitar(p); };
+  const it = $('in-tel'); if (it) it.oninput = () => {
+    let d = digitos(it.value).replace(/^55(?=\d{10,11}$)/, '').slice(0, 11), f = d;
+    if (d.length > 2) f = '(' + d.slice(0,2) + ') ' + d.slice(2);
+    if (d.length > 7) f = '(' + d.slice(0,2) + ') ' + d.slice(2, d.length - 4) + '-' + d.slice(-4);
+    it.value = f; if (tel !== f) { tel = f; srv = null; } habilitar(p);
   };
+  const icep = $('in-cep');
+  if (icep){
+    const ler = () => { endereco.numero = $('in-num').value; endereco.rua = $('in-rua').value; endereco.bairro = $('in-bairro').value; habilitar(p); };
+    icep.oninput = () => { let d = digitos(icep.value).slice(0, 8); icep.value = d.length > 5 ? d.slice(0,5) + '-' + d.slice(5) : d; endereco.cep = icep.value; if (d.length === 8) buscaCep(d); habilitar(p); };
+    ['in-num','in-rua','in-bairro'].forEach(id => $(id).oninput = ler);
+  }
+  corpo.querySelectorAll('.dia').forEach(b => b.onclick = () => { diaSel = +b.dataset.dia; horaSel = null; render(); });
+  corpo.querySelectorAll('.hora').forEach(b => b.onclick = () => { horaSel = b.dataset.h; track('slot_escolhido'); render(); rolarAteBotao(); });
+  const li = $('link-int'); if (li) li.onclick = () => { track('quiz_integrador'); fimDoQuiz('parceiro'); };
+  $('btn').onclick = () => avancar(p);
+  const v = $('voltar'); if (v) v.onclick = () => { idx = Math.max(0, idx - 1); avisoHorario = ''; render(); };
 }
-function abrirConfirma(){
-  document.getElementById('cf-quando').textContent = `${rotuloSlot(slotSel).completo} — horário de Brasília`;
-  document.getElementById('cf-bg').classList.add('on');
-  document.body.style.overflow = 'hidden';   // sem isto o fundo rola atrás do overlay no celular
-  // o overlay tapa o botão pro mouse, mas não pro teclado: sem desabilitar, um Tab +
-  // Enter reabre o portão por cima dele mesmo
-  document.getElementById('ag-btn').disabled = true;
-  document.getElementById('cf-sim').focus();
-  track('portao_presenca');
+function habilitar(p){ const b = $('btn'); if (b) b.disabled = !respondido(p) || ocupado; }
+function rolarAteBotao(){ const b = $('btn'); if (!b) return; const r = b.getBoundingClientRect(); if (r.bottom > window.innerHeight) b.scrollIntoView({ behavior:'smooth', block:'end' }); }
+function erro(p, msg){
+  const el = $('erro'); if (!el) return;
+  el.textContent = msg; el.hidden = false;
+  const chave = p.id + '|' + msg; if (!errosVistos.has(chave)) { errosVistos.add(chave); lpFunil('quiz_erro', { passo: p.id, msg: msg.slice(0, 140) }); }
 }
-function fecharConfirma(){
-  document.getElementById('cf-bg').classList.remove('on');
-  document.body.style.overflow = '';
-}
-function confirmarSim(){
-  fecharConfirma();
-  track('presenca_sim');
-  gravarAgendamento();
-}
-function confirmarNao(){
-  fecharConfirma();
-  track('presenca_nao');   // é por aqui que se mede quanto curioso o portão segurou
-  pendente = null;
-  document.getElementById('ag-btn').disabled = false;   // pode voltar atrás e confirmar
-  const m = document.getElementById('ag-msg');
-  m.textContent = 'Tudo bem — nada foi agendado e o horário continua livre pra quem puder atender. Quando puder falar uns 10 minutos, é só escolher um horário aqui.';
-  m.className = 'agMsg info';
-  m.scrollIntoView({behavior:'smooth', block:'center'});
-}
-document.addEventListener('keydown', e => {
-  if(e.key === 'Escape' && document.getElementById('cf-bg').classList.contains('on')) confirmarNao();
-});
 
-async function gravarAgendamento(){
-  if(!pendente || !slotSel) return;
-  const { nome, tel, cidade, temperatura, obs, donoFinal } = pendente;
-  const btn = document.getElementById('ag-btn');
-  btn.disabled = true; btn.textContent = 'Agendando…';
-
+let seqCep = 0;
+async function buscaCep(cep){
+  const meu = ++seqCep;
   try{
-    await carregarOcupados(partesBR().ymd, partesBR(new Date(Date.now()+12*86400000)).ymd);
-    const candidatos = [donoFinal];
-    const livres = livresEm(slotSel, candidatos);
-    const passou = new Date(slotSel).getTime() < Date.now();
-    if(!livres.length || passou){
-      // zera a ficha junto com o horário: ela é de um slot que não existe mais, e
-      // ficha velha esperando é exatamente o jeito de gravar o dado errado depois
-      slotSel = null; pendente = null;
-      await montarSlots();
-      btn.disabled = false; btn.textContent = 'Confirmar minha ligação →';
-      document.getElementById('slots').scrollIntoView({behavior:'smooth', block:'center'});
-      return erro(passou ? 'Esse horário já passou. Escolha outro acima — a agenda foi atualizada.'
-                         : 'Esse horário acabou de ser preenchido. Escolha o próximo disponível acima.');
-    }
-    // Quem atende já veio resolvido do `pendente` (donoDaVez): dono do telefone,
-    // senão o da vez no rodízio do tamanho da conta. O `livresEm` acima revalidou
-    // que ele cabe no horário; se não couber mais, o lead já voltou pra grade
-    // antes de chegar aqui. Trocar o dono neste ponto mudaria a duração do
-    // compromisso (ligação de 15 min x vistoria de 1 hora) num horário que foi
-    // escolhido pela régua do primeiro.
-    const dono = livres[0];
-    const novo = await agendarNaApi({
-      vendedor_nome:    dono,
-      quando:           slotSel,
-      cliente_nome:     nome,
-      cliente_telefone: tel,
-      cidade:           cidade,
-      status:           'agendado',
-      temperatura:      temperatura,
-      observacao:       obs,
-      created_by:       'lp_solar',
-    });   // devolve { ok:true, id }
+    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 6000);
+    const r = await fetch('https://viacep.com.br/ws/' + cep + '/json/', { signal: ctl.signal }); clearTimeout(t);
+    const j = await r.json(); if (meu !== seqCep || !j || j.erro) return;
+    if (j.logradouro) { endereco.rua = j.logradouro; const el = $('in-rua'); if (el) el.value = j.logradouro; }
+    if (j.bairro) { endereco.bairro = j.bairro; const el = $('in-bairro'); if (el) el.value = j.bairro; }
+    const p = vivos()[idx]; if (p) habilitar(p);
+    const num = $('in-num'); if (num && !num.value) num.focus();
+  }catch(e){}
+}
 
-    try{ fbq('track','Schedule',{content_name:'Vistoria Solar', content_category:document.getElementById('s-tipo').value}); }catch(e){}
+async function avancar(p){
+  if (!respondido(p)) return erro(p, mensagemDoErro(p));
+  track('quiz_' + p.id);
+  if (p.tipo === 'whatsapp' && !srv) return buscarCaminho(p);
+  if (p.tipo === 'horario') return abrirPortao();
+  idx++; avisoHorario = ''; render(); window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
-    const rot = rotuloSlot(slotSel);   // mesma formatação que o portão mostrou
-    document.getElementById('ok-txt').textContent = `${rot.completo} — horário de Brasília`;
-    document.getElementById('ok-dia').textContent = rot.diaSemana;
+function corpoBase(){
+  return Object.assign({ respostas: R, nome: nome.trim(), tel: telBanco(), src: SRC || undefined }, UTM);
+}
+async function postar(caminho, corpoReq){
+  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 15000);
+  try{
+    const r = await fetch(API + caminho, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(corpoReq), signal: ctl.signal });
+    let j = null; try { j = await r.json(); } catch(e){}
+    return { status: r.status, j: j || {} };
+  } finally { clearTimeout(t); }
+}
 
-    // Avisa a equipe no WhatsApp (fire-and-forget: o lead já está no CRM)
-    fetch('/_api/io/solar/alerta', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: novo && novo.id }),
-    }).catch(() => {});
-
-    document.getElementById('ag-form').style.display = 'none';
-    document.getElementById('ag-ok').style.display = 'block';
-    document.getElementById('ag-ok').scrollIntoView({behavior:'smooth', block:'center'});
+async function buscarCaminho(p){
+  ocupado = true; render();
+  try{
+    const { status, j } = await postar('/io/solar/quiz', corpoBase());
+    ocupado = false;
+    if (status >= 400 || !j.ok){ render(); return erro(p, status === 400 ? 'Confira o nome e o WhatsApp.' : 'Não consegui ver os horários agora. Tente de novo em instantes.'); }
+    srv = j; track('quiz_whatsapp_ok');
+    if (j.jaMarcado) return fimDoQuiz('ja_marcado');
+    if (j.semVitrine || !j.dias || !j.dias.length) return fimDoQuiz('sem_vitrine');
+    diaSel = 0; horaSel = null; idx++; render(); window.scrollTo({ top: 0, behavior: 'smooth' });
   }catch(e){
-    console.error(e);
-    // 'dia fechado' é o servidor recusando um dia que ESTA aba ainda mostra: ela
-    // foi aberta antes de o dia sair da grade e ficou com a lista velha.
-    // Remontar a vitrine resolve na hora, sem mandar a pessoa pro WhatsApp.
-    if(String(e && e.message) === 'dia fechado'){
-      montarSlots();
-      erro('Esse horário não está mais disponível — atualizei os horários aí em cima, é só escolher outro.');
-    } else {
-      erro('Não consegui agendar agora. Chame no WhatsApp (34) 99816-5040 que a gente marca na hora.');
-    }
-    btn.disabled = false; btn.textContent = 'Confirmar minha ligação →';
+    ocupado = false; render(); erro(p, 'Não consegui ver os horários agora. Tente de novo em instantes.');
   }
 }
 
-montarSlots();
-calc();
-document.addEventListener('visibilitychange', () => { if(!document.hidden && !slotSel) montarSlots(); });
-</script>
-  <!-- Tracking page_visits (mesmo beacon do /io) — visita + scroll + tempo → aba LP em /admin/hubs -->
-  <script>
-  (() => {
-    const KEY = 'io_sd_session', SENT = 'io_sd_visit_sent';
-    function uuid() {
-      if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random()*16|0; const v = c==='x'?r:(r&0x3)|0x8; return v.toString(16); });
+function abrirPortao(){
+  if (srv.caminho === 'ligacao') return agendar();
+  $('portao-q').textContent = srv.caminho === 'vistoria' ? 'Você vai estar no endereço nesse horário?' : 'Você vai mesmo participar?';
+  $('portao-sub').textContent = srv.caminho === 'vistoria' ? 'O consultor sai da base só para essa visita.' : 'O horário fica reservado só para você.';
+  portao.hidden = false; track('portao_presenca');
+  $('portao-sim').focus();
+}
+$('portao-sim').onclick = () => { track('presenca_sim'); portao.hidden = true; agendar(); };
+$('portao-nao').onclick = () => { track('presenca_nao'); fimDoQuiz('nao_confirmou'); };
+
+let marcado = null;
+async function agendar(){
+  const p = vivos()[idx];
+  const dia = srv.dias[diaSel], hora = dia && dia.horas.find(x => x.h === horaSel);
+  if (!hora) return erro(p, mensagemDoErro(p));
+  ocupado = true; render();
+  try{
+    const { status, j } = await postar('/io/solar/quiz/agendar', Object.assign(corpoBase(), { ymd: dia.ymd, h: hora.h, dono: hora.dono, endereco }));
+    ocupado = false;
+    if (status === 409 && j.error === 'horario tomado' && Array.isArray(j.dias)){
+      srv.dias = j.dias; srv.caminho = j.caminho || srv.caminho; diaSel = j.dias.length ? 0 : null; horaSel = null;
+      avisoHorario = 'Esse horário acabou de ser tomado. Escolha outro.';
+      if (!j.dias.length) return fimDoQuiz('sem_vitrine');
+      render(); return;
     }
-    let sid = '';
-    try { sid = sessionStorage.getItem(KEY) || ''; if (!sid) { sid = uuid(); sessionStorage.setItem(KEY, sid); } } catch (_) { sid = uuid(); }
-    const url = (typeof window !== 'undefined' && window.location.hostname !== 'localhost') ? '/_api' : 'http://localhost:3001';
-    const params = new URLSearchParams(location.search); const utms = {};
-    ['utm_source','utm_medium','utm_campaign','utm_content','utm_term'].forEach(k => { const v = params.get(k); if (v) utms[k] = v; });
-    function send(path, body) { try { fetch(url + path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body), keepalive: true }).catch(()=>{}); } catch (_) {} }
-    try { if (!sessionStorage.getItem(SENT)) { send('/_t/v', { session_id: sid, landing_url: location.href, referrer: document.referrer || null, ...utms }); sessionStorage.setItem(SENT, '1'); } } catch (_) {}
-    function evt(type, data) { send('/_t/e', { session_id: sid, event_type: type, event_data: data || null }); }
-    document.addEventListener('click', (e) => { const a = e.target.closest('a[href^="https://wa.me"], a[href^="https://api.whatsapp.com"]'); if (a) evt('cta_click', { label: 'whatsapp', source: a.dataset.source || 'solar' }); }, true);
-    let max = 0;
-    window.addEventListener('scroll', () => { const h = document.documentElement, docH = h.scrollHeight - window.innerHeight; if (docH <= 0) return; const pct = Math.round(((window.scrollY || h.scrollTop) / docH) * 100); [25,50,75,100].forEach(m => { if (pct >= m && max < m) { max = m; evt('scroll', { depth: m }); } }); }, { passive: true });
-    const start = Date.now();
-    window.addEventListener('beforeunload', () => { const s = Math.round((Date.now()-start)/1000); if (s < 3) return; try { navigator.sendBeacon(url + '/_t/e', new Blob([JSON.stringify({ session_id: sid, event_type: 'time_on_page', event_data: { seconds: s } })], { type: 'application/json' })); } catch (_) {} });
-  })();
-  </script>
-  <script src="/lib/telemetria.js" defer></script>
+    if (status === 409 && j.error === 'ja marcado'){ srv.jaMarcado = j.jaMarcado; return fimDoQuiz('ja_marcado'); }
+    if (status >= 400 || !j.ok){ render(); return erro(vivos()[idx], 'Não consegui marcar agora. Tente de novo em instantes.'); }
+    marcado = { ymd: dia.ymd, h: hora.h, dono: hora.dono, caminho: srv.caminho };
+    try { fbq('track', 'Schedule', { content_name: srv.caminho === 'vistoria' ? 'Vistoria Solar' : srv.caminho === 'video' ? 'Videochamada Solar' : 'Ligacao Solar' }); } catch(e){}
+    fimDoQuiz(srv.caminho);
+  }catch(e){
+    ocupado = false; render(); erro(vivos()[idx], 'Não consegui marcar agora. Tente de novo em instantes.');
+  }
+}
+
+function fimDoQuiz(destino){
+  fim = destino;
+  if (!fimMandado){ fimMandado = true; lpFunil('quiz_fim', { destino: destino }); }
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function renderFim(){
+  $('prog').style.width = '100%';
+  let h = '';
+  const ig = '<div class="ig"><span>Siga a gente e veja as obras</span><a href="https://www.instagram.com/irmaosnaobra__/" target="_blank" rel="noopener" data-source="solar_fim">Seguir</a></div>';
+  if (fim === 'parceiro'){
+    h = '<h2 class="q">Isto aqui é para quem vai instalar no próprio imóvel</h2><p class="sub">Para quem vende e instala energia solar, a gente tem o SolarDoc: proposta, contrato e vistoria no celular.</p>';
+    rodape.innerHTML = '<a class="cta" style="text-align:center;text-decoration:none" href="https://solardoc.app/">Conhecer o SolarDoc</a>';
+    corpo.innerHTML = h; return;
+  }
+  if (fim === 'ja_marcado' && srv && srv.jaMarcado){
+    const d = new Date(srv.jaMarcado.quando);
+    const q = d.toLocaleString('pt-BR', { timeZone:'America/Sao_Paulo', weekday:'long', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+    h = '<h2 class="q">Você já tem um horário marcado</h2><p class="sub">É ' + esc(q) + (srv.jaMarcado.dono ? ', com ' + esc(srv.jaMarcado.dono) : '') + '. Se precisar trocar, responda a mensagem de confirmação no WhatsApp.</p>' + ig;
+  } else if (fim === 'nao_confirmou'){
+    h = '<h2 class="q">Sem problema</h2><p class="sub">Guardamos as suas respostas. Quando puder, a gente te chama no WhatsApp com novos horários.</p>' + ig;
+  } else if (fim === 'sem_vitrine'){
+    h = '<h2 class="q">Recebemos as suas respostas</h2><p class="sub">A gente te chama no WhatsApp para combinar o melhor horário.</p>' + ig;
+  } else {
+    const r = rotDia(marcado.ymd);
+    const oque = { vistoria:'Visita técnica', video:'Videochamada', ligacao:'Ligação' }[marcado.caminho];
+    h = '<div class="ok" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>'
+      + '<h2 class="q">Está marcado!</h2><p class="sub">' + oque + ' ' + r.s + ', ' + r.n + ', às ' + esc(marcado.h) + ', com ' + esc(marcado.dono) + '.</p>'
+      + '<div class="passos"><div><span class="n">1</span><span>Confirme pelo WhatsApp respondendo <b>SIM</b> na mensagem que vai chegar.</span></div>'
+      + '<div><span class="n">2</span><span>Mande uma <b>foto da conta de luz</b>' + (marcado.caminho === 'vistoria' ? ' e do padrão de entrada' : '') + ' na mesma conversa. Assim o estudo já chega com o número certo.</span></div>'
+      + (marcado.caminho === 'vistoria' ? '<div><span class="n">3</span><span>Na véspera a gente pede a <b>localização</b> do imóvel.</span></div>' : '')
+      + '</div>' + ig;
+  }
+  corpo.innerHTML = h;
+  rodape.innerHTML = '<p class="link">Dúvida? Fale com a gente no WhatsApp: <a href="https://wa.me/' + WHATS_CENTRAL + '" data-source="solar_fim">(34) 99816-5040</a></p>';
+}
+
+window.__quizSolar = { render, get estado(){ return { R, nome, tel, srv, idx, fim, diaSel, horaSel }; } };
+render();
+})();
+</script>
+
+<!-- Tracking page_visits + lp_events (mesmo beacon do /io). Expõe window.lpEvt
+     para o funil por pergunta e descarrega a fila que a página juntou antes. -->
+<script>
+(() => {
+  const KEY = 'io_sd_session', SENT = 'io_sd_visit_sent';
+  function uuid() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random()*16|0; const v = c==='x'?r:(r&0x3)|0x8; return v.toString(16); });
+  }
+  let sid = '';
+  try { sid = sessionStorage.getItem(KEY) || ''; if (!sid) { sid = uuid(); sessionStorage.setItem(KEY, sid); } } catch (_) { sid = uuid(); }
+  const url = (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') ? '/_api' : 'http://localhost:3001';
+  const params = new URLSearchParams(location.search); const utms = {};
+  ['utm_source','utm_medium','utm_campaign','utm_content','utm_term'].forEach(k => { const v = params.get(k); if (v) utms[k] = v; });
+  function send(path, body) { try { fetch(url + path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body), keepalive: true }).catch(()=>{}); } catch (_) {} }
+  try { if (!sessionStorage.getItem(SENT)) { send('/_t/v', { session_id: sid, landing_url: location.href, referrer: document.referrer || null, ...utms }); sessionStorage.setItem(SENT, '1'); } } catch (_) {}
+  function evt(type, data) { send('/_t/e', { session_id: sid, event_type: type, event_data: data || null }); }
+  window.lpEvt = evt;
+  (window.__lpFila || []).splice(0).forEach(([t, d]) => evt(t, d));
+  document.addEventListener('click', (e) => { const a = e.target.closest('a[href^="https://wa.me"], a[href^="https://api.whatsapp.com"], a[href*="instagram.com"]'); if (a) evt('cta_click', { label: a.href.includes('instagram') ? 'instagram' : 'whatsapp', source: a.dataset.source || 'solar' }); }, true);
+  const start = Date.now();
+  window.addEventListener('beforeunload', () => { const s = Math.round((Date.now()-start)/1000); if (s < 3) return; try { navigator.sendBeacon(url + '/_t/e', new Blob([JSON.stringify({ session_id: sid, event_type: 'time_on_page', event_data: { seconds: s } })], { type: 'application/json' })); } catch (_) {} });
+})();
+</script>
 </body>
 </html>

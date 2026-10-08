@@ -239,12 +239,12 @@ export function caminhoPelasRespostas(r: RespostasDoCaminho): { caminho: Caminho
     return { caminho: 'vistoria', motivo: `${cidade!.nome} tem vistoria em qualquer conta.`, kwh, grande, cidade };
   }
   if (grande && noRaio) {
-    return { caminho: 'vistoria', motivo: `Acima de ${KWH_VISITA} kWh e a ${kmDaBase(cidade!)} km da base pela estrada.`, kwh, grande, cidade };
+    return { caminho: 'vistoria', motivo: `Acima de ${KWH_VISITA.toLocaleString('pt-BR')} kWh e a ${kmDaBase(cidade!)} km da base pela estrada.`, kwh, grande, cidade };
   }
   if (grande) {
-    return { caminho: 'video', motivo: `Acima de ${KWH_VISITA} kWh, fora dos ${RAIO_VISITA_KM} km.`, kwh, grande, cidade };
+    return { caminho: 'video', motivo: `Acima de ${KWH_VISITA.toLocaleString('pt-BR')} kWh, fora dos ${RAIO_VISITA_KM} km.`, kwh, grande, cidade };
   }
-  return { caminho: 'ligacao', motivo: `Até ${KWH_VISITA} kWh: começa pela ligação.`, kwh, grande, cidade };
+  return { caminho: 'ligacao', motivo: `Até ${KWH_VISITA.toLocaleString('pt-BR')} kWh: começa pela ligação.`, kwh, grande, cidade };
 }
 
 /**
