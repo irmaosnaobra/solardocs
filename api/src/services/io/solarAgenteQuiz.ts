@@ -4,9 +4,10 @@
 // Ordem do Thiago: "uma agente tem que atender de imediato essas pessoas
 // indicando quem irá atender; essa agente tem que entender contexto e conversar
 // se necessário". A primeira mensagem sai pelo solarBoasVindas.ts (na hora em
-// que o lead marca, ou como curioso, ou quando não marca). Este arquivo é o que
-// vem DEPOIS: a pessoa responde, a Duda lê a conversa inteira e responde se
-// precisar.
+// que o lead marca, ou quando não marca). Este arquivo é o que vem DEPOIS: a
+// pessoa responde, a Duda lê a conversa inteira e responde se precisar. O
+// curioso fica de fora: nós não falamos com ele (ordem de 08/10), e se ele
+// escrever, quem atende é a recepção da linha.
 //
 // O que ela sabe antes de abrir a boca (regra de 23/09, "robô lê o contexto
 // antes de falar"):
@@ -81,7 +82,7 @@ export interface ContextoLead {
   nome: string | null;
   cidade: string | null;
   caminho: Caminho | 'nao_marcou';
-  /** Quem atende (dono da ficha, ou o dono pela conta no curioso). */
+  /** Quem atende (dono da ficha, ou o dono pela faixa de consumo de quem não marcou). */
   quem: string | null;
   quandoIso: string | null;
   confirmou: boolean;
@@ -221,6 +222,12 @@ async function perguntar(sistema: string, pedido: string): Promise<Saida | null>
   }
 }
 
+/** O lead do quiz ficou como curioso (abaixo de 40 pontos)? */
+export function ehCurioso(campos: unknown): boolean {
+  const lista = Array.isArray(campos) ? campos as Array<{ name?: string; values?: string[] }> : [];
+  return lista.find(c => c?.name === 'Caminho')?.values?.[0] === 'curioso';
+}
+
 // ── Posse da conversa (a recepção pergunta isto antes de falar) ──────────────
 /** Este telefone é de um lead do quiz solar dos últimos 14 dias? Se for, a
  *  conversa é da agente do quiz, e a recepção não fala por cima. Falha de leitura
@@ -232,11 +239,13 @@ export async function quizSolarAtende(phone: string): Promise<boolean> {
   if (!k) return false;
   try {
     const { data, error } = await supabaseGerador.from('leads_meta')
-      .select('lead_id').eq('lead_id', `quiz_${k}`)
+      .select('lead_id, field_data').eq('lead_id', `quiz_${k}`)
       .gte('created_time', new Date(Date.now() - LEADS_DIAS * 86_400_000).toISOString())
       .limit(1);
     if (error) throw error;
-    return (data?.length ?? 0) > 0;
+    // Curioso não é conversa da agente: nós não falamos com ele (08/10), e se ele
+    // escrever por conta própria, quem atende é a recepção, como qualquer contato.
+    return (data ?? []).some(l => !ehCurioso(l.field_data));
   } catch (err) {
     logger.error('solar-agente', 'conferir posse do quiz falhou', err);
     return false;
@@ -266,7 +275,7 @@ async function telefonesDosConsultores(): Promise<Map<string, string>> {
 function respostasDoLead(campos: unknown): string[] {
   const lista = Array.isArray(campos) ? campos as Array<{ name?: string; values?: string[] }> : [];
   const fora = new Set(['Origem', 'Caminho', 'Pontos', 'Qualifica', 'Sem horário', 'Raio']);
-  return lista.filter(c => c?.name && !fora.has(c.name) && c.values?.[0]).map(c => `${c.name}: ${c.values![0]}`);
+  return lista.filter(c => c?.name && !fora.has(c.name) && !c.name.startsWith('utm_') && !c.name.startsWith('Pontos do') && c.values?.[0]).map(c => `${c.name}: ${c.values![0]}`);
 }
 
 export async function runSolarAgenteQuizTick(opts: { dry?: boolean } = {}): Promise<ResultadoAgente> {
@@ -281,7 +290,7 @@ export async function runSolarAgenteQuizTick(opts: { dry?: boolean } = {}): Prom
     .limit(500);
   if (eLeads) { logger.error('solar-agente', 'ler leads do quiz falhou', eLeads); return { ...zero('erro_leads'), erros: 1 }; }
   const porChave = new Map<string, Record<string, any>>();
-  for (const l of leads ?? []) { const k = telKey(l.whatsapp); if (k) porChave.set(k, l); }
+  for (const l of leads ?? []) { const k = telKey(l.whatsapp); if (k && !ehCurioso(l.field_data)) porChave.set(k, l); }
   if (!porChave.size) return zero('sem_leads');
 
   // 2) O que chegou na linha nos últimos 15 min (menos os 30 s de espera).
@@ -358,10 +367,7 @@ export async function runSolarAgenteQuizTick(opts: { dry?: boolean } = {}): Prom
       ficha = f ?? null;
     }
     const campos = Array.isArray(lead.field_data) ? lead.field_data : [];
-    const caminhoLead = String(campos.find((c: any) => c?.name === 'Caminho')?.values?.[0] || '');
-    const caminho: ContextoLead['caminho'] = ficha
-      ? (caminhoDaFicha(ficha.observacao) ?? 'ligacao')
-      : (caminhoLead === 'curioso' ? 'curioso' : 'nao_marcou');
+    const caminho: ContextoLead['caminho'] = ficha ? (caminhoDaFicha(ficha.observacao) ?? 'ligacao') : 'nao_marcou';
     const ctx: ContextoLead = {
       nome: lead.nome ?? null,
       cidade: lead.cidade ?? null,

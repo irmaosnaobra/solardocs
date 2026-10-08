@@ -7,7 +7,7 @@ vi.mock('../utils/supabaseGerador', () => ({ supabaseGerador: {} }));
 vi.mock('../services/agents/zapiClient', () => ({ sendHuman: vi.fn() }));
 
 import {
-  bolhasConfirmacaoQuiz, bolhasBoasVindas, bolhasCuriosoQuiz, bolhasNaoMarcouQuiz, resumoDaFicha, resumoDoLead,
+  bolhasConfirmacaoQuiz, bolhasBoasVindas, bolhasNaoMarcouQuiz, resumoDaFicha, resumoDoLead,
 } from '../services/io/solarBoasVindas';
 import { limparRespostas, montarObservacao, camposDoLead } from '../services/io/solarQuiz';
 import { decidirCaminho } from '../services/agenda/solarRota';
@@ -43,7 +43,6 @@ describe('confirmação do quiz solar: a Duda abre a conversa', () => {
   it('sem artigo antes do nome, emoji só na primeira linha e nada de travessão', () => {
     const todas = [
       ...(['vistoria', 'video', 'ligacao'] as const).map(c => bolhasConfirmacaoQuiz('Ana', 'Nilce', Q, c, '5534991516846', OBS)),
-      bolhasCuriosoQuiz('Ana', resumoDaFicha(OBS)),
       bolhasNaoMarcouQuiz('Ana', 'Nilce', resumoDaFicha(OBS)),
     ];
     for (const b of todas) {
@@ -71,14 +70,9 @@ describe('o resumo das respostas', () => {
   });
 });
 
-describe('curioso e quem não marcou', () => {
-  it('curioso não ganha promessa de horário', () => {
-    const t = bolhasCuriosoQuiz('Ana', '').join('\n');
-    expect(t).not.toMatch(/\d{2}h\d{2}|amanhã|te liga/);
-    expect(t).not.toContain('Anotei aqui: .');
-  });
-  it('quem não marcou recebe o caminho de volta para a página', () => {
-    expect(bolhasNaoMarcouQuiz('Ana', 'Giovanna', '').join('\n')).toContain('*Giovanna*');
-    expect(bolhasNaoMarcouQuiz('Ana', null, '').join('\n')).toContain('solardoc.app/io/solar');
+describe('quem não marcou', () => {
+  it('recebe o caminho de volta para a página', () => {
+    expect(bolhasNaoMarcouQuiz('Ana', 'Giovanna', '').join(' ')).toContain('*Giovanna*');
+    expect(bolhasNaoMarcouQuiz('Ana', null, '').join(' ')).toContain('solardoc.app/io/solar');
   });
 });

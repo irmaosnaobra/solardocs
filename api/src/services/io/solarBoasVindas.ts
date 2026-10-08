@@ -370,8 +370,8 @@ export function bolhasConfirmacaoQuiz(
   return out;
 }
 
-/** Resumo das respostas a partir do `leads_meta.field_data` do quiz (curioso e
- *  quem não marcou não têm ficha na agenda, só o lead). */
+/** Resumo das respostas a partir do `leads_meta.field_data` do quiz (quem não
+ *  marcou não tem ficha na agenda, só o lead). */
 export function resumoDoLead(campos: Array<{ name?: string; values?: string[] }> | null | undefined, cidade?: string | null): string {
   const val = (nome: string) => String((campos || []).find(c => c?.name === nome)?.values?.[0] || '');
   const linhas = [
@@ -382,19 +382,6 @@ export function resumoDoLead(campos: Array<{ name?: string; values?: string[] }>
     val('Pagamento') ? `Pagamento: ${val('Pagamento')}` : '',
   ].filter(Boolean);
   return resumoDaFicha(linhas.join('\n'));
-}
-
-/** Curioso (abaixo de 40 pontos): não ganhou horário, vai para a lista de um
- *  atendimento futuro. A mensagem não promete ligação com data; promete que a
- *  equipe chama e abre a conversa com a Duda. */
-export function bolhasCuriosoQuiz(nome: string | null | undefined, resumo: string): string[] {
-  const n = primeiroNome(nome);
-  return [
-    `☀️ Oi${comNome(n)}! Aqui é a Duda, da Irmãos na Obra.`,
-    `Recebi suas respostas do simulador de energia solar${resumo ? `. Anotei aqui: ${resumo}` : ''}.`,
-    'Deixei o seu contato com a nossa equipe, e a gente te chama quando tiver uma condição boa para o seu caso.',
-    'Se tiver alguma dúvida sobre energia solar, pode me perguntar por aqui.',
-  ];
 }
 
 /** Quem respondeu tudo e não chegou a escolher o horário. */
@@ -778,14 +765,18 @@ async function mudou(chave: string, assinatura: string): Promise<boolean> {
   return true;
 }
 
-// ── A AGENTE DO QUIZ SOLAR: CURIOSO E QUEM NÃO MARCOU (08/10/2026) ──────────
-// Estes dois não têm ficha na agenda, só o lead em `leads_meta` (form_id
-// quiz_solar), e por isso não passam pela rodada de cima, que lê `agendamentos`.
-// Mesmo robô, mesmas travas: teto da linha, humano na conversa, telefone fora do
-// padrão, e o carimbo `solar_boasvindas_sent:quiz_<lead>` que o teto já conta.
-//   · curioso (abaixo de 40 pontos): mensagem na hora, sem horário prometido
-//   · não marcou: só depois de 30 min (a pessoa pode estar terminando), dentro
-//     das 8h às 20h, uma vez só
+// ── A AGENTE DO QUIZ SOLAR: QUEM NÃO MARCOU (08/10/2026) ────────────────────
+// Quem respondeu tudo e saiu sem escolher horário não tem ficha na agenda, só o
+// lead em `leads_meta` (form_id quiz_solar), e por isso não passa pela rodada de
+// cima, que lê `agendamentos`. Mesmo robô, mesmas travas: teto da linha, humano
+// na conversa, telefone fora do padrão, e o carimbo
+// `solar_boasvindas_sent:quiz_<lead>` que o teto já conta. Sai só depois de 30
+// min (a pessoa pode estar terminando), das 8h às 20h, uma vez só.
+//
+// O CURIOSO (abaixo de 40 pontos) NÃO recebe nada no WhatsApp: ordem do Thiago
+// em 08/10, "o WhatsApp não entra em contato, ele cai no cadastro como curioso e
+// no final do quiz recebe o link de seguir o Instagram". Fica na aba Curiosos do
+// Leads Solar, para um atendimento futuro.
 // O carimbo é REIVINDICADO antes do envio (insert numa chave única): dois ticks
 // lendo a mesma fila nunca mandam a mesma mensagem duas vezes. Falha de envio
 // apaga o carimbo e a mensagem volta para a fila.
@@ -817,14 +808,15 @@ export async function runSolarQuizLeadsTick(opts: { dry?: boolean } = {}): Promi
     if (enviadas >= QUIZ_LEADS_POR_TICK) break;
     const campos = Array.isArray(l.field_data) ? l.field_data : [];
     const caminho = String(campos.find((c: any) => c?.name === 'Caminho')?.values?.[0] || '');
+    if (caminho === 'curioso') continue;   // curioso não recebe WhatsApp (ver acima)
     const idade = agora - new Date(String(l.created_time)).getTime();
-    const tipo = caminho === 'curioso' ? 'curioso' : (idade >= NAO_MARCOU_ESPERA_MS ? 'nao_marcou' : null);
-    if (!tipo) continue;
-    if (tipo === 'nao_marcou') { const h = horaBRT(agora); if (h < 8 || h >= 20) continue; }
+    if (idade < NAO_MARCOU_ESPERA_MS) continue;
+    const h = horaBRT(agora);
+    if (h < 8 || h >= 20) continue;
+    const tipo = 'nao_marcou';
     const tel = String(l.whatsapp || '').replace(/\D/g, '');
     if (!tel) continue;
-    const resumo = resumoDoLead(campos, l.cidade);
-    const bolhas = tipo === 'curioso' ? bolhasCuriosoQuiz(l.nome, resumo) : bolhasNaoMarcouQuiz(l.nome, l.consultor, resumo);
+    const bolhas = bolhasNaoMarcouQuiz(l.nome, l.consultor, resumoDoLead(campos, l.cidade));
     const chave = `${SOLAR_BV_PREFIX}quiz_${l.lead_id}`;
 
     if (opts.dry) {
@@ -850,6 +842,6 @@ export async function runSolarQuizLeadsTick(opts: { dry?: boolean } = {}): Promi
       logger.error('solar-boas-vindas', 'falha ao mandar a mensagem do quiz', { lead: l.lead_id, tipo, erro: String(e) });
     }
   }
-  if (enviadas && !opts.dry) logger.info('solar-boas-vindas', `${enviadas} mensagem(ns) do quiz para curioso ou quem não marcou`);
+  if (enviadas && !opts.dry) logger.info('solar-boas-vindas', `${enviadas} mensagem(ns) do quiz para quem não marcou`);
   return { enviadas, erros, ...(opts.dry ? { motivo: 'dry', previa } : {}) };
 }

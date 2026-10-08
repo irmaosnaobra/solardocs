@@ -101,6 +101,16 @@ describe('a ficha', () => {
     expect(nomes.some(n => n.includes('decide'))).toBe(true);
     expect(nomes).toContain('caminho');
     expect(campos.find(f => f.name === 'Pontos')?.values[0]).toBe('68');
+    // A composição da nota vai junto, no fim, e soma a nota.
+    const partes = campos.filter(f => f.name.startsWith('Pontos do '));
+    expect(partes.map(f => f.name)).toEqual(['Pontos do prazo', 'Pontos do decisor', 'Pontos do pagamento', 'Pontos do imóvel', 'Pontos do orçamento']);
+    expect(partes.find(f => f.name === 'Pontos do prazo')?.values[0]).toBe('18/35');
+    expect(partes.reduce((s, f) => s + Number(f.values[0].split('/')[0]), 0)).toBe(68);
+    expect(campos.slice(-5)).toEqual(partes);
+  });
+  it('a distância do lead é de Uberlândia, a mesma da ficha (Catalão 108 km, não os 78 de Araguari)', () => {
+    const r = resp({ conta: '2000_5000', cidade: 'Catalão', ...QUENTE });
+    expect(camposDoLead(r, decidirCaminho(r)).find(f => f.name === 'Raio')?.values[0]).toBe('108 km');
   });
 });
 

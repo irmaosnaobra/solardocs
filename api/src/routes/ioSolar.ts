@@ -422,6 +422,11 @@ const utmDe = (b: Record<string, unknown>): Record<string, string> => {
   for (const k of UTM) { const v = String(b[k] ?? '').trim().slice(0, 200); if (v) out[k] = v; }
   return out;
 };
+/** As UTMs do anúncio também no lead (08/10/2026): curioso e quem não marcou não
+ *  têm ficha na agenda, e sem isto a planilha do Leads Solar não sabe de que
+ *  campanha, conjunto e anúncio eles vieram. */
+const camposComUtm = (campos: Array<{ name: string; values: string[] }>, b: Record<string, unknown>) =>
+  [...campos, ...Object.entries(utmDe(b)).map(([name, v]) => ({ name, values: [v] }))];
 
 router.post('/quiz', async (req: Request, res: Response): Promise<void> => {
   const b = (req.body || {}) as Record<string, unknown>;
@@ -442,8 +447,8 @@ router.post('/quiz', async (req: Request, res: Response): Promise<void> => {
     if (String(req.query.dry || '') !== '1') await gravarLead(leadId, {
       form_id: FORM_QUIZ, form_name: 'Quiz Solar', nome: e.nome, whatsapp: e.tel,
       cidade: dec.cidade ? `${dec.cidade.nome}-${dec.cidade.uf}` : (e.resp.cidade || null),
-      // Curioso não tem horário, mas tem dono pela conta: é quem a agente chama se ele pedir gente.
-      field_data: camposDoLead(e.resp, dec, { semHorario }), consultor: dec.candidatos[0] ?? donoDaFaixa(dec.kwh), fora_area: false,
+      // Curioso não tem horário, mas tem dono pela faixa de consumo (lista para depois).
+      field_data: camposComUtm(camposDoLead(e.resp, dec, { semHorario }), b), consultor: dec.candidatos[0] ?? donoDaFaixa(dec.kwh), fora_area: false,
     });
     res.json({
       ok: true, lead_id: leadId, caminho: dec.caminho, motivo: dec.motivo, qualifica: dec.qualifica, semHorario,
@@ -538,7 +543,7 @@ router.post('/quiz/agendar', async (req: Request, res: Response): Promise<void> 
       throw error;
     }
     const leadId = `quiz_${e.alvo}`;
-    await gravarLead(leadId, { agendado_id: data.id, consultor: dono, field_data: camposDoLead(e.resp, dec, { semHorario }) });
+    await gravarLead(leadId, { agendado_id: data.id, consultor: dono, field_data: camposComUtm(camposDoLead(e.resp, dec, { semHorario }), b) });
 
     // Aviso no celular de QUEM ATENDE, com tudo (ordem de 08/10/2026: "cada um,
     // além de receber na agenda, recebe no celular com todos os detalhes").

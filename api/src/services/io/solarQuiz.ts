@@ -12,7 +12,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import {
-  decidirCaminho, reservaDe, horariosDoCaminho, blocoDoCompromisso, ocupacaoDaFichaSolar, kmDaBase,
+  decidirCaminho, reservaDe, horariosDoCaminho, blocoDoCompromisso, ocupacaoDaFichaSolar,
   rotuloDaFaixa, MARCA_QUIZ, RAIO_VISITA_KM, BASE_DO_SOCIO, socioMaisPerto,
   type Caminho, type Decisao, type FichaAgenda,
 } from '../agenda/solarRota';
@@ -227,8 +227,13 @@ export function camposDoLead(resp: Respostas, dec: Decisao, extra: { semHorario?
   add('Pagamento', rot('pagamento', resp.pagamento));
   add('Quem decide', rot('decisor', resp.decisor));
   add('Demanda contratada', rot('grupoa', resp.grupoa));
-  add('Raio', dec.cidade ? `${kmDaBase(dec.cidade)} km` : (resp.cidade ? 'fora do raio' : null));
+  // De Uberlândia, como na ficha: é de lá que o Diego sai para toda visita (08/10).
+  add('Raio', dec.cidade ? `${dec.cidade.kmUdi} km` : (resp.cidade ? 'fora do raio' : null));
   if (dec.qualifica) add('Qualifica', dec.qualifica);
   if (extra.semHorario) add('Sem horário', 'sim');
+  // O que fez a nota ser a nota (08/10): quanto cada resposta valeu, no fim, para
+  // a planilha do Leads Solar mostrar ao lado das respostas. Ficam por último de
+  // propósito: quem procura "Pagamento" acha a resposta antes dos pontos dela.
+  for (const p of dec.pontuacao.partes) add(`Pontos do ${NOME_PESO[p.campo]}`, `${p.pts}/${p.max}`);
   return f;
 }

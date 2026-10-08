@@ -7,7 +7,7 @@ vi.mock('../services/agents/zapiClient', () => ({ sendHuman: vi.fn(), sendWhatsA
 vi.mock('../utils/anthropicClient', () => ({ novoAnthropic: vi.fn() }));
 vi.mock('../services/io/solarRespostas', () => ({ INSTANCE_ID_IO: 'INSTANCIA_TESTE' }));
 
-import { telKey, montarSistema, montarPedido, lerSaida, bolhasDe, type ContextoLead } from '../services/io/solarAgenteQuiz';
+import { telKey, montarSistema, montarPedido, lerSaida, bolhasDe, ehCurioso, type ContextoLead } from '../services/io/solarAgenteQuiz';
 
 const CTX: ContextoLead = {
   nome: 'Roberto Lima',
@@ -30,6 +30,14 @@ describe('a chave do telefone', () => {
   });
 });
 
+describe('de quem é a conversa', () => {
+  it('curioso não é conversa da agente (08/10: nós não falamos com ele)', () => {
+    expect(ehCurioso([{ name: 'Caminho', values: ['curioso'] }, { name: 'Pontos', values: ['12'] }])).toBe(true);
+    expect(ehCurioso([{ name: 'Caminho', values: ['ligacao'] }])).toBe(false);
+    expect(ehCurioso(null)).toBe(false);
+  });
+});
+
 describe('o que a IA recebe', () => {
   it('sabe quem atende, quando, se confirmou e as respostas', () => {
     const s = montarSistema(CTX);
@@ -40,9 +48,9 @@ describe('o que a IA recebe', () => {
     expect(s).toContain('NUNCA informe preço');
     expect(s).toContain('não se apresente de novo');
   });
-  it('curioso: sem horário, e a frase de "quem atende" não fica pela metade', () => {
-    const s = montarSistema({ ...CTX, caminho: 'curioso', quem: null, quandoIso: null, status: null });
-    expect(s).toContain('ficou na lista de contatos');
+  it('não marcou: sem horário, e a frase de "quem atende" não fica pela metade', () => {
+    const s = montarSistema({ ...CTX, caminho: 'nao_marcou', quem: null, quandoIso: null, status: null });
+    expect(s).toContain('não escolheu horário');
     expect(s).not.toContain('Horário marcado');
     expect(s).not.toContain('Já confirmou');
     expect(s).toContain('quem atende traz o estudo');
