@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   limparRespostas, montarVitrine, decidirEMontar, cabe, montarObservacao, camposDoLead, blocoDaFicha, msDe,
+  avisoDaEquipe, emojiDaNota,
   type Ocupacao,
 } from '../services/io/solarQuiz';
 import { decidirCaminho, caminhoDaFicha, ocupacaoDaFichaSolar } from '../services/agenda/solarRota';
@@ -121,5 +122,55 @@ describe('outras fichas na agenda', () => {
     expect(dur({ quando: t('14:00'), created_by: 'lp_eletroposto' })).toBe(30);
     expect(dur({ quando: t('14:15'), created_by: 'lp_eletroposto' })).toBe(15);
     expect(dur({ quando: t('14:15'), created_by: 'lead-meta' })).toBe(15);
+  });
+});
+
+describe('o aviso no celular de quem atende', () => {
+  const Q = '2026-10-13T09:30:00-03:00';
+  const ficha = (r: ReturnType<typeof resp>, extra: Record<string, unknown> = {}) => {
+    const dec = decidirCaminho(r);
+    const obs = montarObservacao(r, dec, { cep: '75701-000', rua: 'Rua A', numero: '55', bairro: 'Centro' });
+    return { observacao: obs, quando: Q, vendedor_nome: dec.candidatos[0], cliente_nome: 'Roberto Lima', cliente_telefone: '5534999990000', ...extra };
+  };
+
+  it('a faixa da nota no emoji: 90 a 100 verde, 60 a 89 amarelo, abaixo de 60 vermelho', () => {
+    expect([100, 90, 89, 60, 59, 0].map(emojiDaNota)).toEqual(['🟢', '🟢', '🟡', '🟡', '🔴', '🔴']);
+  });
+
+  it('visita: nota no título, mapa, origem do anúncio e a nota explicada no fim, do menor peso ao maior', () => {
+    const t = avisoDaEquipe(ficha(resp({ conta: '2000_5000', cidade: 'Catalão', ...QUENTE, decisor: 'junto' }), { utm_source: 'ig', utm_campaign: 'Solar - Quiz - Agenda' }));
+    const l = t.split('\n');
+    expect(l[0]).toBe('🟢 *NOTA 94 · NOVA VISITA, ENERGIA SOLAR*');
+    expect(t).toContain('*Onde:* Comércio ou empresa');
+    expect(t).toContain('*Cidade:* Catalão-GO · 108 km de Uberlândia pela estrada');
+    expect(t).toMatch(/\*Mapa:\* https:\/\/www\.google\.com\/maps\/search\/\?api=1&query=Rua%20A%2C%2055/);
+    expect(t).toContain('*Origem:* Instagram, campanha Solar - Quiz - Agenda');
+    expect(t).toContain('*Por que este caminho:*');
+    const bloco = l.slice(l.indexOf('*A NOTA, DO MENOR PESO AO MAIOR*') + 1, l.indexOf('*Nota: 94 de 100*'));
+    expect(bloco.map(x => x.split(':')[0])).toEqual(['Já tem orçamento', 'Imóvel', 'Pagamento', 'Quem decide', 'Prazo']);
+    expect(bloco[4]).toBe('Prazo: O quanto antes, este mês (35 de 35)');
+    expect(bloco[3]).toMatch(/\(14 de 20\)$/);
+    // Regras da escrita: emoji só na primeira linha e nada de travessão.
+    for (const linha of l.slice(1)) expect(linha).not.toMatch(/\p{Extended_Pictographic}/u);
+    expect(t).not.toMatch(/[—–]/);
+  });
+
+  it('ligação no meio da tabela: amarelo, sem mapa; sem UTM diz que veio sem anúncio', () => {
+    const t = avisoDaEquipe(ficha(resp({ conta: '300_600', cidade: 'Uberaba', ...MORNO })));
+    expect(t.split('\n')[0]).toBe('🟡 *NOTA 68 · NOVA LIGAÇÃO, ENERGIA SOLAR*');
+    expect(t).not.toContain('*Mapa:*');
+    expect(t).toContain('*Origem:* sem anúncio (link direto)');
+    expect(t).toContain('*Nota: 68 de 100*');
+  });
+
+  it('abaixo de 60 é vermelho', () => {
+    const r = resp({ conta: '300_600', cidade: 'Uberaba', urgencia: '3meses', decisor: 'junto', pagamento: 'naosei', imovel: 'construcao', concorrente: 'nao' });
+    expect(avisoDaEquipe(ficha(r)).split('\n')[0]).toMatch(/^🔴 \*NOTA \d+ · NOVA LIGAÇÃO/);
+  });
+
+  it('ficha antiga, sem a linha da pontuação, ainda sai, sem inventar nota', () => {
+    const t = avisoDaEquipe({ observacao: 'LP SOLAR QUIZ · Casa · LIGAÇÃO\nConta de luz: Até R$ 300', quando: Q, vendedor_nome: 'Giovanna', cliente_nome: 'Ana', cliente_telefone: '5534999990000' });
+    expect(t.split('\n')[0]).toBe('☀️ *NOVA LIGAÇÃO, ENERGIA SOLAR*');
+    expect(t).not.toContain('A NOTA');
   });
 });

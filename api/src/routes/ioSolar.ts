@@ -12,7 +12,7 @@ import { ocupacoesSolar } from '../services/agenda/solarOcupacao';
 import { SOCIOS_VISITA, DONAS_LIGACAO, caminhoDaFicha, donoDaFaixa } from '../services/agenda/solarRota';
 import {
   limparRespostas, limparEndereco, decidirEMontar, montarObservacao, camposDoLead, blocoDaFicha, cabe,
-  msDe, DIAS_VARRIDOS, ROTULO_CAMINHO, type Ocupacao, type Respostas,
+  msDe, DIAS_VARRIDOS, ROTULO_CAMINHO, avisoDaEquipe, type Ocupacao, type Respostas, type FichaDoAviso,
 } from '../services/io/solarQuiz';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -461,37 +461,8 @@ router.post('/quiz', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-/** O aviso da ficha nova do quiz, para quem atende e cópia para o Thiago.
- *  Emoji só na primeira linha (regra de 24/09). */
-function mensagemDoQuiz(a: Record<string, unknown>): string {
-  const caminho = caminhoDaFicha(a.observacao) || 'ligacao';
-  const linhas = String(a.observacao || '').split('\n');
-  const val = (rot: string) => linhas.find(l => l.startsWith(rot))?.slice(rot.length).trim() || '';
-  const quando = new Date(String(a.quando)).toLocaleString('pt-BR', {
-    timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-  });
-  const titulo = { vistoria: 'NOVA VISITA', video: 'NOVO ATENDIMENTO ONLINE', ligacao: 'NOVA LIGAÇÃO', curioso: 'NOVO CURIOSO' }[caminho];
-  const out = [
-    `☀️ *${titulo}, ENERGIA SOLAR*`,
-    `Veio do quiz da /io/solar.`,
-    ``,
-    `*Quando:* ${quando}`,
-    `*Com:* ${a.vendedor_nome || ''}`,
-    `*Cliente:* ${a.cliente_nome || ''}`,
-    `*WhatsApp:* wa.me/${soDigitos(String(a.cliente_telefone || ''))}`,
-  ];
-  for (const [rot, campo] of [['Pontos', 'Pontuação:'], ['Cidade', 'Cidade:'], ['Conta', 'Conta de luz:'], ['Endereço', 'Endereço:'], ['Imóvel', 'Imóvel:'],
-    ['Quando quer', 'Quando quer:'], ['Já tem orçamento', 'Já tem orçamento:'], ['Pagamento', 'Pagamento:'], ['Decisor', 'Decisor:'],
-    ['Demanda contratada', 'Demanda contratada:']] as const) {
-    const v = val(campo);
-    if (v) out.push(`*${rot}:* ${v}`);
-  }
-  const marca = linhas.find(l => /^(QUALIFICA PARA|SEM HORÁRIO DE)/.test(l));
-  if (marca) out.push('', `*${marca}*`);
-  out.push('', '_Logo em seguida a Duda manda a mensagem para o cliente com o seu nome e o horário, e responde o básico no 5040. O que for com você, ela te passa aqui._');
-  out.push('_Veja no CRM: solardoc.app/gerador_');
-  return out.join('\n');
-}
+// O aviso que vai para o celular de quem atende mora em solarQuiz.ts
+// (avisoDaEquipe), ao lado da ficha que ele lê.
 
 router.post('/quiz/agendar', async (req: Request, res: Response): Promise<void> => {
   const b = (req.body || {}) as Record<string, unknown>;
@@ -536,7 +507,7 @@ router.post('/quiz/agendar', async (req: Request, res: Response): Promise<void> 
       created_by: 'lp_solar',
       ...(/^[a-z0-9_-]{1,20}$/.test(src) ? { src } : {}),
       ...utmDe(b),
-    }).select('id, vendedor_nome, quando, cliente_nome, cliente_telefone, observacao').single();
+    }).select('id, vendedor_nome, quando, cliente_nome, cliente_telefone, observacao, utm_source, utm_campaign').single();
     if (error) {
       // 23505 = o índice (vendedor, quando) recusou: alguém marcou no mesmo instante.
       if ((error as { code?: string }).code === '23505') { res.status(409).json({ ok: false, error: 'horario tomado', caminho: dec.caminho, dias }); return; }
@@ -549,7 +520,7 @@ router.post('/quiz/agendar', async (req: Request, res: Response): Promise<void> 
     // além de receber na agenda, recebe no celular com todos os detalhes").
     // Esperado (a Vercel corta o que roda depois da resposta), teto de 4 s.
     const alvos = [TEL_AVISO[dono.toLowerCase()]].filter(Boolean);
-    const msg = mensagemDoQuiz(data as Record<string, unknown>);
+    const msg = avisoDaEquipe(data as FichaDoAviso);
     await Promise.race([
       Promise.allSettled(alvos.map(n => sendWhatsApp(n, msg, 'io'))).then(r => r.forEach((x, i) => {
         if (x.status === 'rejected') logger.error('io-solar-quiz', `aviso falhou pra ${alvos[i]}`, x.reason);

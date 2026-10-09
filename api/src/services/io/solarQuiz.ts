@@ -13,7 +13,7 @@
 
 import {
   decidirCaminho, reservaDe, horariosDoCaminho, blocoDoCompromisso, ocupacaoDaFichaSolar,
-  rotuloDaFaixa, MARCA_QUIZ, RAIO_VISITA_KM, BASE_DO_SOCIO, socioMaisPerto,
+  rotuloDaFaixa, MARCA_QUIZ, RAIO_VISITA_KM, BASE_DO_SOCIO, socioMaisPerto, caminhoDaFicha,
   type Caminho, type Decisao, type FichaAgenda,
 } from '../agenda/solarRota';
 import { ehFeriadoBR } from '../../utils/feriadosBR';
@@ -236,4 +236,88 @@ export function camposDoLead(resp: Respostas, dec: Decisao, extra: { semHorario?
   // propósito: quem procura "Pagamento" acha a resposta antes dos pontos dela.
   for (const p of dec.pontuacao.partes) add(`Pontos do ${NOME_PESO[p.campo]}`, `${p.pts}/${p.max}`);
   return f;
+}
+
+// ── O aviso no celular de quem atende (08/10/2026) ──────────────────────────
+// Sai pelo 5040 para o dono do card, na hora em que o cliente marca. Lê a mesma
+// ficha que a agenda mostra (montarObservacao), então o que chega no celular é o
+// que está no card. Pedido do Thiago: "mais completo, com emoji principal pela
+// nota". Faixas: 🟢 de 90 a 100, 🟡 de 60 a 89, 🔴 abaixo de 60 (ele passou
+// "100 a 90, 80 a 60, 50 a 0"; o que ficou entre as faixas cai na de baixo).
+// Emoji só na primeira linha (regra de 24/09) e nada de travessão. A nota vem no
+// fim, do critério de menor peso ao de maior, como na planilha do Leads Solar.
+export const emojiDaNota = (n: number): string => (n >= 90 ? '🟢' : n >= 60 ? '🟡' : '🔴');
+
+const FONTE_DO_ANUNCIO: Record<string, string> = { ig: 'Instagram', fb: 'Facebook', an: 'Audience Network', th: 'Threads', msg: 'Messenger' };
+/** [nome na linha "Pontuação", rótulo no aviso, linha da ficha], do menor peso ao maior. */
+const CRITERIOS_DA_NOTA: ReadonlyArray<[string, string, string]> = [
+  ['orçamento', 'Já tem orçamento', 'Já tem orçamento:'],
+  ['imóvel', 'Imóvel', 'Imóvel:'],
+  ['pagamento', 'Pagamento', 'Pagamento:'],
+  ['decisor', 'Quem decide', 'Decisor:'],
+  ['prazo', 'Prazo', 'Quando quer:'],
+];
+
+export interface FichaDoAviso {
+  observacao?: unknown; quando?: unknown; vendedor_nome?: unknown; cliente_nome?: unknown; cliente_telefone?: unknown;
+  utm_source?: unknown; utm_campaign?: unknown;
+}
+
+export function avisoDaEquipe(a: FichaDoAviso): string {
+  const linhas = String(a.observacao || '').split('\n');
+  const val = (rot: string) => linhas.find(l => l.startsWith(rot))?.slice(rot.length).trim() || '';
+  const caminho = caminhoDaFicha(a.observacao) || 'ligacao';
+  const tipo = (linhas[0] || '').split(' · ')[1] || '';
+  // "94/100 (prazo 35/35, decisor 14/20, pagamento 20/20, imóvel 15/15, orçamento 10/10)"
+  const pontuacao = val('Pontuação:');
+  const m = pontuacao.match(/^(\d+)\/100/);
+  const nota = m ? Number(m[1]) : null;
+  const partes = new Map<string, string>();
+  for (const p of pontuacao.matchAll(/(\p{L}+) (\d+)\/(\d+)/gu)) partes.set(p[1].toLowerCase(), `${p[2]} de ${p[3]}`);
+
+  const quando = new Date(String(a.quando)).toLocaleString('pt-BR', {
+    timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+  });
+  const titulo = { vistoria: 'NOVA VISITA', video: 'NOVO ATENDIMENTO ONLINE', ligacao: 'NOVA LIGAÇÃO', curioso: 'NOVO CURIOSO' }[caminho];
+  const out = [
+    nota === null ? `☀️ *${titulo}, ENERGIA SOLAR*` : `${emojiDaNota(nota)} *NOTA ${nota} · ${titulo}, ENERGIA SOLAR*`,
+    'Veio do quiz da /io/solar.',
+    '',
+    `*Quando:* ${quando}`,
+    `*Com:* ${a.vendedor_nome || ''}`,
+    `*Cliente:* ${a.cliente_nome || ''}`,
+    `*WhatsApp:* wa.me/${String(a.cliente_telefone || '').replace(/\D/g, '')}`,
+    '',
+  ];
+  const campo = (rot: string, v: string) => { if (v) out.push(`*${rot}:* ${v}`); };
+  campo('Onde', tipo);
+  const cidade = val('Cidade:');
+  campo('Cidade', cidade);
+  const endereco = val('Endereço:');
+  campo('Endereço', endereco);
+  if (endereco) {
+    const busca = `${endereco.replace(/ · CEP /, ', ').replace(/ · /g, ', ')}, ${cidade.split(' · ')[0]}`;
+    campo('Mapa', `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(busca)}`);
+  }
+  campo('Conta', val('Conta de luz:'));
+  campo('Demanda contratada', val('Demanda contratada:'));
+  const fonte = String(a.utm_source || '').trim();
+  const campanha = String(a.utm_campaign || '').trim();
+  campo('Origem', fonte || campanha
+    ? [FONTE_DO_ANUNCIO[fonte.toLowerCase()] || fonte, campanha ? `campanha ${campanha}` : ''].filter(Boolean).join(', ')
+    : 'sem anúncio (link direto)');
+  campo('Por que este caminho', val('Por que este caminho:'));
+
+  if (nota !== null) {
+    out.push('', '*A NOTA, DO MENOR PESO AO MAIOR*');
+    for (const [nome, rotulo, linhaDaFicha] of CRITERIOS_DA_NOTA) {
+      out.push(`${rotulo}: ${val(linhaDaFicha) || 'não respondeu'} (${partes.get(nome) || 'sem ponto'})`);
+    }
+    out.push(`*Nota: ${nota} de 100*`);
+  }
+  const marca = linhas.find(l => /^(QUALIFICA PARA|SEM HORÁRIO DE)/.test(l));
+  if (marca) out.push('', `*${marca}*`);
+  out.push('', '_Logo em seguida a Duda manda a mensagem para o cliente com o seu nome e o horário, e responde o básico no 5040. O que for com você, ela te passa aqui._');
+  out.push('_Veja no CRM: solardoc.app/gerador_');
+  return out.join('\n');
 }

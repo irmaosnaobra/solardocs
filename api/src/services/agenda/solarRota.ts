@@ -339,10 +339,10 @@ export function decidirCaminho(r: RespostasDoCaminho, dono?: string | null): Dec
   }
   if (dono === 'Thiago' && base.caminho === 'vistoria') {
     return { ...base, caminho: 'video', candidatos: ['Thiago'], qualifica: 'vistoria',
-      motivo: `${base.motivo} O cliente já é do Thiago: ele atende e marca a visita com o Diego.` };
+      motivo: `${base.motivo} O cliente já é de Thiago: ele atende e marca a visita com Diego.` };
   }
   if (ehSocioVisita(dono)) {
-    return { ...base, candidatos: [dono], qualifica: null, motivo: `${base.motivo} O cliente já é do ${dono}.` };
+    return { ...base, candidatos: [dono], qualifica: null, motivo: `${base.motivo} O cliente já é de ${dono}.` };
   }
   return { ...base, qualifica: null };
 }
