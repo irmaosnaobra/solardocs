@@ -26,7 +26,7 @@ vi.mock('../utils/logger', () => ({ logger: { error: vi.fn(), warn: vi.fn(), inf
 
 import {
   partirEndereco, ehCepDaCidade, temNomeDeRua, ufDoDdd, resolverMunicipio,
-  confereAchado, chaveCache, kmEntre, geocodificarLote, guardadoServe,
+  confereAchado, chaveCache, kmEntre, geocodificarLote, guardadoServe, parcialVencido,
 } from '../services/io/eletropostoGeo';
 
 describe('partirEndereco', () => {
@@ -145,26 +145,33 @@ describe('guardadoServe — o que o cache ainda pode devolver', () => {
   const agora = Date.parse('2026-10-08T12:00:00Z');
 
   it('"CEP" da versão 1 é refeito: era centro de cidade vindo do BrasilAPI', () => {
-    expect(guardadoServe({ ...base, precisao: 'cep', v: 1 }, agora)).toBe(false);
-    expect(guardadoServe({ ...base, precisao: 'cep' }, agora)).toBe(false);
-    expect(guardadoServe({ ...base, precisao: 'cep', v: 2 }, agora)).toBe(true);
+    expect(guardadoServe({ ...base, precisao: 'cep', v: 1 })).toBe(false);
+    expect(guardadoServe({ ...base, precisao: 'cep' })).toBe(false);
+    expect(guardadoServe({ ...base, precisao: 'cep', v: 2 })).toBe(true);
   });
 
   it('rua, número, bairro e cidade da versão 1 continuam valendo (nunca passaram pelo BrasilAPI)', () => {
     for (const precisao of ['rua', 'numero', 'bairro', 'cidade'] as const) {
-      expect(guardadoServe({ ...base, precisao, v: 1 }, agora), precisao).toBe(true);
+      expect(guardadoServe({ ...base, precisao, v: 1 }), precisao).toBe(true);
     }
   });
 
-  it('parcial vale um dia e depois é refeito', () => {
-    expect(guardadoServe({ ...base, precisao: 'rua', v: 2, parcial: true, em: '2026-10-08T02:00:00Z' }, agora)).toBe(true);
-    expect(guardadoServe({ ...base, precisao: 'rua', v: 2, parcial: true, em: '2026-10-06T12:00:00Z' }, agora)).toBe(false);
-    expect(guardadoServe({ ...base, precisao: 'rua', v: 2, parcial: true }, agora)).toBe(false);
+  it('parcial serve SEMPRE: pino guardado não some do mapa por idade', () => {
+    expect(guardadoServe({ ...base, precisao: 'rua', v: 2, parcial: true, em: '2026-10-08T02:00:00Z' })).toBe(true);
+    expect(guardadoServe({ ...base, precisao: 'rua', v: 2, parcial: true, em: '2026-10-01T12:00:00Z' })).toBe(true);
+    expect(guardadoServe({ ...base, precisao: 'rua', v: 2, parcial: true })).toBe(true);
+  });
+
+  it('parcial vence em um dia: aí só o CEP é tentado de novo', () => {
+    expect(parcialVencido({ ...base, precisao: 'rua', parcial: true, em: '2026-10-08T02:00:00Z' }, agora)).toBe(false);
+    expect(parcialVencido({ ...base, precisao: 'rua', parcial: true, em: '2026-10-06T12:00:00Z' }, agora)).toBe(true);
+    expect(parcialVencido({ ...base, precisao: 'rua', parcial: true }, agora)).toBe(true);
+    expect(parcialVencido({ ...base, precisao: 'rua', em: '2026-10-01T12:00:00Z' }, agora)).toBe(false);
   });
 
   it('lixo não serve', () => {
-    expect(guardadoServe(null, agora)).toBe(false);
-    expect(guardadoServe({ ...base, precisao: 'galaxia' as never, v: 2 }, agora)).toBe(false);
+    expect(guardadoServe(null)).toBe(false);
+    expect(guardadoServe({ ...base, precisao: 'galaxia' as never, v: 2 })).toBe(false);
   });
 });
 
@@ -222,6 +229,54 @@ describe('geocodificarLote', () => {
     expect(de.pontos.b).toMatchObject({ parcial: true });
     expect(f).not.toHaveBeenCalled();
   }, 20000);
+
+  describe('parcial vencido', () => {
+    const endereco = (n: number) => `Rua Vencida ${n}, 10 · Centro · Araguari-MG · CEP 38440-${String(100 + n)}`;
+    const vencido = (n: number) => {
+      const mun = resolverMunicipio(endereco(n), '', '34')!;
+      estado[chaveCache(endereco(n), mun)] = { lat: -18.647, lng: -48.187, precisao: 'rua', municipio: 'Araguari',
+        uf: 'MG', parcial: true, v: 2, em: '2026-10-01T12:00:00Z' };
+      return chaveCache(endereco(n), mun);
+    };
+    const chamadas: string[] = [];
+    const rede = (cep: Response | (() => Response)) => vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: unknown) => {
+      chamadas.push(String(url));
+      if (String(url).includes('awesomeapi')) return typeof cep === 'function' ? cep() : cep;
+      return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+    beforeEach(() => { chamadas.length = 0; });
+
+    it('volta na hora, sem Nominatim; CEP ainda recusado = continua parcial com mais um dia', async () => {
+      const chave = vencido(1);
+      rede(() => new Response('limite', { status: 429 }));
+      const r = await geocodificarLote([{ k: 'a', endereco: endereco(1), cidade: '', ddd: '34' }]);
+      expect(r.pendentes).toBe(0);
+      expect(r.pontos.a).toMatchObject({ precisao: 'rua', parcial: true });
+      expect(chamadas.some(u => u.includes('nominatim'))).toBe(false);
+      const v = estado[chave] as { em: string; parcial: boolean };
+      expect(v.parcial).toBe(true);
+      expect(Date.parse(v.em)).toBeGreaterThan(Date.parse('2026-10-02T00:00:00Z'));
+    });
+
+    it('CEP respondeu longe da rua: o pino vira CEP e perde o parcial', async () => {
+      const chave = vencido(2);
+      rede(() => new Response(JSON.stringify({ lat: '-18.62', lng: '-48.20', city: 'Araguari', state: 'MG' }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      const r = await geocodificarLote([{ k: 'a', endereco: endereco(2), cidade: '', ddd: '34' }]);
+      expect(r.pontos.a).toMatchObject({ precisao: 'cep', lat: -18.62, lng: -48.2 });
+      expect(r.pontos.a).not.toHaveProperty('parcial');
+      expect(estado[chave]).not.toHaveProperty('parcial');
+    });
+
+    it('só 3 CEPs vencidos por chamada; os outros voltam como estão', async () => {
+      [3, 4, 5, 6, 7].forEach(vencido);
+      rede(() => new Response('limite', { status: 429 }));
+      const r = await geocodificarLote([3, 4, 5, 6, 7].map(n => ({ k: 'p' + n, endereco: endereco(n), cidade: '', ddd: '34' })));
+      expect(Object.keys(r.pontos)).toHaveLength(5);
+      expect(r.pendentes).toBe(0);
+      expect(chamadas.filter(u => u.includes('awesomeapi'))).toHaveLength(3);
+    });
+  });
 
   it('com AWESOMEAPI_KEY no ambiente, a chave vai no cabeçalho do CEP', async () => {
     process.env.AWESOMEAPI_KEY = 'chave-de-teste';

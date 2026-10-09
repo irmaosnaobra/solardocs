@@ -343,24 +343,34 @@ const PRECISOES = new Set<Precisao>(['numero', 'cep', 'rua', 'bairro', 'cidade']
 /** Versão do que vai no cache. A 1 aceitava o BrasilAPI de reserva e gravou
  *  centro de cidade com precisão "CEP": esses são refeitos ao serem lidos. */
 const VERSAO_CACHE = 2;
-/** Ponto parcial (o CEP não respondeu) é refeito depois de um dia. */
+/** Ponto parcial (o CEP não respondeu) tem o CEP tentado de novo depois de um dia. */
 const PARCIAL_VALE_MS = 24 * 60 * 60 * 1000;
+/** Quantos CEPs vencidos cada chamada tenta de novo. Só AwesomeAPI, sem Nominatim. */
+const REFAZ_CEP_POR_CHAMADA = 3;
 
 interface Guardado extends Partial<PontoAchado> { v?: number; em?: string }
 
-/** O que está no cache ainda serve? Fica fora: o "CEP" da versão 1 e o parcial
- *  com mais de um dia. */
-export function guardadoServe(v: Guardado | null, agora = Date.now()): boolean {
+/** O ponto guardado é um ponto? Fica fora só o "CEP" da versão 1 e o lixo.
+ *  O PARCIAL SERVE SEMPRE, tenha a idade que tiver: tratar o vencido como
+ *  ausente fazia ~105 pinos sumirem do mapa todo dia pra quem abrisse primeiro,
+ *  e refazia cada um inteiro no Nominatim (IP dividido com a prospecção). */
+export function guardadoServe(v: Guardado | null): boolean {
   if (!v || typeof v.lat !== 'number' || typeof v.lng !== 'number' || !PRECISOES.has(v.precisao as Precisao)) return false;
   if (v.precisao === 'cep' && (v.v || 1) < VERSAO_CACHE) return false;
-  if (v.parcial && !(agora - Date.parse(String(v.em || '')) < PARCIAL_VALE_MS)) return false;
   return true;
 }
 
+/** Parcial com mais de um dia: o ponto continua valendo, só o CEP é tentado de novo. */
+export function parcialVencido(v: Guardado, agora = Date.now()): boolean {
+  return !!v.parcial && !(agora - Date.parse(String(v.em || '')) < PARCIAL_VALE_MS);
+}
+
+interface Lido { ponto: PontoAchado; vencido: boolean }
+
 /** Lê só as chaves pedidas, em blocos: um `like 'ep_geo:%'` corta em 1000 linhas
  *  calado quando o cache crescer. */
-async function lerCache(chaves: string[]): Promise<Map<string, PontoAchado>> {
-  const achou = new Map<string, PontoAchado>();
+async function lerCache(chaves: string[]): Promise<Map<string, Lido>> {
+  const achou = new Map<string, Lido>();
   for (let i = 0; i < chaves.length; i += 100) {
     const { data, error } = await supabase.from('system_state').select('key, value')
       .in('key', chaves.slice(i, i + 100));
@@ -368,12 +378,41 @@ async function lerCache(chaves: string[]): Promise<Map<string, PontoAchado>> {
     for (const row of (data || []) as { key: string; value: Guardado | null }[]) {
       const v = row.value;
       if (v && guardadoServe(v)) {
-        achou.set(row.key, { lat: v.lat!, lng: v.lng!, precisao: v.precisao as Precisao,
-          municipio: String(v.municipio || ''), uf: String(v.uf || ''), ...(v.parcial ? { parcial: true } : {}) });
+        achou.set(row.key, {
+          ponto: { lat: v.lat!, lng: v.lng!, precisao: v.precisao as Precisao, municipio: String(v.municipio || ''),
+                   uf: String(v.uf || ''), ...(v.parcial ? { parcial: true } : {}) },
+          vencido: parcialVencido(v),
+        });
       }
     }
   }
   return achou;
+}
+
+const semParcial = (p: PontoAchado): PontoAchado => {
+  const { parcial: _parcial, ...ponto } = p;
+  return ponto;
+};
+
+/**
+ * Só o CEP, para um ponto parcial vencido: a rua, o bairro e a sede já foram
+ * achados e não mudam de um dia pro outro. Mesma régua do `localizar` (UF,
+ * cidade, 15 e 60 km; rua a menos de 2 km do CEP fica a rua).
+ */
+export async function refazerCep(endereco: unknown, mun: Municipio, p: PontoAchado): Promise<PontoAchado> {
+  const e = partirEndereco(endereco, mun.municipio);
+  if (!e?.cep || ehCepDaCidade(e.cep)) return semParcial(p);
+  const { achado: c, recusou } = await cepGeo(e.cep);
+  if (recusou) return p;   // segue parcial; gravar de novo dá mais um dia
+  if (c && c.uf === mun.uf) {
+    const d = kmEntre(c, p);
+    if (d < 60 && (chaveMunicipio(c.cidade) === chaveMunicipio(mun.municipio) || d < 15)) {
+      if ((p.precisao === 'rua' || p.precisao === 'numero') && d < 2) return semParcial(p);
+      return { lat: c.lat, lng: c.lng, precisao: 'cep', municipio: p.municipio, uf: p.uf };
+    }
+  }
+  // O CEP respondeu e não serve: o ponto que já temos é o melhor que existe.
+  return semParcial(p);
 }
 
 async function gravarCache(chave: string, p: PontoAchado): Promise<void> {
@@ -409,7 +448,7 @@ export async function geocodificarLote(
     else porChave.set(chave, { mun, endereco: String(it.endereco || ''), ks: [it.k] });
   }
 
-  let cache = new Map<string, PontoAchado>();
+  let cache = new Map<string, Lido>();
   try {
     cache = await lerCache(Array.from(porChave.keys()));
   } catch (err) {
@@ -417,10 +456,25 @@ export async function geocodificarLote(
     logger.error(LOG, 'leitura do cache falhou', err);
   }
 
-  let novos = 0, pendentes = 0;
+  let novos = 0, pendentes = 0, refeitos = 0;
   for (const [chave, g] of porChave) {
-    const p = cache.get(chave);
-    if (p) { g.ks.forEach(k => { pontos[k] = p; }); continue; }
+    const lido = cache.get(chave);
+    if (lido) {
+      // O pino guardado volta SEMPRE. Se é parcial vencido, alguns por chamada
+      // tentam o CEP de novo; o resto espera a próxima abertura com o pino na tela.
+      let p = lido.ponto;
+      if (lido.vencido && refeitos < REFAZ_CEP_POR_CHAMADA && Date.now() - inicio < orcamentoMs) {
+        refeitos++;
+        try {
+          p = await refazerCep(g.endereco, g.mun, p);
+          await gravarCache(chave, p);
+        } catch (err) {
+          logger.warn(LOG, 'refazer o CEP falhou, fica o ponto que já tinha', err);
+        }
+      }
+      g.ks.forEach(k => { pontos[k] = p; });
+      continue;
+    }
     if (novos >= maxNovos || Date.now() - inicio > orcamentoMs) { pendentes += g.ks.length; continue; }
     novos++;
     try {
