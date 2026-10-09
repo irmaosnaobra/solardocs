@@ -4,7 +4,7 @@ import {
   avisoDaEquipe, emojiDaNota,
   type Ocupacao,
 } from '../services/io/solarQuiz';
-import { decidirCaminho, caminhoDaFicha, ocupacaoDaFichaSolar } from '../services/agenda/solarRota';
+import { decidirCaminho, caminhoDaFicha, ocupacaoDaFichaSolar, vaiParaTreino } from '../services/agenda/solarRota';
 
 // Segunda-feira, 12/10/2026, 07:00 de Brasília. (12/10 é feriado nacional:
 // Nossa Senhora Aparecida, então o primeiro dia útil é a terça 13/10.)
@@ -172,5 +172,58 @@ describe('o aviso no celular de quem atende', () => {
     const t = avisoDaEquipe({ observacao: 'LP SOLAR QUIZ · Casa · LIGAÇÃO\nConta de luz: Até R$ 300', quando: Q, vendedor_nome: 'Giovanna', cliente_nome: 'Ana', cliente_telefone: '5534999990000' });
     expect(t.split('\n')[0]).toBe('☀️ *NOVA LIGAÇÃO, ENERGIA SOLAR*');
     expect(t).not.toContain('A NOTA');
+  });
+});
+
+describe('o treino da Giovanna (09/10): 1 em cada 4 da faixa da Nilce', () => {
+  const chaves = Array.from({ length: 4000 }, (_, i) => `34${String(90000000 + i * 7919).slice(-8)}`);
+  const treino = chaves.find(k => vaiParaTreino(k))!;
+  const normal = chaves.find(k => !vaiParaTreino(k))!;
+  const media = resp({ conta: '300_600', cidade: 'Uberaba', ...MORNO });
+
+  it('o sorteio é fixo pelo telefone e fica perto de 25%', () => {
+    expect(vaiParaTreino(treino)).toBe(true);
+    expect(vaiParaTreino(treino)).toBe(true);
+    const parte = chaves.filter(k => vaiParaTreino(k)).length / chaves.length;
+    expect(parte).toBeGreaterThan(0.22);
+    expect(parte).toBeLessThan(0.28);
+    expect(vaiParaTreino(null)).toBe(false);
+  });
+
+  it('a vez de treino vai para a Giovanna; o resto continua com a Nilce', () => {
+    const t = decidirCaminho(media, null, treino);
+    expect(t).toMatchObject({ caminho: 'ligacao', candidatos: ['Giovanna'], treino: true });
+    expect(t.motivo).toContain('para treino');
+    expect(decidirCaminho(media, null, normal).candidatos).toEqual(['Nilce']);
+    expect(decidirCaminho(media).candidatos).toEqual(['Nilce']);
+  });
+
+  it('cliente que já é da Nilce fica com ela, mesmo na vez de treino', () => {
+    const d = decidirCaminho(media, 'Nilce', treino);
+    expect(d.candidatos).toEqual(['Nilce']);
+    expect(d.treino).toBeFalsy();
+    expect(d.motivo).not.toContain('treino');
+  });
+
+  it('até 300 kWh continua todo da Giovanna; acima de 1.000 não entra no sorteio', () => {
+    const pequena = resp({ conta: 'ate300', cidade: 'Uberaba', ...MORNO });
+    expect(decidirCaminho(pequena, null, normal).candidatos).toEqual(['Giovanna']);
+    expect(decidirCaminho(resp({ conta: '2000_5000', cidade: 'Uberaba', ...MORNO }), null, treino).candidatos).toEqual(['Thiago']);
+  });
+
+  it('com horário logo, a vitrine é da Giovanna', () => {
+    const r = decidirEMontar(media, null, [], AGORA, treino);
+    expect(r.dec.candidatos).toEqual(['Giovanna']);
+    expect(r.dias[0].horas.every(x => x.dono === 'Giovanna')).toBe(true);
+    expect(r.semHorario).toBe(false);
+  });
+
+  it('agenda dela cheia nos próximos dias: volta para a Nilce, sem marcar como "sem horário"', () => {
+    const giovannaCheia: Ocupacao[] = [{ dono: 'Giovanna', ini: AGORA, fim: AGORA + 10 * 86_400_000 }];
+    const r = decidirEMontar(media, null, giovannaCheia, AGORA, treino);
+    expect(r.dec.candidatos).toEqual(['Nilce']);
+    expect(r.dec.motivo).toContain('A vez era da Giovanna treinar');
+    expect(r.dias[0].horas.every(x => x.dono === 'Nilce')).toBe(true);
+    expect(r.semHorario).toBe(false);
   });
 });

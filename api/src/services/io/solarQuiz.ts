@@ -13,7 +13,7 @@
 
 import {
   decidirCaminho, reservaDe, horariosDoCaminho, blocoDoCompromisso, ocupacaoDaFichaSolar,
-  rotuloDaFaixa, MARCA_QUIZ, RAIO_VISITA_KM, BASE_DO_SOCIO, socioMaisPerto, caminhoDaFicha,
+  rotuloDaFaixa, MARCA_QUIZ, RAIO_VISITA_KM, BASE_DO_SOCIO, socioMaisPerto, caminhoDaFicha, semTreino, LIMITE_TREINO_DIAS,
   type Caminho, type Decisao, type FichaAgenda,
 } from '../agenda/solarRota';
 import { ehFeriadoBR } from '../../utils/feriadosBR';
@@ -145,14 +145,19 @@ export function montarVitrine(dec: Decisao, ocupacoes: readonly Ocupacao[], agor
 /** Decide e monta a vitrine. Sem horário no caminho, desce a escada de
  *  reservas (reservaDe em solarRota.ts): visita, atendimento do Thiago,
  *  ligação da Nilce. Curioso não tem vitrine. */
-export function decidirEMontar(resp: Respostas, dono: string | null, ocupacoes: readonly Ocupacao[], agoraMs: number):
+export function decidirEMontar(resp: Respostas, dono: string | null, ocupacoes: readonly Ocupacao[], agoraMs: number, chave?: string | null):
   { dec: Decisao; dias: DiaVitrine[]; semHorario: boolean } {
-  const dec = decidirCaminho(resp, dono);
+  const dec = decidirCaminho(resp, dono, chave);
   if (dec.caminho === 'curioso') return { dec, dias: [], semHorario: false };
   let atual: Decisao | null = dec;
   let primeira = true;
   while (atual) {
     const dias = montarVitrine(atual, ocupacoes, agoraMs);
+    // Treino da Giovanna (09/10): só é a vez dela se ela tiver horário logo.
+    if (atual.treino && (!dias.length || msDe(dias[0].ymd, dias[0].horas[0].h) - agoraMs > LIMITE_TREINO_DIAS * 86_400_000)) {
+      atual = semTreino(atual);
+      continue;
+    }
     if (dias.length) return { dec: atual, dias, semHorario: !primeira };
     atual = reservaDe(atual);
     primeira = false;

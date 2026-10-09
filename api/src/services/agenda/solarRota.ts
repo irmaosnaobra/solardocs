@@ -280,6 +280,32 @@ export interface Decisao {
   /** O cliente já é de alguém que não faz aquele atendimento: ficou com o
    *  dono, e aqui fica o que ele qualificaria. */
   qualifica: Caminho | null;
+  /** Lead da faixa da Nilce que foi para a Giovanna treinar (09/10). */
+  treino?: boolean;
+}
+
+// ── O treino da Giovanna (09/10/2026) ───────────────────────────────────────
+// Ordem do Thiago: "deixa a Giovanna com menos de 300 kWh e com 25% dos da
+// Nilce para ela ir treinando seu atendimento". O sorteio é fixo pelo telefone
+// (DDD + 8 últimos): a mesma pessoa cai sempre com a mesma consultora, mesmo
+// refazendo o quiz, e a vitrine e a marcação concordam. Se a Giovanna não tem
+// horário nos próximos LIMITE_TREINO_DIAS dias, o lead volta para a Nilce: é
+// treino, não pode custar um cliente quente esperando uma semana.
+export const PARTE_TREINO_GIOVANNA = 0.25;
+export const LIMITE_TREINO_DIAS = 3;
+
+export function vaiParaTreino(chave: string | null | undefined): boolean {
+  const k = String(chave ?? '').replace(/\D/g, '');
+  if (!k) return false;
+  let h = 2166136261;   // FNV-1a: espalha bem até telefones vizinhos
+  for (const ch of k) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  return h % 100 < PARTE_TREINO_GIOVANNA * 100;
+}
+
+/** A vez era da Giovanna treinar, mas ela não tem horário logo: volta para a Nilce. */
+export function semTreino(dec: Decisao): Decisao {
+  return { ...dec, candidatos: [QUEM.media], treino: false,
+    motivo: `De ${kwhTxt(KWH_GIOVANNA)} a ${kwhTxt(KWH_VISITA)} kWh: ligação da Nilce. A vez era da Giovanna treinar, mas ela não tem horário nos próximos ${LIMITE_TREINO_DIAS} dias.` };
 }
 
 const ehSocioVisita = (n: unknown): n is Socio => (SOCIOS_VISITA as readonly string[]).includes(String(n));
@@ -291,7 +317,7 @@ export const noRaioDaVisita = (c: CidadeRaio | null): boolean => !!c && c.kmUdi 
 
 /** O caminho e o dono pela pontuação, pela conta e pela cidade, sem olhar quem
  *  já é dono do telefone. */
-export function caminhoPelasRespostas(r: RespostasDoCaminho): Omit<Decisao, 'qualifica'> {
+export function caminhoPelasRespostas(r: RespostasDoCaminho, chave?: string | null): Omit<Decisao, 'qualifica'> {
   const kwh = kwhDaFaixa(r.conta);
   const cidade = acharCidadeRaio(r.cidade);
   const grande = kwh !== null && kwh > KWH_VISITA;
@@ -314,6 +340,10 @@ export function caminhoPelasRespostas(r: RespostasDoCaminho): Omit<Decisao, 'qua
       motivo: `Acima de ${kwhTxt(KWH_VISITA)} kWh, ${porque}: atendimento do Thiago sem visita.` };
   }
   if (kwh !== null && kwh > KWH_GIOVANNA) {
+    if (vaiParaTreino(chave)) {
+      return { ...base, caminho: 'ligacao', candidatos: [QUEM.pequena], treino: true,
+        motivo: `De ${kwhTxt(KWH_GIOVANNA)} a ${kwhTxt(KWH_VISITA)} kWh: ligação da Giovanna (1 em cada 4 da faixa da Nilce, para treino).` };
+    }
     return { ...base, caminho: 'ligacao', candidatos: [QUEM.media],
       motivo: `De ${kwhTxt(KWH_GIOVANNA)} a ${kwhTxt(KWH_VISITA)} kWh: ligação da Nilce.` };
   }
@@ -329,8 +359,9 @@ export function caminhoPelasRespostas(r: RespostasDoCaminho): Omit<Decisao, 'qua
  * "QUALIFICA PARA ..." para ele chamar quem faz: Nilce e Giovanna ligam; o
  * Thiago não faz visita (todas são do Diego). Curioso continua curioso.
  */
-export function decidirCaminho(r: RespostasDoCaminho, dono?: string | null): Decisao {
-  const base = caminhoPelasRespostas(r);
+export function decidirCaminho(r: RespostasDoCaminho, dono?: string | null, chave?: string | null): Decisao {
+  // Cliente que já tem dono não entra no sorteio do treino: fica com o dono.
+  const base = caminhoPelasRespostas(r, dono ? null : chave);
   if (base.caminho === 'curioso' || !dono || base.candidatos[0] === dono) return { ...base, qualifica: null };
   if (ehDonaLigacao(dono)) {
     return { ...base, caminho: 'ligacao', candidatos: [String(dono)],

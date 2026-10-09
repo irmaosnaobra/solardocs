@@ -441,7 +441,7 @@ router.post('/quiz', async (req: Request, res: Response): Promise<void> => {
     const pessoas = [...new Set([...SOCIOS_VISITA, ...DONAS_LIGACAO, ...(quem.dono ? [quem.dono] : [])])];
     const ocupacoes = await lerOcupacoes(pessoas);
     if (!ocupacoes) { res.status(503).json({ ok: false, error: 'agenda indisponivel' }); return; }
-    const { dec, dias, semHorario } = decidirEMontar(e.resp, quem.dono, ocupacoes, Date.now());
+    const { dec, dias, semHorario } = decidirEMontar(e.resp, quem.dono, ocupacoes, Date.now(), e.alvo);
     const leadId = `quiz_${e.alvo}`;
     // ?dry=1 confere caminho e vitrine no ar sem gravar o rascunho (sonda pós-deploy).
     if (String(req.query.dry || '') !== '1') await gravarLead(leadId, {
@@ -486,7 +486,7 @@ router.post('/quiz/agendar', async (req: Request, res: Response): Promise<void> 
     const ocupacoes = await lerOcupacoes(pessoas);
     if (!ocupacoes) { res.status(503).json({ ok: false, error: 'agenda indisponivel' }); return; }
     const agora = Date.now();
-    const { dec, dias, semHorario } = decidirEMontar(e.resp, quem.dono, ocupacoes, agora);
+    const { dec, dias, semHorario } = decidirEMontar(e.resp, quem.dono, ocupacoes, agora, e.alvo);
     // A mesma pergunta da vitrine, com a agenda lida agora: quem escolheu um
     // horário que outra pessoa tomou no meio do caminho recebe a vitrine nova.
     if (!dec.candidatos.includes(dono) || !cabe(dec.caminho, ymd, h, dono, dec, ocupacoes, agora)) {
