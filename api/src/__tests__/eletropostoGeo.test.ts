@@ -26,7 +26,7 @@ vi.mock('../utils/logger', () => ({ logger: { error: vi.fn(), warn: vi.fn(), inf
 
 import {
   partirEndereco, ehCepDaCidade, temNomeDeRua, ufDoDdd, resolverMunicipio,
-  confereAchado, chaveCache, kmEntre, geocodificarLote,
+  confereAchado, chaveCache, kmEntre, geocodificarLote, guardadoServe,
 } from '../services/io/eletropostoGeo';
 
 describe('partirEndereco', () => {
@@ -140,6 +140,34 @@ describe('chaveCache', () => {
   });
 });
 
+describe('guardadoServe — o que o cache ainda pode devolver', () => {
+  const base = { lat: -18.6, lng: -48.1, municipio: 'Araguari', uf: 'MG' };
+  const agora = Date.parse('2026-10-08T12:00:00Z');
+
+  it('"CEP" da versão 1 é refeito: era centro de cidade vindo do BrasilAPI', () => {
+    expect(guardadoServe({ ...base, precisao: 'cep', v: 1 }, agora)).toBe(false);
+    expect(guardadoServe({ ...base, precisao: 'cep' }, agora)).toBe(false);
+    expect(guardadoServe({ ...base, precisao: 'cep', v: 2 }, agora)).toBe(true);
+  });
+
+  it('rua, número, bairro e cidade da versão 1 continuam valendo (nunca passaram pelo BrasilAPI)', () => {
+    for (const precisao of ['rua', 'numero', 'bairro', 'cidade'] as const) {
+      expect(guardadoServe({ ...base, precisao, v: 1 }, agora), precisao).toBe(true);
+    }
+  });
+
+  it('parcial vale um dia e depois é refeito', () => {
+    expect(guardadoServe({ ...base, precisao: 'rua', v: 2, parcial: true, em: '2026-10-08T02:00:00Z' }, agora)).toBe(true);
+    expect(guardadoServe({ ...base, precisao: 'rua', v: 2, parcial: true, em: '2026-10-06T12:00:00Z' }, agora)).toBe(false);
+    expect(guardadoServe({ ...base, precisao: 'rua', v: 2, parcial: true }, agora)).toBe(false);
+  });
+
+  it('lixo não serve', () => {
+    expect(guardadoServe(null, agora)).toBe(false);
+    expect(guardadoServe({ ...base, precisao: 'galaxia' as never, v: 2 }, agora)).toBe(false);
+  });
+});
+
 describe('geocodificarLote', () => {
   beforeEach(() => {
     for (const k of Object.keys(estado)) delete estado[k];
@@ -173,6 +201,21 @@ describe('geocodificarLote', () => {
     expect(r.pendentes).toBe(2);
     expect(r.pontos).toEqual({});
   });
+
+  it('CEP recusado: o ponto sai com a precisão de verdade e fica marcado parcial no cache', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: unknown) => {
+      const u = String(url);
+      if (u.includes('awesomeapi')) return new Response('limite', { status: 503 });
+      return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    });
+    const endereco = 'Rua Sem Nome No Mapa, 9 · Centro · Araguari-MG · CEP 38440-123';
+    const r = await geocodificarLote([{ k: 'a', endereco, cidade: '', ddd: '34' }], { maxNovos: 1 });
+    expect(r.pendentes).toBe(0);
+    expect(r.pontos.a).toMatchObject({ precisao: 'cidade', uf: 'MG' });
+    expect(r.pontos.a).not.toHaveProperty('parcial');
+    const mun = resolverMunicipio(endereco, '', '34')!;
+    expect(estado[chaveCache(endereco, mun)]).toMatchObject({ precisao: 'cidade', parcial: true, v: 2 });
+  }, 20000);
 
   it('Nominatim fora: fica pendente e não grava ponto ruim no cache', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('rede fora'));

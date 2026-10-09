@@ -220,29 +220,39 @@ async function nominatim(params: Record<string, string>): Promise<Achado[]> {
   return vez;
 }
 
+/**
+ * O CEP em coordenada, pela AwesomeAPI, que devolve o ponto do TRECHO DA RUA.
+ *
+ * O BRASILAPI NÃO ENTRA, e isto foi medido (08/10/2026): o `location` do CEP v2
+ * dele é o CENTRO DA CIDADE para a maioria dos CEPs da base (-15,78/-47,93 para
+ * um CEP de Taguatinga, a Esplanada). Usado de reserva, ele gravou ponto de
+ * cidade com precisão "CEP" em 105 de 229 endereços e, pior, ganhou da rua
+ * achada no Nominatim sempre que os dois discordavam. Sem CEP bom, o endereço
+ * segue pra rua, bairro ou cidade, e a precisão diz a verdade.
+ */
 interface CepAchado { lat: number; lng: number; cidade: string; uf: string }
-async function cepGeo(cep: string): Promise<CepAchado | null> {
-  if (memo.has('C:' + cep)) return memo.get('C:' + cep) as CepAchado | null;
+/** `recusou` = o serviço não respondeu de verdade (não é "CEP não existe"). O
+ *  ponto sai sem o CEP e volta marcado `parcial`, pra ser refeito depois. */
+async function cepGeo(cep: string): Promise<{ achado: CepAchado | null; recusou: boolean }> {
+  if (memo.has('C:' + cep)) return { achado: memo.get('C:' + cep) as CepAchado | null, recusou: false };
   let out: CepAchado | null = null;
   try {
-    const r = await fetch(`https://cep.awesomeapi.com.br/json/${cep}`, { signal: AbortSignal.timeout(8000) });
+    const r = await fetch(`https://cep.awesomeapi.com.br/json/${cep}`,
+      { headers: { 'User-Agent': UA, Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
     if (r.ok) {
       const j = await r.json() as { lat?: string; lng?: string; city?: string; state?: string };
       if (j.lat && j.lng) out = { lat: Number(j.lat), lng: Number(j.lng), cidade: j.city || '', uf: j.state || '' };
+    } else if (r.status !== 404) {
+      // 404 é CEP que não existe. Qualquer outra coisa é o serviço recusando a
+      // gente, e isso precisa aparecer: sem CEP o mapa perde precisão calado.
+      logger.warn(LOG, `AwesomeAPI recusou o CEP: HTTP ${r.status}`);
+      return { achado: null, recusou: true };   // não memoriza: a próxima tenta de novo
     }
-  } catch { /* cai no próximo */ }
-  if (!out) {
-    try {
-      const r = await fetch(`https://brasilapi.com.br/api/cep/v2/${cep}`, { signal: AbortSignal.timeout(8000) });
-      if (r.ok) {
-        const j = await r.json() as { city?: string; state?: string;
-          location?: { coordinates?: { latitude?: string; longitude?: string } } };
-        const c = j.location?.coordinates;
-        if (c?.latitude && c?.longitude) out = { lat: Number(c.latitude), lng: Number(c.longitude), cidade: j.city || '', uf: j.state || '' };
-      }
-    } catch { /* sem CEP */ }
+  } catch (err) {
+    logger.warn(LOG, 'AwesomeAPI fora do ar', err);
+    return { achado: null, recusou: true };
   }
-  return lembra('C:' + cep, out);
+  return { achado: lembra('C:' + cep, out), recusou: false };
 }
 
 /** A sede do município, achada no Nominatim. O centro do IBGE é o do retângulo
@@ -262,9 +272,15 @@ async function centroCidade(mun: Municipio): Promise<{ lat: number; lng: number 
 const TIPOS_DE_AREA = new Set(['city', 'town', 'municipality', 'village', 'suburb', 'neighbourhood',
   'quarter', 'state', 'county', 'region']);
 
+/** O ponto como sai do geocodificador. `parcial` = o CEP não respondeu e o ponto
+ *  pode melhorar: fica no cache só por um dia (ver lerCache). */
+export interface PontoAchado extends Ponto { parcial?: boolean }
+
 /** O endereço em coordenada, do mais preciso pro menos. Sempre devolve um
  *  ponto: no pior caso, a sede da cidade, e a precisão diz isso. */
-export async function localizar(endereco: unknown, mun: Municipio): Promise<Ponto> {
+export async function localizar(endereco: unknown, mun: Municipio): Promise<PontoAchado> {
+  let parcial = false;
+  const fim = (p: Ponto): PontoAchado => (parcial ? { ...p, parcial: true } : p);
   const centro = await centroCidade(mun);
   const base = { municipio: mun.municipio, uf: mun.uf };
   const estado = UF_NOME[mun.uf] || mun.uf;
@@ -292,7 +308,8 @@ export async function localizar(endereco: unknown, mun: Municipio): Promise<Pont
         precisao: ok[0].address?.house_number ? 'numero' : 'rua', ...base };
     }
     if (e.cep && !ehCepDaCidade(e.cep)) {
-      const c = await cepGeo(e.cep);
+      const { achado: c, recusou } = await cepGeo(e.cep);
+      if (recusou) parcial = true;
       const km = c ? kmEntre(c, centro) : Infinity;
       if (c && c.uf === mun.uf && km < 60
           && (chaveMunicipio(c.cidade) === chaveMunicipio(mun.municipio) || km < 15)) {
@@ -301,20 +318,36 @@ export async function localizar(endereco: unknown, mun: Municipio): Promise<Pont
         return { lat: c.lat, lng: c.lng, precisao: 'cep', ...base };
       }
     }
-    if (rua) return rua;
+    if (rua) return fim(rua);
     if (e.bairro) {
       const ok = (await nominatim({ q: `${e.bairro}, ${mun.municipio}, ${estado}, Brasil` }))
         .filter(x => confereAchado(x, mun, centro)
           && !['city', 'town', 'municipality', 'state', 'county', 'region'].includes(String(x.addresstype)));
-      if (ok[0]) return { lat: Number(ok[0].lat), lng: Number(ok[0].lon), precisao: 'bairro', ...base };
+      if (ok[0]) return fim({ lat: Number(ok[0].lat), lng: Number(ok[0].lon), precisao: 'bairro', ...base });
     }
   }
-  return { lat: centro.lat, lng: centro.lng, precisao: 'cidade', ...base };
+  return fim({ lat: centro.lat, lng: centro.lng, precisao: 'cidade', ...base });
 }
 
 // ── O cache ─────────────────────────────────────────────────────────────────
 
 const PRECISOES = new Set<Precisao>(['numero', 'cep', 'rua', 'bairro', 'cidade']);
+/** Versão do que vai no cache. A 1 aceitava o BrasilAPI de reserva e gravou
+ *  centro de cidade com precisão "CEP": esses são refeitos ao serem lidos. */
+const VERSAO_CACHE = 2;
+/** Ponto parcial (o CEP não respondeu) é refeito depois de um dia. */
+const PARCIAL_VALE_MS = 24 * 60 * 60 * 1000;
+
+interface Guardado extends Partial<PontoAchado> { v?: number; em?: string }
+
+/** O que está no cache ainda serve? Fica fora: o "CEP" da versão 1 e o parcial
+ *  com mais de um dia. */
+export function guardadoServe(v: Guardado | null, agora = Date.now()): boolean {
+  if (!v || typeof v.lat !== 'number' || typeof v.lng !== 'number' || !PRECISOES.has(v.precisao as Precisao)) return false;
+  if (v.precisao === 'cep' && (v.v || 1) < VERSAO_CACHE) return false;
+  if (v.parcial && !(agora - Date.parse(String(v.em || '')) < PARCIAL_VALE_MS)) return false;
+  return true;
+}
 
 /** Lê só as chaves pedidas, em blocos: um `like 'ep_geo:%'` corta em 1000 linhas
  *  calado quando o cache crescer. */
@@ -324,10 +357,10 @@ async function lerCache(chaves: string[]): Promise<Map<string, Ponto>> {
     const { data, error } = await supabase.from('system_state').select('key, value')
       .in('key', chaves.slice(i, i + 100));
     if (error) throw new Error(`cache do mapa: ${error.message}`);
-    for (const row of (data || []) as { key: string; value: Partial<Ponto> | null }[]) {
+    for (const row of (data || []) as { key: string; value: Guardado | null }[]) {
       const v = row.value;
-      if (v && typeof v.lat === 'number' && typeof v.lng === 'number' && PRECISOES.has(v.precisao as Precisao)) {
-        achou.set(row.key, { lat: v.lat, lng: v.lng, precisao: v.precisao as Precisao,
+      if (v && guardadoServe(v)) {
+        achou.set(row.key, { lat: v.lat!, lng: v.lng!, precisao: v.precisao as Precisao,
           municipio: String(v.municipio || ''), uf: String(v.uf || '') });
       }
     }
@@ -335,10 +368,10 @@ async function lerCache(chaves: string[]): Promise<Map<string, Ponto>> {
   return achou;
 }
 
-async function gravarCache(chave: string, p: Ponto): Promise<void> {
+async function gravarCache(chave: string, p: PontoAchado): Promise<void> {
   const agora = new Date().toISOString();
   const { error } = await supabase.from('system_state').upsert(
-    { key: chave, value: { ...p, v: 1, em: agora }, updated_at: agora }, { onConflict: 'key' });
+    { key: chave, value: { ...p, v: VERSAO_CACHE, em: agora }, updated_at: agora }, { onConflict: 'key' });
   if (error) logger.error(LOG, 'não gravou o ponto no cache', error);
 }
 
@@ -385,7 +418,9 @@ export async function geocodificarLote(
     try {
       const achado = await localizar(g.endereco, g.mun);
       await gravarCache(chave, achado);
-      g.ks.forEach(k => { pontos[k] = achado; });
+      // `parcial` é do cache; a tela recebe o ponto e a precisão, que já dizem a verdade.
+      const { parcial: _parcial, ...ponto } = achado;
+      g.ks.forEach(k => { pontos[k] = ponto; });
     } catch (err) {
       // Nominatim fora: fica pendente, a próxima chamada tenta de novo.
       logger.warn(LOG, 'geocodificação falhou, fica pra próxima', err);
