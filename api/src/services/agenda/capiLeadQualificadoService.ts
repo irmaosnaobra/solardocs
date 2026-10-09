@@ -119,20 +119,44 @@ export async function runCapiLeadQualificado(
   if (!opts.dry && desligado()) return zero('desligado');
 
   // 1) Fichas que orçaram, com o lead do Forms junto (agendado_id é a ponte).
-  const { data, error } = await supabaseGerador
+  // São DUAS leituras juntadas aqui, de propósito. Até 09/10/2026 era uma só,
+  // com `agendamentos!inner(...)` embutido no select de leads_meta, e o banco
+  // não tem chave estrangeira entre as duas tabelas: o PostgREST respondia
+  // PGRST200 em toda rodada, o tick saía em 'erro_leitura' e nenhum
+  // "Sales Opportunity" chegou ao Meta desde que este loop nasceu (14/08).
+  const { data: leads, error } = await supabaseGerador
     .from('leads_meta')
-    .select('lead_id, agendado_id, agendamentos!inner(id, status, observacao, created_at)')
+    .select('lead_id, agendado_id')
     .not('agendado_id', 'is', null)
     .gte('created_time', DESDE)
-    .in('agendamentos.status', STATUS_QUE_ORCARAM)
     .limit(1000);
   if (error) {
     logger.error('capi-qualificado', 'ler leads_meta falhou', error);
     return { ...zero('erro_leitura'), falhas: 1 };
   }
+  type Ficha = { id: number; status: string; observacao: string | null };
+  const idsFicha = [...new Set(((leads ?? []) as Array<{ agendado_id: unknown }>)
+    .map(l => Number(l.agendado_id)).filter(n => Number.isFinite(n) && n > 0))];
+  const fichas = new Map<number, Ficha>();
+  for (let i = 0; i < idsFicha.length; i += 200) {
+    const { data: lote, error: errFicha } = await supabaseGerador
+      .from('agendamentos')
+      .select('id, status, observacao, created_at')
+      .in('id', idsFicha.slice(i, i + 200))
+      .in('status', STATUS_QUE_ORCARAM)
+      .limit(1000);
+    if (errFicha) {
+      logger.error('capi-qualificado', 'ler agendamentos falhou', errFicha);
+      return { ...zero('erro_leitura'), falhas: 1 };
+    }
+    for (const f of (lote ?? []) as Ficha[]) fichas.set(Number(f.id), f);
+  }
 
-  type Linha = { lead_id: unknown; agendado_id: unknown; agendamentos: { id: number; status: string; observacao: string | null } };
-  const candidatos = ((data ?? []) as unknown as Linha[])
+  type Linha = { lead_id: unknown; agendado_id: unknown; agendamentos: Ficha | undefined };
+  const data: Linha[] = ((leads ?? []) as Array<{ lead_id: unknown; agendado_id: unknown }>)
+    .map(l => ({ ...l, agendamentos: fichas.get(Number(l.agendado_id)) }))
+    .filter(l => !!l.agendamentos);
+  const candidatos = data
     .map(l => ({
       leadId: String(l.lead_id ?? ''),
       ficha: Number(l.agendamentos?.id ?? 0),

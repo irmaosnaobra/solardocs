@@ -19,10 +19,13 @@ vi.mock('../utils/supabaseGerador', () => ({
         select() { return q; }, not() { return q; }, gte() { return q; },
         eq() { return q; }, in() { return q; },
         insert(row: any) { inserts.push(row); return Promise.resolve({ error: null }); },
+        // leads_meta e agendamentos são lidos SEPARADOS (o banco não tem chave
+        // estrangeira entre eles; o embed antigo dava PGRST200 em produção).
         limit() {
-          return Promise.resolve({
-            data: tabela === 'capi_conversoes_enviadas' ? jaEnviados : linhas, error: null,
-          });
+          const data = tabela === 'capi_conversoes_enviadas' ? jaEnviados
+            : tabela === 'agendamentos' ? linhas.map(l => l.agendamentos).filter(Boolean)
+            : linhas.map(({ agendamentos: _a, ...l }) => l);
+          return Promise.resolve({ data, error: null });
         },
         then(res: any, rej: any) {
           // `capi_conversoes_enviadas` é lido com .in(...) sem .limit()
