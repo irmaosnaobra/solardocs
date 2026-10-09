@@ -2181,7 +2181,7 @@ const API = location.hostname === 'localhost' ? 'http://localhost:3001' : '/_api
 // A ficha é o único lugar onde a UTM encontra a NOTA; o beacon de page_visits não
 // sabe a nota, e o CRM não sabe a origem.
 const UTM_KEY = 'ep_utm';
-function utmPrimeiroToque(){
+function utmSomente(){
   const CAMPOS = ['utm_source','utm_medium','utm_campaign','utm_content','utm_term'];
   try {
     const salvo = JSON.parse(sessionStorage.getItem(UTM_KEY) || 'null');
@@ -2193,6 +2193,31 @@ function utmPrimeiroToque(){
   // próxima navegação com ?utm_source=... seja capturada.
   if (Object.keys(u).length) { try { sessionStorage.setItem(UTM_KEY, JSON.stringify(u)); } catch(_){} }
   return u;
+}
+
+// fbc/fbp para a API de Conversões (09/10/2026). O servidor repete o Schedule e
+// manda o LeadQuente ao Meta com telefone, nome, IP e estes dois cookies, que o
+// navegador sozinho nem sempre entrega (bloqueador, Safari). O fbc nasce do
+// ?fbclid= quando o pixel ainda não gravou o cookie _fbc, e fica na sessão como as
+// UTMs: o clique do anúncio é o primeiro toque. Por isso entra junto com a UTM em
+// TODO corpo que cria ou atualiza lead (agendar, nota1, parceria).
+function metaCookies(){
+  const o = {};
+  try {
+    const ck = n => { const m = document.cookie.match(new RegExp('(?:^|; )' + n + '=([^;]*)')); return m ? decodeURIComponent(m[1]) : ''; };
+    const fbp = ck('_fbp'); if (fbp) o.fbp = fbp;
+    let fbc = ck('_fbc');
+    if (!fbc) { try { fbc = sessionStorage.getItem('ep_fbc') || ''; } catch(_){} }
+    if (!fbc) {
+      const id = (new URLSearchParams(location.search).get('fbclid') || '').trim();
+      if (id) { fbc = 'fb.1.' + Date.now() + '.' + id.slice(0, 300); try { sessionStorage.setItem('ep_fbc', fbc); } catch(_){} }
+    }
+    if (fbc) o.fbc = fbc;
+  } catch(_){}
+  return o;
+}
+function utmPrimeiroToque(){
+  return Object.assign({}, utmSomente(), metaCookies());
 }
 
 // Grava a ficha PELA API. Antes era um INSERT direto no PostgREST com a chave
@@ -4587,7 +4612,12 @@ async function gravarAgendamento(){
       const rodizio = proximoDono();   // alterna Thiago/Diego pelo total já marcado
       dono = livres.includes(rodizio) ? rodizio : (livres[0] || rodizio);
     }
+    // Um id por reunião, gerado ANTES do POST: o servidor repete o Schedule pela API
+    // de Conversões e o Meta junta os dois pelo event_id (conta uma vez só).
+    let evId = '';
+    try { evId = 'agd_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); } catch(_){}
     const novo = await agendarNaApi({
+      ...(evId ? { event_id: evId } : {}),
       vendedor_nome:    dono,               // NOT NULL + FK consultores → dono existente ou rodízio Thiago/Diego
       quando:           slotSel,
       cliente_nome:     nome,
@@ -4613,7 +4643,7 @@ async function gravarAgendamento(){
     });   // devolve { ok:true, id }
 
     // Evento de conversão — é ESTE que a campanha otimiza
-    try{ fbq('track','Schedule',{content_name:'Reuniao Eletroposto', content_category:perfil}); }catch(e){}
+    try{ fbq('track','Schedule',{content_name:'Reuniao Eletroposto', content_category:perfil}, evId ? {eventID:evId} : undefined); }catch(e){}
     try{ window.quizFim('reuniao', 'schedule'); }catch(e){}
 
     const rot = rotuloSlot(slotSel);   // mesma formatação que o portão mostrou

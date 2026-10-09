@@ -9,6 +9,7 @@ import { estaBloqueado } from '../services/agents/whatsapp/silenciar';
 import { FILTRO_NAO_OCUPA } from '../services/agenda/salaDeEspera';
 import { ehOrigemEletroposto } from '../services/agenda/origemEtiqueta';
 import { ocupacoesSolar } from '../services/agenda/solarOcupacao';
+import { enviarQuizMeta, navegadorDe, eventIdDe, idDoTelefone } from '../utils/capiQuiz';
 import { SOCIOS_VISITA, DONAS_LIGACAO, caminhoDaFicha, donoDaFaixa } from '../services/agenda/solarRota';
 import {
   limparRespostas, limparEndereco, decidirEMontar, montarObservacao, camposDoLead, blocoDaFicha, cabe,
@@ -393,15 +394,17 @@ async function lerOcupacoes(pessoas: string[]): Promise<Ocupacao[] | null> {
 }
 
 /** Rascunho do lead em `leads_meta`. Falha aqui não segura o quiz. */
-async function gravarLead(leadId: string, campos: Record<string, unknown>): Promise<void> {
+async function gravarLead(leadId: string, campos: Record<string, unknown>): Promise<boolean> {
   try {
     const { data } = await supabaseGerador.from('leads_meta').select('lead_id').eq('lead_id', leadId).limit(1);
     const { error } = data?.length
       ? await supabaseGerador.from('leads_meta').update(campos).eq('lead_id', leadId)
       : await supabaseGerador.from('leads_meta').insert({ lead_id: leadId, created_time: new Date().toISOString(), ...campos });
     if (error) throw error;
+    return true;
   } catch (err) {
     logger.error('io-solar-quiz', `rascunho do lead ${leadId} falhou`, err);
+    return false;
   }
 }
 
@@ -444,12 +447,23 @@ router.post('/quiz', async (req: Request, res: Response): Promise<void> => {
     const { dec, dias, semHorario } = decidirEMontar(e.resp, quem.dono, ocupacoes, Date.now(), e.alvo);
     const leadId = `quiz_${e.alvo}`;
     // ?dry=1 confere caminho e vitrine no ar sem gravar o rascunho (sonda pós-deploy).
-    if (String(req.query.dry || '') !== '1') await gravarLead(leadId, {
+    const gravou = String(req.query.dry || '') !== '1' && await gravarLead(leadId, {
       form_id: FORM_QUIZ, form_name: 'Quiz Solar', nome: e.nome, whatsapp: e.tel,
       cidade: dec.cidade ? `${dec.cidade.nome}-${dec.cidade.uf}` : (e.resp.cidade || null),
       // Curioso não tem horário, mas tem dono pela faixa de consumo (lista para depois).
       field_data: camposComUtm(camposDoLead(e.resp, dec, { semHorario }), b), consultor: dec.candidatos[0] ?? donoDaFaixa(dec.kwh), fora_area: false,
     });
+    // LeadQuente: nota alta que não é curioso. Só depois de o rascunho gravar, e
+    // nunca no ?dry=1. O eventId fixo por telefone faz o Meta descartar o reenvio de
+    // quem refaz o quiz. Não existe gêmeo no navegador, então o id nasce aqui.
+    if (gravou && dec.pontos >= 80 && dec.caminho !== 'curioso') {
+      await enviarQuizMeta({
+        produto: 'solar', nome: 'LeadQuente', origem: 'website', eventId: `leadquente_${idDoTelefone(e.tel)}`,
+        pessoa: { telefone: e.tel, nome: e.nome, cidade: dec.cidade?.nome ?? e.resp.cidade, uf: dec.cidade?.uf },
+        navegador: navegadorDe(req, b), urlDaPagina: 'https://solardoc.app/io/solar',
+        dados: { nota: dec.pontos, caminho: dec.caminho },
+      }, 'io-solar-quiz');
+    }
     res.json({
       ok: true, lead_id: leadId, caminho: dec.caminho, motivo: dec.motivo, qualifica: dec.qualifica, semHorario,
       kwh: dec.kwh, cidade: dec.cidade ? { nome: dec.cidade.nome, uf: dec.cidade.uf } : null,
@@ -516,6 +530,17 @@ router.post('/quiz/agendar', async (req: Request, res: Response): Promise<void> 
     const leadId = `quiz_${e.alvo}`;
     await gravarLead(leadId, { agendado_id: data.id, consultor: dono, field_data: camposComUtm(camposDoLead(e.resp, dec, { semHorario }), b) });
 
+    // Schedule pela API de Conversões, o gêmeo do que a página dispara no navegador.
+    // SÓ com o event_id que a página mandou: sem ele o Meta não junta os dois e a
+    // campanha, que otimiza em Schedule, contaria a marcação em dobro (página velha
+    // em cache). Corre junto com o aviso do WhatsApp, e cada um tem o seu teto.
+    const eventId = eventIdDe(b.event_id);
+    const capi = eventId ? enviarQuizMeta({
+      produto: 'solar', nome: 'Schedule', origem: 'website', eventId,
+      pessoa: { telefone: e.tel, nome: e.nome, cidade: dec.cidade?.nome ?? e.resp.cidade, uf: dec.cidade?.uf },
+      navegador: navegadorDe(req, b), urlDaPagina: 'https://solardoc.app/io/solar',
+    }, 'io-solar-quiz') : Promise.resolve();
+
     // Aviso no celular de QUEM ATENDE, com tudo (ordem de 08/10/2026: "cada um,
     // além de receber na agenda, recebe no celular com todos os detalhes").
     // Esperado (a Vercel corta o que roda depois da resposta), teto de 4 s.
@@ -527,6 +552,7 @@ router.post('/quiz/agendar', async (req: Request, res: Response): Promise<void> 
       })),
       new Promise(resolve => setTimeout(resolve, 4000)),
     ]);
+    await capi;
     res.json({ ok: true, id: data.id, caminho: dec.caminho, dono, quando, rotulo: ROTULO_CAMINHO[dec.caminho] });
   } catch (err) {
     logger.error('io-solar-quiz', `falha gravando ${e.tel}`, err);

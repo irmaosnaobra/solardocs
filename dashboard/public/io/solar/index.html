@@ -180,6 +180,27 @@ function utmPrimeiroToque(){
   }catch(e){ return {}; }
 }
 const UTM = utmPrimeiroToque();
+
+// ── fbc/fbp para a API de Conversões (09/10/2026) ─────────────────────────────
+// O servidor repete o Schedule para o Meta com telefone, nome, IP e estes dois
+// cookies, que o navegador sozinho nem sempre entrega (bloqueador, Safari). O fbc
+// nasce do ?fbclid= quando o pixel ainda não gravou o cookie _fbc, e fica na
+// sessão como as UTMs: o clique do anúncio é o primeiro toque, não o último.
+function metaCookies(){
+  const o = {};
+  try{
+    const ck = n => { const m = document.cookie.match(new RegExp('(?:^|; )' + n + '=([^;]*)')); return m ? decodeURIComponent(m[1]) : ''; };
+    const fbp = ck('_fbp'); if (fbp) o.fbp = fbp;
+    let fbc = ck('_fbc');
+    if (!fbc){ try{ fbc = sessionStorage.getItem('sq_fbc') || ''; }catch(e){} }
+    if (!fbc){
+      const id = (new URLSearchParams(location.search).get('fbclid') || '').trim();
+      if (id){ fbc = 'fb.1.' + Date.now() + '.' + id.slice(0, 300); try{ sessionStorage.setItem('sq_fbc', fbc); }catch(e){} }
+    }
+    if (fbc) o.fbc = fbc;
+  }catch(e){}
+  return o;
+}
 const SRC = (() => { try{ const s = (new URLSearchParams(location.search).get('src')||'').trim().toLowerCase(); return /^[a-z0-9_-]{1,20}$/.test(s) ? s : ''; }catch(e){ return ''; } })();
 
 // ── Funil por pergunta (lp_events), o mesmo formato do eletroposto ────────────
@@ -354,7 +375,7 @@ async function avancar(p){
 }
 
 function corpoBase(){
-  return Object.assign({ respostas: R, nome: nome.trim(), tel: telBanco(), src: SRC || undefined }, UTM);
+  return Object.assign({ respostas: R, nome: nome.trim(), tel: telBanco(), src: SRC || undefined }, UTM, metaCookies());
 }
 async function postar(caminho, corpoReq){
   const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 15000);
@@ -397,8 +418,12 @@ async function agendar(){
   const dia = srv.dias[diaSel], hora = dia && dia.horas.find(x => x.h === horaSel);
   if (!hora) return erro(p, mensagemDoErro(p));
   ocupado = true; render();
+  // Um id por tentativa de marcar, gerado ANTES do POST: o servidor manda o mesmo
+  // Schedule pela API de Conversões e o Meta junta os dois pelo event_id.
+  let evId = '';
+  try{ evId = 'agd_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }catch(e){}
   try{
-    const { status, j } = await postar('/io/solar/quiz/agendar', Object.assign(corpoBase(), { ymd: dia.ymd, h: hora.h, dono: hora.dono, endereco }));
+    const { status, j } = await postar('/io/solar/quiz/agendar', Object.assign(corpoBase(), { ymd: dia.ymd, h: hora.h, dono: hora.dono, endereco }, evId ? { event_id: evId } : {}));
     ocupado = false;
     if (status === 409 && j.error === 'horario tomado' && Array.isArray(j.dias)){
       srv.dias = j.dias; srv.caminho = j.caminho || srv.caminho; diaSel = j.dias.length ? 0 : null; horaSel = null;
@@ -409,7 +434,7 @@ async function agendar(){
     if (status === 409 && j.error === 'ja marcado'){ srv.jaMarcado = j.jaMarcado; return fimDoQuiz('ja_marcado'); }
     if (status >= 400 || !j.ok){ render(); return erro(vivos()[idx], 'Não consegui marcar agora. Tente de novo em instantes.'); }
     marcado = { ymd: dia.ymd, h: hora.h, dono: hora.dono, caminho: srv.caminho };
-    try { fbq('track', 'Schedule', { content_name: srv.caminho === 'vistoria' ? 'Vistoria Solar' : srv.caminho === 'video' ? 'Atendimento Solar' : 'Ligacao Solar' }); } catch(e){}
+    try { fbq('track', 'Schedule', { content_name: srv.caminho === 'vistoria' ? 'Vistoria Solar' : srv.caminho === 'video' ? 'Atendimento Solar' : 'Ligacao Solar' }, evId ? { eventID: evId } : undefined); } catch(e){}
     fimDoQuiz(srv.caminho);
   }catch(e){
     ocupado = false; render(); erro(vivos()[idx], 'Não consegui marcar agora. Tente de novo em instantes.');

@@ -826,6 +826,26 @@ function utm(){
   return u;
 }
 
+/* ── fbc/fbp para a API de Conversões (09/10/2026) ──
+   O servidor manda o LeadQuente ao Meta com telefone, nome, IP e estes dois
+   cookies. O fbc nasce do ?fbclid= se o pixel ainda não gravou o _fbc, e fica na
+   sessão como as UTMs (primeiro toque). */
+function metaCookies(){
+  var o = {};
+  try {
+    var ck = function(n){ var m = document.cookie.match(new RegExp('(?:^|; )' + n + '=([^;]*)')); return m ? decodeURIComponent(m[1]) : ''; };
+    var fbp = ck('_fbp'); if (fbp) o.fbp = fbp;
+    var fbc = ck('_fbc');
+    if (!fbc) { try { fbc = sessionStorage.getItem('ep_fbc') || ''; } catch(_){} }
+    if (!fbc) {
+      var id = (new URLSearchParams(location.search).get('fbclid') || '').trim();
+      if (id) { fbc = 'fb.1.' + Date.now() + '.' + id.slice(0, 300); try { sessionStorage.setItem('ep_fbc', fbc); } catch(_){} }
+    }
+    if (fbc) o.fbc = fbc;
+  } catch(_){}
+  return o;
+}
+
 /* ── placar: prova social que se atualiza sozinha ──
    Contagem indisponível (null) não vira 0 — o bloco simplesmente não aparece.
    O lado do PONTO só entra quando existe ponto: "0 pontos" é verdade, mas numa
@@ -887,6 +907,7 @@ fetch(API + '/io/eletroposto/parceria/placar').then(function(r){ return r.json()
 function registrar(lado, corpo){
   var body = {}; for (var k in corpo) body[k] = corpo[k];
   var u = utm(); for (var j in u) body[j] = u[j];
+  var mc = metaCookies(); for (var m in mc) body[m] = mc[m];
   body.lado = lado;
   var abortou = false;
   var ctrl = window.AbortController ? new AbortController() : null;

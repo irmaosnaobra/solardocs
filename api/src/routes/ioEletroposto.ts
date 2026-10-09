@@ -16,6 +16,7 @@ import { FILTRO_NAO_OCUPA } from '../services/agenda/salaDeEspera';
 import { ocupacoesSolar } from '../services/agenda/solarOcupacao';
 import { geocodificarLote, ItemGeo } from '../services/io/eletropostoGeo';
 import { geoLimiter } from '../middleware/rateLimiter';
+import { enviarQuizMeta, navegadorDe, eventIdDe, capitalMinimo, CAPITAL_QUENTE, idDoTelefone } from '../utils/capiQuiz';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Alerta de lead novo da LP do Eletroposto (/io/eletroposto) no WhatsApp da equipe.
@@ -593,6 +594,29 @@ router.post('/agendar', async (req: Request, res: Response): Promise<void> => {
     const { data, error } = await supabaseGerador
       .from('agendamentos').insert(ficha).select('id').single();
     if (error) throw error;
+    // API de Conversões, só com o banco já gravado. Dois eventos, em paralelo, cada
+    // um com o seu teto de ~1,5 s dentro de enviarQuizMeta:
+    //  - Schedule, gêmeo do que a página dispara no navegador. SÓ com o event_id que
+    //    a página mandou: sem ele o Meta não junta os dois e a campanha, que otimiza
+    //    em Schedule, contaria a reunião em dobro (página velha em cache);
+    //  - LeadQuente, que não tem gêmeo no navegador: NOTA 3 ou capital de R$ 100 mil
+    //    pra cima. O id fixo por telefone faz o Meta descartar o reenvio.
+    const pessoa = { telefone: tel, nome, cidade: ficha.cidade };
+    const navegador = navegadorDe(req, b);
+    const eventId = eventIdDe(b.event_id);
+    const nota = Number(String(ficha.observacao).match(/^NOTA ([123])\s*·/m)?.[1] ?? 0);
+    const capital = capitalMinimo(String(ficha.observacao).match(/^Quanto pretende investir:\s*(.+)$/m)?.[1]);
+    const quente = nota === 3 || (capital !== null && capital >= CAPITAL_QUENTE);
+    await Promise.all([
+      eventId ? enviarQuizMeta({
+        produto: 'eletroposto', nome: 'Schedule', origem: 'website', eventId, pessoa, navegador,
+        urlDaPagina: 'https://solardoc.app/io/eletroposto',
+      }, 'io-eletroposto-agendar') : null,
+      quente ? enviarQuizMeta({
+        produto: 'eletroposto', nome: 'LeadQuente', origem: 'website', eventId: `leadquente_ep_${idDoTelefone(tel)}`, pessoa, navegador,
+        urlDaPagina: 'https://solardoc.app/io/eletroposto', dados: { nota: nota || undefined, capital_minimo: capital ?? undefined },
+      }, 'io-eletroposto-agendar') : null,
+    ]);
     res.json({ ok: true, id: data?.id ?? null });
   } catch (err) {
     logger.error('io-eletroposto-agendar', `falha gravando ${tel}`, err);
@@ -1065,6 +1089,19 @@ router.post('/parceria', async (req: Request, res: Response): Promise<void> => {
       `*Cidade:* ${bruto.cidade || '—'}`,
     ].join('\n')).catch(() => {});
     return;
+  }
+
+  // LeadQuente: investidor com R$ 100 mil ou mais. Só depois do upsert, e ANTES da
+  // resposta: a Vercel corta o que roda depois dela. O teto de ~1,5 s mora em
+  // enviarQuizMeta. `teste: true` grava sem tocar ninguém, Meta incluído.
+  const capitalMin = capitalMinimo(reg.capital_faixa);
+  if (lado === 'capital' && b.teste !== true && capitalMin !== null && capitalMin >= CAPITAL_QUENTE) {
+    await enviarQuizMeta({
+      produto: 'eletroposto', nome: 'LeadQuente', origem: 'website', eventId: `leadquente_ep_capital_${idDoTelefone(telefone)}`,
+      pessoa: { telefone, nome, cidade: reg.cidade },
+      navegador: navegadorDe(req, b), urlDaPagina: 'https://solardoc.app/io/eletroposto/parceria',
+      dados: { lado, capital_faixa: String(reg.capital_faixa) },
+    }, 'io-eletroposto-parceria');
   }
 
   res.json({ ok: true });
