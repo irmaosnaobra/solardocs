@@ -57,6 +57,15 @@ describe('planilha com A1 quebrado', () => {
   it('sem cabeçalho reconhecível devolve o ticket padrão', () => {
     expect(lerPlanilha([['a', 'b']])).toEqual({ vendas: [], ticket: 20000 });
   });
+  // Uma venda de R$ 380 mil entre vendas de R$ 10 mil puxava sozinha o ticket e o
+  // peso do público com valor. Teto: 3× a mediana.
+  it('venda fora da curva vale no máximo 3× a mediana, e o ticket sai da conta já limitada', () => {
+    const cab = ['J49', 'NOME CLIENTE', 'CONTATO', 'CIDADE', 'UF', 'VALOR DA VENDA'];
+    const v = (n: number, valor: string) => [`#${n}`, `Cliente ${n}`, `3499999000${n}`, 'Uberlândia', 'MG', valor];
+    const { vendas, ticket } = lerPlanilha([cab, v(1, 'R$ 10.000,00'), v(2, 'R$ 10.000,00'), v(3, 'R$ 12.000,00'), v(4, 'R$ 380.000,00')]);
+    expect(vendas.map(x => x.valor)).toEqual([10000, 10000, 12000, 33000]); // mediana 11000 × 3
+    expect(ticket).toBe(16250);
+  });
 });
 
 const ag = (id: number, status: string, over: Record<string, unknown> = {}) => ({

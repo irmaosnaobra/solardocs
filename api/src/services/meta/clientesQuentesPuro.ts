@@ -142,12 +142,26 @@ export function lerPlanilha(linhas: string[][]): { vendas: VendaPlanilha[]; tick
       uf: cel(r, iUf), valor: valorBR(cel(r, iValor)),
     });
   }
+  // Teto de 3× a mediana em cada venda. Uma venda de R$ 380 mil entre vendas de
+  // R$ 7 a 30 mil puxava sozinha o ticket médio (e com ele o valor de todo
+  // ClienteQuente e Purchase do solar) e pesava como dezenas de clientes no
+  // público com valor, ensinando o Meta a caçar um perfil que é exceção.
+  const ordenados = vendas.map(v => v.valor).filter(v => v > 0).sort((a, b) => a - b);
+  if (ordenados.length) {
+    const meio = Math.floor(ordenados.length / 2);
+    const mediana = ordenados.length % 2 ? ordenados[meio] : (ordenados[meio - 1] + ordenados[meio]) / 2;
+    const teto = Math.round(mediana * TETO_VENDA_MEDIANAS);
+    for (const v of vendas) if (v.valor > teto) v.valor = teto;
+  }
   const comValor = vendas.filter(v => v.valor > 0);
   const ticket = comValor.length
     ? Math.round(comValor.reduce((a, v) => a + v.valor, 0) / comValor.length)
     : TICKET_SOLAR_PADRAO;
   return { vendas, ticket };
 }
+
+/** Quantas medianas uma venda pode valer, no máximo (ver lerPlanilha). */
+export const TETO_VENDA_MEDIANAS = 3;
 
 // ── A lista de quentes ───────────────────────────────────────────────────────
 

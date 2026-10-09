@@ -102,6 +102,11 @@ Cada um destes já custou caro pelo menos uma vez.
    limpam os dois arquivos: inverter a ordem deixa os crons mortos.
    Obs: a regra `segredo-em-documentacao` do `.gitleaks.toml` não pega o
    `MCP_TOKEN` (escrito "valor novo:", e a regra só casa "valor:"). Ampliar.
+   Achado em 09/10/2026: `api/src/controllers/pixelController.ts` tem 2 tokens
+   do Meta escritos no código (`PIXEL_CONFIGS`, desde 17/04/2026). Nenhum é o
+   `META_SYSTEM_USER_TOKEN` que o envio de eventos e o público de clientes
+   quentes usam. Ordem: gerar token novo, pôr em env na Vercel, trocar o código
+   para ler do env, e só então revogar os dois.
 2. Fechar os 17 testes vermelhos e tirar o `continue-on-error` de
    `.github/workflows/qualidade.yml`.
 3. Ligar branch protection no `main` exigindo `Qualidade` e `Segurança`. Só
