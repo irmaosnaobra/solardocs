@@ -466,24 +466,15 @@ describe('A. público com valor', () => {
     expect(chamadas.filter(c => c.metodo === 'GET' && c.url.includes('after=2')).length).toBeGreaterThan(0);
   });
 
-  it('se o usersreplace for recusado cai no aditivo e avisa qual caminho usou', async () => {
+  // Sem plano B aditivo (/users): ele deixaria no público quem esfriou. A recusa
+  // vira erro no relatório e o portão do dia fica livre para a próxima rodada.
+  it('usersreplace recusado: erro no relatório, nenhum /users, sem lançar', async () => {
     base();
     usersreplaceOk = false;
     const r = await run();
-    expect(r.publico.solar!.enviadoPor).toBe('users');
-    const aditivo = chamadas.find(c => /\/novo_s\/users\?/.test(c.url))!;
-    const tentativa = chamadas.find(c => c.url.includes('/novo_s/usersreplace'))!;
-    expect(aditivo.corpo.payload).toEqual(tentativa.corpo.payload);
-  });
-
-  it('os dois caminhos recusados: erro no relatório, sem lançar', async () => {
-    base();
-    usersreplaceOk = false;
-    (globalThis.fetch as any).mockImplementation((url: string, init?: any) =>
-      /\/users\?/.test(url) ? Promise.resolve(resp({ error: { message: 'negado' } }, 400)) : fetchFalso(url, init));
-    const r = await run();
-    expect(r.publico.solar!.erro).toContain('negado');
+    expect(r.publico.solar!.erro).toMatch(/^usersreplace: /);
     expect(r.publico.solar!.enviadoPor).toBeUndefined();
+    expect(chamadas.some(c => /\/users\?/.test(c.url))).toBe(false);
   });
 
   it('lista com menos de 20 pessoas não sobe', async () => {

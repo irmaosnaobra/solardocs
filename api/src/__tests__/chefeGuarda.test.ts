@@ -469,11 +469,14 @@ const CONSULTAS_ZAPI_PERMITIDAS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * LISTA DO PERMITIDO do Graph: o único edge em que se ESCREVE fora dos clientes
- * oficiais é o da API de Conversões (/events: metaPixel.ts e pixelController.ts),
- * que manda evento de anúncio à Meta, não mensagem a ninguém.
+ * LISTA DO PERMITIDO do Graph: os edges em que se ESCREVE fora dos clientes
+ * oficiais. Nenhum deles é mensagem a alguém:
+ *  - events: API de Conversões (metaPixel.ts, pixelController.ts, metaCapi.ts),
+ *    evento de anúncio à Meta;
+ *  - customaudiences e usersreplace: público de anúncio da conta (criar o público
+ *    e trocar a lista com hash), em services/meta/clientesQuentes.ts (09/10/2026).
  */
-const GRAPH_ESCRITA_PERMITIDA: ReadonlySet<string> = new Set(['events']);
+const GRAPH_ESCRITA_PERMITIDA: ReadonlySet<string> = new Set(['events', 'customaudiences', 'usersreplace']);
 /** Os edges de mensagem do Graph (DM, resposta, comentário, resposta privada). */
 const EDGES_MENSAGEM_GRAPH: ReadonlySet<string> = new Set(['messages', 'private_replies', 'replies', 'comments']);
 

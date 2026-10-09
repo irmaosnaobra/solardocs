@@ -71,7 +71,7 @@ const flag = (nome: string): boolean => (process.env[nome] || '').trim() === '1'
 /** Dia de Brasília (UTC-3) em AAAA-MM-DD. O relógio do servidor está em UTC. */
 export const diaBRT = (agora = Date.now()): string => new Date(agora - 3 * 3600 * 1000).toISOString().slice(0, 10);
 
-export interface RelatorioPublico { pessoas: number; enviadoPor?: 'usersreplace' | 'users'; audienceId?: string; erro?: string }
+export interface RelatorioPublico { pessoas: number; enviadoPor?: 'usersreplace'; audienceId?: string; erro?: string }
 export interface RelatorioQuentes {
   eventos: {
     enviados: number; baseline: number; pendentes: number;
@@ -260,22 +260,21 @@ export async function acharOuCriarPublico(produto: ProdutoMeta): Promise<{ id?: 
   return { id: String(c.json.id) };
 }
 
-/** Sobe a lista. Troca o conteúdo (usersreplace); se o Meta recusar, cai no aditivo (users). */
+/**
+ * Sobe a lista trocando o conteúdo inteiro (usersreplace). Aceito pelo Meta nos
+ * dois públicos com valor em 09/10/2026 (195 e 407 pessoas). Sem plano B aditivo
+ * (/users): ele deixaria no público quem esfriou, e uma recusa aqui só volta na
+ * próxima rodada, porque o portão do dia não é marcado.
+ */
 export async function subirLista(audienceId: string, lista: Quente[]): Promise<RelatorioPublico> {
   const tk = encodeURIComponent(token());
   const sessionId = Math.floor(Math.random() * (2 ** 52)) + 1;
-  const lotes = lotesPublico(lista, sessionId);
   const base: RelatorioPublico = { pessoas: lista.length, audienceId };
-  let ultimoErro = '';
-  for (const via of ['usersreplace', 'users'] as const) {
-    let falhou = false;
-    for (const lote of lotes) {
-      const r = await graph('POST', `${GRAPH}/${audienceId}/${via}?access_token=${tk}`, lote);
-      if (!r.ok) { falhou = true; ultimoErro = `${via}: ${r.erro}`; break; }
-    }
-    if (!falhou) return { ...base, enviadoPor: via };
+  for (const lote of lotesPublico(lista, sessionId)) {
+    const r = await graph('POST', `${GRAPH}/${audienceId}/usersreplace?access_token=${tk}`, lote);
+    if (!r.ok) return { ...base, erro: `usersreplace: ${r.erro}` };
   }
-  return { ...base, erro: ultimoErro };
+  return { ...base, enviadoPor: 'usersreplace' };
 }
 
 async function sincronizarProduto(produto: ProdutoMeta, lista: ListaQuentes): Promise<RelatorioPublico> {
