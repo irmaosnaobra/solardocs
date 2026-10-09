@@ -5193,6 +5193,10 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <select class="cad-filtro" id="cad-vend" onchange="cadRender()">
             <option value="">Todos os vendedores</option>
           </select>
+          <!-- Mapa (08/10/2026): os pinos de quem pode ceder o local, com o mesmo
+               balão da linha. Só na aba Arrendamento; o código mora em
+               /gerador/mapa-arrendamento.js. -->
+          <button type="button" class="ehist-btn" id="cad-btn-mapa" onclick="mapaArrAbrir()">Ver no mapa</button>
           <button type="button" class="ehist-btn" onclick="cadCarregar(true)">↻ Atualizar</button>
         </div>
       </div>
@@ -6352,6 +6356,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 <!-- QR do WhatsApp no rodapé do orçamento de 1 página (qrcode-generator, MIT).
      Vendorizado porque o documento é impresso offline pelo PWA — CDN não serve. -->
 <script src="/gerador/qrcode.js"></script>
+<!-- Mapa do Arrendamento (08/10/2026): o botão "Ver no mapa" da aba. O Leaflet só baixa no clique. -->
+<script src="/gerador/mapa-arrendamento.js" defer></script>
 <script>
 // Sinaliza pro watchdog de auto-recuperação (no <head>) que o HTML e os JS
 // externos (solar-data.js/tabelas.js) carregaram íntegros e o código principal
@@ -9559,6 +9565,7 @@ const CAD_AG_STATUS = {
   cancelado: 'CANCELADO', reagendar: 'REAGENDAR',
 };
 let cadAgendas = new Map();   // 8 últimos dígitos -> a reunião mais recente da pessoa
+let cadObsPorTel = new Map(); // 8 últimos dígitos -> observações das reuniões (mapa do Arrendamento)
 const cadTel8 = t => String(t || '').replace(/\D/g, '').slice(-8);
 function cadAgendaDe(r) {
   const k = cadTel8(r.telefone);
@@ -9648,6 +9655,8 @@ function cadAba(lado) {
     if (lado === 'match') filtro.value = '';
     filtro.style.display = lado === 'match' ? 'none' : '';
   }
+  const btnMapa = document.getElementById('cad-btn-mapa');
+  if (btnMapa) btnMapa.style.display = lado === 'ponto' ? '' : 'none';
   cadRender();
 }
 
@@ -9731,6 +9740,13 @@ async function cadCarregar(forcar) {
       const k = cadTel8(a.cliente_telefone);
       if (k && !cadAgendas.has(k)) cadAgendas.set(k, a);
     });
+    // A observação de cada pessoa (a mais nova primeiro), pro mapa ler o endereço
+    // e o que ela disse do local mesmo quando a linha da aba veio do cadastro.
+    cadObsPorTel = new Map();
+    (agendaArr || []).forEach(a => {
+      const k = cadTel8(a.cliente_telefone);
+      if (k && a.observacao) (cadObsPorTel.get(k) || cadObsPorTel.set(k, []).get(k)).push(a.observacao);
+    });
     cadPares = pares && pares.pares ? pares.pares : null;
     cadMatches = pares && pares.matches ? pares.matches : null;
     cadSemDono = pares && Array.isArray(pares.sem_dono) ? pares.sem_dono : [];
@@ -9788,6 +9804,10 @@ async function cadCarregar(forcar) {
       ponto_fluxo: a.status === 'arrendamento'
         ? 'Marcado ARRENDAMENTO na agenda'
         : 'Dono do local na ficha da LP',
+      // O endereço mora na linha "Endereço:" da observação. Até 08/10 ele não vinha
+      // pra cá, e a coluna Endereço mostrava travessão pra quem veio da agenda (212
+      // de 229 na aba). A busca, o termo e o mapa leem este campo.
+      ponto_endereco: ((String(a.observacao || '').match(/Endere[çc]o:\s*([^\n]+)/i) || [])[1] || '').trim() || null,
       status: 'novo',
     }));
     const todas = [].concat(
@@ -10471,20 +10491,26 @@ function cadRelacaoDaFicha(r) {
 /** Selo de DONO DO LOCAL embaixo do nome. So duas respostas sao CERTAS e so elas
  *  ganham cor forte. "Negociando" e "em vista" nao sao inquilino: rotular assim
  *  seria mentir, entao ficam num selo discreto. Sem resposta, a linha diz isso. */
-function cadRelacaoBadge(r) {
-  const txt = r.ponto_relacao || cadRelacaoDaFicha(r) || '';
-  const t = String(txt).toLowerCase();
-  let k = null, rot = '';
+/** A posse em uma chave: 'pro' | 'inq' | 'rep' | 'nao' | null (não perguntado).
+ *  O selo e o mapa do Arrendamento leem daqui, pra nunca discordarem. */
+function cadPosseDe(r) {
+  const t = String(r.ponto_relacao || cadRelacaoDaFicha(r) || '').toLowerCase();
   // A ORDEM IMPORTA, e dois textos contem "proprietario" sem ser dono:
   //   "Estou NEGOCIANDO com o proprietario" -> nao pode assinar ainda
   //   "REPRESENTO o proprietario"           -> pode assinar, com procuracao
   // Quem pode ceder o local, pelo contrato (Cl. 16.1): proprietario, inquilino
   // (com anuencia escrita do dono) e administrador ou representante (com poderes
   // documentados). Quem "ainda nao e dono" nao assina: e indicacao.
-  if (/ainda n[aã]o [eé] meu|negoci|em vista|n[aã]o conversei/.test(t)) { k = 'nao'; rot = 'não é dono ainda'; }
-  else if (/represent|administr/.test(t)) { k = 'rep'; rot = 'REPRESENTANTE'; }
-  else if (/inquilin/.test(t)) { k = 'inq'; rot = 'INQUILINO'; }
-  else if (/propriet[aá]rio|sou o dono|[eé] meu/.test(t)) { k = 'pro'; rot = 'PRÓPRIO'; }
+  if (/ainda n[aã]o [eé] meu|negoci|em vista|n[aã]o conversei/.test(t)) return 'nao';
+  if (/represent|administr/.test(t)) return 'rep';
+  if (/inquilin/.test(t)) return 'inq';
+  if (/propriet[aá]rio|sou o dono|[eé] meu/.test(t)) return 'pro';
+  return null;
+}
+function cadRelacaoBadge(r) {
+  const txt = r.ponto_relacao || cadRelacaoDaFicha(r) || '';
+  const k = cadPosseDe(r);
+  const rot = { nao: 'não é dono ainda', rep: 'REPRESENTANTE', inq: 'INQUILINO', pro: 'PRÓPRIO' }[k];
   if (!k) return '<span class="cad-rel-nd">dono? não perguntado</span>';
   return '<span class="cad-rel ' + k + '" title="' + escapeHtml(txt) + '">' + rot + '</span>';
 }
