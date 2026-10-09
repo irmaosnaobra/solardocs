@@ -4203,7 +4203,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="orc-pg-cond" id="orc-pg-fin" style="display:none">
           <div class="orc-fin-aviso" style="margin-top:14px;margin-bottom:12px">
             <span class="ic">★</span>
-            <p><b>Financiamento bancário em até 96x, com 120 dias de carência.</b> Financia <b>100% da compra</b> — o projeto inteiro, não só o equipamento. Sempre sujeito à análise de crédito.</p>
+            <p><b>Financiamento bancário em até 96x, com 120 dias de carência.</b> Financia <b>100% da compra</b>: o projeto inteiro, não só o equipamento. Sempre sujeito à análise de crédito.</p>
           </div>
           <div class="eletro-field"><label>Entrada</label>
             <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="orc-fin-valor" inputmode="decimal" step="0.01" min="0" value="0" oninput="orcCalc()"></div></div>
@@ -4607,6 +4607,8 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp has-pre"><span class="pre">R$</span><input type="text" id="ctr-arr-premio" inputmode="decimal" placeholder="sem reserva" oninput="ctrResumo()"></div></div>
         <div class="eletro-field"><label>Dia de pagar o cedente (mês seguinte)</label>
           <div class="eletro-inp"><input type="number" id="ctr-arr-dia" inputmode="numeric" min="1" max="28" value="10"></div></div>
+        <div class="eletro-field" data-ctr-tipos="arrend" style="grid-column:1/-1"><label>Contrato de sociedade deste local, se for 50/50 (nº e data)</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-arr-soc-ref" placeholder="Ex.: nº CS-TM-001/2026, de 09/10/2026 · em branco não sai" oninput="ctrResumo()"></div></div>
         <div class="eletro-field" data-ctr-ta="promessa" style="grid-column:span 2"><label>Conta do cedente para receber</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="ctr-arr-dados" placeholder="Pix ou banco, agência e conta do dono do local"></div></div>
         <div class="eletro-field"><label>Vigência</label>
@@ -5063,8 +5065,6 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="anu-rep" oninput="epTocar(this)" placeholder="Quem assina pela empresa"></div></div>
         <div class="eletro-field"><label>CPF do representante</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="anu-rep-doc" oninput="epTocar(this)" placeholder="Opcional"></div></div>
-        <div class="eletro-field" style="grid-column:1/-1"><label>Cônjuge do anuente, se casado (opcional)</label>
-          <div class="eletro-inp eletro-inp-wide"><input type="text" id="anu-conjuge" oninput="epTocar(this)" placeholder="Em branco, a linha do cônjuge não sai"></div></div>
         <div class="ctr-sec">O contrato a que ele anui</div>
         <div class="eletro-field"><label>Quem cede o local ou contrata a obra</label>
           <div class="eletro-inp eletro-inp-wide"><input type="text" id="anu-cedente" oninput="epTocar(this)" placeholder="Vem do contrato"></div></div>
@@ -5085,10 +5085,15 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
         <div class="eletro-field"><label>Data da vistoria</label>
           <div class="eletro-inp eletro-inp-wide"><input type="date" id="vis-data"></div></div>
         <div class="eletro-field" style="grid-column:1/-1"><label>Quem fez a vistoria</label>
-          <div class="eletro-inp eletro-inp-wide"><select id="vis-resp">
+          <div class="eletro-inp eletro-inp-wide"><select id="vis-resp" onchange="this.dataset.tocado='1';visRespUi()">
             <option value="tec">O técnico da NEXUS (cartão Engenheiro e técnico, abaixo)</option>
             <option value="eng">O engenheiro da NEXUS (cartão Engenheiro e técnico, abaixo)</option>
+            <option value="outro">Outro profissional (escrever abaixo)</option>
           </select></div></div>
+        <div class="eletro-field"><label>Nome de quem assina esta vistoria</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="vis-resp-nome" oninput="epTocar(this)" placeholder="Em branco: o do cartão abaixo"></div></div>
+        <div class="eletro-field"><label>Registro profissional (CRT ou CREA)</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="vis-resp-reg" oninput="epTocar(this)" placeholder="Em branco: o do cartão abaixo"></div></div>
         <div class="ctr-sec">Padrão de entrada e energia</div>
         <div class="eletro-field"><label>Ligação</label>
           <div class="eletro-inp eletro-inp-wide"><select id="vis-ligacao">
@@ -5198,7 +5203,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
       <div class="card" data-loc-doc="procuracao vistoria">
         <div class="calc-card-title"><span class="dot"></span>Engenheiro e técnico da NEXUS</div>
-        <div class="orc-note" style="margin-bottom:12px">Na procuração, são os procuradores: quem assina a ART/TRT e protocola no balcão. Na vistoria, é quem assina o relatório. Vem preenchido com o engenheiro e o técnico da empresa, os mesmos da procuração solar. Fica salvo neste navegador, junto com o resto dos dados da empresa.</div>
+        <div class="orc-note" style="margin-bottom:12px">Na procuração, são os procuradores: quem assina a ART/TRT e protocola no balcão. Na vistoria, é quem assina o relatório. Vem preenchido com o engenheiro e o técnico da empresa, os mesmos da procuração solar, e pode ser trocado ou apagado: o que ficar em branco não sai no papel. Fica salvo neste navegador, junto com o resto dos dados da empresa.</div>
         <div class="eletro-field"><label>Engenheiro: nome</label>
           <input type="text" id="orc-emit-engNome" placeholder="nome completo" oninput="orcEmitSalvar()"></div>
         <div class="eletro-field"><label>Engenheiro: profissão</label>
@@ -16555,7 +16560,11 @@ function orcEmitCampos() {
 // aparelho; vazio salvo e' escolha do dono e sai como lacuna (a linha some do papel).
 // Engenheiro e tecnico ficam fora: o orcEmitSalvar grava '' neles quando a aba da
 // procuracao ainda nao carregou, e apagar o default ali seria acidente, nao escolha.
-const EP_EMIT_APAGAVEIS = ['nome', 'razao', 'fantasia', 'cnpj', 'ie', 'end', 'cidade', 'tel', 'email'];
+// Engenheiro e técnico também (09/10/2026, pedido do dono): apagado fica apagado,
+// e outro nome digitado fica, em vez de o padrão da casa voltar sozinho.
+const EP_EMIT_APAGAVEIS = ['nome', 'razao', 'fantasia', 'cnpj', 'ie', 'end', 'cidade', 'tel', 'email',
+  'engNome', 'engNac', 'engEc', 'engProf', 'engRg', 'engCpf', 'engCrea', 'engEnd',
+  'tecNome', 'tecNac', 'tecEc', 'tecCrt', 'tecRg', 'tecCpf', 'tecEnd'];
 function epEmitValor(o, k, def) {
   if (EP_EMIT_APAGAVEIS.includes(k) && typeof o[k] === 'string') return o[k];
   return (o[k] != null && o[k] !== '') ? o[k] : (def[k] || '');
@@ -17925,7 +17934,7 @@ function epWhatsTextoOrcamento(total) {
     const f = pg.fin;
     formas.push(f.parcela > 0
       ? `• ${f.valor > 0 ? `Entrada de ${elMoney(f.valor)} + ` : ''}${f.parcelas}x de ${elMoney2(f.parcela)} no financiamento, com 120 dias de carência (mediante análise de crédito)`
-      : `• Financiamento em até ${f.parcelas}x com 120 dias de carência — 100% da compra (mediante análise de crédito)`);
+      : `• Financiamento em até ${f.parcelas}x com 120 dias de carência, 100% da compra (mediante análise de crédito)`);
   }
   // Nada marcado (ou WhatsApp disparado antes de abrir o card): manda o à vista.
   if (!formas.length) formas.push(`• À vista: ${elMoney(total)}`);
@@ -18307,9 +18316,12 @@ function epBasicoImprimir() {
 //  2) o gatilho tem dono. "Após a aprovação" não diz quem aprova — o campo abre
 //     escrito "pela concessionária de energia" e é editável, mas não fica vago.
 // ═══════════════════════════════════════════════════════════════════════════
+// 09/10/2026, decisão do dono: negado o crédito pelo banco ou a conexão pela
+// distribuidora, o cliente recebe tudo o que foi feito e o sinal paga isso.
 const REC_DESIST_PADRAO =
-  'Não havendo prosseguimento por desistência do contratante, o valor recebido fica retido ' +
-  'para cobrir o projeto elétrico já executado, que lhe é entregue.';
+  'Não havendo prosseguimento por desistência do contratante, ou por negativa do crédito pelo banco ' +
+  'ou da conexão pela concessionária, o valor recebido fica como pagamento do projeto elétrico, que é ' +
+  'entregue ao contratante com a ART e os documentos produzidos.';
 
 // ── Valor por extenso: recibo sem extenso é recibo pela metade ──
 const REC_EX_U = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez',
@@ -19458,6 +19470,12 @@ function ctrTipoMudou(sel) {
   // a referência do contrato, e o contrato ganha número próprio (C08, S50-16,
   // ARR-05).
   const ehTermo = t => !!(CTR_TIPOS[t] && CTR_TIPOS[t].termo);
+  // 50/50 (09/10/2026): o arrendamento do local para a ligação nova cita o
+  // contrato de sociedade que já saiu em papel.
+  if (antes === 'socio50' && para === 'arrend') {
+    const nS = document.getElementById('ctr-num'), sr = document.getElementById('ctr-arr-soc-ref');
+    if (sr && !sr.value && ctrNumUsado(nS)) sr.value = `nº ${nS.value}${orcVal('ctr-data') ? ', de ' + ctrDataBR(orcVal('ctr-data')) : ''}`;
+  }
   if (ehTermo(antes) !== ehTermo(para)) {
     const num = document.getElementById('ctr-num'), ref = document.getElementById('ctr-origem-ref');
     if (ehTermo(antes) && ref && ctrNumUsado(num)) ref.value = `nº ${num.value}${orcVal('ctr-data') ? ', de ' + ctrDataBR(orcVal('ctr-data')) : ''}`;
@@ -20099,7 +20117,7 @@ const CTR_CAMPOS_MODELOS = ['ctr-soc-qtd', 'ctr-soc-dia', 'ctr-soc-captacao', 'c
   'ctr-ta-premio-quando', 'ctr-ta-multa',
   'ctr-ti-uso', 'ctr-ti-modelo', 'ctr-ti-contrato-num', 'ctr-ti-contrato-data', 'ctr-ti-ponto', 'ctr-ti-raio',
   'ctr-ti-validade', 'ctr-ti-assinar', 'ctr-ti-desist', 'ctr-ti-devolucao', 'ctr-ti-deposito', 'ctr-ti-deposito-forma',
-  'ctr-ti-deposito-quando', 'ctr-ti-arras', 'ctr-ti-pep', 'ctr-ti-faixa', 'ctr-ti-origem', 'ctr-ti-consent', 'ctr-eq-atraso', 'ctr-origem-ref', 'ctr-prazo-equip', 'ctr-soc-dados', 'ctr-int-rep', 'ctr-int-rep-doc', 'ctr-ti-ja',
+  'ctr-ti-deposito-quando', 'ctr-ti-arras', 'ctr-ti-pep', 'ctr-ti-faixa', 'ctr-ti-origem', 'ctr-ti-consent', 'ctr-eq-atraso', 'ctr-origem-ref', 'ctr-prazo-equip', 'ctr-soc-dados', 'ctr-int-rep', 'ctr-int-rep-doc', 'ctr-ti-ja', 'ctr-arr-soc-ref',
   'ctr-arr-multa-saida', 'ctr-arr-multa-min', 'ctr-arr-retirada', 'ctr-arr-base', 'ctr-arr-mora-multa', 'ctr-arr-mora-juros', 'ctr-arr-corrigir'];
 // Campo que ainda não existe na tela conta como marcado: vale a origem.
 function ctrEspLigado(id) { const el = document.getElementById(id); return !el || el.dataset.tocado !== '1'; }
@@ -20725,7 +20743,7 @@ function ctrDados() {
     sinalDestino: orcVal('ctr-sinal-destino'),
     // O sinal da sociedade é o depósito do termo de reserva (espelho ligado).
     sinalDoTermo: ctrEhSoc(tipo) && ctrEspLigado('ctr-sinal') && ctrSinalOrigem() > 0,
-    origemRef: orcVal('ctr-origem-ref'), socDados: orcVal('ctr-soc-dados'),
+    origemRef: orcVal('ctr-origem-ref'), socDados: orcVal('ctr-soc-dados'), socRef: tipo === 'arrend' ? orcVal('ctr-arr-soc-ref') : '',
     vistoria: tipo === 'completo' && typeof visRefContrato === 'function' ? visRefContrato() : null,
     sinalDoRecibo: ctrSinalDoRecibo(),
     pagLinhas, pagSoma: pagLinhas.reduce((s, l) => s + l.conta.valor, 0),
@@ -20973,7 +20991,7 @@ function ctrModeloObra(d) {
   const ressalvaFin = `A aprovação e a liberação do crédito devem ocorrer em até ${d.prazoCredito} dias da assinatura. ` +
     'Não aprovado o financiamento nesse prazo, as partes ajustarão nova forma de pagamento em até 10 dias; não havendo acordo, o contrato fica resolvido, ' +
     (d.sinal > 0
-      ? (d.sinalDoRecibo ? 'ressalvada a retenção do sinal na forma do recibo de sinal firmado' : 'ressalvada a retenção do sinal referido na {{i:preco.sinal}}')
+      ? (d.sinalDoRecibo ? 'ficando o sinal, na forma do recibo de sinal firmado, como pagamento do projeto elétrico e dos documentos entregues ao CONTRATANTE, sem outra multa para nenhuma das partes' : 'ficando o sinal referido na {{i:preco.sinal}} como pagamento do projeto elétrico e dos documentos entregues ao CONTRATANTE, sem outra multa para nenhuma das partes')
       : 'devendo o CONTRATANTE apenas os custos já incorridos e comprovados pela CONTRATADA') +
     '. O prazo da {{i:prazo.obra}} não corre antes da liberação do crédito: vale o marco nele previsto ou a liberação, o que ocorrer por último.';
   const marcoObra = {
@@ -21016,7 +21034,7 @@ function ctrModeloObra(d) {
       I('prazo.equipamento', `Os equipamentos chegam ao local da instalação em até <b>${d.prazoEquip} dias</b> contados da compensação do primeiro pagamento previsto na {{c:preco}}${d.temFin ? ' ou, havendo financiamento, da liberação do crédito' : ''}.`),
       I('prazo.obra', `A obra será entregue em até <b>${d.prazoObra} ${d.unid}</b> ${marcoObra}.`),
       I('prazo.suspensao', 'Suspendem os prazos, pelo tempo que durarem: exigências ou atrasos da concessionária, falta de energia no local, embargos, indisponibilidade de acesso à obra e atrasos de pagamento.'),
-      I('opc.distribuidora', op('distribuidora') ? 'Reforço de rede, obra de conexão ou participação financeira exigidos pela concessionária correm por conta do CONTRATANTE. Negada a conexão pela concessionária, qualquer das partes poderá rescindir este contrato sem multa, pagos os custos já incorridos e comprovados pela CONTRATADA.' : ''),
+      I('opc.distribuidora', op('distribuidora') ? `Reforço de rede, obra de conexão ou participação financeira exigidos pela concessionária correm por conta do CONTRATANTE. Negada a conexão pela concessionária, qualquer das partes poderá rescindir este contrato sem multa, entregando a CONTRATADA ao CONTRATANTE o projeto elétrico e os documentos produzidos${d.sinal > 0 ? ', e ficando o sinal como pagamento deles' : ', pagos os custos já incorridos e comprovados pela CONTRATADA'}.` : ''),
       I('vistoria.relatorio', d.vistoria ? `A vistoria técnica do local está registrada no Relatório de Vistoria Técnica${d.vistoria.num ? ' nº ' + e(d.vistoria.num) : ''}${d.vistoria.data ? ', de ' + d.vistoria.data : ''}, assinado pelas partes, que integra este contrato${d.vistoria.temAdeq ? { incluidas: ', e as adequações nele apontadas estão incluídas no preço', parte: ', e as adequações nele apontadas não estão no preço e são orçadas em aditivo', orcar: ', e as adequações nele apontadas são orçadas e aprovadas pelo CONTRATANTE antes da execução' }[d.vistoria.preco] : ''}.` : ''),
       I('opc.vistoria', op('vistoria') ? 'Condição do local não identificável na vistoria técnica (aterramento, distância até o quadro de energia, capacidade do padrão de entrada ou da rede interna) será orçada em aditivo, ficando os prazos suspensos até a aprovação deste pelo CONTRATANTE.' : ''),
     ]),
@@ -21279,7 +21297,12 @@ function ctrModeloSociedade(d) {
       I('local.proprietario', socio50 && !ivDonoS && !op('anuencia') ? (ivS ? 'O SÓCIO PARTICIPANTE declara ser proprietário do imóvel.' : 'O SÓCIO PARTICIPANTE declara ser proprietário do imóvel, com a posse direta.') : ''),
       I('local.protecao', socio50 ? 'O SÓCIO PARTICIPANTE não obstrui, não desliga e não bloqueia o PONTO; comunica à SÓCIA OSTENSIVA, em 5 (cinco) dias, penhora, execução ou desapropriação que alcance o imóvel; e, vendendo-o ou dando-o em garantia, faz constar do instrumento a existência da cessão da {{i:local.cessao}}. Recusada pelo adquirente a continuidade da cessão, aplica-se a {{i:rescisao.descumprimento}}, sendo culpado o SÓCIO PARTICIPANTE.' : ''),
       I('local.bens', 'Os equipamentos são bens móveis, removíveis, e não se incorporam ao imóvel. Saindo o PONTO do local, a SÓCIA OSTENSIVA os retira em até 30 (trinta) dias e recompõe a área.'),
-      I('local.energia', 'A ligação do PONTO à rede, a demanda contratada e o consumo de energia correm por conta da SOCIEDADE, como custo da operação. Obra de conexão exigida pela concessionária segue a {{i:capital.adicional}}.'),
+      I('local.energia', socio50
+        ? 'O PONTO é atendido por ligação nova, em unidade consumidora própria em nome da SÓCIA OSTENSIVA, com ramal, padrão de entrada e medição separados; a demanda contratada e o consumo de energia correm por conta da SOCIEDADE, como custo da operação. Obra de conexão exigida pela concessionária segue a {{i:capital.adicional}}.'
+        : 'A ligação do PONTO à rede, a demanda contratada e o consumo de energia correm por conta da SOCIEDADE, como custo da operação. Obra de conexão exigida pela concessionária segue a {{i:capital.adicional}}.'),
+      // 09/10/2026, decisão do dono: o pedido de ligação nova vai com um
+      // arrendamento do local, e os dois contratos dizem que a remuneração é uma só.
+      I('local.arrendamento', socio50 ? 'Para o pedido de ligação nova, o SÓCIO PARTICIPANTE firma com a SÓCIA OSTENSIVA contrato de cessão onerosa da área da {{i:local.cessao}}, nas mesmas condições desta cláusula, inclusive quanto à remuneração, que não se soma à daqui; havendo divergência entre os dois, prevalece este contrato. O SÓCIO PARTICIPANTE assina os documentos que dependam da titularidade do imóvel e outorga procuração específica para o trâmite, sem que nada disso lhe transfira custo.' : ''),
     ]),
     C('implantacao', 'Da implantação', [
       I('implantacao.prazo', `A SÓCIA OSTENSIVA elaborará o projeto, recolherá a ART, protocolará o pedido de acesso junto à concessionária e entregará o PONTO em operação em até <b>${P.implant} dias</b> contados ${s.captacao ? 'da integralização do capital completo' : 'da integralização do aporte do SÓCIO PARTICIPANTE'}.`),
@@ -21384,6 +21407,7 @@ function ctrModeloArrend(d) {
           orcVal('ctr-ta-iptu') && `inscrição do IPTU nº ${e(orcVal('ctr-ta-iptu'))}`,
           ctrCampo('ctr-ta-uc') && `unidade consumidora nº ${e(ctrCampo('ctr-ta-uc'))}${ctrCampo('ctr-ta-distribuidora') ? ` da ${e(ctrCampo('ctr-ta-distribuidora'))}` : ''}`,
         ].filter(Boolean); return di.length ? `Dados do IMÓVEL: ${di.join('; ')}.` : ''; })()),
+      I('objeto.sociedade', d.socRef ? `Este contrato formaliza, para o pedido de ligação nova junto à distribuidora, a cessão da área prevista no Contrato de Sociedade em Conta de Participação ${e(d.socRef)}, firmado entre as partes. A remuneração do CEDENTE é a prevista naquele contrato, paga como custo da operação da sociedade, e não se soma a ela; havendo divergência entre os dois, prevalece o contrato de sociedade, e este contrato vigora enquanto ela durar.` : ''),
       I('objeto.termo', d.tipo === 'arrend' && d.origemRef ? `Este contrato é celebrado em cumprimento ao Termo de Compromisso e Promessa de Cessão de Área ${e(d.origemRef)}, cujas cláusulas do valor da reserva e de sigilo sobrevivem a ele.` : ''),
       I('objeto.area', `A área cedida (a "ÁREA") compreende <b>${a.vagas} vaga(s)</b> de estacionamento destinada(s) exclusivamente à recarga${a.area ? `, num total de <b>${e(a.area)} m²</b>` : ''}, a base e a proteção do equipamento, o trajeto do cabeamento até o ponto de entrega de energia, o espaço do quadro elétrico e do medidor, a área de manobra e a posição da sinalização, conforme croqui assinado pelas partes, que integra este contrato.`),
       I('objeto.finalidade', 'A ÁREA não pode ser usada para outra finalidade, nem sublocada ou cedida a terceiro, salvo na hipótese da {{i:sucessao.cessao}}.'),
@@ -22471,6 +22495,8 @@ async function ctrImprimir() {
     const faltam = [!(d.soc.invest > 0) && 'investimento total', !(d.total > 0) && 'aporte do sócio'].filter(Boolean);
     if (faltam.length && !confirm(`Sem ${faltam.join(' e ')}: o contrato sai com a linha em branco no lugar, para preencher à mão.\n\nGerar assim mesmo?`)) return;
   }
+  if (d.tipo === 'arrend' && d.socRef && Math.abs(ctrPctLe(ctrCampo('ctr-arr-pct')) - ctrPctLe(ctrCampo('ctr-soc-arrend'))) > 0.001 &&
+      !confirm(`O percentual deste arrendamento (${ctrPctTxt(ctrPctLe(ctrCampo('ctr-arr-pct')))}%) é diferente do contrato de sociedade (${ctrPctTxt(ctrPctLe(ctrCampo('ctr-soc-arrend')))}%). Os dois contratos dizem que a remuneração é uma só.\n\nGerar assim mesmo?`)) return;
   if (d.tipo === 'arrend' && d.opc && d.opc.arr_registro && !orcVal('ctr-ta-matricula') &&
       !confirm('O registro na matrícula está marcado, mas o contrato não cita a matrícula do imóvel (cartão "O imóvel e a energia").\n\nGerar assim mesmo?')) return;
   if (d.arr && !(d.arr.pct > 0) && !confirm('Sem o percentual do faturamento: a remuneração do cedente sai em branco, para preencher à mão.\n\nGerar assim mesmo?')) return;
@@ -22637,7 +22663,7 @@ function procDados() {
     uc: orcVal('proc-uc'),
     local: orcVal('proc-local') || procLocalPonto(),
     solar: orcVal('proc-solar') === '1',
-    terceiro: procPontoDeTerceiro(), energia: orcVal('ctr-arr-energia') || 'uc',
+    terceiro: procPontoDeTerceiro(), energia: ctrSocModo() === 'socio50' ? 'uc' : (orcVal('ctr-arr-energia') || 'uc'),
     validade: orcVal('proc-validade') || 'atividades',
     empresa: emp,
   };
@@ -22898,7 +22924,6 @@ function anuDados() {
     // Mesma conta do contrato (ARR-04): locação que não cobre o prazo da cessão.
     locacaoCurta: caso === 'dono_cessao' && arr && !!dc.arr && ctrTALocacaoCabe(dc) !== true,
     nome: orcVal('anu-nome'), doc: orcVal('anu-doc'), end: orcVal('anu-end'), rep: orcVal('anu-rep'), repDoc: orcVal('anu-rep-doc'),
-    conjuge: orcVal('anu-conjuge'),
     cedente: orcVal('anu-cedente') || ctrCampo('ctr-contratante') || eletroTextos().cliente,
     cedenteDoc: orcVal('anu-cedente-doc'),
     ref: orcVal('anu-ref'),
@@ -22968,7 +22993,6 @@ function anuHTML(d) {
       <div class="ep-ctr-fim">
         <div class="ep-ctr-assin" style="justify-content:center">
           <div class="a" style="flex:0 1 46%"><b>${vazio(d.nome)}</b>${d.doc ? `<span>CPF/CNPJ ${e(d.doc)}</span>` : ''}${d.rep ? e(d.rep) + '<br>' : ''}ANUENTE</div>
-          ${d.conjuge ? `<div class="a" style="flex:0 1 46%"><b>${e(d.conjuge)}</b>CÔNJUGE DO ANUENTE, EM CONCORDÂNCIA</div>` : ''}
         </div>
       </div>
       ${pageFoot}
@@ -23004,6 +23028,19 @@ const VIS_ITENS = [
   ['rede', 'Rede interna (condutores e proteção)'], ['local', 'Local do carregador'], ['classif', 'Distância de bombas, tanques e respiros'],
 ];
 const VIS_SIT = { ok: 'Conforme', adequar: 'Precisa adequar', na: 'Não se aplica', '': 'Não verificado' };
+function visRespPadrao(emp) {
+  emp = emp || epEmitGet();
+  const q = orcVal('vis-resp');
+  if (q === 'eng') return { nome: emp.engNome, reg: emp.engCrea || '', papel: 'Engenheiro responsável' };
+  if (q === 'outro') return { nome: '', reg: '', papel: 'Responsável técnico' };
+  return { nome: emp.tecNome, reg: emp.tecCrt || '', papel: 'Técnico responsável' };
+}
+function visRespUi() {
+  const pre = visRespPadrao();
+  const n = document.getElementById('vis-resp-nome'), r = document.getElementById('vis-resp-reg');
+  if (n) n.placeholder = pre.nome ? 'Em branco: ' + pre.nome : 'Nome completo';
+  if (r) r.placeholder = pre.reg ? 'Em branco: ' + pre.reg : 'Ex.: CRT 00000000000 ou CREA-MG 000000';
+}
 function visInit() {
   const dt = document.getElementById('vis-data');
   if (dt && !dt.value) dt.value = orcHojeISO();
@@ -23012,12 +23049,13 @@ function visInit() {
   const r = document.getElementById('vis-resp');
   const emp = epEmitGet();
   if (r && r.dataset.tocado !== '1' && !emp.tecNome && emp.engNome) r.value = 'eng';
+  visRespUi();
 }
 function visDados() {
   const emp = epEmitGet();
-  const resp = orcVal('vis-resp') === 'eng'
-    ? { nome: emp.engNome, reg: emp.engCrea || '', papel: 'Engenheiro responsável' }
-    : { nome: emp.tecNome, reg: emp.tecCrt || '', papel: 'Técnico responsável' };
+  const pre = visRespPadrao(emp);
+  // O que foi escrito para esta vistoria vale mais que o cartão da empresa.
+  const resp = { nome: orcVal('vis-resp-nome') || pre.nome, reg: orcVal('vis-resp-reg') || pre.reg, papel: pre.papel };
   const dISO = orcVal('vis-data') || orcHojeISO();
   const sit = {}; VIS_ITENS.forEach(([k]) => { sit[k] = { s: orcVal('vis-' + k), obs: orcVal('vis-' + k + '-obs') }; });
   return {
