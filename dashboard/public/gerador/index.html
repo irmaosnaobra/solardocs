@@ -3873,7 +3873,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
     <div class="eletro-subnav2" id="eletro-subnav2-fechamento">
       <button type="button" id="eletro-tab-recibo" class="eletro-subtab2" onclick="eletroSubaba('recibo')">Recibo</button>
       <button type="button" id="eletro-tab-contrato" class="eletro-subtab2" onclick="eletroSubaba('contrato')">Contratos e termos</button>
-      <button type="button" id="eletro-tab-procuracao" class="eletro-subtab2" onclick="eletroSubaba('procuracao')">Procuração</button>
+      <button type="button" id="eletro-tab-procuracao" class="eletro-subtab2" onclick="eletroSubaba('procuracao')">Documentos do local</button>
       <button type="button" id="eletro-tab-finame" class="eletro-subtab2" onclick="eletroSubaba('finame')">Proposta de banco</button>
     </div>
     <div class="eletro-subnav2" id="eletro-subnav2-mercado">
@@ -4978,11 +4978,26 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
     <!-- ===== PANE: PROCURAÇÃO (representação junto à concessionária) ===== -->
     <div id="eletro-pane-procuracao" style="display:none;">
-    <div class="pesquisa-info">Sem ela a concessionária não fala com você: quem pede aumento de carga, acesso ou troca de padrão tem que ser o <b>titular</b> da unidade consumidora. A procuração passa esse direito pra sua empresa até a estação ligar.</div>
+    <div class="pesquisa-info" data-loc-doc="procuracao">Sem ela a concessionária não fala com você: quem pede aumento de carga, acesso ou troca de padrão tem que ser o <b>titular</b> da unidade consumidora. A procuração passa esse direito pra sua empresa até a estação ligar.</div>
     <div class="orc-wrap">
       <div class="ep-vend-host"></div>
 
+      <!-- DOCUMENTOS DO LOCAL (09/10/2026): procuração, anuência e vistoria são
+           papéis de uma folha sobre o MESMO lugar. Dividem os campos da unidade
+           consumidora, do endereço, da cidade e da data, e entram no histórico
+           pelo snapshot "proc", que lê todos os campos desta aba. -->
       <div class="card">
+        <div class="calc-card-title"><span class="dot"></span>Qual documento</div>
+        <div class="eletro-field" style="grid-column:1/-1"><label>Documento</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="loc-doc" onchange="locDocMudou()">
+            <option value="procuracao">Procuração: o titular da conta de luz autoriza a NEXUS na distribuidora</option>
+            <option value="anuencia">Anuência: o dono ou o inquilino do imóvel concorda com a cessão ou com a obra</option>
+            <option value="vistoria">Relatório de vistoria técnica: o que o técnico viu e mediu no local</option>
+          </select></div></div>
+        <div class="orc-note" id="loc-doc-nota" style="grid-column:1/-1"></div>
+      </div>
+
+      <div class="card" data-loc-doc="procuracao">
         <div class="calc-card-title"><span class="dot"></span>Outorgante (o cliente)</div>
         <div class="orc-cli-banner" id="proc-partes-banner">—</div>
         <div class="orc-note" style="margin-top:10px;margin-bottom:12px">Nome, CPF/CNPJ e endereço vêm do <b>Orçamento</b>. Preencha abaixo só se quem assina a procuração for diferente de quem negociou — e atenção: o endereço tem que ser <b>igual ao da conta de energia</b>, senão a concessionária devolve.</div>
@@ -5000,54 +5015,206 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
 
       <div class="card">
         <div class="calc-card-title"><span class="dot"></span>Unidade consumidora</div>
-        <div class="orc-note" style="margin-bottom:12px">Os dois campos saem da <b>conta de energia</b> do cliente. Procuração sem o número da instalação volta do balcão — é por ele que a concessionária acha o cadastro.</div>
+        <div class="orc-note" data-loc-doc="procuracao" style="margin-bottom:12px">Os dois campos saem da <b>conta de energia</b> do cliente. Procuração sem o número da instalação volta do balcão, porque é por ele que a concessionária acha o cadastro.</div>
         <div class="eletro-field"><label>Concessionária</label>
           <input type="text" id="proc-concessionaria" placeholder="CEMIG, Neoenergia, Enel..."></div>
         <div class="eletro-field"><label>Unidade consumidora / nº da instalação</label>
           <input type="text" id="proc-uc" placeholder="o número que aparece na conta"></div>
         <div class="eletro-field"><label>Endereço do ponto de recarga</label>
-          <input type="text" id="proc-local" placeholder="onde a estação vai ser instalada"></div>
-        <div class="eletro-field"><label>O projeto inclui geração solar?</label>
+          <input type="text" id="proc-local" oninput="epTocar(this);delete this.dataset.auto" placeholder="onde a estação vai ser instalada"></div>
+        <div class="eletro-field" data-loc-doc="procuracao"><label>O projeto inclui geração solar?</label>
           <div class="eletro-inp eletro-inp-wide"><select id="proc-solar">
             <option value="">Não — só a estação de recarga</option>
             <option value="1">Sim — tem usina ou carport junto</option>
           </select></div></div>
-        <div class="orc-note">Só o "sim" acrescenta <b>formulário de rateio</b> e a homologação do sistema fotovoltaico aos poderes. Num ponto de recarga puro, rateio descreve um projeto que não existe — rateio distribui crédito de geração entre unidades consumidoras.</div>
+        <div class="orc-note" data-loc-doc="procuracao">Só o "sim" acrescenta <b>formulário de rateio</b> e a homologação do sistema fotovoltaico aos poderes. Num ponto de recarga puro, rateio descreve um projeto que não existe — rateio distribui crédito de geração entre unidades consumidoras.</div>
       </div>
 
 
-      <div class="card">
-        <div class="calc-card-title"><span class="dot"></span>Procuradores</div>
-        <div class="orc-note" style="margin-bottom:12px">Quem assina a ART/TRT e protocola no balcão. Vem preenchido com o engenheiro e o técnico da empresa — os mesmos da procuração solar. Fica salvo neste navegador, junto com o resto dos dados da empresa.</div>
-        <div class="eletro-field"><label>Engenheiro — nome</label>
+      <!-- ANUÊNCIA (09/10/2026): quem não é parte do contrato, mas precisa concordar. -->
+      <div class="card" data-loc-doc="anuencia">
+        <div class="calc-card-title"><span class="dot"></span>Anuência: quem concorda</div>
+        <div class="eletro-field" style="grid-column:1/-1"><label>Caso</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="anu-caso" onchange="this.dataset.tocado='1';anuInit()">
+            <option value="dono_cessao">Quem cede o local é inquilino: o proprietário concorda com a cessão</option>
+            <option value="inquilino_cessao">O imóvel está alugado: o inquilino concorda com a cessão feita pelo dono</option>
+            <option value="dono_obra">Chave na mão em imóvel alugado: o proprietário autoriza a obra</option>
+          </select></div></div>
+        <div class="eletro-field"><label>Anuente (nome ou razão social)</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="anu-nome" oninput="epTocar(this)" placeholder="Quem concorda: o dono ou o inquilino"></div></div>
+        <div class="eletro-field"><label>CPF/CNPJ do anuente</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="anu-doc" oninput="epTocar(this)" placeholder="000.000.000-00"></div></div>
+        <div class="eletro-field" style="grid-column:1/-1"><label>Endereço do anuente</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="anu-end" oninput="epTocar(this)" placeholder="Rua, nº, bairro, cidade/UF"></div></div>
+        <div class="eletro-field"><label>Representante, se for empresa</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="anu-rep" oninput="epTocar(this)" placeholder="Quem assina pela empresa"></div></div>
+        <div class="eletro-field"><label>CPF do representante</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="anu-rep-doc" oninput="epTocar(this)" placeholder="Opcional"></div></div>
+        <div class="eletro-field" style="grid-column:1/-1"><label>Cônjuge do anuente, se casado (opcional)</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="anu-conjuge" oninput="epTocar(this)" placeholder="Em branco, a linha do cônjuge não sai"></div></div>
+        <div class="ctr-sec">O contrato a que ele anui</div>
+        <div class="eletro-field"><label>Quem cede o local ou contrata a obra</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="anu-cedente" oninput="epTocar(this)" placeholder="Vem do contrato"></div></div>
+        <div class="eletro-field"><label>CPF/CNPJ de quem cede ou contrata</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="anu-cedente-doc" oninput="epTocar(this)" placeholder="Vem do contrato"></div></div>
+        <div class="eletro-field" style="grid-column:1/-1"><label>Contrato ou termo (nº e data)</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="anu-ref" oninput="epTocar(this)" placeholder="Ex.: nº C-100, de 09/10/2026"></div></div>
+        <div class="orc-note" id="anu-imovel" style="grid-column:1/-1"></div>
+      </div>
+
+      <!-- VISTORIA TÉCNICA (09/10/2026): os itens são os que a cláusula do chave na
+           mão cita (aterramento, distância até o quadro, padrão de entrada e rede
+           interna), mais ligação, disjuntor, demanda e a conclusão do técnico. -->
+      <div class="card" data-loc-doc="vistoria">
+        <div class="calc-card-title"><span class="dot"></span>Vistoria técnica</div>
+        <div class="eletro-field"><label>Nº do relatório</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="vis-num" placeholder="Ex.: V-001"></div></div>
+        <div class="eletro-field"><label>Data da vistoria</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="date" id="vis-data"></div></div>
+        <div class="eletro-field" style="grid-column:1/-1"><label>Quem fez a vistoria</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="vis-resp">
+            <option value="tec">O técnico da NEXUS (cartão Engenheiro e técnico, abaixo)</option>
+            <option value="eng">O engenheiro da NEXUS (cartão Engenheiro e técnico, abaixo)</option>
+          </select></div></div>
+        <div class="ctr-sec">Padrão de entrada e energia</div>
+        <div class="eletro-field"><label>Ligação</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="vis-ligacao">
+            <option value="">Não verificada</option>
+            <option value="mono">Monofásica</option>
+            <option value="bi">Bifásica</option>
+            <option value="tri">Trifásica</option>
+          </select></div></div>
+        <div class="eletro-field"><label>Tensão</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="vis-tensao" placeholder="Ex.: 220/380 V"></div></div>
+        <div class="eletro-field"><label>Disjuntor geral</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="vis-disjuntor" placeholder="Ex.: 100 A"></div></div>
+        <div class="eletro-field"><label>Carga ou demanda disponível</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="vis-demanda" placeholder="Ex.: 75 kW de carga instalada"></div></div>
+        <div class="eletro-field"><label>Padrão de entrada</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="vis-padrao">
+            <option value="">Não verificado</option>
+            <option value="ok">Conforme</option>
+            <option value="adequar">Precisa adequar</option>
+          </select></div></div>
+        <div class="eletro-field"><label>Padrão de entrada: o que foi visto</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="vis-padrao-obs" placeholder="Opcional"></div></div>
+        <div class="eletro-field" style="grid-column:1/-1"><label>Precisa de aumento de carga ou obra da distribuidora?</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="vis-aumento">
+            <option value="">A confirmar com a distribuidora</option>
+            <option value="nao">Não: a carga disponível atende</option>
+            <option value="sim">Sim: precisa de aumento de carga ou obra da distribuidora</option>
+          </select></div></div>
+        <div class="ctr-sec">Do quadro até o carregador</div>
+        <div class="eletro-field"><label>Quadro de distribuição</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="vis-quadro">
+            <option value="">Não verificado</option>
+            <option value="ok">Conforme</option>
+            <option value="adequar">Precisa adequar</option>
+          </select></div></div>
+        <div class="eletro-field"><label>Quadro de distribuição: o que foi visto</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="vis-quadro-obs" placeholder="Opcional"></div></div>
+        <div class="eletro-field"><label>Distância do quadro até o carregador (m)</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="vis-distancia" placeholder="Ex.: 35"></div></div>
+        <div class="eletro-field"><label>Trajeto do cabo</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="vis-trajeto" placeholder="Ex.: eletroduto aparente e 12 m de vala"></div></div>
+        <div class="eletro-field"><label>Aterramento</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="vis-aterr">
+            <option value="">Não verificado</option>
+            <option value="ok">Conforme</option>
+            <option value="adequar">Precisa adequar</option>
+          </select></div></div>
+        <div class="eletro-field"><label>Aterramento: o que foi visto</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="vis-aterr-obs" placeholder="Opcional"></div></div>
+        <div class="eletro-field"><label>Resistência de aterramento medida (ohms)</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="vis-aterr-med" placeholder="Em branco: não medida"></div></div>
+        <div class="eletro-field"><label>Rede interna (condutores e proteção)</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="vis-rede">
+            <option value="">Não verificado</option>
+            <option value="ok">Conforme</option>
+            <option value="adequar">Precisa adequar</option>
+          </select></div></div>
+        <div class="eletro-field"><label>Rede interna (condutores e proteção): o que foi visto</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="vis-rede-obs" placeholder="Opcional"></div></div>
+        <div class="ctr-sec">O ponto</div>
+        <div class="eletro-field"><label>Local do carregador (piso, base, cobertura e proteção contra batida)</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="vis-local">
+            <option value="">Não verificado</option>
+            <option value="ok">Conforme</option>
+            <option value="adequar">Precisa adequar</option>
+          </select></div></div>
+        <div class="eletro-field"><label>Local do carregador (piso, base, cobertura e proteção contra batida): o que foi visto</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="vis-local-obs" placeholder="Opcional"></div></div>
+        <div class="eletro-field"><label>Internet no ponto</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="vis-internet">
+            <option value="">Não verificada</option>
+            <option value="4g">Sinal de celular bom</option>
+            <option value="4g_fraco">Sinal de celular fraco</option>
+            <option value="wifi">Rede do local alcança o ponto</option>
+            <option value="sem">Sem sinal: precisa de cabo ou antena</option>
+          </select></div></div>
+        <div class="eletro-field"><label>Distância de bombas, tanques e respiros (posto de combustível)</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="vis-classif">
+            <option value="na">Não se aplica</option>
+            <option value="">Não verificado</option>
+            <option value="ok">Conforme</option>
+            <option value="adequar">Precisa adequar</option>
+          </select></div></div>
+        <div class="eletro-field"><label>Distância de bombas, tanques e respiros (posto de combustível): o que foi visto</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="vis-classif-obs" placeholder="Opcional"></div></div>
+        <div class="eletro-field" style="grid-column:1/-1"><label>Obras civis necessárias</label>
+          <div class="eletro-inp eletro-inp-wide"><input type="text" id="vis-civil" placeholder="Ex.: base de concreto, corte de piso, vala de 12 m"></div></div>
+        <div class="ctr-sec">Conclusão</div>
+        <div class="eletro-field" style="grid-column:1/-1"><label>Conclusão do técnico</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="vis-conclusao">
+            <option value="">Escolha</option>
+            <option value="apto">Apto: o local recebe a estação como está</option>
+            <option value="adequar">Apto com adequações: as listadas abaixo</option>
+            <option value="inapto">Inapto: o local não recebe a estação</option>
+          </select></div></div>
+        <div class="eletro-field" style="grid-column:1/-1"><label>Adequações necessárias (uma por linha)</label>
+          <div class="eletro-inp eletro-inp-wide"><textarea id="vis-adeq" class="ctr-ta" rows="3" placeholder="Ex.: trocar o disjuntor geral para 125 A"></textarea></div></div>
+        <div class="eletro-field" style="grid-column:1/-1"><label>As adequações estão</label>
+          <div class="eletro-inp eletro-inp-wide"><select id="vis-adeq-preco">
+            <option value="orcar">Ainda a orçar</option>
+            <option value="incluidas">Incluídas no preço do contrato</option>
+            <option value="parte">Fora do preço: orçadas à parte, em aditivo</option>
+          </select></div></div>
+        <div class="eletro-field" style="grid-column:1/-1"><label>Observações (opcional)</label>
+          <div class="eletro-inp eletro-inp-wide"><textarea id="vis-obs" class="ctr-ta" rows="2" placeholder="Em branco, não sai no relatório"></textarea></div></div>
+      </div>
+
+      <div class="card" data-loc-doc="procuracao vistoria">
+        <div class="calc-card-title"><span class="dot"></span>Engenheiro e técnico da NEXUS</div>
+        <div class="orc-note" style="margin-bottom:12px">Na procuração, são os procuradores: quem assina a ART/TRT e protocola no balcão. Na vistoria, é quem assina o relatório. Vem preenchido com o engenheiro e o técnico da empresa, os mesmos da procuração solar. Fica salvo neste navegador, junto com o resto dos dados da empresa.</div>
+        <div class="eletro-field"><label>Engenheiro: nome</label>
           <input type="text" id="orc-emit-engNome" placeholder="nome completo" oninput="orcEmitSalvar()"></div>
-        <div class="eletro-field"><label>Engenheiro — profissão</label>
+        <div class="eletro-field"><label>Engenheiro: profissão</label>
           <input type="text" id="orc-emit-engProf" placeholder="Engenheiro Eletricista" oninput="orcEmitSalvar()"></div>
-        <div class="eletro-field"><label>Engenheiro — CREA</label>
+        <div class="eletro-field"><label>Engenheiro: CREA</label>
           <input type="text" id="orc-emit-engCrea" placeholder="CREA-XX 00000" oninput="orcEmitSalvar()"></div>
-        <div class="eletro-field"><label>Engenheiro — nacionalidade</label>
+        <div class="eletro-field"><label>Engenheiro: nacionalidade</label>
           <input type="text" id="orc-emit-engNac" placeholder="brasileiro" oninput="orcEmitSalvar()"></div>
-        <div class="eletro-field"><label>Engenheiro — estado civil</label>
+        <div class="eletro-field"><label>Engenheiro: estado civil</label>
           <input type="text" id="orc-emit-engEc" placeholder="solteiro" oninput="orcEmitSalvar()"></div>
-        <div class="eletro-field"><label>Engenheiro — CPF</label>
+        <div class="eletro-field"><label>Engenheiro: CPF</label>
           <input type="text" id="orc-emit-engCpf" placeholder="000.000.000-00" oninput="orcEmitSalvar()"></div>
-        <div class="eletro-field"><label>Engenheiro — RG</label>
+        <div class="eletro-field"><label>Engenheiro: RG</label>
           <input type="text" id="orc-emit-engRg" placeholder="em branco sai como lacuna no papel" oninput="orcEmitSalvar()"></div>
-        <div class="eletro-field"><label>Engenheiro — endereço</label>
+        <div class="eletro-field"><label>Engenheiro: endereço</label>
           <input type="text" id="orc-emit-engEnd" placeholder="rua, nº, bairro, cidade/UF" oninput="orcEmitSalvar()"></div>
-        <div class="eletro-field"><label>Técnico — nome</label>
+        <div class="eletro-field"><label>Técnico: nome</label>
           <input type="text" id="orc-emit-tecNome" placeholder="nome completo" oninput="orcEmitSalvar()"></div>
-        <div class="eletro-field"><label>Técnico — CRT/CFT</label>
+        <div class="eletro-field"><label>Técnico: CRT/CFT</label>
           <input type="text" id="orc-emit-tecCrt" placeholder="em branco sai como lacuna no papel" oninput="orcEmitSalvar()"></div>
-        <div class="eletro-field"><label>Técnico — nacionalidade</label>
+        <div class="eletro-field"><label>Técnico: nacionalidade</label>
           <input type="text" id="orc-emit-tecNac" placeholder="brasileiro" oninput="orcEmitSalvar()"></div>
-        <div class="eletro-field"><label>Técnico — estado civil</label>
+        <div class="eletro-field"><label>Técnico: estado civil</label>
           <input type="text" id="orc-emit-tecEc" placeholder="casado" oninput="orcEmitSalvar()"></div>
-        <div class="eletro-field"><label>Técnico — CPF</label>
+        <div class="eletro-field"><label>Técnico: CPF</label>
           <input type="text" id="orc-emit-tecCpf" placeholder="000.000.000-00" oninput="orcEmitSalvar()"></div>
-        <div class="eletro-field"><label>Técnico — RG</label>
+        <div class="eletro-field"><label>Técnico: RG</label>
           <input type="text" id="orc-emit-tecRg" placeholder="opcional" oninput="orcEmitSalvar()"></div>
-        <div class="eletro-field"><label>Técnico — endereço</label>
+        <div class="eletro-field"><label>Técnico: endereço</label>
           <input type="text" id="orc-emit-tecEnd" placeholder="rua, nº, bairro, cidade/UF" oninput="orcEmitSalvar()"></div>
       </div>
 
@@ -5057,7 +5224,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
           <input type="text" id="proc-cidade" placeholder="usa a cidade do Simulador"></div>
         <div class="eletro-field"><label>Data</label>
           <input type="date" id="proc-data"></div>
-        <div class="eletro-field"><label>Validade</label>
+        <div class="eletro-field" data-loc-doc="procuracao"><label>Validade</label>
           <select id="proc-validade">
             <option value="atividades">Até concluir a ligação da estação (recomendado)</option>
             <option value="1ano">1 (um) ano da assinatura</option>
@@ -5065,7 +5232,7 @@ html[data-mode="login"] body{background:#1E3A8A;min-height:100vh}
       </div>
 
       <div class="eletro-acoes">
-        <button type="button" class="eletro-btn primary" onclick="procImprimir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="13" y2="17"></line></svg> Gerar procuração PDF</button>
+        <button type="button" class="eletro-btn primary" onclick="locImprimir()"><svg class="eletro-btn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="13" y2="17"></line></svg> <span id="loc-btn-txt">Gerar procuração PDF</span></button>
       </div>
     </div>
     </div><!-- /eletro-pane-procuracao -->
@@ -20410,6 +20577,7 @@ function ctrDados() {
     // O sinal da sociedade é o depósito do termo de reserva (espelho ligado).
     sinalDoTermo: ctrEhSoc(tipo) && ctrEspLigado('ctr-sinal') && ctrSinalOrigem() > 0,
     origemRef: orcVal('ctr-origem-ref'), socDados: orcVal('ctr-soc-dados'),
+    vistoria: tipo === 'completo' && typeof visRefContrato === 'function' ? visRefContrato() : null,
     sinalDoRecibo: ctrSinalDoRecibo(),
     pagLinhas, pagSoma: pagLinhas.reduce((s, l) => s + l.conta.valor, 0),
     pagObs: orcVal('ctr-pag-obs'), pagDados: ctrCampo('ctr-pag-dados'),
@@ -20699,6 +20867,7 @@ function ctrModeloObra(d) {
       I('prazo.obra', `A obra será entregue em até <b>${d.prazoObra} ${d.unid}</b> ${marcoObra}.`),
       I('prazo.suspensao', 'Suspendem os prazos, pelo tempo que durarem: exigências ou atrasos da concessionária, falta de energia no local, embargos, indisponibilidade de acesso à obra e atrasos de pagamento.'),
       I('opc.distribuidora', op('distribuidora') ? 'Reforço de rede, obra de conexão ou participação financeira exigidos pela concessionária correm por conta do CONTRATANTE. Negada a conexão pela concessionária, qualquer das partes poderá rescindir este contrato sem multa, pagos os custos já incorridos e comprovados pela CONTRATADA.' : ''),
+      I('vistoria.relatorio', d.vistoria ? `A vistoria técnica do local está registrada no Relatório de Vistoria Técnica${d.vistoria.num ? ' nº ' + e(d.vistoria.num) : ''}${d.vistoria.data ? ', de ' + d.vistoria.data : ''}, assinado pelas partes, que integra este contrato${d.vistoria.temAdeq ? { incluidas: ', e as adequações nele apontadas estão incluídas no preço', parte: ', e as adequações nele apontadas não estão no preço e são orçadas em aditivo', orcar: ', e as adequações nele apontadas são orçadas e aprovadas pelo CONTRATANTE antes da execução' }[d.vistoria.preco] : ''}.` : ''),
       I('opc.vistoria', op('vistoria') ? 'Condição do local não identificável na vistoria técnica (aterramento, distância até o quadro de energia, capacidade do padrão de entrada ou da rede interna) será orçada em aditivo, ficando os prazos suspensos até a aprovação deste pelo CONTRATANTE.' : ''),
     ]),
     C('contratada', 'Das obrigações da CONTRATADA', [
@@ -22233,7 +22402,9 @@ function procInit() {
   const c = document.getElementById('proc-cidade');
   if (c && !c.value) c.value = eletroTextos().cidade || '';
   const l = document.getElementById('proc-local');
-  if (l && !l.value) l.value = procLocalPonto();
+  // Sugestão que acompanha o contrato: aberta antes de escolher o arrendamento,
+  // a aba guardava o endereço do cliente no lugar do ponto. Digitado, fica.
+  if (l && l.dataset.tocado !== '1' && (!l.value || l.dataset.auto === '1')) { const v = procLocalPonto(); if (v) { l.value = v; l.dataset.auto = '1'; } }
   // Os campos dos procuradores moram no armazenamento do emitente; pinta com o
   // que estiver salvo, ou com o default da empresa.
   const emp = epEmitGet();
@@ -22243,6 +22414,7 @@ function procInit() {
     if (el && !el.value) el.value = emp[k] || '';
   });
   procBanner();
+  locDocMudou();
 }
 
 // A unidade consumidora fica no PONTO. No chave na mão é o endereço do cliente;
@@ -22429,6 +22601,321 @@ function procImprimir() {
     opts: { umaPagina: true, piso: 0.86, alvo: '.ep-page' },
     hist: (d.outorgante || d.cliente) ? { id: epId(), tipo: 'Procuração', cliente: d.outorgante || d.cliente, valor: 0, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
   });
+}
+
+// ════════════════════════════════════════════════════════════
+// DOCUMENTOS DO LOCAL (09/10/2026): procuração, anuência e vistoria
+// ════════════════════════════════════════════════════════════
+const LOC_DOCS = {
+  procuracao: { botao: 'Gerar procuração PDF', nota: 'O titular da conta de luz autoriza a NEXUS a pedir a ligação, o aumento de carga e a homologação na distribuidora.' },
+  anuencia: { botao: 'Gerar anuência PDF', nota: 'Para quando quem cede o local ou contrata a obra não pode decidir sozinho sobre o imóvel: o proprietário (ou o inquilino, se o imóvel está alugado) concorda por escrito. Se ele assinar o próprio contrato como interveniente anuente, este papel não é preciso.' },
+  vistoria: { botao: 'Gerar relatório de vistoria PDF', nota: 'O que o técnico viu e mediu no local. No chave na mão é a referência do contrato: o que não dava para ver na vistoria vai para aditivo. Preenchida a conclusão, o contrato passa a citar este relatório.' },
+};
+function locDoc() { const v = orcVal('loc-doc'); return LOC_DOCS[v] ? v : 'procuracao'; }
+function locDocMudou() {
+  const doc = locDoc();
+  document.querySelectorAll('#eletro-pane-procuracao [data-loc-doc]').forEach(el => {
+    el.style.display = el.dataset.locDoc.split(' ').includes(doc) ? '' : 'none';
+  });
+  const n = document.getElementById('loc-doc-nota'); if (n) n.textContent = LOC_DOCS[doc].nota;
+  const b = document.getElementById('loc-btn-txt'); if (b) b.textContent = LOC_DOCS[doc].botao;
+  if (doc === 'anuencia') anuInit();
+  if (doc === 'vistoria') visInit();
+}
+function locImprimir() {
+  const doc = locDoc();
+  if (doc === 'anuencia') return anuImprimir();
+  if (doc === 'vistoria') return visImprimir();
+  return procImprimir();
+}
+// Qualificação de uma parte num papel de uma folha: PJ é "inscrita no CNPJ,
+// com sede em"; PF é "inscrito(a) no CPF, residente em".
+function locQualifica(nome, doc, end, rep, repDoc) {
+  const e = orcEsc, vazio = v => v ? e(v) : '<span class="ep-rec-vazio"></span>';
+  const pj = String(doc || '').replace(/\D/g, '').length === 14;
+  return `<b>${vazio(nome)}</b>, ${pj ? `inscrita no CNPJ sob o nº ${vazio(doc)}${end ? ', com sede em ' + e(end) : ''}${rep ? `, neste ato representada por <b>${e(rep)}</b>${repDoc ? ', CPF nº ' + e(repDoc) : ''}` : ''}`
+    : `inscrito(a) no CPF sob o nº ${vazio(doc)}${end ? ', residente em ' + e(end) : ''}`}`;
+}
+// O imóvel como o contrato o descreve (cartão "O imóvel e a energia").
+function locImovel() {
+  return {
+    local: orcVal('proc-local') || procLocalPonto() || ctrCampo('ctr-local'),
+    matricula: orcVal('ctr-ta-matricula'), cartorio: orcVal('ctr-ta-cartorio'), iptu: orcVal('ctr-ta-iptu'),
+    uc: orcVal('proc-uc') || ctrCampo('ctr-ta-uc'), distribuidora: orcVal('proc-concessionaria') || ctrCampo('ctr-ta-distribuidora'),
+  };
+}
+function locImovelTxt(im) {
+  const e = orcEsc;
+  return [im.matricula && `matrícula nº ${e(im.matricula)}${im.cartorio ? ` do ${e(im.cartorio)}` : ''}`,
+    im.iptu && `inscrição do IPTU nº ${e(im.iptu)}`,
+    im.uc && `unidade consumidora nº ${e(im.uc)}${im.distribuidora ? ` da ${e(im.distribuidora)}` : ''}`].filter(Boolean).join('; ');
+}
+
+// ── ANUÊNCIA ─────────────────────────────────────────────────────────────────
+// Escrita a partir do que o CONTRATO já diz dela (relação do cedente com o
+// imóvel, locação curta, irrevogabilidade, venda do imóvel): os dois papéis não
+// podem dizer coisas diferentes.
+//   dono_cessao       quem cede é inquilino; o proprietário anui à cessão.
+//   inquilino_cessao  quem cede é dono de imóvel alugado; o inquilino anui.
+//   dono_obra         chave na mão em imóvel alugado; o dono autoriza a obra.
+const ANU_CASOS = {
+  dono_cessao: { qual: 'proprietário(a)', sub: 'Do proprietário à cessão de área para estação de recarga', parte: 'CEDENTE' },
+  inquilino_cessao: { qual: 'locatário(a)', sub: 'Do locatário à cessão de área para estação de recarga', parte: 'CEDENTE' },
+  dono_obra: { qual: 'proprietário(a)', sub: 'Do proprietário à instalação de estação de recarga', parte: 'CONTRATANTE' },
+};
+function anuCaso() { const v = orcVal('anu-caso'); return ANU_CASOS[v] ? v : 'dono_cessao'; }
+function anuCasoSugerido() {
+  const t = ctrTipo();
+  if (t === 'arrend' || t === 'termo_arr') return (ctrCampo('ctr-arr-relacao') || 'proprietario') === 'locado' ? 'inquilino_cessao' : 'dono_cessao';
+  if (ctrEhSoc(t) || t === 'termo_inv') return 'dono_cessao';
+  return 'dono_obra';
+}
+function anuRefSugerida() {
+  const num = orcVal('ctr-num'), dt = orcVal('ctr-data');
+  return (num ? 'nº ' + num : '') + (dt ? (num ? ', de ' : 'de ') + ctrDataBR(dt) : '');
+}
+function anuInit() {
+  const c = document.getElementById('anu-caso');
+  if (c && c.dataset.tocado !== '1') c.value = anuCasoSugerido();
+  // O interveniente do contrato, se for quem este caso pede, já tem os dados.
+  const iv = ctrInterv();
+  const quer = anuCaso() === 'inquilino_cessao' ? 'locatario' : 'proprietario';
+  const ivServe = !!iv.nome && iv.papel === quer;
+  epSugerir([
+    ['anu-cedente', ctrCampo('ctr-contratante') || eletroTextos().cliente],
+    ['anu-cedente-doc', ctrCampo('ctr-contratante-doc') || orcVal('orc-cli-doc')],
+    ['anu-ref', anuRefSugerida()],
+    ['anu-nome', ivServe ? iv.nome : ''], ['anu-doc', ivServe ? iv.doc : ''], ['anu-end', ivServe ? iv.end : ''],
+    ['anu-rep', ivServe ? iv.rep : ''], ['anu-rep-doc', ivServe ? iv.repDoc : ''],
+  ]);
+  const nota = document.getElementById('anu-imovel');
+  if (nota) {
+    const t = locImovelTxt(locImovel());
+    nota.innerHTML = t ? `<b>Imóvel no papel:</b> ${t}. Matrícula e IPTU vêm do cartão "O imóvel e a energia", em Contratos e termos.`
+      : 'Sem matrícula, IPTU e unidade consumidora: preencha o cartão "O imóvel e a energia", em Contratos e termos, e a unidade consumidora acima.';
+  }
+}
+function anuDados() {
+  const dc = ctrDados();
+  const caso = anuCaso();
+  const arr = dc.tipo === 'arrend' || dc.tipo === 'termo_arr';
+  let curto = '';
+  try { curto = ctrCabecalho(dc).curto || ''; } catch (e) {}
+  const dISO = orcVal('proc-data') || orcHojeISO();
+  return {
+    caso, tipo: dc.tipo, arr, curto,
+    // Mesma conta do contrato (ARR-04): locação que não cobre o prazo da cessão.
+    locacaoCurta: caso === 'dono_cessao' && arr && !!dc.arr && ctrTALocacaoCabe(dc) !== true,
+    nome: orcVal('anu-nome'), doc: orcVal('anu-doc'), end: orcVal('anu-end'), rep: orcVal('anu-rep'), repDoc: orcVal('anu-rep-doc'),
+    conjuge: orcVal('anu-conjuge'),
+    cedente: orcVal('anu-cedente') || ctrCampo('ctr-contratante') || eletroTextos().cliente,
+    cedenteDoc: orcVal('anu-cedente-doc'),
+    ref: orcVal('anu-ref'),
+    imovel: locImovel(),
+    cidade: orcVal('proc-cidade') || eletroTextos().cidade,
+    data: new Date(dISO + 'T00:00:00'),
+    empresa: epEmitGet(),
+  };
+}
+function anuHTML(d) {
+  const e = orcEsc, vazio = v => v ? e(v) : '<span class="ep-rec-vazio"></span>';
+  const C = ANU_CASOS[d.caso];
+  const dataTxt = d.data.toLocaleDateString('pt-BR');
+  const P = C.parte;
+  const emp = d.empresa;
+  const nexus = `<b>${vazio(emp.razao || emp.nome)}</b>, inscrita no CNPJ sob o nº ${vazio(emp.cnpj)} (a "NEXUS")`;
+  const cedente = `<b>${vazio(d.cedente)}</b>${d.cedenteDoc ? `, CPF/CNPJ nº ${e(d.cedenteDoc)}` : ''} (o "${P}")`;
+  const instrumento = `${d.curto ? e(d.curto) : 'contrato'}${d.ref ? ' ' + e(d.ref) : ''}`;
+  const imovelTxt = locImovelTxt(d.imovel);
+  const obra = d.caso === 'dono_obra';
+  const objeto = {
+    dono_cessao: `O ANUENTE declara conhecer o ${instrumento}${d.tipo === 'termo_arr' ? ', e o contrato de cessão de área na forma da minuta anexa a ele' : ''}, firmado entre ${cedente}, locatário do IMÓVEL, e ${nexus}, pelo qual o CEDENTE cede à NEXUS o uso de área do IMÓVEL para a instalação, a operação, a manutenção e a exploração comercial de estação de recarga de veículos elétricos, e <b>anui a ele de forma expressa e específica</b>. Declara ter recebido cópia do instrumento.`,
+    inquilino_cessao: `O ANUENTE declara ser locatário do IMÓVEL, de propriedade de ${cedente}, e conhecer o ${instrumento}${d.tipo === 'termo_arr' ? ', e o contrato de cessão de área na forma da minuta anexa a ele' : ''}, firmado entre o CEDENTE e ${nexus}, pelo qual o CEDENTE cede à NEXUS o uso de área do IMÓVEL para a instalação, a operação, a manutenção e a exploração comercial de estação de recarga de veículos elétricos, e <b>anui a ele de forma expressa e específica</b>, abrindo mão da posse da área cedida enquanto o instrumento durar. Declara ter recebido cópia do instrumento.`,
+    dono_obra: `O ANUENTE declara conhecer o ${instrumento}, firmado entre ${cedente}, locatário do IMÓVEL, e ${nexus}, para o fornecimento e a instalação de estação de recarga de veículos elétricos no IMÓVEL, e <b>autoriza de forma expressa e específica</b> a instalação. Declara ter recebido cópia do instrumento.`,
+  }[d.caso];
+  const autoriza = [
+    'a execução das obras de implantação: base e proteção do equipamento, trajeto do cabeamento, quadro elétrico, medição e adequação do padrão de entrada, por empresa habilitada e com responsável técnico',
+    `o pedido de ligação nova ou de aumento de carga junto à distribuidora${d.imovel.distribuidora ? ' ' + e(d.imovel.distribuidora) : ''}${d.imovel.uc ? `, para a unidade consumidora nº ${e(d.imovel.uc)}` : ''}, e a assinatura, por quem for o titular, dos formulários necessários`,
+    obra ? 'o acesso da NEXUS e dos seus prepostos ao IMÓVEL durante a obra e nas manutenções'
+      : 'o acesso da NEXUS e dos seus prepostos à área, para a implantação, a operação e a manutenção, e o acesso dos usuários à recarga',
+  ];
+  const regras = obra ? [
+    'Esta anuência vale durante a locação do CONTRATANTE e alcança a manutenção e a retirada dos equipamentos.',
+    'Os equipamentos instalados pertencem ao CONTRATANTE, que pode retirá-los ao fim da locação, recompondo o local.',
+    'Vendendo o IMÓVEL durante a locação, o ANUENTE dá ciência desta anuência ao adquirente.',
+  ] : [
+    'Esta anuência é <b>irrevogável</b> pelo prazo do instrumento e das suas renovações, e a sua revogação não produz efeito contra a NEXUS.',
+    d.caso === 'dono_cessao' && d.locacaoCurta
+      ? 'Terminada a locação do CEDENTE antes do fim do instrumento ou das suas renovações, o ANUENTE <b>assume a posição de CEDENTE nas mesmas condições</b>, desde o dia seguinte ao fim da locação, e passa a receber a remuneração dali em diante.'
+      : d.caso === 'dono_cessao' && d.arr ? 'O ANUENTE declara que a locação do CEDENTE vigora, no mínimo, até o fim do prazo do instrumento.' : '',
+    d.caso === 'dono_cessao' ? 'Enquanto o CEDENTE for parte do instrumento, a remuneração da cessão é dele, e esta anuência não dá ao ANUENTE direito a remuneração nenhuma.'
+      : 'A remuneração da cessão é do CEDENTE, e esta anuência não dá ao ANUENTE direito a remuneração nenhuma.',
+    d.caso === 'dono_cessao' ? 'Vendendo o IMÓVEL, o ANUENTE faz constar a existência do instrumento no contrato de venda e faz o adquirente assumir, no mesmo contrato, o dever de respeitá-lo até o fim da vigência e das suas renovações. Não o fazendo, responde perante a NEXUS pelas perdas e danos.' : '',
+  ].filter(Boolean);
+  const quem = d.nome;
+  const pageFoot = `<div class="ep-pagefoot"><span class="ep-foot-esq">${EP_FOOT_LOGO}<span>Termo de anuência · Eletroposto${quem ? ' · ' + e(quem) : ''}</span></span><span>Documento de uma via</span></div>`;
+  return `<div class="ep-doc">
+    <div class="ep-page ep-proc">
+      <div class="ep-ctr-topo">
+        <div class="ep-brand"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletropostos"></div>
+        <div class="ep-ctr-ident">${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}</div>
+      </div>
+      <div class="ep-ctr-tit">Termo de Anuência</div>
+      <div class="ep-ctr-sub">${e(C.sub)}</div>
+
+      <p class="ep-ctr-p"><b>ANUENTE:</b> ${locQualifica(d.nome, d.doc, d.end, d.rep, d.repDoc)}, na qualidade de ${C.qual} do imóvel situado em <b>${vazio(d.imovel.local)}</b> (o "IMÓVEL")${imovelTxt ? `, com ${imovelTxt}` : ''}.</p>
+
+      <p class="ep-ctr-p">1. ${objeto}</p>
+      <p class="ep-ctr-p">2. O ANUENTE autoriza, especificamente:</p>
+      ${autoriza.map((t, i) => `<p class="ep-ctr-li">${String.fromCharCode(97 + i)}) ${t}${i < autoriza.length - 1 ? ';' : '.'}</p>`).join('\n      ')}
+      ${regras.map((t, i) => `<p class="ep-ctr-p">${i + 3}. ${t}</p>`).join('\n      ')}
+      <p class="ep-ctr-p">${regras.length + 3}. Esta anuência não cria obrigação de pagamento para o ANUENTE e integra o instrumento acima como anexo.</p>
+
+      <p class="ep-ctr-p" style="margin-top:14px">${d.cidade ? e(d.cidade) + ', ' : ''}${e(dataTxt)}.</p>
+
+      <div class="ep-ctr-fim">
+        <div class="ep-ctr-assin" style="justify-content:center">
+          <div class="a" style="flex:0 1 46%"><b>${vazio(d.nome)}</b>${d.doc ? `<span>CPF/CNPJ ${e(d.doc)}</span>` : ''}${d.rep ? e(d.rep) + '<br>' : ''}ANUENTE</div>
+          ${d.conjuge ? `<div class="a" style="flex:0 1 46%"><b>${e(d.conjuge)}</b>CÔNJUGE DO ANUENTE, EM CONCORDÂNCIA</div>` : ''}
+        </div>
+      </div>
+      ${pageFoot}
+    </div>
+  </div>`;
+}
+function anuImprimir() {
+  const d = anuDados();
+  if (!d.nome) { alert('Preencha o anuente: o nome de quem concorda (o dono ou o inquilino do imóvel).'); return; }
+  if (!d.doc && !confirm('Sem o CPF/CNPJ do anuente: o papel sai com a linha em branco.\n\nGerar assim mesmo?')) return;
+  if (String(d.doc || '').replace(/\D/g, '').length === 14 && !d.rep &&
+      !confirm('Empresa não assina sozinha: falta o representante do anuente.\n\nGerar assim mesmo?')) return;
+  if (!d.ref && !confirm('Sem o número e a data do contrato ou do termo: a anuência não diz a qual papel concorda.\n\nGerar assim mesmo?')) return;
+  if (!d.imovel.local && !confirm('Sem o endereço do imóvel (campo "Endereço do ponto de recarga").\n\nGerar assim mesmo?')) return;
+  if (!d.imovel.matricula && d.caso !== 'inquilino_cessao' &&
+      !confirm('Sem a matrícula do imóvel: o proprietário anui sem que o papel diga qual imóvel é dele. Ela fica no cartão "O imóvel e a energia", em Contratos e termos.\n\nGerar assim mesmo?')) return;
+  const limpa = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
+  epPreview({
+    html: anuHTML(d),
+    arquivo: ['Anuencia', limpa(d.nome) || 'Anuente'].join('_'),
+    titulo: 'Anuência · ' + d.nome,
+    opts: { umaPagina: true, piso: 0.84, alvo: '.ep-page' },
+    hist: { id: epId(), tipo: 'Anuência', rotulo: 'Termo de anuência', cliente: d.nome, valor: 0, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() },
+  });
+}
+
+// ── VISTORIA TÉCNICA ─────────────────────────────────────────────────────────
+// O relatório é a referência da cláusula do chave na mão ("condição do local não
+// identificável na vistoria técnica vai para aditivo"): registra o que foi visto
+// e medido, o que precisa adequar e se a adequação está no preço.
+const VIS_ITENS = [
+  ['padrao', 'Padrão de entrada'], ['quadro', 'Quadro de distribuição'], ['aterr', 'Aterramento'],
+  ['rede', 'Rede interna (condutores e proteção)'], ['local', 'Local do carregador'], ['classif', 'Distância de bombas, tanques e respiros'],
+];
+const VIS_SIT = { ok: 'Conforme', adequar: 'Precisa adequar', na: 'Não se aplica', '': 'Não verificado' };
+function visInit() {
+  const dt = document.getElementById('vis-data');
+  if (dt && !dt.value) dt.value = orcHojeISO();
+  const r = document.getElementById('vis-resp');
+  const emp = epEmitGet();
+  if (r && r.dataset.tocado !== '1' && !emp.tecNome && emp.engNome) r.value = 'eng';
+}
+function visDados() {
+  const emp = epEmitGet();
+  const resp = orcVal('vis-resp') === 'eng'
+    ? { nome: emp.engNome, reg: emp.engCrea || '', papel: 'Engenheiro responsável' }
+    : { nome: emp.tecNome, reg: emp.tecCrt || '', papel: 'Técnico responsável' };
+  const dISO = orcVal('vis-data') || orcHojeISO();
+  const sit = {}; VIS_ITENS.forEach(([k]) => { sit[k] = { s: orcVal('vis-' + k), obs: orcVal('vis-' + k + '-obs') }; });
+  return {
+    num: orcVal('vis-num'), data: new Date(dISO + 'T00:00:00'), dataISO: dISO,
+    cliente: ctrCampo('ctr-contratante') || eletroTextos().cliente, clienteDoc: ctrCampo('ctr-contratante-doc') || orcVal('orc-cli-doc'),
+    imovel: locImovel(), cidade: orcVal('proc-cidade') || eletroTextos().cidade,
+    equip: epEquipRotulo((orcVal('el-equip') || '').trim()), qtd: orcVal('el-qtd'),
+    ligacao: { mono: 'monofásica', bi: 'bifásica', tri: 'trifásica' }[orcVal('vis-ligacao')] || '',
+    tensao: orcVal('vis-tensao'), disjuntor: orcVal('vis-disjuntor'), demanda: orcVal('vis-demanda'),
+    aumento: orcVal('vis-aumento'), distancia: orcVal('vis-distancia'), trajeto: orcVal('vis-trajeto'),
+    aterrMed: orcVal('vis-aterr-med'), internet: orcVal('vis-internet'), civil: orcVal('vis-civil'),
+    sit, conclusao: orcVal('vis-conclusao'),
+    adeq: orcVal('vis-adeq').split('\n').map(s => s.trim()).filter(Boolean), adeqPreco: orcVal('vis-adeq-preco') || 'orcar',
+    obs: orcVal('vis-obs'), resp, empresa: emp,
+  };
+}
+function visHTML(d) {
+  const e = orcEsc, vazio = v => v ? e(v) : '<span class="ep-rec-vazio"></span>';
+  const dataTxt = d.data.toLocaleDateString('pt-BR');
+  const det = {
+    padrao: [d.ligacao && `ligação ${d.ligacao}`, d.tensao && `tensão ${e(d.tensao)}`, d.disjuntor && `disjuntor geral de ${e(d.disjuntor)}`, d.demanda && e(d.demanda),
+      { nao: 'a carga disponível atende', sim: 'precisa de aumento de carga ou obra da distribuidora', '': 'aumento de carga a confirmar com a distribuidora' }[d.aumento]].filter(Boolean).join('; '),
+    quadro: '',
+    aterr: d.aterrMed ? `resistência medida de ${e(d.aterrMed)} ohms` : 'resistência não medida',
+    rede: d.distancia || d.trajeto ? [d.distancia && `${e(d.distancia)} m do quadro até o carregador`, d.trajeto && `trajeto: ${e(d.trajeto)}`].filter(Boolean).join('; ') : '',
+    local: { '4g': 'internet: sinal de celular bom', '4g_fraco': 'internet: sinal de celular fraco', wifi: 'internet: a rede do local alcança o ponto', sem: 'internet: sem sinal, precisa de cabo ou antena', '': '' }[d.internet] || '',
+    classif: '',
+  };
+  const linhas = VIS_ITENS.filter(([k]) => !(k === 'classif' && (d.sit.classif.s === 'na' || d.sit.classif.s === ''))).map(([k, rot]) => {
+    const s = d.sit[k];
+    const o = [det[k], s.obs && e(s.obs)].filter(Boolean).join('. ');
+    return `<tr><td><b>${e(rot)}</b></td><td>${e(VIS_SIT[s.s] || VIS_SIT[''])}</td><td>${o || ''}</td></tr>`;
+  });
+  if (d.civil) linhas.push(`<tr><td><b>Obras civis</b></td><td>Necessárias</td><td>${e(d.civil)}</td></tr>`);
+  const concl = { apto: 'APTO: o local recebe a estação como está.', adequar: 'APTO COM ADEQUAÇÕES: o local recebe a estação depois das adequações abaixo.', inapto: 'INAPTO: o local não recebe a estação.' }[d.conclusao] || '';
+  const preco = { incluidas: 'As adequações acima estão incluídas no preço do contrato.', parte: 'As adequações acima não estão no preço do contrato e são orçadas à parte, em aditivo.', orcar: 'As adequações acima ainda serão orçadas, e o orçamento é aprovado pelo cliente antes da execução.' }[d.adeqPreco];
+  const pageFoot = `<div class="ep-pagefoot"><span class="ep-foot-esq">${EP_FOOT_LOGO}<span>Relatório de vistoria técnica · Eletroposto${d.cliente ? ' · ' + e(d.cliente) : ''}</span></span><span>Documento de uma via</span></div>`;
+  return `<div class="ep-doc">
+    <div class="ep-page ep-proc">
+      <div class="ep-ctr-topo">
+        <div class="ep-brand"><img class="ep-brand-img" src="/gerador/nexus-logo-papel.png" alt="NEXUS Eletropostos"></div>
+        <div class="ep-ctr-ident">${d.num ? 'Nº ' + e(d.num) + ' · ' : ''}${e(dataTxt)}${d.cidade ? ' · ' + e(d.cidade) : ''}</div>
+      </div>
+      <div class="ep-ctr-tit">Relatório de Vistoria Técnica</div>
+      <div class="ep-ctr-sub">Condições do local para a estação de recarga de veículos elétricos</div>
+
+      <p class="ep-ctr-p"><b>CLIENTE:</b> ${vazio(d.cliente)}${d.clienteDoc ? `, CPF/CNPJ nº ${e(d.clienteDoc)}` : ''}. <b>LOCAL:</b> ${vazio(d.imovel.local)}${d.imovel.uc ? `. <b>UNIDADE CONSUMIDORA:</b> nº ${e(d.imovel.uc)}${d.imovel.distribuidora ? ', ' + e(d.imovel.distribuidora) : ''}` : ''}${d.equip ? `. <b>ESTAÇÃO PREVISTA:</b> ${d.qtd && d.qtd !== '1' ? e(d.qtd) + ' x ' : ''}${e(d.equip)}` : ''}.</p>
+
+      <table class="ep-ctr-pag"><thead><tr><th style="width:30%">Item</th><th style="width:17%">Situação</th><th>O que foi visto e medido</th></tr></thead><tbody>
+        ${linhas.join('\n        ')}
+      </tbody></table>
+
+      <p class="ep-ctr-p"><b>Conclusão.</b> ${concl ? `<b>${concl}</b>` : '<span class="ep-rec-vazio"></span>'}</p>
+      ${d.adeq.length ? `<p class="ep-ctr-p"><b>Adequações necessárias:</b></p>
+      ${d.adeq.map((t, i) => `<p class="ep-ctr-li">${String.fromCharCode(97 + i)}) ${e(t)}${i < d.adeq.length - 1 ? ';' : '.'}</p>`).join('\n      ')}
+      <p class="ep-ctr-p">${preco}</p>` : ''}
+      ${d.obs ? `<p class="ep-ctr-p"><b>Observações.</b> ${e(d.obs)}</p>` : ''}
+      <p class="ep-ctr-p">Este relatório registra as condições do local visíveis e medidas na data da vistoria. Condição que não podia ser identificada nela, por estar oculta, depender de ensaio, de abertura de piso ou de parede, ou de informação da distribuidora, segue o que o contrato prevê para condição não identificável na vistoria técnica.</p>
+
+      <p class="ep-ctr-p" style="margin-top:12px">${d.cidade ? e(d.cidade) + ', ' : ''}${e(dataTxt)}.</p>
+
+      <div class="ep-ctr-fim">
+        <div class="ep-ctr-assin">
+          <div class="a"><b>${vazio(d.resp.nome)}</b>${d.resp.reg ? `<span>${e(d.resp.reg)}</span>` : ''}${e(d.resp.papel).toUpperCase()}, PELA NEXUS</div>
+          <div class="a"><b>${vazio(d.cliente)}</b>${d.clienteDoc ? `<span>CPF/CNPJ ${e(d.clienteDoc)}</span>` : ''}CIENTE, PELO CLIENTE</div>
+        </div>
+      </div>
+      ${pageFoot}
+    </div>
+  </div>`;
+}
+function visImprimir() {
+  const d = visDados();
+  if (!d.conclusao) { alert('Marque a conclusão do técnico: apto, apto com adequações ou inapto.'); return; }
+  if (d.conclusao === 'adequar' && !d.adeq.length) { alert('Apto com adequações: liste as adequações, uma por linha.'); return; }
+  const faltam = VIS_ITENS.filter(([k]) => k !== 'classif' && !d.sit[k].s).map(([, r]) => r);
+  if (faltam.length && !confirm(`Saem como "não verificado": ${faltam.join(', ')}.\n\nO que não foi verificado não fica coberto pelo relatório.\n\nGerar assim mesmo?`)) return;
+  if (!d.resp.nome && !confirm('Sem o nome de quem fez a vistoria (cartão Engenheiro e técnico da NEXUS).\n\nGerar assim mesmo?')) return;
+  if (!d.imovel.local && !confirm('Sem o endereço do ponto de recarga.\n\nGerar assim mesmo?')) return;
+  const limpa = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9 _-]/g, '').trim().replace(/\s+/g, '');
+  epPreview({
+    html: visHTML(d),
+    arquivo: ['Vistoria', limpa(d.cliente) || 'Cliente', d.num ? 'N' + limpa(d.num) : ''].filter(Boolean).join('_'),
+    titulo: 'Relatório de vistoria' + (d.cliente ? ' · ' + d.cliente : ''),
+    opts: { umaPagina: true, piso: 0.78, alvo: '.ep-page' },
+    hist: d.cliente ? { id: epId(), tipo: 'Vistoria técnica', rotulo: 'Relatório de vistoria técnica', num: d.num, cliente: d.cliente, valor: 0, data: new Date().toLocaleDateString('pt-BR'), snap: orcSnapTake() } : null,
+  });
+}
+// O contrato chave na mão cita o relatório quando a conclusão está preenchida.
+function visRefContrato() {
+  if (!orcVal('vis-conclusao')) return null;
+  return { num: orcVal('vis-num'), data: ctrDataBR(orcVal('vis-data')), preco: orcVal('vis-adeq-preco') || 'orcar', temAdeq: !!orcVal('vis-adeq') };
 }
 
 // ════════════════════════════════════════════════════════════
@@ -23181,7 +23668,7 @@ function epHistOrcAbrir(id) {
   // Termo (08/10/2026) reabre na aba dele, com o dossiê do aparelho de volta.
   // Contrato, recibo e orçamento do carregador também (09/10/2026).
   // TR-09: a aba Orçamento saiu da barra; papel de orçamento abre no Simulador.
-  const aba = { Termo: 'contrato', Contrato: 'contrato', Recibo: 'recibo', 'Orçamento Carregador': 'equipamento', 'Procuração': 'procuracao', 'Proposta de banco': 'finame' }[e.tipo] || 'simulador';
+  const aba = { Termo: 'contrato', Contrato: 'contrato', Recibo: 'recibo', 'Orçamento Carregador': 'equipamento', 'Procuração': 'procuracao', 'Anuência': 'procuracao', 'Vistoria técnica': 'procuracao', 'Proposta de banco': 'finame' }[e.tipo] || 'simulador';
   eletroSubaba(aba);
 }
 // Snapshot do formulário do Orçamento completo (pra reabrir)
@@ -23220,7 +23707,7 @@ function orcSnapTake() {
     // para o "Abrir" refazer o papel com os números que ele teve.
     sim: Object.fromEntries(['el-cliente', 'el-cidade', 'el-equip', 'el-qtd', 'el-plugs', 'el-invest', 'el-arrend', 'el-software', 'el-autor', 'el-contato']
       .filter(id => document.getElementById(id)).map(id => [id, v(id)])),
-    proc: Object.fromEntries([...document.querySelectorAll('#eletro-pane-procuracao input[id], #eletro-pane-procuracao select[id]')]
+    proc: Object.fromEntries([...document.querySelectorAll('#eletro-pane-procuracao input[id], #eletro-pane-procuracao select[id], #eletro-pane-procuracao textarea[id]')]
       .filter(el => !/^orc-emit-/.test(el.id)).map(el => [el.id, el.value])),
     bnk: Object.fromEntries([...document.querySelectorAll('#eletro-pane-finame input[id], #eletro-pane-finame select[id], #eletro-pane-finame textarea[id]')]
       .filter(el => el.type !== 'file' && el.type !== 'checkbox').map(el => [el.id, el.value])),
@@ -23339,6 +23826,7 @@ function orcSnapApply(s, tipo) {
     try { if (typeof eletroCalc === 'function') eletroCalc(); } catch (e) {}
   }
   if (s.proc) Object.entries(s.proc).forEach(([id, val]) => { const el = document.getElementById(id); if (el && val != null) { el.value = val; el.dataset.tocado = '1'; } });
+  if (s.proc && typeof locDocMudou === 'function') locDocMudou();
   if (s.bnk) Object.entries(s.bnk).forEach(([id, val]) => { const el = document.getElementById(id); if (el && val != null) { el.value = val; el.dataset.tocado = '1'; } });
   if (s.bnkItens) { try { BNK_ITENS = JSON.parse(JSON.stringify(s.bnkItens)); BNK_ITENS_TOCADA = true; } catch (e) {} }
   if (s.eqPedido && typeof equipAplicar === 'function') { try { equipAplicar(s.eqPedido); } catch (e) {} }
